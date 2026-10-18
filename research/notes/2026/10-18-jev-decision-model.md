@@ -51,9 +51,9 @@ use case". CONFIRMED. Score levels are "weak in numerical calibration" ([jev-1.1
   floor plus a per-action bar sized to the cost of a wrong act, and send the rest to a human or a costlier model. The
   examples use a floor of 0.6 and a high-stakes bar of 0.85 ([confidence-routing](https://docs.typesafe.ai/patterns/confidence-routing.md)),
   0.5/0.9 ([confidence](https://docs.typesafe.ai/confidence.md)) and 0.5 ([intent-routing](https://docs.typesafe.ai/patterns/intent-routing.md)).
-  The docs call all of these illustrative. They advise to "Test thresholds by plotting confidence against accuracy on your data". CONFIRMED.
+  The confidence page says the right values depend on your domain and use case ([confidence](https://docs.typesafe.ai/confidence.md)); the pattern pages give no general rule. The building guide advises to "Test thresholds by plotting confidence against accuracy on your data" ([how-to-build](https://docs.typesafe.ai/concepts/how-to-build-with-system-one.md)). CONFIRMED.
 - **Against** ([jev-1.13 jaggedness](https://docs.typesafe.ai/model-jaggedness/jev-1.13.md)): anything code computes exactly,
-  counting, arithmetic, date ordering, multi-judgement questions, "System Two tasks requiring deep multi-step reasoning",
+  counting, arithmetic, date ordering, multi-judgement questions, "System Two tasks: more layers of indirections",
   large `state` with unrelated content, and untrusted content without testing (injected text can change answers). The model
   also leans toward the first Choice option. Jev is "not a chat or code-completion LLM" and does not power coding agents
   ([coding-agents](https://docs.typesafe.ai/introduction/coding-agents.md)). CONFIRMED.
@@ -63,8 +63,8 @@ use case". CONFIRMED. Score levels are "weak in numerical calibration" ([jev-1.1
 | Decision | Decided today by | Labeled history in git |
 |---|---|---|
 | (a) task state, CI trigger, land verdict, wait guard, shard plan | Lean fwcore: `lean/Fw/Ci/Trigger.lean:53` `startedBy`, `lean/Fw/Console/LandVerdict.lean:23` (13 verdict kinds), `lean/Fw/Ops/Wait.lean:49` `waitOk`, `lean/Fw/Gate/Schedule.lean:50` `place` | not needed: exact and proved |
-| (b1) CI failure class (flake / infra / real) | agent reads the log | 867 runs in `gh run list` (2026-10-17 11:19Z to 10-18 07:08Z): 419 success, 309 cancelled, **109 failure** (26 breakpoint-gate, 21 lean, 19 webkit-sim, 14 premise-tests, …). **No class label exists**: no flake/infra field in the ledger or the runner, and only 8 of 49 incidents cite a `ci` run |
-| (b2) agent type / model / effort per task | lead, using `docs/team/token-policy.md` §2 rules | 280 tasks, all with `owner` (14 roles, 106 lean-prover); **no model or effort field**; no outcome label for whether the routing was right. The stream alone predicts the owner for 185/280 = 66% (modal owner per stream, 17 streams) |
+| (b1) CI failure class (flake / infra / real) | agent reads the log | 867 runs in `gh run list` (2026-10-17 11:19Z to 10-18 07:08Z): 419 success, 309 cancelled, **109 failure** (26 breakpoint-gate, 21 lean, 19 webkit-sim, 14 premise-tests, …). **No class label exists**: no flake/infra field in the ledger or the runner, and only 5 of 49 incidents (8 evidence entries) cite a `ci` run (snapshot taken 2026-10-18 during the research run; in-progress runs excluded) |
+| (b2) agent type / model / effort per task | lead, using `docs/team/token-policy.md` §2 rules | 280 tasks, with 13 owner values (11 agent roles plus lead and user; 106 lean-prover); **no model or effort field**; no outcome label for whether the routing was right. The stream alone predicts the owner for 185/280 = 66% (modal owner per stream, 17 streams) |
 | (b3) reviewer severity, land / no-land | land: Lean (`LandVerdict`); severity: a reviewer agent's prose | 13 math-review notes, 3 mentioning severity words; 192 handoffs with no severity field; workflow journals are not in git |
 | (b4) watch alert triage | alert kind is exact in Lean (`lean/Fw/Console/Alert.lean:33` = {permission, needsInput, stopFailure}, `:71` `kindOf` from hook events); what to do about it is the lead's call | no triage outcomes in git (events are local-only in `.fw-console/events.jsonl`, not read here) |
 | (b5) incident / mistake class | lead in the retro | `docs/team/incidents/ledger.json`: 49 incidents over 11 `mistakeClass` values (13 c-order-derived, …) with `leanVerdict` 38 provable / 9 partly / 2 no. `research/mistakes/ledger.json`: **175 mistakes over 15 `classId` values** (largest 18, so majority baseline = 10.3%), 126 with `evidenceStatus` CONFIRMED, and each class carries a definition (`title`, `rootCause`) |
@@ -83,8 +83,8 @@ call. INFERRED.
 | (a) fwcore decisions | none | n/a | already decides exactly | none: an exact proof beats any probability | **no fit**: the docs themselves say not to use Jev for what code computes exactly |
 | (b5) mistake / incident class | Choice over 15 classes (criteria = class `title` + `rootCause`), plus a Noul "is this a new class?" | 175 labeled, 126 CONFIRMED | `act iff c ≥ τ` → pre-fill `classId` as a suggestion; else the lead classes it; τ fixed on a calibration split | ~1.5k tokens/call ≈ $0.00006 (vendor price); about 175 decisions in 2 days, so the saving is < $1 over the experiment (INFERRED) | **weak fit**: best data and the docs' "Classification" row, but low volume, so it is only worth running as an offline replay that reports a result |
 | (b1) CI failure class | Choice {flake, infra, real} + Nouls ("log shows runner/network/quota error") | 109 failures, **0 labels** | deterministic rules first (cancelled, 429/quota, runner lost, exit code); Jev only on the remainder, gated | log excerpt ~4k tokens ≈ $0.0002 vs an agent read of the log | **weak fit**: matches "Detection / Routing", but labels must be made first. Logs are large (accuracy falls with irrelevant state) and may carry text from untrusted inputs |
-| (b2) role / model / effort routing | Choice over roles; Score for difficulty | 280 owner labels; no model/effort/outcome labels | Lean already holds the role rules (token-policy decisions D1–D7); a Jev pick would be advisory below the lead | the lead decides once per task, a negligible share of 51.3M real units/session (`token-policy.md:49`) | **weak fit**: the docs list it ("model routing"), but our labels record the lead's choice, not whether it was right, and 66% already follows from `stream` |
-| (b3) reviewer severity / land | Score (severity) | 13 review notes, unstructured | land stays `LandVerdict` | review is a deep check of math, numbers and privacy | **no fit**: a System Two task by the docs' own limit list, and land is already proved |
+| (b2) role / model / effort routing | Choice over roles; Score for difficulty | 280 tasks, 13 owner values; no model/effort/outcome labels | Lean holds spawn caps and isolation rules (`SpawnGuard.lean`); role/model choice per task is the lead's prose rule (`token-policy.md` D1–D6), not proved (INFERRED); a Jev pick would be advisory below the lead | the lead decides once per task, a negligible share of 51.3M real units/session (`token-policy.md:49`) | **weak fit**: the docs list it ("model routing"), but our labels record the lead's choice, not whether it was right, and 66% already follows from `stream` |
+| (b3) reviewer severity / land | Score (severity) | 13 review notes, unstructured | land stays `LandVerdict` | review is a deep check of math, numbers and privacy | **no fit**: review is a System Two task in the sense of the jaggedness page ("System Two tasks: more layers of indirections"; the step from math/privacy review to that class is INFERRED), and land is already proved |
 | (b4) watch alert triage | Choice {ignore, nudge, kill, ask user} | none in git | kind already exact (`Alert.lean:71`) | alerts are rare and the lead is in the loop anyway | **no fit**: no labels, and wrong acts (kill) are destructive |
 
 **Speed.** A ~100–150 ms decision (vendor) does not shorten the loop. Wall time is dominated by CI runs (minutes) and agent
@@ -98,14 +98,14 @@ replaces nothing that is proved.
 
 - **Dataset:** `research/mistakes/ledger.json` at `ec0aa35`. Use the 126 mistakes whose `evidenceStatus` is CONFIRMED.
   `state` = `title` + `symptom` + `rootCause` only. Drop `classId`, `leanReason`, `leanVerdict` (they leak the label) and
-  `who` (people). Split by ledger order: the first 60% (~76) calibrate, the last 40% (~50) test.
+  `who` (agent names, irrelevant to the class). Split by ledger order: the first 60% (~76) calibrate, the last 40% (~50) test.
 - **Labels:** `classId` (15 classes). The criteria are each class's `title` + `rootCause` from `.classes`. Randomize the
   option order per call, because Jev leans toward the first option (jaggedness page).
 - **Metrics:** top-1 accuracy, coverage $\kappa(\tau)$ = share with $c \ge \tau$, selective accuracy $A(\tau)$ on that
   share, and the ECE of $p_{\max}$ over 10 bins. Baselines: majority 10.3%, and one Haiku 5.5 `scout` prompt over the same text.
 - **Threshold rule (Lean, `Fw.Plan.ClassGate`, new):** $\tau^* = \min\{\tau \in \{0.05k\} : A_{\mathrm{cal}}(\tau) \ge 0.95\}$.
   Act (pre-fill a suggestion) iff $c \ge \tau^*$, else escalate to the lead. Prove: never acts below τ*, monotone in τ, and
-  escalation is total. Go only if $A_{\mathrm{test}}(\tau^*) \ge 0.95$ and $\kappa_{\mathrm{test}}(\tau^*) \ge 0.5$. Otherwise
+  escalation is total, stated as $\tau_1 \le \tau_2 \to \mathrm{act}(c,\tau_2) \to \mathrm{act}(c,\tau_1)$. If no $\tau$ qualifies, $\tau^* = \top$ (never act); $A(\tau)$ is defined only for $\kappa(\tau) > 0$. The class definitions were written after seeing the test records, so the held-out result is an upper bound. Go only if $A_{\mathrm{test}}(\tau^*) \ge 0.95$ and $\kappa_{\mathrm{test}}(\tau^*) \ge 0.5$. Otherwise
   record a negative result (mechanism + lesson, as with every tried optimization).
 - **Budget:** 3 repeats × 126 calls × ~1.5k tokens ≈ 0.6M tokens ≈ $0.03 (vendor price). Calls take minutes. Agent time is
   about 1 h for the script and the Lean gate. It needs an API key, which only the user can create. The data is already
@@ -138,3 +138,13 @@ replaces nothing that is proved.
 - **docs/team/work-graph.json (lead):** optional task `jev-replay-classes` (owner researcher, milestone MX unless the user
   supplies a key) per §5. Before any model touches CI triage, a prior task `ci-fail-class-lean` (Lean rule over run
   conclusions and exit codes, plus a label field in the ledger).
+
+## Lead decision (2026-10-18)
+
+The user chose to integrate Jev anyway, as an advisory oracle for judgement calls we cannot script, wrapped in Lean: tasks
+`jev-oracle` (Lean `Fw.Oracle`: total policy over typed answers and failures, escalate below a Lean-computed threshold, no
+irreversible action from the oracle, redaction, replay log, keychain key) and `jev-eval` (held-out accuracy, A/B against
+Haiku and Sonnet on identical inputs, net saving, promotion ladder candidate → shadow → advisory → default). Following this
+note, the first measured question is mistake/incident classing (§5, 175 labeled records); CI failure triage comes after a
+Lean rule labels failures from run conclusions and exit codes. The cost finding stands: judgement calls are a small share of
+Claude spend, so savings are expected to be small and are measured, not assumed.
