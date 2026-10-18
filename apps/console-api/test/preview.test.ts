@@ -13,6 +13,8 @@ import { OwnerAuth } from "../src/preview/owner.ts";
 import { branchOfHandoff, partsOf } from "../src/preview/facts.ts";
 import { safeFile } from "../src/preview/serve-child.ts";
 
+/** The tests' own port range (the production range 47100-47139 belongs to a live console); chosen here, never probed. */
+const TEST_BASE = 47300;
 const USER: Proof = { secret: false, cookie: true, origin: true }; // the owner's browser: cookie and same-origin Origin
 const tmp = (p: string) => mkdtempSync(join(tmpdir(), p));
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
@@ -81,7 +83,7 @@ async function setup(opts: { disk?: { mb: number } } = {}) {
   stores.push(store);
   new CapStore(dir).ensureSecret();
   const clock = { t: 1_000_000 };
-  const pm = new PreviewManager(root, dir, store.core, stubHooks(root, dir, clock, opts.disk));
+  const pm = new PreviewManager(root, dir, store.core, stubHooks(root, dir, clock, opts.disk), { portBase: TEST_BASE });
   mgrs.push(pm);
   return { root, dir, store, pm, clock, secret: readFileSync(join(dir, "secret"), "utf8").trim() };
 }
@@ -196,6 +198,7 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     const [p] = pm.list().previews;
     expect(p!.phase).toBe("serving");
     expect(new Set([p!.rp, p!.op]).size).toBe(2);
+    expect([p!.rp, p!.op].every((q) => q >= TEST_BASE && q < TEST_BASE + 40)).toBe(true); // never the production range
     const rw = await fetch(`http://127.0.0.1:${p!.rp}/`); expect(await rw.text()).toContain("rewrite");
     expect(rw.headers.get("cache-control")).toBe("no-store");
     expect(await (await fetch(`http://127.0.0.1:${p!.rp}/?fw=x:y`)).text()).toContain("variant");
@@ -214,6 +217,22 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     expect(pm.list().previews).toEqual([]);
     expect(existsSync(join(dir, "preview", r.id))).toBe(false);
     await expect(fetch(`http://127.0.0.1:${p!.rp}/`)).rejects.toThrow();
+  });
+
+  it("a manager built without a port base allocates from the Lean default (47100), without binding it", async () => {
+    const root = repo();
+    const dir = join(root, ".fw-console");
+    const store = await Store.open(dir, selectCore()); stores.push(store);
+    const clock = { t: 1_000_000 };
+    const hooks: Hooks = { ...stubHooks(root, dir, clock), async build() { throw new Error("no build: only the allocation is under test"); } };
+    const pm = new PreviewManager(root, dir, store.core, hooks); mgrs.push(pm);
+    const r = await pm.start("port-landed", USER);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect([r.entry.rp, r.entry.op]).toEqual([47100, 47101]);
+    const lean = await store.core.ops("console.previewAdmit", { ...USER, preview: "x", task: "t", now: 1, diskMb: 99999, hasTarget: true, live: [] });
+    expect([lean.portLo, lean.portN, lean.rp]).toEqual([47100, 40, 47100]); // the default is Lean's
+    await pm.settled(r.id);
   });
 
   it("only cookie + same-origin + no secret is admitted; K = 2; same task twice; low disk; no target", async () => {
@@ -275,7 +294,7 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     const root = repo(); const dir = join(root, ".fw-console");
     const store = await Store.open(dir, selectCore()); stores.push(store);
     const hooks = { ...stubHooks(root, dir, { t: 5 }), build: async () => { throw new Error("pnpm install exited 1"); } };
-    const pm = new PreviewManager(root, dir, store.core, hooks); mgrs.push(pm);
+    const pm = new PreviewManager(root, dir, store.core, hooks, { portBase: TEST_BASE }); mgrs.push(pm);
     const r = await pm.start("port-landed", USER);
     if (!r.ok) throw new Error("start");
     await pm.settled(r.id);
@@ -289,7 +308,7 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     const store = await Store.open(dir, selectCore()); stores.push(store);
     const base = stubHooks(root, dir, { t: 5 });
     const hooks: Hooks = { ...base, build: async (e, t, c) => { if (e.task === "fix-own") throw new Error("boom"); await base.build(e, t, c); } };
-    const pm = new PreviewManager(root, dir, store.core, hooks); mgrs.push(pm);
+    const pm = new PreviewManager(root, dir, store.core, hooks, { portBase: TEST_BASE }); mgrs.push(pm);
     const a = await pm.start("port-landed", USER); const b = await pm.start("fix-own", USER);
     if (!a.ok || !b.ok) throw new Error("start");
     await pm.settled(a.id); await pm.settled(b.id); await pm.stop("x", USER);
@@ -312,7 +331,7 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
         }
       },
       async serve(e, t) { served = true; return base.serve(e, t); } };
-    const pm = new PreviewManager(root, dir, store.core, hooks); mgrs.push(pm);
+    const pm = new PreviewManager(root, dir, store.core, hooks, { portBase: TEST_BASE }); mgrs.push(pm);
     const r = await pm.start("port-landed", USER);
     if (!r.ok) throw new Error("start");
     expect(await pm.stop(r.id, USER)).toEqual({ ok: true, reason: null });
@@ -359,7 +378,7 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     await pm.settled(a.id);
     const pid = pm.list().previews[0]!.pid!;
     // a new console process: a fresh manager reading the same table
-    const pm2 = new PreviewManager(root, dir, store.core, stubHooks(root, dir, clock));
+    const pm2 = new PreviewManager(root, dir, store.core, stubHooks(root, dir, clock), { portBase: TEST_BASE });
     expect(await pm2.reapRecorded()).toEqual([a.id]);
     await new Promise((res) => setTimeout(res, 300));
     expect(alive(pid)).toBe(false);

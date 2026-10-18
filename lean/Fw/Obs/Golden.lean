@@ -173,6 +173,9 @@ def typed : List Typed := [
     o := { now := t0, system := { okSys with svcs := [
       { name := "console-api", inputs := [⟨"apps/console-api/src", true⟩], unknown := some "api.json records no core build commit" },
       sv "fwcore" [⟨"lean/Fw", false⟩]] } } },
+  { name := "svc.sweepError: the console-api drain caught 3 fwcore throws: a counted alert, not silence (task task-state-truth)",
+    o := { now := t0, system := { okSys with svcs := [
+      { name := "console-api", inputs := [⟨"apps/console-api/src", false⟩], sweepErrors := 3 }, sv "fwcore" [⟨"lean/Fw", false⟩]] } } },
   { name := "sim lock with no holder: no alert",
     o := { now := t0, system := { okSys with simLock := { since := some (ago 90) } } } },
   { name := "ci: a failure superseded by a later success, a running run, a cancelled run: no alert",

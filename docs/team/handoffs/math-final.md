@@ -16,11 +16,11 @@ Also fixed, because they blocked build-math-view.mjs (broken on main since r12; 
   HiddenPause, MorphMountOpt, MorphPanelOpt, NavHitTestOpt, PainNotes, PeopleCard});
 - `\"` inside `\texttt` (Parts.HiddenPause), `$$` in prose (Ops.Wait.opd), missing `$` (Console.PreviewTable.factJson).
 
-Verified: `lake build` passes (64 s); mathview lint 0 failing; docs/plan/loop-plan.html regenerated: 5271 agree,
-0 disagree, 355 stale, 1151 pending.
+Verified after merging main a1baa36d (Health conflict: kept main's sysPiece, which adds svc.sweepError): check.sh
+green; mathview lint 0 failing; loop-plan.html: 5113 agree, 0 disagree, 513 stale, 1337 pending.
 
 Open:
-- Round 15: re-review the 355 stale rows (they include the 91 fixed here).
+- Round 15: re-review the 513 stale rows (they include the 91 fixed here).
 - 1389 pending entries held back from r14 (Gate.*, Plan.*, Console*, Engine*): see `node scripts/math-pending.mjs`.
 - The six-point docstring checker was not spawned (this run had no agent tool); run it in round 15.
 

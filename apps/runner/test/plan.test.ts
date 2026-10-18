@@ -79,7 +79,7 @@ describe("renderPlan", () => {
   };
   it("prints ready groups, running, blocked with blockers, critical path", () => {
     expect(renderPlan(p)).toBe([
-      "4 tasks: 1 done, 1 running, 1 ready, 1 blocked, 0 cut", "  M 1/4  mini", "READY (tasks in one group can run in parallel):", "  group 1: b",
+      "4 tasks: 1 done, 1 running, 0 handed back, 0 integrated, 0 parked, 1 ready, 1 blocked, 0 cut", "  M 1/4  mini", "READY (tasks in one group can run in parallel):", "  group 1: b",
       "DEVICE (needs you + the iPhone):", "  none",
       "RUNNING:", "  c (agent c)", "BLOCKED (waiting on):", "  d <- b, c", "CRITICAL PATH (2): b -> d", "CUT (0): none",
     ].join("\n"));
@@ -90,9 +90,22 @@ describe("renderPlan", () => {
       { id: "y", title: "CUT: Y", stream: "s", milestone: "MX", owner: "o", deps: [], ...dv(), state: "cut", blockers: [], agent: null, evidence: null },
     ] };
     const out = renderPlan(q).split("\n");
-    expect(out[0]).toBe("6 tasks: 1 done, 1 running, 1 ready, 1 blocked, 2 cut");
+    expect(out[0]).toBe("6 tasks: 1 done, 1 running, 0 handed back, 0 integrated, 0 parked, 1 ready, 1 blocked, 2 cut");
     expect(out.at(-1)).toBe("CUT (2): x, y");
     expect(out.slice(0, -1).filter((l) => /\b[xy]\b/.test(l))).toEqual([]);
+  });
+  it("lists tasks whose agents ended with where the work went, after RUNNING (task-state-truth)", () => {
+    const q: Plan = { ...p, tasks: [...p.tasks,
+      { id: "h", title: "H", stream: "s", milestone: "M", owner: "o", deps: [], ...ag(), state: "handedBack", blockers: [], agent: null, evidence: null, outcome: { kind: "handedBack", agent: "h", tip: "abc1234" } },
+      { id: "i", title: "I", stream: "s", milestone: "M", owner: "o", deps: [], ...ag(), state: "integrated", blockers: [], agent: null, evidence: null, outcome: { kind: "integrated", branch: "ci/integrate-1", tip: "b00ef68" } },
+      { id: "k", title: "K", stream: "s", milestone: "M", owner: "o", deps: [], ...ag(), state: "parked", blockers: [], agent: null, evidence: null, outcome: { kind: "parked", reason: "agent ended without a handback" } },
+    ] };
+    const out = renderPlan(q).split("\n");
+    expect(out[0]).toBe("7 tasks: 1 done, 1 running, 1 handed back, 1 integrated, 1 parked, 1 ready, 1 blocked, 0 cut");
+    const i = out.indexOf("ENDED, NOT LANDED (3):");
+    expect(out.slice(i - 2, i + 5)).toEqual(["RUNNING:", "  c (agent c)", "ENDED, NOT LANDED (3):",
+      "  handedBack h  by h at abc1234", "  integrated i  into ci/integrate-1 at b00ef68", "  parked     k  agent ended without a handback",
+      "BLOCKED (waiting on):"]);
   });
   it("prints the device lane apart: ready first, then blocked with blockers; not in BLOCKED", () => {
     const q: Plan = { ...p, tasks: [...p.tasks,

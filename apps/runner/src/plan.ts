@@ -3,7 +3,7 @@
 // Show only prints the board's `plan`, which fwcore derived. Neither decides anything about ready/blocked/done.
 import { createHash } from "node:crypto";
 import {
-  type Command, type Actor, type Plan, type ContentDigest, type GraphTask, type WorkGraph, type OnMain,
+  type Command, type Actor, type Plan, type PlanTask, type ContentDigest, type GraphTask, type WorkGraph, type OnMain,
   topoSort as sharedTopoSort, syncCommands as sharedSyncCommands,
 } from "@fw/contracts";
 import { execFileSync } from "node:child_process";
@@ -38,10 +38,18 @@ const shaLike = (e: string) => /^[0-9a-f]{7,40}$/.test(e) && !/^[0-9]{8,}$/.test
 
 /** Text for `fw plan show`: agent-ready (by parallel-safe group), the device lane (ready, then blocked with blockers),
  *  running, agent-blocked (with blockers), critical path, cut. Lane, state, blockers and groups all come from fwcore. */
+/** One line for an outcome mark (display only). */
+export function outcomeText(o: PlanTask["outcome"]): string {
+  if (!o) return "";
+  if (o.kind === "handedBack") return `by ${o.agent}${o.tip ? ` at ${o.tip}` : ", no commit"}`;
+  if (o.kind === "integrated") return `into ${o.branch} at ${o.tip}`;
+  return o.reason;
+}
+
 export function renderPlan(p: Plan): string {
   const byId = new Map(p.tasks.map((t) => [t.id, t]));
   const count = (s: string) => p.tasks.filter((t) => t.state === s).length;
-  const L: string[] = [`${p.tasks.length} tasks: ${count("done")} done, ${count("running")} running, ${count("ready")} ready, ${count("blocked")} blocked, ${count("cut")} cut`];
+  const L: string[] = [`${p.tasks.length} tasks: ${count("done")} done, ${count("running")} running, ${count("handedBack")} handed back, ${count("integrated")} integrated, ${count("parked")} parked, ${count("ready")} ready, ${count("blocked")} blocked, ${count("cut")} cut`];
   for (const m of p.milestones) L.push(`  ${m.id} ${m.done}/${m.total}  ${m.title.slice(0, 70)}`);
   L.push("READY (tasks in one group can run in parallel):");
   p.parallelSafe.forEach((g, i) => L.push(`  group ${i + 1}: ${g.join(", ")}`));
@@ -53,6 +61,10 @@ export function renderPlan(p: Plan): string {
   if (!dev.some((x) => x.state === "ready" || x.state === "blocked")) L.push("  none");
   L.push("RUNNING:");
   for (const t of p.tasks.filter((x) => x.state === "running")) L.push(`  ${t.id} (agent ${t.agent ?? "?"})`);
+  // task-state-truth: tasks whose agents ended, with where the work went (the outcome mark fwcore derived)
+  const ended = p.tasks.filter((x) => x.state === "handedBack" || x.state === "integrated" || x.state === "parked");
+  if (ended.length > 0) L.push(`ENDED, NOT LANDED (${ended.length}):`);
+  for (const t of ended) L.push(`  ${t.state.padEnd(10)} ${t.id}  ${outcomeText(t.outcome)}`);
   L.push("BLOCKED (waiting on):");
   for (const t of p.tasks.filter((x) => x.state === "blocked" && x.lane === "agent")) L.push(`  ${t.id} <- ${t.blockers.join(", ")}`);
   L.push(`CRITICAL PATH (${p.criticalPath.length}): ${p.criticalPath.map((id) => byId.get(id)?.id ?? id).join(" -> ") || "none"}`);
