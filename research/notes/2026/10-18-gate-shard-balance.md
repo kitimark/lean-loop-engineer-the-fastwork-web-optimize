@@ -192,6 +192,51 @@ state. A faster or greener gate must never come from comparing less or comparing
   `collectWith`, `attachAlign`) was taken out of this branch. `canonParts` is called nowhere on main, and
   `docs/team/handoffs/gate-align-equiv.md` assigns the call-site edits to integrate-ports. Its own task.
 
+## Round 4 (fix round): a verdict per reading, the view set over both arms
+Threat model ("the gate should not skip"): (a) an engine passes only when every reading of every cell was compared at one
+instant in both arms and passed, or is excused by a Lean registry entry printed in the verdict; a not-comparable, not-run,
+unsettled or unfit reading is never a pass and never absorbed by the other readings of its cell. (b) Both arms are read at the
+same absolute fake instant in every stage (overlay, mount, view). (c) The CI plan that ran is the plan the branch lands.
+(d) Every docstring formula says what the Lean proves. Out of scope: real-clock timing, align-self canonicalisation, cells that
+need integrate-ports.
+- **Per reading, not per cell (`Fw.Gate.Exit`).** Round 3 judged a cell by the lenient `Rule.rollup` (some probe passed, none
+  failed), so one passing reading hid a not-comparable one in the same cell. Now a cell holds its readings (id = probe id or
+  `<sweep>#<stop>`), a reading is `ok` when it passed or an exemption names it (engine, row, column, verdict, reading id), and a cell is
+  `ok` when every reading is: `rollup_pass_iff_all_readings`, `engine_pass_iff_all_cells` (kept), `engineVerdictC_ne_pass_of_reading`.
+  Every excused reading is printed. The lenient rollup stays for display, State and Scope only (its docstring says so).
+- **Registry, 5 entries (read by `cli.mjs` from the Lean `exit.jsonl`, 71 lines, `ExitGolden.lean --check` in `check.sh`):** the
+  three of round 3 plus `chromium-touch-1024-no-vector` and `webkit-touch-1024-no-vector` (row `matchMedia =Lean`, column
+  `sweep:touch-1024-1201`, readings `#0 #2 #4`, `not-comparable`; premise `Fw.Gate.touch1024_lean_na`: no matrix probe has the 1024
+  environment, so no Lean vector exists and every Lean check there is `na`). Not excused on purpose: WebKit
+  `phone-rotation#1` and `#3` (932x430) are not-comparable because WebKit did not achieve that environment. That is a real finding.
+- **View stage over the union (`src/view.mjs`, Lean `viewCell` with one bring flag for both arms, `viewRank`).** Per-arm sets compared an
+  arm's first reading (main instant) with the other arm's second reading (view instant). Now the arms post the parts they read skipped to a
+  barrier, bring the union, settle and read again at the same view instants. `test/view.test.mjs` (5 tests, mock frozen session) checks equal clock
+  readings per part and that nothing is brought when nothing is skipped. `FW_GATE_VIEW=1` is still off by default (the scroll position of the
+  second reading differs per arm because the page heights differ), so CI runs never exercised this path: stated limit.
+- **`times` default `measured`.** The merge with main kept main's default `cached` (the older `Fw.Gate.Schedule` split), so a push or a dispatch
+  without inputs ran a plan other than the Lean `Fw.Gate.Shard` plan this branch lands (threat c: merge drift). The workflow default is `measured`
+  again (input default, `TIMES` fallback), the input check accepts it, and
+  `.github/scripts/gate-jobs.test.mjs` fails when the workflow default differs from the Lean plan default.
+- **Docstrings:** Freeze (`unfit_never_pass`, `stopBase_lt`, `run`, `wait_frozen_agree`, `ovRank`), Exit (header, `goldenLines`: 5 + 1 + 47 + 10 + 8 = 71
+  lines, cell excuses), Rule (`rollup`), Scope (`touch1024_lean_na`, no dangling where).
+- **Measured (4 runs, same gate code):** 39125771186 (push) and 39125776112 (dispatch) on 454f6c0b with the old plan (6 jobs); 39126934987
+  (push) and 39126939905 (dispatch) on ea00f2bc with the plan from the regenerated `ShardObs.lean` (7 jobs). The 504 cells (readings and cell
+  verdicts) are identical to run 39121185833 in all four. What changed is the decision, from the same data:
+
+  | engine | r3 rule (per cell, lenient) | r4 rule (per reading) |
+  |---|---|---|
+  | Chromium | pass (251 + 1 excused) | pass: 3521 readings pass, 7 excused (4 fractional-gaps, 3 touch-1024), 0 cells not ok |
+  | WebKit | fail (stageBg) | fail: 3366 pass, 147 excused, 13 fail; 2 cells not ok |
+
+  Cells whose verdict changed: WebKit `matchMedia =Lean | sweep:phone-rotation` was `pass` (2 NC readings absorbed by 3 passes), now not ok;
+  Chromium and WebKit `matchMedia =Lean | sweep:touch-1024-1201` stay ok, but through 3 printed excused readings instead of an absorbed NC. No other cell
+  changed. The WebKit engine verdict does not change (it fails on `platform.stageBg | sweep:desktop-1512-320-1512`, 13 stops, also on main).
+- **Cost (MEASURED, job durations):** old plan 28.1 and 27.5 job-minutes (gate wall 6.1 and 5.8 min); new plan 28.6 and 28.5 (5.7 and 5.6 min). The new
+  plan has one more Chromium job (2 to 3), and its ShardObs costs are flat (5024 ms per probe), because under the frozen clock the settle waits that
+  weighted the old table are about 0. A flat weight balances by count, not by work: the plan is not tuned, the saving is within noise. Regenerating from a
+  weighted frozen-clock source (the page records) is the next step if the job count matters.
+
 ## Lessons
 - A settle wait needs a frame budget, not only a time cap. A page with a permanent animation never becomes still, so
   a time-only wait always uses its whole cap (here 30 s × 312 samples).
@@ -201,5 +246,6 @@ state. A faster or greener gate must never come from comparing less or comparing
 ## Open
 - The WebKit desktop sweep is the floor. To lower it, either lower the frame budget (each WebKit frame is 40–630 ms
   under concurrency 4) or run that sweep at concurrency 1. Each needs a new verdict comparison.
-- The cost table comes from one run. Regenerate `ShardObs.lean` with `scripts/shard-obs.mjs` after any harness
-  change.
+- The cost table comes from one run (39125771186, frozen clock; per-probe weight flat, see round 4). Regenerate `ShardObs.lean` with
+  `scripts/shard-obs.mjs` after any harness change, ideally with weights that survive the frozen clock.
+- `FW_GATE_VIEW=1` (view stage over the union) is tested on a mock session only; no CI run reads it. Its second reading's scroll position differs per arm.
