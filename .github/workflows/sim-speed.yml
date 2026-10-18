@@ -20,12 +20,13 @@ name: sim-speed
 #   2-3 results stay in research/notes/2026/10-17-sim-speed.md)
 on:
   push:
-    branches: ['ci/sim-speed']
+    branches: [ci/sim-speed]
     paths:
       - 'packages/measure-webkit/**'
       - '.github/scripts/sim-speed-*'
       - '.github/scripts/check-simulator.sh'
       - '.github/scripts/runner-info.sh'
+      - '.github/scripts/changed-inputs.mjs'
       - '.github/workflows/sim-speed.yml'
   workflow_dispatch:
     inputs:
@@ -62,6 +63,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/sim-speed.yml
 
   plan:

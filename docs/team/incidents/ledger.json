@@ -572,6 +572,39 @@
    "leanReason": "Fw.Obs.Next alert_suppressed_iff_locked, no_unlanded_while_locked: the land lock holder is suppressed.",
    "hardening": "timing-alert",
    "mistakeClass": "c-order-derived"
-  }
+  },
+ {
+  "id": "inc-ci-trigger-drift",
+  "at": "2026-10-18T13:00+07:00",
+  "title": "Every push to a ci/* branch still started 5-7 workflows (about 40 runs for 20 free runners; the lead cancelled 18-24 by hand) after ci-trigger-scope was marked done",
+  "symptom": "chromium-counts, gate-gaps, breakpoint-gate and wktr (5 shared macOS slots) started on pushes to ci/integrate-ports-2 and ci/gate-settle that nobody would read; the lead cancelled them one by one.",
+  "cause": "CONFIRMED (workflow files and the guard script read at c5442bc): five causes. (1) The on.push.paths filter of the hosting service tests the push diff before..after, and a merge of main into the branch puts main's files in that diff, so the filter matches. (2) The first fix covered 3 of 11 workflows; later workflows (gate-gaps, difftest, mutants, premise-tests, snapshot-extract, sim-speed) each got a hand-written list and nothing compared the set of workflows with a decision. (3) Every lane that builds fwcore listed lean/**, so an edit to a Lean test, script or part module started them all, though only the import cone of Main.lean can change the binary. (4) The guard job added later (4 macOS lanes) asked whether the whole branch since the merge-base touches an input, so once a branch had touched one every later push started it again. (5) No lint: a trigger could differ from any intent without a check failing.",
+  "evidence": [
+   {
+    "kind": "file",
+    "ref": "research/notes/2026/10-17-ci-trigger-scope.md",
+    "note": "the first fix: paths filters, 3 workflows"
+   },
+   {
+    "kind": "file",
+    "ref": "lean/Fw/Ci/Trigger.lean",
+    "note": "starts_iff, none_started, merge_starts_nothing, filter_passes, skipped_replays; the table of all triggers"
+   },
+   {
+    "kind": "file",
+    "ref": "scripts/ci-paths.mjs",
+    "note": "the generator and lint of on.push, the guard job and needs"
+   }
+  ],
+  "repro": "Push a ci/* branch that merges main, or push twice to a branch whose first push changed lean/: before the fix chromium-counts, gate-gaps, breakpoint-gate and wktr start on the second push.",
+  "fix": {
+   "task": "ci-trigger-lean"
+  },
+  "regression": "packages/contracts/golden/ci/triggers.jsonl (Lean-generated cases), scripts/ci-paths.test.mjs, apps/runner/test/ci-triggers.test.ts (a land check: a workflow whose on.push, guard job or needs differs from the Lean decision fails)",
+  "leanVerdict": "provable",
+  "leanReason": "Fw.Ci.Trigger starts_iff, none_started, merge_starts_nothing: a workflow starts iff a push file that differs from main is in its declared inputs; a merge of main starts nothing. The import cone and the YAML are glue, checked by the lint against the Lean table.",
+  "hardening": "ci-trigger-lean",
+  "mistakeClass": "c-quota"
+ }
  ]
 }

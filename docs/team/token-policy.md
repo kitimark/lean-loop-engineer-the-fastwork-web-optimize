@@ -324,3 +324,9 @@ Numbers were re-checked against `profile.json` [pj] and the notes before changin
 | 19 | minor | C14 before C16 breaks Lean first | fixed: C16 listed before C14; Python P1/P2/P4 marked as temporary stand-in |
 | 20 | minor | scout lacks Serena; `$SCRATCH` undefined | fixed: Serena `find_symbol`/`get_symbols_overview` in C1; scratchpad path given in the prompt (C1, C2) |
 | 21 | minor | "builders" ambiguous; patcher keeps CLAUDE.md | fixed: C11 names the roles; C4 adds `omitClaudeMd: true` and the needed rules in its body |
+
+## CI pushes (task `ci-trigger-lean`)
+
+A push to a `ci/*` branch starts only the workflows whose declared inputs this push changed (Lean `Fw.Ci.Trigger`); a run you
+intend to read is started with `gh workflow run <file> --ref ci/<task>` and waited for with `pnpm fw ci wait`, never with an extra
+push. Details and the commands: `docs/team/tools/fw-ci.md`, section "Which workflows a ci/* push starts".

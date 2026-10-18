@@ -10,6 +10,7 @@ import Fw.Store.Golden
 import Fw.Obs.Golden
 import Fw.Ops.LedgerMerge
 import FwTest.CiBudget
+import Fw.Ci.Trigger
 import FwTest.Mutants.Kill  -- m0-mutants killers: #guards and theorems that kill the M0 mutants
 
 /-- `lake test`: pseudo-random lease traces, golden JSON-lines round trips, the `Rat` wire form,
@@ -41,6 +42,9 @@ def main (args : List String) : IO UInt32 := do
   -- ghb-lean: packages/contracts/golden/ci-budget/ (`-- --write-ci-budget-golden` regenerates), then the fixture replay
   if args.contains "--write-ci-budget-golden" then discard <| Fw.Wire.Ci.Golden.run (← FwTest.Golden.root) true
   let cbg := (← Fw.Wire.Ci.Golden.run (← FwTest.Golden.root) false) + (← FwTest.CiBudget.replay (← FwTest.Golden.root))
+  -- ci-trigger-lean: packages/contracts/golden/ci/triggers.jsonl (`-- --write-ci-trigger-golden` regenerates)
+  if args.contains "--write-ci-trigger-golden" then discard <| Fw.Ci.Trigger.runGolden (← FwTest.Golden.root) true
+  let ctg ← Fw.Ci.Trigger.runGolden (← FwTest.Golden.root) false
   -- ledger-merge-driver: packages/contracts/golden/ops/ledger-merge.jsonl (`-- --write-ledger-merge-golden` regenerates)
   if args.contains "--write-ledger-merge-golden" then discard <| Fw.Wire.LedgerMerge.Golden.run (← FwTest.Golden.root) true
   let lmg ← Fw.Wire.LedgerMerge.Golden.run (← FwTest.Golden.root) false
@@ -52,6 +56,6 @@ def main (args : List String) : IO UInt32 := do
   let n := (s.cards.filter (·.approved)).length
   let t1 ← IO.monoNanosNow
   IO.println s!"console replay: 2000 events, {n} approved cards, {(t1 - t0) / 1000000} ms"
-  let ok := leaseOk && a == 0 && w == 0 && r == 0 && sb == 0 && mg == 0 && og == 0 && sg == 0 && pg == 0 && gg == 0 && obg == 0 && nxg == 0 && sgn == 0 && stg == 0 && cbg == 0 && lmg == 0 && n == 1000
+  let ok := leaseOk && a == 0 && w == 0 && r == 0 && sb == 0 && mg == 0 && og == 0 && sg == 0 && pg == 0 && gg == 0 && obg == 0 && nxg == 0 && sgn == 0 && stg == 0 && cbg == 0 && ctg == 0 && lmg == 0 && n == 1000
   IO.println (if ok then "fwtest: all passed" else "fwtest: FAILED")
   return if ok then 0 else 1
