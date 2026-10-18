@@ -4200,6 +4200,29 @@
     "research/notes/**",
     "docs/team/handoffs/lean-first-gate.md"
    ]
+  },
+  {
+   "id": "gate-shard-balance",
+   "title": "(M) breakpoint-gate shards balanced by measured cost: run 39101532038 (ci/integrate-ports-3) had webkit j3 49.8 min vs 21 min for j0-j2 and chromium j2 > 41 min; gate-shards.mjs splits round-robin by matrix order while Lean Fw.Gate.Schedule (LPT sched/makespan) is unused; per-load cost table from runs, Lean-planned shards with a makespan bound, settle-time bounds",
+   "stream": "gate",
+   "milestone": "M5",
+   "deps": [
+    "gate-speed-ci"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/**",
+    ".github/scripts/gate-shards.mjs",
+    ".github/workflows/breakpoint-gate.yml",
+    "packages/gate-breakpoints/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "research/notes/**",
+    "docs/team/handoffs/gate-shard-balance.md"
+   ]
   }
  ],
  "deadline": {
