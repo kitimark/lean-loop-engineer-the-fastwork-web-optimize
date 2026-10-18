@@ -5271,7 +5271,8 @@
     "packages/contracts/golden/parts/contracts.gen.json",
     "packages/measure-chromium/scenarios.gen.json",
     "docs/team/handoffs/contract-lean.md"
-   ]
+   ],
+   "evidence": "25ace65"
   },
   {
    "devices": [

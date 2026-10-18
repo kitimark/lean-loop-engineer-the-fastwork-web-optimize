@@ -215,12 +215,13 @@ theorem mem_selectChecks (ds : List Decl) (changed : List String) (i : String) :
 the incident ledger that `scripts/PropsLint.lean` matches the registry rows against, and the findings ledger, the parts
 and the site preset that `Fw.Preset.Gen.run ["--check"]` regenerates the v2-proved preset from and compares). `checksfor-inputs` owns the
 final list.
-$$G_{\mathrm{check}} = [\texttt{lean/**},\ \texttt{packages/contracts/golden/**},\ \texttt{apps/site/src/breakpoints.gen.json},\ \texttt{apps/site/src/sweeps.gen.json},\ \texttt{packages/gate-breakpoints/src/scope.gen.json},\ \texttt{.github/workflows/**},\ \texttt{scripts/span.sh},\ \texttt{scripts/fwcore-build.sh},\ \texttt{docs/team/incidents/ledger.json},\ \texttt{research/findings/ledger.json},\ \texttt{apps/site/src/parts/**},\ \texttt{apps/site/src/registry/presets/v2-proved.json}]$$ -/
+$$G_{\mathrm{check}} = [\texttt{lean/**},\ \texttt{packages/contracts/golden/**},\ \texttt{apps/site/src/breakpoints.gen.json},\ \texttt{apps/site/src/sweeps.gen.json},\ \texttt{packages/gate-breakpoints/src/scope.gen.json},\ \texttt{.github/workflows/**},\ \texttt{scripts/span.sh},\ \texttt{scripts/fwcore-build.sh},\ \texttt{docs/team/incidents/ledger.json},\ \texttt{research/findings/ledger.json},\ \texttt{apps/site/src/parts/**},\ \texttt{apps/site/src/registry/presets/v2-proved.json},\ \texttt{packages/measure-chromium/scenarios.gen.json}]$$ -/
 def checkShReads : List String :=
   ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json",
     "apps/site/src/sweeps.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**",
     "scripts/span.sh", "scripts/fwcore-build.sh", "docs/team/incidents/ledger.json", "research/findings/ledger.json",
-    "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json"]
+    "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json",
+    "packages/measure-chromium/scenarios.gen.json"]
 
 /-- The sample `checksFor` table of the golden cases: check.sh and one package test.
 $$D_0 = [(\texttt{check.sh}, G_{\mathrm{check}}),\ (\texttt{contracts}, [\texttt{packages/contracts/**}])]$$ -/
@@ -245,13 +246,14 @@ def sampleDecls : List Decl :=
 #guard selectChecks sampleDecls ["apps/site/src/registry/presets/original.json"] == []
 
 /-- The parsed check.sh scope: each declared glob split at `/`, and no exclusions.
-$$\mathrm{parse}(G_{\mathrm{check}}) = \big([[\texttt{lean}, \texttt{**}],\ [\texttt{packages}, \texttt{contracts}, \texttt{golden}, \texttt{**}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{breakpoints.gen.json}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{sweeps.gen.json}],\ [\texttt{packages}, \texttt{gate-breakpoints}, \texttt{src}, \texttt{scope.gen.json}],\ [\texttt{.github}, \texttt{workflows}, \texttt{**}],\ [\texttt{scripts}, \texttt{span.sh}],\ [\texttt{scripts}, \texttt{fwcore-build.sh}],\ [\texttt{docs}, \texttt{team}, \texttt{incidents}, \texttt{ledger.json}],\ [\texttt{research}, \texttt{findings}, \texttt{ledger.json}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{parts}, \texttt{**}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{registry}, \texttt{presets}, \texttt{v2-proved.json}]],\ [\,]\big)$$ -/
+$$\mathrm{parse}(G_{\mathrm{check}}) = \big([[\texttt{lean}, \texttt{**}],\ [\texttt{packages}, \texttt{contracts}, \texttt{golden}, \texttt{**}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{breakpoints.gen.json}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{sweeps.gen.json}],\ [\texttt{packages}, \texttt{gate-breakpoints}, \texttt{src}, \texttt{scope.gen.json}],\ [\texttt{.github}, \texttt{workflows}, \texttt{**}],\ [\texttt{scripts}, \texttt{span.sh}],\ [\texttt{scripts}, \texttt{fwcore-build.sh}],\ [\texttt{docs}, \texttt{team}, \texttt{incidents}, \texttt{ledger.json}],\ [\texttt{research}, \texttt{findings}, \texttt{ledger.json}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{parts}, \texttt{**}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{registry}, \texttt{presets}, \texttt{v2-proved.json}],\ [\texttt{packages}, \texttt{measure-chromium}, \texttt{scenarios.gen.json}]],\ [\,]\big)$$ -/
 theorem parseScope_checkShReads : parseScope checkShReads =
     ⟨[["lean", "**"], ["packages", "contracts", "golden", "**"], ["apps", "site", "src", "breakpoints.gen.json"],
       ["apps", "site", "src", "sweeps.gen.json"], ["packages", "gate-breakpoints", "src", "scope.gen.json"],
       [".github", "workflows", "**"], ["scripts", "span.sh"], ["scripts", "fwcore-build.sh"], ["docs", "team", "incidents", "ledger.json"],
       ["research", "findings", "ledger.json"], ["apps", "site", "src", "parts", "**"],
-      ["apps", "site", "src", "registry", "presets", "v2-proved.json"]], []⟩ := by
+      ["apps", "site", "src", "registry", "presets", "v2-proved.json"],
+      ["packages", "measure-chromium", "scenarios.gen.json"]], []⟩ := by
   have hi : checkShReads.filter (!·.startsWith "!") = checkShReads := by
     simp (config := {decide := true}) [checkShReads]
   have he : checkShReads.filter (·.startsWith "!") = [] := by
