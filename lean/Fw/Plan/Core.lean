@@ -77,11 +77,10 @@ without a land: handed back, merged into a non-main integration branch, or parke
 (`unpark` removes the mark). A spawn or a stop carries a time $\mathit{ts} \in \mathbb{N}$ (ms): when
 the agent was seen starting or working (spawn) or ending (stop), so the board can tell whether a stop
 came after the agent's last sign of life, whatever order the commands reach the log in. The
-`agent` of a spawn or stop is a life key: the agent id of the hook records (task `task-state-truth`,
-round 3: liveness by id), or a name for facts that have no id (a spawn guard, a workflow run). A
-`label` gives the life key `agent` the display name `name` (from the console's health index), which
-binds it to tasks; a claim carries its time $\mathit{ts}$ (ms), which counts as a sighting of the
-claimed name (so a claim without any spawn expires after the quiet limit: `no_forever_running`).
+`agent` of a spawn or stop is a life key: an agent id, a run key `wf:<run>`, or a SpawnGuard obs
+key. A `label` gives the life key `agent` the display name `name` (from the console's health
+index), which binds it to tasks. A claim's $\mathit{ts}$ is decoded and ignored; a claim only stores
+its agent name on the row, which binds the keys labelled with that name (`claim_never_sights`).
 -/
 inductive Cmd where
   | define (d : Def)
@@ -409,19 +408,21 @@ def Mark.state : Mark → TState
 /-- The state of a task is computed, never written (first match wins). A task with an agent is
 running when it has no blockers and blocked otherwise (task `task-state-truth`: a task with open
 blockers is never shown running, and for a live agent the blockers win over any outcome mark); a
-task with no agent but a quiet time (a live key not seen within the quiet limit) is quiet, or blocked
-when it has blockers; any other task shows its outcome mark, if any, then ready or blocked.
+task with no agent but an outcome mark shows that mark (a lead or user mark ends a quiet task); a
+task with no agent and no mark but a quiet time (a live key not seen within the quiet limit) is
+quiet, or blocked when it has blockers; any other task is ready or blocked.
 
-$$\operatorname{tstate}(ts, t) = \begin{cases} \mathrm{done} & t.\mathit{evidence} \ne \bot \\ \mathrm{cut} & t.\mathit{cut} \\ \mathrm{running} & t.\mathit{agent} \ne \bot \land \operatorname{blockers}(ts, t) = [\,] \\ \mathrm{blocked} & t.\mathit{agent} \ne \bot \land \operatorname{blockers}(ts, t) \ne [\,] \\ \mathrm{quiet} & t.\mathit{quiet} \ne \bot \land \operatorname{blockers}(ts, t) = [\,] \\ \mathrm{blocked} & t.\mathit{quiet} \ne \bot \land \operatorname{blockers}(ts, t) \ne [\,] \\ \operatorname{mstate}(m) & t.\mathit{mark} = m \ne \bot \\ \mathrm{ready} & \operatorname{blockers}(ts, t) = [\,] \\ \mathrm{blocked} & \text{otherwise} \end{cases}$$
+$$\operatorname{tstate}(ts, t) = \begin{cases} \mathrm{done} & t.\mathit{evidence} \ne \bot \\ \mathrm{cut} & t.\mathit{cut} \\ \mathrm{running} & t.\mathit{agent} \ne \bot \land \operatorname{blockers}(ts, t) = [\,] \\ \mathrm{blocked} & t.\mathit{agent} \ne \bot \land \operatorname{blockers}(ts, t) \ne [\,] \\ \operatorname{mstate}(m) & t.\mathit{mark} = m \ne \bot \\ \mathrm{quiet} & t.\mathit{quiet} \ne \bot \land \operatorname{blockers}(ts, t) = [\,] \\ \mathrm{blocked} & t.\mathit{quiet} \ne \bot \land \operatorname{blockers}(ts, t) \ne [\,] \\ \mathrm{ready} & \operatorname{blockers}(ts, t) = [\,] \\ \mathrm{blocked} & \text{otherwise} \end{cases}$$
 -/
 def tstate (ts : List Task) (t : Task) : TState :=
   if t.evidence.isSome then .done
   else if t.cut then .cut
   else if t.agent.isSome then (if blockers ts t = [] then .running else .blocked)
-  else if t.quiet.isSome then (if blockers ts t = [] then .quiet else .blocked)
   else match t.mark with
     | some m => m.state
-    | none => if blockers ts t = [] then .ready else .blocked
+    | none =>
+      if t.quiet.isSome then (if blockers ts t = [] then .quiet else .blocked)
+      else if blockers ts t = [] then .ready else .blocked
 
 /-- `isDone` as a proposition.
 
@@ -549,13 +550,15 @@ theorem tstate_running_iff (ts : List Task) (t : Task) :
     cases hm : t.mark <;> by_cases hb : blockers ts t = [] <;> simp [hb] <;>
     rcases Mark.state_mem ‹Mark› with h | h | h <;> simp [h]
 
-/-- **Quiet is exactly "no agent, a quiet time, no blockers, not done and not cut".**
+/-- **Quiet is exactly "no agent, no outcome mark, a quiet time, no blockers, not done and not
+cut".**
 
-$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{quiet} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} = \bot \land t.\mathit{quiet} \ne \bot \land \operatorname{blockers}(ts, t) = [\,]$$
+$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{quiet} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} = \bot \land t.\mathit{mark} = \bot \land t.\mathit{quiet} \ne \bot \land \operatorname{blockers}(ts, t) = [\,]$$
 -/
 theorem tstate_quiet_iff (ts : List Task) (t : Task) :
     tstate ts t = .quiet ↔
-      t.evidence = none ∧ t.cut = false ∧ t.agent = none ∧ t.quiet ≠ none ∧ blockers ts t = [] := by
+      t.evidence = none ∧ t.cut = false ∧ t.agent = none ∧ t.mark = none ∧ t.quiet ≠ none ∧
+        blockers ts t = [] := by
   unfold tstate
   cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> cases hq : t.quiet <;>
     cases hm : t.mark <;> by_cases hb : blockers ts t = [] <;> simp [hb] <;>
@@ -581,27 +584,29 @@ theorem tstate_agent_blocked {ts : List Task} {t : Task} (he : t.evidence = none
   · exact absurd ha' ha
   · simp [he, hc, hb]
 
-/-- **An outcome mark shows only without an agent and without a quiet time**: a task shown handed
-back, integrated or parked has neither (a live agent shows running, quiet or blocked).
+/-- **An outcome mark shows only without an agent, and only from a mark**: a task shown handed
+back, integrated or parked has no agent (a running key shows running or blocked) and carries a
+mark (a quiet time alone shows quiet or blocked).
 
-$$\forall ts, t:\quad \operatorname{tstate}(ts, t) \in \{\mathrm{handedBack}, \mathrm{integrated}, \mathrm{parked}\} \Rightarrow t.\mathit{agent} = \bot \land t.\mathit{quiet} = \bot$$
+$$\forall ts, t:\quad \operatorname{tstate}(ts, t) \in \{\mathrm{handedBack}, \mathrm{integrated}, \mathrm{parked}\} \Rightarrow t.\mathit{agent} = \bot \land t.\mathit{mark} \ne \bot$$
 -/
 theorem tstate_mark_no_agent {ts : List Task} {t : Task}
     (h : tstate ts t = .handedBack ∨ tstate ts t = .integrated ∨ tstate ts t = .parked) :
-    t.agent = none ∧ t.quiet = none := by
+    t.agent = none ∧ t.mark ≠ none := by
   unfold tstate at h
   cases ha : t.agent <;> cases hq : t.quiet <;> cases he : t.evidence <;> cases hc : t.cut <;>
-    by_cases hb : blockers ts t = [] <;> simp [ha, hq, he, hc, hb] at h ⊢
+    cases hm : t.mark <;> by_cases hb : blockers ts t = [] <;> simp [ha, hq, he, hc, hm, hb] at h ⊢
 
-/-- **An undone, uncut task without an agent and without a quiet time shows its mark when it has one.**
+/-- **An undone, uncut task without an agent shows its mark when it has one**, quiet time or not (a
+lead or user mark ends a quiet task).
 
-$$\forall ts, t, m:\quad t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} = \bot \land t.\mathit{quiet} = \bot \land t.\mathit{mark} = m \Rightarrow \operatorname{tstate}(ts, t) = \operatorname{mstate}(m)$$
+$$\forall ts, t, m:\quad t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} = \bot \land t.\mathit{mark} = m \Rightarrow \operatorname{tstate}(ts, t) = \operatorname{mstate}(m)$$
 -/
 theorem tstate_mark {ts : List Task} {t : Task} {m : Mark} (he : t.evidence = none)
-    (hc : t.cut = false) (ha : t.agent = none) (hq : t.quiet = none) (hm : t.mark = some m) :
+    (hc : t.cut = false) (ha : t.agent = none) (hm : t.mark = some m) :
     tstate ts t = m.state := by
   unfold tstate
-  simp [he, hc, ha, hq, hm]
+  simp [he, hc, ha, hm]
 
 /-- With unique ids, rows with equal ids are equal.
 
@@ -1266,11 +1271,11 @@ theorem step_define_live {π : State} {d : Def} (hc : check π (.define d) = non
 
 /-! ## Agent binding: derived from spawns, stops, explicit claims and evidence
 
-Task `task-state-truth`: liveness is decided per life key. A key is the agent id of the hook
-records (or a name, for facts without an id: a spawn guard, a workflow run, a claim). A key is live
-when it was seen (a spawn: its start or any later event of it; or a claim of it) and no stop came at
-or after its last sighting. A name (a task's claim or id) is live when one of its keys is: the name
-itself or an agent id labelled with it (`label`, from the console's health index). The times make
+Task `task-state-truth`: liveness is decided per life key. A key is an agent id of the hook
+records, a run key `wf:<run>` or a SpawnGuard obs key. A key is live when it was seen by a spawn
+(its start or any later event of it) and no stop came at or after its last sighting. A name (a
+task's claim or id) is live when one of its keys, labelled with it (`label`, from the console's
+health index), is live; a name is never a key of its own (`names_never_sight`). The times make
 this independent of the order in which the spawn and stop commands reach the log (`view_perm`), so a
 drain that reads the hook spool file by file still gives the board of the real timeline.
 -/
@@ -2394,11 +2399,21 @@ theorem ended_state (ts : List Task) (q now : Nat) {π : State} {t : Task} (hev 
     tstate ts (bindRow q now π t) = ((markOf π t.id).getD (.parked noHandback)).state := by
   have hL : (tkeys π t).any (liveK π) = false := List.any_eq_false.mpr fun k hk => by simp [he k hk]
   have hA : agentOf q now π t = none := agentOf_none_of_dead he
-  have hQ : quietOf q now π t = none := by simp [quietOf, hL]
   have hO : outcomeOf π t = some ((markOf π t.id).getD (.parked noHandback)) := by
     cases hk : markOf π t.id <;> simp [outcomeOf, hk, ho, hL]
   exact tstate_mark (by simp [bindRow, hev]) (by simp [bindRow, hc]) (by simp [bindRow, hA])
-    (by simp [bindRow, hQ]) (by simp [bindRow, hO])
+    (by simp [bindRow, hO])
+
+/-- **A lead or user mark ends a quiet task**: an undone, uncut task with no running bound name
+and a recorded mark shows that mark, whether or not a bound key is still live but quiet.
+
+$$\forall ts, q, \mathit{now}, \pi, t, m:\quad t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land \operatorname{agentOf}(q, \mathit{now}, \pi, t) = \bot \land \operatorname{markOf}(\pi, t.\mathit{id}) = m \Rightarrow \operatorname{tstate}(ts, \operatorname{bindRow}(q, \mathit{now}, \pi, t)) = \operatorname{mstate}(m)$$
+-/
+theorem mark_ends_quiet (ts : List Task) (q now : Nat) {π : State} {t : Task} {m : Mark}
+    (hev : t.evidence = none) (hc : t.cut = false) (hA : agentOf q now π t = none)
+    (hm : markOf π t.id = some m) : tstate ts (bindRow q now π t) = m.state :=
+  tstate_mark (by simp [bindRow, hev]) (by simp [bindRow, hc]) (by simp [bindRow, hA])
+    (by simp [bindRow, outcomeOf, hm])
 
 /-- **Every task whose seen bound keys were all stopped is done, handed back, integrated or parked**
 (exactly one, since the state is one value): never running, quiet, ready or blocked, so it does not
@@ -2755,19 +2770,22 @@ def TState.settle : TState → TState
   | s => s
 
 /-- Two rows that agree on evidence, cut flag, mark, blockers and on "has an agent or a quiet time"
-show the same settled state.
+show the same settled state, when the first has no mark or neither an agent nor a quiet time.
 
-$$\forall ts_1, ts_2, t_1, t_2:\quad t_1.\mathit{evidence} = t_2.\mathit{evidence} \land t_1.\mathit{cut} = t_2.\mathit{cut} \land t_1.\mathit{mark} = t_2.\mathit{mark} \land (t_1.\mathit{agent} \ne \bot \lor t_1.\mathit{quiet} \ne \bot \iff t_2.\mathit{agent} \ne \bot \lor t_2.\mathit{quiet} \ne \bot) \land \operatorname{blockers}(ts_1, t_1) = \operatorname{blockers}(ts_2, t_2) \Rightarrow \operatorname{settle}(\operatorname{tstate}(ts_1, t_1)) = \operatorname{settle}(\operatorname{tstate}(ts_2, t_2))$$
+$$\forall ts_1, ts_2, t_1, t_2:\quad t_1.\mathit{evidence} = t_2.\mathit{evidence} \land t_1.\mathit{cut} = t_2.\mathit{cut} \land t_1.\mathit{mark} = t_2.\mathit{mark} \land (t_1.\mathit{agent} \ne \bot \lor t_1.\mathit{quiet} \ne \bot \iff t_2.\mathit{agent} \ne \bot \lor t_2.\mathit{quiet} \ne \bot) \land \operatorname{blockers}(ts_1, t_1) = \operatorname{blockers}(ts_2, t_2) \\ \land \big(t_1.\mathit{mark} = \bot \lor (t_1.\mathit{agent} = \bot \land t_1.\mathit{quiet} = \bot)\big) \Rightarrow \operatorname{settle}(\operatorname{tstate}(ts_1, t_1)) = \operatorname{settle}(\operatorname{tstate}(ts_2, t_2))$$
 -/
 theorem settle_eq {ts₁ ts₂ : List Task} {t₁ t₂ : Task} (he : t₁.evidence = t₂.evidence)
     (hc : t₁.cut = t₂.cut) (hm : t₁.mark = t₂.mark)
     (hl : (t₁.agent.isSome || t₁.quiet.isSome) = (t₂.agent.isSome || t₂.quiet.isSome))
-    (hb : blockers ts₁ t₁ = blockers ts₂ t₂) :
+    (hb : blockers ts₁ t₁ = blockers ts₂ t₂)
+    (hx : t₁.mark = none ∨ (t₁.agent.isSome || t₁.quiet.isSome) = false) :
     (tstate ts₁ t₁).settle = (tstate ts₂ t₂).settle := by
   unfold tstate
   rw [he, hc, hm, hb]
+  rw [hm] at hx
   cases ha₁ : t₁.agent <;> cases hq₁ : t₁.quiet <;> cases ha₂ : t₂.agent <;> cases hq₂ : t₂.quiet <;>
-    simp [ha₁, hq₁, ha₂, hq₂] at hl <;> simp only [Option.isSome_none, Option.isSome_some,
+    cases hm₂ : t₂.mark <;>
+    simp [ha₁, hq₁, ha₂, hq₂, hm₂] at hl hx <;> simp only [Option.isSome_none, Option.isSome_some,
       Bool.false_eq_true, ↓reduceIte] <;>
     split <;> (try rfl) <;> split <;> (try rfl) <;> split <;> rfl
 
@@ -2801,19 +2819,64 @@ theorem blockers_bound (q now q' now' : Nat) (π : State) (r : Task) :
     simp [cleared, bound, List.any_map, Function.comp_def, bindRow]
   simp only [blockers, hc]
 
-/-- **A timeout never ends a task** (`timeout_never_ends`): the quiet limit and the time only move a
-task between running and quiet; its settled state is the same at every quiet limit and time (so a
-time never makes a task parked, handed back, integrated, ready, blocked or done).
+/-- **A timeout never ends an unmarked task** (`timeout_never_ends`): with no lead or user mark
+recorded for the task, the quiet limit and the time only move it between running and quiet; its
+settled state is the same at every quiet limit and time (so a time never makes it parked, handed
+back, integrated, ready, blocked or done).
 
-$$\forall q, \mathit{now}, q', \mathit{now}', \pi, t:\quad \operatorname{settle}\big(\operatorname{tstate}(\operatorname{bound}(q, \mathit{now}, \pi), \operatorname{bindRow}(q, \mathit{now}, \pi, t))\big) = \operatorname{settle}\big(\operatorname{tstate}(\operatorname{bound}(q', \mathit{now}', \pi), \operatorname{bindRow}(q', \mathit{now}', \pi, t))\big)$$
+$$\forall q, \mathit{now}, q', \mathit{now}', \pi, t:\quad \operatorname{markOf}(\pi, t.\mathit{id}) = \bot \Rightarrow \operatorname{settle}\big(\operatorname{tstate}(\operatorname{bound}(q, \mathit{now}, \pi), \operatorname{bindRow}(q, \mathit{now}, \pi, t))\big) = \operatorname{settle}\big(\operatorname{tstate}(\operatorname{bound}(q', \mathit{now}', \pi), \operatorname{bindRow}(q', \mathit{now}', \pi, t))\big)$$
 -/
-theorem timeout_never_ends (q now q' now' : Nat) (π : State) (t : Task) :
+theorem timeout_never_ends (q now q' now' : Nat) (π : State) (t : Task)
+    (hm : markOf π t.id = none) :
     (tstate (bound q now π) (bindRow q now π t)).settle =
       (tstate (bound q' now' π) (bindRow q' now' π t)).settle := by
-  refine settle_eq rfl rfl rfl ?_ ?_
+  refine settle_eq rfl rfl rfl ?_ ?_ ?_
   · rw [bindRow_live, bindRow_live]
   · rw [blockers_bound q now q' now' π]
     rfl
+  · rw [bindRow_live]
+    cases hL : (tkeys π t).any (liveK π)
+    · exact .inr rfl
+    · exact .inl (by simp [bindRow, outcomeOf, hm, hL])
+
+/-- **The time ends a task only by showing a recorded mark**: if a task shows handed back,
+integrated or parked at one quiet limit and time and a different state at another, then a lead or
+user mark $m$ is recorded for it and it shows that mark.
+
+$$\forall q, \mathit{now}, q', \mathit{now}', \pi, t:\quad s' \in \{\mathrm{handedBack}, \mathrm{integrated}, \mathrm{parked}\} \land s \ne s' \Rightarrow \exists m:\ \operatorname{markOf}(\pi, t.\mathit{id}) = m \land s' = \operatorname{mstate}(m)$$
+
+where $s = \operatorname{tstate}(\operatorname{bound}(q, \mathit{now}, \pi), \operatorname{bindRow}(q, \mathit{now}, \pi, t))$ and $s' = \operatorname{tstate}(\operatorname{bound}(q', \mathit{now}', \pi), \operatorname{bindRow}(q', \mathit{now}', \pi, t))$.
+-/
+theorem timeout_ends_only_by_mark (q now q' now' : Nat) (π : State) (t : Task)
+    (h' : tstate (bound q' now' π) (bindRow q' now' π t) = .handedBack ∨
+      tstate (bound q' now' π) (bindRow q' now' π t) = .integrated ∨
+      tstate (bound q' now' π) (bindRow q' now' π t) = .parked)
+    (hne : tstate (bound q now π) (bindRow q now π t) ≠
+      tstate (bound q' now' π) (bindRow q' now' π t)) :
+    ∃ m, markOf π t.id = some m ∧ tstate (bound q' now' π) (bindRow q' now' π t) = m.state := by
+  cases hm : markOf π t.id with
+  | none =>
+    exfalso
+    have hs := timeout_never_ends q now q' now' π t hm
+    revert hs hne
+    generalize tstate (bound q now π) (bindRow q now π t) = s
+    rcases h' with h | h | h <;> rw [h] <;> cases s <;> simp [TState.settle]
+  | some m =>
+    refine ⟨m, rfl, ?_⟩
+    have hev : t.evidence = none := by
+      cases hv : t.evidence
+      · rfl
+      · have := (tstate_done_iff (bound q' now' π) (bindRow q' now' π t)).mpr (by simp [bindRow, hv])
+        rcases h' with h | h | h <;> rw [h] at this <;> cases this
+    have hc : t.cut = false := by
+      cases hv : t.cut
+      · rfl
+      · have := (tstate_cut_iff (bound q' now' π) (bindRow q' now' π t)).mpr
+          ⟨by simp [bindRow, hev], by simp [bindRow, hv]⟩
+        rcases h' with h | h | h <;> rw [h] at this <;> cases this
+    have hA : agentOf q' now' π t = none := by
+      simpa [bindRow] using (tstate_mark_no_agent h').1
+    exact mark_ends_quiet _ q' now' hev hc hA hm
 
 /-! ## Examples -/
 
@@ -3050,6 +3113,21 @@ def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
 #guard let s := run [.define (mk "a" []), .label "k" "a", .label "j" "a", .spawn "k" 1,
     .spawn "j" 1, .stop "k" 2]
   (view 10 100 s).tasks.map (·.state) == [.quiet]
+-- a lead or user mark ends a quiet task (`mark_ends_quiet`): a spawn-guard key with no stop and a
+-- park, integrate or handback mark shows the mark; while the key runs, running still wins
+#guard let s := run [.define (mk "a" []), .spawn "guardk" 0, .label "guardk" "a", .park "a" "x"]
+  (view 10 99999999 s).tasks.map (·.state) == [.parked] &&
+  (view 10 99999999 s).tasks.map (·.since) == [some 0] &&
+  (view 10 5 s).tasks.map (·.state) == [.running]
+#guard let s := run [.define (mk "a" []), .spawn "guardk" 0, .label "guardk" "a",
+    .integrate "a" "refs/heads/ci/i" "t"]
+  (view 10 99999999 s).tasks.map (·.state) == [.integrated]
+#guard let s := run [.define (mk "a" []), .spawn "guardk" 0, .label "guardk" "a",
+    .handback "a" "a" none]
+  (view 10 99999999 s).tasks.map (·.state) == [.handedBack]
+#guard let s := run [.define (mk "a" []), .spawn "guardk" 0, .label "guardk" "a", .park "a" "x",
+    .unpark "a"]
+  (view 10 99999999 s).tasks.map (·.state) == [.quiet]
 -- liveness by key: a labelled id keeps its name live; the id's stop ends it; any later event of the
 -- id revives it
 #guard let s := run [.define (mk "a" []), .label "id-1" "a", .spawn "id-1" 10]

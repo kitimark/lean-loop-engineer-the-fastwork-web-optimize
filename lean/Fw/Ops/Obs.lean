@@ -1030,7 +1030,7 @@ theorem start_by_id (i : String) (g : Option String) (k : String) (t p : Nat) :
 
 /-- **Any event revives its id** (`event_revives`): an event of id $i$ other than a start or stop,
 named or unnamed, gives a heartbeat spawn of $i$ at the record time; applied to a plan state where
-$i$ is a key of name $a$ (the name itself or a key labelled with it) and every stop of $i$ is older
+$i$ is a key labelled with name $a$ and every stop of $i$ is older
 than $t$, it makes $i$ live and $a$ not ended.
 
 $$\forall \pi, e, i, a, g, k, t, p:\quad e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \land i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t) \in \operatorname{lifeOf}(e, \mathrm{some}(i), g, k, t, p) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false},\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
