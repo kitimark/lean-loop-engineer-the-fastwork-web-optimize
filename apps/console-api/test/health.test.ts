@@ -38,6 +38,26 @@ async function get(write?: (dir: string) => void) {
   return { status: r.status, body: (await r.json()) as any };
 }
 
+describe("service info (console-stale)", () => {
+  const service = { commit: "21c8c42", startedAt: 1_760_000_000_000 };
+  async function getWith(path: string, write?: (dir: string) => void) {
+    const dir = mkdtempSync(join(tmpdir(), "fw-health-"));
+    const store = await Store.open(dir, selectCore());
+    stores.push(store);
+    write?.(dir);
+    return (await createApp(store, undefined, undefined, service).request(path)).json() as Promise<any>;
+  }
+  it("/api/health carries the code commit and start time next to the check", async () => {
+    const b = await getWith("/api/health", (d) => writeFileSync(join(d, "health.jsonl"), line(1000) + "\n"));
+    expect(b.service).toEqual(service);
+    expect(b.at).toBe(1000);
+  });
+  it("/api/health stays null before any check; /api/service answers regardless", async () => {
+    expect(await getWith("/api/health")).toBeNull();
+    expect(await getWith("/api/service")).toEqual(service);
+  });
+});
+
 describe("GET /api/health", () => {
   it("null before any check", async () => {
     expect(await get()).toEqual({ status: 200, body: null });

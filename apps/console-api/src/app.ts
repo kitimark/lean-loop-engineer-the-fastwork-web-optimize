@@ -15,7 +15,11 @@ const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json",
 };
 
-export function createApp(store: Store, webDist?: string, reconciler?: Reconciler) {
+/** Which code this process runs: the commit of its checkout when it started and the start time (ms). `fw watch` compares
+ *  the start time with the last change of the process's input files on main (fwcore `svc.stale`). */
+export interface ServiceInfo { commit: string | null; startedAt: number }
+
+export function createApp(store: Store, webDist?: string, reconciler?: Reconciler, service?: ServiceInfo) {
   const app = new Hono();
   // a failed core call (fwcore crash, bad reply) fails the request; the core restarts itself
   app.onError((e, c) => c.json({ ok: false, reason: `decision core failed: ${e.message}` }, 500));
@@ -42,7 +46,13 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   const { drain, caps } = mountAgentRoutes(app, store); // capability-gated agent door + spool drain
   app.get("/api/board", async (c) => c.json(await store.board()));
   app.get("/api/plan", async (c) => c.json((await store.board()).plan)); // the work graph, derived by fwcore
-  app.get("/api/health", (c) => c.json(readLatestHealth(store.dir))); // latest `fw watch` check (fwcore obs.health output) or null
+  // latest `fw watch` check (fwcore obs.health output) with the running code's `service` ({commit, startedAt}), or null
+  // before any check; GET /api/service is the same `service` object without needing a check
+  app.get("/api/health", (c) => {
+    const h = readLatestHealth(store.dir);
+    return c.json(h && service ? { ...h, service } : h);
+  });
+  app.get("/api/service", (c) => c.json(service ?? null));
   app.get("/api/events", (c) => {
     const since = Number(c.req.query("since") ?? 0);
     return c.json(store.readEvents().filter((e) => e.seq > since));
