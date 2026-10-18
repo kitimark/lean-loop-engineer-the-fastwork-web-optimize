@@ -541,9 +541,9 @@
    "candidate": "blur(0) -> filter:none at rest (MorphPanelOpt rest variant)",
    "status": "proved",
    "chromium": "trade",
-   "webkit": "trade",
+   "webkit": "win",
    "visual": "E at rest, under premise RG10: no fixed or absolute descendant uses the panel as its containing block, and the stacking order is unchanged (rest_visSame_E). During the fade the scenes are equal without premises (fade_scene_eq).",
-   "mechanism": "At rest Chromium still builds an effect node and a SaveLayer for blur(0) (filter_effect_builder.cc:465-470, paint_property_tree_builder.cc:2629-2651@f842f52). WebKit keeps a group and a RenderLayer, composited indirectly. Removing the filter saves props, raster and compositor work, and only in frames that touch the panel (cr_rest_lt needs rasterUnder, propsPanel or drawSurface); none of those stages has a det counter. The rest-to-fade toggle flips a stacking context: full layout on Chromium (cr_toggle_not_le) and +1 layout unit on WebKit (wk_toggle_layout_units). So CI can count the cost but not the win; the golden rows are =o or any.",
+   "mechanism": "At rest Chromium still builds an effect node and a SaveLayer for blur(0) (filter_effect_builder.cc:465-470, paint_property_tree_builder.cc:2629-2651@f842f52). WebKit keeps a group and a RenderLayer, composited indirectly. Removing the filter saves props, raster and compositor work, and only in frames that touch the panel (cr_rest_lt needs rasterUnder, propsPanel or drawSurface); none of those stages has a det counter. The rest-to-fade toggle flips a stacking context: full layout on Chromium (cr_toggle_not_le). On WebKit the toggle frames are equal (wk_toggle_eqv): the original's blur(0)<->blur(x) change also lays out, since it changes the filter outsets (engine-model-fix; it was modelled as +1 layout unit for the variant before CI run 39088367495). So on Chromium CI can count the cost but not the win; on WebKit no counted stage costs more. The golden rows are =o or any.",
    "leanFor": [
     "rest_visSame_E",
     "fade_scene_eq",
@@ -556,19 +556,19 @@
     "wk_rest_layers",
     "Fw.Parts.MorphPanelOpt.cr_rest_leE",
     "Fw.Parts.MorphPanelOpt.cr_rest_ltE",
-    "Fw.Parts.MorphPanelOpt.wk_rest_leE"
+    "Fw.Parts.MorphPanelOpt.wk_rest_leE",
+    "wk_toggle_eqv",
+    "wk_toggle_layout_units",
+    "wk_toggle_passes"
    ],
    "leanAgainst": [
     "cr_toggle_not_le",
-    "wk_toggle_not_le",
-    "wk_toggle_layout_units",
-    "wk_toggle_passes",
     "rest_groups_differ",
     "wk_rest_panel_not_mono"
    ],
    "missingWhy": [
     {
-     "statement": "Run level: for a swipe $X$ that crosses rest to fade and back once, $\\operatorname{screen}(\\operatorname{toRun}(W_o(X)),\\operatorname{toRun}(W_v(X)))=\\mathrm{mixed}$ in both engines, and every strict component of the rest frames lies in stages $\\{\\mathrm{props},\\mathrm{raster},\\mathrm{comp}\\}$ with no det/stable count type",
+     "statement": "Run level: for a swipe $X$ that crosses rest to fade and back once, $\\operatorname{screen}(\\operatorname{toRun}(W_o(X)),\\operatorname{toRun}(W_v(X)))=\\mathrm{mixed}$ on Chromium and $\\preceq$ frame by frame on WebKit (rest frames by wk_rest_le, toggle frames by wk_toggle_eqv, fade frames equal), and every strict component of the rest frames lies in stages $\\{\\mathrm{props},\\mathrm{raster},\\mathrm{comp}\\}$ with no det/stable count type",
      "module": "Fw.Parts.MorphPanelOpt",
      "needs": "compose the per-frame theorems over a toggle-crossing run, plus a stage-to-class map from Fw.Measure.Classes"
     }
@@ -645,21 +645,23 @@
    "part": "morph.panel (platform panel)",
    "candidate": "own layer during the blur fade (MorphPanelOpt sub-claim 2; v1 g0.1b)",
    "status": "proved",
-   "chromium": "trade",
+   "chromium": "no-win",
    "webkit": "trade",
    "visual": "Q (fade_visSame_Q): the scenes are equal, but the blur moves from Skia raster to the compositor, which samples differently",
-   "mechanism": "Chromium: an own layer moves the blur's cost from raster to compositing: raster -1 unit per fade frame (cr_fade_raster_drop) for +1 resident layer (fade_layers_up), so claim = trade (cr_fade_trade). A blur filter animation still runs on main (bit 12), so style and props stay per frame. WebKit: paint -2 and props +2 (wk_fade_paint_drop, wk_fade_props_up), which have no per-frame order (wk_not_mono). Promoting for each fade and demoting afterwards also allocates the panel's backing for every tween; v1 saw 13.25 MB rebuilt per tween.",
+   "mechanism": "Chromium: a blur value change re-rasters the layer on every layer state, its own layer included (cr_fade_stages; MEASURED in CI run 39088367495, filter(blur)@own runs RasterTask), so the fade frames are equal (cr_fade_eq) and the own layer only adds a resident layer (fade_layers_up): claim = noClaim (cr_fade_noClaim). A blur filter animation still runs on main (bit 12), so style and props stay per frame. WebKit: the blur change is a Layout-level change in both arms, and on its own layer the opacity change skips paint and the compositing update (wkCompUpdate), so paint -1 and props -1 per fade frame (wk_fade_paint_drop, wk_fade_props_drop), the variant is below frame by frame (wk_fade_le) and holds one more layer: claim = trade (wk_fade_trade). Before engine-model-fix the model gave Chromium raster -1 and WebKit paint -2, props +2. Promoting for each fade and demoting afterwards also allocates the panel's backing for every tween; v1 saw 13.25 MB rebuilt per tween.",
    "leanFor": [
     "fade_visSame_Q",
     "cr_fade_le",
-    "cr_fade_raster_drop",
-    "wk_fade_paint_drop"
+    "wk_fade_le",
+    "wk_fade_paint_drop",
+    "wk_fade_props_drop",
+    "wk_fade_trade"
    ],
    "leanAgainst": [
-    "cr_fade_trade",
+    "cr_fade_stages",
+    "cr_fade_eq",
+    "cr_fade_noClaim",
     "fade_layers_up",
-    "wk_fade_props_up",
-    "wk_fade_not_le",
     "wk_not_mono",
     "Fw.Engine.claim_ne_dominates_of_layers",
     "Fw.Engine.comp_move_ge_on",
@@ -1817,6 +1819,18 @@
    "task": "why-engines",
    "field": "mechanism",
    "text": "why-engines: an animation whose only failure reason is kAnimationHasNoVisibleChange (bit 17, compositor_animations.h:116-120@f842f52) is neither ticked on the main thread nor started on the compositor (animation.cc:860-865, 3389-3393): it idles, so dropping it leaves the frame unchanged (idle_drops); visible animations keep the old rule (animFrameV_visible)."
+  },
+  {
+   "entry": "own layer during the blur fade (MorphPanelOpt sub-claim 2; v1 g0.1b)",
+   "task": "engine-model-fix",
+   "field": "mechanism",
+   "text": "engine-model-fix: sign change, Chromium trade -> no-win. Mechanism: Chromium re-rasters a layer whose blur radius changes even when the layer is its own (CI run 39088367495: filter(blur)@own and scale@own run RasterTask, 3 of 3 passes); the old model put a blur on an own layer at ppFull (property-tree update only) and so credited the own layer with raster -1 per fade frame. Lean why: Fw.Parts.MorphPanelOpt.cr_fade_stages (the fade write is the raster level on every layer state), cr_fade_eq (equal frame work), cr_fade_noClaim (claim = noClaim; the own layer only adds fade_layers_up). WebKit stays a trade with a new mechanism (paint -1, props -1, wk_fade_trade). General lesson: promoting an element only helps the stages that its change can skip on the compositor; a filter whose parameters change re-rasters on the main thread whatever the layer, so promotion buys memory cost, no work."
+  },
+  {
+   "entry": "blur(0) -> filter:none at rest (MorphPanelOpt rest variant)",
+   "task": "engine-model-fix",
+   "field": "mechanism",
+   "text": "engine-model-fix: sign change, WebKit trade -> win. Mechanism: the WebKit cost was the rest<->fade toggle frame, modelled as +1 layout unit for the variant's none<->blur flip; but the original's blur(0)<->blur(x) value change also lays out, because a filter change with new outsets is a Layout-level StyleDifference (CI run 39088367495: filter at layer and own runs layoutUpdates). Lean why: Fw.Parts.MorphPanelOpt.wk_toggle_layout_units (2 layout units in both arms), wk_toggle_eqv (equal toggle frames), with wk_rest_claim (rest frames dominate) and wk_rest_layers (one layer fewer). The run-level WebKit statement is not yet one theorem (missingWhy). Chromium stays a trade (cr_toggle_not_le). General lesson: before charging a threshold toggle to the variant, check what the original's continuous change at the same frame already pays; a value change that moves geometry (outsets) costs the same layout as the on/off flip."
   }
  ]
 }
