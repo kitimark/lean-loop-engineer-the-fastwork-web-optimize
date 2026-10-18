@@ -1,23 +1,24 @@
-# Handoff: wait-guard-enforce (round 2)
-State: branch worktree-wf_64b49155-762-1, code head 70a6281 (+ this note), main merged. check.sh green; wait-guard vitest 120/120.
-- Round 2 fixes the adversarial review, Lean first (lean/Fw/Ops/Wait.lean):
-  - read-loop condition is exactly `while [VAR=..] read [opts] [names]` + `;`/newline, next segment starts with `do`
-    (isReadCond, readHead, UAcc.cond; cond_without_do_free). `|| true`, `&&`, `; [ 1 ];`, `-u fd`, redirects deny.
-  - producers are an allowlist (producerOut: git read-only subcommands, gh run list/view, cat FILE, find w/o -exec,
-    seq w/o inf, ls, printf, echo; grep/rg/jq/sort/head/wc only on finite input). producer_outside_list,
-    filter_needs_finite_input. `done < <(cmd)` uses the same list (inRedir fold, RAcc).
-  - here-doc opens only at an unquoted `<<` (Acc.qat/lastOp, leadOpen, opWord; flushWord_quoted).
-  - readLoop_bounded restated over that shape; docstring says it is a classification fact, termination is a premise.
-  - `seq` removed from boundWords (`seq inf | while read` passed on it).
-- Hook message (apps/runner/hooks/wait-guard.mjs) names the exact read shape, allowlist and the server smoke-test idiom.
-- Goldens: ops.wait.jsonl 58 rows (`lake build Fw.Ops.Golden fwcore` before scripts/OpsGolden.lean).
-- Eval (MEASURED): main spool 1189 WaitGuard records -> 1188 allow, 1 deny (true-positive gh poll), 0 false denies, 0
-  misses; synthetic 80 commands (51 deny, 29 allow) -> 0 mismatches. Axioms: propext, Classical.choice, Quot.sound only.
+# Handoff: wait-guard-enforce (round 4, final design round)
+State: branch worktree-wf_d3d4d3c9-c26-1, head = the "wait-guard r4" commit (round-3 head add434f and main merged in).
+check.sh green; runner vitest 954/954.
+- Round 4, Lean first (lean/Fw/Ops/Wait.lean): a loop bound is only an element of the allowlist grammar B
+  (`atomParse`: `[ V OP N ]`, `[[ V OP N ]]`, either order, OP -lt -le -gt -ge; `(( v OP N ))` with < <= > >=;
+  V = `$v` `${v}` `"$v"`, N decimal, no special vars (`noBoundVars`), clocks only toward the exit (`varOk`)).
+  Theorems: boundAtom_iff, grammar_only, subst_never_bound, seconds_direction, relOk_shape; body_irrelevant and
+  readLoop_input_free kept. condStep/comb unchanged in shape; condPart now passes the words with a leading `!` (fails B).
+- Also: backslash-newline joined (stepPlain), `read -n 0|-N 0|-t 0` not a read (zeroArg), `2>/dev/null` not a device
+  (outRedir), git `worktree|stash list`, `remote [-v|get-url]`, `config --list|--get*` producers (gitReadOnly).
+- Deviations from the lead grammar, all fail-closed: `timeout N cmd` is not a condition bound (`while timeout 5 x`
+  repeats; it bounds only as a wrapper), `<`/`>` not in `[ ]`/`[[ ]]`, `(( ))` takes bare names only, `test`/`!` not in B.
+- Goldens: ops.wait.jsonl 113 rows (`lake build Fw.Ops.Golden fwcore`, then `lake env lean --run scripts/OpsGolden.lean`);
+  every round-3 reviewer deny probe is a `#guard` and an `r4:` golden row.
+- Eval (MEASURED, real spool 4810 records): 4807 allow, 3 true-positive denies, 0 false denies; vs round 3: 0 newly
+  denied, 2 newly allowed (round-3 false denies). Synthetic 80: 1 mismatch by design (`$SECONDS -ge $end`).
+  Threat model + blind spots: docs/team/tools/wait-guard.md.
 Enforce switch (lead hands to the user after land):
   1. main checkout: `cd lean && lake build fwcore`
   2. probe, must print allow: `echo '{"op":"ops.wait","cmd":"while read l; do echo $l; done < f"}' | lean/.lake/build/bin/fwcore`
-  3. write `{"mode":"enforce"}` to `.fw-console/wait-guard.json`; back out with `{"mode":"shadow"}`.
-Open: blind spots listed in docs/team/tools/wait-guard.md (`$( )`, `( )`, `{ }`, function bodies, `sh -c`, `cat<<EOF`,
-`$((1 << 2))`, variables naming devices/FIFOs). No checker run (no subagent tool here); docstrings self-checked and
-mathview lint clean for Wait.
-Read first: docs/team/tools/wait-guard.md, then Wait.lean sections Parsing, Producers, Shapes and units.
+  3. write `{"mode":"enforce"}` to `.fw-console/wait-guard.json` (or `FW_WAIT_GUARD=enforce`); back out with `{"mode":"shadow"}`.
+Open: blind spots listed in the doc (quote removal makes `'$i'` a variable, unset counter, eval, `bash -c` bodies).
+No checker run (no Agent tool in this session); docstrings self-checked on the 6 points, mathview lint clean.
+Read first: docs/team/tools/wait-guard.md, then the Wait.lean module doc and the grammar block (isName .. boundAtom).
