@@ -251,11 +251,16 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     && (!scope || scope.probes.includes(p.id)));
   const tasks = probes.flatMap((p) => SITES.map((site) => ({ p, site })));
   let done = 0;
+  const tProbes = Date.now();
+  // `load <id> <site>: <ms> ms` lines are the measured unit costs of Fw.Gate.ShardCosts (gate-shard-balance).
   const sampled = await pool(tasks, concurrency, async ({ p, site }) => {
+    const t0 = Date.now();
     const r = await sample(gaps ? gaps.mapProbe(p) : probeEnv(p), site);
+    log(`  load ${engineName} ${p.id} ${site}: ${Date.now() - t0} ms`);
     if (++done % 20 === 0) log(`  ${engineName}: ${done}/${tasks.length} loads`);
     return r;
   });
+  log(`  ${engineName}: probes done (${tasks.length} loads, ${Date.now() - tProbes} ms)`);
   const probeRecords = probes.map((p, i) => ({
     id: p.id, block: p.block, env: probeEnv(p), ...(gaps ? { realized: gaps.mapProbe(p) } : {}),
     orig: sampled[2 * i], rewrite: sampled[2 * i + 1],
@@ -266,6 +271,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     && (!scope || scope.sweeps.includes(s.id)));
   const sweepRecords = [];
   for (const sw of sweeps) {
+    const tSweep = Date.now();
     const perSite = await Promise.all(SITES.map(async (site) => withRetry(`sweep ${sw.id} ${site}`, async () => {
       const s = await load(sw.stops[0], site);
       try {
@@ -289,7 +295,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     const last = sw.stops[sw.stops.length - 1];
     const fresh = await Promise.all(SITES.map((site) => sample(last, site, false)));
     sweepRecords.push({ id: sw.id, blurb: sw.blurb, stops: sw.stops, orig: perSite[0], rewrite: perSite[1], freshFinal: { orig: fresh[0], rewrite: fresh[1] } });
-    log(`  ${engineName}: sweep ${sw.id} done (${sw.stops.length} stops)`);
+    log(`  ${engineName}: sweep ${sw.id} done (${sw.stops.length} stops, ${Date.now() - tSweep} ms)`);
   }
 
   const header = {
