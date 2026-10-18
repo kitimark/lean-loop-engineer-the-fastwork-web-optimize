@@ -10,6 +10,7 @@ import Fw.Measure.StepAlign
 import Fw.Measure.Quiet
 import Fw.Measure.EngineCheck
 import Fw.Measure.Retry
+import Fw.Measure.SimPlan
 /-!
 # JSON codecs and ops of the measurement lanes (`measure.*`)
 
@@ -42,6 +43,7 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.zoneBaseline` | `runs` (≥ 3, distinct `id`s) [{id, frames \| zones}] (frames as for `measure.zoneSums`, or that op's `zones`), `zoneHeightPx` (≥ 1, needed when a run gives `frames`), `classes` (the frozen table {type: {class, k, t, tBound?}}) | `runs` (ids), `zones` [{id, frames, scrolledPx, firstFrame, lastFrame, types {type: cell}}], `totals` {type: cell}, `detDrift` [{zone, type}], `detDriftTotals` [type], `tally`; cell = {class (or `unlisted`), rule (`unlisted` reads `quarantined`), perRun, lo, hi, base} |
 | `measure.retry` | `error` (a simctl failure text), `attempt` (≥ 1, attempts made so far), `max` (limit, naturals) | `class` (`transient`, `permanent`), `retry`, `delayMs` (the wait before the next attempt, 0 when not retrying) |
 | `measure.retryPlan` | `errors` (strings: the error of attempt 1, 2, …; the attempt after the last works), `max` | `classes`, `delays` (ms, one per retry), `retries`, `outcome` (`succeeded`, `exhausted`, `permanent`) |
+| `measure.simPlan` | `target` (`original`, `rewrite`, `both`), `vms`, `sessions` (decimal strings), `preset`, `fw` (`part:variant,...`, may be empty), `experiment` (`determinism`, `quiet`), `sha` (40 hex) | `problems` (empty = accepted), `search` (the query the rewrite is served with), `matrix` [{vm, arm, idx, sha, bp, search}] (empty when refused), `original`, `rewrite`, `both` (whether the matrix has those arms) |
 | `measure.snapshotCounts` | `snapshot` (`args.snapshot` of `LayerTreeHostImpl:snapshot`; a non-object is empty) | `counts` {census.\*, raster.\*} |
 -/
 namespace Fw.Wire.Measure
@@ -714,12 +716,27 @@ def opRetryPlan (req : Json) : Except String Reply := do
   pure [("classes", .arr (cs.toArray.map fun c => .str (clsName c))), ("delays", toJson ds),
         ("retries", toJson ds.length), ("outcome", .str o)]
 
+/-- `measure.simPlan`: the dispatch inputs of `webkit-sim.yml` → the refusals, the query of the rewrite arm and the job
+matrix (rule: `Fw.Measure.SimPlan`). -/
+def opSimPlan (req : Json) : Except String Reply := do
+  let r : Fw.Measure.SimPlan.Req := {
+    target := ← str req "target", vms := ← str req "vms", sessions := ← str req "sessions", preset := ← str req "preset",
+    fw := ← str req "fw", experiment := ← str req "experiment", sha := ← str req "sha" }
+  let p := Fw.Measure.SimPlan.plan r
+  let has (f : Fw.Measure.SimPlan.Cell → Bool) : Bool := p.matrix.any f
+  let cell (c : Fw.Measure.SimPlan.Cell) : Json := Json.mkObj [("vm", .str c.vm), ("arm", .str c.arm.name),
+    ("idx", toJson c.idx), ("sha", .str c.sha), ("bp", toJson c.bp), ("search", .str c.search)]
+  pure [("problems", .arr (p.problems.toArray.map Json.str)), ("search", .str p.search),
+        ("matrix", .arr (p.matrix.toArray.map cell)),
+        ("original", .bool (has (·.arm == .original))), ("rewrite", .bool (has (·.arm == .rewrite))),
+        ("both", .bool (has (·.arm == .original) && has (·.arm == .rewrite)))]
+
 /-- The `measure.*` ops. -/
 def ops : List String :=
   ["measure.zoneSums", "measure.classify", "measure.noMoreWork", "measure.webkit.tally",
    "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.webkit.align", "measure.webkit.pairRows", "measure.symDiff", "measure.summarize",
    "measure.selfCheck", "measure.snapshotCounts", "measure.freeze", "measure.splits", "measure.n0Windows",
-   "measure.spkq", "measure.arms", "measure.zoneBaseline", "measure.quietSteps", "measure.engineCheck", "measure.retry", "measure.retryPlan"]
+   "measure.spkq", "measure.arms", "measure.zoneBaseline", "measure.quietSteps", "measure.engineCheck", "measure.retry", "measure.retryPlan", "measure.simPlan"]
 
 /-- Dispatch a `measure.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -745,6 +762,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "measure.quietSteps" => some (opQuietSteps req)
   | "measure.retry" => some (opRetry req)
   | "measure.retryPlan" => some (opRetryPlan req)
+  | "measure.simPlan" => some (opSimPlan req)
   | "measure.engineCheck" => some (Fw.Wire.Measure.EngineCheck.op req)
   | _ => none
 

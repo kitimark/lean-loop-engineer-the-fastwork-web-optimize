@@ -2060,7 +2060,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "319e5f8"
   },
   {
    "id": "morph-tween-curve",
@@ -4033,7 +4034,8 @@
     "packages/measure-wktr/**",
     "research/notes/**",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "5c815079"
   },
   {
    "id": "preview-test-ports",
@@ -4050,7 +4052,8 @@
     "apps/console-api/src/preview/**",
     "apps/console-api/test/preview.test.ts",
     "docs/team/handoffs/preview-test-ports.md"
-   ]
+   ],
+   "evidence": "70958a1"
   },
   {
    "id": "land-test-flake",
@@ -4090,7 +4093,8 @@
     "docs/team/backfill/**",
     "docs/team/tools/**",
     "docs/team/handoffs/task-state-truth.md"
-   ]
+   ],
+   "evidence": "dcbe320"
   },
   {
    "id": "task-preview",

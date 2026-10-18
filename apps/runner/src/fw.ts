@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "@fw/contracts";
-import { NO_API_GROUPS, UsageError, apiBase, renderBoard, send, stepCommand } from "./lib.ts";
+import { NO_API_GROUPS, UsageError, apiBase, gitFullRef, renderBoard, send, stepCommand, taskCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
 import { httpFor, land, type LandResult } from "./land.ts";
 import { dryRun, exitCode, outcome, outcomeKind, verdictLine } from "./land-verdict.ts";
@@ -19,7 +19,7 @@ import { backfill, ingestRuns, runIdsOf } from "./timing-ci.ts";
 
 const [group, ...rest] = process.argv.slice(2);
 // timing-spans: one span per invocation (step = group + subcommand); `watch` times each pass itself, `timings` is a view
-const SUBS = new Set(["plan", "ci", "incidents", "step", "card"]);
+const SUBS = new Set(["plan", "ci", "incidents", "step", "card", "task"]);
 if (group && group !== "watch" && group !== "timings") { const end = begin("fw", SUBS.has(group) && rest[0] && !rest[0].startsWith("-") ? `${group} ${rest[0]}` : group); process.once("exit", (c) => end(c)); }
 try {
   const base = NO_API_GROUPS.includes(group ?? "") ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
@@ -143,16 +143,17 @@ try {
         process.exitCode = exitCode(kind);
       }
     }
-  } else if (group === "step" || group === "card" || group === "send") {
+  } else if (group === "step" || group === "card" || group === "task" || group === "send") {
     // `fw send '<json command>'` is the escape hatch for run.* commands
     const cmd = group === "step" ? stepCommand(rest, process.env)
       : group === "card" ? cardCommand(rest, process.env)
+      : group === "task" ? taskCommand(rest, process.env, Date.now(), (b) => gitFullRef(b))
       : Command.parse(JSON.parse(rest[0] ?? "{}"));
     const { body } = await send(base, cmd, process.argv.slice(2));
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json] [--check] | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json] [--check] | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));

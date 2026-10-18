@@ -22,6 +22,7 @@ are non-negative integers (seconds, tokens, ms); a non-integer number is refused
 | `ops.meter` | `params`?, `state`? {window, fired [{agent, rule}]}, `now`, `agents` [{agent, ctx, idleSec, ttlSec? or w5m?/w1h?, wakeGapSec?}] | `state`, `alerts` [{agent, rule, window}], `verdicts` [{agent, verdict, ttlSec}] |
 | `ops.hook` | `payloads` (raw hook stdin objects) | `hooks` [{sessionId, event, agentId, agentType, who, toolName, toolUseId, durationMs, error, isInterrupt, promptId, teammateName}], `errors` [{index, error}] |
 | `ops.obs` | `records`? [{agent_id?, hook_event_name, tool_use_id?, ts}], `lines`? [{hook_event_name, agent_type?, tool_name?, is_error?, duration_ms?}] (extra fields ignored) | `keys` (one obs key per record, in order), `summary` [{agent_type, tool_name, calls, errors, total_ms}] (first-seen group order) |
+| `ops.obs` (admission and life, task task-state-truth) | `raw`? [spool lines as strings], `life`? [{event, agent_id?, agent_name?, key, ts, epoch? (the time of the last stop sent for agent_id, 0 if none)}], `labels`? [{id, name}], `fieldAlert`? {now, open [step ids], issues [{issue, count}]} | `admitted` [{ok: true, key, rec (the kept known fields), unknown [names], notes [soft-field reasons], issues [names]} or {ok: false, why, issues [names]}], `tally` {accepted, rejected, unknown [{field, count}], issues [{issue, count}]}; `life` [one list per request: [{kind (`spawn`/`stop`), key, agent, at} or {kind `label`, key, agent, name}]]; `labels` [{key, agent, name} or null]; `alert` {step, key, title} or null. Each only when requested |
 | `ops.cap` | `agent_id`?, `agent_type`? (as `ops.actor`), `tokens` (a Bash input lexed: a string is a word, `{"redir":"2>&1"}` a redirect, `{"stop":"|"}` a control operator) | `decision` (`mint`/`noMint`), `actor`, `argv` (when minted), `reason` (`notFwPrefix`/`unknownActor`, when not) |
 | `ops.door` | `actor`, `secret`? (bool) | `accept` (the door without capability takes this actor), `agentActor` |
 | `ops.wait` | `cmd` (the Bash command text), `caps`? {maxSleepSec?} | `decision` (`allow`/`deny`), `reason` (null, `bgLong` or `unboundedLoop`), `shape` (`bgLong`: `fwWatch`/`loop`/`server`/`tail`/`longSleep`, else null) |
@@ -411,8 +412,64 @@ def rowJson (r : Row) : Json := Json.mkObj [
   ("errors", toJson r.errors), ("total_ms", toJson r.totalMs)]
 
 open Fw.Ops.Obs in
-/-- `ops.obs`: the obs key of each spool record (`Fw.Ops.Obs.obsKey`) and the per (agent type,
-tool) summary of obs lines (`Fw.Ops.Obs.summarize`). -/
+/-- A JSON value as admission reads it: a non-negative integer is `nat`, any other number, array or
+object is `other`. -/
+def valOf : Json → Val
+  | .null => .null
+  | .str s => .str s
+  | .bool b => .bool b
+  | j@(.num _) => match j.getNat? with | .ok n => .nat n | .error _ => .other
+  | _ => .other
+
+open Fw.Ops.Obs in
+/-- A kept value as JSON (kept values fit a spec, so `other` never occurs; it maps to null). -/
+def valJson : Val → Json
+  | .null => .null | .str s => .str s | .nat n => toJson n | .bool b => .bool b | .other => .null
+
+open Fw.Ops.Obs in
+/-- The fields of a raw spool line: none when it is not a JSON object (fields in name order). -/
+def fieldsOf (raw : String) : Option (List (String × Val)) :=
+  match Json.parse raw with
+  | .ok (.obj kvs) => some (kvs.toList.map fun (k, v) => (k, valOf v))
+  | _ => none
+
+open Fw.Ops.Obs in
+/-- The obs key of kept fields (`Fw.Ops.Obs.obsKey`). -/
+def keptKey (k : List (String × Val)) : String :=
+  let s := fun x => match look k x with | some (.str v) => some v | _ => none
+  obsKey (s "agent_id") ((s "hook_event_name").getD "") (s "tool_use_id")
+    (match look k "ts" with | some (.nat n) => n | _ => 0)
+
+open Fw.Ops.Obs in
+/-- One admitted line as JSON: `{ok: true, key, rec, unknown, notes, issues}` or
+`{ok: false, why, issues}` (`Fw.Ops.Obs.Verdict.issues`). -/
+def admittedJson (v : Verdict) : Json :=
+  let is := ("issues", Json.arr (v.issues.toArray.map .str))
+  match v with
+  | .accept k u n => Json.mkObj [("ok", .bool true), ("key", .str (keptKey k)),
+      ("rec", Json.mkObj (k.map fun (x, v) => (x, valJson v))), ("unknown", .arr (u.toArray.map .str)),
+      ("notes", .arr (n.toArray.map fun w => .str w.name)), is]
+  | .reject w => Json.mkObj [("ok", .bool false), ("why", .str w.name), is]
+
+open Fw.Ops.Obs in
+/-- A life command as JSON: `{kind, key, agent, at}` for a spawn or stop, `{kind, key, agent, name}`
+for a label (`agent` is the life key: an agent id or a spawn guard's obs key). -/
+def lifeJson : Life → Json
+  | .spawn k a t => Json.mkObj [("kind", .str "spawn"), ("key", .str k), ("agent", .str a), ("at", toJson t)]
+  | .stop k a t => Json.mkObj [("kind", .str "stop"), ("key", .str k), ("agent", .str a), ("at", toJson t)]
+  | .label k a n => Json.mkObj [("kind", .str "label"), ("key", .str k), ("agent", .str a), ("name", .str n)]
+
+/-- Counts as JSON objects `{<field>: name, count}`. -/
+def countsJson (field : String) (cs : List (String × Nat)) : Json :=
+  .arr (cs.toArray.map fun (x, n) => Json.mkObj [(field, .str x), ("count", toJson n)])
+
+open Fw.Ops.Obs in
+/-- `ops.obs`: the obs key of each spool record (`Fw.Ops.Obs.obsKey`), the per (agent type,
+tool) summary of obs lines (`Fw.Ops.Obs.summarize`), the admission of raw spool lines
+(`Fw.Ops.Obs.admit`, with the drain tally and issues), the life commands of admitted records
+(`Fw.Ops.Obs.lifeOf`), the label commands of the health index (`Fw.Ops.Obs.labelOf`) and the spool
+alert over the issues (`Fw.Ops.Obs.fieldAlert`). Each of `admitted`/`tally`, `life`, `labels` and
+`alert` is in the reply only when its request field is. -/
 def opObs (req : Json) : Except String Reply := do
   let keys ← (← arrD req "records").mapM fun r => do
     pure (obsKey (← optS r "agent_id") (← str r "hook_event_name") (← optS r "tool_use_id") (← nat r "ts"))
@@ -420,7 +477,53 @@ def opObs (req : Json) : Except String Reply := do
     pure ({ event := ← str l "hook_event_name", agentType := ← optS l "agent_type",
             toolName := ← optS l "tool_name", isError := ← optB l "is_error",
             durationMs := ← optN l "duration_ms" } : Line)
-  pure [("keys", .arr (keys.toArray.map .str)), ("summary", .arr ((summarize lines).toArray.map rowJson))]
+  let base : Reply := [("keys", .arr (keys.toArray.map .str)), ("summary", .arr ((summarize lines).toArray.map rowJson))]
+  let adm : Reply ← match opt req "raw" with
+    | none => pure []
+    | some _ => do
+      let ls := (← (← arr req "raw").toList.mapM fun r => match r with
+        | .str s => pure s
+        | _ => throw "field raw: expected strings").map fieldsOf
+      pure [("admitted", .arr ((ls.map verdictOf).toArray.map admittedJson)),
+        ("tally", Json.mkObj [("accepted", toJson (acceptedOf ls).length), ("rejected", toJson (rejectedOf ls).length),
+          ("unknown", countsJson "field" (fieldCounts (unknownOf ls))),
+          ("issues", countsJson "issue" (fieldCounts (issuesOf ls)))])]
+  let life : Reply ← match opt req "life" with
+    | none => pure []
+    | some _ => do
+      let ds ← (← arr req "life").toList.mapM fun l => do
+        pure (lifeOf (← str l "event") (← optS l "agent_id") (← optS l "agent_name")
+          (← str l "key") (← nat l "ts") (← natD l "epoch" 0))
+      pure [("life", .arr (ds.toArray.map fun d => .arr (d.toArray.map lifeJson)))]
+  let labels : Reply ← match opt req "labels" with
+    | none => pure []
+    | some _ => do
+      let ls ← (← arr req "labels").toList.mapM fun l => do pure (labelOf (← str l "id") (← str l "name"))
+      pure [("labels", .arr (ls.toArray.map fun
+        | none => .null
+        | some (k, i, n) => Json.mkObj [("key", .str k), ("agent", .str i), ("name", .str n)]))]
+  let alert : Reply ← match opt req "fieldAlert" with
+    | none => pure []
+    | some a => do
+      let opn ← (← arrD a "open").mapM fun o => match o with
+        | .str s => pure s
+        | _ => throw "field open: expected strings"
+      let cs ← (← arrD a "issues").mapM fun c => do pure ((← str c "issue"), (← nat c "count"))
+      pure [("alert", match fieldAlert (← nat a "now") opn cs with
+        | none => .null
+        | some (s, k, t) => Json.mkObj [("step", .str s), ("key", .str k), ("title", .str t)])]
+  pure (base ++ adm ++ life ++ labels ++ alert)
+
+-- the real SubagentStop line with background_tasks is admitted (task task-state-truth regression)
+#guard (fieldsOf "{\"agent_id\":\"a0e52ab0600cc97da\",\"agent_type\":\"\",\"hook_event_name\":\"SubagentStop\",\"tool_name\":null,\"tool_use_id\":null,\"duration_ms\":null,\"is_error\":null,\"verb\":null,\"ts\":1792269356759,\"background_tasks\":20}").map Fw.Ops.Obs.admit
+  matches some (.accept _ [] [])
+#guard ((fieldsOf "{\"agent_id\":\"a0e52ab0600cc97da\",\"agent_type\":\"\",\"hook_event_name\":\"SubagentStop\",\"tool_name\":null,\"tool_use_id\":null,\"duration_ms\":null,\"is_error\":null,\"verb\":null,\"ts\":1792269356759,\"background_tasks\":20}").bind fun fs =>
+  match Fw.Ops.Obs.admit fs with | .accept k _ _ => some (keptKey k) | _ => none) ==
+  some "a0e52ab0600cc97da|SubagentStop|1792269356759"
+#guard fieldsOf "not json" = none
+#guard fieldsOf "[1]" = none
+#guard valOf (Json.num (-3 : Int)) = .other
+
 
 /-! ## Dispatch -/
 
