@@ -14,8 +14,8 @@ cd lean && lake env lean --run scripts/OpsGolden.lean --check   # fail if a file
 ```
 
 `lake test` runs the same check. Consumers: the hooks agent (`emit.mjs`, `spawn-guard.mjs`:
-`ops.hook`, `ops.spawn`; `cap.mjs`: `ops.actor`), console-api's capability door (`cap.ts`
-`actorFor`: `ops.actor`), the land agent (`fw land`: `ops.pathCheck`) and console-api's usage
+`ops.hook`, `ops.spawn`; `cap.mjs`: `ops.actor`, `ops.cap`), console-api's capability door (`cap.ts`
+`actorFor`: `ops.actor`; `openDoor`: `ops.door`), the land agent (`fw land`: `ops.pathCheck`) and console-api's usage
 meter (`ops.usage`, `ops.meter`).
 -/
 namespace Fw.Wire.Ops.Golden
@@ -110,6 +110,41 @@ def cases : List (String × List (String × Json)) := [
     ("empty agent_id is unknown", lit "{\"agent_id\":\"\",\"agent_type\":\"lean-prover\"}"),
     ("non-string agent_id is refused", lit "{\"agent_id\":7,\"agent_type\":\"lean-prover\"}"),
     ("non-string agent_type is refused", lit "{\"agent_id\":\"a1\",\"agent_type\":true}")]),
+  ("ops.cap", [
+    ("lead mints for pnpm fw status", lit "{\"tokens\":[\"pnpm\",\"fw\",\"status\"]}"),
+    ("lead: agent_type ignored", lit "{\"agent_id\":null,\"agent_type\":\"main\",\"tokens\":[\"pnpm\",\"fw\",\"land\",\"b\",\"--task\",\"t\"]}"),
+    ("agent mints as owner", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"lean-prover\",\"tokens\":[\"pnpm\",\"fw\",\"land\",\"b\"]}"),
+    ("reviewer role mints as reviewer", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"Math-REVIEWER\",\"tokens\":[\"pnpm\",\"fw\",\"card\",\"review\"]}"),
+    ("bare pnpm fw mints an empty argv", lit "{\"tokens\":[\"pnpm\",\"fw\"]}"),
+    ("leading cd: notFwPrefix", lit "{\"tokens\":[\"cd\",\"apps/runner\"]}"),
+    ("pnpm -s fw: notFwPrefix", lit "{\"tokens\":[\"pnpm\",\"-s\",\"fw\",\"land\",\"--dry\",\"b\"]}"),
+    ("pnpm --filter x fw: notFwPrefix", lit "{\"tokens\":[\"pnpm\",\"--filter\",\"x\",\"fw\",\"status\"]}"),
+    ("empty command: notFwPrefix", lit "{\"tokens\":[]}"),
+    ("pnpm alone: notFwPrefix", lit "{\"tokens\":[\"pnpm\"]}"),
+    ("a different program: notFwPrefix", lit "{\"tokens\":[\"echo\",\"pnpm\",\"fw\"]}"),
+    ("2>&1 cut at the &: trailingPipe", lit "{\"tokens\":[\"pnpm\",\"fw\",\"land\",\"b\",\"2>\"]}"),
+    ("redirect to a file: trailingPipe", lit "{\"tokens\":[\"pnpm\",\"fw\",\"status\",\">out.txt\"]}"),
+    ("input redirect: trailingPipe", lit "{\"tokens\":[\"pnpm\",\"fw\",\"send\",\"<in\"]}"),
+    ("a lone number is an argument, not a redirect", lit "{\"tokens\":[\"pnpm\",\"fw\",\"land\",\"b\",\"2\"]}"),
+    ("redirect wins over unknown actor", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"\",\"tokens\":[\"pnpm\",\"fw\",\"land\",\"2>\"]}"),
+    ("forked agent: unknownActor", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"\",\"tokens\":[\"pnpm\",\"fw\",\"status\"]}"),
+    ("agent_id without agent_type: unknownActor", lit "{\"agent_id\":\"a0123456789abcdef\",\"tokens\":[\"pnpm\",\"fw\",\"status\"]}"),
+    ("empty agent_id: unknownActor", lit "{\"agent_id\":\"\",\"agent_type\":\"lean-prover\",\"tokens\":[\"pnpm\",\"fw\",\"status\"]}"),
+    ("prefix wins over unknown actor", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"\",\"tokens\":[\"cd\",\"x\"]}"),
+    ("non-string token is refused", lit "{\"tokens\":[\"pnpm\",7]}"),
+    ("non-string agent_id is refused", lit "{\"agent_id\":7,\"tokens\":[\"pnpm\",\"fw\"]}")]),
+  ("ops.door", [
+    ("user (the web UI) passes without the secret", lit "{\"actor\":\"user\"}"),
+    ("script, git and hook pass without the secret", lit "{\"actor\":\"script\"}"),
+    ("git passes", lit "{\"actor\":\"git\"}"),
+    ("hook passes", lit "{\"actor\":\"hook\"}"),
+    ("lead is refused without the secret", lit "{\"actor\":\"lead\"}"),
+    ("owner is refused without the secret", lit "{\"actor\":\"owner\"}"),
+    ("reviewer is refused without the secret", lit "{\"actor\":\"reviewer\",\"secret\":false}"),
+    ("lead passes with the secret", lit "{\"actor\":\"lead\",\"secret\":true}"),
+    ("owner passes with the secret", lit "{\"actor\":\"owner\",\"secret\":true}"),
+    ("unknown actor name is refused", lit "{\"actor\":\"root\"}"),
+    ("missing actor is refused", lit "{}")]),
   ("ops.obs", [
     ("keys: tool_use_id joins; without it the timestamp; no agent_id is main", lit "{\"records\":[{\"agent_id\":\"a1\",\"hook_event_name\":\"PostToolUse\",\"tool_use_id\":\"toolu_1\",\"ts\":5},{\"agent_id\":null,\"hook_event_name\":\"Stop\",\"tool_use_id\":null,\"ts\":7},{\"hook_event_name\":\"Notification\",\"ts\":9}]}"),
     ("keys: an empty agent_id stays empty (only null or missing is main)", lit "{\"records\":[{\"agent_id\":\"\",\"hook_event_name\":\"X\",\"tool_use_id\":\"\",\"ts\":7}]}"),

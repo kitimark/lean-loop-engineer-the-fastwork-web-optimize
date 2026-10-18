@@ -240,4 +240,248 @@ theorem capActor_range (i t : Option String) (a : Actor) (h : capActor i t = som
 #guard capActor (some "a1") none == none
 #guard isReviewRole "math-reviewer" && !isReviewRole "revie" && !isReviewRole ""
 
+/-!
+## The capability decision and the open door (cap-diagnose; PLAN §8.3, R27)
+
+`cap.mjs` (the `PreToolUse(Bash)` hook) first splits a Bash command into the tokens of its first simple
+command (shell quoting; an unquoted `;`, `&`, `|` or newline ends it). Everything after that split is a
+decision and is made here: mint a capability for `pnpm fw <argv>`, or mint nothing **for exactly one named
+reason**, so `pnpm fw` can print the reason instead of a bare 403 (`capDecide_mint_iff`,
+`capDecide_noMint_iff`). The console-api door without a capability (`POST /api/commands`) is decided here
+too (`openDoor`): an actor that needs a capability (`lead`, `owner`, `reviewer`; exactly the range of
+`capActor`, `isAgentActor_iff`) is refused there unless the caller shows the console secret.
+
+Consumers, checked against `packages/contracts/golden/ops/ops.cap.jsonl` and `ops.door.jsonl`: `cap.mjs`
+`decideCap`, console-api `cap/cap.ts` `openDoor`.
+-/
+
+/-- Why no capability is minted; exactly one reason per refusal.
+
+$$\mathrm{Reason} = \{\mathrm{notFwPrefix},\ \mathrm{trailingPipe},\ \mathrm{unknownActor}\}$$
+
+`notFwPrefix`: the command does not start with `pnpm fw` (a leading `cd`, or `pnpm -s fw`). `trailingPipe`:
+an argument is a redirection cut off by the tokenizer, as in `2>&1 | tail` (the hashed argv would differ from
+the one `fw` sees). `unknownActor`: the sender is a forked agent without an `agent_type`, or has an empty id.
+-/
+inductive Reason where
+  | notFwPrefix
+  | trailingPipe
+  | unknownActor
+deriving DecidableEq, Repr
+
+/-- The wire name of a reason.
+
+$$\operatorname{name}(r) = \text{the constructor name of } r \text{ as a string, e.g. } \operatorname{name}(\mathrm{trailingPipe}) = \texttt{"trailingPipe"}$$
+
+The string the hook records and `pnpm fw` prints.
+-/
+def Reason.name : Reason → String
+  | .notFwPrefix => "notFwPrefix" | .trailingPipe => "trailingPipe" | .unknownActor => "unknownActor"
+
+/-- The outcome of the capability hook: mint for an actor and an argv, or mint nothing for one reason.
+
+$$\mathrm{CapDecision} = \{\mathrm{mint}(a, \vec{x}) \mid a \in \mathrm{Actor},\ \vec{x} \in \mathrm{String}^*\} \cup \{\mathrm{noMint}(r) \mid r \in \mathrm{Reason}\}$$
+
+The two kinds of answer of `capDecide`.
+-/
+inductive CapDecision where
+  | mint (actor : Actor) (argv : List String)
+  | noMint (reason : Reason)
+deriving DecidableEq, Repr
+
+/-- A redirection that the tokenizer cut at an `&`: optional digits, then `<` or `>`.
+
+$$\operatorname{isRedirStub}(s) = \mathrm{true} \iff s \in \{0,\dots,9\}^{*}\,\{<,>\}\,\Sigma^{*}$$
+
+For example `2>` (from `2>&1`) and `>out` are stubs; `land` and `2` are not.
+-/
+def isRedirStub (s : String) : Bool :=
+  match s.toList.dropWhile Char.isDigit with
+  | c :: _ => c == '<' || c == '>'
+  | [] => false
+
+/-- Some argument is a cut redirection.
+
+$$\operatorname{hasStub}(\vec{x}) = \mathrm{true} \iff \exists x \in \vec{x}.\ \operatorname{isRedirStub}(x)$$
+
+The test `capDecide` applies to the arguments after `pnpm fw`.
+-/
+def hasStub (xs : List String) : Bool := xs.any isRedirStub
+
+/-- The capability decision for a record's identity and the tokens of its first simple command.
+
+$$\operatorname{capDecide}(i, t, \vec{w}) = \begin{cases} \mathrm{noMint}(\mathrm{notFwPrefix}) & \nexists \vec{x}.\ \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \\ \mathrm{noMint}(\mathrm{trailingPipe}) & \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \exists x \in \vec{x}.\ \operatorname{isRedirStub}(x) \\ \mathrm{noMint}(\mathrm{unknownActor}) & \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \forall x \in \vec{x}.\ \neg\operatorname{isRedirStub}(x) \wedge \operatorname{capActor}(i, t) = \bot \\ \mathrm{mint}(a, \vec{x}) & \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \forall x \in \vec{x}.\ \neg\operatorname{isRedirStub}(x) \wedge \operatorname{capActor}(i, t) = a \end{cases}$$
+
+The checks run in the order prefix, redirection, identity.
+-/
+def capDecide (i t : Option String) : List String → CapDecision
+  | "pnpm" :: "fw" :: argv =>
+    if hasStub argv then .noMint .trailingPipe
+    else match capActor i t with
+      | some a => .mint a argv
+      | none => .noMint .unknownActor
+  | _ => .noMint .notFwPrefix
+
+/-- `capDecide` on a `pnpm fw` command unfolds to the redirection check, then the identity check.
+
+$$\forall i, t, \vec{x}.\quad \operatorname{capDecide}(i, t, \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x}) = \begin{cases} \mathrm{noMint}(\mathrm{trailingPipe}) & \operatorname{hasStub}(\vec{x}) \\ \mathrm{mint}(a, \vec{x}) & \neg\operatorname{hasStub}(\vec{x}) \wedge \operatorname{capActor}(i, t) = a \\ \mathrm{noMint}(\mathrm{unknownActor}) & \neg\operatorname{hasStub}(\vec{x}) \wedge \operatorname{capActor}(i, t) = \bot \end{cases}$$
+
+The defining equation, stated for use in the iff theorems.
+-/
+theorem capDecide_fw (i t : Option String) (argv : List String) :
+    capDecide i t ("pnpm" :: "fw" :: argv) =
+      if hasStub argv then .noMint .trailingPipe
+      else match capActor i t with
+        | some a => .mint a argv
+        | none => .noMint .unknownActor := rfl
+
+/-- Any command that does not start with `pnpm fw` is refused as `notFwPrefix`.
+
+$$\forall i, t, \vec{w}.\quad (\nexists \vec{x}.\ \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x}) \implies \operatorname{capDecide}(i, t, \vec{w}) = \mathrm{noMint}(\mathrm{notFwPrefix})$$
+
+The prefix check comes first, whatever the sender is.
+-/
+theorem capDecide_other (i t : Option String) (w : List String) (h : ∀ x, w ≠ "pnpm" :: "fw" :: x) :
+    capDecide i t w = .noMint .notFwPrefix := by
+  unfold capDecide
+  split
+  · rename_i x; exact absurd rfl (h x)
+  · rfl
+
+/-- A capability is minted exactly for a `pnpm fw` command without a cut redirection, from a known sender.
+
+$$\forall i, t, \vec{w}, a, \vec{x}.\quad \operatorname{capDecide}(i, t, \vec{w}) = \mathrm{mint}(a, \vec{x}) \iff \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \forall x \in \vec{x}.\ \neg\operatorname{isRedirStub}(x) \wedge \operatorname{capActor}(i, t) = a$$
+
+The minted argv is exactly what follows `pnpm fw`, and the minted actor is the one of `capActor`.
+-/
+theorem capDecide_mint_iff (i t : Option String) (w : List String) (a : Actor) (x : List String) :
+    capDecide i t w = .mint a x ↔
+      w = "pnpm" :: "fw" :: x ∧ hasStub x = false ∧ capActor i t = some a := by
+  by_cases hw : ∃ y, w = "pnpm" :: "fw" :: y
+  · obtain ⟨y, rfl⟩ := hw
+    rw [capDecide_fw]
+    cases hs : hasStub y with
+    | true =>
+      simp only [ite_true, reduceCtorEq, false_iff, not_and, List.cons.injEq, true_and]
+      intro h; subst h; rw [hs]; simp
+    | false =>
+      simp only [Bool.false_eq_true, ite_false]
+      cases hc : capActor i t with
+      | none => simp
+      | some b =>
+        simp only [CapDecision.mint.injEq, List.cons.injEq, true_and, Option.some.injEq]
+        constructor
+        · rintro ⟨rfl, rfl⟩; exact ⟨rfl, hs, rfl⟩
+        · rintro ⟨rfl, -, rfl⟩; exact ⟨rfl, rfl⟩
+  · rw [capDecide_other i t w (fun y h => hw ⟨y, h⟩)]
+    simp only [reduceCtorEq, false_iff, not_and]
+    intro h; exact absurd ⟨x, h⟩ hw
+
+/-- No capability is minted for exactly one reason, decided by the three checks in order.
+
+$$\operatorname{capDecide}(i, t, \vec{w}) = \mathrm{noMint}(r) \iff \begin{cases} \nexists \vec{x}.\ \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} & r = \mathrm{notFwPrefix} \\ \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \exists y \in \vec{x}.\ \operatorname{isRedirStub}(y) & r = \mathrm{trailingPipe} \\ \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \forall y \in \vec{x}.\ \neg\operatorname{isRedirStub}(y) \wedge \operatorname{capActor}(i, t) = \bot & r = \mathrm{unknownActor} \end{cases}$$
+
+The three reasons are mutually exclusive: each refusal carries the one reason whose condition holds.
+-/
+theorem capDecide_noMint_iff (i t : Option String) (w : List String) (r : Reason) :
+    capDecide i t w = .noMint r ↔
+      (r = .notFwPrefix ∧ ∀ x, w ≠ "pnpm" :: "fw" :: x) ∨
+      (r = .trailingPipe ∧ ∃ x, w = "pnpm" :: "fw" :: x ∧ hasStub x = true) ∨
+      (r = .unknownActor ∧ ∃ x, w = "pnpm" :: "fw" :: x ∧ hasStub x = false ∧ capActor i t = none) := by
+  by_cases hw : ∃ y, w = "pnpm" :: "fw" :: y
+  · obtain ⟨y, rfl⟩ := hw
+    rw [capDecide_fw]
+    cases hs : hasStub y <;> cases hc : capActor i t <;> cases r <;> simp [hs, hc]
+  · rw [capDecide_other i t w (fun y h => hw ⟨y, h⟩)]
+    have : ∀ x, w ≠ "pnpm" :: "fw" :: x := fun y h => hw ⟨y, h⟩
+    cases r <;> simp [this]
+
+/-- The refusal reason is unique: a command cannot be refused for two reasons.
+
+$$\forall i, t, \vec{w}, r, r'.\quad \operatorname{capDecide}(i, t, \vec{w}) = \mathrm{noMint}(r) \wedge \operatorname{capDecide}(i, t, \vec{w}) = \mathrm{noMint}(r') \implies r = r'$$
+
+`capDecide` is a function, so one command and one sender give one answer.
+-/
+theorem capDecide_noMint_unique (i t : Option String) (w : List String) (r r' : Reason)
+    (h : capDecide i t w = .noMint r) (h' : capDecide i t w = .noMint r') : r = r' := by
+  rw [h] at h'; exact CapDecision.noMint.inj h'
+
+/-- A minted capability is for the lead, a reviewer or an owner, and only a record without `agent_id` gets the lead.
+
+$$\forall i, t, \vec{w}, a, \vec{x}.\quad \operatorname{capDecide}(i, t, \vec{w}) = \mathrm{mint}(a, \vec{x}) \implies a \in \{\mathrm{lead}, \mathrm{reviewer}, \mathrm{owner}\} \wedge (a = \mathrm{lead} \iff i = \bot)$$
+
+The hook never mints a capability for the user, a script, git or a hook, and never lets an agent be the lead.
+-/
+theorem capDecide_mint_actor (i t : Option String) (w : List String) (a : Actor) (x : List String)
+    (h : capDecide i t w = .mint a x) :
+    (a = .lead ∨ a = .reviewer ∨ a = .owner) ∧ (a = .lead ↔ i = none) := by
+  obtain ⟨-, -, hc⟩ := (capDecide_mint_iff i t w a x).1 h
+  exact ⟨capActor_range i t a hc, by rw [← capActor_lead_iff, hc]; simp⟩
+
+/-! ## The door without capability -/
+
+/-- An actor that only a capability may speak as.
+
+$$\operatorname{isAgentActor}(a) = \mathrm{true} \iff a \in \{\mathrm{lead}, \mathrm{owner}, \mathrm{reviewer}\}$$
+
+The agent-facing actors; `user`, `script`, `git` and `hook` are not.
+-/
+def isAgentActor : Actor → Bool
+  | .lead | .owner | .reviewer => true
+  | _ => false
+
+/-- The door without capability (`POST /api/commands`): a body that claims an agent actor needs the console secret.
+
+$$\operatorname{openDoor}(a, s) = \mathrm{true} \iff \neg\operatorname{isAgentActor}(a) \vee s = \mathrm{true}$$
+
+The web UI (`user`) and the internal script, git and hook actors pass; `lead`, `owner` and `reviewer` pass only with the secret.
+-/
+def openDoor (a : Actor) (secret : Bool) : Bool := !isAgentActor a || secret
+
+/-- The agent actors are exactly the actors a capability can be minted for.
+
+$$\forall a \in \mathrm{Actor}.\quad \operatorname{isAgentActor}(a) = \mathrm{true} \iff \exists i, t.\ \operatorname{capActor}(i, t) = a$$
+
+So the open door refuses precisely the actors that the capability door is the only legitimate source of.
+-/
+theorem isAgentActor_iff (a : Actor) : isAgentActor a = true ↔ ∃ i t, capActor i t = some a := by
+  constructor
+  · intro h
+    cases a <;> simp [isAgentActor] at h
+    · exact ⟨none, none, rfl⟩
+    · exact ⟨some "a1", some "lean-prover", by decide +kernel⟩
+    · exact ⟨some "a1", some "reviewer", by decide +kernel⟩
+  · rintro ⟨i, t, h⟩
+    rcases capActor_range i t a h with rfl | rfl | rfl <;> rfl
+
+/-- Without the secret, the open door refuses exactly the agent actors.
+
+$$\forall a \in \mathrm{Actor}.\quad \operatorname{openDoor}(a, \mathrm{false}) = \mathrm{false} \iff a \in \{\mathrm{lead}, \mathrm{owner}, \mathrm{reviewer}\}$$
+
+A self-declared actor in a request body cannot make a command look like an agent's.
+-/
+theorem openDoor_no_secret (a : Actor) : openDoor a false = false ↔ isAgentActor a = true := by
+  simp [openDoor]
+
+/-- With the secret, the open door accepts every actor.
+
+$$\forall a \in \mathrm{Actor}.\quad \operatorname{openDoor}(a, \mathrm{true}) = \mathrm{true}$$
+
+The console's own tools (the plan sync of `fw land`) read the secret and speak as the lead.
+-/
+theorem openDoor_secret (a : Actor) : openDoor a true = true := by
+  simp [openDoor]
+
+/-! ## Examples (the golden edge cases) -/
+
+#guard capDecide none none ["pnpm", "fw", "status"] == .mint .lead ["status"]
+#guard capDecide (some "a1") (some "lean-prover") ["pnpm", "fw", "land", "b"] == .mint .owner ["land", "b"]
+#guard capDecide (some "a1") (some "") ["pnpm", "fw", "status"] == .noMint .unknownActor
+#guard capDecide none none ["cd", "x"] == .noMint .notFwPrefix
+#guard capDecide none none ["pnpm", "-s", "fw", "land"] == .noMint .notFwPrefix
+#guard capDecide none none ["pnpm", "fw", "land", "b", "2>"] == .noMint .trailingPipe
+#guard capDecide (some "a1") (some "") ["pnpm", "fw", "land", ">o"] == .noMint .trailingPipe
+#guard openDoor .user false && !openDoor .lead false && openDoor .lead true
+
+
 end Fw.Ops.Identity

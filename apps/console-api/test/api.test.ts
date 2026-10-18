@@ -8,13 +8,17 @@ import { Store } from "../src/store.ts";
 
 let stores: Store[] = [];
 afterEach(() => { stores.forEach((s) => s.close()); stores = []; });
+const secrets = new WeakMap<object, string>();
 const fresh = async (dir = mkdtempSync(join(tmpdir(), "fw-console-"))) => {
   const store = await Store.open(dir, selectCore(), () => 1_700_000_000_000);
   stores.push(store);
-  return { dir, store, app: createApp(store) };
+  const app = createApp(store);
+  secrets.set(app, readFileSync(join(dir, "secret"), "utf8").trim());
+  return { dir, store, app };
 };
-const post = (app: ReturnType<typeof createApp>, body: unknown) =>
-  app.request("/api/commands", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } });
+// these tests speak as owner/lead without a hook: they show the console secret, as the runner's own tools do
+const post = (app: ReturnType<typeof createApp>, body: unknown, secret: string | null = secrets.get(app)!) =>
+  app.request("/api/commands", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...(secret ? { "x-fw-secret": secret } : {}) } });
 const open = { type: "card.open", key: "k1", actor: "owner", card: "A", owner: "o", needsDevice: false };
 
 describe("console-api", () => {
@@ -48,6 +52,19 @@ describe("console-api", () => {
     stores.push(again);
     expect(await again.board()).toEqual(before);
     expect(again.seq).toBe(2);
+  });
+  it("the door without capability refuses an agent actor in the body (DEFECT: it used to trust it), takes user/script/git/hook", async () => {
+    const { dir, app } = await fresh();
+    for (const actor of ["lead", "owner", "reviewer"]) {
+      const r = await post(app, { ...open, key: `k-${actor}`, actor }, null);
+      expect(r.status).toBe(403);
+      expect(((await r.json()) as { reason: string }).reason).toContain(`actor ${actor} needs a capability`);
+    }
+    expect((await post(app, open, "not-the-secret")).status).toBe(403);
+    expect(readFileSync(join(dir, "events.jsonl"), "utf8").trim()).toBe(""); // nothing reached the log
+    expect((await post(app, { ...open, key: "ku", actor: "user" }, null)).status).toBe(200);
+    expect((await post(app, { type: "card.screen", key: "ks", actor: "script", card: "A", sha: "abc", pass: true }, null)).status).not.toBe(403);
+    expect((await post(app, { ...open, key: "k9", card: "B" })).status).toBe(200); // owner with the secret
   });
   it("board endpoint reflects events", async () => {
     const { app } = await fresh();

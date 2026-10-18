@@ -4,7 +4,7 @@ import { tmpdir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { fwArgv, tokens, cmdHash, identity } from "../hooks/cap.mjs";
+import { fwArgv, tokens, cmdHash, identity, decideCap } from "../hooks/cap.mjs";
 import { capMac, sha256 } from "../hooks/lib.mjs";
 import { notification, verbOf } from "../hooks/emit.mjs";
 
@@ -17,6 +17,11 @@ const tmp = () => mkdtempSync(join(tmpdir(), "fw-hooks-"));
 type ActorCase = { name: string; request: { agent_id?: unknown; agent_type?: unknown }; response: object };
 const actorCases = readFileSync(join(here, "../../../packages/contracts/golden/ops/ops.actor.jsonl"), "utf8")
   .split("\n").filter(Boolean).map((l) => JSON.parse(l) as ActorCase);
+
+/** Lean `ops.cap` golden cases (generated). */
+type CapCase = { name: string; request: { agent_id?: unknown; agent_type?: unknown; tokens?: unknown[] }; response: { decision?: string; actor?: string; argv?: string[]; reason?: string; error?: string } };
+const capCases = readFileSync(join(here, "../../../packages/contracts/golden/ops/ops.cap.jsonl"), "utf8")
+  .split("\n").filter(Boolean).map((l) => JSON.parse(l) as CapCase);
 
 const user = userInfo().username;
 const dirty = {
@@ -170,6 +175,50 @@ describe("cap.mjs", () => {
   });
   it.each(actorCases)("identity matches Lean ops.actor: $name", (c) => {
     expect(identity(c.request.agent_id, c.request.agent_type)).toEqual(c.response);
+  });
+  it.each(capCases.filter((c) => c.response.error === undefined))("decision matches Lean ops.cap: $name", (c) => {
+    const d = decideCap(c.request.agent_id, c.request.agent_type, c.request.tokens as string[]);
+    expect(d.decision).toBe(c.response.decision);
+    if (d.decision === "mint") expect({ actor: d.actor, argv: d.argv }).toEqual({ actor: c.response.actor, argv: c.response.argv });
+    else expect(d.reason).toBe(c.response.reason);
+  });
+  const call = (command: string, extra: object = {}) =>
+    JSON.stringify({ tool_name: "Bash", tool_use_id: "t1", cwd: "/", tool_input: { command }, ...extra });
+  const lines = (d: string, f: string) => (existsSync(join(d, f)) ? readFileSync(join(d, f), "utf8").trim().split("\n").map((l) => JSON.parse(l)) : []);
+  it("a leading cd mints nothing and records the reason notFwPrefix; exit 0", () => {
+    const d = tmp();
+    const r = run("cap.mjs", call("cd apps/runner && pnpm fw status"), d);
+    expect(r.status).toBe(0);
+    expect(lines(d, "caps.jsonl")).toEqual([]);
+    expect(lines(d, "capmiss.jsonl")).toMatchObject([{ reason: "notFwPrefix", tool_use_id: "t1" }]);
+  });
+  it("pnpm -s fw is notFwPrefix too", () => {
+    const d = tmp();
+    run("cap.mjs", call("pnpm -s fw land --dry b"), d);
+    expect(lines(d, "capmiss.jsonl")).toMatchObject([{ reason: "notFwPrefix" }]);
+  });
+  it("a command that is not about fw leaves no note", () => {
+    const d = tmp();
+    expect(run("cap.mjs", call("cd x && ls"), d).status).toBe(0);
+    expect(lines(d, "capmiss.jsonl")).toEqual([]);
+  });
+  it("2>&1 before a pipe is trailingPipe: blocked with exit 2 and the reason on stderr, nothing minted", () => {
+    const d = tmp();
+    const r = run("cap.mjs", call("pnpm fw status 2>&1 | tail"), d);
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain("trailingPipe");
+    expect(lines(d, "caps.jsonl")).toEqual([]);
+  });
+  it("a plain pipe after the command still mints", () => {
+    const d = tmp();
+    expect(run("cap.mjs", call("pnpm fw status | tail"), d).status).toBe(0);
+    expect(lines(d, "caps.jsonl")).toHaveLength(1);
+  });
+  it("a forked agent is unknownActor (exit 2, reason named)", () => {
+    const d = tmp();
+    const r = run("cap.mjs", call("pnpm fw status", { agent_id: "a1", agent_type: "" }), d);
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain("unknownActor");
   });
 });
 
