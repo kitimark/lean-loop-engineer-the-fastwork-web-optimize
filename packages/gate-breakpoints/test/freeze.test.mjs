@@ -8,7 +8,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { GATE_POLICY } from '../src/settle.mjs';
-import { HOLD_LOAD_MS, MAIN_OFF_MS, POST_RESIZE_MS, READY_TO_MS, SLOT_MS, STEP_MS, fits, freezeTime, frozenWait, instant, lateWait, mountRank, newRec, observeAt, ovRank, readings, stopBase, viewRank } from '../src/freeze.mjs';
+import { HOLD_LOAD_MS, MAIN_OFF_MS, POST_RESIZE_MS, READY_TO_MS, SLOT_MS, STEP_MS, fits, freezeTime, frozenWait, instant, lateWait, mountRank, newRec, observeAt, ovRank, pageOf, readings, stopBase, viewRank } from '../src/freeze.mjs';
 import { KIT_SRC, freezeAnimations } from '../src/page.mjs';
 import { PKG } from '../src/serve.mjs';
 import { FREEZE_GOLDEN, freezegen } from '../scripts/freezegen.mjs';
@@ -114,6 +114,14 @@ test('readings and fits: the node twins and the mock session both give the Lean 
     assert.deepEqual(got, l.readings, l.name);
     assert.equal(rec.misses.length === 0, l.fits, l.name);
     assert.equal(lateWait(rec) === null, l.fits, l.name);
+  }
+});
+
+test('pageOf: every golden pair of mount flags gives the Lean page, and only the mounted page runs the mount stage', () => {
+  assert.equal(of('page').length, 4);
+  for (const l of of('page')) {
+    assert.equal(pageOf(l.mountOrig, l.mountRewrite), l.page);
+    assert.equal(l.runsMount, l.page === 'mounted');
   }
 });
 

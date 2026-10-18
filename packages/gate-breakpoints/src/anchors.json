@@ -247,6 +247,14 @@
             "waitFor": ".start-selling-morph-center .countdown",
             "why": "the original mounts the morph panel only when .start-selling-platform comes within 200% of the viewport (2.DyWL8TcE.js:13081-13085) and keeps it mounted afterwards, so the gate scrolls near it, waits for the clock, then returns to the top"
           }
+        ],
+        "rewrite": [
+          {
+            "kind": "mount",
+            "scrollNear": "[data-fw=\"platform\"]",
+            "waitFor": "[data-fw=\"platform\"]",
+            "why": "the same scroll excursion as the original, to the platform section of the rewrite: the page's history is part of what is compared (the original recomputes the pain notes' base positions when its content-visibility section renders after a resize, so a page that never scrolled keeps the old ones); the rewrite has the panel from the start, so there is nothing to wait for but the section"
+          }
         ]
       },
       "notes": [
@@ -426,6 +434,14 @@
             "waitFor": ".start-selling-morph-col",
             "why": "the original mounts the morph panel (and its columns) only when .start-selling-platform comes within 200% of the viewport (2.DyWL8TcE.js:13080-13089) and keeps it; the gate scrolls near it, waits for the first column, then returns to the top"
           }
+        ],
+        "rewrite": [
+          {
+            "kind": "mount",
+            "scrollNear": "[data-fw=\"platform\"]",
+            "waitFor": "[data-fw=\"platform\"]",
+            "why": "the same scroll excursion as the original, to the platform section of the rewrite: the page's history is part of what is compared (the original recomputes the pain notes' base positions when its content-visibility section renders after a resize, so a page that never scrolled keeps the old ones); the rewrite has the panel from the start, so there is nothing to wait for but the section"
+          }
         ]
       },
       "cites": [
@@ -553,6 +569,14 @@
             "scrollNear": ".start-selling-platform",
             "waitFor": ".start-selling-morph-panel",
             "why": "the original mounts the panel lazily (an IntersectionObserver with a 200% margin on the platform section) and keeps it; the gate scrolls near the platform once after the arm settles, waits for the panel, and returns to the top. The rewrite renders the panel from the start (mounting is morph.mount)"
+          }
+        ],
+        "rewrite": [
+          {
+            "kind": "mount",
+            "scrollNear": "[data-fw=\"platform\"]",
+            "waitFor": "[data-fw=\"platform\"]",
+            "why": "the same scroll excursion as the original, to the platform section of the rewrite: the page's history is part of what is compared (the original recomputes the pain notes' base positions when its content-visibility section renders after a resize, so a page that never scrolled keeps the old ones); the rewrite has the panel from the start, so there is nothing to wait for but the section"
           }
         ]
       },

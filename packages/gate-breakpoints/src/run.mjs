@@ -177,12 +177,14 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   // `ctx` = { base, rec } (frozen only): the stop base and the sample's record of readings that missed their instant. Order of the
   // readings and their ranks (Lean Fw.Gate.Freeze): the main parts 0, overlay j = 1 + j, the mount parts together = nOverlay + 1, a
   // part brought into view = nOverlay + 2 + its index among the plain parts.
-  async function evalCollect(s, site, env, props, settleRoots, view = false, ctx = null, viewSync = null) {
+  async function evalCollect(s, site, env, props, settleRoots, view = false, ctx = null, viewSync = null, page = null) {
     const at = (rank, label) => (ctx ? observeAt(s, instant(ctx.base, rank), freezeInPage, ctx.rec, label) : true);
     const pick = (ids) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => ids.includes(pid)));
-    await at(0, 'main');
-    const raw = await collectWith(s, collectArg(site, env, props, pick(plainIds), view));
-    for (const [j, pid] of ovIds.entries()) {
+    const withMain = page !== 'mounted';
+    const withMount = page !== 'plain';
+    if (withMain) await at(0, 'main');
+    const raw = await collectWith(s, collectArg(site, env, props, pick(withMain ? plainIds : []), view));
+    for (const [j, pid] of (withMain ? ovIds : []).entries()) {
       const steps = overlayOf[site][pid] || [];
       if (steps.length > 0) {
         await s.evaluate(prepareInPage, { stage: 'open', steps, capMs: CAP_MS[site] });
@@ -194,7 +196,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       raw.parts = { ...raw.parts, ...one.parts };
       if (steps.length > 0) await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
     }
-    if (mtIds.length > 0) {
+    if (mtIds.length > 0 && withMount) {
       if (Object.keys(mountOf[site]).length > 0) {
         const ready = await s.evaluate(prepareInPage, { stage: 'ready', steps: Object.values(mountOf[site]).flat(), capMs: CAP_MS[site], maxFrames: GATE_POLICY.maxFrames });
         raw.prepared = ready.found;
@@ -346,7 +348,8 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const sweepRecords = [];
   for (const sw of sweeps) {
     const tSweep = Date.now();
-    const perSite = await Promise.all(SITES.map(async (site) => withRetry(`sweep ${sw.id} ${site}`, async () => {
+    // One page load of one arm: all stops of the sweep, with the parts of `page` (Lean Fw.Gate.Freeze.pageOf; null = all of them).
+    const armStops = (site, page) => withRetry(`sweep ${sw.id} ${site}${page ? ` ${page}` : ''}`, async () => {
       const s = await load(sw.stops[0], site);
       try {
         const stops = [];
@@ -361,13 +364,29 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
             log(`  resize ${engineName} ${site} ${sw.stops[i].width}x${sw.stops[i].height}: ${Date.now() - t1} ms`);
           }
           const settleWait = await settleArm(s, site, sw.stops[i]);
-          const raw = await evalCollect(s, site, sw.stops[i], collectProps, (roots, e) => settleArm(s, site, e, roots), false, frozen ? { base: stopBase(i, readingCount(false)), rec } : null);
+          const raw = await evalCollect(s, site, sw.stops[i], collectProps, (roots, e) => settleArm(s, site, e, roots), false, frozen ? { base: stopBase(i, readingCount(false)), rec } : null, null, page);
           raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
           stops.push(raw);
         }
         return stops;
       } finally { await s.close().catch(() => {}); }
-    })));
+    });
+    // The mount stage scrolls the page away and back, and a part that needs no mount must not be read after that history (the original
+    // recomputes its pain notes when its section renders, its typing visual keeps cycling): parts without a mount step are read on a page
+    // that never scrolls, the mount parts on a second page that does (Lean Fw.Gate.Freeze.pageOf, pages_partition). Without a mount part
+    // there is one page, as before. The two pages' readings of a stop are joined; the sample is unsettled when any wait of it is.
+    const hasPlain = plainIds.length + ovIds.length > 0;
+    const joinStop = (a, b) => ({
+      ...a, parts: { ...a.parts, ...b.parts }, ...(b.prepared ? { prepared: b.prepared } : {}),
+      ...(a.late || b.late ? { late: [...(a.late || []), ...(b.late || [])] } : {}),
+      settleWait: foldSettle(a.settleWait, [b.settleWait]),
+    });
+    const perSite = await Promise.all(SITES.map(async (site) => {
+      if (mtIds.length === 0) return armStops(site, null);
+      const mounted = await armStops(site, 'mounted');
+      if (!hasPlain) return mounted;
+      return (await armStops(site, 'plain')).map((a, i) => joinStop(a, mounted[i]));
+    }));
     const last = sw.stops[sw.stops.length - 1];
     const fresh = await Promise.all(SITES.map((site) => sample(last, site, false)));
     sweepRecords.push({ id: sw.id, blurb: sw.blurb, stops: sw.stops, orig: perSite[0], rewrite: perSite[1], freshFinal: { orig: fresh[0], rewrite: fresh[1] } });
