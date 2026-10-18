@@ -67,13 +67,14 @@ structure Wf where
   name : String
 deriving Repr, DecidableEq
 
-/-- The plan commands of a run, given the task ids and whether the run has ended: a name that is a task id
-spawns that agent, and stops it once the run ended; any other name gives none.
+/-- The plan commands of a run at time $n$, given the task ids and whether the run has ended: a name
+that is a task id spawns that agent, and stops it once the run ended; any other name gives none. (In
+the event wire the time is the event's stamp, so `wfEvents` passes $0$ and drops it.)
 
-$$\operatorname{cmds}(I, e, w) = \begin{cases} [\mathrm{spawn}(w.\mathit{name}), \mathrm{stop}(w.\mathit{name})] & w.\mathit{name} \in I \land e \\ [\mathrm{spawn}(w.\mathit{name})] & w.\mathit{name} \in I \land \lnot e \\ [\,] & w.\mathit{name} \notin I \end{cases}$$
+$$\operatorname{cmds}(I, e, w, n) = \begin{cases} [\mathrm{spawn}(w.\mathit{name}, n), \mathrm{stop}(w.\mathit{name}, n)] & w.\mathit{name} \in I \land e \\ [\mathrm{spawn}(w.\mathit{name}, n)] & w.\mathit{name} \in I \land \lnot e \\ [\,] & w.\mathit{name} \notin I \end{cases}$$
 -/
-def Wf.cmds (ids : List String) (ended : Bool) (w : Wf) : List Cmd :=
-  if ids.contains w.name then .spawn w.name :: (if ended then [.stop w.name] else []) else []
+def Wf.cmds (ids : List String) (ended : Bool) (w : Wf) (n : Nat) : List Cmd :=
+  if ids.contains w.name then .spawn w.name n :: (if ended then [.stop w.name n] else []) else []
 
 /-- `run` of an appended list continues the fold.
 
@@ -82,56 +83,82 @@ $$\forall as, bs:\quad \operatorname{run}(as \mathbin{+\!\!+} bs) = \operatornam
 theorem run_append (as bs : List Cmd) : run (as ++ bs) = bs.foldl step (run as) := by
   simp [run, List.foldl_append]
 
-/-- **A running workflow named `t` binds `t`**: if the first row `r` with id `t` has no stored agent and is
-not done, and the name `t` is not ended (no more stops than spawns), then after `spawn(t)` the board binds
-agent `t` to it.
+/-- **A running workflow named `t` binds `t`**: if the first row `r` with id `t` has no stored agent and
+is not done, and every stop of the key `t` is earlier than $n$, then after $\mathrm{spawn}(t, n)$ the
+board binds agent `t` to it.
 
-$$\forall \pi, t, r:\ \operatorname{row}_t(\pi) = r \land r.\mathit{agent} = \bot \land r.\mathit{evidence} = \bot \land \#_t(\pi.\mathit{stops}) \le \#_t(\pi.\mathit{spawns}) \Rightarrow \operatorname{boundTo}(\operatorname{step}(\pi, \mathrm{spawn}(t)), t) = t$$
+$$\forall \pi, t, n, r:\ \operatorname{row}_t(\pi) = r \land r.\mathit{agent} = \bot \land r.\mathit{evidence} = \bot \land (\forall (b, m) \in \pi.\mathit{stops}:\ b = t \Rightarrow m < n) \Rightarrow \operatorname{boundTo}(\operatorname{step}(\pi, \mathrm{spawn}(t, n)), t) = t$$
 -/
-theorem workflow_binds (π : State) (t : String) (r : Task)
+theorem workflow_binds (π : State) (t : String) (n : Nat) (r : Task)
     (hr : π.tasks.find? (·.id == t) = some r) (ha : r.agent = none) (he : r.evidence = none)
-    (hb : π.stops.count t ≤ π.spawns.count t) :
-    boundTo (step π (.spawn t)) t = some t := by
-  have hid : r.id = t := by
-    have := List.find?_some hr
-    simpa using this
-  simp [boundTo, step_spawn, hr, agentOf, cands, he, ha, hid, List.count_append, ended]
-  omega
+    (hb : ∀ q ∈ π.stops, q.1 = t → q.2 < n) :
+    boundTo (step π (.spawn t n)) t = some t := by
+  have hid : r.id = t := by simpa using List.find?_some hr
+  obtain ⟨hl, hend⟩ := revive_on_event π (k := t) (a := t) (n := n) (by simp [keysOf]) hb
+  have ho : opened (step π (.spawn t n)) t = true := by
+    simp only [liveK, Bool.and_eq_true] at hl
+    simp only [opened, List.any_eq_true]
+    exact ⟨t, by simp [keysOf], hl.1⟩
+  have hr' : (step π (.spawn t n)).tasks.find? (·.id == t) = some r := by rw [step_spawn]; exact hr
+  simp [boundTo, hr', agentOf, cands, ho, he, ha, hid, hend]
 
-/-- **The end of a workflow unbinds an undone task**: after `spawn(t)` and `stop(t)` of a name whose
-spawns and stops were balanced, the task is no longer bound (a done task keeps `t`, below).
+/-- **The end of a workflow unbinds an undone task**: after $\mathrm{spawn}(t, n)$ and
+$\mathrm{stop}(t, n)$, where $n$ is no earlier than every sighting of the key `t` so far and no id is
+labelled `t`, the task is no longer bound (a done task keeps `t`, below).
 
-$$\forall \pi, t, r:\ \operatorname{row}_t(\pi) = r \land r.\mathit{agent} = \bot \land r.\mathit{evidence} = \bot \land \#_t(\pi.\mathit{stops}) = \#_t(\pi.\mathit{spawns}) \Rightarrow \operatorname{boundTo}(\operatorname{step}(\operatorname{step}(\pi, \mathrm{spawn}(t)), \mathrm{stop}(t)), t) = \bot$$
+$$\forall \pi, t, n, r:\ \operatorname{row}_t(\pi) = r \land r.\mathit{agent} = \bot \land r.\mathit{evidence} = \bot \land (\forall (k, b) \in \pi.\mathit{labels}:\ b \ne t) \land \operatorname{lastAt}(\pi, t) \le n \Rightarrow \operatorname{boundTo}(\operatorname{step}(\operatorname{step}(\pi, \mathrm{spawn}(t, n)), \mathrm{stop}(t, n)), t) = \bot$$
 -/
-theorem workflow_ends (π : State) (t : String) (r : Task)
+theorem workflow_ends (π : State) (t : String) (n : Nat) (r : Task)
     (hr : π.tasks.find? (·.id == t) = some r) (ha : r.agent = none) (he : r.evidence = none)
-    (hb : π.stops.count t = π.spawns.count t) :
-    boundTo (step (step π (.spawn t)) (.stop t)) t = none := by
-  have hid : r.id = t := by
-    have := List.find?_some hr
-    simpa using this
-  simp [boundTo, step_spawn, step_stop, hr, agentOf, cands, he, ha, hid, List.count_append, ended]
-  omega
+    (hn : ∀ p ∈ π.labels, p.2 ≠ t) (hb : lastAt π t ≤ n) :
+    boundTo (step (step π (.spawn t n)) (.stop t n)) t = none := by
+  have hid : r.id = t := by simpa using List.find?_some hr
+  have hsg : ∀ p ∈ sights (step π (.spawn t n)), p ∈ sights π ∨ p = (t, n) := by
+    intro p hp
+    rw [step_spawn] at hp
+    simp only [sights, List.mem_append, List.mem_singleton] at hp ⊢
+    rcases hp with hp | hp | hp
+    · exact .inl (.inl hp)
+    · exact .inl (.inr hp)
+    · exact .inr hp
+  have hle : lastAt (step π (.spawn t n)) t ≤ n := lastAt_le fun p hp hpt => by
+    rcases hsg p hp with hp | rfl
+    · have := le_lastAt (π := π) (k := t) (n := p.2) (by rw [← hpt]; exact hp)
+      omega
+    · exact Nat.le_refl _
+  have hE := stop_ends hle
+  have hf : π.labels.filter (·.2 == t) = [] :=
+    List.filter_eq_nil_iff.mpr fun p hp => by simpa using hn p hp
+  have hend : ended (step (step π (.spawn t n)) (.stop t n)) t = true := by
+    have hk : keysOf (step (step π (.spawn t n)) (.stop t n)) t = [t] := by
+      rw [step_spawn, step_stop]; simp [keysOf, hf]
+    simp [ended, hk, liveK, hE]
+  rw [step_spawn, step_stop] at hend ⊢
+  simp only [boundTo, hr, Option.bind_some, agentOf, he, Option.isSome_none, Bool.false_eq_true,
+    ↓reduceIte, cands, ha, Option.toList_none, List.filter_nil, List.nil_append, hid]
+  split <;> simp [hend]
 
 /-- A done task keeps the workflow's agent after the run ended.
 
-$$\forall \pi, t, r, e:\ \operatorname{row}_t(\pi) = r \land r.\mathit{agent} = \bot \land r.\mathit{evidence} = e \Rightarrow \operatorname{boundTo}(\operatorname{step}(\operatorname{step}(\pi, \mathrm{spawn}(t)), \mathrm{stop}(t)), t) = t$$
+$$\forall \pi, t, n, r, e:\ \operatorname{row}_t(\pi) = r \land r.\mathit{agent} = \bot \land r.\mathit{evidence} = e \Rightarrow \operatorname{boundTo}(\operatorname{step}(\operatorname{step}(\pi, \mathrm{spawn}(t, n)), \mathrm{stop}(t, n)), t) = t$$
 -/
-theorem workflow_done_keeps (π : State) (t : String) (r : Task) (e : String)
+theorem workflow_done_keeps (π : State) (t : String) (n : Nat) (r : Task) (e : String)
     (hr : π.tasks.find? (·.id == t) = some r) (ha : r.agent = none) (he : r.evidence = some e) :
-    boundTo (step (step π (.spawn t)) (.stop t)) t = some t := by
-  have hid : r.id = t := by
-    have := List.find?_some hr
-    simpa using this
-  simp [boundTo, step_spawn, step_stop, hr, agentOf, cands, he, ha, hid, List.count_append, ended]
-  split <;> simp
+    boundTo (step (step π (.spawn t n)) (.stop t n)) t = some t := by
+  have hid : r.id = t := by simpa using List.find?_some hr
+  rw [step_spawn, step_stop]
+  have ho : opened { π with spawns := π.spawns ++ [(t, n)], stops := π.stops ++ [(t, n)] } t = true := by
+    simp [opened, keysOf, openedK, sights]
+  simp only [boundTo, hr, Option.bind_some, agentOf, he, Option.isSome_some, ↓reduceIte, cands, ha,
+    Option.toList_none, List.filter_nil, List.nil_append, hid, ho]
+  simp only [List.find?_cons, List.find?_nil, List.head?_cons]; split <;> rfl
 
 /-- A run whose name is not a task id gives no command.
 
-$$\forall I, e, w:\quad w.\mathit{name} \notin I \Rightarrow \operatorname{cmds}(I, e, w) = [\,]$$
+$$\forall I, e, w, n:\quad w.\mathit{name} \notin I \Rightarrow \operatorname{cmds}(I, e, w, n) = [\,]$$
 -/
-theorem workflow_foreign_none (ids : List String) (ended : Bool) (w : Wf)
-    (h : w.name ∉ ids) : w.cmds ids ended = [] := by
+theorem workflow_foreign_none (ids : List String) (ended : Bool) (w : Wf) (n : Nat)
+    (h : w.name ∉ ids) : w.cmds ids ended n = [] := by
   simp [Wf.cmds, h]
 
 /-- `find?` agrees for two predicates that agree on the list.
@@ -145,29 +172,69 @@ theorem find_congr (p q : String → Bool) :
     simp only [List.find?_cons, h a (List.mem_cons_self ..)]
     rw [find_congr p q l (fun b hb => h b (List.mem_cons_of_mem _ hb))]
 
-/-- Spawns and stops of one name `n` change the binding of no row whose id is not `n` and whose stored agent
-is not `n`: a workflow that is no task id binds nothing.
+/-- Spawns and stops of one key `n` leave every other key as it was: seen and live alike.
 
-$$\forall \pi, t, n, xs, ys:\ t.\mathit{id} \ne n \land t.\mathit{agent} \ne \mathrm{some}(n) \land (\forall x \in xs \cup ys:\ x = n) \Rightarrow \operatorname{agentOf}(\pi[\mathit{spawns} := \pi.\mathit{spawns} \mathbin{+\!\!+} xs,\ \mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} ys], t) = \operatorname{agentOf}(\pi, t)$$
+$$\forall \pi, n, k, xs, ys:\ (\forall (b, m) \in xs \mathbin{+\!\!+} ys:\ b = n) \land k \ne n \Rightarrow \operatorname{openedK}(\pi', k) = \operatorname{openedK}(\pi, k) \land \operatorname{liveK}(\pi', k) = \operatorname{liveK}(\pi, k), \qquad \pi' = \pi[\mathit{spawns} := \pi.\mathit{spawns} \mathbin{+\!\!+} xs,\ \mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} ys]$$
 -/
-theorem workflow_foreign_agentOf (π : State) (t : Task) (n : String) (xs ys : List String)
-    (hx : ∀ x ∈ xs, x = n) (hy : ∀ y ∈ ys, y = n) (hid : t.id ≠ n) (hag : t.agent ≠ some n) :
+theorem key_other (π : State) (n k : String) (xs ys : List (String × Nat))
+    (hx : ∀ x ∈ xs, x.1 = n) (hy : ∀ y ∈ ys, y.1 = n) (hk : k ≠ n) :
+    openedK { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } k = openedK π k ∧
+      liveK { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } k = liveK π k := by
+  have hsg : sights { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } = sights π ++ xs := by
+    simp [sights]
+  have h0 : xs.any (·.1 == k) = false :=
+    List.any_eq_false.mpr fun p hp => by simp [hx p hp, Ne.symm hk]
+  have ho : openedK { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } k = openedK π k := by
+    simp only [openedK, hsg, List.any_append, h0, Bool.or_false]
+  refine ⟨ho, ?_⟩
+  have hxa : ∀ m : Nat, xs.all (fun p => p.1 != k || decide (p.2 ≤ m)) = true := fun m =>
+    List.all_eq_true.mpr fun p hp => by simp [hx p hp, Ne.symm hk]
+  have hya : (ys.any fun q => q.1 == k &&
+      (sights π ++ xs).all fun p => p.1 != k || decide (p.2 ≤ q.2)) = false :=
+    List.any_eq_false.mpr fun q hq => by simp [hy q hq, Ne.symm hk]
+  have hE : endedK { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } k = endedK π k := by
+    simp only [endedK, hsg, List.any_append, hya, Bool.or_false]
+    simp only [List.all_append, hxa, Bool.and_true]
+  simp only [liveK, ho, hE]
+
+/-- Spawns and stops of one key `n` (at any times) change the binding of no row whose id is not `n`
+and whose stored agent is not `n`, when `n` is no labelled key (no label pairs the id `n` with a name): a workflow
+that is no task id binds nothing.
+
+$$\forall \pi, t, n, xs, ys:\ t.\mathit{id} \ne n \land t.\mathit{agent} \ne \mathrm{some}(n) \land (\forall (b, m) \in xs \mathbin{+\!\!+} ys:\ b = n) \land (\forall (k, b) \in \pi.\mathit{labels}:\ k \ne n) \Rightarrow \operatorname{agentOf}(\pi[\mathit{spawns} := \pi.\mathit{spawns} \mathbin{+\!\!+} xs,\ \mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} ys], t) = \operatorname{agentOf}(\pi, t)$$
+-/
+theorem workflow_foreign_agentOf (π : State) (t : Task) (n : String) (xs ys : List (String × Nat))
+    (hx : ∀ x ∈ xs, x.1 = n) (hy : ∀ y ∈ ys, y.1 = n) (hid : t.id ≠ n) (hag : t.agent ≠ some n)
+    (hl : ∀ p ∈ π.labels, p.1 ≠ n) :
     agentOf { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } t = agentOf π t := by
-  have cx : ∀ a, a ≠ n → xs.count a = 0 := fun a ha =>
-    List.count_eq_zero.2 fun h => ha (hx a h)
-  have cy : ∀ a, a ≠ n → ys.count a = 0 := fun a ha =>
-    List.count_eq_zero.2 fun h => ha (hy a h)
+  have hkeys : ∀ a, a ≠ n → ∀ k ∈ keysOf π a, k ≠ n := by
+    intro a ha k hk
+    simp only [keysOf, List.mem_cons, List.mem_map, List.mem_filter] at hk
+    rcases hk with rfl | ⟨p, ⟨hp, _⟩, rfl⟩
+    · exact ha
+    · exact hl p hp
+  have hk' : ∀ a, keysOf { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } a = keysOf π a :=
+    fun _ => rfl
   have hend : ∀ a, a ≠ n →
       ended { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } a = ended π a := by
     intro a ha
-    simp [ended, List.count_append, cx a ha, cy a ha]
+    simp only [ended, hk']
+    rw [any_congr_mem fun k hk => (key_other π n k xs ys hx hy (hkeys a ha k hk)).2]
+  have hop : ∀ a, a ≠ n →
+      opened { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } a = opened π a := by
+    intro a ha
+    simp only [opened, hk']
+    rw [any_congr_mem fun k hk => (key_other π n k xs ys hx hy (hkeys a ha k hk)).1]
   have hc : cands { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } t = cands π t := by
-    simp [cands, List.count_append, cx _ hid]
+    have hfl : t.agent.toList.filter (opened { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys })
+        = t.agent.toList.filter (opened π) :=
+      List.filter_congr fun a ha => hop a fun e => hag (by simp_all)
+    simp only [cands, hfl, hop t.id hid]
   have hmem : ∀ a ∈ cands π t, a ≠ n := by
     intro a ha
-    simp only [cands, List.mem_append, Option.mem_toList, List.mem_ite_nil_right,
+    simp only [cands, List.mem_append, List.mem_filter, Option.mem_toList, List.mem_ite_nil_right,
       List.mem_singleton] at ha
-    rcases ha with h | ⟨_, h⟩
+    rcases ha with ⟨h, _⟩ | ⟨_, h⟩
     · intro e; exact hag (by rw [h, e])
     · intro e; exact hid (by rw [← h, e])
   have hf : (cands π t).find? (fun a => !ended { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } a)
@@ -176,13 +243,14 @@ theorem workflow_foreign_agentOf (π : State) (t : Task) (n : String) (xs ys : L
   unfold agentOf
   rw [hc, hf]
 
+
 /-- A run of a name that is no task id leaves every binding alone.
 
-$$\forall es, w, I, e, x:\ w.\mathit{name} \notin I \Rightarrow \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} w.\mathit{cmds}), x) = \operatorname{boundTo}(\operatorname{run}(es), x)$$
+$$\forall es, I, e, w, n, x:\ w.\mathit{name} \notin I \Rightarrow \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} \operatorname{cmds}(I, e, w, n)), x) = \operatorname{boundTo}(\operatorname{run}(es), x)$$
 -/
-theorem workflow_foreign_bound (es : List Cmd) (ids : List String) (ended : Bool) (w : Wf) (x : String)
-    (h : w.name ∉ ids) : boundTo (run (es ++ w.cmds ids ended)) x = boundTo (run es) x := by
-  rw [workflow_foreign_none ids ended w h]
+theorem workflow_foreign_bound (es : List Cmd) (ids : List String) (ended : Bool) (w : Wf) (n : Nat) (x : String)
+    (h : w.name ∉ ids) : boundTo (run (es ++ w.cmds ids ended n)) x = boundTo (run es) x := by
+  rw [workflow_foreign_none ids ended w n h]
   simp
 
 /-- A define commutes with the commands of a run: the same plan state in either order, after any prefix.
@@ -207,10 +275,10 @@ theorem define_life_comm (d : Def) :
 
 /-- The commands of any run are spawns and stops.
 
-$$\forall I, e, w, c \in w.\mathit{cmds}(I, e):\ \operatorname{isLife}(c) = \mathrm{true}$$
+$$\forall I, e, w, n, c:\quad c \in \operatorname{cmds}(I, e, w, n) \Rightarrow \operatorname{isLife}(c) = \mathrm{true}$$
 -/
-theorem Wf.cmds_life (ids : List String) (ended : Bool) (w : Wf) :
-    ∀ c ∈ w.cmds ids ended, c.isLife = true := by
+theorem Wf.cmds_life (ids : List String) (ended : Bool) (w : Wf) (n : Nat) :
+    ∀ c ∈ w.cmds ids ended n, c.isLife = true := by
   intro c hc
   unfold Wf.cmds at hc
   split at hc
@@ -220,13 +288,13 @@ theorem Wf.cmds_life (ids : List String) (ended : Bool) (w : Wf) :
 /-- **The claim-order race stays gone for workflows**: defining task `x` and running a workflow bind the same
 agent in either order, after any log prefix.
 
-$$\forall es, d, I, e, w, x:\quad \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} \mathrm{define}(d) :: w.\mathit{cmds}), x) = \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} w.\mathit{cmds} \mathbin{+\!\!+} [\mathrm{define}(d)]), x)$$
+$$\forall es, d, I, e, w, n, x:\quad \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} \mathrm{define}(d) :: \operatorname{cmds}(I, e, w, n)), x) = \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} \operatorname{cmds}(I, e, w, n) \mathbin{+\!\!+} [\mathrm{define}(d)]), x)$$
 -/
 theorem define_workflow_comm (es : List Cmd) (d : Def) (ids : List String) (ended : Bool) (w : Wf)
-    (x : String) :
-    boundTo (run (es ++ .define d :: w.cmds ids ended)) x =
-      boundTo (run (es ++ w.cmds ids ended ++ [.define d])) x := by
-  rw [define_life_comm d _ es (Wf.cmds_life ids ended w)]
+    (n : Nat) (x : String) :
+    boundTo (run (es ++ .define d :: w.cmds ids ended n)) x =
+      boundTo (run (es ++ w.cmds ids ended n ++ [.define d])) x := by
+  rw [define_life_comm d _ es (Wf.cmds_life ids ended w n)]
 
 /-- The runs of a list of script file names, each (run id, name) pair once.
 
@@ -239,14 +307,14 @@ def runsOf (scripts : List String) : List Wf :=
 task ids, the script file names and the run file names: a run's script gives `agent.spawn` (key
 `wf:<runId>`), its run file also `agent.stop` (key `wf-end:<runId>`); only runs named like a task.
 
-$$\operatorname{events}(I, S, R) = \mathop{\mathrm{concat}}_{w \in \operatorname{runs}(S)} \operatorname{ev}(w.\mathit{run}, w.\mathit{cmds}(I, w.\mathit{run} \in \operatorname{ids}(R))),\quad \operatorname{ev}(r, \mathrm{spawn}(a)) = (\texttt{wf:}r, \texttt{agent.spawn}, a),\ \operatorname{ev}(r, \mathrm{stop}(a)) = (\texttt{wf-end:}r, \texttt{agent.stop}, a)$$
+$$\operatorname{events}(I, S, R) = \mathop{\mathrm{concat}}_{w \in \operatorname{runs}(S)} \operatorname{ev}(w.\mathit{run}, \operatorname{cmds}(I, w.\mathit{run} \in \operatorname{ids}(R), w, 0)),\quad \operatorname{ev}(r, \mathrm{spawn}(a, \_)) = (\texttt{wf:}r, \texttt{agent.spawn}, a),\ \operatorname{ev}(r, \mathrm{stop}(a, \_)) = (\texttt{wf-end:}r, \texttt{agent.stop}, a)$$
 -/
 def wfEvents (ids scripts runFiles : List String) : List (String × String × String) :=
   let ended := runFiles.filterMap runFileId
   (runsOf scripts).flatMap fun w =>
-    (w.cmds ids (ended.contains w.run)).filterMap fun
-      | .spawn a => some (s!"wf:{w.run}", "agent.spawn", a)
-      | .stop a => some (s!"wf-end:{w.run}", "agent.stop", a)
+    (w.cmds ids (ended.contains w.run) 0).filterMap fun
+      | .spawn a _ => some (s!"wf:{w.run}", "agent.spawn", a)
+      | .stop a _ => some (s!"wf-end:{w.run}", "agent.stop", a)
       | _ => none
 
 /-- No script named like a task, no event: a workflow that is no task id emits nothing.
@@ -258,7 +326,7 @@ theorem wfEvents_foreign (ids scripts runFiles : List String)
   unfold wfEvents
   rw [List.flatMap_eq_nil_iff]
   intro w hw
-  rw [workflow_foreign_none ids _ w (h w hw)]
+  rw [workflow_foreign_none ids _ w _ (h w hw)]
   rfl
 
 
@@ -316,23 +384,23 @@ def wfAgents (js : List JLine) : List WfAgent :=
 /-- The commands of a labelled agent, given the task ids and whether its run ended: a label naming a task id spawns
 that task, and stops it once the agent or its run ended; any other label gives none.
 
-$$\operatorname{acmds}(I, e, a) = \begin{cases} [\mathrm{spawn}(t), \mathrm{stop}(t)] & \operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land (a.\mathit{done} \lor e) \\ [\mathrm{spawn}(t)] & \operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land \lnot(a.\mathit{done} \lor e) \\ [\,] & \text{otherwise}\end{cases}$$
+$$\operatorname{acmds}(I, e, a, n) = \begin{cases} [\mathrm{spawn}(t, n), \mathrm{stop}(t, n)] & \operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land (a.\mathit{done} \lor e) \\ [\mathrm{spawn}(t)] & \operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land \lnot(a.\mathit{done} \lor e) \\ [\,] & \text{otherwise}\end{cases}$$
 -/
-def WfAgent.cmds (ids : List String) (runEnded : Bool) (a : WfAgent) : List Cmd :=
+def WfAgent.cmds (ids : List String) (runEnded : Bool) (a : WfAgent) (n : Nat) : List Cmd :=
   match labelTask a.label with
-  | some t => if ids.contains t then .spawn t :: (if a.done || runEnded then [.stop t] else []) else []
+  | some t => if ids.contains t then .spawn t n :: (if a.done || runEnded then [.stop t n] else []) else []
   | none => []
 
 /-- The events of the labelled agents (keys `wfa:<run>:<id>` and `wfa-end:<run>:<id>`).
 
-$$\operatorname{aevents}(I, R, J) = \mathop{\mathrm{concat}}_{a \in \operatorname{agents}(J)} \operatorname{ev}(a, a.\mathrm{cmds}(I, a.\mathit{run} \in \operatorname{ids}(R)))$$
+$$\operatorname{aevents}(I, R, J) = \mathop{\mathrm{concat}}_{a \in \operatorname{agents}(J)} \operatorname{ev}(a, \operatorname{acmds}(I, a.\mathit{run} \in \operatorname{ids}(R), a, 0))$$
 -/
 def agentEvents (ids runFiles : List String) (journal : List JLine) : List (String × String × String) :=
   let ended := runFiles.filterMap runFileId
   (wfAgents journal).flatMap fun a =>
-    (a.cmds ids (ended.contains a.run)).filterMap fun
-      | .spawn t => some (s!"wfa:{a.run}:{a.id}", "agent.spawn", t)
-      | .stop t => some (s!"wfa-end:{a.run}:{a.id}", "agent.stop", t)
+    (a.cmds ids (ended.contains a.run) 0).filterMap fun
+      | .spawn t _ => some (s!"wfa:{a.run}:{a.id}", "agent.spawn", t)
+      | .stop t _ => some (s!"wfa-end:{a.run}:{a.id}", "agent.stop", t)
       | _ => none
 
 /-- All workflow events: those of the runs named like a task, then those of the labelled agents.
@@ -353,30 +421,30 @@ theorem wfAllEvents_nil (ids scripts runFiles : List String) :
 
 /-- A running agent labelled with a task id binds it (one spawn, no stop).
 
-$$\operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land \lnot a.\mathit{done} \Rightarrow \operatorname{acmds}(I, \bot, a) = [\mathrm{spawn}(t)]$$
+$$\forall I, a, t, n:\quad \operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land \lnot a.\mathit{done} \Rightarrow \operatorname{acmds}(I, \mathrm{false}, a, n) = [\mathrm{spawn}(t, n)]$$
 -/
-theorem WfAgent.cmds_running (ids : List String) (a : WfAgent) (t : String)
+theorem WfAgent.cmds_running (ids : List String) (a : WfAgent) (t : String) (n : Nat)
     (hl : labelTask a.label = some t) (ht : ids.contains t = true) (hd : a.done = false) :
-    a.cmds ids false = [.spawn t] := by
+    a.cmds ids false n = [.spawn t n] := by
   have := List.contains_iff_mem.1 ht
   simp [WfAgent.cmds, hl, hd, this]
 
 /-- An ended agent (or one of an ended run) spawns and stops its task: the binding ends with the agent.
 
-$$\operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land (a.\mathit{done} \lor e) \Rightarrow \operatorname{acmds}(I, e, a) = [\mathrm{spawn}(t), \mathrm{stop}(t)]$$
+$$\forall I, e, a, t, n:\quad \operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land (a.\mathit{done} \lor e) \Rightarrow \operatorname{acmds}(I, e, a, n) = [\mathrm{spawn}(t, n), \mathrm{stop}(t, n)]$$
 -/
-theorem WfAgent.cmds_ended (ids : List String) (e : Bool) (a : WfAgent) (t : String)
+theorem WfAgent.cmds_ended (ids : List String) (e : Bool) (a : WfAgent) (t : String) (n : Nat)
     (hl : labelTask a.label = some t) (ht : ids.contains t = true) (hd : (a.done || e) = true) :
-    a.cmds ids e = [.spawn t, .stop t] := by
+    a.cmds ids e n = [.spawn t n, .stop t n] := by
   have := List.contains_iff_mem.1 ht
   simp [WfAgent.cmds, hl, hd, this]
 
 /-- The commands of an agent are spawns and stops.
 
-$$\forall I, e, a, c \in a.\mathrm{cmds}(I, e):\ \operatorname{isLife}(c) = \mathrm{true}$$
+$$\forall I, e, a, n, c:\quad c \in \operatorname{acmds}(I, e, a, n) \Rightarrow \operatorname{isLife}(c) = \mathrm{true}$$
 -/
-theorem WfAgent.cmds_life (ids : List String) (e : Bool) (a : WfAgent) :
-    ∀ c ∈ a.cmds ids e, c.isLife = true := by
+theorem WfAgent.cmds_life (ids : List String) (e : Bool) (a : WfAgent) (n : Nat) :
+    ∀ c ∈ a.cmds ids e n, c.isLife = true := by
   intro c hc
   unfold WfAgent.cmds at hc
   split at hc
@@ -387,13 +455,13 @@ theorem WfAgent.cmds_life (ids : List String) (e : Bool) (a : WfAgent) :
 
 /-- **A define commutes with the commands of a labelled agent**, as with a run's.
 
-$$\forall es, d, I, e, a, x:\quad \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} \mathrm{define}(d) :: a.\mathrm{cmds}), x) = \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} a.\mathrm{cmds} \mathbin{+\!\!+} [\mathrm{define}(d)]), x)$$
+$$\forall es, d, I, e, a, n, x:\quad \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} \mathrm{define}(d) :: \operatorname{acmds}(I, e, a, n)), x) = \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} \operatorname{acmds}(I, e, a, n) \mathbin{+\!\!+} [\mathrm{define}(d)]), x)$$
 -/
 theorem define_agent_comm (es : List Cmd) (d : Def) (ids : List String) (e : Bool) (a : WfAgent)
-    (x : String) :
-    boundTo (run (es ++ .define d :: a.cmds ids e)) x =
-      boundTo (run (es ++ a.cmds ids e ++ [.define d])) x := by
-  rw [define_life_comm d _ es (WfAgent.cmds_life ids e a)]
+    (n : Nat) (x : String) :
+    boundTo (run (es ++ .define d :: a.cmds ids e n)) x =
+      boundTo (run (es ++ a.cmds ids e n ++ [.define d])) x := by
+  rw [define_life_comm d _ es (WfAgent.cmds_life ids e a n)]
 
 /-- **Every bound task is a plan task named by a label or the run's name**: each event of `wfAllEvents` binds an
 id of the plan, and that id is the `meta.name` of a run in `scripts` or the `<task>` of the label of a journal
@@ -414,7 +482,7 @@ theorem wfAllEvents_bound (ids scripts runFiles : List String) (journal : List J
     split at hc
     · rename_i hid
       have hn : w.name ∈ ids := List.contains_iff_mem.1 hid
-      have hc' : c = .spawn w.name ∨ c = .stop w.name := by
+      have hc' : c = .spawn w.name 0 ∨ c = .stop w.name 0 := by
         simp only [List.mem_cons] at hc
         rcases hc with h1 | h1
         · exact Or.inl h1
@@ -430,7 +498,7 @@ theorem wfAllEvents_bound (ids scripts runFiles : List String) (journal : List J
       split at hc
       · rename_i hid
         have hn : t ∈ ids := List.contains_iff_mem.1 hid
-        have hc' : c = .spawn t ∨ c = .stop t := by
+        have hc' : c = .spawn t 0 ∨ c = .stop t 0 := by
           simp only [List.mem_cons] at hc
           rcases hc with h1 | h1
           · exact Or.inl h1

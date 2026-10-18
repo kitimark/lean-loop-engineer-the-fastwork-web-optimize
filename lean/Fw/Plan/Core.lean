@@ -69,42 +69,61 @@ deriving Repr, DecidableEq
 
 /-- The plan commands.
 
-$$\mathrm{Cmd} = \mathrm{define}(d) \mid \mathrm{drop}(\mathit{task}) \mid \mathrm{claim}(\mathit{task}, \mathit{agent}) \mid \mathrm{done}(\mathit{task}, \mathit{evidence}) \mid \mathrm{milestone}(\mathit{id}, \mathit{title}) \mid \mathrm{spawn}(\mathit{agent}) \mid \mathrm{stop}(\mathit{agent})$$
+$$\mathrm{Cmd} = \mathrm{define}(d) \mid \mathrm{drop}(\mathit{task}) \mid \mathrm{claim}(\mathit{task}, \mathit{agent}, \mathit{ts}) \mid \mathrm{done}(\mathit{task}, \mathit{evidence}) \mid \mathrm{milestone}(\mathit{id}, \mathit{title}) \mid \mathrm{spawn}(\mathit{agent}, \mathit{ts}) \mid \mathrm{stop}(\mathit{agent}, \mathit{ts}) \\ \mid \mathrm{label}(\mathit{agent}, \mathit{name}) \mid \mathrm{handback}(\mathit{task}, \mathit{agent}, \mathit{tip}_\bot) \mid \mathrm{integrate}(\mathit{task}, \mathit{branch}, \mathit{tip}) \mid \mathrm{park}(\mathit{task}, \mathit{reason}) \mid \mathrm{unpark}(\mathit{task})$$
+
+The last four (task `task-state-truth`) record what became of a task's work when its agent ended
+without a land: handed back, merged into a non-main integration branch, or parked by the lead
+(`unpark` removes the mark). A spawn or a stop carries a time $\mathit{ts} \in \mathbb{N}$ (ms): when
+the agent was seen starting or working (spawn) or ending (stop), so the board can tell whether a stop
+came after the agent's last sign of life, whatever order the commands reach the log in. The
+`agent` of a spawn or stop is a life key: the agent id of the hook records (task `task-state-truth`,
+round 3: liveness by id), or a name for facts that have no id (a spawn guard, a workflow run). A
+`label` gives the life key `agent` the display name `name` (from the console's health index), which
+binds it to tasks; a claim carries its time $\mathit{ts}$ (ms), which counts as a sighting of the
+claimed name (so a claim without any spawn expires after the quiet limit: `no_forever_running`).
 -/
 inductive Cmd where
   | define (d : Def)
   | drop (task : String)
-  | claim (task agent : String)
+  | claim (task agent : String) (ts : Nat)
   | done (task evidence : String)
   | milestone (id title : String)
-  | spawn (agent : String)
-  | stop (agent : String)
+  | spawn (agent : String) (ts : Nat)
+  | stop (agent : String) (ts : Nat)
+  | handback (task agent : String) (tip : Option String)
+  | integrate (task branch tip : String)
+  | park (task reason : String)
+  | unpark (task : String)
+  | label (agent name : String)
 deriving Repr, DecidableEq
 
 /-- The plan command types.
 
-$$\mathrm{CmdType} = \{\mathrm{define}, \mathrm{drop}, \mathrm{claim}, \mathrm{done}, \mathrm{milestone}, \mathrm{spawn}, \mathrm{stop}\}$$
+$$\mathrm{CmdType} = \{\mathrm{define}, \mathrm{drop}, \mathrm{claim}, \mathrm{done}, \mathrm{milestone}, \mathrm{spawn}, \mathrm{stop}, \mathrm{handback}, \mathrm{integrate}, \mathrm{park}, \mathrm{unpark}, \mathrm{label}\}$$
 -/
 inductive CmdType where
-  | define | drop | claim | done | milestone | spawn | stop
+  | define | drop | claim | done | milestone | spawn | stop | handback | integrate | park | unpark | label
 deriving Repr, DecidableEq
 
 /-- The wire name of a plan command type.
 
-$$\operatorname{name}(\mathrm{define}) = \texttt{"task.define"},\ \operatorname{name}(\mathrm{drop}) = \texttt{"task.drop"},\ \operatorname{name}(\mathrm{claim}) = \texttt{"task.claim"},\ \operatorname{name}(\mathrm{done}) = \texttt{"task.done"},\ \operatorname{name}(\mathrm{milestone}) = \texttt{"milestone.define"},\ \operatorname{name}(\mathrm{spawn}) = \texttt{"agent.spawn"},\ \operatorname{name}(\mathrm{stop}) = \texttt{"agent.stop"}$$
+$$\operatorname{name}(\mathrm{define}) = \texttt{"task.define"},\ \operatorname{name}(\mathrm{drop}) = \texttt{"task.drop"},\ \operatorname{name}(\mathrm{claim}) = \texttt{"task.claim"},\ \operatorname{name}(\mathrm{done}) = \texttt{"task.done"},\ \operatorname{name}(\mathrm{milestone}) = \texttt{"milestone.define"},\ \operatorname{name}(\mathrm{spawn}) = \texttt{"agent.spawn"},\ \operatorname{name}(\mathrm{stop}) = \texttt{"agent.stop"},\ \operatorname{name}(\mathrm{handback}) = \texttt{"task.handback"},\ \operatorname{name}(\mathrm{integrate}) = \texttt{"task.integrate"},\ \operatorname{name}(\mathrm{park}) = \texttt{"task.park"},\ \operatorname{name}(\mathrm{unpark}) = \texttt{"task.unpark"},\ \operatorname{name}(\mathrm{label}) = \texttt{"agent.label"}$$
 -/
 def CmdType.name : CmdType → String
   | .define => "task.define" | .drop => "task.drop" | .claim => "task.claim"
   | .done => "task.done" | .milestone => "milestone.define" | .spawn => "agent.spawn"
-  | .stop => "agent.stop"
+  | .stop => "agent.stop" | .handback => "task.handback" | .integrate => "task.integrate"
+  | .park => "task.park" | .unpark => "task.unpark" | .label => "agent.label"
 
 /-- The type of a plan command.
 
-$$\operatorname{type}(\mathrm{define}(\cdot)) = \mathrm{define},\ \dots,\ \operatorname{type}(\mathrm{milestone}(\cdot, \cdot)) = \mathrm{milestone},\ \operatorname{type}(\mathrm{spawn}(\cdot)) = \mathrm{spawn},\ \operatorname{type}(\mathrm{stop}(\cdot)) = \mathrm{stop}$$
+$$\operatorname{type}(\mathrm{define}(\cdot)) = \mathrm{define},\ \dots,\ \operatorname{type}(\mathrm{milestone}(\cdot, \cdot)) = \mathrm{milestone},\ \operatorname{type}(\mathrm{spawn}(\cdot, \cdot)) = \mathrm{spawn},\ \operatorname{type}(\mathrm{stop}(\cdot, \cdot)) = \mathrm{stop},\ \operatorname{type}(\mathrm{handback}(\cdot,\cdot,\cdot)) = \mathrm{handback},\ \operatorname{type}(\mathrm{integrate}(\cdot,\cdot,\cdot)) = \mathrm{integrate},\ \operatorname{type}(\mathrm{park}(\cdot,\cdot)) = \mathrm{park},\ \operatorname{type}(\mathrm{unpark}(\cdot)) = \mathrm{unpark},\ \operatorname{type}(\mathrm{label}(\cdot, \cdot)) = \mathrm{label}$$
 -/
 def Cmd.type : Cmd → CmdType
   | .define _ => .define | .drop _ => .drop | .claim .. => .claim | .done .. => .done
-  | .milestone .. => .milestone | .spawn _ => .spawn | .stop _ => .stop
+  | .milestone .. => .milestone | .spawn .. => .spawn | .stop .. => .stop
+  | .handback .. => .handback | .integrate .. => .integrate | .park .. => .park | .unpark _ => .unpark
+  | .label .. => .label
 
 /-- A milestone row.
 
@@ -115,17 +134,24 @@ structure Milestone where
   title : String
 deriving Repr, DecidableEq
 
-/-- The plan state: the task rows and the milestone rows, each in definition order, and the agent
-names of the accepted `agent.spawn` and `agent.stop` commands, one entry per command, in log order
-(the board reads only how often each name occurs).
+/-- The plan state: the task rows and the milestone rows, each in definition order, and the (agent
+name, time) pairs of the accepted `agent.spawn` and `agent.stop` commands, one entry per command, in
+log order (the board reads them only as multisets: `view_perm`), and the outcome marks of the accepted
+`task.handback` / `task.integrate` / `task.park` / `task.unpark` commands, one pair (task id, mark)
+per command in log order (`unpark` records no mark; the board reads the last pair of a task), the
+(life key, name) pairs of the accepted `agent.label` commands (read as a multiset), and the (agent,
+time) pairs of the accepted `task.claim` commands in log order.
 
-$$\pi = (\mathit{tasks}, \mathit{milestones}, \mathit{spawns}, \mathit{stops}), \qquad \pi_0 = ([\,], [\,], [\,], [\,])$$
+$$\pi = (\mathit{tasks}, \mathit{milestones}, \mathit{spawns}, \mathit{stops}, \mathit{marks}, \mathit{labels}, \mathit{claims}), \qquad \pi_0 = ([\,], [\,], [\,], [\,], [\,], [\,], [\,])$$
 -/
 structure State where
   tasks      : List Task := []
   milestones : List Milestone := []
-  spawns     : List String := []
-  stops      : List String := []
+  spawns     : List (String × Nat) := []
+  stops      : List (String × Nat) := []
+  marks      : List (String × Option Mark) := []
+  labels     : List (String × String) := []
+  claims     : List (String × Nat) := []
 deriving Repr, DecidableEq
 
 /-- The row a definition makes, with the given agent, evidence and evidence provenance.
@@ -191,6 +217,45 @@ $$\operatorname{isDone}(ts, x) \iff \exists t \in ts:\ t.\mathit{id} = x \land t
 -/
 def isDone (ts : List Task) (x : String) : Bool := ts.any fun t => t.id == x && t.evidence.isSome
 
+/-- The ref prefixes an integrate command may target: CI branches, worktree branches and integration
+branches, always as full refs (the runner resolves a short name with `git rev-parse --verify
+--symbolic-full-name`, or refuses).
+
+$$\operatorname{allowPrefixes} = [\texttt{"refs/heads/ci/"}, \texttt{"refs/heads/worktree-"}, \texttt{"refs/heads/integrate-"}]$$
+
+The three branch families that integration may write to.
+-/
+def allowPrefixes : List String := ["refs/heads/ci/", "refs/heads/worktree-", "refs/heads/integrate-"]
+
+/-- A character allowed in an integrate ref: an ASCII letter or digit, `.`, `_`, `/` or `-`.
+
+$$\operatorname{refChar}(c) \iff c \in \{\texttt{a}, \dots, \texttt{z}, \texttt{A}, \dots, \texttt{Z}, \texttt{0}, \dots, \texttt{9}, \texttt{.}, \texttt{\_}, \texttt{/}, \texttt{-}\}$$
+
+The characters of a plain branch name, without git's revision syntax (`~`, `^`, `@`, `:`, …).
+-/
+def refChar (c : Char) : Bool := c.isAlphanum || c == '.' || c == '_' || c == '/' || c == '-'
+
+/-- **An integrate target is allowed** when it is a full ref that starts with one of `allowPrefixes`
+and goes on past it, uses only `refChar` characters, and has no two dots in a row.
+
+$$\operatorname{allowedRef}(b) \iff \big(\exists p \in \operatorname{allowPrefixes}:\ p \text{ is a prefix of } b \land |b| > |p|\big) \land (\forall i < |b|:\ \operatorname{refChar}(b_i)) \land \lnot\big(\exists i:\ i + 1 < |b| \land b_i = b_{i+1} = \texttt{.}\big)$$
+
+Every spelling of main (`main`, `refs/heads/main`, `origin/main`, `origin/HEAD`, `HEAD`, `main~0`,
+`@`) fails the prefix test, so it is refused.
+-/
+def allowedRef (b : String) : Bool :=
+  allowPrefixes.any (fun p => b.startsWith p && decide (b.length > p.length)) &&
+    b.toList.all refChar && !(b.toList.zip b.toList.tail).any (fun (x, y) => x == '.' && y == '.')
+
+#guard allowedRef "refs/heads/ci/integrate-ports-3" && allowedRef "refs/heads/worktree-wf_dd322f5d-433-1"
+#guard allowedRef "refs/heads/integrate-x"
+#guard !allowedRef "main" && !allowedRef "Main" && !allowedRef "refs/heads/main" && !allowedRef "origin/main"
+#guard !allowedRef "origin/HEAD" && !allowedRef "HEAD" && !allowedRef "@" && !allowedRef "main~0"
+#guard !allowedRef "refs/remotes/origin/main" && !allowedRef "heads/main" && !allowedRef "ci/x"
+#guard !allowedRef "refs/heads/ci/" && !allowedRef "refs/heads/ci/a..b" && !allowedRef "refs/heads/ci/x~1"
+#guard !allowedRef "refs/heads/ci/x^" && !allowedRef "refs/heads/ci/x@{0}" && !allowedRef "refs/heads/worktree-"
+#guard !allowedRef "refs/heads/feature" && !allowedRef "" && !allowedRef "refs/heads/ci/a b"
+
 /-- The first refusal of a plan command, or `none` when it is accepted (first match wins, top to
 bottom inside each case).
 
@@ -202,8 +267,9 @@ $$\operatorname{check}(\pi, c) = \begin{cases}
 \quad \texttt{"dependency cycle"} \text{ if } \neg\operatorname{acyclicB}(U);\ \bot \end{array} & c = \mathrm{define}(d),\ U = \operatorname{upsert}(\pi.\mathit{tasks}, d) \\
 \begin{array}{l} \texttt{"no such task"} \text{ if } x \notin \operatorname{ids}(\pi.\mathit{tasks});\ \texttt{"task is done"} \text{ if } \operatorname{isDone}(\pi.\mathit{tasks}, x); \\
 \quad \texttt{"task "} y \texttt{" depends on it"} \text{ for the first } t \in \pi.\mathit{tasks} \text{ with } t.\mathit{evidence} = \bot \land x \in t.\mathit{deps},\ y = t.\mathit{id};\ \bot \end{array} & c = \mathrm{drop}(x) \\
-\texttt{"no such task"} \text{ if } x \notin \operatorname{ids}(\pi.\mathit{tasks});\ \texttt{"task already done"} \text{ if } \operatorname{isDone}(\pi.\mathit{tasks}, x);\ \bot & c \in \{\mathrm{claim}(x, \cdot), \mathrm{done}(x, \cdot)\} \\
-\bot & c \in \{\mathrm{milestone}(\cdot, \cdot), \mathrm{spawn}(\cdot), \mathrm{stop}(\cdot)\}
+\texttt{"no such task"} \text{ if } x \notin \operatorname{ids}(\pi.\mathit{tasks});\ \texttt{"task already done"} \text{ if } \operatorname{isDone}(\pi.\mathit{tasks}, x);\ \bot & c \in \{\mathrm{claim}(x, \cdot, \cdot), \mathrm{done}(x, \cdot), \mathrm{handback}(x, \cdot, \cdot), \mathrm{park}(x, \cdot), \mathrm{unpark}(x)\} \\
+\begin{array}{l} \texttt{"no such task"} \text{ if } x \notin \operatorname{ids}(\pi.\mathit{tasks});\ \texttt{"task already done"} \text{ if } \operatorname{isDone}(\pi.\mathit{tasks}, x); \\ \quad \texttt{"integrate only into refs/heads/ci/*, refs/heads/worktree-* or refs/heads/integrate-*"} \text{ if } \lnot\operatorname{allowedRef}(b);\ \bot \end{array} & c = \mathrm{integrate}(x, b, \cdot) \\
+\bot & c \in \{\mathrm{milestone}(\cdot, \cdot), \mathrm{spawn}(\cdot, \cdot), \mathrm{stop}(\cdot, \cdot), \mathrm{label}(\cdot, \cdot)\}
 \end{cases}$$
 -/
 def check (s : State) (c : Cmd) : Option String :=
@@ -226,36 +292,53 @@ def check (s : State) (c : Cmd) : Option String :=
     else match s.tasks.find? (fun t => t.evidence.isNone && t.deps.contains x) with
       | some t => some s!"task {t.id} depends on it"
       | none => none
-  | .claim x _ | .done x _ =>
+  | .claim x _ _ | .done x _ | .handback x _ _ | .park x _ | .unpark x =>
     if !(ids s.tasks).contains x then some "no such task"
     else if isDone s.tasks x then some "task already done"
     else none
-  | .milestone .. | .spawn _ | .stop _ => none
+  | .integrate x b _ =>
+    if !(ids s.tasks).contains x then some "no such task"
+    else if isDone s.tasks x then some "task already done"
+    else if !allowedRef b then
+      some "integrate only into refs/heads/ci/*, refs/heads/worktree-* or refs/heads/integrate-*"
+    else none
+  | .milestone .. | .spawn .. | .stop .. | .label .. => none
 
 /-- The effect of a plan command (applied after `check` accepted it).
 
 $$\operatorname{exec}(\pi, c) = \begin{cases}
 \pi[\mathit{tasks} := \operatorname{upsert}(\mathit{tasks}, d)] & \mathrm{define}(d) \\
 \pi[\mathit{tasks} := [\, t \in \mathit{tasks} : t.\mathit{id} \ne x \,]] & \mathrm{drop}(x) \\
-\pi[\mathit{tasks} := \operatorname{setRow}(\mathit{tasks}, x, t \mapsto t[\mathit{agent} := a])] & \mathrm{claim}(x, a) \\
+\pi[\mathit{tasks} := \operatorname{setRow}(\mathit{tasks}, x, t \mapsto t[\mathit{agent} := a]),\ \mathit{claims} := \mathit{claims} \mathbin{+\!\!+} [(a, n)]] & \mathrm{claim}(x, a, n) \\
 \pi[\mathit{tasks} := \operatorname{setRow}(\mathit{tasks}, x, t \mapsto t[\mathit{evidence} := e,\ \mathit{landed} := \mathrm{true}])] & \mathrm{done}(x, e) \\
 \pi[\mathit{milestones} := \text{the row } m \text{ retitled if present, else appended}] & \mathrm{milestone}(m, \mathit{title}) \\
-\pi[\mathit{spawns} := \mathit{spawns} \mathbin{+\!\!+} [a]] & \mathrm{spawn}(a) \\
-\pi[\mathit{stops} := \mathit{stops} \mathbin{+\!\!+} [a]] & \mathrm{stop}(a)
+\pi[\mathit{spawns} := \mathit{spawns} \mathbin{+\!\!+} [(a, n)]] & \mathrm{spawn}(a, n) \\
+\pi[\mathit{stops} := \mathit{stops} \mathbin{+\!\!+} [(a, n)]] & \mathrm{stop}(a, n) \\
+\pi[\mathit{marks} := \mathit{marks} \mathbin{+\!\!+} [(x, \mathrm{handedBack}(a, p))]] & \mathrm{handback}(x, a, p) \\
+\pi[\mathit{marks} := \mathit{marks} \mathbin{+\!\!+} [(x, \mathrm{integrated}(b, p))]] & \mathrm{integrate}(x, b, p) \\
+\pi[\mathit{marks} := \mathit{marks} \mathbin{+\!\!+} [(x, \mathrm{parked}(r))]] & \mathrm{park}(x, r) \\
+\pi[\mathit{marks} := \mathit{marks} \mathbin{+\!\!+} [(x, \bot)]] & \mathrm{unpark}(x) \\
+\pi[\mathit{labels} := \mathit{labels} \mathbin{+\!\!+} [(k, a)]] & \mathrm{label}(k, a)
 \end{cases}$$
 -/
 def exec (s : State) (c : Cmd) : State :=
   match c with
   | .define d => { s with tasks := upsert s.tasks d }
   | .drop x => { s with tasks := s.tasks.filter fun t => t.id != x }
-  | .claim x a => { s with tasks := setRow s.tasks x fun t => { t with agent := some a } }
+  | .claim x a n => { s with tasks := setRow s.tasks x (fun t => { t with agent := some a }),
+                             claims := s.claims ++ [(a, n)] }
   | .done x e => { s with tasks := setRow s.tasks x fun t => { t with evidence := some e, landed := true } }
   | .milestone m title =>
     if s.milestones.any (·.id == m) then
       { s with milestones := s.milestones.map fun r => if r.id = m then { r with title } else r }
     else { s with milestones := s.milestones ++ [{ id := m, title }] }
-  | .spawn a => { s with spawns := s.spawns ++ [a] }
-  | .stop a => { s with stops := s.stops ++ [a] }
+  | .spawn a n => { s with spawns := s.spawns ++ [(a, n)] }
+  | .stop a n => { s with stops := s.stops ++ [(a, n)] }
+  | .handback x a p => { s with marks := s.marks ++ [(x, some (.handedBack a p))] }
+  | .integrate x b p => { s with marks := s.marks ++ [(x, some (.integrated b p))] }
+  | .park x r => { s with marks := s.marks ++ [(x, some (.parked r))] }
+  | .unpark x => { s with marks := s.marks ++ [(x, none)] }
+  | .label k a => { s with labels := s.labels ++ [(k, a)] }
 
 /-- One plan step: an accepted command is executed, a refused one leaves the state unchanged.
 
@@ -273,35 +356,68 @@ def run (cs : List Cmd) : State := cs.foldl step {}
 
 /-- The derived state of a task.
 
-$$\mathrm{TState} = \{\mathrm{done}, \mathrm{cut}, \mathrm{running}, \mathrm{ready}, \mathrm{blocked}\}$$
+$$\mathrm{TState} = \{\mathrm{done}, \mathrm{cut}, \mathrm{running}, \mathrm{handedBack}, \mathrm{integrated}, \mathrm{parked}, \mathrm{ready}, \mathrm{blocked}\}$$
 -/
 inductive TState where
-  | done | cut | running | ready | blocked
+  | done | cut | running | handedBack | integrated | parked | ready | blocked
 deriving Repr, DecidableEq
 
 /-- The wire name of a task state.
 
-$$\operatorname{name}(\mathrm{done}) = \texttt{"done"},\ \operatorname{name}(\mathrm{cut}) = \texttt{"cut"},\ \operatorname{name}(\mathrm{running}) = \texttt{"running"},\ \operatorname{name}(\mathrm{ready}) = \texttt{"ready"},\ \operatorname{name}(\mathrm{blocked}) = \texttt{"blocked"}$$
+$$\operatorname{name}(\mathrm{done}) = \texttt{"done"},\ \operatorname{name}(\mathrm{cut}) = \texttt{"cut"},\ \operatorname{name}(\mathrm{running}) = \texttt{"running"},\ \operatorname{name}(\mathrm{ready}) = \texttt{"ready"},\ \operatorname{name}(\mathrm{blocked}) = \texttt{"blocked"},\ \operatorname{name}(\mathrm{handedBack}) = \texttt{"handedBack"},\ \operatorname{name}(\mathrm{integrated}) = \texttt{"integrated"},\ \operatorname{name}(\mathrm{parked}) = \texttt{"parked"}$$
 -/
 def TState.name : TState → String
   | .done => "done" | .cut => "cut" | .running => "running" | .ready => "ready" | .blocked => "blocked"
+  | .handedBack => "handedBack" | .integrated => "integrated" | .parked => "parked"
 
-/-- The blockers of a task: its deps that are not done, in dep order.
+/-- The park reason of a task whose work was folded into another task with no change of its own
+(task `task-state-truth`): such a park clears the task as a dependency (`cleared`).
 
-$$\operatorname{blockers}(ts, t) = [\, d \in t.\mathit{deps} : \neg\operatorname{isDone}(ts, d) \,]$$
+$$\operatorname{foldedNoChange} = \texttt{"folded-no-change"}$$
+
+The reason the lead gives when a task needs no work because another task did it.
 -/
-def blockers (ts : List Task) (t : Task) : List String := t.deps.filter fun d => !isDone ts d
+def foldedNoChange : String := "folded-no-change"
 
-/-- The state of a task is computed, never written (first match wins).
+/-- A dependency is cleared when a row of that id is done, or carries the mark
+$\mathrm{parked}(\operatorname{foldedNoChange})$ (its work was folded into another task with no change
+of its own, so waiting for it would wait forever).
 
-$$\operatorname{tstate}(ts, t) = \begin{cases} \mathrm{done} & t.\mathit{evidence} \ne \bot \\ \mathrm{cut} & t.\mathit{cut} \\ \mathrm{running} & t.\mathit{agent} \ne \bot \\ \mathrm{ready} & \operatorname{blockers}(ts, t) = [\,] \\ \mathrm{blocked} & \text{otherwise} \end{cases}$$
+$$\operatorname{cleared}(ts, x) = \mathrm{true} \iff \exists r \in ts:\ r.\mathit{id} = x \land \big(r.\mathit{evidence} \ne \bot \lor r.\mathit{mark} = \mathrm{parked}(\operatorname{foldedNoChange})\big)$$
+
+A dep stops blocking when it is done or folded away.
+-/
+def cleared (ts : List Task) (x : String) : Bool :=
+  ts.any fun r => r.id == x && (r.evidence.isSome || r.mark == some (.parked foldedNoChange))
+
+/-- The blockers of a task: its deps that are not cleared (neither done nor parked as folded), in dep
+order.
+
+$$\operatorname{blockers}(ts, t) = [\, d \in t.\mathit{deps} : \neg\operatorname{cleared}(ts, d) \,]$$
+-/
+def blockers (ts : List Task) (t : Task) : List String := t.deps.filter fun d => !cleared ts d
+
+/-- The state a mark shows.
+
+$$\operatorname{mstate}(\mathrm{handedBack}(\cdot,\cdot)) = \mathrm{handedBack},\quad \operatorname{mstate}(\mathrm{integrated}(\cdot,\cdot)) = \mathrm{integrated},\quad \operatorname{mstate}(\mathrm{parked}(\cdot)) = \mathrm{parked}$$
+-/
+def Mark.state : Mark → TState
+  | .handedBack .. => .handedBack | .integrated .. => .integrated | .parked _ => .parked
+
+/-- The state of a task is computed, never written (first match wins). A task with an agent is
+running when it has no blockers and blocked otherwise (task `task-state-truth`: a task with open
+blockers is never shown running, and for a live agent the blockers win over any outcome mark); a
+task without an agent shows its outcome mark, if any, then ready or blocked.
+
+$$\operatorname{tstate}(ts, t) = \begin{cases} \mathrm{done} & t.\mathit{evidence} \ne \bot \\ \mathrm{cut} & t.\mathit{cut} \\ \mathrm{running} & t.\mathit{agent} \ne \bot \land \operatorname{blockers}(ts, t) = [\,] \\ \mathrm{blocked} & t.\mathit{agent} \ne \bot \land \operatorname{blockers}(ts, t) \ne [\,] \\ \operatorname{mstate}(m) & t.\mathit{mark} = m \ne \bot \\ \mathrm{ready} & \operatorname{blockers}(ts, t) = [\,] \\ \mathrm{blocked} & \text{otherwise} \end{cases}$$
 -/
 def tstate (ts : List Task) (t : Task) : TState :=
   if t.evidence.isSome then .done
   else if t.cut then .cut
-  else if t.agent.isSome then .running
-  else if blockers ts t = [] then .ready
-  else .blocked
+  else if t.agent.isSome then (if blockers ts t = [] then .running else .blocked)
+  else match t.mark with
+    | some m => m.state
+    | none => if blockers ts t = [] then .ready else .blocked
 
 /-- `isDone` as a proposition.
 
@@ -311,24 +427,68 @@ theorem isDone_iff {ts : List Task} {x : String} :
     isDone ts x = true ↔ ∃ t ∈ ts, t.id = x ∧ t.evidence ≠ none := by
   simp [isDone, Option.isSome_iff_ne_none]
 
-/-- The blockers are exactly the undone deps.
+/-- `cleared` as a proposition.
 
-$$\forall ts, t, d:\quad d \in \operatorname{blockers}(ts, t) \iff d \in t.\mathit{deps} \land \operatorname{isDone}(ts, d) = \mathrm{false}$$
+$$\forall ts, x:\quad \operatorname{cleared}(ts, x) = \mathrm{true} \iff \exists t \in ts:\ t.\mathit{id} = x \land \big(t.\mathit{evidence} \ne \bot \lor t.\mathit{mark} = \mathrm{parked}(\operatorname{foldedNoChange})\big)$$
+-/
+theorem cleared_iff {ts : List Task} {x : String} :
+    cleared ts x = true ↔
+      ∃ t ∈ ts, t.id = x ∧ (t.evidence ≠ none ∨ t.mark = some (.parked foldedNoChange)) := by
+  simp [cleared, Option.isSome_iff_ne_none]
+
+/-- A done dependency is cleared.
+
+$$\forall ts, x:\quad \operatorname{isDone}(ts, x) = \mathrm{true} \Rightarrow \operatorname{cleared}(ts, x) = \mathrm{true}$$
+-/
+theorem cleared_of_isDone {ts : List Task} {x : String} (h : isDone ts x = true) :
+    cleared ts x = true := by
+  obtain ⟨t, ht, hid, he⟩ := isDone_iff.mp h
+  exact cleared_iff.mpr ⟨t, ht, hid, .inl he⟩
+
+/-- **A folded park clears the dependency** (task `task-state-truth`): a row parked with reason
+`foldedNoChange` no longer blocks the tasks that depend on it.
+
+$$\forall ts, r:\quad r \in ts \land r.\mathit{mark} = \mathrm{parked}(\operatorname{foldedNoChange}) \Rightarrow \operatorname{cleared}(ts, r.\mathit{id}) = \mathrm{true}$$
+-/
+theorem cleared_of_folded {ts : List Task} {r : Task} (hr : r ∈ ts)
+    (hm : r.mark = some (.parked foldedNoChange)) : cleared ts r.id = true :=
+  cleared_iff.mpr ⟨r, hr, rfl, .inr hm⟩
+
+/-- The blockers are exactly the deps that are not cleared.
+
+$$\forall ts, t, d:\quad d \in \operatorname{blockers}(ts, t) \iff d \in t.\mathit{deps} \land \operatorname{cleared}(ts, d) = \mathrm{false}$$
 -/
 theorem mem_blockers {ts : List Task} {t : Task} {d : String} :
-    d ∈ blockers ts t ↔ d ∈ t.deps ∧ isDone ts d = false := by
+    d ∈ blockers ts t ↔ d ∈ t.deps ∧ cleared ts d = false := by
   simp [blockers]
 
-/-- **Ready means: not done, not cut, not running, and every dep done.**
+/-- `blockers` is empty exactly when every dep is cleared.
 
-$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{ready} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} = \bot \land \forall d \in t.\mathit{deps}:\ \operatorname{isDone}(ts, d) = \mathrm{true}$$
+$$\forall ts, t:\quad \operatorname{blockers}(ts, t) = [\,] \iff \forall d \in t.\mathit{deps}:\ \operatorname{cleared}(ts, d) = \mathrm{true}$$
+-/
+theorem blockers_nil_iff (ts : List Task) (t : Task) :
+    blockers ts t = [] ↔ ∀ d ∈ t.deps, cleared ts d = true := by
+  simp [blockers, List.filter_eq_nil_iff]
+
+/-- A mark never shows ready, blocked, running, done or cut.
+
+$$\forall m:\quad \operatorname{mstate}(m) \in \{\mathrm{handedBack}, \mathrm{integrated}, \mathrm{parked}\}$$
+-/
+theorem Mark.state_mem (m : Mark) : m.state = .handedBack ∨ m.state = .integrated ∨ m.state = .parked := by
+  cases m <;> simp [Mark.state]
+
+/-- **Ready means: not done, not cut, no agent, no outcome mark, and every dep cleared.**
+
+$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{ready} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} = \bot \land t.\mathit{mark} = \bot \land \forall d \in t.\mathit{deps}:\ \operatorname{cleared}(ts, d) = \mathrm{true}$$
 -/
 theorem tstate_ready_iff (ts : List Task) (t : Task) : tstate ts t = .ready ↔
-    t.evidence = none ∧ t.cut = false ∧ t.agent = none ∧ ∀ d ∈ t.deps, isDone ts d = true := by
-  have hb : blockers ts t = [] ↔ ∀ d ∈ t.deps, isDone ts d = true := by
-    simp [blockers, List.filter_eq_nil_iff]
+    t.evidence = none ∧ t.cut = false ∧ t.agent = none ∧ t.mark = none ∧
+      ∀ d ∈ t.deps, cleared ts d = true := by
+  rw [← blockers_nil_iff]
   unfold tstate
-  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> simp [hb]
+  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> cases hm : t.mark <;>
+    by_cases hb : blockers ts t = [] <;> simp [hb] <;>
+    rcases Mark.state_mem ‹Mark› with h | h | h <;> simp [h]
 
 /-- **Cut means: not done and flagged cut.** (Evidence wins: a task done before it was cut stays done.)
 
@@ -337,7 +497,9 @@ $$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{cut} \iff t.\mathit
 theorem tstate_cut_iff (ts : List Task) (t : Task) :
     tstate ts t = .cut ↔ t.evidence = none ∧ t.cut = true := by
   unfold tstate
-  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> simp <;> split <;> simp
+  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> cases hm : t.mark <;>
+    by_cases hb : blockers ts t = [] <;> simp [hb] <;>
+    rcases Mark.state_mem ‹Mark› with h | h | h <;> simp [h]
 
 /-- **A cut task is never ready.**
 
@@ -348,17 +510,18 @@ theorem cut_not_ready {ts : List Task} {t : Task} (h : t.cut = true) : tstate ts
   have := ((tstate_ready_iff ts t).mp hr).2.1
   rw [h] at this; cases this
 
-/-- **A blocked task has a blocker, and its blockers are exactly its undone deps.**
+/-- **A blocked task has a blocker, and its blockers are exactly its deps that are not cleared.**
 
-$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{blocked} \Rightarrow \operatorname{blockers}(ts, t) \ne [\,] \land \forall d:\ \big(d \in \operatorname{blockers}(ts, t) \iff d \in t.\mathit{deps} \land \operatorname{isDone}(ts, d) = \mathrm{false}\big)$$
+$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{blocked} \Rightarrow \operatorname{blockers}(ts, t) \ne [\,] \land \forall d:\ \big(d \in \operatorname{blockers}(ts, t) \iff d \in t.\mathit{deps} \land \operatorname{cleared}(ts, d) = \mathrm{false}\big)$$
 -/
 theorem tstate_blocked {ts : List Task} {t : Task} (h : tstate ts t = .blocked) :
-    blockers ts t ≠ [] ∧ ∀ d, d ∈ blockers ts t ↔ d ∈ t.deps ∧ isDone ts d = false := by
+    blockers ts t ≠ [] ∧ ∀ d, d ∈ blockers ts t ↔ d ∈ t.deps ∧ cleared ts d = false := by
   refine ⟨?_, fun _ => mem_blockers⟩
   intro hn
   unfold tstate at h
-  simp [hn] at h
-  split at h <;> (try split at h) <;> (try split at h) <;> cases h
+  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> cases hm : t.mark <;>
+    simp [he, hc, ha, hm, hn] at h <;>
+    rcases Mark.state_mem ‹Mark› with h' | h' | h' <;> simp [h'] at h
 
 /-- **Done is exactly "has evidence".**
 
@@ -366,16 +529,67 @@ $$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{done} \iff t.\mathi
 -/
 theorem tstate_done_iff (ts : List Task) (t : Task) : tstate ts t = .done ↔ t.evidence ≠ none := by
   unfold tstate
-  split <;> (try split) <;> (try split) <;> (try split) <;> simp_all [Option.isSome_iff_ne_none]
+  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> cases hm : t.mark <;>
+    by_cases hb : blockers ts t = [] <;> simp [hb] <;>
+    rcases Mark.state_mem ‹Mark› with h | h | h <;> simp [h]
 
-/-- **Running is exactly "claimed, not done and not cut".**
+/-- **Running is exactly "has an agent, no blockers, not done and not cut".**
 
-$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{running} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} \ne \bot$$
+$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{running} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} \ne \bot \land \operatorname{blockers}(ts, t) = [\,]$$
 -/
 theorem tstate_running_iff (ts : List Task) (t : Task) :
-    tstate ts t = .running ↔ t.evidence = none ∧ t.cut = false ∧ t.agent ≠ none := by
+    tstate ts t = .running ↔
+      t.evidence = none ∧ t.cut = false ∧ t.agent ≠ none ∧ blockers ts t = [] := by
   unfold tstate
-  split <;> (try split) <;> (try split) <;> (try split) <;> simp_all [Option.isSome_iff_ne_none]
+  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> cases hm : t.mark <;>
+    by_cases hb : blockers ts t = [] <;> simp [hb] <;>
+    rcases Mark.state_mem ‹Mark› with h | h | h <;> simp [h]
+
+/-- **A task with open blockers is never shown running** (task `task-state-truth`).
+
+$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{running} \Rightarrow \operatorname{blockers}(ts, t) = [\,]$$
+-/
+theorem running_no_blockers {ts : List Task} {t : Task} (h : tstate ts t = .running) :
+    blockers ts t = [] := ((tstate_running_iff ts t).mp h).2.2.2
+
+/-- **For a live agent, open blockers win over an outcome mark** (task `task-state-truth`): an
+undone, uncut task with an agent and an open blocker shows blocked, whatever mark it has.
+
+$$\forall ts, t:\quad t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} \ne \bot \land \operatorname{blockers}(ts, t) \ne [\,] \Rightarrow \operatorname{tstate}(ts, t) = \mathrm{blocked}$$
+-/
+theorem tstate_agent_blocked {ts : List Task} {t : Task} (he : t.evidence = none)
+    (hc : t.cut = false) (ha : t.agent ≠ none) (hb : blockers ts t ≠ []) :
+    tstate ts t = .blocked := by
+  unfold tstate
+  cases ha' : t.agent
+  · exact absurd ha' ha
+  · simp [he, hc, hb]
+
+/-- **An outcome mark shows only without an agent**: a task shown handed back, integrated or parked
+has no agent (a live agent shows running or blocked).
+
+$$\forall ts, t:\quad \operatorname{tstate}(ts, t) \in \{\mathrm{handedBack}, \mathrm{integrated}, \mathrm{parked}\} \Rightarrow t.\mathit{agent} = \bot$$
+-/
+theorem tstate_mark_no_agent {ts : List Task} {t : Task}
+    (h : tstate ts t = .handedBack ∨ tstate ts t = .integrated ∨ tstate ts t = .parked) :
+    t.agent = none := by
+  cases ha : t.agent with
+  | none => rfl
+  | some a =>
+    exfalso
+    unfold tstate at h
+    cases he : t.evidence <;> cases hc : t.cut <;> by_cases hb : blockers ts t = [] <;>
+      simp [ha, he, hc, hb] at h
+
+/-- **An undone, uncut task without an agent shows its mark when it has one.**
+
+$$\forall ts, t, m:\quad t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} = \bot \land t.\mathit{mark} = m \Rightarrow \operatorname{tstate}(ts, t) = \operatorname{mstate}(m)$$
+-/
+theorem tstate_mark {ts : List Task} {t : Task} {m : Mark} (he : t.evidence = none)
+    (hc : t.cut = false) (ha : t.agent = none) (hm : t.mark = some m) :
+    tstate ts t = m.state := by
+  unfold tstate
+  simp [he, hc, ha, hm]
 
 /-- With unique ids, rows with equal ids are equal.
 
@@ -401,11 +615,13 @@ $$\forall ts, a, b:\quad \operatorname{Nodup}(\operatorname{ids}(ts)) \land b \i
 theorem ready_indep {ts : List Task} {a b : Task} (hn : (ids ts).Nodup) (hb : b ∈ ts)
     (hra : tstate ts a = .ready) (hrb : tstate ts b = .ready) : b.id ∉ a.deps := by
   intro hd
-  obtain ⟨_, _, _, hall⟩ := (tstate_ready_iff ts a).mp hra
-  obtain ⟨hbe, _, _, _⟩ := (tstate_ready_iff ts b).mp hrb
-  obtain ⟨r, hr, hid, hev⟩ := isDone_iff.mp (hall _ hd)
+  obtain ⟨_, _, _, _, hall⟩ := (tstate_ready_iff ts a).mp hra
+  obtain ⟨hbe, _, _, hbm, _⟩ := (tstate_ready_iff ts b).mp hrb
+  obtain ⟨r, hr, hid, hev⟩ := cleared_iff.mp (hall _ hd)
   rw [row_unique hn hr hb hid] at hev
-  exact hev hbe
+  rcases hev with hev | hev
+  · exact hev hbe
+  · rw [hbm] at hev; cases hev
 
 /-! ## Invariant: unique ids and an acyclic graph in every reachable state -/
 
@@ -521,7 +737,7 @@ theorem exec_inv {π : State} {c : Cmd} (hi : Inv π) (hc : check π c = none) :
     simp only [exec]
     split <;> exact ⟨hn, ha⟩
   | spawn a => exact ⟨hn, ha⟩
-  | stop a => exact ⟨hn, ha⟩
+  | stop a | label _ _ | handback _ _ _ | integrate _ _ _ | park _ _ | unpark _ => exact ⟨hn, ha⟩
 
 /-- The empty plan state satisfies the invariant.
 
@@ -787,7 +1003,7 @@ theorem exec_isDone {π : State} {c : Cmd} {x : String} (hc : check π c = none)
   | done y e => exact isDone_setRow (fun _ _ => ⟨rfl, fun _ => by simp⟩) h
   | milestone m title => simp only [exec]; split <;> exact h
   | spawn a => exact h
-  | stop a => exact h
+  | stop a | label _ _ | handback _ _ _ | integrate _ _ _ | park _ _ | unpark _ => exact h
 
 /-- **Done survives every step but one**: a define of that task without evidence, when no row of
 the task holds landed evidence.
@@ -839,7 +1055,7 @@ theorem exec_isLanded {π : State} {c : Cmd} {x : String} (hc : check π c = non
   | done y e => exact viaSet _ _ fun _ => ⟨rfl, rfl, by simp⟩
   | milestone m title => simp only [exec]; split <;> exact h
   | spawn a => exact h
-  | stop a => exact h
+  | stop a | label _ _ | handback _ _ _ | integrate _ _ _ | park _ _ | unpark _ => exact h
 
 /-- **A land is never undone**: landed evidence survives every step, including a define without
 evidence, so the task stays done.
@@ -971,7 +1187,7 @@ theorem step_evSrc {l : List Cmd} {π : State} (c : Cmd)
       simp only [exec]
       split <;> exact old
     | spawn a => exact old
-    | stop a => exact old
+    | stop a | label _ _ | handback _ _ _ | integrate _ _ _ | park _ _ | unpark _ => exact old
   · exact old
 
 /-- **Done needs landed evidence**: in every reachable plan state, a row with evidence `e` either
@@ -1036,48 +1252,120 @@ theorem step_define_live {π : State} {d : Def} (hc : check π (.define d) = non
   simp only [step, hc, ↓reduceIte, exec]
   exact upsert_live hl
 
-/-! ## Agent binding: derived from spawns, stops, explicit claims and evidence -/
+/-! ## Agent binding: derived from spawns, stops, explicit claims and evidence
+
+Task `task-state-truth`: liveness is decided per life key. A key is the agent id of the hook
+records (or a name, for facts without an id: a spawn guard, a workflow run, a claim). A key is live
+when it was seen (a spawn: its start or any later event of it; or a claim of it) and no stop came at
+or after its last sighting. A name (a task's claim or id) is live when one of its keys is: the name
+itself or an agent id labelled with it (`label`, from the console's health index). The times make
+this independent of the order in which the spawn and stop commands reach the log (`view_perm`), so a
+drain that reads the hook spool file by file still gives the board of the real timeline.
+-/
 
 /-- A spawn or a stop command (the commands that touch only the spawn and stop lists).
 
-$$\operatorname{isLife}(c) = \mathrm{true} \iff \exists a:\ c = \mathrm{spawn}(a) \lor c = \mathrm{stop}(a)$$
+$$\operatorname{isLife}(c) = \mathrm{true} \iff \exists a, n:\ c = \mathrm{spawn}(a, n) \lor c = \mathrm{stop}(a, n)$$
 -/
 def Cmd.isLife : Cmd → Bool
-  | .spawn _ | .stop _ => true
+  | .spawn .. | .stop .. => true
   | _ => false
 
-/-- The agent a spawn command names.
+/-- The (agent, time) pair a spawn command names.
 
-$$\operatorname{spawnOf}(c) = \begin{cases} a & c = \mathrm{spawn}(a) \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{spawnOf}(c) = \begin{cases} (a, n) & c = \mathrm{spawn}(a, n) \\ \bot & \text{otherwise} \end{cases}$$
 -/
-def Cmd.spawnOf : Cmd → Option String
-  | .spawn a => some a
+def Cmd.spawnOf : Cmd → Option (String × Nat)
+  | .spawn a n => some (a, n)
   | _ => none
 
-/-- The agent a stop command names.
+/-- The (agent, time) pair a stop command names.
 
-$$\operatorname{stopOf}(c) = \begin{cases} a & c = \mathrm{stop}(a) \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{stopOf}(c) = \begin{cases} (a, n) & c = \mathrm{stop}(a, n) \\ \bot & \text{otherwise} \end{cases}$$
 -/
-def Cmd.stopOf : Cmd → Option String
-  | .stop a => some a
+def Cmd.stopOf : Cmd → Option (String × Nat)
+  | .stop a n => some (a, n)
   | _ => none
 
-/-- An agent name has ended: it was stopped at least once, and at least as often as it was spawned
-(so a name spawned again after its stop has not ended).
+/-- The sightings of life keys: every claim (a claim sights the claimed name at its claim time),
+then every spawn.
 
-$$\operatorname{ended}(\pi, a) = \mathrm{true} \iff 0 < \#_a(\pi.\mathit{stops}) \land \#_a(\pi.\mathit{spawns}) \le \#_a(\pi.\mathit{stops}), \qquad \#_a(l) = |[\, x \in l : x = a \,]|$$
+$$\operatorname{sights}(\pi) = \pi.\mathit{claims} \mathbin{+\!\!+} \pi.\mathit{spawns}$$
+
+Each (key, time) pair that shows a key alive at that time.
 -/
-def ended (s : State) (a : String) : Bool :=
-  0 < s.stops.count a && s.spawns.count a ≤ s.stops.count a
+def sights (s : State) : List (String × Nat) := s.claims ++ s.spawns
+
+/-- A life key was seen: some sighting names it.
+
+$$\operatorname{openedK}(\pi, k) = \mathrm{true} \iff \exists n:\ (k, n) \in \operatorname{sights}(\pi)$$
+
+A key with a spawn or a claim.
+-/
+def openedK (s : State) (k : String) : Bool := (sights s).any (·.1 == k)
+
+/-- **A life key has ended**: some stop of it is at or after every sighting of it (so a key seen again
+after its stop, at a later time, has not ended; a stop with no sighting at all ends the key).
+
+$$\operatorname{endedK}(\pi, k) = \mathrm{true} \iff \exists (k, m) \in \pi.\mathit{stops}:\ \forall (k, n) \in \operatorname{sights}(\pi):\ n \le m$$
+-/
+def endedK (s : State) (k : String) : Bool :=
+  s.stops.any fun q => q.1 == k && (sights s).all fun p => p.1 != k || decide (p.2 ≤ q.2)
+
+/-- **A life key is live**: seen and not ended.
+
+$$\operatorname{liveK}(\pi, k) = \mathrm{true} \iff \operatorname{openedK}(\pi, k) = \mathrm{true} \land \operatorname{endedK}(\pi, k) = \mathrm{false}$$
+-/
+def liveK (s : State) (k : String) : Bool := openedK s k && !endedK s k
+
+/-- The time a life key was last seen: the largest time of its sightings, $0$ when it has none.
+
+$$\operatorname{lastAt}(\pi, k) = \max\big(\{0\} \cup \{\, n : (k, n) \in \operatorname{sights}(\pi) \,\}\big)$$
+-/
+def lastAt (s : State) (k : String) : Nat :=
+  ((sights s).filter (·.1 == k)).foldr (fun p m => max p.2 m) 0
+
+/-- The life keys of a name: the name itself, then every key labelled with it, in label order.
+
+$$\operatorname{keysOf}(\pi, a) = [a] \mathbin{+\!\!+} [\, k : (k, b) \in \pi.\mathit{labels},\ b = a \,]$$
+-/
+def keysOf (s : State) (a : String) : List String := a :: (s.labels.filter (·.2 == a)).map (·.1)
+
+/-- A name was seen: one of its keys was.
+
+$$\operatorname{opened}(\pi, a) = \mathrm{true} \iff \exists k \in \operatorname{keysOf}(\pi, a):\ \operatorname{openedK}(\pi, k) = \mathrm{true}$$
+-/
+def opened (s : State) (a : String) : Bool := (keysOf s a).any (openedK s)
+
+/-- **A name has ended** when none of its keys is live (a name never seen has ended too).
+
+$$\operatorname{ended}(\pi, a) = \mathrm{true} \iff \forall k \in \operatorname{keysOf}(\pi, a):\ \operatorname{liveK}(\pi, k) = \mathrm{false}$$
+-/
+def ended (s : State) (a : String) : Bool := !(keysOf s a).any (liveK s)
+
+/-- When a seen name was last seen: the largest last-seen time of its keys; none for a name never
+seen.
+
+$$\operatorname{seenAt}(\pi, a) = \begin{cases} \max\big(\{0\} \cup \{\, \operatorname{lastAt}(\pi, k) : k \in \operatorname{keysOf}(\pi, a) \,\}\big) & \operatorname{opened}(\pi, a) = \mathrm{true} \\ \bot & \text{otherwise} \end{cases}$$
+-/
+def seenAt (s : State) (a : String) : Option Nat :=
+  if opened s a then some ((keysOf s a).foldr (fun k m => max (lastAt s k) m) 0) else none
+
+/-- The live keys of a name with their last-seen times, in key order (the input of the quiet
+timeout).
+
+$$\operatorname{liveKeys}(\pi, a) = [\, (k, \operatorname{lastAt}(\pi, k)) : k \in \operatorname{keysOf}(\pi, a),\ \operatorname{liveK}(\pi, k) = \mathrm{true} \,]$$
+-/
+def liveKeys (s : State) (a : String) : List (String × Nat) :=
+  ((keysOf s a).filter (liveK s)).map fun k => (k, lastAt s k)
 
 /-- The candidate agents of a row, in priority order: its stored agent (an explicit `task.claim`, or
-a legacy live define), then the task id itself if an agent of that name was ever spawned.
+a legacy live define) if that name was seen, then the task id itself if a name like it was seen.
 
-$$\operatorname{cands}(\pi, t) = [\, a : t.\mathit{agent} = \mathrm{some}(a) \,] \mathbin{+\!\!+} \begin{cases} [t.\mathit{id}] & 0 < \#_{t.\mathit{id}}(\pi.\mathit{spawns}) \\ [\,] & \text{otherwise} \end{cases}$$
+$$\operatorname{cands}(\pi, t) = [\, a : t.\mathit{agent} = \mathrm{some}(a),\ \operatorname{opened}(\pi, a) = \mathrm{true} \,] \mathbin{+\!\!+} \begin{cases} [t.\mathit{id}] & \operatorname{opened}(\pi, t.\mathit{id}) = \mathrm{true} \\ [\,] & \text{otherwise} \end{cases}$$
 -/
 def cands (s : State) (t : Task) : List String :=
-  t.agent.toList ++ (if 0 < s.spawns.count t.id then [t.id] else [])
-
+  t.agent.toList.filter (opened s) ++ (if opened s t.id then [t.id] else [])
 /-- **The agent of a task, derived (never stored).** An undone task has its first candidate that has
 not ended, if any; a done task has that one, or else its first candidate, so a stop never unbinds a
 done task.
@@ -1088,11 +1376,62 @@ def agentOf (s : State) (t : Task) : Option String :=
   if t.evidence.isSome then (cands s t).find? (fun a => !ended s a) <|> (cands s t).head?
   else (cands s t).find? (fun a => !ended s a)
 
-/-- The rows with their derived agents (the rows the board shows).
+/-- The last outcome mark recorded for task id `x`: the mark of the last pair of `x` in the mark
+log; none when that pair is an `unpark`, or when `x` has no pair.
 
-$$\operatorname{bound}(\pi) = [\, t[\mathit{agent} := \operatorname{agentOf}(\pi, t)] : t \in \pi.\mathit{tasks} \,]$$
+$$\operatorname{markOf}(\pi, x) = \begin{cases} m_\bot & (x, m_\bot) \text{ is the last pair } (y, \cdot) \text{ of } \pi.\mathit{marks} \text{ with } y = x \\ \bot & \text{no pair of } \pi.\mathit{marks} \text{ has task } x \end{cases}$$
 -/
-def bound (s : State) : List Task := s.tasks.map fun t => { t with agent := agentOf s t }
+def markOf (s : State) (x : String) : Option Mark :=
+  ((s.marks.filter (·.1 == x)).getLast?).bind (·.2)
+
+/-- The reason the board gives a task whose every candidate agent ended with no mark recorded.
+
+$$\operatorname{noHandback} = \texttt{"agent ended without a handback"}$$
+-/
+def noHandback : String := "agent ended without a handback"
+
+/-- The reason the board gives a task whose candidate agents were only claimed, never spawned, and
+were ended by the quiet timeout.
+
+$$\operatorname{expired} = \texttt{"claim expired: no live agent within the quiet limit"}$$
+-/
+def expired : String := "claim expired: no live agent within the quiet limit"
+
+/-- A name was spawned: one of its keys has a spawn (a claim alone does not count).
+
+$$\operatorname{spawned}(\pi, a) = \mathrm{true} \iff \exists k \in \operatorname{keysOf}(\pi, a), n:\ (k, n) \in \pi.\mathit{spawns}$$
+-/
+def spawned (s : State) (a : String) : Bool := (keysOf s a).any fun k => s.spawns.any (·.1 == k)
+
+/-- Why a row whose candidates all ended is parked: `noHandback` when a candidate was ever spawned,
+`expired` when they were only claimed.
+
+$$\operatorname{endReason}(\pi, t) = \begin{cases} \operatorname{noHandback} & \exists a \in \operatorname{cands}(\pi, t):\ \operatorname{spawned}(\pi, a) = \mathrm{true} \\ \operatorname{expired} & \text{otherwise} \end{cases}$$
+-/
+def endReason (s : State) (t : Task) : String :=
+  if (cands s t).any (spawned s) then noHandback else expired
+
+/-- **The outcome mark of a row, derived (never stored)**: its last recorded mark; failing that, a
+row that had a candidate agent (`cands`) and has no unended one (`agentOf` is none) is parked with
+reason `endReason`; otherwise none.
+
+$$\operatorname{outcomeOf}(\pi, t) = \begin{cases} m & \operatorname{markOf}(\pi, t.\mathit{id}) = m \ne \bot \\ \mathrm{parked}(\operatorname{endReason}(\pi, t)) & \operatorname{markOf}(\pi, t.\mathit{id}) = \bot \land \operatorname{cands}(\pi, t) \ne [\,] \land \operatorname{agentOf}(\pi, t) = \bot \\ \bot & \text{otherwise} \end{cases}$$
+-/
+def outcomeOf (s : State) (t : Task) : Option Mark :=
+  markOf s t.id <|>
+    (if !(cands s t).isEmpty && (agentOf s t).isNone then some (.parked (endReason s t)) else none)
+
+/-- A row as the board shows it: with its derived agent and its derived outcome mark.
+
+$$\operatorname{bindRow}(\pi, t) = t[\mathit{agent} := \operatorname{agentOf}(\pi, t),\ \mathit{mark} := \operatorname{outcomeOf}(\pi, t)]$$
+-/
+def bindRow (s : State) (t : Task) : Task := { t with agent := agentOf s t, mark := outcomeOf s t }
+
+/-- The rows with their derived agents and outcome marks (the rows the board shows).
+
+$$\operatorname{bound}(\pi) = [\, \operatorname{bindRow}(\pi, t) : t \in \pi.\mathit{tasks} \,]$$
+-/
+def bound (s : State) : List Task := s.tasks.map (bindRow s)
 
 /-- The derived agent of task id `x`: that of the first row with id `x`; none when no row has it.
 
@@ -1100,31 +1439,50 @@ $$\operatorname{boundTo}(\pi, x) = \begin{cases} \operatorname{agentOf}(\pi, t) 
 -/
 def boundTo (s : State) (x : String) : Option String := (s.tasks.find? (·.id == x)).bind (agentOf s)
 
-/-- Without spawns and stops the derived agent is the stored one.
+/-- `lastAt` reads the sightings only as a multiset.
 
-$$\forall \pi, t:\quad \pi.\mathit{spawns} = [\,] \land \pi.\mathit{stops} = [\,] \Rightarrow \operatorname{agentOf}(\pi, t) = t.\mathit{agent}$$
+$$\forall \pi_1, \pi_2, k:\quad \operatorname{sights}(\pi_1) \sim \operatorname{sights}(\pi_2) \Rightarrow \operatorname{lastAt}(\pi_1, k) = \operatorname{lastAt}(\pi_2, k)$$
+
+($\sim$: is a permutation of).
 -/
-theorem agentOf_compat {π : State} (t : Task) (h1 : π.spawns = []) (h2 : π.stops = []) :
-    agentOf π t = t.agent := by
-  cases ha : t.agent <;> simp [agentOf, cands, ended, h1, h2, ha]
+theorem lastAt_perm {π₁ π₂ : State} (h : (sights π₁).Perm (sights π₂)) (k : String) :
+    lastAt π₁ k = lastAt π₂ k := by
+  unfold lastAt
+  exact (h.filter _).foldr_eq' (fun x _ y _ z => by omega) 0
 
-/-- Without spawns and stops the board rows are the stored rows.
+/-- **The derived agent, outcome reason and seen times read the spawn and stop lists only as
+multisets** (with the same claims and labels).
 
-$$\forall \pi:\quad \pi.\mathit{spawns} = [\,] \land \pi.\mathit{stops} = [\,] \Rightarrow \operatorname{bound}(\pi) = \pi.\mathit{tasks}$$
+$$\forall \pi_1, \pi_2:\quad \pi_1.\mathit{spawns} \sim \pi_2.\mathit{spawns} \land \pi_1.\mathit{stops} \sim \pi_2.\mathit{stops} \land \pi_1.\mathit{claims} = \pi_2.\mathit{claims} \land \pi_1.\mathit{labels} = \pi_2.\mathit{labels} \Rightarrow \operatorname{ended}(\pi_1, \cdot) = \operatorname{ended}(\pi_2, \cdot) \land \operatorname{opened}(\pi_1, \cdot) = \operatorname{opened}(\pi_2, \cdot) \land \operatorname{seenAt}(\pi_1, \cdot) = \operatorname{seenAt}(\pi_2, \cdot) \land \operatorname{agentOf}(\pi_1, \cdot) = \operatorname{agentOf}(\pi_2, \cdot) \land \operatorname{liveKeys}(\pi_1, \cdot) = \operatorname{liveKeys}(\pi_2, \cdot) \land \operatorname{endReason}(\pi_1, \cdot) = \operatorname{endReason}(\pi_2, \cdot)$$
+
+($\sim$: is a permutation of).
 -/
-theorem bound_compat {π : State} (h1 : π.spawns = []) (h2 : π.stops = []) : bound π = π.tasks := by
-  unfold bound
-  conv => rhs; rw [← List.map_id π.tasks]
-  exact List.map_congr_left fun t _ => by rw [agentOf_compat t h1 h2]; rfl
-
-/-- The derived agent reads the spawn and stop lists only through how often each name occurs.
-
-$$\forall \pi_1, \pi_2:\quad (\forall a:\ \#_a(\pi_1.\mathit{spawns}) = \#_a(\pi_2.\mathit{spawns}) \land \#_a(\pi_1.\mathit{stops}) = \#_a(\pi_2.\mathit{stops})) \Rightarrow \operatorname{agentOf}(\pi_1, \cdot) = \operatorname{agentOf}(\pi_2, \cdot)$$
--/
-theorem agentOf_congr {π₁ π₂ : State} (h1 : ∀ a, π₁.spawns.count a = π₂.spawns.count a)
-    (h2 : ∀ a, π₁.stops.count a = π₂.stops.count a) : agentOf π₁ = agentOf π₂ := by
-  funext t
-  simp only [agentOf, cands, ended, h1, h2]
+theorem life_congr {π₁ π₂ : State} (h1 : π₁.spawns.Perm π₂.spawns) (h2 : π₁.stops.Perm π₂.stops)
+    (h3 : π₁.claims = π₂.claims) (h4 : π₁.labels = π₂.labels) :
+    ended π₁ = ended π₂ ∧ opened π₁ = opened π₂ ∧ seenAt π₁ = seenAt π₂ ∧ agentOf π₁ = agentOf π₂ ∧
+      liveKeys π₁ = liveKeys π₂ ∧ endReason π₁ = endReason π₂ := by
+  have hs : (sights π₁).Perm (sights π₂) := by unfold sights; rw [h3]; exact h1.append_left _
+  have hk : keysOf π₁ = keysOf π₂ := by funext a; simp only [keysOf, h4]
+  have hoK : openedK π₁ = openedK π₂ := by funext k; unfold openedK; rw [hs.any_eq]
+  have heK : endedK π₁ = endedK π₂ := by
+    funext k
+    unfold endedK
+    rw [h2.any_eq]
+    congr 1
+    funext q
+    rw [hs.all_eq]
+  have hl : lastAt π₁ = lastAt π₂ := funext (lastAt_perm hs)
+  have hlK : liveK π₁ = liveK π₂ := by funext k; simp only [liveK, hoK, heK]
+  have he : ended π₁ = ended π₂ := by funext a; simp only [ended, hk, hlK]
+  have ho : opened π₁ = opened π₂ := by funext a; simp only [opened, hk, hoK]
+  have hc : cands π₁ = cands π₂ := by funext t; simp only [cands, ho]
+  have hsp : spawned π₁ = spawned π₂ := by
+    funext a; simp only [spawned, hk, h1.any_eq]
+  refine ⟨he, ho, ?_, ?_, ?_, ?_⟩
+  · funext a; simp only [seenAt, ho, hk, hl]
+  · funext t; simp only [agentOf, hc, he]
+  · funext a; simp only [liveKeys, hk, hlK, hl]
+  · funext t; simp only [endReason, hc, hsp]
 
 /-! ### Spawn and stop commute with every command -/
 
@@ -1132,7 +1490,7 @@ theorem agentOf_congr {π₁ π₂ : State} (h1 : ∀ a, π₁.spawns.count a = 
 
 $$\forall \pi, c, x, y:\quad \operatorname{check}(\pi[\mathit{spawns} := x, \mathit{stops} := y], c) = \operatorname{check}(\pi, c)$$
 -/
-theorem check_life_irrel (π : State) (c : Cmd) (x y : List String) :
+theorem check_life_irrel (π : State) (c : Cmd) (x y : List (String × Nat)) :
     check { π with spawns := x, stops := y } c = check π c := by
   cases c <;> rfl
 
@@ -1140,7 +1498,7 @@ theorem check_life_irrel (π : State) (c : Cmd) (x y : List String) :
 
 $$\forall \pi, c, x, y:\quad \operatorname{isLife}(c) = \mathrm{false} \Rightarrow \operatorname{step}(\pi[\mathit{spawns} := x, \mathit{stops} := y], c) = \operatorname{step}(\pi, c)[\mathit{spawns} := x, \mathit{stops} := y]$$
 -/
-theorem step_life_irrel (π : State) {c : Cmd} (hc : c.isLife = false) (x y : List String) :
+theorem step_life_irrel (π : State) {c : Cmd} (hc : c.isLife = false) (x y : List (String × Nat)) :
     step { π with spawns := x, stops := y } c = { step π c with spawns := x, stops := y } := by
   unfold step
   rw [check_life_irrel]
@@ -1149,8 +1507,8 @@ theorem step_life_irrel (π : State) {c : Cmd} (hc : c.isLife = false) (x y : Li
     | milestone m title =>
       simp only [exec]
       by_cases hm : π.milestones.any (·.id == m) <;> simp [hm]
-    | spawn _ => simp [Cmd.isLife] at hc
-    | stop _ => simp [Cmd.isLife] at hc
+    | spawn _ _ => simp [Cmd.isLife] at hc
+    | stop _ _ => simp [Cmd.isLife] at hc
     | _ => rfl
   · rfl
 
@@ -1168,25 +1526,25 @@ theorem step_life_keep (π : State) {c : Cmd} (hc : c.isLife = false) :
 
 /-- A spawn is always accepted and only appends to the spawn list.
 
-$$\forall \pi, a:\quad \operatorname{step}(\pi, \mathrm{spawn}(a)) = \pi[\mathit{spawns} := \pi.\mathit{spawns} \mathbin{+\!\!+} [a]]$$
+$$\forall \pi, a, n:\quad \operatorname{step}(\pi, \mathrm{spawn}(a, n)) = \pi[\mathit{spawns} := \pi.\mathit{spawns} \mathbin{+\!\!+} [(a, n)]]$$
 -/
-theorem step_spawn (π : State) (a : String) :
-    step π (.spawn a) = { π with spawns := π.spawns ++ [a] } := by
+theorem step_spawn (π : State) (a : String) (n : Nat) :
+    step π (.spawn a n) = { π with spawns := π.spawns ++ [(a, n)] } := by
   simp [step, check, exec]
 
 /-- A stop is always accepted and only appends to the stop list.
 
-$$\forall \pi, a:\quad \operatorname{step}(\pi, \mathrm{stop}(a)) = \pi[\mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} [a]]$$
+$$\forall \pi, a, n:\quad \operatorname{step}(\pi, \mathrm{stop}(a, n)) = \pi[\mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} [(a, n)]]$$
 -/
-theorem step_stop (π : State) (a : String) :
-    step π (.stop a) = { π with stops := π.stops ++ [a] } := by
+theorem step_stop (π : State) (a : String) (n : Nat) :
+    step π (.stop a n) = { π with stops := π.stops ++ [(a, n)] } := by
   simp [step, check, exec]
 
 /-- Folding commands that are not spawns or stops leaves the spawn and stop lists alone.
 
 $$\forall cs, \pi, x, y:\quad (\forall c \in cs:\ \operatorname{isLife}(c) = \mathrm{false}) \Rightarrow \operatorname{foldl}(\operatorname{step}, \pi[\mathit{spawns} := x, \mathit{stops} := y], cs) = \operatorname{foldl}(\operatorname{step}, \pi, cs)[\mathit{spawns} := x, \mathit{stops} := y]$$
 -/
-theorem foldl_life_irrel : ∀ (cs : List Cmd) (π : State) (x y : List String),
+theorem foldl_life_irrel : ∀ (cs : List Cmd) (π : State) (x y : List (String × Nat)),
     (∀ c ∈ cs, c.isLife = false) →
     cs.foldl step { π with spawns := x, stops := y } = { cs.foldl step π with spawns := x, stops := y }
   | [], _, _, _, _ => rfl
@@ -1197,7 +1555,7 @@ theorem foldl_life_irrel : ∀ (cs : List Cmd) (π : State) (x y : List String),
 
 /-- **Folding splits into the other commands and the spawn/stop lists.**
 
-$$\forall cs, \pi:\quad \operatorname{foldl}(\operatorname{step}, \pi, cs) = \operatorname{foldl}\big(\operatorname{step}, \pi, [\, c \in cs : \operatorname{isLife}(c) = \mathrm{false} \,]\big)\big[\mathit{spawns} := \pi.\mathit{spawns} \mathbin{+\!\!+} [\, a : \mathrm{spawn}(a) \in cs \,],\ \mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} [\, a : \mathrm{stop}(a) \in cs \,]\big]$$
+$$\forall cs, \pi:\quad \operatorname{foldl}(\operatorname{step}, \pi, cs) = \operatorname{foldl}\big(\operatorname{step}, \pi, [\, c \in cs : \operatorname{isLife}(c) = \mathrm{false} \,]\big)\big[\mathit{spawns} := \pi.\mathit{spawns} \mathbin{+\!\!+} [\, (a, n) : \mathrm{spawn}(a, n) \in cs \,],\ \mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} [\, (a, n) : \mathrm{stop}(a, n) \in cs \,]\big]$$
 
 (the two lists keep the order of $cs$, one entry per command).
 -/
@@ -1216,16 +1574,16 @@ theorem foldl_split : ∀ (cs : List Cmd) (π : State), cs.foldl step π =
       have hp : c.stopOf = none := by cases c <;> simp_all [Cmd.isLife, Cmd.stopOf]
       simp [hl, hs, hp]
     · cases c with
-      | spawn a =>
+      | spawn a n =>
         rw [step_spawn]
-        have e : ({ π with spawns := π.spawns ++ [a] } : State) =
-            { π with spawns := π.spawns ++ [a], stops := π.stops } := rfl
+        have e : ({ π with spawns := π.spawns ++ [(a, n)] } : State) =
+            { π with spawns := π.spawns ++ [(a, n)], stops := π.stops } := rfl
         rw [e, foldl_life_irrel _ π _ _ hmem]
         simp [Cmd.isLife, Cmd.spawnOf, Cmd.stopOf, List.filterMap_cons]
-      | stop a =>
+      | stop a n =>
         rw [step_stop]
-        have e : ({ π with stops := π.stops ++ [a] } : State) =
-            { π with spawns := π.spawns, stops := π.stops ++ [a] } := rfl
+        have e : ({ π with stops := π.stops ++ [(a, n)] } : State) =
+            { π with spawns := π.spawns, stops := π.stops ++ [(a, n)] } := rfl
         rw [e, foldl_life_irrel _ π _ _ hmem]
         simp [Cmd.isLife, Cmd.spawnOf, Cmd.stopOf, List.filterMap_cons]
       | _ => simp [Cmd.isLife] at hl
@@ -1233,7 +1591,7 @@ theorem foldl_split : ∀ (cs : List Cmd) (π : State), cs.foldl step π =
 /-- **The plan state of a log splits**: the other commands in their order, and the spawn and stop
 lists.
 
-$$\forall cs:\quad \operatorname{run}(cs) = \operatorname{run}\big([\, c \in cs : \operatorname{isLife}(c) = \mathrm{false} \,]\big)\big[\mathit{spawns} := [\, a : \mathrm{spawn}(a) \in cs \,],\ \mathit{stops} := [\, a : \mathrm{stop}(a) \in cs \,]\big]$$
+$$\forall cs:\quad \operatorname{run}(cs) = \operatorname{run}\big([\, c \in cs : \operatorname{isLife}(c) = \mathrm{false} \,]\big)\big[\mathit{spawns} := [\, (a, n) : \mathrm{spawn}(a, n) \in cs \,],\ \mathit{stops} := [\, (a, n) : \mathrm{stop}(a, n) \in cs \,]\big]$$
 -/
 theorem run_split (cs : List Cmd) : run cs = { run (cs.filter (!·.isLife)) with
     spawns := cs.filterMap Cmd.spawnOf, stops := cs.filterMap Cmd.stopOf } := by
@@ -1266,13 +1624,13 @@ theorem run_comm (es : List Cmd) {c l : Cmd} (hc : c.isLife = false) (hl : l.isL
 /-- **The obs-next-lean race is gone**: defining task `x` and spawning agent `a` bind the same agent
 in either order, after any log prefix.
 
-$$\forall es, d, a, x:\quad \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} [\mathrm{define}(d), \mathrm{spawn}(a)]), x) = \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} [\mathrm{spawn}(a), \mathrm{define}(d)]), x)$$
+$$\forall es, d, a, n, x:\quad \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} [\mathrm{define}(d), \mathrm{spawn}(a, n)]), x) = \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} [\mathrm{spawn}(a, n), \mathrm{define}(d)]), x)$$
 -/
-theorem define_spawn_comm (es : List Cmd) (d : Def) (a x : String) :
-    boundTo (run (es ++ [.define d, .spawn a])) x = boundTo (run (es ++ [.spawn a, .define d])) x := by
-  rw [run_comm es (c := .define d) (l := .spawn a) rfl rfl]
+theorem define_spawn_comm (es : List Cmd) (d : Def) (a : String) (n : Nat) (x : String) :
+    boundTo (run (es ++ [.define d, .spawn a n])) x = boundTo (run (es ++ [.spawn a n, .define d])) x := by
+  rw [run_comm es (c := .define d) (l := .spawn a n) rfl rfl]
 
-/-! ### A binding is stable: only a claim, a drop, a stop of the bound agent or a spawn changes it -/
+/-! ### A binding is stable: only a claim, a label, a drop, a stop of a key of the bound agent or a spawn changes it -/
 
 /-- `find?` over a list that grows at the end by entries equal to `b`, with a predicate that may
 newly hold only at `b`, finds what it found before or `b`.
@@ -1335,22 +1693,96 @@ theorem agentOf_row {π : State} {t r : Task} {a : String} (hid : r.id = t.id)
   · simp only [he, ↓reduceIte, hev he] at h ⊢
     exact h
 
-/-- A stop of another agent keeps the derived agent.
+/-- `any` agrees for two predicates that agree on the list.
 
-$$\forall \pi, t, a, b:\quad b \ne a \land \operatorname{agentOf}(\pi, t) = a \Rightarrow \operatorname{agentOf}(\pi[\mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} [b]], t) = a$$
+$$\forall p, q, l:\quad (\forall a \in l:\ p(a) = q(a)) \Rightarrow \operatorname{any}(p, l) = \operatorname{any}(q, l)$$
 -/
-theorem agentOf_stop {π : State} {t : Task} {a b : String} (hab : b ≠ a)
-    (h : agentOf π t = some a) : agentOf { π with stops := π.stops ++ [b] } t = some a := by
-  have hc : cands { π with stops := π.stops ++ [b] } t = cands π t := rfl
-  have hp : ∀ c, (!ended { π with stops := π.stops ++ [b] } c) = true → (!ended π c) = true := by
-    intro c
-    simp only [ended, List.count_append, Bool.not_eq_eq_eq_not, Bool.not_true, Bool.and_eq_false_imp,
-      decide_eq_true_eq, decide_eq_false_iff_not, Nat.not_le]
-    intro h1 h2
-    have := h1 (by omega)
-    omega
-  have ha : ended { π with stops := π.stops ++ [b] } a = ended π a := by
-    simp [ended, List.count_append, hab]
+theorem any_congr_mem {α : Type} {p q : α → Bool} :
+    ∀ {l : List α}, (∀ a ∈ l, p a = q a) → l.any p = l.any q
+  | [], _ => rfl
+  | a :: l, h => by
+    simp only [List.any_cons, h a (List.mem_cons_self ..),
+      any_congr_mem (fun b hb => h b (List.mem_cons_of_mem _ hb))]
+
+/-- A stop makes no key more live, and leaves the other keys as they were.
+
+$$\forall \pi, b, m, k:\quad \big(\operatorname{liveK}(\pi', k) \Rightarrow \operatorname{liveK}(\pi, k)\big) \land \big(k \ne b \Rightarrow \operatorname{liveK}(\pi', k) = \operatorname{liveK}(\pi, k)\big), \qquad \pi' = \pi[\mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} [(b, m)]]$$
+-/
+theorem liveK_stop (π : State) (b : String) (m : Nat) (k : String) :
+    (liveK { π with stops := π.stops ++ [(b, m)] } k = true → liveK π k = true) ∧
+      (k ≠ b → liveK { π with stops := π.stops ++ [(b, m)] } k = liveK π k) := by
+  have hsg : sights { π with stops := π.stops ++ [(b, m)] } = sights π := rfl
+  refine ⟨fun h => ?_, fun hk => ?_⟩
+  · simp only [liveK, openedK, endedK, hsg, List.any_append, Bool.and_eq_true, Bool.not_eq_true',
+      Bool.or_eq_false_iff] at h ⊢
+    exact ⟨h.1, h.2.1⟩
+  · have hb : (b == k) = false := by simpa using Ne.symm hk
+    simp [liveK, openedK, endedK, hsg, List.any_append, hb]
+
+/-- A spawn makes no key less live, and leaves the other keys as they were.
+
+$$\forall \pi, b, m, k:\quad \big(\operatorname{liveK}(\pi, k) \Rightarrow \operatorname{liveK}(\pi', k)\big) \land \big(k \ne b \Rightarrow \operatorname{liveK}(\pi', k) = \operatorname{liveK}(\pi, k)\big), \qquad \pi' = \pi[\mathit{spawns} := \pi.\mathit{spawns} \mathbin{+\!\!+} [(b, m)]]$$
+-/
+theorem liveK_spawn (π : State) (b : String) (m : Nat) (k : String) :
+    (liveK π k = true → liveK { π with spawns := π.spawns ++ [(b, m)] } k = true) ∧
+      (k ≠ b → liveK { π with spawns := π.spawns ++ [(b, m)] } k = liveK π k) := by
+  have hsg : sights { π with spawns := π.spawns ++ [(b, m)] } = sights π ++ [(b, m)] := by
+    simp [sights]
+  refine ⟨fun h => ?_, fun hk => ?_⟩
+  · simp only [liveK, Bool.and_eq_true, Bool.not_eq_true'] at h ⊢
+    refine ⟨by simp only [openedK, hsg, List.any_append]; simp [openedK] at h; simp [h.1], ?_⟩
+    have h2 := h.2
+    simp only [endedK, hsg, List.all_append, List.any_eq_false] at h2 ⊢
+    intro q hq hq'
+    apply h2 q hq
+    simp only [Bool.and_eq_true] at hq' ⊢
+    exact ⟨hq'.1, hq'.2.1⟩
+  · have hb : (b == k) = false := by simpa using Ne.symm hk
+    have hb' : (b != k) = true := by simpa using Ne.symm hk
+    simp [liveK, openedK, endedK, hsg, List.any_append, List.all_append, hb, hb']
+
+/-- A stop makes no name less ended, and leaves alone every name that does not have the stopped key.
+
+$$\forall \pi, b, m, c:\quad \big(\operatorname{ended}(\pi, c) \Rightarrow \operatorname{ended}(\pi', c)\big) \land \big(b \notin \operatorname{keysOf}(\pi, c) \Rightarrow \operatorname{ended}(\pi', c) = \operatorname{ended}(\pi, c)\big), \qquad \pi' = \pi[\mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} [(b, m)]]$$
+-/
+theorem ended_stop (π : State) (b : String) (m : Nat) (c : String) :
+    (ended π c = true → ended { π with stops := π.stops ++ [(b, m)] } c = true) ∧
+      (b ∉ keysOf π c → ended { π with stops := π.stops ++ [(b, m)] } c = ended π c) := by
+  have hk : keysOf { π with stops := π.stops ++ [(b, m)] } c = keysOf π c := rfl
+  refine ⟨fun h => ?_, fun hb => ?_⟩
+  · simp only [ended, hk, Bool.not_eq_true', List.any_eq_false] at h ⊢
+    exact fun k hk' h' => h k hk' ((liveK_stop π b m k).1 h')
+  · simp only [ended, hk]
+    rw [any_congr_mem fun k hk' => (liveK_stop π b m k).2 fun e => hb (e ▸ hk')]
+
+/-- A spawn makes no name more ended, and leaves alone every name that does not have the spawned key.
+
+$$\forall \pi, b, m, c:\quad \big(\operatorname{ended}(\pi', c) \Rightarrow \operatorname{ended}(\pi, c)\big) \land \big(b \notin \operatorname{keysOf}(\pi, c) \Rightarrow \operatorname{ended}(\pi', c) = \operatorname{ended}(\pi, c)\big), \qquad \pi' = \pi[\mathit{spawns} := \pi.\mathit{spawns} \mathbin{+\!\!+} [(b, m)]]$$
+-/
+theorem ended_spawn (π : State) (b : String) (m : Nat) (c : String) :
+    (ended { π with spawns := π.spawns ++ [(b, m)] } c = true → ended π c = true) ∧
+      (b ∉ keysOf π c → ended { π with spawns := π.spawns ++ [(b, m)] } c = ended π c) := by
+  have hk : keysOf { π with spawns := π.spawns ++ [(b, m)] } c = keysOf π c := rfl
+  refine ⟨fun h => ?_, fun hb => ?_⟩
+  · simp only [ended, hk, Bool.not_eq_true', List.any_eq_false] at h ⊢
+    exact fun k hk' h' => h k hk' ((liveK_spawn π b m k).1 h')
+  · simp only [ended, hk]
+    rw [any_congr_mem fun k hk' => (liveK_spawn π b m k).2 fun e => hb (e ▸ hk')]
+
+/-- A stop of a key that is not a key of the bound agent keeps the derived agent.
+
+$$\forall \pi, t, a, b, m:\quad b \notin \operatorname{keysOf}(\pi, a) \land \operatorname{agentOf}(\pi, t) = \mathrm{some}(a) \Rightarrow \operatorname{agentOf}(\pi[\mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} [(b, m)]], t) = \mathrm{some}(a)$$
+-/
+theorem agentOf_stop {π : State} {t : Task} {a b : String} {m : Nat} (hab : b ∉ keysOf π a)
+    (h : agentOf π t = some a) : agentOf { π with stops := π.stops ++ [(b, m)] } t = some a := by
+  have hc : cands { π with stops := π.stops ++ [(b, m)] } t = cands π t := rfl
+  have hp : ∀ c, (!ended { π with stops := π.stops ++ [(b, m)] } c) = true → (!ended π c) = true := by
+    intro c hc
+    cases he : ended π c
+    · rfl
+    · rw [(ended_stop π b m c).1 he] at hc; cases hc
+  have ha : ended { π with stops := π.stops ++ [(b, m)] } a = ended π a :=
+    (ended_stop π b m a).2 hab
   unfold agentOf at h ⊢
   rw [hc]
   split
@@ -1372,71 +1804,6 @@ theorem agentOf_stop {π : State} {t : Task} {a b : String} (hab : b ≠ a)
     simp only [he, Bool.false_eq_true, ↓reduceIte] at h
     have hy := List.find?_some h
     exact find?_keep hp (by rw [ha]; exact hy) _ h
-
-/-- A spawn of agent `b` keeps the derived agent or switches it to `b`.
-
-$$\forall \pi, t, a, b:\quad \operatorname{agentOf}(\pi, t) = a \Rightarrow \operatorname{agentOf}(\pi', t) \in \{a, b\}, \qquad \pi' = \pi[\mathit{spawns} := \pi.\mathit{spawns} \mathbin{+\!\!+} [b]]$$
--/
-theorem agentOf_spawn {π : State} {t : Task} {a b : String} (h : agentOf π t = some a) :
-    agentOf { π with spawns := π.spawns ++ [b] } t = some a ∨
-      agentOf { π with spawns := π.spawns ++ [b] } t = some b := by
-  obtain ⟨m, hm, hmb⟩ : ∃ m, cands { π with spawns := π.spawns ++ [b] } t = cands π t ++ m ∧
-      ∀ c ∈ m, c = b := by
-    unfold cands
-    by_cases h0 : 0 < π.spawns.count t.id
-    · refine ⟨[], ?_, by simp⟩
-      have h1 : 0 < (π.spawns ++ [b]).count t.id := by rw [List.count_append]; omega
-      simp only [h0, h1, ↓reduceIte, List.append_nil]
-    · by_cases hb : b = t.id
-      · refine ⟨[t.id], ?_, fun c hc => by rw [List.mem_singleton] at hc; rw [hc, hb]⟩
-        have h1 : 0 < (π.spawns ++ [b]).count t.id := by simp [List.count_append, hb]
-        simp only [h0, h1, ↓reduceIte, List.append_nil]
-      · refine ⟨[], ?_, by simp⟩
-        have hz : List.count t.id [b] = 0 := by simp [hb]
-        have h1 : ¬ 0 < (π.spawns ++ [b]).count t.id := by rw [List.count_append]; omega
-        simp only [h0, h1, ↓reduceIte, List.append_nil]
-  have hp : ∀ c, (!ended π c) = true → (!ended { π with spawns := π.spawns ++ [b] } c) = true := by
-    intro c
-    simp only [ended, List.count_append, Bool.not_eq_eq_eq_not, Bool.not_true, Bool.and_eq_false_imp,
-      decide_eq_true_eq, decide_eq_false_iff_not, Nat.not_le]
-    intro h1 h2
-    have := h1 h2
-    omega
-  have hb : ∀ c, (!ended { π with spawns := π.spawns ++ [b] } c) = true → (!ended π c) = true ∨ c = b := by
-    intro c hc
-    by_cases e : c = b
-    · exact Or.inr e
-    · left
-      have : ended { π with spawns := π.spawns ++ [b] } c = ended π c := by
-        simp [ended, List.count_append, Ne.symm e]
-      rw [← this]; exact hc
-  have hg := find?_grow hp hb m hmb (cands π t)
-  unfold agentOf at h ⊢
-  rw [hm]
-  split
-  · rename_i he
-    simp only [he, ↓reduceIte] at h
-    rcases hg with hg | hg
-    · rw [hg]
-      cases hf : (cands π t).find? (fun a => !ended π a) with
-      | none =>
-        rw [hf] at h
-        left
-        have h' : (cands π t).head? = some a := h
-        have h'' : (cands π t ++ m).head? = some a := by
-          cases hcs : cands π t with
-          | nil => rw [hcs] at h'; simp at h'
-          | cons y ys => rw [hcs] at h'; simpa using h'
-        exact h''
-      | some y =>
-        rw [hf] at h
-        left; exact h
-    · right; rw [hg]; rfl
-  · rename_i he
-    simp only [he, Bool.false_eq_true, ↓reduceIte] at h
-    rcases hg with hg | hg
-    · left; rw [hg]; exact h
-    · right; exact hg
 
 /-- `find?` over `setRow` with an id-preserving map: the hit of the mapped list is the mapped hit.
 
@@ -1473,29 +1840,30 @@ theorem find?_filter_of {p q : Task → Bool} (h : ∀ t, p t = true → q t = t
       simp only [List.filter_cons, hq, Bool.false_eq_true, ↓reduceIte, List.find?_cons, hp]
       exact find?_filter_of h l
 
-/-- The commands that keep task `x` bound to agent `a`.
+/-- The commands that keep task `x` bound to agent `a` in plan state $\pi$.
 
-$$\operatorname{keeps}(x, a, c) \iff \begin{cases} d.\mathit{task} = x \Rightarrow x \notin d.\mathit{live} & c = \mathrm{define}(d) \\ y \ne x & c = \mathrm{drop}(y) \text{ or } c = \mathrm{claim}(y, \cdot) \\ \mathrm{true} & c = \mathrm{done}(\cdot, \cdot) \text{ or } c = \mathrm{milestone}(\cdot, \cdot) \\ \mathrm{false} & c = \mathrm{spawn}(\cdot) \\ b \ne a & c = \mathrm{stop}(b) \end{cases}$$
+$$\operatorname{keeps}(\pi, x, a, c) \iff \begin{cases} d.\mathit{task} = x \Rightarrow x \notin d.\mathit{live} & c = \mathrm{define}(d) \\ y \ne x & c = \mathrm{drop}(y) \\ \mathrm{true} & c = \mathrm{done}(\cdot, \cdot) \text{ or } c = \mathrm{milestone}(\cdot, \cdot) \text{ or } \operatorname{isMark}(c) \\ \mathrm{false} & c = \mathrm{claim}(\cdot, \cdot, \cdot) \text{ or } c = \mathrm{spawn}(\cdot, \cdot) \text{ or } c = \mathrm{label}(\cdot, \cdot) \\ b \notin \operatorname{keysOf}(\pi, a) & c = \mathrm{stop}(b, \cdot) \end{cases}$$
 -/
-def Keeps (x a : String) : Cmd → Prop
+def Keeps (s : State) (x a : String) : Cmd → Prop
   | .define d => d.task = x → x ∉ d.live
-  | .drop y | .claim y _ => y ≠ x
+  | .drop y => y ≠ x
   | .done .. | .milestone .. => True
-  | .spawn _ => False
-  | .stop b => b ≠ a
+  | .handback .. | .integrate .. | .park .. | .unpark _ => True
+  | .claim .. | .spawn .. | .label .. => False
+  | .stop b _ => b ∉ keysOf s a
 
 /-- **A binding is stable**: once task `x` is bound to `a`, a define of `x` (without `x` among its
-legacy live names, and not taking back evidence that did not land), a drop or claim of another task,
-any done, any milestone and a stop of another agent keep it bound to `a`. Only an explicit claim of
-`x`, the drop of `x`, a define of `x` with `x` among its legacy live names, a define of `x` without
-evidence while a row of `x` holds evidence that did not land (`x` is undone again, so an ended agent
-no longer binds it), a stop of `a` itself (then an undone `x` falls back to its next candidate) and a
-spawn (`boundTo_spawn`) can change it.
+legacy live names, and not taking back evidence that did not land), a drop of another task, any done,
+any milestone, any mark and a stop of a key that is not a key of `a` keep it bound to `a`. Only a
+claim (a claim sights its agent, which may revive a candidate), a label, a spawn, the drop of `x`, a
+define of `x` with `x` among its legacy live names, a define of `x` without evidence while a row of
+`x` holds evidence that did not land (`x` is undone again, so an ended agent no longer binds it) and
+a stop of a key of `a` (then an undone `x` falls back to its next candidate) can change it.
 
-$$\forall \pi, x, a, c:\quad \operatorname{boundTo}(\pi, x) = a \land \operatorname{keeps}(x, a, c) \land \big(\forall d:\ c = \mathrm{define}(d) \land d.\mathit{task} = x \land d.\mathit{evidence} = \bot \Rightarrow \forall t \in \pi.\mathit{tasks}:\ t.\mathit{id} = x \land t.\mathit{evidence} \ne \bot \Rightarrow t.\mathit{landed} = \mathrm{true}\big) \Rightarrow \operatorname{boundTo}(\operatorname{step}(\pi, c), x) = a$$
+$$\forall \pi, x, a, c:\quad \operatorname{boundTo}(\pi, x) = a \land \operatorname{keeps}(\pi, x, a, c) \land \big(\forall d:\ c = \mathrm{define}(d) \land d.\mathit{task} = x \land d.\mathit{evidence} = \bot \Rightarrow \forall t \in \pi.\mathit{tasks}:\ t.\mathit{id} = x \land t.\mathit{evidence} \ne \bot \Rightarrow t.\mathit{landed} = \mathrm{true}\big) \Rightarrow \operatorname{boundTo}(\operatorname{step}(\pi, c), x) = a$$
 -/
 theorem boundTo_keep {π : State} {x a : String} {c : Cmd} (h : boundTo π x = some a)
-    (hk : Keeps x a c)
+    (hk : Keeps π x a c)
     (hr : ∀ d, c = .define d → d.task = x → d.evidence = none →
       ∀ t ∈ π.tasks, t.id = x → t.evidence ≠ none → t.landed = true) :
     boundTo (step π c) x = some a := by
@@ -1542,12 +1910,8 @@ theorem boundTo_keep {π : State} {x a : String} {c : Cmd} (h : boundTo π x = s
         have : t'.id = x := by simpa using h'
         simpa [this] using Ne.symm hk), ht]
       exact hta
-    | claim y b =>
-      simp only [exec, boundTo]
-      rw [find?_setRow (f := fun t => { t with agent := some b }) (fun _ _ => rfl), ht]
-      have : ¬ t.id = y := fun e => hk (e ▸ htx)
-      simp only [Option.map_some, this, ↓reduceIte, Option.bind_some]
-      exact hta
+    | claim _ _ _ => exact hk.elim
+    | label _ _ => exact hk.elim
     | done y e =>
       simp only [exec, boundTo]
       rw [find?_setRow (f := fun t => { t with evidence := some e, landed := true }) (fun _ _ => rfl), ht]
@@ -1559,26 +1923,12 @@ theorem boundTo_keep {π : State} {x a : String} {c : Cmd} (h : boundTo π x = s
     | milestone m title =>
       simp only [exec]
       split <;> exact h
-    | spawn b => exact absurd hk id
-    | stop b =>
+    | spawn _ _ => exact hk.elim
+    | stop b _ =>
       simp only [exec, boundTo, ht, Option.bind_some]
       exact agentOf_stop hk hta
+    | handback _ _ _ | integrate _ _ _ | park _ _ | unpark _ => exact h
   · exact h
-
-/-- **A spawn keeps a binding or switches it to the spawned agent** (it never unbinds).
-
-$$\forall \pi, x, a, b:\quad \operatorname{boundTo}(\pi, x) = a \Rightarrow \operatorname{boundTo}(\operatorname{step}(\pi, \mathrm{spawn}(b)), x) \in \{a, b\}$$
--/
-theorem boundTo_spawn {π : State} {x a b : String} (h : boundTo π x = some a) :
-    boundTo (step π (.spawn b)) x = some a ∨ boundTo (step π (.spawn b)) x = some b := by
-  rw [step_spawn]
-  unfold boundTo at h ⊢
-  cases hf : π.tasks.find? (·.id == x) with
-  | none => rw [hf] at h; simp at h
-  | some t =>
-    rw [hf] at h
-    simp only [Option.bind_some] at h ⊢
-    exact agentOf_spawn h
 
 /-- A done task with a candidate is always bound (so no stop unbinds it).
 
@@ -1598,13 +1948,13 @@ theorem agentOf_done {π : State} {t : Task} (he : t.evidence ≠ none) :
     simp only [ne_eq, reduceCtorEq, not_false_eq_true, iff_true, List.head?_cons]
     cases (y :: ys).find? (fun a => !ended π a) <;> simp
 
-/-- **Running means: bound, not done, not cut** (on the board rows).
+/-- **Running means: bound, no blockers, not done, not cut** (on the board rows).
 
-$$\forall \pi, t:\quad \operatorname{tstate}(\operatorname{bound}(\pi), t[\mathit{agent} := \operatorname{agentOf}(\pi, t)]) = \mathrm{running} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land \operatorname{agentOf}(\pi, t) \ne \bot$$
+$$\forall \pi, t:\quad \operatorname{tstate}(\operatorname{bound}(\pi), \operatorname{bindRow}(\pi, t)) = \mathrm{running} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land \operatorname{agentOf}(\pi, t) \ne \bot \land \operatorname{blockers}(\operatorname{bound}(\pi), t) = [\,]$$
 -/
 theorem bound_running_iff (π : State) (t : Task) :
-    tstate (bound π) { t with agent := agentOf π t } = .running ↔
-      t.evidence = none ∧ t.cut = false ∧ agentOf π t ≠ none :=
+    tstate (bound π) (bindRow π t) = .running ↔
+      t.evidence = none ∧ t.cut = false ∧ agentOf π t ≠ none ∧ blockers (bound π) t = [] :=
   tstate_running_iff _ _
 
 /-! ### Plan sync from main's head -/
@@ -1898,7 +2248,10 @@ theorem groups_perm (ts : List Task) : (groups ts).flatten.Perm (readyIn ts .age
 
 /-- A task as the board shows it.
 
-$$v = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{owner}, \mathit{deps}, \mathit{needs}, \mathit{lane}, \mathit{state}, \mathit{blockers}, \mathit{agent}_\bot, \mathit{evidence}_\bot)$$
+$$v = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{owner}, \mathit{deps}, \mathit{needs}, \mathit{lane}, \mathit{state}, \mathit{blockers}, \mathit{agent}_\bot, \mathit{since}_\bot, \mathit{keys}, \mathit{evidence}_\bot, \mathit{outcome}_\bot)$$
+
+`since`: when the task's agent was last seen (`seenAt`); `keys`: the live life keys of that agent
+with their last-seen times (`liveKeys`), the input of the quiet timeout.
 -/
 structure TaskView where
   id        : String
@@ -1912,7 +2265,10 @@ structure TaskView where
   state     : TState
   blockers  : List String
   agent     : Option String
+  since     : Option Nat
+  keys      : List (String × Nat)
   evidence  : Option String
+  outcome   : Option Mark
 deriving Repr, DecidableEq
 
 /-- A milestone as the board shows it: its done and total task counts.
@@ -1939,13 +2295,14 @@ deriving Repr, DecidableEq
 
 /-- The board view of one task.
 
-$$\operatorname{taskView}(ts, t) = (t.\mathit{id}, t.\mathit{title}, t.\mathit{stream}, t.\mathit{milestone}, t.\mathit{owner}, t.\mathit{deps}, t.\mathit{needs}, \operatorname{lane}(t), \operatorname{tstate}(ts, t), \operatorname{blockers}(ts, t), t.\mathit{agent}, t.\mathit{evidence})$$
+$$\operatorname{taskView}(\pi, ts, t) = (t.\mathit{id}, t.\mathit{title}, t.\mathit{stream}, t.\mathit{milestone}, t.\mathit{owner}, t.\mathit{deps}, t.\mathit{needs}, \operatorname{lane}(t), \operatorname{tstate}(ts, t), \operatorname{blockers}(ts, t), t.\mathit{agent}, s, K, t.\mathit{evidence}, t.\mathit{mark}), \qquad (s, K) = \begin{cases} (\operatorname{seenAt}(\pi, a), \operatorname{liveKeys}(\pi, a)) & t.\mathit{agent} = a \\ (\bot, [\,]) & t.\mathit{agent} = \bot \end{cases}$$
 -/
-def taskView (ts : List Task) (t : Task) : TaskView :=
+def taskView (s : State) (ts : List Task) (t : Task) : TaskView :=
   { id := t.id, title := t.title, stream := t.stream, milestone := t.milestone, owner := t.owner,
     deps := t.deps, needs := t.needs, lane := lane t, state := tstate ts t,
-    blockers := blockers ts t, agent := t.agent,
-    evidence := t.evidence }
+    blockers := blockers ts t, agent := t.agent, since := t.agent.bind (seenAt s),
+    keys := (t.agent.map (liveKeys s)).getD [],
+    evidence := t.evidence, outcome := t.mark }
 
 /-- The rows that are not cut, in row order.
 
@@ -1965,10 +2322,10 @@ def msView (ts : List Task) (m : Milestone) : MilestoneView :=
 /-- The board plan of a plan state with the given rows for the task list and the parallel-safe
 groups (milestone counts and the critical path never read an agent, so they use the stored rows).
 
-$$\operatorname{viewWith}(\pi, b) = \big([\operatorname{taskView}(b, t) : t \in b],\ [\operatorname{msView}(\pi.\mathit{tasks}, m) : m \in \pi.\mathit{milestones}],\ \operatorname{criticalPath}(\operatorname{kept}(\pi.\mathit{tasks})),\ [\operatorname{ids}(g) : g \in \operatorname{groups}(b)]\big)$$
+$$\operatorname{viewWith}(\pi, b) = \big([\operatorname{taskView}(\pi, b, t) : t \in b],\ [\operatorname{msView}(\pi.\mathit{tasks}, m) : m \in \pi.\mathit{milestones}],\ \operatorname{criticalPath}(\operatorname{kept}(\pi.\mathit{tasks})),\ [\operatorname{ids}(g) : g \in \operatorname{groups}(b)]\big)$$
 -/
 def viewWith (s : State) (b : List Task) : View :=
-  { tasks := b.map (taskView b), milestones := s.milestones.map (msView s.tasks),
+  { tasks := b.map (taskView s b), milestones := s.milestones.map (msView s.tasks),
     criticalPath := criticalPath (kept s.tasks), parallelSafe := (groups b).map ids }
 
 /-- The board plan of a plan state: rows with their derived agents (`bound`).
@@ -1977,54 +2334,300 @@ $$\operatorname{view}(\pi) = \operatorname{viewWith}(\pi, \operatorname{bound}(\
 -/
 def view (s : State) : View := viewWith s (bound s)
 
-/-- **Old logs give the old board**: without spawns and stops the board is the one built from the
-stored rows (the board before agent binding was derived).
+/-! ## Task outcomes (task `task-state-truth`)
 
-$$\forall \pi:\quad \pi.\mathit{spawns} = [\,] \land \pi.\mathit{stops} = [\,] \Rightarrow \operatorname{view}(\pi) = \operatorname{viewWith}(\pi, \pi.\mathit{tasks})$$
+Why the board showed `running` for tasks whose agents had long ended: `agent.stop` was the only end
+signal, and none arrived (the hook records were dropped), so `agentOf` kept every claim bound. Even
+with stops, a task whose agent ended went back to `ready` or `blocked`, which hid where its work went.
+The outcome commands record that; the theorems below say what the board may then show.
 -/
-theorem view_compat {π : State} (h1 : π.spawns = []) (h2 : π.stops = []) :
-    view π = viewWith π π.tasks := by
-  simp only [view, bound_compat h1 h2]
 
-/-- **A log without spawn and stop commands gives the old board.**
+/-- The task a mark command names (`handback`, `integrate`, `park`, `unpark`); none for the others.
 
-$$\forall cs:\quad (\forall c \in cs:\ \operatorname{isLife}(c) = \mathrm{false}) \Rightarrow \operatorname{view}(\operatorname{run}(cs)) = \operatorname{viewWith}(\operatorname{run}(cs), \operatorname{run}(cs).\mathit{tasks})$$
+$$\operatorname{markTask}(c) = \begin{cases} x & c \in \{\mathrm{handback}(x, \cdot, \cdot), \mathrm{integrate}(x, \cdot, \cdot), \mathrm{park}(x, \cdot), \mathrm{unpark}(x)\} \\ \bot & \text{otherwise} \end{cases}$$
 -/
-theorem run_compat {cs : List Cmd} (h : ∀ c ∈ cs, c.isLife = false) :
-    view (run cs) = viewWith (run cs) (run cs).tasks := by
-  have hs : (run cs).spawns = [] := by
-    rw [run_split]
-    simp only [List.filterMap_eq_nil_iff]
-    intro c hc
-    have := h c hc
-    cases c <;> simp_all [Cmd.isLife, Cmd.spawnOf]
-  have ht : (run cs).stops = [] := by
-    rw [run_split]
-    simp only [List.filterMap_eq_nil_iff]
-    intro c hc
-    have := h c hc
-    cases c <;> simp_all [Cmd.isLife, Cmd.stopOf]
-  exact view_compat hs ht
+def Cmd.markTask : Cmd → Option String
+  | .handback x .. | .integrate x .. | .park x _ | .unpark x => some x
+  | _ => none
+
+/-- A mark command: one that names a task through `markTask`.
+
+$$\operatorname{isMark}(c) = \mathrm{true} \iff \operatorname{markTask}(c) \ne \bot$$
+-/
+def Cmd.isMark (c : Cmd) : Bool := c.markTask.isSome
+
+/-- A command that is not a mark command leaves the mark log unchanged.
+
+$$\forall \pi, c:\quad \operatorname{isMark}(c) = \mathrm{false} \Rightarrow \operatorname{exec}(\pi, c).\mathit{marks} = \pi.\mathit{marks}$$
+-/
+theorem exec_marks_keep (π : State) {c : Cmd} (h : c.isMark = false) :
+    (exec π c).marks = π.marks := by
+  cases c <;> simp_all [Cmd.isMark, Cmd.markTask, exec] <;> split <;> rfl
+
+/-- A step of a command that is not a mark command leaves the mark log unchanged.
+
+$$\forall \pi, c:\quad \operatorname{isMark}(c) = \mathrm{false} \Rightarrow \operatorname{step}(\pi, c).\mathit{marks} = \pi.\mathit{marks}$$
+-/
+theorem step_marks_keep (π : State) {c : Cmd} (h : c.isMark = false) :
+    (step π c).marks = π.marks := by
+  unfold step; split
+  · exact exec_marks_keep π h
+  · rfl
+
+/-- A fold of commands none of which is a mark command leaves the mark log unchanged.
+
+$$\forall cs, \pi:\quad (\forall c \in cs:\ \operatorname{isMark}(c) = \mathrm{false}) \Rightarrow \operatorname{foldl}(\operatorname{step}, \pi, cs).\mathit{marks} = \pi.\mathit{marks}$$
+-/
+theorem foldl_marks_keep : ∀ (cs : List Cmd) (π : State), (∀ c ∈ cs, c.isMark = false) →
+    (cs.foldl step π).marks = π.marks
+  | [], _, _ => rfl
+  | c :: cs, π, h => by
+    rw [List.foldl_cons, foldl_marks_keep cs _ (fun x hx => h x (List.mem_cons_of_mem _ hx)),
+      step_marks_keep π (h c List.mem_cons_self)]
+
+/-- A mark command changes neither the rows nor the spawn, stop, claim and label lists.
+
+$$\forall \pi, c:\quad \operatorname{isMark}(c) = \mathrm{true} \Rightarrow \operatorname{step}(\pi, c).\mathit{tasks} = \pi.\mathit{tasks} \land \operatorname{step}(\pi, c).\mathit{spawns} = \pi.\mathit{spawns} \land \operatorname{step}(\pi, c).\mathit{stops} = \pi.\mathit{stops} \land \operatorname{step}(\pi, c).\mathit{claims} = \pi.\mathit{claims} \land \operatorname{step}(\pi, c).\mathit{labels} = \pi.\mathit{labels}$$
+-/
+theorem step_mark_frame (π : State) {c : Cmd} (h : c.isMark = true) :
+    (step π c).tasks = π.tasks ∧ (step π c).spawns = π.spawns ∧ (step π c).stops = π.stops ∧
+      (step π c).claims = π.claims ∧ (step π c).labels = π.labels := by
+  unfold step; split
+  · cases c <;> simp_all [Cmd.isMark, Cmd.markTask, exec]
+  · exact ⟨rfl, rfl, rfl, rfl, rfl⟩
+
+/-- `setRow` keeps rows without a mark when `f` does.
+
+$$\forall ts, x, f:\quad (\forall u \in ts:\ u.\mathit{mark} = \bot \Rightarrow f(u).\mathit{mark} = \bot) \land (\forall t \in ts:\ t.\mathit{mark} = \bot) \Rightarrow \forall t \in \operatorname{setRow}(ts, x, f):\ t.\mathit{mark} = \bot$$
+-/
+theorem setRow_mark_none {ts : List Task} {x : String} {f : Task → Task}
+    (hf : ∀ u ∈ ts, u.mark = none → (f u).mark = none) (h : ∀ t ∈ ts, t.mark = none) :
+    ∀ t ∈ setRow ts x f, t.mark = none := by
+  intro t ht
+  simp only [setRow, List.mem_map] at ht
+  obtain ⟨u, hu, rfl⟩ := ht
+  split
+  · exact hf u hu (h u hu)
+  · exact h u hu
+
+/-- An accepted or refused command keeps "no stored row has a mark".
+
+$$\forall \pi, c:\quad (\forall t \in \pi.\mathit{tasks}:\ t.\mathit{mark} = \bot) \Rightarrow \forall t \in \operatorname{step}(\pi, c).\mathit{tasks}:\ t.\mathit{mark} = \bot$$
+-/
+theorem step_mark_none (π : State) (c : Cmd) (h : ∀ t ∈ π.tasks, t.mark = none) :
+    ∀ t ∈ (step π c).tasks, t.mark = none := by
+  unfold step; split
+  · cases c with
+    | define d =>
+      simp only [exec, upsert]
+      split
+      · exact setRow_mark_none (fun _ _ _ => rfl) h
+      · intro t ht
+        rcases List.mem_append.mp ht with ht | ht
+        · exact h t ht
+        · rw [List.mem_singleton] at ht; subst ht; rfl
+    | drop x => intro t ht; simp only [exec, List.mem_filter] at ht; exact h t ht.1
+    | claim x a => exact setRow_mark_none (fun _ _ hu => hu) h
+    | done x e => exact setRow_mark_none (fun _ _ hu => hu) h
+    | milestone m ti => simp only [exec]; split <;> exact h
+    | spawn _ | stop _ | label _ _ | handback _ _ _ | integrate _ _ _ | park _ _ | unpark _ => exact h
+  · exact h
+
+/-- **No reachable stored row has a mark** (marks live only on the board rows, `bindRow`).
+
+$$\forall cs:\quad \forall t \in \operatorname{run}(cs).\mathit{tasks}:\ t.\mathit{mark} = \bot$$
+-/
+theorem run_mark_none (cs : List Cmd) : ∀ t ∈ (run cs).tasks, t.mark = none := by
+  suffices ∀ (cs : List Cmd) (π : State), (∀ t ∈ π.tasks, t.mark = none) →
+      ∀ t ∈ (cs.foldl step π).tasks, t.mark = none from this cs {} (fun _ h => by cases h)
+  intro cs
+  induction cs with
+  | nil => intro π h; exact h
+  | cons c cs ih => intro π h; exact ih _ (step_mark_none π c h)
+
+/-- **Frame: a mark command changes the mark of its own task only.**
+
+$$\forall \pi, c, x:\quad \operatorname{markTask}(c) \ne x \Rightarrow \operatorname{markOf}(\operatorname{step}(\pi, c), x) = \operatorname{markOf}(\pi, x)$$
+-/
+theorem markOf_step_other {π : State} {c : Cmd} {x : String} (h : c.markTask ≠ some x) :
+    markOf (step π c) x = markOf π x := by
+  unfold step; split
+  · cases c <;> simp_all [Cmd.markTask, exec, markOf, List.filter_append] <;> split <;> rfl
+  · rfl
+
+/-- **An accepted mark command sets the mark of its task** (the last one wins; `unpark` clears it).
+
+$$\forall \pi, c, x:\quad \operatorname{markTask}(c) = x \land \operatorname{check}(\pi, c) = \bot \Rightarrow \operatorname{markOf}(\operatorname{step}(\pi, c), x) = \begin{cases} \mathrm{handedBack}(a, p) & c = \mathrm{handback}(x, a, p) \\ \mathrm{integrated}(b, p) & c = \mathrm{integrate}(x, b, p) \\ \mathrm{parked}(r) & c = \mathrm{park}(x, r) \\ \bot & c = \mathrm{unpark}(x) \end{cases}$$
+-/
+theorem markOf_step_self {π : State} {c : Cmd} {x : String} (h : c.markTask = some x)
+    (hc : check π c = none) :
+    markOf (step π c) x = match c with
+      | .handback _ a p => some (.handedBack a p)
+      | .integrate _ b p => some (.integrated b p)
+      | .park _ r => some (.parked r)
+      | _ => none := by
+  simp only [step, hc, ↓reduceIte]
+  cases c <;> simp only [Cmd.markTask, reduceCtorEq, Option.some.injEq] at h <;> subst h <;>
+    simp [exec, markOf, List.filter_append]
+
+/-- **Frame: a mark command of another task leaves a row's board form unchanged.**
+
+$$\forall \pi, c, t:\quad \operatorname{isMark}(c) = \mathrm{true} \land \operatorname{markTask}(c) \ne t.\mathit{id} \Rightarrow \operatorname{bindRow}(\operatorname{step}(\pi, c), t) = \operatorname{bindRow}(\pi, t)$$
+-/
+theorem bindRow_step_other {π : State} {c : Cmd} {t : Task} (hm : c.isMark = true)
+    (h : c.markTask ≠ some t.id) : bindRow (step π c) t = bindRow π t := by
+  obtain ⟨_, hs, hp, hcl, hl⟩ := step_mark_frame π hm
+  obtain ⟨_, ho, _, ha, _, hr⟩ := life_congr (by rw [hs]) (by rw [hp]) hcl hl
+  have hc : cands (step π c) t = cands π t := by simp only [cands, ho]
+  simp only [bindRow, outcomeOf, ha, hc, hr, markOf_step_other h]
+
+/-- **Running means a live agent**: on the board, a running task's agent is one of its candidates
+(its claim, or an agent named like it) that has not ended: no stop of it is at or after its last
+spawn.
+
+$$\forall \pi, t:\quad \operatorname{tstate}(\operatorname{bound}(\pi), \operatorname{bindRow}(\pi, t)) = \mathrm{running} \Rightarrow \exists a:\ \operatorname{agentOf}(\pi, t) = a \land a \in \operatorname{cands}(\pi, t) \land \neg\operatorname{ended}(\pi, a)$$
+-/
+theorem bound_running_live {π : State} {t : Task} (h : tstate (bound π) (bindRow π t) = .running) :
+    ∃ a, agentOf π t = some a ∧ a ∈ cands π t ∧ ended π a = false := by
+  obtain ⟨he, _, ha, _⟩ := (bound_running_iff π t).mp h
+  obtain ⟨a, hA⟩ := Option.ne_none_iff_exists'.mp ha
+  have hf : (cands π t).find? (fun a => !ended π a) = some a := by
+    simpa [agentOf, he] using hA
+  refine ⟨a, hA, List.mem_of_find?_eq_some hf, ?_⟩
+  simpa using List.find?_some hf
+
+/-- **The board never shows a task with open blockers as running.**
+
+$$\forall \pi, v:\quad v \in \operatorname{view}(\pi).\mathit{tasks} \land v.\mathit{state} = \mathrm{running} \Rightarrow v.\mathit{blockers} = [\,]$$
+-/
+theorem view_running_no_blockers {π : State} {v : TaskView} (hv : v ∈ (view π).tasks)
+    (h : v.state = .running) : v.blockers = [] := by
+  simp only [view, viewWith, List.mem_map] at hv
+  obtain ⟨t, _, rfl⟩ := hv
+  exact running_no_blockers h
+
+/-- **Done on the board needs landed evidence**: a board task shown done has evidence $e$, and its
+stored row got $e$ from a land event of the task or from an on-main define of it in the log
+(`done_needs_landed_evidence`).
+
+$$\forall L, v:\quad v \in \operatorname{view}(\operatorname{run}(L)).\mathit{tasks} \land v.\mathit{state} = \mathrm{done} \Rightarrow \exists t \in \operatorname{run}(L).\mathit{tasks}, \exists e:\ v.\mathit{evidence} = e \land v.\mathit{id} = t.\mathit{id} \land \operatorname{src}(L, t, e)$$
+-/
+theorem view_done_landed (l : List Cmd) {v : TaskView} (hv : v ∈ (view (run l)).tasks)
+    (h : v.state = .done) :
+    ∃ t ∈ (run l).tasks, ∃ e, v.evidence = some e ∧ v.id = t.id ∧ EvSrc l t e := by
+  simp only [view, viewWith, bound, List.map_map, List.mem_map, Function.comp] at hv
+  obtain ⟨t, ht, rfl⟩ := hv
+  have hne : t.evidence ≠ none := (tstate_done_iff _ (bindRow (run l) t)).mp h
+  obtain ⟨e, he⟩ := Option.ne_none_iff_exists'.mp hne
+  exact ⟨t, ht, e, he, rfl, done_needs_landed_evidence l ht he⟩
+
+/-- **An undone, uncut task whose candidate agents all ended shows its last mark, or parked**:
+with no mark recorded, parked with reason `endReason` (`noHandback`, or `expired` for a claim that
+was never spawned).
+
+$$\forall ts, \pi, t:\quad t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land \operatorname{cands}(\pi, t) \ne [\,] \land (\forall a \in \operatorname{cands}(\pi, t):\ \operatorname{ended}(\pi, a)) \Rightarrow \operatorname{tstate}(ts, \operatorname{bindRow}(\pi, t)) = \begin{cases} \operatorname{mstate}(m) & \operatorname{markOf}(\pi, t.\mathit{id}) = m \ne \bot \\ \operatorname{mstate}(\mathrm{parked}(\operatorname{endReason}(\pi, t))) & \operatorname{markOf}(\pi, t.\mathit{id}) = \bot \end{cases}$$
+-/
+theorem ended_state (ts : List Task) {π : State} {t : Task} (hev : t.evidence = none)
+    (hc : t.cut = false) (hn : cands π t ≠ []) (he : ∀ a ∈ cands π t, ended π a = true) :
+    tstate ts (bindRow π t) = ((markOf π t.id).getD (.parked (endReason π t))).state := by
+  have hA : agentOf π t = none := by
+    simp only [agentOf, hev, Option.isSome_none, Bool.false_eq_true, ↓reduceIte,
+      List.find?_eq_none]
+    intro a ha; simp [he a ha]
+  have hne : (cands π t).isEmpty = false := by
+    cases hc' : cands π t
+    · exact absurd hc' hn
+    · rfl
+  have ho : outcomeOf π t = some ((markOf π t.id).getD (.parked (endReason π t))) := by
+    cases hk : markOf π t.id <;> simp [outcomeOf, hk, hA, hne]
+  exact tstate_mark (by simp [bindRow, hev]) (by simp [bindRow, hc]) (by simp [bindRow, hA])
+    (by simp [bindRow, ho])
+
+/-- **Every claimed task whose agents all ended is done, handed back, integrated or parked** (exactly
+one, since the state is one value): never running, ready or blocked, so it does not invite a respawn.
+A candidate is the claim or an agent named like the task (`cands`).
+
+$$\forall ts, \pi, t:\quad t.\mathit{cut} = \mathrm{false} \land \operatorname{cands}(\pi, t) \ne [\,] \land (\forall a \in \operatorname{cands}(\pi, t):\ \operatorname{ended}(\pi, a)) \Rightarrow \operatorname{tstate}(ts, \operatorname{bindRow}(\pi, t)) \in \{\mathrm{done}, \mathrm{handedBack}, \mathrm{integrated}, \mathrm{parked}\}$$
+-/
+theorem ended_outcome (ts : List Task) {π : State} {t : Task} (hc : t.cut = false)
+    (hn : cands π t ≠ []) (he : ∀ a ∈ cands π t, ended π a = true) :
+    tstate ts (bindRow π t) = .done ∨ tstate ts (bindRow π t) = .handedBack ∨
+      tstate ts (bindRow π t) = .integrated ∨ tstate ts (bindRow π t) = .parked := by
+  cases hev : t.evidence with
+  | some e => exact .inl ((tstate_done_iff _ _).mpr (by simp [bindRow, hev]))
+  | none =>
+    rw [ended_state ts hev hc hn he]
+    exact .inr (Mark.state_mem _)
+
+/-- **Integrate allowlist** (`integrate_allowlist`): an integrate command of task `x` into ref `b` is
+accepted exactly when `x` is a task, it is not done, and `b` is an allowed full ref (`allowedRef`:
+under `refs/heads/ci/`, `refs/heads/worktree-` or `refs/heads/integrate-`). So work reaches main only
+by landing (`task.done`, which needs on-main evidence), whatever spelling of main the command uses.
+
+$$\forall \pi, x, b, p:\quad \operatorname{check}(\pi, \mathrm{integrate}(x, b, p)) = \bot \iff x \in \operatorname{ids}(\pi.\mathit{tasks}) \land \lnot\operatorname{isDone}(\pi.\mathit{tasks}, x) \land \operatorname{allowedRef}(b) = \mathrm{true}$$
+-/
+theorem integrate_allowlist (π : State) (x b p : String) :
+    check π (.integrate x b p) = none ↔
+      x ∈ ids π.tasks ∧ isDone π.tasks x = false ∧ allowedRef b = true := by
+  simp only [check]
+  by_cases h1 : (ids π.tasks).contains x = true
+  · have h1' : x ∈ ids π.tasks := List.contains_iff_mem.mp h1
+    by_cases h2 : isDone π.tasks x = true
+    · simp [h1', h2]
+    · by_cases h3 : allowedRef b = true
+      · simp [h1', h2, h3]
+      · simp [h1', h2, h3]
+  · have h1' : x ∉ ids π.tasks := fun h => h1 (List.contains_iff_mem.mpr h)
+    simp [h1']
+
+/-- **An accepted integrate targets an allowed branch family**: its ref starts with one of
+`allowPrefixes` (so never `main`, `refs/heads/main`, `origin/HEAD`, `HEAD` or `main~0`).
+
+$$\forall \pi, x, b, p:\quad \operatorname{check}(\pi, \mathrm{integrate}(x, b, p)) = \bot \Rightarrow \exists q \in \operatorname{allowPrefixes}:\ q \text{ is a prefix of } b$$
+-/
+theorem integrate_prefix {π : State} {x b p : String} (h : check π (.integrate x b p) = none) :
+    ∃ q ∈ allowPrefixes, b.startsWith q = true := by
+  have h3 := ((integrate_allowlist π x b p).mp h).2.2
+  simp only [allowedRef, Bool.and_eq_true, List.any_eq_true] at h3
+  obtain ⟨⟨⟨q, hq, hs, _⟩, _⟩, _⟩ := h3
+  exact ⟨q, hq, hs⟩
+
+/-- **A refused command changes nothing** (for a mark command: no mark is recorded, the board is unchanged).
+
+$$\forall \pi, c:\quad \operatorname{check}(\pi, c) \ne \bot \Rightarrow \operatorname{step}(\pi, c) = \pi$$
+-/
+theorem step_refused {π : State} {c : Cmd} (h : check π c ≠ none) : step π c = π := by
+  obtain ⟨e, he⟩ := Option.ne_none_iff_exists'.mp h
+  simp [step, he]
 
 /-- **The board depends on the spawn/stop commands only as multisets**: two logs whose other
-commands agree in order and whose spawn and stop names are permutations of each other give the same
-board (so where in the log a spawn or stop lands never matters).
+commands agree in order and whose spawn and stop (agent, time) pairs are permutations of each other
+give the same board (so where in the log a spawn or stop lands never matters; its time does).
 
-$$\forall cs_1, cs_2:\quad [\, c \in cs_1 : \neg\operatorname{isLife}(c) \,] = [\, c \in cs_2 : \neg\operatorname{isLife}(c) \,] \land [\, a : \mathrm{spawn}(a) \in cs_1 \,] \sim [\, a : \mathrm{spawn}(a) \in cs_2 \,] \land [\, a : \mathrm{stop}(a) \in cs_1 \,] \sim [\, a : \mathrm{stop}(a) \in cs_2 \,] \Rightarrow \operatorname{view}(\operatorname{run}(cs_1)) = \operatorname{view}(\operatorname{run}(cs_2))$$
+$$\forall cs_1, cs_2:\quad [\, c \in cs_1 : \neg\operatorname{isLife}(c) \,] = [\, c \in cs_2 : \neg\operatorname{isLife}(c) \,] \land [\, (a, n) : \mathrm{spawn}(a, n) \in cs_1 \,] \sim [\, (a, n) : \mathrm{spawn}(a, n) \in cs_2 \,] \land [\, (a, n) : \mathrm{stop}(a, n) \in cs_1 \,] \sim [\, (a, n) : \mathrm{stop}(a, n) \in cs_2 \,] \Rightarrow \operatorname{view}(\operatorname{run}(cs_1)) = \operatorname{view}(\operatorname{run}(cs_2))$$
 
-The name lists are in log order, one entry per command, and $\sim$ is "is a permutation of".
+The pair lists are in log order, one entry per command, and $\sim$ is "is a permutation of".
 -/
 theorem view_perm {cs₁ cs₂ : List Cmd} (h : cs₁.filter (!·.isLife) = cs₂.filter (!·.isLife))
     (hs : (cs₁.filterMap Cmd.spawnOf).Perm (cs₂.filterMap Cmd.spawnOf))
     (hp : (cs₁.filterMap Cmd.stopOf).Perm (cs₂.filterMap Cmd.stopOf)) :
     view (run cs₁) = view (run cs₂) := by
-  have ha : agentOf (run cs₁) = agentOf (run cs₂) := by
-    apply agentOf_congr
-    · intro a; rw [run_split, run_split cs₂]; exact hs.count_eq a
-    · intro a; rw [run_split, run_split cs₂]; exact hp.count_eq a
+  have hs' : (run cs₁).spawns.Perm (run cs₂).spawns := by rw [run_split, run_split cs₂]; exact hs
+  have hp' : (run cs₁).stops.Perm (run cs₂).stops := by rw [run_split, run_split cs₂]; exact hp
+  have hcl : (run cs₁).claims = (run cs₂).claims := by rw [run_split, run_split cs₂, h]
+  have hl : (run cs₁).labels = (run cs₂).labels := by rw [run_split, run_split cs₂, h]
+  obtain ⟨_, ho, hseen, ha, hlk, hr⟩ := life_congr hs' hp' hcl hl
   have ht : (run cs₁).tasks = (run cs₂).tasks := by rw [run_split, run_split cs₂, h]
   have hm : (run cs₁).milestones = (run cs₂).milestones := by rw [run_split, run_split cs₂, h]
-  simp only [view, viewWith, bound, ha, ht, hm]
+  have hk : (run cs₁).marks = (run cs₂).marks := by rw [run_split, run_split cs₂, h]
+  have hc : cands (run cs₁) = cands (run cs₂) := by
+    funext t; simp only [cands, ho]
+  have hb : bindRow (run cs₁) = bindRow (run cs₂) := by
+    funext t; simp only [bindRow, outcomeOf, markOf, ha, hk, hc, hr]
+  have hv : taskView (run cs₁) = taskView (run cs₂) := by
+    funext ts t; simp only [taskView, hseen, hlk]
+  simp only [view, viewWith, bound, hb, ht, hm, hv]
+
 
 /-- A milestone never has more done tasks than tasks.
 
@@ -2062,7 +2665,241 @@ theorem view_criticalPath_not_cut {π : State} {x : String} (hx : x ∈ (view π
   obtain ⟨t, ⟨ht, he, hc⟩, rfl⟩ := hu
   exact ⟨t, ht, rfl, hc, he⟩
 
+/-! ## Quiet timeout (task `task-state-truth`)
+
+A SubagentStop hook can fail to fire (a killed session, a crash), and before the admission fix the
+drain dropped 6376 stop records. So a stop is not the only end of an agent: a live key with no
+sighting (spawn, heartbeat or claim) for `quietMs` milliseconds is ended by a timeout stop, which
+the console appends as `agent.stop(k, n)` at the key's last sighting $n$, so any later event of the
+key revives it (`revive_on_event`). The rule reads the board only (`TaskView.keys`), so it runs on
+what the console already has. A claim is a sighting at its claim time, so a claim whose agent never
+shows up expires at claim time plus `quietMs` and the row is parked with reason `expired`
+(`no_forever_running`).
+-/
+
+/-- The quiet limit in milliseconds: 120 minutes, the console's `goneAfterMin`.
+
+$$\mathit{quietMs} = 120 \cdot 60000 = 7200000$$
+-/
+def quietMs : Nat := 120 * 60000
+
+/-- **The timeout stops due at time `now`**: for every board task with no evidence, each live key
+$(k, n)$ of its agent with $n + q < \mathit{now}$, in board and key order (a pair repeats when two
+tasks share an agent).
+
+$$\operatorname{timeouts}(q, \mathit{now}, vs) = [\, (k, n) : v \in vs,\ v.\mathit{evidence} = \bot,\ (k, n) \in v.\mathit{keys},\ n + q < \mathit{now} \,]$$
+-/
+def timeouts (q now : Nat) (vs : List TaskView) : List (String × Nat) :=
+  vs.flatMap fun v => if v.evidence.isNone then v.keys.filter (fun p => decide (p.2 + q < now)) else []
+
+/-- **A timeout is due exactly for a quiet live key of an undone task's agent.**
+
+$$\forall q, \mathit{now}, vs, k, n:\quad (k, n) \in \operatorname{timeouts}(q, \mathit{now}, vs) \iff \exists v \in vs:\ v.\mathit{evidence} = \bot \land (k, n) \in v.\mathit{keys} \land n + q < \mathit{now}$$
+-/
+theorem mem_timeouts (q now : Nat) (vs : List TaskView) (k : String) (n : Nat) :
+    (k, n) ∈ timeouts q now vs ↔ ∃ v ∈ vs, v.evidence = none ∧ (k, n) ∈ v.keys ∧ n + q < now := by
+  simp only [timeouts, List.mem_flatMap]
+  constructor
+  · rintro ⟨v, hv, h⟩
+    cases he : v.evidence with
+    | none =>
+      simp only [he, Option.isNone_none, ↓reduceIte, List.mem_filter, decide_eq_true_eq] at h
+      exact ⟨v, hv, he, h.1, h.2⟩
+    | some _ => simp [he] at h
+  · rintro ⟨v, hv, he, hk, hn⟩
+    exact ⟨v, hv, by simp [he, hk, hn]⟩
+
+/-- **The board rows**: every board task is the view of a stored row with its derived agent.
+
+$$\forall \pi, v:\quad v \in \operatorname{view}(\pi).\mathit{tasks} \iff \exists t \in \pi.\mathit{tasks}:\ v = \operatorname{taskView}(\pi, \operatorname{bound}(\pi), \operatorname{bindRow}(\pi, t))$$
+-/
+theorem mem_view_tasks (π : State) (v : TaskView) :
+    v ∈ (view π).tasks ↔ ∃ t ∈ π.tasks, v = taskView π (bound π) (bindRow π t) := by
+  simp only [view, viewWith, bound, List.map_map, List.mem_map, Function.comp]
+  constructor
+  · rintro ⟨t, ht, rfl⟩; exact ⟨t, ht, rfl⟩
+  · rintro ⟨t, ht, rfl⟩; exact ⟨t, ht, rfl⟩
+
+/-- Every sighting time of a key is at most its last-seen time.
+
+$$\forall \pi, k, n:\quad (k, n) \in \operatorname{sights}(\pi) \Rightarrow n \le \operatorname{lastAt}(\pi, k)$$
+-/
+theorem le_lastAt {π : State} {k : String} {n : Nat} (h : (k, n) ∈ sights π) : n ≤ lastAt π k := by
+  unfold lastAt
+  have hm : (k, n) ∈ (sights π).filter (·.1 == k) := List.mem_filter.mpr ⟨h, by simp⟩
+  generalize (sights π).filter (·.1 == k) = l at hm
+  induction l with
+  | nil => cases hm
+  | cons p ps ih =>
+    rcases List.mem_cons.mp hm with rfl | hm
+    · simp only [List.foldr_cons]; omega
+    · have := ih hm; simp only [List.foldr_cons]; omega
+
+/-- A bound on every sighting time of a key bounds its last-seen time.
+
+$$\forall \pi, k, m:\quad (\forall (b, n) \in \operatorname{sights}(\pi):\ b = k \Rightarrow n \le m) \Rightarrow \operatorname{lastAt}(\pi, k) \le m$$
+-/
+theorem lastAt_le {π : State} {k : String} {m : Nat} (h : ∀ p ∈ sights π, p.1 = k → p.2 ≤ m) :
+    lastAt π k ≤ m := by
+  unfold lastAt
+  have hm : ∀ p ∈ (sights π).filter (·.1 == k), p.2 ≤ m := fun p hp => by
+    have := List.mem_filter.mp hp
+    exact h p this.1 (by simpa using this.2)
+  generalize (sights π).filter (·.1 == k) = l at hm
+  induction l with
+  | nil => simp
+  | cons p ps ih =>
+    have h1 := hm p (List.mem_cons_self ..)
+    have h2 := ih (fun q hq => hm q (List.mem_cons_of_mem _ hq))
+    simp only [List.foldr_cons]; omega
+
+/-- A stop of a key at or after its last sighting, anywhere in the stop list, ends the key.
+
+$$\forall \pi, k, m:\quad (k, m) \in \pi.\mathit{stops} \land \operatorname{lastAt}(\pi, k) \le m \Rightarrow \operatorname{endedK}(\pi, k) = \mathrm{true}$$
+-/
+theorem endedK_of_stop {π : State} {k : String} {m : Nat} (hs : (k, m) ∈ π.stops)
+    (h : lastAt π k ≤ m) : endedK π k = true := by
+  simp only [endedK, List.any_eq_true, Bool.and_eq_true, beq_iff_eq, List.all_eq_true]
+  refine ⟨(k, m), hs, rfl, fun p hp => ?_⟩
+  by_cases e : p.1 = k
+  · have : p.2 ≤ lastAt π k := le_lastAt (by rw [← e]; exact hp)
+    simp only [e, bne_self_eq_false, Bool.false_or, decide_eq_true_eq]; omega
+  · simp [e]
+
+/-- **A stop at or after the last sighting ends the key** (whatever was logged before or after it).
+
+$$\forall \pi, k, m:\quad \operatorname{lastAt}(\pi, k) \le m \Rightarrow \operatorname{endedK}(\operatorname{step}(\pi, \mathrm{stop}(k, m)), k) = \mathrm{true}$$
+-/
+theorem stop_ends {π : State} {k : String} {m : Nat} (h : lastAt π k ≤ m) :
+    endedK (step π (.stop k m)) k = true := by
+  rw [step_stop]
+  exact endedK_of_stop (by simp) h
+
+/-- **Any event revives its key** (`revive_on_event`): a spawn of key $k$ (its start, a heartbeat of
+any later event, named or unnamed) at a time later than every stop of $k$ makes $k$ live, and every
+name that has the key $k$ is then not ended, whatever stops came before.
+
+$$\forall \pi, k, a, n:\quad k \in \operatorname{keysOf}(\pi, a) \land (\forall (b, m) \in \pi.\mathit{stops}:\ b = k \Rightarrow m < n) \Rightarrow \operatorname{liveK}(\pi', k) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false}, \qquad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(k, n))$$
+-/
+theorem revive_on_event (π : State) {k a : String} {n : Nat} (hk : k ∈ keysOf π a)
+    (hs : ∀ q ∈ π.stops, q.1 = k → q.2 < n) :
+    liveK (step π (.spawn k n)) k = true ∧ ended (step π (.spawn k n)) a = false := by
+  rw [step_spawn]
+  have hsg : sights { π with spawns := π.spawns ++ [(k, n)] } = sights π ++ [(k, n)] := by
+    simp [sights]
+  have hl : liveK { π with spawns := π.spawns ++ [(k, n)] } k = true := by
+    simp only [liveK, Bool.and_eq_true, Bool.not_eq_true']
+    refine ⟨by simp [openedK, hsg], ?_⟩
+    simp only [endedK, hsg, List.any_eq_false, Bool.and_eq_true, beq_iff_eq, List.all_append,
+      List.all_cons, List.all_nil, Bool.and_true, Bool.or_eq_true, bne_iff_ne, ne_eq,
+      not_true_eq_false, decide_eq_true_eq, false_or, not_and]
+    intro q hq hqk _ hle
+    have := hs q hq hqk
+    omega
+  refine ⟨hl, ?_⟩
+  have hk' : keysOf { π with spawns := π.spawns ++ [(k, n)] } a = keysOf π a := rfl
+  simp only [ended, hk', Bool.not_eq_false', List.any_eq_true]
+  exact ⟨k, hk, hl⟩
+
+/-- **A recent sighting is never timed out** (`timeout_spares_recent`): if key $k$ was seen at $m$
+and $\mathit{now} \le m + q$, the board lists no timeout of $k$ at all.
+
+$$\forall q, \mathit{now}, \pi, k, m, n:\quad (k, m) \in \operatorname{sights}(\pi) \land \mathit{now} \le m + q \Rightarrow (k, n) \notin \operatorname{timeouts}(q, \mathit{now}, \operatorname{view}(\pi).\mathit{tasks})$$
+-/
+theorem timeout_spares_recent (q now : Nat) (π : State) {k : String} {m n : Nat}
+    (hs : (k, m) ∈ sights π) (hr : now ≤ m + q) : (k, n) ∉ timeouts q now (view π).tasks := by
+  intro h
+  obtain ⟨v, hv, _, hk, hn⟩ := (mem_timeouts _ _ _ _ _).mp h
+  obtain ⟨t, _, rfl⟩ := (mem_view_tasks π v).mp hv
+  have hk' : (k, n) ∈ ((agentOf π t).map (liveKeys π)).getD [] := by
+    simpa [taskView, bindRow] using hk
+  cases ha : agentOf π t with
+  | none => rw [ha] at hk'; simp at hk'
+  | some a =>
+    rw [ha] at hk'
+    simp only [Option.map_some, Option.getD_some, liveKeys, List.mem_map, List.mem_filter,
+      Prod.mk.injEq] at hk'
+    obtain ⟨k', _, rfl, rfl⟩ := hk'
+    have := le_lastAt hs
+    omega
+
+/-- The console sweep at time `now`: the plan state after the timeout stops of its board,
+$\mathrm{stop}(k, n)$ for each $(k, n) \in \operatorname{timeouts}(q, \mathit{now}, \operatorname{view}(\pi).\mathit{tasks})$, in order.
+
+$$\operatorname{sweep}(q, \mathit{now}, \pi) = \operatorname{foldl}\big((\sigma, (k, n)) \mapsto \operatorname{step}(\sigma, \mathrm{stop}(k, n)),\ \pi,\ \operatorname{timeouts}(q, \mathit{now}, \operatorname{view}(\pi).\mathit{tasks})\big)$$
+-/
+def sweep (q now : Nat) (s : State) : State :=
+  (timeouts q now (view s).tasks).foldl (fun σ p => step σ (.stop p.1 p.2)) s
+
+/-- Folding stops only appends them to the stop list.
+
+$$\forall l, \pi:\quad \operatorname{foldl}\big((\sigma, (k, n)) \mapsto \operatorname{step}(\sigma, \mathrm{stop}(k, n)),\ \pi,\ l\big) = \pi[\mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} l]$$
+-/
+theorem foldl_stops : ∀ (l : List (String × Nat)) (π : State),
+    l.foldl (fun σ p => step σ (.stop p.1 p.2)) π = { π with stops := π.stops ++ l }
+  | [], π => by simp
+  | p :: l, π => by
+    rw [List.foldl_cons, step_stop, foldl_stops l]
+    simp
+
+/-- **No task runs forever** (`no_forever_running`): for every undone row bound to agent $a$, either
+some key of $a$ is live and was seen within the quiet limit, or every live key of $a$ is listed as a
+timeout, and after the sweep the row is no longer bound to $a$. A claim is a sighting at its claim
+time, so a claim with no live bound agent ends by claim time plus $q$.
+
+$$\forall q, \mathit{now}, \pi, t, a:\quad t \in \pi.\mathit{tasks} \land t.\mathit{evidence} = \bot \land \operatorname{agentOf}(\pi, t) = \mathrm{some}(a) \Rightarrow \Big(\exists k \in \operatorname{keysOf}(\pi, a):\ \operatorname{liveK}(\pi, k) \land \mathit{now} \le \operatorname{lastAt}(\pi, k) + q\Big) \lor \Big(\big(\forall k \in \operatorname{keysOf}(\pi, a):\ \operatorname{liveK}(\pi, k) \Rightarrow (k, \operatorname{lastAt}(\pi, k)) \in \operatorname{timeouts}(q, \mathit{now}, \operatorname{view}(\pi).\mathit{tasks})\big) \land \operatorname{agentOf}(\operatorname{sweep}(q, \mathit{now}, \pi), t) \ne \mathrm{some}(a)\Big)$$
+-/
+theorem no_forever_running (q now : Nat) {π : State} {t : Task} {a : String} (ht : t ∈ π.tasks)
+    (he : t.evidence = none) (ha : agentOf π t = some a) :
+    (∃ k ∈ keysOf π a, liveK π k = true ∧ now ≤ lastAt π k + q) ∨
+      ((∀ k ∈ keysOf π a, liveK π k = true → (k, lastAt π k) ∈ timeouts q now (view π).tasks) ∧
+        agentOf (sweep q now π) t ≠ some a) := by
+  by_cases hr : ∃ k ∈ keysOf π a, liveK π k = true ∧ now ≤ lastAt π k + q
+  · exact .inl hr
+  · right
+    have hq : ∀ k ∈ keysOf π a, liveK π k = true → lastAt π k + q < now := by
+      intro k hk hl; exact Nat.lt_of_not_le fun hc => hr ⟨k, hk, hl, hc⟩
+    have hmem : ∀ k ∈ keysOf π a, liveK π k = true →
+        (k, lastAt π k) ∈ timeouts q now (view π).tasks := by
+      intro k hk hl
+      refine (mem_timeouts _ _ _ _ _).mpr
+        ⟨_, (mem_view_tasks π _).mpr ⟨t, ht, rfl⟩, by simp [taskView, bindRow, he], ?_, hq k hk hl⟩
+      simp only [taskView, bindRow, ha, Option.map_some, Option.getD_some, liveKeys, List.mem_map,
+        List.mem_filter]
+      exact ⟨k, ⟨hk, hl⟩, rfl⟩
+    refine ⟨hmem, ?_⟩
+    have hsw : sweep q now π = { π with stops := π.stops ++ timeouts q now (view π).tasks } :=
+      foldl_stops _ _
+    have hend : ended (sweep q now π) a = true := by
+      rw [hsw]
+      have hk' : keysOf { π with stops := π.stops ++ timeouts q now (view π).tasks } a = keysOf π a :=
+        rfl
+      simp only [ended, hk', Bool.not_eq_true', List.any_eq_false]
+      intro k hk hl
+      have hsg : sights { π with stops := π.stops ++ timeouts q now (view π).tasks } = sights π := rfl
+      have hla : lastAt { π with stops := π.stops ++ timeouts q now (view π).tasks } k = lastAt π k :=
+        rfl
+      have hop : openedK { π with stops := π.stops ++ timeouts q now (view π).tasks } k = openedK π k :=
+        rfl
+      by_cases hl0 : liveK π k = true
+      · have := endedK_of_stop (π := { π with stops := π.stops ++ timeouts q now (view π).tasks })
+          (k := k) (m := lastAt π k) (List.mem_append_right _ (hmem k hk hl0)) (Nat.le_of_eq hla)
+        simp [liveK, this] at hl
+      · have hE : openedK π k = true → endedK π k = true := by
+          intro ho; simpa [liveK, ho] using hl0
+        simp only [liveK, hop, Bool.and_eq_true, Bool.not_eq_true'] at hl
+        have h1 := hE hl.1
+        have h2 : endedK { π with stops := π.stops ++ timeouts q now (view π).tasks } k = true := by
+          simp only [endedK, hsg, List.any_append] at h1 ⊢
+          simp [h1]
+        rw [h2] at hl; cases hl.2
+    intro h
+    simp only [agentOf, he, Option.isSome_none, Bool.false_eq_true, ↓reduceIte] at h
+    have := List.find?_some h
+    simp [hend] at this
+
 /-! ## Examples -/
+
 
 /-- A definition with the given id and deps (test helper).
 
@@ -2081,13 +2918,13 @@ def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
 #guard check (run [.define (mk "a" []), .define (mk "b" ["a"])]) (.drop "a")
   == some "task b depends on it"
 #guard check (run [.define (mk "a" []), .done "a" "abc1234"]) (.drop "a") == some "task is done"
-#guard check (run [.define (mk "a" [])]) (.claim "z" "x") == some "no such task"
+#guard check (run [.define (mk "a" [])]) (.claim "z" "x" 0) == some "no such task"
 #guard check (run [.define (mk "a" []), .done "a" "abc1234"]) (.done "a" "e") == some "task already done"
 #guard check {} (.define { mk "a" [] with title := String.ofList (List.replicate 201 'x') })
   == some "title: at most 200 characters"
 #guard (run [.define (mk "a" []), .define (mk "b" ["a"]), .drop "b"]).tasks.map (·.id) == ["a"]
 #guard let s := run [.define (mk "a" []), .define (mk "b" ["a"]), .define (mk "c" []),
-    .claim "c" "agent-1"]
+    .claim "c" "agent-1" 0]
   (s.tasks.map (tstate s.tasks)) == [.ready, .blocked, .running]
 #guard let s := run [.define (mk "a" []), .define (mk "b" ["a"]), .done "a" "abc1234"]
   (s.tasks.map (tstate s.tasks)) == [.done, .ready]
@@ -2112,7 +2949,7 @@ def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
 -- late definition: a live agent named like the task claims it; another live agent does not
 #guard let s := run [.define { mk "a" [] with live := ["a", "x"] }, .define { mk "b" [] with live := ["x"] }]
   s.tasks.map (·.agent) == [some "a", none] && s.tasks.map (tstate s.tasks) == [.running, .ready]
-#guard let s := run [.define (mk "a" []), .claim "a" "lead-1", .define { mk "a" [] with live := ["z"] }]
+#guard let s := run [.define (mk "a" []), .claim "a" "lead-1" 0, .define { mk "a" [] with live := ["z"] }]
   s.tasks.map (·.agent) == [some "lead-1"]
 #guard let s := run [.define (mk "a" []), .define { mk "a" ["b"] with live := ["a"] }]
   s.tasks.map (·.agent) == [none]
@@ -2122,41 +2959,43 @@ def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
     .define { mk "c" [] ["y/**"] with milestone := some "M0", cut := true },
     .define { mk "d" ["c"] with milestone := some "M0", cut := true },
     .define { mk "e" [] with milestone := some "M0", cut := true, evidence := some "abc1234" },
-    .claim "c" "agent-c"]
+    .claim "c" "agent-c" 0]
   s.tasks.map (tstate s.tasks) == [.ready, .cut, .cut, .done] && (view s).parallelSafe == [["a"]] &&
   (view s).criticalPath == ["a"] &&
   (view s).milestones == [{ id := "M0", title := "Zero", done := 0, total := 1 }]
 #guard let s := run [.define { mk "a" [] with cut := true }, .define (mk "a" [])]
   s.tasks.map (tstate s.tasks) == [.ready]
 -- agent binding: the obs-next-lean trace, define then spawn and spawn then define, bind the same agent
-#guard let s := run [.define (mk "obs-next-lean" []), .spawn "obs-next-lean"]
+#guard let s := run [.define (mk "obs-next-lean" []), .spawn "obs-next-lean" 1]
   boundTo s "obs-next-lean" == some "obs-next-lean" &&
   (view s).tasks.map (·.state) == [.running]
-#guard let s := run [.spawn "obs-next-lean", .define (mk "obs-next-lean" [])]
+#guard let s := run [.spawn "obs-next-lean" 2, .define (mk "obs-next-lean" [])]
   boundTo s "obs-next-lean" == some "obs-next-lean" &&
   (view s).tasks.map (·.state) == [.running]
--- stop before define: the agent ended before its task existed, so the task is ready, unbound
-#guard let s := run [.spawn "a", .stop "a", .define (mk "a" [])]
-  boundTo s "a" == none && (view s).tasks.map (·.state) == [.ready]
+-- stop before define: the agent ended before its task existed and left no handback, so the task
+-- is parked (reason `noHandback`), unbound (task `task-state-truth`; it was ready before)
+#guard let s := run [.spawn "a" 3, .stop "a" 4, .define (mk "a" [])]
+  boundTo s "a" == none && (view s).tasks.map (·.state) == [.parked]
 -- a stop unbinds an undone task; a respawn under the same name binds it again
-#guard let s := run [.define (mk "a" []), .spawn "a", .stop "a"]
+#guard let s := run [.define (mk "a" []), .spawn "a" 5, .stop "a" 6]
   boundTo s "a" == none && ended s "a"
-#guard let s := run [.define (mk "a" []), .spawn "a", .stop "a", .spawn "a"]
+#guard let s := run [.define (mk "a" []), .spawn "a" 7, .stop "a" 8, .spawn "a" 9]
   boundTo s "a" == some "a" && !ended s "a"
 -- a done task keeps its agent after the stop
-#guard let s := run [.define (mk "a" []), .spawn "a", .done "a" "abc1234", .stop "a"]
+#guard let s := run [.define (mk "a" []), .spawn "a" 10, .done "a" "abc1234", .stop "a" 11]
   boundTo s "a" == some "a" && (view s).tasks.map (·.state) == [.done]
 -- an explicit claim wins over the name match; once its agent stops, the name match takes over
-#guard let s := run [.define (mk "a" []), .spawn "a", .claim "a" "lead-1"]
+#guard let s := run [.define (mk "a" []), .spawn "a" 12, .claim "a" "lead-1" 12]
   boundTo s "a" == some "lead-1"
-#guard let s := run [.define (mk "a" []), .spawn "a", .claim "a" "lead-1", .stop "lead-1"]
+#guard let s := run [.define (mk "a" []), .spawn "a" 13, .claim "a" "lead-1" 13, .stop "lead-1" 14]
   boundTo s "a" == some "a"
 -- an agent named unlike every task binds nothing; no row gives none
-#guard let s := run [.define (mk "a" []), .spawn "x"]
+#guard let s := run [.define (mk "a" []), .spawn "x" 15]
   boundTo s "a" == none && boundTo s "zz" == none
--- old logs (no spawn/stop): the legacy live define still binds, the board is the stored one
+-- old logs (no spawn/stop): a legacy live define with no sighting binds nothing (liveness comes
+-- from sightings only), so it can never run forever
 #guard let s := run [.define { mk "a" [] with live := ["a"] }]
-  boundTo s "a" == some "a" && view s == viewWith s s.tasks
+  boundTo s "a" == none && (view s).tasks.map (·.state) == [.ready]
 -- plan sync reads main's head, once per head
 #guard syncFrom "main" [("ci/x", "c1"), ("main", "m1")] none == some "m1"
 #guard syncFrom "main" [("main", "m1")] (some "m1") == none
@@ -2191,5 +3030,110 @@ def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
 #guard let s := run [.define { mk "a" [] with evidence := some "abc1234" }]
   isDone s.tasks "a" && !isLanded s.tasks "a"
 #guard !isLanded [] "a"
+
+-- outcomes (task `task-state-truth`): a live agent wins over a mark; once it ends the mark shows
+#guard let s := run [.define (mk "a" []), .spawn "a" 16, .handback "a" "a" (some "abc1234")]
+  (view s).tasks.map (·.state) == [.running]
+#guard let s := run [.define (mk "a" []), .spawn "a" 17, .handback "a" "a" (some "abc1234"), .stop "a" 18]
+  (view s).tasks.map (·.state) == [.handedBack] &&
+  (view s).tasks.map (·.outcome) == [some (.handedBack "a" (some "abc1234"))]
+#guard let s := run [.define (mk "a" []), .spawn "a" 19, .stop "a" 20, .integrate "a" "refs/heads/ci/i-3" "b00ef68"]
+  (view s).tasks.map (·.state) == [.integrated]
+#guard let s := run [.define (mk "a" []), .spawn "a" 21, .stop "a" 22, .park "a" "folded"]
+  (view s).tasks.map (·.state) == [.parked] &&
+  (view s).tasks.map (·.outcome) == [some (.parked "folded")]
+-- the last mark wins; unpark clears it, and the ended agent then shows parked (no handback)
+#guard let s := run [.define (mk "a" []), .park "a" "x", .integrate "a" "refs/heads/ci/i" "t1"]
+  (view s).tasks.map (·.state) == [.integrated]
+#guard let s := run [.define (mk "a" []), .park "a" "x", .unpark "a"]
+  (view s).tasks.map (·.state) == [.ready] && markOf s "a" == none
+#guard let s := run [.define (mk "a" []), .spawn "a" 23, .stop "a" 24, .park "a" "x", .unpark "a"]
+  (view s).tasks.map (·.outcome) == [some (.parked noHandback)]
+-- an ended agent with no mark: parked with reason noHandback; a respawn shows running again
+#guard let s := run [.define (mk "a" []), .spawn "a" 25, .stop "a" 26]
+  (view s).tasks.map (·.state) == [.parked] &&
+  s.tasks.map (outcomeOf s) == [some (.parked noHandback)]
+#guard let s := run [.define (mk "a" []), .spawn "a" 27, .stop "a" 28, .spawn "a" 29]
+  (view s).tasks.map (·.state) == [.running]
+-- done wins over every mark
+#guard let s := run [.define (mk "a" []), .park "a" "x", .done "a" "abc1234"]
+  (view s).tasks.map (·.state) == [.done]
+-- a live agent on a task with open blockers: the board shows blocked, not running
+#guard let s := run [.define (mk "b" []), .define (mk "a" ["b"]), .spawn "a" 30]
+  (view s).tasks.map (·.state) == [.ready, .blocked] && boundTo s "a" == some "a"
+-- ... even when it has a mark: open blockers win over marks while the agent lives
+-- (`tstate_agent_blocked`); once it ends, the mark shows
+#guard let s := run [.define (mk "b" []), .define (mk "a" ["b"]), .spawn "a" 31, .integrate "a" "refs/heads/ci/i" "t"]
+  (view s).tasks.map (·.state) == [.ready, .blocked]
+#guard let s := run [.define (mk "b" []), .define (mk "a" ["b"]), .spawn "a" 31, .integrate "a" "refs/heads/ci/i" "t",
+    .stop "a" 32]
+  (view s).tasks.map (·.state) == [.ready, .integrated]
+-- a task parked `folded-no-change` clears its dependents' deps; another park does not
+#guard let s := run [.define (mk "b" []), .define (mk "a" ["b"]), .park "b" foldedNoChange]
+  (view s).tasks.map (·.state) == [.parked, .ready]
+#guard let s := run [.define (mk "b" []), .define (mk "a" ["b"]), .park "b" "folded"]
+  (view s).tasks.map (·.state) == [.parked, .blocked]
+-- times, not log order, decide: a stop logged before an earlier spawn still ends the agent; a
+-- spawn (or tool-event heartbeat) after the stop revives it
+#guard let s := run [.define (mk "a" []), .stop "a" 5, .spawn "a" 3]
+  ended s "a" && (view s).tasks.map (·.state) == [.parked]
+#guard let s := run [.define (mk "a" []), .spawn "a" 3, .stop "a" 5, .spawn "a" 7]
+  !ended s "a" && (view s).tasks.map (·.state) == [.running] &&
+  (view s).tasks.map (·.since) == [some 7]
+-- integration is accepted only into the allowlist: every spelling of main is refused
+#guard ["main", "HEAD", "origin/main", "refs/heads/main", "@", "main~0", "origin/HEAD", "ci/x"].all fun b =>
+  check (run [.define (mk "a" [])]) (.integrate "a" b "t") ==
+    some "integrate only into refs/heads/ci/*, refs/heads/worktree-* or refs/heads/integrate-*"
+#guard ["refs/heads/ci/x", "refs/heads/worktree-wf_1", "refs/heads/integrate-ports-3"].all fun b =>
+  check (run [.define (mk "a" [])]) (.integrate "a" b "t") == none
+-- refusals: unknown task, done task, integration into main
+#guard check {} (.park "a" "x") == some "no such task"
+#guard check (run [.define (mk "a" []), .done "a" "abc1234"]) (.handback "a" "a" none) ==
+  some "task already done"
+#guard check (run [.define (mk "a" [])]) (.integrate "a" "main" "t") ==
+  some "integrate only into refs/heads/ci/*, refs/heads/worktree-* or refs/heads/integrate-*"
+#guard check (run [.define (mk "a" [])]) (.unpark "a") == none
+#guard markOf (run [.define (mk "a" []), .park "a" "x"]) "b" == none
+-- quiet timeout: due only after more than `quietMs`, never for a done task or a bare claim
+#guard let s := run [.define (mk "a" []), .spawn "a" 1000]
+  timeouts quietMs (1000 + quietMs + 1) (view s).tasks == [("a", 1000)] &&
+  timeouts quietMs (1000 + quietMs) (view s).tasks == []
+#guard let s := run [.define (mk "a" []), .spawn "a" 1000, .done "a" "abc1234"]
+  timeouts quietMs (10 * quietMs) (view s).tasks == []
+-- claim TTL: a claim with no spawn is a sighting at claim time; it expires after `quietMs` and the
+-- sweep parks the row with reason `expired`
+#guard let s := run [.define (mk "a" []), .claim "a" "lead-1" 500]
+  timeouts quietMs (500 + quietMs) (view s).tasks == [] &&
+  (view s).tasks.map (·.state) == [.running] && (view s).tasks.map (·.since) == [some 500] &&
+  timeouts quietMs (500 + quietMs + 1) (view s).tasks == [("lead-1", 500)] &&
+  (view (sweep quietMs (500 + quietMs + 1) s)).tasks.map (·.outcome) == [some (.parked expired)]
+-- a spawned agent that goes quiet is parked with reason noHandback after the sweep
+#guard let s := run [.define (mk "a" []), .spawn "a" 1000]
+  (view (sweep quietMs (1000 + quietMs + 1) s)).tasks.map (·.outcome) == [some (.parked noHandback)] &&
+  (view (sweep quietMs (1000 + quietMs) s)).tasks.map (·.state) == [.running]
+-- liveness by key: a labelled id keeps its name live; the id's stop ends it; any later event of the
+-- id revives it, and the quiet timeout stops the id at its last sighting
+#guard let s := run [.define (mk "a" []), .label "id-1" "a", .spawn "id-1" 10]
+  keysOf s "a" == ["a", "id-1"] && boundTo s "a" == some "a" && !ended s "a" &&
+  liveKeys s "a" == [("id-1", 10)]
+#guard let s := run [.define (mk "a" []), .label "id-1" "a", .spawn "id-1" 10, .stop "id-1" 20]
+  ended s "a" && boundTo s "a" == none &&
+  (view s).tasks.map (·.outcome) == [some (.parked noHandback)]
+#guard let s := run [.define (mk "a" []), .label "id-1" "a", .spawn "id-1" 10, .stop "id-1" 20,
+    .spawn "id-1" 30]
+  !ended s "a" && boundTo s "a" == some "a" && (view s).tasks.map (·.state) == [.running]
+#guard let s := run [.define (mk "a" []), .label "id-1" "a", .spawn "id-1" 10]
+  let s' := sweep quietMs (10 + quietMs + 1) s
+  ended s' "a" && !ended (step s' (.spawn "id-1" 11)) "a"
+-- two keys: the name stays live while one key is live
+#guard let s := run [.define (mk "a" []), .label "id-1" "a", .label "id-2" "a", .spawn "id-1" 1,
+    .spawn "id-2" 2, .stop "id-1" 3]
+  !ended s "a" && liveKeys s "a" == [("id-2", 2)] && seenAt s "a" == some 2
+-- labels and claims are not life commands: a stop of an unlabelled id does not touch the name
+#guard let s := run [.define (mk "a" []), .spawn "a" 1, .stop "id-9" 5]
+  !ended s "a" && s.tasks.map (endReason s) == [noHandback]
+#guard let s := run [.define (mk "a" []), .spawn "a" 1000]
+  let s' := step s (.stop "a" (1000 + quietMs + 1))
+  ended s' "a" && (view s').tasks.map (·.state) == [.parked]
 
 end Fw.Plan

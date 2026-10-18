@@ -97,10 +97,12 @@ describe("agent door", () => {
 });
 
 describe("automation", () => {
+  // record times just before the store clock (the quiet timeout ends agents not seen for Fw.Plan.quietMs)
+  const T0 = 1_700_000_000_000 - 10;
   const spawnRec = (name: string, id: string) => JSON.stringify({ agent_id: null, agent_type: null, hook_event_name: "SpawnGuard",
-    tool_name: "Agent", tool_use_id: id, duration_ms: null, is_error: null, verb: "allow", agent_name: name, ts: 5 }) + "\n";
+    tool_name: "Agent", tool_use_id: id, duration_ms: null, is_error: null, verb: "allow", agent_name: name, ts: T0 }) + "\n";
   const stopRec = (agentId: string) => JSON.stringify({ agent_id: agentId, agent_type: "lean-prover", hook_event_name: "SubagentStop",
-    tool_name: null, tool_use_id: null, duration_ms: null, is_error: null, verb: null, ts: 9 }) + "\n";
+    tool_name: null, tool_use_id: null, duration_ms: null, is_error: null, verb: null, ts: T0 + 4 }) + "\n";
   const health = (dir: string, agents: [string, string][]) => appendFileSync(join(dir, "health.jsonl"), JSON.stringify({
     at: 1, input: { now: 1, agents: agents.map(([id, name]) => ({ id, name })), system: { diskFreeGB: 100 } },
     output: { agents: agents.map(([id]) => ({ id, state: "active", alerts: [] })), system: { alerts: [] },
@@ -126,21 +128,67 @@ describe("automation", () => {
     });
   }
 
-  it("a stopped agent releases its undone task (the stop's name comes from the health line); a stop before the define too", async () => {
+  it("a stopped agent releases its undone task, which shows parked (no handback); the stop ends the id and its health-line name; a stop before the define too", async () => {
     const { dir, store } = await open();
     mkdirSync(join(dir, "spool"));
     health(dir, [["id-a", "a"], ["id-c", "c"]]);
     appendFileSync(join(dir, "spool", "s.jsonl"), spawnRec("a", "u1") + spawnRec("c", "u2") + stopRec("id-c") + stopRec("id-unknown"));
     await new Drain(store).run();
     for (const c of syncCommands(mini())) await store.submit(c);
-    expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "ready", null]]);
-    expect(store.readEvents().filter((e) => e.type === "agent.stop")).toMatchObject([{ actor: "hook", agent: "c", key: "stop:id-c" }]);
+    expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "parked", null]]);
+    // by id (round 3): every SubagentStop stops its id; a named one also stops the spawn guard's name key
+    expect(store.readEvents().filter((e) => e.type === "agent.stop")).toMatchObject([
+      { actor: "hook", agent: "c", key: `stop:id-c|SubagentStop|${T0 + 4}|name`, at: T0 + 4 },
+      { actor: "hook", agent: "id-c", key: `stop:id-c|SubagentStop|${T0 + 4}`, at: T0 + 4 },
+      { actor: "hook", agent: "id-unknown", key: `stop:id-unknown|SubagentStop|${T0 + 4}`, at: T0 + 4 }]);
     appendFileSync(join(dir, "spool", "s.jsonl"), stopRec("id-a"));
     await new Drain(store).run();
-    expect(await rows(store)).toEqual([["a", "ready", null], ["b", "blocked", null], ["c", "ready", null]]);
+    expect(await rows(store)).toEqual([["a", "parked", null], ["b", "blocked", null], ["c", "parked", null]]);
+    expect((await planOf(store)).tasks[0]!.outcome).toEqual({ kind: "parked", reason: "agent ended without a handback" });
   });
 
-  it("an old log (legacy `live` on task.define, task.claim, no agent.spawn) replays to the board it gave before", async () => {
+  // task-state-truth: the hook adds background_tasks to SubagentStop; the strict schema refused it, so no stop reached
+  // the board. Measured, the count is session-wide (6 to 31, never 0), so it never decides: every named stop ends its
+  // agent at the record time (Lean `Fw.Ops.Obs.lifeOf`); a later tool event of the agent revives it.
+  it("a SubagentStop with background_tasks is accepted and ends its agent whatever the count; a rejected line is logged", async () => {
+    const { dir, store } = await open();
+    mkdirSync(join(dir, "spool"));
+    for (const c of syncCommands(mini())) await store.submit(c);
+    health(dir, [["id-a", "a"], ["id-c", "c"]]);
+    health(dir, [["id-a", "a"]]); // c is gone from the newest snapshot: its name comes from an older line
+    const bg = (agentId: string, n: number) => stopRec(agentId).replace(`"ts":${T0 + 4}`, `"background_tasks":${n},"ts":${T0 + 4}`);
+    appendFileSync(join(dir, "spool", "s.jsonl"), spawnRec("a", "u1") + spawnRec("c", "u2") + bg("id-a", 2) + bg("id-c", 0) + "{\"nope\":1}\n");
+    const res = await new Drain(store).run();
+    expect(res.invalid).toBe(1);
+    expect(await rows(store)).toEqual([["a", "parked", null], ["b", "blocked", null], ["c", "parked", null]]);
+    expect(store.readEvents().filter((e) => e.type === "agent.stop").map((e) => (e as { agent: string }).agent)).toEqual(["a", "id-a", "c", "id-c"]);
+    const rej = readFileSync(join(dir, "spool-rejects.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    expect(rej).toHaveLength(1);
+    expect(rej[0].why).toEqual(["agent_id:missing"]);
+  });
+
+  it("outcome marks: handback, integrate, park and unpark show distinct states; integrate outside the allowlist is refused", async () => {
+    const { store } = await open();
+    for (const c of syncCommands(mini())) await store.submit(c);
+    const send = (c: object) => store.submit(c as never);
+    await send({ type: "agent.spawn", key: "s:c", actor: "hook", agent: "c" });
+    await send({ type: "task.handback", key: "h:c", actor: "hook", task: "c", agent: "c", tip: "abc1234" });
+    expect(await rows(store)).toEqual([["a", "ready", null], ["b", "blocked", null], ["c", "running", "c"]]);
+    await send({ type: "agent.stop", key: "x:c", actor: "hook", agent: "c" });
+    await send({ type: "task.park", key: "p:a", actor: "lead", task: "a", reason: "waiting on the user" });
+    expect(await rows(store)).toEqual([["a", "parked", null], ["b", "blocked", null], ["c", "handedBack", null]]);
+    // integrate allowlist (Lean `Fw.Plan.integrate_allowlist`): full refs under ci/, worktree-, integrate- only
+    for (const branch of ["main", "refs/heads/main", "origin/HEAD", "main~0", "ci/integrate-1", "refs/heads/ci/", "refs/remotes/origin/ci/x"])
+      expect(await send({ type: "task.integrate", key: `i:m:${branch}`, actor: "lead", task: "c", branch, tip: "abc1234" }))
+        .toMatchObject({ ok: false, reason: "integrate only into refs/heads/ci/*, refs/heads/worktree-* or refs/heads/integrate-*" });
+    expect(await send({ type: "task.integrate", key: "i:h", actor: "hook", task: "c", branch: "refs/heads/ci/i", tip: "abc1234" })).toMatchObject({ ok: false });
+    expect(await send({ type: "task.integrate", key: "i:c", actor: "lead", task: "c", branch: "refs/heads/ci/integrate-1", tip: "abc1234" })).toMatchObject({ ok: true });
+    await send({ type: "task.unpark", key: "u:a", actor: "user", task: "a" });
+    expect(await rows(store)).toEqual([["a", "ready", null], ["b", "blocked", null], ["c", "integrated", null]]);
+    expect((await planOf(store)).tasks[2]!.outcome).toEqual({ kind: "integrated", branch: "refs/heads/ci/integrate-1", tip: "abc1234" });
+  });
+
+  it("an old log (legacy `live` on task.define, task.claim, no agent.spawn) replays: the claim binds, a legacy live fact no longer does", async () => {
     const dir = mkdtempSync(join(tmpdir(), "fw-plan-"));
     const lines: object[] = [];
     let seq = 0;
@@ -149,8 +197,9 @@ describe("automation", () => {
     log({ type: "task.claim", key: "claim:a", actor: "hook", task: "a", agent: "a" });
     writeFileSync(join(dir, "events.jsonl"), lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
     const { store } = await open(dir);
-    // before claim-order-lean: c was claimed by the live fact, a by the claim, b stays blocked (its dep a is undone)
-    expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "running", "c"]]);
+    // a is claimed (a claim is a sighting at its time, expiring by the claim TTL), b stays blocked (its dep a is undone);
+    // c's legacy live fact carries no time, so since task-state-truth round 3 it binds nothing (it could never expire)
+    expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "ready", null]]);
     // a client's legacy `live` is dropped now: the console binds from agent.spawn only
     const d = syncCommands({ milestones: [], tasks: [{ id: "n", title: "N", stream: "s", deps: [], owner: "o" }] })[0]!;
     await store.submit({ ...d, live: ["n"] } as never);

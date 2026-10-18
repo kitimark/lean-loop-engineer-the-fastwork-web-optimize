@@ -217,9 +217,9 @@ deriving Repr, DecidableEq
 
 /-- The authority table (`MAY`): the actors allowed to cause each event type.
 
-$$\begin{aligned} &\mathrm{MAY}(\texttt{card.open}) = \{\mathrm{owner}, \mathrm{lead}, \mathrm{user}\}, && \mathrm{MAY}(\texttt{card.approve}) = \{\mathrm{lead}, \mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{card.build}) = \{\mathrm{git}\}, && \mathrm{MAY}(\texttt{card.screen}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{card.review}) = \{\mathrm{reviewer}\}, && \mathrm{MAY}(\texttt{card.swipe}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{card.land\_request}) = \{\mathrm{lead}, \mathrm{user}\}, && \mathrm{MAY}(\texttt{card.landed}) = \{\mathrm{git}\}, \\ &\mathrm{MAY}(\texttt{step.post}) = \{\mathrm{script}, \mathrm{owner}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{step.start}) = \{\mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{step.answer}) = \{\mathrm{user}\}, && \mathrm{MAY}(\texttt{step.done}) = \{\mathrm{user}, \mathrm{owner}, \mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{step.cancel}) = \{\mathrm{script}, \mathrm{user}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{run.start}) = \{\mathrm{script}, \mathrm{owner}, \mathrm{lead}\}, \\ &\mathrm{MAY}(\texttt{run.finish}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{task.define}) = \mathrm{MAY}(\texttt{task.drop}) = \mathrm{MAY}(\texttt{milestone.define}) = \{\mathrm{lead}, \mathrm{user}, \mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{task.claim}) = \{\mathrm{hook}, \mathrm{script}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{task.done}) = \{\mathrm{git}, \mathrm{lead}, \mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{agent.spawn}) = \mathrm{MAY}(\texttt{agent.stop}) = \{\mathrm{hook}, \mathrm{script}, \mathrm{lead}\} \end{aligned}$$
+$$\begin{aligned} &\mathrm{MAY}(\texttt{card.open}) = \{\mathrm{owner}, \mathrm{lead}, \mathrm{user}\}, && \mathrm{MAY}(\texttt{card.approve}) = \{\mathrm{lead}, \mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{card.build}) = \{\mathrm{git}\}, && \mathrm{MAY}(\texttt{card.screen}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{card.review}) = \{\mathrm{reviewer}\}, && \mathrm{MAY}(\texttt{card.swipe}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{card.land\_request}) = \{\mathrm{lead}, \mathrm{user}\}, && \mathrm{MAY}(\texttt{card.landed}) = \{\mathrm{git}\}, \\ &\mathrm{MAY}(\texttt{step.post}) = \{\mathrm{script}, \mathrm{owner}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{step.start}) = \{\mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{step.answer}) = \{\mathrm{user}\}, && \mathrm{MAY}(\texttt{step.done}) = \{\mathrm{user}, \mathrm{owner}, \mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{step.cancel}) = \{\mathrm{script}, \mathrm{user}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{run.start}) = \{\mathrm{script}, \mathrm{owner}, \mathrm{lead}\}, \\ &\mathrm{MAY}(\texttt{run.finish}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{task.define}) = \mathrm{MAY}(\texttt{task.drop}) = \mathrm{MAY}(\texttt{milestone.define}) = \{\mathrm{lead}, \mathrm{user}, \mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{task.claim}) = \{\mathrm{hook}, \mathrm{script}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{task.done}) = \{\mathrm{git}, \mathrm{lead}, \mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{agent.spawn}) = \mathrm{MAY}(\texttt{agent.stop}) = \mathrm{MAY}(\texttt{agent.label}) = \mathrm{MAY}(\texttt{task.handback}) = \{\mathrm{hook}, \mathrm{script}, \mathrm{lead}\}, \\ &\mathrm{MAY}(\texttt{task.integrate}) = \{\mathrm{git}, \mathrm{script}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{task.park}) = \mathrm{MAY}(\texttt{task.unpark}) = \{\mathrm{lead}, \mathrm{user}, \mathrm{script}\} \end{aligned}$$
 
-Edge: the actor $\mathrm{hook}$ may cause only $\texttt{task.claim}$, $\texttt{agent.spawn}$ and $\texttt{agent.stop}$ (agent starts and stops observed by a hook).
+Edge: the actor $\mathrm{hook}$ may cause only $\texttt{task.claim}$, $\texttt{agent.spawn}$, $\texttt{agent.stop}$, $\texttt{agent.label}$ and $\texttt{task.handback}$ (agent starts, stops and handbacks observed by a hook); only $\mathrm{lead}$, $\mathrm{user}$ and $\mathrm{script}$ may park or unpark.
 -/
 def mayList : EvType → List Actor
   | .cardOpen => [.owner, .lead, .user]
@@ -240,7 +240,9 @@ def mayList : EvType → List Actor
   | .plan .define | .plan .drop | .plan .milestone => [.lead, .user, .script]
   | .plan .claim => [.hook, .script, .lead]
   | .plan .done => [.git, .lead, .user]
-  | .plan .spawn | .plan .stop => [.hook, .script, .lead]
+  | .plan .spawn | .plan .stop | .plan .label | .plan .handback => [.hook, .script, .lead]
+  | .plan .integrate => [.git, .script, .lead]
+  | .plan .park | .plan .unpark => [.lead, .user, .script]
 
 /-- An actor may cause an event type iff it is in the table.
 
@@ -903,6 +905,9 @@ theorem project_isLanded (l₁ l₂ : List Event) {x : String}
 
 #guard may .owner .cardOpen && !may .owner .cardApprove && !may .user .stepPost && !may .hook .cardOpen
 #guard may .hook (.plan .claim) && !may .hook (.plan .define) && may .git (.plan .done)
+#guard may .hook (.plan .handback) && !may .hook (.plan .integrate) && !may .hook (.plan .park)
+#guard may .git (.plan .integrate) && !may .git (.plan .park) && may .lead (.plan .unpark)
+#guard !may .owner (.plan .handback) && !may .reviewer (.plan .park) && may .user (.plan .park)
   && !may .owner (.plan .define) && may .script (.plan .milestone)
 #guard
   let ev (k : String) (a : Actor) (c : Fw.Plan.Cmd) : Event := ⟨k, 0, a, .plan c⟩
@@ -910,7 +915,7 @@ theorem project_isLanded (l₁ l₂ : List Event) {x : String}
                     ev "p2" .lead (.define (Fw.Plan.mk "b" ["a"]))]
   (step s (ev "p3" .lead (.define (Fw.Plan.mk "a" ["b"])))).2 == .refused "dependency cycle"
   && (step s (ev "p3" .owner (.drop "b"))).2 == .refused "actor owner may not cause task.drop"
-  && (step s (ev "p3" .hook (.claim "a" "agent-1"))).2 == .accepted false
+  && (step s (ev "p3" .hook (.claim "a" "agent-1" 0))).2 == .accepted false
   && (Fw.Plan.view (apply s (ev "p3" .git (.done "a" "abc1234"))).plan).tasks.map (·.state)
        == [.done, .ready]
 #guard
