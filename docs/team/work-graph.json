@@ -3643,6 +3643,17 @@
     "lean/Fw/Gate/Pixel.lean",
     "docs/team/handoffs/visual-diff-3.md"
    ]
+  },
+  {
+   "id": "slow-site-build-note",
+   "title": "(S) land the slow-site-build research note (slow-site-build was marked done early by an evidence field the plan keeps on upsert)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-slow-site-build.md"
+   ]
   }
  ],
  "deadline": {
