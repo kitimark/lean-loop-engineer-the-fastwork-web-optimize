@@ -8,7 +8,7 @@ text) share one cause: the outcome of a land was only prose. Here the outcome is
 line `VERDICT <kind> <task>` and exits with the kind's code, so a script decides from the exit code or from the first
 word after `VERDICT`, never from a text match.
 
-* kinds: `busy` `dirty` `scope` `reads` `conflict` `checks` `stale` `unknown` (refusals); `done` `dry` `queued` (successes);
+* kinds: `busy` `dirty` `scope` `reads` `conflict` `checks` `stale` `unknown` `lint` (refusals); `done` `dry` `queued` `empty` (successes);
 * exit code: 0 for every success, a distinct non-zero number for every refusal (`exitCode_inj_refusal`);
 * retry: only `busy` and `dirty` are retried (`retryable_iff`): they say that the world, not the branch, is in the way.
 
@@ -19,32 +19,32 @@ replacement by an `fwcore` op).
 namespace Fw.Console.LandVerdict
 
 /-- The outcome kinds of a land (or of a dry land, or of a queue entry).
-$$K = \{\mathrm{busy}, \mathrm{dirty}, \mathrm{scope}, \mathrm{reads}, \mathrm{conflict}, \mathrm{checks}, \mathrm{stale}, \mathrm{unknown}, \mathrm{done}, \mathrm{dry}, \mathrm{queued}\}$$ -/
+$$K = \{\mathrm{busy}, \mathrm{dirty}, \mathrm{scope}, \mathrm{reads}, \mathrm{conflict}, \mathrm{checks}, \mathrm{stale}, \mathrm{unknown}, \mathrm{done}, \mathrm{dry}, \mathrm{queued}, \mathrm{empty}, \mathrm{lint}\}$$ -/
 inductive Kind where
-  | busy | dirty | scope | reads | conflict | checks | stale | unknown | done | dry | queued
+  | busy | dirty | scope | reads | conflict | checks | stale | unknown | done | dry | queued | empty | lint
 deriving DecidableEq, Repr
 
 /-- All kinds, in the order of the golden file.
-$$\mathrm{all} = [\mathrm{busy}, \mathrm{dirty}, \mathrm{scope}, \mathrm{reads}, \mathrm{conflict}, \mathrm{checks}, \mathrm{stale}, \mathrm{unknown}, \mathrm{done}, \mathrm{dry}, \mathrm{queued}]$$ -/
-def Kind.all : List Kind := [.busy, .dirty, .scope, .reads, .conflict, .checks, .stale, .unknown, .done, .dry, .queued]
+$$\mathrm{all} = [\mathrm{busy}, \mathrm{dirty}, \mathrm{scope}, \mathrm{reads}, \mathrm{conflict}, \mathrm{checks}, \mathrm{stale}, \mathrm{unknown}, \mathrm{done}, \mathrm{dry}, \mathrm{queued}, \mathrm{empty}, \mathrm{lint}]$$ -/
+def Kind.all : List Kind := [.busy, .dirty, .scope, .reads, .conflict, .checks, .stale, .unknown, .done, .dry, .queued, .empty, .lint]
 
 /-- The word printed after `VERDICT`.
 $$\operatorname{name}(\mathrm{busy}) = \texttt{busy},\ \dots,\ \operatorname{name}(\mathrm{queued}) = \texttt{queued}$$ -/
 def Kind.name : Kind → String
   | .busy => "busy" | .dirty => "dirty" | .scope => "scope" | .reads => "reads" | .conflict => "conflict"
-  | .checks => "checks" | .stale => "stale" | .unknown => "unknown" | .done => "done" | .dry => "dry" | .queued => "queued"
+  | .checks => "checks" | .stale => "stale" | .unknown => "unknown" | .done => "done" | .dry => "dry" | .queued => "queued" | .empty => "empty" | .lint => "lint"
 
 /-- Is the kind a success? A finished land, a passing dry land, an accepted queue entry.
-$$\operatorname{ok}(k) \iff k \in \{\mathrm{done}, \mathrm{dry}, \mathrm{queued}\}$$ -/
+$$\operatorname{ok}(k) \iff k \in \{\mathrm{done}, \mathrm{dry}, \mathrm{queued}, \mathrm{empty}\}$$ -/
 def Kind.ok : Kind → Bool
-  | .done => true | .dry => true | .queued => true | _ => false
+  | .done => true | .dry => true | .queued => true | .empty => true | _ => false
 
 /-- The process exit code of a kind: 0 for a success, a distinct number for each refusal (`unknown` is 2, the code `fw land`
 always used for a refusal).
-$$\operatorname{code}(k) = \begin{cases} 0 & \operatorname{ok}(k) \\ 2 & k = \mathrm{unknown} \\ 10,\dots,16 & k = \mathrm{busy},\mathrm{dirty},\mathrm{scope},\mathrm{reads},\mathrm{conflict},\mathrm{checks},\mathrm{stale} \end{cases}$$ -/
+$$\operatorname{code}(k) = \begin{cases} 0 & \operatorname{ok}(k) \\ 2 & k = \mathrm{unknown} \\ 10,\dots,17 & k = \mathrm{busy},\mathrm{dirty},\mathrm{scope},\mathrm{reads},\mathrm{conflict},\mathrm{checks},\mathrm{stale},\mathrm{lint} \end{cases}$$ -/
 def Kind.exitCode : Kind → Nat
   | .busy => 10 | .dirty => 11 | .scope => 12 | .reads => 13 | .conflict => 14 | .checks => 15 | .stale => 16
-  | .unknown => 2 | .done => 0 | .dry => 0 | .queued => 0
+  | .lint => 17 | .unknown => 2 | .done => 0 | .dry => 0 | .queued => 0 | .empty => 0
 
 /-- Does a kind justify trying the same land again later? Only `busy` (another land holds the lock) and `dirty` (the main
 checkout has uncommitted changes) say that something other than the branch is in the way.
@@ -89,9 +89,9 @@ theorem verdictLine_prefix (k : Kind) (t : String) :
     ∃ r, verdictLine k t = "VERDICT " ++ k.name ++ " " ++ r :=
   ⟨if t == "" then "-" else t, rfl⟩
 
-#guard Kind.all.length == 11
-#guard (Kind.all.map Kind.name).eraseDups.length == 11
-#guard ((Kind.all.filter (fun k => !k.ok)).map Kind.exitCode).eraseDups.length == 8
+#guard Kind.all.length == 13
+#guard (Kind.all.map Kind.name).eraseDups.length == 13
+#guard ((Kind.all.filter (fun k => !k.ok)).map Kind.exitCode).eraseDups.length == 9
 #guard verdictLine .busy "land-dry" == "VERDICT busy land-dry"
 #guard verdictLine .scope "" == "VERDICT scope -"
 

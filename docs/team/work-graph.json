@@ -3957,7 +3957,8 @@
     "apps/runner/hooks/wait-guard.mjs",
     "apps/runner/test/**",
     "docs/team/tools/wait-guard.md"
-   ]
+   ],
+   "evidence": "ab61ca9"
   },
   {
    "id": "land-dry-full",
@@ -3975,7 +3976,8 @@
     "lean/Fw/Console/**",
     "packages/contracts/golden/**",
     "docs/team/tools/**"
-   ]
+   ],
+   "evidence": "c79cdc6"
   },
   {
    "id": "ci-shared-failure",
@@ -4088,7 +4090,8 @@
     "docs/team/tools/**",
     "docs/team/handoffs/task-preview.md",
     "research/notes/**"
-   ]
+   ],
+   "evidence": "140697a"
   },
   {
    "id": "ci-own-trigger",
@@ -4251,6 +4254,285 @@
     "docs/team/tools/**",
     "research/notes/**",
     "docs/team/handoffs/ci-shape-obs.md"
+   ]
+  },
+  {
+   "id": "lfg-props-shape",
+   "title": "(S) Fw.Spec.Props: property-over-impl convention, Assume marker, Fw.Search (Enum, search, P_iff link), kill-witness naming, docs/team/tools/lean-first.md (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Spec/**",
+    "lean/Fw/Search*.lean",
+    "lean/Fw/Search/**",
+    "lean/Fw.lean",
+    "docs/team/tools/lean-first.md",
+    "docs/team/handoffs/lfg-props-shape.md"
+   ]
+  },
+  {
+   "id": "lfg-spec",
+   "title": "(M) Fw.Ops.LeanFirst: Facts, verdict, Out, the gate theorems each with its own in-kernel kill, golden ops/lean-first.jsonl, fwcore op ops.leanFirst, Enum Facts search (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-props-shape"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/LeanFirst*.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw.lean",
+    "lean/FwTest/**",
+    "packages/contracts/golden/ops/**"
+   ]
+  },
+  {
+   "id": "lfg-mathview-facts",
+   "title": "(S) MathView emits headConst, implArg, assumes, killOf, class (closed/rfl/defEq/general), reach, reachFromWire (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-props-shape"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/MathViewMain.lean",
+    "lean/Fw/Spec/**",
+    "lean/scripts/**"
+   ]
+  },
+  {
+   "id": "lfg-premise-registry",
+   "title": "(S) premise kind, status (measured/untested/refuted/unmeasurable), carriers; citeLint_refuted_bad plus its mutant; register shell, ci, fs and dom premises from the audits (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-props-shape",
+    "engine-model-fix"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "lean/scripts/EngineCiteLint.lean",
+    "packages/contracts/golden/ops/**"
+   ]
+  },
+  {
+   "id": "lfg-kill-ci",
+   "title": "(M) mutants.sh first-kill; gen.mjs names the failing theorem; kills.jsonl keyed by deep hash; mutants.yml for new or changed theorems only; exempt.tsv (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-mathview-facts"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/FwTest/Mutants/**",
+    "lean/scripts/**",
+    ".github/workflows/mutants.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**"
+   ]
+  },
+  {
+   "id": "lfg-ts-lint",
+   "title": "(M) packages/difftest ts-lean-lint: data branches, YAML if/continue-on-error and Lean citations on changed hunks; Lean op lint.tsBranch, golden ops/ts-branch.jsonl; advisory pre-commit (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-spec"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "packages/difftest/**",
+    "lean/Fw/Ops/**",
+    "packages/contracts/golden/ops/**",
+    "scripts/hooks/**"
+   ]
+  },
+  {
+   "id": "lfg-workflow",
+   "title": "(S) work-graph fields leanFirst and props; adversary role checklist; lead-only docs/team/props/signoffs.jsonl; spec-land step in docs/team/tools/land.md (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-props-shape"
+   ],
+   "owner": "lead",
+   "writes": [
+    "docs/team/props/**",
+    "docs/team/tools/land.md",
+    "docs/team/token-policy.md"
+   ]
+  },
+  {
+   "id": "lfg-land-wire",
+   "title": "(S) land.ts lean-first check: facts, ops.leanFirst, print Out verbatim, exit 75 when pending, stage from Lean, shadow by default (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-spec",
+    "lfg-mathview-facts",
+    "lfg-kill-ci",
+    "lfg-ts-lint",
+    "lfg-premise-registry",
+    "land-dry-full"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/**"
+   ]
+  },
+  {
+   "id": "lfg-pilot",
+   "title": "(S) first property-first task: land-dry totality (NoSilentExit; bad implementations emptyDone, exnNoVerdict) through the whole workflow, measuring review and spec-land cost (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-workflow",
+    "lfg-spec"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Console/**",
+    "lean/Fw/Props/**",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "packages/contracts/golden/console/**"
+   ]
+  },
+  {
+   "id": "lfg-shadow",
+   "title": "(S) stage 0: >= 15 shadow lands, would-refuse tally per rule in research/notes, fix false refusals (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-land-wire"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "research/notes/**",
+    "lean/Fw/Ops/LeanFirst*.lean",
+    "packages/contracts/golden/ops/**"
+   ]
+  },
+  {
+   "id": "lfg-enforce-new",
+   "title": "(S) stage 1: set C0, enforce for leanFirst tasks (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-shadow",
+    "lfg-pilot"
+   ],
+   "owner": "lead",
+   "writes": [
+    "docs/team/props/**",
+    "lean/Fw/Ops/LeanFirst*.lean"
+   ]
+  },
+  {
+   "id": "lfg-enforce-all",
+   "title": "(S) stage 2: set C1, R2-R4 on every diff, ratchet live (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-enforce-new"
+   ],
+   "owner": "lead",
+   "writes": [
+    "docs/team/props/**",
+    "lean/Fw/Ops/LeanFirst*.lean"
+   ]
+  },
+  {
+   "id": "lfg-burn-mutants",
+   "title": "(L, split per module) stage 3: kills or exemptions for the legacy theorems (Parts, Engine, Console/Land*, Ops/Wait first) (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-enforce-all"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/FwTest/Mutants/**",
+    "lean/FwTest/**"
+   ]
+  },
+  {
+   "id": "lfg-burn-ts",
+   "title": "(M) stage 3: the 15 new TS items and 9 lean-ops-gap items get a Lean op or golden twin (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-enforce-all",
+    "lean-ops-gap"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/**",
+    "packages/contracts/golden/**",
+    "apps/**",
+    "packages/**"
+   ]
+  },
+  {
+   "id": "lfg-plausible-eval",
+   "title": "(S, optional) evaluate Plausible at a pinned sha without Mathlib against Fw.Search; the lead decides on the dependency (research/notes/2026/10-18-lean-first-gate.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-props-shape"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "research/notes/**"
+   ]
+  },
+  {
+   "id": "wait-guard-enforce-2",
+   "title": "(S) wait-guard round 3 before enforce: bound words only from the loop condition (body_irrelevant), finite-filter allowlist widened (sed/tr/cut/uniq/awk, xargs, gh pr list, NUL reads); then the lead hands the user the enforce switch",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "wait-guard-enforce"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Wait.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/ops/**",
+    "apps/runner/hooks/wait-guard.mjs",
+    "apps/runner/test/**",
+    "docs/team/tools/wait-guard.md",
+    "docs/team/handoffs/wait-guard-enforce.md",
+    "docs/team/handoffs/wait-guard-enforce-2.md"
+   ]
+  },
+  {
+   "id": "task-preview-2",
+   "title": "(S) task-preview follow-ups from review: owner link written to /dev/tty only (an agent read it from a background output file and became owner), console must be started by the user in a terminal; panel head = landed/merged head (expectHead in the Lean table, merge/handoff before origin/ci), 9/25 heads wrong today",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "task-preview"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/console-api/**",
+    "apps/console-web/**",
+    "lean/Fw/Console/Preview*.lean",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/task-preview.md",
+    "docs/team/handoffs/task-preview-2.md",
+    "docs/team/tools/**"
    ]
   }
  ],
