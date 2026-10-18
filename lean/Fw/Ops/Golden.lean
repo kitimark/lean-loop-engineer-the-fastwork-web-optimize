@@ -190,6 +190,20 @@ def cases : List (String × List (String × Json)) := [
     ("newline continues an and-or list: the backgrounded list is long: deny", wait "a &&\n pnpm dev &"),
     ("comment is ignored: allow", wait "echo hi # pnpm fw watch &"),
     ("empty command: allow", wait ""),
+    ("while-read loop over a file redirect: bounded by its input: allow", wait "while IFS= read -r line; do echo \"$line\"; done < list.txt"),
+    ("while-read loop fed by a finite pipe: allow", wait "git ls-files | while read -r f; do wc -l \"$f\"; done | sort"),
+    ("while-read loop over a here-string: allow", wait "while read -r a b; do echo $a; done <<< \"$pairs\""),
+    ("here-document body is data, not commands: allow", wait "cat > f.py <<'EOF'\nwhile True:\n    pass\nEOF\npython3 f.py"),
+    ("<<- here-document with a tab-indented delimiter: allow", wait "cat <<-EOF > x.sh\n\twhile true; do sleep 1; done\n\tEOF\necho ok"),
+    ("nested read loops, both over finite input: allow", wait "find . -type f | while read f; do while read l; do echo $l; done < \"$f\"; done"),
+    ("while-read loop on the tool's stdin: deny unboundedLoop", wait "while read l; do echo $l; done"),
+    ("while-read loop fed by tail -f: deny unboundedLoop", wait "tail -f x.log | while read l; do echo $l; done"),
+    ("while-read loop over a process substitution: deny unboundedLoop", wait "while read l; do echo $l; done < <(tail -f x.log)"),
+    ("read with its own redirect re-reads line 1 forever: deny unboundedLoop", wait "while read l < f; do echo $l; done"),
+    ("loop after do is still seen: deny unboundedLoop", wait "for f in a b; do while true; do sleep 1; done; done"),
+    ("loop after a closed here-document is code again: deny unboundedLoop", wait "cat <<EOF > f\nx\nEOF\nwhile true; do sleep 1; done"),
+    ("CI poll with no counter: deny unboundedLoop", wait "until [ \"$(gh run view 1 --json status -q .status)\" = completed ]; do sleep 150; done"),
+    ("finite read loop with &: still a backgrounded loop: deny bgLong loop", wait "ls | while read f; do echo $f; done &"),
     ("missing cmd is refused", lit "{}")])]
 
 /-- Golden files outside `ops/`: (directory under `packages/contracts/golden`, op, cases). -/

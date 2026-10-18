@@ -36,6 +36,7 @@ export function message(reply) {
   }
   return "wait-guard refused: an until/while loop with no bound never ends if its condition cannot come true. Give it a deadline "
     + "(wrap it in `timeout N`, or test a counter or SECONDS in the loop), or use `pnpm fw ci wait` / run_in_background. "
+    + "A `while read` loop over a file (`done < f`), a here-string or a finite pipe counts as bounded. "
     + "Set FW_WAIT_GUARD=shadow to only log.";
 }
 
