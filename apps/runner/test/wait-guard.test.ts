@@ -71,7 +71,7 @@ describe.skipIf(!have)("wait guard vs the Lean goldens (ops.wait.jsonl)", () => 
     expect(batch.get(i)).toMatchObject({ decision: c.response.decision, reason: c.response.reason, shape: c.response.shape });
   });
   it("the per-call path (ask) answers a golden case", () => {
-    const c = withCmd[0];
+    const c = withCmd[0]!;
     expect(ask(bin, req(c), 30_000)).toMatchObject({ decision: c.response.decision, reason: c.response.reason, shape: c.response.shape });
   }, 35_000);
 });
