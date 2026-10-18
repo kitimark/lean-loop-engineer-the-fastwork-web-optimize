@@ -42,9 +42,14 @@ function Milestones({ plan }: { plan: Plan }) {
   );
 }
 
-const Task = ({ t, extra }: { t: PlanTask; extra?: React.ReactNode }) => (
+const Task = ({ t, extra }: { t: PlanTask; extra?: React.ReactNode }) => {
+  const [open, setOpen] = useState(false);
+  return (
   <li className={`rounded border p-2 text-sm${t.state === "cut" ? " opacity-50" : ""}`} title={t.title} data-state={t.state}>
-    <div className="font-medium">{t.id}</div>
+    <div className="flex items-center justify-between gap-2">
+      <span className="font-medium">{t.id}</span>
+      {!wantsDetail(t.id) && <button className="rounded border px-1.5 text-xs" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "hide" : "details"}</button>}
+    </div>
     <div className="truncate text-xs text-muted-foreground">{t.title}</div>
     <div className="mt-1 flex flex-wrap gap-1 text-xs">
       <Badge variant="secondary">{t.owner}</Badge>
@@ -52,9 +57,10 @@ const Task = ({ t, extra }: { t: PlanTask; extra?: React.ReactNode }) => (
       {t.lane === "device" && <DeviceBadge />}
       {extra}
     </div>
-    {wantsDetail(t.id) && <TaskDetail id={t.id} />}
+    {(wantsDetail(t.id) || open) && <TaskDetail id={t.id} />}
   </li>
-);
+  );
+};
 
 /** The label of a task whose agents ended (fwcore states handedBack / integrated / parked, task task-state-truth):
  *  where the work went. Display only; the state and the outcome come from fwcore. */
