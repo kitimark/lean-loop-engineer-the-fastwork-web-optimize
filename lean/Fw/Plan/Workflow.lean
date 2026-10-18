@@ -372,7 +372,7 @@ theorem wfAllEvents_nil (ids scripts runFiles : List String) :
 
 /-- A running agent labelled with a task id binds it (one spawn, no stop).
 
-$$\operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land \lnot a.\mathit{done} \Rightarrow \operatorname{acmds}(I, \mathrm{false}, a, n) = [\mathrm{spawn}(t, n)]$$
+$$\forall I, a, t, n:\quad \operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land \lnot a.\mathit{done} \Rightarrow \operatorname{acmds}(I, \mathrm{false}, a, n) = [\mathrm{spawn}(t, n)]$$
 -/
 theorem WfAgent.cmds_running (ids : List String) (a : WfAgent) (t : String) (n : Nat)
     (hl : labelTask a.label = some t) (ht : ids.contains t = true) (hd : a.done = false) :
@@ -382,7 +382,7 @@ theorem WfAgent.cmds_running (ids : List String) (a : WfAgent) (t : String) (n :
 
 /-- An ended agent (or one of an ended run) spawns and stops its task: the binding ends with the agent.
 
-$$\operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land (a.\mathit{done} \lor e) \Rightarrow \operatorname{acmds}(I, e, a, n) = [\mathrm{spawn}(t, n), \mathrm{stop}(t, n)]$$
+$$\forall I, e, a, t, n:\quad \operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land (a.\mathit{done} \lor e) \Rightarrow \operatorname{acmds}(I, e, a, n) = [\mathrm{spawn}(t, n), \mathrm{stop}(t, n)]$$
 -/
 theorem WfAgent.cmds_ended (ids : List String) (e : Bool) (a : WfAgent) (t : String) (n : Nat)
     (hl : labelTask a.label = some t) (ht : ids.contains t = true) (hd : (a.done || e) = true) :

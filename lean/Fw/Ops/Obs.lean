@@ -549,7 +549,7 @@ theorem drop_counted (ls : List (Option (List (String × Val)))) :
 /-- **Every unknown field is reported**: a name is among the drain's unknown names exactly when some
 accepted line has a field of that name and the name is not known.
 
-$$\forall L, x:\quad x \in \operatorname{unk}(L) \iff \exists F:\ F \in L \land (\exists K, U:\ \operatorname{admit}(F) = \mathrm{accept}(K, U)) \land x \in [\, y : (y, \_) \in F \,] \land \lnot\operatorname{known}(x)$$
+$$\forall L, x:\quad x \in \operatorname{unk}(L) \iff \exists F:\ \mathrm{some}(F) \in L \land (\exists K, U:\ \operatorname{admit}(F) = \mathrm{accept}(K, U)) \land x \in [\, y : (y, \_) \in F \,] \land \lnot\operatorname{known}(x)$$
 -/
 theorem mem_unknown (ls : List (Option (List (String × Val)))) (x : String) :
     x ∈ unknownOf ls ↔ ∃ fs, some fs ∈ ls ∧ (∃ k u, admit fs = .accept k u) ∧
@@ -586,7 +586,10 @@ $$\operatorname{counts}(U) = [\, (x, |[\, y \in U : y = x \,]|) : x \in \operato
 -/
 def fieldCounts (u : List String) : List (String × Nat) := (uniq u).map fun x => (x, u.count x)
 
-/-- The owner of the spool alert step (`Fw.Console.Alert.stepId (some "spool") t`). -/
+/-- The owner name of the spool alert step (`Fw.Console.Alert.stepId (some "spool") now`).
+
+$$\operatorname{spoolOwner} = \texttt{spool}$$
+-/
 def spoolOwner : String := "spool"
 
 /-- **The spool alert for unknown fields**: none when there are none or a spool alert is still open;
@@ -606,8 +609,8 @@ def fieldAlert (now : Nat) (opn : List String) (cs : List (String × Nat)) :
 
 $$\forall t, O, C:\quad \operatorname{fieldAlert}(t, O, C) \ne \bot \iff C \ne [\,] \land \lnot\exists \mathit{id} \in O:\ \operatorname{owner}(\mathit{id}) = \texttt{spool}$$
 -/
-theorem fieldAlert_some_iff (now : Nat) (opn : List String) (cs : List (String × Nat)) :
-    fieldAlert now opn cs ≠ none ↔
+theorem fieldAlert_some_iff (t : Nat) (opn : List String) (cs : List (String × Nat)) :
+    fieldAlert t opn cs ≠ none ↔
       cs ≠ [] ∧ ¬ ∃ id ∈ opn, Fw.Console.Alert.owner id = some spoolOwner := by
   unfold fieldAlert
   by_cases h : (cs.isEmpty || opn.any (fun id => Fw.Console.Alert.owner id == some spoolOwner)) = true
