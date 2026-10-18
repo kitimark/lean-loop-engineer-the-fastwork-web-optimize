@@ -49,6 +49,3 @@ export const DECK: readonly { slot: 'a' | 'b' | 'd' | 'e'; piece: number; rotate
   { slot: 'd', piece: 5, rotate: 2 },
   { slot: 'e', piece: 8, rotate: -4 },
 ];
-
-/** 1x1 transparent GIF; keeps the `<img>` boxes without any picture. */
-export const BLANK_GIF = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
