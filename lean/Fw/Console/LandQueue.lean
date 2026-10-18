@@ -289,7 +289,7 @@ def cases : List Json :=
    liveCase "no such process" "Sat Oct 18 10:00:00 2026" none,
    liveCase "empty start time, no process" "" none]
 
-#guard cases.length == 26
+#guard cases.length == 28
 
 /-- The golden file text: one compressed JSON line per case.
 $$\mathrm{goldenText} = \operatorname{concat}[\, \operatorname{compress}(c) \mathbin{+\!\!+} \text{"\textbackslash n"} \,]_{c \in \mathrm{cases}}$$ -/
