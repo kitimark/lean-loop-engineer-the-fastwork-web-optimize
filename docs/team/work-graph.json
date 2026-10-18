@@ -4275,7 +4275,8 @@
     "lean/Fw.lean",
     "docs/team/tools/lean-first.md",
     "docs/team/handoffs/lfg-props-shape.md"
-   ]
+   ],
+   "evidence": "60d1d19"
   },
   {
    "id": "lfg-spec",

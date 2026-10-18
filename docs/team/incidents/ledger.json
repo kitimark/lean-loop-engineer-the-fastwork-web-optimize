@@ -1226,6 +1226,8 @@
    "regression": "none yet: proposed land-dry-full adds a VERDICT empty kind and a test that every exit path prints exactly one VERDICT line",
    "leanVerdict": "provable",
    "leanReason": "The verdict is a total function of the branch state, empty included: $$\\forall b,\\ \\mathrm{dry}(b) \\in \\{\\mathrm{ok}, \\mathrm{refused}_k, \\mathrm{empty}\\} \\wedge |\\mathrm{lines}_{\\mathrm{VERDICT}}(b)| = 1$$",
+   "leanPred": "Fw.Spec.Incidents.LandDry.emptyIncident",
+   "leanReplay": "Fw.Spec.Incidents.LandDry.emptyNoVerdict",
    "hardening": "land-dry",
    "mistakeClass": "c-spec-gap"
   },
