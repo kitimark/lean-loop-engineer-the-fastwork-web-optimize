@@ -1,0 +1,26 @@
+{"name":"empty","request":{"log":[],"op":"landQueue.pending"},"response":{"next":null,"pending":[]}}
+{"name":"three enqueued, first in first out","request":{"log":[{"branch":"wa","ev":"enq","task":"a"},{"branch":"wb","ev":"enq","task":"b"},{"branch":"wc","ev":"enq","task":"c"}],"op":"landQueue.pending"},"response":{"next":{"branch":"wa","task":"a"},"pending":[{"branch":"wa","task":"a"},{"branch":"wb","task":"b"},{"branch":"wc","task":"c"}]}}
+{"name":"enqueue twice is once (first branch kept)","request":{"log":[{"branch":"wa","ev":"enq","task":"a"},{"branch":"wb","ev":"enq","task":"b"},{"branch":"wc","ev":"enq","task":"c"},{"branch":"other","ev":"enq","task":"a"}],"op":"landQueue.pending"},"response":{"next":{"branch":"wa","task":"a"},"pending":[{"branch":"wa","task":"a"},{"branch":"wb","task":"b"},{"branch":"wc","task":"c"}]}}
+{"name":"result removes the head","request":{"log":[{"branch":"wa","ev":"enq","task":"a"},{"branch":"wb","ev":"enq","task":"b"},{"branch":"wc","ev":"enq","task":"c"},{"ev":"res","kind":"done","task":"a"}],"op":"landQueue.pending"},"response":{"next":{"branch":"wb","task":"b"},"pending":[{"branch":"wb","task":"b"},{"branch":"wc","task":"c"}]}}
+{"name":"result of a middle task","request":{"log":[{"branch":"wa","ev":"enq","task":"a"},{"branch":"wb","ev":"enq","task":"b"},{"branch":"wc","ev":"enq","task":"c"},{"ev":"res","kind":"scope","task":"b"}],"op":"landQueue.pending"},"response":{"next":{"branch":"wa","task":"a"},"pending":[{"branch":"wa","task":"a"},{"branch":"wc","task":"c"}]}}
+{"name":"re-enqueue after a result goes to the end","request":{"log":[{"branch":"wa","ev":"enq","task":"a"},{"branch":"wb","ev":"enq","task":"b"},{"branch":"wc","ev":"enq","task":"c"},{"ev":"res","kind":"reads","task":"a"},{"branch":"wa2","ev":"enq","task":"a"}],"op":"landQueue.pending"},"response":{"next":{"branch":"wb","task":"b"},"pending":[{"branch":"wb","task":"b"},{"branch":"wc","task":"c"},{"branch":"wa2","task":"a"}]}}
+{"name":"queued branch","request":{"branch":"wb","log":[{"branch":"wa","ev":"enq","task":"a"},{"branch":"wb","ev":"enq","task":"b"},{"branch":"wc","ev":"enq","task":"c"}],"op":"landQueue.queued"},"response":{"queued":true}}
+{"name":"unknown branch","request":{"branch":"wz","log":[{"branch":"wa","ev":"enq","task":"a"},{"branch":"wb","ev":"enq","task":"b"},{"branch":"wc","ev":"enq","task":"c"}],"op":"landQueue.queued"},"response":{"queued":false}}
+{"name":"finished branch is no longer queued","request":{"branch":"wb","log":[{"branch":"wa","ev":"enq","task":"a"},{"branch":"wb","ev":"enq","task":"b"},{"branch":"wc","ev":"enq","task":"c"},{"ev":"res","kind":"done","task":"b"}],"op":"landQueue.queued"},"response":{"queued":false}}
+{"name":"empty queue","request":{"branch":"wa","log":[],"op":"landQueue.queued"},"response":{"queued":false}}
+{"name":"retry busy 1/3","request":{"kind":"busy","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":true}}
+{"name":"retry dirty 1/3","request":{"kind":"dirty","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":true}}
+{"name":"retry scope 1/3","request":{"kind":"scope","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
+{"name":"retry reads 1/3","request":{"kind":"reads","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
+{"name":"retry conflict 1/3","request":{"kind":"conflict","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
+{"name":"retry checks 1/3","request":{"kind":"checks","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
+{"name":"retry stale 1/3","request":{"kind":"stale","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
+{"name":"retry unknown 1/3","request":{"kind":"unknown","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
+{"name":"retry done 1/3","request":{"kind":"done","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
+{"name":"retry dry 1/3","request":{"kind":"dry","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
+{"name":"retry queued 1/3","request":{"kind":"queued","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
+{"name":"retry busy 3/3","request":{"kind":"busy","max":3,"op":"landQueue.retry","tries":3},"response":{"retry":false}}
+{"name":"same start time","request":{"held":"Sat Oct 18 10:00:00 2026","op":"landQueue.live","probe":"Sat Oct 18 10:00:00 2026"},"response":{"live":true}}
+{"name":"pid reused (other start time)","request":{"held":"Sat Oct 18 10:00:00 2026","op":"landQueue.live","probe":"Sat Oct 18 11:00:00 2026"},"response":{"live":false}}
+{"name":"no such process","request":{"held":"Sat Oct 18 10:00:00 2026","op":"landQueue.live","probe":null},"response":{"live":false}}
+{"name":"empty start time, no process","request":{"held":"","op":"landQueue.live","probe":null},"response":{"live":false}}

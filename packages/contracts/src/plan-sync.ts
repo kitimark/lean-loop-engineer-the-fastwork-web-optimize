@@ -12,6 +12,13 @@ export type WorkGraph = { milestones: { id: string; title: string }[]; tasks: Gr
 /** A content digest (10 hex characters in practice) of a JSON value. */
 export type ContentDigest = (v: unknown) => string;
 type MkErr = (msg: string) => Error;
+/** The ancestry fact of an evidence sha: `git merge-base --is-ancestor <sha> main` succeeded. Collected by the glue
+ *  (runner: the checkout; reconciler: the console repo); the decision is Lean's (`Fw.Plan.check`: a define whose
+ *  commit evidence is not on main is refused, task `evidence-on-main`). */
+export type OnMain = (sha: string) => boolean;
+/** Glue filter, not a decision: ask git only about strings that can be a commit id (Lean `Fw.Plan.Lint.evKind` =
+ *  commit: 7-40 lowercase hex, not a CI run id of 8+ digits). Lean ignores the fact for every other kind. */
+const shaLike = (e: string) => /^[0-9a-f]{7,40}$/.test(e) && !/^[0-9]{8,}$/.test(e);
 const plainErr: MkErr = (m) => new Error(m);
 
 /** Dependencies first (Kahn, ties keep file order). Throws on a cycle or an unknown dep, naming the tasks. */
@@ -33,7 +40,7 @@ export const clipTitle = (s: string) => (s.length <= 200 ? s : `${s.slice(0, 199
 
 /** Commands for the whole file: milestones, then tasks in dependency order. The key carries a digest of the content,
  *  so re-syncing an unchanged file is a no-op (duplicate) and an edited task is a new upsert. */
-export function syncCommands(g: WorkGraph, actor: Actor, digest: ContentDigest, err: MkErr = plainErr): Command[] {
+export function syncCommands(g: WorkGraph, actor: Actor, digest: ContentDigest, err: MkErr = plainErr, onMain?: OnMain): Command[] {
   const cmds: Command[] = [];
   for (const m of g.milestones) {
     cmds.push(Command.parse({ type: "milestone.define", key: `plan:m:${m.id}:${digest([m.id, m.title])}`, actor, milestone: m.id, title: clipTitle(m.title) }));
@@ -43,6 +50,9 @@ export function syncCommands(g: WorkGraph, actor: Actor, digest: ContentDigest, 
       writes: t.writes ?? [], devices: t.devices ?? [],
       // only when present, so a task without needs keeps its key (digest) from before the field existed
       ...(t.needs?.length ? { needs: t.needs } : {}), evidence: t.evidence ?? null,
+      // only when false: an on-main task keeps its key from before the fact existed, and an off-main define (refused)
+      // has another key, so the same row is re-sent and accepted once its commit lands on main
+      ...(t.evidence && onMain && shaLike(t.evidence) && !onMain(t.evidence) ? { evidenceOnMain: false } : {}),
       // likewise only when true (a task cut from the plan: fwcore derives state "cut")
       ...(t.cut ? { cut: true } : {}) };
     cmds.push(Command.parse({ type: "task.define", key: `plan:d:${t.id}:${digest(body)}`, actor, ...body }));

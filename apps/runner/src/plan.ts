@@ -3,7 +3,7 @@
 // Show only prints the board's `plan`, which fwcore derived. Neither decides anything about ready/blocked/done.
 import { createHash } from "node:crypto";
 import {
-  type Command, type Actor, type Plan, type ContentDigest, type GraphTask, type WorkGraph,
+  type Command, type Actor, type Plan, type ContentDigest, type GraphTask, type WorkGraph, type OnMain,
   topoSort as sharedTopoSort, syncCommands as sharedSyncCommands,
 } from "@fw/contracts";
 import { execFileSync } from "node:child_process";
@@ -24,7 +24,17 @@ export const topoSort = (tasks: GraphTask[]): GraphTask[] => sharedTopoSort(task
 
 /** Commands for the whole file: milestones, then tasks in dependency order. The key carries a digest of the content,
  *  so re-syncing an unchanged file is a no-op (duplicate) and an edited task is a new upsert. */
-export const syncCommands = (g: WorkGraph, actor: Actor = "lead"): Command[] => sharedSyncCommands(g, actor, digest, usage);
+export const syncCommands = (g: WorkGraph, actor: Actor = "lead", onMain?: OnMain): Command[] =>
+  sharedSyncCommands(g, actor, digest, usage, onMain);
+
+/** The ancestry fact for plan sync and lint: `git merge-base --is-ancestor <sha> <main>` in `cwd` (an unknown sha is
+ *  not on main). Glue only; Lean decides what an off-main sha means. */
+export const gitOnMain = (cwd: string, main = "main"): OnMain => (sha) => {
+  try { execFileSync("git", ["merge-base", "--is-ancestor", sha, main], { cwd, stdio: "ignore" }); return true; }
+  catch { return false; }
+};
+/** Glue filter as in @fw/contracts plan-sync: only strings that can be a commit id are asked about. */
+const shaLike = (e: string) => /^[0-9a-f]{7,40}$/.test(e) && !/^[0-9]{8,}$/.test(e);
 
 /** Text for `fw plan show`: agent-ready (by parallel-safe group), the device lane (ready, then blocked with blockers),
  *  running, agent-blocked (with blockers), critical path, cut. Lane, state, blockers and groups all come from fwcore. */
@@ -59,6 +69,7 @@ export type LintReply = { ok: boolean; errors: number; warnings: number; infos: 
 export function renderLint(r: LintReply): string {
   const L = r.findings.filter((f) => f.severity !== "info").map((f) => `${f.severity.padEnd(5)} ${f.task} ${f.code}${f.detail ? `: ${f.detail.slice(0, 90)}` : ""}`);
   L.push(`plan lint: ${r.errors} errors, ${r.warnings} warnings, ${r.infos} info (evidence without a Task: trailer on main)`);
+  if (r.findings.some((f) => f.code === "evNotOnMain")) L.push("evNotOnMain: the evidence commit is not on main yet; plan sync refuses that define until it lands");
   return L.join("\n");
 }
 
@@ -72,14 +83,18 @@ export function mainCommits(cwd: string, ref = "main"): { sha: string; body: str
 }
 
 /** `fw plan lint <work-graph.json>`: exit code 1 when fwcore finds errors. */
-export async function lintCli(args: string[], cwd: string, core?: CoreCall, commits?: { sha: string; body: string }[]): Promise<number> {
+export async function lintCli(args: string[], cwd: string, core?: CoreCall, commits?: { sha: string; body: string }[], onMain?: OnMain): Promise<number> {
   if (!args[0]) throw new UsageError("usage: fw plan lint <work-graph.json>");
   const g = JSON.parse(readFileSync(args[0], "utf8")) as WorkGraph;
   const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).trim();
   const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd, encoding: "utf8" }).trim();
   const call = core ?? coreCaller(coreCandidates(root, join(common, "..")));
+  const om = onMain ?? gitOnMain(cwd);
   const r = (await call({ op: "plan.lint",
-    tasks: g.tasks.map((t) => ({ id: t.id, title: t.title, deps: t.deps ?? [], evidence: t.evidence ?? null })),
+    tasks: g.tasks.map((t) => {
+      const off = !!t.evidence && shaLike(t.evidence) && !om(t.evidence);
+      return { id: t.id, title: t.title, deps: t.deps ?? [], evidence: t.evidence ?? null, ...(off ? { evidenceOnMain: false } : {}) };
+    }),
     commits: commits ?? mainCommits(cwd) })) as unknown as LintReply;
   console.log(renderLint(r));
   return r.ok ? 0 : 1;
@@ -101,9 +116,9 @@ export function syncRefusal(cwd: string, main = "main"): string | null {
 /** Plan sync through the plain command door (no capability), for `fw land`'s internal sync: the single-use capability
  *  of the `pnpm fw land ...` call may already be spent on a card's land request, and the hook only mints one for a
  *  command that starts with `pnpm fw`. The caller has checked `syncRefusal`. Throws when a command was refused. */
-export async function syncViaCommands(http: { post(path: string, body: unknown): Promise<{ status: number; body: any }> }, g: WorkGraph): Promise<string> {
+export async function syncViaCommands(http: { post(path: string, body: unknown): Promise<{ status: number; body: any }> }, g: WorkGraph, onMain?: OnMain): Promise<string> {
   let applied = 0, unchanged = 0;
-  for (const c of syncCommands(g)) {
+  for (const c of syncCommands(g, "lead", onMain)) {
     const r = await http.post("/api/commands", c);
     if (r.body?.ok) { if (r.body.duplicate) unchanged++; else applied++; }
     else throw new Error(`plan sync refused ${c.type}: ${r.body?.reason ?? r.status}`);

@@ -1,4 +1,5 @@
 import Fw.Plan.Graph
+import Fw.Plan.Lint
 /-!
 # The plan reducer: `task.*` and `milestone.define` commands, derived task states, the board plan
 
@@ -29,15 +30,26 @@ the critical path and the parallel-safe groups are derived (`view`), never store
   board (`view_compat`). `boundTo_keep`, `boundTo_spawn`: a binding survives every command except an
   explicit claim of the task, its drop, a stop of the bound agent and a spawn (which may switch it
   to the spawned agent).
+* Evidence on main (task `evidence-on-main`): a `task.define` carries the ancestry fact `onMain` of
+  its evidence (`git merge-base --is-ancestor <evidence> main`, collected by the glue). A define with
+  commit evidence that is not on main is refused, naming the sha, and the state is kept
+  (`upsert_cannot_mark_done_early`, `define_offMain_reason`). A row records whether its evidence came
+  from a land event (`task.done`, `landed`); a define without evidence clears evidence that did not
+  (`define_removes_unlanded_evidence`), and a land is never undone (`land_never_undone`,
+  `run_land_never_undone`). Every done row has landed evidence or on-main define evidence
+  (`done_needs_landed_evidence`).
 -/
 namespace Fw.Plan
 
 /-- A `task.define` payload: the task's definition, optional evidence that it is already done, the
-`cut` flag (the task was cut from the plan; default false), and `live`, the names of the agents alive
-at that moment (default empty). `live` is a legacy fact: older consoles added it on receipt; the
-console no longer does (spawns are events now), and it is decoded only so old logs replay unchanged.
+`cut` flag (the task was cut from the plan; default false), `live`, the names of the agents alive
+at that moment (default empty), and `onMain`, the ancestry fact of the evidence that the glue
+collected (`git merge-base --is-ancestor <evidence> main` succeeded; default true, which is also what
+an event without the field decodes to, so logs from before the fact existed replay unchanged). `live`
+is a legacy fact: older consoles added it on receipt; the console no longer does (spawns are events
+now), and it is decoded only so old logs replay unchanged.
 
-$$d = (\mathit{task}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{needs}, \mathit{evidence}_\bot, \mathit{cut}, \mathit{live})$$
+$$d = (\mathit{task}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{needs}, \mathit{evidence}_\bot, \mathit{cut}, \mathit{live}, \mathit{onMain})$$
 -/
 structure Def where
   task      : String
@@ -52,6 +64,7 @@ structure Def where
   evidence  : Option String
   cut       : Bool := false
   live      : List String := []
+  onMain    : Bool := true
 deriving Repr, DecidableEq
 
 /-- The plan commands.
@@ -115,14 +128,25 @@ structure State where
   stops      : List String := []
 deriving Repr, DecidableEq
 
-/-- The row a definition makes, with the given agent and evidence.
+/-- The row a definition makes, with the given agent, evidence and evidence provenance.
 
-$$\operatorname{row}(d, a, e) = (d.\mathit{task}, d.\mathit{title}, d.\mathit{stream}, d.\mathit{milestone}, d.\mathit{deps}, d.\mathit{owner}, d.\mathit{writes}, d.\mathit{devices}, d.\mathit{needs}, e, a, d.\mathit{cut})$$
+$$\operatorname{row}(d, a, e, \ell) = (d.\mathit{task}, d.\mathit{title}, d.\mathit{stream}, d.\mathit{milestone}, d.\mathit{deps}, d.\mathit{owner}, d.\mathit{writes}, d.\mathit{devices}, d.\mathit{needs}, e, a, d.\mathit{cut}, \ell)$$
 -/
-def Def.row (d : Def) (agent evidence : Option String) : Task :=
+def Def.row (d : Def) (agent evidence : Option String) (landed : Bool) : Task :=
   { id := d.task, title := d.title, stream := d.stream, milestone := d.milestone, deps := d.deps,
     owner := d.owner, writes := d.writes, devices := d.devices, needs := d.needs, evidence, agent,
-    cut := d.cut }
+    cut := d.cut, landed }
+
+/-- The commit evidence of a definition that is not on main: its evidence when that is a commit id
+(`Fw.Plan.Lint.evKind`) and the ancestry fact says it is not an ancestor of main; none otherwise
+(no evidence, evidence of another kind, or on main).
+
+$$\operatorname{offMain}(d) = \begin{cases} e & d.\mathit{evidence} = e \land \operatorname{kind}(e) = \mathrm{commit} \land d.\mathit{onMain} = \mathrm{false} \\ \bot & \text{otherwise} \end{cases}$$
+-/
+def Def.offMain (d : Def) : Option String :=
+  match d.evidence with
+  | some e => if Lint.evKind e == .commit && !d.onMain then some e else none
+  | none => none
 
 /-- The agent a definition claims its task for: the live agent whose name is the task id, if there is
 one.
@@ -138,19 +162,28 @@ $$\operatorname{setRow}(ts, x, f) = [\, \textbf{if } t.\mathit{id} = x \textbf{ 
 def setRow (ts : List Task) (x : String) (f : Task → Task) : List Task :=
   ts.map fun t => if t.id = x then f t else t
 
-/-- Upsert a definition: an existing id gets the new definition and keeps its evidence (new evidence
-only fills a missing one); a new id is appended. A live agent named like the task claims it (an agent
-spawned before its task was defined); otherwise an existing row keeps its agent and a new row is
-unclaimed.
+/-- The evidence an upsert gives an existing row: landed evidence (from a `task.done`) is kept;
+otherwise the definition's evidence replaces it, so a definition without evidence clears evidence
+that an earlier definition gave.
 
-$$\operatorname{upsert}(ts, d) = \begin{cases} \operatorname{setRow}\big(ts, d.\mathit{task}, t \mapsto \operatorname{row}(d, \operatorname{liveAgent}(d) \mathbin{\langle|\rangle} t.\mathit{agent}, t.\mathit{evidence} \mathbin{\langle|\rangle} d.\mathit{evidence})\big) & d.\mathit{task} \in \operatorname{ids}(ts) \\ ts \mathbin{+\!\!+} [\operatorname{row}(d, \operatorname{liveAgent}(d), d.\mathit{evidence})] & \text{otherwise} \end{cases}$$
+$$\operatorname{keepEv}(t, d) = \begin{cases} t.\mathit{evidence} & t.\mathit{landed} = \mathrm{true} \\ d.\mathit{evidence} & t.\mathit{landed} = \mathrm{false} \end{cases}$$
+-/
+def keepEv (t : Task) (d : Def) : Option String := if t.landed then t.evidence else d.evidence
+
+/-- Upsert a definition: an existing id gets the new definition, keeps its provenance flag, and gets
+`keepEv` as its evidence (landed evidence stays; otherwise the definition's evidence, possibly none);
+a new id is appended with its evidence not landed. A live agent named like the task claims it (an
+agent spawned before its task was defined); otherwise an existing row keeps its agent and a new row
+is unclaimed.
+
+$$\operatorname{upsert}(ts, d) = \begin{cases} \operatorname{setRow}\big(ts, d.\mathit{task}, t \mapsto \operatorname{row}(d, \operatorname{liveAgent}(d) \mathbin{\langle|\rangle} t.\mathit{agent}, \operatorname{keepEv}(t, d), t.\mathit{landed})\big) & d.\mathit{task} \in \operatorname{ids}(ts) \\ ts \mathbin{+\!\!+} [\operatorname{row}(d, \operatorname{liveAgent}(d), d.\mathit{evidence}, \mathrm{false})] & \text{otherwise} \end{cases}$$
 
 where $a \mathbin{\langle|\rangle} b$ is $a$ if present, else $b$.
 -/
 def upsert (ts : List Task) (d : Def) : List Task :=
   if (ids ts).contains d.task then
-    setRow ts d.task fun t => d.row (d.liveAgent <|> t.agent) (t.evidence <|> d.evidence)
-  else ts ++ [d.row d.liveAgent d.evidence]
+    setRow ts d.task fun t => d.row (d.liveAgent <|> t.agent) (keepEv t d) t.landed
+  else ts ++ [d.row d.liveAgent d.evidence false]
 
 /-- A task id is done: some row with that id has evidence.
 
@@ -164,7 +197,7 @@ bottom inside each case).
 $$\operatorname{check}(\pi, c) = \begin{cases}
 \begin{array}{l} \texttt{"title: at most 200 characters"} \text{ if } |d.\mathit{title}| > 200;\ \texttt{"deps: at most 32"} \text{ if } |d.\mathit{deps}| > 32; \\
 \quad \texttt{"writes: at most 32"} \text{ if } |d.\mathit{writes}| > 32;\ \texttt{"devices: at most 8"} \text{ if } |d.\mathit{devices}| > 8; \\
-\quad \texttt{"needs: at most 8"} \text{ if } |d.\mathit{needs}| > 8; \\
+\quad \texttt{"needs: at most 8"} \text{ if } |d.\mathit{needs}| > 8;\ \texttt{"evidence not on main: "} e \text{ if } \operatorname{offMain}(d) = e; \\
 \quad \texttt{"dep not defined: "} x \text{ for the first } x \in d.\mathit{deps} \setminus \operatorname{ids}(U); \\
 \quad \texttt{"dependency cycle"} \text{ if } \neg\operatorname{acyclicB}(U);\ \bot \end{array} & c = \mathrm{define}(d),\ U = \operatorname{upsert}(\pi.\mathit{tasks}, d) \\
 \begin{array}{l} \texttt{"no such task"} \text{ if } x \notin \operatorname{ids}(\pi.\mathit{tasks});\ \texttt{"task is done"} \text{ if } \operatorname{isDone}(\pi.\mathit{tasks}, x); \\
@@ -182,7 +215,9 @@ def check (s : State) (c : Cmd) : Option String :=
     else if d.writes.length > 32 then some "writes: at most 32"
     else if d.devices.length > 8 then some "devices: at most 8"
     else if d.needs.length > 8 then some "needs: at most 8"
-    else match d.deps.find? (fun x => !(ids u).contains x) with
+    else match d.offMain with
+    | some e => some s!"evidence not on main: {e}"
+    | none => match d.deps.find? (fun x => !(ids u).contains x) with
       | some x => some s!"dep not defined: {x}"
       | none => if acyclicB u then none else some "dependency cycle"
   | .drop x =>
@@ -203,7 +238,7 @@ $$\operatorname{exec}(\pi, c) = \begin{cases}
 \pi[\mathit{tasks} := \operatorname{upsert}(\mathit{tasks}, d)] & \mathrm{define}(d) \\
 \pi[\mathit{tasks} := [\, t \in \mathit{tasks} : t.\mathit{id} \ne x \,]] & \mathrm{drop}(x) \\
 \pi[\mathit{tasks} := \operatorname{setRow}(\mathit{tasks}, x, t \mapsto t[\mathit{agent} := a])] & \mathrm{claim}(x, a) \\
-\pi[\mathit{tasks} := \operatorname{setRow}(\mathit{tasks}, x, t \mapsto t[\mathit{evidence} := e])] & \mathrm{done}(x, e) \\
+\pi[\mathit{tasks} := \operatorname{setRow}(\mathit{tasks}, x, t \mapsto t[\mathit{evidence} := e,\ \mathit{landed} := \mathrm{true}])] & \mathrm{done}(x, e) \\
 \pi[\mathit{milestones} := \text{the row } m \text{ retitled if present, else appended}] & \mathrm{milestone}(m, \mathit{title}) \\
 \pi[\mathit{spawns} := \mathit{spawns} \mathbin{+\!\!+} [a]] & \mathrm{spawn}(a) \\
 \pi[\mathit{stops} := \mathit{stops} \mathbin{+\!\!+} [a]] & \mathrm{stop}(a)
@@ -214,7 +249,7 @@ def exec (s : State) (c : Cmd) : State :=
   | .define d => { s with tasks := upsert s.tasks d }
   | .drop x => { s with tasks := s.tasks.filter fun t => t.id != x }
   | .claim x a => { s with tasks := setRow s.tasks x fun t => { t with agent := some a } }
-  | .done x e => { s with tasks := setRow s.tasks x fun t => { t with evidence := some e } }
+  | .done x e => { s with tasks := setRow s.tasks x fun t => { t with evidence := some e, landed := true } }
   | .milestone m title =>
     if s.milestones.any (·.id == m) then
       { s with milestones := s.milestones.map fun r => if r.id = m then { r with title } else r }
@@ -442,6 +477,7 @@ theorem define_acyclic {π : State} {d : Def} (h : check π (.define d) = none) 
   split at h; · cases h
   split at h; · cases h
   split at h; · cases h
+  split at h; · cases h
   split at h
   · cases h
   · split at h
@@ -475,8 +511,8 @@ theorem exec_inv {π : State} {c : Cmd} (hi : Inv π) (hc : check π c = none) :
     rw [ids_setRow (fun t _ => (hf t).1)]
     exact hn
   | done x e =>
-    have hf : ∀ t : Task, ({ t with evidence := some e } : Task).id = t.id ∧
-        ({ t with evidence := some e } : Task).deps = t.deps := fun _ => ⟨rfl, rfl⟩
+    have hf : ∀ t : Task, ({ t with evidence := some e, landed := true } : Task).id = t.id ∧
+        ({ t with evidence := some e, landed := true } : Task).deps = t.deps := fun _ => ⟨rfl, rfl⟩
     refine ⟨?_, fun b h => ha b (tg_mono (fun _ _ => dep_setRow hf) h)⟩
     simp only [exec]
     rw [ids_setRow (fun t _ => (hf t).1)]
@@ -520,7 +556,7 @@ $$\forall cs:\quad \operatorname{Inv}(\operatorname{run}(cs))$$
 -/
 theorem run_inv (cs : List Cmd) : Inv (run cs) := foldl_inv cs inv_init
 
-/-! ## Done is monotone -/
+/-! ## Done and landed: what survives a command -/
 
 /-- `isDone` survives `setRow` with a map that keeps the id and the evidence presence of the rows it
 touches.
@@ -539,22 +575,200 @@ theorem isDone_setRow {ts : List Task} {x y : String} {f : Task → Task}
     · rename_i hx; exact (hf t hx).2 he
     · exact he
 
-/-- **Done is monotone**: an accepted command never un-does a task.
+/-- A task id has landed evidence: some row with that id has evidence that came from a land event.
 
-$$\forall \pi, c, x:\quad \operatorname{check}(\pi, c) = \bot \land \operatorname{isDone}(\pi.\mathit{tasks}, x) \Rightarrow \operatorname{isDone}(\operatorname{exec}(\pi, c).\mathit{tasks}, x)$$
+$$\operatorname{isLanded}(ts, x) \iff \exists t \in ts:\ t.\mathit{id} = x \land t.\mathit{landed} = \mathrm{true} \land t.\mathit{evidence} \ne \bot$$
+-/
+def isLanded (ts : List Task) (x : String) : Bool :=
+  ts.any fun t => t.id == x && t.landed && t.evidence.isSome
+
+/-- `isLanded` as a proposition.
+
+$$\forall ts, x:\quad \operatorname{isLanded}(ts, x) = \mathrm{true} \iff \exists t \in ts:\ t.\mathit{id} = x \land t.\mathit{landed} = \mathrm{true} \land t.\mathit{evidence} \ne \bot$$
+-/
+theorem isLanded_iff {ts : List Task} {x : String} :
+    isLanded ts x = true ↔ ∃ t ∈ ts, t.id = x ∧ t.landed = true ∧ t.evidence ≠ none := by
+  simp [isLanded, Option.isSome_iff_ne_none, and_assoc]
+
+/-- **A landed task is done.**
+
+$$\forall ts, x:\quad \operatorname{isLanded}(ts, x) \Rightarrow \operatorname{isDone}(ts, x)$$
+-/
+theorem isLanded_isDone {ts : List Task} {x : String} (h : isLanded ts x = true) :
+    isDone ts x = true := by
+  obtain ⟨t, ht, hid, _, he⟩ := isLanded_iff.mp h
+  exact isDone_iff.mpr ⟨t, ht, hid, he⟩
+
+/-- An accepted definition has no commit evidence off main.
+
+$$\forall \pi, d:\quad \operatorname{check}(\pi, \mathrm{define}(d)) = \bot \Rightarrow \operatorname{offMain}(d) = \bot$$
+-/
+theorem check_define_offMain {π : State} {d : Def} (h : check π (.define d) = none) :
+    d.offMain = none := by
+  simp only [check] at h
+  split at h; · cases h
+  split at h; · cases h
+  split at h; · cases h
+  split at h; · cases h
+  split at h; · cases h
+  split at h
+  · cases h
+  · assumption
+
+/-- Evidence that is not off main: none, another kind than a commit, or on main.
+
+$$\forall d, e:\quad \operatorname{offMain}(d) = \bot \land d.\mathit{evidence} = e \Rightarrow \operatorname{kind}(e) \ne \mathrm{commit} \lor d.\mathit{onMain} = \mathrm{true}$$
+-/
+theorem offMain_none {d : Def} {e : String} (h : d.offMain = none) (he : d.evidence = some e) :
+    Lint.evKind e ≠ .commit ∨ d.onMain = true := by
+  simp only [Def.offMain, he] at h
+  by_cases hk : Lint.evKind e = .commit
+  · right
+    cases hm : d.onMain
+    · simp [hk, hm] at h
+    · rfl
+  · exact .inl hk
+
+/-- **A define with commit evidence off main is refused, and the state is kept.**
+
+$$\forall \pi, d, e:\quad d.\mathit{evidence} = e \land \operatorname{kind}(e) = \mathrm{commit} \land d.\mathit{onMain} = \mathrm{false} \Rightarrow \operatorname{check}(\pi, \mathrm{define}(d)) \ne \bot \land \operatorname{step}(\pi, \mathrm{define}(d)) = \pi$$
+-/
+theorem define_offMain_refused {π : State} {d : Def} {e : String} (he : d.evidence = some e)
+    (hk : Lint.evKind e = .commit) (hm : d.onMain = false) :
+    check π (.define d) ≠ none ∧ step π (.define d) = π := by
+  have hc : check π (.define d) ≠ none := by
+    intro h
+    have := check_define_offMain h
+    simp [Def.offMain, he, hk, hm] at this
+  exact ⟨hc, by simp [step, hc]⟩
+
+/-- **The refusal names the sha**: within the size limits, a define with commit evidence off main
+is refused with the reason `evidence not on main: <sha>`.
+
+$$\forall \pi, d, e:\quad |d.\mathit{title}| \le 200 \land |d.\mathit{deps}| \le 32 \land |d.\mathit{writes}| \le 32 \land |d.\mathit{devices}| \le 8 \land |d.\mathit{needs}| \le 8 \land d.\mathit{evidence} = e \land \operatorname{kind}(e) = \mathrm{commit} \land d.\mathit{onMain} = \mathrm{false} \Rightarrow \operatorname{check}(\pi, \mathrm{define}(d)) = \texttt{"evidence not on main: "} \mathbin{+\!\!+} e$$
+-/
+theorem define_offMain_reason {π : State} {d : Def} {e : String}
+    (h1 : d.title.length ≤ 200) (h2 : d.deps.length ≤ 32) (h3 : d.writes.length ≤ 32)
+    (h4 : d.devices.length ≤ 8) (h5 : d.needs.length ≤ 8) (he : d.evidence = some e)
+    (hk : Lint.evKind e = .commit) (hm : d.onMain = false) :
+    check π (.define d) = some s!"evidence not on main: {e}" := by
+  have ho : d.offMain = some e := by simp [Def.offMain, he, hk, hm]
+  simp only [check, ho]
+  simp [Nat.not_lt.mpr h1, Nat.not_lt.mpr h2, Nat.not_lt.mpr h3, Nat.not_lt.mpr h4,
+    Nat.not_lt.mpr h5]
+
+/-- **A define cannot mark a task done early**: when an accepted define makes task `x` done, it is
+the define of `x` and its evidence is not a commit off main.
+
+$$\forall \pi, d, x:\quad \operatorname{check}(\pi, \mathrm{define}(d)) = \bot \land \neg\operatorname{isDone}(\pi.\mathit{tasks}, x) \land \operatorname{isDone}(\operatorname{step}(\pi, \mathrm{define}(d)).\mathit{tasks}, x) \Rightarrow d.\mathit{task} = x \land \exists e:\ d.\mathit{evidence} = e \land (\operatorname{kind}(e) \ne \mathrm{commit} \lor d.\mathit{onMain} = \mathrm{true})$$
+-/
+theorem upsert_cannot_mark_done_early {π : State} {d : Def} {x : String}
+    (hc : check π (.define d) = none) (hn : isDone π.tasks x = false)
+    (hd : isDone (step π (.define d)).tasks x = true) :
+    d.task = x ∧ ∃ e, d.evidence = some e ∧ (Lint.evKind e ≠ .commit ∨ d.onMain = true) := by
+  have ho := check_define_offMain hc
+  have hold : ∀ t ∈ π.tasks, t.id = x → t.evidence = none := by
+    intro t ht hid
+    cases he : t.evidence
+    · rfl
+    · have : isDone π.tasks x = true := isDone_iff.mpr ⟨t, ht, hid, by simp [he]⟩
+      rw [hn] at this; cases this
+  have fin : ∀ e, d.task = x → d.evidence = some e →
+      d.task = x ∧ ∃ e, d.evidence = some e ∧ (Lint.evKind e ≠ .commit ∨ d.onMain = true) :=
+    fun e h1 h2 => ⟨h1, e, h2, offMain_none ho h2⟩
+  simp only [step, hc, ↓reduceIte, exec] at hd
+  obtain ⟨t, ht, hid, he⟩ := isDone_iff.mp hd
+  unfold upsert at ht
+  split at ht
+  · obtain ⟨t0, h0, rfl⟩ := List.mem_map.mp ht
+    by_cases hx : t0.id = d.task
+    · simp only [hx, ↓reduceIte, Def.row, keepEv] at hid he
+      by_cases hl : t0.landed = true
+      · simp only [hl, ↓reduceIte] at he
+        exact absurd (hold t0 h0 (hx ▸ hid)) he
+      · have hl' : t0.landed = false := by simpa using hl
+        simp only [hl', Bool.false_eq_true, ↓reduceIte] at he
+        obtain ⟨e, hev⟩ := Option.ne_none_iff_exists'.mp he
+        exact fin e hid hev
+    · simp only [hx, ↓reduceIte] at hid he
+      exact absurd (hold t0 h0 hid) he
+  · rcases List.mem_append.mp ht with ht | ht
+    · exact absurd (hold t ht hid) he
+    · simp only [List.mem_singleton] at ht
+      subst ht
+      simp only [Def.row] at hid he
+      obtain ⟨e, hev⟩ := Option.ne_none_iff_exists'.mp he
+      exact fin e hid hev
+
+/-- **A define without evidence takes back evidence that did not land**: after an accepted define of
+task `x` without evidence, every row of `x` whose evidence did not come from a land event has no
+evidence, so its state is derived again (not done).
+
+$$\forall \pi, d:\quad \operatorname{check}(\pi, \mathrm{define}(d)) = \bot \land d.\mathit{evidence} = \bot \Rightarrow \forall t \in \operatorname{step}(\pi, \mathrm{define}(d)).\mathit{tasks}:\ t.\mathit{id} = d.\mathit{task} \land t.\mathit{landed} = \mathrm{false} \Rightarrow t.\mathit{evidence} = \bot \land \forall ts:\ \operatorname{tstate}(ts, t) \ne \mathrm{done}$$
+-/
+theorem define_removes_unlanded_evidence {π : State} {d : Def} (hc : check π (.define d) = none)
+    (he : d.evidence = none) :
+    ∀ t ∈ (step π (.define d)).tasks, t.id = d.task → t.landed = false →
+      t.evidence = none ∧ ∀ ts, tstate ts t ≠ .done := by
+  intro t ht hid hl
+  suffices h : t.evidence = none from
+    ⟨h, fun ts hs => (tstate_done_iff ts t).mp hs h⟩
+  simp only [step, hc, ↓reduceIte, exec] at ht
+  unfold upsert at ht
+  split at ht
+  · obtain ⟨t0, _, rfl⟩ := List.mem_map.mp ht
+    by_cases hx : t0.id = d.task
+    · simp only [hx, ↓reduceIte, Def.row, keepEv] at hl ⊢
+      simp [hl, he]
+    · simp only [hx, ↓reduceIte] at hid
+  · rename_i hin
+    rcases List.mem_append.mp ht with ht | ht
+    · exact absurd (List.contains_iff_mem.mpr (hid ▸ List.mem_map_of_mem (f := Task.id) ht)) hin
+    · simp only [List.mem_singleton] at ht
+      subst ht
+      simpa [Def.row] using he
+
+/-- **Done survives every accepted command but one**: a define of that task without evidence, when no
+row of the task holds landed evidence (the work-graph edit that takes evidence back).
+
+$$\forall \pi, c, x:\quad \operatorname{check}(\pi, c) = \bot \land \operatorname{isDone}(\pi.\mathit{tasks}, x) \land \big(\forall d:\ c = \mathrm{define}(d) \land d.\mathit{task} = x \Rightarrow d.\mathit{evidence} \ne \bot \lor \operatorname{isLanded}(\pi.\mathit{tasks}, x)\big) \Rightarrow \operatorname{isDone}(\operatorname{exec}(\pi, c).\mathit{tasks}, x)$$
 -/
 theorem exec_isDone {π : State} {c : Cmd} {x : String} (hc : check π c = none)
-    (h : isDone π.tasks x = true) : isDone (exec π c).tasks x = true := by
+    (h : isDone π.tasks x = true)
+    (hk : ∀ d, c = .define d → d.task = x → d.evidence ≠ none ∨ isLanded π.tasks x = true) :
+    isDone (exec π c).tasks x = true := by
   cases c with
   | define d =>
     simp only [exec, upsert]
     split
-    · refine isDone_setRow (fun t ht => ⟨by simp [Def.row, ht], ?_⟩) h
-      intro he
-      simp only [Def.row]
-      cases hte : t.evidence with
-      | none => exact absurd hte he
-      | some v => simp
+    · -- a row of `x` that keeps evidence: the witness itself, or a landed row
+      have keep : ∀ t ∈ π.tasks, t.id = x → t.evidence ≠ none →
+          (t.landed = true ∨ d.task ≠ x ∨ d.evidence ≠ none) →
+          isDone (setRow π.tasks d.task fun t => d.row (d.liveAgent <|> t.agent) (keepEv t d) t.landed) x
+            = true := by
+        intro t ht hid he hor
+        refine isDone_iff.mpr ⟨_, List.mem_map_of_mem ht, ?_, ?_⟩
+        · split
+          · rename_i hx; simp only [Def.row]; rw [← hx]; exact hid
+          · exact hid
+        · split
+          · rename_i hx
+            simp only [Def.row, keepEv]
+            split
+            · exact he
+            · rename_i hl
+              rcases hor with hor | hor | hor
+              · simp [hor] at hl
+              · exact absurd (hx ▸ hid) hor
+              · exact hor
+          · exact he
+      obtain ⟨t, ht, hid, he⟩ := isDone_iff.mp h
+      by_cases hx : d.task = x
+      · rcases hk d rfl hx with hk | hk
+        · exact keep t ht hid he (.inr (.inr hk))
+        · obtain ⟨t', ht', hid', hl', he'⟩ := isLanded_iff.mp hk
+          exact keep t' ht' hid' he' (.inl hl')
+      · exact keep t ht hid he (.inr (.inl hx))
     · obtain ⟨t, ht, hid, he⟩ := isDone_iff.mp h
       exact isDone_iff.mpr ⟨t, List.mem_append_left _ ht, hid, he⟩
   | drop y =>
@@ -575,16 +789,212 @@ theorem exec_isDone {π : State} {c : Cmd} {x : String} (hc : check π c = none)
   | spawn a => exact h
   | stop a => exact h
 
-/-- **Done is monotone over steps.**
+/-- **Done survives every step but one**: a define of that task without evidence, when no row of
+the task holds landed evidence.
 
-$$\forall \pi, c, x:\quad \operatorname{isDone}(\pi.\mathit{tasks}, x) \Rightarrow \operatorname{isDone}(\operatorname{step}(\pi, c).\mathit{tasks}, x)$$
+$$\forall \pi, c, x:\quad \operatorname{isDone}(\pi.\mathit{tasks}, x) \land \big(\forall d:\ c = \mathrm{define}(d) \land d.\mathit{task} = x \Rightarrow d.\mathit{evidence} \ne \bot \lor \operatorname{isLanded}(\pi.\mathit{tasks}, x)\big) \Rightarrow \operatorname{isDone}(\operatorname{step}(\pi, c).\mathit{tasks}, x)$$
 -/
-theorem step_isDone {π : State} (c : Cmd) {x : String} (h : isDone π.tasks x = true) :
+theorem step_isDone {π : State} (c : Cmd) {x : String} (h : isDone π.tasks x = true)
+    (hk : ∀ d, c = .define d → d.task = x → d.evidence ≠ none ∨ isLanded π.tasks x = true) :
     isDone (step π c).tasks x = true := by
   unfold step
   split
-  · rename_i hc; exact exec_isDone hc h
+  · rename_i hc; exact exec_isDone hc h hk
   · exact h
+
+/-- Landed evidence survives every accepted command.
+
+$$\forall \pi, c, x:\quad \operatorname{check}(\pi, c) = \bot \land \operatorname{isLanded}(\pi.\mathit{tasks}, x) \Rightarrow \operatorname{isLanded}(\operatorname{exec}(\pi, c).\mathit{tasks}, x)$$
+-/
+theorem exec_isLanded {π : State} {c : Cmd} {x : String} (hc : check π c = none)
+    (h : isLanded π.tasks x = true) : isLanded (exec π c).tasks x = true := by
+  obtain ⟨t, ht, hid, hl, he⟩ := isLanded_iff.mp h
+  -- a `setRow` whose map keeps id, provenance and evidence presence of a landed row keeps it landed
+  have viaSet : ∀ (y : String) (f : Task → Task), (t.id = y → (f t).id = t.id ∧ (f t).landed = true ∧
+      (f t).evidence ≠ none) → isLanded (setRow π.tasks y f) x = true := by
+    intro y f hf
+    refine isLanded_iff.mpr ⟨if t.id = y then f t else t, List.mem_map_of_mem ht, ?_⟩
+    split
+    · rename_i hy; obtain ⟨h1, h2, h3⟩ := hf hy; exact ⟨h1 ▸ hid, h2, h3⟩
+    · exact ⟨hid, hl, he⟩
+  cases c with
+  | define d =>
+    simp only [exec, upsert]
+    split
+    · exact viaSet _ _ fun hy => ⟨by simp [Def.row, hy], by simp [Def.row, hl],
+        by simp [Def.row, keepEv, hl, he]⟩
+    · exact isLanded_iff.mpr ⟨t, List.mem_append_left _ ht, hid, hl, he⟩
+  | drop y =>
+    have hy : isDone π.tasks y = false := by
+      simp only [check] at hc
+      split at hc; · cases hc
+      split at hc; · cases hc
+      rename_i h2; simpa using h2
+    have hxy : x ≠ y := by
+      rintro rfl; rw [isLanded_isDone h] at hy; cases hy
+    refine isLanded_iff.mpr ⟨t, ?_, hid, hl, he⟩
+    simp only [exec]
+    exact List.mem_filter.mpr ⟨ht, by simp [hid, hxy]⟩
+  | claim y a => exact viaSet _ _ fun _ => ⟨rfl, hl, he⟩
+  | done y e => exact viaSet _ _ fun _ => ⟨rfl, rfl, by simp⟩
+  | milestone m title => simp only [exec]; split <;> exact h
+  | spawn a => exact h
+  | stop a => exact h
+
+/-- **A land is never undone**: landed evidence survives every step, including a define without
+evidence, so the task stays done.
+
+$$\forall \pi, c, x:\quad \operatorname{isLanded}(\pi.\mathit{tasks}, x) \Rightarrow \operatorname{isLanded}(\operatorname{step}(\pi, c).\mathit{tasks}, x) \land \operatorname{isDone}(\operatorname{step}(\pi, c).\mathit{tasks}, x)$$
+-/
+theorem land_never_undone {π : State} (c : Cmd) {x : String} (h : isLanded π.tasks x = true) :
+    isLanded (step π c).tasks x = true ∧ isDone (step π c).tasks x = true := by
+  have : isLanded (step π c).tasks x = true := by
+    unfold step
+    split
+    · rename_i hc; exact exec_isLanded hc h
+    · exact h
+  exact ⟨this, isLanded_isDone this⟩
+
+/-- **A land is never undone by any later commands** (work-graph edits included).
+
+$$\forall L_1, L_2, x:\quad \operatorname{isLanded}(\operatorname{run}(L_1).\mathit{tasks}, x) \Rightarrow \operatorname{isLanded}(\operatorname{run}(L_1 \mathbin{+\!\!+} L_2).\mathit{tasks}, x) \land \operatorname{isDone}(\operatorname{run}(L_1 \mathbin{+\!\!+} L_2).\mathit{tasks}, x)$$
+-/
+theorem run_land_never_undone (l₁ l₂ : List Cmd) {x : String} (h : isLanded (run l₁).tasks x = true) :
+    isLanded (run (l₁ ++ l₂)).tasks x = true ∧ isDone (run (l₁ ++ l₂)).tasks x = true := by
+  suffices ∀ (l : List Cmd) (π : State), isLanded π.tasks x = true →
+      isLanded (l.foldl step π).tasks x = true by
+    have hl : isLanded (run (l₁ ++ l₂)).tasks x = true := by
+      simp only [run, List.foldl_append]; exact this l₂ _ h
+    exact ⟨hl, isLanded_isDone hl⟩
+  intro l
+  induction l with
+  | nil => intro π h; exact h
+  | cons c l ih => intro π h; exact ih _ (land_never_undone c h).1
+
+/-! ### Where done comes from -/
+
+/-- Where the evidence `e` of row `t` comes from in command list `L`: a land event of the task with
+that evidence (the row is landed), or a define of the task with that evidence that is not a commit
+off main (the row is not landed).
+
+$$\operatorname{src}(L, t, e) \iff \big(t.\mathit{landed} = \mathrm{true} \land \mathrm{done}(t.\mathit{id}, e) \in L\big) \lor \big(t.\mathit{landed} = \mathrm{false} \land \exists d:\ \mathrm{define}(d) \in L \land d.\mathit{task} = t.\mathit{id} \land d.\mathit{evidence} = e \land (\operatorname{kind}(e) \ne \mathrm{commit} \lor d.\mathit{onMain} = \mathrm{true})\big)$$
+-/
+def EvSrc (l : List Cmd) (t : Task) (e : String) : Prop :=
+  (t.landed = true ∧ Cmd.done t.id e ∈ l) ∨
+  (t.landed = false ∧ ∃ d, Cmd.define d ∈ l ∧ d.task = t.id ∧ d.evidence = some e ∧
+    (Lint.evKind e ≠ .commit ∨ d.onMain = true))
+
+/-- `EvSrc` reads a row only through its id and provenance, and grows with the list.
+
+$$\forall L, L', t, r, e:\quad r.\mathit{id} = t.\mathit{id} \land r.\mathit{landed} = t.\mathit{landed} \land (\forall c \in L:\ c \in L') \land \operatorname{src}(L, t, e) \Rightarrow \operatorname{src}(L', r, e)$$
+-/
+theorem EvSrc.mono {l l' : List Cmd} {t r : Task} {e : String} (hid : r.id = t.id)
+    (hl : r.landed = t.landed) (hs : ∀ c ∈ l, c ∈ l') (h : EvSrc l t e) : EvSrc l' r e := by
+  rcases h with ⟨h1, h2⟩ | ⟨h1, d, h2, h3, h4, h5⟩
+  · exact .inl ⟨hl ▸ h1, hid ▸ hs _ h2⟩
+  · exact .inr ⟨hl ▸ h1, d, hs _ h2, hid ▸ h3, h4, h5⟩
+
+/-- Every row's evidence has a source in the commands so far, and one more step keeps that.
+
+$$\forall L, \pi, c:\quad (\forall t \in \pi.\mathit{tasks}, \forall e:\ t.\mathit{evidence} = e \Rightarrow \operatorname{src}(L, t, e)) \Rightarrow \forall t \in \operatorname{step}(\pi, c).\mathit{tasks}, \forall e:\ t.\mathit{evidence} = e \Rightarrow \operatorname{src}(L \mathbin{+\!\!+} [c], t, e)$$
+-/
+theorem step_evSrc {l : List Cmd} {π : State} (c : Cmd)
+    (h : ∀ t ∈ π.tasks, ∀ e, t.evidence = some e → EvSrc l t e) :
+    ∀ t ∈ (step π c).tasks, ∀ e, t.evidence = some e → EvSrc (l ++ [c]) t e := by
+  have sub : ∀ c' ∈ l, c' ∈ l ++ [c] := fun _ h => List.mem_append_left _ h
+  have old : ∀ t ∈ π.tasks, ∀ e, t.evidence = some e → EvSrc (l ++ [c]) t e :=
+    fun t ht e he => (h t ht e he).mono rfl rfl sub
+  -- a `setRow` whose map keeps id, provenance and evidence keeps every source
+  have viaSet : ∀ (y : String) (f : Task → Task), (∀ t, (f t).id = t.id ∧ (f t).landed = t.landed ∧
+      (f t).evidence = t.evidence) → ∀ t ∈ setRow π.tasks y f, ∀ e, t.evidence = some e →
+      EvSrc (l ++ [c]) t e := by
+    intro y f hf t ht e he
+    obtain ⟨t0, h0, rfl⟩ := List.mem_map.mp ht
+    split at he
+    · obtain ⟨h1, h2, h3⟩ := hf t0
+      rw [h3] at he
+      simp only [*, ↓reduceIte]
+      exact (old t0 h0 e he).mono h1 h2 (fun _ h => h)
+    · simp only [*, ↓reduceIte]
+  unfold step
+  split
+  · rename_i hc
+    cases c with
+    | define d =>
+      have ho := check_define_offMain hc
+      simp only [exec]
+      unfold upsert
+      split
+      · intro t ht e he
+        obtain ⟨t0, h0, rfl⟩ := List.mem_map.mp ht
+        split at he
+        · rename_i hx
+          simp only [Def.row, keepEv] at he
+          simp only [hx, ↓reduceIte]
+          split at he
+          · rename_i hl
+            rcases h t0 h0 e he with ⟨_, h2⟩ | ⟨h1, _⟩
+            · exact .inl ⟨by simp [Def.row, hl], by simpa [Def.row, hx] using sub _ h2⟩
+            · simp [hl] at h1
+          · rename_i hl
+            exact .inr ⟨by simpa [Def.row] using hl, d, List.mem_append_right _ (List.mem_singleton_self _),
+              by simp [Def.row, hx], he, offMain_none ho he⟩
+        · rename_i hx
+          simp only [hx, ↓reduceIte]
+          exact old t0 h0 e he
+      · intro t ht e he
+        rcases List.mem_append.mp ht with ht | ht
+        · exact old t ht e he
+        · simp only [List.mem_singleton] at ht
+          subst ht
+          simp only [Def.row] at he
+          exact .inr ⟨rfl, d, List.mem_append_right _ (List.mem_singleton_self _), rfl, he,
+            offMain_none ho he⟩
+    | drop y =>
+      intro t ht e he
+      exact old t (List.mem_filter.mp ht).1 e he
+    | claim y a => exact viaSet y _ fun _ => ⟨rfl, rfl, rfl⟩
+    | done y e' =>
+      simp only [exec]
+      intro t ht e he
+      obtain ⟨t0, h0, rfl⟩ := List.mem_map.mp ht
+      split at he
+      · rename_i hx
+        simp only [Option.some.injEq] at he
+        subst he
+        simp only [hx, ↓reduceIte]
+        exact .inl ⟨rfl, List.mem_append_right _ (List.mem_singleton_self _)⟩
+      · rename_i hx
+        simp only [hx, ↓reduceIte]
+        exact old t0 h0 e he
+    | milestone m title =>
+      simp only [exec]
+      split <;> exact old
+    | spawn a => exact old
+    | stop a => exact old
+  · exact old
+
+/-- **Done needs landed evidence**: in every reachable plan state, a row with evidence `e` either
+landed it (a `task.done` of the task with `e` is in the log) or got it from a define of the task in
+the log whose evidence `e` is not a commit off main.
+
+$$\forall L, t, e:\quad t \in \operatorname{run}(L).\mathit{tasks} \land t.\mathit{evidence} = e \Rightarrow \big(t.\mathit{landed} = \mathrm{true} \land \mathrm{done}(t.\mathit{id}, e) \in L\big) \lor \big(t.\mathit{landed} = \mathrm{false} \land \exists d:\ \mathrm{define}(d) \in L \land d.\mathit{task} = t.\mathit{id} \land d.\mathit{evidence} = e \land (\operatorname{kind}(e) \ne \mathrm{commit} \lor d.\mathit{onMain} = \mathrm{true})\big)$$
+-/
+theorem done_needs_landed_evidence (l : List Cmd) {t : Task} {e : String}
+    (ht : t ∈ (run l).tasks) (he : t.evidence = some e) :
+    (t.landed = true ∧ Cmd.done t.id e ∈ l) ∨
+    (t.landed = false ∧ ∃ d, Cmd.define d ∈ l ∧ d.task = t.id ∧ d.evidence = some e ∧
+      (Lint.evKind e ≠ .commit ∨ d.onMain = true)) := by
+  suffices ∀ (l acc : List Cmd) (π : State), (∀ t ∈ π.tasks, ∀ e, t.evidence = some e → EvSrc acc t e) →
+      ∀ t ∈ (l.foldl step π).tasks, ∀ e, t.evidence = some e → EvSrc (acc ++ l) t e from
+    this l [] {} (fun _ h => by simp at h) t ht e he
+  intro l
+  induction l with
+  | nil => intro acc π h; simpa using h
+  | cons c l ih =>
+    intro acc π h
+    have := ih (acc ++ [c]) (step π c) (step_evSrc c h)
+    simpa using this
 
 /-! ## Late definitions: a live agent named like the task claims it -/
 
@@ -601,14 +1011,14 @@ theorem upsert_live {ts : List Task} {d : Def} (hl : d.task ∈ d.live) :
   · rename_i hc
     obtain ⟨t0, h0, hid0⟩ := List.mem_map.mp (List.contains_iff_mem.mp hc)
     refine ⟨⟨_, List.mem_map_of_mem (f := fun t => if t.id = d.task then
-      d.row (d.liveAgent <|> t.agent) (t.evidence <|> d.evidence) else t) h0, by simp [hid0, Def.row]⟩, ?_⟩
+      d.row (d.liveAgent <|> t.agent) (keepEv t d) t.landed else t) h0, by simp [hid0, Def.row]⟩, ?_⟩
     intro t ht hid
     obtain ⟨t1, _, rfl⟩ := List.mem_map.mp ht
     split at hid
     · rename_i h1; simp [h1, Def.row, ha]
     · rename_i hne; exact absurd hid hne
   · rename_i hc
-    refine ⟨⟨d.row d.liveAgent d.evidence, by simp, rfl⟩, ?_⟩
+    refine ⟨⟨d.row d.liveAgent d.evidence false, by simp, rfl⟩, ?_⟩
     intro t ht hid
     rcases List.mem_append.mp ht with ht | ht
     · exact absurd (List.contains_iff_mem.mpr (hid ▸ List.mem_map_of_mem (f := Task.id) ht)) hc
@@ -1075,14 +1485,20 @@ def Keeps (x a : String) : Cmd → Prop
   | .stop b => b ≠ a
 
 /-- **A binding is stable**: once task `x` is bound to `a`, a define of `x` (without `x` among its
-legacy live names), a drop or claim of another task, any done, any milestone and a stop of another
-agent keep it bound to `a`. Only an explicit claim of `x`, the drop of `x`, a define of `x` with `x` among its legacy live names, a stop of `a` itself
-(then an undone `x` falls back to its next candidate) and a spawn (`boundTo_spawn`) can change it.
+legacy live names, and not taking back evidence that did not land), a drop or claim of another task,
+any done, any milestone and a stop of another agent keep it bound to `a`. Only an explicit claim of
+`x`, the drop of `x`, a define of `x` with `x` among its legacy live names, a define of `x` without
+evidence while a row of `x` holds evidence that did not land (`x` is undone again, so an ended agent
+no longer binds it), a stop of `a` itself (then an undone `x` falls back to its next candidate) and a
+spawn (`boundTo_spawn`) can change it.
 
-$$\forall \pi, x, a, c:\quad \operatorname{boundTo}(\pi, x) = a \land \operatorname{keeps}(x, a, c) \Rightarrow \operatorname{boundTo}(\operatorname{step}(\pi, c), x) = a$$
+$$\forall \pi, x, a, c:\quad \operatorname{boundTo}(\pi, x) = a \land \operatorname{keeps}(x, a, c) \land \big(\forall d:\ c = \mathrm{define}(d) \land d.\mathit{task} = x \land d.\mathit{evidence} = \bot \Rightarrow \forall t \in \pi.\mathit{tasks}:\ t.\mathit{id} = x \land t.\mathit{evidence} \ne \bot \Rightarrow t.\mathit{landed} = \mathrm{true}\big) \Rightarrow \operatorname{boundTo}(\operatorname{step}(\pi, c), x) = a$$
 -/
 theorem boundTo_keep {π : State} {x a : String} {c : Cmd} (h : boundTo π x = some a)
-    (hk : Keeps x a c) : boundTo (step π c) x = some a := by
+    (hk : Keeps x a c)
+    (hr : ∀ d, c = .define d → d.task = x → d.evidence = none →
+      ∀ t ∈ π.tasks, t.id = x → t.evidence ≠ none → t.landed = true) :
+    boundTo (step π c) x = some a := by
   obtain ⟨t, ht, hta⟩ : ∃ t, π.tasks.find? (·.id == x) = some t ∧ agentOf π t = some a := by
     unfold boundTo at h
     cases hf : π.tasks.find? (·.id == x) with
@@ -1107,10 +1523,16 @@ theorem boundTo_keep {π : State} {x a : String} {c : Cmd} (h : boundTo π x = s
             simp [Def.liveAgent, ← hx, htx, this]
           refine agentOf_row (by simp [Def.row, hx]) (by simp [Def.row, hl]) ?_ hta
           intro he
-          simp only [Def.row]
-          cases hte : t.evidence with
-          | none => simp [hte] at he
-          | some v => simp
+          simp only [Def.row, keepEv]
+          split
+          · exact he
+          · rename_i hlt
+            cases hde : d.evidence with
+            | some v => simp
+            | none =>
+              have := hr d rfl (hx ▸ htx) hde t (List.mem_of_find?_eq_some ht) htx
+                (by simpa [Option.isSome_iff_ne_none] using he)
+              simp [this] at hlt
         · exact hta
       · rw [List.find?_append, ht]
         exact hta
@@ -1128,10 +1550,11 @@ theorem boundTo_keep {π : State} {x a : String} {c : Cmd} (h : boundTo π x = s
       exact hta
     | done y e =>
       simp only [exec, boundTo]
-      rw [find?_setRow (f := fun t => { t with evidence := some e }) (fun _ _ => rfl), ht]
+      rw [find?_setRow (f := fun t => { t with evidence := some e, landed := true }) (fun _ _ => rfl), ht]
       simp only [Option.map_some, Option.bind_some]
       split
-      · exact agentOf_row (π := π) (t := t) (r := { t with evidence := some e }) rfl rfl (fun _ => rfl) hta
+      · exact agentOf_row (π := π) (t := t) (r := { t with evidence := some e, landed := true }) rfl rfl
+          (fun _ => rfl) hta
       · exact hta
     | milestone m title =>
       simp only [exec]
@@ -1192,7 +1615,7 @@ $$\forall ts, d:\quad \operatorname{upsert}(\operatorname{upsert}(ts, d), d) = \
 -/
 theorem upsert_idem (ts : List Task) (d : Def) : upsert (upsert ts d) d = upsert ts d := by
   have hrow : ∀ t : Task, t.id = d.task →
-      (d.row (d.liveAgent <|> t.agent) (t.evidence <|> d.evidence)).id = t.id := fun t h => by
+      (d.row (d.liveAgent <|> t.agent) (keepEv t d) t.landed).id = t.id := fun t h => by
     simp [Def.row, h]
   unfold upsert
   split
@@ -1205,7 +1628,7 @@ theorem upsert_idem (ts : List Task) (d : Def) : upsert (upsert ts d) d = upsert
     intro t _
     by_cases h : t.id = d.task
     · simp only [Function.comp, h, ↓reduceIte, Def.row]
-      cases d.liveAgent <;> cases t.evidence <;> simp
+      cases d.liveAgent <;> cases hl : t.landed <;> simp [keepEv, hl]
     · simp [Function.comp, h]
   · rename_i hin
     split
@@ -1219,7 +1642,7 @@ theorem upsert_idem (ts : List Task) (d : Def) : upsert (upsert ts d) d = upsert
       have : t.id ≠ d.task := fun e => hin (List.contains_iff_mem.mpr (e ▸ List.mem_map_of_mem ht))
       simp [this]
     · simp only [Def.row, List.map_cons, List.map_nil, ↓reduceIte]
-      cases d.liveAgent <;> cases d.evidence <;> simp
+      cases d.liveAgent <;> simp [keepEv]
 
 /-- **Sync is idempotent**: a define applied twice is applied once, accepted or refused.
 
@@ -1678,10 +2101,10 @@ def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
     .define { mk "b" [] with milestone := some "M0" }, .done "a" "abc1234"]
   (view s).milestones == [{ id := "M0", title := "Start", done := 1, total := 2 }]
 #guard check {} (.define { mk "a" [] with needs := List.replicate 9 "x" }) == some "needs: at most 8"
-#guard lane { (mk "a" []).row none none with needs := ["device"] } == .device
-#guard lane { (mk "a" []).row none none with needs := ["other", "device"] } == .device
-#guard lane { (mk "a" []).row none none with needs := ["other"] } == .agent
-#guard lane ((mk "a" []).row none none) == .agent
+#guard lane { (mk "a" []).row none none false with needs := ["device"] } == .device
+#guard lane { (mk "a" []).row none none false with needs := ["other", "device"] } == .device
+#guard lane { (mk "a" []).row none none false with needs := ["other"] } == .agent
+#guard lane ((mk "a" []).row none none false) == .agent
 #guard let s := run [.define (mk "a" [] ["x/**"]), .define { mk "p" [] with needs := ["device"] },
     .define { mk "q" ["a"] with needs := ["device"] }, .define (mk "c" [] ["z/**"])]
   (view s).parallelSafe == [["a", "c"]] && (readyIn s.tasks .device).map (·.id) == ["p"] &&
@@ -1744,5 +2167,29 @@ def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
 -- sync idempotence: the same define twice is the same state
 #guard let s := run [.define (mk "a" []), .define (mk "a" [])]
   s == run [.define (mk "a" [])]
+
+-- evidence on main: commit evidence off main is refused with its sha and the state is kept
+#guard Def.offMain { mk "a" [] with evidence := some "9a5c552", onMain := false } == some "9a5c552"
+#guard Def.offMain { mk "a" [] with evidence := some "9a5c552" } == none
+#guard Def.offMain { mk "a" [] with evidence := some "12345678", onMain := false } == none
+#guard Def.offMain { mk "a" [] with evidence := some "user", onMain := false } == none
+#guard Def.offMain { mk "a" [] with onMain := false } == none
+#guard check {} (.define { mk "a" [] with evidence := some "9a5c552", onMain := false })
+  == some "evidence not on main: 9a5c552"
+#guard let s := run [.define (mk "a" [])]
+  step s (.define { mk "a" [] with evidence := some "9a5c552", onMain := false }) == s
+-- keepEv: landed evidence stays, unlanded evidence follows the define
+#guard keepEv ((mk "a" []).row none (some "abc1234") true) (mk "a" []) == some "abc1234"
+#guard keepEv ((mk "a" []).row none (some "abc1234") false) (mk "a" []) == none
+#guard keepEv ((mk "a" []).row none none false) { mk "a" [] with evidence := some "def5678" }
+  == some "def5678"
+-- a define without evidence takes back define evidence (ready again) but never a land
+#guard let s := run [.define { mk "a" [] with evidence := some "abc1234" }, .define (mk "a" [])]
+  s.tasks.map (tstate s.tasks) == [.ready]
+#guard let s := run [.define (mk "a" []), .done "a" "abc1234", .define (mk "a" [])]
+  s.tasks.map (tstate s.tasks) == [.done] && isLanded s.tasks "a"
+#guard let s := run [.define { mk "a" [] with evidence := some "abc1234" }]
+  isDone s.tasks "a" && !isLanded s.tasks "a"
+#guard !isLanded [] "a"
 
 end Fw.Plan
