@@ -16,6 +16,7 @@ Exact fractions are `{"num":"<int>","den":"<positive int>"}` (as `Fw.Wire.ratToJ
 |---|---|---|
 | `ops.admit` | `budget` Vec, `state`? State, `event` Cmd, `probe`? [Item] | `state` (after `event`: the command, then admit until quiescent), `admitted` [id] (in admission order), `queued` [Decision] (every item still queued), `probes` [Decision] (each probe judged against the reply state as if enqueued now: `seq := next`, `enq := t`), `inv` (the input state satisfies `Inv`), `invAfter` |
 | `ops.gate` | the `ops.spawn` fields (`alive`, `roles`, `caps`?, `recent`?, `now`, `req`), `budget` Vec, `state`? State (absent: the empty state), `item`? Item (absent: `{id: req.name}`, zero demand) | `decision` (`allow`/`needsApproval`/`deny`/`queue`), `accepted`, `reason` (the guard's reason on `deny`, the admission reason on `queue`, else null), `guard` (the `ops.spawn` reply), `admit` (Decision for the item judged as if enqueued now, always computed), `inv` |
+| `ops.taskAdmit` | `running`? [Task], `candidates`? [Task] (Task: `{id, writes?, reads?}`, globs) | `pairs` [{a, b, kind, mine, theirs}] (each overlapping running pair a before b, its first clash; kind `ww`/`wr`/`rw`), `decisions` [{id, admitted, clash, message}] (each candidate against `running`; `message` = `not admitted: overlaps <task> on <glob> (…)`) |
 | `metrics.merge` | `ivs` [[s, e]] | `ivs` |
 | `metrics.busy` | `a`, `b`, `ivs` | `busy` |
 | `metrics.speedup` | `a`, `b`, `agents` [[[s, e]]] | `speedup` (fraction) |
@@ -35,7 +36,7 @@ or `{id, decision:"queue", reason, …witness}` with reasons `neverFits {res}`, 
 Proved: the round trips `stateOf_stateJson`, `itemOf_itemJson`, `vecOf_vecJson`, `cmdOf_cmdJson`,
 `ivOf_ivJson`; `invB_iff` (the reply's `inv` flag is exactly `Inv`), `invB_event` (an event keeps
 it), `event_queued_wait` (every `queued` decision is a `queue`) and `opAdmit_state` (the reply
-state is `event`), `gateName_accepted` (the `ops.gate` decision name is `allow`/`needsApproval` iff accepted; the gate itself is proved in `Fw.Wire.OpsGate`). Guards: `#guard`s at the end; golden vectors: `Fw.Wire.SchedGolden`.
+state is `event`), `taskOf_taskJson` and `taskAdmitted_eq` (the `ops.taskAdmit` flag is `Reads.admits`), `gateName_accepted` (the `ops.gate` decision name is `allow`/`needsApproval` iff accepted; the gate itself is proved in `Fw.Wire.OpsGate`). Guards: `#guard`s at the end; golden vectors: `Fw.Wire.SchedGolden`.
 -/
 namespace Fw.Wire.Sched
 open Lean
@@ -548,11 +549,89 @@ def opBenchVerdict (req : Json) : Except String Reply := do
   let ms ← (← arr req "ms").toList.mapM (Fw.Wire.Measure.asInt "ms")
   pure [("labels", toJson labels), ("verdict", .str (verdictName (benchVerdict labels ms)))]
 
+/-! ## ops.taskAdmit (task admit-reads) -/
+
+/-- A task as JSON (every field written).
+
+$$\operatorname{taskJson}(x) = \{\texttt{id}: \mathit{id}(x),\ \texttt{writes}: W(x),\ \texttt{reads}: R(x)\}$$
+-/
+def taskJson (t : Reads.Task) : Json :=
+  Json.mkObj [("id", .str t.id), ("writes", .arr (t.writes.toArray.map .str)),
+              ("reads", .arr (t.reads.toArray.map .str))]
+
+/-- Decode a task; only `id` is required (`writes` and `reads` default to empty). -/
+def taskOf (j : Json) : Except String Reads.Task := do
+  pure { id := ← str j "id", writes := ← strsD j "writes", reads := ← strsD j "reads" }
+
+/-- Tasks round-trip.
+
+$$\forall x:\quad \operatorname{taskOf}(\operatorname{taskJson}(x)) = \mathrm{ok}(x)$$
+-/
+theorem taskOf_taskJson (t : Reads.Task) : taskOf (taskJson t) = .ok t := by
+  obtain ⟨id, writes, reads⟩ := t
+  have hw := strsD_rt (taskJson ⟨id, writes, reads⟩) "writes" writes rfl
+  have hr := strsD_rt (taskJson ⟨id, writes, reads⟩) "reads" reads rfl
+  simp only [taskOf, hw, hr, ok_bind]
+  rfl
+
+/-- Clash kind wire names. -/
+def kindName : Reads.Kind → String
+  | .ww => "ww"
+  | .wr => "wr"
+  | .rw => "rw"
+
+/-- A clash as JSON. -/
+def clashJson (c : Reads.Clash) : Json :=
+  Json.mkObj [("task", .str c.task), ("kind", .str (kindName c.kind)), ("mine", .str c.mine),
+              ("theirs", .str c.theirs)]
+
+/-- The message of a refused start: `not admitted: overlaps <task> on <glob> (<task> writes|reads <glob>)`. -/
+def clashMessage (c : Reads.Clash) : String :=
+  let how := match c.kind with
+    | .wr => "reads"
+    | _ => "writes"
+  s!"not admitted: overlaps {c.task} on {c.mine} ({c.task} {how} {c.theirs})"
+
+/-- The reply's `admitted` flag: no first clash.
+
+$$\operatorname{admitted}(\mathit{Run}, x) \iff \operatorname{blockAt}(\mathit{Run}, x) = \bot$$
+-/
+def taskAdmitted (run : List Reads.Task) (x : Reads.Task) : Bool := (Reads.blockAt run x).isNone
+
+/-- The reply's `admitted` flag is the proved admission rule.
+
+$$\forall \mathit{Run}, x:\quad \operatorname{admitted}(\mathit{Run}, x) = \operatorname{admits}(\mathit{Run}, x)$$
+-/
+theorem taskAdmitted_eq (run : List Reads.Task) (x : Reads.Task) :
+    taskAdmitted run x = Reads.admits run x := by
+  apply Bool.eq_iff_iff.mpr
+  rw [taskAdmitted, Option.isNone_iff_eq_none, Reads.blockAt_none]
+
+/-- One candidate's decision: `{id, admitted, clash, message}` (`clash` and `message` null when admitted). -/
+def taskDecisionJson (run : List Reads.Task) (x : Reads.Task) : Json :=
+  match Reads.blockAt run x with
+  | none => Json.mkObj [("id", .str x.id), ("admitted", .bool true), ("clash", .null), ("message", .null)]
+  | some c => Json.mkObj [("id", .str x.id), ("admitted", .bool false), ("clash", clashJson c),
+                          ("message", .str (clashMessage c))]
+
+/-- `ops.taskAdmit`: the overlapping pairs of the running tasks (`Reads.overlapPairs`, first clash per
+pair) and, for each candidate, the decision against the running tasks (`Reads.blockAt`).
+
+$$\operatorname{opTaskAdmit}(\mathit{Run}, C) = \big(\operatorname{overlaps}(\mathit{Run}),\ [\operatorname{blockAt}(\mathit{Run}, x) \mid x \in C]\big)$$
+-/
+def opTaskAdmit (req : Json) : Except String Reply := do
+  let run ← (← arrD req "running").mapM taskOf
+  let cands ← (← arrD req "candidates").mapM taskOf
+  pure [("pairs", .arr ((Reads.overlapPairs run).toArray.map fun (a, c) =>
+          Json.mkObj [("a", .str a), ("b", .str c.task), ("kind", .str (kindName c.kind)), ("mine", .str c.mine),
+                      ("theirs", .str c.theirs)])),
+        ("decisions", .arr (cands.toArray.map (taskDecisionJson run)))]
+
 /-! ## Dispatch -/
 
 /-- The `Fw.Sched` ops. -/
 def ops : List String :=
-  ["ops.admit", "ops.gate", "metrics.merge", "metrics.busy", "metrics.speedup", "metrics.serialShare", "metrics.stretch",
+  ["ops.admit", "ops.gate", "ops.taskAdmit", "metrics.merge", "metrics.busy", "metrics.speedup", "metrics.serialShare", "metrics.stretch",
    "metrics.cp", "metrics.benchVerdict"]
 
 /-- Dispatch a `Fw.Sched` op (`none` when the op is not one of them). -/
@@ -560,6 +639,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "ops.admit" => some (opAdmit req)
   | "ops.gate" => some (opGate req)
+  | "ops.taskAdmit" => some (opTaskAdmit req)
   | "metrics.merge" => some (opMerge req)
   | "metrics.busy" => some (opBusy req)
   | "metrics.speedup" => some (opSpeedup req)
@@ -597,6 +677,13 @@ def run (op : String) (r : String) : String :=
 #guard run "ops.gate" ("{\"alive\":[],\"roles\":[{\"name\":\"w\",\"runsAs\":\"worktree\"}],\"now\":0," ++
   "\"req\":{\"name\":\"w-1\",\"role\":\"w\",\"isolation\":\"worktree\"},\"budget\":{},\"item\":{\"id\":\"w-1\"," ++
   "\"demand\":{\"cores\":1}}}") |>.startsWith "{\"accepted\":false,"
+#guard run "ops.taskAdmit" ("{\"running\":[{\"id\":\"w\",\"writes\":[\"packages/measure-wktr/src/**\"]}]," ++
+  "\"candidates\":[{\"id\":\"e\",\"writes\":[\"packages/measure-*/**\"]},{\"id\":\"s\",\"writes\":[\"apps/site/**\"]}]}")
+  == "{\"decisions\":[{\"admitted\":false,\"clash\":{\"kind\":\"ww\",\"mine\":\"packages/measure-*/**\"," ++
+  "\"task\":\"w\",\"theirs\":\"packages/measure-wktr/src/**\"},\"id\":\"e\",\"message\":\"not admitted: overlaps w on " ++
+  "packages/measure-*/** (w writes packages/measure-wktr/src/**)\"},{\"admitted\":true,\"clash\":null,\"id\":\"s\"," ++
+  "\"message\":null}],\"pairs\":[]}"
+#guard taskAdmitted [{ id := "r", reads := ["lean/Fw"] }] { id := "x", writes := ["lean/Fw/A.lean"] } == false
 #guard run "metrics.cp" "{\"n\":2,\"w\":[1,1],\"edges\":[[0,1],[1,0]]}" == "{\"cp\":null,\"cycle\":true}"
 #guard run "metrics.speedup" "{\"a\":0,\"b\":10,\"agents\":[[[0,6]],[[4,10]]]}" == "{\"speedup\":{\"den\":\"5\",\"num\":\"6\"}}"
 #guard run "metrics.busy" "{\"a\":0,\"b\":10,\"ivs\":[[1,3.5]]}" == "error: field ivs: expected a non-negative integer"

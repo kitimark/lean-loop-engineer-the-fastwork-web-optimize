@@ -3359,7 +3359,8 @@
    "writes": [
     "lean/Fw/Sched/Admit.lean",
     "packages/contracts/golden/sched/**"
-   ]
+   ],
+   "evidence": "6969bd9"
   },
   {
    "id": "task-spec-lint",
