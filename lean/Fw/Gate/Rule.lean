@@ -121,7 +121,10 @@ sweep): unreachable when every verdict is, else the rule over their statuses.
 
 $$\forall vs \in \mathcal V^*,\quad \operatorname{rollup}(vs) = \begin{cases} \mathrm{unreachable}(\rho(vs)) & vs \ne [\,] \wedge \forall v \in vs,\ \operatorname{isU}(v) \\ \operatorname{cell}(\operatorname{map}\ \operatorname{toStatus}\ vs) & \text{otherwise} \end{cases}$$
 
-A block passes when some probe passed and none failed; it is unreachable only when all of it is. -/
+A block passes when some probe passed and none failed; it is unreachable only when all of it is.
+
+This lenient rollup is for display, State, Scope and the sweep reduction only. The gate's decision is per reading
+(`Fw.Gate.Exit.rollup_pass_iff_all_readings`): a not-comparable reading next to a passing one is not absorbed there. -/
 def rollup (vs : List Verdict) : Verdict :=
   if !vs.isEmpty && vs.all (·.isUnreachable) then .unreachable (unreachableReason vs)
   else cellVerdict (vs.map toStatus)

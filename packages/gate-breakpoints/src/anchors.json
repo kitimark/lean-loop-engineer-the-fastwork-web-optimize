@@ -234,7 +234,7 @@
     "morph.countdown": {
       "anchors": ["morph-countdown", "morph-countdown-clock"],
       "cites": ["snapshot 2.gBuqKVzi.css:1375-1495 (the shared clock: .countdown, .unit, .face, .label, .number, .digit) and 11296-11301 (.waitlist-closing-countdown); markup 2.DyWL8TcE.js:12879, clock instance with inverse at 13160"],
-      "prepare": { "orig": [{ "scrollNear": ".start-selling-platform", "waitFor": ".start-selling-morph-center .countdown", "why": "the original mounts the morph panel only when .start-selling-platform comes within 200% of the viewport (2.DyWL8TcE.js:13081-13085) and keeps it mounted afterwards, so the gate scrolls near it, waits for the clock, then returns to the top" }] },
+      "prepare": { "orig": [{ "kind": "mount", "scrollNear": ".start-selling-platform", "waitFor": ".start-selling-morph-center .countdown", "why": "the original mounts the morph panel only when .start-selling-platform comes within 200% of the viewport (2.DyWL8TcE.js:13081-13085) and keeps it mounted afterwards, so the gate scrolls near it, waits for the clock, then returns to the top" }] },
       "notes": ["the panel is scale(0.96) at rest (css 10543-10553), which shrinks every client rect; so no role below compares a rect, only computed style (used width and height of a fixed box are not transformed)"],
       "roles": [
         { "role": "wrap", "orig": ".start-selling-morph-center .waitlist-closing-countdown", "rewrite": "[data-fw=\"morph-countdown\"]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
@@ -395,6 +395,7 @@
       "anchors": [
         "morph-columns"
       ],
+      "prepare": { "orig": [{ "kind": "mount", "scrollNear": ".start-selling-platform", "waitFor": ".start-selling-morph-col", "why": "the original mounts the morph panel (and its columns) only when .start-selling-platform comes within 200% of the viewport (2.DyWL8TcE.js:13080-13089) and keeps it; the gate scrolls near it, waits for the first column, then returns to the top (this replaces the former ORIG_PREPARE mountPanel, which scrolled to the middle of #platform)" }] },
       "cites": [
         "snapshot 2.gBuqKVzi.css:10559-10607 (backdrop, col, track, img, keyframes)",
         "10812-10825 (reduced motion)",
