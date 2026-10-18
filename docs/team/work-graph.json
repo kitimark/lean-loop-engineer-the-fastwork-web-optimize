@@ -2282,7 +2282,8 @@
     "apps/site/src/parts/morph.columns/**",
     "apps/site/src/parts/morph.countdown/**",
     "apps/site/src/parts/engine.scene/**"
-   ]
+   ],
+   "evidence": "726cc17b"
   },
   {
    "id": "variant-morph-mount-shift",
@@ -3104,7 +3105,8 @@
     "packages/visual-diff/**",
     ".github/workflows/visual-diff.yml",
     "docs/team/tools/visual-diff.md"
-   ]
+   ],
+   "evidence": "7c998a69"
   },
   {
    "id": "ts-lean-diff",
@@ -3547,7 +3549,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-18-slow-site-build.md"
-   ]
+   ],
+   "evidence": "d0645d48"
   },
   {
    "id": "site-build-cache",
