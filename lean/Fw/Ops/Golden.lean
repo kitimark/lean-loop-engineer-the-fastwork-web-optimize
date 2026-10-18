@@ -279,6 +279,9 @@ def cases : List (String × List (String × Json)) := [
     ("r4: [[ ${i} -le 3 ]]: allow", wait "while [[ ${i} -le 3 ]]; do i=$((i+1)); done"),
     ("r4: producer with 2>/dev/null: allow", wait "ls -t a*.jsonl 2>/dev/null | head -3 | while read f; do echo $f; done"),
     ("r4: git worktree list piped into a read loop: allow", wait "git worktree list --porcelain | awk '/^worktree /{print $2}' | while read p; do echo $p; done"),
+    ("r5: EPOCHSECONDS may be unset in zsh, never a bound: deny", wait "until [ $EPOCHSECONDS -ge 1760800000 ]; do sleep 1; done"),
+    ("r5: a 23-digit literal is not a number: deny", wait "while [ $i -lt 12345678901234567890123 ]; do i=$((i+1)); done"),
+    ("r5: $_ is reset by every command: deny", wait "while [ $_ -lt 10 ]; do sleep 1; done"),
     ("missing cmd is refused", lit "{}")])]
 
 /-- Golden files outside `ops/`: (directory under `packages/contracts/golden`, op, cases). -/

@@ -507,13 +507,14 @@ def isName : List Char → Bool
   | c :: r => (c.isAlpha || c == '_') && r.all nameChar
   | [] => false
 
-/-- A decimal literal: one or more digits, with no leading `0` unless it is exactly `0` (so no octal `010`, no hex
-`0x1`, no sign).
+/-- A decimal literal: one to 18 digits, with no leading `0` unless it is exactly `0` (so no octal `010`, no hex
+`0x1`, no sign). At most 18 digits keeps the value below $10^{18} < 2^{63}$, so the shell's 64-bit arithmetic never
+wraps it.
 
-$$\mathrm{isDec}(l) \iff l \ne [\,] \land (\forall x \in l.\ x \in \texttt{0-9}) \land (\mathrm{head}(l) = \texttt{0} \Rightarrow l = [\texttt{0}])$$
+$$\mathrm{isDec}(l) \iff 1 \le |l| \le 18 \land (\forall x \in l.\ x \in \texttt{0-9}) \land (\mathrm{head}(l) = \texttt{0} \Rightarrow l = [\texttt{0}])$$
 -/
 def isDec (l : List Char) : Bool :=
-  !l.isEmpty && l.all Char.isDigit && (l.head? != some '0' || l == ['0'])
+  !l.isEmpty && l.length ≤ 18 && l.all Char.isDigit && (l.head? != some '0' || l == ['0'])
 
 /-- An operand of a bound test: a variable (by name) or a decimal number.
 
@@ -532,8 +533,8 @@ def opdChar (c : Char) : Bool := nameChar c || c == '$' || c == '{' || c == '}'
 
 /-- Read an operand word (quotes already removed, so `"$i"` is `$i`). $b$: the word is inside `(( ))`, where a bare name
 is a variable. Every character must be an `opdChar`; then `${n}` or `$n` with `isName(n)` is the variable $n$, a decimal
-literal is a number, and when $b$ a name alone is a variable. Anything else is not an operand: `$$`, `$#`, `$?`, `$1`,
-`$(..)`, `$((..))`, `${x:-0}`, a backquote, `0x1`, `010`, `-1`.
+literal (`isDec`, at most 18 digits) is a number, and when $b$ a name alone is a variable. Anything else is not an
+operand: `$$`, `$#`, `$?`, `$1`, `$(..)`, `$((..))`, `${x:-0}`, a backquote, `0x1`, `010`, `-1`, a 19-digit number.
 
 $$\mathrm{opd}_b(w) = \begin{cases} \mathrm{none} & \exists x \in w.\ \lnot\mathrm{opdChar}(x) \\ \mathrm{some}(\mathrm{var}(n)) & w = \texttt{\$\{}\,n\,\texttt{\}} \land \mathrm{isName}(n) \\ \mathrm{some}(\mathrm{var}(n)) & w = \texttt{\$}\,n \land \mathrm{isName}(n) \\ \mathrm{some}(\mathrm{num}(k)) & w \text{ does not start with } \texttt{\$} \land \mathrm{isDec}(w),\ k \text{ the decimal value of } w \\ \mathrm{some}(\mathrm{var}(w)) & w \text{ does not start with } \texttt{\$} \land b \land \mathrm{isName}(w) \\ \mathrm{none} & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
 -/
@@ -583,19 +584,22 @@ $$\mathrm{down}(r) \iff r \in \{\mathrm{lt}, \mathrm{le}\}$$
 def Rel.down : Rel → Bool
   | .lt => true | .le => true | _ => false
 
-/-- Variables that are never a bound: bash sets them itself and they do not move towards a limit (random, or fixed
-for the loop).
+/-- Variables that are never a bound: the shell sets them itself and they do not move towards a limit (random, fixed
+for the loop, or reset by every command like `_`), or they may be unset in the tool shell: `EPOCHSECONDS` and
+`EPOCHREALTIME` exist in zsh only after `zmodload zsh/datetime`, and an unset operand makes `[ -ge N ]` an error, so
+an `until` loop on it never exits.
 
-$$\mathrm{noBoundVars} = [\texttt{RANDOM}, \texttt{SRANDOM}, \texttt{LINENO}, \texttt{BASHPID}, \texttt{PPID}, \texttt{UID}, \texttt{EUID}, \texttt{HISTCMD}, \texttt{EPOCHREALTIME}, \texttt{BASH\_SUBSHELL}, \texttt{SHLVL}]$$
+$$\mathrm{noBoundVars} = [\texttt{RANDOM}, \texttt{SRANDOM}, \texttt{LINENO}, \texttt{BASHPID}, \texttt{PPID}, \texttt{UID}, \texttt{EUID}, \texttt{HISTCMD}, \texttt{EPOCHREALTIME}, \texttt{EPOCHSECONDS}, \texttt{BASH\_SUBSHELL}, \texttt{SHLVL}, \texttt{\_}, \texttt{OPTIND}, \texttt{LINES}, \texttt{COLUMNS}, \texttt{BASH\_ARGC}]$$
 -/
 def noBoundVars : List String :=
-  ["RANDOM", "SRANDOM", "LINENO", "BASHPID", "PPID", "UID", "EUID", "HISTCMD", "EPOCHREALTIME", "BASH_SUBSHELL", "SHLVL"]
+  ["RANDOM", "SRANDOM", "LINENO", "BASHPID", "PPID", "UID", "EUID", "HISTCMD", "EPOCHREALTIME", "EPOCHSECONDS",
+    "BASH_SUBSHELL", "SHLVL", "_", "OPTIND", "LINES", "COLUMNS", "BASH_ARGC"]
 
-/-- The clocks: variables bash moves up by itself, so their direction is known.
+/-- The clocks: variables the shell moves up by itself (in bash and in zsh), so their direction is known.
 
-$$\mathrm{clocks} = [\texttt{SECONDS}, \texttt{EPOCHSECONDS}]$$
+$$\mathrm{clocks} = [\texttt{SECONDS}]$$
 -/
-def clocks : List String := ["SECONDS", "EPOCHSECONDS"]
+def clocks : List String := ["SECONDS"]
 
 /-- The variable side of a bound test $n\ r\ N$ in a loop ($u$: an `until` loop): $n$ is not in `noBoundVars`, and a
 clock must move towards the exit: a `while` loop exits when the test fails, so it needs `<`/`≤`; an `until` loop exits
@@ -759,7 +763,7 @@ theorem relOk_shape (u : Bool) (x : Opd) (r : Rel) (y : Opd) (h : relOk u x r y 
   | .num _, .num _, h => simp [relOk] at h
 
 /-- **Clock direction.** If a bound test of a `while` ($u = \bot$) or `until` ($u = \top$) loop compares a clock $n$
-(`SECONDS`, `EPOCHSECONDS`), the relation as seen from the clock is `<`/`≤` exactly for `while`: the test then reaches
+(`SECONDS`), the relation as seen from the clock is `<`/`≤` exactly for `while`: the test then reaches
 the loop's exit value as the clock grows.
 
 $$\forall u, W, x, r, y, n.\ n \in \mathrm{clocks} \land \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \land \mathrm{boundAtom}(u, W) \Rightarrow (x = \mathrm{var}(n) \Rightarrow (\mathrm{down}(r) \iff \lnot u)) \land (y = \mathrm{var}(n) \Rightarrow (\mathrm{down}(\mathrm{flip}(r)) \iff \lnot u))$$
@@ -2028,6 +2032,7 @@ theorem deny_iff_check (us : List Job) (r : Reason) : decide us = .deny r ↔ ch
 /-! Round 3: the bound comes from the loop condition only; more finite producers; device paths and here-strings. -/
 
 #guard isName "i".toList && isName "_x1".toList && !isName "1x".toList && !isName "$".toList && !isName [] && !isName "#".toList
+#guard isDec "999999999999999999".toList && !isDec "1000000000000000000".toList && !isDec "12345678901234567890123".toList
 #guard isDec "10".toList && isDec "0".toList && !isDec "010".toList && !isDec "0x1".toList && !isDec [] && !isDec "-1".toList
 #guard opd false "$i" == some (.var "i") && opd false "${i}" == some (.var "i") && opd false "10" == some (.num 10)
 #guard opd false "i" == none && opd true "i" == some (.var "i") && opd true "0x0" == none && opd false "010" == none
@@ -2052,6 +2057,10 @@ theorem deny_iff_check (us : List Job) (r : Reason) : decide us = .deny r ↔ ch
 #guard !boundAtom false ["[", "$SECONDS", "-ge", "0", "]"] && !boundAtom false ["[", "$SECONDS", "-gt", "5", "]"]
 #guard !boundAtom true ["[", "$SECONDS", "-lt", "0", "]"] && !boundAtom false ["((", "SECONDS", ">=", "0", "))"]
 #guard !boundAtom false ["[", "0", "-lt", "$SECONDS", "]"] && !boundAtom false ["[", "$EPOCHSECONDS", "-gt", "1", "]"]
+#guard !boundAtom true ["[", "$EPOCHSECONDS", "-ge", "1760800000", "]"] && !boundAtom false ["[", "$_", "-lt", "10", "]"]
+#guard !boundAtom false ["[", "$OPTIND", "-lt", "10", "]"] && !boundAtom false ["((", "LINES", "<", "10", "))"]
+#guard !boundAtom false ["[", "$COLUMNS", "-lt", "10", "]"] && !boundAtom false ["[", "${BASH_ARGC}", "-lt", "10", "]"]
+#guard !boundAtom false ["[", "$i", "-lt", "12345678901234567890123", "]"] && opd false "12345678901234567890123" == none
 -- the round-3 reviewer probes: never a bound
 #guard !boundAtom true ["[", "$(gh run list -b ci/x --json status -q '[.[]|select(.status==\"completed\")]|length')", "-ge", "1", "]"]
 #guard !boundAtom true ["[", "$(ls out/*.json 2>/dev/null", "-gt", "0", "]"] && !boundAtom false ["[", "$(pgrep -c node)", "-gt", "0", "]"]
@@ -2160,6 +2169,9 @@ theorem deny_iff_check (us : List Job) (r : Reason) : decide us = .deny r ↔ ch
 #guard decideCmd {} "while [ \"$(echo 0)\" -lt 1 ]; do sleep 1; done" == .deny .unboundedLoop
 #guard decideCmd {} "while [ `echo 0` -lt 1 ]; do sleep 1; done" == .deny .unboundedLoop
 #guard decideCmd {} "while [ $SECONDS -ge 0 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "until [ $EPOCHSECONDS -ge 1760800000 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ $i -lt 12345678901234567890123 ]; do i=$((i+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ $_ -lt 10 ]; do sleep 1; done" == .deny .unboundedLoop
 #guard decideCmd {} "while [ $SECONDS -gt 5 ]; do sleep 1; done" == .deny .unboundedLoop
 #guard decideCmd {} "until [ $SECONDS -lt 0 ]; do sleep 1; done" == .deny .unboundedLoop
 #guard decideCmd {} "while (( SECONDS >= 0 )); do sleep 1; done" == .deny .unboundedLoop

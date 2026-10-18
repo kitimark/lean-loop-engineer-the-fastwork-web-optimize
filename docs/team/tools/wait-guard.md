@@ -31,10 +31,19 @@ the and-or list from `while`/`until` to `do`. An element is a bound only when it
         | (( v OP N )) | (( N OP v ))                               OP ∈ <  <=  >  >=
 
 V is `$v`, `${v}` or `"$v"` with v a plain name (letter or `_`, then letters, digits, `_`); in `(( ))` only the bare
-name v. N is a decimal literal (`0` or no leading zero). v is not a special variable (`$$ $# $? $!`, positionals,
-`RANDOM SRANDOM LINENO BASHPID PPID UID EUID HISTCMD EPOCHREALTIME BASH_SUBSHELL SHLVL`). A clock (`SECONDS`,
-`EPOCHSECONDS`) must move toward the exit: `while` needs clock `<`/`≤` N, `until` needs clock `>`/`≥` N
-(`seconds_direction`). Everything else bounds nothing (`grammar_only`): `$( )`, backquotes (`subst_never_bound`),
+name v. N is a decimal literal of 1 to 18 digits (`0` or no leading zero; 18 digits stay below 2^63, so the shell's
+64-bit arithmetic never wraps). v is not a special variable (`$$ $# $? $!`, positionals, `noBoundVars` = `RANDOM
+SRANDOM LINENO BASHPID PPID UID EUID HISTCMD EPOCHREALTIME EPOCHSECONDS BASH_SUBSHELL SHLVL _ OPTIND LINES COLUMNS
+BASH_ARGC`). The only clock is `SECONDS`; it must move toward the exit: `while` needs clock `<`/`≤` N, `until` needs
+clock `>`/`≥` N (`seconds_direction`).
+
+**The tool shell may be zsh** (round 5). The agent Bash tool runs commands in the user's login shell, which on this Mac
+is zsh 5.9, not bash. B is read so that each allowed element keeps its meaning in both shells: `[ ]`, `[[ ]]` and
+`(( ))` with a plain variable and a decimal literal behave the same, and `SECONDS` counts up in both. What differs is
+handled by denying it: `EPOCHSECONDS`/`EPOCHREALTIME` exist in zsh only after `zmodload zsh/datetime`, and an unset
+operand turns `[ $EPOCHSECONDS -ge N ]` into a test error (exit 2), so `until` on it never exits; it is therefore in
+`noBoundVars`, not a clock (use `SECONDS`). Bash-only specials (`BASHPID`, `SRANDOM`, `BASH_ARGC`, ...) are unset in
+zsh and never bounds either way. The read-loop and `timeout` rules do not depend on the shell. Everything else bounds nothing (`grammar_only`): `$( )`, backquotes (`subst_never_bound`),
 `$(( ))`, `${v:-..}`, a limit in a variable (`[ $SECONDS -lt $end ]`: write the literal, `[ $SECONDS -lt 600 ]`),
 comma, ternary, hex, octal, `test`, a leading `!`, `<`/`>` in `[ ]` (a redirect) or `[[ ]]` (string order), string
 compares, `true`, `:`, polls (`gh`, `ls`, `pgrep`) and function calls. Elements combine by bash's exit rule: for
@@ -130,6 +139,13 @@ head -3 | while read`). False denies 0. Synthetic 80-row corpus: 1 mismatch, by 
 now denied (a limit in a variable; no real record used it). Every round-3 reviewer probe with verdict deny (`$( )` polls
 via `gh`/`ls`/`pgrep`, `$$`, `$#`, `$RANDOM`, `${x:-0}`, `$((0))`, SECONDS the wrong way, `!`, comma, ternary, hex,
 octal in `(( ))`, `read -n 0`, `whi\⏎le`) is a `#guard` in `Fw/Ops/Wait.lean` and a golden row (`r4:`).
+Round 5 (zsh tool shell: `EPOCHSECONDS` out of `clocks` into `noBoundVars`; N at most 18 digits; `_ OPTIND LINES
+COLUMNS BASH_ARGC` added to `noBoundVars`), MEASURED on 6429 records (all recovered): 6425 allow, 4 deny. Against round
+4 on the same records: 0 newly allowed, 1 newly denied, the round-4 reviewer's own probe of this hole
+(`until (( EPOCHSECONDS >= 1760800000 )); do ...; [ $n -ge 5 ] && break; done`, which ends only by a `break` in the body,
+the by-design `body_irrelevant` class). False denies on organic records 0. Synthetic 80-row corpus unchanged (1 mismatch,
+`$SECONDS -ge $end`). Probes `until [ $EPOCHSECONDS -ge 1760800000 ]`, a 23-digit N, `while [ $_ -lt 10 ]` are
+`#guard`s and golden rows (`r5:`).
 
 ## Turning enforce on (lead hands this to the user)
 After this lands on `main`: in the main checkout run `cd lean && lake build fwcore`; probe once, the reply must be

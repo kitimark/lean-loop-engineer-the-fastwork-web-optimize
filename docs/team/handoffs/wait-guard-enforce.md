@@ -1,6 +1,10 @@
-# Handoff: wait-guard-enforce (round 4, final design round)
-State: branch worktree-wf_d3d4d3c9-c26-1, head = the "wait-guard r4" commit (round-3 head add434f and main merged in).
-check.sh green; runner vitest 954/954.
+# Handoff: wait-guard-enforce (round 5, mechanical fixes in grammar B)
+State: branch worktree-wf_d7eeac82-4cd-1, head = the "wait-guard r5" commit (r4 head 9571b16 and main merged in).
+- Round 5 (task wait-guard-enforce-2): the tool shell may be zsh 5.9, so `EPOCHSECONDS` left `clocks` (now only
+  `SECONDS`) and joined `noBoundVars` with `_ OPTIND LINES COLUMNS BASH_ARGC`; `isDec` takes 1..18 digits. 3 `r5:`
+  golden rows (116 total) + #guards. Eval 6429 real records: 0 newly allowed, 1 newly denied (the r4 reviewer's own
+  EPOCHSECONDS probe), organic false denies 0. Doc: "The tool shell may be zsh" in docs/team/tools/wait-guard.md.
+Round 4 notes follow.
 - Round 4, Lean first (lean/Fw/Ops/Wait.lean): a loop bound is only an element of the allowlist grammar B
   (`atomParse`: `[ V OP N ]`, `[[ V OP N ]]`, either order, OP -lt -le -gt -ge; `(( v OP N ))` with < <= > >=;
   V = `$v` `${v}` `"$v"`, N decimal, no special vars (`noBoundVars`), clocks only toward the exit (`varOk`)).

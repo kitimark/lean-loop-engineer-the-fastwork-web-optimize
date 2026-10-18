@@ -110,4 +110,7 @@
 {"name":"r4: [[ ${i} -le 3 ]]: allow","request":{"cmd":"while [[ ${i} -le 3 ]]; do i=$((i+1)); done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
 {"name":"r4: producer with 2>/dev/null: allow","request":{"cmd":"ls -t a*.jsonl 2>/dev/null | head -3 | while read f; do echo $f; done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
 {"name":"r4: git worktree list piped into a read loop: allow","request":{"cmd":"git worktree list --porcelain | awk '/^worktree /{print $2}' | while read p; do echo $p; done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
+{"name":"r5: EPOCHSECONDS may be unset in zsh, never a bound: deny","request":{"cmd":"until [ $EPOCHSECONDS -ge 1760800000 ]; do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r5: a 23-digit literal is not a number: deny","request":{"cmd":"while [ $i -lt 12345678901234567890123 ]; do i=$((i+1)); done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r5: $_ is reset by every command: deny","request":{"cmd":"while [ $_ -lt 10 ]; do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
 {"name":"missing cmd is refused","request":{"op":"ops.wait"},"response":{"error":"missing field cmd"}}
