@@ -1,0 +1,5 @@
+{"name":"a terminal: the link goes to the tty, the only allowed sink","request":{"hasTty":true,"op":"console.previewLink"},"response":{"allowed":["tty"],"sink":"tty"}}
+{"name":"no terminal: no link is printed","request":{"hasTty":false,"op":"console.previewLink"},"response":{"allowed":["tty"],"sink":null}}
+{"name":"a first reissue is allowed","request":{"hasTty":true,"now":5000,"op":"console.previewLink"},"response":{"allowed":["tty"],"reissue":true,"sink":"tty"}}
+{"name":"a reissue 59.999 s after the last link is refused","request":{"hasTty":true,"last":10001,"now":70000,"op":"console.previewLink"},"response":{"allowed":["tty"],"reissue":false,"sink":"tty"}}
+{"name":"a reissue a minute after the last link is allowed","request":{"hasTty":true,"last":10000,"now":70000,"op":"console.previewLink"},"response":{"allowed":["tty"],"reissue":true,"sink":"tty"}}

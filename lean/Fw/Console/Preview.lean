@@ -69,18 +69,38 @@ structure Cand where
   contains : Bool
 deriving Repr, DecidableEq
 
+/-- One commit of main's first-parent line that contains the head (oldest first), and whether its second parent
+contains the head (`git merge-base --is-ancestor head parent2`; false for a commit with one parent).
+
+$$p = (\mathit{sha}, \mathit{p2Has}) \in \mathrm{String} \times \mathbb{B}$$ -/
+structure PathC where
+  sha : String
+  p2Has : Bool
+deriving Repr, DecidableEq
+
 /-- What the glue knows (through git) about one head candidate of a task: where the candidate came from
 (`handoff` branch line, `ci/<task>`, `origin/ci/<task>`, a branch named like the task, a merge's second
 parent), its commit, whether main contains it, whether its own commits touch only documentation, and which
-integration refs contain it (newest first).
+integration refs contain it (newest first); whether the head is itself on main's first-parent line (`fpLine`), the
+commits of that line that contain it (`path`, oldest first), for a merge's second parent whether it contains the task's own
+work (`ownWork`: it descends from `origin/ci/<task>` or the handoff branch head and is not on main's first-parent line; the
+glue sets it true for every other source), and whether another candidate holds code this one lacks (`behind`).
 
-$$f = (\mathit{src}, s, \mathit{onMain}, \mathit{noCode}, \mathit{cs})$$ -/
+$$f = (\mathit{src}, s, \mathit{onMain}, \mathit{noCode}, \mathit{cs}, \mathit{fpLine}, \mathit{path}, \mathit{ownWork}, \mathit{behind})$$ -/
 structure Fact where
   src : String
   sha : String
   onMain : Bool
   noCode : Bool
   cands : List Cand
+  /-- The head is a commit of main's first-parent line. -/
+  fpLine : Bool := false
+  /-- The commits of main's first-parent line that contain the head, oldest first (it may stop at its first `p2Has`). -/
+  path : List PathC := []
+  /-- The candidate contains the task's own work (checked for `merge` candidates). -/
+  ownWork : Bool := true
+  /-- Another candidate of the task is a descendant of this one with code beyond documentation. -/
+  behind : Bool := false
 deriving Repr, DecidableEq
 
 /-- What a preview shows.
@@ -103,37 +123,131 @@ def firstContaining (cs : List Cand) : Option Cand := cs.find? (·.contains)
 $$\operatorname{held}(f) \iff f.\mathit{onMain} \vee \exists c \in f.\mathit{cs},\ c.\mathit{contains}$$ -/
 def Fact.held (f : Fact) : Bool := f.onMain || f.cands.any (·.contains)
 
-/-- The task head among the candidates (given in priority order): the first one that main or an integration
-ref holds (a documentation-only handoff commit never hides the commit the gate ran); if none is held, the
-first candidate; no candidate, no head.
+/-- A candidate may be the head unless it is a merge's second parent that does not contain the task's own work
+(a "merge main into the branch" commit has a second parent on main's first-parent line: that is main's work, not the
+task's), or another candidate holds code it lacks (an older commit that the gate's commit has since replaced).
+
+$$\operatorname{adm}(f) \iff (f.\mathit{src} \ne \mathrm{merge} \vee f.\mathit{ownWork}) \wedge \neg f.\mathit{behind}$$ -/
+def Fact.admissible (f : Fact) : Bool := (f.src != "merge" || f.ownWork) && !f.behind
+
+/-- The rank of a candidate source: the worktree branch the handoff names, a merge's second parent, a branch named
+like the task, the newest commit touching the handoff, then `ci/<task>`, then `origin/ci/<task>`; an unknown source last.
+
+$$\operatorname{rank}(\mathit{handoff}) = 0 < \operatorname{rank}(\mathit{merge}) = 1 < \operatorname{rank}(\mathit{named}) = 2 < \operatorname{rank}(\mathit{handoffCommit}) = 3 < \operatorname{rank}(\mathit{ci}) = 4 < \operatorname{rank}(\mathit{originCi}) = 5 < 6$$ -/
+def srcRank (src : String) : Nat :=
+  match src with
+  | "handoff" => 0 | "merge" => 1 | "named" => 2 | "handoffCommit" => 3 | "ci" => 4 | "originCi" => 5 | _ => 6
+
+/-- Insert a candidate before the first one of equal or higher rank (structural, so the kernel can evaluate it).
+
+$$\operatorname{insert}(f, g :: t) = \begin{cases} f :: g :: t & \operatorname{rank}(f) \le \operatorname{rank}(g)\\ g :: \operatorname{insert}(f, t) & \text{otherwise}\end{cases}$$ -/
+def insertByRank (f : Fact) : List Fact → List Fact
+  | [] => [f]
+  | g :: t => if srcRank f.src ≤ srcRank g.src then f :: g :: t else g :: insertByRank f t
+
+/-- Inserting only adds the candidate.
+
+$$\operatorname{insert}(f, l) \sim f :: l$$ -/
+theorem insertByRank_perm (f : Fact) (l : List Fact) : (insertByRank f l).Perm (f :: l) := by
+  induction l with
+  | nil => simp [insertByRank]
+  | cons g t ih =>
+    unfold insertByRank
+    split
+    · exact List.Perm.refl _
+    · exact ((ih.cons g).trans (List.Perm.swap f g t))
+
+/-- The candidates in head priority order (a stable sort by `srcRank`; the order the glue lists them in does not matter).
+
+$$\operatorname{ordered}(fs) = \operatorname{sort}_{\le}\bigl(fs,\ f \mapsto \operatorname{rank}(f.\mathit{src})\bigr)$$ -/
+def ordered (fs : List Fact) : List Fact := fs.foldr insertByRank []
+
+/-- **Sorting loses and invents no candidate.** The ordered list is a permutation of the glue's list, so the
+glue's listing order carries no decision.
+
+$$\operatorname{ordered}(fs) \sim fs$$ -/
+theorem ordered_perm (fs : List Fact) : (ordered fs).Perm fs := by
+  induction fs with
+  | nil => simp [ordered]
+  | cons f t ih =>
+    have : (ordered (f :: t)) = insertByRank f (ordered t) := rfl
+    rw [this]
+    exact (insertByRank_perm f _).trans (ih.cons f)
+
+/-- The candidates that may be the head, in head priority order.
+
+$$\operatorname{eligible}(fs) = \operatorname{filter}(\operatorname{adm}, \operatorname{ordered}(fs))$$ -/
+def eligible (fs : List Fact) : List Fact := (ordered fs).filter Fact.admissible
+
+/-- The task head among the candidates: the first (in `eligible`) that main or an integration ref holds (a
+documentation-only handoff commit never hides the commit the gate ran; the worktree or merge head comes before
+`origin/ci`), else the first candidate; no candidate, no head. A head that main holds then previews its land commit
+(`targetOf`).
 
 $$\operatorname{pickHead}(fs) = \begin{cases}
-\text{the first } f \in fs \text{ with } \operatorname{held}(f) & \exists f \in fs,\ \operatorname{held}(f)\\
-\operatorname{head}(fs) & \text{otherwise (}\bot \text{ if } fs = [\,])
+\text{the first } f \in \operatorname{eligible}(fs) \text{ with } \operatorname{held}(f) & \text{if any}\\
+\operatorname{head}(\operatorname{eligible}(fs)) & \text{otherwise (}\bot \text{ if } \operatorname{eligible}(fs) = [\,])
 \end{cases}$$ -/
 def pickHead (fs : List Fact) : Option Fact :=
-  match fs.find? Fact.held with
+  match (eligible fs).find? Fact.held with
   | some f => some f
-  | none => fs.head?
+  | none => (eligible fs).head?
 
 /-- The integration ref whose tip is exactly the commit, among those that contain it.
 
 $$\operatorname{exactTip}(f) = \text{the first } c \in f.\mathit{cs} \text{ with } c.\mathit{contains} \wedge c.\mathit{sha} = f.s$$ -/
 def exactTip (f : Fact) : Option Cand := f.cands.find? fun c => c.contains && c.sha == f.sha
 
+/-- The commit a landed head previews (its land commit on main). A head on main's first-parent line is its own land
+commit; otherwise it is the first commit (oldest) of main's first-parent line containing the head whose second parent
+contains the head; main's tip when the glue found none.
+
+$$\operatorname{landOf}(m, f) = \begin{cases} f.s & f.\mathit{fpLine}\\ p.\mathit{sha} & \neg f.\mathit{fpLine},\ p = \text{the first } p \in f.\mathit{path} \text{ with } p.\mathit{p2Has}\\ m & \text{otherwise}\end{cases}$$ -/
+def landOf (m : String) (f : Fact) : String :=
+  if f.fpLine then f.sha else
+  match f.path.find? (·.p2Has) with
+  | some p => p.sha
+  | none => m
+
+/-- **A head on main's first-parent line is its own land commit.**
+
+$$f.\mathit{fpLine} \Rightarrow \operatorname{landOf}(m, f) = f.s$$ -/
+theorem landOf_fpLine (m : String) (f : Fact) (h : f.fpLine = true) : landOf m f = f.sha := by
+  simp [landOf, h]
+
+/-- **Otherwise the land commit is the first path commit whose second parent contains the head.**
+
+$$\neg f.\mathit{fpLine} \wedge \operatorname{find}(\mathit{p2Has}, f.\mathit{path}) = p \Rightarrow \operatorname{landOf}(m, f) = p.\mathit{sha}$$ -/
+theorem landOf_path (m : String) (f : Fact) (p : PathC) (h : f.fpLine = false)
+    (hp : f.path.find? (·.p2Has) = some p) : landOf m f = p.sha := by
+  simp [landOf, h, hp]
+
+/-- **The land commit is the head itself, main's tip, or a path commit whose second parent holds the head.**
+
+$$\operatorname{landOf}(m, f) = f.s \ \vee\ \operatorname{landOf}(m, f) = m \ \vee\ \exists p \in f.\mathit{path},\ p.\mathit{p2Has} \wedge p.\mathit{sha} = \operatorname{landOf}(m, f)$$ -/
+theorem landOf_cases (m : String) (f : Fact) :
+    landOf m f = f.sha ∨ landOf m f = m ∨ ∃ p ∈ f.path, p.p2Has = true ∧ p.sha = landOf m f := by
+  unfold landOf
+  by_cases h : f.fpLine = true
+  · simp [h]
+  · simp only [h, if_false]
+    cases hx : f.path.find? (·.p2Has) with
+    | none => simp
+    | some p => exact Or.inr (Or.inr ⟨p, List.mem_of_find?_eq_some hx, by simpa using List.find?_some hx, rfl⟩)
+
 /-- The target of one head. Order: main (landed); the integration ref whose tip is the head (the exact state
 the gate judged); the newest integration ref containing it; for a head with no code of its own that nothing
 holds, the newest integration ref (the newest state of the parts it examined); else the head itself.
 
 $$\operatorname{targetOf}(m, f) = \begin{cases}
-\mathrm{main}(m) & f.\mathit{onMain}\\
+\mathrm{main}(\operatorname{landOf}(m, f)) & f.\mathit{onMain}\\
 \mathrm{integration}(c) & c = \operatorname{exactTip}(f)\\
 \mathrm{integration}(c) & c = \operatorname{firstContaining}(f.\mathit{cs})\\
 \mathrm{integration}(\operatorname{head}(f.\mathit{cs})) & f.\mathit{noCode} \wedge f.\mathit{cs} \ne [\,]\\
 \mathrm{own}(f.s) & \text{otherwise}
 \end{cases}$$ -/
 def targetOf (mainSha : String) (f : Fact) : Target :=
-  if f.onMain then .main mainSha
+  if f.onMain then .main (landOf mainSha f)
   else match exactTip f with
     | some c => .integration c.ref c.sha
     | none => match firstContaining f.cands with
@@ -178,12 +292,13 @@ def headOf (mainSha : String) (fs : List Fact) (kss : List (List Fact)) : Option
 /-- **No work, no preview.**
 
 $$\forall m:\ \operatorname{headOf}(m, [\,], [\,]) = (\bot, \mathrm{none})$$ -/
-theorem headOf_noWork (m : String) : headOf m [] [] = (none, .none) := rfl
+theorem headOf_noWork (m : String) : headOf m [] [] = (none, .none) := by
+  simp [headOf, pickHead, eligible, ordered, umbrella]
 
 /-- **Landed means main.** A head main contains gives `main`.
 
-$$f.\mathit{onMain} \Rightarrow \operatorname{targetOf}(m, f) = \mathrm{main}(m)$$ -/
-theorem targetOf_landed (m : String) (f : Fact) (h : f.onMain = true) : targetOf m f = .main m := by
+$$f.\mathit{onMain} \Rightarrow \operatorname{targetOf}(m, f) = \mathrm{main}(\operatorname{landOf}(m, f))$$ -/
+theorem targetOf_landed (m : String) (f : Fact) (h : f.onMain = true) : targetOf m f = .main (landOf m f) := by
   simp [targetOf, h]
 
 /-- **A held head is never shown as its own.** If main or an integration ref holds the head, the target is
@@ -236,17 +351,58 @@ theorem targetOf_own (m s : String) (f : Fact) (h : targetOf m f = .own s) :
           | nil => rfl
           | cons c t => simp [hn, hcs] at h
 
-/-- **The pick is held when anything is.** If some candidate is held, the picked head is held (it is the
-first held one).
+/-- **The pick is held when anything admissible is.** If some admissible candidate is held, the picked head is held
+(it is the first held one).
 
-$$\exists f \in fs,\ \operatorname{held}(f) \Rightarrow \exists g,\ \operatorname{pickHead}(fs) = g \wedge \operatorname{held}(g)$$ -/
-theorem pickHead_held (fs : List Fact) (h : ∃ f ∈ fs, f.held = true) :
+$$\exists f \in fs,\ \operatorname{adm}(f) \wedge \operatorname{held}(f) \Rightarrow \exists g,\ \operatorname{pickHead}(fs) = g \wedge \operatorname{held}(g)$$ -/
+theorem pickHead_held (fs : List Fact) (h : ∃ f ∈ fs, f.admissible = true ∧ f.held = true) :
     ∃ g, pickHead fs = some g ∧ g.held = true := by
-  obtain ⟨f, hf, hh⟩ := h
+  obtain ⟨f, hf, ha, hh⟩ := h
+  have hmem : f ∈ eligible fs := List.mem_filter.mpr ⟨(ordered_perm fs).mem_iff.mpr hf, ha⟩
   unfold pickHead
-  cases hx : fs.find? Fact.held with
-  | none => exact absurd (List.find?_eq_none.mp hx f hf) (by simpa using hh)
+  cases hx : (eligible fs).find? Fact.held with
+  | none => exact absurd (List.find?_eq_none.mp hx f hmem) (by simpa using hh)
   | some g => exact ⟨g, rfl, List.find?_some hx⟩
+
+/-- **The first eligible candidate wins when held.** If the first eligible candidate (rank order, whatever the
+glue's listing order) is held, it is the head.
+
+$$\operatorname{eligible}(fs) = g :: t \ \wedge\ \operatorname{held}(g) \Rightarrow \operatorname{pickHead}(fs) = \mathrm{some}(g)$$ -/
+theorem pickHead_first_held (fs : List Fact) (g : Fact) (t : List Fact) (ho : eligible fs = g :: t)
+    (hg : g.held = true) : pickHead fs = some g := by
+  simp [pickHead, ho, List.find?_cons, hg]
+
+/-- **Every picked head is admissible.** Whatever the facts, the head is never a candidate the rule excludes.
+
+$$\operatorname{pickHead}(fs) = \mathrm{some}(g) \Rightarrow \operatorname{adm}(g)$$ -/
+theorem pickHead_admissible (fs : List Fact) (g : Fact) (h : pickHead fs = some g) : g.admissible = true := by
+  unfold pickHead at h
+  cases hx : (eligible fs).find? Fact.held with
+  | some f =>
+    simp only [hx, Option.some.injEq] at h
+    subst h
+    exact (List.mem_filter.mp (List.mem_of_find?_eq_some hx)).2
+  | none =>
+    simp only [hx] at h
+    exact (List.mem_filter.mp (List.mem_of_mem_head? h)).2
+
+/-- **A merge that does not contain the task's own work is never the head.** In particular a "merge main into the
+branch" commit (second parent on main's first-parent line) is never picked, in any rank order.
+
+$$f.\mathit{src} = \mathrm{merge} \wedge \neg f.\mathit{ownWork} \Rightarrow \operatorname{pickHead}(fs) \ne \mathrm{some}(f)$$ -/
+theorem pickHead_inadmissible_merge (fs : List Fact) (f : Fact) (hs : f.src = "merge") (hw : f.ownWork = false) :
+    pickHead fs ≠ some f := by
+  intro h
+  have := pickHead_admissible fs f h
+  simp [Fact.admissible, hs, hw] at this
+
+/-- **A picked head is never behind another candidate.** The head never lacks code that another candidate holds.
+
+$$\operatorname{pickHead}(fs) = \mathrm{some}(g) \Rightarrow \neg g.\mathit{behind}$$ -/
+theorem pickHead_not_behind (fs : List Fact) (g : Fact) (h : pickHead fs = some g) : g.behind = false := by
+  have := pickHead_admissible fs g h
+  simp [Fact.admissible] at this
+  exact this.2
 
 /-- **Filter invariance** (what remains of the former `target_deterministic`). For a held head, dropping the
 integration refs that do not contain it gives the same target; it is the only claim, the target is not
@@ -274,7 +430,7 @@ theorem targetOf_filter_invariant (m : String) (f : Fact) (h : f.held = true) :
   have hfc : (f.cands.filter (·.contains)).find? (·.contains) = f.cands.find? (·.contains) :=
     key f.cands _ (fun c hc => hc)
   by_cases hm : f.onMain = true
-  · simp [targetOf, hm]
+  · simp [targetOf, hm, landOf]
   · have hc : f.cands.any (·.contains) = true := by unfold Fact.held at h; simpa [hm] using h
     have hs : (f.cands.find? (·.contains)).isSome = true := by
       rw [List.find?_isSome]; simpa using hc
@@ -657,5 +813,88 @@ theorem tick_within_period (d τ : Nat) (h : τ ≤ d) :
 
 $$\operatorname{reap}(T) = ([\,], T)$$ -/
 theorem reap_all (s : List Pv) : (reap s).1 = [] ∧ (reap s).2 = s := ⟨rfl, rfl⟩
+
+/-! ## The owner link: where it may be written -/
+
+/-- Every place the console could write the one-time owner link.
+
+$$\mathrm{Sink} = \mathrm{tty} \mid \mathrm{stdout} \mid \mathrm{stderr} \mid \mathrm{file} \mid \mathrm{log} \mid \mathrm{eventStore}$$ -/
+inductive Sink where
+  | tty | stdout | stderr | file | log | eventStore
+deriving Repr, DecidableEq
+
+/-- The link may go to a sink iff it is the controlling terminal (a process's stdout can be a file any agent reads).
+Stated limit (INFERRED): `tty` means a terminal exists, not that it is the user's; a same-UID process can allocate a
+pseudo-terminal and read the link there.
+
+$$\operatorname{linkSink}(s) \iff s = \mathrm{tty}$$ -/
+def linkSink (s : Sink) : Bool := s == .tty
+
+/-- What the console does with the link: write it to the terminal when it has one, else print no link (the user asks
+for one with the `owner-link` command, which itself needs a terminal).
+
+$$\operatorname{linkPlan}(t) = \begin{cases}\mathrm{some}(\mathrm{tty}) & t\\ \bot & \neg t\end{cases}$$ -/
+def linkPlan (hasTty : Bool) : Option Sink := if hasTty then some .tty else none
+
+/-- **The link is allowed only on the terminal.**
+
+$$\operatorname{linkSink}(s) = \mathrm{true} \iff s = \mathrm{tty}$$ -/
+theorem linkSink_iff (s : Sink) : linkSink s = true ↔ s = .tty := by
+  cases s <;> simp [linkSink]
+
+/-- **No file sink.** The link is never written to a file (so not to a redirected stdout, a log, or the event store).
+
+$$\operatorname{linkSink}(\mathrm{file}) = \mathrm{false}$$ -/
+theorem no_file_sink : linkSink .file = false := rfl
+
+/-- **No non-terminal sink.** Stdout, stderr, a file, a log and the event store are all refused.
+
+$$s \ne \mathrm{tty} \Rightarrow \operatorname{linkSink}(s) = \mathrm{false}$$ -/
+theorem no_nontty_sink (s : Sink) (h : s ≠ .tty) : linkSink s = false := by
+  cases s <;> simp_all [linkSink]
+
+/-- **The plan only chooses an allowed sink,** and only when there is a terminal.
+
+$$\operatorname{linkPlan}(t) = \mathrm{some}(s) \Rightarrow \operatorname{linkSink}(s) \wedge t$$ -/
+theorem linkPlan_ok (t : Bool) (s : Sink) (h : linkPlan t = some s) : linkSink s = true ∧ t = true := by
+  cases t <;> simp_all [linkPlan, linkSink]
+
+/-- With no terminal the console prints no link.
+
+$$\operatorname{linkPlan}(\mathrm{false}) = \bot$$ -/
+theorem linkPlan_no_tty : linkPlan false = none := rfl
+
+/-! ## Re-issuing the link -/
+
+/-- The least time between two owner links (ms): one per minute, so a process of the same user that signals the console
+cannot keep invalidating the link the user has not opened yet.
+
+$$\mathit{gap} = 60000$$ -/
+def reissueGap : Nat := 60000
+
+/-- May a new owner link be issued at `now`, the last having been issued at `last` (none yet: yes).
+
+$$\operatorname{mayReissue}(\mathit{last}, \mathit{now}) = \begin{cases} \mathrm{true} & \mathit{last} = \bot\\ \mathit{last} + \mathit{gap} \le \mathit{now} & \text{otherwise}\end{cases}$$ -/
+def mayReissue (last : Option Nat) (now : Nat) : Bool :=
+  match last with
+  | none => true
+  | some l => decide (l + reissueGap ≤ now)
+
+/-- **Two links are at least a minute apart.** A reissue is allowed only when the last link is at least `gap` old.
+
+$$\operatorname{mayReissue}(\mathrm{some}(l), n) \Rightarrow l + \mathit{gap} \le n$$ -/
+theorem mayReissue_gap (l n : Nat) (h : mayReissue (some l) n = true) : l + reissueGap ≤ n := by
+  simpa [mayReissue] using h
+
+/-- **A reissue inside the minute is refused.**
+
+$$n < l + \mathit{gap} \Rightarrow \operatorname{mayReissue}(\mathrm{some}(l), n) = \mathrm{false}$$ -/
+theorem mayReissue_refused (l n : Nat) (h : n < l + reissueGap) : mayReissue (some l) n = false := by
+  simp [mayReissue]; omega
+
+/-- **The first link is always allowed.**
+
+$$\operatorname{mayReissue}(\bot, n) = \mathrm{true}$$ -/
+theorem mayReissue_first (n : Nat) : mayReissue none n = true := rfl
 
 end Fw.Console.Preview

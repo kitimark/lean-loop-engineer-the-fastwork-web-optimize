@@ -86,6 +86,94 @@ async function setup(opts: { disk?: { mb: number } } = {}) {
   return { root, dir, store, pm, clock, secret: readFileSync(join(dir, "secret"), "utf8").trim() };
 }
 
+describe("panel head (Lean headOf over gathered facts): worktree/merge head before origin/ci; landed -> its land commit", () => {
+  it("an unlanded task shows its merge or worktree head, not the older ci/<task> ref", async () => {
+    const { pm, root } = await setup();
+    sh(root, "checkout", "-qb", "ci/fix-two");
+    writeFileSync(join(root, "c.txt"), "1"); sh(root, "add", "-A"); sh(root, "commit", "-qm", "fix-two A");
+    sh(root, "checkout", "-qb", "wt-two");
+    writeFileSync(join(root, "c.txt"), "2"); sh(root, "add", "-A"); sh(root, "commit", "-qm", "fix-two B");
+    writeFileSync(join(root, "docs/team/handoffs/fix-two.md"), "worktree notes\n"); // the handoff lives on the worktree branch; it names no branch
+    sh(root, "add", "-A"); sh(root, "commit", "-qm", "fix-two handoff");
+    const b = sh(root, "rev-parse", "--short=7", "HEAD");
+    sh(root, "checkout", "-q", "integrate-ports-9"); // the integration branch holds both the older ci/fix-two and the worktree head
+    sh(root, "merge", "--no-ff", "-qm", "integrate fix-two", "wt-two");
+    sh(root, "checkout", "-q", "main");
+    writeFileSync(join(root, "docs/team/work-graph.json"), JSON.stringify({ tasks: [{ id: "fix-two", title: "two", deps: [], owner: "o", writes: [] }] }));
+    sh(root, "add", "-A"); sh(root, "commit", "-qm", "wg");
+    const d = await pm.decision("fix-two");
+    expect(d.head).toBe(b); // not the older ci/fix-two
+    expect(d.headSrc).toBe("merge");
+  });
+
+  it("a landed task previews its land commit on main, not main's tip", async () => {
+    const { pm, root } = await setup();
+    sh(root, "checkout", "-qb", "ci/fix-land");
+    writeFileSync(join(root, "d.txt"), "1"); sh(root, "add", "-A"); sh(root, "commit", "-qm", "fix-land work");
+    sh(root, "checkout", "-q", "main");
+    sh(root, "merge", "--no-ff", "-qm", "land ci/fix-land", "ci/fix-land");
+    const land = sh(root, "rev-parse", "--short=7", "HEAD");
+    writeFileSync(join(root, "e.txt"), "1"); sh(root, "add", "-A"); sh(root, "commit", "-qm", "later work on main");
+    writeFileSync(join(root, "docs/team/work-graph.json"), JSON.stringify({ tasks: [{ id: "fix-land", title: "l", deps: [], owner: "o", writes: [] }] }));
+    sh(root, "add", "-A"); sh(root, "commit", "-qm", "wg");
+    const d = await pm.decision("fix-land");
+    expect(d.kind).toBe("main");
+    expect(d.sha).toBe(land);
+  });
+});
+
+describe("panel head: admissibility and land commit (Lean pickHead, landOf)", () => {
+  const wg = (root: string, id: string) => {
+    writeFileSync(join(root, "docs/team/work-graph.json"), JSON.stringify({ tasks: [{ id, title: id, deps: [], owner: "o", writes: [] }] }));
+    sh(root, "add", "-A"); sh(root, "commit", "-qm", "wg");
+  };
+  it("a 'merge main into <branch>' commit is never the head: its second parent is main's work", async () => {
+    const { pm, root } = await setup();
+    sh(root, "checkout", "-qb", "fix-mm");
+    writeFileSync(join(root, "mm.txt"), "1"); sh(root, "add", "-A"); sh(root, "commit", "-qm", "fix-mm work");
+    sh(root, "checkout", "-q", "main");
+    writeFileSync(join(root, "other.txt"), "1"); sh(root, "add", "-A"); sh(root, "commit", "-qm", "unrelated work on main");
+    sh(root, "checkout", "-q", "fix-mm");
+    sh(root, "merge", "--no-ff", "-qm", "merge main (fix-mm)", "main");
+    const tip = sh(root, "rev-parse", "--short=7", "HEAD");
+    const mainWork = sh(root, "rev-parse", "--short=7", "main");
+    sh(root, "checkout", "-q", "main");
+    wg(root, "fix-mm");
+    const d = await pm.decision("fix-mm");
+    expect(d.head).toBe(tip);
+    expect(d.head).not.toBe(mainWork);
+    expect(d.headSrc).toBe("named");
+  });
+
+  it("a head that is a direct commit on main is its own land commit", async () => {
+    const { pm, root } = await setup();
+    writeFileSync(join(root, "direct.txt"), "1"); sh(root, "add", "-A"); sh(root, "commit", "-qm", "fix-direct work");
+    const own = sh(root, "rev-parse", "--short=7", "HEAD");
+    sh(root, "branch", "fix-direct");
+    writeFileSync(join(root, "later.txt"), "1"); sh(root, "add", "-A"); sh(root, "commit", "-qm", "later work on main");
+    wg(root, "fix-direct");
+    const d = await pm.decision("fix-direct");
+    expect(d.kind).toBe("main");
+    expect(d.sha).toBe(own);
+    expect(d.head).toBe(own);
+  });
+
+  it("a landed merge: the land commit is the first line commit whose second parent holds the head (found by bisection)", async () => {
+    const { pm, root } = await setup();
+    sh(root, "checkout", "-qb", "ci/fix-bis");
+    writeFileSync(join(root, "bis.txt"), "1"); sh(root, "add", "-A"); sh(root, "commit", "-qm", "fix-bis work");
+    sh(root, "checkout", "-qb", "carrier"); // a branch that merges the work, then lands: the work reaches main through two merges
+    sh(root, "checkout", "-q", "main");
+    sh(root, "merge", "--no-ff", "-qm", "land carrier of ci/fix-bis", "ci/fix-bis");
+    const land = sh(root, "rev-parse", "--short=7", "HEAD");
+    for (const n of ["x", "y", "z"]) { writeFileSync(join(root, `${n}.txt`), "1"); sh(root, "add", "-A"); sh(root, "commit", "-qm", `later ${n}`); }
+    wg(root, "fix-bis");
+    const d = await pm.decision("fix-bis");
+    expect(d.kind).toBe("main");
+    expect(d.sha).toBe(land);
+  });
+});
+
 describe("PreviewManager (Lean console.preview* decisions, real server child)", () => {
   it("target (Lean): landed -> main, integrated only -> integration ref, unintegrated -> own head, no work -> none", async () => {
     const { pm } = await setup();
