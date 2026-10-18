@@ -249,7 +249,9 @@
     "Fw.Engine.claim_ne_dominates_of_layers",
     "Fw.Engine.WebKit.style_rate_model",
     "Fw.Engine.WebKit.style_rate_old_refuted",
-    "Fw.Parts.HeroExitOpt.wk_trade_not_general"
+    "Fw.Parts.HeroExitOpt.wk_trade_not_general",
+    "Fw.Parts.HeroExitOpt.wk_var_exact",
+    "Fw.Parts.HeroExitOpt.wkVar_eq"
    ],
    "missingWhy": [
     {
@@ -363,7 +365,7 @@
    "premises": [
     "the rAF time equals the document timeline time (R5): CONFIRMED in both engines; the lane clock shim breaks it unless an offset is added",
     "the WebKit legacy CA path accepts keyword-linear multi-keyframe transforms: CONFIRMED (legacy_rejects)",
-    "every rendering update ticks relevant accelerated animations and invalidates their style: CONFIRMED at the pin (cites above); not in the Lean model",
+    "every rendering update ticks relevant accelerated animations and invalidates their style: CONFIRMED at the pin for scroll timelines and now in the Lean model (withAnim, wkTicks); MEASURED false for an accelerated animation on the document timeline: 0 style recalcs in 53 of 53 updates with the animation running (time-accel fixture, wktr-p1p4), which confirms Fw.Engine.WebKit.compFrame_zero and time_comp_no_ride",
     "CA 80-120 Hz on the iPhone: CONFIRMED in source, OPEN on the device (v1 C9 UNRESOLVED)"
    ],
    "v1Evidence": "../fastwork-com-web-optimize/research/gpu-lessons/README.md §1.1-1.3: countdown script calls per roll 23-26 -> 1; main frames 295-306 -> 250-262 per 6 s full page, 205 -> 79 on a frozen page; Paint and Layout equal; Simulator RenderingFrame 223/206 vs 210/203 per 4 s; 52-66 keyframes per cell per roll; the 60 Hz and 120 Hz paths differ by up to 29.6 px. The user accepted it as a near-identical look (PR-017).",
