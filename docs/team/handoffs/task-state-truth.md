@@ -1,30 +1,30 @@
 # task-state-truth (handoff)
 
-State: branch `worktree-wf_f085afd7-2cc-1`, round 4 (conform to the round-3 final design), commits 3a5b058..HEAD,
-main merged; check.sh green; vitest console-api 321, runner 1005, console-web 9; `fw land --dry` VERDICT dry with
-`--allow lean/Fw/Console.lean --allow lean/Fw/Ops/Obs.lean --allow "lean/Fw/Obs/*.lean"` (svc.sweepError).
+State: branch `worktree-wf_82415a69-e43-1`, round 5 (lead's closed redesign, final round), commits 51d48c6d..HEAD on
+round 4 (`worktree-wf_f085afd7-2cc-1`). check.sh green; vitest console-api 322, runner 1018, console-web 11; main merged (4fe8185e).
 Root cause (MEASURED, round 1): strict zod `ObsRecord` refused every SubagentStop carrying `background_tasks`.
 
-## Round 4 (lead decisions, done)
-- **Identity only**: every life event is keyed by an agent id, a run key `wf:<run>` or a spawn guard's obs key; a name
-  is only a label (`agent.label`). Lean `wfAllEvents_identity`, `life_identity`, `byGuard`; `byName` is gone. TS:
-  workflow.ts (`wfr`/`wfid` event keys), drain.ts (`lifeOf` has no name; label decisions submit `agent.label`).
-- **Concurrency**: `concurrent_keep` (a stop of one key never ends a name another live key carries),
-  `workflow_concurrent`; real-events golden "concurrent agents" (seq 1113/1114/1118) in Fw/Plan/Golden.lean.
-- **No swallowed throw**: every caught fwcore throw in the sweep or drain (admit, workflow, label, timeout, fieldAlert,
-  lifeOf, alertPlan) is counted per op in `.fw-console/sweep-errors.json` {pid, count, ops} plus spool issue
-  `sweep:<op>`; the runner reads it for the live api pid; fwcore raises `svc.sweepError` (`sweep_error_alerts`).
-- **Backfill**: the 23 agent.stop lines carry `at` = the journal time of their cited seq, keyed by id/name life key.
+## Round 5 (lead decisions, done)
+- **Quiet**: `TState.quiet`; a live key not sighted within q (`quietMs` = 120 min) shows quiet with `since` = its last
+  sighting, derived at query time (`view q now`). No timeout stop exists: `plan.timeouts` and `timeoutSweep` are gone.
+  Lean (Fw/Plan/Core.lean): `running_needs_recent_sighting`, `no_forever_running`, `ended_needs_identity_stops`,
+  `timeout_never_ends`, `names_never_sight`, `claim_never_sights`.
+- **Identity keys only**: agent id, `wf:<run>`, SpawnGuard obs key; `keysOf` drops the name, a claim never sights.
+- **Workflow** (Fw/Plan/Workflow.lean, workflow.ts): every agent of a run whose name is a task id binds that task
+  (`run_task_binds`), plus its label task; a journal `failed` line stops the id like `result`.
+- **drain.ts**: `once()` body in one try; a throw is `caught("drain")` (spool.test "rejecting core").
+- **Backfill**: the 23 name-keyed agent.stop lines are dropped (names never sight, so they ended nothing); 17 remain.
+- **Replay**: `research/notes/2026/10-18-task-state-truth.md`: running 10 -> 2, quiet 0 -> 17, parked 0 -> 7 (27 rows).
+- console-web Plan.tsx: Quiet group under Running with "last seen N min ago" (`quietLabel`, test/plan-quiet).
 
 ## Lead steps
-1. Land; restart console-api; let one drain run (first drain on the real spool: 85 s, 6249 accepted, 24 timeouts).
-2. Apply `docs/team/backfill/task-state-2026-10-18.jsonl` via `fw send`, one line at a time, actor lead, drop `cite`,
-   keep `at`. Replay (read-only copy): all 40 accepted, running 25 -> 8, parked 4 -> 13, integrated 13, handedBack 1.
+1. Land; restart console-api; let one drain run.
+2. Apply `docs/team/backfill/task-state-2026-10-18.jsonl` via `fw send`, one line at a time, actor lead, drop `cite`.
 
 ## Stated limits
-Forged events; 10-min display lag after restart (epochs reset, heartbeats bucketed); a SpawnGuard bridge key ends
-only at the 120-min quiet timeout (the Agent PostToolUse returns in p50 1.3 s, MEASURED, so it cannot end it);
-legacy name-keyed events stay in the log and `keysOf` keeps the name; an id binds only once `fw watch` labels it;
-sweep-error counts reset on restart.
+Forged events; 10-min display lag after restart; a teammate between turns shows quiet or ended; quiet lasts until
+someone acts (a stop, or a lead/user mark); a SpawnGuard key has no spool stop producer (SubagentStop carries no obs
+key), so it ends as quiet; legacy name-keyed events stay in the log and do nothing; sweep-error counts reset on restart.
+No checker subagent was available in this session (no spawn tool): the docstrings were self-checked only.
 
-Read first: `lean/Fw/Plan/Workflow.lean` (identity, concurrency), `lean/Fw/Ops/Obs.lean` life, drain.ts `caught`.
+Read first: `lean/Fw/Plan/Core.lean` (search `running_needs_recent_sighting`), `lean/Fw/Plan/Workflow.lean`, drain.ts.
