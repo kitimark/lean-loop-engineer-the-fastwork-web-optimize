@@ -17,14 +17,44 @@ export const HOLD_LOAD_MS = 8000;
 export const READY_TO_MS = 10000;
 /** Fake time advanced after a live resize, ms: the same in both arms (debounced resize handlers and timers have run). */
 export const POST_RESIZE_MS = 1000;
-/** Before a resize the clock is aligned to the next multiple of this, ms: the settle wait reads at most (F + 1) steps = 976 ms
- *  (Lean Fw.Gate.Freeze.settleSpan), so POST_RESIZE_MS + 976 < GRID_MS and both arms leave each stop at the same instant. */
-export const GRID_MS = 2000;
+/** Offset of the first observation of a stop from the stop base, ms (Lean Fw.Gate.Freeze.mainOff): room for the post-resize
+ *  advance and the longest settle wait (Lean mainOff_fits). */
+export const MAIN_OFF_MS = 2000;
+/** Length of one observation slot, ms (Lean Fw.Gate.Freeze.slotMs). */
+export const SLOT_MS = 4000;
 /** Real-time grace the original gets after `load` before its clock is advanced, ms: its hydration has no flag to wait on. */
 export const ORIG_GRACE_MS = 1500;
 
-/** The next multiple of `grid` strictly after `elapsed` (the absolute instant a stop is aligned to). */
-export const alignTarget = (elapsed, grid = GRID_MS) => (Math.floor(elapsed / grid) + 1) * grid;
+/** Lean Fw.Gate.Freeze.instant: the absolute fake time of the observation of rank `k` of a stop with base `b`. */
+export const instant = (b, k) => b + MAIN_OFF_MS + SLOT_MS * k;
+/** Lean Fw.Gate.Freeze.stopSpan: the length of a stop with `n` overlay and view readings. */
+export const stopSpan = (n) => MAIN_OFF_MS + SLOT_MS * (n + 2);
+/** Lean Fw.Gate.Freeze.stopBase: the base of stop `i` of a sweep (stop 0 is the first load). */
+export const stopBase = (i, n) => READY_TO_MS + i * stopSpan(n);
+/** Lean Fw.Gate.Freeze.ovRank / mountRank / viewRank: the rank of the overlay `j`, of the mount reading, of the view reading `q`. */
+export const ovRank = (j) => 1 + j;
+export const mountRank = (nOv) => nOv + 1;
+export const viewRank = (nOv, q) => nOv + 2 + q;
+
+/** Lean Fw.Gate.Freeze.Step.apply over a list of steps `['rel', d] | ['hold', t]`: the clock after the work. */
+export const clockAfter = (c, work) => work.reduce((x, [k, v]) => (k === 'rel' ? x + v : Math.max(x, v)), c);
+/** Lean Fw.Gate.Freeze.readings: the clock at every observation (after the stage's work the harness holds to `at`). */
+export function readings(c, stages) {
+  const out = [];
+  for (const { work, at } of stages) {
+    c = Math.max(clockAfter(c, work), at);
+    out.push(c);
+  }
+  return out;
+}
+/** Lean Fw.Gate.Freeze.fits: every stage's work ends at or before its instant. */
+export function fits(c, stages) {
+  for (const { work, at } of stages) {
+    if (clockAfter(c, work) > at) return false;
+    c = at;
+  }
+  return true;
+}
 
 /** Lean Fw.Gate.Freeze.freezeTime: the current time the freeze pass gives an animation (iterations null = infinite). */
 export const freezeTime = (a) => (a.iterations === null ? a.delay + Math.floor(a.dur / 2) : a.delay + a.iterations * a.dur);
@@ -37,3 +67,25 @@ export function frozenTrace(run, stable, hover) {
 
 /** The wait over a frozen page (what Lean waitList gives for the golden traces). */
 export const frozenWait = (policy, run, stable, hover) => waitTrace(policy, frozenTrace(run, stable, hover));
+
+/** A sample's record of the observations that were not at their instant (the clock was already past it). */
+export const newRec = () => ({ misses: [] });
+/** Record a miss when the clock `got` is not the instant `at` asked for; true when it is. */
+export function checkAt(rec, label, at, got) {
+  if (got === at) return true;
+  rec.misses.push({ label, at, got });
+  return false;
+}
+/**
+ * One observation at the absolute instant `T` (Lean Fw.Gate.Freeze.readings): hold the clock to T, freeze the animations, and
+ * check that the clock reads T. A session without a frozen clock (the gaps lane, FW_GATE_FROZEN=0) observes at once.
+ */
+export async function observeAt(s, T, freeze, rec, label) {
+  if (!s.holdTo) return true;
+  await s.holdTo(T);
+  await s.evaluate(freeze);
+  return checkAt(rec, label, T, s.clockMs());
+}
+/** Lean Fw.Gate.Freeze.instantOutcome folded into the sample: null when every reading was on time (that changes nothing, Lean
+ *  fit_keeps_outcome); a late reading makes the sample unsettled (Lean unfit_never_pass). */
+export const lateWait = (rec) => (rec.misses.length === 0 ? null : { outcome: 'unsettled', observations: 0, waitedMs: 0, parked: true });

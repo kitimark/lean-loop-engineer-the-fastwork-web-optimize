@@ -8,7 +8,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { GATE_POLICY } from '../src/settle.mjs';
-import { GRID_MS, HOLD_LOAD_MS, POST_RESIZE_MS, READY_TO_MS, STEP_MS, alignTarget, freezeTime, frozenWait } from '../src/freeze.mjs';
+import { HOLD_LOAD_MS, MAIN_OFF_MS, POST_RESIZE_MS, READY_TO_MS, SLOT_MS, STEP_MS, fits, freezeTime, frozenWait, instant, lateWait, mountRank, newRec, observeAt, ovRank, readings, stopBase, viewRank } from '../src/freeze.mjs';
 import { KIT_SRC, freezeAnimations } from '../src/page.mjs';
 import { PKG } from '../src/serve.mjs';
 import { FREEZE_GOLDEN, freezegen } from '../scripts/freezegen.mjs';
@@ -66,16 +66,82 @@ test('freeze: a finite animation was running before exactly while its elapsed ti
   }
 });
 
-test('the harness grid: a stop plus the settle span fits one grid cell, and the align target is the next multiple', () => {
-  assert.ok(POST_RESIZE_MS + (GATE_POLICY.maxFrames + 1) * STEP_MS < GRID_MS);
-  assert.ok(HOLD_LOAD_MS < READY_TO_MS && READY_TO_MS < GRID_MS * 6);
-  for (const e of [0, 1, 1999, 2000, 10000, 10976, 11999]) {
-    const t = alignTarget(e);
-    assert.equal(t % GRID_MS, 0);
-    assert.ok(t > e && t - e <= GRID_MS);
+/** A fake frozen session: the same contract as engines.mjs freezeClock (advance moves the clock, holdTo never moves it back). */
+function mockSession() {
+  let elapsed = 0;
+  return {
+    advance: async (ms) => { elapsed += ms; },
+    holdTo: async (abs) => { elapsed += Math.max(0, abs - elapsed); },
+    clockMs: () => elapsed,
+    evaluate: async () => true,
+  };
+}
+const freezeNoop = () => true;
+
+test('clock constants and the instants are the Lean ones', () => {
+  const [c] = of('clock');
+  assert.deepEqual({ stepMs: STEP_MS, readyTo: READY_TO_MS, postResize: POST_RESIZE_MS, mainOff: MAIN_OFF_MS, slotMs: SLOT_MS }, { stepMs: c.stepMs, readyTo: c.readyTo, postResize: c.postResize, mainOff: c.mainOff, slotMs: c.slotMs });
+  assert.ok(of('instant').length >= 8);
+  for (const l of of('instant')) {
+    assert.equal(stopBase(l.stop, l.readings), l.base, JSON.stringify(l));
+    assert.equal(instant(stopBase(l.stop, l.readings), l.rank), l.value, JSON.stringify(l));
   }
-  // two arms anywhere inside the same cell go to the same instant (Lean alignTarget_eq)
-  assert.equal(alignTarget(10000), alignTarget(11975));
+  // Lean mainOff_fits, stopBase_succ, instant_before_next, rank_order
+  assert.ok(POST_RESIZE_MS + (GATE_POLICY.maxFrames + 1) * STEP_MS <= MAIN_OFF_MS);
+  assert.ok(HOLD_LOAD_MS < READY_TO_MS);
+  for (const n of [0, 1, 2, 5]) for (const i of [0, 1, 7]) {
+    assert.equal(stopBase(i + 1, n), instant(stopBase(i, n), n + 2));
+    assert.ok(instant(stopBase(i, n), n + 1) + SLOT_MS <= stopBase(i + 1, n));
+    for (let j = 0; j < n; j++) assert.ok(0 < ovRank(j) && ovRank(j) < mountRank(n) && mountRank(n) < viewRank(n, 0));
+  }
+});
+
+test('readings and fits: the node twins and the mock session both give the Lean readings', async () => {
+  assert.ok(of('readings').length >= 8);
+  for (const l of of('readings')) {
+    assert.deepEqual(readings(l.start, l.stages), l.readings, l.name);
+    assert.equal(fits(l.start, l.stages), l.fits, l.name);
+    // the harness path: do the arm's work, hold to the instant, read the clock (observeAt), on a clock that starts at `start`
+    const s = mockSession();
+    await s.holdTo(l.start);
+    const rec = newRec();
+    const got = [];
+    for (const { work, at } of l.stages) {
+      for (const [k, v] of work) await (k === 'rel' ? s.advance(v) : s.holdTo(v));
+      await observeAt(s, at, freezeNoop, rec, 'x');
+      got.push(s.clockMs());
+    }
+    assert.deepEqual(got, l.readings, l.name);
+    assert.equal(rec.misses.length === 0, l.fits, l.name);
+    assert.equal(lateWait(rec) === null, l.fits, l.name);
+  }
+});
+
+test('both arms are read at the same instants, whatever the original did before (an orig-only mount step)', async () => {
+  const base = stopBase(0, 0);
+  const run = async (mountMs) => {
+    const s = mockSession();
+    await s.holdTo(READY_TO_MS);
+    const rec = newRec();
+    await s.advance(16 * 23);
+    const seen = [];
+    await observeAt(s, instant(base, 0), freezeNoop, rec, 'main');
+    seen.push(s.clockMs());
+    await s.advance(mountMs);
+    await observeAt(s, instant(base, mountRank(0)), freezeNoop, rec, 'mount');
+    seen.push(s.clockMs());
+    return { seen, rec };
+  };
+  const rewrite = await run(0);
+  const orig = await run(48 + 150 + 48 + 300 + 16 * 5);
+  assert.ok(orig.rec.misses.length === 0 && rewrite.rec.misses.length === 0);
+  assert.deepEqual(orig.seen, rewrite.seen);
+  assert.deepEqual(orig.seen, [instant(base, 0), instant(base, 1)]);
+  // a mount stage longer than one slot is read late: the sample is flagged and unsettled, never read as if it were on time
+  const late = await run(SLOT_MS + 1);
+  assert.equal(late.rec.misses.length, 1);
+  assert.deepEqual(lateWait(late.rec), { outcome: 'unsettled', observations: 0, waitedMs: 0, parked: true });
+  assert.notDeepEqual(late.seen, rewrite.seen);
 });
 
 test('exit.jsonl is the bytes Lean generates (Fw.Gate.Exit.goldenLines)', { skip: !existsSync(resolve(ROOT, 'lean/.lake/build')) && 'lean not built' }, () => {

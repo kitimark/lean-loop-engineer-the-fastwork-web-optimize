@@ -248,6 +248,13 @@ export async function prepareInPage(arg) {
   return found;
 }
 
+/** Freeze the document's animations now: the page-side half of an observation at an instant (freeze.mjs observeAt). */
+export function freezeInPage() {
+  const K = window.__fwk;
+  if (K) K.freeze();
+  return true;
+}
+
 /**
  * After a live resize: one frame, so the engine has applied it. Nothing else is waited for here: the gate's settle wait
  * (settleInPage, Fw.Gate.Settle) follows and ends on events (two real frames, nothing running, the probed values quiet),
@@ -257,7 +264,7 @@ export async function waitResize(arg) {
   const K = window.__fwk;
   if (K && arg && arg.holdTo !== undefined) {
     // frozen clock: four steps (the resize observers fire on the first real frame and what they schedule runs on the next ones),
-    // then to the absolute instant every arm reaches (run.mjs: the aligned instant plus the post-resize advance), then the freeze
+    // then to the absolute instant every arm reaches (run.mjs: the stop base plus the post-resize advance), then the freeze
     for (let i = 0; i < 4; i++) await K.frame();
     K.freeze();
     await K.holdTo(arg.holdTo);

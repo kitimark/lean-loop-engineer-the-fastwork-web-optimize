@@ -5,8 +5,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
 import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
-import { KIT_SRC, PIN_SRC, bringInPage, collectInPage, prepareInPage, scrollTopInPage, settleInPage, waitReady, waitResize } from './page.mjs';
-import { GRID_MS, HOLD_LOAD_MS, ORIG_GRACE_MS, POST_RESIZE_MS, READY_TO_MS, STEP_MS, alignTarget } from './freeze.mjs';
+import { KIT_SRC, PIN_SRC, bringInPage, collectInPage, freezeInPage, prepareInPage, scrollTopInPage, settleInPage, waitReady, waitResize } from './page.mjs';
+import { HOLD_LOAD_MS, MAIN_OFF_MS, ORIG_GRACE_MS, POST_RESIZE_MS, READY_TO_MS, SLOT_MS, STEP_MS, checkAt, instant, lateWait, mountRank, newRec, observeAt, ovRank, stopBase, viewRank } from './freeze.mjs';
 import { GATE_POLICY, fold, idlePolicy, view, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
@@ -104,15 +104,31 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     .filter(([, steps]) => steps.length > 0));
   const mountOf = Object.fromEntries(SITES.map((site) => [site, stepsOf(site, 'mount')]));
   const overlayOf = Object.fromEntries(SITES.map((site) => [site, stepsOf(site, 'overlay')]));
-  const evalReady = (s, site) => s.evaluate(waitReady, { site, capMs: CAP_MS[site], ...(frozen ? { holdMs: HOLD_LOAD_MS, readyToMs: READY_TO_MS, graceMs: site === 'orig' ? ORIG_GRACE_MS : 0 } : {}) });
-  // The frozen clock before a live resize: aligned to the next grid instant, so both arms leave the previous stop at the same fake
-  // time (Lean Fw.Gate.Freeze.alignTarget_eq), and the post-resize advance ends at the same instant in both arms.
-  const resizeTo = async (s, next) => {
+  // The ready wait ends with a hold to READY_TO_MS in both arms; the clock read there is checked (a miss is recorded in `rec`).
+  const evalReady = async (s, site, rec) => {
+    const r = await s.evaluate(waitReady, { site, capMs: CAP_MS[site], ...(frozen ? { holdMs: HOLD_LOAD_MS, readyToMs: READY_TO_MS, graceMs: site === 'orig' ? ORIG_GRACE_MS : 0 } : {}) });
+    if (frozen) checkAt(rec, 'ready', READY_TO_MS, s.clockMs());
+    return r;
+  };
+  // The instants (Lean Fw.Gate.Freeze.instant, stopBase, both_arms_same_instant): every observation of a stop is read at an absolute
+  // fake time that depends on the stop index and the reading's rank alone, never on what the arm did before (the original runs a
+  // mount stage the rewrite does not; an overlay arm opens and closes a dialog). The parts that need work in one arm are the union
+  // over both arms, so an arm without that work still holds to the same instant and reads there.
+  const unionIds = (of) => Object.keys(activeParts).filter((pid) => SITES.some((site) => of[site][pid]));
+  const ovIds = unionIds(overlayOf);
+  const mtIds = unionIds(mountOf);
+  for (const pid of mtIds) if (ovIds.includes(pid)) throw new Error(`anchors.json ${pid}: a part cannot have both a mount and an overlay prepare step (each has its own observation instant)`);
+  const plainIds = Object.keys(activeParts).filter((pid) => !ovIds.includes(pid) && !mtIds.includes(pid));
+  const readingCount = (view) => ovIds.length + (view ? plainIds.length : 0);
+  // The frozen clock before a live resize: hold to the stop base, resize, four frames, hold to base + POST_RESIZE_MS.
+  const resizeTo = async (s, next, i, view, rec) => {
     if (!frozen) { await s.resize(next); await s.evaluate(waitResize); return; }
-    await s.holdTo(alignTarget(s.clockMs(), GRID_MS));
-    const base = s.clockMs();
+    const base = stopBase(i, readingCount(view));
+    await s.holdTo(base);
+    checkAt(rec, `stop ${i}`, base, s.clockMs());
     await s.resize(next);
     await s.evaluate(waitResize, { holdTo: base + POST_RESIZE_MS });
+    checkAt(rec, `resize ${i}`, base + POST_RESIZE_MS, s.clockMs());
   };
   // The settle wait (Lean Fw.Gate.Settle, settle.mjs): before anything is collected, in both arms and both engines, the pointer is
   // parked where it is over no probed element (hover cannot move a probed value), then the page is observed on real frames
@@ -154,38 +170,53 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const collectArg = (site, env, props, parts, view = false) => ({
     site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts, props, flagSkipped: view, filter: FILTER[site],
   });
-  async function evalCollect(s, site, env, props, settleRoots, view = false) {
-    const mountIds = Object.keys(mountOf[site]);
-    const overlayIds = Object.keys(overlayOf[site]);
-    const pick = (ids, inside) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => ids.includes(pid) === inside));
-    const raw = await s.evaluate(collectInPage, collectArg(site, env, props, pick([...mountIds, ...overlayIds], false), view));
-    for (const pid of overlayIds) {
-      const steps = overlayOf[site][pid];
-      await s.evaluate(prepareInPage, { stage: 'open', steps, capMs: CAP_MS[site] });
-      // an opened overlay animates in (WebKit run 39067170911 read the signup dialog at scale 0.9977): settle it before reading
-      if (settleRoots) (raw.overlaySettle ||= []).push(await settleRoots(partsArg[site][pid].map((r) => r.selector), env));
+  // `ctx` = { base, rec } (frozen only): the stop base and the sample's record of readings that missed their instant. Order of the
+  // readings and their ranks (Lean Fw.Gate.Freeze): the main parts 0, overlay j = 1 + j, the mount parts together = nOverlay + 1, a
+  // part brought into view = nOverlay + 2 + its index among the plain parts.
+  async function evalCollect(s, site, env, props, settleRoots, view = false, ctx = null) {
+    const at = (rank, label) => (ctx ? observeAt(s, instant(ctx.base, rank), freezeInPage, ctx.rec, label) : true);
+    const pick = (ids) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => ids.includes(pid)));
+    await at(0, 'main');
+    const raw = await s.evaluate(collectInPage, collectArg(site, env, props, pick(plainIds), view));
+    for (const [j, pid] of ovIds.entries()) {
+      const steps = overlayOf[site][pid] || [];
+      if (steps.length > 0) {
+        await s.evaluate(prepareInPage, { stage: 'open', steps, capMs: CAP_MS[site] });
+        // an opened overlay animates in (WebKit run 39067170911 read the signup dialog at scale 0.9977): settle it before reading
+        if (settleRoots) (raw.overlaySettle ||= []).push(await settleRoots(partsArg[site][pid].map((r) => r.selector), env));
+      }
+      await at(ovRank(j), `overlay ${pid}`);
       const one = await s.evaluate(collectInPage, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, view));
       raw.parts = { ...raw.parts, ...one.parts };
-      await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
+      if (steps.length > 0) await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
     }
-    if (mountIds.length > 0) {
-      const ready = await s.evaluate(prepareInPage, { stage: 'ready', steps: Object.values(mountOf[site]).flat(), capMs: CAP_MS[site], maxFrames: GATE_POLICY.maxFrames });
-      raw.prepared = ready.found;
-      log(`  mount ${engineName} ${site} ${env.width}x${env.height}: found ${JSON.stringify(ready.found)}`);
-      if (settleRoots) (raw.overlaySettle ||= []).push(idleWait(ready.idle, site, env));
-      const late = await s.evaluate(collectInPage, collectArg(site, env, props, pick(mountIds, true), view));
+    if (mtIds.length > 0) {
+      if (Object.keys(mountOf[site]).length > 0) {
+        const ready = await s.evaluate(prepareInPage, { stage: 'ready', steps: Object.values(mountOf[site]).flat(), capMs: CAP_MS[site], maxFrames: GATE_POLICY.maxFrames });
+        raw.prepared = ready.found;
+        log(`  mount ${engineName} ${site} ${env.width}x${env.height}: found ${JSON.stringify(ready.found)}`);
+        if (settleRoots) (raw.overlaySettle ||= []).push(idleWait(ready.idle, site, env));
+      }
+      await at(mountRank(ovIds.length), 'mount');
+      const late = await s.evaluate(collectInPage, collectArg(site, env, props, pick(mtIds), view));
       raw.parts = { ...raw.parts, ...late.parts };
     }
-    if (props && view) await bringSkipped(s, site, env, props, raw, settleRoots);
+    if (props && view) await bringSkipped(s, site, env, props, raw, settleRoots, at);
+    const miss = ctx && lateWait(ctx.rec);
+    if (miss) {
+      (raw.overlaySettle ||= []).push(miss);
+      raw.late = ctx.rec.misses;
+      log(`  LATE ${engineName} ${site} ${env.width}x${env.height}: ${JSON.stringify(ctx.rec.misses)}`);
+    }
     return raw;
   }
   // Lean Fw.Gate.Settle.view. A part with a node read in a skipped content-visibility subtree (page.mjs collectInPage flags it) is
   // brought into view, settled and read again; the second reading is the one kept (`view true first again`, node by node), the
   // first is recorded under raw.viewFirst. A node still skipped carries the flag again and summary.mjs maskNotRendered gives it no
   // verdict (cell notRendered). A part without a skipped node is left exactly as read. The page is scrolled back to the top.
-  async function bringSkipped(s, site, env, props, raw, settleRoots) {
+  async function bringSkipped(s, site, env, props, raw, settleRoots, at) {
     const skippedIds = Object.entries(raw.parts)
-      .filter(([pid, roles]) => !mountOf[site][pid] && !overlayOf[site][pid] && Object.values(roles).some((r) => r.items.some((it) => it.skipped)))
+      .filter(([pid, roles]) => plainIds.includes(pid) && Object.values(roles).some((r) => r.items.some((it) => it.skipped)))
       .map(([pid]) => pid);
     if (skippedIds.length === 0) return;
     raw.viewFirst = {};
@@ -195,6 +226,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       const b = await s.evaluate(bringInPage, { roots });
       const wait = settleRoots ? await settleRoots(roots, env) : null;
       if (wait) (raw.overlaySettle ||= []).push(wait); // the sample is unsettled when this wait is
+      await at(viewRank(ovIds.length, plainIds.indexOf(pid)), `view ${pid}`);
       const again = await s.evaluate(collectInPage, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, true));
       const first = raw.parts[pid];
       raw.viewFirst[pid] = first;
@@ -218,13 +250,14 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   for (const site of SITES) {
     const s = await load(refEnv, site);
     await parkEarly(s, refEnv); // the declared lists are read with the pointer parked, as every sample is (nav.hitTest header flake)
-    await evalReady(s, site);
+    const rec0 = newRec();
+    await evalReady(s, site, rec0);
     // The declared lists are read from a settled page (Lean Fw.Gate.Settle), as every sample is: a rule that matches only while an
     // entry animation or a pointer/focus state runs (WebKit run 39077507337: the original nav `opacity` listed in 3 of 4 jobs) must
     // not decide the list. The union over the timer period still covers a state that never settles. An unsettled wait is logged,
     // and the scans go on (the list is a union, so it only gains names).
     await settleArm(s, site, refEnv);
-    const scans = [(await evalCollect(s, site, refEnv, null)).parts];
+    const scans = [(await evalCollect(s, site, refEnv, null, null, false, frozen ? { base: stopBase(0, 0), rec: rec0 } : null)).parts];
     const timed = Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => !overlayOf[site][pid]));
     for (let i = 0; i < SCAN_EXTRA; i++) {
       if (frozen) await s.advance(SCAN_GAP_MS); else await new Promise((r) => setTimeout(r, SCAN_GAP_MS));
@@ -257,9 +290,10 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       const s = await load(env, site);
       try {
         await parkEarly(s, env);
-        const settle = await evalReady(s, site);
+        const rec = newRec();
+        const settle = await evalReady(s, site, rec);
         const settleWait = await settleArm(s, site, env);
-        const raw = await evalCollect(s, site, env, collectProps, (roots, e) => settleArm(s, site, e, roots), view);
+        const raw = await evalCollect(s, site, env, collectProps, (roots, e) => settleArm(s, site, e, roots), view, frozen ? { base: stopBase(0, readingCount(view)), rec } : null);
         raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
         if (gaps) raw.gap = await s.evaluate(gaps.collect, gaps.collectArg);
         return { settle, raw };
@@ -298,15 +332,17 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       try {
         const stops = [];
         await parkEarly(s, sw.stops[0]);
-        await evalReady(s, site);
+        const rec0 = newRec();
+        await evalReady(s, site, rec0);
         for (let i = 0; i < sw.stops.length; i++) {
+          const rec = i === 0 ? rec0 : newRec();
           if (i > 0) {
             const t1 = Date.now();
-            await resizeTo(s, sw.stops[i]);
+            await resizeTo(s, sw.stops[i], i, false, rec);
             log(`  resize ${engineName} ${site} ${sw.stops[i].width}x${sw.stops[i].height}: ${Date.now() - t1} ms`);
           }
           const settleWait = await settleArm(s, site, sw.stops[i]);
-          const raw = await evalCollect(s, site, sw.stops[i], collectProps, (roots, e) => settleArm(s, site, e, roots));
+          const raw = await evalCollect(s, site, sw.stops[i], collectProps, (roots, e) => settleArm(s, site, e, roots), false, frozen ? { base: stopBase(i, readingCount(false)), rec } : null);
           raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
           stops.push(raw);
         }
@@ -330,7 +366,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     flags: { search: variantPage.search, configHash: loadedConfig },
     port: portOf(engineName),
     pinnedDate: '2026-10-01T00:00:00+07:00',
-    clock: frozen ? { kind: 'frozen', stepMs: STEP_MS, holdLoadMs: HOLD_LOAD_MS, readyToMs: READY_TO_MS, postResizeMs: POST_RESIZE_MS, gridMs: GRID_MS } : { kind: 'native' },
+    clock: frozen ? { kind: 'frozen', stepMs: STEP_MS, holdLoadMs: HOLD_LOAD_MS, readyToMs: READY_TO_MS, postResizeMs: POST_RESIZE_MS, mainOffMs: MAIN_OFF_MS, slotMs: SLOT_MS } : { kind: 'native' },
     ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped, ...(scope ? { scope } : {}) } } : {}),
     props,
   };

@@ -10,3 +10,23 @@
 {"anim":{"delay":0,"dur":3000,"elapsed":7123,"iterations":null},"freezeTime":1500,"kind":"freeze","name":"an infinite animation is paused in the middle of its first iteration","running":false,"runningBefore":false}
 {"anim":{"delay":150,"dur":1000,"elapsed":40,"iterations":null},"freezeTime":650,"kind":"freeze","name":"an infinite animation with a delay","running":false,"runningBefore":false}
 {"anim":{"delay":0,"dur":1001,"elapsed":0,"iterations":null},"freezeTime":500,"kind":"freeze","name":"an odd duration rounds down","running":false,"runningBefore":false}
+{"kind":"clock","mainOff":2000,"postResize":1000,"readyTo":10000,"slotMs":4000,"stepMs":16}
+{"base":10000,"kind":"instant","rank":0,"readings":0,"stop":0,"value":12000}
+{"base":10000,"kind":"instant","rank":1,"readings":0,"stop":0,"value":16000}
+{"base":10000,"kind":"instant","rank":2,"readings":0,"stop":0,"value":20000}
+{"base":20000,"kind":"instant","rank":0,"readings":0,"stop":1,"value":22000}
+{"base":20000,"kind":"instant","rank":1,"readings":0,"stop":1,"value":26000}
+{"base":80000,"kind":"instant","rank":0,"readings":0,"stop":7,"value":82000}
+{"base":10000,"kind":"instant","rank":0,"readings":2,"stop":0,"value":12000}
+{"base":10000,"kind":"instant","rank":3,"readings":2,"stop":0,"value":24000}
+{"base":10000,"kind":"instant","rank":4,"readings":2,"stop":0,"value":28000}
+{"base":64000,"kind":"instant","rank":4,"readings":2,"stop":3,"value":82000}
+{"base":100000,"kind":"instant","rank":6,"readings":5,"stop":3,"value":126000}
+{"fits":true,"kind":"readings","name":"rewrite without a mount stage","readings":[12000,16000],"stages":[{"at":12000,"work":[]},{"at":16000,"work":[]}],"start":10000}
+{"fits":true,"kind":"readings","name":"original with a mount stage","readings":[12000,16000],"stages":[{"at":12000,"work":[]},{"at":16000,"work":[["rel",48],["rel",150],["rel",48],["rel",300],["rel",32]]}],"start":10000}
+{"fits":false,"kind":"readings","name":"original with a long wait loop","readings":[12000,16396],"stages":[{"at":12000,"work":[]},{"at":16000,"work":[["rel",48],["rel",4000],["rel",48],["rel",300],["rel",0]]}],"start":10000}
+{"fits":true,"kind":"readings","name":"relative work only","readings":[1000,1500],"stages":[{"at":1000,"work":[["rel",100],["rel",200]]},{"at":1500,"work":[["rel",5]]}],"start":0}
+{"fits":false,"kind":"readings","name":"a hold already past","readings":[5000,5000],"stages":[{"at":1000,"work":[["hold",100]]},{"at":2000,"work":[]}],"start":5000}
+{"fits":false,"kind":"readings","name":"a hold between relative steps","readings":[1020],"stages":[{"at":1000,"work":[["rel",300],["hold",1000],["rel",20]]}],"start":0}
+{"fits":false,"kind":"readings","name":"the clock is past the first instant","readings":[2000,3000],"stages":[{"at":1000,"work":[]},{"at":3000,"work":[]}],"start":2000}
+{"fits":true,"kind":"readings","name":"no stages","readings":[],"stages":[],"start":7}

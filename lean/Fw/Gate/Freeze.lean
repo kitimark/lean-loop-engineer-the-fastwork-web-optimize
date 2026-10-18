@@ -112,7 +112,7 @@ theorem wait_frozen_settled_iff (p : Policy) (run stable : Nat → Nat) (hov : B
 (one observation per frame; the slow machine takes 20 s per frame, so the time bound is spent at the second frame).
 The same trajectory under the frozen clock gives the same outcome on both.
 
-$$\exists\, s \ne s':\ \operatorname{wait}_{\pi_{\mathrm{gate}}}(o^{s}) = \mathrm{settled}(3) \;\wedge\; \operatorname{wait}_{\pi_{\mathrm{gate}}}(o^{s'}) = \mathrm{unsettled},\qquad o^{s}_i = (0, i, i, \bot, s\, i)$$ -/
+$$\operatorname{wait}_{\pi_{\mathrm{gate}}}(o^{1}) = \mathrm{settled}(3) \;\wedge\; \operatorname{wait}_{\pi_{\mathrm{gate}}}(o^{20000}) = \mathrm{unsettled},\qquad o^{s}_i = (0, i, i, \bot, s\, i)$$ -/
 theorem real_clock_machine_dependent :
     wait gatePolicy (fun i => { running := 0, frames := i, stable := i, hoverInside := false, t := 1 * i }) = .settled 3 ∧
     wait gatePolicy (fun i => { running := 0, frames := i, stable := i, hoverInside := false, t := 20000 * i }) = .unsettled := by
@@ -220,7 +220,7 @@ theorem settled_frozen_anims (p : Policy) (as : List AnimSpec) (fr st t : Nat) (
   simp [settled, and_assoc]
 
 -- ---------------------------------------------------------------------------------------------------------------
--- the fake time of a stop: both arms leave it at the same instant
+-- the fake instant of an observation: a function of the stop alone, the same in both arms
 -- ---------------------------------------------------------------------------------------------------------------
 
 /-- The fake time a settle wait can read: it stops by observation $F + 1$ (`wait_stops_by_frames`), so it advances the clock by
@@ -234,36 +234,281 @@ def settleSpan (p : Policy) : Nat := stepMs * (p.maxFrames + 1)
 $$\operatorname{span}(\pi_{\mathrm{gate}}) = 16 \cdot 61 = 976$$ -/
 theorem settleSpan_gate : settleSpan gatePolicy = 976 := by simp [settleSpan, stepMs, gatePolicy]
 
-/-- The instant a stop is aligned to: the next multiple of the grid $g$ strictly after the clock $e$.
+/-- The absolute fake time (ms since the freeze) both arms hold to at the end of the ready wait, before a stop's first settle wait.
 
-$$\operatorname{align}_g(e) = \left(\lfloor e / g \rfloor + 1\right) g$$ -/
-def alignTarget (e g : Nat) : Nat := (e / g + 1) * g
+$$\rho = 10000$$ -/
+def readyTo : Nat := 10000
 
-/-- Two clocks inside the same grid cell are aligned to the same instant: the arms may differ in how many steps a stop took, but
-as long as each stays inside the cell they leave it at the same time.
+/-- The fake time a live resize advances the clock by, in both arms (debounced resize handlers and timers have run).
 
-$$kg \le e < (k+1)g \;\wedge\; kg \le e' < (k+1)g \;\Longrightarrow\; \operatorname{align}_g(e) = \operatorname{align}_g(e')$$ -/
-theorem alignTarget_eq (k g e e' : Nat) (h1 : k * g ≤ e) (h2 : e < (k + 1) * g)
-    (h3 : k * g ≤ e') (h4 : e' < (k + 1) * g) : alignTarget e g = alignTarget e' g := by
-  have a1 : e / g = k := Nat.div_eq_of_lt_le h1 h2
-  have a2 : e' / g = k := Nat.div_eq_of_lt_le h3 h4
-  simp [alignTarget, a1, a2]
+$$r = 1000$$ -/
+def postResize : Nat := 1000
 
-/-- A stop that starts on a grid instant $kg$, advances the clock by a fixed $r$ (the post-resize advance) and then waits at most
-$\operatorname{span}(\pi)$ ends inside the same grid cell when $r + \operatorname{span}(\pi) < g$: so every arm is aligned to
-the next grid instant, whatever its wait took. (With $g = 2000$, $r = 1000$: $1000 + 976 < 2000$.)
+/-- Offset of the first observation of a stop from the stop's base: room for the post-resize advance and the longest settle wait.
 
-$$r + \operatorname{span}(\pi) < g \;\Longrightarrow\; \forall w \le \operatorname{span}(\pi),\ kg \le kg + r + w < (k+1)g$$ -/
-theorem stop_stays_in_cell (p : Policy) (k g r w : Nat) (h : r + settleSpan p < g) (hw : w ≤ settleSpan p) :
-    k * g ≤ k * g + r + w ∧ k * g + r + w < (k + 1) * g := by
-  constructor
-  · omega
-  · rw [Nat.add_mul, Nat.one_mul]; omega
+$$m = 2000$$ -/
+def mainOff : Nat := 2000
 
-/-- The harness numbers fit: the post-resize advance 1000 ms and the gate span 976 ms are inside the 2000 ms grid.
+/-- Length of one observation slot: the most fake time the work between two observations may take before the next instant.
 
-$$1000 + 976 < 2000$$ -/
-theorem harness_grid_fits : 1000 + settleSpan gatePolicy < 2000 := by simp [settleSpan, stepMs, gatePolicy]
+$$\sigma = 4000$$ -/
+def slotMs : Nat := 4000
+
+/-- The post-resize advance and the longest settle wait fit before the first observation of a stop.
+
+$$r + \operatorname{span}(\pi_{\mathrm{gate}}) = 1000 + 976 \le 2000 = m$$ -/
+theorem mainOff_fits : postResize + settleSpan gatePolicy ≤ mainOff := by
+  simp [postResize, mainOff, settleSpan, stepMs, gatePolicy]
+
+/-- **The instant of an observation.** For a stop with base $b$, the observation of rank $k$ is read at the absolute fake time
+$b + m + \sigma k$: it depends on the stop base and the rank only, never on what the arm did before.
+
+$$\operatorname{instant}(b, k) = b + m + \sigma\, k$$ -/
+def instant (b k : Nat) : Nat := b + mainOff + slotMs * k
+
+/-- The ranks of a stop: the first reading is rank 0, overlay part $j$ is rank $1 + j$, the mount parts (read together) rank
+$n_o + 1$, and the part with index $q$ read after it was brought into view rank $n_o + 2 + q$. The ranks are positions in a list
+fixed by the part list (the union of both arms' prepare steps), so they are the same in both arms.
+
+$$\operatorname{ovRank}(j) = 1 + j, \qquad \operatorname{mountRank}(n_o) = n_o + 1, \qquad \operatorname{viewRank}(n_o, q) = n_o + 2 + q$$ -/
+def ovRank (j : Nat) : Nat := 1 + j
+
+/-- The rank of the mount reading after $n_o$ overlay readings.
+
+$$\operatorname{mountRank}(n_o) = n_o + 1$$ -/
+def mountRank (nOv : Nat) : Nat := nOv + 1
+
+/-- The rank of the reading of part $q$ after it was brought into view.
+
+$$\operatorname{viewRank}(n_o, q) = n_o + 2 + q$$ -/
+def viewRank (nOv q : Nat) : Nat := nOv + 2 + q
+
+/-- The ranks are in the order a stop runs its readings: main, then overlays, then mount, then views.
+
+$$j < n_o \implies \operatorname{ovRank}(j) < \operatorname{mountRank}(n_o) \;\wedge\; \operatorname{mountRank}(n_o) < \operatorname{viewRank}(n_o, q)$$ -/
+theorem rank_order (nOv j q : Nat) (h : j < nOv) :
+    0 < ovRank j ∧ ovRank j < mountRank nOv ∧ mountRank nOv < viewRank nOv q := by
+  simp only [ovRank, mountRank, viewRank]
+  omega
+
+/-- Instants of one stop are strictly increasing in the rank.
+
+$$k < k' \implies \operatorname{instant}(b, k) < \operatorname{instant}(b, k')$$ -/
+theorem instant_lt (b k k' : Nat) (h : k < k') : instant b k < instant b k' := by
+  simp only [instant, slotMs]
+  omega
+
+/-- The length of a stop with $n = n_o + n_v$ overlay and view readings: its ranks are $0 .. n + 1$, and the last one has a whole
+slot after it.
+
+$$\operatorname{span}(n) = m + \sigma\,(n + 2)$$ -/
+def stopSpan (n : Nat) : Nat := mainOff + slotMs * (n + 2)
+
+/-- **The base of stop $i$ of a sweep** (stop 0 is the first load): an absolute fake time that depends on the stop index and the
+reading count alone, so both arms start every stop at the same instant however long the previous one took.
+
+$$\operatorname{base}(i, n) = \rho + i\,\operatorname{span}(n)$$ -/
+def stopBase (i n : Nat) : Nat := readyTo + i * stopSpan n
+
+/-- The next stop starts one slot after the last rank of this one.
+
+$$\operatorname{base}(i + 1, n) = \operatorname{instant}(\operatorname{base}(i, n),\, n + 2)$$ -/
+theorem stopBase_succ (i n : Nat) : stopBase (i + 1) n = instant (stopBase i n) (n + 2) := by
+  simp only [stopBase, stopSpan, instant]
+  rw [Nat.add_mul, Nat.one_mul]
+  omega
+
+/-- Every reading of a stop is before the next stop, and the last rank leaves a whole slot.
+
+$$k \le n + 1 \implies \operatorname{instant}(\operatorname{base}(i, n), k) + \sigma \le \operatorname{base}(i + 1, n)$$ -/
+theorem instant_before_next (i n k : Nat) (h : k ≤ n + 1) :
+    instant (stopBase i n) k + slotMs ≤ stopBase (i + 1) n := by
+  rw [stopBase_succ]
+  simp only [instant, slotMs]
+  have : 4000 * k + 4000 ≤ 4000 * (n + 2) := by omega
+  omega
+
+/-- The stop base is strictly after the ready instant for later stops and the first reading comes after the base.
+
+$$\operatorname{base}(i, n) < \operatorname{base}(i + 1, n) \;\wedge\; \operatorname{base}(i, n) < \operatorname{instant}(\operatorname{base}(i, n), 0)$$ -/
+theorem stopBase_lt (i n : Nat) : stopBase i n < stopBase (i + 1) n ∧ stopBase i n < instant (stopBase i n) 0 := by
+  rw [stopBase_succ]
+  simp only [instant, mainOff, slotMs]
+  omega
+
+/-- One step of the fake clock of an arm: the arm advances it by a relative amount (`rel`: a frame, a sleep, any work whose length
+depends on the page), or the harness holds it to an absolute instant (`hold`: nothing happens when it is already past).
+
+$$\mathrm{Step} = \mathrm{rel}(d) \mid \mathrm{hold}(t), \qquad c \cdot \mathrm{rel}(d) = c + d, \quad c \cdot \mathrm{hold}(t) = \max(c, t)$$ -/
+inductive Step where
+  | rel (d : Nat)
+  | hold (t : Nat)
+  deriving DecidableEq, Repr
+
+/-- The clock after one step.
+
+$$c \cdot s = \begin{cases} c + d & s = \mathrm{rel}(d) \\ \max(c, t) & s = \mathrm{hold}(t) \end{cases}$$ -/
+def Step.apply (c : Nat) : Step → Nat
+  | .rel d => c + d
+  | .hold t => max c t
+
+/-- The clock after a list of steps.
+
+$$\operatorname{clock}(c, ss) = c \cdot s_1 \cdot s_2 \cdots s_n$$ -/
+def clockAfter (c : Nat) (ss : List Step) : Nat := ss.foldl Step.apply c
+
+/-- A stage of one arm: the work it does since its previous reading (any steps, and different in the two arms: the original runs
+the mount stage, the rewrite none), then the reading at the absolute instant $T$ (a hold).
+
+$$\mathrm{Stage} = \mathrm{Step}^{*} \times \mathbb{N}$$ -/
+abbrev Stage := List Step × Nat
+
+/-- The readings of an arm over its stages: after each stage's work the harness holds the clock to the stage's instant, and the
+page is read at the clock then.
+
+$$\operatorname{readings}(c, [(ss, T)] \mathbin{+\!\!+} rest) = \max(\operatorname{clock}(c, ss), T) :: \operatorname{readings}(\max(\operatorname{clock}(c, ss), T), rest)$$ -/
+def readings : Nat → List Stage → List Nat
+  | _, [] => []
+  | c, (ss, T) :: rest => max (clockAfter c ss) T :: readings (max (clockAfter c ss) T) rest
+
+/-- The stages of an arm fit when each one's work ends at or before its instant. A stage that does not fit is read later than its
+instant: the arm is out of step with every arm that did fit, and the harness flags the sample.
+
+$$\operatorname{fits}(c, [(ss, T)] \mathbin{+\!\!+} rest) \iff \operatorname{clock}(c, ss) \le T \wedge \operatorname{fits}(T, rest)$$ -/
+def fits : Nat → List Stage → Bool
+  | _, [] => true
+  | c, (ss, T) :: rest => decide (clockAfter c ss ≤ T) && fits T rest
+
+/-- The instants an arm is asked for.
+
+$$\operatorname{targets}(st) = [T \mid (ss, T) \in st]$$ -/
+def targets (st : List Stage) : List Nat := st.map (·.2)
+
+/-- **A fitting arm is read at exactly the instants asked for, whatever work it did before.**
+
+$$\operatorname{fits}(c, st) \implies \operatorname{readings}(c, st) = \operatorname{targets}(st)$$ -/
+theorem readings_of_fits : ∀ (st : List Stage) (c : Nat), fits c st = true → readings c st = targets st := by
+  intro st
+  induction st with
+  | nil => intro c _; rfl
+  | cons s rest ih =>
+    intro c h
+    obtain ⟨ss, T⟩ := s
+    simp only [fits, Bool.and_eq_true, decide_eq_true_eq] at h
+    simp only [readings, targets, List.map_cons]
+    have hm : max (clockAfter c ss) T = T := Nat.max_eq_right h.1
+    rw [hm]
+    exact congrArg (T :: ·) (ih T h.2)
+
+/-- A reading equal to its instant is exactly a fitting stage (the check the harness makes after each hold: the clock it reads is
+the instant asked for).
+
+$$\operatorname{readings}(c, st) = \operatorname{targets}(st) \implies \operatorname{fits}(c, st)$$ -/
+theorem fits_of_readings : ∀ (st : List Stage) (c : Nat), readings c st = targets st → fits c st = true := by
+  intro st
+  induction st with
+  | nil => intro c _; rfl
+  | cons s rest ih =>
+    intro c h
+    obtain ⟨ss, T⟩ := s
+    simp only [readings, targets, List.map_cons, List.cons.injEq] at h
+    obtain ⟨h1, h2⟩ := h
+    have hle : clockAfter c ss ≤ T := by
+      have := Nat.le_max_left (clockAfter c ss) T
+      omega
+    simp only [fits, Bool.and_eq_true, decide_eq_true_eq]
+    refine ⟨hle, ih T ?_⟩
+    have hm : max (clockAfter c ss) T = T := Nat.max_eq_right hle
+    rw [hm] at h2
+    exact h2
+
+/-- **Both arms are read at the same instants.** Two arms asked for the same instants, each fitting, are read at the same clock at
+every observation, whatever steps they took between observations and wherever their clocks started. This includes the mount
+stage that only the original runs.
+
+$$\operatorname{targets}(sa) = \operatorname{targets}(sb) \wedge \operatorname{fits}(c_a, sa) \wedge \operatorname{fits}(c_b, sb) \implies \operatorname{readings}(c_a, sa) = \operatorname{readings}(c_b, sb)$$ -/
+theorem both_arms_same_instant (sa sb : List Stage) (ca cb : Nat) (h : targets sa = targets sb)
+    (fa : fits ca sa = true) (fb : fits cb sb = true) : readings ca sa = readings cb sb := by
+  rw [readings_of_fits sa ca fa, readings_of_fits sb cb fb, h]
+
+/-- The mount stage of the original as the page runs it (`prepareInPage` stage `ready`): three frames, $w$ sleeps of 50 ms while
+the awaited node is missing, three frames, 300 ms, then the idle wait of $i$ frames. The rewrite has no mount step.
+
+$$\operatorname{mountWork}(w, i) = [\mathrm{rel}(48), \mathrm{rel}(50\,w), \mathrm{rel}(48), \mathrm{rel}(300), \mathrm{rel}(16\,i)]$$ -/
+def mountWork (w i : Nat) : List Step :=
+  [.rel (3 * stepMs), .rel (50 * w), .rel (3 * stepMs), .rel 300, .rel (stepMs * i)]
+
+/-- The mount stage takes this much fake time.
+
+$$\operatorname{mountSpan}(w, i) = 396 + 50\,w + 16\,i$$ -/
+def mountSpan (w i : Nat) : Nat := 3 * stepMs + 50 * w + 3 * stepMs + 300 + stepMs * i
+
+/-- The clock after the mount stage is its start plus the span.
+
+$$\operatorname{clock}(c, \operatorname{mountWork}(w, i)) = c + \operatorname{mountSpan}(w, i)$$ -/
+theorem clockAfter_mountWork (c w i : Nat) : clockAfter c (mountWork w i) = c + mountSpan w i := by
+  simp only [clockAfter, mountWork, mountSpan, List.foldl, Step.apply]
+  omega
+
+/-- A mount stage that takes at most one slot ends before the next rank's instant.
+
+$$\operatorname{mountSpan}(w, i) \le \sigma \implies \operatorname{clock}(\operatorname{instant}(b, k), \operatorname{mountWork}(w, i)) \le \operatorname{instant}(b, k + 1)$$ -/
+theorem mount_stage_fits (b k w i : Nat) (h : mountSpan w i ≤ slotMs) :
+    clockAfter (instant b k) (mountWork w i) ≤ instant b (k + 1) := by
+  rw [clockAfter_mountWork]
+  simp only [instant, slotMs] at h ⊢
+  omega
+
+/-- **The original's mount stage does not move the reading.** The original runs the mount stage between its overlay readings and
+its mount reading and the rewrite does not; both are read at the mount instant, for every start before the previous instant, when
+the stage takes at most one slot (a stage of 50 ms sleeps for up to $w \le 60$ and a 60-frame idle wait takes 396 + 3000 + 960 =
+4356 ms in the worst case of the budgets, so the gate flags a mount stage that long as not fitting rather than reading it late).
+
+$$\operatorname{mountSpan}(w, i) \le \sigma \wedge c_a, c_b \le \operatorname{instant}(b, k) \implies \operatorname{readings}(c_a, [([\,], \operatorname{instant}(b, k)), (\operatorname{mountWork}(w, i), \operatorname{instant}(b, k + 1))]) = \operatorname{readings}(c_b, [([\,], \operatorname{instant}(b, k)), ([\,], \operatorname{instant}(b, k + 1))])$$ -/
+theorem mount_same_instant (b k w i ca cb : Nat) (h : mountSpan w i ≤ slotMs)
+    (ha : ca ≤ instant b k) (hb : cb ≤ instant b k) :
+    readings ca [([], instant b k), (mountWork w i, instant b (k + 1))] =
+      readings cb [([], instant b k), ([], instant b (k + 1))] := by
+  refine both_arms_same_instant _ _ ca cb rfl ?_ ?_
+  · have h2 := mount_stage_fits b k w i h
+    simp [fits, clockAfter, List.foldl] at h2 ⊢
+    exact ⟨decide_eq_true ha, decide_eq_true h2⟩
+  · have : instant b k ≤ instant b (k + 1) := Nat.le_of_lt (instant_lt b k (k + 1) (Nat.lt_succ_self k))
+    simp [fits, clockAfter, List.foldl]
+    exact ⟨decide_eq_true hb, decide_eq_true this⟩
+
+/-- A stage that overshoots its instant is read late, and is not fitting: the stage of the mount in a page whose wait loop ran
+for $w = 80$ sleeps is read after the instant, so the sample is flagged.
+
+$$\operatorname{fits}(0, [(\operatorname{mountWork}(80, 0), \sigma)]) = \bot \;\wedge\; \operatorname{readings}(0, [(\operatorname{mountWork}(80, 0), \sigma)]) = [4396]$$ -/
+theorem overshoot_flagged :
+    fits 0 [(mountWork 80 0, slotMs)] = false ∧ readings 0 [(mountWork 80 0, slotMs)] = [4396] := by
+  decide
+
+/-- The outcome a sample takes from its readings: settled when every reading was at its instant, unsettled when one was late.
+
+$$\operatorname{instantOutcome}(\mathit{ok}) = \begin{cases} \mathrm{settled}(0) & \mathit{ok} \\ \mathrm{unsettled} & \neg\mathit{ok} \end{cases}$$ -/
+def instantOutcome (ok : Bool) : Outcome := if ok then .settled 0 else .unsettled
+
+/-- **A sample read at the wrong instant never passes.** Folded into the sample's waits, a late reading makes the sample unsettled,
+so its report is never pass, and the engine is not a pass (`Fw.Gate.Exit.engineVerdictS_ne_pass_of_unsettled`).
+
+$$\operatorname{fits}(c, st) = \bot \implies \forall a\, ws\, b\, e,\ \operatorname{report}(\operatorname{fold}(a, \operatorname{instantOutcome}(\bot) :: ws), b, e) \ne \mathrm{pass}$$ -/
+theorem unfit_never_pass (a : Outcome) (ws : List Outcome) (b : Outcome) (e : Bool) :
+    report (fold a (instantOutcome false :: ws)) b e ≠ .pass :=
+  fold_unsettled_never_pass a _ b e (List.mem_cons_self ..)
+
+/-- When every reading was at its instant the extra outcome changes nothing.
+
+$$a \ne \mathrm{unsettled} \wedge \mathrm{unsettled} \notin ws \implies \operatorname{fold}(a, \operatorname{instantOutcome}(\top) :: ws) = a$$ -/
+theorem fit_keeps_outcome (a : Outcome) (ws : List Outcome) (ha : a ≠ .unsettled) (h : Outcome.unsettled ∉ ws) :
+    fold a (instantOutcome true :: ws) = a := by
+  apply fold_settled a _ ha
+  intro hm
+  rcases List.mem_cons.1 hm with e | e
+  · simp [instantOutcome] at e
+  · exact h e
+
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- golden vectors for the TypeScript twin
@@ -307,9 +552,42 @@ def specJson (a : AnimSpec) : Json :=
   Json.mkObj [("dur", toJson a.dur), ("delay", toJson a.delay),
     ("iterations", match a.iter with | .finite n => toJson n | .infinite => Json.null), ("elapsed", toJson a.elapsed)]
 
-/-- One golden line per case: frozen waits, then freeze passes.
+/-- Instant cases: (stop index, reading count, rank).
 
-$$\text{lines} = [\ell_{\mathrm{frozen}}(c)]_c \mathbin{+\!\!+} [\ell_{\mathrm{freeze}}(c)]_c$$ -/
+$$\text{instantCases} = [(i, n, k)]_c$$ -/
+def instantCases : List (Nat × Nat × Nat) :=
+  [ (0, 0, 0), (0, 0, 1), (0, 0, 2), (1, 0, 0), (1, 0, 1), (7, 0, 0), (0, 2, 0), (0, 2, 3), (0, 2, 4), (3, 2, 4), (3, 5, 6) ]
+
+/-- The JSON of a step: `["rel", d]` or `["hold", t]`.
+
+$$\mathrm{rel}(d) \mapsto [\text{"rel"}, d], \qquad \mathrm{hold}(t) \mapsto [\text{"hold"}, t]$$ -/
+def stepJson : Step → Json
+  | .rel d => Json.arr #["rel", toJson d]
+  | .hold t => Json.arr #["hold", toJson t]
+
+/-- The JSON of a stage: its steps and its instant.
+
+$$(ss, T) \mapsto \{\mathit{work}: ss, \mathit{at}: T\}$$ -/
+def stageJson (s : Stage) : Json :=
+  Json.mkObj [("work", Json.arr (s.1.map stepJson).toArray), ("at", toJson s.2)]
+
+/-- Reading cases: (name, start clock, stages). The original with its mount stage and the rewrite without one, an arm that
+overshoots, an arm that starts late, a hold that is already past.
+
+$$\text{readingCases} = [(n, c_0, st)]_c$$ -/
+def readingCases : List (String × Nat × List Stage) :=
+  [ ("rewrite without a mount stage", 10000, [([], instant 10000 0), ([], instant 10000 1)]),
+    ("original with a mount stage", 10000, [([], instant 10000 0), (mountWork 3 2, instant 10000 1)]),
+    ("original with a long wait loop", 10000, [([], instant 10000 0), (mountWork 80 0, instant 10000 1)]),
+    ("relative work only", 0, [([.rel 100, .rel 200], 1000), ([.rel 5], 1500)]),
+    ("a hold already past", 5000, [([.hold 100], 1000), ([], 2000)]),
+    ("a hold between relative steps", 0, [([.rel 300, .hold 1000, .rel 20], 1000)]),
+    ("the clock is past the first instant", 2000, [([], 1000), ([], 3000)]),
+    ("no stages", 7, []) ]
+
+/-- One golden line per case: frozen waits, then freeze passes, the clock constants, instants, then readings.
+
+$$\text{lines} = [\ell_{\mathrm{frozen}}(c)]_c \mathbin{+\!\!+} [\ell_{\mathrm{freeze}}(c)]_c \mathbin{+\!\!+} [\ell_{\mathrm{clock}}] \mathbin{+\!\!+} [\ell_{\mathrm{instant}}(c)]_c \mathbin{+\!\!+} [\ell_{\mathrm{readings}}(c)]_c$$ -/
 def goldenLines : List String :=
   frozenCases.map (fun (n, run, st, hov) =>
     (Json.mkObj [("kind", "frozenWait"), ("name", toJson n), ("policy", policyJson gatePolicy), ("stepMs", toJson stepMs),
@@ -319,6 +597,15 @@ def goldenLines : List String :=
     (Json.mkObj [("kind", "freeze"), ("name", toJson n), ("anim", specJson a),
       ("freezeTime", toJson (freezeTime a)), ("running", toJson (isRunning (freezeAct a))),
       ("runningBefore", toJson (isRunning a))]).compress)
+  ++ [(Json.mkObj [("kind", "clock"), ("stepMs", toJson stepMs), ("readyTo", toJson readyTo), ("postResize", toJson postResize),
+      ("mainOff", toJson mainOff), ("slotMs", toJson slotMs)]).compress]
+  ++ instantCases.map (fun (i, n, k) =>
+    (Json.mkObj [("kind", "instant"), ("stop", toJson i), ("readings", toJson n), ("rank", toJson k),
+      ("base", toJson (stopBase i n)), ("value", toJson (instant (stopBase i n) k))]).compress)
+  ++ readingCases.map (fun (n, c, st) =>
+    (Json.mkObj [("kind", "readings"), ("name", toJson n), ("start", toJson c),
+      ("stages", Json.arr (st.map stageJson).toArray), ("fits", toJson (fits c st)),
+      ("readings", toJson (readings c st))]).compress)
 
 /-- The exact bytes of `packages/contracts/golden/gate/freeze.jsonl`.
 
