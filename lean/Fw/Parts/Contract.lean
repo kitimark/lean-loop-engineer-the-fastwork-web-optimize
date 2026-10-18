@@ -1112,13 +1112,15 @@ theorem code_groups_declared :
   exact independent_antitone (widen_widens _ P) (widen_widens _ Q)
     (code_groups_partition _ (List.mem_map_of_mem hP) _ (List.mem_map_of_mem hQ) hp hq hk')
 
-/-- The page-level parts of the widened table: the scheduler and every part whose frame callback writes the scroll
-position.
+/-- The page-level parts of the widened table: the scheduler and every part with a page scroll write outside mount,
+resize, hover, event and cleanup callbacks.
 
 $$[P.\mathrm{id} \mid P \in \mathrm{parts}_{\mathrm{code}},\ \operatorname{page}(P)] = [\texttt{engine.scroll},
 \texttt{morph.mount}, \texttt{morph.tween}, \texttt{people.deck}]$$
 
-morph.mount and people.deck write `scrollY` at frame time in the code; the declared rows list only morph.tween. -/
+morph.mount repins the page in its scroll-list callback (morph.mount/index.tsx:103-106), which its row omits; people.deck
+is here because its env `scrollTo` (people.deck/index.tsx:55) is a callback the extractor cannot trace to its only
+caller, the tab click (people.deck/driver.ts:204-216). -/
 theorem code_pageLevel :
     (codeParts.filter pageLevel).map (·.id) = ["engine.scroll", "morph.mount", "morph.tween", "people.deck"] := by
   decide

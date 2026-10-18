@@ -206,17 +206,18 @@ $$\operatorname{writes}(a) = \begin{cases}
 [\texttt{cssVar:}n/\mathrm{owner}] & \mathrm{op} \in \{\mathrm{setVar}, \mathrm{setStyle}\} \\
 [\texttt{className:}n/\mathrm{owner}] & \mathrm{op} \in \{\mathrm{setClass}, \mathrm{setAttr}\} \\
 [\texttt{className:}\operatorname{local}(n)/\mathrm{owner}] & \mathrm{op} = \mathrm{setModuleClass} \\
-[\texttt{scrollY}] & \mathrm{op} = \mathrm{scroll} \\
+[\texttt{scrollY}] & \mathrm{op} = \mathrm{scroll},\ \mathrm{owner} = \texttt{document} \\
 [\,] & \text{otherwise}
 \end{cases}$$
 
-Inline style properties share the `cssVar` wire with custom properties, as the contract rows do. -/
+Inline style properties share the `cssVar` wire with custom properties, as the contract rows do; an element's own
+scroll offset is not the page scroll position. -/
 def writes (a : Access) : List String :=
   match a.op with
   | .setVar | .setStyle => ["cssVar:" ++ a.name ++ "/" ++ a.owner]
   | .setClass | .setAttr => ["className:" ++ a.name ++ "/" ++ a.owner]
   | .setModuleClass => ["className:" ++ localName a.name ++ "/" ++ a.owner]
-  | .scroll => ["scrollY"]
+  | .scroll => if a.owner == "document" then ["scrollY"] else []
   | _ => []
 
 /-- A read access sets no wire.
@@ -335,7 +336,7 @@ private def ex (op : Op) (name owner ctx : String) : Access := ⟨"p", "p/a.ts",
 #guard reads (ex .rect "" "pain" "cleanup") == []
 #guard writes (ex .setModuleClass "people.o/o.module.css#isStack" "people.o" "render") == ["className:isStack/people.o"]
 #guard writes (ex .setStyle "height" "commission" "scroll") == ["cssVar:height/commission"]
-#guard writes (ex .scroll "" "document" "listener:wheel") == ["scrollY"]
+#guard writes (ex .scroll "" "document" "listener:wheel") == ["scrollY"] && writes (ex .scroll "" "p" "timer") == []
 #guard writes (ex .rect "" "pain" "scroll") == []
 #guard same "className:data-o-stack/*" "className:data-o-stack/people.o" && same "cssVar:--x/?" "cssVar:--x/nav"
 #guard !same "className:data-o/*" "className:data-o-stack/people.o" && !same "cssVar:--x/" "cssVar:--x/*"
