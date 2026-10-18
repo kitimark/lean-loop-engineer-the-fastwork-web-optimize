@@ -251,6 +251,28 @@ theorem truthItems_lean_na (o r : TruthRaw) (ex exN : Option TMap) (it : TItem)
     · simp at hc
     · rw [h]
 
+/-- Without a Lean vector for the environment, every check against Lean's value is `na`, whether or not the environment was achieved.
+
+$$\forall o, r, \mathit{ach}, \forall it \in \operatorname{truthItems}(o, r, \bot, \bot, \mathit{ach}),\quad it.\mathrm{cls} \in \{\mathrm{lean}, \mathrm{neutral.lean}\} \implies it.\mathrm{status} = \mathrm{na}$$
+
+A sweep stop whose environment no matrix probe has (`expectFor` finds none) compares the two arms with each other only; its Lean rows are not comparable, which is a fact about the environment, not a pass. -/
+theorem truthItems_lean_na_no_vector (o r : TruthRaw) (ach : Bool) (it : TItem)
+    (h : it ∈ truthItems o r none none ach) (hc : it.cls = .lean ∨ it.cls = .neutralLean) :
+    it.status = .na := by
+  simp only [truthItems, List.mem_append, List.mem_flatMap] at h
+  rcases h with ⟨e, -, h⟩ | ⟨e, -, h⟩
+  · simp only [truthKey, List.mem_append, List.mem_singleton] at h
+    rcases h with (rfl | h) | h
+    · simp at hc
+    · rw [h]
+    · split at h
+      · simp only [List.mem_singleton] at h; subst h; simp at hc
+      · simp at h
+  · simp only [neutralKey, List.mem_append, List.mem_singleton] at h
+    rcases h with rfl | h
+    · simp at hc
+    · rw [h]
+
 /-- An orig = rewrite item is equal exactly when the two values are the same.
 
 $$\forall it \in \operatorname{truthItems}(o, r, e, e^N, \mathit{ach}),\quad it.\mathrm{cls} \in \{\mathrm{ar}, \mathrm{neutral.ar}\} \implies (it.\mathrm{status} = \mathrm{equal} \iff it.a = it.b)$$

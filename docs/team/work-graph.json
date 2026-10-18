@@ -4260,7 +4260,8 @@
     ".github/scripts/gate-jobs.test.mjs",
     "lean/scripts/check.sh",
     "docs/team/incidents/ledger.json"
-   ]
+   ],
+   "evidence": "21f511b"
   },
   {
    "id": "gate-webkit-red",
