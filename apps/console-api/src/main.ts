@@ -11,6 +11,9 @@ import { buildBase } from "./core/build-base.ts";
 import { PreviewManager } from "./preview/manager.ts";
 import { OwnerAuth } from "./preview/owner.ts";
 import { announceLink, reissueLink, type LinkClock } from "./preview/link.ts";
+import { networkInterfaces } from "node:os";
+import { LoginGuard, readPassphrase, KEYCHAIN_HINT } from "./preview/login.ts";
+import { pickLanAddr } from "./preview/lan.ts";
 
 /** HEAD of the checkout the code runs from (null when git is unavailable). */
 function codeCommit(root: string): string | null {
@@ -56,7 +59,13 @@ const previews = new PreviewManager(dirname(dir), dir, core);
 await previews.reapRecorded().catch((e) => console.error("preview reap failed:", e)); // previews a crashed run left behind
 setInterval(() => { void previews.tick().catch((e) => console.error("preview tick failed:", e)); }, 30_000).unref();
 const owner = new OwnerAuth((process.env.FW_CONSOLE_WEB_ORIGIN ?? "").split(",").filter(Boolean)); // e.g. the Vite dev origin
-const app = createApp(store, join(here, "../../console-web/dist"), reconciler, previews, owner, service);
+// Owner login: the passphrase of the keychain item `fw-console-owner`, read once here and held in memory only (never printed).
+const passphrase = process.env.FW_CONSOLE_KEYCHAIN === "off" ? null : readPassphrase(); // "off": tests never touch the real keychain
+const lanAddr = process.env.FW_CONSOLE_LAN === "1" ? pickLanAddr(networkInterfaces()) : null; // found now, never stored
+if (process.env.FW_CONSOLE_LAN === "1" && !lanAddr) console.error("console-api: FW_CONSOLE_LAN=1 but no private LAN address was found; staying on loopback only");
+if (!passphrase) console.error(`console-api: no owner passphrase in the keychain (service fw-console-owner): login is disabled. Create it once with:\n  ${KEYCHAIN_HINT}`);
+const login = new LoginGuard(core, passphrase);
+const app = createApp(store, join(here, "../../console-web/dist"), reconciler, previews, owner, service, { login, lan: lanAddr !== null });
 
 setInterval(() => { void app.drain.run().catch((e) => console.error("spool drain failed:", e)); }, 2000).unref();
 
@@ -65,6 +74,15 @@ const server = serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 0), ho
   listening = { port: info.port };
   if (!coreInfo.coreCommit && !coreInfo.coreUnknown) core.onSpawn?.(core.binPath); // no child spawned yet: the binary it will spawn from
   writeApi();
+  if (lanAddr) {
+    // the same handler on the LAN address and the same port; every request from there passes the Lean owner gate
+    owner.setLanHosts([`${lanAddr}:${info.port}`]);
+    const lanServer = serve({ fetch: app.fetch, port: info.port, hostname: lanAddr }, () => {
+      console.log(`console-api LAN login: http://${lanAddr}:${info.port}/owner/login`);
+    });
+    lanServer.on("error", (e) => { console.error(`console-api: cannot listen on the LAN address: ${(e as Error).message}`); owner.setLanHosts([]); });
+    lanServers.push(lanServer);
+  }
   console.log(`console-api listening on http://127.0.0.1:${info.port}  (core: ${core.name}, log: ${join(dir, "events.jsonl")}, ${store.seq} events)`);
   // the one-time owner link goes to the controlling terminal only (Lean console.previewLink); with no terminal it is not printed
   const link = (t: string | null) => `http://127.0.0.1:${info.port}/owner?t=${t}`;
@@ -75,12 +93,14 @@ const server = serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 0), ho
   process.on("SIGUSR2", () => { void reissueLink(core, clock, Date.now(), () => link(owner.reissue()), (m) => console.error(`console-api: ${m}`)).catch(() => undefined); });
 });
 
+const lanServers: { close(): unknown }[] = [];
 const stop = async () => {
   reconciler.stop();
   await previews.shutdown().catch(() => undefined); // only the process groups in its own table
   rmSync(join(dir, "api.json"), { force: true });
   store.close();
   server.close();
+  for (const l of lanServers) l.close();
   process.exit(0);
 };
 process.on("SIGINT", stop);

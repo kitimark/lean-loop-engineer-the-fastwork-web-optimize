@@ -21,7 +21,7 @@ describe("task detail", () => {
     expect(refusedText("tooMany")).toBe("refused: tooMany");
   });
   it("builds the three loopback URLs and the target text", () => {
-    expect(urls({ rp: 47100, op: 47101 })).toEqual({ rewrite: "http://127.0.0.1:47100/", original: "http://127.0.0.1:47101/", compare: "http://127.0.0.1:47100/__fw/compare" });
+    expect(urls({ id: "port-nav-x1" })).toEqual({ rewrite: "/preview/port-nav-x1/r/", original: "/preview/port-nav-x1/o/", compare: "/preview/port-nav-x1/compare" });
     expect(targetText({ kind: "none", ref: null, sha: null })).toMatch(/no work/);
     expect(targetText({ kind: "integration", ref: "integrate-x", sha: "abc1234" })).toContain("integrate-x");
   });

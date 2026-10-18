@@ -19,9 +19,10 @@ export const wantsDetail = (id: string) => id.startsWith("port-") || id.startsWi
 const J = { "content-type": "application/json" };
 /** What a refusal means to the owner; `notOwner` is the missing owner cookie or Origin (open the console's owner link). */
 export const refusedText = (reason: string) =>
-  reason === "notOwner" ? "refused: this browser is not signed in as owner; open the owner link the console printed in its terminal" : `refused: ${reason}`;
-export const urls = (p: Pick<Pv, "rp" | "op">) => ({
-  rewrite: `http://127.0.0.1:${p.rp}/`, original: `http://127.0.0.1:${p.op}/`, compare: `http://127.0.0.1:${p.rp}/__fw/compare`,
+  reason === "notOwner" ? "refused: this browser is not signed in as owner; log in as owner (the login page, or the owner link the console printed in its terminal)" : `refused: ${reason}`;
+/** Preview links go through the console's own port (`/preview/<id>/...`), so they work from the phone and sit behind the owner gate. */
+export const urls = (p: Pick<Pv, "id">) => ({
+  rewrite: `/preview/${p.id}/r/`, original: `/preview/${p.id}/o/`, compare: `/preview/${p.id}/compare`,
 });
 export const targetText = (t: Target) =>
   t.kind === "none" ? "no work to preview yet" : t.kind === "main" ? "already on main" :
@@ -93,7 +94,7 @@ export function TaskDetail({ id, version }: { id: string; version?: number }) {
           )}
           <div className="flex flex-wrap items-center gap-2">
             <span>preview: {targetText(d.preview.target)}</span>
-            {d.canPreview === false && <span data-testid="owner-hint">to start or stop a preview, open the owner link the console printed in its terminal (once, in this browser)</span>}
+            {d.canPreview === false && <span data-testid="owner-hint">to start or stop a preview, <a className="underline" href="/owner/login">log in as owner</a> (or open the owner link the console printed in its terminal, once, in this browser)</span>}
             {d.canPreview !== false && !mine && d.preview.target.kind !== "none" && <button className="rounded border px-2 py-0.5" onClick={() => void start()}>Preview</button>}
             {d.canPreview !== false && mine && <button className="rounded border px-2 py-0.5" onClick={() => void stop(mine.id)}>Stop</button>}
           </div>

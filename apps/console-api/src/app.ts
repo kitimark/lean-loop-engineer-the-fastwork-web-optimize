@@ -13,6 +13,12 @@ import { readLatestHealth } from "./health.ts";
 import { mountPreview } from "./preview/routes.ts";
 import type { PreviewManager } from "./preview/manager.ts";
 import { OwnerAuth } from "./preview/owner.ts";
+import { mountOwnerGate } from "./preview/gate.ts";
+import { mountPreviewProxy } from "./preview/proxy.ts";
+import { LoginGuard } from "./preview/login.ts";
+
+/** Owner login and LAN mode (console-lan-owner): the login guard and whether LAN requests are possible at all. */
+export interface GateOptions { login: LoginGuard; lan: boolean }
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json",
@@ -23,10 +29,17 @@ const MIME: Record<string, string> = {
  *  api.json also holds the build commit of the fwcore child (`coreCommit`, or `coreUnknown`). */
 export interface ServiceInfo { commit: string | null; startedAt: number }
 
-export function createApp(store: Store, webDist?: string, reconciler?: Reconciler, previews?: PreviewManager, owner: OwnerAuth = new OwnerAuth(), service?: ServiceInfo) {
+export function createApp(store: Store, webDist?: string, reconciler?: Reconciler, previews?: PreviewManager, owner: OwnerAuth = new OwnerAuth(), service?: ServiceInfo, gate?: GateOptions) {
   const app = new Hono();
   // a failed core call (fwcore crash, bad reply) fails the request; the core restarts itself
   app.onError((e, c) => c.json({ ok: false, reason: `decision core failed: ${e.message}` }, 500));
+  // The owner gate runs first on every request (Lean `console.ownerGate`); with previews it is always on, because previews are
+  // served only to an owner session. Without LAN mode every request is loopback and only `/preview/*` is gated.
+  if (previews || gate) {
+    const g = gate ?? { login: new LoginGuard(store.core, null), lan: false };
+    mountOwnerGate(app, { core: store.core, owner, login: g.login, lan: g.lan });
+    if (previews) mountPreviewProxy(app, previews);
+  }
 
   // Typed commands only. 400 = not a valid command; 422 = the reducer refused it, with the reason.
   app.post("/api/commands", async (c) => {
