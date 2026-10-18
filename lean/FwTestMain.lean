@@ -18,7 +18,7 @@ import FwTest.Mutants.Kill  -- m0-mutants killers: #guards and theorems that kil
 /-- `lake test`: pseudo-random lease traces, golden JSON-lines round trips, the `Rat` wire form,
 and a replay timing for the console reducer. Exit code 0 only if everything passes.
 `lake test -- --write-plan-golden` regenerates `packages/contracts/golden/plan/` first. -/
-def main (args : List String) : IO UInt32 := do
+def FwTestMain.main (args : List String) : IO UInt32 := do
   let leaseOk ← FwTest.Lease.leaseProps
   let a ← FwTest.Golden.consoleApply
   let w ← FwTest.Golden.wire

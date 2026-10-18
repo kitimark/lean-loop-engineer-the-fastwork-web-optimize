@@ -7,12 +7,13 @@ The proved decision core of the loop (PLAN §3.2, §5). Toolchain `leanprover/le
 
 | Command | What it does |
 |---|---|
-| `lake build` | all `Fw` modules (every proof and `#guard` example runs here), `fwcore`, `mathview` |
-| `lake test` | `fwtest`: 42 console-apply golden cases, 23 JSON-lines golden lines, `Rat` wire round trips, 2,000 pseudo-random lease traces, the `measure.*` goldens (regenerated and compared byte for byte), a replay timing |
+| `lake build` | all `Fw` modules (every proof and `#guard` example runs here), `fwcore`, `mathview`, `breakgen` |
+| `fwcore [mathview \| fwtest \| sweepsgen \| partsgolden] <args>` | one executable in place of `fwcore`, `fwtest`, `sweepsgen` and `partsgolden` (task lean-bin-slim, `Fw.Ops.FwCoreRoute`): a first argument naming a former executable runs it on the rest; any other line keeps the old `fwcore` (`--ops` lists the ops, else JSON lines on stdin). `scripts/fwcore-build.sh` strips it |
+| `lake test` | `fwcore fwtest` (lakefile `testDriverArgs`): 42 console-apply golden cases, 23 JSON-lines golden lines, `Rat` wire round trips, 2,000 pseudo-random lease traces, the `measure.*` goldens (regenerated and compared byte for byte), a replay timing |
 | `lake env lean --run scripts/MeasureGolden.lean [--check]` | writes (or checks) `../packages/contracts/golden/measure/<op>.jsonl` from `Fw/Measure/Golden.lean` |
-| `lake exe partsgolden [<outDir>]` | lean-parts' golden vectors (`Fw/Parts/Golden.lean`) into `<outDir>` (default `../packages/contracts/golden/parts`) |
+| `lake exe fwcore partsgolden [<outDir>]` | lean-parts' golden vectors (`Fw/Parts/Golden.lean`) into `<outDir>` (default `../packages/contracts/golden/parts`) |
 | `lake exe breakgen [--inventory <json>] [--check <file>]` | prints `Fw/Site/breakpoints.gen.json` to stdout; `--check` exits 1 on a byte diff, `--inventory` on any mismatch with the inventory (see `Fw/Site/README.md`) |
-| `lake exe sweepsgen [--sweeps \| --sweeps-golden \| --scope] [--check <file>]` | the gate generators, split out of breakgen so the site build's breakgen imports only `Fw.Site.BreakpointGen` (`Fw.Site.GenRoute.split_agrees`): `sweeps.gen.json`, `golden/gate/sweeps.jsonl`, `scope.gen.json` |
+| `lake exe fwcore sweepsgen [--sweeps \| --sweeps-golden \| --scope] [--check <file>]` | the gate generators, split out of breakgen so the site build's breakgen imports only `Fw.Site.BreakpointGen` (`Fw.Site.GenRoute.split_agrees`): `sweeps.gen.json`, `golden/gate/sweeps.jsonl`, `scope.gen.json` |
 | `lake exe mathview [--lint]` | JSON export of every `Fw` declaration; `--lint` fails on missing `$$` math or English, `sorryAx`, or an axiom other than `propext`, `Classical.choice`, `Quot.sound`. Each declaration is exported with its own heartbeat budget (`MathView.declBudget`; `autoTex` gets `texBudget`, else `"?"`), and an exception in one declaration becomes a lint failure naming it (`export failed`) instead of crashing the export |
 | `scripts/check-partial.sh` | grep gate: no partial ops (bang accessors, `[i]!`, panics) in `Fw/Wire.lean`/`Main.lean`; no `sorry`, `native_decide`, `implemented_by`, `unsafe` anywhere |
 | `lake exe mathview [--lint] --out <file>` | also writes the JSON export to `<file>` (the same bytes as stdout), so one run serves the lint and the export |

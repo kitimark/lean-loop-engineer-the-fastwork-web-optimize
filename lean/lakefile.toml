@@ -1,7 +1,10 @@
 name = "fwcore"
 version = "0.1.0"
-defaultTargets = ["Fw", "fwcore", "mathview", "breakgen", "sweepsgen", "partsgolden"]
-testDriver = "fwtest"
+defaultTargets = ["Fw", "fwcore", "mathview", "breakgen"]
+# `lake test` runs `fwcore fwtest` (task lean-bin-slim: one executable in place of fwcore, fwtest, sweepsgen and
+# partsgolden; Fw.Ops.FwCoreRoute).
+testDriver = "fwcore"
+testDriverArgs = ["fwtest"]
 # Lake's local artifact cache (Lake/Config/PackageConfig.lean:289@eb6cafb): build products are also stored in the
 # toolchain's offline cache and hard-linked back (Lake/Build/Common.lean:489,652), so a fresh worktree builds from it.
 enableArtifactCache = true
@@ -21,26 +24,20 @@ name = "Fw"
 # every module under Fw/ (so new subtrees such as Fw/Site/ build without editing this file)
 globs = ["Fw.*"]
 
+# Also `fwcore fwtest|sweepsgen|partsgolden <args>`: the former executables' entry points, importable through
+# the library FwCoreCli (Fw.Ops.FwCoreRoute).
 [[lean_exe]]
 name = "fwcore"
 root = "Main"
+
+[[lean_lib]]
+name = "FwCoreCli"
+roots = ["FwTestMain", "SweepsgenMain"]
 
 # The site build runs `breakgen --check`, so its root imports only Fw.Site.BreakpointGen (task site-build-cache).
 [[lean_exe]]
 name = "breakgen"
 root = "BreakgenMain"
-
-# The gate generators (`--sweeps`, `--sweeps-golden`, `--scope`), split out of breakgen: their cone (Fw.Gate.Scope,
-# the wire, the console, the plan) stays out of the site build. Routing: Fw.Site.GenRoute.
-[[lean_exe]]
-name = "sweepsgen"
-root = "SweepsgenMain"
-
-# lean-parts' golden generator: `lake exe partsgolden [<outDir>]` (default ../packages/contracts/golden/parts).
-# Its root defines `main`, so it is not imported by Fw.lean.
-[[lean_exe]]
-name = "partsgolden"
-root = "Fw.Parts.Golden"
 
 [[lean_lib]]
 name = "MathView"
@@ -52,7 +49,3 @@ supportInterpreter = true
 
 [[lean_lib]]
 name = "FwTest"
-
-[[lean_exe]]
-name = "fwtest"
-root = "FwTestMain"

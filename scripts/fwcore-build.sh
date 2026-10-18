@@ -10,6 +10,10 @@
 # - The record is written only after a successful build, only on a tree that is clean before and after the build
 #   (tracked changes, untracked files under lean/) and has no merge, rebase or cherry-pick in progress, and only when
 #   HEAD did not move. Otherwise the old record is removed; the build itself still runs.
+# - After the build the binary is stripped of its symbol table (task lean-bin-slim: 104 -> 75 MB on macOS). `strip -o`
+#   writes a new file and `mv` replaces the hard link, so the Lake cache artifact keeps its bytes and Lake still finds
+#   the target up to date; the record hashes the stripped binary. No `strip` on PATH, or a failed strip, keeps the
+#   unstripped binary (same behaviour, larger file).
 # Run it in the checkout whose binary runs: sh scripts/fwcore-build.sh
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -27,6 +31,12 @@ state_check() {
 }
 state_check
 (cd lean && lake build)
+if command -v strip >/dev/null 2>&1 && strip -o "$bin.strip" "$bin" 2>/dev/null; then
+  mv -f "$bin.strip" "$bin"
+else
+  rm -f "$bin.strip"
+  echo "fwcore built; not stripped (no strip on PATH or strip failed)" >&2
+fi
 if [ -z "$reason" ]; then
   state_check
   [ "$(git rev-parse HEAD)" = "$c" ] || reason="HEAD moved during the build"
