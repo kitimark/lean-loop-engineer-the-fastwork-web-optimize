@@ -249,9 +249,9 @@ def detailOf (c : Ctx) (t : Task) : Code → String
 
 /-- All findings: per task in file order, codes in report order; then the graph-wide `cycle`.
 
-$$\begin{aligned} \forall T, C:\quad \operatorname{lint}(T, C) = {} &[\, (t.\mathit{id}, \operatorname{name}(k), \operatorname{sev}(k), \operatorname{detail}(\mathit{ctx}, t, k)) \mid t \in T,\ k \in \operatorname{codes}(\mathit{ctx}, t) \,] \\ \mathbin{+\!\!+} {} &\begin{cases} [\,] & \operatorname{acyclicB}(T) \\ [(\texttt{*}, \texttt{cycle}, \texttt{error}, \operatorname{join}(\texttt{", "}, [\, r.\mathit{id} \mid r \in \operatorname{stuck}(|T|, T) \,]))] & \neg\operatorname{acyclicB}(T) \end{cases} \\ \text{with } \mathit{ctx} = {} &([\, t.\mathit{id} \mid t \in T \,],\ \mathit{named}(C),\ \mathit{off}) \end{aligned}$$
+$$\begin{aligned} \forall T, C, \mathit{off}:\quad \operatorname{lint}(T, C, \mathit{off}) = {} &[\, (t.\mathit{id}, \operatorname{name}(k), \operatorname{sev}(k), \operatorname{detail}(\mathit{ctx}, t, k)) \mid t \in T,\ k \in \operatorname{codes}(\mathit{ctx}, t) \,] \\ \mathbin{+\!\!+} {} &\begin{cases} [\,] & \operatorname{acyclicB}(T) \\ [(\texttt{*}, \texttt{cycle}, \texttt{error}, \operatorname{join}(\texttt{", "}, [\, r.\mathit{id} \mid r \in \operatorname{stuck}(|T|, T) \,]))] & \neg\operatorname{acyclicB}(T) \end{cases} \\ \text{with } \mathit{ctx} = {} &([\, t.\mathit{id} \mid t \in T \,],\ \mathit{named}(C),\ \mathit{off}) \end{aligned}$$
 
-for every list $\mathit{off}$ of task ids whose evidence is not on main (default $[\,]$).
+where $\mathit{off}$ lists the task ids whose evidence is not on main (default $[\,]$).
 -/
 def lint (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) (off : List String := []) :
     List Finding :=
