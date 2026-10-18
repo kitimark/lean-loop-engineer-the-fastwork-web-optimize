@@ -5,6 +5,7 @@ import Fw.Ops.Usage
 import Fw.Ops.Meter
 import Fw.Ops.Identity
 import Fw.Ops.Obs
+import Fw.Ops.Wait
 /-!
 # JSON codecs and ops of `Fw.Ops` (`ops.*`)
 
@@ -20,6 +21,7 @@ are non-negative integers (seconds, tokens, ms); a non-integer number is refused
 | `ops.meter` | `params`?, `state`? {window, fired [{agent, rule}]}, `now`, `agents` [{agent, ctx, idleSec, ttlSec? or w5m?/w1h?, wakeGapSec?}] | `state`, `alerts` [{agent, rule, window}], `verdicts` [{agent, verdict, ttlSec}] |
 | `ops.hook` | `payloads` (raw hook stdin objects) | `hooks` [{sessionId, event, agentId, agentType, who, toolName, toolUseId, durationMs, error, isInterrupt, promptId, teammateName}], `errors` [{index, error}] |
 | `ops.obs` | `records`? [{agent_id?, hook_event_name, tool_use_id?, ts}], `lines`? [{hook_event_name, agent_type?, tool_name?, is_error?, duration_ms?}] (extra fields ignored) | `keys` (one obs key per record, in order), `summary` [{agent_type, tool_name, calls, errors, total_ms}] (first-seen group order) |
+| `ops.wait` | `cmd` (the Bash command text), `caps`? {maxSleepSec?} | `decision` (`allow`/`deny`), `reason` (null, `bgLong` or `unboundedLoop`), `shape` (`bgLong`: `fwWatch`/`loop`/`server`/`tail`/`longSleep`, else null) |
 | `ops.actor` | `agent_id`?, `agent_type`? (string or null, as in a hook payload or a `caps.jsonl` record) | `who` (`lead`/`agent`/`unknown`), `role` (the agent type, or null), `actor` (`lead`/`reviewer`/`owner`, or null: mint no capability) |
 
 `kind` / `runsAs`: `teammate`, `subagent`, `worktree`. `isolation`: `"worktree"`, `true`, `false`
@@ -385,8 +387,28 @@ def opObs (req : Json) : Except String Reply := do
 
 /-! ## Dispatch -/
 
+/-! ## ops.wait -/
+
+open Fw.Ops.Wait in
+/-- Shape wire names. -/
+def shapeName : Shape → String
+  | .fwWatch => "fwWatch" | .loop => "loop" | .server => "server" | .tail => "tail" | .longSleep => "longSleep"
+
+open Fw.Ops.Wait in
+/-- `ops.wait`: the wait guard's decision for one `Bash` command (a long-running process started with `&`, or an
+unbounded `until`/`while` loop, is refused). -/
+def opWait (req : Json) : Except String Reply := do
+  let cmd ← str req "cmd"
+  let caps : Caps ← match opt req "caps" with
+    | none => pure {}
+    | some c => do pure { maxSleepSec := ← natD c "maxSleepSec" (({} : Caps).maxSleepSec) }
+  pure <| match decideCmd caps cmd with
+    | .allow => [("decision", .str "allow"), ("reason", .null), ("shape", .null)]
+    | .deny (.bgLong s) => [("decision", .str "deny"), ("reason", .str "bgLong"), ("shape", .str (shapeName s))]
+    | .deny .unboundedLoop => [("decision", .str "deny"), ("reason", .str "unboundedLoop"), ("shape", .null)]
+
 /-- The `ops.*` ops. -/
-def ops : List String := ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor", "ops.obs"]
+def ops : List String := ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor", "ops.obs", "ops.wait"]
 
 /-- Dispatch an `ops.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -398,6 +420,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ops.hook" => some (opHook req)
   | "ops.actor" => some (opActor req)
   | "ops.obs" => some (opObs req)
+  | "ops.wait" => some (opWait req)
   | _ => none
 
 end Fw.Wire.Ops
