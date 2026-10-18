@@ -519,6 +519,73 @@ theorem fit_keeps_outcome (a : Outcome) (ws : List Outcome) (ha : a ≠ .unsettl
 
 
 -- ---------------------------------------------------------------------------------------------------------------
+-- which page of a sweep a part is read on
+-- ---------------------------------------------------------------------------------------------------------------
+
+/-- The page loads of one arm of a sweep. On the `plain` page the stage that scrolls away and back (the mount stage, `prepareInPage`
+stage `ready`) never runs; on the `mounted` page it runs before every reading.
+
+$$\mathrm{SweepPage} = \{\mathrm{plain}, \mathrm{mounted}\}$$ -/
+inductive SweepPage where
+  | plain
+  | mounted
+  deriving DecidableEq, Repr
+
+/-- The page a part is read on, from whether either arm has a mount step for it: `mounted` when one does, else `plain`.
+
+$$\operatorname{pageOf}(m_o, m_r) = \begin{cases} \mathrm{mounted} & m_o \vee m_r \\ \mathrm{plain} & \text{otherwise} \end{cases}$$
+
+The original renders a skipped section again (its remembered size, its pain notes' positions, its typing visual's state) when the
+page scrolls away and back, and the rewrite does not, so a part that needs no mount must not be read after the excursion (CI run
+39130842197: pain.notes, commission, commission.typing in four sweeps). -/
+def pageOf (mountOrig mountRewrite : Bool) : SweepPage :=
+  if mountOrig || mountRewrite then .mounted else .plain
+
+/-- Whether a page runs the mount stage.
+
+$$\operatorname{runsMount}(p) = [p = \mathrm{mounted}]$$ -/
+def runsMount : SweepPage → Bool
+  | .mounted => true
+  | .plain => false
+
+/-- **A part with no mount step is never read after the scroll excursion.**
+
+$$\forall m_o, m_r,\quad \neg m_o \wedge \neg m_r \implies \neg\operatorname{runsMount}(\operatorname{pageOf}(m_o, m_r))$$ -/
+theorem plain_part_has_no_history (mo mr : Bool) (h1 : mo = false) (h2 : mr = false) :
+    runsMount (pageOf mo mr) = false := by
+  subst h1 h2; rfl
+
+/-- A part that an arm mounts is read on a page where the mount stage runs.
+
+$$\forall m_o, m_r,\quad (m_o \vee m_r) \implies \operatorname{runsMount}(\operatorname{pageOf}(m_o, m_r))$$ -/
+theorem mounted_part_gets_mount (mo mr : Bool) (h : mo = true ∨ mr = true) : runsMount (pageOf mo mr) = true := by
+  rcases h with rfl | rfl <;> simp [pageOf, runsMount]
+
+/-- The number of parts (each with its two mount flags) read on a page.
+
+$$\operatorname{count}(P, g) = |\{\, x \in P \mid \operatorname{pageOf}(x) = g \,\}|$$ -/
+def pageCount (ps : List (String × Bool × Bool)) (g : SweepPage) : Nat :=
+  (ps.filter fun x => pageOf x.2.1 x.2.2 == g).length
+
+/-- **The two pages read every part exactly once.** The parts of the pages add up to all parts.
+
+$$\forall P,\quad \operatorname{count}(P, \mathrm{plain}) + \operatorname{count}(P, \mathrm{mounted}) = |P|$$ -/
+theorem pages_partition (ps : List (String × Bool × Bool)) :
+    pageCount ps .plain + pageCount ps .mounted = ps.length := by
+  induction ps with
+  | nil => rfl
+  | cons x xs ih =>
+    simp only [pageCount, List.filter_cons, List.length_cons] at ih ⊢
+    generalize pageOf x.2.1 x.2.2 = g
+    cases g <;> simp <;> omega
+
+/-- Page cases: (mount step on the original, on the rewrite).
+
+$$\text{pageCases} = [(m_o, m_r)]_k$$ -/
+def pageCases : List (Bool × Bool) :=
+  [ (false, false), (true, false), (false, true), (true, true) ]
+
+-- ---------------------------------------------------------------------------------------------------------------
 -- golden vectors for the TypeScript twin
 -- ---------------------------------------------------------------------------------------------------------------
 
@@ -593,9 +660,9 @@ def readingCases : List (String × Nat × List Stage) :=
     ("the clock is past the first instant", 2000, [([], 1000), ([], 3000)]),
     ("no stages", 7, []) ]
 
-/-- One golden line per case: frozen waits, then freeze passes, the clock constants, instants, then readings.
+/-- One golden line per case: frozen waits, then freeze passes, the clock constants, instants, readings, then pages.
 
-$$\text{lines} = [\ell_{\mathrm{frozen}}(c)]_c \mathbin{+\!\!+} [\ell_{\mathrm{freeze}}(c)]_c \mathbin{+\!\!+} [\ell_{\mathrm{clock}}] \mathbin{+\!\!+} [\ell_{\mathrm{instant}}(c)]_c \mathbin{+\!\!+} [\ell_{\mathrm{readings}}(c)]_c$$ -/
+$$\text{lines} = [\ell_{\mathrm{frozen}}(c)]_c \mathbin{+\!\!+} [\ell_{\mathrm{freeze}}(c)]_c \mathbin{+\!\!+} [\ell_{\mathrm{clock}}] \mathbin{+\!\!+} [\ell_{\mathrm{instant}}(c)]_c \mathbin{+\!\!+} [\ell_{\mathrm{readings}}(c)]_c \mathbin{+\!\!+} [\ell_{\mathrm{page}}(c)]_c$$ -/
 def goldenLines : List String :=
   frozenCases.map (fun (n, run, st, hov) =>
     (Json.mkObj [("kind", "frozenWait"), ("name", toJson n), ("policy", policyJson gatePolicy), ("stepMs", toJson stepMs),
@@ -614,6 +681,10 @@ def goldenLines : List String :=
     (Json.mkObj [("kind", "readings"), ("name", toJson n), ("start", toJson c),
       ("stages", Json.arr (st.map stageJson).toArray), ("fits", toJson (fits c st)),
       ("readings", toJson (readings c st))]).compress)
+  ++ pageCases.map (fun (mo, mr) =>
+    (Json.mkObj [("kind", "page"), ("mountOrig", toJson mo), ("mountRewrite", toJson mr),
+      ("page", toJson (match pageOf mo mr with | .plain => "plain" | .mounted => "mounted")),
+      ("runsMount", toJson (runsMount (pageOf mo mr)))]).compress)
 
 /-- The exact bytes of `packages/contracts/golden/gate/freeze.jsonl`.
 

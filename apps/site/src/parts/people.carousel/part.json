@@ -1,0 +1,13 @@
+{
+  "id": "people.carousel",
+  "slot": "people",
+  "anchors": ["people-carousel"],
+  "experiment": true,
+  "impls": ["plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:11251-11500;assets/2.gBuqKVzi.css:2866-2915" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

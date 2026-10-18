@@ -1,15 +1,15 @@
 import Fw.Engine.Chromium
 import Fw.Engine.WebKit
 import Fw.Parts.HeroCountdownOpt
-import Fw.Parts.HeroAccent
+import Fw.Parts.HeroAccentOpt
 import Fw.Parts.HeroExitOpt
 import Fw.Parts.HiddenPause
 import Fw.Parts.MorphMountOpt
 import Fw.Parts.MorphPanelOpt
 import Fw.Parts.NavHitTestOpt
-import Fw.Parts.PainNotes
-import Fw.Parts.PeopleCard
-import Fw.Parts.PeopleDeck
+import Fw.Parts.PainNotesOpt
+import Fw.Parts.PeopleCardOpt
+import Fw.Parts.PeopleDeckOpt
 
 /-- The Lean generator of each file in `packages/contracts/golden/engine/`, by file name.
 $$\mathrm{generators} = [(\texttt{chromium.jsonl}, \mathrm{Chromium.goldenText}), \dots, (\texttt{webkit.jsonl}, \mathrm{WebKit.goldenJsonl})]$$
@@ -17,15 +17,15 @@ One row per committed engine golden; a file without a row, or a row without a fi
 def generators : List (String × String) :=
   [("chromium.jsonl", Fw.Engine.Chromium.goldenText),
    ("countdown-strip.jsonl", Fw.Parts.HeroCountdownOpt.goldenJsonl),
-   ("hero-accent.jsonl", Fw.Parts.HeroAccent.goldenJsonl),
+   ("hero-accent.jsonl", Fw.Parts.HeroAccentOpt.goldenJsonl),
    ("hero-exit.jsonl", Fw.Parts.HeroExitOpt.goldenJsonl),
    ("hidden-pause.jsonl", Fw.Parts.HiddenPause.goldenJsonl),
    ("morph-mount.jsonl", Fw.Parts.MorphMountOpt.goldenText),
    ("morph-panel.jsonl", Fw.Parts.MorphPanelOpt.goldenText),
    ("nav-hittest.jsonl", Fw.Parts.NavHitTestOpt.goldenJsonl),
-   ("pain-notes.jsonl", Fw.Parts.PainNotes.goldenText),
-   ("people-card.jsonl", Fw.Parts.PeopleCard.goldenText),
-   ("people-deck.jsonl", Fw.Parts.PeopleDeck.goldenText),
+   ("pain-notes.jsonl", Fw.Parts.PainNotesOpt.goldenText),
+   ("people-card.jsonl", Fw.Parts.PeopleCardOpt.goldenText),
+   ("people-deck.jsonl", Fw.Parts.PeopleDeckOpt.goldenText),
    ("webkit.jsonl", Fw.Engine.WebKit.goldenJsonl)]
 
 /-- Check (or with `--write`, rewrite) `packages/contracts/golden/engine/*.jsonl` against the Lean generators. Run from

@@ -118,6 +118,9 @@ export async function launchChromium({ chromePath = process.env.CHROME_PATH ?? C
       await cdp.send('Emulation.setEmulatedMedia', media(env));
       const clock = frozen ? await freezeClock(page) : null;
       await page.addInitScript(init);
+      // The pointer starts at (0,0) of a fresh page, over the top-left card of hero.orbit; parking it before the navigation
+      // leaves no pointer over the page while it loads (runs 39101532038 and 39105279831).
+      if (env.hover === 'hover') await page.mouse.move(-1, -1);
       await page.goto(origin + path, { waitUntil: 'load' });
       const frame = page.mainFrame();
       return {

@@ -496,8 +496,7 @@ theorem fold_unsettled_never_pass (a : Outcome) (ws : List Outcome) (b : Outcome
 -- ---------------------------------------------------------------------------------------------------------------
 
 /-- A node counts as rendered when no element on its ancestor chain (itself included) is flagged by the caller as unrendered.
-The flags are an INPUT: this module proves what a flagged probe means (no verdict), not when a flag is right. The gate (probes only, switched on with
-`FW_GATE_VIEW=1`, off by default: see `viewCell`) flags a node the engine has skipped under `content-visibility:auto` (premise `cv.skip-flag`: `checkVisibility()` true and the
+The flags are an INPUT: this module proves what a flagged probe means (no verdict), not when a flag is right. The gate (probes only; on in the Chromium probes and off in WebKit: `viewFor`; see `viewCell`) flags a node the engine has skipped under `content-visibility:auto` (premise `cv.skip-flag`: `checkVisibility()` true and the
 `contentVisibilityAuto` form false) and, before a flag takes effect, brings the part into view and reads again (`view`,
 `viewCell` below), so only a node still skipped after that is `notRendered`. Premise-tests (run 39076735134) refuted the
 earlier idea that a skipped node reports an unresolved `auto`: `getComputedStyle` returns the resolved length there.
@@ -691,6 +690,77 @@ theorem viewCell_pass_sound {α : Type} [DecidableEq α] (bo br : Bool) (fo go f
   cases hd : decide ((view bo fo go).val = (view br fr gr).val)
   · simp [viewCell, cell, report, h1', h2', hd] at h
   · simpa using hd
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- which engine reads a skipped part again (the bring flag as a function of the engine)
+-- ---------------------------------------------------------------------------------------------------------------
+
+/-- The engines the gate runs, by the launcher name the runner records (`engines.mjs` `name`).
+
+$$E = \{\mathrm{chromium}, \mathrm{webkit}\}$$ -/
+inductive ViewEngine where
+  | chromium
+  | webkit
+  deriving DecidableEq, Repr
+
+/-- The launcher name of an engine as `run.mjs` knows it (`chromium`, `playwright-webkit`).
+
+$$\operatorname{engineOf}(n) = \begin{cases} \mathrm{chromium} & n = \texttt{chromium} \\ \mathrm{webkit} & n = \texttt{playwright-webkit} \\ \bot & \text{otherwise} \end{cases}$$ -/
+def engineOf (n : String) : Option ViewEngine :=
+  if n = "chromium" then some .chromium else if n = "playwright-webkit" then some .webkit else none
+
+/-- Whether the probes of an engine bring a skipped part into view and read it again. Chromium needs it: its `getComputedStyle`
+returns a stale used `auto` margin inside a `content-visibility:auto` subtree it skipped (run 39101532038: commission
+`margin-inline` 869.5 against 869 at one probe). WebKit does not and breaks with it: the scroll flips the commission
+scene's `content-visibility` and `--commission-shrink` in one arm only (run 39105279831: 11 probes).
+
+$$\operatorname{viewOn}(\mathrm{chromium}) = \top \qquad \operatorname{viewOn}(\mathrm{webkit}) = \bot$$ -/
+def viewOn : ViewEngine → Bool
+  | .chromium => true
+  | .webkit => false
+
+/-- The bring flag of a run: the debug switch `FW_GATE_VIEW` (`1` on, `0` off, anything else or absent: the engine's own policy),
+and an engine name the runner does not know reads nothing again.
+
+$$\operatorname{viewFor}(s, n) = \begin{cases} \top & s = \texttt{1} \\ \bot & s = \texttt{0} \\ \operatorname{viewOn}(e) & s \notin \{\texttt{1}, \texttt{0}\} \wedge \operatorname{engineOf}(n) = \mathrm{some}(e) \\ \bot & s \notin \{\texttt{1}, \texttt{0}\} \wedge \operatorname{engineOf}(n) = \bot \end{cases}$$ -/
+def viewFor (s : Option String) (n : String) : Bool :=
+  match s with
+  | some "1" => true
+  | some "0" => false
+  | _ => (engineOf n).any viewOn
+
+/-- With no switch set, Chromium reads again and WebKit does not.
+
+$$\operatorname{viewFor}(\bot, \texttt{chromium}) = \top \wedge \operatorname{viewFor}(\bot, \texttt{playwright-webkit}) = \bot$$ -/
+theorem viewFor_default : viewFor none "chromium" = true ∧ viewFor none "playwright-webkit" = false := by
+  decide
+
+/-- The switch overrides the engine's policy in both directions.
+
+$$\forall n,\ \operatorname{viewFor}(\texttt{1}, n) = \top \wedge \operatorname{viewFor}(\texttt{0}, n) = \bot$$ -/
+theorem viewFor_switch (n : String) : viewFor (some "1") n = true ∧ viewFor (some "0") n = false := by
+  simp [viewFor]
+
+/-- Any other switch value is no switch.
+
+$$\forall s, n,\ s \notin \{\texttt{1}, \texttt{0}\} \implies \operatorname{viewFor}(\mathrm{some}(s), n) = \operatorname{viewFor}(\bot, n)$$ -/
+theorem viewFor_other (s n : String) (h1 : s ≠ "1") (h0 : s ≠ "0") : viewFor (some s) n = viewFor none n := by
+  simp [viewFor, h1, h0]
+
+/-- An unknown engine name never brings a part into view.
+
+$$\operatorname{engineOf}(n) = \bot \implies \operatorname{viewFor}(\bot, n) = \bot$$ -/
+theorem viewFor_unknown (n : String) (h : engineOf n = none) : viewFor none n = false := by
+  simp [viewFor, h]
+
+/-- Where the engine does not bring parts (WebKit by default), the cell is the first reading's, whatever the second reading holds.
+
+$$\forall f_o, g_o, f_r, g_r, a, b,\quad \operatorname{viewCell}(v, v, f_o, g_o, f_r, g_r, a, b) = \operatorname{cell}(\neg f_o.\mathit{skipped}, \neg f_r.\mathit{skipped}, a, b, [f_o.\mathit{val} = f_r.\mathit{val}]),\quad v = \operatorname{viewFor}(\bot, \texttt{playwright-webkit})$$ -/
+theorem viewCell_webkit_default {α : Type} [DecidableEq α] (fo go fr gr : Reading α) (a b : Outcome) :
+    viewCell (viewFor none "playwright-webkit") (viewFor none "playwright-webkit") fo go fr gr a b =
+      cell (!fo.skipped) (!fr.skipped) a b (decide (fo.val = fr.val)) := by
+  rw [viewFor_default.2]
+  exact viewCell_inert fo go fr gr a b
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- the model: a settled sample does not depend on when it was taken
@@ -1062,6 +1132,19 @@ def reportCases : List (String × Outcome × Outcome × Bool) :=
     ("rewrite unsettled, values different", .settled 1, .unsettled, false),
     ("both unsettled", .unsettled, .unsettled, true) ]
 
+/-- The bring flag: (name, value of `FW_GATE_VIEW` or none, launcher name).
+
+$$\text{viewForCases} = [(n_k, s_k, e_k)]_k$$ -/
+def viewForCases : List (String × Option String × String) :=
+  [ ("chromium, no switch", none, "chromium"),
+    ("webkit, no switch", none, "playwright-webkit"),
+    ("webkit forced on", some "1", "playwright-webkit"),
+    ("chromium forced off", some "0", "chromium"),
+    ("chromium, empty switch", some "", "chromium"),
+    ("webkit, other switch value", some "yes", "playwright-webkit"),
+    ("unknown engine, no switch", none, "firefox"),
+    ("unknown engine forced on", some "1", "firefox") ]
+
 /-- Probe cells: (name, arm a rendered, arm b rendered, outcome a, outcome b, equal).
 
 $$\text{cellCases} = [(n_k, r_a, r_b, a_k, b_k, e_k)]_k$$ -/
@@ -1108,9 +1191,9 @@ def quietCases : List (String × Nat × List Int × List Int) :=
     ("no values at all", 100, [], []),
     ("people.deck scale mid lerp", 100, [977000], [979000]) ]
 
-/-- One golden line per case, in the order of the eight case lists: observation, wait, quiet, rendered, cell, view, fold, report.
+/-- One golden line per case, in the order of the nine case lists: observation, wait, quiet, rendered, cell, view, fold, report, viewFor.
 
-$$\text{lines} = [\ell_{\mathrm{obs}}(c)]_{c \in \mathrm{obsCases}} \mathbin{+\!\!+} [\ell_{\mathrm{wait}}(c)]_{c \in \mathrm{waitCases}} \mathbin{+\!\!+} [\ell_{\mathrm{quiet}}(c)]_{c \in \mathrm{quietCases}} \mathbin{+\!\!+} [\ell_{\mathrm{rendered}}(c)]_{c \in \mathrm{renderedCases}} \mathbin{+\!\!+} [\ell_{\mathrm{cell}}(c)]_{c \in \mathrm{cellCases}} \mathbin{+\!\!+} [\ell_{\mathrm{view}}(c)]_{c \in \mathrm{viewCases}} \mathbin{+\!\!+} [\ell_{\mathrm{fold}}(c)]_{c \in \mathrm{foldCases}} \mathbin{+\!\!+} [\ell_{\mathrm{report}}(c)]_{c \in \mathrm{reportCases}}$$ -/
+$$\text{lines} = [\ell_{\mathrm{obs}}(c)]_{c \in \mathrm{obsCases}} \mathbin{+\!\!+} [\ell_{\mathrm{wait}}(c)]_{c \in \mathrm{waitCases}} \mathbin{+\!\!+} [\ell_{\mathrm{quiet}}(c)]_{c \in \mathrm{quietCases}} \mathbin{+\!\!+} [\ell_{\mathrm{rendered}}(c)]_{c \in \mathrm{renderedCases}} \mathbin{+\!\!+} [\ell_{\mathrm{cell}}(c)]_{c \in \mathrm{cellCases}} \mathbin{+\!\!+} [\ell_{\mathrm{view}}(c)]_{c \in \mathrm{viewCases}} \mathbin{+\!\!+} [\ell_{\mathrm{fold}}(c)]_{c \in \mathrm{foldCases}} \mathbin{+\!\!+} [\ell_{\mathrm{report}}(c)]_{c \in \mathrm{reportCases}} \mathbin{+\!\!+} [\ell_{\mathrm{viewFor}}(c)]_{c \in \mathrm{viewForCases}}$$ -/
 def goldenLines : List String :=
   obsCases.map (fun (n, o) =>
     (Json.mkObj [("kind", "settled"), ("name", toJson n), ("policy", policyJson gatePolicy), ("obs", obsJson o),
@@ -1140,6 +1223,9 @@ def goldenLines : List String :=
   ++ reportCases.map (fun (n, a, b, e) =>
     (Json.mkObj [("kind", "report"), ("name", toJson n), ("a", toJson (outcomeText a)), ("b", toJson (outcomeText b)),
       ("equal", toJson e), ("report", toJson (reportText (report a b e)))]).compress)
+  ++ viewForCases.map (fun (n, s, e) =>
+    (Json.mkObj [("kind", "viewFor"), ("name", toJson n), ("switch", toJson s), ("engine", toJson e),
+      ("view", toJson (viewFor s e))]).compress)
 
 /-- The exact bytes of `packages/contracts/golden/gate/settle.jsonl`: the lines, each newline-terminated.
 

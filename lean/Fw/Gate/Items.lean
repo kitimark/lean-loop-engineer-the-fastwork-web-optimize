@@ -5,7 +5,9 @@ import Fw.Gate.Compare
 `anchors.json` declares, per part, the roles to compare (each with a reason): which box dimensions
 (`dims`, optionally relative to the first box of a reference role, `boxRel`), and which properties
 are not compared: a role's own `skipProps`, the named `skipSets`, and the global `skipPrefixes`
-(each with a reason). For one sampled state the original arm `o` and the rewrite arm `r` give, per
+(each with a reason). A role may also name `skipIfInline` properties: such a property is left out of one pair only
+when the original's element sets it inline (`Item.inline`), so it is still compared on every other pair.
+For one sampled state the original arm `o` and the rewrite arm `r` give, per
 role, a count and the items found; their items are paired by index.
 
 Per role the items are: one `count` item; then, for each index below both lengths, one `box` item
@@ -55,7 +57,9 @@ structure BoxRel where
 
 /-- One compared role of a part, with its reason.
 
-$$r = (\rho,\ b,\ D,\ N_{\mathrm{sets}},\ N_{\mathrm{props}},\ \mathit{why}) \in \mathrm{String} \times \mathrm{BoxRel}_\bot \times (\mathrm{String}^{*})^{3} \times \mathrm{String}$$
+$$r = (\rho,\ b,\ D,\ N_{\mathrm{sets}},\ N_{\mathrm{props}},\ N_{\mathrm{inline}},\ \mathit{why}) \in \mathrm{String} \times \mathrm{BoxRel}_\bot \times (\mathrm{String}^{*})^{4} \times \mathrm{String}$$
+
+$N_{\mathrm{inline}}$ (`skipIfInline`) names the properties skipped on a pair only where the original's element sets them inline.
 -/
 structure RoleSpec where
   role : String
@@ -63,6 +67,7 @@ structure RoleSpec where
   dims : List String
   skipSets : List String
   skipProps : List String
+  skipIfInline : List String
   why : String
   deriving Repr, Inhabited
 
@@ -99,11 +104,15 @@ structure Rect where
 
 /-- One element of a role: its box (when the role has dimensions) and its computed style.
 
-$$e = (q,\ \sigma) \in \mathrm{Rect}_\bot \times (\mathrm{String} \times \mathrm{String})^{*}$$
+$$e = (q,\ \sigma,\ \iota) \in \mathrm{Rect}_\bot \times (\mathrm{String} \times \mathrm{String})^{*} \times \mathrm{String}^{*}$$
+
+$\iota$ (`inline`) lists the properties the element's own `style` attribute sets; the runner records it only for the
+properties a role names in `skipIfInline`.
 -/
 structure Item where
   rect : Option Rect
   style : List (String × String)
+  inline : List String
   deriving Repr, Inhabited
 
 /-- One role on one arm: the element count and the elements collected.
@@ -231,15 +240,58 @@ The number a box item compares. -/
 def boxDim (it : Item) (ref : Option Rect) (d : String) : Option Rat :=
   it.rect.bind fun r => dimOf (relRect r ref) d
 
+/-- The compared properties at one pair: the role's compared ones, minus those it skips where the original sets them inline.
+
+$$\operatorname{cmpAt}_{\rho}(C, x) = [\,p \in C \mid \neg(p \in \rho.\mathrm{skipIfInline} \wedge p \in x.\iota)\,]$$
+
+A property named in `skipIfInline` is dropped only for an original element that sets it inline, and stays for every other. -/
+def cmpAt (rs : RoleSpec) (cmp : List String) (io : Item) : List String :=
+  cmp.filter fun p => !(rs.skipIfInline.contains p && io.inline.contains p)
+
+/-- A property that is compared and not named in `skipIfInline` is compared on every pair, whatever the original sets inline.
+
+$$p \in C \wedge p \notin \rho.\mathrm{skipIfInline} \implies p \in \operatorname{cmpAt}_\rho(C, x)$$
+
+The inline rule never skips a property that the role did not name. -/
+theorem cmpAt_not_named (rs : RoleSpec) (cmp : List String) (io : Item) (p : String) (hp : p ∈ cmp)
+    (hn : p ∉ rs.skipIfInline) : p ∈ cmpAt rs cmp io := by
+  simp [cmpAt, hp, hn]
+
+/-- A named property is compared on every pair whose original element does not set it inline.
+
+$$p \in C \wedge p \notin x.\iota \implies p \in \operatorname{cmpAt}_\rho(C, x)$$
+
+No blanket skip: the property is dropped only where the original set it inline. -/
+theorem cmpAt_not_inline (rs : RoleSpec) (cmp : List String) (io : Item) (p : String) (hp : p ∈ cmp)
+    (hn : p ∉ io.inline) : p ∈ cmpAt rs cmp io := by
+  simp [cmpAt, hp, hn]
+
+/-- A named property that the original sets inline is dropped.
+
+$$p \in \rho.\mathrm{skipIfInline} \wedge p \in x.\iota \implies p \notin \operatorname{cmpAt}_\rho(C, x)$$
+
+The raised original element is not judged on that property. -/
+theorem cmpAt_inline_dropped (rs : RoleSpec) (cmp : List String) (io : Item) (p : String)
+    (hs : p ∈ rs.skipIfInline) (hi : p ∈ io.inline) : p ∉ cmpAt rs cmp io := by
+  simp [cmpAt, hs, hi]
+
+/-- Every property that `cmpAt` keeps is one of the role's compared properties.
+
+$$p \in \operatorname{cmpAt}_\rho(C, x) \implies p \in C$$
+
+The inline rule only removes. -/
+theorem cmpAt_subset (rs : RoleSpec) (cmp : List String) (io : Item) (p : String)
+    (h : p ∈ cmpAt rs cmp io) : p ∈ cmp := (List.mem_filter.mp h).1
+
 /-- The items at one index of a role: boxes, compared styles, then information.
 
-$$\operatorname{itemAt}_{\rho, C, I, q_o, q_r}(i, x, y) = [\operatorname{box}_d \mid d \in \rho.\mathrm{dims}] \mathbin{+\!\!+} [\operatorname{style}_p \mid p \in C] \mathbin{+\!\!+} [\operatorname{info}_p \mid p \in I],\quad \text{where } \operatorname{box}_d = (\mathrm{box}, \rho.\mathrm{role}, i, d, \operatorname{boxStatus}(\operatorname{boxDim}(x, q_o, d), \operatorname{boxDim}(y, q_r, d)), \mathrm{false}),\ \operatorname{style}_p = (\mathrm{style}, \rho.\mathrm{role}, i, p, \operatorname{styleStatus}(x_p, y_p), \mathrm{false}),\ \operatorname{info}_p = (\mathrm{info}, \rho.\mathrm{role}, i, p, \mathrm{na}, \neg\operatorname{styleValueEq}(x_p, y_p)),\ x_p = \text{the value of the first entry of } x.\sigma \text{ with key } p \text{ (} \bot \text{ if absent)},\ y_p = \text{likewise for } y$$
+$$\operatorname{itemAt}_{\rho, C, I, q_o, q_r}(i, x, y) = [\operatorname{box}_d \mid d \in \rho.\mathrm{dims}] \mathbin{+\!\!+} [\operatorname{style}_p \mid p \in \operatorname{cmpAt}_\rho(C, x)] \mathbin{+\!\!+} [\operatorname{info}_p \mid p \in I],\quad \text{where } \operatorname{box}_d = (\mathrm{box}, \rho.\mathrm{role}, i, d, \operatorname{boxStatus}(\operatorname{boxDim}(x, q_o, d), \operatorname{boxDim}(y, q_r, d)), \mathrm{false}),\ \operatorname{style}_p = (\mathrm{style}, \rho.\mathrm{role}, i, p, \operatorname{styleStatus}(x_p, y_p), \mathrm{false}),\ \operatorname{info}_p = (\mathrm{info}, \rho.\mathrm{role}, i, p, \mathrm{na}, \neg\operatorname{styleValueEq}(x_p, y_p)),\ x_p = \text{the value of the first entry of } x.\sigma \text{ with key } p \text{ (} \bot \text{ if absent)},\ y_p = \text{likewise for } y$$
 
 One element pair yields its box, style and information items. -/
 def itemAt (rs : RoleSpec) (cmp info : List String) (refO refR : Option Rect) (i : Nat)
     (io ir : Item) : List PItem :=
   rs.dims.map (fun d => ⟨.box, rs.role, i, d, boxStatus (boxDim io refO d) (boxDim ir refR d), false⟩) ++
-  cmp.map (fun p => ⟨.style, rs.role, i, p, styleStatus (io.style.lookup p) (ir.style.lookup p), false⟩) ++
+  (cmpAt rs cmp io).map (fun p => ⟨.style, rs.role, i, p, styleStatus (io.style.lookup p) (ir.style.lookup p), false⟩) ++
   info.map (fun p => ⟨.info, rs.role, i, p, .na, !styleValueEq (io.style.lookup p) (ir.style.lookup p)⟩)
 
 /-- Pair two item lists by index, up to the shorter length.
@@ -337,7 +389,7 @@ theorem mem_roleItems {a : Anchors} {rs : RoleSpec} {props : Option RoleProps}
       simp only [itemAt, List.mem_append, List.mem_map] at hj
       rcases hj with (⟨d, -, rfl⟩ | ⟨p, hp, rfl⟩) | ⟨p, hp, rfl⟩
       · exact ⟨rfl, .inr (.inl ⟨rfl, _, _, rfl⟩)⟩
-      · exact ⟨rfl, .inr (.inr (.inl ⟨rfl, hp, _, _, rfl⟩))⟩
+      · exact ⟨rfl, .inr (.inr (.inl ⟨rfl, cmpAt_subset _ _ _ _ hp, _, _, rfl⟩))⟩
       · exact ⟨rfl, .inr (.inr (.inr ⟨rfl, hp, rfl⟩))⟩
   · simp only [List.mem_singleton] at h
     subst h
@@ -450,9 +502,9 @@ def mapRole (ρ : String) (g : Item → Item) (pr : PartRaw) : PartRaw :=
 
 /-- Set (or remove) one computed-style property of an element.
 
-$$\operatorname{setStyle}_{p, v}(x) = (x.q,\ \sigma'),\quad \sigma' = \begin{cases} (p, s) :: [\,e \in x.\sigma \mid e.1 \ne p\,] & v = s \ne \bot \\ [\,e \in x.\sigma \mid e.1 \ne p\,] & v = \bot \end{cases}$$
+$$\operatorname{setStyle}_{p, v}(x) = (x.q,\ \sigma',\ x.\iota),\quad \sigma' = \begin{cases} (p, s) :: [\,e \in x.\sigma \mid e.1 \ne p\,] & v = s \ne \bot \\ [\,e \in x.\sigma \mid e.1 \ne p\,] & v = \bot \end{cases}$$
 
-so the box is kept, $\operatorname{setStyle}_{p, v}(x)[p] = v$ and $\operatorname{setStyle}_{p, v}(x)[q] = x[q]$ for $q \ne p$
+so the box and the inline list are kept, $\operatorname{setStyle}_{p, v}(x)[p] = v$ and $\operatorname{setStyle}_{p, v}(x)[q] = x[q]$ for $q \ne p$
 (lookup of the first entry, $\bot$ if absent), with $v \in \mathrm{String}_\bot$; $v = \bot$ removes $p$. Change a single
 property value. -/
 def setStyle (p : String) (v : Option String) (x : Item) : Item :=
@@ -553,15 +605,16 @@ theorem pairs_congr (f : Nat → Item → Item → List PItem) (h₁ h₂ : Item
 
 /-- The statuses at one index depend only on the boxes and the compared properties.
 
-$$\forall \mathit{rs}, C, I, \mathit{refO}, \mathit{refR}, i, x, x', y, y',\quad \bigl(x.\mathrm{rect} = x'.\mathrm{rect} \wedge y.\mathrm{rect} = y'.\mathrm{rect} \wedge (\forall q \in C,\ x[q] = x'[q] \wedge y[q] = y'[q])\bigr) \implies \operatorname{st}(\operatorname{itemAt}_{\mathit{rs}, C, I, \mathit{refO}, \mathit{refR}}(i, x, y)) = \operatorname{st}(\operatorname{itemAt}_{\mathit{rs}, C, I, \mathit{refO}, \mathit{refR}}(i, x', y')),\quad \text{where } \operatorname{st}(L) = [\,it.\mathrm{status} \mid it \in L\,],\ x[q] = \text{the first style entry of } x \text{ with key } q \text{ (} \bot \text{ if absent)}$$
+$$\forall \mathit{rs}, C, I, \mathit{refO}, \mathit{refR}, i, x, x', y, y',\quad \bigl(x.\mathrm{rect} = x'.\mathrm{rect} \wedge x.\iota = x'.\iota \wedge y.\mathrm{rect} = y'.\mathrm{rect} \wedge (\forall q \in C,\ x[q] = x'[q] \wedge y[q] = y'[q])\bigr) \implies \operatorname{st}(\operatorname{itemAt}_{\mathit{rs}, C, I, \mathit{refO}, \mathit{refR}}(i, x, y)) = \operatorname{st}(\operatorname{itemAt}_{\mathit{rs}, C, I, \mathit{refO}, \mathit{refR}}(i, x', y')),\quad \text{where } \operatorname{st}(L) = [\,it.\mathrm{status} \mid it \in L\,],\ x[q] = \text{the first style entry of } x \text{ with key } q \text{ (} \bot \text{ if absent)}$$
 
 Information properties never touch a status. -/
 theorem itemAt_congr (rs : RoleSpec) (cmp info : List String) (refO refR : Option Rect) (i : Nat)
-    (x x' y y' : Item) (hx : x.rect = x'.rect) (hy : y.rect = y'.rect)
+    (x x' y y' : Item) (hx : x.rect = x'.rect) (hxi : x.inline = x'.inline) (hy : y.rect = y'.rect)
     (hs : ∀ q ∈ cmp, x.style.lookup q = x'.style.lookup q ∧ y.style.lookup q = y'.style.lookup q) :
     (itemAt rs cmp info refO refR i x y).map (·.status) =
       (itemAt rs cmp info refO refR i x' y').map (·.status) := by
-  simp only [itemAt, List.map_append, List.map_map]
+  have hc : cmpAt rs cmp x = cmpAt rs cmp x' := by simp only [cmpAt, hxi]
+  simp only [itemAt, List.map_append, List.map_map, hc]
   congr 1
   congr 1
   · apply List.map_congr_left
@@ -569,7 +622,8 @@ theorem itemAt_congr (rs : RoleSpec) (cmp info : List String) (refO refR : Optio
     simp [boxDim, hx, hy]
   · apply List.map_congr_left
     intro q hq
-    simp [(hs q hq).1, (hs q hq).2]
+    have hq' := hs q (cmpAt_subset _ _ _ _ hq)
+    simp [hq'.1, hq'.2]
 
 /-- `flatMap` only looks at the elements of its list.
 
@@ -586,13 +640,14 @@ theorem flatMap_congr' {α β : Type} {l : List α} {f g : α → List β} (h : 
 
 /-- Changing a skipped property, on either arm and in any element of its role, changes no status.
 
-$$\forall A, P, o, r, \Pi, \rho, p, g_1, g_2,\quad \bigl(\forall x,\ g_1(x) \approx_p x \wedge g_2(x) \approx_p x\bigr) \wedge \bigl(\forall \sigma \in P.\mathrm{roles},\ \sigma.\mathrm{role} = \rho \implies \operatorname{skipped}(p, \operatorname{skipNames}(A, \sigma), \operatorname{prefixes}(A))\bigr)$$
+$$\forall A, P, o, r, \Pi, \rho, p, g_1, g_2,\quad \bigl(\forall x,\ g_1(x) \approx_p x \wedge g_2(x) \approx_p x \wedge g_1(x).\iota = x.\iota\bigr) \wedge \bigl(\forall \sigma \in P.\mathrm{roles},\ \sigma.\mathrm{role} = \rho \implies \operatorname{skipped}(p, \operatorname{skipNames}(A, \sigma), \operatorname{prefixes}(A))\bigr)$$
 $$\implies [\,it.\mathrm{status} \mid it \in \operatorname{partItems}(A, P, \operatorname{mapRole}_{\rho, g_1}(o), \operatorname{mapRole}_{\rho, g_2}(r), \Pi)\,] = [\,it.\mathrm{status} \mid it \in \operatorname{partItems}(A, P, o, r, \Pi)\,]$$
 
 Skipped properties are never compared, so they can never fail a cell. -/
 theorem partItems_skip_invariant (a : Anchors) (spec : PartSpec) (o r : Option PartRaw)
     (props : PartProps) (ρ p : String) (g₁ g₂ : Item → Item)
     (hg₁ : ∀ x, AgreeOff p (g₁ x) x) (hg₂ : ∀ x, AgreeOff p (g₂ x) x)
+    (hi₁ : ∀ x, (g₁ x).inline = x.inline)
     (hskip : ∀ rs ∈ spec.roles, rs.role = ρ → isSkipped p (skipNames a rs) (prefixes a) = true) :
     (partItems a spec (o.map (mapRole ρ g₁)) (r.map (mapRole ρ g₂)) props).map (·.status) =
       (partItems a spec o r props).map (·.status) := by
@@ -624,6 +679,7 @@ theorem partItems_skip_invariant (a : Anchors) (spec : PartSpec) (o r : Option P
           intro i x y
           apply itemAt_congr
           · exact (hg₁ x).1
+          · exact hi₁ x
           · exact (hg₂ y).1
           · intro q hq
             have hqp : q ≠ p := by
@@ -646,7 +702,8 @@ theorem partVerdict_setStyle (a : Anchors) (spec : PartSpec) (o r : Option PartR
     partVerdict a spec (o.map (mapRole ρ (setStyle p v))) (r.map (mapRole ρ (setStyle p w))) props =
       partVerdict a spec o r props := by
   unfold partVerdict
-  rw [partItems_skip_invariant a spec o r props ρ p _ _ (setStyle_agree p v) (setStyle_agree p w) hskip]
+  rw [partItems_skip_invariant a spec o r props ρ p _ _ (setStyle_agree p v) (setStyle_agree p w)
+    (fun _ => rfl) hskip]
 
 /-- The order in which a part lists its roles does not change its verdict.
 
@@ -679,11 +736,11 @@ def wellFormed (a : Anchors) (ps : List PartSpec) : Bool :=
 private def exA : Anchors :=
   ⟨[⟨"animation", "x"⟩], [⟨"layoutDerived", ["width", "height"], "x"⟩]⟩
 private def exSpec : PartSpec :=
-  ⟨"p", [⟨"root", none, ["x", "w"], ["layoutDerived"], ["transform"], "x"⟩]⟩
+  ⟨"p", [⟨"root", none, ["x", "w"], ["layoutDerived"], ["transform"], [], "x"⟩]⟩
 private def exProps : PartProps :=
   [("root", ⟨["color", "width", "transform", "animation-name", "top"], ["font-size", "animation"]⟩)]
 private def exItem (x : Rat) (color top fs : String) : Item :=
-  ⟨some ⟨x, 0, 10, 10⟩, [("color", color), ("top", top), ("font-size", fs), ("width", "1px")]⟩
+  ⟨some ⟨x, 0, 10, 10⟩, [("color", color), ("top", top), ("font-size", fs), ("width", "1px")], []⟩
 private def exArm (n : Nat) (its : List Item) : Option PartRaw := some [("root", ⟨n, its⟩)]
 
 #guard comparedProps exA exSpec.roles[0]! ["color", "width", "transform", "animation-name", "top"] ==
@@ -700,10 +757,25 @@ private def exArm (n : Nat) (its : List Item) : Option PartRaw := some [("root",
 #guard partVerdict exA exSpec none (exArm 1 []) exProps == .fail
 #guard partVerdict exA ⟨"p", []⟩ none none exProps == .nc
 #guard wellFormed exA [exSpec]
-#guard !wellFormed exA [⟨"p", [⟨"root", none, [], ["nope"], [], "x"⟩]⟩]
-#guard !wellFormed exA [⟨"p", [⟨"root", some ⟨"other", 0⟩, [], [], [], "x"⟩]⟩]
-#guard !wellFormed exA [⟨"p", [⟨"root", none, [], [], [], ""⟩]⟩]
+#guard !wellFormed exA [⟨"p", [⟨"root", none, [], ["nope"], [], [], "x"⟩]⟩]
+#guard !wellFormed exA [⟨"p", [⟨"root", some ⟨"other", 0⟩, [], [], [], [], "x"⟩]⟩]
+#guard !wellFormed exA [⟨"p", [⟨"root", none, [], [], [], [], ""⟩]⟩]
 -- only `info` differs: still a pass
 #guard partVerdict exA exSpec (exArm 1 [exItem 0 "red" "0px" "1px"]) (exArm 1 [exItem 0 "red" "0px" "9px"]) exProps == .pass
+
+private def exSpecI : PartSpec := ⟨"p", [⟨"root", none, [], [], [], ["color"], "x"⟩]⟩
+private def exPropsI : PartProps := [("root", ⟨["color"], []⟩)]
+private def exItemI (color : String) (inl : List String) : Item := ⟨none, [("color", color)], inl⟩
+-- an inline-skipped property: compared where the original sets nothing inline
+#guard partVerdict exA exSpecI (exArm 1 [exItemI "red" []]) (exArm 1 [exItemI "blue" []]) exPropsI == .fail
+-- skipped where the original sets it inline: the pair has no other item, so the cell is a pass through the count alone
+#guard partVerdict exA exSpecI (exArm 1 [exItemI "red" ["color"]]) (exArm 1 [exItemI "blue" []]) exPropsI == .pass
+-- the rewrite's inline list is never read
+#guard partVerdict exA exSpecI (exArm 1 [exItemI "red" []]) (exArm 1 [exItemI "blue" ["color"]]) exPropsI == .fail
+-- one raised card and one that is not: the second is still compared
+#guard partVerdict exA exSpecI (exArm 2 [exItemI "red" ["color"], exItemI "red" []])
+  (exArm 2 [exItemI "blue" [], exItemI "blue" []]) exPropsI == .fail
+#guard partVerdict exA exSpecI (exArm 2 [exItemI "red" ["color"], exItemI "red" []])
+  (exArm 2 [exItemI "blue" [], exItemI "red" []]) exPropsI == .pass
 
 end Fw.Gate

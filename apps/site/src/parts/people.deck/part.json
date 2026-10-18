@@ -1,0 +1,13 @@
+{
+  "id": "people.deck",
+  "slot": "people",
+  "anchors": ["people-deck"],
+  "experiment": true,
+  "impls": ["plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:10743-11250;assets/2.gBuqKVzi.css:2888-3560" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

@@ -1,0 +1,55 @@
+/* Values restated from the original (assets/2.gBuqKVzi.css:1541-1580 .orbit/.orbit-stage, 2007-2035 and 2031 bands). The
+   card itself is in card.module.css. State comes from data attributes the driver sets (data-expand, data-done). */
+@layer parts {
+  .orbit {
+    --orbit-fit-scale: 1;
+    z-index: 4;
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+  }
+  .stage {
+    transform-origin: 50%;
+    width: 1512px;
+    height: 779px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .stage3d {
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    perspective: 1200px;
+    perspective-origin: 22% 40%;
+    position: absolute;
+  }
+
+  @media (width>=601px) and (width<=1511px) {
+    .orbit:is([data-expand], [data-done]) .stage {
+      width: 100%;
+      left: 0;
+      transform: translateY(-50%);
+    }
+    .orbit:is([data-expand], [data-done]) [data-orbit-side='left'] {
+      left: calc(var(--orbit-left-px) - var(--orbit-edge-push, 0px)) !important;
+    }
+    .orbit:is([data-expand], [data-done]) [data-orbit-side='right'] {
+      right: calc(var(--orbit-right-px) - var(--orbit-edge-push, 0px));
+      left: auto !important;
+    }
+  }
+
+  @media (width>=601px) and (width<=1279px) {
+    .orbit:is([data-expand], [data-done]) {
+      --orbit-edge-push: max(0px, (1280px - 100vw) * 0.35);
+    }
+  }
+
+  @media (width<=600px) {
+    .orbit {
+      display: none;
+    }
+  }
+}
