@@ -14,7 +14,7 @@ State: branch worktree-agent-a075512921164a477 (task cap-diagnose); see `git log
 - DEFECT fix: `POST /api/commands` refuses lead/owner/reviewer unless header `x-fw-secret` equals `.fw-console/secret`
   (`app.ts`, `cap/cap.ts openDoor`). The runner's `httpFor` sends it; tests that post agent actors read it from the dir.
 - `scripts/wt-prep.sh`: `build_pids` matches argv (program `lake`, first subcommand `build`) via `ps`; test
-  `apps/runner/test/wt-prep.test.ts`.
+  ``sh scripts/wt-prep.sh --self-test` (not a runner test: land.readsOnly forbids undeclared reads of scripts/)..
 
 ## Open items
 - The secret is readable by any agent; it raises the bar from "any body" to "read .fw-console/secret". policy-from-lean
