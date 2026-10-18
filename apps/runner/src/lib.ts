@@ -55,6 +55,35 @@ export function stepCommand(argv: string[], env: Record<string, string | undefin
   }
 }
 
+export const TASK_USAGE = "usage: fw task handback <task> [--agent a] [--tip sha] | fw task integrate <task> --into <branch> --tip <sha>\n" +
+  "       fw task park <task> --reason <text> | fw task unpark <task>   (--as <actor>, --key <k>; default actor lead)";
+
+/** `fw task handback|integrate|park|unpark`: an outcome mark of a task (Lean `Fw.Plan`, task task-state-truth). Only
+ *  argument mapping: fwcore decides what the mark means (`tstate`) and refuses unknown/done tasks and `--into main`.
+ *  The default key names the content (a repeat is a duplicate); park/unpark add the time, since they may alternate. */
+export function taskCommand(argv: string[], env: Record<string, string | undefined>, now = Date.now()): Command {
+  const [verb, ...rest] = argv;
+  const { pos, flags } = parseFlags(rest);
+  const actor = Actor.parse(flags.as ?? env.FW_ACTOR ?? "lead");
+  const task = need(pos[0], "<task>");
+  switch (verb) {
+    case "handback": {
+      const agent = flags.agent ?? task, tip = flags.tip ?? null;
+      return Command.parse({ type: "task.handback", key: flags.key ?? `task.handback:${task}:${agent}:${tip ?? "none"}`, actor, task, agent, tip });
+    }
+    case "integrate": {
+      const branch = need(flags.into, "--into <branch>"), tip = need(flags.tip, "--tip <sha>");
+      return Command.parse({ type: "task.integrate", key: flags.key ?? `task.integrate:${task}:${branch}:${tip}`, actor, task, branch, tip });
+    }
+    case "park":
+      return Command.parse({ type: "task.park", key: flags.key ?? `task.park:${task}:${now}`, actor, task, reason: need(flags.reason, "--reason <text>") });
+    case "unpark":
+      return Command.parse({ type: "task.unpark", key: flags.key ?? `task.unpark:${task}:${now}`, actor, task });
+    default:
+      throw new UsageError(TASK_USAGE);
+  }
+}
+
 /** `fw` groups that run without console-api. Every `pnpm fw <group>` in .github/** must be one of these (CI has no
  *  console-api; test/lib.test.ts checks the workflows). */
 export const NO_API_GROUPS: readonly string[] = ["run", "ci", "next", "engine-check", "incidents", "coverage", "premises"];

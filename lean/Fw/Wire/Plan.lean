@@ -5,7 +5,8 @@ import Fw.Plan.Incident
 # JSON for the plan commands and the board plan
 
 The wire form of `task.define`, `task.drop`, `task.claim`, `task.done`, `milestone.define`,
-`agent.spawn` and `agent.stop`: the
+`agent.spawn`, `agent.stop`, and the outcome marks `task.handback`, `task.integrate`, `task.park`,
+`task.unpark` (task `task-state-truth`): the
 same flat event envelope as the other console commands (`key`, `ts`, `actor`, `type`) plus
 
 | type | fields |
@@ -17,6 +18,13 @@ same flat event envelope as the other console commands (`key`, `ts`, `actor`, `t
 | `milestone.define` | `milestone`, `title` |
 | `agent.spawn` | `agent` |
 | `agent.stop` | `agent` |
+| `task.handback` | `task`, `agent`; `tip` (string or null/missing) |
+| `task.integrate` | `task`, `branch`, `tip` |
+| `task.park` | `task`, `reason` |
+| `task.unpark` | `task` |
+
+A board task carries `outcome`: null, or `{kind: "handedBack", agent, tip}`,
+`{kind: "integrated", branch, tip}`, `{kind: "parked", reason}` (`Fw.Plan.outcomeOf`).
 
 `live` on `task.define` is legacy: new writers omit it (an agent is bound by `agent.spawn` /
 `agent.stop`, `Fw.Plan.agentOf`); it is still decoded so old logs replay to the same board.
@@ -73,6 +81,11 @@ def cmdOfJson (t : String) (j : Json) : Option (Except String Cmd) :=
   | "milestone.define" => some (do pure (.milestone (← str j "milestone") (← str j "title")))
   | "agent.spawn" => some (do pure (.spawn (← str j "agent")))
   | "agent.stop" => some (do pure (.stop (← str j "agent")))
+  | "task.handback" => some (do pure (.handback (← str j "task") (← str j "agent") (← optStr j "tip")))
+  | "task.integrate" =>
+    some (do pure (.integrate (← str j "task") (← str j "branch") (← str j "tip")))
+  | "task.park" => some (do pure (.park (← str j "task") (← str j "reason")))
+  | "task.unpark" => some (do pure (.unpark (← str j "task")))
   | _ => none
 
 /-- Decode an event: plan types here (same envelope order: `key`, `ts`, `actor`, then the body),
@@ -101,13 +114,27 @@ def cmdFields : Cmd → List (String × Json)
   | .done x e => [("task", .str x), ("evidence", .str e)]
   | .milestone m t => [("milestone", .str m), ("title", .str t)]
   | .spawn a | .stop a => [("agent", .str a)]
+  | .handback x a p => [("task", .str x), ("agent", .str a), ("tip", ostr p)]
+  | .integrate x b p => [("task", .str x), ("branch", .str b), ("tip", .str p)]
+  | .park x r => [("task", .str x), ("reason", .str r)]
+  | .unpark x => [("task", .str x)]
+
+/-- Encode an outcome mark of a board task (null when none).
+
+$$\operatorname{markJson}(m_\bot) = \begin{cases} \mathrm{null} & m_\bot = \bot \\ \{\mathit{kind}: \texttt{"handedBack"}, \mathit{agent}: a, \mathit{tip}: p_\bot\} & m_\bot = \mathrm{handedBack}(a, p_\bot) \\ \{\mathit{kind}: \texttt{"integrated"}, \mathit{branch}: b, \mathit{tip}: p\} & m_\bot = \mathrm{integrated}(b, p) \\ \{\mathit{kind}: \texttt{"parked"}, \mathit{reason}: r\} & m_\bot = \mathrm{parked}(r) \end{cases}$$
+-/
+def markJson : Option Mark → Json
+  | none => .null
+  | some (.handedBack a p) => Json.mkObj [("kind", .str "handedBack"), ("agent", .str a), ("tip", ostr p)]
+  | some (.integrated b p) => Json.mkObj [("kind", .str "integrated"), ("branch", .str b), ("tip", .str p)]
+  | some (.parked r) => Json.mkObj [("kind", .str "parked"), ("reason", .str r)]
 
 /-- Encode a task of the board plan. -/
 def taskViewJson (t : TaskView) : Json := Json.mkObj [
   ("id", .str t.id), ("title", .str t.title), ("stream", .str t.stream),
   ("milestone", ostr t.milestone), ("owner", .str t.owner), ("deps", strsJson t.deps),
   ("needs", strsJson t.needs), ("lane", .str t.lane.name), ("state", .str t.state.name), ("blockers", strsJson t.blockers), ("agent", ostr t.agent),
-  ("evidence", ostr t.evidence)]
+  ("evidence", ostr t.evidence), ("outcome", markJson t.outcome)]
 
 /-- Encode a milestone of the board plan. -/
 def milestoneViewJson (m : MilestoneView) : Json := Json.mkObj [
