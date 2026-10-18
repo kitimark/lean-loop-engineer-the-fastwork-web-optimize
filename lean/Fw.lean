@@ -97,3 +97,6 @@ import Fw.Search  -- lfg-props-shape: Enum, bounded counterexample search, link 
 import Fw.Spec.LandDrySig  -- lfg-props-shape: the dry-run implementation signature (Out, DryImpl)
 import Fw.Spec.Incidents  -- lfg-props-shape: the one incident registry (rows, Sig, registryFor, Convention)
 import Fw.Spec.Props.LandDryDemo  -- lfg-props-shape: worked example (inc-land-dry-no-verdict)
+import Fw.Ops.LeanFirst  -- lfg-spec: the lean-first land gate (Facts, reasons, stages, gate, out)
+import Fw.Ops.LeanFirstProps  -- lfg-spec: the gate properties of section 7 over Gate/Render
+import Fw.Ops.LeanFirstSearch  -- lfg-spec: Enum Facts, fault grid, pointwise checks, search guards
