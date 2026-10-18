@@ -48,3 +48,10 @@ COLUMNS BASH_ARGC` added to `noBoundVars`), MEASURED on 6429 records (all recove
 the by-design `body_irrelevant` class). False denies on organic records 0. Synthetic 80-row corpus unchanged (1 mismatch,
 `$SECONDS -ge $end`). Probes `until [ $EPOCHSECONDS -ge 1760800000 ]`, a 23-digit N, `while [ $_ -lt 10 ]` are
 `#guard`s and golden rows (`r5:`).
+Round 6 (closed variable rule: `SECONDS` with N ≤ 86400, or a lowercase name set to a literal at the top level before
+the loop that zsh does not reserve; the `noBoundVars` denylist is gone), MEASURED on 7689 records (all recovered, main
+spool read-only): 7685 allow, 4 deny (the same 4). Against round 5 (`main` fwcore) on the same records: 0 newly denied,
+0 newly allowed; organic counter loops all set their counter first (`i=0; while ...`). Synthetic 80-row corpus
+unchanged (1 mismatch, `$SECONDS -ge $end`). Round-5 reviewer probes (`BASH_MONOSECONDS` in `[ ]` and `(( ))`,
+`PIPESTATUS`, `GROUPS`, `BASH_LINENO`, `BASH_ARGV`, zsh `status`/`TTYIDLE`, `SECONDS` against an epoch literal) are
+`#guard`s and golden rows (`r6:`, 131 rows), as is the allowed `i=0; while [ $i -lt 5 ]; do ...; i=$((i+1)); done`.
