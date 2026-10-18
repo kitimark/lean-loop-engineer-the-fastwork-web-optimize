@@ -945,7 +945,8 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-19-model-checks.md",
     "docs/team/handoffs/model-checks.md"
-   ]
+   ],
+   "evidence": "c5ad620"
   },
   {
    "id": "preset-v2-proved",
@@ -962,7 +963,8 @@
     "apps/site/src/registry/index.ts",
     "packages/contracts/golden/preset/**",
     "docs/team/handoffs/preset-v2-proved.md"
-   ]
+   ],
+   "evidence": "2805b17"
   },
   {
    "id": "report-draft-2",
@@ -1001,13 +1003,13 @@
     "proof-hero-accent",
     "variant-hidden-pause",
     "variant-morph-mount-shift",
-    "variant-morph-panel-rest",
     "why-core-lessons",
     "why-engines",
     "why-parts",
     "engine-model-fix",
     "model-checks",
-    "preset-v2-proved"
+    "preset-v2-proved",
+    "page-root-clip"
    ],
    "owner": "lead"
   },
@@ -5000,7 +5002,8 @@
     "docs/team/tools/prompt-rules.md",
     "docs/team/tools/workflow-patterns.md",
     "docs/team/handoffs/workflow-salvage.md"
-   ]
+   ],
+   "evidence": "495b094"
   },
   {
    "id": "console-lan-owner",
@@ -5153,6 +5156,28 @@
     "research/notes/2026/10-18-chrome-agent-tools-install.md"
    ],
    "evidence": "fac6bfc"
+  },
+  {
+   "id": "page-root-clip",
+   "title": "Page root faithful: restate the original page-root rule (min-width 320px, overflow-x clip) on the rewrite so content wider than the viewport no longer enlarges the layout viewport under mobile emulation (cause of faithful-checks: page 240 px shorter on swipe-v1, no scroll under swipe-touch-v1); Lean viewportFaithful rule refuses a counts run whose innerWidth/innerHeight differ from the profile viewport; morph.columns stage out of normal flow as in the original; gate row scrollWidth <= innerWidth",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "integrate-ports-4"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/App.tsx",
+    "apps/site/src/reset.css",
+    "apps/site/src/parts/morph.columns/**",
+    "lean/Fw/Measure/Viewport.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/measure/viewport.jsonl",
+    "packages/measure-chromium/src/run.mjs",
+    "packages/measure-chromium/test/**",
+    "research/notes/2026/10-19-page-root-clip.md",
+    "docs/team/handoffs/page-root-clip.md"
+   ]
   }
  ],
  "deadline": {
