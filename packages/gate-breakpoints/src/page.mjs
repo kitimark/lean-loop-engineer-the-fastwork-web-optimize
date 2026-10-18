@@ -209,7 +209,7 @@ export async function prepareInPage(arg) {
   };
   const t0 = performance.now();
   const found = [];
-  if (arg.stage === 'ready') {
+  if (arg.stage === 'ready' || arg.stage === undefined) {
     for (const step of arg.steps) {
       const near = document.querySelector(step.scrollNear);
       if (near) {
@@ -224,6 +224,7 @@ export async function prepareInPage(arg) {
     for (let i = 0; i < 3; i++) await frame();
     await sleep(300);
     if (K) K.freeze();
+    if (arg.stage === undefined) return found; // a caller outside the gate run (packages/snapshot-extract): the mount steps alone, as on main
     return { found, idle: await idle(arg.capMs, arg.maxFrames) };
   } else if (arg.stage === 'open') {
     for (const step of arg.steps) {
@@ -246,6 +247,31 @@ export async function prepareInPage(arg) {
     }
   }
   return found;
+}
+
+/**
+ * Original only: the morph panel is mounted lazily. A one-way flag is set the first time the platform section comes within
+ * 200 % of the viewport (IntersectionObserver, 2.DyWL8TcE.js:13080-13089), so this scrolls there, waits for the first
+ * column, and returns to the top. Self-contained (it is serialised into the page). Reports what it saw; decides nothing.
+ * Not used by the gate run (anchors.json `prepare` is); packages/snapshot-extract imports it, so it stays as on main.
+ */
+export async function mountPanel() {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
+  const sel = '.start-selling-morph-col';
+  const y0 = window.scrollY;
+  const target = document.querySelector('#platform');
+  if (target) {
+    const r = target.getBoundingClientRect();
+    window.scrollTo({ top: window.scrollY + r.top - window.innerHeight / 2, behavior: 'instant' });
+  }
+  const t0 = performance.now();
+  while (!document.querySelector(sel) && performance.now() - t0 < 8000) { await frame(); await sleep(50); }
+  const mounted = document.querySelectorAll(sel).length;
+  window.scrollTo({ top: y0, behavior: 'instant' });
+  for (let i = 0; i < 3; i++) await frame();
+  await sleep(300);
+  return { target: !!target, mounted, scrollY: window.scrollY };
 }
 
 /** Freeze the document's animations now: the page-side half of an observation at an instant (freeze.mjs observeAt). */
