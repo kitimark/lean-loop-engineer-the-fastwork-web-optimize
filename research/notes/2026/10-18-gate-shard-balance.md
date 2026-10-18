@@ -10,6 +10,14 @@ Question (user): why did breakpoint-gate run 39101532038 (job 117598896525) take
 revised design that is proved in Lean?
 
 ## Answer first
+- **Finding (negative result, closes the task as titled):** there was no shard imbalance to fix. The live planner
+  (`gate-jobs.mjs`) already ran Lean `Fw.Gate.Schedule`; `gate-shards.mjs` was dead code. Under the frozen clock every
+  probe costs the same (5024 ms, round 4), so an LPT plan over measured costs equals a count-balanced deal and costs the
+  same job-minutes (28.5 to 28.6 vs 27.5 to 28.1). The wall (5.6 to 6.1 min, runs 39125771186, 39125776112,
+  39126934987, 39126939905) is the unsplittable WebKit desktop sweep plus setup. The 50-min jobs were the settle wait
+  below, not the shard plan. The workflow default is the measured plan (7 jobs); it was run twice (39126934987, 39126939905)
+  and costs the same as the Schedule plan, so it is kept, not claimed as a saving.
+  Re-plan and the split tasks gate-no-skip, gate-webkit-red and gate-run-identity: commit c687db5d on main.
 - **Root cause (MEASURED, run 39101532038):** the settle wait had no frame budget, only `timeoutMs` 30000. It waits
   until the roots of all 33 parts are still, and some part is always moving (marquees, carousels, the countdown).
   Result: 312 of 392 arm samples per engine waited the full 30 s. The mount ready idle wait also ran to its 20 s cap.

@@ -1155,7 +1155,9 @@ def argAfter : List String → String → Option String
 
 /-- Command-line driver: print the golden text, or with `--check <file>` exit 0 when the file holds exactly these bytes and 1 otherwise.
 
-$$\operatorname{run}(\mathit{args}) = 0 \iff \text{no mismatch}$$ -/
+$$\operatorname{run}(\texttt{--check}\ f) = 0 \iff \operatorname{bytes}(f) = \operatorname{goldenText}$$
+
+Print mode returns 0. -/
 def run (args : List String) : IO UInt32 := do
   match argAfter args "--check" with
   | some path =>

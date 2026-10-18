@@ -292,7 +292,7 @@ def viewRank (nOv q : Nat) : Nat := nOv + 2 + q
 
 /-- The ranks are in the order a stop runs its readings: main, then overlays, then mount, then views.
 
-$$j < n_o \implies \operatorname{ovRank}(j) < \operatorname{mountRank}(n_o) \;\wedge\; \operatorname{mountRank}(n_o) < \operatorname{viewRank}(n_o, q)$$ -/
+$$j < n_o \implies 0 < \operatorname{ovRank}(j) \wedge \operatorname{ovRank}(j) < \operatorname{mountRank}(n_o) \wedge \operatorname{mountRank}(n_o) < \operatorname{viewRank}(n_o, q)$$ -/
 theorem rank_order (nOv j q : Nat) (h : j < nOv) :
     0 < ovRank j ∧ ovRank j < mountRank nOv ∧ mountRank nOv < viewRank nOv q := by
   simp only [ovRank, mountRank, viewRank]

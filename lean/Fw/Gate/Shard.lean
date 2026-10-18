@@ -529,7 +529,7 @@ theorem range_filterMap_getElem {α : Type} (S : List α) : (List.range S.length
 
 /-- The probe units, in order, are the probes.
 
-$$\forall S, w,\quad [\operatorname{probeOf}_S(i) \ne \bot \mid i \in \operatorname{units}(|S|, w)] = S$$
+$$\forall S, w,\quad \operatorname{filterMap}(\operatorname{probeOf}_S, \operatorname{units}(|S|, w)) = S$$
 -/
 theorem units_probes {α : Type} (S : List α) (w : Nat) : (units S.length w).filterMap (probeOf S) = S := by
   rw [units, List.range_add, List.filterMap_append]
@@ -543,7 +543,7 @@ theorem units_probes {α : Type} (S : List α) (w : Nat) : (units S.length w).fi
 
 /-- The sweep units, in order, are the sweeps.
 
-$$\forall n, W,\quad [\operatorname{sweepOf}_{n,W}(i) \ne \bot \mid i \in \operatorname{units}(n, |W|)] = W$$
+$$\forall n, W,\quad \operatorname{filterMap}(\operatorname{sweepOf}_{n,W}, \operatorname{units}(n,|W|)) = W$$
 -/
 theorem units_sweeps {β : Type} (n : Nat) (W : List β) : (units n W.length).filterMap (sweepOf n W) = W := by
   rw [units, List.range_add, List.filterMap_append]
@@ -581,7 +581,7 @@ theorem plan_verdict_eq {κ : Type} [DecidableEq κ] (reach : Fw.Site.Breakpoint
 
 /-- The job a set of units makes for engine $e$: its probe count and its whole sweeps, in unit order.
 
-$$\forall e, n, b,\quad \operatorname{jobOf}(e, n, b) = \big(e,\ |[\,i \in b \mid i < n\,]|,\ [\operatorname{sweepOf}_{n,\mathrm{Sw}}(i) \ne \bot \mid i \in b]\big)$$
+$$\forall e, n, b,\quad \operatorname{jobOf}(e, n, b) = \big(e,\ |[\,i \in b \mid i < n\,]|,\ \operatorname{filterMap}(\operatorname{sweepOf}_{n,\mathrm{Sw.all}}, b)\big)$$
 -/
 def jobOf (e : Eng) (n : Nat) (b : List Nat) : Job :=
   ⟨e, (b.filter (· < n)).length, b.filterMap (sweepOf n Sw.all)⟩
@@ -611,7 +611,7 @@ theorem sum_filter_length (p : Nat → Bool) :
 
 /-- The sweeps of the jobs, in job order, are the sweep units of the plan.
 
-$$\forall e, n, B,\quad \operatorname{flatMap}(\mathrm{sweeps}, [\operatorname{jobOf}(e, n, b)]_{b \in B}) = \operatorname{flatten}([\operatorname{filterMap}(\operatorname{sweepOf}_n, b)]_{b \in B})$$
+$$\forall e, n, B,\quad \operatorname{flatMap}(\mathrm{sweeps}, [\operatorname{jobOf}(e, n, b)]_{b \in B}) = \operatorname{flatten}([\operatorname{filterMap}(\operatorname{sweepOf}_{n,\mathrm{Sw.all}}, b)]_{b \in B})$$
 -/
 theorem jobs_sweeps (e : Eng) (n : Nat) : ∀ bs : List (List Nat),
     (bs.map (jobOf e n)).flatMap Job.sweeps = (bs.map (·.filterMap (sweepOf n Sw.all))).flatten
@@ -748,7 +748,7 @@ def shardDurs (C : Costs) (ids : List String) (kk : Nat × Nat) : List Nat :=
 
 /-- Graham's bound (times $m$) for $r$ concurrent runs of this plan on $m$ free runners.
 
-$$\forall C, I, m, r, \kappa,\quad B(C, I, m, r, \kappa) = r \sum D(C, I, \kappa) + (m - 1) \max D(C, I, \kappa)$$
+$$\forall C, I, m, r, \kappa,\quad B(C, I, m, r, \kappa) = r \sum D(C, I, \kappa) + (m \mathbin{∸} 1) \max D(C, I, \kappa)$$
 -/
 def shardBound (C : Costs) (ids : List String) (m r : Nat) (kk : Nat × Nat) : Nat :=
   let ds := shardDurs C ids kk
@@ -762,7 +762,7 @@ def durTab (T : EngCosts) (ids : List String) : List (List Nat) := (List.range 8
 
 /-- Graham's bound from the two duration tables (`boundOf_eq`: equal to `shardBound` on every candidate).
 
-$$\forall t_c, t_w, m, r, (k_c, k_w),\quad \operatorname{boundOf}(t_c, t_w, m, r, (k_c, k_w)) = r \sum D + (m - 1) \max D, \quad D = t_c[k_c \mathbin{∸} 1] \mathbin{+\!\!+} t_w[k_w \mathbin{∸} 1]$$
+$$\forall t_c, t_w, m, r, (k_c, k_w),\quad \operatorname{boundOf}(t_c, t_w, m, r, (k_c, k_w)) = r \sum D + (m \mathbin{∸} 1) \max D,\quad D = t_c[k_c \mathbin{∸} 1] \mathbin{+\!\!+} t_w[k_w \mathbin{∸} 1]$$
 
 (An index past the end of a table reads the empty list.) -/
 def boundOf (tc tw : List (List Nat)) (m r : Nat) (kk : Nat × Nat) : Nat :=

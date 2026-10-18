@@ -257,7 +257,7 @@ theorem TableCell.not_ok_of_reading (e : String) (N : Bool) (c : TableCell) (r :
 /-- The verdict of one engine from the cells of its table, whether the run was narrowed to parts, and the number of unsettled
 samples.
 
-$$\operatorname{ev}_C(e, N, cs, u) = \begin{cases} \mathrm{fail} & \exists c \in cs,\ c.v = \mathrm{fail} \\ \mathrm{unsettled} & \text{no fail} \wedge u > 0 \\ \mathrm{incomplete} & \text{no fail} \wedge u = 0 \wedge \exists c \in cs,\ \neg\operatorname{ok}(e, N, c) \\ \mathrm{pass} & \text{the above fail} \wedge \exists c \in cs,\ c.v = \mathrm{pass} \\ \mathrm{notRendered} & \text{otherwise} \end{cases}$$
+$$\operatorname{ev}_C(e, N, cs, u) = \begin{cases} \mathrm{fail} & \exists c \in cs,\ \operatorname{isFail}(c) \\ \mathrm{unsettled} & \text{no fail} \wedge u > 0 \\ \mathrm{incomplete} & \text{no fail} \wedge u = 0 \wedge \exists c \in cs,\ \neg\operatorname{ok}(e, N, c) \\ \mathrm{pass} & \text{the above fail} \wedge \exists c \in cs,\ \operatorname{isPass}(c) \\ \mathrm{notRendered} & \text{otherwise} \end{cases}$$
 
 A failing cell fails the engine; else an unsettled sample makes it unsettled; else a cell that is neither a pass nor excused makes it
 incomplete; else it passes only if some cell passed. -/
@@ -382,7 +382,7 @@ theorem engine_pass_iff_all_cells (e : String) (N : Bool) (cs : List TableCell) 
       exact List.any_eq_true.2 ⟨c, hc, hp⟩
     simp [h1, h2, h3, h4]
 
-/-- **An engine passes exactly when every reading of every cell is ok, no sample is unsettled, no cell is missing and some reading passed.**
+/-- **An engine passes exactly when every reading of every cell is ok, no sample is unsettled, no cell is missing unless the run was narrowed.**
 
 $$\operatorname{ev}_C(e, N, cs, u) = \mathrm{pass} \iff u = 0 \wedge \bigl(\forall c \in cs,\ c.\mathit{readings} = [\,] \implies N\bigr) \wedge \bigl(\forall c \in cs,\ \forall r \in c.\mathit{readings},\ \operatorname{ok}(e, c.\mathit{row}, c.\mathit{col}, r)\bigr) \wedge \exists c \in cs,\ \exists r \in c.\mathit{readings},\ r.v = \mathrm{pass}$$
 
@@ -557,7 +557,7 @@ def engineVerdictCS (e : String) (narrowed : Bool) (cs : List TableCell) (ws : L
 
 /-- **An engine passes exactly when every cell is ok, every wait of every sample settled and some cell passed.**
 
-$$\operatorname{ev}_S(e, N, cs, ws) = \mathrm{pass} \iff \bigl(\forall (a, b) \in ws,\ a \ne \mathrm{unsettled} \wedge b \ne \mathrm{unsettled}\bigr) \wedge \bigl(\forall c \in cs,\ \operatorname{ok}(e, N, c)\bigr) \wedge \exists c \in cs,\ c.v = \mathrm{pass}$$
+$$\operatorname{ev}_S(e, N, cs, ws) = \mathrm{pass} \iff \bigl(\forall (a, b) \in ws,\ a \ne \mathrm{unsettled} \wedge b \ne \mathrm{unsettled}\bigr) \wedge \bigl(\forall c \in cs,\ \operatorname{ok}(e, N, c)\bigr) \wedge \exists c,\ \operatorname{isPass}(c)$$
 
 Each cell and each wait is judged on its own. -/
 theorem engineVerdictCS_pass_iff (e : String) (N : Bool) (cs : List TableCell) (ws : List (Outcome × Outcome)) :
@@ -595,7 +595,7 @@ def EngineInput.verdict (i : EngineInput) : EngineVerdict := engineVerdictCS i.e
 
 /-- **A run exits 0 exactly when every cell of every engine is ok, every wait settled and each engine has a passing cell.**
 
-$$\operatorname{exit}([\operatorname{eng}(i)]_{i \in is}) = 0 \iff is \ne [\,] \wedge \forall i \in is,\ \Bigl(\forall s \in i.\mathit{waits},\ s_1, s_2 \ne \mathrm{unsettled}\Bigr) \wedge \bigl(\forall c \in i.\mathit{cells},\ \operatorname{ok}(i.\mathit{engine}, i.\mathit{narrowed}, c)\bigr) \wedge \exists c \in i.\mathit{cells},\ c.v = \mathrm{pass}$$
+$$\operatorname{exit}([\operatorname{eng}(i)]_{i \in is}) = 0 \iff is \ne [\,] \wedge \forall i \in is,\ \Bigl(\forall s \in i.\mathit{waits},\ s_1, s_2 \ne \mathrm{unsettled}\Bigr) \wedge \bigl(\forall c \in i.\mathit{cells},\ \operatorname{ok}(i.\mathit{engine}, i.\mathit{narrowed}, c)\bigr) \wedge \exists c,\ \operatorname{isPass}(c)$$
 
 The exit code is the conjunction over every cell and every wait; nothing is aggregated first. -/
 theorem exit_zero_iff_all_cells (is : List EngineInput) :
@@ -823,7 +823,9 @@ def engineCase1 (engine : String) (narrowed : Bool) (cells : List (String × Str
 
 /-- The verdict of the single-reading wire cells, for the `#guard`s below.
 
-$$\operatorname{ev}_1(e, N, ns, ws) = \operatorname{ev}_{WW}(e, N, [rs(n)]_{(\rho, \kappa, n) \in ns}, ws)$$ -/
+$$\operatorname{ev}_1(e, N, ns, ws) = \operatorname{ev}_{WW}(e, N, [(\rho, \kappa, rs(n))]_{(\rho, \kappa, n) \in ns}, ws)$$
+
+It is returned as an Option (`.toOption`). -/
 def verdict1 (engine : String) (narrowed : Bool) (cells : List (String × String × String))
     (waits : List (String × String)) : Option EngineVerdict :=
   (engineVerdictCW engine narrowed (cells.map cell1) waits).toOption
@@ -845,9 +847,9 @@ def touchMm (names : List String) : String × String × List (String × String) 
 $$\mathrm{ok}_0 = (\texttt{engine.scroll}, \texttt{desk}, \texttt{pass})$$ -/
 def okCell : String × String × String := ("engine.scroll", "desk", "pass")
 
-/-- The three registered cells, as wire triples.
+/-- The registered `matchMedia` cell, as a wire triple.
 
-$$\mathrm{nc}_{mm} = (\texttt{matchMedia =Lean}, \texttt{fractional-gaps}, \texttt{not-comparable}),\ \mathrm{cross} = (\texttt{hero.exit}, \texttt{hover-pointer-cross}, \texttt{unreachable:primary-pair}),\ \mathrm{frac} = (\texttt{hero.exit}, \texttt{fractional-gaps}, \texttt{unreachable:whole-width})$$ -/
+$$\mathrm{nc}_{mm} = (\texttt{matchMedia =Lean}, \texttt{fractional-gaps}, \texttt{not-comparable})$$ -/
 def ncMm : String × String × String := ("matchMedia =Lean", "fractional-gaps", "not-comparable")
 
 /-- A cross cell of a WebKit table.
@@ -967,7 +969,9 @@ def goldenText : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 /-- Command-line driver (`lean/scripts/ExitGolden.lean`): print the golden text, or with `--check <file>` exit 0 when the file holds
 exactly these bytes and 1 otherwise.
 
-$$\operatorname{run}(\mathit{args}) = 0 \iff \text{no mismatch}$$ -/
+$$\operatorname{run}(\texttt{--check}\ f) = 0 \iff \operatorname{bytes}(f) = \operatorname{goldenText}$$
+
+Print mode returns 0. -/
 def run (args : List String) : IO UInt32 := do
   match Fw.Gate.Settle.argAfter args "--check" with
   | some path =>
