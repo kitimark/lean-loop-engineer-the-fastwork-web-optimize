@@ -4890,6 +4890,22 @@
     "docs/team/handoffs/wait-guard-enforce.md",
     "docs/team/handoffs/wait-guard-enforce-2.md"
    ]
+  },
+  {
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "id": "watch-stream",
+   "title": "(S) fw watch --stream for the Monitor tool: one line per alert opened or closed (no exit, no full report); the alert diff (opened/closed by code|subject) moves from TS newAlerts (apps/runner/src/watch.ts:139) into Lean (fwcore op, proved: no alert is reported opened twice without a close between, every open alert was reported once); docs: lead uses Monitor for the stream, background Bash for single-event waits",
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/WatchDiff.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Wire.lean",
+    "apps/runner/src/watch.ts",
+    "docs/team/tools/fw-watch.md",
+    "docs/team/handoffs/watch-stream.md"
+   ]
   }
  ],
  "deadline": {
