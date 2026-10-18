@@ -36,13 +36,18 @@ export function message(reply) {
       + "server in one Bash call with run_in_background: true, run the checks in the next call, then stop the background "
       + "task (TaskStop). Set FW_WAIT_GUARD=shadow to only log.";
   }
-  return "wait-guard refused: an until/while loop with no bound never ends if its condition cannot come true. Give it a deadline "
-    + "(wrap it in `timeout N`, or test a counter or SECONDS in the loop), or use `pnpm fw ci wait` / run_in_background. "
-    + "A read loop counts as bounded only when its condition is exactly `while [VAR=..] read [opts] [names]` followed by "
-    + "`do` (no `||`, `&&` or second command) and its input is a file (`done < f`), a here-doc/here-string, or an "
-    + "allowlisted producer: `cmd | while read` or `done < <(cmd)` with cmd one of git (read-only subcommands), ls, find, "
-    + "grep, rg, jq, printf, echo, seq, sort, head, wc, gh run list/view, cat FILE (docs/team/tools/wait-guard.md). "
-    + "Set FW_WAIT_GUARD=shadow to only log.";
+  return "wait-guard refused: an until/while loop with no bound never ends if its condition cannot come true. The bound must "
+    + "be in the loop condition (between while/until and do; the body does not count, nor `break`, `date` or a deadline "
+    + "word): a plain variable ordered against a decimal literal (`until cmd || [ $i -ge 10 ]; do ...; i=$((i+1)); done`, "
+    + "`while [ $SECONDS -lt 600 ]`, `(( i < 10 ))`; no $(...), $((...)), ${v:-...} or limit held in a variable), or run the loop as `timeout N bash -c '...'`, or use `pnpm fw ci wait` / "
+    + "run_in_background. A read loop counts as bounded only when its condition is exactly `while [VAR=..] read [opts] "
+    + "[names]` followed by `do` (no `||`, `&&` or second command) and its input is a file (`done < f`), a here-doc, a "
+    + "here-string (`<<< \"$(cmd)\"` only with an allowlisted cmd), or an allowlisted producer: `cmd | while read` or "
+    + "`done < <(cmd)` with cmd one of git (read-only subcommands), ls, find, printf, echo, seq, cat FILE, gh run list/view, "
+    + "gh pr|issue list/view, timeout N ..., then filters grep, rg, jq, sort, head, wc, tr, cut, uniq, sed (no labels), "
+    + "awk (no loops/getline), xargs (running one of these), node scripts/*.mjs. pnpm/npm/npx are not allowlisted: write "
+    + "their output to a file first (`pnpm ... > f.txt; while read l; do ...; done < f.txt`) "
+    + "(docs/team/tools/wait-guard.md). Set FW_WAIT_GUARD=shadow to only log.";
 }
 
 /** What to print for a decision in the given mode: the PreToolUse hook output, or null (allow, shadow, off, no reply). */
