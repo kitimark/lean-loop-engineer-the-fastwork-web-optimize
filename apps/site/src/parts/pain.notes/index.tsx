@@ -84,6 +84,7 @@ export function PainNotes({
         reduced: () => reduce?.matches ?? false,
         c860: () => c860?.matches ?? false,
         interval: (ms, cb) => clock.interval(ms, cb),
+        now: () => performance.now(),
         frame,
         commit: setView,
         writeNote: (id, left, top, z) => {
@@ -95,6 +96,7 @@ export function PainNotes({
         },
       },
       NOTES_SEED,
+      { armWhenVisible: variant === 'visible' },
     );
     driverRef.current = driver;
     driver.start();
@@ -126,7 +128,10 @@ export function PainNotes({
     io.observe(board);
     const ro = new ResizeObserver(() => driver.relayout());
     ro.observe(stage);
-    const onNarrow = () => flushSync(() => driver.layoutNow()); // JS 4709: the change handler lays out at once
+    const onNarrow = () => {
+      flushSync(() => driver.layoutNow()); // JS 4709: the change handler lays out at once
+      driver.sync();
+    };
     narrow?.addEventListener("change", onNarrow);
     const move = (e: PointerEvent) => driver.pointerMove(e);
     const end = () => driver.pointerEnd();
@@ -152,7 +157,7 @@ export function PainNotes({
       driver.dispose();
       driverRef.current = null;
     };
-  }, [cardSelector]);
+  }, [cardSelector, variant]);
 
   const notes = [...view.base, ...view.extras];
   return (
