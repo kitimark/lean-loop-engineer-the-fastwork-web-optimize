@@ -959,8 +959,9 @@ theorem extra_counts : crExtraCases.length = 7 ∧ wkExtraCases.length = 3 ∧
   decide +kernel
 
 /-- **A timer-only Chromium frame expects script, props and nothing else**: the model counts a `setTimeout(0)`
-callback as a script callback, so the frame updates and pays the base `props` stage, as a `raf` frame does. INFERRED
-until the timer step of the engine-premises run is read.
+callback as a script callback, so the frame updates and pays the base `props` stage, as a `raf` frame does. This is
+the model only: CI run 39124427211 observed neither (no `FireAnimationFrame`/`FunctionCall`, no `PrePaint` in 3 of 3
+passes; `cr_extra_cells`).
 
 $$\operatorname{names}(\operatorname{expect}(W_{\mathrm{cr}}((1, 0, 0, 0, [\,], 0)))) = [\mathrm{script}, \mathrm{props}]$$
 -/
@@ -997,6 +998,71 @@ theorem max_stages_of_comparable (a b : CrLevel) (h : a ≤ b ∨ b ≤ a) (s : 
       exact ⟨Or.inr, fun h' => h'.elim (hab s) id⟩
     · simp only [hab, ite_false, h, ite_true]
       exact ⟨Or.inl, fun h' => h'.elim id (h s)⟩
+
+/-- **The recorded Chromium extra steps** (CI run 39124427211, commit 6bf5957, 3 passes, every pass alike): per case,
+the stages whose counters ran. The timer frame ran nothing; `top` and `scale` read through one custom property, and
+`top@own` with `scale@own` on two boxes, ran layout but neither `Paint` nor `RasterTask`.
+
+$$\mathrm{crExtraRec} = [(\mathrm{timer}, [\,]),\ (\operatorname{join}\{\mathrm{top}, \mathrm{scale}\}, L),\ (\operatorname{join}\{\mathrm{top}, \mathrm{transform}\}, L),\ (\operatorname{join}\{\mathrm{bgColor}, \mathrm{opacity}\}, P),\ (\mathrm{top}@\mathrm{own} + \mathrm{scale}@\mathrm{own}, L),\ (\mathrm{transform}@\mathrm{own} + \mathrm{bgColor}@\mathrm{none}, P),\ (\mathrm{top}@\mathrm{own} + \mathrm{transform}@\mathrm{own}, L)]$$
+
+where $L = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{commit}, \mathrm{hits}]$ and
+$P = [\mathrm{style}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}]$. -/
+def crExtraRecorded : List (String × List String) :=
+  let l := ["style", "layout", "props", "commit", "hits"]
+  let p := ["style", "props", "paint", "raster", "commit"]
+  [("timer", []), ("custom[top,scale]@own", l), ("custom[top,transform]@own", l),
+   ("custom[backgroundColor,opacity]@own", p), ("top@own+scale@own", l), ("transform@own+background-color@none", p),
+   ("top@own+transform@own", l)]
+
+/-- **The recorded WebKit extra steps** (CI run 39124427211, 6 passes, every pass alike): per case, the counters that
+ran; the idle frames after them ran only `layerFlushes`.
+
+$$\mathrm{wkExtraRec} = [(\mathrm{opacity}@\mathrm{own} + \mathrm{background}@\mathrm{layer}, [\mathrm{style}, \mathrm{commit}]),\ (\mathrm{opacity}@\mathrm{own} + \mathrm{size}@\mathrm{none}, [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{commit}]),\ (\mathrm{transform}@\mathrm{own} + \mathrm{color}@\mathrm{own}, [\mathrm{style}, \mathrm{props}, \mathrm{commit}])]$$
+-/
+def wkExtraRecorded : List (String × List String) :=
+  [("opacity@own+background@layer", ["style", "commit"]), ("opacity@own+size@none", ["style", "layout", "props", "commit"]),
+   ("transform@own+color@own", ["style", "props", "commit"])]
+
+/-- The cells that do not agree: per observer (in observer order), per step (in step order), the case id, the stage
+and the cell, for every cell that is not `agree`.
+
+$$\operatorname{off}(p, i, R, cs, os) = \big[\,(c.\mathrm{id}, o.\mathrm{stage}, x) \bigm| o \in os,\ (c, x) \in \operatorname{zip}(cs, \operatorname{cells}(p, i, R, cs, o.\mathrm{stage})),\ x \ne \mathrm{agree}\,\big]$$
+
+Which cells a record refutes. -/
+def offCells (passes : Nat) (idle : List String) (rec : List (String × List String)) (cs : List Case)
+    (os : List Observer) : List (String × String × String) :=
+  os.flatMap fun o => ((cs.zip (recordedCells passes idle rec cs o.stage)).filter (·.2 != .agree)).map
+    fun (c, x) => (c.id, o.stage, x.name)
+
+#guard offCells 1 [] [("a", [])] [{ id := "a", act := .set, expect := [("style", true)] }]
+  [⟨"style", some .style, []⟩] == [("a", "style", "mismatch")]
+
+/-- **What the Chromium extra steps measured** (CI run 39124427211): every cell agrees with the model except five
+mismatches. The timer frame ran neither `script` nor `props` (the model expects both); the join of `top` and
+`scale` ran neither `paint` nor `raster` (the join $\mathrm{layoutFull}$ expects both); and `top@own` with
+`scale@own` on two boxes ran no `raster` (the union expects it). The comparable joins and pairs agree on every stage.
+
+$$\operatorname{off}(3, [\,], \mathrm{crExtraRec}, \operatorname{steps}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{idle})), \mathrm{crExtra}), \mathrm{crObservers}) = [(\mathrm{timer}, \mathrm{script}), (\mathrm{timer}, \mathrm{props}), (\operatorname{join}\{\mathrm{top}, \mathrm{scale}\}, \mathrm{paint}), (\operatorname{join}\{\mathrm{top}, \mathrm{scale}\}, \mathrm{raster}), (\mathrm{top}@\mathrm{own} + \mathrm{scale}@\mathrm{own}, \mathrm{raster})]$$
+
+each with cell $\mathrm{mismatch}$. Highest-level-wins and the union are MEASURED only where the levels are
+comparable; for `layoutMove` with `raster` both are refuted, and the timer base rule is refuted. -/
+theorem cr_extra_cells :
+    offCells 3 [] crExtraRecorded (steps (expectAll crObservers (crWork idleFrame)) crExtraCases) crObservers =
+      [("timer", "script", "mismatch"), ("timer", "props", "mismatch"),
+       ("custom[top,scale]@own", "paint", "mismatch"), ("custom[top,scale]@own", "raster", "mismatch"),
+       ("top@own+scale@own", "raster", "mismatch")] := by
+  decide +kernel
+
+/-- **Every WebKit stage rule holds on the extra steps** (CI run 39124427211, 6 passes): two changes on two boxes
+in one frame run the union of their stages, for the three measured pairs.
+
+$$\forall o \in \mathrm{wkObservers}:\ \operatorname{verdict}\big(\operatorname{cells}(6, [\mathrm{commit}], \mathrm{wkExtraRec}, \operatorname{steps}(\operatorname{expect}(W_{\mathrm{wk}}([\,])), \mathrm{wkExtra}), o.\mathrm{stage})\big) = \mathrm{holds}$$
+
+The WebKit union rule, MEASURED on three pairs. -/
+theorem wk_extra_holds :
+    ∀ o ∈ wkObservers, verdict (recordedCells 6 ["commit"] wkExtraRecorded
+      (steps (expectAll wkObservers (wkWork [])) wkExtraCases) o.stage) = .holds := by
+  decide +kernel
 
 /-! ## Golden -/
 
