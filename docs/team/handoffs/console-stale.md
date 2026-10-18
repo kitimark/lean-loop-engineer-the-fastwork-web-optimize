@@ -1,6 +1,6 @@
 # console-stale handoff
 
-State: round 3 on branch worktree-wf_56a18937-3ba-1 (head: see `git log -1`). check.sh green, runner+console-api tests green.
+State: round 3 on branch worktree-wf_56a18937-3ba-1 (code head b4661a1, plus this handoff commit). check.sh green, runner+console-api tests green.
 
 Read first: docs/team/tools/console-stale.md, lean/Fw/Obs/Stale.lean.
 
