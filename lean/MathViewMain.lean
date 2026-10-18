@@ -1,5 +1,6 @@
 import MathView
 import Fw.Spec.ConeMiss
+import Fw.Spec.MathFacts
 open Lean Meta
 
 /-- The package root: the executable lives in `<root>/.lake/build/bin/`. -/
@@ -366,7 +367,9 @@ hashes the sources it was built from, so it can never store its output under the
 to any of them rebuilds this file (it imports `MathView`, which imports `Fw.Spec.AxReach`). -/
 def toolSources : List (String × String) :=
   [("MathView.lean", include_str "MathView.lean"), ("MathViewMain.lean", include_str "MathViewMain.lean"),
-   ("Fw/Spec/AxReach.lean", include_str "Fw/Spec/AxReach.lean")]
+   ("Fw/Spec/AxReach.lean", include_str "Fw/Spec/AxReach.lean"),
+   ("Fw/Spec/MathFacts.lean", include_str "Fw/Spec/MathFacts.lean"),
+   ("Fw/Spec/Reach.lean", include_str "Fw/Spec/Reach.lean")]
 
 /-- The build inputs of the tool hash read at run time: the toolchain pin, the manifest and the lakefile with its
 options. -/
@@ -374,10 +377,10 @@ def toolFiles : List String := ["lean-toolchain", "lake-manifest.json", "lakefil
 
 /-- The tool hash $t$: a module key over the blob ids of `toolSources` and `toolFiles`, in order.
 
-$$t = \operatorname{modKey}\bigl(\texttt{(tool)},\ \operatorname{join}_{\texttt{;}}(f_1\texttt{=}\operatorname{blobId}(c_1), \dots, f_6\texttt{=}\operatorname{blobId}(c_6)),\ \texttt{""},\ [\,]\bigr)$$
+$$t = \operatorname{modKey}\bigl(\texttt{(tool)},\ \operatorname{join}_{\texttt{;}}(f_1\texttt{=}\operatorname{blobId}(c_1), \dots, f_8\texttt{=}\operatorname{blobId}(c_8)),\ \texttt{""},\ [\,]\bigr)$$
 
-where $(f_i, c_i)$ are the 3 embedded sources, then the 3 files read under `root`. Throws when a file in
-`toolFiles` is missing. -/
+where $(f_i, c_i)$ are the 5 embedded sources, then the 3 files read under `root`. Throws when a file in
+`toolFiles` is missing. (`cachedEntries` keys modules by $t$ mixed with the facts key of `factsGlobals`.) -/
 def toolHash (root : System.FilePath) : IO String := do
   let mut parts : Array String := toolSources.toArray.map fun (f, s) => f ++ "=" ++ MathView.blobId s.toUTF8
   for f in toolFiles do
@@ -412,8 +415,87 @@ partial def modKeyOf (env : Environment) (build : String) (t : String)
   memo.modify (·.insert m k)
   return k
 
+/-! ## Facts per theorem (task lfg-mathview-facts)
+
+Each theorem entry also carries the facts of `Fw.Spec.MathFacts` (head constant, implementation argument, `Assume`
+premises, killed incident, proof class, reach) and `reachFromWire`. The facts of one theorem depend on its import
+cone and on two global inputs: the registered signatures and registry rows (`factsGlobals`, mixed into every module
+key, so a registry change recomputes every module) and the wire reach (`wireSet`, computed after the merge on every
+run, never stored). Each theorem's facts are computed in a fresh `Core`/`Meta` state, so a full run and a cached run
+give the same bytes. -/
+
+/-- An exported entry and, for a theorem, its facts (none for any other kind, and for a theorem whose facts were not
+computed, see `withFacts`): what the module store keeps per declaration.
+$$\mathrm{Stored} = \mathrm{Entry} \times \mathrm{Option}(\mathrm{Facts})$$ -/
+structure Stored where
+  /-- The math-view entry, unchanged. -/
+  entry : MathView.Entry
+  /-- The facts of a theorem. -/
+  facts : Option Fw.Spec.MathFacts.Facts
+deriving ToJson, FromJson
+
+/-- Heartbeat budget of the facts of one theorem, in thousands.
+$$\mathrm{factsBudget} = 20000$$ -/
+def factsBudget : Nat := 20000
+
+/-- The global inputs of the facts: the registry rows (`Fw.Spec.MathFacts.rows`) and a text key over every registered
+signature constructor $s$ with its reduced `Sig.Dom s` and `Sig.Cod s`, then every row's id, row name and replay name.
+$$\operatorname{factsGlobals} = \bigl(R,\ \operatorname{join}_{\texttt{\textbackslash n}}([\texttt{sig}\ s\ \operatorname{whnf}(\mathrm{Dom}\ s)\ \operatorname{whnf}(\mathrm{Cod}\ s) : s \in \operatorname{sigCtors}] \mathbin{+\!\!+} [\texttt{row}\ \iota\ \rho\ r : (\iota, \rho, r) \in R])\bigr)$$ -/
+def factsGlobals : MetaM (List Fw.Spec.MathFacts.Row × String) := Fw.Spec.MathFacts.plainUnfold do
+  let rs ← Fw.Spec.MathFacts.rows
+  let mut parts : Array String := #[]
+  for s in Fw.Spec.Reach.sigCtors (← getEnv) do
+    let dom ← whnf (mkApp (mkConst `Fw.Spec.Incidents.Sig.Dom) (mkConst s))
+    let cod ← whnf (mkApp (mkConst `Fw.Spec.Incidents.Sig.Cod) (mkConst s))
+    parts := parts.push s!"sig {s} {dom} {cod}"
+  for r in rs do parts := parts.push s!"row {r.id} {r.row} {r.replay}"
+  return (rs, "\n".intercalate parts.toList)
+
+/-- The `Fw` constants of the environment by their printed name (the `name` field of an entry). -/
+def nameIndex (env : Environment) : Std.HashMap String Name :=
+  env.constants.map₁.fold (init := {}) fun m n _ => if MathView.inScope n then m.insert n.toString n else m
+
+/-- **The facts of the theorem entries** of `es`, each by `factsOf` in a fresh `Core`/`Meta` state within
+`factsBudget`; none for a non-theorem, for a printed name missing from `names` or from the environment, and when
+`factsOf` throws any error (running out of the budget included).
+$$\operatorname{withFacts}(es) = [(e,\ \phi(e)) : e \in es],\quad \phi(e) = \begin{cases} \operatorname{factsOf}(n_e) & e.\mathrm{kind} = \texttt{theorem},\ n_e = \mathit{names}(e.\mathrm{name}) \text{ defined},\ n_e \in \mathrm{env},\ \operatorname{factsOf}(n_e) \text{ returns within the budget without error} \\ \bot & \text{otherwise} \end{cases}$$ -/
+def withFacts (env : Environment) (rs : List Fw.Spec.MathFacts.Row) (names : Std.HashMap String Name)
+    (es : Array MathView.Entry) : IO (Array Stored) := do
+  let ctx : Core.Context := { fileName := "<mathview>", fileMap := default }
+  es.mapM fun e => do
+    if e.kind != "theorem" then return { entry := e, facts := none }
+    let some n := names[e.name]? | return { entry := e, facts := none }
+    let some ci := env.find? n | return { entry := e, facts := none }
+    let x := MathView.bounded factsBudget (Fw.Spec.MathFacts.factsOf n ci rs)
+    let (r, _) ← (x.run' {} {}).toIO ctx { env }
+    return { entry := e, facts := r.toOption }
+
+/-- The wire reach $W$ (`Fw.Spec.MathFacts.wireReach` over `Fw.Spec.MathFacts.goldenSources root`) by printed name. -/
+def wireSet (env : Environment) (root : System.FilePath) : IO (Std.HashSet String) := do
+  let w := Fw.Spec.MathFacts.wireReach env (← Fw.Spec.MathFacts.goldenSources root)
+  return w.foldl (fun s n => s.insert n.toString) {}
+
+/-- **The JSON of one entry**: `toJson` of the entry, unchanged for a non-theorem; a theorem also gets the keys
+`headConst`, `implArg` (`{index, expr}` or null), `assumes`, `killOf`, `class`, `reach` and `reachFromWire`, each
+null when its facts are missing; `reachFromWire` is also null when the theorem has no subjects
+(`Fw.Spec.MathFacts.reachFromWire`). `reach` keeps only the names in the set $E$ of exported entry names, in order.
+$$\operatorname{entryJson}_{W, E}(e, \phi) = \begin{cases} \operatorname{toJson}(e) & e.\mathrm{kind} \ne \texttt{theorem} \\ \operatorname{toJson}(e) \cup \{h, a, A, k, c, [r \in \mathit{reach} : r \in E], \operatorname{reachFromWire}(S, W)\} & e.\mathrm{kind} = \texttt{theorem},\ \phi = (h, a, A, k, c, \mathit{reach}, S) \\ \operatorname{toJson}(e) \cup \{\text{the 7 keys} \mapsto \mathrm{null}\} & e.\mathrm{kind} = \texttt{theorem},\ \phi = \bot \end{cases}$$ -/
+def entryJson (inWire isEntry : String → Bool) (s : Stored) : Json :=
+  let j := toJson s.entry
+  if s.entry.kind != "theorem" then j else
+  let keys : List (String × Json) := match s.facts with
+    | none => ["headConst", "implArg", "assumes", "killOf", "class", "reach", "reachFromWire"].map (·, Json.null)
+    | some f =>
+      [("headConst", toJson f.headConst),
+       ("implArg", match f.implIdx with
+         | some i => Json.mkObj [("index", toJson i), ("expr", toJson f.implExpr)]
+         | none => Json.null),
+       ("assumes", toJson f.assumes), ("killOf", toJson f.killOf), ("class", toJson f.cls.tag),
+       ("reach", toJson (f.reach.filter isEntry)), ("reachFromWire", toJson (Fw.Spec.MathFacts.reachFromWire f.subjects inWire))]
+  keys.foldl (fun j (k, v) => j.setObjVal! k v) j
+
 /-- The stored entries under key `k`, or `none` when absent or unreadable (then the module is recomputed). -/
-def readStored (store : System.FilePath) (k : String) : IO (Option (Array MathView.Entry)) := do
+def readStored (store : System.FilePath) (k : String) : IO (Option (Array Stored)) := do
   let f := store / (k ++ ".json")
   unless ← f.pathExists do return none
   try
@@ -424,7 +506,7 @@ def readStored (store : System.FilePath) (k : String) : IO (Option (Array MathVi
 
 /-- Store `es` under key `k`: write a temporary file named by key and process id, then rename it into place, so a
 reader in another worktree sees either no file or the whole file. Returns whether it was stored. -/
-def writeStored (store : System.FilePath) (k : String) (es : Array MathView.Entry) : IO Bool := do
+def writeStored (store : System.FilePath) (k : String) (es : Array Stored) : IO Bool := do
   try
     let tmp := store / s!".tmp.{k}.{← IO.Process.getPID}"
     IO.FS.writeFile tmp (toJson es).compress
@@ -432,20 +514,21 @@ def writeStored (store : System.FilePath) (k : String) (es : Array MathView.Entr
     return true
   catch _ => return false
 
-/-- The incremental export over the store `store`; also writes `stats` (counts, phase times in ms, then
-`miss <module>` lines). -/
-def cachedEntries (env : Environment) (root store : System.FilePath) (stats : Option String) :
-    IO (Array MathView.Entry) := do
+/-- The incremental export over the store `store`, with the facts of every theorem (`withFacts`, given the registry
+rows `rs` and the facts key `gk` of `factsGlobals`, which is mixed into the tool hash); also writes `stats` (counts,
+phase times in ms, then `miss <module>` lines). -/
+def cachedEntries (env : Environment) (root store : System.FilePath) (stats : Option String)
+    (rs : List Fw.Spec.MathFacts.Row) (gk : String) : IO (Array Stored) := do
   let t0 ← IO.monoMsNow
   IO.FS.createDirAll store
-  let t ← toolHash root
+  let t := MathView.modKey "(facts)" (MathView.blobId gk.toUTF8) (← toolHash root) []
   let build := (root / ".lake" / "build").toString ++ "/"
   let memo ← IO.mkRef ({} : Std.HashMap Name (Option String))
   let mut keys : Array (Name × String) := #[]
   for m in env.header.moduleNames do
     if let some k ← modKeyOf env build t memo m then keys := keys.push (m, k)
   let t1 ← IO.monoMsNow
-  let mut hits : Array MathView.Entry := #[]
+  let mut hits : Array Stored := #[]
   let mut hitMods : NameSet := {}
   let mut missKeys : Array (Name × String) := #[]
   for (m, k) in keys do
@@ -454,19 +537,20 @@ def cachedEntries (env : Environment) (root store : System.FilePath) (stats : Op
     | none => missKeys := missKeys.push (m, k)
   let t2 ← IO.monoMsNow
   let ctx : Core.Context := { fileName := "<mathview>", fileMap := default }
-  let (fresh, _) ← ((MathView.entries (want := fun mod => !hitMods.contains mod)).run' {} {}).toIO ctx { env }
+  let (freshEs, _) ← ((MathView.entries (want := fun mod => !hitMods.contains mod)).run' {} {}).toIO ctx { env }
+  let fresh ← withFacts env rs (nameIndex env) freshEs
   let t3 ← IO.monoMsNow
   let mut stored := 0
   for (m, k) in missKeys do
-    let es := fresh.filter (·.module == m.toString)
-    if MathView.storable es then
+    let es := fresh.filter (·.entry.module == m.toString)
+    if MathView.storable (es.map (·.entry)) then
       if ← writeStored store k es then stored := stored + 1
   let t4 ← IO.monoMsNow
   if let some f := stats then
     let misses := missKeys.toList.map (fun (m, _) => s!"miss {m}\n")
     IO.FS.writeFile f (s!"modules {keys.size}\nhits {hitMods.size}\nmisses {missKeys.size}\nstored {stored}\n" ++
       s!"ms keys {t1 - t0} read {t2 - t1} export {t3 - t2} store {t4 - t3}\n" ++ String.join misses)
-  return (hits ++ fresh).qsort MathView.Entry.before
+  return (hits ++ fresh).qsort fun a b => MathView.Entry.before a.entry b.entry
 
 /-- `--dependents <x>`: the package modules (those whose `.olean` is under `.lake/build/`) whose import cone contains
 `x`, in import order, computed by `Fw.Spec.ConeMiss.dependents` (proved exact by `mem_dependents`) over
@@ -493,7 +577,8 @@ def dependentsOf (env : Environment) (root : System.FilePath) (x : String) : IO 
   return Fw.Spec.ConeMiss.dependents imp order x
 
 /-- `lake exe mathview [--lint] [--out <file>]`: print every `Fw` declaration as JSON (name, kind, module, line,
-English, math, signature, machine LaTeX, deep statement hash, docstring hash, axioms); with `--lint`, exit 1 when
+English, math, signature, machine LaTeX, deep statement hash, docstring hash, axioms; a theorem also its facts:
+`headConst`, `implArg`, `assumes`, `killOf`, `class`, `reach`, `reachFromWire`, see `entryJson`); with `--lint`, exit 1 when
 a declaration lacks `$$` math or English, depends on `sorryAx`, or on an axiom other than
 `propext`, `Classical.choice`, `Quot.sound`, or when its `$$` math binds a name that it also applies as a function
 and uses as a value (`ShadowLint`), or when a `where` / `with` clause after a `$$` block defines a symbol of that
@@ -515,10 +600,15 @@ def main (args : List String) : IO UInt32 := do
     return 0
   let ctx : Core.Context := { fileName := "<mathview>", fileMap := default }
   let st : Core.State := { env }
-  let es ← match optArg "--store" args with
-    | some store => cachedEntries env root store (optArg "--stats" args)
-    | none => Prod.fst <$> (MathView.entries.run' {} {}).toIO ctx st
-  let render : Unit → String := fun _ => (toJson es).pretty ++ "\n"
+  let ((rs, gk), _) ← (factsGlobals.run' {} {}).toIO ctx st
+  let ss ← match optArg "--store" args with
+    | some store => cachedEntries env root store (optArg "--stats" args) rs gk
+    | none => do withFacts env rs (nameIndex env) (← Prod.fst <$> (MathView.entries.run' {} {}).toIO ctx st)
+  let es := ss.map (·.entry)
+  let wire ← wireSet env root
+  let names : Std.HashSet String := es.foldl (fun s e => s.insert e.name) {}
+  let render : Unit → String := fun _ =>
+    (Json.arr (ss.map (entryJson wire.contains names.contains))).pretty ++ "\n"
   if let some f := outFile? args then IO.FS.writeFile f (render ())
   if args.contains "--lint" then
     let shadow := es.toList.flatMap ShadowLint.lintEntry
