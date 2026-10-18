@@ -161,7 +161,7 @@ def table : List Wf := [
   ⟨"breakpoint-gate.yml", ciMain, [
     "packages/gate-breakpoints/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/gate-shards.mjs",
-    ".github/scripts/gate-jobs.mjs", ".github/scripts/cache-key.mjs", "packages/contracts/golden/gate/schedule.jsonl",
+    ".github/scripts/gate-jobs.mjs", ".github/scripts/gate-jobs.test.mjs", ".github/scripts/cache-key.mjs", "packages/contracts/golden/gate/schedule.jsonl",
     "packages/contracts/golden/gate/shards.jsonl", "packages/contracts/golden/gate/exit.jsonl",
     "packages/contracts/golden/ops/cache.jsonl", ".github/scripts/gate-smoke.mjs", ".github/scripts/merge-gate.mjs",
     ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
@@ -186,7 +186,7 @@ def table : List Wf := [
     ".github/actions/setup-pnpm/**", own "gate-gaps.yml"]⟩,
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "scripts/span.sh",
-    "scripts/fwcore-build.sh", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", ".github/scripts/gate-jobs.test.mjs", ".github/scripts/gate-jobs.mjs",
+    "scripts/fwcore-build.sh", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl",
     "packages/gate-breakpoints/src/scope.gen.json", ".github/scripts/changed-inputs.mjs",
     ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh", own "lean.yml"]⟩,
   ⟨"mutants.yml", ciMain, [

@@ -142,6 +142,7 @@ jobs:
           PARTS: ${{ inputs.parts || '' }}
         run: |
           set -euo pipefail
+          node --test .github/scripts/gate-jobs.test.mjs  # the times default equals the Lean plan default (merge-drift guard)
           case "$RUNS" in 1|2|3) ;; *) echo "runs must be 1, 2 or 3" >&2; exit 1 ;; esac
           case "$FREE" in 4|8|12|20) ;; *) echo "free must be 4, 8, 12 or 20" >&2; exit 1 ;; esac
           case "$TIMES" in measured|base|cached|reduced) ;; *) echo "times must be measured, base, cached or reduced" >&2; exit 1 ;; esac
