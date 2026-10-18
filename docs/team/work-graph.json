@@ -3975,7 +3975,8 @@
     "lean/Fw/Console/**",
     "packages/contracts/golden/**",
     "docs/team/tools/**"
-   ]
+   ],
+   "evidence": "c79cdc6"
   },
   {
    "id": "ci-shared-failure",

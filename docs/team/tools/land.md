@@ -25,12 +25,26 @@ Every `fw land` prints a last line `VERDICT <kind> <task>` and exits with a code
 
 | kind | exit | meaning |
 |---|---|---|
-| done, dry, queued | 0 | landed, dry land passes, queued |
+| done, dry, queued, empty | 0 | landed, dry land passes, queued, the branch has no commit of its own (nothing to land) |
 | busy 10, dirty 11 | 10, 11 | retryable: the lock or the main checkout is in the way |
-| scope 12, reads 13, conflict 14, checks 15, stale 16 | 12-16 | fix the branch |
+| scope 12, reads 13, conflict 14, checks 15, stale 16, lint 17 | 12-17 | fix the branch (lint: a fast lint failed) |
 | unknown | 2 | anything else |
 
-Scripts read the word after `VERDICT` or the exit code, never prose. TS stand-in `apps/runner/src/land-verdict.ts`, checked against `packages/contracts/golden/console/land-dry.jsonl`.
+Scripts read the word after `VERDICT` or the exit code, never prose. A dry run (also one that throws or is refused before any stage) prints
+exactly one `VERDICT` line, last: `fw.ts` prints the lines Lean `dryRun` returns for the seven stage outcomes that `land.ts` computes
+(Lean `dryRun_one_verdict`; a thrown exception is the outcome `threw`, kind `unknown`). Not proved: that `land.ts` computes the outcomes
+truthfully (tests only). A non-dry land prints its VERDICT line in `fw.ts` as before (tests, not a theorem).
+
+### The dry land's fast lints (task `land-dry-full`)
+
+After the reads stage the dry land runs, in the merge-tree worktree (never the main checkout), the fast lints that refused real lands:
+`node scripts/ci-paths.mjs --check` (0.1 s) and, when the change touches `lean/`, the math-view lint the way `lean/scripts/check.sh` runs it
+(`lean/scripts/mathview-cached.sh --build`: whole-tree cache, per-module store; an incremental `lake build` only on a cache miss; no
+`fwtest`, no tests). A failure is `VERDICT lint` (exit 17). Which lints run is Lean `lintPlan`. Order (Lean `Outcome.first`): exception, stale, empty (no own commits), scope, conflict, reads,
+lint, dry (`kind_spec`: the kind is the first failing stage in that order); `dry_pass_all`: dry means every one of them passed. A real
+land prints `lint` too when a failed check reports only the `check.sh` stages `lake build` / `mathview lint` (Lean `checkFailKind`,
+`dry_kind_is_real_kind`); the real land has no `ci-paths` check, so a `ci-paths` failure has no real counterpart. Glue: `dryLintArgv` in `apps/runner/src/land.ts`; tests inject `dryLints`.
+Cost: see the handoff note `docs/team/handoffs/land-dry-full.md`. TS stand-in `apps/runner/src/land-verdict.ts`, checked against `packages/contracts/golden/console/land-dry.jsonl`.
 
 ## `--queue`: lands in first-in-first-out order (task `land-queue`)
 
