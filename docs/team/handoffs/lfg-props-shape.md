@@ -1,8 +1,8 @@
 # lfg-props-shape handoff
 
-State: round 3 on branch worktree-wf_d4784429-e5d-1 (round-2 head a114e56 and main merged in). Code commit: see
-`git log -2` on that branch (the handoff commit sits on top of the code commit). check.sh is green, and the key
-theorems use only the standard axioms.
+State: round 3 on branch worktree-wf_d4784429-e5d-1 (round-2 head a114e56 and main merged in). Code commit d5a9f07
+(the handoff-only commit sits on top). check.sh is green, `fw land --dry` gives `VERDICT dry`, and the key theorems
+use only the standard axioms.
 
 Round 3 (review: the author picked both the bad and the incident predicate, so `Silly := exit ≤ 100` met every rule):
 - `lean/Fw/Spec/Props.lean`: incident registry `Incident α β {id, pred, replay}`, `Strict`, `Registry {rows, ids_ne,
