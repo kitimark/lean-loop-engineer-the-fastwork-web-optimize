@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { check, coreCaller, coreCandidates } from "../src/watch.ts";
 import { afterAll, describe, expect, it } from "vitest";
 import { pathsFor, type Runner } from "../src/watch-collect.ts";
-import { CORE_BIN, CORE_COMMIT, SVC_INPUTS, collectSvcs, parseTouched, readApi, readApiBase } from "../src/watch-svc.ts";
+import { CORE_BIN, CORE_COMMIT, SVC_INPUTS, collectSvcs, parseTouched, readApi, readApiBase, readSweepErrors } from "../src/watch-svc.ts";
 
 const SHA_A = "a".repeat(40);
 const SHA_B = "b".repeat(40);
@@ -18,6 +18,8 @@ const writeApi = (d: string, o: object) => writeFileSync(join(d, ".fw-console", 
 /** an api.json of a live console-api started at `commit` whose fwcore child was built from `coreCommit` */
 const api = (d: string, commit: string, coreCommit: string) => writeApi(d, { port: 1, pid: 42, commit, coreCommit });
 const sha256 = (t: string) => createHash("sha256").update(t).digest("hex");
+/** the sweep-errors.json the console-api drain writes (apps/console-api/src/spool/drain.ts) */
+const sweep = (d: string, pid: number, count: number) => writeFileSync(join(d, ".fw-console", "sweep-errors.json"), JSON.stringify({ pid, count, ops: { timeout: count } }));
 /** a built binary (content `bin`); with `commit`, the record scripts/fwcore-build.sh writes ("<sha> <sha256 of the binary>");
  *  `hash` overrides the recorded hash (the record of another binary) */
 const writeCore = (d: string, commit?: string, hash?: string) => {
@@ -99,6 +101,18 @@ describe("collectSvcs (fake runner)", () => {
     expect(find(svcs, "fwcore")).toEqual({ name: "fwcore", inputs: SVC_INPUTS.fwcore!.map((path) => ({ path, changed: path === "lean/Fw" })) });
     const failAll = await collectSvcs(pathsFor(d), async () => null, () => true);
     expect(failAll.map((s) => [s.name, s.unknown !== undefined])).toEqual([["console-api", true], ["fwcore", true]]);
+  });
+  it("sweep errors: the count of the live console-api's own file; another pid's file, no file or a zero count give none", async () => {
+    const d = root(); api(d, SHA_A, SHA_A);
+    const swept = async () => find(await collectSvcs(pathsFor(d), gitFake({}), () => true), "console-api")!.sweepErrors;
+    expect(await swept()).toBeUndefined();
+    sweep(d, 42, 2);
+    expect(await swept()).toBe(2);
+    expect(readSweepErrors(pathsFor(d))).toBe(2);
+    sweep(d, 7, 2);
+    expect(await swept()).toBeUndefined();
+    sweep(d, 42, 0);
+    expect(await swept()).toBeUndefined();
   });
   it("a rebuild on disk without a console-api restart leaves console-api stale; the restart clears it (Fw.Obs.rebuild_without_restart_api_stale)", async () => {
     const d = root();
@@ -231,5 +245,12 @@ describe.skipIf(!existsSync(join(repo, "lean/.lake/build/bin/fwcore")))("svc.sta
     const a = h.alerts.filter((x) => x.code === "svc.unknown");
     expect(a.map((x) => x.subject).sort()).toEqual(["console-api", "fwcore"]);
     expect(a.find((x) => x.subject === "console-api")!.detail).toBe("cannot identify the code that runs: api.json records no core build commit");
+  });
+  it("throws the live console-api's drain caught are svc.sweepError with the count (task-state-truth: none swallowed)", async () => {
+    const h = await check(await snap((d) => { api(d, SHA_A, SHA_A); sweep(d, 42, 3); }, {}), core);
+    expect(h.alerts.filter((x) => x.code === "svc.sweepError").map((x) => [x.subject, x.detail]))
+      .toEqual([["console-api", "3 fwcore throws caught in the drain since start"]]);
+    const old = await check(await snap((d) => { api(d, SHA_A, SHA_A); sweep(d, 41, 3); }, {}), core);
+    expect(old.alerts.filter((x) => x.code === "svc.sweepError")).toEqual([]);
   });
 });

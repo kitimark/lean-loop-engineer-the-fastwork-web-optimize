@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.ts";
 import { selectCore } from "../src/core/index.ts";
 import { ObsRecord } from "@fw/contracts";
-import { admitLines, Drain, summarize } from "../src/spool/drain.ts";
+import { admitLines, Drain, SWEEP_ERRORS, summarize } from "../src/spool/drain.ts";
 import { Store } from "../src/store.ts";
 
 let stores: Store[] = [];
@@ -176,16 +176,52 @@ describe("spool drain", () => {
     await d.run();
     expect((await store.board()).plan.tasks[0]).toMatchObject({ state: "running", agent: "fix-nav" });
   });
-  it("a fwcore throw in lifeOf: the line is not marked seen, it is retried, and the spool alert names lifeOf:error", async () => {
+  it("a fwcore throw in lifeOf: the line is not marked seen, it is retried, counted, and the spool alert names it", async () => {
     const { dir, store } = await fresh();
     spool(dir, "a1", rec());
     const real = store.core.ops.bind(store.core);
     store.core.ops = async (op: string, f: Record<string, unknown> = {}) => { if ("life" in f) throw new Error("boom"); return real(op, f); };
     const d = new Drain(store);
-    expect(await d.run()).toMatchObject({ accepted: 0, retry: 1, issues: 1, alerts: 1 });
-    expect((await store.board()).steps[0]!.title).toContain("lifeOf:error x1");
+    expect(await d.run()).toMatchObject({ accepted: 0, retry: 1, issues: 1, alerts: 1, sweepErrors: 1 });
+    expect((await store.board()).steps[0]!.title).toContain("sweep:lifeOf x1");
+    expect(JSON.parse(readFileSync(join(dir, SWEEP_ERRORS), "utf8"))).toEqual({ pid: process.pid, count: 1, ops: { lifeOf: 1 } });
     expect(existsSync(join(dir, "obs.jsonl")) ? lines(join(dir, "obs.jsonl")) : []).toHaveLength(0);
     store.core.ops = real;
+    expect(await d.run()).toMatchObject({ accepted: 1, retry: 0, sweepErrors: 0 });
+  });
+  // round 4, lead decision 3: no swallowed fwcore throw. Each sweep's throw is counted per op in sweep-errors.json (the
+  // watch raises svc.sweepError from it) and the drain still finishes.
+  const throwing = (store: Store, when: (op: string, f: Record<string, unknown>) => boolean) => {
+    const real = store.core.ops.bind(store.core);
+    store.core.ops = async (op: string, f: Record<string, unknown> = {}) => { if (when(op, f)) throw new Error("boom"); return real(op, f); };
+    return () => { store.core.ops = real; };
+  };
+  const swept = (dir: string) => JSON.parse(readFileSync(join(dir, SWEEP_ERRORS), "utf8")) as { pid: number; count: number; ops: Record<string, number> };
+  it("a fwcore throw in the timeout sweep is counted (svc.sweepError), never swallowed; the next drain runs it again", async () => {
+    const { dir, store } = await fresh();
+    const restore = throwing(store, (op) => op === "plan.timeouts");
+    const d = new Drain(store);
+    expect(await d.run()).toMatchObject({ sweepErrors: 1, timeouts: 0 });
+    expect(await d.run()).toMatchObject({ sweepErrors: 1 });
+    expect(swept(dir)).toEqual({ pid: process.pid, count: 2, ops: { timeout: 2 } });
+    expect(d.sweepErrors()).toEqual({ timeout: 2 });
+    restore();
+    expect(await d.run()).toMatchObject({ sweepErrors: 0 });
+    expect(swept(dir).count).toBe(2);
+  });
+  it("a fwcore throw in admission, the alert plan, the label sweep or the workflow sweep is counted per op", async () => {
+    const { dir, store } = await fresh();
+    spool(dir, "a1", rec());
+    health(dir, [{ id: "a1", name: "fix-nav" }]);
+    const restore = throwing(store, (op, f) => op === "console.alert" || "raw" in f || "labels" in f);
+    const d = new Drain(store, () => { throw new Error("no dirs"); });
+    expect(await d.run()).toMatchObject({ accepted: 0, sweepErrors: 3 });
+    expect(swept(dir).ops).toEqual({ workflow: 1, label: 1, admit: 1 });
+    restore();
+    const again = throwing(store, (op) => op === "console.alert");
+    expect(await d.run()).toMatchObject({ accepted: 0, retry: 1, labels: 1 });
+    expect(swept(dir).ops).toEqual({ workflow: 2, label: 1, admit: 1, alertPlan: 1 });
+    again();
     expect(await d.run()).toMatchObject({ accepted: 1, retry: 0 });
   });
   it("an unknown field is accepted, counted and raised once as a spool alert", async () => {
