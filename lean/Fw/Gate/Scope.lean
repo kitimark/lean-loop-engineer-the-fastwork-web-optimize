@@ -526,9 +526,10 @@ def _root_.Fw.Site.Breakpoints.Env.sameVector (a b : Env) : Bool :=
 
 $$\Bigl(\forall p \in M,\ \neg\operatorname{sameVec}(p.\mathit{env}, \operatorname{touchStop}(1024))\Bigr) \wedge \bigl\{\, i \mid s_i = \operatorname{touchStop}(1024) \,\bigr\} = \{0, 2, 4\} \wedge \bigl(\forall o, r, \mathit{ach}, \forall it \in \operatorname{truthItems}(o, r, \bot, \bot, \mathit{ach}),\ it.\mathrm{cls} \in \{\mathrm{lean}, \mathrm{neutral.lean}\} \implies it.\mathrm{status} = \mathrm{na}\bigr)$$
 
-where $(s_0, \dots, s_4)$ are the stops of `touch-1024-1201`. No matrix probe has the environment of stops 0, 2 and 4 (width 1024 is not
-a width edge pair), so the lookup finds no vector and every check against Lean's value at those stops is `na`
-(`truthItems_lean_na_no_vector`). This is the premise of the exemption `touch-1024-1201-no-vector`: it excuses those readings of the row `matchMedia =Lean` and no others. -/
+Here $M$ is the list of matrix probes and $(s_0, \dots, s_4)$ are the stops of `touch-1024-1201`. No matrix probe has the environment of
+stops 0, 2 and 4 (width 1024 is not a width edge pair), so the lookup finds no vector and every check against Lean's value at those
+stops is `na` (`truthItems_lean_na_no_vector`). This is the premise of the exemptions `chromium-touch-1024-no-vector` and
+`webkit-touch-1024-no-vector`: each excuses those readings of the row `matchMedia =Lean` and no others. -/
 theorem touch1024_lean_na :
     (matrix.all fun p => !p.env.sameVector (touchStop 1024)) = true ∧
     ((sweeps.find? (·.id == "touch-1024-1201")).map fun w =>
