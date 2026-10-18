@@ -218,10 +218,17 @@ For each declaration, add these fields:
 - `assumes` (ids);
 - `killOf` (target theorem);
 - `class`, one of `closed`, `rfl`, `defEq`, `general`;
-- `reachFromWire` (Bool);
+- `reachFromWire` (true, false or null);
 - `reach` (Fw defs).
 
 All of them come from the Expr that MathView already walks for the deep hash.
+
+As built (`lean/Fw/Spec/MathFacts.lean`, task `lfg-mathview-facts`):
+
+- **Wire reach.** $W = \operatorname{closure}([\texttt{Fw.Wire.handle}] \mathbin{+\!\!+} \operatorname{fwIdents}(\texttt{lean/scripts/*Golden.lean}))$, as in check (d). No module is a root by its name. `Fw.Wire.Sched.taskAdmitted` (inc-proof-of-dead-code) is not in $W$ (`#guard`).
+- **Subjects.** These are the theorem's operations: the definitions in the implementation argument (or in the statement when there is none) whose type does not end in a sort, so types, aliases and predicates do not count. When no such operation exists, the subjects are the operations named in the constructor types of the statement's inductive predicates.
+- **Three values.** `reachFromWire` is null when a theorem has no subjects. Null and false both ask a human to look. True claims the subject is wired, so it must never be emitted for dead code.
+- **Stated limit: the `defEq` class depends on the environment.** It sits on a heartbeat budget, and `isDefEq` spends a different number of heartbeats in different environments. The canonical environment is the export's (`lake exe mathview`, `importModules` with `loadExts := false`). Near the budget edge, `facts%` in an elaborated file can disagree (MEASURED once: `MorphMountOpt.cr_swipe_mixed`). The guard `defEqAt% … 1` pins that this case depends on the budget.
 
 ## 7. Lean statements the gate itself must satisfy (Fw.Ops.LeanFirst)
 

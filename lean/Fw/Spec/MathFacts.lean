@@ -164,10 +164,9 @@ def killOf (negated : Bool) (target : Option Name) (rows : List Row) : Option St
 /-- **The `Fw.` identifiers of a source text** (a generator script under `lean/scripts/`): every maximal run of
 identifier characters (ASCII letters and digits, `_`, `'`, `.`; any other character, Unicode letters included, ends a
 run) that, with its trailing dots dropped, starts with the string `Fw.`, in order of first occurrence, without
-repeats.
-$$\forall s,\ \operatorname{fwIdents}(s) = \operatorname{dedup}[\operatorname{rtrim}_{\texttt{.}}(w) : w \in \operatorname{runs}_{[\texttt{A-Za-z0-9\_'.}]}(s),\ \texttt{"Fw."} \sqsubseteq_{\mathrm{str}} \operatorname{rtrim}_{\texttt{.}}(w)]$$
-where $\operatorname{runs}_C(s)$ are the maximal runs of characters of $C$ in $s$ and $\sqsubseteq_{\mathrm{str}}$ is
-"is a string prefix of". -/
+repeats. Below, $\operatorname{runs}_C(s)$ lists the maximal runs of characters of $C$ in $s$, and
+$\sqsubseteq_{\mathrm{str}}$ reads "is a string prefix of".
+$$\forall s,\ \operatorname{fwIdents}(s) = \operatorname{dedup}[\operatorname{rtrim}_{\texttt{.}}(w) : w \in \operatorname{runs}_{[\texttt{A-Za-z0-9\_'.}]}(s),\ \texttt{"Fw."} \sqsubseteq_{\mathrm{str}} \operatorname{rtrim}_{\texttt{.}}(w)]$$ -/
 def fwIdents (src : String) : List String := Id.run do
   let isId (c : Char) := c.isAlphanum || c == '_' || c == '\'' || c == '.'
   let mut out : Array String := #[]
@@ -301,9 +300,9 @@ def isImplType (sigs : List Name) (ty : Expr) : MetaM Bool := do
   return false
 
 /-- The registry rows as `Row`s: id, row definition name (when the registry lists a named definition) and replay name;
-a row that does not reduce to an `Incident.mk` literal with a string id and a named replay is skipped.
-$$\operatorname{rows} = [(\iota, \operatorname{const}(i), r) : (s, i) \in \operatorname{registryRows},\ \operatorname{whnf}(i) = \mathrm{Incident.mk}(\_, \_, e_\iota, \_, r),\ \operatorname{strLit}(e_\iota) = \iota,\ r \text{ a constant}]$$
-where $\operatorname{const}(i)$ is $i$'s name when $i$ is a constant and $\bot$ otherwise. -/
+a row that does not reduce to an `Incident.mk` literal with a string id and a named replay is skipped. Below,
+$\operatorname{const}(e)$ is the name of $e$ when $e$ is a constant and $\bot$ otherwise.
+$$\operatorname{rows} = [(\iota, \operatorname{const}(i), r) : (s, i) \in \operatorname{registryRows},\ \operatorname{whnf}(i) = \mathrm{Incident.mk}(\_, \_, e_\iota, \_, r),\ \operatorname{strLit}(e_\iota) = \iota,\ r \text{ a constant}]$$ -/
 def rows : MetaM (List Row) := plainUnfold do
   let mut out : List Row := []
   for (_, e) in ← Reach.registryRows do
@@ -380,10 +379,11 @@ def opsOf (cs : List Name) : MetaM (List Name) :=
 
 /-- The operations an inductive predicate is built from: starting from the project inductive predicates (inductives
 whose type ends in `Prop`) among `cs`, the `opsOf` the constants of their constructors' types, following each project
-inductive predicate those types name, each inductive once; definitions are not unfolded.
-$$\operatorname{ctorOps}(X) = \bigcup \{\operatorname{ops}(\operatorname{consts}(\tau_k)) : I \in P^{*},\ k \in \operatorname{ctors}(I)\},\quad P^{*} = \text{the least } Y \supseteq P(X) \text{ with } P(\operatorname{consts}(\tau_k)) \subseteq Y \text{ for } I \in Y,\ k \in \operatorname{ctors}(I)$$
-where $P(Z)$ is the set of project inductive predicates in $Z$; the result is a list in breadth-first order, with
-repeats removed later by `factsOf`. -/
+inductive predicate those types name, each inductive once; definitions are not unfolded. The result is a list in
+breadth-first order (repeats are removed by `factsOf`). Below, $P(Z)$ is the set of project inductive predicates in
+$Z$ and $Y^{*}$ the least set with $P(X) \subseteq Y^{*}$ and $P(\operatorname{consts}(\tau_k)) \subseteq Y^{*}$ for
+every $I \in Y^{*}$ and $k \in \operatorname{ctors}(I)$.
+$$\operatorname{set}(\operatorname{ctorOps}(X)) = \bigcup \{\operatorname{set}(\operatorname{ops}(\operatorname{consts}(\tau_k))) : I \in Y^{*},\ k \in \operatorname{ctors}(I)\}$$ -/
 def ctorOps (cs : List Name) : MetaM (List Name) := do
   let env ← getEnv
   let mut seen : NameSet := {}
@@ -450,8 +450,9 @@ def factsOf (n : Name) (ci : ConstantInfo) (rs : List Row) : MetaM Facts := plai
     let d ← sidesDefEq ci.type defEqBudget
     let cls := classify ⟨binderCount ci.type, proofHead env n 4 value, d⟩
     let roots := ci.type.getUsedConstants.toList ++ value.getUsedConstants.toList
-    let reach := (Reach.closure env scope roots).filter fun c =>
-      c != n && ((env.find? c).map (MathView.hasEntry env c ·)).getD false
+    let reach ← (Reach.closure env scope roots).filterM fun c => do
+      let some cc := env.find? c | return false
+      return c != n && (← MathView.hasEntry env c cc)
     let reachS := (reach.map toString).toArray.qsort (· < ·) |>.toList
     let subjects ← subjectsOf ci.type implE
     return { headConst := head.map toString, implIdx := implI, implExpr := implS, assumes, killOf := kill, cls,
