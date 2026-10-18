@@ -25,5 +25,6 @@ State: branch `worktree-wf_b4b76cde-a4b-1` (round 2 branch + main merged); Lean,
 ## Stated limits
 - Plain HTTP on the LAN; same-UID local processes; preview loopback ports reachable locally.
 - 10-minute lockout DoS (20 wrong tries); preview-cookie leakage (grants preview viewing only; shadowing can only deny viewing).
-- Unauthenticated LAN device can fetch the static web shell (no data).
+- Unauthenticated LAN device can fetch the static web shell (no data). Lead-accepted (r3): trusted list computed in `ownerAction`; a
+  `/#owner=<junk>` link can wipe the stored token (DoS, re-login); FW_CONSOLE_WEB_ORIGIN on a 47100-47139 port is not refused; Host case-sensitive.
 - Read first: `PreviewOwner.lean` header, then `owner.ts`, `gate.ts`, `app.ts` middleware.

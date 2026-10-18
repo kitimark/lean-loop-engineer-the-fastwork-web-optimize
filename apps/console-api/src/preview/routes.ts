@@ -1,11 +1,11 @@
 // HTTP glue for the task detail panel and the owner-only preview. The decisions are Lean (`console.preview*`).
 // The route reads three facts from the request and passes them as a `Proof`; Lean maps them to an actor and admits
-// only `user` (owner cookie AND same-origin Origin AND no console secret). Nothing in the body can claim an actor.
+// only `user` (owner bearer token AND console Origin AND no console secret). Nothing in the body can claim an actor.
 //   secret : the request shows the console secret (the runner's own tools, agents with the secret file)
 //   cookie : (field name kept) the request carries a live owner bearer token; no cookie is an owner proof
 //   origin : the Origin header is present and is this console's own origin
 // Residual (INFERRED): a process of the same OS user that reads the owner link from the console's stdout or the
-// cookie from the browser profile. See research/notes/2026/10-18-task-preview.md.
+// owner token from the browser profile's localStorage. See research/notes/2026/10-18-task-preview.md.
 import type { Hono } from "hono";
 import { z } from "zod";
 import type { Store } from "../store.ts";

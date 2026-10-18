@@ -1,6 +1,6 @@
-// Previews through the console's own port: `/preview/<id>/r/…` (task version), `/preview/<id>/o/…` (original snapshot),
-// `/preview/<id>/compare` (side by side). The preview servers listen on loopback only; the owner gate (gate.ts, Lean
-// `preview_requires_owner`) has already run when a request gets here. Each served request touches the preview (Lean
+// Previews on the preview port: `/preview/<id>/r/…` (task version), `/preview/<id>/o/…` (original snapshot),
+// `/preview/<id>/compare` (side by side). The preview servers listen on loopback only; the preview gate (preview-app.ts, Lean
+// `preview_requires_cookie`) has already run when a request gets here. Each served request touches the preview (Lean
 // `touch_keeps`: the idle clock of `console.previewSweep` restarts). Only I/O: GET/HEAD, hop headers dropped, HTML and CSS
 // get their root-absolute paths moved below the prefix (rewrite.ts).
 import type { Context, Hono } from "hono";

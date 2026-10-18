@@ -1,7 +1,7 @@
 // The preview port (console-lan-owner, round 2). Task previews are code an agent wrote, so they must not run on the console's
 // origin: this app is served on its OWN port (console port + 1 by default), hence another origin (Lean
 // `preview_origin_ne_console`). It accepts only the preview-access cookie (`fw_preview`, issued to an owner session, grants
-// viewing only: Lean `preview_cookie_no_owner`), judged by Lean `console.ownerGate` with `port: "preview"`
+// viewing only: Lean `cookie_never_owner`), judged by Lean `console.ownerGate` with `port: "preview"`
 // (`allowPreview`, `preview_requires_cookie`). It forwards no console cookie to a preview server (proxy.ts sends none, and
 // drops `Set-Cookie` from the answer). It serves nothing but `/preview/<id>/...`. Owner actions live on the console
 // origin only and refuse an `Origin` of this port.

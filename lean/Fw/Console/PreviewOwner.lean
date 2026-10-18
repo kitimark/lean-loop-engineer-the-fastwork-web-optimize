@@ -384,7 +384,7 @@ theorem lan_start_requires_long (want hasAddr hasPass : Bool) (len : Nat)
 `/owner…`, which carry the owner's data), or the shell (every other path: the built console web, static files that hold no
 data and make no request by themselves).
 
-$$\operatorname{cls}(p) = \begin{cases}\mathrm{login} & p = \texttt{/owner/login}\\ \mathrm{preview} & p \text{ starts with } \texttt{/preview/}\\ \mathrm{other} & p \in \{\texttt{/api}, \texttt{/owner}\} \text{ or starts with } \texttt{/api/}, \texttt{/owner/}\\ \mathrm{shell} & \text{else}\end{cases}$$ -/
+$$\operatorname{cls}(p) = \begin{cases}\mathrm{login} & p = \texttt{/owner/login}\\ \mathrm{preview} & p \text{ starts with } \texttt{/preview/}\\ \mathrm{other} & p \ne \texttt{/owner/login} \wedge (p \in \{\texttt{/api}, \texttt{/owner}\} \vee p \text{ starts with } \texttt{/api/} \text{ or } \texttt{/owner/})\\ \mathrm{shell} & \text{else}\end{cases}$$ -/
 inductive Cls where
   | login | preview | other | shell
 deriving Repr, DecidableEq
@@ -681,9 +681,9 @@ theorem computed_trusted_refuses_preview (q : Nat) (own : Option Origin) (extra 
   intro hm
   exact trusted_not_preview q own extra _ hm rfl
 
-/-- **While the preview port is unset, every owner action, command with an Origin, and login is refused.**
+/-- **While the preview port is unset, every owner action and every login with an Origin is refused.**
 
-$$\operatorname{ownerAction}(T(\bot,h,E), c, \mathrm{some}(o)) = \mathrm{false}$$ -/
+$$\operatorname{ownerAction}(T(\bot,h,E), c, \mathrm{some}(o)) = \mathrm{false} \wedge \operatorname{loginOk}(T(\bot,h,E), \mathrm{some}(o)) = \mathrm{false}$$ -/
 theorem unset_refuses (own : Option Origin) (extra : List Origin) (c : Cred) (o : Origin) :
     ownerAction (trustedOrigins none own extra) c (some o) = false ∧ loginOk (trustedOrigins none own extra) (some o) = false := by
   simp [ownerAction, loginOk, originOk, trustedOrigins]
