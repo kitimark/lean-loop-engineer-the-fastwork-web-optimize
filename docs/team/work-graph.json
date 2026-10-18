@@ -4675,7 +4675,8 @@
     "docs/team/incidents/ledger.json",
     "research/notes/2026/10-18-mistake-retro.md",
     "docs/team/handoffs/mistake-record-4.md"
-   ]
+   ],
+   "evidence": "f9a2a99"
   },
   {
    "id": "context-slop",
