@@ -12,8 +12,9 @@ topics: [report, write-up, lean, measurement, ci, agent-teams, cost]
 # v2 report (draft)
 
 **State of this draft.** Sections 2, 3, 5 and 7 were written at `e5bf4e4` (2026-10-17 23:34 +0700). Sections 1, 4
-and 6 were rewritten at `698b775` (2026-10-18) to the rev-10 shape of [P10:1072-1074, 1083]: per part the theorem
-pair, its premises, the RG status, the engine verdicts and an F-result slot. Two named pending blocks remain, both in
+and 6 were rewritten at `698b775` (2026-10-18) to the rev-10 shape of [P10:1073-1074, 1083]: per part the theorem
+pair, its premises, the RG status, the engine verdicts and an F-result slot. Sections 2, 3, 5 and 7 got dated
+updates at `a3196a4` in place of their open items. Two named pending blocks remain, both in
 §4.7, and close at C3 (2026-10-19 23:15 +0700). The experiment ends by **2026-10-20 13:15 +0700** (`ad5eeea`).
 
 **Status words.** MEASURED: a number from a run or a count in this repo, with its commit, run id or file. CONFIRMED:
@@ -75,7 +76,7 @@ never evidence. CONFIRMED [P10:493-534]
 | Evidence | A (vis)/(work) theorem pair per part and optimization under `Fw.Engine.{Core, Visual, Chromium, WebKit}`; every engine rule cites a line at `chromium@f842f52` or `WebKit@862f17d` | CONFIRMED [P10:493-512] |
 | Model check | Lean emits one prediction per (scenario, variant, stage); F0-F2 on a fixture, F3/F4 on the rewrite arm per flag in the Chromium lane, F5 on the WebKit Simulator lane; a mismatch is a model bug | CONFIRMED [P10:515-530] |
 | Inner loop | Chromium headless shell counts on CI; WebKit Simulator counts on CI where green; WKTR not modelled | CONFIRMED [P10:1070-1071] |
-| Phone | Optional spot check with no dependents; session 1 held (`0c901f2`); session 2 is not a condition | CONFIRMED [P10:532-534, 1082] |
+| Phone | Optional spot check with no dependents; session 1 held (`0c901f2`); session 2 is not a condition | CONFIRMED [P10:157, 532-534, 1087] |
 | Site | React rewrite as pluggable parts, picked by flags; presets `original`, `v1-best`, `v2-proved` | CONFIRMED [P10:711-713] |
 | Decisions | One Lean 4 process, `fwcore`; TypeScript moves data | CONFIRMED [P10:123] |
 | Where counts run | GitHub Actions, free runners of the public repo | CONFIRMED [CU:444-446] |
@@ -183,8 +184,9 @@ Commits per hour (MEASURED, git, +0700):
 |---|---|---|---|---|---|---|---|---|---|---|
 | 7 | 10 | 40 | 18 | 41 | 19 | 54 | 55 | 55 | 56 | 25 |
 
-> **PENDING** (task `write-up`): final commit count, wall time to each milestone gate (G3 measure), tasks landed per
-> milestone, and agents started, from git and the console event log at the end.
+**Count at this draft.** `main` holds 1295 commits, from `931aa35` (2026-10-17 13:15 +0700) to `a3196a4`
+(2026-10-18 20:16 +0700). MEASURED (`git rev-list --count main`). Wall time to each milestone gate, tasks landed
+per milestone and agents started are counted at the end by task `write-up`.
 
 ---
 
@@ -213,7 +215,7 @@ pinned image. The freeze rule runs in Lean (`measure.freeze`: order independent,
 | swipe-v1 | 27/25/10 and 30/22/10 | 37/6/1 and 37/7/0 | MEASURED, `fee88b2` [PLAN:426] |
 | swipe-touch-v1 | 31/20/11 | 40/0/4 | MEASURED, `fee88b2` [PLAN:426] |
 
-A reports 62 types and R 44, so the tallies are not like for like. The rewrite has no frozen table yet. MEASURED
+A reports 62 types and R 44, so the tallies are not like for like. The rewrite had no frozen table at `e5bf4e4`; the refrozen table below has one. MEASURED
 [PLAN:426].
 
 **Splits found, and their causes.** "Quarantined" was often a harness finding, not engine noise. Each split moves
@@ -249,16 +251,23 @@ FunctionCall, HitTest and PrePaint were quarantined.
 - Residual: three one-frame shifts, each in 1 job of 3, near scroll positions 1549 and 3203 and the page end. Their
   cause is open: CI uploads no trace for those frames. INFERRED page-side.
 
-**Frozen table is stale for 8 types.** The zone run has 70 types; `classes.frozen.json` lacks `n0.*`,
-`trace.HitTest.overlayAdDetector` and `trace.N1.*`, and still has `trace.HitTest` quarantined. Task `refreeze`
-regenerates it. MEASURED [BL:27].
+**Refrozen table** (task `refreeze`, merged at `82e8934`). `classes.frozen.json` schema 2 holds both arms and the
+HitTest, N1 and touch-race splits, over 3 CI runs per profile. One touch run was left out because its R job sent
+403 frames instead of 409. MEASURED, `docs/team/handoffs/refreeze.md`.
 
-> **PENDING** (task `refreeze`): the frozen table after the HitTest, N1 and touch-race splits, for A and R.
+| Profile | Arm | Before (det/stable/quar, types) | After | Runs |
+|---|---|---|---|---|
+| swipe-v1 | A | 27/25/10 (62) | 32/28/10 (70) | 39049264131, 39049466889, 39049469621 |
+| swipe-v1 | R | none | 44/7/1 (52) | same |
+| swipe-touch-v1 | A | 16/27/19 (62) | 23/32/15 (70) | 39049471997, 39049481754, 39050423094 |
+| swipe-touch-v1 | R | none | 50/1/0 (51) | same |
+
+The zone baselines read this table: 0 unlisted types (was 8) and no deterministic drift. MEASURED, `ccb83a5`.
 
 ### 3.2 WebKit lanes (honest status)
 
-Neither WebKit lane gives stable page counts yet. The lead decides the WebKit role after `sim-speed` and
-`webkit-green` report. CONFIRMED [CU:549-550].
+The first two tables are the state at `e5bf4e4`, when neither WebKit lane gave stable page counts
+[CU:549-550]. The third table gives what came after.
 
 | Lane | What runs | State | Status, source |
 |---|---|---|---|
@@ -277,8 +286,16 @@ More facts that bound what WebKit can say:
 | WKTR is trunk WebKit at the archive's revision, not the WebKit that ships in iOS 27.0 | CONFIRMED, `591a815` [CU:423-429] |
 | The rewrite's hit-skip cuts RecalculateStyles 164 → 19, but its steps do not align with the original's (74 vs 107); no Δ yet | MEASURED locally (debug), `367fec2` [EV:168] |
 
-> **PENDING** (tasks `webkit-green`, `webkit-quiet`, `step-align`, `zone-baselines-webkit`): a green Simulator run on
-> CI, per-type WebKit classes over ≥ 3 CI runs, and the lead's decision on the WebKit role.
+**After 2026-10-18.**
+
+| Item | Result | Status, source |
+|---|---|---|
+| C1 WebKit go/no-go | GO: two consecutive `webkit-sim` runs on `ci/webkit-green` took 19 and 24 min | MEASURED, runs 39048376821, 39050061299; `f03e94b` [P10:1080] |
+| Host load | 0-12 CPU burners change neither step time nor jitter; classes over 3 sessions: 49 det / 9 stable / 46 quarantined of 104 | MEASURED, runs 39053364004, 39055950094; `80676e0` |
+| Step alignment | Original and rewrite steps are aligned by scroll position in Lean (`StepAlign`); rows pair by key (`pairRows`) | CONFIRMED, `e0fa48c`, `b865f47`; CI run 39081148105 (`670099a`) |
+| Zone baselines of the original | Gateable per zone: RenderingFrame, Composite, EventDispatch | MEASURED, run 39061324429; `6b5933d` |
+| Rewrite arm, `hero.countdown:strip` | 3 green runs; 86 of 95 class rows agree across them | MEASURED, runs 39104964068, 39123585294, 39123621097; `319e5f8` |
+| WebKit role (rev 10) | The model `Fw.Engine.WebKit` carries the WebKit claim; Simulator counts can only falsify it (F5) | CONFIRMED [P10:1071, 515-530] |
 
 ### 3.3 Breakpoint gate and the gaps lane
 
@@ -300,7 +317,7 @@ CONFIRMED, `packages/gate-breakpoints/src/gaps/README.md:1-30`.
 | Chromium | 8 of 8 pass | MEASURED on CI, `0d561fa` |
 | WebKit | 8 of 8 unreachable, as Lean predicts (media width is an integer; the primary pointer pair is one platform constant) | MEASURED on CI, `0d561fa` |
 | iPhone and iPad Simulator arms | ran OK | MEASURED, `0d561fa` |
-| Real iPhone | not run | PENDING (task `gap-device`) |
+| Real iPhone | 8 of 8 agree with Lean and the Simulator; 8 of 8 again in Light mode | MEASURED on the phone, `0c901f2`, `82954ed` |
 
 ---
 
@@ -507,7 +524,8 @@ The XLarge minutes came from the `sim-speed` probe's xl arm; that arm was remove
 for runners (`2a29286`). INFERRED (the only workflow that used `xcode-27-xlarge`). The list price is $0.102/min,
 CONFIRMED `research/notes/2026/10-17-macos-rent.md:9`; 19.6 × 0.102 = $2.00.
 
-> **PENDING** (task `write-up`): October totals at the end of the experiment.
+Agents cannot read billing: `gh api` stays denied (CLAUDE.md, Upstream source). This table is the only billing
+read until the user reads it again. CONFIRMED.
 
 ### 5.2 Runs, failures and stray runs
 
@@ -557,14 +575,27 @@ Why runs failed or were wasted:
 | Share from cache reads / writes / output | 62 % / 27 % / 11 % | MEASURED [CU:36-38] |
 | Opus share of tokens | about 85 % | MEASURED [CU:39] |
 
-> **PENDING** (task `write-up`): list-price dollars per milestone and role from `pnpm fw usage` (G3), against v1's
-> $11.4k.
+There is no list-price dollar figure per milestone or role. `main` at `a3196a4` has no `fw usage` command (the
+`fw` usage text lists none), so G3's comparison with v1's $11.4k [P10:115] has no v2 number. MEASURED (`pnpm -s fw`
+usage text, 2026-10-18).
 
 ---
 
 ## 6. Not done
 
-_skeleton: one line per cut, then today's negative results._
+**Cut for the deadline.** Each line names the tasks and what the result lacks without them. Task titles are in [WG].
+
+- Gate hardening (`gate-webkit-red`, `gate-run-identity`, `gate-wall-target`, `gate-settle`): the WebKit gate stays red on the stageBg desktop sweep cell and phone-rotation stops 1 and 3, a gate run is not bound to the gate code it measured, an iteration push still runs the full gate, and the rule that a sample counts only when settled is not proved.
+- Parked integration fixes (`fix-misc`, `fix-orbit`, `fix-nav-hittest`, `fix-people-webkit`): the gate cells they name from run 39067170911 stay open (pain.notes, hero.orbit, stageBg, overlays.signup, nav border colour, people tails in WebKit).
+- `port-parts` and `visual-diff-3`: people.o, people.carousel, hero.accent, hero.cue and commission.typing get no ported part, so their ledger candidates get no flag, and there is no deterministic visual diff of the integrated site.
+- `pixel-spot` and `phone-session-2`: H1-H3 stay unchecked in both engines (§4.4), and nobody swipes `v2-proved` against `original` on the phone.
+- Tooling backlog (`lfg-*`, `jev-*`, lints): the Lean-first gate has its spec (`lfg-spec`, `lfg-props-shape`, `lfg-mathview-facts`) but no shadow run or enforcement, the Jev oracle stops at its research note (`research/notes/2026/10-18-jev-decision-model.md`), and `claim-lint`, `plan-principles-lint`, `task-spec-lint` and `ci-runner-lint` are not built (commit log of main at `a3196a4`).
+
+**Negative results of 2026-10-18.**
+
+- `gate-shard-balance`: no shard plan lowers the gate's wall time. An LPT plan over measured costs costs the same as a count-balanced deal (28.5-28.6 against 27.5-28.1 job-min), and the 5.6-6.1 min wall is the unsplittable WebKit desktop sweep plus setup. MEASURED, runs 39125771186, 39125776112, 39126934987, 39126939905 (`research/notes/2026/10-18-gate-shard-balance.md`).
+- `wktr-fixture-speed`: its claim that 12 WKTR class changes between runs are run-to-run variance is UNEXPLAINED. 9 of the 12 keys also change class among 8 other green runs; 3 never do. MEASURED [LG N22]; Lean `Fw.Measure.WktrVariance`.
+- The Chromium timer rule is OPEN: whether an empty timer task runs PrePaint. The engine-premises step meant to test it ran the clock shim's callback inside `Runtime.evaluate`, not a native timer task, so the Chromium half of L34 is proved in the model only. MEASURED, run 39124427211 [LG N21].
 
 ---
 
@@ -587,7 +618,10 @@ Each lesson is a judgement (INFERRED) resting on the evidence named.
 | 11 | Heavy local passes (mutation, Simulator re-boots) slow every agent; run them on CI from the start | MEASURED [CU:482-484, 535-536] |
 | 12 | Validate the observation layer itself: a strict schema silently dropped every spawn record, and empty agent types were read as the lead | MEASURED, `6228fcf`, `2e0d21b` |
 
-> **PENDING** (task `write-up`): lessons from the phone sessions and the experiments.
+| 13 | A shimmed API measures the shim. Check that a probe runs the engine path it names: the timer step ran the clock shim's callback inside `Runtime.evaluate`, so the Chromium timer rule stays OPEN | MEASURED, run 39124427211 [LG N21] |
+| 14 | Measure an engine premise before proving on it. One premise run changed two signs: the blur on its own layer still re-rasters in Chromium (trade → no-win), and the original's `blur(0)` ↔ `blur(x)` change already lays out in WebKit (trade → win) | MEASURED, run 39088367495 [LG N18, N19] |
+| 15 | Declare the variance rule before reading the diff. Under a rule fixed first, 3 of 12 WKTR class changes never occur among 8 rival runs, so "run-to-run variance" does not explain them | MEASURED [LG N22]; Lean `Fw.Measure.WktrVariance` |
+| 16 | A scripted swipe is not a finger. On the phone the original showed 2.6 frames per 100 over 50 ms under a finger and 22.9 under the script, longest 81 ms, with jank only in 0-2500 px | MEASURED on the phone, `82954ed` |
 
 ---
 
