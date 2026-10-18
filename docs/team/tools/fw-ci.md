@@ -36,7 +36,7 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
 - Tests: `apps/runner/test/run-budget.test.ts` (fake gh of `packages/gh-budget`): 1 vs 10 waiters make the same gh calls; no gh call is made
   while the budget says wait or stop.
 
-## Which workflows a `ci/*` push starts, and how to run the one you will read (tasks `ci-trigger-lean`, `ci-own-trigger`)
+## Which workflows a `ci/*` push starts, and how to run the one you will read
 
 - Round 3 (task `ci-own-trigger`, Lean `Fw.Ci.Intent.decision`): no workflow has `on.push.paths`, so every push to `ci/*`
   or `main` creates a run of every workflow and its first job `guard` decides (`.github/scripts/changed-inputs.mjs`).

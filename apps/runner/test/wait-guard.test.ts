@@ -128,9 +128,43 @@ describe.skipIf(!have)("wait guard: shadow-log false positives are allowed, true
     ["cat <<'EOF' > f\nuntil false; do sleep 5; done\nEOF\necho ok", "allow"],
   ] as const;
   it.each(review.map(([c, v]) => [c.slice(0, 60), c, v] as const))("review: %s", (_n, c, v) => expect(verb(c)).toBe(v));
+  // Round-3 review: the bound comes from the loop condition only; finite filters; device paths; here-string $( ).
+  const review3 = [
+    ["tail -f log | while read l; do echo $((n+1)); done", "deny:unboundedLoop"],
+    ["yes | while read l; do echo; date; done", "deny:unboundedLoop"],
+    ["while true; do date; sleep 1; done", "deny:unboundedLoop"],
+    ["until gh run view 1 --exit-status; do date; sleep 120; done", "deny:unboundedLoop"],
+    ["until false; do sleep 1; echo deadline; done", "deny:unboundedLoop"],
+    ["while [ \"$SECONDS\" ]; do sleep 1; done", "deny:unboundedLoop"],
+    ["while [ 1 -lt 2 ]; do sleep 1; done", "deny:unboundedLoop"],
+    ["while :; do [ $i -lt 5 ] || break; i=$((i+1)); done", "deny:unboundedLoop"],
+    ["tail -f log | while read l && [ $i -lt 9 ]; do i=$((i+1)); done", "deny:unboundedLoop"],
+    ["while [ $i -lt 9 ] || true; do sleep 1; done", "deny:unboundedLoop"],
+    ["while read l; do echo $l; done < //dev/zero", "deny:unboundedLoop"],
+    ["cat ./../../dev/zero | while read l; do echo $l; done", "deny:unboundedLoop"],
+    ["while read l; do echo $l; done <<< \"$(yes)\"", "deny:unboundedLoop"],
+    ["pnpm -s fw list | while read l; do echo $l; done", "deny:unboundedLoop"],
+    ["git log | awk '{while(1)print}' | while read h; do echo $h; done", "deny:unboundedLoop"],
+    ["i=0; while [ ! -s \"$F\" ] && [ $i -lt 55 ]; do sleep 10; i=$((i+1)); done", "allow"],
+    ["while [ $SECONDS -lt 600 ]; do sleep 5; done", "allow"],
+    ["end=$((SECONDS+60)); while [ $SECONDS -lt $end ]; do sleep 5; done", "deny:unboundedLoop"],
+    ["while [ \"$(pgrep -c node)\" -gt 0 ]; do sleep 5; done", "deny:unboundedLoop"],
+    ["while [ $SECONDS -ge 0 ]; do sleep 1; done", "deny:unboundedLoop"],
+    ["while (( i < 10 )); do i=$((i+1)); done", "allow"],
+    ["git log --oneline | sed 's/a/b/' | awk '{print $1}' | while read h; do echo $h; done", "allow"],
+    ["git ls-files | tr a b | cut -c1-3 | uniq | while read l; do echo $l; done", "allow"],
+    ["ls | xargs -n 1 echo | while read l; do echo $l; done", "allow"],
+    ["gh pr list --json number -q '.[].number' | while read n; do gh pr view $n; done", "allow"],
+    ["git reflog show main | grep x | head -12 | while read h rest; do echo $h; done", "allow"],
+    ["find . -name '*.json' -print0 | while IFS= read -r -d $'\\0' f; do echo \"$f\"; done", "allow"],
+    ["node scripts/list.mjs | while read l; do echo $l; done", "allow"],
+    ["while read -r f; do echo $f; done <<< \"$(git diff --name-only)\"", "allow"],
+  ] as const;
+  it.each(review3.map(([c, v]) => [c.slice(0, 60), c, v] as const))("review3: %s", (_n, c, v) => expect(verb(c)).toBe(v));
   it("deny messages name the read-loop shape, the producer allowlist and the smoke-test idiom", () => {
     const loop = message({ reason: "unboundedLoop" });
     for (const s of ["cmd | while read", "done < <(cmd)", "gh run list/view", "no `||`"]) expect(loop).toContain(s);
+    for (const s of ["loop condition", "pnpm ... > f.txt", "timeout N bash -c"]) expect(loop).toContain(s);
     const bg = message({ reason: "bgLong", shape: "server" });
     for (const s of ["kill $pid", "run_in_background: true", "TaskStop"]) expect(bg).toContain(s);
   });
