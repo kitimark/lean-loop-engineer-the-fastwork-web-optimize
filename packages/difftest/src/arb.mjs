@@ -16,4 +16,3 @@ export const risingHalves = (lo, hi, span = 10) =>
       let t = s0;
       return gaps.map((g) => { t += g; return t / 2; });
     }));
-// probe ci-own-trigger r2 (b): a push that touches a difftest input without asking for it; reverted by the next push
