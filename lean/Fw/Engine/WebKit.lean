@@ -16,7 +16,8 @@ rendering update plus a commit), and the golden rows for predictions P1-P5 (`gol
 
 Citations are to WebKit @862f17d (`WC` = `Source/WebCore`), read in the pinned clone `.cache/upstream/WebKit@862f17d`.
 Status: every row is CONFIRMED from that source unless its docstring says INFERRED. Whether the shipped Safari obeys
-the model is a measured claim (P1-P5), not a theorem. C-2: the stage map is **not** monotone in `Diff` order
+the model is a measured claim (P1-P5), not a theorem; the scroll-driven style rows of P1 and P4 were wrong (`=0`) until
+the WKTR fixtures measured one restyle per update (`style_rate_model`, `style_rate_old_refuted`). C-2: the stage map is **not** monotone in `Diff` order
 (`wk_not_mono`), so dominance goes through `frame_le_union`, never through the enum order.
 -/
 namespace Fw.Engine.WebKit
@@ -674,177 +675,6 @@ theorem blur_zero (m : WkMode) (cs : List (Change WkProp)) (s : Stage) (hs : s �
       (frameWork (webkitAt m) (animFrame m blurAnim cs)).units s = 0 :=
   anim_comp_zero m blurAnim cs (blur_comp m) s hs
 
-/-! ## Golden rows: predictions P1-P5 (WebKit note §5.3) -/
-
-/-- A predicted relation of one stage's count: `=0` none, `>0` some (original arm, against no work), `=o` equal to
-the original, `<o` at most the original and below it somewhere, `>o` at least the original and above it somewhere,
-`any` incomparable.
-
-$$\mathrm{Pred} = \{\mathrm{zero}, \mathrm{pos}, \mathrm{eqO}, \mathrm{ltO}, \mathrm{gtO}, \mathrm{any}\}$$
--/
-inductive Pred where
-  | zero | pos | eqO | ltO | gtO | any
-deriving Repr, DecidableEq, Inhabited
-
-/-- The wire string of a prediction.
-
-$$\operatorname{str}(\mathrm{zero}, \mathrm{pos}, \mathrm{eqO}, \mathrm{ltO}, \mathrm{gtO}, \mathrm{any}) = (\texttt{=0}, \texttt{>0}, \texttt{=o}, \texttt{<o}, \texttt{>o}, \texttt{any})$$
--/
-def Pred.str : Pred → String
-  | .zero => "=0" | .pos => ">0" | .eqO => "=o" | .ltO => "<o" | .gtO => ">o" | .any => "any"
-
-/-- The prediction for the original arm's stage `s`: `=0` when it has no pass and no unit, else `>0`.
-
-$$\operatorname{predO}(o, s) = \begin{cases} \mathrm{zero} & o.\mathrm{passes}(s) = 0 \land o.\mathrm{units}(s) = 0 \\ \mathrm{pos} & \text{otherwise} \end{cases}$$
--/
-def predictOrig (o : Work) (s : Stage) : Pred :=
-  if o.passes s = 0 ∧ o.units s = 0 then .zero else .pos
-
-/-- The prediction for a variant's stage `s` against the original, first match: zero, equal, below, above, else any.
-
-$$\operatorname{predV}(v, o, s) = \begin{cases} \mathrm{zero} & v.\mathrm{passes}(s) = 0 \land v.\mathrm{units}(s) = 0 \\ \mathrm{eqO} & \text{else if } v.\mathrm{passes}(s) = o.\mathrm{passes}(s) \land v.\mathrm{units}(s) = o.\mathrm{units}(s) \\ \mathrm{ltO} & \text{else if } v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \land v.\mathrm{units}(s) \le o.\mathrm{units}(s) \\ \mathrm{gtO} & \text{else if } o.\mathrm{passes}(s) \le v.\mathrm{passes}(s) \land o.\mathrm{units}(s) \le v.\mathrm{units}(s) \\ \mathrm{any} & \text{otherwise} \end{cases}$$
--/
-def predictVar (v o : Work) (s : Stage) : Pred :=
-  if v.passes s = 0 ∧ v.units s = 0 then .zero
-  else if v.passes s = o.passes s ∧ v.units s = o.units s then .eqO
-  else if v.passes s ≤ o.passes s ∧ v.units s ≤ o.units s then .ltO
-  else if o.passes s ≤ v.passes s ∧ o.units s ≤ v.units s then .gtO
-  else .any
-
-/-- The lane that reads a scenario: the iOS Simulator Web Inspector timeline (`measure-webkit`) or WebKitTestRunner
-`internals` counters (`measure-wktr`).
-
-$$\mathrm{Lane} = \{\mathrm{sim}, \mathrm{wktr}\}$$
--/
-inductive Lane where
-  | sim | wktr
-deriving Repr, DecidableEq, Inhabited
-
-/-- The stages a lane counts, with the count type (design note §3.2): Simulator FireAnimationFrame, RecalculateStyles,
-Layout, Paint, Composite; WKTR styleRecalcs, layoutUpdates, compositingUpdates, renderingUpdates.
-
-$$\operatorname{counts}(\ell) = \begin{cases} [(\mathrm{script}, \texttt{FireAnimationFrame}), (\mathrm{style}, \texttt{RecalculateStyles}), (\mathrm{layout}, \texttt{Layout}), (\mathrm{paint}, \texttt{Paint}), (\mathrm{commit}, \texttt{Composite})] & \ell = \mathrm{sim} \\ [(\mathrm{style}, \texttt{styleRecalcs}), (\mathrm{layout}, \texttt{layoutUpdates}), (\mathrm{props}, \texttt{compositingUpdates}), (\mathrm{commit}, \texttt{renderingUpdates})] & \ell = \mathrm{wktr} \end{cases}$$
--/
-def Lane.counts : Lane → List (Stage × String)
-  | .sim => [(.script, "FireAnimationFrame"), (.style, "RecalculateStyles"), (.layout, "Layout"), (.paint, "Paint"),
-      (.commit, "Composite")]
-  | .wktr => [(.style, "styleRecalcs"), (.layout, "layoutUpdates"), (.props, "compositingUpdates"),
-      (.commit, "renderingUpdates")]
-
-/-- The wire name of a stage.
-
-$$\operatorname{name}(s) = \text{the constructor name of } s,\ \text{e.g. } \operatorname{name}(\mathrm{props}) = \texttt{props}$$
--/
-def stageName : Stage → String
-  | .script => "script" | .style => "style" | .layout => "layout" | .props => "props" | .paint => "paint"
-  | .raster => "raster" | .commit => "commit" | .comp => "comp"
-
-/-- A prediction scenario: its id, lane, the original arm's frame and the named variant frames (one frame = one
-scroll step or one animation frame).
-
-$$\mathrm{Scenario} = \mathrm{String} \times \mathrm{Lane} \times \mathrm{FrameIn}(\mathrm{WkProp}) \times (\mathrm{String} \times \mathrm{FrameIn}(\mathrm{WkProp}))^{*}$$
--/
-structure Scenario where
-  id       : String
-  lane     : Lane
-  original : FrameIn WkProp
-  variants : List (String × FrameIn WkProp)
-
-/-- The six scenarios (P3 split in two) of WebKit note §5.3, in the default Safari mode (box 1 is the animated box):
-- P1 (sim, per scroll step): a JS scroll handler writing a 2D transform on a non-composited layer vs a threaded
-  scroll-driven transform animation;
-- P2 (sim, idle frame): a permanent rAF loop that writes nothing vs a CSS time-based opacity animation;
-- P3a / P3b (sim, per frame): a rAF writer of clip-path (composited box) / background-position vs the same as a CSS
-  animation (never accelerated);
-- P4 (wktr, per scroll step): a JS scroll handler repainting a background vs a threaded scroll-driven animation;
-- P5 (wktr, per frame): a rAF writer of a 2D transform without a compositing reason vs the same with a 3D op.
-
-$$\begin{aligned} \mathrm{scenarios} = [\ &(\texttt{P1}, \mathrm{sim}, \operatorname{scrollStep}(\operatorname{jsFrame}([(1, \mathrm{transform}, \mathrm{layer})])), [(\texttt{scrollDriven}, \operatorname{scrollStep}(\mathit{sd}))]), \\ &(\texttt{P2}, \mathrm{sim}, \operatorname{jsFrame}([\,]), [(\texttt{cssTime}, \operatorname{animFrame}(\mathrm{safari}, \operatorname{clean}([\mathrm{opacity}], \mathrm{time}), [(1, \mathrm{opacity}, \mathrm{own})]))]), \\ &(\texttt{P3a}, \mathrm{sim}, \operatorname{jsFrame}([(1, \mathrm{clipPath}, \mathrm{own})]), [(\texttt{cssAnim}, \operatorname{animFrame}(\mathrm{safari}, \operatorname{clean}([\mathrm{clipPath}], \mathrm{time}), [(1, \mathrm{clipPath}, \mathrm{own})]))]), \\ &(\texttt{P3b}, \mathrm{sim}, \operatorname{jsFrame}([(1, \mathrm{background}, \mathrm{layer})]), [(\texttt{cssAnim}, \operatorname{animFrame}(\mathrm{safari}, \operatorname{clean}([\mathrm{background}], \mathrm{time}), [(1, \mathrm{background}, \mathrm{layer})]))]), \\ &(\texttt{P4}, \mathrm{wktr}, \operatorname{scrollStep}(\operatorname{jsFrame}([(1, \mathrm{background}, \mathrm{layer})])), [(\texttt{scrollDriven}, \operatorname{scrollStep}(\mathit{sd}))]), \\ &(\texttt{P5}, \mathrm{wktr}, \operatorname{jsFrame}([(1, \mathrm{transform}, \mathrm{layer})]), [(\texttt{js3d}, \operatorname{jsFrame}([(1, \mathrm{transform}, \mathrm{own})]))])\ ], \\ \text{with } \mathit{sd} = {} &\operatorname{animFrame}(\mathrm{safari}, \operatorname{clean}([\mathrm{transform}], \mathrm{scroll}), [(1, \mathrm{transform}, \mathrm{layer})]) \end{aligned}$$
--/
-def scenarios : List Scenario :=
-  let sd := animFrame .safari (.clean [.transform] .scroll) [⟨1, .transform, .layer⟩]
-  [ ⟨"P1", .sim, scrollStep (jsFrame [⟨1, .transform, .layer⟩]), [("scrollDriven", scrollStep sd)]⟩,
-    ⟨"P2", .sim, jsFrame [], [("cssTime", animFrame .safari (.clean [.opacity] .time) [⟨1, .opacity, .own⟩])]⟩,
-    ⟨"P3a", .sim, jsFrame [⟨1, .clipPath, .own⟩],
-      [("cssAnim", animFrame .safari (.clean [.clipPath] .time) [⟨1, .clipPath, .own⟩])]⟩,
-    ⟨"P3b", .sim, jsFrame [⟨1, .background, .layer⟩],
-      [("cssAnim", animFrame .safari (.clean [.background] .time) [⟨1, .background, .layer⟩])]⟩,
-    ⟨"P4", .wktr, scrollStep (jsFrame [⟨1, .background, .layer⟩]), [("scrollDriven", scrollStep sd)]⟩,
-    ⟨"P5", .wktr, jsFrame [⟨1, .transform, .layer⟩], [("js3d", jsFrame [⟨1, .transform, .own⟩])]⟩ ]
-
-/-- One golden row: `{engine, scenario, variant, stage, prediction, countType}`.
-
-$$\mathrm{Row} = \mathrm{String}^{6}$$
--/
-structure Row where
-  engine     : String
-  scenario   : String
-  variant    : String
-  stage      : String
-  prediction : String
-  countType  : String
-deriving Repr, DecidableEq
-
-/-- The rows of one scenario: for each counted stage of its lane, the original arm (`predO`, variant name
-`original`), then each variant (`predV` against the original; variants outer, counts inner), all under `webkit`.
-Stage and prediction are stored as their wire strings.
-
-$$\begin{aligned} \forall \sigma:\quad \operatorname{rows}(\sigma) = {} &\big[(\texttt{webkit}, \sigma.\mathrm{id}, \texttt{original}, \operatorname{name}(s), \operatorname{str}(\operatorname{predO}(W_o, s)), k)\big]_{(s, k) \in \operatorname{counts}(\sigma.\mathrm{lane})} \\ \mathbin{+\!\!+} {} &\big[(\texttt{webkit}, \sigma.\mathrm{id}, n, \operatorname{name}(s), \operatorname{str}(\operatorname{predV}(W_v, W_o, s)), k)\big]_{(n, v) \in \sigma.\mathrm{variants},\ (s, k) \in \operatorname{counts}(\sigma.\mathrm{lane})}, \\ \text{with } W_o = {} &\operatorname{frameWork}_{\mathrm{webkit}}(\sigma.\mathrm{original}),\ W_v = \operatorname{frameWork}_{\mathrm{webkit}}(v) \end{aligned}$$
--/
-def rowsOf (sc : Scenario) : List Row :=
-  let o := frameWork webkit sc.original
-  let cs := sc.lane.counts
-  cs.map (fun (s, k) => ⟨"webkit", sc.id, "original", stageName s, (predictOrig o s).str, k⟩) ++
-    sc.variants.flatMap fun (n, v) =>
-      let w := frameWork webkit v
-      cs.map fun (s, k) => ⟨"webkit", sc.id, n, stageName s, (predictVar w o s).str, k⟩
-
-/-- All golden rows.
-
-$$\mathrm{goldenRows} = \operatorname{flatMap}(\mathrm{scenarios}, \operatorname{rows})$$
--/
-def goldenRows : List Row := scenarios.flatMap rowsOf
-
-/-- One row as compact JSON (keys sorted by `Json.mkObj`).
-
-$$\operatorname{json}(r) = \{\texttt{countType}, \texttt{engine}, \texttt{prediction}, \texttt{scenario}, \texttt{stage}, \texttt{variant}\} \text{ of } r$$
--/
-def Row.json (r : Row) : String :=
-  (Json.mkObj [("engine", .str r.engine), ("scenario", .str r.scenario), ("variant", .str r.variant),
-    ("stage", .str r.stage), ("prediction", .str r.prediction), ("countType", .str r.countType)]).compress
-
-/-- The contents of `packages/contracts/golden/engine/webkit.jsonl`: one JSON row per line, newline-terminated, in the
-order of `goldenRows`.
-
-$$\mathrm{goldenJsonl} = \mathop{\Vert}_{r \in \mathrm{goldenRows}} \big(\operatorname{json}(r) \mathbin{+\!\!+} \texttt{\textbackslash n}\big)$$
--/
-def goldenJsonl : String := String.join (goldenRows.map fun r => r.json ++ "\n")
-
-/-- Look up one golden prediction (for the guards below); `"?"` when absent.
-
-$$\operatorname{pred}(\sigma, n, k) = \begin{cases} r.\mathrm{prediction} & r \text{ the first row with } (\sigma, n, k) \\ \texttt{?} & \text{no such row} \end{cases}$$
--/
-def predOf (sc n k : String) : String :=
-  ((goldenRows.find? fun r => r.scenario == sc && r.variant == n && r.countType == k).map (·.prediction)).getD "?"
-
-#guard goldenRows.length == 56
--- P1: the threaded scroll-driven variant adds no style, layout or paint per step; the commit stays.
-#guard predOf "P1" "original" "Layout" == ">0" && predOf "P1" "scrollDriven" "Layout" == "=0"
-#guard predOf "P1" "scrollDriven" "RecalculateStyles" == "=0" && predOf "P1" "scrollDriven" "Paint" == "=0"
-#guard predOf "P1" "scrollDriven" "Composite" == "=o" && predOf "P1" "scrollDriven" "FireAnimationFrame" == "=0"
--- P2: the idle rAF loop costs a callback and a commit per frame; the CSS animation neither.
-#guard predOf "P2" "original" "FireAnimationFrame" == ">0" && predOf "P2" "original" "Composite" == ">0"
-#guard predOf "P2" "cssTime" "FireAnimationFrame" == "=0" && predOf "P2" "cssTime" "Composite" == "=0"
--- P3: clip-path and background-position paint every frame either way.
-#guard predOf "P3a" "original" "Paint" == ">0" && predOf "P3a" "cssAnim" "Paint" == "=o"
-#guard predOf "P3b" "original" "Paint" == ">0" && predOf "P3b" "cssAnim" "Paint" == "=o"
--- P4: rendering updates per scroll step equal; style work gone.
-#guard predOf "P4" "scrollDriven" "renderingUpdates" == "=o" && predOf "P4" "scrollDriven" "styleRecalcs" == "=0"
--- P5: the 2D transform lays out (Overflow); the 3D op removes layout and adds a compositing update.
-#guard predOf "P5" "original" "layoutUpdates" == ">0" && predOf "P5" "js3d" "layoutUpdates" == "=0"
-#guard predOf "P5" "js3d" "compositingUpdates" == ">o" && predOf "P5" "js3d" "renderingUpdates" == "=o"
-#guard predOf "P9" "original" "Layout" == "?"
-
 /-! ## Engine mechanisms (why-engines)
 
 Each section below closes one ledger statement (`research/findings/ledger.json`, `missingWhy` of
@@ -1050,6 +880,268 @@ theorem withAnim_idle_zero (m : WkMode) (a : WkAnim) (e : Nat) (ℓ : LayerState
         simp [withAnim, hc, wkTicks, emptyX, FrameIn.updates, frameWork, touched, stageUnits, forcedPasses, webkitX])
 
 #guard wkTicks .scroll true false && !wkTicks .scroll false false && !wkTicks .time true false && wkTicks .time true true
+
+/-- A delivered scroll position in an extended frame (as `scrollStep`).
+
+$$\operatorname{scrollStep}^{X}(f) = f \text{ with } \mathrm{changes} := (0, \mathrm{base}(\mathrm{scrollPos}), \mathrm{none}) :: f.\mathrm{changes}$$
+-/
+def scrollStepX (f : FrameIn WkPropX) : FrameIn WkPropX :=
+  { f with changes := ⟨0, .base .scrollPos, .none⟩ :: f.changes }
+
+/-- **The lift commutes with a scroll step.**
+
+$$\forall f \in \mathrm{FrameIn}(\mathrm{WkProp}):\ \operatorname{liftF}(\operatorname{scrollStep}(f)) = \operatorname{scrollStep}^{X}(\operatorname{liftF}(f))$$
+-/
+theorem lift_scrollStep (f : FrameIn WkProp) : liftWkFrame (scrollStep f) = scrollStepX (liftWkFrame f) := rfl
+
+/-! ### The WKTR fixtures: style recalcs per rendering update (task wktr-p1p4)
+
+Premise (empirical, tested on CI by `packages/measure-wktr/fixtures`, WebKitTestRunner of the iOS 26.5 Simulator,
+`internals.styleRecalcCount()` per rendering update; MEASURED over three independent macOS jobs): a page that only
+scrolls costs `0` style recalcs per update; the same page with a `transform` animation on `animation-timeline:
+scroll(root)` costs exactly `1`; with the same animation on the document timeline (`4s linear infinite alternate`)
+`0`. The goldens P1 and P4 had claimed `0` for the scroll-driven arm. -/
+
+/-- The measured style recalcs per rendering update of the three fixture pages.
+
+$$\mu = (\mu_{\mathrm{control}}, \mu_{\mathrm{timeline}}, \mu_{\mathrm{timeAccel}}) \in \mathbb{N}^3$$
+-/
+structure WktrStyleRate where
+  control   : Nat
+  timeline  : Nat
+  timeAccel : Nat
+
+/-- **The premise** `prem.wktr_scroll_timeline_restyle`: what the fixtures measured.
+
+$$\operatorname{Holds}(\mu) \iff \mu_{\mathrm{control}} = 0 \ \land\ \mu_{\mathrm{timeline}} = 1 \ \land\ \mu_{\mathrm{timeAccel}} = 0$$
+-/
+def WktrStyleRate.Holds (μ : WktrStyleRate) : Prop := μ.control = 0 ∧ μ.timeline = 1 ∧ μ.timeAccel = 0
+
+/-- The scroll-only frame (the control page): one delivered scroll position, nothing animated.
+
+$$\mathrm{ctl} = \operatorname{scrollStep}^{X}(\varnothing)$$
+-/
+def ctlFrame : FrameIn WkPropX := scrollStepX emptyX
+
+/-- The scroll-timeline page: a UI-process `transform` animation on the scroll timeline, in the scroll update.
+
+$$\mathrm{tl} = \operatorname{withAnim}(\mathrm{safari}, \mathrm{clean}([\mathrm{transform}], \mathrm{scroll}), 1, \mathrm{layer}, [\,], \mathrm{ctl}, \mathrm{false})$$
+-/
+def tlFrame : FrameIn WkPropX :=
+  withAnim WkMode.safari (.clean [.transform] .scroll) 1 .layer [] ctlFrame false
+
+/-- The time-accelerated page: the same animation on the document timeline, in the scroll update.
+
+$$\mathrm{ta} = \operatorname{withAnim}(\mathrm{safari}, \mathrm{clean}([\mathrm{transform}], \mathrm{time}), 1, \mathrm{layer}, [\,], \mathrm{ctl}, \mathrm{false})$$
+-/
+def taFrame : FrameIn WkPropX :=
+  withAnim WkMode.safari (.clean [.transform] .time) 1 .layer [] ctlFrame false
+
+/-- **The corrected model agrees with the measurement.** Under the premise, the style passes per update of the three
+frames equal the measured recalcs per update.
+
+$$\forall \mu:\ \operatorname{Holds}(\mu) \Rightarrow W(\mathrm{ctl}).\mathrm{passes}(\mathrm{style}) = \mu_{\mathrm{control}} \land W(\mathrm{tl}).\mathrm{passes}(\mathrm{style}) = \mu_{\mathrm{timeline}} \land W(\mathrm{ta}).\mathrm{passes}(\mathrm{style}) = \mu_{\mathrm{timeAccel}}$$
+$$\text{where } W = \operatorname{frameWork}_{\operatorname{webkitX}(\mathrm{safari})}$$
+
+Scroll alone restyles nothing, a scroll-driven accelerated animation restyles once per update, a document-timeline one never. -/
+theorem style_rate_model (μ : WktrStyleRate) (h : μ.Holds) :
+    (frameWork (webkitX WkMode.safari) ctlFrame).passes .style = μ.control ∧
+    (frameWork (webkitX WkMode.safari) tlFrame).passes .style = μ.timeline ∧
+    (frameWork (webkitX WkMode.safari) taFrame).passes .style = μ.timeAccel := by
+  obtain ⟨h0, h1, h2⟩ := h
+  rw [h0, h1, h2]
+  decide
+
+/-- **The earlier golden is refuted by the measurement.** The old scroll-driven arm (`animFrame`: a bare compositor
+animation, no ride-along) predicts `0` style passes; the premise says `1`.
+
+$$\forall \mu:\ \operatorname{Holds}(\mu) \Rightarrow \operatorname{frameWork}_{\operatorname{webkitAt}(\mathrm{safari})}(\operatorname{animFrame}(\mathrm{safari}, \mathrm{clean}([\mathrm{transform}], \mathrm{scroll}), [\,])).\mathrm{passes}(\mathrm{style}) \ne \mu_{\mathrm{timeline}}$$
+-/
+theorem style_rate_old_refuted (μ : WktrStyleRate) (h : μ.Holds) :
+    (frameWork (webkitAt WkMode.safari) (animFrame WkMode.safari (.clean [.transform] .scroll) [])).passes .style ≠
+      μ.timeline := by
+  obtain ⟨_, h1, _⟩ := h
+  rw [h1]
+  decide
+
+/-! ## Golden rows: predictions P1-P5 (WebKit note §5.3) -/
+
+/-- A predicted relation of one stage's count: `=0` none, `>0` some (original arm, against no work), `=o` equal to
+the original, `<o` at most the original and below it somewhere, `>o` at least the original and above it somewhere,
+`any` incomparable.
+
+$$\mathrm{Pred} = \{\mathrm{zero}, \mathrm{pos}, \mathrm{eqO}, \mathrm{ltO}, \mathrm{gtO}, \mathrm{any}\}$$
+-/
+inductive Pred where
+  | zero | pos | eqO | ltO | gtO | any
+deriving Repr, DecidableEq, Inhabited
+
+/-- The wire string of a prediction.
+
+$$\operatorname{str}(\mathrm{zero}, \mathrm{pos}, \mathrm{eqO}, \mathrm{ltO}, \mathrm{gtO}, \mathrm{any}) = (\texttt{=0}, \texttt{>0}, \texttt{=o}, \texttt{<o}, \texttt{>o}, \texttt{any})$$
+-/
+def Pred.str : Pred → String
+  | .zero => "=0" | .pos => ">0" | .eqO => "=o" | .ltO => "<o" | .gtO => ">o" | .any => "any"
+
+/-- The prediction for the original arm's stage `s`: `=0` when it has no pass and no unit, else `>0`.
+
+$$\operatorname{predO}(o, s) = \begin{cases} \mathrm{zero} & o.\mathrm{passes}(s) = 0 \land o.\mathrm{units}(s) = 0 \\ \mathrm{pos} & \text{otherwise} \end{cases}$$
+-/
+def predictOrig (o : Work) (s : Stage) : Pred :=
+  if o.passes s = 0 ∧ o.units s = 0 then .zero else .pos
+
+/-- The prediction for a variant's stage `s` against the original, first match: zero, equal, below, above, else any.
+
+$$\operatorname{predV}(v, o, s) = \begin{cases} \mathrm{zero} & v.\mathrm{passes}(s) = 0 \land v.\mathrm{units}(s) = 0 \\ \mathrm{eqO} & \text{else if } v.\mathrm{passes}(s) = o.\mathrm{passes}(s) \land v.\mathrm{units}(s) = o.\mathrm{units}(s) \\ \mathrm{ltO} & \text{else if } v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \land v.\mathrm{units}(s) \le o.\mathrm{units}(s) \\ \mathrm{gtO} & \text{else if } o.\mathrm{passes}(s) \le v.\mathrm{passes}(s) \land o.\mathrm{units}(s) \le v.\mathrm{units}(s) \\ \mathrm{any} & \text{otherwise} \end{cases}$$
+-/
+def predictVar (v o : Work) (s : Stage) : Pred :=
+  if v.passes s = 0 ∧ v.units s = 0 then .zero
+  else if v.passes s = o.passes s ∧ v.units s = o.units s then .eqO
+  else if v.passes s ≤ o.passes s ∧ v.units s ≤ o.units s then .ltO
+  else if o.passes s ≤ v.passes s ∧ o.units s ≤ v.units s then .gtO
+  else .any
+
+/-- The lane that reads a scenario: the iOS Simulator Web Inspector timeline (`measure-webkit`) or WebKitTestRunner
+`internals` counters (`measure-wktr`).
+
+$$\mathrm{Lane} = \{\mathrm{sim}, \mathrm{wktr}\}$$
+-/
+inductive Lane where
+  | sim | wktr
+deriving Repr, DecidableEq, Inhabited
+
+/-- The stages a lane counts, with the count type (design note §3.2): Simulator FireAnimationFrame, RecalculateStyles,
+Layout, Paint, Composite; WKTR styleRecalcs, layoutUpdates, compositingUpdates, renderingUpdates.
+
+$$\operatorname{counts}(\ell) = \begin{cases} [(\mathrm{script}, \texttt{FireAnimationFrame}), (\mathrm{style}, \texttt{RecalculateStyles}), (\mathrm{layout}, \texttt{Layout}), (\mathrm{paint}, \texttt{Paint}), (\mathrm{commit}, \texttt{Composite})] & \ell = \mathrm{sim} \\ [(\mathrm{style}, \texttt{styleRecalcs}), (\mathrm{layout}, \texttt{layoutUpdates}), (\mathrm{props}, \texttt{compositingUpdates}), (\mathrm{commit}, \texttt{renderingUpdates})] & \ell = \mathrm{wktr} \end{cases}$$
+-/
+def Lane.counts : Lane → List (Stage × String)
+  | .sim => [(.script, "FireAnimationFrame"), (.style, "RecalculateStyles"), (.layout, "Layout"), (.paint, "Paint"),
+      (.commit, "Composite")]
+  | .wktr => [(.style, "styleRecalcs"), (.layout, "layoutUpdates"), (.props, "compositingUpdates"),
+      (.commit, "renderingUpdates")]
+
+/-- The wire name of a stage.
+
+$$\operatorname{name}(s) = \text{the constructor name of } s,\ \text{e.g. } \operatorname{name}(\mathrm{props}) = \texttt{props}$$
+-/
+def stageName : Stage → String
+  | .script => "script" | .style => "style" | .layout => "layout" | .props => "props" | .paint => "paint"
+  | .raster => "raster" | .commit => "commit" | .comp => "comp"
+
+/-- A prediction scenario: its id, lane, the original arm's frame and the named variant frames (one frame = one
+scroll step or one animation frame).
+
+$$\mathrm{Scenario} = \mathrm{String} \times \mathrm{Lane} \times \mathrm{FrameIn}(\mathrm{WkPropX}) \times (\mathrm{String} \times \mathrm{FrameIn}(\mathrm{WkPropX}))^{*}$$
+-/
+structure Scenario where
+  id       : String
+  lane     : Lane
+  original : FrameIn WkPropX
+  variants : List (String × FrameIn WkPropX)
+
+/-- The six scenarios (P3 split in two) of WebKit note §5.3, in the default Safari mode (box 1 is the animated box):
+- P1 (sim, per scroll step): a JS scroll handler writing a 2D transform on a non-composited layer vs a threaded
+  scroll-driven transform animation;
+- P2 (sim, idle frame): a permanent rAF loop that writes nothing vs a CSS time-based opacity animation;
+- P3a / P3b (sim, per frame): a rAF writer of clip-path (composited box) / background-position vs the same as a CSS
+  animation (never accelerated);
+- P4 (wktr, per scroll step): a JS scroll handler repainting a background vs a threaded scroll-driven animation;
+- P5 (wktr, per frame): a rAF writer of a 2D transform without a compositing reason vs the same with a 3D op.
+
+$$\begin{aligned} \mathrm{scenarios} = [\ &(\texttt{P1}, \mathrm{sim}, L(\operatorname{scrollStep}(\operatorname{jsFrame}([(1, \mathrm{transform}, \mathrm{layer})]))), [(\texttt{scrollDriven}, \mathit{sd})]), \\ &(\texttt{P2}, \mathrm{sim}, L(\operatorname{jsFrame}([\,])), [(\texttt{cssTime}, \mathit{wa}(\operatorname{clean}([\mathrm{opacity}], \mathrm{time}), \mathrm{own}, [(1, \mathrm{opacity}, \mathrm{own})]))]), \\ &(\texttt{P3a}, \mathrm{sim}, L(\operatorname{jsFrame}([(1, \mathrm{clipPath}, \mathrm{own})])), [(\texttt{cssAnim}, \mathit{wa}(\operatorname{clean}([\mathrm{clipPath}], \mathrm{time}), \mathrm{own}, [(1, \mathrm{clipPath}, \mathrm{own})]))]), \\ &(\texttt{P3b}, \mathrm{sim}, L(\operatorname{jsFrame}([(1, \mathrm{background}, \mathrm{layer})])), [(\texttt{cssAnim}, \mathit{wa}(\operatorname{clean}([\mathrm{background}], \mathrm{time}), \mathrm{layer}, [(1, \mathrm{background}, \mathrm{layer})]))]), \\ &(\texttt{P4}, \mathrm{wktr}, L(\operatorname{scrollStep}(\operatorname{jsFrame}([(1, \mathrm{background}, \mathrm{layer})]))), [(\texttt{scrollDriven}, \mathit{sd})]), \\ &(\texttt{P5}, \mathrm{wktr}, L(\operatorname{jsFrame}([(1, \mathrm{transform}, \mathrm{layer})])), [(\texttt{js3d}, L(\operatorname{jsFrame}([(1, \mathrm{transform}, \mathrm{own})])))])\ ], \\ \text{with } L = {} &\operatorname{liftWkFrame},\ \mathit{wa}(a, \ell, \mathit{cs}) = \operatorname{withAnim}(\mathrm{safari}, a, 1, \ell, \mathit{cs}, \varnothing, \mathrm{false}), \\ \mathit{sd} = {} &\operatorname{withAnim}(\mathrm{safari}, \operatorname{clean}([\mathrm{transform}], \mathrm{scroll}), 1, \mathrm{layer}, [(1, \mathrm{transform}, \mathrm{layer})], \operatorname{scrollStep}^{X}(\varnothing), \mathrm{false}) \end{aligned}$$
+-/
+def scenarios : List Scenario :=
+  let L := liftWkFrame
+  let wk (e : Nat) (p : WkProp) (l : LayerState) : Change WkPropX := ⟨e, .base p, l⟩
+  let anim (a : WkAnim) (e : Nat) (l : LayerState) (cs : List (Change WkPropX)) :=
+    withAnim WkMode.safari a e l cs emptyX false
+  -- the animation is added to the scroll frame, so its timeline sees the update (`wkTicks`)
+  let sd := withAnim WkMode.safari (.clean [.transform] .scroll) 1 .layer [wk 1 .transform .layer] (scrollStepX emptyX) false
+  [ ⟨"P1", .sim, L (scrollStep (jsFrame [⟨1, .transform, .layer⟩])), [("scrollDriven", sd)]⟩,
+    ⟨"P2", .sim, L (jsFrame []), [("cssTime", anim (.clean [.opacity] .time) 1 .own [wk 1 .opacity .own])]⟩,
+    ⟨"P3a", .sim, L (jsFrame [⟨1, .clipPath, .own⟩]),
+      [("cssAnim", anim (.clean [.clipPath] .time) 1 .own [wk 1 .clipPath .own])]⟩,
+    ⟨"P3b", .sim, L (jsFrame [⟨1, .background, .layer⟩]),
+      [("cssAnim", anim (.clean [.background] .time) 1 .layer [wk 1 .background .layer])]⟩,
+    ⟨"P4", .wktr, L (scrollStep (jsFrame [⟨1, .background, .layer⟩])), [("scrollDriven", sd)]⟩,
+    ⟨"P5", .wktr, L (jsFrame [⟨1, .transform, .layer⟩]), [("js3d", L (jsFrame [⟨1, .transform, .own⟩]))]⟩ ]
+
+/-- One golden row: `{engine, scenario, variant, stage, prediction, countType}`.
+
+$$\mathrm{Row} = \mathrm{String}^{6}$$
+-/
+structure Row where
+  engine     : String
+  scenario   : String
+  variant    : String
+  stage      : String
+  prediction : String
+  countType  : String
+deriving Repr, DecidableEq
+
+/-- The rows of one scenario: for each counted stage of its lane, the original arm (`predO`, variant name
+`original`), then each variant (`predV` against the original; variants outer, counts inner), all under `webkit`.
+Stage and prediction are stored as their wire strings.
+
+$$\begin{aligned} \forall \sigma:\quad \operatorname{rows}(\sigma) = {} &\big[(\texttt{webkit}, \sigma.\mathrm{id}, \texttt{original}, \operatorname{name}(s), \operatorname{str}(\operatorname{predO}(W_o, s)), k)\big]_{(s, k) \in \operatorname{counts}(\sigma.\mathrm{lane})} \\ \mathbin{+\!\!+} {} &\big[(\texttt{webkit}, \sigma.\mathrm{id}, n, \operatorname{name}(s), \operatorname{str}(\operatorname{predV}(W_v, W_o, s)), k)\big]_{(n, v) \in \sigma.\mathrm{variants},\ (s, k) \in \operatorname{counts}(\sigma.\mathrm{lane})}, \\ \text{with } W_o = {} &\operatorname{frameWork}_{\mathrm{webkit}}(\sigma.\mathrm{original}),\ W_v = \operatorname{frameWork}_{\mathrm{webkit}}(v) \end{aligned}$$
+-/
+def rowsOf (sc : Scenario) : List Row :=
+  let o := frameWork (webkitX WkMode.safari) sc.original
+  let cs := sc.lane.counts
+  cs.map (fun (s, k) => ⟨"webkit", sc.id, "original", stageName s, (predictOrig o s).str, k⟩) ++
+    sc.variants.flatMap fun (n, v) =>
+      let w := frameWork (webkitX WkMode.safari) v
+      cs.map fun (s, k) => ⟨"webkit", sc.id, n, stageName s, (predictVar w o s).str, k⟩
+
+/-- All golden rows.
+
+$$\mathrm{goldenRows} = \operatorname{flatMap}(\mathrm{scenarios}, \operatorname{rows})$$
+-/
+def goldenRows : List Row := scenarios.flatMap rowsOf
+
+/-- One row as compact JSON (keys sorted by `Json.mkObj`).
+
+$$\operatorname{json}(r) = \{\texttt{countType}, \texttt{engine}, \texttt{prediction}, \texttt{scenario}, \texttt{stage}, \texttt{variant}\} \text{ of } r$$
+-/
+def Row.json (r : Row) : String :=
+  (Json.mkObj [("engine", .str r.engine), ("scenario", .str r.scenario), ("variant", .str r.variant),
+    ("stage", .str r.stage), ("prediction", .str r.prediction), ("countType", .str r.countType)]).compress
+
+/-- The contents of `packages/contracts/golden/engine/webkit.jsonl`: one JSON row per line, newline-terminated, in the
+order of `goldenRows`.
+
+$$\mathrm{goldenJsonl} = \mathop{\Vert}_{r \in \mathrm{goldenRows}} \big(\operatorname{json}(r) \mathbin{+\!\!+} \texttt{\textbackslash n}\big)$$
+-/
+def goldenJsonl : String := String.join (goldenRows.map fun r => r.json ++ "\n")
+
+/-- Look up one golden prediction (for the guards below); `"?"` when absent.
+
+$$\operatorname{pred}(\sigma, n, k) = \begin{cases} r.\mathrm{prediction} & r \text{ the first row with } (\sigma, n, k) \\ \texttt{?} & \text{no such row} \end{cases}$$
+-/
+def predOf (sc n k : String) : String :=
+  ((goldenRows.find? fun r => r.scenario == sc && r.variant == n && r.countType == k).map (·.prediction)).getD "?"
+
+#guard goldenRows.length == 56
+-- P1: the threaded scroll-driven variant adds no layout or paint per step and the commit stays; it restyles once per
+-- update, as the original's write does (corrected after the WKTR fixtures: the golden had said `=0`).
+#guard predOf "P1" "original" "Layout" == ">0" && predOf "P1" "scrollDriven" "Layout" == "=0"
+#guard predOf "P1" "scrollDriven" "RecalculateStyles" == "=o" && predOf "P1" "scrollDriven" "Paint" == "=0"
+#guard predOf "P1" "scrollDriven" "Composite" == "=o" && predOf "P1" "scrollDriven" "FireAnimationFrame" == "=0"
+-- P2: the idle rAF loop costs a callback and a commit per frame; the CSS animation neither.
+#guard predOf "P2" "original" "FireAnimationFrame" == ">0" && predOf "P2" "original" "Composite" == ">0"
+#guard predOf "P2" "cssTime" "FireAnimationFrame" == "=0" && predOf "P2" "cssTime" "Composite" == "=0"
+-- P3: clip-path and background-position paint every frame either way.
+#guard predOf "P3a" "original" "Paint" == ">0" && predOf "P3a" "cssAnim" "Paint" == "=o"
+#guard predOf "P3b" "original" "Paint" == ">0" && predOf "P3b" "cssAnim" "Paint" == "=o"
+-- P4: rendering updates per scroll step equal; the style recalcs stay (one per update: the scroll timeline ticks), the
+-- layout and compositing updates are as before.
+#guard predOf "P4" "scrollDriven" "renderingUpdates" == "=o" && predOf "P4" "scrollDriven" "styleRecalcs" == "=o"
+#guard predOf "P4" "scrollDriven" "layoutUpdates" == "=0" && predOf "P4" "scrollDriven" "compositingUpdates" == "=0"
+-- P5: the 2D transform lays out (Overflow); the 3D op removes layout and adds a compositing update.
+#guard predOf "P5" "original" "layoutUpdates" == ">0" && predOf "P5" "js3d" "layoutUpdates" == "=0"
+#guard predOf "P5" "js3d" "compositingUpdates" == ">o" && predOf "P5" "js3d" "renderingUpdates" == "=o"
+#guard predOf "P9" "original" "Layout" == "?"
 
 /-! ### Backing store attach and detach (ledger n=7 and n=11) -/
 
