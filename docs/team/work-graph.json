@@ -3272,7 +3272,8 @@
     "scripts/check.sh",
     "apps/site/scripts/shell-measure.mjs",
     "packages/contracts/golden/ops/checkmap.jsonl"
-   ]
+   ],
+   "evidence": "7efeb69"
   },
   {
    "id": "wait-guard",
@@ -3359,7 +3360,8 @@
    "writes": [
     "lean/Fw/Sched/Admit.lean",
     "packages/contracts/golden/sched/**"
-   ]
+   ],
+   "evidence": "6969bd9"
   },
   {
    "id": "task-spec-lint",
@@ -3926,7 +3928,8 @@
     "research/notes/**",
     "docs/team/handoffs/engine-model-fix.md",
     "lean/Fw/Parts/**"
-   ]
+   ],
+   "evidence": "2cda145"
   },
   {
    "id": "mistake-record-3",
@@ -4143,7 +4146,8 @@
     "apps/runner/test/**",
     "docs/team/tools/**",
     "docs/team/handoffs/console-stale.md"
-   ]
+   ],
+   "evidence": "be14d33"
   },
   {
    "id": "workflow-multi-claim",
@@ -4179,7 +4183,8 @@
     "packages/premise-tests/**",
     "apps/runner/src/**",
     "apps/runner/test/**"
-   ]
+   ],
+   "evidence": "296ecb9"
   },
   {
    "id": "lean-first-gate",
@@ -4533,6 +4538,312 @@
     "docs/team/handoffs/task-preview.md",
     "docs/team/handoffs/task-preview-2.md",
     "docs/team/tools/**"
+   ]
+  },
+  {
+   "id": "premise-ack-2",
+   "title": "(S) premise-ack follow-ups from review: an intermittent ack must not hide a finding that turned steady (Lean: ack matches only while the failure rate stays intermittent; steady -> alert), failClass over all failing runs not the first, ackLint checks ack.engine in p.engines, premise-tests path filter includes research/findings/ledger.json",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "premise-ack"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/ops/**",
+    "packages/premise-tests/**",
+    "apps/runner/src/**",
+    "apps/runner/test/**",
+    "research/findings/ledger.json",
+    "docs/team/tools/premises.md",
+    "docs/team/handoffs/premise-ack-2.md"
+   ]
+  },
+  {
+   "id": "check-map-lean-2",
+   "title": "(S) check-map-lean follow-ups from review: pre-commit must not pass silently on a missing/stale fwcore (Lean verdict: stale -> fail with rebuild hint), argv goldens for every own CLI (title promise), live-tree mapping check (unmapped extension fails), css/html parse checks, --staged checks the staged blob",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "check-map-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/CheckMap.lean",
+    "scripts/hooks/pre-commit",
+    "scripts/check.sh",
+    "apps/site/scripts/shell-measure.mjs",
+    "packages/contracts/golden/ops/checkmap.jsonl",
+    "lean/scripts/CheckMapGolden.lean",
+    "lean/scripts/check.sh",
+    "scripts/checkmap.mjs",
+    "scripts/test-checkmap.mjs",
+    "docs/team/handoffs/check-map-lean-2.md"
+   ]
+  },
+  {
+   "id": "jev-research",
+   "title": "(S) research TypeSafe Jev (System One decision model): docs + use-case map, fit against our loop decision points (advisory only behind a Lean threshold), offline replay experiment design",
+   "stream": "research",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-jev-decision-model.md"
+   ],
+   "evidence": "05a11b9"
+  },
+  {
+   "id": "jev-oracle",
+   "title": "(M) Jev (TypeSafe System One) as a Lean-wrapped advisory oracle for judgement calls we cannot script: Lean Fw.Oracle (typed question specs Choice/Noul/Score, answer+failure total policy, escalate below a Lean-computed calibrated threshold, never an irreversible action from the oracle alone, redaction before send, answer log keyed by input hash for exact replay); thin TS client (key from macOS keychain service typesafe-api, never in files/logs); first use CI failure triage advisory in fw watch, calibrated on CI history",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Oracle.lean",
+    "lean/Fw/Oracle/**",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean",
+    "lean/FwTestMain.lean",
+    "packages/oracle/**",
+    "packages/contracts/golden/oracle/**",
+    "apps/runner/src/oracle*.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/oracle*.test.ts",
+    "docs/team/tools/oracle.md",
+    "docs/team/handoffs/jev-oracle.md",
+    "research/notes/2026/10-18-jev-oracle.md",
+    ".gitignore"
+   ]
+  },
+  {
+   "id": "jev-eval",
+   "title": "(M) measure the Jev oracle and decide scaling in Lean: rule-labeled CI triage replay set split calibrate/held-out; coverage, precision, confusion, cost-weighted error; A/B on identical inputs Jev vs Haiku vs Sonnet agent (accuracy, $/decision, latency); net saving incl. double-pay on escalation and wrong-call cost; share of Claude spend that is judgement calls (timing spans); Lean Fw.Oracle.Adopt ladder candidate->shadow->advisory->default with rolling-window demotion; rank next questions by frequency x tokens",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "jev-oracle"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Oracle/**",
+    "lean/Fw/Wire.lean",
+    "lean/FwTestMain.lean",
+    "packages/oracle/**",
+    "packages/contracts/golden/oracle/**",
+    "apps/runner/src/oracle*.ts",
+    "apps/runner/test/oracle*.test.ts",
+    "docs/team/tools/oracle.md",
+    "docs/team/handoffs/jev-eval.md",
+    "research/notes/2026/10-18-jev-eval.md"
+   ]
+  },
+  {
+   "id": "engine-model-fix-2",
+   "title": "(S) engine-model-fix follow-ups from review: wk_cross_claim (run-level WebKit dominance across rest/fade toggle for morph.panel n=11; until then ledger says win on rest frames only), timer-only step in the engine-premises fixture (cr.props base rule INFERRED for timer frames), multi-change frames measured (CrLevel.max joins, WebKit unions), check.sh stage comparing golden/engine/*.jsonl with Lean generators (drift is silent today)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "engine-model-fix"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/**",
+    "lean/Fw/Ops/Premise.lean",
+    "lean/Fw/Ops/EnginePremise.lean",
+    "packages/contracts/golden/engine/**",
+    "packages/contracts/golden/ops/**",
+    "research/findings/ledger.json",
+    "research/notes/**",
+    "docs/team/handoffs/engine-model-fix.md",
+    "lean/Fw/Parts/**",
+    "lean/scripts/check.sh",
+    "lean/scripts/EngineGoldens.lean",
+    "docs/team/handoffs/engine-model-fix-2.md"
+   ]
+  },
+  {
+   "id": "mistake-record-4",
+   "title": "(S) record lead mistake batch 4 (13 items, incl. inc-review-loop) in docs/team/incidents/ledger.json + batch-4 section of the mistake retro; each with class, Lean-provable verdict and hardening task id",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "docs/team/incidents/ledger.json",
+    "research/notes/2026/10-18-mistake-retro.md",
+    "docs/team/handoffs/mistake-record-4.md"
+   ],
+   "evidence": "f9a2a99"
+  },
+  {
+   "id": "context-slop",
+   "title": "(M) distill cursor/plugins pstack (no-comments, comment-sicko, unslop, guard-the-context-window, minimize-reader-load, technical-writing) and apply: measured context cost of always-loaded files (CLAUDE.md, agent defs, tool docs, handoffs), fw/hook output, docstrings and code comments; Lean-decided context budget lint; convert the rules into skills (.claude/skills/no-slop, no-comments) and a read-only slop-checker agent registered in SpawnGuard; trim always-loaded files; follow-ups for code and outputs",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-context-slop.md",
+    "CLAUDE.md",
+    ".claude/agents/**",
+    "docs/team/token-policy.md",
+    "docs/team/tools/**",
+    "docs/team/handoffs/context-slop.md",
+    "lean/Fw/Lint/Context.lean",
+    "lean/Fw/Lint/Context/**",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean",
+    "lean/FwTestMain.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "scripts/context-lint.mjs",
+    "scripts/context-lint.test.mjs",
+    "packages/contracts/golden/lint/**",
+    "lean/scripts/check.sh",
+    ".claude/skills/**",
+    "lean/Fw/Ops/SpawnGuard.lean",
+    "apps/runner/hooks/spawn-guard.mjs",
+    "packages/contracts/golden/ops/**"
+   ]
+  },
+  {
+   "id": "gate-wall-target",
+   "title": "(M) breakpoint-gate wall time to a Lean target for the experiment loop: parts scope from the diff for iteration pushes (full gate once before land), early verdict (any failing cell -> fail, proved monotone; full cell list on demand), shard count chosen in Lean to meet a wall target on the free runner pool or report infeasible; evidence run 39105279831 (50 min, webkit j3 50.1, chromium j2 45.9)",
+   "stream": "gate",
+   "milestone": "M5",
+   "deps": [
+    "gate-shard-balance"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/**",
+    ".github/scripts/gate-shards.mjs",
+    ".github/workflows/breakpoint-gate.yml",
+    "packages/gate-breakpoints/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "research/notes/**",
+    "docs/team/handoffs/gate-shard-balance.md",
+    "docs/team/handoffs/gate-wall-target.md",
+    "research/notes/2026/10-18-gate-wall-target.md"
+   ]
+  },
+  {
+   "id": "console-stale-2",
+   "title": "(S) console-stale follow-ups: fw land rebuilds the main checkout fwcore with scripts/fwcore-build.sh after the fast-forward (Lean: post-land step decided, record written; removes the manual lead step), atomic api.json write (tmp+rename) or unknown on parse error, TOCTOU hash check in fwcore-build.sh, console-web dist and preview children judged or listed, TS chooseBase/buildBase moved to an fwcore op",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "console-stale"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Console/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/**",
+    "apps/console-api/**",
+    "apps/runner/src/**",
+    "apps/runner/test/**",
+    "docs/team/tools/**",
+    "docs/team/handoffs/console-stale.md",
+    "scripts/fwcore-build.sh",
+    "apps/runner/src/land.ts",
+    "docs/team/handoffs/console-stale-2.md"
+   ]
+  },
+  {
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "id": "review-loop-alert",
+   "title": "(S) fw watch alert lead.redesign when a task has 2 refused reviews of the same class (Lean rule over workflow review verdicts; inc-review-loop)",
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Console/ReviewLoop.lean",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/review-loop.test.ts",
+    "packages/contracts/golden/console/review-loop.jsonl",
+    "docs/team/tools/watch.md",
+    "docs/team/handoffs/review-loop-alert.md"
+   ]
+  },
+  {
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-props-shape"
+   ],
+   "id": "theorem-reach-lint",
+   "title": "(S) lint: every theorem subject is reachable from a Wire op, a generator or a golden (no proofs of dead code; inc-proof-of-dead-code), decided in Lean over the environment",
+   "owner": "lean-prover",
+   "writes": [
+    "lean/scripts/ReachLint.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Console/LandSpeed.lean",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "apps/runner/src/land.ts",
+    "docs/team/tools/lean-first.md",
+    "docs/team/handoffs/theorem-reach-lint.md"
+   ]
+  },
+  {
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "ci-own-trigger"
+   ],
+   "id": "land-cancel-runs",
+   "title": "(S) fw land cancels queued/in-progress runs of the landed task ci/<task> branch after the fast-forward (Lean: a landed branch run gives no verdict anyone reads; inc-landed-runs-queued)",
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ci/Landed.lean",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-cancel.test.ts",
+    "packages/contracts/golden/ci/landed.jsonl",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-cancel-runs.md"
+   ]
+  },
+  {
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "id": "gate-expected-red",
+   "title": "(S) expected-red list for gate lanes on main until integrate-ports lands (Lean: a red job on main is expected iff listed with its finding id; anything else alerts; inc-red-on-main-by-design)",
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ci/ExpectedRed.lean",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean",
+    "apps/runner/src/watch*.ts",
+    "packages/contracts/golden/ci/expected-red.jsonl",
+    "docs/team/tools/fw-ci.md",
+    "docs/team/handoffs/gate-expected-red.md"
+   ]
+  },
+  {
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "id": "workflow-salvage",
+   "title": "(S) workflow stage pattern: a null builder result runs a salvage agent on its worktree (commit WIP, write handoff, report state) before verify; prompt-rules require ending with the structured result (batch-5: gate-shard-balance builder ended without a result)",
+   "owner": "lean-prover",
+   "writes": [
+    "docs/team/tools/prompt-rules.md",
+    "docs/team/tools/workflow-patterns.md",
+    "docs/team/handoffs/workflow-salvage.md"
    ]
   }
  ],

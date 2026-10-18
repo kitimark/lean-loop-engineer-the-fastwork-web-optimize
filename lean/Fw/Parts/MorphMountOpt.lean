@@ -758,7 +758,7 @@ $$\operatorname{units}_{\mathrm{wk}}(\operatorname{scrollWk}, \mathrm{layout}) =
 
 Scrolling never lays out. -/
 theorem scrollWk_layout : (frameWork WebKit.webkit scrollWk).units .layout = 0 := by
-  have h : WebKit.diffStages (WebKit.wkDiff ⟨0, .scrollPos, .own⟩) = [] := WebKit.scrollPos_stages .safari 0 .own
+  have h : WebKit.wkStages ⟨0, .scrollPos, .own⟩ = [] := WebKit.scrollPos_stages .safari 0 .own
   simp [frameWork, stageUnits, scrollWk, h, WebKit.webkit, WebKit.webkitAt]
 
 /-- **Shift on Chromium.** For any frame inputs whose motion window lays nothing out, moving the mount of `c > 0`

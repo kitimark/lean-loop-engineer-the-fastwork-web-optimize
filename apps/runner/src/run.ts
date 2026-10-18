@@ -66,7 +66,7 @@ function fwcoreBin(cwd: string): string {
   const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).stdout.trim();
   const cands = [process.env.FW_CORE_BIN, top && join(top, rel), common && join(dirname(common), rel)].filter((x): x is string => !!x);
   const bin = cands.find((p) => existsSync(p));
-  if (!bin) throw new Error("fwcore not built: cd lean && lake build");
+  if (!bin) throw new Error("fwcore not built: sh scripts/fwcore-build.sh");
   return bin;
 }
 

@@ -600,6 +600,169 @@ theorem verdict_fails_cons (c : Cell) (cs : List Cell) (h : verdict cs = .fails)
 
 set_option linter.deprecated true
 
+/-! ## The recorded observations (CI run 39088367495)
+
+The engine-premises lane of workflow run 39088367495 (commit `485b013`) observed every step: Chromium in 3 passes,
+WebKit in 6. No cell was `unstable` or `missing` (MEASURED, `premise-verdict/chromium.json` and `webkit.json` of that
+run), so one presence per (step, stage) records the run. `crRecorded` and `wkRecorded` list, per non-idle case id, the
+stages observed present, in observer order; every idle step observed what the model of that run expected of an idle
+frame (Chromium: nothing; WebKit: `commit`). Under the model of that run 7 stage rules failed (Chromium layout,
+props, paint, raster, hits; WebKit layout, props). `cr_recorded_holds` and `wk_recorded_holds` recompute every cell
+from these records against the current model: every stage rule of both engines holds.
+-/
+
+/-- **The Chromium record** of CI run 39088367495: per case id, the observed stages (MEASURED, 3 passes, all equal).
+
+$$\mathrm{crRecorded} = [(\mathrm{id}_j,\ \mathrm{observed}_j)]_{j}\ \text{for the 65 non-idle Chromium steps, in step order}$$
+
+What the Chromium lane saw in each non-idle frame. -/
+def crRecorded : List (String × List String) :=
+  [("transform@none", ["style", "props", "raster", "commit"]),
+   ("transform@layer", ["style", "props", "raster", "commit"]), ("transform@own", ["style", "props", "commit"]),
+   ("transform(none<->some)@none", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("transform(none<->some)@layer", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("transform(none<->some)@own", ["style", "props", "raster", "commit"]),
+   ("translate@none", ["style", "props", "raster", "commit"]),
+   ("translate@layer", ["style", "props", "raster", "commit"]), ("translate@own", ["style", "props", "commit"]),
+   ("scale@none", ["style", "props", "raster", "commit"]),
+   ("scale@layer", ["style", "props", "raster", "commit"]), ("scale@own", ["style", "props", "raster", "commit"]),
+   ("rotate@none", ["style", "props", "raster", "commit"]),
+   ("rotate@layer", ["style", "props", "raster", "commit"]), ("rotate@own", ["style", "props", "commit"]),
+   ("opacity@none", ["style", "props", "raster", "commit"]),
+   ("opacity@layer", ["style", "props", "raster", "commit"]), ("opacity@own", ["style", "props", "commit"]),
+   ("filter@none", ["style", "props", "raster", "commit"]),
+   ("filter@layer", ["style", "props", "raster", "commit"]), ("filter@own", ["style", "props", "commit"]),
+   ("filter(blur)@none", ["style", "props", "raster", "commit"]),
+   ("filter(blur)@layer", ["style", "props", "raster", "commit"]),
+   ("filter(blur)@own", ["style", "props", "raster", "commit"]),
+   ("backdrop-filter@none", ["style", "props", "commit"]),
+   ("backdrop-filter@layer", ["style", "props", "commit"]), ("backdrop-filter@own", ["style", "props", "commit"]),
+   ("background-position@none", ["style", "props", "paint", "raster", "commit"]),
+   ("background-position@layer", ["style", "props", "paint", "raster", "commit"]),
+   ("background-position@own", ["style", "props", "paint", "raster", "commit"]),
+   ("background-image@none", ["style", "props", "paint", "raster", "commit"]),
+   ("background-image@layer", ["style", "props", "paint", "raster", "commit"]),
+   ("background-image@own", ["style", "props", "paint", "raster", "commit"]),
+   ("background-color@none", ["style", "props", "paint", "raster", "commit"]),
+   ("background-color@layer", ["style", "props", "paint", "raster", "commit"]),
+   ("background-color@own", ["style", "props", "paint", "raster", "commit"]),
+   ("color@none", ["style", "props", "paint", "raster", "commit"]),
+   ("color@layer", ["style", "props", "paint", "raster", "commit"]),
+   ("color@own", ["style", "props", "paint", "raster", "commit"]),
+   ("clip-path@none", ["style", "props", "paint", "raster", "commit"]),
+   ("clip-path@layer", ["style", "props", "paint", "raster", "commit"]),
+   ("clip-path@own", ["style", "props", "paint", "raster", "commit"]),
+   ("visibility@none", ["style", "props", "paint", "raster", "commit"]),
+   ("visibility@layer", ["style", "props", "paint", "raster", "commit"]),
+   ("visibility@own", ["style", "props", "paint", "raster", "commit"]),
+   ("z-index@layer", ["style", "props", "paint", "raster", "commit"]),
+   ("z-index@own", ["style", "props", "paint", "raster", "commit"]),
+   ("top@layer", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("top@own", ["style", "layout", "props", "commit", "hits"]),
+   ("left@layer", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("left@own", ["style", "layout", "props", "commit", "hits"]),
+   ("width@none", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("width@layer", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("width@own", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("height@none", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("height@layer", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("height@own", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("margin@none", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("margin@layer", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("margin@own", ["style", "layout", "props", "commit", "hits"]),
+   ("padding@none", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("padding@layer", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("padding@own", ["style", "layout", "props", "paint", "raster", "commit", "hits"]),
+   ("script", ["script", "props"]), ("hit", ["props", "hits"])]
+
+/-- **The WebKit record** of CI run 39088367495: per case id, the observed stages (MEASURED, 6 passes, all equal).
+
+$$\mathrm{wkRecorded} = [(\mathrm{id}_j,\ \mathrm{observed}_j)]_{j}\ \text{for the 30 non-idle WebKit steps, in step order}$$
+
+What the WKTR lane saw in each non-idle rendering update. -/
+def wkRecorded : List (String × List String) :=
+  [("transform@layer", ["style", "layout", "props", "commit"]), ("transform@own", ["style", "props", "commit"]),
+   ("transformToggle@none", ["style", "layout", "props", "commit"]),
+   ("transformToggle@layer", ["style", "layout", "props", "commit"]),
+   ("transformToggle@own", ["style", "layout", "props", "commit"]),
+   ("opacity@layer", ["style", "props", "commit"]), ("opacity@own", ["style", "commit"]),
+   ("opacityCross1@none", ["style", "layout", "props", "commit"]),
+   ("opacityCross1@layer", ["style", "layout", "props", "commit"]),
+   ("opacityCross1@own", ["style", "layout", "props", "commit"]),
+   ("filter@layer", ["style", "layout", "props", "commit"]),
+   ("filter@own", ["style", "layout", "props", "commit"]),
+   ("filterToggle@none", ["style", "layout", "props", "commit"]),
+   ("filterToggle@layer", ["style", "layout", "props", "commit"]),
+   ("filterToggle@own", ["style", "layout", "props", "commit"]), ("background@none", ["style", "commit"]),
+   ("background@layer", ["style", "commit"]), ("background@own", ["style", "props", "commit"]),
+   ("color@none", ["style", "commit"]), ("color@layer", ["style", "commit"]),
+   ("color@own", ["style", "props", "commit"]), ("mask@layer", ["style", "props", "commit"]),
+   ("mask@own", ["style", "props", "commit"]), ("insetAbs@layer", ["style", "layout", "props", "commit"]),
+   ("insetAbs@own", ["style", "layout", "props", "commit"]),
+   ("inset@layer", ["style", "layout", "props", "commit"]), ("inset@own", ["style", "layout", "props", "commit"]),
+   ("size@none", ["style", "layout", "props", "commit"]), ("size@layer", ["style", "layout", "props", "commit"]),
+   ("size@own", ["style", "layout", "props", "commit"])]
+
+/-- The observations of a step from a record: an idle step observes the record's idle stages `i`, any other step the
+stages recorded for its id, `none` if the record has no row for it.
+
+$$\operatorname{obs}(i, R, c) = \begin{cases} \mathrm{some}\ i & c.\mathrm{act} = \mathrm{idle} \\ R(c.\mathrm{id}) & \text{otherwise (the first row of } R \text{ with that id, } \bot \text{ if none)} \end{cases}$$
+
+Which stages a recorded step showed. -/
+def recordedObs (idle : List String) (rec : List (String × List String)) (c : Case) : Option (List String) :=
+  if c.act = .idle then some idle else rec.lookup c.id
+
+/-- **The cells of a stage from a record**: per step, the model's expectation for stage $s$ (absent: `false`)
+against $p$ passes that each observed the recorded presence; a step without a record has no pass (`missing`).
+
+$$\operatorname{cells}(p, i, R, cs, s) = \Big[\operatorname{cell}\big(e_c(s),\ \begin{cases} [\,s \in O\,]^{p} & \operatorname{obs}(i, R, c) = \mathrm{some}\ O \\ [\,] & \operatorname{obs}(i, R, c) = \bot \end{cases}\big) \Bigm| c \in cs\Big],\quad e_c(s) = \begin{cases} b & (s, b) \text{ the first entry of } c.\mathrm{expect} \text{ named } s \\ \mathrm{false} & \text{none} \end{cases}$$
+
+where $[x]^{p}$ is the list of $p$ copies of $x$. The cells a verdict reads, rebuilt from a record. -/
+def recordedCells (passes : Nat) (idle : List String) (rec : List (String × List String)) (cs : List Case)
+    (s : String) : List Cell :=
+  cs.map fun c =>
+    cell ((c.expect.lookup s).getD false)
+      (match recordedObs idle rec c with
+       | some o => List.replicate passes (o.contains s)
+       | none => [])
+
+#guard recordedCells 2 [] [("a", ["style"])] [{ id := "a", act := .set, expect := [("style", true)] }] "style" ==
+  [.agree]
+#guard recordedCells 2 [] [("a", ["style"])] [{ id := "b", act := .set, expect := [("style", true)] }] "style" ==
+  [.missing]
+#guard recordedCells 3 ["commit"] [] [{ id := "a+idle", act := .idle, expect := [("commit", false)] }] "commit" ==
+  [.mismatch]
+#guard recordedCells 1 [] [("a", [])] [{ id := "a", act := .set, expect := [] }] "layout" == [.agree]
+
+/-- **Every Chromium stage rule holds on the recorded run.** For every Chromium observer, the cells rebuilt from
+`crRecorded` (3 passes; idle steps observed nothing) against the current model's steps all agree.
+
+$$\forall o \in \mathrm{crObservers}:\ \operatorname{verdict}\big(\operatorname{cells}(3, [\,], \mathrm{crRecorded}, \mathrm{crSteps}, o.\mathrm{stage})\big) = \mathrm{holds}$$
+
+The fixed Chromium model predicts every cell of CI run 39088367495, the 5 refuted rules included. -/
+theorem cr_recorded_holds :
+    ∀ o ∈ crObservers, verdict (recordedCells 3 [] crRecorded crSteps o.stage) = .holds := by
+  decide +kernel
+
+/-- **Every WebKit stage rule holds on the recorded run.** For every WebKit observer, the cells rebuilt from
+`wkRecorded` (6 passes; idle steps observed `commit`) against the current model's steps all agree.
+
+$$\forall o \in \mathrm{wkObservers}:\ \operatorname{verdict}\big(\operatorname{cells}(6, [\mathrm{commit}], \mathrm{wkRecorded}, \mathrm{wkSteps}, o.\mathrm{stage})\big) = \mathrm{holds}$$
+
+The fixed WebKit model predicts every cell of CI run 39088367495, the 2 refuted rules included. -/
+theorem wk_recorded_holds :
+    ∀ o ∈ wkObservers, verdict (recordedCells 6 ["commit"] wkRecorded wkSteps o.stage) = .holds := by
+  decide +kernel
+
+/-- The records cover the run: 65 Chromium and 30 WebKit non-idle steps, one row each.
+
+$$|\mathrm{crRecorded}| = |\mathrm{crCases}| = 65 \land |\mathrm{wkRecorded}| = |\mathrm{wkCases}| = 30$$
+
+One recorded row per case. -/
+theorem recorded_length : crRecorded.length = crCases.length ∧ crCases.length = 65 ∧
+    wkRecorded.length = wkCases.length ∧ wkCases.length = 30 := by
+  decide +kernel
+
 /-! ## Facts about the tables -/
 
 /-- The Chromium table has 69 members (23 properties times three layer states), 63 of them realizable.
@@ -639,12 +802,15 @@ $$\operatorname{names}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{transform}@
 theorem cr_direct_names : names (expectAll crObservers (crWork (crFrame .transform .own))) = ["style", "props", "commit"] := by
   decide +kernel
 
-/-- **A width change runs everything but the compositor and script**: style, layout, props, paint, raster, commit.
+/-- **A width change runs everything but the compositor and script, plus one hit test**: style, layout, props,
+paint, raster, commit and hits. Changed since CI run 39088367495: `hits` is new (a frame that lays out pays one hover
+hit test, MEASURED, `crWorkH`).
 
-$$\operatorname{names}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{width}@\mathrm{none}))) = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}]$$
--/
+$$\operatorname{names}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{width}@\mathrm{none}))) = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}, \mathrm{hits}]$$
+
+A width change on a box without a layer dirties every main-thread stage but script. -/
 theorem cr_width_names : names (expectAll crObservers (crWork (crFrame .width .none))) =
-    ["style", "layout", "props", "paint", "raster", "commit"] := by
+    ["style", "layout", "props", "paint", "raster", "commit", "hits"] := by
   decide +kernel
 
 /-- **An idle Chromium frame expects nothing**: no stage, no hit test.

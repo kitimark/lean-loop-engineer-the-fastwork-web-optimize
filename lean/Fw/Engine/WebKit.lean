@@ -75,8 +75,9 @@ deriving Repr, DecidableEq, Inhabited
 
 /-- **The WebKit property type**: one kind of property change, with the value transition that decides its raw
 level. `transform` covers `transform`/`translate`/`scale`/`rotate`/`offset-*` value changes while a transform stays
-present; `*Toggle` and `opacityCross1` are the appear/disappear and `isOpaque` flips; `filterPainted` is a filter
-value change on a layer that paints its filters (`shouldPaintWithFilters`); `clipPathShape` is a clip-path a
+present; `*Toggle` and `opacityCross1` are the appear/disappear and `isOpaque` flips; `filter` is a filter value
+change that changes the filter's outsets (a blur radius, a drop-shadow; since CI run 39088367495); `filterPainted` is
+a filter value change with the same outsets on a layer that paints its filters (`shouldPaintWithFilters`); `clipPathShape` is a clip-path a
 composited layer can composite (`willCompositeClipPath`: no mask, shape layer); `willChange` is a change that
 `canTriggerCompositing`; `insetAbs` moves an absolute box, `inset` moves another positioned box; `size` is
 width/height/margin/padding; `scrollPos` is a delivered scroll position (no style change).
@@ -97,12 +98,19 @@ currentColor Repaint (646, 700-707); mask RepaintLayer; top/left on an absolute 
 (436-445, 557-564), on another positioned box Layout; width/height/margin Layout (404-407, 423); stroke-dashoffset
 Layout (161); a scroll position Equal. CONFIRMED.
 
-$$\operatorname{raw}(p) = \begin{cases} (\mathrm{equal}, \{\mathrm{transform}\}) & p = \mathrm{transform} \\ (\mathrm{equal}, \{\mathrm{opacity}\}) & p = \mathrm{opacity} \\ (\mathrm{equal}, \{\mathrm{filter}\}) & p \in \{\mathrm{filter}, \mathrm{filterPainted}\} \\ (\mathrm{equal}, \{\mathrm{clipPath}\}) & p \in \{\mathrm{clipPath}, \mathrm{clipPathShape}\} \\ (\mathrm{equal}, \{\mathrm{willChange}\}) & p = \mathrm{willChange} \\ (\mathrm{repaint}, \emptyset) & p \in \{\mathrm{background}, \mathrm{colorCurrent}\} \\ (\mathrm{repaintIfText}, \emptyset) & p = \mathrm{color} \\ (\mathrm{repaintLayer}, \emptyset) & p = \mathrm{mask} \\ (\mathrm{layoutOOFMoveOnly}, \emptyset) & p = \mathrm{insetAbs} \\ (\mathrm{layout}, \emptyset) & p \in \{\mathrm{transformToggle}, \mathrm{opacityCross1}, \mathrm{filterToggle}, \mathrm{inset}, \mathrm{size}, \mathrm{strokeDashoffset}\} \\ (\mathrm{equal}, \emptyset) & p = \mathrm{scrollPos} \end{cases}$$
+Corrected by CI run 39088367495: a `filter` value change whose outsets change (a blur radius, a drop-shadow) is
+Layout, because `changeAffectsVisualOverflow` compares the filter outsets (`StyleDifference.cpp:68-83`) and a visual
+overflow change requires layout (`:452-453`). CONFIRMED; MEASURED (`blur(2px)` to `blur(4px)` ran layout on a layer and
+an own layer, 6 of 6 passes). Until that run it was Equal with the Filter context. `filterPainted` keeps Equal with
+the Filter context: it stands for a painted filter change with the same outsets.
+
+$$\operatorname{raw}(p) = \begin{cases} (\mathrm{equal}, \{\mathrm{transform}\}) & p = \mathrm{transform} \\ (\mathrm{equal}, \{\mathrm{opacity}\}) & p = \mathrm{opacity} \\ (\mathrm{layout}, \{\mathrm{filter}\}) & p = \mathrm{filter} \\ (\mathrm{equal}, \{\mathrm{filter}\}) & p = \mathrm{filterPainted} \\ (\mathrm{equal}, \{\mathrm{clipPath}\}) & p \in \{\mathrm{clipPath}, \mathrm{clipPathShape}\} \\ (\mathrm{equal}, \{\mathrm{willChange}\}) & p = \mathrm{willChange} \\ (\mathrm{repaint}, \emptyset) & p \in \{\mathrm{background}, \mathrm{colorCurrent}\} \\ (\mathrm{repaintIfText}, \emptyset) & p = \mathrm{color} \\ (\mathrm{repaintLayer}, \emptyset) & p = \mathrm{mask} \\ (\mathrm{layoutOOFMoveOnly}, \emptyset) & p = \mathrm{insetAbs} \\ (\mathrm{layout}, \emptyset) & p \in \{\mathrm{transformToggle}, \mathrm{opacityCross1}, \mathrm{filterToggle}, \mathrm{inset}, \mathrm{size}, \mathrm{strokeDashoffset}\} \\ (\mathrm{equal}, \emptyset) & p = \mathrm{scrollPos} \end{cases}$$
 -/
 def rawDiff : WkProp → Diff × List Ctx
   | .transform => (.equal, [.transform])
   | .opacity => (.equal, [.opacity])
-  | .filter | .filterPainted => (.equal, [.filter])
+  | .filter => (.layout, [.filter])
+  | .filterPainted => (.equal, [.filter])
   | .clipPath | .clipPathShape => (.equal, [.clipPath])
   | .willChange => (.equal, [.willChange])
   | .background | .colorCurrent => (.repaint, [])
@@ -151,6 +159,66 @@ def wkDiff (c : Change WkProp) : Diff :=
   adjust (rawDiff c.prop).1 (rawDiff c.prop).2 c.layer (decide (c.prop = .filterPainted))
     (decide (c.prop = .clipPathShape ∧ c.layer = .own))
 
+/-- **The compositing table** (CI run 39088367495): does a change run a compositing update (`props`,
+`RenderLayerCompositor::updateCompositingLayers` past its early returns, counted at `RenderLayerCompositor.cpp:1106`)?
+* A level from LayoutOutOfFlowMovementOnly up: yes; `layerStyleChanged` sets the post-layout and geometry update bits
+  when the page has content compositing layers (`RenderLayerCompositor.cpp:2216-2219`@862f17d), which the fixture
+  page has. CONFIRMED (the precondition INFERRED for every page).
+* RecompositeLayer: yes unless the change is an opacity value change. A transform change sets the geometry update
+  (`recompositeChangeRequiresGeometryUpdate`, `:2152-2164, 2314-2317`); an opacity change that does not go to or
+  from 0 sets no bit (`:2309-2311`). CONFIRMED; MEASURED (opacity on an own layer ran no update, 6 of 6 passes).
+* Repaint and RepaintIfText: only on an own composited layer; RepaintLayer: on any layer. MEASURED (background and
+  color ran an update on an own layer and not on a layer or without one; mask and opacity on a layer ran one);
+  mechanism INFERRED.
+* Equal: no.
+
+$$\operatorname{compUpd}(c) = \begin{cases} \mathrm{false} & \operatorname{diff}(c) = \mathrm{equal} \\ c.\mathrm{prop} \ne \mathrm{opacity} & \operatorname{diff}(c) = \mathrm{recomposite} \\ c.\mathrm{layer} = \mathrm{own} & \operatorname{diff}(c) \in \{\mathrm{repaint}, \mathrm{repaintIfText}\} \\ c.\mathrm{layer} \ne \mathrm{none} & \operatorname{diff}(c) = \mathrm{repaintLayer} \\ \mathrm{true} & \operatorname{diff}(c) \in \{\mathrm{layoutOOFMoveOnly}, \mathrm{overflow}, \mathrm{overflowOOF}, \mathrm{layout}, \mathrm{newStyle}\} \end{cases}$$
+
+Whether a WebKit change makes the next rendering update run a compositing update.
+-/
+def wkCompUpdate (c : Change WkProp) : Bool :=
+  match wkDiff c with
+  | .equal => false
+  | .recomposite => c.prop != .opacity
+  | .repaint | .repaintIfText => c.layer == .own
+  | .repaintLayer => c.layer != .none
+  | .layoutOOFMoveOnly | .overflow | .overflowOOF | .layout | .newStyle => true
+
+/-- **The stages of one WebKit change**: the stages of its adjusted level other than `props`, plus `props` iff the
+compositing table says so, in the fixed stage order. Until CI run 39088367495 they were `diffStages (wkDiff c)`.
+
+$$\operatorname{wkStages}(c) = [\,s \in \mathrm{Stage.all} \mid (s = \mathrm{props} \land \operatorname{compUpd}(c)) \lor (s \ne \mathrm{props} \land s \in \operatorname{stages}(\operatorname{diff}(c)))\,]$$
+
+The pipeline stages a WebKit property change dirties.
+-/
+def wkStages (c : Change WkProp) : List Stage :=
+  Stage.all.filter fun s => if s = .props then wkCompUpdate c else decide (s ∈ diffStages (wkDiff c))
+
+/-- **Membership in `wkStages`**: `props` iff the compositing table says so, any other stage iff the adjusted level's
+stage list has it.
+
+$$\forall c,\ \forall s \in \mathrm{Stage}:\ s \in \operatorname{wkStages}(c) \iff \begin{cases} \operatorname{compUpd}(c) & s = \mathrm{props} \\ s \in \operatorname{stages}(\operatorname{diff}(c)) & s \ne \mathrm{props} \end{cases}$$
+
+A change dirties a non-props stage exactly when its style difference does.
+-/
+theorem mem_wkStages (c : Change WkProp) (s : Stage) :
+    s ∈ wkStages c ↔ (if s = .props then wkCompUpdate c = true else s ∈ diffStages (wkDiff c)) := by
+  unfold wkStages
+  rw [List.mem_filter]
+  by_cases h : s = .props
+  · simp [h, Stage.mem_all]
+  · simp [h, Stage.mem_all]
+
+/-- **Off `props`, `wkStages` is the old table.**
+
+$$\forall c,\ \forall s \in \mathrm{Stage}:\ s \ne \mathrm{props} \Rightarrow \big(s \in \operatorname{wkStages}(c) \iff s \in \operatorname{stages}(\operatorname{diff}(c))\big)$$
+
+Only the compositing-update stage changed.
+-/
+theorem mem_wkStages_of_ne (c : Change WkProp) {s : Stage} (h : s ≠ .props) :
+    s ∈ wkStages c ↔ s ∈ diffStages (wkDiff c) := by
+  simp only [mem_wkStages, h, ite_false]
+
 /-! ## The engine -/
 
 /-- WebKit's compositing policy (`RenderLayerCompositor::updateCompositingPolicy`, `WC/rendering/RenderLayerCompositor.cpp:691-719`):
@@ -186,11 +254,16 @@ animation costs only `comp` (UI-process Core Animation tick; `KeyframeEffect.cpp
 commit sent "even if nothing changed" (`WK/WebProcess/WebPage/RemoteLayerTree/RemoteLayerTreeDrawingArea.mm:319-443`).
 CONFIRMED.
 
-$$\operatorname{webkitAt}(m) = \big(m,\ c \mapsto \operatorname{stages}(\operatorname{diff}(c)),\ [\mathrm{comp}],\ [\mathrm{commit}]\big)$$
+Since CI run 39088367495 a change's `props` stage is the compositing table `wkCompUpdate`, not `diffStages`
+(`wkStages`).
+
+$$\operatorname{webkitAt}(m) = \big(m,\ \operatorname{wkStages},\ [\mathrm{comp}],\ [\mathrm{commit}]\big)$$
+
+The WebKit engine of mode `m`.
 -/
 def webkitAt (m : WkMode) : Engine WkProp WkMode where
   mode := m
-  stagesOf c := diffStages (wkDiff c)
+  stagesOf := wkStages
   compStages := [.comp]
   base := [.commit]
 
@@ -219,7 +292,10 @@ $$\forall m, \forall e \in \mathbb{N}, \forall \ell \in \mathrm{LayerState}:\ \m
 theorem opacityCross1_layout (m : WkMode) (e : Nat) (ℓ : LayerState) :
     Stage.layout ∈ (webkitAt m).stagesOf ⟨e, .opacityCross1, ℓ⟩ := by
   have h : wkDiff ⟨e, .opacityCross1, ℓ⟩ = .layout := by cases ℓ <;> rfl
-  simp [webkitAt, h, diffStages]
+  simp only [webkitAt]
+  refine (mem_wkStages_of_ne _ (s := .layout) (by decide)).2 ?_
+  rw [h]
+  decide
 
 /-- **stroke-dashoffset → layout.** A stroke-dashoffset change recomputes the cached stroke bounds, so it dirties
 layout on every layer state (`StyleDifference.cpp:161`; Chromium: paint).
@@ -229,7 +305,10 @@ $$\forall m, \forall e \in \mathbb{N}, \forall \ell \in \mathrm{LayerState}:\ \m
 theorem strokeDashoffset_layout (m : WkMode) (e : Nat) (ℓ : LayerState) :
     Stage.layout ∈ (webkitAt m).stagesOf ⟨e, .strokeDashoffset, ℓ⟩ := by
   have h : wkDiff ⟨e, .strokeDashoffset, ℓ⟩ = .layout := by cases ℓ <;> rfl
-  simp [webkitAt, h, diffStages]
+  simp only [webkitAt]
+  refine (mem_wkStages_of_ne _ (s := .layout) (by decide)).2 ?_
+  rw [h]
+  decide
 
 /-- A delivered scroll position dirties no stage by itself; its cost is the update's `base` (the commit).
 
@@ -256,8 +335,8 @@ theorem wk_not_mono : Diff.recomposite.rank < Diff.repaint.rank ∧
 -- the table rows
 #guard wkDiff ⟨1, .opacity, .own⟩ == .recomposite && wkDiff ⟨1, .opacity, .layer⟩ == .repaintLayer
 #guard wkDiff ⟨1, .opacity, .none⟩ == .repaint
-#guard wkDiff ⟨1, .filter, .own⟩ == .recomposite && wkDiff ⟨1, .filterPainted, .own⟩ == .repaintLayer
-#guard wkDiff ⟨1, .filter, .layer⟩ == .repaintLayer
+#guard wkDiff ⟨1, .filter, .own⟩ == .layout && wkDiff ⟨1, .filterPainted, .own⟩ == .repaintLayer
+#guard wkDiff ⟨1, .filter, .layer⟩ == .layout && wkDiff ⟨1, .filterPainted, .layer⟩ == .repaintLayer
 #guard wkDiff ⟨1, .clipPathShape, .own⟩ == .recomposite && wkDiff ⟨1, .clipPathShape, .layer⟩ == .repaint
 #guard wkDiff ⟨1, .clipPath, .own⟩ == .repaint
 #guard wkDiff ⟨1, .background, .own⟩ == .repaint && wkDiff ⟨1, .color, .none⟩ == .repaintIfText
@@ -265,8 +344,18 @@ theorem wk_not_mono : Diff.recomposite.rank < Diff.repaint.rank ∧
 #guard wkDiff ⟨1, .insetAbs, .own⟩ == .layoutOOFMoveOnly && wkDiff ⟨1, .size, .own⟩ == .layout
 #guard wkDiff ⟨1, .willChange, .none⟩ == .recomposite && wkDiff ⟨1, .scrollPos, .own⟩ == .equal
 #guard adjust .layoutOOFMoveOnly [.transform] .layer false false == .overflowOOF
-#guard webkit.stagesOf ⟨1, .transform, .layer⟩ == [.style, .layout, .paint]
+#guard webkit.stagesOf ⟨1, .transform, .layer⟩ == [.style, .layout, .props, .paint]
 #guard webkit.stagesOf ⟨1, .opacityCross1, .own⟩ == [.style, .layout, .props, .paint]
+-- the compositing table (CI run 39088367495)
+#guard webkit.stagesOf ⟨1, .transform, .own⟩ == [.style, .props]
+#guard webkit.stagesOf ⟨1, .opacity, .own⟩ == [.style] && webkit.stagesOf ⟨1, .opacity, .layer⟩ == [.style, .props, .paint]
+#guard webkit.stagesOf ⟨1, .filter, .own⟩ == [.style, .layout, .props, .paint]
+#guard webkit.stagesOf ⟨1, .background, .own⟩ == [.style, .props, .paint]
+#guard webkit.stagesOf ⟨1, .background, .layer⟩ == [.style, .paint] && webkit.stagesOf ⟨1, .color, .none⟩ == [.style, .paint]
+#guard webkit.stagesOf ⟨1, .mask, .layer⟩ == [.style, .props, .paint] && webkit.stagesOf ⟨1, .mask, .none⟩ == [.style, .paint]
+#guard webkit.stagesOf ⟨1, .insetAbs, .own⟩ == [.style, .layout, .props]
+#guard webkit.stagesOf ⟨1, .scrollPos, .own⟩ == [] && !wkCompUpdate ⟨1, .scrollPos, .own⟩
+#guard wkCompUpdate ⟨1, .willChange, .none⟩ && wkCompUpdate ⟨1, .clipPathShape, .own⟩
 
 /-! ## Composited state -/
 
@@ -633,20 +722,33 @@ $$\operatorname{js}(\mathit{cs}) = (1, 0, 0, 0, \mathit{cs}, 0)$$
 def jsFrame (cs : List (Change WkProp)) : FrameIn WkProp := ⟨1, 0, 0, 0, cs, 0⟩
 
 /-- **Repaint → recomposite accepted when the original already pays `props`.** Per scroll step, the original's
-handler repaints a background on box 1 (layer) and resizes box 2 (Layout, which pays `props`); the variant moves box 1
-by a transform on its composited layer (recomposite) and box 2 by `top` on an absolute box. Box 1 now pays a `props`
-unit and no paint; the original's Layout on box 2 already paid one `props` unit, so the union check holds.
+handler repaints a background on box 1 (its own composited layer, which pays a `props` unit) and resizes box 2
+(Layout, which pays `props`); the variant moves box 1 by a transform on its composited layer (recomposite, one
+`props` unit, no paint) and box 2 by `top` on an absolute box (Layout, one `props` unit). Each side pays two `props`
+units, so the union check holds.
 
-$$\operatorname{frameWork}_{\mathrm{webkit}}\big(\operatorname{scrollStep}(\operatorname{js}[(1, \mathrm{transform}, \mathrm{own}), (2, \mathrm{insetAbs}, \mathrm{none})])\big) \preceq \operatorname{frameWork}_{\mathrm{webkit}}\big(\operatorname{scrollStep}(\operatorname{js}[(1, \mathrm{background}, \mathrm{layer}), (2, \mathrm{size}, \mathrm{none})])\big)$$
+Changed since CI run 39088367495: box 1 of the original was on a layer it does not own (`layer`) and the variant's
+absolute move paid no `props`. Under the compositing table (`wkCompUpdate`) the absolute move pays `props`, so that
+old pair is now rejected (guard below); the original's repaint on its own layer pays `props` instead.
+
+$$\operatorname{frameWork}_{\mathrm{webkit}}\big(\operatorname{scrollStep}(\operatorname{js}[(1, \mathrm{transform}, \mathrm{own}), (2, \mathrm{insetAbs}, \mathrm{none})])\big) \preceq \operatorname{frameWork}_{\mathrm{webkit}}\big(\operatorname{scrollStep}(\operatorname{js}[(1, \mathrm{background}, \mathrm{own}), (2, \mathrm{size}, \mathrm{none})])\big)$$
+
+Moving a box by a composited transform costs no more than repainting a box that owns its layer plus a resize.
 -/
 theorem trade_accepted :
     (frameWork webkit (scrollStep (jsFrame [⟨1, .transform, .own⟩, ⟨2, .insetAbs, .none⟩]))).le
-      (frameWork webkit (scrollStep (jsFrame [⟨1, .background, .layer⟩, ⟨2, .size, .none⟩]))) :=
+      (frameWork webkit (scrollStep (jsFrame [⟨1, .background, .own⟩, ⟨2, .size, .none⟩]))) :=
   frame_le_union webkit (by decide)
 
--- the bare trade is not accepted: the original pays no `props`, the variant does (C-2).
+-- the bare trade against a repaint on a non-owned layer is not accepted: the original pays no `props`, the
+-- variant does (C-2).
 #guard !unionLe webkit (scrollStep (jsFrame [⟨1, .transform, .own⟩])) (scrollStep (jsFrame [⟨1, .background, .layer⟩]))
+-- against a repaint on its own layer the bare trade is accepted: both pay one `props` unit.
+#guard unionLe webkit (scrollStep (jsFrame [⟨1, .transform, .own⟩])) (scrollStep (jsFrame [⟨1, .background, .own⟩]))
 #guard unionLe webkit (scrollStep (jsFrame [⟨1, .transform, .own⟩, ⟨2, .insetAbs, .none⟩]))
+  (scrollStep (jsFrame [⟨1, .background, .own⟩, ⟨2, .size, .none⟩]))
+-- sign change (CI run 39088367495): the old pair is rejected, the absolute move now pays `props`.
+#guard !unionLe webkit (scrollStep (jsFrame [⟨1, .transform, .own⟩, ⟨2, .insetAbs, .none⟩]))
   (scrollStep (jsFrame [⟨1, .background, .layer⟩, ⟨2, .size, .none⟩]))
 
 /-- The blur filter animation: a time-based `filter` animation (blur, no drop-shadow) with no disqualifier.
@@ -722,7 +824,7 @@ $$\operatorname{stagesOf}^{X}_{\mathrm{wk}}(e, x, \ell) = \begin{cases} \operato
 The stages each extended WebKit change dirties. -/
 def wkStagesOfX (c : Change WkPropX) : List Stage :=
   match c.prop with
-  | .base p => diffStages (wkDiff ⟨c.elem, p, c.layer⟩)
+  | .base p => wkStages ⟨c.elem, p, c.layer⟩
   | .restyle | .customInherited => [.style]
   | .pointerEvents => [.style, .props]
   | .svgResourceAttr => [.style, .layout, .paint]
@@ -1138,9 +1240,10 @@ def predOf (sc n k : String) : String :=
 -- layout and compositing updates are as before.
 #guard predOf "P4" "scrollDriven" "renderingUpdates" == "=o" && predOf "P4" "scrollDriven" "styleRecalcs" == "=o"
 #guard predOf "P4" "scrollDriven" "layoutUpdates" == "=0" && predOf "P4" "scrollDriven" "compositingUpdates" == "=0"
--- P5: the 2D transform lays out (Overflow); the 3D op removes layout and adds a compositing update.
+-- P5: the 2D transform lays out (Overflow) and, since CI run 39088367495, pays a compositing update too (a
+-- layout-level difference always schedules a compositing update); the 3D op removes layout and keeps one update.
 #guard predOf "P5" "original" "layoutUpdates" == ">0" && predOf "P5" "js3d" "layoutUpdates" == "=0"
-#guard predOf "P5" "js3d" "compositingUpdates" == ">o" && predOf "P5" "js3d" "renderingUpdates" == "=o"
+#guard predOf "P5" "js3d" "compositingUpdates" == "=o" && predOf "P5" "js3d" "renderingUpdates" == "=o"
 #guard predOf "P9" "original" "Layout" == "?"
 
 /-! ### Backing store attach and detach (ledger n=7 and n=11) -/
