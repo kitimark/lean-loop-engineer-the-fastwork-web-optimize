@@ -5180,7 +5180,8 @@
     "packages/measure-chromium/test/**",
     "research/notes/2026/10-19-page-root-clip.md",
     "docs/team/handoffs/page-root-clip.md"
-   ]
+   ],
+   "evidence": "7897387"
   },
   {
    "id": "commission-resize",

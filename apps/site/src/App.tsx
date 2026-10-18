@@ -59,6 +59,7 @@ export function App({ config }: { config: FwConfig }) {
         countdown={<MorphCountdown variant={config.variants['morph.countdown'] ?? 'faithful'} impl={config.impl['morph.countdown']} />}
       />
 
+      <div data-fw="page-root">
       <main>
         <Hero variants={config.variants} />
         <People variants={config.variants} />
@@ -76,6 +77,7 @@ export function App({ config }: { config: FwConfig }) {
         />
         <MorphColumns variant={config.variants['morph.columns'] ?? 'faithful'} />
       </main>
+      </div>
 
       <Menu open={anchor !== null} anchorEl={anchor} onClose={() => setAnchor(null)}>
         <MenuItem onClick={() => setAnchor(null)}>Item one</MenuItem>
