@@ -10,8 +10,8 @@
 // B, P, D, platform are piecewise linear in the layout width with step edges (text wraps), represented as a sum of
 // clamped ramps so that CSS needs no media query: v0 + sum s_i * clamp(0, W - k_i, d_i), W = max(w, 320) (the original floors at 320).
 
-export const SECTION_IDS = ['people', 'pain', 'commission', 'platform'] as const;
-export type SectionId = (typeof SECTION_IDS)[number];
+export const SECTION_IDS = ['pain', 'commission', 'platform'] as const; // people: ported (people.card ...), no shell box
+export type SectionId = 'people' | (typeof SECTION_IDS)[number];
 
 export interface Sample {
   w: number;

@@ -74,6 +74,18 @@ export function cell(ra, rb, a, b, equal) {
   return report(a, b, equal);
 }
 
+/**
+ * Fw.Gate.Settle.viewFor: whether the probes of an engine bring a skipped part into view and read it again. `sw` is the value of
+ * FW_GATE_VIEW (undefined when unset): '1' on, '0' off, anything else no switch. Without a switch Chromium reads again (its
+ * getComputedStyle reads stale used auto margins in a skipped subtree) and WebKit does not (the scroll flips the commission scene).
+ * `name` is the launcher name; an unknown one reads nothing again.
+ */
+export function viewFor(sw, name) {
+  if (sw === '1') return true;
+  if (sw === '0') return false;
+  return name === 'chromium';
+}
+
 /** Fw.Gate.Settle.view: the reading the gate keeps for a node. `bring`: the node's part was brought into view and read again. */
 export const view = (bring, first, again) => (bring ? again : first);
 

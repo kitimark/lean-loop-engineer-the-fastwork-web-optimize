@@ -356,14 +356,17 @@ hold on its recorded cells after the model fix (`cr.layout`, `cr.props`, `cr.pai
 $p_{30}$, the WKTR style-rate premise (task wktr-p1p4), whose counter `internals.styleRecalcCount` only
 WebKitTestRunner exposes.
 
-$$\operatorname{registry} = [p_1, \dots, p_{30}]$$
+The two `content-visibility` view premises of fix-commission-margin ($p_{31}$, $p_{32}$: `cv.skip-flag`, `cv.fresh-after-resize`) are page tests.
+
+$$\operatorname{registry} = [p_1, \dots, p_{32}]$$
 $$\begin{aligned}
 \mathrm{id}(p_1..p_{17}) &= [\texttt{anim.list}, \texttt{cv.auto-margin}, \texttt{cv.read-forces-lock}, \texttt{frame.raf-order}, \texttt{frame.ro-same-frame}, \texttt{resize.lag}, \texttt{clock.raf-timeline}, \texttt{css.number-linear}, \texttt{css.inherits-false}, \\
 &\qquad \texttt{dom.token-toggle-noop}, \texttt{dom.inline-same-value}, \texttt{read.forced-update}, \texttt{hit.pointer-events}, \texttt{layout.unit-truncation}, \texttt{io.async-delivery}, \\
 &\qquad \texttt{grid.normal-aspect-ratio-no-stretch}, \texttt{grid.stretch-fill-equals-start}] \quad (\text{page}) \\
 \mathrm{id}(p_{18}..p_{22}) &= [\texttt{cr.script}, \texttt{cr.style}, \texttt{cr.commit}, \texttt{wk.style}, \texttt{wk.commit}] \quad (\text{lane}, \texttt{engine-premises.yml}) \\
 \mathrm{id}(p_{23}..p_{29}) &= [\texttt{cr.layout}, \texttt{cr.props}, \texttt{cr.paint}, \texttt{cr.raster}, \texttt{cr.hits}, \texttt{wk.layout}, \texttt{wk.props}] \quad (\text{lane}, \texttt{engine-premises.yml}) \\
-\mathrm{id}(p_{30}) &= \texttt{wktr\_scroll\_timeline\_restyle} \quad (\text{lane}, \texttt{wktr-fixtures.yml})
+\mathrm{id}(p_{30}) &= \texttt{wktr\_scroll\_timeline\_restyle} \quad (\text{lane}, \texttt{wktr-fixtures.yml}) \\
+\mathrm{id}(p_{31}, p_{32}) &= [\texttt{cv.skip-flag}, \texttt{cv.fresh-after-resize}] \quad (\text{page})
 \end{aligned}$$
 -/
 def registry : List Premise := [
@@ -485,6 +488,16 @@ def registry : List Premise := [
     ["Fw.Engine.touched_of_cover", "Fw.Engine.WebKit.mem_wkStages", "Fw.Ops.EnginePremise.wk_recorded_holds"],
   laneRule "wk.props" "props" r"\texttt{compositingUpdates}" r"W_{\mathrm{wk}}" .webkit
     ["Fw.Engine.touched_of_cover", "Fw.Engine.WebKit.mem_wkStages", "Fw.Ops.EnginePremise.wk_recorded_holds"],
+  { id := "cv.skip-flag"
+    statement := r"\forall n:\ n \text{ is in a subtree the engine has skipped (} \texttt{content-visibility:auto} \text{, off screen)} \iff \texttt{checkVisibility}() \wedge \neg\,\texttt{checkVisibility}(\{\mathrm{contentVisibilityAuto}\})\text{; after } \texttt{scrollIntoView} \text{ and two frames the node is no longer skipped}"
+    theorems := ["Fw.Gate.Settle.viewCell_notRendered_iff", "Fw.Gate.Settle.skipped_after_view_only_if_brought"]
+    engines := both
+    testId := "prem.cv.skip-flag" },
+  { id := "cv.fresh-after-resize"
+    statement := r"\forall n \text{ with } \texttt{margin-inline:auto} \text{ and } \texttt{max-width}=m:\ \text{after a viewport resize while } n \text{ is skipped, once } n \text{ is brought into view and three frames pass, } \texttt{getComputedStyle}(n).\mathrm{margin\text{-}left} \text{ equals the geometry-derived margin } (\text{container width} - m)/2"
+    theorems := ["Fw.Gate.Settle.view_bring", "Fw.Gate.Settle.viewCell_fail_of_rendered_diff"]
+    engines := both
+    testId := "prem.cv.fresh-after-resize" },
   { id := "wktr_scroll_timeline_restyle"
     statement := r"\text{WKTR, one rendering update per scroll step: } \Delta\texttt{styleRecalcCount} = (\mu_{\mathrm{control}}, \mu_{\mathrm{timeline}}, \mu_{\mathrm{timeAccel}}) = (0, 1, 0) \text{ for a static control, a transform animation on } \texttt{scroll()} \text{ and an accelerated time-based transform animation}"
     theorems := ["Fw.Engine.WebKit.style_rate_model", "Fw.Engine.WebKit.style_rate_old_refuted"]

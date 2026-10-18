@@ -4,21 +4,23 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
+import { attachAlignFacts, collectAlignFacts } from './align-equiv.mjs';
 import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
 import { KIT_SRC, PIN_SRC, bringInPage, collectInPage, freezeInPage, prepareInPage, scrollTopInPage, settleInPage, waitReady, waitResize } from './page.mjs';
 import { HOLD_LOAD_MS, MAIN_OFF_MS, ORIG_GRACE_MS, POST_RESIZE_MS, READY_TO_MS, SLOT_MS, STEP_MS, checkAt, instant, lateWait, mountRank, newRec, observeAt, ovRank, stopBase, viewRank } from './freeze.mjs';
-import { GATE_POLICY, fold, idlePolicy, view, waitTrace } from './settle.mjs';
+import { GATE_POLICY, fold, idlePolicy, view, viewFor, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { makeViewBarrier, skippedParts, viewStage } from './view.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
+const collectWith = async (s, arg) => { const raw = await s.evaluate(collectInPage, arg); if (arg.props) attachAlignFacts(raw, await s.evaluate(collectAlignFacts, { parts: arg.parts, props: arg.props })); return raw; };
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
-// Lean Fw.Gate.Settle.viewCell in the probes: OFF unless FW_GATE_VIEW=1. Run 39086375181 (parts=commission): Chromium passed all
-// cells, WebKit failed 7 probes on the scroll-driven --commission-shrink / --commission-enter-shrink (0.4746 vs 0.3702): the
-// scroll that brings a part into view is a different scroll position in each arm (the page heights differ), so the second reading
-// carries a scroll-dependent value. The baseline (no view) passes commission on both engines (run 39083482125), so the default
-// stays the baseline; the rule needs a scroll position that is equal by construction before it can be switched on.
-const VIEW_ON = process.env.FW_GATE_VIEW === '1';
+// Lean Fw.Gate.Settle.viewCell in the probes, per engine (Lean Fw.Gate.Settle.viewFor, src/settle.mjs viewFor): ON for Chromium, OFF for
+// WebKit. Chromium needs it: its getComputedStyle reads stale used auto margins in a skipped content-visibility subtree (run
+// 39101532038: commission margin-inline 869.5 against 869 at one probe). WebKit breaks with it: scrolling flips the commission
+// scene's content-visibility and --commission-shrink in one arm (run 39105279831: 11 probes). FW_GATE_VIEW=1 forces it on both
+// engines, =0 off (debug switches, never a result). The bring scroll puts the part's first root at the viewport top in both arms.
+const VIEW_ENV = process.env.FW_GATE_VIEW;
 // The frozen clock (gate-shard-balance round 2, Lean Fw.Gate.Freeze, src/freeze.mjs): the page clock is frozen before load and moved
 // only by the harness, animations are frozen before each observation. On for the gate; off for the gaps lane (its own native
 // timing) and with FW_GATE_FROZEN=0 (a debug switch, never a result).
@@ -77,13 +79,14 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const frozen = FROZEN_ON && !gaps;
   const servers = { orig: await startServer(snapshotRoot()), rewrite: await startServer(dist, variantPage.rewrite) };
   const engine = await (gaps ? gaps.launcher : LAUNCHERS[engineName])();
+  const VIEW_ON = !gaps && viewFor(VIEW_ENV, engineName);
   const cond = gen.conditions.map((c) => ({ tsId: c.tsId, css: c.css, legacyCss: c.legacyCss }));
   const neutral = gen.neutral.map((n) => ({ tsId: n.tsId, css: n.css }));
   const partsArg = Object.fromEntries(['orig', 'rewrite'].map((site) => [site, Object.fromEntries(
     Object.entries(activeParts).map(([pid, p]) => {
       // a box is collected only where it is compared or used as a reference: the original's headline is animated text
       const needed = new Set(p.roles.flatMap((r) => (r.dims.length > 0 ? [r.role, ...(r.boxRel ? [r.boxRel.role] : [])] : [])));
-      return [pid, p.roles.map((r) => ({ role: r.role, selector: r[site], rect: needed.has(r.role) }))];
+      return [pid, p.roles.map((r) => ({ role: r.role, selector: r[site], rect: needed.has(r.role), inline: site === 'orig' ? (r.skipIfInline ?? []) : [] }))];
     }))]));
 
   async function load(env, site) {
@@ -178,7 +181,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     const at = (rank, label) => (ctx ? observeAt(s, instant(ctx.base, rank), freezeInPage, ctx.rec, label) : true);
     const pick = (ids) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => ids.includes(pid)));
     await at(0, 'main');
-    const raw = await s.evaluate(collectInPage, collectArg(site, env, props, pick(plainIds), view));
+    const raw = await collectWith(s, collectArg(site, env, props, pick(plainIds), view));
     for (const [j, pid] of ovIds.entries()) {
       const steps = overlayOf[site][pid] || [];
       if (steps.length > 0) {
@@ -187,7 +190,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
         if (settleRoots) (raw.overlaySettle ||= []).push(await settleRoots(partsArg[site][pid].map((r) => r.selector), env));
       }
       await at(ovRank(j), `overlay ${pid}`);
-      const one = await s.evaluate(collectInPage, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, view));
+      const one = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, view));
       raw.parts = { ...raw.parts, ...one.parts };
       if (steps.length > 0) await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
     }
@@ -199,7 +202,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
         if (settleRoots) (raw.overlaySettle ||= []).push(idleWait(ready.idle, site, env));
       }
       await at(mountRank(ovIds.length), 'mount');
-      const late = await s.evaluate(collectInPage, collectArg(site, env, props, pick(mtIds), view));
+      const late = await collectWith(s, collectArg(site, env, props, pick(mtIds), view));
       raw.parts = { ...raw.parts, ...late.parts };
     }
     if (props && view) await bringSkipped(s, site, env, props, raw, settleRoots, at, viewSync);
@@ -225,7 +228,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       bring: (roots) => s.evaluate(bringInPage, { roots }),
       settle: (roots) => (settleRoots ? settleRoots(roots, env) : null),
       at: (pid) => at(viewRank(ovIds.length, plainIds.indexOf(pid)), `view ${pid}`),
-      again: (pid) => s.evaluate(collectInPage, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, true)).then((r) => r.parts),
+      again: (pid) => collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, true)).then((r) => r.parts),
       keep: view,
       log: (pid, bt, still) => log(`  view ${engineName} ${site} ${env.width}x${env.height} ${pid}: ${bt.skippedBefore} skipped, ${still} still skipped`),
     }, raw, ids);
@@ -253,7 +256,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     const timed = Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => !overlayOf[site][pid]));
     for (let i = 0; i < SCAN_EXTRA; i++) {
       if (frozen) await s.advance(SCAN_GAP_MS); else await new Promise((r) => setTimeout(r, SCAN_GAP_MS));
-      scans.push((await s.evaluate(collectInPage, collectArg(site, refEnv, null, timed))).parts);
+      scans.push((await collectWith(s, collectArg(site, refEnv, null, timed))).parts);
     }
     declared[site] = unionDeclared(scans);
     if (site === 'rewrite') {

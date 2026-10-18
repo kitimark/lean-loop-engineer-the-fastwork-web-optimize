@@ -63,3 +63,11 @@
 {"a":"unsettled","b":"settled@1","equal":true,"kind":"report","name":"original unsettled, values equal","report":"unsettled"}
 {"a":"settled@1","b":"unsettled","equal":false,"kind":"report","name":"rewrite unsettled, values different","report":"unsettled"}
 {"a":"unsettled","b":"unsettled","equal":true,"kind":"report","name":"both unsettled","report":"unsettled"}
+{"engine":"chromium","kind":"viewFor","name":"chromium, no switch","switch":null,"view":true}
+{"engine":"playwright-webkit","kind":"viewFor","name":"webkit, no switch","switch":null,"view":false}
+{"engine":"playwright-webkit","kind":"viewFor","name":"webkit forced on","switch":"1","view":true}
+{"engine":"chromium","kind":"viewFor","name":"chromium forced off","switch":"0","view":false}
+{"engine":"chromium","kind":"viewFor","name":"chromium, empty switch","switch":"","view":true}
+{"engine":"playwright-webkit","kind":"viewFor","name":"webkit, other switch value","switch":"yes","view":false}
+{"engine":"firefox","kind":"viewFor","name":"unknown engine, no switch","switch":null,"view":false}
+{"engine":"firefox","kind":"viewFor","name":"unknown engine forced on","switch":"1","view":true}

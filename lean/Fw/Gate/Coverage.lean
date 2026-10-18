@@ -364,7 +364,7 @@ theorem roleItems_mem_roleKeys {a : Anchors} {rs : RoleSpec} {props : Option Rol
         exact .inl (.inr ⟨d, hd, rfl⟩)
       · refine ⟨rfl, ?_⟩
         simp only [roleKeys, List.mem_cons, List.mem_append, List.mem_map]
-        exact .inr ⟨p, hp, rfl⟩
+        exact .inr ⟨p, cmpAt_subset _ _ _ _ hp, rfl⟩
       · exact absurd rfl hc
   · simp only [List.mem_singleton] at h
     subst h
@@ -542,7 +542,7 @@ def exA : Anchors := ⟨[⟨"animation", "owned elsewhere"⟩], [⟨"layout", ["
 /-- Example part: role `r` with dimension `h`, skip set `layout`, skipped `top`.
 
 $$\pi_{\mathrm{ex}} = (\texttt{p},\ [\,(\texttt{r},\ D = [\texttt{h}],\ \text{sets } [\texttt{layout}],\ \text{skip } [\texttt{top}])\,])$$ -/
-def exSpec : PartSpec := ⟨"p", [⟨"r", none, ["h"], ["layout"], ["top"], "example"⟩]⟩
+def exSpec : PartSpec := ⟨"p", [⟨"r", none, ["h"], ["layout"], ["top"], [], "example"⟩]⟩
 
 #guard roleKeys exA exSpec.roles[0]! (some ⟨["color", "width", "top", "animation-name"], []⟩) ==
   [(.count, "count"), (.box, "h"), (.style, "color")]
@@ -620,7 +620,7 @@ def anchorsJson (a : Anchors) (specs : List PartSpec) : Json :=
       ("skipSets", Json.mkObj (a.skipSets.map fun s => (s.name, Json.mkObj [("props", strs s.props), ("why", .str s.why)])))]),
     ("parts", Json.mkObj (specs.map fun s => (s.id, Json.mkObj [("roles", .arr (s.roles.map fun r =>
       Json.mkObj [("role", .str r.role), ("boxRel", Json.null), ("dims", strs r.dims), ("skipSets", strs r.skipSets),
-        ("skipProps", strs r.skipProps), ("why", .str r.why)]).toArray)])))]
+        ("skipProps", strs r.skipProps), ("skipIfInline", strs r.skipIfInline), ("why", .str r.why)]).toArray)])))]
 
 -- Recorded properties in the run-header shape (`header.props`).
 def propsJson (props : List (String × PartProps)) : Json :=
@@ -653,8 +653,8 @@ def caseJson (k : Case) : Json :=
 
 -- Two parts: `a` (prefix skip, skip set, own skip, a dimension) and `b` (two roles, one without properties).
 def specs2 : List PartSpec :=
-  [⟨"a", [⟨"r", none, ["h", "w"], ["layout"], ["top"], "role r"⟩]⟩,
-   ⟨"b", [⟨"x", none, [], [], [], "role x"⟩, ⟨"y", none, ["x"], [], [], "role y"⟩]⟩]
+  [⟨"a", [⟨"r", none, ["h", "w"], ["layout"], ["top"], [], "role r"⟩]⟩,
+   ⟨"b", [⟨"x", none, [], [], [], [], "role x"⟩, ⟨"y", none, ["x"], [], [], [], "role y"⟩]⟩]
 
 -- Recorded properties for `specs2`: role `b.y` has none.
 def props2 : List (String × PartProps) :=
@@ -679,7 +679,7 @@ def cases : List Case :=
         ⟨"a", .any, none, .is "color", .any, .golden "gold/a.jsonl"⟩,
         ⟨"a", .any, none, .any, .any, .generated "gen/a.gen.css"⟩ ]⟩,
     ⟨"repository claims on a commission slice", ⟨[], []⟩,
-      [⟨"commission", [⟨"runway", none, ["h"], [], [], "runway"⟩, ⟨"section", none, ["h"], [], [], "section"⟩]⟩],
+      [⟨"commission", [⟨"runway", none, ["h"], [], [], [], "runway"⟩, ⟨"section", none, ["h"], [], [], [], "section"⟩]⟩],
       [("commission", [("runway", ⟨["height", "display"], []⟩), ("section", ⟨["--commission-shrink", "height"], []⟩)])],
       ["desktop"], ["packages/contracts/golden/parts/commission.jsonl"], claims⟩ ]
 
