@@ -80,17 +80,31 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (positionals[0] !== 'run' || !v.root || !v.out) { console.error('usage: lanes.mjs run --root <dir> --out <dir> [--passes N] [--mode auto|probe] [--req 1,2,3] | cleanup'); process.exit(2); }
   const lines = readGolden(v.golden);
   const reqs = v.mode === 'auto' ? [3] : v.req.split(',').map(Number);
-  try {
-    for (const req of reqs) {
-      const tag = v.mode === 'auto' ? 'auto' : `k${req}`;
-      const layout = layoutOf(lines, v.mode, req);
-      const out = resolve(v.out, tag);
-      mkdirSync(out, { recursive: true });
-      console.log(`layout ${tag}: ${layout.phases.map((p) => `${p.variant} width ${p.width} (${p.lanes.map((l) => l.length).join('+')} cells)`).join(', ')}`);
+  let hardFail = false;
+  for (const req of reqs) {
+    const tag = v.mode === 'auto' ? 'auto' : `k${req}`;
+    const layout = layoutOf(lines, v.mode, req);
+    const out = resolve(v.out, tag);
+    mkdirSync(out, { recursive: true });
+    console.log(`layout ${tag}: ${layout.phases.map((p) => `${p.variant} width ${p.width} (${p.lanes.map((l) => l.length).join('+')} cells)`).join(', ')}`);
+    const t0 = Date.now();
+    try {
       const r = await runLayout({ layout, root: resolve(v.root), out, passes: Number(v.passes) });
-      writeFileSync(join(out, 'spans-layout.json'), JSON.stringify({ tag, mode: v.mode, req, ...r }));
+      writeFileSync(join(out, 'spans-layout.json'), JSON.stringify({ tag, mode: v.mode, req, failed: false, ...r }));
       console.log(`layout ${tag}: ${r.totalMs} ms ${JSON.stringify(r.spans)}`);
-      cleanup(); // the next layout starts from no devices: the premise test must not inherit booted ones
+    } catch (e) {
+      // a layout that cannot run is an answer of the premise test (the premise fails for that width), not an error of the lane;
+      // the serial layout and the production layout must run
+      console.error(String(e?.stack || e));
+      for (const c of children) c.kill('SIGTERM');
+      children.clear();
+      writeFileSync(join(out, 'spans-layout.json'), JSON.stringify({ schema: 'fw.wktr.spans.layout/1', tag, mode: v.mode, req, failed: true, error: String(e?.message || e), totalMs: Date.now() - t0, phases: [], spans: {} }));
+      console.log(`layout ${tag}: FAILED after ${Date.now() - t0} ms`);
+      if (v.mode === 'auto' || req === 1) hardFail = true;
     }
-  } catch (e) { console.error(String(e?.stack || e)); for (const c of children) c.kill('SIGTERM'); cleanup(); process.exit(1); }
+    cleanup(); // the next layout starts from no devices: the premise test must not inherit booted ones
+    if (hardFail) break;
+  }
+  cleanup();
+  process.exit(hardFail ? 1 : 0);
 }

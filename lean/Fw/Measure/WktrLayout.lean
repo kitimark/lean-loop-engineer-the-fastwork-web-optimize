@@ -113,7 +113,12 @@ $$\mathrm{Held} = \mathrm{Variant} \to \mathbb{N} \to \mathrm{Bool}$$
 -/
 abbrev Held := Variant → Nat → Bool
 
-/-- The table with the entries of CI runs. `none` yet means serial for all: the conservative default. -/
+/-- The table with the entries of CI runs. Only the serial width is in: with two processes at once the class kinds of
+`layoutUpdates`, `compositingUpdates` and `ev_animTimelineInv` moved in both variants and the layout took longer than the
+serial one (run 39082884332, `parallel_no_gain`), so no wider width is held.
+
+$$\mathrm{held}(v, k) = [k = 1]$$
+-/
 def heldTable : Held := fun _ k => k == 1
 
 /-- The table of a premise test: every width is requested, whether or not the premise has been shown.
@@ -309,6 +314,22 @@ theorem classesEqual_comm (a b : List (CountType × Class)) : classesEqual a b =
 #guard classesEqual [("a", .deterministic), ("b", .stable 1 2)] [("b", .stable 3 9), ("a", .deterministic)]
 #guard !classesEqual [("a", .deterministic)] [("a", .stable 1 0)]
 #guard !classesEqual [("a", .deterministic)] [("a", .deterministic), ("b", .deterministic)]
+
+/-! ## Why k processes in one VM did not pay -/
+
+/-- **No gain from lanes that slow each other by the lane count**: `n` cells that take `a` each when run one at a time take
+`b` each when `k` lanes share the VM's cores. If the slowdown is at least `k` (`k a \le b`), the `k` lanes, each with `n / k`
+cells, take no less time than the serial run. Measured on a 3-core macOS VM (run 39082884332, job j2): the serial layout took 903 s
+and the two-lane layout 1967 s, so each cell took about 4.4 times as long with two lanes, more than the factor 2 it would have
+had to stay under.
+
+$$k \mid n \ \wedge\ k\,a \le b \ \Rightarrow\ n\,a \le \tfrac{n}{k}\,b$$
+-/
+theorem parallel_no_gain (n k a b : Nat) (hk : 0 < k) (hn : k ∣ n) (hb : k * a ≤ b) : n * a ≤ (n / k) * b := by
+  obtain ⟨m, rfl⟩ := hn
+  rw [Nat.mul_div_cancel_left _ hk]
+  calc k * m * a = m * (k * a) := by rw [Nat.mul_comm k m, Nat.mul_assoc]
+    _ ≤ m * b := Nat.mul_le_mul_left m hb
 
 /-! ## Job parallelism on the macOS slots -/
 

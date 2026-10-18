@@ -106,12 +106,19 @@ async function main() {
     assertions.push({ tag, arm: e.arm, variant: e.variant, type: e.type, expect: e.class, band: [e.lo, e.hi], observed: KIND[cls.class], passes: fs.length, sums, ok: expectOk(e, KIND[cls.class], sums) });
   }
 
+  // layouts that could not run (lanes.mjs records `failed`): the premise does not hold for that width
+  const failedTags = new Set();
+  for (const jd of dirs) for (const tag of existsSync(jd) ? readdirSync(jd) : []) {
+    const f = join(jd, tag, 'spans-layout.json');
+    if (/^k\d+$/.test(tag) && existsSync(f) && readJson(f).failed) failedTags.add(tag);
+  }
   const premise = [];
   const serial = classes.k1;
-  for (const tag of Object.keys(classes).filter((t) => /^k\d+$/.test(t) && t !== 'k1')) for (const variant of ['live', 'live-trace']) {
-    const arms = Object.keys(classes[tag]).filter((a) => classes[tag][a][variant] && serial?.[a]?.[variant]);
+  for (const tag of [...new Set([...Object.keys(classes), ...failedTags])].sort().filter((t) => /^k\d+$/.test(t) && t !== 'k1')) for (const variant of ['live', 'live-trace']) {
+    if (failedTags.has(tag)) { premise.push({ variant, k: Number(tag.slice(1)), held: false, arms: [], failed: true }); continue; }
+    const arms = Object.keys(classes[tag] ?? {}).filter((a) => classes[tag][a][variant] && serial?.[a]?.[variant]);
     const per = arms.map((a) => ({ arm: a, equal: classesEqual(serial[a][variant], classes[tag][a][variant]), diff: classDiff(serial[a][variant], classes[tag][a][variant]) }));
-    premise.push({ variant, k: Number(tag.slice(1)), held: serial && per.length > 0 && per.every((p) => p.equal), arms: per });
+    premise.push({ variant, k: Number(tag.slice(1)), held: Boolean(serial) && per.length > 0 && per.length === Object.values(serial).filter((vs) => vs[variant]).length && per.every((p) => p.equal), arms: per });
   }
 
   const spans = spanTable(dirs);
@@ -125,7 +132,7 @@ async function main() {
   for (const a of assertions) console.log(`| ${a.tag} | ${a.arm} | ${a.variant} | ${a.type} | ${a.expect} ${a.band ? a.band.join('..') : ''} | ${a.observed} | ${a.ok} |`);
   console.log('\n### premise (class kinds at k processes equal serial)\n');
   console.log('| variant | k | held | arms not equal (types) |\n|---|---|---|---|');
-  for (const p of premise) console.log(`| ${p.variant} | ${p.k} | ${p.held} | ${p.arms.filter((x) => !x.equal).map((x) => `${x.arm}: ${x.diff.join(',')}`).join('; ') || '-'} |`);
+  for (const p of premise) console.log(`| ${p.variant} | ${p.k} | ${p.held} | ${p.failed ? 'layout did not run' : p.arms.filter((x) => !x.equal).map((x) => `${x.arm}: ${x.diff.join(',')}`).join('; ') || '-'} |`);
   console.log('\n### spans (ms, CI VM wall time)\n');
   console.log('| job | tag | layout | pass mean (n) | arm mean (n) |\n|---|---|---|---|---|');
   for (const r of spans) console.log(`| ${r.job} | ${r.tag} | ${r.layoutMs} | ${JSON.stringify(r.passMeanMs)} (${r.passN}) | ${JSON.stringify(r.armMeanMs)} (${r.armN}) |`);
