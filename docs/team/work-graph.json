@@ -3872,6 +3872,23 @@
     ".github/workflows/**",
     "research/findings/ledger.json"
    ]
+  },
+  {
+   "id": "land-pool-fair",
+   "title": "(S) wire Lean poolFair into the land check pool (fwcore op): lands 56-60 s serial at load ~15 (poolSize 1) vs the 30 s ceiling; keep timeout re-run alone; measure on real lands",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-test-speed"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**",
+    "lean/Fw/Console/**",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/land-pool-fair.md"
+   ]
   }
  ],
  "deadline": {
