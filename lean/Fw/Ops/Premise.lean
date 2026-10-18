@@ -585,7 +585,7 @@ cases where every pass disagreed with the model of that run. Task engine-model-f
 every one of these cells is predicted (`Fw.Ops.EnginePremise.cr_recorded_holds`, `wk_recorded_holds`) and moved the
 seven rules into `registry`.
 
-$$\mathrm{refuted} = [(i, C_i)],\quad C_i = \{\text{cases } c \mid \text{presence of the counters of stage}(i) \text{ in } c \ne [\![\mathrm{stage}(i) \in \operatorname{touched}_{\text{old}}(c)]\!]\}$$
+$$\mathrm{refuted} = [(i, C_i)],\quad C_i = [\,\text{case } c \text{ in fixture order} \mid \text{presence of the counters of stage}(i) \text{ in } c \ne [\![\mathrm{stage}(i) \in \operatorname{touched}_{\text{old}}(c)]\!]\,] \text{ (as strings, with the observed direction)}$$
 
 The counterexamples that drove the engine-model-fix change. -/
 def refutedPremises : List (String × List String) := [
