@@ -281,8 +281,8 @@ $$\forall c, r_0, f, r:\ \operatorname{add}(c, r_0, f)(r) = \begin{cases} f :: c
 def addModule (cone : String → List String) (root f : String) : String → List String :=
   fun r => if r = root then f :: cone r else cone r
 
-/-- An expanded input under one cone map is an expanded input under any other, or a cone file whose root's whole cone
-the other map also expands.
+/-- An expanded input under one cone map is an expanded input under the other map, unless it is a cone file of a root
+whose whole cone the other map expands.
 $$\forall c, c', G, g:\ g \in \operatorname{expand}(\operatorname{setMap}(c), G) \Rightarrow g \in \operatorname{expand}(\operatorname{setMap}(c'), G) \lor \exists r:\ g \in c(r) \land c'(r) \subseteq \operatorname{expand}(\operatorname{setMap}(c'), G)$$ -/
 theorem mem_expand_setMap (c c' : String → List String) (gs : List String) (g : String)
     (h : g ∈ expand (setMap c) gs) :
@@ -372,7 +372,7 @@ theorem push_filter_passes (c : String → List String) (hc : ConeWithin c) (w :
 /-- **A new module under `lean/Fw` changes no workflow file.** The push paths take no cone, so they are the same
 before and after; and if the new file is literal and inside $C$, the grown cones still stay inside $C$, so the same
 push paths still pass every push the guard starts.
-$$\forall c, r_0, f:\ \operatorname{within}(c) \land \operatorname{lit}(f) \land \mathrm{in}(\mathrm{parse}(C), f) \Rightarrow \operatorname{within}(\operatorname{add}(c, r_0, f)) \land \forall w, D, m:\ \operatorname{starts}(w, \operatorname{setMap}(\operatorname{add}(c, r_0, f)), \operatorname{eff}(D, m)) \Rightarrow \operatorname{sel}(\operatorname{push}(w), D)$$ -/
+$$\forall c, r_0, f:\ \bigl(\operatorname{within}(c) \land \operatorname{lit}(f) \land \mathrm{in}(\mathrm{parse}(C), f)\bigr) \Rightarrow \Bigl(\operatorname{within}(\operatorname{add}(c, r_0, f)) \land \forall w, D, m:\ \bigl(\operatorname{starts}(w, \operatorname{setMap}(\operatorname{add}(c, r_0, f)), \operatorname{eff}(D, m)) \Rightarrow \operatorname{sel}(\operatorname{push}(w), D)\bigr)\Bigr)$$ -/
 theorem paths_stable_under_new_module (c : String → List String) (root f : String) (hc : ConeWithin c)
     (hl : Literal f) (hf : inScope (parseScope coneGlobs) f = true) :
     ConeWithin (addModule c root f) ∧ ∀ (w : Wf) (diff : List String) (differs : String → Bool),
@@ -408,7 +408,7 @@ def filtered (diff : List String) : List String :=
 def strs (xs : List String) : Json := .arr (xs.map Json.str).toArray
 
 /-- The table line: workflows with branches and symbolic inputs, and the named sets.
-$$\operatorname{tableLine} = \{\texttt{kind}: \texttt{table},\ \texttt{workflows}: W,\ \texttt{sets}: \mathrm{sets},\ \texttt{coneGlobs}: C\}$$ -/
+$$\operatorname{tableLine} = \{\texttt{kind}: \texttt{table},\ \texttt{workflows}: [\,\{\texttt{file}: w.\mathit{file},\ \texttt{branches}: w.B,\ \texttt{inputs}: w.G\} : w \in W\,],\ \texttt{sets}: \mathrm{sets},\ \texttt{coneGlobs}: C\}$$ -/
 def tableLine : Json :=
   Json.mkObj [("kind", "table"),
     ("workflows", .arr (table.map fun w => Json.mkObj [("file", .str w.file), ("branches", strs w.branches),
@@ -439,7 +439,7 @@ def cases : List (String × List String × List String) := [
 
 /-- One replay line: the diff, the merged paths, the sample cones, the started workflows and the workflows whose
 static push filter passes the diff.
-$$\operatorname{caseLine}(n, D, M) = \{n, D, M, \operatorname{run}(D, M), \operatorname{filtered}(D)\}$$ -/
+$$\operatorname{caseLine}(n, D, M) = \{\texttt{kind}: \texttt{case},\ \texttt{name}: n,\ \texttt{diff}: D,\ \texttt{merged}: M,\ \texttt{cones}: \{\texttt{Main}: \mathrm{cone}(\mathrm{Main}),\ \texttt{BreakgenMain}: \mathrm{cone}(\mathrm{BreakgenMain})\},\ \texttt{started}: \operatorname{run}(D, M),\ \texttt{filtered}: \operatorname{filtered}(D)\}$$ -/
 def caseLine (c : String × List String × List String) : Json :=
   Json.mkObj [("kind", "case"), ("name", .str c.1), ("diff", strs c.2.1), ("merged", strs c.2.2),
     ("cones", Json.mkObj [("Main", strs (sampleCone "Main")), ("BreakgenMain", strs (sampleCone "BreakgenMain"))]),
