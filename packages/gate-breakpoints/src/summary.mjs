@@ -61,9 +61,11 @@ function settleOf(label, state) {
 const unsettledRows = (rows) => Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, String(v).startsWith('unreachable') ? v : 'not-comparable']));
 
 /**
- * Probes the collector flagged unrendered (Fw.Gate.Settle.cell; an item carrying `skipped: true`). INERT today: collectInPage flags
- * nothing, because a content-visibility skip is not a reason to drop a probe (premise-tests run 39076735134: an auto margin in a
- * skipped subtree resolves to px). A flag needs its own tested premise. A flagged item gets no verdict: the other arm's item is
+ * Probes the collector flagged unrendered (Fw.Gate.Settle.cell; an item carrying `skipped: true`). collectInPage flags a node whose
+ * subtree the engine has skipped (premise cv.skip-flag: checkVisibility() true, checkVisibility({contentVisibilityAuto:true}) false),
+ * and run.mjs bringSkipped then scrolls the part into view, settles and reads again (Fw.Gate.Settle.viewCell: the second reading
+ * replaces the first), so only a node still skipped after that reaches here. A skipped subtree's used auto margins can be stale
+ * after a resize and are fresh once it is visible (premise cv.fresh-after-resize), so the first reading is not a verdict. A flagged item gets no verdict: the other arm's item is
  * copied over it before Lean compares (so it can neither fail nor pass), and a part row that would pass is not-comparable.
  * Returns the state with the copies and the list of masked items.
  */

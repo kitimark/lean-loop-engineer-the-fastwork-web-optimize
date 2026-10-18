@@ -236,10 +236,10 @@ private def both : List Engine := [.chromium, .webkit]
 /-- **The registry.** Every empirical browser premise a Lean theorem relies on, its theorems and its test. Sources: the
 gate-settle and fix-commission tasks, `Fw.Engine.Core` (`frameWorkE`, forced updates R4) and `Lessons`, and the
 premises of `research/findings/ledger.json` that a static page can assert (R3, R5, `Faithful`, the `inherits` premise,
-the allow-list premise AL, the write-on-change premises, IO delivery), and the grid alignment premises of `Fw.Gate.AlignEquiv` (gate-align-equiv). Premises that need engine counters
+the allow-list premise AL, the write-on-change premises, IO delivery), and the grid alignment premises of `Fw.Gate.AlignEquiv` (gate-align-equiv), and the two `content-visibility` view premises of fix-commission-margin (`cv.skip-flag`, `cv.fresh-after-resize`). Premises that need engine counters
 (compositing bits, per-stage counts) stay with the engine-check lane (`fw engine-check`, tests F0-F4).
 
-$$\operatorname{registry} = [p_1, \dots, p_{17}]$$
+$$\operatorname{registry} = [p_1, \dots, p_{19}]$$
 -/
 def registry : List Premise := [
   { id := "anim.list"
@@ -326,7 +326,17 @@ def registry : List Premise := [
     statement := r"\text{on a fresh load, for every arm } s \text{ and its used layout } L,\ \operatorname{agrees}(s, L) \text{: the content size respects min/max, the resolved } \texttt{grid-template-rows} \text{ and } \texttt{row-gap} \text{ are the used track sizes and gap, the item's row is one of them, and its measured offset and outer size are its placed box; tested on single-column grids where the } \texttt{start}\text{-aligned item fills its row and } \texttt{stretch} \text{ gives the same box}"
     theorems := ["Fw.Gate.AlignEquiv.equivSpec_sound"]
     engines := both
-    testId := "prem.grid.stretch-fill-equals-start" }
+    testId := "prem.grid.stretch-fill-equals-start" },
+  { id := "cv.skip-flag"
+    statement := r"\forall n:\ n \text{ is in a subtree the engine has skipped (} \texttt{content-visibility:auto} \text{, off screen)} \iff \texttt{checkVisibility}() \wedge \neg\,\texttt{checkVisibility}(\{\mathrm{contentVisibilityAuto}\})\text{; after } \texttt{scrollIntoView} \text{ and two frames the node is no longer skipped}"
+    theorems := ["Fw.Gate.Settle.viewCell_notRendered_iff", "Fw.Gate.Settle.skipped_after_view_only_if_brought"]
+    engines := both
+    testId := "prem.cv.skip-flag" },
+  { id := "cv.fresh-after-resize"
+    statement := r"\forall n \text{ with } \texttt{margin-inline:auto} \text{ and } \texttt{max-width}=m:\ \text{after a viewport resize while } n \text{ is skipped, once } n \text{ is brought into view and three frames pass, } \texttt{getComputedStyle}(n).\mathrm{margin\text{-}left} \text{ equals the geometry-derived margin } (\text{container width} - m)/2"
+    theorems := ["Fw.Gate.Settle.view_bring", "Fw.Gate.Settle.viewCell_fail_of_rendered_diff"]
+    engines := both
+    testId := "prem.cv.fresh-after-resize" }
 ]
 
 /-- The premise ids are pairwise distinct.

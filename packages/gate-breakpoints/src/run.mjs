@@ -6,8 +6,8 @@ import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
 import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
 import { attachAlignFacts, collectAlignFacts } from './align-equiv.mjs';
-import { PIN_SRC, collectInPage, prepareInPage, settleInPage, waitReady, waitResize } from './page.mjs';
-import { GATE_POLICY, waitTrace } from './settle.mjs';
+import { PIN_SRC, bringInPage, collectInPage, prepareInPage, scrollTopInPage, settleInPage, waitReady, waitResize } from './page.mjs';
+import { GATE_POLICY, view, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
@@ -138,7 +138,36 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       const late = await collectWith(s, collectArg(site, env, props, pick(mountIds, true)));
       raw.parts = { ...raw.parts, ...late.parts };
     }
+    if (props) await bringSkipped(s, site, env, props, raw, settleRoots);
     return raw;
+  }
+  // Lean Fw.Gate.Settle.view. A part with a node read in a skipped content-visibility subtree (page.mjs collectInPage flags it) is
+  // brought into view, settled and read again; the second reading is the one kept (`view true first again`, node by node), the
+  // first is recorded under raw.viewFirst. A node still skipped carries the flag again and summary.mjs maskNotRendered gives it no
+  // verdict (cell notRendered). A part without a skipped node is left exactly as read. The page is scrolled back to the top.
+  async function bringSkipped(s, site, env, props, raw, settleRoots) {
+    const skippedIds = Object.entries(raw.parts)
+      .filter(([pid, roles]) => !mountOf[site][pid] && !overlayOf[site][pid] && Object.values(roles).some((r) => r.items.some((it) => it.skipped)))
+      .map(([pid]) => pid);
+    if (skippedIds.length === 0) return;
+    raw.viewFirst = {};
+    raw.viewed = {};
+    for (const pid of skippedIds) {
+      const roots = partsArg[site][pid].map((r) => r.selector);
+      const b = await s.evaluate(bringInPage, { roots });
+      const wait = settleRoots ? await settleRoots(roots, env) : null;
+      if (wait) (raw.overlaySettle ||= []).push(wait); // the sample is unsettled when this wait is
+      const again = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }));
+      const first = raw.parts[pid];
+      raw.viewFirst[pid] = first;
+      raw.parts[pid] = Object.fromEntries(Object.entries(first).map(([role, fr]) => [role, {
+        ...fr, items: fr.items.map((it, i) => view(true, it, again.parts[pid][role].items[i] ?? it)),
+      }]));
+      const still = Object.values(raw.parts[pid]).reduce((n, r) => n + r.items.filter((it) => it.skipped).length, 0);
+      raw.viewed[pid] = { skippedBefore: b.skippedBefore, stillSkipped: still, scrollY: b.scrollY, ...(wait ? { settle: wait.outcome } : {}) };
+      log(`  view ${engineName} ${site} ${env.width}x${env.height} ${pid}: ${b.skippedBefore} skipped, ${still} still skipped`);
+    }
+    await s.evaluate(scrollTopInPage);
   }
 
   // Phase 0: the property lists. Declared names depend on the stylesheets and the elements, not on the environment,
