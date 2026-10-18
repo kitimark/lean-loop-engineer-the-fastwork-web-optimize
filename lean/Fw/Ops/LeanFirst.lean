@@ -175,7 +175,7 @@ def allowRoots : List String := ["docs", "research"]
 /-- **Is a write glob (or a changed path) decision code?** Yes, unless it equals an allowlisted root or starts with
 a root followed by `/`. Fail closed: every other glob, `*`-globs and `.md` globs included, may cover decision code
 (`Fw.Ops.LeanFirstProps.DecisionWrite` is the rule this decides).
-$$\operatorname{dec}(w) \iff \lnot\exists d \in \mathrm{roots},\ w = d \lor \exists r,\ w = d \mathbin{+\!\!+} \texttt{/} \mathbin{+\!\!+} r$$ -/
+$$\forall w,\ \operatorname{dec}(w) = \mathrm{true} \iff \lnot\exists d \in \mathrm{roots},\ (w = d \lor \exists r,\ w = d \mathbin{+\!\!+} \texttt{/} \mathbin{+\!\!+} r)$$ -/
 def isDecisionWrite (w : String) : Bool :=
   !allowRoots.any fun d => w.toList == d.toList || (d.toList ++ ['/']).isPrefixOf w.toList
 
@@ -215,7 +215,7 @@ $$\operatorname{new}(F, t) \iff B(t.\mathit{name}) \ne \mathrm{some}(t.\mathit{h
 def isNew (F : Facts) (t : ThmFact) : Bool := F.baseline.lookup t.name != some t.hash
 
 /-- Does some theorem with this name have a kill at its hash?
-$$\operatorname{killed}(F, n) \iff \exists u \in \mathit{thms},\ u.\mathit{name} = n \land \operatorname{hasKill}(F, u)$$ -/
+$$\operatorname{killed}(F, n) \iff \exists u \in F.\mathit{thms},\ u.\mathit{name} = n \land \operatorname{hasKill}(F, u)$$ -/
 def killedName (F : Facts) (n : String) : Bool := F.thms.any fun u => u.name == n && hasKill F u
 
 /-- **Exempt from its own kill** (rule 2): a data lint or a kill witness, or a lemma: a new theorem without a kill of
@@ -240,19 +240,19 @@ def discharges (F : Facts) (t : ThmFact) (P : PropFact) : Bool :=
   t.proves == some P.name && t.implArg.isSome && t.axiomsOk && !exempt F t && untestedOk F t P
 
 /-- Is the property proved: some theorem discharges it?
-$$\operatorname{proved}(F, P) \iff \exists t \in \mathit{thms},\ \operatorname{dis}(F, t, P)$$ -/
+$$\operatorname{proved}(F, P) \iff \exists t \in F.\mathit{thms},\ \operatorname{dis}(F, t, P)$$ -/
 def proved (F : Facts) (P : PropFact) : Bool := F.thms.any fun t => discharges F t P
 
 /-- **Proved of a reached implementation** (rules 1c and 1d together): one theorem discharges the property, and the
 implementation named by that theorem's own `implArg` is reached from the wire. A reached definition elsewhere does
 not count.
-$$\operatorname{provedReached}(F, P) \iff \exists t \in \mathit{thms},\ \operatorname{dis}(F, t, P) \land t.\mathit{rw} = \mathrm{some}(\mathrm{true})$$ -/
+$$\operatorname{provedReached}(F, P) \iff \exists t \in F.\mathit{thms},\ \operatorname{dis}(F, t, P) \land t.\mathit{rw} = \mathrm{some}(\mathrm{true})$$ -/
 def provedReached (F : Facts) (P : PropFact) : Bool :=
   F.thms.any fun t => discharges F t P && t.reachFromWire == some true
 
 /-- Is the reach of some candidate theorem unknown: it is `Q impl` for a property `Q` of the task, with a named
 implementation, and MathView reports no `reachFromWire`?
-$$\operatorname{reachUnknown}(F) \iff \exists t \in \mathit{thms},\ t.\mathit{rw} = \mathrm{none} \land t.\mathit{implArg} \ne \mathrm{none} \land \exists Q \in \mathit{props},\ t.\mathit{proves} = \mathrm{some}(Q.\mathit{name})$$ -/
+$$\operatorname{reachUnknown}(F) \iff \exists t \in F.\mathit{thms},\ t.\mathit{rw} = \mathrm{none} \land t.\mathit{implArg} \ne \mathrm{none} \land \exists Q \in F.\mathit{props},\ t.\mathit{proves} = \mathrm{some}(Q.\mathit{name})$$ -/
 def reachUnknown (F : Facts) : Bool :=
   F.thms.any fun t => t.reachFromWire.isNone && t.implArg.isSome && F.props.any fun Q => t.proves == some Q.name
 
@@ -419,8 +419,8 @@ def Missing.name : Missing → String
   | .mathview => "mathview" | .kills => "kills" | .tsLint => "ts-lint" | .reach => "reach" | .exempt => "exempt-main"
 
 /-- The missing facts, in a fixed order: each absent source, an unknown reach, and exemption classes not read at
-the main commit $m$.
-$$\operatorname{missing}(F) = [\mathrm{mathview} \mid \lnot\pi.\mathit{mathview}] \mathbin{+\!\!+} [\mathrm{kills} \mid \lnot\pi.\mathit{kills}] \mathbin{+\!\!+} [\mathrm{tsLint} \mid \lnot\pi.\mathit{tsLint}] \mathbin{+\!\!+} [\mathrm{reach} \mid \operatorname{reachUnknown}(F)] \mathbin{+\!\!+} [\mathrm{exempt} \mid x \ne \mathrm{some}(m)]$$ -/
+the main commit `F.mainAt` (each bracket is the one-element list when its condition holds, else empty).
+$$\forall F,\ \operatorname{missing}(F) = [\mathrm{mathview} \mid F.\mathit{present}.\mathit{mathview} = \mathrm{false}] \mathbin{+\!\!+} [\mathrm{kills} \mid F.\mathit{present}.\mathit{kills} = \mathrm{false}] \mathbin{+\!\!+} [\mathrm{tsLint} \mid F.\mathit{present}.\mathit{tsLint} = \mathrm{false}] \mathbin{+\!\!+} [\mathrm{reach} \mid \operatorname{reachUnknown}(F)] \mathbin{+\!\!+} [\mathrm{exempt} \mid F.\mathit{exemptAt} \ne \mathrm{some}(F.\mathit{mainAt})]$$ -/
 def missing (F : Facts) : List Missing :=
   (if F.present.mathview then [] else [.mathview]) ++ (if F.present.kills then [] else [.kills]) ++
   (if F.present.tsLint then [] else [.tsLint]) ++ (if reachUnknown F then [.reach] else []) ++
@@ -538,7 +538,7 @@ def shadowLines (s : Stage) (F : Facts) : List String :=
   else (missing F).map fun m => mkLine .shadow ("shadow missing " ++ m.name)
 
 /-- The `WARN` lines: one per new theorem and untested premise it assumes (rule 4d).
-$$\operatorname{warn}(F) = [\operatorname{line}(\mathrm{warn}, \texttt{lean-first:premises untested␣} \mathbin{+\!\!+} t \mathbin{+\!\!+} \texttt{␣} \mathbin{+\!\!+} p) \mid t \in \mathit{thms},\ \operatorname{new}(F, t),\ p \in t.\mathit{assumes},\ \operatorname{status}(F, p) = \mathrm{some}(\mathrm{untested})]$$ -/
+$$\operatorname{warn}(F) = [\operatorname{line}(\mathrm{warn}, \texttt{lean-first:premises untested␣} \mathbin{+\!\!+} t \mathbin{+\!\!+} \texttt{␣} \mathbin{+\!\!+} p) \mid t \in F.\mathit{thms},\ \operatorname{new}(F, t),\ p \in t.\mathit{assumes},\ \operatorname{status}(F, p) = \mathrm{some}(\mathrm{untested})]$$ -/
 def warnLines (F : Facts) : List String :=
   (F.thms.filter (isNew F)).flatMap fun t =>
     (t.assumes.filter fun p => statusOf F p == some .untested).map fun p =>

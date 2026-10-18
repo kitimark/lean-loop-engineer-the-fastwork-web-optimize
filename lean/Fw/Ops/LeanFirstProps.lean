@@ -101,7 +101,8 @@ def Allowed (p : List Char) : Prop :=
     ((∃ r, p = r ++ ".md".toList) ∧ ¬ FirstSeg p "lean".toList)
 
 /-- **A decision write** (rule 1a, fail closed): the glob may cover some path that is not allowlisted.
-$$\operatorname{DecW}(w) \iff \exists p,\ \operatorname{Cov}(w, p) \land \lnot\operatorname{Allowed}(p)$$ -/
+$$\forall w,\ \operatorname{DecW}(w) \iff \exists p,\ \operatorname{Cov}(w, p) \land \lnot\operatorname{Allowed}(p)$$
+A glob also covers the paths below it, so a `.md` glob outside `docs/` and `research/` is a decision write too. -/
 def DecisionWrite (w : String) : Prop := ∃ p, GlobCovers w.toList p ∧ ¬ Allowed p
 
 /-- **Decision code** (rule 1a): some write is a decision write.

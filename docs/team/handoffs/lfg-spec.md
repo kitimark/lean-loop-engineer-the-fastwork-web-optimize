@@ -1,30 +1,31 @@
-# lfg-spec handoff
+# lfg-spec handoff (round 2)
 
-**State:** branch `worktree-wf_a5c6e36f-9fd-1`, see `git log` (tip: this note). `sh lean/scripts/check.sh` green
-(mathview, props-lint, goldens). Not wired into land (that is `lfg-land-wire`).
+**State:** branch `worktree-wf_00095d9e-b76-1`, see `git log` (tip: this note). `sh lean/scripts/check.sh` run at the
+tip. Not wired into land (that is `lfg-land-wire`). Threat model: never pass decision code without proved, reached,
+killed properties; a false refuse or pending is acceptable.
 
-**What exists**
-- `lean/Fw/Ops/LeanFirst.lean`: Facts, rules, `enforced` stage table, `reasons`, `judge`/`gate`, `out` (lines, exit
-  0/1/75), `run`, `emptyFacts`, about 25 `#guard`s. `stage` constant = `.shadow`.
-- `lean/Fw/Ops/LeanFirstProps.lean`: spec vocabulary (`PassSpec`, `PropsOk` … `RatchetOk`) and 22 properties (the
-  15 theorems of note section 7 plus PassIff, UnregisteredPremise, MissingFactPending/PendingExit split,
-  ShadowPasses, NoNewline, OneVerdict/ExitZeroIff split).
-- `lean/Fw/Ops/LeanFirstProofs.lean`: the 22 `<P>_impl` proofs, standard axioms only.
-- `lean/Fw/Ops/LeanFirstSearch.lean`: `Enum Facts` (fault grid of 1226 facts: base, 35 single faults, all ordered
-  pairs), `q<P>` checks with `q<P>_iff` exactness, bounded search guards.
-- `lean/FwTest/Mutants/LeanFirst/{Gate,Out,Parts,Wire}.lean`: 22 tier-K kills `<P>_rejects_<mutant>` via
-  `refutes_of_search … (by decide +kernel)`; codec round trip over the grid; op reply = `out` over stages × faults.
-- `lean/Fw/Ops/Wire.lean`: op `ops.leanFirst` (decoder `lfFactsOf`, encoder `lfFactsJson`, optional `stage`).
-- `lean/Fw/Ops/Golden.lean` + `packages/contracts/golden/ops/lean-first.jsonl` (52 cases, Lean-generated:
-  `cd lean && lake env lean --run scripts/OpsGolden.lean`; `--check` for staleness).
+**Round 2 (closed design from the lead)**
+- Decision paths: allowlist `docs/**`, `research/**`, `.md` outside `lean/` (spec `Allowed`, `DecisionWrite` over
+  `GlobCovers` in `LeanFirstProps.lean`). `isDecisionWrite_iff` (`LeanFirstDecision.lean`) proves the gate's prefix
+  test equals `DecisionWrite`; `NoPropsRefuses` names a `DecisionWrite` write. Golden: `apps/runner/**` refuses.
+- Binding by identity: `ThmFact.implArg`/`reachFromWire`; `Discharges` needs `implArg ≠ none`; `PropOk` needs the
+  discharging theorem's own `reachFromWire = some true`; `RefusesUnreached` (stub case) proved and killed
+  (`gAnyReached`). A candidate with `reachFromWire = null` gives pending `reach`.
+- Stage: `ops.leanFirst` ignores a request `stage` (guards + golden rows); only `LeanFirst.stage` (`shadow`) counts,
+  so every golden row is judged at shadow (pass with LEANFIRST lines).
+- `exempt.tsv` and `killOf` read at main: `Facts.mainAt`/`exemptAt`; else pending `exempt-main` (spec `AllPresent`).
 
-**Conventions:** lfg-props-shape: properties over the signature first, kills in kernel, no registry rows (no ledger
-incident yet). Every docstring has `$$` math with all fields written as `F.field` (no free abbreviations).
+**Stated limits**
+- `GlobCovers ⊇ PathCheck.matchesPath` is argued, not proved (`String.splitOn` does not reduce in the kernel).
+- Paths are assumed normalized (no empty or `.` segments). A `.md` glob outside docs/research is decision code
+  (it also covers the paths below it): a false refuse, the fail-closed side.
+- The land glue must supply `mainAt`, `exemptAt`, `writes`, `implArg` and `reachFromWire` honestly.
 
-**Open items**
-- `lfg-land-wire`: call `ops.leanFirst` from land with real fact sources (mathview export, kills list, TS lint);
-  missing sources must be sent as `present.* = false` (gives pending, exit 75 when a rule is enforced).
-- Stage stays `shadow` until the lead raises it (the request may override it with `"stage"`).
-- The 6-item docstring checker was not run by a `checker` helper (no spawn tool in this session); self-reviewed.
+**For the lead (research/ is outside my writes):** note §7 states two theorems stronger than proved:
+item 1 `land_refuses_unproved` (proved: `unproved P ∈ refusals` only when rule 1 is enforced and `Present(F)`, not
+`g F = refuse(unproved P)`), item 10 `missing_fact_not_pass` (proved as `MissingFactPending`: pending only when some
+rule is enforced; at shadow it passes). §1(a) still lists `lean/Fw/**` path classes; replace with the allowlist.
 
-**Read first:** note section 7 (`research/notes/2026/10-18-lean-first-gate.md`), then `LeanFirstProps.lean`.
+**Helper gap:** no spawn tool in this session, so the 6-item docstring checklist was self-applied, not by `checker`.
+
+**Read first:** `LeanFirstProps.lean` (spec), `LeanFirstDecision.lean`, then note §7.

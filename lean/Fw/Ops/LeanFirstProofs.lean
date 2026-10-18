@@ -25,7 +25,7 @@ theorem hasKill_iff (F : Facts) (t : ThmFact) : hasKill F t = true ↔ KillAt F 
   simp [hasKill, KillAt]
 
 /-- `killedName` decides "some theorem of this name has a kill".
-$$\forall F\, n,\ \operatorname{killed}(F, n) = \mathrm{true} \iff \exists v \in \mathit{thms},\ v.\mathit{name} = n \land \operatorname{KillAt}(F, v.\mathit{name}, v.\mathit{hash})$$ -/
+$$\forall F\, n,\ \operatorname{killed}(F, n) = \mathrm{true} \iff \exists v \in F.\mathit{thms},\ v.\mathit{name} = n \land \operatorname{KillAt}(F, v.\mathit{name}, v.\mathit{hash})$$ -/
 theorem killedName_iff (F : Facts) (n : String) :
     killedName F n = true ↔ ∃ v ∈ F.thms, v.name = n ∧ KillAt F v.name v.hash := by
   simp only [killedName, List.any_eq_true, Bool.and_eq_true, beq_iff_eq, hasKill_iff]
@@ -67,12 +67,12 @@ theorem discharges_iff (F : Facts) (t : ThmFact) (P : PropFact) : discharges F t
   simp only [Bool.not_eq_true, and_assoc, Option.isSome_iff_ne_none]
 
 /-- `proved` decides "some theorem discharges the property".
-$$\forall F\, P,\ \operatorname{proved}(F, P) = \mathrm{true} \iff \exists t \in \mathit{thms},\ \operatorname{Dis}(F, t, P)$$ -/
+$$\forall F\, P,\ \operatorname{proved}(F, P) = \mathrm{true} \iff \exists t \in F.\mathit{thms},\ \operatorname{Dis}(F, t, P)$$ -/
 theorem proved_iff (F : Facts) (P : PropFact) : proved F P = true ↔ ∃ t ∈ F.thms, Discharges F t P := by
   simp only [proved, List.any_eq_true, discharges_iff]
 
 /-- `provedReached` decides "a discharging theorem's own implementation is reached from the wire".
-$$\forall F\, P,\ \operatorname{provedReached}(F, P) = \mathrm{true} \iff \exists t \in \mathit{thms},\ \operatorname{Dis}(F, t, P) \land t.\mathit{rw} = \mathrm{some}(\mathrm{true})$$ -/
+$$\forall F\, P,\ \operatorname{provedReached}(F, P) = \mathrm{true} \iff \exists t \in F.\mathit{thms},\ \operatorname{Dis}(F, t, P) \land t.\mathit{rw} = \mathrm{some}(\mathrm{true})$$ -/
 theorem provedReached_iff (F : Facts) (P : PropFact) :
     provedReached F P = true ↔ ∃ t ∈ F.thms, Discharges F t P ∧ t.reachFromWire = some true := by
   simp only [provedReached, List.any_eq_true, Bool.and_eq_true, discharges_iff, beq_iff_eq]

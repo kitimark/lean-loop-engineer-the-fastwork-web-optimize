@@ -89,7 +89,7 @@ Dropping the reachability check is caught (an unreached property passes). -/
 theorem PassIff_rejects_gIgnoreUnreached : ¬ PassIff gIgnoreUnreached :=
   refutes_of_search _ _ _ [(.ratchet, factsOf [.stub])] (fun h => (qPassIff_iff _).mp h) (by decide +kernel)
 
-/-- **Kill of `refuses_unreached`** (the stub case).
+/-- **Kill of `land_refuses_unreached`** (the stub case).
 $$\lnot\operatorname{RefusesUnreached}(g_{\texttt{any-reached}})$$
 A gate that counts a reached lemma for a property whose own implementation is a stub is caught. -/
 theorem RefusesUnreached_rejects_gAnyReached : ¬ RefusesUnreached gAnyReached :=
