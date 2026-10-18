@@ -2128,7 +2128,7 @@ theorem blockAt_none (run : List Task) (x : Task) : blockAt run x = none ↔ adm
 /-- The reported clash is real: it names a running task, its globs lie on the two sides of its kind,
 and they overlap.
 
-$$\forall \mathit{Run}, x, c:\quad \operatorname{blockAt}(\mathit{Run}, x) = c \Rightarrow \exists y \in \mathit{Run}:\ \mathit{task}(c) = \mathit{id}(y) \land \mathit{mine}(c) \in \operatorname{mine}(x, k(c)) \land \mathit{theirs}(c) \in \operatorname{theirs}(y, k(c)) \land \mathit{mine}(c) \between \mathit{theirs}(c)$$
+$$\forall \mathit{Run}, x, c:\quad \operatorname{blockAt}(\mathit{Run}, x) = c \ne \bot \Rightarrow \exists y \in \mathit{Run}:\ \mathit{task}(c) = \mathit{id}(y) \land \mathit{mine}(c) \in \operatorname{mine}(x, k(c)) \land \mathit{theirs}(c) \in \operatorname{theirs}(y, k(c)) \land \mathit{mine}(c) \between \mathit{theirs}(c)$$
 -/
 theorem blockAt_sound (run : List Task) (x : Task) (c : Clash) (h : blockAt run x = some c) :
     ∃ y ∈ run, c.task = y.id ∧ c.mine ∈ mine x c.kind ∧ c.theirs ∈ theirs y c.kind ∧
