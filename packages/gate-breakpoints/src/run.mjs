@@ -24,6 +24,8 @@ const VIEW_ON = process.env.FW_GATE_VIEW === '1';
 // only by the harness, animations are frozen before each observation. On for the gate; off for the gaps lane (its own native
 // timing) and with FW_GATE_FROZEN=0 (a debug switch, never a result).
 const FROZEN_ON = process.env.FW_GATE_FROZEN !== '0';
+/** The kinds of anchors.json `prepare` step that page.mjs prepareInPage runs. */
+export const PREPARE_KINDS = ['mount', 'overlay'];
 const SITES = ['orig', 'rewrite'];
 const FILTER = { orig: '\\.svelte-', rewrite: '-module_' };
 const CAP_MS = { orig: 20000, rewrite: 15000 };
@@ -94,6 +96,11 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   // parts first, then overlay parts one at a time (open, collect, close), then the mount parts once the mounts have run.
   //  kind "mount" (morph.countdown, morph.columns, morph.panel): scroll near `scrollNear`, wait for `waitFor`, back to the top.
   //  kind "overlay" (overlays.*): click `trigger`, wait for `ready`; click `close`, wait until `gone` is gone.
+  // A prepare step of an unknown kind would be skipped silently, and its part would then be compared on a page that never
+  // reached the state (run 39114796757: morph.columns and morph.countdown read 0 original nodes): refuse it.
+  for (const [pid, p] of Object.entries(activeParts)) for (const site of SITES) for (const st of (p.prepare && p.prepare[site]) || []) {
+    if (!PREPARE_KINDS.includes(st.kind)) throw new Error(`anchors.json ${pid}.prepare.${site}: unknown kind ${JSON.stringify(st.kind)} (expected one of ${PREPARE_KINDS.join(', ')})`);
+  }
   const stepsOf = (site, kind) => Object.fromEntries(Object.entries(activeParts)
     .map(([pid, p]) => [pid, ((p.prepare && p.prepare[site]) || []).filter((st) => st.kind === kind)])
     .filter(([, steps]) => steps.length > 0));
@@ -166,6 +173,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     if (mountIds.length > 0) {
       const ready = await s.evaluate(prepareInPage, { stage: 'ready', steps: Object.values(mountOf[site]).flat(), capMs: CAP_MS[site], maxFrames: GATE_POLICY.maxFrames });
       raw.prepared = ready.found;
+      log(`  mount ${engineName} ${site} ${env.width}x${env.height}: found ${JSON.stringify(ready.found)}`);
       if (settleRoots) (raw.overlaySettle ||= []).push(idleWait(ready.idle, site, env));
       const late = await collectWith(s, collectArg(site, env, props, pick(mountIds, true), view));
       raw.parts = { ...raw.parts, ...late.parts };
