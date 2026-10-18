@@ -14,11 +14,25 @@ convention here makes a property a first-class value that exists *before* the co
   incident, its ledger `id` (docs/team/incidents/ledger.json), its `pred` (the incident inputs) and its `replay` (the
   implementation that reproduces the real bug). A `Registry` holds the rows of one signature, each with a non-empty
   id, distinct ids and a strict predicate (`Strict`: some input is not an incident input).
+* **One canonical registry.** Every `Incident` and `Registry` value lives in `Fw.Spec.Incidents`, and only there:
+  `Incidents.registryFor s` is the registry of the signature `s` (a closed inductive `Incidents.Sig`), and the gate's
+  `Incidents.Convention s impl P` takes no registry argument. The generic `KillsAt R P` and `ConventionAt R impl P`
+  here are its building blocks; a property module never names an `R` of its own. The lint
+  `lean/scripts/PropsLint.lean` (a check.sh stage) fails on any `Incident`/`Registry` construction outside
+  `Fw.Spec.Incidents`, on any `ConventionAt` statement outside it, and on any row whose ledger entry does not name the
+  row's `leanPred` and `leanReplay`.
 * **Kill-witness naming.** For a property `P`, the real implementation `impl` and a registered incident `i`:
   `theorem P_impl : P impl` and `theorem P_rejects_<i> : ¬ P i.replay` (`implName`, `killName`; the id's `-` become
-  `_`). A property counts as killing only through a registered row (`Kills R P`: some row of `R` has a replay that
-  `P` rejects), and the full convention for one property is `Convention R impl P` (`P impl`, `Kills R P`, and `R`
-  faithful to `impl`). The gate decides by the *type*; the names are for readers.
+  `_`). A property counts as killing only through a registered row (`KillsAt R P`: some row of `R` has a replay that
+  `P` rejects), and the full convention for one property is `Incidents.Convention s impl P` (`P impl`, a kill of a
+  row of `registryFor s`, and that registry faithful to `impl`). The gate decides by the *type*; the names are for
+  readers.
+* **What a kill means, and what it does not.** `KillsAt R P` says that `P` *separates* `impl` from a registered
+  replay: `P` holds of one and fails for the other. It does not prove that `P` is *about* the incident: a property
+  that pins `impl` itself, or one that reads an unrelated part of the output the replay happens to change, separates
+  too. The lint rejects the first kind syntactically: the body of a property in a `Convention` statement may not
+  mention `impl` or a name `impl` unfolds to, minus the signature's spec vocabulary `Incidents.vocab s`. The second
+  kind is a stated limit, not a bug: the reviewer checks the math of `P` against the ledger entry's `leanReason`.
 * **The replay is checked against the real implementation.** `Registry.Faithful impl R`: every row's replay equals
   `impl` on every input that is not an incident input of that row (`AgreesOff`). This checks the replay, not a
   property. For a pointwise property whose check reads the implementation at one point (`ReadsAt`), if the property
@@ -36,10 +50,10 @@ convention here makes a property a first-class value that exists *before* the co
 * **What Lean does not catch here.** The marker only labels a premise; it enforces nothing about its content. A
   marked premise of `False` proves anything (`assume_false_elim`), so premise contents are reviewed with the premise
   registry. Nothing in this module stops a theorem from taking an outside fact as a bare, unmarked hypothesis, and
-  a non-empty `Premise.id` that is not a registry row still elaborates; likewise an `Incident.id` is not checked
-  against the ledger here. Those holes are closed only by the tasks `lfg-premise-registry` (every premise id must be a
-  registry row) and `lfg-mathview-facts` (MathView lists the hypotheses of each theorem, so an unmarked outside fact
-  is visible in review); the ledger check of incident ids is an open item of `lfg-land-wire`.
+  a non-empty `Premise.id` that is not a registry row still elaborates. Those holes are closed only by the tasks
+  `lfg-premise-registry` (every premise id must be a registry row) and `lfg-mathview-facts` (MathView lists the
+  hypotheses of each theorem, so an unmarked outside fact is visible in review). The ledger check of `Incident.id`
+  is the lint's, not this module's.
 
 Worked example: `Fw.Spec.Props.LandDryDemo`; how-to: docs/team/tools/lean-first.md.
 -/
@@ -120,7 +134,9 @@ theorem fails_on_incident {α : Type v} {β : Type w} {γ : Type u} (Q : (α →
 
 /-! ## The incident registry: the kill target -/
 
-/-- An incident predicate is strict when some input is not an incident input.
+/-- An incident predicate is strict when some input is not an incident input. This rules out only the everywhere-true
+predicate (a predicate true on all inputs but one is strict); the real bound on a row's predicate is the review of the
+one registry, `Fw.Spec.Incidents`.
 $$\mathrm{Strict}(E) \iff \exists a : A,\ \lnot E(a)$$ -/
 def Strict {α : Type v} (incident : α → Prop) : Prop := ∃ a, ¬ incident a
 
@@ -155,40 +171,44 @@ $$\mathrm{Faithful}(f, R) \iff \forall i \in R,\ \mathrm{AgreesOff}(f, i.r, i.E)
 def Registry.Faithful {α : Type v} {β : Type w} (impl : α → β) (R : Registry α β) : Prop :=
   ∀ i ∈ R.rows, AgreesOff impl i.replay i.pred
 
-/-- **A property kills a registered incident.** Some row of the registry has a replay that the property rejects.
-$$\mathrm{Kills}(R, P) \iff \exists i \in R,\ \lnot P(i.r)$$ -/
-def Kills {α : Type v} {β : Type w} (R : Registry α β) (P : Property (α → β)) : Prop :=
+/-- **A property kills a row of a registry.** Some row of the registry $R$ has a replay that the property rejects. It
+says that $P$ separates that replay from every implementation $P$ holds of, not that $P$ is about the incident (see
+the module doc). The gate uses it only through `Fw.Spec.Incidents.Kills`, at the one registry.
+$$\mathrm{KillsAt}(R, P) \iff \exists i \in R,\ \lnot P(i.r)$$ -/
+def KillsAt {α : Type v} {β : Type w} (R : Registry α β) (P : Property (α → β)) : Prop :=
   ∃ i ∈ R.rows, ¬ P i.replay
 
-/-- **The full convention for one property.** For a registry $R$, a real implementation $f$ and a property $P$: $P$
-holds of $f$, $P$ kills a registered incident, and the registry's replays are faithful to $f$.
-$$\mathrm{Convention}(R, f, P) \iff P(f) \wedge \mathrm{Kills}(R, P) \wedge \mathrm{Faithful}(f, R)$$ -/
-structure Convention {α : Type v} {β : Type w} (R : Registry α β) (impl : α → β) (P : Property (α → β)) : Prop where
+/-- **The convention for one property, at a given registry.** For a registry $R$, a real implementation $f$ and a
+property $P$: $P$ holds of $f$, $P$ kills a row of $R$, and the replays of $R$ are faithful to $f$. The gate uses it
+only through `Fw.Spec.Incidents.Convention`, at the one registry; the lint rejects a `ConventionAt` statement outside
+`Fw.Spec.Incidents`.
+$$\mathrm{ConventionAt}(R, f, P) \iff P(f) \wedge \mathrm{KillsAt}(R, P) \wedge \mathrm{Faithful}(f, R)$$ -/
+structure ConventionAt {α : Type v} {β : Type w} (R : Registry α β) (impl : α → β) (P : Property (α → β)) : Prop where
   /-- `P_impl`. -/
   holds : P impl
   /-- From a `P_rejects_<i>` theorem. -/
-  kills : Kills R P
+  kills : KillsAt R P
   /-- The replays are checked against the real implementation. -/
   faithful : R.Faithful impl
 
-/-- **A kill witness for a registered row is a kill.** For every registry $R$, property $P$ and row $i \in R$: if $P$
-rejects $i$'s replay, then $P$ kills a registered incident.
-$$\forall R\, P,\ \forall i \in R,\ \lnot P(i.r) \Rightarrow \mathrm{Kills}(R, P)$$ -/
+/-- **A kill witness for a row is a kill.** For every registry $R$, property $P$ and row $i \in R$: if $P$ rejects
+$i$'s replay, then $P$ kills a row of $R$.
+$$\forall R\, P,\ \forall i \in R,\ \lnot P(i.r) \Rightarrow \mathrm{KillsAt}(R, P)$$ -/
 theorem kills_of_rejects {α : Type v} {β : Type w} (R : Registry α β) (P : Property (α → β)) (i : Incident α β)
-    (hi : i ∈ R.rows) (h : ¬ P i.replay) : Kills R P :=
+    (hi : i ∈ R.rows) (h : ¬ P i.replay) : KillsAt R P :=
   ⟨i, hi, h⟩
 
 /-- **A property that passes every replay kills nothing.** For every registry $R$ and property $P$: if $P$ holds of
-every row's replay, then $P$ kills no registered incident.
-$$\forall R\, P,\ (\forall i \in R,\ P(i.r)) \Rightarrow \lnot\,\mathrm{Kills}(R, P)$$ -/
+every row's replay, then $P$ kills no row of $R$.
+$$\forall R\, P,\ (\forall i \in R,\ P(i.r)) \Rightarrow \lnot\,\mathrm{KillsAt}(R, P)$$ -/
 theorem not_kills_of_passes {α : Type v} {β : Type w} (R : Registry α β) (P : Property (α → β))
-    (h : ∀ i ∈ R.rows, P i.replay) : ¬ Kills R P :=
+    (h : ∀ i ∈ R.rows, P i.replay) : ¬ KillsAt R P :=
   fun ⟨i, hi, hn⟩ => hn (h i hi)
 
-/-- **A kill makes the property non-vacuous.** For every registry $R$ and property $P$: if $P$ kills a registered
-incident, some implementation fails $P$.
-$$\forall R\, P,\ \mathrm{Kills}(R, P) \Rightarrow \exists b : A \to B,\ \lnot P(b)$$ -/
-theorem nonvacuous_of_kills {α : Type v} {β : Type w} (R : Registry α β) (P : Property (α → β)) (h : Kills R P) :
+/-- **A kill makes the property non-vacuous.** For every registry $R$ and property $P$: if $P$ kills a row of $R$,
+some implementation fails $P$.
+$$\forall R\, P,\ \mathrm{KillsAt}(R, P) \Rightarrow \exists b : A \to B,\ \lnot P(b)$$ -/
+theorem nonvacuous_of_kills {α : Type v} {β : Type w} (R : Registry α β) (P : Property (α → β)) (h : KillsAt R P) :
     Nonvacuous P :=
   let ⟨i, _, hn⟩ := h; ⟨i.replay, hn⟩
 
