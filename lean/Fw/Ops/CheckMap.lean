@@ -36,13 +36,23 @@ file's check on every checked file, and nothing else), `verdict_ok_iff`, `verdic
 namespace Fw.Ops.CheckMap
 open Fw.Ops.PathCheck (segs)
 
-/-- A file kind. -/
+/-- A file kind.
+
+$$\mathrm{Kind} = \{\mathtt{jsMod}, \mathtt{ts}, \mathtt{tsDecl}, \mathtt{tsx}, \mathtt{leanModule}, \mathtt{leanScript}, \mathtt{lakeConfig}, \mathtt{json}, \mathtt{jsonl}, \mathtt{yaml}, \mathtt{shell}, \mathtt{python}, \mathtt{swift}, \mathtt{snapshot}, \mathtt{sketch}, \mathtt{asset}, \mathtt{prose}, \mathtt{text}\}$$
+
+The eighteen kinds a tracked file can have.
+-/
 inductive Kind
   | jsMod | ts | tsDecl | tsx | leanModule | leanScript | lakeConfig | json | jsonl | yaml | shell | python | swift
   | snapshot | sketch | asset | prose | text
 deriving DecidableEq, Repr
 
-/-- A static check. `exempt`: no check (the kind is not code our tools parse or run). -/
+/-- A static check. `exempt`: no check (the kind is not code our tools parse or run).
+
+$$\mathrm{Check} = \{\mathtt{lakeBuild}, \mathtt{leanElab}, \mathtt{nodeCheck}, \mathtt{tsStrip}, \mathtt{tscProject}, \mathtt{jsonParse}, \mathtt{jsonlParse}, \mathtt{yamlParse}, \mathtt{shParse}, \mathtt{pyParse}, \mathtt{swiftParse}, \mathtt{exempt}\}$$
+
+The eleven static checks, plus `exempt` for files with none.
+-/
 inductive Check
   | lakeBuild | leanElab | nodeCheck | tsStrip | tscProject | jsonParse | jsonlParse | yamlParse | shParse | pyParse
   | swiftParse | exempt
@@ -166,7 +176,12 @@ def checkOfPath (p : String) : Option Check :=
 /-! ## The plan -/
 
 /-- One command of the plan: its check, the directory it runs in (relative to the repository root), its argv and the
-files it checks. -/
+files it checks.
+
+$$\mathrm{Cmd} = \mathrm{Check} \times \mathrm{String} \times \mathrm{List}\ \mathrm{String} \times \mathrm{List}\ \mathrm{String} \ni (c, \mathit{cwd}, \mathit{argv}, F)$$
+
+A command is a check, a working directory, an argv and the files it covers.
+-/
 structure Cmd where
   check : Check
   cwd : String
@@ -194,10 +209,20 @@ $$\mathrm{pkg}(p) = \mathrm{join}_{/}(\mathrm{segs}(p)_{0..2})$$
 -/
 def pkgOf (p : String) : String := "/".intercalate ((segs p).take 2)
 
-/-- The YAML parse program (Ruby's Psych, which ships with macOS and the GitHub runners). -/
+/-- The YAML parse program (Ruby's Psych, which ships with macOS and the GitHub runners).
+
+$$\mathrm{yamlProg} = \texttt{ARGV.each \{ |f| YAML.parse\_file(f) \}}$$
+
+Ruby parses every file named on its command line as YAML.
+-/
 def yamlProg : String := "ARGV.each { |f| YAML.parse_file(f) }"
 
-/-- The Python parse program (stdlib `ast`; writes no `__pycache__`). -/
+/-- The Python parse program (stdlib `ast`; writes no `__pycache__`).
+
+$$\mathrm{pyProg} = \texttt{import ast,sys}\ \texttt{\textbackslash n}\ \texttt{for f in sys.argv[1:]: ast.parse(open(f,'rb').read(), f)}$$
+
+Python parses every file named on its command line without running it.
+-/
 def pyProg : String := "import ast,sys\nfor f in sys.argv[1:]: ast.parse(open(f,'rb').read(), f)"
 
 /-- The commands of one check over its files `fs` (argv of our own CLI `scripts/checkmap.mjs file <mode>` where no
@@ -320,7 +345,12 @@ theorem precommit_covers (s : List String) (e : String) (hs : s ≠ []) (he : e 
   exact ⟨k, by simp [hk], hc⟩
 
 /-- One representative path (segments, extension) per distinct (first two directories, extension or basename) of
-`git ls-files` at commit c85c1b6 (156 keys); generated, not hand-written. -/
+`git ls-files` at commit c85c1b6 (156 keys); generated, not hand-written.
+
+$$\mathrm{Tracked} = [(s_1, e_1), \dots, (s_{156}, e_{156})],\quad |\mathrm{Tracked}| = 156$$
+
+The frozen list of tracked-file representatives that `tracked_mapped` covers.
+-/
 def trackedKeys : List (List String × String) := [
   ([".claude", "agents", "checker.md"], "md"),
   ([".claude", "settings.json"], "json"),
@@ -482,7 +512,7 @@ def trackedKeys : List (List String × String) := [
 
 /-- Every tracked representative is mapped.
 
-$$\forall (s, e) \in \mathrm{Tracked}:\quad \mathrm{kind}(s, e) \ne \bot$$
+$$\forall x \in \mathrm{Tracked}:\quad \mathrm{kind}(x_1, x_2) \ne \bot$$
 
 Each of the 156 representative tracked paths falls in some kind; `scripts/check.sh --tracked` checks the live tree.
 -/
@@ -575,7 +605,7 @@ theorem plan_sound (paths : List String) (m : Cmd) (hm : m ∈ plan paths) (f : 
 
 /-- The verdict, unfolded.
 
-$$\forall \sigma, X:\quad \mathrm{ok}(\sigma, X) \iff \forall x \in X:\ x = 0 \lor (\sigma = \mathrm{false} \land x = 127)$$
+$$\forall \sigma, C:\quad \mathrm{ok}(\sigma, C) \iff \forall x \in C:\ x = 0 \lor (\sigma = \mathrm{false} \land x = 127)$$
 
 The checks pass exactly when each exit code is 0, or 127 (tool missing) outside strict mode.
 -/
@@ -585,7 +615,7 @@ theorem verdict_ok_iff (strict : Bool) (codes : List Nat) :
 
 /-- Strict mode passes only when every command exited 0.
 
-$$\forall X:\quad \mathrm{ok}(\mathrm{true}, X) \iff \forall x \in X:\ x = 0$$
+$$\forall C:\quad \mathrm{ok}(\mathrm{true}, C) \iff \forall x \in C:\ x = 0$$
 
 With strict on, a missing tool fails the checks like a failed command.
 -/
@@ -594,7 +624,7 @@ theorem verdict_strict (codes : List Nat) : verdict true codes = true ↔ ∀ x 
 
 /-- The run's verdict, unfolded.
 
-$$\forall \sigma, u, X:\quad \mathrm{run}(\sigma, u, X) \iff u = 0 \land \forall x \in X:\ x = 0 \lor (\sigma = \mathrm{false} \land x = 127)$$
+$$\forall \sigma, u, C:\quad \mathrm{run}(\sigma, u, C) \iff u = 0 \land \forall x \in C:\ x = 0 \lor (\sigma = \mathrm{false} \land x = 127)$$
 
 A run passes exactly when nothing is unmapped and each exit code is 0, or 127 outside strict mode.
 -/
