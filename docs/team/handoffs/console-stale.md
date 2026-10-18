@@ -13,7 +13,7 @@ Done (round 5, lead decisions 1-4)
   chooseBase_mismatch, chooseBase_none, chooseBase_unknown_alerts; Health.lean: unidentified_core_alerts. Inputs are
   path prefixes: `covers`, covers_self, covers_child; touched/touched_of_mem and the three Stack theorems restated with
   a covered file. Round-4 math nits fixed (svcUnknown_iff, unknown_service_alerts).
-- lean/scripts/check.sh builds through scripts/fwcore-build.sh (so fw land does); LandSpeed checkShReads + golden
+- lean/scripts/check.sh builds through scripts/fwcore-build.sh (fw land runs it in its land worktree only: the lead runs the script in the main checkout after each land); LandSpeed checkShReads + golden
   land-speed.jsonl + runner CHECK_SH_READS gained `scripts/fwcore-build.sh`.
 - console-api main.ts: codeRoot = resolve(here, ../../..) for codeCommit and buildBase; a binary that is not
   <codeRoot>/lean/.lake/build/bin/fwcore without a matching record is unknown (reason says so).
@@ -25,6 +25,6 @@ Open
   also touched: lean/Fw/Console/LandSpeed.lean, lean/Fw/Obs/Health.lean, lean/scripts/check.sh, apps/runner/src/land.ts,
   packages/contracts/golden/console/land-speed.jsonl (see the dry-run list).
 - The running console-api must be restarted once to write `coreCommit`; until then `svc.unknown console-api`.
-- Builds before this lands have no record: the core shows svc.unknown until `sh scripts/fwcore-build.sh` runs once.
+- Until the main checkout's fwcore is rebuilt with `sh scripts/fwcore-build.sh`, the old core ignores `svcs`: no svc.* alert at all (restarting the watcher does not help).
 - TS stand-in chooseBase to be replaced by an fwcore op.
 - The watcher's own code (fw watch) is not a judged service (stated limit).

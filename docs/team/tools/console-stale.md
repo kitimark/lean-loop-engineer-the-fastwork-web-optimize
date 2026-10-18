@@ -26,8 +26,8 @@ What runs, not what is on disk (`Stack`, three bases):
   (`restartApi_after_rebuild_clears`); a restart without a rebuild spawns a child as old as the disk
   (`restartApi_without_rebuild_stale`).
 
-The build record. One writer: `sh scripts/fwcore-build.sh` (also what `lean/scripts/check.sh`, hence `fw land`, builds
-through) reads `HEAD` BEFORE `lake build`, builds, and writes `lean/.lake/build/bin/fwcore.commit` =
+The build record. One writer: `sh scripts/fwcore-build.sh` (also what `lean/scripts/check.sh` builds through; `fw land` runs
+that in its land worktree, never in the main checkout) reads `HEAD` BEFORE `lake build`, builds, and writes `lean/.lake/build/bin/fwcore.commit` =
 `<sha of HEAD read before the build> <sha256 of the built binary>`, only after a successful build on a tree that is clean
 before and after, not mid-merge or mid-rebase, with HEAD unmoved. Nothing is inferred from file times or the reflog (Lake's
 artifact cache restores a binary with an old mtime, so an mtime is not the build time). `chooseBase` (Lean
@@ -39,13 +39,16 @@ replaced the binary) or a dirty build: unknown (`chooseBase_mismatch`, `chooseBa
 
 Which checkout. console-api judges the checkout its code runs from, `codeRoot = resolve(here, ../../..)`, for its start
 commit and its core. A binary that is not `<codeRoot>/lean/.lake/build/bin/fwcore` (`FW_CORE_BIN`, another checkout)
-without a matching record is unknown, and the reason says so; main's data is never used for another checkout.
+without a matching record is unknown, and the reason says so; a record is used for any binary whose sha256 it carries; a binary outside codeRoot without one is unknown,
+and the reason says so.
 
 Inputs are git pathspecs, and the Lean model is the same predicate (`covers`: equal, or `x/` is a prefix of the file;
 `covers_self`, `covers_child`): `lean/Fw` covers `lean/Fw/Obs/Stale.lean`, not `lean/Fw.lean`.
 
-Stated limit: the watcher's own code (`apps/runner`, `fw watch`) is not a judged service. A `fw watch` process started
-before this lands keeps the old rule until it is restarted, and nothing alerts on that.
+Stated limit: the watcher's own code (`apps/runner`, `fw watch`) is not a judged service. Until the main checkout's fwcore is rebuilt with
+`sh scripts/fwcore-build.sh`, the watcher's core predates `svc.*` (it ignores the `svcs` field) and raises no
+service alert at all; restarting the watcher alone does not help. Also not judged: `apps/console-web/dist` (served
+by console-api) and preview serve children.
 
 Measurement (TS, no decision): `apps/runner/src/watch-svc.ts` runs one `git log -1 --first-parent --format=%H
 <base>..main -- <path>` per input group. `collectSvcs` never fails as a whole: a service it cannot identify or judge is
@@ -53,8 +56,8 @@ returned with `unknown: <reason>`; the other service is still judged.
 
 What you do: `svc.stale fwcore ...` or `svc.unknown fwcore ...`: run `sh scripts/fwcore-build.sh` in the main checkout.
 `svc.stale console-api lean/...` (child lags): restart console-api (stop it by the pid in `api.json`, start it again).
-Nothing is killed or restarted automatically. In the main checkout build with the script (a land does it through
-check.sh); a plain `lake build` leaves the core unknown.
+Nothing is killed or restarted automatically. After every land, run `sh scripts/fwcore-build.sh` in the main checkout (fw land builds in its land
+worktree, not in main); a plain `lake build` leaves the core unknown.
 
 Replay: the round-4 replay (plain builds around main's moves judged by the reflog) is withdrawn with the reflog rule;
 the same situations are now `svc.unknown` (test "a plain `lake build` (no record) is unknown whatever main did around it").
