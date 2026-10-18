@@ -4520,7 +4520,8 @@
     "docs/team/tools/wait-guard.md",
     "docs/team/handoffs/wait-guard-enforce.md",
     "docs/team/handoffs/wait-guard-enforce-2.md"
-   ]
+   ],
+   "evidence": "4a1a3d7"
   },
   {
    "id": "task-preview-2",
@@ -4846,6 +4847,47 @@
     "docs/team/tools/prompt-rules.md",
     "docs/team/tools/workflow-patterns.md",
     "docs/team/handoffs/workflow-salvage.md"
+   ]
+  },
+  {
+   "id": "console-lan-owner",
+   "title": "(M) console owner without a terminal + phone on the same Wi-Fi: owner passphrase from macOS keychain (service fw-console-owner) with a login page and Lean-decided rate limit; opt-in LAN mode (bind LAN address at runtime, every LAN request owner-gated except login, per-device cookie); previews proxied through the console port so the gate covers them; just-in-time previews with Lean idle stop (15 min no request) besides the 60 min TTL",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "task-preview-2"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/console-api/**",
+    "apps/console-web/**",
+    "lean/Fw/Console/Preview*.lean",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/task-preview.md",
+    "docs/team/handoffs/task-preview-2.md",
+    "docs/team/tools/**",
+    "lean/Fw/Ops/Golden.lean",
+    "docs/team/handoffs/console-lan-owner.md"
+   ]
+  },
+  {
+   "id": "wait-guard-enforce-3",
+   "title": "(S) wait-guard round 6: loop variables by allowlist (lowercase name assigned a decimal literal earlier in the same command, not a zsh lowercase special from pinned zsh params.c; SECONDS with N <= 86400; every uppercase shell variable rejected without a list), docs for bash 3.2; then hand the user the enforce switch",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "wait-guard-enforce-2"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Wait.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/ops/**",
+    "apps/runner/hooks/wait-guard.mjs",
+    "apps/runner/test/**",
+    "docs/team/tools/wait-guard.md",
+    "docs/team/handoffs/wait-guard-enforce.md",
+    "docs/team/handoffs/wait-guard-enforce-2.md"
    ]
   }
  ],
