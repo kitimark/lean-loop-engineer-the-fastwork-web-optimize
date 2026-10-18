@@ -1,19 +1,25 @@
-# task-preview-2 handoff
+# task-preview-2 handoff (round 2)
 
-State: branch worktree-wf_9700d3e6-57a-1 (see `git log -1`). Read first: docs/team/handoffs/task-preview.md.
+State: branch worktree-wf_06917030-a64-1; lean check.sh green; console-api 18 files / 268 tests green.
 
-- Owner link secrecy. Lean: `Sink`, `linkSink`, `linkPlan`, `no_file_sink`, `no_nontty_sink`, `linkPlan_ok` (end of
-  lean/Fw/Console/Preview.lean); wire op `console.previewLink` (no golden yet: adding one needs lean/Fw/Ops/Golden.lean, outside this task scope; land with --allow or a follow-up). TS: apps/console-api/src/preview/link.ts
-  (`announceLink`: opens /dev/tty, asks Lean, writes the link to the tty only), main.ts (no token on stdout/stderr), owner.ts
-  `reissue()`, src/owner-link.ts (`pnpm --filter @fw/console-api owner-link` sends SIGUSR2 to the pid in api.json; the
-  console writes a fresh link to ITS own terminal; the command prints no link). No tty -> no link, message says how.
-  Test: apps/console-api/test/owner-link.test.ts (child in its own session, stdout+stderr a file: no token; fake tty).
-- Panel head. Lean `srcRank`/`ordered`/`pickHead` (rank: handoff, merge, named, handoffCommit, ci, originCi; first held
-  wins), `Fact.land` + `landOf` (landed head previews its land commit on main, not main's tip). PreviewTable rows have
-  `expectHead`; `table_matches` proves head and target for all 25. Glue: facts.ts `landCommit` (first-parent commit of
-  main after the head, ancestry path). Tests in test/preview.test.ts ("panel head").
-- Heads that changed vs round 2 (held by an integration ref, both candidates): port-morph-columns, port-nav, port-people,
-  port-platform, fix-nav, fix-pain-notes, fix-commission-margin, fix-page-offset (+ landed rows now show land commits).
-- Known limit (INFERRED): a handoffCommit that is on main only because main later edited the handoff reads as held; it
-  ranks below handoff/merge/named, so only tasks with no better candidate are affected.
-- Open: SIGUSR2 by an agent only re-prints a link to the user's terminal (nuisance, no leak); same-UID cookie theft remains.
+Read first: `lean/Fw/Console/Preview.lean` (rules + theorems), `PreviewFacts.lean` (GENERATED), `PreviewTable.lean`
+(typed expectations), `apps/console-api/src/preview/{facts,link,owner}.ts`, `scripts/gen-preview-facts.ts`.
+
+Conventions
+- Decisions in Lean: `pickHead` over `eligible` = ordered then `Fact.admissible` (merge needs `ownWork`; never `behind`);
+  `landOf` = own sha if `fpLine`, else first path commit whose second parent holds it, else main.
+- TS only gathers facts. `landFacts` bisects main's first-parent line (`--ancestry-path` is empty for nested merges).
+- Facts table is generated from git at `golden/preview-facts.pin.json` (full shas, refs, tips, kids).
+  Regenerate: `node apps/console-api/scripts/gen-preview-facts.ts --pin`, then no flag, then OpsGolden
+  (`cd lean && lake env lean --run scripts/OpsGolden.lean`). `--check` exits 2 when pinned objects are missing.
+- `behind`: another candidate holds non-doc code beyond this one (drops old handoff commits).
+- Reissue: SIGUSR2 to the console only after `/api/health` header `x-fw-console-pid` matches; `mayReissue` allows one
+  link per 60 s. Same-UID limit: such a process can at most print a fresh link once a minute (see owner.ts).
+
+Changed expectations (git evidence)
+- port-platform: head b2e5ff1 -> 5b50ad0 (originCi), land 80d7610 -> 6e968ba. b2e5ff1 is a main commit (second
+  parent of 411847d, "merge main"), not task work; 72971b8 is an ancestor of 5b50ad0 (2-line css diff).
+- Newest integration tip is 9e23e15 (was b35b541): targets use `r3t`.
+- fix-commission-margin gains merge candidate 578235d (fpLine, not own work): inadmissible, head stays 3301169.
+
+Open: none known. TS stand-in: none; owner-link/health glue is I/O only.

@@ -34,3 +34,38 @@ export async function announceLink(core: Pick<Core, "ops">, url: () => string, s
   say(NO_TTY_MESSAGE);
   return "none";
 }
+
+/** When the last owner link was written to the terminal (ms); the minimum gap between two is Lean `mayReissue`. */
+export type LinkClock = { last: number | null };
+
+export const TOO_SOON_MESSAGE = "an owner link was issued less than a minute ago: wait, then run owner-link again";
+
+/**
+ * A reissue request (SIGUSR2 from `owner-link`): Lean `console.previewLink` says whether a new link may be issued now
+ * (`mayReissue`: one per minute, so a same-user process cannot keep invalidating the link the user has not opened yet).
+ * Returns where the link went, "tooSoon" (nothing changed: the old link stays valid) or "none".
+ */
+export async function reissueLink(core: Pick<Core, "ops">, clock: LinkClock, now: number, url: () => string, say: (s: string) => void, open: () => Tty | null = openTty): Promise<"tty" | "none" | "tooSoon"> {
+  const r = await core.ops("console.previewLink", { hasTty: true, now, ...(clock.last === null ? {} : { last: clock.last }) });
+  if (r.reissue !== true) { say(TOO_SOON_MESSAGE); return "tooSoon"; }
+  const where = await announceLink(core, url, say, open);
+  if (where === "tty") clock.last = now;
+  return where;
+}
+
+/**
+ * `owner-link`: signal the console recorded in api.json only after it proves to be the console. `api.json` can be stale (a
+ * crashed console, the pid reused by another program: SIGUSR2 would kill it), so the port must answer `GET /api/health`
+ * with the same pid in the `x-fw-console-pid` header. A mismatch or no answer: refuse and signal nothing.
+ */
+export async function signalConsole(
+  info: { port: number; pid: number },
+  io: { get: (url: string) => Promise<string | null>; kill: (pid: number, sig: "SIGUSR2") => void },
+): Promise<{ ok: true } | { ok: false; reason: "badInfo" | "noAnswer" | "pidMismatch" }> {
+  if (!Number.isInteger(info.pid) || info.pid <= 1 || !Number.isInteger(info.port) || info.port <= 0) return { ok: false, reason: "badInfo" };
+  const answered = await io.get(`http://127.0.0.1:${info.port}/api/health`).catch(() => null);
+  if (answered === null) return { ok: false, reason: "noAnswer" };
+  if (Number(answered) !== info.pid) return { ok: false, reason: "pidMismatch" };
+  io.kill(info.pid, "SIGUSR2");
+  return { ok: true };
+}

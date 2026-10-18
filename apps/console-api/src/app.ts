@@ -46,7 +46,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   if (previews) mountPreview(app, store, caps, previews, owner); // task detail panel + owner-only preview (task-preview)
   app.get("/api/board", async (c) => c.json(await store.board()));
   app.get("/api/plan", async (c) => c.json((await store.board()).plan)); // the work graph, derived by fwcore
-  app.get("/api/health", (c) => c.json(readLatestHealth(store.dir))); // latest `fw watch` check (fwcore obs.health output) or null
+  app.get("/api/health", (c) => { c.header("x-fw-console-pid", String(process.pid)); return c.json(readLatestHealth(store.dir)); }); // the pid header lets `owner-link` prove which process it signals // latest `fw watch` check (fwcore obs.health output) or null
   app.get("/api/events", (c) => {
     const since = Number(c.req.query("since") ?? 0);
     return c.json(store.readEvents().filter((e) => e.seq > since));

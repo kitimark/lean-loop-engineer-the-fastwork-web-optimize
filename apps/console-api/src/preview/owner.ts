@@ -5,7 +5,7 @@
 //
 // What this stops (CONFIRMED by test): a request without the cookie (any local process that merely knows the port,
 // an agent's curl), a cross-site page (SameSite=Strict, Origin check), and the runner's own tools (secret header).
-// What it cannot stop (INFERRED): a process of the same OS user that steals the cookie from the browser profile. Nothing here is written to .fw-console or any file an agent reads.
+// What it cannot stop (INFERRED, a stated limit): a process of the same OS user that steals the cookie from the browser profile or the live session (same UID can read the browser's files, ptrace the console, or capture the terminal), and one that signals the console: it can only make it print a fresh link to the user's own terminal, at most once a minute (Lean `mayReissue`). Nothing here is written to .fw-console or any file an agent reads.
 import { randomBytes, timingSafeEqual } from "node:crypto";
 
 export const COOKIE = "fw_owner";

@@ -188,7 +188,8 @@ export function candidates(git: Git, task: string, handoff: string | null): { sr
   return out;
 }
 
-export function taskFacts(root: string, task: string, git: Git = gitIn(root)): TaskFacts {
+/** `subs` overrides the work graph's sub-tasks of an umbrella (the pinned fact table fixes them). */
+export function taskFacts(root: string, task: string, git: Git = gitIn(root), subs?: string[]): TaskFacts {
   const main = git(["rev-parse", "main"]);
   const mainSha = main ? short(main) : "";
   const integ = integrationRefs(git);
@@ -200,7 +201,7 @@ export function taskFacts(root: string, task: string, git: Git = gitIn(root)): T
   }
   const facts = factsOf(git, cs, integ);
   const refOf = Object.fromEntries(cs.map((c) => [c.src, c.ref]));
-  const children = facts.length > 0 ? [] : subTasks(root, task).map((t) => {
+  const children = facts.length > 0 ? [] : (subs ?? subTasks(root, task)).map((t) => {
     const sub = candidates(git, t, readHandoff(git, t, ["main", ...integ.map((i) => i.ref)])?.text ?? null);
     return { task: t, facts: factsOf(git, sub, integ) };
   });

@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { selectCore } from "../src/core/index.ts";
-import { announceLink, NO_TTY_MESSAGE, type Tty } from "../src/preview/link.ts";
+import { announceLink, reissueLink, signalConsole, NO_TTY_MESSAGE, TOO_SOON_MESSAGE, type LinkClock, type Tty } from "../src/preview/link.ts";
 import { OwnerAuth } from "../src/preview/owner.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -42,6 +42,65 @@ describe("announceLink (Lean console.previewLink decides the sink)", () => {
     expect(fresh).not.toBe(old);
     expect(owner.redeem(old)).toBeNull();
     expect(owner.redeem(fresh)).not.toBeNull();
+  });
+});
+
+describe("reissue is rate-limited by Lean mayReissue (one link a minute)", () => {
+  const core = selectCore(process.env);
+  it("a second request inside the minute changes nothing: the unused link stays valid", async () => {
+    const owner = new OwnerAuth();
+    const first = owner.token()!;
+    const clock: LinkClock = { last: 1000 }; // the startup link was written at t = 1 s
+    const tty: string[] = []; const said: string[] = [];
+    const open = (): Tty => ({ write: (s) => { tty.push(s); }, close: () => undefined });
+    const r = await reissueLink(core, clock, 30_000, () => `u?t=${owner.reissue()}`, (m) => said.push(m), open);
+    expect(r).toBe("tooSoon");
+    expect(said).toEqual([TOO_SOON_MESSAGE]);
+    expect(tty).toEqual([]);
+    expect(owner.redeem(first)).not.toBeNull(); // not invalidated
+  });
+  it("a request a minute after the last link issues a new one and restarts the clock", async () => {
+    const owner = new OwnerAuth();
+    const first = owner.token()!;
+    const clock: LinkClock = { last: 1000 };
+    const tty: string[] = [];
+    const open = (): Tty => ({ write: (s) => { tty.push(s); }, close: () => undefined });
+    const r = await reissueLink(core, clock, 61_000, () => `u?t=${owner.reissue()}`, () => undefined, open);
+    expect(r).toBe("tty");
+    expect(clock.last).toBe(61_000);
+    expect(owner.redeem(first)).toBeNull();
+    expect(tty.join("")).toContain("t=");
+    const again = await reissueLink(core, clock, 62_000, () => `u?t=${owner.reissue()}`, () => undefined, open);
+    expect(again).toBe("tooSoon");
+  });
+});
+
+describe("owner-link signals only a process that answers as the console", () => {
+  const sent: [number, string][] = [];
+  const kill = (pid: number, sig: string) => { sent.push([pid, sig]); };
+  it("the same pid answers: SIGUSR2 is sent", async () => {
+    sent.length = 0;
+    const r = await signalConsole({ port: 47001, pid: 4242 }, { get: async () => "4242", kill });
+    expect(r).toEqual({ ok: true });
+    expect(sent).toEqual([[4242, "SIGUSR2"]]);
+  });
+  it("another pid answers on the port (stale api.json): refused, nothing signalled", async () => {
+    sent.length = 0;
+    expect(await signalConsole({ port: 47001, pid: 4242 }, { get: async () => "999", kill })).toEqual({ ok: false, reason: "pidMismatch" });
+    expect(sent).toEqual([]);
+  });
+  it("nothing answers, or the answer has no pid: refused", async () => {
+    sent.length = 0;
+    expect(await signalConsole({ port: 47001, pid: 4242 }, { get: async () => null, kill })).toEqual({ ok: false, reason: "noAnswer" });
+    expect(await signalConsole({ port: 47001, pid: 4242 }, { get: async () => { throw new Error("refused"); }, kill })).toEqual({ ok: false, reason: "noAnswer" });
+    expect(await signalConsole({ port: 47001, pid: 4242 }, { get: async () => "", kill })).toEqual({ ok: false, reason: "pidMismatch" });
+    expect(sent).toEqual([]);
+  });
+  it("a bad record is refused before any request (pid 1, no port)", async () => {
+    let asked = false;
+    const io = { get: async () => { asked = true; return "1"; }, kill };
+    expect(await signalConsole({ port: 0, pid: 1 }, io)).toEqual({ ok: false, reason: "badInfo" });
+    expect(asked).toBe(false);
   });
 });
 

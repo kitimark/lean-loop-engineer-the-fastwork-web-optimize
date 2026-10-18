@@ -14,7 +14,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { taskFacts, type Fact, type Git, type TaskFacts } from "../src/preview/facts.ts";
+import { subTasks, taskFacts, type Fact, type Git, type TaskFacts } from "../src/preview/facts.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "../../..");
@@ -22,7 +22,7 @@ const PIN = join(here, "../golden/preview-facts.pin.json");
 const OUT = join(root, "lean/Fw/Console/PreviewFacts.lean");
 const PIN_MAIN = "25d9402"; // the main commit of the investigation (2026-10-18)
 
-export type Pin = { main: string; integ: string[]; tasks: string[]; refs: Record<string, string>; tips: string[] };
+export type Pin = { main: string; integ: string[]; tasks: string[]; refs: Record<string, string>; tips: string[]; kids: Record<string, string[]> };
 
 const real = (args: string[]): string | null => {
   try { return execFileSync("git", args, { cwd: root, stdio: ["ignore", "pipe", "ignore"], maxBuffer: 64 << 20 }).toString(); } catch { return null; }
@@ -129,7 +129,7 @@ end Fw.Console.PreviewFacts
 
 export function generate(pin: Pin): { text: string; json: TaskFacts[] } {
   const git = pinnedGit(pin, false);
-  const all = pin.tasks.map((t) => taskFacts(root, t, git));
+  const all = pin.tasks.map((t) => taskFacts(root, t, git, pin.kids[t] ?? []));
   return { text: render(pin, all), json: all };
 }
 
@@ -139,16 +139,19 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   if (args.includes("--pin")) {
     const mainFull = real(["rev-parse", prev.main ?? PIN_MAIN])?.trim();
     if (!mainFull) throw new Error("pinned main commit missing");
-    const pin: Pin = { main: mainFull, integ: prev.integ ?? [], tasks: prev.tasks ?? [], refs: {}, tips: (real(["for-each-ref", "--format=%(objectname)", "refs/heads", "refs/remotes"]) ?? "").split("\n").filter(Boolean).sort().filter((x, i, a) => a.indexOf(x) === i) };
+    const pin: Pin = { main: mainFull, integ: prev.integ ?? [], tasks: prev.tasks ?? [], refs: {}, kids: Object.fromEntries(prev.tasks?.map((t) => [t, subTasks(root, t)]).filter(([, k]) => (k as string[]).length > 0) ?? []), tips: (real(["for-each-ref", "--format=%(objectname)", "refs/heads", "refs/remotes"]) ?? "").split("\n").filter(Boolean).sort().filter((x, i, a) => a.indexOf(x) === i) };
     // pass 1 records every ref the glue resolves (record mode), pass 2 is the reproducible run
     const rec = pinnedGit(pin, true);
-    for (const t of pin.tasks) taskFacts(root, t, rec);
+    for (const t of pin.tasks) taskFacts(root, t, rec, pin.kids[t] ?? []);
     for (const n of pin.integ) { const o = real(["rev-parse", "--verify", "--quiet", `${n}^{commit}`])?.trim(); if (o) pin.refs[n] = o; }
     writeFileSync(PIN, JSON.stringify({ ...pin, refs: Object.fromEntries(Object.entries(pin.refs).sort()) }, null, 1) + "\n");
   }
   const pin = JSON.parse(readFileSync(PIN, "utf8")) as Pin;
-  if (!real(["cat-file", "-e", `${pin.main}^{commit}`]) && real(["cat-file", "-t", pin.main]) === null) {
-    console.log("gen-preview-facts: the pinned commit is not in this clone: skipped");
+  // a clone without the pinned objects (a shallow CI checkout) cannot reproduce the facts: skipped, exit 2
+  const want = [pin.main, ...Object.values(pin.refs), ...pin.tips];
+  const have = execFileSync("git", ["cat-file", "--batch-check"], { cwd: root, input: want.join("\n") + "\n", maxBuffer: 16 << 20 }).toString();
+  if (have.includes("missing")) {
+    console.log("gen-preview-facts: the pinned commits are not all in this clone: skipped");
     process.exit(args.includes("--check") ? 2 : 0);
   }
   const { text } = generate(pin);
