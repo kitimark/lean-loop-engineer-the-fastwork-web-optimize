@@ -1,0 +1,5 @@
+{"name":"passed: no re-run","request":{"loadFailure":false,"op":"console.landRetry","passed":true},"response":{"pool":1,"rerun":false}}
+{"name":"passed with a timeout word in the log: no re-run","request":{"loadFailure":true,"op":"console.landRetry","passed":true},"response":{"pool":1,"rerun":false}}
+{"name":"failed by the code: final","request":{"loadFailure":false,"op":"console.landRetry","passed":false},"response":{"pool":1,"rerun":false}}
+{"name":"timed out under load: re-run alone","request":{"loadFailure":true,"op":"console.landRetry","passed":false},"response":{"pool":1,"rerun":true}}
+{"name":"missing loadFailure is refused","request":{"op":"console.landRetry","passed":false},"response":{"error":"missing field loadFailure"}}
