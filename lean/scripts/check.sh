@@ -55,6 +55,7 @@ run_group() {
   job "premise goldens check" lake env lean --run scripts/PremiseGolden.lean --check
   job "engine premise golden check" lake env lean --run scripts/EnginePremiseGolden.lean --check
   job "checkmap golden check" lake env lean --run scripts/CheckMapGolden.lean --check  # golden/ops/checkmap.jsonl (Fw.Ops.CheckMap)
+  job "props lint" lake env lean --run scripts/PropsLint.lean  # one registry in Fw.Spec.Incidents, rows match the ledger, properties do not name the impl
   i=0
   for p in $pids; do
     wait "$p" || echo "$i" >> "$tmp/failed"
