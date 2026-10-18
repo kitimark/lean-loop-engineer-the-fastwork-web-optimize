@@ -2060,7 +2060,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "319e5f8"
   },
   {
    "id": "morph-tween-curve",
@@ -4033,7 +4034,8 @@
     "packages/measure-wktr/**",
     "research/notes/**",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "5c815079"
   },
   {
    "id": "preview-test-ports",
@@ -4235,7 +4237,7 @@
   },
   {
    "id": "gate-shard-balance",
-   "title": "(M) breakpoint-gate shards balanced by measured cost: run 39101532038 (ci/integrate-ports-3) had webkit j3 49.8 min vs 21 min for j0-j2 and chromium j2 > 41 min; gate-shards.mjs splits round-robin by matrix order while Lean Fw.Gate.Schedule (LPT sched/makespan) is unused; per-load cost table from runs, Lean-planned shards with a makespan bound, settle-time bounds",
+   "title": "(M) gate-shard-balance, closed as a finding: no shard plan can lower the gate wall (flat probe cost under the frozen clock, LPT = count deal, floor = WebKit desktop sweep + setup = measured 5.6-6.1 min); the 50-min run was the gate-settle 30 s time-only wait. Lands the settle frame budget, frozen clock, per-reading verdict with Lean exemption registry, measured plan as non-default code; math fixes only",
    "stream": "gate",
    "milestone": "M5",
    "deps": [
@@ -4247,13 +4249,74 @@
     "lean/Fw/Ops/Golden.lean",
     "lean/Fw.lean",
     "packages/contracts/golden/gate/**",
-    ".github/scripts/gate-shards.mjs",
     ".github/workflows/breakpoint-gate.yml",
     "packages/gate-breakpoints/**",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/**",
     "research/notes/**",
-    "docs/team/handoffs/gate-shard-balance.md"
+    "docs/team/handoffs/gate-shard-balance.md",
+    ".github/scripts/gate-jobs.mjs",
+    ".github/scripts/gate-jobs.test.mjs",
+    "lean/scripts/check.sh",
+    "docs/team/incidents/ledger.json"
+   ]
+  },
+  {
+   "id": "gate-webkit-red",
+   "title": "(S) WebKit gate green at head: the stageBg desktop sweep cell and phone-rotation NC stops 1,3 (red on main and every r3/r4 run): each fixed in the part or excused by an enumerated Lean exemption with an engine-source premise; no column-wide or any-of excuse",
+   "stream": "gate",
+   "milestone": "M5",
+   "deps": [
+    "gate-shard-balance"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/platform/**",
+    "lean/Fw/Gate/Exit.lean",
+    "lean/Fw/Engine/**",
+    "packages/contracts/golden/gate/exit.jsonl",
+    "docs/team/handoffs/gate-webkit-red.md"
+   ]
+  },
+  {
+   "id": "gate-no-skip",
+   "title": "(M) every reading compared or excused by an enumerated Lean exemption (no none wildcards), verdict refuses unless the supplied cell/reading set equals the Lean universe (identity), narrowed from the cli flag never the engine JSON and never exit 0; unit = reading; one review round against stated limits",
+   "stream": "gate",
+   "milestone": "M5",
+   "deps": [
+    "gate-shard-balance"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/Exit.lean",
+    "lean/Fw/Gate/Rule.lean",
+    "lean/Fw/Gate/Scope.lean",
+    "lean/Fw.lean",
+    "packages/gate-breakpoints/src/cli.mjs",
+    "packages/gate-breakpoints/src/summary.mjs",
+    "packages/gate-breakpoints/test/exit*.test.mjs",
+    "packages/contracts/golden/gate/exit.jsonl",
+    "docs/team/handoffs/gate-no-skip.md",
+    "research/notes/2026/10-18-gate-no-skip.md"
+   ]
+  },
+  {
+   "id": "gate-run-identity",
+   "title": "(S) bind CI gate runs to the gate code they measured: merge job prints tree hashes of lean/Fw/Gate, packages/gate-breakpoints/src and breakpoint-gate.yml; fw land refuses unless the cited runs match the landing head (Lean Console.Land land_requires_run_identity + golden)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "gate-shard-balance"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Console/Land.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/**",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**",
+    ".github/scripts/merge-gate.mjs",
+    "docs/team/handoffs/gate-run-identity.md"
    ]
   },
   {
