@@ -641,7 +641,7 @@ theorem wk_cross_le (c : WkCross) : (wkCrossV c).le (wkCrossO c) := by
 /-- **WebKit resident state over the run**: whatever fade value `φ` the variant's resident state is taken at, and
 `φ'` the original's, the variant's is at most the original's (the original's filter is never `none`).
 
-$$\forall \varphi, \varphi' \in \mathbb{Q},\ \forall d, \rho, k:\ \operatorname{res}_{\mathrm{wk}}(F_v(\varphi), d, \rho, k) \preceq \operatorname{res}_{\mathrm{wk}}(F_o(\varphi'), d, \rho, k)$$
+$$\forall \varphi, \varphi' \in \mathbb{Q},\ \forall d \in \mathbb{B},\ \forall \mathrm{res} \in \mathrm{Resident},\ \forall k \in \mathbb{N}:\ \operatorname{res}_{\mathrm{wk}}(F_v(\varphi), d, \mathrm{res}, k) \preceq \operatorname{res}_{\mathrm{wk}}(F_o(\varphi'), d, \mathrm{res}, k)$$
 
 The variant never keeps more layers or backing than the original. -/
 theorem wk_cross_resident (φ φ' : Rat) (desc : Bool) (res : Resident) (kpx : Nat) :
@@ -655,7 +655,7 @@ theorem wk_cross_resident (φ φ' : Rat) (desc : Bool) (res : Resident) (kpx : N
 any order with one rest frame in which the compositor draws the panel, the claim is "dominates", with the variant's
 resident state taken at any fade value `φ` and the original's at any `φ'` (so also at the run's peak).
 
-$$\forall X \in \mathrm{WkCross}^{*},\ \forall \varphi, \varphi' \in \mathbb{Q},\ \forall d, \rho, k:\ \big(\exists x:\ \mathrm{rest}(x) \in X \land x.\mathrm{drawSurface}\big) \Rightarrow \operatorname{claim}\big(\operatorname{screen}(\operatorname{toRun}(\operatorname{map}(W_o, X)), \operatorname{toRun}(\operatorname{map}(W_v, X))), \operatorname{res}_{\mathrm{wk}}(F_v(\varphi), d, \rho, k), \operatorname{res}_{\mathrm{wk}}(F_o(\varphi'), d, \rho, k)\big) = \mathrm{dominates}$$
+$$\forall X \in \mathrm{WkCross}^{*}:\ \big(\exists x:\ \mathrm{rest}(x) \in X \land x.\mathrm{drawSurface}\big) \Rightarrow \forall \varphi, \varphi' \in \mathbb{Q},\ \forall d \in \mathbb{B},\ \forall \mathrm{res} \in \mathrm{Resident},\ \forall k \in \mathbb{N}:\ \operatorname{claim}\big(\operatorname{screen}(\operatorname{toRun}(\operatorname{map}(W_o, X)), \operatorname{toRun}(\operatorname{map}(W_v, X))), \operatorname{res}_{\mathrm{wk}}(F_v(\varphi), d, \mathrm{res}, k), \operatorname{res}_{\mathrm{wk}}(F_o(\varphi'), d, \mathrm{res}, k)\big) = \mathrm{dominates}$$
 
 In the model, the WebKit rest variant wins over the whole swipe, toggle frames included. -/
 theorem wk_cross_claim (xs : List WkCross) (hx : ∃ x, WkCross.rest x ∈ xs ∧ x.drawSurface = true)

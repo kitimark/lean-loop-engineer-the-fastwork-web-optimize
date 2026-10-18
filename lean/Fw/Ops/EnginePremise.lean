@@ -301,10 +301,7 @@ def crJoin (id : String) (rs : List CrKey) (hints css : String) : Case :=
 /-- **A two-element case**: the table members `a` and `b` changed in one frame, `a` on the case's box and `b` on an
 extra box; `none` if a member has no CSS spelling or is not realizable.
 
-$$\forall a = (k_a, \ell_a),\ b = (k_b, \ell_b):\ \operatorname{pair}(a, b) = \begin{cases} \mathrm{some}\big(\operatorname{id}(a) \mathbin{+\!\!+} \texttt{+} \mathbin{+\!\!+} \operatorname{id}(b),\ \mathrm{set},\ \operatorname{st}(a) \mathbin{+\!\!+} c_a.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_a.v_0 \mathbin{+\!\!+} \texttt{;},\ c_a.\mathrm{prop},\ c_a.v_1,\ [(\operatorname{st}(b) \mathbin{+\!\!+} c_b.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_b.v_0 \mathbin{+\!\!+} \texttt{;},\ c_b.\mathrm{prop},\ c_b.v_1)],\ \operatorname{expect}(W_{\mathrm{cr}}(\operatorname{crFrames}[(0, \operatorname{css}(k_a), \ell_a), (1, \operatorname{css}(k_b), \ell_b)]))\big) & \operatorname{crCss}(k_a) = \mathrm{some}\ c_a \land \operatorname{crCss}(k_b) = \mathrm{some}\ c_b \land \operatorname{real}_{\mathrm{cr}}(k_a, \ell_a) \land \operatorname{real}_{\mathrm{cr}}(k_b, \ell_b) \\ \bot & \text{otherwise} \end{cases}$$
-
-where $\operatorname{st}(k, \ell) = \operatorname{layerStyle}(\ell, \operatorname{hint}(k))$.
-
+$$\forall a = (k_a, \ell_a),\ b = (k_b, \ell_b):\ \operatorname{pair}(a, b) = \begin{cases} \mathrm{some}\big(\operatorname{id}(a) \mathbin{+\!\!+} \texttt{+} \mathbin{+\!\!+} \operatorname{id}(b),\ \mathrm{set},\ \operatorname{layerStyle}(\ell_a, \operatorname{hint}(k_a)) \mathbin{+\!\!+} c_a.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_a.v_0 \mathbin{+\!\!+} \texttt{;},\ c_a.\mathrm{prop},\ c_a.v_1,\ [(\operatorname{layerStyle}(\ell_b, \operatorname{hint}(k_b)) \mathbin{+\!\!+} c_b.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_b.v_0 \mathbin{+\!\!+} \texttt{;},\ c_b.\mathrm{prop},\ c_b.v_1)],\ \operatorname{expect}(W_{\mathrm{cr}}(\operatorname{crFrames}[(0, \operatorname{css}(k_a), \ell_a), (1, \operatorname{css}(k_b), \ell_b)]))\big) & \operatorname{crCss}(k_a) = \mathrm{some}\ c_a \land \operatorname{crCss}(k_b) = \mathrm{some}\ c_b \land \operatorname{real}_{\mathrm{cr}}(k_a, \ell_a) \land \operatorname{real}_{\mathrm{cr}}(k_b, \ell_b) \\ \bot & \text{otherwise} \end{cases}$$
 Two boxes changed in the same frame. -/
 def crPair (a b : CrKey × LayerState) : Option Case :=
   match crCss a.1, crCss b.1 with
@@ -488,10 +485,7 @@ def wkSteps0 : List Case := steps (expectAll wkObservers (wkWork [])) wkCases
 /-- **A WebKit two-element case**: the members `a` and `b` changed in one frame, `a` on the case's box and `b` on an
 extra box; `none` if a member has no CSS spelling or is not realizable.
 
-$$\forall a = (p_a, \ell_a),\ b = (p_b, \ell_b):\ \operatorname{pair}_{\mathrm{wk}}(a, b) = \begin{cases} \mathrm{some}\big(\operatorname{id}(a) \mathbin{+\!\!+} \texttt{+} \mathbin{+\!\!+} \operatorname{id}(b),\ \mathrm{set},\ \operatorname{st}(a) \mathbin{+\!\!+} c_a.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_a.v_0 \mathbin{+\!\!+} \texttt{;},\ c_a.\mathrm{prop},\ c_a.v_1,\ [(\operatorname{st}(b) \mathbin{+\!\!+} c_b.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_b.v_0 \mathbin{+\!\!+} \texttt{;},\ c_b.\mathrm{prop},\ c_b.v_1)],\ \operatorname{expect}(W_{\mathrm{wk}}[(0, p_a, \ell_a), (1, p_b, \ell_b)])\big) & \operatorname{wkCss}(p_a) = \mathrm{some}\ c_a \land \operatorname{wkCss}(p_b) = \mathrm{some}\ c_b \land \operatorname{real}_{\mathrm{wk}}(p_a, \ell_a) \land \operatorname{real}_{\mathrm{wk}}(p_b, \ell_b) \\ \bot & \text{otherwise} \end{cases}$$
-
-where $\operatorname{st}(p, \ell) = \operatorname{wkLayerStyle}(p, \ell)$.
-
+$$\forall a = (p_a, \ell_a),\ b = (p_b, \ell_b):\ \operatorname{pair}_{\mathrm{wk}}(a, b) = \begin{cases} \mathrm{some}\big(\operatorname{id}(a) \mathbin{+\!\!+} \texttt{+} \mathbin{+\!\!+} \operatorname{id}(b),\ \mathrm{set},\ \operatorname{wkLayerStyle}(p_a, \ell_a) \mathbin{+\!\!+} c_a.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_a.v_0 \mathbin{+\!\!+} \texttt{;},\ c_a.\mathrm{prop},\ c_a.v_1,\ [(\operatorname{wkLayerStyle}(p_b, \ell_b) \mathbin{+\!\!+} c_b.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_b.v_0 \mathbin{+\!\!+} \texttt{;},\ c_b.\mathrm{prop},\ c_b.v_1)],\ \operatorname{expect}(W_{\mathrm{wk}}[(0, p_a, \ell_a), (1, p_b, \ell_b)])\big) & \operatorname{wkCss}(p_a) = \mathrm{some}\ c_a \land \operatorname{wkCss}(p_b) = \mathrm{some}\ c_b \land \operatorname{real}_{\mathrm{wk}}(p_a, \ell_a) \land \operatorname{real}_{\mathrm{wk}}(p_b, \ell_b) \\ \bot & \text{otherwise} \end{cases}$$
 Two boxes changed in the same WebKit frame. -/
 def wkPair (a b : WkProp × LayerState) : Option Case :=
   match wkCss a.1, wkCss b.1 with
@@ -1003,10 +997,9 @@ theorem max_stages_of_comparable (a b : CrLevel) (h : a ≤ b ∨ b ≤ a) (s : 
 the stages whose counters ran. The timer frame ran nothing; `top` and `scale` read through one custom property, and
 `top@own` with `scale@own` on two boxes, ran layout but neither `Paint` nor `RasterTask`.
 
-$$\mathrm{crExtraRec} = [(\mathrm{timer}, [\,]),\ (\operatorname{join}\{\mathrm{top}, \mathrm{scale}\}, L),\ (\operatorname{join}\{\mathrm{top}, \mathrm{transform}\}, L),\ (\operatorname{join}\{\mathrm{bgColor}, \mathrm{opacity}\}, P),\ (\mathrm{top}@\mathrm{own} + \mathrm{scale}@\mathrm{own}, L),\ (\mathrm{transform}@\mathrm{own} + \mathrm{bgColor}@\mathrm{none}, P),\ (\mathrm{top}@\mathrm{own} + \mathrm{transform}@\mathrm{own}, L)]$$
+$$\mathrm{crExtraRec} = [(\mathrm{timer}, [\,]),\ (\operatorname{join}\{\mathrm{top}, \mathrm{scale}\}, L),\ (\operatorname{join}\{\mathrm{top}, \mathrm{transform}\}, L),\ (\operatorname{join}\{\mathrm{bgColor}, \mathrm{opacity}\}, P),\ (\mathrm{top}@\mathrm{own} + \mathrm{scale}@\mathrm{own}, L),\ (\mathrm{transform}@\mathrm{own} + \mathrm{bgColor}@\mathrm{none}, P),\ (\mathrm{top}@\mathrm{own} + \mathrm{transform}@\mathrm{own}, L)],\quad L = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{commit}, \mathrm{hits}],\quad P = [\mathrm{style}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}]$$
 
-where $L = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{commit}, \mathrm{hits}]$ and
-$P = [\mathrm{style}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}]$. -/
+Which counters ran in each extra Chromium step. -/
 def crExtraRecorded : List (String × List String) :=
   let l := ["style", "layout", "props", "commit", "hits"]
   let p := ["style", "props", "paint", "raster", "commit"]
