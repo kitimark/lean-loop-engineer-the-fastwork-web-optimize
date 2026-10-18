@@ -145,6 +145,11 @@ def retryReq (e : String) (a n : Nat) : Json :=
 def retryPlanReq (es : List String) (n : Nat) : Json :=
   Json.mkObj [("errors", .arr (es.toArray.map Json.str)), ("max", toJson n)]
 
+/-- A `measure.simPlan` request (the commit is a fixed 40-character hex string). -/
+def simPlanReq (target vms sessions preset fw experiment : String) : Json :=
+  Json.mkObj [("target", .str target), ("vms", .str vms), ("sessions", .str sessions), ("preset", .str preset),
+    ("fw", .str fw), ("experiment", .str experiment), ("sha", .str "0123456789abcdef0123456789abcdef01234567")]
+
 /-- The cases, per op file: (file stem, [(name, request without op)]). -/
 def cases : List (String × List (String × Json)) := [
   ("measure.zoneSums", [
@@ -406,7 +411,24 @@ def cases : List (String × List (String × Json)) := [
     ("a permanent first error: no retry", retryPlanReq ["Invalid device: x"] 3),
     ("no failure at all", retryPlanReq [] 3),
     ("six timeouts, limit 8: waits double up to the cap",
-      retryPlanReq ["ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT"] 8)])]
+      retryPlanReq ["ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT"] 8)]),
+  ("measure.simPlan", [
+    ("the defaults: the original arm only, no query", simPlanReq "original" "1" "1" "original" "" "determinism"),
+    ("both arms, one VM, the flag in the query of the rewrite arm only",
+      simPlanReq "both" "1" "1" "original" "hero.countdown:strip" "determinism"),
+    ("both arms, two VMs: v1 r1 v2 r2, each r paired with its v", simPlanReq "both" "2" "2" "original" "" "determinism"),
+    ("the rewrite arm alone with a preset and flags",
+      simPlanReq "rewrite" "1" "1" "strip-demo" "hero.countdown:strip,nav.hitTest:hit-skip" "determinism"),
+    ("a preset without flags", simPlanReq "both" "1" "1" "strip-demo" "" "determinism"),
+    ("flags need an arm that serves the rewrite", simPlanReq "original" "1" "1" "original" "hero.countdown:strip" "determinism"),
+    ("a preset needs an arm that serves the rewrite", simPlanReq "original" "1" "1" "strip-demo" "" "determinism"),
+    ("the quiet experiment measures the original only", simPlanReq "both" "1" "1" "original" "" "quiet"),
+    ("quiet on the original is accepted", simPlanReq "original" "1" "1" "original" "" "quiet"),
+    ("a malformed flag item is refused", simPlanReq "both" "1" "1" "original" "hero.countdown" "determinism"),
+    ("a part twice is refused", simPlanReq "both" "1" "1" "original" "a.b:c,a.b:d" "determinism"),
+    ("parts out of order are refused", simPlanReq "both" "1" "1" "original" "nav.hitTest:hit-skip,hero.countdown:strip" "determinism"),
+    ("an unknown target, four VMs and zero sessions are all listed", simPlanReq "neither" "4" "0" "original" "" "determinism"),
+    ("a leading zero is not a count", simPlanReq "both" "01" "1" "original" "" "determinism")])]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json

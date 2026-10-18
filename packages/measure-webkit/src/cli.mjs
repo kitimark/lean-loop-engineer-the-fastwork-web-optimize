@@ -126,7 +126,8 @@ async function main() {
         return ps;
       }, sessionOpts);
       const rows = classifyPasses(passes);
-      save('determinism', { runs, clock: v.clock, states, rows, summary: summarize(rows), passes });
+      // site: what was served (the rewrite arm: the query and the prerendered config's hash); null = the snapshot
+      save('determinism', { runs, clock: v.clock, states, site: sessionOpts.site ? { search: v.search, configHash: sessionOpts.site.configHash ?? null } : null, rows, summary: summarize(rows), passes });
       console.log(markdownTable(rows));
       break;
     }
