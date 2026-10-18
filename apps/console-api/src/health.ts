@@ -28,7 +28,14 @@ const Input = z.object({
     stale: z.array(Str).optional(),
   }).passthrough(),
 });
-const Line = z.object({ at: Num, input: Input, output: Output });
+const ShapeAlert = z.object({ workflow: Str, cls: Str, run: Num, branch: Str, sha: Str, createdS: Num, subject: Str, value: Num, bound: Num });
+// ci-shape-obs: fwcore `obs.ciShape` reply (runs + open alerts) as `fw watch` logged it; older lines lack it
+const CiShape = z.object({
+  runs: z.array(z.object({ workflow: Str, run: Num, branch: Str, sha: Str, createdS: Num, jobS: Num,
+    groups: z.array(z.object({ group: Str, n: Num, maxS: Num, sumS: Num })), fires: z.array(Str) })),
+  open: z.array(ShapeAlert),
+});
+const Line = z.object({ at: Num, input: Input, output: Output, ciShape: CiShape.nullish() });
 
 export type HealthView = ReturnType<typeof project>;
 
@@ -58,6 +65,7 @@ function project(line: z.infer<typeof Line>) {
       ci: (input.system.ci ?? []).map((r) => ({ workflow: r.workflow, branch: r.branch, status: r.status, conclusion: r.conclusion ?? null })),
       stale: input.system.stale ?? [],
     },
+    ciShape: line.ciShape ?? null, // Lean's runs and open alerts, unchanged
   };
 }
 

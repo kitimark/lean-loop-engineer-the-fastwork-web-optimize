@@ -14,6 +14,7 @@ import { ghBudgetCli } from "@fw/gh-budget";
 import { engineCheckCli } from "./engine-check.ts";
 import { begin, timingsView } from "./timing.ts";
 import { backfill, ingestRuns, runIdsOf } from "./timing-ci.ts";
+import { collect as collectShape, finishedOf } from "./ci-shape.ts";
 
 const [group, ...rest] = process.argv.slice(2);
 // timing-spans: one span per invocation (step = group + subcommand); `watch` times each pass itself, `timings` is a view
@@ -32,7 +33,11 @@ try {
     if (rest[0] === "wait") console.log = (...a: unknown[]) => { seen.push(String(a[0])); log(...a); }; // timing-spans: run ids that finished
     process.exitCode = await ghBudgetCli(rest, process.cwd()); // shared GitHub poller: no gh loops (packages/gh-budget)
     console.log = log;
-    if (rest[0] === "wait") await ingestRuns(runIdsOf(seen.flatMap((x) => x.split("\n"))), process.cwd()); // jobs fetched once, deduped by run id
+    if (rest[0] === "wait") {
+      const lines = seen.flatMap((x) => x.split("\n"));
+      await ingestRuns(runIdsOf(lines), process.cwd()); // jobs fetched once, deduped by run id
+      await collectShape(finishedOf(lines), process.cwd()); // ci-shape-obs: job rows of the finished runs, cancelled skipped
+    }
   } else if (group === "ci") {
     process.exitCode = await ciCli(rest, process.cwd());
   } else if (group === "incidents") {

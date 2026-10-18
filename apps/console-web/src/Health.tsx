@@ -16,7 +16,52 @@ export type HealthView = {
   system: { diskFreeGB: number; memPressure: string; simLock: { holder: string | null; since: number | null };
     docker: { name: string; startedAt: number }[]; worktrees: number;
     ci: { workflow: string; branch: string; status: string; conclusion: string | null }[]; stale: string[] };
+  ciShape?: CiShapeView | null;
 };
+// ci-shape-obs: fwcore `obs.ciShape` (Fw.Obs.CiShape) runs and open alerts, rendered as they are
+export type CiShapeView = {
+  runs: { workflow: string; run: number; branch: string; sha: string; createdS: number; jobS: number;
+    groups: { group: string; n: number; maxS: number; sumS: number }[]; fires: string[] }[];
+  open: { workflow: string; cls: string; run: number; branch: string; sha: string; createdS: number; subject: string; value: number; bound: number }[];
+};
+
+const mins = (s: number) => `${(s / 60).toFixed(1)} min`;
+
+/** The CI-shape card: open alerts, then per workflow its recent runs (job minutes, groups as max/mean, fired classes). */
+function CiShapeCard({ shape }: { shape: CiShapeView | null | undefined }) {
+  if (!shape) return null;
+  const wfs = [...new Set(shape.runs.map((r) => r.workflow))];
+  return (
+    <Card>
+      <CardHeader><CardTitle>CI shape ({shape.open.length} open)</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        {shape.open.map((a) => (
+          <div key={`${a.workflow}/${a.cls}`} className="flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant="destructive">{a.cls}</Badge><span className="font-medium">{a.workflow}</span>
+            <span className="text-muted-foreground">{a.subject} {a.value} vs {a.bound} (run {a.run} {a.sha})</span>
+          </div>
+        ))}
+        <Table>
+          <TableHeader>
+            <TableRow><TableHead>Workflow</TableHead><TableHead>Run</TableHead><TableHead>Job time</TableHead>
+              <TableHead>Groups (max / mean)</TableHead><TableHead>Fires</TableHead></TableRow>
+          </TableHeader>
+          <TableBody>
+            {wfs.flatMap((w) => shape.runs.filter((r) => r.workflow === w).slice(-3).reverse().map((r) => (
+              <TableRow key={r.run}>
+                <TableCell className="font-medium">{w}</TableCell>
+                <TableCell>{r.sha} {r.branch}</TableCell>
+                <TableCell>{mins(r.jobS)}</TableCell>
+                <TableCell className="text-xs">{r.groups.map((g) => `${g.group} ${(g.maxS * g.n / Math.max(g.sumS, 1)).toFixed(2)}`).join("; ") || "-"}</TableCell>
+                <TableCell>{r.fires.length ? r.fires.map((c) => <Badge key={c} variant="destructive">{c}</Badge>) : <Badge variant="secondary">ok</Badge>}</TableCell>
+              </TableRow>
+            )))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
 
 const STATES = ["stalled", "active", "idle", "parked", "gone", "done"] as const; // display grouping only
 
@@ -91,6 +136,7 @@ export function HealthView({ now }: { now: number }) {
           ))}
         </CardContent>
       </Card>
+      <CiShapeCard shape={health.ciShape} />
       <Card>
         <CardHeader><CardTitle>System</CardTitle></CardHeader>
         <CardContent>
