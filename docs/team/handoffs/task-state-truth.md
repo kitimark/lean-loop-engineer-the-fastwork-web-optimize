@@ -27,4 +27,4 @@ Forged events; 10-min display lag after restart (epochs reset, heartbeats bucket
 only once `fw watch` names it; a legacy `live` define without a sighting binds nothing; rejected lines re-alert
 after a restart (offsets reset).
 
-Read first: `lean/Fw/Plan/Core.lean` "Life keys" + "Quiet timeout", then `lean/Fw/Ops/Obs.lean` admission/life.
+Read first: `lean/Fw/Plan/Core.lean` "Agent binding" + "Quiet timeout", then `lean/Fw/Ops/Obs.lean` admission/life.
