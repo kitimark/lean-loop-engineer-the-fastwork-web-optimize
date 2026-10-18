@@ -16,11 +16,10 @@ Lead, with Monitor, re-armed every 30 min: `pnpm fw watch --interval 300 --strea
 - `fwcore ops.watchDiff` (lean/Fw/Ops/WatchDiff.lean) decides the lines. Each alert (code and subject) gets one OPEN,
   and the next line for it is its CLOSE (`opened_once`). An alert open at a check is printed by that check
   (`every_open_reported`).
-- The open set is kept in `.fw-console/stream.json`, so a re-armed stream does not reprint alerts it already printed.
+- Nothing is persisted: each stream starts empty and prints every open alert once (one batch per re-arm).
   Delete that file to have every open alert printed again.
 - A check that fails ends the stream with `STREAM END error ...`. SIGKILL prints no last line.
 - An alert that opens and closes between two checks is never printed.
-- Run one stream at a time: two streams share `stream.json`.
 
 ## Single-event waits
 

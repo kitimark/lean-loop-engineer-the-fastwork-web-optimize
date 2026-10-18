@@ -168,17 +168,8 @@ const oneLine = (t: string) => t.replace(/\s+/g, " ").trim();
 export function streamLines(d: Diff): string[] {
   return [...d.opened.map((a) => oneLine(`OPEN ${a.code} ${a.subject} ${a.detail}`)), ...d.closed.map((k) => oneLine(`CLOSE ${k.code} ${k.subject}`))];
 }
-/** The stream's open set, `.fw-console/stream.json` (`{open: [{code, subject}]}`); empty when missing or unreadable. */
-export function readStream(p: Paths): AlertKey[] {
-  try { return keyList(JSON.parse(readFileSync(join(p.consoleDir, "stream.json"), "utf8")).open); } catch { return []; }
-}
-export function writeStream(p: Paths, open: AlertKey[]): void {
-  mkdirSync(p.consoleDir, { recursive: true });
-  writeFileSync(join(p.consoleDir, "stream.json"), JSON.stringify({ open }) + "\n");
-}
-/** One synchronous write per line: a pipe on macOS is asynchronous for `console.log`, so a line printed just before exit
- *  could be lost. */
-export const syncLine = (t: string) => { try { writeSync(1, t + "\n"); } catch { process.stdout.write(t + "\n"); } };
+// No reader on stdout (EPIPE): nobody can see the stream, so it stops at once (exit 141, as SIGPIPE).
+export const syncLine = (t: string) => { try { writeSync(1, t + "\n"); } catch { process.exit(141); } };
 
 export function appendLog(p: Paths, snap: Snapshot, h: Health): void {
   mkdirSync(p.consoleDir, { recursive: true });
@@ -261,7 +252,7 @@ async function liveDeclared(paths: Paths, rows: StartRow[], decide: KeepDecide):
 export async function declareKeep(paths: Paths, o: WatchOpts, rows: StartRow[], decide: KeepDecide): Promise<string> {
   const cur = await liveDeclared(paths, rows, decide);
   if (o.unkeep !== null) {
-    writeKeep(paths, cur.filter((e) => e.pid !== o.unkeep));
+    writeKeep(paths, readKeep(paths).filter((e) => e.pid !== o.unkeep)); // never the ps-filtered list: a failed ps must not erase declarations
     return `fw watch: pid ${o.unkeep} is no longer declared`;
   }
   const r = rows.find((x) => x.pid === o.keep);
@@ -346,7 +337,7 @@ async function pass(paths: Paths, main: string, prevSnap: Prev | null, call: Cor
 }
 
 /** `--stream`: every interval, print the OPEN/CLOSE lines of fwcore's diff against the open set in
- *  `.fw-console/stream.json`, then save the new set. Never exits on an alert; a failed pass, a signal or any exit prints
+ *  the set this stream printed (in memory only, so a re-armed stream reprints every open alert). Never exits on an alert; a failed pass, a signal or any exit prints
  *  one `STREAM END <reason>` line (a SIGKILL cannot). */
 async function streamMain(o: WatchOpts, paths: Paths, main: string, call: CoreCall, decide: KeepDecide, say: (s: string) => void): Promise<number> {
   let ended = false;
@@ -355,13 +346,13 @@ async function streamMain(o: WatchOpts, paths: Paths, main: string, call: CoreCa
   for (const [sig, n] of [["SIGINT", 2], ["SIGTERM", 15], ["SIGHUP", 1]] as const) process.once(sig, () => { end(`signal ${sig}`); process.exit(128 + n); });
   const last = readLastLog(paths);
   let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical } : null;
-  let open = readStream(paths);
+  let open: AlertKey[] = []; // each stream starts empty and prints every open alert once: nothing is persisted
   try {
     for (;;) {
       const { snap, h } = await pass(paths, main, prevSnap, call, decide);
       const d = await diffAlerts(call, open, h.alerts);
       for (const line of streamLines(d)) say(line);
-      writeStream(paths, (open = d.next));
+      open = d.next;
       prevSnap = { at: snap.now, system: snap.system, critical: snap.critical };
       await new Promise((r) => setTimeout(r, o.intervalS! * 1000));
     }

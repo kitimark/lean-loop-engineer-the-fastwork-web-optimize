@@ -8,8 +8,8 @@ import {
   summarizeLead, summarizeSpool, summarizeTranscript, type Runner, type SystemSnap,
 } from "../src/watch-collect.ts";
 import {
-  alertKey, appendLog, coreCaller, declareKeep, diffAlerts, keepDecider, newAlerts, parseWatchArgs, readLastLog, readStream, renderTable, streamLines,
-  writeStream, type AlertKey, type Health,
+  alertKey, appendLog, coreCaller, declareKeep, diffAlerts, keepDecider, newAlerts, parseWatchArgs, readLastLog, renderTable, streamLines,
+  type AlertKey, type Health,
 } from "../src/watch.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -288,15 +288,6 @@ describe("cli", () => {
   it("streamLines: one OPEN per opened alert, one CLOSE per closed key, each on one line", () => {
     expect(streamLines({ opened: [{ code: "proc.long", subject: "node#7", detail: "31m\n idle" }], closed: [{ code: "ci.slow", subject: "r1" }], next: [] }))
       .toEqual(["OPEN proc.long node#7 31m idle", "CLOSE ci.slow r1"]);
-  });
-  it("the stream's open set round-trips through stream.json; a missing file is empty", () => {
-    const dir = mkdtempSync(join(tmpdir(), "fw-stream-"));
-    try {
-      const paths = pathsFor("/x/r", { FW_CONSOLE_DIR: dir } as never);
-      expect(readStream(paths)).toEqual([]);
-      writeStream(paths, [{ code: "a", subject: "1" }]);
-      expect(readStream(paths)).toEqual([{ code: "a", subject: "1" }]);
-    } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });
 

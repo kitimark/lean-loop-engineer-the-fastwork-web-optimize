@@ -14,7 +14,7 @@ What exists:
   `run_state_iff` and `run_last`. Keep identity: `keepPids` with `keep_same_process`, `keep_iff`,
   `reused_pid_not_kept`, and the Monitor allowlist `monitorShapes` (`monitor_shape_iff`). Wire ops: `ops.watchDiff`,
   `ops.watchKeep`. Goldens in packages/contracts/golden/ops/.
-- apps/runner/src/watch.ts: `--stream` prints OPEN/CLOSE/STREAM END and keeps its open set in .fw-console/stream.json.
+- apps/runner/src/watch.ts: `--stream` prints OPEN/CLOSE/STREAM END and keeps its open set in memory only (lead fix after review: a persisted set hid undelivered alerts).
   `newAlerts` (--until-alert) now calls ops.watchDiff. `--keep` records the `ps lstart` start.
 - apps/runner/src/watch-collect.ts: collectSystem takes a `keepOf` decider (ops.watchKeep) over lstart rows; there is
   no clock match any more.
