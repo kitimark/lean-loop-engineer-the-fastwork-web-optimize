@@ -116,29 +116,29 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       observations: trace.length, frames: last.frames, waitedMs: last.t, running: last.running, stable: last.stable, hoverInside: last.hoverInside,
     };
   }
-  const collectArg = (site, env, props, parts) => ({
-    site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts, props, filter: FILTER[site],
+  const collectArg = (site, env, props, parts, view = false) => ({
+    site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts, props, flagSkipped: view, filter: FILTER[site],
   });
-  async function evalCollect(s, site, env, props, settleRoots) {
+  async function evalCollect(s, site, env, props, settleRoots, view = false) {
     const mountIds = Object.keys(mountOf[site]);
     const overlayIds = Object.keys(overlayOf[site]);
     const pick = (ids, inside) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => ids.includes(pid) === inside));
-    const raw = await collectWith(s, collectArg(site, env, props, pick([...mountIds, ...overlayIds], false)));
+    const raw = await collectWith(s, collectArg(site, env, props, pick([...mountIds, ...overlayIds], false), view));
     for (const pid of overlayIds) {
       const steps = overlayOf[site][pid];
       await s.evaluate(prepareInPage, { stage: 'open', steps, capMs: CAP_MS[site] });
       // an opened overlay animates in (WebKit run 39067170911 read the signup dialog at scale 0.9977): settle it before reading
       if (settleRoots) (raw.overlaySettle ||= []).push(await settleRoots(partsArg[site][pid].map((r) => r.selector), env));
-      const one = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }));
+      const one = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, view));
       raw.parts = { ...raw.parts, ...one.parts };
       await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
     }
     if (mountIds.length > 0) {
       raw.prepared = await s.evaluate(prepareInPage, { stage: 'ready', steps: Object.values(mountOf[site]).flat(), capMs: CAP_MS[site] });
-      const late = await collectWith(s, collectArg(site, env, props, pick(mountIds, true)));
+      const late = await collectWith(s, collectArg(site, env, props, pick(mountIds, true), view));
       raw.parts = { ...raw.parts, ...late.parts };
     }
-    if (props) await bringSkipped(s, site, env, props, raw, settleRoots);
+    if (props && view) await bringSkipped(s, site, env, props, raw, settleRoots);
     return raw;
   }
   // Lean Fw.Gate.Settle.view. A part with a node read in a skipped content-visibility subtree (page.mjs collectInPage flags it) is
@@ -157,7 +157,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       const b = await s.evaluate(bringInPage, { roots });
       const wait = settleRoots ? await settleRoots(roots, env) : null;
       if (wait) (raw.overlaySettle ||= []).push(wait); // the sample is unsettled when this wait is
-      const again = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }));
+      const again = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, true));
       const first = raw.parts[pid];
       raw.viewFirst[pid] = first;
       raw.parts[pid] = Object.fromEntries(Object.entries(first).map(([role, fr]) => [role, {
@@ -214,14 +214,14 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const collectProps = Object.fromEntries(Object.entries(props).map(([pid, roles]) => [pid, Object.fromEntries(
     Object.entries(roles).map(([role, v]) => [role, [...v.restated, ...v.originOnly]]))]));
 
-  async function sample(env, site) {
+  async function sample(env, site, view = true) {
     return withRetry(`${site} ${env.width}x${env.height}`, async () => {
       const s = await load(env, site);
       try {
         await parkEarly(s, env);
         const settle = await evalReady(s, site);
         const settleWait = await settleArm(s, site, env);
-        const raw = await evalCollect(s, site, env, collectProps, (roots, e) => settleArm(s, site, e, roots));
+        const raw = await evalCollect(s, site, env, collectProps, (roots, e) => settleArm(s, site, e, roots), view);
         raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
         if (gaps) raw.gap = await s.evaluate(gaps.collect, gaps.collectArg);
         return { settle, raw };
@@ -270,7 +270,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       } finally { await s.close().catch(() => {}); }
     })));
     const last = sw.stops[sw.stops.length - 1];
-    const fresh = await Promise.all(SITES.map((site) => sample(last, site)));
+    const fresh = await Promise.all(SITES.map((site) => sample(last, site, false)));
     sweepRecords.push({ id: sw.id, blurb: sw.blurb, stops: sw.stops, orig: perSite[0], rewrite: perSite[1], freshFinal: { orig: fresh[0], rewrite: fresh[1] } });
     log(`  ${engineName}: sweep ${sw.id} done (${sw.stops.length} stops)`);
   }

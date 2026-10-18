@@ -24,6 +24,11 @@ Premises (Fw.Ops.Premise, 19 now): `cv.skip-flag`, `cv.fresh-after-resize`; gold
 center), settle, collect again, keep the second reading (`view true`); `raw.viewFirst` keeps the first, `raw.viewed` the counts; then
 scroll back to the top. `maskNotRendered` (summary.mjs) handles items still skipped. No skipProps or tolerance change.
 
+## Run 39084163586 (cancelled, first version: sweeps also brought parts into view)
+Bringing commission into view starts its animations (typing) for all later stops of a sweep: 111/114 samples of the 1512 sweep ended
+UNSETTLED (31 s each), the job ran > 29 min instead of 2. So `flagSkipped` is set only for probes (`sample(env, site, view)`; the
+freshFinal load and sweeps read as before). A sweep stop 0 stale margin is therefore not covered by the rule.
+
 ## Open
 - Whether the rule changes any cell is unproven because the baseline passes; CI results of the rule: see the report (runs listed there).
 - If a commission cell fails again, compare `raw.viewFirst` with the kept items of that probe: a differing first reading proves (b).

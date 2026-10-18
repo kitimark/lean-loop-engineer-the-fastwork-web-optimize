@@ -300,9 +300,11 @@ export function collectInPage(arg) {
   // Whether the engine has the node's subtree skipped (content-visibility:auto, off screen): rendered by the DOM
   // (checkVisibility() true) but not by contentVisibilityAuto. Read for every probed node BEFORE any rect or style is read: a
   // style read forces a skipped subtree's lock open for the length of the read (premise cv.read-forces-lock). An engine without
-  // the option reports nothing skipped. Premise cv.skip-flag.
+  // the option reports nothing skipped. Premise cv.skip-flag. Only when the caller asks (`flagSkipped`: the probes, which load
+  // fresh): bringing a part into view starts its animations (commission typing), and a sweep carries that state to all later stops
+  // (CI run 39084163586: 111 of 114 samples of one sweep ended unsettled), so sweeps read as before.
   const skippedOf = new Map();
-  if (arg.props) {
+  if (arg.props && arg.flagSkipped) {
     for (const roles of Object.values(arg.parts)) {
       for (const { selector } of roles) {
         for (const el of Array.from(document.querySelectorAll(selector)).slice(0, 64)) {
