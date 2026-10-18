@@ -15,4 +15,4 @@ Fix: the expected miss set comes from Lean, not a constant.
   topological or the module is unknown). Not in `toolSources` (does not affect lint/export).
 - lean.yml mutations 1 and 3: `diff` sorted `--dependents` output against the `miss` lines of cached.stats.
 
-Open: none. Read first: ConeMiss.lean module doc, then the mutation steps in lean.yml.
+Open: dry land says VERDICT scope; the lead must add lean/Fw/Spec/ConeMiss.lean, lean/Fw/Console/LandSpeed.lean, lean/MathViewMain.lean to the task scope. CI run 39102129898 green (mathview-differential success). Read first: ConeMiss.lean module doc, then the mutation steps in lean.yml.
