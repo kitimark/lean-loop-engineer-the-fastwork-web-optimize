@@ -42,6 +42,7 @@ import Fw.Measure.WebKit
 import Fw.Measure.Retry
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard
+import Fw.Ops.Wait
 import Fw.Ops.PathCheck
 import Fw.Ops.Usage
 import Fw.Ops.Meter
