@@ -4,6 +4,7 @@
 #   parallel math-view lint | fwcore fwtest (golden round trips) | golden wire replay (real fwcore binary, LEAN_ABORT_ON_PANIC=1)
 #            | breakgen checks x2, fwcore sweepsgen checks x4 (generated JSON equals the Lean output)
 #            | engine golden cite lint (every golden/engine row cites a premise, Fw.Ops.Premise.citeLint; m175)
+#            | engine goldens check (every golden/engine/*.jsonl equals its Lean generator; scripts/EngineGoldens.lean)
 #            | premise goldens check (golden/ops/premise.jsonl and wktr-lane.jsonl equal the Lean output)
 #            | checkmap golden check (golden/ops/checkmap.jsonl equals the Lean output; Fw.Ops.CheckMap)
 # The parallel jobs call the built binaries directly (.lake/build/bin/...), not `lake exe`, so none of them takes Lake's lock.
@@ -54,6 +55,7 @@ run_group() {
   job "engine golden cite lint" lake env lean --run scripts/EngineCiteLint.lean  # `lake env` builds nothing and takes no lock
   job "premise goldens check" lake env lean --run scripts/PremiseGolden.lean --check
   job "engine premise golden check" lake env lean --run scripts/EnginePremiseGolden.lean --check
+  job "engine goldens check" lake env lean --run scripts/EngineGoldens.lean  # golden/engine/*.jsonl equal the Lean generators, one generator per file
   job "checkmap golden check" lake env lean --run scripts/CheckMapGolden.lean --check  # golden/ops/checkmap.jsonl (Fw.Ops.CheckMap)
   job "lakegc golden check" lake env lean --run scripts/LakeGcGolden.lean --check  # golden/ops/lakegc.jsonl (Fw.Ops.LakeGc)
   # props lint (one registry in Fw.Spec.Incidents, rows match the ledger, properties do not name the impl), run once over

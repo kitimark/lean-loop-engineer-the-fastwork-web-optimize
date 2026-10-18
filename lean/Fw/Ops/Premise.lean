@@ -331,10 +331,11 @@ theorem not_flagged_of_lane (ps : List Premise) (rs : List Result) (p : Premise)
 private def both : List Engine := [.chromium, .webkit]
 
 -- A measured stage rule of an engine model (kind `lane`): presence of the stage's counters equals membership of the
--- stage in the model's `touched` set, in every unforced frame of the fixture of `engine-premises.yml`.
+-- stage in the model's `touched` set, in every unforced table frame of the fixture of `engine-premises.yml` (the extra
+-- steps of run 39124427211 refute cr.script, cr.props, cr.paint and cr.raster: `Fw.Ops.EnginePremise.cr_extra_cells`).
 private def laneRule (id stage counters model : String) (e : Engine) (ths : List String) : Premise where
   id := id
-  statement := r"\forall f \text{ unforced (one change or none, no forced read) in the fixture steps}:\ " ++ counters ++
+  statement := r"\forall f \text{ unforced (one change or none, no forced read) in the table steps (a case of the property table or its idle frame; not the extra steps of run 39124427211)}:\ " ++ counters ++
     r" \text{ run in } f \iff \mathrm{" ++ stage ++ r"} \in \operatorname{touched}_{" ++ model ++
     r"}(f)\ \text{ (not observed: } \mathrm{units}, \text{ forced passes, the order against the base arm)}"
   theorems := ths
@@ -354,7 +355,10 @@ the `engine-premises.yml` lane measured and found to hold (`cr.script`, `cr.styl
 `wk.commit`; task engine-premise-measure); and $p_{24}$-$p_{30}$, the seven stage rules that lane refuted in run
 39088367495 and that hold on its recorded cells after the model fix (`cr.layout`, `cr.props`, `cr.paint`,
 `cr.raster`, `cr.hits`, `wk.layout`, `wk.props`; task engine-model-fix, `Fw.Ops.EnginePremise.cr_recorded_holds`,
-`wk_recorded_holds`).
+`wk_recorded_holds`). The lane rules are stated on the table steps: the extra steps of run 39124427211 (a timer-only
+frame, custom-property joins, two-box frames; task engine-model-fix-2) refute `cr.script` and `cr.props` on the timer
+frame and `cr.paint` and `cr.raster` on `top` with `scale` (`Fw.Ops.EnginePremise.cr_extra_cells`), and every WebKit
+rule holds on them (`wk_extra_holds`).
 
 $$\operatorname{registry} = [p_1, \dots, p_{30}]$$
 -/
@@ -457,7 +461,7 @@ def registry : List Premise := [
   laneRule "cr.layout" "layout" r"\texttt{Layout}" r"W_{\mathrm{cr}}" .chromium
     ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound", "Fw.Ops.EnginePremise.cr_recorded_holds"],
   { id := "cr.props"
-    statement := r"\forall f \text{ unforced (one change or none, no forced read) in the fixture steps}:\ \texttt{PrePaint} \text{ runs in } f \iff \mathrm{props} \in \operatorname{touched}_{W_{\mathrm{cr}}}(f) \lor 0 < f.\mathrm{hits}\ \text{ (every frame with a rendering update touches } \mathrm{props}\text{, and each hit test pays one PrePaint, } \operatorname{crWorkH}\text{; not observed: } \mathrm{units}, \text{ the number of passes)}"
+    statement := r"\forall f \text{ unforced (one change or none, no forced read) in the table steps (a case of the property table or its idle frame; not the extra steps of run 39124427211)}:\ \texttt{PrePaint} \text{ runs in } f \iff \mathrm{props} \in \operatorname{touched}_{W_{\mathrm{cr}}}(f) \lor 0 < f.\mathrm{hits}\ \text{ (every frame with a rendering update touches } \mathrm{props}\text{, and each hit test pays one PrePaint, } \operatorname{crWorkH}\text{; not observed: } \mathrm{units}, \text{ the number of passes)}"
     theorems := ["Fw.Engine.touched_of_cover", "Fw.Engine.Chromium.crWorkH_props_ge_hits",
       "Fw.Ops.EnginePremise.cr_recorded_holds"]
     engines := [.chromium]
@@ -468,7 +472,7 @@ def registry : List Premise := [
   laneRule "cr.raster" "raster" r"\texttt{RasterTask}" r"W_{\mathrm{cr}}" .chromium
     ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound", "Fw.Ops.EnginePremise.cr_recorded_holds"],
   { id := "cr.hits"
-    statement := r"\forall f \text{ unforced (one change or none, no forced read) in the fixture steps}:\ \texttt{HitTest} \text{ runs in } f \iff 0 < \operatorname{crWorkH}(\mathrm{lane}, f).\mathrm{hits} = f.\mathrm{hits} + [\mathrm{layout} \in \operatorname{touched}_{W_{\mathrm{cr}}}(f)]\ \text{ (not observed: the number of hit tests)}"
+    statement := r"\forall f \text{ unforced (one change or none, no forced read) in the table steps (a case of the property table or its idle frame; not the extra steps of run 39124427211)}:\ \texttt{HitTest} \text{ runs in } f \iff 0 < \operatorname{crWorkH}(\mathrm{lane}, f).\mathrm{hits} = f.\mathrm{hits} + [\mathrm{layout} \in \operatorname{touched}_{W_{\mathrm{cr}}}(f)]\ \text{ (not observed: the number of hit tests)}"
     theorems := ["Fw.Engine.Chromium.crWorkH_hits", "Fw.Ops.EnginePremise.cr_recorded_holds"]
     engines := [.chromium]
     testId := ".github/workflows/engine-premises.yml"

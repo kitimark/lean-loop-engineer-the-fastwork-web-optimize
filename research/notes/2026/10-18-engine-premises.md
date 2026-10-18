@@ -138,3 +138,40 @@ General lesson: a stage model calibrated per property and not per (property, pla
 compositor-boundary cases that optimizations target (promotion, own layers, filter radius), so every claim that
 promotes an element must cite the per-placement row, and a refuted premise must be followed by a sweep of the claims
 that cite it.
+
+## Follow-up: timer frame and combined changes (task engine-model-fix-2, 2026-10-18)
+
+MEASURED: engine-premises run 39124427211 (commit 6bf5957; 3 Chromium jobs, 3 WebKit jobs x 2 passes; no unstable or
+missing cell). The fixture gained 7 Chromium steps (one timer-only frame, three custom-property joins, three two-box
+frames) and 3 WebKit two-box steps. The table steps of run 39088367495 are unchanged and still agree.
+
+| Step | Model | Observed (every pass) | Cell |
+|---|---|---|---|
+| timer (one empty `setTimeout(0)`, Chromium) | script, props | nothing | 2 mismatches |
+| `--x` read by `top` and `scale` @own (join, Chromium) | layoutFull: + paint, raster | style, layout, props, commit, hits | 2 mismatches |
+| `top@own` + `scale@own` on two boxes (union, Chromium) | + raster | style, layout, props, commit, hits | 1 mismatch |
+| joins `top`+`transform`, `background-color`+`opacity` @own | layoutMove; paint | as model | agree |
+| `transform@own` + `background-color@none`, `top@own` + `transform@own` | union | as model | agree |
+| WebKit: `opacity@own` + `background@layer`, + `size@none`, `transform@own` + `color@own` | union | as model | agree |
+
+Lean: `Fw.Ops.EnginePremise.cr_extra_cells` (the off cells are exactly these 5), `wk_extra_holds`,
+`max_stages_of_comparable` (for comparable levels highest-level-wins equals the union), `cr_join_vs_union` (the two
+rules differ on `top` with `scale`).
+
+What this supports:
+- WebKit takes the union of two changes on two boxes: MEASURED on 3 pairs.
+- Chromium highest-level-wins: MEASURED only for comparable levels, where it equals the union. For the one
+  incomparable pair measured (`layoutMove` with `raster`) both the join (`layoutFull`) and the union over-predict:
+  no `Paint`, no `RasterTask`, while `scale@own` alone re-rasters (run 39088367495). Mechanism unknown (INFERRED
+  candidate: a frame that lays out does not re-raster an own layer whose scale changed; untested).
+- A timer-only frame is not a rendering update on Chromium: no `PrePaint` (and the lane's script counters,
+  `FireAnimationFrame` and `FunctionCall`, did not see the empty callback). The base rule holds for rAF callbacks
+  only. `Fw.Parts.PainNotes.cr_idle_tick` therefore over-counts one PrePaint per hidden tick (ledger n=21 note).
+
+Model change: none. The lane rules (`Fw.Ops.Premise`) are now stated on the table steps; the Chromium docstrings
+(`CrLevel.max`, `chromiumAt`) and `cr_idle_tick` name the refutation. A model that splits rAF from timer callbacks,
+and a rule for the incomparable join, are open.
+
+General lesson: a combining rule proved from single-change rows (join, union) is a hypothesis about interactions, so
+it needs its own fixture rows; here the only incomparable pair broke both candidate rules in the same direction
+(less work than either predicts).
