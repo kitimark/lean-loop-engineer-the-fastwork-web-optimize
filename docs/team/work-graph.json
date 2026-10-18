@@ -5249,7 +5249,8 @@
     "lean/Fw/Engine/Compose.lean",
     "lean/Fw.lean",
     "docs/team/handoffs/compose-lean.md"
-   ]
+   ],
+   "evidence": "87455f3"
   },
   {
    "devices": [
