@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { binDigest, buildClean, FWCORE_BIN, storeDigest, storedDigest } from "../src/land.ts";
+import { binDigest, buildClean, fwcorePreflight, FWCORE_BIN, storeDigest, storedDigest } from "../src/land.ts";
 
 const git = (dir: string, args: string[]) =>
   execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.invalid", ...args], { cwd: dir, encoding: "utf8" }).trim();
@@ -96,5 +96,23 @@ describe("buildClean", () => {
   it("is false with a changed build script", () => {
     put("scripts/fwcore-build.sh", "#!/bin/sh\necho\n");
     expect(buildClean(dir)).toBe(false);
+  });
+});
+
+describe("fwcorePreflight (task land-queue-why)", () => {
+  const record = (commit: string) => { put(FWCORE_BIN, "bin"); put(`${FWCORE_BIN}.commit`, `${commit} ${sha("bin")}\n`); };
+  it("refuses with the named reason when there is no build record", () => expect(fwcorePreflight(dir, "main")).toBe("fwcore-stale: run sh scripts/fwcore-build.sh"));
+  it("passes when the record names main's head", () => { record(head); expect(fwcorePreflight(dir, "main")).toBeNull(); });
+  it("refuses when the record's binary is not the recorded one", () => { record(head); put(FWCORE_BIN, "other"); expect(fwcorePreflight(dir, "main")).toMatch(/^fwcore-stale/); });
+  it("refuses after a Lean source changed, passes after a change elsewhere", () => {
+    record(head);
+    put("docs/a.md", "x\n"); git(dir, ["add", "-A"]); git(dir, ["commit", "-q", "-m", "docs"]);
+    expect(fwcorePreflight(dir, "main")).toBeNull();
+    put("lean/Fw/A.lean", "def a := 2\n"); git(dir, ["add", "-A"]); git(dir, ["commit", "-q", "-m", "lean"]);
+    expect(fwcorePreflight(dir, "main")).toMatch(/^fwcore-stale/);
+  });
+  it("has nothing to refuse in a tree without the build script", () => {
+    git(dir, ["rm", "-q", "scripts/fwcore-build.sh"]); git(dir, ["commit", "-q", "-m", "rm"]);
+    expect(fwcorePreflight(dir, "main")).toBeNull();
   });
 });
