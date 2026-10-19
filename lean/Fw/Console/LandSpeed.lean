@@ -1069,7 +1069,7 @@ def premises : List PremiseRow := [
   ⟨"land.checkedWorktreeExact", "the land worktree holds exactly commit C (checkout --detach C; clean -fdx -e .lake -e node_modules)",
     ["pre_commit_checked"], "apps/runner/test: an untracked imported .lean file in the land worktree is cleaned or refused"⟩,
   ⟨"land.binaryOfLean", "on one machine scripts/fwcore-build.sh is a function `build` of the state that reads only lean/** and scripts/fwcore-build.sh (BinaryOfBuildReads build, satisfiable: binaryOfBuildReads_satisfiable), the binary the land checks is `build` of its tree, and sha256 of its bytes has no collision",
-    ["fwcore_digest_skip", "fwcore_nobuild_skip"], "MEASURED 2026-10-19 (task land-fwcore-key): a docstring-only edit adding a line to lean/Fw/Console/LandQueue.lean, rebuilt with scripts/fwcore-build.sh, left the sha256 of the binary at f2a2d9bd08c1; the rebuild after the revert gave it again; the land hashes real builds, so a toolchain change only selects more"⟩]
+    ["fwcore_digest_skip", "fwcore_nobuild_skip"], "MEASURED 2026-10-19 (task land-fwcore-key): a docstring-only edit of lean/Fw/Console/LandQueue.lean (linked into fwcore), rebuilt with scripts/fwcore-build.sh, left the sha256 of the binary at 8a4fd2d6ff6f, as did a rerun and the rebuild after the revert; fwcore-build.sh strips once per link because on macOS a second strip changes the bytes (8a4fd2d6ff6f to 495249a32f9b); the land hashes real builds, so a toolchain change only selects more"⟩]
 
 #guard premises.length == 10
 #guard (premises.map (·.id)).eraseDups.length == premises.length

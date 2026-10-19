@@ -1,5 +1,3 @@
-// The digest I/O of the two-phase land selection (binDigest, storedDigest, storeDigest, buildClean) on a temp git repo:
-// every fallback that cannot show the binary of a commit gives null (unknown) or false (not clean).
 import "./land-timeout.ts";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
