@@ -13,6 +13,12 @@
     "check:shells": "node scripts/gen-shells.mjs --check",
     "check:shell-boxes": "node scripts/shell-measure.mjs check",
     "census": "node scripts/census.mjs",
+    "gen:svg": "node scripts/svg-extract.mjs",
+    "pretest": "node scripts/svg-extract.mjs",
+    "prebuild": "node scripts/svg-extract.mjs",
+    "prebuild:runtime": "node scripts/svg-extract.mjs",
+    "prebuild:all": "node scripts/svg-extract.mjs",
+    "pretypecheck": "node scripts/svg-extract.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
