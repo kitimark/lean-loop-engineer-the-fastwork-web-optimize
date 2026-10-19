@@ -48,6 +48,7 @@
       "Bash(gh search code *)",
       "Bash(gh search repos *)",
       "Bash(gh auth status*)",
+      "Bash(git push origin main)",
       "Bash(git push origin ci/*)",
       "Bash(git push -u origin ci/*)",
       "Bash(gh run list*)",
@@ -82,7 +83,6 @@
       "mcp__lean-lsp__lean_local_search"
     ],
     "ask": [
-      "Bash(git push origin main)",
       "Bash(git remote add *)",
       "Bash(git config remote.*)",
       "Agent(model:*fable*)",
