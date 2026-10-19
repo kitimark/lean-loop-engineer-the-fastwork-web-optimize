@@ -13,8 +13,8 @@ check job "stage-mode golden check" in lean/scripts/check.sh). Decisions, each O
   Stricter than "client-render only for a parsed only search": a hydrate page for an `only` search is refused too (a stage page never hydrates).
   The twin checks the page's own parse (`__fwStage`), not a JS port of the contract table.
 - (c) DECISION: the stage `y` does NOT follow the scroll plan (query `y` = 0, pinned for the whole run). The driver scrolls the real document
-  (hosts + fixed-height stubs) with the profile plan, reads the position from `document.scrollingElement.scrollTop` (pinned `scrollY` is
-  constant) and gates the viewport on `clientWidth/clientHeight` (the pinned inner sizes equal the profile by construction: `pinned_size_vacuous`).
+  (hosts + fixed-height stubs) with the profile plan and reads the position from `document.scrollingElement.scrollTop` (pinned `scrollY` is
+  constant). Round 1 REVERSED the viewport part of (c): the gate decides on the REAL frame size, not on `clientWidth/clientHeight` (see below).
   Meaning of a part-page count: browser work of the part's own band under real scrolling with scroll-driven part logic at rest. It is not a slice of
   the whole-page count and part counts do not sum to it. Premise `declared-rows-unverified` carried (golden premise row, run.txt). Follow-up
   to let y follow the plan: live pinned getter in fixedEnv.ts plus a stage grammar decision.
@@ -25,29 +25,42 @@ Wiring: run.mjs uses `scrollRead`, `viewportGate`, `accepts` (mode check replace
 (sparse checkout now profiles + src); land.ts reads of measure-chromium and Trigger.lean (lean.yml row) declare the new golden.
 Not done (lead): no work-graph row for this task (graph writes list the files above).
 
+## Round 1 fixes (commit 4d6bfe3f and this commit)
+- Viewport gate (CONFIRMED from Chromium @f842f52: innerWidth = View()->Size(), grows with overflow; clientWidth = ICB, stays at the meta width):
+  `Page.addScriptToEvaluateOnNewDocument` captures the native `innerWidth/innerHeight` getters before any page script (the stage pin) and
+  the driver gates on them (`Fw.Site.StageMode.gateSize/viewportGate`, theorems `viewportGate_refuses_overflow`, `_accepts_real`, `_ignores_pinned_client`;
+  golden row pinned 430x932, client 430x932, real 645x1398 is refused). meta.innerWidthPx/innerHeightPx = real frame; new meta fields
+  pinnedInnerWidthPx/HeightPx, clientWidthPx/HeightPx, gateSize, scrollRead.
+- Run 39194916578 (ci/driver-stage-mode @ 5c5ed307, only=hero, 1 run) is INVALID: meta.scrollWidthPx 501 > 430 at scale 1 (frame about 501x1086, not
+  430x932), so it is not viewport-faithful; the old clientWidth gate let it through. Its counts and its last scrollTop 9888 (< maxScroll 10448) are not evidence.
+- Hero overflow diagnosis: the original page clips at its root (`[data-fw=page-root]`, `overflow-x: clip`, apps/site/src/styles/reset.css, App.tsx:64);
+  the stage route had no such root, so the hero's overflow (501 px) enlarged the layout viewport on the stage only: a STAGE ARTIFACT, fixed on the site
+  side (PartStage.tsx wraps the main sections in `data-fw="page-root"`, columns outside it as in App.tsx; `MAIN_SECTIONS`/`COLUMNS_SECTIONS` in hosts.ts,
+  a TS stand-in layout list, not Lean, no decision). Whether the whole page also overflows is excluded by that same clip (INFERRED from the CSS); the re-dispatch measures it.
+- `roundTrips` docstring now states the split on parse(?only=t) (ok: same target, members, env E(p); err e: same err e).
+- `accepts` refuses a part page with `missing` input writes (`refuses_missing_inputs`, golden rows with missing 0/1).
+- Counts workflow: plan refuses runs < 2 (Lean `Fw.Store.Layout.reqProblems`: runs 2 to 10; a single artifact is extracted without its directory, so classify's glob
+  finds nothing); `only` input described as usable.
+- Accepted limits: scroll-driven part logic at rest on a stage page (decision c); part counts are not slices of the whole-page count; premise declared-rows-unverified;
+  `parseEnv-stageParam-checked-not-proved` (the string round trip planned search -> parseEnv is `#guard roundTrips` over 3 profile viewports and 81 boundary sizes, not a forall theorem).
+
+## Work-graph writes (lead)
+No work-graph row exists for this task. The writes must add, besides the files above: apps/runner/src/land.ts, lean/Fw/Ci/Trigger.lean,
+packages/contracts/golden/ci/triggers.jsonl (all touched here: land reads of measure-chromium declare the stage-mode golden and the counts workflow).
+
 ## Static pre-check, before dispatch: `?only=hero` through each driver gate (profile swipe-v1, 430x932)
-Plan search: `?only=hero&stage=vw:430,vh:932`. Lean parse: ok, target hero, hosts [hero], mounted hero + 6 hero.* parts, writes/neighbours/unset empty,
-stubs people=2936 pain=2796 commission=988 platform=1864 columns=932 (stubPx at vh 932).
+Plan search: `?only=hero&stage=vw:430,vh:932`. Lean parse: ok, target hero, hosts [hero], mounted hero + 6 hero.* parts, stubs people=2936 pain=2796 commission=988 platform=1864 columns=932.
 | gate | reads | expected for ?only=hero |
 |---|---|---|
 | navigate | static server `pageFor` | index.html shell (no prerender for `only=`) |
-| quiet | readyState complete, fonts loaded, 0 requests in flight, 30 frames | expected pass, not verified |
-| viewportFaithful | clientWidth x clientHeight vs 430x932 (stage page) | pass if hero content is not wider than 430 px; else refused (same rule as the 645x1398 run) |
-| `__fw` present | `window.__fw` | present (installFw runs before render) |
-| mode / hydrated | `accepts` | mode client-render (stage never hydrates), hydrated true from PartStage effect, errors 0, `__fwStage.env` = [0,430,932]: accepted |
-| scroll plan | scrollTo per frame, position from scrollTop | doc height = hero + 9516 px stubs; plan ends at maxScroll = docH - 932 |
-Before the fix: viewport gate read the pinned 1280x800 -> refused (the pilot failure). Unverified until dispatch: hero width at 430, `quiet`, and anything the classes job does with a part page.
+| quiet | readyState, fonts, requests, 30 frames | expected pass, not verified |
+| viewportFaithful | REAL frame (captured native getters) vs 430x932 | pass only if the real frame is 430x932; the overflowing page (645x1398) or 501 px content without the clip is refused |
+| `__fw` present | `window.__fw` | present |
+| mode / hydrated / missing | `accepts` | client-render, hydrated, 0 errors, `__fwStage.env` [0,430,932], missing 0 |
+| scroll plan | scrollTo per frame, position from scrollTop | doc height = hero + stubs; plan ends at maxScroll = docH - 932 |
+Unverified until dispatch: hero width at 430 under the new page root, `quiet`, scrollTop reaching maxScroll.
 
 Read first: lean/Fw/Site/StageMode.lean header, packages/measure-chromium/src/stage-mode.mjs, the diff of run.mjs.
 
-## Result: run 39194916578 (ci/driver-stage-mode @ 5c5ed307, only=hero, target rewrite, swipe-v1, 1 run)
-- plan, fwcore, image, site, counts (rewrite, r1) passed; counts.json produced (artifact chromium-counts-rewrite-r1): search
-  `?only=hero&stage=vw:430,vh:932`, mode client-render, hydrated, `__fwStage.env` [0,430,932], 1085 frames, docH 11380, observed viewport 430x932,
-  scrollRead scrollTop, maxScroll 10448. MEASURED (CI).
-- Observation, not diagnosed: the last recorded scrollTop is 9888, below maxScroll 10448 (the plan reaches 10448 by construction). Either the
-  document is shorter after load than at the geometry read, or the clamp is lower; read frames[].scrollY vs docHeightPx over the run before
-  reading zone sums of this page.
-- classify FAILED, not from the driver: with `runs=1` actions/download-artifact (pattern `chromium-counts-*`, one match) extracts into `runs/` without
-  the artifact subdirectory, so the glob `chromium-counts-rewrite-*/counts.json` matches nothing (ENOENT). Dispatch with runs >= 2 or fix the download step.
-- Unverified: determinism across runs (1 run), classes of a part page against the whole-page frozen classes (premise declared-rows-unverified).
-- Verified locally: Lean build, check.sh exit 0, measure-chromium tests 55/55, ci-paths 32/32, apps/runner 1029/1029 (tsc + vitest).
+## Verified locally (not a result)
+Lean build of Fw.Site.StageMode, stage-mode golden --check up to date, measure-chromium tests 58/58, ci-paths 32/32, apps/runner 1034/1034 (tsc + vitest), apps/site 5148/5148 + tsc.

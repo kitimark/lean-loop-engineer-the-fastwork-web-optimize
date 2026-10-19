@@ -34,7 +34,7 @@ on:
         type: string
         default: ''
       only:
-        description: Not usable yet, a non-empty value fails the plan job (the driver has no stage mode, task driver-stage-mode). Part page to measure instead of the whole page (a part or group id such as hero or hero.exit; the rewrite stage route ?only=<id>, Fw.Site.Stage). Rewrite target only. A part page is client-rendered; its counts are those of one mounted part, so the frozen classes of the full page are a premise there (declared-rows-unverified)
+        description: Part page to measure instead of the whole page (a part or group id such as hero or hero.exit; the rewrite stage route ?only=<id>, Fw.Site.Stage). Rewrite target only. A part page is client-rendered; its counts are those of one mounted part, so the frozen classes of the full page are a premise there (declared-rows-unverified)
         type: string
         default: ''
       image_run:
