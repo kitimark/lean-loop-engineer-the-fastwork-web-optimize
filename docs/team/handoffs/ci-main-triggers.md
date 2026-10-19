@@ -1,39 +1,29 @@
 # Handoff: ci-main-triggers
 
 ## State
-- Code commit 14a17b94 on branch `worktree-wf_3dd2b320-67f-1`. Not landed.
-- A push to `main` now runs only `lean.yml` jobs `guard` and `lean`. The `lean` job writes the Lake cache.
-- Every other workflow has `on.push.branches: ['ci/**']`. `workflow_dispatch` is unchanged everywhere.
+- Round 1 on branch `worktree-wf_3dd2b320-67f-1`. Not landed. The round-1 commit is the one after 84d84418.
+- A `main` push runs only `lean.yml` (guard + `lean`, the Lake cache) and `premise-tests.yml` (guard + `engine`, both engines: the gate-engine caches apt-debs, browsers, hs-zip). All other workflows list `ci/**` only. No workflow has `schedule:`; difftest's nightly cron is gone. `workflow_dispatch` is unchanged.
+- `fw ci` now needs a run id or `--branch`. Without either it exits 64 and prints the usage.
 
 ## Verified
-- Lean (`Fw.Ci.Trigger`):
-  - `main_iff_seeder`: a workflow lists main exactly when it holds a seeder.
-  - `mainRuns_iff`: on a main push, a job runs exactly when it is a seeder, or it is the `guard` job of a seeder workflow.
-  - `branches_split` and `ci_triggers`: the ci/** trigger set equals the old table.
-- Lean (`Fw.Ops.LakeCache`): `seeders_are_writers` says the seeders equal the jobs that save the Lake cache.
-- Axioms are standard only.
-- `sh lean/scripts/check.sh` is green. `ci-paths --check` is green. `node --test` on the ci-paths, .github/scripts and ci-* suites shows 63 pass.
-- `apps/runner` `pnpm -s test`: 1044 pass.
+- Lean `Fw.Ci.Trigger`:
+  - `seeders_save_iff`: the seeders save exactly `seededCaches`, the caches that a job of a workflow on main before the task (`mainBefore`) saved.
+  - `seeded_caches`, `unseeded_caches`: wktr-zip is the only unseeded cache. Main never seeded it.
+  - `mainRuns_iff`, `main_iff_seeder`, `no_crons`, `ci_triggers` (ci/** unchanged).
+  - `carries_bare`, `carries_wrap`, `carries_sound`, `withNotMain_none`, `withNotMain_some`: the `if:` form `${{ (e) && (notMainPush) }}`.
+- `Fw.Ops.LakeCache.lake_writers`: the Lake rows of `cacheWriters` equal the generated Lake writers.
+- Axioms: propext, Classical.choice, Quot.sound only.
+- `scripts/ci-paths.mjs --check`:
+  - scans the cache writers (actions/cache steps, local actions with input-gated saves) and compares them to Lean `cacheWriters`;
+  - rejects any `on.schedule` that differs from the row's crons (all empty);
+  - checks the if-form structurally (Lean golden `ifForm`/`ifCheck` lines; tests include `a || b` and `(x) || true`).
+- Results: `sh lean/scripts/check.sh` green (24 s); `node --test scripts/ci-paths.test.mjs` 38 pass; .github/scripts + ci-* 67 pass; apps/runner `pnpm -s test` 1044 pass.
 
-## Design
-- Cache scope: a run restores caches from its own branch and from the default branch (GitHub docs, dependency caching, "Restrictions for accessing a cache").
-- Only the Lake cache is seeded from main.
-- The gate-engine actions/cache entries (apt-debs, browsers, hs-zip) are not seeded from main. Each ci branch saves its own entry on its first miss.
-- Gain from those caches is small: a hit saves 0-27 s (MEASURED, docs/team/handoffs/gate-speed-ci.md:20).
-- `lean.yml` job `mathview-differential` carries the `notMainPush` conjunct in its `if:`. `scripts/ci-paths.mjs` (reconcile step 8) enforces and writes this conjunct for every non-seeder job of a workflow that lists main.
-
-## Readers of main-run results (none broken, none changed)
-- `fw ci` (apps/runner/src/ci.ts) defaults to `--branch main` with chromium-counts. It now finds a stale run, and later none. Pass `--branch ci/<x>` or a run id instead.
-- timing-ci backfill and watch-collect list runs without a branch filter. They only lose the main samples.
-- `run.ts` latestRun, the gh-budget poller and wait all filter on the ci ref, so they are unaffected.
-- docs/team/tools/gate-speed.md:41 ("main runs warm their own") and docs/team/tools/fw-ci.md:3,74 are now stale.
-
-## Open items
-- Optionally make premise-tests `engine` a seeder, so main warms the gate-engine caches. That means adding it to `seeders`; the LakeCache theorem would then need a split.
-- Change the `fw ci` default branch.
-- Fix the stale doc lines listed above.
-- The mode change on `apps/runner/src/fw.ts` (100644 to 100755) in the worktree is not mine. It is left uncommitted.
+## Accepted limits / open
+- Gain of the gate-engine seed: WebKit saves up to ~36 s per gate job on a ci branch's first run; Chromium saves ~0 s (MEASURED, gate-speed-ci.md:20).
+- The main seed runs only when a main push touches premise-tests inputs. Not in that row: `cache-key.mjs`, `golden/ops/cache.jsonl`, runner image updates.
+- The engine matrix of the seeder is not parsed; a cache is named by its `path:` basename.
+- `apps/runner/src/fw.ts` mode change (100644 to 100755) is not mine and is left uncommitted.
 
 ## Read first
-- lean/Fw/Ci/Trigger.lean, section "Main pushes"
-- scripts/ci-paths.mjs: `withNotMain` and reconcile step 8
+`lean/Fw/Ci/Trigger.lean` section "Main pushes"; `scripts/ci-paths.mjs` `cacheWriters`, `carriesNotMain`, reconcile steps 8-9.
