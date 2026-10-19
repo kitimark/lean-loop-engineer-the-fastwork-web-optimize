@@ -12,7 +12,7 @@ State
 CI results (ci/preview-e2e, preview-e2e.yml)
 - Run 39335496085 (head 0301c0dd): chromium 83/83, playwright-webkit 87/87; controls `raw`, `tap-only`, `proxy-only` x3 each on both engines; `/o` `start()` counted once.
 - Attribution (webkit): signature only in `proxy-only`; `raw` and `tap-only` clean. Earlier red runs that shaped the rule: 39333909578 (cancel count exact, 3 CSS cancels answered 200 not 302), 39334939255 (Playwright reported 0 cancels in some loads).
-- Land lane (land.yml) runs the browser suite when `LANE browser=true` (Lean `LandTier.browserRuns`); run id of that lane: see summary.
+- Final head 2432fc11: preview-e2e run 39337456654 (chromium 83/83, webkit 87/87); land lane run 39337463978 (branch ci/land-preview-e2e) ran the browser suite on both engines behind `LANE browser=true` (artifact land-preview-e2e, 83/83 and 87/87). Lean check.sh green, runner 1241 tests, ci-paths 41, e2e-preview 12.
 
 Local debug runs (not results)
 - Sec-Fetch-Dest negative control (isScriptPath gated again): plain host goes red.
