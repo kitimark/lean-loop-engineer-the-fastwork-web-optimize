@@ -659,7 +659,6 @@ def lfFactsJson (F : Facts) : Json := Json.mkObj [
 open Fw.Ops.LeanFirst in
 /-- `ops.leanFirst`: the lean-first gate on one land's facts, at the deployed stage `Fw.Ops.LeanFirst.stage` (a
 request cannot choose it; a `stage` field is ignored).
-$$\operatorname{reply}(F) = \bigl(\operatorname{out}(s_0, F).\mathit{kind},\ \operatorname{out}(s_0, F).\mathit{exit},\ \operatorname{out}(s_0, F).\mathit{lines},\ s_0,\ \operatorname{refusals}(\operatorname{gate}(s_0, F)),\ \operatorname{pendingOn}(\operatorname{gate}(s_0, F))\bigr),\quad s_0 = \mathit{stage}$$
 The reply is the rendered output (`kind`, `exit`, `lines`, the last line the one VERDICT line) plus the stage used and
 the structured refusals (`rule`, `code`, `subject`) and missing facts, so the land agent prints the lines as they are
 and reads the exit code. -/

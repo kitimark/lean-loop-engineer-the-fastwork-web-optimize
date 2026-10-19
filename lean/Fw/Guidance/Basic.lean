@@ -12,14 +12,10 @@ open Fw.Engine
 
 /-- A frame with no input: no script, no forced pass, no hit test, no change, no compositor animation.
 
-$$\varnothing = (0, 0, 0, 0, [\,], 0)$$
-
 The empty frame. -/
 def idle {P : Type} : FrameIn P := ⟨0, 0, 0, 0, [], 0⟩
 
 /-- Two frames' inputs in one frame: counts add, change lists concatenate.
-
-$$\operatorname{join}(f, g) = \big(f.\mathrm{script} + g.\mathrm{script},\ f.\mathrm{forcedStyle} + g.\mathrm{forcedStyle},\ f.\mathrm{forcedLayout} + g.\mathrm{forcedLayout},\ f.\mathrm{hits} + g.\mathrm{hits},\ f.\mathrm{changes} \mathbin{+\!\!+} g.\mathrm{changes},\ f.\mathrm{compAnims} + g.\mathrm{compAnims}\big)$$
 
 The frame that does what both frames do. -/
 def join {P : Type} (f g : FrameIn P) : FrameIn P :=
@@ -28,21 +24,15 @@ def join {P : Type} (f g : FrameIn P) : FrameIn P :=
 
 /-- A frame of script callbacks only.
 
-$$\operatorname{scriptOnly}(n) = (n, 0, 0, 0, [\,], 0)$$
-
 What a callback that writes nothing adds to a frame. -/
 def scriptOnly {P : Type} (n : Nat) : FrameIn P := ⟨n, 0, 0, 0, [], 0⟩
 
 /-- A frame of changes only.
 
-$$\operatorname{changesOnly}(C) = (0, 0, 0, 0, C, 0)$$
-
 What a style write outside script adds to a frame. -/
 def changesOnly {P : Type} (cs : List (Change P)) : FrameIn P := ⟨0, 0, 0, 0, cs, 0⟩
 
 /-- Every change list covers itself.
-
-$$\forall E,\ \forall L \in \mathrm{Change}(P)^{*}:\ \operatorname{cover}_E(L, L) = \mathrm{true}$$
 
 Each change's stages are its own stages. -/
 theorem coverB_refl {P M : Type} (E : Engine P M) : ∀ l : List (Change P), coverB E l l = true
@@ -50,8 +40,6 @@ theorem coverB_refl {P M : Type} (E : Engine P M) : ∀ l : List (Change P), cov
   | c :: cs => by simp [coverB, coverB_refl E cs]
 
 /-- Units add over `join`.
-
-$$\forall E,\ \forall f, g \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\ \operatorname{units}_E(\operatorname{join}(f, g), s) = \operatorname{units}_E(f, s) + \operatorname{units}_E(g, s)$$
 
 Every unit of either frame is a unit of the joined frame. -/
 theorem units_join {P M : Type} (E : Engine P M) (f g : FrameIn P) (s : Stage) :
@@ -61,16 +49,12 @@ theorem units_join {P M : Type} (E : Engine P M) (f g : FrameIn P) (s : Stage) :
 
 /-- Forced passes add over `join`.
 
-$$\forall f, g \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\ \operatorname{forced}(\operatorname{join}(f, g), s) = \operatorname{forced}(f, s) + \operatorname{forced}(g, s)$$
-
 Every forced pass of either frame is a forced pass of the joined frame. -/
 theorem forced_join {P : Type} (f g : FrameIn P) (s : Stage) :
     forcedPasses (join f g) s = forcedPasses f s + forcedPasses g s := by
   cases s <;> simp [forcedPasses, join]
 
 /-- **Added inputs never lower work.**
-
-$$\forall E,\ \forall f, g \in \mathrm{FrameIn}(P):\ \operatorname{frameWork}_E(f) \preceq \operatorname{frameWork}_E(\operatorname{join}(f, g))$$
 
 Removing a frame's share of work never costs more, under every engine. -/
 theorem frame_le_join {P M : Type} (E : Engine P M) (f g : FrameIn P) :
@@ -81,8 +65,6 @@ theorem frame_le_join {P M : Type} (E : Engine P M) (f g : FrameIn P) :
 
 /-- **Added inputs never lower work**, with the added frame first.
 
-$$\forall E,\ \forall f, g \in \mathrm{FrameIn}(P):\ \operatorname{frameWork}_E(g) \preceq \operatorname{frameWork}_E(\operatorname{join}(f, g))$$
-
 The second share alone is also at most the joined frame. -/
 theorem frame_le_join_right {P M : Type} (E : Engine P M) (f g : FrameIn P) :
     (frameWork E g).le (frameWork E (join f g)) :=
@@ -92,15 +74,11 @@ theorem frame_le_join_right {P M : Type} (E : Engine P M) (f g : FrameIn P) :
 
 /-- A strict order from `≤` and one stage with fewer units.
 
-$$\forall a, b \in \mathrm{Work},\ \forall s \in \mathrm{Stage}:\ a \preceq b \land a.\mathrm{units}(s) < b.\mathrm{units}(s) \Rightarrow a \prec b$$
-
 One smaller unit count makes `≤` strict. -/
 theorem lt_of_le_units {a b : Work} (s : Stage) (h : a.le b) (hu : a.units s < b.units s) : a.lt b :=
   ⟨h, .inl ⟨s, .inr hu⟩⟩
 
 /-- A strict step followed by a `≤` step is strict.
-
-$$\forall a, b, c \in \mathrm{Work}:\ a \prec b \land b \preceq c \Rightarrow a \prec c$$
 
 Strictness survives a further `≤`. -/
 theorem lt_of_lt_of_le {a b c : Work} (h1 : a.lt b) (h2 : b.le c) : a.lt c := by
@@ -112,8 +90,6 @@ theorem lt_of_lt_of_le {a b c : Work} (h1 : a.lt b) (h2 : b.le c) : a.lt c := by
 
 /-- **Added units make it strict.** If the added frame has a unit on some stage, the joined frame is strictly more work.
 
-$$\forall E,\ \forall f, g \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\ 0 < \operatorname{units}_E(g, s) \Rightarrow \operatorname{frameWork}_E(f) \prec \operatorname{frameWork}_E(\operatorname{join}(f, g))$$
-
 Dropping a share that does anything is a strict saving. -/
 theorem frame_lt_join_units {P M : Type} (E : Engine P M) (f g : FrameIn P) (s : Stage)
     (h : 0 < stageUnits E g s) : (frameWork E f).lt (frameWork E (join f g)) := by
@@ -123,8 +99,6 @@ theorem frame_lt_join_units {P M : Type} (E : Engine P M) (f g : FrameIn P) (s :
 
 /-- **Added script makes it strict.**
 
-$$\forall E,\ \forall f, g \in \mathrm{FrameIn}(P):\ 0 < g.\mathrm{script} \Rightarrow \operatorname{frameWork}_E(f) \prec \operatorname{frameWork}_E(\operatorname{join}(f, g))$$
-
 Dropping a callback is a strict saving. -/
 theorem frame_lt_join_script {P M : Type} (E : Engine P M) (f g : FrameIn P) (h : 0 < g.script) :
     (frameWork E f).lt (frameWork E (join f g)) := by
@@ -133,8 +107,6 @@ theorem frame_lt_join_script {P M : Type} (E : Engine P M) (f g : FrameIn P) (h 
   omega
 
 /-- **An added change makes it strict.**
-
-$$\forall E,\ \forall f, g \in \mathrm{FrameIn}(P),\ \forall c \in g.\mathrm{changes},\ \forall s \in E.\mathrm{stagesOf}(c):\ \operatorname{frameWork}_E(f) \prec \operatorname{frameWork}_E(\operatorname{join}(f, g))$$
 
 Dropping a change that dirties any stage is a strict saving. -/
 theorem frame_lt_join_change {P M : Type} (E : Engine P M) (f g : FrameIn P) (c : Change P) (hc : c ∈ g.changes)
@@ -147,16 +119,12 @@ theorem frame_lt_join_change {P M : Type} (E : Engine P M) (f g : FrameIn P) (c 
 
 /-- `≤` on every stage but one, plus `≤` on hit tests.
 
-$$\operatorname{offLe}(x, a, b) = \mathrm{true} \iff \big(\forall s \in \mathrm{Stage.all}:\ s = x \lor (a.\mathrm{passes}(s) \le b.\mathrm{passes}(s) \land a.\mathrm{units}(s) \le b.\mathrm{units}(s))\big) \land a.\mathrm{hits} \le b.\mathrm{hits}$$
-
 The order with one stage, usually `comp`, left out. -/
 def offLe (x : Stage) (a b : Work) : Bool :=
   Stage.all.all (fun s => s == x || (decide (a.passes s ≤ b.passes s) && decide (a.units s ≤ b.units s))) &&
     decide (a.hits ≤ b.hits)
 
 /-- The Boolean check is the order off one stage.
-
-$$\forall x \in \mathrm{Stage},\ \forall a, b \in \mathrm{Work}:\ \operatorname{offLe}(x, a, b) = \mathrm{true} \iff \big(\forall s \in \mathrm{Stage}:\ s \ne x \Rightarrow a.\mathrm{passes}(s) \le b.\mathrm{passes}(s) \land a.\mathrm{units}(s) \le b.\mathrm{units}(s)\big) \land a.\mathrm{hits} \le b.\mathrm{hits}$$
 
 What `offLe` checks, spelled out. -/
 theorem offLe_iff (x : Stage) (a b : Work) :
@@ -181,16 +149,12 @@ theorem offLe_iff (x : Stage) (a b : Work) :
 
 /-- `n` copies of a frame's inputs in one frame.
 
-$$\operatorname{rep}(0, h) = \varnothing,\qquad \operatorname{rep}(n + 1, h) = \operatorname{join}(\operatorname{rep}(n, h), h)$$
-
 A handler that runs `n` times in one frame. -/
 def rep {P : Type} : Nat → FrameIn P → FrameIn P
   | 0, _ => idle
   | n + 1, h => join (rep n h) h
 
 /-- More copies never lower work.
-
-$$\forall E,\ \forall h \in \mathrm{FrameIn}(P),\ \forall k, n \in \mathbb{N}:\ k \le n \Rightarrow \operatorname{frameWork}_E(\operatorname{rep}(k, h)) \preceq \operatorname{frameWork}_E(\operatorname{rep}(n, h))$$
 
 Fewer handler runs per frame never cost more. -/
 theorem rep_le {P M : Type} (E : Engine P M) (h : FrameIn P) (k : Nat) :
@@ -202,8 +166,6 @@ theorem rep_le {P M : Type} (E : Engine P M) (h : FrameIn P) (k : Nat) :
     · rw [show k = n + 1 by omega]; exact Work.le_refl _
 
 /-- More copies of a callback are strictly more work.
-
-$$\forall E,\ \forall h \in \mathrm{FrameIn}(P),\ \forall k, n \in \mathbb{N}:\ 0 < h.\mathrm{script} \land k < n \Rightarrow \operatorname{frameWork}_E(\operatorname{rep}(k, h)) \prec \operatorname{frameWork}_E(\operatorname{rep}(n, h))$$
 
 Each dropped handler run is a strict saving. -/
 theorem rep_lt {P M : Type} (E : Engine P M) (h : FrameIn P) (hs : 0 < h.script) (k : Nat) :

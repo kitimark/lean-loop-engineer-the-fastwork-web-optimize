@@ -2,6 +2,11 @@
  "_doc": "Whitelist for scripts/lint-wallclock.mjs: a literal ms bound in a land-selected test is allowed only with a reason. file + a substring of the line. Stale entries fail the lint.",
  "allow": [
   {
+   "file": "apps/runner/test/console-daemon.test.ts",
+   "text": "}, 120_000)",
+   "reason": "hang catcher, not a speed assertion: a real detached console that never answers fails the test after this cap"
+  },
+  {
    "file": "apps/console-api/test/owner-link.test.ts",
    "text": "}, 30_000)",
    "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"

@@ -16,17 +16,11 @@ open Fw.Engine Fw.Parts.Contract
 /-- `P`'s variant cannot change `Q` directly: I1, I2 and I4 of the pair hold, and no effective output of `P` affects an
 input of `Q`.
 
-$$\operatorname{quiet}(P,Q) \iff \mathrm{I1}(P,Q) \land \mathrm{I2}(P,Q) \land \bigl(\forall o \in \operatorname{effOut}(P),\
-\forall i \in \mathrm{in}_Q:\ \lnot\operatorname{affects}(o,i)\bigr) \land \mathrm{I4}(P,Q)$$
-
 It is `Independent` without the signal flow from `Q` back to `P`. -/
 def quiet (P Q : PartSpec) : Bool :=
   i1 P Q && i2 P Q && !((effOut P).any fun o => Q.inputs.any (affects o)) && i4 P Q
 
 /-- `Independent` is `quiet` plus no signal flow from `Q` to `P`.
-
-$$\forall P, Q:\ \operatorname{independent}(P,Q) = \Bigl(\operatorname{quiet}(P,Q) \land \bigl(\forall o \in
-\operatorname{effOut}(Q),\ \forall i \in \mathrm{in}_P:\ \lnot\operatorname{affects}(o,i)\bigr)\Bigr)$$
 
 The one-way relation drops exactly the reverse half of I3. -/
 theorem independent_eq_quiet (P Q : PartSpec) :
@@ -37,8 +31,6 @@ theorem independent_eq_quiet (P Q : PartSpec) :
 
 /-- Independent parts are quiet towards each other.
 
-$$\forall P, Q:\ \operatorname{Independent}(P,Q) \Rightarrow \operatorname{quiet}(P,Q)$$
-
 The first half of `independent_eq_quiet`. -/
 theorem quiet_of_independent {P Q : PartSpec} (h : Independent P Q) : quiet P Q = true := by
   rw [Independent, independent_eq_quiet, Bool.and_eq_true] at h
@@ -48,17 +40,11 @@ theorem quiet_of_independent {P Q : PartSpec} (h : Independent P Q) : quiet P Q 
 
 /-- A direct influence edge in part list `ps`: two distinct positions in range whose parts are not quiet.
 
-$$\operatorname{Edge}_{ps}(i,j) \iff i \ne j \land \exists P, Q:\ ps[i] = P \land ps[j] = Q \land
-\lnot\operatorname{quiet}(P,Q)$$
-
-$ps[i] = P$ means position $i < |ps|$ holds part $P$; an index out of range has no edges. -/
+`ps[i] = P` means position `i < |ps|` holds part `P`; an index out of range has no edges. -/
 def Edge (ps : List PartSpec) (i j : Nat) : Prop :=
   i ≠ j ∧ ∃ P Q, ps[i]? = some P ∧ ps[j]? = some Q ∧ quiet P Q = false
 
 /-- Reachability in `ps`: the reflexive-transitive closure of `Edge`.
-
-$$\operatorname{Reach}_{ps}(i,k) \iff \exists m \in \mathbb{N},\ \exists v_0, \dots, v_m \in \mathbb{N}:\ v_0 = i \land
-v_m = k \land \forall t < m:\ \operatorname{Edge}_{ps}(v_t, v_{t+1})$$
 
 Every position reaches itself. -/
 inductive Reach (ps : List PartSpec) : Nat → Nat → Prop
@@ -66,9 +52,6 @@ inductive Reach (ps : List PartSpec) : Nat → Nat → Prop
   | step {i j k : Nat} : Edge ps i j → Reach ps j k → Reach ps i k
 
 /-- A path extended by one edge at its end is a path.
-
-$$\forall ps,\ \forall i, j, k \in \mathbb{N}:\ \operatorname{Reach}_{ps}(i,j) \land \operatorname{Edge}_{ps}(j,k)
-\Rightarrow \operatorname{Reach}_{ps}(i,k)$$
 
 Reach is closed under appending an edge. -/
 theorem Reach.tail {ps : List PartSpec} {i j k : Nat} (h : Reach ps i j) (e : Edge ps j k) : Reach ps i k := by
@@ -78,25 +61,17 @@ theorem Reach.tail {ps : List PartSpec} {i j k : Nat} (h : Reach ps i j) (e : Ed
 
 /-- The `Indep` of `Fw.Engine.Compose` for part list `ps`: position `i` does not reach position `j`.
 
-$$\operatorname{Flow}_{ps}(i,j) \iff \lnot\operatorname{Reach}_{ps}(i,j)$$
-
 No position is `Flow` of itself. -/
 def Flow (ps : List PartSpec) (i j : Nat) : Prop := ¬ Reach ps i j
 
 /-- **The semantic premise.** An observable per position (frame, arm) reads only the variants of positions that reach
 it: `ReadsOnly` with `Flow` as `Indep`.
 
-$$\operatorname{FlowSound}_{ps}(\mathit{obs}) \iff \operatorname{ReadsOnly}(\operatorname{Flow}_{ps}, \mathit{obs})$$
-
 What the contract rows claim of the site; complete rows, I5 and the reads no wire carries are its open parts.
 Positions are indices into `ps`; for `codeParts` they follow alphabetical id order, not stack order. -/
 def FlowSound {V α : Type} (ps : List PartSpec) (obs : Nat → (Nat → V) → α) : Prop := ReadsOnly (Flow ps) obs
 
 /-- `FlowSound` unfolded: equal variants on every position that reaches `j` give `j` the same observable.
-
-$$\forall ps,\ \forall \mathit{obs}:\ \operatorname{FlowSound}_{ps}(\mathit{obs}) \iff \forall j \in \mathbb{N},\ \forall
-\sigma, \sigma' : \mathbb{N} \to V:\ \bigl(\forall i \in \mathbb{N}:\ \operatorname{Reach}_{ps}(i,j) \Rightarrow
-\sigma(i) = \sigma'(i)\bigr) \Rightarrow \mathit{obs}(j,\sigma) = \mathit{obs}(j,\sigma')$$
 
 The double negation of `ReadsOnly` over `Flow` cancels. -/
 theorem flowSound_iff {V α : Type} (ps : List PartSpec) (obs : Nat → (Nat → V) → α) :
@@ -109,17 +84,11 @@ theorem flowSound_iff {V α : Type} (ps : List PartSpec) (obs : Nat → (Nat →
 
 /-- Position `p` is quiet towards every other position of `ps`.
 
-$$\operatorname{Isolated}_{ps}(p) \iff \forall q \in \mathbb{N}:\ q \ne p \Rightarrow \forall P, Q:\ ps[p] = P \land
-ps[q] = Q \Rightarrow \operatorname{quiet}(P,Q)$$
-
 Holds for every `p` out of range. -/
 def Isolated (ps : List PartSpec) (p : Nat) : Prop :=
   ∀ q, q ≠ p → ∀ P Q, ps[p]? = some P → ps[q]? = some Q → quiet P Q = true
 
 /-- Decision procedure for `Isolated`.
-
-$$\operatorname{isolated}(ps, p) \iff \forall q < |ps|:\ q = p \lor \begin{cases} \operatorname{quiet}(ps[p], ps[q]) &
-p < |ps| \\ \top & p \ge |ps| \end{cases}$$
 
 Checks the positions in range only. -/
 def isolated (ps : List PartSpec) (p : Nat) : Bool :=
@@ -128,8 +97,6 @@ def isolated (ps : List PartSpec) (p : Nat) : Bool :=
     | _, _ => true
 
 /-- `isolated` decides `Isolated`.
-
-$$\forall ps,\ \forall p \in \mathbb{N}:\ \operatorname{isolated}(ps,p) \iff \operatorname{Isolated}_{ps}(p)$$
 
 A position out of range has no part, so the check over `range |ps|` is complete. -/
 theorem isolated_iff (ps : List PartSpec) (p : Nat) : isolated ps p = true ↔ Isolated ps p := by
@@ -154,9 +121,6 @@ theorem isolated_iff (ps : List PartSpec) (p : Nat) : isolated ps p = true ↔ I
 /-- **The bridge.** A position quiet towards every other position reaches none of them, so it is `Flow`-independent
 of every other position.
 
-$$\forall ps,\ \forall p \in \mathbb{N}:\ \operatorname{Isolated}_{ps}(p) \Rightarrow \forall q \in \mathbb{N}:\ q \ne p
-\Rightarrow \operatorname{Flow}_{ps}(p,q)$$
-
 The first edge of any path out of `p` would contradict a `quiet` pair. -/
 theorem flow_of_isolated {ps : List PartSpec} {p : Nat} (h : Isolated ps p) : ∀ q, q ≠ p → Flow ps p q := by
   intro q hq hr
@@ -170,10 +134,6 @@ theorem flow_of_isolated {ps : List PartSpec} {p : Nat} (h : Isolated ps p) : �
 /-- **The bridge from `Independent`.** A position `Independent` of every other position of `ps` is `Flow`-independent of
 every other position.
 
-$$\forall ps,\ \forall p \in \mathbb{N}:\ \bigl(\forall q \in \mathbb{N}:\ q \ne p \Rightarrow \forall P, Q:\ ps[p] = P
-\land ps[q] = Q \Rightarrow \operatorname{Independent}(P,Q)\bigr) \Rightarrow \forall q \in \mathbb{N}:\ q \ne p
-\Rightarrow \operatorname{Flow}_{ps}(p,q)$$
-
 `Independent` is the stronger, two-way premise. -/
 theorem flow_of_independent {ps : List PartSpec} {p : Nat}
     (h : ∀ q, q ≠ p → ∀ P Q, ps[p]? = some P → ps[q]? = some Q → Independent P Q) : ∀ q, q ≠ p → Flow ps p q :=
@@ -181,13 +141,6 @@ theorem flow_of_independent {ps : List PartSpec} {p : Nat}
 
 /-- **Lego swap on the contract rows.** If frames and arms are `FlowSound` over `ps` and position `p` is isolated, then
 swapping `p`'s variant leaves every other position's frame, frame work under every engine, and arm unchanged.
-
-$$\forall ps,\ \forall \mathit{frame},\ \forall \mathit{arm},\ \forall E,\ \forall p \in \mathbb{N},\ \forall x \in V,\
-\forall \sigma:\ \operatorname{FlowSound}_{ps}(\mathit{frame}) \land \operatorname{FlowSound}_{ps}(\mathit{arm}) \land
-\operatorname{Isolated}_{ps}(p) \Rightarrow \forall q \in \mathbb{N}:\ q \ne p \Rightarrow \mathit{frame}(q,\sigma') =
-\mathit{frame}(q,\sigma) \land \operatorname{frameWork}_E(\mathit{frame}(q,\sigma')) =
-\operatorname{frameWork}_E(\mathit{frame}(q,\sigma)) \land \mathit{arm}(q,\sigma') = \mathit{arm}(q,\sigma),\quad
-\sigma' = \operatorname{swap}(\sigma,p,x)$$
 
 `lego_swap_sound` with `Indep` discharged by `flow_of_isolated`. -/
 theorem lego_swap_sound_flow {V P M : Type} (ps : List PartSpec) (frame : Nat → (Nat → V) → FrameIn P)
@@ -198,16 +151,9 @@ theorem lego_swap_sound_flow {V P M : Type} (ps : List PartSpec) (frame : Nat �
       arm q (swapSel sel p x) = arm q sel :=
   lego_swap_sound (Flow ps) frame arm E p x sel hf ha (flow_of_isolated hp)
 
-/-- **Swap accounting on units, contract rows.** If frames are `FlowSound` over `ps`, `p` is isolated and $p < n$, the
+/-- **Swap accounting on units, contract rows.** If frames are `FlowSound` over `ps`, `p` is isolated and `p < n`, the
 page's units after the swap plus `p`'s units before equal the page's units before plus `p`'s units after, at every
 stage.
-
-$$\forall ps,\ \forall \mathit{frame},\ \forall E,\ \forall n, p \in \mathbb{N},\ \forall x \in V,\ \forall \sigma,\
-\forall s \in \mathrm{Stage}:\ \operatorname{FlowSound}_{ps}(\mathit{frame}) \land \operatorname{Isolated}_{ps}(p) \land
-p < n \Rightarrow \operatorname{frameWork}_E(\operatorname{page}(n, j \mapsto \mathit{frame}(j,
-\sigma'))).\mathrm{units}(s) + \operatorname{frameWork}_E(\mathit{frame}(p,\sigma)).\mathrm{units}(s) =
-\operatorname{frameWork}_E(\operatorname{page}(n, j \mapsto \mathit{frame}(j, \sigma))).\mathrm{units}(s) +
-\operatorname{frameWork}_E(\mathit{frame}(p,\sigma')).\mathrm{units}(s),\quad \sigma' = \operatorname{swap}(\sigma,p,x)$$
 
 `lego_swap_units` with `Indep` discharged by `flow_of_isolated`. -/
 theorem lego_swap_units_flow {V P M : Type} (ps : List PartSpec) (frame : Nat → (Nat → V) → FrameIn P)
@@ -218,17 +164,7 @@ theorem lego_swap_units_flow {V P M : Type} (ps : List PartSpec) (frame : Nat �
   lego_swap_units (Flow ps) frame E n p x sel s hf (flow_of_isolated hi) hp
 
 /-- **Swap keeps the visible page, contract rows.** If arms are `FlowSound` over `ps`, `p` is isolated, and `p`'s arm
-keeps its band height and its visible scene at every offset, the visible scene of the arms of positions $0, \dots,
-n-1$, stacked in index order, is unchanged from every start offset.
-
-$$\forall ps,\ \forall \mathit{arm},\ \forall \mathit{vp},\ \forall n, p \in \mathbb{N},\ \forall x \in V,\ \forall
-\sigma,\ \forall y \in \mathbb{Q}:\ \operatorname{FlowSound}_{ps}(\mathit{arm}) \land \operatorname{Isolated}_{ps}(p)
-\land \mathit{arm}(p,\sigma').\mathrm{height} = \mathit{arm}(p,\sigma).\mathrm{height} \land \bigl(\forall y' \in
-\mathbb{Q}:\ \operatorname{visible}_{\mathit{vp}}(\mathit{arm}(p,\sigma').\mathrm{scene}(y')) =
-\operatorname{visible}_{\mathit{vp}}(\mathit{arm}(p,\sigma).\mathrm{scene}(y'))\bigr) \Rightarrow
-\operatorname{visible}_{\mathit{vp}}\bigl(\operatorname{stackScene}(y, [\mathit{arm}(j,\sigma')]_{j<n})\bigr) =
-\operatorname{visible}_{\mathit{vp}}\bigl(\operatorname{stackScene}(y, [\mathit{arm}(j,\sigma)]_{j<n})\bigr),\quad
-\sigma' = \operatorname{swap}(\sigma,p,x)$$
+keeps its band height and its visible scene at every offset, the visible scene of the arms of positions `0, ..., n-1`, stacked in index order, is unchanged from every start offset.
 
 `lego_swap_visible` with `Indep` discharged by `flow_of_isolated`. Positions are indices into `ps`; for `codeParts`
 they follow alphabetical id order, not stack order, so this scene is the page only under a map from index to band. -/
@@ -245,10 +181,6 @@ theorem lego_swap_visible_flow {V : Type} (ps : List PartSpec) (arm : Nat → (N
 /-- Frame `g` is pass-dominated by `f` on stage `s`: either `g` touches `s` only when `f` does and forces at most as
 many `s` passes, or `g` forces at least one `s` pass fewer.
 
-$$\operatorname{PassDom}_{E,s}(g,f) \iff \bigl((s \in \operatorname{touched}_E(g) \Rightarrow s \in
-\operatorname{touched}_E(f)) \land \operatorname{forced}(g,s) \le \operatorname{forced}(f,s)\bigr) \lor
-\operatorname{forced}(g,s) + 1 \le \operatorname{forced}(f,s)$$
-
 The invariant that survives appending the rest of the page. -/
 def PassDom {P M : Type} (E : Engine P M) (s : Stage) (g f : FrameIn P) : Prop :=
   ((s ∈ touched E g → s ∈ touched E f) ∧ forcedPasses g s ≤ forcedPasses f s) ∨
@@ -256,16 +188,11 @@ def PassDom {P M : Type} (E : Engine P M) (s : Stage) (g f : FrameIn P) : Prop :
 
 /-- A frame pass-dominates itself.
 
-$$\forall E,\ \forall s,\ \forall f \in \mathrm{FrameIn}(P):\ \operatorname{PassDom}_{E,s}(f,f)$$
-
 The first case with equality. -/
 theorem passDom_refl {P M : Type} (E : Engine P M) (s : Stage) (f : FrameIn P) : PassDom E s f f :=
   .inl ⟨id, Nat.le_refl _⟩
 
 /-- A strict pass saving on `s` is a pass dominance.
-
-$$\forall E,\ \forall s,\ \forall g, f \in \mathrm{FrameIn}(P):\ \operatorname{frameWork}_E(g).\mathrm{passes}(s) <
-\operatorname{frameWork}_E(f).\mathrm{passes}(s) \Rightarrow \operatorname{PassDom}_{E,s}(g,f)$$
 
 A touched-only saving lands in the first case, a forced one in either. -/
 theorem passDom_of_lt {P M : Type} (E : Engine P M) (s : Stage) (g f : FrameIn P)
@@ -280,9 +207,6 @@ theorem passDom_of_lt {P M : Type} (E : Engine P M) (s : Stage) (g f : FrameIn P
 
 /-- Pass dominance survives a frame appended on the right.
 
-$$\forall E,\ \forall s,\ \forall g, f, c \in \mathrm{FrameIn}(P):\ \operatorname{PassDom}_{E,s}(g,f) \Rightarrow
-\operatorname{PassDom}_{E,s}(g \mathbin{+\!\!+} c,\ f \mathbin{+\!\!+} c)$$
-
 Touched stages join and forced passes add. -/
 theorem passDom_append_right {P M : Type} (E : Engine P M) (s : Stage) {g f : FrameIn P} (c : FrameIn P)
     (h : PassDom E s g f) : PassDom E s (g ++ c) (f ++ c) := by
@@ -294,9 +218,6 @@ theorem passDom_append_right {P M : Type} (E : Engine P M) (s : Stage) {g f : Fr
 
 /-- Pass dominance survives a frame appended on the left.
 
-$$\forall E,\ \forall s,\ \forall g, f, c \in \mathrm{FrameIn}(P):\ \operatorname{PassDom}_{E,s}(g,f) \Rightarrow
-\operatorname{PassDom}_{E,s}(c \mathbin{+\!\!+} g,\ c \mathbin{+\!\!+} f)$$
-
 Touched stages join and forced passes add. -/
 theorem passDom_append_left {P M : Type} (E : Engine P M) (s : Stage) {g f : FrameIn P} (c : FrameIn P)
     (h : PassDom E s g f) : PassDom E s (c ++ g) (c ++ f) := by
@@ -307,9 +228,6 @@ theorem passDom_append_left {P M : Type} (E : Engine P M) (s : Stage) {g f : Fra
   · exact .inr (by omega)
 
 /-- Pass dominance bounds the passes.
-
-$$\forall E,\ \forall s,\ \forall g, f \in \mathrm{FrameIn}(P):\ \operatorname{PassDom}_{E,s}(g,f) \Rightarrow
-\operatorname{frameWork}_E(g).\mathrm{passes}(s) \le \operatorname{frameWork}_E(f).\mathrm{passes}(s)$$
 
 At most one touched pass plus the forced ones. -/
 theorem passes_le_of_passDom {P M : Type} (E : Engine P M) (s : Stage) {g f : FrameIn P} (h : PassDom E s g f) :
@@ -324,11 +242,6 @@ theorem passes_le_of_passDom {P M : Type} (E : Engine P M) (s : Stage) {g f : Fr
 /-- **Never an increase (S3).** If part `g₁` runs strictly fewer passes of stage `s` than `f₁`, the page with `g₁` and
 any other part `f₂` runs at most as many `s` passes as the page with `f₁`.
 
-$$\forall E,\ \forall f_1, g_1, f_2 \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\
-\operatorname{frameWork}_E(g_1).\mathrm{passes}(s) < \operatorname{frameWork}_E(f_1).\mathrm{passes}(s) \Rightarrow
-\operatorname{frameWork}_E(g_1 \mathbin{+\!\!+} f_2).\mathrm{passes}(s) \le \operatorname{frameWork}_E(f_1
-\mathbin{+\!\!+} f_2).\mathrm{passes}(s)$$
-
 A pass saving can vanish on the page (`passes_not_compositional`) but never turns into an increase. -/
 theorem passes_append_le {P M : Type} (E : Engine P M) (f₁ g₁ f₂ : FrameIn P) (s : Stage)
     (h : (frameWork E g₁).passes s < (frameWork E f₁).passes s) :
@@ -337,11 +250,6 @@ theorem passes_append_le {P M : Type} (E : Engine P M) (f₁ g₁ f₂ : FrameIn
 
 /-- **Never an increase on a page of `n` parts.** If part functions `G` and `F` agree below `n` except at `p < n`, and
 `G p` runs strictly fewer `s` passes than `F p`, the page of `G` runs at most as many `s` passes as the page of `F`.
-
-$$\forall E,\ \forall s,\ \forall n, p \in \mathbb{N},\ \forall F, G : \mathbb{N} \to \mathrm{FrameIn}(P):\ p < n \land
-\bigl(\forall j < n:\ j \ne p \Rightarrow G(j) = F(j)\bigr) \land \operatorname{frameWork}_E(G(p)).\mathrm{passes}(s)
-< \operatorname{frameWork}_E(F(p)).\mathrm{passes}(s) \Rightarrow \operatorname{frameWork}_E(\operatorname{page}(n,
-G)).\mathrm{passes}(s) \le \operatorname{frameWork}_E(\operatorname{page}(n, F)).\mathrm{passes}(s)$$
 
 The saving part may sit anywhere in the page. -/
 theorem passes_pageOf_le {P M : Type} (E : Engine P M) (s : Stage) (n p : Nat) (F G : Nat → FrameIn P)
@@ -362,11 +270,6 @@ theorem passes_pageOf_le {P M : Type} (E : Engine P M) (s : Stage) (n p : Nat) (
 
 /-- A part whose passes do not grow can raise the page's passes by at most one.
 
-$$\forall E,\ \forall f_1, g_1, f_2 \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\
-\operatorname{frameWork}_E(g_1).\mathrm{passes}(s) \le \operatorname{frameWork}_E(f_1).\mathrm{passes}(s) \Rightarrow
-\operatorname{frameWork}_E(g_1 \mathbin{+\!\!+} f_2).\mathrm{passes}(s) \le \operatorname{frameWork}_E(f_1
-\mathbin{+\!\!+} f_2).\mathrm{passes}(s) + 1$$
-
 The bound `passes_append_le_fails` attains. -/
 theorem passes_append_le_succ {P M : Type} (E : Engine P M) (f₁ g₁ f₂ : FrameIn P) (s : Stage)
     (h : (frameWork E g₁).passes s ≤ (frameWork E f₁).passes s) :
@@ -380,14 +283,7 @@ theorem passes_append_le_succ {P M : Type} (E : Engine P M) (f₁ g₁ f₂ : Fr
 `s` the style or the layout stage, there are parts with `g₁ ≼ f₁` and equal `s` passes whose page with a third part
 `f₂` runs one `s` pass more with `g₁` than with `f₁`.
 
-$$\forall E,\ \forall c \in \mathrm{Change}(P),\ \forall s \in \mathrm{Stage}:\ s \in E.\mathrm{stagesOf}(c) \land s
-\in \{\mathrm{style}, \mathrm{layout}\} \Rightarrow \exists f_1, g_1, f_2 \in \mathrm{FrameIn}(P):\
-\operatorname{frameWork}_E(g_1) \preceq \operatorname{frameWork}_E(f_1) \land
-\operatorname{frameWork}_E(g_1).\mathrm{passes}(s) = \operatorname{frameWork}_E(f_1).\mathrm{passes}(s) \land
-\operatorname{frameWork}_E(g_1 \mathbin{+\!\!+} f_2).\mathrm{passes}(s) = \operatorname{frameWork}_E(f_1
-\mathbin{+\!\!+} f_2).\mathrm{passes}(s) + 1$$
-
-$\preceq$ is `Work.le`; `g₁` trades the touched pass for a forced one, and `f₂`'s touched pass absorbs only `f₁`'s. -/
+`≼` is `Work.le`; `g₁` trades the touched pass for a forced one, and `f₂`'s touched pass absorbs only `f₁`'s. -/
 theorem passes_append_le_fails {P M : Type} (E : Engine P M) (c : Change P) (s : Stage) (hc : s ∈ E.stagesOf c)
     (hs : s = .style ∨ s = .layout) :
     ∃ f₁ g₁ f₂ : FrameIn P, (frameWork E g₁).le (frameWork E f₁) ∧
@@ -414,16 +310,8 @@ theorem passes_append_le_fails {P M : Type} (E : Engine P M) (c : Change P) (s :
     · simp only [frameWork, hv, ho, ↓reduceIte]; simp [forcedPasses, v, o]
     · rw [passes_append, passes_append]; simp only [ho, or_true, ↓reduceIte]; simp [forcedPasses, v, o]
 
-/-- **Swap accounting on passes, contract rows.** If frames are `FlowSound` over `ps`, `p` is isolated, $p < n$ and
+/-- **Swap accounting on passes, contract rows.** If frames are `FlowSound` over `ps`, `p` is isolated, `p < n` and
 the swap gives `p` strictly fewer `s` passes, the page runs at most as many `s` passes after the swap as before.
-
-$$\forall ps,\ \forall \mathit{frame},\ \forall E,\ \forall n, p \in \mathbb{N},\ \forall x \in V,\ \forall \sigma,\
-\forall s \in \mathrm{Stage}:\ \operatorname{FlowSound}_{ps}(\mathit{frame}) \land \operatorname{Isolated}_{ps}(p)
-\land p < n \land \operatorname{frameWork}_E(\mathit{frame}(p,\sigma')).\mathrm{passes}(s) <
-\operatorname{frameWork}_E(\mathit{frame}(p,\sigma)).\mathrm{passes}(s) \Rightarrow
-\operatorname{frameWork}_E(\operatorname{page}(n, j \mapsto \mathit{frame}(j,\sigma'))).\mathrm{passes}(s) \le
-\operatorname{frameWork}_E(\operatorname{page}(n, j \mapsto \mathit{frame}(j,\sigma))).\mathrm{passes}(s),\quad
-\sigma' = \operatorname{swap}(\sigma,p,x)$$
 
 The part-local saving may vanish on the page, never reverse. -/
 theorem lego_swap_passes_flow {V P M : Type} (ps : List PartSpec) (frame : Nat → (Nat → V) → FrameIn P)
@@ -440,9 +328,6 @@ theorem lego_swap_passes_flow {V P M : Type} (ps : List PartSpec) (frame : Nat �
 
 /-- Decision procedure for `Edge`.
 
-$$\operatorname{edge}(ps,i,j) \iff i \ne j \land \begin{cases} \lnot\operatorname{quiet}(ps[i], ps[j]) & i < |ps| \land
-j < |ps| \\ \bot & \text{otherwise} \end{cases}$$
-
 False on every index out of range. -/
 def edgeB (ps : List PartSpec) (i j : Nat) : Bool :=
   i != j && match ps[i]?, ps[j]? with
@@ -451,16 +336,12 @@ def edgeB (ps : List PartSpec) (i j : Nat) : Bool :=
 
 /-- `edgeB` decides `Edge`.
 
-$$\forall ps,\ \forall i, j \in \mathbb{N}:\ \operatorname{edge}(ps,i,j) \iff \operatorname{Edge}_{ps}(i,j)$$
-
 Both read the parts at `i` and `j`. -/
 theorem edgeB_iff (ps : List PartSpec) (i j : Nat) : edgeB ps i j = true ↔ Edge ps i j := by
   unfold edgeB Edge
   cases hi : ps[i]? <;> cases hj : ps[j]? <;> simp
 
 /-- An edge joins two positions in range.
-
-$$\forall ps,\ \forall i, j \in \mathbb{N}:\ \operatorname{Edge}_{ps}(i,j) \Rightarrow i < |ps| \land j < |ps|$$
 
 Both ends hold a part. -/
 theorem Edge.lt {ps : List PartSpec} {i j : Nat} (e : Edge ps i j) : i < ps.length ∧ j < ps.length := by
@@ -469,17 +350,13 @@ theorem Edge.lt {ps : List PartSpec} {i j : Nat} (e : Edge ps i j) : i < ps.leng
 
 /-- Adjacency lists of `ps`: for each position in range, the positions it has an edge to, ascending.
 
-$$\operatorname{adj}(ps) = \bigl[[\,j \in [0, |ps|) \mid \operatorname{edge}(ps,i,j)\,] \bigm| i \in [0, |ps|)\bigr]$$
-
-Position $i$'s list is entry $i$. -/
+Position `i`'s list is entry `i`. -/
 def adj (ps : List PartSpec) : List (List Nat) :=
   (List.range ps.length).map fun i => (List.range ps.length).filter (edgeB ps i)
 
 /-- Entry `i` of `adj ps` (empty past the end) lists exactly the edges out of `i`.
 
-$$\forall ps,\ \forall i, j \in \mathbb{N}:\ j \in \operatorname{adj}(ps)[i]^{[\,]} \iff \operatorname{Edge}_{ps}(i,j)$$
-
-$xs[i]^{[\,]}$ is entry $i$ of $xs$, or $[\,]$ when $i \ge |xs|$. -/
+`xs[i]^([])` is entry `i` of `xs`, or `[]` when `i ≥ |xs|`. -/
 theorem mem_adj (ps : List PartSpec) (i j : Nat) : j ∈ (adj ps).getD i [] ↔ Edge ps i j := by
   rw [← edgeB_iff]
   unfold adj
@@ -495,30 +372,21 @@ theorem mem_adj (ps : List PartSpec) (i j : Nat) : j ∈ (adj ps).getD i [] ↔ 
 /-- One breadth step over adjacency lists `A`: `S`, then each position below `|A|` not in `S` that an edge from `S`
 reaches, ascending.
 
-$$\operatorname{grow}_A(S) = S \mathbin{+\!\!+} [\,j \in [0, |A|) \mid j \notin S \land \exists i \in S:\ j \in
-A[i]^{[\,]}\,]$$
-
 `S` stays a prefix. -/
 def grow (A : List (List Nat)) (S : List Nat) : List Nat :=
   S ++ (List.range A.length).filter fun j => !S.contains j && S.any fun i => (A.getD i []).contains j
 
 /-- Positions found from `p` in `k` breadth steps.
 
-$$\operatorname{reach}_A(p, k) = \operatorname{grow}_A^{\,k}([p])$$
-
 `k = 0` gives `[p]`. -/
 def reachList (A : List (List Nat)) (p k : Nat) : List Nat := Nat.repeat (grow A) k [p]
 
 /-- `S` is closed under the edges of `A`.
 
-$$\operatorname{closed}_A(S) \iff \forall i \in S,\ \forall j \in A[i]^{[\,]}:\ j \in S$$
-
 A closed set holding `p` holds everything `p` reaches. -/
 def closed (A : List (List Nat)) (S : List Nat) : Bool := S.all fun i => (A.getD i []).all S.contains
 
 /-- The start is found.
-
-$$\forall A,\ \forall p, k \in \mathbb{N}:\ p \in \operatorname{reach}_A(p,k)$$
 
 `grow` keeps its argument as a prefix. -/
 theorem start_mem_reachList (A : List (List Nat)) (p : Nat) : ∀ k, p ∈ reachList A p k
@@ -528,9 +396,6 @@ theorem start_mem_reachList (A : List (List Nat)) (p : Nat) : ∀ k, p ∈ reach
     exact .inl (start_mem_reachList A p k)
 
 /-- Every position found from `p` is reached from `p`, when `A` lists the edges of `ps`.
-
-$$\forall ps,\ \forall A:\ \bigl(\forall i, j \in \mathbb{N}:\ j \in A[i]^{[\,]} \iff \operatorname{Edge}_{ps}(i,j)\bigr)
-\Rightarrow \forall p, k, q \in \mathbb{N}:\ q \in \operatorname{reach}_A(p,k) \Rightarrow \operatorname{Reach}_{ps}(p,q)$$
 
 Soundness of the breadth search. -/
 theorem reach_of_mem_reachList {ps : List PartSpec} {A : List (List Nat)}
@@ -547,10 +412,6 @@ theorem reach_of_mem_reachList {ps : List PartSpec} {A : List (List Nat)}
 
 /-- A closed set holding `i` holds every position `i` reaches, when `A` lists the edges of `ps`.
 
-$$\forall ps,\ \forall A,\ \forall S:\ \bigl(\forall i, j:\ j \in A[i]^{[\,]} \iff \operatorname{Edge}_{ps}(i,j)\bigr)
-\land \operatorname{closed}_A(S) \Rightarrow \forall i, k \in \mathbb{N}:\ \operatorname{Reach}_{ps}(i,k) \land i \in S
-\Rightarrow k \in S$$
-
 Completeness of the breadth search once it stops growing. -/
 theorem mem_of_reach {ps : List PartSpec} {A : List (List Nat)} {S : List Nat}
     (hA : ∀ i j, j ∈ A.getD i [] ↔ Edge ps i j) (hc : closed A S = true) {i k : Nat} (h : Reach ps i k)
@@ -564,9 +425,7 @@ theorem mem_of_reach {ps : List PartSpec} {A : List (List Nat)} {S : List Nat}
 
 /-! ## The code rows -/
 
-/-- The adjacency lists of `codeParts`, position $i$ the $i$-th contract row.
-
-$$\mathrm{adj}_{\mathrm{code}} = L_{\mathrm{adj}}, \quad L_{\mathrm{adj}} = \text{the 34-entry literal below}$$
+/-- The adjacency lists of `codeParts`, position `i` the `i`-th contract row.
 
 Literal of `adj codeParts` (`adj_code`). -/
 def codeAdj : List (List Nat) :=
@@ -583,15 +442,10 @@ def codeAdj : List (List Nat) :=
 
 /-- `codeAdj` is the adjacency of the code rows.
 
-$$\operatorname{adj}(\mathrm{parts}_{\mathrm{code}}) = \mathrm{adj}_{\mathrm{code}}$$
-
 Decided on the 34 × 34 pairs. -/
 theorem adj_code : adj codeParts = codeAdj := by decide
 
 /-- `codeAdj` lists exactly the edges of the code rows.
-
-$$\forall i, j \in \mathbb{N}:\ j \in \mathrm{adj}_{\mathrm{code}}[i]^{[\,]} \iff
-\operatorname{Edge}_{\mathrm{parts}_{\mathrm{code}}}(i,j)$$
 
 `mem_adj` rewritten by `adj_code`. -/
 theorem mem_codeAdj (i j : Nat) : j ∈ codeAdj.getD i [] ↔ Edge codeParts i j := by
@@ -599,17 +453,10 @@ theorem mem_codeAdj (i j : Nat) : j ∈ codeAdj.getD i [] ↔ Edge codeParts i j
 
 /-- Six breadth steps close every search over the code rows.
 
-$$\forall p < 34:\ \operatorname{closed}_{\mathrm{adj}_{\mathrm{code}}}(\operatorname{reach}_{\mathrm{adj}_{\mathrm{code}}}(p,
-6))$$
-
 The longest shortest path has five edges. -/
 theorem closed_code : (List.range 34).all (fun p => closed codeAdj (reachList codeAdj p 6)) = true := by decide
 
 /-- Reachability on the code rows is the six-step search.
-
-$$\forall p \in \mathbb{N}:\ p < 34 \Rightarrow \forall q \in \mathbb{N}:\
-\operatorname{Reach}_{\mathrm{parts}_{\mathrm{code}}}(p,q) \iff q \in \operatorname{reach}_{\mathrm{adj}_{\mathrm{code}}}(p,
-6)$$
 
 Sound by `reach_of_mem_reachList`, complete by `closed_code`. -/
 theorem reach_code_iff {p : Nat} (hp : p < 34) (q : Nat) :
@@ -619,13 +466,6 @@ theorem reach_code_iff {p : Nat} (hp : p < 34) (q : Nat) :
   exact List.all_eq_true.mp closed_code p (List.mem_range.mpr hp)
 
 /-- **The isolated code rows.** Exactly 14 positions of `codeParts` are quiet towards every other position.
-
-$$[\,p \in [0, 34) \mid \operatorname{isolated}(\mathrm{parts}_{\mathrm{code}}, p)\,] =
-[1, 7, 8, 14, 18, 19, 20, 23, 25, 29, 30, 31, 32, 33] \ \land\ [\mathrm{parts}_{\mathrm{code}}[p].\mathrm{id} \mid p
-\in \text{that list}] = [\texttt{commission.typing}, \texttt{hero.cue}, \texttt{hero.deck}, \texttt{morph.panel},
-\texttt{nav.langMenu}, \texttt{overlays.drawer}, \texttt{overlays.signup}, \texttt{people}, \texttt{people.carousel},
-\texttt{platform.entries}, \texttt{platform.glint}, \texttt{platform.marquee}, \texttt{platform.stageBg},
-\texttt{platform.sweep}]$$
 
 These are the parts `lego_swap_sound_flow` applies to. -/
 theorem isolated_code :
@@ -637,16 +477,11 @@ theorem isolated_code :
 
 /-- `Independent` at two positions of `ps`.
 
-$$\operatorname{PairIndep}_{ps}(i,k) \iff \exists P, Q:\ ps[i] = P \land ps[k] = Q \land \operatorname{Independent}(P,Q)$$
-
 False when either index is out of range. -/
 def PairIndep (ps : List PartSpec) (i k : Nat) : Prop :=
   ∃ P Q, ps[i]? = some P ∧ ps[k]? = some Q ∧ Independent P Q
 
 /-- Decision procedure for `PairIndep`.
-
-$$\operatorname{indepAt}(ps,i,k) \iff \begin{cases} \operatorname{independent}(ps[i], ps[k]) & i < |ps| \land k < |ps|
-\\ \bot & \text{otherwise} \end{cases}$$
 
 Reads the parts at `i` and `k`. -/
 def indepAt (ps : List PartSpec) (i k : Nat) : Bool :=
@@ -656,8 +491,6 @@ def indepAt (ps : List PartSpec) (i k : Nat) : Bool :=
 
 /-- `indepAt` decides `PairIndep`.
 
-$$\forall ps,\ \forall i, k \in \mathbb{N}:\ \operatorname{indepAt}(ps,i,k) \iff \operatorname{PairIndep}_{ps}(i,k)$$
-
 Both read the parts at `i` and `k`. -/
 theorem indepAt_iff (ps : List PartSpec) (i k : Nat) : indepAt ps i k = true ↔ PairIndep ps i k := by
   unfold indepAt PairIndep Independent
@@ -665,10 +498,7 @@ theorem indepAt_iff (ps : List PartSpec) (i k : Nat) : indepAt ps i k = true ↔
 
 /-- Exactly two code rows are `Independent` of every other row.
 
-$$[\,p \in [0, 34) \mid \forall q < 34:\ q = p \lor \operatorname{indepAt}(\mathrm{parts}_{\mathrm{code}}, p, q)\,] =
-[19, 23]$$
-
-overlays.drawer and people; the two-way premise of `flow_of_independent` covers only them. -/
+Overlays.drawer and people; the two-way premise of `flow_of_independent` covers only them. -/
 theorem independent_all_code :
     (List.range 34).filter (fun p => (List.range 34).all fun q => q == p || indepAt codeParts p q) = [19, 23] := by
   decide
@@ -677,10 +507,6 @@ theorem independent_all_code :
 
 /-- **Self-independence breaks the literal `Indep`.** If the part at `j` is `Independent` of itself, the observable
 "own variant" is `FlowSound` but does not read only the non-`PairIndep` positions.
-
-$$\forall ps,\ \forall j \in \mathbb{N},\ \forall P:\ ps[j] = P \land \operatorname{Independent}(P,P) \Rightarrow
-\operatorname{FlowSound}_{ps}(\mathit{own}) \land \lnot\operatorname{ReadsOnly}(\operatorname{PairIndep}_{ps},
-\mathit{own}),\quad \mathit{own}(k,\sigma) = \sigma(k),\ \sigma : \mathbb{N} \to \mathbb{B}$$
 
 `PairIndep` as `Indep` would make part `j` blind to its own variant. -/
 theorem selfIndep_not_readsOnly (ps : List PartSpec) (j : Nat) (P : PartSpec) (hP : ps[j]? = some P)
@@ -695,11 +521,7 @@ theorem selfIndep_not_readsOnly (ps : List PartSpec) (j : Nat) (P : PartSpec) (h
 
 /-- Seven code rows are `Independent` of themselves.
 
-$$[P.\mathrm{id} \mid P \in \mathrm{parts}_{\mathrm{code}},\ \operatorname{independent}(P,P)] =
-[\texttt{engine.scroll}, \texttt{hero.cue}, \texttt{hero.deck}, \texttt{pain}, \texttt{people},
-\texttt{platform.marquee}, \texttt{platform.stageBg}]$$
-
-So `Indep` must exclude $i = j$. -/
+So `Indep` must exclude `i = j`. -/
 theorem selfIndep_code :
     (codeParts.filter fun P => independent P P).map (·.id) =
       ["engine.scroll", "hero.cue", "hero.deck", "pain", "people", "platform.marquee", "platform.stageBg"] := by
@@ -707,12 +529,6 @@ theorem selfIndep_code :
 
 /-- **Chains break the literal `Indep`.** If `p` reaches `q ≠ p` and the parts at `p` and `q` are `Independent`, the
 observable "`q` shows `p`'s variant" is `FlowSound` but does not read only the positions not `PairIndep` of it.
-
-$$\forall ps,\ \forall p, q \in \mathbb{N}:\ p \ne q \land \operatorname{Reach}_{ps}(p,q) \land
-\operatorname{PairIndep}_{ps}(p,q) \Rightarrow \operatorname{FlowSound}_{ps}(\mathit{obs}) \land
-\lnot\operatorname{ReadsOnly}\bigl((i,k) \mapsto i \ne k \land \operatorname{PairIndep}_{ps}(i,k),\ \mathit{obs}\bigr),
-\quad \mathit{obs}(k,\sigma) = \begin{cases} \sigma(p) & k = q \\ \mathrm{false} & k \ne q \end{cases},\ \sigma :
-\mathbb{N} \to \mathbb{B}$$
 
 Pairwise `Independent` does not stop influence along a path. -/
 theorem chain_not_readsOnly (ps : List PartSpec) (p q : Nat) (hpq : p ≠ q) (hr : Reach ps p q)
@@ -733,19 +549,12 @@ theorem chain_not_readsOnly (ps : List PartSpec) (p q : Nat) (hpq : p ≠ q) (hr
 /-- Pairs where the literal bridge `PairIndep → Flow` fails: from each position `p` below `|ps|`, every position found
 in `k` steps that is not `p` and is `Independent` of `p`, ascending.
 
-$$\operatorname{chains}(ps, A, k) = [\,(p,q) \mid p \in [0, |ps|),\ q \in \operatorname{reach}_A(p,k),\ q \ne p \land
-\operatorname{indepAt}(ps,p,q)\,]$$
-
 Pairs in the order of the comprehension. -/
 def chainPairs (ps : List PartSpec) (A : List (List Nat)) (k : Nat) : List (Nat × Nat) :=
   (List.range ps.length).flatMap fun p => ((reachList A p k).filter fun q => q != p && indepAt ps p q).map (p, ·)
 
 /-- **The literal bridge fails on exactly the listed pairs.** On the code rows, two distinct positions that are
 `Independent` yet not `Flow`-independent are exactly the pairs of `chainPairs`.
-
-$$\forall p, q \in \mathbb{N}:\ (p,q) \in \operatorname{chains}(\mathrm{parts}_{\mathrm{code}}, \mathrm{adj}_{\mathrm{code}},
-6) \iff p \ne q \land \operatorname{PairIndep}_{\mathrm{parts}_{\mathrm{code}}}(p,q) \land
-\lnot\operatorname{Flow}_{\mathrm{parts}_{\mathrm{code}}}(p,q)$$
 
 Every other `Independent` pair is `Flow`-independent. -/
 theorem chainPairs_code_iff (p q : Nat) :
@@ -764,17 +573,11 @@ theorem chainPairs_code_iff (p q : Nat) :
 
 /-- There are 299 such pairs.
 
-$$\bigl|\operatorname{chains}(\mathrm{parts}_{\mathrm{code}}, \mathrm{adj}_{\mathrm{code}}, 6)\bigr| = 299$$
-
 Each is an ordered pair of code positions. -/
 theorem chainPairs_code_length : (chainPairs codeParts codeAdj 6).length = 299 := by decide +kernel
 
 
-/-- The 299 pairs grouped by source: entry $p$ lists, in search order, every $q$ with $(p,q)$ in the failing pairs.
-
-$$\bigl[[\,q \mid (p', q) \in \operatorname{chains}(\mathrm{parts}_{\mathrm{code}}, \mathrm{adj}_{\mathrm{code}}, 6),\
-p' = p\,] \bigm| p \in [0, 34)\bigr] = L_{\mathrm{chain}}, \quad L_{\mathrm{chain}} = \text{the 34-entry literal in the
-statement}$$
+/-- The 299 pairs grouped by source: entry `p` lists, in search order, every `q` with `(p,q)` in the failing pairs.
 
 Sources with an empty entry (1, 6, 7, 8, 12, 14, 18, 19, 20, 23, 25, 29 to 33) satisfy the literal bridge. -/
 theorem chainTargets_code :

@@ -8,8 +8,7 @@ else serves JSON lines). `Main.lean` matches on `route`; `route_old` and `route_
 -/
 namespace Fw.Ops.FwCoreRoute
 
-/-- What `fwcore` runs: the JSON-lines server, the op list, or one former executable.
-$$\mathrm{Sub} = \{\mathrm{serve},\ \mathrm{ops},\ \mathrm{fwtest},\ \mathrm{sweepsgen},\ \mathrm{partsgolden}\}$$ -/
+/-- What `fwcore` runs: the JSON-lines server, the op list, or one former executable. -/
 inductive Sub
   | serve
   | ops
@@ -18,20 +17,17 @@ inductive Sub
   | partsgolden
 deriving DecidableEq, Repr
 
-/-- The subcommand names, each with the former executable it runs.
-$$S = [(\texttt{fwtest}, \mathrm{fwtest}),\ (\texttt{sweepsgen}, \mathrm{sweepsgen}),\ (\texttt{partsgolden}, \mathrm{partsgolden})]$$ -/
+/-- The subcommand names, each with the former executable it runs. -/
 def subs : List (String × Sub) :=
   [("fwtest", .fwtest), ("sweepsgen", .sweepsgen), ("partsgolden", .partsgolden)]
 
 /-- The old `fwcore` (Main.lean before this task): exactly the argument list `[--ops]` lists the ops, every other list
-serves.
-$$\operatorname{old}(a) = \begin{cases} \mathrm{ops} & a = [\texttt{--ops}] \\ \mathrm{serve} & \text{otherwise} \end{cases}$$ -/
+serves. -/
 def oldMode (args : List String) : Sub :=
   if args == ["--ops"] then .ops else .serve
 
 /-- The route of a command line: a first argument in `subs` selects that former executable and passes it the rest of
-the list; any other list (including the empty one) goes to `oldMode` with its arguments unchanged.
-$$\operatorname{route}(a) = \begin{cases} (s, r) & a = n :: r \text{ with } (n, s) \in S \\ (\operatorname{old}(a), a) & \text{otherwise} \end{cases}$$ -/
+the list; any other list (including the empty one) goes to `oldMode` with its arguments unchanged. -/
 def route : List String → Sub × List String
   | "fwtest" :: rest => (.fwtest, rest)
   | "sweepsgen" :: rest => (.sweepsgen, rest)
@@ -50,8 +46,7 @@ def route : List String → Sub × List String
 #guard route ["breakgen"] == (.serve, ["breakgen"])
 
 /-- **Old command lines keep their meaning.** When the first argument is not a subcommand name (or there is none),
-`fwcore` does what it did before, with the same arguments.
-$$\forall a:\ \bigl(\forall (n, s) \in S:\ a = [\,] \lor a_0 \ne n\bigr) \Rightarrow \operatorname{route}(a) = (\operatorname{old}(a), a)$$ -/
+`fwcore` does what it did before, with the same arguments. -/
 theorem route_old (args : List String) (h : ∀ p ∈ subs, args.head? ≠ some p.1) :
     route args = (oldMode args, args) := by
   match args, h with
@@ -65,8 +60,7 @@ theorem route_old (args : List String) (h : ∀ p ∈ subs, args.head? ≠ some 
     split <;> simp_all
 
 /-- **A subcommand runs its former executable on the rest of the line.** Each name in `subs` selects its executable,
-which receives exactly the arguments after the name, as the old executable received them.
-$$\forall (n, s) \in S,\ \forall r:\ \operatorname{route}(n :: r) = (s, r)$$ -/
+which receives exactly the arguments after the name, as the old executable received them. -/
 theorem route_sub (n : String) (s : Sub) (rest : List String) (h : (n, s) ∈ subs) :
     route (n :: rest) = (s, rest) := by
   simp only [subs, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at h

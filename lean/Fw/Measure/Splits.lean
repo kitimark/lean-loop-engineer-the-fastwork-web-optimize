@@ -33,8 +33,6 @@ open Fw.Measure
 
 /-- One containment split: slices named `name` inside a complete slice named `within` count as
 `key`, the others as `base`.
-
-$$\mathrm{Split} = \Sigma^{*} \times \Sigma^{*} \times \Sigma^{*} \times \Sigma^{*}\ \ (\mathrm{name}, \mathrm{within}, \mathrm{base}, \mathrm{key})$$
 -/
 structure Split where
   name : String
@@ -43,36 +41,21 @@ structure Split where
   key : String
 deriving Repr, DecidableEq
 
-/-- The outer slice of the overlay-ad detector (`overlay_interstitial_ad_detector.cc:93@f842f52`).
-
-$$\mathrm{detector} = \texttt{"OverlayInterstitialAdDetector::MaybeFireDetection"}$$
--/
+/-- The outer slice of the overlay-ad detector (`overlay_interstitial_ad_detector.cc:93@f842f52`). -/
 def detector : String := "OverlayInterstitialAdDetector::MaybeFireDetection"
 
-/-- The outer slice of an isolated SVG-image document.
-
-$$\mathrm{svgHost} = \texttt{"IsolatedSVGDocumentHost::IsolatedSVGDocumentHost"}$$
--/
+/-- The outer slice of an isolated SVG-image document. -/
 def svgHost : String := "IsolatedSVGDocumentHost::IsolatedSVGDocumentHost"
 
-/-- The type of a style-sheet update inside an SVG-image document.
-
-$$\mathrm{svgKey} = \texttt{"trace.N1.svgImageDocument"}$$
--/
+/-- The type of a style-sheet update inside an SVG-image document. -/
 def svgKey : String := "trace.N1.svgImageDocument"
 
-/-- **The split table** (the TS `SPLITS` of `trace.mjs` must equal it).
-
-$$\mathrm{splits} = [(\texttt{HitTest}, \mathrm{detector}, \texttt{trace.HitTest}, \texttt{trace.HitTest.overlayAdDetector}),\ (\texttt{StyleEngine::updateActiveStyleSheets}, \mathrm{svgHost}, \texttt{trace.N1.updateActiveStyleSheets}, \mathrm{svgKey})]$$
--/
+/-- **The split table** (the TS `SPLITS` of `trace.mjs` must equal it). -/
 def splits : List Split :=
   [⟨"HitTest", detector, "trace.HitTest", "trace.HitTest.overlayAdDetector"⟩,
    ⟨"StyleEngine::updateActiveStyleSheets", svgHost, "trace.N1.updateActiveStyleSheets", svgKey⟩]
 
-/-- One main-thread trace slice: name, phase, start time and duration (µs; a missing duration is 0).
-
-$$\mathrm{Slice} = \Sigma^{*} \times \Sigma^{*} \times \mathbb{Z} \times \mathbb{Z}\ \ (\mathrm{name}, \mathrm{ph}, \mathrm{ts}, \mathrm{dur})$$
--/
+/-- One main-thread trace slice: name, phase, start time and duration (µs; a missing duration is 0). -/
 structure Slice where
   name : String
   ph : String
@@ -80,53 +63,33 @@ structure Slice where
   dur : Int
 deriving Repr, DecidableEq
 
-/-- The phases a main-thread slice is counted in (begin, complete, the instants and `R`).
-
-$$\operatorname{counted}(\mathit{ph}) \iff \mathit{ph} \in \{\texttt{B}, \texttt{X}, \texttt{I}, \texttt{i}, \texttt{R}\}$$
--/
+/-- The phases a main-thread slice is counted in (begin, complete, the instants and `R`). -/
 def counted (ph : String) : Bool := ["B", "X", "I", "i", "R"].contains ph
 
-/-- The intervals `[ts, ts + dur]` of the complete slices named `w`.
-
-$$\operatorname{outers}(w, E) = [\, (s.\mathrm{ts},\ s.\mathrm{ts} + s.\mathrm{dur}) \,]_{s \in E,\ s.\mathrm{name} = w,\ s.\mathrm{ph} = \texttt{X}}$$
--/
+/-- The intervals `[ts, ts + dur]` of the complete slices named `w`. -/
 def outers (w : String) (evs : List Slice) : List (Int × Int) :=
   (evs.filter fun e => e.name == w && e.ph == "X").map fun e => (e.ts, e.ts + e.dur)
 
 /-- A slice is inside one of the intervals: it is complete and lies within the interval, ends
 included.
-
-$$\operatorname{inside}(O, s) \iff s.\mathrm{ph} = \texttt{X} \ \land\ \exists (a, b) \in O:\ a \le s.\mathrm{ts} \ \land\ s.\mathrm{ts} + s.\mathrm{dur} \le b$$
 -/
 def inside (os : List (Int × Int)) (s : Slice) : Bool :=
   s.ph == "X" && os.any fun o => decide (o.1 ≤ s.ts) && decide (s.ts + s.dur ≤ o.2)
 
-/-- The type a slice of the split's name is counted under.
-
-$$\operatorname{typeOf}(\sigma, E, s) = \begin{cases} \sigma.\mathrm{key} & \operatorname{inside}(\operatorname{outers}(\sigma.\mathrm{within}, E), s) \\ \sigma.\mathrm{base} & \text{otherwise} \end{cases}$$
--/
+/-- The type a slice of the split's name is counted under. -/
 def typeOf (sp : Split) (evs : List Slice) (s : Slice) : String :=
   if inside (outers sp.within evs) s then sp.key else sp.base
 
-/-- The counted slices of the split's name.
-
-$$\operatorname{mine}(\sigma, E) = [\, s \in E \mid s.\mathrm{name} = \sigma.\mathrm{name} \land \operatorname{counted}(s.\mathrm{ph}) \,]$$
--/
+/-- The counted slices of the split's name. -/
 def mine (sp : Split) (evs : List Slice) : List Slice :=
   evs.filter fun s => s.name == sp.name && counted s.ph
 
-/-- **The split counts** of one split over a list of slices: (usual type, split type).
-
-$$\operatorname{split}(\sigma, E) = \Big(\big|[\, s \in \operatorname{mine}(\sigma, E) \mid \lnot \operatorname{inside}(O, s) \,]\big|,\ \big|[\, s \in \operatorname{mine}(\sigma, E) \mid \operatorname{inside}(O, s) \,]\big|\Big),\quad O = \operatorname{outers}(\sigma.\mathrm{within}, E)$$
--/
+/-- **The split counts** of one split over a list of slices: (usual type, split type). -/
 def splitCounts (sp : Split) (evs : List Slice) : Nat × Nat :=
   (((mine sp evs).filter fun s => !inside (outers sp.within evs) s).length,
    ((mine sp evs).filter fun s => inside (outers sp.within evs) s).length)
 
-/-- The split counts of every split as count entries (usual type, then split type).
-
-$$\operatorname{splitTable}(E) = [\, (\sigma.\mathrm{base}, \operatorname{split}(\sigma, E)_1),\ (\sigma.\mathrm{key}, \operatorname{split}(\sigma, E)_2) \,]_{\sigma \in \mathrm{splits}}$$
--/
+/-- The split counts of every split as count entries (usual type, then split type). -/
 def splitTable (evs : List Slice) : Counts :=
   splits.flatMap fun sp =>
     let c := splitCounts sp evs
@@ -134,24 +97,15 @@ def splitTable (evs : List Slice) : Counts :=
 
 /-! ## The N1 keys and the net rule -/
 
-/-- The N1 types the lane records (zero-filled in every frame), in the order of `trace.mjs` `N1_KEYS`.
-
-$$\mathrm{n1Keys} = [\texttt{updateActiveStyleSheets}, \texttt{scheduleInvalidationsForRuleSets}, \texttt{fontUpdateInvalidation}, \texttt{svgImageDocument}]\ \ (\text{each prefixed } \texttt{trace.N1.})$$
--/
+/-- The N1 types the lane records (zero-filled in every frame), in the order of `trace.mjs` `N1_KEYS`. -/
 def n1Keys : List String :=
   ["trace.N1.updateActiveStyleSheets", "trace.N1.scheduleInvalidationsForRuleSets",
    "trace.N1.fontUpdateInvalidation", svgKey]
 
-/-- The N1 types that do not count toward N1: the split types whose usual type is an N1 type.
-
-$$\mathrm{n1Excluded} = [\, \sigma.\mathrm{key} \,]_{\sigma \in \mathrm{splits},\ \sigma.\mathrm{base} \in \mathrm{n1Keys}}$$
--/
+/-- The N1 types that do not count toward N1: the split types whose usual type is an N1 type. -/
 def n1Excluded : List String := (splits.filter fun sp => n1Keys.contains sp.base).map (·.key)
 
-/-- **The gated N1 types**: the N1 types that are not excluded.
-
-$$\mathrm{n1Gated} = [\, k \in \mathrm{n1Keys} \mid k \notin \mathrm{n1Excluded} \,]$$
--/
+/-- **The gated N1 types**: the N1 types that are not excluded. -/
 def n1Gated : List String := n1Keys.filter fun k => !n1Excluded.contains k
 
 #guard n1Excluded == [svgKey]
@@ -168,24 +122,15 @@ def n1Gated : List String := n1Keys.filter fun k => !n1Excluded.contains k
 
 /-! ## Proofs -/
 
-/-- Only complete slices are inside an interval.
-
-$$\forall O, s:\ \operatorname{inside}(O, s) \;\Rightarrow\; s.\mathrm{ph} = \texttt{X}$$
--/
+/-- Only complete slices are inside an interval. -/
 theorem inside_ph {os : List (Int × Int)} {s : Slice} (h : inside os s = true) : s.ph = "X" := by
   simp only [inside, Bool.and_eq_true, beq_iff_eq] at h
   exact h.1
 
-/-- Nothing is inside an empty list of intervals.
-
-$$\forall s:\ \lnot \operatorname{inside}([\,], s)$$
--/
+/-- Nothing is inside an empty list of intervals. -/
 theorem inside_nil (s : Slice) : inside [] s = false := by simp [inside]
 
-/-- **Conservation.** The split moves slices between the two types and loses or adds none.
-
-$$\forall \sigma, E:\ \operatorname{split}(\sigma, E)_1 + \operatorname{split}(\sigma, E)_2 = |\operatorname{mine}(\sigma, E)|$$
--/
+/-- **Conservation.** The split moves slices between the two types and loses or adds none. -/
 theorem splitCounts_sum (sp : Split) (evs : List Slice) :
     (splitCounts sp evs).1 + (splitCounts sp evs).2 = (mine sp evs).length := by
   simp only [splitCounts]
@@ -197,10 +142,7 @@ theorem splitCounts_sum (sp : Split) (evs : List Slice) :
     · simp [h]; omega
     · simp [h]; omega
 
-/-- Without a complete outer slice nothing is split off.
-
-$$\forall \sigma, E:\ \operatorname{outers}(\sigma.\mathrm{within}, E) = [\,] \;\Rightarrow\; \operatorname{split}(\sigma, E)_2 = 0 \ \land\ \operatorname{split}(\sigma, E)_1 = |\operatorname{mine}(\sigma, E)|$$
--/
+/-- Without a complete outer slice nothing is split off. -/
 theorem splitCounts_no_outer (sp : Split) (evs : List Slice) (h : outers sp.within evs = []) :
     (splitCounts sp evs).2 = 0 ∧ (splitCounts sp evs).1 = (mine sp evs).length := by
   have hs := splitCounts_sum sp evs
@@ -210,8 +152,6 @@ theorem splitCounts_no_outer (sp : Split) (evs : List Slice) (h : outers sp.with
 
 /-- The split type of a split slice: a slice counted under `key` is complete and inside an outer
 slice.
-
-$$\forall \sigma, E, s:\ \sigma.\mathrm{key} \ne \sigma.\mathrm{base} \land \operatorname{typeOf}(\sigma, E, s) = \sigma.\mathrm{key} \;\Rightarrow\; s.\mathrm{ph} = \texttt{X} \ \land\ \operatorname{inside}(\operatorname{outers}(\sigma.\mathrm{within}, E), s)$$
 -/
 theorem typeOf_key {sp : Split} {evs : List Slice} {s : Slice} (hne : sp.key ≠ sp.base)
     (h : typeOf sp evs s = sp.key) : s.ph = "X" ∧ inside (outers sp.within evs) s = true := by
@@ -220,31 +160,20 @@ theorem typeOf_key {sp : Split} {evs : List Slice} {s : Slice} (hne : sp.key ≠
   · exact ⟨inside_ph hi, hi⟩
   · simp [hi] at h; exact absurd h.symm hne
 
-/-- The usual and split types of the table are pairwise different (no two splits share a type).
-
-$$[\, \sigma.\mathrm{base}, \sigma.\mathrm{key} \,]_{\sigma \in \mathrm{splits}} \text{ has no duplicates}$$
--/
+/-- The usual and split types of the table are pairwise different (no two splits share a type). -/
 theorem splits_types_nodup : (splits.flatMap fun sp => [sp.base, sp.key]).Nodup := by
   simp [splits, detector, svgHost, svgKey]
 
-/-- The SVG-image split is the only split of an N1 type.
-
-$$\mathrm{n1Excluded} = [\mathrm{svgKey}]$$
--/
+/-- The SVG-image split is the only split of an N1 type. -/
 theorem n1Excluded_eq : n1Excluded = [svgKey] := by
   simp [n1Excluded, splits, n1Keys, svgKey]
 
-/-- The SVG-image type is not gated.
-
-$$\mathrm{svgKey} \notin \mathrm{n1Gated}$$
--/
+/-- The SVG-image type is not gated. -/
 theorem svg_not_gated : svgKey ∉ n1Gated := by
   simp [n1Gated, n1Excluded_eq]
 
 /-- **The N1 net rule.** For the style-sheet split, the gated count (usual type) is the gross count of
 `updateActiveStyleSheets` slices minus those inside SVG-image documents.
-
-$$\forall E:\ \operatorname{split}(\sigma_{\mathrm{svg}}, E)_1 = |\operatorname{mine}(\sigma_{\mathrm{svg}}, E)| \mathbin{\dot-} \operatorname{split}(\sigma_{\mathrm{svg}}, E)_2,\quad \sigma_{\mathrm{svg}} = (\texttt{StyleEngine::updateActiveStyleSheets}, \mathrm{svgHost}, \texttt{trace.N1.updateActiveStyleSheets}, \mathrm{svgKey})$$
 -/
 theorem n1_net (evs : List Slice) :
     let sp : Split := ⟨"StyleEngine::updateActiveStyleSheets", svgHost, "trace.N1.updateActiveStyleSheets", svgKey⟩
@@ -253,10 +182,7 @@ theorem n1_net (evs : List Slice) :
   have := splitCounts_sum sp evs
   omega
 
-/-- A gated N1 count does not see an SVG-image entry.
-
-$$\forall C, v, k:\ k \in \mathrm{n1Gated} \;\Rightarrow\; \operatorname{countIn}((\mathrm{svgKey}, v) :: C, k) = \operatorname{countIn}(C, k)$$
--/
+/-- A gated N1 count does not see an SVG-image entry. -/
 theorem countIn_gated_svg (C : Counts) (v : Int) {k : String} (hk : k ∈ n1Gated) :
     countIn ((svgKey, v) :: C) k = countIn C k := by
   have hne : svgKey ≠ k := fun h => svg_not_gated (h ▸ hk)

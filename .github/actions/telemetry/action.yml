@@ -1,0 +1,78 @@
+name: telemetry
+description: >-
+  Job telemetry (task ci-telemetry; docs/team/tools/ci-telemetry.md). `mode: start` (right after actions/checkout) records
+  the machine facts and starts a background sampler (cpu, memory, load, disk every 5 s). `mode: cache` (after the step that
+  restores a cache) records the size of the restored directories. `mode: finish` (the last step,
+  `if: always()`) stops it, adds the step spans and queue time from the jobs API (best effort), writes telemetry.json and
+  uploads it as artifact `telemetry-<label>`. It decides nothing and never fails the job; slow or not is Lean
+  (lean/Fw/Ci/Telemetry.lean), judged by `pnpm -s fw ci telemetry github <run id>`.
+
+inputs:
+  mode:
+    description: "'start', 'cache' or 'finish'."
+    required: true
+  label:
+    description: >-
+      The job's name in the record and the artifact (`telemetry-<label>`); include the matrix cell, for example
+      `engine-chromium`. Default: the job id.
+    required: false
+    default: ''
+  cache-dirs:
+    description: >-
+      cache only: newline separated `key=path` pairs of cache directories already restored at this point; the record keeps
+      their size as restored bytes (hit = not empty) and the growth at finish as saved bytes.
+    required: false
+    default: ''
+  retention-days:
+    description: >-
+      Artifact retention (finish only). Short on purpose, the collector stores what it needs.
+    required: false
+    default: '7'
+
+runs:
+  using: composite
+  steps:
+    - name: Telemetry start
+      if: ${{ inputs.mode == 'start' }}
+      shell: bash
+      env:
+        LABEL: ${{ inputs.label }}
+        SCRIPT: ${{ github.action_path }}/../../../scripts/ci-telemetry/cli.mjs
+      run: |
+        command -v node >/dev/null 2>&1 || { echo "telemetry: no node on this runner yet; skipped"; exit 0; }
+        echo "FW_TELEMETRY_DIR=${RUNNER_TEMP}/fw-telemetry" >> "$GITHUB_ENV"
+        export FW_TELEMETRY_DIR="${RUNNER_TEMP}/fw-telemetry"
+        node "$SCRIPT" start ${LABEL:+--job "$LABEL"} || true
+
+    - name: Telemetry cache
+      if: ${{ inputs.mode == 'cache' }}
+      shell: bash
+      env:
+        CACHE_DIRS: ${{ inputs.cache-dirs }}
+        SCRIPT: ${{ github.action_path }}/../../../scripts/ci-telemetry/cli.mjs
+      run: |
+        command -v node >/dev/null 2>&1 || exit 0
+        export FW_TELEMETRY_DIR="${RUNNER_TEMP}/fw-telemetry"
+        printf '%s\n' "$CACHE_DIRS" | while IFS='=' read -r key path; do
+          if [ -n "$key" ] && [ -n "$path" ]; then node "$SCRIPT" cache "$key" "$path" || true; fi
+        done
+
+    - name: Telemetry finish
+      if: ${{ inputs.mode == 'finish' }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        SCRIPT: ${{ github.action_path }}/../../../scripts/ci-telemetry/cli.mjs
+      run: |
+        command -v node >/dev/null 2>&1 || { echo "telemetry: no node; skipped"; exit 0; }
+        export FW_TELEMETRY_DIR="${RUNNER_TEMP}/fw-telemetry"
+        node "$SCRIPT" finish || true
+
+    - name: Telemetry upload
+      if: ${{ inputs.mode == 'finish' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: telemetry-${{ inputs.label || github.job }}
+        path: ${{ runner.temp }}/fw-telemetry/telemetry.json
+        if-no-files-found: ignore
+        retention-days: ${{ inputs.retention-days }}

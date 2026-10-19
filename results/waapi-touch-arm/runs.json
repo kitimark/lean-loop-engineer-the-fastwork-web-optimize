@@ -1,0 +1,22 @@
+{
+  "task": "waapi-touch-arm",
+  "image_run": 39292317241,
+  "swipe-v1": {
+    "base": 39295469515,
+    "arm": 39295561652,
+    "rows": "packages/contracts/golden/parts/morph-tween-waapi.swipe-v1.jsonl",
+    "result": "results/waapi-touch-arm/engine-check.swipe-v1.json",
+    "tally": { "pass": 3, "modelBug": 0, "unusable": 3 },
+    "tallyOldGolden": { "pass": 2, "modelBug": 1, "unusable": 3 }
+  },
+  "swipe-touch-v1": {
+    "base": 39312308173,
+    "arm": 39312313059,
+    "runs": 3,
+    "fw": "morph.tween:waapi",
+    "rows": "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
+    "result": "results/waapi-touch-arm/engine-check.swipe-touch-v1.json",
+    "tally": { "pass": 1, "modelBug": 2, "unusable": 3 },
+    "frame498Quarantine": false
+  }
+}

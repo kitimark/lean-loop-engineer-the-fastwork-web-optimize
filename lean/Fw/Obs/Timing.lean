@@ -9,19 +9,19 @@ time by a wide margin (the sweeps-vs-shards case of the breakpoint gate). A step
 agent to investigate and improve (task `timing-alert` wires the op and the alert).
 
 Definitions (all durations in whole ms, `Nat`):
-* A sample is $(\mathit{tool}, \mathit{step}, d, h, \lambda, \mathit{kind})$ with host $h \in \{\mathsf{local}, \mathsf{ci}\}$ and
-  $\lambda$ the floor of the 1-min load average when it ran. Its key is $(\mathit{tool}, \mathit{step}, h, \mathit{kind})$.
-* A local sample with $\lambda > L$ is **noisy**: it gets the verdict `noisy` and never enters a window. A CI sample is
+* A sample is `(tool, step, d, h, λ, kind)` with host `h ∈ {local, ci}` and
+  `λ` the floor of the 1-min load average when it ran. Its key is `(tool, step, h, kind)`.
+* A local sample with `λ > L` is **noisy**: it gets the verdict `noisy` and never enters a window. A CI sample is
   never noisy.
-* The **window** of a sample is the last $N$ non-noisy samples with the same key that come before it in the input.
-* The **baseline** is the nearest-rank median (p50) of the window: the $\lceil n/2 \rceil$-th smallest of its $n$
+* The **window** of a sample is the last `N` non-noisy samples with the same key that come before it in the input.
+* The **baseline** is the nearest-rank median (p50) of the window: the `⌈ n/2 ⌉`-th smallest of its `n`
   values, defined by counting (`ord`), so no sort is needed and the proofs are about counts. It was the p90 until
-  task `timing-small-n`: with $n \le 9$ the p90 is the window maximum, so a regression seen twice became its own
-  baseline (history $[2,1,2,27,26]$ s, then 40 s was `ok`). A median moves only once a shift fills more than half the window
+  task `timing-small-n`: with `n ≤ 9` the p90 is the window maximum, so a regression seen twice became its own
+  baseline (history `[2,1,2,27,26]` s, then 40 s was `ok`). A median moves only once a shift fills more than half the window
   (`no_self_mask`), so the counterexample is now `slow` (`site_regression_slow`).
-* Verdict of one sample, first match: `noBaseline` when the window has fewer than $n_{\min}$ samples; `noisy`; `slow`
-  when $d > \max(B, k \cdot b)$ with $B$ the step's budget and $b$ the baseline; otherwise `ok`.
-* A **ceiling** is an absolute limit $C(\mathit{tool}, \mathit{step})$ for one step. A non-noisy sample above its
+* Verdict of one sample, first match: `noBaseline` when the window has fewer than `n_min` samples; `noisy`; `slow`
+  when `d > max(B, k · b)` with `B` the step's budget and `b` the baseline; otherwise `ok`.
+* A **ceiling** is an absolute limit `C(tool, step)` for one step. A non-noisy sample above its
   ceiling is `slow` at once, with no window needed: a step that is slow from its first run (the 2-minute `fw land`)
   has no history to be slow against, so the relative rule alone never alerts for it. `landCeilings` sets 30 s for the
   whole `fw land` and 5 s for the time its lock is held.
@@ -49,10 +49,7 @@ namespace Fw.Obs.Timing
 
 /-! ## Samples and parameters -/
 
-/-- Where a sample was taken: on the local machine or on a CI runner.
-
-$$h \in \{\mathsf{local}, \mathsf{ci}\}$$
--/
+/-- Where a sample was taken: on the local machine or on a CI runner. -/
 inductive Host where
   | «local»
   | ci
@@ -61,8 +58,6 @@ deriving DecidableEq, Repr
 /-- One timing sample: tool, step, duration in ms, host, the floor of the 1-min load average when it ran, and the run
 kind (empty when the run has none; for a CI dispatch the digest of its inputs, so runs with different inputs are
 different histories).
-
-$$s = (\mathit{tool}, \mathit{step}, d, h, \lambda, \mathit{kind}) \in \mathrm{String} \times \mathrm{String} \times \mathbb N \times \mathrm{Host} \times \mathbb N \times \mathrm{String}$$
 -/
 structure Sample where
   tool  : String
@@ -73,10 +68,7 @@ structure Sample where
   kind  : String := ""
 deriving DecidableEq, Repr
 
-/-- The history a sample belongs to: same tool, same step, same host, same run kind.
-
-$$\kappa = (\mathit{tool}, \mathit{step}, h, \mathit{kind})$$
--/
+/-- The history a sample belongs to: same tool, same step, same host, same run kind. -/
 structure Key where
   tool : String
   step : String
@@ -84,36 +76,25 @@ structure Key where
   kind : String := ""
 deriving DecidableEq, Repr
 
-/-- The key of a sample.
-
-$$\operatorname{key}(\mathit{tool}, \mathit{step}, d, h, \lambda, \mathit{kind}) = (\mathit{tool}, \mathit{step}, h, \mathit{kind})$$
--/
+/-- The key of a sample. -/
 def Sample.key (s : Sample) : Key := { tool := s.tool, step := s.step, host := s.host, kind := s.kind }
 
-/-- One job of a parallel stage: a name and its keys (the matrix legs of one job, or a single key).
-
-$$g = (\mathit{name}, K),\quad K \text{ a list of keys}$$
--/
+/-- One job of a parallel stage: a name and its keys (the matrix legs of one job, or a single key). -/
 structure Group where
   name : String
   keys : List Key
 deriving DecidableEq, Repr
 
-/-- A parallel stage: an id and the groups that run side by side in it (the input grouping that defines siblings).
-
-$$S = (\mathit{id}, G),\quad G \text{ a list of groups}$$
--/
+/-- A parallel stage: an id and the groups that run side by side in it (the input grouping that defines siblings). -/
 structure Stage where
   id     : String
   groups : List Group
 deriving DecidableEq, Repr
 
-/-- The parameters: $n_{\min}$ (`nMin`), the window length $N$ (`window`), the multiplier $k = k_n / k_d$
-(`kNum`, `kDen`), the default budget $B_0$ in ms (`budgetMs`), per-tool budget overrides (`budgets`, first match
-wins), per-step ceilings (`ceilings`, first match wins), the load limit $L$ (`loadMax`, compared with the floor of the 1-min load average; the default 16 is twice the
+/-- The parameters: `n_min` (`nMin`), the window length `N` (`window`), the multiplier `k = k_n / k_d`
+(`kNum`, `kDen`), the default budget `B_0` in ms (`budgetMs`), per-tool budget overrides (`budgets`, first match
+wins), per-step ceilings (`ceilings`, first match wins), the load limit `L` (`loadMax`, compared with the floor of the 1-min load average; the default 16 is twice the
 8 cores of the local Mac), and the parallel stages (`stages`).
-
-$$p = (n_{\min}, N, k_n, k_d, B_0, \beta, \gamma, L, \Sigma) \in \mathbb N^5 \times \mathrm{List}(\mathrm{String} \times \mathbb N) \times \mathrm{List}(\mathrm{String} \times \mathrm{String} \times \mathbb N) \times \mathbb N \times \mathrm{List}(\mathrm{Stage})$$
 -/
 structure Params where
   nMin     : Nat := 5
@@ -129,35 +110,21 @@ deriving Repr
 
 /-! ## Nearest-rank quantile -/
 
-/-- The number of values of `xs` at or below `v`.
-
-$$\operatorname{cntLe}(X, v) = |[x \in X \mid x \le v]|$$
--/
+/-- The number of values of `xs` at or below `v`. -/
 def cntLe (xs : List Nat) (v : Nat) : Nat := xs.countP (fun x => decide (x ≤ v))
 
-/-- The values of `xs` with at least `j + 1` values of `xs` at or below them (in list order).
-
-$$\operatorname{cands}(X, j) = [v \in X \mid \operatorname{cntLe}(X, v) \ge j + 1]$$
--/
+/-- The values of `xs` with at least `j + 1` values of `xs` at or below them (in list order). -/
 def cands (xs : List Nat) (j : Nat) : List Nat := xs.filter (fun v => decide (j + 1 ≤ cntLe xs v))
 
 /-- The order statistic of index `j` (0-based): the least value of `xs` with at least `j + 1` values of `xs` at or
-below it, that is the `(j+1)`-th smallest value; 0 when there is none (exactly when $j \ge |X|$).
-
-$$\operatorname{ord}(X, j) = \begin{cases} \min \operatorname{cands}(X, j) & \operatorname{cands}(X, j) \ne [\,] \\ 0 & \text{otherwise} \end{cases}$$
+below it, that is the `(j+1)`-th smallest value; 0 when there is none (exactly when `j ≥ |X|`).
 -/
 def ord (xs : List Nat) (j : Nat) : Nat := ((cands xs j).min?).getD 0
 
-/-- The nearest rank of the 90th percentile among `n` values: $\lceil 9n/10 \rceil$ (1-based; 0 for `n = 0`).
-
-$$\operatorname{rank}_{90}(n) = \left\lfloor \frac{9n + 9}{10} \right\rfloor = \left\lceil \frac{9n}{10} \right\rceil$$
--/
+/-- The nearest rank of the 90th percentile among `n` values: `⌈ 9n/10 ⌉` (1-based; 0 for `n = 0`). -/
 def rank90 (n : Nat) : Nat := (9 * n + 9) / 10
 
-/-- The nearest-rank p90 of a list: its $\lceil 9n/10 \rceil$-th smallest value; 0 for the empty list.
-
-$$\operatorname{p90}(X) = \operatorname{ord}(X, \operatorname{rank}_{90}(|X|) \mathbin{\dot-} 1)$$
--/
+/-- The nearest-rank p90 of a list: its `⌈ 9n/10 ⌉`-th smallest value; 0 for the empty list. -/
 def p90 (xs : List Nat) : Nat := ord xs (rank90 xs.length - 1)
 
 #guard rank90 0 == 0 && rank90 1 == 1 && rank90 9 == 9 && rank90 10 == 9 && rank90 11 == 10 && rank90 20 == 18
@@ -167,16 +134,11 @@ def p90 (xs : List Nat) : Nat := ord xs (rank90 xs.length - 1)
 #guard p90 [10, 20, 30, 40, 50, 60, 70, 80, 90, 100] == 90
 #guard p90 [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110] == 100
 
-/-- The nearest rank of the median among `n` values: $\lceil n/2 \rceil$ (1-based; 0 for `n = 0`).
-
-$$\operatorname{rank}_{50}(n) = \left\lfloor \frac{n + 1}{2} \right\rfloor = \left\lceil \frac{n}{2} \right\rceil$$
--/
+/-- The nearest rank of the median among `n` values: `⌈ n/2 ⌉` (1-based; 0 for `n = 0`). -/
 def rank50 (n : Nat) : Nat := (n + 1) / 2
 
-/-- The nearest-rank median (p50) of a list: its $\lceil n/2 \rceil$-th smallest value (the lower median for an even
+/-- The nearest-rank median (p50) of a list: its `⌈ n/2 ⌉`-th smallest value (the lower median for an even
 length); 0 for the empty list. This is the baseline of the slow test.
-
-$$\operatorname{p50}(X) = \operatorname{ord}(X, \operatorname{rank}_{50}(|X|) \mathbin{\dot-} 1)$$
 -/
 def p50 (xs : List Nat) : Nat := ord xs (rank50 xs.length - 1)
 
@@ -186,71 +148,47 @@ def p50 (xs : List Nat) : Nat := ord xs (rank50 xs.length - 1)
 
 /-! ## The verdict of one sample -/
 
-/-- A sample is noisy when it ran locally at a load above the limit (CI samples never are).
-
-$$\operatorname{noisy}_p(s) \iff h_s = \mathsf{local} \wedge \lambda_s > L$$
--/
+/-- A sample is noisy when it ran locally at a load above the limit (CI samples never are). -/
 def noisy (p : Params) (s : Sample) : Bool := decide (s.host = .«local») && decide (p.loadMax < s.load)
 
-/-- The last `n` elements of a list (all of it when it is shorter).
-
-$$\operatorname{lastN}(n, X) = \operatorname{drop}(|X| \mathbin{\dot-} n, X)$$
--/
+/-- The last `n` elements of a list (all of it when it is shorter). -/
 def lastN (n : Nat) (xs : List Nat) : List Nat := xs.drop (xs.length - n)
 
-/-- The window of key `k` in a history: the durations of the last $N$ samples of `hist` with key `k` that are not
+/-- The window of key `k` in a history: the durations of the last `N` samples of `hist` with key `k` that are not
 noisy, oldest first.
-
-$$\operatorname{win}_p(H, \kappa) = \operatorname{lastN}\bigl(N, [\, d_s \mid s \in H,\ \operatorname{key}(s) = \kappa,\ \neg\operatorname{noisy}_p(s) \,]\bigr)$$
 -/
 def windowOf (p : Params) (hist : List Sample) (k : Key) : List Nat :=
   lastN p.window ((hist.filter (fun s => decide (s.key = k) && !noisy p s)).map (·.durMs))
 
-/-- The budget of a tool: its first override in `budgets`, else the default $B_0$.
-
-$$B_p(\mathit{tool}) = \begin{cases} b & (\mathit{tool}, b) \text{ is the first pair of } \beta \text{ with that tool} \\ B_0 & \text{no pair of } \beta \text{ has that tool} \end{cases}$$
--/
+/-- The budget of a tool: its first override in `budgets`, else the default `B_0`. -/
 def budgetOf (p : Params) (tool : String) : Nat := (p.budgets.lookup tool).getD p.budgetMs
 
-/-- The ceiling of a step: the limit of the first entry of `ceilings` with that tool and step, if any.
-
-$$C_p(\mathit{tool}, \mathit{step}) = \begin{cases} c & (\mathit{tool}, \mathit{step}, c) \text{ is the first triple of } \gamma \text{ with that tool and step} \\ \bot & \text{no such triple} \end{cases}$$
--/
+/-- The ceiling of a step: the limit of the first entry of `ceilings` with that tool and step, if any. -/
 def ceilingOf (p : Params) (tool step : String) : Option Nat :=
   (p.ceilings.find? (fun c => decide (c.1 = tool) && decide (c.2.1 = step))).map (·.2.2)
 
 /-- A sample breaches its ceiling when its step has one, the sample is not noisy, and it took longer than the ceiling.
 No window is involved.
-
-$$\operatorname{breach}_p(s) \iff \exists c.\ C_p(\mathit{tool}_s, \mathit{step}_s) = c \wedge d_s > c \wedge \neg\operatorname{noisy}_p(s)$$
 -/
 def ceilingBreach (p : Params) (s : Sample) : Bool :=
   match ceilingOf p s.tool s.step with
   | some c => decide (c < s.durMs) && !noisy p s
   | none => false
 
-/-- The budget a sample is held to: its tool's budget, lowered to the step's ceiling when the step has one.
-
-$$B^*_p(s) = \begin{cases} \min(B_p(\mathit{tool}_s), c) & C_p(\mathit{tool}_s, \mathit{step}_s) = c \\ B_p(\mathit{tool}_s) & \text{no ceiling} \end{cases}$$
--/
+/-- The budget a sample is held to: its tool's budget, lowered to the step's ceiling when the step has one. -/
 def budgetFor (p : Params) (s : Sample) : Nat :=
   match ceilingOf p s.tool s.step with
   | some c => min (budgetOf p s.tool) c
   | none => budgetOf p s.tool
 
-/-- The slow test, exact over the rationals: $d > \max(B, k \cdot b)$ with $k = k_n / k_d$, cross-multiplied so no
-division happens (for $k_d \ge 1$ it is the same as $d > B \wedge d > k \cdot b$; for $k_d = 0$ the second half is
+/-- The slow test, exact over the rationals: `d > max(B, k · b)` with `k = k_n / k_d`, cross-multiplied so no
+division happens (for `k_d ≥ 1` it is the same as `d > B ∧ d > k · b`; for `k_d = 0` the second half is
 false and nothing is slow).
-
-$$\operatorname{over}_p(B, b, d) \iff d > B \wedge k_d \cdot d > k_n \cdot b$$
 -/
 def overLimit (p : Params) (budget base d : Nat) : Bool :=
   decide (budget < d) && decide (p.kNum * base < p.kDen * d)
 
-/-- The verdict code of one sample.
-
-$$c \in \{\mathsf{noBaseline}, \mathsf{noisy}, \mathsf{ok}, \mathsf{slow}\}$$
--/
+/-- The verdict code of one sample. -/
 inductive Code where
   | noBaseline
   | noisy
@@ -259,9 +197,7 @@ inductive Code where
 deriving DecidableEq, Repr
 
 /-- The code of sample `s` against window `w`, first match: too short a window, noisy, slow, ok. The baseline is the
-median of the window (with $n_{\min} = 0$ an empty window passes the first test and has baseline 0).
-
-$$\operatorname{code}_p(w, s) = \begin{cases} \mathsf{noBaseline} & |w| < n_{\min} \\ \mathsf{noisy} & |w| \ge n_{\min} \wedge \operatorname{noisy}_p(s) \\ \mathsf{slow} & |w| \ge n_{\min} \wedge \neg\operatorname{noisy}_p(s) \wedge \operatorname{over}_p(B_p(\mathit{tool}_s), \operatorname{p50}(w), d_s) \\ \mathsf{ok} & \text{otherwise} \end{cases}$$
+median of the window (with `n_min = 0` an empty window passes the first test and has baseline 0).
 -/
 def codeOf (p : Params) (w : List Nat) (s : Sample) : Code :=
   if w.length < p.nMin then .noBaseline
@@ -271,8 +207,6 @@ def codeOf (p : Params) (w : List Nat) (s : Sample) : Code :=
 
 /-- The verdict of one sample: its index, key and duration, the code, the window size, the baseline (p50 of the
 window, 0 for an empty window) and the budget.
-
-$$v = (i, \mathit{tool}, \mathit{step}, h, d, c, n, b, B, \mathit{kind})$$
 -/
 structure SampleVerdict where
   idx      : Nat
@@ -289,8 +223,6 @@ deriving DecidableEq, Repr
 
 /-- The verdict of sample `s` at index `i` with the earlier samples `hist`: `slow` when it breaches its step's ceiling
 (whatever the window), else the code against the window.
-
-$$\operatorname{judge}_p(H, i, s) = (i, \mathit{tool}_s, \mathit{step}_s, h_s, d_s, c, |w|, \operatorname{p50}(w), B^*_p(s), \mathit{kind}_s),\quad c = \begin{cases} \mathsf{slow} & \operatorname{breach}_p(s) \\ \operatorname{code}_p(w, s) & \text{otherwise} \end{cases},\quad w = \operatorname{win}_p(H, \operatorname{key}(s))$$
 -/
 def judge (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
   let w := windowOf p hist s.key
@@ -298,33 +230,23 @@ def judge (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdi
     code := if ceilingBreach p s then .slow else codeOf p w s,
     n := w.length, baseline := p50 w, budgetMs := budgetFor p s, kind := s.kind }
 
-/-- One verdict per sample, in input order; sample $i$ is judged against the samples before it.
-
-$$\operatorname{sv}_p([s_0, \dots, s_{m-1}]) = [\operatorname{judge}_p([s_0, \dots, s_{i-1}], i, s_i) \mid 0 \le i < m]$$
--/
+/-- One verdict per sample, in input order; sample `i` is judged against the samples before it. -/
 def sampleVerdicts (p : Params) (ss : List Sample) : List SampleVerdict :=
   ss.mapIdx (fun i s => judge p (ss.take i) i s)
 
 /-! ## Structural verdicts -/
 
 /-- The final baseline of a key: the p50 of its window over all samples, defined when that window has at least
-$n_{\min}$ samples.
-
-$$\operatorname{fb}_p(H, \kappa) = \begin{cases} \operatorname{p50}(\operatorname{win}_p(H, \kappa)) & |\operatorname{win}_p(H, \kappa)| \ge n_{\min} \\ \bot & \text{otherwise} \end{cases}$$
+`n_min` samples.
 -/
 def finalBaseline (p : Params) (ss : List Sample) (k : Key) : Option Nat :=
   if p.nMin ≤ (windowOf p ss k).length then some (p50 (windowOf p ss k)) else none
 
-/-- The largest value of a list, 0 for the empty list.
-
-$$\operatorname{maxL}([x_1, \dots, x_m]) = \max(0, x_1, \dots, x_m)$$
--/
+/-- The largest value of a list, 0 for the empty list. -/
 def maxL (xs : List Nat) : Nat := xs.foldl max 0
 
 /-- A group's baseline: the largest final baseline of its keys, defined when the group has a key and every key has a
 final baseline.
-
-$$\operatorname{gb}_p(H, (\mathit{name}, K)) = \begin{cases} \max_{\kappa \in K} \operatorname{fb}_p(H, \kappa) & K \ne [\,] \wedge \forall \kappa \in K.\ \operatorname{fb}_p(H, \kappa) \ne \bot \\ \bot & \text{otherwise} \end{cases}$$
 -/
 def groupBaseline (p : Params) (ss : List Sample) (g : Group) : Option Nat :=
   let bs := g.keys.filterMap (finalBaseline p ss)
@@ -332,8 +254,6 @@ def groupBaseline (p : Params) (ss : List Sample) (g : Group) : Option Nat :=
 
 /-- The call on one group of a stage: it sets the stage's time by a wide margin (`structural`), it does not
 (`noise`), or there is not enough history to tell (`undecided`).
-
-$$c \in \{\mathsf{structural}, \mathsf{noise}, \mathsf{undecided}\}$$
 -/
 inductive Call where
   | structural
@@ -343,8 +263,6 @@ deriving DecidableEq, Repr
 
 /-- A structural verdict: the stage, the group, the call on it, its baseline (0 when it has none) and the largest
 sibling baseline (0 when no sibling has one).
-
-$$\sigma = (\mathit{stage}, \mathit{group}, c, b, c_{\max})$$
 -/
 structure StructVerdict where
   stage      : String
@@ -354,27 +272,20 @@ structure StructVerdict where
   siblingMax : Nat
 deriving DecidableEq, Repr
 
-/-- The test on the sibling baselines: every sibling has one and twice it is below `b`.
-
-$$\operatorname{below}(b, o) \iff \exists c.\ o = \mathsf{some}(c) \wedge 2c < b$$
--/
+/-- The test on the sibling baselines: every sibling has one and twice it is below `b`. -/
 def below (b : Nat) : Option Nat → Bool
   | some c => decide (2 * c < b)
   | none => false
 
 /-- The sibling baselines of group `g` in stage `S`: the group baselines of the other groups of the stage, in order
 (a group listed twice is not its own sibling).
-
-$$\operatorname{sib}_p(H, S, g) = [\operatorname{gb}_p(H, g') \mid g' \in G_S,\ g' \ne g]$$
 -/
 def siblings (p : Params) (ss : List Sample) (st : Stage) (g : Group) : List (Option Nat) :=
   (st.groups.filter (fun g' => decide (g' ≠ g))).map (groupBaseline p ss)
 
 /-- The call on group `g` in stage `S`, first match: `undecided` when `g` has no baseline or no sibling;
-`structural` when every sibling has a baseline $c$ with $2c < b$; `noise` when every sibling has a baseline (so one
-of them has $2c \ge b$); `undecided` otherwise (a sibling without a baseline).
-
-$$\operatorname{call}_p(H, S, g) = \begin{cases} \mathsf{undecided} & \operatorname{gb}_p(H, g) = \bot \vee \operatorname{sib} = [\,] \\ \mathsf{structural} & \operatorname{gb}_p(H, g) = b \wedge \operatorname{sib} \ne [\,] \wedge \forall o \in \operatorname{sib}.\ \exists c.\ o = \mathsf{some}(c) \wedge 2c < b \\ \mathsf{noise} & \operatorname{gb}_p(H, g) = b \wedge \operatorname{sib} \ne [\,] \wedge (\forall o \in \operatorname{sib}.\ o \ne \bot) \wedge \exists c.\ \mathsf{some}(c) \in \operatorname{sib} \wedge 2c \ge b \\ \mathsf{undecided} & \text{otherwise} \end{cases},\quad \operatorname{sib} = \operatorname{sib}_p(H, S, g)$$
+`structural` when every sibling has a baseline `c` with `2c < b`; `noise` when every sibling has a baseline (so one
+of them has `2c ≥ b`); `undecided` otherwise (a sibling without a baseline).
 -/
 def callOf (p : Params) (ss : List Sample) (st : Stage) (g : Group) : Call :=
   match groupBaseline p ss g with
@@ -388,37 +299,25 @@ def callOf (p : Params) (ss : List Sample) (st : Stage) (g : Group) : Call :=
 
 /-- The structural verdict of group `g` in stage `S`: the call, the group's baseline (0 without one) and the largest
 sibling baseline (0 without one).
-
-$$\operatorname{st}_p(H, S, g) = (\mathit{id}_S, \mathit{name}_g, \operatorname{call}_p(H, S, g), \operatorname{gb}_p(H, g) \text{ or } 0, \operatorname{maxL}[c \mid \mathsf{some}(c) \in \operatorname{sib}_p(H, S, g)])$$
 -/
 def stageVerdict (p : Params) (ss : List Sample) (st : Stage) (g : Group) : StructVerdict :=
   { stage := st.id, group := g.name, call := callOf p ss st g, baseline := (groupBaseline p ss g).getD 0,
     siblingMax := maxL ((siblings p ss st g).filterMap id) }
 
-/-- A job-level CI sample: a CI sample whose step is a job name (no `/`; step spans are `<job>/<step>`).
-
-$$\operatorname{job}(s) \iff h_s = \mathsf{ci} \wedge \text{"/"} \notin \mathit{step}_s$$
--/
+/-- A job-level CI sample: a CI sample whose step is a job name (no `/`; step spans are `<job>/<step>`). -/
 def isJob (s : Sample) : Bool := decide (s.host = .ci) && !s.step.contains '/'
 
 /-- The job family of a job name: the name up to its first `" ("`, so the matrix legs `gate (chromium, s4)` and
 `gate (playwright-webkit, s0)` share the family `gate`; a name without `" ("` is its own family.
-
-$$\operatorname{fam}(n) = \text{the prefix of } n \text{ before its first } \texttt{" ("} \text{ (all of } n \text{ when there is none)}$$
 -/
 def family (step : String) : String := (step.splitOn " (").headD step
 
-/-- The keys of the job-level CI samples, first occurrence order, without repeats.
-
-$$\operatorname{jk}(H) = \operatorname{dedup}[\operatorname{key}(s) \mid s \in H,\ \operatorname{job}(s)]$$
--/
+/-- The keys of the job-level CI samples, first occurrence order, without repeats. -/
 def jobKeys (ss : List Sample) : List Key := ((ss.filter isJob).map Sample.key).eraseDups
 
 /-- The stages derived from the samples when the caller gives none: one stage per CI workflow (tool) that has at
 least two job families, with one group per family (named by the family, holding that family's job keys), in first
 occurrence order. A workflow is coarser than a parallel stage: sequential jobs count as siblings too.
-
-$$\operatorname{auto}(H) = \bigl[(t, [(f, [\kappa \in \operatorname{jk}(H) \mid \mathit{tool}_\kappa = t \wedge \operatorname{fam}(\mathit{step}_\kappa) = f]) \mid f \in F_t]) \mid t \in \operatorname{dedup}[\mathit{tool}_\kappa \mid \kappa \in \operatorname{jk}(H)],\ |F_t| \ge 2\bigr],\quad F_t = \operatorname{dedup}[\operatorname{fam}(\mathit{step}_\kappa) \mid \kappa \in \operatorname{jk}(H),\ \mathit{tool}_\kappa = t]$$
 -/
 def autoStages (ss : List Sample) : List Stage :=
   let ks := jobKeys ss
@@ -428,24 +327,15 @@ def autoStages (ss : List Sample) : List Stage :=
     else some { id := t, groups := fams.map fun f =>
       { name := f, keys := ks.filter (fun k => decide (k.tool = t) && decide (family k.step = f)) } }
 
-/-- The stages the structural calls are made on: the caller's stages when it gives any, else the derived ones.
-
-$$\Sigma^*_p(H) = \begin{cases} \Sigma & \Sigma \ne [\,] \\ \operatorname{auto}(H) & \Sigma = [\,] \end{cases}$$
--/
+/-- The stages the structural calls are made on: the caller's stages when it gives any, else the derived ones. -/
 def stagesOf (p : Params) (ss : List Sample) : List Stage :=
   if p.stages.isEmpty then autoStages ss else p.stages
 
-/-- All structural verdicts: one per group of every stage, stage by stage, group by group.
-
-$$\operatorname{sts}_p(H) = [\operatorname{st}_p(H, S, g) \mid S \in \Sigma^*_p(H),\ g \in G_S]$$
--/
+/-- All structural verdicts: one per group of every stage, stage by stage, group by group. -/
 def structuralVerdicts (p : Params) (ss : List Sample) : List StructVerdict :=
   (stagesOf p ss).flatMap (fun st => st.groups.map (stageVerdict p ss st))
 
-/-- A verdict: one per sample, or a structural one.
-
-$$V = \mathrm{SampleVerdict} \sqcup \mathrm{StructVerdict}$$
--/
+/-- A verdict: one per sample, or a structural one. -/
 inductive Verdict where
   | sample (v : SampleVerdict)
   | structural (v : StructVerdict)
@@ -453,8 +343,6 @@ deriving DecidableEq, Repr
 
 /-- The entry point (wire op `obs.timing`): the samples in time order give one verdict each, in order, followed by
 the structural verdicts.
-
-$$\operatorname{timingVerdicts}(p, H) = \operatorname{map}(\mathsf{sample}, \operatorname{sv}_p(H)) \mathbin{+\!\!+} \operatorname{map}(\mathsf{structural}, \operatorname{sts}_p(H))$$
 -/
 def timingVerdicts (p : Params) (ss : List Sample) : List Verdict :=
   (sampleVerdicts p ss).map .sample ++ (structuralVerdicts p ss).map .structural
@@ -512,10 +400,7 @@ private def lk : Key := { tool := "t", step := "s", host := .«local» }
 
 /-! ## Proofs: the verdict of one sample -/
 
-/-- A sample breaches its ceiling exactly when its step has a ceiling $c$, it is not noisy and it took longer than $c$.
-
-$$\forall p, s:\quad \operatorname{breach}_p(s) \iff \exists c.\ C_p(\mathit{tool}_s, \mathit{step}_s) = c \wedge c < d_s \wedge \neg\operatorname{noisy}_p(s)$$
--/
+/-- A sample breaches its ceiling exactly when its step has a ceiling `c`, it is not noisy and it took longer than `c`. -/
 theorem ceilingBreach_iff (p : Params) (s : Sample) :
     ceilingBreach p s = true ↔
       ∃ c, ceilingOf p s.tool s.step = some c ∧ c < s.durMs ∧ noisy p s = false := by
@@ -525,9 +410,7 @@ theorem ceilingBreach_iff (p : Params) (s : Sample) :
   | some c => simp
 
 /-- The relative rule alone: the code against a window is `slow` exactly when the window is long enough, the sample is
-not noisy, and its duration exceeds both the budget and $k$ times the baseline.
-
-$$\forall p, w, s:\quad \operatorname{code}_p(w, s) = \mathsf{slow} \iff |w| \ge n_{\min} \wedge \neg\operatorname{noisy}_p(s) \wedge d_s > B_p(\mathit{tool}_s) \wedge k_d \cdot d_s > k_n \cdot \operatorname{p50}(w)$$
+not noisy, and its duration exceeds both the budget and `k` times the baseline.
 -/
 theorem codeOf_slow_iff (p : Params) (w : List Nat) (s : Sample) :
     codeOf p w s = .slow ↔
@@ -557,9 +440,7 @@ theorem codeOf_slow_iff (p : Params) (w : List Nat) (s : Sample) :
         · intro h; exact absurd ⟨h.2.2.1, h.2.2.2⟩ h3
 
 /-- When a sample's verdict is `slow`: it breaches its step's ceiling (no window needed), or the window is long
-enough, the sample is not noisy, and its duration exceeds both the budget and $k$ times the baseline.
-
-$$\forall p, H, i, s:\quad \operatorname{judge}_p(H, i, s).c = \mathsf{slow} \iff \operatorname{breach}_p(s) \vee \bigl(|w| \ge n_{\min} \wedge \neg\operatorname{noisy}_p(s) \wedge d_s > B_p(\mathit{tool}_s) \wedge k_d \cdot d_s > k_n \cdot \operatorname{p50}(w)\bigr),\quad w = \operatorname{win}_p(H, \operatorname{key}(s))$$
+enough, the sample is not noisy, and its duration exceeds both the budget and `k` times the baseline.
 -/
 theorem slow_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     (judge p hist i s).code = .slow ↔
@@ -575,8 +456,6 @@ theorem slow_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
 
 /-- No alert within budget: a sample whose duration is at most its budget (its tool's budget, lowered to the step's
 ceiling) is never `slow`.
-
-$$\forall p, H, i, s:\quad d_s \le B^*_p(s) \Rightarrow \operatorname{judge}_p(H, i, s).c \ne \mathsf{slow}$$
 -/
 theorem no_alert_within_budget (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
     (h : s.durMs ≤ budgetFor p s) : (judge p hist i s).code ≠ .slow := by
@@ -592,10 +471,7 @@ theorem no_alert_within_budget (p : Params) (hist : List Sample) (i : Nat) (s : 
     | none => rw [hc] at h; simp only at h; omega
     | some c => rw [hc] at h; simp only at h; omega
 
-/-- Every sample verdict of the entry point is `judge` of its sample against the samples before it.
-
-$$\forall p, H, v:\quad \mathsf{sample}(v) \in \operatorname{timingVerdicts}(p, H) \Rightarrow \exists i < |H|.\ v = \operatorname{judge}_p(\operatorname{take}(i, H), i, H_i)$$
--/
+/-- Every sample verdict of the entry point is `judge` of its sample against the samples before it. -/
 theorem mem_sample (p : Params) (hist : List Sample) (v : SampleVerdict)
     (h : Verdict.sample v ∈ timingVerdicts p hist) :
     ∃ i, ∃ hi : i < hist.length, v = judge p (hist.take i) i hist[i] := by
@@ -611,8 +487,6 @@ theorem mem_sample (p : Params) (hist : List Sample) (v : SampleVerdict)
 
 /-- No alert within budget, over the whole output: a sample verdict whose duration is at most its budget is not
 `slow`.
-
-$$\forall p, H, v:\quad \mathsf{sample}(v) \in \operatorname{timingVerdicts}(p, H) \wedge d_v \le B_v \Rightarrow c_v \ne \mathsf{slow}$$
 -/
 theorem no_alert_within_budget_list (p : Params) (hist : List Sample) (v : SampleVerdict)
     (h : Verdict.sample v ∈ timingVerdicts p hist) (hb : v.durMs ≤ v.budgetMs) : v.code ≠ .slow := by
@@ -621,8 +495,6 @@ theorem no_alert_within_budget_list (p : Params) (hist : List Sample) (v : Sampl
 
 /-- The ceilings of `fw land`, from the land-speed research targets (a Lean-touching land under 20 s p50, the lock
 held under 5 s): 30 s for the whole land (step `total`) and 5 s for the time its lock is held (step `lock held`).
-
-$$\gamma_{\mathrm{land}} = [(\texttt{fw land}, \texttt{total}, 30000),\ (\texttt{fw land}, \texttt{lock held}, 5000)]$$
 -/
 def landCeilings : List (String × String × Nat) :=
   [("fw land", "total", 30000), ("fw land", "lock held", 5000)]
@@ -630,8 +502,6 @@ def landCeilings : List (String × String × Nat) :=
 /-- A land over budget alerts. With the land ceilings first in `ceilings`, a non-noisy `fw land` sample over 30 s for
 its `total`, or over 5 s for its `lock held`, has the verdict `slow`, whatever its history (even none: a land that is
 slow from its first run is flagged).
-
-$$\forall p, H, i, s:\quad \gamma_{\mathrm{land}} \mathbin{+\!\!+} \gamma' = \gamma_p \wedge \neg\operatorname{noisy}_p(s) \wedge \mathit{tool}_s = \texttt{fw land} \wedge \bigl(\mathit{step}_s = \texttt{total} \wedge d_s > 30000 \vee \mathit{step}_s = \texttt{lock held} \wedge d_s > 5000\bigr) \Rightarrow \operatorname{judge}_p(H, i, s).c = \mathsf{slow}$$
 -/
 theorem land_budget_alert (p : Params) (hp : ∃ rest, p.ceilings = landCeilings ++ rest)
     (hist : List Sample) (i : Nat) (s : Sample) (hn : noisy p s = false)
@@ -646,8 +516,6 @@ theorem land_budget_alert (p : Params) (hp : ∃ rest, p.ceilings = landCeilings
 
 /-- Slow is monotone in the duration: with the same history, a sample that is `slow` stays `slow` when it takes
 longer.
-
-$$\forall p, H, i, s, d':\quad \operatorname{judge}_p(H, i, s).c = \mathsf{slow} \wedge d_s \le d' \Rightarrow \operatorname{judge}_p(H, i, s[d := d']).c = \mathsf{slow}$$
 -/
 theorem slow_mono_dur (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (d : Nat)
     (h : (judge p hist i s).code = .slow) (hd : s.durMs ≤ d) :
@@ -658,10 +526,8 @@ theorem slow_mono_dur (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (
   · refine (slow_iff p hist i _).2 (Or.inr ⟨h1, h2, by simp only; omega, ?_⟩)
     exact Nat.lt_of_lt_of_le h4 (Nat.mul_le_mul_left _ hd)
 
-/-- The verdict is `noBaseline` exactly when the window has fewer than $n_{\min}$ samples and the sample does not
+/-- The verdict is `noBaseline` exactly when the window has fewer than `n_min` samples and the sample does not
 breach a ceiling (a breach is `slow` whatever the window).
-
-$$\forall p, H, i, s:\quad \operatorname{judge}_p(H, i, s).c = \mathsf{noBaseline} \iff |\operatorname{win}_p(H, \operatorname{key}(s))| < n_{\min} \wedge \neg\operatorname{breach}_p(s)$$
 -/
 theorem noBaseline_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     (judge p hist i s).code = .noBaseline ↔
@@ -677,10 +543,7 @@ theorem noBaseline_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) 
       · intro h; cases h
       · split <;> (intro h; cases h)
 
-/-- The window is at most $N$ long and at most as long as the number of earlier samples with the same key.
-
-$$\forall p, H, \kappa:\quad |\operatorname{win}_p(H, \kappa)| \le N \wedge |\operatorname{win}_p(H, \kappa)| \le |[s \in H \mid \operatorname{key}(s) = \kappa]|$$
--/
+/-- The window is at most `N` long and at most as long as the number of earlier samples with the same key. -/
 theorem window_length (p : Params) (hist : List Sample) (k : Key) :
     (windowOf p hist k).length ≤ p.window ∧
       (windowOf p hist k).length ≤ hist.countP (fun s => decide (s.key = k)) := by
@@ -691,10 +554,8 @@ theorem window_length (p : Params) (hist : List Sample) (k : Key) :
   simp only [windowOf, lastN, List.length_drop, List.length_map]
   omega
 
-/-- Below $n_{\min}$, no verdict: with fewer than $n_{\min}$ earlier samples of the same key, or a window shorter than
-$n_{\min}$, the verdict is `noBaseline` (unless the sample breaches a ceiling, which needs no window).
-
-$$\forall p, H, i, s:\quad \neg\operatorname{breach}_p(s) \wedge \bigl(|[t \in H \mid \operatorname{key}(t) = \operatorname{key}(s)]| < n_{\min} \vee N < n_{\min}\bigr) \Rightarrow \operatorname{judge}_p(H, i, s).c = \mathsf{noBaseline}$$
+/-- Below `n_min`, no verdict: with fewer than `n_min` earlier samples of the same key, or a window shorter than
+`n_min`, the verdict is `noBaseline` (unless the sample breaches a ceiling, which needs no window).
 -/
 theorem noBaseline_below_nmin (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
     (hb : ceilingBreach p s = false)
@@ -705,8 +566,6 @@ theorem noBaseline_below_nmin (p : Params) (hist : List Sample) (i : Nat) (s : S
 
 /-- Deterministic and local: the verdict of a sample depends only on the parameters, the sample, its index and the
 earlier samples with the same key (samples of other steps or hosts, in any interleaving, change nothing).
-
-$$\forall p, H, i, s:\quad \operatorname{judge}_p(H, i, s) = \operatorname{judge}_p([t \in H \mid \operatorname{key}(t) = \operatorname{key}(s)], i, s)$$
 -/
 theorem deterministic (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     judge p hist i s = judge p (hist.filter (fun t => decide (t.key = s.key))) i s := by
@@ -717,10 +576,8 @@ theorem deterministic (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     cases decide (x.key = s.key) <;> simp
   simp only [judge, this]
 
-/-- Total: the output holds one verdict per sample, in input order (sample $i$ judged against the samples before
+/-- Total: the output holds one verdict per sample, in input order (sample `i` judged against the samples before
 it), followed by the structural verdicts.
-
-$$\forall p, H:\quad |\operatorname{timingVerdicts}(p, H)| = |H| + |\operatorname{sts}_p(H)| \wedge \forall i < |H|.\ \operatorname{timingVerdicts}(p, H)_i = \mathsf{sample}(\operatorname{judge}_p(\operatorname{take}(i, H), i, H_i))$$
 -/
 theorem timingVerdicts_total (p : Params) (hist : List Sample) :
     (timingVerdicts p hist).length = hist.length + (structuralVerdicts p hist).length ∧
@@ -734,10 +591,7 @@ theorem timingVerdicts_total (p : Params) (hist : List Sample) :
 
 /-! ## Proofs: the order statistic and the outlier bound -/
 
-/-- Every non-empty list of naturals has a largest element.
-
-$$\forall X:\quad X \ne [\,] \Rightarrow \exists u \in X.\ \forall x \in X.\ x \le u$$
--/
+/-- Every non-empty list of naturals has a largest element. -/
 theorem exists_max (xs : List Nat) (h : xs ≠ []) : ∃ u ∈ xs, ∀ x ∈ xs, x ≤ u := by
   induction xs with
   | nil => exact absurd rfl h
@@ -758,17 +612,12 @@ theorem exists_max (xs : List Nat) (h : xs ≠ []) : ∃ u ∈ xs, ∀ x ∈ xs,
         · exact Nat.le_refl _
         · have := hm x hx; omega
 
-/-- `cntLe` is monotone in the bound.
-
-$$\forall X, v, w:\quad v \le w \Rightarrow \operatorname{cntLe}(X, v) \le \operatorname{cntLe}(X, w)$$
--/
+/-- `cntLe` is monotone in the bound. -/
 theorem cntLe_mono (xs : List Nat) (v w : Nat) (h : v ≤ w) : cntLe xs v ≤ cntLe xs w :=
   List.countP_mono_left (by intro x _ hx; simp only [decide_eq_true_eq] at hx ⊢; omega)
 
 /-- For an index inside the list, `ord` is a value of the list with at least `j + 1` values at or below it, and it is
 the least such value.
-
-$$\forall X, j:\quad j < |X| \Rightarrow \operatorname{ord}(X, j) \in X \wedge \operatorname{cntLe}(X, \operatorname{ord}(X, j)) \ge j + 1 \wedge \forall v \in X.\ \operatorname{cntLe}(X, v) \ge j + 1 \Rightarrow \operatorname{ord}(X, j) \le v$$
 -/
 theorem ord_spec (xs : List Nat) (j : Nat) (hj : j < xs.length) :
     ord xs j ∈ xs ∧ j + 1 ≤ cntLe xs (ord xs j) ∧ ∀ v ∈ xs, j + 1 ≤ cntLe xs v → ord xs j ≤ v := by
@@ -793,8 +642,6 @@ theorem ord_spec (xs : List Nat) (j : Nat) (hj : j < xs.length) :
 
 /-- The counting characterization of the order statistic: `ord xs j` is at most `v` exactly when at least `j + 1`
 values of the list are at most `v`.
-
-$$\forall X, j, v:\quad j < |X| \Rightarrow \bigl(\operatorname{ord}(X, j) \le v \iff \operatorname{cntLe}(X, v) \ge j + 1\bigr)$$
 -/
 theorem ord_le_iff (xs : List Nat) (j v : Nat) (hj : j < xs.length) :
     ord xs j ≤ v ↔ j + 1 ≤ cntLe xs v := by
@@ -818,29 +665,20 @@ theorem ord_le_iff (xs : List Nat) (j v : Nat) (hj : j < xs.length) :
       · intro hxv; exact hm x (List.mem_filter.2 ⟨hx, by simpa using hxv⟩)
     exact Nat.le_trans (hmin u huX (by omega)) huv
 
-/-- The order statistics are sorted: a larger index gives a value at least as large.
-
-$$\forall X, j, j':\quad j \le j' < |X| \Rightarrow \operatorname{ord}(X, j) \le \operatorname{ord}(X, j')$$
--/
+/-- The order statistics are sorted: a larger index gives a value at least as large. -/
 theorem ord_mono (xs : List Nat) (j j' : Nat) (h : j ≤ j') (hj' : j' < xs.length) :
     ord xs j ≤ ord xs j' := by
   rw [ord_le_iff xs j _ (by omega)]
   have := (ord_spec xs j' hj').2.1
   omega
 
-/-- Counting after one replacement: the count at any bound moves by at most one.
-
-$$\forall a, b, x, y, v:\quad \operatorname{cntLe}(a \mathbin{+\!\!+} [y] \mathbin{+\!\!+} b, v) \le \operatorname{cntLe}(a \mathbin{+\!\!+} [x] \mathbin{+\!\!+} b, v) + 1$$
--/
+/-- Counting after one replacement: the count at any bound moves by at most one. -/
 theorem cntLe_replace (a b : List Nat) (x y v : Nat) :
     cntLe (a ++ y :: b) v ≤ cntLe (a ++ x :: b) v + 1 := by
   simp only [cntLe, List.countP_append, List.countP_cons]
   split <;> split <;> omega
 
-/-- Counting after one replacement, at a bound not below the new value or below it.
-
-$$\forall a, b, x, y, v:\quad (y \le v \Rightarrow \operatorname{cntLe}(a \mathbin{+\!\!+} [x] \mathbin{+\!\!+} b, v) \le \operatorname{cntLe}(a \mathbin{+\!\!+} [y] \mathbin{+\!\!+} b, v)) \wedge (v < y \Rightarrow \operatorname{cntLe}(a \mathbin{+\!\!+} [y] \mathbin{+\!\!+} b, v) \le \operatorname{cntLe}(a \mathbin{+\!\!+} [x] \mathbin{+\!\!+} b, v))$$
--/
+/-- Counting after one replacement, at a bound not below the new value or below it. -/
 theorem cntLe_replace_y (a b : List Nat) (x y v : Nat) :
     (y ≤ v → cntLe (a ++ x :: b) v ≤ cntLe (a ++ y :: b) v) ∧
       (v < y → cntLe (a ++ y :: b) v ≤ cntLe (a ++ x :: b) v) := by
@@ -849,8 +687,6 @@ theorem cntLe_replace_y (a b : List Nat) (x y v : Nat) :
 
 /-- Interlacing: replacing one value of a list moves its order statistic of index `j` at most to the neighbouring
 order statistics of the old list (indices `j - 1` and `j + 1`, where they exist).
-
-$$\forall a, b, x, y, j:\quad X = a \mathbin{+\!\!+} [x] \mathbin{+\!\!+} b,\ X' = a \mathbin{+\!\!+} [y] \mathbin{+\!\!+} b:\quad (1 \le j < |X| \Rightarrow \operatorname{ord}(X, j-1) \le \operatorname{ord}(X', j)) \wedge (j + 1 < |X| \Rightarrow \operatorname{ord}(X', j) \le \operatorname{ord}(X, j+1))$$
 -/
 theorem ord_interlace (a b : List Nat) (x y j : Nat) :
     (1 ≤ j → j < (a ++ x :: b).length → ord (a ++ x :: b) (j - 1) ≤ ord (a ++ y :: b) j) ∧
@@ -868,10 +704,7 @@ theorem ord_interlace (a b : List Nat) (x y j : Nat) :
     have := cntLe_replace a b y x (ord (a ++ x :: b) (j + 1))
     omega
 
-/-- The new order statistic lies between the old one and the new value.
-
-$$\forall a, b, x, y, j:\quad j < |X| \Rightarrow \min(\operatorname{ord}(X, j), y) \le \operatorname{ord}(X', j) \le \max(\operatorname{ord}(X, j), y),\quad X = a \mathbin{+\!\!+} [x] \mathbin{+\!\!+} b,\ X' = a \mathbin{+\!\!+} [y] \mathbin{+\!\!+} b$$
--/
+/-- The new order statistic lies between the old one and the new value. -/
 theorem ord_between (a b : List Nat) (x y j : Nat) (hj : j < (a ++ x :: b).length) :
     min (ord (a ++ x :: b) j) y ≤ ord (a ++ y :: b) j ∧ ord (a ++ y :: b) j ≤ max (ord (a ++ x :: b) j) y := by
   have hlen : (a ++ y :: b).length = (a ++ x :: b).length := by simp
@@ -891,20 +724,16 @@ theorem ord_between (a b : List Nat) (x y j : Nat) (hj : j < (a ++ x :: b).lengt
     have h3 := (cntLe_replace_y a b x y (max (ord (a ++ x :: b) j) y)).1 (Nat.le_max_right _ _)
     omega
 
-/-- The rank of p90 is an index of the list: $1 \le \operatorname{rank}_{90}(n) \le n$ for $n \ge 1$, and
-$2 \le \operatorname{rank}_{90}(n) < n$ for $n \ge 10$.
-
-$$\forall n:\quad (n \ge 1 \Rightarrow 1 \le \operatorname{rank}_{90}(n) \le n) \wedge (n \ge 10 \Rightarrow 2 \le \operatorname{rank}_{90}(n) < n)$$
+/-- The rank of p90 is an index of the list: `1 ≤ rank_90(n) ≤ n` for `n ≥ 1`, and
+`2 ≤ rank_90(n) < n` for `n ≥ 10`.
 -/
 theorem rank90_bounds (n : Nat) :
     (1 ≤ n → 1 ≤ rank90 n ∧ rank90 n ≤ n) ∧ (10 ≤ n → 2 ≤ rank90 n ∧ rank90 n < n) := by
   simp only [rank90]; omega
 
 /-- An outlier moves the p90 (the baseline before task `timing-small-n`, still used by the outlier bounds below)
-only toward itself: replacing one window value $x$ by $y$ leaves the new p90 between the old p90 and $y$ (any window
-length; for a window of fewer than 10 values the p90 is the maximum, so a large $y$ can raise it all the way to $y$).
-
-$$\forall a, b, x, y:\quad \min(\operatorname{p90}(X), y) \le \operatorname{p90}(X') \le \max(\operatorname{p90}(X), y),\quad X = a \mathbin{+\!\!+} [x] \mathbin{+\!\!+} b,\ X' = a \mathbin{+\!\!+} [y] \mathbin{+\!\!+} b$$
+only toward itself: replacing one window value `x` by `y` leaves the new p90 between the old p90 and `y` (any window
+length; for a window of fewer than 10 values the p90 is the maximum, so a large `y` can raise it all the way to `y`).
 -/
 theorem outlier_between (a b : List Nat) (x y : Nat) :
     min (p90 (a ++ x :: b)) y ≤ p90 (a ++ y :: b) ∧ p90 (a ++ y :: b) ≤ max (p90 (a ++ x :: b)) y := by
@@ -915,12 +744,10 @@ theorem outlier_between (a b : List Nat) (x y : Nat) :
   simp only [p90, hlen]
   exact ord_between a b x y _ (by omega)
 
-/-- The outlier bound: for a window of at least 10 values with p90 rank $r = \lceil 9n/10 \rceil$, replacing any one
-value (by anything, however large or small) leaves the new p90 between the old $(r-1)$-th and $(r+1)$-th smallest
+/-- The outlier bound: for a window of at least 10 values with p90 rank `r = ⌈ 9n/10 ⌉`, replacing any one
+value (by anything, however large or small) leaves the new p90 between the old `(r-1)`-th and `(r+1)`-th smallest
 values, that is between the old order statistics adjacent to the old p90 (`ord` is 0-based, so these are the indices
-$r-2$ and $r$; $r \ge 2$ here, so $r - 2$ does not truncate).
-
-$$\forall a, b, x, y:\quad n = |X| \ge 10 \Rightarrow \operatorname{ord}(X, r - 2) \le \operatorname{p90}(X') \le \operatorname{ord}(X, r),\quad r = \operatorname{rank}_{90}(n),\ X = a \mathbin{+\!\!+} [x] \mathbin{+\!\!+} b,\ X' = a \mathbin{+\!\!+} [y] \mathbin{+\!\!+} b$$
+`r-2` and `r`; `r ≥ 2` here, so `r - 2` does not truncate).
 -/
 theorem outlier_bound (a b : List Nat) (x y : Nat) (hn : 10 ≤ (a ++ x :: b).length) :
     ord (a ++ x :: b) (rank90 (a ++ x :: b).length - 2) ≤ p90 (a ++ y :: b) ∧
@@ -937,8 +764,6 @@ theorem outlier_bound (a b : List Nat) (x y : Nat) (hn : 10 ≤ (a ++ x :: b).le
 /-- The outlier bound as a shift: for a window of at least 10 values, one replaced value raises the p90 by at most
 the gap from the old p90 to the next order statistic, and lowers it by at most the gap to the previous one
 (truncated differences; the gaps are non-negative because `ord` is sorted).
-
-$$\forall a, b, x, y:\quad n = |X| \ge 10 \Rightarrow \operatorname{p90}(X') \mathbin{\dot-} \operatorname{p90}(X) \le \operatorname{ord}(X, r) \mathbin{\dot-} \operatorname{ord}(X, r-1) \wedge \operatorname{p90}(X) \mathbin{\dot-} \operatorname{p90}(X') \le \operatorname{ord}(X, r-1) \mathbin{\dot-} \operatorname{ord}(X, r-2),\quad r = \operatorname{rank}_{90}(n),\ X = a \mathbin{+\!\!+} [x] \mathbin{+\!\!+} b,\ X' = a \mathbin{+\!\!+} [y] \mathbin{+\!\!+} b$$
 -/
 theorem outlier_shift (a b : List Nat) (x y : Nat) (hn : 10 ≤ (a ++ x :: b).length) :
     p90 (a ++ y :: b) - p90 (a ++ x :: b) ≤
@@ -952,10 +777,7 @@ theorem outlier_shift (a b : List Nat) (x y : Nat) (hn : 10 ≤ (a ++ x :: b).le
 
 /-! ## Proofs: the median baseline (task `timing-small-n`) -/
 
-/-- Every value is at or below `t` or above it: the two counts add up to the length.
-
-$$\forall X, t:\quad \operatorname{cntLe}(X, t) + |[x \in X \mid x > t]| = |X|$$
--/
+/-- Every value is at or below `t` or above it: the two counts add up to the length. -/
 theorem cnt_split (xs : List Nat) (t : Nat) :
     cntLe xs t + xs.countP (fun x => decide (t < x)) = xs.length := by
   rw [List.length_eq_countP_add_countP (fun x => decide (x ≤ t))]
@@ -968,8 +790,6 @@ theorem cnt_split (xs : List Nat) (t : Nat) :
 
 /-- The median is at most `t` when at most half of the values exceed `t` (also for the empty list, whose median is
 0).
-
-$$\forall X, t:\quad 2 \cdot |[x \in X \mid x > t]| \le |X| \Rightarrow \operatorname{p50}(X) \le t$$
 -/
 theorem p50_le_of_few_above (xs : List Nat) (t : Nat)
     (h : 2 * xs.countP (fun x => decide (t < x)) ≤ xs.length) : p50 xs ≤ t := by
@@ -983,10 +803,7 @@ theorem p50_le_of_few_above (xs : List Nat) (t : Nat)
     simp only [rank50]
     omega
 
-/-- The median is at least `t` when fewer than half of the values are below `t`.
-
-$$\forall X, t:\quad 2 \cdot |[x \in X \mid x < t]| < |X| \Rightarrow t \le \operatorname{p50}(X)$$
--/
+/-- The median is at least `t` when fewer than half of the values are below `t`. -/
 theorem le_p50_of_few_below (xs : List Nat) (t : Nat)
     (h : 2 * xs.countP (fun x => decide (x < t)) < xs.length) : t ≤ p50 xs := by
   rcases Nat.eq_zero_or_pos t with rfl | ht
@@ -1002,10 +819,7 @@ theorem le_p50_of_few_below (xs : List Nat) (t : Nat)
     omega
 
 /-- No self-masking: a slowdown is judged against a median that it can only move once it fills more than half the
-window. If at most half of the window exceeds a level $t$, a non-noisy sample over budget with $k_d \cdot d > k_n \cdot
-t$ is `slow` (with the p90 baseline this failed for $n \le 9$, where the p90 is the maximum).
-
-$$\forall p, w, s, t:\quad |w| \ge n_{\min} \wedge \neg\operatorname{noisy}_p(s) \wedge d_s > B_p(\mathit{tool}_s) \wedge 2 \cdot |[x \in w \mid x > t]| \le |w| \wedge k_d \cdot d_s > k_n \cdot t \Rightarrow \operatorname{code}_p(w, s) = \mathsf{slow}$$
+window. If at most half of the window exceeds a level `t`, a non-noisy sample over budget with `k_d · d > k_n · t` is `slow` (with the p90 baseline this failed for `n ≤ 9`, where the p90 is the maximum).
 -/
 theorem no_self_mask (p : Params) (w : List Nat) (s : Sample) (t : Nat)
     (hn : p.nMin ≤ w.length) (hq : noisy p s = false) (hB : budgetOf p s.tool < s.durMs)
@@ -1016,8 +830,6 @@ theorem no_self_mask (p : Params) (w : List Nat) (s : Sample) (t : Nat)
 
 /-- Slow is monotone in the window: a window of the same length with at least as many values at or below every bound
 (no slower in distribution, e.g. some values lowered) keeps a `slow` sample `slow`.
-
-$$\forall p, w, w', s:\quad |w'| = |w| \wedge (\forall v.\ \operatorname{cntLe}(w, v) \le \operatorname{cntLe}(w', v)) \wedge \operatorname{code}_p(w, s) = \mathsf{slow} \Rightarrow \operatorname{code}_p(w', s) = \mathsf{slow}$$
 -/
 theorem slow_mono_window (p : Params) (w w' : List Nat) (s : Sample) (hl : w'.length = w.length)
     (hc : ∀ v, cntLe w v ≤ cntLe w' v) (h : codeOf p w s = .slow) : codeOf p w' s = .slow := by
@@ -1035,20 +847,14 @@ theorem slow_mono_window (p : Params) (w w' : List Nat) (s : Sample) (hl : w'.le
       exact Nat.le_trans (ord_spec _ _ (by simp only [rank50]; omega)).2.1 (hc _)
   exact Nat.lt_of_le_of_lt (Nat.mul_le_mul_left _ hle) h4
 
-/-- A value of a window is the duration of a sample of the history.
-
-$$\forall p, H, \kappa, x:\quad x \in \operatorname{win}_p(H, \kappa) \Rightarrow \exists s \in H.\ d_s = x$$
--/
+/-- A value of a window is the duration of a sample of the history. -/
 theorem mem_window (p : Params) (hist : List Sample) (k : Key) (x : Nat) (h : x ∈ windowOf p hist k) :
     ∃ s ∈ hist, s.durMs = x := by
   unfold windowOf lastN at h
   obtain ⟨s, hs, rfl⟩ := List.mem_map.1 (List.mem_of_mem_drop h)
   exact ⟨s, (List.mem_filter.1 hs).1, rfl⟩
 
-/-- A value of a window comes from a sample of exactly that key, so a window never mixes run kinds.
-
-$$\forall p, H, \kappa, x:\quad x \in \operatorname{win}_p(H, \kappa) \Rightarrow \exists s \in H.\ \operatorname{key}(s) = \kappa \wedge d_s = x$$
--/
+/-- A value of a window comes from a sample of exactly that key, so a window never mixes run kinds. -/
 theorem mem_window_key (p : Params) (hist : List Sample) (k : Key) (x : Nat) (h : x ∈ windowOf p hist k) :
     ∃ s ∈ hist, s.key = k ∧ s.durMs = x := by
   unfold windowOf lastN at h
@@ -1060,20 +866,16 @@ theorem mem_window_key (p : Params) (hist : List Sample) (k : Key) (x : Nat) (h 
     exact h2.1
   exact ⟨s, this.1, hk, rfl⟩
 
-/-- A window never mixes run kinds: every value of the window of key $\kappa$ comes from a sample whose run kind is the
-kind of $\kappa$.
-
-$$\forall p, H, \kappa, x:\quad x \in \operatorname{win}_p(H, \kappa) \Rightarrow \exists s \in H.\ \mathit{kind}(s) = \mathit{kind}(\kappa) \wedge d_s = x$$
+/-- A window never mixes run kinds: every value of the window of key `κ` comes from a sample whose run kind is the
+kind of `κ`.
 -/
 theorem mem_window_kind (p : Params) (hist : List Sample) (k : Key) (x : Nat) (h : x ∈ windowOf p hist k) :
     ∃ s ∈ hist, s.kind = k.kind ∧ s.durMs = x := by
   obtain ⟨s, hs, hk, hd⟩ := mem_window_key p hist k x h
   exact ⟨s, hs, by rw [← hk]; rfl, hd⟩
 
-/-- A stable series is never `slow`: when $n_{\min} \ge 1$, no sample breaches a ceiling, and every two durations of
-the series are within the factor $k$ ($k_d \cdot d_s \le k_n \cdot d_t$), no sample verdict is `slow`.
-
-$$\forall p, H:\quad n_{\min} \ge 1 \wedge (\forall s \in H.\ \neg\operatorname{breach}_p(s)) \wedge (\forall s, t \in H.\ k_d \cdot d_s \le k_n \cdot d_t) \Rightarrow \forall v \in \operatorname{sv}_p(H).\ c_v \ne \mathsf{slow}$$
+/-- A stable series is never `slow`: when `n_min ≥ 1`, no sample breaches a ceiling, and every two durations of
+the series are within the factor `k` (`k_d · d_s ≤ k_n · d_t`), no sample verdict is `slow`.
 -/
 theorem stable_never_slow (p : Params) (ss : List Sample) (h1 : 1 ≤ p.nMin)
     (hb : ∀ s ∈ ss, ceilingBreach p s = false)
@@ -1097,25 +899,19 @@ theorem stable_never_slow (p : Params) (ss : List Sample) (h1 : 1 ≤ p.nMin)
 
 /-- A site-build sample of the breakpoint gate (CI) with duration `d` ms, for the counterexample of task
 `timing-small-n`.
-
-$$\operatorname{site}(d) = (\texttt{breakpoint-gate}, \texttt{site}, d, \mathsf{ci}, 0)$$
 -/
 def siteBuild (d : Nat) : Sample := { tool := "breakpoint-gate", step := "site", durMs := d, host := .ci }
 
 /-- The counterexample is now `slow`: after site builds of 2, 1, 2, 27 and 26 s, a 40 s build is `slow` with the
-default parameters $p_0$ (`{}`: $n_{\min} = 5$, $N = 20$, $k = 3/2$, $B_0 = 30000$, no ceilings, no stages; median 2 s;
-with the p90 baseline, 27 s, it was `ok` because $2 \cdot 40 \le 3 \cdot 27$).
-
-$$\operatorname{judge}_{p_0}([\operatorname{site}(2000), \operatorname{site}(1000), \operatorname{site}(2000), \operatorname{site}(27000), \operatorname{site}(26000)], 5, \operatorname{site}(40000)).c = \mathsf{slow}$$
+default parameters `p_0` (`{}`: `n_min = 5`, `N = 20`, `k = 3/2`, `B_0 = 30000`, no ceilings, no stages; median 2 s;
+with the p90 baseline, 27 s, it was `ok` because `2 · 40 ≤ 3 · 27`).
 -/
 theorem site_regression_slow :
     (judge {} ([2000, 1000, 2000, 27000, 26000].map siteBuild) 5 (siteBuild 40000)).code = .slow := by
   decide
 
 /-- A repeated regression stays `slow`: after site builds of 2, 1, 2, 27, 26 and 50 s, another 50 s build is `slow`
-with the default parameters $p_0$ (`{}`; the median is still 2 s; with the p90 baseline, 50 s, it was `ok`).
-
-$$\operatorname{judge}_{p_0}([\operatorname{site}(2000), \operatorname{site}(1000), \operatorname{site}(2000), \operatorname{site}(27000), \operatorname{site}(26000), \operatorname{site}(50000)], 6, \operatorname{site}(50000)).c = \mathsf{slow}$$
+with the default parameters `p_0` (`{}`; the median is still 2 s; with the p90 baseline, 50 s, it was `ok`).
 -/
 theorem site_repeat_slow :
     (judge {} ([2000, 1000, 2000, 27000, 26000, 50000].map siteBuild) 6 (siteBuild 50000)).code = .slow := by
@@ -1123,18 +919,12 @@ theorem site_repeat_slow :
 
 /-! ## Proofs: structural verdicts -/
 
-/-- The sibling baselines are exactly the baselines of the other groups of the stage.
-
-$$\forall p, H, S, g, o:\quad o \in \operatorname{sib}_p(H, S, g) \iff \exists g' \in G_S.\ g' \ne g \wedge \operatorname{gb}_p(H, g') = o$$
--/
+/-- The sibling baselines are exactly the baselines of the other groups of the stage. -/
 theorem mem_siblings (p : Params) (ss : List Sample) (st : Stage) (g : Group) (o : Option Nat) :
     o ∈ siblings p ss st g ↔ ∃ g' ∈ st.groups, g' ≠ g ∧ groupBaseline p ss g' = o := by
   simp [siblings, List.mem_map, List.mem_filter, and_assoc]
 
-/-- A group has a sibling exactly when its sibling list is not empty.
-
-$$\forall p, H, S, g:\quad \operatorname{sib}_p(H, S, g) \ne [\,] \iff \exists g' \in G_S.\ g' \ne g$$
--/
+/-- A group has a sibling exactly when its sibling list is not empty. -/
 theorem siblings_ne_nil (p : Params) (ss : List Sample) (st : Stage) (g : Group) :
     (siblings p ss st g).isEmpty = false ↔ ∃ g' ∈ st.groups, g' ≠ g := by
   constructor
@@ -1150,10 +940,8 @@ theorem siblings_ne_nil (p : Params) (ss : List Sample) (st : Stage) (g : Group)
     | nil => rw [hs] at hm; simp at hm
     | cons _ _ => rfl
 
-/-- When a group is structural: it has a baseline $b$, its stage has another group, and every other group of the
-stage has a baseline $c$ with $2c < b$.
-
-$$\forall p, H, S, g:\quad \operatorname{call}_p(H, S, g) = \mathsf{structural} \iff \exists b.\ \operatorname{gb}_p(H, g) = b \wedge (\exists g' \in G_S.\ g' \ne g) \wedge \forall g' \in G_S.\ g' \ne g \Rightarrow \exists c.\ \operatorname{gb}_p(H, g') = c \wedge 2c < b$$
+/-- When a group is structural: it has a baseline `b`, its stage has another group, and every other group of the
+stage has a baseline `c` with `2c < b`.
 -/
 theorem structural_iff (p : Params) (ss : List Sample) (st : Stage) (g : Group) :
     callOf p ss st g = .structural ↔
@@ -1196,10 +984,8 @@ theorem structural_iff (p : Params) (ss : List Sample) (st : Stage) (g : Group) 
           cases hb'
           exact absurd (hall.2 h2) ha
 
-/-- When a group is noise: it has a baseline $b$, its stage has another group, every other group has a baseline, and
-some other group has a baseline $c$ with $2c \ge b$.
-
-$$\forall p, H, S, g:\quad \operatorname{call}_p(H, S, g) = \mathsf{noise} \iff \exists b.\ \operatorname{gb}_p(H, g) = b \wedge (\exists g' \in G_S.\ g' \ne g) \wedge (\forall g' \in G_S.\ g' \ne g \Rightarrow \operatorname{gb}_p(H, g') \ne \bot) \wedge \exists g' \in G_S.\ g' \ne g \wedge \exists c.\ \operatorname{gb}_p(H, g') = c \wedge 2c \ge b$$
+/-- When a group is noise: it has a baseline `b`, its stage has another group, every other group has a baseline, and
+some other group has a baseline `c` with `2c ≥ b`.
 -/
 theorem noise_iff (p : Params) (ss : List Sample) (st : Stage) (g : Group) :
     callOf p ss st g = .noise ↔
@@ -1271,20 +1057,14 @@ theorem noise_iff (p : Params) (ss : List Sample) (st : Stage) (g : Group) :
           · rintro ⟨b', hb', _, h3, _⟩
             exact absurd (hsome.2 h3) hs
 
-/-- The stages are the caller's whenever it gives any.
-
-$$\forall p, H:\quad \Sigma \ne [\,] \Rightarrow \Sigma^*_p(H) = \Sigma$$
--/
+/-- The stages are the caller's whenever it gives any. -/
 theorem stagesOf_given (p : Params) (ss : List Sample) (h : p.stages ≠ []) : stagesOf p ss = p.stages := by
   unfold stagesOf
   cases hs : p.stages with
   | nil => exact absurd hs h
   | cons _ _ => rfl
 
-/-- The structural verdicts of the entry point are exactly the verdicts of the groups of the stages.
-
-$$\forall p, H, v:\quad \mathsf{structural}(v) \in \operatorname{timingVerdicts}(p, H) \iff \exists S \in \Sigma^*_p(H).\ \exists g \in G_S.\ \operatorname{st}_p(H, S, g) = v$$
--/
+/-- The structural verdicts of the entry point are exactly the verdicts of the groups of the stages. -/
 theorem mem_structural (p : Params) (ss : List Sample) (v : StructVerdict) :
     Verdict.structural v ∈ timingVerdicts p ss ↔
       ∃ st ∈ stagesOf p ss, ∃ g ∈ st.groups, stageVerdict p ss st g = v := by
@@ -1292,8 +1072,6 @@ theorem mem_structural (p : Params) (ss : List Sample) (v : StructVerdict) :
 
 /-- A call is made on every group of every stage: there is one structural verdict per group, and each group's verdict
 (with its call) is in the output.
-
-$$\forall p, H:\quad |\operatorname{sts}_p(H)| = \sum_{S \in \Sigma^*_p(H)} |G_S| \wedge \forall S \in \Sigma^*_p(H).\ \forall g \in G_S.\ \mathsf{structural}(\operatorname{st}_p(H, S, g)) \in \operatorname{timingVerdicts}(p, H)$$
 -/
 theorem calls_total (p : Params) (ss : List Sample) :
     (structuralVerdicts p ss).length = ((stagesOf p ss).map (fun st => st.groups.length)).sum ∧
@@ -1302,10 +1080,7 @@ theorem calls_total (p : Params) (ss : List Sample) :
   intro st hst g hg
   exact (mem_structural p ss _).2 ⟨st, hst, g, hg, rfl⟩
 
-/-- Whenever the caller gives stages, the structural call is made on every group of each of them.
-
-$$\forall p, H:\quad \Sigma \ne [\,] \Rightarrow \forall S \in \Sigma.\ \forall g \in G_S.\ \mathsf{structural}(\operatorname{st}_p(H, S, g)) \in \operatorname{timingVerdicts}(p, H)$$
--/
+/-- Whenever the caller gives stages, the structural call is made on every group of each of them. -/
 theorem calls_given_stages (p : Params) (ss : List Sample) (h : p.stages ≠ []) :
     ∀ st ∈ p.stages, ∀ g ∈ st.groups, Verdict.structural (stageVerdict p ss st g) ∈ timingVerdicts p ss := by
   intro st hst g hg

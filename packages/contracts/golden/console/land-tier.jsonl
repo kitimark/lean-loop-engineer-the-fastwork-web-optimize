@@ -1,24 +1,24 @@
-{"name":"tier of install","request":{"ids":["install"],"op":"console.landTier"},"response":{"local":["install"],"remote":[]}}
-{"name":"tier of check.sh","request":{"ids":["check.sh"],"op":"console.landTier"},"response":{"local":["check.sh"],"remote":[]}}
-{"name":"tier of reads-scan","request":{"ids":["reads-scan"],"op":"console.landTier"},"response":{"local":["reads-scan"],"remote":[]}}
-{"name":"tier of apps/runner","request":{"ids":["apps/runner"],"op":"console.landTier"},"response":{"local":[],"remote":["apps/runner"]}}
-{"name":"tier of apps/console-api","request":{"ids":["apps/console-api"],"op":"console.landTier"},"response":{"local":[],"remote":["apps/console-api"]}}
-{"name":"tier of packages/gate-breakpoints","request":{"ids":["packages/gate-breakpoints"],"op":"console.landTier"},"response":{"local":[],"remote":["packages/gate-breakpoints"]}}
-{"name":"tier of packages/gh-budget","request":{"ids":["packages/gh-budget"],"op":"console.landTier"},"response":{"local":[],"remote":["packages/gh-budget"]}}
-{"name":"tier of packages/measure-chromium","request":{"ids":["packages/measure-chromium"],"op":"console.landTier"},"response":{"local":[],"remote":["packages/measure-chromium"]}}
-{"name":"tier of packages/engine-check","request":{"ids":["packages/engine-check"],"op":"console.landTier"},"response":{"local":[],"remote":["packages/engine-check"]}}
-{"name":"tier of packages/e2e-preview","request":{"ids":["packages/e2e-preview"],"op":"console.landTier"},"response":{"local":[],"remote":["packages/e2e-preview"]}}
-{"name":"tier of apps/console-web","request":{"ids":["apps/console-web"],"op":"console.landTier"},"response":{"local":["apps/console-web"],"remote":[]}}
-{"name":"tier of apps/site","request":{"ids":["apps/site"],"op":"console.landTier"},"response":{"local":["apps/site"],"remote":[]}}
-{"name":"tier of packages/contracts","request":{"ids":["packages/contracts"],"op":"console.landTier"},"response":{"local":["packages/contracts"],"remote":[]}}
-{"name":"tier of packages/difftest","request":{"ids":["packages/difftest"],"op":"console.landTier"},"response":{"local":["packages/difftest"],"remote":[]}}
-{"name":"tier of packages/measure-webkit","request":{"ids":["packages/measure-webkit"],"op":"console.landTier"},"response":{"local":["packages/measure-webkit"],"remote":[]}}
-{"name":"tier of packages/measure-wktr","request":{"ids":["packages/measure-wktr"],"op":"console.landTier"},"response":{"local":["packages/measure-wktr"],"remote":[]}}
-{"name":"tier of packages/visual-diff","request":{"ids":["packages/visual-diff"],"op":"console.landTier"},"response":{"local":["packages/visual-diff"],"remote":[]}}
-{"name":"tier of packages/not-a-package","request":{"ids":["packages/not-a-package"],"op":"console.landTier"},"response":{"local":["packages/not-a-package"],"remote":[]}}
-{"name":"all ids","request":{"ids":["install","check.sh","reads-scan","apps/runner","apps/console-api","packages/gate-breakpoints","packages/gh-budget","packages/measure-chromium","packages/engine-check","packages/e2e-preview","apps/console-web","apps/site","packages/contracts","packages/difftest","packages/measure-webkit","packages/measure-wktr","packages/visual-diff","packages/not-a-package"],"op":"console.landTier"},"response":{"local":["install","check.sh","reads-scan","apps/console-web","apps/site","packages/contracts","packages/difftest","packages/measure-webkit","packages/measure-wktr","packages/visual-diff","packages/not-a-package"],"remote":["apps/runner","apps/console-api","packages/gate-breakpoints","packages/gh-budget","packages/measure-chromium","packages/engine-check","packages/e2e-preview"]}}
-{"name":"no ids","request":{"ids":[],"op":"console.landTier"},"response":{"local":[],"remote":[]}}
-{"name":"selection order is kept","request":{"ids":["packages/gh-budget","install","apps/runner","check.sh"],"op":"console.landTier"},"response":{"local":["install","check.sh"],"remote":["packages/gh-budget","apps/runner"]}}
+{"name":"tier of install","request":{"ids":["install"],"op":"console.landTier"},"response":{"browser":false,"local":["install"],"remote":[]}}
+{"name":"tier of check.sh","request":{"ids":["check.sh"],"op":"console.landTier"},"response":{"browser":false,"local":["check.sh"],"remote":[]}}
+{"name":"tier of reads-scan","request":{"ids":["reads-scan"],"op":"console.landTier"},"response":{"browser":false,"local":["reads-scan"],"remote":[]}}
+{"name":"tier of apps/runner","request":{"ids":["apps/runner"],"op":"console.landTier"},"response":{"browser":false,"local":[],"remote":["apps/runner"]}}
+{"name":"tier of apps/console-api","request":{"ids":["apps/console-api"],"op":"console.landTier"},"response":{"browser":false,"local":[],"remote":["apps/console-api"]}}
+{"name":"tier of packages/gate-breakpoints","request":{"ids":["packages/gate-breakpoints"],"op":"console.landTier"},"response":{"browser":false,"local":[],"remote":["packages/gate-breakpoints"]}}
+{"name":"tier of packages/gh-budget","request":{"ids":["packages/gh-budget"],"op":"console.landTier"},"response":{"browser":false,"local":[],"remote":["packages/gh-budget"]}}
+{"name":"tier of packages/measure-chromium","request":{"ids":["packages/measure-chromium"],"op":"console.landTier"},"response":{"browser":false,"local":[],"remote":["packages/measure-chromium"]}}
+{"name":"tier of packages/engine-check","request":{"ids":["packages/engine-check"],"op":"console.landTier"},"response":{"browser":false,"local":[],"remote":["packages/engine-check"]}}
+{"name":"tier of packages/e2e-preview","request":{"ids":["packages/e2e-preview"],"op":"console.landTier"},"response":{"browser":true,"local":[],"remote":["packages/e2e-preview"]}}
+{"name":"tier of apps/console-web","request":{"ids":["apps/console-web"],"op":"console.landTier"},"response":{"browser":false,"local":["apps/console-web"],"remote":[]}}
+{"name":"tier of apps/site","request":{"ids":["apps/site"],"op":"console.landTier"},"response":{"browser":false,"local":["apps/site"],"remote":[]}}
+{"name":"tier of packages/contracts","request":{"ids":["packages/contracts"],"op":"console.landTier"},"response":{"browser":false,"local":["packages/contracts"],"remote":[]}}
+{"name":"tier of packages/difftest","request":{"ids":["packages/difftest"],"op":"console.landTier"},"response":{"browser":false,"local":["packages/difftest"],"remote":[]}}
+{"name":"tier of packages/measure-webkit","request":{"ids":["packages/measure-webkit"],"op":"console.landTier"},"response":{"browser":false,"local":["packages/measure-webkit"],"remote":[]}}
+{"name":"tier of packages/measure-wktr","request":{"ids":["packages/measure-wktr"],"op":"console.landTier"},"response":{"browser":false,"local":["packages/measure-wktr"],"remote":[]}}
+{"name":"tier of packages/visual-diff","request":{"ids":["packages/visual-diff"],"op":"console.landTier"},"response":{"browser":false,"local":["packages/visual-diff"],"remote":[]}}
+{"name":"tier of packages/not-a-package","request":{"ids":["packages/not-a-package"],"op":"console.landTier"},"response":{"browser":false,"local":["packages/not-a-package"],"remote":[]}}
+{"name":"all ids","request":{"ids":["install","check.sh","reads-scan","apps/runner","apps/console-api","packages/gate-breakpoints","packages/gh-budget","packages/measure-chromium","packages/engine-check","packages/e2e-preview","apps/console-web","apps/site","packages/contracts","packages/difftest","packages/measure-webkit","packages/measure-wktr","packages/visual-diff","packages/not-a-package"],"op":"console.landTier"},"response":{"browser":true,"local":["install","check.sh","reads-scan","apps/console-web","apps/site","packages/contracts","packages/difftest","packages/measure-webkit","packages/measure-wktr","packages/visual-diff","packages/not-a-package"],"remote":["apps/runner","apps/console-api","packages/gate-breakpoints","packages/gh-budget","packages/measure-chromium","packages/engine-check","packages/e2e-preview"]}}
+{"name":"no ids","request":{"ids":[],"op":"console.landTier"},"response":{"browser":false,"local":[],"remote":[]}}
+{"name":"selection order is kept","request":{"ids":["packages/gh-budget","install","apps/runner","check.sh"],"op":"console.landTier"},"response":{"browser":false,"local":["install","check.sh"],"remote":["packages/gh-budget","apps/runner"]}}
 {"name":"exit failed","request":{"coreUser":true,"exitOk":false,"op":"console.landLane","skipped":0},"response":{"ok":false,"verdict":"fail"}}
 {"name":"exit failed, others skipped","request":{"coreUser":false,"exitOk":false,"op":"console.landLane","skipped":3},"response":{"ok":false,"verdict":"fail"}}
 {"name":"exit failed, summary unknown","request":{"coreUser":true,"exitOk":false,"op":"console.landLane","skipped":null},"response":{"ok":false,"verdict":"fail"}}

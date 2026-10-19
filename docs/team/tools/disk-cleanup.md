@@ -21,7 +21,7 @@ through hardlinks and APFS clones, so removing a tree can free far less than its
    checkout links to (link count 1) that are older than 2 h, so files a running build just wrote stay, and prints
    the delete command ([lake-gc.md](lake-gc.md); the list is decided and proved in `lean/Fw/Ops/LakeGc.lean`):
    ```
-   pnpm -s fw lake-gc --list | xargs rm -f --
+   pnpm fw lake-gc --list | grep '/\.lake/' | xargs rm -f --   # the filter drops pnpm's banner lines
    ```
    Safe: Lake treats a missing artifact as a cache miss and rebuilds
    (`Lake/Build/Common.lean:521-535`, `getArtifactsUsingCache?`, toolchain v4.35.0, CONFIRMED). The auto-mode

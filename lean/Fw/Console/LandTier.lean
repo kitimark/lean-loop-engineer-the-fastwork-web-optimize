@@ -28,6 +28,12 @@ def tier (id : String) : Tier := if remoteIds.contains id then .onCi else .onMac
 /-- The ids of `ids` that run in tier `t`, in order. -/
 def pick (t : Tier) (ids : List String) : List String := ids.filter (fun i => decide (tier i = t))
 
+/-- The check whose selection also starts the browser suite (both engines) in the land lane. -/
+def browserId : String := "packages/e2e-preview"
+
+/-- Does the land lane run the browser suite? $$\mathit{browser}(S) = [\mathit{browserId} \in S]$$ for the selected ids $S$. -/
+def browserRuns (selected : List String) : Bool := selected.contains browserId
+
 /-- Every id has exactly one tier. -/
 theorem tier_exactly_one (id : String) :
     (tier id = .onMac ∧ tier id ≠ .onCi) ∨ (tier id = .onCi ∧ tier id ≠ .onMac) := by
@@ -72,6 +78,30 @@ theorem pick_disjoint (ids : List String) (x : String) : ¬ (x ∈ pick .onMac i
   rw [a] at b
   cases b
 
+/-- The browser suite runs when the selection contains its check. -/
+theorem browser_runs_of_selected (ids : List String) (h : browserId ∈ ids) : browserRuns ids = true := by
+  simp [browserRuns, h]
+
+/-- The browser suite does not run when the selection lacks its check. -/
+theorem browser_idle_of_unselected (ids : List String) (h : browserId ∉ ids) : browserRuns ids = false := by
+  simp [browserRuns, h]
+
+/-- The browser check is in the remote tier, so the lane that runs the remote tier is the one that can start it. -/
+theorem browser_is_remote : tier browserId = .onCi := by decide
+
+/-- Splitting by tier loses no decision: the remote picks start the browser suite exactly when the whole selection does. -/
+theorem browser_runs_remote_pick (ids : List String) : browserRuns (pick .onCi ids) = browserRuns ids := by
+  by_cases h : browserId ∈ ids
+  · rw [browser_runs_of_selected _ h, browser_runs_of_selected]
+    exact (mem_pick _ _ _).2 ⟨h, browser_is_remote⟩
+  · rw [browser_idle_of_unselected _ h, browser_idle_of_unselected]
+    intro hm
+    exact h ((mem_pick _ _ _).1 hm).1
+
+#guard browserRuns ["apps/runner", "packages/e2e-preview"]
+#guard !browserRuns ["apps/runner", "packages/gh-budget"]
+#guard !browserRuns []
+
 #guard remoteIds.length == 7
 #guard tier "apps/runner" == .onCi
 #guard tier "packages/difftest" == .onMac
@@ -88,7 +118,8 @@ private def strs (xs : List String) : Json := .arr (xs.map Json.str).toArray
 /-- One golden line. -/
 def line (name : String) (ids : List String) : Json :=
   Json.mkObj [("name", .str name), ("request", Json.mkObj [("op", .str "console.landTier"), ("ids", strs ids)]),
-    ("response", Json.mkObj [("local", strs (pick .onMac ids)), ("remote", strs (pick .onCi ids))])]
+    ("response", Json.mkObj [("local", strs (pick .onMac ids)), ("remote", strs (pick .onCi ids)),
+      ("browser", .bool (browserRuns ids))])]
 
 /-- The golden cases: one per id, the whole list, and the empty list. -/
 def cases : List Json :=

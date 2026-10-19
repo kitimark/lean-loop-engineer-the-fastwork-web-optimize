@@ -109,7 +109,7 @@ describe("fw checks", () => {
     const lines: string[] = [];
     const code = await checksCli(["--affected", "--base", "x", "--tier", "remote", "--list"], root, { core, changed: ["lean/Fw/A.lean"], log: (s) => lines.push(s) });
     expect(code).toBe(0);
-    expect(lines.slice(1).sort()).toEqual(REMOTE.filter((r) => FWCORE_USERS.includes(r)).map((r) => `remote ${r}`).sort());
+    expect(lines.slice(1).filter((l) => !l.startsWith("LANE ")).sort()).toEqual(REMOTE.filter((r) => FWCORE_USERS.includes(r)).map((r) => `remote ${r}`).sort());
   });
   it("runs the remote tier only and prints one VERDICT per check", async () => {
     const lines: string[] = [];
