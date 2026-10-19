@@ -10,6 +10,7 @@ import test from "node:test";
 import { ghCharged } from "../src/charged.ts";
 import { pollOnce } from "../src/poller.ts";
 import { stepEvent } from "../src/state.ts";
+import { SLICE } from "../src/wait.ts";
 import { goldenDir, mkWorld, type Call } from "./util.ts";
 
 type Fx = {
@@ -124,3 +125,8 @@ for (const f of readdirSync(dir).filter((n) => n.endsWith(".jsonl")).sort()) {
     for (const r of runs) assert.equal(key(r), key(runs[0]!), "same issued calls for every N");
   });
 }
+
+test("the waiter re-reads every slice seconds of limits.json (the latency theorem listed_within_Pmin)", () => {
+  const lim = JSON.parse(readFileSync(join(goldenDir, "limits.json"), "utf8")) as { slice: number };
+  assert.equal(SLICE, lim.slice);
+});

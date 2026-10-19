@@ -1412,7 +1412,7 @@ $$\mathit{slice} = 2$$
 def slice : Nat := 2
 
 /-- The first read at or after time $y$ of a waiter that reads the runs-status file at $r_0, r_0 + q, r_0 + 2q,
-\dots$ (and $r_0$ itself when $y \le r_0$).
+\dots$ (and $r_0$ itself when $y \le r_0$ or $q = 0$, since $\operatorname{ceilDiv}(a, 0) = 0$).
 
 $$\operatorname{firstRead}(r_0, q, y) = r_0 + \operatorname{ceilDiv}(y \mathbin{\dot-} r_0, q) \cdot q$$
 -/
@@ -1603,7 +1603,8 @@ theorem wsum_all (W t : Nat) (l : List Entry) :
 /-- (g) The budget over every ledger entry. In every reachable state with $R \le B$ and $B + \mathit{margin} \le
 \mathit{ghLimit}$, for every time $t$ and every count $u$ of requests made in the window $(t - W, t]$ by callers that
 skip the ledger: if the corrections in that window plus $u$ fit the margin, then all ledger entries in the window
-(charges and corrections) plus $u$ stay within GitHub's 5000 per hour. The margin is an assumption about the
+(charges and corrections) plus $u$ stay within $\mathit{ghLimit} = 5000$ (GitHub's hourly limit when $W = 3600$, as
+in the defaults). The margin is an assumption about the
 corrections and the uncharged callers, not a result.
 
 $$\forall L, t_0, s, t, u:\quad s \in \operatorname{Reach}(L, \operatorname{init}(t_0)) \land L.R \le L.B \land L.B + \mathit{margin} \le \mathit{ghLimit} \land \Sigma_W(\operatorname{isCorrection}, s.\ell, t) + u \le \mathit{margin} \Rightarrow \Sigma_W(\top, s.\ell, t) + u \le \mathit{ghLimit}$$

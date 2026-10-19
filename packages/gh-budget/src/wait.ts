@@ -28,8 +28,8 @@ export type Target =
 /** 0 pass, 1 fail, 2 a gh error, 3 timeout / budget stop, 4 not run (every decisive run's guard skipped). */
 export type Waited = { code: 0 | 1 | 2 | 3 | 4; lines: string[] };
 
-/** Local re-read period of a waiter, seconds (file reads and lock checks only, no GitHub call). */
-const SLICE = 2;
+/** Local re-read period of a waiter, seconds (file reads and lock checks only, no GitHub call); `slice` in limits.json. */
+export const SLICE = 2;
 
 const epoch = (iso: string) => Math.floor(Date.parse(iso) / 1000);
 const fnv = (s: string) => { let h = 0x811c9dc5; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h; };
