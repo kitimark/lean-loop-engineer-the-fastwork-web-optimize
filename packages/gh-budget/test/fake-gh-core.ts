@@ -53,12 +53,12 @@ export function fakeGh(dir: string, args: string[], costEnv: string | undefined,
     srv.ov += 1;
     refused = /^HTTP\S* 4(03|29)/.test(ov.lines[0] ?? "");
   } else if (5000 < srv.used + cost) {
-    lines = ["HTTP/2.0 403 Forbidden", "X-Ratelimit-Remaining: 0", `X-Ratelimit-Reset: ${reset}`];
+    lines = ["HTTP/2.0 403 Forbidden", "X-Ratelimit-Remaining: 0", `X-Ratelimit-Reset: ${reset}`, "X-Ratelimit-Resource: core"];
     refused = true;
     empty = true;
   } else {
     lines = [];
-    for (let i = 0; i < cost; i++) lines.push("HTTP/2.0 200 OK", `X-Ratelimit-Remaining: ${5000 - (srv.used + i + 1)}`, `X-Ratelimit-Reset: ${reset}`);
+    for (let i = 0; i < cost; i++) lines.push("HTTP/2.0 200 OK", `X-Ratelimit-Remaining: ${5000 - (srv.used + i + 1)}`, `X-Ratelimit-Reset: ${reset}`, "X-Ratelimit-Resource: core");
     srv.used += cost;
   }
   writeFileSync(join(dir, "server.json"), JSON.stringify(srv));
