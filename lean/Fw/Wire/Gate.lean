@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Gate.State
+import Fw.Gate.PageRoot
 import Fw.Measure.Wire
 import Fw.Ops.Wire
 /-!
@@ -20,8 +21,10 @@ every status and verdict comes from `Fw.Gate`. Numbers are read as exact decimal
 
 State: `{requested {width, height, deviceWidth, dpr, hover, pointer, reducedMotion, colorScheme},
 orig Arm, rewrite Arm, expect? [[k, v]], expectNeutral? [[k, v]]}`. Arm: `{viewport {innerHeight,
-screenWidth, dpr}, observed {widthExact, hoverHover, …}, truth [[k, v]], truthLegacy [[k, v]],
+screenWidth, dpr, scrollWidth?}, observed {widthExact, hoverHover, …}, truth [[k, v]], truthLegacy [[k, v]],
 neutral [[k, v]], parts {id: {role: {count, items [{rect? {x, y, w, h}, style {prop: value}}]}}}}`.
+`viewport.scrollWidth` (the document's, in CSS px) feeds the page-root anchor `Fw.Gate.PageRoot` (an item of part
+`engine.scroll`, role `pageRoot`); absent on both arms: no item, the state is `evalState`'s.
 The matchMedia maps are entry arrays because their key order is the order of the items (a JSON
 object would be re-sorted); `v` is `true`, `false` or `null`.
 
@@ -229,6 +232,10 @@ def armOf (j : Json) : Except String Arm := do
       ← tmapOf "neutral" (← field j "neutral")⟩
     parts := ← partsOf (← field j "parts") }
 
+/-- The `scrollWidth` an arm reports in its `viewport` (`none` = not reported). -/
+def armScrollWidth (j : Json) : Except String (Option Rat) := do
+  pure (optRat (← field j "viewport") "scrollWidth")
+
 /-- The requested environment. -/
 def requestedOf (j : Json) : Except String Requested := do
   pure ⟨← rat j "width", ← rat j "height", ← rat j "deviceWidth", ← rat j "dpr", ← str j "hover",
@@ -289,10 +296,13 @@ def tallyJson : Option Tally → Json
 
 /-! ## Ops -/
 
-/-- `gate.state`: evaluate every state. -/
+/-- `gate.state`: evaluate every state, with the page-root anchor (`Fw.Gate.PageRoot`) from the arms' `viewport.scrollWidth`. -/
 def opState (req : Json) : Except String Reply := do
   let c ← ctxOf req
-  let out ← (← arr req "states").toList.mapM fun s => do pure (evalJson (evalState c (← stateOf s)))
+  let out ← (← arr req "states").toList.mapM fun s => do
+    let so ← armScrollWidth (← field s "orig")
+    let sr ← armScrollWidth (← field s "rewrite")
+    pure (evalJson (Fw.Gate.PageRoot.evalStateRoot c (← stateOf s) so sr))
   pure [("states", .arr out.toArray)]
 
 /-- `gate.stale`: sweep hysteresis counts. -/
@@ -385,5 +395,25 @@ private def run (s : String) : String :=
 #guard run "{\"op\":\"gate.reach\",\"port\":\"gecko\",\"envs\":[]}" == "unknown port gecko"
 #guard run "{\"op\":\"gate.state\",\"anchors\":{\"style\":{\"skipPrefixes\":[],\"skipSets\":{}},\"parts\":{}},\"parts\":[\"x\"],\"states\":[]}" ==
   "unknown part x"
+
+private def rootReqW (w : String) (so : String) : String :=
+  "{\"op\":\"gate.state\",\"anchors\":{\"style\":{\"skipPrefixes\":[],\"skipSets\":{}},\"parts\":{\"engine.scroll\":{\"roles\":[" ++
+  "{\"role\":\"pageRoot\",\"boxRel\":null,\"dims\":[],\"skipSets\":[],\"skipProps\":[],\"why\":\"w\"}]}}},\"parts\":[\"engine.scroll\"],\"states\":[{" ++
+  "\"requested\":{\"width\":" ++ w ++ ",\"height\":932,\"deviceWidth\":430,\"dpr\":3,\"hover\":\"none\",\"pointer\":\"coarse\",\"reducedMotion\":\"no-preference\",\"colorScheme\":\"light\"}," ++
+  "\"orig\":{\"viewport\":{\"scrollWidth\":" ++ (if w == "430" then "430" else "601") ++ "},\"observed\":{},\"truth\":[],\"truthLegacy\":[],\"neutral\":[],\"parts\":{\"engine.scroll\":{\"pageRoot\":{\"count\":1,\"items\":[{}]}}}}," ++
+  "\"rewrite\":{\"viewport\":{" ++ so ++ "},\"observed\":{},\"truth\":[],\"truthLegacy\":[],\"neutral\":[],\"parts\":{\"engine.scroll\":{\"pageRoot\":{\"count\":1,\"items\":[{}]}}}}}]}"
+
+private def rootReq (so : String) : String := rootReqW "430" so
+
+private def has (hay needle : String) : Bool := (hay.splitOn needle).length > 1
+
+#guard has (run (rootReq "\"scrollWidth\":430")) "\"compared\":[[\"engine.scroll\",2]]"
+#guard has (run (rootReq "\"scrollWidth\":430")) "\"verdict\":\"pass\""
+#guard has (run (rootReq "\"scrollWidth\":645")) "scrollWidth<=requestedWidth"
+#guard has (run (rootReq "\"scrollWidth\":645")) "\"verdict\":\"fail\""
+#guard has (run (rootReq "\"scrollWidth\":null")) "scrollWidth<=requestedWidth"
+#guard has (run (rootReq "\"x\":0")) "scrollWidth<=requestedWidth"
+#guard has (run (rootReqW "600.5" "\"scrollWidth\":601")) "\"verdict\":\"pass\""
+#guard has (run (rootReqW "600.5" "\"scrollWidth\":602")) "\"verdict\":\"fail\""
 
 end Fw.Wire.Gate

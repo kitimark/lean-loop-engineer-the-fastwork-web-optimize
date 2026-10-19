@@ -137,6 +137,7 @@ import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict
 import Fw.Gate.PageOffset  -- fix-page-offset: page-level top-of-part check (proposal)
+import Fw.Gate.PageRoot  -- gate-page-root-anchor: the page-root anchor scrollWidth <= requested width
 import Fw.Spec.Props  -- lfg-props-shape: property-over-impl convention, Assume premise marker, kill-witness naming
 import Fw.Search  -- lfg-props-shape: Enum, bounded counterexample search, link to properties
 import Fw.Spec.LandDrySig  -- lfg-props-shape: the dry-run implementation signature (Out, DryImpl)
