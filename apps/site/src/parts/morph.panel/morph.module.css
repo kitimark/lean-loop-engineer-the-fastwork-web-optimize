@@ -4,18 +4,6 @@
    var(--font-family-body); the rewrite has no such token yet).
    The panel root reads --morph, which the host (the nav in the original) sets. */
 @layer parts {
-  /* stand-in for the nav: a fixed, invisible box the panel fills (inset 0). The real host is the nav part. */
-  .host {
-    --morph: 0;
-    position: fixed;
-    top: 16px;
-    left: 50%;
-    width: min(984px, calc(100vw - 32px));
-    height: 64px;
-    transform: translateX(-50%);
-    pointer-events: none;
-    z-index: 30;
-  }
   .panel {
     color: #fff;
     filter: blur(calc((1 - clamp(0, calc((var(--morph) - 0.08) / 0.72), 1)) * 12px));
@@ -225,6 +213,9 @@
     }
   }
   @media (width<=640px) {
+    .backdrop {
+      gap: 8px;
+    }
     .center {
       justify-content: center;
       gap: 28px;
