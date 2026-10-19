@@ -13,11 +13,30 @@ export const EASING = `cubic-bezier(${1 / 3}, 1, ${2 / 3}, 1)`;
 /** The effect timing: easing on the effect (not per keyframe), the value is held after the end. */
 export const TIMING = { duration: DURATION_MS, easing: EASING, fill: 'both' as const };
 
-/** Registered custom properties (all `<number>`, not inherited). `--morph` is the tween; the other two are flags. */
+/** Registered custom properties. `--morph` is the tween, `--morph-fade` its fade on the platform; the other two are flags. */
 export const PROP_MORPH = '--morph';
+export const PROP_FADE = '--morph-fade';
 export const PROP_DARK = '--fw-morph-dark';
 export const PROP_EXPANDED = '--fw-morph-expanded';
-export const REGISTERED = [PROP_MORPH, PROP_DARK, PROP_EXPANDED] as const;
+
+export interface Registration {
+  name: string;
+  syntax: string;
+  inherits: boolean;
+  initialValue: string;
+}
+/**
+ * The `CSS.registerProperty` descriptors (Lean `registrations`, MT-R `registrations_see`): `--morph` inherits, because
+ * the nav's `.logo`, `.actions`, `.btn.earn` and the hosted morph panel read it below the animated nav; the flags have
+ * no reader below the nav and do not inherit. `--morph-fade` inherits as the original's unregistered property does, and
+ * is registered so that its computed value is a number (`1` at rest), as the original's. Golden rows: morph-tween-waapi.jsonl.
+ */
+export const REGISTRATIONS: readonly Registration[] = [
+  { name: PROP_MORPH, syntax: '<number>', inherits: true, initialValue: '0' },
+  { name: PROP_FADE, syntax: '<number>', inherits: true, initialValue: '1' },
+  { name: PROP_DARK, syntax: '<number>', inherits: false, initialValue: '0' },
+  { name: PROP_EXPANDED, syntax: '<number>', inherits: false, initialValue: '0' },
+];
 
 /** Thresholds of the flags (Lean `thresholds`: 1/5, 23/25, 209/400). The original's tests are strict `>`. */
 export const THETA_DARK = 1 / 5;

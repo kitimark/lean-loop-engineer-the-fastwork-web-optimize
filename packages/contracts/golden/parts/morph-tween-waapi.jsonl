@@ -9,3 +9,14 @@
 {"base":"rewrite","countType":"Paint","engine":"webkit","prediction":"=o","scenario":"swipe-v1","stage":"paint","variant":"rewrite+?fw=morph.tween:waapi"}
 {"base":"rewrite","countType":"Composite","engine":"webkit","prediction":"=o","scenario":"swipe-v1","stage":"commit","variant":"rewrite+?fw=morph.tween:waapi"}
 {"base":"rewrite+?fw=morph.tween:waapi","countType":"trace.Animation.compositeFailedBits","engine":"chromium","prediction":"<o","scenario":"swipe-v1","stage":"comp","variant":"rewrite"}
+{"inherits":true,"initialValue":"0","name":"--morph","syntax":"<number>"}
+{"inherits":true,"initialValue":"1","name":"--morph-fade","syntax":"<number>"}
+{"inherits":false,"initialValue":"0","name":"--fw-morph-dark","syntax":"<number>"}
+{"inherits":false,"initialValue":"0","name":"--fw-morph-expanded","syntax":"<number>"}
+{"depth":0,"prop":"--morph","sel":"nav"}
+{"depth":2,"prop":"--morph","sel":"logo"}
+{"depth":2,"prop":"--morph","sel":"actions"}
+{"depth":3,"prop":"--morph","sel":"earn"}
+{"depth":1,"prop":"--morph","sel":"panel"}
+{"depth":0,"prop":"--morph","sel":"section"}
+{"depth":0,"prop":"--morph-fade","sel":"section"}
