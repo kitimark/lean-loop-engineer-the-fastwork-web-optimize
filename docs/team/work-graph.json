@@ -6016,7 +6016,8 @@
     "lean/scripts/SearchGolden.lean",
     "lean/scripts/check.sh",
     "packages/contracts/golden/gate/search.jsonl"
-   ]
+   ],
+   "evidence": "521c61b"
   },
   {
    "devices": [
