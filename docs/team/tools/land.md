@@ -25,6 +25,13 @@ force push), waits with `fw ci wait` (no CPU: one sleeping child per slice) and 
   `lane: sha=.. digest=..` (land.yml); a pass for another sha or suite list is ignored. Any provider's fail refuses.
 - Fallback is explicit, never silent: provider unavailable -> try the next allowed provider, else the remote tier runs on this Mac
   and the log says `remote: running the remote tier on this Mac instead (<reason>)`. Cancelled or timed out: same.
+- `fw ci wait` exit 3 means a run still going only when its output says `timed out after`; a stopped poller or a refused gh call
+  is `unavailable` (no retry on a refusal). A `running` poll that returns before its slice is slept out, so waiting costs no CPU.
+- Before the push, `scripts/scrub.mjs --range origin/main <C>` scans the lines the push adds (home paths, LAN IPs, emails, ...);
+  a hit makes the provider `unavailable` with `personal-data scan refused ...` and the remote tier runs here. If `origin/main` is
+  missing the scan fails the same way (closed). The waiter runs in its own process group; an abort stops the whole group.
+- The lane step runs only when the suites step ran and has a 40-hex sha and a digest in its name; an empty name binds nothing
+  and the failed run refuses (`remote-lane-failed`).
 - A failing local tier ends the wait and refuses. Spans: `remote push`, `remote queue`, `remote lane`, `local tier`.
 - `remote: false` (option) and an injected `checks` run everything here. The fallback protocol (locked) stays all-local.
 - Providers: GitHub is complete; the CircleCI adapter is a stub (`unavailable`), a follow-up after circleci-pilot lands.
