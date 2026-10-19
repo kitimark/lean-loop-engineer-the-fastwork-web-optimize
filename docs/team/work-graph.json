@@ -5857,7 +5857,16 @@
    "milestone": "M5",
    "deps": [],
    "owner": "console-builder",
-   "writes": []
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-inputs.test.ts",
+    "apps/runner/test/land-scope.test.ts",
+    "docs/team/handoffs/land-select-readsonly.md",
+    "docs/team/tools/land.md",
+    "lean/Fw/Console/LandDry.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "packages/contracts/golden/console/land-speed.jsonl"
+   ]
   },
   {
    "devices": [
@@ -5953,7 +5962,16 @@
     "apps/console-api/test/**",
     "apps/runner/hooks/**",
     "scripts/lint-wallclock.mjs",
-    "docs/team/handoffs/land-wallclock-off-gate.md"
+    "docs/team/handoffs/land-wallclock-off-gate.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Console/WallClock.lean",
+    "lean/Fw.lean",
+    "package.json",
+    "packages/*/test/**",
+    "packages/contracts/golden/console/wallclock.jsonl",
+    "scripts/lint-wallclock.test.mjs",
+    "scripts/lint-wallclock-cases/**",
+    "scripts/wallclock-allow.json"
    ]
   },
   {
