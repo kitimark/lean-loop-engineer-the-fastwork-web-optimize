@@ -1,0 +1,151 @@
+{
+ "tally": {
+  "modelBug": 0,
+  "pass": 2,
+  "unusable": 2
+ },
+ "verdicts": [
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.FireAnimationFrame",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "script",
+   "totals": {
+    "base": [
+     935,
+     935,
+     935
+    ],
+    "variant": [
+     935,
+     935,
+     935
+    ]
+   },
+   "variant": "hidden-pause",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "deterministic",
+    "variant": "deterministic"
+   },
+   "countType": "trace.UpdateLayoutTree",
+   "engine": "chromium",
+   "prediction": "≤o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "style",
+   "totals": {
+    "base": [
+     460,
+     460,
+     460
+    ],
+    "variant": [
+     460,
+     460,
+     460
+    ]
+   },
+   "variant": "hidden-pause",
+   "verdict": "pass",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.Layout",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "layout",
+   "totals": {
+    "base": [
+     128,
+     128,
+     128
+    ],
+    "variant": [
+     128,
+     128,
+     128
+    ]
+   },
+   "variant": "hidden-pause",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "deterministic",
+    "variant": "deterministic"
+   },
+   "countType": "trace.cc.Commit",
+   "engine": "chromium",
+   "prediction": "≤o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "commit",
+   "totals": {
+    "base": [
+     935,
+     935,
+     935
+    ],
+    "variant": [
+     935,
+     935,
+     935
+    ]
+   },
+   "variant": "hidden-pause",
+   "verdict": "pass",
+   "confounds": []
+  }
+ ],
+ "page": {
+  "part": "engine.scene",
+  "base": "39260614233",
+  "arm": "39260841413",
+  "baseSearch": "?only=engine.scene&stage=vw:430,vh:932",
+  "search": "?fw=engine.scene:hidden-pause&only=engine.scene&stage=vw:430,vh:932",
+  "pairs": [
+   "engine.scene:hidden-pause"
+  ],
+  "armFlags": [
+   "engine.scene:hidden-pause"
+  ],
+  "attribution": "MEASURED"
+ }
+}
