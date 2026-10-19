@@ -26,7 +26,7 @@ Checkpoint C3 of PLAN §10 (deadline 2026-10-19 23:15 +0700), decided at 22:55.
 | engine.scroll:batched, morph.tween:waapi | keep, unmeasured per part | no part page (accepted limit) |
 | hero.countdown:strip | out of `v2-proved`; reported "modelled, not proved" | its only prediction (census.layers below the original) is unchecked: 12960 = 12960 in every shard, which the stable class cannot refute. The strip arm MEASURED more pipeline work: UpdateLayoutTree / RecalcStyleCount 1161 -> 1182, commits 1064 -> 1085, UpdateLayoutTree.elementCount 11264 -> 22445 (runs 39257533380, 39259074927). Not falsified, so the drop rule does not force it; out because G1 asks for a checked theorem pair |
 
-The generated preset still lists `hero.countdown:strip` until the follow-up `c3-preset-update` adds it to the curated exclusions in `lean/Fw/Preset/Gen.lean` and regenerates the preset.
+`c3-preset-update` (landed 639f9475) adds `hero.countdown:strip` and `morph.countdown:strip` to the curated exclusions in `lean/Fw/Preset/Gen.lean`; the generated `v2-proved` now has 9 flags. Re-run on main at 639f9475, run 39282664077: Chromium pass (7056 readings, 0 fail, 7 excused); WebKit 0 fail, 291 excused, incomplete only by the 2 phone-rotation NC cells, the same as run 39271987926. MEASURED
 
 ## Findings recorded at C3
 
