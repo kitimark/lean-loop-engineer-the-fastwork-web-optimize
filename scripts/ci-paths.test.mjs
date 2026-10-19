@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { decide, loadIntent, matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
-import { coarseMap, coneOf, coneProblems, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
+import { coarseMap, coneOf, coneProblems, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -158,30 +158,73 @@ test('lint: a new root job that does not wait for the guard is reported', () => 
   assert.deepEqual(unguarded(readJobs(r.text.split('\n'))), []);
 });
 
-test('main pushes: only the Lean seeders\' workflows list main, and the seeders are the Lake cache writers', () => {
-  const seedFiles = [...new Set(table.seeders.map((s) => s.file))];
-  assert.deepEqual(table.workflows.filter((w) => w.branches.includes('main')).map((w) => w.file), seedFiles);
-  assert.deepEqual(table.seeders.map((s) => `${s.file}/${s.job}`), lakeJobs(root).filter((r) => r.saves).map((r) => `${r.file}/${r.job}`));
-  for (const w of table.workflows) assert.ok(w.branches.filter((b) => b !== 'main').every((b) => b.startsWith('ci/')), w.file);
+const goldenLines = readFileSync(join(root, 'packages/contracts/golden/ci/triggers.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+
+test('main pushes: only the seeders\' workflows list main, and the cache writers equal Lean cacheWriters', () => {
+  const seedFiles = [...new Set(table.seeders.map((s) => s.file))].sort();
+  assert.deepEqual(table.workflows.filter((w) => w.branches.includes('main')).map((w) => w.file).sort(), seedFiles);
+  assert.deepEqual(cacheWriters(root), table.cacheWriters.map((w) => `${w.file}/${w.job}/${w.cache}`).sort());
+  for (const s of table.seeders) assert.ok(table.cacheWriters.some((w) => w.file === s.file && w.job === s.job), `${s.file}/${s.job} saves no cache`);
+  for (const w of table.workflows) {
+    assert.ok(w.branches.filter((b) => b !== 'main').every((b) => b.startsWith('ci/')), w.file);
+    assert.deepEqual(w.crons, [], w.file);
+  }
 });
 
-test('lint: a non-seeder job of a main workflow without the notMainPush conjunct is reported and fixed', () => {
+test('Lean golden if forms: notMainIf equals Lean withNotMain, carriesNotMain equals Lean carriesNotMain', () => {
+  const forms = goldenLines.filter((l) => l.kind === 'ifForm');
+  const checks = goldenLines.filter((l) => l.kind === 'ifCheck');
+  assert.ok(forms.length >= 5 && checks.length >= 5);
+  for (const f of forms) {
+    assert.equal(notMainIf(f.orig, table.notMainPush), f.emitted, String(f.orig));
+    assert.equal(carriesNotMain(f.emitted, table.notMainPush), f.carries, f.emitted);
+  }
+  for (const c of checks) assert.equal(carriesNotMain(c.text, table.notMainPush), c.carries, c.text);
+});
+
+test('withNotMain: `a || b` is grouped before the conjunct; `(x) || true` and a bare `&&` suffix are refused', () => {
+  const x = 'x';
+  assert.equal(withNotMain('${{ a || b }}', x), '${{ (a || b) && (x) }}');
+  assert.ok(carriesNotMain(withNotMain('${{ a || b }}', x), x));
+  assert.ok(!carriesNotMain('${{ (x) || true }}', x));
+  assert.ok(!carriesNotMain('${{ a || b && (x) }}', x));
+  assert.ok(!carriesNotMain('${{ (a) || (b) && (x) }}', x));
+  assert.equal(withNotMain('${{ (x) || true }}', x), '${{ ((x) || true) && (x) }}');
+  assert.equal(withNotMain('${{ (a) && (x) }}', x), '${{ (a) && (x) }}');
+  assert.equal(withNotMain('', x), '${{ (x) }}');
+});
+
+test('lint: a non-seeder job of a main workflow without the notMainPush form is reported and fixed', () => {
   const lean = readFileSync(join(root, WF, 'lean.yml'), 'utf8');
   const leanRow = table.workflows.find((w) => w.file === 'lean.yml');
   const intent = loadIntent(root).lanes;
   const lane = { ...intent.lanes.find((l) => l.file === 'lean.yml'), decision: intent.decision, recheck: intent.recheck };
   const main = { jobs: ['lean'], conj: table.notMainPush };
-  const c = ` && (${table.notMainPush})`;
-  assert.ok(lean.includes(c));
-  const bad = lean.replace(c, '');
-  const r = reconcile('lean.yml', bad, leanRow, lane, main);
-  assert.ok(r.problems.some((p) => /mathview-differential would run on a main push/.test(p)), r.problems.join('\n'));
-  assert.equal(r.text, lean);
+  const good = `if: \${{ (needs.guard.outputs.run == 'true') && (${table.notMainPush}) }}`;
+  assert.ok(lean.includes(good));
+  for (const bad of [`if: \${{ needs.guard.outputs.run == 'true' }}`, `if: \${{ needs.guard.outputs.run == 'true' || (${table.notMainPush}) }}`]) {
+    const r = reconcile('lean.yml', lean.replace(good, bad), leanRow, lane, main);
+    assert.ok(r.problems.some((p) => /mathview-differential would run on a main push/.test(p)), r.problems.join('\n'));
+    assert.ok(reconcile('lean.yml', r.text, leanRow, lane, main).problems.length === 0);
+  }
+  assert.equal(reconcile('lean.yml', lean.replace(good, `if: \${{ needs.guard.outputs.run == 'true' }}`), leanRow, lane, main).text, lean);
   assert.deepEqual(reconcile('lean.yml', lean, leanRow, lane, main).problems, []);
   const seederSkips = reconcile('lean.yml', lean, leanRow, lane, { ...main, jobs: ['lean', 'mathview-differential'] });
   assert.ok(seederSkips.problems.some((p) => /is a seeder .* skips a main push/.test(p)), seederSkips.problems.join('\n'));
-  assert.equal(withNotMain("${{ a == 'b' }}", 'x'), "${{ a == 'b' && (x) }}");
-  assert.equal(withNotMain('${{ a && (x) }}', 'x'), '${{ a && (x) }}');
+});
+
+test('lint: a schedule is reported and removed (Lean no_crons: a schedule runs on main)', () => {
+  const bad = sample.replace(`${pushLine}\n`, `${pushLine}\n  schedule:\n    - cron: '23 4 * * *'\n`);
+  assert.notEqual(bad, sample);
+  const r = reconcile('gate-gaps.yml', bad, row);
+  assert.ok(r.problems.some((p) => /on\.schedule differs/.test(p)), r.problems.join('\n'));
+  assert.equal(r.text, sample);
+});
+
+test('the guard comment names main only where the row lists main', () => {
+  assert.ok(guardComment({ branches: ['ci/**', 'main'] }).join('\n').includes('only the cache seeders'));
+  assert.ok(guardComment({ branches: ['ci/**'] }).join('\n').includes('A main push starts no run'));
+  assert.ok(!guardComment({ branches: ['ci/**'] }).join('\n').includes('schedule'));
 });
 
 test('renderPush writes the branches and no paths', () => {

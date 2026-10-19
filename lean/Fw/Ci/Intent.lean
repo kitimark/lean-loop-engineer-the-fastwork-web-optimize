@@ -395,9 +395,9 @@ def ifExpr (l : Lane) : String :=
   if l.byDefault then ""
   else "${{ " ++ recordExpr ++ " || " ++ containsExpr (String.ofList (tok l.name)) ++ " }}"
 
-#guard ifExpr (laneOf ⟨"wktr.yml", [], []⟩) ==
+#guard ifExpr (laneOf ⟨"wktr.yml", [], [], []⟩) ==
   "${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:wktr]') }}"
-#guard ifExpr (laneOf ⟨"lean.yml", [], []⟩) == ""
+#guard ifExpr (laneOf ⟨"lean.yml", [], [], []⟩) == ""
 
 /-! ## The heavy job's tip re-check (round 3)
 

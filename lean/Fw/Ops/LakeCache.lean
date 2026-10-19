@@ -161,8 +161,9 @@ theorem table_complete {H : Type} (w : LakeJob) (hw : writerOf jobs = some w) (d
     ∀ j ∈ jobs, ∀ m, ¬ Rebuilds deps hash (afterBuild deps hash C w.targets) j.targets m :=
   ok_complete jobs jobs_ok w hw deps hash C hf
 
-/-- The jobs a `main` push runs (`Fw.Ci.Trigger.seeders`) are the Lake cache writers. -/
-theorem seeders_are_writers : Fw.Ci.Trigger.seeders = (jobs.filter (·.saves)).map fun j => (j.file, j.job) := by
+/-- The Lake cache writers of the generated job table are the `.lake-cache` rows of `Fw.Ci.Trigger.cacheWriters`. -/
+theorem lake_writers : (jobs.filter (·.saves)).map (fun j => (j.file, j.job, ".lake-cache")) =
+    Fw.Ci.Trigger.cacheWriters.filter (·.2.2 == ".lake-cache") := by
   decide
 
 end Fw.Ops.LakeCache

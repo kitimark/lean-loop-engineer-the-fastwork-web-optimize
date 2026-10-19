@@ -17,8 +17,8 @@ jobs:
   # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
   # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
   # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole
-  # branch is an input. A main push runs when its own diff passes the coarse paths; dispatches, schedules always run.
-  # Fails open.
+  # branch is an input. A main push runs when its own diff passes the coarse paths, and then only the cache seeders
+  # (Lean Fw.Ci.Trigger.seeders); dispatches always run. Fails open.
   # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
   guard:
     runs-on: ubuntu-24.04-arm
@@ -109,7 +109,7 @@ jobs:
   # modules whose key changed. `mathview-cached.sh --diff` runs both and compares.
   mathview-differential:
     needs: [guard]
-    if: ${{ needs.guard.outputs.run == 'true' && (github.event_name != 'push' || github.ref != 'refs/heads/main') }}
+    if: ${{ (needs.guard.outputs.run == 'true') && (github.event_name != 'push' || github.ref != 'refs/heads/main') }}
     concurrency:
       group: ci-lane:lean:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:mathview-differential:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
