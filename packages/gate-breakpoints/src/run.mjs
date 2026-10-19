@@ -342,14 +342,13 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   if (DIAG_CV) {
     // Variants: [load offset, steps]. R<d> = resize to width+d, S = settle, r = snapshot, c = the gate's own collect.
     const VARIANTS = {
-      A: [0, ['S', 'c', 'r']],
-      B: [1, ['R0', 'S', 'c', 'r']],
-      C: [1, ['r', 'R0', 'r', 'S', 'c']],
-      D: [0, ['R1', 'S', 'c', 'r']],
-      E: [0, ['r', 'R1', 'r', 'S', 'c']],
-      F: [1, ['R0', 'R1', 'R0', 'S', 'c', 'r']],
-      G: [0, ['R-1', 'S', 'c', 'r']],
-      H: [1, ['r', 'S', 'r', 'R0', 'S', 'c', 'r']],
+      A: [0, ['S', 'c', 'c', 'r']],
+      B: [1, ['R0', 'S', 'c', 'c', 'r']],
+      C: [0, ['r', 'R1', 'r', 'R0', 'r']],
+      D: [0, ['S', 'c', 'R1', 'c', 'R0', 'c']],
+      E: [1, ['R0', 'S', 'c', 'R1', 'c', 'R0', 'c']],
+      F: [0, ['S', 'c', 'R-1', 'c']],
+      G: [1, ['R0', 'S', 'r', 'r', 'c']],
     };
     const N = Number(process.env.FW_DIAG_LOADS || 12);
     const sel = (site, role) => partsArg[site].commission.find((r) => r.role === role).selector;
@@ -365,17 +364,17 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
             const out = { engine: engineName, site, width, k, variant: name, snaps: [] };
             try {
               await withTimeout((async () => {
-                const INNER = sel(site, 'inner');
+                const INNER = sel(site, 'inner'), ROWS = sel(site, 'rows');
                 await parkEarly(s, env);
                 const rec = newRec();
                 await evalReady(s, site, rec);
                 let touched = false, used = -1, cur = at(off);
                 for (const st of steps) {
                   if (st === 'S') { await settleArm(s, site, cur); touched = true; }
-                  else if (st === 'r') { out.snaps.push(await s.evaluate(diagSnap, { inner: INNER, tag: 'r' + out.snaps.length })); touched = true; }
+                  else if (st === 'r') { out.snaps.push(await s.evaluate(diagSnap, { inner: INNER, rows: ROWS, tag: 'r' + out.snaps.length })); touched = true; }
                   else if (st === 'c') {
                     const raw = await evalCollect(s, site, cur, collectProps, null, false, frozen ? { base: stopBase(Math.max(used, 0), readingCount(false)), rec } : null, null, null);
-                    out.collect = raw.parts.commission.inner.items[0].style['margin-inline-start']; touched = true;
+                    (out.cs ||= []).push([raw.parts.commission.inner.items[0].style['margin-inline-start'], raw.parts.commission.rows.items[0].style['margin-inline-start']]); touched = true;
                   } else {
                     const d = Number(st.slice(1)); cur = at(d);
                     used = touched && used < 0 ? 1 : used + 1; await resizeTo(s, cur, used, false, rec);
