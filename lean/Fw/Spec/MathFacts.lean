@@ -48,32 +48,27 @@ namespace Fw.Spec.MathFacts
 /-! ## Pure decisions -/
 
 /-- How a theorem's proof is built: a closed data lint, a reflexivity proof, a statement that holds by unfolding, or a
-general proof. Only `general` proofs count as behaviour proofs for the gate.
-$$\mathrm{ProofClass} = \{\mathrm{closed}, \mathrm{rfl}, \mathrm{defEq}, \mathrm{general}\}$$ -/
+general proof. Only `general` proofs count as behaviour proofs for the gate. -/
 inductive ProofClass where
   | closed | rfl | defEq | general
 deriving DecidableEq, Repr, Inhabited, ToJson, FromJson, ToExpr
 
-/-- The name the export prints for a class.
-$$\operatorname{tag}(\mathrm{closed}) = \texttt{closed},\ \operatorname{tag}(\mathrm{rfl}) = \texttt{rfl},\ \operatorname{tag}(\mathrm{defEq}) = \texttt{defEq},\ \operatorname{tag}(\mathrm{general}) = \texttt{general}$$ -/
+/-- The name the export prints for a class. -/
 def ProofClass.tag : ProofClass → String
   | .closed => "closed" | .rfl => "rfl" | .defEq => "defEq" | .general => "general"
 
 #guard [ProofClass.closed, .rfl, .defEq, .general].map ProofClass.tag == ["closed", "rfl", "defEq", "general"]
 
-/-- The reflexivity proof heads: `Eq.refl`, `rfl`, `Iff.rfl`, `Iff.refl`, `HEq.refl`, `HEq.rfl`.
-$$H_{\mathrm{rfl}} = \{\texttt{Eq.refl}, \texttt{rfl}, \texttt{Iff.rfl}, \texttt{Iff.refl}, \texttt{HEq.refl}, \texttt{HEq.rfl}\}$$ -/
+/-- The reflexivity proof heads: `Eq.refl`, `rfl`, `Iff.rfl`, `Iff.refl`, `HEq.refl`, `HEq.rfl`. -/
 def rflHeads : List Name := [``Eq.refl, ``rfl, ``Iff.rfl, ``Iff.refl, ``HEq.refl, ``HEq.rfl]
 
-/-- The decision-procedure proof head: `of_decide_eq_true` (what `decide` and `decide +kernel` build).
-$$H_{\mathrm{dec}} = \{\texttt{of\_decide\_eq\_true}\}$$ -/
+/-- The decision-procedure proof head: `of_decide_eq_true` (what `decide` and `decide +kernel` build). -/
 def decideHeads : List Name := [``of_decide_eq_true]
 
-/-- What the classification reads of a theorem: the number $b$ of leading binders of its statement (hypotheses
-included, nothing unfolded), the head constant $h$ of its proof under the leading `fun`s, after unfolding the
+/-- What the classification reads of a theorem: the number `b` of leading binders of its statement (hypotheses
+included, nothing unfolded), the head constant `h` of its proof under the leading `fun`s, after unfolding the
 theorem's own auxiliary proofs (`foo._proof_1`), or none when that head is not a constant, and whether its result type
-(under the binders) is an `Eq`, `Iff` or `HEq` whose two sides are definitionally equal ($d$).
-$$\mathrm{Shape} = \mathbb{N} \times \mathrm{Option}(\mathrm{Name}) \times \mathrm{Bool},\quad (b, h, d)$$ -/
+(under the binders) is an `Eq`, `Iff` or `HEq` whose two sides are definitionally equal (`d`). -/
 structure Shape where
   /-- Leading binders of the statement. -/
   binders : Nat
@@ -83,9 +78,8 @@ structure Shape where
   sidesDefEq : Bool
 deriving Repr
 
-/-- **The classification**, first match:
-$$\operatorname{classify}(b, h, d) = \begin{cases} \mathrm{closed} & b = 0 \land h \in H_{\mathrm{rfl}} \cup H_{\mathrm{dec}} \\ \mathrm{rfl} & \text{else if } h \in H_{\mathrm{rfl}} \\ \mathrm{defEq} & \text{else if } d \\ \mathrm{general} & \text{otherwise} \end{cases}\qquad (\bot \notin H_{\mathrm{rfl}} \cup H_{\mathrm{dec}})$$
-A missing head ($h = \bot$) is in no head set. A closed statement proved by `decide` or reflexivity is a data lint; a
+/-- **The classification**, first match.
+A missing head (`h = ⊥`) is in no head set. A closed statement proved by `decide` or reflexivity is a data lint; a
 reflexivity proof with binders is a defining equation; a statement whose sides are definitionally equal holds by
 unfolding however it was proved. -/
 def classify (s : Shape) : ProofClass :=
@@ -103,8 +97,7 @@ def classify (s : Shape) : ProofClass :=
 #guard classify ⟨0, none, false⟩ == .general
 #guard classify ⟨3, some ``And.left, false⟩ == .general
 
-/-- **Only a closed statement is closed.** For every shape: if the class is `closed`, the statement has no binders.
-$$\forall s,\ \operatorname{classify}(s) = \mathrm{closed} \Rightarrow s.b = 0$$ -/
+/-- **Only a closed statement is closed.** For every shape: if the class is `closed`, the statement has no binders. -/
 theorem closed_binders (s : Shape) (h : classify s = .closed) : s.binders = 0 := by
   unfold classify at h
   split at h
@@ -116,8 +109,7 @@ theorem closed_binders (s : Shape) (h : classify s = .closed) : s.binders = 0 :=
     · split at h <;> cases h
 
 /-- **A non-reflexivity proof of a non-definitional statement is general.** For every shape whose proof head is not a
-reflexivity or decision head and whose sides are not definitionally equal, the class is `general`.
-$$\forall s,\ s.h \notin H_{\mathrm{rfl}} \cup H_{\mathrm{dec}} \land \lnot s.d \Rightarrow \operatorname{classify}(s) = \mathrm{general}$$ -/
+reflexivity or decision head and whose sides are not definitionally equal, the class is `general`. -/
 theorem general_of (s : Shape)
     (hh : s.head.any (fun h => rflHeads.contains h || decideHeads.contains h) = false)
     (hd : s.sidesDefEq = false) : classify s = .general := by
@@ -135,8 +127,7 @@ theorem general_of (s : Shape)
   rfl
 
 /-- **Which argument is the implementation.** Given, for each argument of the statement's head in order, whether its
-type is the implementation type of a registered signature, the index of the first such argument, or none.
-$$\operatorname{implIdx}([t_0, \dots, t_{n-1}]) = \begin{cases} \min\{i : t_i\} & \exists i,\ t_i \\ \bot & \text{otherwise} \end{cases}$$ -/
+type is the implementation type of a registered signature, the index of the first such argument, or none. -/
 def implIdx (isImpl : List Bool) : Option Nat := isImpl.findIdx? id
 
 -- `Convention s impl P`: `s : Sig`, `impl : s.Dom → s.Cod`, `P : Property (s.Dom → s.Cod)`
@@ -148,8 +139,7 @@ def implIdx (isImpl : List Bool) : Option Nat := isImpl.findIdx? id
 #guard implIdx [true, true] == some 0
 
 /-- A registry row as the facts see it: its ledger id, the name of the row's definition (when the registry lists it by
-name) and the name of its replay.
-$$\mathrm{Row} = \mathrm{String} \times \mathrm{Option}(\mathrm{Name}) \times \mathrm{Name},\quad (\iota, \rho, r)$$ -/
+name) and the name of its replay. -/
 structure Row where
   /-- The ledger id. -/
   id : String
@@ -159,11 +149,10 @@ structure Row where
   replay : Name
 deriving Repr
 
-/-- **The incident a theorem kills.** A theorem kills the row whose definition or replay is the target $t$ of its
-implementation argument (the replay `i.replay` of a row $i$ targets $i$; a named replay targets itself), provided its
+/-- **The incident a theorem kills.** A theorem kills the row whose definition or replay is the target `t` of its
+implementation argument (the replay `i.replay` of a row `i` targets `i`; a named replay targets itself), provided its
 result type is a negation. The first such row in registry order; none when the statement is not a negation, has no
-target, or no row matches.
-$$\operatorname{killOf}(\nu, t, R) = \begin{cases} \iota_k & \nu \land t \ne \bot \land k = \min\{k : \rho_k = t \lor r_k = t\} \\ \bot & \text{otherwise} \end{cases}$$ -/
+target, or no row matches. -/
 def killOf (negated : Bool) (target : Option Name) (rows : List Row) : Option String :=
   if negated then
     target.bind fun t => (rows.find? fun r => r.row == some t || r.replay == t).map (·.id)
@@ -180,9 +169,8 @@ def killOf (negated : Bool) (target : Option Name) (rows : List Row) : Option St
 /-- **The `Fw.` identifiers of a source text** (a generator script under `lean/scripts/`): every maximal run of
 identifier characters (ASCII letters and digits, `_`, `'`, `.`; any other character, Unicode letters included, ends a
 run) that, with its trailing dots dropped, starts with the string `Fw.`, in order of first occurrence, without
-repeats. Below, $\operatorname{runs}_C(s)$ lists the maximal runs of characters of $C$ in $s$, and
-$\sqsubseteq_{\mathrm{str}}$ reads "is a string prefix of".
-$$\forall s,\ \operatorname{fwIdents}(s) = \operatorname{dedup}[\operatorname{rtrim}_{\texttt{.}}(w) : w \in \operatorname{runs}_{[\texttt{A-Za-z0-9\_'.}]}(s),\ \texttt{"Fw."} \sqsubseteq_{\mathrm{str}} \operatorname{rtrim}_{\texttt{.}}(w)]$$ -/
+repeats. Below, `runs_C(s)` lists the maximal runs of characters of `C` in `s`, and
+`⊑_str` reads "is a string prefix of". -/
 def fwIdents (src : String) : List String := Id.run do
   let isId (c : Char) := c.isAlphanum || c == '_' || c == '\'' || c == '.'
   let mut out : Array String := #[]
@@ -204,9 +192,8 @@ def fwIdents (src : String) : List String := Id.run do
 #guard fwIdents "Fw.x₁ Fw.y" == ["Fw.x", "Fw.y"]
 
 /-- **Is a theorem reachable from the wire?** Per subject, no aggregate: with no subjects the answer is unknown (null:
-a human looks); otherwise true only when every subject is in the wire reach $W$ (passed as its membership test), and
-false when some subject is not, so one dead subject makes the theorem false however many wired subjects it names.
-$$\forall S, W,\ \operatorname{reachFromWire}(S, W) = \begin{cases} \bot & S = [\,] \\ \mathrm{true} & S \ne [\,] \land \forall x \in S,\ x \in W \\ \mathrm{false} & S \ne [\,] \land \exists x \in S,\ x \notin W \end{cases}$$ -/
+a human looks); otherwise true only when every subject is in the wire reach `W` (passed as its membership test), and
+false when some subject is not, so one dead subject makes the theorem false however many wired subjects it names. -/
 def reachFromWire (subjects : List String) (inWire : String → Bool) : Option Bool :=
   if subjects.isEmpty then none else some (subjects.all inWire)
 
@@ -219,17 +206,15 @@ def reachFromWire (subjects : List String) (inWire : String → Bool) : Option B
 #guard reachFromWire ["Fw.DeviceQueue.dispatch", "Fw.DeviceQueue.fits", "Fw.DeviceQueue.before"]
   ["Fw.DeviceQueue.before"].contains == some false
 
-/-- **Each subject with its wire bit**, in subject order, so a gate can name the dead subject.
-$$\forall S, W,\ \operatorname{subjectsWire}(S, W) = [(x,\ x \in W) : x \in S]$$ -/
+/-- **Each subject with its wire bit**, in subject order, so a gate can name the dead subject. -/
 def subjectsWire (subjects : List String) (inWire : String → Bool) : List (String × Bool) :=
   subjects.map fun x => (x, inWire x)
 
 #guard subjectsWire ["Fw.a", "Fw.b"] ["Fw.b"].contains == [("Fw.a", false), ("Fw.b", true)]
 #guard subjectsWire [] ["Fw.b"].contains == []
 
-/-- **True means every subject is wired.** For every subject list $S$ and wire test $W$: if `reachFromWire` is true,
-every subject is in $W$, so no theorem with a dead subject is reported true (inc-proof-of-dead-code).
-$$\forall S, W,\ \operatorname{reachFromWire}(S, W) = \mathrm{true} \Rightarrow \forall x \in S,\ x \in W$$ -/
+/-- **True means every subject is wired.** For every subject list `S` and wire test `W`: if `reachFromWire` is true,
+every subject is in `W`, so no theorem with a dead subject is reported true (inc-proof-of-dead-code). -/
 theorem wire_all (S : List String) (W : String → Bool) (h : reachFromWire S W = some true) :
     ∀ x ∈ S, W x = true := by
   unfold reachFromWire at h
@@ -238,9 +223,8 @@ theorem wire_all (S : List String) (W : String → Bool) (h : reachFromWire S W 
   · simp only [Option.some.injEq, List.all_eq_true] at h
     exact h
 
-/-- **False names a dead subject.** For every subject list $S$ and wire test $W$: `reachFromWire` is false exactly when
-`subjectsWire` lists some subject with the bit false.
-$$\forall S, W,\ \operatorname{reachFromWire}(S, W) = \mathrm{false} \iff \exists x,\ (x, \mathrm{false}) \in \operatorname{subjectsWire}(S, W)$$ -/
+/-- **False names a dead subject.** For every subject list `S` and wire test `W`: `reachFromWire` is false exactly when
+`subjectsWire` lists some subject with the bit false. -/
 theorem wire_false_iff (S : List String) (W : String → Bool) :
     reachFromWire S W = some false ↔ ∃ x, (x, false) ∈ subjectsWire S W := by
   unfold reachFromWire subjectsWire
@@ -255,19 +239,17 @@ theorem wire_false_iff (S : List String) (W : String → Bool) :
     · rintro ⟨x, y, hy, rfl, hw⟩
       exact ⟨y, hy, by simp [hw]⟩
 
-/-- **Null means no subjects.** For every subject list $S$ and wire test $W$: `reachFromWire` is null exactly when
-$S$ is empty.
-$$\forall S, W,\ \operatorname{reachFromWire}(S, W) = \bot \iff S = [\,]$$ -/
+/-- **Null means no subjects.** For every subject list `S` and wire test `W`: `reachFromWire` is null exactly when
+`S` is empty. -/
 theorem wire_none_iff (S : List String) (W : String → Bool) : reachFromWire S W = none ↔ S = [] := by
   unfold reachFromWire
   cases S <;> simp
 
 /-! ## The facts of one theorem (glue) -/
 
-/-- The facts of one theorem, as the export stores them, one per field: head constant $h$, implementation argument
-index $i$ and printed argument $a$, premise ids $A$, killed incident id $k$, class $c$, reach, and the subjects $S$
-that `reachFromWire` and `subjectsWire` read.
-$$\mathrm{Facts} = (h, i, a, A, k, c, \mathit{reach}, S)$$ -/
+/-- The facts of one theorem, as the export stores them, one per field: head constant `h`, implementation argument
+index `i` and printed argument `a`, premise ids `A`, killed incident id `k`, class `c`, reach, and the subjects `S`
+that `reachFromWire` and `subjectsWire` read. -/
 structure Facts where
   /-- Head constant of the result type, under one `¬`. -/
   headConst : Option String := none
@@ -289,19 +271,16 @@ deriving Repr, Inhabited, ToJson, FromJson, ToExpr
 
 /-- The scope of the facts: modules under `Fw`, and the anonymous module, which `Reach.modOf` returns for a name the
 environment does not know or declares in no module (`importModules` sets no main module; `Reach.closure` still drops
-names that are not in the environment).
-$$\mathrm{scope} = ([\texttt{Fw}],\ \texttt{.anonymous}),\quad \forall m,\ \operatorname{project}_{\mathrm{scope}}(m) \iff \operatorname{root}(m) = \texttt{Fw} \lor m = \texttt{.anonymous}$$ -/
+names that are not in the environment). -/
 def scope : Reach.Scope := ⟨[`Fw], .anonymous⟩
 
-/-- An expression under its leading `fun`s and metadata.
-$$\operatorname{body}(\lambda x.\ e) = \operatorname{body}(e),\quad \operatorname{body}(\mathrm{mdata}(e)) = \operatorname{body}(e),\quad \operatorname{body}(e) = e \text{ otherwise}$$ -/
+/-- An expression under its leading `fun`s and metadata. -/
 partial def lamBody : Expr → Expr
   | .lam _ _ b _ => lamBody b
   | .mdata _ e => lamBody e
   | e => e
 
-/-- The number of leading binders of a type (metadata skipped, nothing unfolded).
-$$\operatorname{binders}(\forall x : A,\ B) = 1 + \operatorname{binders}(B),\quad \operatorname{binders}(\mathrm{mdata}(e)) = \operatorname{binders}(e),\quad \operatorname{binders}(e) = 0 \text{ otherwise}$$ -/
+/-- The number of leading binders of a type (metadata skipped, nothing unfolded). -/
 partial def binderCount : Expr → Nat
   | .forallE _ _ b _ => binderCount b + 1
   | .mdata _ e => binderCount e
@@ -309,8 +288,7 @@ partial def binderCount : Expr → Nat
 
 /-- The head constant of a proof under its leading `fun`s, unfolding an auxiliary proof of the theorem itself
 (`n._proof_1`, `n.proof_1`, what `decide +kernel` and `by` blocks abstract) at most `fuel` times; `head` is the
-function of an application's spine, and none when it is not a constant.
-$$\operatorname{proofHead}_0(e) = \operatorname{head}(\operatorname{body}(e)),\qquad \operatorname{proofHead}_{k+1}(e) = \begin{cases} \operatorname{proofHead}_k(\mathrm{value}(c)) & \operatorname{body}(e) = c \text{ (no arguments)},\ \operatorname{prefix}(c) = n,\ c \text{ internal},\ c \text{ a theorem} \\ \operatorname{head}(\operatorname{body}(e)) & \text{otherwise} \end{cases}$$ -/
+function of an application's spine, and none when it is not a constant. -/
 def proofHead (env : Environment) (n : Name) : Nat → Expr → Option Name
   | 0, e => (lamBody e).getAppFn.constName?
   | fuel + 1, e =>
@@ -326,8 +304,7 @@ def proofHead (env : Environment) (n : Name) : Nat → Expr → Option Name
 
 /-- Run `x` without smart unfolding (`smartUnfolding := false`): smart unfolding reads the matcher extension, which the
 math view does not load (`importModules (loadExts := false)`), so with it a recursive definition does not unfold there
-while it does in an elaborated file; without it both unfold the same way (`facts%` agrees with the export).
-$$\operatorname{plainUnfold}(x) = x \text{ run with } \mathit{smartUnfolding} = \mathrm{false}$$ -/
+while it does in an elaborated file; without it both unfold the same way (`facts%` agrees with the export). -/
 def plainUnfold {α} (x : MetaM α) : MetaM α := withOptions (·.set `smartUnfolding false) x
 
 /-- Whether the result type of a statement (under its binders) is an `Eq`, `Iff` or `HEq` whose sides are
@@ -337,8 +314,7 @@ budget edge the answer does too. The canonical environment is the math-view expo
 `loadExts := false`, in `lake exe mathview`); `facts%` in an elaborated file can differ there (stated limit, one known
 case guarded in `Fw.Spec.MathFactsGuards`).
 `isDefEq` at default transparency also uses η, proof irrelevance, structure η and literal reduction, and does not
-unfold `@[irreducible]` definitions.
-$$\forall \tau, k,\ \operatorname{sidesDefEq}(\tau, k) \iff \tau = \forall \vec x,\ l \sim r \text{ with } {\sim} \in \{=, \leftrightarrow, \simeq\} \land l \equiv_{\mathrm{default}} r \text{ (isDefEq at default transparency) within } k \cdot 1000 \text{ heartbeats } (k = 0: \text{no limit})$$ -/
+unfold `@[irreducible]` definitions. -/
 def sidesDefEq (ty : Expr) (budget : Nat) : MetaM Bool :=
   withCurrHeartbeats <| withTheReader Core.Context (fun c => { c with maxHeartbeats := budget * 1000 }) <|
     tryCatchRuntimeEx (forallTelescope ty fun _ r => do
@@ -352,12 +328,10 @@ def sidesDefEq (ty : Expr) (budget : Nat) : MetaM Bool :=
       | some (l, r) => withTransparency .default (isDefEq l r)
       | none => pure false) fun _ => pure false
 
-/-- The heartbeat budget of `sidesDefEq`, in thousands.
-$$\mathrm{defEqBudget} = 2000$$ -/
+/-- The heartbeat budget of `sidesDefEq`, in thousands. -/
 def defEqBudget : Nat := 2000
 
-/-- Whether a type is the implementation type `Sig.Dom s → Sig.Cod s` of one of the signature constructors `sigs`.
-$$\operatorname{isImplType}(\tau) \iff \exists s \in \mathit{sigs},\ \tau \equiv (\operatorname{Dom}(s) \to \operatorname{Cod}(s))$$ -/
+/-- Whether a type is the implementation type `Sig.Dom s → Sig.Cod s` of one of the signature constructors `sigs`. -/
 def isImplType (sigs : List Name) (ty : Expr) : MetaM Bool := do
   for s in sigs do
     let dom ← whnf (mkApp (mkConst `Fw.Spec.Incidents.Sig.Dom) (mkConst s))
@@ -367,8 +341,7 @@ def isImplType (sigs : List Name) (ty : Expr) : MetaM Bool := do
 
 /-- The registry rows as `Row`s: id, row definition name (when the registry lists a named definition) and replay name;
 a row that does not reduce to an `Incident.mk` literal with a string id and a named replay is skipped. Below,
-$\operatorname{const}(e)$ is the name of $e$ when $e$ is a constant and $\bot$ otherwise.
-$$\operatorname{rows} = [(\iota, \operatorname{const}(i), r) : (s, i) \in \operatorname{registryRows},\ \operatorname{whnf}(i) = \mathrm{Incident.mk}(\_, \_, e_\iota, \_, r),\ \operatorname{strLit}(e_\iota) = \iota,\ r \text{ a constant}]$$ -/
+`const(e)` is the name of `e` when `e` is a constant and `⊥` otherwise. -/
 def rows : MetaM (List Row) := plainUnfold do
   let mut out : List Row := []
   for (_, e) in ← Reach.registryRows do
@@ -381,9 +354,8 @@ def rows : MetaM (List Row) := plainUnfold do
     | _ => continue
   return out
 
-/-- The target of an implementation argument: a constant $c$ itself, or the row $c$ of a projection `Incident.replay c`;
-none otherwise.
-$$\operatorname{target}(c) = c,\quad \operatorname{target}(\mathrm{replay}(c)) = c,\quad \operatorname{target}(e) = \bot \text{ otherwise}$$ -/
+/-- The target of an implementation argument: a constant `c` itself, or the row `c` of a projection `Incident.replay c`;
+none otherwise. -/
 def target (e : Expr) : Option Name :=
   let e := e.consumeMData
   match e with
@@ -391,16 +363,14 @@ def target (e : Expr) : Option Name :=
   | _ =>
     if e.isAppOf ``Fw.Spec.Props.Incident.replay then e.appArg!.consumeMData.constName? else none
 
-/-- The premise id of an `Assume p c` application, when `p` reduces to a structure literal with a literal id.
-$$\operatorname{premiseId}(\mathrm{Assume}(p, c)) = p.\mathit{id} \text{ when it reduces to a literal}$$ -/
+/-- The premise id of an `Assume p c` application, when `p` reduces to a structure literal with a literal id. -/
 def premiseId (p : Expr) : MetaM (Option String) := do
   try
     let idE ← mkAppM ``Fw.Spec.Props.Premise.id #[p]
     return some (← Reach.strLit idE)
   catch _ => return none
 
-/-- The `Assume p c` applications anywhere in an expression, outermost first.
-$$\operatorname{assumeApps}(e) = [p : \mathrm{Assume}(p, c) \text{ a subterm of } e]$$ -/
+/-- The `Assume p c` applications anywhere in an expression, outermost first. -/
 partial def assumeApps (e : Expr) : List Expr :=
   let here := match e.getAppFnArgs with
     | (``Fw.Spec.Props.Assume, #[p, _]) => [p]
@@ -415,8 +385,7 @@ partial def assumeApps (e : Expr) : List Expr :=
 
 /-- Whether a constant is a declaration the facts list: a project definition or opaque (and, when `thms` is set, a
 theorem) that the math view would export, so not an auxiliary recursor, a `noConfusion`, a projection, a reserved or
-internal name, nor a name with an `inst…` component.
-$$\operatorname{entryLike}_{T}(c) \iff \operatorname{project}(c) \land \operatorname{kind}(c) \in \{\mathrm{def}, \mathrm{opaque}\} \cup T \land \lnot\operatorname{generated}(c),\quad T = \begin{cases} \{\mathrm{theorem}\} & \mathit{thms} \\ \emptyset & \text{otherwise} \end{cases}$$ -/
+internal name, nor a name with an `inst…` component. -/
 def entryLike (c : Name) (thms : Bool) : MetaM Bool := do
   let env ← getEnv
   unless Reach.isProject scope (Reach.modOf env c) do return false
@@ -434,8 +403,7 @@ place: `MathView.skip` keeps it, it is imported (has a module index), its name i
 part, no component starts with `inst`, it has a source line (not generated, so no `ctorIdx` or `noConfusionType`),
 and it is neither an instance nor a structure projection. The export also keeps a reach name only when it is an
 exported entry name (`entryJson`), so a drift between this copy and `MathView` cannot list a name without an entry.
-Below, $\sqsubseteq_{\mathrm{str}}$ reads "is a substring of" and $\preceq_{\mathrm{str}}$ "is a string prefix of".
-$$\forall n, c,\ \operatorname{hasEntry}(n, c) \iff \lnot\operatorname{skip}(n, c) \land \operatorname{mod}(n) \ne \bot \land \lnot\operatorname{internal}(n) \land \texttt{.match\_} \not\sqsubseteq_{\mathrm{str}} n \land \lnot\exists x \in \operatorname{components}(n),\ \texttt{inst} \preceq_{\mathrm{str}} x \land \operatorname{line}(n) \ne 0 \land \lnot\operatorname{instance}(n) \land \lnot\operatorname{projection}(n)$$ -/
+Below, `⊑_str` reads "is a substring of" and `≼_str` "is a string prefix of". -/
 def hasEntry (n : Name) (ci : ConstantInfo) : MetaM Bool := do
   let env ← getEnv
   if MathView.skip env n ci || (env.getModuleIdxFor? n).isNone || n.isInternal then return false
@@ -446,15 +414,13 @@ def hasEntry (n : Name) (ci : ConstantInfo) : MetaM Bool := do
 
 /-- Whether a constant's type ends in a sort: under its binders, opened with `forallTelescopeReducing` (which unfolds
 to expose them), the result type in weak head normal form is `Sort u`. A type (`Counts : Type`), a type family or a
-predicate (`lt : Work → Work → Prop`) is sort-valued; an operation on data is not.
-$$\forall c,\ \operatorname{sortValued}(c) \iff \exists u,\ \tau_c \equiv_{\mathrm{whnf}} \forall \vec x,\ \mathrm{Sort}\ u$$ -/
+predicate (`lt : Work → Work → Prop`) is sort-valued; an operation on data is not. -/
 def sortValued (c : Name) : MetaM Bool := do
   let ci ← getConstInfo c
   forallTelescopeReducing ci.type fun _ r => return (← whnf r).isSort
 
 /-- The operations among constants: the `entryLike` definitions and opaques (theorems excluded) that have a math-view
-entry (`hasEntry`, so no generated `ctorIdx` or `ofNat`) and are not sort-valued, in order.
-$$\forall X,\ \operatorname{ops}(X) = [c \in X : \operatorname{entryLike}_{\emptyset}(c),\ \operatorname{hasEntry}(c, \operatorname{ci}(c)),\ \lnot\operatorname{sortValued}(c)]$$ -/
+entry (`hasEntry`, so no generated `ctorIdx` or `ofNat`) and are not sort-valued, in order. -/
 def opsOf (cs : List Name) : MetaM (List Name) := do
   let env ← getEnv
   cs.filterM fun c => do
@@ -466,10 +432,9 @@ def opsOf (cs : List Name) : MetaM (List Name) := do
 /-- The operations an inductive predicate is built from: starting from the project inductive predicates (inductives
 whose type ends in `Prop`) among `cs`, the `opsOf` the constants of their constructors' types, following each project
 inductive predicate those types name, each inductive once; definitions are not unfolded. The result is a list in
-breadth-first order (repeats are removed by `factsOf`). Below, $P(Z)$ is the set of project inductive predicates in
-$Z$ and $Y^{*}$ the least set with $P(X) \subseteq Y^{*}$ and $P(\operatorname{consts}(\tau_k)) \subseteq Y^{*}$ for
-every $I \in Y^{*}$ and $k \in \operatorname{ctors}(I)$.
-$$\forall X,\ \operatorname{set}(\operatorname{ctorOps}(X)) =\bigcup \{\operatorname{set}(\operatorname{ops}(\operatorname{consts}(\tau_k))) : I \in Y^{*},\ k \in \operatorname{ctors}(I)\}$$ -/
+breadth-first order (repeats are removed by `factsOf`). Below, `P(Z)` is the set of project inductive predicates in
+`Z` and `Y^(*)` the least set with `P(X) ⊆ Y^(*)` and `P(consts(τ_k)) ⊆ Y^(*)` for
+every `I ∈ Y^(*)` and `k ∈ ctors(I)`. -/
 def ctorOps (cs : List Name) : MetaM (List Name) := do
   let env ← getEnv
   let mut seen : NameSet := {}
@@ -490,21 +455,19 @@ def ctorOps (cs : List Name) : MetaM (List Name) := do
       todo := rest ++ ks
   return out
 
-/-- **The subjects of a theorem** with statement $\tau$ and implementation argument $a$: the operations among the
-constants of $a$ (or of $\tau$ when there is no implementation argument); when there are none, the operations its
-inductive predicates are built from (`ctorOps` over the constants of $\tau$); possibly empty.
-$$\forall \tau, a,\ \operatorname{subjects}(\tau, a) =\begin{cases} \operatorname{ops}(X) & \operatorname{ops}(X) \ne [\,] \\ \operatorname{ctorOps}(\operatorname{consts}(\tau)) & \text{otherwise} \end{cases},\quad X = \begin{cases} \operatorname{consts}(a) & a \ne \bot \\ \operatorname{consts}(\tau) & a = \bot \end{cases}$$ -/
+/-- **The subjects of a theorem** with statement `τ` and implementation argument `a`: the operations among the
+constants of `a` (or of `τ` when there is no implementation argument); when there are none, the operations its
+inductive predicates are built from (`ctorOps` over the constants of `τ`); possibly empty. -/
 def subjectsOf (ty : Expr) (implE : Option Expr) : MetaM (List Name) := do
   let base ← opsOf (match implE with | some a => a.getUsedConstants.toList | none => ty.getUsedConstants.toList)
   if base.isEmpty then ctorOps ty.getUsedConstants.toList else return base
 
-/-- **The facts of one theorem** $n$ with constant info `ci`, given the registry rows. Its head constant and
+/-- **The facts of one theorem** `n` with constant info `ci`, given the registry rows. Its head constant and
 implementation argument come from the result type under one `¬`; its premises from the `Assume` applications in the
 hypotheses with a literal id (deduplicated, in order); its kill from `killOf`; its class from `classify`; its reach
-from `closure` over the constants of its statement and proof, keeping the names other than $n$ that have a math-view
+from `closure` over the constants of its statement and proof, keeping the names other than `n` that have a math-view
 entry (`hasEntry`), sorted by printed name; its subjects from `subjectsOf`, without repeats. Runs under
-`plainUnfold`.
-$$\operatorname{factsOf}(n) = \bigl(h, i, a, A,\operatorname{killOf}(\nu, \operatorname{target}(a), R), \operatorname{classify}(\operatorname{binders}(\tau_n), \operatorname{proofHead}_4(v_n), \operatorname{sidesDefEq}(\tau_n, \mathrm{defEqBudget})),\operatorname{sort}\{c \in \operatorname{closure}(\operatorname{consts}(\tau_n) \mathbin{+\!\!+} \operatorname{consts}(v_n)) \mid c \ne n,\ \operatorname{hasEntry}(c)\}, \operatorname{dedup}(\operatorname{subjects}(\tau_n, a))\bigr)$$ -/
+`plainUnfold`. -/
 def factsOf (n : Name) (ci : ConstantInfo) (rs : List Row) : MetaM Facts := plainUnfold do
   let env ← getEnv
   let value := match ci with | .thmInfo t => t.value | _ => default
@@ -544,38 +507,33 @@ def factsOf (n : Name) (ci : ConstantInfo) (rs : List Row) : MetaM Facts := plai
     return { headConst := head.map toString, implIdx := implI, implExpr := implS, assumes, killOf := kill, cls,
              reach := reachS, subjects := (subjects.map toString).eraseDups }
 
-/-- The fwcore dispatcher, the one wire root besides the generators.
-$$\mathrm{dispatcher} = \texttt{Fw.Wire.handle}$$ -/
+/-- The fwcore dispatcher, the one wire root besides the generators. -/
 def dispatcher : Name := `Fw.Wire.handle
 
-/-- **The wire reach** $W$: every project declaration reachable (`closure`) from the fwcore dispatcher
+/-- **The wire reach** `W`: every project declaration reachable (`closure`) from the fwcore dispatcher
 `Fw.Wire.handle` and from the `Fw.` identifiers (`fwIdents`) of the given generator sources that name a constant of
-the environment (research/notes/2026/10-18-lean-first-gate.md, land check (d)). No module is a root by its name.
-$$\forall \mathit{srcs},\ W(\mathit{srcs}) = \operatorname{closure}\bigl([\texttt{Fw.Wire.handle}] \mathbin{+\!\!+} [c : s \in \mathit{srcs},\ c \in \operatorname{fwIdents}(s),\ c \in \mathrm{env}]\bigr)$$ -/
+the environment (research/notes/2026/10-18-lean-first-gate.md, land check (d)). No module is a root by its name. -/
 def wireReach (env : Environment) (srcs : List String) : List Name :=
   let named := (srcs.flatMap fwIdents).filterMap fun s => let c := s.toName; if env.contains c then some c else none
   Reach.closure env scope (dispatcher :: named)
 
 /-- The generator sources: the text of every file under `root/scripts` whose name ends in `Golden.lean`, in path
-order; none when the directory is missing.
-$$\operatorname{goldenSources}(\mathit{root}) = [\operatorname{read}(f) : f \in \operatorname{sort}\{f \in \mathit{root}/\texttt{scripts} \mid f \text{ ends with } \texttt{Golden.lean}\}]$$ -/
+order; none when the directory is missing. -/
 def goldenSources (root : System.FilePath) : IO (List String) := do
   let dir := root / "scripts"
   unless ← dir.pathExists do return []
   let fs := (← dir.readDir).filter (·.fileName.endsWith "Golden.lean") |>.map (·.path)
   fs.qsort (·.toString < ·.toString) |>.toList.mapM IO.FS.readFile
 
-/-- `wire% n`: whether the constant `n` is in the wire reach $W$ of the current environment, with the generator
-sources read from `scripts/` under the working directory (the package root under `lake build`); for `#guard`s.
-$$\texttt{wire\%}\ n \iff n \in W$$ -/
+/-- `wire% n`: whether the constant `n` is in the wire reach `W` of the current environment, with the generator
+sources read from `scripts/` under the working directory (the package root under `lake build`); for `#guard`s. -/
 elab "wire% " n:ident : term => do
   let c ← realizeGlobalConstNoOverloadWithInfo n
   let w := wireReach (← getEnv) (← goldenSources ".")
   return toExpr (w.contains c)
 
-/-- `wireOf% n`: `reachFromWire` of the theorem `n`'s subjects against the wire reach $W$ of the current environment
-(generator sources as in `wire%`); for `#guard`s.
-$$\texttt{wireOf\%}\ n = \operatorname{reachFromWire}(\operatorname{factsOf}(n).S,\ W)$$ -/
+/-- `wireOf% n`: `reachFromWire` of the theorem `n`'s subjects against the wire reach `W` of the current environment
+(generator sources as in `wire%`); for `#guard`s. -/
 elab "wireOf% " n:ident : term => do
   let c ← realizeGlobalConstNoOverloadWithInfo n
   let f ← factsOf c (← getConstInfo c) (← rows)
@@ -584,15 +542,13 @@ elab "wireOf% " n:ident : term => do
   return toExpr (reachFromWire f.subjects ws.contains)
 
 /-- `defEqAt% n k`: `sidesDefEq` of the theorem `n`'s statement within `k` thousand heartbeats, under `plainUnfold`
-(`k = 0` means no limit); for `#guard`s on the budget edge of the `defEq` class.
-$$\texttt{defEqAt\%}\ n\ k = \operatorname{sidesDefEq}(\tau_n, k)$$ -/
+(`k = 0` means no limit); for `#guard`s on the budget edge of the `defEq` class. -/
 elab "defEqAt% " n:ident k:num : term => do
   let c ← realizeGlobalConstNoOverloadWithInfo n
   return toExpr (← plainUnfold (sidesDefEq (← getConstInfo c).type k.getNat))
 
 /-- `facts% n`: the `Facts` of the theorem `n`, computed at elaboration time in the current environment (for
-`#guard`s over real declarations).
-$$\texttt{facts\%}\ n = \operatorname{factsOf}(n)$$ -/
+`#guard`s over real declarations). -/
 elab "facts% " n:ident : term => do
   let c ← realizeGlobalConstNoOverloadWithInfo n
   let ci ← getConstInfo c

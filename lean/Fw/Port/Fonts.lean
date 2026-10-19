@@ -7,8 +7,7 @@ namespace Fw.Port.Fonts
 
 open Fw.Port.Sections
 
-/-- One text leaf of an arm: the owning section, its text and the computed font of its element.
-$$\ell = (s, t, \phi, w, \sigma)$$ -/
+/-- One text leaf of an arm: the owning section, its text and the computed font of its element. -/
 structure Leaf where
   sec : String
   text : String
@@ -17,8 +16,7 @@ structure Leaf where
   style : String
 deriving Repr, DecidableEq
 
-/-- One `FontFace` of `document.fonts`.
-$$f = (\phi, w, \sigma, \kappa)$$ -/
+/-- One `FontFace` of `document.fonts`. -/
 structure Face where
   family : String
   weight : String
@@ -33,23 +31,19 @@ structure Arm where
 deriving Repr
 
 /-- The compared leaves: those with text left after `Fw.Port.Text.norm`, the text normalised, and blanked in a section
-whose whole text is excluded (the text still differs there, the font must not).
-$$U(E, L) = [\ell[t \mapsto \tau_E(\ell)] \mid \ell \in L,\ \operatorname{norm}(\ell.t) \ne \texttt{""}],\quad \tau_E(\ell) = \begin{cases} \texttt{""} & \operatorname{exclIn}(E, \mathrm{text}, \ell.s, \texttt{*}) \\ \operatorname{norm}(\ell.t) & \text{otherwise} \end{cases}$$ -/
+whose whole text is excluded (the text still differs there, the font must not). -/
 def units (E : List Excl) (L : List Leaf) : List Leaf :=
   (L.filter fun l => Fw.Port.Text.norm l.text != "").map fun l =>
     { l with text := if exclIn E .text l.sec "*" then "" else Fw.Port.Text.norm l.text }
 
-/-- The loaded faces as (family, weight, style) triples, without the excluded families.
-$$F_E(A) = [(f.\phi, f.w, f.\sigma) \mid f \in A,\ f.\kappa = \texttt{loaded} \land \lnot\operatorname{exclKey}(E, \mathrm{fonts}, f.\phi)]$$ -/
+/-- The loaded faces as (family, weight, style) triples, without the excluded families. -/
 def loaded (E : List Excl) (A : List Face) : List (String × String × String) :=
   (A.filter fun f => f.status == "loaded" && !exclKey E .fonts f.family).map fun f => (f.family, f.weight, f.style)
 
-/-- The elements of `o` that `r` lacks.
-$$\operatorname{lacks}(o, r) = [x \in o \mid x \notin r]$$ -/
+/-- The elements of `o` that `r` lacks. -/
 def lacks {α : Type} [BEq α] (o r : List α) : List α := o.filter fun x => !r.contains x
 
-/-- The verdict at one viewport.
-$$V = (\text{leaves lost},\ \text{leaves added},\ \text{faces lost},\ \text{faces added})$$ -/
+/-- The verdict at one viewport. -/
 structure Verdict where
   missing : List Leaf
   extra : List Leaf
@@ -57,26 +51,22 @@ structure Verdict where
   extraFaces : List (String × String × String)
 deriving Repr, DecidableEq
 
-/-- The check of one viewport: leaf units as multisets, loaded faces as sets.
-$$\operatorname{check}(E, O, R) = (\operatorname{unmatched}(U_O, U_R),\ \operatorname{unmatched}(U_R, U_O),\ \operatorname{lacks}(F_O, F_R),\ \operatorname{lacks}(F_R, F_O))$$ -/
+/-- The check of one viewport: leaf units as multisets, loaded faces as sets. -/
 def check (E : List Excl) (O R : Arm) : Verdict :=
   ⟨unmatched (units E O.leaves) (units E R.leaves), unmatched (units E R.leaves) (units E O.leaves),
     lacks (loaded E O.faces) (loaded E R.faces), lacks (loaded E R.faces) (loaded E O.faces)⟩
 
-/-- The viewport passes when all four lists are empty.
-$$\operatorname{pass}(E, O, R) \iff V = ([\,], [\,], [\,], [\,])$$ -/
+/-- The viewport passes when all four lists are empty. -/
 def pass (E : List Excl) (O R : Arm) : Bool :=
   (check E O R).missing.isEmpty && (check E O R).extra.isEmpty && (check E O R).missingFaces.isEmpty &&
     (check E O R).extraFaces.isEmpty
 
-/-- Membership in `lacks`.
-$$x \in \operatorname{lacks}(o, r) \iff x \in o \land x \notin r$$ -/
+/-- Membership in `lacks`. -/
 theorem mem_lacks {α : Type} [BEq α] [LawfulBEq α] (o r : List α) (x : α) :
     x ∈ lacks o r ↔ x ∈ o ∧ x ∉ r := by
   simp [lacks]
 
-/-- A leaf the original has more often than the rewrite fails the viewport.
-$$\operatorname{count}(u, U_R) < \operatorname{count}(u, U_O) \Rightarrow \lnot\operatorname{pass}(E, O, R)$$ -/
+/-- A leaf the original has more often than the rewrite fails the viewport. -/
 theorem fail_of_missing_leaf (E : List Excl) (O R : Arm) (u : Leaf)
     (h : (units E R.leaves).count u < (units E O.leaves).count u) : pass E O R = false := by
   have h1 := unmatched_nil_iff (units E O.leaves) (units E R.leaves)
@@ -87,8 +77,7 @@ theorem fail_of_missing_leaf (E : List Excl) (O R : Arm) (u : Leaf)
     have := h1.mp hp.1.1.1 u
     omega
 
-/-- A leaf the rewrite has more often than the original fails the viewport.
-$$\operatorname{count}(u, U_O) < \operatorname{count}(u, U_R) \Rightarrow \lnot\operatorname{pass}(E, O, R)$$ -/
+/-- A leaf the rewrite has more often than the original fails the viewport. -/
 theorem fail_of_extra_leaf (E : List Excl) (O R : Arm) (u : Leaf)
     (h : (units E O.leaves).count u < (units E R.leaves).count u) : pass E O R = false := by
   have h1 := unmatched_nil_iff (units E R.leaves) (units E O.leaves)
@@ -99,8 +88,7 @@ theorem fail_of_extra_leaf (E : List Excl) (O R : Arm) (u : Leaf)
     have := h1.mp hp.1.1.2 u
     omega
 
-/-- A face the original loads and the rewrite does not fails the viewport.
-$$t \in F_O \land t \notin F_R \Rightarrow \lnot\operatorname{pass}(E, O, R)$$ -/
+/-- A face the original loads and the rewrite does not fails the viewport. -/
 theorem fail_of_missing_face (E : List Excl) (O R : Arm) (t : String × String × String)
     (ho : t ∈ loaded E O.faces) (hr : t ∉ loaded E R.faces) : pass E O R = false := by
   cases hp : pass E O R with
@@ -111,8 +99,7 @@ theorem fail_of_missing_face (E : List Excl) (O R : Arm) (t : String × String �
     rw [hp.1.2] at this
     simp at this
 
-/-- A face the rewrite loads and the original does not fails the viewport.
-$$t \in F_R \land t \notin F_O \Rightarrow \lnot\operatorname{pass}(E, O, R)$$ -/
+/-- A face the rewrite loads and the original does not fails the viewport. -/
 theorem fail_of_extra_face (E : List Excl) (O R : Arm) (t : String × String × String)
     (hr : t ∈ loaded E R.faces) (ho : t ∉ loaded E O.faces) : pass E O R = false := by
   cases hp : pass E O R with
@@ -123,8 +110,7 @@ theorem fail_of_extra_face (E : List Excl) (O R : Arm) (t : String × String × 
     rw [hp.2] at this
     simp at this
 
-/-- A viewport passes exactly when the leaf units are equal as multisets and the loaded faces equal as sets.
-$$\operatorname{pass}(E, O, R) \iff (\forall u,\ \operatorname{count}(u, U_O) = \operatorname{count}(u, U_R)) \land (\forall t,\ t \in F_O \iff t \in F_R)$$ -/
+/-- A viewport passes exactly when the leaf units are equal as multisets and the loaded faces equal as sets. -/
 theorem pass_iff (E : List Excl) (O R : Arm) :
     pass E O R = true ↔ (∀ u, (units E O.leaves).count u = (units E R.leaves).count u) ∧
       (∀ t, t ∈ loaded E O.faces ↔ t ∈ loaded E R.faces) := by
@@ -151,21 +137,18 @@ theorem pass_iff (E : List Excl) (O R : Arm) :
       have := (mem_lacks _ _ _).mp ht
       exact this.2 ((hf t).mpr this.1)
 
-/-- An arm passes against itself.
-$$\forall E, A:\ \operatorname{pass}(E, A, A)$$ -/
+/-- An arm passes against itself. -/
 theorem pass_self (E : List Excl) (A : Arm) : pass E A A = true :=
   (pass_iff E A A).mpr ⟨fun _ => rfl, fun _ => Iff.rfl⟩
 
-/-- In a section whose whole text is excluded, every compared leaf has empty text, so only its font is compared.
-$$\forall u \in U(E, L):\ \operatorname{exclIn}(E, \mathrm{text}, u.s, \texttt{*}) \Rightarrow u.t = \texttt{""}$$ -/
+/-- In a section whose whole text is excluded, every compared leaf has empty text, so only its font is compared. -/
 theorem units_blank (E : List Excl) (L : List Leaf) (u : Leaf) (hu : u ∈ units E L)
     (h : exclIn E .text u.sec "*" = true) : u.text = "" := by
   simp only [units, List.mem_map, List.mem_filter] at hu
   obtain ⟨l, _, rfl⟩ := hu
   simp_all
 
-/-- Two lists with equal elements in no place: an element unmatched on one side is not unmatched on the other.
-$$x \in \operatorname{unmatched}(a, b) \Rightarrow x \notin \operatorname{unmatched}(b, a)$$ -/
+/-- Two lists with equal elements in no place: an element unmatched on one side is not unmatched on the other. -/
 theorem unmatched_disjoint {α : Type} [BEq α] [LawfulBEq α] (a b : List α) (x : α)
     (h : x ∈ unmatched a b) : x ∉ unmatched b a := by
   intro h'
@@ -176,8 +159,7 @@ theorem unmatched_disjoint {α : Type} [BEq α] [LawfulBEq α] (a b : List α) (
   omega
 
 /-- Pair each element of `ms` with the first not yet used element of `es` it relates to; the pairs, the unpaired of `ms` and the
-unpaired of `es`.
-$$\operatorname{pairOff}(p, m :: M, E) = \begin{cases} ((m, e) :: P, U_M, U_E) & e = \operatorname{find}(p\ m, E),\ (P, U_M, U_E) = \operatorname{pairOff}(p, M, E \setminus \{e\}) \\ (P, m :: U_M, U_E) & \text{no such } e \end{cases}$$ -/
+unpaired of `es`. -/
 def pairOff {α : Type} [BEq α] (p : α → α → Bool) : List α → List α → List (α × α) × List α × List α
   | [], es => ([], [], es)
   | m :: ms, es =>
@@ -189,8 +171,7 @@ def pairOff {α : Type} [BEq α] (p : α → α → Bool) : List α → List α 
       let r := pairOff p ms es
       (r.1, m :: r.2.1, r.2.2)
 
-/-- Every pair is related.
-$$(m, e) \in P \Rightarrow p(m, e)$$ -/
+/-- Every pair is related. -/
 theorem pairOff_rel {α : Type} [BEq α] [LawfulBEq α] (p : α → α → Bool) (ms es : List α) (m e : α)
     (h : (m, e) ∈ (pairOff p ms es).1) : p m e = true := by
   induction ms generalizing es with
@@ -206,8 +187,7 @@ theorem pairOff_rel {α : Type} [BEq α] [LawfulBEq α] (p : α → α → Bool)
     · exact ih _ h
 
 /-- Everything that comes out of the pairing was in an input: pairs and unpaired of `ms` come from `ms`, pairs and unpaired of `es`
-from `es`.
-$$(m, e) \in P \Rightarrow m \in M \land e \in E,\qquad u \in U_M \Rightarrow u \in M,\qquad u \in U_E \Rightarrow u \in E$$ -/
+from `es`. -/
 theorem pairOff_mem {α : Type} [BEq α] [LawfulBEq α] (p : α → α → Bool) (ms es : List α) :
     (∀ m e, (m, e) ∈ (pairOff p ms es).1 → m ∈ ms ∧ e ∈ es) ∧ (∀ u, u ∈ (pairOff p ms es).2.1 → u ∈ ms) ∧
       (∀ u, u ∈ (pairOff p ms es).2.2 → u ∈ es) := by
@@ -237,8 +217,7 @@ theorem pairOff_mem {α : Type} [BEq α] [LawfulBEq α] (p : α → α → Bool)
         · exact List.mem_cons_of_mem _ (i2 u hu)
       · exact i3 u hu
 
-/-- Pairing neither loses nor invents an element: each side is its pairs plus its unpaired.
-$$|P| + |U_M| = |M| \land |P| + |U_E| = |E|$$ -/
+/-- Pairing neither loses nor invents an element: each side is its pairs plus its unpaired. -/
 theorem pairOff_length {α : Type} [BEq α] [LawfulBEq α] (p : α → α → Bool) (ms es : List α) :
     (pairOff p ms es).1.length + (pairOff p ms es).2.1.length = ms.length ∧
       (pairOff p ms es).1.length + (pairOff p ms es).2.2.length = es.length := by
@@ -265,8 +244,7 @@ def sameKey (m e : Leaf) : Bool := m.sec == e.sec && m.text == e.text
 def sameFont (m e : Leaf) : Bool :=
   m.text == e.text && m.family == e.family && m.weight == e.weight && m.style == e.style
 
-/-- The leaf difference of one viewport told apart: font changes, ownership moves, and the leaves of one arm only.
-$$S = (\text{changes},\ \text{moves},\ \text{lost},\ \text{added})$$ -/
+/-- The leaf difference of one viewport told apart: font changes, ownership moves, and the leaves of one arm only. -/
 structure Split where
   changes : List (Leaf × Leaf)
   moves : List (Leaf × Leaf)
@@ -274,8 +252,7 @@ structure Split where
   added : List Leaf
 deriving Repr, DecidableEq
 
-/-- Pair the lost and the added leaves by (section, text) for the font changes, then the rest by (text, font) for the ownership moves.
-$$S(E, O, R) = (P_1,\ P_2,\ U_2^{M},\ U_2^{E}),\quad (P_1, U_1^M, U_1^E) = \operatorname{pairOff}(\mathrm{key}, V.\mathrm{missing}, V.\mathrm{extra}),\ (P_2, U_2^M, U_2^E) = \operatorname{pairOff}(\mathrm{font}, U_1^M, U_1^E)$$ -/
+/-- Pair the lost and the added leaves by (section, text) for the font changes, then the rest by (text, font) for the ownership moves. -/
 def split (E : List Excl) (O R : Arm) : Split :=
   let v := check E O R
   let a := pairOff sameKey v.missing v.extra
@@ -291,8 +268,7 @@ theorem split_sources (E : List Excl) (O R : Arm) :
     (pairOff sameKey (check E O R).missing (check E O R).extra).2.2
   exact ⟨fun m e h => a1 m e h, fun m e h => ⟨a2 m (b1 m e h).1, a3 e (b1 m e h).2⟩⟩
 
-/-- A font change keeps the section and the text and changes the font.
-$$(m, e) \in \text{changes} \Rightarrow m.s = e.s \land m.t = e.t \land (m.\phi, m.w, m.\sigma) \ne (e.\phi, e.w, e.\sigma)$$ -/
+/-- A font change keeps the section and the text and changes the font. -/
 theorem change_font_differs (E : List Excl) (O R : Arm) (m e : Leaf) (h : (m, e) ∈ (split E O R).changes) :
     m.sec = e.sec ∧ m.text = e.text ∧ (m.family ≠ e.family ∨ m.weight ≠ e.weight ∨ m.style ≠ e.style) := by
   have hk : sameKey m e = true := pairOff_rel sameKey _ _ m e h
@@ -308,8 +284,7 @@ theorem change_font_differs (E : List Excl) (O R : Arm) (m e : Leaf) (h : (m, e)
   cases m; cases e
   simp_all
 
-/-- An ownership move keeps the text and the font and changes the section.
-$$(m, e) \in \text{moves} \Rightarrow m.t = e.t \land (m.\phi, m.w, m.\sigma) = (e.\phi, e.w, e.\sigma) \land m.s \ne e.s$$ -/
+/-- An ownership move keeps the text and the font and changes the section. -/
 theorem move_sec_differs (E : List Excl) (O R : Arm) (m e : Leaf) (h : (m, e) ∈ (split E O R).moves) :
     m.text = e.text ∧ m.family = e.family ∧ m.weight = e.weight ∧ m.style = e.style ∧ m.sec ≠ e.sec := by
   have hk : sameFont m e = true := pairOff_rel sameFont _ _ m e h
@@ -325,8 +300,7 @@ theorem move_sec_differs (E : List Excl) (O R : Arm) (m e : Leaf) (h : (m, e) �
   cases m; cases e
   simp_all
 
-/-- Nothing is dropped from the lost leaves: they are the changes, the moves and the unpaired lost leaves.
-$$|V.\mathrm{missing}| = |\text{changes}| + |\text{moves}| + |\text{lost}|$$ -/
+/-- Nothing is dropped from the lost leaves: they are the changes, the moves and the unpaired lost leaves. -/
 theorem split_missing_length (E : List Excl) (O R : Arm) :
     (check E O R).missing.length = (split E O R).changes.length + (split E O R).moves.length + (split E O R).lost.length := by
   have h1 := (pairOff_length sameKey (check E O R).missing (check E O R).extra).1
@@ -335,8 +309,7 @@ theorem split_missing_length (E : List Excl) (O R : Arm) :
   simp only [split]
   omega
 
-/-- Nothing is dropped from the added leaves: they are the changes, the moves and the unpaired added leaves.
-$$|V.\mathrm{extra}| = |\text{changes}| + |\text{moves}| + |\text{added}|$$ -/
+/-- Nothing is dropped from the added leaves: they are the changes, the moves and the unpaired added leaves. -/
 theorem split_extra_length (E : List Excl) (O R : Arm) :
     (check E O R).extra.length = (split E O R).changes.length + (split E O R).moves.length + (split E O R).added.length := by
   have h1 := (pairOff_length sameKey (check E O R).missing (check E O R).extra).2
@@ -345,8 +318,7 @@ theorem split_extra_length (E : List Excl) (O R : Arm) :
   simp only [split]
   omega
 
-/-- The leaf part of the check is clean exactly when the split is empty.
-$$(V.\mathrm{missing} = [\,] \land V.\mathrm{extra} = [\,]) \iff \text{changes} = \text{moves} = \text{lost} = \text{added} = [\,]$$ -/
+/-- The leaf part of the check is clean exactly when the split is empty. -/
 theorem split_empty_iff (E : List Excl) (O R : Arm) :
     ((check E O R).missing = [] ∧ (check E O R).extra = []) ↔
       ((split E O R).changes = [] ∧ (split E O R).moves = [] ∧ (split E O R).lost = [] ∧ (split E O R).added = []) := by
@@ -364,13 +336,11 @@ theorem split_empty_iff (E : List Excl) (O R : Arm) :
     rw [a, b, d] at h2
     exact ⟨List.length_eq_zero_iff.mp h1, List.length_eq_zero_iff.mp h2⟩
 
-/-- The fonts exclusions: the family the original declares but no rule applies.
-$$E_{\mathrm{fonts}} = [(\mathrm{fonts}, \texttt{page}, \texttt{Fastwork}, \rho)]$$ -/
+/-- The fonts exclusions: the family the original declares but no rule applies. -/
 def exclusions : List Excl := [
   ⟨.fonts, "page", "Fastwork", "declared as /fonts/fastwork-Bold.ttf, never applied by a rule, so never loaded (the assets exclusion of the same file)"⟩]
 
-/-- The fonts exclusions are well formed and all belong to the fonts check.
-$$\operatorname{wf}(E_{\mathrm{fonts}}) \land \forall e \in E_{\mathrm{fonts}},\ e.c = \mathrm{fonts}$$ -/
+/-- The fonts exclusions are well formed and all belong to the fonts check. -/
 theorem exclusions_wf : wf exclusions = true ∧ ∀ e ∈ exclusions, e.check = .fonts := by decide
 
 /-- The text and font exclusions the check runs with. -/

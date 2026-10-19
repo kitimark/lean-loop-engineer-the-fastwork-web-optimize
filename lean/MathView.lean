@@ -166,18 +166,11 @@ structure Entry where
 deriving ToJson, FromJson
 
 /-- The export order, a total key (module, line, name); names are unique in an environment, so no two entries tie
-and the sorted export does not depend on the order in which the environment lists its constants.
-
-$$\forall a, b:\quad \operatorname{before}(a, b) \iff a.\mathit{mod} < b.\mathit{mod} \lor \big(a.\mathit{mod} = b.\mathit{mod} \land (a.\mathit{line} < b.\mathit{line} \lor (a.\mathit{line} = b.\mathit{line} \land a.\mathit{name} < b.\mathit{name}))\big)$$
-
-where $<$ on module and declaration names is the lexicographic order of their strings and on lines the order of
-$\mathbb{N}$. -/
+and the sorted export does not depend on the order in which the environment lists its constants. -/
 def Entry.before (a b : Entry) : Bool :=
   a.module < b.module || (a.module == b.module && (a.line < b.line || (a.line == b.line && a.name < b.name)))
 
-/-- Two strings that differ are ordered one way or the other.
-
-$$\forall a, b \in \mathrm{String}:\quad a \ne b \Rightarrow a < b \lor b < a$$ -/
+/-- Two strings that differ are ordered one way or the other. -/
 theorem string_lt_or_gt (a b : String) (h : a ≠ b) : a < b ∨ b < a := by
   by_cases h1 : a < b
   · exact .inl h1
@@ -186,9 +179,7 @@ theorem string_lt_or_gt (a b : String) (h : a ≠ b) : a < b ∨ b < a := by
     · exact absurd (String.le_antisymm (String.not_lt.mp h2) (String.not_lt.mp h1)) h
 
 /-- **The sort key is total.** Two entries with different names are ordered one way or the other, so sorting the
-export by `before` has no ties.
-
-$$\forall a, b:\quad a.\mathit{name} \ne b.\mathit{name} \Rightarrow \operatorname{before}(a, b) \lor \operatorname{before}(b, a)$$ -/
+export by `before` has no ties. -/
 theorem Entry.before_total (a b : Entry) (h : a.name ≠ b.name) : a.before b = true ∨ b.before a = true := by
   simp only [Entry.before, Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq]
   by_cases hm : a.module = b.module
@@ -203,9 +194,7 @@ theorem Entry.before_total (a b : Entry) (h : a.name ≠ b.name) : a.before b = 
     · exact .inl (.inl hn)
     · exact .inr (.inl hn)
 
-/-- **The sort key is a strict order.** No entry comes before an entry that comes before it.
-
-$$\forall a, b:\quad \operatorname{before}(a, b) \Rightarrow \lnot \operatorname{before}(b, a)$$ -/
+/-- **The sort key is a strict order.** No entry comes before an entry that comes before it. -/
 theorem Entry.before_asymm (a b : Entry) (h : a.before b = true) : b.before a = false := by
   simp only [Entry.before, Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at h
   simp only [Entry.before, Bool.or_eq_false_iff, Bool.and_eq_false_iff, beq_eq_false_iff_ne, ne_eq,
@@ -252,11 +241,6 @@ each result is exactly the reachable axioms, the set the old per-call walk retur
 /-- The constants `c` mentions, in the cases of Lean's `CollectAxioms.collect`
 (Lean/Util/CollectAxioms.lean:56-67 @ v4.35.0): type and value of a definition, theorem or opaque; the type of an
 axiom, constructor or recursor; the type and the constructors of an inductive; nothing for `Quot` or an unknown name.
-
-$$\mathit{succ}(c) = \begin{cases} \mathrm{consts}(\tau_c) \mathbin{+\!\!+} \mathrm{consts}(v_c) & c \text{ a def,
-theorem or opaque} \\ \mathrm{consts}(\tau_c) \mathbin{+\!\!+} \mathrm{ctors}(c) & c \text{ an inductive} \\ [\,] &
-c \text{ a quotient primitive or unknown} \\ \mathrm{consts}(\tau_c) & \text{otherwise} \end{cases}$$
-where $\tau_c$, $v_c$ and $\mathrm{ctors}(c)$ are the type, value and constructors of $\mathit{kenv}(c)$.
 -/
 def axSucc (kenv : Kernel.Environment) (c : Name) : List Name :=
   match kenv.find? c with
@@ -272,7 +256,6 @@ def axSucc (kenv : Kernel.Environment) (c : Name) : List Name :=
 
 /-- Is `c` declared as an axiom in the kernel environment?
 
-$$\mathit{isAx}(c) = \mathrm{true} \iff \mathit{kenv}(c) = \mathrm{axiomInfo}(\_)$$
 (false for an unknown name and for every other kind)
 -/
 def axIsAx (kenv : Kernel.Environment) (c : Name) : Bool :=

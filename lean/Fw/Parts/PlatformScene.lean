@@ -22,10 +22,8 @@ open Fw.Parts.PlatformEntries (Entry progress progress_before progress_after)
 
 /-! ## 1. The scene attribute -/
 
-/-- The original's `lE` (2.DyWL8TcE.js 2715-2718), with $t, b$ the element's top and bottom relative to the viewport's top
-and $h$ the viewport height.
-
-$$\forall t, b, h \in \mathbb{Q}:\ \operatorname{near}(t, b, h) \iff b \ge -h \ \land\ t \le 2h$$
+/-- The original's `lE` (2.DyWL8TcE.js 2715-2718), with `t, b` the element's top and bottom relative to the viewport's top
+and `h` the viewport height.
 
 The element's bottom is not more than one viewport above the viewport's top edge, and its top not more than one viewport
 below the viewport's bottom edge. -/
@@ -33,21 +31,15 @@ def near (top bottom vh : Rat) : Bool := decide (-vh ≤ bottom) && decide (top 
 
 /-- The scene attribute value for an activity flag.
 
-$$\operatorname{attr}(\top) = \texttt{active},\quad \operatorname{attr}(\bot) = \texttt{paused}$$
-
 An active element gets `active`, any other gets `paused`. -/
 def attr (active : Bool) : String := if active then "active" else "paused"
 
 /-- Whether the CSS rule pauses animations under an element with this attribute value.
 
-$$\forall v \in \mathrm{String}:\ \operatorname{pauses}(v) \iff v = \texttt{paused}$$
-
 The rule matches the exact value `paused` and nothing else. -/
 def pauses (v : String) : Bool := v == "paused"
 
 /-- Only the `paused` value pauses; `active` does not.
-
-$$\forall a \in \mathbb{B}:\ \operatorname{pauses}(\operatorname{attr}(a)) = \lnot a$$
 
 The rule pauses an element exactly when it is not active. -/
 theorem pauses_attr (a : Bool) : pauses (attr a) = !a := by
@@ -55,16 +47,12 @@ theorem pauses_attr (a : Bool) : pauses (attr a) = !a := by
 
 /-- The scene value of an element at a rect, the initial write of `dE`.
 
-$$\forall t, b, h \in \mathbb{Q}:\ \operatorname{sceneOf}(t, b, h) = \operatorname{attr}(\operatorname{near}(t, b, h))$$
-
 A near element is `active`, a far one `paused`. -/
 def sceneOf (top bottom vh : Rat) : String := attr (near top bottom vh)
 
 /-! ## 2. Animation local time -/
 
 /-- One frame: its length in ms and whether the animation's `animation-play-state` is `paused` during it.
-
-$$\mathrm{Frame} = \mathbb{Q} \times \mathbb{B}$$
 
 A frame is a duration paired with a paused flag. -/
 abbrev Frame := Rat × Bool
@@ -77,35 +65,25 @@ state change toggles pause unless `GetIgnoreCSSPlayState`, which `css_animation.
 paused runs `pause()`, newly running `play(AutoRewind::No)`, skipped once bindings `play()`/`pause()` set
 `m_overriddenProperties`) and `WebAnimation.cpp:1349-1379@862f17d` (`pause()` stores the current time as hold time).
 
-$$\forall \ell, \Delta \in \mathbb{Q},\ \forall p \in \mathbb{B}:\ \operatorname{advance}(\ell, (\Delta, p)) = \begin{cases} \ell & p \\ \ell + \Delta & \lnot p \end{cases}$$
-
 Local time advances by the frame length unless the animation is paused. -/
 def advance (ℓ : Rat) (f : Frame) : Rat := if f.2 then ℓ else ℓ + f.1
 
 /-- Local time after a frame list.
 
-$$\forall \ell_0 \in \mathbb{Q},\ \forall F \in \mathrm{Frame}^{*}:\ \operatorname{local}(\ell_0, F) = \operatorname{foldl}(\operatorname{advance}, \ell_0, F)$$
-
-Local time after the frames in order, from $\ell_0$; the empty list leaves $\ell_0$. -/
+Local time after the frames in order, from `ℓ_0`; the empty list leaves `ℓ_0`. -/
 def local' (ℓ0 : Rat) (fs : List Frame) : Rat := fs.foldl advance ℓ0
 
 /-- A trace of frame lengths and activities (scene attribute `active` as `true`), as frames under the CSS rule.
-
-$$\forall A \in (\mathbb{Q} \times \mathbb{B})^{*}:\ \operatorname{frames}(A) = [(\Delta, \lnot a) \mid (\Delta, a) \in A]$$
 
 The port pauses a frame exactly when the section is not active. -/
 def frames (tr : List (Rat × Bool)) : List Frame := tr.map fun x => (x.1, !x.2)
 
 /-- The original's frames: the rule pauses exactly when the attribute is `paused`.
 
-$$\forall A \in (\mathbb{Q} \times \mathbb{B})^{*}:\ \operatorname{orig}(A) = [(\Delta, \operatorname{pauses}(\operatorname{attr}(a))) \mid (\Delta, a) \in A]$$
-
 The original pauses a frame when its attribute value matches the paused rule. -/
 def origFrames (tr : List (Rat × Bool)) : List Frame := tr.map fun x => (x.1, pauses (attr x.2))
 
 /-- The faithful arm's frames are the original's.
-
-$$\forall A \in (\mathbb{Q} \times \mathbb{B})^{*},\ \forall \ell_0 \in \mathbb{Q}:\ \operatorname{frames}(A) = \operatorname{orig}(A) \ \land\ \operatorname{local}(\ell_0, \operatorname{frames}(A)) = \operatorname{local}(\ell_0, \operatorname{orig}(A))$$
 
 The port writes `data-fw-scene` where the original writes `data-start-selling-scene`, with the same values and rule; the
 TS link to this model is the golden and the gate. -/
@@ -120,8 +98,6 @@ theorem faithful_eq_original (tr : List (Rat × Bool)) (ℓ0 : Rat) :
 
 /-- A paused span leaves local time where it was.
 
-$$\forall \ell \in \mathbb{Q},\ \forall n \in \mathbb{N},\ \forall \Delta_1, \dots, \Delta_n \in \mathbb{Q}:\ \operatorname{local}(\ell, [(\Delta_1, \top), \dots, (\Delta_n, \top)]) = \ell$$
-
 Paused frames of any lengths, none included, do not move local time. -/
 theorem local_paused_span (ℓ : Rat) (ds : List Rat) : local' ℓ (ds.map fun d => (d, true)) = ℓ := by
   induction ds generalizing ℓ with
@@ -132,15 +108,11 @@ theorem local_paused_span (ℓ : Rat) (ds : List Rat) : local' ℓ (ds.map fun d
 
 /-- Local time of a concatenation.
 
-$$\forall \ell \in \mathbb{Q},\ \forall F, G \in \mathrm{Frame}^{*}:\ \operatorname{local}(\ell, F \mathbin{+\!\!+} G) = \operatorname{local}(\operatorname{local}(\ell, F), G)$$
-
 Running two frame lists in a row is running the first, then the second from where it ended. -/
 theorem local_append (ℓ : Rat) (fs gs : List Frame) : local' ℓ (fs ++ gs) = local' (local' ℓ fs) gs := by
   simp [local', List.foldl_append]
 
 /-- **Resume continues the frozen phase.** Putting a paused span before a trace does not change where the trace ends.
-
-$$\forall \ell \in \mathbb{Q},\ \forall n \in \mathbb{N},\ \forall \Delta_1, \dots, \Delta_n \in \mathbb{Q},\ \forall F \in \mathrm{Frame}^{*}:\ \operatorname{local}(\ell, [(\Delta_1, \top), \dots, (\Delta_n, \top)] \mathbin{+\!\!+} F) = \operatorname{local}(\ell, F)$$
 
 A paused span is skipped: nothing is re-seeked on resume. -/
 theorem local_append_paused (ℓ : Rat) (ds : List Rat) (fs : List Frame) :
@@ -148,8 +120,6 @@ theorem local_append_paused (ℓ : Rat) (ds : List Rat) (fs : List Frame) :
   rw [local_append, local_paused_span]
 
 /-- Local time never goes back when frame lengths are non-negative.
-
-$$\forall \ell \in \mathbb{Q},\ \forall F \in \mathrm{Frame}^{*}:\ \big(\forall (\Delta, p) \in F:\ 0 \le \Delta\big) \Rightarrow \ell \le \operatorname{local}(\ell, F)$$
 
 With no negative frame length, local time ends at or after where it started. -/
 theorem local_mono (ℓ : Rat) (fs : List Frame) (h : ∀ f ∈ fs, 0 ≤ f.1) : ℓ ≤ local' ℓ fs := by
@@ -166,24 +136,18 @@ theorem local_mono (ℓ : Rat) (fs : List Frame) (h : ∀ f ∈ fs, 0 ≤ f.1) :
 
 /-- The kinds of animation in the platform section.
 
-$$\mathrm{Anim} = \mathrm{OneShot}(e) \mid \mathrm{Loop}(T),\quad e \in \mathrm{Entry},\ T \in \mathbb{Q}$$
-
-A one-shot is an `Entry` (duration, per-index delay, fill `both`); a loop has a period $T$ in ms. -/
+A one-shot is an `Entry` (duration, per-index delay, fill `both`); a loop has a period `T` in ms. -/
 inductive Anim where
   | oneShot (e : Entry)
   | loop (period : Rat)
 
 /-- The loops of the section: the 90 s review marquee, the 4 s title sweep, the 1 s search caret.
 
-$$\mathrm{loops} = [90000, 4000, 1000]$$
-
 The three loop periods in ms. -/
 def loops : List Rat := [90000, 4000, 1000]
 
 open Fw.Parts.PlatformEntries in
 /-- The one-shot entries sampled by the entries golden's table; every theorem below holds for any `Entry`.
-
-$$\begin{aligned} \mathrm{oneShots} = [\ &\operatorname{credCard}(0), \operatorname{credCard}(3), \mathrm{profilePhone}, \mathrm{rings}, \mathrm{faceLeft}, \mathrm{faceRight}, \mathrm{dash}, \mathrm{shield}, \mathrm{logo}, \\ &\operatorname{flag}(1), \operatorname{flag}(3), \operatorname{flag}(6), \mathrm{invoiceCard}, \operatorname{orderRow}(0), \operatorname{orderRow}(3), \operatorname{askIn}(0), \operatorname{askIn}(2), \operatorname{askOut}(1)\ ] \end{aligned}$$
 
 A representative sample, not every rendered entry. -/
 def oneShots : List Entry :=
@@ -192,32 +156,24 @@ def oneShots : List Entry :=
 
 /-- Every listed one-shot has a positive duration.
 
-$$\forall e \in \mathrm{oneShots}:\ D_e > 0$$
-
 No sampled entry has zero duration. -/
 theorem oneShots_dur_pos : ∀ e ∈ oneShots, 0 < e.dur := by
   decide +kernel
 
 /-- Every listed loop has a positive period.
 
-$$\forall T \in \mathrm{loops}:\ T > 0$$
-
 No loop has a zero or negative period. -/
 theorem loops_pos : ∀ P ∈ loops, 0 < P := by
   decide +kernel
 
-/-- The shown value of an animation at local time $\ell$: the eased progress of a one-shot, the cycle position of a loop.
+/-- The shown value of an animation at local time `ℓ`: the eased progress of a one-shot, the cycle position of a loop.
 
-$$\forall e \in \mathrm{Entry},\ \forall T, \ell \in \mathbb{Q}:\ \operatorname{sample}(\mathrm{OneShot}(e), \ell) = \operatorname{progress}(e, \ell),\quad \operatorname{sample}(\mathrm{Loop}(T), \ell) = \operatorname{frac}(\ell / T)$$
-
-The value depends on local time only; $\ell / 0 = 0$ in `Rat`, so a zero period samples 0. -/
+The value depends on local time only; `ℓ / 0 = 0` in `Rat`, so a zero period samples 0. -/
 def sample : Anim → Rat → Rat
   | .oneShot e, ℓ => progress e ℓ
   | .loop P, ℓ => frac (ℓ / P)
 
 /-- **The shown value freezes with local time.** After a paused span the animation shows what it showed before the span.
-
-$$\forall a \in \mathrm{Anim},\ \forall \ell \in \mathbb{Q},\ \forall n \in \mathbb{N},\ \forall \Delta_1, \dots, \Delta_n \in \mathbb{Q}:\ \operatorname{sample}(a, \operatorname{local}(\ell, [(\Delta_1, \top), \dots, (\Delta_n, \top)])) = \operatorname{sample}(a, \ell)$$
 
 A paused span leaves the shown value unchanged. -/
 theorem sample_paused_span (a : Anim) (ℓ : Rat) (ds : List Rat) :
@@ -225,8 +181,6 @@ theorem sample_paused_span (a : Anim) (ℓ : Rat) (ds : List Rat) :
   rw [local_paused_span]
 
 /-- Loops are periodic in local time.
-
-$$\forall T, \ell \in \mathbb{Q}:\ T > 0 \Rightarrow \operatorname{sample}(\mathrm{Loop}(T), \ell + T) = \operatorname{sample}(\mathrm{Loop}(T), \ell)$$
 
 One period later a loop shows the same value. -/
 theorem loop_periodic (P ℓ : Rat) (hP : 0 < P) : sample (.loop P) (ℓ + P) = sample (.loop P) ℓ := by
@@ -238,15 +192,11 @@ theorem loop_periodic (P ℓ : Rat) (hP : 0 < P) : sample (.loop P) (ℓ + P) = 
 
 /-- A one-shot holds its first value through the delay (fill `backwards` of `both`), also while paused in it.
 
-$$\forall e = (\cdot, D, d, \cdot) \in \mathrm{Entry},\ \forall \ell \in \mathbb{Q}:\ D > 0 \land \ell \le d \Rightarrow \operatorname{sample}(\mathrm{OneShot}(e), \ell) = 0$$
-
 Before its delay has passed, a one-shot shows its first keyframe. -/
 theorem oneShot_before (e : Entry) (ℓ : Rat) (hD : 0 < e.dur) (h : ℓ ≤ e.delay) : sample (.oneShot e) ℓ = 0 :=
   progress_before e ℓ hD h
 
 /-- A one-shot holds its last value after its end (fill `forwards` of `both`), under any pause trace.
-
-$$\forall e = (\cdot, D, d, \cdot) \in \mathrm{Entry},\ \forall \ell \in \mathbb{Q},\ \forall F \in \mathrm{Frame}^{*}:\ D > 0 \land d + D \le \ell \land \big(\forall (\Delta, p) \in F:\ 0 \le \Delta\big) \Rightarrow \operatorname{sample}(\mathrm{OneShot}(e), \operatorname{local}(\ell, F)) = 1$$
 
 Once ended, a one-shot keeps its last keyframe whatever frames follow. -/
 theorem oneShot_after (e : Entry) (ℓ : Rat) (fs : List Frame) (hD : 0 < e.dur) (h : e.delay + e.dur ≤ ℓ)

@@ -17,19 +17,13 @@ namespace Fw.Store
 
 /-! ## The run -/
 
-/-- One job of a CI run, as `gh run view --json jobs` lists it (an unfinished job has the empty conclusion).
-
-$$\mathrm{CiJob} = (\mathit{name}, \mathit{conclusion}) \in \mathrm{String}^2$$
--/
+/-- One job of a CI run, as `gh run view --json jobs` lists it (an unfinished job has the empty conclusion). -/
 structure CiJob where
   name : String
   conclusion : String
 deriving Repr, DecidableEq
 
-/-- The metadata of a CI run (`gh run view --json workflowName,status,conclusion,headSha,jobs`).
-
-$$\mathrm{CiRun} = (\mathit{runId}, \mathit{workflow}, \mathit{status}, \mathit{conclusion}, \mathit{headSha}, \mathit{jobs}) \in \mathrm{String}^5 \times \mathrm{CiJob}^{*}$$
--/
+/-- The metadata of a CI run (`gh run view --json workflowName,status,conclusion,headSha,jobs`). -/
 structure CiRun where
   runId : String
   workflow : String
@@ -39,45 +33,28 @@ structure CiRun where
   jobs : List CiJob
 deriving Repr
 
-/-- The workflow whose runs `fw ci` stores.
-
-$$\mathit{ciWorkflow} = \texttt{"chromium-counts"}$$
--/
+/-- The workflow whose runs `fw ci` stores. -/
 def ciWorkflow : String := "chromium-counts"
 
-/-- One measuring shard of a run: the target it measured and its repetition number (decimal digits, as written).
-
-$$\mathrm{Shard} = \mathrm{Target} \times \mathrm{String}$$
--/
+/-- One measuring shard of a run: the target it measured and its repetition number (decimal digits, as written). -/
 structure Shard where
   target : Target
   n : String
 deriving Repr, DecidableEq
 
-/-- The artifact a shard uploads.
-
-$$\operatorname{artifact}(t, n) = \texttt{chromium-counts-} \mathbin{+\!\!+} \operatorname{name}(t) \mathbin{+\!\!+} \texttt{-r} \mathbin{+\!\!+} n$$
--/
+/-- The artifact a shard uploads. -/
 def Shard.artifact (s : Shard) : String := "chromium-counts-" ++ s.target.name ++ "-r" ++ s.n
 
-/-- The directory a shard's files get inside its store key.
-
-$$\operatorname{dir}(t, n) = \texttt{r} \mathbin{+\!\!+} n$$
--/
+/-- The directory a shard's files get inside its store key. -/
 def Shard.dir (s : Shard) : String := "r" ++ s.n
 
-/-- A non-empty run of decimal digits.
-
-$$\operatorname{digits}(s) \iff s \ne \varepsilon \land \forall c \in s:\ c \in \{\texttt{0}, \dots, \texttt{9}\}$$
--/
+/-- A non-empty run of decimal digits. -/
 def isDigits (s : String) : Bool := !s.isEmpty && s.toList.all Char.isDigit
 
 /-- The shard a job measures, read from its name `counts (<target>, r<n>)` (the matrix job name of chromium-counts.yml);
 `none` for every other job.
 
-$$\operatorname{shardOfJob}(s) = \begin{cases} \mathrm{some}\ (t, n) & \text{if } \exists t \in \{\mathrm{original}, \mathrm{rewrite}\}, n:\ s = \texttt{counts (} \mathbin{+\!\!+} \operatorname{name}(t) \mathbin{+\!\!+} \texttt{, r} \mathbin{+\!\!+} n \mathbin{+\!\!+} \texttt{)} \land \operatorname{digits}(n) \\ \bot & \text{otherwise} \end{cases}$$
-
-(the two prefixes `counts (original, r` and `counts (rewrite, r` exclude each other, so at most one $(t, n)$ fits).
+(the two prefixes `counts (original, r` and `counts (rewrite, r` exclude each other, so at most one `(t, n)` fits).
 -/
 def shardOfJob (name : String) : Option Shard :=
   [Target.original, Target.rewrite].findSome? fun t =>
@@ -96,25 +73,15 @@ def shardOfJob (name : String) : Option Shard :=
 #guard shardOfJob "counts (original, r1) " == none
 #guard shardOfJob "plan" == none
 
-/-- The shard jobs of a run, in job order, each with its shard.
-
-$$\operatorname{shardJobs}(r) = [\,(s, j) \mid j \in r.\mathit{jobs},\ \operatorname{shardOfJob}(j.\mathit{name}) = \mathrm{some}\ s\,]$$
--/
+/-- The shard jobs of a run, in job order, each with its shard. -/
 def shardJobs (r : CiRun) : List (Shard × CiJob) :=
   r.jobs.filterMap fun j => (shardOfJob j.name).map fun s => (s, j)
 
-/-- A text, or a fallback when it is empty.
-
-$$\operatorname{orElse}(s, d) = \begin{cases} d & s = \varepsilon \\ s & \text{otherwise} \end{cases}$$
--/
+/-- A text, or a fallback when it is empty. -/
 def orElse (s d : String) : String := if s.isEmpty then d else s
 
 /-- The refusals that depend on the run alone: another workflow, a run not completed or not successful, a run
 without shard jobs.
-
-$$\begin{aligned} \operatorname{runRefusals}(r) ={} & [\texttt{run } r.\mathit{runId} \texttt{ is workflow } r.\mathit{workflow} \texttt{, not chromium-counts} \mid r.\mathit{workflow} \ne \texttt{chromium-counts}] \\ & \mathbin{+\!\!+} [\texttt{run } r.\mathit{runId} \texttt{ is } r.\mathit{status} \texttt{, not completed} \mid r.\mathit{status} \ne \texttt{completed}] \\ & \mathbin{+\!\!+} [\texttt{run } r.\mathit{runId} \texttt{ concluded } \operatorname{orElse}(r.\mathit{conclusion}, \texttt{unknown}) \texttt{, not success} \mid r.\mathit{status} = \texttt{completed} \land r.\mathit{conclusion} \ne \texttt{success}] \\ & \mathbin{+\!\!+} [\texttt{run } r.\mathit{runId} \texttt{ has no counts shard jobs} \mid \operatorname{shardJobs}(r) = [\,]] \end{aligned}$$
-
-where $[x \mid c]$ is $[x]$ when $c$ holds and $[\,]$ otherwise.
 -/
 def runRefusals (r : CiRun) : List String :=
   (if r.workflow = ciWorkflow then [] else [s!"run {r.runId} is workflow {r.workflow}, not chromium-counts"]) ++
@@ -128,8 +95,6 @@ def runRefusals (r : CiRun) : List String :=
 /-- What `fw ci` read from one downloaded shard artifact: its name, the profile id and the query (`counts.json`,
 `profile.id`, `meta.search`, absent query = empty), the target it says it measured (`meta.target`, may be absent)
 and the image (`image-id.txt`).
-
-$$\mathrm{ShardFacts} = (\mathit{name}, \mathit{profile}, \mathit{image}, \mathit{search}, \mathit{target}) \in \mathrm{String}^4 \times (\mathrm{String} \cup \{\bot\})$$
 -/
 structure ShardFacts where
   name : String
@@ -139,25 +104,17 @@ structure ShardFacts where
   target : Option String
 deriving Repr
 
-/-- The download: the shard artifacts read (with their facts) and the directories under `chromium-classes`.
-
-$$\mathrm{Got} = \mathrm{ShardFacts}^{*} \times \mathrm{String}^{*}$$
--/
+/-- The download: the shard artifacts read (with their facts) and the directories under `chromium-classes`. -/
 structure Got where
   artifacts : List ShardFacts
   classes : List String
 deriving Repr
 
-/-- The facts of a shard's artifact, if it was downloaded (the first artifact of that name).
-
-$$\operatorname{factOf}(g, s) = \text{the first } f \in g.\mathit{artifacts} \text{ with } f.\mathit{name} = \operatorname{artifact}(s), \text{ else } \bot$$
--/
+/-- The facts of a shard's artifact, if it was downloaded (the first artifact of that name). -/
 def factOf (g : Got) (s : Shard) : Option ShardFacts := g.artifacts.find? (·.name == s.artifact)
 
 /-- The refusals of the shard jobs, in job order: a job that did not succeed, and (after the download) an artifact
 that is missing.
-
-$$\operatorname{jobRefusals}(r, \mathit{got}) = \mathop{+\!\!+}_{(s, j) \in \operatorname{shardJobs}(r)} \Big([\texttt{shard } \operatorname{artifact}(s) \texttt{: job } \operatorname{orElse}(j.\mathit{conclusion}, \texttt{unfinished}) \mid j.\mathit{conclusion} \ne \texttt{success}] \mathbin{+\!\!+} [\texttt{missing shard artifact } \operatorname{artifact}(s) \mid \mathit{got} = \mathrm{some}\ g \land \operatorname{factOf}(g, s) = \bot]\Big)$$
 -/
 def jobRefusals (r : CiRun) (got : Option Got) : List String :=
   (shardJobs r).flatMap fun p =>
@@ -166,39 +123,26 @@ def jobRefusals (r : CiRun) (got : Option Got) : List String :=
      | some g => if (factOf g p.1).isSome then [] else [s!"missing shard artifact {p.1.artifact}"]
      | none => [])
 
-/-- The targets a run measured, in canonical order (one store key each).
-
-$$\operatorname{ciTargets}(r) = [\,t \in [\mathrm{original}, \mathrm{rewrite}] \mid \exists (s, j) \in \operatorname{shardJobs}(r):\ s.\mathit{target} = t\,]$$
--/
+/-- The targets a run measured, in canonical order (one store key each). -/
 def ciTargets (r : CiRun) : List Target :=
   [Target.original, Target.rewrite].filter fun t => (shardJobs r).any fun p => decide (p.1.target = t)
 
-/-- The shards of one target, duplicates removed, sorted by artifact name.
-
-$$\operatorname{shardsOf}(r, t) = \operatorname{sort}_{\operatorname{artifact}}\big(\operatorname{dedup}[\,s \mid (s, j) \in \operatorname{shardJobs}(r),\ s.\mathit{target} = t\,]\big)$$
--/
+/-- The shards of one target, duplicates removed, sorted by artifact name. -/
 def shardsOf (r : CiRun) (t : Target) : List Shard :=
   (((shardJobs r).map (·.1)).filter (fun s => decide (s.target = t))).eraseDups.mergeSort
     fun a b => !decide (b.artifact < a.artifact)
 
-/-- The facts of the downloaded shards of one target, in shard order.
-
-$$\operatorname{factsOf}(r, g, t) = [\,f \mid s \in \operatorname{shardsOf}(r, t),\ \operatorname{factOf}(g, s) = \mathrm{some}\ f\,]$$
--/
+/-- The facts of the downloaded shards of one target, in shard order. -/
 def factsOf (r : CiRun) (g : Got) (t : Target) : List ShardFacts := (shardsOf r t).filterMap (factOf g)
 
 /-- A shard agrees with the first shard of its target: same profile, query and image, and it measured that target
 (an absent `meta.target` counts as that target).
-
-$$\operatorname{agrees}(t, f_0, f) \iff f.\mathit{profile} = f_0.\mathit{profile} \land f.\mathit{search} = f_0.\mathit{search} \land f.\mathit{image} = f_0.\mathit{image} \land f.\mathit{target} \in \{\bot, \operatorname{name}(t)\}$$
 -/
 def agrees (t : Target) (f0 f : ShardFacts) : Bool :=
   f.profile == f0.profile && f.search == f0.search && f.image == f0.image && f.target.getD t.name == t.name
 
 /-- The refusals of the download, per target in canonical order: a missing class directory, then shards that
 disagree.
-
-$$\operatorname{gotRefusals}(r, g) = \Big(\mathop{+\!\!+}_{t \in \operatorname{ciTargets}(r)} [\texttt{missing chromium-classes/} \operatorname{name}(t) \mid \operatorname{name}(t) \notin g.\mathit{classes}]\Big) \mathbin{+\!\!+} \Big(\mathop{+\!\!+}_{u \in \operatorname{ciTargets}(r)} [\operatorname{name}(u) \texttt{ shards disagree on profile, query, target or image} \mid \operatorname{factsOf}(r, g, u) = f_0 :: F \land \exists f \in f_0 :: F:\ \neg\operatorname{agrees}(u, f_0, f)]\Big)$$
 -/
 def gotRefusals (r : CiRun) (g : Got) : List String :=
   (ciTargets r).flatMap (fun t => if g.classes.contains t.name then [] else [s!"missing chromium-classes/{t.name}"]) ++
@@ -207,10 +151,8 @@ def gotRefusals (r : CiRun) (g : Got) : List String :=
     | [] => []
     | f0 :: fs => if (f0 :: fs).all (agrees t f0) then [] else [s!"{t.name} shards disagree on profile, query, target or image"]
 
-/-- Every refusal of a run: the run, its shard jobs, and (after the download, $\mathit{got} = \mathrm{some}\ g$) the
+/-- Every refusal of a run: the run, its shard jobs, and (after the download, `got = some g`) the
 download.
-
-$$\operatorname{ciRefusals}(r, \mathit{got}) = \operatorname{runRefusals}(r) \mathbin{+\!\!+} \operatorname{jobRefusals}(r, \mathit{got}) \mathbin{+\!\!+} \begin{cases} \operatorname{gotRefusals}(r, g) & \mathit{got} = \mathrm{some}\ g \\ [\,] & \mathit{got} = \bot \end{cases}$$
 -/
 def ciRefusals (r : CiRun) (got : Option Got) : List String :=
   runRefusals r ++ jobRefusals r got ++ (match got with | some g => gotRefusals r g | none => [])
@@ -219,8 +161,6 @@ def ciRefusals (r : CiRun) (got : Option Got) : List String :=
 
 /-- The parameters of a page query `?k=v&k=v` (a leading `?` dropped, empty segments skipped, the value after the
 first `=`, empty when there is none). No percent-decoding: chromium-counts.yml writes the query raw.
-
-$$\operatorname{params}(q) = [\,\operatorname{kv}(\sigma) \mid \sigma \in \operatorname{split}_{\texttt{\&}}(q'),\ \sigma \ne \varepsilon\,],\quad \operatorname{kv}(\sigma) = \begin{cases} (k, v) & \sigma = k \mathbin{+\!\!+} \texttt{=} \mathbin{+\!\!+} v,\ \texttt{=} \notin k \ (v \text{ may contain } \texttt{=}) \\ (\sigma, \varepsilon) & \texttt{=} \notin \sigma \end{cases},\quad \text{where } q' = q \text{ without its leading } \texttt{?} \text{ (if any)}$$
 -/
 def queryParams (search : String) : List (String × String) :=
   let q := match search.toList with
@@ -231,16 +171,10 @@ def queryParams (search : String) : List (String × String) :=
     | k :: v => if kv.isEmpty then none else some (k, "=".intercalate v)
     | [] => none
 
-/-- The value of the first parameter named `k`.
-
-$$\operatorname{get}(P, k) = \text{the } v \text{ of the first } (k, v) \in P, \text{ else } \bot$$
--/
+/-- The value of the first parameter named `k`. -/
 def queryGet (ps : List (String × String)) (k : String) : Option String := (ps.find? (·.1 == k)).map (·.2)
 
-/-- A flag `part:variant`; anything else becomes $(\varepsilon, s)$, which the manifest check refuses.
-
-$$\operatorname{flagOf}(s) = \begin{cases} (a, b) & s = a \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} b,\ \text{no other colon} \\ (\varepsilon, s) & \text{otherwise} \end{cases}$$
--/
+/-- A flag `part:variant`; anything else becomes `(ε, s)`, which the manifest check refuses. -/
 def flagOf (s : String) : String × String :=
   match s.splitOn ":" with
   | [a, b] => (a, b)
@@ -249,9 +183,7 @@ def flagOf (s : String) : String × String :=
 /-- The preset and flags of a rewrite query: `preset` (default `original`) and the comma list `fw`, its empty items
 dropped, sorted by part (stable).
 
-$$\operatorname{searchConfig}(q) = (p, \operatorname{sort}_{\mathrm{part}}[\,\operatorname{flagOf}(x) \mid x \in \operatorname{split}_{\texttt{,}}(w),\ x \ne \varepsilon\,]),\quad p = \begin{cases} v & \operatorname{get}(P, \texttt{preset}) = \mathrm{some}\ v \\ \texttt{original} & \operatorname{get}(P, \texttt{preset}) = \bot \end{cases},\quad w = \begin{cases} v & \operatorname{get}(P, \texttt{fw}) = \mathrm{some}\ v \\ \varepsilon & \operatorname{get}(P, \texttt{fw}) = \bot \end{cases},\quad P = \operatorname{params}(q)$$
-
-(a present but empty value is kept: `?preset=` gives the preset $\varepsilon$; the sort is stable, by the lexicographic order of the parts).
+(a present but empty value is kept: `?preset=` gives the preset `ε`; the sort is stable, by the lexicographic order of the parts).
 -/
 def searchConfig (search : String) : String × List (String × String) :=
   let ps := queryParams search
@@ -269,8 +201,6 @@ def searchConfig (search : String) : String × List (String × String) :=
 /-- The key inputs of one target, from the facts of its first shard: chromium, the target, the preset and flags of the
 query (the rewrite only; the original takes the default configuration), the shard's profile and image, the run's
 head sha.
-
-$$\operatorname{ciReq}(r, t, f) = (\mathrm{chromium}, t, p, F, f.\mathit{profile}, r.\mathit{headSha}, f.\mathit{image}),\quad (p, F) = \begin{cases} \operatorname{searchConfig}(f.\mathit{search}) & t = \mathrm{rewrite} \\ (\texttt{original}, [\,]) & t = \mathrm{original} \end{cases}$$
 -/
 def ciReq (r : CiRun) (t : Target) (f : ShardFacts) : Req :=
   let c : String × List (String × String) := match t with
@@ -280,33 +210,23 @@ def ciReq (r : CiRun) (t : Target) (f : ShardFacts) : Req :=
 
 /-- One store key of an accepted run: its target, the shards filed under it, and its key inputs (only after the
 download).
-
-$$\mathrm{CiTarget} = \mathrm{Target} \times \mathrm{Shard}^{*} \times (\mathrm{Req} \cup \{\bot\})$$
 -/
 structure CiTarget where
   target : Target
   shards : List Shard
   req : Option Req
 
-/-- The store key of target $t$: its shards, and the key inputs from the first downloaded shard's facts.
-
-$$\operatorname{ciTarget}(r, \mathit{got}, t) = \Big(t,\ \operatorname{shardsOf}(r, t),\ \begin{cases} \mathrm{some}\ \operatorname{ciReq}(r, t, f_0) & \mathit{got} = \mathrm{some}\ g \land \operatorname{factsOf}(r, g, t) = f_0 :: F \\ \bot & \text{otherwise} \end{cases}\Big)$$
--/
+/-- The store key of target `t`: its shards, and the key inputs from the first downloaded shard's facts. -/
 def ciTarget (r : CiRun) (got : Option Got) (t : Target) : CiTarget :=
   { target := t, shards := shardsOf r t, req := got.bind fun g => (factsOf r g t).head?.map (ciReq r t) }
 
-/-- The answer of `store.ciRun`: every refusal (none = accepted) and the store keys.
-
-$$\mathrm{CiResult} = \mathrm{String}^{*} \times \mathrm{CiTarget}^{*}$$
--/
+/-- The answer of `store.ciRun`: every refusal (none = accepted) and the store keys. -/
 structure CiResult where
   refusals : List String
   targets : List CiTarget
 
 /-- **`store.ciRun`.** A run is accepted when it has no refusal; then it files one store key per target it measured,
 otherwise none.
-
-$$\operatorname{ciRun}(r, \mathit{got}) = \Big(\operatorname{ciRefusals}(r, \mathit{got}),\ \begin{cases} [\,\operatorname{ciTarget}(r, \mathit{got}, t) \mid t \in \operatorname{ciTargets}(r)\,] & \operatorname{ciRefusals}(r, \mathit{got}) = [\,] \\ [\,] & \text{otherwise} \end{cases}\Big)$$
 -/
 def ciRun (r : CiRun) (got : Option Got) : CiResult :=
   let rs := ciRefusals r got
@@ -314,19 +234,13 @@ def ciRun (r : CiRun) (got : Option Got) : CiResult :=
 
 /-! ## Properties -/
 
-/-- **A refused run stores nothing:** when there is a refusal, no store key is filed.
-
-$$\forall r, \mathit{got}:\ \operatorname{ciRun}(r, \mathit{got}).\mathit{refusals} \ne [\,] \Rightarrow \operatorname{ciRun}(r, \mathit{got}).\mathit{targets} = [\,]$$
--/
+/-- **A refused run stores nothing:** when there is a refusal, no store key is filed. -/
 theorem ciRun_refused {r : CiRun} {got : Option Got} (h : (ciRun r got).refusals ≠ []) :
     (ciRun r got).targets = [] := by
   simp only [ciRun] at *
   simp [List.isEmpty_iff, h]
 
-/-- The store keys of an accepted run are its targets in canonical order.
-
-$$\forall r, \mathit{got}:\ \operatorname{ciRun}(r, \mathit{got}).\mathit{refusals} = [\,] \Rightarrow \operatorname{ciRun}(r, \mathit{got}).\mathit{targets} = [\,\operatorname{ciTarget}(r, \mathit{got}, t) \mid t \in \operatorname{ciTargets}(r)\,]$$
--/
+/-- The store keys of an accepted run are its targets in canonical order. -/
 theorem ciRun_accepted_targets {r : CiRun} {got : Option Got} (h : (ciRun r got).refusals = []) :
     (ciRun r got).targets = (ciTargets r).map (ciTarget r got) := by
   simp only [ciRun] at *
@@ -334,8 +248,6 @@ theorem ciRun_accepted_targets {r : CiRun} {got : Option Got} (h : (ciRun r got)
 
 /-- **An accepted run succeeded:** it is a chromium-counts run, completed with success, with at least one shard job,
 and every shard job succeeded (whether or not the artifacts were checked yet).
-
-$$\forall r, \mathit{got}:\ \operatorname{ciRun}(r, \mathit{got}).\mathit{refusals} = [\,] \Rightarrow r.\mathit{workflow} = \texttt{chromium-counts} \land r.\mathit{status} = \texttt{completed} \land r.\mathit{conclusion} = \texttt{success} \land \operatorname{shardJobs}(r) \ne [\,] \land \forall (s, j) \in \operatorname{shardJobs}(r):\ j.\mathit{conclusion} = \texttt{success}$$
 -/
 theorem ciRun_accepted_run {r : CiRun} {got : Option Got} (h : (ciRun r got).refusals = []) :
     r.workflow = ciWorkflow ∧ r.status = "completed" ∧ r.conclusion = "success" ∧ shardJobs r ≠ [] ∧
@@ -364,10 +276,7 @@ theorem ciRun_accepted_run {r : CiRun} {got : Option Got} (h : (ciRun r got).ref
     · exact c
     · simp [c] at this
 
-/-- A shard of a target is one of the run's shard jobs, and measured that target.
-
-$$\forall r, t, s:\ s \in \operatorname{shardsOf}(r, t) \Rightarrow (\exists j:\ (s, j) \in \operatorname{shardJobs}(r)) \land s.\mathit{target} = t$$
--/
+/-- A shard of a target is one of the run's shard jobs, and measured that target. -/
 theorem mem_shardsOf {r : CiRun} {t : Target} {s : Shard} (h : s ∈ shardsOf r t) :
     (∃ j, (s, j) ∈ shardJobs r) ∧ s.target = t := by
   simp only [shardsOf, List.mem_mergeSort, List.mem_eraseDups, List.mem_filter, List.mem_map,
@@ -375,10 +284,7 @@ theorem mem_shardsOf {r : CiRun} {t : Target} {s : Shard} (h : s ∈ shardsOf r 
   obtain ⟨⟨p, hp, rfl⟩, ht⟩ := h
   exact ⟨⟨p.2, hp⟩, ht⟩
 
-/-- Every shard job's shard is listed under its target.
-
-$$\forall r, s, j:\ (s, j) \in \operatorname{shardJobs}(r) \Rightarrow s \in \operatorname{shardsOf}(r, s.\mathit{target})$$
--/
+/-- Every shard job's shard is listed under its target. -/
 theorem shardsOf_of_job {r : CiRun} {s : Shard} {j : CiJob} (h : (s, j) ∈ shardJobs r) :
     s ∈ shardsOf r s.target := by
   simp only [shardsOf, List.mem_mergeSort, List.mem_eraseDups, List.mem_filter, List.mem_map,
@@ -387,8 +293,6 @@ theorem shardsOf_of_job {r : CiRun} {s : Shard} {j : CiJob} (h : (s, j) ∈ shar
 
 /-- **An accepted download is complete:** every store key's class directory and every shard artifact filed under it
 were downloaded.
-
-$$\forall r, g:\ \operatorname{ciRun}(r, \mathrm{some}\ g).\mathit{refusals} = [\,] \Rightarrow \forall c \in \operatorname{ciRun}(r, \mathrm{some}\ g).\mathit{targets}:\ \operatorname{name}(c.\mathit{target}) \in g.\mathit{classes} \land \forall s \in c.\mathit{shards}:\ \exists f \in g.\mathit{artifacts}:\ f.\mathit{name} = \operatorname{artifact}(s)$$
 -/
 theorem ciRun_accepted_got {r : CiRun} {g : Got} (h : (ciRun r (some g)).refusals = []) :
     ∀ c ∈ (ciRun r (some g)).targets, c.target.name ∈ g.classes ∧
@@ -415,10 +319,7 @@ theorem ciRun_accepted_got {r : CiRun} {g : Got} (h : (ciRun r (some g)).refusal
       exact ⟨f, hm, by simpa using hn⟩
     · simp [e] at h2
 
-/-- **An accepted download has the key inputs of every store key.**
-
-$$\forall r, g:\ \operatorname{ciRun}(r, \mathrm{some}\ g).\mathit{refusals} = [\,] \Rightarrow \forall c \in \operatorname{ciRun}(r, \mathrm{some}\ g).\mathit{targets}:\ c.\mathit{req} \ne \bot$$
--/
+/-- **An accepted download has the key inputs of every store key.** -/
 theorem ciRun_accepted_req {r : CiRun} {g : Got} (h : (ciRun r (some g)).refusals = []) :
     ∀ c ∈ (ciRun r (some g)).targets, c.req.isSome := by
   have hg := ciRun_accepted_got h
@@ -444,17 +345,11 @@ theorem ciRun_accepted_req {r : CiRun} {g : Got} (h : (ciRun r (some g)).refusal
   | nil => exact absurd hfs hne
   | cons _ _ => simp
 
-/-- The targets of a run are pairwise distinct.
-
-$$\forall r:\ \operatorname{ciTargets}(r) \text{ has no duplicate}$$
--/
+/-- The targets of a run are pairwise distinct. -/
 theorem ciTargets_nodup (r : CiRun) : (ciTargets r).Nodup :=
   List.Nodup.sublist List.filter_sublist (by decide)
 
-/-- **One store key per target:** the store keys of a run have pairwise distinct targets.
-
-$$\forall r, \mathit{got}:\ [\,c.\mathit{target} \mid c \in \operatorname{ciRun}(r, \mathit{got}).\mathit{targets}\,] \text{ has no duplicate}$$
--/
+/-- **One store key per target:** the store keys of a run have pairwise distinct targets. -/
 theorem ciRun_targets_nodup (r : CiRun) (got : Option Got) : ((ciRun r got).targets.map (·.target)).Nodup := by
   simp only [ciRun]
   split
@@ -464,10 +359,7 @@ theorem ciRun_targets_nodup (r : CiRun) (got : Option Got) : ((ciRun r got).targ
     exact ciTargets_nodup r
   · exact List.nodup_nil
 
-/-- Every shard filed under a store key measured that key's target.
-
-$$\forall r, \mathit{got}, c, s:\ c \in \operatorname{ciRun}(r, \mathit{got}).\mathit{targets} \land s \in c.\mathit{shards} \Rightarrow s.\mathit{target} = c.\mathit{target}$$
--/
+/-- Every shard filed under a store key measured that key's target. -/
 theorem ciRun_shard_target {r : CiRun} {got : Option Got} {c : CiTarget} {s : Shard}
     (hc : c ∈ (ciRun r got).targets) (hs : s ∈ c.shards) : s.target = c.target := by
   simp only [ciRun] at hc
@@ -477,10 +369,7 @@ theorem ciRun_shard_target {r : CiRun} {got : Option Got} {c : CiTarget} {s : Sh
     exact (mem_shardsOf hs).2
   · simp at hc
 
-/-- The key inputs of a store key name that key's target.
-
-$$\forall r, \mathit{got}, c, q:\ c \in \operatorname{ciRun}(r, \mathit{got}).\mathit{targets} \land c.\mathit{req} = \mathrm{some}\ q \Rightarrow q.\mathit{target} = c.\mathit{target}$$
--/
+/-- The key inputs of a store key name that key's target. -/
 theorem ciRun_req_target {r : CiRun} {got : Option Got} {c : CiTarget} {q : Req}
     (hc : c ∈ (ciRun r got).targets) (hq : c.req = some q) : q.target = c.target := by
   simp only [ciRun] at hc
@@ -494,8 +383,6 @@ theorem ciRun_req_target {r : CiRun} {got : Option Got} {c : CiTarget} {q : Req}
 
 /-- **Two artifacts with different targets get different keys:** shards of different targets are filed under store keys
 whose key pairs (the input of the key hash) differ.
-
-$$\forall r, \mathit{got}, c, c', s, s', q, q':\ c, c' \in \operatorname{ciRun}(r, \mathit{got}).\mathit{targets} \land s \in c.\mathit{shards} \land s' \in c'.\mathit{shards} \land s.\mathit{target} \ne s'.\mathit{target} \land c.\mathit{req} = \mathrm{some}\ q \land c'.\mathit{req} = \mathrm{some}\ q' \Rightarrow \operatorname{keyPairs}(q) \ne \operatorname{keyPairs}(q')$$
 -/
 theorem ciRun_key_ne {r : CiRun} {got : Option Got} {c c' : CiTarget} {s s' : Shard} {q q' : Req}
     (hc : c ∈ (ciRun r got).targets) (hc' : c' ∈ (ciRun r got).targets) (hs : s ∈ c.shards) (hs' : s' ∈ c'.shards)
@@ -504,10 +391,7 @@ theorem ciRun_key_ne {r : CiRun} {got : Option Got} {c c' : CiTarget} {s s' : Sh
   rw [ciRun_req_target hc hq, ciRun_req_target hc' hq', ← ciRun_shard_target hc hs, ← ciRun_shard_target hc' hs']
   exact ht
 
-/-- **The key pairs of a run's store keys are pairwise distinct.**
-
-$$\forall r, \mathit{got}:\ [\,\operatorname{keyPairs}(q) \mid c \in \operatorname{ciRun}(r, \mathit{got}).\mathit{targets},\ c.\mathit{req} = \mathrm{some}\ q\,] \text{ has no duplicate}$$
--/
+/-- **The key pairs of a run's store keys are pairwise distinct.** -/
 theorem ciRun_keys_nodup (r : CiRun) (got : Option Got) :
     (((ciRun r got).targets.filterMap (·.req)).map keyPairs).Nodup := by
   have hn := ciRun_targets_nodup r got

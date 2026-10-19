@@ -11,8 +11,6 @@ open Fw.DeviceQueue
 
 /-- The aging step is the specified constant.
 
-$$A = 300$$
-
 The constant is part of the spec (one priority level per five minutes of waiting). -/
 theorem A_eq : A = 300 := rfl
 

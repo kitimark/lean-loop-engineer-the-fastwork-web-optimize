@@ -60,15 +60,11 @@ open Fw.Site.Breakpoints
 /-- The deck's content-box width: its border box `calc(100% + 2b)` minus its inline padding `2b`, for a containing
 block of width `C` and bleed `b`.
 
-$$\forall C, b \in \mathbb{Q}:\ \operatorname{deckContent}(C, b) = (C + 2b) - 2b$$
-
 The width the shells and the container query see. -/
 def deckContent (C b : Rat) : Rat := (C + 2 * b) - 2 * b
 
 /-- The original phone shell's used border-box size: width `100%` (= `flex-basis 100%`) of the deck content box,
 height from `aspect-ratio:353/764` applied to the border box.
-
-$$\forall C, b \in \mathbb{Q}:\ \operatorname{origShell}(C, b) = \Big(\operatorname{deckContent}(C, b),\ \frac{\operatorname{deckContent}(C, b) \cdot 764}{353}\Big)$$
 
 What the original lays out in exact arithmetic. -/
 def origShell (C b : Rat) : Rat × Rat := (deckContent C b, deckContent C b * 764 / 353)
@@ -76,29 +72,21 @@ def origShell (C b : Rat) : Rat × Rat := (deckContent C b, deckContent C b * 76
 /-- One `cqi`: one hundredth of the deck's content-box inline size (the size container is the content box,
 `B/core/layout/block_node.cc:484-505`@f842f52, `WC/style/values/primitives/StyleLengthResolution.cpp:282`@862f17d).
 
-$$\forall C, b \in \mathbb{Q}:\ \operatorname{cqi}(C, b) = \frac{\operatorname{deckContent}(C, b)}{100}$$
-
 The unit the variant's lengths use. -/
 def cqi (C b : Rat) : Rat := deckContent C b / 100
 
 /-- The variant phone shell's used size: `width:100cqi`, `height:calc(100cqi * 764 / 353)`.
-
-$$\forall C, b \in \mathbb{Q}:\ \operatorname{cqiShell}(C, b) = \Big(100 \cdot \operatorname{cqi}(C, b),\ \frac{100 \cdot \operatorname{cqi}(C, b) \cdot 764}{353}\Big)$$
 
 What the variant lays out in exact arithmetic. -/
 def cqiShell (C b : Rat) : Rat × Rat := (100 * cqi C b, 100 * cqi C b * 764 / 353)
 
 /-- The deck's content box is as wide as its containing block.
 
-$$\forall C, b \in \mathbb{Q}:\ \operatorname{deckContent}(C, b) = C$$
-
 The bleed adds and removes the same amount. -/
 theorem deck_content (C b : Rat) : deckContent C b = C := by
   unfold deckContent; grind
 
 /-- **Vis algebra.** The variant's shell size equals the original's, and both are `(C, C·764/353)`.
-
-$$\forall C, b \in \mathbb{Q}:\ \operatorname{cqiShell}(C, b) = \operatorname{origShell}(C, b) \land \operatorname{origShell}(C, b) = \Big(C, \frac{C \cdot 764}{353}\Big)$$
 
 `100cqi` is the shell width, so both lengths are equal for every width and bleed. -/
 theorem cqiShell_eq (C b : Rat) : cqiShell C b = origShell C b ∧ origShell C b = (C, C * 764 / 353) := by
@@ -109,8 +97,6 @@ theorem cqiShell_eq (C b : Rat) : cqiShell C b = origShell C b ∧ origShell C b
 
 /-- The two arms of the A/B pair.
 
-$$\mathrm{Arm} = \{\mathrm{orig}, \mathrm{cqi}\}$$
-
 The original (`aspect-ratio`) and the variant (`cqi`). -/
 inductive Arm where
   | orig
@@ -119,8 +105,6 @@ deriving Repr, DecidableEq
 
 /-- The shell's used size in an environment: in the phone band `c860` the arm's phone rule, otherwise the shared
 desktop size `desk` (the variant leaves the desktop rules unchanged).
-
-$$\forall a \in \mathrm{Arm},\ \forall \mathit{desk} \in \mathbb{Q}^2,\ \forall e \in \mathrm{Env},\ \forall C, b \in \mathbb{Q}:\ \operatorname{usedShell}(a, \mathit{desk}, e, C, b) = \begin{cases} \operatorname{origShell}(C, b) & e \models \mathtt{c860},\ a = \mathrm{orig} \\ \operatorname{cqiShell}(C, b) & e \models \mathtt{c860},\ a = \mathrm{cqi} \\ \mathit{desk} & e \not\models \mathtt{c860} \end{cases}$$
 
 Which rule sizes the shell. -/
 def usedShell (a : Arm) (desk : Rat × Rat) (e : Env) (C b : Rat) : Rat × Rat :=
@@ -131,8 +115,6 @@ def usedShell (a : Arm) (desk : Rat × Rat) (e : Env) (C b : Rat) : Rat × Rat :
 #guard cqiShell 390 40 == origShell 390 40
 
 /-- **Vis, every environment.** Both arms give the shell the same used size.
-
-$$\forall \mathit{desk} \in \mathbb{Q}^2,\ \forall e \in \mathrm{Env},\ \forall C, b \in \mathbb{Q}:\ \operatorname{usedShell}(\mathrm{cqi}, \mathit{desk}, e, C, b) = \operatorname{usedShell}(\mathrm{orig}, \mathit{desk}, e, C, b)$$
 
 Inside the band by `cqiShell_eq`, outside it because the desktop rule is shared. -/
 theorem usedShell_same (desk : Rat × Rat) (e : Env) (C b : Rat) :
@@ -145,8 +127,6 @@ theorem usedShell_same (desk : Rat × Rat) (e : Env) (C b : Rat) :
 /-- **Vis (E).** For any scene builder that depends on the shells' used size (the premise: layout inside the shell
 sees the same box), the original and the variant are `VisSame E` for every environment and instant.
 
-$$\forall T,\ \forall \mathit{vp} : \mathrm{Env} \to \mathrm{Rect},\ \forall \mathit{desk} : \mathrm{Env} \to \mathbb{Q}^2,\ \forall C, b : \mathrm{Env} \to \mathbb{Q},\ \forall \mathit{scene} : \mathrm{Env} \to T \to \mathbb{Q}^2 \to \mathrm{Scene}:\ \operatorname{VisSame}_{\mathrm{E}}\Big(\mathit{vp},\ (e, t) \mapsto \mathit{scene}(e, t, \operatorname{usedShell}(\mathrm{orig}, \mathit{desk}(e), e, C(e), b(e))),\ (e, t) \mapsto \mathit{scene}(e, t, \operatorname{usedShell}(\mathrm{cqi}, \mathit{desk}(e), e, C(e), b(e)))\Big)$$
-
 Same shell size gives the same picture. -/
 theorem deck_vis {T : Type} (vp : Env → Rect) (desk : Env → Rat × Rat) (C b : Env → Rat)
     (scene : Env → T → Rat × Rat → Scene) :
@@ -158,8 +138,6 @@ theorem deck_vis {T : Type} (vp : Env → Rect) (desk : Env → Rat × Rat) (C b
 
 /-- The exact aspect-ratio height in LayoutUnits for a shell width of `r` LayoutUnits, truncated (ℕ division).
 
-$$\forall r \in \mathbb{N}:\ \operatorname{aspectRaw}(r) = \Big\lfloor \frac{764\, r}{353} \Big\rfloor$$
-
 The height an exact engine stores. -/
 def aspectRaw (r : Nat) : Nat := r * 764 / 353
 
@@ -167,14 +145,10 @@ def aspectRaw (r : Nat) : Nat := r * 764 / 353
 truncating division (`B/platform/geometry/layout_unit.h:600-607`@f842f52; the ratio 353/764 is exact in
 LayoutUnits, `B/platform/geometry/physical_size.cc:37-44`).
 
-$$\forall r \in \mathbb{N}:\ \operatorname{crAspectRaw}(r) = \Big\lfloor \frac{r \cdot (764 \cdot 64)}{353 \cdot 64} \Big\rfloor$$
-
 What Chromium's border-box aspect-ratio branch stores. -/
 def crAspectRaw (r : Nat) : Nat := r * (764 * 64) / (353 * 64)
 
 /-- Chromium's original height is exact.
-
-$$\forall r \in \mathbb{N}:\ \operatorname{crAspectRaw}(r) = \operatorname{aspectRaw}(r)$$
 
 The common factor 64 cancels. -/
 theorem crAspectRaw_eq (r : Nat) : crAspectRaw r = aspectRaw r := by
@@ -183,8 +157,6 @@ theorem crAspectRaw_eq (r : Nat) : crAspectRaw r = aspectRaw r := by
 
 /-- LayoutUnit conversion of a length `x` px, modelled as `⌊64x⌋` raw units for every `x`. The engines truncate
 toward zero, which equals the floor for `x ≥ 0`; `Faithful` implies `x ≥ 0` (`faithful_nonneg`).
-
-$$\forall x \in \mathbb{Q}:\ \operatorname{snapRaw}(x) = \lfloor 64x \rfloor \in \mathbb{Z}$$
 
 How a computed length becomes a layout length. -/
 def snapRaw (x : Rat) : Int := (64 * x).floor
@@ -200,16 +172,12 @@ def snapRaw (x : Rat) : Int := (64 * x).floor
 lies strictly within `1/353` of the exact `764r/353`, and is not below it when `353 ∣ r` (the exact value is a whole
 raw unit).
 
-$$\forall r \in \mathbb{N},\ \forall x \in \mathbb{Q}:\ \operatorname{Faithful}(r, x) \iff \frac{764 r}{353} - \frac{1}{353} < 64x < \frac{764 r}{353} + \frac{1}{353} \land \Big(r \bmod 353 = 0 \Rightarrow \frac{764 r}{353} \le 64x\Big)$$
-
 The engine's floating error stays below the gap to the next LayoutUnit boundary. -/
 def Faithful (r : Nat) (x : Rat) : Prop :=
   (r : Rat) * 764 / 353 - 1 / 353 < 64 * x ∧ 64 * x < (r : Rat) * 764 / 353 + 1 / 353 ∧
     (r % 353 = 0 → (r : Rat) * 764 / 353 ≤ 64 * x)
 
 /-- The floor of a rational is the integer it lies at or above and below the successor of.
-
-$$\forall y \in \mathbb{Q},\ \forall q \in \mathbb{Z}:\ q \le y < q + 1 \Rightarrow \lfloor y \rfloor = q$$
 
 Characterises the floor. -/
 theorem floor_eq_of (y : Rat) (q : Int) (h1 : (q : Rat) ≤ y) (h2 : y < q + 1) : y.floor = q := by
@@ -219,8 +187,6 @@ theorem floor_eq_of (y : Rat) (q : Int) (h1 : (q : Rat) ≤ y) (h2 : y < q + 1) 
   omega
 
 /-- Division with remainder of `764r` by 353, in ℚ.
-
-$$\forall r \in \mathbb{N}:\ \frac{764 r}{353} = \Big\lfloor \frac{764 r}{353} \Big\rfloor + \frac{764 r \bmod 353}{353}$$
 
 The exact height is the stored part plus a fraction of a raw unit. -/
 theorem split_div (r : Nat) :
@@ -232,15 +198,11 @@ theorem split_div (r : Nat) :
 
 /-- The fraction is zero exactly when 353 divides `r` (353 is prime and does not divide 764).
 
-$$\forall r \in \mathbb{N}:\ 764 r \bmod 353 = 0 \iff r \bmod 353 = 0$$
-
 Only widths that are multiples of 353 raw units give a whole-unit height. -/
 theorem mod_zero_iff (r : Nat) : r * 764 % 353 = 0 ↔ r % 353 = 0 := by
   omega
 
 /-- **Snap theorem.** A faithful computed height truncates to the exact LayoutUnit height.
-
-$$\forall r \in \mathbb{N},\ \forall x \in \mathbb{Q}:\ \operatorname{Faithful}(r, x) \Rightarrow \lfloor 64x \rfloor = \Big\lfloor \frac{764 r}{353} \Big\rfloor$$
 
 Within the premise, rounding cannot make the two arms differ. -/
 theorem snap_faithful (r : Nat) (x : Rat) (h : Faithful r x) : snapRaw x = (aspectRaw r : Int) := by
@@ -264,8 +226,6 @@ theorem snap_faithful (r : Nat) (x : Rat) (h : Faithful r x) : snapRaw x = (aspe
 
 /-- A faithful height is non-negative, so LayoutUnit truncation is the floor.
 
-$$\forall r \in \mathbb{N},\ \forall x \in \mathbb{Q}:\ \operatorname{Faithful}(r, x) \Rightarrow 0 \le x$$
-
 The premise rules out the negative side where truncation and floor differ. -/
 theorem faithful_nonneg (r : Nat) (x : Rat) (h : Faithful r x) : 0 ≤ x := by
   obtain ⟨hlo, _, hz⟩ := h
@@ -282,16 +242,12 @@ theorem faithful_nonneg (r : Nat) (x : Rat) (h : Faithful r x) : 0 ≤ x := by
 
 /-- Exact arithmetic is faithful: the exact height `r·764/(353·64)` px satisfies the premise.
 
-$$\forall r \in \mathbb{N}:\ \operatorname{Faithful}\Big(r, \frac{764 r}{353 \cdot 64}\Big)$$
-
 With no floating error the premise holds for every width. -/
 theorem faithful_exact (r : Nat) : Faithful r ((r : Rat) * 764 / 353 / 64) := by
   refine ⟨?_, ?_, fun _ => ?_⟩ <;> grind
 
 /-- **Vis at LayoutUnit level, exact evaluation.** With exact arithmetic the variant's stored height equals
 Chromium's original MulDiv height for every shell width.
-
-$$\forall r \in \mathbb{N}:\ \Big\lfloor 64 \cdot \frac{764 r}{353 \cdot 64} \Big\rfloor = \operatorname{crAspectRaw}(r)$$
 
 The algebra survives the 1/64 px grid when nothing is lost to floating point. -/
 theorem snap_exact (r : Nat) : snapRaw ((r : Rat) * 764 / 353 / 64) = (crAspectRaw r : Int) := by
@@ -300,8 +256,6 @@ theorem snap_exact (r : Nat) : snapRaw ((r : Rat) * 764 / 353 / 64) = (crAspectR
 /-- **Chromium, under the premise.** A faithful variant height stores the same LayoutUnit as the original's exact
 MulDiv.
 
-$$\forall r \in \mathbb{N},\ \forall x \in \mathbb{Q}:\ \operatorname{Faithful}(r, x) \Rightarrow \lfloor 64x \rfloor = \operatorname{crAspectRaw}(r)$$
-
 Chromium's arms agree on the 1/64 px grid when the variant's `double`/`float` error is small. -/
 theorem cr_snap_same (r : Nat) (x : Rat) (h : Faithful r x) : snapRaw x = (crAspectRaw r : Int) := by
   rw [crAspectRaw_eq]; exact snap_faithful r x h
@@ -309,16 +263,12 @@ theorem cr_snap_same (r : Nat) (x : Rat) (h : Faithful r x) : snapRaw x = (crAsp
 /-- **WebKit, under the premise on both arms.** If the original's `double` quotient `xo` and the variant's
 `cqi` height `xv` are both faithful, they store the same LayoutUnit.
 
-$$\forall r \in \mathbb{N},\ \forall x_o, x_v \in \mathbb{Q}:\ \operatorname{Faithful}(r, x_o) \land \operatorname{Faithful}(r, x_v) \Rightarrow \lfloor 64 x_v \rfloor = \lfloor 64 x_o \rfloor$$
-
 WebKit computes both arms in floating point, so both need the premise. -/
 theorem wk_snap_same (r : Nat) (xo xv : Rat) (ho : Faithful r xo) (hv : Faithful r xv) :
     snapRaw xv = snapRaw xo := by
   rw [snap_faithful r xv hv, snap_faithful r xo ho]
 
 /-- The nudged variant formula `round(down, y + 1px/45184, 1px/64)`, in raw units: `⌊64y + 1/706⌋`.
-
-$$\forall y \in \mathbb{Q}:\ \operatorname{snapNudged}(y) = \Big\lfloor 64y + \frac{1}{706} \Big\rfloor$$
 
 A half-gap nudge before rounding down to the 1/64 px grid. -/
 def snapNudged (y : Rat) : Int := (64 * y + 1 / 706).floor
@@ -328,8 +278,6 @@ def snapNudged (y : Rat) : Int := (64 * y + 1 / 706).floor
 
 /-- **Nudged snap.** With the nudge, an error bound alone suffices: a computed height within `1/706` raw unit of
 the exact one (either side) rounds to the exact LayoutUnit.
-
-$$\forall r \in \mathbb{N},\ \forall y \in \mathbb{Q}:\ \frac{764 r}{353} - \frac{1}{706} < 64y < \frac{764 r}{353} + \frac{1}{706} \Rightarrow \Big\lfloor 64y + \frac{1}{706} \Big\rfloor = \Big\lfloor \frac{764 r}{353} \Big\rfloor$$
 
 The recommended variant formula is exact under a plain error bound, with no side condition at whole units. -/
 theorem snap_nudged (r : Nat) (y : Rat) (hlo : (r : Rat) * 764 / 353 - 1 / 706 < 64 * y)
@@ -349,8 +297,6 @@ theorem snap_nudged (r : Nat) (y : Rat) (hlo : (r : Rat) * 764 / 353 - 1 / 706 <
 
 /-- A deck property: an engine property `base p`, or the shells' aspect-ratio relayout.
 
-$$\mathrm{DeckProp}(P) = \{\mathrm{base}(p) \mid p \in P\} \cup \{\mathrm{ratioRelayout}\}$$
-
 The engine's properties plus one. -/
 inductive DeckProp (P : Type) where
   | base (p : P)
@@ -359,15 +305,11 @@ deriving Repr, DecidableEq
 
 /-- An engine's change seen as a deck change.
 
-$$\forall c \in \mathrm{Change}(P):\ \operatorname{liftC}(c) = (c.\mathrm{elem}, \mathrm{base}(c.\mathrm{prop}), c.\mathrm{layer})$$
-
 Wraps the property, keeps element and layer. -/
 def liftC {P : Type} (c : Change P) : Change (DeckProp P) := ⟨c.elem, .base c.prop, c.layer⟩
 
 /-- **The lifted engine.** Plain changes keep the engine's stages; the aspect-ratio relayout dirties `layout` only
 (same geometry, so no repaint: INFERRED).
-
-$$\forall \varepsilon,\ \forall c \in \mathrm{Change}(\mathrm{DeckProp}\,P):\ \operatorname{stagesOf}_{\operatorname{lift}(\varepsilon)}(c) = \begin{cases} \operatorname{stagesOf}_{\varepsilon}(c.\mathrm{elem}, p, c.\mathrm{layer}) & c.\mathrm{prop} = \mathrm{base}(p) \\ [\mathrm{layout}] & c.\mathrm{prop} = \mathrm{ratioRelayout} \end{cases},\quad \text{mode, compStages, base as in } \varepsilon$$
 
 The engine with one extra kind of change. -/
 def lift {P M : Type} (ε : Engine P M) : Engine (DeckProp P) M where
@@ -380,14 +322,10 @@ def lift {P M : Type} (ε : Engine P M) : Engine (DeckProp P) M where
 
 /-- A plain frame seen as a deck frame.
 
-$$\forall f \in \mathrm{FrameIn}(P):\ \operatorname{liftF}(f) = f \text{ with changes } [\,\operatorname{liftC}(c)\,]_{c \in f.\mathrm{changes}}$$
-
 Every change wrapped, the rest unchanged. -/
 def liftF {P : Type} (f : FrameIn P) : FrameIn (DeckProp P) := { f with changes := f.changes.map liftC }
 
 /-- The lifted engine is the engine on plain frames.
-
-$$\forall \varepsilon,\ \forall f \in \mathrm{FrameIn}(P):\ \operatorname{frameWork}_{\operatorname{lift}(\varepsilon)}(\operatorname{liftF}(f)) = \operatorname{frameWork}_{\varepsilon}(f)$$
 
 Lifting adds no work to frames without a relayout. -/
 theorem lift_frameWork {P M : Type} (ε : Engine P M) (f : FrameIn P) :
@@ -409,23 +347,17 @@ theorem lift_frameWork {P M : Type} (ε : Engine P M) (f : FrameIn P) :
 
 /-- One relayout change per shell.
 
-$$\forall S \in \mathbb{N}^{*}:\ \operatorname{relayouts}(S) = [\,(e, \mathrm{ratioRelayout}, \mathrm{none})\,]_{e \in S}$$
-
 The original's extra pass, as changes. -/
 def relayouts {P : Type} (shells : List Nat) : List (Change (DeckProp P)) :=
   shells.map fun e => ⟨e, .ratioRelayout, .none⟩
 
 /-- A frame with extra changes appended.
 
-$$\forall f \in \mathrm{FrameIn}(P),\ \forall X \in \mathrm{Change}(P)^{*}:\ \operatorname{withExtra}(f, X) = f \text{ with changes } f.\mathrm{changes} \mathbin{+\!\!+} X$$
-
 The same frame plus more changes. -/
 def withExtra {P : Type} (f : FrameIn P) (xs : List (Change P)) : FrameIn P := { f with changes := f.changes ++ xs }
 
 /-- One deck frame: the work both arms share, whether the original runs its aspect-ratio relayout, and whether the
 container's inline size steps (then the variant re-resolves `cqi` and relayouts too, INFERRED).
-
-$$\mathrm{DeckFrame}(P) = \underbrace{\mathrm{FrameIn}(\mathrm{DeckProp}\,P)}_{\mathrm{base}} \times \underbrace{\mathbb{B}}_{\mathrm{relayout}} \times \underbrace{\mathbb{B}}_{\mathrm{widthStep}}$$
 -/
 structure DeckFrame (P : Type) where
   base : FrameIn (DeckProp P)
@@ -434,23 +366,17 @@ structure DeckFrame (P : Type) where
 
 /-- The original's frame: shared work plus the shells' relayout when it relayouts or the width steps.
 
-$$\forall d \in \mathrm{DeckFrame}(P),\ \forall S \in \mathbb{N}^{*}:\ \operatorname{orig}(d, S) = d.\mathrm{base} \text{ with changes } d.\mathrm{base.changes} \mathbin{+\!\!+} \begin{cases} \operatorname{relayouts}(S) & d.\mathrm{relayout} \lor d.\mathrm{widthStep} \\ [\,] & \text{otherwise} \end{cases}$$
-
 What the aspect-ratio arm runs (for `S = []` it is `d.base` with `[]` appended). -/
 def DeckFrame.orig {P : Type} (d : DeckFrame P) (shells : List Nat) : FrameIn (DeckProp P) :=
   withExtra d.base (if d.relayout || d.widthStep then relayouts shells else [])
 
 /-- The variant's frame: shared work plus the shells' relayout only when the width steps.
 
-$$\forall d \in \mathrm{DeckFrame}(P),\ \forall S \in \mathbb{N}^{*}:\ \operatorname{cqiF}(d, S) = d.\mathrm{base} \text{ with changes } d.\mathrm{base.changes} \mathbin{+\!\!+} \begin{cases} \operatorname{relayouts}(S) & d.\mathrm{widthStep} \\ [\,] & \text{otherwise} \end{cases}$$
-
 What the `cqi` arm runs. -/
 def DeckFrame.cqiF {P : Type} (d : DeckFrame P) (shells : List Nat) : FrameIn (DeckProp P) :=
   withExtra d.base (if d.widthStep then relayouts shells else [])
 
 /-- A change list covers itself.
-
-$$\forall \varepsilon,\ \forall L \in \mathrm{Change}(P)^{*}:\ \operatorname{cover}_{\varepsilon}(L, L) = \mathrm{true}$$
 
 Each change dirties the stages it dirties. -/
 theorem coverB_self {P M : Type} (ε : Engine P M) : ∀ l : List (Change P), coverB ε l l = true
@@ -459,8 +385,6 @@ theorem coverB_self {P M : Type} (ε : Engine P M) : ∀ l : List (Change P), co
 
 /-- Appending changes never lowers frame work.
 
-$$\forall \varepsilon,\ \forall f \in \mathrm{FrameIn}(P),\ \forall X \in \mathrm{Change}(P)^{*}:\ \operatorname{frameWork}_{\varepsilon}(f) \preceq \operatorname{frameWork}_{\varepsilon}(f \text{ with changes } f.\mathrm{changes} \mathbin{+\!\!+} X)$$
-
 More changes, at least as much work. -/
 theorem frame_le_extra {P M : Type} (ε : Engine P M) (f : FrameIn P) (xs : List (Change P)) :
     (frameWork ε f).le (frameWork ε (withExtra f xs)) :=
@@ -468,8 +392,6 @@ theorem frame_le_extra {P M : Type} (ε : Engine P M) (f : FrameIn P) (xs : List
     (Nat.le_refl _) (Nat.le_refl _) (Nat.le_refl _)
 
 /-- Appending a non-empty list of layout-dirtying changes strictly raises frame work (the layout units).
-
-$$\forall \varepsilon,\ \forall f \in \mathrm{FrameIn}(P),\ \forall X \in \mathrm{Change}(P)^{*}:\ X \ne [\,] \land (\forall c \in X:\ \mathrm{layout} \in \operatorname{stagesOf}_{\varepsilon}(c)) \Rightarrow \operatorname{frameWork}_{\varepsilon}(f) \prec \operatorname{frameWork}_{\varepsilon}(f \text{ with changes } f.\mathrm{changes} \mathbin{+\!\!+} X)$$
 
 Each extra relayout is one more layout unit. -/
 theorem frame_lt_extra {P M : Type} (ε : Engine P M) (f : FrameIn P) (xs : List (Change P)) (hne : xs ≠ [])
@@ -484,8 +406,6 @@ theorem frame_lt_extra {P M : Type} (ε : Engine P M) (f : FrameIn P) (xs : List
 
 /-- **Work (⪯), every frame, every engine.** The variant's frame work is at most the original's.
 
-$$\forall \varepsilon,\ \forall d \in \mathrm{DeckFrame}(P),\ \forall S \in \mathbb{N}^{*}:\ \operatorname{frameWork}_{\operatorname{lift}(\varepsilon)}(\operatorname{cqiF}(d, S)) \preceq \operatorname{frameWork}_{\operatorname{lift}(\varepsilon)}(\operatorname{orig}(d, S))$$
-
 The variant never relayouts where the original does not. -/
 theorem deck_le {P M : Type} (ε : Engine P M) (d : DeckFrame P) (shells : List Nat) :
     (frameWork (lift ε) (d.cqiF shells)).le (frameWork (lift ε) (d.orig shells)) := by
@@ -498,8 +418,6 @@ theorem deck_le {P M : Type} (ε : Engine P M) (d : DeckFrame P) (shells : List 
 
 /-- **Work (≺), where the original relayouts.** With at least one shell, a relayout frame without a width step is
 strictly cheaper in the variant.
-
-$$\forall \varepsilon,\ \forall d \in \mathrm{DeckFrame}(P),\ \forall S \in \mathbb{N}^{*}:\ d.\mathrm{relayout} = \mathrm{true} \land d.\mathrm{widthStep} = \mathrm{false} \land S \ne [\,] \Rightarrow \operatorname{frameWork}_{\operatorname{lift}(\varepsilon)}(\operatorname{cqiF}(d, S)) \prec \operatorname{frameWork}_{\operatorname{lift}(\varepsilon)}(\operatorname{orig}(d, S))$$
 
 The variant skips one layout unit per shell. -/
 theorem deck_lt {P M : Type} (ε : Engine P M) (d : DeckFrame P) (shells : List Nat) (hr : d.relayout = true)
@@ -519,21 +437,15 @@ theorem deck_lt {P M : Type} (ε : Engine P M) (d : DeckFrame P) (shells : List 
 
 /-- The deck engine for Chromium.
 
-$$\mathrm{crDeck} = \operatorname{lift}(\mathrm{chromium})$$
-
 Chromium's table plus the relayout change. -/
 def crDeck : Engine (DeckProp Chromium.CrProp) Chromium.CrMode := lift Chromium.chromium
 
 /-- The deck engine for WebKit.
 
-$$\mathrm{wkDeck} = \operatorname{lift}(\mathrm{webkit})$$
-
 WebKit's table plus the relayout change. -/
 def wkDeck : Engine (DeckProp WebKit.WkProp) WebKit.WkMode := lift WebKit.webkit
 
 /-- **Chromium.** `W_cr(v,k) ⪯ W_cr(o,k)` in every frame, `≺` where the original relayouts without a width step.
-
-$$\forall d \in \mathrm{DeckFrame}(\mathrm{CrProp}),\ \forall S \in \mathbb{N}^{*}:\ \operatorname{frameWork}_{\operatorname{lift}(\mathrm{chromium})}(\operatorname{cqiF}(d, S)) \preceq \operatorname{frameWork}_{\operatorname{lift}(\mathrm{chromium})}(\operatorname{orig}(d, S)) \land \big(d.\mathrm{relayout} = \mathrm{true} \land d.\mathrm{widthStep} = \mathrm{false} \land S \ne [\,] \Rightarrow \operatorname{frameWork}_{\operatorname{lift}(\mathrm{chromium})}(\operatorname{cqiF}(d, S)) \prec \operatorname{frameWork}_{\operatorname{lift}(\mathrm{chromium})}(\operatorname{orig}(d, S))\big)$$
 
 On Chromium the variant never does more work, and does strictly less where the original relayouts. -/
 theorem deck_cr (d : DeckFrame Chromium.CrProp) (shells : List Nat) :
@@ -544,8 +456,6 @@ theorem deck_cr (d : DeckFrame Chromium.CrProp) (shells : List Nat) :
 
 /-- **WebKit.** `W_wk(v,k) ⪯ W_wk(o,k)` in every frame, `≺` where the original relayouts without a width step.
 
-$$\forall d \in \mathrm{DeckFrame}(\mathrm{WkProp}),\ \forall S \in \mathbb{N}^{*}:\ \operatorname{frameWork}_{\operatorname{lift}(\mathrm{webkit})}(\operatorname{cqiF}(d, S)) \preceq \operatorname{frameWork}_{\operatorname{lift}(\mathrm{webkit})}(\operatorname{orig}(d, S)) \land \big(d.\mathrm{relayout} = \mathrm{true} \land d.\mathrm{widthStep} = \mathrm{false} \land S \ne [\,] \Rightarrow \operatorname{frameWork}_{\operatorname{lift}(\mathrm{webkit})}(\operatorname{cqiF}(d, S)) \prec \operatorname{frameWork}_{\operatorname{lift}(\mathrm{webkit})}(\operatorname{orig}(d, S))\big)$$
-
 On WebKit the variant never does more work, and does strictly less where the original relayouts. -/
 theorem deck_wk (d : DeckFrame WebKit.WkProp) (shells : List Nat) :
     (frameWork wkDeck (d.cqiF shells)).le (frameWork wkDeck (d.orig shells)) ∧
@@ -554,8 +464,6 @@ theorem deck_wk (d : DeckFrame WebKit.WkProp) (shells : List Nat) :
   ⟨deck_le _ d shells, fun hr hw hne => deck_lt _ d shells hr hw hne⟩
 
 /-- Pointwise `⪯` on mapped lists gives `leAll`.
-
-$$\forall g, h : \alpha \to \mathrm{Work},\ \forall L \in \alpha^{*}:\ (\forall x \in L:\ g(x) \preceq h(x)) \Rightarrow \operatorname{leAll}(\operatorname{map}(g, L), \operatorname{map}(h, L)) = \mathrm{true}$$
 
 Frame-by-frame order lifts to runs. -/
 theorem leAll_map {α : Type} (g h : α → Work) :
@@ -567,8 +475,6 @@ theorem leAll_map {α : Type} (g h : α → Work) :
 
 /-- **Run dominance.** Over any run of deck frames with a relayout frame without a width step and at least one shell,
 the screen says the variant dominates.
-
-$$\forall \varepsilon,\ \forall D \in \mathrm{DeckFrame}(P)^{*},\ \forall S \in \mathbb{N}^{*}:\ S \ne [\,] \land (\exists d \in D:\ d.\mathrm{relayout} = \mathrm{true} \land d.\mathrm{widthStep} = \mathrm{false}) \Rightarrow \operatorname{screen}\big(\operatorname{toRun}([\operatorname{frameWork}_{\operatorname{lift}(\varepsilon)}(\operatorname{orig}(d, S))]_{d \in D}),\ \operatorname{toRun}([\operatorname{frameWork}_{\operatorname{lift}(\varepsilon)}(\operatorname{cqiF}(d, S))]_{d \in D})\big) = \mathrm{ok}(\mathrm{dominates})$$
 
 A run with one relayout frame is dominated. -/
 theorem deck_run_dominates {P M : Type} (ε : Engine P M) (ds : List (DeckFrame P)) (shells : List Nat)
@@ -588,8 +494,6 @@ theorem deck_run_dominates {P M : Type} (ε : Engine P M) (ds : List (DeckFrame 
 /-- **Swipe lanes: equal.** In a run with no relayout and no width step (the CI swipe profiles have no toolbar
 step), the arms' frames are equal.
 
-$$\forall \varepsilon,\ \forall D \in \mathrm{DeckFrame}(P)^{*},\ \forall S \in \mathbb{N}^{*}:\ (\forall d \in D:\ d.\mathrm{relayout} = \mathrm{false} \land d.\mathrm{widthStep} = \mathrm{false}) \Rightarrow [\operatorname{frameWork}_{\operatorname{lift}(\varepsilon)}(\operatorname{cqiF}(d, S))]_{d \in D} = [\operatorname{frameWork}_{\operatorname{lift}(\varepsilon)}(\operatorname{orig}(d, S))]_{d \in D}$$
-
 Hence every count is predicted `=o`. -/
 theorem swipe_eq {P M : Type} (ε : Engine P M) (ds : List (DeckFrame P)) (shells : List Nat)
     (h : ∀ d ∈ ds, d.relayout = false ∧ d.widthStep = false) :
@@ -600,8 +504,6 @@ theorem swipe_eq {P M : Type} (ε : Engine P M) (ds : List (DeckFrame P)) (shell
   simp [DeckFrame.cqiF, DeckFrame.orig, hr, hw]
 
 /-- Equal series predict `=0` or `=o` (`=0` is the stronger reading of the same equality).
-
-$$\forall x \in \mathbb{B},\ \forall v \in \mathbb{N}^{*}:\ \operatorname{predict}(x, v, v) \in \{\texttt{=0}, \texttt{=o}\}$$
 
 An equal pair is never `<o`, `≤o` or `any` (for `v = []` it is `=0`). -/
 theorem predict_self (x : Bool) (v : List Nat) :
@@ -615,8 +517,6 @@ theorem predict_self (x : Bool) (v : List Nat) :
 
 /-- One JSON row, keys sorted, prediction `=o` (by `swipe_eq` and `predict_self`).
 
-$$\operatorname{row}(e, sc, t) = \{\mathrm{base} = \text{rewrite}, \mathrm{countType} = t.\mathrm{name}, \mathrm{engine} = e, \mathrm{prediction} = \texttt{=o}, \mathrm{scenario} = sc, \mathrm{stage} = \operatorname{stageName}(t.\mathrm{stage}), \mathrm{variant} = \text{rewrite+?fw=people.deck:cqi}\}$$
-
 The variant flag is `?fw=people.deck:cqi`; the base is the faithful rewrite. -/
 def row (engine scenario : String) (t : MorphMountOpt.CountType) : String :=
   "{\"base\":\"rewrite\",\"countType\":\"" ++ t.name ++ "\",\"engine\":\"" ++ engine ++
@@ -625,16 +525,12 @@ def row (engine scenario : String) (t : MorphMountOpt.CountType) : String :=
 
 /-- All golden rows: Chromium on `swipe-v1` and `swipe-touch-v1`, WebKit on `swipe-v1`.
 
-$$|\mathrm{goldenLines}| = 2 \cdot |\mathrm{crTypes}| + |\mathrm{wkTypes}| = 20$$
-
 The file `packages/contracts/golden/engine/people-deck.jsonl`, line by line. -/
 def goldenLines : List String :=
   (["swipe-v1", "swipe-touch-v1"].flatMap fun sc => MorphMountOpt.crTypes.map fun t => row "chromium" sc t) ++
     MorphMountOpt.wkTypes.map fun t => row "webkit" "swipe-v1" t
 
 /-- The golden file text: one row per line, trailing newline.
-
-$$\mathrm{goldenText} = \operatorname{concat}[\, \ell \mathbin{+\!\!+} \text{"\textbackslash n"} \,]_{\ell \in \mathrm{goldenLines}}$$
 
 What the driver writes. -/
 def goldenText : String := String.join (goldenLines.map (· ++ "\n"))
@@ -646,8 +542,6 @@ def goldenText : String := String.join (goldenLines.map (· ++ "\n"))
 /-! ## Examples: a relayout frame on both engines -/
 
 /-- A relayout frame with no other work (example input).
-
-$$\forall P:\ \operatorname{exFrame}(P) = \big((0, 0, 0, 0, [\,], 0),\ \mathrm{true},\ \mathrm{false}\big)$$
 
 Empty shared work, relayout on, no width step. -/
 def exFrame (P : Type) : DeckFrame P := ⟨⟨0, 0, 0, 0, [], 0⟩, true, false⟩
@@ -673,8 +567,6 @@ open Fw.Parts.EndFlags
 /-- **Work (⪯) under `frameWorkE`.** For end flags where the variant's stage is dirty only if the original's is, the
 variant does no more work.
 
-$$\forall \varepsilon, d, S,\ \forall e_v, e_o:\ \big(\forall s \in \operatorname{touched}_{\operatorname{lift}(\varepsilon)}(\operatorname{cqiF}(d, S)):\ e_v(s) = \top \Rightarrow e_o(s) = \top\big) \Rightarrow \operatorname{frameWork}^{e_v}_{\operatorname{lift}(\varepsilon)}(\operatorname{cqiF}(d, S)) \preceq \operatorname{frameWork}^{e_o}_{\operatorname{lift}(\varepsilon)}(\operatorname{orig}(d, S))$$
-
 The frame-end pass does not undo the skipped relayout. -/
 theorem deck_leE {P M : Type} (ε : Engine P M) (d : DeckFrame P) (shells : List Nat) (ev eo : Stage → Bool)
     (hm : ∀ s, s ∈ touched (lift ε) (d.cqiF shells) → ev s = true → eo s = true) :
@@ -682,8 +574,6 @@ theorem deck_leE {P M : Type} (ε : Engine P M) (d : DeckFrame P) (shells : List
   frameE_le_mono _ ev eo (fun s => by cases s <;> rfl) (deck_le ε d shells) hm
 
 /-- **Work (≺) under `frameWorkE`, where the original relayouts.**
-
-$$\forall \varepsilon, d, S,\ \forall e_v, e_o:\ d.\mathrm{relayout} \land \lnot d.\mathrm{widthStep} \land S \ne [\,] \land \big(\forall s \in \operatorname{touched}_{\operatorname{lift}(\varepsilon)}(\operatorname{cqiF}(d, S)):\ e_v(s) = \top \Rightarrow e_o(s) = \top\big) \Rightarrow \operatorname{frameWork}^{e_v}_{\operatorname{lift}(\varepsilon)}(\operatorname{cqiF}(d, S)) \prec \operatorname{frameWork}^{e_o}_{\operatorname{lift}(\varepsilon)}(\operatorname{orig}(d, S))$$
 
 One layout unit per shell is saved whatever the end flags say. -/
 theorem deck_ltE {P M : Type} (ε : Engine P M) (d : DeckFrame P) (shells : List Nat) (hr : d.relayout = true)

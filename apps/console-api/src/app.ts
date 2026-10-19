@@ -11,13 +11,14 @@ import { SECRET_HEADER, openDoor } from "./cap/cap.ts";
 import { mountOps } from "./ops/routes.ts";
 import { readLatestHealth } from "./health.ts";
 import { mountPreview } from "./preview/routes.ts";
+import type { Grants } from "./preview/grants.ts";
 import type { PreviewManager } from "./preview/manager.ts";
 import { OwnerAuth } from "./preview/owner.ts";
 import { mountOwnerGate } from "./preview/gate.ts";
 import { LoginGuard } from "./preview/login.ts";
 
 /** Owner login and LAN mode (console-lan-owner): the login guard and whether LAN requests are possible at all. */
-export interface GateOptions { login: LoginGuard; lan: boolean }
+export interface GateOptions { login: LoginGuard; lan: boolean; grants?: Grants }
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json",
@@ -78,7 +79,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   mountOps(app, store);
   if (reconciler) mountReconcile(app, store, reconciler);
   const { drain, caps } = mountAgentRoutes(app, store); // capability-gated agent door + spool drain
-  if (previews) mountPreview(app, store, caps, previews, owner); // task detail panel + owner-only preview (task-preview)
+  if (previews) mountPreview(app, store, caps, previews, owner, gate?.grants ? { grants: gate.grants, lan: gate.lan } : undefined); // task detail panel + owner-only preview (task-preview)
   app.get("/api/board", async (c) => c.json(await store.board()));
   app.get("/api/plan", async (c) => c.json((await store.board()).plan)); // the work graph, derived by fwcore
   // latest `fw watch` check (fwcore obs.health output) with the running code's `service` ({commit, startedAt}), or null
