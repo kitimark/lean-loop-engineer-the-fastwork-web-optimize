@@ -1,6 +1,6 @@
 # Handoff gate-page-root-anchor
 
-State: branch worktree-wf_11ac09ad-a60-5 (pushed as ci/gate-page-root-anchor). Measurement run id: see "CI" below.
+State: branch worktree-wf_11ac09ad-a60-5 (pushed as ci/gate-page-root-anchor). Measurement run id: 39190672752 (see CI).
 
 Done (PROVED in Lean, wired, tested):
 - lean/Fw/Gate/PageRoot.lean: `fits q s := s <= q` (q = requested width, NOT innerWidth: ledger gate.pageRoot.fixedInnerWidth),
@@ -23,3 +23,8 @@ the summary (expected). TS stand-ins: none (decision is Lean; verdict.mjs only s
 
 Conventions: after a bare lake build run `lake build fwcore`; `pnpm install --offline --frozen-lockfile` first in a fresh worktree.
 Read first: lean/Fw/Gate/PageRoot.lean, then the guards at the end of lean/Fw/Wire/Gate.lean.
+
+CI: breakpoint-gate run 39190672752 (dispatch, both engines, head fc222d6b). engine.scroll row pass in every cell, both engines. Raw
+records: all 124 probes carry viewport.scrollWidth on both arms; 117 both fit (equal), 7 at width 319 the original is 320 (na, = the 7
+excused chromium readings), 0 differ, 0 missing, same in both. Chromium verdict pass. The run is red only by playwright-webkit
+"incomplete": matchMedia =Lean | sweep:phone-rotation (#1, #3 not-comparable), not our row; not baselined on main (open item).
