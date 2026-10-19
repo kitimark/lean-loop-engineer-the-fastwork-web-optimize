@@ -73,26 +73,31 @@ test('grids: sweep from one viewport above to half a viewport past the section, 
 });
 
 // A captured transition: `tys` is translateY per frame, `flipAt` the frame whose hidden flag turns, `st` the transform start time.
-const trec = (tys, flipAt, { before = 0, st = null } = {}) => ({
+// `st` the transform start time, `pendUntil` the first frame that has it (earlier frames list the transition with a null start time);
+// without `st` the frames carry no `run` list, as in records of the older probe.
+const trec = (tys, flipAt, { before = 0, st = null, pendUntil = 0 } = {}) => ({
   before: { hidden: false, ty: before },
-  frames: tys.map((ty, i) => ({ ct: 1000 + i * 16.667, hidden: i >= flipAt, ty, run: st == null ? [] : [{ prop: 'transform', st, pend: false, cur: 0 }] })),
+  frames: tys.map((ty, i) => ({
+    ct: 1000 + i * 16.667, hidden: i >= flipAt, ty,
+    ...(st == null ? {} : { run: i >= pendUntil ? [{ prop: 'transform', st, pend: false, cur: 0 }] : [{ prop: 'transform', st: null, pend: true, cur: 0 }] }),
+  })),
 });
 
 test('frameIndexes: flip frame, first move frame, lag and start frame', () => {
-  const r = trec([0, 0, 0, -25, -44, -58], 2, { st: 1000 + 3 * 16.667 });
-  assert.deepEqual(frameIndexes(r), { flip: 2, move: 3, start: 3, lagMove: 1, lagStart: 1 });
+  const r = trec([0, 0, 0, -25, -44, -58], 2, { st: 1000 + 3 * 16.667, pendUntil: 3 });
+  assert.deepEqual(frameIndexes(r), { flip: 2, move: 3, start: 3, pending: 3, lagMove: 1, lagStart: 1 });
   // moved in the same frame as the flip (lag 0), no start time recorded
-  assert.deepEqual(frameIndexes(trec([0, 0, -25, -44], 2)), { flip: 2, move: 2, start: null, lagMove: 0, lagStart: null });
+  assert.deepEqual(frameIndexes(trec([0, 0, -25, -44], 2)), { flip: 2, move: 2, start: null, pending: null, lagMove: 0, lagStart: null });
   // never flips, never moves
-  assert.deepEqual(frameIndexes(trec([0, 0, 0], 9)), { flip: -1, move: -1, start: null, lagMove: null, lagStart: null });
+  assert.deepEqual(frameIndexes(trec([0, 0, 0], 9)), { flip: -1, move: -1, start: null, pending: null, lagMove: null, lagStart: null });
 });
 
-test('compareTransitionFrames: a later start shows as a longer lag; the curve from the first move is equal', () => {
+test('compareTransitionFrames: a later start shows as a longer lag; frame gaps are reported', () => {
   const o = trec([0, 0, 0, -25, -44, -58, -67, -73, -77, -80], 2);
   const p = trec([0, 0, 0, 0, -25, -44, -58, -67, -73, -77], 2);
   const c = compareTransitionFrames(o, p);
   assert.deepEqual([c.flip.orig, c.flip.port, c.move.orig, c.move.port, c.lag.orig, c.lag.port, c.lagDelta], [2, 2, 3, 4, 1, 2, 1]);
-  assert.equal(c.aligned, 0);
+  assert.deepEqual([c.maxGap.orig, c.maxGap.port], [16.7, 16.7]);
   assert.deepEqual(c.ty.orig.slice(0, 5), [0, 0, 0, -25, -44]);
   assert.deepEqual(c.ty.port.slice(0, 5), [0, 0, 0, 0, -25]);
   // a missing edge in one arm gives null, not 0

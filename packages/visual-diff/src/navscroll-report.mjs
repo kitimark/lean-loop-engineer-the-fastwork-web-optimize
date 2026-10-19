@@ -108,12 +108,12 @@ export function markdown(runs) {
         }
       }
     }
-    L.push('', '### Transition frames, arm against arm (frame 0 = sample at the jump; flip = class change visible; move = translateY changed; start = transform start time; lag = move - flip)', '', '| width | edge | flip o/p | move o/p | lag o/p | start o/p | translateY of the first 6 frames, orig | port | curve diff from own first move (px) | event order o / p |', '|---|---|---|---|---|---|---|---|---|---|');
+    L.push('', '### Transition frames, arm against arm (frame 0 = sample at the jump; flip = class change visible; move = translateY changed; start = transform start time; lag = move - flip)', '', '| width | edge | flip o/p | move o/p | lag o/p | start o/p | translateY of the first 6 frames, orig | port | frames pending o/p | longest frame gap ms o/p | event order o / p |', '|---|---|---|---|---|---|---|---|---|---|---|');
     for (const s of ok) {
       for (const [key, c] of Object.entries(s.frameCmp)) {
-        if (!c) { L.push(`| ${s.id} | ${key} | edge captured in one arm only | | | | | | | |`); continue; }
+        if (!c) { L.push(`| ${s.id} | ${key} | edge captured in one arm only | | | | | | | | |`); continue; }
         const pr = (x) => `${x.orig}/${x.port}`;
-        L.push(`| ${s.id} | ${key} | ${pr(c.flip)} | ${pr(c.move)} | ${pr(c.lag)} | ${c.start.orig ?? '-'}/${c.start.port ?? '-'} | ${c.ty.orig.slice(0, 6).join(' ')} | ${c.ty.port.slice(0, 6).join(' ')} | ${c.aligned ?? '-'} | ${c.seq.orig ?? '-'} / ${c.seq.port ?? '-'} |`);
+        L.push(`| ${s.id} | ${key} | ${pr(c.flip)} | ${pr(c.move)} | ${pr(c.lag)} | ${c.start.orig ?? '-'}/${c.start.port ?? '-'} | ${c.ty.orig.slice(0, 6).join(' ')} | ${c.ty.port.slice(0, 6).join(' ')} | ${c.pending.orig ?? '-'}/${c.pending.port ?? '-'} | ${c.maxGap.orig}/${c.maxGap.port} | ${c.seq.orig ?? '-'} / ${c.seq.port ?? '-'} |`);
       }
     }
     L.push('', '### Real wheel events (100 px / 60 ms; u of the first hidden / first visible frame)', '', '| width | arm | down on | down off | up on | up off | peak u |', '|---|---|---|---|---|---|---|');

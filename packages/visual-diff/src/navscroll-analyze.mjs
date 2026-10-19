@@ -138,8 +138,9 @@ export const TY_EPS = 1e-3;
  * Frame indexes of one captured transition. Frame 0 is the sample taken in the same task as the scroll jump; frame k >= 1
  * is the k-th native rAF after it. `flip` is the first frame whose hidden flag differs from the start state (the class
  * change is visible), `move` the first frame whose computed translateY differs from the start state, `start` the first
- * frame at or after the transform transition's start time (null when the record has no start time: older probe versions).
- * Each is -1 / null when it never happens in the record.
+ * frame at or after the transform transition's start time (null when the record has no start time: older probe versions),
+ * `pending` the number of frames in which the transform transition exists but has no start time yet (null for older probe
+ * versions). Each is -1 / null when it never happens in the record.
  */
 export function frameIndexes(rec) {
   const flip = rec.frames.findIndex((f) => f.hidden !== rec.before.hidden);
@@ -150,31 +151,32 @@ export function frameIndexes(rec) {
     if (a) { st = a.st; break; }
   }
   const start = st == null ? null : rec.frames.findIndex((f) => f.ct >= st - 0.01);
-  return { flip, move, start, lagMove: flip < 0 || move < 0 ? null : move - flip, lagStart: start == null || start < 0 || flip < 0 ? null : start - flip };
+  const hasRun = rec.frames.some((f) => f.run);
+  const pending = hasRun ? rec.frames.filter((f) => f.run.some((x) => x.prop === 'transform' && x.st == null)).length : null;
+  return { flip, move, start, pending, lagMove: flip < 0 || move < 0 ? null : move - flip, lagStart: start == null || start < 0 || flip < 0 ? null : start - flip };
 }
 
 /**
  * Per-frame comparison of the same edge in the two arms: the frame of the class flip, of the first transform change, their
- * distance (lag), and translateY per frame from the jump (`n` frames). `aligned` is the largest |ty difference| when each
- * arm's frames are counted from its own first transform change, i.e. the curve itself with the start lag removed.
+ * distance (lag), the frames the transform transition spent without a start time (`pending`), translateY per frame from the
+ * jump (`n` frames) and the longest gap between consecutive frame times among them (ms; a skipped display frame shows as ~33).
+ * The curve itself is checked against the browser's easing by pathError, from the animation's own start time.
  */
 export function compareTransitionFrames(o, p, n = 8) {
   const a = frameIndexes(o), b = frameIndexes(p);
   const ty = (r) => r.frames.slice(0, n).map((f) => +f.ty.toFixed(2));
-  let aligned = null;
-  if (a.move >= 0 && b.move >= 0) {
-    aligned = 0;
-    for (let k = 0; k < n; k++) {
-      const x = o.frames[a.move + k], z = p.frames[b.move + k];
-      if (x && z) aligned = Math.max(aligned, Math.abs(x.ty - z.ty));
-    }
-    aligned = +aligned.toFixed(2);
-  }
+  const gap = (r) => {
+    const f = r.frames.slice(0, n);
+    let m = 0;
+    for (let i = 1; i < f.length; i++) m = Math.max(m, f[i].ct - f[i - 1].ct);
+    return +m.toFixed(1);
+  };
   return {
     flip: { orig: a.flip, port: b.flip }, move: { orig: a.move, port: b.move }, start: { orig: a.start, port: b.start },
+    pending: { orig: a.pending, port: b.pending },
     lag: { orig: a.lagMove, port: b.lagMove }, lagStart: { orig: a.lagStart, port: b.lagStart },
     lagDelta: a.lagMove == null || b.lagMove == null ? null : b.lagMove - a.lagMove,
-    ty: { orig: ty(o), port: ty(p) }, aligned,
+    ty: { orig: ty(o), port: ty(p) }, maxGap: { orig: gap(o), port: gap(p) },
   };
 }
 
