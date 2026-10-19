@@ -1,13 +1,13 @@
 export const meta = {
   name: 'build-review',
-  description: 'Build each task (own worktree or a named one), then math review (Lean tasks) and adversarial review per task, with the fixed team preamble',
+  description: 'Build each task (own worktree or a named one), then adversarial review per task, with the fixed team preamble',
   whenToUse: 'Every build task the lead starts: args = { tasks: [{ id, role, prompt, lean?, worktree?, unit?, limits?, findings? }], voice? }',
   phases: [{ title: 'Build' }, { title: 'Review' }],
 }
 
 const PREAMBLE = `Fixed preamble (lead template, research/notes/2026/10-19-automate-me.md candidate 1):
 - Standing authorizations: commit only on your branch in your worktree (git add -- <paths>); no pushes except ci/* in the allowed form; no personal data; never hand-edit a generated file (regenerate from Lean and run its --check).
-- Lean first: every pure decision is specified and proved in Lean; every theorem docstring carries its LaTeX statement; each OR-branch of a decision gets its own theorem. TS logic not checked against a Lean golden is listed as a TS stand-in.
+- Lean first: every pure decision is specified and proved in Lean; each OR-branch of a decision gets its own theorem. No LaTeX: add no $$ math and no docstrings to new declarations (comments per .claude/skills/no-comments/SKILL.md); do not touch existing docstrings unless the mathview lint refuses them. TS logic not checked against a Lean golden is listed as a TS stand-in.
 - Commit WIP every 20-30 min. Never cd outside your worktree; use absolute paths.
 - Never wait with an until/while loop on a file or output: run the command in the foreground, or in the background and act on its completion notice; CI waits use pnpm -s fw ci wait.
 - Before reporting run each touched package's test script (not single files) incl. typecheck, node --test scripts/ci-paths.test.mjs and the apps/runner land-inputs test; declare every new read (CI trigger row, LandSpeed.checkShReads, land.ts reads) the tests ask for.
@@ -40,9 +40,7 @@ return await pipeline(tasks,
       () => agent(`Adversarial review of task ${t.id}: branch ${b.branch} at ${b.commit} (read-only). Builder: ${b.summary}\nTask: ${t.prompt}\n${scope(t)}\nRun the tests yourself. Return accept + findings.`,
         { label: `adv:${t.id}`, phase: 'Review', agentType: 'reviewer', schema: VERDICT }),
     ]
-    if (t.lean) reviews.push(() => agent(`Math review of task ${t.id}: branch ${b.branch} at ${b.commit}. Check every new or changed Lean docstring LaTeX against its Lean, and run the mathview stage of lean/scripts/check.sh (it must pass). Read-only. Return accept + findings.`,
-      { label: `math:${t.id}`, phase: 'Review', agentType: 'math-reviewer', schema: VERDICT }))
-    const [adv, math] = await parallel(reviews)
-    return { task: t.id, build: b, adv, math: t.lean ? math : undefined }
+    const [adv] = await parallel(reviews)
+    return { task: t.id, build: b, adv }
   },
 )
