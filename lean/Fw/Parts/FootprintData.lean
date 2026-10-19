@@ -684,7 +684,7 @@ def accesses : List Access := [
   ⟨"nav", "nav/index.tsx", 119, .listen, "media-change", "", "effect"⟩,
   ⟨"nav", "nav/index.tsx", 120, .listen, "media-change", "", "effect"⟩,
   ⟨"nav", "nav/index.tsx", 126, .attrRead, "*", "nav", "observer:MutationObserver"⟩,
-  ⟨"nav", "nav/index.tsx", 151, .setAttr, "tabindex", "nav", "props"⟩,
+  ⟨"nav", "nav/index.tsx", 147, .setAttr, "tabindex", "nav", "props"⟩,
   ⟨"nav", "nav/media.ts", 16, .media, "?", "", "effect"⟩,
   ⟨"nav", "nav/nav.module.css", 14, .cssVar, "--morph", "", "style"⟩,
   ⟨"nav", "nav/nav.module.css", 18, .cssVar, "--hero-pill-w", "", "style"⟩,

@@ -6711,7 +6711,8 @@
     "apps/site/src/svg-extract.test.ts",
     "lean/Fw/Parts/FootprintData.lean",
     "packages/contracts/golden/parts/footprint.gen.json"
-   ]
+   ],
+   "evidence": "cf93cbb"
   },
   {
    "devices": [

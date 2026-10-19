@@ -3,10 +3,5 @@
     "file": "src/parts/hero.accent/index.tsx",
     "element": "path",
     "reason": "d is computed by strokePath from the accent words in svg.gen.json; the file holds no literal geometry"
-  },
-  {
-    "file": "src/parts/nav/index.tsx",
-    "element": "path",
-    "reason": "d is a wordmark path string read from svg.gen.json; the file holds no literal geometry"
   }
 ]
