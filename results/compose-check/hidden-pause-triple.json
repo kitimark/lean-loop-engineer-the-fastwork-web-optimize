@@ -1,0 +1,6746 @@
+{
+ "combined": {
+  "baseId": "39130874266",
+  "clean": true,
+  "flags": [
+   "engine.scene:hidden-pause",
+   "morph.columns:hidden-pause",
+   "morph.countdown:hidden-pause"
+  ],
+  "id": "39131249517"
+ },
+ "rows": [
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "rest"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y00000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y00500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y01000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y01500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y02000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y02500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y03000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y03500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y04000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y04500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y05000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "tail"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FireAnimationFrame",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "run"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "rest"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y00000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y00500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 1,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 1,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 1,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y01000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y01500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 1,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 1,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 1,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y02000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y02500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 9,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 9,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 9,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y03000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y03500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": -8,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": -8,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": -8,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y04000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y04500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 1,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 1,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 1,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y05000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 0,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "tail"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 12,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 9,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 1,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 2,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "script",
+   "sum": 12,
+   "type": "trace.FunctionCall",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "run"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 0,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "rest"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 0,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "y00000"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 0,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "y00500"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 0,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "y01000"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 0,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "y01500"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 0,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "y02000"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 0,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "y02500"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 1,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 1,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 1,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "y03000"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 0,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "y03500"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 0,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "y04000"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 0,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "y04500"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 0,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "y05000"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 0,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "tail"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 1,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 1,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "style",
+   "sum": 1,
+   "type": "trace.UpdateLayoutTree",
+   "verdict": "reported",
+   "zone": "run"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "rest"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "y00000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "y00500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "y01000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "y01500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "y02000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "y02500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "y03000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "y03500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "y04000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "y04500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "y05000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "tail"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout",
+   "verdict": "reported",
+   "zone": "run"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "rest"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y00000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y00500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y01000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y01500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y02000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y02500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y03000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y03500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y04000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y04500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "y05000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "tail"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "layout",
+   "sum": 0,
+   "type": "trace.Layout.dirtyObjects",
+   "verdict": "not-comparable",
+   "why": "quarantined",
+   "zone": "run"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "rest"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "y00000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "y00500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "y01000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "y01500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "y02000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "y02500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "y03000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "y03500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "y04000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "y04500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "y05000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "tail"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "props",
+   "sum": 0,
+   "type": "trace.PrePaint",
+   "verdict": "reported",
+   "zone": "run"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "rest"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "y00000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "y00500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "y01000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "y01500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "y02000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "y02500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "y03000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "y03500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "y04000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "y04500"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "y05000"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "tail"
+  },
+  {
+   "class": {
+    "class": "quarantined",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "trace.Paint",
+   "verdict": "reported",
+   "zone": "run"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "rest"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y00000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y00500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y01000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y01500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y02000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y02500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y03000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y03500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y04000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y04500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y05000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "tail"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "composes",
+   "zone": "run"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "rest"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y00000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y00500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y01000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y01500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y02000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y02500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y03000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y03500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y04000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y04500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y05000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "tail"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "paint",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "composes",
+   "zone": "run"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "rest"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y00000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y00500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y01000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y01500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y02000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y02500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y03000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y03500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y04000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y04500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y05000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "tail"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationAreaPx",
+   "verdict": "composes",
+   "zone": "run"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "rest"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y00000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y00500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y01000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y01500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y02000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y02500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y03000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y03500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y04000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y04500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y05000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "tail"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 4,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "raster",
+   "sum": 0,
+   "type": "raster.invalidationRects",
+   "verdict": "composes",
+   "zone": "run"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "rest"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "y00000"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "y00500"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "y01000"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "y01500"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "y02000"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "y02500"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "y03000"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "y03500"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "y04000"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "y04500"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "y05000"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "tail"
+  },
+  {
+   "class": {
+    "class": "deterministic",
+    "k": 0,
+    "t": 0
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "passes",
+   "margin": 0,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "commit",
+   "sum": 0,
+   "type": "trace.cc.Commit",
+   "verdict": "reported",
+   "zone": "run"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": 0,
+   "type": "census.layers",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "rest"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": 0,
+   "type": "census.layers",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y00000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": 0,
+   "type": "census.layers",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y00500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": 0,
+   "type": "census.layers",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y01000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": 0,
+   "type": "census.layers",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y01500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": 0,
+   "type": "census.layers",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y02000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": 0,
+   "type": "census.layers",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y02500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": 0,
+   "type": "census.layers",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y03000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": 0,
+   "type": "census.layers",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y03500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": 0,
+   "type": "census.layers",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y04000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": 0,
+   "type": "census.layers",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y04500"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": -2,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": -2,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": -2,
+   "type": "census.layers",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "y05000"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": 0,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": 0,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": 0,
+   "type": "census.layers",
+   "verdict": "not-comparable",
+   "why": "no-zone-margin",
+   "zone": "tail"
+  },
+  {
+   "class": {
+    "class": "stable",
+    "k": 2,
+    "t": 3
+   },
+   "combined": {
+    "delta": -2,
+    "run": "39131249517"
+   },
+   "kind": "units",
+   "margin": 24,
+   "parts": [
+    {
+     "delta": -2,
+     "flag": "engine.scene:hidden-pause",
+     "run": "39131168588"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.columns:hidden-pause",
+     "run": "39131207849"
+    },
+    {
+     "delta": 0,
+     "flag": "morph.countdown:hidden-pause",
+     "run": "39131217951"
+    }
+   ],
+   "residual": 0,
+   "stage": "comp",
+   "sum": -2,
+   "type": "census.layers",
+   "verdict": "composes",
+   "zone": "run"
+  }
+ ],
+ "singles": [
+  {
+   "baseId": "39130874266",
+   "clean": true,
+   "flags": [
+    "morph.tween:waapi"
+   ],
+   "id": "39131146372"
+  },
+  {
+   "baseId": "39130874266",
+   "clean": true,
+   "flags": [
+    "engine.scene:hidden-pause"
+   ],
+   "id": "39131168588"
+  },
+  {
+   "baseId": "39130874266",
+   "clean": true,
+   "flags": [
+    "morph.columns:hidden-pause"
+   ],
+   "id": "39131207849"
+  },
+  {
+   "baseId": "39130874266",
+   "clean": true,
+   "flags": [
+    "morph.countdown:hidden-pause"
+   ],
+   "id": "39131217951"
+  },
+  {
+   "baseId": "39130874266",
+   "clean": true,
+   "flags": [
+    "morph.mount:shift"
+   ],
+   "id": "39131302530"
+  },
+  {
+   "baseId": "39130874266",
+   "clean": true,
+   "flags": [
+    "hero.countdown:strip",
+    "morph.countdown:strip"
+   ],
+   "id": "39131314391"
+  },
+  {
+   "baseId": "39130874266",
+   "clean": true,
+   "flags": [
+    "nav.hitTest:hit-skip"
+   ],
+   "id": "39131343835"
+  },
+  {
+   "baseId": "39130874266",
+   "clean": true,
+   "flags": [
+    "nav.hitTest:elements-skip"
+   ],
+   "id": "39131395370"
+  }
+ ],
+ "tally": {
+  "composes": 5,
+  "coupled": 0,
+  "notComparable": 107,
+  "reported": 70
+ }
+}

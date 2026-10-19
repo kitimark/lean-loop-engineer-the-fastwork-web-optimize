@@ -1,0 +1,27 @@
+{
+ "schema": "fw.compose.plan/1",
+ "profile": "swipe-v1",
+ "arm": "rewrite",
+ "comparisons": [
+  {
+   "name": "hidden-pause-triple",
+   "title": "hidden-pause triple, build 698b7755 (model-checks)",
+   "combined": { "run": "39131249517", "base": "39130874266" }
+  },
+  {
+   "name": "v2-proved",
+   "title": "v2-proved preset, build c6912998 (C3)",
+   "combined": { "run": "39253172750", "base": "39253166643" }
+  }
+ ],
+ "singles": [
+  { "run": "39131146372", "base": "39130874266" },
+  { "run": "39131168588", "base": "39130874266" },
+  { "run": "39131207849", "base": "39130874266" },
+  { "run": "39131217951", "base": "39130874266" },
+  { "run": "39131302530", "base": "39130874266" },
+  { "run": "39131314391", "base": "39130874266" },
+  { "run": "39131343835", "base": "39130874266" },
+  { "run": "39131395370", "base": "39130874266" }
+ ]
+}

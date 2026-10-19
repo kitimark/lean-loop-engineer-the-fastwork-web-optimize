@@ -1,10 +1,13 @@
 // node packages/engine-check/src/cli.mjs --rows <jsonl> --runs <dir>[,<dir>...] --out <dir> [--classes <file>] [--engine chromium]
 // Stages every counts.json below the --runs dirs (stage.mjs), then runs `fw engine-check` on the staged dir. Exit code is engine-check's.
+// node packages/engine-check/src/cli.mjs --compose <plan.json> --runs <dir> --out <dir> [--classes <file>]
+// F6 composition check (compose.mjs, op measure.compose): writes <out>/<name>.json and <out>/table.md per plan comparison.
 import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { stageRuns } from './stage.mjs';
+import { classTable, render, request } from './compose.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 
@@ -31,6 +34,34 @@ function parseArgs(argv) {
   if (!a.rows || !a.runs || !a.out) throw new Error('usage: cli.mjs --rows f --runs d[,d] --out d [--classes f]');
   return a;
 }
+
+async function composeMain(argv) {
+  const a = {};
+  for (let i = 0; i < argv.length; i += 2) {
+    if (!['--compose', '--runs', '--out', '--classes'].includes(argv[i]) || argv[i + 1] === undefined) throw new Error(`usage: cli.mjs --compose plan --runs d --out d [--classes f] (bad ${argv[i]})`);
+    a[argv[i].slice(2)] = argv[i + 1];
+  }
+  if (!a.runs || !a.out) throw new Error('usage: cli.mjs --compose plan --runs d --out d [--classes f]');
+  const root = resolve(HERE, '..', '..', '..');
+  const { fwcoreCall } = await import('../../../apps/runner/src/run.ts');
+  const call = fwcoreCall(root);
+  const plan = JSON.parse(readFileSync(a.compose, 'utf8'));
+  const frozen = JSON.parse(readFileSync(a.classes ?? join(root, 'packages/measure-chromium/classes.frozen.json'), 'utf8'));
+  const classes = classTable(frozen, plan.profile, plan.arm);
+  mkdirSync(a.out, { recursive: true });
+  const md = [];
+  for (const cmp of plan.comparisons) {
+    const { op: _op, ...reply } = call(request(plan, cmp, classes, a.runs));
+    writeFileSync(join(a.out, `${cmp.name}.json`), JSON.stringify(reply, null, 1) + '\n');
+    md.push(render(cmp.title ?? cmp.name, reply));
+    const t = reply.tally;
+    console.log(`${cmp.name}: ${t.composes} composes, ${t.coupled} coupled, ${t.notComparable} not comparable, ${t.reported} reported`);
+  }
+  writeFileSync(join(a.out, 'table.md'), md.join('\n'));
+  return 0;
+}
+
+if (process.argv[2] === '--compose') process.exit(await composeMain(process.argv.slice(2)));
 
 const a = parseArgs(process.argv.slice(2));
 const engine = a.engine ?? 'chromium';
