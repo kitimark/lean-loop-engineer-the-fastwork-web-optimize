@@ -30,21 +30,66 @@ export function readFlags(root: string): Flag[] {
   });
 }
 
-/** Every `apps/site/src/registry/presets/*.json`. */
+/** Every `apps/site/src/registry/presets/*.json`, `extends` resolved into `fw` (base first, own entries over it; an unknown base or
+ *  a cycle adds nothing). TS stand-in: mirrors `presetEntries` in `apps/site/src/registry/resolve.ts`; the Lean op takes the resolved `fw`. */
 export function readPresets(root: string): Preset[] {
   const dir = join(root, "apps/site/src/registry/presets");
   if (!existsSync(dir)) return [];
-  return readdirSync(dir).filter((n) => n.endsWith(".json")).sort().map((n) => {
-    const p = JSON.parse(readFileSync(join(dir, n), "utf8")) as { name?: string; fw?: Record<string, string> };
-    return { name: p.name ?? n.slice(0, -5), fw: p.fw ?? {} };
-  });
+  const raw = new Map<string, { extends?: string; fw: Record<string, string> }>();
+  for (const n of readdirSync(dir).filter((x) => x.endsWith(".json")).sort()) {
+    const p = JSON.parse(readFileSync(join(dir, n), "utf8")) as { name?: string; extends?: string; fw?: Record<string, string> };
+    raw.set(p.name ?? n.slice(0, -5), { extends: p.extends, fw: p.fw ?? {} });
+  }
+  const resolve = (name: string, seen: string[]): Record<string, string> => {
+    const p = raw.get(name);
+    if (!p || seen.includes(name)) return {};
+    return { ...(p.extends ? resolve(p.extends, [...seen, name]) : {}), ...p.fw };
+  };
+  return [...raw.keys()].map((name) => ({ name, fw: resolve(name, []) }));
 }
 
-export function workGraphTasks(root: string): { id: string; title: string }[] {
+export type WorkTask = { id: string; title: string; evidence?: string };
+
+export function workGraphTasks(root: string): WorkTask[] {
   const f = join(root, "docs/team/work-graph.json");
   if (!existsSync(f)) return [];
-  const g = JSON.parse(readFileSync(f, "utf8")) as { tasks?: { id: string; title?: string }[] } | { id: string; title?: string }[];
-  return (Array.isArray(g) ? g : g.tasks ?? []).map((t) => ({ id: t.id, title: t.title ?? "" }));
+  const g = JSON.parse(readFileSync(f, "utf8")) as { tasks?: { id: string; title?: string; evidence?: string }[] } | { id: string; title?: string; evidence?: string }[];
+  return (Array.isArray(g) ? g : g.tasks ?? []).map((t) => ({ id: t.id, title: t.title ?? "", evidence: t.evidence }));
+}
+
+const landCache = new Map<string, string>();
+
+/** Evidence land facts: for each port or fix task whose `evidence` names a commit on main (the first hex token that is a
+ *  commit), the land commit: the evidence commit when it is on the first-parent line, else the oldest first-parent commit of main
+ *  that has it as an ancestor (found by binary search: `--first-parent --ancestry-path` lists nothing across a merge). Lean decides the row; this only resolves shas. Tasks without a resolvable commit are returned in `missing`. */
+export function evidenceLands(tasks: WorkTask[], git: Git): { evidence: { task: string; sha: string }[]; missing: string[] } {
+  const evidence: { task: string; sha: string }[] = [];
+  const missing: string[] = [];
+  const fp = (git(["rev-list", "--first-parent", "main"]) ?? "").split("\n").filter(Boolean); // newest first
+  const firstParent = new Set(fp);
+  // `has(i)`: ev is an ancestor of fp[i]; true for i <= k along the line, so the oldest such commit is fp[k] (binary search)
+  const oldestWith = (ev: string): string | null => {
+    const hit = landCache.get(ev);
+    if (hit) return hit;
+    const has = (i: number) => git(["merge-base", "--is-ancestor", ev, fp[i]!]) !== null;
+    if (fp.length === 0 || !has(0)) return null;
+    let lo = 0, hi = fp.length - 1; // has(lo) true; find the last true
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (has(mid)) lo = mid; else hi = mid - 1; }
+    landCache.set(ev, fp[lo]!);
+    return fp[lo]!;
+  };
+  for (const t of tasks) {
+    if (!/^(port|fix)-/.test(t.id)) continue;
+    let land: string | null = null;
+    for (const tok of (t.evidence ?? "").match(/\b[0-9a-f]{7,40}\b/g) ?? []) {
+      const full = (git(["rev-parse", "--verify", "--quiet", `${tok}^{commit}`]) ?? "").trim();
+      if (!full) continue;
+      land = firstParent.has(full) ? full : oldestWith(full);
+      break;
+    }
+    if (land) evidence.push({ task: t.id, sha: land }); else missing.push(t.id);
+  }
+  return { evidence, missing };
 }
 
 /** main's first-parent log, newest first: sha, committer time (s), full message. */
@@ -62,8 +107,10 @@ export function mainLog(git: Git, max = LOG_MAX): { sha: string; time: number; b
 /** The rows of the Builds tab: Lean `console.builds` over the gathered facts. */
 export async function buildRows(root: string, core: Pick<Core, "ops">, git: Git = gitIn(root)): Promise<Builds> {
   const mainSha = (git(["rev-parse", "main"]) ?? "").trim();
+  const log = mainLog(git);
+  const tasks = workGraphTasks(root);
   const r = await core.ops("console.builds", {
-    main: mainSha, log: mainLog(git), known: workGraphTasks(root), flags: readFlags(root), presets: readPresets(root),
+    main: mainSha, log, known: tasks.map((t) => ({ id: t.id, title: t.title })), evidence: evidenceLands(tasks, git).evidence, flags: readFlags(root), presets: readPresets(root),
   });
   return { mainSha, ports: r.ports as PortRow[], optimize: r.optimize as OptRow[], searches: r.searches as string[] };
 }

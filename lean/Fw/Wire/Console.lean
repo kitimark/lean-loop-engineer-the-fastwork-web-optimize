@@ -43,7 +43,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.landTier` | `ids` [check ids] | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept) |
 | `console.landLane` | `exitOk`, `coreUser`, `skipped` (skipped plus todo tests the summary reports; `null` when no summary was recognised) | `verdict` (`pass`/`fail`/`skipped`/`unknown`), `ok` (`Fw.Console.LandTier.laneVerdict`) |
 | `console.previewCache` | `path` (the request path, no query), `manifest`? [names] (the rewrite build's `.vite/manifest.json` `file`/`css`/`assets` entries, each as `/<name>`) | `kind` (`hashed`/`html`/`other`), `cacheControl`, `immutable`, `compress` (`Fw.Console.PreviewCache.kind`, `cacheControl`, `compressible`) |
-| `console.builds` | `main` (main's sha), `log` [{sha, time, body}] (main's first-parent log, newest first), `known` [{id, title}] (the work graph), `flags` [{part, variant, kind, requires? [keys]}], `presets` [{name, fw {part: variant}}] | `ports` [{id, task, group, sha, landedAt, title, slot, search, target}], `optimize` [{id, kind, name, search, status, note, slot, target}], `searches` (`Fw.Console.Builds.portRows`, `optRows`, `enumerate`) |
+| `console.builds` | `main` (main's sha), `log` [{sha, time, body}] (main's first-parent log, newest first), `known` [{id, title}] (the work graph), `evidence`? [{task, sha}] (a work-graph task whose evidence commit is on main: sha = its land commit on main's first-parent line), `flags` [{part, variant, kind, requires? [keys]}], `presets` [{name, fw {part: variant}}] (fw with `extends` already resolved) | `ports` [{id, task, group, sha, landedAt, title, slot, search, target}], `optimize` [{id, kind, name, search, status, note, slot, target}], `searches` (`Fw.Console.Builds.portRows`, `optRows`, `enumerate`) |
 | `console.buildsPicker` | `keys` (the `bySearch` keys of a build), `current`? | `searches` (the picker list), `current` (the search the compare view loads) (`Fw.Console.Builds.picker`, `choose`) |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?, evidenceOnMain?}] (`evidenceOnMain`: the glue's `git merge-base --is-ancestor <evidence> main`; missing = true), `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
@@ -477,14 +477,16 @@ def opBuilds (req : Json) : Except String Reply := do
     pure ({ sha := ← str c "sha", time := ← nat c "time", body := ← strD c "body" "" } : LogCommit)
   let known ← (← arrD req "known").mapM fun k => do
     pure ({ id := ← str k "id", title := ← strD k "title" "" } : Known)
+  let ev ← (← arrD req "evidence").mapM fun e => do
+    pure ({ task := ← str e "task", sha := ← str e "sha" } : EvLand)
   let flags ← (← arrD req "flags").mapM fun f => do
     pure ({ part := ← str f "part", variant := ← str f "variant", kind := ← str f "kind",
             requires := ← (← arrD f "requires").mapM (asStr "requires") } : Flag)
   let presets ← (← arrD req "presets").mapM fun p => do
     pure ({ name := ← str p "name", fw := ← strPairs "fw" (← field p "fw") } : Preset)
-  let ports := (portRows known log).map fun r => Json.mkObj [
+  let ports := (portRows known log ev).map fun r => Json.mkObj [
     ("id", Json.str ("port:" ++ r.task)), ("task", r.task), ("group", group r.task), ("sha", r.sha),
-    ("landedAt", Json.num r.landedAt), ("title", r.title), ("slot", r.task), ("search", ""),
+    ("landedAt", Json.num r.landedAt), ("title", r.title), ("slot", landSlot r.task), ("search", ""),
     ("target", buildTargetJson (portTarget r))]
   let opts := (optRows presets flags).map fun o => Json.mkObj [
     ("id", Json.str (o.kind ++ ":" ++ o.name)), ("kind", o.kind), ("name", o.name), ("search", o.search),

@@ -12,7 +12,8 @@ import { Store } from "../src/store.ts";
 import { CapStore } from "../src/cap/cap.ts";
 import { PreviewManager, defaultHooks, type Hooks } from "../src/preview/manager.ts";
 import { OwnerAuth } from "../src/preview/owner.ts";
-import { buildRows, readFlags, readPresets, rowAt } from "../src/preview/builds.ts";
+import { gitIn } from "../src/preview/facts.ts";
+import { buildRows, evidenceLands, workGraphTasks, readFlags, readPresets, rowAt } from "../src/preview/builds.ts";
 import { choose, picker } from "../src/preview/picker.ts";
 import { handler } from "../src/preview/serve-child.ts";
 
@@ -93,39 +94,53 @@ function repo() {
   part("hero", { faithful: { kind: "faithful" }, strip: { kind: "optimized" } });
   part("nav", { faithful: { kind: "faithful" }, skip: { kind: "optimized" } }, { "nav:skip": ["hero:strip"] });
   mkdirSync(join(root, "apps/site/src/registry/presets"), { recursive: true });
-  writeFileSync(join(root, "apps/site/src/registry/presets/original.json"), JSON.stringify({ name: "original", fw: {} }));
+  writeFileSync(join(root, "apps/site/src/registry/presets/original.json"), JSON.stringify({ name: "original", fw: { hero: "strip" } }));
   writeFileSync(join(root, "apps/site/src/registry/presets/v2-proved.json"), JSON.stringify({ extends: "original", name: "v2-proved", fw: { nav: "skip" } }));
-  writeFileSync(join(root, "docs/team/work-graph.json"), JSON.stringify({ tasks: [
-    { id: "port-hero", title: "hero port" }, { id: "fix-nav", title: "nav fix" }, { id: "port-later", title: "later" }, { id: "proof-x", title: "proof" }] }));
   sh(root, "add", "-A"); sh(root, "commit", "-qm", "base");
+  const at = (time: number) => ({ ...process.env, GIT_COMMITTER_DATE: `@${time} +0000`, GIT_AUTHOR_DATE: `@${time} +0000` });
   const land = (msg: string, time: number) => {
     writeFileSync(join(root, `f${time}.txt`), "1"); sh(root, "add", "-A");
-    execFileSync("git", ["commit", "-qm", msg], { cwd: root, env: { ...process.env, GIT_COMMITTER_DATE: `@${time} +0000`, GIT_AUTHOR_DATE: `@${time} +0000` } });
+    execFileSync("git", ["commit", "-qm", msg], { cwd: root, env: at(time) });
     return sh(root, "rev-parse", "HEAD");
   };
   const a = land("land hero\n\nTask: port-hero", 1000);
+  // port-old: no trailer; its work is a side-branch commit merged into main at M (evidence is not on the first-parent line)
+  sh(root, "checkout", "-q", "-b", "side");
+  const x = land("old work on a side branch", 1200);
+  sh(root, "checkout", "-q", "main");
+  execFileSync("git", ["merge", "--no-ff", "-qm", "merge side", "side"], { cwd: root, env: at(1500), stdio: "ignore" });
+  const m = sh(root, "rev-parse", "HEAD");
   const b = land("land nav\n\nTask: fix-nav", 2000);
+  // fix-old: no trailer; its evidence commit is on main's first-parent line
+  const d = land("old fix straight on main", 2500);
   const c = land("land proof\n\nTask: proof-x", 3000);
-  return { root, a, b, c };
+  writeFileSync(join(root, "docs/team/work-graph.json"), JSON.stringify({ tasks: [
+    { id: "port-hero", title: "hero port", evidence: `${a.slice(0, 7)}: trailer wins` }, { id: "fix-nav", title: "nav fix" }, { id: "port-later", title: "later" },
+    { id: "proof-x", title: "proof" }, { id: "port-old", title: "old port", evidence: `gate 39184687325 pass; ${x.slice(0, 7)}: on main via merge` },
+    { id: "fix-old", title: "old fix", evidence: `${d.slice(0, 7)}: on main` }, { id: "port-gone", title: "gone", evidence: "deadbee: lost" }] }));
+  sh(root, "add", "-A"); sh(root, "commit", "-qm", "graph");
+  return { root, a, b, c, d, m, x };
 }
 
 describe("buildRows (Lean console.builds over the gathered facts)", () => {
   it("port rows: landed port and fix tasks, newest first, each at its land commit; optimize rows: presets then every variant", async () => {
-    const { root, a, b } = repo();
+    const { root, a, b, d, m } = repo();
     const core = selectCore();
     try {
       const r = await buildRows(root, core);
-      expect(r.ports.map((p) => [p.task, p.sha, p.landedAt, p.title, p.group])).toEqual([["fix-nav", b, 2000, "nav fix", "fix"], ["port-hero", a, 1000, "hero port", "port"]]);
+      expect(r.ports.map((p) => [p.task, p.sha, p.landedAt, p.title, p.group])).toEqual([["fix-old", d, 2500, "old fix", "fix"], ["fix-nav", b, 2000, "nav fix", "fix"], ["port-old", m, 1500, "old port", "port"], ["port-hero", a, 1000, "hero port", "port"]]);
+      expect(r.ports.map((p) => p.slot)).toEqual(["land-fix-old", "land-fix-nav", "land-port-old", "land-port-hero"]);
+      expect(evidenceLands(workGraphTasks(root), gitIn(root)).missing.sort()).toEqual(["fix-nav", "port-gone", "port-later"]);
       for (const p of r.ports) expect(p.target).toEqual({ kind: "main", ref: "main", sha: p.sha });
       expect(r.optimize.map((o) => [o.id, o.search, o.status])).toEqual([
         ["preset:original", "?preset=original", "preset"], ["preset:v2-proved", "?preset=v2-proved", "the v2-proved preset"],
-        ["flag:hero:faithful", "?fw=hero:faithful", "baseline"], ["flag:hero:strip", "?fw=hero:strip", "not in v2-proved"],
+        ["flag:hero:faithful", "?fw=hero:faithful", "baseline"], ["flag:hero:strip", "?fw=hero:strip", "v2-proved"],
         ["flag:nav:faithful", "?fw=nav:faithful", "baseline"], ["flag:nav:skip", "?fw=nav:skip,hero:strip", "v2-proved"]]);
       for (const o of r.optimize) { expect(o.target.sha).toBe(r.mainSha); expect(r.searches).toContain(o.search); }
       expect(r.searches[0]).toBe("");
       expect(readFlags(root).length).toBe(4);
       expect(readPresets(root).map((p) => p.name)).toEqual(["original", "v2-proved"]);
-      expect(rowAt(r, "port:port-hero")).toEqual({ slot: "port-hero", target: { kind: "main", ref: "main", sha: a }, search: "" });
+      expect(rowAt(r, "port:port-hero")).toEqual({ slot: "land-port-hero", target: { kind: "main", ref: "main", sha: a }, search: "" });
       expect(rowAt(r, "flag:nav:skip")?.search).toBe("?fw=nav:skip,hero:strip");
       expect(rowAt(r, "port:port-later")).toBeNull();
       expect(rowAt(r, "port:proof-x")).toBeNull();
@@ -181,13 +196,13 @@ describe("Builds routes and the manager", () => {
     const { app, pm, post, a } = await setup();
     const j = await (await app.request("/api/builds")).json() as any;
     expect(j.ok).toBe(true);
-    expect(j.ports.map((p: any) => p.id)).toEqual(["port:fix-nav", "port:port-hero"]);
+    expect(j.ports.map((p: any) => p.id)).toEqual(["port:fix-old", "port:fix-nav", "port:port-old", "port:port-hero"]);
     const r1 = await post({ build: "port:port-hero" });
     expect(r1.status).toBe(202);
     const { id: id1 } = await r1.json() as { id: string };
     await pm.settled(id1);
     const e1 = pm.list().previews.find((p) => p.id === id1)!;
-    expect(e1.task).toBe("port-hero");
+    expect(e1.task).toBe("land-port-hero");
     expect(e1.target).toEqual({ kind: "main", ref: "main", sha: a });
     expect(e1.search).toBe("");
     const r2 = await post({ build: "flag:nav:skip" });

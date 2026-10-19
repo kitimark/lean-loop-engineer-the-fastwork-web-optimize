@@ -56,8 +56,8 @@ def dedupeAux (seen : List String) : List Row → List Row
 /-- The first row of each task. -/
 def dedupe (rs : List Row) : List Row := dedupeAux [] rs
 
-/-- The port list: one row per landed port or fix task, newest land first. -/
-def portRows (known : List Known) (log : List LogCommit) : List Row :=
+/-- The trailer rows: one row per task at its newest `Task:` trailer landing, newest land first. -/
+def trailerRows (known : List Known) (log : List LogCommit) : List Row :=
   dedupe ((landings known log).mergeSort newestFirst)
 
 /-- What a port row's Preview opens: main at its land commit. -/
@@ -154,38 +154,38 @@ theorem dedupeAux_cover (seen : List String) : ∀ rs : List Row, ∀ r ∈ rs,
           · exact Or.inl h2
         · exact Or.inr ⟨r', List.mem_cons_of_mem _ hr', ht⟩
 
-theorem portRows_port_fix (known : List Known) (log : List LogCommit) (r : Row) (h : r ∈ portRows known log) :
+theorem trailerRows_port_fix (known : List Known) (log : List LogCommit) (r : Row) (h : r ∈ trailerRows known log) :
     isPortFix r.task = true := by
-  unfold portRows dedupe at h
+  unfold trailerRows dedupe at h
   have h1 := (dedupeAux_sublist [] _).subset h
   have h2 := (List.mergeSort_perm (landings known log) newestFirst).mem_iff.1 h1
   obtain ⟨c, _, t, _, hr⟩ := (mem_landings known log r).1 h2
   exact rowOf_port_fix known c t r hr
 
-theorem portRows_land_commit (known : List Known) (log : List LogCommit) (r : Row) (h : r ∈ portRows known log) :
+theorem trailerRows_land_commit (known : List Known) (log : List LogCommit) (r : Row) (h : r ∈ trailerRows known log) :
     ∃ c ∈ log, r.sha = c.sha ∧ r.landedAt = c.time := by
-  unfold portRows dedupe at h
+  unfold trailerRows dedupe at h
   have h1 := (dedupeAux_sublist [] _).subset h
   have h2 := (List.mergeSort_perm (landings known log) newestFirst).mem_iff.1 h1
   obtain ⟨c, hc, t, _, hr⟩ := (mem_landings known log r).1 h2
   exact ⟨c, hc, rowOf_land known c t r hr⟩
 
-theorem portRows_nodup (known : List Known) (log : List LogCommit) :
-    ((portRows known log).map (·.task)).Nodup := dedupeAux_nodup [] _
+theorem trailerRows_nodup (known : List Known) (log : List LogCommit) :
+    ((trailerRows known log).map (·.task)).Nodup := dedupeAux_nodup [] _
 
-theorem portRows_sorted (known : List Known) (log : List LogCommit) :
-    (portRows known log).Pairwise fun a b => b.landedAt ≤ a.landedAt := by
-  unfold portRows dedupe
+theorem trailerRows_sorted (known : List Known) (log : List LogCommit) :
+    (trailerRows known log).Pairwise fun a b => b.landedAt ≤ a.landedAt := by
+  unfold trailerRows dedupe
   have hs : ((landings known log).mergeSort newestFirst).Pairwise fun a b => newestFirst a b = true :=
     List.pairwise_mergeSort
       (fun a b c hab hbc => by simp only [newestFirst, decide_eq_true_eq] at *; omega)
       (fun a b => by simp [newestFirst]; omega) _
   exact (hs.imp (fun {a b} h => by simpa [newestFirst] using h)).sublist (dedupeAux_sublist [] _)
 
-theorem portRows_complete (known : List Known) (log : List LogCommit) (c : LogCommit) (hc : c ∈ log)
+theorem trailerRows_complete (known : List Known) (log : List LogCommit) (c : LogCommit) (hc : c ∈ log)
     (t : String) (ht : t ∈ Fw.Plan.Trailer.trailers c.body) (r : Row) (hr : rowOf known c t = some r) :
-    ∃ r' ∈ portRows known log, r'.task = r.task := by
-  unfold portRows dedupe
+    ∃ r' ∈ trailerRows known log, r'.task = r.task := by
+  unfold trailerRows dedupe
   have hm : r ∈ (landings known log).mergeSort newestFirst :=
     (List.mergeSort_perm (landings known log) newestFirst).mem_iff.2 ((mem_landings known log r).2 ⟨c, hc, t, ht, hr⟩)
   rcases dedupeAux_cover [] _ r hm with h | h
@@ -195,6 +195,216 @@ theorem portRows_complete (known : List Known) (log : List LogCommit) (c : LogCo
 theorem portTarget_land (r : Row) : portTarget r = .main r.sha := rfl
 
 theorem optTarget_main (m : String) : optTarget m = .main m := rfl
+
+/-- Evidence fact of the work graph: task `task` has its evidence on main, whose land commit (the oldest first-parent commit of
+main that has the evidence commit as an ancestor, resolved by the glue) is `sha`. -/
+structure EvLand where
+  task : String
+  sha : String
+deriving Repr, DecidableEq
+
+/-- The row an evidence fact makes: its land commit must be in the log, the task a known port or fix task. -/
+def evRowOf (known : List Known) (log : List LogCommit) (e : EvLand) : Option Row :=
+  match log.find? (·.sha == e.sha) with
+  | some c => rowOf known c e.task
+  | none => none
+
+/-- Every evidence landing. -/
+def evLandings (known : List Known) (log : List LogCommit) (ev : List EvLand) : List Row :=
+  ev.filterMap (evRowOf known log)
+
+/-- The evidence rows of tasks that have no trailer row (a trailer landing wins), one per task, newest first. -/
+def evOnly (known : List Known) (log : List LogCommit) (ev : List EvLand) : List Row :=
+  (dedupe ((evLandings known log ev).mergeSort newestFirst)).filter fun r =>
+    !((trailerRows known log).any fun x => x.task == r.task)
+
+/-- The port list: every landed port or fix task has one row, at its trailer landing if it has one, else at its evidence
+landing; newest land first. -/
+def portRows (known : List Known) (log : List LogCommit) (ev : List EvLand) : List Row :=
+  (trailerRows known log ++ evOnly known log ev).mergeSort newestFirst
+
+theorem dedupeAux_newest (seen : List String) : ∀ rs : List Row, rs.Pairwise (fun a b => b.landedAt ≤ a.landedAt) →
+    ∀ r ∈ dedupeAux seen rs, ∀ r' ∈ rs, r'.task = r.task → r'.landedAt ≤ r.landedAt
+  | [], _, r, h, _, _, _ => by simp [dedupeAux] at h
+  | x :: rs, hp, r, h, r', hr', ht => by
+    rw [List.pairwise_cons] at hp
+    unfold dedupeAux at h
+    split at h
+    · rename_i hc
+      rcases List.mem_cons.1 hr' with rfl | hr'
+      · exact absurd (by rw [← ht]; simpa using hc) (dedupeAux_fresh seen rs r h)
+      · exact dedupeAux_newest seen rs hp.2 r h r' hr' ht
+    · rename_i hc
+      rcases List.mem_cons.1 h with rfl | h'
+      · rcases List.mem_cons.1 hr' with rfl | hr'
+        · exact Nat.le_refl _
+        · exact hp.1 r' hr'
+      · rcases List.mem_cons.1 hr' with rfl | hr'
+        · exact absurd (by rw [← ht]; exact List.mem_cons_self) (dedupeAux_fresh (r'.task :: seen) rs r h')
+        · exact dedupeAux_newest (x.task :: seen) rs hp.2 r h' r' hr' ht
+
+theorem landings_sorted (known : List Known) (log : List LogCommit) :
+    ((landings known log).mergeSort newestFirst).Pairwise fun a b => b.landedAt ≤ a.landedAt := by
+  have hs : ((landings known log).mergeSort newestFirst).Pairwise fun a b => newestFirst a b = true :=
+    List.pairwise_mergeSort
+      (fun a b c hab hbc => by simp only [newestFirst, decide_eq_true_eq] at *; omega)
+      (fun a b => by simp [newestFirst]; omega) _
+  exact hs.imp (fun {a b} h => by simpa [newestFirst] using h)
+
+theorem mem_evLandings (known : List Known) (log : List LogCommit) (ev : List EvLand) (r : Row) :
+    r ∈ evLandings known log ev ↔ ∃ e ∈ ev, ∃ c, log.find? (·.sha == e.sha) = some c ∧ rowOf known c e.task = some r := by
+  unfold evLandings evRowOf
+  rw [List.mem_filterMap]
+  constructor
+  · rintro ⟨e, he, h⟩
+    cases hf : log.find? (·.sha == e.sha) with
+    | none => rw [hf] at h; cases h
+    | some c => rw [hf] at h; exact ⟨e, he, c, hf, h⟩
+  · rintro ⟨e, he, c, hf, h⟩
+    exact ⟨e, he, by rw [hf]; exact h⟩
+
+theorem mem_evOnly (known : List Known) (log : List LogCommit) (ev : List EvLand) (r : Row) :
+    r ∈ evOnly known log ev → r ∈ evLandings known log ev ∧ ∀ x ∈ trailerRows known log, x.task ≠ r.task := by
+  intro h
+  unfold evOnly at h
+  rcases List.mem_filter.1 h with ⟨h1, h2⟩
+  refine ⟨(List.mergeSort_perm (evLandings known log ev) newestFirst).mem_iff.1 ((dedupeAux_sublist [] _).subset h1), ?_⟩
+  intro x hx hxt
+  have : ((trailerRows known log).any fun x => x.task == r.task) = true :=
+    List.any_eq_true.2 ⟨x, hx, by simpa using hxt⟩
+  rw [this] at h2
+  cases h2
+
+theorem mem_portRows (known : List Known) (log : List LogCommit) (ev : List EvLand) (r : Row) :
+    r ∈ portRows known log ev ↔ r ∈ trailerRows known log ∨ r ∈ evOnly known log ev := by
+  unfold portRows
+  rw [(List.mergeSort_perm _ newestFirst).mem_iff, List.mem_append]
+
+/-- Row: the row is a known port or fix task. -/
+theorem portRows_port_fix (known : List Known) (log : List LogCommit) (ev : List EvLand) (r : Row)
+    (h : r ∈ portRows known log ev) : isPortFix r.task = true := by
+  rcases (mem_portRows known log ev r).1 h with h | h
+  · exact trailerRows_port_fix known log r h
+  · obtain ⟨e, _, c', _, hr⟩ := (mem_evLandings known log ev r).1 (mem_evOnly known log ev r h).1
+    exact rowOf_port_fix known c' e.task r hr
+
+/-- Row, slot, landing (trailer branch): a row of a task with a trailer landing is at a trailer commit of the log. -/
+theorem portRows_trailer_land (known : List Known) (log : List LogCommit) (ev : List EvLand) (r : Row)
+    (h : r ∈ portRows known log ev) (ht : ∃ x ∈ landings known log, x.task = r.task) :
+    ∃ c ∈ log, r.sha = c.sha ∧ r.landedAt = c.time ∧ r.task ∈ Fw.Plan.Trailer.trailers c.body := by
+  rcases (mem_portRows known log ev r).1 h with h | h
+  · have h2 := (List.mergeSort_perm (landings known log) newestFirst).mem_iff.1 ((dedupeAux_sublist [] _).subset h)
+    obtain ⟨c, hc, t, htr, hr⟩ := (mem_landings known log r).1 h2
+    have := rowOf_known known c t r hr
+    exact ⟨c, hc, (rowOf_land known c t r hr).1, (rowOf_land known c t r hr).2, this ▸ htr⟩
+  · exfalso
+    obtain ⟨x, hx, hxt⟩ := ht
+    have h2 := (List.mergeSort_perm (landings known log) newestFirst).mem_iff.2 hx
+    rcases dedupeAux_cover [] _ x h2 with h3 | ⟨r', hr', ht'⟩
+    · simp at h3
+    · exact (mem_evOnly known log ev r h).2 r' hr' (by rw [ht', hxt])
+
+/-- Row, slot, landing (evidence branch): a row of a task without a trailer landing is at the land commit of an evidence fact. -/
+theorem portRows_evidence_land (known : List Known) (log : List LogCommit) (ev : List EvLand) (r : Row)
+    (h : r ∈ portRows known log ev) (ht : ∀ x ∈ landings known log, x.task ≠ r.task) :
+    ∃ c ∈ log, r.sha = c.sha ∧ r.landedAt = c.time ∧ ∃ e ∈ ev, e.task = r.task ∧ e.sha = c.sha := by
+  rcases (mem_portRows known log ev r).1 h with h | h
+  · exfalso
+    have h2 := (List.mergeSort_perm (landings known log) newestFirst).mem_iff.1 ((dedupeAux_sublist [] _).subset h)
+    obtain ⟨c, hc, t, htr, hr⟩ := (mem_landings known log r).1 h2
+    exact ht r ((mem_landings known log r).2 ⟨c, hc, t, htr, hr⟩) rfl
+  · obtain ⟨e, he, c, hf, hr⟩ := (mem_evLandings known log ev r).1 (mem_evOnly known log ev r h).1
+    have hcs : c.sha = e.sha := by simpa using List.find?_some hf
+    exact ⟨c, List.mem_of_find?_eq_some hf, (rowOf_land known c e.task r hr).1, (rowOf_land known c e.task r hr).2, e, he,
+      rowOf_known known c e.task r hr ▸ rfl, hcs.symm⟩
+
+/-- Landing: every row's sha and time are those of a commit of the log, a trailer commit or an evidence land commit. -/
+theorem portRows_land_commit (known : List Known) (log : List LogCommit) (ev : List EvLand) (r : Row)
+    (h : r ∈ portRows known log ev) :
+    ∃ c ∈ log, r.sha = c.sha ∧ r.landedAt = c.time ∧
+      (r.task ∈ Fw.Plan.Trailer.trailers c.body ∨ ∃ e ∈ ev, e.task = r.task ∧ e.sha = c.sha) := by
+  by_cases ht : ∃ x ∈ landings known log, x.task = r.task
+  · obtain ⟨c, hc, h1, h2, h3⟩ := portRows_trailer_land known log ev r h ht
+    exact ⟨c, hc, h1, h2, Or.inl h3⟩
+  · have ht' : ∀ x ∈ landings known log, x.task ≠ r.task := fun x hx hxt => ht ⟨x, hx, hxt⟩
+    obtain ⟨c, hc, h1, h2, h3⟩ := portRows_evidence_land known log ev r h ht'
+    exact ⟨c, hc, h1, h2, Or.inr h3⟩
+
+/-- The row is the task's newest trailer landing. -/
+theorem portRows_newest (known : List Known) (log : List LogCommit) (ev : List EvLand) (r : Row)
+    (h : r ∈ portRows known log ev) (r' : Row) (hr' : r' ∈ landings known log) (ht : r'.task = r.task) :
+    r'.landedAt ≤ r.landedAt := by
+  rcases (mem_portRows known log ev r).1 h with h | h
+  · exact dedupeAux_newest [] _ (landings_sorted known log) r h r'
+      ((List.mergeSort_perm (landings known log) newestFirst).mem_iff.2 hr') ht
+  · exfalso
+    have h2 := (List.mergeSort_perm (landings known log) newestFirst).mem_iff.2 hr'
+    rcases dedupeAux_cover [] _ r' h2 with h3 | ⟨x, hx, ht'⟩
+    · simp at h3
+    · exact (mem_evOnly known log ev r h).2 x hx (by rw [ht', ht])
+
+theorem portRows_nodup (known : List Known) (log : List LogCommit) (ev : List EvLand) :
+    ((portRows known log ev).map (·.task)).Nodup := by
+  unfold portRows
+  refine ((List.mergeSort_perm _ newestFirst).map _).nodup_iff.2 ?_
+  rw [List.map_append, List.nodup_append]
+  refine ⟨dedupeAux_nodup [] _, ?_, ?_⟩
+  · unfold evOnly
+    exact (((dedupeAux_nodup [] _)).sublist (List.Sublist.map _ (List.filter_sublist)))
+  · intro a ha b hb hab
+    obtain ⟨x, hx, rfl⟩ := List.mem_map.1 ha
+    obtain ⟨y, hy, rfl⟩ := List.mem_map.1 hb
+    exact (mem_evOnly known log ev y hy).2 x hx hab
+
+theorem portRows_sorted (known : List Known) (log : List LogCommit) (ev : List EvLand) :
+    (portRows known log ev).Pairwise fun a b => b.landedAt ≤ a.landedAt := by
+  unfold portRows
+  have hs : ((trailerRows known log ++ evOnly known log ev).mergeSort newestFirst).Pairwise fun a b => newestFirst a b = true :=
+    List.pairwise_mergeSort
+      (fun a b c hab hbc => by simp only [newestFirst, decide_eq_true_eq] at *; omega)
+      (fun a b => by simp [newestFirst]; omega) _
+  exact hs.imp (fun {a b} h => by simpa [newestFirst] using h)
+
+/-- Completeness (trailer branch): a task with a trailer landing has a row. -/
+theorem portRows_complete_trailer (known : List Known) (log : List LogCommit) (ev : List EvLand) (c : LogCommit) (hc : c ∈ log)
+    (t : String) (ht : t ∈ Fw.Plan.Trailer.trailers c.body) (r : Row) (hr : rowOf known c t = some r) :
+    ∃ r' ∈ portRows known log ev, r'.task = r.task := by
+  obtain ⟨r', hr', h⟩ := trailerRows_complete known log c hc t ht r hr
+  exact ⟨r', (mem_portRows known log ev r').2 (Or.inl hr'), h⟩
+
+/-- Completeness (evidence branch): a known port or fix task whose evidence land commit is in the log has a row. -/
+theorem portRows_complete_evidence (known : List Known) (log : List LogCommit) (ev : List EvLand) (e : EvLand) (he : e ∈ ev)
+    (c : LogCommit) (hc : c ∈ log) (hcs : c.sha = e.sha) (r : Row) (hr : rowOf known c e.task = some r) :
+    ∃ r' ∈ portRows known log ev, r'.task = r.task := by
+  have hsome : (log.find? (·.sha == e.sha)).isSome = true :=
+    List.find?_isSome.2 ⟨c, hc, by simp [hcs]⟩
+  obtain ⟨c', hf⟩ := Option.isSome_iff_exists.1 hsome
+  -- the row of `c'` is a row of the same task
+  have hk : ∃ r2, rowOf known c' e.task = some r2 := by
+    unfold rowOf at hr ⊢
+    split at hr
+    · rename_i k hk
+      split at hr
+      · rename_i hp
+        simp [hp]
+      · cases hr
+    · cases hr
+  obtain ⟨r2, hr2⟩ := hk
+  have hm : r2 ∈ evLandings known log ev := (mem_evLandings known log ev r2).2 ⟨e, he, c', hf, hr2⟩
+  by_cases hT : ∃ x ∈ trailerRows known log, x.task = r2.task
+  · obtain ⟨x, hx, hxt⟩ := hT
+    exact ⟨x, (mem_portRows known log ev x).2 (Or.inl hx), by rw [hxt, rowOf_known known c' e.task r2 hr2, rowOf_known known c e.task r hr]⟩
+  · have hm2 : r2 ∈ (evLandings known log ev).mergeSort newestFirst :=
+      (List.mergeSort_perm _ newestFirst).mem_iff.2 hm
+    rcases dedupeAux_cover [] _ r2 hm2 with h | ⟨r', hr', ht'⟩
+    · simp at h
+    · refine ⟨r', (mem_portRows known log ev r').2 (Or.inr ?_), by rw [ht', rowOf_known known c' e.task r2 hr2, rowOf_known known c e.task r hr]⟩
+      unfold evOnly
+      refine List.mem_filter.2 ⟨hr', ?_⟩
+      simp only [Bool.not_eq_true', List.any_eq_false]
+      intro x hx
+      have : x.task ≠ r'.task := fun hxe => hT ⟨x, hx, by rw [hxe, ht']⟩
+      simpa using this
 
 /-! ## Optimize rows -/
 
@@ -274,6 +484,11 @@ def slotChar (c : Char) : Char :=
 
 /-- The preview slot of an optimize row (one live preview per slot). -/
 def slot (kind name : String) : String := "opt-" ++ kind ++ "-" ++ String.map slotChar name
+
+/-- The preview slot of a port row: one slot per land build, apart from the task-detail Preview (slot = task id). -/
+def landSlot (task : String) : String := "land-" ++ String.map slotChar task
+
+theorem landSlot_eq (task : String) : landSlot task = "land-" ++ String.map slotChar task := rfl
 
 /-- One optimize row. -/
 structure Opt where

@@ -7,7 +7,7 @@ import { previewBase, refusedText } from "./TaskDetail";
 
 // Rendering only. Which rows exist, their order, status, target and search are Lean `console.builds` (via console-api
 // `GET /api/builds`); a Preview click posts only the row id, and the server recomputes the commit and the search.
-type Pv = { id: string; task: string; phase: "building" | "serving"; search?: string };
+type Pv = { id: string; task: string; phase: "building" | "serving"; search?: string; target?: { sha: string } };
 type Port = { id: string; task: string; group: string; sha: string; landedAt: number; title: string; slot: string };
 type Opt = { id: string; kind: string; name: string; search: string; status: string; note: string | null; slot: string };
 type Data = {
@@ -44,8 +44,8 @@ export function BuildsView() {
   }
   if (!d) return <p className="text-muted-foreground">{msg ?? "Loading builds..."}</p>;
   const base = previewBase(d.previewPort);
-  const state = (slot: string, search: string) => {
-    const p = d.previews.find((x) => x.task === slot && (x.search ?? "") === search);
+  const state = (slot: string, search: string, sha: string) => {
+    const p = d.previews.find((x) => x.task === slot && (x.search ?? "") === search && x.target?.sha === sha);
     if (p?.phase === "serving") return <a className="underline" href={`${base}/preview/${p.id}/compare${search}`} target="_blank" rel="noreferrer">open compare</a>;
     if (p) return <span>building...</span>;
     const f = d.failed.filter((x) => x.task === slot).at(-1);
@@ -66,7 +66,7 @@ export function BuildsView() {
                 <TableCell className="text-xs">{when(p.landedAt)}</TableCell>
                 <TableCell className="max-w-md whitespace-normal break-words text-xs">{p.title}</TableCell>
                 <TableCell className="space-x-2 text-xs">
-                  <Button size="sm" variant="outline" disabled={!d.canPreview} onClick={() => void start(p.id)}>Preview</Button>{state(p.slot, "")}
+                  <Button size="sm" variant="outline" disabled={!d.canPreview} onClick={() => void start(p.id)}>Preview</Button>{state(p.slot, "", p.sha)}
                 </TableCell>
               </TableRow>
             ))}
@@ -85,7 +85,7 @@ export function BuildsView() {
                 <TableCell className="text-xs">{o.status}</TableCell>
                 <TableCell className="max-w-md whitespace-normal break-words text-xs">{o.note ?? ""}</TableCell>
                 <TableCell className="space-x-2 text-xs">
-                  <Button size="sm" variant="outline" disabled={!d.canPreview} onClick={() => void start(o.id)}>Preview</Button>{state(o.slot, o.search)}
+                  <Button size="sm" variant="outline" disabled={!d.canPreview} onClick={() => void start(o.id)}>Preview</Button>{state(o.slot, o.search, d.mainSha)}
                 </TableCell>
               </TableRow>
             ))}
