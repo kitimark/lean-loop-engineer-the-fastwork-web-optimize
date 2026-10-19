@@ -19,6 +19,11 @@
   .section.isShrinking {
     background: #fff;
   }
+  .section[data-fw-scene='paused'],
+  .section[data-fw-scene='paused'] :where(*) {
+    will-change: auto !important;
+    animation-play-state: paused !important;
+  }
   .card {
     box-sizing: border-box;
     background: #131922;

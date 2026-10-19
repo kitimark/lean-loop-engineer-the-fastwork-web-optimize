@@ -177,6 +177,70 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+  # Port completeness gate (task port-completeness-gate; Lean Fw.Port.*, Fw.Site.Assets): the site's built-page tests
+  # on the fresh dist/aot. Checks 3 (assets) and 4 (svg skeleton) stay advisory (continue-on-error) until the gap lanes
+  # land: the step fails while the port is incomplete, the job does not. The golden replay and head tests do gate.
+  port:
+    needs: [site]
+    if: ${{ !cancelled() && needs.site.result == 'success' }}
+    concurrency:
+      group: ci-lane:visual-diff:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:port:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/site...'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - name: Port goldens (Lean vectors; built-page tests skip)
+        run: node --test 'apps/site/test/port-*.test.mjs'
+      - name: Port digest report
+        run: |
+          mkdir -p "$RUNNER_TEMP/port"
+          node scripts/port/digest.mjs --dist apps/site/dist/aot --out "$RUNNER_TEMP/port/report.json" | tee -a "$GITHUB_STEP_SUMMARY" || true
+      - name: 'Port gate on the built page (advisory)'
+        id: gate
+        continue-on-error: true
+        env:
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        run: node --test 'apps/site/test/port-*.test.mjs'
+      - name: Head tests on the built page
+        env:
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: apps/site
+        run: |
+          if [ -f src/head.test.ts ]; then pnpm exec vitest run src/head.test.ts; else echo "src/head.test.ts is not on this commit"; fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: port-report
+          path: ${{ runner.temp }}/port
+          if-no-files-found: error
+          retention-days: 14
+
   shoot:
     needs: [plan, site]
     concurrency:

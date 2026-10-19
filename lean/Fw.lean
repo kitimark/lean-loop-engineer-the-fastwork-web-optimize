@@ -161,3 +161,8 @@ import Fw.Faithful.Zone
 import Fw.Faithful.Wire
 import Fw.Faithful.Golden
 import Fw.Faithful.Measured
+import Fw.Port.Sections  -- port-completeness-gate: section roots, exclusions, multiset difference
+import Fw.Port.Text  -- port-completeness-gate: check 1, text digest
+import Fw.Port.Attrs  -- port-completeness-gate: check 2, attribute multiset
+import Fw.Site.Assets  -- port-completeness-gate: check 3, asset subset
+import Fw.Port.Svg  -- port-completeness-gate: check 4, svg skeleton

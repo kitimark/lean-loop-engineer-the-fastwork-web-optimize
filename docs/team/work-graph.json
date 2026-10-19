@@ -6418,7 +6418,8 @@
     "lean/scripts/PortGolden.lean",
     "lean/scripts/check.sh",
     "packages/contracts/golden/ci/triggers.jsonl"
-   ]
+   ],
+   "evidence": "ba48a33"
   },
   {
    "devices": [
@@ -6544,7 +6545,8 @@
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/platform.scene.jsonl"
-   ]
+   ],
+   "evidence": "d7b1d30"
   },
   {
    "devices": [
@@ -6713,6 +6715,61 @@
    "writes": [
     "apps/site/src/parts/nav/**",
     "docs/team/handoffs/nav-default-selectors.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "overflow-430",
+   "title": "Wave-2 blocker: the g2 stage page overflowed 13 px at 430 px (morph.panel backdrop inset 0 -3% hosted in a plain div); stage host frame like the page's fixed overflow-hidden nav; overflow diagnostic in measure-chromium; run 39228072289 passes the viewport gate",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "apps/site/src/stage/**",
+    "packages/measure-chromium/src/overflow.mjs",
+    "packages/measure-chromium/src/run.mjs",
+    "packages/measure-chromium/test/overflow.test.mjs",
+    "packages/measure-chromium/package.json",
+    "docs/team/handoffs/overflow-430.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "next-test-flake",
+   "title": "Land blocker: apps/runner next.test.ts real sleepLoop e2e test fails under load (refused 2 lands); wait bounded for the child without weakening assertions",
+   "stream": "ops",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/test/next.test.ts",
+    "apps/runner/src/next.ts",
+    "docs/team/handoffs/next-test-flake.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "stage-host-lean",
+   "title": "overflow-430 follow-ups: stage host frames as a Lean row next to Stage.plan with HOST_FRAME checked against its golden; g2 stage counts before eed1eb1a are not a baseline (note in the integration note); overflow.mjs walks the containing-block chain",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "overflow-430"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Site/Stage*.lean",
+    "apps/site/src/stage/hosts.ts",
+    "packages/contracts/golden/parts/stage*.jsonl",
+    "packages/measure-chromium/src/overflow.mjs",
+    "docs/team/handoffs/stage-host-lean.md"
    ]
   }
  ],

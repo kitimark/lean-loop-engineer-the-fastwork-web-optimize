@@ -46,6 +46,30 @@ export function createSceneClock(t0: number, active: boolean) {
 }
 
 /**
+ * engine.scene `hidden-pause` on the platform (Lean `HiddenPausePlatform.seek`): the scene clock runs while the section is
+ * active (`setActive` from `watchActive`); `hide` marks it, `unhide` returns its advance since the mark (ms), which the
+ * caller adds to every animation that existed at the hide, or null when not hidden. Same `now` within one frame.
+ */
+export function createResumeSync(t0: number, active: boolean) {
+  const clock = createSceneClock(t0, active);
+  let hidden = false;
+  let mark = 0;
+  return {
+    setActive: (now: number, next: boolean) => clock.setActive(now, next),
+    hide(now: number) {
+      if (hidden) return;
+      hidden = true;
+      mark = clock.read(now);
+    },
+    unhide(now: number): number | null {
+      if (!hidden) return null;
+      hidden = false;
+      return clock.read(now) - mark;
+    },
+  };
+}
+
+/**
  * Holds a stream of writes while hidden and replays only the latest per key on unhide, in the same call (the IO
  * callback runs before paint: Lean `hsync`). While visible every write passes straight through.
  */
