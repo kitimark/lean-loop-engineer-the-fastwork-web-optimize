@@ -6625,7 +6625,18 @@
     "apps/site/src/stage/**",
     "lean/Fw/Site/Stage*.lean",
     "packages/contracts/golden/**",
-    "research/notes/2026/10-20-exit-scoped-var*.md"
+    "research/notes/2026/10-20-exit-scoped-var*.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9226,7 +9237,18 @@
     "packages/engine-check/golden/**",
     "lean/Fw/Engine/Keys.lean",
     "research/notes/2026/10-20-morph-layers.md",
-    "docs/team/handoffs/morph-preset-dormant.md"
+    "docs/team/handoffs/morph-preset-dormant.md",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9348,7 +9370,19 @@
     "lean/Fw/Parts/MorphTweenOpt.lean",
     "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
     "research/notes/2026/10-20-tween-platform-scope.md",
-    "results/tween-platform-scope/**"
+    "results/tween-platform-scope/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9368,7 +9402,19 @@
     "lean/Fw/Parts/MorphMountOpt.lean",
     "packages/contracts/golden/parts/morph-mount-tap.jsonl",
     "research/notes/2026/10-20-mount-scroll-tap.md",
-    "results/mount-scroll-tap/**"
+    "results/mount-scroll-tap/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9388,7 +9434,19 @@
     "lean/BreakgenMain.lean",
     "lean/Fw/Site/BreakpointGen.lean",
     "research/notes/2026/10-20-breakpoints-named-import.md",
-    "results/breakpoints-named-import/**"
+    "results/breakpoints-named-import/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9409,7 +9467,19 @@
     "lean/Fw/Parts/PlatformEntries.lean",
     "packages/contracts/golden/parts/platform-entries-fill.jsonl",
     "research/notes/2026/10-20-fill-release-platform.md",
-    "results/fill-release-platform/**"
+    "results/fill-release-platform/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9430,7 +9500,19 @@
     "lean/Fw/Parts/ReactRootOpt.lean",
     "packages/contracts/golden/parts/react-root-quiet.jsonl",
     "research/notes/2026/10-20-react-root-quiet-events.md",
-    "results/react-root-quiet-events/**"
+    "results/react-root-quiet-events/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9469,7 +9551,19 @@
     "lean/Fw/Parts/PainNotesGolden.lean",
     "lean/Fw/Parts/PainNotesOpt.lean",
     "research/notes/2026/10-20-notes-scroll-idem.md",
-    "results/notes-scroll-idem/**"
+    "results/notes-scroll-idem/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9489,7 +9583,19 @@
     "lean/Fw/Site/SheetPrune.lean",
     "packages/contracts/golden/site/sheet-prune.jsonl",
     "research/notes/2026/10-20-mui-css-site-only.md",
-    "results/mui-css-site-only/**"
+    "results/mui-css-site-only/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9509,7 +9615,19 @@
     "lean/Fw/Parts/MorphIdleNone.lean",
     "packages/contracts/golden/parts/morph-idle-none.jsonl",
     "research/notes/2026/10-20-morph-idle-none.md",
-    "results/morph-idle-none/**"
+    "results/morph-idle-none/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9529,7 +9647,19 @@
     "lean/Fw/Parts/HeroScenePause.lean",
     "packages/contracts/golden/parts/hero-scene-pause.jsonl",
     "research/notes/2026/10-20-hero-pause-rule.md",
-    "results/hero-pause-rule/**"
+    "results/hero-pause-rule/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9595,7 +9725,19 @@
     "lean/Fw/Parts/CommissionTypingFill.lean",
     "packages/contracts/golden/parts/typing-avatar-fill.jsonl",
     "research/notes/2026/10-20-typing-avatar-fill.md",
-    "results/typing-avatar-fill/**"
+    "results/typing-avatar-fill/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9616,7 +9758,19 @@
     "lean/Fw/Parts/HeroContainOpt.lean",
     "packages/contracts/golden/parts/hero-contain.jsonl",
     "research/notes/2026/10-20-hero-relayout-boundary.md",
-    "results/hero-relayout-boundary/**"
+    "results/hero-relayout-boundary/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9639,7 +9793,19 @@
     "lean/Fw/Parts/MorphTweenOpt.lean",
     "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
     "research/notes/2026/10-20-morph-nav-scope.md",
-    "results/morph-nav-scope/**"
+    "results/morph-nav-scope/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9658,7 +9824,19 @@
     "docs/team/handoffs/one-sheet.md",
     "lean/Fw/Site/SheetPrune.lean",
     "research/notes/2026/10-20-one-sheet.md",
-    "results/one-sheet/**"
+    "results/one-sheet/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9678,7 +9856,19 @@
     "docs/team/handoffs/root-touch-events.md",
     "lean/Fw/Parts/ReactRootOpt.lean",
     "research/notes/2026/10-20-root-touch-events.md",
-    "results/root-touch-events/**"
+    "results/root-touch-events/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9694,7 +9884,19 @@
     "docs/team/handoffs/nav-oof-root-finding.md",
     "lean/Fw/Parts/NavOofRoot.lean",
     "research/notes/2026/10-20-nav-oof-root-finding.md",
-    "results/nav-oof-root-finding/**"
+    "results/nav-oof-root-finding/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   }
  ],
