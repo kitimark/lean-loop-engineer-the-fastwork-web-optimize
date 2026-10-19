@@ -508,7 +508,7 @@ test('lint: a lean script reading a file outside the lean.yml row fails the chec
 test('preview-e2e.yml: a change inside its read set selects it, a change outside does not (task preview-e2e)', () => {
   const inputs = preciseInputs(root, 'preview-e2e.yml');
   assert.ok(inputs, 'the workflow has a Lean row');
-  for (const f of ['packages/e2e-preview/src/suite.mjs', 'packages/e2e-preview/fixture/dist/index.html', 'apps/console-api/src/preview/proxy.ts',
+  for (const f of ['packages/e2e-preview/src/suite.mjs', 'packages/e2e-preview/fixture/site/index.html', 'apps/console-api/src/preview/proxy.ts',
     'apps/console-api/src/app.ts', 'lean/Fw/Console/PreviewOwner.lean', 'packages/contracts/golden/console/preview-owner.jsonl', '.github/workflows/preview-e2e.yml']) {
     assert.ok(matches(inputs, f), `${f} selects the lane`);
   }

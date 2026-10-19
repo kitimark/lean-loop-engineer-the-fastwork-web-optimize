@@ -20,7 +20,7 @@ describe("packages/e2e-preview is selected by its read set only", () => {
     expect(readFileSync(join(root, "lean/land-filter.txt"), "utf8")).toContain("@fw/e2e-preview...");
   });
   it("a change inside the read set selects it", () => {
-    for (const f of ["packages/e2e-preview/src/suite.mjs", "packages/e2e-preview/fixture/dist/index.html", "apps/console-api/src/preview/proxy.ts",
+    for (const f of ["packages/e2e-preview/src/suite.mjs", "packages/e2e-preview/fixture/site/index.html", "apps/console-api/src/preview/proxy.ts",
       "apps/console-api/src/app.ts", "lean/Fw/Console/PreviewOwner.lean", "packages/contracts/golden/console/preview-owner.jsonl", "snapshot/site/index.html"]) {
       expect(selected([f]), f).toContain(ID);
     }

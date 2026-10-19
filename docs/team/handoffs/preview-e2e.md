@@ -3,7 +3,7 @@
 Branch `worktree-wf_191ab411-e94-1`; CI branch `ci/preview-e2e`. Read first: `docs/team/tools/preview-e2e.md`.
 
 State
-- `packages/e2e-preview`: rig (`src/rig.mjs`), checks (`src/suite.mjs`), CLI (`src/run.mjs`), fixture (`fixture/dist`), tests (`test/rig.test.mjs`).
+- `packages/e2e-preview`: rig (`src/rig.mjs`), checks (`src/suite.mjs`), CLI (`src/run.mjs`), fixture (`fixture/site`), tests (`test/rig.test.mjs`).
 - Registration commit: `apps/runner/src/land.ts` (PACKAGE_EXTRA_READS), `LandTier.lean` (remoteIds 7, filterList 7), `lean/land-filter.txt`, land-tier golden.
 - Lane commit: `Fw/Ci/Trigger.lean` row + cacheWriters, goldens `ci/triggers.jsonl` `ci/intent.jsonl`, `.github/workflows/preview-e2e.yml`.
 - Selection tests: `apps/runner/test/preview-e2e-selection.test.ts`, last test of `scripts/ci-paths.test.mjs`.

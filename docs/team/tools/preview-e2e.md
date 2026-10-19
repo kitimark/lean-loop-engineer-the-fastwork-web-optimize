@@ -8,7 +8,7 @@ the keychain, the owner link or the owner passphrase.
 
 - Rig (`src/rig.mjs`): the console-api server files imported by file URL (app, store, owner, grants, login, preview-app), a
   stub `PreviewManager`, and one real preview server process (`serve-child.ts`) with two arms: `/o` = the unmodified
-  `snapshot/site`, `/r` = `fixture/dist` (a small built rewrite: stylesheet, font, image, boot script that `import()`s
+  `snapshot/site`, `/r` = `fixture/site` (a small built rewrite: stylesheet, font, image, boot script that `import()`s
   root-absolute `/_app/...` modules). A forward proxy maps `fw-phone.test` to loopback so the browser sees a plain-HTTP host
   that is not potentially trustworthy (the phone's case); the tap in front of `/_app/*.js` counts module evaluations.
 - Access: a grant link (`POST /api/preview/grant`, then `/__grant?t=`), and LAN-mode passphrase login (test passphrase, no

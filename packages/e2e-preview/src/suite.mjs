@@ -74,7 +74,7 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     userAgent: IPHONE_UA, viewport: VIEWPORT, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
     ...(host.name === "plain-http" ? { proxy: { server: `http://127.0.0.1:${rig.ports.proxy}` } } : {}),
   });
-  const log = { external: [], responses: [], requests: [], pageErrors: [], consoleErrors: [] };
+  const log = { external: [], responses: [], requests: [], pageErrors: [], consoleErrors: [], failed: [] };
   const checks = [];
   const check = (id, ok, detail = "") => checks.push({ id: `${engine}/${host.name}/${target.id}/${id}`, ok: Boolean(ok), detail: String(detail) });
   try {
@@ -83,13 +83,14 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     ctx.on("response", (r) => { log.responses.push({ url: r.url(), status: r.status(), method: r.request().method(), type: r.request().resourceType(), redirected: r.request().redirectedFrom() !== null }); });
     const page = await ctx.newPage();
     page.on("pageerror", (e) => log.pageErrors.push(String(e)));
+    page.on("requestfailed", (r) => log.failed.push(`${r.method()} ${new URL(r.url()).pathname} ${r.failure()?.errorText ?? ""}`));
     page.on("console", (m) => { if (m.type() === "error") log.consoleErrors.push(m.text()); });
 
     // access: the grant link is redeemed on this very host (cookie scoped to it), as the phone's browser would
     const link = await rig.grantUrl(host.origin, target.arm);
     const g = await page.goto(link, { waitUntil: "load" });
     check("grant-redeemed", g && g.status() === 200 && new URL(page.url()).pathname === `/preview/${PREVIEW_ID}/${target.arm}/`, `${g?.status()} ${page.url()}`);
-    rig.seen.length = 0; log.responses.length = 0; log.requests.length = 0; log.pageErrors.length = 0; log.consoleErrors.length = 0;
+    rig.seen.length = 0; log.responses.length = 0; log.requests.length = 0; log.pageErrors.length = 0; log.consoleErrors.length = 0; log.failed.length = 0;
 
     const doc = await page.goto(`${host.origin}${target.path}`, { waitUntil: "load" });
     check("document-200", doc && doc.status() === 200 && /text\/html/.test(doc.headers()["content-type"] ?? ""), `${doc?.status()} ${doc?.headers()["content-type"]}`);
@@ -105,7 +106,7 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     const sameOrigin = log.responses.filter((r) => new URL(r.url).origin === host.origin);
     const bad = sameOrigin.filter((r) => r.status >= 400 && !ACCEPTED_FAILURES.some((a) => new URL(r.url).pathname === a));
     check("same-origin-2xx-3xx", sameOrigin.length > 0 && bad.length === 0, bad.length ? bad.slice(0, 5).map((r) => `${r.status} ${r.method} ${new URL(r.url).pathname}`).join("; ") : `${sameOrigin.length} responses`);
-    check("page-errors", log.pageErrors.length === 0 && !log.consoleErrors.some((t) => /dynamically imported module|Failed to load module/i.test(t)), [...log.pageErrors, ...log.consoleErrors].slice(0, 3).join(" | "));
+    check("page-errors", log.pageErrors.length === 0 && !log.consoleErrors.some((t) => /dynamically imported module|Failed to load module/i.test(t)), [...log.pageErrors, ...log.consoleErrors].slice(0, 3).join(" | ") + (log.failed.length ? ` || failed: ${log.failed.slice(0, 6).join("; ")}` : ""));
 
     // the phone case, read at the preview port: a plain-HTTP host that is not potentially trustworthy gets no Sec-Fetch-Dest
     const hostPart = new URL(host.origin).host;

@@ -1,6 +1,6 @@
 // The rig of the preview e2e suite: the real console-api request handlers (app.ts, preview-app.ts, the Lean gate through fwcore)
 // on spare ports, the real preview server process (serve-child.ts, started with the arguments PreviewManager gives it), and a
-// fixture preview: the unmodified snapshot as the original arm and a small built rewrite (fixture/dist) as the task arm.
+// fixture preview: the unmodified snapshot as the original arm and a small built rewrite (fixture/site) as the task arm.
 // Only the PreviewManager is a stand-in: its `serving`/`touch` answers (what the proxy asks of it) come from the one fixture
 // entry, because a real manager builds a git worktree per preview. No keychain is read: the owner passphrase is a test value
 // handed to the LoginGuard. Nothing here is a decision; the gate verdicts come from fwcore.
@@ -15,7 +15,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 export const REPO = join(here, "../../..");
 const API = join(REPO, "apps/console-api");
-export const FIXTURE_DIST = join(here, "../fixture/dist");
+export const FIXTURE_DIST = join(here, "../fixture/site");
 export const SNAPSHOT = join(REPO, "snapshot/site");
 export const PREVIEW_ID = "e2e-fixture";
 /** The test passphrase of the LAN-mode login (>= 12 characters like the real rule; a value of this file, not a secret). */
