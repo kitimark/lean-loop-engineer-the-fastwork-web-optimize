@@ -7,41 +7,96 @@ created: 2026-10-20
 topics: [ci, circleci, free-tier, measurement, webkit, chromium, lean]
 ---
 
-Question: does a free CircleCI class give the same verdicts as the GitHub twin, and at what duration, queue and credit
-cost? Plan and capacity: `research/notes/2026/10-20-circleci-free-tier.md`. Tool and rules: `docs/team/tools/circleci.md`.
+Question: does a free CircleCI class give the same verdicts as the GitHub twin, and at what duration, queue and cost?
+Plan and capacity: `research/notes/2026/10-20-circleci-free-tier.md`. Tool and rules: `docs/team/tools/circleci.md`.
 
-Setup (MEASURED): one commit (9145de1d), three CircleCI pipelines, each triggered with `pipeline/run`; the GitHub twins
-are dispatches of the same lane on the same branch (runs 39315828784 premise-tests, 39318078000 webkit-sim). The
-verdicts come from the Lean `compare` (premise digest for the engine jobs), replayed in `scripts/circleci.mjs`.
+Unit of decision: one pair (a CircleCI job and its GitHub twin on the same commit). Each pair is decided on its own, and a
+row is a check only when both sides could have failed. The verdicts come from the Lean `compare` (premise digest for the
+engine jobs, conclusion only for the sim job), replayed in `scripts/circleci.mjs`.
 
-| Pair | CircleCI class | Verdict | CircleCI duration | Ratio to GitHub | Queue GitHub / CircleCI | Credits |
-|---|---|---|---|---|---|---|
-| engine (chromium) | arm.medium.gen2 | equal | 38.8 s | 0.99x | 135 s / 40 s | 4 |
-| engine (playwright-webkit) | arm.medium.gen2 | equal | 51.6 s | 0.94x | 111 s / 14 s | 6 |
-| verdict | arm.medium.gen2 | equal | 10.1 s | 0.92x | 669 s / 34 s | 2 |
-| engine (chromium) | arm.large.gen2 | equal | 36.5 s | 0.94x | 135 s / 34 s | 8 |
-| engine (playwright-webkit) | arm.large.gen2 | equal | 52.6 s | 0.96x | 111 s / 34 s | 11 |
-| verdict | arm.large.gen2 | equal | 9.9 s | 0.90x | 669 s / 39 s | 2 |
-| webkit-sim (original, 430, 1) | m4pro.medium | equal | 297 s | 0.19x | 87 s / 58 s | 992 |
+Setup (MEASURED unless marked): the six Arm pairs ran at commit 9145de1d (CircleCI pipelines 15 and 16, GitHub run
+39315828784). The sim pair ran at 458c852e (CircleCI pipeline 45, GitHub run 39332408753), which contains the exit-status
+fix 430fecdf. The GitHub twins are `gh workflow run` dispatches, not pushes: a push of a lane whose inputs equal main is
+skipped as "unchanged", and a dispatch always runs; this is the documented practice in `docs/team/tools/fw-ci.md`.
 
-Every compare exited 0 (no finding). Total CircleCI credits for the three pipelines: about 1025 of the free grant.
+Pipelines on this project (the project-wide numbering counts every push; job listing of each pipeline, 2026-10-19):
+- API pilot pipelines: 15, 16, 18 (round 2), 36 and 45 (sim, this round). Pipeline 18 is the replaced sim row: its job
+  exit was masked by `tee`, so its "equal" was not a check; its 992 credits were spent all the same.
+- Pilot webhook pipelines 7, 14, 35 and 44 (pushes of `ci/circleci-pilot`) ran no workflow (lane-gated config), 0 credits.
+- Other `ci/*` webhook pipelines 3, 5, 8-13, 17, 19-34, 37-40, 42, 43, 46, 47 (33 of them at the time of listing) each ran
+  main's stub job `probe` (CONFIRMED by their job listings, e.g. pipeline 17 job 16). That is not pilot cost; about 1 credit
+  each is INFERRED. Landing this branch ends it only for branches that merge main later; deleting the push trigger (setup
+  step 4 in the tool doc) is open for the user.
+
+| Pair | CircleCI class | Verdict | CircleCI s | GitHub s | Ratio | Queue GitHub / CircleCI | CircleCI credits (INFERRED, Lean `credits` from the price list) | GitHub cost: 0 billed (public repo, standard runners; CONFIRMED research/notes/2026/10-20-circleci-free-tier.md:44) |
+|---|---|---|---|---|---|---|---|---|
+| engine (chromium) | arm.medium.gen2 | equal | 38.8 | 39.0 | 0.99x | 135 s / 40 s | 4 | 0 billed |
+| engine (playwright-webkit) | arm.medium.gen2 | equal | 51.6 | 55.0 | 0.94x | 111 s / 14 s | 6 | 0 billed |
+| verdict | arm.medium.gen2 | equal | 10.1 | 11.0 | 0.92x | 669 s / 34 s | 2 | 0 billed |
+| engine (chromium) | arm.large.gen2 | equal | 36.5 | 39.0 | 0.94x | 135 s / 34 s | 8 | 0 billed |
+| engine (playwright-webkit) | arm.large.gen2 | equal | 52.6 | 55.0 | 0.96x | 111 s / 34 s | 11 | 0 billed |
+| verdict | arm.large.gen2 | equal | 9.9 | 11.0 | 0.90x | 669 s / 39 s | 2 | 0 billed |
+| webkit-sim (original, 430, 1), pipeline 45, 458c852e | m4pro.medium | equal (both pass; conclusion only) | 307.3 | 1700 | 0.18x | 114 s / 64 s | 1025 | 0 billed |
+| webkit-sim (original, 430, 1), pipeline 36, 430fecdf | m4pro.medium | FINDING: CircleCI fail, GitHub pass | 826.5 | 1164 | 0.71x | 367 s / 59 s | 2756 | 0 billed |
+
+The Arm rows and pipeline 45 exited 0 on `compare`; pipeline 36 exits 1 (a finding). Arm durations are one sample each
+(the GitHub job duration is its `completedAt` minus `startedAt`). Pipeline 36 is the earlier paired sim run, made right
+after the exit-status fix and before this round's re-run; it was not planned as the replacement row, and it is reported
+because a failed pair is a result.
+
+The sim pair, step by step (CircleCI pipeline 45 spans from `run.json`; GitHub steps of run 39332408753, seconds):
+
+| Step | CircleCI | GitHub |
+|---|---|---|
+| checkout | 6.9 | 9 |
+| node and pnpm set up | 1.1 | 1 |
+| runtime, snapshot, proxy | 13.3 | 26 (runtime build 6, snapshot check 1, ios_webkit_debug_proxy 19) |
+| deps install | 0.4 | not a step |
+| simulator boot | 32.6 | 378 |
+| determinism session (`--runs 2`, the same command) | 235.3 | 1197 |
+| simulator delete | 0.6 | 24 |
+| upload and the rest | 1.3 | 65 (keep logs 37, artifact upload 15, telemetry 4, job set up and complete 4, tool facts and post steps and rounding 5) |
+| job | 307.3 | 1700 |
+
+The 0.18x ratio is the boot (33 s against 378 s) and the session (235 s against 1197 s). GitHub's own boot was 74 s in the
+earlier run 39318078000 and 378 s now, so the GitHub side varies as much as the ratio. The Arm pairs (0.90x to 0.99x) need no
+step table; their step spans are in the fixtures. Pipeline 36 spent 751 s in the determinism session, exit 130.
 
 What this says:
-- MEASURED: the verdicts and premise digests match on all three pairs. Arm medium and large take the same time within
-  noise (large is not faster for these jobs, and costs twice the credits per minute); medium is enough.
-- MEASURED: the Arm jobs run at about the GitHub duration (0.90x to 0.99x). The sim job is about five times shorter than
-  the GitHub sim job (0.19x), but it is the credit cost: 992 credits for one breakpoint, so the free grant covers only a few
-  sim runs a month. INFERRED from the rate (200 credits a minute): the sim lane is a fallback for degraded GitHub macOS, not
-  a default.
+- One sample each, no spread yet, so no class decision before the 10-run series: medium and large took 38.8/36.5 s
+  (chromium) and 51.6/52.6 s (playwright-webkit); large costs twice the credits per minute.
+- MEASURED: the verdicts and premise digests of the six Arm pairs match. The Arm jobs run at about the GitHub duration.
+- The sim verdict is conclusion-only (the class-table digest is follow-up `circleci-sim-digest`). One sim pair is equal
+  (pipeline 45), one is a finding (pipeline 36): the CircleCI determinism session stalled with no output for 743 s (the
+  watchdog limit is 720 s, `watchdog.mjs:41` exit 3, then SIGTERM, `session.mjs:59` exit 130) while the GitHub twin of the
+  same commit passed. The cause of the stall is not diagnosed (the log ends at "proxy up"). With two samples the sim
+  lane on CircleCI is not reliable enough to be a default.
+- The sim row is a check now. The fix in 430fecdf makes `sim-run` return node's own exit status, and pipeline 36 shows it:
+  the job failed. Before that, CircleCI could not fail on the session (the pipeline 18 "equal" was not a check). A node
+  failure shows through four exit paths: `cli.mjs:239` (usage, exit 2), `cli.mjs:245` (an exception, exit 1),
+  `watchdog.mjs:41` (a stall, exit 3) and `session.mjs:59` (SIGINT or SIGTERM, exit 130).
+- Credits and the pools (INFERRED, price list). The Arm jobs cost 33 credits for the six, from the 400,000 open-source
+  pool. A sim run costs 1025 credits (307 s at 200 a minute) from the 30,000 base pool: about 29 runs a month (24 at the
+  25,000 FAQ figure). The three sim pipelines of the pilot spent 992 + 2756 + 1025 = 4773 credits, 16 % of the month. A
+  10-run sim series would spend about a third of the monthly macOS pool (10 x 1025 of 30,000), and a stalled run costs
+  2756 (9 %). CircleCI's billed values are not read (follow-up `circleci-insights-credits`).
 - Queue is defined differently on the two sides and the numbers are not like for like. GitHub: run start to job start
   (includes waiting for `needs`, hence 669 s for the verdict job). CircleCI: `queued_at` to `started_at` (the wait for
-  `requires` is not counted). Read the CircleCI queue as the real wait for a runner: 14 s to 58 s here.
-- CONFIRMED: `arm.medium.gen2` and `arm.large.gen2` are accepted; the job API names them `arm-medium-gen2`, mapped in Lean
-  (`classOfApi`). The Xcode 27.0 image with the iOS 27.0 runtime booted and ran the sim lane.
+  `requires` is not counted). Read the CircleCI queue as the real wait for a runner: 14 s to 64 s here.
+- CONFIRMED: `arm.medium.gen2` and `arm.large.gen2` are accepted by pipelines 15 and 16; the job API names them
+  `arm-medium-gen2` and `arm-large-gen2`, mapped in Lean (`classOfApi`). The Xcode 27.0 image with the iOS 27.0 runtime
+  booted and ran the sim lane.
 
-Limits: one sample per pair, so no spread is known (the 10-run series per class is open). The sim compare uses only the
-first matching GitHub sim job. Storage counted by the ledger is 1 thousandths of a GB-month per Arm pipeline (upper bound,
-far from the 1000 stop). Nothing here is phone time; counts and verdicts only.
+Limits: one sample per pair, so no spread is known (follow-up `circleci-series`). The sim pair compares the first matching
+GitHub matrix job `sim (original, 430, 1, <sha>, v1)` only; the other breakpoints are not paired. Storage is counted by
+the ledger from every fetched run, with the pnpm cache (107 MB) counted at every save, so it is an upper bound (follow-up
+`circleci-cache-accounting`). Measured by the ledger: 108 thousandths of a GB-month per Arm pipeline (`storageMilli` of
+107,354,269 bytes for pipeline 15; 107,354,252 for 16), 219 after the first three pipelines (15, 16, 18) and 222 after the
+five fetched (15, 16, 18, 36, 45; `storage.milli` of the latest `run.json`). The stop is 1000: eight more Arm pipelines
+reach it (222 + 8 x 108 = 1086), so a 10-run series per class (20 Arm pipelines) passes it unless the cache-save
+accounting changes first. Credits are INFERRED unless the Insights API gives billed values. The route is not wired to any
+lane. `wait --branch` skips webhook pipelines only. Nothing here is phone time; counts and verdicts only.
 
-Fixtures: `scripts/circleci-fixtures/premise-tests.json`, `premise-tests-large.json`, `webkit-sim.json` are the recorded
-API responses (token not present; one simulator UDID in `v1-host.txt` was replaced by zeros).
+Fixtures: `scripts/circleci-fixtures/premise-tests.json`, `premise-tests-large.json`, `webkit-sim.json` (pipeline 45) and
+`webkit-sim-stall.json` (pipeline 36) are the recorded API responses (token not present; one simulator UDID in
+`v1-host.txt` was replaced by zeros; `v1-session-1.json` and `.log` are left out).

@@ -24,7 +24,7 @@ parameters:
     type: string
     default: ""
   resource_class:
-    description: Class of the Linux Arm jobs (Free plan, OSS pool). The gen2 names are INFERRED; arm.medium and arm.large are the fallback if they are refused.
+    description: Class of the Linux Arm jobs (Free plan, OSS pool). The gen2 names are CONFIRMED (accepted by pipelines 15 and 16); arm.medium and arm.large are the fallback if they are refused.
     type: enum
     enum: [arm.medium.gen2, arm.large.gen2, arm.medium, arm.large]
     default: arm.medium.gen2

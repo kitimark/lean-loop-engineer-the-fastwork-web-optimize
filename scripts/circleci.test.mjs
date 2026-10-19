@@ -238,8 +238,20 @@ test('the recorded arm.large.gen2 pipeline: same digests, credits at 12 a minute
   assert.equal(fx.sha, loadFixture('premise-tests').sha, 'both pipelines ran the commit of the one GitHub twin');
 });
 
+test('the recorded webkit-sim stall (pipeline 36): CircleCI fails, GitHub passes, so the pair is a finding (exit 1) with the job exit status kept (130)', async () => {
+  const fx = loadFixture('webkit-sim-stall');
+  const { ctx } = ctxOf(fx);
+  const doc = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: mkdtempSync(join(tmpdir(), 'fwcc-')) });
+  assert.deepEqual(doc.runs.map((r) => [r.job, r.conclusion, r.durMs]), [['webkit-sim', 'fail', 826521]]);
+  assert.equal(doc.spans.find((s) => s.step === 'determinism session').exit, 130);
+  const cmp = comparePairs(g, githubRuns(g, fx.github, fx.github.digests), doc.runs);
+  assert.equal(cmp.code, 1);
+  assert.equal(cmp.rows[0].finding, true);
+  assert.equal(cmp.rows[0].credits, 2756);
+});
+
 test('the recorded fixtures carry no token, e-mail, home path or account name', () => {
-  for (const n of ['premise-tests', 'premise-tests-large', 'webkit-sim']) {
+  for (const n of ['premise-tests', 'premise-tests-large', 'webkit-sim', 'webkit-sim-stall']) {
     const text = readFileSync(join(ROOT, 'scripts', 'circleci-fixtures', `${n}.json`), 'utf8');
     assert.ok(!/\/Users\/|kitimark|markmark/.test(text), n);
     assert.deepEqual([...new Set(text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/g) ?? [])], ['noreply@anthropic.com'], n);
@@ -274,7 +286,7 @@ test('dry run: prints the requests with the token redacted, and the fixture comp
   assert.match(text, /POST https:\/\/circleci\.com\/api\/v2\/project\/<project-slug>\/pipeline\/run/);
   assert.match(text, /Circle-Token: <redacted>/);
   assert.ok(!text.includes('fixture-token'));
-  assert.match(text, /webkit-sim \(github: sim \(original, 430, 1, 9145de1d8afc378a2b260530f3cb01745325cc7d, v1\)\): verdicts equal; duration 0\.19x GitHub; queue github 87s \(run start to job start\), circleci 58s; credits 992/);
+  assert.match(text, /webkit-sim \(github: sim \(original, 430, 1, 458c852eb8545981506c1b1374ca3d4072de3b2a, v1\)\): verdicts equal; duration 0\.18x GitHub; queue github 114s \(run start to job start\), circleci 64s; credits 1025/);
   assert.equal(r.cmp.code, 0);
 });
 

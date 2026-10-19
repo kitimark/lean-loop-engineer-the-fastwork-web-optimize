@@ -1,22 +1,22 @@
 {
- "note": "Recorded: the API responses of CircleCI pipeline 18 (webkit-sim on m4pro.medium, Xcode 27.0 image, API v2, 2026-10-19) and gh run view of the GitHub twin (workflow_dispatch run of webkit-sim, same commit, one VM, one session). Two artifacts are left out of the recording: v1-session-1.json (3.6 MB of counts) and v1-session-1.log (it names the job VM's user home directory); nothing reads either.",
+ "note": "Recorded: the API responses of CircleCI pipeline 45 (webkit-sim on m4pro.medium, Xcode 27.0 image, API v2, 2026-10-19, commit 458c852e, which contains the exit-status fix 430fecdf) and gh run view of the GitHub twin (workflow_dispatch run 39332408753 of webkit-sim, same commit, one VM, one session). Two artifacts are left out of the recording: v1-session-1.json (3.6 MB of counts) and v1-session-1.log (it names the job VM's user home directory); nothing reads either.",
  "slug": "gh/example-org/example-repo",
- "pipelineId": "137f6231-dd69-4744-a53d-763e2dbcd263",
- "sha": "9145de1d8afc378a2b260530f3cb01745325cc7d",
- "now": "2026-10-19T20:23:26.783Z",
+ "pipelineId": "0ea5688c-99d0-44a0-83af-ec69e28751de",
+ "sha": "458c852eb8545981506c1b1374ca3d4072de3b2a",
+ "now": "2026-10-19T22:36:41.824Z",
  "api": {
   "routes": {
-   "GET /pipeline/137f6231-dd69-4744-a53d-763e2dbcd263": {
-    "id": "137f6231-dd69-4744-a53d-763e2dbcd263",
+   "GET /pipeline/0ea5688c-99d0-44a0-83af-ec69e28751de": {
+    "id": "0ea5688c-99d0-44a0-83af-ec69e28751de",
     "errors": [],
     "project_slug": "gh/example-org/example-repo",
-    "updated_at": "2026-10-19T20:17:29.599Z",
-    "number": 18,
+    "updated_at": "2026-10-19T22:05:13.868Z",
+    "number": 45,
     "state": "created",
-    "created_at": "2026-10-19T20:17:29.440Z",
+    "created_at": "2026-10-19T22:05:13.745Z",
     "warnings": [],
     "trigger": {
-     "received_at": "2026-10-19T20:17:28.891Z",
+     "received_at": "2026-10-19T22:05:13.190Z",
      "type": "api",
      "actor": {
       "login": "example-user",
@@ -27,59 +27,59 @@
      "origin_repository_url": "https://github.com/example-org/example-repo",
      "target_repository_url": "https://github.com/example-org/example-repo",
      "review_url": "",
-     "revision": "9145de1d8afc378a2b260530f3cb01745325cc7d",
+     "revision": "458c852eb8545981506c1b1374ca3d4072de3b2a",
      "review_id": "",
      "provider_name": "GitHub",
      "commit": {
       "body": "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NdKQu52CiBooHPytd4fR2z",
-      "subject": "circleci-pilot r2: fix 9 findings (sim job name, sha from pipeline, digest verdict, storage ledger, pagination, fw.ts mode, class names INFERRED) [ci:premise-tests]"
+      "subject": "Merge main into circleci-pilot (r3)"
      },
      "branch": "ci/circleci-pilot"
     }
    },
-   "GET /pipeline/137f6231-dd69-4744-a53d-763e2dbcd263/workflow": {
+   "GET /pipeline/0ea5688c-99d0-44a0-83af-ec69e28751de/workflow": {
     "next_page_token": null,
     "items": [
      {
-      "pipeline_id": "137f6231-dd69-4744-a53d-763e2dbcd263",
-      "id": "7fd4c606-414d-487c-897d-af451fc1f1e6",
+      "pipeline_id": "0ea5688c-99d0-44a0-83af-ec69e28751de",
+      "id": "12644e72-c3f0-4e1f-9ae8-9b2fde96df85",
       "name": "webkit-sim",
       "project_slug": "gh/example-org/example-repo",
       "status": "success",
       "started_by": "f2fac220-824b-4cf0-9e4b-5849548fe075",
-      "pipeline_number": 18,
-      "created_at": "2026-10-19T20:17:30.258Z",
-      "stopped_at": "2026-10-19T20:23:26.783Z"
+      "pipeline_number": 45,
+      "created_at": "2026-10-19T22:05:13.904Z",
+      "stopped_at": "2026-10-19T22:11:26.154Z"
      }
     ]
    },
-   "GET /workflow/7fd4c606-414d-487c-897d-af451fc1f1e6/job": {
+   "GET /workflow/12644e72-c3f0-4e1f-9ae8-9b2fde96df85/job": {
     "items": [
      {
-      "job_number": 17,
-      "stopped_at": "2026-10-19T20:23:26.783Z",
-      "started_at": "2026-10-19T20:18:29.168Z",
+      "job_number": 41,
+      "stopped_at": "2026-10-19T22:11:26.154Z",
+      "started_at": "2026-10-19T22:06:18.53Z",
       "name": "webkit-sim",
       "project_slug": "gh/example-org/example-repo",
       "type": "build",
       "status": "success",
-      "id": "de5c88e9-88aa-481f-977a-cf60db246700",
+      "id": "48e60ae7-3ecf-4186-8c25-878b33f792b9",
       "dependencies": []
      }
     ]
    },
-   "GET /project/gh/example-org/example-repo/job/17": {
-    "created_at": "2026-10-19T20:17:31.21Z",
-    "duration": 297339,
+   "GET /project/gh/example-org/example-repo/job/41": {
+    "created_at": "2026-10-19T22:05:14.219Z",
+    "duration": 307294,
     "executor": {
      "resource_class": "m4pro-medium",
      "type": "macos"
     },
     "messages": [],
-    "queued_at": "2026-10-19T20:17:31.419Z",
-    "started_at": "2026-10-19T20:18:29.168Z",
+    "queued_at": "2026-10-19T22:05:14.361Z",
+    "started_at": "2026-10-19T22:06:18.53Z",
     "status": "success",
-    "stopped_at": "2026-10-19T20:23:26.508Z",
+    "stopped_at": "2026-10-19T22:11:25.825Z",
     "parallel_runs": [
      {
       "index": 0,
@@ -88,17 +88,17 @@
     ],
     "contexts": [],
     "latest_workflow": {
-     "id": "7fd4c606-414d-487c-897d-af451fc1f1e6",
+     "id": "12644e72-c3f0-4e1f-9ae8-9b2fde96df85",
      "name": "webkit-sim"
     },
     "name": "webkit-sim",
-    "number": 17,
+    "number": 41,
     "organization": {
      "name": "example-org"
     },
     "parallelism": 1,
     "pipeline": {
-     "id": "137f6231-dd69-4744-a53d-763e2dbcd263"
+     "id": "0ea5688c-99d0-44a0-83af-ec69e28751de"
     },
     "project": {
      "external_url": "https://github.com/example-org/example-repo",
@@ -106,65 +106,65 @@
      "name": "example-repo",
      "slug": "gh/example-org/example-repo"
     },
-    "web_url": "https://circleci.com/gh/example-org/example-repo/17"
+    "web_url": "https://circleci.com/gh/example-org/example-repo/41"
    },
-   "GET /project/gh/example-org/example-repo/17/artifacts": {
+   "GET /project/gh/example-org/example-repo/41/artifacts": {
     "next_page_token": null,
     "items": [
      {
       "path": "tmp/fw/artifacts/runner.json",
       "node_index": 0,
-      "url": "https://output.circle-artifacts.com/output/job/de5c88e9-88aa-481f-977a-cf60db246700/artifacts/0/tmp/fw/artifacts/runner.json"
+      "url": "https://output.circle-artifacts.com/output/job/48e60ae7-3ecf-4186-8c25-878b33f792b9/artifacts/0/tmp/fw/artifacts/runner.json"
      },
      {
       "path": "tmp/fw/artifacts/spans.jsonl",
       "node_index": 0,
-      "url": "https://output.circle-artifacts.com/output/job/de5c88e9-88aa-481f-977a-cf60db246700/artifacts/0/tmp/fw/artifacts/spans.jsonl"
+      "url": "https://output.circle-artifacts.com/output/job/48e60ae7-3ecf-4186-8c25-878b33f792b9/artifacts/0/tmp/fw/artifacts/spans.jsonl"
      },
      {
       "path": "tmp/fw/artifacts/timings.json",
       "node_index": 0,
-      "url": "https://output.circle-artifacts.com/output/job/de5c88e9-88aa-481f-977a-cf60db246700/artifacts/0/tmp/fw/artifacts/timings.json"
+      "url": "https://output.circle-artifacts.com/output/job/48e60ae7-3ecf-4186-8c25-878b33f792b9/artifacts/0/tmp/fw/artifacts/timings.json"
      },
      {
       "path": "tmp/fw/artifacts/tools.txt",
       "node_index": 0,
-      "url": "https://output.circle-artifacts.com/output/job/de5c88e9-88aa-481f-977a-cf60db246700/artifacts/0/tmp/fw/artifacts/tools.txt"
+      "url": "https://output.circle-artifacts.com/output/job/48e60ae7-3ecf-4186-8c25-878b33f792b9/artifacts/0/tmp/fw/artifacts/tools.txt"
      },
      {
       "path": "tmp/fw/artifacts/v1-host.txt",
       "node_index": 0,
-      "url": "https://output.circle-artifacts.com/output/job/de5c88e9-88aa-481f-977a-cf60db246700/artifacts/0/tmp/fw/artifacts/v1-host.txt"
+      "url": "https://output.circle-artifacts.com/output/job/48e60ae7-3ecf-4186-8c25-878b33f792b9/artifacts/0/tmp/fw/artifacts/v1-host.txt"
      },
      {
       "path": "tmp/fw/artifacts/v1-session-1.md",
       "node_index": 0,
-      "url": "https://output.circle-artifacts.com/output/job/de5c88e9-88aa-481f-977a-cf60db246700/artifacts/0/tmp/fw/artifacts/v1-session-1.md"
+      "url": "https://output.circle-artifacts.com/output/job/48e60ae7-3ecf-4186-8c25-878b33f792b9/artifacts/0/tmp/fw/artifacts/v1-session-1.md"
      }
     ]
    }
   },
   "files": {
-   "https://output.circle-artifacts.com/output/job/de5c88e9-88aa-481f-977a-cf60db246700/artifacts/0/tmp/fw/artifacts/runner.json": "{\n \"schema\": \"fw.ci-runner/1\",\n \"workflow\": \"local\",\n \"job\": \"local\",\n \"runId\": \"0\",\n \"runAttempt\": \"0\",\n \"sha\": \"none\",\n \"ref\": \"none\",\n \"runnerOS\": \"Darwin\",\n \"runnerArch\": \"arm64\",\n \"imageOS\": \"unknown\",\n \"imageVersion\": \"unknown\",\n \"kernel\": \"25.6.0\",\n \"cpus\": 6,\n \"dockerNcpu\": null,\n \"node\": \"v24.21.0\"\n}\n",
-   "https://output.circle-artifacts.com/output/job/de5c88e9-88aa-481f-977a-cf60db246700/artifacts/0/tmp/fw/artifacts/spans.jsonl": "{\"tool\":\"circleci/webkit-sim\",\"step\":\"checkout\",\"startMs\":1792441109728,\"durMs\":6882,\"exit\":0,\"commit\":\"9145de1\",\"load\":19.75,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"node\",\"startMs\":1792441117013,\"durMs\":115,\"exit\":0,\"commit\":\"9145de1\",\"load\":19.75,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"pnpm\",\"startMs\":1792441117130,\"durMs\":898,\"exit\":0,\"commit\":\"9145de1\",\"load\":19.75,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"runtime, snapshot, proxy\",\"startMs\":1792441118470,\"durMs\":12825,\"exit\":0,\"commit\":\"9145de1\",\"load\":18.25,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"deps install\",\"startMs\":1792441131728,\"durMs\":396,\"exit\":0,\"commit\":\"9145de1\",\"load\":15.90,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"simulator boot\",\"startMs\":1792441132527,\"durMs\":32602,\"exit\":0,\"commit\":\"9145de1\",\"load\":14.63,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"determinism session\",\"startMs\":1792441178517,\"durMs\":225302,\"exit\":0,\"commit\":\"9145de1\",\"load\":127.90,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"simulator delete\",\"startMs\":1792441404407,\"durMs\":625,\"exit\":0,\"commit\":\"9145de1\",\"load\":28.37,\"host\":\"ci\"}\n",
-   "https://output.circle-artifacts.com/output/job/de5c88e9-88aa-481f-977a-cf60db246700/artifacts/0/tmp/fw/artifacts/timings.json": "{\n  \"schema\": \"fw.circleci-timings/1\",\n  \"job\": \"webkit-sim\",\n  \"class\": \"m4pro.medium\",\n  \"sha\": \"9145de1d8afc378a2b260530f3cb01745325cc7d\",\n  \"digest\": null,\n  \"bytes\": {\n    \"cache\": 0,\n    \"workspace\": 0\n  },\n  \"spans\": [\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"checkout\",\n      \"startMs\": 1792441109728,\n      \"durMs\": 6882,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 19.75,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"node\",\n      \"startMs\": 1792441117013,\n      \"durMs\": 115,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 19.75,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"pnpm\",\n      \"startMs\": 1792441117130,\n      \"durMs\": 898,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 19.75,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"runtime, snapshot, proxy\",\n      \"startMs\": 1792441118470,\n      \"durMs\": 12825,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 18.25,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"deps install\",\n      \"startMs\": 1792441131728,\n      \"durMs\": 396,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 15.9,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"simulator boot\",\n      \"startMs\": 1792441132527,\n      \"durMs\": 32602,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 14.63,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"determinism session\",\n      \"startMs\": 1792441178517,\n      \"durMs\": 225302,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 127.9,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"simulator delete\",\n      \"startMs\": 1792441404407,\n      \"durMs\": 625,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 28.37,\n      \"host\": \"ci\"\n    }\n  ]\n}\n",
-   "https://output.circle-artifacts.com/output/job/de5c88e9-88aa-481f-977a-cf60db246700/artifacts/0/tmp/fw/artifacts/tools.txt": "ProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83\nXcode 27.0\nBuild version 27A266a\n== Runtimes ==\niOS 26.5 (26.5 - 23F73) - com.apple.CoreSimulator.SimRuntime.iOS-26-5\niOS 27.0 (27.0 - 24A434) - com.apple.CoreSimulator.SimRuntime.iOS-27-0\ntvOS 26.5 (26.5 - 23L470) - com.apple.CoreSimulator.SimRuntime.tvOS-26-5\ntvOS 27.0 (27.0 - 24J360) - com.apple.CoreSimulator.SimRuntime.tvOS-27-0\nwatchOS 26.5 (26.5 - 23T570) - com.apple.CoreSimulator.SimRuntime.watchOS-26-5\nwatchOS 27.0 (27.0 - 24R362) - com.apple.CoreSimulator.SimRuntime.watchOS-27-0\nvisionOS 26.5 (26.5 - 23O470) - com.apple.CoreSimulator.SimRuntime.xrOS-26-5\nvisionOS 27.0 (27.0 - 24M362) - com.apple.CoreSimulator.SimRuntime.xrOS-27-0\nios-webkit-debug-proxy 1.9.2_2\n",
-   "https://output.circle-artifacts.com/output/job/de5c88e9-88aa-481f-977a-cf60db246700/artifacts/0/tmp/fw/artifacts/v1-host.txt": "20:23  up 6 mins, 1 user, load averages: 28.37 61.05 33.19\n== Devices ==\n-- iOS 26.5 --\n-- iOS 27.0 --\n    fw-iphone-27 (00000000-0000-0000-0000-000000000000) (Booted) \n-- tvOS 26.5 --\n-- tvOS 27.0 --\n-- watchOS 26.5 --\n-- watchOS 27.0 --\n-- visionOS 26.5 --\n-- visionOS 27.0 --\n 7197 173.1 124160 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.AZxFfA/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd\n 7168  71.8 185744 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.AZxFfA/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/backboardd\n 7199  61.2  17632 /usr/libexec/diagnosticd\n 8301  59.6  37824 /Library/Apple/System/Library/CoreServices/XProtect.app/Contents/MacOS/XProtectRemediatorBundlore\n  165  27.6  43488 /usr/libexec/trustd\n 1377  11.6 223728 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd\n 7201   8.9  79504 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.AZxFfA/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/ApplePushService.framework/apsd\n 7148   3.8  73968 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.AZxFfA/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/logd\n    1   2.7  31232 /sbin/launchd\n 7138   1.8  58912 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Resources/SimRenderingServices.simdeviceio/Contents/XPCServices/SimRenderServer.xpc/Contents/MacOS/SimRenderServer\n 7142   1.4  66064 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Resources/SimRenderingServices.simdeviceio/Contents/XPCServices/SimMetalHost.xpc/Contents/MacOS/SimMetalHost\n 8141   1.1  84352 /System/Library/PrivateFrameworks/HelpData.framework/Versions/A/Resources/helpd\n 7903   0.8  69344 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.AZxFfA/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/trustd\n   86   0.7  50992 /usr/libexec/logd\n 3973   0.6  45104 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/XPCServices/com.apple.CoreSimulator.CoreSimulatorService.xpc/Contents/MacOS/com.apple.CoreSimulator.CoreSimulatorService\n",
-   "https://output.circle-artifacts.com/output/job/de5c88e9-88aa-481f-977a-cf60db246700/artifacts/0/tmp/fw/artifacts/v1-session-1.md": "| family | count type | level | class | cells | differing | max spread |\n|---|---|---|---|---|---|---|\n| census | layerCount | per state | **quarantined** | 5 | 2 | 12 |\n| census | layerCount | y=0 | **quarantined** | 1 | 1 | 12 |\n| census | backing memory bytes (sum) | y=0 | **quarantined** | 1 | 1 | 16032496 |\n| census | layerCount | y=1500 | **stable** | 1 | 1 | 6 |\n| census | backing memory bytes (sum) | y=1500 | **quarantined** | 1 | 1 | 15843332 |\n| census | layerCount | y=3000 | **deterministic** | 1 | 0 | 0 |\n| census | backing memory bytes (sum) | y=3000 | **deterministic** | 1 | 0 | 0 |\n| census | layerCount | y=4500 | **deterministic** | 1 | 0 | 0 |\n| census | backing memory bytes (sum) | y=4500 | **deterministic** | 1 | 0 | 0 |\n| census | layerCount | y=5267 | **deterministic** | 1 | 0 | 0 |\n| census | backing memory bytes (sum) | y=5267 | **deterministic** | 1 | 0 | 0 |\n| census | backing memory bytes (sum) | per state | **quarantined** | 5 | 2 | 16032496 |\n| census | layers with reason (gone) | per state | **quarantined** | 5 | 2 | 2 |\n| census | layers with reason animation | per state | **quarantined** | 5 | 1 | 3 |\n| census | layers with reason backfaceVisibilityHidden | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason clipsCompositingDescendants | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason filterWithCompositedDescendants | per state | **quarantined** | 5 | 2 | 2 |\n| census | layers with reason filters | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason maskWithCompositedDescendants | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason opacityWithCompositedDescendants | per state | **quarantined** | 5 | 2 | 2 |\n| census | layers with reason overflowScrollingTouch | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason overlap | per state | **quarantined** | 5 | 2 | 5 |\n| census | layers with reason perspective | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason positionFixed | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason positionSticky | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason root | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason stacking | per state | **stable** | 5 | 2 | 4 |\n| census | layers with reason transform3D | per state | **stable** | 5 | 1 | 1 |\n| census | layers with reason transformWithCompositedDescendants | per state | **quarantined** | 5 | 3 | 5 |\n| census | layers with reason willChange | per state | **deterministic** | 5 | 0 | 0 |\n| census | paintCount (sum, cumulative) | per state | **quarantined** | 5 | 5 | 399 |\n| census | paintCount delta in a 2000 ms window | per state | **quarantined** | 5 | 5 | 99 |\n| census | layer set (name, bounds, bytes, reasons) | per state, symmetric difference vs run 1 | **quarantined** | 5 | 4 | 30 |\n| scroll | RecalculateStyles | total | **stable** | 1 | 1 | 14 |\n| scroll | Layout | total | **quarantined** | 1 | 1 | 34 |\n| scroll | Paint | total | **stable** | 1 | 1 | 14 |\n| scroll | Composite | total | **deterministic** | 1 | 0 | 0 |\n| scroll | RenderingFrame | total | **deterministic** | 1 | 0 | 0 |\n| scroll | FireAnimationFrame | total | **deterministic** | 1 | 0 | 0 |\n| scroll | TimerFire | total | **quarantined** | 1 | 1 | 8 |\n| scroll | ObserverCallback | total | **quarantined** | 1 | 1 | 11 |\n| scroll | EventDispatch | total | **deterministic** | 1 | 0 | 0 |\n| scroll | FunctionCall | total | **stable** | 1 | 1 | 15 |\n| scroll | ScheduleStyleRecalculation | total | **stable** | 1 | 1 | 11 |\n| scroll | InvalidateLayout | total | **quarantined** | 1 | 1 | 59 |\n| scroll | paintArea | total | **quarantined** | 1 | 1 | 5254938 |\n| scroll | RecalculateStyles | per 500 px zone | **stable** | 11 | 8 | 6 |\n| scroll | Layout | per 500 px zone | **quarantined** | 11 | 9 | 18 |\n| scroll | Paint | per 500 px zone | **quarantined** | 11 | 9 | 49 |\n| scroll | Composite | per 500 px zone | **deterministic** | 11 | 0 | 0 |\n| scroll | RenderingFrame | per 500 px zone | **deterministic** | 11 | 0 | 0 |\n| scroll | FireAnimationFrame | per 500 px zone | **deterministic** | 11 | 0 | 0 |\n| scroll | TimerFire | per 500 px zone | **quarantined** | 11 | 9 | 3 |\n| scroll | ObserverCallback | per 500 px zone | **quarantined** | 11 | 6 | 8 |\n| scroll | EventDispatch | per 500 px zone | **deterministic** | 11 | 0 | 0 |\n| scroll | FunctionCall | per 500 px zone | **stable** | 11 | 8 | 8 |\n| scroll | ScheduleStyleRecalculation | per 500 px zone | **quarantined** | 11 | 7 | 6 |\n| scroll | InvalidateLayout | per 500 px zone | **quarantined** | 11 | 9 | 31 |\n| scroll | paintArea | per 500 px zone | **quarantined** | 11 | 11 | 4806325 |\n| scroll | RecalculateStyles | per step | **quarantined** | 107 | 42 | 3 |\n| scroll | Layout | per step | **quarantined** | 107 | 78 | 8 |\n| scroll | Paint | per step | **quarantined** | 107 | 76 | 17 |\n| scroll | Composite | per step | **deterministic** | 107 | 0 | 0 |\n| scroll | RenderingFrame | per step | **deterministic** | 107 | 0 | 0 |\n| scroll | FireAnimationFrame | per step | **deterministic** | 107 | 0 | 0 |\n| scroll | TimerFire | per step | **quarantined** | 107 | 47 | 2 |\n| scroll | ObserverCallback | per step | **quarantined** | 107 | 26 | 4 |\n| scroll | EventDispatch | per step | **deterministic** | 107 | 0 | 0 |\n| scroll | FunctionCall | per step | **quarantined** | 107 | 51 | 9 |\n| scroll | ScheduleStyleRecalculation | per step | **quarantined** | 107 | 39 | 3 |\n| scroll | InvalidateLayout | per step | **quarantined** | 107 | 73 | 11 |\n| scroll | paintArea | per step | **quarantined** | 107 | 90 | 3789067 |\n| seek | n=0 free RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 free Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 free Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 free Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 seeked RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 seeked Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 seeked Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 seeked Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 free RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 free Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 free Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 free Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 seeked RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 seeked Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 seeked Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 seeked Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 free RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 free Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 free Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 free Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 seeked RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 seeked Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 seeked Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 seeked Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 free RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 free Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 free Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 free Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 seeked RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 seeked Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 seeked Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 seeked Composite | total | **deterministic** | 1 | 0 | 0 |\n"
+   "https://output.circle-artifacts.com/output/job/48e60ae7-3ecf-4186-8c25-878b33f792b9/artifacts/0/tmp/fw/artifacts/runner.json": "{\n \"schema\": \"fw.ci-runner/1\",\n \"workflow\": \"local\",\n \"job\": \"local\",\n \"runId\": \"0\",\n \"runAttempt\": \"0\",\n \"sha\": \"none\",\n \"ref\": \"none\",\n \"runnerOS\": \"Darwin\",\n \"runnerArch\": \"arm64\",\n \"imageOS\": \"unknown\",\n \"imageVersion\": \"unknown\",\n \"kernel\": \"25.6.0\",\n \"cpus\": 6,\n \"dockerNcpu\": null,\n \"node\": \"v24.21.0\"\n}\n",
+   "https://output.circle-artifacts.com/output/job/48e60ae7-3ecf-4186-8c25-878b33f792b9/artifacts/0/tmp/fw/artifacts/spans.jsonl": "{\"tool\":\"circleci/webkit-sim\",\"step\":\"checkout\",\"startMs\":1792447579088,\"durMs\":6939,\"exit\":0,\"commit\":\"458c852\",\"load\":15.27,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"node\",\"startMs\":1792447586397,\"durMs\":124,\"exit\":0,\"commit\":\"458c852\",\"load\":14.13,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"pnpm\",\"startMs\":1792447586523,\"durMs\":938,\"exit\":0,\"commit\":\"458c852\",\"load\":14.13,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"runtime, snapshot, proxy\",\"startMs\":1792447587908,\"durMs\":13289,\"exit\":0,\"commit\":\"458c852\",\"load\":14.13,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"deps install\",\"startMs\":1792447601642,\"durMs\":387,\"exit\":0,\"commit\":\"458c852\",\"load\":11.30,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"simulator boot\",\"startMs\":1792447602461,\"durMs\":32601,\"exit\":0,\"commit\":\"458c852\",\"load\":11.30,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"determinism session\",\"startMs\":1792447647994,\"durMs\":235321,\"exit\":0,\"commit\":\"458c852\",\"load\":126.06,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"simulator delete\",\"startMs\":1792447883895,\"durMs\":604,\"exit\":0,\"commit\":\"458c852\",\"load\":25.56,\"host\":\"ci\"}\n",
+   "https://output.circle-artifacts.com/output/job/48e60ae7-3ecf-4186-8c25-878b33f792b9/artifacts/0/tmp/fw/artifacts/timings.json": "{\n  \"schema\": \"fw.circleci-timings/1\",\n  \"job\": \"webkit-sim\",\n  \"class\": \"m4pro.medium\",\n  \"sha\": \"458c852eb8545981506c1b1374ca3d4072de3b2a\",\n  \"digest\": null,\n  \"bytes\": {\n    \"cache\": 0,\n    \"workspace\": 0\n  },\n  \"spans\": [\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"checkout\",\n      \"startMs\": 1792447579088,\n      \"durMs\": 6939,\n      \"exit\": 0,\n      \"commit\": \"458c852\",\n      \"load\": 15.27,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"node\",\n      \"startMs\": 1792447586397,\n      \"durMs\": 124,\n      \"exit\": 0,\n      \"commit\": \"458c852\",\n      \"load\": 14.13,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"pnpm\",\n      \"startMs\": 1792447586523,\n      \"durMs\": 938,\n      \"exit\": 0,\n      \"commit\": \"458c852\",\n      \"load\": 14.13,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"runtime, snapshot, proxy\",\n      \"startMs\": 1792447587908,\n      \"durMs\": 13289,\n      \"exit\": 0,\n      \"commit\": \"458c852\",\n      \"load\": 14.13,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"deps install\",\n      \"startMs\": 1792447601642,\n      \"durMs\": 387,\n      \"exit\": 0,\n      \"commit\": \"458c852\",\n      \"load\": 11.3,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"simulator boot\",\n      \"startMs\": 1792447602461,\n      \"durMs\": 32601,\n      \"exit\": 0,\n      \"commit\": \"458c852\",\n      \"load\": 11.3,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"determinism session\",\n      \"startMs\": 1792447647994,\n      \"durMs\": 235321,\n      \"exit\": 0,\n      \"commit\": \"458c852\",\n      \"load\": 126.06,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"simulator delete\",\n      \"startMs\": 1792447883895,\n      \"durMs\": 604,\n      \"exit\": 0,\n      \"commit\": \"458c852\",\n      \"load\": 25.56,\n      \"host\": \"ci\"\n    }\n  ]\n}\n",
+   "https://output.circle-artifacts.com/output/job/48e60ae7-3ecf-4186-8c25-878b33f792b9/artifacts/0/tmp/fw/artifacts/tools.txt": "ProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83\nXcode 27.0\nBuild version 27A266a\n== Runtimes ==\niOS 26.5 (26.5 - 23F73) - com.apple.CoreSimulator.SimRuntime.iOS-26-5\niOS 27.0 (27.0 - 24A434) - com.apple.CoreSimulator.SimRuntime.iOS-27-0\ntvOS 26.5 (26.5 - 23L470) - com.apple.CoreSimulator.SimRuntime.tvOS-26-5\ntvOS 27.0 (27.0 - 24J360) - com.apple.CoreSimulator.SimRuntime.tvOS-27-0\nwatchOS 26.5 (26.5 - 23T570) - com.apple.CoreSimulator.SimRuntime.watchOS-26-5\nwatchOS 27.0 (27.0 - 24R362) - com.apple.CoreSimulator.SimRuntime.watchOS-27-0\nvisionOS 26.5 (26.5 - 23O470) - com.apple.CoreSimulator.SimRuntime.xrOS-26-5\nvisionOS 27.0 (27.0 - 24M362) - com.apple.CoreSimulator.SimRuntime.xrOS-27-0\nios-webkit-debug-proxy 1.9.2_2\n",
+   "https://output.circle-artifacts.com/output/job/48e60ae7-3ecf-4186-8c25-878b33f792b9/artifacts/0/tmp/fw/artifacts/v1-host.txt": "22:11  up 6 mins, 1 user, load averages: 25.56 57.19 31.61\n== Devices ==\n-- iOS 26.5 --\n-- iOS 27.0 --\n    fw-iphone-27 (00000000-0000-0000-0000-000000000000) (Booted) \n-- tvOS 26.5 --\n-- tvOS 27.0 --\n-- watchOS 26.5 --\n-- watchOS 27.0 --\n-- visionOS 26.5 --\n-- visionOS 27.0 --\n 7203 171.9 209648 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.2m4YLS/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd\n 7174  76.9 186160 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.2m4YLS/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/backboardd\n 7205  59.5  16640 /usr/libexec/diagnosticd\n 7207   4.2  79552 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.2m4YLS/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/ApplePushService.framework/apsd\n 7154   3.5  77456 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.2m4YLS/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/logd\n 7144   1.9  57424 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Resources/SimRenderingServices.simdeviceio/Contents/XPCServices/SimRenderServer.xpc/Contents/MacOS/SimRenderServer\n    1   1.5  32464 /sbin/launchd\n 7149   1.4  65104 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Resources/SimRenderingServices.simdeviceio/Contents/XPCServices/SimMetalHost.xpc/Contents/MacOS/SimMetalHost\n 7924   0.6  69152 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.2m4YLS/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/trustd\n 3979   0.4  45088 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/XPCServices/com.apple.CoreSimulator.CoreSimulatorService.xpc/Contents/MacOS/com.apple.CoreSimulator.CoreSimulatorService\n  150   0.4   8432 /usr/sbin/notifyd\n 7730   0.3   2128 sh\n 7191   0.3  11248 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.2m4YLS/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/sbin/notifyd\n  126   0.3  33872 /usr/libexec/opendirectoryd\n 2543   0.2  44464 /var/folders/ss/3lzbkg8n6zl7cn7y0jnj7kf80000gn/T/circleci-machine-agent868107116/circleci-agent\n",
+   "https://output.circle-artifacts.com/output/job/48e60ae7-3ecf-4186-8c25-878b33f792b9/artifacts/0/tmp/fw/artifacts/v1-session-1.md": "| family | count type | level | class | cells | differing | max spread |\n|---|---|---|---|---|---|---|\n| census | layerCount | per state | **quarantined** | 5 | 2 | 12 |\n| census | layerCount | y=0 | **quarantined** | 1 | 1 | 8 |\n| census | backing memory bytes (sum) | y=0 | **quarantined** | 1 | 1 | 15669194 |\n| census | layerCount | y=1500 | **quarantined** | 1 | 1 | 12 |\n| census | backing memory bytes (sum) | y=1500 | **quarantined** | 1 | 1 | 15882882 |\n| census | layerCount | y=3000 | **deterministic** | 1 | 0 | 0 |\n| census | backing memory bytes (sum) | y=3000 | **deterministic** | 1 | 0 | 0 |\n| census | layerCount | y=4500 | **deterministic** | 1 | 0 | 0 |\n| census | backing memory bytes (sum) | y=4500 | **deterministic** | 1 | 0 | 0 |\n| census | layerCount | y=5267 | **deterministic** | 1 | 0 | 0 |\n| census | backing memory bytes (sum) | y=5267 | **deterministic** | 1 | 0 | 0 |\n| census | backing memory bytes (sum) | per state | **quarantined** | 5 | 2 | 15882882 |\n| census | layers with reason (gone) | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason animation | per state | **quarantined** | 5 | 1 | 3 |\n| census | layers with reason backfaceVisibilityHidden | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason clipsCompositingDescendants | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason filterWithCompositedDescendants | per state | **stable** | 5 | 2 | 1 |\n| census | layers with reason filters | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason maskWithCompositedDescendants | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason opacityWithCompositedDescendants | per state | **quarantined** | 5 | 2 | 2 |\n| census | layers with reason overflowScrollingTouch | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason overlap | per state | **quarantined** | 5 | 2 | 5 |\n| census | layers with reason perspective | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason positionFixed | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason positionSticky | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason root | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason stacking | per state | **stable** | 5 | 1 | 2 |\n| census | layers with reason transform3D | per state | **deterministic** | 5 | 0 | 0 |\n| census | layers with reason transformWithCompositedDescendants | per state | **quarantined** | 5 | 2 | 4 |\n| census | layers with reason willChange | per state | **deterministic** | 5 | 0 | 0 |\n| census | paintCount (sum, cumulative) | per state | **quarantined** | 5 | 5 | 494 |\n| census | paintCount delta in a 2000 ms window | per state | **quarantined** | 5 | 4 | 52 |\n| census | layer set (name, bounds, bytes, reasons) | per state, symmetric difference vs run 1 | **quarantined** | 5 | 3 | 24 |\n| scroll | RecalculateStyles | total | **stable** | 1 | 1 | 6 |\n| scroll | Layout | total | **stable** | 1 | 1 | 8 |\n| scroll | Paint | total | **stable** | 1 | 1 | 10 |\n| scroll | Composite | total | **deterministic** | 1 | 0 | 0 |\n| scroll | RenderingFrame | total | **deterministic** | 1 | 0 | 0 |\n| scroll | FireAnimationFrame | total | **stable** | 1 | 1 | 5 |\n| scroll | TimerFire | total | **quarantined** | 1 | 1 | 3 |\n| scroll | ObserverCallback | total | **stable** | 1 | 1 | 4 |\n| scroll | EventDispatch | total | **deterministic** | 1 | 0 | 0 |\n| scroll | FunctionCall | total | **stable** | 1 | 1 | 12 |\n| scroll | ScheduleStyleRecalculation | total | **stable** | 1 | 1 | 6 |\n| scroll | InvalidateLayout | total | **stable** | 1 | 1 | 2 |\n| scroll | paintArea | total | **stable** | 1 | 1 | 2991076 |\n| scroll | RecalculateStyles | per 500 px zone | **stable** | 11 | 11 | 5 |\n| scroll | Layout | per 500 px zone | **quarantined** | 11 | 10 | 12 |\n| scroll | Paint | per 500 px zone | **quarantined** | 11 | 10 | 36 |\n| scroll | Composite | per 500 px zone | **deterministic** | 11 | 0 | 0 |\n| scroll | RenderingFrame | per 500 px zone | **deterministic** | 11 | 0 | 0 |\n| scroll | FireAnimationFrame | per 500 px zone | **stable** | 11 | 3 | 3 |\n| scroll | TimerFire | per 500 px zone | **stable** | 11 | 9 | 2 |\n| scroll | ObserverCallback | per 500 px zone | **quarantined** | 11 | 5 | 5 |\n| scroll | EventDispatch | per 500 px zone | **deterministic** | 11 | 0 | 0 |\n| scroll | FunctionCall | per 500 px zone | **stable** | 11 | 8 | 5 |\n| scroll | ScheduleStyleRecalculation | per 500 px zone | **stable** | 11 | 10 | 4 |\n| scroll | InvalidateLayout | per 500 px zone | **quarantined** | 11 | 10 | 9 |\n| scroll | paintArea | per 500 px zone | **quarantined** | 11 | 11 | 5751825 |\n| scroll | RecalculateStyles | per step | **quarantined** | 107 | 40 | 4 |\n| scroll | Layout | per step | **quarantined** | 107 | 71 | 9 |\n| scroll | Paint | per step | **quarantined** | 107 | 75 | 27 |\n| scroll | Composite | per step | **deterministic** | 107 | 0 | 0 |\n| scroll | RenderingFrame | per step | **deterministic** | 107 | 0 | 0 |\n| scroll | FireAnimationFrame | per step | **quarantined** | 107 | 3 | 3 |\n| scroll | TimerFire | per step | **quarantined** | 107 | 37 | 3 |\n| scroll | ObserverCallback | per step | **quarantined** | 107 | 26 | 2 |\n| scroll | EventDispatch | per step | **deterministic** | 107 | 0 | 0 |\n| scroll | FunctionCall | per step | **quarantined** | 107 | 47 | 9 |\n| scroll | ScheduleStyleRecalculation | per step | **quarantined** | 107 | 40 | 3 |\n| scroll | InvalidateLayout | per step | **quarantined** | 107 | 76 | 9 |\n| scroll | paintArea | per step | **quarantined** | 107 | 90 | 4531151 |\n| seek | n=0 free RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 free Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 free Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 free Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 seeked RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 seeked Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 seeked Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=0 seeked Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 free RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 free Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 free Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 free Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 seeked RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 seeked Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 seeked Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=10 seeked Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 free RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 free Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 free Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 free Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 seeked RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 seeked Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 seeked Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=50 seeked Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 free RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 free Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 free Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 free Composite | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 seeked RecalculateStyles | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 seeked Layout | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 seeked Paint | total | **deterministic** | 1 | 0 | 0 |\n| seek | n=100 seeked Composite | total | **deterministic** | 1 | 0 | 0 |\n"
   }
  },
  "github": {
-  "databaseId": 39318078000,
+  "databaseId": 39332408753,
   "workflowName": "webkit-sim",
-  "headSha": "9145de1d8afc378a2b260530f3cb01745325cc7d",
-  "createdAt": "2026-10-19T20:17:31Z",
+  "headSha": "458c852eb8545981506c1b1374ca3d4072de3b2a",
+  "createdAt": "2026-10-19T22:05:11Z",
   "digests": {},
   "jobs": [
    {
-    "name": "sim (original, 430, 1, 9145de1d8afc378a2b260530f3cb01745325cc7d, v1)",
+    "name": "sim (original, 430, 1, 458c852eb8545981506c1b1374ca3d4072de3b2a, v1)",
     "conclusion": "success",
-    "startedAt": "2026-10-19T20:18:58Z",
-    "completedAt": "2026-10-19T20:44:40Z"
+    "startedAt": "2026-10-19T22:07:05Z",
+    "completedAt": "2026-10-19T22:35:25Z"
    }
   ]
  }

@@ -34,7 +34,7 @@ export const KEYCHAIN_SERVICE = 'fw-circleci-token';
 /** CircleCI answers 429 with a Retry-After; a poll is never faster than this (gh-hygiene: polls >= 120 s). */
 export const MIN_POLL_S = 120;
 export const LANES = ['premise-tests', 'webkit-sim'];
-/** Free Arm classes the trigger accepts: the Gen 2 names (INFERRED until an API run accepts them) and the Gen 1 fallback. */
+/** Free Arm classes the trigger accepts: the Gen 2 names (CONFIRMED: accepted by pipelines 15 and 16) and the Gen 1 fallback. */
 export const CLASSES = ['arm.medium.gen2', 'arm.large.gen2', 'arm.medium', 'arm.large'];
 
 export class Usage extends Error {}
