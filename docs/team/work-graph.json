@@ -6441,7 +6441,13 @@
     "lean/Fw/Parts/HeroCountdown*.lean",
     "packages/contracts/golden/parts/overlays.signup.jsonl",
     "packages/contracts/golden/parts/hero.countdown.jsonl",
-    "docs/team/handoffs/behaviour-small.md"
+    "docs/team/handoffs/behaviour-small.md",
+    "apps/site/src/parts/hero.countdown/*.ts",
+    "apps/site/src/parts/hero.countdown/index.tsx",
+    "lean/Fw/Parts/Golden.lean",
+    "lean/Fw/Parts/OverlayGolden.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ]
   },
   {
@@ -6678,7 +6684,9 @@
    "writes": [
     "apps/site/src/parts/platform/Visuals.tsx",
     "apps/site/src/parts/people.deck/panel.tsx",
-    "docs/team/handoffs/port-pin-gap.md"
+    "docs/team/handoffs/port-pin-gap.md",
+    "apps/site/src/parts/platform/assets.test.ts",
+    "apps/site/src/parts/platform/visuals.module.css"
    ]
   },
   {
@@ -6697,7 +6705,11 @@
     "apps/site/scripts/svg-extract.mjs",
     "apps/site/src/GenSvg.tsx",
     "apps/site/src/parts/nav/index.tsx",
-    "docs/team/handoffs/port-wordmark-g.md"
+    "docs/team/handoffs/port-wordmark-g.md",
+    "apps/site/src/svg-allow.json",
+    "apps/site/src/svg-extract.test.ts",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ]
   },
   {
