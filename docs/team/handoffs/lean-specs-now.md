@@ -5,7 +5,8 @@ or golden file touched; flags stay off.
 
 Proved:
 - n22 `Fw.Parts.CommissionTyping`: `flag_sublist`, `frame_sublist_le`, `variant_total_le`, `ro_compact_saves`,
-  `ro_desktop_eq`; all scoped to the scroll-list phase of a frame (RO delivery not counted).
+  `ro_desktop_eq`; variant_total_le, ro_compact_saves and ro_desktop_eq are scoped to the scroll-list phase (RO
+  delivery not counted); flag_sublist and frame_sublist_le are generic sublist lemmas.
 - n8 `Fw.Parts.HeroCountdown`: `rollFrames_eq_run`, `frameDurs_mul16`, `rollFrames_mul16` (gaps of whole 16 ms
   multiples), `stepFrames_eq_run`; 60 Hz splits differ (#guard).
 - n18 `Fw.Parts.PeopleO`: `flipMid_work`, `origMid_work`, `flip_main_lt` (part alone), `flip_not_le`,
@@ -24,7 +25,6 @@ Proposed ledger rows (lead applies):
 - row 30 n19 st6 rest: leanFor += swap_lt, st6_no_flip, st6_slide_no_flip, st5_flip. Open: CI fixture, both tables'
   premise (stagesOf rest ⊆ flip, layout only in flip) once model-bug-fixes lands.
 - row 31 n19 slide geometry: leanFor += swap_main_le, swap_layout_units, follower_shift; leanAgainst += swap_not_le.
-
 Open (accepted limits): RO delivery phase (n22); n18 FLIP start/end frames and run totals; n19 CI fixture; the
 Chromium premise of swap_lt. Docstring checker: no subagent tool in these sessions, checklist applied by hand.
 Read first: the section docs before `flipMid` (PeopleO) and `frameWith` (PeopleCarousel).
