@@ -14,9 +14,11 @@ import { SECRET_HEADER } from "../cap/cap.ts";
 import { workGraphRow, partsOf } from "./facts.ts";
 import type { PreviewManager, Proof } from "./manager.ts";
 import { OwnerAuth } from "./owner.ts";
+import { buildRows, rowAt } from "./builds.ts";
 
 const TaskId = z.string().regex(/^[a-z0-9][a-z0-9-]{0,80}$/);
 const StartReq = z.object({ task: TaskId });
+const StartBuild = z.object({ build: z.string().min(1).max(200) });
 
 const kindOf = (id: string) => (id.startsWith("port-") ? "port" : id.startsWith("fix-") ? "fix" : "other");
 const SRC_LABEL: Record<string, string> = {
@@ -73,13 +75,24 @@ export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: Previe
 
   app.get("/api/previews", (c) => c.json({ ok: true, ...pm.list(), previewPort: owner.previewPort }));
 
+  /** The Builds tab: landed port/fix tasks and the flag and preset rows, all decided by Lean `console.builds`. Read-only. */
+  app.get("/api/builds", async (c) => {
+    const b = await buildRows(pm.root, store.core);
+    return c.json({ ok: true, ...b, canPreview: owner.bearerOk(c.req.header("authorization")), previewPort: owner.previewPort, ...pm.list() });
+  });
+
   app.post("/api/previews", async (c) => {
     const bad = jsonOnly(c); if (bad) return c.json({ ok: false, reason: bad }, 403);
     let body: unknown;
     try { body = await c.req.json(); } catch { return c.json({ ok: false, reason: "body is not JSON" }, 400); }
-    const req = StartReq.safeParse(body);
-    if (!req.success) return c.json({ ok: false, reason: "expected {task}" }, 400);
-    const r = await pm.start(req.data.task, await proofOf(c));
+    const req = StartReq.or(StartBuild).safeParse(body);
+    if (!req.success) return c.json({ ok: false, reason: "expected {task} or {build}" }, 400);
+    let r;
+    if ("build" in req.data) {
+      const at = rowAt(await buildRows(pm.root, store.core), req.data.build);
+      if (!at) return c.json({ ok: false, reason: "unknown build row" }, 404);
+      r = await pm.start(at.slot, await proofOf(c), at);
+    } else r = await pm.start(req.data.task, await proofOf(c));
     if (!r.ok) return c.json(r, r.reason === "notOwner" ? 403 : 409);
     return c.json({ ok: true, id: r.id, preview: r.entry }, 202);
   });

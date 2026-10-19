@@ -7,6 +7,7 @@ import Fw.Console.Alert
 import Fw.Console.Preview
 import Fw.Console.PreviewOwner
 import Fw.Console.PreviewCache
+import Fw.Console.Builds
 import Fw.Plan.Trailer
 import Fw.Plan.Lint
 /-!
@@ -42,6 +43,8 @@ imports it, so it decodes the card fields it needs itself).
 | `console.landTier` | `ids` [check ids] | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept) |
 | `console.landLane` | `exitOk`, `coreUser`, `skipped` (skipped plus todo tests the summary reports; `null` when no summary was recognised) | `verdict` (`pass`/`fail`/`skipped`/`unknown`), `ok` (`Fw.Console.LandTier.laneVerdict`) |
 | `console.previewCache` | `path` (the request path, no query), `manifest`? [names] (the rewrite build's `.vite/manifest.json` `file`/`css`/`assets` entries, each as `/<name>`) | `kind` (`hashed`/`html`/`other`), `cacheControl`, `immutable`, `compress` (`Fw.Console.PreviewCache.kind`, `cacheControl`, `compressible`) |
+| `console.builds` | `main` (main's sha), `log` [{sha, time, body}] (main's first-parent log, newest first), `known` [{id, title}] (the work graph), `evidence`? [{task, sha}] (a work-graph task whose evidence commit is on main: sha = its land commit on main's first-parent line), `flags` [{part, variant, kind, requires? [keys]}], `presets` [{name, fw {part: variant}}] (fw with `extends` already resolved) | `ports` [{id, task, group, sha, landedAt, title, slot, search, target}], `optimize` [{id, kind, name, search, status, note, slot, target}], `searches` (`Fw.Console.Builds.portRows`, `optRows`, `enumerate`) |
+| `console.buildsPicker` | `keys` (the `bySearch` keys of a build), `current`? | `searches` (the picker list), `current` (the search the compare view loads) (`Fw.Console.Builds.picker`, `choose`) |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?, evidenceOnMain?}] (`evidenceOnMain`: the glue's `git merge-base --is-ancestor <evidence> main`; missing = true), `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
 -/
@@ -454,13 +457,58 @@ def opPreviewCache (req : Json) : Except String Reply := do
   pure [("kind", .str name), ("cacheControl", .str (cacheControl k)), ("immutable", .bool (reusesWithoutAsking k)),
         ("compress", .bool (compressible (← str req "path")))]
 
+
+open Fw.Console.Builds in
+/-- The `Target` of a row as JSON. -/
+def buildTargetJson : Fw.Console.Preview.Target → Json
+  | .main s => Json.mkObj [("kind", "main"), ("ref", "main"), ("sha", s)]
+  | _ => Json.null
+
+/-- An object of strings as pairs. -/
+def strPairs (k : String) : Json → Except String (List (String × String))
+  | .obj kvs => kvs.toList.mapM fun kv => do pure (kv.1, ← asStr k kv.2)
+  | _ => .error s!"field {k}: expected an object"
+
+open Fw.Console.Builds in
+/-- `console.builds` (`Fw.Console.Builds.portRows`, `optRows`, `enumerate`). -/
+def opBuilds (req : Json) : Except String Reply := do
+  let main ← str req "main"
+  let log ← (← arrD req "log").mapM fun c => do
+    pure ({ sha := ← str c "sha", time := ← nat c "time", body := ← strD c "body" "" } : LogCommit)
+  let known ← (← arrD req "known").mapM fun k => do
+    pure ({ id := ← str k "id", title := ← strD k "title" "" } : Known)
+  let ev ← (← arrD req "evidence").mapM fun e => do
+    pure ({ task := ← str e "task", sha := ← str e "sha" } : EvLand)
+  let flags ← (← arrD req "flags").mapM fun f => do
+    pure ({ part := ← str f "part", variant := ← str f "variant", kind := ← str f "kind",
+            requires := ← (← arrD f "requires").mapM (asStr "requires") } : Flag)
+  let presets ← (← arrD req "presets").mapM fun p => do
+    pure ({ name := ← str p "name", fw := ← strPairs "fw" (← field p "fw") } : Preset)
+  let ports := (portRows known log ev).map fun r => Json.mkObj [
+    ("id", Json.str ("port:" ++ r.task)), ("task", r.task), ("group", group r.task), ("sha", r.sha),
+    ("landedAt", Json.num r.landedAt), ("title", r.title), ("slot", landSlot r.task), ("search", ""),
+    ("target", buildTargetJson (portTarget r))]
+  let opts := (optRows presets flags).map fun o => Json.mkObj [
+    ("id", Json.str (o.kind ++ ":" ++ o.name)), ("kind", o.kind), ("name", o.name), ("search", o.search),
+    ("status", o.status.name), ("note", match o.status.note with | some n => Json.str n | none => Json.null),
+    ("slot", o.slot), ("target", buildTargetJson (optTarget main))]
+  pure [("ports", Json.arr ports.toArray), ("optimize", Json.arr opts.toArray),
+        ("searches", Json.arr ((enumerate presets flags).map Json.str).toArray)]
+
+open Fw.Console.Builds in
+/-- `console.buildsPicker` (`Fw.Console.Builds.picker`, `choose`). -/
+def opBuildsPicker (req : Json) : Except String Reply := do
+  let keys ← (← arrD req "keys").mapM (asStr "keys")
+  let cur ← strD req "current" ""
+  pure [("searches", Json.arr ((picker keys).map Json.str).toArray), ("current", Json.str (choose keys cur))]
+
 /-! ## Dispatch -/
 
 /-- The ops of this module. -/
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
   "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLane", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
-  "console.ownerLogin", "console.ownerGate", "console.ownerAction", "console.lanStart", "console.previewSweep", "console.previewCache"]
+  "console.ownerLogin", "console.ownerGate", "console.ownerAction", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -492,6 +540,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.lanStart" => some (opLanStart req)
   | "console.previewSweep" => some (opPreviewSweep req)
   | "console.previewCache" => some (opPreviewCache req)
+  | "console.builds" => some (opBuilds req)
+  | "console.buildsPicker" => some (opBuildsPicker req)
   | _ => none
 
 end Fw.Wire.Console
