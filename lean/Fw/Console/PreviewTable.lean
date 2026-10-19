@@ -106,6 +106,6 @@ def request (r : Row) : Json :=
     ("children", .arr (r.kids.toArray.map fun ks => Json.mkObj [("facts", .arr (ks.toArray.map factJson))]))]
 
 /-- The golden cases: one per task. -/
-def goldenCases : List (String × Json) := rows.map fun r => (s!"{r.task}: the investigation's target", request r)
+def goldenCases (_ : Unit := ()) : List (String × Json) := rows.map fun r => (s!"{r.task}: the investigation's target", request r)
 
 end Fw.Console.PreviewTable

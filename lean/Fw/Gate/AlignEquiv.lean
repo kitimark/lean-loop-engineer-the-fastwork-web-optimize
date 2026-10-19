@@ -654,7 +654,7 @@ def caseRow (n : String) (o r : Side) : Json :=
 /-- The golden text, one JSON line per case.
 
 The golden file's contents. -/
-def goldenText : String :=
+def goldenText (_ : Unit := ()) : String :=
   String.join (cases.map fun (n, o, r) => (caseRow n o r).compress ++ "\n")
 
 /-- The golden file, relative to `lean/`.

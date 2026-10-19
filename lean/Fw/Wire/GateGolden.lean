@@ -106,7 +106,7 @@ def variantReq (strips : Nat) (variants : String) (newRole : String := "strip") 
     ",\"orig\":" ++ o ++ ",\"rewrite\":" ++ r ++ ",\"expect\":null,\"expectNeutral\":null}]}")
 
 /-- The literal cases: (name, op, request without op). -/
-def literalCases : List (String × String × Json) := [
+def literalCases (_ : Unit := ()) : List (String × String × Json) := [
   ("cell: no applicable item is not comparable", "gate.cell", lit "{\"statuses\":[\"na\",\"na\"]}"),
   ("cell: equal and na pass", "gate.cell", lit "{\"statuses\":[\"equal\",\"na\",\"equal\"]}"),
   ("cell: a missing item fails", "gate.cell", lit "{\"statuses\":[\"na\",\"missing\"]}"),
@@ -161,7 +161,7 @@ def literalCases : List (String × String × Json) := [
    variantReq 2 "{\"c\":\"strip\"}" (newRole := "digit"))]
 
 /-- The text of `literal.jsonl`. -/
-def literalText : String :=
+def literalText (_ : Unit := ()) : String :=
   String.join (literalCases.map fun (name, op, req) =>
     (Json.mkObj [("name", .str name), ("request", withOp op req), ("response", respond op req)]).compress ++ "\n")
 

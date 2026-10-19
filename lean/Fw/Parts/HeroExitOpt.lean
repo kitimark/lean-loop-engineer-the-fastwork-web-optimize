@@ -3,6 +3,7 @@ import Fw.Engine.Chromium
 import Fw.Engine.WebKit
 import Lean.Data.Json
 import Fw.Parts.EndFlags
+import Fw.Engine.Restyle
 
 /-!
 # hero.exit, variant `hero-exit-threaded`: scroll-driven consumers (design note §4.2, row HE)
@@ -1215,5 +1216,169 @@ theorem wk_tradeE (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.thr
   exact wk_trade μ hμ m hm l N lo hlo
 
 end EndPass
+
+/-! ## Variant `scoped`: `--exit-opacity` and `--exit-scatter` registered non-inherited, passed down an `inherit` chain -/
+
+section Scoped
+
+open Fw.Engine.Restyle Fw.Engine.Restyle.Node
+
+/-- The written element, as `part/class`. -/
+def stageName : String := "hero.exit/hero"
+
+/-- Elements whose winning declarations read `--exit-opacity` or `--exit-scatter`, as `part/class`. -/
+def readers : List String := ["hero.orbit/card", "hero/copy", "hero.cue/cue"]
+
+/-- Classes with a `[data-exit-scope]` rule declaring `inherit` for both properties, as `part/class`. -/
+def inheritRules : List String :=
+  ["hero.orbit/orbit", "hero.orbit/stage", "hero.orbit/stage3d", "hero.orbit/card", "hero.deck/deck", "hero/copy",
+   "hero.cue/cue"]
+
+private def leaf (n : String) (f : Flags := {}) : Node := mk n f []
+private def v : Flags := { vars := true }
+private def s : Flags := { slow := true }
+private def chainReader : Flags := { vars := true, slow := true, inh := true, reads := true }
+
+def card : Node :=
+  mk "hero.orbit/card" chainReader
+    [mk "hero.orbit/hit" {} [mk "hero.orbit/profile" {}
+      [mk "hero.orbit/cover" v [mk "picture" {} [leaf "img"]],
+       mk "hero.orbit/body" v
+        [mk "hero.orbit/avatarRow" {} [mk "hero.orbit/avatar" v [mk "picture" {} [leaf "img"], leaf "hero.orbit/online" v]],
+         mk "hero.orbit/info" v [leaf "hero.orbit/name" v, leaf "hero.orbit/role" v]]]]]
+
+def accent : Node :=
+  mk "hero.accent/accent" {} [leaf "hero.accent/sizer", mk "hero.accent/frame" {} [mk "hero.accent/paint" {}
+    (List.replicate 3 (mk "hero.accent/svg" s [leaf "hero.accent/path" s]))]]
+
+def countdownUnit : Node :=
+  mk "hero.countdown/unit" v [mk "hero.countdown/value" v [leaf "hero.countdown/placeholder"], leaf "hero.countdown/label" v]
+
+def copy : Node :=
+  mk "hero/copy" chainReader
+    [mk "hero/copyMain" {} [mk "hero/title" {} [leaf "hero/line", mk "hero/words" {} [leaf "span", accent, leaf "span"]],
+       leaf "p"],
+     mk "hero.countdown/countdown" v (List.replicate 4 countdownUnit),
+     mk "hero/ctaStack" {}
+      [mk "hero/cta" { vars := true, slow := true } [mk "button" {} [mk "hero/icon" s (List.replicate 2 (leaf "path" s))]],
+       mk "hero/rsvp" s [mk "hero/icon" s (List.replicate 10 (leaf "path" s))], leaf "hero/note"]]
+
+def cue : Node :=
+  mk "hero.cue/cue" chainReader [mk "hero.cue/float" s [leaf "hero.cue/label", mk "svg" s (List.replicate 2 (leaf "path" s))]]
+
+/-- The SSR hero stage with the cascade flags of `scoped.test.ts`; `narrow` is `width <= 600px`, where the orbit has
+no box, and otherwise the deck has none. -/
+def heroTree (narrow : Bool) : Node :=
+  mk stageName v
+    [mk "hero.orbit/orbit" { vars := true, hidden := narrow, inh := true }
+      [mk "hero.orbit/stage" { inh := true } [mk "hero.orbit/stage3d" { inh := true } (List.replicate 10 card)]],
+     mk "hero.deck/deck" { hidden := !narrow, inh := true } (List.replicate 4 card),
+     copy, cue]
+
+def heroPaths (narrow : Bool) : List (String × Bool × List Bool) := paths [] (heroTree narrow)
+
+theorem readers_exact (narrow : Bool) : ∀ o ∈ heroPaths narrow, o.2.1 = readers.contains o.1 := by
+  cases narrow <;> decide +kernel
+
+theorem readers_in_tree (narrow : Bool) : ∀ r ∈ readers, (heroPaths narrow).any (·.1 == r) = true := by
+  cases narrow <;> decide +kernel
+
+theorem chain_covers (narrow : Bool) : ∀ o ∈ heroPaths narrow, o.2.1 = true → o.2.2.all id = true := by
+  cases narrow <;> decide +kernel
+
+theorem consumer_eq_scoped (narrow : Bool) (val : Option String) : ∀ o ∈ heroPaths narrow, o.2.1 = true →
+    valueAt .registered val o.2.2 = valueAt .inherited val o.2.2 :=
+  fun o ho hr => consumer_eq val o.2.2 (chain_covers narrow o ho hr)
+
+/-- The stage's `--exit-opacity`: the driver's inline write, else the CSS default. -/
+def stageOpacity (written : Option String) : String := written.getD "1"
+
+/-- The stage's `--exit-scatter`; reduced motion overrides it with `0`. -/
+def stageScatter (reduced : Bool) (opacity : String) : String :=
+  if reduced then "0" else "calc(1 - " ++ opacity ++ ")"
+
+#guard stageOpacity none == "1" && stageOpacity (some "0.25") == "0.25"
+#guard stageScatter true "0.25" == "0" && stageScatter false "0.25" == "calc(1 - 0.25)"
+
+theorem defaults (reg : Reg) (narrow : Bool) : ∀ o ∈ heroPaths narrow, o.2.1 = true →
+    valueAt reg (some (stageOpacity none)) o.2.2 = some "1" := by
+  intro o ho hr
+  cases reg <;> simp [valueAt, stageOpacity, chain_covers narrow o ho hr]
+
+theorem reduced_scatter (reg : Reg) (narrow : Bool) (opacity : String) : ∀ o ∈ heroPaths narrow, o.2.1 = true →
+    valueAt reg (some (stageScatter true opacity)) o.2.2 = some "0" := by
+  intro o ho hr
+  cases reg <;> simp [valueAt, stageScatter, chain_covers narrow o ho hr]
+
+theorem scatter_eq (narrow reduced : Bool) (opacity : String) : ∀ o ∈ heroPaths narrow, o.2.1 = true →
+    valueAt .registered (some (stageScatter reduced opacity)) o.2.2 =
+      valueAt .inherited (some (stageScatter reduced opacity)) o.2.2 :=
+  fun o ho hr => consumer_eq _ o.2.2 (chain_covers narrow o ho hr)
+
+theorem cr_units : crFull (heroTree true) = 99 ∧ crScoped (heroTree true) = 9 ∧
+    crFull (heroTree false) = 172 ∧ crScoped (heroTree false) = 17 := by decide +kernel
+
+theorem wk_units : wkFull (heroTree true) = 123 ∧ wkScoped (heroTree true) = 9 ∧
+    wkFull (heroTree false) = 215 ∧ wkScoped (heroTree false) = 17 := by decide +kernel
+
+theorem scoped_lt_faithful (narrow : Bool) : crScoped (heroTree narrow) < crFull (heroTree narrow) ∧
+    wkScoped (heroTree narrow) < wkFull (heroTree narrow) := by
+  cases narrow <;> decide +kernel
+
+theorem narrow_delta : crFull (heroTree true) - crScoped (heroTree true) = 90 := by decide +kernel
+
+/-- Elements and properties the driver writes per zone frame, in both variants. -/
+def frameWrites : List (String × String) := [(stageName, "--exit-opacity")]
+
+def zoneFirst : Nat := 10
+def zoneLast : Nat := 103
+/-- Golden `zone`: the swipe-v1 frame window 10-103, from the first scroll frame to the last frame below scrollY 950,
+93 of them exit-write frames (11-103). It does not fit swipe-touch-v1, whose writes run to frame 111. The zone totals
+are model products, never compared with a measured sum. -/
+def zoneFrames : Nat := zoneLast + 1 - zoneFirst
+
+#guard zoneFrames == 94
+
+/-- Contents of `packages/contracts/golden/parts/hero.exit.scoped.json`. -/
+def scopedJson (_ : Unit := ()) : Lean.Json :=
+  let prop (n : String) : Lean.Json :=
+    Lean.Json.mkObj [("name", Lean.toJson n), ("syntax", Lean.toJson "*"), ("inherits", Lean.toJson false)]
+  let units (narrow : Bool) : Lean.Json :=
+    Lean.Json.mkObj [("chromiumFaithful", Lean.toJson (crFull (heroTree narrow))),
+      ("webkitFaithful", Lean.toJson (wkFull (heroTree narrow))), ("chromiumScoped", Lean.toJson (crScoped (heroTree narrow))),
+      ("webkitScoped", Lean.toJson (wkScoped (heroTree narrow)))]
+  Lean.Json.mkObj [
+    ("variant", Lean.toJson "scoped"),
+    ("scopeAttr", Lean.toJson "data-exit-scope"),
+    ("register", Lean.Json.arr #[prop "--exit-opacity", prop "--exit-scatter"]),
+    ("readers", Lean.toJson readers),
+    ("inheritRules", Lean.toJson inheritRules),
+    ("stageDefaults", Lean.Json.mkObj [("opacity", Lean.toJson (stageOpacity none)),
+      ("scatter", Lean.toJson (stageScatter false "var(--exit-opacity)")),
+      ("reducedScatter", Lean.toJson (stageScatter true "var(--exit-opacity)"))]),
+    ("trees", Lean.Json.mkObj [("narrow", (heroTree true).json), ("wide", (heroTree false).json)]),
+    ("units", Lean.Json.mkObj [("narrow", units true), ("wide", units false)]),
+    ("frameWrites", Lean.Json.arr (frameWrites.map fun (e, p) =>
+      Lean.Json.mkObj [("element", Lean.toJson e), ("property", Lean.toJson p)]).toArray),
+    ("zone", Lean.Json.mkObj [("first", Lean.toJson zoneFirst), ("last", Lean.toJson zoneLast),
+      ("frames", Lean.toJson zoneFrames), ("narrowChromiumFaithful", Lean.toJson (zoneFrames * crFull (heroTree true))),
+      ("narrowChromiumScoped", Lean.toJson (zoneFrames * crScoped (heroTree true)))])]
+
+def scopedText (_ : Unit := ()) : String := (scopedJson ()).pretty ++ "\n"
+
+/-- Print the golden, or with `--check <file>` compare it; exit 1 on a difference. -/
+def runScoped (args : List String) : IO UInt32 := do
+  match args with
+  | ["--check", path] =>
+    if (← IO.FS.readFile path) == scopedText () then
+      IO.eprintln s!"exit scoped golden: {path} is up to date"
+      return 0
+    IO.eprintln s!"exit scoped golden: {path} differs from the generated text"
+    return 1
+  | _ =>
+    IO.print (scopedText ())
+    return 0
+
+end Scoped
 
 end Fw.Parts.HeroExitOpt

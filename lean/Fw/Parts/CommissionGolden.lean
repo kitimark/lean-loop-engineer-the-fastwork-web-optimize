@@ -36,7 +36,7 @@ def frameJson (f : Frame) : Json :=
     ("runway", optWire f.runway), ("more", .bool f.more)]
 
 /-- The golden lines of the section logic. Vectors the TS section logic must reproduce. -/
-def commissionLines : List String :=
+def commissionLines (_ : Unit := ()) : List String :=
   (([-1, 0, 0.1, 0.25, 0.5, 0.9, 1, 2] : List Rat).map fun x => line "smooth" [("x", rin x)] (ratWire (smooth x))) ++
   (([(0, 1000), (60, 1000), (150, 1000), (240, 1000), (420, 1000), (421, 1000), (5000, 1000), (-300, 800), (200, 800)] :
       List (Rat × Rat)).flatMap fun (t, h) =>
@@ -78,7 +78,7 @@ def trigWire (s : Trig) : Json :=
     ("frozen", ratWire s.frozen), ("static", .bool s.static)]
 
 /-- The golden lines of the typing timeline. Vectors the TS typing logic must reproduce. -/
-def typingLines : List String :=
+def typingLines (_ : Unit := ()) : List String :=
   let taus : List Rat :=
     [0, 40, 79, 79.5, 80, 499, 499.9, 500, 513.5, 527, 527.9, 528, 556, 1000, 1535, 1535.9, 1536, 1563, 1563.5, 1564, 1743,
      1743.9, 1744, 2223, 2224, 2500, 2774, 3000, 3323, 3323.9, 3324, 3380, 3443, 3444, 3500, 3894, 4000, 4343, 4344, 5000,

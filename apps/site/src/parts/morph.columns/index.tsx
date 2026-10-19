@@ -8,6 +8,8 @@ import css from './morph.module.css';
 
 export interface MorphColumnsProps {
   variant: string;
+  /** morph.mount `shift-dormant` (Lean `MorphMountDormant.dormant`): the tracks carry no animation while true. */
+  dormant?: boolean;
 }
 
 const SCENE_ATTR = 'data-start-selling-scene';
@@ -24,7 +26,7 @@ const SCENE_ATTR = 'data-start-selling-scene';
  * `data-start-selling-scene` attribute, followed by a MutationObserver (it changes at one value of the morph only).
  * `faithful` is unchanged.
  */
-export function MorphColumns({ variant }: MorphColumnsProps) {
+export function MorphColumns({ variant, dormant = false }: MorphColumnsProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const clockRef = useRef<ReturnType<typeof createSceneClock> | null>(null);
   const hiddenPause = variant === 'hidden-pause';
@@ -65,7 +67,7 @@ export function MorphColumns({ variant }: MorphColumnsProps) {
   }, [hiddenPause]);
 
   return (
-    <div ref={stageRef} className={css.stage} data-fw="morph-columns" data-fw-variant={variant}>
+    <div ref={stageRef} className={css.stage} data-fw="morph-columns" data-fw-variant={variant} data-fw-dormant={dormant ? '' : undefined}>
       {COLUMNS.map((c, i) => (
         <div key={i} className={css.col} style={{ '--col-offset': c.offset } as CSSProperties}>
           <div className={css.track}>

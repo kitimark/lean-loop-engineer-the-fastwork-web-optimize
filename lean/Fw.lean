@@ -45,6 +45,7 @@ import Fw.Parts.PlatformGolden
 import Fw.Parts.MorphTweenOpt
 import Fw.Parts.HiddenPause
 import Fw.Parts.MorphMountOpt
+import Fw.Parts.MorphMountDormant
 import Fw.Parts.HeroExitOpt
 import Fw.Parts.PainNotes
 import Fw.Parts.PainNotesGolden
@@ -95,6 +96,7 @@ import Fw.Wire.Gate
 import Fw.Wire.GateDeclared
 import Fw.Engine
 import Fw.Engine.Compose  -- compose-lean: units compose over parts, passes do not; Lego swap
+import Fw.Engine.Restyle
 import Fw.Parts.Bridge  -- indep-bridge: Independent rows to Flow-Indep, Lego swaps on isolated rows, S3 passes
 import Fw.Guidance.Basic
 import Fw.Guidance.Motion

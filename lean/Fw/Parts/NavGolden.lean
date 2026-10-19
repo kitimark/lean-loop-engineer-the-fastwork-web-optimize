@@ -47,7 +47,7 @@ def timerName : Timer → String
 def ms : List Rat := [0, 0.001, 0.0011, 0.2, 0.2001, 0.4, 0.4001, 0.55, 0.5501, 0.92, 0.9201, 1]
 
 /-- nav lines. Vectors the TS logic must reproduce. -/
-def navLines : List String :=
+def navLines (_ : Unit := ()) : List String :=
   (([(0, 2000, 800), (-863, 2000, 800), (-864, 2000, 800), (-1000, 2000, 800), (10, 2000, 800), (0, 500, 800),
      (-100, 500, 800), (-5, 1000, 1000)] : List (Rat × Rat × Rat)).flatMap fun (t, h, v) =>
     bs.flatMap fun pr => bs.map fun rm =>

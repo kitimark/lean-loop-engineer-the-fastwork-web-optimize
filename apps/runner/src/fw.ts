@@ -55,7 +55,7 @@ try {
   } else if (group === "premises") { process.exitCode = await (await import("./premises.ts")).premisesCli(rest, process.cwd()); // Lean premises vs browser tests
   } else if (group === "coverage") {
     process.exitCode = await (await import("./coverage.ts")).coverageCli(rest, process.cwd()); // lean-coverage: warn mode
-  } else if (group === "lake-gc") { // lean-bin-slim: lists, never deletes (Fw.Ops.LakeGc)
+  } else if (group === "lake-gc") { // lake-gc-refs: lists by Fw.Ops.LakeGc; --delete removes exactly that list
     const { LakeGcUsage, lakeGcCli } = await import("./lake-gc.ts");
     const top = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: process.cwd(), encoding: "utf8" }).trim();
     try { process.exitCode = lakeGcCli(rest, top, fwcoreCall(process.cwd())); } catch (e) { throw e instanceof LakeGcUsage ? new UsageError(e.message) : e; }
@@ -159,7 +159,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json] [--check] | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json|--delete] [--check] | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));

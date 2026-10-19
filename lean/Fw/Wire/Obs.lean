@@ -1208,7 +1208,7 @@ def literal : List (String × Json) := [
    lit "{\"now\":1760000000000,\"params\":{\"loopCapMin\":1,\"ctxWarn\":10},\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"ctxTokens\":11,\"children\":[{\"pid\":2,\"chain\":[1],\"kind\":\"sleepLoop\",\"startedAt\":1759999000000}]}]}")]
 
 /-- Every case as (name, request body). -/
-def cases : List (String × Json) := typed.map (fun c => (c.name, nextReqJson c.p c.now c.fs)) ++ literal
+def cases (_ : Unit := ()) : List (String × Json) := typed.map (fun c => (c.name, nextReqJson c.p c.now c.fs)) ++ literal
 
 /-- The request with its `op` field. -/
 def withOp (j : Json) : Json :=
@@ -1241,7 +1241,7 @@ def gaps : List String :=
 #guard (typed.map (·.name)).eraseDups.length == typed.length
 
 /-- The text of the golden file. -/
-def fileText : String :=
+def fileText (_ : Unit := ()) : String :=
   String.join (cases.map fun (name, req) =>
     (Json.mkObj [("name", .str name), ("request", withOp req), ("response", respond req)]).compress ++ "\n")
 
@@ -1308,7 +1308,7 @@ structure Case where
   state : Fw.Obs.Signals.State
 
 /-- Every checkpoint of every timeline as a case. -/
-def cases : List Case :=
+def cases (_ : Unit := ()) : List Case :=
   golden.flatMap fun τ => τ.checks.map fun c =>
     { name := s!"{τ.name} @ {clock c.t}",
       req := Json.mkObj [("now", toJson (ms c.t)), ("agents", .arr #[sigFactsJson (scale τ.facts)])],
@@ -1328,7 +1328,7 @@ def stateOf (r : Json) : Option (String × List Json) := do
   pure (s, ids.toList)
 
 /-- The cases whose response state differs from the expected state (empty when the golden reproduces). -/
-def mismatches : List String :=
+def mismatches (_ : Unit := ()) : List String :=
   cases.filterMap fun c =>
     if stateOf (respond c.req) == some (c.state.name, c.state.ids.map Json.str) then none else some c.name
 
@@ -1343,7 +1343,7 @@ def mismatches : List String :=
   classify (Fw.Obs.Next.sigParams {}) (ms c.t) (scale τ.facts) == classify goldenParams c.t τ.facts
 
 /-- The text of the golden file. -/
-def fileText : String :=
+def fileText (_ : Unit := ()) : String :=
   String.join (cases.map fun c =>
     let opReq := match c.req with
       | .obj kvs => Json.obj (kvs.insert "op" (.str "obs.signals"))
