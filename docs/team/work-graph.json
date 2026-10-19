@@ -7110,7 +7110,8 @@
     "lean/Fw/Ops/Golden.lean",
     "lean/Fw.lean",
     "lean/Fw/Wire/**"
-   ]
+   ],
+   "evidence": "ac31e9c"
   },
   {
    "devices": [
@@ -7195,7 +7196,8 @@
     "apps/runner/src/land.ts",
     "apps/runner/test/**",
     "docs/team/handoffs/console-reconcile-speed.md"
-   ]
+   ],
+   "evidence": "4e1515a"
   },
   {
    "devices": [
