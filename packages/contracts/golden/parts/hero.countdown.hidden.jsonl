@@ -1,0 +1,13 @@
+{"exit":null,"far":false,"hidden":false,"pointerOff":false,"reduced":false,"trackHeight":{"den":"1","num":"1600"},"trackTop":{"den":"1","num":"0"},"vh":{"den":"1","num":"800"},"zone":"unwritten"}
+{"exit":{"den":"1","num":"1"},"far":false,"hidden":false,"pointerOff":false,"reduced":false,"trackHeight":{"den":"1","num":"1600"},"trackTop":{"den":"1","num":"100"},"vh":{"den":"1","num":"800"},"zone":"below-top"}
+{"exit":{"den":"1","num":"1"},"far":false,"hidden":false,"pointerOff":false,"reduced":false,"trackHeight":{"den":"1","num":"1600"},"trackTop":{"den":"1","num":"0"},"vh":{"den":"1","num":"800"},"zone":"rest"}
+{"exit":{"den":"2","num":"1"},"far":false,"hidden":false,"pointerOff":false,"reduced":false,"trackHeight":{"den":"1","num":"1600"},"trackTop":{"den":"1","num":"-400"},"vh":{"den":"1","num":"800"},"zone":"fade"}
+{"exit":{"den":"25","num":"1"},"far":false,"hidden":false,"pointerOff":true,"reduced":false,"trackHeight":{"den":"1","num":"1600"},"trackTop":{"den":"1","num":"-768"},"vh":{"den":"1","num":"800"},"zone":"pointer-off"}
+{"exit":{"den":"1","num":"0"},"far":false,"hidden":true,"pointerOff":true,"reduced":false,"trackHeight":{"den":"1","num":"1600"},"trackTop":{"den":"1","num":"-800"},"vh":{"den":"1","num":"800"},"zone":"edge"}
+{"exit":{"den":"1","num":"0"},"far":false,"hidden":true,"pointerOff":true,"reduced":false,"trackHeight":{"den":"1","num":"1600"},"trackTop":{"den":"1","num":"-1200"},"vh":{"den":"1","num":"800"},"zone":"past"}
+{"exit":{"den":"1","num":"0"},"far":true,"hidden":true,"pointerOff":true,"reduced":false,"trackHeight":{"den":"1","num":"1600"},"trackTop":{"den":"1","num":"-2600"},"vh":{"den":"1","num":"800"},"zone":"far-above"}
+{"exit":{"den":"1","num":"1"},"far":false,"hidden":false,"pointerOff":false,"reduced":true,"trackHeight":{"den":"1","num":"900"},"trackTop":{"den":"1","num":"-1200"},"vh":{"den":"1","num":"800"},"zone":"reduced-past"}
+{"exit":{"den":"1","num":"1"},"far":false,"hidden":false,"pointerOff":false,"reduced":true,"trackHeight":{"den":"1","num":"900"},"trackTop":{"den":"1","num":"-1600"},"vh":{"den":"1","num":"800"},"zone":"reduced-near"}
+{"exit":{"den":"1","num":"1"},"far":true,"hidden":true,"pointerOff":false,"reduced":true,"trackHeight":{"den":"1","num":"900"},"trackTop":{"den":"1","num":"-1800"},"vh":{"den":"1","num":"800"},"zone":"reduced-far"}
+{"exit":{"den":"1","num":"1"},"far":true,"hidden":true,"pointerOff":false,"reduced":false,"trackHeight":{"den":"1","num":"1600"},"trackTop":{"den":"1","num":"1600"},"vh":{"den":"1","num":"800"},"zone":"far-below"}
+{"exit":{"den":"1","num":"0"},"far":false,"hidden":true,"pointerOff":true,"reduced":false,"trackHeight":{"den":"1","num":"100"},"trackTop":{"den":"1","num":"-1"},"vh":{"den":"1","num":"800"},"zone":"short-track"}
