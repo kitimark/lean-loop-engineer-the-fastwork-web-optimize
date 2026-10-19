@@ -33,7 +33,7 @@ try {
     ? await webkit.launch()
     : await chromium.launch({ ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}), ...(process.env.E2E_CHROMIUM_CHANNEL ? { channel: process.env.E2E_CHROMIUM_CHANNEL } : {}) });
   version = browser.version();
-  checks = await runEngine(browser, rig, engine, { passphrase: TEST_PASSPHRASE });
+  checks = await runEngine(browser, rig, engine, { passphrase: TEST_PASSPHRASE, route: !args.includes("--no-route") });
 } catch (e) {
   checks = [{ id: `${engine}/harness`, ok: false, detail: String(e?.message ?? e).split("\n")[0] }];
 } finally {

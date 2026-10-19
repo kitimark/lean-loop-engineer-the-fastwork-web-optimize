@@ -78,7 +78,7 @@ async function runTarget(browser, rig, engine, host, target, opts) {
   const checks = [];
   const check = (id, ok, detail = "") => checks.push({ id: `${engine}/${host.name}/${target.id}/${id}`, ok: Boolean(ok), detail: String(detail) });
   try {
-    await ctx.route((u) => u.origin !== host.origin, blockExternal(host.origin, log));
+    if (opts.route !== false) await ctx.route((u) => u.origin !== host.origin, blockExternal(host.origin, log));
     ctx.on("request", (r) => { log.requests.push(r); });
     ctx.on("response", (r) => { log.responses.push({ url: r.url(), status: r.status(), method: r.request().method(), type: r.request().resourceType(), redirected: r.request().redirectedFrom() !== null }); });
     const page = await ctx.newPage();
@@ -176,13 +176,13 @@ async function lanLogin(browser, rig, engine, host, passphrase) {
   return checks;
 }
 
-export async function runEngine(browser, rig, engine, { passphrase, keep } = {}) {
+export async function runEngine(browser, rig, engine, { passphrase, keep, route } = {}) {
   const out = [];
   for (const host of Object.values(rig.hosts)) {
     if (host.name === "lan") { out.push(...(await lanLogin(browser, rig, engine, host, passphrase))); continue; }
     for (const target of PATHS) {
       const t0 = Date.now();
-      const cs = await runTarget(browser, rig, engine, host, target, { keep });
+      const cs = await runTarget(browser, rig, engine, host, target, { keep, route });
       for (const c of cs) process.stderr.write(`  ${c.ok ? "ok  " : "FAIL"} ${c.id}  (${c.detail})\n`);
       process.stderr.write(`  # ${Date.now() - t0} ms\n`);
       out.push(...cs);

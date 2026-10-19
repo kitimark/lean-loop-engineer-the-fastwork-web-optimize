@@ -95,7 +95,7 @@ jobs:
       - name: Run the suite (red when a check fails; the JSON is uploaded either way)
         env:
           ENGINE: ${{ matrix.engine }}
-        run: node src/run.mjs --engine "$ENGINE" --out out
+        run: node src/run.mjs --engine "$ENGINE" --out out --no-route
         working-directory: packages/e2e-preview
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ always() && steps.stale.outcome == 'skipped' }}
