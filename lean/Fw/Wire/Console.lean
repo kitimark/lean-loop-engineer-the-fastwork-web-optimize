@@ -3,6 +3,7 @@ import Fw.Console.Land
 import Fw.Console.Self
 import Fw.Console.LandPool
 import Fw.Console.LandTier
+import Fw.Console.LandRemote
 import Fw.Console.Alert
 import Fw.Console.Preview
 import Fw.Console.PreviewOwner
@@ -42,6 +43,8 @@ imports it, so it decodes the card fields it needs itself).
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
 | `console.landTier` | `ids` [check ids] | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept) |
 | `console.landLane` | `exitOk`, `coreUser`, `skipped` (skipped plus todo tests the summary reports; `null` when no summary was recognised) | `verdict` (`pass`/`fail`/`skipped`/`unknown`), `ok` (`Fw.Console.LandTier.laneVerdict`) |
+| `console.landRemote` | `localOk`, `needed`, `allow` [`github`/`circleci`, preference order], `want` {sha, laneId, laneDigest}, `waitsLeft`, `runs` [{provider, sha, laneId, laneDigest, state (`queued`/`running`/`pass`/`fail`/`cancelled`/`timeout`/`unavailable`)}] | `kind` (`accept`/`refuse`/`wait`/`try`/`local`), `reason` (the word on the VERDICT line), `ok`, `provider` (the one to try, else null) (`Fw.Console.LandRemote.verdict`) |
+| `console.landDigest` | `ids` [remote check ids] | `digest` (`Fw.Console.LandRemote.laneDigest`, tier remote) |
 | `console.previewCache` | `path` (the request path, no query), `manifest`? [names] (the rewrite build's `.vite/manifest.json` `file`/`css`/`assets` entries, each as `/<name>`) | `kind` (`hashed`/`html`/`other`), `cacheControl`, `immutable`, `compress` (`Fw.Console.PreviewCache.kind`, `cacheControl`, `compressible`) |
 | `console.builds` | `main` (main's sha), `log` [{sha, time, body}] (main's first-parent log, newest first), `known` [{id, title}] (the work graph), `evidence`? [{task, sha}] (a work-graph task whose evidence commit is on main: sha = its land commit on main's first-parent line), `flags` [{part, variant, kind, requires? [keys]}], `presets` [{name, fw {part: variant}}] (fw with `extends` already resolved) | `ports` [{id, task, group, sha, landedAt, title, slot, search, target}], `optimize` [{id, kind, name, search, status, note, slot, target}], `searches` (`Fw.Console.Builds.portRows`, `optRows`, `enumerate`) |
 | `console.buildsPicker` | `keys` (the `bySearch` keys of a build), `current`? | `searches` (the picker list), `current` (the search the compare view loads) (`Fw.Console.Builds.picker`, `choose`) |
@@ -223,6 +226,34 @@ def opLandLane (req : Json) : Except String Reply := do
     | some _ => some <$> nat req "skipped"
   let v := laneVerdict e c n
   pure [("verdict", .str v.name), ("ok", .bool v.ok)]
+
+open Fw.Console.LandRemote in
+/-- `console.landRemote`: the combined land verdict over the local tier and the normalized lane runs (`Fw.Console.LandRemote.verdict`). -/
+def opLandRemote (req : Json) : Except String Reply := do
+  let l ← asBool "localOk" (← field req "localOk")
+  let n ← asBool "needed" (← field req "needed")
+  let allow ← (← arrD req "allow").mapM fun j => do
+    let s ← asStr "allow" j
+    match Provider.ofName s with | some p => pure p | none => throw s!"unknown provider {s}"
+  let wj ← field req "want"
+  let w : Want := { sha := ← strD wj "sha" "", laneId := ← strD wj "laneId" "", laneDigest := ← strD wj "laneDigest" "" }
+  let k ← natD req "waitsLeft" 0
+  let rs ← (← arrD req "runs").mapM fun r => do
+    let ps ← strD r "provider" ""
+    let st ← strD r "state" ""
+    match Provider.ofName ps, RunState.ofName st with
+    | some p, some s => pure ({ provider := p, sha := ← strD r "sha" "", laneId := ← strD r "laneId" "",
+                                laneDigest := ← strD r "laneDigest" "", state := s } : Run)
+    | none, _ => throw s!"unknown provider {ps}"
+    | _, none => throw s!"unknown run state {st}"
+  let v := verdict l n allow w k rs
+  pure [("kind", .str v.kind), ("reason", .str v.reason), ("ok", .bool v.ok),
+        ("provider", match v.provider with | some p => .str p.name | none => .null)]
+
+open Fw.Console.LandRemote in
+/-- `console.landDigest`: the lane digest of the remote tier over these check ids (`Fw.Console.LandRemote.laneDigest`). -/
+def opLandDigest (req : Json) : Except String Reply := do
+  pure [("digest", .str (laneDigest .onCi (← strsD req "ids")))]
 
 /-! ## plan.lint -/
 
@@ -506,7 +537,7 @@ def opBuildsPicker (req : Json) : Except String Reply := do
 
 /-- The ops of this module. -/
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
-  "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLane", "plan.trailers", "plan.lint",
+  "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLane", "console.landRemote", "console.landDigest", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
   "console.ownerLogin", "console.ownerGate", "console.ownerAction", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker"]
 
@@ -525,6 +556,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.landRetry" => some (opLandRetry req)
   | "console.landTier" => some (opLandTier req)
   | "console.landLane" => some (opLandLane req)
+  | "console.landRemote" => some (opLandRemote req)
+  | "console.landDigest" => some (opLandDigest req)
   | "plan.trailers" => some (opTrailers req)
   | "plan.lint" => some (opPlanLint req)
   | "console.previewTarget" => some (opPreviewTarget req)
