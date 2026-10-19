@@ -2,11 +2,9 @@ import Fw.Engine.Compose
 import Fw.Parts.Contract
 
 /-!
-# Bridge from the contract rows to the Lego swap (`Independent` → `Indep`), and page passes never increase
-
-Instantiates the abstract `Indep` of `Fw.Engine.Compose` with `Flow` (no `quiet`-violating path in a part list),
-decides which rows of `codeParts` may be swapped alone, refutes the literal bridge on the listed pairs, and proves that a
-part's strict pass saving never raises the page's passes. Consumers: PLAN §4.8 and §10.7 (sentences S1, S2, S3, S5).
+# Bridge from the contract rows to the Lego swap, and page passes never increase
+`Indep` of `Fw.Engine.Compose` becomes `Flow` (no non-`quiet` path); the 14 isolated `codeParts` rows swap alone; the
+literal `Independent → Indep` fails on the listed pairs; a strict part pass saving never raises page passes (S3).
 -/
 
 namespace Fw.Parts.Bridge
@@ -78,7 +76,7 @@ theorem Reach.tail {ps : List PartSpec} {i j k : Nat} (h : Reach ps i j) (e : Ed
   | refl i => exact .step e (.refl k)
   | step e' _ ih => exact .step e' (ih e)
 
-/-- The `Indep` of `Fw.Engine.Compose` for part list `ps`: position `i` reaches not position `j`.
+/-- The `Indep` of `Fw.Engine.Compose` for part list `ps`: position `i` does not reach position `j`.
 
 $$\operatorname{Flow}_{ps}(i,j) \iff \lnot\operatorname{Reach}_{ps}(i,j)$$
 
@@ -240,7 +238,6 @@ theorem lego_swap_visible_flow {V : Type} (ps : List PartSpec) (arm : Nat → (N
       visible vp (stackScene y ((List.range n).map fun j => arm j sel)) :=
   lego_swap_visible (Flow ps) arm vp n p x sel y ha (flow_of_isolated hi) hh hs
 
-
 /-! ## Page passes never increase under a strict part saving (S3) -/
 
 /-- Frame `g` is pass-dominated by `f` on stage `s`: either `g` touches `s` only when `f` does and forces at most as
@@ -388,7 +385,7 @@ $$\forall E,\ \forall c \in \mathrm{Change}(P),\ \forall s \in \mathrm{Stage}:\ 
 \operatorname{frameWork}_E(g_1 \mathbin{+\!\!+} f_2).\mathrm{passes}(s) = \operatorname{frameWork}_E(f_1
 \mathbin{+\!\!+} f_2).\mathrm{passes}(s) + 1$$
 
-`g₁` trades the touched pass for a forced one, and `f₂`'s touched pass absorbs only `f₁`'s. -/
+$\preceq$ is `Work.le`; `g₁` trades the touched pass for a forced one, and `f₂`'s touched pass absorbs only `f₁`'s. -/
 theorem passes_append_le_fails {P M : Type} (E : Engine P M) (c : Change P) (s : Stage) (hc : s ∈ E.stagesOf c)
     (hs : s = .style ∨ s = .layout) :
     ∃ f₁ g₁ f₂ : FrameIn P, (frameWork E g₁).le (frameWork E f₁) ∧
@@ -436,7 +433,6 @@ theorem lego_swap_passes_flow {V P M : Type} (ps : List PartSpec) (frame : Nat �
   passes_pageOf_le E s n p _ _ hp (fun j _ hj =>
     (lego_swap_sound (Flow ps) frame (fun _ _ => ⟨0, fun _ => []⟩) E p x sel hf (fun _ _ _ _ => rfl)
       (flow_of_isolated hi) j hj).1) h
-
 
 /-! ## Deciding reachability -/
 
@@ -568,7 +564,7 @@ theorem mem_of_reach {ps : List PartSpec} {A : List (List Nat)} {S : List Nat}
 
 /-- The adjacency lists of `codeParts`, position $i$ the $i$-th contract row.
 
-$$\mathrm{adj}_{\mathrm{code}} = [[1,3,13,15,16,17,22,28], [\,], \dots, [\,]]$$
+$$\mathrm{adj}_{\mathrm{code}} = L_{\mathrm{adj}}, \quad L_{\mathrm{adj}} = \text{the 34-entry literal below}$$
 
 Literal of `adj codeParts` (`adj_code`). -/
 def codeAdj : List (List Nat) :=
@@ -609,8 +605,9 @@ theorem closed_code : (List.range 34).all (fun p => closed codeAdj (reachList co
 
 /-- Reachability on the code rows is the six-step search.
 
-$$\forall p, q \in \mathbb{N}:\ p < 34 \Rightarrow \bigl(\operatorname{Reach}_{\mathrm{parts}_{\mathrm{code}}}(p,q)
-\iff q \in \operatorname{reach}_{\mathrm{adj}_{\mathrm{code}}}(p, 6)\bigr)$$
+$$\forall p \in \mathbb{N}:\ p < 34 \Rightarrow \forall q \in \mathbb{N}:\
+\operatorname{Reach}_{\mathrm{parts}_{\mathrm{code}}}(p,q) \iff q \in \operatorname{reach}_{\mathrm{adj}_{\mathrm{code}}}(p,
+6)$$
 
 Sound by `reach_of_mem_reachList`, complete by `closed_code`. -/
 theorem reach_code_iff {p : Nat} (hp : p < 34) (q : Nat) :
@@ -774,7 +771,8 @@ theorem chainPairs_code_length : (chainPairs codeParts codeAdj 6).length = 299 :
 /-- The 299 pairs grouped by source: entry $p$ lists, in search order, every $q$ with $(p,q)$ in the failing pairs.
 
 $$\bigl[[\,q \mid (p', q) \in \operatorname{chains}(\mathrm{parts}_{\mathrm{code}}, \mathrm{adj}_{\mathrm{code}}, 6),\
-p' = p\,] \bigm| p \in [0, 34)\bigr] = [[4, 6, \dots, 32], [\,], \dots, [\,]]$$
+p' = p\,] \bigm| p \in [0, 34)\bigr] = L_{\mathrm{chain}}, \quad L_{\mathrm{chain}} = \text{the 34-entry literal in the
+statement}$$
 
 Sources with an empty entry (1, 6, 7, 8, 12, 14, 18, 19, 20, 23, 25, 29 to 33) satisfy the literal bridge. -/
 theorem chainTargets_code :
