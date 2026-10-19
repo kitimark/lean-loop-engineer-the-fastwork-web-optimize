@@ -11,9 +11,13 @@ on:
   workflow_dispatch:
     inputs:
       base:
-        description: Revision the diff is taken against (empty means the first parent of HEAD)
+        description: Revision the diff is taken against (empty means the first parent of HEAD, skipping tip commits that change nothing)
         type: string
         default: ''
+      measure_warm:
+        description: Build fwcore a second time from the Lake artifact cache and report its time (measurement)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -74,28 +78,62 @@ jobs:
         if: ${{ steps.tip.outputs.tip == 'false' }}
         shell: bash
         run: exit 1
+      # Phase timings (MEASURED, printed as PHASE lines and in the step summary): queue = push to first step, setup = checkout,
+      # Lean, pnpm; fwcore = lake build fwcore; suites = the remote tier.
+      - name: 'phase: start'
+        env:
+          PUSHED_AT: ${{ github.event.repository.pushed_at }}
+        run: |
+          now=$(date +%s)
+          echo "T0=$now" >> "$GITHUB_ENV"
+          case "$PUSHED_AT" in ''|*[!0-9]*) echo "QUEUE=n/a" >> "$GITHUB_ENV" ;; *) echo "QUEUE=$((now - PUSHED_AT))s" >> "$GITHUB_ENV" ;; esac
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      # The runner tests read main's history (the incident ledger, the last land diffs) and commit in temp repos.
+      # The runner tests read main's history (the incident ledger, the last land diffs) and commit in temp repos. main is
+      # the pushed commit's first parent (the local main the land merge was made on), so the facts equal the local ones
+      # whatever origin/main is (.github/scripts/land-base.sh).
       - name: main ref and commit identity
         run: |
           set -euo pipefail
-          git branch -f main origin/main
+          git branch -f main "$(sh .github/scripts/land-base.sh main)"
           git config --global user.name land-lane
           git config --global user.email land-lane
 
       - uses: ./.github/actions/setup-lean
 
+      # One source: .github/land-filter.txt is written by Lean (Fw.Console.LandTier.filterList, one selector per remoteIds
+      # entry) and checked by lean/scripts/check.sh, so a suite added to the allowlist is installed here too.
+      - name: package filter (from Lean)
+        id: filter
+        run: echo "filter=$(cat .github/land-filter.txt)" >> "$GITHUB_OUTPUT"
+
       - uses: ./.github/actions/setup-pnpm
         with:
-          filter: '@fw/runner... @fw/console-api... @fw/gate-breakpoints... @fw/gh-budget... @fw/measure-chromium... @fw/engine-check...'
+          filter: ${{ steps.filter.outputs.filter }}
+
+      - name: 'phase: setup done'
+        run: echo "T1=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: fwcore build
         working-directory: lean
         run: lake build fwcore
+
+      - name: 'phase: fwcore done'
+        run: echo "T2=$(date +%s)" >> "$GITHUB_ENV"
+
+      # Measurement only (dispatch with measure_warm, or `[warm]` in the head commit message): the same build again from the Lake artifact cache the first build filled
+      # (build directory removed), which is what a restored exact-key cache costs.
+      - name: fwcore build again from the artifact cache (measure_warm)
+        if: ${{ github.event.inputs.measure_warm == 'true' || contains(github.event.head_commit.message, '[warm]') }}
+        working-directory: lean
+        run: |
+          rm -rf .lake/build
+          s=$(date +%s)
+          lake build fwcore
+          echo "WARM_FWCORE=$(( $(date +%s) - s ))s" >> "$GITHUB_ENV"
 
       - name: suites (the remote tier of the Lean-selected checks)
         env:
@@ -103,6 +141,19 @@ jobs:
         run: |
           set -euo pipefail
           base="${BASE:-}"
-          if [ -z "$base" ]; then base=$(git rev-parse HEAD^); fi
+          if [ -z "$base" ]; then base=$(sh .github/scripts/land-base.sh base); fi
           pnpm fw checks --affected --base "$base" --tier remote 2>&1 | tee "$RUNNER_TEMP/land.log"
           grep -E '^(VERDICT|TIMING|checks:)' "$RUNNER_TEMP/land.log" >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: phases
+        if: ${{ always() && steps.stale.outcome == 'skipped' }}
+        run: |
+          now=$(date +%s)
+          t1=${T1:-$now}; t2=${T2:-$now}
+          {
+            echo "PHASE queue ${QUEUE:-n/a}"
+            echo "PHASE setup $((t1 - T0))s"
+            echo "PHASE fwcore_build $((t2 - t1))s"
+            echo "PHASE suites $((now - t2))s"
+            echo "PHASE fwcore_build_warm_again ${WARM_FWCORE:-not measured}"
+          } | tee -a "$GITHUB_STEP_SUMMARY"

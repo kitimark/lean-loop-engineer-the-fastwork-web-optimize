@@ -58,6 +58,20 @@ describe("skippedCount", () => {
     expect(skippedCount("# tests 4\n# pass 3\n# skipped 1\n")).toBe(1);
     expect(skippedCount("# skipped 0\n Tests  9 passed (9)\n")).toBe(0);
     expect(skippedCount("nothing")).toBe(0);
+  });
+  const fx = (n: string) => readFileSync(join(dirname(fileURLToPath(import.meta.url)), "fixtures", n), "utf8");
+  it("reads the real captured outputs", () => {
+    expect(skippedCount(fx("node-spec-ci-39249846030.txt"))).toBe(0); // CI run 39249846030, packages/gate-breakpoints, spec reporter
+    expect(skippedCount(fx("node-spec-local.txt"))).toBe(2); // local `node --test` (Node 24) piped to a file, two skipped tests
+    expect(skippedCount(fx("vitest-ci-39249846030.txt"))).toBe(1); // same run, apps/console-api, ANSI colours on
+  });
+  it("a node:test suite that skipped fails the lane for an fwcore user", async () => {
+    const lines: string[] = [];
+    const c = candidateChecks(root).find((x) => x.id === "packages/gate-breakpoints")!;
+    const exit = await runTier([c], root, core, async () => ({ code: 0, out: fx("node-spec-local.txt") }), (s) => lines.push(s));
+    expect(exit).toBe(1);
+    expect(lines).toContain("VERDICT skipped packages/gate-breakpoints");
+    expect(lines.some((l) => l.endsWith("skipped=2"))).toBe(true);
     expect(skippedCount("\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m360 passed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m1 skipped\u001b[39m\u001b[90m (362)\u001b[39m")).toBe(1);
   });
 });

@@ -27,7 +27,7 @@ describe("fwcore failure handling", () => {
     core = selectCore(process.env, undefined, (i) => incidents.push(i));
     await core.open(() => []);
     expect((await core.apply(open)).outcome).toEqual({ accepted: true, duplicate: false });
-    core.stopForTest(); // frozen child: it cannot answer before it is killed, so the call is truly in flight
+    await core.stopForTest(); // frozen child: it cannot answer before it is killed, so the call is truly in flight
     const inflight = core.apply({ ...open, key: "k2" });
     const exited = core.killForTest();
     const settled = inflight.then(() => "ok", (e: Error) => e);
@@ -109,7 +109,7 @@ require("readline").createInterface({ input: process.stdin }).on("line", (l) => 
     core = selectCore(process.env, undefined, () => undefined, CALL_MS);
     await core.open(() => log);
     core.loadForTest(() => 0);
-    core.stopForTest(); // frozen child never answers
+    await core.stopForTest(); // frozen child never answers
     core.callTimeoutForTest(DEADLINE_MS);
     await expect(core.board(10, 1)).rejects.toThrow(/timed out/);
     core.callTimeoutForTest(CALL_MS);

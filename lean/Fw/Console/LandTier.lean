@@ -153,10 +153,38 @@ def goldenText : String := String.join ((cases ++ laneCases).map fun c => c.comp
 /-- The golden file, relative to `lean/`. -/
 def goldenPath : System.FilePath := "../packages/contracts/golden/console/land-tier.jsonl"
 
-/-- Write the golden file. -/
-def writeGolden : IO Unit := IO.FS.writeFile goldenPath goldenText
 
-/-- Is the golden file the Lean output? -/
-def checkGolden : IO Bool := do return (← IO.FS.readFile goldenPath) == goldenText
+/-- The pnpm filter selector of a check id: the workspace package named like the last path segment, with its dependencies. -/
+def selector (id : String) : String := "@fw/" ++ (id.splitOn "/").getLast! ++ "..."
+
+/-- The selectors the land lane installs: one per remote id, in order. -/
+def filterList : List String := remoteIds.map selector
+
+/-- One selector per remote suite. -/
+theorem filterList_length : filterList.length = remoteIds.length := by
+  simp [filterList]
+
+/-- Every remote suite has its selector in the installed set, so a suite added to the allowlist is installed. -/
+theorem selector_mem (id : String) (h : id ∈ remoteIds) : selector id ∈ filterList := by
+  simp only [filterList, List.mem_map]
+  exact ⟨id, h, rfl⟩
+
+#guard filterList.head? == some "@fw/runner..."
+#guard filterList.length == 6
+
+/-- The text of `.github/land-filter.txt`: the selectors separated by one space, one line. -/
+def filterText : String := " ".intercalate filterList ++ "\n"
+
+/-- The filter file, relative to `lean/`. -/
+def filterPath : System.FilePath := "../.github/land-filter.txt"
+
+/-- Write the golden file and the filter file. -/
+def writeGolden : IO Unit := do
+  IO.FS.writeFile goldenPath goldenText
+  IO.FS.writeFile filterPath filterText
+
+/-- Are the golden file and the filter file the Lean output? -/
+def checkGolden : IO Bool := do
+  return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile filterPath) == filterText
 
 end Fw.Console.LandTier

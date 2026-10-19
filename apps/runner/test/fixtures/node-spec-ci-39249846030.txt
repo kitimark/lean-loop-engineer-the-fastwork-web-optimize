@@ -1,0 +1,9 @@
+✔ a barrier whose arm failed rejects the arm that waits; an arm cannot post twice or from an unknown site (0.645186ms)
+ℹ tests 139
+ℹ suites 0
+ℹ pass 139
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 52473.002751
