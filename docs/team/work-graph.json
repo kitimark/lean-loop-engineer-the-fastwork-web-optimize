@@ -7411,7 +7411,8 @@
     "apps/site/src/registry/presets/v2-proved.test.ts",
     "packages/contracts/golden/preset/**",
     "docs/team/handoffs/c3-preset-update.md"
-   ]
+   ],
+   "evidence": "be37f21"
   },
   {
    "devices": [
