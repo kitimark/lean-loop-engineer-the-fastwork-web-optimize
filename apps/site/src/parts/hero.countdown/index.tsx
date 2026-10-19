@@ -19,8 +19,8 @@ export interface HeroCountdownProps {
   /** `data-fw` anchor of the root (default `hero-countdown`); morph.countdown passes its own so each anchor has one clock. */
   fwId?: string;
   /**
-   * While true the clock keeps its server placeholders and starts nothing (no shape, driver, interval or observer);
-   * both start when it turns false, as at a fresh mount. morph.countdown sets it while morph.mount is dormant.
+   * While true the clock sets its digit shape but starts no driver, interval or observer; they start when it turns
+   * false, as at a fresh mount. morph.countdown sets it while morph.mount is dormant.
    */
   hold?: boolean;
 }
@@ -69,13 +69,12 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
   const [shape, setShape] = useState<number[] | null>(null);
 
   useEffect(() => {
-    if (hold) return;
     setShape(unitsFromSeconds(remainingSeconds(Date.now())).map((v, i) => digitPlaces(v, i > 0).length));
-  }, [hold]);
+  }, []);
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!root || !shape) return;
+    if (!root || !shape || hold) return;
     const nodes = [...root.querySelectorAll<HTMLElement>('[data-digit]')];
     const gate = hiddenPause ? installHiddenGate(root) : null;
     const face = (el: HTMLElement): Writable => (gate ? gate.wrap(el) : el);
@@ -134,7 +133,7 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
       ro.disconnect();
       gate?.stop();
     };
-  }, [shape, strip, hiddenPause]);
+  }, [shape, strip, hiddenPause, hold]);
 
   const Root = (impl === 'mui' ? MuiRoot : PlainRoot) as typeof PlainRoot;
   const Label = impl === 'mui' ? MuiLabel : PlainLabel;
