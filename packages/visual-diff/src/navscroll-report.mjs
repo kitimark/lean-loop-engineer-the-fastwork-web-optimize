@@ -210,6 +210,12 @@ export function pooledLag(runs) {
   return { text: L.join('\n'), groups };
 }
 
+/** Only the cross-run tables (every run and width; pooled start lag): small enough to keep in git as the note's data. */
+export function summaryReport(dirs) {
+  const runs = loadRuns(dirs);
+  return perRunMarkdown(runs).text + '\n\n' + pooledLag(runs).text + '\n';
+}
+
 export function report(dirs, outBase) {
   const runs = loadRuns(dirs);
   const { text, json } = markdown(runs);

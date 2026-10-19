@@ -1,7 +1,7 @@
 // node src/cli.mjs run    --engine chromium|playwright-webkit --out DIR [--probes id,id,...] [--parts a,b,...] [--concurrency 2]
 // node src/cli.mjs report --in DIR[,DIR...] [--out BASE]    (prints the markdown table; BASE.md and BASE.json when --out)
 // node src/cli.mjs nav-scroll --engine chromium|playwright-webkit --out DIR [--widths w860,w861,w1280,w1440,w1920]   (nav scroll-hide probe)
-// node src/cli.mjs nav-scroll-report --in DIR[,DIR...] [--out BASE]
+// node src/cli.mjs nav-scroll-report --in DIR[,DIR...] [--out BASE | --summary]   (--summary prints only the cross-run tables)
 // Default probes: the breakpoint set in probes.default.json (ids of the gate's Lean matrix, apps/site/src/breakpoints.gen.json).
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -25,8 +25,9 @@ if (cmd === 'run') {
   await runNavScroll({ engineName: arg('engine', 'chromium'), outDir: resolve(arg('out', 'out/navscroll')), widthIds });
   process.exit(0);
 } else if (cmd === 'nav-scroll-report') {
-  const { report } = await import('./navscroll-report.mjs');
-  process.stdout.write(report(arg('in', 'out/navscroll').split(',').map((d) => resolve(d)), arg('out') ? resolve(arg('out')) : null));
+  const { report, summaryReport } = await import('./navscroll-report.mjs');
+  const dirs = arg('in', 'out/navscroll').split(',').map((d) => resolve(d));
+  process.stdout.write(argv.includes('--summary') ? summaryReport(dirs) : report(dirs, arg('out') ? resolve(arg('out')) : null));
 } else if (cmd === 'report') {
   const { report } = await import('./report.mjs');
   const dirs = arg('in', 'out/run').split(',').map((d) => resolve(d));
