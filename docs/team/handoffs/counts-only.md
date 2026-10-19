@@ -1,31 +1,24 @@
 # counts-only handoff
 
-State: branch worktree-wf_11ac09ad-a60-2 (also pushed as ci/counts-only). Task: let chromium-counts measure one part page.
+State: branch worktree-wf_11ac09ad-a60-2 (also pushed as ci/counts-only). Task: let chromium-counts measure one part page. CLOSED AS A FINDING: the harness cannot (research/notes/2026/10-19-counts-only-finding.md).
 
-Built
-- `.github/workflows/chromium-counts.yml`: new optional dispatch input `only` (part or group id, charset `[A-Za-z0-9.]`, no leading or
-  trailing dot). Plan job appends `&only=<id>` / `?only=<id>` to the rewrite search; `only` with target other than `rewrite` fails.
-  The old fw charset check never saw `?only=` (it checks the `fw` input alone); the new input has its own check. Site build skips
-  `--config` for an `?only=` search (a stage page is client-rendered, `pageFor` falls back to index.html). The classes job writes the
-  frozen-classes premise (declared-rows-unverified, INFERRED) to run.txt and the step summary.
-- `lean/Fw/Engine/Keys.lean`: `goldenRuns` gains `(rewrite, ?only=hero)`; theorem `answers_only_hero` (key branch and alias branch).
-  `runKey_inj` and `answers_base_iff` already cover any query.
-- `packages/engine-check/golden/keys.jsonl` regenerated from `Fw.Engine.Keys.goldenJsonl` (78 vectors, 6 added, none changed). It has no
-  `--write` script; it was printed with `lake env lean --run` on a scratch file. `EngineGoldens.lean` check: 12 files equal (no engine golden
-  uses goldenRuns). `packages/engine-check/test/keys.test.mjs` count 72 -> 78 (outside the row's writes, needed by the test).
-
-Verified (local): `lake build Fw.Engine.Keys`, mathview lint 0 failing, engine-check tests 6/6, ci-paths 32/32, apps/runner vitest 1028.
-actionlint shows only shellcheck style notes. CI: one pilot dispatch only=hero, see the report for the run id.
+Built (kept)
+- chromium-counts.yml: `only` input (charset check) now fails the plan job; the `?only=` handling further down (site build skip, classes summary) is unreachable.
+- lean/Fw/Engine/Keys.lean: `goldenRuns` row `(rewrite, ?only=hero)` + theorem `answers_only_hero` (stay true). keys.jsonl regenerated (78 vectors),
+  keys.test.mjs count 72 -> 78. Verified locally: lake build Fw.Engine.Keys, engine-check 6/6, ci-paths, apps/runner vitest.
 
 Open
-- Whether the harness waits correctly on a client-rendered stage page (no hydration marker) is what the pilot shows.
 - keys.jsonl has no registered writer or `--check` job in lean/scripts/check.sh (follow-up from model-checks still open).
 - Premise on part pages: frozen classes are of the whole page; verdicts on a part page are INFERRED to be bounded by them.
 
-Pilot (1 dispatch, only=hero, target rewrite, runs 3, profile swipe-v1, ref ci/counts-only @ 63034e1e): run 39189237058, FAILED, no counts.
-plan, site, fwcore, image passed (plan accepted `?only=hero`, search output `?only=hero`). All 3 counts jobs died in the driver
-(`file:///driver/run.mjs:151`): `viewport not faithful: the page reports 1280x800 (scrollWidth 501, scale 1), the profile 430x932; the run is
-refused`. So the harness rejects the part page before measuring: the loaded page does not hold the mobile emulation. Not diagnosed
-further (one dispatch only). Next: load the page by hand in the container or read the run.mjs viewport check against what a client-rendered
-`?only=` page serves (static server `pageFor` returns index.html for the unknown search; check the PartStage/ErrorPage output and the
-`__fw` markers the driver waits for). Needs a second dispatch to confirm any fix.
+Pilot (1 dispatch, only=hero, rewrite, 3 runs, swipe-v1, ci/counts-only @ 63034e1e): run 39189237058 FAILED, no counts. plan/site/fwcore/image passed; the 3
+counts jobs died at packages/measure-chromium/src/run.mjs:151 (`viewport not faithful: 1280x800 vs profile 430x932`).
+
+Causes (CONFIRMED by reading, not by a second dispatch)
+1. pinEnv (apps/site/src/stage/fixedEnv.ts:24-29, called at apps/site/src/entry-client.tsx:36) pins innerWidth/innerHeight/scrollY to the stage env; with no
+   `&stage=` that is Env.default y 0, vw 1280, vh 800 (apps/site/src/registry/only.ts:85, lean/Fw/Site/Stage.lean:30-31). viewportFaithful at run.mjs:149-151 sees 1280x800.
+2. entry-client installs mode 'client-render' for `?only=` (entry-client.tsx:26-33); run.mjs:161-163 requires mode 'hydrate'.
+3. The pinned scrollY is constant, so the swipe plan's scrollTo (run.mjs:167 on) does not move the part (INFERRED).
+
+Next: task driver-stage-mode (driver passes &stage= from the profile, accepts client-render for a stage page, drives the stage y). Not an apps/site patch.
+Then lift the `only` refusal in chromium-counts.yml plan job. Before any dispatch, statically check every driver gate against the page.

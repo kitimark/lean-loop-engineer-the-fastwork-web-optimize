@@ -5518,7 +5518,8 @@
     "packages/engine-check/golden/keys.jsonl",
     "packages/engine-check/test/keys.test.mjs",
     "research/notes/2026/10-19-counts-only-finding.md"
-   ]
+   ],
+   "evidence": "050864f"
   },
   {
    "devices": [
@@ -5961,7 +5962,8 @@
     "lean/Fw/Parts/Compose.lean",
     "lean/Fw.lean",
     "docs/team/handoffs/indep-bridge.md"
-   ]
+   ],
+   "evidence": "39e39bb"
   },
   {
    "devices": [
@@ -6016,7 +6018,8 @@
     "lean/scripts/SearchGolden.lean",
     "lean/scripts/check.sh",
     "packages/contracts/golden/gate/search.jsonl"
-   ]
+   ],
+   "evidence": "521c61b"
   },
   {
    "devices": [
