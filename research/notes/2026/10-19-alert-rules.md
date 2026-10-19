@@ -1,3 +1,12 @@
+---
+id: 2026-10-19-alert-rules
+kind: note
+title: "fw watch alerts of 2026-10-19: agent.stalled 0/3 true (Stop/StructuredOutput race), ci.failed early on twin runs, timing.slow mixes run kinds"
+status: review
+created: 2026-10-19
+topics: [tooling, alerts, watch, lean-first]
+---
+
 # Fable: fw watch alerts of 2026-10-19 (read-only; times +0700)
 
 ## 1. The two agent.stalled: both false positives, same bug
