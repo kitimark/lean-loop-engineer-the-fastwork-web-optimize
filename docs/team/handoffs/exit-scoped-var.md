@@ -1,6 +1,6 @@
 # exit-scoped-var handoff
 
-State: branch `worktree-wf_f4cccc1d-568-1`, round 3 (final design round, text only) at ROUND3 on main merge 8767921b;
+State: branch `worktree-wf_f4cccc1d-568-1`, round 3 (final design round, text only) at 5393fc5e on main merge 8767921b;
 round 2 code at eca2efc2; CI copy `ci/exit-scoped-var` at fad89503. Note: `research/notes/2026/10-20-exit-scoped-var.md`.
 
 Verified:
