@@ -1,10 +1,10 @@
 // `fw checks --affected --base <rev> [--tier local|remote] [--list]`: the land checks a change selects, split by tier, and
 // the chosen tier run with one `VERDICT <pass|fail|skipped> <id>` line per check.
-// Selection: `selectChecks` over `candidateChecks` (land.ts, TS stand-in checked against the `landSpeed.select` golden).
+// Selection: `selectTwoPhase` (digests unknown) over `candidateChecks` (land.ts, TS stand-in checked against the `landSpeed.select` golden).
 // Tier and lane verdict: fwcore ops `console.landTier` and `console.landLane` (Lean Fw.Console.LandTier; golden land-tier.jsonl).
 // This file holds no decision. TS stand-in: the skipped-test counts are read from vitest / node:test summaries here.
 import { execFileSync, spawn } from "node:child_process";
-import { candidateChecks, FWCORE_USERS, selectChecks, type Check } from "./land.ts";
+import { candidateChecks, FWCORE_USERS, selectTwoPhase, type Check } from "./land.ts";
 import { UsageError } from "./lib.ts";
 import { fwcoreCall, type FwCall } from "./run.ts";
 
@@ -39,7 +39,7 @@ export type Plan = { changed: string[]; selected: Check[]; local: string[]; remo
 /** The selected checks of `changed` in table order, split by the Lean tier (`console.landTier`). */
 export function planFor(root: string, changed: string[], core: FwCall): Plan {
   const all = candidateChecks(root);
-  const ids = new Set(selectChecks(all, changed));
+  const ids = new Set(selectTwoPhase(all, changed, null, null));
   const selected = all.filter((c) => ids.has(c.id));
   const r = core({ op: "console.landTier", ids: selected.map((c) => c.id) }) as { local: string[]; remote: string[] };
   return { changed, selected, local: r.local, remote: r.remote };
