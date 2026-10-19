@@ -5901,7 +5901,17 @@
     "apps/site/src/parts/pain/**",
     "apps/site/src/parts/pain.notes/**",
     "apps/site/src/parts/nav.hitTest/**",
-    "docs/team/handoffs/dead-selectors.md"
+    "docs/team/handoffs/dead-selectors.md",
+    "apps/site/src/engine/pilot-frame.test.ts",
+    "apps/site/src/parts/commission/driver.test.ts",
+    "apps/site/src/parts/commission/driver.ts",
+    "apps/site/src/parts/commission/index.tsx",
+    "apps/site/src/parts/nav/index.tsx",
+    "apps/site/src/parts/people.deck/index.tsx",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ]
   },
   {
@@ -6399,7 +6409,14 @@
     "scripts/port/**",
     "packages/contracts/golden/port/**",
     "apps/site/test/port-*.test.mjs",
-    "docs/team/handoffs/port-completeness-gate.md"
+    "docs/team/handoffs/port-completeness-gate.md",
+    ".github/workflows/visual-diff.yml",
+    "apps/runner/src/land.ts",
+    "apps/site/package.json",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/scripts/PortGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/triggers.jsonl"
    ]
   },
   {
@@ -6515,7 +6532,17 @@
     "apps/site/src/parts/platform/*.css",
     "lean/Fw/Parts/PlatformScene.lean",
     "lean/Fw.lean",
-    "docs/team/handoffs/platform-scene-faithful.md"
+    "docs/team/handoffs/platform-scene-faithful.md",
+    "apps/site/src/parts/engine.scene/**",
+    "apps/site/src/parts/platform/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/Fw/Parts/HiddenPausePlatform.lean",
+    "lean/Fw/Parts/PlatformGolden.lean",
+    "packages/contracts/golden/parts/engine.scene.jsonl",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/platform.scene.jsonl"
    ]
   },
   {
@@ -6630,6 +6657,61 @@
     "lean/Fw/Site/Head.lean",
     "apps/site/src/head.gen.json",
     "docs/team/handoffs/doc-head-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "port-pin-gap",
+   "title": "Port gap (port-completeness-gate check 4, CI run 39221773141): platform.entries pin renders img /selling/icons/pin.svg where the original prerenders an inline 24x24 svg (different art); render GenSvg platform.pin in platform/Visuals.tsx:97 and check people.deck/panel.tsx:38,65 against the original",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "port-completeness-gate",
+    "platform-scene-faithful"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/platform/Visuals.tsx",
+    "apps/site/src/parts/people.deck/panel.tsx",
+    "docs/team/handoffs/port-pin-gap.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "port-wordmark-g",
+   "title": "Port gap (check 4): the nav wordmark svg loses its <g> (10 vs 9 elements); keep the original's group in svg-extract's nav wordmark",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "port-completeness-gate"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/scripts/svg-extract.mjs",
+    "apps/site/src/GenSvg.tsx",
+    "apps/site/src/parts/nav/index.tsx",
+    "docs/team/handoffs/port-wordmark-g.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "nav-default-selectors",
+   "title": "dead-selectors follow-up: nav/index.tsx stickySelector/sectionSelector/splashSelector still use the original's class names (match nothing in the port); identity hooks as dead-selectors did",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "dead-selectors"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/nav/**",
+    "docs/team/handoffs/nav-default-selectors.md"
    ]
   }
  ],
