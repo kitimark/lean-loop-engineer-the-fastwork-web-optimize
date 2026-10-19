@@ -13,7 +13,7 @@ Learned
   InvalidateLayout, paintArea) are model-check-only; the file keeps lo/hi/base as a noise band.
 - The zoneBaseline op takes one class table per call; WebKit classes differ by level, so the glue calls it with the zone table (zones) and the
   total table (totals).
-- gh run download needs `-R kitimark/lean-loop-engineer-the-fastwork-web-optimize` outside a git dir; worktree needs FWCORE or the main
+- gh run download needs `-R <owner>/<repo>` (the repo of `git remote get-url origin`) outside a git dir; worktree needs FWCORE or the main
   checkout's lean build (handoff.mjs finds it).
 
 Open
