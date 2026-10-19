@@ -158,6 +158,21 @@ export interface FaithfulOptions {
   perfNow: () => number;
   /** called after each refresh with whether the displayed second changed */
   onRefresh?: (changed: boolean) => void;
+  /** where `visibilitychange` fires (default `document`) */
+  doc?: VisibilitySource;
+}
+
+/** The part of `Document` the visibility hook needs (tests pass an EventTarget). */
+export type VisibilitySource = Pick<EventTarget, 'addEventListener' | 'removeEventListener'>;
+
+/**
+ * The "refresh now" event of Lean `Fw.Parts.HeroCountdown.refreshNow`: every `visibilitychange`, hidden or visible,
+ * runs `refresh` once (N2:3938-3940, the same function as the 1 s interval), so the digits shown after it equal the
+ * current time's. Returns the cleanup.
+ */
+export function onVisibilityChange(doc: VisibilitySource, refresh: () => void): () => void {
+  doc.addEventListener('visibilitychange', refresh);
+  return () => doc.removeEventListener('visibilitychange', refresh);
 }
 
 /**
@@ -190,8 +205,11 @@ export function startFaithful(o: FaithfulOptions): () => void {
   };
   refresh();
   const cancel = o.clock.interval(1000, refresh);
+  const doc = o.doc ?? (typeof document === 'undefined' ? undefined : document);
+  const unlisten = doc ? onVisibilityChange(doc, refresh) : () => {};
   return () => {
     cancel();
+    unlisten();
     for (const i of [...chains.keys()]) stop(i);
   };
 }
