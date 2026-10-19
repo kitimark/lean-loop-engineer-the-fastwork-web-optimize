@@ -148,3 +148,9 @@ import Fw.Spec.Reach  -- lfg-mathview-facts: the closure/reach helpers shared by
 import Fw.Spec.MathFacts  -- lfg-mathview-facts: per-theorem facts (head, impl arg, assumes, kill, class, reach, wire)
 import Fw.Spec.MathFactsGuards  -- lfg-mathview-facts: #guards of the facts on real declarations
 import Fw.Preset.Gen  -- preset-v2-proved: the v2-proved arm from the findings ledger (V2Proved decides, Gen writes)
+import Fw.Faithful.Band
+import Fw.Faithful.Comparable
+import Fw.Faithful.Zone
+import Fw.Faithful.Wire
+import Fw.Faithful.Golden
+import Fw.Faithful.Measured
