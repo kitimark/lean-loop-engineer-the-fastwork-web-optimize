@@ -6607,15 +6607,25 @@
    "title": "Optimize O5 (after C3): hero.exit writes a non-inherited registered var on the readers only (units ~230 -> ~14 per scrolled frame); Chromium cite computed_style.cc:468-480, WebKit StyleTreeResolver.cpp:307-311; judged by elementCount only if the lead admits the quarantined counter, else proved-unmeasured",
    "stream": "proofs",
    "milestone": "M5",
-   "deps": [
-    "speed-after-c3"
-   ],
+   "deps": [],
    "owner": "lean-prover",
    "writes": [
     "lean/Fw/Parts/HeroExitOpt.lean",
     "apps/site/src/parts/hero.exit/**",
     "apps/site/src/parts/hero/*.css",
-    "docs/team/handoffs/exit-scoped-var.md"
+    "docs/team/handoffs/exit-scoped-var.md",
+    "lean/Fw/Engine/Restyle.lean",
+    "lean/Fw/Engine/Restyle/**",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**",
+    "apps/site/src/parts/hero.orbit/**",
+    "apps/site/src/parts/hero.cue/**",
+    "apps/site/src/parts/hero.deck/**",
+    "apps/site/src/parts/hero/**",
+    "apps/site/src/stage/**",
+    "lean/Fw/Site/Stage*.lean",
+    "packages/contracts/golden/**",
+    "research/notes/2026/10-20-exit-scoped-var*.md"
    ]
   },
   {
@@ -7799,6 +7809,26 @@
     "docs/team/handoffs/incidents-1019.md"
    ],
    "evidence": "ffe7d76"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-layers",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Optimize (discovery R3): remove the +9 drawing layers per frame (frames 0-116, +1053 per run) that morph.mount:shift brings: attribute the 9 layers first (C7), then a morph.columns variant (idle-none, folding hidden-pause) or the C3 fallback; same visual in both engines, Lean proof from Blink/WebKit compositing source, single-flag counts arms",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/Morph*.lean",
+    "lean/Fw/Engine/**",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**",
+    "apps/site/src/parts/morph*/**",
+    "packages/contracts/golden/**",
+    "research/notes/2026/10-20-morph-layers*.md",
+    "docs/team/handoffs/morph-layers.md"
+   ]
   }
  ],
  "deadline": {
