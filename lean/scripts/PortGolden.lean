@@ -1,11 +1,12 @@
 import Lean.Data.Json
 import Fw.Port.Svg
 import Fw.Port.Attrs
+import Fw.Port.Fonts
 
 /-! Write (or with `--check`, verify) the port completeness goldens in `packages/contracts/golden/port/`:
 `sections.json` (the section table and owner cases, Fw.Port.Sections), `exclusions.json` (the four exclusion lists),
-`assets.jsonl` (Fw.Site.Assets cases) and `svg.jsonl` (Fw.Port.Svg skeleton and match cases; synthetic path data
-only). Consumers: `scripts/port/digest.mjs` and `apps/site/test/port-*.test.mjs`. Run from `lean/`:
+`assets.jsonl` (Fw.Site.Assets cases), `svg.jsonl` (Fw.Port.Svg skeleton and match cases; synthetic path data
+only) and `fonts.jsonl` (Fw.Port.Fonts cases). Consumers: `scripts/port/digest.mjs` and `apps/site/test/port-*.test.mjs`. Run from `lean/`:
 `lake env lean --run scripts/PortGolden.lean [--check]`. -/
 
 open Lean Fw.Port.Sections
@@ -38,7 +39,7 @@ def sectionsJ : Json :=
 def exclusionsJ : Json :=
   Json.mkObj [
     ("entries", exclsJ (Fw.Port.Text.exclusions ++ Fw.Port.Attrs.exclusions ++ Fw.Site.Assets.exclusions ++
-      Fw.Port.Svg.exclusions)),
+      Fw.Port.Svg.exclusions ++ Fw.Port.Fonts.exclusions)),
     ("crawlSkip", .arr (Fw.Site.Assets.crawlSkip.map fun (k, r) =>
       Json.mkObj [("prefix", .str k), ("reason", .str r)]).toArray)]
 
@@ -149,12 +150,77 @@ def svgText : String :=
 
 end Svg
 
+section Fonts
+open Fw.Port.Fonts
+
+/-- A leaf as JSON. -/
+def leafJ (l : Leaf) : Json :=
+  Json.mkObj [("sec", .str l.sec), ("text", .str l.text), ("family", .str l.family), ("weight", .str l.weight),
+    ("style", .str l.style)]
+
+/-- A face as JSON. -/
+def faceJ (f : Face) : Json :=
+  Json.mkObj [("family", .str f.family), ("weight", .str f.weight), ("style", .str f.style), ("status", .str f.status)]
+
+/-- A face triple as JSON. -/
+def tripleJ (t : String × String × String) : Json := strs [t.1, t.2.1, t.2.2]
+
+/-- An arm as JSON. -/
+def armJ (a : Arm) : Json :=
+  Json.mkObj [("leaves", .arr (a.leaves.map leafJ).toArray), ("faces", .arr (a.faces.map faceJ).toArray)]
+
+/-- The original arm of the cases: body text, a script heading, a countdown and a sticky note. -/
+def fOrig : Arm :=
+  ⟨[⟨"page", "Hello  world", "Google Sans", "400", "normal"⟩, ⟨"pain.notes", " Note\n", "Playpen Sans Start Selling", "500", "normal"⟩,
+    ⟨"hero.countdown", "01", "Google Sans", "700", "normal"⟩, ⟨"hero.accent", "soon", "Google Sans", "400", "italic"⟩,
+    ⟨"page", "  ", "Times", "400", "normal"⟩],
+   [⟨"Google Sans", "400 700", "normal", "loaded"⟩, ⟨"Google Sans", "400 700", "italic", "loaded"⟩,
+    ⟨"Playpen Sans Start Selling", "400 600", "normal", "loaded"⟩, ⟨"Google Sans", "400 700", "normal", "unloaded"⟩,
+    ⟨"Fastwork", "700", "normal", "unloaded"⟩]⟩
+
+/-- The rewrite arms of the cases: each is the original with one change. -/
+def fCases : List (String × Arm) := [
+  ("same", fOrig),
+  ("countdown text and white space differ", ⟨[⟨"page", "Hello world", "Google Sans", "400", "normal"⟩,
+    ⟨"pain.notes", "Note", "Playpen Sans Start Selling", "500", "normal"⟩, ⟨"hero.countdown", "02", "Google Sans", "700", "normal"⟩,
+    ⟨"hero.accent", "soon", "Google Sans", "400", "italic"⟩], fOrig.faces⟩),
+  ("pain.notes falls back to Google Sans", ⟨[⟨"page", "Hello world", "Google Sans", "400", "normal"⟩,
+    ⟨"pain.notes", "Note", "Google Sans", "500", "normal"⟩, ⟨"hero.countdown", "01", "Google Sans", "700", "normal"⟩,
+    ⟨"hero.accent", "soon", "Google Sans", "400", "italic"⟩], fOrig.faces⟩),
+  ("countdown weight differs", ⟨[⟨"page", "Hello world", "Google Sans", "400", "normal"⟩,
+    ⟨"pain.notes", "Note", "Playpen Sans Start Selling", "500", "normal"⟩, ⟨"hero.countdown", "01", "Google Sans", "400", "normal"⟩,
+    ⟨"hero.accent", "soon", "Google Sans", "400", "italic"⟩], fOrig.faces⟩),
+  ("accent style differs", ⟨[⟨"page", "Hello world", "Google Sans", "400", "normal"⟩,
+    ⟨"pain.notes", "Note", "Playpen Sans Start Selling", "500", "normal"⟩, ⟨"hero.countdown", "01", "Google Sans", "700", "normal"⟩,
+    ⟨"hero.accent", "soon", "Google Sans", "400", "normal"⟩], fOrig.faces⟩),
+  ("a leaf appears twice", ⟨[⟨"page", "Hello world", "Google Sans", "400", "normal"⟩,
+    ⟨"pain.notes", "Note", "Playpen Sans Start Selling", "500", "normal"⟩, ⟨"hero.countdown", "01", "Google Sans", "700", "normal"⟩,
+    ⟨"hero.accent", "soon", "Google Sans", "400", "italic"⟩, ⟨"page", "Hello world", "Google Sans", "400", "normal"⟩],
+    fOrig.faces⟩),
+  ("the italic face is not loaded", ⟨fOrig.leaves, fOrig.faces.drop 1⟩),
+  ("an extra face is loaded", ⟨fOrig.leaves, fOrig.faces ++ [⟨"Roboto", "400", "normal", "loaded"⟩]⟩),
+  ("the excluded family loads", ⟨fOrig.leaves, fOrig.faces ++ [⟨"Fastwork", "700", "normal", "loaded"⟩]⟩),
+  ("a face that is only declared", ⟨fOrig.leaves, fOrig.faces ++ [⟨"Roboto", "400", "normal", "unloaded"⟩, ⟨"Roboto", "400", "normal", "error"⟩]⟩)]
+
+/-- `fonts.jsonl`: one line per case, the original arm fixed. -/
+def fontsText : String :=
+  String.join (fCases.map fun (n, R) =>
+    let v := check excl fOrig R
+    (Json.mkObj [("name", .str n), ("excl", exclsJ excl), ("orig", armJ fOrig), ("rewrite", armJ R),
+      ("units", .arr ((units excl R.leaves).map leafJ).toArray), ("loaded", .arr ((loaded excl R.faces).map tripleJ).toArray),
+      ("missing", .arr (v.missing.map leafJ).toArray), ("extra", .arr (v.extra.map leafJ).toArray),
+      ("missingFaces", .arr (v.missingFaces.map tripleJ).toArray), ("extraFaces", .arr (v.extraFaces.map tripleJ).toArray),
+      ("pass", .bool (pass excl fOrig R))]).compress ++ "\n")
+
+end Fonts
+
 /-- The golden files and their text. -/
 def outputs : List (String × String) := [
   ("sections.json", sectionsJ.pretty ++ "\n"),
   ("exclusions.json", exclusionsJ.pretty ++ "\n"),
   ("assets.jsonl", assetsText),
-  ("svg.jsonl", svgText)]
+  ("svg.jsonl", svgText),
+  ("fonts.jsonl", fontsText)]
 
 /-- Write the golden files, or with `--check` exit 1 when one differs from the Lean output. -/
 def main (args : List String) : IO UInt32 := do

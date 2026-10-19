@@ -11,7 +11,8 @@ snapshot and in the rewrite, compared with pixelmatch, and judged by a Lean rule
 | Golden vectors (34 verdict cases; 32 asset, image, font and settle cases) | `packages/contracts/golden/gate/pixel.jsonl`, `pixel-assets.jsonl` |
 | TS verdict and asset twins (checked against the golden) | `src/verdict.mjs`, `src/assets.mjs` |
 | Settle predicate adapter (gate-settle copy until it lands) | `src/settle-adapter.mjs` |
-| In-page functions, asset server and font injection | `src/page.mjs`, `src/serve.mjs` |
+| In-page functions; asset server and font injection (diagnostic `--assets inject` only) | `src/page.mjs`, `src/serve.mjs` |
+| Port check 5 (fonts) in the browser | `src/fonts.mjs`; twin `scripts/port/fonts.mjs`; Lean `lean/Fw/Port/Fonts.lean` |
 | Pixel counts (pixelmatch 8, `threshold 0.1`, `includeAA false`) | `packages/visual-diff/src/diff.mjs` |
 | Runner, CLI, report | `src/run.mjs`, `src/cli.mjs`, `src/report.mjs`, `src/shards.mjs` |
 | Per-part tolerances | `packages/visual-diff/tolerances.json` (default `ppm 2000, delta 64, countAA false`) |
@@ -33,12 +34,23 @@ else an empty canvas or a count outside the tolerance is `fail`; else `pass`.
   other is present is a full change. Both arms absent is `nc`, now a Lean outcome (the old TS rule is gone).
 
 ## Assets
-Both arms must draw the snapshot's real fonts (Google Sans, Playpen Sans) and images, or the cell is `invalid`. The original
-loads them itself. The rewrite arm is served by an overlay server (`serve.mjs`): its `dist`, and for a missing media file
-(png, jpg, svg, woff2, ttf, mp4, ...) the snapshot file at the same URL, never HTML, JS or CSS. The `@font-face` rules are
-read from the snapshot CSS and injected with a `font-family` override (the port has no font-face of its own; this
-is a harness stand-in and is recorded in the report header, `assets`). `--assets none` turns it off. The page waits up to 10 s
-for faces and images before the shot.
+The default mode is `--assets none`: the rewrite arm is the port as built, served from its `dist` with its own fonts, images
+and assets; a missing file is a 404 and shows as a broken asset. The cell is `invalid` when a face or image the arm needs has
+not loaded. `--assets inject` (workflow input `assets`) is a named diagnostic only: an overlay server (`serve.mjs`) answers a
+missing media file of the rewrite with the snapshot file at the same URL, and the original's `@font-face` rules are injected
+with a forced `font-family`, which hides any font regression of the port; the report header (`assets`) records the mode. The
+page waits up to 10 s for faces and images before the shot.
+
+## Port check 5 (fonts)
+`node src/cli.mjs fonts --engine <e> [--probes ids] --out DIR` (job `port-fonts`) loads both arms at each probe and reads, in
+the page (`scripts/port/fonts.mjs` `fontsInPage`), every text leaf with the computed first font family, weight and style of its
+element, owned by the innermost section row of `Fw.Port.Sections` that matches (else `page`), and every `FontFace` of
+`document.fonts`. Lean `Fw.Port.Fonts` decides: the leaf units (section, normalised text, family, weight, style) must be equal
+as multisets (text blanked in a section whose text is excluded, the countdowns) and the loaded (family, weight, style) faces
+equal as sets, minus the excluded `Fastwork` family. Twin and golden: `scripts/port/fonts.mjs`,
+`packages/contracts/golden/port/fonts.jsonl`, `apps/site/test/port-fonts.test.mjs` (with `FW_PORT_FONTS_ENGINE` it also loads a
+port page whose `pain.notes` falls back to Google Sans and expects a fail). The built-page step is advisory
+(`continue-on-error`), like checks 3 and 4. Output `<engine>.fonts.json` in artifact `port-fonts-<engine>`.
 
 ## Settled
 An arm is settled when both hold: the gate's settled-sample predicate (`settled p o = running = 0 and minFrames <= frames
@@ -65,5 +77,5 @@ seeked (native requestAnimationFrame): an endless animation gives `unsettled`, n
 
 ## Caveats
 - The Linux Playwright WebKit is a WebKitGTK/WPE port, not Mobile Safari; the numbers say nothing about iOS paint.
-- The font override makes every rewrite glyph Google Sans, so regions set in Playpen Sans or Fastwork Bold can fail for a
-  harness reason, not a port reason.
+- With the port as built, a region the port draws in another font, or with a missing image, fails for a port reason; use
+  `--assets inject` to separate the two when diagnosing.
