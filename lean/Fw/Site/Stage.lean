@@ -290,14 +290,19 @@ deriving Repr, DecidableEq
 
 /-- Effect of one declared input of a mounted part, given the mounted ids. The environment signals (`scrollY`, `vw`,
 `vh`, `clock`, `pointer`) are provided by the stage. A `rect` of an unmounted owner needs a neighbour box (owner with a
-host), else the input is unset. A `cssVar` or `className` of an unmounted owner is written once at its rest value when
-`rest` knows one (a `data-` name is an attribute, any other class is removed); otherwise it is unset. An owner that is
-mounted writes its own value. `morphPhase`, `scenePaused` and anything malformed are unset.
+host), else the input is unset. For an unmounted owner with a host, a non-`data-` class is always removed (it is absent
+at rest); a `cssVar` or a `data-` attribute is written at its rest value when `rest` knows one, otherwise it is unset.
+An owner without a host is unset. An owner that is mounted writes its own value. `morphPhase`, `scenePaused`, and a
+`cssVar` or `className` string that does not split at `/` into exactly two pieces $n/o$ are unset.
 
-$$\epsilon(\sigma) = \begin{cases}\mathrm{none} & \sigma \in \{\mathrm{scrollY},\mathrm{vw},\mathrm{vh},\mathrm{clock},\mathrm{pointer}\} \lor \operatorname{owner}(\sigma) \in \mathrm{mounted} \\
+$$\epsilon(\sigma) = \begin{cases}\mathrm{none} & \sigma \in \{\mathrm{scrollY},\mathrm{vw},\mathrm{vh},\mathrm{clock},\mathrm{pointer}\} \lor \sigma \in \{\mathrm{rect}(o), \mathrm{cssVar}(n/o), \mathrm{className}(n/o)\},\ o \in \mathrm{mounted} \\
 \mathrm{neighbour}(o) & \sigma = \mathrm{rect}(o),\ o \notin \mathrm{mounted},\ \operatorname{hostOf}(o) \ne \bot \\
-\mathrm{write}(w) & \sigma = \mathrm{cssVar}(n/o) \lor \mathrm{className}(n/o),\ o \notin \mathrm{mounted},\ \operatorname{hostOf}(o) \ne \bot,\ \operatorname{rest}\text{ gives } w \\
-\mathrm{unset}(\sigma) & \text{otherwise}\end{cases}$$ -/
+\mathrm{write}(\mathrm{cssVar}, o, n, v) & \sigma = \mathrm{cssVar}(n/o),\ o \notin \mathrm{mounted},\ \operatorname{hostOf}(o) \ne \bot,\ \operatorname{rest}(n) = v \\
+\mathrm{write}(\mathrm{attr}, o, n, v) & \sigma = \mathrm{className}(n/o),\ n = \texttt{data-}\cdots,\ o \notin \mathrm{mounted},\ \operatorname{hostOf}(o) \ne \bot,\ \operatorname{rest}(n) = v \\
+\mathrm{write}(\mathrm{class}, o, n, \bot) & \sigma = \mathrm{className}(n/o),\ n \ne \texttt{data-}\cdots,\ o \notin \mathrm{mounted},\ \operatorname{hostOf}(o) \ne \bot \\
+\mathrm{unset}(\sigma) & \text{otherwise}\end{cases}$$
+
+where $n/o$ means the string splits at `/` into exactly the two pieces $n$ and $o$. -/
 def effect (mounted : List String) (s : Signal) : Effect :=
   let named (kind : String) (n : String) : Effect :=
     match n.splitOn "/" with
@@ -410,8 +415,9 @@ def Result.json : Result → String
       ",\"neighbours\":" ++ jarr (p.neighbours.map jstr) ++ ",\"unset\":" ++ jarr (p.unset.map jstr) ++
       ",\"scrollEngine\":" ++ jstr p.scrollEngine ++ "}"
 
-/-- Queries of the golden: not a stage page, each target kind, each refusal, each stage-key fault, plan rounding and mounting cases.
-$$V = [q_1, \dots, q_n]$$ -/
+/-- Queries of the golden: not a stage page, each target kind, each refusal, each stage-key fault, plan rounding and
+mounting cases, then one `?only=` query per part id in contract order.
+$$V = [q_1, \dots, q_n] \mathbin{+\!\!+} [\texttt{?only=}P.\mathrm{id} \mid P \in \mathrm{parts}]$$ -/
 def vectors : List String :=
   ["", "?", "?fw=original", "?stage=y:100", "?only=nav", "?only=nav&stage=y:300,vh:700,vw:390",
    "?only=hero.exit&stage=vw:1440,y:0", "?only=morph.tween", "?only=engine.scroll", "?only=g1", "?only=g2",
@@ -420,7 +426,7 @@ def vectors : List String :=
    "?only=nav&stage=vh:0", "?only=nav&stage=vw:10001", "?only=nav&stage=y:12345678", "?only=nav&stage=",
    "?fw=v2-proved&only=pain&stage=vh:900", "?only=hero.countdown&stage=y:0,vh:844,vw:390", "?only=hero.accent&stage=vh:845", "?only=nav.hitTest",
    "?only=morph.panel&stage=vh:333", "?only=platform.sweep", "?only=overlays.signup", "?only=g5", "?only=nav&only", "?only",
-   "?&only=nav", "?only=nav=x", "?only=nav&stage=y:0000001"]
+   "?&only=nav", "?only=nav=x", "?only=nav&stage=y:0000001"] ++ parts.map ("?only=" ++ ·.id)
 
 /-- Text of `packages/contracts/golden/parts/stage.jsonl`: one `{"query":..,"result":..}` per vector.
 $$\operatorname{stage} = [\{q, \operatorname{parse}(q)\} \mid q \in V]$$ -/
