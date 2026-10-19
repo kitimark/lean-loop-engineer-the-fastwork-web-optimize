@@ -10,6 +10,7 @@ def rows : List (String × String × Bool × List String) := [
   ("difftest.yml", "fwcore", false, ["fwcore"]),
   ("gate-gaps.yml", "site", false, ["breakgen"]),
   ("gate-gaps.yml", "judge", false, ["fwcore"]),
+  ("land.yml", "land", false, ["fwcore"]),
   ("lean.yml", "lean", true, ["Fw", "fwcore", "mathview", "breakgen"]),
   ("mutants.yml", "shard", false, ["Fw", "FwTest.Mutants.Kill", "fwcore", "mathview", "breakgen"]),
   ("snapshot-extract.yml", "site", false, ["breakgen"]),

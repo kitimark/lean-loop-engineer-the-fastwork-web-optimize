@@ -127,6 +127,7 @@ import Fw.Console.LandVerdict  -- land-dry: VERDICT kinds, exit codes, retry rul
 import Fw.Console.LandDry  -- land-dry: dry land stages and hand-back rule
 import Fw.Console.WallClock  -- land-wallclock-off-gate: which literal ms bounds in land-selected tests the lint refuses
 import Fw.Console.LandQueue  -- land-queue: FIFO land queue, bounded retry, runner identity
+import Fw.Console.LandTier  -- land-lane: which checks run on the CI land lane (console.landTier)
 import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request coalescing
 import Fw.Console.LandPool -- land-pool-fair: fair-share floor under poolSize, wired into land.ts by console.landPool and console.landRetry
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)

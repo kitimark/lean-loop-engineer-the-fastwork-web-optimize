@@ -72,7 +72,14 @@ runs:
         TOOLCHAIN: ${{ steps.lake.outputs.toolchain }}
       run: |
         set -euo pipefail
-        elan toolchain install "$TOOLCHAIN"
+        # releases.lean-lang.org sometimes drops the TLS handshake from the arm runners (land-lane r1: two failed attempts in a row
+        # on one run, none on the next): retry the download.
+        ok=0
+        for i in 1 2 3 4 5; do
+          if elan toolchain install "$TOOLCHAIN"; then ok=1; break; fi
+          echo "elan toolchain install failed (attempt $i)"; sleep $((i * 5))
+        done
+        test "$ok" = 1
         cd lean
         lean --version
         lake --version
