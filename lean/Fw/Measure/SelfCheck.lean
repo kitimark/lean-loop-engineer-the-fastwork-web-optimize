@@ -37,10 +37,7 @@ the class rank never decreases when `maxDiff` or `spread` grows (`classOf_mono_m
 namespace Fw.Measure.SelfCheck
 open Fw.Measure
 
-/-- The self-check classes, strictest first.
-
-$$\mathrm{SClass} = \{\mathrm{det}, \mathrm{stable}, \mathrm{shifting}, \mathrm{quar}\}$$
--/
+/-- The self-check classes, strictest first. -/
 inductive SClass where
   | deterministic
   | stable
@@ -48,25 +45,17 @@ inductive SClass where
   | quarantined
 deriving Repr, DecidableEq
 
-/-- The strictness rank of a class (0 = strictest).
-
-$$\operatorname{rank}(\mathrm{det}) = 0,\ \operatorname{rank}(\mathrm{stable}) = 1,\ \operatorname{rank}(\mathrm{shifting}) = 2,\ \operatorname{rank}(\mathrm{quar}) = 3$$
--/
+/-- The strictness rank of a class (0 = strictest). -/
 def SClass.rank : SClass → Nat
   | .deterministic => 0 | .stable => 1 | .shifting => 2 | .quarantined => 3
 
-/-- The class name on the wire and in the table.
-
-$$\operatorname{name}(\mathrm{det}) = \texttt{deterministic},\ \operatorname{name}(\mathrm{stable}) = \texttt{stable},\ \operatorname{name}(\mathrm{shifting}) = \texttt{shifting},\ \operatorname{name}(\mathrm{quar}) = \texttt{quarantined}$$
--/
+/-- The class name on the wire and in the table. -/
 def SClass.name : SClass → String
   | .deterministic => "deterministic" | .stable => "stable" | .shifting => "shifting"
   | .quarantined => "quarantined"
 
 /-- The thresholds: a spread floor, the frame fraction `1/frameDen`, the total fractions
 `1/stableDen` and `1/shiftDen` of the mean total, and the GC-bound types.
-
-$$\mathrm{Thr} = \mathbb{N}^{4} \times (\Sigma^{*})^{*}$$
 -/
 structure Thresholds where
   floor : Nat
@@ -78,24 +67,17 @@ structure Thresholds where
 /-- The harness thresholds: floor 3, 2 % of the frames, 0.2 % and 2 % of the mean total; GC-bound
 by nature (collection timing, not page work) are the DOM/resource gauges, `Layer.deleted` and the
 GC events.
-
-$$\mathrm{harness} = (3,\ 50,\ 500,\ 50,\ G),\quad G = \{\texttt{metric.Nodes}, \texttt{metric.LayoutObjects}, \texttt{metric.Documents}, \texttt{metric.Frames}, \texttt{metric.Resources}, \texttt{metric.JSEventListeners}, \texttt{trace.Layer.deleted}, \texttt{trace.MinorGC}, \texttt{trace.MajorGC}\}$$
 -/
 def harness : Thresholds :=
   ⟨3, 50, 500, 50,
    ["metric.Nodes", "metric.LayoutObjects", "metric.Documents", "metric.Frames", "metric.Resources",
     "metric.JSEventListeners", "trace.Layer.deleted", "trace.MinorGC", "trace.MajorGC"]⟩
 
-/-- The spread is within `max(floor, |S| / (d·m))` (cross-multiplied, so exact).
-
-$$\operatorname{spreadOk}(f, d, s, m, S) \iff s \le f \ \lor\ d \cdot m \cdot s \le |S|$$
--/
+/-- The spread is within `max(floor, |S| / (d·m))` (cross-multiplied, so exact). -/
 def spreadOk (floor d s m : Nat) (S : Int) : Bool := decide (s ≤ floor) || decide (d * m * s ≤ S.natAbs)
 
 /-- The observations of one count type: frames of the first run, largest differing-frame count,
 total spread, sum of the totals, number of runs.
-
-$$\mathrm{Obs} = (n, \delta, s, S, m) \in \mathbb{N}^{3} \times \mathbb{Z} \times \mathbb{N}$$
 -/
 structure Obs where
   n : Nat
@@ -107,7 +89,6 @@ deriving Repr, DecidableEq
 
 /-- The class of one count type (`gc`: the type is GC-bound).
 
-$$\operatorname{cls}_\theta(g, o) = \begin{cases} \mathrm{quar} & g \land \delta > 0 \\ \mathrm{det} & \delta = 0 \\ \mathrm{stable} & \theta.\mathrm{frameDen} \cdot \delta \le n \ \land\ \operatorname{spreadOk}(\theta.\mathrm{floor}, \theta.\mathrm{stableDen}, s, m, S) \\ \mathrm{shifting} & \operatorname{spreadOk}(\theta.\mathrm{floor}, \theta.\mathrm{shiftDen}, s, m, S) \\ \mathrm{quar} & \text{otherwise} \end{cases}$$
 (the first matching case, top to bottom)
 -/
 def classOf (θ : Thresholds) (gc : Bool) (o : Obs) : SClass :=
@@ -131,56 +112,36 @@ def classOf (θ : Thresholds) (gc : Bool) (o : Obs) : SClass :=
 
 /-! ## Observations from the series -/
 
-/-- The number of frames `i < n` where two series differ (padded with zeros).
-
-$$\operatorname{diff}_n(a, b) = \big|\{\, i < n \mid a[i] \ne b[i] \,\}\big|$$
--/
+/-- The number of frames `i < n` where two series differ (padded with zeros). -/
 def diffVs (n : Nat) (a b : Series) : Nat :=
   ((List.range n).filter fun i => valAt a i != valAt b i).length
 
 /-- The largest number of frames in which a run differs from the first run (over the first run's
 frames; 0 without runs).
-
-$$\delta(r_0, \dots, r_{m-1}) = \max_{j < m} \operatorname{diff}_{|r_0|}(r_0, r_j),\qquad \delta(\,) = 0$$
 -/
 def maxDiff : List Series → Nat
   | [] => 0
   | r₀ :: rs => maxOf ((r₀ :: rs).map (diffVs r₀.length r₀))
 
-/-- The largest of a non-empty list of integers, starting from `x`.
-
-$$\operatorname{hi}(x, L) = \max(\{x\} \cup L)$$
--/
+/-- The largest of a non-empty list of integers, starting from `x`. -/
 def hi (x : Int) (l : List Int) : Int := l.foldr max x
 
-/-- The smallest of a non-empty list of integers, starting from `x`.
-
-$$\operatorname{lo}(x, L) = \min(\{x\} \cup L)$$
--/
+/-- The smallest of a non-empty list of integers, starting from `x`. -/
 def lo (x : Int) (l : List Int) : Int := l.foldr min x
 
-/-- The spread of the run totals: largest minus smallest (0 without runs).
-
-$$\operatorname{spread}(T) = \max T - \min T \in \mathbb{N},\qquad \operatorname{spread}(\,) = 0$$
--/
+/-- The spread of the run totals: largest minus smallest (0 without runs). -/
 def spreadOf : List Int → Nat
   | [] => 0
   | t :: ts => (hi t ts - lo t ts).toNat
 
-/-- The observations of one count type over the runs.
-
-$$\operatorname{obs}(r_0, \dots, r_{m-1}) = \Big(|r_0|,\ \delta(r_0, \dots, r_{m-1}),\ \operatorname{spread}\big([\Sigma r_j]_{j<m}\big),\ \sum_{j<m} \Sigma r_j,\ m\Big)\ (m \ge 1),\qquad \operatorname{obs}(\,) = (0, 0, 0, 0, 0)$$
--/
+/-- The observations of one count type over the runs. -/
 def obs (rs : List Series) : Obs :=
   ⟨(rs.headD []).length, maxDiff rs, spreadOf (rs.map total), sumBy total rs, rs.length⟩
 
 #guard obs [[1, 2, 3], [1, 3, 3], [1, 2]] == ⟨3, 1, 4, 16, 3⟩
 #guard obs [[1, 2], [1, 2, 9]] == ⟨2, 0, 9, 15, 2⟩
 
-/-- One row of the self-check table: type, class, `maxDiff`, spread and the run totals.
-
-$$\mathrm{SRow} = \Sigma^{*} \times \mathrm{SClass} \times \mathbb{N} \times \mathbb{N} \times \mathbb{Z}^{*}$$
--/
+/-- One row of the self-check table: type, class, `maxDiff`, spread and the run totals. -/
 structure SRow where
   type : String
   cls : SClass
@@ -189,10 +150,7 @@ structure SRow where
   totals : List Int
 deriving Repr, DecidableEq
 
-/-- The self-check of every count type occurring in any frame of any run (sorted by name).
-
-$$\operatorname{check}_\theta(\mathcal{R}) = \big[\,(k,\ \operatorname{cls}_\theta(k \in \theta.\mathrm{gcBound}, o_k),\ \delta_k,\ s_k,\ [\Sigma\operatorname{series}_k(r)]_{r \in \mathcal{R}})\,\big]_{k \in \operatorname{keys}(\mathcal{R})},\quad o_k = \operatorname{obs}([\operatorname{series}_k(r)]_{r \in \mathcal{R}})$$
--/
+/-- The self-check of every count type occurring in any frame of any run (sorted by name). -/
 def check (θ : Thresholds) (runs : List (List Counts)) : List SRow :=
   (keysOf runs.flatten).map fun k =>
     let rs := runs.map (seriesOf k)
@@ -205,8 +163,6 @@ def check (θ : Thresholds) (runs : List (List Counts)) : List SRow :=
 
 /-- Frame alignment: every run's frame keys (phase, scroll offset) equal the first run's, frame by
 frame and in number.
-
-$$\operatorname{aligned}(K_0, \dots, K_{m-1}) \iff \forall j < m:\ K_j = K_0$$
 -/
 def aligned {α : Type} [DecidableEq α] (ks : List (List α)) : Bool := ks.all (· == ks.headD [])
 
@@ -216,38 +172,26 @@ def aligned {α : Type} [DecidableEq α] (ks : List (List α)) : Bool := ks.all 
 
 /-! ## Theorems -/
 
-/-- `deterministic` is exactly "no frame differs from the first run".
-
-$$\forall \theta,\ g \in \mathbb{B},\ o \in \mathrm{Obs}:\ \operatorname{cls}_\theta(g, o) = \mathrm{det} \iff \delta = 0$$
--/
+/-- `deterministic` is exactly "no frame differs from the first run". -/
 theorem classOf_det_iff (θ : Thresholds) (gc : Bool) (o : Obs) :
     classOf θ gc o = .deterministic ↔ o.maxDiff = 0 := by
   unfold classOf
   split <;> (try split) <;> (try split) <;> (try split) <;> simp_all <;> omega
 
-/-- A GC-bound type is `deterministic` or `quarantined`, never `stable` or `shifting`.
-
-$$\forall \theta,\ o \in \mathrm{Obs}:\ \operatorname{cls}_\theta(\top, o) \in \{\mathrm{det}, \mathrm{quar}\}$$
--/
+/-- A GC-bound type is `deterministic` or `quarantined`, never `stable` or `shifting`. -/
 theorem classOf_gc (θ : Thresholds) (o : Obs) :
     classOf θ true o = .deterministic ∨ classOf θ true o = .quarantined := by
   unfold classOf
   split <;> (try split) <;> (try split) <;> (try split) <;> simp_all <;> omega
 
-/-- `stable` holds exactly under its row of the table.
-
-$$\forall \theta,\ g \in \mathbb{B},\ o \in \mathrm{Obs}:\ \operatorname{cls}_\theta(g, o) = \mathrm{stable} \iff \lnot g \land \delta > 0 \land \theta.\mathrm{frameDen} \cdot \delta \le n \land \operatorname{spreadOk}(\theta.\mathrm{floor}, \theta.\mathrm{stableDen}, s, m, S)$$
--/
+/-- `stable` holds exactly under its row of the table. -/
 theorem classOf_stable_iff (θ : Thresholds) (gc : Bool) (o : Obs) :
     classOf θ gc o = .stable ↔ gc = false ∧ 0 < o.maxDiff ∧ θ.frameDen * o.maxDiff ≤ o.n ∧
       spreadOk θ.floor θ.stableDen o.spread o.runs o.sum = true := by
   unfold classOf
   split <;> (try split) <;> (try split) <;> (try split) <;> simp_all <;> omega
 
-/-- `shifting` holds exactly under its row of the table (the earlier rows fail).
-
-$$\forall \theta,\ g \in \mathbb{B},\ o \in \mathrm{Obs}:\ \operatorname{cls}_\theta(g, o) = \mathrm{shifting} \iff \lnot g \land \delta > 0 \land \lnot\big(\theta.\mathrm{frameDen} \cdot \delta \le n \land \operatorname{spreadOk}(\theta.\mathrm{floor}, \theta.\mathrm{stableDen}, s, m, S)\big) \land \operatorname{spreadOk}(\theta.\mathrm{floor}, \theta.\mathrm{shiftDen}, s, m, S)$$
--/
+/-- `shifting` holds exactly under its row of the table (the earlier rows fail). -/
 theorem classOf_shifting_iff (θ : Thresholds) (gc : Bool) (o : Obs) :
     classOf θ gc o = .shifting ↔ gc = false ∧ 0 < o.maxDiff ∧
       ¬(θ.frameDen * o.maxDiff ≤ o.n ∧ spreadOk θ.floor θ.stableDen o.spread o.runs o.sum = true) ∧
@@ -255,10 +199,7 @@ theorem classOf_shifting_iff (θ : Thresholds) (gc : Bool) (o : Obs) :
   unfold classOf
   split <;> (try split) <;> (try split) <;> (try split) <;> simp_all <;> omega
 
-/-- A larger denominator is a tighter spread bound.
-
-$$\forall f, d, d', s, m \in \mathbb{N},\ S \in \mathbb{Z}:\ d' \le d \land \operatorname{spreadOk}(f, d, s, m, S) \implies \operatorname{spreadOk}(f, d', s, m, S)$$
--/
+/-- A larger denominator is a tighter spread bound. -/
 theorem spreadOk_den {f d d' s m : Nat} {S : Int} (hd : d' ≤ d) (h : spreadOk f d s m S = true) :
     spreadOk f d' s m S = true := by
   simp only [spreadOk, Bool.or_eq_true, decide_eq_true_eq] at *
@@ -266,10 +207,7 @@ theorem spreadOk_den {f d d' s m : Nat} {S : Int} (hd : d' ≤ d) (h : spreadOk 
   · exact Or.inl h
   · exact Or.inr (Nat.le_trans (Nat.mul_le_mul_right s (Nat.mul_le_mul_right m hd)) h)
 
-/-- A smaller spread stays within any bound the larger one met.
-
-$$\forall f, d, s, s', m \in \mathbb{N},\ S \in \mathbb{Z}:\ s \le s' \land \operatorname{spreadOk}(f, d, s', m, S) \implies \operatorname{spreadOk}(f, d, s, m, S)$$
--/
+/-- A smaller spread stays within any bound the larger one met. -/
 theorem spreadOk_anti {f d s s' m : Nat} {S : Int} (hs : s ≤ s') (h : spreadOk f d s' m S = true) :
     spreadOk f d s m S = true := by
   simp only [spreadOk, Bool.or_eq_true, decide_eq_true_eq] at *
@@ -279,8 +217,6 @@ theorem spreadOk_anti {f d s s' m : Nat} {S : Int} (hs : s ≤ s') (h : spreadOk
 
 /-- Under the harness thresholds a `stable` type also meets the `shifting` spread bound
 (0.2 % of the mean is below 2 %).
-
-$$\forall g \in \mathbb{B},\ o = (n, \delta, s, S, m) \in \mathrm{Obs}:\ \operatorname{cls}_{\mathrm{harness}}(g, o) = \mathrm{stable} \implies \operatorname{spreadOk}(3, 50, s, m, S)$$
 -/
 theorem stable_spread_shift (gc : Bool) (o : Obs) (h : classOf harness gc o = .stable) :
     spreadOk 3 50 o.spread o.runs o.sum = true :=
@@ -288,7 +224,6 @@ theorem stable_spread_shift (gc : Bool) (o : Obs) (h : classOf harness gc o = .s
 
 /-- The rank of the class when some frame differs, as a nested case split.
 
-$$\forall \theta,\ g \in \mathbb{B},\ o \in \mathrm{Obs}:\ \delta > 0 \implies \operatorname{rank}\operatorname{cls}_\theta(g, o) = \begin{cases} 3 & g \\ 1 & \theta.\mathrm{frameDen} \cdot \delta \le n \land \operatorname{spreadOk}(\theta.\mathrm{floor}, \theta.\mathrm{stableDen}, s, m, S) \\ 2 & \operatorname{spreadOk}(\theta.\mathrm{floor}, \theta.\mathrm{shiftDen}, s, m, S) \\ 3 & \text{otherwise} \end{cases}$$
 (the first matching case, top to bottom)
 -/
 theorem rank_pos (θ : Thresholds) (gc : Bool) (o : Obs) (hp : 0 < o.maxDiff) :
@@ -308,10 +243,7 @@ theorem rank_pos (θ : Thresholds) (gc : Bool) (o : Obs) (hp : 0 < o.maxDiff) :
       · rw [ite_eq_right b, ite_eq_right b]; rfl
   · simp only [true_and, hp, ↓reduceIte]; rfl
 
-/-- More differing frames never give a stricter class.
-
-$$\forall \theta,\ g \in \mathbb{B},\ n, d, d', s, m \in \mathbb{N},\ S \in \mathbb{Z}:\ d \le d' \implies \operatorname{rank}\operatorname{cls}_\theta(g, (n, d, s, S, m)) \le \operatorname{rank}\operatorname{cls}_\theta(g, (n, d', s, S, m))$$
--/
+/-- More differing frames never give a stricter class. -/
 theorem classOf_mono_maxDiff (θ : Thresholds) (gc : Bool) (n d d' s m : Nat) (S : Int) (hd : d ≤ d') :
     (classOf θ gc ⟨n, d, s, S, m⟩).rank ≤ (classOf θ gc ⟨n, d', s, S, m⟩).rank := by
   by_cases z : d = 0
@@ -329,10 +261,7 @@ theorem classOf_mono_maxDiff (θ : Thresholds) (gc : Bool) (n d d' s m : Nat) (S
       · rw [ite_eq_right a]; exact Nat.le_refl _
   · exact Nat.le_refl _
 
-/-- A larger spread never gives a stricter class.
-
-$$\forall \theta,\ g \in \mathbb{B},\ n, d, s, s', m \in \mathbb{N},\ S \in \mathbb{Z}:\ s \le s' \implies \operatorname{rank}\operatorname{cls}_\theta(g, (n, d, s, S, m)) \le \operatorname{rank}\operatorname{cls}_\theta(g, (n, d, s', S, m))$$
--/
+/-- A larger spread never gives a stricter class. -/
 theorem classOf_mono_spread (θ : Thresholds) (gc : Bool) (n d s s' m : Nat) (S : Int) (hs : s ≤ s') :
     (classOf θ gc ⟨n, d, s, S, m⟩).rank ≤ (classOf θ gc ⟨n, d, s', S, m⟩).rank := by
   by_cases z : d = 0
@@ -353,25 +282,17 @@ theorem classOf_mono_spread (θ : Thresholds) (gc : Bool) (n d s s' m : Nat) (S 
         · rw [ite_eq_right b']; split <;> omega
   · exact Nat.le_refl _
 
-/-- `diffVs` is zero exactly when the series agree on every frame below `n`.
-
-$$\forall n,\ a, b:\ \operatorname{diff}_n(a, b) = 0 \iff \forall i < n:\ a[i] = b[i]$$
--/
+/-- `diffVs` is zero exactly when the series agree on every frame below `n`. -/
 theorem diffVs_zero_iff (n : Nat) (a b : Series) :
     diffVs n a b = 0 ↔ ∀ i < n, valAt a i = valAt b i := by
   simp [diffVs, List.filter_eq_nil_iff]
 
-/-- `maxDiff` bounds the differing frames of every run against the first.
-
-$$\forall r_0, r \in \mathbb{Z}^{*},\ R \in (\mathbb{Z}^{*})^{*}:\ r \in r_0 :: R \implies \operatorname{diff}_{|r_0|}(r_0, r) \le \delta(r_0 :: R)$$
--/
+/-- `maxDiff` bounds the differing frames of every run against the first. -/
 theorem diffVs_le_maxDiff {r₀ r : Series} {rs : List Series} (h : r ∈ r₀ :: rs) :
     diffVs r₀.length r₀ r ≤ maxDiff (r₀ :: rs) :=
   le_maxOf (List.mem_map.mpr ⟨r, h, rfl⟩)
 
 /-- `maxDiff` is zero exactly when every run equals the first run on the first run's frames.
-
-$$\forall r_0 \in \mathbb{Z}^{*},\ R \in (\mathbb{Z}^{*})^{*}:\ \delta(r_0 :: R) = 0 \iff \forall r \in r_0 :: R,\ \forall i < |r_0|:\ r_0[i] = r[i],\qquad r[i] = 0 \text{ for } i \ge |r|$$
 
 A run shorter than the first counts as zero on its missing frames, as in `diffVs`.
 -/
@@ -387,17 +308,11 @@ theorem maxDiff_zero_iff (r₀ : Series) (rs : List Series) :
     obtain ⟨r, hr, rfl⟩ := List.mem_map.mp hx
     exact Nat.le_of_eq ((diffVs_zero_iff _ _ _).mpr (h r hr))
 
-/-- `valAt` past the end is zero.
-
-$$\forall r,\ i \in \mathbb{N}:\ |r| \le i \implies r[i] = 0$$
--/
+/-- `valAt` past the end is zero. -/
 theorem valAt_of_le {r : Series} {i : Nat} (h : r.length ≤ i) : valAt r i = 0 := by
   simp [valAt, List.getD_eq_getElem?_getD, List.getElem?_eq_none h]
 
-/-- `diffFrames` is zero exactly when the padded series agree everywhere.
-
-$$\forall a, b:\ \operatorname{diff}(a, b) = 0 \iff \forall i:\ a[i] = b[i]$$
--/
+/-- `diffFrames` is zero exactly when the padded series agree everywhere. -/
 theorem diffFrames_zero_iff : ∀ a b : Series, diffFrames a b = 0 ↔ ∀ i, valAt a i = valAt b i
   | [], [] => by simp [diffFrames, valAt]
   | x :: xs, [] => by
@@ -433,8 +348,6 @@ theorem diffFrames_zero_iff : ∀ a b : Series, diffFrames a b = 0 ↔ ∀ i, va
 
 /-- For runs no longer than the first, `maxDiff = 0` is the pairwise `deterministic` class of
 `Fw.Measure` (every pair of runs agrees on every frame).
-
-$$\forall r_0 \in \mathbb{Z}^{*},\ R \in (\mathbb{Z}^{*})^{*}:\ (\forall r \in r_0 :: R:\ |r| \le |r_0|) \implies \big(\delta(r_0 :: R) = 0 \iff \operatorname{Holds}(\mathrm{det}, r_0 :: R)\big)$$
 -/
 theorem maxDiff_zero_iff_holds (r₀ : Series) (rs : List Series)
     (hlen : ∀ r ∈ r₀ :: rs, r.length ≤ r₀.length) :
@@ -456,10 +369,7 @@ theorem maxDiff_zero_iff_holds (r₀ : Series) (rs : List Series)
     have := (diffFrames_zero_iff r₀ r).mp (h r₀ (List.mem_cons_self) r hr)
     exact this i
 
-/-- `hi` is an upper bound.
-
-$$\forall x, y \in \mathbb{Z},\ L:\ y \in \{x\} \cup L \implies y \le \operatorname{hi}(x, L)$$
--/
+/-- `hi` is an upper bound. -/
 theorem le_hi {x y : Int} : ∀ {l : List Int}, (y = x ∨ y ∈ l) → y ≤ hi x l
   | [], h => by simp at h; simp [hi, h]
   | z :: zs, h => by
@@ -470,10 +380,7 @@ theorem le_hi {x y : Int} : ∀ {l : List Int}, (y = x ∨ y ∈ l) → y ≤ hi
       · subst h; exact Int.le_max_left _ _
       · exact Int.le_trans (le_hi (Or.inr h)) (Int.le_max_right _ _)
 
-/-- `lo` is a lower bound.
-
-$$\forall x, y \in \mathbb{Z},\ L:\ y \in \{x\} \cup L \implies \operatorname{lo}(x, L) \le y$$
--/
+/-- `lo` is a lower bound. -/
 theorem lo_le {x y : Int} : ∀ {l : List Int}, (y = x ∨ y ∈ l) → lo x l ≤ y
   | [], h => by simp at h; simp [lo, h]
   | z :: zs, h => by
@@ -484,10 +391,7 @@ theorem lo_le {x y : Int} : ∀ {l : List Int}, (y = x ∨ y ∈ l) → lo x l �
       · subst h; exact Int.min_le_left _ _
       · exact Int.le_trans (Int.min_le_right _ _) (lo_le (Or.inr h))
 
-/-- The spread bounds the gap between any two run totals.
-
-$$\forall T,\ a, b:\ a, b \in T \implies |a - b| \le \operatorname{spread}(T)$$
--/
+/-- The spread bounds the gap between any two run totals. -/
 theorem gap_le_spread {a b : Int} : ∀ {ts : List Int}, a ∈ ts → b ∈ ts → (a - b).natAbs ≤ spreadOf ts
   | [], ha, _ => by simp at ha
   | t :: ts, ha, hb => by
@@ -499,8 +403,6 @@ theorem gap_le_spread {a b : Int} : ∀ {ts : List Int}, a ∈ ts → b ∈ ts �
 
 /-- Each row's class is the class of that type's observations (with its GC-bound flag), and its
 `maxDiff`, spread and totals are those observations.
-
-$$\forall \theta,\ \mathcal{R},\ (k, c, d, s, T) \in \operatorname{check}_\theta(\mathcal{R}):\ c = \operatorname{cls}_\theta(k \in \theta.\mathrm{gcBound}, o_k) \land d = \delta(R_k) \land s = \operatorname{spread}(T) \land T = [\Sigma r]_{r \in R_k},\quad R_k = [\operatorname{series}_k(r)]_{r \in \mathcal{R}},\ o_k = \operatorname{obs}(R_k)$$
 -/
 theorem check_sound (θ : Thresholds) (runs : List (List Counts)) :
     ∀ row ∈ check θ runs, let rs := runs.map (seriesOf row.type)
@@ -511,10 +413,7 @@ theorem check_sound (θ : Thresholds) (runs : List (List Counts)) :
   obtain ⟨k, _, rfl⟩ := h
   exact ⟨rfl, rfl, rfl, rfl⟩
 
-/-- `aligned` holds exactly when all key lists are equal.
-
-$$\forall K \in (\alpha^{*})^{*}:\ \operatorname{aligned}(K) \iff \forall a, b \in K:\ a = b$$
--/
+/-- `aligned` holds exactly when all key lists are equal. -/
 theorem aligned_iff {α : Type} [DecidableEq α] (ks : List (List α)) :
     aligned ks = true ↔ ∀ a ∈ ks, ∀ b ∈ ks, a = b := by
   cases ks with

@@ -29,38 +29,23 @@ strictest admissible one (`classify_strictest`), deterministic is exactly stable
 -/
 namespace Fw.Measure
 
-/-- One count type over the frames of one run.
-
-$$\mathrm{Series} = \mathbb{Z}^{*}$$
--/
+/-- One count type over the frames of one run. -/
 abbrev Series := List Int
 
-/-- The value in frame `i`, 0 past the end.
-
-$$r[i] = \begin{cases} r_i & i < |r| \\ 0 & i \ge |r| \end{cases}$$
--/
+/-- The value in frame `i`, 0 past the end. -/
 def valAt (r : Series) (i : Nat) : Int := r.getD i 0
 
-/-- The run total.
-
-$$\Sigma r = \sum_{i < |r|} r_i$$
--/
+/-- The run total. -/
 def total (r : Series) : Int := sumBy id r
 
-/-- The number of frames whose values differ (the shorter series padded with zeros).
-
-$$\operatorname{diff}(a, b) = \big|\{\, i < \max(|a|, |b|) \mid a[i] \ne b[i] \,\}\big|$$
--/
+/-- The number of frames whose values differ (the shorter series padded with zeros). -/
 def diffFrames : Series → Series → Nat
   | [], [] => 0
   | x :: xs, [] => (if x = 0 then 0 else 1) + diffFrames xs []
   | [], y :: ys => (if 0 = y then 0 else 1) + diffFrames [] ys
   | x :: xs, y :: ys => (if x = y then 0 else 1) + diffFrames xs ys
 
-/-- The absolute difference of the run totals.
-
-$$\operatorname{gap}(a, b) = \big|\Sigma a - \Sigma b\big| \in \mathbb{N}$$
--/
+/-- The absolute difference of the run totals. -/
 def totalGap (a b : Series) : Nat := (total a - total b).natAbs
 
 #guard diffFrames [1, 2, 3] [1, 3, 2] == 2
@@ -69,35 +54,24 @@ def totalGap (a b : Series) : Nat := (total a - total b).natAbs
 #guard totalGap [1, 2, 3] [1, 3, 2] == 0
 #guard totalGap [4] [1, 1] == 2
 
-/-- The determinism classes.
-
-$$\mathrm{Class} = \{\mathrm{det}\} \cup \{\mathrm{stable}(k, t) \mid k, t \in \mathbb{N}\} \cup \{\mathrm{quar}\}$$
--/
+/-- The determinism classes. -/
 inductive Class where
   | deterministic
   | stable (k t : Nat)
   | quarantined
 deriving Repr, DecidableEq
 
-/-- What a class promises about a pair of runs of one count type.
-
-$$\operatorname{Within}(c, a, b) \iff \begin{cases} \operatorname{diff}(a, b) = 0 & c = \mathrm{det} \\ \operatorname{diff}(a, b) \le k \ \land\ \operatorname{gap}(a, b) \le t & c = \mathrm{stable}(k, t) \\ \top & c = \mathrm{quar} \end{cases}$$
--/
+/-- What a class promises about a pair of runs of one count type. -/
 def Within : Class → Series → Series → Prop
   | .deterministic, a, b => diffFrames a b = 0
   | .stable k t, a, b => diffFrames a b ≤ k ∧ totalGap a b ≤ t
   | .quarantined, _, _ => True
 
-/-- A class holds for a set of runs when every pair of them is within it.
-
-$$\operatorname{Holds}(c, R) \iff \forall a, b \in R:\ \operatorname{Within}(c, a, b)$$
--/
+/-- A class holds for a set of runs when every pair of them is within it. -/
 def Holds (c : Class) (rs : List Series) : Prop := ∀ a ∈ rs, ∀ b ∈ rs, Within c a b
 
 /-- The syntactic strictness order: `c.le c'` implies every pair within `c` is within `c'` (`within_mono`); the
 converse fails for `stable 0 t` (`deterministic` ≤ `stable k t` ≤ `stable k' t'` (k ≤ k', t ≤ t') ≤ `quarantined`).
-
-$$c \preceq c' \iff \begin{cases} \top & c = \mathrm{det} \ \lor\ c' = \mathrm{quar} \\ k \le k' \land t \le t' & c = \mathrm{stable}(k, t),\ c' = \mathrm{stable}(k', t') \\ \bot & \text{otherwise} \end{cases}$$
 -/
 def Class.le : Class → Class → Bool
   | .deterministic, _ => true
@@ -107,8 +81,6 @@ def Class.le : Class → Class → Bool
 
 /-- The least class above two classes (used to combine the class of the baseline's runs with the
 variant's).
-
-$$c \sqcup c' = \begin{cases} c' & c = \mathrm{det} \\ c & c' = \mathrm{det} \\ \mathrm{stable}(\max(k, k'), \max(t, t')) & c = \mathrm{stable}(k, t),\ c' = \mathrm{stable}(k', t') \\ \mathrm{quar} & \text{otherwise} \end{cases}$$
 -/
 def Class.join : Class → Class → Class
   | .deterministic, c => c
@@ -118,52 +90,32 @@ def Class.join : Class → Class → Class
 
 /-- The classification policy: the largest number of differing frames and the largest total gap a
 stable type may show.
-
-$$\mathrm{Policy} = (k_{\max}, t_{\max}) \in \mathbb{N}^2$$
 -/
 structure Policy where
   kMax : Nat
   tMax : Nat
 deriving Repr, DecidableEq
 
-/-- The largest element of a list of naturals (0 for the empty list).
-
-$$\max{}^{*}(L) = \max(\{0\} \cup L)$$
--/
+/-- The largest element of a list of naturals (0 for the empty list). -/
 def maxOf (l : List Nat) : Nat := l.foldr max 0
 
-/-- The values of a pair statistic over all ordered pairs of runs.
-
-$$\operatorname{pairs}_g(R) = [\, g(a, b) \,]_{a \in R,\ b \in R}$$
--/
+/-- The values of a pair statistic over all ordered pairs of runs. -/
 def pairVals (g : Series → Series → Nat) (rs : List Series) : List Nat :=
   rs.flatMap fun a => rs.map fun b => g a b
 
-/-- The largest number of differing frames over all pairs of runs.
-
-$$k(R) = \max{}^{*}\{\operatorname{diff}(a, b) \mid a, b \in R\}$$
--/
+/-- The largest number of differing frames over all pairs of runs. -/
 def kObs (rs : List Series) : Nat := maxOf (pairVals diffFrames rs)
 
-/-- The largest total gap over all pairs of runs.
-
-$$t(R) = \max{}^{*}\{\operatorname{gap}(a, b) \mid a, b \in R\}$$
--/
+/-- The largest total gap over all pairs of runs. -/
 def tObs (rs : List Series) : Nat := maxOf (pairVals totalGap rs)
 
-/-- **The classification** of one count type from its runs.
-
-$$\operatorname{classify}_p(R) = \begin{cases} \mathrm{det} & k(R) = 0 \\ \mathrm{stable}(k(R), t(R)) & 1 \le k(R) \le k_{\max} \ \land\ t(R) \le t_{\max} \\ \mathrm{quar} & \text{otherwise} \end{cases}$$
--/
+/-- **The classification** of one count type from its runs. -/
 def classify (p : Policy) (rs : List Series) : Class :=
   if kObs rs = 0 then .deterministic
   else if kObs rs ≤ p.kMax ∧ tObs rs ≤ p.tMax then .stable (kObs rs) (tObs rs)
   else .quarantined
 
-/-- A class the policy allows: deterministic, quarantined, or stable within the policy's bounds.
-
-$$\operatorname{adm}_p(c) \iff c = \mathrm{det} \ \lor\ c = \mathrm{quar} \ \lor\ \exists k, t \in \mathbb{N}:\ (c = \mathrm{stable}(k, t) \land k \le k_{\max} \land t \le t_{\max})$$
--/
+/-- A class the policy allows: deterministic, quarantined, or stable within the policy's bounds. -/
 def Admissible (p : Policy) : Class → Prop
   | .stable k t => k ≤ p.kMax ∧ t ≤ p.tMax
   | _ => True
@@ -182,10 +134,7 @@ def Admissible (p : Policy) : Class → Prop
 
 /-! ## Pair statistics -/
 
-/-- Frames differ symmetrically.
-
-$$\forall a, b:\ \operatorname{diff}(a, b) = \operatorname{diff}(b, a)$$
--/
+/-- Frames differ symmetrically. -/
 theorem diffFrames_comm : ∀ a b : Series, diffFrames a b = diffFrames b a
   | [], [] => rfl
   | x :: xs, [] => by
@@ -198,25 +147,16 @@ theorem diffFrames_comm : ∀ a b : Series, diffFrames a b = diffFrames b a
     simp only [diffFrames, diffFrames_comm xs ys]
     by_cases h : x = y <;> simp [h, eq_comm]
 
-/-- A run never differs from itself.
-
-$$\forall a:\ \operatorname{diff}(a, a) = 0$$
--/
+/-- A run never differs from itself. -/
 theorem diffFrames_self : ∀ a : Series, diffFrames a a = 0
   | [] => by simp [diffFrames]
   | _ :: xs => by simp [diffFrames, diffFrames_self xs]
 
-/-- Total gaps are symmetric.
-
-$$\forall a, b:\ \operatorname{gap}(a, b) = \operatorname{gap}(b, a)$$
--/
+/-- Total gaps are symmetric. -/
 theorem totalGap_comm (a b : Series) : totalGap a b = totalGap b a := by
   simp only [totalGap]; omega
 
-/-- Runs with no differing frame have equal totals.
-
-$$\forall a, b:\ \operatorname{diff}(a, b) = 0 \;\Rightarrow\; \Sigma a = \Sigma b$$
--/
+/-- Runs with no differing frame have equal totals. -/
 theorem total_eq_of_diff_zero : ∀ a b : Series, diffFrames a b = 0 → total a = total b
   | [], [], _ => rfl
   | x :: xs, [], h => by
@@ -235,28 +175,19 @@ theorem total_eq_of_diff_zero : ∀ a b : Series, diffFrames a b = 0 → total a
     have := total_eq_of_diff_zero xs ys (by omega)
     simp only [total, sumBy] at this ⊢; simp [hxy, this]
 
-/-- The pair statistic of two runs is among the values over all pairs.
-
-$$\forall g, R, a, b:\ a, b \in R \;\Rightarrow\; g(a, b) \in \operatorname{pairs}_g(R)$$
--/
+/-- The pair statistic of two runs is among the values over all pairs. -/
 theorem mem_pairVals {g : Series → Series → Nat} {rs : List Series} {a b : Series}
     (ha : a ∈ rs) (hb : b ∈ rs) : g a b ∈ pairVals g rs := by
   simp only [pairVals, List.mem_flatMap, List.mem_map]
   exact ⟨a, ha, b, hb, rfl⟩
 
-/-- Every value over all pairs comes from a pair of runs.
-
-$$\forall g, R, x:\ x \in \operatorname{pairs}_g(R) \;\Rightarrow\; \exists a, b \in R:\ x = g(a, b)$$
--/
+/-- Every value over all pairs comes from a pair of runs. -/
 theorem of_mem_pairVals {g : Series → Series → Nat} {rs : List Series} {x : Nat}
     (h : x ∈ pairVals g rs) : ∃ a ∈ rs, ∃ b ∈ rs, g a b = x := by
   simp only [pairVals, List.mem_flatMap, List.mem_map] at h
   exact h
 
-/-- Every element is at most the maximum.
-
-$$\forall L, x:\ x \in L \;\Rightarrow\; x \le \max{}^{*}(L)$$
--/
+/-- Every element is at most the maximum. -/
 theorem le_maxOf : ∀ {l : List Nat} {x : Nat}, x ∈ l → x ≤ maxOf l
   | y :: ys, x, h => by
     simp only [maxOf, List.foldr_cons] at *
@@ -264,28 +195,19 @@ theorem le_maxOf : ∀ {l : List Nat} {x : Nat}, x ∈ l → x ≤ maxOf l
     · subst h; exact Nat.le_max_left _ _
     · exact Nat.le_trans (le_maxOf h) (Nat.le_max_right _ _)
 
-/-- The maximum is at most any common upper bound.
-
-$$\forall L, m:\ (\forall x \in L:\ x \le m) \;\Rightarrow\; \max{}^{*}(L) \le m$$
--/
+/-- The maximum is at most any common upper bound. -/
 theorem maxOf_le : ∀ {l : List Nat} {m : Nat}, (∀ x ∈ l, x ≤ m) → maxOf l ≤ m
   | [], _, _ => Nat.zero_le _
   | y :: ys, m, h => by
     simp only [maxOf, List.foldr_cons]
     exact Nat.max_le.mpr ⟨h y (by simp), maxOf_le (fun x hx => h x (by simp [hx]))⟩
 
-/-- The observed maxima bound every pair.
-
-$$\forall R, a, b:\ a, b \in R \;\Rightarrow\; \operatorname{diff}(a, b) \le k(R) \ \land\ \operatorname{gap}(a, b) \le t(R)$$
--/
+/-- The observed maxima bound every pair. -/
 theorem le_obs {rs : List Series} {a b : Series} (ha : a ∈ rs) (hb : b ∈ rs) :
     diffFrames a b ≤ kObs rs ∧ totalGap a b ≤ tObs rs :=
   ⟨le_maxOf (mem_pairVals ha hb), le_maxOf (mem_pairVals ha hb)⟩
 
-/-- The observed maxima are at most any bound that holds for every pair.
-
-$$\forall R,\ \forall K, T \in \mathbb{N}:\ (\forall a, b \in R:\ \operatorname{diff}(a, b) \le K \land \operatorname{gap}(a, b) \le T) \;\Rightarrow\; k(R) \le K \ \land\ t(R) \le T$$
--/
+/-- The observed maxima are at most any bound that holds for every pair. -/
 theorem obs_le {rs : List Series} {k t : Nat}
     (h : ∀ a ∈ rs, ∀ b ∈ rs, diffFrames a b ≤ k ∧ totalGap a b ≤ t) : kObs rs ≤ k ∧ tObs rs ≤ t := by
   constructor
@@ -296,10 +218,7 @@ theorem obs_le {rs : List Series} {k t : Nat}
 
 /-! ## The class order -/
 
-/-- **Strictness is semantic.** A pair within a class is within every less strict class.
-
-$$\forall c, c', a, b:\ c \preceq c' \ \land\ \operatorname{Within}(c, a, b) \;\Rightarrow\; \operatorname{Within}(c', a, b)$$
--/
+/-- **Strictness is semantic.** A pair within a class is within every less strict class. -/
 theorem within_mono {c c' : Class} {a b : Series} (hle : c.le c' = true) (h : Within c a b) :
     Within c' a b := by
   cases c <;> cases c' <;> simp_all [Class.le, Within]
@@ -308,48 +227,30 @@ theorem within_mono {c c' : Class} {a b : Series} (hle : c.le c' = true) (h : Wi
     simp [totalGap, this]
   · omega
 
-/-- A class holding for a set of runs holds for every less strict class.
-
-$$\forall c, c', R:\ c \preceq c' \ \land\ \operatorname{Holds}(c, R) \;\Rightarrow\; \operatorname{Holds}(c', R)$$
--/
+/-- A class holding for a set of runs holds for every less strict class. -/
 theorem holds_mono {c c' : Class} {rs : List Series} (hle : c.le c' = true) (h : Holds c rs) :
     Holds c' rs := fun a ha b hb => within_mono hle (h a ha b hb)
 
-/-- A class holding for a set of runs holds for each of its subsets.
-
-$$\forall c, R, R':\ R \subseteq R' \ \land\ \operatorname{Holds}(c, R') \;\Rightarrow\; \operatorname{Holds}(c, R)$$
--/
+/-- A class holding for a set of runs holds for each of its subsets. -/
 theorem holds_subset {c : Class} {rs rs' : List Series} (hs : ∀ r ∈ rs, r ∈ rs') (h : Holds c rs') :
     Holds c rs := fun a ha b hb => h a (hs a ha) b (hs b hb)
 
-/-- The order is reflexive.
-
-$$\forall c:\ c \preceq c$$
--/
+/-- The order is reflexive. -/
 theorem Class.le_refl : ∀ c : Class, c.le c = true
   | .deterministic => rfl
   | .stable _ _ => by simp [Class.le]
   | .quarantined => rfl
 
-/-- The order is transitive.
-
-$$\forall c, c', c'':\ c \preceq c' \ \land\ c' \preceq c'' \;\Rightarrow\; c \preceq c''$$
--/
+/-- The order is transitive. -/
 theorem Class.le_trans : ∀ {c c' c'' : Class}, c.le c' = true → c'.le c'' = true → c.le c'' = true := by
   intro c c' c'' h1 h2
   cases c <;> cases c' <;> cases c'' <;> simp_all [Class.le] <;> omega
 
-/-- The join is above its left argument.
-
-$$\forall c, c':\ c \preceq c \sqcup c'$$
--/
+/-- The join is above its left argument. -/
 theorem Class.le_join_left : ∀ c c' : Class, c.le (c.join c') = true := by
   intro c c'; cases c <;> cases c' <;> simp [Class.le, Class.join] <;> omega
 
-/-- The join is above its right argument.
-
-$$\forall c, c':\ c' \preceq c \sqcup c'$$
--/
+/-- The join is above its right argument. -/
 theorem Class.le_join_right : ∀ c c' : Class, c'.le (c.join c') = true := by
   intro c c'; cases c <;> cases c' <;> simp [Class.le, Class.join] <;> omega
 
@@ -357,8 +258,6 @@ theorem Class.le_join_right : ∀ c c' : Class, c'.le (c.join c') = true := by
 
 /-- **Deterministic is stable(0, 0).** A set of runs is deterministic exactly when it is stable
 with no differing frame and no total gap; in particular deterministic implies stable(0, 0).
-
-$$\forall R:\ \operatorname{Holds}(\mathrm{det}, R) \iff \operatorname{Holds}(\mathrm{stable}(0, 0), R)$$
 -/
 theorem holds_det_iff_stable00 (rs : List Series) :
     Holds .deterministic rs ↔ Holds (.stable 0 0) rs := by
@@ -368,19 +267,13 @@ theorem holds_det_iff_stable00 (rs : List Series) :
     have := (h a ha b hb).1
     simp only [Within]; omega
 
-/-- Deterministic implies stable(0, 0) (the direction asked for, as its own statement).
-
-$$\forall R:\ \operatorname{Holds}(\mathrm{det}, R) \;\Rightarrow\; \operatorname{Holds}(\mathrm{stable}(0, 0), R)$$
--/
+/-- Deterministic implies stable(0, 0) (the direction asked for, as its own statement). -/
 theorem det_stable00 {rs : List Series} (h : Holds .deterministic rs) : Holds (.stable 0 0) rs :=
   (holds_det_iff_stable00 rs).mp h
 
 /-! ## Classification -/
 
-/-- **Soundness.** The class that `classify` returns holds for the runs it was computed from.
-
-$$\forall p, R:\ \operatorname{Holds}(\operatorname{classify}_p(R), R)$$
--/
+/-- **Soundness.** The class that `classify` returns holds for the runs it was computed from. -/
 theorem classify_sound (p : Policy) (rs : List Series) : Holds (classify p rs) rs := by
   intro a ha b hb
   have hk := (le_obs ha hb).1
@@ -392,10 +285,7 @@ theorem classify_sound (p : Policy) (rs : List Series) : Holds (classify p rs) r
     · exact ⟨hk, ht⟩
     · trivial
 
-/-- The class returned is always one the policy allows.
-
-$$\forall p, R:\ \operatorname{adm}_p(\operatorname{classify}_p(R))$$
--/
+/-- The class returned is always one the policy allows. -/
 theorem classify_admissible (p : Policy) (rs : List Series) : Admissible p (classify p rs) := by
   unfold classify
   split
@@ -406,8 +296,6 @@ theorem classify_admissible (p : Policy) (rs : List Series) : Admissible p (clas
 
 /-- **Strictest.** Any class the policy allows and the runs satisfy is at most as strict as the
 one `classify` returns.
-
-$$\forall p, R, c:\ \operatorname{adm}_p(c) \ \land\ \operatorname{Holds}(c, R) \;\Rightarrow\; \operatorname{classify}_p(R) \preceq c$$
 -/
 theorem classify_strictest (p : Policy) (rs : List Series) (c : Class) (hc : Admissible p c)
     (h : Holds c rs) : (classify p rs).le c = true := by
@@ -431,25 +319,17 @@ theorem classify_strictest (p : Policy) (rs : List Series) (c : Class) (hc : Adm
 
 /-- **Monotone in the runs.** Classifying a superset of the runs never gives a stricter class:
 adding a run can only keep the class or move it towards quarantined.
-
-$$\forall p, R, R':\ R \subseteq R' \;\Rightarrow\; \operatorname{classify}_p(R) \preceq \operatorname{classify}_p(R')$$
 -/
 theorem classify_mono (p : Policy) {rs rs' : List Series} (hs : ∀ r ∈ rs, r ∈ rs') :
     (classify p rs).le (classify p rs') = true :=
   classify_strictest p rs _ (classify_admissible p rs') (holds_subset hs (classify_sound p rs'))
 
-/-- Adding one more run never gives a stricter class.
-
-$$\forall p, R, r:\ \operatorname{classify}_p(R) \preceq \operatorname{classify}_p(R \mathbin{+\!\!+} [r])$$
--/
+/-- Adding one more run never gives a stricter class. -/
 theorem classify_snoc (p : Policy) (rs : List Series) (r : Series) :
     (classify p rs).le (classify p (rs ++ [r])) = true :=
   classify_mono p (fun _ hx => List.mem_append_left _ hx)
 
-/-- `classify` says deterministic exactly when the runs are deterministic.
-
-$$\forall p, R:\ \operatorname{classify}_p(R) = \mathrm{det} \iff \operatorname{Holds}(\mathrm{det}, R)$$
--/
+/-- `classify` says deterministic exactly when the runs are deterministic. -/
 theorem classify_det_iff (p : Policy) (rs : List Series) :
     classify p rs = .deterministic ↔ Holds .deterministic rs := by
   constructor
@@ -458,10 +338,7 @@ theorem classify_det_iff (p : Policy) (rs : List Series) :
     have := classify_strictest p rs .deterministic trivial h
     revert this; unfold classify; split <;> (try split) <;> simp [Class.le]
 
-/-- `classify` says quarantined exactly when the runs are not stable within the policy bounds.
-
-$$\forall p, R:\ \operatorname{classify}_p(R) = \mathrm{quar} \iff \neg\operatorname{Holds}(\mathrm{stable}(k_{\max}, t_{\max}), R)$$
--/
+/-- `classify` says quarantined exactly when the runs are not stable within the policy bounds. -/
 theorem classify_quarantined_iff (p : Policy) (rs : List Series) :
     classify p rs = .quarantined ↔ ¬ Holds (.stable p.kMax p.tMax) rs := by
   constructor
@@ -485,16 +362,10 @@ theorem classify_quarantined_iff (p : Policy) (rs : List Series) :
 
 /-! ## Many count types at once (the `measure.classify` op) -/
 
-/-- The series of count type `k` in a run given as per-frame count lists.
-
-$$\operatorname{series}_k([C_1, \dots, C_m]) = [\operatorname{countIn}(C_i, k)]_{i=1}^{m}$$
--/
+/-- The series of count type `k` in a run given as per-frame count lists. -/
 def seriesOf (k : String) (run : List Counts) : Series := run.map (countIn · k)
 
-/-- One row of the classification table: type, class, observed maxima.
-
-$$\mathrm{Row} = \Sigma^{*} \times \mathrm{Class} \times \mathbb{N} \times \mathbb{N}$$
--/
+/-- One row of the classification table: type, class, observed maxima. -/
 structure ClassRow where
   type : String
   cls : Class
@@ -502,10 +373,7 @@ structure ClassRow where
   t : Nat
 deriving Repr, DecidableEq
 
-/-- Classify every count type that occurs in any frame of any run (sorted by name).
-
-$$\operatorname{classifyAll}_p(\mathcal{R}) = \big[\,(\tau,\ \operatorname{classify}_p(R_\tau),\ k(R_\tau),\ t(R_\tau))\,\big]_{\tau \in \operatorname{keys}(\mathcal{R})},\quad R_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{R}}$$
--/
+/-- Classify every count type that occurs in any frame of any run (sorted by name). -/
 def classifyAll (p : Policy) (runs : List (List Counts)) : List ClassRow :=
   (keysOf runs.flatten).map fun k =>
     let rs := runs.map (seriesOf k)
@@ -515,10 +383,7 @@ def classifyAll (p : Policy) (runs : List (List Counts)) : List ClassRow :=
   [⟨"a", .deterministic, 0, 0⟩, ⟨"b", .deterministic, 0, 0⟩]
 #guard classifyAll ⟨4, 24⟩ [[[("a", 1)], [("a", 0)]], [[("a", 0)], [("a", 1)]]] == [⟨"a", .stable 2 0, 2, 0⟩]
 
-/-- Each row's class holds for that type's series over all the runs.
-
-$$\forall p, \mathcal{R}, (k, c, \cdot, \cdot) \in \operatorname{classifyAll}_p(\mathcal{R}):\ \operatorname{Holds}(c, [\operatorname{series}_k(r)]_{r \in \mathcal{R}})$$
--/
+/-- Each row's class holds for that type's series over all the runs. -/
 theorem classifyAll_sound (p : Policy) (runs : List (List Counts)) :
     ∀ row ∈ classifyAll p runs, Holds row.cls (runs.map (seriesOf row.type)) := by
   intro row h
@@ -547,10 +412,7 @@ quarantine (k ≤ 2, gap ≤ 382 ppm of the smallest total), `raster.invalidatio
 and no count type changes class.
 -/
 
-/-- The unit of a count type's values.
-
-$$\mathrm{Unit} = \{\mathrm{count}, \mathrm{px}\}$$
--/
+/-- The unit of a count type's values. -/
 inductive TypeUnit where
   | count
   | px
@@ -558,8 +420,6 @@ deriving Repr, DecidableEq
 
 /-- The unit of a type, read from its name: a name ending in `AreaPx` is a pixel area, every other
 name a count.
-
-$$\operatorname{unit}(n) = \begin{cases} \mathrm{px} & n \text{ ends with } \texttt{AreaPx} \\ \mathrm{count} & \text{otherwise} \end{cases}$$
 -/
 def unitOf (name : String) : TypeUnit := if name.endsWith "AreaPx" then .px else .count
 
@@ -568,25 +428,16 @@ def unitOf (name : String) : TypeUnit := if name.endsWith "AreaPx" then .px else
 #guard unitOf "census.activeTiles" == .count && unitOf "trace.Paint" == .count && unitOf "" == .count
 #guard unitOf "census.scrollPx" == .count
 
-/-- The relative tolerance of pixel-area totals, as the fraction `num / den`.
-
-$$\mathrm{PxTol} = (\mathit{num}, \mathit{den}) \in \mathbb{N}^2$$
--/
+/-- The relative tolerance of pixel-area totals, as the fraction `num / den`. -/
 structure PxTol where
   num : Nat
   den : Nat
 deriving Repr, DecidableEq
 
-/-- The default pixel-area tolerance, one per mille of the smallest run total.
-
-$$q_0 = (1, 1000)$$
--/
+/-- The default pixel-area tolerance, one per mille of the smallest run total. -/
 def pxTolDefault : PxTol := ⟨1, 1000⟩
 
-/-- The smallest absolute run total (0 for no runs).
-
-$$m(R) = \begin{cases} \min_{r \in R} |\Sigma r| & R \ne [\,] \\ 0 & R = [\,] \end{cases}$$
--/
+/-- The smallest absolute run total (0 for no runs). -/
 def minAbsTotal : List Series → Nat
   | [] => 0
   | [r] => (total r).natAbs
@@ -598,24 +449,16 @@ def minAbsTotal : List Series → Nat
 
 /-- The total-gap bound of a type: `tMax` for counts, and for pixel areas the larger of `tMax` and
 the fraction `num / den` (rounded down) of the smallest absolute run total.
-
-$$\operatorname{tb}_{p,q}(u, R) = \begin{cases} t_{\max} & u = \mathrm{count} \\ \max\big(t_{\max},\ \lfloor q.\mathit{num} \cdot m(R) / q.\mathit{den} \rfloor\big) & u = \mathrm{px} \end{cases}\qquad (\lfloor x / 0 \rfloor := 0)$$
 -/
 def tBound (p : Policy) (q : PxTol) : TypeUnit → List Series → Nat
   | .count, _ => p.tMax
   | .px, rs => max p.tMax (q.num * minAbsTotal rs / q.den)
 
-/-- The policy a type of unit `u` is classified with: the same `kMax`, the gap bound `tBound`.
-
-$$p_{q}(u, R) = \big(k_{\max},\ \operatorname{tb}_{p,q}(u, R)\big)$$
--/
+/-- The policy a type of unit `u` is classified with: the same `kMax`, the gap bound `tBound`. -/
 def policyFor (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) : Policy :=
   ⟨p.kMax, tBound p q u rs⟩
 
-/-- **The unit-aware classification**: `classify` under the type's own policy.
-
-$$\operatorname{classify}_{p,q}(u, R) = \operatorname{classify}_{p_q(u, R)}(R) = \begin{cases} \mathrm{det} & k(R) = 0 \\ \mathrm{stable}(k(R), t(R)) & 1 \le k(R) \le k_{\max} \ \land\ t(R) \le \operatorname{tb}_{p,q}(u, R) \\ \mathrm{quar} & \text{otherwise} \end{cases}$$
--/
+/-- **The unit-aware classification**: `classify` under the type's own policy. -/
 def classifyU (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) : Class :=
   classify (policyFor p q u rs) rs
 
@@ -631,17 +474,11 @@ def classifyU (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) : Class
 #guard classifyU ⟨1, 24⟩ pxTolDefault .px [[1, 0, 2], [0, 1, 2]] == .quarantined
 #guard classifyU ⟨4, 24⟩ pxTolDefault .px [] == .deterministic
 
-/-- **Counts are unaffected.** A count type is classified exactly as before.
-
-$$\forall p, q, R:\ \operatorname{classify}_{p,q}(\mathrm{count}, R) = \operatorname{classify}_p(R)$$
--/
+/-- **Counts are unaffected.** A count type is classified exactly as before. -/
 theorem classifyU_count (p : Policy) (q : PxTol) (rs : List Series) :
     classifyU p q .count rs = classify p rs := rfl
 
-/-- The pixel bound is never below `tMax`.
-
-$$\forall p, q, u, R:\ t_{\max} \le \operatorname{tb}_{p,q}(u, R)$$
--/
+/-- The pixel bound is never below `tMax`. -/
 theorem tMax_le_tBound (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) :
     p.tMax ≤ tBound p q u rs := by
   cases u with
@@ -650,8 +487,6 @@ theorem tMax_le_tBound (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series
 
 /-- The pixel bound without rounding: for `den > 0`, a gap is within it exactly when it is within
 `tMax` or at most `num / den` of the smallest absolute total.
-
-$$\forall p, q, R, t:\ q.\mathit{den} > 0 \implies \big(t \le \operatorname{tb}_{p,q}(\mathrm{px}, R) \iff t \le t_{\max} \ \lor\ t \cdot q.\mathit{den} \le q.\mathit{num} \cdot m(R)\big)$$
 -/
 theorem le_tBound_px_iff (p : Policy) (q : PxTol) (rs : List Series) (t : Nat) (hd : 0 < q.den) :
     t ≤ tBound p q .px rs ↔ t ≤ p.tMax ∨ t * q.den ≤ q.num * minAbsTotal rs := by
@@ -662,8 +497,6 @@ theorem le_tBound_px_iff (p : Policy) (q : PxTol) (rs : List Series) (t : Nat) (
 
 /-- **Monotone in the policy.** A looser policy never gives a stricter class: with `kMax ≤ kMax'`
 and `tMax ≤ tMax'`, the class under the looser policy is at most as strict.
-
-$$\forall p, p', R:\ k_{\max} \le k'_{\max} \ \land\ t_{\max} \le t'_{\max} \;\Rightarrow\; \operatorname{classify}_{p'}(R) \preceq \operatorname{classify}_{p}(R)$$
 -/
 theorem classify_policy_mono {p p' : Policy} (hk : p.kMax ≤ p'.kMax) (ht : p.tMax ≤ p'.tMax)
     (rs : List Series) : (classify p' rs).le (classify p rs) = true := by
@@ -677,43 +510,30 @@ theorem classify_policy_mono {p p' : Policy} (hk : p.kMax ≤ p'.kMax) (ht : p.t
 
 /-- **The pixel rule is never stricter than the count rule.** Classifying any type by its unit
 gives a class at most as strict as the count rule's.
-
-$$\forall p, q, u, R:\ \operatorname{classify}_{p,q}(u, R) \preceq \operatorname{classify}_p(R)$$
 -/
 theorem classifyU_le_classify (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) :
     (classifyU p q u rs).le (classify p rs) = true :=
   classify_policy_mono (p := p) (p' := policyFor p q u rs) (Nat.le_refl _)
     (tMax_le_tBound p q u rs) rs
 
-/-- **Soundness.** The class returned holds for the runs.
-
-$$\forall p, q, u, R:\ \operatorname{Holds}(\operatorname{classify}_{p,q}(u, R), R)$$
--/
+/-- **Soundness.** The class returned holds for the runs. -/
 theorem classifyU_sound (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) :
     Holds (classifyU p q u rs) rs :=
   classify_sound _ rs
 
 /-- **Strictest.** Any class the type's policy allows and the runs satisfy is at most as strict as
 the one returned.
-
-$$\forall p, q, u, R, c:\ \operatorname{adm}_{p_q(u, R)}(c) \ \land\ \operatorname{Holds}(c, R) \;\Rightarrow\; \operatorname{classify}_{p,q}(u, R) \preceq c$$
 -/
 theorem classifyU_strictest (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) (c : Class)
     (hc : Admissible (policyFor p q u rs) c) (h : Holds c rs) : (classifyU p q u rs).le c = true :=
   classify_strictest _ rs c hc h
 
-/-- Quarantined exactly when the runs are not stable within `kMax` and the type's gap bound.
-
-$$\forall p, q, u, R:\ \operatorname{classify}_{p,q}(u, R) = \mathrm{quar} \iff \neg\operatorname{Holds}\big(\mathrm{stable}(k_{\max}, \operatorname{tb}_{p,q}(u, R)), R\big)$$
--/
+/-- Quarantined exactly when the runs are not stable within `kMax` and the type's gap bound. -/
 theorem classifyU_quarantined_iff (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) :
     classifyU p q u rs = .quarantined ↔ ¬ Holds (.stable p.kMax (tBound p q u rs)) rs :=
   classify_quarantined_iff _ rs
 
-/-- The smallest absolute total is at most the absolute total of each run.
-
-$$\forall R, r:\ r \in R \;\Rightarrow\; m(R) \le |\Sigma r|$$
--/
+/-- The smallest absolute total is at most the absolute total of each run. -/
 theorem minAbsTotal_le : ∀ {rs : List Series} {r : Series}, r ∈ rs → minAbsTotal rs ≤ (total r).natAbs
   | [_], _, h => by simp at h; subst h; simp [minAbsTotal]
   | a :: b :: rs, r, h => by
@@ -722,10 +542,7 @@ theorem minAbsTotal_le : ∀ {rs : List Series} {r : Series}, r ∈ rs → minAb
     · subst h; exact Nat.min_le_left _ _
     · exact Nat.le_trans (Nat.min_le_right _ _) (minAbsTotal_le h)
 
-/-- For runs, the smallest absolute total is the absolute total of one of them.
-
-$$\forall R:\ R \ne [\,] \;\Rightarrow\; \exists r \in R:\ m(R) = |\Sigma r|$$
--/
+/-- For runs, the smallest absolute total is the absolute total of one of them. -/
 theorem minAbsTotal_mem : ∀ {rs : List Series}, rs ≠ [] → ∃ r ∈ rs, minAbsTotal rs = (total r).natAbs
   | [r], _ => ⟨r, by simp, rfl⟩
   | a :: b :: rs, _ => by
@@ -737,8 +554,6 @@ theorem minAbsTotal_mem : ∀ {rs : List Series}, rs ≠ [] → ∃ r ∈ rs, mi
 
 /-- Adding runs never raises the bound: for non-empty `R ⊆ R'` the bound of `R'` is at most that
 of `R`.
-
-$$\forall p, q, u, R, R':\ R \ne [\,] \ \land\ R \subseteq R' \;\Rightarrow\; \operatorname{tb}_{p,q}(u, R') \le \operatorname{tb}_{p,q}(u, R)$$
 -/
 theorem tBound_anti (p : Policy) (q : PxTol) (u : TypeUnit) {rs rs' : List Series} (hne : rs ≠ [])
     (hs : ∀ r ∈ rs, r ∈ rs') : tBound p q u rs' ≤ tBound p q u rs := by
@@ -753,16 +568,11 @@ theorem tBound_anti (p : Policy) (q : PxTol) (u : TypeUnit) {rs rs' : List Serie
     generalize q.num * minAbsTotal rs / q.den = b at hd ⊢
     omega
 
-/-- `classify` of no runs is deterministic.
-
-$$\forall p:\ \operatorname{classify}_p([\,]) = \mathrm{det}$$
--/
+/-- `classify` of no runs is deterministic. -/
 theorem classify_nil (p : Policy) : classify p [] = .deterministic := rfl
 
 /-- **Monotone in the runs.** Classifying a superset of the runs never gives a stricter class, for
 counts and pixel areas alike.
-
-$$\forall p, q, u, R, R':\ R \subseteq R' \;\Rightarrow\; \operatorname{classify}_{p,q}(u, R) \preceq \operatorname{classify}_{p,q}(u, R')$$
 -/
 theorem classifyU_mono (p : Policy) (q : PxTol) (u : TypeUnit) {rs rs' : List Series}
     (hs : ∀ r ∈ rs, r ∈ rs') : (classifyU p q u rs).le (classifyU p q u rs') = true := by
@@ -775,8 +585,6 @@ theorem classifyU_mono (p : Policy) (q : PxTol) (u : TypeUnit) {rs rs' : List Se
 
 /-- **Monotone in the tolerance.** With the same denominator, a larger numerator never gives a
 stricter class.
-
-$$\forall p, q, q', u, R:\ q.\mathit{num} \le q'.\mathit{num} \ \land\ q.\mathit{den} = q'.\mathit{den} \;\Rightarrow\; \operatorname{classify}_{p,q'}(u, R) \preceq \operatorname{classify}_{p,q}(u, R)$$
 -/
 theorem classifyU_tol_mono (p : Policy) {q q' : PxTol} (hn : q.num ≤ q'.num) (hd : q.den = q'.den)
     (u : TypeUnit) (rs : List Series) : (classifyU p q' u rs).le (classifyU p q u rs) = true := by
@@ -792,8 +600,6 @@ theorem classifyU_tol_mono (p : Policy) {q q' : PxTol} (hn : q.num ≤ q'.num) (
 
 /-- Classify every count type that occurs in any frame of any run (sorted by name), each under the
 policy of its unit.
-
-$$\operatorname{classifyAll}_{p,q}(\mathcal{R}) = \big[\,(\tau,\ \operatorname{classify}_{p,q}(\operatorname{unit}(\tau), R_\tau),\ k(R_\tau),\ t(R_\tau))\,\big]_{\tau \in \operatorname{keys}(\mathcal{R})},\quad R_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{R}}$$
 -/
 def classifyAllU (p : Policy) (q : PxTol) (runs : List (List Counts)) : List ClassRow :=
   (keysOf runs.flatten).map fun k =>
@@ -804,18 +610,12 @@ def classifyAllU (p : Policy) (q : PxTol) (runs : List (List Counts)) : List Cla
     [[[("a", 1), ("x.AreaPx", 100000)]], [[("a", 30), ("x.AreaPx", 100050)]]] ==
   [⟨"a", .quarantined, 1, 29⟩, ⟨"x.AreaPx", .stable 1 50, 1, 50⟩]
 
-/-- **Total.** The table has exactly one row per count type, in the order of the keys.
-
-$$\forall p, q, \mathcal{R}:\ [\,k \mid (k, \cdot, \cdot, \cdot) \in \operatorname{classifyAll}_{p,q}(\mathcal{R})\,] = \operatorname{keys}(\mathcal{R})$$
--/
+/-- **Total.** The table has exactly one row per count type, in the order of the keys. -/
 theorem classifyAllU_types (p : Policy) (q : PxTol) (runs : List (List Counts)) :
     (classifyAllU p q runs).map (·.type) = keysOf runs.flatten := by
   simp [classifyAllU, Function.comp_def]
 
-/-- Each row is the unit-aware classification of its type's series, with the observed maxima.
-
-$$\forall p, q, \mathcal{R}, (\tau, c, k', t') \in \operatorname{classifyAll}_{p,q}(\mathcal{R}):\ c = \operatorname{classify}_{p,q}(\operatorname{unit}(\tau), R_\tau) \ \land\ k' = k(R_\tau) \ \land\ t' = t(R_\tau),\quad R_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{R}}$$
--/
+/-- Each row is the unit-aware classification of its type's series, with the observed maxima. -/
 theorem classifyAllU_row (p : Policy) (q : PxTol) (runs : List (List Counts)) :
     ∀ row ∈ classifyAllU p q runs, let rs := runs.map (seriesOf row.type)
       row.cls = classifyU p q (unitOf row.type) rs ∧ row.k = kObs rs ∧ row.t = tObs rs := by
@@ -824,10 +624,7 @@ theorem classifyAllU_row (p : Policy) (q : PxTol) (runs : List (List Counts)) :
   obtain ⟨k, _, rfl⟩ := h
   exact ⟨rfl, rfl, rfl⟩
 
-/-- **Count rows are unchanged.** When no type is a pixel area, the table is the count table.
-
-$$\forall p, q, \mathcal{R}:\ (\forall k \in \operatorname{keys}(\mathcal{R}):\ \operatorname{unit}(k) = \mathrm{count}) \;\Rightarrow\; \operatorname{classifyAll}_{p,q}(\mathcal{R}) = \operatorname{classifyAll}_p(\mathcal{R})$$
--/
+/-- **Count rows are unchanged.** When no type is a pixel area, the table is the count table. -/
 theorem classifyAllU_eq_of_counts (p : Policy) (q : PxTol) (runs : List (List Counts))
     (h : ∀ k ∈ keysOf runs.flatten, unitOf k = .count) : classifyAllU p q runs = classifyAll p runs := by
   simp only [classifyAllU, classifyAll]
@@ -835,10 +632,7 @@ theorem classifyAllU_eq_of_counts (p : Policy) (q : PxTol) (runs : List (List Co
   intro k hk
   simp [h k hk, classifyU_count]
 
-/-- Each row's class holds for that type's series over all the runs.
-
-$$\forall p, q, \mathcal{R}, (k, c, \cdot, \cdot) \in \operatorname{classifyAll}_{p,q}(\mathcal{R}):\ \operatorname{Holds}(c, [\operatorname{series}_k(r)]_{r \in \mathcal{R}})$$
--/
+/-- Each row's class holds for that type's series over all the runs. -/
 theorem classifyAllU_sound (p : Policy) (q : PxTol) (runs : List (List Counts)) :
     ∀ row ∈ classifyAllU p q runs, Holds row.cls (runs.map (seriesOf row.type)) := by
   intro row h

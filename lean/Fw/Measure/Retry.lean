@@ -27,10 +27,7 @@ namespace Fw.Measure.Retry
 
 /-! ## Classification -/
 
-/-- The class of an error message.
-
-$$\mathrm{ErrClass} = \{\mathrm{transient},\ \mathrm{permanent}\}$$
--/
+/-- The class of an error message. -/
 inductive ErrClass where
   | transient
   | permanent
@@ -40,34 +37,23 @@ inductive ErrClass where
 deadline passed (`ETIMEDOUT`, `timed out`), a device that is not ready yet (`unable to boot`, `device
 busy`, `resource temporarily unavailable`, `eagain`, `ebusy`), and a lost CoreSimulator connection
 (`connection invalid`, `connection interrupted`, `coresimulatorservice`).
-
-$$M = [\texttt{etimedout},\ \texttt{timed out},\ \texttt{unable to boot},\ \texttt{device busy},\ \texttt{device is busy},\ \texttt{temporarily unavailable},\ \texttt{eagain},\ \texttt{ebusy},\ \texttt{connection invalid},\ \texttt{connection interrupted},\ \texttt{coresimulatorservice}]$$
 -/
 def transientMarkers : List String :=
   ["etimedout", "timed out", "unable to boot", "device busy", "device is busy",
    "temporarily unavailable", "eagain", "ebusy", "connection invalid", "connection interrupted",
    "coresimulatorservice"]
 
-/-- Substring search on character lists.
-
-$$\mathrm{infixOf}(p, s) \iff \exists u, v:\ s = u \cdot p \cdot v$$
--/
+/-- Substring search on character lists. -/
 def infixOf (p : List Char) : List Char → Bool
   | [] => p.isEmpty
   | c :: cs => p.isPrefixOf (c :: cs) || infixOf p cs
 
-/-- The message has a transient marker, ignoring ASCII case.
-
-$$\mathrm{hasMarker}(e) \iff \exists m \in M:\ m \ne \texttt{""} \land \mathrm{infixOf}(m, \mathrm{lower}(e))$$
--/
+/-- The message has a transient marker, ignoring ASCII case. -/
 def hasMarker (e : String) : Bool :=
   let l := e.toLower.toList
   transientMarkers.any fun m => !m.isEmpty && infixOf m.toList l
 
-/-- The class of an error message.
-
-$$\mathrm{classify}(e) = \begin{cases} \mathrm{transient} & \mathrm{hasMarker}(e) \\ \mathrm{permanent} & \text{otherwise}\end{cases}$$
--/
+/-- The class of an error message. -/
 def classify (e : String) : ErrClass := if hasMarker e then .transient else .permanent
 
 #guard classify "ETIMEDOUT" == .transient
@@ -79,21 +65,13 @@ def classify (e : String) : ErrClass := if hasMarker e then .transient else .per
 
 /-- Ask again: the error is transient and fewer than `n` attempts were made. `a` = attempts made so
 far (the one that just failed included), `n` = the limit.
-
-$$\mathrm{shouldRetry}(c, a, n) \iff c = \mathrm{transient} \land a < n$$
 -/
 def shouldRetry (c : ErrClass) (a n : Nat) : Bool := decide (c = .transient) && decide (a < n)
 
-/-- Wait in ms before attempt `a + 1`: doubling from `base`, never above `cap`.
-
-$$\mathrm{delay}(a) = \min\!\big(\mathit{cap},\ \mathit{base} \cdot 2^{\max(a,1) - 1}\big)$$
--/
+/-- Wait in ms before attempt `a + 1`: doubling from `base`, never above `cap`. -/
 def delay (base cap a : Nat) : Nat := min cap (base * 2 ^ (a - 1))
 
-/-- Wait in ms for attempt `a` under the shipped constants: base 2,000, cap 30,000.
-
-$$\mathrm{wait}(a) = \mathrm{delay}(2000,\ 30000,\ a)$$
--/
+/-- Wait in ms for attempt `a` under the shipped constants: base 2,000, cap 30,000. -/
 def wait (a : Nat) : Nat := delay 2000 30000 a
 
 #guard wait 1 == 2000
@@ -105,8 +83,6 @@ def wait (a : Nat) : Nat := delay 2000 30000 a
 
 /-- How a plan ended: the sequence of errors ended before the policy stopped (the next attempt worked),
 the limit was reached with a transient error, or a permanent error stopped it.
-
-$$\mathrm{Outcome} = \{\mathrm{succeeded},\ \mathrm{exhausted},\ \mathrm{permanent}\}$$
 -/
 inductive Outcome where
   | succeeded
@@ -116,8 +92,6 @@ inductive Outcome where
 
 /-- The waits taken, one per retry, when attempt `a, a+1, …` fail with the errors `cs` (the attempt
 after the last error succeeds). Structural in `cs`, hence total.
-
-$$\mathrm{plan}(n, [\,], a) = [\,],\qquad \mathrm{plan}(n, c :: cs, a) = \begin{cases} \mathrm{wait}(a) :: \mathrm{plan}(n, cs, a+1) & \mathrm{shouldRetry}(c, a, n) \\ [\,] & \text{otherwise} \end{cases}$$
 -/
 def plan (n : Nat) : List ErrClass → Nat → List Nat
   | [], _ => []
@@ -125,8 +99,6 @@ def plan (n : Nat) : List ErrClass → Nat → List Nat
 
 /-- How the plan ends: `succeeded` when the errors ran out while being retried, else the reason the
 policy stopped.
-
-$$\mathrm{outcome}(n, [\,], a) = \mathrm{succeeded},\qquad \mathrm{outcome}(n, c :: cs, a) = \begin{cases} \mathrm{outcome}(n, cs, a+1) & \mathrm{shouldRetry}(c, a, n) \\ \mathrm{exhausted} & \neg\mathrm{shouldRetry}(c, a, n) \wedge c = \mathrm{transient} \\ \mathrm{permanent} & \text{otherwise} \end{cases}$$
 -/
 def outcome (n : Nat) : List ErrClass → Nat → Outcome
   | [], _ => .succeeded
@@ -141,25 +113,16 @@ def outcome (n : Nat) : List ErrClass → Nat → Outcome
 
 /-! ## Theorems -/
 
-/-- A permanent error is never retried, for any attempt count and limit.
-
-$$\forall a, n \in \mathbb{N}:\ \mathrm{shouldRetry}(\mathrm{permanent}, a, n) = \mathrm{false}$$
--/
+/-- A permanent error is never retried, for any attempt count and limit. -/
 theorem permanent_never_retried (a n : Nat) : shouldRetry .permanent a n = false := by
   simp [shouldRetry]
 
-/-- A plan whose first error is permanent takes no wait and ends as `permanent`.
-
-$$\forall n, a, cs:\ \mathrm{plan}(n, \mathrm{permanent} :: cs, a) = [\,] \ \land\ \mathrm{outcome}(n, \mathrm{permanent} :: cs, a) = \mathrm{permanent}$$
--/
+/-- A plan whose first error is permanent takes no wait and ends as `permanent`. -/
 theorem plan_permanent (n a : Nat) (cs : List ErrClass) :
     plan n (.permanent :: cs) a = [] ∧ outcome n (.permanent :: cs) a = .permanent := by
   simp [plan, outcome, permanent_never_retried]
 
-/-- A retry needs a transient error and attempts left.
-
-$$\mathrm{shouldRetry}(c, a, n) = \mathrm{true} \iff c = \mathrm{transient} \land a < n$$
--/
+/-- A retry needs a transient error and attempts left. -/
 theorem shouldRetry_iff (c : ErrClass) (a n : Nat) :
     shouldRetry c a n = true ↔ c = .transient ∧ a < n := by
   simp [shouldRetry]
@@ -167,8 +130,6 @@ theorem shouldRetry_iff (c : ErrClass) (a n : Nat) :
 /-- Every failure sequence stops: from attempt `a` with limit `n`, whatever the errors, the number of
 retries is at most `n - a` (zero when `a ≥ n`), so the total number of attempts is at most
 `max(a, n)`.
-
-$$\forall n, a \in \mathbb{N},\ cs:\ |\mathrm{plan}(n, cs, a)| \le n \mathbin{\dot-} a \ \land\ a + |\mathrm{plan}(n, cs, a)| \le \max(a, n)$$
 -/
 theorem retry_terminates (n : Nat) (cs : List ErrClass) (a : Nat) :
     (plan n cs a).length ≤ n - a ∧ a + (plan n cs a).length ≤ max a n := by
@@ -186,8 +147,6 @@ theorem retry_terminates (n : Nat) (cs : List ErrClass) (a : Nat) :
 
 /-- A run of transient errors uses the whole budget and no more: `k` transient errors from attempt `a`
 give `min(k, n - a)` retries.
-
-$$\forall n, a, k \in \mathbb{N}:\ |\mathrm{plan}(n, \mathrm{transient}^k, a)| = \min(k,\ n \mathbin{\dot-} a)$$
 -/
 theorem plan_transient_exact (n a k : Nat) :
     (plan n (List.replicate k .transient) a).length = min k (n - a) := by
@@ -203,37 +162,25 @@ theorem plan_transient_exact (n a k : Nat) :
       simp [hs]
       omega
 
-/-- Every wait is at most the cap.
-
-$$\forall \mathit{base}, \mathit{cap}, a:\ \mathrm{delay}(\mathit{base}, \mathit{cap}, a) \le \mathit{cap}$$
--/
+/-- Every wait is at most the cap. -/
 theorem delay_le_cap (base cap a : Nat) : delay base cap a ≤ cap := by
   exact Nat.min_le_left _ _
 
-/-- Every wait is at least the base, when the cap allows.
-
-$$\forall \mathit{base} \le \mathit{cap}, a:\ \mathit{base} \le \mathrm{delay}(\mathit{base}, \mathit{cap}, a)$$
--/
+/-- Every wait is at least the base, when the cap allows. -/
 theorem delay_ge_base (base cap a : Nat) (h : base ≤ cap) : base ≤ delay base cap a := by
   have : 1 ≤ 2 ^ (a - 1) := Nat.one_le_two_pow
   have : base ≤ base * 2 ^ (a - 1) := Nat.le_mul_of_pos_right base this
   simp [delay]
   omega
 
-/-- The wait never shrinks as the attempts go on.
-
-$$\forall a \le b:\ \mathrm{delay}(\mathit{base}, \mathit{cap}, a) \le \mathrm{delay}(\mathit{base}, \mathit{cap}, b)$$
--/
+/-- The wait never shrinks as the attempts go on. -/
 theorem delay_mono (base cap : Nat) {a b : Nat} (h : a ≤ b) : delay base cap a ≤ delay base cap b := by
   unfold delay
   have : 2 ^ (a - 1) ≤ 2 ^ (b - 1) := Nat.pow_le_pow_right (by decide) (by omega)
   have h2 := Nat.mul_le_mul_left base this
   omega
 
-/-- Each wait of a plan is at most the shipped cap, so the total wait is below `n · 30,000` ms.
-
-$$\forall n, a \in \mathbb{N},\ cs:\ \sum \mathrm{plan}(n, cs, a) \le 30000 \cdot (n \mathbin{\dot-} a)$$
--/
+/-- Each wait of a plan is at most the shipped cap, so the total wait is below `n · 30,000` ms. -/
 theorem plan_wait_le (n : Nat) (cs : List ErrClass) (a : Nat) :
     (plan n cs a).sum ≤ 30000 * (n - a) := by
   induction cs generalizing a with
@@ -248,10 +195,7 @@ theorem plan_wait_le (n : Nat) (cs : List ErrClass) (a : Nat) :
       omega
     · simp [h]
 
-/-- A message with no marker is permanent, and one with a marker is transient.
-
-$$\mathrm{classify}(e) = \mathrm{transient} \iff \mathrm{hasMarker}(e)$$
--/
+/-- A message with no marker is permanent, and one with a marker is transient. -/
 theorem classify_transient_iff (e : String) : classify e = .transient ↔ hasMarker e = true := by
   unfold classify
   by_cases h : hasMarker e = true <;> simp [h]
