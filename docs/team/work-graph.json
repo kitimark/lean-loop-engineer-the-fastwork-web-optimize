@@ -8186,7 +8186,8 @@
     "docs/team/tools/circleci.md",
     "docs/team/tools/fw-ci.md",
     "research/notes/2026/10-20-circleci-pilot.md",
-    "docs/team/handoffs/circleci-pilot.md"
+    "docs/team/handoffs/circleci-pilot.md",
+    "scripts/scrub-allow.json"
    ]
   },
   {
