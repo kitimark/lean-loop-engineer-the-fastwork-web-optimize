@@ -6308,7 +6308,8 @@
     "packages/contracts/golden/gate/**",
     "docs/team/handoffs/gate-variant-roles.md",
     "lean/Fw/Wire/GateGolden.lean"
-   ]
+   ],
+   "evidence": "58db42d"
   },
   {
    "devices": [

@@ -86,7 +86,9 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     Object.entries(activeParts).map(([pid, p]) => {
       // a box is collected only where it is compared or used as a reference: the original's headline is animated text
       const needed = new Set(p.roles.flatMap((r) => (r.dims.length > 0 ? [r.role, ...(r.boxRel ? [r.boxRel.role] : [])] : [])));
-      return [pid, p.roles.map((r) => ({ role: r.role, selector: r[site], rect: needed.has(r.role), inline: site === 'orig' ? (r.skipIfInline ?? []) : [] }))];
+      // a variant role (Lean Fw.Gate.VariantRole) is read on the rewrite arm only and only for its count
+      const variantRoles = site === 'rewrite' ? (p.variantRoles ?? []).map((v) => ({ role: v.role, selector: v.rewrite, rect: false, inline: [] })) : [];
+      return [pid, [...p.roles.map((r) => ({ role: r.role, selector: r[site], rect: needed.has(r.role), inline: site === 'orig' ? (r.skipIfInline ?? []) : [] })), ...variantRoles]];
     }))]));
 
   async function load(env, site) {
@@ -244,6 +246,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const refEnv = { width: 1440, height: 900, deviceWidth: 1440, deviceHeight: 900, dpr: 1, hover: 'hover', pointer: 'fine', reducedMotion: 'no-preference', colorScheme: 'light' };
   const declared = {};
   let loadedConfig = null;
+  const variants = {};
   for (const site of SITES) {
     const s = await load(refEnv, site);
     await parkEarly(s, refEnv); // the declared lists are read with the pointer parked, as every sample is (nav.hitTest header flake)
@@ -267,6 +270,11 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       loadedConfig = await s.evaluate(() => document.getElementById('root')?.dataset.fwConfig ?? null);
       const want = variantPage.hash ?? buildInfo.configHash;
       if (loadedConfig !== want) throw new Error(`rewrite arm loaded config ${loadedConfig}, expected ${want} for flags "${variantPage.search}"`);
+      // the variant each part with variant roles rendered, read from the page's own data-fw-variant on the part root
+      for (const [pid, p] of Object.entries(activeParts)) {
+        if (!(p.variantRoles ?? []).length) continue;
+        variants[pid] = await s.evaluate((fw) => document.querySelector(`[data-fw="${fw}"]`)?.getAttribute('data-fw-variant') ?? null, p.anchors[0]);
+      }
     }
     await s.close();
   }
@@ -402,6 +410,8 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     site: { buildId: buildInfo.buildId, configHash: buildInfo.configHash, muiCss: buildInfo.muiCss },
     // the flags the rewrite arm ran with ('' = the default config) and the config hash the browser read from the loaded page
     flags: { search: variantPage.search, configHash: loadedConfig },
+    // per part with variant roles: the variant the rewrite page rendered (null: no data-fw-variant)
+    ...(Object.keys(variants).length ? { variants } : {}),
     port: portOf(engineName),
     pinnedDate: '2026-10-01T00:00:00+07:00',
     clock: frozen ? { kind: 'frozen', stepMs: STEP_MS, holdLoadMs: HOLD_LOAD_MS, readyToMs: READY_TO_MS, postResizeMs: POST_RESIZE_MS, mainOffMs: MAIN_OFF_MS, slotMs: SLOT_MS } : { kind: 'native' },
