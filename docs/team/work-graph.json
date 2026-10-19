@@ -6834,7 +6834,8 @@
    "stream": "ops",
    "milestone": "M5",
    "deps": [
-    "skills-reframe"
+    "skills-reframe",
+    "latex-lint-relax"
    ],
    "owner": "lead",
    "writes": [
@@ -6861,7 +6862,48 @@
     ".claude/agents/checker.md",
     "docs/team/token-policy.md",
     "CLAUDE.md",
-    "docs/team/handoffs/skills-reframe.md"
+    "docs/team/handoffs/skills-reframe.md",
+    ".claude/workflows/build-review.js",
+    "docs/team/tools/context-lint.md"
+   ],
+   "evidence": "d739fd0"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-lint-relax",
+   "owner": "lean-prover",
+   "title": "lean-latex-removal step B0: the mathview lint stops refusing Fw declarations without $$ math or English (sorry, non-standard axioms and export failures still refuse); closes the window opened by the no-LaTeX preamble",
+   "deps": [],
+   "writes": [
+    "lean/MathView.lean",
+    "lean/MathViewMain.lean",
+    "lean/scripts/**",
+    ".github/workflows/lean.yml",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/**",
+    "packages/contracts/golden/ops/**",
+    "docs/team/handoffs/latex-lint-relax.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "comment-sicko-spawn",
+   "owner": "lean-prover",
+   "title": "Register comment-sicko as a lead-only unnamed edit helper: (subagent, edits) row in Fw.Ops.SpawnGuard prodRoles and leadEditHelpers, hook ROLES in apps/runner/hooks/spawn-guard.mjs, goldens; context-lint exemption for 'Adapted from' attribution lines (Fw.Lint.Context)",
+   "deps": [
+    "skills-reframe"
+   ],
+   "writes": [
+    "lean/Fw/Ops/SpawnGuard*.lean",
+    "lean/Fw/Lint/Context*.lean",
+    "apps/runner/hooks/spawn-guard.mjs",
+    "apps/runner/test/**",
+    "packages/contracts/golden/ops/**",
+    "docs/team/handoffs/comment-sicko-spawn.md"
    ]
   }
  ],

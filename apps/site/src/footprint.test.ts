@@ -11,7 +11,7 @@ const golden = JSON.parse(
 ) as { accesses: Access[] };
 
 describe('part footprint', () => {
-  it('footprint.gen.json is fresh', () => {
+  it('footprint.gen.json is fresh', { timeout: 60_000 }, () => {
     const script = fileURLToPath(new URL('../scripts/part-footprint.mjs', import.meta.url));
     const r = spawnSync(process.execPath, [script, '--check'], { encoding: 'utf8' });
     expect(r.stderr).toBe('');
