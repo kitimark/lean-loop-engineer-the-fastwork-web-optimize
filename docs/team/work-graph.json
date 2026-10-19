@@ -7322,7 +7322,7 @@
    "id": "land-lane-followups",
    "owner": "console-builder",
    "stream": "ops",
-   "title": "Land lane follow-ups: fork-point base for multi-commit branches; record ci/preview-pin in refs with a named failure when objects are missing; coreUser list in Lean",
+   "title": "Land lane follow-ups: fork-point base for multi-commit branches; record ci/preview-pin in refs with a named failure when objects are missing; coreUser list in Lean; uniform skip rule (drop the engine-check exemption), handoff run ids, echo main sha in land.yml, stale verdict comments, runTier local usage, merge+marker test, checks.ts select2 comment",
    "deps": [
     "land-lane"
    ],
@@ -7350,6 +7350,27 @@
     "packages/engine-check/src/wave2.mjs",
     "packages/engine-check/test/wave2.test.mjs",
     "results/integrate-wave-2/engine-check/summary.json"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "people-layout-shift",
+   "owner": "measure-engineer",
+   "stream": "parts",
+   "title": "People section layout vs the original: per width and engine, element boxes (section, sticky, cards, deck, carousel, o) and layout shifts over load and scroll (Chromium layout-shift entries, WebKit box deltas per frame); each difference named with its cause; fix in the port when local and clear",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/people/**",
+    "apps/site/src/parts/people.*/**",
+    "apps/site/src/styles/**",
+    "packages/visual-diff/**",
+    ".github/workflows/visual-diff.yml",
+    "lean/Fw/Parts/**",
+    "packages/contracts/golden/parts/**",
+    "research/notes/2026/10-19-people-layout*.md",
+    "docs/team/handoffs/people-layout-shift.md"
    ]
   }
  ],
