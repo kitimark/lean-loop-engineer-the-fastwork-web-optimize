@@ -301,6 +301,81 @@ theorem workflow_selects_checkSh (ds : List Decl) (changed : List String) (x : S
     simp [matchesPath, globMatch, segMatch, List.range_succ]
   simpa using matchesPath_append _ _ r h2
 
+/-! ### The read-set scan: selected by every change a check can read -/
+
+/-- The id of the static read-set scan (`apps/runner` `test/land-inputs.test.ts`, premise `land.readsOnly`).
+$$\mathrm{scanId} = \texttt{reads-scan}$$ -/
+def scanId : String := "reads-scan"
+
+/-- The inclusion globs of a declared read list (exclusions dropped, so the scan over-approximates).
+$$\operatorname{pos}(G) = [\, g \in G : g_0 \ne \texttt{!}\,]$$ -/
+def posGlobs (G : List String) : List String := G.filter (!·.startsWith "!")
+
+/-- The scan's own reads: every inclusion glob any check of the table declares (package sources, extra reads, lock files).
+$$G_{\mathrm{scan}}(D) = \operatorname{concat}[\, \operatorname{pos}(d.G) : d \in D \,]$$ -/
+def scanReads (ds : List Decl) : List String := ds.flatMap (fun d => posGlobs d.reads)
+
+/-- The table with the scan appended as its own cheap check.
+$$D^{+} = D \mathbin{+\!\!+} [(\texttt{reads-scan},\ G_{\mathrm{scan}}(D))]$$ -/
+def withScan (ds : List Decl) : List Decl := ds ++ [⟨scanId, scanReads ds⟩]
+
+/-- Every glob of the scan reads is an inclusion.
+$$\forall D, g \in G_{\mathrm{scan}}(D):\ g_0 \ne \texttt{!}$$ -/
+theorem scanReads_no_excl (ds : List Decl) : ∀ g ∈ scanReads ds, g.startsWith "!" = false := by
+  intro g hg
+  simp only [scanReads, posGlobs, List.mem_flatMap, List.mem_filter] at hg
+  obtain ⟨_, _, h⟩ := hg
+  simpa using h.2
+
+/-- A path in the scope of any declared check is in the scope of the scan.
+$$\forall D, d \in D, x:\ \mathrm{in}(\mathrm{parse}(d.G), x) \Rightarrow \mathrm{in}(\mathrm{parse}(G_{\mathrm{scan}}(D)), x)$$ -/
+theorem inScope_scanReads (ds : List Decl) (d : Decl) (hd : d ∈ ds) (x : String)
+    (h : inScope (parseScope d.reads) x = true) : inScope (parseScope (scanReads ds)) x = true := by
+  rw [inScope_iff] at h ⊢
+  obtain ⟨h1, h2, ⟨g, hg, hm⟩, _⟩ := h
+  refine ⟨h1, h2, ⟨g, ?_, hm⟩, ?_⟩
+  · simp only [parseScope, List.mem_map, List.mem_filter] at hg ⊢
+    obtain ⟨s, hs, rfl⟩ := hg
+    refine ⟨s, ⟨?_, hs.2⟩, rfl⟩
+    simp only [scanReads, posGlobs, List.mem_flatMap, List.mem_filter]
+    exact ⟨d, hd, hs.1, hs.2⟩
+  · intro g hg
+    simp only [parseScope, List.mem_map, List.mem_filter] at hg
+    obtain ⟨s, ⟨hs, hb⟩, _⟩ := hg
+    have := scanReads_no_excl ds s hs
+    simp_all
+
+/-- **Selection soundness of the read-set scan.** If any changed path lies in the scope of any check's declared reads
+(package sources included), the scan is selected: a land that changes only `apps/site` still runs it.
+$$\forall D, X, d \in D, x \in X:\ \mathrm{in}(\mathrm{parse}(d.G), x) \Rightarrow \texttt{reads-scan} \in \operatorname{select}(D^{+}, X)$$ -/
+theorem scan_selected (ds : List Decl) (changed : List String) (d : Decl) (hd : d ∈ ds) (x : String)
+    (hx : x ∈ changed) (hin : inScope (parseScope d.reads) x = true) :
+    scanId ∈ selectChecks (withScan ds) changed :=
+  (mem_selectChecks _ _ _).2 ⟨⟨scanId, scanReads ds⟩, by simp [withScan],
+    List.any_eq_true.2 ⟨x, hx, inScope_scanReads ds d hd x hin⟩, rfl⟩
+
+/-- Precision: if no table check has the scan's id and no changed path lies in the scope of the scan's reads, the scan is not selected.
+$$\left(\forall d \in D:\ d.\mathit{id} \ne \texttt{reads-scan}\right) \Rightarrow \left(\forall x \in X:\ \lnot\mathrm{in}(\mathrm{parse}(G_{\mathrm{scan}}(D)), x)\right) \Rightarrow \texttt{reads-scan} \notin \operatorname{select}(D^{+}, X)$$ -/
+theorem scan_not_selected (ds : List Decl) (changed : List String)
+    (hid : ∀ d ∈ ds, d.id ≠ scanId)
+    (h : ∀ x ∈ changed, inScope (parseScope (scanReads ds)) x = false) :
+    scanId ∉ selectChecks (withScan ds) changed := by
+  intro hm
+  obtain ⟨d, hd, hsel, hid'⟩ := (mem_selectChecks _ _ _).1 hm
+  simp only [withScan, List.mem_append, List.mem_singleton] at hd
+  rcases hd with hd | rfl
+  · exact hid d hd hid'
+  · obtain ⟨x, hx, hx'⟩ := List.any_eq_true.1 hsel
+    simp [h x hx] at hx'
+
+/-- The sample table with a site package check and the scan.
+$$D_1 = (D_0 \mathbin{+\!\!+} [(\texttt{site}, [\texttt{apps/site/**}])])^{+}$$ -/
+def scanDecls : List Decl := withScan (sampleDecls ++ [⟨"site", ["apps/site/**"]⟩])
+
+#guard selectChecks scanDecls ["apps/site/src/x.ts"] == ["site", "reads-scan"]
+#guard selectChecks scanDecls ["docs/team/handoffs/x.md"] == []
+#guard selectChecks scanDecls ["packages/contracts/golden/obs/timing.jsonl"] == ["check.sh", "contracts", "reads-scan"]
+
 /-! ## (b) Cone skip: per-module lint with Merkle keys over the import DAG -/
 
 /-- A module name. $$\mathrm{Mod} = \mathrm{String}$$ -/
@@ -814,7 +889,7 @@ $$\mathrm{premises} = [p_1, \dots, p_9],\quad p_k = (\mathit{id}_k, \mathit{stat
 def premises : List PremiseRow := [
   ⟨"land.readsOnly", "a check reads only its declared inputs (E1)",
     ["cache_sound", "cachedRun_eq", "skip_sound", "seq_eq_all", "evidence_irrelevant"],
-    "apps/runner/test/land-inputs.test.ts: a change to an undeclared input (packages/contracts/golden/obs/timing.jsonl) selects check.sh; CI strace reads ⊆ declared reads"⟩,
+    "apps/runner/test/land-inputs.test.ts: a change to an undeclared input (packages/contracts/golden/obs/timing.jsonl) selects check.sh; any change in a check's declared reads selects the reads-scan check (scan_selected); CI strace reads ⊆ declared reads"⟩,
   ⟨"land.readsWithin", "a check reads only paths in the scope of its declared globs (E1 for globs)",
     ["skip_sound"], "apps/runner/test/land-inputs.test.ts: checksFor equals selectChecks on golden landSpeed.select"⟩,
   ⟨"land.noCollision", "sha256 of the canonical key encoding has no collision (A1, A2; assumption, not tested)",
@@ -890,8 +965,8 @@ def premiseCase (p : PremiseRow) : Json :=
   line s!"premise {p.id}" [("op", "landSpeed.premise"), ("id", .str p.id)]
     [("statement", .str p.statement), ("theorems", strs p.theorems), ("test", .str p.test)]
 
-/-- Every golden case: 9 select, 6 prelock, 6 verdict and 4 cache cases, then one row per premise.
-$$\mathrm{cases} = \mathrm{select}_{1..9} \mathbin{+\!\!+} \mathrm{prelock}_{1..6} \mathbin{+\!\!+} \mathrm{verdict}_{1..6} \mathbin{+\!\!+} \mathrm{cache}_{1..4} \mathbin{+\!\!+} [\operatorname{premiseCase}(p) : p \in \mathrm{premises}]$$ -/
+/-- Every golden case: 11 select, 6 prelock, 6 verdict and 4 cache cases, then one row per premise.
+$$\mathrm{cases} = \mathrm{select}_{1..11} \mathbin{+\!\!+} \mathrm{prelock}_{1..6} \mathbin{+\!\!+} \mathrm{verdict}_{1..6} \mathbin{+\!\!+} \mathrm{cache}_{1..4} \mathbin{+\!\!+} [\operatorname{premiseCase}(p) : p \in \mathrm{premises}]$$ -/
 def cases : List Json :=
   [selectCase "golden-only change selects check.sh (P5 mutation)" sampleDecls
       ["packages/contracts/golden/obs/timing.jsonl"],
@@ -904,6 +979,8 @@ def cases : List Json :=
     selectCase "excluded path is not selected" [⟨"lean", ["lean/**", "!lean/math.lock.json"]⟩]
       ["lean/math.lock.json"],
     selectCase "path with .. is never in scope" sampleDecls ["../lean/x.lean"],
+    selectCase "site-only change selects the read scan" scanDecls ["apps/site/src/x.ts"],
+    selectCase "docs-only change does not select the read scan" scanDecls ["docs/team/handoffs/x.md"],
     prelockCase "main unchanged, pass: fast-forward" "m0" "m0" true 0 3,
     prelockCase "main unchanged, fail: refuse" "m0" "m0" false 0 3,
     prelockCase "main moved: re-check" "m1" "m0" true 0 3,
@@ -921,7 +998,7 @@ def cases : List Json :=
     cacheCase "miss: run the check" [(7, true)] 8,
     cacheCase "empty store: miss" [] 0] ++ premises.map premiseCase
 
-#guard cases.length == 34
+#guard cases.length == 36
 
 /-- The golden file text: one compressed JSON line per case.
 $$\mathrm{goldenText} = \operatorname{concat}[\, \operatorname{compress}(c) \mathbin{+\!\!+} \text{"\textbackslash n"} \,]_{c \in \mathrm{cases}}$$ -/
