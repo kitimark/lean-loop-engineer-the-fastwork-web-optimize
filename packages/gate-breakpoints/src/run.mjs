@@ -11,6 +11,7 @@ import { HOLD_LOAD_MS, MAIN_OFF_MS, ORIG_GRACE_MS, POST_RESIZE_MS, READY_TO_MS, 
 import { GATE_POLICY, fold, idlePolicy, view, viewFor, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { makeViewBarrier, skippedParts, viewStage } from './view.mjs';
+import { DIAG_INIT, diagEvents, diagSnap } from './diag-cv.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
 const collectWith = async (s, arg) => { const raw = await s.evaluate(collectInPage, arg); if (arg.props) attachAlignFacts(raw, await s.evaluate(collectAlignFacts, { parts: arg.parts, props: arg.props })); return raw; };
@@ -63,6 +64,7 @@ export const portOf = (engineName, platform = process.platform) =>
  * (what the verdict rule is asked about) and the mapped one as `realized`. Null (the default) adds no `realized` and no `raw.gap`.
  */
 export async function runEngine({ engineName, outDir, concurrency = 4, probeFilter = null, sweepFilter = null, partFilter = null, gaps = null }) {
+  const DIAG_CV = process.env.FW_GATE_DIAG_CV === '1' || (Array.isArray(partFilter) && partFilter.join() === 'commission' && process.env.FW_GATE_DIAG_CV !== '0');
   const { gen, sha256: genSha } = loadGen();
   const anchors = loadAnchors();
   // Part selection (glue): only the chosen parts' elements are collected, so only their raw facts and property lists are
@@ -92,7 +94,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     }))]));
 
   async function load(env, site) {
-    return engine.open(env, { origin: servers[site].origin, path: site === 'rewrite' ? '/' + variantPage.search : '/', init: frozen ? PIN_SRC + '\n' + KIT_SRC : PIN_SRC, frozen });
+    return engine.open(env, { origin: servers[site].origin, path: site === 'rewrite' ? '/' + variantPage.search : '/', init: (frozen ? PIN_SRC + '\n' + KIT_SRC : PIN_SRC) + (DIAG_CV ? '\n' + DIAG_INIT : ''), frozen });
   }
   // anchors.json `prepare` (per part and arm) is the one route for page states that exist only after an action, all run by
   // page.mjs prepareInPage. A part with a prepare step is collected AFTER the rest, so every other part is read in the state a
@@ -318,6 +320,40 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       if (bad) throw bad.reason;
       return rs.map((r) => r.value);
     });
+  }
+
+  if (DIAG_CV) {
+    const SEL = {
+      orig: { section: 'section.commission', inner: '.commission-inner', rows: '.commission-rows' },
+      rewrite: { section: '[data-fw="commission"]', inner: '[data-fw="commission"] > div > div:first-child > div > div', rows: '[data-fw="commission"] > div > div:first-child > div > div > div:last-child' },
+    };
+    const N = Number(process.env.FW_DIAG_LOADS || 12);
+    for (const conc of [2, 8]) for (const width of [1440, 1512]) {
+      const env = { ...refEnv, width, deviceWidth: width };
+      const tasks = Array.from({ length: N }, (_, k) => SITES.map((site) => ({ site, k }))).flat();
+      await pool(tasks, conc, async ({ site, k }) => {
+        const s = await load(env, site);
+        try {
+          await parkEarly(s, env);
+          const rec = newRec();
+          await evalReady(s, site, rec);
+          const snaps = [];
+          const snap = async (tag) => snaps.push(await s.evaluate(diagSnap, { ...SEL[site], tag }));
+          await snap('ready');
+          await settleArm(s, site, env);
+          await snap('settled');
+          await snap('again');
+          await s.resize({ ...env, width: width + 1, deviceWidth: width + 1 });
+          await s.evaluate(waitResize);
+          await snap('wig+1');
+          await s.resize(env);
+          await s.evaluate(waitResize);
+          await snap('wigback');
+          const ev = await s.evaluate(diagEvents);
+          log('DIAGCV ' + JSON.stringify({ engine: engineName, site, conc, width, k, snaps, ev }));
+        } finally { await s.close().catch(() => {}); }
+      });
+    }
   }
 
   // Phase 1: the matrix.
