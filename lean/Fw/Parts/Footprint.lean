@@ -7,25 +7,26 @@ namespace Fw.Parts.Footprint
 /-- Kind of an extracted access. Reads: box (`rect`), viewport, scroll offset, clock, media query, event listener,
 scroll-list registration, hit test, computed style, attribute, class, and the CSS reads `var()`, `[attr]`,
 `:global(.c)`, `:has()` and a custom property defined from another. Writes: custom property, inline style, class,
-CSS-module class, attribute, window scroll.
+CSS-module class, attribute, scroll offset, element content (text or child nodes).
 
 $$\mathrm{op} \in \{\mathrm{rect}, \mathrm{vw}, \mathrm{vh}, \mathrm{scrollY}, \mathrm{clock}, \mathrm{media},
 \mathrm{listen}, \mathrm{register}, \mathrm{hitTest}, \mathrm{styleRead}, \mathrm{attrRead}, \mathrm{classRead},
 \mathrm{cssVar}, \mathrm{cssAttr}, \mathrm{cssClass}, \mathrm{cssHas}, \mathrm{cssAlias}, \mathrm{setVar},
-\mathrm{setStyle}, \mathrm{setClass}, \mathrm{setModuleClass}, \mathrm{setAttr}, \mathrm{scroll}\}$$
+\mathrm{setStyle}, \mathrm{setClass}, \mathrm{setModuleClass}, \mathrm{setAttr}, \mathrm{scroll}, \mathrm{setContent}\}$$
 
 The constructor names are the `op` strings of the footprint golden. -/
 inductive Op
   | rect | vw | vh | scrollY | clock | media | listen | register | hitTest | styleRead | attrRead | classRead
   | cssVar | cssAttr | cssClass | cssHas | cssAlias
-  | setVar | setStyle | setClass | setModuleClass | setAttr | scroll
+  | setVar | setStyle | setClass | setModuleClass | setAttr | scroll | setContent
 deriving Repr, DecidableEq, Inhabited
 
-/-- Every op, in constructor order. $$\mathrm{ops} = [\mathrm{rect}, \dots, \mathrm{scroll}]$$
+/-- Every op, in constructor order. $$\mathrm{ops} = [\mathrm{rect}, \dots, \mathrm{setContent}]$$
 Each constructor once. -/
 def Op.all : List Op :=
   [.rect, .vw, .vh, .scrollY, .clock, .media, .listen, .register, .hitTest, .styleRead, .attrRead, .classRead,
-   .cssVar, .cssAttr, .cssClass, .cssHas, .cssAlias, .setVar, .setStyle, .setClass, .setModuleClass, .setAttr, .scroll]
+   .cssVar, .cssAttr, .cssClass, .cssHas, .cssAlias, .setVar, .setStyle, .setClass, .setModuleClass, .setAttr, .scroll,
+   .setContent]
 
 /-- Golden name of an op. $$\operatorname{name}(\mathrm{op}) = \text{the constructor name}$$
 The `op` field of a footprint record. -/
@@ -35,7 +36,7 @@ def Op.name : Op → String
   | .attrRead => "attrRead" | .classRead => "classRead" | .cssVar => "cssVar" | .cssAttr => "cssAttr"
   | .cssClass => "cssClass" | .cssHas => "cssHas" | .cssAlias => "cssAlias" | .setVar => "setVar"
   | .setStyle => "setStyle" | .setClass => "setClass" | .setModuleClass => "setModuleClass" | .setAttr => "setAttr"
-  | .scroll => "scroll"
+  | .scroll => "scroll" | .setContent => "setContent"
 
 /-- Op of a golden name, the first op in `Op.all` carrying it.
 $$\operatorname{ofName}(s) = \begin{cases} \mathrm{some}(o) & o \text{ the first } o \in \mathrm{ops} \text{ with }
@@ -62,12 +63,12 @@ The enumeration is complete. -/
 theorem Op.mem_all : ∀ o : Op, o ∈ Op.all := by
   intro o; cases o <;> decide
 
-/-- A write op: it changes a property, class, attribute or the scroll offset.
+/-- A write op: it changes a property, class, attribute, the scroll offset or an element's content.
 $$\operatorname{isWrite}(o) \iff o \in \{\mathrm{setVar}, \mathrm{setStyle}, \mathrm{setClass}, \mathrm{setModuleClass},
-\mathrm{setAttr}, \mathrm{scroll}\}$$
+\mathrm{setAttr}, \mathrm{scroll}, \mathrm{setContent}\}$$
 Every other op reads. -/
 def Op.isWrite : Op → Bool
-  | .setVar | .setStyle | .setClass | .setModuleClass | .setAttr | .scroll => true
+  | .setVar | .setStyle | .setClass | .setModuleClass | .setAttr | .scroll | .setContent => true
   | _ => false
 
 /-- One extracted access. `part`: the part whose code runs it; `file`, `line`: its site under `apps/site/src/parts/`;
@@ -164,6 +165,7 @@ def localName (s : String) : String := (s.splitOn "#").getLastD s
 /-- Wires a read access feeds, as `Signal.wire` strings; owner `*` is a CSS read of any element.
 
 $$\operatorname{reads}(a) = \begin{cases}
+[\,] & \phi(a.\mathrm{ctx}) = \mathrm{cleanup} \\
 [\texttt{rect:}w] & \mathrm{op} = \mathrm{rect},\ w = \mathrm{owner} \text{ or } \texttt{?} \text{ if owner} = \texttt{""} \\
 [\mathrm{op}] & \mathrm{op} \in \{\mathrm{vw}, \mathrm{vh}, \mathrm{scrollY}, \mathrm{clock}\} \\
 [\,] & \mathrm{op} = \mathrm{media},\ \texttt{mq.rm-} \sqsubseteq n \\
@@ -179,7 +181,8 @@ $$\operatorname{reads}(a) = \begin{cases}
 [\,] & \text{otherwise (other listeners, register, hitTest, styleRead, cssAlias, writes)}
 \end{cases}$$
 
-$n$ is the access name; cleanup accesses read nothing. -/
+$n$ is the access name; the first matching case applies, so every case after the first assumes
+$\phi(a.\mathrm{ctx}) \ne \mathrm{cleanup}$. -/
 def reads (a : Access) : List String :=
   if phase a.ctx == .cleanup then [] else
   let w := if a.owner == "" then "*" else a.owner
@@ -207,22 +210,26 @@ $$\operatorname{writes}(a) = \begin{cases}
 [\texttt{className:}n/\mathrm{owner}] & \mathrm{op} \in \{\mathrm{setClass}, \mathrm{setAttr}\} \\
 [\texttt{className:}\operatorname{local}(n)/\mathrm{owner}] & \mathrm{op} = \mathrm{setModuleClass} \\
 [\texttt{scrollY}] & \mathrm{op} = \mathrm{scroll},\ \mathrm{owner} = \texttt{document} \\
+[\texttt{rect:}\mathrm{owner}] & \mathrm{op} = \mathrm{setContent},\ \mathrm{owner} \notin \{\texttt{""},
+\texttt{?}\} \\
 [\,] & \text{otherwise}
 \end{cases}$$
 
 Inline style properties share the `cssVar` wire with custom properties, as the contract rows do; an element's own
-scroll offset is not the page scroll position. -/
+scroll offset is not the page scroll position; new text or child nodes change the owner's box, and a content write
+to an unresolved element feeds no wire (its `unresolved-target` finding records it). -/
 def writes (a : Access) : List String :=
   match a.op with
   | .setVar | .setStyle => ["cssVar:" ++ a.name ++ "/" ++ a.owner]
   | .setClass | .setAttr => ["className:" ++ a.name ++ "/" ++ a.owner]
   | .setModuleClass => ["className:" ++ localName a.name ++ "/" ++ a.owner]
   | .scroll => if a.owner == "document" then ["scrollY"] else []
+  | .setContent => if a.owner == "" || a.owner == "?" then [] else ["rect:" ++ a.owner]
   | _ => []
 
 /-- A read access sets no wire.
 $$\forall a,\ \neg \operatorname{isWrite}(a.\mathrm{op}) \to \operatorname{writes}(a) = [\,]$$
-Only the six write ops produce outputs. -/
+Only the seven write ops produce outputs. -/
 theorem writes_nil_of_read (a : Access) (h : a.op.isWrite = false) : writes a = [] := by
   cases a with
   | mk part file line op name owner ctx => cases op <;> simp_all [writes, Op.isWrite]
@@ -249,19 +256,6 @@ def splitOwner (w : String) : String × String :=
   | o :: rest@(_ :: _) => ("/".intercalate rest.reverse, o)
   | _ => (w, "")
 
-/-- Do two wires name the same signal, up to an owner the extractor left open (`*` any element, `?` unresolved)?
-
-$$\operatorname{same}(u, v) \iff u = v \lor (p_u = p_v \land o_u \ne \texttt{""} \land o_v \ne \texttt{""} \land
-(o_u \in \{\texttt{*}, \texttt{?}\} \lor o_v \in \{\texttt{*}, \texttt{?}\})),\quad (p_u, o_u) =
-\operatorname{split}(u),\ (p_v, o_v) = \operatorname{split}(v)$$
-
-A wire with an empty owner (no `/` or a trailing one) matches only itself. -/
-def same (u v : String) : Bool :=
-  u == v ||
-    let (pu, ou) := splitOwner u
-    let (pv, ov) := splitOwner v
-    pu == pv && ou != "" && ov != "" && (ou == "*" || ou == "?" || ov == "*" || ov == "?")
-
 /-- Kind and name of a wire: the text before and after its first `:`; name `""` when it has none.
 $$\operatorname{kind}(s) = \begin{cases} (k, n) & s = k\texttt{:}n,\ \texttt{:} \notin k \\ (s, \texttt{""}) &
 \texttt{:} \notin s \end{cases}$$
@@ -271,9 +265,39 @@ def splitKind (w : String) : String × String :=
   | k :: n :: rest => (k, ":".intercalate (n :: rest))
   | _ => (w, "")
 
+/-- Do two wires name the same signal, up to an owner the extractor left open (`*` any element, `?` unresolved) and a
+name it could not read (`?`, a dynamic property, class or attribute)?
+
+$$\operatorname{same}(u, v) \iff u = v \lor \big(o_u \ne \texttt{""} \land o_v \ne \texttt{""} \land (o_u = o_v \lor
+\{o_u, o_v\} \cap \{\texttt{*}, \texttt{?}\} \ne \emptyset) \land (p_u = p_v \lor (k_u = k_v \land \texttt{?} \in
+\{n_u, n_v\}))\big)$$
+
+where $(p_u, o_u) = \operatorname{split}(u)$, $(k_u, n_u) = \operatorname{kind}(p_u)$, and likewise for $v$. A wire with
+an empty owner (no `/` or a trailing one) matches only itself. -/
+def same (u v : String) : Bool :=
+  u == v ||
+    let (pu, ou) := splitOwner u
+    let (pv, ov) := splitOwner v
+    let (ku, nu) := splitKind pu
+    let (kv, nv) := splitKind pv
+    ou != "" && ov != "" && (ou == ov || ou == "*" || ou == "?" || ov == "*" || ov == "?") &&
+      (pu == pv || (ku == kv && (nu == "?" || nv == "?")))
+
 /-- A wire pair back as text. $$\operatorname{join}(k, \texttt{""}) = k,\quad \operatorname{join}(k, n) = k\texttt{:}n
 \ (n \ne \texttt{""})$$ The inverse of `splitKind` on the wires `reads` and `writes` produce. -/
 def joinKind (w : String × String) : String := if w.2 == "" then w.1 else w.1 ++ ":" ++ w.2
+
+/-- An access the extractor could not fully resolve: its name or its owner is `?`.
+$$\operatorname{open}(a) \iff a.\mathrm{name} = \texttt{?} \lor a.\mathrm{owner} = \texttt{?}$$
+Such an access couples through the wildcard of `same`, or not at all for a box read. -/
+def Access.isOpen (a : Access) : Bool := a.name == "?" || a.owner == "?"
+
+/-- Some finding sits at the access's site.
+$$\operatorname{flagged}(F, a) \iff \exists f \in F:\ (f.\mathrm{part}, f.\mathrm{file}, f.\mathrm{line}) =
+(a.\mathrm{part}, a.\mathrm{file}, a.\mathrm{line})$$
+False for an empty finding list. -/
+def flagged (fs : List Finding) (a : Access) : Bool :=
+  fs.any fun f => f.part == a.part && f.file == a.file && f.line == a.line
 
 /-- One part's contract fields as the code shows them, signals as (kind, name) wire pairs.
 $$r = (\mathrm{id}, \mathrm{in}, \mathrm{out}, \mathrm{ev}, T, O)$$
@@ -340,6 +364,13 @@ private def ex (op : Op) (name owner ctx : String) : Access := ⟨"p", "p/a.ts",
 #guard writes (ex .rect "" "pain" "scroll") == []
 #guard same "className:data-o-stack/*" "className:data-o-stack/people.o" && same "cssVar:--x/?" "cssVar:--x/nav"
 #guard !same "className:data-o/*" "className:data-o-stack/people.o" && !same "cssVar:--x/" "cssVar:--x/*"
+#guard same "cssVar:?/nav" "cssVar:--x/*" && same "cssVar:?/nav" "cssVar:--x/nav" && same "className:a/nav" "className:?/?"
+#guard !same "cssVar:?/nav" "cssVar:--x/platform" && !same "cssVar:?/nav" "className:x/nav" && !same "cssVar:?/" "cssVar:x/"
+#guard (ex .setStyle "?" "nav" "scroll").isOpen && (ex .rect "" "?" "scroll").isOpen && !(ex .rect "" "" "scroll").isOpen
+#guard flagged [⟨"p", "p/a.ts", 1, "dynamic-name", "setStyle"⟩] (ex .setStyle "?" "nav" "scroll")
+#guard !flagged [⟨"p", "p/a.ts", 2, "dynamic-name", "setStyle"⟩] (ex .setStyle "?" "nav" "scroll") && !flagged [] (ex .vw "" "" "x")
+#guard writes (ex .setContent "textContent" "platform" "clock") == ["rect:platform"]
+#guard writes (ex .setContent "data" "?" "clock") == [] && writes (ex .setContent "append" "" "clock") == []
 #guard same "rect:pain" "rect:pain" && !same "rect:pain" "rect:pain.notes" && splitOwner "a/b/c" == ("a/b", "c")
 #guard splitKind "cssVar:--x/nav" == ("cssVar", "--x/nav") && splitKind "vw" == ("vw", "")
 #guard splitKind "className:a:b/c" == ("className", "a:b/c") && joinKind ("vw", "") == "vw"

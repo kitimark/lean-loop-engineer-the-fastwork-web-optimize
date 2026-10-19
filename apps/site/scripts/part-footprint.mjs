@@ -89,6 +89,7 @@ function union(a, b) {
   if (!b) return a;
   if (a.k === 'el' && b.k === 'el') return el([...a.owners, ...b.owners], a.sel ?? b.sel);
   if (a.k === 'str' && b.k === 'str') return { k: 'str', vs: [...new Set([...a.vs, ...b.vs])] };
+  if (a.k === 'anim' && b.k === 'anim') return { k: 'anim', owners: [...new Set([...a.owners, ...b.owners])].sort() };
   if (a.k === 'unknown') return b;
   if (b.k === 'unknown') return a;
   return a;
@@ -297,6 +298,7 @@ function emit(node, op, name, owner, ctxTag) {
     finding(s, 'templated-name', `${op} ${name}`);
     name = name.replaceAll(HOLE, '*');
   }
+  if (name === '?') finding(s, 'dynamic-name', op);
   const key = `${s.part}\u0000${s.file}\u0000${String(s.line).padStart(5, '0')}\u0000${op}\u0000${name}\u0000${owner}\u0000${ctxTag}`;
   accesses.set(key, { ...s, op, name, owner, ctx: ctxTag });
 }
@@ -437,6 +439,7 @@ function valueOf(n, scope) {
     case 'MemberExpression': {
       const o = valueOf(n.object, scope);
       const p = propName(n);
+      if (o.k === 'obj' && p === null) return [...o.props.values()].reduce((acc, t) => union(acc, t()), null) ?? UNKNOWN;
       if (o.k === 'obj') return o.props.has(p) ? o.props.get(p)() : UNKNOWN;
       if (o.k === 'ref' && p === 'current') return o.target;
       if (o.k === 'cssmod') return { k: 'cls', file: o.file, local: p };
@@ -468,6 +471,8 @@ function valueOf(n, scope) {
           const owners = splitTop(sel, [',']).flatMap((alt) => { const cs = splitTop(alt.replace(/\s*([>+~])\s*/g, ' '), [' ']); return matchOwners(parseCompound(cs[cs.length - 1]), within); });
           return m === 'querySelectorAll' || m === 'getElementsByClassName' ? { k: 'els', owners: [...new Set(owners)], sel } : el(owners, sel);
         }
+        if (m === 'animate') return o.k === 'el' ? { k: 'anim', owners: o.owners } : UNKNOWN;
+        if (m === 'getAnimations') return { k: 'arr', item: o.k === 'el' ? { k: 'anim', owners: o.owners } : UNKNOWN };
         if (m === 'from' && c.object.type === 'Identifier' && c.object.name === 'Array') return valueOf(n.arguments[0], scope);
         if (['filter', 'slice', 'concat'].includes(m) && (o.k === 'els')) return o;
         if (['find', 'at', 'item'].includes(m) && o.k === 'els') return el(o.owners, o.sel);
@@ -484,7 +489,11 @@ function valueOf(n, scope) {
     }
     case 'ArrayExpression': {
       let item = null;
-      for (const x of n.elements) if (x) item = union(item, valueOf(x.type === 'SpreadElement' ? x.argument : x, scope));
+      for (const x of n.elements) {
+        if (!x) continue;
+        const v = valueOf(x.type === 'SpreadElement' ? x.argument : x, scope);
+        item = union(item, x.type !== 'SpreadElement' ? v : v.k === 'els' ? el(v.owners, v.sel) : v.k === 'arr' ? v.item : UNKNOWN);
+      }
       if (item && item.k === 'el') return { k: 'els', owners: item.owners, sel: item.sel };
       return { k: 'arr', item: item ?? UNKNOWN };
     }
@@ -623,6 +632,42 @@ const EFFECTS = new Set(['useEffect', 'useLayoutEffect', 'useInsertionEffect']);
 const ARRAY_SYNC = new Set(['forEach', 'map', 'filter', 'some', 'every', 'find', 'findIndex', 'reduce', 'flatMap', 'sort']);
 const RECT_PROPS = new Set(['offsetTop', 'offsetLeft', 'offsetWidth', 'offsetHeight', 'clientWidth', 'clientHeight', 'clientTop', 'clientLeft', 'scrollWidth', 'scrollHeight', 'scrollTop', 'scrollLeft']);
 const STYLE_METHODS = new Set(['setProperty', 'removeProperty']);
+const QUERIES = ['querySelector', 'closest', 'querySelectorAll', 'getElementById', 'getElementsByClassName'];
+const ARIA = /^aria[A-Z]/;
+const REFLECTED = new Map([['tabIndex', 'tabindex'], ['hidden', 'hidden'], ['inert', 'inert'], ['id', 'id'], ['title', 'title'], ['lang', 'lang'], ['dir', 'dir'], ['src', 'src']]);
+const CONTENT_PROPS = new Set(['textContent', 'innerText', 'innerHTML', 'outerHTML', 'data', 'nodeValue']);
+const CONTENT_CALLS = new Set(['append', 'prepend', 'after', 'before', 'remove', 'replaceWith', 'replaceChildren', 'appendChild', 'removeChild', 'insertBefore']);
+const DIALOG_CALLS = new Set(['showModal', 'show', 'close']);
+const ANIM_TIME = new Set(['currentTime', 'startTime', 'playbackRate']);
+const ANIM_CALLS = new Set(['cancel', 'finish', 'pause', 'play', 'reverse', 'updatePlaybackRate', 'commitStyles', 'persist']);
+/** The closed allowlist: every member the extractor models on an element (`el`), element list (`els`), animation
+ * (`anim`) or an element's `style` / `classList`, as a call, an assignment or a read. Each other member on a resolved
+ * receiver of these kinds emits finding `unmodelled-api`. Members marked path yield the value a later access is taken
+ * on and emit no access themselves. */
+const MODELLED = {
+  call: {
+    el: new Set(['addEventListener', 'removeEventListener', 'setAttribute', 'removeAttribute', 'toggleAttribute', 'getAttribute', 'hasAttribute', 'matches', 'getBoundingClientRect', 'getClientRects', 'scrollTo', 'scrollBy', 'scrollIntoView', 'animate', 'getAnimations', ...QUERIES, ...CONTENT_CALLS, ...DIALOG_CALLS]),
+    els: new Set([...ARRAY_SYNC, 'filter', 'slice', 'concat', 'at', 'item', 'includes', 'indexOf']),
+    anim: ANIM_CALLS,
+    style: new Set([...STYLE_METHODS, 'getPropertyValue']),
+    classList: new Set(['add', 'remove', 'toggle', 'replace', 'contains']),
+  },
+  set: { el: new Set(['className', 'scrollTop', 'scrollLeft', ...CONTENT_PROPS, ...REFLECTED.keys()]), anim: ANIM_TIME },
+  get: {
+    el: new Set([...RECT_PROPS, ...ELEMENT_PROPS, 'style', 'classList', 'dataset', 'open']),
+    els: new Set(['length']),
+    anim: new Set(),
+  },
+};
+const elementKind = (v) => (v && (v.k === 'el' || v.k === 'els' || v.k === 'anim') ? v.k : null);
+function modelled(kind, recvKind, member) {
+  if (kind === 'set' && recvKind === 'el' && member && ARIA.test(member)) return true;
+  if (kind === 'get' && recvKind === 'els' && member === null) return true;
+  return MODELLED[kind][recvKind]?.has(member) ?? false;
+}
+function unmodelled(n, kind, recvKind, member) {
+  finding(site(n), 'unmodelled-api', `${kind} ${recvKind}.${member ?? '[?]'}`);
+}
 
 function bindingKey(sc, f) {
   const parts = [];
@@ -789,27 +834,24 @@ function walkCall(n, scope, ctxTag, fnVal) {
     if (recv.k === 'mql') emit(n, 'listen', `media-${type}`, '', ctxTag);
     else emitOn(n, 'listen', type, recv, ctxTag);
   }
-  // DOM calls on a receiver
   if (recv) {
-    const isStyle = c.object.type === 'MemberExpression' && propName(strip(c.object)) === 'style';
-    const isClassList = c.object.type === 'MemberExpression' && propName(strip(c.object)) === 'classList';
-    if (isStyle && STYLE_METHODS.has(name)) {
-      const owner = valueOf(strip(c.object).object, scope);
+    const sub = c.object.type === 'MemberExpression' ? propName(strip(c.object)) : null;
+    const subOwner = sub === 'style' || sub === 'classList' ? valueOf(strip(c.object).object, scope) : null;
+    if (sub === 'style' && STYLE_METHODS.has(name)) {
       const a = valueOf(n.arguments[0], scope);
       const props = a.k === 'str' ? a.vs : ['?'];
-      for (const p of props) emitOn(n, p.startsWith('--') ? 'setVar' : 'setStyle', p, owner, ctxTag);
-    } else if (isClassList) {
-      const owner = valueOf(strip(c.object).object, scope);
-      if (['add', 'remove', 'toggle', 'replace'].includes(name)) {
-        const args = name === 'toggle' ? n.arguments.slice(0, 1) : n.arguments;
-        for (const a of args) {
-          const toks = classTokens(a, scope);
-          if (!toks) { finding(site(n), 'dynamic-class', `classList.${name}`); emitOn(n, 'setClass', '?', owner, ctxTag); continue; }
-          for (const t of toks) emitOn(n, t.op, t.name, owner, ctxTag);
-        }
-      } else if (name === 'contains') {
-        for (const t of classTokens(n.arguments[0], scope) ?? [{ op: 'setClass', name: '?' }]) emitOn(n, 'classRead', t.name, owner, ctxTag);
+      for (const p of props) emitOn(n, p.startsWith('--') ? 'setVar' : 'setStyle', p, subOwner, ctxTag);
+    } else if (sub === 'style' && name === 'getPropertyValue') {
+      emitOn(n, 'styleRead', '', subOwner, ctxTag);
+    } else if (sub === 'classList' && ['add', 'remove', 'toggle', 'replace'].includes(name)) {
+      const args = name === 'toggle' ? n.arguments.slice(0, 1) : n.arguments;
+      for (const a of args) {
+        const toks = classTokens(a, scope);
+        if (!toks) { emitOn(n, 'setClass', '?', subOwner, ctxTag); continue; }
+        for (const t of toks) emitOn(n, t.op, t.name, subOwner, ctxTag);
       }
+    } else if (sub === 'classList' && name === 'contains') {
+      for (const t of classTokens(n.arguments[0], scope) ?? [{ op: 'setClass', name: '?' }]) emitOn(n, 'classRead', t.name, subOwner, ctxTag);
     } else if (['setAttribute', 'removeAttribute', 'toggleAttribute'].includes(name)) {
       const a = valueOf(n.arguments[0], scope);
       for (const p of a.k === 'str' ? a.vs : ['?']) emitOn(n, 'setAttr', p, recv, ctxTag);
@@ -832,12 +874,25 @@ function walkCall(n, scope, ctxTag, fnVal) {
     } else if (name === 'matches') {
       const a = valueOf(n.arguments[0], scope);
       emitOn(n, 'attrRead', a.k === 'str' ? `matches:${a.vs.join('|')}` : '?', recv, ctxTag);
-    } else if (['querySelector', 'closest', 'querySelectorAll', 'getElementById', 'getElementsByClassName'].includes(name)) {
+    } else if (QUERIES.includes(name)) {
       const a = valueOf(n.arguments[0], scope);
       if (a.k !== 'str') finding(site(n), 'dynamic-selector', `${name}(${n.arguments[0] ? cur.file.text.slice(n.arguments[0].start, n.arguments[0].end) : ''})`);
       else resolveSelector(name === 'getElementById' ? a.vs.map((x) => `#${x}`).join(', ') : a.vs.join(', '), site(n));
+    } else if (name === 'animate') {
+      emitOn(n, 'setStyle', '?', recv, ctxTag);
+    } else if (CONTENT_CALLS.has(name) && recv.k === 'el') {
+      emitOn(n, 'setContent', name, recv, ctxTag);
+    } else if (DIALOG_CALLS.has(name) && recv.k === 'el') {
+      emitOn(n, 'setAttr', 'open', recv, ctxTag);
+    } else if (ANIM_CALLS.has(name) && recv.k === 'anim') {
+      emitOn(n, 'setStyle', '?', el(recv.owners), ctxTag);
     }
+    const subKind = elementKind(subOwner);
+    if (subKind) {
+      if (!modelled('call', sub, name)) unmodelled(n, 'call', sub, name);
+    } else if (elementKind(recv) && !modelled('call', recv.k, name)) unmodelled(n, 'call', recv.k, name);
   }
+  if (name === 'push' && recv && recv.k === 'arr') for (const a of n.arguments) recv.item = union(recv.item.k === 'unknown' ? null : recv.item, valueOf(a, scope));
   if (c.type === 'Identifier' && name === 'getComputedStyle') emitOn(n, 'styleRead', '', valueOf(n.arguments[0], scope), ctxTag);
   // arguments: callbacks and inline calls
   const fv = valueOf(c, scope);
@@ -865,20 +920,32 @@ function walkAssign(n, scope, ctxTag) {
   if (l.type !== 'MemberExpression') return;
   const p = propName(l);
   const o = strip(l.object);
-  if (o.type === 'MemberExpression' && propName(o) === 'style') {
-    const owner = valueOf(o.object, scope);
-    emitOn(n, 'setStyle', p === 'cssText' ? 'cssText' : kebab(p ?? '?'), owner, ctxTag);
-  } else if (o.type === 'MemberExpression' && propName(o) === 'dataset') {
-    emitOn(n, 'setAttr', `data-${kebab(p ?? '?')}`, valueOf(o.object, scope), ctxTag);
-  } else if (p === 'className') {
-    emitOn(n, 'setClass', '*', valueOf(o, scope), ctxTag);
-  } else if (p === 'scrollTop' || p === 'scrollLeft') {
-    emitOn(n, 'scroll', p, valueOf(o, scope), ctxTag);
+  const sub = o.type === 'MemberExpression' ? propName(o) : null;
+  if (sub === 'style') {
+    emitOn(n, 'setStyle', p === 'cssText' ? 'cssText' : kebab(p ?? '?'), valueOf(o.object, scope), ctxTag);
+    return;
   }
+  if (sub === 'dataset') {
+    emitOn(n, 'setAttr', p === null ? '?' : `data-${kebab(p)}`, valueOf(o.object, scope), ctxTag);
+    return;
+  }
+  const t = valueOf(o, scope);
+  if (p === 'className') emitOn(n, 'setClass', '*', t, ctxTag);
+  else if (p === 'scrollTop' || p === 'scrollLeft') emitOn(n, 'scroll', p, t, ctxTag);
+  else if (CONTENT_PROPS.has(p)) emitOn(n, 'setContent', p, t, ctxTag);
+  else if (REFLECTED.has(p)) emitOn(n, 'setAttr', REFLECTED.get(p), t, ctxTag);
+  else if (p && ARIA.test(p) && t.k === 'el') emitOn(n, 'setAttr', kebab(p), t, ctxTag);
+  else if (ANIM_TIME.has(p) && (t.k === 'anim' || t.k === 'unknown')) emitOn(n, 'setStyle', '?', t.k === 'anim' ? el(t.owners) : t, ctxTag);
+  const k = elementKind(t);
+  if (k && !modelled('set', k, p)) unmodelled(n, 'set', k, p);
 }
 function walkRead(n, scope, ctxTag) {
   const p = propName(n);
   const o = valueOf(n.object, scope);
+  const k = elementKind(o);
+  if (k && !modelled('get', k, p)) unmodelled(n, 'get', k, p);
+  const sub = strip(n.object).type === 'MemberExpression' ? propName(strip(n.object)) : null;
+  if (sub === 'style' && elementKind(valueOf(strip(n.object).object, scope)) === 'el') emitOn(n, 'styleRead', '', valueOf(strip(n.object).object, scope), ctxTag);
   if (o.k === 'win') {
     if (p === 'innerWidth') emit(n, 'vw', p, '', ctxTag);
     else if (p === 'innerHeight') emit(n, 'vh', p, '', ctxTag);
@@ -891,6 +958,8 @@ function walkRead(n, scope, ctxTag) {
     else if (p === 'scrollHeight') emit(n, 'rect', p, 'document', ctxTag);
   } else if (o.k === 'el' && RECT_PROPS.has(p)) {
     emitOn(n, 'rect', p, o, ctxTag);
+  } else if (o.k === 'el' && p === 'open') {
+    emitOn(n, 'attrRead', 'open', o, ctxTag);
   } else if (strip(n.object).type === 'MemberExpression' && propName(strip(n.object)) === 'dataset') {
     emitOn(n, 'attrRead', `data-${kebab(p ?? '?')}`, valueOf(strip(n.object).object, scope), ctxTag);
   } else if (n.object.type === 'Identifier' && (n.object.name === 'innerWidth' || n.object.name === 'innerHeight')) {
@@ -952,7 +1021,11 @@ function walkJsx(n, scope, ctxTag) {
           const pc = exprIsProps(pv, scope) ? 'props' : ctxTag;
           emitOn(a, key.startsWith('--') ? 'setVar' : 'setStyle', key.startsWith('--') ? key : kebab(key), owner, pc);
         }
-      } else emitOn(a, 'setStyle', '?', owner, tagCtx);
+      } else {
+        const ov = valueOf(e, scope);
+        if (ov.k !== 'obj') emitOn(a, 'setStyle', '?', owner, tagCtx);
+        else for (const key of ov.props.keys()) emitOn(a, key.startsWith('--') ? 'setVar' : 'setStyle', key.startsWith('--') ? key : kebab(key), owner, tagCtx);
+      }
     } else if (an.startsWith('data-') || an.startsWith('aria-') || ['hidden', 'id', 'role', 'tabIndex', 'inert', 'open'].includes(an)) {
       emitOn(a, 'setAttr', an === 'tabIndex' ? 'tabindex' : an, owner, tagCtx);
     }

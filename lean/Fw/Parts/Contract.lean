@@ -1078,7 +1078,7 @@ $$[r.\mathrm{id} \mid r \in \mathrm{rows}] = [P.\mathrm{id} \mid P \in \mathrm{p
 \mathrm{parts},\ \forall r \in \mathrm{rows}:\ r.\mathrm{id} = P.\mathrm{id} \to r.O = (o_P = \bot\ ?\ [\,] :
 [o_P])$$
 
-Every row has a code row; no part registers at an order other than its declared one, or twice. -/
+Every row has a code row; no part registers at an order other than its declared one. -/
 theorem rows_ids_order : FootprintRows.rows.map (·.id) = parts.map (·.id) ∧
     ∀ P ∈ parts, ∀ r ∈ FootprintRows.rows, r.id = P.id → r.order = P.order.toList := by
   decide
@@ -1089,9 +1089,41 @@ $$\forall P \in \mathrm{parts}_{\mathrm{code}},\ \forall Q \in \mathrm{parts}_{\
 \to \lnot\operatorname{page}(Q) \to \kappa_{\mathrm{code}}(P) \ne \kappa_{\mathrm{code}}(Q) \to
 \operatorname{Independent}(P,Q)$$
 
-The groups hold against every input, output and target the extractor found as well as the declared ones. -/
+The groups are a lower bound on coupling: they hold against the declared rows and every input, output and target
+the extractor resolved, and three reads couple nothing. A box read of an unresolved element (`rect:?`) matches no box
+write; it is in the rows of commission, nav, nav.hitTest and overlays.signup (and of people.deck, which is page-level).
+Read conservatively, it couples those four with hero.accent (which moves hero) and so merges the six hero parts with
+them; `code_groups_rect_open` shows the groups here already hold all of them together. A hit test
+(`elementFromPoint`) and a computed-style read (`getComputedStyle`) read no wire at all. -/
 theorem code_groups_partition :
     ∀ P ∈ codeParts, ∀ Q ∈ codeParts, ¬ pageLevel P → ¬ pageLevel Q → codeKey P ≠ codeKey Q → Independent P Q := by
+  decide
+
+/-- `affects`, with a box read of an unresolved element (`rect:?`) changed by every box write.
+$$\operatorname{affects}^{?}(o,i) \iff \operatorname{affects}(o,i) \lor \bigl((\exists m:\ o = \mathrm{rect}(m)) \land
+i = \mathrm{rect}(\texttt{?})\bigr)$$
+The conservative reading of an unresolved box read. -/
+def affectsOpen (o i : Signal) : Bool :=
+  affects o i || (match o, i with | .rect _, .rect "?" => true | _, _ => false)
+
+/-- I3 under `affectsOpen`.
+$$\mathrm{I3}^{?}(P,Q) \iff \bigl(\forall o \in \operatorname{effOut}(P),\ \forall i \in \mathrm{in}_Q:\
+\lnot\operatorname{affects}^{?}(o,i)\bigr) \land \bigl(\forall o \in \operatorname{effOut}(Q),\ \forall i \in
+\mathrm{in}_P:\ \lnot\operatorname{affects}^{?}(o,i)\bigr)$$
+I1, I2 and I4 do not read signals. -/
+def i3Open (P Q : PartSpec) : Bool :=
+  !((effOut P).any fun o => Q.inputs.any (affectsOpen o)) && !((effOut Q).any fun o => P.inputs.any (affectsOpen o))
+
+/-- The re-decided groups survive the conservative reading of `rect:?`: parts in different groups have no signal flow
+even when every box write reaches every unresolved box read.
+
+$$\forall P \in \mathrm{parts}_{\mathrm{code}},\ \forall Q \in \mathrm{parts}_{\mathrm{code}}:\ \lnot\operatorname{page}(P)
+\to \lnot\operatorname{page}(Q) \to \kappa_{\mathrm{code}}(P) \ne \kappa_{\mathrm{code}}(Q) \to
+\mathrm{I3}^{?}(P,Q)$$
+
+So the `rect:?` limit hides no merge in these groups; hit tests and computed-style reads stay unmodelled. -/
+theorem code_groups_rect_open :
+    ∀ P ∈ codeParts, ∀ Q ∈ codeParts, ¬ pageLevel P → ¬ pageLevel Q → codeKey P ≠ codeKey Q → i3Open P Q = true := by
   decide
 
 /-- The re-decided groups separate the declared rows too.
@@ -1111,6 +1143,16 @@ theorem code_groups_declared :
     exact hk
   exact independent_antitone (widen_widens _ P) (widen_widens _ Q)
     (code_groups_partition _ (List.mem_map_of_mem hP) _ (List.mem_map_of_mem hQ) hp hq hk')
+
+/-- Every extracted access whose name or owner is `?` has a finding at its site, so an unresolved access never
+enters the table unrecorded.
+
+$$\forall a \in \mathrm{accesses}:\ \operatorname{open}(a) \to \operatorname{flagged}(\mathrm{findings}, a)$$
+
+The extractor emits `dynamic-name` or `unresolved-target` where it writes the `?`. -/
+theorem flagged_total :
+    ∀ a ∈ FootprintData.accesses, a.isOpen = true → Footprint.flagged FootprintData.findings a = true := by
+  decide +kernel
 
 /-- The page-level parts of the widened table: the scheduler and every part with a page scroll write outside mount,
 resize, hover, event and cleanup callbacks.
@@ -1276,5 +1318,7 @@ def run (args : List String) : IO UInt32 := do
 #guard (widen [] people).inputs == people.inputs && (widen FootprintRows.rows peopleO).outputs.length ≥ 1
 #guard codeKey people == "people" && codeKey painNotes == "commission" && codeKey morphTween == "morph.tween"
 #guard independent peopleCarousel peopleO
+#guard affectsOpen (.rect "hero") (.rect "?") && !affects (.rect "hero") (.rect "?") && !affectsOpen .vw (.rect "?")
+#guard affectsOpen .scrollY (.rect "?") && !affectsOpen (.rect "hero") (.rect "pain")
 
 end Fw.Parts.Contract
