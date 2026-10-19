@@ -7110,7 +7110,8 @@
     "lean/Fw/Ops/Golden.lean",
     "lean/Fw.lean",
     "lean/Fw/Wire/**"
-   ]
+   ],
+   "evidence": "ac31e9c"
   },
   {
    "devices": [
