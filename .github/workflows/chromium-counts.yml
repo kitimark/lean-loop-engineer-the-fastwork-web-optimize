@@ -414,7 +414,7 @@ jobs:
           FW_DOCKER_CPUS: '4'
         run: |
           set -euo pipefail
-          args=(--profile "$PROFILE" --label "$LABEL" --target "$TARGET")
+          args=(--profile "$PROFILE" --label "$LABEL" --target "$TARGET" --dump-trace)
           if [ "$TARGET" = rewrite ] && [ -n "$SEARCH" ]; then args+=(--search "$SEARCH"); fi
           node packages/measure-chromium/src/host.mjs "${args[@]}"
 
@@ -431,6 +431,8 @@ jobs:
           cp "$RUNNER_TEMP/runner.json" "$res/runner.json"
           printf '%s\n' "$WANT_ID" > "$res/image-id.txt"
           (cd "$res" && sha256sum counts.json zones.json | tee sha256.txt)
+          node --max-old-space-size=12000 packages/measure-chromium/src/layer-dump.mjs "packages/measure-chromium/out/$PROFILE/$LABEL/trace.json" > "$res/layers.json"
+          ls -l "$res"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
