@@ -10,6 +10,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize, relative, resolve, sep } from "node:path";
+import { choose, picker } from "./picker.ts";
 import { cachePolicy, etagMatches, etagOf, manifestNames, pickEncoding, Variants } from "./cache-policy.ts";
 
 const MIME: Record<string, string> = {
@@ -113,7 +114,10 @@ export function handler(o: Opts) {
     if (req.method !== "GET" && req.method !== "HEAD") return send(res, req, 405, "text/plain", "read-only");
     const u = new URL(req.url ?? "/", "http://127.0.0.1");
     if (u.pathname === "/analytics.js") return send(res, req, 200, "text/javascript", ""); // the GTM loader never reaches the network
-    if (o.compare && u.pathname === "/__fw/compare") return send(res, req, 200, "text/html; charset=utf-8", comparePage(o.compare.op, o.compare.rp, o.compare.prefix));
+    if (o.compare && u.pathname === "/__fw/compare") {
+      const keys = configs ? Object.keys(configs.bySearch) : [];
+      return send(res, req, 200, "text/html; charset=utf-8", comparePage(o.compare.op, o.compare.rp, o.compare.prefix, picker(keys), choose(keys, u.search)));
+    }
     // "/" with a search: the prerendered page of that search (as the gate does), else index.html (the page client-renders)
     let path = u.pathname;
     if (configs && (path === "/" || path === "/index.html")) {
@@ -132,19 +136,24 @@ export function handler(o: Opts) {
 
 /** Side by side: original left, task version right, two iframes of the same width (an iframe's width is its viewport
  *  for `(width)` media queries). Hover, pointer, reduced-motion and dpr cannot be set from an iframe. */
-export function comparePage(op: number, rp: number, prefix?: string): string {
+export function comparePage(op: number, rp: number, prefix?: string, searches: string[] = [""], current = ""): string {
   const ou = prefix ? `${prefix}/o/` : `http://127.0.0.1:${op}/`;
-  const ru = prefix ? `${prefix}/r/` : `http://127.0.0.1:${rp}/`;
+  const ru = (prefix ? `${prefix}/r/` : `http://127.0.0.1:${rp}/`) + current;
+  const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const label = (k: string) => (k === "" ? "default" : k.startsWith("?preset=") ? `preset ${k.slice(8)}` : `flags ${k.slice(4)}`);
+  const picked = searches.length > 1
+    ? `<label>build <select id=s>${searches.map((k) => `<option value="${esc(k)}"${k === current ? " selected" : ""}>${esc(label(k))}</option>`).join("")}</select></label>`
+    : "";
   return `<!doctype html><meta charset="utf-8"><title>original | task version</title>
 <style>body{margin:0;font:13px system-ui;background:#eee}header{padding:6px 10px;display:flex;gap:10px;align-items:center}
 .row{display:flex;gap:8px;padding:0 8px 8px}.col{flex:1;min-width:0}.col h2{font-size:12px;margin:2px 0}
 iframe{border:1px solid #888;background:#fff;height:calc(100vh - 80px);width:100%}</style>
-<header><b>Side by side</b> width <select id=w><option value="">fit</option><option>320</option><option>390</option><option>600</option>
+<header><b>Side by side</b> ${picked} width <select id=w><option value="">fit</option><option>320</option><option>390</option><option>600</option>
 <option>861</option><option>1024</option><option>1280</option><option>1512</option></select>
 <span>Scroll each side yourself. Emulate hover, reduced motion and dpr in DevTools per window.</span></header>
 <div class=row><div class=col><h2>original (snapshot) :${op}</h2><iframe id=a src="${ou}"></iframe></div>
-<div class=col><h2>task version :${rp}</h2><iframe id=b src="${ru}"></iframe></div></div>
-<script>const w=document.getElementById('w');w.onchange=()=>{for(const id of ['a','b']){const f=document.getElementById(id);f.style.width=w.value?w.value+'px':'100%';f.parentElement.style.flex=w.value?'none':'1'}}</script>`;
+<div class=col><h2>task version :${rp}</h2><iframe id=b src="${esc(ru)}"></iframe></div></div>
+<script>const s=document.getElementById('s');if(s)s.onchange=()=>{location.search=s.value};const w=document.getElementById('w');w.onchange=()=>{for(const id of ['a','b']){const f=document.getElementById(id);f.style.width=w.value?w.value+'px':'100%';f.parentElement.style.flex=w.value?'none':'1'}}</script>`;
 }
 
 if (process.argv.includes("--serve")) {
