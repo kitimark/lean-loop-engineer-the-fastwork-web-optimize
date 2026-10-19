@@ -5,12 +5,14 @@ import Fw.Parts.PlatformGlint
 import Fw.Parts.PlatformMarquee
 import Fw.Parts.PlatformEntries
 import Fw.Parts.PlatformScene
+import Fw.Parts.HiddenPausePlatform
 /-!
 # Golden vectors for the platform parts
 
 `PlatformGolden.files` is the list of `(file name, lines)` that `Golden.lean` writes into
 `packages/contracts/golden/parts/`: `platform.jsonl`, `platform.sweep.jsonl`, `platform.glint.jsonl`,
-`platform.marquee.jsonl`, `platform.entries.jsonl`. Same line format and encodings as `Fw/Parts/Golden.lean`
+`platform.marquee.jsonl`, `platform.entries.jsonl`, `platform.scene.jsonl`, and `engine.scene.jsonl` (the hidden-pause
+variant's clock on the platform section). Same line format and encodings as `Fw/Parts/Golden.lean`
 (`Rat` inputs as exact JSON decimals, `Rat` outputs in the wire form `{"num","den"}`).
 The `const` lines carry the constants the CSS Modules restate; a TS test checks the CSS text against them.
 -/
@@ -213,12 +215,12 @@ def entriesLines : List String :=
           ("props", Json.arr (e.trs.map fun tr => Json.mkObj [("key", .str tr.key), ("from", ratWire tr.a), ("to", ratWire tr.b)]).toArray)]).toArray)])]
 
 open Fw.Parts.PlatformScene in
-/-- Lines of `platform.scene.jsonl`: the scene value at rects, and one `const` line with the attribute name, its two values,
-the observer margin and the rule's property.
+/-- Lines of `platform.scene.jsonl`: the scene value at ten rects around the two edges $b = -h$ and $t = 2h$, then one
+`const` line with the attribute name, its two values, the observer margin and the rule's property.
 
-$$\mathrm{sceneLines} = [\operatorname{line}(\texttt{scene}, \{\texttt{top}{:}\ t, \texttt{bottom}{:}\ b, \texttt{vh}{:}\ h\}, \operatorname{sceneOf}(t, b, h)) \mid (t, b, h) \in R] \mathbin{+\!\!+} [\operatorname{line}(\texttt{const}, \{\}, \{\texttt{attr}{:}\ \texttt{data-fw-scene},\ \texttt{active}{:}\ \operatorname{attr}(\top),\ \texttt{paused}{:}\ \operatorname{attr}(\bot),\ \texttt{rootMargin}{:}\ \texttt{100\% 0px},\ \texttt{playState}{:}\ \texttt{paused}\})]$$
+$$\begin{aligned} \mathrm{sceneLines} = {} &[\operatorname{line}(\texttt{scene}, \{\texttt{top}{:}\ t, \texttt{bottom}{:}\ b, \texttt{vh}{:}\ h\}, \operatorname{sceneOf}(t, b, h)) \mid (t, b, h) \in R] \\ \mathbin{+\!\!+} {} &[\operatorname{line}(\texttt{const}, \{\}, \{\texttt{attr}{:}\ \texttt{data-fw-scene},\ \texttt{active}{:}\ \operatorname{attr}(\top),\ \texttt{paused}{:}\ \operatorname{attr}(\bot),\ \texttt{rootMargin}{:}\ \texttt{100\% 0px},\ \texttt{playState}{:}\ \texttt{paused}\})], \\ R = {} &[(0, 800, 900), (-5000, -901, 900), (-5000, -900, 900), (1800, 2600, 900), (1801, 2600, 900), \\ &\ (-1000, -500, 900), (3000, 3800, 900), (-300, 100, 400), (801, 1200, 400), (800, 1200, 400)] \end{aligned}$$
 
-with $R$ the rects (top, bottom, viewport height) at and around the two edges $b = -h$ and $t = 2h$. -/
+Each rect is (top, bottom, viewport height); the lines follow $R$'s order. -/
 def sceneLines : List String :=
   (([(0, 800, 900), (-5000, -901, 900), (-5000, -900, 900), (1800, 2600, 900), (1801, 2600, 900), (-1000, -500, 900),
      (3000, 3800, 900), (-300, 100, 400), (801, 1200, 400), (800, 1200, 400)] : List (Rat × Rat × Rat)).map fun (t, b, h) =>
@@ -227,12 +229,37 @@ def sceneLines : List String :=
     [("attr", .str "data-fw-scene"), ("active", .str (attr true)), ("paused", .str (attr false)),
      ("rootMargin", .str "100% 0px"), ("playState", .str "paused")])]
 
-/-- The six golden files of the platform parts: name and lines, in this order.
+open Fw.Parts.HiddenPausePlatform in
+/-- Lines of `engine.scene.jsonl`: for each trace, from the synced start $s_0 = (0, 0, \bot, 0)$ and $\ell_0 = 0$, the
+variant's shown local time and the original's at every frame, and the variant's local time at the end.
 
-$$\mathrm{files} = [(\texttt{platform.jsonl}, \mathrm{platformLines}),\ (\texttt{platform.sweep.jsonl}, \mathrm{sweepLines}),\ (\texttt{platform.glint.jsonl}, \mathrm{glintLines}),\ (\texttt{platform.marquee.jsonl}, \mathrm{marqueeLines}),\ (\texttt{platform.entries.jsonl}, \mathrm{entriesLines}),\ (\texttt{platform.scene.jsonl}, \mathrm{sceneLines})]$$ -/
+$$\begin{aligned} \mathrm{syncLines} = {} &[\operatorname{line}(\texttt{sync}, \{\texttt{frames}{:}\ [[\Delta, a, h] \mid (\Delta, a, h) \in F]\}, \{\texttt{shown}{:}\ [\operatorname{shownAt}(s_0, F, k) \mid k \in [0, |F|)],\ \texttt{orig}{:}\ [\operatorname{origAt}(0, F, k) \mid k \in [0, |F|)],\ \texttt{local}{:}\ \operatorname{run}(s_0, F).\ell\}) \mid F \in S], \\ S = {} &[\ [(16, \top, \bot), (16, \top, \top), (16, \top, \top), (16, \top, \bot)],\ [(16, \top, \top), (16, \bot, \top), (16, \top, \top), (16, \top, \bot)], \\ &\ \ [(10, \top, \bot), (20, \top, \top), (30, \bot, \top), (40, \bot, \top), (50, \top, \top), (60, \top, \bot), (70, \top, \top), (80, \top, \bot)], \\ &\ \ [\,],\ [(16.5, \top, \top), (100, \bot, \top), (16.5, \top, \bot)],\ [(16, \bot, \top), (16, \bot, \top), (16, \top, \bot)]\ ] \end{aligned}$$
+
+$\Delta$ is an exact JSON decimal, times are in the `Rat` wire form, $a$ and $h$ are JSON booleans. -/
+def syncLines : List String :=
+  let s0 : St := ⟨0, 0, false, 0⟩
+  ([[(16, true, false), (16, true, true), (16, true, true), (16, true, false)],
+    [(16, true, true), (16, false, true), (16, true, true), (16, true, false)],
+    [(10, true, false), (20, true, true), (30, false, true), (40, false, true), (50, true, true), (60, true, false),
+     (70, true, true), (80, true, false)],
+    [],
+    [(33 / 2, true, true), (100, false, true), (33 / 2, true, false)],
+    [(16, false, true), (16, false, true), (16, true, false)]] : List (List Step)).map fun tr =>
+    line "sync" [("frames", Json.arr (tr.map fun f => Json.arr #[rin f.1, .bool f.2.1, .bool f.2.2]).toArray)]
+      (Json.mkObj
+        [("shown", Json.arr ((List.range tr.length).map fun k => ratWire (shownAt s0 tr k)).toArray),
+         ("orig", Json.arr ((List.range tr.length).map fun k => ratWire (origAt 0 tr k)).toArray),
+         ("local", ratWire (run s0 tr).loc)])
+
+/-- The seven golden files of the platform parts and the engine.scene variant on the platform: name and lines, in this
+order.
+
+$$\begin{aligned} \mathrm{files} = [\ &(\texttt{platform.jsonl}, \mathrm{platformLines}),\ (\texttt{platform.sweep.jsonl}, \mathrm{sweepLines}),\ (\texttt{platform.glint.jsonl}, \mathrm{glintLines}),\ (\texttt{platform.marquee.jsonl}, \mathrm{marqueeLines}), \\ &(\texttt{platform.entries.jsonl}, \mathrm{entriesLines}),\ (\texttt{platform.scene.jsonl}, \mathrm{sceneLines}),\ (\texttt{engine.scene.jsonl}, \mathrm{syncLines})\ ] \end{aligned}$$
+
+Seven files, each written whole. -/
 def files : List (String × List String) :=
   [("platform.jsonl", platformLines), ("platform.sweep.jsonl", sweepLines), ("platform.glint.jsonl", glintLines),
    ("platform.marquee.jsonl", marqueeLines), ("platform.entries.jsonl", entriesLines),
-   ("platform.scene.jsonl", sceneLines)]
+   ("platform.scene.jsonl", sceneLines), ("engine.scene.jsonl", syncLines)]
 
 end Fw.Parts.PlatformGolden
