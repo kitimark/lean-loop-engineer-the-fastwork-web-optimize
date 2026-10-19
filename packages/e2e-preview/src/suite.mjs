@@ -96,7 +96,8 @@ export function cancelSignature(pageErrors, failed, seen, host) {
   return {
     ok: rejectionsOk && shapeOk && countOk && noRedirect.length === 0,
     rejections: pageErrors.length, cancelled: failed.length,
-    detail: `${pageErrors.length} rejections (expect ${CANCEL_SIGNATURE.rejections}${rejectionsOk ? "" : ", not all preload failures or wrong count"}), ${failed.length} cancelled (expect ${CANCEL_SIGNATURE.cancelled}${shapeOk ? "" : ", not all /_app/ cancels"}), ${noRedirect.length} without a root 302`,
+    detail: `${pageErrors.length} rejections (expect ${CANCEL_SIGNATURE.rejections}${rejectionsOk ? "" : ", not all preload failures or wrong count"}), ${failed.length} cancelled (expect ${CANCEL_SIGNATURE.cancelled}${shapeOk ? "" : ", not all /_app/ cancels"}), ${noRedirect.length} without a root 302${noRedirect.length ? ` (${noRedirect.join(" , ")})` : ""}`,
+    noRedirect, paths,
   };
 }
 
