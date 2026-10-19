@@ -33,66 +33,43 @@ open Fw.Measure
 
 /-! ## Class levels and the worst of two -/
 
-/-- The three class levels of a frozen table (a `stable` class without its parameters).
-
-$$\mathrm{Level} = \{\mathrm{det}, \mathrm{stable}, \mathrm{quar}\}$$
--/
+/-- The three class levels of a frozen table (a `stable` class without its parameters). -/
 inductive Level where
   | det
   | stable
   | quar
 deriving Repr, DecidableEq
 
-/-- The strictness rank of a level.
-
-$$\operatorname{rank}(\mathrm{det}) = 0,\quad \operatorname{rank}(\mathrm{stable}) = 1,\quad \operatorname{rank}(\mathrm{quar}) = 2$$
--/
+/-- The strictness rank of a level. -/
 def Level.rank : Level → Nat
   | .det => 0
   | .stable => 1
   | .quar => 2
 
-/-- The worse of two levels (the one of larger rank).
-
-$$a \curlyvee b = \begin{cases} b & \operatorname{rank}(a) \le \operatorname{rank}(b) \\ a & \text{otherwise} \end{cases}$$
--/
+/-- The worse of two levels (the one of larger rank). -/
 def Level.worse (a b : Level) : Level := if a.rank ≤ b.rank then b else a
 
 #guard Level.worse .det .stable == .stable && Level.worse .quar .stable == .quar && Level.worse .det .det == .det
 
-/-- The level of a class.
-
-$$\operatorname{lvl}(\mathrm{det}) = \mathrm{det},\quad \operatorname{lvl}(\mathrm{stable}(k, t)) = \mathrm{stable},\quad \operatorname{lvl}(\mathrm{quar}) = \mathrm{quar}$$
--/
+/-- The level of a class. -/
 def levelOf : Class → Level
   | .deterministic => .det
   | .stable _ _ => .stable
   | .quarantined => .quar
 
-/-- The rank determines the level.
-
-$$\forall a, b \in \mathrm{Level}:\ \operatorname{rank}(a) = \operatorname{rank}(b) \;\Rightarrow\; a = b$$
--/
+/-- The rank determines the level. -/
 theorem Level.rank_inj : ∀ {a b : Level}, a.rank = b.rank → a = b := by
   intro a b h; cases a <;> cases b <;> simp_all [Level.rank]
 
-/-- Every rank is at most 2.
-
-$$\forall a \in \mathrm{Level}:\ \operatorname{rank}(a) \le 2$$
--/
+/-- Every rank is at most 2. -/
 theorem Level.rank_le_two (a : Level) : a.rank ≤ 2 := by cases a <;> simp [Level.rank]
 
-/-- The worse of two levels has the larger rank.
-
-$$\forall a, b \in \mathrm{Level}:\ \operatorname{rank}(a \curlyvee b) = \max(\operatorname{rank}(a), \operatorname{rank}(b))$$
--/
+/-- The worse of two levels has the larger rank. -/
 theorem Level.rank_worse (a b : Level) : (a.worse b).rank = max a.rank b.rank := by
   cases a <;> cases b <;> rfl
 
 /-- The class order is preserved by the levels: a class at most as strict as another has a level of
 at most the same rank.
-
-$$\forall c, c' \in \mathrm{Class}:\ c \preceq c' \;\Rightarrow\; \operatorname{rank}(\operatorname{lvl}(c)) \le \operatorname{rank}(\operatorname{lvl}(c'))$$
 -/
 theorem levelOf_mono : ∀ {c c' : Class}, c.le c' = true → (levelOf c).rank ≤ (levelOf c').rank := by
   intro c c' h
@@ -102,8 +79,6 @@ theorem levelOf_mono : ∀ {c c' : Class}, c.le c' = true → (levelOf c).rank �
 
 /-- One type's entry in one run's class table: level, observed maxima `k`, `t`, and the gap bound of
 a pixel-area type (`none` for count types).
-
-$$\mathrm{Entry} = \mathrm{Level} \times \mathbb{N} \times \mathbb{N} \times (\mathbb{N} \cup \{\bot\})$$
 -/
 structure Entry where
   cls : Level
@@ -112,65 +87,40 @@ structure Entry where
   tBound : Option Nat
 deriving Repr, DecidableEq
 
-/-- A run's class table: (type, entry) pairs; a lookup takes the first pair of a type.
-
-$$\mathrm{Table} = (\Sigma^{*} \times \mathrm{Entry})^{*}$$
--/
+/-- A run's class table: (type, entry) pairs; a lookup takes the first pair of a type. -/
 abbrev Table := List (String × Entry)
 
-/-- The entry of a type in a table: the first pair with that type, `none` if the type is missing.
-
-$$\operatorname{entry}(T, \tau) = \begin{cases} e & (\tau, e) \text{ is the first pair of } T \text{ with type } \tau \\ \bot & \text{no pair of } T \text{ has type } \tau \end{cases}$$
--/
+/-- The entry of a type in a table: the first pair with that type, `none` if the type is missing. -/
 def entry? (tb : Table) (ty : String) : Option Entry := (tb.find? (·.1 == ty)).map (·.2)
 
-/-- The level of a type in one run: its entry's level, `quar` if the type is missing.
-
-$$\operatorname{lvl}_T(\tau) = \begin{cases} e.\mathrm{cls} & \operatorname{entry}(T, \tau) = e \\ \mathrm{quar} & \operatorname{entry}(T, \tau) = \bot \end{cases}$$
--/
+/-- The level of a type in one run: its entry's level, `quar` if the type is missing. -/
 def levelIn (tb : Table) (ty : String) : Level :=
   match entry? tb ty with
   | some e => e.cls
   | none => .quar
 
-/-- **The worst level** of a type over a list of run tables (`det` for no tables).
-
-$$\operatorname{worst}([T_1, \dots, T_n], \tau) = \operatorname{lvl}_{T_1}(\tau) \curlyvee \cdots \curlyvee \operatorname{lvl}_{T_n}(\tau) \curlyvee \mathrm{det}$$
--/
+/-- **The worst level** of a type over a list of run tables (`det` for no tables). -/
 def worstOf (tbs : List Table) (ty : String) : Level :=
   tbs.foldr (fun tb acc => (levelIn tb ty).worse acc) .det
 
 /-- The types of a list of run tables: every type with an entry in some table, sorted, no
 duplicates.
-
-$$\operatorname{types}([T_1, \dots, T_n]) = \operatorname{sort}\{\, \tau \mid \exists i, e:\ (\tau, e) \in T_i \,\}$$
 -/
 def typesOf (tbs : List Table) : List String :=
   keysOf (tbs.map fun tb => tb.map fun p => (p.1, (0 : Int)))
 
-/-- The largest `k` of a type over the runs (a missing type contributes 0).
-
-$$k(\mathcal{T}, \tau) = \max{}^{*}[\, \operatorname{entry}(T, \tau).k \text{ (0 if } \bot) \,]_{T \in \mathcal{T}},\quad \max{}^{*}[\,] = 0,\ \max{}^{*}(x :: L) = \max(x, \max{}^{*} L)$$
--/
+/-- The largest `k` of a type over the runs (a missing type contributes 0). -/
 def kOf (tbs : List Table) (ty : String) : Nat := maxOf (tbs.map fun tb => ((entry? tb ty).map (·.k)).getD 0)
 
-/-- The largest `t` of a type over the runs (a missing type contributes 0).
-
-$$t(\mathcal{T}, \tau) = \max{}^{*}[\, \operatorname{entry}(T, \tau).t \text{ (0 if } \bot) \,]_{T \in \mathcal{T}}$$
--/
+/-- The largest `t` of a type over the runs (a missing type contributes 0). -/
 def tOf (tbs : List Table) (ty : String) : Nat := maxOf (tbs.map fun tb => ((entry? tb ty).map (·.t)).getD 0)
 
-/-- The smallest recorded gap bound of a type over the runs (`none` if no run records one).
-
-$$b(\mathcal{T}, \tau) = \min\{\, \operatorname{entry}(T, \tau).\mathrm{tBound} \mid T \in \mathcal{T},\ \operatorname{entry}(T, \tau) \ne \bot,\ \operatorname{entry}(T, \tau).\mathrm{tBound} \ne \bot \,\}\ (\bot \text{ if the set is empty})$$
--/
+/-- The smallest recorded gap bound of a type over the runs (`none` if no run records one). -/
 def tBoundOf (tbs : List Table) (ty : String) : Option Nat :=
   (tbs.filterMap fun tb => (entry? tb ty).bind (·.tBound)).min?
 
 /-- One row of the frozen table: type, worst level, maxima `k`, `t`, the per-run levels in run
 order (`none` where the type is missing) and the smallest gap bound.
-
-$$\mathrm{FRow} = \Sigma^{*} \times \mathrm{Level} \times \mathbb{N} \times \mathbb{N} \times (\mathrm{Level} \cup \{\bot\})^{*} \times (\mathbb{N} \cup \{\bot\})$$
 -/
 structure FRow where
   type : String
@@ -181,25 +131,16 @@ structure FRow where
   tBound : Option Nat
 deriving Repr, DecidableEq
 
-/-- **The frozen table** of a list of run tables: one row per type, in the order of `typesOf`.
-
-$$\operatorname{frozen}(\mathcal{T}) = \big[\,(\tau,\ \operatorname{worst}(\mathcal{T}, \tau),\ k(\mathcal{T}, \tau),\ t(\mathcal{T}, \tau),\ [\operatorname{entry}(T, \tau).\mathrm{cls}\ (\bot \text{ if } \operatorname{entry}(T, \tau) = \bot)]_{T \in \mathcal{T}},\ b(\mathcal{T}, \tau))\,\big]_{\tau \in \operatorname{types}(\mathcal{T})}$$
--/
+/-- **The frozen table** of a list of run tables: one row per type, in the order of `typesOf`. -/
 def freezeCore (tbs : List Table) : List FRow :=
   (typesOf tbs).map fun ty =>
     { type := ty, cls := worstOf tbs ty, k := kOf tbs ty, t := tOf tbs ty,
       perRun := tbs.map fun tb => (entry? tb ty).map (·.cls), tBound := tBoundOf tbs ty }
 
-/-- A frozen table read back as a class table.
-
-$$\operatorname{table}(F) = [\,(r.\tau, (r.\mathrm{cls}, r.k, r.t, r.\mathrm{tBound}))\,]_{r \in F}$$
--/
+/-- A frozen table read back as a class table. -/
 def toTable (rows : List FRow) : Table := rows.map fun r => (r.type, ⟨r.cls, r.k, r.t, r.tBound⟩)
 
-/-- The number of rows of each level: (det, stable, quar).
-
-$$\operatorname{tally}(L) = \big(|[\,x \in L \mid x = \mathrm{det}\,]|,\ |[\,x \in L \mid x = \mathrm{stable}\,]|,\ |[\,x \in L \mid x = \mathrm{quar}\,]|\big)$$
--/
+/-- The number of rows of each level: (det, stable, quar). -/
 def tally (ls : List Level) : Nat × Nat × Nat :=
   ((ls.filter (· == .det)).length, (ls.filter (· == .stable)).length, (ls.filter (· == .quar)).length)
 
@@ -216,16 +157,10 @@ private def e (c : Level) (k t : Nat) (b : Option Nat := none) : Entry := ⟨c, 
 
 /-! ## The worst level is a maximum over the set of tables -/
 
-/-- The ranks of a type's levels over the runs.
-
-$$\operatorname{ranks}(\mathcal{T}, \tau) = [\operatorname{rank}(\operatorname{lvl}_T(\tau))]_{T \in \mathcal{T}}$$
--/
+/-- The ranks of a type's levels over the runs. -/
 def ranks (tbs : List Table) (ty : String) : List Nat := tbs.map fun tb => (levelIn tb ty).rank
 
-/-- The rank of the worst level is the largest rank over the runs.
-
-$$\forall \mathcal{T}, \tau:\ \operatorname{rank}(\operatorname{worst}(\mathcal{T}, \tau)) = \max{}^{*}(\operatorname{ranks}(\mathcal{T}, \tau))\quad (\text{so } \mathcal{T} = [\,] \text{ gives rank } 0 = \operatorname{rank}(\mathrm{det}))$$
--/
+/-- The rank of the worst level is the largest rank over the runs. -/
 theorem rank_worstOf (tbs : List Table) (ty : String) : (worstOf tbs ty).rank = maxOf (ranks tbs ty) := by
   induction tbs with
   | nil => rfl
@@ -233,17 +168,11 @@ theorem rank_worstOf (tbs : List Table) (ty : String) : (worstOf tbs ty).rank = 
     simp only [worstOf, List.foldr_cons, ranks, List.map_cons, maxOf] at *
     rw [Level.rank_worse, ih]
 
-/-- The maximum depends only on the members.
-
-$$\forall L, L' \in \mathbb{N}^{*}:\ (\forall x:\ x \in L \iff x \in L') \;\Rightarrow\; \max{}^{*}(L) = \max{}^{*}(L')$$
--/
+/-- The maximum depends only on the members. -/
 theorem maxOf_congr {l l' : List Nat} (h : ∀ x, x ∈ l ↔ x ∈ l') : maxOf l = maxOf l' :=
   Nat.le_antisymm (maxOf_le fun x hx => le_maxOf ((h x).1 hx)) (maxOf_le fun x hx => le_maxOf ((h x).2 hx))
 
-/-- **Set dependence.** Two lists with the same tables give every type the same worst level.
-
-$$\forall \mathcal{T}, \mathcal{T}', \tau:\ (\forall T:\ T \in \mathcal{T} \iff T \in \mathcal{T}') \;\Rightarrow\; \operatorname{worst}(\mathcal{T}, \tau) = \operatorname{worst}(\mathcal{T}', \tau)$$
--/
+/-- **Set dependence.** Two lists with the same tables give every type the same worst level. -/
 theorem worstOf_congr {tbs tbs' : List Table} (h : ∀ tb, tb ∈ tbs ↔ tb ∈ tbs') (ty : String) :
     worstOf tbs ty = worstOf tbs' ty := by
   apply Level.rank_inj
@@ -253,49 +182,31 @@ theorem worstOf_congr {tbs tbs' : List Table} (h : ∀ tb, tb ∈ tbs ↔ tb ∈
   simp only [ranks, List.mem_map]
   exact ⟨fun ⟨tb, hm, hx⟩ => ⟨tb, (h tb).1 hm, hx⟩, fun ⟨tb, hm, hx⟩ => ⟨tb, (h tb).2 hm, hx⟩⟩
 
-/-- **Order independence.** Reordering the runs leaves every worst level unchanged.
-
-$$\forall \mathcal{T}, \mathcal{T}', \tau:\ \mathcal{T} \sim \mathcal{T}' \text{ (a permutation)} \;\Rightarrow\; \operatorname{worst}(\mathcal{T}, \tau) = \operatorname{worst}(\mathcal{T}', \tau)$$
--/
+/-- **Order independence.** Reordering the runs leaves every worst level unchanged. -/
 theorem worstOf_perm {tbs tbs' : List Table} (h : tbs.Perm tbs') (ty : String) :
     worstOf tbs ty = worstOf tbs' ty :=
   worstOf_congr (fun _ => h.mem_iff) ty
 
-/-- **Idempotence.** Listing every run twice changes nothing.
-
-$$\forall \mathcal{T}, \tau:\ \operatorname{worst}(\mathcal{T} \mathbin{+\!\!+} \mathcal{T}, \tau) = \operatorname{worst}(\mathcal{T}, \tau)$$
--/
+/-- **Idempotence.** Listing every run twice changes nothing. -/
 theorem worstOf_append_self (tbs : List Table) (ty : String) : worstOf (tbs ++ tbs) ty = worstOf tbs ty :=
   worstOf_congr (fun _ => by simp) ty
 
-/-- **One run.** The worst level over a single table is that table's level.
-
-$$\forall T, \tau:\ \operatorname{worst}([T], \tau) = \operatorname{lvl}_T(\tau)$$
--/
+/-- **One run.** The worst level over a single table is that table's level. -/
 theorem worstOf_single (tb : Table) (ty : String) : worstOf [tb] ty = levelIn tb ty := by
   simp only [worstOf, List.foldr_cons, List.foldr_nil, Level.worse]
   cases levelIn tb ty <;> rfl
 
-/-- **Idempotence on copies.** Freezing $n + 1$ copies of one table gives that table's levels.
-
-$$\forall T, n, \tau:\ \operatorname{worst}(\underbrace{[T, \dots, T]}_{n+1}, \tau) = \operatorname{lvl}_T(\tau)$$
--/
+/-- **Idempotence on copies.** Freezing `n + 1` copies of one table gives that table's levels. -/
 theorem worstOf_replicate (tb : Table) (n : Nat) (ty : String) :
     worstOf (List.replicate (n + 1) tb) ty = levelIn tb ty := by
   rw [worstOf_congr (tbs' := [tb]) (fun x => by simp [List.mem_replicate]), worstOf_single]
 
-/-- **Upper bound.** No run's level is worse than the worst level.
-
-$$\forall \mathcal{T}, T, \tau:\ T \in \mathcal{T} \;\Rightarrow\; \operatorname{rank}(\operatorname{lvl}_T(\tau)) \le \operatorname{rank}(\operatorname{worst}(\mathcal{T}, \tau))$$
--/
+/-- **Upper bound.** No run's level is worse than the worst level. -/
 theorem le_worstOf {tbs : List Table} {tb : Table} (h : tb ∈ tbs) (ty : String) :
     (levelIn tb ty).rank ≤ (worstOf tbs ty).rank := by
   rw [rank_worstOf]; exact le_maxOf (List.mem_map_of_mem h)
 
-/-- **Attained.** Over a non-empty list of runs, the worst level is the level of some run.
-
-$$\forall \mathcal{T}, \tau:\ \mathcal{T} \ne [\,] \;\Rightarrow\; \exists T \in \mathcal{T}:\ \operatorname{worst}(\mathcal{T}, \tau) = \operatorname{lvl}_T(\tau)$$
--/
+/-- **Attained.** Over a non-empty list of runs, the worst level is the level of some run. -/
 theorem worstOf_attained : ∀ {tbs : List Table}, tbs ≠ [] → ∀ ty, ∃ tb ∈ tbs, worstOf tbs ty = levelIn tb ty
   | [], h, _ => absurd rfl h
   | [tb], _, ty => ⟨tb, by simp, worstOf_single tb ty⟩
@@ -308,10 +219,7 @@ theorem worstOf_attained : ∀ {tbs : List Table}, tbs ≠ [] → ∀ ty, ∃ tb
     · exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
     · exact ⟨tb, by simp, rfl⟩
 
-/-- **Monotone.** A superset of runs never has a better worst level.
-
-$$\forall \mathcal{T}, \mathcal{T}', \tau:\ (\forall T \in \mathcal{T}:\ T \in \mathcal{T}') \;\Rightarrow\; \operatorname{rank}(\operatorname{worst}(\mathcal{T}, \tau)) \le \operatorname{rank}(\operatorname{worst}(\mathcal{T}', \tau))$$
--/
+/-- **Monotone.** A superset of runs never has a better worst level. -/
 theorem worstOf_mono {tbs tbs' : List Table} (h : ∀ tb ∈ tbs, tb ∈ tbs') (ty : String) :
     (worstOf tbs ty).rank ≤ (worstOf tbs' ty).rank := by
   rw [rank_worstOf, rank_worstOf]
@@ -321,20 +229,14 @@ theorem worstOf_mono {tbs tbs' : List Table} (h : ∀ tb ∈ tbs, tb ∈ tbs') (
   obtain ⟨tb, hm, rfl⟩ := hx
   exact le_maxOf (List.mem_map_of_mem (h tb hm))
 
-/-- **Adding a run never improves a class**, wherever the run is added.
-
-$$\forall \mathcal{T}, \mathcal{U}, T, \tau:\ \operatorname{rank}(\operatorname{worst}(\mathcal{T} \mathbin{+\!\!+} \mathcal{U}, \tau)) \le \operatorname{rank}(\operatorname{worst}(\mathcal{T} \mathbin{+\!\!+} T :: \mathcal{U}, \tau))$$
--/
+/-- **Adding a run never improves a class**, wherever the run is added. -/
 theorem worstOf_cons (tbs us : List Table) (tb : Table) (ty : String) :
     (worstOf (tbs ++ us) ty).rank ≤ (worstOf (tbs ++ tb :: us) ty).rank :=
   worstOf_mono (fun x hx => by
     simp only [List.mem_append, List.mem_cons] at hx ⊢
     rcases hx with h | h <;> simp [h]) ty
 
-/-- **A type missing from a run is quarantined.**
-
-$$\forall \mathcal{T}, T, \tau:\ T \in \mathcal{T} \land \operatorname{entry}(T, \tau) = \bot \;\Rightarrow\; \operatorname{worst}(\mathcal{T}, \tau) = \mathrm{quar}$$
--/
+/-- **A type missing from a run is quarantined.** -/
 theorem worstOf_missing {tbs : List Table} {tb : Table} {ty : String} (hm : tb ∈ tbs) (he : entry? tb ty = none) :
     worstOf tbs ty = .quar := by
   have hq : levelIn tb ty = .quar := by simp [levelIn, he]
@@ -348,10 +250,7 @@ theorem worstOf_missing {tbs : List Table} {tb : Table} {ty : String} (hm : tb �
 
 /-! ## Types and lookups -/
 
-/-- Membership in the keys of count lists.
-
-$$\forall x, \mathcal{C}:\ x \in \operatorname{keys}(\mathcal{C}) \iff \exists C \in \mathcal{C}, v:\ (x, v) \in C$$
--/
+/-- Membership in the keys of count lists. -/
 theorem mem_keysOf (x : String) : ∀ css : List Counts, x ∈ keysOf css ↔ ∃ cs ∈ css, ∃ v, (x, v) ∈ cs
   | [] => by simp [keysOf]
   | cs :: css => by
@@ -381,20 +280,14 @@ theorem mem_keysOf (x : String) : ∀ css : List Counts, x ∈ keysOf css ↔ �
       · subst hc; exact Or.inl h
       · exact Or.inr ⟨c, hc, h⟩
 
-/-- An entry exists exactly when the table has a pair of that type.
-
-$$\forall T, \tau:\ \operatorname{entry}(T, \tau) \ne \bot \iff \exists e:\ (\tau, e) \in T$$
--/
+/-- An entry exists exactly when the table has a pair of that type. -/
 theorem entry_isSome_iff (tb : Table) (ty : String) : (entry? tb ty).isSome ↔ ∃ e, (ty, e) ∈ tb := by
   simp only [entry?, Option.isSome_map, List.find?_isSome, beq_iff_eq]
   constructor
   · rintro ⟨⟨a, e⟩, hm, rfl⟩; exact ⟨e, hm⟩
   · rintro ⟨e, hm⟩; exact ⟨(ty, e), hm, rfl⟩
 
-/-- A type is a type of the runs exactly when some run's table has an entry for it.
-
-$$\forall \mathcal{T}, \tau:\ \tau \in \operatorname{types}(\mathcal{T}) \iff \exists T \in \mathcal{T}:\ \operatorname{entry}(T, \tau) \ne \bot$$
--/
+/-- A type is a type of the runs exactly when some run's table has an entry for it. -/
 theorem mem_typesOf (tbs : List Table) (ty : String) :
     ty ∈ typesOf tbs ↔ ∃ tb ∈ tbs, (entry? tb ty).isSome := by
   simp only [typesOf, mem_keysOf, entry_isSome_iff]
@@ -407,17 +300,12 @@ theorem mem_typesOf (tbs : List Table) (ty : String) :
   · rintro ⟨tb, htb, e, he⟩
     exact ⟨_, List.mem_map.mpr ⟨tb, htb, rfl⟩, 0, List.mem_map.mpr ⟨(ty, e), he, rfl⟩⟩
 
-/-- The frozen table has one row per type, in the order of the types.
-
-$$\forall \mathcal{T}:\ [\, r.\tau \mid r \in \operatorname{frozen}(\mathcal{T}) \,] = \operatorname{types}(\mathcal{T})$$
--/
+/-- The frozen table has one row per type, in the order of the types. -/
 theorem freezeCore_types (tbs : List Table) : (freezeCore tbs).map (·.type) = typesOf tbs := by
   simp [freezeCore, Function.comp_def]
 
 /-- Each frozen row carries the worst level, the maxima, the per-run levels and the smallest bound
 of its type.
-
-$$\forall \mathcal{T}, r \in \operatorname{frozen}(\mathcal{T}):\ r.\mathrm{cls} = \operatorname{worst}(\mathcal{T}, r.\tau) \land r.k = k(\mathcal{T}, r.\tau) \land r.t = t(\mathcal{T}, r.\tau) \land r.\mathrm{perRun} = [\operatorname{entry}(T, r.\tau).\mathrm{cls}\ (\bot \text{ if } \operatorname{entry}(T, r.\tau) = \bot)]_{T \in \mathcal{T}} \land r.\mathrm{tBound} = b(\mathcal{T}, r.\tau)$$
 -/
 theorem freezeCore_row (tbs : List Table) : ∀ r ∈ freezeCore tbs,
     r.cls = worstOf tbs r.type ∧ r.k = kOf tbs r.type ∧ r.t = tOf tbs r.type ∧
@@ -427,10 +315,7 @@ theorem freezeCore_row (tbs : List Table) : ∀ r ∈ freezeCore tbs,
   obtain ⟨ty, _, rfl⟩ := h
   exact ⟨rfl, rfl, rfl, rfl, rfl⟩
 
-/-- The level of a type in a table whose pairs of that type all carry one level.
-
-$$\forall T, \tau, \ell:\ (\exists e:\ (\tau, e) \in T) \land (\forall e:\ (\tau, e) \in T \Rightarrow e.\mathrm{cls} = \ell) \;\Rightarrow\; \operatorname{lvl}_T(\tau) = \ell$$
--/
+/-- The level of a type in a table whose pairs of that type all carry one level. -/
 theorem levelIn_of {tb : Table} {ty : String} {l : Level} (hx : ∃ e, (ty, e) ∈ tb)
     (hall : ∀ e, (ty, e) ∈ tb → e.cls = l) : levelIn tb ty = l := by
   have hs := (entry_isSome_iff tb ty).2 hx
@@ -446,8 +331,6 @@ theorem levelIn_of {tb : Table} {ty : String} {l : Level} (hx : ∃ e, (ty, e) �
 
 /-- **Re-freezing changes nothing.** Over a non-empty list of runs, the frozen table read as a single
 run's table gives every type the same level.
-
-$$\forall \mathcal{T}, \tau:\ \mathcal{T} \ne [\,] \;\Rightarrow\; \operatorname{worst}([\operatorname{table}(\operatorname{frozen}(\mathcal{T}))], \tau) = \operatorname{worst}(\mathcal{T}, \tau)$$
 -/
 theorem worstOf_refreeze {tbs : List Table} (hne : tbs ≠ []) (ty : String) :
     worstOf [toTable (freezeCore tbs)] ty = worstOf tbs ty := by
@@ -484,8 +367,6 @@ theorem worstOf_refreeze {tbs : List Table} (hne : tbs ≠ []) (ty : String) :
 
 /-- The class table of one workflow run, as `classifyAllU` decides it (the `measure.classify` reply):
 each type's level, maxima and, for pixel-area types, the gap bound.
-
-$$\operatorname{table}_{p,q}(\mathcal{R}) = \big[\,(\tau,\ (\operatorname{lvl}(c),\ k,\ t,\ \beta_\tau))\,\big]_{(\tau, c, k, t) \in \operatorname{classifyAll}_{p,q}(\mathcal{R})},\quad \beta_\tau = \begin{cases} \operatorname{tb}_{p,q}(\mathrm{px}, R_\tau) & \operatorname{unit}(\tau) = \mathrm{px} \\ \bot & \operatorname{unit}(\tau) = \mathrm{count} \end{cases},\quad R_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{R}}$$
 -/
 def tableOf (p : Policy) (q : PxTol) (runs : List (List Counts)) : Table :=
   (classifyAllU p q runs).map fun r =>
@@ -495,8 +376,6 @@ def tableOf (p : Policy) (q : PxTol) (runs : List (List Counts)) : Table :=
 
 /-- **Agrees with classify on a single run.** Freezing the table of one workflow run gives every
 count type of that run the level of its `classifyU` class.
-
-$$\forall p, q, \mathcal{R}, \tau:\ \tau \in \operatorname{keys}(\mathcal{R}) \;\Rightarrow\; \operatorname{worst}([\operatorname{table}_{p,q}(\mathcal{R})], \tau) = \operatorname{lvl}\big(\operatorname{classify}_{p,q}(\operatorname{unit}(\tau), R_\tau)\big),\quad R_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{R}}$$
 -/
 theorem worstOf_single_classify (p : Policy) (q : PxTol) (runs : List (List Counts)) {τ : String}
     (hk : τ ∈ keysOf runs.flatten) :
@@ -514,16 +393,11 @@ theorem worstOf_single_classify (p : Policy) (q : PxTol) (runs : List (List Coun
 
 /-! ## The refusing wrapper -/
 
-/-- The least number of workflow runs a freeze accepts.
-
-$$m = 3$$
--/
+/-- The least number of workflow runs a freeze accepts. -/
 def minRuns : Nat := 3
 
 /-- One job (one VM) of a workflow run: its artifact name, the number of frames it recorded, and the
-hash of its trajectory (the per-frame phase and scroll position; $\bot$ when the counts file names none).
-
-$$\mathrm{Job} = \Sigma^{*} \times \mathbb{N} \times (\Sigma^{*} \cup \{\bot\})$$
+hash of its trajectory (the per-frame phase and scroll position; `⊥` when the counts file names none).
 -/
 structure Job where
   name : String
@@ -533,8 +407,6 @@ deriving Repr, DecidableEq
 
 /-- One workflow run: its id, the image digest reported by each of its jobs, its class table, and its
 jobs.
-
-$$\mathrm{RunTable} = \Sigma^{*} \times (\Sigma^{*})^{*} \times \mathrm{Table} \times \mathrm{Job}^{*}$$
 -/
 structure RunTable where
   id : String
@@ -543,11 +415,9 @@ structure RunTable where
   jobs : List Job
 deriving Repr, DecidableEq
 
-/-- **The freeze of the tables** (the run conditions without the jobs). Refuses fewer than $m$ runs, a
+/-- **The freeze of the tables** (the run conditions without the jobs). Refuses fewer than `m` runs, a
 repeated run id, a run without an image digest, and two different digests; otherwise the common
 digest and the frozen table.
-
-$$\operatorname{freezeTables}(\mathcal{W}) = \begin{cases} \text{refused} & |\mathcal{W}| < m \\ \text{refused} & |\mathcal{W}| \ge m,\ \text{the ids } [w.\mathrm{id}]_{w \in \mathcal{W}} \text{ repeat} \\ \text{refused} & \text{the above pass},\ \exists w \in \mathcal{W}:\ w.\mathrm{images} = [\,] \\ \text{refused} & \text{the above pass},\ \exists w, w' \in \mathcal{W}, x \in w.\mathrm{images}, x' \in w'.\mathrm{images}:\ x \ne x' \\ (d,\ \operatorname{frozen}([w.\mathrm{table}]_{w \in \mathcal{W}})) & \text{otherwise, } d \text{ the common digest} \end{cases}$$
 -/
 def freezeTables (runs : List RunTable) : Except String (String × List FRow) :=
   if runs.length < minRuns then
@@ -571,11 +441,9 @@ def freezeTables (runs : List RunTable) : Except String (String × List FRow) :=
   some ("x", [⟨"a", .quar, 1, 1, [some .det, some .stable, none], none⟩,
               ⟨"b", .quar, 0, 0, [none, none, some .det], none⟩])
 
-/-- **When the freeze of the tables answers.** It answers $(d, F)$ exactly when there are at least $m$
-runs with distinct ids, every run reports at least one digest, every digest is $d$, and $F$ is the
+/-- **When the freeze of the tables answers.** It answers `(d, F)` exactly when there are at least `m`
+runs with distinct ids, every run reports at least one digest, every digest is `d`, and `F` is the
 frozen table.
-
-$$\forall \mathcal{W}, d, F:\ \operatorname{freezeTables}(\mathcal{W}) = (d, F) \iff |\mathcal{W}| \ge m \land [w.\mathrm{id}]_{w \in \mathcal{W}} \text{ has no repeats} \land (\forall w \in \mathcal{W}:\ w.\mathrm{images} \ne [\,]) \land (\forall w \in \mathcal{W}, x \in w.\mathrm{images}:\ x = d) \land F = \operatorname{frozen}([w.\mathrm{table}]_{w \in \mathcal{W}})$$
 -/
 theorem freezeTables_ok_iff (ws : List RunTable) (d : String) (fr : List FRow) :
     freezeTables ws = .ok (d, fr) ↔
@@ -654,20 +522,14 @@ theorem freezeTables_ok_iff (ws : List RunTable) (d : String) (fr : List FRow) :
 
 /-! ## Jobs: one frame count for all, the jobs that differ named -/
 
-/-- Whether all items of a list are equal (true for the empty list).
-
-$$\forall l, a:\quad \operatorname{allSame}([\,]) = \top,\qquad \operatorname{allSame}(a :: l) = (\forall b \in l:\ b = a)$$
--/
+/-- Whether all items of a list are equal (true for the empty list). -/
 def allSame {α : Type} [DecidableEq α] : List α → Bool
   | [] => true
   | a :: l => l.all fun b => decide (b = a)
 
 #guard allSame ([] : List Nat) && allSame [409, 409, 409] && !allSame [409, 409, 403]
 
-/-- `allSame` holds exactly when any two items are equal.
-
-$$\forall l:\ \operatorname{allSame}(l) \iff \forall a, b \in l:\ a = b$$
--/
+/-- `allSame` holds exactly when any two items are equal. -/
 theorem allSame_iff {α : Type} [DecidableEq α] (l : List α) :
     allSame l = true ↔ ∀ a ∈ l, ∀ b ∈ l, a = b := by
   cases l with
@@ -687,22 +549,14 @@ theorem allSame_iff {α : Type} [DecidableEq α] (l : List α) :
       rw [hx', hy']
     · intro h b hb; exact h b (Or.inr hb) a (Or.inl rfl)
 
-/-- The frame counts of the jobs of a list of runs, in run order.
-
-$$\forall n, w_1, \dots, w_n:\quad \operatorname{frames}([w_1, \dots, w_n]) = [j.\mathrm{frames}]_{j \in w_1.\mathrm{jobs}} \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} [j.\mathrm{frames}]_{j \in w_n.\mathrm{jobs}}$$
--/
+/-- The frame counts of the jobs of a list of runs, in run order. -/
 def framesOf (ws : List RunTable) : List Nat := ws.flatMap fun w => w.jobs.map (·.frames)
 
-/-- The jobs of a list of runs in run order, each with its run's id.
-
-$$\forall n, w_1, \dots, w_n:\quad \operatorname{jobs}([w_1, \dots, w_n]) = [(w_1.\mathrm{id}, j)]_{j \in w_1.\mathrm{jobs}} \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} [(w_n.\mathrm{id}, j)]_{j \in w_n.\mathrm{jobs}}$$
--/
+/-- The jobs of a list of runs in run order, each with its run's id. -/
 def jobsOf (ws : List RunTable) : List (String × Job) := ws.flatMap fun w => w.jobs.map (w.id, ·)
 
 /-- The most frequent item of a list of frame counts: the first item whose number of occurrences is
 largest; 0 for the empty list.
-
-$$\forall l:\quad \operatorname{mode}(l) = \begin{cases} 0 & l = [\,] \\ l_i,\ i \text{ the least index with } |[\,y \in l \mid y = l_i\,]| = \max_{x \in l} |[\,y \in l \mid y = x\,]| & l \ne [\,] \end{cases}$$
 -/
 def modeOf (l : List Nat) : Nat := l.foldl (fun m x => if l.count m < l.count x then x else m) (l.headD 0)
 
@@ -711,8 +565,6 @@ def modeOf (l : List Nat) : Nat := l.foldl (fun m x => if l.count m < l.count x 
 
 /-- The jobs the frame refusal names: those whose frame count is not the most frequent one, in run
 order.
-
-$$\forall \mathcal{W}:\quad \operatorname{odd}(\mathcal{W}) = [\,(i, j) \in \operatorname{jobs}(\mathcal{W}) \mid j.\mathrm{frames} \ne \operatorname{mode}(\operatorname{frames}(\mathcal{W}))\,]$$
 -/
 def oddJobs (ws : List RunTable) : List (String × Job) :=
   let m := modeOf (framesOf ws)
@@ -720,9 +572,6 @@ def oddJobs (ws : List RunTable) : List (String × Job) :=
 
 /-- The text of the frame refusal: each job of `oddJobs` with its run and frame count, then how many of
 all jobs have the most frequent count.
-
-$$\forall \mathcal{W}:\quad \operatorname{msg}(\mathcal{W}) = \text{“frame counts differ between jobs: ”} \cdot \big(\text{“job } j.\mathrm{name} \text{ of workflow run } i \text{ has } j.\mathrm{frames} \text{ frames”}\big)_{(i, j) \in \operatorname{odd}(\mathcal{W})} \cdot \text{“; } c \text{ of } |\operatorname{frames}(\mathcal{W})| \text{ jobs have } \mu \text{ frames”}$$
-$$\text{with } \mu = \operatorname{mode}(\operatorname{frames}(\mathcal{W})),\ c = |[\,x \in \operatorname{frames}(\mathcal{W}) \mid x = \mu\,]|, \text{ the job texts joined by “; ”}$$
 -/
 def framesMsg (ws : List RunTable) : String :=
   let fs := framesOf ws
@@ -733,8 +582,6 @@ def framesMsg (ws : List RunTable) : String :=
 /-- **The frame refusal.** A run without jobs is refused (naming the first such run); otherwise jobs
 whose frame counts are not all equal are refused, naming the jobs that differ from the most frequent
 count; otherwise nothing is refused.
-
-$$\forall \mathcal{W}:\quad \operatorname{refuseFrames}(\mathcal{W}) = \begin{cases} \text{“workflow run } w.\mathrm{id} \text{ reports no job”} & w \text{ the first run of } \mathcal{W} \text{ with } w.\mathrm{jobs} = [\,] \\ \operatorname{msg}(\mathcal{W}) & \text{no such run},\ \neg\operatorname{allSame}(\operatorname{frames}(\mathcal{W})) \\ \bot & \text{no such run},\ \operatorname{allSame}(\operatorname{frames}(\mathcal{W})) \end{cases}$$
 -/
 def framesRefusal (ws : List RunTable) : Option String :=
   match ws.find? (·.jobs.isEmpty) with
@@ -743,16 +590,11 @@ def framesRefusal (ws : List RunTable) : Option String :=
 
 /-- **The trajectories agree**: every job of every run has the same trajectory hash (reported, not
 refused: touch input is not trajectory-deterministic).
-
-$$\forall \mathcal{W}:\quad \operatorname{sameTraj}(\mathcal{W}) = \operatorname{allSame}([j.\mathrm{trajectory}]_{w \in \mathcal{W},\ j \in w.\mathrm{jobs}})$$
 -/
 def trajectoriesEqual (ws : List RunTable) : Bool :=
   allSame (ws.flatMap fun w => w.jobs.map (·.trajectory))
 
-/-- The common frame count reported with an accepted freeze: the first job's (0 without jobs).
-
-$$\forall \mathcal{W}:\quad \operatorname{framesCommon}(\mathcal{W}) = \begin{cases} x & \operatorname{frames}(\mathcal{W}) = x :: l \\ 0 & \operatorname{frames}(\mathcal{W}) = [\,] \end{cases}$$
--/
+/-- The common frame count reported with an accepted freeze: the first job's (0 without jobs). -/
 def framesCommon (ws : List RunTable) : Nat := (framesOf ws).headD 0
 
 /-- A job for the examples below. -/
@@ -772,18 +614,12 @@ private def jb (n : String) (f : Nat) (t : String := "t") : Job := ⟨n, f, some
   !trajectoriesEqual [⟨"1", [], [], [jb "r1" 1 "a", ⟨"r2", 1, none⟩]⟩]
 #guard framesCommon [⟨"1", [], [], [jb "r1" 409]⟩] == 409 && framesCommon [] == 0
 
-/-- The frame counts are those of the jobs.
-
-$$\forall \mathcal{W}, x:\ x \in \operatorname{frames}(\mathcal{W}) \iff \exists w \in \mathcal{W}, j \in w.\mathrm{jobs}:\ j.\mathrm{frames} = x$$
--/
+/-- The frame counts are those of the jobs. -/
 theorem mem_framesOf (ws : List RunTable) (x : Nat) :
     x ∈ framesOf ws ↔ ∃ w ∈ ws, ∃ j ∈ w.jobs, j.frames = x := by
   simp [framesOf, List.mem_flatMap, List.mem_map]
 
-/-- The listed jobs are the jobs, each with its run's id.
-
-$$\forall \mathcal{W}, i, j:\ (i, j) \in \operatorname{jobs}(\mathcal{W}) \iff \exists w \in \mathcal{W}:\ w.\mathrm{id} = i \land j \in w.\mathrm{jobs}$$
--/
+/-- The listed jobs are the jobs, each with its run's id. -/
 theorem mem_jobsOf (ws : List RunTable) (i : String) (j : Job) :
     (i, j) ∈ jobsOf ws ↔ ∃ w ∈ ws, w.id = i ∧ j ∈ w.jobs := by
   simp only [jobsOf, List.mem_flatMap, List.mem_map, Prod.mk.injEq]
@@ -793,8 +629,6 @@ theorem mem_jobsOf (ws : List RunTable) (i : String) (j : Job) :
 
 /-- A left fold whose step returns its accumulator or its item stays in a list that holds the start
 value and every item.
-
-$$\forall l, f, s, m:\ (\forall a, x:\ f(a, x) \in \{x, a\}) \land m \in l \land (\forall x \in s:\ x \in l) \;\Rightarrow\; \operatorname{foldl}(f, m, s) \in l$$
 -/
 theorem foldl_pick_mem (l : List Nat) (f : Nat → Nat → Nat) (hf : ∀ a x, f a x = x ∨ f a x = a) :
     ∀ (s : List Nat) (m : Nat), m ∈ l → (∀ x ∈ s, x ∈ l) → s.foldl f m ∈ l := by
@@ -810,10 +644,7 @@ theorem foldl_pick_mem (l : List Nat) (f : Nat → Nat → Nat) (hf : ∀ a x, f
       · exact hm
     · intro y hy; exact hs y (List.mem_cons_of_mem _ hy)
 
-/-- The most frequent item of a non-empty list is one of its items.
-
-$$\forall l:\ l \ne [\,] \;\Rightarrow\; \operatorname{mode}(l) \in l$$
--/
+/-- The most frequent item of a non-empty list is one of its items. -/
 theorem modeOf_mem {l : List Nat} (h : l ≠ []) : modeOf l ∈ l := by
   unfold modeOf
   apply foldl_pick_mem l _ (fun m x => by by_cases hc : l.count m < l.count x <;> simp [hc]) l
@@ -824,8 +655,6 @@ theorem modeOf_mem {l : List Nat} (h : l ≠ []) : modeOf l ∈ l := by
 
 /-- **Every named job differs.** Each job the frame refusal names belongs to a run of the list, and some
 job of the list has another frame count.
-
-$$\forall \mathcal{W}, i, j:\ (i, j) \in \operatorname{odd}(\mathcal{W}) \;\Rightarrow\; (\exists w \in \mathcal{W}:\ w.\mathrm{id} = i \land j \in w.\mathrm{jobs}) \land \exists w' \in \mathcal{W}, j' \in w'.\mathrm{jobs}:\ j'.\mathrm{frames} \ne j.\mathrm{frames}$$
 -/
 theorem oddJobs_sound {ws : List RunTable} {i : String} {j : Job} (h : (i, j) ∈ oddJobs ws) :
     (∃ w ∈ ws, w.id = i ∧ j ∈ w.jobs) ∧ ∃ w' ∈ ws, ∃ j' ∈ w'.jobs, j'.frames ≠ j.frames := by
@@ -839,8 +668,6 @@ theorem oddJobs_sound {ws : List RunTable} {i : String} {j : Job} (h : (i, j) �
 
 /-- **A frame mismatch names a job.** When the frame counts are not all equal, the frame refusal names
 at least one job.
-
-$$\forall \mathcal{W}:\ \neg\operatorname{allSame}(\operatorname{frames}(\mathcal{W})) \;\Rightarrow\; \operatorname{odd}(\mathcal{W}) \ne [\,]$$
 -/
 theorem oddJobs_ne_nil {ws : List RunTable} (h : allSame (framesOf ws) = false) : oddJobs ws ≠ [] := by
   have hn : ¬ ∀ a ∈ framesOf ws, ∀ b ∈ framesOf ws, a = b := by
@@ -861,8 +688,6 @@ theorem oddJobs_ne_nil {ws : List RunTable} (h : allSame (framesOf ws) = false) 
 
 /-- **When the frame refusal is silent**: exactly when every run has a job and any two jobs (of any
 two runs) recorded the same number of frames.
-
-$$\forall \mathcal{W}:\ \operatorname{refuseFrames}(\mathcal{W}) = \bot \iff (\forall w \in \mathcal{W}:\ w.\mathrm{jobs} \ne [\,]) \land \forall w, w' \in \mathcal{W}, j \in w.\mathrm{jobs}, j' \in w'.\mathrm{jobs}:\ j.\mathrm{frames} = j'.\mathrm{frames}$$
 -/
 theorem framesRefusal_eq_none_iff (ws : List RunTable) : framesRefusal ws = none ↔
     (∀ w ∈ ws, w.jobs ≠ []) ∧ ∀ w ∈ ws, ∀ w' ∈ ws, ∀ j ∈ w.jobs, ∀ j' ∈ w'.jobs, j.frames = j'.frames := by
@@ -896,8 +721,6 @@ theorem framesRefusal_eq_none_iff (ws : List RunTable) : framesRefusal ws = none
 
 /-- **The frame refusal is the message naming the odd jobs** when every run has a job and the frame
 counts are not all equal (at least one job is named: `oddJobs_ne_nil`).
-
-$$\forall \mathcal{W}:\ (\forall w \in \mathcal{W}:\ w.\mathrm{jobs} \ne [\,]) \land \neg\operatorname{allSame}(\operatorname{frames}(\mathcal{W})) \;\Rightarrow\; \operatorname{refuseFrames}(\mathcal{W}) = \operatorname{msg}(\mathcal{W})$$
 -/
 theorem framesRefusal_eq_msg {ws : List RunTable} (hj : ∀ w ∈ ws, w.jobs ≠ [])
     (h : allSame (framesOf ws) = false) : framesRefusal ws = some (framesMsg ws) := by
@@ -905,10 +728,7 @@ theorem framesRefusal_eq_msg {ws : List RunTable} (hj : ∀ w ∈ ws, w.jobs ≠
     hj w hw (List.isEmpty_iff.mp he)
   simp [framesRefusal, hn, h]
 
-/-- The trajectories agree exactly when any two jobs (of any two runs) have the same trajectory hash.
-
-$$\forall \mathcal{W}:\ \operatorname{sameTraj}(\mathcal{W}) \iff \forall w, w' \in \mathcal{W}, j \in w.\mathrm{jobs}, j' \in w'.\mathrm{jobs}:\ j.\mathrm{trajectory} = j'.\mathrm{trajectory}$$
--/
+/-- The trajectories agree exactly when any two jobs (of any two runs) have the same trajectory hash. -/
 theorem trajectoriesEqual_iff (ws : List RunTable) : trajectoriesEqual ws = true ↔
     ∀ w ∈ ws, ∀ w' ∈ ws, ∀ j ∈ w.jobs, ∀ j' ∈ w'.jobs, j.trajectory = j'.trajectory := by
   unfold trajectoriesEqual
@@ -924,8 +744,6 @@ theorem trajectoriesEqual_iff (ws : List RunTable) : trajectoriesEqual ws = true
 
 /-- **The freeze.** The freeze of the tables, refused also when a run has no job or the jobs' frame
 counts differ (that refusal names the jobs that differ).
-
-$$\forall \mathcal{W}:\quad \operatorname{freeze}(\mathcal{W}) = \begin{cases} \text{refused with } e & \operatorname{freezeTables}(\mathcal{W}) \text{ refuses with } e \\ \text{refused with } e & \operatorname{freezeTables}(\mathcal{W}) = (d, F),\ \operatorname{refuseFrames}(\mathcal{W}) = e \\ (d, F) & \operatorname{freezeTables}(\mathcal{W}) = (d, F),\ \operatorname{refuseFrames}(\mathcal{W}) = \bot \end{cases}$$
 -/
 def freeze (runs : List RunTable) : Except String (String × List FRow) :=
   match freezeTables runs with
@@ -947,11 +765,9 @@ def freeze (runs : List RunTable) : Except String (String × List FRow) :=
 #guard (freeze [⟨"1", ["x"], [], [jb "r1" 409]⟩, ⟨"2", ["y"], [], [jb "r1" 403]⟩,
     ⟨"3", ["x"], [], [jb "r1" 409]⟩]) matches .error "mixed image digests"
 
-/-- **When the freeze answers.** It answers $(d, F)$ exactly when there are at least $m$ runs with
-distinct ids, every run reports at least one digest, every digest is $d$, every run has a job, any two
-jobs recorded the same number of frames, and $F$ is the frozen table.
-
-$$\forall \mathcal{W}, d, F:\ \operatorname{freeze}(\mathcal{W}) = (d, F) \iff |\mathcal{W}| \ge m \land [w.\mathrm{id}]_{w \in \mathcal{W}} \text{ has no repeats} \land (\forall w \in \mathcal{W}:\ w.\mathrm{images} \ne [\,]) \land (\forall w \in \mathcal{W}, x \in w.\mathrm{images}:\ x = d) \land (\forall w \in \mathcal{W}:\ w.\mathrm{jobs} \ne [\,]) \land (\forall w, w' \in \mathcal{W}, j \in w.\mathrm{jobs}, j' \in w'.\mathrm{jobs}:\ j.\mathrm{frames} = j'.\mathrm{frames}) \land F = \operatorname{frozen}([w.\mathrm{table}]_{w \in \mathcal{W}})$$
+/-- **When the freeze answers.** It answers `(d, F)` exactly when there are at least `m` runs with
+distinct ids, every run reports at least one digest, every digest is `d`, every run has a job, any two
+jobs recorded the same number of frames, and `F` is the frozen table.
 -/
 theorem freeze_ok_iff (ws : List RunTable) (d : String) (fr : List FRow) :
     freeze ws = .ok (d, fr) ↔
@@ -984,8 +800,6 @@ theorem freeze_ok_iff (ws : List RunTable) (d : String) (fr : List FRow) :
 
 /-- **Accepted runs have one frame count**: when the freeze answers, any two jobs of any two runs
 recorded the same number of frames, and every job recorded the reported common count.
-
-$$\forall \mathcal{W}, d, F:\ \operatorname{freeze}(\mathcal{W}) = (d, F) \;\Rightarrow\; (\forall w, w' \in \mathcal{W}, j \in w.\mathrm{jobs}, j' \in w'.\mathrm{jobs}:\ j.\mathrm{frames} = j'.\mathrm{frames}) \land \forall w \in \mathcal{W}, j \in w.\mathrm{jobs}:\ j.\mathrm{frames} = \operatorname{framesCommon}(\mathcal{W})$$
 -/
 theorem freeze_frames {ws : List RunTable} {d : String} {fr : List FRow} (h : freeze ws = .ok (d, fr)) :
     (∀ w ∈ ws, ∀ w' ∈ ws, ∀ j ∈ w.jobs, ∀ j' ∈ w'.jobs, j.frames = j'.frames) ∧
@@ -1002,10 +816,7 @@ theorem freeze_frames {ws : List RunTable} {d : String} {fr : List FRow} (h : fr
     obtain ⟨w', hw', j', hj', rfl⟩ := (mem_framesOf ws x).1 hx
     exact hf w hw w' hw' j hj j' hj'
 
-/-- **A job with another frame count is refused** (the case of a 403-frame job among 409-frame jobs).
-
-$$\forall \mathcal{W}:\ (\exists w, w' \in \mathcal{W}, j \in w.\mathrm{jobs}, j' \in w'.\mathrm{jobs}:\ j.\mathrm{frames} \ne j'.\mathrm{frames}) \;\Rightarrow\; \forall d, F:\ \operatorname{freeze}(\mathcal{W}) \ne (d, F)$$
--/
+/-- **A job with another frame count is refused** (the case of a 403-frame job among 409-frame jobs). -/
 theorem freeze_frames_differ {ws : List RunTable}
     (h : ∃ w ∈ ws, ∃ w' ∈ ws, ∃ j ∈ w.jobs, ∃ j' ∈ w'.jobs, j.frames ≠ j'.frames) (d : String) (fr : List FRow) :
     freeze ws ≠ .ok (d, fr) := by
@@ -1015,26 +826,18 @@ theorem freeze_frames_differ {ws : List RunTable}
 
 /-- **The frame refusal reaches the caller**: when the tables freeze, every run has a job and the frame
 counts are not all equal, the freeze answers with the message naming the odd jobs.
-
-$$\forall \mathcal{W}, d, F:\ \operatorname{freezeTables}(\mathcal{W}) = (d, F) \land (\forall w \in \mathcal{W}:\ w.\mathrm{jobs} \ne [\,]) \land \neg\operatorname{allSame}(\operatorname{frames}(\mathcal{W})) \;\Rightarrow\; \operatorname{freeze}(\mathcal{W}) = \text{refused with } \operatorname{msg}(\mathcal{W})$$
 -/
 theorem freeze_eq_framesMsg {ws : List RunTable} {d : String} {fr : List FRow}
     (ht : freezeTables ws = .ok (d, fr)) (hj : ∀ w ∈ ws, w.jobs ≠ [])
     (h : allSame (framesOf ws) = false) : freeze ws = .error (framesMsg ws) := by
   simp [freeze, ht, framesRefusal_eq_msg hj h]
 
-/-- **Fewer than three runs are refused.**
-
-$$\forall \mathcal{W}:\ |\mathcal{W}| < m \;\Rightarrow\; \forall d, F:\ \operatorname{freeze}(\mathcal{W}) \ne (d, F)$$
--/
+/-- **Fewer than three runs are refused.** -/
 theorem freeze_few {ws : List RunTable} (h : ws.length < minRuns) (d : String) (fr : List FRow) :
     freeze ws ≠ .ok (d, fr) := by
   intro hf; have := ((freeze_ok_iff ws d fr).1 hf).1; omega
 
-/-- **Mixed image digests are refused.**
-
-$$\forall \mathcal{W}:\ (\exists w, w' \in \mathcal{W}, x \in w.\mathrm{images}, x' \in w'.\mathrm{images}:\ x \ne x') \;\Rightarrow\; \forall d, F:\ \operatorname{freeze}(\mathcal{W}) \ne (d, F)$$
--/
+/-- **Mixed image digests are refused.** -/
 theorem freeze_mixed {ws : List RunTable}
     (h : ∃ w ∈ ws, ∃ w' ∈ ws, ∃ x ∈ w.images, ∃ x' ∈ w'.images, x ≠ x') (d : String) (fr : List FRow) :
     freeze ws ≠ .ok (d, fr) := by

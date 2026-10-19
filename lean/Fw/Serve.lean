@@ -34,55 +34,36 @@ open Fw.Console
 
 /-! ## Indexed tables -/
 
-/-- A table: its rows in order and a hash index from a row's id to its position.
-
-$$T = (\mathit{rows}, I), \qquad \mathit{rows} \in \alpha^{*},\ I : \mathrm{String} \rightharpoonup \mathbb{N}$$
--/
+/-- A table: its rows in order and a hash index from a row's id to its position. -/
 structure Tbl (α : Type) where
   rows : Array α
   idx  : Std.HashMap String Nat
 
-/-- The empty table.
-
-$$T_0 = ([\,], \varnothing)$$
--/
+/-- The empty table. -/
 def Tbl.empty {α : Type} : Tbl α := ⟨#[], {}⟩
 
 /-- The index is exact for the id function `key`: it maps `k` to `i` exactly when row `i` exists and has
 id `k` (so ids are unique).
-
-$$\operatorname{Ok}_{\mathit{key}}(T) \iff \forall k, i:\ I(k) = i \Leftrightarrow \big(i < |\mathit{rows}| \land \mathit{key}(\mathit{rows}_i) = k\big)$$
 -/
 def Tbl.Ok {α : Type} (key : α → String) (t : Tbl α) : Prop :=
   ∀ k i, t.idx[k]? = some i ↔ ∃ h : i < t.rows.size, key t.rows[i] = k
 
-/-- Whether a row with id `k` exists (an index lookup).
-
-$$\operatorname{has}(T, k) \iff k \in \operatorname{dom}(I)$$
--/
+/-- Whether a row with id `k` exists (an index lookup). -/
 def Tbl.has {α : Type} (t : Tbl α) (k : String) : Bool := t.idx.contains k
 
-/-- The row with id `k` (an index lookup).
-
-$$\operatorname{get}(T, k) = \begin{cases} \mathit{rows}_i & I(k) = i,\ i < |\mathit{rows}| \\ \bot & \text{otherwise} \end{cases}$$
--/
+/-- The row with id `k` (an index lookup). -/
 def Tbl.get? {α : Type} (t : Tbl α) (k : String) : Option α :=
   match t.idx[k]? with
   | some i => t.rows[i]?
   | none => none
 
-/-- Append a row and index it under its id.
-
-$$\operatorname{push}_{\mathit{key}}(T, a) = (\mathit{rows} \mathbin{+\!\!+} [a],\ I[\mathit{key}(a) \mapsto |\mathit{rows}|])$$
--/
+/-- Append a row and index it under its id. -/
 def Tbl.push {α : Type} (key : α → String) (t : Tbl α) (a : α) : Tbl α :=
   match t with
   | ⟨rows, idx⟩ => let idx := idx.insert (key a) rows.size; ⟨rows.push a, idx⟩
 
 /-- Apply `f` to the row with id `k` (in place), if there is one; an index entry past the last row
 changes nothing.
-
-$$\operatorname{modify}(T, k, f) = \begin{cases} (\mathit{rows}[i := f(\mathit{rows}_i)],\ I) & I(k) = i < |\mathit{rows}| \\ (\mathit{rows}, I) & I(k) = i \ge |\mathit{rows}| \\ T & k \notin \operatorname{dom}(I) \end{cases}$$
 -/
 def Tbl.modify {α : Type} (t : Tbl α) (k : String) (f : α → α) : Tbl α :=
   match t with
@@ -94,28 +75,19 @@ def Tbl.modify {α : Type} (t : Tbl α) (k : String) (f : α → α) : Tbl α :=
 namespace Tbl
 variable {α : Type} {key : α → String}
 
-/-- The empty table is exact.
-
-$$\forall \alpha,\ \mathit{key} : \alpha \to \mathrm{String}:\quad \operatorname{Ok}_{\mathit{key}}(T_0)$$
--/
+/-- The empty table is exact. -/
 theorem empty_ok : Ok key (Tbl.empty (α := α)) := by
   intro k i
   simp [Tbl.empty]
 
-/-- In an exact table, two rows with the same id are the same row.
-
-$$\forall \mathit{key}, T, i, j:\quad \operatorname{Ok}_{\mathit{key}}(T) \land i < |\mathit{rows}| \land j < |\mathit{rows}| \land \mathit{key}(\mathit{rows}_i) = \mathit{key}(\mathit{rows}_j) \;\Rightarrow\; i = j$$
--/
+/-- In an exact table, two rows with the same id are the same row. -/
 theorem ok_unique {t : Tbl α} (h : Ok key t) {i j : Nat} (hi : i < t.rows.size) (hj : j < t.rows.size)
     (he : key t.rows[i] = key t.rows[j]) : i = j := by
   have a := (h (key t.rows[j]) i).mpr ⟨hi, he⟩
   have b := (h (key t.rows[j]) j).mpr ⟨hj, rfl⟩
   rw [a] at b; exact Option.some.inj b
 
-/-- In an exact table, the index lookup `has` is the linear scan `any`.
-
-$$\forall \mathit{key}, T, k:\quad \operatorname{Ok}_{\mathit{key}}(T) \;\Rightarrow\; \big(\operatorname{has}(T, k) \iff \exists x \in \mathit{rows}:\ \mathit{key}(x) = k\big)$$
--/
+/-- In an exact table, the index lookup `has` is the linear scan `any`. -/
 theorem has_eq {t : Tbl α} (h : Ok key t) (k : String) :
     t.has k = t.rows.toList.any (fun x => key x == k) := by
   unfold has
@@ -134,10 +106,7 @@ theorem has_eq {t : Tbl α} (h : Ok key t) (k : String) :
     have := (h k i).mpr ⟨by simpa using hi, by simpa using hxk⟩
     rw [hk] at this; cases this
 
-/-- In an exact table, the index lookup `get` is the linear scan `find?` (the first row with id `k`).
-
-$$\forall \mathit{key}, T, k:\quad \operatorname{Ok}_{\mathit{key}}(T) \;\Rightarrow\; \operatorname{get}(T, k) =\operatorname{find}(\lambda x.\ \mathit{key}(x) = k,\ \mathit{rows})$$
--/
+/-- In an exact table, the index lookup `get` is the linear scan `find?` (the first row with id `k`). -/
 theorem get?_eq {t : Tbl α} (h : Ok key t) (k : String) :
     t.get? k = t.rows.toList.find? (fun x => key x == k) := by
   unfold get?
@@ -162,34 +131,22 @@ theorem get?_eq {t : Tbl α} (h : Ok key t) (k : String) :
     have := (h k i).mpr ⟨by simpa using hi, by simpa using hxk⟩
     rw [hk] at this; cases this
 
-/-- Pushing appends the row.
-
-$$\forall \mathit{key}, T, a:\quad \operatorname{push}_{\mathit{key}}(T, a).\mathit{rows} =\mathit{rows} \mathbin{+\!\!+} [a]$$
--/
+/-- Pushing appends the row. -/
 theorem push_rows (t : Tbl α) (a : α) : (t.push key a).rows.toList = t.rows.toList ++ [a] := by
   cases t; simp [push]
 
-/-- `push` in projection form (its code destructures the table so the array is updated in place).
-
-$$\forall \mathit{key}, T, a:\quad \operatorname{push}_{\mathit{key}}(T, a) =(\mathit{rows} \mathbin{+\!\!+} [a],\ I[\mathit{key}(a) \mapsto |\mathit{rows}|])$$
--/
+/-- `push` in projection form (its code destructures the table so the array is updated in place). -/
 theorem push_eq (t : Tbl α) (a : α) : t.push key a = ⟨t.rows.push a, t.idx.insert (key a) t.rows.size⟩ := by
   cases t; rfl
 
-/-- `modify` in projection form (its code destructures the table so the array is updated in place).
-
-$$\forall T, k, f:\quad \operatorname{modify}(T, k, f) = \begin{cases} (\mathit{rows}[i := f(\mathit{rows}_i)],\ I) & I(k) = i < |\mathit{rows}| \\ (\mathit{rows}, I) & I(k) = i \ge |\mathit{rows}| \\ T & k \notin \operatorname{dom}(I) \end{cases}$$
--/
+/-- `modify` in projection form (its code destructures the table so the array is updated in place). -/
 theorem modify_eq (t : Tbl α) (k : String) (f : α → α) :
     t.modify k f = match t.idx[k]? with
       | some i => ⟨t.rows.modify i f, t.idx⟩
       | none => t := by
   cases t; rfl
 
-/-- Pushing a row whose id is new keeps the table exact.
-
-$$\forall \mathit{key}, T, a:\quad \operatorname{Ok}_{\mathit{key}}(T) \land \neg\operatorname{has}(T, \mathit{key}(a)) \;\Rightarrow\; \operatorname{Ok}_{\mathit{key}}(\operatorname{push}_{\mathit{key}}(T, a))$$
--/
+/-- Pushing a row whose id is new keeps the table exact. -/
 theorem push_ok {t : Tbl α} (h : Ok key t) {a : α} (hn : t.has (key a) = false) :
     Ok key (t.push key a) := by
   intro k i
@@ -224,10 +181,7 @@ theorem push_ok {t : Tbl α} (h : Ok key t) {a : α} (hn : t.has (key a) = false
       · simp only [hlt, dite_false] at hx
         exact absurd hx hka
 
-/-- In an exact table, modifying the row with id `k` is mapping `f` over every row with id `k`.
-
-$$\forall \mathit{key}, T, k, f:\quad \operatorname{Ok}_{\mathit{key}}(T) \;\Rightarrow\; \operatorname{modify}(T, k, f).\mathit{rows} = \big[\, \textbf{if } \mathit{key}(x) = k \textbf{ then } f(x) \textbf{ else } x \ :\ x \in \mathit{rows} \,\big]$$
--/
+/-- In an exact table, modifying the row with id `k` is mapping `f` over every row with id `k`. -/
 theorem modify_rows {t : Tbl α} (h : Ok key t) (k : String) (f : α → α) :
     (t.modify k f).rows.toList = t.rows.toList.map (fun x => if key x = k then f x else x) := by
   rw [modify_eq]
@@ -256,10 +210,7 @@ theorem modify_rows {t : Tbl α} (h : Ok key t) (k : String) (f : α → α) :
       rw [hk] at this; cases this
     simp [hne]
 
-/-- Modifying with an id-preserving `f` keeps the table exact.
-
-$$\forall \mathit{key}, T, k, f:\quad \operatorname{Ok}_{\mathit{key}}(T) \land \big(\forall x:\ \mathit{key}(f(x)) = \mathit{key}(x)\big) \;\Rightarrow\; \operatorname{Ok}_{\mathit{key}}(\operatorname{modify}(T, k, f))$$
--/
+/-- Modifying with an id-preserving `f` keeps the table exact. -/
 theorem modify_ok {t : Tbl α} (h : Ok key t) (k : String) {f : α → α} (hf : ∀ x, key (f x) = key x) :
     Ok key (t.modify k f) := by
   rw [modify_eq]
@@ -280,8 +231,6 @@ end Tbl
 
 /-- The server state: the seen keys (a list, newest first, and a hash set), the three tables and
 the plan (the work graph, kept as the console keeps it).
-
-$$v = (S, K, T_{\mathit{cards}}, T_{\mathit{steps}}, T_{\mathit{runs}}, \pi)$$
 -/
 structure Srv where
   seen  : List String
@@ -291,37 +240,22 @@ structure Srv where
   runs  : Tbl Run
   plan  : Fw.Plan.State
 
-/-- The console state a server state stands for.
-
-$$\operatorname{st}(v) = (S,\ T_{\mathit{cards}}.\mathit{rows},\ T_{\mathit{steps}}.\mathit{rows},\ T_{\mathit{runs}}.\mathit{rows},\ \pi)$$
--/
+/-- The console state a server state stands for. -/
 def Srv.st (v : Srv) : State :=
   ⟨v.seen, v.cards.rows.toList, v.steps.rows.toList, v.runs.rows.toList, v.plan⟩
 
-/-- The initial server state.
-
-$$v_0 = ([\,], \varnothing, T_0, T_0, T_0, \pi_0), \qquad \operatorname{st}(v_0) = \sigma_0$$
--/
+/-- The initial server state. -/
 def init : Srv := ⟨[], {}, .empty, .empty, .empty, {}⟩
 
-/-- The indexes agree with the rows: the key set is the seen list, and every table is exact for its id.
-
-$$\operatorname{Indexed}(v) \iff (\forall k:\ k \in K \Leftrightarrow k \in S) \land \operatorname{Ok}_{\mathit{id}}(T_{\mathit{cards}}) \land \operatorname{Ok}_{\mathit{id}}(T_{\mathit{steps}}) \land \operatorname{Ok}_{\mathit{id}}(T_{\mathit{runs}})$$
--/
+/-- The indexes agree with the rows: the key set is the seen list, and every table is exact for its id. -/
 def Indexed (v : Srv) : Prop :=
   (∀ k, v.keys.contains k = v.seen.contains k) ∧ v.cards.Ok Card.id ∧ v.steps.Ok Step.id ∧ v.runs.Ok Run.id
 
-/-- The initial server state is indexed and stands for the empty console state.
-
-$$\operatorname{Indexed}(v_0) \land \operatorname{st}(v_0) = \sigma_0$$
--/
+/-- The initial server state is indexed and stands for the empty console state. -/
 theorem init_spec : Indexed init ∧ init.st = {} :=
   ⟨⟨by intro k; simp [init], Tbl.empty_ok, Tbl.empty_ok, Tbl.empty_ok⟩, rfl⟩
 
-/-- `check` with index lookups instead of list scans (same cases, same reasons, same order).
-
-$$\operatorname{fcheck}(v, e) = \operatorname{check}(\operatorname{st}(v), e) \text{ with } \exists c \in \mathit{cards}: c.\mathit{id} = k \text{ read as } \operatorname{has}(T_{\mathit{cards}}, k) \text{ and } \operatorname{find} \text{ as } \operatorname{get} \text{ (likewise for steps and runs)}$$
--/
+/-- `check` with index lookups instead of list scans (same cases, same reasons, same order). -/
 def fcheck (v : Srv) (e : Event) : Option String :=
   if !may e.actor e.body.type then some s!"actor {e.actor.name} may not cause {e.body.type.name}" else
   match e.body with
@@ -349,22 +283,13 @@ def fcheck (v : Srv) (e : Event) : Option String :=
       | none => some "no such card"
       | some c => cardRefusal c b
 
-/-- The step update of `mapSteps`: apply `f`, then record activity at `t`.
-
-$$\operatorname{upd}_t(f)(s) = f(s)[\mathit{lastAt} := \max(s.\mathit{lastAt}, t)]$$
--/
+/-- The step update of `mapSteps`: apply `f`, then record activity at `t`. -/
 def stepUpd (t : Nat) (f : Step → Step) (s : Step) : Step := { f s with lastAt := max s.lastAt t }
 
-/-- The run update of `runFinish`: passed or failed.
-
-$$\operatorname{fin}_{\mathit{ok}}(r) = r[\mathit{status} := \mathrm{passed} \text{ if } \mathit{ok} \text{ else } \mathrm{failed}]$$
--/
+/-- The run update of `runFinish`: passed or failed. -/
 def runFin (ok : Bool) (x : Run) : Run := { x with status := if ok then .passed else .failed }
 
-/-- `accept` on the tables: appends are pushes, in-place edits are index-addressed `modify`s.
-
-$$\operatorname{faccept}(v, e) = \operatorname{accept}(\operatorname{st}(v), e) \text{ with } {+\!\!+}[x] \text{ read as } \operatorname{push} \text{ and } \operatorname{mapCards}/\operatorname{mapSteps}/\operatorname{map} \text{ as } \operatorname{modify} \text{ (a plan body: } \pi := \operatorname{Plan.exec}(\pi, c))$$
--/
+/-- `accept` on the tables: appends are pushes, in-place edits are index-addressed `modify`s. -/
 def faccept (v : Srv) (e : Event) : Srv :=
   let t := e.ts
   match v with
@@ -390,10 +315,7 @@ def faccept (v : Srv) (e : Event) : Srv :=
     | some id => ⟨seen, keys, cards.modify id (cardStep t b), steps, runs, plan⟩
     | none => ⟨seen, keys, cards, steps, runs, plan⟩
 
-/-- `faccept` leaves the seen list and the key set alone.
-
-$$\forall v, e:\quad \operatorname{faccept}(v, e).S = v.S \;\land\; \operatorname{faccept}(v, e).K = v.K$$
--/
+/-- `faccept` leaves the seen list and the key set alone. -/
 theorem faccept_seen (v : Srv) (e : Event) : (faccept v e).seen = v.seen ∧ (faccept v e).keys = v.keys := by
   obtain ⟨seen, keys, cards, steps, runs, plan⟩ := v
   cases e with
@@ -402,8 +324,6 @@ theorem faccept_seen (v : Srv) (e : Event) : (faccept v e).seen = v.seen ∧ (fa
 
 /-- The reducer step on the server state: like `step`, with the hash set for the duplicate check and
 `fcheck`/`faccept` for the rest.
-
-$$\operatorname{fstep}(v, e) = \begin{cases} (v,\ \mathrm{accepted}(\mathrm{true})) & \mathit{key}(e) \in K \\ (v,\ \mathrm{refused}(w)) & \text{else if } \operatorname{fcheck}(v, e) = w \\ \big(\operatorname{faccept}(v, e)[S := \mathit{key}(e) :: S,\ K := K \cup \{\mathit{key}(e)\}],\ \mathrm{accepted}(\mathrm{false})\big) & \text{otherwise} \end{cases}$$
 -/
 def fstep (v : Srv) (e : Event) : Srv × Outcome :=
   if v.keys.contains e.key then (v, .accepted true)
@@ -414,26 +334,17 @@ def fstep (v : Srv) (e : Event) : Srv × Outcome :=
       | ⟨seen, keys, cards, steps, runs, plan⟩ =>
         (⟨e.key :: seen, keys.insert e.key, cards, steps, runs, plan⟩, .accepted false)
 
-/-- The server state after one event.
-
-$$\operatorname{fapply}(v, e) = \operatorname{fstep}(v, e)_1$$
--/
+/-- The server state after one event. -/
 def fapply (v : Srv) (e : Event) : Srv := (fstep v e).1
 
-/-- A card transition never changes the card's id.
-
-$$\forall t, b, c:\quad \operatorname{cardStep}_t(b, c).\mathit{id} = c.\mathit{id}$$
--/
+/-- A card transition never changes the card's id. -/
 theorem cardStep_id (t : Nat) (b : Body) (c : Card) : (cardStep t b c).id = c.id := by
   unfold cardStep touch
   split
   · rfl
   · split <;> rfl
 
-/-- On an indexed server, `fcheck` gives the same answer as `check` on the console state.
-
-$$\forall v, e:\quad \operatorname{Indexed}(v) \;\Rightarrow\; \operatorname{fcheck}(v, e) = \operatorname{check}(\operatorname{st}(v), e)$$
--/
+/-- On an indexed server, `fcheck` gives the same answer as `check` on the console state. -/
 theorem fcheck_eq {v : Srv} (h : Indexed v) (e : Event) : fcheck v e = check v.st e := by
   obtain ⟨_, hc, hs, hr⟩ := h
   cases e with
@@ -443,10 +354,7 @@ theorem fcheck_eq {v : Srv} (h : Indexed v) (e : Event) : fcheck v e = check v.s
         Tbl.get?_eq hs, Tbl.get?_eq hr]
     all_goals rfl
 
-/-- On an indexed server, `faccept` stands for `accept` on the console state.
-
-$$\forall v, e:\quad \operatorname{Indexed}(v) \;\Rightarrow\; \operatorname{st}(\operatorname{faccept}(v, e)) = \operatorname{accept}(\operatorname{st}(v), e)$$
--/
+/-- On an indexed server, `faccept` stands for `accept` on the console state. -/
 theorem faccept_st {v : Srv} (h : Indexed v) (e : Event) : (faccept v e).st = accept v.st e := by
   obtain ⟨_, hc, hs, hr⟩ := h
   cases e with
@@ -461,8 +369,6 @@ theorem faccept_st {v : Srv} (h : Indexed v) (e : Event) : (faccept v e).st = ac
 
 /-- `faccept` keeps the server indexed when `fcheck` accepts the event (a push only ever adds a new id,
 and every in-place edit keeps the row's id).
-
-$$\forall v, e:\quad \operatorname{Indexed}(v) \land \operatorname{fcheck}(v, e) = \bot \;\Rightarrow\; \operatorname{Indexed}(\operatorname{faccept}(v, e))$$
 -/
 theorem faccept_indexed {v : Srv} (h : Indexed v) (e : Event) (hn : fcheck v e = none) :
     Indexed (faccept v e) := by
@@ -510,10 +416,7 @@ theorem faccept_indexed {v : Srv} (h : Indexed v) (e : Event) (hn : fcheck v e =
     | plan c => exact ⟨hk, hc, hs, hr⟩
     | _ => exact ⟨hk, mc _ _ (cardStep_id _ _), hs, hr⟩
 
-/-- On an indexed server, `fstep` gives exactly the console state and the outcome of `step`.
-
-$$\forall v, e:\quad \operatorname{Indexed}(v) \;\Rightarrow\; \operatorname{st}(\operatorname{fstep}(v, e)_1) = \operatorname{step}(\operatorname{st}(v), e)_1 \;\land\; \operatorname{fstep}(v, e)_2 = \operatorname{step}(\operatorname{st}(v), e)_2$$
--/
+/-- On an indexed server, `fstep` gives exactly the console state and the outcome of `step`. -/
 theorem fstep_spec {v : Srv} (h : Indexed v) (e : Event) :
     (fstep v e).1.st = (step v.st e).1 ∧ (fstep v e).2 = (step v.st e).2 := by
   have hf := fcheck_eq h e
@@ -532,10 +435,7 @@ theorem fstep_spec {v : Srv} (h : Indexed v) (e : Event) :
       simp only [Srv.st] at ha ⊢
       rw [← ha, (faccept_seen v e).1]
 
-/-- `fstep` keeps the server indexed.
-
-$$\forall v, e:\quad \operatorname{Indexed}(v) \;\Rightarrow\; \operatorname{Indexed}(\operatorname{fstep}(v, e)_1)$$
--/
+/-- `fstep` keeps the server indexed. -/
 theorem fstep_indexed {v : Srv} (h : Indexed v) (e : Event) : Indexed (fstep v e).1 := by
   unfold fstep
   split
@@ -549,10 +449,7 @@ theorem fstep_indexed {v : Srv} (h : Indexed v) (e : Event) : Indexed (fstep v e
       simp only [Std.HashSet.contains_insert, List.contains_cons]
       cases hk : (e.key == k) <;> cases hk' : (k == e.key) <;> simp_all [beq_iff_eq]
 
-/-- A refused event leaves the whole server state unchanged.
-
-$$\forall v, e, w:\quad \operatorname{fstep}(v, e)_2 = \mathrm{refused}(w) \;\Rightarrow\; \operatorname{fstep}(v, e)_1 = v$$
--/
+/-- A refused event leaves the whole server state unchanged. -/
 theorem fstep_refused {v : Srv} {e : Event} {w : String} (h : (fstep v e).2 = .refused w) :
     (fstep v e).1 = v := by
   revert h
@@ -565,10 +462,7 @@ theorem fstep_refused {v : Srv} {e : Event} {w : String} (h : (fstep v e).2 = .r
 
 /-! ## Changed rows -/
 
-/-- The rows an event touches: the card, step and run it names (for `runFinish` also the run's card).
-
-$$\Delta = (\mathit{cards}, \mathit{steps}, \mathit{runs})$$
--/
+/-- The rows an event touches: the card, step and run it names (for `runFinish` also the run's card). -/
 structure Delta where
   cards : List Card
   steps : List Step
@@ -577,8 +471,6 @@ structure Delta where
 /-- The rows of `σ` that event `e` touches, each the first row with that id (none if absent): the card of
 a card event or `runStart`, the step of a step event, the run of a run event and, for `runFinish`, the
 card of that run.
-
-$$\operatorname{touched}(\sigma, e) = \begin{cases} (\lfloor \mathit{card}(\mathit{id}) \rfloor, [\,], [\,]) & \mathrm{cardOpen}(\mathit{id}, \dots) \text{ or } \operatorname{cardOf}(b) = \mathit{id} \\ ([\,], \lfloor \mathit{step}(\mathit{id}) \rfloor, [\,]) & \text{a step event on } \mathit{id} \\ (\lfloor \mathit{card}(c) \rfloor, [\,], \lfloor \mathit{run}(r) \rfloor) & \mathrm{runStart}(r, c, \cdot) \\ (\lfloor \mathit{card}(x.\mathit{card}) \rfloor, [\,], [x]) & \mathrm{runFinish}(r, \cdot),\ x = \mathit{run}(r) \\ ([\,], [\,], [\,]) & \text{otherwise (incl. } \mathrm{runFinish}(r, \cdot) \text{ with } \mathit{run}(r) = \bot \text{)} \end{cases},\quad \text{where each of } \mathit{card}(k), \mathit{step}(k), \mathit{run}(k) \text{ is the first row of its table in } \sigma \text{ with id } k \text{ (} \bot \text{ if none)},\ b = e.\mathrm{body},\ \lfloor y \rfloor = [y],\ \lfloor \bot \rfloor = [\,]$$
 -/
 def touched (s : State) (e : Event) : Delta :=
   match e.body with
@@ -594,10 +486,7 @@ def touched (s : State) (e : Event) : Delta :=
     | some id => ⟨(s.cards.find? (·.id == id)).toList, [], []⟩
     | none => ⟨[], [], []⟩
 
-/-- `touched` with index lookups.
-
-$$\operatorname{ftouched}(v, e) = \operatorname{touched}(\operatorname{st}(v), e) \text{ with } \operatorname{find} \text{ read as } \operatorname{get}$$
--/
+/-- `touched` with index lookups. -/
 def ftouched (v : Srv) (e : Event) : Delta :=
   match e.body with
   | .cardOpen id _ _ => ⟨(v.cards.get? id).toList, [], []⟩
@@ -612,10 +501,7 @@ def ftouched (v : Srv) (e : Event) : Delta :=
     | some id => ⟨(v.cards.get? id).toList, [], []⟩
     | none => ⟨[], [], []⟩
 
-/-- On an indexed server, `ftouched` is `touched` of the console state.
-
-$$\forall v, e:\quad \operatorname{Indexed}(v) \;\Rightarrow\; \operatorname{ftouched}(v, e) = \operatorname{touched}(\operatorname{st}(v), e)$$
--/
+/-- On an indexed server, `ftouched` is `touched` of the console state. -/
 theorem ftouched_eq {v : Srv} (h : Indexed v) (e : Event) : ftouched v e = touched v.st e := by
   obtain ⟨_, hc, hs, hr⟩ := h
   cases e with
@@ -625,8 +511,6 @@ theorem ftouched_eq {v : Srv} (h : Indexed v) (e : Event) : ftouched v e = touch
 
 /-- The changed rows reported for an outcome: the rows the event touched in the new state when it was
 accepted fresh, none otherwise (a duplicate or a refusal changes nothing).
-
-$$\operatorname{changed}(v', e, o) = \begin{cases} \operatorname{ftouched}(v', e) & o = \mathrm{accepted}(\mathrm{false}) \\ ([\,], [\,], [\,]) & \text{otherwise} \end{cases}$$
 -/
 def changed (v' : Srv) (e : Event) (o : Outcome) : Delta :=
   if o = .accepted false then ftouched v' e else ⟨[], [], []⟩
@@ -639,8 +523,6 @@ def changed (v' : Srv) (e : Event) (o : Outcome) : Delta :=
 
 /-- The first open step of each card: folding from the right, the leftmost open step of a card is
 inserted last, so it wins.
-
-$$\operatorname{openIdx}(ss)(c) = \text{the first } s \in ss \text{ with } \operatorname{isOpen}(s.\mathit{status}) \land s.\mathit{card} = c$$
 -/
 def openIdx (ss : List Step) : Std.HashMap String Step :=
   ss.foldr (fun x m => match x.card with
@@ -649,16 +531,11 @@ def openIdx (ss : List Step) : Std.HashMap String Step :=
 
 /-- The number of running runs of each card (each list entry counts; a card with no running run has
 no entry).
-
-$$\operatorname{runIdx}(rs)(c) = \begin{cases} n_c & n_c > 0 \\ \text{absent} & n_c = 0 \end{cases}, \qquad n_c = \big|[\, r \in rs \mid r.\mathit{card} = c \land r.\mathit{status} = \mathrm{running} \,]\big|$$
 -/
 def runIdx (rs : List Run) : Std.HashMap String Nat :=
   rs.foldr (fun r m => if r.status == .running then m.insert r.card (m.getD r.card 0 + 1) else m) {}
 
-/-- The index lookup of `openIdx` is the scan `boardCard` does.
-
-$$\forall ss, c:\quad \operatorname{openIdx}(ss)(c) = \operatorname{find}\big(\lambda s.\ \operatorname{isOpen}(s.\mathit{status}) \land s.\mathit{card} = c,\ ss\big)$$
--/
+/-- The index lookup of `openIdx` is the scan `boardCard` does. -/
 theorem openIdx_get (ss : List Step) (cid : String) :
     (openIdx ss)[cid]? = ss.find? (fun x => x.status.isOpen && x.card == some cid) := by
   induction ss with
@@ -679,10 +556,7 @@ theorem openIdx_get (ss : List Step) (cid : String) :
           simp only [h', h'', Bool.false_eq_true, ite_false]
           exact ih
 
-/-- The index lookup of `runIdx`, reading an absent card as 0, is the count `boardCard` does.
-
-$$\forall rs, c:\quad \operatorname{runIdx}(rs)(c) = \big|[\, r \in rs \mid r.\mathit{card} = c \land r.\mathit{status} = \mathrm{running} \,]\big| \qquad (\text{absent} = 0)$$
--/
+/-- The index lookup of `runIdx`, reading an absent card as 0, is the count `boardCard` does. -/
 theorem runIdx_get (rs : List Run) (cid : String) :
     (runIdx rs).getD cid 0 = (rs.filter (fun r => r.card == cid && r.status == .running)).length := by
   induction rs with
@@ -702,8 +576,6 @@ theorem runIdx_get (rs : List Run) (cid : String) :
 
 /-- One board row from the two indexes (the same fields as `boardCard`, with the open step and the
 running count read from the indexes instead of scanned).
-
-$$\operatorname{frow}(O, R, \mathit{now}, c) = \big(c.\mathit{id}, c.\mathit{owner}, \operatorname{stage}(c), \operatorname{next}(c, \operatorname{stage}(c)), c.\mathit{lastAt}, \operatorname{needs}(m)_\bot, \rho, c.\mathit{head}, c.\mathit{landed}, c.\mathit{violation}, \neg c.\mathit{landed} \land \rho = 0 \land m = \bot \land \mathrm{STALE} \le \mathit{now} \mathbin{\dot-} c.\mathit{lastAt}\big),\quad \text{where } m = O(c.\mathit{id})\ (\bot \text{ if absent}),\ \rho = R(c.\mathit{id})\ (0 \text{ if absent})$$
 -/
 def fastRow (oi : Std.HashMap String Step) (ri : Std.HashMap String Nat) (now : Nat) (c : Card) : BoardCard :=
   let st := stage c
@@ -714,20 +586,14 @@ def fastRow (oi : Std.HashMap String Step) (ri : Std.HashMap String Nat) (now : 
     violation := c.violation,
     stale := !c.landed && running == 0 && mine.isNone && decide (staleMs ≤ now - c.lastAt) }
 
-/-- The board with the indexes built once.
-
-$$\operatorname{fastBoard}(\sigma, \mathit{now}, \mathit{seq}) = \big(\mathit{seq}, \mathit{now}, [\operatorname{frow}(\operatorname{openIdx}(\mathit{steps}), \operatorname{runIdx}(\mathit{runs}), \mathit{now}, c) : c \in \mathit{cards}], \mathit{steps}, [\operatorname{needs}(s) : s \in \mathit{steps}, \operatorname{isOpen}(s.\mathit{status})]\big)$$
--/
+/-- The board with the indexes built once. -/
 def fastBoard (s : State) (now seq : Nat) : Board :=
   let oi := openIdx s.steps
   let ri := runIdx s.runs
   { seq, now, cards := s.cards.map (fastRow oi ri now), steps := s.steps,
     needsYou := (s.steps.filter (·.status.isOpen)).map needs }
 
-/-- The one-pass board is the board.
-
-$$\forall \sigma, \mathit{now}, \mathit{seq}:\quad \operatorname{fastBoard}(\sigma, \mathit{now}, \mathit{seq}) = \operatorname{board}(\sigma, \mathit{now}, \mathit{seq})$$
--/
+/-- The one-pass board is the board. -/
 theorem fastBoard_eq (s : State) (now seq : Nat) : fastBoard s now seq = board s now seq := by
   simp only [fastBoard, board]
   congr 1
@@ -751,69 +617,45 @@ theorem fastBoard_eq (s : State) (now seq : Nat) : fastBoard s now seq = board s
 
 /-! ## Commands -/
 
-/-- A serve command: apply one event, replay a list of events, query the board, or reset (tests).
-
-$$\mathrm{Cmd} = \mathrm{apply}(e) \mid \mathrm{replay}([e_1, \dots, e_n]) \mid \mathrm{query}(\mathit{now}, \mathit{seq}) \mid \mathrm{reset}$$
--/
+/-- A serve command: apply one event, replay a list of events, query the board, or reset (tests). -/
 inductive Cmd where
   | apply (e : Event)
   | replay (es : List Event)
   | query (now seq : Nat)
   | reset
 
-/-- The events a command feeds to the reducer.
-
-$$\operatorname{ev}(\mathrm{apply}(e)) = [e], \quad \operatorname{ev}(\mathrm{replay}(es)) = es, \quad \operatorname{ev}(\mathrm{query}(\cdot)) = \operatorname{ev}(\mathrm{reset}) = [\,]$$
--/
+/-- The events a command feeds to the reducer. -/
 def Cmd.events : Cmd → List Event
   | .apply e => [e]
   | .replay es => es
   | _ => []
 
-/-- Whether a command is a reset.
-
-$$\operatorname{isReset}(c) \iff c = \mathrm{reset}$$
--/
+/-- Whether a command is a reset. -/
 def Cmd.isReset : Cmd → Bool
   | .reset => true
   | _ => false
 
-/-- What a replay did: how many events were accepted fresh, accepted as duplicates, or refused.
-
-$$t = (a, d, r) \in \mathbb{N}^3$$
--/
+/-- What a replay did: how many events were accepted fresh, accepted as duplicates, or refused. -/
 structure Tally where
   accepted  : Nat := 0
   duplicate : Nat := 0
   refused   : Nat := 0
 
-/-- Count one outcome.
-
-$$\operatorname{count}((a, d, r), o) = \begin{cases} (a + 1, d, r) & o = \mathrm{accepted}(\mathrm{false}) \\ (a, d + 1, r) & o = \mathrm{accepted}(\mathrm{true}) \\ (a, d, r + 1) & o = \mathrm{refused}(\cdot) \end{cases}$$
--/
+/-- Count one outcome. -/
 def Tally.count (t : Tally) : Outcome → Tally
   | .accepted false => { t with accepted := t.accepted + 1 }
   | .accepted true => { t with duplicate := t.duplicate + 1 }
   | .refused _ => { t with refused := t.refused + 1 }
 
-/-- The total of a tally.
-
-$$|(a, d, r)| = a + d + r$$
--/
+/-- The total of a tally. -/
 def Tally.total (t : Tally) : Nat := t.accepted + t.duplicate + t.refused
 
-/-- Replay a list of events from a server state, counting outcomes.
-
-$$\operatorname{replay}(v, t, [\,]) = (v, t), \qquad \operatorname{replay}(v, t, e :: es) = \operatorname{replay}\big(\operatorname{fstep}(v, e)_1,\ \operatorname{count}(t, \operatorname{fstep}(v, e)_2),\ es\big)$$
--/
+/-- Replay a list of events from a server state, counting outcomes. -/
 def replayFrom : Srv → Tally → List Event → Srv × Tally
   | v, t, [] => (v, t)
   | v, t, e :: es => let r := fstep v e; replayFrom r.1 (t.count r.2) es
 
-/-- The reply of a serve command.
-
-$$\mathrm{Resp} = \mathrm{applied}(o, \Delta) \mid \mathrm{replayed}(t) \mid \mathrm{board}(b, P) \mid \mathrm{reset}$$
--/
+/-- The reply of a serve command. -/
 inductive Resp where
   | applied (o : Outcome) (d : Delta)
   | replayed (t : Tally)
@@ -822,8 +664,6 @@ inductive Resp where
 
 /-- One serve command: apply reports the outcome and the changed rows, replay the tally, query the
 board and the board plan of the current console state; reset returns to the initial state.
-
-$$\operatorname{exec}(v, c) = \begin{cases} \big(v',\ \mathrm{applied}(o, \operatorname{changed}(v', e, o))\big),\ (v', o) = \operatorname{fstep}(v, e) & c = \mathrm{apply}(e) \\ \big(v',\ \mathrm{replayed}(t)\big),\ (v', t) = \operatorname{replay}(v, (0,0,0), es) & c = \mathrm{replay}(es) \\ \big(v,\ \mathrm{board}(\operatorname{fastBoard}(\operatorname{st}(v), \mathit{now}, \mathit{seq}),\ \operatorname{Plan.view}(\operatorname{quietMs}, \mathit{now}, \operatorname{st}(v).\mathit{plan}))\big) & c = \mathrm{query}(\mathit{now}, \mathit{seq}) \\ (v_0,\ \mathrm{reset}) & c = \mathrm{reset} \end{cases}$$
 -/
 def exec (v : Srv) : Cmd → Srv × Resp
   | .apply e => let r := fstep v e; (r.1, .applied r.2 (changed r.1 e r.2))
@@ -831,18 +671,12 @@ def exec (v : Srv) : Cmd → Srv × Resp
   | .query now seq => (v, .board (fastBoard v.st now seq) (Fw.Plan.view Fw.Plan.quietMs now v.st.plan))
   | .reset => (init, .reset)
 
-/-- Run a sequence of serve commands, keeping only the final server state.
-
-$$\operatorname{run}(v, [c_1, \dots, c_n]) = \operatorname{exec}(\cdots \operatorname{exec}(v, c_1)_1 \cdots, c_n)_1$$
--/
+/-- Run a sequence of serve commands, keeping only the final server state. -/
 def run (v : Srv) (cs : List Cmd) : Srv := cs.foldl (fun v c => (exec v c).1) v
 
 /-! ## Theorems: serve calls are the reducer's fold -/
 
-/-- Replay keeps the server indexed, and its console state is the fold of `apply` over the events.
-
-$$\forall v, t, es:\quad \operatorname{Indexed}(v) \;\Rightarrow\; \operatorname{Indexed}(v') \land \operatorname{st}(v') = \operatorname{foldl}(\operatorname{apply}, \operatorname{st}(v), es), \quad v' = \operatorname{replay}(v, t, es)_1$$
--/
+/-- Replay keeps the server indexed, and its console state is the fold of `apply` over the events. -/
 theorem replayFrom_spec : ∀ (v : Srv) (t : Tally) (es : List Event), Indexed v →
     Indexed (replayFrom v t es).1 ∧ (replayFrom v t es).1.st = es.foldl apply v.st
   | _, _, [], h => ⟨h, rfl⟩
@@ -852,10 +686,7 @@ theorem replayFrom_spec : ∀ (v : Srv) (t : Tally) (es : List Event), Indexed v
     refine ⟨ih.1, ?_⟩
     rw [ih.2, (fstep_spec h e).1]; rfl
 
-/-- The replay tally counts every event exactly once.
-
-$$\forall v, t, es:\quad |\operatorname{replay}(v, t, es)_2| = |t| + |es|$$
--/
+/-- The replay tally counts every event exactly once. -/
 theorem replayFrom_total : ∀ (v : Srv) (t : Tally) (es : List Event),
     (replayFrom v t es).2.total = t.total + es.length
   | _, _, [] => rfl
@@ -868,8 +699,6 @@ theorem replayFrom_total : ∀ (v : Srv) (t : Tally) (es : List Event),
 
 /-- A command other than reset keeps the server indexed, and its console state is the fold of `apply`
 over the command's events.
-
-$$\forall v, c:\quad \operatorname{Indexed}(v) \land c \ne \mathrm{reset} \;\Rightarrow\; \operatorname{Indexed}(\operatorname{exec}(v, c)_1) \land \operatorname{st}(\operatorname{exec}(v, c)_1) = \operatorname{foldl}(\operatorname{apply}, \operatorname{st}(v), \operatorname{ev}(c))$$
 -/
 theorem exec_spec {v : Srv} (h : Indexed v) (c : Cmd) (hc : c.isReset = false) :
     Indexed (exec v c).1 ∧ (exec v c).1.st = c.events.foldl apply v.st := by
@@ -881,8 +710,6 @@ theorem exec_spec {v : Srv} (h : Indexed v) (c : Cmd) (hc : c.isReset = false) :
 
 /-- **Serve is the fold.** After any sequence of serve calls without a reset, the server is indexed
 and its console state is the left fold of `apply` over all their events, in order.
-
-$$\forall v, [c_1, \dots, c_n]:\quad \operatorname{Indexed}(v) \land \forall i,\ c_i \ne \mathrm{reset} \;\Rightarrow\; \operatorname{Indexed}(v') \land \operatorname{st}(v') = \operatorname{foldl}\big(\operatorname{apply}, \operatorname{st}(v), \operatorname{ev}(c_1) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{ev}(c_n)\big), \quad v' = \operatorname{run}(v, [c_1, \dots, c_n])$$
 -/
 theorem run_eq_fold : ∀ (v : Srv) (cs : List Cmd), Indexed v → (∀ c ∈ cs, c.isReset = false) →
     Indexed (run v cs) ∧ (run v cs).st = (cs.flatMap Cmd.events).foldl apply v.st
@@ -895,8 +722,6 @@ theorem run_eq_fold : ∀ (v : Srv) (cs : List Cmd), Indexed v → (∀ c ∈ cs
 
 /-- From a fresh server, the console state after serve calls without a reset is the projection (full
 replay) of their events.
-
-$$\forall [c_1, \dots, c_n]:\quad (\forall i,\ c_i \ne \mathrm{reset}) \;\Rightarrow\; \operatorname{st}(\operatorname{run}(v_0, [c_1, \dots, c_n])) = \operatorname{project}\big(\operatorname{ev}(c_1) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{ev}(c_n)\big)$$
 -/
 theorem run_init_eq_project (cs : List Cmd) (hr : ∀ c ∈ cs, c.isReset = false) :
     (run init cs).st = project (cs.flatMap Cmd.events) := by
@@ -904,8 +729,6 @@ theorem run_init_eq_project (cs : List Cmd) (hr : ∀ c ∈ cs, c.isReset = fals
 
 /-- Applying events one call at a time gives the same console state as one replay call, and both equal
 the projection of the events.
-
-$$\forall [e_1, \dots, e_n]:\quad \operatorname{st}(\operatorname{run}(v_0, [\mathrm{apply}(e_1), \dots, \mathrm{apply}(e_n)])) = \operatorname{st}(\operatorname{run}(v_0, [\mathrm{replay}([e_1, \dots, e_n])])) = \operatorname{project}([e_1, \dots, e_n])$$
 -/
 theorem apply_each_eq_replay (es : List Event) :
     (run init (es.map .apply)).st = (run init [.replay es]).st ∧
@@ -920,17 +743,11 @@ theorem apply_each_eq_replay (es : List Event) :
   rw [e1] at h1; rw [e2] at h2
   exact ⟨h1.trans h2.symm, h2⟩
 
-/-- A reset forgets everything before it: the calls after the last reset decide the state.
-
-$$\forall v, cs, rs:\quad \operatorname{run}(v, cs \mathbin{+\!\!+} \mathrm{reset} :: rs) = \operatorname{run}(v_0, rs)$$
--/
+/-- A reset forgets everything before it: the calls after the last reset decide the state. -/
 theorem run_reset (v : Srv) (cs rs : List Cmd) : run v (cs ++ .reset :: rs) = run init rs := by
   simp [run, List.foldl_append, exec]
 
-/-- A refused `console.apply` leaves the server state unchanged and reports no changed rows.
-
-$$\forall v, e, w, \Delta:\quad \operatorname{exec}(v, \mathrm{apply}(e))_2 = \mathrm{applied}(\mathrm{refused}(w), \Delta) \;\Rightarrow\; \operatorname{exec}(v, \mathrm{apply}(e))_1 = v \;\land\; \Delta = ([\,], [\,], [\,])$$
--/
+/-- A refused `console.apply` leaves the server state unchanged and reports no changed rows. -/
 theorem refused_unchanged {v : Srv} {e : Event} {w : String} {d : Delta}
     (h : (exec v (.apply e)).2 = .applied (.refused w) d) :
     (exec v (.apply e)).1 = v ∧ d = ⟨[], [], []⟩ := by
@@ -941,8 +758,6 @@ theorem refused_unchanged {v : Srv} {e : Event} {w : String} {d : Delta}
 
 /-- An accepted fresh `console.apply` on an indexed server reports exactly the rows the event touched in
 the new console state.
-
-$$\forall v, e, \Delta:\quad \operatorname{Indexed}(v) \land \operatorname{exec}(v, \mathrm{apply}(e))_2 = \mathrm{applied}(\mathrm{accepted}(\mathrm{false}), \Delta) \;\Rightarrow\; \Delta = \operatorname{touched}(\operatorname{st}(\operatorname{exec}(v, \mathrm{apply}(e))_1), e)$$
 -/
 theorem accepted_changed {v : Srv} (hv : Indexed v) {e : Event} {d : Delta}
     (h : (exec v (.apply e)).2 = .applied (.accepted false) d) :
@@ -952,18 +767,13 @@ theorem accepted_changed {v : Srv} (hv : Indexed v) {e : Event} {d : Delta}
   rw [hd]
   exact ftouched_eq (fstep_indexed hv e) e
 
-/-- A query changes nothing and answers the board and the board plan of the current console state.
-
-$$\forall v, \mathit{now}, \mathit{seq}:\quad \operatorname{exec}(v, \mathrm{query}(\mathit{now}, \mathit{seq})) = \big(v,\ \mathrm{board}(\operatorname{board}(\operatorname{st}(v), \mathit{now}, \mathit{seq}),\ \operatorname{Plan.view}(\operatorname{quietMs}, \mathit{now}, \operatorname{st}(v).\mathit{plan}))\big)$$
--/
+/-- A query changes nothing and answers the board and the board plan of the current console state. -/
 theorem query_keeps (v : Srv) (now seq : Nat) :
     exec v (.query now seq) = (v, .board (board v.st now seq) (Fw.Plan.view Fw.Plan.quietMs now v.st.plan)) := by
   simp [exec, fastBoard_eq]
 
 /-- The query reply is a function of the console state alone (not of the indexes or of how the state
 was reached).
-
-$$\forall v, w, \mathit{now}, \mathit{seq}:\quad \operatorname{st}(v) = \operatorname{st}(w) \;\Rightarrow\; \operatorname{exec}(v, \mathrm{query}(\mathit{now}, \mathit{seq}))_2 = \operatorname{exec}(w, \mathrm{query}(\mathit{now}, \mathit{seq}))_2$$
 -/
 theorem query_eq_of_st {v w : Srv} (h : v.st = w.st) (now seq : Nat) :
     (exec v (.query now seq)).2 = (exec w (.query now seq)).2 := by
@@ -971,8 +781,6 @@ theorem query_eq_of_st {v w : Srv} (h : v.st = w.st) (now seq : Nat) :
 
 /-- After serve calls without a reset from a fresh server, the query reply is the board and the board
 plan of the projection of their events.
-
-$$\forall cs = [c_1, \dots, c_n], \mathit{now}, \mathit{seq}:\quad (\forall c \in cs,\ c \ne \mathrm{reset}) \;\Rightarrow\; \operatorname{exec}(\operatorname{run}(v_0, cs), \mathrm{query}(\mathit{now}, \mathit{seq}))_2 = \mathrm{board}\big(\operatorname{board}(\sigma, \mathit{now}, \mathit{seq}),\ \operatorname{Plan.view}(\operatorname{quietMs}, \mathit{now}, \sigma.\mathit{plan})\big),\ \sigma = \operatorname{project}(\operatorname{ev}(c_1) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{ev}(c_n))$$
 -/
 theorem query_after_run (cs : List Cmd) (hr : ∀ c ∈ cs, c.isReset = false) (now seq : Nat) :
     (exec (run init cs) (.query now seq)).2 = .board (board (project (cs.flatMap Cmd.events)) now seq)

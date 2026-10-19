@@ -61,6 +61,8 @@ try {
     process.exitCode = await watchMain(rest, process.cwd());
   } else if (group === "next") {
     process.exitCode = await nextMain(rest, process.cwd()); // read-only: prints the NEXT list once
+  } else if (group === "preview") {
+    process.exitCode = await (await import("./preview.ts")).previewCli(rest, base); // inspect grant: a one-time loopback link (docs/team/tools/preview-grant.md)
   } else if (group === "status") {
     const b = await (await fetch(`${base}/api/board`)).json();
     console.log(renderBoard(b as never));
@@ -152,7 +154,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json] [--check] | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw preview grant [<id>] | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json] [--check] | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));

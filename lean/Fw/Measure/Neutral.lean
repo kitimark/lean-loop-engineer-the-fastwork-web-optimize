@@ -37,10 +37,7 @@ open Fw.Measure Fw.Measure.Splits
 
 /-! ## N0 windows -/
 
-/-- The window of an N0 event.
-
-$$\mathrm{Win} = \{\mathrm{load}, \mathrm{preroll}, \mathrm{after}\} \cup \{\, \mathrm{frame}(i) \mid i \in \mathbb{N} \,\}$$
--/
+/-- The window of an N0 event. -/
 inductive Win where
   | load
   | preroll
@@ -48,85 +45,54 @@ inductive Win where
   | after
 deriving Repr, DecidableEq
 
-/-- The time tolerance of the attribution (ms).
-
-$$\varepsilon = \tfrac{1}{1000}$$
--/
+/-- The time tolerance of the attribution (ms). -/
 def eps : Rat := 1 / 1000
 
 /-- The time of the last pre-roll frame: one interval before the first recorded frame, the profile
 start without frames.
-
-$$\operatorname{pre}(F, s, \mathit{dt}) = \begin{cases} F_0 - \mathit{dt} & F \ne [\,] \\ s & F = [\,] \end{cases}$$
 -/
 def lastPreroll (fv : List Rat) (startVt dt : Rat) : Rat :=
   match fv with
   | [] => startVt
   | f :: _ => f - dt
 
-/-- The time of the last recorded frame, the profile start without frames.
-
-$$\operatorname{last}(F, s) = \begin{cases} F_{|F|-1} & F \ne [\,] \\ s & F = [\,] \end{cases}$$
--/
+/-- The time of the last recorded frame, the profile start without frames. -/
 def lastFrame (fv : List Rat) (startVt : Rat) : Rat := fv.getLast?.getD startVt
 
-/-- The first frame index whose time is at least `vt − ε` (`|F|` when there is none).
-
-$$\operatorname{first}(F, \mathit{vt}) = \min(\{\, i < |F| \mid \mathit{vt} - \varepsilon \le F_i \,\} \cup \{|F|\})$$
--/
+/-- The first frame index whose time is at least `vt − ε` (`|F|` when there is none). -/
 def firstAtOrAfter (fv : List Rat) (vt : Rat) : Nat := fv.findIdx fun f => decide (vt - eps ≤ f)
 
-/-- **The window of an event** at virtual time `vt`.
-
-$$\operatorname{win}(F, s, \mathit{dt}, \mathit{vt}) = \begin{cases} \mathrm{load} & \mathit{vt} < s - \varepsilon \\ \mathrm{preroll} & \text{else if } \mathit{vt} \le \operatorname{pre}(F, s, \mathit{dt}) + \varepsilon \\ \mathrm{after} & \text{else if } \operatorname{last}(F, s) + \varepsilon < \mathit{vt} \\ \mathrm{frame}(\operatorname{first}(F, \mathit{vt})) & \text{otherwise} \end{cases}$$
--/
+/-- **The window of an event** at virtual time `vt`. -/
 def winOf (fv : List Rat) (startVt dt vt : Rat) : Win :=
   if vt < startVt - eps then .load
   else if vt ≤ lastPreroll fv startVt dt + eps then .preroll
   else if lastFrame fv startVt + eps < vt then .after
   else .frame (firstAtOrAfter fv vt)
 
-/-- One N0 census event: its kind and virtual time.
-
-$$\mathrm{N0Event} = \Sigma^{*} \times \mathbb{Q}\ \ (\mathrm{kind}, \mathit{vt})$$
--/
+/-- One N0 census event: its kind and virtual time. -/
 structure N0Event where
   kind : String
   vt : Rat
 deriving Repr, DecidableEq
 
-/-- The N0 count types, in the order of `n0.mjs` `N0_KEYS`.
-
-$$\mathrm{n0Keys} = [\texttt{n0.events}, \texttt{n0.cssom}, \texttt{n0.sheetNode}]$$
--/
+/-- The N0 count types, in the order of `n0.mjs` `N0_KEYS`. -/
 def n0Keys : List String := ["n0.events", "n0.cssom", "n0.sheetNode"]
 
 /-- An event kind is a CSSOM write when it starts with `cssom.` or is `adoptedStyleSheets`; any other
 kind is a sheet-node change.
-
-$$\operatorname{isCssom}(\kappa) \iff \texttt{cssom.} \text{ is a prefix of } \kappa \ \lor\ \kappa = \texttt{adoptedStyleSheets}$$
 -/
 def isCssom (kind : String) : Bool := kind.startsWith "cssom." || kind == "adoptedStyleSheets"
 
-/-- The N0 counts of one frame's events.
-
-$$\operatorname{n0}(L) = [(\texttt{n0.events}, |L|),\ (\texttt{n0.cssom}, |[e \in L \mid \operatorname{isCssom}(e.\mathrm{kind})]|),\ (\texttt{n0.sheetNode}, |[e \in L \mid \lnot \operatorname{isCssom}(e.\mathrm{kind})]|)]$$
--/
+/-- The N0 counts of one frame's events. -/
 def frameCounts (es : List N0Event) : Counts :=
   [("n0.events", (es.length : Int)), ("n0.cssom", ((es.filter (isCssom ·.kind)).length : Int)),
    ("n0.sheetNode", ((es.filter fun e => !isCssom e.kind).length : Int))]
 
-/-- The events of window `w`.
-
-$$\operatorname{in}_w(F, s, \mathit{dt}, E) = [\, e \in E \mid \operatorname{win}(F, s, \mathit{dt}, e.\mathit{vt}) = w \,]$$
--/
+/-- The events of window `w`. -/
 def eventsIn (fv : List Rat) (startVt dt : Rat) (w : Win) (es : List N0Event) : List N0Event :=
   es.filter fun e => winOf fv startVt dt e.vt == w
 
-/-- The events of each recorded frame.
-
-$$\operatorname{perFrame}(F, s, \mathit{dt}, E) = [\, \operatorname{in}_{\mathrm{frame}(i)}(F, s, \mathit{dt}, E) \,]_{i < |F|}$$
--/
+/-- The events of each recorded frame. -/
 def perFrame (fv : List Rat) (startVt dt : Rat) (es : List N0Event) : List (List N0Event) :=
   (List.range fv.length).map fun i => eventsIn fv startVt dt (.frame i) es
 
@@ -140,64 +106,41 @@ def perFrame (fv : List Rat) (startVt dt : Rat) (es : List N0Event) : List (List
 
 /-! ## The SPK-q verdict -/
 
-/-- The event totals of the N0 windows outside the recorded frames.
-
-$$\mathrm{N0Win} = \mathbb{N} \times \mathbb{N} \times \mathbb{N}\ \ (\mathrm{load}, \mathrm{preroll}, \mathrm{after})$$
--/
+/-- The event totals of the N0 windows outside the recorded frames. -/
 structure N0Win where
   load : Nat
   preroll : Nat
   after : Nat
 deriving Repr, DecidableEq
 
-/-- The verdict of the styling-neutrality baseline on one run.
-
-$$\mathrm{Verdict} = \{\mathrm{pass}, \mathrm{fail}, \mathrm{missing}\}$$
--/
+/-- The verdict of the styling-neutrality baseline on one run. -/
 inductive Verdict where
   | pass
   | fail
   | missing
 deriving Repr, DecidableEq
 
-/-- The keys every recorded frame must carry: the N0 keys and the gated N1 keys.
-
-$$\mathrm{required} = \mathrm{n0Keys} \mathbin{+\!\!+} \mathrm{n1Gated}$$
--/
+/-- The keys every recorded frame must carry: the N0 keys and the gated N1 keys. -/
 def required : List String := n0Keys ++ n1Gated
 
-/-- A key is recorded in a frame's counts (with any value, 0 included).
-
-$$\operatorname{rec}(C, k) \iff \exists v:\ (k, v) \in C$$
--/
+/-- A key is recorded in a frame's counts (with any value, 0 included). -/
 def recorded (C : Counts) (k : String) : Bool := C.any (·.1 == k)
 
-/-- The indices (from `i`) of the frames that satisfy `p`.
-
-$$\operatorname{idx}_p(i, [C_0, \dots, C_{m-1}]) = [\, i + j \mid j < m,\ p(C_j) \,]$$
--/
+/-- The indices (from `i`) of the frames that satisfy `p`. -/
 def idxFrom (p : Counts → Bool) : Nat → List Counts → List Nat
   | _, [] => []
   | i, f :: fs => if p f then i :: idxFrom p (i + 1) fs else idxFrom p (i + 1) fs
 
-/-- The frames that lack a required key.
-
-$$\operatorname{unrec}(\mathcal{F}) = \operatorname{idx}_{\lambda C.\ \exists k \in \mathrm{required}:\ \lnot \operatorname{rec}(C, k)}(0, \mathcal{F})$$
--/
+/-- The frames that lack a required key. -/
 def unrecorded (frames : List Counts) : List Nat :=
   idxFrom (fun C => required.any fun k => !recorded C k) 0 frames
 
-/-- The frames where one of the keys `K` is not 0.
-
-$$\operatorname{nz}_K(\mathcal{F}) = \operatorname{idx}_{\lambda C.\ \exists k \in K:\ \operatorname{countIn}(C, k) \ne 0}(0, \mathcal{F})$$
--/
+/-- The frames where one of the keys `K` is not 0. -/
 def nonzero (keys : List String) (frames : List Counts) : List Nat :=
   idxFrom (fun C => keys.any fun k => countIn C k != 0) 0 frames
 
 /-- **The SPK-q verdict** of one run: N0 windows (`none` when the census was off) and the counts
 of the recorded frames.
-
-$$\operatorname{verdict}(w, \mathcal{F}) = \begin{cases} \mathrm{missing} & w = \bot \ \lor\ \mathcal{F} = [\,] \ \lor\ \operatorname{unrec}(\mathcal{F}) \ne [\,] \\ \mathrm{pass} & \text{else if } w.\mathrm{preroll} = 0 \land w.\mathrm{after} = 0 \land \operatorname{nz}_{\mathrm{n0Keys}}(\mathcal{F}) = [\,] \land \operatorname{nz}_{\mathrm{n1Gated}}(\mathcal{F}) = [\,] \\ \mathrm{fail} & \text{otherwise} \end{cases}$$
 -/
 def verdict (w : Option N0Win) (frames : List Counts) : Verdict :=
   match w with
@@ -221,10 +164,7 @@ private def zeroFrame : Counts := (required.map fun k => (k, (0 : Int))) ++ [(sv
 
 /-! ## Proofs: windows -/
 
-/-- The first index whose time is at least `vt − ε` exists when the last frame time is.
-
-$$\forall F, s, \mathit{vt}:\ F \ne [\,] \land \mathit{vt} - \varepsilon \le \operatorname{last}(F, s) \;\Rightarrow\; \operatorname{first}(F, \mathit{vt}) < |F|$$
--/
+/-- The first index whose time is at least `vt − ε` exists when the last frame time is. -/
 theorem firstAtOrAfter_lt {fv : List Rat} {startVt vt : Rat} (hne : fv ≠ [])
     (h : vt - eps ≤ lastFrame fv startVt) : firstAtOrAfter fv vt < fv.length := by
   unfold firstAtOrAfter
@@ -237,8 +177,6 @@ theorem firstAtOrAfter_lt {fv : List Rat} {startVt vt : Rat} (hne : fv ≠ [])
 /-- **Frame attribution.** An event in frame `i` lies after the pre-roll and at most `ε` past the
 last frame; `i` is a frame index, frame `i` is at or after `vt − ε`, and every earlier frame is
 before it.
-
-$$\forall F, s, \mathit{dt}, \mathit{vt}, i:\ \operatorname{win}(F, s, \mathit{dt}, \mathit{vt}) = \mathrm{frame}(i) \;\Rightarrow\; i < |F| \ \land\ \mathit{vt} - \varepsilon \le F_i \ \land\ (\forall j < i:\ F_j < \mathit{vt} - \varepsilon) \ \land\ s - \varepsilon \le \mathit{vt} \ \land\ \operatorname{pre}(F, s, \mathit{dt}) + \varepsilon < \mathit{vt} \le \operatorname{last}(F, s) + \varepsilon$$
 -/
 theorem winOf_frame {fv : List Rat} {startVt dt vt : Rat} {i : Nat}
     (h : winOf fv startVt dt vt = .frame i) :
@@ -266,19 +204,13 @@ theorem winOf_frame {fv : List Rat} {startVt dt vt : Rat} {i : Nat}
     have := List.not_of_lt_findIdx hj
     simpa [Rat.not_le] using this
 
-/-- Without recorded frames no event is attributed to a frame.
-
-$$\forall s, \mathit{dt}, \mathit{vt}, i:\ \operatorname{win}([\,], s, \mathit{dt}, \mathit{vt}) \ne \mathrm{frame}(i)$$
--/
+/-- Without recorded frames no event is attributed to a frame. -/
 theorem winOf_nil (startVt dt vt : Rat) (i : Nat) : winOf [] startVt dt vt ≠ .frame i := by
   intro h
   obtain ⟨hi, _⟩ := winOf_frame h
   simp at hi
 
-/-- An event is in the load window exactly when it is more than `ε` before the profile start.
-
-$$\forall F, s, \mathit{dt}, \mathit{vt}:\ \operatorname{win}(F, s, \mathit{dt}, \mathit{vt}) = \mathrm{load} \iff \mathit{vt} < s - \varepsilon$$
--/
+/-- An event is in the load window exactly when it is more than `ε` before the profile start. -/
 theorem winOf_load_iff (fv : List Rat) (startVt dt vt : Rat) :
     winOf fv startVt dt vt = .load ↔ vt < startVt - eps := by
   unfold winOf
@@ -291,10 +223,7 @@ theorem winOf_load_iff (fv : List Rat) (startVt dt vt : Rat) :
       · simp [h2, h3]
       · simp [h2, h3]
 
-/-- Per frame, the events are the CSSOM writes plus the sheet-node changes.
-
-$$\forall E:\ \operatorname{countIn}(\operatorname{frameCounts}(E), \texttt{n0.events}) = \operatorname{countIn}(\operatorname{frameCounts}(E), \texttt{n0.cssom}) + \operatorname{countIn}(\operatorname{frameCounts}(E), \texttt{n0.sheetNode})$$
--/
+/-- Per frame, the events are the CSSOM writes plus the sheet-node changes. -/
 theorem frameCounts_sum (E : List N0Event) :
     countIn (frameCounts E) "n0.events" =
       countIn (frameCounts E) "n0.cssom" + countIn (frameCounts E) "n0.sheetNode" := by
@@ -309,10 +238,7 @@ theorem frameCounts_sum (E : List N0Event) :
   have := h E
   omega
 
-/-- The number of frame indices below `n` that equal a window: 1 for a frame below `n`, else 0.
-
-$$\forall w, n:\ \big|[\, i < n \mid w = \mathrm{frame}(i) \,]\big| = \begin{cases} 1 & w = \mathrm{frame}(i_0),\ i_0 < n \\ 0 & \text{otherwise} \end{cases}$$
--/
+/-- The number of frame indices below `n` that equal a window: 1 for a frame below `n`, else 0. -/
 theorem count_frame_range (w : Win) (n : Nat) :
     ((List.range n).filter fun i => w == .frame i).length =
       match w with
@@ -333,8 +259,6 @@ theorem count_frame_range (w : Win) (n : Nat) :
 
 /-- **N0 conservation.** Every event lands in exactly one window: the load, pre-roll and after
 totals and the per-frame totals add up to the number of events.
-
-$$\forall F, s, \mathit{dt}, E:\ |\operatorname{in}_{\mathrm{load}}(F, s, \mathit{dt}, E)| + |\operatorname{in}_{\mathrm{preroll}}(F, s, \mathit{dt}, E)| + |\operatorname{in}_{\mathrm{after}}(F, s, \mathit{dt}, E)| + \sum_{i < |F|} |\operatorname{in}_{\mathrm{frame}(i)}(F, s, \mathit{dt}, E)| = |E|$$
 -/
 theorem n0_conservation (fv : List Rat) (startVt dt : Rat) (es : List N0Event) :
     (eventsIn fv startVt dt .load es).length + (eventsIn fv startVt dt .preroll es).length +
@@ -373,10 +297,7 @@ theorem n0_conservation (fv : List Rat) (startVt dt : Rat) (es : List N0Event) :
 
 /-! ## Proofs: the verdict -/
 
-/-- No index is listed exactly when no frame satisfies the predicate.
-
-$$\forall p, i, \mathcal{F}:\ \operatorname{idx}_p(i, \mathcal{F}) = [\,] \iff \forall C \in \mathcal{F}:\ \lnot p(C)$$
--/
+/-- No index is listed exactly when no frame satisfies the predicate. -/
 theorem idxFrom_eq_nil (p : Counts → Bool) : ∀ (i : Nat) (fs : List Counts),
     idxFrom p i fs = [] ↔ ∀ f ∈ fs, p f = false
   | _, [] => by simp [idxFrom]
@@ -385,55 +306,37 @@ theorem idxFrom_eq_nil (p : Counts → Bool) : ∀ (i : Nat) (fs : List Counts),
     · simp [idxFrom, hf]
     · simp [idxFrom, hf, idxFrom_eq_nil p (i + 1) fs]
 
-/-- Two lists are related pointwise by `r`: same length, and `r` holds at every position.
-
-$$\operatorname{Pw}_r(L, M) \iff |L| = |M| \ \land\ \forall i < |L|:\ r(L_i, M_i)$$
--/
+/-- Two lists are related pointwise by `r`: same length, and `r` holds at every position. -/
 inductive Pointwise {α β : Type} (r : α → β → Prop) : List α → List β → Prop
   | nil : Pointwise r [] []
   | cons {a b as bs} : r a b → Pointwise r as bs → Pointwise r (a :: as) (b :: bs)
 
-/-- A pointwise relation carries over to any weaker relation.
-
-$$\forall r, s, L, M:\ (\forall a, b:\ r(a, b) \Rightarrow s(a, b)) \land \operatorname{Pw}_r(L, M) \;\Rightarrow\; \operatorname{Pw}_s(L, M)$$
--/
+/-- A pointwise relation carries over to any weaker relation. -/
 theorem Pointwise.imp {α β : Type} {r s : α → β → Prop} (hrs : ∀ {a b}, r a b → s a b) :
     ∀ {l : List α} {m : List β}, Pointwise r l m → Pointwise s l m
   | _, _, .nil => .nil
   | _, _, .cons h hs => .cons (hrs h) (Pointwise.imp hrs hs)
 
-/-- Two frame lists whose frames agree on a predicate list the same indices.
-
-$$\forall p, i, \mathcal{F}, \mathcal{G}:\ \operatorname{Pw}_{\lambda C\, D.\ p(C) = p(D)}(\mathcal{F}, \mathcal{G}) \;\Rightarrow\; \operatorname{idx}_p(i, \mathcal{F}) = \operatorname{idx}_p(i, \mathcal{G})$$
--/
+/-- Two frame lists whose frames agree on a predicate list the same indices. -/
 theorem idxFrom_congr (p : Counts → Bool) : ∀ (i : Nat) {fs gs : List Counts},
     Pointwise (fun f g => p f = p g) fs gs → idxFrom p i fs = idxFrom p i gs
   | _, [], [], .nil => rfl
   | i, _ :: _, _ :: _, .cons h hs => by
     simp only [idxFrom, h, idxFrom_congr p (i + 1) hs]
 
-/-- `any` over a list depends only on the predicate's values at the list's members.
-
-$$\forall L, p, q:\ (\forall x \in L:\ p(x) = q(x)) \;\Rightarrow\; (\exists x \in L:\ p(x)) = (\exists x \in L:\ q(x))$$
--/
+/-- `any` over a list depends only on the predicate's values at the list's members. -/
 theorem any_congr_mem {α : Type} {p q : α → Bool} : ∀ {l : List α}, (∀ x ∈ l, p x = q x) → l.any p = l.any q
   | [], _ => rfl
   | x :: xs, h => by
     simp only [List.any_cons, h x (by simp), any_congr_mem (l := xs) fun y hy => h y (by simp [hy])]
 
-/-- No frame lacks a required key exactly when every frame records every required key.
-
-$$\forall \mathcal{F}:\ \operatorname{unrec}(\mathcal{F}) = [\,] \iff \forall C \in \mathcal{F}, k \in \mathrm{required}:\ \operatorname{rec}(C, k)$$
--/
+/-- No frame lacks a required key exactly when every frame records every required key. -/
 theorem unrecorded_eq_nil (frames : List Counts) :
     unrecorded frames = [] ↔ ∀ f ∈ frames, ∀ k ∈ required, recorded f k = true := by
   rw [unrecorded, idxFrom_eq_nil]
   simp [List.any_eq_false]
 
-/-- No frame has a non-zero key of `K` exactly when every frame reads 0 on every key of `K`.
-
-$$\forall K, \mathcal{F}:\ \operatorname{nz}_K(\mathcal{F}) = [\,] \iff \forall C \in \mathcal{F}, k \in K:\ \operatorname{countIn}(C, k) = 0$$
--/
+/-- No frame has a non-zero key of `K` exactly when every frame reads 0 on every key of `K`. -/
 theorem nonzero_eq_nil (keys : List String) (frames : List Counts) :
     nonzero keys frames = [] ↔ ∀ f ∈ frames, ∀ k ∈ keys, countIn f k = 0 := by
   rw [nonzero, idxFrom_eq_nil]
@@ -442,8 +345,6 @@ theorem nonzero_eq_nil (keys : List String) (frames : List Counts) :
 /-- **The pass condition.** The verdict is `pass` exactly when the census was on, some frame was
 recorded, the pre-roll and after windows are empty, and every recorded frame carries every required
 key with value 0.
-
-$$\forall w, \mathcal{F}:\ \operatorname{verdict}(w, \mathcal{F}) = \mathrm{pass} \iff \exists v:\ w = \operatorname{some}(v) \ \land\ \mathcal{F} \ne [\,] \ \land\ v.\mathrm{preroll} = 0 \ \land\ v.\mathrm{after} = 0 \ \land\ \forall C \in \mathcal{F}, k \in \mathrm{required}:\ \operatorname{rec}(C, k) \land \operatorname{countIn}(C, k) = 0$$
 -/
 theorem verdict_pass_iff (w : Option N0Win) (frames : List Counts) :
     verdict w frames = .pass ↔ ∃ v, w = some v ∧ frames ≠ [] ∧ v.preroll = 0 ∧ v.after = 0 ∧
@@ -474,17 +375,12 @@ theorem verdict_pass_iff (w : Option N0Win) (frames : List Counts) :
         simp [hf, hu, hp, ha, h0, h1]
     · simp [hf, hu]
 
-/-- **The load window is not gated.** Changing the load total does not change the verdict.
-
-$$\forall v, x, \mathcal{F}:\ \operatorname{verdict}((x, v.\mathrm{preroll}, v.\mathrm{after}), \mathcal{F}) = \operatorname{verdict}(v, \mathcal{F})$$
--/
+/-- **The load window is not gated.** Changing the load total does not change the verdict. -/
 theorem verdict_load (v : N0Win) (x : Nat) (frames : List Counts) :
     verdict (some { v with load := x }) frames = verdict (some v) frames := rfl
 
 /-- **The SVG-image type is not gated.** Two runs whose frames agree on every key other than the
 SVG-image type (value and whether it is recorded) get the same verdict.
-
-$$\forall w, \mathcal{F}, \mathcal{G}:\ \operatorname{Pw}_{\lambda C\, D.\ \forall k \ne \mathrm{svgKey}:\ \operatorname{rec}(C, k) = \operatorname{rec}(D, k) \land \operatorname{countIn}(C, k) = \operatorname{countIn}(D, k)}(\mathcal{F}, \mathcal{G}) \;\Rightarrow\; \operatorname{verdict}(w, \mathcal{F}) = \operatorname{verdict}(w, \mathcal{G})$$
 -/
 theorem verdict_svg (w : Option N0Win) {fs gs : List Counts}
     (h : Pointwise (fun f g => ∀ k, k ≠ svgKey → recorded f k = recorded g k ∧ countIn f k = countIn g k)

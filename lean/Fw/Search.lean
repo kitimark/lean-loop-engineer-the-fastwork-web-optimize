@@ -22,77 +22,66 @@ namespace Fw.Search
 universe u v
 
 /-- Values of `α` enumerated by a bound: `enum n` is a list of values. A larger bound lists every value a smaller one
-did, and every value is listed at some bound. There is no size function; the two laws are all the class says.
-$$\mathrm{enum} : \mathbb N \to \mathrm{List}(\alpha),\quad \forall m\, n\, x,\ m \le n \wedge x \in \mathrm{enum}(m) \Rightarrow x \in \mathrm{enum}(n),\quad \forall x\ \exists n,\ x \in \mathrm{enum}(n)$$ -/
+did, and every value is listed at some bound. There is no size function; the two laws are all the class says. -/
 class Enum (α : Type u) where
-  /-- The values listed at bound $n$. $$\mathrm{enum}(n) : \mathrm{List}(\alpha)$$ -/
+  /-- The values listed at bound `n`. -/
   enum : Nat → List α
-  /-- A larger bound lists more. $$\forall m\, n\, x,\ m \le n \wedge x \in \mathrm{enum}(m) \Rightarrow x \in \mathrm{enum}(n)$$ -/
+  /-- A larger bound lists more. -/
   mono : ∀ {m n : Nat} {x : α}, m ≤ n → x ∈ enum m → x ∈ enum n
-  /-- Every value is listed at some bound. $$\forall x,\ \exists n,\ x \in \mathrm{enum}(n)$$ -/
+  /-- Every value is listed at some bound. -/
   complete : ∀ x : α, ∃ n, x ∈ enum n
 
-/-- A finite type: one list `all` holds every value.
-$$\mathrm{all} : \mathrm{List}(\alpha),\quad \forall x : \alpha,\ x \in \mathrm{all}$$ -/
+/-- A finite type: one list `all` holds every value. -/
 class EnumAll (α : Type u) where
-  /-- Every value, in a fixed order. $$\mathrm{all} : \mathrm{List}(\alpha)$$ -/
+  /-- Every value, in a fixed order. -/
   all : List α
-  /-- Every value is in the list. $$\forall x : \alpha,\ x \in \mathrm{all}$$ -/
+  /-- Every value is in the list. -/
   complete : ∀ x : α, x ∈ all
 
-/-- A finite type enumerates all of its values at every bound.
-$$\forall n,\ \mathrm{enum}(n) = \mathrm{all}$$ -/
+/-- A finite type enumerates all of its values at every bound. -/
 instance (priority := low) instEnumOfEnumAll {α : Type u} [EnumAll α] : Enum α where
   enum _ := EnumAll.all
   mono _ h := h
   complete x := ⟨0, EnumAll.complete x⟩
 
-/-- **The search.** The first element of $xs$ on which the check $q$ fails (a counterexample), or none.
-$$\operatorname{search}(xs, q) = \begin{cases} \mathrm{some}(x_k) & k = \min\{k : q(x_k) = \mathrm{false}\} \\ \mathrm{none} & \forall k,\ q(x_k) = \mathrm{true} \end{cases}$$ -/
+/-- **The search.** The first element of `xs` on which the check `q` fails (a counterexample), or none. -/
 def search {α : Type u} (xs : List α) (q : α → Bool) : Option α := xs.find? (fun x => !q x)
 
 /-- **No counterexample means the check holds on the bound.** For every list and every check, the search finds
-nothing exactly when the check passes on every element of the list.
-$$\forall xs,\ \forall q,\ \operatorname{search}(xs, q) = \mathrm{none} \iff \forall x \in xs,\ q(x) = \mathrm{true}$$ -/
+nothing exactly when the check passes on every element of the list. -/
 theorem search_none_iff {α : Type u} (xs : List α) (q : α → Bool) :
     search xs q = none ↔ ∀ x ∈ xs, q x = true := by
   simp [search]
 
-/-- **A found value is a real counterexample.** For every list, check and value: if the search returns $x$, then $x$
-is in the list and the check fails on it.
-$$\forall xs,\ \forall q,\ \forall x,\ \operatorname{search}(xs, q) = \mathrm{some}(x) \Rightarrow x \in xs \wedge q(x) = \mathrm{false}$$ -/
+/-- **A found value is a real counterexample.** For every list, check and value: if the search returns `x`, then `x`
+is in the list and the check fails on it. -/
 theorem search_some {α : Type u} (xs : List α) (q : α → Bool) (x : α) (h : search xs q = some x) :
     x ∈ xs ∧ q x = false :=
   ⟨List.mem_of_find?_eq_some h, by simpa using List.find?_some h⟩
 
-/-- **The counterexample is the first one.** For every list, check and value: if the search returns $x$, the list is
-$pre \mathbin{+\!\!+} x :: suf$ and the check passes on every element of $pre$.
-$$\forall xs,\ \forall q,\ \forall x,\ \operatorname{search}(xs, q) = \mathrm{some}(x) \Rightarrow \exists\, pre\ suf,\ xs = pre \mathbin{+\!\!+} x :: suf \wedge \forall y \in pre,\ q(y) = \mathrm{true}$$ -/
+/-- **The counterexample is the first one.** For every list, check and value: if the search returns `x`, the list is
+`pre ++ x :: suf` and the check passes on every element of `pre`. -/
 theorem search_some_first {α : Type u} (xs : List α) (q : α → Bool) (x : α) (h : search xs q = some x) :
     ∃ pre suf, xs = pre ++ x :: suf ∧ ∀ y ∈ pre, q y = true := by
   obtain ⟨_, pre, suf, hxs, hpre⟩ := List.find?_eq_some_iff_append.mp h
   exact ⟨pre, suf, hxs, fun y hy => by simpa using hpre y hy⟩
 
-/-- The search up to bound $n$: the search over `enum n`.
-$$\operatorname{searchUpTo}(n, q) = \operatorname{search}(\mathrm{enum}(n), q)$$ -/
+/-- The search up to bound `n`: the search over `enum n`. -/
 def searchUpTo {α : Type u} [Enum α] (n : Nat) (q : α → Bool) : Option α := search (Enum.enum n) q
 
-/-- **No counterexample up to $n$ means the check holds on every value listed by `enum n`.** For every bound and
-every check.
-$$\forall n,\ \forall q,\ \operatorname{searchUpTo}(n, q) = \mathrm{none} \iff \forall x \in \mathrm{enum}(n),\ q(x) = \mathrm{true}$$ -/
+/-- **No counterexample up to `n` means the check holds on every value listed by `enum n`.** For every bound and
+every check. -/
 theorem searchUpTo_none_iff {α : Type u} [Enum α] (n : Nat) (q : α → Bool) :
     searchUpTo n q = none ↔ ∀ x ∈ Enum.enum n, q x = true :=
   search_none_iff _ _
 
-/-- A clean search at a bound is clean at every smaller bound: for all $m \le n$ and every check.
-$$\forall m\, n,\ \forall q,\ m \le n \wedge \operatorname{searchUpTo}(n, q) = \mathrm{none} \Rightarrow \operatorname{searchUpTo}(m, q) = \mathrm{none}$$ -/
+/-- A clean search at a bound is clean at every smaller bound: for all `m ≤ n` and every check. -/
 theorem searchUpTo_none_mono {α : Type u} [Enum α] (m n : Nat) (q : α → Bool) (hmn : m ≤ n)
     (h : searchUpTo n q = none) : searchUpTo m q = none :=
   (searchUpTo_none_iff m q).mpr fun x hx => (searchUpTo_none_iff n q).mp h x (Enum.mono hmn hx)
 
 /-- **Clean at every bound is the universal check.** For every check, the search finds nothing at every bound exactly
-when the check passes on every value.
-$$\forall q,\ (\forall x,\ q(x) = \mathrm{true}) \iff \forall n,\ \operatorname{searchUpTo}(n, q) = \mathrm{none}$$ -/
+when the check passes on every value. -/
 theorem forall_iff_searchUpTo {α : Type u} [Enum α] (q : α → Bool) :
     (∀ x, q x = true) ↔ ∀ n, searchUpTo n q = none := by
   constructor
@@ -103,8 +92,7 @@ theorem forall_iff_searchUpTo {α : Type u} [Enum α] (q : α → Bool) :
     exact (searchUpTo_none_iff n q).mp (h n) x hn
 
 /-- **On a finite type one search decides the check.** For every check, the search over `all` finds nothing exactly
-when the check passes on every value.
-$$\forall q,\ \operatorname{search}(\mathrm{all}, q) = \mathrm{none} \iff \forall x,\ q(x) = \mathrm{true}$$ -/
+when the check passes on every value. -/
 theorem searchAll_none_iff {α : Type u} [EnumAll α] (q : α → Bool) :
     search EnumAll.all q = none ↔ ∀ x, q x = true := by
   rw [search_none_iff]
@@ -112,10 +100,9 @@ theorem searchAll_none_iff {α : Type u} [EnumAll α] (q : α → Bool) :
 
 /-! ## The link to a property (`Fw.Spec.Props`) -/
 
-/-- **A found counterexample is a kill witness.** For every property $P$, implementation $i$, check $q$ and list
-$xs$: if $P(i)$ implies that $q$ passes everywhere (the check is sound for $P$) and the search over $xs$ finds a value,
-then $P(i)$ fails.
-$$\forall P\, i\, q\, xs,\ (P(i) \Rightarrow \forall x,\ q(x) = \mathrm{true}) \wedge \operatorname{isSome}(\operatorname{search}(xs, q)) = \mathrm{true} \Rightarrow \lnot P(i)$$ -/
+/-- **A found counterexample is a kill witness.** For every property `P`, implementation `i`, check `q` and list
+`xs`: if `P(i)` implies that `q` passes everywhere (the check is sound for `P`) and the search over `xs` finds a value,
+then `P(i)` fails. -/
 theorem refutes_of_search {Impl : Type v} {α : Type u} (P : Impl → Prop) (i : Impl) (q : α → Bool) (xs : List α)
     (hsound : P i → ∀ x, q x = true) (h : (search xs q).isSome = true) : ¬ P i := by
   intro hp
@@ -123,52 +110,45 @@ theorem refutes_of_search {Impl : Type v} {α : Type u} (P : Impl → Prop) (i :
   | none => simp [hs] at h
   | some x => have := (search_some xs q x hs).2; simp [hsound hp x] at this
 
-/-- **A clean exhaustive search is a proof.** For every property $P$, implementation $i$ and check $q$ over a finite
-type: if $q$ passing everywhere implies $P(i)$ (the check is complete for $P$) and the search over `all` finds
-nothing, then $P(i)$ holds.
-$$\forall P\, i\, q,\ ((\forall x,\ q(x) = \mathrm{true}) \Rightarrow P(i)) \wedge \operatorname{search}(\mathrm{all}, q) = \mathrm{none} \Rightarrow P(i)$$ -/
+/-- **A clean exhaustive search is a proof.** For every property `P`, implementation `i` and check `q` over a finite
+type: if `q` passing everywhere implies `P(i)` (the check is complete for `P`) and the search over `all` finds
+nothing, then `P(i)` holds. -/
 theorem holds_of_searchAll {Impl : Type v} {α : Type u} [EnumAll α] (P : Impl → Prop) (i : Impl) (q : α → Bool)
     (hcomplete : (∀ x, q x = true) → P i) (h : search EnumAll.all q = none) : P i :=
   hcomplete ((searchAll_none_iff q).mp h)
 
-/-- **`P_iff` links the search to the stated property.** For every property $P$, pointwise check $Q$ over a finite
-type and implementation $i$: if $P$ is exactly "$Q$ passes everywhere" for every implementation, then $P(i)$ holds
-exactly when the search over `all` finds nothing.
-$$\forall P\, Q,\ (\forall i,\ P(i) \iff \forall x,\ Q(i, x) = \mathrm{true}) \Rightarrow \forall i,\ P(i) \iff \operatorname{search}(\mathrm{all}, Q(i)) = \mathrm{none}$$ -/
+/-- **`P_iff` links the search to the stated property.** For every property `P`, pointwise check `Q` over a finite
+type and implementation `i`: if `P` is exactly "`Q` passes everywhere" for every implementation, then `P(i)` holds
+exactly when the search over `all` finds nothing. -/
 theorem prop_iff_searchAll {Impl : Type v} {α : Type u} [EnumAll α] (P : Impl → Prop) (Q : Impl → α → Bool)
     (hiff : ∀ i, P i ↔ ∀ x, Q i x = true) (i : Impl) : P i ↔ search EnumAll.all (Q i) = none := by
   rw [hiff i, searchAll_none_iff]
 
-/-- **The property is a clean search at every bound.** For every property $P$, pointwise check $Q$ and implementation
-$i$: if $P$ is exactly "$Q$ passes everywhere", then $P(i)$ holds exactly when the search finds nothing at every
-bound; a clean search at one bound is the property on that bound only (`searchUpTo_none_iff`).
-$$\forall P\, Q,\ (\forall i,\ P(i) \iff \forall x,\ Q(i, x) = \mathrm{true}) \Rightarrow \forall i,\ P(i) \iff \forall n,\ \operatorname{searchUpTo}(n, Q(i)) = \mathrm{none}$$ -/
+/-- **The property is a clean search at every bound.** For every property `P`, pointwise check `Q` and implementation
+`i`: if `P` is exactly "`Q` passes everywhere", then `P(i)` holds exactly when the search finds nothing at every
+bound; a clean search at one bound is the property on that bound only (`searchUpTo_none_iff`). -/
 theorem prop_iff_searchUpTo {Impl : Type v} {α : Type u} [Enum α] (P : Impl → Prop) (Q : Impl → α → Bool)
     (hiff : ∀ i, P i ↔ ∀ x, Q i x = true) (i : Impl) : P i ↔ ∀ n, searchUpTo n (Q i) = none := by
   rw [hiff i, forall_iff_searchUpTo]
 
 /-! ## Finite instances -/
 
-/-- The Booleans.
-$$\mathrm{all}_{\mathbb B} = [\mathrm{false}, \mathrm{true}]$$ -/
+/-- The Booleans. -/
 instance instEnumAllBool : EnumAll Bool where
   all := [false, true]
   complete x := by cases x <;> simp
 
-/-- The unit type.
-$$\mathrm{all}_{1} = [()]$$ -/
+/-- The unit type. -/
 instance instEnumAllUnit : EnumAll Unit where
   all := [()]
   complete x := by cases x; simp
 
-/-- An optional value of a finite type: none, then every value.
-$$\mathrm{all}_{\mathrm{Option}(\alpha)} = \mathrm{none} :: \operatorname{map}(\mathrm{some}, \mathrm{all}_\alpha)$$ -/
+/-- An optional value of a finite type: none, then every value. -/
 instance instEnumAllOption {α : Type u} [EnumAll α] : EnumAll (Option α) where
   all := none :: EnumAll.all.map some
   complete x := by cases x <;> simp [EnumAll.complete]
 
-/-- A pair of finite types: every pair, the first component outermost.
-$$\mathrm{all}_{\alpha \times \beta} = [(a, b) : a \in \mathrm{all}_\alpha,\ b \in \mathrm{all}_\beta]$$ -/
+/-- A pair of finite types: every pair, the first component outermost. -/
 instance instEnumAllProd {α : Type u} {β : Type v} [EnumAll α] [EnumAll β] : EnumAll (α × β) where
   all := EnumAll.all.flatMap fun a => EnumAll.all.map fun b => (a, b)
   complete x := by
@@ -176,9 +156,8 @@ instance instEnumAllProd {α : Type u} {β : Type v} [EnumAll α] [EnumAll β] :
     simp only [List.mem_flatMap, List.mem_map, Prod.mk.injEq]
     exact ⟨a, EnumAll.complete a, b, EnumAll.complete b, rfl, rfl⟩
 
-/-- A finite type through a surjection $f : \beta \to \alpha$ with right inverse $g$ ($f(g(a)) = a$ for all $a$): the
-image of $\beta$'s list.
-$$\mathrm{all}_\alpha = \operatorname{map}(f, \mathrm{all}_\beta)\quad\text{given } \forall a : \alpha,\ f(g(a)) = a$$ -/
+/-- A finite type through a surjection `f : β → α` with right inverse `g` (`f(g(a)) = a` for all `a`): the
+image of `β`'s list. -/
 @[reducible] def EnumAll.ofEquiv {α : Type u} {β : Type v} [EnumAll β] (f : β → α) (g : α → β) (h : ∀ a, f (g a) = a) :
     EnumAll α where
   all := EnumAll.all.map f
@@ -186,15 +165,13 @@ $$\mathrm{all}_\alpha = \operatorname{map}(f, \mathrm{all}_\beta)\quad\text{give
 
 /-! ## Infinite instances -/
 
-/-- The naturals up to $n$.
-$$\mathrm{enum}_{\mathbb N}(n) = [0, 1, \dots, n]$$ -/
+/-- The naturals up to `n`. -/
 instance instEnumNat : Enum Nat where
   enum n := List.range (n + 1)
   mono hmn hx := by simp only [List.mem_range] at *; omega
   complete x := ⟨x, by simp⟩
 
-/-- An optional value: none, then every value up to the bound.
-$$\mathrm{enum}_{\mathrm{Option}(\alpha)}(n) = \mathrm{none} :: \operatorname{map}(\mathrm{some}, \mathrm{enum}_\alpha(n))$$ -/
+/-- An optional value: none, then every value up to the bound. -/
 instance instEnumOption {α : Type u} [Enum α] : Enum (Option α) where
   enum n := none :: (Enum.enum n).map some
   mono hmn hx := by
@@ -209,8 +186,7 @@ instance instEnumOption {α : Type u} [Enum α] : Enum (Option α) where
       obtain ⟨n, hn⟩ := Enum.complete a
       exact ⟨n, by simp [hn]⟩
 
-/-- Pairs whose two components are both listed at bound $n$.
-$$\mathrm{enum}_{\alpha \times \beta}(n) = [(a, b) : a \in \mathrm{enum}_\alpha(n),\ b \in \mathrm{enum}_\beta(n)]$$ -/
+/-- Pairs whose two components are both listed at bound `n`. -/
 instance instEnumProd {α : Type u} {β : Type v} [Enum α] [Enum β] : Enum (α × β) where
   enum n := (Enum.enum n).flatMap fun a => (Enum.enum n).map fun b => (a, b)
   mono hmn hx := by
@@ -225,14 +201,12 @@ instance instEnumProd {α : Type u} {β : Type v} [Enum α] [Enum β] : Enum (α
     simp only [List.mem_flatMap, List.mem_map, Prod.mk.injEq]
     exact ⟨a, Enum.mono (by omega) ha, b, Enum.mono (by omega) hb, rfl, rfl⟩
 
-/-- Every list of length at most $n$ with elements from $E$.
-$$\operatorname{lists}(E, 0) = [[\,]],\qquad \operatorname{lists}(E, n+1) = [\,] :: [a :: l : a \in E,\ l \in \operatorname{lists}(E, n)]$$ -/
+/-- Every list of length at most `n` with elements from `E`. -/
 def listsUpTo {α : Type u} (E : List α) : Nat → List (List α)
   | 0 => [[]]
   | n + 1 => [] :: E.flatMap fun a => (listsUpTo E n).map (a :: ·)
 
-/-- **`listsUpTo` lists exactly the short lists over $E$.** For every list $E$, bound $n$ and list $l$.
-$$\forall E\, n\, l,\ l \in \operatorname{lists}(E, n) \iff |l| \le n \wedge \forall x \in l,\ x \in E$$ -/
+/-- **`listsUpTo` lists exactly the short lists over `E`.** For every list `E`, bound `n` and list `l`. -/
 theorem mem_listsUpTo {α : Type u} (E : List α) (n : Nat) (l : List α) :
     l ∈ listsUpTo E n ↔ l.length ≤ n ∧ ∀ x ∈ l, x ∈ E := by
   induction n generalizing l with
@@ -250,8 +224,7 @@ theorem mem_listsUpTo {α : Type u} (E : List α) (n : Nat) (l : List α) :
       · rintro ⟨hl, ha, ht⟩
         exact Or.inr ⟨a, ha, t, ⟨by omega, ht⟩, rfl, rfl⟩
 
-/-- Lists of length at most $n$ whose elements are listed at bound $n$.
-$$\mathrm{enum}_{\mathrm{List}(\alpha)}(n) = \operatorname{lists}(\mathrm{enum}_\alpha(n), n)$$ -/
+/-- Lists of length at most `n` whose elements are listed at bound `n`. -/
 instance instEnumList {α : Type u} [Enum α] : Enum (List α) where
   enum n := listsUpTo (Enum.enum n) n
   mono hmn hx := by

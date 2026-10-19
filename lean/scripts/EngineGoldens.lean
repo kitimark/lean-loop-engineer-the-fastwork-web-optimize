@@ -12,7 +12,6 @@ import Fw.Parts.PeopleCardOpt
 import Fw.Parts.PeopleDeckOpt
 
 /-- The Lean generator of each file in `packages/contracts/golden/engine/`, by file name.
-$$\mathrm{generators} = [(\texttt{chromium.jsonl}, \mathrm{Chromium.goldenText}), \dots, (\texttt{webkit.jsonl}, \mathrm{WebKit.goldenJsonl})]$$
 One row per committed engine golden; a file without a row, or a row without a file, fails the check. -/
 def generators : List (String × String) :=
   [("chromium.jsonl", Fw.Engine.Chromium.goldenText),

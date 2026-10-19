@@ -1,0 +1,11 @@
+{"base":"rewrite","countType":"trace.FireAnimationFrame","engine":"chromium","prediction":"=o","scenario":"swipe-v1","stage":"script","variant":"rewrite+?fw=morph.tween:waapi"}
+{"base":"rewrite","countType":"trace.UpdateLayoutTree","engine":"chromium","prediction":"=o","scenario":"swipe-v1","stage":"style","variant":"rewrite+?fw=morph.tween:waapi"}
+{"base":"rewrite","countType":"trace.Layout","engine":"chromium","prediction":"=o","scenario":"swipe-v1","stage":"layout","variant":"rewrite+?fw=morph.tween:waapi"}
+{"base":"rewrite","countType":"trace.Paint","engine":"chromium","prediction":"=o","scenario":"swipe-v1","stage":"paint","variant":"rewrite+?fw=morph.tween:waapi"}
+{"base":"rewrite","countType":"trace.cc.Commit","engine":"chromium","prediction":"=o","scenario":"swipe-v1","stage":"commit","variant":"rewrite+?fw=morph.tween:waapi"}
+{"base":"rewrite","countType":"FireAnimationFrame","engine":"webkit","prediction":"=o","scenario":"swipe-v1","stage":"script","variant":"rewrite+?fw=morph.tween:waapi"}
+{"base":"rewrite","countType":"RecalculateStyles","engine":"webkit","prediction":"=o","scenario":"swipe-v1","stage":"style","variant":"rewrite+?fw=morph.tween:waapi"}
+{"base":"rewrite","countType":"Layout","engine":"webkit","prediction":"=o","scenario":"swipe-v1","stage":"layout","variant":"rewrite+?fw=morph.tween:waapi"}
+{"base":"rewrite","countType":"Paint","engine":"webkit","prediction":"=o","scenario":"swipe-v1","stage":"paint","variant":"rewrite+?fw=morph.tween:waapi"}
+{"base":"rewrite","countType":"Composite","engine":"webkit","prediction":"=o","scenario":"swipe-v1","stage":"commit","variant":"rewrite+?fw=morph.tween:waapi"}
+{"base":"rewrite+?fw=morph.tween:waapi","countType":"trace.Animation.compositeFailedBits","engine":"chromium","prediction":"=o","scenario":"swipe-v1","stage":"comp","variant":"rewrite"}

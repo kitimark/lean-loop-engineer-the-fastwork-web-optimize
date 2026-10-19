@@ -29,9 +29,7 @@ def isMuiName (path : String) : Bool :=
 def immutableDir : String := "/_app/immutable/"
 
 /-- File kind, decided by identity: `.html` is `html`; else `hashed` iff under `_app/immutable/`, or listed in the
-rewrite build's `.vite/manifest.json` (`names`), or a `mui.<sha8>.css`; else `other`.
-
-$$\operatorname{kind}_N(p) = \begin{cases}\mathrm{html} & \operatorname{ext}(p)=\texttt{.html}\\ \mathrm{hashed} & p \in \texttt{/\_app/immutable/**} \vee p \in N \vee \operatorname{mui}(p)\\ \mathrm{other} & \text{else}\end{cases}$$ -/
+rewrite build's `.vite/manifest.json` (`names`), or a `mui.<sha8>.css`; else `other`. -/
 def kind (names : List String) (path : String) : Kind :=
   if ext path == ".html" then .html
   else if path.startsWith immutableDir || names.contains path || isMuiName path then .hashed
@@ -49,50 +47,36 @@ def compressible (path : String) : Bool :=
 /-- A client may reuse a stored copy without asking: only an immutable one. -/
 def reusesWithoutAsking (k : Kind) : Bool := k == .hashed
 
-/-- **Only hashed files are reused without asking.**
-
-$$\mathrm{reuse}(\operatorname{kind}_N(p)) \Rightarrow \operatorname{kind}_N(p) = \mathrm{hashed}$$ -/
+/-- **Only hashed files are reused without asking.** -/
 theorem reuse_only_hashed (N : List String) (p : String) (h : reusesWithoutAsking (kind N p) = true) : kind N p = .hashed := by
   revert h; unfold reusesWithoutAsking; cases kind N p <;> simp
 
-/-- **Html is never immutable.**
-
-$$\operatorname{ext}(p)=\texttt{.html} \Rightarrow \operatorname{cacheControl}(\operatorname{kind}_N(p)) = \texttt{no-cache}$$ -/
+/-- **Html is never immutable.** -/
 theorem html_no_cache (N : List String) (p : String) (h : ext p = ".html") : cacheControl (kind N p) = "no-cache" := by
   simp [kind, h, cacheControl]
 
-/-- **Every file that is not hashed revalidates.**
-
-$$\operatorname{kind}_N(p) \ne \mathrm{hashed} \Rightarrow \operatorname{cacheControl}(\operatorname{kind}_N(p)) = \texttt{no-cache}$$ -/
+/-- **Every file that is not hashed revalidates.** -/
 theorem unhashed_revalidates (N : List String) (p : String) (h : kind N p ≠ .hashed) :
     cacheControl (kind N p) = "no-cache" := by
   revert h; cases kind N p <;> simp [cacheControl]
 
-/-- **Identity, forward: the `_app/immutable/` arm.**
-
-$$p \in \texttt{/\_app/immutable/**} \wedge \operatorname{ext}(p) \ne \texttt{.html} \Rightarrow \operatorname{kind}_N(p)=\mathrm{hashed}$$ -/
+/-- **Identity, forward: the `_app/immutable/` arm.** -/
 theorem immutable_dir_hashed (N : List String) (p : String) (h : p.startsWith immutableDir = true) (hx : (ext p == ".html") = false) :
     kind N p = .hashed := by
   simp [kind, hx, h]
 
-/-- **Identity, forward: the manifest arm.**
-
-$$p \in N \wedge \operatorname{ext}(p) \ne \texttt{.html} \Rightarrow \operatorname{kind}_N(p)=\mathrm{hashed}$$ -/
+/-- **Identity, forward: the manifest arm.** -/
 theorem manifest_name_hashed (N : List String) (p : String) (h : N.contains p = true) (hx : (ext p == ".html") = false) :
     kind N p = .hashed := by
   simp only [kind, hx, h, Bool.or_true, Bool.true_or, Bool.false_eq_true, ite_false, ite_true]
 
-/-- **Identity, forward: the `mui.<sha8>.css` arm.**
-
-$$\operatorname{mui}(p) \wedge \operatorname{ext}(p) \ne \texttt{.html} \Rightarrow \operatorname{kind}_N(p)=\mathrm{hashed}$$ -/
+/-- **Identity, forward: the `mui.<sha8>.css` arm.** -/
 theorem mui_name_hashed (N : List String) (p : String) (h : isMuiName p = true) (hx : (ext p == ".html") = false) :
     kind N p = .hashed := by
   simp [kind, hx, h]
 
 /-- **Identity, backward: nothing else is hashed.** A hashed file is under `_app/immutable/`, listed in the manifest, or a
-`mui.<sha8>.css`; no name shape alone ever makes a file immutable.
-
-$$\operatorname{kind}_N(p)=\mathrm{hashed} \Rightarrow p \in \texttt{/\_app/immutable/**} \vee p \in N \vee \operatorname{mui}(p)$$ -/
+`mui.<sha8>.css`; no name shape alone ever makes a file immutable. -/
 theorem hashed_is_identified (N : List String) (p : String) (h : kind N p = .hashed) :
     p.startsWith immutableDir = true ∨ N.contains p = true ∨ isMuiName p = true := by
   unfold kind at h
@@ -103,9 +87,7 @@ theorem hashed_is_identified (N : List String) (p : String) (h : kind N p = .has
     · cases h
 
 /-- **No stale content, revalidating files.** The ETag is a collision-free hash of the bytes (INFERRED modelling assumption:
-sha256 collisions are ignored), so other bytes never match a stored ETag and the client refetches.
-
-$$(\forall a, b.\ e(a)=e(b) \Rightarrow a=b) \wedge b_1 \ne b_2 \Rightarrow e(b_1) \ne e(b_2)$$ -/
+sha256 collisions are ignored), so other bytes never match a stored ETag and the client refetches. -/
 theorem changed_bytes_new_etag {B : Type} (e : B → String) (inj : ∀ a b, e a = e b → a = b)
     (b₁ b₂ : B) (h : b₁ ≠ b₂) : e b₁ ≠ e b₂ := fun he => h (inj _ _ he)
 
@@ -137,12 +119,10 @@ theorem contains_names {H : Type} (M : List (String × H)) (p : String) (h : (M.
       obtain ⟨c, hc⟩ := ih h'
       exact ⟨c, by simp [List.lookup, hne, hc]⟩
 
-/-- **No stale content, hashed files (over the classifier).** For a manifest $M$ (name $\to$ content hash), two builds that
+/-- **No stale content, hashed files (over the classifier).** For a manifest `M` (name `→` content hash), two builds that
 both satisfy the manifest property and the naming property, a collision-free content hash and name function (INFERRED
-modelling assumption), a path classified hashed by $\operatorname{kind}_{\operatorname{names}(M)}$ carries the same bytes
-in both builds, so reuse without asking can never show old bytes after a rebuild.
-
-$$\operatorname{kind}_{\operatorname{names}(M)}(p)=\mathrm{hashed} \wedge b_1(p)=x \wedge b_2(p)=y \Rightarrow x=y$$ -/
+modelling assumption), a path classified hashed by `kind_(names(M))` carries the same bytes
+in both builds, so reuse without asking can never show old bytes after a rebuild. -/
 theorem hashed_serves_same_bytes {B H : Type} (hash : B → H) (nm : B → String)
     (hinj : ∀ a b, hash a = hash b → a = b) (ninj : ∀ a b, nm a = nm b → a = b)
     (M : List (String × H)) (b₁ b₂ : String → Option B)
@@ -156,9 +136,7 @@ theorem hashed_serves_same_bytes {B H : Type} (hash : B → H) (nm : B → Strin
   · exact ninj _ _ ((n₁ p x (.inr hu) h₁).trans (n₂ p y (.inr hu) h₂).symm)
 
 /-- **No stale content, the rest (over the classifier).** Every path not classified hashed gets `no-cache`, so a client
-revalidates it by ETag.
-
-$$\operatorname{kind}_N(p)\ne\mathrm{hashed} \Rightarrow \operatorname{cacheControl}(\operatorname{kind}_N(p))=\texttt{no-cache}$$ -/
+revalidates it by ETag. -/
 theorem unclassified_no_cache (N : List String) (p : String) (h : kind N p ≠ .hashed) :
     cacheControl (kind N p) = "no-cache" := unhashed_revalidates N p h
 
