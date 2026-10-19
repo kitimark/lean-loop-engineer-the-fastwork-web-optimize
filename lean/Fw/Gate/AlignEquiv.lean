@@ -758,7 +758,7 @@ def caseRow (n : String) (o r : Side) : Json :=
 $$\mathrm{goldenText} = \textstyle\bigoplus_{(n, o, r) \in \mathrm{cases}} \operatorname{row}(n, o, r) \mathbin{+\!\!+} \texttt{\textbackslash n}\quad (\text{in list order})$$
 
 The golden file's contents. -/
-def goldenText : String :=
+def goldenText (_ : Unit := ()) : String :=
   String.join (cases.map fun (n, o, r) => (caseRow n o r).compress ++ "\n")
 
 /-- The golden file, relative to `lean/`.

@@ -45,7 +45,7 @@ def sweepJson (w : Sweep) : Json :=
 $$\operatorname{sweepsJson} = \{\text{schema}, \text{theorems}: \Theta, \text{desktop}: \{\text{fullWidths}: D_{\mathrm{full}}, \text{reducedWidths}: R, \text{stops}: |D_{\mathrm{full}}|, \text{reducedStops}: |R|\}, \text{caveat}, \text{sweeps}: [\operatorname{sweepJson}(w) \mid w \in W]\}$$
 
 Generated, never edited by hand. -/
-def sweepsJson : Json :=
+def sweepsJson (_ : Unit := ()) : Json :=
   Json.mkObj [
     ("schema", "fw.gate-breakpoints.sweeps/1"),
     ("generatedBy", "lake exe breakgen --sweeps (lean/Fw/Gate/SweepsGen.lean)"),
@@ -60,7 +60,7 @@ def sweepsJson : Json :=
 $$\operatorname{sweepsText} = \mathrm{pretty}_{120}(\operatorname{sweepsJson}) \mathbin{+\!\!+} \text{newline}$$
 
 What `--sweeps` prints and checks. -/
-def sweepsText : String := sweepsJson.pretty 120 ++ "\n"
+def sweepsText (_ : Unit := ()) : String := sweepsJson.pretty 120 ++ "\n"
 
 /-- One by-id merge case: wanted ids, the records' ids in shard order, and the outcome (`null` when the script
 fails).
@@ -77,7 +77,7 @@ def mergeCase (name : String) (want recs : List String) : Json :=
 $$\operatorname{goldenLines} = [\text{reduced widths}, \text{merge cases}, \text{split counterexample}, \text{mount traces}]$$
 
 `packages/contracts/golden/gate/sweeps.jsonl`, one compact JSON object per line. -/
-def goldenLines : List Json :=
+def goldenLines (_ : Unit := ()) : List Json :=
   [Json.mkObj [("case", "reduced-desktop-widths"), ("full", toJson deskSweepFull),
       ("reduced", toJson reducedDeskWidths), ("count", toJson reducedDeskWidths.length)]] ++
   (sweeps.map fun w => Json.mkObj [("case", toJson s!"reduced-stops:{w.id}"),
@@ -104,7 +104,7 @@ def goldenLines : List Json :=
 $$\operatorname{goldenText} = \textstyle\bigoplus_{j \in \operatorname{goldenLines}} (\mathrm{compress}(j) \mathbin{+\!\!+} \text{newline})$$
 
 What `--sweeps-golden` prints and checks. -/
-def goldenText : String := String.join (goldenLines.map fun j => j.compress ++ "\n")
+def goldenText (_ : Unit := ()) : String := String.join (goldenLines.map fun j => j.compress ++ "\n")
 
 /-- Command-line driver: `--sweeps` selects `sweepsText`, `--sweeps-golden` selects `goldenText`; with
 `--check <file>` it fails (1) when the file's bytes differ, else it prints the text.

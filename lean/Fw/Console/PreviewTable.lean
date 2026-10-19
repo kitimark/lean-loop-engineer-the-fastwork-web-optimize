@@ -136,6 +136,6 @@ def request (r : Row) : Json :=
 /-- The golden cases: one per task.
 
 $$|\mathrm{goldenCases}| = |\mathrm{rows}|$$ -/
-def goldenCases : List (String × Json) := rows.map fun r => (s!"{r.task}: the investigation's target", request r)
+def goldenCases (_ : Unit := ()) : List (String × Json) := rows.map fun r => (s!"{r.task}: the investigation's target", request r)
 
 end Fw.Console.PreviewTable

@@ -129,7 +129,7 @@ abbrev Key := String × String × String
 $$U = [\,(\rho, \kappa, i) \mid \rho \in \mathrm{rows},\ (\kappa, I) \in \mathrm{cols},\ i \in I\,]$$
 
 A full run supplies exactly these readings, each as often as it occurs in this list (a permutation of it). -/
-def gateUniverse : List Key := gateRows.flatMap fun row => gateCols.flatMap fun c => c.2.map fun i => (row, c.1, i)
+def gateUniverse (_ : Unit := ()) : List Key := gateRows.flatMap fun row => gateCols.flatMap fun c => c.2.map fun i => (row, c.1, i)
 
 /-- **Premise of the Chromium fractional exemption**: the fractional-gaps block is exactly four probes, Chromium reaches each of them,
 none has a whole width, and without an achieved environment every check against Lean's value is `na`.
@@ -978,7 +978,7 @@ open Lean in
 /-- The JSON of the universe: its rows, its columns with their reading ids, and its size.
 
 $$\{\mathrm{cols} = \mathrm{cols},\ \mathrm{kind} = \texttt{universe},\ \mathrm{rows} = \mathrm{rows},\ \mathrm{size} = |U|\}$$ -/
-def universeLine : String :=
+def universeLine (_ : Unit := ()) : String :=
   (Json.mkObj [("kind", "universe"), ("rows", toJson gateRows),
     ("cols", Json.arr (gateCols.map fun c => Json.arr #[Json.str c.1, toJson c.2]).toArray),
     ("size", toJson gateUniverse.length)]).compress
@@ -1148,7 +1148,7 @@ order fail over unsettled over incomplete over not-rendered, the wait outcomes (
 the first error), and the universe (a missing, an extra, a doubled or a misplaced reading is refused, a permuted one is not, a
 narrowed run is not refused), and five commission-resize fail cells (no fail is excused: each of them, in either engine, row or
 sweep, is a fail). The run cases cover a narrowed run with every engine passing. -/
-def goldenLines : List String :=
+def goldenLines (_ : Unit := ()) : List String :=
   exemptions.map exemptionLine ++ [universeLine, narrowedLine] ++
   [ engineCase "chromium" false [cell1 okCell, ncMmId] [("settled@3", "settled@5")],
     engineCase1 "chromium" false [okCell, ncMm] [],
@@ -1278,7 +1278,7 @@ def goldenLines : List String :=
 /-- The exact bytes of `packages/contracts/golden/gate/exit.jsonl`: the lines, each newline-terminated.
 
 $$\text{goldenText} = \mathbin{+\!\!+}_{\ell \in \text{goldenLines}} (\ell \mathbin{+\!\!+} \texttt{newline})$$ -/
-def goldenText : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
+def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
 /-- Command-line driver (`lean/scripts/ExitGolden.lean`): print the golden text, or with `--check <file>` exit 0 when the file holds
 exactly these bytes and 1 otherwise.

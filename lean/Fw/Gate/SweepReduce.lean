@@ -447,7 +447,7 @@ def deskSweepFull : List Nat := deskSweepWidths ++ deskSweepWidths.reverse.drop 
 $$R = \operatorname{dropStutter}_{\kappa \circ \operatorname{deskStop}}(D_{\mathrm{full}})$$
 
 What `gate-speed-impl` runs instead of the 57 widths (`sweeps.gen.json`). -/
-def reducedDeskWidths : List Nat := dropStutter (fun n => sweepKey (deskStop n)) deskSweepFull
+def reducedDeskWidths (_ : Unit := ()) : List Nat := dropStutter (fun n => sweepKey (deskStop n)) deskSweepFull
 
 /-- The desktop sweep is the first sweep, with stops `deskStop` of the full widths.
 

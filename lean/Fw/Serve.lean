@@ -1134,7 +1134,7 @@ def eventJson (e : Event) : Json :=
 
 /-- The board golden file (`console-board.jsonl`), one case per line: `name`, `events` (the log),
 `request` (`state` = the projection of the log, `now`, `seq`) and `response` (`board`). -/
-def boardGolden : List String :=
+def boardGolden (_ : Unit := ()) : List String :=
   boardCases.map fun (name, es, now, seq) =>
     let s := project es
     (Json.mkObj [("name", .str name), ("events", .arr (es.toArray.map eventJson)),

@@ -77,7 +77,7 @@ def session (stageW stageH : Rat) (seed : UInt32) (copyTop copyH stageTop : Rat)
   base ++ ((List.range n).foldl step ([], 0, seed)).1
 
 /-- The golden lines. $$\text{lines}$$ Vectors the TS logic must reproduce. -/
-def lines : List String :=
+def lines (_ : Unit := ()) : List String :=
   (xs.flatMap fun x => [(0, 100), (10, 90), (0, -3)].map fun (lo, hi) =>
     line "clampTo" [("x", rin x), ("lo", rin lo), ("hi", rin hi)] (ratWire (clampTo x lo hi))) ++
   (([(⟨0, 0, 10, 10⟩, ⟨5, 5, 10, 10⟩, 0), (⟨0, 0, 10, 10⟩, ⟨10, 0, 10, 10⟩, 0), (⟨0, 0, 10, 10⟩, ⟨10, 0, 10, 10⟩, 0.5),

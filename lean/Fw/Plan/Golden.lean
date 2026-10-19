@@ -66,7 +66,7 @@ def define (task : String) (deps : List String) (milestone : Option String := no
   apply key actor "task.define" (defFields task deps milestone writes devices evidence needs cut live onMain)
 
 /-- The synthetic cases: (name, requests). -/
-def cases : List (String × List Json) := [
+def cases (_ : Unit := ()) : List (String × List Json) := [
   ("define: two tasks and a milestone, then the board plan", [
     apply "m:M0" "lead" "milestone.define" [("milestone", .str "M0"), ("title", .str "Start")],
     define "a" [] (some "M0"),
@@ -446,7 +446,7 @@ def caseLine (name : String) (reqs : List Json) : String :=
     ("replies", .arr ((replies reqs).map parsed).toArray)]).compress
 
 /-- The text of `serve.jsonl`. -/
-def serveText : String := String.join (cases.map fun (n, rs) => caseLine n rs ++ "\n")
+def serveText (_ : Unit := ()) : String := String.join (cases.map fun (n, rs) => caseLine n rs ++ "\n")
 
 /-- Order tasks so every dep comes before its dependents (Kahn over the JSON rows, fuel = count);
 rows left on a cycle or an undefined dep keep their order at the end (and are refused on replay). -/

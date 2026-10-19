@@ -711,7 +711,7 @@ def cases : List Case :=
       ["desktop"], ["packages/contracts/golden/parts/commission.jsonl"], claims⟩ ]
 
 -- The golden text: a meta line, the repository claims, then one line per case.
-def text : String :=
+def text (_ : Unit := ()) : String :=
   let hd := Json.mkObj [("kind", "meta"), ("schema", "fw.gate.coverage/1"),
     ("exemptReasons", strs (exemptAll.map exemptName)),
     ("generatedBy", "lean/Fw/Gate/Coverage.lean (Fw.Wire.Coverage.Golden.run)")]

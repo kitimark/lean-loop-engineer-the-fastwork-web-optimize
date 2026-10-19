@@ -1507,7 +1507,7 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
   run "lean" "check.sh" .«local» 24 [300000] ++ run "lean" "check.sh" .«local» 4 [61000])).map (·.code) ==
   [.noBaseline, .noBaseline, .noBaseline, .noBaseline, .noBaseline, .noisy, .ok]
 
-def goldenText : String :=
+def goldenText (_ : Unit := ()) : String :=
   String.join (cases.map fun (n, p, ss) => (caseJson n p ss).compress ++ "\n")
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/obs/timing.jsonl"

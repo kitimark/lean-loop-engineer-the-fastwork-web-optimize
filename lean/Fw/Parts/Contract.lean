@@ -1043,7 +1043,7 @@ $$\operatorname{rowsFile} = \operatorname{lean}\big([r(P.\mathrm{id}) \mid P \in
 \operatorname{comp}([\operatorname{wide}_{R}(P) \mid P \in \mathrm{parts}])\big),\quad R = [r(P.\mathrm{id}) \mid P \in
 \mathrm{parts}]$$
 One row and one group per line, newline-terminated. -/
-def rowsText : String :=
+def rowsText (_ : Unit := ()) : String :=
   let rs := parts.map (codeRowOf ·.id)
   let wl (ws : List (String × String)) : String :=
     "[" ++ ", ".intercalate (ws.map fun w => "(" ++ jstr w.1 ++ ", " ++ jstr w.2 ++ ")") ++ "]"
@@ -1170,7 +1170,7 @@ $$\operatorname{diffs} = \{\mathrm{parts}: [\operatorname{diff}(P) \mid P \in \m
 \mathrm{parts}_{\mathrm{code}},\ \operatorname{page}(P)]\}$$
 
 One row and one group per line, newline-terminated. -/
-def diffText : String :=
+def diffText (_ : Unit := ()) : String :=
   "{\"parts\":[\n" ++ ",\n".intercalate (parts.map diffJson) ++ "\n],\n\"findings\":" ++
     toString FootprintData.findings.length ++ ",\n\"codeGroups\":[\n" ++
     ",\n".intercalate (FootprintRows.groups.map fun g => jarr (g.map jstr)) ++ "\n],\n\"codePageLevel\":" ++
@@ -1208,7 +1208,7 @@ moves and the premise.
 $$\operatorname{contracts} = \{\mathrm{parts}: [\operatorname{row}(P) \mid P \in \mathrm{parts}],\ \mathrm{groups}: g \mapsto \operatorname{members}(g),\ \mathrm{moved},\ \mathrm{premise}\}$$
 
 One row per line, newline-terminated. -/
-def contractsText : String :=
+def contractsText (_ : Unit := ()) : String :=
   "{\"parts\":[\n" ++ ",\n".intercalate (parts.map rowJson) ++ "\n],\n\"groups\":{" ++
     ",".intercalate (groups.map fun g => jstr g.name ++ ":" ++ jarr ((members g).map jstr)) ++
     "},\n\"moved\":" ++ jarr (moved.map jstr) ++ ",\n\"premise\":" ++ jstr premise ++ "}\n"
@@ -1242,7 +1242,7 @@ def checkFile (path text : String) : IO Bool := do
 /-- Text of `packages/contracts/golden/parts/footprint.gen.json` from the generated data.
 $$\operatorname{footprint} = \operatorname{golden}(\mathrm{ids}, \mathrm{accesses}, \mathrm{findings})$$
 Byte-equal to the extractor's output when the data module is fresh. -/
-def footprintText : String :=
+def footprintText (_ : Unit := ()) : String :=
   Footprint.golden FootprintData.partIds FootprintData.accesses FootprintData.findings
 
 /-- Command-line driver (`lean/scripts/ContractsGolden.lean`): `--contracts`, `--scenarios`, `--diff` or `--rows`

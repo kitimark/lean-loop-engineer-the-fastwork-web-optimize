@@ -269,7 +269,7 @@ $$\mathrm{crCases} = [\,\mathrm{set}(k, \ell) \mid (k, \ell) \in \mathrm{crMembe
 
 $$\begin{aligned} \mathrm{set}(k, \ell) &= (\operatorname{id}(k, \ell),\ \mathrm{set},\ \operatorname{layerStyle}(\ell, \operatorname{hint}(k)) \mathbin{+\!\!+} q \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} v_0 \mathbin{+\!\!+} \texttt{;},\ q,\ v_1,\ \operatorname{expectAll}(\mathrm{crObservers}, W_{\mathrm{cr}}(\operatorname{crFrame}(k, \ell))))\ \text{ where } \operatorname{crCss}(k) = (q, v_0, v_1) \\ \mathrm{script} &= (\texttt{script},\ \mathrm{raf},\ \texttt{""},\ \texttt{""},\ \texttt{""},\ \operatorname{expectAll}(\mathrm{crObservers}, W_{\mathrm{cr}}(1, 0, 0, 0, [\,], 0))) \\ \mathrm{hit} &= (\texttt{hit},\ \mathrm{hit},\ \texttt{""},\ \texttt{""},\ \texttt{""},\ \operatorname{expectAll}(\mathrm{crObservers}, W_{\mathrm{cr}}(0, 0, 0, 1, [\,], 0))) \end{aligned}$$
 -/
-def crCases : List Case :=
+def crCases (_ : Unit := ()) : List Case :=
   (crMembers.filterMap fun (k, l) =>
     match crCss k with
     | some c =>
@@ -285,7 +285,7 @@ def crCases : List Case :=
 
 $$\mathrm{crSteps}_0 = \operatorname{steps}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{idle})), \mathrm{crCases})$$
 -/
-def crSteps0 : List Case := steps (expectAll crObservers (crWork idleFrame)) crCases
+def crSteps0 (_ : Unit := ()) : List Case := steps (expectAll crObservers (crWork idleFrame)) crCases
 
 /-! ## Chromium extra cases (task engine-model-fix-2): a clock-shim control, joins, frames with two changes -/
 
@@ -1215,7 +1215,7 @@ $$\begin{aligned} \operatorname{step}(\mathit{eng}, j, c) &= \{\texttt{kind}: \t
 
 The step index $j$ counts from 0 within each engine's steps.
 -/
-def goldenRows : List Json :=
+def goldenRows (_ : Unit := ()) : List Json :=
   [Json.mkObj [("kind", "page"), ("baseStyle", .str baseStyle)]] ++
   crObservers.map (observerRow "chromium") ++ wkObservers.map (observerRow "webkit") ++
   (crGrouped.zipIdx.map fun ((c, g), j) => stepRow "chromium" j c g) ++
@@ -1231,7 +1231,7 @@ def goldenRows : List Json :=
 
 $$\mathrm{goldenText} = \mathop{+\!\!+}_{r \in \mathrm{goldenRows}} (\operatorname{compress}(r) \mathbin{+\!\!+} \texttt{"\textbackslash n"})$$
 -/
-def goldenText : String := String.join (goldenRows.map fun r => r.compress ++ "\n")
+def goldenText (_ : Unit := ()) : String := String.join (goldenRows.map fun r => r.compress ++ "\n")
 
 /-- The golden file, relative to `lean/`.
 

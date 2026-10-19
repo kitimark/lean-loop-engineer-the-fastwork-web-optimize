@@ -1194,7 +1194,7 @@ def quietCases : List (String × Nat × List Int × List Int) :=
 /-- One golden line per case, in the order of the nine case lists: observation, wait, quiet, rendered, cell, view, fold, report, viewFor.
 
 $$\text{lines} = [\ell_{\mathrm{obs}}(c)]_{c \in \mathrm{obsCases}} \mathbin{+\!\!+} [\ell_{\mathrm{wait}}(c)]_{c \in \mathrm{waitCases}} \mathbin{+\!\!+} [\ell_{\mathrm{quiet}}(c)]_{c \in \mathrm{quietCases}} \mathbin{+\!\!+} [\ell_{\mathrm{rendered}}(c)]_{c \in \mathrm{renderedCases}} \mathbin{+\!\!+} [\ell_{\mathrm{cell}}(c)]_{c \in \mathrm{cellCases}} \mathbin{+\!\!+} [\ell_{\mathrm{view}}(c)]_{c \in \mathrm{viewCases}} \mathbin{+\!\!+} [\ell_{\mathrm{fold}}(c)]_{c \in \mathrm{foldCases}} \mathbin{+\!\!+} [\ell_{\mathrm{report}}(c)]_{c \in \mathrm{reportCases}} \mathbin{+\!\!+} [\ell_{\mathrm{viewFor}}(c)]_{c \in \mathrm{viewForCases}}$$ -/
-def goldenLines : List String :=
+def goldenLines (_ : Unit := ()) : List String :=
   obsCases.map (fun (n, o) =>
     (Json.mkObj [("kind", "settled"), ("name", toJson n), ("policy", policyJson gatePolicy), ("obs", obsJson o),
       ("settled", toJson (settled gatePolicy o))]).compress)
@@ -1230,7 +1230,7 @@ def goldenLines : List String :=
 /-- The exact bytes of `packages/contracts/golden/gate/settle.jsonl`: the lines, each newline-terminated.
 
 $$\text{goldenText} = \mathbin{+\!\!+}_{\ell \in \text{goldenLines}} (\ell \mathbin{+\!\!+} \texttt{newline})$$ -/
-def goldenText : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
+def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
 /-- The value after the first occurrence of `flag` that has a successor in an argument list.
 

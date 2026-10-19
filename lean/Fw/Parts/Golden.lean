@@ -234,7 +234,7 @@ def springJ (wire : Bool) (s : Spring) : Json :=
 def t0Ms : Int := 1790787600000
 
 /-- hero.countdown lines (TS functions). $$\text{lines}$$ The conformance vectors for the TS countdown. -/
-def countdownLines : List String :=
+def countdownLines (_ : Unit := ()) : List String :=
   let rs : List (Int × Int) :=
     [(0, 1), (0, 999), (0, 1000), (0, 1001), (5000, 1000), (1000, 1000), (1001, 1000), (999, 1000),
      (0, 86400000), (0, 86400001), (0, 86399999), (t0Ms, targetMs), (targetMs - 1, targetMs),
@@ -289,7 +289,7 @@ section Exit
 open Fw.Parts.HeroExit
 
 /-- hero.exit lines (TS functions). $$\text{lines}$$ The conformance vectors for the TS hero exit. -/
-def exitLines : List String :=
+def exitLines (_ : Unit := ()) : List String :=
   let geoms : List (Rat × Rat × Rat) :=
     -- (trackTop, trackHeight, viewportHeight): desktop vh 800 (n = 800), 700-range, degenerate, phone vh 844
     ([100, 0, -0.5, -1, -400, -560, -576, -760, -761, -799, -800, -801, -5000].map fun t => (t, 1600, 800)) ++
@@ -361,7 +361,7 @@ def stIn (s : St) : Json :=
 left to right, outer to inner; `line`, `rin`, `ratWire` as in `PlatformGolden`.
 
 $$\begin{aligned} \mathrm{tweenLines} = {} &[\, \operatorname{line}(\texttt{ease}, \{\texttt{x}{:}\ \operatorname{rin}(x)\}, \operatorname{ratWire}(\operatorname{ease}(x))) \mid x \in X \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{tween}, \{\texttt{from}{:}\ \operatorname{rin}(f), \texttt{to}{:}\ \operatorname{rin}(t), \texttt{elapsed}{:}\ \operatorname{rin}(e)\}, \{\texttt{value}{:}\ \operatorname{ratWire}(\operatorname{tween}(f, t, e).\mathrm{value}), \texttt{done}{:}\ \operatorname{tween}(f, t, e).\mathrm{done}\}) \mid (f, t) \in \mathit{Ends},\ e \in \mathit{Els} \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{dir}, \{\texttt{delta}{:}\ \operatorname{rin}(d)\}, (\operatorname{dir}(d) = \operatorname{some}(g)\ ?\ \operatorname{ratWire}(g) : \texttt{null})) \mid d \in [0, 0.5, 0.99, 1, -1, 1.5, -0.5, 120, -120, 0] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{armed}, \{\texttt{rectHeight}{:}\ \operatorname{rin}(h), \texttt{rectBottom}{:}\ \operatorname{rin}(b), \texttt{viewportHeight}{:}\ \operatorname{rin}(v)\}, \operatorname{armed}(h, b, v)) \\ &\qquad \mid (h, b, v) \in [(360, 800, 800), (359.9, 800, 800), (800, 808, 800), (800, 808.5, 800), (0, 0, 800), (380.25, 844, 844), (379.8, 844, 844), (900, 852, 844), (900, 852.01, 844)] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{taken}, \{\texttt{active}{:}\ a, \texttt{delta}{:}\ \operatorname{rin}(d), \texttt{armed}{:}\ r\}, \operatorname{taken}(a, d, r)) \mid a \in [\bot, \top],\ d \in [-5, 0, 0.5, 5],\ r \in [\bot, \top] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{active}, \{\texttt{target}{:}\ \operatorname{rin}(w), \texttt{value}{:}\ \operatorname{rin}(r)\}, \operatorname{active}(w, r)) \mid (w, r) \in [(0, 0), (0.001, 0), (0, 0.001), (0.0011, 0), (0, 0.0011), (1, 0), (0, 1), (1, 1)] \,] \\ \mathbin{+\!\!+} {} &[\, y \mid m \in [0, 0.1, 0.275, 0.5, 0.5225, 0.5226, 0.55, 0.9, 1],\ y \in [\operatorname{line}(\texttt{fade}, \{\texttt{m}{:}\ \operatorname{rin}(m)\}, \operatorname{ratWire}(\operatorname{fade}(m))),\ \operatorname{line}(\texttt{pointerNone}, \{\texttt{m}{:}\ \operatorname{rin}(m)\}, \operatorname{pointerNone}(m))] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{push}, \{\texttt{state}{:}\ \operatorname{stIn}(s), \texttt{goal}{:}\ \operatorname{rin}(g), \texttt{reduced}{:}\ \rho, \texttt{now}{:}\ \operatorname{rin}(1000)\}, \operatorname{stJson}(\operatorname{push}(s, g, \rho, 1000))) \mid s \in S_p,\ g \in [0, 1],\ \rho \in [\bot, \top] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{frame}, \{\texttt{state}{:}\ \operatorname{stIn}(s), \texttt{now}{:}\ \operatorname{rin}(n)\}, \operatorname{stJson}(\operatorname{frame}(s, n))) \mid s \in S_f,\ n \in [100, 116.667, 440, 780, 781, 90] \,], \\ \text{with } X = {} &[-1, 0, 0.1, 0.25, 0.5, 0.75, 0.9, 1, 1.5],\quad \mathit{Els} = [-16, 0, 16.667, 100, 340, 500, 679, 679.9, 680, 680.1, 1000], \\ \mathit{Ends} = {} &[(0, 1), (1, 0), (0.3, 1), (0.8, 0), (0.5, 0.5)],\quad q_1 = \operatorname{push}(\mathrm{rest}, 1, \bot, 100), \\ S_p = {} &[\mathrm{rest}, q_1, \operatorname{frame}(q_1, 440), \operatorname{frame}(q_1, 780), \operatorname{push}(\mathrm{rest}, 1, \top, 100), \operatorname{frame}(\operatorname{push}(\operatorname{frame}(q_1, 440), 0, \bot, 450), 450)], \\ S_f = {} &[\mathrm{rest}, q_1, \operatorname{frame}(q_1, 440), \operatorname{push}(\mathrm{rest}, 1, \top, 100)] \end{aligned}$$ -/
-def tweenLines : List String :=
+def tweenLines (_ : Unit := ()) : List String :=
   let xs : List Rat := [-1, 0, 0.1, 0.25, 0.5, 0.75, 0.9, 1, 1.5]
   let els : List Rat := [-16, 0, 16.667, 100, 340, 500, 679, 679.9, 680, 680.1, 1000]
   let ends : List (Rat × Rat) := [(0, 1), (1, 0), (0.3, 1), (0.8, 0), (0.5, 0.5)]

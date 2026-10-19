@@ -601,7 +601,7 @@ $$\mathrm{goldenRows} = [\operatorname{row}(\texttt{chromium}, n, c, \operatorna
 $$C_{\mathrm{cr}} = [(\mathrm{script}, \texttt{"script"}, \texttt{trace.FireAnimationFrame}), (\mathrm{style}, \texttt{"style"}, \texttt{trace.UpdateLayoutTree}), (\mathrm{layout}, \texttt{"layout"}, \texttt{trace.Layout}), (\mathrm{commit}, \texttt{"commit"}, \texttt{trace.cc.Commit})],\quad C_{\mathrm{wk}} = [(\mathrm{script}, \texttt{"script"}, \texttt{FireAnimationFrame}), (\mathrm{style}, \texttt{"style"}, \texttt{RecalculateStyles}), (\mathrm{layout}, \texttt{"layout"}, \texttt{Layout}), (\mathrm{commit}, \texttt{"commit"}, \texttt{Composite})]$$
 
 The predictions CI checks for the hidden-pause variant, eight rows. -/
-def goldenRows : List Lean.Json :=
+def goldenRows (_ : Unit := ()) : List Lean.Json :=
   ([(Stage.script, "script", "trace.FireAnimationFrame"), (.style, "style", "trace.UpdateLayoutTree"),
       (.layout, "layout", "trace.Layout"), (.commit, "commit", "trace.cc.Commit")].map fun (s, n, c) =>
       row "chromium" n c (relPred crPairs s)) ++
@@ -614,7 +614,7 @@ def goldenRows : List Lean.Json :=
 $$\mathrm{goldenJsonl} = \mathop{\Vert}_{r \in \mathrm{goldenRows}} \big(\operatorname{json}(r) \mathbin{+\!\!+} \texttt{\textbackslash n}\big)$$
 
 The file text the exporter writes. -/
-def goldenJsonl : String := String.join (goldenRows.map fun r => r.compress ++ "\n")
+def goldenJsonl (_ : Unit := ()) : String := String.join (goldenRows.map fun r => r.compress ++ "\n")
 
 #guard relPred crPairs .script == "=o" && relPred crPairs .style == "≤o" && relPred crPairs .layout == "=o"
 #guard relPred wkPairs .script == "=o" && relPred wkPairs .style == "≤o" && relPred wkPairs .layout == "≤o"

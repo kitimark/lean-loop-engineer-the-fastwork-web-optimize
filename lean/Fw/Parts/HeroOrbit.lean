@@ -519,7 +519,7 @@ centre, ascending.
 $$T(i) = \bigl|\{\,j : \operatorname{atan2}(y_j - \tfrac{779}{2},\ x_j - \tfrac{1512}{2}) < \operatorname{atan2}(y_i - \tfrac{779}{2},\ x_i - \tfrac{1512}{2})\,\}\bigr|,\quad (x_i, y_i) = (\ell_i + \tfrac{w_i}{2},\ \tau_i + \tfrac{h_i}{2})$$
 
 (Ties do not occur in the data.) Each card's slot number. -/
-def ringIndex : List Nat :=
+def ringIndex (_ : Unit := ()) : List Nat :=
   let ang : Piece → Float := fun p =>
     Float.atan2 ((toF p.top / 779.0 * 100.0 / 100.0) * 779.0 + toF p.height / 2.0 - 779.0 / 2.0)
       ((toF p.left / 1512.0 * 100.0 / 100.0) * 1512.0 + toF p.width / 2.0 - 1512.0 / 2.0)

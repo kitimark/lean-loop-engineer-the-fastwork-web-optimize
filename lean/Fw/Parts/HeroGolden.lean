@@ -39,7 +39,7 @@ def times : List Rat :=
   [0, 100, 899, 900, 901, 1000, 1130, 11304 / 10, 1131, 1163, 1164, 1165, 1250, 1379, 1380, 1381, 1500, 1819, 1820, 3000]
 
 /-- The orbit golden lines. $$\text{lines}$$ Vectors the TS orbit logic must reproduce. -/
-def orbitLines : List String :=
+def orbitLines (_ : Unit := ()) : List String :=
   (times.map fun e =>
     let p := HeroOrbit.phase e
     line "phase" [("e", rin e)] (Json.mkObj [("phase", .str (phaseName p.phase)), ("t", ratWire p.t)])) ++

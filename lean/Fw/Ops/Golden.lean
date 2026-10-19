@@ -49,7 +49,7 @@ def wait' (cmd : String) (caps : String) : Json :=
 def wait (cmd : String) : Json := Json.mkObj [("cmd", .str cmd)]
 
 /-- The cases, per op file: (file stem, [(name, request without op)]). -/
-def cases : List (String × List (String × Json)) := [
+def cases (_ : Unit := ()) : List (String × List (String × Json)) := [
   ("ops.spawn", [
     ("named worktree subagent with isolation: allow", spawn "[]" "" "{\"name\":\"lean-ops\",\"role\":\"lean-prover\",\"isolation\":\"worktree\",\"spawner\":\"lead\",\"depth\":0}"),
     ("worktree role without isolation becomes a teammate: deny (I-272 trap)", spawn "[]" "" "{\"name\":\"lean-ops\",\"role\":\"lean-prover\",\"spawner\":\"lead\",\"depth\":0}"),
@@ -384,7 +384,7 @@ def lintCases : List (String × Json) := [
     Json.mkObj [("files", .arr #[Json.mkObj [("path", .str "CLAUDE.md"), ("bytes", toJson 1)]])])]
 
 /-- Golden files outside `ops/`: (directory under `packages/contracts/golden`, op, cases). -/
-def extra : List (String × String × List (String × Json)) := [
+def extra (_ : Unit := ()) : List (String × String × List (String × Json)) := [
   ("lint", "lint.context", lintCases),
   ("plan", "plan.trailers", [
     ("oldest trailer marks done; later ones are duplicates; done and unknown ids are reported", lit "{\"commits\":[{\"sha\":\"s3\",\"body\":\"merge x\\n\\nTask: a\\nTask: c\"},{\"sha\":\"s2\",\"body\":\"Task: b\"},{\"sha\":\"s1\",\"body\":\"subject\\n\\nTask: a\"}],\"tasks\":[{\"id\":\"a\",\"state\":\"claimed\"},{\"id\":\"b\",\"state\":\"done\"}]}"),
@@ -673,7 +673,7 @@ open Fw.Ops.LeanFirst in
 /-- The `ops.leanFirst` cases, all judged at the deployed constant `stage` (a request cannot choose it): the base
 facts (all rules met), each single fault of the grid, the binding, decision-path and read-at-main cases, a request
 `stage` field (ignored), and the decoder edge cases. -/
-def leanFirstCases : List (String × Json) :=
+def leanFirstCases (_ : Unit := ()) : List (String × Json) :=
   let at_ := s!"at the deployed stage {stage.name}"
   [(s!"all rules met {at_}", leanFirstReq base)] ++
   Fault.all.map (fun f => (s!"fault {faultName f} {at_}", leanFirstReq (factsOf [f]))) ++
@@ -703,7 +703,7 @@ def leanFirstCases : List (String × Json) :=
    ("registry row without a status is refused", lit "{\"registry\":[{\"id\":\"p\"}]}")]
 
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
-def named : List (String × String × String × List (String × Json)) := [
+def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [
   ("ops", "lean-first", "ops.leanFirst", leanFirstCases)]
 
 /-- The request with its `op` field set. -/

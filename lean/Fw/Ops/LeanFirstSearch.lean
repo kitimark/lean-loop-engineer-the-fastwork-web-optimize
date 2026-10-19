@@ -289,7 +289,7 @@ def factsOf (fs : List Fault) : Facts := fs.foldl Fault.apply base
 
 /-- **The fault grid**: the clean facts, every single fault, and every ordered pair of distinct faults.
 $$\mathrm{grid} = [F_0] \mathbin{+\!\!+} [\operatorname{factsOf}([f]) \mid f \in \mathrm{Fault.all}] \mathbin{+\!\!+} [\operatorname{factsOf}([f, f']) \mid f \in \mathrm{Fault.all},\ f' \in \mathrm{Fault.all},\ f' \ne f],\quad |\mathrm{grid}| = 1 + 40 + 40 \cdot 39 = 1601$$ -/
-def grid : List Facts :=
+def grid (_ : Unit := ()) : List Facts :=
   base :: Fault.all.map (fun f => factsOf [f]) ++
     Fault.all.flatMap fun f => (Fault.all.filter (· != f)).map fun f' => factsOf [f, f']
 
@@ -329,8 +329,10 @@ instance instEnumThmFact : Enum ThmFact :=
 
 /-- **`Enum Facts`**: the fault grid first, then every facts value from its fields (complete).
 $$\mathrm{enum}_{\mathrm{Facts}}(n) = \mathrm{grid} \mathbin{+\!\!+} \operatorname{map}(\operatorname{ofTuple}, \mathrm{enum}_{\mathrm{fields}}(n))$$ -/
-instance instEnumFacts : Enum Facts :=
-  Enum.withSeeds grid (Enum.ofSurj Facts.ofTuple Facts.toTuple (fun _ => rfl))
+instance instEnumFacts : Enum Facts where
+  enum n := grid () ++ (Enum.ofSurj Facts.ofTuple Facts.toTuple (fun _ => rfl)).enum n
+  mono := (Enum.withSeeds (grid ()) (Enum.ofSurj Facts.ofTuple Facts.toTuple (fun _ => rfl))).mono
+  complete := (Enum.withSeeds (grid ()) (Enum.ofSurj Facts.ofTuple Facts.toTuple (fun _ => rfl))).complete
 
 /-- **`Enum Evidence`**: seven seeds first, then every evidence value from its fields. The seeds, as (kills,
 signoffs, marks, sources): nothing; a disagreeing math signoff; an agreeing adversary signoff; both kills; the proof

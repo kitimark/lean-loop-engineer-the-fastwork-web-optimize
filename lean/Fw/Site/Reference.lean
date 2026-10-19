@@ -484,7 +484,7 @@ def referenceWebkitText : String :=
 $$ \mathrm{referenceChromium} = \mathrm{parse}(\mathrm{chromium}, \mathrm{text}_{\mathrm{chromium}}) $$
 
 The original's computed styles in Chrome Headless Shell. -/
-def referenceChromium : Dataset :=
+def referenceChromium (_ : Unit := ()) : Dataset :=
   match parseDataset .chromium referenceChromiumText with
   | .ok d => d
   | .error _ => ⟨.chromium, [], [], []⟩
@@ -494,7 +494,7 @@ def referenceChromium : Dataset :=
 $$ \mathrm{referenceWebkit} = \mathrm{parse}(\mathrm{webkit}, \mathrm{text}_{\mathrm{webkit}}) $$
 
 The original's computed styles in Playwright WebKit. -/
-def referenceWebkit : Dataset :=
+def referenceWebkit (_ : Unit := ()) : Dataset :=
   match parseDataset .webkit referenceWebkitText with
   | .ok d => d
   | .error _ => ⟨.webkit, [], [], []⟩
