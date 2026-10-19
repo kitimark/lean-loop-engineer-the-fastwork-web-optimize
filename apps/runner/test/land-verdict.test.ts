@@ -27,13 +27,13 @@ describe("land verdict vs Lean golden", () => {
       expect(g.response).toEqual({ lines, kind: outcomeKind(oc), exit: exitCode(outcomeKind(oc)) });
       expect(lines.filter((l) => l.startsWith("VERDICT ")).length).toBe(1);
     } else if (q.op === "landDry.lintPlan") {
-      expect(g.response).toEqual({ argv: lintPlan(q.changed as string[], q.hasCiPaths as boolean, q.hasMathview as boolean) });
+      expect(g.response).toEqual({ argv: lintPlan(q.changed as string[], q.hasCiPaths as boolean, q.hasAxioms as boolean) });
     } else if (q.op === "landDry.checkKind") {
       expect(g.response).toEqual({ kind: checkFailKind(q.failed as { reads: boolean; stages: string[] }[]) });
     } else throw new Error(`unknown op ${q.op}`);
   });
   it("failedStages reads the check.sh stage names (parsing only)", () => {
-    expect(failedStages("x\ncheck: FAILED stage: mathview lint\ncheck: FAILED: \n  - mathview lint\n  - lake test\nrest")).toEqual(["mathview lint", "lake test"]);
+    expect(failedStages("x\ncheck: FAILED stage: axiom check\ncheck: FAILED: \n  - axiom check\n  - lake test\nrest")).toEqual(["axiom check", "lake test"]);
     expect(failedStages("  - not a stage\nnothing")).toEqual([]);
   });
   it("parseVerdict reads the last VERDICT line only", () => {
