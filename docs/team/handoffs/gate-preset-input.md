@@ -33,8 +33,10 @@ Branch `worktree-wf_11ac09ad-a60-4`, CI branch `ci/gate-preset-input`.
 - Gate run on the v2-proved arm (MEASURED, CI): run 39189945037, `workflow_dispatch` on `ci/gate-preset-input` at 8a6b34ba
   with `engines=chromium preset=v2-proved`. Smoke and all 3 gate jobs passed; the page loaded was `?preset=v2-proved`,
   config 6762d15c2b8b6d35. Verdict chromium: fail (7056 readings, 6533 pass, 516 fail, 7 excused; universe identical, not
-  narrowed). Failing rows: hero.countdown (all 14 columns; strip: `face` count 64 vs 0) and nav (6 columns; `actions`
-  1 vs 4, `bar` 1 vs 2 in the count lens), plus one platform style `--morph-fade` that differs. Every other row passes.
-  Next: the lead decides whether the strip / nav variants are meant to change those counts (then the gate needs a
-  Lean exemption) or the preset must drop them.
+  narrowed). Failing rows: hero.countdown 14/14 columns (face count 64 vs 0, 196 probes), nav 14/14 (actions 1 vs 4,
+  bar 1 vs 2, 196 probes each), platform 10/14 (section style --morph-fade "1" vs "calc(1 - min(1, 0 / 0.55))",
+  124 probes); 38 cells not ok; all other rows pass.
+- Attribution (INFERRED, not tested): hero.countdown by `hero.countdown:strip`; nav unknown (the nav.hitTest row passes
+  and the preset has no nav layout variant); platform by `morph.*` (likely the waapi `--morph-fade` serialization that
+  morph-tween-inherit fixes). A separate task triages the failing rows.
 - Not run: WebKit (Chromium only was asked).

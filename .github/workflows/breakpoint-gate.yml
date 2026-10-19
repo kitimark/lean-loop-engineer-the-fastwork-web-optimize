@@ -43,7 +43,7 @@ on:
         default: 'measured'
       fw:
         description: >-
-          Flag set of the rewrite arm, e.g. morph.tween:waapi (becomes ?fw=...; the build prerenders every single-variant page). Empty = the default config.
+          Flag set of the rewrite arm, e.g. morph.tween:waapi (becomes ?fw=...; the build prerenders every single-variant page). Allowed characters: [A-Za-z0-9.:,-_@]. Empty = the default config.
         type: string
         default: ''
       preset:
