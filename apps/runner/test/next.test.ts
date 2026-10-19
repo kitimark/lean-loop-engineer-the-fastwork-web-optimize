@@ -135,8 +135,8 @@ describe("end to end with a real child process", () => {
     const child = spawn("sh", ["-c", script], { detached: true, stdio: "ignore" });
     child.unref();
     started.push(child.pid!);
-    const deadline = Date.now() + (Number(process.env.FW_EXEC_TIMEOUT_MS) || 5000) * 2;
-    for (;;) { // the forked shell is not in `ps` the instant spawn returns, and ps itself can time out under load: poll, bounded
+    const deadline = Date.now() + Math.max(60_000, (Number(process.env.FW_EXEC_TIMEOUT_MS) || 5000) * 2);
+    for (;;) { // under load ps can exceed its timeout and return []: poll, bounded
       const now = Date.now();
       const ps = await psCommands();
       const raw: Raw = {
