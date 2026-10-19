@@ -9354,7 +9354,12 @@
     "apps/runner/src/fw.ts",
     "apps/runner/test/land-queue*.test.ts",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/land-queue-why.md"
+    "docs/team/handoffs/land-queue-why.md",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/land-digest.test.ts",
+    "lean/Fw/Console/LandQueue.lean",
+    "packages/contracts/golden/console/land-queue.jsonl",
+    "lean/scripts/*Golden.lean"
    ]
   },
   {
@@ -9919,7 +9924,8 @@
    "writes": [
     "scripts/scrub.mjs",
     "scripts/scrub.test.mjs",
-    "docs/team/handoffs/scrub-session-paths.md"
+    "docs/team/handoffs/scrub-session-paths.md",
+    "docs/team/tools/land.md"
    ]
   },
   {
@@ -9951,6 +9957,55 @@
     "docs/team/handoffs/preview-proxy-direct.md",
     "lean/Fw.lean",
     "lean/scripts/check.sh"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scrub-session-paths-r2",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "scrub review follow-ups: encoded-home trailing and glued forms, rules on file paths, override only under FW_SCRUB_TEST, GENERIC exported, scrub tests run on CI",
+   "deps": [
+    "scrub-session-paths"
+   ],
+   "writes": [
+    "scripts/scrub.mjs",
+    "scripts/scrub.test.mjs",
+    "scripts/test-scrub.mjs",
+    ".github/workflows/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/scrub-session-paths-r2.md",
+    "apps/runner/test/scrub.test.ts",
+    "apps/runner/src/land.ts",
+    "lean/scripts/*Golden.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-fail-wins",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "Land gate: a lane run that completed with conclusion failure for the wanted sha+digest is always fail (refuse), whatever exit code fw ci wait returned; the remote verdict and its reason are printed in the VERDICT output and the land log. Incident: preview-e2e landed 2026-10-19T23:08Z after run 39338755874 failed (fallback to local, suites passed here)",
+   "deps": [
+    "land-wait"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-remote.test.ts",
+    "lean/Fw/Console/LandRemote.lean",
+    "packages/contracts/golden/console/land-remote.jsonl",
+    "lean/scripts/*Golden.lean",
+    "packages/gh-budget/src/wait.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-remote-fail-wins.md"
    ]
   }
  ],
