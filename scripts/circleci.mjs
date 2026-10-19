@@ -261,7 +261,7 @@ export function loadConfig(root = ROOT, env = process.env) {
 
 // ------------------------------------------------------------------------------------------------------------ run reading
 
-/** A pipeline the pilot started through the API (a push to ci/* makes a `webhook` pipeline with no workflow). */
+/** True for every pipeline whose trigger type is not `webhook` (the type a push makes). It reads neither the lane parameter nor the workflow list. */
 export const isPilotPipeline = (p) => p?.trigger?.type !== 'webhook';
 
 const TERMINAL = new Set(['success', 'failed', 'error', 'canceled', 'not_run', 'unauthorized', 'infrastructure_fail', 'timedout', 'terminated-unknown']);
