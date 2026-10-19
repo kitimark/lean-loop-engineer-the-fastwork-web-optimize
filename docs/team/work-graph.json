@@ -6139,7 +6139,8 @@
     "research/notes/2026/10-19-driver-stage-mode.md",
     "lean/scripts/check.sh",
     "lean/scripts/StageModeGolden.lean"
-   ]
+   ],
+   "evidence": "ce7b4c9"
   },
   {
    "devices": [
