@@ -3,7 +3,7 @@ import { createNotesDriver, type NotesEnv } from './driver';
 import type { Note } from './logic';
 
 /** A virtual clock: `interval` is a repeating timer; `advance(ms)` fires timers in time order. */
-function world(over: Partial<NotesEnv> = {}) {
+function world(over: Partial<NotesEnv> = {}, late = 0) {
   let now = 0;
   let nextId = 1;
   const timers = new Map<number, { at: number; ms: number; cb: () => void }>();
@@ -37,15 +37,15 @@ function world(over: Partial<NotesEnv> = {}) {
     const end = now + ms;
     for (;;) {
       let pick: [number, { at: number; ms: number; cb: () => void }] | null = null;
-      for (const e of timers) if (e[1].at <= end && (!pick || e[1].at < pick[1].at)) pick = e;
+      for (const e of timers) if (e[1].at + late <= end && (!pick || e[1].at < pick[1].at)) pick = e;
       if (!pick) break;
-      now = pick[1].at;
+      now = pick[1].at + late;
       pick[1].at += Math.max(1, pick[1].ms);
       pick[1].cb();
     }
     now = end;
   };
-  return { env, state, advance, extras: () => last.extras.length, timers };
+  return { env, state, advance, extras: () => last.extras.length, timers, clock: () => now };
 }
 
 describe('pain.notes variant visible: the interval exists only while armed', () => {
@@ -123,5 +123,19 @@ describe('pain.notes variant visible: the interval exists only while armed', () 
     w.state.narrow = true;
     d.sync();
     expect(w.timers.size).toBe(1);
+  });
+});
+
+describe('pain.notes variant visible: ticks stay on the absolute grid when every timer fires late', () => {
+  it.each([1, 7, 250, 2999])('timer %i ms late: tick k fires at t0 + 3000k', (late) => {
+    const fired: number[] = [];
+    const w = world({}, late);
+    const d = createNotesDriver({ ...w.env, commit: () => fired.push(w.clock()) }, 1, { armWhenVisible: true });
+    d.start();
+    d.intersect(true, 1);
+    fired.length = 0;
+    w.advance(3000 * 8 + late);
+    expect(fired.length).toBe(8);
+    fired.forEach((t, i) => expect(t - late).toBe(3000 * (i + 1)));
   });
 });

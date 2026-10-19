@@ -136,19 +136,28 @@ export function createNotesDriver(env: NotesEnv, seed: number, opts: { armWhenVi
     cancelInterval = null;
   };
   const now = () => Math.ceil(env.now?.() ?? 0);
-  /** Variant `visible` (Lean `armed`, `resumeAt`): the interval exists only while the gate is open; it resumes on the original's grid. */
+  /**
+   * Variant `visible` (Lean `armed`, `resumeAt`): the interval exists only while the gate is open. Every tick is a
+   * one-shot aimed at the original's absolute grid (t0 + 3000k) and re-armed after it fires, so a late timer never
+   * shifts later ticks (a free-running period after a re-arm would carry the lateness: `naive_rearm_shifts`).
+   */
   const sync = () => {
     if (!gateOpen({ inView: visibleNow, narrow: env.narrow(), covered: covered() })) {
       stopTimers();
       return;
     }
-    if (cancelInterval || cancelWait) return;
+    if (cancelWait) return;
     const at = now();
-    cancelWait = env.interval(Math.max(0, resumeAt(t0, at) - at), () => {
+    aim(resumeAt(t0, at) - at);
+  };
+  const aim = (delay: number) => {
+    cancelWait = env.interval(Math.max(0, delay), () => {
       cancelWait?.();
       cancelWait = null;
-      cancelInterval = env.interval(INTERVAL_MS, onTick);
       onTick();
+      if (!gated || cancelWait) return;
+      const at = now();
+      if (gateOpen({ inView: visibleNow, narrow: env.narrow(), covered: covered() })) aim(resumeAt(t0, at + 1) - at);
     });
   };
   const arm = () => {
