@@ -2,6 +2,8 @@
 // node src/cli.mjs fonts  --engine chromium|playwright-webkit --out DIR [--probes id,id,...] [--concurrency 2]   (port check 5; exit 1 on a failing probe)
 // node src/cli.mjs fonts-compare --in A.fonts.json,B.fonts.json   (the counts of runs of one head side by side)
 // node src/cli.mjs report --in DIR[,DIR...] [--out BASE]    (prints the markdown table; BASE.md and BASE.json when --out)
+// node src/cli.mjs nav-scroll --engine chromium|playwright-webkit --out DIR [--widths w860,w861,w1280,w1440,w1920]   (nav scroll-hide probe)
+// node src/cli.mjs nav-scroll-report --in DIR[,DIR...] [--out BASE | --summary]   (--summary prints only the cross-run tables)
 // Default probes: the breakpoint set in probes.default.json (ids of the gate's Lean matrix, apps/site/src/breakpoints.gen.json).
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -19,6 +21,15 @@ if (cmd === 'run') {
   const partFilter = argv.includes('--parts') ? arg('parts', '').split(',').map((x) => x.trim()).filter(Boolean) : null;
   await runVisual({ engineName: arg('engine', 'chromium'), outDir: resolve(arg('out', 'out/run')), probeIds, partFilter, fw: arg('fw', process.env.FW_FLAGS ?? ''), concurrency: Number(arg('concurrency', '2')), assets: arg('assets', 'none') });
   process.exit(0);
+} else if (cmd === 'nav-scroll') {
+  const { runNavScroll, WIDTHS } = await import('./navscroll.mjs');
+  const widthIds = arg('widths', WIDTHS.map((w) => w.id).join(',')).split(',').map((x) => x.trim()).filter(Boolean);
+  await runNavScroll({ engineName: arg('engine', 'chromium'), outDir: resolve(arg('out', 'out/navscroll')), widthIds });
+  process.exit(0);
+} else if (cmd === 'nav-scroll-report') {
+  const { report, summaryReport } = await import('./navscroll-report.mjs');
+  const dirs = arg('in', 'out/navscroll').split(',').map((d) => resolve(d));
+  process.stdout.write(argv.includes('--summary') ? summaryReport(dirs) : report(dirs, arg('out') ? resolve(arg('out')) : null));
 } else if (cmd === 'fonts') {
   const { runFonts, fontsTable } = await import('./fonts.mjs');
   const defaults = JSON.parse(readFileSync(join(HERE, '..', 'probes.default.json'), 'utf8')).probes;
@@ -35,6 +46,6 @@ if (cmd === 'run') {
   const dirs = arg('in', 'out/run').split(',').map((d) => resolve(d));
   process.stdout.write(report(dirs, arg('out') ? resolve(arg('out')) : null));
 } else {
-  console.error('usage: cli.mjs run|report ...');
+  console.error('usage: cli.mjs run|report|nav-scroll|nav-scroll-report ...');
   process.exit(2);
 }

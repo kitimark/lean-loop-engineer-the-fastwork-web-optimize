@@ -178,6 +178,12 @@ describe('selectors the parts query match the prerendered page', () => {
     expect(logic).toContain("morphing: ['is-morphing']");
     expect(src('../nav/index.tsx')).toContain('nav.classList.toggle(c, v[key])');
   });
+  it('the nav hides on the selectors the people section renders: its defaults are the probe constants, not the original class names', () => {
+    const nav = src('../nav/index.tsx');
+    expect(nav).toContain('stickySelector = PROFILE_STICKY_SELECTOR');
+    expect(nav).toContain('sectionSelector = PROFILE_SECTION_SELECTOR');
+    expect(nav).not.toMatch(/Selector = '\.start-selling/);
+  });
   it('no selector the parts query matches by class substring', () => {
     for (const sel of units) expect(sel).not.toContain('class*=');
   });
