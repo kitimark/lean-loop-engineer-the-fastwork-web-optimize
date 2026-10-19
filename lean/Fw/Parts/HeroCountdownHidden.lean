@@ -9,14 +9,16 @@ at `width<=600px`; `apps/site/src/parts/hero/hero.module.css`), inside the stick
 `--exit-opacity` on, inside the 200vh track. The spring keeps integrating; the gate holds the face `transform` writes
 while the clock is hidden and writes the latest value per face when it shows again.
 
-Hidden is `exitOpacity = 0` (the zone past $T + n$) or the track more than one viewport away. The pointer-off sentinel
-($e < 1/20$) is not a hidden condition: at $e = 1/25$ the copy still paints (`sentinel_not_hidden`).
+Hidden is `exitOpacity = 0` (the zone past $T + n$) and nothing else. A distance branch (track more than one viewport
+away) adds nothing: far above already lies in the exit zone (`farAbove_implies_exitZero`), and far below cannot happen
+for the first section (`farBelow_unreachable`). The pointer-off sentinel ($e < 1/20$) is not a hidden condition: at
+$e = 1/25$ the copy still paints (`sentinel_not_hidden`).
 -/
 namespace Fw.Parts.HeroCountdownHidden
 
 open Fw.Engine
-open Fw.Parts.HiddenPause (Tmpl inst Hidden HiddenOrStill hiddenPause_visSame inside meets_of_inside cdFrame
-  skipWrites unhideFrame cr_countdown_style wk_countdown_style unhide_le)
+open Fw.Parts.HiddenPause (Tmpl inst Hidden HiddenOrStill hiddenPause_visSame cdFrame skipWrites unhideFrame
+  cr_countdown_style wk_countdown_style unhide_le)
 open Fw.Parts.HeroExit (exitOpacity exitOpacityAt exitRange exitClamp exitFrame pointerOff copyOpacity
   exitRange_pos div_mul_pos exitOpacity_before exitOpacity_after exitOpacity_linear)
 
@@ -73,7 +75,7 @@ theorem sentinel_not_hidden :
     ∃ t h v : Rat, pointerOff (exitOpacity t h v) = true ∧ exitOpacity t h v ≠ 0 :=
   ⟨-768, 1600, 800, by decide +kernel, by decide +kernel⟩
 
-/-- **Off the top implies the exit zone.** Without reduced motion, a track of height $h \ge 1$ whose bottom is at or
+/-- **Off the top implies the exit zone.** A track of height $h \ge 1$ whose bottom is at or
 above the viewport top ($t + h \le 0$) and a viewport height $v \ge 0$ give exit opacity 0.
 
 $$\forall t, h, v \in \mathbb{Q}:\ 1 \le h \land 0 \le v \land t + h \le 0 \Rightarrow \operatorname{exitOpacity}(t, h, v) = 0$$
@@ -82,30 +84,27 @@ A track scrolled fully above the viewport is already in the exit zone. -/
 theorem exitZero_of_above (t h v : Rat) (h1 : 1 ≤ h) (hv : 0 ≤ v) (ht : t + h ≤ 0) : exitOpacity t h v = 0 :=
   (exitOpacity_eq_zero_iff t h v).mpr (by unfold exitRange; grind)
 
-/-! ## 2. The offscreen branch: the track more than one viewport away -/
+/-! ## 2. No distance branch: far above is already the exit zone, far below never happens -/
 
-/-- The viewport grown by its own height above and below (IntersectionObserver `rootMargin: 100% 0px`).
+/-- **Far above implies exit 0.** A track of height $h \ge 1$ whose bottom is more than one viewport height above the
+viewport top ($t + h < -v$), with $v \ge 0$, has exit opacity 0.
 
-$$\forall \mathit{vp} \in \mathrm{Rect}:\ \operatorname{grow}(\mathit{vp}) = (\mathit{vp}.x,\ \mathit{vp}.y - \mathit{vp}.h,\ \mathit{vp}.w,\ 3\,\mathit{vp}.h)$$
+$$\forall t, h, v \in \mathbb{Q}:\ 1 \le h \land 0 \le v \land t + h < -v \Rightarrow \operatorname{exitOpacity}(t, h, v) = 0$$
 
-The observer's root: one viewport height of margin on top and bottom. -/
-def grow (vp : Rect) : Rect := ⟨vp.x, vp.y - vp.h, vp.w, 3 * vp.h⟩
+An IntersectionObserver with one viewport of margin would report such a track as far, but the exit branch already
+closes the gate there, so a far branch saves nothing. -/
+theorem farAbove_implies_exitZero (t h v : Rat) (h1 : 1 ≤ h) (hv : 0 ≤ v) (ht : t + h < -v) :
+    exitOpacity t h v = 0 :=
+  exitZero_of_above t h v h1 hv (by grind)
 
-/-- A rect that meets the viewport meets the grown viewport.
+/-- **Far below never happens for the first section.** A track at document offset $T < 2v$, seen at scroll $y \ge 0$,
+has its top at $T - y < 2v$, so it never lies wholly below the viewport grown by one viewport height.
 
-$$\forall \mathit{vp}, R \in \mathrm{Rect}:\ \operatorname{meets}(\mathit{vp}, R) \Rightarrow \operatorname{meets}(\operatorname{grow}(\mathit{vp}), R)$$
+$$\forall T, y, v \in \mathbb{Q}:\ T < 2v \land 0 \le y \Rightarrow T - y < 2v$$
 
-The grown root contains the viewport, so anything near enough to paint is reported near. -/
-theorem meets_grow (vp R : Rect) (h : vp.meets R = true) : (grow vp).meets R = true := by
-  simp only [Rect.meets, grow, Bool.and_eq_true, decide_eq_true_eq] at h ⊢
+The hero track is the first section, so its document offset is below two viewport heights. -/
+theorem farBelow_unreachable (T y v : Rat) (hT : T < 2 * v) (hy : 0 ≤ y) : T - y < 2 * v := by
   grind
-
-/-- **The offscreen decision**: the track does not meet the grown viewport.
-
-$$\forall \mathit{vp}, R \in \mathrm{Rect}:\ \operatorname{farOff}(\mathit{vp}, R) = \lnot\operatorname{meets}(\operatorname{grow}(\mathit{vp}), R)$$
-
-True when the track is more than one viewport height above or below the viewport (or has no area). -/
-def farOff (vp R : Rect) : Bool := !(grow vp).meets R
 
 /-! ## 3. The gate decision -/
 
@@ -116,51 +115,49 @@ $$\forall x \in \mathbb{Q}_\bot:\ \operatorname{exitVal}(x) = \begin{cases} e & 
 What the copy's opacity multiplies by. -/
 def exitVal (ex : Option Rat) : Rat := ex.getD 1
 
-/-- **The gate's hidden decision**: the written exit opacity is exactly 0, or the track is far off.
+/-- **The gate's hidden decision**: the written exit opacity is exactly 0.
 
-$$\forall x \in \mathbb{Q}_\bot,\ \forall \mathit{vp}, R \in \mathrm{Rect}:\ \operatorname{gateHidden}(x, \mathit{vp}, R) = \big(x = 0\big) \lor \operatorname{farOff}(\mathit{vp}, R)$$
+$$\forall x \in \mathbb{Q}_\bot:\ \operatorname{gateHidden}(x) = \big(x = 0\big)$$
 
-Here $x = 0$ means a written 0 ($\bot \ne 0$). Hold the face writes while the copy is transparent or the track is
-more than a viewport away; before hero.exit writes, only distance closes the gate. -/
-def gateHidden (ex : Option Rat) (vp R : Rect) : Bool := decide (ex = some 0) || farOff vp R
+Here $x = 0$ means a written 0 ($\bot \ne 0$). Hold the face writes while the copy is transparent; before hero.exit
+writes, the gate stays open. -/
+def gateHidden (ex : Option Rat) : Bool := decide (ex = some 0)
 
-/-- **The decision, both branches.**
+/-- **The decision.**
 
-$$\forall x \in \mathbb{Q}_\bot,\ \forall \mathit{vp}, R \in \mathrm{Rect}:\ \operatorname{gateHidden}(x, \mathit{vp}, R) \iff x = 0 \lor \lnot\operatorname{meets}(\operatorname{grow}(\mathit{vp}), R)$$
+$$\forall x \in \mathbb{Q}_\bot:\ \operatorname{gateHidden}(x) \iff x = 0$$
 
-The gate is closed exactly when one of the two hidden conditions holds. -/
-theorem hidden_iff (ex : Option Rat) (vp R : Rect) :
-    gateHidden ex vp R = true ↔ ex = some 0 ∨ (grow vp).meets R = false := by
-  simp [gateHidden, farOff]
+The gate is closed exactly when hero.exit has written opacity 0. -/
+theorem hidden_iff (ex : Option Rat) : gateHidden ex = true ↔ ex = some 0 := by
+  simp [gateHidden]
 
-/-- **Exit branch.** With the track near, the gate is closed on the frame's written opacity exactly in the exit zone
-without reduced motion.
+/-- **In scroll terms.** The gate is closed on the frame's written opacity exactly in the exit zone without reduced
+motion.
 
-$$\forall r \in \mathbb{B},\ \forall t, h, v \in \mathbb{Q},\ \forall \mathit{vp}, R \in \mathrm{Rect}:\ \operatorname{meets}(\operatorname{grow}(\mathit{vp}), R) \Rightarrow \Big(\operatorname{gateHidden}(\operatorname{exitFrame}(r, t, h, v).\mathrm{opacity}, \mathit{vp}, R) \iff r = \bot \land \max(1, h - v) \le -t\Big)$$
+$$\forall r \in \mathbb{B},\ \forall t, h, v \in \mathbb{Q}:\ \operatorname{gateHidden}(\operatorname{exitFrame}(r, t, h, v).\mathrm{opacity}) \iff r = \bot \land \max(1, h - v) \le -t$$
 
-Near the viewport, only the scrolled-out zone closes the gate. -/
-theorem hidden_iff_exit (r : Bool) (t h v : Rat) (vp R : Rect) (hn : (grow vp).meets R = true) :
-    gateHidden (some (exitFrame r t h v).opacity) vp R = true ↔ r = false ∧ exitRange h v ≤ -t := by
-  rw [hidden_iff, ← exitFrame_zero_iff, hn]
+Only the scrolled-out zone closes the gate, and reduced motion never does. -/
+theorem hidden_iff_exit (r : Bool) (t h v : Rat) :
+    gateHidden (some (exitFrame r t h v).opacity) = true ↔ r = false ∧ exitRange h v ≤ -t := by
+  rw [hidden_iff, ← exitFrame_zero_iff]
   simp
 
-/-- **Offscreen branch.** With a written opacity that is not 0 (or none written), the gate is closed exactly when the
-track does not meet the grown viewport.
+#guard gateHidden (some 0)
+#guard !gateHidden (some (1/25))
+#guard !gateHidden none
+#guard !gateHidden (some 1)
 
-$$\forall x \in \mathbb{Q}_\bot,\ \forall \mathit{vp}, R \in \mathrm{Rect}:\ x \ne 0 \Rightarrow \Big(\operatorname{gateHidden}(x, \mathit{vp}, R) \iff \lnot\operatorname{meets}(\operatorname{grow}(\mathit{vp}), R)\Big)$$
+/-- **Which instance gets the gate.** Only the hero instance with variant `hidden-pause` is gated; morph.countdown
+keeps its own gate.
 
-While the copy has positive opacity, only distance closes the gate. -/
-theorem hidden_iff_far (ex : Option Rat) (vp R : Rect) (hx : ex ≠ some 0) :
-    gateHidden ex vp R = true ↔ (grow vp).meets R = false := by
-  rw [hidden_iff]
-  simp [hx]
+$$\forall s, i \in \mathrm{String}:\ \operatorname{gatedInstance}(s, i) = \big(s = \texttt{hidden-pause} \land i = \texttt{hero-countdown}\big)$$
 
-#guard gateHidden (some 0) ⟨0, 0, 1280, 800⟩ ⟨0, 0, 1280, 1600⟩
-#guard !gateHidden (some (1/25)) ⟨0, 0, 1280, 800⟩ ⟨0, -768, 1280, 1600⟩
-#guard !gateHidden none ⟨0, 0, 1280, 800⟩ ⟨0, 0, 1280, 1600⟩
-#guard gateHidden (some 1) ⟨0, 0, 1280, 800⟩ ⟨0, -2600, 1280, 1600⟩
-#guard !gateHidden (some 1) ⟨0, 0, 1280, 800⟩ ⟨0, -2400, 1280, 1601⟩
-#guard gateHidden (some 1) ⟨0, 0, 1280, 800⟩ ⟨0, 1600, 1280, 100⟩
+Any other variant or anchor id writes the faces directly. -/
+def gatedInstance (variant fwId : String) : Bool := variant == "hidden-pause" && fwId == "hero-countdown"
+
+#guard gatedInstance "hidden-pause" "hero-countdown"
+#guard !gatedInstance "hidden-pause" "morph-countdown"
+#guard !gatedInstance "faithful" "hero-countdown"
 
 /-! ## 4. The clock's scene is empty while the gate is closed -/
 
@@ -172,14 +169,11 @@ Each clock box carries the copy's opacity as a factor. -/
 def ClockUnder {A : Type} (copyIn : Rat) (ex : Option Rat) (tm : Tmpl A) : Prop :=
   ∀ e ∈ tm, ∃ k : A → Rat, ∀ a, (e.2 a).alpha = copyOpacity copyIn (exitVal ex) * k a
 
-/-- Every box of the clock keeps its transformed ink inside the track rect, for every face value.
+/-- A template whose every box is hidden shows nothing.
 
-$$\forall R \in \mathrm{Rect},\ \forall T \in \mathrm{Tmpl}(A):\ \operatorname{ClockIn}(R, T) \iff \forall (i, f) \in T\ \forall a \in A:\ \operatorname{inside}(\operatorname{bbox}(f(a).\mathrm{xf}, f(a).\mathrm{ink}), R)$$
+$$\forall \mathit{vp} \in \mathrm{Rect},\ \forall a \in A,\ \forall T \in \mathrm{Tmpl}(A):\ \big(\forall (i, f) \in T:\ \operatorname{Hidden}_{\mathit{vp}}(f)\big) \Rightarrow \operatorname{visible}_{\mathit{vp}}(\operatorname{inst}(T, a)) = [\,]$$
 
-The clock never leaves the track. -/
-def ClockIn {A : Type} (R : Rect) (tm : Tmpl A) : Prop :=
-  ∀ e ∈ tm, ∀ a, inside ((e.2 a).xf.bbox (e.2 a).ink) R
-
+Dropped boxes leave an empty scene for every face value. -/
 private theorem visible_nil {A : Type} (vp : Rect) (a : A) :
     ∀ tm : Tmpl A, (∀ e ∈ tm, Hidden vp e.2) → visible vp (inst tm a) = []
   | [], _ => rfl
@@ -201,46 +195,21 @@ theorem scene_empty_of_exit {A : Type} (copyIn : Rat) (tm : Tmpl A) (vp : Rect) 
     rw [hk b]; simp [copyOpacity, exitVal]
   simp [BoxVis.drop, this]
 
-/-- **Offscreen branch, scene.** With the clock inside a track that does not meet the grown viewport, every clock box
-is dropped.
-
-$$\forall R \in \mathrm{Rect},\ \forall T \in \mathrm{Tmpl}(A),\ \forall \mathit{vp} \in \mathrm{Rect},\ \forall a \in A:\ \operatorname{ClockIn}(R, T) \land \lnot\operatorname{meets}(\operatorname{grow}(\mathit{vp}), R) \Rightarrow \operatorname{visible}_{\mathit{vp}}(\operatorname{inst}(T, a)) = [\,]$$
-
-A clock in a far track shows nothing, whatever the faces hold. -/
-theorem scene_empty_of_far {A : Type} (R : Rect) (tm : Tmpl A) (vp : Rect) (a : A) (hIn : ClockIn R tm)
-    (hR : (grow vp).meets R = false) : visible vp (inst tm a) = [] := by
-  refine visible_nil vp a tm fun e he b => ?_
-  have hm : vp.meets R = false := by
-    cases h : vp.meets R
-    · rfl
-    · rw [meets_grow vp R h] at hR; exact absurd hR (by decide)
-  have hb : vp.meets ((e.2 b).xf.bbox (e.2 b).ink) = false := by
-    cases h : vp.meets ((e.2 b).xf.bbox (e.2 b).ink)
-    · rfl
-    · rw [meets_of_inside vp _ R h (hIn e he b)] at hm; exact absurd hm (by decide)
-  simp [BoxVis.drop, hb]
-
 /-- **Closed gate, empty scene.** Whenever the decision holds, the clock's visible scene is empty.
 
-$$\forall c \in \mathbb{Q},\ \forall x \in \mathbb{Q}_\bot,\ \forall \mathit{vp}, R \in \mathrm{Rect},\ \forall T \in \mathrm{Tmpl}(A):\ \operatorname{gateHidden}(x, \mathit{vp}, R) \land \operatorname{ClockUnder}(c, x, T) \land \operatorname{ClockIn}(R, T) \Rightarrow \operatorname{HiddenOrStill}_{\mathit{vp}}(T) \land \forall a \in A:\ \operatorname{visible}_{\mathit{vp}}(\operatorname{inst}(T, a)) = [\,]$$
+$$\forall c \in \mathbb{Q},\ \forall x \in \mathbb{Q}_\bot,\ \forall \mathit{vp} \in \mathrm{Rect},\ \forall T \in \mathrm{Tmpl}(A):\ \operatorname{gateHidden}(x) \land \operatorname{ClockUnder}(c, x, T) \Rightarrow \operatorname{HiddenOrStill}_{\mathit{vp}}(T) \land \forall a \in A:\ \operatorname{visible}_{\mathit{vp}}(\operatorname{inst}(T, a)) = [\,]$$
 
 Every clock box is dropped for every face value while the gate is closed. -/
-theorem hidden_scene_empty {A : Type} (copyIn : Rat) (ex : Option Rat) (vp R : Rect) (tm : Tmpl A)
-    (hg : gateHidden ex vp R = true) (hU : ClockUnder copyIn ex tm) (hIn : ClockIn R tm) :
+theorem hidden_scene_empty {A : Type} (copyIn : Rat) (ex : Option Rat) (vp : Rect) (tm : Tmpl A)
+    (hg : gateHidden ex = true) (hU : ClockUnder copyIn ex tm) :
     HiddenOrStill vp tm ∧ ∀ a, visible vp (inst tm a) = [] := by
-  rcases (hidden_iff ex vp R).mp hg with hx | hf
-  · subst hx
-    refine ⟨fun e he => Or.inr fun b => ?_, fun a => scene_empty_of_exit copyIn tm vp a hU⟩
-    obtain ⟨k, hk⟩ := hU e he
-    have : (e.2 b).alpha ≤ 0 := by
-      rw [hk b]; simp [copyOpacity, exitVal]
-    simp [BoxVis.drop, this]
-  · refine ⟨fun e he => Or.inr fun b => ?_, fun a => scene_empty_of_far R tm vp a hIn hf⟩
-    have h1 := scene_empty_of_far R [e] vp b (fun x hx => by simp at hx; rw [hx]; exact hIn e he) hf
-    simp only [visible, inst, List.map_cons, List.map_nil, List.filter_cons, List.filter_nil] at h1
-    cases hd : (e.2 b).drop vp
-    · simp [hd] at h1
-    · rfl
+  have hx := (hidden_iff ex).mp hg
+  subst hx
+  refine ⟨fun e he => Or.inr fun b => ?_, fun a => scene_empty_of_exit copyIn tm vp a hU⟩
+  obtain ⟨k, hk⟩ := hU e he
+  have : (e.2 b).alpha ≤ 0 := by
+    rw [hk b]; simp [copyOpacity, exitVal]
+  simp [BoxVis.drop, this]
 
 /-! ## 5. The write gate (`createWriteGate`) -/
 
@@ -375,28 +344,27 @@ theorem gate_sync (D0 : K → V) (evs : List (Ev K V)) (ho : (evs.foldl gStep (g
 /-! ## 6. Vision: the variant's clock looks like the original's at every instant -/
 
 /-- **visSame (class E).** For every environment and paint instant $t$ with events $\epsilon(\mathit{env}, t)$ so
-far: if each clock box sits in the copy at the written exit value and inside the track, and the gate is closed at a
-paint only when the decision holds there, the variant's clock (shown faces) and the original's (all writes landed)
-give the same visible scene.
+far: if each clock box sits in the copy at the written exit value, and the gate is closed at a paint only when the
+decision holds there, the variant's clock (shown faces) and the original's (all writes landed) give the same visible
+scene.
 
-$$\forall \mathit{vp} : \mathrm{Env} \to \mathrm{Rect},\ \forall T : \mathrm{Env} \to \mathcal{T} \to \mathrm{Tmpl}(K \to V),\ \forall D_0,\ \forall \epsilon : \mathrm{Env} \to \mathcal{T} \to \mathrm{Ev}(K, V)^{*},\ \forall c : \mathrm{Env} \to \mathcal{T} \to \mathbb{Q},\ \forall x : \mathrm{Env} \to \mathcal{T} \to \mathbb{Q}_\bot,\ \forall R : \mathrm{Env} \to \mathcal{T} \to \mathrm{Rect}:$$
-$$\Big(\forall \mathit{env}, t:\ \operatorname{ClockUnder}(c, x, T)(\mathit{env}, t)\Big) \land \Big(\forall \mathit{env}, t:\ \operatorname{ClockIn}(R, T)(\mathit{env}, t)\Big) \land \Big(\forall \mathit{env}, t:\ G(\mathit{env}, t).\mathrm{hidden} \Rightarrow \operatorname{gateHidden}(x(\mathit{env}, t), \mathit{vp}(\mathit{env}), R(\mathit{env}, t))\Big)$$
+$$\forall \mathit{vp} : \mathrm{Env} \to \mathrm{Rect},\ \forall T : \mathrm{Env} \to \mathcal{T} \to \mathrm{Tmpl}(K \to V),\ \forall D_0,\ \forall \epsilon : \mathrm{Env} \to \mathcal{T} \to \mathrm{Ev}(K, V)^{*},\ \forall c : \mathrm{Env} \to \mathcal{T} \to \mathbb{Q},\ \forall x : \mathrm{Env} \to \mathcal{T} \to \mathbb{Q}_\bot:$$
+$$\Big(\forall \mathit{env}, t:\ \operatorname{ClockUnder}(c, x, T)(\mathit{env}, t)\Big) \land \Big(\forall \mathit{env}, t:\ G(\mathit{env}, t).\mathrm{hidden} \Rightarrow \operatorname{gateHidden}(x(\mathit{env}, t))\Big)$$
 $$\Rightarrow \operatorname{VisSame}_{\mathrm{E}}\big(\mathit{vp},\ (\mathit{env}, t) \mapsto \operatorname{inst}(T, \operatorname{foldl}(\operatorname{fStep}, D_0, \epsilon(\mathit{env}, t))),\ (\mathit{env}, t) \mapsto \operatorname{inst}(T, G(\mathit{env}, t).\mathrm{shown})\big)$$
 $$\text{where } G(\mathit{env}, t) = \operatorname{foldl}(\operatorname{gStep}, \operatorname{gInit}(D_0), \epsilon(\mathit{env}, t))$$
 
-Holding the face writes only while the copy is transparent or the track is far gives the original's picture at every
-width and every instant. -/
+Holding the face writes only while the copy is transparent gives the original's picture at every width and every
+instant. -/
 theorem visSame {Env T : Type} (vp : Env → Rect) (tm : Env → T → Tmpl (K → V)) (D0 : K → V)
-    (evs : Env → T → List (Ev K V)) (copyIn : Env → T → Rat) (ex : Env → T → Option Rat) (R : Env → T → Rect)
-    (hU : ∀ env t, ClockUnder (copyIn env t) (ex env t) (tm env t)) (hIn : ∀ env t, ClockIn (R env t) (tm env t))
-    (hSig : ∀ env t, ((evs env t).foldl gStep (gInit D0)).hidden = true → gateHidden (ex env t) (vp env) (R env t) = true) :
+    (evs : Env → T → List (Ev K V)) (copyIn : Env → T → Rat) (ex : Env → T → Option Rat)
+    (hU : ∀ env t, ClockUnder (copyIn env t) (ex env t) (tm env t))
+    (hSig : ∀ env t, ((evs env t).foldl gStep (gInit D0)).hidden = true → gateHidden (ex env t) = true) :
     VisSame E vp (fun env t => inst (tm env t) ((evs env t).foldl fStep D0))
       (fun env t => inst (tm env t) ((evs env t).foldl gStep (gInit D0)).shown) :=
   hiddenPause_visSame vp tm (fun env t => (evs env t).foldl fStep D0)
     (fun env t => ((evs env t).foldl gStep (gInit D0)).shown)
     (fun env t => ((evs env t).foldl gStep (gInit D0)).hidden = true)
-    (fun env t h => (hidden_scene_empty (copyIn env t) (ex env t) (vp env) (R env t) (tm env t) (hSig env t h)
-      (hU env t) (hIn env t)).1)
+    (fun env t h => (hidden_scene_empty (copyIn env t) (ex env t) (vp env) (tm env t) (hSig env t h) (hU env t)).1)
     (fun env t h => gate_sync D0 (evs env t) (by simpa using h))
 
 /-! ## 7. Work: a closed frame drops the style pass, the reopening frame is `≤` -/
@@ -451,27 +419,23 @@ def written (z : Zone) : Option Rat :=
 
 /-- The decision of a zone.
 
-$$\operatorname{zoneHidden}(z) = \operatorname{gateHidden}(\operatorname{written}(z), (0, 0, 1280, v), (0, t, 1280, h))$$ -/
-def zoneHidden (z : Zone) : Bool :=
-  let (_, _, t, h, v, _) := z
-  gateHidden (written z) ⟨0, 0, 1280, v⟩ ⟨0, t, 1280, h⟩
+$$\operatorname{zoneHidden}(z) = \operatorname{gateHidden}(\operatorname{written}(z))$$ -/
+def zoneHidden (z : Zone) : Bool := gateHidden (written z)
 
 /-- A rational as the wire object `{"num", "den"}`.
 
-$$\forall q \in \mathbb{Q}:\ \operatorname{ratWire}(q) = \{\texttt{num}: q.\mathrm{num},\ \texttt{den}: q.\mathrm{den}\}$$ -/
+$$\forall q \in \mathbb{Q}:\ \operatorname{ratWire}(q) = \{\texttt{num}: \operatorname{str}(q.\mathrm{num}),\ \texttt{den}: \operatorname{str}(q.\mathrm{den})\}$$ -/
 def ratWire (q : Rat) : Lean.Json := Lean.Json.mkObj [("num", toString q.num), ("den", toString q.den)]
 
-/-- One golden row: the zone's inputs, the written exit value (`null` if none), the sentinel, the far flag and the
-decision.
+/-- One golden row: the zone's inputs, the written exit value (`null` if none), the sentinel and the decision.
 
-$$\operatorname{row}(z) = \{\mathrm{zone}, \mathrm{reduced}, \mathrm{trackTop}, \mathrm{trackHeight}, \mathrm{vh}, \mathrm{exit}: \operatorname{written}(z), \mathrm{pointerOff}: \operatorname{pointerOff}(\operatorname{exitVal}(\operatorname{written}(z))), \mathrm{far}: \operatorname{farOff}, \mathrm{hidden}: \operatorname{zoneHidden}(z)\}$$ -/
+$$\operatorname{row}(z) = \{\mathrm{zone}, \mathrm{reduced}, \mathrm{trackTop}, \mathrm{trackHeight}, \mathrm{vh}, \mathrm{exit}: \operatorname{written}(z), \mathrm{pointerOff}: \operatorname{pointerOff}(\operatorname{exitVal}(\operatorname{written}(z))), \mathrm{hidden}: \operatorname{zoneHidden}(z)\}$$ -/
 def row (z : Zone) : Lean.Json :=
   let (n, r, t, h, v, _) := z
   Lean.Json.mkObj
     [("zone", n), ("reduced", r), ("trackTop", ratWire t), ("trackHeight", ratWire h), ("vh", ratWire v),
      ("exit", match written z with | some e => ratWire e | none => Lean.Json.null),
-     ("pointerOff", pointerOff (exitVal (written z))), ("far", farOff ⟨0, 0, 1280, v⟩ ⟨0, t, 1280, h⟩),
-     ("hidden", zoneHidden z)]
+     ("pointerOff", pointerOff (exitVal (written z))), ("hidden", zoneHidden z)]
 
 /-- The contents of `packages/contracts/golden/parts/hero.countdown.hidden.jsonl`: one compact row per zone.
 
@@ -479,7 +443,7 @@ $$\mathrm{goldenText} = \mathop{\Vert}_{z \in \mathrm{zones}} \big(\operatorname
 def goldenText : String := String.join (zones.map fun z => (row z).compress ++ "\n")
 
 #guard (zones.map zoneHidden) ==
-  [false, false, false, false, false, true, true, true, false, false, true, true, true]
+  [false, false, false, false, false, true, true, true, false, false, false, false, true]
 #guard (zones.map fun z => pointerOff (exitVal (written z))) ==
   [false, false, false, false, true, true, true, true, false, false, false, false, true]
 

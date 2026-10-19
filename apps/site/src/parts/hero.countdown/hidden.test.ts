@@ -4,12 +4,13 @@ import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { exitFrame, pointerOff } from '../hero.exit/logic';
-import { FAR_ROOT_MARGIN, countdownHidden, installHiddenGate, parseExit } from './hidden';
+import { countdownHidden, gatedInstance, installHiddenGate, parseExit } from './hidden';
 import { HeroCountdown } from './index';
 import part from './part.json';
 
 const root = resolve(__dirname, '../../../../..');
 const lean = readFileSync(resolve(root, 'lean/Fw/Parts/HeroCountdownHidden.lean'), 'utf8');
+const indexSrc = readFileSync(resolve(__dirname, 'index.tsx'), 'utf8');
 
 interface Wire {
   num: string;
@@ -23,7 +24,6 @@ interface Row {
   vh: Wire;
   exit: Wire | null;
   pointerOff: boolean;
-  far: boolean;
   hidden: boolean;
 }
 const num = (w: Wire): number => Number(w.num) / Number(w.den);
@@ -47,18 +47,19 @@ describe('gate decision against the Lean golden (gate open/closed per zone)', ()
       if (r.exit === null) expect(exit).toBeNull();
       else expect(exit).toBeCloseTo(num(r.exit), 12);
       expect(pointerOff(exit ?? 1)).toBe(r.pointerOff);
-      expect(countdownHidden(exit, r.far)).toBe(r.hidden);
+      expect(countdownHidden(exit)).toBe(r.hidden);
     });
   }
 });
 
 describe('constants and definitions come from the Lean source', () => {
-  it('FAR_ROOT_MARGIN is `grow`: one viewport height above and below', () => {
-    expect(lean).toContain('def grow (vp : Rect) : Rect := ⟨vp.x, vp.y - vp.h, vp.w, 3 * vp.h⟩');
-    expect(FAR_ROOT_MARGIN).toBe('100% 0px');
+  it('countdownHidden is `gateHidden` (exit branch only, no distance branch)', () => {
+    expect(lean).toContain('def gateHidden (ex : Option Rat) : Bool := decide (ex = some 0)');
+    expect(lean).not.toContain('def farOff');
   });
-  it('countdownHidden is `gateHidden`', () => {
-    expect(lean).toContain('def gateHidden (ex : Option Rat) (vp R : Rect) : Bool := decide (ex = some 0) || farOff vp R');
+  it('gatedInstance is the Lean `gatedInstance` and drives the component', () => {
+    expect(lean).toContain('def gatedInstance (variant fwId : String) : Bool := variant == "hidden-pause" && fwId == "hero-countdown"');
+    expect(indexSrc).toContain('const hiddenPause = gatedInstance(variant, fwId);');
   });
   it('part.json names the Lean module and its own ledger key', () => {
     const v = part.variants['hidden-pause'] as { provenance: Record<string, string> };
@@ -92,12 +93,9 @@ const el = (): FakeEl => {
 
 const harness = () => {
   const stage = el();
-  const track = el();
   const clock = el();
-  clock.closest = (sel) => (sel === '[data-splash]' ? stage : sel === '[data-fw="hero-exit"]' ? track : null);
+  clock.closest = (sel) => (sel === '[data-splash]' ? stage : null);
   let moCb: (() => void) | null = null;
-  let ioCb: ((e: Partial<IntersectionObserverEntry>[]) => void) | null = null;
-  let ioOpts: IntersectionObserverInit | undefined;
   const MO = class {
     constructor(cb: () => void) {
       moCb = cb;
@@ -105,25 +103,15 @@ const harness = () => {
     observe() {}
     disconnect() {}
   } as unknown as typeof MutationObserver;
-  const IO = class {
-    constructor(cb: (e: Partial<IntersectionObserverEntry>[]) => void, opts?: IntersectionObserverInit) {
-      ioCb = cb;
-      ioOpts = opts;
-    }
-    observe() {}
-    disconnect() {}
-  } as unknown as typeof IntersectionObserver;
-  const g = installHiddenGate(clock as unknown as HTMLElement, IO, MO);
+  const g = installHiddenGate(clock as unknown as HTMLElement, MO);
   const writeExit = (v: string) => {
     stage.style.props.set('--exit-opacity', v);
     moCb!();
   };
-  const near = (yes: boolean) =>
-    ioCb!([{ isIntersecting: yes, intersectionRect: { width: yes ? 10 : 0, height: yes ? 10 : 0 } as DOMRectReadOnly }]);
-  return { g, writeExit, near, ioOpts: () => ioOpts };
+  return { g, writeExit };
 };
 
-describe('installHiddenGate (createWriteGate driven by the two signals)', () => {
+describe('installHiddenGate (createWriteGate driven by the exit signal)', () => {
   it('passes writes while open, holds them at exit 0, writes the latest on reopening (Lean first_visible_rewrites)', () => {
     const h = harness();
     const a = el();
@@ -142,18 +130,29 @@ describe('installHiddenGate (createWriteGate driven by the two signals)', () => 
     expect(h.g.hidden).toBe(false);
     expect(a.style.transform).toBe('translateY(3px)');
   });
-  it('the far signal closes alone and reopens with the latest value', () => {
+  it('a jump back to the top reopens on the same exit read (no distance signal can hold it)', () => {
     const h = harness();
-    expect(h.ioOpts()).toEqual({ rootMargin: FAR_ROOT_MARGIN, threshold: [0] });
     const a = el();
     const w = h.g.wrap(a as unknown as HTMLElement);
-    h.writeExit('1');
-    h.near(false);
-    expect(h.g.hidden).toBe(true);
+    h.writeExit('0');
     w.style.transform = 'translateY(4px)';
     expect(a.style.transform).toBe('');
-    h.near(true);
+    h.writeExit('1');
+    expect(h.g.hidden).toBe(false);
     expect(a.style.transform).toBe('translateY(4px)');
+  });
+  it('without a stage ancestor the gate stays open', () => {
+    const clock = el();
+    const MO = class {
+      constructor() {
+        throw new Error('no observer without a stage');
+      }
+    } as unknown as typeof MutationObserver;
+    const g = installHiddenGate(clock as unknown as HTMLElement, MO);
+    const a = el();
+    g.wrap(a as unknown as HTMLElement).style.transform = 'translateY(6px)';
+    expect(g.hidden).toBe(false);
+    expect(a.style.transform).toBe('translateY(6px)');
   });
   it('stop opens the gate and flushes', () => {
     const h = harness();
@@ -172,5 +171,18 @@ describe('hidden-pause server markup equals the faithful markup (the gate is cli
     const a = renderToString(createElement(HeroCountdown, { variant: 'faithful', impl: 'plain' }));
     const b = renderToString(createElement(HeroCountdown, { variant: 'hidden-pause', impl: 'plain' }));
     expect(strip(b)).toBe(strip(a));
+  });
+});
+
+describe('gatedInstance (Lean #guard cases): only the hero instance is gated', () => {
+  it('hero with hidden-pause is gated', () => {
+    expect(gatedInstance('hidden-pause', 'hero-countdown')).toBe(true);
+  });
+  it('morph instance with hidden-pause stays ungated (morph.countdown keeps its own gate)', () => {
+    expect(gatedInstance('hidden-pause', 'morph-countdown')).toBe(false);
+  });
+  it('hero with another variant is not gated', () => {
+    expect(gatedInstance('faithful', 'hero-countdown')).toBe(false);
+    expect(gatedInstance('strip', 'hero-countdown')).toBe(false);
   });
 });

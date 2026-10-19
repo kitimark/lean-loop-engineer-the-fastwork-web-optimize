@@ -3,7 +3,7 @@ import Typography from '@mui/material/Typography';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getClock } from '../../engine/clock';
 import { createCountdownDriver, startFaithful, type DigitHandle, type Writable } from './driver';
-import { installHiddenGate } from './hidden';
+import { gatedInstance, installHiddenGate } from './hidden';
 import { digitPlaces, remainingSeconds, unitsFromSeconds } from './logic';
 import { matchList } from './media';
 import css from './hero.module.css';
@@ -19,9 +19,6 @@ export interface HeroCountdownProps {
   /** `data-fw` anchor of the root (default `hero-countdown`); morph.countdown passes its own so each anchor has one clock. */
   fwId?: string;
 }
-
-/** The hero instance's anchor; only it gets the `hidden-pause` gate (morph.countdown installs its own). */
-const HERO_ID = 'hero-countdown';
 
 const cls = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(' ');
 
@@ -60,9 +57,9 @@ function Digits({ n, strip }: { n: number; strip: boolean }) {
  * Variant `hidden-pause` (hero instance only): the face writes go through `installHiddenGate` (Lean
  * `Fw.Parts.HeroCountdownHidden`).
  */
-export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = HERO_ID }: HeroCountdownProps) {
+export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = 'hero-countdown' }: HeroCountdownProps) {
   const strip = variant === 'strip';
-  const hiddenPause = variant === 'hidden-pause' && fwId === HERO_ID;
+  const hiddenPause = gatedInstance(variant, fwId);
   const rootRef = useRef<HTMLDivElement>(null);
   const [shape, setShape] = useState<number[] | null>(null);
 
