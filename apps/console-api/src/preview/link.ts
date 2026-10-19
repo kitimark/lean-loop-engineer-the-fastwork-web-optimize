@@ -19,8 +19,8 @@ export function openTty(): Tty | null {
 }
 
 export const NO_TTY_MESSAGE =
-  "no controlling terminal: no owner link is printed and previews cannot be started from this console. " +
-  "Start the console from your own terminal (pnpm --filter @fw/console-api start), or from it run: pnpm --filter @fw/console-api owner-link";
+  "no controlling terminal: no owner link is printed. Sign in with the owner passphrase at /owner/login (loopback or LAN), and previews work after that; " +
+  "or start the console from your own terminal (pnpm --filter @fw/console-api start) and run owner-link from it.";
 
 /**
  * Write the owner link to the terminal when Lean says so. Returns where it went ("tty") or "none" (nothing was written

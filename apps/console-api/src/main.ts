@@ -47,7 +47,7 @@ const service = { commit: codeCommit(codeRoot), startedAt };
 let coreInfo: { coreCommit?: string; coreUnknown?: string } = {};
 let listening: { port: number } | null = null;
 const writeApi = () => {
-  if (listening) writeFileSync(join(dir, "api.json"), JSON.stringify({ port: listening.port, pid: process.pid, ...service, ...coreInfo }));
+  if (listening) writeFileSync(join(dir, "api.json"), JSON.stringify({ port: listening.port, pid: process.pid, lan: lanAddr !== null, ...service, ...coreInfo }));
 };
 core.onSpawn = (binPath) => {
   const b = buildBase(codeRoot, binPath);
