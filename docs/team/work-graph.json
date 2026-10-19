@@ -6461,7 +6461,8 @@
     "packages/contracts/golden/parts/hero.countdown.hidden.jsonl",
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
-    "lean/Fw/Parts/FootprintData.lean"
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/scripts/CountdownHiddenGolden.lean"
    ]
   },
   {
