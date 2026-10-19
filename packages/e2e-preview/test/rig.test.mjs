@@ -1,18 +1,18 @@
 // The part of the preview e2e suite that needs no browser: the detector of double module evaluation, and the rig itself over
-// plain HTTP (grant, gate, the script redirect on a request without Sec-Fetch-Dest). The browser half is src/run.mjs, run by the
-// preview-e2e lane (.github/workflows/preview-e2e.yml) on Chromium and WebKit.
+// plain HTTP (grant, gate, the arm origins, no redirect for a root-absolute module request). The browser half is src/run.mjs, run by
+// the preview-e2e lane (.github/workflows/preview-e2e.yml) on Chromium and WebKit.
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { PREVIEW_ID, startRig } from "../src/rig.mjs";
-import { evalReport, PATHS } from "../src/suite.mjs";
+import { documentUrl, evalReport, PATHS } from "../src/suite.mjs";
 
 describe("evalReport", () => {
   it("a module evaluated once per file is clean", () => {
-    const r = evalReport(["http://h/preview/x/o/_app/immutable/entry/start.A.js", "http://h/preview/x/o/_app/immutable/chunks/b.js"]);
+    const r = evalReport(["http://h:1/_app/immutable/entry/start.A.js", "http://h:1/_app/immutable/chunks/b.js"]);
     assert.deepEqual(r, { total: 2, files: 2, duplicates: [] });
   });
-  it("the same file under the root URL and under the preview prefix is two instances (the failure the suite looks for)", () => {
-    const r = evalReport(["http://h/_app/immutable/entry/start.A.js", "http://h/preview/x/o/_app/immutable/entry/start.A.js"]);
+  it("the same file under two URLs is two instances (the failure the suite looks for)", () => {
+    const r = evalReport(["http://h:1/_app/immutable/entry/start.A.js", "http://h:2/other/_app/immutable/entry/start.A.js"]);
     assert.equal(r.total, 2);
     assert.equal(r.files, 1);
     assert.equal(r.duplicates.length, 1);
@@ -20,8 +20,14 @@ describe("evalReport", () => {
   });
 });
 
-describe("the suite covers /r, /o and /compare", () => {
+describe("the suite covers the task arm, the original arm and the side-by-side page", () => {
   it("paths", () => assert.deepEqual(PATHS.map((p) => p.id), ["r", "o", "compare"]));
+  it("an arm's document is its own origin; the side-by-side page is on the preview port", () => {
+    const host = { origin: "http://h:10", arm: { r: "http://h:11", o: "http://h:12" } };
+    assert.equal(documentUrl(host, PATHS[0]), "http://h:11/");
+    assert.equal(documentUrl(host, PATHS[1]), "http://h:12/");
+    assert.equal(documentUrl(host, PATHS[2]), `http://h:10/preview/${PREVIEW_ID}/compare`);
+  });
 });
 
 describe("rig over plain HTTP", () => {
@@ -29,31 +35,40 @@ describe("rig over plain HTTP", () => {
   before(async () => { rig = await startRig(); });
   after(async () => { await rig?.close(); });
 
-  it("a preview path without a grant is refused", async () => {
-    const r = await fetch(`${rig.hosts.loopback.origin}/preview/${PREVIEW_ID}/o/`, { headers: { accept: "text/html" } });
-    assert.equal(r.status, 401);
+  it("a preview path or an arm origin without a grant is refused", async () => {
+    const h = rig.hosts.loopback;
+    assert.equal((await fetch(`${h.origin}/preview/${PREVIEW_ID}/compare`, { headers: { accept: "text/html" } })).status, 401);
+    assert.equal((await fetch(`${h.arm.o}/`, { headers: { accept: "text/html" } })).status, 401);
+    assert.equal((await fetch(`${h.arm.r}/_app/immutable/entry/start.fix1.js`)).status, 401);
   });
 
-  it("a grant link opens the original and the rewrite; a root-absolute module request is moved below the preview", async () => {
-    const link = await rig.grantUrl(rig.hosts.loopback.origin, "o");
+  it("a grant link opens the arms; a root-absolute module request is answered in place by its own arm, never redirected", async () => {
+    const h = rig.hosts.loopback;
+    const link = await rig.grantUrl(h.origin, "o");
     const red = await fetch(link, { redirect: "manual" });
     assert.equal(red.status, 302);
     const cookie = (red.headers.get("set-cookie") ?? "").split(";")[0];
     assert.match(cookie, /^fw_grant=/);
-    const get = (path, headers = {}) => fetch(`${rig.hosts.loopback.origin}${path}`, { redirect: "manual", headers: { cookie, ...headers } });
+    assert.equal(red.headers.get("location"), `/preview/${PREVIEW_ID}/o/`);
+    const get = (base, path, headers = {}) => fetch(`${base}${path}`, { redirect: "manual", headers: { cookie, ...headers } });
+    // the entry path is a page-level hop to the arm's origin (with the query), not a proxy
+    const hop = await get(h.origin, `/preview/${PREVIEW_ID}/o/?x=1`);
+    assert.equal(hop.status, 302);
+    assert.equal(hop.headers.get("location"), `${h.arm.o}/?x=1`);
     for (const arm of ["o", "r"]) {
-      const doc = await get(`/preview/${PREVIEW_ID}/${arm}/`);
+      const doc = await get(h.arm[arm], "/");
       assert.equal(doc.status, 200, arm);
-      assert.match(await doc.text(), new RegExp(`/preview/${PREVIEW_ID}/${arm}/_app/`));
+      assert.match(await doc.text(), /\/_app\//); // root-absolute paths stay as built
     }
-    assert.equal((await get(`/preview/${PREVIEW_ID}/compare`)).status, 200);
-    // the phone case: no Sec-Fetch-Dest, the Referer names the preview page
-    const mod = await get("/_app/immutable/entry/start.fix1.js", { referer: `${rig.hosts.loopback.origin}/preview/${PREVIEW_ID}/r/` });
-    assert.equal(mod.status, 302);
-    assert.equal(mod.headers.get("location"), `/preview/${PREVIEW_ID}/r/_app/immutable/entry/start.fix1.js`);
-    const moved = await get(mod.headers.get("location"));
-    assert.equal(moved.status, 200);
-    assert.match(await moved.text(), /__fwEvals/); // the evaluation counter is in front of every module
+    assert.equal((await get(h.origin, `/preview/${PREVIEW_ID}/compare`)).status, 200);
+    // a module path as the browser sends it, on its own arm: no redirect, no Referer needed
+    const mod = await get(h.arm.r, "/_app/immutable/entry/start.fix1.js");
+    assert.equal(mod.status, 200);
+    assert.match(await mod.text(), /__fwEvals/); // the evaluation counter is in front of every module
+    const other = await get(h.arm.o, "/_app/immutable/entry/start.fix1.js", { referer: `${h.arm.r}/` });
+    assert.equal(other.status, 404); // the original arm has no such file, whatever the Referer says: identity is the port
+    // the arm origins are not served on the preview port
+    assert.equal((await get(h.origin, "/_app/immutable/entry/start.fix1.js")).status, 401);
   });
 
   it("a grant link is single use", async () => {
