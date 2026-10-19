@@ -568,8 +568,26 @@ measurement (§4.6). It answers "does the preset save work" and leaves "which fl
 **F6.** "Statement landed, run after C3" [C3]. `compose-check` runs F6 per (part, stage, zone) on units-type counts
 [P11:1137].
 
-> **SLOT compose-check** (filled by the lead before 11:15; else this line moves to §7 as not done). F6 verdict per
-> part, stage and zone: run ids, pass / fail / unusable counts.
+**F6 result** (`compose-check`, landed `ac087e08`; research/notes/2026/10-20-compose-check.md; Lean
+`Fw.Measure.Compose.verdict`). One coherent set on one commit (ci/f6-set at `575e3087`, chromium-counts, swipe-v1,
+2 runs per side, frozen image 39049264131): base 39295469515 (all faithful), combined 39295484486 (the 9 v2-proved
+flags), and one single-flag arm per flag (39295496884 to 39295598591). Whole run, unit types, MEASURED:
+
+| stage | count type | combined Δ | sum of single Δ | residual | margin | verdict |
+|---|---|---|---|---|---|---|
+| paint, raster | raster.invalidationAreaPx | -563,778 | -563,778 | 0 | 0 | composes |
+| paint, raster | raster.invalidationRects | +790 | +790 | 0 | 0 | composes |
+| comp | census.layers | +1,056 | +1,066 | -10 | 60 | composes |
+| script | trace.FireAnimationFrame | -370 | -369 | -1 | none | not comparable (quarantined) |
+| script | trace.FunctionCall | +38 | +43 | -5 | none | not comparable (quarantined) |
+| layout | trace.Layout.dirtyObjects | -414 | -410 | -4 | none | not comparable (quarantined) |
+
+Pass types are reported, not judged: `trace.UpdateLayoutTree` -1,011 against a sum of -1,012, `trace.Paint` -274
+against -271. No cell is coupled. The 5 decided cells are informative, but only `morph.mount:shift` moves them past the
+margin, so they test one flag against eight that do nothing there. The cells where several flags add up are the
+quarantined ones, where no margin exists. None of the 96 zone cells is decided (60 have no per-zone margin, 36 are
+quarantined). Flag independence (`lego_swap_units`) is not checked. Answer: the measured deltas add up wherever they can
+be judged, and nearly add up where they cannot; per-flag attribution beyond `morph.mount:shift` stays INFERRED.
 
 ### 4.6 Runs per flag, before and after rev 11
 
@@ -909,7 +927,7 @@ Each line names what is missing, what the result lacks without it, and its task 
 
 **Results after C3, still open at this draft.**
 
-- F6 composition check (`compose-check`): no F6 verdict, so per-flag attribution in §4.5 and §4.6 stays INFERRED. Slot in §4.5.
+- F6 per zone and on the quarantined types: no verdict (no per-zone margin for stable classes with k ≥ 1; no class for FireAnimationFrame, FunctionCall, dirtyObjects); one profile only (swipe-v1); flag independence not checked (§4.5).
 - People layout against the original (`people-layout-shift`, landed `9ff2ef77`, research/notes/2026/10-19-people-layout-shift.md):
   done, two items stay open. MEASURED on CI (runs 39279857839 before the fix; 39288152363, 39288315945, 39288339116
   after; both engines; widths 1920, 1440, 1280, 861, 401): the section's top, height and the document height are equal
