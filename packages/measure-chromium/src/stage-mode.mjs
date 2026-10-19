@@ -21,13 +21,15 @@ const sameEnv = (a, b) => a !== null && a !== undefined && a.length === 3 && a.e
 
 export function accepts(q, p, r) {
   if (!r.hydrated || r.errors !== 0) return false;
-  if (onlySearch(q)) return r.mode === 'client-render' && sameEnv(r.stage, plannedEnv(p));
+  if (onlySearch(q)) return r.mode === 'client-render' && sameEnv(r.stage, plannedEnv(p)) && r.missing === 0;
   return r.mode === 'hydrate';
 }
 
 export const scrollRead = (q) => (onlySearch(q) ? 'scrollTop' : 'scrollY');
-export const observedSize = (q, inner, client) => (onlySearch(q) ? client : inner);
-export const viewportGate = (q, profile, inner, client) => viewportFaithful(profile, observedSize(q, inner, client));
+// The gate decides on the real frame size (native innerWidth/innerHeight captured before the page pins them), on a stage page as on a
+// whole page; the pinned sizes and clientWidth/clientHeight are recorded, never gated (Lean StageMode.gateSize, viewportGate).
+export const gateSize = (f) => f.real;
+export const viewportGate = (profile, f) => viewportFaithful(profile, gateSize(f));
 
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   const [cmd, q, w, h] = process.argv.slice(2);

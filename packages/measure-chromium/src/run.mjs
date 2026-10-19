@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync, mkdirSync, openSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 import { startServer } from './server.mjs';
 import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
-import { accepts, observedSize, scrollRead, viewportGate } from './stage-mode.mjs';
+import { accepts, gateSize, scrollRead, viewportGate } from './stage-mode.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
 
 const N0_ON = !process.env.FW_NO_N0; // FW_NO_N0=1: no N0 census in the page (harness-neutrality control)
@@ -80,6 +80,9 @@ await c.send('Emulation.setLocaleOverride', { locale: profile.locale });
 await c.send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36', acceptLanguage: profile.locale });
 const shim = readFileSync('/driver/clock-shim.js', 'utf8');
 await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__FW_CFG = ${JSON.stringify({ epochMs: EPOCH_MS, seed: profile.seed })};\n${shim}` });
+// The real frame size: the native innerWidth/innerHeight getters, captured before any page script can pin them (a stage page pins
+// both to its stage environment). The viewport gate decides on these (Lean Fw.Site.StageMode.gateSize).
+await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const g = (k) => { const d = Object.getOwnPropertyDescriptor(window, k); return d && typeof d.get === 'function' ? d.get : null; }; const w = g('innerWidth'), h = g('innerHeight'); Object.defineProperty(window, '__fwRealSize', { value: () => (w && h ? { w: w.call(window), h: h.call(window) } : null) }); })();` });
 if (N0_ON) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: readFileSync('/driver/n0-census.js', 'utf8') }); // after the shim: it stamps events with the virtual clock
 
 let vt = 0;
@@ -146,14 +149,15 @@ loaded = true;
 // Jump to the fixed profile start, whatever number of frames the load took, then pre-roll with the page idle.
 vt = START_VT;
 for (let i = 0; i < profile.load.prerollFrames; i++, vt += dt) { await frame(vt); }
-const geo = await ev(`({ docH: document.documentElement.scrollHeight, innerH: innerHeight, innerW: innerWidth, y: scrollY, dpr: devicePixelRatio, lang: navigator.language, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, now: new Date().toISOString(), el: document.getElementsByTagName('*').length, scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, clientH: document.documentElement.clientHeight, scale: window.visualViewport ? visualViewport.scale : null })`);
+const geo = await ev(`({ docH: document.documentElement.scrollHeight, innerH: innerHeight, innerW: innerWidth, y: scrollY, dpr: devicePixelRatio, lang: navigator.language, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, now: new Date().toISOString(), el: document.getElementsByTagName('*').length, real: window.__fwRealSize ? window.__fwRealSize() : null, scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, clientH: document.documentElement.clientHeight, scale: window.visualViewport ? visualViewport.scale : null })`);
 // Content wider than the viewport enlarges the layout viewport under mobile emulation: not the profile, refuse (Lean Fw.Measure.Viewport).
 const profileSize = { w: profile.viewport.width, h: profile.viewport.height };
-const observed = observedSize(SEARCH, { w: geo.innerW, h: geo.innerH }, { w: geo.clientW, h: geo.clientH });
-if (!viewportGate(SEARCH, profileSize, { w: geo.innerW, h: geo.innerH }, { w: geo.clientW, h: geo.clientH })) {
-  throw new Error(`viewport not faithful: the page reports ${observed.w}x${observed.h} (scrollWidth ${geo.scrollW}, scale ${geo.scale}), the profile ${profile.viewport.width}x${profile.viewport.height}; the run is refused`);
+const frame0 = { pinned: { w: geo.innerW, h: geo.innerH }, real: { w: geo.real?.w ?? -1, h: geo.real?.h ?? -1 }, client: { w: geo.clientW, h: geo.clientH } };
+if (!viewportGate(profileSize, frame0)) {
+  throw new Error(`viewport not faithful: the page reports a real frame ${frame0.real.w}x${frame0.real.h} (pinned ${frame0.pinned.w}x${frame0.pinned.h}, client ${frame0.client.w}x${frame0.client.h}, scrollWidth ${geo.scrollW}, scale ${geo.scale}), the profile ${profile.viewport.width}x${profile.viewport.height}; the run is refused`);
 }
-const maxScroll = geo.docH - observed.h;
+const gate = gateSize(frame0);
+const maxScroll = geo.docH - gate.h;
 if (process.env.FW_PROBE === '1') { // debugging only: which input events reach the page
   await ev(`window.__probe = {}; for (const t of ['touchstart','touchmove','touchend','pointerdown','pointermove','pointerup','pointercancel','scroll','mousemove','click','wheel']) addEventListener(t, (e) => { __probe[t] = (__probe[t]||0)+1; }, { capture: true, passive: true }); 0`);
 }
@@ -161,9 +165,9 @@ if (process.env.FW_PROBE === '1') { // debugging only: which input events reach 
 // errors is not a measurement of the prerendered page: refuse it (apps/site/README.md: "a measured run should refuse that").
 let rewrite = null;
 if (TARGET === 'rewrite') {
-  rewrite = await ev(`(() => { const f = window.__fw; if (!f) return null; if (f.markMeasureStart) f.markMeasureStart(); return { configHash: f.configHash, config: f.config, mode: f.mode, hydrated: f.hydrated, hydrationErrors: f.hydrationErrors, buildId: f.buildId, styleMisses: f.styleMisses.length, stage: window.__fwStage ? [window.__fwStage.env.y, window.__fwStage.env.vw, window.__fwStage.env.vh] : null }; })()`);
+  rewrite = await ev(`(() => { const f = window.__fw; if (!f) return null; if (f.markMeasureStart) f.markMeasureStart(); return { configHash: f.configHash, config: f.config, mode: f.mode, hydrated: f.hydrated, hydrationErrors: f.hydrationErrors, buildId: f.buildId, styleMisses: f.styleMisses.length, stage: window.__fwStage ? [window.__fwStage.env.y, window.__fwStage.env.vw, window.__fwStage.env.vh] : null, stageMissing: window.__fwStage ? window.__fwStage.missing.length : 0, stageUnset: window.__fwStage ? window.__fwStage.unset : [] }; })()`);
   if (!rewrite) throw new Error('target rewrite: window.__fw missing');
-  if (!accepts(SEARCH, profileSize, { mode: rewrite.mode, hydrated: rewrite.hydrated, errors: rewrite.hydrationErrors.length, stage: rewrite.stage })) throw new Error('rewrite not measurable: ' + JSON.stringify({ search: SEARCH, mode: rewrite.mode, hydrated: rewrite.hydrated, errors: rewrite.hydrationErrors, stage: rewrite.stage }));
+  if (!accepts(SEARCH, profileSize, { mode: rewrite.mode, hydrated: rewrite.hydrated, errors: rewrite.hydrationErrors.length, stage: rewrite.stage, missing: rewrite.stageMissing })) throw new Error('rewrite not measurable: ' + JSON.stringify({ search: SEARCH, mode: rewrite.mode, hydrated: rewrite.hydrated, errors: rewrite.hydrationErrors, stage: rewrite.stage, missing: rewrite.stageMissing, unset: rewrite.stageUnset }));
 }
 
 // ---- input
@@ -323,7 +327,7 @@ const result = {
     servedFiles: Object.keys(served).length, servedSha256: servedSha, missing: srv.missing(),
     viewport: profile.viewport, hz: profile.hz, startVirtualMs: START_VT, pinnedDate: profile.pinnedDate, pageDateAtStart: geo.now, timezone: geo.tz,
     target: TARGET, search: SEARCH, rewrite, input: { mode: inputMode, touchEventsSent: touch.sent }, trajectorySha256: createHash('sha256').update(JSON.stringify(frames.map((f) => [f.phase, f.scrollY]))).digest('hex'),
-    n0, docHeightPx: geo.docH, innerWidthPx: observed.w, innerHeightPx: observed.h, scrollRead: scrollRead(SEARCH), scrollWidthPx: geo.scrollW, visualViewportScale: geo.scale, maxScrollPx: maxScroll, elementCountAtStart: geo.el, threads,
+    n0, docHeightPx: geo.docH, innerWidthPx: frame0.real.w, innerHeightPx: frame0.real.h, pinnedInnerWidthPx: geo.innerW, pinnedInnerHeightPx: geo.innerH, clientWidthPx: geo.clientW, clientHeightPx: geo.clientH, gateSize: gate, scrollRead: scrollRead(SEARCH), scrollWidthPx: geo.scrollW, visualViewportScale: geo.scale, maxScrollPx: maxScroll, elementCountAtStart: geo.el, threads,
   },
   frames,
   runLevel,

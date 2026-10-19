@@ -17,7 +17,7 @@ on:
         type: string
         default: swipe-v1
       runs:
-        description: Determinism runs, each on its own VM (1 to 10)
+        description: Determinism runs, each on its own VM (2 to 10, the Lean request rule Fw.Store.Layout.reqProblems; one run has no class, and actions/download-artifact extracts a single matched artifact without its directory)
         type: string
         default: '3'
       target:
@@ -128,7 +128,7 @@ jobs:
           set -euo pipefail
           case "$PROFILE" in ''|*[!a-z0-9-]*) echo "bad profile name" >&2; exit 1 ;; esac
           case "$RUNS" in ''|*[!0-9]*) echo "runs must be a number" >&2; exit 1 ;; esac
-          if [ "$RUNS" -lt 1 ] || [ "$RUNS" -gt 10 ]; then echo "runs must be 1..10" >&2; exit 1; fi
+          if [ "$RUNS" -lt 2 ] || [ "$RUNS" -gt 10 ]; then echo "runs must be 2..10" >&2; exit 1; fi
           test -f "packages/measure-chromium/profiles/$PROFILE.json"
           # The rewrite page is chosen by its query string (apps/site: ?preset=<name>&fw=<part:variant,...>). The default
           # config has the empty query. The site build prerenders exactly this query, so the measured page hydrates.

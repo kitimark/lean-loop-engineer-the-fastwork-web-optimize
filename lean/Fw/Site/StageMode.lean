@@ -5,7 +5,9 @@ import Fw.Measure.Viewport
 `innerHeight` on `window` to the stage environment (`apps/site/src/stage/fixedEnv.ts`), so a driver that reads them learns
 the query, not the browser. Three decisions follow from that: the plan appends the profile viewport as the stage
 environment (a), the driver accepts a client-rendered page only for a stage search whose page reports exactly that
-environment (b), and the real document scrolls under a pinned `y` while the driver reads real sizes and positions (c).
+environment (b), and the real document scrolls under a pinned `y` while the driver reads real sizes and positions (c). The viewport
+gate of a stage page decides on the real frame size (the native `innerWidth`/`innerHeight` getters captured before the page
+pins them), exactly as `Fw.Measure.Viewport` for a whole page; `clientWidth`/`clientHeight` are recorded, never gated.
 Twins: `packages/measure-chromium/src/stage-mode.mjs` (driver and workflow plan), checked against
 `packages/contracts/golden/parts/stage-mode.jsonl` (`lean/scripts/StageModeGolden.lean`). Every result rests on the
 contract premise `declared-rows-unverified`.
@@ -92,7 +94,8 @@ theorem plannedEnv_valid (p : Size) (hw : 1 ≤ p.w ∧ p.w ≤ 10000) (hh : 1 �
   simp [plannedEnv, Env.valid, hw.1, hw.2, hh.1, hh.2]
 
 /-- The pinned `innerWidth`/`innerHeight` of a planned stage equal the profile, so the page's own size reads cannot tell a
-wrong browser viewport from the right one: the viewport gate must read real sizes on a stage page.
+wrong browser viewport from the right one: the viewport gate must read the real frame size on a stage page (the native
+getters captured before the pin).
 $$\operatorname{faithful}(p, (E(p)_{v_w}, E(p)_{v_h})) = \mathrm{true}$$ -/
 theorem pinned_size_vacuous (p : Size) : viewportFaithful p ⟨(plannedEnv p).vw, (plannedEnv p).vh⟩ = true := by
   simp [plannedEnv, viewportFaithful]
@@ -116,24 +119,25 @@ def Mode.wire : Mode → String
   | .hydrate => "hydrate" | .clientRender => "client-render" | .other => "other"
 
 /-- What the driver reads from the page after load: `window.__fw` (mode, hydrated, error count) and `window.__fwStage.env`
-(present only when the page mounted a stage).
-$$r = (m, h, e, s) \in \mathrm{Mode} \times \mathbb{B} \times \mathbb{N} \times (\mathrm{Env} \cup \{\bot\})$$ -/
+(present only when the page mounted a stage, with `missing`: the count of input writes whose owner element was not on the page).
+$$r = (m, h, e, s, k) \in \mathrm{Mode} \times \mathbb{B} \times \mathbb{N} \times (\mathrm{Env} \cup \{\bot\}) \times \mathbb{N}$$ -/
 structure Report where
   mode : Mode
   hydrated : Bool
   errors : Nat
   stage : Option Env
+  missing : Nat
 deriving Repr, DecidableEq
 
 /-- The driver measures the page only when it is the kind of page the search asks for. A part-page search needs a
-client-rendered page that mounted a stage at exactly the planned environment; any other search needs a hydrated
-prerender. Both need `hydrated` and no hydration errors.
+client-rendered page that mounted a stage at exactly the planned environment with every input write placed (`missing` = 0);
+any other search needs a hydrated prerender. Both need `hydrated` and no hydration errors.
 
-$$\operatorname{accepts}(q, p, r) \iff r_h \land r_e = 0 \land \begin{cases} r_m = \mathrm{clientRender} \land r_s = E(p) & \operatorname{only}(q) \\
+$$\operatorname{accepts}(q, p, r) \iff r_h \land r_e = 0 \land \begin{cases} r_m = \mathrm{clientRender} \land r_s = E(p) \land r_k = 0 & \operatorname{only}(q) \\
 r_m = \mathrm{hydrate} & \lnot\operatorname{only}(q)\end{cases}$$ -/
 def accepts (q : String) (p : Size) (r : Report) : Bool :=
   r.hydrated && r.errors == 0 &&
-    (if onlySearch q then r.mode == .clientRender && r.stage == some (plannedEnv p) else r.mode == .hydrate)
+    (if onlySearch q then r.mode == .clientRender && r.stage == some (plannedEnv p) && r.missing == 0 else r.mode == .hydrate)
 
 /-- A prerendered page is accepted when hydrated without errors.
 $$\lnot\operatorname{only}(q) \land r_m = \mathrm{hydrate} \land r_h \land r_e = 0 \Rightarrow \operatorname{accepts}(q, p, r)$$ -/
@@ -142,11 +146,24 @@ theorem accepts_hydrate (q : String) (p : Size) (r : Report) (hq : onlySearch q 
   simp [accepts, hq, hm, hh, he]
 
 /-- A client-rendered page is accepted for a part-page search when it mounted the planned stage without errors.
-$$\operatorname{only}(q) \land r_m = \mathrm{clientRender} \land r_s = E(p) \land r_h \land r_e = 0 \Rightarrow \operatorname{accepts}(q, p, r)$$ -/
+$$\operatorname{only}(q) \land r_m = \mathrm{clientRender} \land r_s = E(p) \land r_k = 0 \land r_h \land r_e = 0 \Rightarrow \operatorname{accepts}(q, p, r)$$ -/
 theorem accepts_clientRender_stage (q : String) (p : Size) (r : Report) (hq : onlySearch q = true)
-    (hm : r.mode = .clientRender) (hs : r.stage = some (plannedEnv p)) (hh : r.hydrated = true) (he : r.errors = 0) :
-    accepts q p r = true := by
-  simp [accepts, hq, hm, hs, hh, he]
+    (hm : r.mode = .clientRender) (hs : r.stage = some (plannedEnv p)) (hk : r.missing = 0) (hh : r.hydrated = true)
+    (he : r.errors = 0) : accepts q p r = true := by
+  simp [accepts, hq, hm, hs, hk, hh, he]
+
+/-- A part page with an input write whose owner element was not on the page is refused: the part would be measured
+with an input left unwritten.
+$$\operatorname{only}(q) \land r_k \ne 0 \Rightarrow \lnot\operatorname{accepts}(q, p, r)$$ -/
+theorem refuses_missing_inputs (q : String) (p : Size) (r : Report) (hq : onlySearch q = true) (hk : r.missing ≠ 0) :
+    accepts q p r = false := by
+  simp [accepts, hq, hk]
+
+/-- `missing` is not read for a search without `only`.
+$$\lnot\operatorname{only}(q) \Rightarrow \operatorname{accepts}(q, p, r) = \operatorname{accepts}(q, p, r[k := 0])$$ -/
+theorem accepts_plain_ignores_missing (q : String) (p : Size) (r : Report) (hq : onlySearch q = false) :
+    accepts q p r = accepts q p { r with missing := 0 } := by
+  simp [accepts, hq]
 
 /-- A client-rendered page is refused for a search without `only`.
 $$\lnot\operatorname{only}(q) \land r_m = \mathrm{clientRender} \Rightarrow \lnot\operatorname{accepts}(q, p, r)$$ -/
@@ -199,39 +216,59 @@ theorem scrollRead_cases (q : String) :
     (onlySearch q = true → scrollRead q = .scrollTop) ∧ (onlySearch q = false → scrollRead q = .scrollY) := by
   constructor <;> intro h <;> simp [scrollRead, h]
 
-/-- The size the viewport gate checks: the layout viewport (`clientWidth`, `clientHeight`) on a stage page, the window's
-`innerWidth`/`innerHeight` otherwise. $$\operatorname{size}(q, i, c) = c$$ iff $\operatorname{only}(q)$, else $i$ -/
-def observedSize (q : String) (inner client : Size) : Size := if onlySearch q then client else inner
+/-- What the driver reads of the frame before the viewport gate: the page's pinned `innerWidth`/`innerHeight` (the stage
+environment on a stage page), the real frame size from the native getters captured before any page script pins them, and the
+layout viewport `clientWidth`/`clientHeight`.
+$$f = (i, r, c) \in \mathrm{Size}^3$$ -/
+structure Frame where
+  pinned : Size
+  real : Size
+  client : Size
+deriving Repr, DecidableEq
 
-/-- The viewport gate of the driver. $$\operatorname{gate}(q, p, i, c) = \operatorname{faithful}(p, \operatorname{size}(q, i, c))$$ -/
-def viewportGate (q : String) (profile inner client : Size) : Bool := viewportFaithful profile (observedSize q inner client)
+/-- The size the viewport gate decides on: the real frame size, on a stage page as on a whole page. `innerWidth` grows with
+content that overflows under mobile emulation (frame size / minimum page scale), `clientWidth` does not, so only the real
+frame size can catch the failure `Fw.Measure.Viewport` was written for.
+$$\operatorname{gateSize}(f) = f_r$$ -/
+def gateSize (f : Frame) : Size := f.real
 
-/-- Without `only` the gate is the existing one on `innerWidth`/`innerHeight`.
-$$\lnot\operatorname{only}(q) \Rightarrow \operatorname{gate}(q, p, i, c) = \operatorname{faithful}(p, i)$$ -/
-theorem viewportGate_plain (q : String) (p i c : Size) (h : onlySearch q = false) :
-    viewportGate q p i c = viewportFaithful p i := by
-  simp [viewportGate, observedSize, h]
+/-- The viewport gate of the driver. $$\operatorname{gate}(p, f) = \operatorname{faithful}(p, \operatorname{gateSize}(f))$$ -/
+def viewportGate (profile : Size) (f : Frame) : Bool := viewportFaithful profile (gateSize f)
 
-/-- On a stage page the gate ignores the pinned window sizes and decides on the layout viewport.
-$$\operatorname{only}(q) \Rightarrow \operatorname{gate}(q, p, i, c) = \operatorname{faithful}(p, c) = \operatorname{gate}(q, p, i', c)$$ -/
-theorem viewportGate_stage (q : String) (p i i' c : Size) (h : onlySearch q = true) :
-    viewportGate q p i c = viewportFaithful p c ∧ viewportGate q p i c = viewportGate q p i' c := by
-  simp [viewportGate, observedSize, h]
+/-- The gate is the existing rule on the real frame size.
+$$\operatorname{gate}(p, f) = \operatorname{faithful}(p, f_r)$$ -/
+theorem viewportGate_real (profile : Size) (f : Frame) : viewportGate profile f = viewportFaithful profile f.real := rfl
 
-/-- A planned stage page with a wrong layout viewport is refused although the pinned sizes equal the profile.
-$$\operatorname{only}(q) \land c \ne p \Rightarrow \operatorname{gate}(q, p, E(p)_{vw,vh}, c) = \mathrm{false}$$ -/
-theorem viewportGate_stage_refuses (q : String) (p c : Size) (h : onlySearch q = true) (hc : c ≠ p) :
-    viewportGate q p ⟨(plannedEnv p).vw, (plannedEnv p).vh⟩ c = false := by
-  have : viewportFaithful p c = false := by
-    cases hf : viewportFaithful p c with
+/-- The gate ignores the pinned sizes and the layout viewport: frames with the same real size get the same verdict.
+$$f_r = f'_r \Rightarrow \operatorname{gate}(p, f) = \operatorname{gate}(p, f')$$ -/
+theorem viewportGate_ignores_pinned_client (profile : Size) (f f' : Frame) (h : f.real = f'.real) :
+    viewportGate profile f = viewportGate profile f' := by
+  simp [viewportGate, gateSize, h]
+
+/-- A frame whose real size is not the profile is refused although the pinned sizes equal the profile and the layout viewport
+is the profile (the overflowing page: pinned $430 \times 932$, `clientWidth` $430$, real frame $645 \times 1398$).
+$$f_r \ne p \Rightarrow \operatorname{gate}(p, f) = \mathrm{false}$$ -/
+theorem viewportGate_refuses_overflow (profile : Size) (f : Frame) (h : f.real ≠ profile) : viewportGate profile f = false := by
+  have : viewportFaithful profile f.real = false := by
+    cases hf : viewportFaithful profile f.real with
     | false => rfl
-    | true => exact absurd ((Fw.Measure.Viewport.accepts_iff p c).1 hf) hc
-  simp [viewportGate, observedSize, h, this]
+    | true => exact absurd ((Fw.Measure.Viewport.accepts_iff profile f.real).1 hf) h
+  simp [viewportGate, gateSize, this]
 
-/-- Planned search of a part page parses to the profile environment, checked by evaluation (the string round trip is not
-a theorem): for every part id and group target and every viewport of the list, `Stage.parse` of the planned search
-is a stage at `E(p)`.
-$$\forall t \in T,\ \forall p \in V:\ \operatorname{parse}(\operatorname{plan}(\texttt{?only=}t, p)) \text{ has env } E(p)$$ -/
+/-- A frame whose real size is the profile is accepted whatever the pinned sizes and the layout viewport are.
+$$f_r = p \Rightarrow \operatorname{gate}(p, f) = \mathrm{true}$$ -/
+theorem viewportGate_accepts_real (profile : Size) (f : Frame) (h : f.real = profile) : viewportGate profile f = true := by
+  simp [viewportGate, gateSize, h, viewportFaithful]
+
+/-- The planned search of a target parses as the target's own search does, with the environment of the profile. With
+$q_t = \texttt{?only=}t$ and $T = \mathrm{ids}(\mathrm{parts}) \mathbin{+\!\!+} [\texttt{g1},\dots,\texttt{g5}]$ the Bool splits on $\operatorname{parse}(q_t)$: if it
+is a stage, the planned search parses to the same target and members at $E(p)$; if it is a refusal $e$ (a page-level part,
+an empty group), the planned search parses to the same refusal $e$; any other case (`none`, or $\operatorname{plan} = \bot$) is false. Checked by
+evaluation over $V$ (the string round trip is not a theorem, accepted limit `parseEnv-stageParam-checked-not-proved`).
+$$\operatorname{roundTrips}(V) \iff \forall t \in T,\ \forall p \in V:\ \operatorname{plan}(q_t,p) \ne \bot \land
+\begin{cases} \operatorname{parse}(\operatorname{plan}(q_t,p)) = \mathrm{ok}(t, M, E(p)) & \operatorname{parse}(q_t) = \mathrm{ok}(t, M, \cdot) \\
+\operatorname{parse}(\operatorname{plan}(q_t,p)) = \mathrm{err}(e) & \operatorname{parse}(q_t) = \mathrm{err}(e) \\
+\mathrm{false} & \text{otherwise}\end{cases}$$ -/
 def roundTrips (vps : List Size) : Bool :=
   let targets := (parts.map (·.id)) ++ ["g1", "g2", "g3", "g4", "g5"]
   targets.all fun t => vps.all fun p =>
@@ -244,7 +281,13 @@ def roundTrips (vps : List Size) : Bool :=
 /-- Viewports of the profiles in `packages/measure-chromium/profiles` plus two more phone sizes. $$V = \{(430,932), (390,844), (360,640)\}$$ -/
 def viewports : List Size := [⟨430, 932⟩, ⟨390, 844⟩, ⟨360, 640⟩]
 
+/-- Boundary sizes of the stage grammar: one to five digits, both ends of the valid range.
+$$B = \{1, 9, 10, 99, 100, 999, 1000, 9999, 10000\}$$ -/
+def boundarySizes : List Size :=
+  [1, 9, 10, 99, 100, 999, 1000, 9999, 10000].flatMap fun w => [1, 9, 10, 99, 100, 999, 1000, 9999, 10000].map fun h => ⟨w, h⟩
+
 #guard roundTrips viewports
+#guard roundTrips boundarySizes
 #guard planSearch "?only=hero" ⟨430, 932⟩ == some "?only=hero&stage=vw:430,vh:932"
 #guard planSearch "?preset=v2-proved&only=hero.exit" ⟨390, 844⟩ == some "?preset=v2-proved&only=hero.exit&stage=vw:390,vh:844"
 #guard planSearch "?only=hero&stage=y:5" ⟨430, 932⟩ == none
@@ -292,25 +335,30 @@ def optEnv : Option Env → String
   | some e => "[" ++ toString e.y ++ "," ++ toString e.vw ++ "," ++ toString e.vh ++ "]"
   | none => "null"
 
-/-- Accept vectors. $$\{(q, r, \operatorname{accepts}(q, p, r))\}$$ for every mode, `hydrated`, error count 0 and 1, and stage report. -/
+/-- Accept vectors. $$\{(q, r, \operatorname{accepts}(q, p, r))\}$$ for every mode, `hydrated`, error count 0 and 1, stage report and missing count 0 and 1. -/
 def acceptRows : List String :=
   modeQueries.flatMap fun q => [Mode.hydrate, .clientRender, .other].flatMap fun m => [true, false].flatMap fun h =>
-    [0, 1].flatMap fun e => stageReports.map fun s =>
-      let r : Report := { mode := m, hydrated := h, errors := e, stage := s }
+    [0, 1].flatMap fun e => stageReports.flatMap fun s => [0, 1].map fun k =>
+      let r : Report := { mode := m, hydrated := h, errors := e, stage := s, missing := k }
       "{\"kind\":\"accept\",\"query\":" ++ jstr q ++ ",\"profile\":[" ++ toString goldenProfile.w ++ "," ++ toString goldenProfile.h ++
         "],\"mode\":" ++ jstr m.wire ++ ",\"hydrated\":" ++ toString h ++ ",\"errors\":" ++ toString e ++ ",\"stage\":" ++ optEnv s ++
-        ",\"accept\":" ++ toString (accepts q goldenProfile r) ++ "}"
+        ",\"missing\":" ++ toString k ++ ",\"accept\":" ++ toString (accepts q goldenProfile r) ++ "}"
 
 /-- Sizes the gate vectors read. $$S = \{(430,932), (645,1398), (1280,800)\}$$ -/
 def sizes : List Size := [⟨430, 932⟩, ⟨645, 1398⟩, ⟨1280, 800⟩]
 
-/-- Read vectors: the scroll read and the viewport gate for a plain and a part-page search with pinned (`inner`) and real
-(`client`) sizes. $$\{(q, \operatorname{read}(q), \operatorname{gate}(q, p, i, c))\}$$ -/
+/-- JSON of a size. $$\operatorname{json}(w, h) = [w, h]$$ -/
+def sizeJson (s : Size) : String := "[" ++ toString s.w ++ "," ++ toString s.h ++ "]"
+
+/-- Read vectors: the scroll read of a plain and a part-page search, and the viewport gate over every pinned, real and
+layout-viewport size triple. The gate decides on the real size alone, so the row `pinned` $(430,932)$, `client` $(430,932)$,
+`real` $(645,1398)$ is refused. $$\{(q, \operatorname{read}(q), \operatorname{gate}(p, (i, r, c)))\}$$ -/
 def readRows : List String :=
-  modeQueries.flatMap fun q => sizes.flatMap fun i => sizes.map fun c =>
-    "{\"kind\":\"read\",\"query\":" ++ jstr q ++ ",\"profile\":[430,932],\"inner\":[" ++ toString i.w ++ "," ++ toString i.h ++ "],\"client\":[" ++
-      toString c.w ++ "," ++ toString c.h ++ "],\"scrollRead\":" ++ jstr (scrollRead q).wire ++ ",\"faithful\":" ++
-      toString (viewportGate q goldenProfile i c) ++ "}"
+  modeQueries.flatMap fun q => sizes.flatMap fun i => sizes.flatMap fun r => sizes.map fun c =>
+    let f : Frame := { pinned := i, real := r, client := c }
+    "{\"kind\":\"read\",\"query\":" ++ jstr q ++ ",\"profile\":[430,932],\"pinned\":" ++ sizeJson i ++ ",\"real\":" ++ sizeJson r ++
+      ",\"client\":" ++ sizeJson c ++ ",\"scrollRead\":" ++ jstr (scrollRead q).wire ++ ",\"gateSize\":" ++ sizeJson (gateSize f) ++
+      ",\"faithful\":" ++ toString (viewportGate goldenProfile f) ++ "}"
 
 /-- Text of `packages/contracts/golden/parts/stage-mode.jsonl`: a premise line, then plan, accept and read rows.
 $$\text{golden} = [\mathrm{premise}] \mathbin{+\!\!+} \mathrm{plan} \mathbin{+\!\!+} \mathrm{accept} \mathbin{+\!\!+} \mathrm{read}$$ -/
