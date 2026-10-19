@@ -134,6 +134,10 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: site
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
@@ -175,6 +179,10 @@ jobs:
           echo "$engines"
           echo "$matrix" | cut -c1-400
       - uses: ./.github/actions/setup-lean
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: cache
+          cache-dirs: lake=${{ github.workspace }}/.lake-cache
       # `pnpm build` of the site first runs `lake exe breakgen --check` (the checked-in gen file must equal Lean's output).
       - uses: ./.github/actions/setup-pnpm
         with:
@@ -187,6 +195,11 @@ jobs:
           path: apps/site/dist/aot
           if-no-files-found: error
           retention-days: 3
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: site
 
   # One job per entry of the Lean split: its probes (`cli.mjs run --probes`) and its whole sweeps (`--sweeps`); "none" = nothing.
   gate:
@@ -218,6 +231,10 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: gate-${{ matrix.engine }}-${{ matrix.job }}
       - name: Verify the snapshot against snapshot.lock.json
         run: node .github/scripts/verify-snapshot.mjs
       - uses: ./.github/actions/setup-pnpm
@@ -260,6 +277,11 @@ jobs:
           path: packages/gate-breakpoints/out/job/${{ matrix.engine }}.json
           if-no-files-found: error
           retention-days: 14
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: gate-${{ matrix.engine }}-${{ matrix.job }}
 
   # One merge job for the engines: `fwcore` is built once (a merge job per engine built it twice, 36 s each, and took a second
   # runner of the shared 20: Fw.Gate.Schedule.Fixed.work_saved). Each engine is merged and summarized on its own, so a failing

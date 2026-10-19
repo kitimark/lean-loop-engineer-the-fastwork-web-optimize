@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // scrub.mjs: privacy check on STAGED content (added lines of `git diff --cached`). Node stdlib only.
 //   node scripts/scrub.mjs          scan the staged diff (pre-commit)
+//   node scripts/scrub.mjs --range <a> <b>   scan the lines added between two revisions (fw land, before a ci/land push)
 //   node scripts/scrub.mjs --tree   scan every tracked file (git ls-files), print counts by rule only
 // Rules: email, home-path, lan-ip, device-id, secret. Skips snapshot/** and binary files.
 // Matched values are never printed (only file:line:col and rule). Allowlist: scripts/scrub-allow.json,
@@ -91,9 +92,11 @@ if (tree) {
     buf.toString('utf8').split('\n').forEach((t, i) => scanLine(p, i + 1, t));
   }
 } else {
-  for (const p of nul(git(['diff', '--cached', '--name-only', '--diff-filter=ACMR', '-z', '--', '.', EXCL])))
+  const ri = process.argv.indexOf('--range');
+  const revs = ri >= 0 ? [process.argv[ri + 1], process.argv[ri + 2]] : ['--cached'];
+  for (const p of nul(git(['diff', ...revs, '--name-only', '--diff-filter=ACMR', '-z', '--', '.', EXCL])))
     if (!skip(p)) scanPath(p);
-  const diff = git(['diff', '--cached', '-U0', '--no-color', '--no-ext-diff', '--no-renames', '--', '.', EXCL]).toString('utf8');
+  const diff = git(['diff', ...revs, '-U0', '--no-color', '--no-ext-diff', '--no-renames', '--', '.', EXCL]).toString('utf8');
   let p = null, n = 0;
   for (const l of diff.split('\n')) {
     if (l.startsWith('+++ ')) { p = l.startsWith('+++ b/') ? l.slice(6).replace(/\t.*$/, '') : null; continue; }
