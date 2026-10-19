@@ -202,7 +202,8 @@ G_{7} &= [\texttt{lean/Fw/Console.lean}, \texttt{lean/Fw/Serve.lean}, \texttt{le
 w_{8} &= (\texttt{premise-tests.yml}, B, G_{8}) \\
 G_{8} &= [\texttt{packages/premise-tests/**}, \texttt{packages/contracts/golden/ops/premise.jsonl}, \texttt{lean/Fw/Ops/Premise.lean}, \texttt{apps/runner/src/premises.ts}, \\
 &\quad \texttt{package.json}, \texttt{pnpm-lock.yaml}, \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/changed-inputs.mjs}, \\
-&\quad \texttt{.github/actions/setup-pnpm/**}, \texttt{.github/actions/gate-engine/**}, \operatorname{own}(\texttt{premise-tests.yml})] \\
+&\quad \texttt{.github/actions/setup-pnpm/**}, \texttt{.github/actions/gate-engine/**}, \texttt{.github/scripts/cache-key.mjs}, \\
+&\quad \texttt{packages/contracts/golden/ops/cache.jsonl}, \operatorname{own}(\texttt{premise-tests.yml})] \\
 w_{9} &= (\texttt{sim-speed.yml}, [\texttt{ci/sim-speed}], G_{9}) \\
 G_{9} &= [\texttt{packages/measure-webkit/**}, \texttt{.github/scripts/sim-speed-*}, \texttt{.github/scripts/check-simulator.sh}, \texttt{.github/scripts/runner-info.sh}, \\
 &\quad \texttt{.github/scripts/changed-inputs.mjs}, \operatorname{own}(\texttt{sim-speed.yml})] \\
@@ -276,7 +277,7 @@ def table : List Wf := [
     "packages/premise-tests/**", "packages/contracts/golden/ops/premise.jsonl", "lean/Fw/Ops/Premise.lean",
     "apps/runner/src/premises.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
-    own "premise-tests.yml"], []⟩,
+    ".github/scripts/cache-key.mjs", "packages/contracts/golden/ops/cache.jsonl", own "premise-tests.yml"], []⟩,
   ⟨"sim-speed.yml", ["ci/sim-speed"], [
     "packages/measure-webkit/**", ".github/scripts/sim-speed-*", ".github/scripts/check-simulator.sh",
     ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", own "sim-speed.yml"], []⟩,
@@ -336,8 +337,9 @@ def run (diff merged : List String) : List String :=
 
 /-! ## Main pushes (task `ci-main-triggers`)
 
-A `main` push runs only the jobs that save a cache `ci/*` runs restore; a run restores caches of its own branch and of
-the default branch only (docs.github.com, dependency caching, "Restrictions for accessing a cache"). -/
+A `main` push runs only the jobs that save the caches main seeded before this task (`mainBefore`); `wktr-zip` stays
+excluded. A run restores caches of its own branch and of the default branch only (docs.github.com, dependency caching,
+"Restrictions for accessing a cache"). -/
 
 /-- Every job that saves a cache, as (workflow, job, cache), the cache named by the last segment of its `path:`.
 `scripts/ci-paths.mjs` reads the same list from the workflows and their local actions and fails when they differ. -/
@@ -361,7 +363,8 @@ def savedBy (f j : String) : List String := (cacheWriters.filter fun w => w.1 ==
 /-- The caches a `main` push seeds: every cache that a job of a `mainBefore` workflow saved. -/
 def seededCaches : List String := ((cacheWriters.filter fun w => mainBefore.contains w.1).map (·.2.2)).eraseDups
 
-/-- The (workflow, job) pairs a `main` push runs besides the workflow's `guard`. -/
+/-- The (workflow, job) pairs a `main` push runs besides the workflow's `guard`: they save the caches main seeded
+before this task (`mainBefore`); `wktr-zip` is excluded. -/
 def seeders : List (String × String) := [("lean.yml", "lean"), ("premise-tests.yml", "engine")]
 
 /-- The job `if:` conjunct that skips a job on a `main` push and keeps it on every other event. -/
@@ -418,6 +421,32 @@ theorem mainRuns_iff (w : Wf) (hw : w ∈ table) (j : String) :
 
 /-- **No workflow has a cron.** A schedule runs on the default branch, so a cron would start a `main` run. -/
 theorem no_crons : ∀ w ∈ table, w.crons = [] := by decide
+
+/-- The keys the top-level `on:` of a workflow may hold; `scripts/ci-paths.mjs` refuses every other key. -/
+def Wf.onKeys (w : Wf) : List String := ["push", "workflow_dispatch"] ++ (if w.crons = [] then [] else ["schedule"])
+
+/-- `push` is an allowed key. -/
+theorem onKeys_push (w : Wf) : "push" ∈ w.onKeys := by simp [Wf.onKeys]
+
+/-- `workflow_dispatch` is an allowed key. -/
+theorem onKeys_dispatch (w : Wf) : "workflow_dispatch" ∈ w.onKeys := by simp [Wf.onKeys]
+
+/-- `schedule` is an allowed key iff the row has a cron. -/
+theorem onKeys_schedule (w : Wf) : "schedule" ∈ w.onKeys ↔ w.crons ≠ [] := by
+  by_cases h : w.crons = [] <;> simp [Wf.onKeys, h]
+
+/-- **The `on:` allowlist.** A key is allowed iff it is `push`, `workflow_dispatch`, or `schedule` with a cron. -/
+theorem onKeys_iff (w : Wf) (k : String) :
+    k ∈ w.onKeys ↔ k = "push" ∨ k = "workflow_dispatch" ∨ (k = "schedule" ∧ w.crons ≠ []) := by
+  by_cases h : w.crons = [] <;> simp [Wf.onKeys, h]
+
+/-- Every row allows exactly `push` and `workflow_dispatch`, so no workflow has a key that starts a `main` run. -/
+theorem table_onKeys : ∀ w ∈ table, w.onKeys = ["push", "workflow_dispatch"] := by decide
+
+#guard (⟨"x.yml", ciAll, [], ["0 0 * * *"]⟩ : Wf).onKeys == ["push", "workflow_dispatch", "schedule"]
+#guard !(⟨"x.yml", ciAll, [], []⟩ : Wf).onKeys.contains "schedule"
+#guard !(⟨"x.yml", ciAll, [], []⟩ : Wf).onKeys.contains "workflow_run"
+#guard !(⟨"x.yml", ciAll, [], ["0 0 * * *"]⟩ : Wf).onKeys.contains "pull_request"
 
 /-- A row lists its `ci/` branches, then `main` iff it runs on `main`. -/
 theorem branches_split : ∀ w ∈ table, w.branches = ciPart w.branches ++ (if w.onMain then ["main"] else []) := by
@@ -701,7 +730,7 @@ $$\operatorname{tableLine} = \{\texttt{kind}: \texttt{table},\ \texttt{workflows
 def tableLine : Json :=
   Json.mkObj [("kind", "table"),
     ("workflows", .arr (table.map fun w => Json.mkObj [("file", .str w.file), ("branches", strs w.branches),
-      ("inputs", strs w.inputs), ("crons", strs w.crons)]).toArray),
+      ("inputs", strs w.inputs), ("crons", strs w.crons), ("onKeys", strs w.onKeys)]).toArray),
     ("sets", Json.mkObj (sets.map fun (n, xs) => (n, strs xs))), ("coneGlobs", strs coneGlobs),
     ("seeders", .arr (seeders.map fun (f, j) => Json.mkObj [("file", .str f), ("job", .str j)]).toArray),
     ("notMainPush", .str notMainPush),

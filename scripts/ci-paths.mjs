@@ -25,7 +25,8 @@
 //     carries the conjunct `steps.stale.outcome == 'skipped'` (Lean `workConj`).
 // Task ci-main-triggers: only rows with a Lean seeder list `main`; in such a workflow every job but the guard and the
 // seeders has the `if:` form Lean `carriesNotMain` accepts (--write gives it Lean `withNotMain`), so a main push runs only
-// the seeders. `on.schedule` equals the row's crons (none: a schedule is a main run). The jobs that save a cache, read
+// the seeders. The keys under `on:` are the row's Lean `onKeys` (push, workflow_dispatch; schedule only with a cron), and
+// `on.schedule` equals the row's crons (none: a schedule is a main run). The jobs that save a cache, read
 // from the workflows and their local actions, equal Lean `cacheWriters`.
 // --check also fails when the Lean macOS flag of a lane differs from its workflow (a job on `macos-*` / `xcode-*` whose
 // `if:` is not dispatch-only), and when a job's `if:` uses a status function without a conjunct that is false when the
@@ -368,6 +369,27 @@ export function onKeyRange(lines, key) {
   while (end < lines.length && (isBlank(lines[end]) || indentOf(lines[end]) > 2)) end++;
   while (end > i + 1 && isBlank(lines[end - 1])) end--;
   return [i, end];
+}
+
+const ON_KEY = /^ {2}(['"]?)([\w-]+)\1\s*:/;
+
+/** The keys under the top-level `on:`, as { key, text }; key null for a line at indent 2 that is no key, or at indent 1. */
+export function onKeys(lines) {
+  const on = lines.findIndex((l) => l === 'on:');
+  if (on < 0) throw new Error('no top-level `on:`');
+  const keys = [];
+  let seen = false;
+  for (let i = on + 1; i < lines.length; i++) {
+    if (isBlank(lines[i])) continue;
+    const d = indentOf(lines[i]);
+    if (d === 0) break;
+    if (d === 2 || d === 1 || !seen) {
+      const m = d === 2 ? ON_KEY.exec(lines[i]) : null;
+      keys.push({ key: m ? m[2] : null, text: lines[i] });
+      seen = true;
+    }
+  }
+  return keys;
 }
 
 /** [start, end) line range of the `  push:` block under the top-level `on:`. */
@@ -755,6 +777,14 @@ export function reconcile(file, text, row, lane = null, main = null) {
     if (lines.slice(a, b).join('\n') !== want.join('\n')) {
       problems.push(`${file}: on.schedule differs from the Lean row's crons (Lean Fw.Ci.Trigger.no_crons)`);
       lines = [...lines.slice(0, a), ...want, ...lines.slice(b)];
+    }
+  }
+  // 10. on: holds only the Lean row's keys (Lean Fw.Ci.Trigger.onKeys_iff)
+  if (!Array.isArray(row.onKeys)) problems.push(`${file}: the Lean row has no onKeys (lake test -- --write-ci-trigger-golden)`);
+  else {
+    for (const { key, text } of onKeys(lines)) {
+      if (key === null) problems.push(`${file}: \`${text.trim()}\` under \`on:\` is no key at indent 2 (edit by hand)`);
+      else if (!row.onKeys.includes(key)) problems.push(`${file}: on.${key} is not an allowed trigger [${row.onKeys.join(', ')}] (Lean Fw.Ci.Trigger.onKeys_iff; edit by hand)`);
     }
   }
   return { problems, text: lines.join('\n') };

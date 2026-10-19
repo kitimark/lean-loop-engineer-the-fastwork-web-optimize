@@ -221,6 +221,36 @@ test('lint: a schedule is reported and removed (Lean no_crons: a schedule runs o
   assert.equal(r.text, sample);
 });
 
+test('lint: every on: key outside the Lean onKeys allowlist is reported (schedule in any spelling, workflow_run)', () => {
+  assert.deepEqual(row.onKeys, ['push', 'workflow_dispatch']);
+  const variants = {
+    flow: `  schedule: [{cron: '0 0 * * *'}]\n`,
+    comment: `  schedule: # nightly\n    - cron: '0 0 * * *'\n`,
+    spaced: `  schedule :\n    - cron: '0 0 * * *'\n`,
+    quoted: `  "schedule":\n    - cron: '0 0 * * *'\n`,
+    workflowRun: `  workflow_run: {workflows: [lean]}\n`,
+    pullRequest: `  pull_request:\n`,
+  };
+  for (const [name, add] of Object.entries(variants)) {
+    const bad = sample.replace(`${pushLine}\n`, `${pushLine}\n${add}`);
+    assert.notEqual(bad, sample, name);
+    const key = name === 'workflowRun' ? 'workflow_run' : name === 'pullRequest' ? 'pull_request' : 'schedule';
+    const r = reconcile('gate-gaps.yml', bad, row);
+    assert.ok(r.problems.some((p) => p.includes(`on.${key} is not an allowed trigger`)), `${name}: ${r.problems.join('\n')}`);
+  }
+  const odd = reconcile('gate-gaps.yml', sample.replace(`${pushLine}\n`, `${pushLine}\n  <<: *triggers\n`), row);
+  assert.ok(odd.problems.some((p) => /is no key at indent 2/.test(p)), odd.problems.join('\n'));
+  assert.deepEqual(reconcile('gate-gaps.yml', sample, row).problems, []);
+  assert.deepEqual(reconcile('gate-gaps.yml', sample, { ...row, onKeys: undefined }).problems.length, 1);
+});
+
+test('lint: schedule is allowed only when the Lean row has a cron', () => {
+  const cron = '23 4 * * *';
+  const withCron = { ...row, crons: [cron], onKeys: ['push', 'workflow_dispatch', 'schedule'] };
+  const scheduled = sample.replace(`${pushLine}\n`, `${pushLine}\n  schedule:\n    - cron: '${cron}'\n`);
+  assert.deepEqual(reconcile('gate-gaps.yml', scheduled, withCron).problems, []);
+});
+
 test('the guard comment names main only where the row lists main', () => {
   assert.ok(guardComment({ branches: ['ci/**', 'main'] }).join('\n').includes('only the cache seeders'));
   assert.ok(guardComment({ branches: ['ci/**'] }).join('\n').includes('A main push starts no run'));
