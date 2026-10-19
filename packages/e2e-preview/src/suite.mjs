@@ -177,6 +177,24 @@ async function lanLogin(browser, rig, engine, host, passphrase) {
   return checks;
 }
 
+/** Control, not a pass/fail check: the original arm served straight from its own port (no proxy, no prefix, no redirect) and
+ *  loaded the same way. What it reports is the engine's and the app's own noise, to read the proxy's runs against. */
+async function directControl(browser, rig, engine) {
+  const ctx = await browser.newContext({ userAgent: IPHONE_UA, viewport: VIEWPORT, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  const errors = []; const failed = [];
+  try {
+    const page = await ctx.newPage();
+    page.on("pageerror", (e) => errors.push(String(e).slice(0, 90)));
+    page.on("requestfailed", (r) => failed.push(`${new URL(r.url()).pathname.slice(-24)} ${r.failure()?.errorText ?? ""}`));
+    await page.goto(`http://127.0.0.1:${rig.ports.op}/`, { waitUntil: "load" });
+    await settle(page.mainFrame());
+    await page.waitForTimeout(500);
+    return [{ id: `${engine}/control/o-direct/page-errors-observed`, ok: true, detail: `${errors.length} page errors, ${failed.length} failed requests: ${[...errors, ...failed].slice(0, 4).join(" | ")}` }];
+  } catch (e) {
+    return [{ id: `${engine}/control/o-direct/run`, ok: true, detail: String(e?.message ?? e).split("\n")[0] }];
+  } finally { await ctx.close().catch(() => undefined); }
+}
+
 export async function runEngine(browser, rig, engine, { passphrase, keep, route } = {}) {
   const out = [];
   for (const host of Object.values(rig.hosts)) {
@@ -189,6 +207,10 @@ export async function runEngine(browser, rig, engine, { passphrase, keep, route 
       out.push(...cs);
     }
   }
+  const ctl = [];
+  for (let i = 0; i < 4; i++) ctl.push(...(await directControl(browser, rig, engine)).map((c) => ({ ...c, id: `${c.id}#${i + 1}` })));
+  for (const c of ctl) process.stderr.write(`  ctl  ${c.id}  (${c.detail})\n`);
+  out.push(...ctl);
   return out;
 }
 
