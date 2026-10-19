@@ -4,6 +4,8 @@
 // node src/cli.mjs report --in DIR[,DIR...] [--out BASE]    (prints the markdown table; BASE.md and BASE.json when --out)
 // node src/cli.mjs nav-scroll --engine chromium|playwright-webkit --out DIR [--widths w860,w861,w1280,w1440,w1920]   (nav scroll-hide probe)
 // node src/cli.mjs nav-scroll-report --in DIR[,DIR...] [--out BASE | --summary]   (--summary prints only the cross-run tables)
+// node src/cli.mjs people-layout --engine chromium|playwright-webkit --out DIR [--widths w1920,w1440,w1280,w861,w401] [--reps 2]   (people-section layout probe)
+// node src/cli.mjs people-layout-report --in DIR[,DIR...] [--out BASE]   (arm-against-arm tables of the probe records)
 // Default probes: the breakpoint set in probes.default.json (ids of the gate's Lean matrix, apps/site/src/breakpoints.gen.json).
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -30,6 +32,15 @@ if (cmd === 'run') {
   const { report, summaryReport } = await import('./navscroll-report.mjs');
   const dirs = arg('in', 'out/navscroll').split(',').map((d) => resolve(d));
   process.stdout.write(argv.includes('--summary') ? summaryReport(dirs) : report(dirs, arg('out') ? resolve(arg('out')) : null));
+} else if (cmd === 'people-layout') {
+  const { runPeopleLayout, WIDTHS } = await import('./people-layout.mjs');
+  const widthIds = arg('widths', WIDTHS.map((w) => w.id).join(',')).split(',').map((x) => x.trim()).filter(Boolean);
+  await runPeopleLayout({ engineName: arg('engine', 'chromium'), outDir: resolve(arg('out', 'out/people-layout')), widthIds, reps: Number(arg('reps', '2')) });
+  process.exit(0);
+} else if (cmd === 'people-layout-report') {
+  const { report } = await import('./people-layout-analyze.mjs');
+  const dirs = arg('in', 'out/people-layout').split(',').map((d) => resolve(d));
+  process.stdout.write(report(dirs, arg('out') ? resolve(arg('out')) : null));
 } else if (cmd === 'fonts') {
   const { runFonts, fontsTable } = await import('./fonts.mjs');
   const defaults = JSON.parse(readFileSync(join(HERE, '..', 'probes.default.json'), 'utf8')).probes;
