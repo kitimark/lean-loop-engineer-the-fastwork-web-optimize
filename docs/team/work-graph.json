@@ -6441,7 +6441,13 @@
     "lean/Fw/Parts/HeroCountdown*.lean",
     "packages/contracts/golden/parts/overlays.signup.jsonl",
     "packages/contracts/golden/parts/hero.countdown.jsonl",
-    "docs/team/handoffs/behaviour-small.md"
+    "docs/team/handoffs/behaviour-small.md",
+    "apps/site/src/parts/hero.countdown/*.ts",
+    "apps/site/src/parts/hero.countdown/index.tsx",
+    "lean/Fw/Parts/Golden.lean",
+    "lean/Fw/Parts/OverlayGolden.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ]
   },
   {
@@ -6678,7 +6684,9 @@
    "writes": [
     "apps/site/src/parts/platform/Visuals.tsx",
     "apps/site/src/parts/people.deck/panel.tsx",
-    "docs/team/handoffs/port-pin-gap.md"
+    "docs/team/handoffs/port-pin-gap.md",
+    "apps/site/src/parts/platform/assets.test.ts",
+    "apps/site/src/parts/platform/visuals.module.css"
    ]
   },
   {
@@ -6697,7 +6705,11 @@
     "apps/site/scripts/svg-extract.mjs",
     "apps/site/src/GenSvg.tsx",
     "apps/site/src/parts/nav/index.tsx",
-    "docs/team/handoffs/port-wordmark-g.md"
+    "docs/team/handoffs/port-wordmark-g.md",
+    "apps/site/src/svg-allow.json",
+    "apps/site/src/svg-extract.test.ts",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ]
   },
   {
@@ -6734,7 +6746,8 @@
     "packages/measure-chromium/test/overflow.test.mjs",
     "packages/measure-chromium/package.json",
     "docs/team/handoffs/overflow-430.md"
-   ]
+   ],
+   "evidence": "6a80f30"
   },
   {
    "devices": [
@@ -6770,6 +6783,174 @@
     "packages/contracts/golden/parts/stage*.jsonl",
     "packages/measure-chromium/src/overflow.mjs",
     "docs/team/handoffs/stage-host-lean.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-wait-lean",
+   "title": "CI wait study (user 10-19): Pmin 30 -> 10 in Fw.Ci.Budget with a liveness latency theorem and a budget theorem over all ledger entries (5000 REST/h per user account, margin for uncharged callers); rate-limit headers accepted only from the REST core bucket; timing-ci jobs view booked at cost 3; land.ts gh through the charged client",
+   "stream": "ops",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ci/Budget.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "packages/gh-budget/**",
+    "packages/contracts/golden/ci-budget/**",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/timing-ci.ts",
+    "apps/runner/test/run-budget.test.ts",
+    "research/notes/2026/10-18-gh-rate-budget.md",
+    "docs/team/handoffs/ci-wait-lean.md",
+    "lean/Fw/Ci/Golden.lean",
+    "lean/FwTest/CiBudget.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-wait-lag",
+   "title": "CI wait study: measured wait lag p50 27 / p90 55 / max 87 s exceeds the P + slice + view model in 36 % of waits; instrument fw ci wait spans per phase with the run id, find each lag component, count the agents' Bash gh loops wait-guard allows",
+   "stream": "ops",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gh-budget/src/wait.ts",
+    "apps/runner/src/timing-ci.ts",
+    "apps/runner/hooks/wait-guard.mjs",
+    "research/notes/2026/10-19-ci-wait-lag.md",
+    "docs/team/handoffs/ci-wait-lag.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lean-latex-removal",
+   "title": "User 10-19: remove LaTeX $$ math from Lean docstrings and the processes that require it (mathview lint stages, math-review step, CLAUDE.md 'Lean math' rule, agent definitions); math only on demand in artifacts; Lean comments per no-comments/no-slop. Plan: workflow lean-latex-removal-plan. Done only when the temporary guardrails are gone: delete every negative rule added for this migration (build-review preamble 'No LaTeX: add no $$ math...', any 'no LaTeX' line in CLAUDE.md, agent and skill files) and keep only positive rules (user 10-19: no long-term negative feedback about removed things)",
+   "stream": "ops",
+   "milestone": "M5",
+   "deps": [
+    "skills-reframe",
+    "latex-lint-relax"
+   ],
+   "owner": "lead",
+   "writes": [
+    "docs/team/handoffs/lean-latex-removal.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "skills-reframe",
+   "title": "User 10-19: re-frame no-comments and no-slop skills after cursor/plugins pstack (no-comments orchestrator + comment-sicko agent + unslop), adapted to our harness and Lean; no LaTeX in Lean (CLAUDE.md line); MIT attribution; state rules positively (what to write), no 'No LaTeX' style negative lines that outlive the migration",
+   "stream": "ops",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "plan-editor",
+   "writes": [
+    ".claude/skills/no-comments/SKILL.md",
+    ".claude/skills/no-slop/SKILL.md",
+    ".claude/agents/comment-sicko.md",
+    ".claude/agents/slop-checker.md",
+    ".claude/agents/lean-prover.md",
+    ".claude/agents/math-reviewer.md",
+    ".claude/agents/checker.md",
+    "docs/team/token-policy.md",
+    "CLAUDE.md",
+    "docs/team/handoffs/skills-reframe.md",
+    ".claude/workflows/build-review.js",
+    "docs/team/tools/context-lint.md"
+   ],
+   "evidence": "d739fd0"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-lint-relax",
+   "owner": "lean-prover",
+   "title": "lean-latex-removal step B0: the mathview lint stops refusing Fw declarations without $$ math or English (sorry, non-standard axioms and export failures still refuse); closes the window opened by the no-LaTeX preamble",
+   "deps": [],
+   "writes": [
+    "lean/MathView.lean",
+    "lean/MathViewMain.lean",
+    "lean/scripts/**",
+    ".github/workflows/lean.yml",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/**",
+    "packages/contracts/golden/ops/**",
+    "docs/team/handoffs/latex-lint-relax.md"
+   ],
+   "stream": "ops",
+   "evidence": "69bff1f"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "comment-sicko-spawn",
+   "owner": "lean-prover",
+   "title": "Register comment-sicko as a lead-only unnamed edit helper: (subagent, edits) row in Fw.Ops.SpawnGuard prodRoles and leadEditHelpers, hook ROLES in apps/runner/hooks/spawn-guard.mjs, goldens; context-lint exemption for 'Adapted from' attribution lines (Fw.Lint.Context)",
+   "deps": [
+    "skills-reframe"
+   ],
+   "writes": [
+    "lean/Fw/Ops/SpawnGuard*.lean",
+    "lean/Fw/Lint/Context*.lean",
+    "apps/runner/hooks/spawn-guard.mjs",
+    "apps/runner/test/**",
+    "packages/contracts/golden/ops/**",
+    "docs/team/handoffs/comment-sicko-spawn.md"
+   ],
+   "stream": "ops"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-fwcore-key",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "fw land selects the 8 FWCORE_USERS suites only when the fwcore binary digest differs from main0's (two-phase, digest from binary bytes; premise: a comment-only Lean edit keeps the digest, measured first; else closed as a finding)",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandSpeed*.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land*.test.ts",
+    "packages/contracts/golden/**",
+    "scripts/fwcore-build.sh",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-fwcore-key.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lint-axioms",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "Land and check.sh run a Lean axiom check (sorryAx, non-standard axioms) instead of the mathview export; mathview exe kept for on-demand artifact math",
+   "deps": [
+    "latex-lint-relax"
+   ],
+   "writes": [
+    "lean/scripts/**",
+    "lean/Fw/Console/LandDry*.lean",
+    "lean/MathView.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/land*.test.ts",
+    "packages/contracts/golden/**",
+    ".github/workflows/lean.yml",
+    "docs/team/handoffs/lint-axioms.md"
    ]
   }
  ],

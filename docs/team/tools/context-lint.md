@@ -3,7 +3,7 @@
 Checks the files agents load or read on most tasks against a size budget and a few mechanical slop patterns. Lean decides
 every verdict (`Fw.Lint.Context`, fwcore op `lint.context`); `scripts/context-lint.mjs` only lists files and sends their
 path, byte size and lines. Writing rules behind it: `.claude/skills/no-slop/SKILL.md`,
-`.claude/skills/no-comments/SKILL.md`.
+`.claude/agents/comment-sicko.md`.
 
 ## Use
 
