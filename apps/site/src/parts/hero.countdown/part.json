@@ -7,7 +7,8 @@
   "muiStates": ["countdown-running"],
   "variants": {
     "faithful": { "kind": "faithful", "tier": "T1", "layerBudget": 80 },
-    "strip": { "kind": "optimized", "tier": "T0", "layerBudget": 16 }
+    "strip": { "kind": "optimized", "tier": "T0", "layerBudget": 16 },
+    "hidden-pause": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroCountdownHidden", "ledger": "O2 countdown-hidden-pause", "limit": "the far signal (IntersectionObserver, a posted task) is one frame late: a jump of more than one viewport toward the hero within one frame can paint the held faces for that frame (INFERRED)" } }
   },
   "requires": {},
   "conflicts": {}
