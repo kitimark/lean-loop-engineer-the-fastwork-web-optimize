@@ -342,13 +342,10 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   if (DIAG_CV) {
     // Variants: [load offset, steps]. R<d> = resize to width+d, S = settle, r = snapshot, c = the gate's own collect.
     const VARIANTS = {
-      A: [0, ['S', 'c', 'c', 'r']],
-      B: [1, ['R0', 'S', 'c', 'c', 'r']],
-      C: [0, ['r', 'R1', 'r', 'R0', 'r']],
-      D: [0, ['S', 'c', 'R1', 'c', 'R0', 'c']],
-      E: [1, ['R0', 'S', 'c', 'R1', 'c', 'R0', 'c']],
-      F: [0, ['S', 'c', 'R-1', 'c']],
-      G: [1, ['R0', 'S', 'r', 'r', 'c']],
+      A: [0, ['S', 'c']],
+      V1: [0, ['S', 'c', 'V', 'c', 'R1', 'c', 'R0', 'c', 'R-1', 'c', 'R0', 'c']],
+      V2: [0, ['V', 'c', 'R1', 'c', 'R0', 'c']],
+      V3: [1, ['R0', 'S', 'c', 'V', 'c', 'R-1', 'c']],
     };
     const N = Number(process.env.FW_DIAG_LOADS || 12);
     const sel = (site, role) => partsArg[site].commission.find((r) => r.role === role).selector;
@@ -371,6 +368,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
                 let touched = false, used = -1, cur = at(off);
                 for (const st of steps) {
                   if (st === 'S') { await settleArm(s, site, cur); touched = true; }
+                  else if (st === 'V') { await s.evaluate(bringInPage, { roots: [sel(site, 'section'), INNER, ROWS] }); await s.evaluate(scrollTopInPage); touched = true; }
                   else if (st === 'r') { out.snaps.push(await s.evaluate(diagSnap, { inner: INNER, rows: ROWS, tag: 'r' + out.snaps.length })); touched = true; }
                   else if (st === 'c') {
                     const raw = await evalCollect(s, site, cur, collectProps, null, false, frozen ? { base: stopBase(Math.max(used, 0), readingCount(false)), rec } : null, null, null);
