@@ -49,7 +49,8 @@ export const changedBetween = (root: string, base: string): string[] =>
   execFileSync("git", ["diff", "--name-only", base, "HEAD"], { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 }).split("\n").filter(Boolean);
 
 /** Tests a runner output reports as skipped: vitest `Tests  3 passed | 2 skipped`, node:test `# skipped 2`. */
-export function skippedCount(out: string): number {
+export function skippedCount(raw: string): number {
+  const out = raw.replace(/\u001b\[[0-9;]*m/g, "");
   const node = [...out.matchAll(/^# skipped (\d+)/gm)].reduce((n, m) => n + Number(m[1]), 0);
   const vitest = [...out.matchAll(/^\s*Tests\s.*?\b(\d+) skipped\b/gm)].reduce((n, m) => n + Number(m[1]), 0);
   return node + vitest;

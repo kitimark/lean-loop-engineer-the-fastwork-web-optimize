@@ -58,6 +58,7 @@ describe("skippedCount", () => {
     expect(skippedCount("# tests 4\n# pass 3\n# skipped 1\n")).toBe(1);
     expect(skippedCount("# skipped 0\n Tests  9 passed (9)\n")).toBe(0);
     expect(skippedCount("nothing")).toBe(0);
+    expect(skippedCount("\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m360 passed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[33m1 skipped\u001b[39m\u001b[90m (362)\u001b[39m")).toBe(1);
   });
 });
 
