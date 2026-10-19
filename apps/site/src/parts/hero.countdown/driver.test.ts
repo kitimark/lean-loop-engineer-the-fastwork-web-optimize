@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createCountdownDriver, type Writable } from './driver';
+import { createRafClock } from '../../engine/clock';
+import { createCountdownDriver, onVisibilityChange, startFaithful, type Writable } from './driver';
 
 const TARGET = Date.parse('2026-11-02T12:00:00+07:00');
 const node = (): Writable => ({ style: { transform: '' } });
@@ -56,6 +57,44 @@ describe('countdown driver', () => {
     d.setCell(0, 36);
     d.tick(0);
     expect(nodes[0]!.style.transform).toBe(`translateY(${-(1 + 3) * 36}px)`);
+  });
+  it('visibilitychange re-reads the time at once, hidden or visible (Lean refreshNow_shows)', () => {
+    const now = { v: TARGET - 50000 };
+    const timers = new Map<number, () => void>();
+    let id = 0;
+    const env = {
+      raf: () => ++id,
+      caf: () => {},
+      setInterval: (cb: () => void) => (timers.set(++id, cb), id),
+      clearInterval: (h: unknown) => void timers.delete(h as number),
+    };
+    const doc = new EventTarget();
+    const { d, nodes } = mk('faithful', now, true);
+    d.setCell(0, 10);
+    const stop = startFaithful({ clock: createRafClock(env), driver: d, perfNow: () => 0, doc });
+    expect(d.snapshot()[0]).toMatchObject({ target: 0 });
+    now.v += 33000; // the tab slept: the interval did not fire
+    expect(d.snapshot()[0]).toMatchObject({ target: 0 });
+    doc.dispatchEvent(new Event('visibilitychange'));
+    expect(d.snapshot()[0]).toMatchObject({ target: 7, value: 7 });
+    expect(nodes[7]!.style.transform).toBe('translateY(0px)');
+    now.v += 1000;
+    doc.dispatchEvent(new Event('visibilitychange')); // hidden or visible: the same refresh
+    expect(d.snapshot()[0]).toMatchObject({ target: 6 });
+    stop();
+    now.v += 1000;
+    doc.dispatchEvent(new Event('visibilitychange'));
+    expect(d.snapshot()[0]).toMatchObject({ target: 6 }); // listener removed
+    expect(timers.size).toBe(0);
+  });
+  it('onVisibilityChange returns its own cleanup', () => {
+    const doc = new EventTarget();
+    let n = 0;
+    const off = onVisibilityChange(doc, () => n++);
+    doc.dispatchEvent(new Event('visibilitychange'));
+    off();
+    doc.dispatchEvent(new Event('visibilitychange'));
+    expect(n).toBe(1);
   });
   it('tick reports the second change; shape counts digits per unit', () => {
     const now = { v: TARGET - 3000 };
