@@ -6,7 +6,8 @@
   "impls": ["plain"],
   "muiStates": [],
   "variants": {
-    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:3501-3730; assets/2.gBuqKVzi.css:1221-1400" } }
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:3501-3730; assets/2.gBuqKVzi.css:1221-1400" } },
+    "steps": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroAccentOpt", "ledger": "n=15" } }
   },
   "requires": {},
   "conflicts": {}
