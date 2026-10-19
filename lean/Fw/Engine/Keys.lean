@@ -149,6 +149,24 @@ theorem answers_exact (m : RunMeta) (v : String) (hv : v ≠ "hidden-pause") :
     answers m v = true ↔ runKey m = v := by
   simp [answers, hv]
 
+/-- **A part-page run answers only its own key.** The run of the part page `?only=hero` has the key `rewrite+?only=hero`, is no
+`hidden-pause` run, and so answers a variant exactly when that variant is its key.
+
+$$\forall v:\ \operatorname{answers}((\texttt{rewrite}, \texttt{?only=hero}), v) \iff v = \texttt{rewrite+?only=hero}$$
+
+Key branch: `runKey` of the pair is `rewrite+?only=hero`. Alias branch: `hpSearch ?only=hero` is false (it does not start with `?fw=`),
+so `hidden-pause` is not answered. -/
+theorem answers_only_hero (v : String) :
+    answers ⟨"rewrite", "?only=hero"⟩ v = true ↔ v = "rewrite+?only=hero" := by
+  have hk : runKey ⟨"rewrite", "?only=hero"⟩ = "rewrite+?only=hero" := by decide
+  have hp : hpSearch "?only=hero" = false := by decide +kernel
+  simp only [answers, Bool.or_eq_true, beq_iff_eq, Bool.and_eq_true, hk, hp]
+  constructor
+  · rintro (h | ⟨_, h⟩)
+    · exact h.symm
+    · exact absurd h (by simp)
+  · intro h; exact Or.inl h.symm
+
 #guard hpSearch "?fw=engine.scene:hidden-pause"
 #guard hpSearch "?fw=morph.columns:hidden-pause,morph.countdown:hidden-pause"
 #guard !hpSearch "?fw="
@@ -165,14 +183,16 @@ theorem answers_exact (m : RunMeta) (v : String) (hv : v ≠ "hidden-pause") :
 
 /-- The runs of the golden vectors: the default rewrite, the flag runs of task model-checks, a mixed flag set and the original.
 
-$$\mathrm{goldenRuns} = [(\texttt{rewrite}, \varepsilon), (\texttt{rewrite}, \texttt{?fw=morph.tween:waapi}), (\texttt{rewrite}, \texttt{?fw=engine.scene:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=morph.columns:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=morph.countdown:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=engine.scene:hidden-pause,morph.columns:hidden-pause,morph.countdown:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=morph.mount:shift}), (\texttt{rewrite}, \texttt{?fw=hero.countdown:strip,morph.countdown:strip}), (\texttt{rewrite}, \texttt{?fw=nav.hitTest:hit-skip}), (\texttt{rewrite}, \texttt{?fw=nav.hitTest:elements-skip}), (\texttt{rewrite}, \texttt{?fw=engine.scene:hidden-pause,nav.hitTest:hit-skip}), (\texttt{original}, \varepsilon)]$$ -/
+$$\mathrm{goldenRuns} = [(\texttt{rewrite}, \varepsilon), (\texttt{rewrite}, \texttt{?fw=morph.tween:waapi}), (\texttt{rewrite}, \texttt{?fw=engine.scene:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=morph.columns:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=morph.countdown:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=engine.scene:hidden-pause,morph.columns:hidden-pause,morph.countdown:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=morph.mount:shift}), (\texttt{rewrite}, \texttt{?fw=hero.countdown:strip,morph.countdown:strip}), (\texttt{rewrite}, \texttt{?fw=nav.hitTest:hit-skip}), (\texttt{rewrite}, \texttt{?fw=nav.hitTest:elements-skip}), (\texttt{rewrite}, \texttt{?fw=engine.scene:hidden-pause,nav.hitTest:hit-skip}), (\texttt{rewrite}, \texttt{?only=hero}), (\texttt{original}, \varepsilon)]$$
+
+The part-page run `?only=hero` (task counts-only) has the key `rewrite+?only=hero`: `runKey_inj` covers any query, so it answers no other variant and not the base. -/
 def goldenRuns : List RunMeta :=
   [⟨"rewrite", ""⟩, ⟨"rewrite", "?fw=morph.tween:waapi"⟩, ⟨"rewrite", "?fw=engine.scene:hidden-pause"⟩,
    ⟨"rewrite", "?fw=morph.columns:hidden-pause"⟩, ⟨"rewrite", "?fw=morph.countdown:hidden-pause"⟩,
    ⟨"rewrite", "?fw=engine.scene:hidden-pause,morph.columns:hidden-pause,morph.countdown:hidden-pause"⟩,
    ⟨"rewrite", "?fw=morph.mount:shift"⟩, ⟨"rewrite", "?fw=hero.countdown:strip,morph.countdown:strip"⟩,
    ⟨"rewrite", "?fw=nav.hitTest:hit-skip"⟩, ⟨"rewrite", "?fw=nav.hitTest:elements-skip"⟩,
-   ⟨"rewrite", "?fw=engine.scene:hidden-pause,nav.hitTest:hit-skip"⟩, ⟨"original", ""⟩]
+   ⟨"rewrite", "?fw=engine.scene:hidden-pause,nav.hitTest:hit-skip"⟩, ⟨"rewrite", "?only=hero"⟩, ⟨"original", ""⟩]
 
 /-- The row variants of the golden vectors: the base, an exact flag key, the alias, the original.
 

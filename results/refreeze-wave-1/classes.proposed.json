@@ -1,0 +1,4529 @@
+{
+ "schema": "fw.classes.frozen/2",
+ "lane": "chromium-counts (GitHub-hosted ubuntu-24.04-arm), target original and rewrite",
+ "rule": "The signed class of a type is its worst class (deterministic < stable < quarantined) over the workflow runs listed per profile and arm (original = A, rewrite = R); a type missing from a run counts as quarantined there; fewer than 3 workflow runs, a repeated run id or more than one image digest are refused. Each workflow run classifies its jobs (separate VMs) with fwcore measure.classify (re-derived from the run's counts files and equal to its classes artifact); the worst class, k and t (maxima over the workflow runs) and tBound (pixel types, the smallest over the workflow runs) come from fwcore measure.freeze (Lean Fw.Measure.Freeze), written by src/freeze.mjs; role (gate, finding, byDesign) and crossArm (cross-arm level, role and gate list; an arm without the type reads as deterministic) come from Lean Fw.Measure.Arms (measure.freeze rows, measure.arms). pooledClass is the class over all 9 counts files at once (a stricter cross-check, not the signed class).",
+ "policy": {
+  "kMax": 4,
+  "tMax": 24,
+  "pixelRule": {
+   "appliesTo": "types whose name ends in AreaPx",
+   "tBound": "max(tMax, floor(num * min|run total| / den))",
+   "pxRel": {
+    "num": 1,
+    "den": 1000
+   },
+   "source": "lean/Fw/Measure/Classes.lean section \"Pixel-area types\" (task pixel-tolerance)"
+  }
+ },
+ "image": {
+  "id": "sha256:8f0e17f50db9e3ae59f06d12d8b2fd483ba39582999a8469fab4fd8432cff2b0",
+  "builtByRun": "39049264131",
+  "sharedByAllRuns": "every workflow run below reused the artifact of run 39049264131 (workflow input image_run); all 36 jobs report this image id",
+  "baseImage": "node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5",
+  "browser": "chrome-headless-shell 156.0.8078.4, zip sha256 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476",
+  "inputSha256": {
+   "Dockerfile": "c97eaf46b3f9f24a1abf7eb8107e1bcb9482efdf5334cef68da76738a8edeaf7",
+   "docker/apt-manifest.txt": "7db3be0a92eb68def700c371050e1c5d31c3fa3de086a38f674f9e155ff30787",
+   "docker/driver/package-lock.json": "b70ce69f76f83ad9733d4387bd8bab7965af984f73dbd35ceb787a0ae6704ab7"
+  }
+ },
+ "harness": {
+  "commit": "4283c5a1fb4af5861eaa8254890ae9cb8f508bbb",
+  "note": "every workflow run below ran this commit; fwcore was built from it by the same workflow"
+ },
+ "profiles": {
+  "swipe-v1": {
+   "workflowRuns": [
+    "39184638066",
+    "39186469962",
+    "39186477379"
+   ],
+   "arms": {
+    "original": {
+     "workflowRuns": [
+      "39184638066",
+      "39186469962",
+      "39186477379"
+     ],
+     "jobsPerRun": 3,
+     "image": "sha256:8f0e17f50db9e3ae59f06d12d8b2fd483ba39582999a8469fab4fd8432cff2b0",
+     "snapshot": "b1789284481295-a455e793",
+     "servedSha256": "470594be13393f1bfb0d11569cf980213b978b9ad6b1b3376ca33d7ae5a6cf10",
+     "trajectorySha256": "1e3e808b4fa5a3d233b1999f28ec794c3de99f41f8bad6775522063dba84f686",
+     "allImagesEqual": true,
+     "allTrajectoriesEqual": true,
+     "tally": {
+      "deterministic": 33,
+      "stable": 27,
+      "quarantined": 10
+     },
+     "roles": {
+      "byDesign": 1,
+      "finding": 9,
+      "gate": 60
+     },
+     "pooledTally": {
+      "deterministic": 33,
+      "stable": 27,
+      "quarantined": 10
+     },
+     "types": {
+      "census.activeTileAreaPx": {
+       "class": "stable",
+       "k": 2,
+       "t": 475136,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "unit": "px",
+       "tBound": 2810642,
+       "pooledClass": "stable"
+      },
+      "census.activeTiles": {
+       "class": "stable",
+       "k": 2,
+       "t": 9,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.drawingAreaPx": {
+       "class": "stable",
+       "k": 2,
+       "t": 2044920,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "unit": "px",
+       "tBound": 5338842,
+       "pooledClass": "stable"
+      },
+      "census.drawingLayers": {
+       "class": "stable",
+       "k": 3,
+       "t": 4,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.layers": {
+       "class": "stable",
+       "k": 3,
+       "t": 4,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.snapshots": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "census.solidTiles": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "census.tiles": {
+       "class": "stable",
+       "k": 2,
+       "t": 9,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.tilings": {
+       "class": "stable",
+       "k": 1,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "hasDamage": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "metric.Documents": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "metric.Frames": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "metric.JSEventListeners": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "metric.LayoutCount": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "metric.LayoutObjects": {
+       "class": "quarantined",
+       "k": 16,
+       "t": 3,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "metric.Nodes": {
+       "class": "quarantined",
+       "k": 18,
+       "t": 57,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "metric.RecalcStyleCount": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "metric.Resources": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "n0.cssom": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "n0.events": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "n0.sheetNode": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "raster.invalidatedLayers": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "raster.invalidationAreaPx": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "unit": "px",
+       "tBound": 97163,
+       "pooledClass": "stable"
+      },
+      "raster.invalidationRects": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Animation.begin": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Animation.compositeFailedBits": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Animation.instant": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Commit": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.CullRectUpdate": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.DecodeImage": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.DisplayItemListRaster": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.EvaluateScript": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.EventDispatch": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.FireAnimationFrame": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.FunctionCall": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.HitTest": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.HitTest.overlayAdDetector": {
+       "class": "quarantined",
+       "k": 114,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "byDesign",
+       "reason": "browser work on a wall-clock cap (OverlayInterstitialAdDetector::MaybeFireDetection), not page work",
+       "pooledClass": "quarantined"
+      },
+      "trace.ImageDecodeTask": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.IntersectionObserverCompute": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.InvalidateLayout": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Layer.created": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Layer.deleted": {
+       "class": "quarantined",
+       "k": 16,
+       "t": 5,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.Layerize": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Layout": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Layout.dirtyObjects": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Layout.partial": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Layout.totalObjects": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.MajorGC": {
+       "class": "quarantined",
+       "k": 18,
+       "t": 0,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.MinorGC": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.N1.fontUpdateInvalidation": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.N1.scheduleInvalidationsForRuleSets": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.N1.svgImageDocument": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.N1.updateActiveStyleSheets": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Paint": {
+       "class": "quarantined",
+       "k": 6,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.PaintImage": {
+       "class": "stable",
+       "k": 3,
+       "t": 1,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.ParseHTML": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.PrePaint": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.RasterTask": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.RequestAnimationFrame": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.ResizeObserverNotify": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.ResourceSendRequest": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.ScheduleStyleRecalculation": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.ScrollLayer": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.UpdateLayer": {
+       "class": "stable",
+       "k": 2,
+       "t": 3,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.UpdateLayoutTree": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.UpdateLayoutTree.elementCount": {
+       "class": "quarantined",
+       "k": 21,
+       "t": 14,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.cc.Activate": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.cc.Commit": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.cc.Draw": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.cc.SynchronizeTrees": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 2,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "stable"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      }
+     }
+    },
+    "rewrite": {
+     "workflowRuns": [
+      "39184638066",
+      "39186469962",
+      "39186477379"
+     ],
+     "jobsPerRun": 3,
+     "image": "sha256:8f0e17f50db9e3ae59f06d12d8b2fd483ba39582999a8469fab4fd8432cff2b0",
+     "snapshot": "",
+     "servedSha256": "18f339126650ead33fdf4908a9605d3a9c2970df6ec7617962f2a288fa2ffa35",
+     "trajectorySha256": "1e3e808b4fa5a3d233b1999f28ec794c3de99f41f8bad6775522063dba84f686",
+     "allImagesEqual": true,
+     "allTrajectoriesEqual": true,
+     "tally": {
+      "deterministic": 30,
+      "stable": 22,
+      "quarantined": 18
+     },
+     "roles": {
+      "byDesign": 1,
+      "finding": 17,
+      "gate": 52
+     },
+     "pooledTally": {
+      "deterministic": 30,
+      "stable": 20,
+      "quarantined": 20
+     },
+     "types": {
+      "census.activeTileAreaPx": {
+       "class": "stable",
+       "k": 2,
+       "t": 466944,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "unit": "px",
+       "tBound": 2291396,
+       "pooledClass": "stable"
+      },
+      "census.activeTiles": {
+       "class": "stable",
+       "k": 2,
+       "t": 9,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.drawingAreaPx": {
+       "class": "stable",
+       "k": 2,
+       "t": 2044920,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "unit": "px",
+       "tBound": 4937914,
+       "pooledClass": "stable"
+      },
+      "census.drawingLayers": {
+       "class": "stable",
+       "k": 2,
+       "t": 3,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.layers": {
+       "class": "stable",
+       "k": 2,
+       "t": 3,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.snapshots": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "census.solidTiles": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "census.tiles": {
+       "class": "stable",
+       "k": 2,
+       "t": 9,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.tilings": {
+       "class": "stable",
+       "k": 1,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "hasDamage": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "metric.Documents": {
+       "class": "stable",
+       "k": 2,
+       "t": 1,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "metric.Frames": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "metric.JSEventListeners": {
+       "class": "quarantined",
+       "k": 6,
+       "t": 0,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "metric.LayoutCount": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "metric.LayoutObjects": {
+       "class": "quarantined",
+       "k": 12,
+       "t": 6,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "metric.Nodes": {
+       "class": "quarantined",
+       "k": 14,
+       "t": 8,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "metric.RecalcStyleCount": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "metric.Resources": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "n0.cssom": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "n0.events": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "n0.sheetNode": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "raster.invalidatedLayers": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "raster.invalidationAreaPx": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "unit": "px",
+       "tBound": 92732,
+       "pooledClass": "stable"
+      },
+      "raster.invalidationRects": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Animation.begin": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Animation.compositeFailedBits": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Animation.instant": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Commit": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.CullRectUpdate": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.DecodeImage": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.DisplayItemListRaster": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 2,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.EvaluateScript": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.EventDispatch": {
+       "class": "quarantined",
+       "k": 42,
+       "t": 1,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.FireAnimationFrame": {
+       "class": "quarantined",
+       "k": 18,
+       "t": 1,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "deterministic"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.FunctionCall": {
+       "class": "quarantined",
+       "k": 57,
+       "t": 1,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.HitTest": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.HitTest.overlayAdDetector": {
+       "class": "quarantined",
+       "k": 95,
+       "t": 1,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "byDesign",
+       "reason": "browser work on a wall-clock cap (OverlayInterstitialAdDetector::MaybeFireDetection), not page work",
+       "pooledClass": "quarantined"
+      },
+      "trace.ImageDecodeTask": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.IntersectionObserverCompute": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.InvalidateLayout": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 2,
+       "perRun": [
+        "quarantined",
+        "stable",
+        "stable"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.Layer.created": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Layer.deleted": {
+       "class": "quarantined",
+       "k": 14,
+       "t": 1,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.Layerize": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Layout": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 1,
+       "perRun": [
+        "quarantined",
+        "stable",
+        "stable"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.Layout.dirtyObjects": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 2,
+       "perRun": [
+        "quarantined",
+        "stable",
+        "stable"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.Layout.partial": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Layout.totalObjects": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 7,
+       "perRun": [
+        "quarantined",
+        "stable",
+        "stable"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.MajorGC": {
+       "class": "quarantined",
+       "k": 16,
+       "t": 0,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.MinorGC": {
+       "class": "stable",
+       "k": 4,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "quarantined"
+      },
+      "trace.N1.fontUpdateInvalidation": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.N1.scheduleInvalidationsForRuleSets": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.N1.svgImageDocument": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.N1.updateActiveStyleSheets": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Paint": {
+       "class": "quarantined",
+       "k": 6,
+       "t": 4,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.PaintImage": {
+       "class": "stable",
+       "k": 3,
+       "t": 1,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.ParseHTML": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.PrePaint": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.RasterTask": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 2,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.RequestAnimationFrame": {
+       "class": "quarantined",
+       "k": 27,
+       "t": 1,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "deterministic"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.ResizeObserverNotify": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.ResourceSendRequest": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.ScheduleStyleRecalculation": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.ScrollLayer": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.UpdateLayer": {
+       "class": "stable",
+       "k": 2,
+       "t": 3,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.UpdateLayoutTree": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.UpdateLayoutTree.elementCount": {
+       "class": "quarantined",
+       "k": 17,
+       "t": 27,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.cc.Activate": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.cc.Commit": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.cc.Draw": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.cc.SynchronizeTrees": {
+       "class": "stable",
+       "k": 4,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "quarantined"
+      }
+     }
+    }
+   },
+   "crossArm": {
+    "types": {
+     "census.activeTileAreaPx": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "census.activeTiles": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "census.drawingAreaPx": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "census.drawingLayers": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "census.layers": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "census.snapshots": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "census.solidTiles": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "census.tiles": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "census.tilings": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "hasDamage": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "metric.Documents": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "metric.Frames": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "metric.JSEventListeners": {
+      "a": "deterministic",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "metric.LayoutCount": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "metric.LayoutObjects": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "metric.Nodes": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "metric.RecalcStyleCount": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "metric.Resources": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "n0.cssom": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "n0.events": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "n0.sheetNode": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "raster.invalidatedLayers": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "raster.invalidationAreaPx": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "raster.invalidationRects": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.Animation.begin": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.Animation.compositeFailedBits": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.Animation.instant": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.Commit": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.CullRectUpdate": {
+      "a": "stable",
+      "class": "stable",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.DecodeImage": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.DisplayItemListRaster": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.EvaluateScript": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.EventDispatch": {
+      "a": "deterministic",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.FireAnimationFrame": {
+      "a": "deterministic",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.FunctionCall": {
+      "a": "deterministic",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.HitTest": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.HitTest.overlayAdDetector": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "reason": "browser work on a wall-clock cap (OverlayInterstitialAdDetector::MaybeFireDetection), not page work",
+      "role": "byDesign"
+     },
+     "trace.ImageDecodeTask": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.IntersectionObserverCompute": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.InvalidateLayout": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.Layer.created": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.Layer.deleted": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.Layerize": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.Layout": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.Layout.dirtyObjects": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.Layout.partial": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.Layout.totalObjects": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.MajorGC": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.MinorGC": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.N1.fontUpdateInvalidation": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.N1.scheduleInvalidationsForRuleSets": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.N1.svgImageDocument": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.N1.updateActiveStyleSheets": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.Paint": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.PaintImage": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.ParseHTML": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.PrePaint": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.RasterTask": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.RequestAnimationFrame": {
+      "a": "deterministic",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.ResizeObserverNotify": {
+      "a": "stable",
+      "class": "stable",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.ResourceSendRequest": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.ScheduleStyleRecalculation": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.ScrollLayer": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.UpdateLayer": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.UpdateLayoutTree": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.UpdateLayoutTree.elementCount": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.cc.Activate": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.cc.Commit": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.cc.Draw": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.cc.SynchronizeTrees": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "stable",
+      "role": "finding"
+     }
+    },
+    "gates": [
+     "census.activeTileAreaPx",
+     "census.activeTiles",
+     "census.drawingAreaPx",
+     "census.drawingLayers",
+     "census.layers",
+     "census.snapshots",
+     "census.solidTiles",
+     "census.tiles",
+     "census.tilings",
+     "hasDamage",
+     "metric.Documents",
+     "metric.Frames",
+     "metric.LayoutCount",
+     "metric.RecalcStyleCount",
+     "metric.Resources",
+     "n0.cssom",
+     "n0.events",
+     "n0.sheetNode",
+     "raster.invalidatedLayers",
+     "raster.invalidationAreaPx",
+     "raster.invalidationRects",
+     "trace.Animation.begin",
+     "trace.Animation.compositeFailedBits",
+     "trace.Animation.instant",
+     "trace.Commit",
+     "trace.CullRectUpdate",
+     "trace.DecodeImage",
+     "trace.EvaluateScript",
+     "trace.HitTest",
+     "trace.ImageDecodeTask",
+     "trace.IntersectionObserverCompute",
+     "trace.Layer.created",
+     "trace.Layerize",
+     "trace.Layout.partial",
+     "trace.MinorGC",
+     "trace.N1.fontUpdateInvalidation",
+     "trace.N1.scheduleInvalidationsForRuleSets",
+     "trace.N1.svgImageDocument",
+     "trace.N1.updateActiveStyleSheets",
+     "trace.PaintImage",
+     "trace.ParseHTML",
+     "trace.PrePaint",
+     "trace.ResizeObserverNotify",
+     "trace.ResourceSendRequest",
+     "trace.ScheduleStyleRecalculation",
+     "trace.ScrollLayer",
+     "trace.UpdateLayer",
+     "trace.UpdateLayoutTree",
+     "trace.cc.Activate",
+     "trace.cc.Commit",
+     "trace.cc.Draw"
+    ],
+    "roles": {
+     "byDesign": 1,
+     "finding": 18,
+     "gate": 51
+    }
+   }
+  },
+  "swipe-touch-v1": {
+   "workflowRuns": [
+    "39184646781",
+    "39186485136",
+    "39187013275"
+   ],
+   "arms": {
+    "original": {
+     "workflowRuns": [
+      "39184646781",
+      "39186485136",
+      "39187013275"
+     ],
+     "jobsPerRun": 3,
+     "image": "sha256:8f0e17f50db9e3ae59f06d12d8b2fd483ba39582999a8469fab4fd8432cff2b0",
+     "snapshot": "b1789284481295-a455e793",
+     "servedSha256": "470594be13393f1bfb0d11569cf980213b978b9ad6b1b3376ca33d7ae5a6cf10",
+     "trajectorySha256": "5278f46427c1301938f12d3a72be1c56895ac38423fd0a297407f94d924c73f6",
+     "allImagesEqual": true,
+     "allTrajectoriesEqual": false,
+     "tally": {
+      "deterministic": 24,
+      "stable": 35,
+      "quarantined": 11
+     },
+     "roles": {
+      "byDesign": 1,
+      "finding": 10,
+      "gate": 59
+     },
+     "pooledTally": {
+      "deterministic": 24,
+      "stable": 30,
+      "quarantined": 16
+     },
+     "types": {
+      "census.activeTileAreaPx": {
+       "class": "stable",
+       "k": 2,
+       "t": 376832,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "unit": "px",
+       "tBound": 2874855,
+       "pooledClass": "stable"
+      },
+      "census.activeTiles": {
+       "class": "stable",
+       "k": 2,
+       "t": 4,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.drawingAreaPx": {
+       "class": "stable",
+       "k": 2,
+       "t": 2043416,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "unit": "px",
+       "tBound": 5606758,
+       "pooledClass": "stable"
+      },
+      "census.drawingLayers": {
+       "class": "stable",
+       "k": 2,
+       "t": 3,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.layers": {
+       "class": "stable",
+       "k": 3,
+       "t": 4,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.snapshots": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "census.solidTiles": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "census.tiles": {
+       "class": "stable",
+       "k": 2,
+       "t": 4,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.tilings": {
+       "class": "stable",
+       "k": 1,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "hasDamage": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "metric.Documents": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "metric.Frames": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "metric.JSEventListeners": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "metric.LayoutCount": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "metric.LayoutObjects": {
+       "class": "quarantined",
+       "k": 16,
+       "t": 4,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "metric.Nodes": {
+       "class": "quarantined",
+       "k": 22,
+       "t": 44,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "metric.RecalcStyleCount": {
+       "class": "stable",
+       "k": 1,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "metric.Resources": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "n0.cssom": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "n0.events": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "n0.sheetNode": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "raster.invalidatedLayers": {
+       "class": "stable",
+       "k": 4,
+       "t": 10,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "raster.invalidationAreaPx": {
+       "class": "quarantined",
+       "k": 4,
+       "t": 2928252,
+       "perRun": [
+        "quarantined",
+        "stable",
+        "stable"
+       ],
+       "role": "finding",
+       "unit": "px",
+       "tBound": 193521,
+       "pooledClass": "quarantined"
+      },
+      "raster.invalidationRects": {
+       "class": "stable",
+       "k": 4,
+       "t": 19,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Animation.begin": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Animation.compositeFailedBits": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Animation.instant": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Commit": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.CullRectUpdate": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.DecodeImage": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.DisplayItemListRaster": {
+       "class": "stable",
+       "k": 4,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "quarantined"
+      },
+      "trace.EvaluateScript": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.EventDispatch": {
+       "class": "stable",
+       "k": 3,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.FireAnimationFrame": {
+       "class": "stable",
+       "k": 2,
+       "t": 3,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.FunctionCall": {
+       "class": "stable",
+       "k": 3,
+       "t": 6,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.HitTest": {
+       "class": "stable",
+       "k": 4,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "quarantined"
+      },
+      "trace.HitTest.overlayAdDetector": {
+       "class": "quarantined",
+       "k": 90,
+       "t": 1,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "byDesign",
+       "reason": "browser work on a wall-clock cap (OverlayInterstitialAdDetector::MaybeFireDetection), not page work",
+       "pooledClass": "quarantined"
+      },
+      "trace.ImageDecodeTask": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.IntersectionObserverCompute": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.InvalidateLayout": {
+       "class": "stable",
+       "k": 3,
+       "t": 1,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Layer.created": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Layer.deleted": {
+       "class": "quarantined",
+       "k": 17,
+       "t": 5,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.Layerize": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Layout": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Layout.dirtyObjects": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Layout.partial": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Layout.totalObjects": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.MajorGC": {
+       "class": "quarantined",
+       "k": 21,
+       "t": 1,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.MinorGC": {
+       "class": "quarantined",
+       "k": 7,
+       "t": 1,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.N1.fontUpdateInvalidation": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.N1.scheduleInvalidationsForRuleSets": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.N1.svgImageDocument": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.N1.updateActiveStyleSheets": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Paint": {
+       "class": "stable",
+       "k": 4,
+       "t": 1,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "quarantined"
+      },
+      "trace.PaintImage": {
+       "class": "stable",
+       "k": 3,
+       "t": 1,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.ParseHTML": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.PrePaint": {
+       "class": "stable",
+       "k": 4,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "quarantined"
+      },
+      "trace.RasterTask": {
+       "class": "stable",
+       "k": 4,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "quarantined"
+      },
+      "trace.RequestAnimationFrame": {
+       "class": "stable",
+       "k": 1,
+       "t": 3,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.ResizeObserverNotify": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.ResourceSendRequest": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.ScheduleStyleRecalculation": {
+       "class": "stable",
+       "k": 1,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.ScrollLayer": {
+       "class": "stable",
+       "k": 1,
+       "t": 1,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.UpdateLayer": {
+       "class": "quarantined",
+       "k": 3,
+       "t": 47,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.UpdateLayoutTree": {
+       "class": "stable",
+       "k": 1,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.UpdateLayoutTree.elementCount": {
+       "class": "quarantined",
+       "k": 33,
+       "t": 36,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.cc.Activate": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 3,
+       "perRun": [
+        "quarantined",
+        "stable",
+        "stable"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.cc.Commit": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 3,
+       "perRun": [
+        "quarantined",
+        "stable",
+        "stable"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.cc.Draw": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.cc.SynchronizeTrees": {
+       "class": "stable",
+       "k": 4,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      }
+     }
+    },
+    "rewrite": {
+     "workflowRuns": [
+      "39184646781",
+      "39186485136",
+      "39187013275"
+     ],
+     "jobsPerRun": 3,
+     "image": "sha256:8f0e17f50db9e3ae59f06d12d8b2fd483ba39582999a8469fab4fd8432cff2b0",
+     "snapshot": "",
+     "servedSha256": "18f339126650ead33fdf4908a9605d3a9c2970df6ec7617962f2a288fa2ffa35",
+     "trajectorySha256": "5278f46427c1301938f12d3a72be1c56895ac38423fd0a297407f94d924c73f6",
+     "allImagesEqual": true,
+     "allTrajectoriesEqual": true,
+     "tally": {
+      "deterministic": 27,
+      "stable": 26,
+      "quarantined": 17
+     },
+     "roles": {
+      "byDesign": 1,
+      "finding": 17,
+      "gate": 52
+     },
+     "pooledTally": {
+      "deterministic": 27,
+      "stable": 24,
+      "quarantined": 19
+     },
+     "types": {
+      "census.activeTileAreaPx": {
+       "class": "stable",
+       "k": 2,
+       "t": 401408,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "unit": "px",
+       "tBound": 2370670,
+       "pooledClass": "stable"
+      },
+      "census.activeTiles": {
+       "class": "stable",
+       "k": 2,
+       "t": 8,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.drawingAreaPx": {
+       "class": "stable",
+       "k": 2,
+       "t": 2044920,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "unit": "px",
+       "tBound": 5184360,
+       "pooledClass": "stable"
+      },
+      "census.drawingLayers": {
+       "class": "stable",
+       "k": 3,
+       "t": 3,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.layers": {
+       "class": "stable",
+       "k": 3,
+       "t": 3,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.snapshots": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "census.solidTiles": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "census.tiles": {
+       "class": "stable",
+       "k": 2,
+       "t": 8,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "census.tilings": {
+       "class": "stable",
+       "k": 1,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "hasDamage": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "metric.Documents": {
+       "class": "stable",
+       "k": 2,
+       "t": 1,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "metric.Frames": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "metric.JSEventListeners": {
+       "class": "quarantined",
+       "k": 7,
+       "t": 0,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "metric.LayoutCount": {
+       "class": "stable",
+       "k": 4,
+       "t": 1,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "metric.LayoutObjects": {
+       "class": "quarantined",
+       "k": 12,
+       "t": 1,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "metric.Nodes": {
+       "class": "quarantined",
+       "k": 12,
+       "t": 4,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "metric.RecalcStyleCount": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "metric.Resources": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "n0.cssom": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "n0.events": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "n0.sheetNode": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "raster.invalidatedLayers": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 10,
+       "perRun": [
+        "stable",
+        "quarantined",
+        "stable"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "raster.invalidationAreaPx": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 2928252,
+       "perRun": [
+        "stable",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "unit": "px",
+       "tBound": 176212,
+       "pooledClass": "quarantined"
+      },
+      "raster.invalidationRects": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 19,
+       "perRun": [
+        "stable",
+        "quarantined",
+        "stable"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.Animation.begin": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Animation.compositeFailedBits": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Animation.instant": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Commit": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.CullRectUpdate": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.DecodeImage": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.DisplayItemListRaster": {
+       "class": "quarantined",
+       "k": 6,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.EvaluateScript": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.EventDispatch": {
+       "class": "quarantined",
+       "k": 45,
+       "t": 3,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.FireAnimationFrame": {
+       "class": "quarantined",
+       "k": 19,
+       "t": 0,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.FunctionCall": {
+       "class": "quarantined",
+       "k": 60,
+       "t": 8,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.HitTest": {
+       "class": "stable",
+       "k": 4,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.HitTest.overlayAdDetector": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "stable",
+        "stable"
+       ],
+       "role": "byDesign",
+       "reason": "browser work on a wall-clock cap (OverlayInterstitialAdDetector::MaybeFireDetection), not page work",
+       "pooledClass": "stable"
+      },
+      "trace.ImageDecodeTask": {
+       "class": "stable",
+       "k": 3,
+       "t": 2,
+       "perRun": [
+        "deterministic",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.IntersectionObserverCompute": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.InvalidateLayout": {
+       "class": "stable",
+       "k": 4,
+       "t": 3,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Layer.created": {
+       "class": "stable",
+       "k": 2,
+       "t": 0,
+       "perRun": [
+        "stable",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Layer.deleted": {
+       "class": "quarantined",
+       "k": 12,
+       "t": 9,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.Layerize": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Layout": {
+       "class": "stable",
+       "k": 4,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Layout.dirtyObjects": {
+       "class": "quarantined",
+       "k": 5,
+       "t": 6,
+       "perRun": [
+        "stable",
+        "quarantined",
+        "stable"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.Layout.partial": {
+       "class": "stable",
+       "k": 1,
+       "t": 1,
+       "perRun": [
+        "deterministic",
+        "stable",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.Layout.totalObjects": {
+       "class": "quarantined",
+       "k": 4,
+       "t": 60,
+       "perRun": [
+        "stable",
+        "quarantined",
+        "stable"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.MajorGC": {
+       "class": "quarantined",
+       "k": 15,
+       "t": 2,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.MinorGC": {
+       "class": "stable",
+       "k": 2,
+       "t": 1,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.N1.fontUpdateInvalidation": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.N1.scheduleInvalidationsForRuleSets": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.N1.svgImageDocument": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.N1.updateActiveStyleSheets": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.Paint": {
+       "class": "stable",
+       "k": 4,
+       "t": 1,
+       "perRun": [
+        "deterministic",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "quarantined"
+      },
+      "trace.PaintImage": {
+       "class": "stable",
+       "k": 3,
+       "t": 1,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.ParseHTML": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.PrePaint": {
+       "class": "stable",
+       "k": 4,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.RasterTask": {
+       "class": "quarantined",
+       "k": 6,
+       "t": 2,
+       "perRun": [
+        "stable",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.RequestAnimationFrame": {
+       "class": "quarantined",
+       "k": 28,
+       "t": 0,
+       "perRun": [
+        "quarantined",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.ResizeObserverNotify": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.ResourceSendRequest": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.ScheduleStyleRecalculation": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.ScrollLayer": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.UpdateLayer": {
+       "class": "stable",
+       "k": 2,
+       "t": 3,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.UpdateLayoutTree": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.UpdateLayoutTree.elementCount": {
+       "class": "quarantined",
+       "k": 41,
+       "t": 72,
+       "perRun": [
+        "stable",
+        "quarantined",
+        "quarantined"
+       ],
+       "role": "finding",
+       "pooledClass": "quarantined"
+      },
+      "trace.cc.Activate": {
+       "class": "stable",
+       "k": 3,
+       "t": 1,
+       "perRun": [
+        "stable",
+        "stable",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.cc.Commit": {
+       "class": "stable",
+       "k": 3,
+       "t": 1,
+       "perRun": [
+        "stable",
+        "stable",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "stable"
+      },
+      "trace.cc.Draw": {
+       "class": "deterministic",
+       "k": 0,
+       "t": 0,
+       "perRun": [
+        "deterministic",
+        "deterministic",
+        "deterministic"
+       ],
+       "role": "gate",
+       "pooledClass": "deterministic"
+      },
+      "trace.cc.SynchronizeTrees": {
+       "class": "stable",
+       "k": 4,
+       "t": 4,
+       "perRun": [
+        "stable",
+        "stable",
+        "stable"
+       ],
+       "role": "gate",
+       "pooledClass": "quarantined"
+      }
+     }
+    }
+   },
+   "crossArm": {
+    "types": {
+     "census.activeTileAreaPx": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "census.activeTiles": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "census.drawingAreaPx": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "census.drawingLayers": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "census.layers": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "census.snapshots": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "census.solidTiles": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "census.tiles": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "census.tilings": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "hasDamage": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "metric.Documents": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "metric.Frames": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "metric.JSEventListeners": {
+      "a": "deterministic",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "metric.LayoutCount": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "metric.LayoutObjects": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "metric.Nodes": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "metric.RecalcStyleCount": {
+      "a": "stable",
+      "class": "stable",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "metric.Resources": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "n0.cssom": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "n0.events": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "n0.sheetNode": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "raster.invalidatedLayers": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "raster.invalidationAreaPx": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "raster.invalidationRects": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.Animation.begin": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.Animation.compositeFailedBits": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.Animation.instant": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.Commit": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.CullRectUpdate": {
+      "a": "stable",
+      "class": "stable",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.DecodeImage": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.DisplayItemListRaster": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.EvaluateScript": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.EventDispatch": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.FireAnimationFrame": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.FunctionCall": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.HitTest": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.HitTest.overlayAdDetector": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "stable",
+      "reason": "browser work on a wall-clock cap (OverlayInterstitialAdDetector::MaybeFireDetection), not page work",
+      "role": "byDesign"
+     },
+     "trace.ImageDecodeTask": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.IntersectionObserverCompute": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.InvalidateLayout": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.Layer.created": {
+      "a": "deterministic",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.Layer.deleted": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.Layerize": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.Layout": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.Layout.dirtyObjects": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.Layout.partial": {
+      "a": "deterministic",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.Layout.totalObjects": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.MajorGC": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.MinorGC": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "stable",
+      "role": "finding"
+     },
+     "trace.N1.fontUpdateInvalidation": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.N1.scheduleInvalidationsForRuleSets": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.N1.svgImageDocument": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.N1.updateActiveStyleSheets": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.Paint": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.PaintImage": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.ParseHTML": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.PrePaint": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     },
+     "trace.RasterTask": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.RequestAnimationFrame": {
+      "a": "stable",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.ResizeObserverNotify": {
+      "a": "stable",
+      "class": "stable",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.ResourceSendRequest": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.ScheduleStyleRecalculation": {
+      "a": "stable",
+      "class": "stable",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.ScrollLayer": {
+      "a": "stable",
+      "class": "stable",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.UpdateLayer": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "stable",
+      "role": "finding"
+     },
+     "trace.UpdateLayoutTree": {
+      "a": "stable",
+      "class": "stable",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.UpdateLayoutTree.elementCount": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "quarantined",
+      "role": "finding"
+     },
+     "trace.cc.Activate": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "stable",
+      "role": "finding"
+     },
+     "trace.cc.Commit": {
+      "a": "quarantined",
+      "class": "quarantined",
+      "r": "stable",
+      "role": "finding"
+     },
+     "trace.cc.Draw": {
+      "a": "deterministic",
+      "class": "deterministic",
+      "r": "deterministic",
+      "role": "gate"
+     },
+     "trace.cc.SynchronizeTrees": {
+      "a": "stable",
+      "class": "stable",
+      "r": "stable",
+      "role": "gate"
+     }
+    },
+    "gates": [
+     "census.activeTileAreaPx",
+     "census.activeTiles",
+     "census.drawingAreaPx",
+     "census.drawingLayers",
+     "census.layers",
+     "census.snapshots",
+     "census.solidTiles",
+     "census.tiles",
+     "census.tilings",
+     "hasDamage",
+     "metric.Documents",
+     "metric.Frames",
+     "metric.LayoutCount",
+     "metric.RecalcStyleCount",
+     "metric.Resources",
+     "n0.cssom",
+     "n0.events",
+     "n0.sheetNode",
+     "trace.Animation.begin",
+     "trace.Animation.compositeFailedBits",
+     "trace.Animation.instant",
+     "trace.Commit",
+     "trace.CullRectUpdate",
+     "trace.DecodeImage",
+     "trace.EvaluateScript",
+     "trace.HitTest",
+     "trace.ImageDecodeTask",
+     "trace.IntersectionObserverCompute",
+     "trace.InvalidateLayout",
+     "trace.Layer.created",
+     "trace.Layerize",
+     "trace.Layout",
+     "trace.Layout.partial",
+     "trace.N1.fontUpdateInvalidation",
+     "trace.N1.scheduleInvalidationsForRuleSets",
+     "trace.N1.svgImageDocument",
+     "trace.N1.updateActiveStyleSheets",
+     "trace.Paint",
+     "trace.PaintImage",
+     "trace.ParseHTML",
+     "trace.PrePaint",
+     "trace.ResizeObserverNotify",
+     "trace.ResourceSendRequest",
+     "trace.ScheduleStyleRecalculation",
+     "trace.ScrollLayer",
+     "trace.UpdateLayoutTree",
+     "trace.cc.Draw",
+     "trace.cc.SynchronizeTrees"
+    ],
+    "roles": {
+     "byDesign": 1,
+     "finding": 21,
+     "gate": 48
+    }
+   }
+  }
+ }
+}

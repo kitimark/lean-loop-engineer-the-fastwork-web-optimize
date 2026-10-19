@@ -273,7 +273,7 @@ export function nextAlerts(reply: NextReply): { code: string; subject: string; d
 }
 
 // ---- observation (I/O) ----
-const exec = (cmd: string, args: string[], cwd?: string, timeout = 5000): Promise<string | null> =>
+const exec = (cmd: string, args: string[], cwd?: string, timeout = Number(process.env.FW_EXEC_TIMEOUT_MS) || 5000): Promise<string | null> =>
   new Promise((res) => {
     try { execFile(cmd, args, { cwd, timeout, maxBuffer: 8_000_000 }, (err, out) => res(err ? null : String(out))); } catch { res(null); }
   });

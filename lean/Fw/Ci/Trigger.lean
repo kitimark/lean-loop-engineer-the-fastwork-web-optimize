@@ -164,6 +164,7 @@ G_{1} &= [\texttt{packages/gate-breakpoints/**}, \texttt{apps/site/**}, \texttt{
 &\quad \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \texttt{package.json}, \texttt{pnpm-lock.yaml}, \\
 &\quad \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/gate-shards.mjs}, \texttt{.github/scripts/gate-jobs.mjs}, \texttt{.github/scripts/cache-key.mjs}, \\
 &\quad \texttt{packages/contracts/golden/gate/schedule.jsonl}, \texttt{packages/contracts/golden/ops/cache.jsonl}, \texttt{.github/scripts/gate-smoke.mjs}, \texttt{.github/scripts/merge-gate.mjs}, \\
+&\quad \texttt{.github/scripts/gate-search.mjs}, \texttt{.github/scripts/gate-search.test.mjs}, \texttt{packages/contracts/golden/gate/search.jsonl}, \\
 &\quad \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \\
 &\quad \texttt{.github/actions/gate-engine/**}, \operatorname{own}(\texttt{breakpoint-gate.yml})] \\
 w_{2} &= (\texttt{chromium-counts.yml}, B, G_{2}) \\
@@ -185,7 +186,7 @@ G_{5} &= [\texttt{packages/gate-breakpoints/**}, \texttt{apps/site/**}, \texttt{
 &\quad \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \operatorname{own}(\texttt{gate-gaps.yml})] \\
 w_{6} &= (\texttt{lean.yml}, B, G_{6}) \\
 G_{6} &= [\texttt{lean/**}, \texttt{apps/site/src/breakpoints.gen.json}, \texttt{apps/site/src/sweeps.gen.json}, \texttt{scripts/span.sh}, \\
-&\quad \texttt{scripts/fwcore-build.sh}, \texttt{packages/contracts/golden/gate/sweeps.jsonl}, \texttt{packages/contracts/golden/gate/exit.jsonl}, \\
+&\quad \texttt{scripts/fwcore-build.sh}, \texttt{packages/contracts/golden/gate/sweeps.jsonl}, \texttt{packages/contracts/golden/gate/exit.jsonl}, \texttt{packages/contracts/golden/gate/search.jsonl}, \\
 &\quad \texttt{packages/gate-breakpoints/src/scope.gen.json}, \texttt{packages/contracts/golden/parts/contracts.gen.json}, \texttt{packages/contracts/golden/parts/stage.jsonl}, \\
 &\quad \texttt{packages/measure-chromium/scenarios.gen.json}, \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \\
 &\quad \texttt{.github/scripts/runner-info.sh}, \operatorname{own}(\texttt{lean.yml})] \\
@@ -233,6 +234,7 @@ def table : List Wf := [
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/gate-shards.mjs",
     ".github/scripts/gate-jobs.mjs", ".github/scripts/gate-jobs.test.mjs", ".github/scripts/cache-key.mjs", "packages/contracts/golden/gate/schedule.jsonl",
     "packages/contracts/golden/gate/shards.jsonl", "packages/contracts/golden/gate/exit.jsonl",
+    "packages/contracts/golden/gate/search.jsonl", ".github/scripts/gate-search.mjs", ".github/scripts/gate-search.test.mjs",
     "packages/contracts/golden/ops/cache.jsonl", ".github/scripts/gate-smoke.mjs", ".github/scripts/merge-gate.mjs",
     ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
     ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**", own "breakpoint-gate.yml"]⟩,
@@ -256,7 +258,7 @@ def table : List Wf := [
     ".github/actions/setup-pnpm/**", own "gate-gaps.yml"]⟩,
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "scripts/span.sh",
-    "scripts/fwcore-build.sh", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl",
+    "scripts/fwcore-build.sh", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/search.jsonl",
     "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
     "packages/contracts/golden/parts/stage.jsonl", "packages/measure-chromium/scenarios.gen.json",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh",

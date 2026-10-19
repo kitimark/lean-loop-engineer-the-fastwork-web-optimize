@@ -8,8 +8,8 @@ import { variantKeys } from '../../../apps/runner/src/engine-check.ts';
 
 const golden = readFileSync(new URL('../golden/keys.jsonl', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
 
-test('the golden has 72 vectors, one per (run, variant)', () => {
-  assert.equal(golden.length, 72);
+test('the golden has 78 vectors, one per (run, variant)', () => {
+  assert.equal(golden.length, 78);
 });
 
 test('runKey and answers equal every Lean golden vector', () => {
