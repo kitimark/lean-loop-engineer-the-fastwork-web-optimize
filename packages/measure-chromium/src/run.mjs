@@ -153,7 +153,7 @@ const observed = observedSize(SEARCH, { w: geo.innerW, h: geo.innerH }, { w: geo
 if (!viewportGate(SEARCH, profileSize, { w: geo.innerW, h: geo.innerH }, { w: geo.clientW, h: geo.clientH })) {
   throw new Error(`viewport not faithful: the page reports ${observed.w}x${observed.h} (scrollWidth ${geo.scrollW}, scale ${geo.scale}), the profile ${profile.viewport.width}x${profile.viewport.height}; the run is refused`);
 }
-const maxScroll = geo.docH - geo.innerH;
+const maxScroll = geo.docH - observed.h;
 if (process.env.FW_PROBE === '1') { // debugging only: which input events reach the page
   await ev(`window.__probe = {}; for (const t of ['touchstart','touchmove','touchend','pointerdown','pointermove','pointerup','pointercancel','scroll','mousemove','click','wheel']) addEventListener(t, (e) => { __probe[t] = (__probe[t]||0)+1; }, { capture: true, passive: true }); 0`);
 }
