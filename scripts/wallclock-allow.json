@@ -120,6 +120,16 @@
    "file": "packages/measure-webkit/test/watchdog.test.mjs",
    "text": "timeout: 20000",
    "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/site/src/footprint.test.ts",
+   "text": "timeout: 60_000",
+   "reason": "hang catcher, not a speed assertion: spawns a generator or scans the tracked tree; 5 s default timed out at load 200 and refused 3 lands on 2026-10-19"
+  },
+  {
+   "file": "apps/site/src/svg-extract.test.ts",
+   "text": "timeout: 60_000",
+   "reason": "hang catcher, not a speed assertion: spawns a generator or scans the tracked tree; 5 s default timed out at load 200 and refused 3 lands on 2026-10-19"
   }
  ]
 }
