@@ -27,11 +27,11 @@ inductive Tab where
   | posts | services | reviews | about
   deriving DecidableEq, Repr
 
-/-- The tab of an id string; any other string falls to about (JS 10720). $$\operatorname{tab}(s)$$ -/
+/-- The tab of an id string; any other string falls to about (JS 10720). $$\operatorname{tab}(s) = \begin{cases}\text{posts} & s = \texttt{"posts"}\\ \text{services} & s = \texttt{"services"}\\ \text{reviews} & s = \texttt{"reviews"}\\ \text{about} & \text{otherwise}\end{cases}$$ -/
 def tabOf (s : String) : Tab :=
   if s = "posts" then .posts else if s = "services" then .services else if s = "reviews" then .reviews else .about
 
-/-- The wire id of a tab. $$\operatorname{id}(t)$$ -/
+/-- The wire id of a tab. $$\operatorname{id}(\text{posts}) = \texttt{"posts"},\ \operatorname{id}(\text{services}) = \texttt{"services"},\ \operatorname{id}(\text{reviews}) = \texttt{"reviews"},\ \operatorname{id}(\text{about}) = \texttt{"about"}$$ -/
 def Tab.id : Tab → String
   | .posts => "posts"
   | .services => "services"
@@ -68,7 +68,7 @@ def filterIds (ss : List Svc) : List String :=
   "all" :: (ss.filter (fun s => 0 < s.reviewCount)).map Svc.id
 
 /-- The filter ids number one plus the services with reviews.
-$$|\mathrm{filterIds}(S)| = 1 + |\{s \in S : s.\mathrm{reviewCount} > 0\}|$$ -/
+$$|\mathrm{filterIds}(S)| = 1 + \bigl|[\,s \in S : s.\mathrm{reviewCount} > 0\,]\bigr|$$ -/
 theorem filterIds_length (ss : List Svc) : (filterIds ss).length = 1 + (ss.filter (fun s => 0 < s.reviewCount)).length := by
   unfold filterIds
   simp [Nat.add_comm]
@@ -103,7 +103,7 @@ theorem shown_mem (f : String) (rs : List String) (hf : f ≠ "all") (r : String
 /-! ## Faces -/
 
 /-- The authors with a not yet seen avatar, first occurrence kept (JS 6500-6503).
-$$\operatorname{dedup}(L)$$ -/
+$$\operatorname{dedup}(L) = [\,L_i \mid 0 \le i < |L|,\ L_i \notin \{L_0, \dots, L_{i-1}\}\,]$$ -/
 def dedup (l : List String) : List String := l.eraseDups
 
 /-- The avatars drawn: the first three distinct ones (JS 10498). $$\operatorname{faces}(L) = \operatorname{take}_3(\operatorname{dedup}(L))$$ -/
@@ -132,7 +132,7 @@ inductive Verdict where
   | excellent | veryGood | good | fair | poor
   deriving DecidableEq, Repr
 
-/-- The verdict of a score. $$\operatorname{verdict}(x)$$ is excellent for $x \ge 4.5$, very good for $x \ge 4$, good for
+/-- The verdict of a score. $$\operatorname{verdict}(x) = \begin{cases}\text{excellent} & x \ge \tfrac92\\ \text{veryGood} & 4 \le x < \tfrac92\\ \text{good} & \tfrac72 \le x < 4\\ \text{fair} & \tfrac52 \le x < \tfrac72\\ \text{poor} & x < \tfrac52\end{cases},\quad x \in \mathbb{Q}$$ is excellent for $x \ge 4.5$, very good for $x \ge 4$, good for
 $x \ge 3.5$, fair for $x \ge 2.5$, else poor. -/
 def verdict (x : Rat) : Verdict :=
   if 9 / 2 ≤ x then .excellent else if 4 ≤ x then .veryGood else if 7 / 2 ≤ x then .good else if 5 / 2 ≤ x then .fair else .poor
@@ -173,7 +173,7 @@ theorem filled_five : filled 5 4 = true ∧ filled (9 / 2) 4 = true ∧ filled (
 
 /-- The monogram of a name when no logo exists (JS 6478-6485 `ZD`): the first letter, upper-cased, of the first two
 whitespace-separated words that start with a letter or digit. ASCII letters and digits only (an accepted limit: every name
-in the data is ASCII, a TS test checks it). $$\operatorname{initials}(n)$$ -/
+in the data is ASCII, a TS test checks it). $$\operatorname{initials}(n) = [\,\operatorname{upper}(w_0) \mid w \in \operatorname{take}_2([\,w \in \operatorname{split}_{\mathrm{ws}}(n) : w \ne [\,],\ w_0 \text{ ASCII alphanumeric}\,])\,]$$ -/
 def initials (name : String) : String :=
   let ws : List (List Char) := (name.split Char.isWhitespace).toList.map (fun w => w.copy.toList)
   let ks : List (List Char) := ws.filter (fun w => match w with | c :: _ => c.isAlphanum | [] => false)
@@ -206,7 +206,7 @@ structure AboutLens where
   deriving DecidableEq, Repr
 
 /-- The section ids shown, in template order (JS 6551, 6676-6678, 6752-6754, 6788-6790, 6816-6818).
-$$\mathrm{sections}(a)$$ -/
+$$\mathrm{sections}(a) = [\text{experience}] \mathbin{+\!\!+} [\text{education} \mid a.\mathrm{education} > 0] \mathbin{+\!\!+} [\text{skills}] \mathbin{+\!\!+} [\text{certificates} \mid a.\mathrm{certificates} > 0] \mathbin{+\!\!+} [\text{languages} \mid a.\mathrm{languages} > 0] \mathbin{+\!\!+} [\text{awards} \mid a.\mathrm{awards} > 0]$$ -/
 def sections (a : AboutLens) : List String :=
   ["experience"] ++ (if 0 < a.education then ["education"] else []) ++ ["skills"] ++
     (if 0 < a.certificates then ["certificates"] else []) ++ (if 0 < a.languages then ["languages"] else []) ++
