@@ -36,8 +36,9 @@ export function bodyText(html: string): string {
  *  open incidents are those of the summary (it lists only unresolved ones) that touch a kept component. */
 export function parseGhSummary(json: unknown): Omit<GhSnap, "prevDegraded"> {
   if (!isObj(json) || !Array.isArray(json.components)) return { ...GH_UNKNOWN };
+  const comps: unknown[] = json.components;
   const state = (name: string): string => {
-    const c = json.components.find((x): x is Record<string, unknown> => isObj(x) && x.name === name);
+    const c = comps.find((x): x is Record<string, unknown> => isObj(x) && x.name === name);
     return c && typeof c.status === "string" && STATES.has(c.status) ? c.status : "unknown";
   };
   const incidents: GhIncident[] = [];
