@@ -1,6 +1,6 @@
 // The document head, the html attributes, the locale links and the countdown label equal the snapshot's on every entry
 // head.gen.json declares (read at test time). Declared differences: the content-security policy, analytics.js, the tag
-// manager, the Cloudflare beacon and the preload hints.
+// manager, the Cloudflare beacon, the modulepreload hints, and the stylesheets and inline styles (owned by the CSS lanes).
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -14,12 +14,17 @@ const key = (e: unknown) => JSON.stringify(e);
 const declared = (gen.entries as { tag: string; attrs: string[][]; text: string }[]).map((e) => normEntry(e));
 type Entry = ReturnType<typeof normEntry>;
 
+type Raw = { tag: string; attrs: string[][] };
+const attr = (e: Raw, k: string) => e.attrs.find(([n]) => n === k)?.[1];
+const EXCLUDED = (e: Raw) =>
+  attr(e, 'http-equiv')?.toLowerCase() === 'content-security-policy' || ['modulepreload', 'stylesheet'].includes(attr(e, 'rel') ?? '');
+const kept = (html: string) => (parseHead(html) as Entry[]).filter((e) => !EXCLUDED(e));
+
 const page = `<!doctype html><html ${htmlAttrs(gen)}><head>${renderHead(gen)}</head><body></body></html>`;
 
 describe('document head', () => {
-  it('every declared entry is in the snapshot head', () => {
-    const have = (parseHead(snapshot) as Entry[]).map(key);
-    for (const e of declared) expect(have, key(e)).toContain(key(e));
+  it('the snapshot head, minus the excluded entries, is the declared list in order', () => {
+    expect(kept(snapshot).map(key)).toEqual(declared.map(key));
   });
 
   it('the rendered head holds exactly the declared entries', () => {
@@ -30,9 +35,7 @@ describe('document head', () => {
   const hasBuild = existsSync(built);
   it.skipIf(!hasBuild)('the built dist/aot head equals the declared entries', () => {
     const html = readFileSync(built, 'utf8');
-    const declaredKeys = new Set(declared.map(key));
-    const got = (parseHead(html) as Entry[]).map(key).filter((k) => declaredKeys.has(k));
-    expect(got).toEqual(declared.map(key));
+    expect(kept(html).map(key)).toEqual(declared.map(key));
     expect(parseHtmlAttrs(html)).toEqual(gen.html);
   });
 
@@ -45,8 +48,7 @@ describe('document head', () => {
     expect(html.split('site-locale-links').length - 1).toBe(1);
     expect(html).toContain(nav);
     expect(navAt).toBeGreaterThan(rootAt);
-    expect(html.slice(rootAt, navAt)).toMatch(/<\/div>\s*$/);
-    expect(html.slice(navAt + nav.length)).not.toMatch(/<(nav|header|main|div|section)\b/);
+    expect(html.slice(navAt + nav.length)).toMatch(/^\s*(<script\b[^>]*>[\s\S]*?<\/script>\s*)*<\/body>\s*<\/html>\s*$/);
   });
 
   it('html attributes equal the snapshot', () => {
@@ -63,6 +65,18 @@ describe('document head', () => {
     }));
     expect(links.length).toBe(3);
     expect(gen.locales.map((l) => ({ code: l.code, href: l.href, label: l.label }))).toEqual(links);
+  });
+
+  it.skipIf(!hasBuild)('the built nav declarations equal the snapshot .site-locale-links rule', () => {
+    const html = readFileSync(built, 'utf8');
+    const rule = /\.site-locale-links\{([^}]*)\}/.exec(snapshot)?.[1];
+    expect(rule).toBeTruthy();
+    expect(/<nav class="site-locale-links"[^>]*style="([^"]*)"/.exec(html)?.[1]).toBe(rule);
+  });
+
+  it.skipIf(!hasBuild)('the built countdown carries the snapshot label', () => {
+    const html = readFileSync(built, 'utf8');
+    expect(html).toContain(`role="timer" aria-live="off" aria-label="${gen.countdownAriaLabel}"`);
   });
 
   it('the countdown label equals the snapshot and the part', () => {
