@@ -30,6 +30,15 @@ Chromium, unregistered (inherited) property:
   style callbacks, variable references or declarations, links, applied text decorations.
 - A `display: none` element resolves but stores no style, so its children are not visited
   (element.cc:5713,5734-5735@f842f52).
+- The counter: a resolution is counted by `IncStyleForElementCount`
+  (third_party/blink/renderer/core/css/resolver/style_resolver.cc:1362-1364 via :1442@f842f52), and
+  `UpdateLayoutTree.elementCount` is that count after the pass minus before it
+  (third_party/blink/renderer/core/dom/document.cc:2822,2856-2857@f842f52). The clone path (element.cc:5698-5702@f842f52)
+  never reaches it, so `crFull` counts resolutions, not clones.
+
+Restyle units are validated only as between-arm deltas. No task may cite an absolute Restyle unit (`crFull`,
+`crScoped`, `wkFull`, `wkScoped`) as measured elementCount until the per-pass follow-up (chromium-per-pass-elementcount)
+lands.
 
 Chromium, registered with `inherits: false`: a non-inherited diff is `kInherited` only if a child declares `inherit`
 for a non-inherited property (computed_style.cc:466-468@f842f52, set in
@@ -63,7 +72,9 @@ Narrow is ≤ 600 px (orbit hidden), wide is above (deck hidden).
 Golden: `packages/contracts/golden/parts/hero.exit.scoped.json` holds:
 - the reader list, the inherit rules and the stage defaults;
 - both flagged trees and the units per tree and engine;
-- the per-frame write set and the zone totals (94 frames, narrow Chromium 9306 faithful, 846 scoped).
+- the per-frame write set and a model `zone`: the swipe-v1 frame window 10-103 (94 frames, 93 of them exit-write
+  frames). Its totals (narrow Chromium 9306 faithful, 846 scoped) are model products; no measured sum is compared with
+  them.
 
 `apps/site/src/parts/hero.exit/scoped.test.ts` derives the flags from the CSS. It runs the cascade (layers, media,
 specificity, inline style) over the SSR DOM at 15 widths and checks:
@@ -77,40 +88,66 @@ Reader coverage and allowlist identity come from this test, not from a Lean hypo
 
 ## Measured
 
-All values below are MEASURED. Setup:
+Values below are MEASURED unless a row or sentence says INFERRED. Setup:
 - Workflow chromium-counts on `ci/exit-scoped-var` at fad89503, target rewrite, 3 runs per arm.
 - One image, reused from run 39049264131.
 - The variant was read from `meta.rewrite.config.variants` (`hero.exit: scoped`, every other part faithful).
 
-The counter is `UpdateLayoutTree.elementCount` summed over frames 10-103:
+The counter is `UpdateLayoutTree.elementCount` per frame. `counts.json` holds per-frame sums over the frame's passes
+(packages/measure-chromium/src/trace.mjs:21), so no artifact splits a frame by pass or by writer.
 
-| profile | base run | base zone | scoped run | scoped zone | Δ | per-frame median base → scoped |
-|---|---|---|---|---|---|---|
-| swipe-v1 | 39314368756 | 13145 (r1-r3) | 39314340270 | 4730 (r1-r3) | -8415 (-64%) | 136 → 45 |
-| swipe-touch-v1 | 39314380116 | 12035-12036 | 39314355168 | 4328 (r1-r3) | -7707 (-64%) | 136 → 45 |
+The exit range is defined by scrollY, not by frame index:
+- The last exit-write frame is swipe n=103 (scrollY 940) and touch n=111 (scrollY 939). From scrollY ≈ 950 on
+  (swipe n=104 at 950, touch n=112 at 949) the written value no longer changes and Δ is 0 in every run.
+- Exit-write frames (Δ ≠ 0): 93 per run, swipe n 11-103 and touch n 14-90 and 96-111.
+- Δ is 0 in the first frame of each scroll segment (swipe n=10, touch n=13 and n=95) and in the touch frames that hold
+  scrollY 774 (n 91-94). The faithful driver writes in the part's own rAF, one frame after the scroll
+  (`mountExit` in apps/site/src/parts/hero.exit/driver.ts); the lag is INFERRED from that code and these frames.
 
-Per frame (swipe, both arms):
-- Frames 0-9 are equal in both arms.
-- Frame 10 is 122 in both arms.
-- Frames 13-23: 136 → 46 (Δ 90).
-- Frames 27 on: 136 → 45 (Δ 91).
+Sums over the exit range (first scroll frame to the last frame below scrollY 950), MEASURED, all 3 runs per arm:
+
+| profile | base run | scoped run | window | base sum | scoped sum | Δ | median per write frame |
+|---|---|---|---|---|---|---|---|
+| swipe-v1 | 39314368756 | 39314340270 | n 10-103 | 13145 | 4730 | 8415 (-64.0%) | 136 → 45 |
+| swipe-touch-v1 | 39314380116 | 39314355168 | n 13-111 | 13218-13219 | 4825 | 8393-8394 (-63.5%) | 136 → 46 |
+
+The earlier window n 10-103 truncates the touch exit range: it leaves out the 8 write frames n 104-111 (touch sums
+12035-12036 → 4328). Whole-run Δ is 8395-8417 on touch and 8338-8406 on swipe. These sums are not set against the
+golden `zone` totals (see Proved).
 
 Model against measurement (phone width, narrow tree):
 
 | quantity | value | status |
 |---|---|---|
-| Δ per frame | model 90, measured 90-91 | PROVED vs MEASURED |
-| scoped frame: exit writer | 9 | PROVED (model) |
-| scoped frame: other writers | 45 − 9 = 36 | MEASURED difference |
-| faithful frame | model 99 + 36 = 135, measured 136 | PROVED + MEASURED |
+| Δ per exit-write frame | model 90 (`narrow_delta`). Measured 90-91 in every write frame except one per profile at scrollY ≈ 890 (swipe n=98, touch n=106, Δ 56 in all runs) and touch r2 n=79 (Δ 92: base 138, where r1 and r3 give 137). Frames without a write (touch 91-95) have Δ 0 | PROVED vs MEASURED |
+| other writers, exit silent | swipe n 104-131 (scrollY 950-1220): median 43 in both arms; touch n 112-139 (scrollY 949-1219): median 44 in both arms; 3 `UpdateLayoutTree` passes per frame against 4 in the exit range | MEASURED |
+| other writers, later windows | frames 132-200: median 130 (swipe base, touch both arms) and 131 (swipe scoped), range 43-137 with the exit writer silent, so the other writers vary by window | MEASURED |
+| per-writer split of a write frame | not measured, INFERRED bounds only: the other writers' share is 36 if the model's 9 is the exit share (scoped median 45 minus 9), or 43/44 if they cost in the exit range what they cost in the silent window | INFERRED |
 
-The per-writer split assumes that the other writers' share is the same in both arms. The harness has no per-pass
-trace dump, so that share is not measured on its own.
+The Δ 56 frame. Each profile's Δ 56 frame is the first frame past the driver's `pointer-events: none` threshold:
+- The driver sets the hero's `pointer-events` to `none` once opacity < 0.05 (`POINTER_OFF_BELOW` in
+  apps/site/src/parts/hero.exit/logic.ts, written at driver.ts:25).
+- With the 932 px exit range that is scrollY > 885.4. The frames before it are at 880 (swipe) and 879 (touch); the Δ 56
+  frames are at 890 and 889.
+- `pointer-events` is an independent inherited property
+  (third_party/blink/renderer/core/css/css_properties.json5:5316-5320@f842f52).
+- In the faithful arm the frame is 142 (swipe) and 141 (touch), the same as its neighbours: the change rides in the
+  pass the exit write already runs. In the scoped arm it is 86 and 85 against 51 in its neighbours, 34-35 more.
+- The timing is MEASURED and matches the source threshold. The mechanism (a one-time inherited write on the stage that
+  the scoped arm pays for and the faithful arm absorbs) is INFERRED. The extra 34-35 is not derived: a walk of the
+  narrow tree under the `Fw.Engine.Restyle` clone rule gives 75 resolutions for an independent-inherited change, not 44.
+  This frame is an accepted limit (see Limits).
+
+Pseudo-style premise. apps/site/src/styles/reset.css:52-54 (`*, *::before, *::after`) matches every element, hero
+elements included. Whether Chromium resolves, and so counts, a `::before`/`::after` style with `content: normal` for
+them is not source-checked. The measured Δ of 90 (one count per modelled element) suggests that no pseudo resolutions
+are counted (INFERRED).
 
 Other counters:
-- Whole-run elementCount drops by the same amount: swipe 44128-44182 → 35776-35790, touch 48526-48528 →
-  40109-40133.
-- `UpdateLayoutTree` passes (391 swipe, 365 touch) and zone `Layout.dirtyObjects` stay the same within 2.
+- Whole-run elementCount drops by about the exit-range amount: swipe 44128-44182 → 35776-35790 (Δ 8338-8406), touch
+  48526-48528 → 40109-40133 (Δ 8395-8417).
+- Over the exit range, `UpdateLayoutTree` passes (391 swipe, 398 touch) are equal in both arms and
+  `Layout.dirtyObjects` (3576-3578 swipe, 3717-3719 touch) stays the same within 2.
 
 Breakpoint gate:
 - Run 39314391342 (`fw=hero.exit:scoped`) passes every hero.exit cell in Chromium and WebKit.
@@ -123,10 +160,19 @@ Breakpoint gate:
 ## Limits
 
 - `UpdateLayoutTree.elementCount` is a quarantined counter. On the admitted counters the win is proved-unmeasured
-  unless the lead admits the zone-restricted count.
+  unless the lead admits the exit-range count.
 - The WebKit win is source-only (`wk_units`); no WebKit lane counts restyled elements.
 - The flags come from the SSR DOM and its CSS. Runtime state is not modelled:
   - a running animation sets `s` at run time;
   - the test's specificity is an approximation of the cascade.
-- The split between exit and other writers is inferred (see above).
+- The per-writer split needs a per-pass elementCount dump; `counts.json` holds per-frame sums
+  (packages/measure-chromium/src/trace.mjs:21). The split is therefore not measured; the table gives INFERRED bounds
+  only. Under the 43/44 bound the exit share would be about 2 (scoped) and 93 (faithful) against the model's 9 and 99.
+  That about 7 nodes sit in the other writers (a pass shared with the exit write, or a writer that costs less while
+  the hero is on screen) is an INFERRED hypothesis only. The per-pass dump and this 7-node question are the follow-up
+  task chromium-per-pass-elementcount.
+- Restyle units are validated only as between-arm deltas; no per-arm share is measured on this harness.
+- One frame per profile at scrollY ≈ 890 (swipe n=98, touch n=106) has Δ 56. Its timing matches the one-time
+  `pointer-events: none` write; the scoped arm's extra 34-35 there is not derived from the model.
+- The pseudo-style path is not source-checked (see Pseudo-style premise).
 - A future reader outside the chain classes would see the guaranteed-invalid value. `scoped.test.ts` fails on it.

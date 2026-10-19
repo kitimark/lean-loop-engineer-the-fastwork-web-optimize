@@ -41,7 +41,11 @@ mutual
 `kInherited` (third_party/blink/renderer/core/style/computed_style.cc:470-475@f842f52), which resolves every child
 (element.cc:5618-5619@f842f52); otherwise `kIndependentInherited` (computed_style.cc:476-478@f842f52) sends each child
 down the clone path, which copies the inherited variables (element.cc:5621-5622,5698-5702@f842f52;
-computed_style.cc:3146-3149@f842f52). -/
+computed_style.cc:3146-3149@f842f52). A resolution is counted by `IncStyleForElementCount`
+(third_party/blink/renderer/core/css/resolver/style_resolver.cc:1362-1364 via :1442@f842f52), the source of
+`UpdateLayoutTree.elementCount` (third_party/blink/renderer/core/dom/document.cc:2822,2856-2857@f842f52); the clone path
+(element.cc:5698-5702@f842f52) never reaches it. The units of this module are validated only as between-arm deltas;
+no task cites an absolute unit as measured elementCount until a per-pass elementCount dump exists. -/
 def crFull : Node → Nat
   | mk _ f ks => 1 + (if f.hidden then 0 else if f.vars then crFullL ks else crCloneL ks)
 /-- Chromium `ResolveStyle` calls for a node reached by `kIndependentInherit`: the clone is not counted, and a node

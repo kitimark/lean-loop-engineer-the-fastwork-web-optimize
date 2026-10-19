@@ -1332,6 +1332,9 @@ def frameWrites : List (String × String) := [(stageName, "--exit-opacity")]
 
 def zoneFirst : Nat := 10
 def zoneLast : Nat := 103
+/-- Golden `zone`: the swipe-v1 frame window 10-103, from the first scroll frame to the last frame below scrollY 950,
+93 of them exit-write frames (11-103). It does not fit swipe-touch-v1, whose writes run to frame 111. The zone totals
+are model products, never compared with a measured sum. -/
 def zoneFrames : Nat := zoneLast + 1 - zoneFirst
 
 #guard zoneFrames == 94
