@@ -64,3 +64,8 @@ Read first: lean/Fw/Site/StageMode.lean header, packages/measure-chromium/src/st
 
 ## Verified locally (not a result)
 Lean build of Fw.Site.StageMode, stage-mode golden --check up to date, measure-chromium tests 58/58, ci-paths 32/32, apps/runner 1034/1034 (tsc + vitest), apps/site 5148/5148 + tsc.
+
+## Result after round 1: run 39199144167 (ci/driver-stage-mode @ 4af7b978, workflow_dispatch only=hero, rewrite, swipe-v1, runs 2)
+- plan, fwcore, image, site, counts r1+r2, classify all passed. MEASURED (CI). Search `?only=hero&stage=vw:430,vh:932`, mode client-render, `__fwStage.env` [0,430,932], missing 0, unset [].
+- Viewport-faithful YES: real frame 430x932 (pinned 430x932, client 430x932), scrollWidth 430, scale 1, docH 11380, maxScroll 10448, last scrollY 10448 = maxScroll (the 9888 gap of the invalid run is gone), 1085 frames in both runs. The hero overflow (501) was a stage artifact (no page root clip), fixed by the page-root wrapper.
+- Counts YES for 2 runs; classes (artifact chromium-classes): see classes.txt in the run. Only 2 runs: below the >= 3 runs claim bar; determinism of the part page is not claimed. Premise declared-rows-unverified applies.
