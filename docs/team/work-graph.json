@@ -5803,7 +5803,8 @@
     "lean/Fw/Parts/Footprint*.lean",
     "apps/site/src/footprint.test.ts",
     "research/notes/2026/10-19-contract-rows-from-code.md"
-   ]
+   ],
+   "evidence": "41c8039"
   },
   {
    "devices": [
