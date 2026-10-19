@@ -1,5 +1,6 @@
 import Fw.Ops.Cache
 import Fw.Ops.LakeJobsGen
+import Fw.Ci.Trigger
 /-!
 # Who saves the Lake artifact cache (task `site-build-cache`)
 
@@ -159,5 +160,10 @@ theorem table_complete {H : Type} (w : LakeJob) (hw : writerOf jobs = some w) (d
     (hash : String → H) (C : Entry H) (hf : ∀ f ∈ importFacts, InCone deps [f.2] f.1) :
     ∀ j ∈ jobs, ∀ m, ¬ Rebuilds deps hash (afterBuild deps hash C w.targets) j.targets m :=
   ok_complete jobs jobs_ok w hw deps hash C hf
+
+/-- The Lake cache writers of the generated job table are the `.lake-cache` rows of `Fw.Ci.Trigger.cacheWriters`. -/
+theorem lake_writers : (jobs.filter (·.saves)).map (fun j => (j.file, j.job, ".lake-cache")) =
+    Fw.Ci.Trigger.cacheWriters.filter (·.2.2 == ".lake-cache") := by
+  decide
 
 end Fw.Ops.LakeCache

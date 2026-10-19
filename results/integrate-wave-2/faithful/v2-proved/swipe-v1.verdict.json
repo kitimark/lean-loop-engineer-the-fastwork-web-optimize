@@ -1,0 +1,69 @@
+{
+ "schema": "fw.faithful.verdict/2",
+ "note": "PL5 band verdict per zone (y04000, y04500, tail) and count type, rewrite R against the frozen original baseline A (Lean Fw.Faithful, fwcore faithful.verdict), after Lean Fw.Faithful.comparable accepted the pair (profile, preset, zone height, browser, profile viewport, and the viewport the page reported). Chromium only, one CI run per arm; raw counts are work, not milliseconds. A result outside a band is a finding.",
+ "profile": "swipe-v1",
+ "region": [
+  "y04000",
+  "y04500",
+  "tail"
+ ],
+ "verdict": null,
+ "refusal": {
+  "kind": "not-comparable",
+  "field": "preset",
+  "text": "not comparable: preset: swipe-v1 rewrite against the frozen original (Lean Fw.Faithful.comparable)"
+ },
+ "meta": {
+  "A": {
+   "profile": "swipe-v1",
+   "preset": "original",
+   "browser": "HeadlessChrome/156.0.8078.4",
+   "zoneHeightPx": 500,
+   "viewport": {
+    "width": 430,
+    "height": 932,
+    "dpr": 3,
+    "mobile": true,
+    "touch": true
+   }
+  },
+  "R": {
+   "profile": "swipe-v1",
+   "preset": "v2-proved",
+   "browser": "HeadlessChrome/156.0.8078.4",
+   "zoneHeightPx": 500,
+   "viewport": {
+    "width": 430,
+    "height": 932,
+    "dpr": 3,
+    "mobile": true,
+    "touch": true
+   },
+   "observed": {
+    "width": 430,
+    "height": 932
+   }
+  },
+  "C": {
+   "profile": "swipe-v1",
+   "preset": "original",
+   "browser": "HeadlessChrome/156.0.8078.4",
+   "zoneHeightPx": 500,
+   "viewport": {
+    "width": 430,
+    "height": 932,
+    "dpr": 3,
+    "mobile": true,
+    "touch": true
+   },
+   "observed": {
+    "width": 430,
+    "height": 932
+   }
+  }
+ },
+ "comparable": {
+  "comparable": false,
+  "field": "preset"
+ }
+}

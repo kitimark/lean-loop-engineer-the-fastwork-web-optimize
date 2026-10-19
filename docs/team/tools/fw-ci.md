@@ -1,7 +1,8 @@
 # fw ci
 
-`fw ci [<run id>] [--workflow chromium-counts] [--branch main] [--store <dir>]` pulls a finished CI run into the artifact store.
-No run id: the latest run of the workflow on the branch. The store is `$FW_CONSOLE_DIR/store` (default `.fw-console/store`) unless `--store`.
+`fw ci <run id> | --branch ci/<x> [--workflow chromium-counts] [--store <dir>]` pulls a finished CI run into the artifact store.
+A run id or `--branch` is required; without one it exits 64 with the usage (a `main` push runs no measurement, so there
+is no default branch). With `--branch` and no run id: the latest run of the workflow on that branch. The store is `$FW_CONSOLE_DIR/store` (default `.fw-console/store`) unless `--store`.
 
 - Every gh call (list, view, download; also `fw run` and `fw watch`) goes through `ghCharged` (`@fw/gh-budget`): fwcore's `ci.budget.*` decides
   whether gh runs, and a wait or stop means gh is not started. `fw ci` and `fw run` sleep through a wait; a stop throws (exit 1).
@@ -42,7 +43,7 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
 ## Which workflows a `ci/*` push starts, and how to run the one you will read
 
 - Round 3 (task `ci-own-trigger`, Lean `Fw.Ci.Intent.decision`): no workflow has `on.push.paths`, so every push to `ci/*`
-  or `main` creates a run of every workflow and its first job `guard` decides (`.github/scripts/changed-inputs.mjs`).
+  creates a run of every workflow (a `main` push: of the seeders' workflows only) and its first job `guard` decides (`.github/scripts/changed-inputs.mjs`).
   On a `ci/*` push it runs the jobs iff, in this order (the first failing one is the skip tag):
   `unwanted` the head commit asks for the lane (or it is the default lane `lean`); `stale` the commit is still the branch
   tip (`git ls-remote`; unreadable counts as the tip); `landed` the commit is not on main yet; `unchanged` some file that
@@ -50,8 +51,11 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
   `lean` never skips as `unchanged` on `ci/*` (`lean_never_unchanged`). The tip therefore always runs every requested
   lane whose inputs differ from main, and `lean` on every tip not on main (`tip_starts`, `tip_lean_always`); a later push that reverts part of the branch cannot hide what the branch still
   carries (`tip_history_free`). A merge of main adds nothing (`merge_starts_nothing`).
-- A `main` push keeps the old rule: it runs iff its own diff (before..HEAD) passes the coarse globs (`pushPaths`:
-  each cone as `lean/Fw/**`, `lean/*.lean`; `main_keeps_paths_rule`). Dispatches and schedules always run.
+- A `main` push starts only the workflows of the cache seeders (Lean `Fw.Ci.Trigger.seeders`: `lean.yml` job `lean`,
+  the Lake cache; `premise-tests.yml` job `engine`, the gate-engine caches). Such a run goes on iff its own diff
+  (before..HEAD) passes the coarse globs (`pushPaths`: each cone as `lean/Fw/**`, `lean/*.lean`;
+  `main_keeps_paths_rule`), and then runs only the guard and the seeders (`mainRuns_iff`). No workflow has a schedule
+  (`no_crons`). Dispatches always run.
 - The inputs are the rows of `table` in `lean/Fw/Ci/Trigger.lean`; `fwcore` users depend on the import cone of
   `Main.lean`, not on `lean/**`. To change one: edit `table`, `cd lean && lake test -- --write-ci-trigger-golden`, then
   `node scripts/ci-paths.mjs --write`. The land check `apps/runner/test/ci-triggers.test.ts` fails on any other edit.
@@ -71,7 +75,7 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
   - A requested lane whose inputs equal main on the branch is skipped `unchanged`; to re-run it, dispatch it:
     `gh workflow run <lane>.yml --ref ci/<task>` (a record: it always runs). Dispatch also for inputs (`-f key=value`).
   - Nothing is cancelled on `ci/*` (Lean `Fw.Ci.Cancel.ci_never_cancelled`): every heavy job's group holds the run id
-    on `ci/*` and dispatches, the ref on `main` pushes (main runs queue); no job sets `cancel-in-progress`. Instead the
+    on `ci/*` and dispatches, the ref on `main` pushes (the seeders' main runs queue); no job sets `cancel-in-progress`. Instead the
     first steps of every heavy job re-check the tip (`tip re-check`, then `stale: a newer push is the branch tip` fails
     the job when a newer push moved it), and every later step that uses `always()`/`failure()`/`cancelled()` also needs
     `steps.stale.outcome == 'skipped'` (`stale_never_works`). An older push may so use a runner for a minute; it never

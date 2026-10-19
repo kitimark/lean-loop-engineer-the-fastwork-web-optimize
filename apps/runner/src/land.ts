@@ -23,10 +23,12 @@ export type Http = {
 
 /** `localhost` may resolve to ::1 first while console-api listens on 127.0.0.1 only: always dial the IPv4 loopback. */
 export const loopback = (base: string) => base.replace(/^(https?:\/\/)localhost(?=[:/]|$)/, "$1127.0.0.1");
+/** Own deadline per request, shorter than undici's 300 s headers timeout; the land step's retry takes it from there. */
+export const HTTP_DEADLINE_MS = 90_000;
 export const httpFor = (base0: string): Http => { const base = loopback(base0); let secret: string | undefined; return {
-  get: async (p) => { const r = await fetch(base + p); return { status: r.status, body: await r.json() }; },
+  get: async (p) => { const r = await fetch(base + p, { signal: AbortSignal.timeout(HTTP_DEADLINE_MS) }); return { status: r.status, body: await r.json() }; },
   post: async (p, b) => {
-    const r = await fetch(base + p, { method: "POST", headers: { "content-type": "application/json", "x-fw-secret": (secret ??= consoleSecret()) }, body: JSON.stringify(b) });
+    const r = await fetch(base + p, { method: "POST", headers: { "content-type": "application/json", "x-fw-secret": (secret ??= consoleSecret()) }, body: JSON.stringify(b), signal: AbortSignal.timeout(HTTP_DEADLINE_MS) });
     return { status: r.status, body: await r.json() };
   },
 }; };
@@ -177,7 +179,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],
   // svg-extract: scripts/svg-extract.mjs (build, test, typecheck) and src/svg-extract.test.ts read the snapshot page and its scripts
   "apps/site": ["lean/Fw/Parts/HiddenPause.lean", "lean/Fw/Parts/HeroCountdownHidden.lean", "packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/anchors.json", "packages/contracts/golden/parts/**",
-    "packages/contracts/golden/port/**", "scripts/port/**", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
+    "packages/contracts/golden/port/**", "scripts/port/**", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/fonts.mjs", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
   "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**"],
   "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
@@ -187,7 +189,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
   "packages/measure-webkit": ["packages/contracts/golden/measure/**"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
-  "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**"],
+  "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**", "scripts/port/**", "packages/contracts/golden/port/**"],
 };
 
 /** Directories of the `workspace:` dependencies of a package (`@fw/x` is `packages/x` or `apps/x`). */

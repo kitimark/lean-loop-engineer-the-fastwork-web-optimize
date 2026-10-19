@@ -656,7 +656,7 @@ def leanFirstCases : List (String × Json) :=
    (s!"a line break in a theorem name is printed as a space {at_}", leanFirstReq (factsOf [.newlineName, .noKill])),
    (s!"empty request: every source missing {at_}", lit "{}"),
    ("unknown sign-off role is refused",
-     lit "{\"signoffs\":[{\"decl\":\"P\",\"stmtHash\":\"h\",\"docHash\":\"d\",\"role\":\"lead\",\"agree\":true}]}"),
+     lit "{\"signoffs\":[{\"decl\":\"P\",\"stmtHash\":\"h\",\"role\":\"lead\",\"agree\":true}]}"),
    ("registry row without a status is refused", lit "{\"registry\":[{\"id\":\"p\"}]}")]
 
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/

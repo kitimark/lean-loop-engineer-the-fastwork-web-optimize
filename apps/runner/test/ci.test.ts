@@ -17,7 +17,10 @@ const ALL = ["chromium-counts-original-r1", "chromium-counts-original-r2", "chro
 
 describe("parseCiArgs", () => {
   it("defaults and flags", () => {
-    expect(parseCiArgs([])).toEqual({ workflow: "chromium-counts", branch: "main" });
+    expect(() => parseCiArgs([])).toThrow(UsageError);
+    expect(() => parseCiArgs(["--workflow", "lean"])).toThrow(UsageError);
+    expect(parseCiArgs(["--branch", "ci/x"])).toEqual({ workflow: "chromium-counts", branch: "ci/x" });
+    expect(parseCiArgs(["42"])).toEqual({ runId: "42", workflow: "chromium-counts" });
     expect(parseCiArgs(["123", "--branch", "ci/x", "--store", "/s"])).toEqual({ runId: "123", workflow: "chromium-counts", branch: "ci/x", store: "/s" });
     expect(() => parseCiArgs(["--nope"])).toThrow(UsageError);
     expect(() => parseCiArgs(["--branch"])).toThrow(UsageError);

@@ -36,13 +36,11 @@ inductive Role where
   | math | adversary
 deriving DecidableEq, Repr
 
-/-- One row of `docs/team/props/signoffs.jsonl`: the declaration, the statement and docstring hashes it was reviewed
-at, the reviewer role and whether the reviewer agreed.
-$$\sigma = (\mathit{decl}, \mathit{stmt}, \mathit{doc}, r, a) \in \mathrm{String}^3 \times \mathrm{Role} \times \mathbb B$$ -/
+/-- One row of `docs/team/props/signoffs.jsonl`: the declaration, the deep statement hash it was reviewed at, the
+reviewer role and whether the reviewer agreed. -/
 structure Signoff where
   decl : String
   stmtHash : String
-  docHash : String
   role : Role
   agree : Bool
 deriving DecidableEq, Repr
@@ -83,14 +81,12 @@ structure ThmFact where
   assumes : List String
 deriving DecidableEq, Repr
 
-/-- What MathView and git report about one property of the task's Props module: name, statement and docstring hashes,
-the premise ids the property itself assumes, and the commits that first added its search guards and its proof. Reach
-is not a property fact: it comes with each theorem's own `implArg`.
-$$P = (\mathit{name}, \mathit{stmt}, \mathit{doc} \in \mathrm{String}, \mathit{assumes} \in \mathrm{List}(\mathrm{String}), \mathit{searchAt}, \mathit{proofAt} \in \mathrm{Option}(\mathrm{String}))$$ -/
+/-- What MathView and git report about one property of the task's Props module: name, deep statement hash, the
+premise ids the property itself assumes, and the commits that first added its search guards and its proof. Reach is
+not a property fact: it comes with each theorem's own `implArg`. -/
 structure PropFact where
   name : String
   stmtHash : String
-  docHash : String
   assumes : List String
   searchAt : Option String
   proofAt : Option String
@@ -256,10 +252,10 @@ $$\operatorname{reachUnknown}(F) \iff \exists t \in F.\mathit{thms},\ t.\mathit{
 def reachUnknown (F : Facts) : Bool :=
   F.thms.any fun t => t.reachFromWire.isNone && t.implArg.isSome && F.props.any fun Q => t.proves == some Q.name
 
-/-- Does a signoff row match the property's current hashes and the role?
-$$\operatorname{at}(\sigma, P, r) \iff \sigma.\mathit{decl} = P.\mathit{name} \land \sigma.\mathit{stmt} = P.\mathit{stmt} \land \sigma.\mathit{doc} = P.\mathit{doc} \land \sigma.\mathit{role} = r$$ -/
+/-- Does a signoff row name the property at its current statement hash, for the role? The math of a signoff lives in
+an artifact (docs/team/tools/math-artifact.md), so the statement hash alone keys it. -/
 def Signoff.matches (s : Signoff) (P : PropFact) (r : Role) : Bool :=
-  s.decl == P.name && s.stmtHash == P.stmtHash && s.docHash == P.docHash && s.role == r
+  s.decl == P.name && s.stmtHash == P.stmtHash && s.role == r
 
 /-- **Signed** (rule 1b): an agreeing row at the current hashes for the role, and no disagreeing one.
 $$\operatorname{signed}(F, P, r) \iff (\exists \sigma \in \Sigma,\ \operatorname{at}(\sigma, P, r) \land \sigma.a) \land \lnot(\exists \sigma \in \Sigma,\ \operatorname{at}(\sigma, P, r) \land \lnot\sigma.a)$$ -/
@@ -638,7 +634,7 @@ about a reached definition exists (for the examples).
 $$F_{stub} = F_\emptyset[\mathit{props} := [P],\ \mathit{thms} := [(\texttt{P\_stub}, \dots, \mathrm{some}(\texttt{P}), \mathrm{some}(\texttt{stub}), \mathrm{some}(\mathrm{false}), \dots),\ (\texttt{L}, \dots, \mathrm{none}, \mathrm{some}(\texttt{impl}), \mathrm{some}(\mathrm{true}), \dots)]]$$ -/
 def stubFacts : Facts :=
   { emptyFacts with
-    props := [{ name := "P", stmtHash := "hP", docHash := "dP", assumes := [], searchAt := none, proofAt := none }],
+    props := [{ name := "P", stmtHash := "hP", assumes := [], searchAt := none, proofAt := none }],
     thms := [{ name := "P_stub", hash := "h1", kind := .general, proves := some "P", implArg := some "stub",
                reachFromWire := some false, axiomsOk := true, usedBy := [], reach := [], assumes := [] },
              { name := "L", hash := "h2", kind := .general, proves := none, implArg := some "impl",

@@ -38,7 +38,8 @@ Tests: `node --test .github/scripts/gate-jobs.test.mjs` (golden invariants, matr
   image, architecture, engine; or HS version, HS sha256, architecture). `cache-key.mjs` refuses a missing or an undeclared input.
 - No `restore-keys`: a partial key is not covered by `key_complete` (`partial_key_unsound`).
 - Premises Lean cannot prove (written in `Cache.lean`): SHA-256 has no collision among the vectors used; the install reads only the declared inputs.
-- A cache made on a `ci/*` branch is visible only to that branch (and to caches of its base); `main` runs warm their own.
+- A cache made on a `ci/*` branch is visible only to that branch; every branch also reads `main`'s. A `main` push runs
+  `premise-tests.yml` job `engine` (both engines) to seed these caches (Lean `Fw.Ci.Trigger.seeders_save_iff`).
 
 ## Measurements
 

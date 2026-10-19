@@ -7,7 +7,7 @@
 // Failure: {"id":N,"error":"..."}. A crash (exit, abort on panic) fails the in-flight calls, is logged as an incident,
 // and the process is restarted on the next call; a restarted process first replays the whole log (`open`), so it never
 // answers from a partial state. A failed replay kills that process too.
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadavg } from "node:os";
@@ -253,8 +253,19 @@ export class LeanCore implements Core {
   /** raw op, for the samples test */
   raw(op: string, fields: Record<string, unknown> = {}) { return this.call(op, fields); }
 
-  /** test hook: freeze the child (SIGSTOP) so a call written next cannot be answered before killForTest() */
-  stopForTest() { this.child?.kill("SIGSTOP"); }
+  /** test hook: freeze the child (SIGSTOP) so a call written next cannot be answered before killForTest(). Resolves once
+   *  the kernel reports the child stopped (state T): a signal is delivered asynchronously, so on a multi-core runner a
+   *  request written right after `kill` could still be answered. Ordering by state, no wall-clock bound. */
+  async stopForTest(): Promise<void> {
+    const c = this.child;
+    if (!c?.pid) return;
+    c.kill("SIGSTOP");
+    for (;;) {
+      const st = spawnSync("ps", ["-o", "stat=", "-p", String(c.pid)], { encoding: "utf8" }).stdout.trim();
+      if (st.startsWith("T") || st === "") return;
+      await new Promise((r) => setImmediate(r));
+    }
+  }
 
   /** test hook: replace the load reading of the timeout rule */
   loadForTest(f: () => number) { this.loadFloor = f; }

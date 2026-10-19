@@ -136,7 +136,7 @@ export function rewritePathFor(dist, fw) {
   return { search, path: `/${cfg.byHash[hash]}` };
 }
 
-export async function runVisual({ engineName, outDir, probeIds, partFilter = null, fw = '', skip = DEFAULT_SKIP, concurrency = 2, assets = 'inject', tolerances = loadTolerances() }) {
+export async function runVisual({ engineName, outDir, probeIds, partFilter = null, fw = '', skip = DEFAULT_SKIP, concurrency = 2, assets = 'none', tolerances = loadTolerances() }) {
   const anchors = loadAnchors();
   const all = Object.keys(anchors.parts);
   const sel = selectParts(all, partFilter);
@@ -148,7 +148,9 @@ export async function runVisual({ engineName, outDir, probeIds, partFilter = nul
   const buildInfo = JSON.parse(readFileSync(join(dist, 'build-info.json'), 'utf8'));
   const { search, path: rewritePath } = rewritePathFor(dist, fw);
   const pathOf = { orig: '/', rewrite: rewritePath };
-  // `assets: 'inject'` (default): the rewrite arm gets the snapshot's images and fonts (see serve.mjs). 'none': as built (a diagnostic).
+  // `assets: 'none'` (default): the rewrite arm is the port as built, its own fonts and assets. 'inject' is a named diagnostic: the
+  // rewrite arm gets the snapshot's images and fonts and a forced font-family (see serve.mjs); its results say nothing about the port's fonts.
+  if (assets !== 'none' && assets !== 'inject') throw new Error(`unknown assets mode "${assets}" (none | inject)`);
   const snap = snapshotRoot();
   const servers = { orig: await startServer(snap), rewrite: assets === 'inject' ? await startOverlayServer(dist, snap) : await startServer(dist) };
   const fontCss = assets === 'inject' ? await originalFontFaces(snap, [REWRITE_FAMILY]) : '';
