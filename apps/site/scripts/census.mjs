@@ -84,15 +84,13 @@ async function censusOnce(browser, engine, port) {
   await flush();
   const afterScroll = await page.evaluate(() => (window.__census.phase = 'trigger', window.__census.snapshot()));
 
-  // Phase "trigger": discrete flips (S4/S12): tab change, menu, drawer, dialog (each opened, then closed).
+  // Phase "trigger": discrete flips (S4/S12): drawer, dialog (each opened, then closed).
   const click = async (sel) => {
     await page.click(sel);
     await sleep(450);
     await flush();
   };
-  await click('#tab-1');
-  await click('#tab-2');
-  for (const sel of ['#open-menu', '#open-drawer', '#open-dialog']) {
+  for (const sel of ['[data-selenium="start-selling.commission.button.why"]', '[data-fw="hero"] button']) {
     await click(sel);
     await page.keyboard.press('Escape');
     await sleep(450);

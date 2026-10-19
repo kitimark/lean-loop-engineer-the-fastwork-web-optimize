@@ -1,9 +1,4 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import Typography from '@mui/material/Typography';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Hero } from './parts/hero';
 import { EngineScroll } from './parts/engine.scroll';
 import { MorphTween } from './parts/morph.tween';
@@ -17,47 +12,54 @@ import { People } from './parts/people';
 import { Pain } from './parts/pain';
 import { Commission } from './parts/commission';
 import { Platform } from './parts/platform';
-import { MorphPanel } from './parts/morph.panel';
+import { MorphPanel, type PanelWriter } from './parts/morph.panel';
 import { OverlayDrawer, openDrawer } from './parts/overlays.drawer';
 import { OverlaySignup, openSignup } from './parts/overlays.signup';
 import type { FwConfig } from './registry/types';
 import { setHydrated } from './fw';
 
+/** Hero "Join list" and the commission "why" link are other parts' buttons; the page opens the overlays from them (click delegation, discrete). */
+const OPEN_SIGNUP = '[data-fw="hero"] button, [data-selenium="start-selling.people.button.message"]';
+const OPEN_DRAWER = '[data-selenium="start-selling.commission.button.why"]';
+
 /** Placeholder home page. Overlays are mounted closed (no keepMounted: they portal in on open, like the real ones). */
 export function App({ config }: { config: FwConfig }) {
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [panel, setPanel] = useState(false); // morph.mount: the panel's DOM insertion (once, never unmounted)
+  const writerRef = useRef<PanelWriter | null>(null); // the nav hands each --morph value to the panel's attribute writer
 
   useEffect(() => setHydrated(), []); // root effects run after hydration has committed
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const t = e.target instanceof Element ? e.target : null;
+      if (t?.closest(OPEN_SIGNUP)) openSignup();
+      else if (t?.closest(OPEN_DRAWER)) openDrawer();
+    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, []);
 
   return (
     <>
       <EngineScroll variant={config.variants['engine.scroll'] ?? 'faithful'} />
       <NavHitTest variant={config.variants['nav.hitTest'] ?? 'faithful'} />
-      <MorphMount variant={config.variants['morph.mount'] ?? 'faithful'} onMount={() => setPanel(true)} />
-      {panel && <div data-fw="morph-panel" aria-hidden style={{ position: 'fixed', inset: 0, visibility: 'hidden', pointerEvents: 'none' }} />}
+      <MorphMount variant={config.variants['morph.mount'] ?? 'faithful'} targetSelector='[data-fw="platform"]' onMount={() => setPanel(true)} />
       <MorphTween variant={config.variants['morph.tween'] ?? 'faithful'} />
       {/* engine.scene: the platform section is the scene it pauses while it paints nothing (hidden-pause) */}
       <EngineScene variant={config.variants['engine.scene'] ?? 'faithful'} selector='[data-fw="platform"]' />
-      <Nav variant={config.variants['nav'] ?? 'faithful'} />
-      {/* Overlay triggers of the placeholder page (the MUI census clicks them); the nav is the port above. */}
-      <Box data-fw="overlay-triggers" style={{ position: 'fixed', left: 0, bottom: 0, zIndex: 50, display: 'flex', gap: 4 }}>
-        <Button size="small" id="open-menu" onClick={(e) => setAnchor(e.currentTarget)}>
-          Menu
-        </Button>
-        <Button size="small" id="open-drawer" onClick={openDrawer}>
-          Drawer
-        </Button>
-        <Button size="small" id="open-dialog" onClick={openSignup}>
-          Sign up
-        </Button>
-      </Box>
-
-      <MorphPanel
-        variant={config.variants['morph.panel'] ?? 'faithful'}
-        impl={config.impl['morph.panel']}
-        countdown={<MorphCountdown variant={config.variants['morph.countdown'] ?? 'faithful'} impl={config.impl['morph.countdown']} />}
-      />
+      {/* The nav hosts the morph panel (as the original does): `--morph` reaches it by inheritance, columns sit in its backdrop. */}
+      <Nav variant={config.variants['nav'] ?? 'faithful'} onJoin={openSignup} panelWriterRef={writerRef}>
+        {panel && (
+          <MorphPanel
+            variant={config.variants['morph.panel'] ?? 'faithful'}
+            impl={config.impl['morph.panel']}
+            writerRef={writerRef}
+            onAction={openSignup}
+            backdrop={<MorphColumns variant={config.variants['morph.columns'] ?? 'faithful'} />}
+            countdown={<MorphCountdown variant={config.variants['morph.countdown'] ?? 'faithful'} impl={config.impl['morph.countdown']} />}
+          />
+        )}
+      </Nav>
 
       <div data-fw="page-root">
       <main>
@@ -75,16 +77,9 @@ export function App({ config }: { config: FwConfig }) {
             marquee: config.variants['platform.marquee'],
           }}
         />
-        <MorphColumns variant={config.variants['morph.columns'] ?? 'faithful'} />
       </main>
       </div>
 
-      <Menu open={anchor !== null} anchorEl={anchor} onClose={() => setAnchor(null)}>
-        <MenuItem onClick={() => setAnchor(null)}>Item one</MenuItem>
-        <MenuItem selected onClick={() => setAnchor(null)}>
-          Item two
-        </MenuItem>
-      </Menu>
       <OverlayDrawer variant={config.variants['overlays.drawer'] ?? 'faithful'} onGetStarted={openSignup} />
       <OverlaySignup variant={config.variants['overlays.signup'] ?? 'faithful'} />
     </>

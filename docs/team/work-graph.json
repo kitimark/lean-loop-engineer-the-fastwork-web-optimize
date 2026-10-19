@@ -5291,7 +5291,8 @@
     "apps/site/src/parts/hero/**",
     "apps/site/src/parts/hero.*/**",
     "docs/team/handoffs/content-hero.md"
-   ]
+   ],
+   "evidence": "725cc51"
   },
   {
    "devices": [
@@ -5312,7 +5313,8 @@
     "apps/site/src/parts/commission*/**",
     "apps/site/src/parts/engine.scene/**",
     "docs/team/handoffs/content-people-pain-commission.md"
-   ]
+   ],
+   "evidence": "1d3af3a"
   },
   {
    "devices": [
@@ -5380,7 +5382,8 @@
     "docs/team/handoffs/morph-group-integrate.md",
     "packages/gate-breakpoints/src/anchors.json",
     "apps/site/scripts/census.mjs"
-   ]
+   ],
+   "evidence": "1cccf20"
   },
   {
    "devices": [
@@ -5625,7 +5628,8 @@
     "apps/runner/src/land.ts",
     "apps/runner/test/land-inputs.test.ts",
     "docs/team/handoffs/site-assets.md"
-   ]
+   ],
+   "evidence": "1f76d1a"
   },
   {
    "devices": [

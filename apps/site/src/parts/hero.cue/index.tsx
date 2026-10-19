@@ -12,7 +12,7 @@ function scrollNext() {
 
 /**
  * hero.cue: the "scroll down" button at the foot of the hero. CSS only (entrance, float loop, blur and rise on exit via the
- * stage's variables); the one handler is the click. Lean spec: `HeroDeck` (cue section). Placeholder label.
+ * stage's variables); the one handler is the click. Lean spec: `HeroDeck` (cue section).
  */
 export function HeroCue({ variant }: HeroCueProps) {
   return (
