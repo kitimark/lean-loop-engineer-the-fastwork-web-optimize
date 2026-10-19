@@ -1,6 +1,6 @@
 # compose-check handoff (branch worktree-wf_c01d6050-edd-1)
 
-State: round 2 done; the commit is the branch head (`git log -1`), on top of main 575e3087.
+State: round 2 done at bf6bc2e7 (result + note), handoff trim 71ee6f47, on main 575e3087; review r2 accepted. Follow-up: not-comparable cells still carry an evidence mark computed at margin 0 (emit null, render n/a; Cell.evidence + theorem).
 
 Verified:
 - `lean/Fw/Measure/Compose.lean`: `verdict` per (stage, type, zone or whole run) with a theorem per branch;

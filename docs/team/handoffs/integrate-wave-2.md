@@ -16,5 +16,5 @@ Open: (1) platform will-change gate regression on main; (2) commission probe fla
 (4) engine.scroll / morph.tween have no part page; (5) WebKit per-part rows not measured; (6) the g1 tail class for frames 698 to 713 needs a C3 decision; (7) TS stand-ins in wave2.mjs have no Lean twin.
 
 Conventions: `pnpm -s fw ci wait <runId>` for waits; `gh run rerun <id> --failed` when `setup-lean` cannot download Lean (infra; seen 4 times). `stageAs` refuses a page whose arm did not run every row pair; it tags attribution.
-Pipeline: download `chromium-counts-rewrite-r*` per run, then `node packages/engine-check/src/wave2.mjs check|delta|frames|f6 --plan results/integrate-wave-2/plan.json --dl <dir> --out <dir>`; delete the staged `base-*`/`arm-*` dirs from `engine-check/` before committing (48 MB).
+Pipeline: download `chromium-counts-rewrite-r*` per run, then `node packages/engine-check/src/wave2.mjs check|delta|frames --plan results/integrate-wave-2/plan.json --dl <dir> --out <dir>`; delete the staged `base-*`/`arm-*` dirs from `engine-check/` before committing (48 MB). The F6 step moved to `engine-check --compose` (Fw.Measure.Compose, compose-check).
 Writes outside the task's graph writes: none.
