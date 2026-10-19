@@ -6,12 +6,17 @@ import type { Post, Profile, Service } from './data';
  * original's: nodes/2.DyWL8TcE.js 4863-4871 (directories) and the per-profile lists below them (4872-6125).
  */
 const files = import.meta.glob<string>(
-  '../../../../../snapshot/site/selling/sellers/{sound-composer,photographer,video-editor,graphic-designer,ai-automation,web-developer}/{avatar,cover,post-*,service-*}.jpg',
+  '../../../../../snapshot/site/selling/sellers/{sound-composer,photographer,video-editor,graphic-designer,ai-automation,web-developer}/{avatar,cover,post-*,service-*,logo-*,review-*}.{jpg,png}',
   { eager: true, import: 'default' },
 );
 
+/** the twelve review authors' avatars (sellers/reviewers/r1..r12.jpg, nodes/2.DyWL8TcE.js 4830-4843) */
+const reviewers = import.meta.glob<string>('../../../../../snapshot/site/selling/sellers/reviewers/r*.jpg', { eager: true, import: 'default' });
+
 const byName = new Map<string, string>();
 for (const [path, url] of Object.entries(files)) byName.set(path.replace(/^.*\/sellers\//, ''), url);
+
+for (const [path, u] of Object.entries(reviewers)) byName.set(path.replace(/^.*\/sellers\//, ''), u);
 
 const url = (dir: string, file: string): string | undefined => byName.get(`${dir}/${file}`);
 
@@ -63,3 +68,9 @@ export const RING_ORDER = ['sound-composer', 'photographer', 'video-editor', 'gr
 
 /** inline `background-image` for an element; the class holds the neutral fill, size and position */
 export const bg = (u: string | undefined): { backgroundImage: string } | undefined => (u ? { backgroundImage: `url("${u}")` } : undefined);
+
+/** a logo or review photo of a profile by its file name (about logos, review photos); undefined when the snapshot has no such file */
+export const fileOf = (p: Pick<Profile, 'id'>, name: string | undefined): string | undefined => (name ? url(p.id, name) : undefined);
+
+/** a review author's avatar by its file name */
+export const reviewerAvatar = (name: string): string | undefined => url('reviewers', name);

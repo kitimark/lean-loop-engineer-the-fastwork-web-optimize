@@ -49,6 +49,7 @@ import Fw.Parts.HeroExitOpt
 import Fw.Parts.PainNotes
 import Fw.Parts.PainNotesGolden
 import Fw.Parts.PeopleDeck
+import Fw.Parts.PeopleDeckPanels
 import Fw.Parts.PeopleCard
 import Fw.Parts.PainNotesOpt
 import Fw.Parts.MorphPanelOpt
@@ -130,6 +131,7 @@ import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSO
 import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)
 import Fw.Ops.LakeCache  -- site-build-cache: one Lake cache writer (cache_complete, rebuild_mono, table_complete)
 import Fw.Site.GenRoute  -- site-build-cache: breakgen / sweepsgen split (split_agrees)
+import Fw.Site.Head
 import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split
 import Fw.Gate.Shard  -- gate-shard-balance: LPT shard plan over measured unit costs
 import Fw.Gate.ShardObs  -- gate-shard-balance: observed jobs of a CI run, reduced to the cost table (ShardCosts)

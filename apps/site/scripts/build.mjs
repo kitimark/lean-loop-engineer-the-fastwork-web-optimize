@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'vite';
 import { extractSvg } from './svg-extract.mjs';
+import { htmlAttrs, renderHead, renderLocaleLinks } from './head.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argEngine = process.argv.indexOf('--engine');
@@ -95,7 +96,8 @@ const collect = (chunk, seen = new Set()) => {
 const imported = [...collect(entry)].map((k) => manifest[k]);
 const appCss = [...new Set([...imported.flatMap((c) => c.css ?? []), ...(entry.css ?? [])])];
 
-let head = '';
+const headGen = JSON.parse(await readFile(path.join(root, 'src/head.gen.json'), 'utf8'));
+let head = renderHead(headGen);
 let scripts = '';
 let muiCssName = null;
 let muiCss = '';
@@ -116,9 +118,11 @@ scripts += `<script type="module" src="/${entry.file}"></script>`;
 const template = await readFile(path.join(root, 'index.html'), 'utf8');
 const pageHtml = (pg) =>
   template
+    .replace('<!--fw-html-attrs-->', () => htmlAttrs(headGen))
     .replace('<!--fw-head-->', () => head)
     .replace('<!--fw-config-->', pg.configHash)
     .replace('<!--fw-root-->', () => pg.homeHtml)
+    .replace('<!--fw-locale-links-->', () => renderLocaleLinks(headGen))
     .replace('<!--fw-scripts-->', () => scripts);
 const html = pageHtml(pre.pages[0]);
 await writeFile(path.join(outDir, 'index.html'), html);

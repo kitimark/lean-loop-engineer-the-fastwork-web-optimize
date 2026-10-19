@@ -1,7 +1,7 @@
 /* Values restated from the original (assets/2.gBuqKVzi.css:2888-3350 showcase, shell, panel; 3351-3560 phone/touch layout;
    3599-3650 reduced motion; 3833-3905 vinyl; 4119-4525 post cards, rail, posts grid; 5069-5150 feed). Photos are not
    shipped: avatars, covers, post tiles and service thumbs are neutral fills at the same boxes. The page font is the host's,
-   so font-family / font are not declared. Not restated (delta): the Services, Reviews and About panels of the feed. */
+   so font-family / font are not declared. The Services, Reviews and About panels are in panels.module.css. */
 @layer parts {
   .profile {
     width: 100%;
@@ -529,10 +529,114 @@
     right: 12px;
   }
   .muteIcon {
-    background: currentColor;
-    border-radius: 2px;
-    width: 12px;
-    height: 12px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    width: 18px;
+    height: 18px;
+    display: block;
+  }
+  .postCard.isArticle {
+    background: #fff;
+    border: 1px solid #ebebeb;
+    border-radius: 18px;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    display: flex;
+  }
+  .articleCover {
+    aspect-ratio: 16 / 10;
+    border-radius: 12px;
+    display: block;
+    overflow: hidden;
+  }
+  .byline {
+    color: #737373;
+    white-space: nowrap;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    min-width: 0;
+    margin-top: 4px;
+    font-size: 13px;
+    line-height: 18px;
+    display: flex;
+  }
+  .bylineAvatar {
+    border-radius: 50%;
+    flex: none;
+    width: 24px;
+    height: 24px;
+    display: block;
+    overflow: hidden;
+  }
+  .author {
+    color: #2b313b;
+  }
+  .read {
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    display: inline-flex;
+  }
+  .clock {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.4px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
+    width: 14px;
+    height: 14px;
+  }
+  .articleTitle {
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-size: 17px;
+    font-weight: 500;
+    line-height: 24px;
+    display: -webkit-box;
+    overflow: hidden;
+  }
+  .excerpt {
+    color: #737373;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-size: 14px;
+    line-height: 20px;
+    display: -webkit-box;
+    overflow: hidden;
+  }
+  .postPrice {
+    color: #171717;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    background: #ffffffeb;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 16px;
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+  }
+  .videoBadge {
+    color: #ffffffeb;
+    width: 14px;
+    height: 14px;
+    display: block;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+  .videoBadge svg {
+    fill: currentColor;
+    width: 100%;
+    height: 100%;
     display: block;
   }
   .rail {
@@ -833,8 +937,45 @@
       right: 8px;
     }
     .muteIcon {
-      width: 10px;
-      height: 10px;
+      width: 14px;
+      height: 14px;
+    }
+    .postCard.isArticle {
+      border-radius: 12px;
+      gap: 8px;
+      padding: 10px;
+    }
+    .articleCover {
+      border-radius: 8px;
+    }
+    .byline {
+      font-size: 11px;
+      line-height: 16px;
+    }
+    .bylineAvatar {
+      width: 18px;
+      height: 18px;
+    }
+    .articleTitle {
+      font-size: 14px;
+      line-height: 20px;
+    }
+    .excerpt {
+      font-size: 12px;
+      line-height: 17px;
+    }
+    .postPrice {
+      padding: 4px 7px;
+      font-size: 11px;
+      line-height: 14px;
+      bottom: 8px;
+      left: 8px;
+    }
+    .videoBadge {
+      width: 12px;
+      height: 12px;
+      top: 8px;
+      right: 8px;
     }
     .meta2 {
       gap: 2px 6px;
