@@ -1,6 +1,7 @@
 // Conformance of the `waapi` variant with the Lean golden files (lean/Fw/Parts/MorphTweenOpt.lean).
 // - packages/contracts/golden/parts/morph-tween-waapi.jsonl (`goldenJsonl`): the 11 engine-check rows of `goldenRows`,
-//   then the 4 `registrations` and the 7 `readers` of MT-R (REGISTRATIONS must equal them; the CSS readers must be listed).
+//   then the 4 `registrations` and the 7 `readers` of MT-R (REGISTRATIONS must equal them; the CSS readers must be listed),
+//   then the 5 `registrationsScoped` and 7 `readersScoped` of the `waapi-scoped` arm, tagged `arm`.
 //   Each row's prediction is checked against what the variant does (script `<o`: no rAF subscription; the other stages `=o`:
 //   it animates exactly the properties the original writes, R2); the row set and the flag string are pinned.
 // - packages/contracts/golden/parts/morph.tween.jsonl: Lean `ease` samples. The effect's cubic-bezier (parsed from the
@@ -11,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { decodeRat } from '../../engine/golden.testutil';
 import { ease } from './logic';
 import { faithfulSubscribes, waapiRun } from './waapi.fake.testutil';
-import { EASING, FADE_CSS, flagOffset, navKeyframes, PROP_DARK, PROP_EXPANDED, PROP_FADE, PROP_MORPH, platformKeyframes, REGISTRATIONS, THETA_DARK, THETA_EXPANDED, THETA_POINTER, type Registration } from './waapi.logic';
+import { EASING, FADE_CSS, fadeCss, flagOffset, navKeyframes, PROP_DARK, PROP_EXPANDED, PROP_FADE, PROP_MORPH, PROP_PLATFORM, platformKeyframes, REGISTRATIONS, REGISTRATIONS_SCOPED, settledProps, THETA_DARK, THETA_EXPANDED, THETA_POINTER, type Registration } from './waapi.logic';
 
 const golden = (name: string) =>
   readFileSync(new URL(`../../../../../packages/contracts/golden/parts/${name}.jsonl`, import.meta.url), 'utf8')
@@ -30,8 +31,12 @@ interface Row {
 }
 const all = golden('morph-tween-waapi');
 const rows = all.filter((r) => 'prediction' in r) as unknown as Row[];
-const regRows = all.filter((r) => 'syntax' in r) as unknown as Registration[];
-const readerRows = all.filter((r) => 'sel' in r) as unknown as { prop: string; sel: string; depth: number }[];
+type ReaderRow = { prop: string; sel: string; depth: number };
+const regRows = all.filter((r) => 'syntax' in r && !('arm' in r)) as unknown as Registration[];
+const readerRows = all.filter((r) => 'sel' in r && !('arm' in r)) as unknown as ReaderRow[];
+const untag = ({ arm: _arm, ...r }: Record<string, unknown>) => r;
+const scopedRegRows = all.filter((r) => 'syntax' in r && r.arm === 'waapi-scoped').map(untag) as unknown as Registration[];
+const scopedReaderRows = all.filter((r) => 'sel' in r && r.arm === 'waapi-scoped').map(untag) as unknown as ReaderRow[];
 
 /** CSS-module classes whose rules read `var(prop)`: the last class of each selector of each innermost rule. */
 function cssReaders(file: string, prop: string): Set<string> {
@@ -73,6 +78,44 @@ describe('morph.tween:waapi registrations vs morph-tween-waapi.jsonl (MT-R)', ()
       expect(cssReaders('../nav/nav.module.css', p).size + cssReaders('../morph.panel/morph.module.css', p).size, p).toBe(0);
       expect(readerRows.some((q) => q.prop === p)).toBe(false);
     }
+  });
+});
+
+describe('morph.tween:waapi-scoped registrations vs morph-tween-waapi.jsonl (MT-R scoped arm)', () => {
+  it('REGISTRATIONS_SCOPED equal the Lean registrationsScoped, in order', () => {
+    expect(scopedRegRows).toHaveLength(5);
+    expect(REGISTRATIONS_SCOPED.map((r) => ({ ...r }))).toEqual(scopedRegRows);
+  });
+
+  it('a property inherits iff a reader sits below the element that sets it (Lean registrationsScoped_rule)', () => {
+    expect(scopedReaderRows).toHaveLength(7);
+    for (const r of REGISTRATIONS_SCOPED) expect(r.inherits, r.name).toBe(scopedReaderRows.some((q) => q.prop === r.name && q.depth > 0));
+    expect(REGISTRATIONS_SCOPED.find((r) => r.name === PROP_FADE)?.inherits).toBe(false);
+    expect(REGISTRATIONS_SCOPED.find((r) => r.name === PROP_PLATFORM)?.inherits).toBe(false);
+  });
+
+  it('the platform readers are the section only: its fade reads --platform-morph, its CSS reads --morph-fade', () => {
+    expect(scopedReaderRows.filter((q) => q.sel === 'section')).toEqual([
+      { prop: PROP_PLATFORM, sel: 'section', depth: 0 },
+      { prop: PROP_FADE, sel: 'section', depth: 0 },
+    ]);
+    expect(scopedReaderRows.filter((q) => q.sel !== 'section')).toEqual(readerRows.filter((q) => q.sel !== 'section'));
+    expect([...cssReaders('../platform/platform.module.css', PROP_FADE)]).toEqual(['section']);
+    expect(cssReaders('../platform/platform.module.css', PROP_PLATFORM).size).toBe(0);
+    expect(fadeCss('waapi-scoped')).toBe('calc(1 - min(1, var(--platform-morph) / 0.55))');
+    expect(fadeCss('waapi')).toBe(FADE_CSS);
+  });
+
+  it('the platform animation carries the nav --morph values on --platform-morph (premise of Lean fade_eq)', () => {
+    for (const [from, to] of [[0, 1], [1, 0], [0.3, 0.9]] as const) {
+      const nav = navKeyframes({ from, to }).filter((k) => PROP_MORPH in k.props);
+      const plat = platformKeyframes({ from, to }, 'waapi-scoped').filter((k) => PROP_PLATFORM in k.props);
+      expect(plat.map((k) => [k.offset, k.props[PROP_PLATFORM]])).toEqual(nav.map((k) => [k.offset, k.props[PROP_MORPH]]));
+      const keys = new Set(platformKeyframes({ from, to }, 'waapi-scoped').flatMap((k) => Object.keys(k.props)));
+      expect([...keys].sort()).toEqual(['pointerEvents', PROP_PLATFORM].sort());
+    }
+    expect(settledProps(0.7, 'waapi-scoped').platform).toEqual({ [PROP_PLATFORM]: '0.7' });
+    expect(settledProps(0.7).platform).toEqual({ [PROP_MORPH]: '0.7' });
   });
 });
 

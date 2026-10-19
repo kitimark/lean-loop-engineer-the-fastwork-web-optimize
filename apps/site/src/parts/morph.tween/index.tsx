@@ -4,7 +4,7 @@ import { registerScroll } from '../../engine/scroll';
 import { createTweenDriver, type TweenEnv } from './driver';
 import { matchList } from './media';
 import { createWaapiDriver, type AnimTarget, type WaapiEnv } from './waapi.driver';
-import { FADE_CSS, REGISTRATIONS } from './waapi.logic';
+import { fadeCss, registrationsOf, type WaapiArm } from './waapi.logic';
 
 /** Where the scroll pin sits on the engine: after the nav's hit test (order 100), as the original's pin callback follows it. */
 export const MORPH_PIN_ORDER = 110;
@@ -48,7 +48,8 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
         nav.dataset.fwMorph = String(value);
       },
     };
-    const driver = variant === 'waapi' ? createWaapiDriver(waapiEnv(env, platform, navSelector)) : createTweenDriver(env);
+    const arm: WaapiArm | null = variant === 'waapi' || variant === 'waapi-scoped' ? variant : null;
+    const driver = arm ? createWaapiDriver(waapiEnv(env, platform, navSelector, arm), arm) : createTweenDriver(env);
     const target = platform();
     const io = target ? new IntersectionObserver(([entry]) => driver.setNear(!!entry?.isIntersecting), { rootMargin: '200% 0px' }) : undefined;
     if (target && io) io.observe(target);
@@ -63,9 +64,9 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
   return null;
 }
 
-/** `CSS.registerProperty` for the animated properties, as `REGISTRATIONS` gives them (once; a second call throws and is ignored). */
-function registerProperties(): void {
-  for (const r of REGISTRATIONS) {
+/** `CSS.registerProperty` for the arm's animated properties (once; a second call throws and is ignored). */
+function registerProperties(arm: WaapiArm): void {
+  for (const r of registrationsOf(arm)) {
     try {
       CSS.registerProperty({ ...r });
     } catch {
@@ -74,9 +75,10 @@ function registerProperties(): void {
   }
 }
 
-/** The environment of the `waapi` variant on the window; shares the faithful variant's listener and viewport wiring. */
-function waapiEnv(base: TweenEnv, platform: () => HTMLElement | null, navSelector: string): WaapiEnv {
-  registerProperties();
+/** The environment of a waapi arm on the window; shares the faithful variant's listener and viewport wiring. */
+function waapiEnv(base: TweenEnv, platform: () => HTMLElement | null, navSelector: string, arm: WaapiArm): WaapiEnv {
+  registerProperties(arm);
+  const fade = fadeCss(arm);
   const nav = () => document.querySelector<HTMLElement>(navSelector);
   return {
     timelineNow: () => {
@@ -109,7 +111,7 @@ function waapiEnv(base: TweenEnv, platform: () => HTMLElement | null, navSelecto
     },
     preparePlatform: () => {
       const p = platform();
-      if (p && p.style.getPropertyValue('--morph-fade') !== FADE_CSS) p.style.setProperty('--morph-fade', FADE_CSS);
+      if (p && p.style.getPropertyValue('--morph-fade') !== fade) p.style.setProperty('--morph-fade', fade);
     },
     onActivate: base.onActivate,
   };
