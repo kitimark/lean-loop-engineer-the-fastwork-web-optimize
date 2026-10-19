@@ -167,7 +167,7 @@ const WALLCLOCK_LINT_TESTS = ["scripts/*.test.mjs", "apps/*/test/**", "packages/
  *  static scan in test/land-inputs.test.ts (which fails on any it finds that is not covered here). Dynamic reads the scan
  *  cannot see are listed in docs/team/handoffs/checksfor-inputs.md. */
 export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
-  "apps/console-api": ["lean/Fw/Console/PreviewFacts.lean", "apps/console-web/**", "apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**", ...WALLCLOCK_LINT_FILES],
+  "apps/console-api": ["lean/Fw/Console/PreviewFacts.lean", "snapshot/site/index.html", "apps/console-web/**", "apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**", ...WALLCLOCK_LINT_FILES],
   "apps/runner": ["lean/**", ...WALLCLOCK_LINT_FILES, ...WALLCLOCK_LINT_TESTS, "apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
     "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh",
     // ci-trigger-lean: test/ci-triggers.test.ts reads every workflow, the guard script and the lint

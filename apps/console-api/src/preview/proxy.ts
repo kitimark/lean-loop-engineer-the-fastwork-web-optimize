@@ -111,7 +111,11 @@ export function mountPreviewProxy(app: Hono, pm: PreviewManager) {
   app.use("*", async (c, next) => {
     if (c.req.method !== "GET" && c.req.method !== "HEAD") return next();
     const via = viaReferer(c.req.path, c.req.header("referer"), c.req.header("host"));
-    return via && pm.serving(/^\/preview\/([^/]+)/.exec(via)![1]!) ? handle(c, via) : next();
+    if (!via || !pm.serving(/^\/preview\/([^/]+)/.exec(via)![1]!)) return next();
+    // A module the page imported by a root-absolute string (the boot script's `import("/_app/…")`) must live below the prefix, or
+    // its own relative imports (`../chunks/x.js`, Referer = the module) leave the preview: send it there.
+    if (c.req.header("sec-fetch-dest") === "script") return c.redirect(`${via}${new URL(c.req.url).search}`, 302);
+    return handle(c, via);
   });
   app.all("/preview/:id/*", (c) => handle(c, c.req.path));
 }

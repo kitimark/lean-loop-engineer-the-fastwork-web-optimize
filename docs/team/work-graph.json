@@ -7394,7 +7394,8 @@
     "packages/contracts/golden/console/**",
     "research/notes/2026/10-19-preview-original*.md",
     "docs/team/handoffs/preview-original-missing.md"
-   ]
+   ],
+   "evidence": "8012e47"
   },
   {
    "devices": [
