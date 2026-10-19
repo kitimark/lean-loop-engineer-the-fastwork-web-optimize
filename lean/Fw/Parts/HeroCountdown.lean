@@ -600,6 +600,148 @@ theorem spring_split_differs :
     (springStep (springStep ⟨4, 0⟩ 3 8).state 3 8).state ≠ (springStep ⟨4, 0⟩ 3 16).state := by
   decide +kernel
 
+/-! ## The spring partition: frames act only through their slices (ledger n=8)
+
+Until it settles, the spring after a list of frames is fixed by the concatenation of the frames' slice lengths, so
+every split of time into whole multiples of 16 ms gives the same states, and a fixed cadence gives one fixed state
+sequence (the keyframes of cd-roll-ca, consumed by `Fw.Parts.HeroCountdownOpt`). -/
+
+/-- The slice lengths (ms) the loop runs from `left` ms in `f` iterations.
+
+$$\operatorname{durs}(0, \ell) = [\,],\quad \operatorname{durs}(f + 1, \ell) = \min(\ell, 16) :: \operatorname{durs}(f, \ell - 16)$$ -/
+def loopDurs : Nat → Rat → List Rat
+  | 0, _ => []
+  | f + 1, left => min left 16 :: loopDurs f (left - 16)
+
+/-- The slice lengths of one frame of `dtMs` ms.
+
+$$\operatorname{sl}(\mathit{dt}) = \operatorname{durs}(\operatorname{slices}(\mathit{dt}), \max(0, \mathit{dt}))$$ -/
+def frameDurs (dtMs : Rat) : List Rat := loopDurs (slices dtMs) (max 0 dtMs)
+
+#guard frameDurs 16 == [16] && frameDurs 8 == [8] && frameDurs 24 == [16, 8] && frameDurs 32 == [16, 16]
+#guard frameDurs 0 == [] && frameDurs (-3) == [] && frameDurs (50 / 3) == [16, 2 / 3]
+
+/-- Run slices of the given lengths (ms) toward `target`.
+
+$$\operatorname{run}(s, x^\ast, [\,]) = s,\quad \operatorname{run}(s, x^\ast, d :: ds) = \operatorname{run}(\operatorname{slice}(s, x^\ast, d/1000), x^\ast, ds)$$ -/
+def runSlices (s : Spring) (target : Rat) (ds : List Rat) : Spring :=
+  ds.foldl (fun s d => springSlice s target (d / 1000)) s
+
+/-- The loop is the run of its slice lengths.
+
+$$\forall f \in \mathbb{N},\ \forall s,\ \forall x^\ast, \ell \in \mathbb{Q}:\ \operatorname{loop}(f, s, x^\ast, \ell) = \operatorname{run}(s, x^\ast, \operatorname{durs}(f, \ell))$$ -/
+theorem springLoop_eq_run : ∀ (f : Nat) (s : Spring) (target left : Rat),
+    springLoop f s target left = runSlices s target (loopDurs f left)
+  | 0, _, _, _ => rfl
+  | f + 1, s, target, left => by
+    simp only [springLoop, loopDurs, runSlices, List.foldl_cons]
+    exact springLoop_eq_run f _ target (left - 16)
+
+/-- The spring integrated over a list of frame gaps (ms), with no settle test.
+
+$$\operatorname{roll}(s, x^\ast, [\,]) = s,\quad \operatorname{roll}(s, x^\ast, \mathit{dt} :: \mathit{dts}) = \operatorname{roll}\big(\operatorname{loop}(\operatorname{slices}(\mathit{dt}), s, x^\ast, \max(0, \mathit{dt})), x^\ast, \mathit{dts}\big)$$ -/
+def rollFrames (s : Spring) (target : Rat) (dts : List Rat) : Spring :=
+  dts.foldl (fun s dt => springLoop (slices dt) s target (max 0 dt)) s
+
+/-- **The spring partition theorem.** A list of frames integrates exactly the concatenation of its frames' slices.
+
+$$\forall s,\ \forall x^\ast \in \mathbb{Q},\ \forall [\mathit{dt}_1, \ldots, \mathit{dt}_n] \in \mathbb{Q}^{*}:\ \operatorname{roll}(s, x^\ast, [\mathit{dt}_1, \ldots, \mathit{dt}_n]) = \operatorname{run}\big(s, x^\ast, \operatorname{sl}(\mathit{dt}_1) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{sl}(\mathit{dt}_n)\big)$$
+
+How time is split into frames matters only through the slices it produces. -/
+theorem rollFrames_eq_run (s : Spring) (target : Rat) (dts : List Rat) :
+    rollFrames s target dts = runSlices s target (dts.flatMap frameDurs) := by
+  induction dts generalizing s with
+  | nil => rfl
+  | cons dt dts ih =>
+    rw [List.flatMap_cons, runSlices, List.foldl_append]
+    show rollFrames (springLoop (slices dt) s target (max 0 dt)) target dts = _
+    rw [ih, springLoop_eq_run]
+    rfl
+
+/-- Two splits with the same slices leave the spring in the same state.
+
+$$\forall s,\ \forall x^\ast,\ \forall a, b \in \mathbb{Q}^{*}:\ \operatorname{sl}(a_1) \mathbin{+\!\!+} \cdots = \operatorname{sl}(b_1) \mathbin{+\!\!+} \cdots \Rightarrow \operatorname{roll}(s, x^\ast, a) = \operatorname{roll}(s, x^\ast, b)$$ -/
+theorem rollFrames_congr (s : Spring) (target : Rat) (a b : List Rat) (h : a.flatMap frameDurs = b.flatMap frameDurs) :
+    rollFrames s target a = rollFrames s target b := by
+  rw [rollFrames_eq_run, rollFrames_eq_run, h]
+
+/-- From $16k$ ms the loop runs $k$ full slices. $$\forall k \in \mathbb{N}:\ \operatorname{durs}(k, 16k) = [16]^k$$ -/
+theorem loopDurs_mul16 : ∀ k : Nat, loopDurs k (16 * (k : Rat)) = List.replicate k 16
+  | 0 => rfl
+  | k + 1 => by
+    have h0 : (0 : Rat) ≤ k := by exact_mod_cast Nat.zero_le k
+    have hm : min (16 * ((k + 1 : Nat) : Rat)) 16 = 16 := by push_cast; grind
+    have hl : 16 * ((k + 1 : Nat) : Rat) - 16 = 16 * (k : Rat) := by push_cast; grind
+    rw [loopDurs, hm, hl, loopDurs_mul16 k, List.replicate_succ]
+
+/-- A frame of $16k$ ms runs $k$ full slices. $$\forall k \in \mathbb{N}:\ \operatorname{sl}(16k) = [16]^k$$ -/
+theorem frameDurs_mul16 (k : Nat) : frameDurs (16 * (k : Rat)) = List.replicate k 16 := by
+  have h0 : (0 : Rat) ≤ k := by exact_mod_cast Nat.zero_le k
+  have hmax : max 0 (16 * (k : Rat)) = 16 * k := by grind
+  have hs : slices (16 * (k : Rat)) = k := by
+    unfold slices
+    rw [hmax, show 16 * (k : Rat) / 16 = ((k : Int) : Rat) by push_cast; grind,
+      show -((k : Int) : Rat) = ((-(k : Int) : Int) : Rat) by push_cast; rfl, Rat.floor_intCast]
+    simp
+  rw [frameDurs, hs, hmax, loopDurs_mul16]
+
+/-- **Whole multiples of 16 ms split freely.** Frames of $16k_1, \ldots, 16k_m$ ms leave the spring where
+$k_1 + \cdots + k_m$ frames of 16 ms leave it.
+
+$$\forall s,\ \forall x^\ast,\ \forall [k_1, \ldots, k_m] \in \mathbb{N}^{*}:\ \operatorname{roll}(s, x^\ast, [16k_1, \ldots, 16k_m]) = \operatorname{run}(s, x^\ast, [16]^{k_1 + \cdots + k_m})$$
+
+At 30, 60 or 62.5 Hz on a 16 ms grid the spring passes through the same states. -/
+theorem rollFrames_mul16 (s : Spring) (target : Rat) (ks : List Nat) :
+    rollFrames s target (ks.map fun (k : Nat) => 16 * (k : Rat)) = runSlices s target (List.replicate ks.sum 16) := by
+  rw [rollFrames_eq_run]
+  congr 1
+  induction ks with
+  | nil => rfl
+  | cons k ks ih => rw [List.map_cons, List.flatMap_cons, ih, frameDurs_mul16, List.sum_cons, List.replicate_append_replicate]
+
+/-- Whether no frame of the list settles the spring.
+
+$$\operatorname{live}(s, x^\ast, [\,]) = \top,\quad \operatorname{live}(s, x^\ast, \mathit{dt} :: \mathit{dts}) = \lnot\operatorname{step}(s, x^\ast, \mathit{dt}).\mathit{done} \land \operatorname{live}(\operatorname{step}(s, x^\ast, \mathit{dt}).s, x^\ast, \mathit{dts})$$ -/
+def live : Spring → Rat → List Rat → Bool
+  | _, _, [] => true
+  | s, target, dt :: dts => !(springStep s target dt).done && live (springStep s target dt).state target dts
+
+/-- The spring after a list of frames as the original runs it (settle test every frame).
+
+$$\operatorname{steps}(s, x^\ast, [\,]) = s,\quad \operatorname{steps}(s, x^\ast, \mathit{dt} :: \mathit{dts}) = \operatorname{steps}(\operatorname{step}(s, x^\ast, \mathit{dt}).s, x^\ast, \mathit{dts})$$ -/
+def stepFrames (s : Spring) (target : Rat) (dts : List Rat) : Spring :=
+  dts.foldl (fun s dt => (springStep s target dt).state) s
+
+#guard rollFrames ⟨4, 0⟩ 3 [32] == rollFrames ⟨4, 0⟩ 3 [16, 16]
+#guard rollFrames ⟨4, 0⟩ 3 [8, 8] != rollFrames ⟨4, 0⟩ 3 [16]
+#guard rollFrames ⟨4, 0⟩ 3 [8, 24] != rollFrames ⟨4, 0⟩ 3 [16, 16]
+#guard rollFrames ⟨4, 0⟩ 3 [50 / 3, 50 / 3] != rollFrames ⟨4, 0⟩ 3 [16, 16]
+#guard live ⟨4, 0⟩ 3 [16, 16, 16] && !live ⟨3, 0⟩ 3 [16] && live ⟨4, 0⟩ 3 []
+#guard stepFrames ⟨4, 0⟩ 3 [16, 32] == rollFrames ⟨4, 0⟩ 3 [16, 16, 16]
+
+/-- A frame that does not settle returns the loop's state. $$\forall s, x^\ast, \mathit{dt}:\ \lnot\operatorname{step}(s, x^\ast, \mathit{dt}).\mathit{done} \Rightarrow \operatorname{step}(s, x^\ast, \mathit{dt}).s = \operatorname{loop}(\operatorname{slices}(\mathit{dt}), s, x^\ast, \max(0, \mathit{dt}))$$ -/
+theorem springStep_live (s : Spring) (target dt : Rat) (h : (springStep s target dt).done = false) :
+    (springStep s target dt).state = springLoop (slices dt) s target (max 0 dt) := by
+  unfold springStep at *
+  dsimp only at h ⊢
+  split <;> simp_all
+
+/-- **The partition theorem for the original's loop.** While no frame settles, the original's per-frame steps
+integrate exactly the concatenated slices.
+
+$$\forall s,\ \forall x^\ast,\ \forall \mathit{dts}:\ \operatorname{live}(s, x^\ast, \mathit{dts}) \Rightarrow \operatorname{steps}(s, x^\ast, \mathit{dts}) = \operatorname{run}\big(s, x^\ast, \operatorname{sl}(\mathit{dt}_1) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{sl}(\mathit{dt}_n)\big)$$ -/
+theorem stepFrames_eq_run (s : Spring) (target : Rat) (dts : List Rat) (h : live s target dts = true) :
+    stepFrames s target dts = runSlices s target (dts.flatMap frameDurs) := by
+  rw [← rollFrames_eq_run]
+  induction dts generalizing s with
+  | nil => rfl
+  | cons dt dts ih =>
+    simp only [live, Bool.and_eq_true, Bool.not_eq_eq_eq_not, Bool.not_true] at h
+    have e := springStep_live s target dt h.1
+    simp only [stepFrames, rollFrames, List.foldl_cons] at ih ⊢
+    rw [← e]
+    exact ih _ h.2
+
 /-! ## A drifting interval skips a second (ledger n=8)
 
 `setInterval(1000)` fires late by a drift $d_i \ge \delta > 0$ on every tick. The fire times then gain at least
