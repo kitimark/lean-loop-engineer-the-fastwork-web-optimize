@@ -21,3 +21,11 @@ Open
 - Whether the harness waits correctly on a client-rendered stage page (no hydration marker) is what the pilot shows.
 - keys.jsonl has no registered writer or `--check` job in lean/scripts/check.sh (follow-up from model-checks still open).
 - Premise on part pages: frozen classes are of the whole page; verdicts on a part page are INFERRED to be bounded by them.
+
+Pilot (1 dispatch, only=hero, target rewrite, runs 3, profile swipe-v1, ref ci/counts-only @ 63034e1e): run 39189237058, FAILED, no counts.
+plan, site, fwcore, image passed (plan accepted `?only=hero`, search output `?only=hero`). All 3 counts jobs died in the driver
+(`file:///driver/run.mjs:151`): `viewport not faithful: the page reports 1280x800 (scrollWidth 501, scale 1), the profile 430x932; the run is
+refused`. So the harness rejects the part page before measuring: the loaded page does not hold the mobile emulation. Not diagnosed
+further (one dispatch only). Next: load the page by hand in the container or read the run.mjs viewport check against what a client-rendered
+`?only=` page serves (static server `pageFor` returns index.html for the unknown search; check the PartStage/ErrorPage output and the
+`__fw` markers the driver waits for). Needs a second dispatch to confirm any fix.
