@@ -310,7 +310,7 @@ export function pidAlive(pid: number): boolean {
 }
 /** Every process with its full command line (unlike the snapshot's `comm`-only table). */
 export async function psCommands(): Promise<RawPs[]> {
-  return parsePs(await exec("ps", ["-A", "-o", "pid=,ppid=,etime=,command="], undefined, 3000));
+  return parsePs(await exec("ps", ["-A", "-o", "pid=,ppid=,etime=,command="]));
 }
 
 /** The claude process of this session: the lock pid of the agents' worktrees, else the nearest `claude` ancestor. */
