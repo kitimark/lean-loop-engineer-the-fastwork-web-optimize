@@ -6479,7 +6479,8 @@
     "lean/Fw/Parts/FootprintData.lean",
     "lean/scripts/CountdownHiddenGolden.lean",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
-   ]
+   ],
+   "evidence": "8e862ca"
   },
   {
    "devices": [
