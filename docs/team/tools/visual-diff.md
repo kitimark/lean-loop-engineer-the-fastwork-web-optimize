@@ -50,7 +50,18 @@ as multisets (text blanked in a section whose text is excluded, the countdowns) 
 equal as sets, minus the excluded `Fastwork` family. Twin and golden: `scripts/port/fonts.mjs`,
 `packages/contracts/golden/port/fonts.jsonl`, `apps/site/test/port-fonts.test.mjs` (with `FW_PORT_FONTS_ENGINE` it also loads a
 port page whose `pain.notes` falls back to Google Sans and expects a fail). The built-page step is advisory
-(`continue-on-error`), like checks 3 and 4. Output `<engine>.fonts.json` in artifact `port-fonts-<engine>`.
+(`continue-on-error`), like checks 3 and 4. Output `<engine>.fonts.json` in artifact `port-fonts-<engine>`: the full lists (no cap) of
+lost and added leaves per probe, with counts, `settled`, `polls` and `deckTab` of each arm.
+- The check also needs a browser, so it is a job of its own (`port-fonts`, with the `gate-engine` action) next to `port` (checks 1-4, no browser).
+- Reading is deterministic: the page is scrolled in steps and each section row into view (two frames and a pause per stop, so an
+  IntersectionObserver-mounted section such as the morph panel has mounted), returns to the top (the deck follows the scroll
+  position, so both arms show their first profile; `deckTab` records it), and is polled until leaves, deck tab and face states are
+  equal for 6 polls in a row (`settled`, 15 s cap). `node src/cli.mjs fonts-compare --in A.fonts.json,B.fonts.json` puts the counts
+  of runs of one head side by side.
+- The lost and added leaves are told apart (`Fw.Port.Fonts.split`, theorems `change_font_differs`, `move_sec_differs`,
+  `split_empty_iff`): a font change is a pair with the same section and text and another family, weight or style; an ownership move has
+  the same text and font and another section (an element outside the part's anchor in one arm); the rest are unpaired text leaves.
+  The gap list is the font-change pairs only. The verdict is unchanged: it fails on any of them.
 
 ## Settled
 An arm is settled when both hold: the gate's settled-sample predicate (`settled p o = running = 0 and minFrames <= frames

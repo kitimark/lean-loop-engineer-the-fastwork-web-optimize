@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { check, excl, goldenCases, loaded, units } from '../../../scripts/port/fonts.mjs';
+import { check, excl, goldenCases, loaded, split, units } from '../../../scripts/port/fonts.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const cases = goldenCases();
@@ -30,7 +30,21 @@ test('units, loaded faces and verdicts equal the Lean cases', () => {
     assert.deepEqual(v.missingFaces, c.missingFaces, c.name);
     assert.deepEqual(v.extraFaces, c.extraFaces, c.name);
     assert.equal(v.pass, c.pass, c.name);
+    const sp = split(v.missing, v.extra);
+    assert.deepEqual(sp.changes, c.changes, c.name);
+    assert.deepEqual(sp.moves, c.moves, c.name);
+    assert.deepEqual(sp.lost, c.lost, c.name);
+    assert.deepEqual(sp.added, c.added, c.name);
   }
+});
+
+test('the Lean pairing cases tell a font change from an ownership move and a text difference', () => {
+  const by = (n) => cases.find((c) => c.name === n);
+  assert.equal(by('a button draws Arial').changes.length, 1);
+  assert.equal(by('the o is owned by people.card').moves.length, 1);
+  assert.equal(by('a text differs').lost.length + by('a text differs').added.length, 2);
+  const mix = by('a change, a move, a lost and an added leaf');
+  assert.deepEqual([mix.changes.length, mix.moves.length, mix.lost.length, mix.added.length], [1, 1, 2, 1]);
 });
 
 test('the Lean cases cover a fallback family, weight, style, a lost face and an extra face', () => {
