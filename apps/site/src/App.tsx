@@ -6,6 +6,7 @@ import { MorphCountdown } from './parts/morph.countdown';
 import { NavHitTest } from './parts/nav.hitTest';
 import { Nav } from './parts/nav';
 import { MorphMount } from './parts/morph.mount';
+import { dormant, isDormantVariant } from './parts/morph.mount/logic';
 import { MorphColumns } from './parts/morph.columns';
 import { EngineScene } from './parts/engine.scene';
 import { People } from './parts/people';
@@ -25,6 +26,8 @@ const OPEN_DRAWER = '[data-selenium="start-selling.commission.button.why"]';
 /** Placeholder home page. Overlays are mounted closed (no keepMounted: they portal in on open, like the real ones). */
 export function App({ config }: { config: FwConfig }) {
   const [panel, setPanel] = useState(false); // morph.mount: the panel's DOM insertion (once, never unmounted)
+  const [woken, setWoken] = useState(false);
+  const mountVariant = config.variants['morph.mount'] ?? 'faithful';
   const writerRef = useRef<PanelWriter | null>(null); // the nav hands each --morph value to the panel's attribute writer
 
   useEffect(() => setHydrated(), []); // root effects run after hydration has committed
@@ -43,7 +46,7 @@ export function App({ config }: { config: FwConfig }) {
     <>
       <EngineScroll variant={config.variants['engine.scroll'] ?? 'faithful'} />
       <NavHitTest variant={config.variants['nav.hitTest'] ?? 'faithful'} />
-      <MorphMount variant={config.variants['morph.mount'] ?? 'faithful'} targetSelector='[data-fw="platform"]' onMount={() => setPanel(true)} />
+      <MorphMount variant={mountVariant} targetSelector='[data-fw="platform"]' onMount={() => setPanel(true)} onWake={() => setWoken(true)} />
       <MorphTween variant={config.variants['morph.tween'] ?? 'faithful'} />
       {/* engine.scene: the platform section is the scene it pauses while it paints nothing (hidden-pause) */}
       <EngineScene variant={config.variants['engine.scene'] ?? 'faithful'} selector='[data-fw="platform"]' />
@@ -55,7 +58,7 @@ export function App({ config }: { config: FwConfig }) {
             impl={config.impl['morph.panel']}
             writerRef={writerRef}
             onAction={openSignup}
-            backdrop={<MorphColumns variant={config.variants['morph.columns'] ?? 'faithful'} />}
+            backdrop={<MorphColumns variant={config.variants['morph.columns'] ?? 'faithful'} dormant={isDormantVariant(mountVariant) && dormant(panel, woken)} />}
             countdown={<MorphCountdown variant={config.variants['morph.countdown'] ?? 'faithful'} impl={config.impl['morph.countdown']} />}
           />
         )}
