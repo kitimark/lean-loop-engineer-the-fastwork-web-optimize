@@ -32,7 +32,9 @@ flags, as discrete keyframes at the eased-progress offset, flip on the same fram
 `VisSame E` for every env. MT-W (`waapi_work_le`): per tween frame the variant drops the script stage and keeps
 every other stage, in both engine tables (a custom property animates on the main thread in both). MT-R
 (`registrations_see`, `morph_scope_eq`): `--morph` and `--morph-fade` are registered inherited, so every reader below
-the nav (the hosted panel included) sees the animated value and the style invalidation scope equals the original's.
+the nav (the hosted panel included) sees the animated value and the style invalidation scope equals the original's
+(the waapi arm also animates `--morph` on the platform section, whose subtree both arms already invalidate every frame
+through the inherited `--morph-fade`).
 Golden rows (predictions, registrations, readers): `packages/contracts/golden/parts/morph-tween-waapi.jsonl`
 (`goldenJsonl`).
 -/
@@ -1177,7 +1179,8 @@ Without inheritance a child never sees the animation. -/
 theorem seenAt_false_succ (a i : Rat) (d : Nat) : seenAt false a i (d + 1) = i := rfl
 
 /-- A reader of an animated property: a CSS rule that substitutes `var(prop)` on an element (CSS-module class `sel`)
-at depth `depth` below the element the variant animates.
+at depth `depth` below the element the variant animates. The depths are entered by hand and not checked against the
+DOM.
 
 $$\mathrm{Reader} = \mathrm{String} \times \mathrm{String} \times \mathbb{N} \ni (\mathit{prop}, \mathit{sel}, \mathit{depth})$$
 
@@ -1336,7 +1339,11 @@ def recalcs (inh : Bool) (d : Nat) : Bool := d == 0 || inh
 the variant's registration inherits too, so its per-frame style changes cover exactly the original's elements in
 every subtree and every element sees the same value as in the original: `waapi_work_le` applies with one change list
 $C$ for both arms. With `inherits` false the variant would change fewer elements than the original on any subtree
-with a strict descendant: a smaller style count bought by a wrong picture.
+with a strict descendant: a smaller style count bought by a wrong picture. The waapi arm also animates `--morph` on the
+platform section, where the original writes only `--morph-fade`; both arms already invalidate that section's subtree
+every frame through the inherited `--morph-fade` it sets (Chromium `style/computed_style.cc:472-475`@f842f52: a change
+to an inherited variable on an element with a `var()` reference gives `kInherited`), so the extra property adds no
+element to the recalc set.
 
 $$\Big(\forall p,\ \forall D \in \mathbb{N}^{*},\ \forall a, i \in \mathbb{Q},\ \forall d \in \mathbb{N}:\quad h_o(p) \Rightarrow \operatorname{filter}(\operatorname{recalc}(h_v(p)), D) = \operatorname{filter}(\operatorname{recalc}(h_o(p)), D) \land \operatorname{seen}(h_v(p), a, i, d) = \operatorname{seen}(h_o(p), a, i, d)\Big)$$
 $$\land\ \Big(\forall D \in \mathbb{N}^{*}:\quad \operatorname{need}(D) \Rightarrow \operatorname{filter}(\operatorname{recalc}(\bot), D) \ne \operatorname{filter}(\operatorname{recalc}(\top), D)\Big)$$
@@ -1456,6 +1463,7 @@ def goldenJsonl : String :=
   String.join (goldenRows.map fun r => r.json ++ "\n") ++ String.join (registrations.map fun r => r.json ++ "\n") ++
     String.join (readers.map fun r => r.json ++ "\n")
 
+#guard goldenJsonl == include_str "../../../packages/contracts/golden/parts/morph-tween-waapi.jsonl"
 #guard goldenRows.length == 11
 #guard (goldenRows.filter fun r => r.prediction == "<o").length == 3
 #guard goldenRows.head?.map PredRow.json ==
