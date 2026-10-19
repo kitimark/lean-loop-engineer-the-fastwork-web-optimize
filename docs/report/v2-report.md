@@ -1,21 +1,24 @@
 ---
 id: 2026-10-17-v2-report
 kind: note
-title: "v2 report: a measurable, provable loop for the fastwork.com scroll experiment (draft 2, rev-10 shape)"
+title: "v2 report: a measurable, provable loop for the fastwork.com scroll experiment (draft 3, after C3)"
 status: draft
 created: 2026-10-17
-updated: 2026-10-18
-authors: [agent:researcher-report-draft, agent:researcher-report-draft-2]
-topics: [report, write-up, lean, measurement, ci, agent-teams, cost]
+updated: 2026-10-20
+authors: [agent:researcher-report-draft, agent:researcher-report-draft-2, agent:researcher-report-draft-3]
+topics: [report, write-up, lean, measurement, ci, agent-teams, cost, composition]
 ---
 
-# v2 report (draft)
+# v2 report (draft 3)
 
-**State of this draft.** Sections 2, 3, 5 and 7 were written at `e5bf4e4` (2026-10-17 23:34 +0700). Sections 1, 4
-and 6 were rewritten at `698b775` (2026-10-18) to the rev-10 shape of [P10:1073-1074, 1083]: per part the theorem
-pair, its premises, the RG status, the engine verdicts and an F-result slot. Sections 2, 3, 5 and 7 got dated
-updates at `a3196a4` in place of their open items. Two named pending blocks remain, both in
-§4.7, and close at C3 (2026-10-19 23:15 +0700). The experiment ends by **2026-10-20 13:15 +0700** (`ad5eeea`).
+**State of this draft.** Draft 3 was written at `dcd3e13d` (2026-10-19 23:31 +0700), after checkpoint C3 (decided
+22:55 +0700, [C3]). It adds the C3 result per flag (§4.2), independence and composition (§4.5), runs per flag before
+and after (§4.6), the findings and negative results of 2026-10-18 and 2026-10-19 (§5), token totals and a CI demand
+estimate (§6) and a new not-done list (§7). Sections 2 and 3 keep the text of draft 2 (`e5bf4e4`, `a3196a4`) with
+dated additions. The two open result blocks of draft 2 are closed: the faithful bands are in §4.9, and the F3/F4
+table is §4.2. Three named slots stay open for results that arrive after this draft: `people-layout-shift` (§7),
+`gh-status` (§6.5) and `compose-check` (§4.5). The text freezes 2026-10-20 11:15 +0700 and the experiment ends
+13:15 +0700. CONFIRMED [P11:1043, 1052]
 
 **Status words.** MEASURED: a number from a run or a count in this repo, with its commit, run id or file. CONFIRMED:
 a cited source, doc or record says so. INFERRED: a judgement or expectation not yet checked.
@@ -26,6 +29,7 @@ a cited source, doc or record says so. INFERRED: a judgement or expectation not 
 |---|---|
 | [PLAN] | `docs/plan/PLAN.md` (revision 8; line numbers at `e5bf4e4`, used in §2-§3) |
 | [P10] | `docs/plan/PLAN.md` (revision 10; line numbers at `698b775`) |
+| [P11] | `docs/plan/PLAN.md` (revision 11.2; line numbers at `dcd3e13d`) |
 | [LG] | `research/findings/ledger.json` at `698b775`: `L<k>` is the k-th row of `findings` (1-based, 47 rows), `N<k>` the k-th row of `notes` (0-based, 23 rows) |
 | [R14] | `research/notes/2026/10-18-math-review-r14-f9b30af.md` (math review round 14) |
 | [RG] | `research/notes/2026/10-18-engine-gaps.md` (RG1-RG11 at the pins; RG<k> is the note's R<k>) |
@@ -36,9 +40,17 @@ a cited source, doc or record says so. INFERRED: a judgement or expectation not 
 | [WK] | `packages/measure-webkit/README.md` |
 | [WKTR] | `packages/measure-wktr/README.md` |
 | [BL] | `results/baselines/chromium/README.md` |
+| [C3] | `research/notes/2026/10-19-c3-decision.md` |
+| [W1] | `research/notes/2026/10-19-integrate-wave-1.md` |
+| [W2] | `research/notes/2026/10-19-integrate-wave-2.md` |
+| [MC] | `research/notes/2026/10-19-model-checks.md` |
+| [MB] | `docs/team/handoffs/model-bug-fixes.md` (landed `024e2d06`) |
+| [LP] | `research/notes/2026/10-19-lego-parts-plan.md` |
+| [FR] | `research/notes/2026/10-19-faithful-rerun.md` |
 
-Numbers taken from git or `gh run list` in this draft were counted at `e5bf4e4`; the CI run list was read at
-16:35 UTC (23:35 +0700).
+Numbers taken from git or `gh run list` in §2-§3 were counted at `e5bf4e4`; the CI run list was read at 16:35 UTC
+(23:35 +0700). Numbers new in draft 3 were read at `dcd3e13d`; run walls are `gh run list` created-to-updated times
+and include queue time.
 
 ---
 
@@ -84,8 +96,22 @@ never evidence. CONFIRMED [P10:493-534]
 
 **Success criteria (rev 10)** are G1-G4 [P10:182-185]. G1 is "reproduced, proved": every flag in `v2-proved` has its
 theorem pair in both engine models at every width band, and no F0-F5 prediction is falsified on CI. `v2-proved` is
-the set of optimizations with a proved pair and no falsified prediction [P10:93]. §4.2 gives each pair; §4.7 holds
-the two results that close at C3 (2026-10-19 23:15 +0700).
+the set of optimizations with a proved pair and no falsified prediction [P10:93]. Rev 11 added the C3 rule: a
+falsified prediction that cannot be fixed by C3 drops its flag, and a proof task still open is reported as "modelled,
+not proved". CONFIRMED [P11:1051]
+
+**Answer at C3** (2026-10-19 22:55 +0700, [C3]).
+
+| Question | Answer | Status, source |
+|---|---|---|
+| Does the rewrite with `v2-proved` pass the breakpoint gate? | Yes in Chromium: 7056 readings, 0 fail, 7 excused. WebKit: 0 fail, 291 excused, verdict "incomplete" only because of the 2 phone-rotation cells that cannot be compared (an accepted limit, §7) | MEASURED, run 39271987926 (10 flags, before the strip was dropped) and run 39282664077 (9 flags, `639f9475`) |
+| How many flags are in `v2-proved`? | 9: nav.hitTest:elements-skip, pain.notes:visible, people.card:mq, morph.columns:hidden-pause, morph.countdown:hidden-pause, engine.scene:hidden-pause, morph.mount:shift, morph.tween:waapi, engine.scroll:batched | CONFIRMED, `apps/site/src/registry/presets/v2-proved.json` (generated by `lean/Fw/Preset/Gen.lean`; c3-preset-update, `639f9475`) |
+| Which proved flag dropped out? | hero.countdown:strip (with morph.countdown:strip). Its only prediction could not be checked, and the strip arm did more pipeline work | MEASURED, runs 39257533380 / 39259074927; decision [C3] |
+| How much less style work does the whole page do? | Style recalcs 1832 → 821 (swipe-v1) and 1864 → 856 (swipe-touch-v1), deterministic in 3 of 3 shards, measured with the 10-flag preset | MEASURED, runs 39253166643 / 39253172750 and 39253177864 / 39253184136 [W2] |
+| Is the rewrite faithful to the original in the counts? | No. It fails all 6 count zones (PL5), while the control passes | MEASURED, §4.9 |
+| Can each flag's saving be attributed by proof? | No. None of the flag parts is isolated under the adopted independence rule, so per-flag attribution stays INFERRED | CONFIRMED, `Fw.Parts.Bridge.isolated_code` (§4.5) |
+| Proof tasks | 14 of 15 closed; `variant-morph-panel-rest` cut | CONFIRMED [C3] |
+| F6 (composition check) | "statement landed, run after C3" | CONFIRMED [C3]; slot in §4.5 |
 
 ---
 
@@ -96,7 +122,7 @@ the two results that close at C3 (2026-10-19 23:15 +0700).
 | Measure | Value | Status, source |
 |---|---|---|
 | Declarations in the math view | 2,171 (1,005 theorems, 1,166 definitions) in 56 modules | MEASURED, `docs/plan/loop-plan.html` at `e653a14` (module rows summed) |
-| Review state of the math view | 2,167 agree, 4 disagree, 0 pending; the 4 were fixed in `25b68d2` and wait for re-review; superseded by §4.5 (r14) | MEASURED, same file; fix CONFIRMED (`25b68d2`) |
+| Review state of the math view | 2,167 agree, 4 disagree, 0 pending; the 4 were fixed in `25b68d2` and wait for re-review; superseded by §4.8 (r14) | MEASURED, same file; fix CONFIRMED (`25b68d2`) |
 | Growth since revision 8 of the plan | 1,947 declarations (910 theorems) in 51 modules at `7d564e2` | MEASURED [PLAN:120-123] |
 | Lean source | 87 files, 34,930 lines in `lean/Fw` and `lean/FwTest` | MEASURED (`find`/`wc` at `e5bf4e4`) |
 | Plan's up-front estimate | about 20 modules, $700-1,100 of Lean work | INFERRED in the plan [PLAN:120] |
@@ -184,9 +210,19 @@ Commits per hour (MEASURED, git, +0700):
 |---|---|---|---|---|---|---|---|---|---|---|
 | 7 | 10 | 40 | 18 | 41 | 19 | 54 | 55 | 55 | 56 | 25 |
 
-**Count at this draft.** `main` holds 1295 commits, from `931aa35` (2026-10-17 13:15 +0700) to `a3196a4`
-(2026-10-18 20:16 +0700). MEASURED (`git rev-list --count main`). Wall time to each milestone gate, tasks landed
-per milestone and agents started are counted at the end by task `write-up`.
+**Count at draft 2.** `main` held 1295 commits, from `931aa35` (2026-10-17 13:15 +0700) to `a3196a4`
+(2026-10-18 20:16 +0700). MEASURED (`git rev-list --count main`).
+
+**Count at draft 3.** `main` holds 2039 commits at `dcd3e13d` (2026-10-19 23:31 +0700). 739 of them came after draft
+2 (`68f3522e`, 2026-10-18 22:29 +0700), 444 of those not merges. `docs/team/handoffs/` holds 299 handoff files.
+MEASURED (`git rev-list --count`, `ls`). The tasks that landed after draft 2 include, by `Task:` trailer: wave 1
+(`site-assets`, `content-hero`, `content-people-pain-commission`, `faithful-checks-rerun`, `integrate-wave-1`), wave 2
+(`morph-group-integrate`, `proved-flags-ts`, `model-bug-fixes`, `part-stage`, `counts-only`, `contract-rows-from-code`,
+`integrate-wave-2`), the C3 fixes (`platform-willchange`, `c3-preset-update`), the proof tasks (`indep-bridge`,
+`compose-lean`, `countdown-hidden-pause`, `morph-tween-inherit`), the port gaps (`port-fonts-check`, `port-font-gaps`,
+`svg-extract`, `people-o-glyph`, `asset-icons-gaps`, `port-completeness-gate`, `nav-scroll-hide-check`) and the
+console and CI tasks (`ci-main-triggers`, `land-lane`, `preview-original-missing`, `latex-mathview-b2`). CONFIRMED
+(git log of `main`).
 
 ---
 
@@ -319,15 +355,48 @@ CONFIRMED, `packages/gate-breakpoints/src/gaps/README.md:1-30`.
 | iPhone and iPad Simulator arms | ran OK | MEASURED, `0d561fa` |
 | Real iPhone | 8 of 8 agree with Lean and the Simulator; 8 of 8 again in Light mode | MEASURED on the phone, `0c901f2`, `82954ed` |
 
+### 3.4 Waves 1 and 2 (added in draft 3)
+
+Rev 11 replaced per-flag whole-page runs with two integration waves, each closed by one whole-page gate in both
+engines and combined counts per profile [P11:1134-1143].
+
+**Wave 1** (main `4283c5a1`, [W1]).
+
+| Result | Value | Status, source |
+|---|---|---|
+| Gate, default arm, Chromium | pass: 7056 readings, 7049 pass, 7 excused, 0 bad. Excused fell from 64 to 7, because all 57 commission live-resize readings now pass | MEASURED, run 39184687325 |
+| Gate, default arm, WebKit | incomplete: 6763 pass, 291 excused, 2 bad (phone-rotation stops 1 and 3, which cannot be compared) | MEASURED, run 39184687325 |
+| Gate, `v2-proved` arm | not run: the workflow could not name the preset; fixed by `gate-preset-input` | MEASURED, run 39185920522 |
+| Base counts refreeze | 3 runs per profile; rewrite classes (det/stable/quarantined) swipe-v1 44/7/1 → 30/22/18, touch 50/1/0 → 27/26/17 (70 types); original swipe-v1 32/28/10 → 33/27/10, touch 23/32/15 → 24/35/11 | MEASURED, runs 39184638066, 39186469962, 39186477379 (swipe-v1) and 39184646781, 39186485136, 39187013275 (touch); adopted by `model-bug-fixes` [MB] |
+
+The refreeze moved many rewrite types out of the deterministic class. The rewrite's animation and event work varies
+per runner VM. INFERRED, not diagnosed [W1:80].
+
+**Wave 2** (main `c6912998`, [W2]).
+
+| Result | Value | Status, source |
+|---|---|---|
+| Gate, `v2-proved`, Chromium | fail: 248 bad readings, all `platform.stageBg` / `platform.marquee` `will-change` ("transform" in the original, "auto" in the rewrite) | MEASURED, run 39253059266 |
+| Gate, default arm, Chromium | fail: the same 248 plus 1 commission probe | MEASURED, run 39253066988 |
+| Gate, both arms, WebKit | incomplete, 0 fail, the same 2 phone-rotation cells | MEASURED, run 39257945326 |
+| Cause of the 248 | a regression on main, not a flag effect (§5.2) | CONFIRMED [C3] |
+| Gate after the fix | pass in Chromium, WebKit incomplete as in wave 1 | MEASURED, run 39271987926 (full) and run 39266552780 (default arm) |
+| Combined counts per profile | §4.6 | MEASURED |
+| Single-flag part pages | 7 pairs, Chromium only: 20 pass, 4 model-bug, 18 unusable rows | MEASURED [W2:138] |
+| G2 morph group, base against `v2-proved` | UpdateLayoutTree 2476 → 833, Paint 2338 → 1369 | MEASURED, runs 39261906990 / 39262007729 |
+
+The part pages (`?only=<part>&stage=…`) became possible only after `driver-stage-mode` (`046320e9`). The first
+part-page run was refused by the driver at three gates (§5.2). CONFIRMED [W2], `research/notes/2026/10-19-counts-only-finding.md`.
+
 ---
 
-## 4. Results: the proof ledger
+## 4. Results: the proof ledger and C3
 
 ### 4.1 How to read a row
 
-Every row is one ledger finding [LG] (`L<k>`). Its verdicts, premises and Lean names are the ledger's, which cite
-engine lines at `chromium@f842f52` and `WebKit@862f17d`. Lean names are in `lean/Fw` at `698b775` (each name in §4.2
-resolves to one declaration, CONFIRMED by grep at `698b775`); the prefix `Fw.Parts.` is dropped.
+Every row of §4.3 is one ledger finding [LG] (`L<k>`). Its verdicts, premises and Lean names are the ledger's, which
+cite engine lines at `chromium@f842f52` and `WebKit@862f17d`. Lean names are in `lean/Fw`; the prefix `Fw.Parts.` is
+dropped. Names new in draft 3 were checked by grep at `dcd3e13d`.
 
 | Column | Meaning |
 |---|---|
@@ -337,42 +406,81 @@ resolves to one declaration, CONFIRMED by grep at `698b775`); the prefix `Fw.Par
 | Cr, Wk | The ledger's verdict per engine model: win (less work, no more layers), trade (less of one, more of another), no-win (equal), worse, unknown |
 | Open premise | The premise of the row that is not CONFIRMED, with the ledger's status |
 | RG | Research gaps the row rests on, with their status from [RG] |
-| F | Where the row's F3/F4 result goes: the flag it runs under, or why it cannot run at `698b775` |
+| F | The flag the row runs under and where its F-result is (§4.2), or why it has none |
 
-All verdicts are under the engine models, so they are CONFIRMED as Lean results and INFERRED as engine facts until
-F3/F4 (Chromium) or F5 (WebKit) check them. F3/F4 have not run on any flag at `698b775` (§4.7).
+All verdicts are under the engine models. They are CONFIRMED as Lean results and INFERRED as engine facts until
+F3/F4 (Chromium) or F5 (WebKit) check them. F3/F4 ran per flag in two rounds: whole-page runs per flag
+(`model-checks`, [MC]) and single-flag part pages (wave 2, [W2]). An F row reads pass, model-bug or unusable.
+Unusable means the count type is quarantined, or its class cannot decide the predicted relation. engine-check has no
+WebKit lane (`laneRes_webkit`, `lean/Fw/Measure/EngineCheck.lean:605`), so every WebKit row is unusable and F5 stays
+the Simulator result of §4.9. CONFIRMED [MC:46]
 
-### 4.2 Per part: theorem pair, premises, engine verdicts, F-result
+### 4.2 Per flag at C3: theorem pair, premises, F-results, verdict
+
+One row per flag of the generated `v2-proved` preset at wave 2 (10 flags) plus three flags that were candidates.
+"MC" is the whole-page model check per flag on swipe-v1 [MC]; "part page" is the single-flag part page of wave 2
+[W2:138]. Both read pass / model-bug / unusable. "Re-judged" rows were judged again on the refrozen classes by
+`model-bug-fixes` [MB]. Every count is MEASURED on Chromium CI runs; verdicts are Lean's (`fw engine-check`).
+
+| Flag (ledger rows) | (vis) / (work) | Model Cr / Wk | Premises H1-H3, RG | MC (run) | Part page (runs base / arm) | C3 |
+|---|---|---|---|---|---|---|
+| nav.hitTest:elements-skip (L4) | `NavHitTestOpt.elementsSkip_visSame` (E under AL) / `elementsSkip_run_dominates` | win / win | H1-H3 not touched (no path change, INFERRED); AL from CSS has no theorem; RG4 CONFIRMED | 7 / 1 / 1 (39131395370); the model-bug row (FunctionCall `=o`, sums 2552 = 2552, frames differ) re-judged unusable (`Engine.Chromium.navHit_functionCall_rejudged`) | 5 / 0 / 4; UpdateLayoutTree 2060 → 155 (39253271676 / 39253292170) | keep |
+| pain.notes:visible (L34) | `PainNotesOpt.pain_visSame` (E; premise CovOk OPEN) / `hiddenTick_lt`, `cr_idle_tick`, `wk_idle_tick` | win / win | H1-H3 not touched (INFERRED); Chromium timer rule OPEN [LG N21] | not run (`pain.notes:arm` was not on main) | 3 / 2 / 3 (39253313203 / 39257459959); both model-bug rows are a class premise: the base itself has two states in tail frames 698-713 | keep; prediction `<=o` met by equality |
+| people.card:mq (L25) | `PeopleCardOpt.peopleCard_visSame` (E) / `cr_dominates`, `wk_dominates` | win / win | swipe profiles contain tail frames: OPEN | not run | 3 / 2 / 3; UpdateLayoutTree 895 → 834, the arm below in 61 frames and above in none (39253313203 / 39257496442); model-bug rows: the same tail jitter | keep |
+| morph.columns:hidden-pause (L20, L42) | `HiddenPause.panel_visSame` (E while hidden) / `pause_le` | no-win / trade | RG6 residual OPEN | 3 / 0 / 1 (39131207849) | 2 / 0 / 2, arm equal to base (39259109607 / 39259146065) | keep (weak) |
+| morph.countdown:hidden-pause (L10, L44) | `HiddenPause.hidden_pause_eq` (E under hsync) / `skipWrites_leE`, `unhide_leE` | win / win | hsync OPEN; RG6 residual OPEN | 3 / 0 / 1 (39131217951) | no part page | keep |
+| engine.scene:hidden-pause (L45, L42) | `HiddenPause.hiddenPause_visSame` (E) / `pause_le` | win / win (L45) | RG1 OPEN | 2 / 1 / 1 (39131168588); UpdateLayoutTree `<=o` reads 1851 > 1850, still a model bug after the re-judge: a forced style pass from `getAnimations` after `removeAttribute` (`Engine.Chromium.sceneReturn_style`, `Chromium.lean:1726`) | 2 / 0 / 2, weak: the stage page has no hidden state (39260614233 / 39260841413) | keep; full gate passes every platform and engine.scene row (39271987926) |
+| morph.mount:shift (L17) | `MorphMountOpt.visSame_mount` (E under HiddenBefore) / `shift_peak_lt`; against `Engine.shift_not_dominates` | trade / trade | the counting window holds the warm-up frame | 5 / 1 / 2 (39131302530); LayoutCount re-judged pass (`Engine.Chromium.mount_layoutCount_rejudged`) | 5 / 0 / 3; the arm adds FunctionCall +952, quarantined (39259991865 / 39260576409) | keep |
+| morph.tween:waapi (L11) | `MorphTweenOpt.waapi_vis` (E-s) / `waapi_work_le_chromium`, `waapi_work_le_webkit` | win / win | RG2, RG3, RG3b CONFIRMED; RG8 MEASURED; RG5 lane OPEN | 3 / 1 / 2 (39131146372); FireAnimationFrame `<o` reads 1748 = 1748: swipe-v1 never pushes the morph, so the right prediction is `=o` (`Engine.Chromium.waapi_raf_eq_iff`, INFERRED cause) | no part page | keep, unmeasured per part |
+| engine.scroll:batched (L1) | none (E needs premise NI) / `EngineScroll.batched_le_faithful`, `total_batch_win_iff` | no-win / unknown | RG4 CONFIRMED; the Chromium dirty-style premise INFERRED | not run | no part page (page-level by construction, G4) | keep, unmeasured per part |
+| hero.countdown:strip + morph.countdown:strip (L7, L19) | `HeroCountdownOpt.strip_visSame` (E) / `strip_claim`; against `strip_backing_gt` (`HeroCountdownOpt.lean:689`) | trade / trade | H1-H3 relevant (a new layer per digit), unchecked; each layer backs its whole box INFERRED | 1 / 0 / 0 (39131314391); F5 Simulator green 3 times (§4.9) | 0 / 0 / 1: `census.layers <o` reads 12960 = 12960 in every shard, which the stable class cannot refute (39257533380 / 39259074927) | **out**: "modelled, not proved"; curated exclusion (`Preset.Gen.curated_not_mem`, `Gen.lean:118`), landed `639f9475` |
+| nav.hitTest:hit-skip (L3) | `NavHitTestOpt.hitSkip_visSame` (E) / `hitSkip_run_dominates` | win / win | swipe-v1 reaches morph > 0.2: OPEN | 7 / 1 / 1 (39131343835), same FunctionCall row | none | not in the preset: shadowed by elements-skip (the generator takes the first qualifying flag per part, `Gen.lean:13`) |
+| morph.panel:rest (L13) | `MorphPanelOpt.rest_visSame_E` (E under RG10) / `cr_rest_claim` | trade / win | RG10 CONFIRMED | none | none | cut: `variant-morph-panel-rest` not landed; "modelled, not proved" [C3] |
+| hero.accent:steps (L23) | `HeroAccent.exact_chain_vis` (E) / `cr_main_run_dominates`; against `cr_comp_step_not_le` | trade / no-win | RG5 lane phase gap | none | none | curated exclusion in `Gen.lean:61`: a trade on Chromium and no win on WebKit |
+
+**What the strip measured.** The strip arm did more pipeline work than the base on the hero.countdown page:
+UpdateLayoutTree and RecalcStyleCount 1161 → 1182, commits 1064 → 1085, `UpdateLayoutTree.elementCount` 11264 →
+22445, `Layout.totalObjects` 47161 → 53433. FireAnimationFrame fell 2649 → 2130. MEASURED, runs 39257533380 /
+39259074927 [C3]. The model calls the strip a trade (fewer repaints, more layers). The page shows more style and
+layout work too, which the model does not predict. INFERRED: one element per digit multiplies the elements each
+style pass visits.
+
+**After the re-judge** the whole-page model checks hold one model bug that is not a class finding: engine.scene
+UpdateLayoutTree. Its fix is open (add the forced pass to the golden rows, or seek before `removeAttribute` in the
+site, INFERRED) [MB]. The swipe-touch-v1 lane did not run in `model-checks`: the touch swipe "did not finish within
+maxFrames" on the base with no flag set (runs 39131406685, 39135255809). MEASURED [MC:44-45]
+
+### 4.3 All ledger rows with a proved pair
 
 | L | Part: optimization | (vis) | (work) | Ledger | Cr | Wk | Open premise (status) | RG | F |
 |---|---|---|---|---|---|---|---|---|---|
-| L1 | engine.scroll: batched reads then writes | none; E needs premise NI (INFERRED) | `EngineScroll.batched_le_faithful`, `total_batch_win_iff` | proved | no-win | unknown | Chromium runs UpdateLayoutTree only when style is dirty at a lifecycle step: INFERRED (CI 784 vs a local no-write probe 94 per 385 frames) | RG4 CONFIRMED | `engine.scroll:batched` |
-| L3 | nav.hitTest: hit-skip while morph > 0.2 | `NavHitTestOpt.hitSkip_visSame` (E) | `hitSkip_run_dominates` | proved | win | win | swipe-v1 reaches morph > 0.2: OPEN, INFERRED false, so F3 may see no skipped frame | RG4 CONFIRMED | `nav.hitTest:hit-skip` |
-| L4 | nav.hitTest: elements-skip with an allow-list | `elementsSkip_visSame` (E under premise AL) | `elementsSkip_run_dominates` | proved | win | win | AL generated from CSS: no theorem yet (missingWhy) | RG4 CONFIRMED | `nav.hitTest:elements-skip` |
+| L1 | engine.scroll: batched reads then writes | none; E needs premise NI (INFERRED) | `EngineScroll.batched_le_faithful`, `total_batch_win_iff` | proved | no-win | unknown | Chromium runs UpdateLayoutTree only when style is dirty at a lifecycle step: INFERRED (CI 784 vs a local no-write probe 94 per 385 frames) | RG4 CONFIRMED | `engine.scroll:batched` in `v2-proved`; no per-part run (§4.2) |
+| L3 | nav.hitTest: hit-skip while morph > 0.2 | `NavHitTestOpt.hitSkip_visSame` (E) | `hitSkip_run_dominates` | proved | win | win | swipe-v1 reaches morph > 0.2: OPEN, INFERRED false, so F3 may see no skipped frame | RG4 CONFIRMED | `nav.hitTest:hit-skip`: MC 7 / 1 / 1; shadowed by elements-skip (§4.2) |
+| L4 | nav.hitTest: elements-skip with an allow-list | `elementsSkip_visSame` (E under premise AL) | `elementsSkip_run_dominates` | proved | win | win | AL generated from CSS: no theorem yet (missingWhy) | RG4 CONFIRMED | `nav.hitTest:elements-skip` in `v2-proved` (§4.2) |
 | L5 | nav.hitTest: write-on-change | `NavHitTest.changed_write` (E) | `writeOnChange_le`; against: `toggle_noop` | proved | no-win | no-win | none: `toggle` is a no-op when unchanged, CONFIRMED in both engines | none | no flag |
 | L6 | hero.exit: threaded scroll-driven consumers | `HeroExitOpt.consumer_eq_s` (E-s under RG11) | `cr_real_tradeE`, `wk_tradeE` (trade) | partly-proved | trade | trade | WebKit ticks scroll-timeline animations each update: MEASURED, CI 39075991405 [LG N2, N7] | RG11 CONFIRMED; RG7 O3 CONFIRMED | no flag |
-| L7 | hero.countdown: strip (one strip per digit) | `HeroCountdownOpt.strip_visSame` (E) | `strip_claim`; against: `strip_backing_gt` | proved | trade | trade | each layer backs its whole box: INFERRED | none | `hero.countdown:strip`; F5 lane green 3 times (§4.6) |
+| L7 | hero.countdown: strip (one strip per digit) | `HeroCountdownOpt.strip_visSame` (E) | `strip_claim`; against: `strip_backing_gt` | proved | trade | trade | each layer backs its whole box: INFERRED | none | `hero.countdown:strip`: out at C3, "modelled, not proved"; F5 green 3 times (§4.2, §4.9) |
 | L8 | hero.countdown: cd-roll-ca (WAAPI roll) | none (E-s at one cadence is missingWhy) | engine level only: `Engine.Chromium.compTransform_no_layout_paint` | partly-proved | win | trade | Safari time-based animations off the threaded path: OPEN (RG7 O2) | RG5 lane shim breaks it; RG7 O2 OPEN | no flag |
 | L9 | hero.countdown: clock-aligned timer | `HeroCountdown.drift_skips` (not E on WebKit under timer alignment) | against: `HeroCountdownOpt.same_run_noClaim` | proved | no-win | worse | iOS 26 thermal timer grid: OPEN | none | no flag |
-| L10 | hero/morph.countdown: skip face writes while hidden | `HiddenPause.hidden_pause_eq` (E) | `skipWrites_leE` | proved | win | win | which hidden forms skip paint: OPEN (RG6 residual) | RG6 residual OPEN | `morph.countdown:hidden-pause` |
-| L11 | morph.tween: one WAAPI animation on registered `--morph` | `MorphTweenOpt.waapi_vis` (E-s) | `waapi_work_le_chromium`, `waapi_work_le_webkit`, `drop_run_dominates` | proved | win | win | timeline zero under the lane clock shim needs an offset: OPEN | RG2, RG3, RG3b CONFIRMED; RG8 MEASURED; RG5 lane OPEN | `morph.tween:waapi` |
-| L13 | morph.panel: `blur(0)` → `none` at rest | `MorphPanelOpt.rest_visSame_E` (E under RG10) | `cr_rest_claim` with against `cr_toggle_not_le`; `wk_cross_claim` | proved | trade | win | WebKit toggle frames on the variant page: OPEN, not measured [LG N20] | RG10 CONFIRMED; check on the rewrite DOM OPEN | no `morph.panel` part on main |
-| L16 | morph.panel: own layer during the blur fade | `fade_visSame_Q` (Q) | `wk_fade_trade`; against: `cr_fade_noClaim` | proved | no-win | trade | original panel already its own layer in the lane: OPEN | none | no `morph.panel` part on main |
-| L17 | morph.mount: warm-up mount at a still moment | `MorphMountOpt.visSame_mount` (E under HiddenBefore) | `shift_peak_lt` (peak); against: `Engine.shift_not_dominates` | proved | trade | trade | the counting window holds the warm-up frame: premise | none | `morph.mount:shift`; engine-check has no peak window |
-| L19 | morph.countdown: strip, reused from L7 | `HeroCountdownOpt.strip_visSame` (E) | `strip_frame_ltE`; against: `strip_backing_gt` | partly-proved | trade | trade | shared-loop scheduling delta of the TS strip: OPEN, not modelled | none | `morph.countdown:strip` |
-| L20 | morph.columns: still picture while closed | `HiddenPause.panel_visSame` (E while hidden) | `pause_le`; against: `cr_realChrome_pause_eq`, `wk_pause_eq` | partly-proved | no-win | trade | which hidden forms drop the Chromium property node: OPEN (RG6) | RG6 residual OPEN | `morph.columns:hidden-pause` |
-| L23 | hero.accent: boil as a chain of opacity steps | `HeroAccent.exact_chain_vis` (E) | `cr_main_run_dominates`; against: `cr_comp_step_not_le` | proved | trade | no-win | the Chromium original is composited: OPEN (`compositeFailedBits` decides) | RG5 lane phase gap CONFIRMED | no hero.accent part on main |
-| L25 | people.card: skip the shrink write in the c860 band | `PeopleCard.peopleCard_visSame` (E) | `cr_dominates`, `wk_dominates` | proved | win | win | swipe profiles contain tail frames: OPEN | none | none yet: people is a shell; `people.card:shrink` planned in `model-checks` |
-| L28 | people.card: pre-painted card (g0.0m) | none (pixels E per the ledger) | `Engine.shift_peak`; against: `shift_not_dominates` | partly-proved | trade | trade | WebKit paints the opacity-0 `will-change` layer: INFERRED at the pin | RG6 CONFIRMED | none: people is a shell |
-| L33 | people.deck: cqi sizing | `PeopleDeck.deck_vis` (E in Q) | `deck_run_dominates`; against: `Engine.WebKit.wkRounds_ge_two` | partly-proved | no-win | win | relayout link from sticky to shells: UNRESOLVED | none | none: people is a shell |
-| L34 | pain.notes: arm the 3 s interval only while visible | `PainNotes.pain_visSame` (E; premise CovOk OPEN) | `hiddenTick_lt`, `cr_idle_tick`, `wk_idle_tick` | proved | win | win | Chromium per-tick saving is model-only; the timer rule is OPEN [LG N21] | none | none yet: pain is a shell; `pain.notes:arm` planned in `model-checks` |
-| L36 | commission.typing: forced-layout fix | none (E per the ledger; ResizeObserver timing INFERRED) | `EngineScroll.batched_le_faithful`, `HiddenPause.skipWrites_le` | partly-proved | win | win | read parity of the reorder: OPEN | none | none: commission is a shell |
-| L38 | commission.typing: 2 characters per step | not E (class L, `PlatformEntries.typing_subsample`) | `HiddenPause.skipWrites_le` | proved | win | win | text writes restyle no element: INFERRED | none | a look change: proposal only |
+| L10 | hero/morph.countdown: skip face writes while hidden | `HiddenPause.hidden_pause_eq` (E) | `skipWrites_leE` | proved | win | win | which hidden forms skip paint: OPEN (RG6 residual) | RG6 residual OPEN | `morph.countdown:hidden-pause` in `v2-proved` (§4.2) |
+| L11 | morph.tween: one WAAPI animation on registered `--morph` | `MorphTweenOpt.waapi_vis` (E-s) | `waapi_work_le_chromium`, `waapi_work_le_webkit`, `drop_run_dominates` | proved | win | win | timeline zero under the lane clock shim needs an offset: OPEN | RG2, RG3, RG3b CONFIRMED; RG8 MEASURED; RG5 lane OPEN | `morph.tween:waapi` in `v2-proved` (§4.2) |
+| L13 | morph.panel: `blur(0)` → `none` at rest | `MorphPanelOpt.rest_visSame_E` (E under RG10) | `cr_rest_claim` with against `cr_toggle_not_le`; `wk_cross_claim` | proved | trade | win | WebKit toggle frames on the variant page: OPEN, not measured [LG N20] | RG10 CONFIRMED; check on the rewrite DOM OPEN | cut: `variant-morph-panel-rest` not landed; "modelled, not proved" [C3] |
+| L16 | morph.panel: own layer during the blur fade | `fade_visSame_Q` (Q) | `wk_fade_trade`; against: `cr_fade_noClaim` | proved | no-win | trade | original panel already its own layer in the lane: OPEN | none | no flag |
+| L17 | morph.mount: warm-up mount at a still moment | `MorphMountOpt.visSame_mount` (E under HiddenBefore) | `shift_peak_lt` (peak); against: `Engine.shift_not_dominates` | proved | trade | trade | the counting window holds the warm-up frame: premise | none | `morph.mount:shift` in `v2-proved` (§4.2) |
+| L19 | morph.countdown: strip, reused from L7 | `HeroCountdownOpt.strip_visSame` (E) | `strip_frame_ltE`; against: `strip_backing_gt` | partly-proved | trade | trade | shared-loop scheduling delta of the TS strip: OPEN, not modelled | none | `morph.countdown:strip`: out with L7 (curated, `Gen.lean:68`) |
+| L20 | morph.columns: still picture while closed | `HiddenPause.panel_visSame` (E while hidden) | `pause_le`; against: `cr_realChrome_pause_eq`, `wk_pause_eq` | partly-proved | no-win | trade | which hidden forms drop the Chromium property node: OPEN (RG6) | RG6 residual OPEN | `morph.columns:hidden-pause` in `v2-proved` (§4.2) |
+| L23 | hero.accent: boil as a chain of opacity steps | `HeroAccent.exact_chain_vis` (E) | `cr_main_run_dominates`; against: `cr_comp_step_not_le` | proved | trade | no-win | the Chromium original is composited: OPEN (`compositeFailedBits` decides) | RG5 lane phase gap CONFIRMED | `hero.accent:steps`: curated out (`Gen.lean:61`) |
+| L25 | people.card: skip the shrink write in the c860 band | `PeopleCardOpt.peopleCard_visSame` (E) | `cr_dominates`, `wk_dominates` | proved | win | win | swipe profiles contain tail frames: OPEN | none | `people.card:mq` in `v2-proved` (§4.2) |
+| L28 | people.card: pre-painted card (g0.0m) | none (pixels E per the ledger) | `Engine.shift_peak`; against: `shift_not_dominates` | partly-proved | trade | trade | WebKit paints the opacity-0 `will-change` layer: INFERRED at the pin | RG6 CONFIRMED | no flag |
+| L33 | people.deck: cqi sizing | `PeopleDeck.deck_vis` (E in Q) | `deck_run_dominates`; against: `Engine.WebKit.wkRounds_ge_two` | partly-proved | no-win | win | relayout link from sticky to shells: UNRESOLVED | none | no flag |
+| L34 | pain.notes: arm the 3 s interval only while visible | `PainNotesOpt.pain_visSame` (E; premise CovOk OPEN) | `hiddenTick_lt`, `cr_idle_tick`, `wk_idle_tick` | proved | win | win | Chromium per-tick saving is model-only; the timer rule is OPEN [LG N21] | none | `pain.notes:visible` in `v2-proved` (§4.2) |
+| L36 | commission.typing: forced-layout fix | none (E per the ledger; ResizeObserver timing INFERRED) | `EngineScroll.batched_le_faithful`, `HiddenPause.skipWrites_le` | partly-proved | win | win | read parity of the reorder: OPEN | none | no flag (`commission-resize` cut) |
+| L38 | commission.typing: 2 characters per step | not E (class L, `PlatformEntries.typing_subsample`) | `HiddenPause.skipWrites_le` | proved | win | win | text writes restyle no element: INFERRED | none | a look change: proposal only (class L cut) |
 | L39 | platform.sweep: band moved by `translateX` | geometry `PlatformSweep.band_eq_bgpos`; pixels Q | `Engine.comp_move_le_off`; against: `comp_move_not_le` | partly-proved | trade | trade | WebKit keeps the masked band on the compositor: UNRESOLVED in source | none | no flag |
-| L42 | engine.scene: pause compositor marquees while hidden | `HiddenPause.scenePaused_imp_hiddenPause` (E) | `cr_pause_style_units`; against: `cr_realChrome_pause_eq`, `wk_pause_eq` | proved | no-win | no-win | every BeginFrame is a main frame in the lane: INFERRED (RG1) | RG1 OPEN; RG6 residual OPEN | `morph.columns:hidden-pause` |
+| L42 | engine.scene: pause compositor marquees while hidden | `HiddenPause.scenePaused_imp_hiddenPause` (E) | `cr_pause_style_units`; against: `cr_realChrome_pause_eq`, `wk_pause_eq` | proved | no-win | no-win | every BeginFrame is a main frame in the lane: INFERRED (RG1) | RG1 OPEN; RG6 residual OPEN | `engine.scene:hidden-pause`, `morph.columns:hidden-pause` (§4.2) |
 | L43 | engine.scene: hysteresis and idle pre-warm | `HiddenPause.hiddenPause_visSame` (E) | `flips_le_one`; against: `flips_oscillate` | partly-proved | unknown | unknown | the 800 per 10 s flap rate came from a v1 build with deferral: CONFIRMED | none | no flag |
-| L44 | morph.countdown: hidden, spring keeps integrating | `HiddenPause.hidden_pause_eq` (E under hsync) | `unhide_leE`, `cr_countdown_style` | proved | win | win | hsync writes the state before paint on unhide: OPEN | none | `morph.countdown:hidden-pause` |
-| L45 | engine.scene: pause per element, not per section | `HiddenPause.hiddenPause_visSame` (E with the original clock) | `pause_le` | partly-proved | win | win | a descendant-selector flip restyles the subtree: INFERRED | none | `engine.scene:hidden-pause` exists but is not mounted |
+| L44 | morph.countdown: hidden, spring keeps integrating | `HiddenPause.hidden_pause_eq` (E under hsync) | `unhide_leE`, `cr_countdown_style` | proved | win | win | hsync writes the state before paint on unhide: OPEN | none | `morph.countdown:hidden-pause` in `v2-proved` (§4.2) |
+| L45 | engine.scene: pause per element, not per section | `HiddenPause.hiddenPause_visSame` (E with the original clock) | `pause_le` | partly-proved | win | win | a descendant-selector flip restyles the subtree: INFERRED | none | `engine.scene:hidden-pause` in `v2-proved`, now mounted (§4.2) |
 
 **What the table says** (counts from [LG] by `python3 -c` over `findings`, MEASURED at `698b775`):
 
@@ -384,16 +492,17 @@ F3/F4 (Chromium) or F5 (WebKit) check them. F3/F4 have not run on any flag at `6
 | not-tried | 4 | 0 / 1 / 3 / 0 | 1 / 2 / 1 / 0 |
 
 - Proved with a win in both engine models: 8 rows, L3, L4, L10, L11, L25, L34, L38, L44. MEASURED [LG].
-- Of these, L38 changes the look (class L), so it is a proposal, not a `v2-proved` flag. CONFIRMED [P10:1073].
-- L25 and L34 have no flag on the page at `698b775`, because people and pain are shells (`part.json` variants
-  `shell`). CONFIRMED (repo at `698b775`).
-- The `v2-proved` candidates with a flag on main are therefore L3 or L4 (two answers to the same nav probe), L10/L44
-  (`morph.countdown:hidden-pause`) and L11 (`morph.tween:waapi`). INFERRED: task `experiments` decides at C3 after
-  F3/F4.
+- L38 changes the look (class L), so it is a proposal, not a flag. CONFIRMED [P10:1073].
+- L25 and L34 got flags after draft 2 (`people.card:mq`, `pain.notes:visible`, `proved-flags-ts`). CONFIRMED
+  (preset JSON at `c6912998`).
+- At C3, 6 of these 8 rows run under a `v2-proved` flag (L38 is a proposal; L3 is shadowed by L4). Three more flags rest on rows that
+  are not a win in both models: L1 (`engine.scroll:batched`), L17 (`morph.mount:shift`) and L20/L42
+  (`morph.columns:hidden-pause`). CONFIRMED (preset at `639f9475`). The generator admits a flag on a
+  proved pair, not on a win in both models; an engine-win field is a follow-up (`Gen.lean:61-63`). CONFIRMED
 - Proved but not a win in both models: L1, L5, L7, L9, L13, L16, L17, L23, L42. Each is a negative or mixed result
   with its mechanism in the ledger. MEASURED [LG].
 
-### 4.3 Candidates without a proved pair
+### 4.4 Candidates without a proved pair
 
 One line each; the reason is the ledger's `visual` or `premises` text. Verdicts are the ledger's model verdicts.
 
@@ -420,9 +529,98 @@ One line each; the reason is the ledger's `visual` or `premises` text. Verdicts 
 
 Two rows are premises, not optimizations: L46 (`cv.auto-margin`) is refuted in both engines, and L47 (`anim.list`)
 holds in Chromium and fails intermittently in WebKit. MEASURED [LG L46, L47]. Both were premises of the cut task
-`gate-settle` (§6).
+`gate-settle` (§7).
 
-### 4.4 Premises H1-H3 and research gaps RG1-RG11
+### 4.5 Independent and coupled parts; what composes
+
+**Answer.** The 9 flags of `v2-proved` all sit on coupled parts. Their combined saving is MEASURED, but which flag
+saves how much is INFERRED. Unit counts add across frames; pass counts do not. So a passes-type win stays a
+part-local, model-only claim.
+
+| Result | Lean name, file:line at `dcd3e13d` | Status |
+|---|---|---|
+| Work in units adds over appended frames | `Fw.Engine.Compose.frameWork_append_units` (`Compose.lean:217`) | CONFIRMED (proved) |
+| Pass counts are not compositional: two changes can each add no pass and still add one together | `passes_not_compositional` (`Compose.lean:137`), `frame_le_append_passes_fails` (`Compose.lean:194`) | CONFIRMED (proved) |
+| Swapping one part's variant changes only its own work, given an abstract `Indep` | `lego_swap_sound` (`Compose.lean:371`), `lego_swap_units` (`Compose.lean:411`) | CONFIRMED (proved under `Indep`) |
+| The contract's `Independent P Q` does not imply that `Indep`: 299 pairs of parts sit on a dependency chain | `Fw.Parts.Bridge.chainPairs_code_iff` (`Bridge.lean:751`) | CONFIRMED (proved) |
+| Adopted rule: `Flow` / `Reach` over the part specs, with premise `FlowSound` (the specs list every channel) | `flow_of_isolated` (`Bridge.lean:161`) | proved; `FlowSound` OPEN |
+| Isolated parts under that rule: 14 (commission.typing, hero.cue, hero.deck, morph.panel, nav.langMenu, overlays.drawer, overlays.signup, people, people.carousel, platform.entries, platform.glint, platform.marquee, platform.stageBg, platform.sweep) | `isolated_code` (`Bridge.lean:631`) | CONFIRMED (proved by `decide`) |
+| No `v2-proved` flag part is in that list | compare the list with §4.2 | CONFIRMED |
+| Pass counts of appended frames are bounded by the sum of the parts | `passes_append_le` (`Bridge.lean:333`) | CONFIRMED (proved) |
+
+**Coupled groups** (from the part contract, [LP:41-45]): G1 hero threshold (hero.exit, people.card, pain, nav,
+nav.hitTest), G2 morph (morph.mount → morph.tween → morph.panel → morph.countdown, morph.columns), G3 the page-offset
+chain, G4 cross-cutting (engine.scroll, engine.scene), G5 commission ↔ resize. The `v2-proved` flags fall in G1
+(nav.hitTest, pain.notes, people.card), G2 (the four morph flags) and G4 (the two engine flags). CONFIRMED [LP]
+
+**The totals pilot** (wave 2, descriptive, not F6) shows the limit in numbers. On swipe-v1 the combined run cut
+UpdateLayoutTree by 1011, while the 7 single-flag part pages summed to −1944, a residual of +933. Per frame the style
+family reads −2.01 combined against −1.98 for the sum, within 10 %. `census.layers` rose by 1054 combined against +1
+summed over the parts. MEASURED, runs 39253166643 / 39253172750 and the part pages of §4.2 [W2:190-203]. The part
+pages run other trajectories (727-1329 frames against 503), so totals cannot add; per-frame rates came close on the
+style family. INFERRED. The layer rise comes from something no part page holds: engine.scroll, morph.tween, or flags
+acting together. INFERRED [W2:202]
+
+**Composition lesson.** Prove composition before planning a "one combined run stands for all flags" step. The rev-11
+plan assumed it; the bridge proof then showed that no flag part is isolated. The combined run is still the cheaper
+measurement (§4.6). It answers "does the preset save work" and leaves "which flag saved it" to the per-part pages.
+
+**F6.** "Statement landed, run after C3" [C3]. `compose-check` runs F6 per (part, stage, zone) on units-type counts
+[P11:1137].
+
+> **SLOT compose-check** (filled by the lead before 11:15; else this line moves to §7 as not done). F6 verdict per
+> part, stage and zone: run ids, pass / fail / unusable counts.
+
+### 4.6 Runs per flag, before and after rev 11
+
+**Answer.** Rev 10 checked each flag with its own whole-page counts run. Rev 11 checks all flags with one combined
+run per profile, plus a short single-flag page per part. The before round took 406 min of run wall for 9 flags on
+one profile; the after round took 247 min for 7 parts plus both profiles and the G2 group. MEASURED (run walls from
+`gh run list`, created to updated, queue included).
+
+| Round | Runs | What they cover | Wall per run | Run wall sum | Source |
+|---|---|---|---|---|---|
+| Before: `model-checks` (rev 10), 10 runs at once | base 39130874266 + 9 flag runs | 9 flags, swipe-v1 only (the touch lane failed on the base) | 39.0-44.9 min | 406 min | [MC] |
+| After: combined counts (wave 2) | 39253166643, 39253172750, 39253177864, 39253184136 | all 10 flags, both profiles, base and preset | 22.0-27.7 min (started with 2 gates and 3 part pages) | 100 min | [W2] |
+| After: single-flag part pages | 13 runs (§4.2) | 7 parts | 4.2-9.4 min; 3 runs queued behind the gates took 27.1-27.6 min | 138 min | [W2] |
+| After: G2 morph group | 39261906990, 39262007729 | G2 base against the preset | 4.8, 4.3 min | 9 min | [W2] |
+
+**Combined counts per profile** (10-flag preset including hero.countdown:strip; 3 of 3 shards each):
+
+| Count type (class) | swipe-v1 base → preset | swipe-touch-v1 base → preset |
+|---|---|---|
+| RecalcStyleCount (deterministic) | 1832 → 821 (−1011) | 1864 → 856 (−1008) |
+| UpdateLayoutTree (deterministic) | 1849 → 838 | 1881 → 873 |
+| ScheduleStyleRecalculation (deterministic) | 1865 → 855 | 1897 → 890 |
+| FireAnimationFrame (quarantined) | 2057 → 1454 | 2112 → 1503 |
+| cc.Commit | 503 → 503 | 523 → 520 |
+| census.layers (stable) | +1054 | +1119 |
+| census.drawingAreaPx (stable) | +8.8e7 | +9.7e7 |
+
+MEASURED, runs 39253166643 / 39253172750 (swipe-v1) and 39253177864 / 39253184136 (touch) [W2:91-101]. The preset
+JSON at `c6912998` lists `"hero.countdown":"strip"` (CONFIRMED). No counts run exists for the 9-flag preset, so the
+numbers above include the strip's own +21 recalcs and its layers (§7).
+
+**Per flag, before and after.**
+
+| Flag | Before: model check, swipe-v1 (wall) | After: part page base / arm (wall) | Main reading after |
+|---|---|---|---|
+| nav.hitTest:elements-skip | 39131395370 (39.1 min) | 39253271676 / 39253292170 (27.6 / 27.5 min, queued) | UpdateLayoutTree 2060 → 155 |
+| pain.notes:visible | none | 39253313203 / 39257459959 (27.1 / 4.2 min) | equal to base |
+| people.card:mq | none | 39253313203 / 39257496442 (27.1 / 4.6 min) | UpdateLayoutTree 895 → 834 |
+| morph.columns:hidden-pause | 39131207849 (40.5 min) | 39259109607 / 39259146065 (5.3 / 5.3 min) | equal to base |
+| morph.countdown:hidden-pause | 39131217951 (40.4 min) | none | none |
+| engine.scene:hidden-pause | 39131168588 (41.2 min) | 39260614233 / 39260841413 (9.4 attempt 2 / 4.2 min) | equal to base |
+| morph.mount:shift | 39131302530 (39.5 min) | 39259991865 / 39260576409 (4.5 / 8.8 min attempt 2) | FunctionCall +952 (quarantined) |
+| morph.tween:waapi | 39131146372 (42.0 min) | none | none |
+| engine.scroll:batched | none | none | none |
+| hero.countdown:strip (out) | 39131314391 (39.3 min) | 39257533380 / 39259074927 (4.5 / 4.7 min) | more work (§4.2) |
+
+With a free queue a whole-page counts run of both arms took 7.3 and 8.0 min (runs 39146329183, 39146332555) and a
+part page 4.2-4.7 min. MEASURED. So most of the 39-45 min walls of the model checks was waiting: they ran 10 at
+once on a shared runner pool. INFERRED
+
+### 4.7 Premises H1-H3 and research gaps RG1-RG11
 
 **H1-H3** are the path premises: the engine rasterizes the same scene the same way whichever thread draws a box
 [P10:509-513]. In Lean they are the structure `PathPremises` (`Fw/Engine/Visual.lean:461`, C1-C3 there), and at
@@ -437,7 +635,7 @@ variant changes which thread or layer draws a box: L6, L7, L16, L19, L39 (INFERR
 | H2 | no compositor scale animation on such a box | not checked; INFERRED from the variant code only |
 | H3 | the compositor samples the same value function at its own frame time | not checked; INFERRED |
 
-The check for H1-H3 was `pixel-spot` (Chromium only), cut in §6.
+The check for H1-H3 was `pixel-spot` (Chromium only), cut (§7).
 
 **Research gaps** (12 items, RG3b counted alone; status at the pins `f842f52` / `862f17d`, [RG] summary table):
 
@@ -456,7 +654,7 @@ The check for H1-H3 was `pixel-spot` (Chromium only), cut in §6.
 | RG10 `blur(0)` makes a containing block and stacking context | CONFIRMED | L13, L27 |
 | RG11 scroll-timeline progress = offset / range | CONFIRMED, engine-specific quantization | L6 |
 
-### 4.5 Math review state
+### 4.8 Math review state
 
 | Measure | Value | Status, source |
 |---|---|---|
@@ -466,11 +664,13 @@ The check for H1-H3 was `pixel-spot` (Chromium only), cut in §6.
 | Math view after the fixes (main `c2410d2`) | 5109 agree, 0 disagree, 517 stale, 1373 pending | MEASURED, `docs/team/handoffs/math-final.md` |
 | Held back from round 14 | `Gate.*`, `Plan.*`, `Console*`, `Engine*` (1389 entries) | CONFIRMED, same handoff |
 
-C4 asks for 0 disagree and 0 stale [P10:1083]. At round 14 the view has 0 disagree and 517 stale, and the engine
-model modules `Fw.Engine.*` that every (work) theorem uses were not in the round. A round 15 over the stale and
-held-back entries is the open step. INFERRED from the counts above.
+C4 asks for 0 disagree and 0 stale [P11:1052]. At round 14 the view had 0 disagree and 517 stale, and the engine
+model modules `Fw.Engine.*` that every (work) theorem uses were not in the round. On 2026-10-19 16:39 +0700 the user
+removed the math review step and asked for no LaTeX in new Lean (`4e55971c`). `latex-mathview-b2` (landed
+`de6e4073`) retired the math view build. So no round 15 ran, and the C4 math criterion is not met as written (§7).
+CONFIRMED (commits); the round-14 numbers above are the last MEASURED state.
 
-### 4.6 Measured inputs
+### 4.9 Measured inputs
 
 | Result | Value | Status, source |
 |---|---|---|
@@ -485,30 +685,94 @@ held-back entries is the open step. INFERRED from the counts above.
 | Breakpoint gate, pilot parts | 4 of 4 pass, both engines | MEASURED, `2566949` |
 | Breakpoint gate settle wait | 212.4 → 65.5 job-min with a 60-frame settle budget; per-cell verdicts equal | MEASURED, `088315d`; `research/notes/2026/10-18-gate-shard-balance.md` |
 | Gaps lane | Chromium 8/8 pass; WebKit 8/8 unreachable as predicted | MEASURED, `0d561fa` |
-
-### 4.7 Pending until C3
-
-These two blocks are the only open results in this draft. Both close at C3 (2026-10-19 23:15 +0700); a block still
-open at C3 moves to §6 with its reason [P10:1082].
-
-> **PENDING 1: faithful bands table** (task `faithful-checks`). PL5 band verdict per zone (y04000, y04500, tail) and
-> count type, rewrite against original, bands from the frozen Chromium zone baselines, verdict in Lean
-> (`Fw.Faithful`).
->
-> | Zone | Count type | Band (lo, hi) | Original | Rewrite (`faithful`) | Verdict | Run |
-> |---|---|---|---|---|---|---|
-
-> **PENDING 2: F3/F4 per flag table** (tasks `model-checks`, then `experiments`). One Chromium counts run per flag
-> on the rewrite arm, read with `fw engine-check`; a mismatch is a model bug, never a tolerance change.
->
-> | Flag | Ledger rows | F3 (=0 stages) | F4 (=o, <o stages) | Model bugs | Run |
-> |---|---|---|---|---|---|
+| Faithful bands (PL5), first re-run after `page-root-clip` | rewrite FAIL in all 6 zones; off-band cells swipe-v1 y04000 26 of 44, y04500 14 of 43, tail 14 of 38; touch 26 of 40, 15 of 41, 15 of 41; control A' passes every zone with 0 failing cells | MEASURED, runs 39146329183, 39146332555 at `b8c051ab` [FR:27-36] |
+| Faithful bands under the adopted wave-1 classes | rewrite FAIL in all 6 zones; off-band cells swipe-v1 27 / 14 / 14, touch 28 / 14 / 10 (y04000 / y04500 / tail); control passes | MEASURED, wave-1 runs 39184638066, 39184646781; [MB:6-8] |
+| What stays off band | layout work only the rewrite does (LayoutCount 0 vs 24 in y04000), fewer rAF callbacks (204 vs 154 on swipe-v1), the compositor census (`census.layers` 3188 vs 3662), `raster.invalidationRects` 571 vs 103 | MEASURED [FR:39-46] |
+| Pairs scored only when comparable | `Fw.Faithful.comparable` refuses a pair whose viewport, profile or preset differ, before any cell is scored (`comparable_iff`, `refusal_sound`) | CONFIRMED (proved) [FR:48-58] |
+| WebKit gate, both waves | 0 fail, 291 excused, incomplete only by the 2 phone-rotation cells | MEASURED, runs 39184687325, 39257945326, 39271987926, 39282664077 |
 
 ---
 
-## 5. What the loop cost
+## 5. Findings and negative results
 
-### 5.1 CI minutes
+Each item gives what was seen, the mechanism and the lesson. A negative result is a finding, not a gap.
+
+### 5.1 Of 2026-10-18 (from draft 2)
+
+- `gate-shard-balance`: no shard plan lowers the gate's wall time. An LPT plan over measured costs costs the same as a count-balanced deal (28.5-28.6 against 27.5-28.1 job-min), and the 5.6-6.1 min wall is the unsplittable WebKit desktop sweep plus setup. MEASURED, runs 39125771186, 39125776112, 39126934987, 39126939905 (`research/notes/2026/10-18-gate-shard-balance.md`).
+- `wktr-fixture-speed`: its claim that 12 WKTR class changes between runs are run-to-run variance is UNEXPLAINED. 9 of the 12 keys also change class among 8 other green runs; 3 never do. MEASURED [LG N22]; Lean `Fw.Measure.WktrVariance`.
+- The Chromium timer rule is OPEN: whether an empty timer task runs PrePaint. The engine-premises step meant to test it ran the clock shim's callback inside `Runtime.evaluate`, not a native timer task, so the Chromium half of L34 is proved in the model only. MEASURED, run 39124427211 [LG N21].
+
+### 5.2 Of 2026-10-19
+
+**Platform `will-change` regression.** The wave-2 gate failed 248 Chromium readings on platform.stageBg and
+platform.marquee: the original read `will-change: transform`, the rewrite `auto`. MEASURED, run 39253059266 [W2].
+Mechanism: `4d724e12` (2026-10-18) deleted `will-change: transform` from the port's `.artboard` and `.track`. At that
+time the original read `auto` too, because the port set no scene attribute. `8276822d` (platform-scene-faithful)
+added `data-fw-scene`, and from then on the original read `transform` while the scene runs. The fix restored both
+declarations (landed `7e5cff2f`); the default arm then passed in both engines. CONFIRMED by diff and MEASURED, run
+39266552780 (`docs/team/handoffs/platform-willchange.md`). Lesson: a gate fix that deletes a declaration to match a
+reading is a claim about the reading's context. It needs a test that fails when the context changes.
+
+**The narrowed-run difference.** A gate run narrowed to the platform part ids failed platform.stageBg and
+platform.marquee in Chromium again (artboard `will-change` 160 readings, track 40; original running, port paused) and
+platform.glint on 1 of 14 desktop probes. The full run on the same branch passed. MEASURED, runs 39271938577
+(narrowed) and 39271987926 (full). INFERRED cause: `engine.scene:hidden-pause` pauses the platform scene while the
+section is off-viewport, and the original keeps it running (`docs/team/handoffs/platform-willchange.md`). Why the full
+run does not show it is not known. The merge job of the narrowed run also failed on an `elan` SSL download, and 84 of 124 probes were not in its scope.
+C3 cites only un-narrowed runs; the difference is a follow-up (§7). Lesson: a narrowed gate is a different
+experiment, not a faster copy; decide on the full run.
+
+**More pipeline work under hero.countdown:strip.** The strip arm raised UpdateLayoutTree / RecalcStyleCount
+1161 → 1182, commits 1064 → 1085, `UpdateLayoutTree.elementCount` 11264 → 22445 and `Layout.totalObjects`
+47161 → 53433, and lowered FireAnimationFrame 2649 → 2130. MEASURED, runs 39257533380 / 39259074927. Its only
+prediction (`census.layers` below the original) read 12960 = 12960, which a stable class cannot refute. The model
+treats each digit strip as a layer and counts no extra style work. INFERRED mechanism: one element per digit
+doubles the elements each style pass visits. The flag left `v2-proved` as "modelled, not proved" [C3]. Lesson: a
+"trade" in the model needs a row for every stage the variant touches, or the check has nothing to falsify.
+
+**Preview CSP.** The console's preview showed the original without its scripts. The proxy's `rewriteBody` changed
+root paths inside the inline boot script, so its sha256 no longer matched the page's hash-only CSP and hydration
+never ran. CONFIRMED (the user's DevTools capture, reproduced by a test). Fix: inline script bodies are never
+rewritten; module scripts get a 302; the manifest link gets `crossorigin` (INFERRED from the spec, not measured).
+CI loads the snapshot directly and was not affected. `research/notes/2026/10-19-preview-original.md`, landed
+`55a42117`. The rewrite is a TS stand-in with no Lean rule. Lesson: a proxy that edits a page must treat every hashed
+or signed byte as read-only.
+
+**Fonts.** Buttons drew Arial (`-webkit-standard` in WebKit) instead of Google Sans, and countdown digits and
+morph.panel text drew `system-ui`. Mechanism: no form-control `font: inherit` rule, and the MUI theme's
+`fontFamily` was `system-ui`. Fix: a form-control inherit rule in `reset.css` and the theme font set to the
+original's body stack. After the fix: 0 font changes in every probe in both engines (run 39262636419); assets 0
+missing of 111 and SVG 31 of 31 (run 39254252262). MEASURED (`docs/team/handoffs/port-font-gaps.md`). The earlier
+visual-diff claim of "about 25 flips" was wrong: 63 of 496 cells hold no single verdict over 3 runs (29 Chromium,
+34 WebKit). MEASURED (`docs/team/handoffs/port-fonts-check.md:22`). Left: the people.o "o" moves to people.card in
+every probe (ownership), and time-driven leaves stay unpaired. Lesson: the browser default for form controls is not
+the page font; a port check must compare families leaf by leaf.
+
+**Nav hide.** In the original the nav hides while the people section is stuck on desktop. The port never hid it.
+MEASURED, run 39250254933. Mechanism: the nav's default selectors were the original's class names, which the port
+DOM does not have, so the stuck test was always false. Fix `b5bbbd3f` wires them to the port's `data-fw` hooks.
+After the fix, 7 runs per engine show the nav hide at 861, 1280, 1440 and 1920 px and never at 860, in both arms.
+MEASURED (`research/notes/2026/10-19-nav-scroll-hide.md`, check landed `fd71ee28`). Left: Chromium edges move by
+1 px (one 16 px step at 1920), the transform starts 0-3 frames after the class flip, and a WebKit race after a
+programmatic jump leaves either arm wrong for up to 700 ms. The visual-diff server also served CSS and JS as
+`application/octet-stream` (fixed). The analysis is a TS stand-in. Lesson: a selector copied from the original is a
+dependency on the original's DOM; derive it from the port's own hooks.
+
+**Part pages refused three times.** The first part-page counts run was refused by the driver at three gates: the
+viewport (`pinEnv` reported 1280x800), the mode (client-render, not hydrate) and the scroll (pinned `scrollY`).
+MEASURED, run 39189237058. Fixed by `driver-stage-mode` (`046320e9`). Lesson: list every gate of the driver before
+the first dispatch (`research/notes/2026/10-19-counts-only-finding.md`).
+
+**Infra.** `setup-lean` failed on TLS downloads in runs 39260031147 and 39260070268, and on an `elan` SSL download in
+the merge job of 39271938577. The commission probe failed in 2 of 3 default-arm gate runs and in 0 of 2 `v2-proved`
+runs. MEASURED [W2]. Cause not diagnosed.
+
+---
+
+## 6. What the loop cost
+
+### 6.1 CI minutes
 
 GitHub billing for this repo in October (the repo's first CI run was 2026-10-17 11:19 UTC, so this is one day).
 Source: GitHub billing usage read by the user with `gh api` on 2026-10-17, relayed in the report-draft brief; recorded in
@@ -527,7 +791,7 @@ CONFIRMED `research/notes/2026/10-17-macos-rent.md:9`; 19.6 × 0.102 = $2.00.
 Agents cannot read billing: `gh api` stays denied (CLAUDE.md, Upstream source). This table is the only billing
 read until the user reads it again. CONFIRMED (`d0a15bd`).
 
-### 5.2 Runs, failures and stray runs
+### 6.2 Runs, failures and stray runs (to 2026-10-17 16:35 UTC)
 
 All CI runs to 16:35 UTC (MEASURED, `gh run list --limit 1000`: 208 runs, 34 branches; 174 push, 34 dispatch).
 "Run wall min" is created-to-updated time per run, summed; it is not billed minutes (jobs run in parallel).
@@ -556,7 +820,7 @@ Why runs failed or were wasted:
 | Lean CI cache: Lake hard-links only `.ilean` for cached modules | lean failed from the second run on, until `67192ef` | CONFIRMED [CU:403-406] |
 | Snapshot check on a gitignored folder | 3 of 4 workflows stopped on the first CI run | MEASURED [CU:351-353] |
 
-### 5.3 Local incidents (this Mac)
+### 6.3 Local incidents (this Mac)
 
 | Incident | Effect | Status, source |
 |---|---|---|
@@ -567,40 +831,123 @@ Why runs failed or were wasted:
 | Local mutation pass (625 Lean builds) | load ~500; moved to CI | MEASURED [CU:482-484] |
 | Merge-only test and typecheck breaks | several; test scripts now typecheck first | CONFIRMED, `bc4c46d`, `7fcbbfa`, `aa8d961` |
 
-### 5.4 Model tokens
+### 6.4 Model tokens
 
-| Measure | Value | Status, source |
-|---|---|---|
-| Session profile at 16:32 | 93 agents, 3,932 requests, 80.25 M cost units (input 1, cache write 1.25, cache read 0.1, output 5) | MEASURED, `research/notes/2026/10-17-token-usage-profile.md:3`, [CU:28-41] |
-| Share from cache reads / writes / output | 62 % / 27 % / 11 % | MEASURED [CU:36-38] |
-| Opus share of tokens | about 85 % | MEASURED [CU:39] |
+**Answer.** About $2.2k at list price from the start to C3, against v1's about $11.4k [P10:115]. Tokens are
+MEASURED; dollars are INFERRED.
 
-There is no list-price dollar figure per milestone or role. `main` at `a3196a4` has no `fw usage` command (the
-`fw` usage text lists none), so G3's comparison with v1's $11.4k [P10:115] has no v2 number. MEASURED (`pnpm -s fw`
-usage text, 2026-10-18). The Lean op `ops.usage` exists (`Fw.Ops.Usage`, wired in `lean/Fw/Ops/Wire.lean:21`); only
-the CLI glue and the price table are missing. CONFIRMED.
+There is still no `fw usage` command at `dcd3e13d` (the `fw` usage text lists none). The Lean op `ops.usage` exists
+(`lean/Fw/Ops/Wire.lean:21`, golden `packages/contracts/golden/ops/ops.usage.jsonl`); the CLI glue and the price
+table are missing. CONFIRMED. So the totals below come from a one-off script, not from `fw usage`.
+
+**Method.** A scratch Python script read every session transcript file (JSONL, 1448 files, local only, not in git),
+kept assistant messages with a `usage` block, counted each `message.id` once (63,622 requests) and put each request
+in a checkpoint window by its timestamp. The windows end at the checkpoint deadlines (C1 2026-10-18 11:15, C2
+23:15, C3 2026-10-19 23:15 +0700), so they are a proxy for milestones (INFERRED mapping). Prices are list prices per
+million tokens (input / 5-min cache write / 1-h cache write / cache read / output): Opus 5.5 4 / 5 / 8 / 0.20 / 20,
+Sonnet 5.5 2 / 2.5 / 4 / 0.10 / 10, Haiku 5.5 0.10 / 0.125 / 0.2 / 0.01 / 0.5 (requests over 100k input at the
+higher tier), Fable 5.1 10 / 12.5 / 20 / 0.25 / 50. CONFIRMED `research/notes/2026/10-17-token-usage-facts.md:134-142`.
+Long-context pricing and any plan discount are not modelled.
+
+| Window (+0700) | Requests | Opus | Sonnet | Fable | Haiku | List price |
+|---|---|---|---|---|---|---|
+| before 2026-10-17 13:15 (setup) | 1,105 | $82 | 0 | 0 | 0 | $82 |
+| start → C1 (2026-10-18 11:15) | 28,855 | $743 | $279 | $17 | $0 | $1,040 |
+| C1 → C2 (2026-10-18 23:15) | 18,855 | $545 | $70 | $10 | $0 | $625 |
+| C2 → C3 (2026-10-19 23:15) | 14,178 | $333 | $69 | $58 | $0 | $460 |
+| after C3 (to 23:50) | 629 | $12 | $3 | 0 | $0 | $15 |
+| **Total** | **63,622** | | | | | **about $2,223** |
+
+Requests per model: Opus 42,748, Sonnet 20,033, Fable 716, Haiku 123. Opus cache reads were the largest item:
+4.61 billion tokens (about $921), 2.08 billion of them before C1. MEASURED (transcripts, first request 2026-10-17 02:06 +0700, last
+2026-10-19 23:50 +0700). The window sums use the same price table as v1's figure, so the ratio of about 1 to 5 is
+INFERRED to hold under one pricing rule.
+
+### 6.5 CI demand and the GitHub incident
+
+**CI demand estimate** (the lead's scratch estimate of 2026-10-20 about 00:30 +0700, not in git). Window 2026-10-17
+11:19Z to 2026-10-19 16:08Z (2.2 days): 2152 runs and 14,748 min of run wall. MEASURED (`gh run list`). Job minutes
+were estimated as run wall × the job-to-wall ratio of each workflow, the ratio taken from its 6 newest runs over
+1 min (87 runs, 405 jobs). INFERRED totals:
+
+| Measure | Job-min (INFERRED) |
+|---|---|
+| Total in 2.2 days | about 30,200 (about 504 h): Linux ARM about 25,200, macOS about 5,000 |
+| Per day | about 13,700 (Linux about 11,450, macOS about 2,260) |
+| A 30-day month at this pace | about 410,000 |
+| breakpoint-gate (ratio 4.0) | about 13,500 |
+| chromium-counts | about 5,500 |
+| mutants | about 2,600 |
+| webkit-sim (90 % macOS) | about 2,550 |
+| wktr (85 % macOS) | about 1,770 |
+
+Caveats: run wall includes queue time, and the sample is the newest runs, some taken during the incident below. The
+runners are the free ones of a public repo, so the minutes cost no money; they cost wall time when the pool is full
+(§4.6). No billing read was made after the one of §6.1.
+
+**GitHub incident of 2026-10-19.** GitHub reported "Degraded availability for GitHub Actions, GitHub Pages and
+Webhooks": investigating at 15:49Z, degraded Actions at 15:56Z, recovery under way at 16:30Z with delays possible.
+CONFIRMED, https://www.githubstatus.com/incidents/8tzbpcnl75jp (read through the status history feed). That is
+22:49-23:30 +0700, the last half hour before the C3 deadline. The C3 confirmation gate run 39282664077 ran 16:04-16:34Z
+(29.8 min) inside that window. MEASURED (`gh run list`). The incident ledger has no row for it
+(`docs/team/incidents/ledger.json`, 64 rows). The task `gh-status` (added at `dcd3e13d`) reads githubstatus.com in `fw watch`, raises an alert
+while Actions is degraded and names the incident on slow or queued CI alerts [WG].
+
+> **SLOT gh-status** (filled by the lead before 11:15; else this line moves to §7). Result of `gh-status`: what the
+> console shows, and the delay the incident added to C3 runs, with run ids.
 
 ---
 
-## 6. Not done
+## 7. Not done
 
-**Cut for the deadline.** Each line names the tasks and what the result lacks without them. Task titles are in [WG].
+Each line names what is missing, what the result lacks without it, and its task where one exists ([WG] at
+`dcd3e13d`; a task with no `evidence` field has not landed). PLAN R34: a missed item is listed, never hidden
+[P11:1207].
 
-- Gate hardening (`gate-webkit-red`, `gate-run-identity`, `gate-wall-target`, `gate-settle`): the WebKit gate stays red on the stageBg desktop sweep cell and phone-rotation stops 1 and 3, a gate run is not bound to the gate code it measured, an iteration push still runs the full gate, and the rule that a sample counts only when settled is not proved.
-- Parked integration fixes (`fix-misc`, `fix-orbit`, `fix-nav-hittest`, `fix-people-webkit`): the gate cells they name from run 39067170911 stay open (pain.notes, hero.orbit, stageBg, overlays.signup, nav border colour, people tails in WebKit).
-- `port-parts` and `visual-diff-3`: people.o, people.carousel, hero.accent, hero.cue and commission.typing get no ported part, so their ledger candidates get no flag, and there is no deterministic visual diff of the integrated site.
-- `pixel-spot` and `phone-session-2`: H1-H3 stay unchecked in both engines (§4.4), and nobody swipes `v2-proved` against `original` on the phone.
-- Tooling backlog (`lfg-*`, `jev-*`, lints): the Lean-first gate has its spec (`lfg-spec`, `lfg-props-shape`, `lfg-mathview-facts`) but no shadow run or enforcement, the Jev oracle stops at its research note (`research/notes/2026/10-18-jev-decision-model.md`), and `claim-lint`, `plan-principles-lint`, `task-spec-lint` and `ci-runner-lint` are not built (commit log of main at `a3196a4`).
+**Results after C3, still open at this draft.**
 
-**Negative results of 2026-10-18.**
+- F6 composition check (`compose-check`): no F6 verdict, so per-flag attribution in §4.5 and §4.6 stays INFERRED. Slot in §4.5.
+- People layout against the original (`people-layout-shift`): element boxes and layout shifts per width and engine are not compared.
 
-- `gate-shard-balance`: no shard plan lowers the gate's wall time. An LPT plan over measured costs costs the same as a count-balanced deal (28.5-28.6 against 27.5-28.1 job-min), and the 5.6-6.1 min wall is the unsplittable WebKit desktop sweep plus setup. MEASURED, runs 39125771186, 39125776112, 39126934987, 39126939905 (`research/notes/2026/10-18-gate-shard-balance.md`).
-- `wktr-fixture-speed`: its claim that 12 WKTR class changes between runs are run-to-run variance is UNEXPLAINED. 9 of the 12 keys also change class among 8 other green runs; 3 never do. MEASURED [LG N22]; Lean `Fw.Measure.WktrVariance`.
-- The Chromium timer rule is OPEN: whether an empty timer task runs PrePaint. The engine-premises step meant to test it ran the clock shim's callback inside `Runtime.evaluate`, not a native timer task, so the Chromium half of L34 is proved in the model only. MEASURED, run 39124427211 [LG N21].
+> **SLOT people-layout-shift** (filled by the lead before 11:15; else it stays here as not done). Per width and
+> engine: the boxes and shifts that differ, each with its cause, with run ids.
+
+- No counts run of the 9-flag preset. The combined counts of §4.6 include hero.countdown:strip. The C3 gate was re-run without it (run 39282664077); the counts were not.
+- The 2 WebKit phone-rotation cells cannot be compared, so every WebKit gate verdict is "incomplete" (an accepted limit; `gate-webkit-red` not landed).
+- Gate box-model coverage: unanchored people descendants and section height are not gated, and the "host font" exclusion premise is stale since the fonts ship [C3].
+- The narrowed-run difference of §5.2 is not explained.
+- The g1 tail class decision (frames 698-713 have two states in the base) is open; until then pain.notes and people.card keep 2 model-bug rows each.
+- The engine.scene UpdateLayoutTree model bug (1851 > 1850) has no fix in the golden rows or the site [MB].
+- The swipe-touch-v1 lane of `engine-check` failed on the base ("did not finish within maxFrames", runs 39131406685, 39135255809); cause not investigated.
+- No per-part runs for engine.scroll:batched and morph.tween:waapi; no part page for morph.countdown:hidden-pause.
+- The commission probe flake (2 of 3 default-arm gate runs) is not diagnosed.
+
+**Proof and model gaps.**
+
+- `FlowSound` (the part specs list every channel) is a premise, not a theorem; the bridge rests on it (§4.5).
+- engine-check has no WebKit lane (`laneRes_webkit`); F5 is the Simulator result for the strip only (§4.9).
+- F0-F2 on the fixture never ran through `fw engine-check` (no fixture artifact).
+- H1-H3 stay unchecked in both engines: `pixel-spot` was cut [P11:1164-1167] (§4.7).
+- The Chromium timer rule (L34) and RG1, RG6 residual, RG5 lane stay OPEN (§4.7, §5.1).
+- The C4 math criterion (0 disagree, 0 stale) is not met: the math review step was removed by user decision (§4.8).
+
+**Cut before the report** [P11:1164-1167]: `commission-resize`, the WebKit part lane, the Thai locale, new
+variants for partly proved parts, class L proposals, `pixel-spot`, phone sessions. Phone session 2 did not run, so
+nobody swiped `v2-proved` against `original` on the phone. `variant-morph-panel-rest` was cut at C3.
+
+**Tooling and port.**
+
+- `fw usage` does not exist; §6.4 used a one-off script.
+- `speed-after-c3` and `snapshot-paths-cleanup` (rev 11, after C3) have not landed.
+- Gate hardening from draft 2: `gate-settle` (`ee57e36`) and the parked fixes (`fix-misc`, `fix-orbit`, `fix-nav-hittest`, `fix-people-webkit`) landed; `gate-run-identity` and `gate-wall-target` did not, so a gate run is still not bound to the gate code it measured.
+- Port gaps: the audit found 26 gaps, 12 with no task (`research/notes/2026/10-19-port-completeness.md`). Ten follow-up tasks landed (`svg-extract`, `people-o-glyph`, `deck-panels-lean`, `asset-icons-gaps`, `doc-head-locale`, `morph-panel-content`, `dead-selectors`, `port-completeness-gate`, `port-pin-gap`, `port-wordmark-g`); which gaps remain was not measured again. The people.o "o" ownership move is left (§5.2).
+- TS stand-ins with no Lean rule: the wave-2 analysis (`packages/engine-check/src/wave2.mjs`), the nav-hide analysis, the preview rewrite, the fonts reader.
+- Tooling backlog: `visual-diff-3`, `claim-lint`, `plan-principles-lint`, `task-spec-lint`, `ci-runner-lint`, the Lean-first gate past its spec (`lfg-shadow` and later) and the Jev oracle (`jev-oracle`, `jev-eval`) have not landed.
+- The incident ledger has no rows for 2026-10-19 (§6.5).
 
 ---
 
-## 7. Lessons for v3
+## 8. Lessons for v3
 
 Each lesson is a judgement (INFERRED) resting on the evidence named.
 
@@ -622,6 +969,16 @@ Each lesson is a judgement (INFERRED) resting on the evidence named.
 | 14 | Measure an engine premise before proving on it. One premise run changed two signs: the blur on its own layer still re-rasters in Chromium (trade → no-win), and the original's `blur(0)` ↔ `blur(x)` change already lays out in WebKit (trade → win) | MEASURED, run 39088367495 [LG N18, N19] |
 | 15 | Declare the variance rule before reading the diff. Under a rule fixed first, 3 of 12 WKTR class changes never occur among 8 rival runs, so "run-to-run variance" does not explain them | MEASURED [LG N22]; Lean `Fw.Measure.WktrVariance` |
 | 16 | A scripted swipe is not a finger. On the phone the original showed 2.6 frames per 100 over 50 ms under a finger and 22.9 under the script, longest 81 ms, with jank only in 0-2500 px | MEASURED on the phone, `82954ed` |
+| 17 | Prove that parts compose before you plan one combined run to stand for many flags. The bridge proof found no `v2-proved` flag part isolated, so per-flag attribution stays INFERRED | CONFIRMED, `Fw.Parts.Bridge.isolated_code`, `chainPairs_code_iff` (§4.5) |
+| 18 | Count passes per part, never as a page sum: units add over frames, passes do not | CONFIRMED, `Fw.Engine.Compose.passes_not_compositional`; MEASURED residual +933 in the totals pilot [W2] |
+| 19 | A model "trade" needs a predicted row for every stage the variant touches, or the check cannot falsify it. The strip's only row was unusable, and the page did more style and layout work | MEASURED, runs 39257533380 / 39259074927 (§5.2) |
+| 20 | A part page on a free queue is about 5 min; 10 whole-page runs at once took about 40 min each. Queue time, not page size, set the old cost | MEASURED (§4.6) |
+| 21 | A gate fix that deletes a declaration to match a reading depends on the reading's context; pin it with a test that fails when the context changes | CONFIRMED, `4d724e12` then `8276822d` (§5.2) |
+| 22 | Decide on the full gate run. A narrowed run showed a difference the full run does not | MEASURED, runs 39271938577 and 39271987926 |
+| 23 | A proxy that edits a page must leave hashed bytes alone; a hash-only CSP turns one rewritten path into a page with no scripts | CONFIRMED (§5.2) |
+| 24 | Compare the port's fonts leaf by leaf; form controls do not inherit the page font by default | MEASURED, run 39262636419 |
+| 25 | List every driver gate (viewport, mode, scroll) before the first dispatch of a new run shape | MEASURED, run 39189237058 |
+| 26 | Watch the platform's status page during a checkpoint; the C3 gate ran inside a GitHub Actions incident and nothing in the console said so | CONFIRMED, githubstatus.com incident 8tzbpcnl75jp; run 39282664077 |
 
 ---
 
@@ -629,3 +986,7 @@ Each lesson is a judgement (INFERRED) resting on the evidence named.
 
 Commits are on `main` of this repo. CI run ids are GitHub Actions runs of this repo. Upstream source lines are at
 the pinned Chromium commit `f842f52` (`.cache/upstream/chromium@f842f52/`), as cited in the notes above.
+Notes of 2026-10-19 used in draft 3: `research/notes/2026/10-19-{c3-decision, integrate-wave-1, integrate-wave-2,
+counts-only-finding, model-checks, lego-parts-plan, nav-scroll-hide, port-fonts-check-cells, port-completeness,
+preview-original, faithful-rerun}.md`, and the handoffs in `docs/team/handoffs/` named in the text. GitHub status:
+https://www.githubstatus.com/incidents/8tzbpcnl75jp (read 2026-10-20).
