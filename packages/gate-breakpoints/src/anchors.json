@@ -2390,8 +2390,8 @@
       ],
       "excluded": [
         {
-          "what": "avatar photos",
-          "why": "not shipped: the 32px slots are neutral fills"
+          "what": "avatar photo pixels",
+          "why": "the slots are img elements of the snapshot photos; pixels are not compared"
         },
         {
           "what": "pill text and button label widths",
@@ -2427,7 +2427,7 @@
         {
           "role": "avatar",
           "orig": ".start-selling-avatars.is-carousel img:nth-child(2)",
-          "rewrite": "[data-fw=\"people-carousel\"] > span:nth-child(2)",
+          "rewrite": "[data-fw=\"people-carousel\"] > img:nth-child(2)",
           "boxRel": null,
           "dims": [
             "w",

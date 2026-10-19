@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getClock } from '../../engine/clock';
 import { getScrollEngine } from '../../engine/scroll';
+import { avatarOf, bg, postOf } from '../people/assets';
 import { O_ORDER, byId } from '../people/data';
 import { after, ORDER } from '../people/shared';
 import { createOpener, type OFlags } from './driver';
@@ -134,7 +135,7 @@ export function PeopleO({ variant, standalone = false, onGetStarted }: PeopleOPr
                 onMouseLeave={hide}
                 onBlur={hide}
               >
-                <span className={css.faceFill} />
+                <span className={css.faceFill} style={bg(avatarOf(p))} />
               </button>
             ))}
           </span>
@@ -147,12 +148,12 @@ export function PeopleO({ variant, standalone = false, onGetStarted }: PeopleOPr
             <div className={css.sellerHero}>
               <div className={css.sellerStrip}>
                 {cur.posts.slice(0, 3).map((post) => (
-                  <div key={post.id} className={css.sellerTile} />
+                  <div key={post.id} className={css.sellerTile} style={bg(postOf(cur, post))} />
                 ))}
               </div>
             </div>
             <div className={css.sellerContent}>
-              <span className={css.sellerAvatar} />
+              <span className={css.sellerAvatar} style={bg(avatarOf(cur))} />
               <div className={css.sellerIdentity}>
                 <strong>{cur.name}</strong>
                 <p>
