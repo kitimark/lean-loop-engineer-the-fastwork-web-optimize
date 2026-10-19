@@ -117,7 +117,6 @@ def main (args : List String) : IO UInt32 := do
   let root ← packageRoot
   initSearchPath (← findSysroot) [root / ".lake" / "build" / "lib" / "lean"]
   let mods ← fwModules root
-  -- extension states stay empty, so an entry reads only its declaring module's own data (`MathView.entries`)
   let env ← importModules (mods.map fun m => { module := m }) {} (loadExts := false)
   let ctx : Core.Context := { fileName := "<mathview>", fileMap := default }
   let st : Core.State := { env }
