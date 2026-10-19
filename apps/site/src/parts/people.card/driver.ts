@@ -27,7 +27,7 @@ export interface CardEnv {
  * classes and the Pain colour. It asks for another frame while the lerp has not reached its target. Scheduling: the scroll
  * engine's callback only requests one own rAF (`i ||= rAF(l)`, 11332); the body runs in it and re-requests itself.
  */
-export function createCardDriver(env: CardEnv, clock: MotionClock) {
+export function createCardDriver(env: CardEnv, clock: MotionClock, opts: { gate?: () => boolean } = {}) {
   let shrink = 0;
   let cancelOwn: (() => void) | null = null;
 
@@ -48,14 +48,19 @@ export function createCardDriver(env: CardEnv, clock: MotionClock) {
       headerTop: env.headerTop(),
       shrink,
     });
+    // Variant `mq` (Lean PeopleCardOpt `stepV`, ledger n=16): in the c860 band the CSS pins scale 1 and radius 0, so
+    // `--future-shrink` is unread: skip its write and the self re-request; the class and the other writes stay.
+    const gated = opts.gate?.() === true;
     env.write.revealed(r.revealed);
     if (r.shrink !== null && r.shrinking !== null) {
-      shrink = r.shrink;
-      env.write.shrink(r.shrink);
+      if (!gated) {
+        shrink = r.shrink;
+        env.write.shrink(r.shrink);
+      }
       env.write.shrinking(r.shrinking);
     }
     if (painPresent && r.painDark !== null) env.write.painDark(r.painDark);
-    if (r.again) request();
+    if (r.again && !gated) request();
   }
 
   return {
