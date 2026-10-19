@@ -8,26 +8,29 @@ import { attribution, cancelSignature, CANCEL_SIGNATURE } from "../src/suite.mjs
 import { join } from "node:path";
 
 const host = { origin: "http://127.0.0.1:9" };
-const rej = ["Unhandled Promise Rejection: TypeError: Importing a module script failed.", "Unhandled Promise Rejection: Error: Unable to preload CSS for x", "Unhandled Promise Rejection: TypeError: Importing a module script failed."];
-const paths = Array.from({ length: CANCEL_SIGNATURE.cancelled }, (_, i) => `/_app/immutable/chunks/m${i}.js`);
+const rej = ["Unhandled Promise Rejection: TypeError: Importing a module script failed.", "Unhandled Promise Rejection: Error: Unable to preload CSS for http://127.0.0.1:9/_app/immutable/assets/0.X.css", "Unhandled Promise Rejection: TypeError: Importing a module script failed."];
+const paths = Array.from({ length: CANCEL_SIGNATURE.cancelled - 1 }, (_, i) => `/_app/immutable/chunks/m${i}.js`).concat(["/_app/immutable/assets/0.X.css"]);
 const failed = paths.map((p, i) => `GET ${i === 0 ? `/preview/e2e/o${p}` : p} Load request cancelled`);
-const seen = paths.map((p) => ({ host: "127.0.0.1:9", path: p, status: 302 }));
+const seen = paths.map((p) => ({ host: "127.0.0.1:9", path: p, status: p.endsWith(".css") ? 200 : 302 }));
 
 describe("cancelSignature", () => {
-  it("accepts exactly 3 preload rejections and 13 cancelled /_app/ requests that each had a root 302", () => {
+  it("accepts 3 rejections (2 module imports + 1 /_app/ CSS preload) with 13 reported cancels, each root request answered", () => {
     assert.equal(cancelSignature(rej, failed, seen, host).ok, true);
   });
-  it("refuses another rejection count, a non-preload error, another cancel count, a non-/_app/ cancel, a cancel without a root 302", () => {
-    assert.equal(cancelSignature(rej.slice(0, 2), failed, seen, host).ok, false);
-    assert.equal(cancelSignature([...rej.slice(0, 2), "TypeError: x is not a function"], failed, seen, host).ok, false);
-    assert.equal(cancelSignature(rej, failed.slice(1), seen, host).ok, false);
-    assert.equal(cancelSignature(rej, [...failed.slice(1), "GET /api/x Load request cancelled"], seen, host).ok, false);
-    assert.equal(cancelSignature(rej, failed, seen.slice(1), host).ok, false);
-    assert.equal(cancelSignature(rej, failed, seen.map((r, i) => (i === 3 ? { ...r, status: 200 } : r)), host).ok, false);
-    assert.equal(cancelSignature(rej, failed, seen.map((r) => ({ ...r, host: "other:1" })), host).ok, false);
+  it("accepts the same rejections when Playwright reported no cancel (it reports them in only some loads)", () => {
+    assert.equal(cancelSignature(rej, [], seen, host).ok, true);
   });
-  it("refuses errors with no cancelled request (a real module failure is not noise)", () => {
-    assert.equal(cancelSignature(rej, [], seen, host).ok, false);
+  it("refuses each deviation", () => {
+    assert.equal(cancelSignature(rej.slice(0, 2), failed, seen, host).ok, false, "two rejections");
+    assert.equal(cancelSignature([...rej.slice(0, 2), "TypeError: x is not a function"], failed, seen, host).ok, false, "foreign error");
+    assert.equal(cancelSignature([rej[0], rej[0], rej[2]], failed, seen, host).ok, false, "no CSS preload failure");
+    assert.equal(cancelSignature([rej[0], "Unhandled Promise Rejection: Error: Unable to preload CSS for http://h/other/a.css", rej[2]], failed, seen, host).ok, false, "CSS outside /_app/");
+    assert.equal(cancelSignature(rej, failed.slice(1), seen, host).ok, false, "12 cancels");
+    assert.equal(cancelSignature(rej, [...failed.slice(1), "GET /api/x Load request cancelled"], seen, host).ok, false, "cancel outside /_app/");
+    assert.equal(cancelSignature(rej, failed, seen.slice(1), host).ok, false, "a cancelled script never had a root request");
+    assert.equal(cancelSignature(rej, failed, seen.map((r, i) => (i === 3 ? { ...r, status: 200 } : r)), host).ok, false, "a script root request not redirected");
+    assert.equal(cancelSignature(rej, failed, seen.map((r) => ({ ...r, host: "other:1" })), host).ok, false, "seen at another host");
+    assert.equal(cancelSignature(rej, [], seen.filter((r) => !r.path.endsWith(".css")), host).ok, false, "the CSS root request was not answered");
   });
 });
 

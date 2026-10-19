@@ -78,26 +78,33 @@ function seenFor(rig, failed) {
   }).join(" ## ");
 }
 
-/** The accepted WebKit-on-Linux signature of one /o load: how many unhandled rejections and how many cancelled /_app/ requests. */
+/** The accepted WebKit-on-Linux signature of one original-arm load: exactly 3 unhandled rejections (two failed module imports
+ *  and one CSS preload failure of an /_app/ asset) and, when Playwright reports the cancelled requests, exactly 13 of them.
+ *  Measured on CI (runs in docs/team/tools/preview-e2e.md): Playwright WebKit on Linux reports those cancels in only some
+ *  loads (13 or none, same page, same engine), so "none reported" is accepted only together with the exact rejection shape. */
 export const CANCEL_SIGNATURE = { rejections: 3, cancelled: 13 };
 
 /** Is this load's noise exactly the signature? `failed` are "METHOD /path text" lines of the failed same-origin requests;
- *  `seen` is what the preview port saw. Every cancelled request must be an /_app/ request (with or without the preview prefix)
- *  whose root URL got a 302 at this host's preview port. */
+ *  `seen` is what the preview port saw. Every reported cancel must be an /_app/ request (with or without the preview prefix)
+ *  whose root URL was answered at this host's preview port: a script by the 302 below the prefix, a stylesheet in place. The
+ *  CSS preload named by the rejection must be such an /_app/ asset too. */
 export function cancelSignature(pageErrors, failed, seen, host) {
   const hostPart = new URL(host.origin).host;
-  const rejectionsOk = pageErrors.length === CANCEL_SIGNATURE.rejections && pageErrors.every((e) => /Importing a module script failed|Unable to preload CSS/.test(e));
+  const root = (p) => p.replace(/^\/preview\/[^/]+\/[ro]/, "");
+  const answered = (p) => seen.filter((r) => r.host === hostPart && r.path === root(p));
+  const ok302 = (p) => (/\.m?js$/.test(p) ? answered(p).some((r) => r.status === 302) : answered(p).some((r) => r.status >= 200 && r.status < 400));
+  const modules = pageErrors.filter((e) => /Importing a module script failed/.test(e));
+  const css = pageErrors.filter((e) => /Unable to preload CSS for /.test(e));
+  const cssPath = css.length === 1 ? ((/Unable to preload CSS for \S+?(\/_app\/\S+\.css)\s*$/.exec(css[0]) ?? [])[1] ?? null) : null;
+  const rejectionsOk = pageErrors.length === CANCEL_SIGNATURE.rejections && modules.length === 2 && css.length === 1 && cssPath !== null && ok302(cssPath);
   const paths = failed.map((f) => (/^\S+ (\S+) Load request cancelled$/.exec(f) ?? [])[1]);
   const shapeOk = paths.every((p) => typeof p === "string" && /^(\/preview\/[^/]+\/[ro])?\/_app\//.test(p));
-  const root = (p) => p.replace(/^\/preview\/[^/]+\/[ro]/, "");
-  const redirected = (p) => seen.some((r) => r.host === hostPart && r.path === root(p) && r.status === 302);
-  const noRedirect = shapeOk ? paths.filter((p) => !redirected(p)) : [];
-  const countOk = failed.length === CANCEL_SIGNATURE.cancelled;
+  const noRedirect = shapeOk ? paths.filter((p) => !ok302(p)) : [];
+  const countOk = failed.length === 0 || failed.length === CANCEL_SIGNATURE.cancelled;
   return {
     ok: rejectionsOk && shapeOk && countOk && noRedirect.length === 0,
     rejections: pageErrors.length, cancelled: failed.length,
-    detail: `${pageErrors.length} rejections (expect ${CANCEL_SIGNATURE.rejections}${rejectionsOk ? "" : ", not all preload failures or wrong count"}), ${failed.length} cancelled (expect ${CANCEL_SIGNATURE.cancelled}${shapeOk ? "" : ", not all /_app/ cancels"}), ${noRedirect.length} without a root 302${noRedirect.length ? ` (${noRedirect.join(" , ")})` : ""}`,
-    noRedirect, paths,
+    detail: `${pageErrors.length} rejections (expect ${CANCEL_SIGNATURE.rejections}: 2 module imports + 1 /_app/ CSS preload${rejectionsOk ? "" : ", NOT matched"}), ${failed.length} cancels reported by Playwright (expect 0 or ${CANCEL_SIGNATURE.cancelled}${shapeOk && countOk ? "" : ", NOT matched"}), ${noRedirect.length} without an answered root request${noRedirect.length ? ` (${noRedirect.map((p) => `${p} ${answered(p).map((r) => r.status).join("/") || "unseen"}`).join(" , ")})` : ""}`,
   };
 }
 
@@ -265,10 +272,10 @@ async function controls(browser, rig, engine) {
   return out;
 }
 
-/** Which arm shows the signature: a control arm shows it when every one of its loads has rejections > 0 and cancelled > 0. */
+/** Which arm shows the signature: a control arm shows it when one of its loads has rejections > 0 and cancelled > 0. */
 export function attribution(ctl, suiteSig) {
   const arms = ["raw", "tap-only", "proxy-only"];
-  const shows = (a) => { const xs = ctl.filter((c) => c.arm === a); return xs.length > 0 && xs.every((c) => c.rejections > 0 && c.cancelled > 0); };
+  const shows = (a) => { const xs = ctl.filter((c) => c.arm === a); return xs.some((c) => c.rejections > 0 && c.cancelled > 0); };
   const clean = (a) => { const xs = ctl.filter((c) => c.arm === a); return xs.length > 0 && xs.every((c) => c.ok && c.rejections === 0 && c.cancelled === 0); };
   const shown = arms.filter(shows);
   let cause;
