@@ -5478,7 +5478,12 @@
     "lean/Fw.lean",
     "packages/contracts/golden/parts/stage.jsonl",
     "apps/site/src/registry/only.test.ts",
-    "apps/site/src/entry-client.tsx"
+    "apps/site/src/entry-client.tsx",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw/Console/LandSpeed.lean",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "apps/runner/src/land.ts"
    ]
   },
   {
@@ -5840,9 +5845,7 @@
    "title": "Finding (wave-1 lands): the land.readsOnly static scan lives in the apps/runner test, so a land that changes only apps/site (content-people-pain-commission) skipped it and main got an undeclared read; Lean LandSpeed.select must select the readsOnly scan for every package whose sources change (selection soundness)",
    "stream": "tooling",
    "milestone": "M5",
-   "deps": [
-    "integrate-wave-2"
-   ],
+   "deps": [],
    "owner": "console-builder",
    "writes": []
   },
@@ -5904,6 +5907,43 @@
     "results/**",
     "research/notes/2026/10-19-flag-verdicts.md",
     "docs/team/handoffs/flag-verdicts-c1.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "indep-bridge",
+   "title": "Bridge proof Independent -> Indep (plan-rev11 follow-up): turns the code-derived footprint relation into the abstract Indep of Compose.lean, so lego_swap_units/sound/visible and the PLAN §10.7 cuts become CONFIRMED for the verified rows; plus passes_append_le (S3 'never an increase')",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "contract-rows-from-code"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/Compose.lean",
+    "lean/Fw.lean",
+    "docs/team/handoffs/indep-bridge.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-wallclock-off-gate",
+   "title": "automate-me #6: land-selected tests carry no absolute ms bound that load can break (serve.test.ts:104, hooks.test.ts:99-101, hook ask timeouts); bounds move to a CI timing lane or scale; a lint refuses new absolute bounds in land-selected tests (6 refusals at load 36-138)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/test/**",
+    "apps/console-api/test/**",
+    "apps/runner/hooks/**",
+    "scripts/lint-wallclock.mjs",
+    "docs/team/handoffs/land-wallclock-off-gate.md"
    ]
   }
  ],
