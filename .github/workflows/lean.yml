@@ -101,7 +101,7 @@ jobs:
       # Start cost per spawned fwcore call (task fwcore-lazy-tables): 50 calls with one cheap wire request each.
       - name: fwcore start timing
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
-        run: sh lean/scripts/start-timing.sh lean/.lake/build/bin/fwcore 50 | tee fwcore-start.json
+        run: sh lean/scripts/start-timing.sh lean/.lake/build/bin/fwcore 50 > fwcore-start.json && cat fwcore-start.json
 
       - name: Runner facts
         run: sh .github/scripts/runner-info.sh lean-runner.json

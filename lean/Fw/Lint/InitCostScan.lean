@@ -36,8 +36,7 @@ def cFile? (dirs : List System.FilePath) (m : Name) : IO (Option System.FilePath
     if ← (d / rel).pathExists then return some (d / rel)
   return none
 
-/-- The start-time constants of `mods` (C files in `dirs`) in start order, the symbols with no constant, the modules
-outside the toolchain's library with no C file, and the C count. -/
+/-- Start-time constants of `mods` in start order, unmapped symbols, non-toolchain modules with no C file, C count. -/
 def startConsts (env : Environment) (mods : Array (Nat × Name)) (dirs : List System.FilePath) :
     IO (Array Name × Array String × Array String × Nat) := do
   let lib ← getLibDir (← findSysroot)
@@ -75,8 +74,8 @@ def addProbe (i : Nat) (c : Name) : TermElabM Expr := do
   addAndCompile (.defnDecl (mkDefinitionValEx get [] (← mkArrow natTy pairTy) body .opaque .safe [get]))
   return mkApp2 (mkConst ``Fw.Lint.InitCost.allocs) ty (mkConst get)
 
-/-- Measures every start-time constant of the modules `roots` reach that have a C file in `irDirs`, and reports; a
-reached module outside the toolchain's library with no C file is a finding. -/
+/-- Measures the start-time constants of the modules `roots` reach and reports; a project module with no C file is a
+finding. -/
 def scan (roots : List Name) (irDirs : List System.FilePath) : CommandElabM Unit := do
   let env ← getEnv
   let (names, unmapped, noC, nmods) ← (startConsts env (closure env roots) irDirs : IO _)
@@ -96,6 +95,7 @@ def scan (roots : List Name) (irDirs : List System.FilePath) : CommandElabM Unit
     addAndCompile (.defnDecl (mkDefinitionValEx `initCostNoC [] (mkApp (mkConst ``List [.zero]) strTy)
       (← mkListLit strTy (noC.toList.map mkStrLit)) .opaque .safe [`initCostNoC]))
   logInfo m!"init-cost: {names.size} constants in {nmods} modules with C files"
-  elabCommand (← `(#eval Fw.Lint.InitCost.report $(mkIdent `initCostNoC) $(mkIdent `initCostUnmapped) $(mkIdent `initCostRows)))
+  elabCommand (← `(#eval Fw.Lint.InitCost.report $(mkIdent `initCostNoC) $(mkIdent `initCostUnmapped)
+    $(mkIdent `initCostRows)))
 
 end Fw.Lint.InitCostScan

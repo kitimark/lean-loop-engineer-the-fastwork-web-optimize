@@ -68,8 +68,7 @@ def rowFinding (b : Nat) (r : Row) : Option Finding :=
 def stemFinding (s : String) : Option Finding :=
   if isBoxedConst s then none else some (.unmapped s)
 
-/-- Each project module with no C file, each unmapped start-time symbol that is not a boxed scalar, then each
-constant over `b`, in start order. -/
+/-- Project modules with no C file, unmapped symbols that are not boxed scalars, then constants over `b`. -/
 def findings (b : Nat) (rows : List Row) (unmapped noC : List String) : List Finding :=
   noC.map .noC ++ unmapped.filterMap stemFinding ++ rows.filterMap (rowFinding b)
 

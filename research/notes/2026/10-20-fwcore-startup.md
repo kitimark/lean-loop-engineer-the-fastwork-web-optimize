@@ -83,8 +83,8 @@ seed list is now read inside `enum`.
 At load 130-166 on this Mac, 5 calls each: 941 ms CPU per call with the old binary, 44 ms with the new one.
 
 ## Limits and follow-ups
-- The lint covers project modules only: 267 of the 2,641 modules `Main` reaches (MEASURED after the merge with main
-  at `596968a6`). The 2,374 toolchain modules are unmeasured, the whole of `Lean` among them, which fwcore reaches
+- The lint covers project modules only: 269 of the 2,643 modules `Main` reaches (MEASURED after the merge with main
+  at `488b0e41`). The 2,374 toolchain modules are unmeasured, the whole of `Lean` among them, which fwcore reaches
   through `import Lean` in `Fw.Spec.MathFacts`, `Fw.Spec.Reach` and `MathView`. Open follow-up: drop `import Lean`
   from fwcore's closure.
 - The lint reads only `X = _init_X();` lines. IO initializers (`initialize`, `@[init]`) run through another C form,
