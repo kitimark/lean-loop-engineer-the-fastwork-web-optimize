@@ -49,7 +49,6 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
       const next = mountNextWarm(mounted, intersecting, pushed, warm);
       if (next && !mounted) {
         mounted = true;
-        // The stamp's only reader, warmCheck, returns once mounted (Lean MorphMountOpt.mountV_tail_irrelevant).
         if (shift) window.removeEventListener('scroll', onScrollMotion);
         onMount?.();
       }

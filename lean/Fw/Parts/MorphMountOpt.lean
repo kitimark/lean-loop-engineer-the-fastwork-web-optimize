@@ -1108,4 +1108,233 @@ theorem armE_eq_arm {P M : Type} (E : Engine P M) (fs : Nat → FrameIn P) (mnt 
 
 end EndPass
 
+/-! ## The scroll stamp after mount (`tap`) -/
+
+/-- Once mounted, the variant stays mounted. -/
+theorem mountV_stays (x : Nat → Tick) : ∀ (t d : Nat), mountV x t = true → mountV x (t + d) = true
+  | _, 0, h => h
+  | t, d + 1, h => by
+    show mountNext (mountV x (t + d)) _ _ = true
+    rw [mountV_stays x t d h]
+    exact mountNext_mono _ _
+
+theorem mountV_prefix (x x' : Nat → Tick) (t0 : Nat) (hx : ∀ t, t < t0 → x t = x' t) :
+    ∀ t, t ≤ t0 → mountV x t = mountV x' t
+  | 0, _ => rfl
+  | t + 1, h => by
+    show mountNext (mountV x t) _ _ = mountNext (mountV x' t) _ _
+    rw [mountV_prefix x x' t0 hx t (Nat.le_of_succ_le h), hx t h]
+
+/-- Streams that agree before a frame where the variant is mounted give the same mount flag at every frame. -/
+theorem mountV_tail_irrelevant (x x' : Nat → Tick) (t0 : Nat) (hx : ∀ t, t < t0 → x t = x' t)
+    (hm : mountV x t0 = true) : ∀ t, mountV x t = mountV x' t := by
+  intro t
+  rcases Nat.lt_or_ge t t0 with h | h
+  · exact mountV_prefix x x' t0 hx t (Nat.le_of_lt h)
+  · have hm' : mountV x' t0 = true := (mountV_prefix x x' t0 hx t0 (Nat.le_refl _)) ▸ hm
+    obtain ⟨d, rfl⟩ := Nat.exists_eq_add_of_le h
+    rw [mountV_stays x t0 d hm, mountV_stays x' t0 d hm']
+
+theorem armV_tail_irrelevant {Env : Type} (base : Env → Nat → Scene) (panel : Env → Nat → (Nat → Bool) → Scene)
+    (x x' : Env → Nat → Tick) (t0 : Env → Nat) (hx : ∀ env t, t < t0 env → x env t = x' env t)
+    (hm : ∀ env, mountV (x env) (t0 env) = true) : armV base panel x = armV base panel x' := by
+  funext env t
+  have h : mountV (x env) = mountV (x' env) := funext (mountV_tail_irrelevant _ _ _ (hx env) (hm env))
+  simp only [armV, h]
+
+/-- The original against a variant whose inputs change only after it has mounted: `VisSame E`, as for `shift`. -/
+theorem visSame_tail {Env : Type} (base : Env → Nat → Scene) (panel : Env → Nat → (Nat → Bool) → Scene)
+    (x x' : Env → Nat → Tick) (vp : Env → Fw.Engine.Rect) (hp : PhaseFree panel) (hh : HiddenBefore vp panel x)
+    (t0 : Env → Nat) (hx : ∀ env t, t < t0 env → x env t = x' env t) (hm : ∀ env, mountV (x env) (t0 env) = true) :
+    VisSame E vp (armO base panel x) (armV base panel x') := by
+  rw [← armV_tail_irrelevant base panel x x' t0 hx hm]
+  exact visSame_mount base panel x vp hp hh
+
+theorem E_after_mount_tail {Env : Type} (base : Env → Nat → Scene) (panel : Env → Nat → (Nat → Bool) → Scene)
+    (x x' : Env → Nat → Tick) (vp : Env → Fw.Engine.Rect) (hp : PhaseFree panel)
+    (t0 : Env → Nat) (hx : ∀ env t, t < t0 env → x env t = x' env t) (hm : ∀ env, mountV (x env) (t0 env) = true) :
+    ∀ env t, mountO (x env) t = true →
+      E (visible (vp env) (armO base panel x env t)) (visible (vp env) (armV base panel x' env t)) := by
+  rw [← armV_tail_irrelevant base panel x x' t0 hx hm]
+  exact E_after_mount base panel x vp hp
+
+/-- What one event step offers: its time in ms, an intersecting entry, a taken push, a window scroll event, a run of
+the warm check, and whether the morph is active. -/
+structure Ev where
+  ms : Nat
+  near : Bool
+  push : Bool
+  scroll : Bool
+  check : Bool
+  active : Bool
+deriving Repr, DecidableEq, Inhabited
+
+/-- `WARM_QUIET_MS` of `logic.ts`. -/
+def warmQuietMs : Nat := 150
+
+/-- `warmStill` of `logic.ts`: the morph is idle and the last motion is at least `warmQuietMs` old. -/
+def warmStill (active : Bool) (quiet : Nat) : Bool := !active && decide (warmQuietMs ≤ quiet)
+
+#guard warmStill false 150 && !warmStill false 149 && !warmStill true 500
+
+/-- The scroll listener is attached: always under `shift`, until mount under `tap`. -/
+def listening (tap mounted : Bool) : Bool := !tap || !mounted
+
+#guard listening false true && listening true false && !listening true true
+
+/-- The mount flag and the time of the last motion stamp. -/
+structure Mnt where
+  mounted : Bool
+  last : Nat
+deriving Repr, DecidableEq
+
+/-- The warm check's trigger: it runs, the panel is not mounted, and the moment is still. -/
+def warmAt (s : Mnt) (e : Ev) : Bool := e.check && !s.mounted && warmStill e.active (e.ms - s.last)
+
+/-- One event step: mount on an entry, a push or a still warm check; stamp on a push or a scroll the listener hears. -/
+def step (tap : Bool) (e : Ev) (s : Mnt) : Mnt :=
+  ⟨mountNext s.mounted (e.near || warmAt s e) e.push,
+   if e.push || (e.scroll && listening tap s.mounted) then e.ms else s.last⟩
+
+/-- The state before event step `t`; the effect starts unmounted with its stamp at time 0. -/
+def run (tap : Bool) (e : Nat → Ev) : Nat → Mnt
+  | 0 => ⟨false, 0⟩
+  | t + 1 => step tap (e t) (run tap e t)
+
+/-- The listener calls before step `n`: one per scroll event the listener hears. -/
+def calls (tap : Bool) (e : Nat → Ev) : Nat → Nat
+  | 0 => 0
+  | n + 1 => calls tap e n + if (e n).scroll && listening tap (run tap e n).mounted then 1 else 0
+
+/-- The scroll events before step `n` that arrive once `shift` has mounted. -/
+def scrollsAfterMount (e : Nat → Ev) : Nat → Nat
+  | 0 => 0
+  | n + 1 => scrollsAfterMount e n + if (e n).scroll && (run false e n).mounted then 1 else 0
+
+/-- The frame inputs (`Tick`) the event steps give the mount rule. -/
+def tickOf (tap : Bool) (e : Nat → Ev) (t : Nat) : Tick := ⟨(e t).near, (e t).push, warmAt (run tap e t) (e t)⟩
+
+theorem mnt_eq {a b : Mnt} (h1 : a.mounted = b.mounted) (h2 : a.last = b.last) : a = b := by
+  cases a; cases b; cases h1; cases h2; rfl
+
+theorem run_tap (e : Nat → Ev) : ∀ t, (run true e t).mounted = (run false e t).mounted ∧
+    ((run false e t).mounted = false → (run true e t).last = (run false e t).last)
+  | 0 => ⟨rfl, fun _ => rfl⟩
+  | t + 1 => by
+    obtain ⟨hm, hl⟩ := run_tap e t
+    show (step true (e t) (run true e t)).mounted = (step false (e t) (run false e t)).mounted ∧
+      ((step false (e t) (run false e t)).mounted = false →
+        (step true (e t) (run true e t)).last = (step false (e t) (run false e t)).last)
+    cases h : (run false e t).mounted with
+    | false =>
+      have hs : run true e t = run false e t := mnt_eq hm (hl h)
+      have hstep : step true (e t) (run false e t) = step false (e t) (run false e t) := by
+        simp [step, listening, h]
+      rw [hs, hstep]
+      exact ⟨rfl, fun _ => rfl⟩
+    | true =>
+      rw [h] at hm
+      exact ⟨by simp [step, mountNext, hm, h], fun hf => by simp [step, mountNext, h] at hf⟩
+
+/-- Detaching the listener at mount leaves the mount flag at every step unchanged. -/
+theorem mounted_tap (e : Nat → Ev) (t : Nat) : (run true e t).mounted = (run false e t).mounted :=
+  (run_tap e t).1
+
+theorem warmAt_tap (e : Nat → Ev) (t : Nat) : warmAt (run true e t) (e t) = warmAt (run false e t) (e t) := by
+  obtain ⟨hm, hl⟩ := run_tap e t
+  unfold warmAt
+  cases h : (run false e t).mounted with
+  | false => rw [hm, hl h, h]
+  | true => rw [hm, h]; simp
+
+/-- The warm check never reads a stamp written after mount: the frame inputs are the same with or without the listener. -/
+theorem tickOf_tap (e : Nat → Ev) : tickOf true e = tickOf false e := by
+  funext t
+  simp only [tickOf, warmAt_tap]
+
+theorem mounted_eq_mountV (tap : Bool) (e : Nat → Ev) : ∀ t, (run tap e t).mounted = mountV (tickOf tap e) t
+  | 0 => rfl
+  | t + 1 => by
+    show mountNext (run tap e t).mounted _ _ = mountNext (mountV (tickOf tap e) t) _ _
+    rw [mounted_eq_mountV tap e t]
+    rfl
+
+/-- Under `tap` no scroll event writes the stamp after mount; only a taken push still does. -/
+theorem tap_no_stamp_after_mount (e : Nat → Ev) (t : Nat) (hm : (run true e t).mounted = true)
+    (hp : (e t).push = false) : (run true e (t + 1)).last = (run true e t).last := by
+  simp [run, step, listening, hm, hp]
+
+/-- Under `shift` every scroll event after mount writes the stamp, which nothing reads. -/
+theorem shift_stamps_after_mount (e : Nat → Ev) (t : Nat) (hs : (e t).scroll = true) :
+    (run false e (t + 1)).last = (e t).ms := by
+  simp [run, step, listening, hs]
+
+/-- `shift` calls the listener once more than `tap` for each scroll event after mount. -/
+theorem calls_shift (e : Nat → Ev) : ∀ n, calls false e n = calls true e n + scrollsAfterMount e n
+  | 0 => rfl
+  | n + 1 => by
+    simp only [calls, scrollsAfterMount, calls_shift e n, mounted_tap, listening]
+    cases (e n).scroll <;> cases (run false e n).mounted <;> simp <;> omega
+
+/-- Equal scenes at every frame, for every panel and environment, with or without the listener. -/
+theorem armV_tap {Env : Type} (base : Env → Nat → Scene) (panel : Env → Nat → (Nat → Bool) → Scene)
+    (ev : Env → Nat → Ev) :
+    armV base panel (fun env => tickOf true (ev env)) = armV base panel (fun env => tickOf false (ev env)) := by
+  simp only [tickOf_tap]
+
+/-! ## Golden rows for the TS replay (`packages/contracts/golden/parts/morph-mount-tap.jsonl`) -/
+
+/-- Event streams: warm mount then scrolls, scrolls delaying the warm mount, entry mount, push mount, active morph,
+never mounted. -/
+def tapStreams (_ : Unit := ()) : List (List Ev) :=
+  let c (t : Nat) : Ev := ⟨t, false, false, false, true, false⟩
+  let sc (t : Nat) : Ev := ⟨t, false, false, true, false, false⟩
+  [[c 150, c 167, sc 200, sc 217, c 230, sc 233, sc 250],
+   [sc 100, sc 140, c 200, c 300, sc 316, sc 333, c 500],
+   [sc 20, ⟨40, true, false, true, false, false⟩, sc 60, sc 80, c 300],
+   [sc 30, ⟨45, false, true, false, false, false⟩, sc 60, c 300, sc 310],
+   [⟨200, false, false, false, true, true⟩, sc 210, ⟨400, false, false, false, true, false⟩, sc 420],
+   [sc 10, sc 20, c 100, sc 120, sc 130]]
+
+def streamOf (l : List Ev) (t : Nat) : Ev := l.getD t default
+
+def evJson (e : Ev) : Lean.Json :=
+  .arr #[.num e.ms, .bool e.near, .bool e.push, .bool e.scroll, .bool e.check, .bool e.active]
+
+def tapLine (fn : String) (inp : List (String × Lean.Json)) (out : Lean.Json) : String :=
+  (Lean.Json.mkObj [("fn", .str fn), ("in", Lean.Json.mkObj inp), ("out", out)]).compress
+
+def tapFrame (e : Nat → Ev) (t : Nat) : Lean.Json :=
+  Lean.Json.mkObj [("m", .bool (run false e t).mounted), ("mt", .bool (run true e t).mounted),
+    ("c", .num (calls false e t)), ("ct", .num (calls true e t))]
+
+/-- The golden lines: `warmStill` around the 150 ms edge, then one replay row per stream. -/
+def tapLines (_ : Unit := ()) : List String :=
+  ([false, true].flatMap fun a => [0, 149, 150, 151, 1000].map fun (q : Nat) =>
+      tapLine "warmStill" [("active", .bool a), ("quiet", .num (Lean.JsonNumber.fromNat q))] (.bool (warmStill a q))) ++
+  (tapStreams ()).map fun l =>
+    tapLine "tapRun" [("events", .arr (l.map evJson).toArray)]
+      (.arr ((List.range (l.length + 1)).map (tapFrame (streamOf l))).toArray)
+
+#guard (tapLines ()).length == 10 + 6
+#guard (tapStreams ()).all fun l => let e := streamOf l
+  (List.range (l.length + 1)).all fun t => (run true e t).mounted == (run false e t).mounted
+#guard (run false (streamOf ((tapStreams ()).head!)) 2).mounted
+#guard calls false (streamOf ((tapStreams ()).head!)) 7 == 4 && calls true (streamOf ((tapStreams ()).head!)) 7 == 0
+
+def tapText (_ : Unit := ()) : String := String.join ((tapLines ()).map (· ++ "\n"))
+
+/-- Print the tap golden text, or with `--check <file>` compare it; exit 1 on a difference. -/
+def tapMain (args : List String) : IO UInt32 := do
+  match args with
+  | ["--check", path] =>
+    if (← IO.FS.readFile path) == tapText () then
+      IO.eprintln s!"tap golden: {path} is up to date ({(tapLines ()).length} lines)"
+      return 0
+    IO.eprintln s!"tap golden: {path} differs from the generated text"
+    return 1
+  | _ =>
+    IO.print (tapText ())
+    return 0
+
 end Fw.Parts.MorphMountOpt
