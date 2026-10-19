@@ -1,7 +1,7 @@
 // wave2.mjs: the staging, the whole-run totals and the labels it adds around fwcore's verdicts.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bandCells, confounds, deltaRow, f6, median, nonFaithful, pageDeltas, pairsOf, stageAs, totalsOf } from '../src/wave2.mjs';
+import { PASS_TYPES, bandCells, confounds, deltaRow, f6, median, nonFaithful, pageDeltas, pairsOf, stageAs, totalsOf } from '../src/wave2.mjs';
 import { variantKeys } from '../../../apps/runner/src/engine-check.ts';
 
 const file = (frames, runLevel = {}) => ({ profile: { id: 'swipe-v1' }, meta: { target: 'rewrite', search: '?only=g2&stage=vw:430,vh:932' }, frames: frames.map((counts) => ({ counts })), runLevel });
@@ -102,4 +102,9 @@ test('f6 with frames: the per-frame rates of the parts are summed against the co
   const classes = { st: { class: 'stable', k: 2 } };
   const [r] = f6({ st: d(-10) }, [{ name: 'p1', deltas: { st: d(-18) } }, { name: 'p2', deltas: { st: d(-2) } }], classes, { combined: 5, parts: [10, 10] });
   assert.deepEqual([r.rate, r.rates, r.rateSum, r.rateWithin10pct, r.strict], [-2, [-1.8, -0.2], -2, true, false]);
+});
+
+test('PASS_TYPES names pipeline pass counts, not units or census types', () => {
+  for (const t of ['trace.UpdateLayoutTree', 'metric.RecalcStyleCount', 'trace.cc.Commit', 'trace.PrePaint', 'metric.LayoutCount']) assert.ok(PASS_TYPES.test(t), t);
+  for (const t of ['census.layers', 'trace.FunctionCall', 'raster.invalidationAreaPx', 'trace.MinorGC']) assert.ok(!PASS_TYPES.test(t), t);
 });

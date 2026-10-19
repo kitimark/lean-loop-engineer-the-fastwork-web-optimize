@@ -6,6 +6,7 @@
 //   node wave2.mjs check --plan plan.json --dl <dir of gh-downloaded runs> --out <dir>   engine-check per page of the plan
 //   node wave2.mjs zonecmp --dir results/integrate-wave-2/zones --profile p --out <dir>    v2-proved zone baseline against the base one
 //   node wave2.mjs f6 --plan plan.json --dl <dir> --out <dir>                              F6 pilot: combined delta against the sum of part deltas
+//   node wave2.mjs frames --plan plan.json --dl <dir> --res <engine-check dir>             frame lists of the model-bug rows (after check)
 //   node wave2.mjs delta --plan plan.json --dl <dir> --out <dir>                          raw per-type sums, base vs arm, per page
 //
 // The plan names, per page, the base run and the arm run (a run id) and the row variants the arm run answers. A part page
@@ -123,7 +124,13 @@ export function bandCells(r0, rv) {
 }
 
 /**
- * F6 pilot: per count type, the combined run's delta against the sum of the part-page deltas. Margin: deterministic 0, stable its k,
+ * Count types that count pipeline passes (style, layout, paint, commit, frame callbacks), by name. PLAN 4.8: passes do not compose and F6
+ * checks units only, so these rows are "not covered by F6 (passes)". TS stand-in, INFERRED: the name list is mine, no Lean twin.
+ */
+export const PASS_TYPES = /(^|\.)(UpdateLayoutTree|RecalcStyleCount|ScheduleStyleRecalculation|LayoutCount|Layout|Layout\.partial|PrePaint|Paint|cc\.Commit|FireAnimationFrame|UpdateLayer)$/;
+
+/**
+ * Totals pilot (descriptive, not F6; PLAN 4.8 limit 4): per count type, the combined run's delta against the sum of the part-page deltas. Margin: deterministic 0, stable its k,
  * quarantined none (not decidable). `strict` = |residual| <= margin, `widened` = |residual| <= margin * (parts + 1) (each run adds its own noise).
  * Only types where some delta is off its base band are listed. With `frames` ({combined, parts: number[]}, frames per run of each page)
  * every row also carries the per-frame rates, their sum and whether the rate residual is within 10 percent of the combined rate
@@ -142,7 +149,7 @@ export function f6(combined, parts, classes, frames) {
     const per = parts.map((p) => p.deltas[type]?.delta ?? 0);
     const sum = per.reduce((a, b) => a + b, 0);
     const residual = c - sum;
-    const row = { type, class: cls, margin, combined: c, parts: per, sum, residual,
+    const row = { type, class: cls, kind: PASS_TYPES.test(type) ? 'passes' : 'other', margin, combined: c, parts: per, sum, residual,
       strict: margin === null ? null : Math.abs(residual) <= margin,
       widened: margin === null ? null : Math.abs(residual) <= margin * (parts.length + 1) };
     if (frames) {
@@ -153,6 +160,18 @@ export function f6(combined, parts, classes, frames) {
     rows.push(row);
   }
   return rows;
+}
+
+/**
+ * Frame-level reading of one count type across shards (descriptive; the verdict is fwcore's). `self` lists, per pair of shards of one arm, the
+ * frames where the two differ; `cross` lists per (base shard, arm shard) the frames where the arm is above / below the base.
+ * @param {number[][]} base per-frame series per base shard @param {number[][]} arm per-frame series per arm shard
+ */
+export function frameDiff(base, arm) {
+  const diff = (a, b) => { const out = []; for (let i = 0; i < Math.max(a.length, b.length); i++) if ((a[i] ?? 0) !== (b[i] ?? 0)) out.push(i); return out; };
+  const selfOf = (xs) => xs.flatMap((a, i) => xs.slice(i + 1).map((b, k) => ({ pair: [i, i + 1 + k], frames: diff(a, b) })));
+  const cross = base.flatMap((b, i) => arm.map((a, j) => ({ base: i, arm: j, differ: diff(b, a), armAbove: diff(b, a).filter((f) => (a[f] ?? 0) > (b[f] ?? 0)), armBelow: diff(b, a).filter((f) => (a[f] ?? 0) < (b[f] ?? 0)) })));
+  return { frames: { base: base.map((x) => x.length), arm: arm.map((x) => x.length) }, baseSelf: selfOf(base), armSelf: selfOf(arm), cross };
 }
 
 function findCounts(dir) {
@@ -188,6 +207,21 @@ function zonecmp(a) {
   console.log(`${a.profile}: ${totals.length} whole-run types, ${off.length} off-band; zone off-band cells ${zones.map((z) => `${z.id}=${z.cells.length}`).join(' ')}`);
 }
 
+function framesCmd(a) {
+  const plan = readJson(a.plan);
+  for (const [name, pg] of Object.entries(plan.pages)) {
+    const res = join(a.res, name, 'result.json');
+    let bugs;
+    try { bugs = readJson(res).verdicts.filter((v) => v.verdict === 'model-bug'); } catch { continue; }
+    if (!bugs.length) continue;
+    const bf = load(a.dl, pg.base), af = load(a.dl, pg.arm);
+    const series = (files, t) => files.map((f) => f.counts.frames.map((x) => x.counts?.[t] ?? 0));
+    const rows = bugs.map((v) => ({ variant: v.variant, stage: v.stage, countType: v.countType, prediction: v.prediction, class: v.class.variant, ...frameDiff(series(bf, v.countType), series(af, v.countType)) }));
+    writeFileSync(join(a.res, name, 'frames.json'), JSON.stringify({ schema: 'fw.wave2.frames/1', page: name, base: pg.base, arm: pg.arm, rows }, null, 1));
+    console.log(`${name}: ${rows.length} model-bug rows, frame lists in frames.json`);
+  }
+}
+
 function f6cmd(a) {
   const plan = readJson(a.plan);
   const f = plan.f6;
@@ -196,13 +230,14 @@ function f6cmd(a) {
   const nFrames = (pg) => median(load(a.dl, pg.base).map((x) => x.counts.frames.length));
   const rows = f6(d(f.combined), f.parts.map((p) => ({ name: p.name, deltas: d(p) })), classes, { combined: nFrames(f.combined), parts: f.parts.map(nFrames) });
   mkdirSync(a.out, { recursive: true });
-  writeFileSync(join(a.out, 'f6.json'), JSON.stringify({ schema: 'fw.wave2.f6pilot/1', note: 'PILOT, INFERRED: raw whole-run delta of the combined page against the sum of part-page deltas; TS stand-in, the compose-check F6 verdict is not built in Lean.', profile: f.profile, combined: f.combined, parts: f.parts, frames: { combined: nFrames(f.combined), parts: f.parts.map(nFrames) }, rows }, null, 1));
-  const dec = rows.filter((r) => r.strict !== null);
-  console.log(`f6 pilot ${f.profile}: ${rows.length} types moved, ${dec.length} decidable: strict ${dec.filter((r) => r.strict).length} widened ${dec.filter((r) => r.widened).length}, per-frame rate within 10% ${dec.filter((r) => r.rateWithin10pct).length}, quarantined ${rows.length - dec.length}`);
+  writeFileSync(join(a.out, 'f6.json'), JSON.stringify({ schema: 'fw.wave2.f6pilot/1', note: 'Totals pilot (descriptive, not F6; PLAN 4.8 limit 4), INFERRED: raw whole-run delta of the combined page against the sum of part-page deltas; kind=passes rows are not covered by F6 (passes). TS stand-in; the per-zone F6 verdict is compose-check after C3.', profile: f.profile, combined: f.combined, parts: f.parts, frames: { combined: nFrames(f.combined), parts: f.parts.map(nFrames) }, rows }, null, 1));
+  const other = rows.filter((r) => r.kind === 'other'), dec = other.filter((r) => r.strict !== null);
+  console.log(`totals pilot ${f.profile}: ${rows.length} types moved, ${rows.length - other.length} passes (not covered by F6), ${other.length} other, ${dec.length} with a margin: strict ${dec.filter((r) => r.strict).length} widened ${dec.filter((r) => r.widened).length}, per-frame rate within 10% ${dec.filter((r) => r.rateWithin10pct).length}, quarantined ${other.length - dec.length}`);
 }
 
 function main(argv) {
   const [cmd, ...rest] = argv;
+  if (cmd === 'frames') { const o = {}; for (let i = 0; i < rest.length; i += 2) o[rest[i].slice(2)] = rest[i + 1]; return framesCmd(o); }
   if (cmd === 'f6') { const o = {}; for (let i = 0; i < rest.length; i += 2) o[rest[i].slice(2)] = rest[i + 1]; return f6cmd(o); }
   if (cmd === 'zonecmp') { const o = {}; for (let i = 0; i < rest.length; i += 2) o[rest[i].slice(2)] = rest[i + 1]; return zonecmp(o); }
   const a = {};
@@ -223,6 +258,7 @@ function main(argv) {
       console.log(`${name}: delta.json (${baseFiles.length} base, ${armFiles.length} arm runs)`);
       continue;
     }
+    if (!(pg.rowVariants ?? []).length) { console.log(`${name}: no row variants (descriptive page, delta.json only)`); continue; }
     const rows = allRows.filter((r) => (pg.rowVariants ?? []).includes(r.variant) && r.scenario === pg.scenario);
     if (!pg.part) throw new Error(`${name}: the plan page has no "part"`);
     const searches = [...new Set(armFiles.map((f) => f.counts.meta.search))];
