@@ -1,117 +1,98 @@
 # F6 composition check on the measured runs
 
-`engine-check --compose` asks, per (stage, count type, zone), whether a combined arm's delta equals the sum of its
-single-flag deltas within the class margin. The verdict is Lean's `Fw.Measure.Compose.verdict`; the TS only loads
-runs and prints the table.
+`engine-check --compose` asks, per (stage, count type, zone or whole run), whether a combined arm's delta equals the
+sum of its single-flag deltas within the class margin. The verdict is Lean's `Fw.Measure.Compose.verdict`; the TS
+loads runs and prints the table.
+
+## Result: v2-proved against the faithful page, whole run, unit types
+
+Coherent set on one commit (ci/f6-set at main 575e3087, `runner.json` sha of all 11 runs), workflow chromium-counts,
+profile swipe-v1, arm rewrite, 2 runs per side, one image (sha256:8f0e17f5) and one trajectory (503 frames, 12 zones).
+Base 39295469515 has every part faithful (`baseFlags` []). Combined 39295484486 adds the 9 v2-proved flags. Each single
+run adds one flag on the same base. I read the flags of all 22 shards from `meta.rewrite.config.variants`.
+
+| stage | type | class | combined Δ | single Δ above the margin | sum | residual | margin | verdict | evidence |
+|---|---|---|---|---|---|---|---|---|---|
+| script | trace.FireAnimationFrame | quarantined | -370 | scroll -463, mount +93, hitTest +1 | -369 | -1 | none | not comparable: quarantined | no verdict |
+| script | trace.FunctionCall | quarantined | +38 | scroll -463, mount +499, scene, columns, countdown +2 each, hitTest +1 | 43 | -5 | none | not comparable: quarantined | no verdict |
+| layout | trace.Layout.dirtyObjects | quarantined | -414 | mount -414, countdown +2, tween +2 | -410 | -4 | none | not comparable: quarantined | no verdict |
+| paint | raster.invalidationAreaPx | stable(4,0) | -563778 | mount -563778 | -563778 | 0 | 0 | composes | informative |
+| paint | raster.invalidationRects | stable(4,0) | 790 | mount 790 | 790 | 0 | 0 | composes | informative |
+| raster | raster.invalidationAreaPx | stable(4,0) | -563778 | mount -563778 | -563778 | 0 | 0 | composes | informative |
+| raster | raster.invalidationRects | stable(4,0) | 790 | mount 790 | 790 | 0 | 0 | composes | informative |
+| comp | census.layers | stable(2,3) | 1056 | mount 1056 (the other 8: 0 to 3) | 1066 | -10 | 60 | composes | informative |
+
+Short names: scroll `engine.scroll:batched`, mount `morph.mount:shift`, hitTest `nav.hitTest:elements-skip`, scene
+`engine.scene:hidden-pause`, columns `morph.columns:hidden-pause`, countdown `morph.countdown:hidden-pause`, tween
+`morph.tween:waapi`. `pain.notes:visible` and `people.card:mq` have whole-run single deltas of 0 or 1 on every unit type.
+All values are MEASURED; `results/compose-check/table.md` lists every row with its run ids.
+
+Pass types, reported only (whole run): `trace.UpdateLayoutTree` -1011 against a sum of -1012 (hitTest -926,
+`people.card:mq` -61, scroll -25), `trace.Paint` -274 against -271, `trace.Layout` -4 against -2, `trace.PrePaint` -1
+against -1, `trace.cc.Commit` 0 against 0.
+
+Zone cells: none of the 96 unit zone cells is decided. 60 have a stable class with k at least 1, so they have no
+per-zone margin (`verdict_noZoneMargin`); 36 are quarantined. 17 of the 96 have a nonzero residual, the largest
+`trace.FunctionCall` zone y04000 (+14: combined -8 against a sum of -22).
 
 ## Answer
 
-- **Composes**: the hidden-pause triple (`engine.scene`, `morph.columns`, `morph.countdown`, all `hidden-pause`) on
-  build 698b7755. 5 cells are judged and all 5 compose with residual 0: `raster.invalidationAreaPx` and
-  `raster.invalidationRects` (stage paint and raster) and `census.layers`, whole run. MEASURED.
-- **Coupled**: none. No judged cell has a residual beyond its margin. MEASURED.
-- **Not comparable, v2-proved** (run 39253172750 on build c6912998): all 104 unit cells. None of the 10 flags has a
-  single-flag arm on that run's base 39253166643. Six flags have one on build 698b7755 (base 39130874266). That base
-  differs, and its trajectory is 614 frames against 503, so the identity rule refuses it. Four flags were never
-  measured alone on the whole page: `engine.scroll:batched`, `hero.countdown:strip`, `pain.notes:visible`,
-  `people.card:mq`. MEASURED (artifact listing).
-- **Not comparable, triple**: 42 unit cells are quarantined: `trace.FireAnimationFrame`, `trace.FunctionCall` and
-  `trace.Layout.dirtyObjects` in `classes.frozen.json`. 65 zone cells have a stable class with k at least 1, so they
-  have no per-zone margin. No unit type is frame exact in the frozen table, so a per-zone F6 verdict is not
-  available on swipe-v1 today. MEASURED (class table), CONFIRMED (`verdict_noZoneMargin`).
-- **Reported, not judged**: pass types (`trace.UpdateLayoutTree`, `trace.Layout`, `trace.PrePaint`, `trace.Paint`,
-  `trace.cc.Commit`), per `passes_not_compositional` in `Fw.Engine.Compose`.
-- The triple is weak evidence. Its deltas are near zero on swipe-v1: 10 of 182 cells have a nonzero combined delta,
-  the largest `trace.FunctionCall` +12. Every one of the 182 residuals is 0, judged or not. MEASURED.
+- **v2-proved composes on all 5 decided cells, and all 5 are informative, but only `morph.mount:shift` acts in
+  them.** In the raster cells the other 8 flags change invalidation by exactly 0 alone, and adding them to
+  `morph.mount:shift` changes it by exactly 0. `census.layers` reads the same within its margin of 60 (residual -10).
+  No decided cell has two flags whose single deltas exceed the margin. MEASURED.
+- **Coupled: none.** MEASURED.
+- **The add-ups of several acting flags have no verdict.** `trace.FireAnimationFrame` (-370 against -463 + 93 + 1),
+  `trace.FunctionCall` (+38 against 43) and `trace.Layout.dirtyObjects` (-414 against -410) are quarantined, so they
+  have no margin. Their residuals (-1, -5, -4) are of the size of the base spread between its two runs (1, 2 and 2).
+  MEASURED numbers, no F6 verdict.
+- **The hidden-pause triple of round 1 composes only vacuously.** Its base 39130874266 sets `commission`, `pain` and
+  `people` to `shell` (`baseFlags`), so it is not a comparison against the faithful page. Four of its 5 decided
+  cells have a delta of 0 in every run, and the margin of `census.layers` (24) exceeds every delta (at most 2). The
+  undecided `trace.FunctionCall` cell adds up exactly (12 = 9 + 1 + 2) but is quarantined. MEASURED.
 
 ## Rule (Lean, `lean/Fw/Measure/Compose.lean`)
 
-- Delta of a pair: lower median of the arm runs minus lower median of the base runs (`Pair.delta`,
-  `ZoneBaseline.base`).
-- Residual: combined delta minus the sum of the single-flag deltas (`Cell.residual`).
-- Margin: `2 · slack(class) · (n + 1)` for `n` flags (`Cell.margin`). It is 0 for frame-exact classes
-  (`slack_exact`).
-- Order of the decision (`pre`, then `verdict`): pass type, reported; a flag with no single arm, missing; quarantined
-  or unlisted; zone cell of a class that is not frame exact, no-zone-margin; frame-exact cell whose runs disagree,
-  drift; then composes if the absolute residual is at most the margin, else coupled, naming the flags whose single
-  delta is nonzero.
-- Identity of a single-flag arm (`armFor`, `armFor_spec`): its arm adds exactly that flag to its base, its base run
-  id equals the combined base run id, its zone shape (id, frames, scrolled px, first and last frame per zone) equals
-  the combined one, and both sides are clean (`Runs.clean`).
+- Delta: lower median of the arm runs minus lower median of the base runs (`Pair.delta`). Residual: combined delta
+  minus the sum of the single deltas (`Cell.residual`). Margin: `2 · slack(class) · (n + 1)` for `n` flags
+  (`Cell.margin`), 0 for frame-exact classes (`slack_exact`).
+- Order (`pre`, then `verdict`): pass type, reported; a flag with no single arm, missing; quarantined or unlisted;
+  zone cell of a class that is not frame exact, no-zone-margin; frame-exact cell whose runs disagree, drift; then
+  composes if the absolute residual is at most the margin, else coupled, naming the flags with a nonzero single delta.
+- Evidence: a cell is informative when its combined delta or a single delta exceeds the margin (`Cell.informative`,
+  `informative_iff_beyond`), else vacuous (`vacuous_of_zero`). `beyond` names the single flags above the margin.
+- Refusal (`refusal`): the op refuses a combined comparison that is not clean or adds fewer than 2 flags
+  (`refusal_eq_none_iff`, `refusal_unclean`, `refusal_fewFlags`; golden cases in `measure.compose.jsonl`).
+- Single arm (`armFor`, `armFor_spec`, `armFor_ne_self`): another run id, the same base run id and zone shape, both
+  sides clean, and its arm adds exactly that flag. `loadRun` throws on a counts file without
+  `meta.rewrite.config.variants`.
+- Rows are keyed by (stage, count type, zone or whole run) of one combined comparison. A part enters a row as its
+  single-flag delta in `parts`, and by name in `beyond` and in a `coupled` verdict, so the task's (part, stage, zone)
+  unit is a row's part entry.
 - Theorems: `verdict_composes_iff`, `verdict_coupled_iff`, `verdict_reported_iff`, `verdict_missing`,
   `missing_not_composes`, `missing_not_coupled`, `verdict_quarantined`, `verdict_noZoneMargin`, `verdict_drift`,
-  `verdict_coupled_parts`, `composes_exact`, `coupled_cell_sound` (if every unseen delta stays within twice the
-  slack, a coupled cell keeps a nonzero residual), `cellAt_missing`.
-
-## Hidden-pause triple, whole run
-
-Combined 39131249517, base 39130874266, singles 39131168588 (`engine.scene`), 39131207849 (`morph.columns`),
-39131217951 (`morph.countdown`); 3 runs each side, profile swipe-v1, arm rewrite.
-
-| stage | type | class | combined Δ | single Δ (scene, columns, countdown) | residual | margin | verdict |
-|---|---|---|---|---|---|---|---|
-| script | trace.FireAnimationFrame | quarantined | 0 | 0, 0, 0 | 0 | 0 | not comparable: quarantined |
-| script | trace.FunctionCall | quarantined | 12 | 9, 1, 2 | 0 | 0 | not comparable: quarantined |
-| style | trace.UpdateLayoutTree | deterministic | 1 | 1, 0, 0 | 0 | 0 | reported |
-| layout | trace.Layout | quarantined | 0 | 0, 0, 0 | 0 | 0 | reported |
-| layout | trace.Layout.dirtyObjects | quarantined | 0 | 0, 0, 0 | 0 | 0 | not comparable: quarantined |
-| props | trace.PrePaint | stable(2,0) | 0 | 0, 0, 0 | 0 | 0 | reported |
-| paint | trace.Paint | quarantined | 0 | 0, 0, 0 | 0 | 0 | reported |
-| paint | raster.invalidationAreaPx | stable(4,0) | 0 | 0, 0, 0 | 0 | 0 | composes |
-| paint | raster.invalidationRects | stable(4,0) | 0 | 0, 0, 0 | 0 | 0 | composes |
-| raster | raster.invalidationAreaPx | stable(4,0) | 0 | 0, 0, 0 | 0 | 0 | composes |
-| raster | raster.invalidationRects | stable(4,0) | 0 | 0, 0, 0 | 0 | 0 | composes |
-| commit | trace.cc.Commit | deterministic | 0 | 0, 0, 0 | 0 | 0 | reported |
-| comp | census.layers | stable(2,3) | -2 | -2, 0, 0 | 0 | 24 | composes |
-
-Zone cells (13 zones, `rest` to `tail`): the nonzero ones are `trace.FunctionCall` y01000 +1 (countdown), y02000 +1
-(countdown), y03000 +9 (scene), y04000 -8 (scene), y05000 +1 (columns); `trace.UpdateLayoutTree` y03000 +1 (scene);
-`census.layers` y05000 -2 (scene). Each equals the sum of its singles. None is judged: they are quarantined, passes, or
-have no zone margin.
-
-## v2-proved, whole run
-
-Combined 39253172750, base 39253166643. Flags: `engine.scene:hidden-pause`, `engine.scroll:batched`,
-`hero.countdown:strip`, `morph.columns:hidden-pause`, `morph.countdown:hidden-pause`, `morph.mount:shift`,
-`morph.tween:waapi`, `nav.hitTest:elements-skip`, `pain.notes:visible`, `people.card:mq`.
-
-| stage | type | combined Δ | verdict |
-|---|---|---|---|
-| script | trace.FireAnimationFrame | -603 | not comparable: missing, all 10 flags |
-| script | trace.FunctionCall | -195 | not comparable: missing, all 10 flags |
-| style | trace.UpdateLayoutTree | -1011 | reported |
-| layout | trace.Layout | -4 | reported |
-| layout | trace.Layout.dirtyObjects | -414 | not comparable: missing, all 10 flags |
-| props | trace.PrePaint | -1 | reported |
-| paint | trace.Paint | -274 | reported |
-| paint, raster | raster.invalidationAreaPx | -565155 | not comparable: missing, all 10 flags |
-| paint, raster | raster.invalidationRects | 789 | not comparable: missing, all 10 flags |
-| commit | trace.cc.Commit | 0 | reported |
-| comp | census.layers | 1054 | not comparable: missing, all 10 flags |
-
-Single-flag whole-page runs that exist (all on base 39130874266, build 698b7755, research/notes/2026/10-19-model-checks.md):
-39131146372 `morph.tween:waapi`, 39131168588 `engine.scene:hidden-pause`, 39131207849 `morph.columns:hidden-pause`,
-39131217951 `morph.countdown:hidden-pause`, 39131302530 `morph.mount:shift`, 39131395370
-`nav.hitTest:elements-skip`, 39131343835 `nav.hitTest:hit-skip` (not in v2-proved). 39131314391 sets two flags, so it
-is never a single.
+  `verdict_coupled_parts`, `composes_exact`, `coupled_cell_sound`, `cellAt_missing`, `informative_iff`,
+  `informative_exact_iff`.
 
 ## Limits
 
-- Runs pair by base run id and zone shape, not by site commit. Counts files carry no site commit. That the
-  model-checks runs share build 698b7755 is INFERRED from the model-checks note.
-- The class table is `classes.frozen.json` swipe-v1 rewrite, frozen on one image. Applying it to build 698b7755 runs
-  is INFERRED.
-- The unit and pass split (`unitTypes`) is INFERRED from `Fw.Engine.Compose`: work units add over parts; pass counts
-  do not.
-- A part page (`?only=`) runs another trajectory (992 frames), so its zones never match a whole-page run.
+- One profile (swipe-v1) and 2 runs per side.
+- Flag independence is not checked. The verdict does not reference `Fw.Engine.Compose.lego_swap_units`, so a
+  `coupled` verdict could not tell flags that are not independent from a model failure. No cell is coupled here.
+- No unit type has a frame-exact class in `classes.frozen.json` swipe-v1 rewrite, so zone cells get no verdict.
+- `trace.FireAnimationFrame` counts units: Chromium emits one event per uncancelled callback in the loop of
+  `ExecuteFrameCallbacksImpl` (third_party/blink/renderer/core/dom/frame_request_callback_collection.cc:114@f842f52),
+  CONFIRMED. That the callbacks of two parts are disjoint, and the split of the other types, is INFERRED from
+  `Fw.Engine.Compose`.
+- Runs pair by base run id and zone shape; counts files carry no site commit. The commit of the coherent set is
+  CONFIRMED from `runner.json`. That the round 1 runs share build 698b7755 is INFERRED from the model-checks note,
+  and applying the frozen class table to them is INFERRED.
+- All 10 deltas share the base median B, so the residual is C − ΣSᵢ + 8B for 9 flags: a base offset of 1 moves the
+  residual by 8. The quarantined residuals above (-1, -5, -4) are smaller than that.
 
-## Next
+## Files
 
-One coherent set on one commit makes v2-proved comparable: a base, the v2-proved arm, and one whole-page arm per flag
-(`fw` input of `chromium-counts.yml`, profile swipe-v1), each with the same base run. The v2-proved set on main now
-has 9 flags (`hero.countdown:strip` left it, `lean/scripts/check.sh` "v2-proved"), so the set is 11 runs. Not dispatched:
-GitHub Actions was degraded and the accepted limits allow listing the missing arms.
-
-Files: `results/compose-check/plan.json` (run ids), `results/compose-check/<name>.json` (fwcore replies),
-`results/compose-check/table.md` (every row). Regenerate:
-`node packages/engine-check/src/cli.mjs --compose results/compose-check/plan.json --runs <download dir> --out results/compose-check`.
+`results/compose-check/plan.json` (run ids), `results/compose-check/<name>.json` (fwcore replies),
+`results/compose-check/table.md` (every row). Regenerate: download with
+`gh run download <id> -p 'chromium-counts-*' -D <dir>/<id>`, then
+`node packages/engine-check/src/cli.mjs --compose results/compose-check/plan.json --runs <dir> --out results/compose-check`.
