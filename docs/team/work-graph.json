@@ -6441,7 +6441,13 @@
     "lean/Fw/Parts/HeroCountdown*.lean",
     "packages/contracts/golden/parts/overlays.signup.jsonl",
     "packages/contracts/golden/parts/hero.countdown.jsonl",
-    "docs/team/handoffs/behaviour-small.md"
+    "docs/team/handoffs/behaviour-small.md",
+    "apps/site/src/parts/hero.countdown/*.ts",
+    "apps/site/src/parts/hero.countdown/index.tsx",
+    "lean/Fw/Parts/Golden.lean",
+    "lean/Fw/Parts/OverlayGolden.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ]
   },
   {
@@ -6678,7 +6684,9 @@
    "writes": [
     "apps/site/src/parts/platform/Visuals.tsx",
     "apps/site/src/parts/people.deck/panel.tsx",
-    "docs/team/handoffs/port-pin-gap.md"
+    "docs/team/handoffs/port-pin-gap.md",
+    "apps/site/src/parts/platform/assets.test.ts",
+    "apps/site/src/parts/platform/visuals.module.css"
    ]
   },
   {
@@ -6697,7 +6705,11 @@
     "apps/site/scripts/svg-extract.mjs",
     "apps/site/src/GenSvg.tsx",
     "apps/site/src/parts/nav/index.tsx",
-    "docs/team/handoffs/port-wordmark-g.md"
+    "docs/team/handoffs/port-wordmark-g.md",
+    "apps/site/src/svg-allow.json",
+    "apps/site/src/svg-extract.test.ts",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ]
   },
   {
@@ -6818,13 +6830,79 @@
     "local"
    ],
    "id": "lean-latex-removal",
-   "title": "User 10-19: remove LaTeX $$ math from Lean docstrings and the processes that require it (mathview lint stages, math-review step, CLAUDE.md 'Lean math' rule, agent definitions); math only on demand in artifacts; Lean comments per no-comments/no-slop. Plan: workflow lean-latex-removal-plan",
+   "title": "User 10-19: remove LaTeX $$ math from Lean docstrings and the processes that require it (mathview lint stages, math-review step, CLAUDE.md 'Lean math' rule, agent definitions); math only on demand in artifacts; Lean comments per no-comments/no-slop. Plan: workflow lean-latex-removal-plan. Done only when the temporary guardrails are gone: delete every negative rule added for this migration (build-review preamble 'No LaTeX: add no $$ math...', any 'no LaTeX' line in CLAUDE.md, agent and skill files) and keep only positive rules (user 10-19: no long-term negative feedback about removed things)",
    "stream": "ops",
    "milestone": "M5",
-   "deps": [],
+   "deps": [
+    "skills-reframe",
+    "latex-lint-relax"
+   ],
    "owner": "lead",
    "writes": [
     "docs/team/handoffs/lean-latex-removal.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "skills-reframe",
+   "title": "User 10-19: re-frame no-comments and no-slop skills after cursor/plugins pstack (no-comments orchestrator + comment-sicko agent + unslop), adapted to our harness and Lean; no LaTeX in Lean (CLAUDE.md line); MIT attribution; state rules positively (what to write), no 'No LaTeX' style negative lines that outlive the migration",
+   "stream": "ops",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "plan-editor",
+   "writes": [
+    ".claude/skills/no-comments/SKILL.md",
+    ".claude/skills/no-slop/SKILL.md",
+    ".claude/agents/comment-sicko.md",
+    ".claude/agents/slop-checker.md",
+    ".claude/agents/lean-prover.md",
+    ".claude/agents/math-reviewer.md",
+    ".claude/agents/checker.md",
+    "docs/team/token-policy.md",
+    "CLAUDE.md",
+    "docs/team/handoffs/skills-reframe.md",
+    ".claude/workflows/build-review.js",
+    "docs/team/tools/context-lint.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-lint-relax",
+   "owner": "lean-prover",
+   "title": "lean-latex-removal step B0: the mathview lint stops refusing Fw declarations without $$ math or English (sorry, non-standard axioms and export failures still refuse); closes the window opened by the no-LaTeX preamble",
+   "deps": [],
+   "writes": [
+    "lean/MathView.lean",
+    "lean/MathViewMain.lean",
+    "lean/scripts/**",
+    ".github/workflows/lean.yml",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/**",
+    "packages/contracts/golden/ops/**",
+    "docs/team/handoffs/latex-lint-relax.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "comment-sicko-spawn",
+   "owner": "lean-prover",
+   "title": "Register comment-sicko as a lead-only unnamed edit helper: (subagent, edits) row in Fw.Ops.SpawnGuard prodRoles and leadEditHelpers, hook ROLES in apps/runner/hooks/spawn-guard.mjs, goldens; context-lint exemption for 'Adapted from' attribution lines (Fw.Lint.Context)",
+   "deps": [
+    "skills-reframe"
+   ],
+   "writes": [
+    "lean/Fw/Ops/SpawnGuard*.lean",
+    "lean/Fw/Lint/Context*.lean",
+    "apps/runner/hooks/spawn-guard.mjs",
+    "apps/runner/test/**",
+    "packages/contracts/golden/ops/**",
+    "docs/team/handoffs/comment-sicko-spawn.md"
    ]
   }
  ],
