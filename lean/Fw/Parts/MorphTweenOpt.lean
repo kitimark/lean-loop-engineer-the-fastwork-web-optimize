@@ -1392,6 +1392,154 @@ def Reader.json (r : Reader) : String :=
   some "{\"inherits\":true,\"initialValue\":\"0\",\"name\":\"--morph\",\"syntax\":\"<number>\"}"
 #guard readers.head?.map Reader.json == some "{\"depth\":0,\"prop\":\"--morph\",\"sel\":\"nav\"}"
 
+/-! ## Profiles: pushes come only from wheel and touchmove -/
+
+/-- How a measurement profile scrolls (`packages/measure-chromium/profiles/*.json`, `input.mode`). -/
+inductive Mode where
+  | scroll
+  | wheel
+  | touch
+deriving Repr, DecidableEq
+
+/-- The input mode of a profile id; a profile without `input` scrolls with `scrollTo`. -/
+def modeOf : String → Mode
+  | "swipe-touch-v1" => .touch
+  | "swipe-wheel-v1" => .wheel
+  | _ => .scroll
+
+/-- One input a profile sends; `wheel` and `touchmove` carry the push the driver takes from them. -/
+inductive Input where
+  | scrollTo
+  | wheel (g : Rat) (rm : Bool) (n : Rat)
+  | touchmove (g : Rat) (rm : Bool) (n : Rat)
+  | frame (R : Rat)
+deriving Repr, DecidableEq
+
+/-- Whether a profile of mode `m` can send input `x`. -/
+def Input.sentBy : Mode → Input → Bool
+  | _, .frame _ => true
+  | .scroll, .scrollTo => true
+  | .wheel, .wheel .. => true
+  | .touch, .touchmove .. => true
+  | _, _ => false
+
+/-- The events the driver feeds the tween; only `wheel` and `touchmove` push (morph.tween/driver.ts:89-91). -/
+def drive : Input → List Ev
+  | .scrollTo => []
+  | .wheel g rm n => [.push g rm n]
+  | .touchmove g rm n => [.push g rm n]
+  | .frame R => [.tick R]
+
+/-- Whether a profile mode can push the morph. -/
+def pushes (m : Mode) : Bool := m != .scroll
+
+/-- Whether an event list holds no push. -/
+def noPushB (es : List Ev) : Bool := es.all fun | .push .. => false | .tick _ => true
+
+/-- Per frame of a run of the original from `s`: whether that frame runs the tween. -/
+def tweenFlags : St → List Ev → List Bool
+  | _, [] => []
+  | s, .push g rm n :: es => tweenFlags (push s g rm n) es
+  | s, .tick R :: es => s.pending :: tweenFlags (stepO s (.tick R)) es
+
+#guard tweenFlags rest [.tick 0, .push 1 false 0, .tick 16, .tick 800, .tick 816] == [false, true, true, false]
+#guard Input.sentBy .scroll .scrollTo && !Input.sentBy .scroll (.wheel 1 false 0) &&
+  Input.sentBy .touch (.touchmove 1 false 0) && !Input.sentBy .touch .scrollTo
+#guard noPushB ([Input.scrollTo, .frame 0, .scrollTo, .frame 16].flatMap drive)
+#guard !noPushB ([Input.touchmove 1 false 0, .frame 0].flatMap drive)
+#guard (["swipe-v1", "swipe-touch-v1", "swipe-wheel-v1"].map fun p => pushes (modeOf p)) == [false, true, true]
+
+/-- A scroll-mode profile sends no push. -/
+theorem noPush_scroll (xs : List Input) (h : ∀ x ∈ xs, Input.sentBy .scroll x = true) :
+    noPushB (xs.flatMap drive) = true := by
+  induction xs with
+  | nil => rfl
+  | cons x xs ih =>
+    have hx := h x (by simp)
+    have ht := ih fun y hy => h y (by simp [hy])
+    rw [List.flatMap_cons, noPushB, List.all_append]
+    rw [noPushB] at ht
+    rw [ht, Bool.and_true]
+    cases x <;> simp_all [Input.sentBy, drive]
+
+/-- Without a push the original never runs a tween frame. -/
+theorem tweenFlags_noPush (s : St) (es : List Ev) (hs : s.pending = false) (h : noPushB es = true) :
+    ∀ b ∈ tweenFlags s es, b = false := by
+  induction es generalizing s with
+  | nil => simp [tweenFlags]
+  | cons e es ih =>
+    cases e with
+    | push g rm n => simp [noPushB] at h
+    | tick R =>
+      have h' : noPushB es = true := by simpa [noPushB] using h
+      intro b hb
+      simp only [tweenFlags, List.mem_cons] at hb
+      rcases hb with rfl | hb
+      · exact hs
+      · exact ih _ (by simp [stepO, hs]) h' b hb
+
+/-- Without a push the waapi arm starts no animation, so it adds no composite-failure bit. -/
+theorem anim_noPush (P : WaapiPremises) (w : VSt) (es : List Ev) (hw : w.anim = none) (h : noPushB es = true) :
+    (runV P w es).anim = none := by
+  induction es generalizing w with
+  | nil => exact hw
+  | cons e es ih =>
+    cases e with
+    | push g rm n => simp [noPushB] at h
+    | tick R => exact ih _ (by simpa [stepV] using hw) (by simpa [noPushB] using h)
+
+/-- **No push, `=o`.** On a scroll-mode profile both arms fire the same animation frames and the waapi arm starts
+no animation. -/
+theorem noPush_eqO (P : WaapiPremises) (xs : List Input) (h : ∀ x ∈ xs, Input.sentBy .scroll x = true)
+    (cbs : List Nat) :
+    Chromium.rafSeries (cbs.zip (tweenFlags rest (xs.flatMap drive))) false =
+        Chromium.rafSeries (cbs.zip (tweenFlags rest (xs.flatMap drive))) true ∧
+      (runV P initV (xs.flatMap drive)).anim = none := by
+  have hn := noPush_scroll xs h
+  refine ⟨(Chromium.waapi_raf_eq_iff _).2 fun x hx => ?_, anim_noPush P initV _ rfl hn⟩
+  exact tweenFlags_noPush rest _ rfl hn x.2 (List.of_mem_zip hx).2
+
+/-- The original fires one more animation frame callback than the waapi arm per tween frame. -/
+theorem raf_sum_eq (fs : List (Nat × Bool)) :
+    (Chromium.rafSeries fs true).sum = (Chromium.rafSeries fs false).sum + (fs.filter (·.2)).length := by
+  induction fs with
+  | nil => rfl
+  | cons y ys ih =>
+    simp only [Chromium.rafSeries, List.map_cons, List.sum_cons, List.filter_cons] at ih ⊢
+    simp at ih ⊢; cases y.2 <;> simp <;> omega
+
+/-- A run with a tween frame costs the original more animation frame callbacks than the waapi arm. -/
+theorem raf_sum_lt (fs : List (Nat × Bool)) (h : ∃ x ∈ fs, x.2 = true) :
+    (Chromium.rafSeries fs false).sum < (Chromium.rafSeries fs true).sum := by
+  obtain ⟨x, hx, hx2⟩ := h
+  have : 0 < (fs.filter (·.2)).length := List.length_pos_of_mem (List.mem_filter.2 ⟨hx, by simpa using hx2⟩)
+  rw [raf_sum_eq]
+  omega
+
+/-- A taken push to a new target with full motion makes the next frame a tween frame. -/
+theorem tween_of_push (s : St) (g n R : Rat) (es : List Ev) (hg : s.target ≠ g) :
+    tweenFlags s (.push g false n :: .tick R :: es) = true :: tweenFlags (frame (push s g false n) R) es := by
+  simp [tweenFlags, push, hg, stepO]
+
+/-- The prediction for stage `s` on a profile of mode `m`: MT-W's when the profile pushes, `=o` otherwise. -/
+def predProfile (m : Mode) (s : Stage) : String := if pushes m then predStage s else "=o"
+
+/-- The bit-13 row's prediction (rewrite against waapi): `<o` when the profile pushes, `=o` otherwise. -/
+def compPred (m : Mode) : String := if pushes m then "<o" else "=o"
+
+/-- A pushing profile takes MT-W's prediction. -/
+theorem predProfile_push (m : Mode) (h : pushes m = true) (s : Stage) : predProfile m s = predStage s := by
+  simp [predProfile, h]
+
+/-- A profile without pushes predicts `=o` everywhere. -/
+theorem predProfile_noPush (m : Mode) (h : pushes m = false) (s : Stage) :
+    predProfile m s = "=o" ∧ compPred m = "=o" := by
+  simp [predProfile, compPred, h]
+
+#guard (Stage.all.map (predProfile .scroll)).all (· == "=o")
+#guard Stage.all.map (predProfile .touch) == Stage.all.map predStage
+#guard compPred .touch == "<o" && compPred .scroll == "=o"
+
 /-! ## Golden prediction rows (engine-check schema) -/
 
 /-- One engine-check prediction row (`apps/runner/src/engine-check.ts`), with an explicit base arm.
@@ -1433,16 +1581,20 @@ def countsOf : String → List (Stage × String)
       (.paint, "Paint"), (.commit, "Composite")]
   | _ => []
 
-/-- The golden rows: per engine and counted stage the MT-W prediction of the variant against the rewrite arm, plus
-Chromium's bit-13 row (the rewrite has fewer composite-failure bits than the variant: `cr_custom_main`).
-
-$$\mathrm{rows} = \big[(e, \texttt{swipe-v1}, \mathit{arm}_v, \operatorname{name}(s), \operatorname{pred}_{\mathrm{MT}}(s), k, \texttt{rewrite})\big]_{e \in [\texttt{chromium}, \texttt{webkit}],\ (s, k) \in \operatorname{counts}(e)} \mathbin{+\!\!+} \big[(\texttt{chromium}, \texttt{swipe-v1}, \texttt{rewrite}, \mathrm{comp}, \texttt{<o}, \texttt{trace.Animation.compositeFailedBits}, \mathit{arm}_v)\big]$$
-
-Eleven predictions. -/
-def goldenRows : List PredRow :=
+/-- The golden rows of profile `sc`: per engine and counted stage `predProfile`, plus Chromium's bit-13 row. -/
+def rowsFor (sc : String) : List PredRow :=
   (["chromium", "webkit"].flatMap fun e => (countsOf e).map fun (s, k) =>
-    ⟨e, "swipe-v1", armV, WebKit.stageName s, predStage s, k, "rewrite"⟩) ++
-  [⟨"chromium", "swipe-v1", "rewrite", "comp", "<o", "trace.Animation.compositeFailedBits", armV⟩]
+    ⟨e, sc, armV, WebKit.stageName s, predProfile (modeOf sc) s, k, "rewrite"⟩) ++
+  [⟨"chromium", sc, "rewrite", "comp", compPred (modeOf sc), "trace.Animation.compositeFailedBits", armV⟩]
+
+/-- The golden rows on the touch swipe, the profile that pushes. -/
+def goldenRows : List PredRow := rowsFor "swipe-touch-v1"
+
+/-- The golden rows on the scripted swipe, which never pushes. -/
+def swipeRows : List PredRow := rowsFor "swipe-v1"
+
+/-- Every scripted-swipe row is `=o`. -/
+theorem swipeRows_eqO : ∀ r ∈ swipeRows, r.prediction = "=o" := by decide
 
 /-- One row as compact JSON (keys sorted by `Json.mkObj`).
 
@@ -1464,10 +1616,16 @@ def goldenJsonl : String :=
     String.join (readers.map fun r => r.json ++ "\n")
 
 #guard goldenJsonl == include_str "../../../packages/contracts/golden/parts/morph-tween-waapi.jsonl"
+
+/-- The contents of `packages/contracts/golden/parts/morph-tween-waapi.swipe-v1.jsonl`. -/
+def swipeJsonl : String := String.join (swipeRows.map fun r => r.json ++ "\n")
+
+#guard swipeJsonl == include_str "../../../packages/contracts/golden/parts/morph-tween-waapi.swipe-v1.jsonl"
+#guard swipeRows.length == 11
 #guard goldenRows.length == 11
 #guard (goldenRows.filter fun r => r.prediction == "<o").length == 3
 #guard goldenRows.head?.map PredRow.json ==
-  some "{\"base\":\"rewrite\",\"countType\":\"trace.FireAnimationFrame\",\"engine\":\"chromium\",\"prediction\":\"<o\",\"scenario\":\"swipe-v1\",\"stage\":\"script\",\"variant\":\"rewrite+?fw=morph.tween:waapi\"}"
+  some "{\"base\":\"rewrite\",\"countType\":\"trace.FireAnimationFrame\",\"engine\":\"chromium\",\"prediction\":\"<o\",\"scenario\":\"swipe-touch-v1\",\"stage\":\"script\",\"variant\":\"rewrite+?fw=morph.tween:waapi\"}"
 
 /-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
 
