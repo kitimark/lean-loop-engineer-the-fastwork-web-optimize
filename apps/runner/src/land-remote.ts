@@ -17,7 +17,7 @@ export const LANE_ID = "land";
 /** The providers whose pass counts, in preference order, until circleci-pilot's routing rule feeds this list. */
 export const DEFAULT_ALLOW: Provider[] = ["github"];
 /** The step name the land lane prints after its suites: `lane: sha=<merge commit> digest=<lane digest>` (.github/workflows/land.yml). */
-export const BIND_STEP = /^lane: sha=(\S*) digest=(.*)$/;
+export const BIND_STEP = /^lane: sha=([0-9a-f]{40}) digest=(\S+)$/;
 
 export type RemoteInput = { localOk: boolean; needed: boolean; allow: Provider[]; want: Want; waitsLeft: number; runs: LaneRun[] };
 
@@ -41,19 +41,21 @@ export const RUN_VIEW_FIELDS = "headSha,conclusion,status,createdAt,startedAt,up
 export function laneBind(view: GhRunView): { sha: string; digest: string } | null {
   for (const j of view.jobs ?? []) for (const s of j.steps ?? []) {
     const m = BIND_STEP.exec(s.name);
-    if (m) return { sha: m[1]!, digest: m[2]! };
+    if (m) return { sha: m[1]!, digest: m[2]! }; // BIND_STEP needs a 40-hex sha and a digest: the empty name of a lane that failed early binds nothing
   }
   return null;
 }
 
-/** `fw ci wait` exit code -> run state (0 pass, 1 fail, 3 still going or poller stopped, 4 not run, else gh unavailable). */
-export const stateOfWaitExit = (code: number): RunState =>
-  code === 0 ? "pass" : code === 1 ? "fail" : code === 3 ? "running" : code === 4 ? "cancelled" : "unavailable";
+/** `fw ci wait` exit code -> run state (0 pass, 1 fail, 3 the slice ran out with the run still going, 4 not run, else gh unavailable).
+ *  Exit 3 also comes back at once when the poller is stopped or the gh budget refuses a call (gh-budget wait.ts); only the output
+ *  `timed out after` means a run still going, any other exit 3 is `unavailable` (no tight poll loop, no retry on a refusal). */
+export const stateOfWaitExit = (code: number, out = ""): RunState =>
+  code === 0 ? "pass" : code === 1 ? "fail" : code === 3 ? (/timed out after/.test(out) ? "running" : "unavailable") : code === 4 ? "cancelled" : "unavailable";
 
 /** Normalize one GitHub land run. A pass counts only for the sha and digest the lane printed; a lane that failed before it printed
  *  them is attributed to what was asked for (a failure refuses, the safe side), a pass without a binding binds to nothing. */
-export function normalizeGithub(code: number, view: GhRunView | null, ctx: { marker: string; want: Want }): LaneRun {
-  const state = stateOfWaitExit(code);
+export function normalizeGithub(code: number, view: GhRunView | null, ctx: { marker: string; want: Want }, out = ""): LaneRun {
+  const state = stateOfWaitExit(code, out);
   const run = (sha: string, laneDigest: string): LaneRun => ({ provider: "github", sha, laneId: LANE_ID, laneDigest, state });
   if (!view) return state === "pass" ? run("", "") : run(ctx.want.sha, ctx.want.laneDigest);
   const bind = view.headSha === ctx.marker ? laneBind(view) : null;
@@ -84,6 +86,8 @@ export interface Adapter {
 
 export type GithubDeps = {
   git: (args: string[]) => string;
+  /** Personal-data scan of the lines the push adds to origin (scripts/scrub.mjs --range): the text of the hits, or null when clean. */
+  scan?: (mergeSha: string) => string | null;
   /** `pnpm -s fw ci wait ...`: exit code and output; ends early (code 3) when the signal aborts. */
   wait: (args: string[], signal?: AbortSignal) => Promise<{ code: number; out: string }>;
   gh: Gh;
@@ -96,6 +100,8 @@ export function githubAdapter(d: GithubDeps): Adapter {
   return {
     provider: "github",
     async start(c) {
+      const hit = d.scan?.(c.mergeSha);
+      if (hit) throw new Error(`personal-data scan refused the push of ${c.mergeSha.slice(0, 7)}: ${hit}`);
       const tree = d.git(["rev-parse", `${c.mergeSha}^{tree}`]);
       const marker = d.git(["commit-tree", tree, "-p", c.mergeSha, "-m", `[ci:land] land ${c.task} ${c.mergeSha.slice(0, 7)}`]);
       const branch = landBranch(c.task, c.mergeSha);
@@ -105,13 +111,14 @@ export function githubAdapter(d: GithubDeps): Adapter {
     },
     async poll(h, c, sliceS, signal) {
       const w = await d.wait(["-s", "fw", "ci", "wait", "--branch", h.branch, "--workflow", LANE_ID, "--sha", h.marker, "--timeout", String(sliceS)], signal);
-      const code = signal?.aborted ? 3 : w.code;
+      if (signal?.aborted) return { run: normalizeGithub(3, null, { marker: h.marker, want: c.want }, "timed out after abort"), times: null };
+      const code = w.code;
       const id = /\brun (\d+) /.exec(w.out)?.[1];
       let view: GhRunView | null = null;
       if (id && (code === 0 || code === 1)) {
         try { view = JSON.parse(await d.gh(["run", "view", id, "--json", RUN_VIEW_FIELDS])) as GhRunView; } catch { view = null; }
       }
-      return { run: normalizeGithub(code, view, { marker: h.marker, want: c.want }), times: view ? runTimes(view) : null };
+      return { run: normalizeGithub(code, view, { marker: h.marker, want: c.want }, w.out), times: view ? runTimes(view) : null };
     },
   };
 }
@@ -146,6 +153,13 @@ export type AwaitInput = {
   waitsLeft?: number;
 };
 export type AwaitOutcome = { verdict: RemoteVerdict; runs: LaneRun[] };
+
+/** Sleep `ms` (nothing when <= 0); ends early when the signal aborts. A run that came back `running` sooner than its slice must not be polled at once. */
+const sleepOut = (ms: number, signal: AbortSignal): Promise<void> => ms <= 0 ? Promise.resolve() : new Promise((res) => {
+  const t = setTimeout(done, ms);
+  function done() { clearTimeout(t); signal.removeEventListener("abort", done); res(); }
+  signal.addEventListener("abort", done, { once: true });
+});
 
 /** Ask fwcore what to do with the runs so far and do it: start the provider it names, wait for runs going, stop on accept, refuse or
  *  local. The final verdict uses the real local tier result. */
@@ -197,7 +211,9 @@ export async function awaitRemote(i: AwaitInput): Promise<AwaitOutcome> {
       const h = handles.get(r.provider), a = i.adapters[r.provider];
       if (!h || !a) return;
       try {
+        const t1 = now();
         const p = await a.poll(h, i.ctx, slice, ac.signal);
+        if (p.run.state === "running" && !ac.signal.aborted) await sleepOut(slice * 1000 - (now() - t1), ac.signal);
         runs.set(r.provider, p.run);
         if (p.times && p.run.state !== "running") {
           i.span("remote queue", p.times.startMs, p.times.queueMs, 0);
@@ -218,10 +234,10 @@ export async function awaitRemote(i: AwaitInput): Promise<AwaitOutcome> {
 /** `pnpm -s fw ci wait` as a child process: no CPU while it waits; the signal kills it. */
 export function spawnWait(cwd: string): GithubDeps["wait"] {
   return (args, signal) => new Promise((res) => {
-    const p = spawn("pnpm", args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    const p = spawn("pnpm", args, { cwd, stdio: ["ignore", "pipe", "pipe"], detached: true }); // own process group: pnpm and the node child die together
     let out = "";
     p.stdout.on("data", (x) => (out += x)); p.stderr.on("data", (x) => (out += x));
-    const stop = () => p.kill("SIGTERM");
+    const stop = () => { try { process.kill(-p.pid!, "SIGTERM"); } catch { p.kill("SIGTERM"); } };
     signal?.addEventListener("abort", stop, { once: true });
     p.on("error", (e) => res({ code: 2, out: out + String(e) }));
     p.on("close", (code) => { signal?.removeEventListener("abort", stop); res({ code: code ?? 2, out }); });

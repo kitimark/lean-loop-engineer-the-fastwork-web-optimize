@@ -96,6 +96,11 @@ export const ATTRIBUTION = [
 export const MARKER_RE = "^(<<<<<<<|>>>>>>>)";
 
 const git = (cwd: string, args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+/** Personal-data scan (scripts/scrub.mjs --range) of what a ci/land push adds to origin: null when clean, else the hits (rule and place, never values). */
+const scanRange = (dir: string, mainDir: string, mergeSha: string): string | null => {
+  try { execFileSync("node", [join(dir, "scripts/scrub.mjs"), "--range", "origin/main", mergeSha], { cwd: mainDir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }); return null; }
+  catch (e) { return String((e as { stderr?: string }).stderr ?? e).replace(/\s+/g, " ").slice(0, 300); }
+};
 const tryGit = (cwd: string, args: string[]) => { try { git(cwd, args); return true; } catch { return false; } };
 const tryGitEnv = (cwd: string, args: string[], env: Record<string, string>) => {
   try { execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...env } }); return true; } catch { return false; }
@@ -581,7 +586,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const laneIds = (call({ op: "console.landTier", ids: all.filter((x) => laneSel.has(x.id)).map((x) => x.id) }) as { remote: string[] }).remote;
     const res = await runTiered({
       call, checks: list, laneIds, task: o.task, mergeSha: c, allow: r.allow ?? DEFAULT_ALLOW,
-      adapters: r.adapters ?? { github: githubAdapter({ git: (a) => git(mainDir, a), wait: spawnWait(mainDir), gh: chargedGh(realEnv(mainDir)) }), circleci: circleciAdapter(() => tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/circleci.mjs`])) },
+      adapters: r.adapters ?? { github: githubAdapter({ git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), wait: spawnWait(mainDir), gh: chargedGh(realEnv(mainDir)) }), circleci: circleciAdapter(() => tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/circleci.mjs`])) },
       runLocal: async (argv) => { const bad = await runChecks(dir, argv); return { bad, kind: badKind }; },
       log: (l) => lines.push(l), span: (step, startMs, durMs, exit) => record({ tool: "fw land", step, startMs, durMs, exit }, mainDir),
       sliceS: r.sliceS, deadlineS: r.deadlineS, waitsLeft: r.waitsLeft,

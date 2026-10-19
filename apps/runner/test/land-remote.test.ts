@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { landBranch, normalizeGithub, remoteDigest, remoteVerdict, awaitRemote, laneBind, circleciAdapter, type Adapter, type GhRunView, type LaneRun, type Want } from "../src/land-remote.ts";
+import { githubAdapter, stateOfWaitExit, landBranch, normalizeGithub, remoteDigest, remoteVerdict, awaitRemote, laneBind, circleciAdapter, type Adapter, type GhRunView, type LaneRun, type Want } from "../src/land-remote.ts";
 import { fwcoreCall } from "../src/run.ts";
 import { checksCli } from "../src/checks.ts";
 
@@ -69,7 +69,7 @@ describe("normalize a GitHub land run, then ask fwcore", () => {
     expect(verdictOf([run])).toMatchObject({ kind: "local" });
   });
   it("still running (exit 3): wait", () => {
-    expect(verdictOf([normalizeGithub(3, null, ctx)])).toMatchObject({ kind: "wait", reason: "lane-running" });
+    expect(verdictOf([normalizeGithub(3, null, ctx, "ci wait: timed out after 540s")])).toMatchObject({ kind: "wait", reason: "lane-running" });
   });
   it("github pass + circleci fail across providers: refuse", () => {
     const gh = normalizeGithub(0, passView(), ctx);
@@ -119,6 +119,55 @@ describe("the recorded passing lane run (ci/land-probe-e5b7f17, run 39319745028)
   });
 });
 
+describe("fw ci wait exit 3 and the empty binding (review round 1)", () => {
+  it("exit 3 is running only with `timed out after`; a stopped poller or a refused gh call is unavailable", () => {
+    expect(stateOfWaitExit(3, "ci wait: timed out after 540s")).toBe("running");
+    expect(stateOfWaitExit(3, "ci wait: poller stopped")).toBe("unavailable");
+    expect(stateOfWaitExit(3)).toBe("unavailable");
+  });
+  it("a poll that comes back running at once is slept out: polls stay near deadline/slice", async () => {
+    let polls = 0;
+    const quick: Adapter = { provider: "github", async start() { return { provider: "github", branch: "b", marker: MARKER }; },
+      async poll() { polls++; return { run: { provider: "github", sha: SHA, laneId: "land", laneDigest: DIGEST, state: "running" } }; } };
+    const t0 = Date.now();
+    const o = await awaitRemote({ call, adapters: { github: quick }, allow: ["github"], ctx: { task: "t", mergeSha: SHA, want }, local: Promise.resolve(true), log: () => {}, span: () => {}, sliceS: 0.05, deadlineS: 0.5 });
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(450);
+    expect(polls).toBeLessThanOrEqual(14);
+    expect(o.verdict.kind).not.toBe("accept");
+  });
+  it("a lane step with empty groups binds nothing; the failed run still refuses", () => {
+    const v = recorded("fail.json");
+    const empty = { ...v, jobs: v.jobs!.map((j) => ({ ...j, steps: j.steps!.map((st) => (st.name.startsWith("lane:") ? { ...st, name: "lane: sha= digest=" } : st)) })) };
+    expect(laneBind(empty)).toBeNull();
+    const half = { ...v, jobs: v.jobs!.map((j) => ({ ...j, steps: j.steps!.map((st) => (st.name.startsWith("lane:") ? { ...st, name: `lane: sha=${"a".repeat(40)} digest=` } : st)) })) };
+    expect(laneBind(half)).toBeNull();
+    const run = normalizeGithub(1, empty, { marker: empty.headSha, want });
+    expect(verdictOf([run])).toMatchObject({ kind: "refuse", reason: "remote-lane-failed" });
+  });
+});
+
+describe("the personal-data scan before the ci/land push", () => {
+  const mk = (hit: string | null) => {
+    const calls: string[][] = [];
+    const a = githubAdapter({ git: (args) => { calls.push(args); return "x".repeat(40); }, scan: () => hit, wait: async () => ({ code: 0, out: "" }), gh: async () => "" });
+    return { a, calls };
+  };
+  it("a hit stops the push: the provider is unavailable with the named reason, and the land runs the tier locally", async () => {
+    const { a, calls } = mk("a.md:3:5 rule=home-path");
+    await expect(a.start({ task: "t", mergeSha: SHA, want })).rejects.toThrow(/personal-data scan refused/);
+    expect(calls.some((c) => c[0] === "push")).toBe(false);
+    const logs: string[] = [];
+    const o = await awaitRemote({ call, adapters: { github: a }, allow: ["github"], ctx: { task: "t", mergeSha: SHA, want }, local: Promise.resolve(true), log: (l) => logs.push(l), span: () => {}, sliceS: 0.05, deadlineS: 5 });
+    expect(o.verdict.kind).toBe("local");
+    expect(logs.join("\n")).toMatch(/personal-data scan refused/);
+  });
+  it("a clean scan pushes", async () => {
+    const { a, calls } = mk(null);
+    await a.start({ task: "t", mergeSha: SHA, want });
+    expect(calls.some((c) => c[0] === "push")).toBe(true);
+  });
+});
+
 describe("golden land-remote.jsonl (written by Lean) through fwcore", () => {
   const lines = readFileSync(join(root, "packages/contracts/golden/console/land-remote.jsonl"), "utf8").trim().split("\n");
   it("has the Lean cases", () => expect(lines.length).toBeGreaterThanOrEqual(30));
@@ -139,7 +188,7 @@ describe("awaitRemote with fake providers", () => {
     };
   };
   const base = (adapters: Partial<Record<"github" | "circleci", Adapter>>, allow: ("github" | "circleci")[], localOk = true) => ({
-    call, adapters, allow, ctx: { task: "t", mergeSha: SHA, want }, local: Promise.resolve(localOk), log: () => {}, span: () => {}, sliceS: 1, deadlineS: 30,
+    call, adapters, allow, ctx: { task: "t", mergeSha: SHA, want }, local: Promise.resolve(localOk), log: () => {}, span: () => {}, sliceS: 0.05, deadlineS: 30,
   });
   it("github running then pass: accept, one push", async () => {
     const started: string[] = [];

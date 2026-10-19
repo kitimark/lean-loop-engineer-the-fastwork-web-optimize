@@ -155,8 +155,11 @@ jobs:
           exit "$rc"
 
       - name: 'lane: sha=${{ steps.suites.outputs.sha }} digest=${{ steps.suites.outputs.digest }}'
-        if: ${{ always() && steps.stale.outcome == 'skipped' }}
-        run: echo "LANE sha=${{ steps.suites.outputs.sha }} digest=${{ steps.suites.outputs.digest }}"
+        if: ${{ always() && steps.stale.outcome == 'skipped' && steps.suites.outcome != 'skipped' }}
+        env:
+          SHA: ${{ steps.suites.outputs.sha }}
+          DIGEST: ${{ steps.suites.outputs.digest }}
+        run: echo "LANE sha=$SHA digest=$DIGEST"
 
       - name: phases
         if: ${{ always() && steps.stale.outcome == 'skipped' }}
