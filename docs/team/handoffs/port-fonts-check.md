@@ -15,5 +15,13 @@ Verified locally (not a result): golden replay; one probe-page run in Chrome: go
 Unit of decision: per text leaf (section, normalised text, family, weight, style) plus the loaded (family, weight, style) set.
 Accepted limits: WebKit font rendering beyond family/weight/style; Fastwork excluded; overlay-only DOM that is absent at load is not read;
 the page sweeps by scrolling once before reading.
-Open: CI results (run ids in the report); which probes change verdict under `none`; then decide per failing probe whether it is a port
-gap (fix in a gap lane) or a tolerance (only with evidence). Read first: `lean/Fw/Port/Fonts.lean`, then `scripts/port/fonts.mjs`.
+CI (workflow visual-diff, branch ci/port-fonts-check): assets=none runs 39245919162 (older reader), 39248286394 (head), 39248398577
+(dispatch); assets=inject baseline 39245980604. Per-run jobs green; the probe-page test and golden replay pass on both engines. The
+built-page `fonts` step fails at all 8 probes on both engines (advisory): same 40 missing, 40 extra leaves, faces equal. Real gaps:
+buttons draw Arial (-webkit-standard in WebKit) not Google Sans (hero Join waitlist, hero.cue, morph.panel, people.deck items);
+hero.countdown and morph.countdown digits and a morph.panel text draw system-ui; `people.o` text is owned by people.card in the port.
+Port job report (built site, advisory): assets pass, svg fails (2 missing, 1 extra); the unit tests of checks 1-4 pass.
+Verdicts under none vs inject, 3 none runs: 433 of 496 cells hold one verdict in all three (254 U, 79 P, 77 F); ~25 cells flip between
+runs, so tolerances.json is unchanged. Inject was worse (0 P chromium) as its forced font-family hits every element.
+Open: fix the button/countdown font inheritance in a gap lane, then rerun; decide the `people.o` owner. Read first:
+`lean/Fw/Port/Fonts.lean`, then `scripts/port/fonts.mjs`.
