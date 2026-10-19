@@ -155,10 +155,24 @@ export async function navScrollInPage(arg) {
     const before = snap();
     const frames = [];
     let anims = [];
+    // Event order inside the recording, in execution order: scroll events, the nav's class mutations (microtask after the
+    // script that changed it), transition run/start events, and this loop's own frame samples. Observes only.
+    const ev = [];
+    const navEl = document.querySelector(sel.nav);
+    const stamp = (e) => ev.push({ e, t: +(performance.now() - t0).toFixed(2), ct: document.timeline.currentTime, n: +performance.now().toFixed(2) });
+    const onScroll = () => stamp('scroll');
+    const onTr = (x) => stamp(`${x.type}:${x.propertyName}`);
+    const mo = new MutationObserver(() => stamp('class'));
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    if (navEl) {
+      mo.observe(navEl, { attributes: true, attributeFilter: ['class'] });
+      for (const type of ['transitionrun', 'transitionstart', 'transitionend']) navEl.addEventListener(type, onTr);
+    }
     const t0 = performance.now();
     go(arg.yAfter);
     while (performance.now() - t0 < arg.ms) {
       const dtNow = performance.now() - t0;
+      stamp('frame');
       const nav = document.querySelector(sel.nav);
       const found = nav
         ? nav.getAnimations().filter((a) => a.transitionProperty).map((a) => {
@@ -167,10 +181,18 @@ export async function navScrollInPage(arg) {
           })
         : [];
       if (found.length > anims.length) anims = found;
-      frames.push({ dt: +dtNow.toFixed(2), ct: document.timeline.currentTime, ...snap() });
+      // start state of each running transition at this frame: startTime null while pending
+      const run = nav
+        ? nav.getAnimations().filter((a) => a.transitionProperty && a.transitionProperty !== 'visibility')
+          .map((a) => ({ prop: a.transitionProperty, st: a.startTime, pend: a.pending, cur: a.currentTime }))
+        : [];
+      frames.push({ dt: +dtNow.toFixed(2), ct: document.timeline.currentTime, run, ...snap() });
       await raf();
     }
-    return { before, anims, frames, yBefore: arg.yBefore, yAfter: arg.yAfter };
+    window.removeEventListener('scroll', onScroll, { capture: true });
+    mo.disconnect();
+    if (navEl) for (const type of ['transitionrun', 'transitionstart', 'transitionend']) navEl.removeEventListener(type, onTr);
+    return { before, anims, frames, ev, yBefore: arg.yBefore, yAfter: arg.yAfter };
   }
 
   if (op === 'wheelStart') {

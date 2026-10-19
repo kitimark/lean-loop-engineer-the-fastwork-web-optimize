@@ -57,8 +57,8 @@ function measureSticky(stickySelector: string, sectionSelector: string): Sticky 
  * specified in lean/Fw/Parts/Nav.lean; the decisions are logic.ts (golden vectors).
  *
  * Deltas (named): the logo glyph is read from svg.gen.json; the morph panel is the `children`, hosted
- * here as in the original (title, columns, CTAs and footer are morph.panel's); no `.hero-track`/profile
- * elements exist in the page yet beyond the hero.exit track, which stands in for the former.
+ * here as in the original (title, columns, CTAs and footer are morph.panel's); no `.hero-track`, hero.exit stands in;
+ * the profile sticky and section are the people section's data-fw hooks (nav.hitTest/probe.ts).
  */
 export function Nav({
   heroSelector = '[data-fw="hero-exit"]',

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { bezier, compareSweeps, easingOf, pathError, transitions, wheelEdges } from '../src/navscroll-analyze.mjs';
+import { bezier, compareSweeps, compareTransitionFrames, easingOf, eventSequence, frameIndexes, lagSummary, pathError, transitions, wheelEdges } from '../src/navscroll-analyze.mjs';
 import { gridOf, settledGrid } from '../src/navscroll.mjs';
 import { settledDiffs } from '../src/navscroll-report.mjs';
 
@@ -70,4 +70,50 @@ test('grids: sweep from one viewport above to half a viewport past the section, 
   assert.equal(us[0], -800);
   assert.ok(us.at(-1) <= 3600 && us.at(-1) > 3600 - 16);
   assert.deepEqual(settledGrid(g), [-800, -400, 0, 400, 800, 1200, 1600, 2000, 2400, 2800, 3200, 3600]);
+});
+
+// A captured transition: `tys` is translateY per frame, `flipAt` the frame whose hidden flag turns, `st` the transform start time.
+const trec = (tys, flipAt, { before = 0, st = null } = {}) => ({
+  before: { hidden: false, ty: before },
+  frames: tys.map((ty, i) => ({ ct: 1000 + i * 16.667, hidden: i >= flipAt, ty, run: st == null ? [] : [{ prop: 'transform', st, pend: false, cur: 0 }] })),
+});
+
+test('frameIndexes: flip frame, first move frame, lag and start frame', () => {
+  const r = trec([0, 0, 0, -25, -44, -58], 2, { st: 1000 + 3 * 16.667 });
+  assert.deepEqual(frameIndexes(r), { flip: 2, move: 3, start: 3, lagMove: 1, lagStart: 1 });
+  // moved in the same frame as the flip (lag 0), no start time recorded
+  assert.deepEqual(frameIndexes(trec([0, 0, -25, -44], 2)), { flip: 2, move: 2, start: null, lagMove: 0, lagStart: null });
+  // never flips, never moves
+  assert.deepEqual(frameIndexes(trec([0, 0, 0], 9)), { flip: -1, move: -1, start: null, lagMove: null, lagStart: null });
+});
+
+test('compareTransitionFrames: a later start shows as a longer lag; the curve from the first move is equal', () => {
+  const o = trec([0, 0, 0, -25, -44, -58, -67, -73, -77, -80], 2);
+  const p = trec([0, 0, 0, 0, -25, -44, -58, -67, -73, -77], 2);
+  const c = compareTransitionFrames(o, p);
+  assert.deepEqual([c.flip.orig, c.flip.port, c.move.orig, c.move.port, c.lag.orig, c.lag.port, c.lagDelta], [2, 2, 3, 4, 1, 2, 1]);
+  assert.equal(c.aligned, 0);
+  assert.deepEqual(c.ty.orig.slice(0, 5), [0, 0, 0, -25, -44]);
+  assert.deepEqual(c.ty.port.slice(0, 5), [0, 0, 0, 0, -25]);
+  // a missing edge in one arm gives null, not 0
+  assert.equal(compareTransitionFrames(o, trec([0, 0, 0], 9)).lagDelta, null);
+});
+
+test('eventSequence: events up to the first move, repeats collapsed; null without a log', () => {
+  const r = { ...trec([0, 0, 0, -25, -44], 2), ev: [
+    { e: 'frame' }, { e: 'scroll' }, { e: 'frame' }, { e: 'class' }, { e: 'transitionrun:transform' }, { e: 'frame' }, { e: 'transitionstart:transform' }, { e: 'frame' }, { e: 'frame' }, { e: 'frame' },
+  ] };
+  assert.equal(eventSequence(r), 'f s f c tr f ts f');
+  assert.equal(eventSequence(trec([0, 0, 0], 9)), null);
+});
+
+test('lagSummary: counts longer / shorter / equal per engine, width and edge; skips edges missing in an arm', () => {
+  const rows = [
+    { run: 'a', engine: 'chromium', id: 'w1280', key: 'down:off', orig: 1, port: 2 },
+    { run: 'b', engine: 'chromium', id: 'w1280', key: 'down:off', orig: 1, port: 1 },
+    { run: 'c', engine: 'chromium', id: 'w1280', key: 'down:off', orig: 2, port: 1 },
+    { run: 'd', engine: 'chromium', id: 'w1280', key: 'down:off', orig: 1, port: null },
+  ];
+  const [g] = lagSummary(rows);
+  assert.deepEqual([g.orig, g.port, g.longer, g.shorter, g.equal], [[1, 1, 2], [2, 1, 1], 1, 1, 1]);
 });

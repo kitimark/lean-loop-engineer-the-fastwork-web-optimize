@@ -38,6 +38,12 @@ on:
           page). Empty = the default config.
         type: string
         default: ''
+      navscroll:
+        description: >-
+          Also run the nav scroll-hide probe (job navscroll: both engines, about 22 min WebKit and 7 min Chromium). Off by
+          default; the probe is an investigation, not part of the visual diff.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -310,8 +316,10 @@ jobs:
           retention-days: 14
 
   # Nav scroll-hide probe (task nav-scroll-hide-check): the nav against the people section, original vs rewrite, desktop widths,
-  # one job per engine; records and tables are the artifact nav-scroll-<engine>.
+  # one job per engine; records and tables are the artifact nav-scroll-<engine>. Dispatch with -f navscroll=true.
   navscroll:
+    # only on a dispatch that sets the navscroll input; every other run (push, schedule, plain dispatch) skips it
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.navscroll }}
     needs: [site]
     concurrency:
       group: ci-lane:visual-diff:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:navscroll:${{ strategy.job-index }}

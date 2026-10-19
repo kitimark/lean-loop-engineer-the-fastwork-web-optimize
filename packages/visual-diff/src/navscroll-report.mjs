@@ -2,7 +2,7 @@
 // every number comes from the records; the comparison functions are navscroll-analyze.mjs.
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { compareSweeps, describeTransition, pathError, transitions, wheelEdges } from './navscroll-analyze.mjs';
+import { compareSweeps, compareTransitionFrames, describeTransition, eventSequence, lagSummary, pathError, transitions, wheelEdges } from './navscroll-analyze.mjs';
 
 const findFiles = (dir) => readdirSync(dir).flatMap((n) => {
   const p = join(dir, n);
@@ -52,6 +52,12 @@ export function summarizeCase(c) {
   }
   const trans = {};
   for (const arm of [o, p]) for (const t of arm.transitions) (trans[t.key] ??= {})[arm.site] = transitionOf(t);
+  const frameCmp = {};
+  for (const t of o.transitions) {
+    const z = p.transitions.find((x) => x.key === t.key);
+    if (z) frameCmp[t.key] = { ...compareTransitionFrames(t, z), seq: { orig: eventSequence(t), port: eventSequence(z) } };
+    else frameCmp[t.key] = null;
+  }
   return {
     id: c.id, width: c.width, height: c.height,
     geo: { orig: pickGeo(o.geo), rewrite: pickGeo(p.geo) },
@@ -61,6 +67,7 @@ export function summarizeCase(c) {
     settled: { ...settled, equalStates: settled.diff.hidden.length + settled.diff.cls.length + settled.diff.vis.length === 0, maxPosDelta: +settledPos.toFixed(2) },
     settledDiffs: settledDiffs(o.settled, p.settled),
     transitions: trans,
+    frameCmp,
     wheel: { orig: o.wheel ? wheelEdges(o.wheel) : null, rewrite: p.wheel ? wheelEdges(p.wheel) : null },
   };
 }
@@ -73,7 +80,7 @@ export function markdown(runs) {
   for (const r of runs) {
     const eng = r.header.engine;
     const b = r.header.site.buildId;
-    L.push(`## ${eng} (${r.header.browser})`, '', `build ${typeof b === 'string' ? b : JSON.stringify(b)}; step ${r.header.params.STEP} px, ${r.header.params.FRAMES} frames per step`, '');
+    L.push(`## ${eng} (${r.header.browser}), run ${runLabel(r.file)}`, '', `build ${typeof b === 'string' ? b : JSON.stringify(b)}; step ${r.header.params.STEP} px, ${r.header.params.FRAMES} frames per step`, '');
     const sums = r.cases.map(summarizeCase);
     json[eng] = sums;
     const ok = sums.filter((s) => !s.error && !s.absent);
@@ -101,6 +108,14 @@ export function markdown(runs) {
         }
       }
     }
+    L.push('', '### Transition frames, arm against arm (frame 0 = sample at the jump; flip = class change visible; move = translateY changed; start = transform start time; lag = move - flip)', '', '| width | edge | flip o/p | move o/p | lag o/p | start o/p | translateY of the first 6 frames, orig | port | curve diff from own first move (px) | event order o / p |', '|---|---|---|---|---|---|---|---|---|---|');
+    for (const s of ok) {
+      for (const [key, c] of Object.entries(s.frameCmp)) {
+        if (!c) { L.push(`| ${s.id} | ${key} | edge captured in one arm only | | | | | | | |`); continue; }
+        const pr = (x) => `${x.orig}/${x.port}`;
+        L.push(`| ${s.id} | ${key} | ${pr(c.flip)} | ${pr(c.move)} | ${pr(c.lag)} | ${c.start.orig ?? '-'}/${c.start.port ?? '-'} | ${c.ty.orig.slice(0, 6).join(' ')} | ${c.ty.port.slice(0, 6).join(' ')} | ${c.aligned ?? '-'} | ${c.seq.orig ?? '-'} / ${c.seq.port ?? '-'} |`);
+      }
+    }
     L.push('', '### Real wheel events (100 px / 60 ms; u of the first hidden / first visible frame)', '', '| width | arm | down on | down off | up on | up off | peak u |', '|---|---|---|---|---|---|---|');
     for (const s of ok) {
       for (const arm of ['orig', 'rewrite']) {
@@ -113,11 +128,36 @@ export function markdown(runs) {
   return { text: L.join('\n'), json };
 }
 
-export function report(dirs, outBase) {
-  const { text, json } = markdown(loadRuns(dirs));
-  if (outBase) {
-    writeFileSync(`${outBase}.md`, text + '\n');
-    writeFileSync(`${outBase}.json`, JSON.stringify(json, null, 1) + '\n');
+/** The run id of an artifact path (the digits of the run directory), or the file name. */
+export const runLabel = (file) => /(\d{8,})/.exec(file)?.[1] ?? file;
+
+/** Pooled lag table over every run given: how often the port's start lag is longer / shorter / equal on the same edge. */
+export function pooledLag(runs) {
+  const rows = [];
+  for (const r of runs) {
+    for (const c of r.cases) {
+      if (c.orig.error || c.rewrite.error || c.orig.absent || c.rewrite.absent) continue;
+      const s = summarizeCase(c);
+      for (const [key, f] of Object.entries(s.frameCmp)) if (f) rows.push({ run: runLabel(r.file), engine: r.header.engine, id: c.id, key, orig: f.lag.orig, port: f.lag.port });
+    }
   }
-  return text + '\n';
+  const groups = lagSummary(rows);
+  const L = ['## Transform start lag pooled over runs (frames from the class flip to the first translateY change; one value per run)', '',
+    `runs: ${[...new Set(rows.map((x) => x.run))].join(', ')}`, '',
+    '| engine | width | edge | orig lags | port lags | port longer | shorter | equal |', '|---|---|---|---|---|---|---|---|'];
+  for (const g of groups) L.push(`| ${g.engine} | ${g.id} | ${g.key} | ${g.orig.join(' ')} | ${g.port.join(' ')} | ${g.longer} | ${g.shorter} | ${g.equal} |`);
+  const sum = (eng, k) => groups.filter((g) => g.engine === eng).reduce((a, g) => a + g[k], 0);
+  for (const eng of [...new Set(groups.map((g) => g.engine))]) L.push('', `${eng}: port longer ${sum(eng, 'longer')}, shorter ${sum(eng, 'shorter')}, equal ${sum(eng, 'equal')}`);
+  return { text: L.join('\n'), groups };
+}
+
+export function report(dirs, outBase) {
+  const runs = loadRuns(dirs);
+  const { text, json } = markdown(runs);
+  const pooled = pooledLag(runs);
+  if (outBase) {
+    writeFileSync(`${outBase}.md`, text + '\n\n' + pooled.text + '\n');
+    writeFileSync(`${outBase}.json`, JSON.stringify({ ...json, pooledLag: pooled.groups }, null, 1) + '\n');
+  }
+  return text + '\n\n' + pooled.text + '\n';
 }

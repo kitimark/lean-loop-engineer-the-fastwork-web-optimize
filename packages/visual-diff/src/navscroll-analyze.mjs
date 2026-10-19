@@ -130,3 +130,89 @@ export function describeTransition(rec) {
 }
 
 const pick = (r) => ({ hidden: r.hidden, tx: r.tx, ty: r.ty, op: r.op, vis: r.vis, top: r.top, bottom: r.bottom });
+
+/** Smallest change of the nav's translateY (px) that counts as "the transform moved". */
+export const TY_EPS = 1e-3;
+
+/**
+ * Frame indexes of one captured transition. Frame 0 is the sample taken in the same task as the scroll jump; frame k >= 1
+ * is the k-th native rAF after it. `flip` is the first frame whose hidden flag differs from the start state (the class
+ * change is visible), `move` the first frame whose computed translateY differs from the start state, `start` the first
+ * frame at or after the transform transition's start time (null when the record has no start time: older probe versions).
+ * Each is -1 / null when it never happens in the record.
+ */
+export function frameIndexes(rec) {
+  const flip = rec.frames.findIndex((f) => f.hidden !== rec.before.hidden);
+  const move = rec.frames.findIndex((f) => Math.abs(f.ty - rec.before.ty) > TY_EPS);
+  let st = null;
+  for (const f of rec.frames) {
+    const a = (f.run ?? []).find((x) => x.prop === 'transform' && x.st != null);
+    if (a) { st = a.st; break; }
+  }
+  const start = st == null ? null : rec.frames.findIndex((f) => f.ct >= st - 0.01);
+  return { flip, move, start, lagMove: flip < 0 || move < 0 ? null : move - flip, lagStart: start == null || start < 0 || flip < 0 ? null : start - flip };
+}
+
+/**
+ * Per-frame comparison of the same edge in the two arms: the frame of the class flip, of the first transform change, their
+ * distance (lag), and translateY per frame from the jump (`n` frames). `aligned` is the largest |ty difference| when each
+ * arm's frames are counted from its own first transform change, i.e. the curve itself with the start lag removed.
+ */
+export function compareTransitionFrames(o, p, n = 8) {
+  const a = frameIndexes(o), b = frameIndexes(p);
+  const ty = (r) => r.frames.slice(0, n).map((f) => +f.ty.toFixed(2));
+  let aligned = null;
+  if (a.move >= 0 && b.move >= 0) {
+    aligned = 0;
+    for (let k = 0; k < n; k++) {
+      const x = o.frames[a.move + k], z = p.frames[b.move + k];
+      if (x && z) aligned = Math.max(aligned, Math.abs(x.ty - z.ty));
+    }
+    aligned = +aligned.toFixed(2);
+  }
+  return {
+    flip: { orig: a.flip, port: b.flip }, move: { orig: a.move, port: b.move }, start: { orig: a.start, port: b.start },
+    lag: { orig: a.lagMove, port: b.lagMove }, lagStart: { orig: a.lagStart, port: b.lagStart },
+    lagDelta: a.lagMove == null || b.lagMove == null ? null : b.lagMove - a.lagMove,
+    ty: { orig: ty(o), port: ty(p) }, aligned,
+  };
+}
+
+/**
+ * The order of events of a record up to its first transform change (frames, scroll events, class mutations, transition
+ * events), as one string, repeats collapsed: "f s f c tr ts f" where f frame sample, s scroll, c class change, tr
+ * transitionrun, ts transitionstart (transform only). Null when the record has no event log (older probe versions).
+ */
+export function eventSequence(rec) {
+  if (!rec.ev) return null;
+  const { move } = frameIndexes(rec);
+  const short = { frame: 'f', scroll: 's', class: 'c', 'transitionrun:transform': 'tr', 'transitionstart:transform': 'ts' };
+  const out = [];
+  let frames = 0;
+  for (const e of rec.ev) {
+    if (e.e === 'frame') frames++;
+    if (move >= 0 && frames > move + 1) break;
+    const s = short[e.e];
+    if (s && out[out.length - 1] !== s) out.push(s);
+  }
+  return out.join(' ');
+}
+
+/**
+ * Pooled lag statistics over runs. `rows` are { run, engine, id, key, orig, port } with the lag (frames) of the edge in each
+ * arm. Groups by engine, width and edge; the counts say how often the port's lag is longer / shorter / equal to the
+ * original's on the same edge of the same run.
+ */
+export function lagSummary(rows) {
+  const groups = new Map();
+  for (const r of rows) {
+    if (r.orig == null || r.port == null) continue;
+    const k = `${r.engine} ${r.id} ${r.key}`;
+    const g = groups.get(k) ?? { engine: r.engine, id: r.id, key: r.key, orig: [], port: [], longer: 0, shorter: 0, equal: 0 };
+    g.orig.push(r.orig);
+    g.port.push(r.port);
+    if (r.port > r.orig) g.longer++; else if (r.port < r.orig) g.shorter++; else g.equal++;
+    groups.set(k, g);
+  }
+  return [...groups.values()];
+}
