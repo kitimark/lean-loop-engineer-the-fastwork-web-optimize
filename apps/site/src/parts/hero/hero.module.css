@@ -1,6 +1,6 @@
 /* Values restated from the original: assets/2.gBuqKVzi.css:1513-1517 (@property --copy-in), 1725-1900 (copy, headline,
    call to action), 1984-1999 keyframes, 2031-2060 and 2128-2160 (<=600, reduced motion); index.html inline styles
-   (call-to-action stack, RSVP link, invite note). Placeholder text. The splash state comes from the hero stage's
+   (call-to-action stack, RSVP link, invite note). The splash state comes from the hero stage's
    `data-splash` (prep | run | done), set by hero.orbit. */
 @property --copy-in {
   syntax: '<number>';
