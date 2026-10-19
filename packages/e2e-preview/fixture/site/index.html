@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>fixture rewrite</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/assets/fixture.css">
+<link rel="modulepreload" href="/_app/immutable/entry/start.fix1.js">
+<link rel="modulepreload" href="/_app/immutable/entry/app.fix1.js">
+<link rel="modulepreload" href="/_app/immutable/chunks/shared.fix1.js">
+</head>
+<body>
+<h1 id="title">Fixture rewrite</h1>
+<img id="hero" alt="" width="120" height="80" src="/selling/hero/bold-cover.jpg">
+<p id="mount">not hydrated</p>
+<script>
+  Promise.all([
+    import("/_app/immutable/entry/start.fix1.js"),
+    import("/_app/immutable/entry/app.fix1.js")
+  ]).then(([start, app]) => start.start(app));
+</script>
+</body>
+</html>

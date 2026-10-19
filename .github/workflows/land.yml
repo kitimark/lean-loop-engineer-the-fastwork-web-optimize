@@ -22,6 +22,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # The pinned browser of the preview browser suite (same as breakpoint-gate and preview-e2e).
+  HS_VERSION: 156.0.8078.4
+  HS_SHA256: 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
+
 jobs:
   # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
   # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
@@ -151,6 +156,7 @@ jobs:
           rc=${PIPESTATUS[0]}
           set -e
           echo "digest=$(sed -n 's/^LANE digest=//p' "$RUNNER_TEMP/land.log" | head -n1)" >> "$GITHUB_OUTPUT"
+          echo "browser=$(sed -n 's/^LANE browser=//p' "$RUNNER_TEMP/land.log" | head -n1)" >> "$GITHUB_OUTPUT"
           grep -E '^(VERDICT|TIMING|checks:|LANE)' "$RUNNER_TEMP/land.log" >> "$GITHUB_STEP_SUMMARY" || true
           exit "$rc"
 
@@ -160,6 +166,33 @@ jobs:
           SHA: ${{ steps.suites.outputs.sha }}
           DIGEST: ${{ steps.suites.outputs.digest }}
         run: echo "LANE sha=$SHA digest=$DIGEST"
+
+      # The preview browser suite (packages/e2e-preview, docs/team/tools/preview-e2e.md) runs here iff the selection holds the
+      # e2e-preview check (`LANE browser=true`, Lean Fw.Console.LandTier.browserRuns), so a land that touches the preview proxy
+      # or the suite's other inputs checks real browsers: Chrome Headless Shell and Playwright WebKit, one after the other.
+      - uses: ./.github/actions/gate-engine
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && steps.suites.outputs.browser == 'true' }}
+        with:
+          engine: chromium
+      - name: 'browser suite: chromium'
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && steps.suites.outputs.browser == 'true' }}
+        run: node src/run.mjs --engine chromium --out out
+        working-directory: packages/e2e-preview
+      - uses: ./.github/actions/gate-engine
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && steps.suites.outputs.browser == 'true' }}
+        with:
+          engine: playwright-webkit
+      - name: 'browser suite: playwright-webkit'
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && steps.suites.outputs.browser == 'true' }}
+        run: node src/run.mjs --engine playwright-webkit --out out
+        working-directory: packages/e2e-preview
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && steps.suites.outputs.browser == 'true' }}
+        with:
+          name: land-preview-e2e
+          path: packages/e2e-preview/out/*.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: phases
         if: ${{ always() && steps.stale.outcome == 'skipped' }}
