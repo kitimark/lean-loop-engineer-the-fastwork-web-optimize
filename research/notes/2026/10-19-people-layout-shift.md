@@ -15,11 +15,16 @@ CI job `people-layout` of `visual-diff.yml` (`-f peoplelayout=true`). All number
   and the empty `<source>` is a flex item of the column, so the 12 px gap sits above the cover. The port draws the cover
   as one span and had no such item. Fixed with `.coverBlock::before` (empty item), commit 2b37d60a. After the fix no
   non-motion box differs by more than 0.5 px at load in any of 6 CI jobs (3 runs x 2 engines).
-- What stays different is motion, not layout: the scroll-driven card shrink/lerp and the 'o' collapse run per frame and
-  CI frames are slow, so the same page differs between two repetitions as much as between the arms. In WebKit the port's
-  'o' collapse is about one sample behind the original's in most repetitions (INFERRED: React state commit against the
-  original's class toggle). This is the likeliest part of "quite a bit shift" that the fix does not remove; it is a
-  follow-up, not shown to be the cause.
+- What stays different is motion, not layout, and part of it is a measured bias. The port's 'o' opens 1 to 2 scroll
+  samples later than the original's in Chromium (port later in 23 of 32 cold-pass pairs, earlier in 2, at 1920, 1440,
+  1280 and 861; the original against itself differs in 11 of 16 with no direction; MEASURED by the review on runs
+  39279857839, 39288152363, 39288315945, 39288339116). In WebKit it closes about one sample later in most repetitions.
+  In the frame table the title, its words, the 'o' and its stage differ in 39 of 197 frames, by up to 177.66 px; at
+  1920 the port's title collapse starts one sample later (scrollY 1248: original +33.72, port +9.03). Cause INFERRED:
+  the port commits React state after the IntersectionObserver callback (opener timeline, people.o/index.tsx:65); the
+  original toggles a class. This is the likeliest part of "quite a bit shift" that the fix does not remove; it is a
+  follow-up. The scroll-driven card shrink/lerp also differs between repetitions; no original-against-original table
+  is measured for the motion keys, so its arm difference is not shown to be noise.
 
 ## Runs
 
@@ -80,7 +85,9 @@ of every width and repetition. All dumps of Chromium: zero. Remaining rows:
 | group | where | size | cause | status |
 | --- | --- | --- | --- | --- |
 | record, label, hole | all widths, both engines, hold dumps | up to 3.5 px / 27 px (hole) | vinyl rotation phase at the dump instant | MEASURED, animation, not layout |
-| scroll-driven transforms (card, header, shell, panel ...) | holds | tens of px | per-frame lerp (rate 0.22, snap 0.0008) against slow CI frames; orig-vs-orig between repetitions differs as much | INFERRED noise, not a layout rule |
+| scroll-driven transforms (card, header, shell, panel ...) | holds | tens of px | per-frame lerp (rate 0.22, snap 0.0008) against slow CI frames | not a layout rule; no orig-vs-orig baseline for motion keys |
+| 'o' expand onset | Chromium cold pass, 1920/1440/1280/861 | 1 to 2 samples (at 1280 often 800 against 736) | port later in 23/32 pairs, earlier in 2/32; orig rep-to-rep 11/16, no direction | MEASURED bias (review re-analysis of the 4 runs); cause INFERRED (React commit after the IntersectionObserver callback, people.o/index.tsx:65); follow-up |
+| image boxes (cover, avatar, post, face) | all widths, both engines, load | 14.64 px dy before the fix, 0 after | the analyzer pairs children by tag, so `picture>img` and the port's span are unmatched; compared by path by hand in the 6 after-fix jobs (rep 0) | MEASURED; analyzer mapping is a follow-up |
 | tab-label width | WebKit holds only | +-0.6 to +-60 px, sign changes | tab-switch transition caught at a different sample | timing; unknown, varies run to run |
 | title offset-x, stage width | WebKit holds (2 to 5 per run) | 14.6 to 118 px | 'o' expand/collapse caught mid-transition | timing; same cause as below |
 | 'o' collapse | WebKit cold pass, first sample after trigger | port 608..662 against orig 512..589 of 728 to 505 (8 of 8 in run 39288152363, 6 of 8 in 39288339116) | port starts the 0.92 s grid transition about a sample later | INFERRED (React commit against Svelte class toggle) |
@@ -118,7 +125,7 @@ shift found (the timing group above).
 ## Not found / follow-ups
 
 - An earlier note of a 1 to 12 px taller people section was not reproduced (0 px at all widths); cause unknown.
-- 'o' collapse about one sample later in the port in WebKit (INFERRED); a probe that counts rAF frames from the click
+- 'o' opens 1 to 2 samples later in Chromium (MEASURED bias), closes about one later in WebKit; a probe that counts rAF frames from the click
   would settle it. A fix would belong in `people.o/driver.ts`, with the trigger timing proved in Lean first.
 - Stale Google Sans comment in `people.card/card.module.css`; port-only `.future { width: max(100%, 320px) }`.
 - Widths other than the five are untested; the cover gap rule changes at 1030 px and 1200 px (coarse pointer).

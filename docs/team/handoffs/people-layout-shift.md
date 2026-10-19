@@ -11,9 +11,9 @@ Verified (CI, 3 runs after the fix: 39288152363, 39288315945, 39288339116; befor
 Writes outside the task's graph writes: `lean/Fw/Parts/FootprintData.lean` and `packages/contracts/golden/parts/footprint.gen.json` (regenerated, `node scripts/part-footprint.mjs --write`); `lean/Fw/Ci/Trigger.lean` `cacheWriters` (3 rows for job `people-layout`) and `packages/contracts/golden/ci/triggers.jsonl` (`cd lean && lake test -- --write-ci-trigger-golden`); `deck.module.css`. `apps/runner/src/fw.ts` shows modified in the worktree from before the task; it is not mine and not committed.
 
 Open items:
-- WebKit: the port's 'o' collapse starts about one sample after the original's in most repetitions (INFERRED, React commit against Svelte class toggle). Needs a frame-counting probe from the click, then a Lean-proved trigger rule in `people.o/driver.ts`.
+- 'o' timing: the port's 'o' opens 1 to 2 samples later in Chromium (23 of 32 pairs, MEASURED bias) and closes about one sample later in WebKit; cause INFERRED (React commit after the IntersectionObserver callback against a class toggle). Needs a frame-counting probe from the click, then a Lean-proved trigger rule in `people.o/driver.ts`.
 - The earlier "1 to 12 px taller" note was not reproduced; cause unknown.
 - Port-only `.future { width: max(100%, 320px) }` and a stale Google Sans comment in `people.card/card.module.css`; widths other than the five untested.
-- Chromium/WebKit scroll-driven transforms are frame-count driven; CI frames are slow, so cold-pass transform differences are noise (orig-vs-orig as large).
+- Scroll-driven transforms are frame-count driven; no orig-vs-orig baseline exists for the motion keys, so arm differences are not shown to be noise. The analyzer pairs children by tag; image boxes (picture>img vs span) need a path mapping.
 
 Conventions: dispatch with `gh workflow run visual-diff.yml --ref ci/people-layout-shift -f peoplelayout=true` (artifacts `people-layout-chromium`, `people-layout-playwright-webkit`; `gh run download` needs the worktree as cwd). Analyzer: `node packages/visual-diff/src/cli.mjs people-layout-report --in <dir>`. The probe and analyzer are TS stand-ins (no Lean golden).
