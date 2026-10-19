@@ -6935,7 +6935,8 @@
     "scripts/fwcore-build.sh",
     "docs/team/tools/land.md",
     "docs/team/handoffs/land-fwcore-key.md"
-   ]
+   ],
+   "evidence": "af4e033"
   },
   {
    "devices": [
@@ -6961,7 +6962,8 @@
     "lean/scripts/axiom-check.sh",
     "lean/scripts/axiom-check-cases/**",
     "apps/runner/test/land-verdict.test.ts"
-   ]
+   ],
+   "evidence": "df77494"
   },
   {
    "devices": [
@@ -7103,8 +7105,13 @@
     "lean/FwCore*.lean",
     "lean/Fw/Wire*.lean",
     "packages/contracts/golden/console/**",
-    "docs/team/handoffs/preview-speed.md"
-   ]
+    "docs/team/handoffs/preview-speed.md",
+    "apps/console-api/scripts/preview-bench.mjs",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**"
+   ],
+   "evidence": "ac31e9c"
   },
   {
    "devices": [
@@ -7158,7 +7165,57 @@
     "packages/contracts/golden/**",
     "apps/runner/src/land*.ts",
     "apps/runner/test/**",
-    "docs/team/handoffs/latex-mathview-b2.md"
+    "docs/team/handoffs/latex-mathview-b2.md",
+    "scripts/test-math-pending.mjs",
+    "docs/team/tools/land.md",
+    "lean/FwTest/Mutants/LeanFirst/**",
+    "lean/Fw/Ops/LeanFirstProps.lean",
+    "lean/Fw/Ops/LeanFirstSearch.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "console-reconcile-speed",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Console post-land speed: coalesced reconciler (Lean 3-state scheduler, pending <= 1), one board query per pass and per seq for SSE, one git rev-list instead of 264 merge-base spawns plus one retry, fw land's duplicate plan sync dropped or batched, explicit HTTP deadline",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/Reconcile*.lean",
+    "lean/Fw/Console/Sched*.lean",
+    "lean/FwCore*.lean",
+    "lean/Fw/Wire*.lean",
+    "lean/Fw/Wire/**",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/**",
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "apps/runner/src/plan.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**",
+    "docs/team/handoffs/console-reconcile-speed.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-main-triggers",
+   "owner": "lean-prover",
+   "stream": "ci",
+   "title": "A push to main runs only the cache-seeding job(s) that ci/* branches restore; every other workflow drops main from on.push; ci/** triggers unchanged; decided in Lean (Fw.Ci.Trigger) with goldens",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ci/Trigger*.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "packages/contracts/golden/ci/**",
+    ".github/workflows/**",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "lean/Fw/Ops/LakeJobsGen.lean",
+    "docs/team/handoffs/ci-main-triggers.md"
    ]
   }
  ],

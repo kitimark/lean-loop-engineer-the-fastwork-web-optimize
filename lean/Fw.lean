@@ -120,6 +120,7 @@ import Fw.Spec.AxReach  -- mathview-axreach: shared-memo axiom reachability, exa
 import Fw.Spec.ConeMiss  -- mathview-ci-fix: expected module-cache misses after an edit (dependents)
 import Fw.Console.LandSpeed  -- land-speed-lean: result cache, lint_modular, pre-lock land, check verdict
 import Fw.Console.Preview  -- task-preview: preview target, admission, ports, expiry
+import Fw.Console.PreviewCache  -- preview-speed: cache policy of preview files
 import Fw.Console.PreviewFacts  -- task-preview: GENERATED facts of the 25 tasks (apps/console-api/scripts/gen-preview-facts.ts)
 import Fw.Console.PreviewTable -- task-preview: the 25-task target table, checked
 import Fw.Console.LandVerdict  -- land-dry: VERDICT kinds, exit codes, retry rule

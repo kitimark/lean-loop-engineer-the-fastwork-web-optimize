@@ -1,7 +1,7 @@
 #!/bin/sh
 # All lean/ gates (TL0) as a DAG (research/notes/2026/10-18-land-speed.md, P2):
 #   serial   grep gates -> import check -> scripts/fwcore-build.sh (lake build + strip + the build record; proofs + #guard)
-#   parallel math-view lint | fwcore fwtest (golden round trips) | golden wire replay (real fwcore binary, LEAN_ABORT_ON_PANIC=1)
+#   parallel axiom check | fwcore fwtest (golden round trips) | golden wire replay (real fwcore binary, LEAN_ABORT_ON_PANIC=1)
 #            | breakgen checks x2, fwcore sweepsgen checks x4 (generated JSON equals the Lean output)
 #            | engine golden cite lint (every golden/engine row cites a premise, Fw.Ops.Premise.citeLint; m175)
 #            | engine goldens check (every golden/engine/*.jsonl equals its Lean generator; scripts/EngineGoldens.lean)
@@ -44,7 +44,7 @@ job() {  # job <step> <cmd...>: run in the background; output kept in $tmp/<n>.o
   n=$((n + 1))
 }
 run_group() {
-  job "mathview lint" scripts/mathview-cached.sh   # lint; replayed from .lake/mathview-cache/ when the sources are unchanged
+  job "axiom check" sh scripts/axiom-check.sh
   job "lake test" $bin/fwcore fwtest
   job "golden wire replay" sh -c "LEAN_ABORT_ON_PANIC=1 $bin/fwcore < golden/wire-requests.txt | diff - golden/wire-replies.txt && echo 'check: fwcore binary reproduces golden/wire-replies.txt'"
   job "breakgen check lean" $bin/breakgen --check Fw/Site/breakpoints.gen.json

@@ -116,15 +116,15 @@ describe("fw land --dry", () => {
     const both = await land(BR, { ...opts, dry: true, ...reads(["sh", "-c", "echo land-inputs.test; exit 1"]), dryLints: [["false"]] });
     expect(both.kind, text(both)).toBe("reads");
   });
-  it("the default fast lints: ci-paths always (when the tree has it), the math-view lint only when the change touches lean/", () => {
+  it("the default fast lints: ci-paths always (when the tree has it), the axiom check only when the change touches lean/", () => {
     const dir = mkdtempSync(join(tmpdir(), "dryl-"));
     expect(dryLintArgv(dir, ["lean/Fw/X.lean"])).toEqual([]);
     mkdirSync(join(dir, "scripts"), { recursive: true }); writeFileSync(join(dir, "scripts/ci-paths.mjs"), "");
-    mkdirSync(join(dir, "lean/scripts"), { recursive: true }); writeFileSync(join(dir, "lean/scripts/mathview-cached.sh"), "");
+    mkdirSync(join(dir, "lean/scripts"), { recursive: true }); writeFileSync(join(dir, "lean/scripts/axiom-check.sh"), "");
     expect(dryLintArgv(dir, ["apps/x.ts"])).toEqual([["node", "scripts/ci-paths.mjs", "--check"]]);
     const withLean = dryLintArgv(dir, ["apps/x.ts", "lean/Fw/X.lean"]);
     expect(withLean).toHaveLength(2);
-    expect(withLean[1]!.join(" ")).toContain("mathview-cached.sh");
+    expect(withLean[1]!.join(" ")).toContain("axiom-check.sh");
   });
   it("every dry result carries its stage outcome, its kind is the outcome's kind, and dryRun prints exactly one VERDICT line", async () => {
     const { fx, wt, opts } = await setup();
@@ -147,9 +147,9 @@ describe("fw land --dry", () => {
   it("a real land prints `lint` for a lint/compile check failure, as the dry land does, and `checks` for another failure", async () => {
     const { fx, wt, opts } = await setup();
     fx.commit(wt, "src/a.ts");
-    const lint = await land(BR, { ...opts, checks: [["sh", "-c", "echo 'check: FAILED stage: mathview lint'; exit 1"]] });
+    const lint = await land(BR, { ...opts, checks: [["sh", "-c", "echo 'check: FAILED stage: axiom check'; exit 1"]] });
     expect(lint.kind, text(lint)).toBe("lint");
-    const mixed = await land(BR, { ...opts, checks: [["sh", "-c", "echo 'check: FAILED stage: mathview lint'; echo 'check: FAILED stage: lake test'; exit 1"]] });
+    const mixed = await land(BR, { ...opts, checks: [["sh", "-c", "echo 'check: FAILED stage: axiom check'; echo 'check: FAILED stage: lake test'; exit 1"]] });
     expect(mixed.kind, text(mixed)).toBe("checks");
   });
   it("needs --task", async () => {
