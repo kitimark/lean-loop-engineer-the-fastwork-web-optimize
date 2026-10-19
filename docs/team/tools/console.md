@@ -1,0 +1,45 @@
+# fw console: the console as a background process
+
+console-api runs detached: its own session, stdin from /dev/null, stdout and stderr appended to
+`.fw-console/console.log`. No terminal window opens, and none is needed. The decisions are Lean
+(`Fw.Console.Daemon`, op `console.daemon`, goldens `packages/contracts/golden/console/console.daemon.jsonl`); the
+CLI (`apps/runner/src/console.ts`) is I/O glue.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `pnpm fw console start [--lan] [--port 8787]` | starts the console and returns after `GET /api/health` answers; prints pid, console port, preview port, LAN on/off and the log path. Refused (exit 1) when a console is verified. |
+| `pnpm fw console stop` | SIGTERM to the verified pid only; waits for exit; the console's own shutdown stops the previews it owns, and `stop` checks that none of the recorded preview processes is left. |
+| `pnpm fw console restart [--lan] [--port N]` | stop (if one is verified), then start. Flags are not remembered: pass `--lan` each time. |
+| `pnpm fw console status` | pid, uptime, ports, LAN on/off, previews running, log path. Exit 1 when stopped. |
+| `pnpm fw console logs [-n N] [-f]` | last N lines (default 50) of `console.log`; `-f` follows until Ctrl-C. |
+
+Verified: `.fw-console/api.json` names a pid, and the port in that file answers `/api/health` with the same pid in
+`x-fw-console-pid` (Lean `verified`; a stale file or a reused pid is never signalled; `stop` then says nothing is
+running). The log rotates at 5 MiB: the old file becomes `console.log.1` at the next start.
+
+## Signing in
+
+- The console log and stdout never hold the owner link or an owner token (Lean `log_refuses_owner_link`,
+  `log_refuses_owner_token`, `log_refuses_passphrase`, `log_refuses_keychain`; `no_file_sink`). With no terminal the
+  console prints no link.
+- Sign in with the owner passphrase (keychain item `fw-console-owner`) at `http://127.0.0.1:<port>/owner/login`, or at the
+  LAN address printed in the log when started with `--lan` (needs a passphrase of at least 12 characters). Loopback is
+  admitted by Lean (`login_loopback`), the LAN with the right Host (`login_lan_or_loopback`). After login the browser holds
+  the owner token, and previews work.
+- A one-time link in your own terminal: start the console from that terminal (`pnpm --filter @fw/console-api start`) and
+  run `pnpm --filter @fw/console-api owner-link` there. It signals only a console that proves itself by `/api/health`.
+  A detached console has no terminal, so `owner-link` prints nothing to it.
+
+## Post-land routine, step 3
+
+After a land: `sh scripts/fwcore-build.sh`, rebuild `apps/console-web`, then `pnpm fw console restart --lan`. No osascript,
+no new Terminal window. Read the result with `pnpm fw console status` and `pnpm fw console logs -n 30`.
+
+## Limits
+
+- The restart does not keep the preview table: previews are stopped with the console (they are rebuilt on demand).
+- launchd or login items are out of scope: after a reboot, run `pnpm fw console start --lan` once.
+- A same-UID process can read `console.log` (it holds no secret) and can signal the pid itself; this is not a boundary.
+- TS stand-ins: none for decisions. The spawn, the signal, the health request and the file reads are unproved glue.

@@ -208,6 +208,19 @@ describe("gate and login routes", () => {
     const r = await app.request("/owner/login", form(FAKE), LAN);
     expect(r.status).toBe(429); expect(Number(r.headers.get("retry-after"))).toBeGreaterThan(0);
   });
+  it("console-daemon: loopback passphrase login works with no terminal, gives a token and the preview cookie, and the token opens owner actions", async () => {
+    const { app } = await mk(false);
+    const LH = { host: "127.0.0.1:4000", origin: "http://127.0.0.1:4000" };
+    const post = (p: string) => ({ method: "POST", body: JSON.stringify({ passphrase: p }), headers: { "content-type": "application/json", ...LH } });
+    expect((await app.request("/owner/login", { headers: { host: LH.host } }, LOOP)).status).toBe(200);
+    expect((await app.request("/owner/login", post("nope"), LOOP)).status).toBe(401);
+    const ok = await app.request("/owner/login", post(FAKE), LOOP);
+    expect(ok.status).toBe(200);
+    const token = ((await ok.json()) as { token: string }).token;
+    expect(ok.headers.get("set-cookie") ?? "").toMatch(/^fw_preview=/);
+    const me = (await (await app.request("/api/owner", { headers: { host: LH.host, authorization: `Bearer ${token}` } }, LOOP)).json()) as { session: boolean };
+    expect(me.session).toBe(true);
+  });
   it("loopback: today's rules (API open), the console never serves previews; disabled login says 503", async () => {
     const { app } = await mk(false, null);
     expect((await app.request("/api/tasks", {}, LOOP)).status).not.toBe(401);
