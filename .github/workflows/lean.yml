@@ -82,7 +82,7 @@ jobs:
         working-directory: lean
         run: lake build
 
-      # check-partial grep gates, lake build, lake test (golden round trips), math-view lint, the real fwcore binary on
+      # check-partial grep gates, lake build, lake test (golden round trips), axiom check, the real fwcore binary on
       # golden/wire-requests.txt, breakgen --check.
       - name: lean/scripts/check.sh
         run: sh lean/scripts/check.sh

@@ -360,12 +360,10 @@ const prepLandWt = (dir: string) => {
 };
 
 /** The fast lints of a dry land (task land-dry-full), in the merge-tree worktree `dir`: `node scripts/ci-paths.mjs --check` (0.1 s), and,
- *  when the change touches `lean/`, the math-view lint exactly as `lean/scripts/check.sh` runs it (`scripts/mathview-cached.sh`: whole-tree
- *  cache, per-module store), after an incremental `lake build` (no `fwtest`, no tests; the .lake of the slot is warm). An unchanged Lean tree
- *  is a cache hit and builds nothing. A script the tree lacks is skipped. */
+ *  when the change touches `lean/`, the axiom check exactly as `lean/scripts/check.sh` runs it (`scripts/axiom-check.sh`), after an
+ *  incremental `lake build` (no `fwtest`, no tests; the .lake of the slot is warm). A script the tree lacks is skipped. */
 export function dryLintArgv(dir: string, changed: string[]): string[][] {
-  // which lints run is decided by Lean `lintPlan` (land-verdict.ts); this only reads which scripts exist
-  return lintPlan(changed, existsSync(join(dir, "scripts/ci-paths.mjs")), existsSync(join(dir, "lean/scripts/mathview-cached.sh")));
+  return lintPlan(changed, existsSync(join(dir, "scripts/ci-paths.mjs")), existsSync(join(dir, "lean/scripts/axiom-check.sh")));
 }
 
 type PreResult = { kind: "done"; sha: string } | { kind: "refuse"; msg: string; k?: Kind } | { kind: "fallback"; why: string };

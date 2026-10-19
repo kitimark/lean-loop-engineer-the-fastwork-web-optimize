@@ -169,19 +169,19 @@
 {"name":"run false false false false false false true","request":{"fresh":false,"lints":true,"merges":false,"op":"landDry.run","own":false,"reads":false,"scope":false,"task":"land-dry","threw":false},"response":{"exit":16,"kind":"stale","lines":["dry: exception ok","VERDICT stale land-dry"]}}
 {"name":"run false false false false false false false","request":{"fresh":false,"lints":false,"merges":false,"op":"landDry.run","own":false,"reads":false,"scope":false,"task":"land-dry","threw":false},"response":{"exit":16,"kind":"stale","lines":["dry: exception ok","VERDICT stale land-dry"]}}
 {"name":"run false true true true true true true","request":{"fresh":true,"lints":true,"merges":true,"op":"landDry.run","own":true,"reads":true,"scope":true,"task":"","threw":false},"response":{"exit":0,"kind":"dry","lines":["dry: exception ok","dry: stale ok","dry: empty ok","dry: scope ok","dry: conflict ok","dry: reads ok","dry: lint ok","VERDICT dry -"]}}
-{"name":"plan: no lean change","request":{"changed":["apps/x.ts"],"hasCiPaths":true,"hasMathview":true,"op":"landDry.lintPlan"},"response":{"argv":[["node","scripts/ci-paths.mjs","--check"]]}}
-{"name":"plan: lean change","request":{"changed":["apps/x.ts","lean/Fw/X.lean"],"hasCiPaths":true,"hasMathview":true,"op":"landDry.lintPlan"},"response":{"argv":[["node","scripts/ci-paths.mjs","--check"],["sh","-c","cd lean && scripts/mathview-cached.sh --build >/dev/null"]]}}
-{"name":"plan: lean change, no mathview script","request":{"changed":["lean/Fw/X.lean"],"hasCiPaths":true,"hasMathview":false,"op":"landDry.lintPlan"},"response":{"argv":[["node","scripts/ci-paths.mjs","--check"]]}}
-{"name":"plan: no ci-paths script","request":{"changed":["lean/Fw/X.lean"],"hasCiPaths":false,"hasMathview":true,"op":"landDry.lintPlan"},"response":{"argv":[["sh","-c","cd lean && scripts/mathview-cached.sh --build >/dev/null"]]}}
-{"name":"plan: nothing changed","request":{"changed":[],"hasCiPaths":true,"hasMathview":true,"op":"landDry.lintPlan"},"response":{"argv":[["node","scripts/ci-paths.mjs","--check"]]}}
-{"name":"plan: lean-like prefix is not lean","request":{"changed":["leanx/a","apps/lean/b"],"hasCiPaths":true,"hasMathview":true,"op":"landDry.lintPlan"},"response":{"argv":[["node","scripts/ci-paths.mjs","--check"]]}}
-{"name":"plan: no scripts","request":{"changed":["lean/a"],"hasCiPaths":false,"hasMathview":false,"op":"landDry.lintPlan"},"response":{"argv":[]}}
-{"name":"real: reads wins","request":{"failed":[{"reads":true,"stages":["mathview lint"]},{"reads":false,"stages":[]}],"op":"landDry.checkKind"},"response":{"kind":"reads"}}
-{"name":"real: mathview only","request":{"failed":[{"reads":false,"stages":["mathview lint"]}],"op":"landDry.checkKind"},"response":{"kind":"lint"}}
+{"name":"plan: no lean change","request":{"changed":["apps/x.ts"],"hasAxioms":true,"hasCiPaths":true,"op":"landDry.lintPlan"},"response":{"argv":[["node","scripts/ci-paths.mjs","--check"]]}}
+{"name":"plan: lean change","request":{"changed":["apps/x.ts","lean/Fw/X.lean"],"hasAxioms":true,"hasCiPaths":true,"op":"landDry.lintPlan"},"response":{"argv":[["node","scripts/ci-paths.mjs","--check"],["sh","-c","cd lean && lake build >&2 && sh scripts/axiom-check.sh"]]}}
+{"name":"plan: lean change, no axiom-check script","request":{"changed":["lean/Fw/X.lean"],"hasAxioms":false,"hasCiPaths":true,"op":"landDry.lintPlan"},"response":{"argv":[["node","scripts/ci-paths.mjs","--check"]]}}
+{"name":"plan: no ci-paths script","request":{"changed":["lean/Fw/X.lean"],"hasAxioms":true,"hasCiPaths":false,"op":"landDry.lintPlan"},"response":{"argv":[["sh","-c","cd lean && lake build >&2 && sh scripts/axiom-check.sh"]]}}
+{"name":"plan: nothing changed","request":{"changed":[],"hasAxioms":true,"hasCiPaths":true,"op":"landDry.lintPlan"},"response":{"argv":[["node","scripts/ci-paths.mjs","--check"]]}}
+{"name":"plan: lean-like prefix is not lean","request":{"changed":["leanx/a","apps/lean/b"],"hasAxioms":true,"hasCiPaths":true,"op":"landDry.lintPlan"},"response":{"argv":[["node","scripts/ci-paths.mjs","--check"]]}}
+{"name":"plan: no scripts","request":{"changed":["lean/a"],"hasAxioms":false,"hasCiPaths":false,"op":"landDry.lintPlan"},"response":{"argv":[]}}
+{"name":"real: reads wins","request":{"failed":[{"reads":true,"stages":["axiom check"]},{"reads":false,"stages":[]}],"op":"landDry.checkKind"},"response":{"kind":"reads"}}
+{"name":"real: axiom check only","request":{"failed":[{"reads":false,"stages":["axiom check"]}],"op":"landDry.checkKind"},"response":{"kind":"lint"}}
 {"name":"real: lake build only","request":{"failed":[{"reads":false,"stages":["lake build"]}],"op":"landDry.checkKind"},"response":{"kind":"lint"}}
-{"name":"real: both lint stages","request":{"failed":[{"reads":false,"stages":["lake build","mathview lint"]}],"op":"landDry.checkKind"},"response":{"kind":"lint"}}
-{"name":"real: lint and test","request":{"failed":[{"reads":false,"stages":["mathview lint","lake test"]}],"op":"landDry.checkKind"},"response":{"kind":"checks"}}
+{"name":"real: both lint stages","request":{"failed":[{"reads":false,"stages":["lake build","axiom check"]}],"op":"landDry.checkKind"},"response":{"kind":"lint"}}
+{"name":"real: lint and test","request":{"failed":[{"reads":false,"stages":["axiom check","lake test"]}],"op":"landDry.checkKind"},"response":{"kind":"checks"}}
 {"name":"real: no stage reported","request":{"failed":[{"reads":false,"stages":[]}],"op":"landDry.checkKind"},"response":{"kind":"checks"}}
-{"name":"real: lint check and a plain check","request":{"failed":[{"reads":false,"stages":["mathview lint"]},{"reads":false,"stages":[]}],"op":"landDry.checkKind"},"response":{"kind":"checks"}}
-{"name":"real: two lint checks","request":{"failed":[{"reads":false,"stages":["lake build"]},{"reads":false,"stages":["mathview lint"]}],"op":"landDry.checkKind"},"response":{"kind":"lint"}}
+{"name":"real: lint check and a plain check","request":{"failed":[{"reads":false,"stages":["axiom check"]},{"reads":false,"stages":[]}],"op":"landDry.checkKind"},"response":{"kind":"checks"}}
+{"name":"real: two lint checks","request":{"failed":[{"reads":false,"stages":["lake build"]},{"reads":false,"stages":["axiom check"]}],"op":"landDry.checkKind"},"response":{"kind":"lint"}}
 {"name":"real: no failed check","request":{"failed":[],"op":"landDry.checkKind"},"response":{"kind":"checks"}}
