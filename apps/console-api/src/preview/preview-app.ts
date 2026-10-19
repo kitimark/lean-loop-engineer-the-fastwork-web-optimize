@@ -12,18 +12,40 @@ import type { PreviewManager } from "./manager.ts";
 import { OwnerAuth } from "./owner.ts";
 import { isLoopback } from "./lan.ts";
 import { remoteOf } from "./gate.ts";
-import { mountPreviewProxy } from "./proxy.ts";
+import { mountPreviewProxy, viaReferer } from "./proxy.ts";
+import { Grants } from "./grants.ts";
 
-export function createPreviewApp(core: Core, owner: OwnerAuth, pm: PreviewManager, opts: { lan: boolean }) {
+export function createPreviewApp(core: Core, owner: OwnerAuth, pm: PreviewManager, opts: { lan: boolean; grants?: Grants }) {
   const app = new Hono();
   app.onError((e, c) => c.json({ ok: false, reason: `decision core failed: ${e.message}` }, 500));
   const wantsHtml = (c: Context) => (c.req.method === "GET" || c.req.method === "HEAD") && (c.req.header("accept") ?? "").includes("text/html");
 
+  const grants = opts.grants ?? new Grants(core, () => undefined);
+
+  // An inspect grant link (preview-inspect): `/__grant?t=<token>` sets the grant cookie. Lean `console.previewGrant` judges it
+  // (loopback only, known, unused, ten minutes); the cookie opens preview paths only (`console.ownerGate`, `allowGrant`).
+  app.get("/__grant", async (c) => {
+    c.header("Cache-Control", "no-store"); c.header("Referrer-Policy", "no-referrer");
+    const lan = opts.lan && !isLoopback(remoteOf(c));
+    if (lan && !owner.previewHostOk(c.req.header("host"))) return c.json({ ok: false, reason: "unknown host" }, 421);
+    const r = await grants.redeem(lan, c.req.query("t"));
+    if (!r.ok) return c.json({ ok: false, reason: `grant refused: ${r.verdict}` }, 403);
+    c.header("Set-Cookie", Grants.setCookie(r.cookie, r.maxAgeSec));
+    if (r.next) return c.redirect(r.next, 302);
+    return c.html(`<!doctype html><meta charset="utf-8"><title>fw preview</title><p>preview access granted for ${Math.floor(r.maxAgeSec / 60)} minutes.</p>`);
+  });
+
   app.use("*", async (c, next) => {
     const lan = opts.lan && !isLoopback(remoteOf(c)); // outside LAN mode this port listens on loopback only
     const hostOk = owner.previewHostOk(c.req.header("host"));
-    const r = await core.ops("console.ownerGate", { lan, session: owner.previewOk(c.req.header("cookie")), hostOk, path: c.req.path, port: "preview" });
-    if (r.allow === true) { c.header("Cache-Control", "no-store"); return next(); }
+    const g = grants.lookup(c.req.header("cookie"));
+    const via = viaReferer(c.req.path, c.req.header("referer"), c.req.header("host"));
+    const viaOk = via !== null && pm.serving(/^\/preview\/([^/]+)/.exec(via)![1]!) !== null;
+    const r = await core.ops("console.ownerGate", {
+      lan, session: owner.previewOk(c.req.header("cookie")), hostOk, path: c.req.path, port: "preview",
+      grant: g.known, grantStarted: g.started, now: grants.now(), via: viaOk,
+    });
+    if (r.allow === true) { c.header("Cache-Control", "no-store"); if (r.by === "grant" && g.id) grants.used(g.id, c.req.path); return next(); }
     c.header("Cache-Control", "no-store");
     if (lan && !hostOk) return c.json({ ok: false, reason: "unknown host" }, 421);
     const msg = "preview access needed: open this link from the console task page, after logging in there";
