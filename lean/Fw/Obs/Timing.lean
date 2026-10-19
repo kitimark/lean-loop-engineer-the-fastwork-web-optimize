@@ -58,9 +58,11 @@ inductive Host where
   | ci
 deriving DecidableEq, Repr
 
-/-- One timing sample: tool, step, duration in ms, host, and the floor of the 1-min load average when it ran.
+/-- One timing sample: tool, step, duration in ms, host, the floor of the 1-min load average when it ran, and the run
+kind (empty when the run has none; for a CI dispatch the digest of its inputs, so runs with different inputs are
+different histories).
 
-$$s = (\mathit{tool}, \mathit{step}, d, h, \lambda) \in \mathrm{String} \times \mathrm{String} \times \mathbb N \times \mathrm{Host} \times \mathbb N$$
+$$s = (\mathit{tool}, \mathit{step}, d, h, \lambda, \kappa) \in \mathrm{String} \times \mathrm{String} \times \mathbb N \times \mathrm{Host} \times \mathbb N \times \mathrm{String}$$
 -/
 structure Sample where
   tool  : String
@@ -68,23 +70,25 @@ structure Sample where
   durMs : Nat
   host  : Host
   load  : Nat := 0
+  kind  : String := ""
 deriving DecidableEq, Repr
 
-/-- The history a sample belongs to: same tool, same step, same host.
+/-- The history a sample belongs to: same tool, same step, same host, same run kind.
 
-$$\kappa = (\mathit{tool}, \mathit{step}, h)$$
+$$\kappa = (\mathit{tool}, \mathit{step}, h, \mathit{kind})$$
 -/
 structure Key where
   tool : String
   step : String
   host : Host
+  kind : String := ""
 deriving DecidableEq, Repr
 
 /-- The key of a sample.
 
-$$\operatorname{key}(\mathit{tool}, \mathit{step}, d, h, \lambda) = (\mathit{tool}, \mathit{step}, h)$$
+$$\operatorname{key}(\mathit{tool}, \mathit{step}, d, h, \lambda, \mathit{kind}) = (\mathit{tool}, \mathit{step}, h, \mathit{kind})$$
 -/
-def Sample.key (s : Sample) : Key := { tool := s.tool, step := s.step, host := s.host }
+def Sample.key (s : Sample) : Key := { tool := s.tool, step := s.step, host := s.host, kind := s.kind }
 
 /-- One job of a parallel stage: a name and its keys (the matrix legs of one job, or a single key).
 
@@ -280,6 +284,7 @@ structure SampleVerdict where
   n        : Nat
   baseline : Nat
   budgetMs : Nat
+  kind     : String := ""
 deriving DecidableEq, Repr
 
 /-- The verdict of sample `s` at index `i` with the earlier samples `hist`: `slow` when it breaches its step's ceiling
@@ -291,7 +296,7 @@ def judge (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdi
   let w := windowOf p hist s.key
   { idx := i, tool := s.tool, step := s.step, host := s.host, durMs := s.durMs,
     code := if ceilingBreach p s then .slow else codeOf p w s,
-    n := w.length, baseline := p50 w, budgetMs := budgetFor p s }
+    n := w.length, baseline := p50 w, budgetMs := budgetFor p s, kind := s.kind }
 
 /-- One verdict per sample, in input order; sample $i$ is judged against the samples before it.
 
@@ -1313,11 +1318,12 @@ def callStr : Call → String
   | .undecided => "undecided"
 
 def keyJson (k : Key) : Json :=
-  Json.mkObj [("tool", .str k.tool), ("step", .str k.step), ("host", .str (hostStr k.host))]
+  Json.mkObj [("tool", .str k.tool), ("step", .str k.step), ("host", .str (hostStr k.host)),
+    ("runKind", .str k.kind)]
 
 def sampleJson (s : Sample) : Json :=
   Json.mkObj [("tool", .str s.tool), ("step", .str s.step), ("durMs", toJson s.durMs),
-    ("host", .str (hostStr s.host)), ("load", toJson s.load)]
+    ("host", .str (hostStr s.host)), ("load", toJson s.load), ("runKind", .str s.kind)]
 
 def paramsJson (p : Params) : Json :=
   Json.mkObj [("nMin", toJson p.nMin), ("window", toJson p.window), ("kNum", toJson p.kNum),
@@ -1334,7 +1340,7 @@ def verdictJson : Verdict → Json
   | .sample v => Json.mkObj [("kind", "sample"), ("idx", toJson v.idx), ("tool", .str v.tool),
       ("step", .str v.step), ("host", .str (hostStr v.host)), ("durMs", toJson v.durMs),
       ("code", .str (codeStr v.code)), ("n", toJson v.n), ("baseline", toJson v.baseline),
-      ("budgetMs", toJson v.budgetMs)]
+      ("budgetMs", toJson v.budgetMs), ("runKind", .str v.kind)]
   | .structural v => Json.mkObj [("kind", "structural"), ("stage", .str v.stage), ("group", .str v.group),
       ("call", .str (callStr v.call)), ("baseline", toJson v.baseline), ("siblingMax", toJson v.siblingMax)]
 
@@ -1380,6 +1386,9 @@ def landParams : Params := { ceilings := landCeilings }
 
 def run (tool step : String) (host : Host) (load : Nat) (ds : List Nat) : List Sample :=
   ds.map fun d => { tool, step, durMs := d, host, load }
+
+def runK (tool step kind : String) (host : Host) (ds : List Nat) : List Sample :=
+  ds.map fun d => { tool, step, durMs := d, host, kind }
 
 /-- A check.sh history around 2 min (handoffs report 117 s and up to 136 s for check.sh). -/
 def checkHist : List Nat := [117000, 124000, 131000, 119000, 136000, 122000]
@@ -1439,7 +1448,12 @@ def cases : List (String × Params × List Sample) :=
    ("a lasting shift is accepted once it fills more than half the window: 2 s x4 then 50 s x7, slow while the median is 2 s, ok from the 6th 50 s on (median 50 s)",
       {}, run "ci:w" "build" .ci 0 [2000, 2000, 2000, 2000, 50000, 50000, 50000, 50000, 50000, 50000, 50000]),
    ("auto stages (no params.stages): workflow wf over 5 runs; job family test (matrix legs 100 s and 110 s) is structural against build (10 s) and lint (20 s), which are noise; step spans are not jobs",
-      {}, autoRuns)]
+      {}, autoRuns),
+   ("run kinds: chromium-counts of input digest d1 after 10 s x5 takes 60 s (slow); the first run of digest d2 takes 60 s (no baseline of its own)",
+      {}, runK "ci:w" "chromium-counts" "d1" .ci [10000, 10000, 10000, 10000, 10000, 60000] ++ runK "ci:w" "chromium-counts" "d2" .ci [60000]),
+   ("run kinds: a 60 s run of digest d1 after 10 s x5 (d1) and 60 s x5 (d2) is slow, d2 history does not hide it",
+      {}, runK "ci:w" "chromium-counts" "d1" .ci [10000, 10000, 10000, 10000, 10000] ++
+          runK "ci:w" "chromium-counts" "d2" .ci [60000, 60000, 60000, 60000, 60000] ++ runK "ci:w" "chromium-counts" "d1" .ci [60000])]
 
 /-- The last verdict code of each case's samples, and the structural groups: the expected outcomes. -/
 def lastCode (p : Params) (ss : List Sample) : Option Code :=
@@ -1453,7 +1467,7 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
 #guard (cases.drop 1).map (fun (_, p, ss) => lastCode p ss) ==
   [some .ok, some .slow, some .noBaseline, some .ok, some .slow, some .ok, some .slow, some .ok, some .slow, some .slow,
    some .slow, some .ok, some .slow, some .ok, some .slow, some .noisy, some .slow, some .slow, some .ok, some .ok,
-   some .noBaseline]
+   some .noBaseline, some .noBaseline, some .slow]
 #guard (sampleVerdicts {} (run "ci:w" "build" .ci 0
     [2000, 2000, 2000, 2000, 50000, 50000, 50000, 50000, 50000, 50000, 50000])).map (·.code) ==
   [.noBaseline, .noBaseline, .noBaseline, .noBaseline, .noBaseline, .slow, .slow, .slow, .slow, .ok, .ok]

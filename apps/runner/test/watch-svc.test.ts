@@ -16,7 +16,7 @@ const root = () => { const d = mkdtempSync(join(tmpdir(), "fwsvc-")); dirs.push(
 afterAll(() => dirs.forEach((d) => rmSync(d, { recursive: true, force: true })));
 const writeApi = (d: string, o: object) => writeFileSync(join(d, ".fw-console", "api.json"), JSON.stringify(o));
 /** an api.json of a live console-api started at `commit` whose fwcore child was built from `coreCommit` */
-const api = (d: string, commit: string, coreCommit: string) => writeApi(d, { port: 1, pid: 42, commit, coreCommit });
+const api = (d: string, commit: string, coreCommit: string) => writeApi(d, { port: 1, pid: process.pid, commit, coreCommit });
 const sha256 = (t: string) => createHash("sha256").update(t).digest("hex");
 /** the sweep-errors.json the console-api drain writes (apps/console-api/src/spool/drain.ts) */
 const sweep = (d: string, pid: number, count: number) => writeFileSync(join(d, ".fw-console", "sweep-errors.json"), JSON.stringify({ pid, count, ops: { timeout: count } }));
@@ -106,13 +106,16 @@ describe("collectSvcs (fake runner)", () => {
     const d = root(); api(d, SHA_A, SHA_A);
     const swept = async () => find(await collectSvcs(pathsFor(d), gitFake({}), () => true), "console-api")!.sweepErrors;
     expect(await swept()).toBeUndefined();
-    sweep(d, 42, 2);
+    sweep(d, process.pid, 2);
     expect(await swept()).toBe(2);
     expect(readSweepErrors(pathsFor(d))).toBe(2);
     sweep(d, 7, 2);
     expect(await swept()).toBeUndefined();
-    sweep(d, 42, 0);
+    sweep(d, process.pid, 0);
     expect(await swept()).toBeUndefined();
+    const dead = 2 ** 22 + 12345; // beyond pid_max: no such process
+    writeApi(d, { port: 1, pid: dead, commit: SHA_A, coreCommit: SHA_A }); sweep(d, dead, 4);
+    expect(await swept()).toBeUndefined(); // a file whose pid is not alive is ignored
   });
   it("a rebuild on disk without a console-api restart leaves console-api stale; the restart clears it (Fw.Obs.rebuild_without_restart_api_stale)", async () => {
     const d = root();
@@ -247,7 +250,7 @@ describe.skipIf(!existsSync(join(repo, "lean/.lake/build/bin/fwcore")))("svc.sta
     expect(a.find((x) => x.subject === "console-api")!.detail).toBe("cannot identify the code that runs: api.json records no core build commit");
   });
   it("throws the live console-api's drain caught are svc.sweepError with the count (task-state-truth: none swallowed)", async () => {
-    const h = await check(await snap((d) => { api(d, SHA_A, SHA_A); sweep(d, 42, 3); }, {}), core);
+    const h = await check(await snap((d) => { api(d, SHA_A, SHA_A); sweep(d, process.pid, 3); }, {}), core);
     expect(h.alerts.filter((x) => x.code === "svc.sweepError").map((x) => [x.subject, x.detail]))
       .toEqual([["console-api", "3 fwcore throws caught in the drain since start"]]);
     const old = await check(await snap((d) => { api(d, SHA_A, SHA_A); sweep(d, 41, 3); }, {}), core);

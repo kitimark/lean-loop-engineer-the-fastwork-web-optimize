@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Std.Data.TreeMap.Raw.Lemmas
+import Fw.Obs.Backoff
 import Fw.Obs.Health
 import Fw.Obs.Next
 import Fw.Obs.Timing
@@ -817,12 +818,14 @@ def hostOf (k : String) (j : Json) : Except String Fw.Obs.Timing.Host := do
 
 /-- Decode a history key. -/
 def keyOf (j : Json) : Except String Fw.Obs.Timing.Key := do
-  pure { tool := ← str j "tool", step := ← str j "step", host := ← hostOf "host" (← field j "host") }
+  pure { tool := ← str j "tool", step := ← str j "step", host := ← hostOf "host" (← field j "host"),
+         kind := ← Fw.Wire.Ops.strD j "runKind" "" }
 
 /-- Decode a sample (`load` default 0). -/
 def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
   pure { tool := ← str j "tool", step := ← str j "step", durMs := ← nat j "durMs",
-         host := ← hostOf "host" (← field j "host"), load := ← natD j "load" 0 }
+         host := ← hostOf "host" (← field j "host"), load := ← natD j "load" 0,
+         kind := ← Fw.Wire.Ops.strD j "runKind" "" }
 
 /-- Decode a group. -/
 def groupOf (j : Json) : Except String Fw.Obs.Timing.Group := do
@@ -853,15 +856,38 @@ def opTiming (req : Json) : Except String Reply := do
   let (p, ss) ← reqOf req
   pure [("verdicts", .arr ((Fw.Obs.Timing.timingVerdicts p ss).map Fw.Wire.Obs.Timing.verdictJson).toArray)]
 
-/-- `obs.slow`: the alert subjects `<tool>/<step>` (`Fw.Obs.Next.slowSteps` of the verdicts). -/
+/-- `obs.slow`: the alert subjects `<tool>/<step>[#<kind>]` of the ok to slow transitions (`Fw.Obs.Next.slowSteps` of the
+verdicts). -/
 def opSlow (req : Json) : Except String Reply := do
   let (p, ss) ← reqOf req
   pure [("slow", .arr ((Fw.Obs.Next.slowSteps (Fw.Obs.Timing.timingVerdicts p ss)).toArray.map .str))]
 
 end Timing
 
+namespace Backoff
+
+/-- Decode the parameters (each field optional, the defaults of `Fw.Obs.Backoff.Params`). -/
+def paramsOf (j : Json) : Except String Fw.Obs.Backoff.Params := do
+  let d : Fw.Obs.Backoff.Params := {}
+  pure { loadHigh := ← natD j "loadHigh" d.loadHigh, extra := ← natD j "extra" d.extra }
+
+/-- The reply fields of a decision: `action` (`"restart"` or `"wait"`) and `waitMs` (0 for restart). -/
+def decisionJson : Fw.Obs.Backoff.Decision → Reply
+  | .restart => [("action", .str "restart"), ("waitMs", toJson (0 : Nat))]
+  | .wait ms => [("action", .str "wait"), ("waitMs", toJson ms)]
+
+/-- `obs.backoff`: what to do when an fwcore call missed its deadline (`Fw.Obs.Backoff.onTimeout`). Request:
+`{params?, load, baseMs, waitedMs}`; reply `{action, waitMs}`. -/
+def opBackoff (req : Json) : Except String Reply := do
+  let p ← match opt req "params" with
+    | none => pure {}
+    | some v => paramsOf v
+  pure (decisionJson (Fw.Obs.Backoff.onTimeout p (← nat req "load") (← nat req "baseMs") (← nat req "waitedMs")))
+
+end Backoff
+
 /-- The `Fw.Obs` ops. -/
-def ops : List String := ["obs.health", "obs.next", "obs.signals", "obs.timing", "obs.slow"]
+def ops : List String := ["obs.health", "obs.next", "obs.signals", "obs.timing", "obs.slow", "obs.backoff"]
 
 /-- Dispatch an `Fw.Obs` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -871,6 +897,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "obs.signals" => some (opSignals req)
   | "obs.timing" => some (Timing.opTiming req)
   | "obs.slow" => some (Timing.opSlow req)
+  | "obs.backoff" => some (Backoff.opBackoff req)
   | _ => none
 
 /-! ## Examples -/
@@ -934,6 +961,10 @@ def run (op : String) (r : String) : String :=
   "{\"slow\":[]}"
 #guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"mars\"}]}" == "error: field host: unknown host mars"
 #guard run "obs.slow" "{}" == "{\"slow\":[]}"
+-- obs.backoff: not loaded restarts at the first deadline; loaded waits the rest of the stretched total; then restarts
+#guard run "obs.backoff" "{\"load\":3,\"baseMs\":10000,\"waitedMs\":10000}" == "{\"action\":\"restart\",\"waitMs\":0}"
+#guard run "obs.backoff" "{\"load\":115,\"baseMs\":10000,\"waitedMs\":10000}" == "{\"action\":\"wait\",\"waitMs\":20000}"
+#guard run "obs.backoff" "{\"load\":115,\"baseMs\":10000,\"waitedMs\":30000}" == "{\"action\":\"restart\",\"waitMs\":0}"
 #guard run "obs.timing" "{}" == "{\"verdicts\":[]}"
 -- obs.next: a branch whose land commit is on main, or that the live land lock names, gets no land action
 #guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false}}]}").splitOn "\"land\"").length == 2

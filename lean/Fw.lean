@@ -108,6 +108,7 @@ import Fw.Obs.Signals -- obs-signals: agent state from transcript signals (obs.s
 import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
 import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
 import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
+import Fw.Obs.Backoff  -- alert-rules-fix: wait or restart when an fwcore call misses its deadline
 import Fw.Ci.Trigger  -- ci-trigger-lean: which workflows a push starts
 import Fw.Ci.Intent  -- ci-own-trigger: a ci/* push starts only the lanes its head commit asks for
 import Fw.Ci.Verdict  -- ci-own-trigger: a run passes only if its guard ran and some heavy job ran and all passed

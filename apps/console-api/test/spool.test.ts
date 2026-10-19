@@ -159,7 +159,7 @@ describe("spool drain", () => {
     expect(await new Drain(store).run()).toMatchObject({ accepted: 1, stops: 1, unnamed: 1 });
     expect(lines(join(dir, "events.jsonl")).map((e) => [e.type, e.agent])).toEqual([["agent.stop", "a0e52ab0600cc97da"]]);
   });
-  it("liveness by id: an unnamed id is bound by its label, a stop ends it, a later event revives it", async () => {
+  it("liveness by id: an unnamed id is bound by its label, a stop ends it, a later tool call does not, a later start revives it", async () => {
     const { dir, store } = await fresh();
     await define(store, "fix-nav");
     spool(dir, "a1", rec({ agent_id: "id7", hook_event_name: "SubagentStart", tool_use_id: null, tool_name: null, ts: 1_700_000_000_000 - 60_000 }));
@@ -174,7 +174,10 @@ describe("spool drain", () => {
     expect((await store.board()).plan.tasks[0]).toMatchObject({ state: "parked", agent: null });
     spool(dir, "a1", rec({ agent_id: "id7", tool_use_id: "t8", ts: 1_700_000_000_000 - 40_000 }));
     await d.run();
-    expect((await store.board()).plan.tasks[0]).toMatchObject({ state: "running", agent: "fix-nav" });
+    expect((await store.board()).plan.tasks[0]).toMatchObject({ state: "parked", agent: null }); // Fw.Ops.Obs.no_revive_after_stop
+    spool(dir, "a1", rec({ agent_id: "id7", hook_event_name: "SubagentStart", tool_use_id: null, tool_name: null, ts: 1_700_000_000_000 - 30_000 }));
+    await d.run();
+    expect((await store.board()).plan.tasks[0]).toMatchObject({ state: "running", agent: "fix-nav" }); // Fw.Ops.Obs.start_revives
   });
   it("a fwcore throw in lifeOf: the line is not marked seen, it is retried, counted, and the spool alert names it", async () => {
     const { dir, store } = await fresh();

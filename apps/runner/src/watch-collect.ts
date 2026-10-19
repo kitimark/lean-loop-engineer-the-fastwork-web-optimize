@@ -44,7 +44,7 @@ export interface SystemSnap {
   load1: number; memPressure: "normal" | "warn" | "critical"; diskFreeGB: number;
   simLock: { holder: string | null; since: number | null };
   docker: { id: string; name: string; startedAt: number }[]; worktrees: number; consolePids: number[];
-  ci: { id?: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt?: number | null }[];
+  ci: { id?: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt?: number | null; headSha?: string }[];
   /** floor of the 1-min load average (fwcore compares it with loadMax) */
   loadFloor?: number;
   /** process trees this Claude session started through its Bash tool: root shell pid, the first non-shell program's
@@ -86,6 +86,7 @@ export const DEFAULT_PARAMS = {
   diskMinGB: 20, agentCap: 10, simLockMaxMin: 30, worktreesMax: 20, wfQuietMin: 30,
   goneAfterMin: 120, ciSlowMin: 20, toolSlowMin: 15, procMaxMin: 20, loadMax: 150,
 };
+// ciSlowBy (per-workflow ci.slow limits) is not sent: fwcore's default applies (Fw.Obs.Health.Params.ciSlowBy)
 
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 const str = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
@@ -648,6 +649,7 @@ export function parseCi(out: string | null): SystemSnap["ci"] {
       conclusion: str(r.conclusion), startedAt: Date.parse(String(r.createdAt)) || 0,
       // a completed run's last update is its end (gh has no endedAt field)
       endedAt: r.status === "completed" ? Date.parse(String(r.updatedAt)) || null : null,
+      headSha: typeof r.headSha === "string" ? r.headSha : "", // the set of a run: fwcore groups by (workflow, branch, headSha)
     }));
   } catch { return []; }
 }
@@ -800,7 +802,7 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     exec("sysctl", ["-n", "kern.memorystatus_vm_pressure_level"], 2000),
     exec("git", ["worktree", "list", "--porcelain"], 3000, p.root),
     exec("docker", ["ps", "--format", "{{.ID}}\t{{.Names}}\t{{.CreatedAt}}"], 3000),
-    exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt"], 10000, p.root),
+    exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt,headSha"], 10000, p.root),
     exec("ps", ["-A", "-o", "pid=,ppid=,etime=,comm="], 3000),
     exec("env", PS_START, 3000),
   ]);
@@ -878,9 +880,9 @@ export async function collectSnapshot(p: Paths, now = Date.now(), params: Record
 
 // ---- timing samples (timing-alert): the spans of .fw-console/timings.jsonl as the samples of `obs.slow` ----
 /** A `Fw.Obs.Timing.Sample` on the wire. */
-export interface TimingSample { tool: string; step: string; durMs: number; host: "local" | "ci"; load: number }
+export interface TimingSample { tool: string; step: string; durMs: number; host: "local" | "ci"; load: number; runKind?: string }
 /** Spans in time order -> samples (the last `cap` ones: a bound on the input size, not a threshold; the verdict is Lean's).
- *  Lines that do not parse or lack a field are skipped. `load` is the floor of the 1-min load average. */
+ *  Lines that do not parse or lack a field are skipped. `load` is the floor of the 1-min load average; an optional span `kind` (the dispatch input digest) is the run kind of the history. */
 export function parseSamples(text: string, cap = 3000): TimingSample[] {
   const rows: { at: number; s: TimingSample }[] = [];
   for (const line of text.split("\n")) {
@@ -888,7 +890,7 @@ export function parseSamples(text: string, cap = 3000): TimingSample[] {
     try {
       const o = JSON.parse(line);
       if (typeof o.tool !== "string" || typeof o.step !== "string" || !Number.isFinite(o.durMs) || o.durMs < 0 || (o.host !== "local" && o.host !== "ci")) continue;
-      rows.push({ at: Number.isFinite(o.startMs) ? o.startMs : 0, s: { tool: o.tool, step: o.step, durMs: Math.round(o.durMs), host: o.host, load: Number.isFinite(o.load) ? Math.floor(Math.max(0, o.load)) : 0 } });
+      rows.push({ at: Number.isFinite(o.startMs) ? o.startMs : 0, s: { tool: o.tool, step: o.step, durMs: Math.round(o.durMs), host: o.host, load: Number.isFinite(o.load) ? Math.floor(Math.max(0, o.load)) : 0, ...(typeof o.kind === "string" && o.kind !== "" ? { runKind: o.kind } : {}) } });
     } catch { /* partial line */ }
   }
   return rows.sort((a, b) => a.at - b.at).slice(-cap).map((r) => r.s);

@@ -193,7 +193,7 @@ describe("system parsers", () => {
     expect(parseDocker("abc\tweb\t2026-10-17 10:00:00 +0700 +07\n")).toEqual([{ id: "abc", name: "web", startedAt: Date.parse("2026-10-17T10:00:00+07:00") }]);
     expect(parseDocker(null)).toEqual([]);
     expect(parseCi('[{"workflowName":"ci","headBranch":"b","status":"completed","conclusion":"failure","createdAt":"2026-10-17T10:00:00Z"}]'))
-      .toEqual([{ workflow: "ci", branch: "b", status: "completed", conclusion: "failure", startedAt: T0, endedAt: null }]);
+      .toEqual([{ workflow: "ci", branch: "b", status: "completed", conclusion: "failure", startedAt: T0, endedAt: null, headSha: "" }]);
     expect(parseCi('[{"workflowName":"ci","headBranch":"b","status":"completed","conclusion":"success","createdAt":"2026-10-17T10:00:00Z","updatedAt":"2026-10-17T10:25:00Z"},'
       + '{"workflowName":"ci","headBranch":"c","status":"in_progress","conclusion":"","createdAt":"2026-10-17T10:00:00Z","updatedAt":"2026-10-17T10:05:00Z"}]').map((r) => r.endedAt))
       .toEqual([T0 + 25 * 60000, null]);

@@ -10,6 +10,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { loadavg } from "node:os";
 import { createInterface } from "node:readline";
 import { z } from "zod";
 import { ApplyResponse, Board, LiveBoard, Card, Outcome, Run, Step, type ReducerEvent, type State } from "@fw/contracts";
@@ -59,6 +60,15 @@ type Pending = { ok: (v: Record<string, unknown>) => void; err: (e: Error) => vo
 export const CALL_TIMEOUT_MS = Number(process.env.FW_CORE_CALL_MS) || 10_000;
 export const REPLAY_TIMEOUT_MS = 120_000;
 
+/** What to do when a call misses its deadline: `Fw.Obs.Backoff.onTimeout` (op `obs.backoff`; golden
+ *  packages/contracts/golden/obs/backoff.jsonl). TS stand-in: the timeout path cannot ask the busy child, so the rule is
+ *  run here and checked against the Lean golden by test/backoff.test.ts. Under load (>= loadHigh) a call waits (1+extra)
+ *  base deadlines before the child is killed (a kill forces a full log replay, which adds load). */
+export function backoffDecision(load: number, baseMs: number, waitedMs: number, loadHigh = 50, extra = 2): { action: "restart" | "wait"; waitMs: number } {
+  const total = loadHigh <= load ? (1 + extra) * baseMs : baseMs;
+  return waitedMs < total ? { action: "wait", waitMs: total - waitedMs } : { action: "restart", waitMs: 0 };
+}
+
 export class LeanCore implements Core {
   readonly name = "lean" as const;
   private child: ChildProcessWithoutNullStreams | null = null;
@@ -81,6 +91,8 @@ export class LeanCore implements Core {
   get binPath(): string { return this.bin.path; }
   private onIncident: (i: Incident) => void;
   private callTimeoutMs: number;
+  /** the floor of the 1-min load average (the input of `backoffDecision`) */
+  private loadFloor: () => number = () => Math.floor(loadavg()[0] ?? 0);
 
   constructor(bin: LeanBin, onIncident: (i: Incident) => void = (i) => console.error("fwcore incident:", JSON.stringify(i)),
     callTimeoutMs = CALL_TIMEOUT_MS) {
@@ -173,10 +185,19 @@ export class LeanCore implements Core {
   private send(child: ChildProcessWithoutNullStreams, fields: string, timeoutMs = this.callTimeoutMs): Promise<Record<string, unknown>> {
     return new Promise((ok, err) => {
       const id = this.nextId++;
-      const timer = setTimeout(() => {
-        this.incident("timeout", `call ${id} unanswered after ${timeoutMs} ms`);
-        this.poison(child, `call ${id} timed out after ${timeoutMs} ms`);
-      }, timeoutMs);
+      const fire = (waited: number) => {
+        const d = backoffDecision(this.loadFloor(), timeoutMs, waited);
+        const p = this.pending.get(id);
+        if (d.action === "wait" && p) {
+          this.incident("timeout", `call ${id} unanswered after ${waited} ms at load; waiting ${d.waitMs} ms more before a restart`);
+          p.timer = setTimeout(() => fire(waited + d.waitMs), d.waitMs);
+          p.timer.unref();
+          return;
+        }
+        this.incident("timeout", `call ${id} unanswered after ${waited} ms`);
+        this.poison(child, `call ${id} timed out after ${waited} ms`);
+      };
+      const timer = setTimeout(() => fire(timeoutMs), timeoutMs);
       timer.unref();
       this.pending.set(id, { ok, err, timer });
       child.stdin.write(`{"id":${id},${fields}}\n`, (e) => { if (e) child.kill("SIGKILL"); });
@@ -234,6 +255,9 @@ export class LeanCore implements Core {
 
   /** test hook: freeze the child (SIGSTOP) so a call written next cannot be answered before killForTest() */
   stopForTest() { this.child?.kill("SIGSTOP"); }
+
+  /** test hook: replace the load reading of the timeout rule */
+  loadForTest(f: () => number) { this.loadFloor = f; }
 
   /** test hook: change the per-call deadline */
   callTimeoutForTest(ms: number) { this.callTimeoutMs = ms; }

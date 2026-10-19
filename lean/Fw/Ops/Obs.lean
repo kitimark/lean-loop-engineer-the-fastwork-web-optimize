@@ -765,17 +765,63 @@ Each issue with its count, comma separated.
 def alertNames (cs : List (String × Nat)) : List Char :=
   (", ".intercalate (cs.map fun (x, n) => s!"{x} x{n}")).toList
 
-/-- The spool alert title: the issue list `x₁ xn₁, …` cut to 123 UTF-16 units (an ellipsis marks a cut)
-between a fixed head and tail, so it fits the 200-unit step title.
+/-- Whether an issue is a caught fwcore throw of the drain (`sweep:<op>`), not a spool-line problem.
 
-$$\operatorname{title}(C) = H \cdot \operatorname{take}_{16}(123, N) \cdot e \cdot T,\quad N = N(C),\quad e = \begin{cases} \text{“…”} & |\operatorname{take}_{16}(123, N)| < |N| \\ \varepsilon & \text{otherwise} \end{cases}$$
+$$\operatorname{isSweep}(x) \iff \text{“sweep:”} \text{ is a prefix of } x$$
+-/
+def isSweep (x : String) : Bool := x.startsWith "sweep:"
+
+/-- The fixed start of the title when every issue is a caught throw (23 UTF-16 units).
+
+$$H_s = \text{“Drain threw in fwcore: ”}$$
+-/
+def sweepHead : String := "Drain threw in fwcore: "
+/-- The fixed end of the title when every issue is a caught throw (38 UTF-16 units).
+
+$$T_s = \text{“; see console-api log, then press Done”}$$
+-/
+def sweepTail : String := "; see console-api log, then press Done"
+
+/-- The title is the throw title exactly when there is an issue and all issues are caught throws.
+
+$$\operatorname{allSweep}(C) \iff C \ne [\,] \land \forall (x, n) \in C:\ \operatorname{isSweep}(x)$$
+-/
+def allSweep (cs : List (String × Nat)) : Bool := !cs.isEmpty && cs.all fun (x, _) => isSweep x
+
+/-- The spool alert title: the issue list `x₁ xn₁, …` cut to 123 UTF-16 units (an ellipsis marks a cut)
+between a fixed head and tail, so it fits the 200-unit step title. When every issue is a caught fwcore throw
+(`sweep:<op>`) the head and tail are the throw ones (`sweepHead`, `sweepTail`: the fix is not in `emit.mjs`).
+
+$$\operatorname{title}(C) = h \cdot \operatorname{take}_{16}(123, N) \cdot e \cdot t,\quad N = N(C),\quad (h, t) = \begin{cases} (H_s, T_s) & \operatorname{allSweep}(C) \\ (H, T) & \text{otherwise} \end{cases},\quad e = \begin{cases} \text{“…”} & |\operatorname{take}_{16}(123, N)| < |N| \\ \varepsilon & \text{otherwise} \end{cases}$$
 
 Name every issue with its count, cut short when the list is long.
 -/
 def alertTitle (cs : List (String × Nat)) : String :=
   let names := alertNames cs
   let kept := takeU16 123 names
-  String.ofList (alertHead.toList ++ kept ++ (if kept.length < names.length then ['…'] else []) ++ alertTail.toList)
+  let (h, t) := if allSweep cs then (sweepHead, sweepTail) else (alertHead, alertTail)
+  String.ofList (h.toList ++ kept ++ (if kept.length < names.length then ['…'] else []) ++ t.toList)
+
+/-- **Throws get their own title**: when every issue is a caught throw the title has the throw head and tail and not the
+`emit.mjs` ones.
+
+$$\operatorname{allSweep}(C) \Rightarrow \operatorname{title}(C) = H_s \cdot \operatorname{take}_{16}(123, N) \cdot e \cdot T_s$$
+-/
+theorem alertTitle_sweep (cs : List (String × Nat)) (h : allSweep cs = true) :
+    alertTitle cs = String.ofList (sweepHead.toList ++ takeU16 123 (alertNames cs) ++
+      (if (takeU16 123 (alertNames cs)).length < (alertNames cs).length then ['…'] else []) ++ sweepTail.toList) := by
+  unfold alertTitle
+  simp [h]
+
+/-- **A spool-line problem keeps the old title**: when some issue is not a caught throw the title is the old one.
+
+$$\lnot\operatorname{allSweep}(C) \Rightarrow \operatorname{title}(C) = H \cdot \operatorname{take}_{16}(123, N) \cdot e \cdot T$$
+-/
+theorem alertTitle_spool (cs : List (String × Nat)) (h : allSweep cs = false) :
+    alertTitle cs = String.ofList (alertHead.toList ++ takeU16 123 (alertNames cs) ++
+      (if (takeU16 123 (alertNames cs)).length < (alertNames cs).length then ['…'] else []) ++ alertTail.toList) := by
+  unfold alertTitle
+  simp [h]
 
 /-- **The title fits**: the spool alert title is at most 200 UTF-16 units (the contract's step title).
 
@@ -790,8 +836,10 @@ theorem alertTitle_le (cs : List (String × Nat)) : utf16Len (alertTitle cs) ≤
   have hk := takeU16_le 123 (alertNames cs)
   have hh : (alertHead.toList.map u16).sum = 25 := by decide
   have ht : (alertTail.toList.map u16).sum = 51 := by decide
+  have hhs : (sweepHead.toList.map u16).sum = 23 := by decide
+  have hts : (sweepTail.toList.map u16).sum = 38 := by decide
   have he : u16 '…' = 1 := by decide
-  split <;> simp only [List.map_append, List.sum_append, hh, ht, List.map_cons, List.map_nil,
+  split <;> split <;> simp only [List.map_append, List.sum_append, hh, ht, hhs, hts, List.map_cons, List.map_nil,
     List.sum_cons, List.sum_nil, he] <;> omega
 
 /-- **The spool alert**: none when there is no issue or a spool alert is still open; otherwise a step
@@ -1240,6 +1288,8 @@ private def realStop : List (String × Val) :=
 #guard fieldAlert 5 [Fw.Console.Alert.stepId (some "spool") 1] [("x", 2)] = none
 #guard fieldAlert 5 [Fw.Console.Alert.stepId (some "ci") 1] [("x", 2)] != none
 #guard fieldAlert 5 [] [] = none
+#guard alertTitle [("sweep:lifeOf", 3)] = "Drain threw in fwcore: sweep:lifeOf x3; see console-api log, then press Done"
+#guard alertTitle [("sweep:lifeOf", 3), ("rejected:json", 1)] = "Spool lines need a look: sweep:lifeOf x3, rejected:json x1; fix emit.mjs or Fw.Ops.Obs.specs, then press Done"
 #guard alertTitle [("rejected:json", 2)] = "Spool lines need a look: rejected:json x2; fix emit.mjs or Fw.Ops.Obs.specs, then press Done"
 #guard utf16Len (alertTitle ((List.range 40).map fun i => (s!"field{i}:unknown", i))) = 200
 #guard (alertTitle ((List.range 40).map fun i => (s!"field{i}:unknown", i))).contains '…'

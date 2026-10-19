@@ -198,7 +198,11 @@ def cases : List (String × List (String × Json)) := [
     ("spool alert (task-state-truth): issues with counts, none while a spool alert is open",
       lit "{\"fieldAlert\":{\"now\":5,\"open\":[],\"issues\":[{\"issue\":\"rejected:json\",\"count\":2},{\"issue\":\"lifeOf:error\",\"count\":1}]}}"),
     ("spool alert (task-state-truth): an open spool alert holds the next one",
-      lit "{\"fieldAlert\":{\"now\":6,\"open\":[\"alert-spool-5\"],\"issues\":[{\"issue\":\"rejected:json\",\"count\":1}]}}")]),
+      lit "{\"fieldAlert\":{\"now\":6,\"open\":[\"alert-spool-5\"],\"issues\":[{\"issue\":\"rejected:json\",\"count\":1}]}}"),
+    ("spool alert (alert-rules-fix): only caught fwcore throws get the throw title, not the emit.mjs one",
+      lit "{\"fieldAlert\":{\"now\":7,\"open\":[],\"issues\":[{\"issue\":\"sweep:lifeOf\",\"count\":3}]}}"),
+    ("spool alert (alert-rules-fix): a throw and a rejected line together keep the spool title",
+      lit "{\"fieldAlert\":{\"now\":8,\"open\":[],\"issues\":[{\"issue\":\"sweep:drain\",\"count\":1},{\"issue\":\"rejected:json\",\"count\":1}]}}")]),
   ("ops.wait", [
     ("fw watch with a trailing &: deny bgLong fwWatch", wait "pnpm fw watch --until-alert &"),
     ("fw watch in the foreground: allow", wait "pnpm fw watch --until-alert"),

@@ -1614,31 +1614,58 @@ def loopOn (q : Nat) (v : Watch) : Child :=
 
 /-! ## Timing alerts: the slow steps that raise `timing.slow` (`Fw.Obs.Timing`) -/
 
-/-- The alert subject of a sample verdict: `<tool>/<step>`.
+/-- The alert subject of a sample verdict: `<tool>/<step>`, with `#<kind>` appended when the run has a kind.
 
-$$\operatorname{name}(v) = \mathit{tool}_v \mathbin{+\!\!+} \text{"/"} \mathbin{+\!\!+} \mathit{step}_v$$
+$$\operatorname{name}(v) = \mathit{tool}_v \mathbin{+\!\!+} \text{"/"} \mathbin{+\!\!+} \mathit{step}_v \mathbin{+\!\!+} \begin{cases} \text{""} & \mathit{kind}_v = \text{""} \\ \text{"\#"} \mathbin{+\!\!+} \mathit{kind}_v & \text{else} \end{cases}$$
 -/
-def stepName (v : Timing.SampleVerdict) : String := v.tool ++ "/" ++ v.step
+def stepName (v : Timing.SampleVerdict) : String :=
+  v.tool ++ "/" ++ v.step ++ (if v.kind == "" then "" else "#" ++ v.kind)
 
-/-- Two sample verdicts are of the same history (same tool, step and host).
+/-- Two sample verdicts are of the same history (same tool, step, host and run kind).
 
-$$\operatorname{same}(v, w) \iff \mathit{tool}_v = \mathit{tool}_w \wedge \mathit{step}_v = \mathit{step}_w \wedge h_v = h_w$$
+$$\operatorname{same}(v, w) \iff \mathit{tool}_v = \mathit{tool}_w \wedge \mathit{step}_v = \mathit{step}_w \wedge h_v = h_w \wedge \mathit{kind}_v = \mathit{kind}_w$$
 -/
-def sameKey (v w : Timing.SampleVerdict) : Bool := v.tool == w.tool && v.step == w.step && v.host == w.host
+def sameKey (v w : Timing.SampleVerdict) : Bool :=
+  v.tool == w.tool && v.step == w.step && v.host == w.host && v.kind == w.kind
 
-/-- The slow steps that are alerts: a sample verdict is an alert when its code is `slow` and no later sample of the same
-history exists (a newer sample of that step replaces it). Structural verdicts are never alerts. A slow sample stays
-an alert until the next sample of its step arrives; the subjects are in verdict order, with repeats.
+/-- Some later sample verdict of the list is of the same history as `v`.
 
-$$\operatorname{slowLatest}([\,]) = [\,],\quad \operatorname{slowLatest}(\mathsf{sample}(v) :: R) = \bigl[\operatorname{name}(v) \mid c_v = \mathsf{slow} \wedge \forall \mathsf{sample}(w) \in R.\ \neg\operatorname{same}(v, w)\bigr] \mathbin{+\!\!+} \operatorname{slowLatest}(R),\quad \operatorname{slowLatest}(\mathsf{structural}(x) :: R) = \operatorname{slowLatest}(R)$$
+$$\operatorname{later}(v, R) \iff \exists \mathsf{sample}(w) \in R.\ \operatorname{same}(v, w)$$
 -/
-def slowLatest : List Timing.Verdict → List String
+def laterSame (v : Timing.SampleVerdict) (rest : List Timing.Verdict) : Bool :=
+  rest.any (fun w => match w with
+    | .sample w => sameKey v w
+    | .structural _ => false)
+
+/-- The previous sample of the history of `v` (`prev` lists earlier sample verdicts, newest first) was `slow`; false when
+there is none.
+
+$$\operatorname{prevSlow}(v, P) \iff \exists u = \text{first of } P \text{ with } \operatorname{same}(v, u).\ c_u = \mathsf{slow}$$
+-/
+def prevSlow (v : Timing.SampleVerdict) (prev : List Timing.SampleVerdict) : Bool :=
+  match prev.find? (sameKey v) with
+  | some u => u.code == .slow
+  | none => false
+
+/-- The slow steps that are alerts, given the earlier sample verdicts `prev` (newest first). A sample verdict is an alert
+when its code is `slow`, no later sample of the same history exists (a newer sample replaces it), and the previous sample
+of its history was not slow (the alert is the ok to slow transition, so a step that stays slow does not re-alert).
+Structural verdicts are never alerts. The subjects are in verdict order, with repeats.
+
+$$\operatorname{sl}_P(\mathsf{sample}(v) :: R) = \bigl[\operatorname{name}(v) \mid c_v = \mathsf{slow} \wedge \neg\operatorname{later}(v, R) \wedge \neg\operatorname{prevSlow}(v, P)\bigr] \mathbin{+\!\!+} \operatorname{sl}_{v :: P}(R),\quad \operatorname{sl}_P(\mathsf{structural}(\_) :: R) = \operatorname{sl}_P(R)$$
+-/
+def slowLatestFrom (prev : List Timing.SampleVerdict) : List Timing.Verdict → List String
   | [] => []
   | .sample v :: rest =>
-      (if v.code == .slow && !(rest.any (fun w => match w with
-          | .sample w => sameKey v w
-          | .structural _ => false)) then [stepName v] else []) ++ slowLatest rest
-  | .structural _ :: rest => slowLatest rest
+      (if v.code == .slow && !laterSame v rest && !prevSlow v prev then [stepName v] else []) ++
+        slowLatestFrom (v :: prev) rest
+  | .structural _ :: rest => slowLatestFrom prev rest
+
+/-- The slow steps that are alerts of a verdict list: `slowLatestFrom` with no earlier verdicts.
+
+$$\operatorname{slowLatest}(V) = \operatorname{sl}_{[\,]}(V)$$
+-/
+def slowLatest (vs : List Timing.Verdict) : List String := slowLatestFrom [] vs
 
 /-- Remove repeats, keeping the last occurrence of each.
 
@@ -1690,32 +1717,42 @@ $$\operatorname{slowSteps}(V) = \operatorname{dedup}(\operatorname{slowLatest}(V
 -/
 def slowSteps (vs : List Timing.Verdict) : List String := dedupL (slowLatest vs)
 
+/-- **Soundness: an alert is a slow verdict.** Every subject of `slowLatestFrom` is the name of a sample verdict of the
+list whose code is `slow`, whatever the earlier verdicts.
+
+$$\forall P, V, s:\quad s \in \operatorname{sl}_P(V) \Rightarrow \exists v.\ \mathsf{sample}(v) \in V \wedge c_v = \mathsf{slow} \wedge \operatorname{name}(v) = s$$
+-/
+theorem slowLatestFrom_sound (prev : List Timing.SampleVerdict) (vs : List Timing.Verdict) (s : String)
+    (h : s ∈ slowLatestFrom prev vs) :
+    ∃ v, Timing.Verdict.sample v ∈ vs ∧ v.code = .slow ∧ stepName v = s := by
+  induction vs generalizing prev with
+  | nil => simp [slowLatestFrom] at h
+  | cons x rest ih =>
+    cases x with
+    | structural w =>
+      simp only [slowLatestFrom] at h
+      obtain ⟨v, hv, hc, he⟩ := ih prev h
+      exact ⟨v, List.mem_cons_of_mem _ hv, hc, he⟩
+    | sample v =>
+      simp only [slowLatestFrom, List.mem_append] at h
+      rcases h with h | h
+      · split at h
+        · rename_i hc
+          simp only [List.mem_singleton] at h
+          simp only [Bool.and_eq_true, beq_iff_eq] at hc
+          exact ⟨v, List.mem_cons_self .., hc.1.1, h.symm⟩
+        · simp at h
+      · obtain ⟨w, hw, hc, he⟩ := ih (v :: prev) h
+        exact ⟨w, List.mem_cons_of_mem _ hw, hc, he⟩
+
 /-- **Soundness: an alert is a slow verdict.** Every subject of `slowLatest` is the name of a sample verdict of the list
 whose code is `slow`.
 
 $$\forall V, s:\quad s \in \operatorname{slowLatest}(V) \Rightarrow \exists v.\ \mathsf{sample}(v) \in V \wedge c_v = \mathsf{slow} \wedge \operatorname{name}(v) = s$$
 -/
 theorem slowLatest_sound (vs : List Timing.Verdict) (s : String) (h : s ∈ slowLatest vs) :
-    ∃ v, Timing.Verdict.sample v ∈ vs ∧ v.code = .slow ∧ stepName v = s := by
-  induction vs with
-  | nil => simp [slowLatest] at h
-  | cons x rest ih =>
-    cases x with
-    | structural w =>
-      simp only [slowLatest] at h
-      obtain ⟨v, hv, hc, he⟩ := ih h
-      exact ⟨v, List.mem_cons_of_mem _ hv, hc, he⟩
-    | sample v =>
-      simp only [slowLatest, List.mem_append] at h
-      rcases h with h | h
-      · split at h
-        · rename_i hc
-          simp only [List.mem_singleton] at h
-          simp only [Bool.and_eq_true, beq_iff_eq] at hc
-          exact ⟨v, List.mem_cons_self .., hc.1, h.symm⟩
-        · simp at h
-      · obtain ⟨w, hw, hc, he⟩ := ih h
-        exact ⟨w, List.mem_cons_of_mem _ hw, hc, he⟩
+    ∃ v, Timing.Verdict.sample v ∈ vs ∧ v.code = .slow ∧ stepName v = s :=
+  slowLatestFrom_sound [] vs s h
 
 /-- **No alert without a slow verdict.** If no sample verdict is `slow`, there is no alert.
 
@@ -1732,40 +1769,81 @@ theorem slowSteps_nil_of_no_slow (vs : List Timing.Verdict)
       exact absurd hc (h v hv)
   rw [this]; rfl
 
+/-- A later sample of the same history is found by `laterSame`.
+
+$$(\exists \mathsf{sample}(w) \in R.\ \operatorname{same}(v, w)) \Rightarrow \operatorname{later}(v, R)$$
+-/
+theorem laterSame_of_mem (v : Timing.SampleVerdict) (rest : List Timing.Verdict)
+    (h : ∃ w, Timing.Verdict.sample w ∈ rest ∧ sameKey v w = true) : laterSame v rest = true := by
+  obtain ⟨w, hw, hs⟩ := h
+  unfold laterSame
+  rw [List.any_eq_true]; exact ⟨.sample w, hw, hs⟩
+
+/-- No later sample of the same history makes `laterSame` false.
+
+$$(\forall \mathsf{sample}(w) \in R.\ \neg\operatorname{same}(v, w)) \Rightarrow \neg\operatorname{later}(v, R)$$
+-/
+theorem laterSame_false (v : Timing.SampleVerdict) (rest : List Timing.Verdict)
+    (hl : ∀ w, Timing.Verdict.sample w ∈ rest → sameKey v w = false) : laterSame v rest = false := by
+  unfold laterSame
+  rw [Bool.eq_false_iff]
+  intro hh
+  rw [List.any_eq_true] at hh
+  obtain ⟨x, hx, hxs⟩ := hh
+  cases x with
+  | structural _ => simp at hxs
+  | sample w => simp only at hxs; rw [hl w hx] at hxs; cases hxs
+
 /-- **A newer sample replaces the alert.** A slow sample followed by a later sample of the same history is no alert.
 
-$$\forall v, R:\quad (\exists w.\ \mathsf{sample}(w) \in R \wedge \operatorname{same}(v, w)) \Rightarrow \operatorname{slowLatest}(\mathsf{sample}(v) :: R) = \operatorname{slowLatest}(R)$$
+$$\forall P, v, R:\quad \operatorname{later}(v, R) \Rightarrow \operatorname{sl}_P(\mathsf{sample}(v) :: R) = \operatorname{sl}_{v :: P}(R)$$
+-/
+theorem slowLatestFrom_superseded (prev : List Timing.SampleVerdict) (v : Timing.SampleVerdict)
+    (rest : List Timing.Verdict) (h : ∃ w, Timing.Verdict.sample w ∈ rest ∧ sameKey v w = true) :
+    slowLatestFrom prev (.sample v :: rest) = slowLatestFrom (v :: prev) rest := by
+  simp [slowLatestFrom, laterSame_of_mem v rest h]
+
+/-- **A step that stays slow does not re-alert.** A sample whose previous sample of the same history was slow is no alert.
+
+$$\forall P, v, R:\quad \operatorname{prevSlow}(v, P) \Rightarrow \operatorname{sl}_P(\mathsf{sample}(v) :: R) = \operatorname{sl}_{v :: P}(R)$$
+-/
+theorem slowLatestFrom_steady (prev : List Timing.SampleVerdict) (v : Timing.SampleVerdict)
+    (rest : List Timing.Verdict) (h : prevSlow v prev = true) :
+    slowLatestFrom prev (.sample v :: rest) = slowLatestFrom (v :: prev) rest := by
+  simp [slowLatestFrom, h]
+
+/-- **The ok to slow transition is an alert.** A slow sample with no later sample of its history, whose previous sample of
+the history was not slow, is an alert.
+
+$$\forall P, v, R:\quad c_v = \mathsf{slow} \wedge \neg\operatorname{later}(v, R) \wedge \neg\operatorname{prevSlow}(v, P) \Rightarrow \operatorname{name}(v) \in \operatorname{sl}_P(\mathsf{sample}(v) :: R)$$
+-/
+theorem slowLatestFrom_transition (prev : List Timing.SampleVerdict) (v : Timing.SampleVerdict)
+    (rest : List Timing.Verdict) (hc : v.code = .slow)
+    (hl : ∀ w, Timing.Verdict.sample w ∈ rest → sameKey v w = false) (hp : prevSlow v prev = false) :
+    stepName v ∈ slowLatestFrom prev (.sample v :: rest) := by
+  simp [slowLatestFrom, hc, laterSame_false v rest hl, hp]
+
+/-- **A newer sample replaces the alert.** A slow sample followed by a later sample of the same history is no alert (from
+the start of the list).
+
+$$\forall v, R:\quad \operatorname{later}(v, R) \Rightarrow \operatorname{slowLatest}(\mathsf{sample}(v) :: R) = \operatorname{sl}_{[v]}(R)$$
 -/
 theorem slowLatest_superseded (v : Timing.SampleVerdict) (rest : List Timing.Verdict)
     (h : ∃ w, Timing.Verdict.sample w ∈ rest ∧ sameKey v w = true) :
-    slowLatest (.sample v :: rest) = slowLatest rest := by
-  obtain ⟨w, hw, hs⟩ := h
-  have : (rest.any (fun x => match x with
-      | .sample w => sameKey v w
-      | .structural _ => false)) = true := by
-    rw [List.any_eq_true]; exact ⟨.sample w, hw, hs⟩
-  simp [slowLatest, this]
+    slowLatest (.sample v :: rest) = slowLatestFrom [v] rest :=
+  slowLatestFrom_superseded [] v rest h
 
-/-- **The latest slow sample is an alert.** A slow sample with no later sample of its history is an alert.
+/-- **The first slow sample of a history is an alert.** A slow sample with no earlier and no later sample of its history is
+an alert.
 
 $$\forall v, R:\quad c_v = \mathsf{slow} \wedge (\forall \mathsf{sample}(w) \in R.\ \neg\operatorname{same}(v, w)) \Rightarrow \operatorname{name}(v) \in \operatorname{slowSteps}(\mathsf{sample}(v) :: R)$$
 -/
 theorem slowSteps_latest (v : Timing.SampleVerdict) (rest : List Timing.Verdict) (hc : v.code = .slow)
     (hl : ∀ w, Timing.Verdict.sample w ∈ rest → sameKey v w = false) :
     stepName v ∈ slowSteps (.sample v :: rest) := by
-  have : (rest.any (fun x => match x with
-      | .sample w => sameKey v w
-      | .structural _ => false)) = false := by
-    rw [Bool.eq_false_iff]
-    intro hh
-    rw [List.any_eq_true] at hh
-    obtain ⟨x, hx, hxs⟩ := hh
-    cases x with
-    | structural _ => simp at hxs
-    | sample w => simp only at hxs; rw [hl w hx] at hxs; cases hxs
-  unfold slowSteps
+  unfold slowSteps slowLatest
   rw [mem_dedupL]
-  simp [slowLatest, hc, this]
+  exact slowLatestFrom_transition [] v rest hc hl rfl
 
 /-- **The alert list has no repeats.**
 
@@ -1796,6 +1874,18 @@ private def tv (tool step : String) (code : Timing.Code) : Timing.Verdict :=
 #guard slowSteps [tv "lean" "check.sh" .slow, tv "lean" "lake build" .ok] == ["lean/check.sh"]
 -- noisy and noBaseline are not alerts
 #guard slowSteps [tv "a" "b" .noisy, tv "a" "c" .noBaseline] == []
+-- ok then slow alerts; slow then slow does not re-alert (the transition was the alert); slow, ok, slow alerts again
+#guard slowSteps [tv "a" "b" .ok, tv "a" "b" .slow] == ["a/b"]
+#guard slowSteps [tv "a" "b" .ok, tv "a" "b" .slow, tv "a" "b" .slow] == []
+#guard slowSteps [tv "a" "b" .slow, tv "a" "b" .ok, tv "a" "b" .slow] == ["a/b"]
+-- noisy between two slows is not slow: the next slow is a transition
+#guard slowSteps [tv "a" "b" .slow, tv "a" "b" .noisy, tv "a" "b" .slow] == ["a/b"]
+-- the run kind separates histories: a slow of kind k1 after a slow of kind k2 is a first slow, named with its kind
+private def tvk (tool step kind : String) (code : Timing.Code) : Timing.Verdict :=
+  match tv tool step code with | .sample v => .sample { v with kind } | x => x
+#guard slowSteps [tvk "w" "s" "k2" .slow, tvk "w" "s" "k1" .slow] == ["w/s#k2", "w/s#k1"]
+#guard slowSteps [tvk "w" "s" "k2" .slow, tvk "w" "s" "k1" .ok] == ["w/s#k2"]
+#guard slowSteps [tvk "w" "s" "k1" .ok, tvk "w" "s" "k2" .slow, tvk "w" "s" "k1" .slow] == ["w/s#k2", "w/s#k1"]
 -- the same step slow on two hosts alerts once
 #guard slowSteps [tv "a" "b" .slow, (match tv "a" "b" .slow with | .sample v => .sample { v with host := .«local» } | x => x)] == ["a/b"]
 

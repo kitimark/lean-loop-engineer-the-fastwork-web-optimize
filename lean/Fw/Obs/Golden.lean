@@ -322,6 +322,40 @@ def fileText : String :=
     (Json.mkObj [("name", .str name), ("request", withOp "obs.health" req),
       ("response", respond "obs.health" req)]).compress ++ "\n")
 
+/-- An `obs.backoff` case: name, thresholds, load, base deadline, ms already waited. -/
+structure BackoffCase where
+  name   : String
+  p      : Fw.Obs.Backoff.Params := {}
+  load   : Nat
+  base   : Nat := 10000
+  waited : Nat := 10000
+
+/-- The `obs.backoff` cases: both sides of `loadHigh`, the wait, the restart after it, and the edges of the total. -/
+def backoffCases : List BackoffCase := [
+  { name := "not loaded (load 3): a call that missed its 10 s deadline restarts the child", load := 3 },
+  { name := "load 49, one under loadHigh 50: restart at the first deadline", load := 49 },
+  { name := "load 50 = loadHigh: wait 20 s more (total 30 s) instead of killing", load := 50 },
+  { name := "load 115 (the sweepError storm): wait 20 s more", load := 115 },
+  { name := "load 115, waited the whole 30 s: restart", load := 115, waited := 30000 },
+  { name := "load 115, waited 29.999 s: wait the last 1 ms", load := 115, waited := 29999 },
+  { name := "load fell to 3 while waiting: restart at once", load := 3, waited := 20000 },
+  { name := "replay chunk (base 120 s), load 115: wait 240 s more", load := 115, base := 120000, waited := 120000 },
+  { name := "extra 0: loaded or not, restart at the first deadline", p := { extra := 0 }, load := 115 },
+  { name := "loadHigh 10, extra 5, base 1 s, load 10: wait 5 s more", p := { loadHigh := 10, extra := 5 }, load := 10, base := 1000, waited := 1000 }]
+
+/-- The text of the `obs.backoff` golden file. -/
+def backoffText : String :=
+  String.join (backoffCases.map fun c =>
+    let req := Json.mkObj [("op", .str "obs.backoff"),
+      ("params", Json.mkObj [("loadHigh", toJson c.p.loadHigh), ("extra", toJson c.p.extra)]),
+      ("load", toJson c.load), ("baseMs", toJson c.base), ("waitedMs", toJson c.waited)]
+    (Json.mkObj [("name", .str c.name), ("request", req),
+      ("response", Json.mkObj (Fw.Wire.Obs.Backoff.decisionJson
+        (Fw.Obs.Backoff.onTimeout c.p c.load c.base c.waited)))]).compress ++ "\n")
+
+/-- The `obs.backoff` golden file, relative to `lean/`. -/
+def backoffPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "obs" / "backoff.jsonl"
+
 /-- The golden file, relative to `lean/`. -/
 def path : System.FilePath := ".." / "packages" / "contracts" / "golden" / "obs" / "health.jsonl"
 
@@ -332,10 +366,15 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
   if write then
     IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / "obs")
     IO.FS.writeFile p fileText
+    IO.FS.writeFile (root / backoffPath) backoffText
   else
     let cur ← try IO.FS.readFile p catch _ => pure ""
     if cur != fileText then
       IO.println s!"obs golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
+      bad := bad + 1
+    let curB ← try IO.FS.readFile (root / backoffPath) catch _ => pure ""
+    if curB != backoffText then
+      IO.println s!"obs golden: {root / backoffPath} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
       bad := bad + 1
   for g in gaps do
     IO.println s!"obs golden: no case covers {g}"
