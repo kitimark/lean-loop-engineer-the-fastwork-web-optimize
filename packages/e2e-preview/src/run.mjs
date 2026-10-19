@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs the preview e2e suite (src/suite.mjs) on one engine against its own rig (src/rig.mjs) and writes out/<engine>.json.
+// Runs (CI: preview-e2e.yml, and land.yml when land selects this package) the preview e2e suite (src/suite.mjs) on one engine against its own rig (src/rig.mjs) and writes out/<engine>.json.
 //
 //   node src/run.mjs --engine chromium|playwright-webkit [--out out] [--no-lan]
 //
