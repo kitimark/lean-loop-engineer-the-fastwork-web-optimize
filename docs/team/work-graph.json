@@ -5571,7 +5571,8 @@
     "nav-anchor-hosted"
    ],
    "owner": "lead",
-   "writes": []
+   "writes": [],
+   "evidence": "3c1d3ed"
   },
   {
    "devices": [
@@ -6935,7 +6936,8 @@
     "scripts/fwcore-build.sh",
     "docs/team/tools/land.md",
     "docs/team/handoffs/land-fwcore-key.md"
-   ]
+   ],
+   "evidence": "af4e033"
   },
   {
    "devices": [
@@ -6961,7 +6963,8 @@
     "lean/scripts/axiom-check.sh",
     "lean/scripts/axiom-check-cases/**",
     "apps/runner/test/land-verdict.test.ts"
-   ]
+   ],
+   "evidence": "df77494"
   },
   {
    "devices": [
@@ -7017,8 +7020,10 @@
     "lean/scripts/PortGolden.lean",
     "scripts/port/**",
     "docs/team/tools/visual-diff.md",
-    "apps/runner/src/land.ts"
-   ]
+    "apps/runner/src/land.ts",
+    "research/notes/2026/10-19-port-fonts-check-cells.md"
+   ],
+   "evidence": "688f476"
   },
   {
    "devices": [
@@ -7041,7 +7046,17 @@
     "scripts/ci-paths.mjs",
     "lean/Fw/Ops/LakeJobsGen.lean",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/land-lane.md"
+    "docs/team/handoffs/land-lane.md",
+    "apps/console-api/src/core/lean.ts",
+    "apps/console-api/test/crash.test.ts",
+    "apps/console-api/test/preview-facts-gen.test.ts",
+    ".github/actions/setup-lean/**",
+    ".github/scripts/land-base.sh",
+    "apps/runner/test/watch.test.ts",
+    "apps/runner/test/land-lane.test.ts",
+    "apps/runner/test/fixtures/**",
+    "lean/land-filter.txt",
+    "lean/scripts/check.sh"
    ]
   },
   {
@@ -7084,7 +7099,10 @@
     "lean/Fw/Parts/Nav*.lean",
     "packages/contracts/golden/parts/**",
     "research/notes/2026/10-19-nav-scroll-hide.md",
-    "docs/team/handoffs/nav-scroll-hide-check.md"
+    "docs/team/handoffs/nav-scroll-hide-check.md",
+    "apps/site/src/parts/pain.notes/liveness.test.ts",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean"
    ]
   },
   {
@@ -7108,7 +7126,8 @@
     "lean/Fw/Ops/Golden.lean",
     "lean/Fw.lean",
     "lean/Fw/Wire/**"
-   ]
+   ],
+   "evidence": "ac31e9c"
   },
   {
    "devices": [
@@ -7123,7 +7142,9 @@
     "apps/site/src/styles/**",
     "apps/site/src/parts/**/*.css",
     "apps/site/src/parts/**/*.tsx",
-    "docs/team/handoffs/port-font-gaps.md"
+    "docs/team/handoffs/port-font-gaps.md",
+    "apps/site/src/theme.ts",
+    "apps/site/src/font-stack.test.ts"
    ]
   },
   {
@@ -7168,7 +7189,8 @@
     "lean/FwTest/Mutants/LeanFirst/**",
     "lean/Fw/Ops/LeanFirstProps.lean",
     "lean/Fw/Ops/LeanFirstSearch.lean"
-   ]
+   ],
+   "evidence": "7a3a7ab"
   },
   {
    "devices": [
@@ -7193,7 +7215,8 @@
     "apps/runner/src/land.ts",
     "apps/runner/test/**",
     "docs/team/handoffs/console-reconcile-speed.md"
-   ]
+   ],
+   "evidence": "4e1515a"
   },
   {
    "devices": [
@@ -7212,7 +7235,116 @@
     "scripts/ci-paths.mjs",
     "scripts/ci-paths.test.mjs",
     "lean/Fw/Ops/LakeJobsGen.lean",
-    "docs/team/handoffs/ci-main-triggers.md"
+    "docs/team/handoffs/ci-main-triggers.md",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ops/LakeCache.lean",
+    "lean/Fw.lean",
+    "apps/runner/src/ci.ts",
+    "apps/runner/test/ci.test.ts",
+    "docs/team/tools/fw-ci.md",
+    "docs/team/tools/gate-speed.md",
+    "docs/team/tools/difftest.md",
+    ".claude/agents/measure-engineer.md",
+    "apps/runner/src/fw.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "platform-willchange",
+   "owner": "part-builder",
+   "stream": "parts",
+   "title": "Restore the original's will-change: transform on platform.stageBg and platform.marquee (regression from 8276822d) without undoing the proved hidden-pause; breakpoint gate shows no platform will-change readings on the default and v2-proved arms, both engines",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/platform/**",
+    "apps/site/src/parts/platform.*/**",
+    "apps/site/src/styles/**",
+    "apps/site/src/flags/**",
+    "lean/Fw/Parts/**",
+    "packages/contracts/golden/parts/**",
+    "docs/team/handoffs/platform-willchange.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "reconcile-sched-trace",
+   "owner": "lean-prover",
+   "stream": "console",
+   "title": "ReconcileSched follow-up: run over event lists, Inv reachable from init, ticket bound under interleaved requests; Reconciler.pass memoizes the board per seq for the whole pass; bench script in repo",
+   "deps": [
+    "console-reconcile-speed"
+   ],
+   "writes": [
+    "lean/Fw/Console/ReconcileSched*.lean",
+    "packages/contracts/golden/console/reconcile-sched.jsonl",
+    "lean/scripts/ReconcileSchedGolden.lean",
+    "apps/console-api/src/reconcile/**",
+    "apps/console-api/src/store.ts",
+    "apps/console-api/scripts/**",
+    "apps/console-api/test/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fonts-followups",
+   "owner": "measure-engineer",
+   "stream": "parts",
+   "title": "Check 5 follow-ups: overlay buttons (signup, drawer, langMenu) read by the fonts reader; per-section paired-leaf counts in fonts.json; pin time-driven unpaired leaves (platform.entries, commission.typing, pain.notes) before check 5 turns blocking; name WebKit invalid cells; body font stack from one source",
+   "deps": [
+    "port-font-gaps",
+    "port-fonts-check"
+   ],
+   "writes": [
+    "packages/visual-diff/**",
+    "scripts/port/**",
+    "lean/Fw/Port/**",
+    "packages/contracts/golden/port/**",
+    "apps/site/src/theme.ts",
+    "apps/site/src/styles/reset.css",
+    "apps/site/src/font-stack.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-lane-followups",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "Land lane follow-ups: fork-point base for multi-commit branches; record ci/preview-pin in refs with a named failure when objects are missing; coreUser list in Lean",
+   "deps": [
+    "land-lane"
+   ],
+   "writes": [
+    ".github/scripts/land-base.sh",
+    "apps/runner/test/land-lane.test.ts",
+    "apps/console-api/test/preview-facts-gen.test.ts",
+    "refs/**",
+    "lean/Fw/Console/LandTier*.lean",
+    "apps/runner/src/land.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wave2-stageas-g2",
+   "owner": "measure-engineer",
+   "stream": "experiments",
+   "title": "engine-check wave2: run stageAs for pages without row variants (G2) so preset-arm attribution is written by the guard, not by hand",
+   "deps": [
+    "integrate-wave-2"
+   ],
+   "writes": [
+    "packages/engine-check/src/wave2.mjs",
+    "packages/engine-check/test/wave2.test.mjs",
+    "results/integrate-wave-2/engine-check/summary.json"
    ]
   }
  ],

@@ -1,6 +1,6 @@
 # port-fonts-check: visual-diff verdicts per cell, inject baseline vs the none runs
 
-Source: the visual-diff matrix tables of CI runs (workflow visual-diff, branch ci/port-fonts-check, head 34e6805c): inject baseline 39245980604 (assets=inject), none runs n1 39245919162, n2 39248286394, n3 39248398577 (assets=none, the port as built).
+Source: the visual-diff matrix tables of CI runs (workflow visual-diff, branch ci/port-fonts-check): inject baseline 39245980604 (assets=inject) and none run n1 39245919162 at cb49c4d3; none runs n2 39248286394 and n3 39248398577 at 34e6805c (assets=none, the port as built). cb49c4d3..34e6805c changes only scripts/port/fonts.mjs.
 Verdicts: P pass, F fail, U unsettled, I invalid, - absent in both arms (nc). Columns: part, probe, inject, n1, n2, n3, flag (one table per engine).
 A cell is listed when any none run differs from the inject baseline. Flag "FLIP" marks a cell whose verdict is not the same in the three none runs (run-to-run flip); the other listed cells moved from inject to one stable none verdict.
 

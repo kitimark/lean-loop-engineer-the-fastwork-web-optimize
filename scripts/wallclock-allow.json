@@ -130,6 +130,11 @@
    "file": "apps/site/src/svg-extract.test.ts",
    "text": "timeout: 60_000",
    "reason": "hang catcher, not a speed assertion: spawns a generator or scans the tracked tree; 5 s default timed out at load 200 and refused 3 lands on 2026-10-19"
+  },
+  {
+   "file": "apps/site/test/port-fonts.test.mjs",
+   "text": "timeout: 120000",
+   "reason": "hang catcher, not a speed assertion: launches a real browser for two probes (runs only with FW_PORT_FONTS_ENGINE set, on CI); fails the test if the browser never answers"
   }
  ]
 }

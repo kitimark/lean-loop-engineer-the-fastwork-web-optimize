@@ -18,7 +18,7 @@ CI, head 4e62cce1, assets=none: push 39253450733, dispatch 39256117644; both gre
   `pain.notes` (1). Not font gaps; they stop wherever the scroll or timer left them. Follow-up: settle or pin them (an exclusion in `Fw.Port.Text`
   would also weaken check 2, so none was added).
 - Gap list (font-change pairs only): buttons draw Arial (-webkit-standard in WebKit) instead of Google Sans in hero Join waitlist, hero.cue, morph.panel,
-  people.carousel and people.deck items (37 leaves at 400, 22 at 500); hero.countdown (4) and morph.countdown (4) digits and one morph.panel text draw system-ui.
+  people.carousel and people.deck items (people.deck 23/9 (400/500) at desk-1512..861, 37/22 at desk-641 and narrower; hero Join waitlist, hero.cue, morph.panel and people.carousel 1 leaf each at 500); hero.countdown (4) and morph.countdown (4) digits and one morph.panel text draw system-ui.
 - Visual diff: the old "about 25 flips" was wrong: 63 of 496 cells hold no single verdict over the 3 old none runs (chromium 29, webkit 34). Inject baseline:
   0 P on both engines (chromium 0 P / 116 F; webkit 0 P / 121 F / 8 I). The new head's two runs differ in 14 (chromium) and 16 (webkit) cells.
   Webkit shows 16-19 invalid cells on the new head (the old runs had none), cause not looked at. tolerances.json unchanged. Flips are a settle follow-up.

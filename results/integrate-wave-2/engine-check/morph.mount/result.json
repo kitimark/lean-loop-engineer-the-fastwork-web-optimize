@@ -1,0 +1,279 @@
+{
+ "tally": {
+  "modelBug": 0,
+  "pass": 5,
+  "unusable": 3
+ },
+ "verdicts": [
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.FunctionCall",
+   "engine": "chromium",
+   "prediction": "any",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "script",
+   "totals": {
+    "base": [
+     2471,
+     2471,
+     2471
+    ],
+    "variant": [
+     3423,
+     3423,
+     3423
+    ]
+   },
+   "variant": "rewrite+?fw=morph.mount:shift",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "deterministic",
+    "variant": "deterministic"
+   },
+   "countType": "trace.UpdateLayoutTree",
+   "engine": "chromium",
+   "prediction": "any",
+   "reason": "any: no claim",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "style",
+   "totals": {
+    "base": [
+     0,
+     0,
+     0
+    ],
+    "variant": [
+     0,
+     0,
+     0
+    ]
+   },
+   "variant": "rewrite+?fw=morph.mount:shift",
+   "verdict": "pass",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.Layout",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "layout",
+   "totals": {
+    "base": [
+     0,
+     0,
+     0
+    ],
+    "variant": [
+     0,
+     0,
+     0
+    ]
+   },
+   "variant": "rewrite+?fw=morph.mount:shift",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.Layout.dirtyObjects",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "layout",
+   "totals": {
+    "base": [
+     0,
+     0,
+     0
+    ],
+    "variant": [
+     0,
+     0,
+     0
+    ]
+   },
+   "variant": "rewrite+?fw=morph.mount:shift",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "stable(k=4, t=0)",
+    "variant": "stable(k=4, t=0)"
+   },
+   "countType": "metric.LayoutCount",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "layout",
+   "totals": {
+    "base": [
+     0,
+     0,
+     0
+    ],
+    "variant": [
+     0,
+     0,
+     0
+    ]
+   },
+   "variant": "rewrite+?fw=morph.mount:shift",
+   "verdict": "pass",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "stable(k=2, t=0)",
+    "variant": "stable(k=2, t=0)"
+   },
+   "countType": "trace.PrePaint",
+   "engine": "chromium",
+   "prediction": "any",
+   "reason": "any: no claim",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "props",
+   "totals": {
+    "base": [
+     1939,
+     1939,
+     1939
+    ],
+    "variant": [
+     1939,
+     1939,
+     1939
+    ]
+   },
+   "variant": "rewrite+?fw=morph.mount:shift",
+   "verdict": "pass",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "stable(k=4, t=0)",
+    "variant": "stable(k=4, t=0)"
+   },
+   "countType": "raster.invalidationAreaPx",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "paint",
+   "totals": {
+    "base": [
+     386416920,
+     386416920,
+     386416920
+    ],
+    "variant": [
+     386416920,
+     386416920,
+     386416920
+    ]
+   },
+   "variant": "rewrite+?fw=morph.mount:shift",
+   "verdict": "pass",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "deterministic",
+    "variant": "deterministic"
+   },
+   "countType": "trace.cc.Commit",
+   "engine": "chromium",
+   "prediction": "any",
+   "reason": "any: no claim",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "commit",
+   "totals": {
+    "base": [
+     953,
+     953,
+     953
+    ],
+    "variant": [
+     953,
+     953,
+     953
+    ]
+   },
+   "variant": "rewrite+?fw=morph.mount:shift",
+   "verdict": "pass",
+   "confounds": []
+  }
+ ],
+ "page": {
+  "part": "morph.mount",
+  "base": "39259991865",
+  "arm": "39260576409",
+  "baseSearch": "?only=morph.mount&stage=vw:430,vh:932",
+  "search": "?fw=morph.mount:shift&only=morph.mount&stage=vw:430,vh:932",
+  "pairs": [
+   "morph.mount:shift"
+  ],
+  "armFlags": [
+   "morph.mount:shift"
+  ],
+  "attribution": "MEASURED"
+ }
+}
