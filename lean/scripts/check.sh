@@ -66,6 +66,9 @@ run_group() {
   job "lakegc golden check" lake env lean --run scripts/LakeGcGolden.lean --check  # golden/ops/lakegc.jsonl (Fw.Ops.LakeGc)
   job "preset v2-proved check" sh -c "printf 'import Fw.Preset.Gen\\n#eval Fw.Preset.Gen.run [\"--check\"]\\n' | lake env lean --stdin"  # regenerates the v2-proved preset files from the findings ledger and the parts; any byte difference fails (Fw.Preset.Gen.run)
   job "salvage golden check" lake env lean --run scripts/SalvageGolden.lean --check  # golden/ops/salvage.jsonl (Fw.Ops.Salvage)
+  job "obs golden check" lake env lean --run scripts/ObsGolden.lean --check  # golden/obs/health.jsonl and backoff.jsonl (Fw.Obs)
+  job "timing golden check" lake env lean --run scripts/TimingGolden.lean --check  # golden/obs/timing.jsonl (Fw.Obs.Timing)
+  job "ops golden check" lake env lean --run scripts/OpsGolden.lean --check  # golden/ops/*.jsonl incl. the obs life cases (Fw.Ops.Obs)
   job "faithful golden check" lake env lean --run scripts/FaithfulGolden.lean --check  # golden/faithful/faithful.{verdict,comparable}.jsonl (Fw.Faithful)
   # props lint (one registry in Fw.Spec.Incidents, rows match the ledger, properties do not name the impl), run once over
   # every lean_lib plus the test cases scripts/props-lint-cases/Adv.lean: the findings must be exactly Adv.expected.txt

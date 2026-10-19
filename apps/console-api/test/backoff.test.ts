@@ -9,7 +9,7 @@ import { selectCore } from "../src/core/index.ts";
 
 const cases = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../../packages/contracts/golden/obs/backoff.jsonl"), "utf8")
   .trim().split("\n").map((l) => JSON.parse(l)) as {
-  name: string; request: { params: { loadHigh: number; extra: number }; load: number; baseMs: number; waitedMs: number };
+  name: string; request: { params?: { loadHigh: number; extra: number }; load: number; baseMs: number; waitedMs: number };
   response: { action: string; waitMs: number };
 }[];
 const core = selectCore();
@@ -19,7 +19,7 @@ describe("obs.backoff golden", () => {
   for (const c of cases) {
     const r = c.request;
     it(`TS rule: ${c.name}`, () => {
-      expect(backoffDecision(r.load, r.baseMs, r.waitedMs, r.params.loadHigh, r.params.extra)).toEqual(c.response);
+      expect(backoffDecision(r.load, r.baseMs, r.waitedMs, r.params?.loadHigh, r.params?.extra)).toEqual(c.response);
     });
     it(`fwcore: ${c.name}`, async () => {
       expect(await core.ops("obs.backoff", r)).toMatchObject(c.response);

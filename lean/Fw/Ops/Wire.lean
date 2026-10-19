@@ -22,7 +22,7 @@ are non-negative integers (seconds, tokens, ms); a non-integer number is refused
 | `ops.meter` | `params`?, `state`? {window, fired [{agent, rule}]}, `now`, `agents` [{agent, ctx, idleSec, ttlSec? or w5m?/w1h?, wakeGapSec?}] | `state`, `alerts` [{agent, rule, window}], `verdicts` [{agent, verdict, ttlSec}] |
 | `ops.hook` | `payloads` (raw hook stdin objects) | `hooks` [{sessionId, event, agentId, agentType, who, toolName, toolUseId, durationMs, error, isInterrupt, promptId, teammateName}], `errors` [{index, error}] |
 | `ops.obs` | `records`? [{agent_id?, hook_event_name, tool_use_id?, ts}], `lines`? [{hook_event_name, agent_type?, tool_name?, is_error?, duration_ms?}] (extra fields ignored) | `keys` (one obs key per record, in order), `summary` [{agent_type, tool_name, calls, errors, total_ms}] (first-seen group order) |
-| `ops.obs` (admission and life, task task-state-truth) | `raw`? [spool lines as strings], `life`? [{event, agent_id?, agent_name?, key, ts, epoch? (the time of the last stop sent for agent_id, 0 if none)}], `labels`? [{id, name}], `fieldAlert`? {now, open [step ids], issues [{issue, count}]} | `admitted` [{ok: true, key, rec (the kept known fields), unknown [names], notes [soft-field reasons], issues [names]} or {ok: false, why, issues [names]}], `tally` {accepted, rejected, unknown [{field, count}], issues [{issue, count}]}; `life` [one list per request: [{kind (`spawn`/`stop`), key, agent, at} or {kind `label`, key, agent, name}]]; `labels` [{key, agent, name} or null]; `alert` {step, key, title} or null. Each only when requested |
+| `ops.obs` (admission and life, task task-state-truth) | `raw`? [spool lines as strings], `life`? [{event, agent_id?, agent_name?, key, ts, epoch? (the time of the last stop sent for agent_id, 0 if none)}], `labels`? [{id, name}], `fieldAlert`? {now, open [step ids], issues [{issue, count}]} | `admitted` [{ok: true, key, rec (the kept known fields), unknown [names], notes [soft-field reasons], issues [names]} or {ok: false, why, issues [names]}], `tally` {accepted, rejected, unknown [{field, count}], issues [{issue, count}]}; `epochs` [one number per `life` request: the agent's stop epoch after that record (`Fw.Ops.Obs.epochNext`: a stop raises it to the record time, a start resets it to 0)]; `life` [one list per request: [{kind (`spawn`/`stop`), key, agent, at} or {kind `label`, key, agent, name}]]; `labels` [{key, agent, name} or null]; `alert` {step, key, title} or null. Each only when requested |
 | `ops.cap` | `agent_id`?, `agent_type`? (as `ops.actor`), `tokens` (a Bash input lexed: a string is a word, `{"redir":"2>&1"}` a redirect, `{"stop":"|"}` a control operator) | `decision` (`mint`/`noMint`), `actor`, `argv` (when minted), `reason` (`notFwPrefix`/`unknownActor`, when not) |
 | `ops.door` | `actor`, `secret`? (bool) | `accept` (the door without capability takes this actor), `agentActor` |
 | `ops.wait` | `cmd` (the Bash command text), `caps`? {maxSleepSec?} | `decision` (`allow`/`deny`), `reason` (null, `bgLong` or `unboundedLoop`), `shape` (`bgLong`: `fwWatch`/`loop`/`server`/`tail`/`longSleep`, else null) |
@@ -494,7 +494,10 @@ def opObs (req : Json) : Except String Reply := do
       let ds ← (← arr req "life").toList.mapM fun l => do
         pure (lifeOf (← str l "event") (← optS l "agent_id") (← optS l "agent_name")
           (← str l "key") (← nat l "ts") (← natD l "epoch" 0))
-      pure [("life", .arr (ds.toArray.map fun d => .arr (d.toArray.map lifeJson)))]
+      let es ← (← arr req "life").toList.mapM fun l => do
+        pure (epochNext (← str l "event") (← nat l "ts") (← natD l "epoch" 0))
+      pure [("life", .arr (ds.toArray.map fun d => .arr (d.toArray.map lifeJson))),
+        ("epochs", .arr (es.toArray.map toJson))]
   let resume : Reply ← match opt req "resume" with
     | none => pure []
     | some _ => do

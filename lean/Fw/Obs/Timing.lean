@@ -9,8 +9,8 @@ time by a wide margin (the sweeps-vs-shards case of the breakpoint gate). A step
 agent to investigate and improve (task `timing-alert` wires the op and the alert).
 
 Definitions (all durations in whole ms, `Nat`):
-* A sample is $(\mathit{tool}, \mathit{step}, d, h, \lambda)$ with host $h \in \{\mathsf{local}, \mathsf{ci}\}$ and
-  $\lambda$ the floor of the 1-min load average when it ran. Its key is $(\mathit{tool}, \mathit{step}, h)$.
+* A sample is $(\mathit{tool}, \mathit{step}, d, h, \lambda, \mathit{kind})$ with host $h \in \{\mathsf{local}, \mathsf{ci}\}$ and
+  $\lambda$ the floor of the 1-min load average when it ran. Its key is $(\mathit{tool}, \mathit{step}, h, \mathit{kind})$.
 * A local sample with $\lambda > L$ is **noisy**: it gets the verdict `noisy` and never enters a window. A CI sample is
   never noisy.
 * The **window** of a sample is the last $N$ non-noisy samples with the same key that come before it in the input.
@@ -62,7 +62,7 @@ deriving DecidableEq, Repr
 kind (empty when the run has none; for a CI dispatch the digest of its inputs, so runs with different inputs are
 different histories).
 
-$$s = (\mathit{tool}, \mathit{step}, d, h, \lambda, \kappa) \in \mathrm{String} \times \mathrm{String} \times \mathbb N \times \mathrm{Host} \times \mathbb N \times \mathrm{String}$$
+$$s = (\mathit{tool}, \mathit{step}, d, h, \lambda, \mathit{kind}) \in \mathrm{String} \times \mathrm{String} \times \mathbb N \times \mathrm{Host} \times \mathbb N \times \mathrm{String}$$
 -/
 structure Sample where
   tool  : String
@@ -272,7 +272,7 @@ def codeOf (p : Params) (w : List Nat) (s : Sample) : Code :=
 /-- The verdict of one sample: its index, key and duration, the code, the window size, the baseline (p50 of the
 window, 0 for an empty window) and the budget.
 
-$$v = (i, \mathit{tool}, \mathit{step}, h, d, c, n, b, B)$$
+$$v = (i, \mathit{tool}, \mathit{step}, h, d, c, n, b, B, \mathit{kind})$$
 -/
 structure SampleVerdict where
   idx      : Nat
@@ -290,7 +290,7 @@ deriving DecidableEq, Repr
 /-- The verdict of sample `s` at index `i` with the earlier samples `hist`: `slow` when it breaches its step's ceiling
 (whatever the window), else the code against the window.
 
-$$\operatorname{judge}_p(H, i, s) = (i, \mathit{tool}_s, \mathit{step}_s, h_s, d_s, c, |w|, \operatorname{p50}(w), B^*_p(s)),\quad c = \begin{cases} \mathsf{slow} & \operatorname{breach}_p(s) \\ \operatorname{code}_p(w, s) & \text{otherwise} \end{cases},\quad w = \operatorname{win}_p(H, \operatorname{key}(s))$$
+$$\operatorname{judge}_p(H, i, s) = (i, \mathit{tool}_s, \mathit{step}_s, h_s, d_s, c, |w|, \operatorname{p50}(w), B^*_p(s), \mathit{kind}_s),\quad c = \begin{cases} \mathsf{slow} & \operatorname{breach}_p(s) \\ \operatorname{code}_p(w, s) & \text{otherwise} \end{cases},\quad w = \operatorname{win}_p(H, \operatorname{key}(s))$$
 -/
 def judge (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
   let w := windowOf p hist s.key
@@ -1044,6 +1044,31 @@ theorem mem_window (p : Params) (hist : List Sample) (k : Key) (x : Nat) (h : x 
   unfold windowOf lastN at h
   obtain ⟨s, hs, rfl⟩ := List.mem_map.1 (List.mem_of_mem_drop h)
   exact ⟨s, (List.mem_filter.1 hs).1, rfl⟩
+
+/-- A value of a window comes from a sample of exactly that key, so a window never mixes run kinds.
+
+$$\forall p, H, \kappa, x:\quad x \in \operatorname{win}_p(H, \kappa) \Rightarrow \exists s \in H.\ \operatorname{key}(s) = \kappa \wedge d_s = x$$
+-/
+theorem mem_window_key (p : Params) (hist : List Sample) (k : Key) (x : Nat) (h : x ∈ windowOf p hist k) :
+    ∃ s ∈ hist, s.key = k ∧ s.durMs = x := by
+  unfold windowOf lastN at h
+  obtain ⟨s, hs, rfl⟩ := List.mem_map.1 (List.mem_of_mem_drop h)
+  have := List.mem_filter.1 hs
+  have hk : s.key = k := by
+    have h2 := this.2
+    simp only [Bool.and_eq_true, decide_eq_true_eq] at h2
+    exact h2.1
+  exact ⟨s, this.1, hk, rfl⟩
+
+/-- A window never mixes run kinds: every value of the window of key $\kappa$ comes from a sample whose run kind is the
+kind of $\kappa$.
+
+$$\forall p, H, \kappa, x:\quad x \in \operatorname{win}_p(H, \kappa) \Rightarrow \exists s \in H.\ \mathit{kind}(s) = \mathit{kind}(\kappa) \wedge d_s = x$$
+-/
+theorem mem_window_kind (p : Params) (hist : List Sample) (k : Key) (x : Nat) (h : x ∈ windowOf p hist k) :
+    ∃ s ∈ hist, s.kind = k.kind ∧ s.durMs = x := by
+  obtain ⟨s, hs, hk, hd⟩ := mem_window_key p hist k x h
+  exact ⟨s, hs, by rw [← hk]; rfl, hd⟩
 
 /-- A stable series is never `slow`: when $n_{\min} \ge 1$, no sample breaches a ceiling, and every two durations of
 the series are within the factor $k$ ($k_d \cdot d_s \le k_n \cdot d_t$), no sample verdict is `slow`.

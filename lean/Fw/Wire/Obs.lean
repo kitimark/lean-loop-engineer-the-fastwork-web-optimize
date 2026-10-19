@@ -151,7 +151,8 @@ def agentFields (a : Agent) : List (String × Json) :=
     ("stoppedAt", onat a.stoppedAt), ("errTail", toJson a.errTail),
     ("inflight", match a.inflight with | some f => inflightJson f | none => .null),
     ("lastTool", ostr a.lastTool), ("lastToolAt", onat a.lastToolAt), ("idleAt", onat a.idleAt),
-    ("workflowDone", .bool a.workflowDone), ("transcriptOnly", .bool a.transcriptOnly), ("ctxTokens", onat a.ctxTokens)]
+    ("workflowDone", .bool a.workflowDone), ("transcriptOnly", .bool a.transcriptOnly), ("ctxTokens", onat a.ctxTokens),
+    ("sessionPid", onat a.sessionPid)]
 
 /-- An agent as JSON (every field written; absent options are `null`). -/
 def agentJson (a : Agent) : Json := Json.mkObj (agentFields a)
@@ -169,7 +170,7 @@ def agentOf (j : Json) : Except String Agent := do
          stoppedAt := ← optN j "stoppedAt", errTail := ← natD j "errTail" 0, inflight := ← optInflight j,
          lastTool := ← optS j "lastTool", lastToolAt := ← optN j "lastToolAt", idleAt := ← optN j "idleAt",
          workflowDone := ← boolD j "workflowDone" false, transcriptOnly := ← boolD j "transcriptOnly" false,
-         ctxTokens := ← optN j "ctxTokens" }
+         ctxTokens := ← optN j "ctxTokens", sessionPid := ← optN j "sessionPid" }
 
 /-- The lead session's facts as JSON. -/
 def leadJson (l : Lead) : Json := Json.mkObj [("lastToolAt", onat l.lastToolAt), ("noteAt", onat l.noteAt)]
@@ -248,7 +249,14 @@ def systemJson (s : System) : Json :=
     ("simLock", simLockJson s.simLock), ("docker", .arr (s.docker.toArray.map containerJson)),
     ("worktrees", toJson s.worktrees), ("ci", .arr (s.ci.toArray.map ciJson)), ("loadFloor", toJson s.loadFloor),
     ("procs", .arr (s.procs.toArray.map procJson)), ("services", .arr (s.services.toArray.map toJson)),
-    ("keep", .arr (s.keep.toArray.map toJson)), ("svcs", .arr (s.svcs.toArray.map svcJson))]
+    ("keep", .arr (s.keep.toArray.map toJson)), ("svcs", .arr (s.svcs.toArray.map svcJson)),
+    ("alivePids", match s.alivePids with | some l => .arr (l.toArray.map toJson) | none => .null)]
+
+/-- The optional listed pids (absent or `null`: the process table was not read). -/
+def alivePidsOf (j : Json) : Except String (Option (List Nat)) :=
+  match opt j "alivePids" with
+  | none => pure none
+  | some _ => do pure (some (← (← arrD j "alivePids").mapM (asNat "alivePids")))
 
 /-- Decode the system facts; `diskFreeGB` is required. -/
 def systemOf (j : Json) : Except String System := do
@@ -262,7 +270,8 @@ def systemOf (j : Json) : Except String System := do
          docker := ← (← arrD j "docker").mapM containerOf, worktrees := ← natD j "worktrees" 0,
          ci := ← (← arrD j "ci").mapM ciOf, loadFloor := ← natD j "loadFloor" 0,
          procs := ← (← arrD j "procs").mapM procOf, services := ← (← arrD j "services").mapM (asNat "services"),
-         keep := ← (← arrD j "keep").mapM (asNat "keep"), svcs := ← (← arrD j "svcs").mapM svcOf }
+         keep := ← (← arrD j "keep").mapM (asNat "keep"), svcs := ← (← arrD j "svcs").mapM svcOf,
+         alivePids := ← alivePidsOf j }
 
 /-- A request body as JSON: `now`, `params`, `agents`, `lead`, `system`, `prevAt`, `critical`. -/
 def reqJson (p : Params) (o : Obs) : Json :=
@@ -390,7 +399,9 @@ theorem agentOf_agentJson (a : Agent) : agentOf (agentJson a) = .ok a := by
     unfold boolD opt; rw [g "transcriptOnly" _ (by unfold agentFields; mem_lit)]; cases a.transcriptOnly <;> rfl
   have hc : optN (agentJson a) "ctxTokens" = .ok a.ctxTokens := by
     unfold optN opt; rw [g "ctxTokens" _ (by unfold agentFields; mem_lit)]; cases a.ctxTokens <;> rfl
-  simp only [agentOf, hid, hn, ht, hk, hp, hst, hl, hs, he, hi, hlt, hla, hia, hw, hr, hc, ok_bind]
+  have hsp : optN (agentJson a) "sessionPid" = .ok a.sessionPid := by
+    unfold optN opt; rw [g "sessionPid" _ (by unfold agentFields; mem_lit)]; cases a.sessionPid <;> rfl
+  simp only [agentOf, hid, hn, ht, hk, hp, hst, hl, hs, he, hi, hlt, hla, hia, hw, hr, hc, hsp, ok_bind]
   rfl
 
 /-- The lead session's facts round-trip.
@@ -456,21 +467,30 @@ set_option maxHeartbeats 1000000 in
 $$\forall s:\quad \operatorname{systemOf}(\operatorname{systemJson}(s)) = \mathrm{ok}(s)$$
 -/
 theorem systemOf_systemJson (s : System) : systemOf (systemJson s) = .ok s := by
-  obtain ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs⟩ := s
-  have hd := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs⟩) "docker" _ rfl
-  have hc := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs⟩) "ci" _ rfl
-  have hq := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs⟩) "procs" _ rfl
-  have hv := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs⟩) "services" _ rfl
-  have hw := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs⟩) "svcs" _ rfl
-  have hk := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs⟩) "keep" _ rfl
-  have hm : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs⟩) "memPressure" =
+  obtain ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al⟩ := s
+  have hd := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al⟩) "docker" _ rfl
+  have hc := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al⟩) "ci" _ rfl
+  have hq := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al⟩) "procs" _ rfl
+  have hv := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al⟩) "services" _ rfl
+  have hw := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al⟩) "svcs" _ rfl
+  have hk := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al⟩) "keep" _ rfl
+  have hm : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al⟩) "memPressure" =
       some (.str (memName mem)) := rfl
-  have hl : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs⟩) "simLock" =
+  have hl : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al⟩) "simLock" =
       some (simLockJson ⟨holder, since⟩) := rfl
+  have hal : alivePidsOf (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al⟩) = .ok al := by
+    cases al with
+    | none => rfl
+    | some l =>
+      have h := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, some l⟩) "alivePids" (l.toArray.map toJson) rfl
+      have ho : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, some l⟩) "alivePids" =
+          some (.arr (l.toArray.map toJson)) := rfl
+      simp only [alivePidsOf, ho, h, Array.toList_map, ok_bind, mapM_rt toJson (asNat "alivePids") (fun _ => rfl)]
+      rfl
   have hml : memOf (memName mem) = .ok mem := by cases mem <;> rfl
   have hsl : simLockOf (simLockJson ⟨holder, since⟩) = .ok ⟨holder, since⟩ := by
     cases holder <;> cases since <;> rfl
-  simp only [systemOf, hd, hc, hq, hv, hk, hw, hm, hl, Array.toList_map, ok_bind,
+  simp only [systemOf, hd, hc, hq, hv, hk, hw, hm, hl, hal, Array.toList_map, ok_bind,
     mapM_rt containerJson containerOf containerOf_containerJson, mapM_rt ciJson ciOf ciOf_ciJson,
     mapM_rt procJson procOf procOf_procJson, mapM_rt toJson (asNat "services") (fun _ => rfl),
     mapM_rt toJson (asNat "keep") (fun _ => rfl), mapM_rt svcJson svcOf svcOf_svcJson]
@@ -522,14 +542,14 @@ def reportFields (r : Report) : Reply :=
 /-- `obs.health`: decode the snapshot, compute the report. -/
 def opHealth (req : Json) : Except String Reply := do
   let (p, o) ← reqOf req
-  pure (reportFields (health p o))
+  pure (reportFields (health p (settle o)))
 
 /-- The reply to an encoded request is the encoded report.
 
-$$\forall p, o:\quad \operatorname{opHealth}(\operatorname{reqJson}(p, o)) = \mathrm{ok}(\operatorname{fields}(\operatorname{health}(p, o)))$$
+$$\forall p, o:\quad \operatorname{opHealth}(\operatorname{reqJson}(p, o)) = \mathrm{ok}(\operatorname{fields}(\operatorname{health}(p, \operatorname{settle}(o))))$$
 -/
 theorem opHealth_reqJson (p : Params) (o : Obs) :
-    opHealth (reqJson p o) = .ok (reportFields (health p o)) := by
+    opHealth (reqJson p o) = .ok (reportFields (health p (settle o))) := by
   simp only [opHealth, reqOf_reqJson, ok_bind]
   rfl
 

@@ -13,6 +13,8 @@ export interface SpoolEvent {
   agent_id: string | null; agent_type: string | null; hook_event_name: string;
   tool_name: string | null; tool_use_id: string | null; duration_ms: number | null;
   is_error: boolean | null; verb: string | null; ts: number;
+  /** the Claude session whose hook wrote the line (absent in old lines) */
+  session_pid?: number | null;
 }
 export interface Tokens { in: number; out: number; cacheRead: number; cacheWrite: number }
 /** Agent kinds on the wire (Fw.Obs.Health.Kind; the lead is not an agent row here, it is `Snapshot.lead`). */
@@ -33,6 +35,8 @@ export interface AgentSnap {
   errTail: number; inflight: { tool: string; verb: string | null; since: number } | null;
   lastTool: string | null; lastToolAt: number | null; idleAt: number | null; workflowDone: boolean; transcriptOnly: boolean;
   ctxTokens: number | null; tokens: Tokens;
+  /** the pid of the Claude session whose hooks wrote the agent's spool (null: none recorded); Lean `deadSession` */
+  sessionPid?: number | null;
 }
 /** The lead session's facts (spool/main.jsonl): its last tool event and its last Notification. */
 export interface LeadSnap { lastToolAt: number | null; noteAt: number | null }
@@ -57,6 +61,8 @@ export interface SystemSnap {
   /** the running code (console-api, its fwcore child, the fwcore binary on disk): per input group whether the range
    *  base..main touches it (fwcore raises svc.stale), or why the base is unknown (svc.unknown); see watch-svc.ts */
   svcs?: Svc[];
+  /** every pid of the process table read this time (absent when `ps` failed: no agent is judged by it); Lean `deadSession` */
+  alivePids?: number[];
   /** collectors that failed this time and whose value was carried forward from the previous check
    *  ("ci", "docker", "procs", "plan") */
   stale: string[];
@@ -110,11 +116,15 @@ export interface SpoolSummary {
   lastTool: string | null; lastToolAt: number | null;
   /** the newest TeammateIdle (only teammates fire it) */
   idleAt: number | null;
+  /** the session pid of the newest line that has one */
+  sessionPid?: number | null;
 }
 export function summarizeSpool(events: SpoolEvent[]): SpoolSummary {
   let lastStart = -1;
-  const s: SpoolSummary = { agentType: null, startedAt: null, lastAt: null, stoppedAt: null, tools: 0, errors: 0, errTail: 0, lastTool: null, lastToolAt: null, idleAt: null };
+  const s: SpoolSummary = { agentType: null, startedAt: null, lastAt: null, stoppedAt: null, tools: 0, errors: 0, errTail: 0, lastTool: null, lastToolAt: null, idleAt: null, sessionPid: null };
+  let pidAt = -1;
   for (const e of events) {
+    if (typeof e.session_pid === "number" && e.ts >= pidAt) { pidAt = e.ts; s.sessionPid = e.session_pid; }
     s.agentType ||= str(e.agent_type);
     if (s.startedAt === null || e.ts < s.startedAt) s.startedAt = e.ts;
     if (s.lastAt === null || e.ts > s.lastAt) s.lastAt = e.ts;
@@ -574,6 +584,7 @@ export function collectAgents(p: Paths, now: number, owners?: Map<string, string
       lastTool: sp ? sp.lastTool : tr?.lastTool ?? null, lastToolAt: sp ? sp.lastToolAt : tr?.lastToolAt ?? null,
       idleAt: sp?.idleAt ?? null,
       workflowDone: kind === "workflow" && !!tf && workflowFinished(tf, wfCache), transcriptOnly: !sp,
+      sessionPid: sp?.sessionPid ?? null,
       ctxTokens: tr?.ctxTokens ?? null, tokens: tr?.tokens ?? { in: 0, out: 0, cacheRead: 0, cacheWrite: 0 },
     });
   }
@@ -840,6 +851,7 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     load1: Math.round(loadavg()[0]! * 100) / 100, loadFloor: Math.floor(loadavg()[0]!), memPressure: parseMemLevel(text(mem)),
     diskFreeGB: disk, simLock: collectSimLock(p.root), docker, worktrees: parseWorktreeCount(text(wt)),
     consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], keep, svcs, stale,
+    ...(ps === null || rows.length === 0 ? {} : { alivePids: rows.map((r) => r.pid) }),
   };
 }
 

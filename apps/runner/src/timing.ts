@@ -3,11 +3,14 @@
 //  - append-only, one O_APPEND write per line (atomic for lines < PIPE_BUF, so concurrent tools never interleave);
 //  - never fails or slows the wrapped step: every error is swallowed, no spawn (HEAD is read from .git, not `git rev-parse`);
 //  - no personal data: the line holds a tool name, a step label, numbers and a short sha. Never a path or user name.
+import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { loadavg } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
-export type Span = { tool: string; step: string; startMs: number; durMs: number; exit: number | null; commit: string; load: number; host: "local" | "ci"; runId?: number };
+export type Span = { tool: string; step: string; startMs: number; durMs: number; exit: number | null; commit: string; load: number; host: "local" | "ci"; runId?: number;
+  /** the run kind (Lean `Fw.Obs.Timing.Sample.kind`): for a CI run dispatched by `fw run`, the digest of its workflow inputs; "" and absent for every other span */
+  kind?: string };
 
 type Where = { main: string; sha: string };
 const cache = new Map<string, Where>();
@@ -96,18 +99,53 @@ export const CI_VIEW_FIELDS = "workflowName,headSha,jobs";
 const exitOfConclusion = (c?: string): number | null => (c === "success" || c === "skipped" ? 0 : c ? 1 : null);
 
 /** Spans of one finished run, pure: skips jobs/steps without both timestamps. */
-export function ciSpans(runId: number, run: GhRun, load = 0): Span[] {
+export function ciSpans(runId: number, run: GhRun, load = 0, kind = ""): Span[] {
   const out: Span[] = [];
   const mk = (step: string, a?: string, b?: string, c?: string): void => {
     const s = Date.parse(a ?? ""), e = Date.parse(b ?? "");
     if (!Number.isFinite(s) || !Number.isFinite(e) || s <= 0) return; // gh prints 0001-01-01 for steps that never ran
-    out.push({ tool: run.workflowName, step, startMs: s, durMs: Math.max(0, e - s), exit: exitOfConclusion(c), commit: (run.headSha ?? "").slice(0, 7), load, host: "ci", runId });
+    out.push({ tool: run.workflowName, step, startMs: s, durMs: Math.max(0, e - s), exit: exitOfConclusion(c), commit: (run.headSha ?? "").slice(0, 7), load, host: "ci", runId, ...(kind ? { kind } : {}) });
   };
   for (const j of run.jobs ?? []) {
     mk(j.name, j.startedAt, j.completedAt, j.conclusion);
     for (const s of j.steps ?? []) mk(`${j.name}/${s.name}`, s.startedAt, s.completedAt, s.conclusion);
   }
   return out;
+}
+
+// ---- run kinds: which inputs a dispatched CI run had ----------------------------------------------------------------
+// `fw run` knows the inputs it dispatched (PlanJob.inputs) once the run id is decided; the spans of that run are written
+// later (`fw ci wait`, `fw timings --backfill`), so the kind is passed through a file of {runId, kind} lines. A run not
+// dispatched by `fw run` (a push, a hand dispatch) has no line: its spans carry no kind (kind "").
+
+/** The kinds file beside a timings file. */
+export const kindsFile = (timings: string): string => join(dirname(timings), "run-kinds.jsonl");
+
+/** The kind of a dispatch: a short digest of its inputs, in key order (equal inputs, equal kind; the order of keys is not part of it). */
+export function inputsKind(inputs: Record<string, string | number | boolean>): string {
+  const rows = Object.entries(inputs).map(([k, v]) => [k, String(v)] as const).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return createHash("sha256").update(JSON.stringify(rows)).digest("hex").slice(0, 12);
+}
+
+/** Remember the kind of a dispatched run. Never throws; returns the kind written ("" when nothing could be written). */
+export function recordRunKind(runId: number, inputs: Record<string, string | number | boolean>, cwd: string = process.cwd()): string {
+  try {
+    const t = timingsFile(cwd);
+    if (!t) return "";
+    const kind = inputsKind(inputs);
+    mkdirSync(dirname(t), { recursive: true });
+    appendFileSync(kindsFile(t), JSON.stringify({ runId, kind }) + "\n");
+    return kind;
+  } catch { return ""; }
+}
+
+/** run id -> kind from a kinds file (the newest line of a run wins; torn lines are skipped). */
+export function kindsOf(file: string): Map<number, string> {
+  const m = new Map<number, string>();
+  for (const l of (rd(file) ?? "").split("\n")) {
+    try { const o = JSON.parse(l); if (Number.isInteger(o.runId) && typeof o.kind === "string" && o.kind !== "") m.set(o.runId, o.kind); } catch { /* torn line */ }
+  }
+  return m;
 }
 
 /** Run ids already written to the timings file. */
@@ -122,7 +160,7 @@ export function recordCiRun(runId: number, run: GhRun, cwd: string = process.cwd
   try {
     const f = timingsFile(cwd);
     if (!f || seenRuns(f).has(runId)) return 0;
-    const spans = ciSpans(runId, run);
+    const spans = ciSpans(runId, run, 0, kindsOf(kindsFile(f)).get(runId) ?? "");
     if (!spans.length) return 0;
     mkdirSync(dirname(f), { recursive: true });
     appendFileSync(f, spans.map((s) => JSON.stringify(s)).join("\n") + "\n");

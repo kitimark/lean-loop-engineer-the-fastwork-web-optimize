@@ -313,10 +313,10 @@ deriving Repr, DecidableEq
 (decision fields, marked $^{s}$): `agent_id` (required, nullable, non-empty, at most 120 units: a
 contract id, since it is a life key), `hook_event_name`
 (required, not null, non-empty), `agent_name` (optional, nullable, non-empty, at most 120 units: a
-contract id), `ts` (required, not null). All others are soft: six required nullable fields and ten
+contract id), `ts` (required, not null). All others are soft: six required nullable fields and eleven
 optional nullable fields.
 
-$$\mathit{specs} = [\texttt{agent\_id}{:}\,\mathrm{name}(120)^{s}, \texttt{agent\_type}{:}\,\mathrm{str}(200), \texttt{hook\_event\_name}{:}\,\mathrm{name}(200)^{!s}, \texttt{tool\_name}{:}\,\mathrm{str}(200), \texttt{tool\_use\_id}{:}\,\mathrm{str}(200), \texttt{duration\_ms}{:}\,\mathrm{nat}, \texttt{is\_error}{:}\,\mathrm{bool}, \texttt{verb}{:}\,\mathrm{str}(40), \texttt{agent\_name}{:}\,\mathrm{name}(120)^{?s}, \texttt{seen\_by}{:}\,\mathrm{str}(40)^{?}, \texttt{role}{:}\,\mathrm{str}(200)^{?}, \texttt{want\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{got\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{isolation}{:}\,\mathrm{bool}^{?}, \texttt{depth}{:}\,\mathrm{nat}^{?}, \texttt{has\_name}{:}\,\mathrm{bool}^{?}, \texttt{notification\_type}{:}\,\mathrm{str}(40)^{?}, \texttt{message\_len}{:}\,\mathrm{nat}^{?}, \texttt{background\_tasks}{:}\,\mathrm{nat}^{?}, \texttt{ts}{:}\,\mathrm{nat}^{!s}]$$
+$$\mathit{specs} = [\texttt{agent\_id}{:}\,\mathrm{name}(120)^{s}, \texttt{agent\_type}{:}\,\mathrm{str}(200), \texttt{hook\_event\_name}{:}\,\mathrm{name}(200)^{!s}, \texttt{tool\_name}{:}\,\mathrm{str}(200), \texttt{tool\_use\_id}{:}\,\mathrm{str}(200), \texttt{duration\_ms}{:}\,\mathrm{nat}, \texttt{is\_error}{:}\,\mathrm{bool}, \texttt{verb}{:}\,\mathrm{str}(40), \texttt{agent\_name}{:}\,\mathrm{name}(120)^{?s}, \texttt{seen\_by}{:}\,\mathrm{str}(40)^{?}, \texttt{role}{:}\,\mathrm{str}(200)^{?}, \texttt{want\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{got\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{isolation}{:}\,\mathrm{bool}^{?}, \texttt{depth}{:}\,\mathrm{nat}^{?}, \texttt{has\_name}{:}\,\mathrm{bool}^{?}, \texttt{notification\_type}{:}\,\mathrm{str}(40)^{?}, \texttt{message\_len}{:}\,\mathrm{nat}^{?}, \texttt{background\_tasks}{:}\,\mathrm{nat}^{?}, \texttt{session\_pid}{:}\,\mathrm{nat}^{?}, \texttt{ts}{:}\,\mathrm{nat}^{!s}]$$
 
 Unmarked: required and nullable; $^{?}$: optional and nullable; $^{!}$: required, not nullable;
 $^{s}$: strict.
@@ -331,7 +331,8 @@ def specs : List Spec := [
   ⟨"got_kind", .str 40, true, false, false⟩, ⟨"isolation", .bool, true, false, false⟩,
   ⟨"depth", .nat, true, false, false⟩, ⟨"has_name", .bool, true, false, false⟩,
   ⟨"notification_type", .str 40, true, false, false⟩, ⟨"message_len", .nat, true, false, false⟩,
-  ⟨"background_tasks", .nat, true, false, false⟩, ⟨"ts", .nat, false, true, true⟩]
+  ⟨"background_tasks", .nat, true, false, false⟩, ⟨"session_pid", .nat, true, false, false⟩,
+  ⟨"ts", .nat, false, true, true⟩]
 
 /-- Does a value fit a spec: null when nullable, a string within the length (non-empty for a name),
 a natural for `nat`, a boolean for `bool`; `other` never fits.
@@ -1114,7 +1115,7 @@ theorem no_revive_after_stop (e i k : String) (t p : Nat) (hp : 0 < p)
 /-- **A start revives a stopped id** (`start_revives`): a `SubagentStart` of $i$ later than every stop of $i$ makes $i$
 live and its name not ended, whatever the stop epoch.
 
-$$\forall \pi, i, a, g, k, t, p:\quad i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\texttt{start:}k, i, t) \in \operatorname{lifeOf}(\texttt{SubagentStart}, \mathrm{some}(i), g, k, t, p) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false}$$
+$$\forall \pi, i, a, g, k, t, p:\quad i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\texttt{start:}k, i, t) \in \operatorname{lifeOf}(\texttt{SubagentStart}, \mathrm{some}(i), g, k, t, p) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false},\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
 -/
 theorem start_revives (π : Fw.Plan.State) {i a : String} (g : Option String) (k : String)
     (t p : Nat) (hk : i ∈ Fw.Plan.keysOf π a) (hs : ∀ q ∈ π.stops, q.1 = i → q.2 < t) :
@@ -1122,6 +1123,44 @@ theorem start_revives (π : Fw.Plan.State) {i a : String} (g : Option String) (k
       Fw.Plan.liveK (Fw.Plan.step π (.spawn i t)) i = true ∧
       Fw.Plan.ended (Fw.Plan.step π (.spawn i t)) a = false :=
   ⟨start_by_id i g k t p, Fw.Plan.revive_on_event π hk hs⟩
+
+/-- **The stop epoch after a record** (`epochNext`): a `SubagentStop` at $t$ raises the epoch to $\max(p, t)$; a
+`SubagentStart` at $t$ newer than the epoch resets it to $0$ (the agent lives again, so its tool calls are heartbeats
+again; an older start resets nothing, as in `stoppedAtOf`); any other event leaves it.
+
+$$\operatorname{epochNext}(e, t, p) = \begin{cases} \max(p, t) & e = \texttt{SubagentStop} \\ 0 & e = \texttt{SubagentStart} \land p < t \\ p & \text{otherwise} \end{cases}$$
+
+The drain keeps one epoch per agent id and sets it from this function after each record.
+-/
+def epochNext (event : String) (ts epoch : Nat) : Nat :=
+  if event == "SubagentStop" then max epoch ts
+  else if event == "SubagentStart" && decide (epoch < ts) then 0
+  else epoch
+
+/-- **A resumed agent heartbeats again** (`heartbeat_after_resume`): a stop of $i$ at $s$, then a start at $t$ newer than
+the stop and than every earlier stop ($p < t$), then an event $e$ of $i$ other than a start or stop at $u$ gives a
+heartbeat spawn of $i$ at $u$, so the agent shows running again. Without the start the same event gives no command
+(`silent_after_stop_epoch`).
+
+$$\forall e, i, k, p, s, t, u:\quad p < t \land s < t \land e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \Rightarrow \operatorname{byId}(e, \mathrm{some}(i), k, u, q) = [\mathrm{spawn}(\operatorname{seenKey}(i, 0, u), i, u)],\quad q = \operatorname{epochNext}(\texttt{SubagentStart}, t, \operatorname{epochNext}(\texttt{SubagentStop}, s, p))$$
+-/
+theorem heartbeat_after_resume (e i k : String) (p s t u : Nat) (hp : p < t) (hs : s < t)
+    (h1 : e ≠ "SubagentStart") (h2 : e ≠ "SubagentStop") :
+    byId e (some i) k u
+      (epochNext "SubagentStart" t (epochNext "SubagentStop" s p)) =
+      [Life.spawn (seenKey i 0 u) i u] := by
+  have : max p s < t := by omega
+  simp [byId, epochNext, h1, h2, this]
+
+/-- **Stopped without a start stays silent** (`silent_after_stop_epoch`): after a stop at $s > 0$ the epoch is positive, so an
+event other than a start or stop gives no command.
+
+$$\forall e, i, k, p, s, u:\quad 0 < s \land e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \Rightarrow \operatorname{byId}(e, \mathrm{some}(i), k, u, \operatorname{epochNext}(\texttt{SubagentStop}, s, p)) = [\,]$$
+-/
+theorem silent_after_stop_epoch (e i k : String) (p s u : Nat) (hs : 0 < s)
+    (h1 : e ≠ "SubagentStart") (h2 : e ≠ "SubagentStop") :
+    byId e (some i) k u (epochNext "SubagentStop" s p) = [] :=
+  no_revive_after_stop e i k u _ (by simp [epochNext]; omega) h1 h2
 
 /-! ### The resume predicate (task `alert-rules-fix`)
 

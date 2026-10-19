@@ -42,6 +42,11 @@ describe("spool", () => {
     expect(summarizeSpool(parseSpool([ev("a", "SubagentStart", 1), ev("a", "SubagentStop", 5), ev("a", "SubagentStart", 9)].join("\n"))).stoppedAt).toBeNull();
     expect(summarizeSpool(parseSpool([ev("a", "SubagentStop", 5), ev("a", "PostToolUse", 9)].join("\n"))).stoppedAt).toBe(5);
   });
+  it("carries the session pid of the newest line that has one", () => {
+    const s = summarizeSpool(parseSpool([ev("a", "SubagentStart", 1, { session_pid: 11 }), ev("a", "PostToolUse", 5, { session_pid: 12 }), ev("a", "PostToolUse", 9)].join("\n")));
+    expect(s.sessionPid).toBe(12);
+    expect(summarizeSpool(parseSpool(ev("a", "PostToolUse", 9))).sessionPid).toBeNull();
+  });
   it("follows the Lean golden of the resume predicate (Fw.Ops.Obs.stoppedAtOf): only a SubagentStart after the stop resumes", () => {
     const rows = readFileSync(join(here, "../../../packages/contracts/golden/ops/ops.obs.jsonl"), "utf8").trim().split("\n")
       .map((l) => JSON.parse(l) as { name: string; request: { resume?: { hooks: { event: string; ts: number }[] }[] }; response: { resume?: (number | null)[] } })
@@ -172,6 +177,13 @@ describe("system carry-forward", () => {
     expect(old).toMatchObject({ stale: ["docker", "ci"], ci: [], docker: [] });
     const miss = await collectSystem(p, { at: 1000, system: prevSys() }, 2000, exec("missing"));
     expect(miss).toMatchObject({ stale: [], ci: [], docker: [] });
+  });
+  it("the process table's pids are the alive pids (Lean deadSession); an unread table gives none, so no agent is judged by it", async () => {
+    const ps = "  1     0 05:00 /sbin/launchd\n  77     1 01:00 claude\n";
+    const ok = await collectSystem(p, { at: 1000, system: prevSys() }, 2000, async (cmd, args) => (cmd === "ps" && args[1] === "-o" && args[2]?.startsWith("pid=") ? ps : cmd === "gh" || cmd === "docker" ? "" : ""));
+    expect(ok.alivePids).toEqual([1, 77]);
+    const none = await collectSystem(p, { at: 1000, system: prevSys() }, 2000, async (cmd) => (cmd === "ps" ? null : ""));
+    expect(none.alivePids).toBeUndefined();
   });
   it("keep comes from the decision over the lstart rows; a failed decision keeps the previous value, marked stale", async () => {
     const lstart = "  42 Sun Oct 18 09:58:17 2026 node apps/runner/src/fw.ts watch --interval 300 --stream\n";

@@ -64,6 +64,13 @@ structure Typed where
 /-- The typed cases (encoded with `reqJson`, so every field is written). -/
 def typed : List Typed := [
   { name := "empty team, healthy system: no alerts", o := { now := t0, system := okSys } },
+  { name := "dead session (alert-rules-fix): an agent whose session pid is not in the process table is done: no stalled, no toolHang, not counted live",
+    o := { now := t0, agents := [{ ag "a" 99 with sessionPid := some 100, inflight := some ⟨"Bash", ago 99⟩ }, { ag "b" 99 with sessionPid := some 200, inflight := some ⟨"Bash", ago 99⟩ }],
+           system := { okSys with alivePids := some [1, 200] } } },
+  { name := "unread process table (alert-rules-fix): no agent is judged by its session pid",
+    o := { now := t0, agents := [{ ag "a" 99 with sessionPid := some 100 }], system := okSys } },
+  { name := "no session pid (alert-rules-fix): an agent without one is judged as before even when the table is read",
+    o := { now := t0, agents := [ag "a" 99], system := { okSys with alivePids := some [1] } } },
   { name := "active: last event 9 min 59.999 s ago (idleMin 10)", o := { now := t0, agents := [{ ag "a" 0 with lastAt := ago 10 1 }], system := okSys } },
   { name := "idle: last event exactly 10 min ago", o := { now := t0, agents := [ag "a" 10], system := okSys } },
   { name := "idle: 19 min 59.999 s ago, just under stallMin 20", o := { now := t0, agents := [{ ag "a" 0 with lastAt := ago 20 1 }], system := okSys } },
@@ -329,6 +336,7 @@ structure BackoffCase where
   load   : Nat
   base   : Nat := 10000
   waited : Nat := 10000
+  noParams : Bool := false
 
 /-- The `obs.backoff` cases: both sides of `loadHigh`, the wait, the restart after it, and the edges of the total. -/
 def backoffCases : List BackoffCase := [
@@ -340,15 +348,17 @@ def backoffCases : List BackoffCase := [
   { name := "load 115, waited 29.999 s: wait the last 1 ms", load := 115, waited := 29999 },
   { name := "load fell to 3 while waiting: restart at once", load := 3, waited := 20000 },
   { name := "replay chunk (base 120 s), load 115: wait 240 s more", load := 115, base := 120000, waited := 120000 },
+  { name := "no params in the request: the defaults loadHigh 50, extra 2 apply", load := 115, noParams := true },
   { name := "extra 0: loaded or not, restart at the first deadline", p := { extra := 0 }, load := 115 },
   { name := "loadHigh 10, extra 5, base 1 s, load 10: wait 5 s more", p := { loadHigh := 10, extra := 5 }, load := 10, base := 1000, waited := 1000 }]
 
 /-- The text of the `obs.backoff` golden file. -/
 def backoffText : String :=
   String.join (backoffCases.map fun c =>
-    let req := Json.mkObj [("op", .str "obs.backoff"),
-      ("params", Json.mkObj [("loadHigh", toJson c.p.loadHigh), ("extra", toJson c.p.extra)]),
-      ("load", toJson c.load), ("baseMs", toJson c.base), ("waitedMs", toJson c.waited)]
+    let params := if c.noParams then [] else
+      [("params", Json.mkObj [("loadHigh", toJson c.p.loadHigh), ("extra", toJson c.p.extra)])]
+    let req := Json.mkObj ([("op", .str "obs.backoff")] ++ params ++
+      [("load", toJson c.load), ("baseMs", toJson c.base), ("waitedMs", toJson c.waited)])
     (Json.mkObj [("name", .str c.name), ("request", req),
       ("response", Json.mkObj (Fw.Wire.Obs.Backoff.decisionJson
         (Fw.Obs.Backoff.onTimeout c.p c.load c.base c.waited)))]).compress ++ "\n")

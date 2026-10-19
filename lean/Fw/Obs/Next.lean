@@ -1652,7 +1652,7 @@ when its code is `slow`, no later sample of the same history exists (a newer sam
 of its history was not slow (the alert is the ok to slow transition, so a step that stays slow does not re-alert).
 Structural verdicts are never alerts. The subjects are in verdict order, with repeats.
 
-$$\operatorname{sl}_P(\mathsf{sample}(v) :: R) = \bigl[\operatorname{name}(v) \mid c_v = \mathsf{slow} \wedge \neg\operatorname{later}(v, R) \wedge \neg\operatorname{prevSlow}(v, P)\bigr] \mathbin{+\!\!+} \operatorname{sl}_{v :: P}(R),\quad \operatorname{sl}_P(\mathsf{structural}(\_) :: R) = \operatorname{sl}_P(R)$$
+$$\operatorname{sl}_P([\,]) = [\,],\quad \operatorname{sl}_P(\mathsf{sample}(v) :: R) = \bigl[\operatorname{name}(v) \mid c_v = \mathsf{slow} \wedge \neg\operatorname{later}(v, R) \wedge \neg\operatorname{prevSlow}(v, P)\bigr] \mathbin{+\!\!+} \operatorname{sl}_{v :: P}(R),\quad \operatorname{sl}_P(\mathsf{structural}(\_) :: R) = \operatorname{sl}_P(R)$$
 -/
 def slowLatestFrom (prev : List Timing.SampleVerdict) : List Timing.Verdict → List String
   | [] => []

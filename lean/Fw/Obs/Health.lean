@@ -75,13 +75,13 @@ def msPerMin : Nat := 60000
 /-- The thresholds. Upper thresholds reached at or above (a value equal to the threshold alerts): `idleMin`,
 `stallMin`, `toolHangMin` (minutes), `errStreak` (failed calls), `simLockMaxMin` (minutes), `loadMax` (1-min load
 average); upper thresholds passed only strictly above (a value equal to the threshold does not alert): `ctxResumeMax`,
-`ctxWarn` (tokens), `agentCap` (live non-lead agents), `worktreesMax`, `ciSlowMin`, `toolSlowMin`, `procMaxMin`
+`ctxWarn` (tokens), `agentCap` (live non-lead agents), `worktreesMax`, `ciSlowMin` (per workflow `ciSlowBy`, strict too), `toolSlowMin`, `procMaxMin`
 (minutes); the lower threshold `diskMinGB` (free GB strictly below it alerts); and two thresholds that decide which
 agents have ended (they are not alert thresholds): `wfQuietMin`, the minutes without an event after which a workflow
 agent seen only in its transcript counts as done, and `goneAfterMin`, the minutes strictly above which any agent
 without an event counts as gone.
 
-$$p = (\mathit{idle}, \mathit{stall}, \mathit{hang}, \mathit{err}, \mathit{ctxMax}, \mathit{ctxWarn}, \mathit{diskMin}, \mathit{cap}, \mathit{simMax}, \mathit{wtMax}, \mathit{wfQuiet}, \mathit{goneAfter}, \mathit{ciSlowMin}, \mathit{toolSlow}, \mathit{procMax}, \mathit{loadMax}) \in \mathbb N^{16}$$
+$$p = (\mathit{idle}, \mathit{stall}, \mathit{hang}, \mathit{err}, \mathit{ctxMax}, \mathit{ctxWarn}, \mathit{diskMin}, \mathit{cap}, \mathit{simMax}, \mathit{wtMax}, \mathit{wfQuiet}, \mathit{goneAfter}, \mathit{ciSlowMin}, \mathit{toolSlow}, \mathit{procMax}, \mathit{loadMax}, \mathit{ciSlowBy}) \in \mathbb N^{16} \times (\mathrm{String} \times \mathbb N)^*$$
 -/
 structure Params where
   idleMin       : Nat := 10
@@ -106,7 +106,7 @@ deriving DecidableEq, Repr
 /-- **The `ci.slow` limit of a workflow**: the entry of the per-workflow map `ciSlowBy` when the workflow has one,
 otherwise the global `ciSlowMin`.
 
-$$\mu_p(w) = \begin{cases} m & (w, m) \in \mathit{ciSlowBy}_p\ (\text{first entry for } w) \\ \mathit{ciSlowMin}_p & \text{no entry for } w \end{cases}$$
+$$s_p(w) = \begin{cases} m & (w, m) \in \mathit{ciSlowBy}_p\ (\text{first entry for } w) \\ \mathit{ciSlowMin}_p & \text{no entry for } w \end{cases}$$
 
 `breakpoint-gate` runs 20 to 25 minutes (p50 of 2026-10-19), so its default limit is 40 minutes, not the global 20.
 -/
@@ -115,7 +115,7 @@ def ciSlowFor (p : Params) (w : String) : Nat :=
 
 /-- **The global value is the default** (`ciSlowFor_default`): a workflow with no entry in the map is judged by `ciSlowMin`.
 
-$$\forall p, w:\quad w \notin \operatorname{dom}(\mathit{ciSlowBy}_p) \Rightarrow \mu_p(w) = \mathit{ciSlowMin}_p$$
+$$\forall p, w:\quad w \notin \operatorname{dom}(\mathit{ciSlowBy}_p) \Rightarrow s_p(w) = \mathit{ciSlowMin}_p$$
 -/
 theorem ciSlowFor_default (p : Params) (w : String) (h : p.ciSlowBy.lookup w = none) :
     ciSlowFor p w = p.ciSlowMin := by
@@ -123,14 +123,14 @@ theorem ciSlowFor_default (p : Params) (w : String) (h : p.ciSlowBy.lookup w = n
 
 /-- **With an empty map every workflow uses the global value** (`ciSlowFor_nil`).
 
-$$\forall p, w:\quad \mathit{ciSlowBy}_p = [\,] \Rightarrow \mu_p(w) = \mathit{ciSlowMin}_p$$
+$$\forall p, w:\quad \mathit{ciSlowBy}_p = [\,] \Rightarrow s_p(w) = \mathit{ciSlowMin}_p$$
 -/
 theorem ciSlowFor_nil (p : Params) (w : String) (h : p.ciSlowBy = []) : ciSlowFor p w = p.ciSlowMin := by
   simp [ciSlowFor, h, List.lookup]
 
 /-- **An entry overrides the global value** (`ciSlowFor_entry`): when the first entry for $w$ is $m$, the limit of $w$ is $m$.
 
-$$\forall p, w, m:\quad \mathit{ciSlowBy}_p.\mathrm{lookup}(w) = \mathrm{some}(m) \Rightarrow \mu_p(w) = m$$
+$$\forall p, w, m:\quad \mathit{ciSlowBy}_p.\mathrm{lookup}(w) = \mathrm{some}(m) \Rightarrow s_p(w) = m$$
 -/
 theorem ciSlowFor_entry (p : Params) (w : String) (m : Nat) (h : p.ciSlowBy.lookup w = some m) :
     ciSlowFor p w = m := by
@@ -158,9 +158,10 @@ deriving DecidableEq, Repr
 that spawned it (`none` when the lead did, or unknown), start, last event and stop times (ms; `stoppedAt` is `none`
 while it runs), the number of failed tool calls at the end of its log, the tool call in flight, the name and time of
 its last finished tool call, the time of its last `TeammateIdle` event, whether its workflow run has finished, whether
-it is seen only in its transcript (no hook event), and its context size.
+it is seen only in its transcript (no hook event), its context size, and the pid of the Claude session whose hooks
+wrote its spool (`none` when the spool has none).
 
-$$a = (\mathit{id}, \mathit{name}_\bot, \mathit{task}_\bot, k, \mathit{parent}_\bot, \mathit{start}, \mathit{last}, \mathit{stop}_\bot, \mathit{errTail}, f_\bot, \mathit{lastTool}_\bot, \mathit{lastToolAt}_\bot, \mathit{idleAt}_\bot, \mathit{wfDone}, \mathit{trOnly}, \mathit{ctx}_\bot)$$
+$$a = (\mathit{id}, \mathit{name}_\bot, \mathit{task}_\bot, k, \mathit{parent}_\bot, \mathit{start}, \mathit{last}, \mathit{stop}_\bot, \mathit{errTail}, f_\bot, \mathit{lastTool}_\bot, \mathit{lastToolAt}_\bot, \mathit{idleAt}_\bot, \mathit{wfDone}, \mathit{trOnly}, \mathit{ctx}_\bot, \mathit{sess}_\bot)$$
 -/
 structure Agent where
   id             : String
@@ -179,6 +180,7 @@ structure Agent where
   workflowDone   : Bool := false
   transcriptOnly : Bool := false
   ctxTokens      : Option Nat := none
+  sessionPid     : Option Nat := none
 deriving DecidableEq, Repr
 
 /-- The lead session's facts: the time of its last finished tool call and of the last `Notification` hook event
@@ -254,7 +256,10 @@ the number of git worktrees, recent CI runs, the floor of the 1-min load average
 service pids (long-running on purpose: the console server, the watcher itself), and the pids the lead declared as
 intended long-runners (`fw watch --keep`).
 
-$$\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
+$$\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D, V, \mathit{al}_\bot)$$
+
+$V$ the services' facts. `alivePids` is the set of pids the process table listed at the observation (`none`: the table was not read, so no agent
+is judged by it).
 -/
 structure System where
   diskFreeGB  : Nat := 0
@@ -268,6 +273,7 @@ structure System where
   services    : List Nat := []
   keep        : List Nat := []
   svcs        : List Svc := []
+  alivePids   : Option (List Nat) := none
 deriving DecidableEq, Repr
 
 /-- One observation: the time it was taken (ms), the agents, the lead session's facts, the system facts, the time of
@@ -1033,18 +1039,18 @@ def ciRunning (r : CiRun) : Bool :=
   r.status == "queued" || r.status == "in_progress" || r.status == "waiting" || r.status == "requested" ||
     r.status == "pending"
 
-/-- Whether a run is slow: waiting or running for strictly more than `ciSlowMin` minutes since it started.
+/-- Whether a run is slow: waiting or running for strictly more than the workflow's limit $s_p(\mathit{wf}(r))$ minutes since it started.
 
-$$\operatorname{ciSlow}(p, t, r) \iff \operatorname{running}(r) \wedge \mu_p(\mathit{wf}(r)) < t \mathbin{\dot-} \mathit{start}(r)$$
+$$\operatorname{ciSlow}(p, t, r) \iff \operatorname{running}(r) \wedge \mu\, s_p(\mathit{wf}(r)) < t \mathbin{\dot-} \mathit{start}(r)$$
 -/
 def ciSlowB (p : Params) (now : Nat) (r : CiRun) : Bool :=
   ciRunning r && decide (ciSlowFor p r.workflow * msPerMin < now - r.startedAt)
 
 /-- Whether a run that the previous check flagged as slow has finished since: it is completed, it ended after the
-previous check's time $q$, and at $q$ it had run for strictly more than `ciSlowMin` minutes (so it was still running
+previous check's time $q$, and at $q$ it had run for strictly more than the workflow's limit $s_p(\mathit{wf}(r))$ minutes (so it was still running
 at $q$ and `ci.slow` was raised). False on the first check or without an end time.
 
-$$\operatorname{ciFin}(p, q_\bot, r) \iff \exists q, e.\ q_\bot = q \wedge \mathit{end}(r) = e \wedge \mathit{status}(r) = \texttt{completed} \wedge q < e \wedge \mu_p(\mathit{wf}(r)) < q \mathbin{\dot-} \mathit{start}(r)$$
+$$\operatorname{ciFin}(p, q_\bot, r) \iff \exists q, e.\ q_\bot = q \wedge \mathit{end}(r) = e \wedge \mathit{status}(r) = \texttt{completed} \wedge q < e \wedge \mu\, s_p(\mathit{wf}(r)) < q \mathbin{\dot-} \mathit{start}(r)$$
 -/
 def ciFinishedB (p : Params) (prev : Option Nat) (r : CiRun) : Bool :=
   match prev, r.endedAt with
@@ -1348,7 +1354,7 @@ theorem ciSetFailed_raised (o : Obs) (r : CiRun) (hr : r ∈ o.system.ci)
     List.mem_filter.2 ⟨(mem_dedupFirst _ _).2 (List.mem_map.2 ⟨r, hr, rfl⟩), by simp [hf, hl]⟩
   exact ⟨_, List.mem_map.2 ⟨ciKey r, hk, rfl⟩, rfl, rfl⟩
 
-/-- `ci.slow`: a run waiting or running for more than `ciSlowMin` minutes.
+/-- `ci.slow`: a run waiting or running for more than the workflow's limit $s_p(\mathit{wf}(r))$ minutes.
 
 $$\operatorname{sCiSlow}(p, o) = [\,(\texttt{ci.slow}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“}\mathit{status}(r)\text{ for }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(r))\text{ min”}, \operatorname{critR}(K, r)) \mid r \leftarrow R,\ \operatorname{ciSlow}(p, t, r)\,],\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
@@ -1514,6 +1520,72 @@ $$\operatorname{count}(p, t, A, s) = |[\, a \in A \mid \operatorname{state}(p, t
 -/
 def countState (p : Params) (now : Nat) (agents : List Agent) (s : State) : Nat :=
   (agents.filter fun a => state p now agents a == s).length
+
+/-! ### A dead session ends its agents (task `alert-rules-fix`)
+
+After a session restart the old session's agents never write a `SubagentStop`. Each agent carries the pid of the session
+whose hooks wrote its spool; when the process table was read and does not list that pid, the agent is dead.
+-/
+
+/-- Whether an agent's session is dead: it carries a session pid, the process table was read, and the pid is not in it.
+
+$$\operatorname{dead}(\Sigma, a) \iff \exists q, L.\ \mathit{sess}(a) = q \wedge \mathit{al}(\Sigma) = L \wedge q \notin L$$
+-/
+def deadSession (alive : Option (List Nat)) (a : Agent) : Bool :=
+  match a.sessionPid, alive with
+  | some q, some l => !l.contains q
+  | _, _ => false
+
+/-- The agent as the rules see it: a dead one is stopped (at its last event if no stop was seen), any other unchanged.
+
+$$\operatorname{settle}(\Sigma, a) = \begin{cases} a[\mathit{stop} := \mathrm{some}(\mathit{stop}(a)\ \mathrm{or}\ \mathit{last}(a))] & \operatorname{dead}(\Sigma, a) \\ a & \text{otherwise} \end{cases}$$
+-/
+def settleAgent (alive : Option (List Nat)) (a : Agent) : Agent :=
+  if deadSession alive a then { a with stoppedAt := some (a.stoppedAt.getD a.lastAt) } else a
+
+/-- The observation with its dead agents stopped.
+
+$$\operatorname{settle}(o) = (t, \operatorname{map}(\operatorname{settle}(\Sigma), A), \ell, \Sigma, \mathit{prev}, K),\quad o = (t, A, \ell, \Sigma, \mathit{prev}, K)$$
+-/
+def settle (o : Obs) : Obs := { o with agents := o.agents.map (settleAgent o.system.alivePids) }
+
+/-- **An agent of a dead session is done and quiet** (`dead_session_done`): it is stopped, its state is `done`, it is not
+live, and it raises no `agent.*` alert (no stall, no tool hang, no slow tool) and does not count toward the agent cap.
+
+$$\forall \Sigma, p, t, A, a:\quad \operatorname{dead}(\Sigma, a) \Rightarrow \operatorname{state}(p, t, A, a') = \mathrm{done} \wedge \operatorname{live}(p, t, a') = \mathrm{false} \wedge \operatorname{agentAlerts}(p, t, A, a') = [\,],\quad a' = \operatorname{settle}(\Sigma, a)$$
+-/
+theorem dead_session_done (alive : Option (List Nat)) (p : Params) (t : Nat) (A : List Agent) (a : Agent)
+    (h : deadSession alive a = true) :
+    state p t A (settleAgent alive a) = .done ∧ live p t (settleAgent alive a) = false ∧
+      agentAlerts p t A (settleAgent alive a) = [] := by
+  have hs : stopped p t (settleAgent alive a) = true := by simp [settleAgent, h, stopped]
+  have hd : state p t A (settleAgent alive a) = .done := (state_done p t A _).2 hs
+  refine ⟨hd, ?_, agentAlerts_quiet p t A _ (.inl hd)⟩
+  simp [live, ended, hs]
+
+/-- **A live session leaves its agents alone** (`alive_session_same`): an agent without a session pid, one whose pid is
+listed, or any agent when the process table was not read, is unchanged.
+
+$$\forall \Sigma, a:\quad \neg\operatorname{dead}(\Sigma, a) \Rightarrow \operatorname{settle}(\Sigma, a) = a$$
+-/
+theorem alive_session_same (alive : Option (List Nat)) (a : Agent) (h : deadSession alive a = false) :
+    settleAgent alive a = a := by
+  simp [settleAgent, h]
+
+/-- **An unread process table judges nobody** (`unread_table_alive`).
+
+$$\forall a:\quad \neg\operatorname{dead}(\bot, a)$$
+-/
+theorem unread_table_alive (a : Agent) : deadSession none a = false := by
+  simp [deadSession]
+
+/-- **A listed pid is alive** (`listed_pid_alive`).
+
+$$\forall L, a, q:\quad \mathit{sess}(a) = q \wedge q \in L \Rightarrow \neg\operatorname{dead}(L, a)$$
+-/
+theorem listed_pid_alive (l : List Nat) (a : Agent) (q : Nat) (hq : a.sessionPid = some q) (hm : q ∈ l) :
+    deadSession (some l) a = false := by
+  simp [deadSession, hq, hm]
 
 /-- The health report of one observation.
 
@@ -1730,7 +1802,7 @@ theorem loadHigh_iff (p : Params) (o : Obs) :
   rw [sys_code_iff p o _ rfl]
   simp only [sysPiece, sLoad, when_ne_nil, decide_eq_true_eq]
 
-/-- A run waiting or running for more than `ciSlowMin` minutes raises `ci.slow` with subject `workflow@branch`.
+/-- A run waiting or running for more than the workflow's limit $s_p(\mathit{wf}(r))$ minutes raises `ci.slow` with subject `workflow@branch`.
 
 $$\forall p, o, r:\quad r \in R \wedge \operatorname{ciSlow}(p, t, r) \Rightarrow \exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{ci.slow} \wedge \mathit{subj}(x) = \mathit{wf}(r)\texttt{@}\mathit{br}(r),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ R = \text{the run list of } \Sigma$$
 -/
@@ -1939,7 +2011,7 @@ theorem orphan_raised (p : Params) (o : Obs) (q : Proc) (g : String) (hq : q ∈
 and both use the same `wfQuietMin` and `goneAfterMin` (they decide which agents have ended, so they are not loosening
 knobs).
 
-$$p \sqsubseteq q \iff \mathit{idle}_p \le \mathit{idle}_q \wedge \mathit{stall}_p \le \mathit{stall}_q \wedge \mathit{hang}_p \le \mathit{hang}_q \wedge \mathit{err}_p \le \mathit{err}_q \wedge \mathit{ctxMax}_p \le \mathit{ctxMax}_q \wedge \mathit{ctxWarn}_p \le \mathit{ctxWarn}_q \wedge \mathit{diskMin}_q \le \mathit{diskMin}_p \wedge \mathit{cap}_p \le \mathit{cap}_q \wedge \mathit{simMax}_p \le \mathit{simMax}_q \wedge \mathit{wtMax}_p \le \mathit{wtMax}_q \wedge \mathit{wfQuiet}_p = \mathit{wfQuiet}_q \wedge \mathit{goneAfter}_p = \mathit{goneAfter}_q \wedge \mathit{toolSlow}_p \le \mathit{toolSlow}_q \wedge \mathit{ciSlowMin}_p \le \mathit{ciSlowMin}_q \wedge \mathit{procMax}_p \le \mathit{procMax}_q \wedge \mathit{loadMax}_p \le \mathit{loadMax}_q$$
+$$p \sqsubseteq q \iff \mathit{idle}_p \le \mathit{idle}_q \wedge \mathit{stall}_p \le \mathit{stall}_q \wedge \mathit{hang}_p \le \mathit{hang}_q \wedge \mathit{err}_p \le \mathit{err}_q \wedge \mathit{ctxMax}_p \le \mathit{ctxMax}_q \wedge \mathit{ctxWarn}_p \le \mathit{ctxWarn}_q \wedge \mathit{diskMin}_q \le \mathit{diskMin}_p \wedge \mathit{cap}_p \le \mathit{cap}_q \wedge \mathit{simMax}_p \le \mathit{simMax}_q \wedge \mathit{wtMax}_p \le \mathit{wtMax}_q \wedge \mathit{wfQuiet}_p = \mathit{wfQuiet}_q \wedge \mathit{goneAfter}_p = \mathit{goneAfter}_q \wedge \mathit{toolSlow}_p \le \mathit{toolSlow}_q \wedge (\forall w.\ s_p(w) \le s_q(w)) \wedge \mathit{procMax}_p \le \mathit{procMax}_q \wedge \mathit{loadMax}_p \le \mathit{loadMax}_q$$
 -/
 structure Looser (p q : Params) : Prop where
   idle : p.idleMin ≤ q.idleMin

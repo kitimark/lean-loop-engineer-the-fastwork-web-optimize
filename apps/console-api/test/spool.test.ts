@@ -179,6 +179,21 @@ describe("spool drain", () => {
     await d.run();
     expect((await store.board()).plan.tasks[0]).toMatchObject({ state: "running", agent: "fix-nav" }); // Fw.Ops.Obs.start_revives
   });
+  it("a resumed agent heartbeats again: stop, start, then a tool call 15 min later is a sighting (Fw.Ops.Obs.heartbeat_after_resume)", async () => {
+    const { dir, store } = await fresh();
+    const T = 1_700_000_000_000;
+    spool(dir, "a1", rec({ agent_id: "id9", hook_event_name: "SubagentStart", tool_use_id: null, tool_name: null, ts: T }));
+    spool(dir, "a1", rec({ agent_id: "id9", hook_event_name: "SubagentStop", tool_use_id: null, tool_name: null, ts: T + 60_000 }));
+    spool(dir, "a1", rec({ agent_id: "id9", tool_use_id: "t1", ts: T + 120_000 }));
+    const d = new Drain(store);
+    await d.run();
+    const seen = () => lines(join(dir, "events.jsonl")).filter((e) => e.type === "agent.spawn" && String(e.key).startsWith("seen:id9|"));
+    expect(seen()).toHaveLength(0); // stopped: a tool call is not a sighting
+    spool(dir, "a1", rec({ agent_id: "id9", hook_event_name: "SubagentStart", tool_use_id: null, tool_name: null, ts: T + 180_000 }));
+    spool(dir, "a1", rec({ agent_id: "id9", tool_use_id: "t2", ts: T + 180_000 + 15 * 60_000 }));
+    await d.run();
+    expect(seen().map((e) => e.key)).toEqual([`seen:id9|0|${Math.floor((T + 180_000 + 15 * 60_000) / 600_000)}`]);
+  });
   it("a fwcore throw in lifeOf: the line is not marked seen, it is retried, counted, and the spool alert names it", async () => {
     const { dir, store } = await fresh();
     spool(dir, "a1", rec());
