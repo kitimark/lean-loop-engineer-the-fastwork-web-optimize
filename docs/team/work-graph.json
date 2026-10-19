@@ -5839,11 +5839,12 @@
     "local"
    ],
    "id": "panel-rest-n11",
-   "title": "n11 morph panel rest (from proved-flags-ts r1): wire rest.ts where the filter lives (parts/platform) and --morph-fade (parts/morph.tween); new optimized registration regenerates the preset decisions golden",
+   "title": "n11 morph panel rest (from proved-flags-ts r1): wire rest.ts where the filter lives (parts/platform) and --morph-fade (parts/morph.tween); new optimized registration regenerates the preset decisions golden; Chromium trade, WebKit win model-only (ledger n11)",
    "stream": "parts",
    "milestone": "M5",
    "deps": [
-    "morph-tween-inherit"
+    "morph-tween-inherit",
+    "proved-flags-ts"
    ],
    "owner": "part-builder",
    "writes": [
@@ -5852,6 +5853,45 @@
     "lean/Fw/Preset/Gen.lean",
     "packages/contracts/golden/preset/**",
     "docs/team/handoffs/panel-rest-n11.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lean-specs-now",
+   "title": "Parallel-now Lean specs that do not rest on the Chromium count model (Fable parallel plan, reviewer-narrowed): n22 commission.typing total-pass lemma (CommissionTyping.lean), n8 spring partition #guard (HeroCountdown.lean), n18 FLIP work and n19 alpha999/st6 work-only specs (PeopleO.lean, PeopleCarousel.lean); no golden writes, no ledger edits (rows go in the handoff for the lead); flags stay off",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/CommissionTyping.lean",
+    "lean/Fw/Parts/HeroCountdown.lean",
+    "lean/Fw/Parts/PeopleO.lean",
+    "lean/Fw/Parts/PeopleCarousel.lean",
+    "docs/team/handoffs/lean-specs-now.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "flag-verdicts-c1",
+   "title": "Per-flag whole-page counts (option C1) on each part's own profile after the refreeze and the classes refreeze (model-bug-fixes): hero.countdown:hidden-skip and morph.panel:rest on fixture-rest, morph.tween:waapi on a profile that pushes the morph (swipe-wheel-v1 or touch), nav.hitTest:elements-skip and people.card:mq / pain.notes:visible after proved-flags-ts lands; at most 2 counts dispatches while a gate runs; no per-part attribution from combined runs for g1/g2 flags until contract-rows-from-code verifies the rows",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "integrate-wave-1",
+    "model-bug-fixes",
+    "proved-flags-ts",
+    "morph-tween-inherit"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "results/**",
+    "research/notes/2026/10-19-flag-verdicts.md",
+    "docs/team/handoffs/flag-verdicts-c1.md"
    ]
   }
  ],
