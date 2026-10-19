@@ -6278,7 +6278,8 @@
     "packages/contracts/golden/console/land-speed.jsonl",
     "lean/Fw.lean",
     "lean/Fw/Site/Head.lean"
-   ]
+   ],
+   "evidence": "a256f92"
   },
   {
    "devices": [
