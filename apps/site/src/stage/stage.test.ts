@@ -3,7 +3,7 @@ import contracts from '../../../../packages/contracts/golden/parts/contracts.gen
 import { parts } from '../registry';
 import { parseOnly } from '../registry/only';
 import { pinEnv, type EnvTarget } from './fixedEnv';
-import { hostOf, hostsOf } from './hosts';
+import { COLUMNS_SECTIONS, hostOf, hostsOf, MAIN_SECTIONS, SECTIONS } from './hosts';
 import { planStage } from './plan';
 import { applyInputs, declaredInputs, type ContractRow } from './inputs';
 
@@ -90,5 +90,12 @@ describe('plan', () => {
       const o = parseOnly(`?only=${g}`);
       if (o.kind === 'ok') expect(planStage(o.stage).mounted).not.toContain(r.id);
     }
+  });
+});
+
+describe('page root', () => {
+  it('splits the sections into the page-root main sections and the columns section, in page order', () => {
+    expect([...MAIN_SECTIONS, ...COLUMNS_SECTIONS]).toEqual([...SECTIONS]);
+    expect(COLUMNS_SECTIONS).toEqual(['columns']);
   });
 });
