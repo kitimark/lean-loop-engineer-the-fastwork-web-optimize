@@ -15,7 +15,7 @@ Verified:
 - Result (`research/notes/2026/10-20-compose-check.md`): coherent set ci/f6-set (11 runs at 575e3087). v2-proved
   composes on 5 of 5 decided cells, all informative, but only `morph.mount:shift` acts in them. The round 1 triple
   composes only vacuously, and its base has commission, pain and people set to shell.
-- `lean/scripts/check.sh` green; engine-check 21 pass, apps/runner 1135 pass with tsc, ci-paths 40 pass.
+- `lean/scripts/check.sh` green; engine-check 21, apps/runner 1135 (with tsc), ci-paths 40 tests pass.
 
 Open:
 - No unit type is frame exact in `classes.frozen.json`, so zone cells never decide.
@@ -27,5 +27,4 @@ Open:
 Conventions: rows are keyed by (stage, count type, zone or whole run). A part is a row's `parts` entry (its single
 delta) and is named in `beyond` and in `coupled`. Downloads: `gh run download <id> -p 'chromium-counts-*' -D <dir>/<id>`,
 then `cli.mjs --compose results/compose-check/plan.json --runs <dir> --out results/compose-check`.
-
 Read first: the note's Result and Answer, then `pre`, `verdict` and `refusal` in Compose.lean.
