@@ -99,6 +99,16 @@ test('job.sh and node-install.sh parse; job.sh handles every step the config cal
   for (const m of cfg.matchAll(/job\.sh (since|[a-z-]+)/g)) assert.ok(new RegExp(`^  ${m[1]}[ )]`, 'm').test(job), `step ${m[1]}`);
 });
 
+test('job.sh sim-run takes the exit status of node, not of a pipe (round 2 finding 1)', () => {
+  const job = readFileSync(join(ROOT, '.circleci', 'job.sh'), 'utf8');
+  const body = job.slice(job.indexOf('sim_run()'), job.indexOf('sim_delete()'));
+  const node = body.split('\n').find((l) => l.includes('node src/cli.mjs determinism'));
+  assert.ok(node, 'the determinism command is in sim_run');
+  assert.ok(!node.includes('|'), 'no pipe after node: `$?` would be the exit status of the last command of the pipe');
+  assert.match(node, /> out\/v1-session-1\.md 2> out\/v1-session-1\.log$/);
+  assert.ok(body.indexOf('rc=$?') > body.indexOf(node), 'rc is read right after node');
+});
+
 test('triggerRequest: the exact request, the token left out', () => {
   const r = triggerRequest({ slug: 's/l/u', definitionId: 'd1', branch: 'ci/x', lane: 'premise-tests', cls: 'arm.large.gen2' });
   assert.equal(r.method, 'POST');

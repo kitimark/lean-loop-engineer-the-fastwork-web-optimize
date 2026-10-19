@@ -110,8 +110,11 @@ sim_run() {  # one VM (v1), one session, the original arm: the same command as t
   cd packages/measure-webkit
   mkdir -p out
   set +e
-  node src/cli.mjs determinism --runs 2 --keep --out out/v1-session-1.json 2> out/v1-session-1.log | tee out/v1-session-1.md
+  # node's own exit status (the GitHub twin takes it through pipefail): the output goes to files, never through a pipe
+  node src/cli.mjs determinism --runs 2 --keep --out out/v1-session-1.json > out/v1-session-1.md 2> out/v1-session-1.log
   rc=$?
+  cat out/v1-session-1.md
+  tail -n 40 out/v1-session-1.log
   { uptime; xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > out/v1-host.txt 2>&1
   cp out/v1-* "$fw/artifacts/" 2>/dev/null
   return "$rc"
