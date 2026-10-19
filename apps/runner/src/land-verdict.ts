@@ -67,15 +67,15 @@ export function dryLog(o: Outcome): string[] {
 export const dryRun = (o: Outcome, task: string): string[] => [...dryLog(o), verdictLine(outcomeKind(o), task)];
 
 /** Lean `Lint.argv` of the lints in `lintPlan`. */
-export const LINT_ARGV = { ciPaths: ["node", "scripts/ci-paths.mjs", "--check"], mathview: ["sh", "-c", "cd lean && scripts/mathview-cached.sh --build >/dev/null"] };
-/** Lean `lintPlan`: the argv of the lints a dry run runs: ci-paths when its script exists; the math-view lint when its script exists
+export const LINT_ARGV = { ciPaths: ["node", "scripts/ci-paths.mjs", "--check"], axioms: ["sh", "-c", "cd lean && lake build >&2 && sh scripts/axiom-check.sh"] };
+/** Lean `lintPlan`: the argv of the lints a dry run runs: ci-paths when its script exists; the axiom check when its script exists
  *  and a changed path is under `lean/`. */
-export function lintPlan(changed: string[], hasCiPaths: boolean, hasMathview: boolean): string[][] {
-  return [...(hasCiPaths ? [LINT_ARGV.ciPaths] : []), ...(hasMathview && changed.some((p) => p.startsWith("lean/")) ? [LINT_ARGV.mathview] : [])];
+export function lintPlan(changed: string[], hasCiPaths: boolean, hasAxioms: boolean): string[][] {
+  return [...(hasCiPaths ? [LINT_ARGV.ciPaths] : []), ...(hasAxioms && changed.some((p) => p.startsWith("lean/")) ? [LINT_ARGV.axioms] : [])];
 }
 
 /** Lean `lintStages`: the `check.sh` stages the dry lint stage runs. */
-export const LINT_STAGES = ["lake build", "mathview lint"];
+export const LINT_STAGES = ["lake build", "axiom check"];
 /** Lean `checkFailKind`: the kind of a real land's `checks` refusal from its failed checks (reads-test match, failed stages). */
 export function checkFailKind(fs: { reads: boolean; stages: string[] }[]): Kind {
   if (fs.some((f) => f.reads)) return "reads";

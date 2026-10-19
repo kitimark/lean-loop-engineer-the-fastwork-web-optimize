@@ -4,8 +4,8 @@ import { NO_API_GROUPS, UsageError, apiBase, gitFullRef, renderBoard, send, step
 import { CARD_USAGE, cardCommand } from "./card.ts";
 import { httpFor, land, type LandResult } from "./land.ts";
 import { dryRun, exitCode, outcome, outcomeKind, verdictLine } from "./land-verdict.ts";
-import { gitOnMain, lintCli, renderPlan, syncCommands, syncRefusal, syncViaCommands, type WorkGraph } from "./plan.ts";
-import { existsSync, readFileSync } from "node:fs";
+import { gitOnMain, lintCli, renderPlan, syncCommands, syncRefusal, type WorkGraph } from "./plan.ts";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { nextMain, watchMain } from "./watch.ts";
@@ -90,16 +90,8 @@ try {
     if (allow.some((a) => !a)) throw new UsageError(LAND_USAGE);
     const task = ti >= 0 ? args[ti + 1] : undefined;
     const landOpts = (task: string | undefined, allow: string[]) => ({ http: httpFor(base), cwd: process.cwd(), argv: process.argv.slice(2), task, allow, dry: !queue && rest.includes("--dry"),
-      // after a landing, sync the board from the work graph of the main checkout, through the plain command door: the
-      // capability of this `pnpm fw land` call may be spent, and the hook mints one only for `pnpm fw ...` commands
+      // the plan sync after a landing is the console reconciler's (it syncs main's work graph when main moves, same keys)
       base,
-      after: async (mainDir: string) => {
-        const f = join(mainDir, "docs/team/work-graph.json");
-        if (!existsSync(f)) return [];
-        const refusal = syncRefusal(mainDir);
-        if (refusal) throw new Error(refusal);
-        return [await syncViaCommands(httpFor(base), JSON.parse(readFileSync(f, "utf8")) as WorkGraph, gitOnMain(mainDir))];
-      },
       // FW_LAND_CHECKS='[["cmd","arg"]]' replaces the default checks (used by the e2e script on a temp repo)
       checks: process.env.FW_LAND_CHECKS ? JSON.parse(process.env.FW_LAND_CHECKS) : undefined });
     if (queue || qstatus) {

@@ -45,11 +45,10 @@ truthfully (tests only). A non-dry land prints its VERDICT line in `fw.ts` as be
 ### The dry land's fast lints
 
 After the reads stage the dry land runs, in the merge-tree worktree (never the main checkout), the fast lints that refused real lands:
-`node scripts/ci-paths.mjs --check` (0.1 s) and, when the change touches `lean/`, the math-view lint the way `lean/scripts/check.sh` runs it
-(`lean/scripts/mathview-cached.sh --build`: whole-tree cache, per-module store; an incremental `lake build` only on a cache miss; no
-`fwtest`, no tests). A failure is `VERDICT lint` (exit 17). Which lints run is Lean `lintPlan`. Order (Lean `Outcome.first`): exception, stale, empty (no own commits), scope, conflict, reads,
+`node scripts/ci-paths.mjs --check` (0.1 s) and, when the change touches `lean/`, the axiom check the way `lean/scripts/check.sh` runs it
+(`lean/scripts/axiom-check.sh`: an incremental `lake build`, then no `sorryAx` and only the standard axioms; no `fwtest`, no tests). A failure is `VERDICT lint` (exit 17). Which lints run is Lean `lintPlan`. Order (Lean `Outcome.first`): exception, stale, empty (no own commits), scope, conflict, reads,
 lint, dry (`kind_spec`: the kind is the first failing stage in that order); `dry_pass_all`: dry means every one of them passed. A real
-land prints `lint` too when a failed check reports only the `check.sh` stages `lake build` / `mathview lint` (Lean `checkFailKind`,
+land prints `lint` too when a failed check reports only the `check.sh` stages `lake build` / `axiom check` (Lean `checkFailKind`,
 `dry_kind_is_real_kind`); the real land has no `ci-paths` check, so a `ci-paths` failure has no real counterpart. Glue: `dryLintArgv` in `apps/runner/src/land.ts`; tests inject `dryLints`.
 Cost: see the handoff note `docs/team/handoffs/land-dry-full.md`. TS stand-in `apps/runner/src/land-verdict.ts`, checked against `packages/contracts/golden/console/land-dry.jsonl`.
 

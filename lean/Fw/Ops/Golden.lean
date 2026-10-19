@@ -537,6 +537,27 @@ def extra : List (String × String × List (String × Json)) := [
     ("a global lock that ended lets a correct passphrase in", lit "{\"enabled\":true,\"correct\":true,\"now\":620000,\"gLockUntil\":620000}"),
     ("a wrong passphrase adds to the global failures", lit "{\"enabled\":true,\"correct\":false,\"now\":3000,\"gFails\":[1000,2000]}"),
     ("global failures older than the window are forgotten", lit "{\"enabled\":true,\"correct\":false,\"now\":700000,\"gFails\":[1000,2000,3000]}")]),
+  ("console", "console.previewCache", [
+    ("a manifest name is immutable", lit "{\"path\":\"/assets/index-BxK3a9Qz.js\",\"manifest\":[\"/assets/index-BxK3a9Qz.js\"]}"),
+    ("the same name outside the manifest revalidates", lit "{\"path\":\"/assets/index-BxK3a9Qz.js\"}"),
+    ("a manifest css name is immutable", lit "{\"path\":\"/assets/entry-client-CQgE-Jzo.css\",\"manifest\":[\"/assets/entry-client-BrkKyAS_.js\",\"/assets/entry-client-CQgE-Jzo.css\"]}"),
+    ("hashed font under _app/immutable: immutable, not compressed", lit "{\"path\":\"/_app/immutable/assets/google-sans-latin-normal.BbZhqv4U.woff2\"}"),
+    ("anything under _app/immutable is immutable", lit "{\"path\":\"/_app/immutable/chunks/x.js\"}"),
+    ("mui.<sha8>.css is immutable", lit "{\"path\":\"/mui.b3bea9d9.css\"}"),
+    ("a mui css name with a capital is not", lit "{\"path\":\"/mui.B3bea9d9.css\"}"),
+    ("a mui css name below a directory is not", lit "{\"path\":\"/x/mui.b3bea9d9.css\"}"),
+    ("html revalidates", lit "{\"path\":\"/index.html\"}"),
+    ("a manifest html name still revalidates", lit "{\"path\":\"/assets/index-BxK3a9Qz.html\",\"manifest\":[\"/assets/index-BxK3a9Qz.html\"]}"),
+    ("a root path revalidates", lit "{\"path\":\"/\"}"),
+    ("an unhashed font revalidates", lit "{\"path\":\"/selling/fonts/playpen-sans-latin.woff2\"}"),
+    ("Roboto-SemiBold looks hashed but is not listed: other", lit "{\"path\":\"/fonts/Roboto-SemiBold.woff2\"}"),
+    ("og-1200x630 looks hashed but is not listed: other", lit "{\"path\":\"/img/og-1200x630.png\"}"),
+    ("icon-darkMode looks hashed but is not listed: other", lit "{\"path\":\"/icons/icon-darkMode.svg\"}"),
+    ("a hash-looking name beside a manifest that lacks it: other", lit "{\"path\":\"/assets/app.4f3a9c1d.css\",\"manifest\":[\"/assets/x.js\"]}"),
+    ("svg is compressed, png is not", lit "{\"path\":\"/selling/a.svg\"}"),
+    ("png revalidates, not compressed", lit "{\"path\":\"/selling/a.png\"}"),
+    ("a manifest that is not an array of strings is refused", lit "{\"path\":\"/a.js\",\"manifest\":[1]}"),
+    ("missing path is refused", lit "{}")]),
   ("console", "console.ownerGate", [
     ("LAN, no session: the login page", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/owner/login\"}"),
     ("LAN, no token: the shell (the built console web) is served", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/\"}"),
@@ -635,7 +656,7 @@ def leanFirstCases : List (String × Json) :=
    (s!"a line break in a theorem name is printed as a space {at_}", leanFirstReq (factsOf [.newlineName, .noKill])),
    (s!"empty request: every source missing {at_}", lit "{}"),
    ("unknown sign-off role is refused",
-     lit "{\"signoffs\":[{\"decl\":\"P\",\"stmtHash\":\"h\",\"docHash\":\"d\",\"role\":\"lead\",\"agree\":true}]}"),
+     lit "{\"signoffs\":[{\"decl\":\"P\",\"stmtHash\":\"h\",\"role\":\"lead\",\"agree\":true}]}"),
    ("registry row without a status is refused", lit "{\"registry\":[{\"id\":\"p\"}]}")]
 
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/

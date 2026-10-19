@@ -1,0 +1,57 @@
+{
+ "tally": {
+  "modelBug": 0,
+  "pass": 0,
+  "unusable": 1
+ },
+ "verdicts": [
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "stable(k=2, t=3)",
+    "variant": "stable(k=2, t=3)"
+   },
+   "countType": "census.layers",
+   "engine": "chromium",
+   "prediction": "<o",
+   "reason": "strict <o is only checked on frame-exact classes (deterministic, stable with k = 0)",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "comp",
+   "totals": {
+    "base": [
+     12960,
+     12960,
+     12960
+    ],
+    "variant": [
+     12960,
+     12960,
+     12960
+    ]
+   },
+   "variant": "rewrite+?fw=hero.countdown:strip,morph.countdown:strip",
+   "verdict": "unusable",
+   "confounds": []
+  }
+ ],
+ "page": {
+  "part": "hero.countdown",
+  "base": "39257533380",
+  "arm": "39259074927",
+  "baseSearch": "?only=hero.countdown&stage=vw:430,vh:932",
+  "search": "?fw=hero.countdown:strip,morph.countdown:strip&only=hero.countdown&stage=vw:430,vh:932",
+  "pairs": [
+   "hero.countdown:strip",
+   "morph.countdown:strip"
+  ],
+  "armFlags": [
+   "hero.countdown:strip",
+   "morph.countdown:strip"
+  ],
+  "attribution": "MEASURED"
+ }
+}

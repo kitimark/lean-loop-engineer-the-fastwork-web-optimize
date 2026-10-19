@@ -134,7 +134,7 @@ export async function settleObserveInPage(arg) {
   return { trace };
 }
 
-/** Declare the original's font faces in the rewrite page (its own stylesheet declares none: S13 placeholder stack) and use them. */
+/** Diagnostic `--assets inject` only: declare the original's font faces in the rewrite page and force them on every element. */
 export function injectFontsInPage({ css, family }) {
   const st = document.createElement('style');
   st.setAttribute('data-vd-assets', '');

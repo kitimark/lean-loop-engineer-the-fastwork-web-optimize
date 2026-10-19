@@ -118,8 +118,9 @@ import Fw.Ci.Cancel  -- ci-own-trigger: no concurrency group is shared on ci/**,
 import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged engine verdicts
 import Fw.Spec.AxReach  -- mathview-axreach: shared-memo axiom reachability, exact on cycles
 import Fw.Spec.ConeMiss  -- mathview-ci-fix: expected module-cache misses after an edit (dependents)
-import Fw.Console.LandSpeed  -- land-speed-lean: result cache, lint_modular, pre-lock land, check verdict
+import Fw.Console.LandSpeed  -- land-speed-lean: result cache, pre-lock land, check verdict
 import Fw.Console.Preview  -- task-preview: preview target, admission, ports, expiry
+import Fw.Console.PreviewCache  -- preview-speed: cache policy of preview files
 import Fw.Console.PreviewFacts  -- task-preview: GENERATED facts of the 25 tasks (apps/console-api/scripts/gen-preview-facts.ts)
 import Fw.Console.PreviewTable -- task-preview: the 25-task target table, checked
 import Fw.Console.LandVerdict  -- land-dry: VERDICT kinds, exit codes, retry rule
@@ -127,6 +128,7 @@ import Fw.Console.LandDry  -- land-dry: dry land stages and hand-back rule
 import Fw.Console.WallClock  -- land-wallclock-off-gate: which literal ms bounds in land-selected tests the lint refuses
 import Fw.Console.LandQueue  -- land-queue: FIFO land queue, bounded retry, runner identity
 import Fw.Console.LandTier  -- land-lane: which checks run on the CI land lane (console.landTier)
+import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request coalescing
 import Fw.Console.LandPool -- land-pool-fair: fair-share floor under poolSize, wired into land.ts by console.landPool and console.landRetry
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
 import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)
@@ -167,3 +169,4 @@ import Fw.Port.Text  -- port-completeness-gate: check 1, text digest
 import Fw.Port.Attrs  -- port-completeness-gate: check 2, attribute multiset
 import Fw.Site.Assets  -- port-completeness-gate: check 3, asset subset
 import Fw.Port.Svg  -- port-completeness-gate: check 4, svg skeleton
+import Fw.Port.Fonts  -- port-fonts-check: check 5, fonts per leaf and loaded faces

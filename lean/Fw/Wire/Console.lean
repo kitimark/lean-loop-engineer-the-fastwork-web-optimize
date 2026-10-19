@@ -6,6 +6,7 @@ import Fw.Console.LandTier
 import Fw.Console.Alert
 import Fw.Console.Preview
 import Fw.Console.PreviewOwner
+import Fw.Console.PreviewCache
 import Fw.Plan.Trailer
 import Fw.Plan.Lint
 /-!
@@ -40,6 +41,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
 | `console.landTier` | `ids` [check ids] | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept) |
 | `console.landLane` | `exitOk`, `coreUser`, `skipped` (skipped plus todo tests the summary reports; `null` when no summary was recognised) | `verdict` (`pass`/`fail`/`skipped`/`unknown`), `ok` (`Fw.Console.LandTier.laneVerdict`) |
+| `console.previewCache` | `path` (the request path, no query), `manifest`? [names] (the rewrite build's `.vite/manifest.json` `file`/`css`/`assets` entries, each as `/<name>`) | `kind` (`hashed`/`html`/`other`), `cacheControl`, `immutable`, `compress` (`Fw.Console.PreviewCache.kind`, `cacheControl`, `compressible`) |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?, evidenceOnMain?}] (`evidenceOnMain`: the glue's `git merge-base --is-ancestor <evidence> main`; missing = true), `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
 -/
@@ -443,13 +445,22 @@ def opPreviewSweep (req : Json) : Except String Reply := do
         ("why", .arr ((reaped live now).toArray.map fun x => Json.mkObj [("id", .str x.pv.id), ("why", .str (why x now))])),
         ("idle", .num idleLimit)]
 
+open Fw.Console.PreviewCache in
+/-- `console.previewCache` (`Fw.Console.PreviewCache.kind`): the cache header and compression of a preview file. -/
+def opPreviewCache (req : Json) : Except String Reply := do
+  let names ← (← arrD req "manifest").mapM (asStr "manifest")
+  let k := kind names (← str req "path")
+  let name := match k with | .hashed => "hashed" | .html => "html" | .other => "other"
+  pure [("kind", .str name), ("cacheControl", .str (cacheControl k)), ("immutable", .bool (reusesWithoutAsking k)),
+        ("compress", .bool (compressible (← str req "path")))]
+
 /-! ## Dispatch -/
 
 /-- The ops of this module. -/
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
   "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLane", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
-  "console.ownerLogin", "console.ownerGate", "console.ownerAction", "console.lanStart", "console.previewSweep"]
+  "console.ownerLogin", "console.ownerGate", "console.ownerAction", "console.lanStart", "console.previewSweep", "console.previewCache"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -480,6 +491,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.ownerAction" => some (opOwnerAction req)
   | "console.lanStart" => some (opLanStart req)
   | "console.previewSweep" => some (opPreviewSweep req)
+  | "console.previewCache" => some (opPreviewCache req)
   | _ => none
 
 end Fw.Wire.Console

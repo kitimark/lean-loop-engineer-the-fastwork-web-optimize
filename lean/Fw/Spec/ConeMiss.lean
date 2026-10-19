@@ -1,17 +1,9 @@
 /-!
-# Expected module-cache misses after an edit (task mathview-ci-fix)
+# Import-graph dependents (task mathview-ci-fix)
 
-The `mathview-differential` CI job edits one module $x$ and checks which modules the module cache recomputes. By
-`Fw.Console.LandSpeed.mkey_congr` and `mkey_sound` (with no hash collision), the key of $m$ changes exactly when a
-module of the import cone of $m$ changes, so an edit of $x$ alone recomputes exactly the modules whose cone contains
-$x$: its *dependents*. The job used to hard-code that set (`misses 2`) and broke when two more modules began to import
-the edited one. Here the set is computed from the import graph in one pass over a topologically ordered module list
-(every module after its imports, checked by `topoFrom`), and `mem_dependents` proves it is the set of dependents.
-`lake exe mathview --dependents <x>` prints it; the job compares it with the `miss` lines of the cache stats.
-
-The `mathview` binary links this module, so it imports nothing from `Fw`. It is not in `MathViewMain.toolSources`:
-it decides only the `--dependents` output, never the lint or the export that the cache keys cover.
-`Fw.Console.LandSpeed.inCone_iff_reach` links `Reach` to `InCone`.
+`dependents` lists, in one pass over a topologically ordered module list (`topoFrom`), the modules whose import cone
+contains a module `x`, and `mem_dependents` proves the list exact. It computed the expected misses of the retired
+module-cache CI job; the incident inc-ci-hardcoded-expect cites it as its fix. Nothing runs it now.
 -/
 
 namespace Fw.Spec.ConeMiss
