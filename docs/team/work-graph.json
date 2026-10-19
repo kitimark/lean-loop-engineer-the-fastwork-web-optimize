@@ -5417,7 +5417,7 @@
     "ci"
    ],
    "id": "model-bug-fixes",
-   "title": "Lego plan (§D): fix the 4 refuted model predictions (nav.hitTest FunctionCall per frame, morph.columns/scene UpdateLayoutTree, morph.mount LayoutCount, morph.tween waapi FireAnimationFrame) with Chromium cites; UpdateLayoutTree case checked against passes_not_compositional",
+   "title": "Lego plan (§D): fix the 4 refuted model predictions (nav.hitTest FunctionCall per frame, morph.columns/scene UpdateLayoutTree, morph.mount LayoutCount, morph.tween waapi FireAnimationFrame) with Chromium cites; UpdateLayoutTree case checked against passes_not_compositional; adopt the wave-1 refreeze (results/refreeze-wave-1/classes.proposed.json -> classes.frozen.json, regenerate rewrite baselines, faithful verdict, Fw.Faithful.Measured); drop the unused Fw.Gate.Exit commission resize entries",
    "stream": "proofs",
    "milestone": "M5",
    "deps": [
@@ -5430,7 +5430,13 @@
     "lean/Fw/Engine/Keys.lean",
     "packages/engine-check/classes.frozen.json",
     "research/findings/ledger.json",
-    "docs/team/handoffs/model-bug-fixes.md"
+    "docs/team/handoffs/model-bug-fixes.md",
+    "packages/measure-chromium/classes.frozen.json",
+    "results/baselines/chromium/**",
+    "results/faithful/**",
+    "lean/Fw/Faithful/Measured.lean",
+    "lean/Fw/Gate/Exit.lean",
+    "packages/contracts/golden/**"
    ]
   },
   {
@@ -5539,7 +5545,8 @@
     "model-bug-fixes",
     "part-stage",
     "counts-only",
-    "contract-rows-from-code"
+    "contract-rows-from-code",
+    "gate-preset-input"
    ],
    "owner": "lead",
    "writes": []
@@ -5947,6 +5954,25 @@
     "apps/runner/hooks/**",
     "scripts/lint-wallclock.mjs",
     "docs/team/handoffs/land-wallclock-off-gate.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-preset-input",
+   "title": "Finding (integrate-wave-1): the v2-proved gate arm cannot run; breakpoint-gate.yml takes no preset and no ?fw= key for the proved flags is prerendered; add a preset input (or prerender the preset key) so integrate-wave-2 gets a combined-arm gate verdict",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/breakpoint-gate.yml",
+    "packages/gate-breakpoints/src/**",
+    "apps/site/scripts/prerender*.mjs",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/handoffs/gate-preset-input.md"
    ]
   }
  ],
