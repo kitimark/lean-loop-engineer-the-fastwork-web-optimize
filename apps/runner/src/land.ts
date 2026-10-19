@@ -185,6 +185,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
     "packages/contracts/golden/gate/**"],
   "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
+  // preview-e2e: the rig starts console-api's server files (imported by file URL) and the preview servers over the snapshot
+  "packages/e2e-preview": ["apps/console-api/src/**", "apps/console-api/package.json", "lean/Fw/Console/PreviewOwner.lean", "packages/contracts/golden/console/**", "snapshot/site/**"],
   "packages/engine-check": ["packages/contracts/golden/measure/**"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],

@@ -20,7 +20,7 @@ def Tier.name : Tier → String
 /-- The heavy suites, in the id form of `candidateChecks` (the allowlist). -/
 def remoteIds : List String :=
   ["apps/runner", "apps/console-api", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium",
-   "packages/engine-check"]
+   "packages/engine-check", "packages/e2e-preview"]
 
 /-- The tier of a check id: `onCi` iff the id is on the allowlist. -/
 def tier (id : String) : Tier := if remoteIds.contains id then .onCi else .onMac
@@ -72,7 +72,7 @@ theorem pick_disjoint (ids : List String) (x : String) : ¬ (x ∈ pick .onMac i
   rw [a] at b
   cases b
 
-#guard remoteIds.length == 6
+#guard remoteIds.length == 7
 #guard tier "apps/runner" == .onCi
 #guard tier "packages/difftest" == .onMac
 #guard pick .onCi ["install", "apps/runner", "check.sh", "packages/gh-budget"] == ["apps/runner", "packages/gh-budget"]
@@ -182,7 +182,7 @@ theorem selector_mem (id : String) (h : id ∈ remoteIds) : selector id ∈ filt
   exact ⟨id, h, rfl⟩
 
 #guard filterList.head? == some "@fw/runner..."
-#guard filterList.length == 6
+#guard filterList.length == 7
 
 /-- The text of `lean/land-filter.txt`: the selectors separated by one space, one line. -/
 def filterText : String := " ".intercalate filterList ++ "\n"
