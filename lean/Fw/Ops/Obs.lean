@@ -25,8 +25,6 @@ namespace Fw.Ops.Obs
 /-- The idempotency key of an observation: agent id (or `main`), event and tool-use id (or the
 timestamp), joined by `|`.
 
-$$\operatorname{obsKey}(i, e, u, t) = a \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} e \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} x, \quad a = \begin{cases} s & i = s \\ \texttt{"main"} & i = \bot \end{cases}, \quad x = \begin{cases} v & u = v \\ \operatorname{dec}(t) & u = \bot \end{cases} \qquad (i, u \in \mathrm{String} \cup \{\bot\},\ e \in \mathrm{String},\ t \in \mathbb{N}),\quad \text{where } \operatorname{dec}(t) = \text{the decimal numeral of } t\ \text{(an empty string } s \text{ or } v \text{ is kept as it is; only } \bot \text{ is replaced)}$$
-
 The key names who did what, and which tool call or moment it was.
 -/
 def obsKey (agentId : Option String) (event : String) (toolUseId : Option String) (ts : Nat) : String :=
@@ -35,16 +33,12 @@ def obsKey (agentId : Option String) (event : String) (toolUseId : Option String
 /-- With a tool-use id the key does not depend on the timestamp, so the hook record and the
 transcript record of one tool call share a key.
 
-$$\forall i \in \mathrm{String} \cup \{\bot\},\ e, v \in \mathrm{String},\ t_1, t_2 \in \mathbb{N}:\quad \operatorname{obsKey}(i, e, v, t_1) = \operatorname{obsKey}(i, e, v, t_2)$$
-
 Two records of the same tool call get the same key at any times.
 -/
 theorem obsKey_tool_ts (i : Option String) (e v : String) (t₁ t₂ : Nat) :
     obsKey i e (some v) t₁ = obsKey i e (some v) t₂ := rfl
 
 /-- Without a tool-use id the timestamp is the last part of the key.
-
-$$\forall i \in \mathrm{String} \cup \{\bot\},\ e \in \mathrm{String},\ t \in \mathbb{N}:\quad \operatorname{obsKey}(i, e, \bot, t) = \operatorname{obsKey}(i, e, \operatorname{dec}(t), 0)$$
 
 A hook-only event is keyed by its timestamp, exactly as if the timestamp were its tool-use id.
 -/
@@ -59,8 +53,6 @@ theorem obsKey_no_tool (i : Option String) (e : String) (t : Nat) :
 
 /-- One observed line, as far as the summary reads it.
 
-$$\ell = (\mathit{event}, \mathit{agentType}_\bot, \mathit{toolName}_\bot, \mathit{isError}_\bot, \mathit{durationMs}_\bot)$$
-
 The fields of an `obs.jsonl` line that the tool-call summary uses.
 -/
 structure Line where
@@ -73,23 +65,17 @@ deriving Repr, DecidableEq
 
 /-- A line is a tool call when its event is `PostToolUse` or `PostToolUseFailure`.
 
-$$\operatorname{isCall}(\ell) \iff \ell.\mathit{event} \in \{\texttt{"PostToolUse"}, \texttt{"PostToolUseFailure"}\}$$
-
 Only finished tool calls count; every other hook event is ignored by the summary.
 -/
 def isCall (l : Line) : Bool := l.event == "PostToolUse" || l.event == "PostToolUseFailure"
 
 /-- The group of a line: its agent type (`main` when missing) and its tool name (`?` when missing).
 
-$$\operatorname{group}(\ell) = (\ell.\mathit{agentType} \text{ or } \texttt{"main"},\ \ell.\mathit{toolName} \text{ or } \texttt{"?"})$$
-
 Lines are grouped by who called which tool.
 -/
 def group (l : Line) : String × String := (l.agentType.getD "main", l.toolName.getD "?")
 
 /-- One summary row: a group and its counts.
-
-$$r = (\mathit{agentType}, \mathit{toolName}, \mathit{calls}, \mathit{errors}, \mathit{totalMs})$$
 
 The totals of one (agent type, tool) group.
 -/
@@ -103,8 +89,6 @@ deriving Repr, DecidableEq
 
 /-- The list without repeats, keeping first occurrences, skipping the elements of `seen`.
 
-$$\operatorname{uniqAux}(S, [\,]) = [\,], \qquad \operatorname{uniqAux}(S, a :: w) = \begin{cases} \operatorname{uniqAux}(S, w) & a \in S \\ a :: \operatorname{uniqAux}(\{a\} \cup S, w) & a \notin S \end{cases}$$
-
 Walk the list and keep each element the first time it is met.
 -/
 def uniqAux {α : Type} [DecidableEq α] : List α → List α → List α
@@ -113,23 +97,17 @@ def uniqAux {α : Type} [DecidableEq α] : List α → List α → List α
 
 /-- The list without repeats, in first-occurrence order.
 
-$$\operatorname{uniq}(w) = \operatorname{uniqAux}(\emptyset, w)$$
-
 Each element once, in the order it first appears.
 -/
 def uniq {α : Type} [DecidableEq α] (l : List α) : List α := uniqAux [] l
 
 /-- The groups of the tool calls, in the order of their first call.
 
-$$\operatorname{groups}(L) = \operatorname{uniq}([\operatorname{group}(\ell) \mid \ell \in L,\ \operatorname{isCall}(\ell)])$$
-
 Every (agent type, tool) pair that made at least one call, once each.
 -/
 def groups (ls : List Line) : List (String × String) := uniq ((ls.filter isCall).map group)
 
-/-- The row of group $k$: its tool calls, their errors and their summed duration.
-
-$$\operatorname{row}(L, k) = (k_1, k_2, |C|, |[\ell \in C \mid \ell.\mathit{isError} = \mathrm{true}]|, \textstyle\sum_{\ell \in C} (\ell.\mathit{durationMs} \text{ or } 0)), \quad C = [\ell \in L \mid \operatorname{isCall}(\ell) \land \operatorname{group}(\ell) = k]$$
+/-- The row of group `k`: its tool calls, their errors and their summed duration.
 
 The counts of one group, read straight off the lines.
 -/
@@ -139,8 +117,6 @@ def rowFor (ls : List Line) (k : String × String) : Row :=
 
 /-- The tool-call summary: one row per group, in the order of the group's first call.
 
-$$\operatorname{summarize}(L) = [\operatorname{row}(L, k) \mid k \in \operatorname{groups}(L)]$$
-
 Count calls, errors and time per (agent type, tool).
 -/
 def summarize (ls : List Line) : List Row := (groups ls).map (rowFor ls)
@@ -148,8 +124,6 @@ def summarize (ls : List Line) : List Row := (groups ls).map (rowFor ls)
 /-! ## Proofs -/
 
 /-- Membership in `uniqAux`: an element of the list not already seen.
-
-$$\forall S, w, x:\quad x \in \operatorname{uniqAux}(S, w) \iff x \in w \land x \notin S$$
 
 `uniqAux` keeps exactly the unseen elements.
 -/
@@ -178,8 +152,6 @@ theorem mem_uniqAux {α : Type} [DecidableEq α] (seen l : List α) (x : α) :
 
 /-- `uniqAux` has no repeats.
 
-$$\forall S, w:\quad \operatorname{uniqAux}(S, w) \text{ has pairwise distinct elements}$$
-
 Each kept element is kept once.
 -/
 theorem uniqAux_nodup {α : Type} [DecidableEq α] (seen l : List α) : (uniqAux seen l).Nodup := by
@@ -195,8 +167,6 @@ theorem uniqAux_nodup {α : Type} [DecidableEq α] (seen l : List α) : (uniqAux
 
 /-- The groups are exactly the groups of the tool calls.
 
-$$\forall L, k:\quad k \in \operatorname{groups}(L) \iff \exists \ell \in L:\ \operatorname{isCall}(\ell) \land \operatorname{group}(\ell) = k$$
-
 A group has a row exactly when some tool call falls in it.
 -/
 theorem mem_groups (ls : List Line) (k : String × String) :
@@ -205,15 +175,11 @@ theorem mem_groups (ls : List Line) (k : String × String) :
 
 /-- Each group appears once.
 
-$$\forall L:\quad \operatorname{groups}(L) \text{ has pairwise distinct elements}$$
-
 No (agent type, tool) pair gets two rows.
 -/
 theorem groups_nodup (ls : List Line) : (groups ls).Nodup := uniqAux_nodup _ _
 
 /-- Every summary row holds the counts of its own group.
-
-$$\forall L, r:\quad r \in \operatorname{summarize}(L) \implies (r.\mathit{agentType}, r.\mathit{toolName}) \in \operatorname{groups}(L) \land r = \operatorname{row}(L, (r.\mathit{agentType}, r.\mathit{toolName}))$$
 
 A row's calls, errors and time are the counts over the tool calls of that group.
 -/
@@ -224,8 +190,6 @@ theorem summarize_row (ls : List Line) (r : Row) (h : r ∈ summarize ls) :
   exact ⟨hk, rfl⟩
 
 /-- Lines that are not tool calls change nothing.
-
-$$\forall L, \ell:\quad \lnot\operatorname{isCall}(\ell) \implies \operatorname{summarize}(\ell :: L) = \operatorname{summarize}(L)$$
 
 Non-tool events (starts, stops, prompts) never show up in the summary.
 -/
@@ -265,16 +229,12 @@ rejected line raises the spool alert with its reason counted (`reject_alerts`).
 /-- The length of a string in UTF-16 code units, what zod's `.max` counts: 2 for a character above
 U+FFFF, else 1.
 
-$$\operatorname{len}_{16}(s) = \sum_{c \in s} \begin{cases} 2 & \operatorname{ord}(c) > \mathtt{0xFFFF} \\ 1 & \text{otherwise} \end{cases}$$
-
 Count a string the way JavaScript does.
 -/
 def utf16Len (s : String) : Nat := s.toList.foldl (fun n c => n + if 0xFFFF < c.val.toNat then 2 else 1) 0
 
 /-- A JSON field value as admission reads it: null, a string, a non-negative integer, a boolean, or
 anything else (a negative or fractional number, an array, an object).
-
-$$\mathrm{Val} = \{\mathrm{null}\} \cup \mathrm{str}(\mathrm{String}) \cup \mathrm{nat}(\mathbb{N}) \cup \mathrm{bool}(\mathbb{B}) \cup \{\mathrm{other}\}$$
 -/
 inductive Val where
   | null
@@ -286,8 +246,6 @@ deriving Repr, DecidableEq
 
 /-- The type of a known field: a string of at most `max` UTF-16 units, a non-empty such string, a
 non-negative integer, or a boolean.
-
-$$\mathrm{Ty} = \mathrm{str}(m) \cup \mathrm{name}(m) \cup \{\mathrm{nat}, \mathrm{bool}\}$$
 -/
 inductive Ty where
   | str (max : Nat)
@@ -298,8 +256,6 @@ deriving Repr, DecidableEq
 
 /-- The spec of a known field: name, type, whether null is allowed, whether the field must be
 present, and whether it is a decision field (strict: a bad value rejects the record).
-
-$$\mathit{sp} = (\mathit{name}, \mathit{ty}, \mathit{nullable}, \mathit{required}, \mathit{strict})$$
 -/
 structure Spec where
   name     : String
@@ -310,16 +266,14 @@ structure Spec where
 deriving Repr, DecidableEq
 
 /-- The known spool fields, as in the zod `ObsRecord` (`packages/contracts/src/obs.ts`). Strict
-(decision fields, marked $^{s}$): `agent_id` (required, nullable, non-empty, at most 120 units: a
+(decision fields, marked `^s`): `agent_id` (required, nullable, non-empty, at most 120 units: a
 contract id, since it is a life key), `hook_event_name`
 (required, not null, non-empty), `agent_name` (optional, nullable, non-empty, at most 120 units: a
 contract id), `ts` (required, not null). All others are soft: six required nullable fields and eleven
 optional nullable fields.
 
-$$\mathit{specs} = [\texttt{agent\_id}{:}\,\mathrm{name}(120)^{s}, \texttt{agent\_type}{:}\,\mathrm{str}(200), \texttt{hook\_event\_name}{:}\,\mathrm{name}(200)^{!s}, \texttt{tool\_name}{:}\,\mathrm{str}(200), \texttt{tool\_use\_id}{:}\,\mathrm{str}(200), \texttt{duration\_ms}{:}\,\mathrm{nat}, \texttt{is\_error}{:}\,\mathrm{bool}, \texttt{verb}{:}\,\mathrm{str}(40), \texttt{agent\_name}{:}\,\mathrm{name}(120)^{?s}, \texttt{seen\_by}{:}\,\mathrm{str}(40)^{?}, \texttt{role}{:}\,\mathrm{str}(200)^{?}, \texttt{want\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{got\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{isolation}{:}\,\mathrm{bool}^{?}, \texttt{depth}{:}\,\mathrm{nat}^{?}, \texttt{has\_name}{:}\,\mathrm{bool}^{?}, \texttt{notification\_type}{:}\,\mathrm{str}(40)^{?}, \texttt{message\_len}{:}\,\mathrm{nat}^{?}, \texttt{background\_tasks}{:}\,\mathrm{nat}^{?}, \texttt{session\_pid}{:}\,\mathrm{nat}^{?}, \texttt{ts}{:}\,\mathrm{nat}^{!s}]$$
-
-Unmarked: required and nullable; $^{?}$: optional and nullable; $^{!}$: required, not nullable;
-$^{s}$: strict.
+Unmarked: required and nullable; `^(?)`: optional and nullable; `^(!)`: required, not nullable;
+`^s`: strict.
 -/
 def specs : List Spec := [
   ⟨"agent_id", .name 120, true, true, true⟩, ⟨"agent_type", .str 200, true, true, false⟩,
@@ -337,8 +291,6 @@ def specs : List Spec := [
 /-- Does a value fit a spec: null when nullable, a string within the length (non-empty for a name),
 a natural for `nat`, a boolean for `bool`; `other` never fits.
 
-$$\operatorname{fits}(\mathit{sp}, v) \iff (v = \mathrm{null} \land \mathit{sp}.\mathit{nullable}) \lor (v = \mathrm{str}(s) \land \mathit{sp}.\mathit{ty} = \mathrm{str}(m) \land \operatorname{len}_{16}(s) \le m) \lor (v = \mathrm{str}(s) \land \mathit{sp}.\mathit{ty} = \mathrm{name}(m) \land 0 < \operatorname{len}_{16}(s) \le m) \lor (v = \mathrm{nat}(n) \land \mathit{sp}.\mathit{ty} = \mathrm{nat}) \lor (v = \mathrm{bool}(b) \land \mathit{sp}.\mathit{ty} = \mathrm{bool})$$
-
 Check one value against its field's type.
 -/
 def Spec.fits (sp : Spec) : Val → Bool
@@ -353,15 +305,11 @@ def Spec.fits (sp : Spec) : Val → Bool
 
 /-- A field name is known when some spec has it.
 
-$$\operatorname{known}(x) \iff \exists \mathit{sp} \in \mathit{specs}:\ \mathit{sp}.\mathit{name} = x$$
-
 Is the field in the spec list.
 -/
 def known (x : String) : Bool := specs.any (·.name == x)
 
 /-- The value of field `x` in a record: that of its first occurrence, none when absent.
-
-$$\operatorname{look}(F, x) = \begin{cases} v & (x, v) \text{ is the first pair of } F \text{ with name } x \\ \bot & \text{no pair of } F \text{ has name } x \end{cases}$$
 
 Read one field of a record.
 -/
@@ -369,8 +317,6 @@ def look (fs : List (String × Val)) (x : String) : Option Val := (fs.find? (·.
 
 /-- Why a spool line was rejected, or why a soft field was noted: not a JSON object, a field missing,
 or a field whose value does not fit its spec.
-
-$$\mathrm{Why} = \{\mathrm{json}\} \cup \mathrm{missing}(\mathrm{String}) \cup \mathrm{invalid}(\mathrm{String})$$
 -/
 inductive Why where
   | json
@@ -379,8 +325,6 @@ inductive Why where
 deriving Repr, DecidableEq
 
 /-- The name of a reason, as the wire and `spool-rejects.jsonl` write it.
-
-$$\operatorname{name}(\mathrm{json}) = \texttt{json},\quad \operatorname{name}(\mathrm{missing}(x)) = x \cdot \texttt{:missing},\quad \operatorname{name}(\mathrm{invalid}(x)) = x \cdot \texttt{:invalid}$$
 
 Spell a reason as text.
 -/
@@ -392,8 +336,6 @@ def Why.name : Why → String
 /-- The error of one spec on a record: missing when required and absent, invalid when present and not
 fitting, none otherwise.
 
-$$\operatorname{err}(F, \mathit{sp}) = \begin{cases} \mathrm{missing}(\mathit{sp}.\mathit{name}) & \operatorname{look}(F, \mathit{sp}.\mathit{name}) = \bot \land \mathit{sp}.\mathit{required} \\ \mathrm{invalid}(\mathit{sp}.\mathit{name}) & \operatorname{look}(F, \mathit{sp}.\mathit{name}) = v \land \lnot\operatorname{fits}(\mathit{sp}, v) \\ \bot & \text{otherwise} \end{cases}$$
-
 Find what is wrong with one field.
 -/
 def Spec.err (fs : List (String × Val)) (sp : Spec) : Option Why :=
@@ -404,8 +346,6 @@ def Spec.err (fs : List (String × Val)) (sp : Spec) : Option Why :=
 /-- The kept pair of one spec: the value when it fits; null when it is missing or does not fit and
 the field is required; nothing otherwise.
 
-$$\operatorname{keep}(F, \mathit{sp}) = \begin{cases} (\mathit{sp}.\mathit{name}, v) & \operatorname{look}(F, \mathit{sp}.\mathit{name}) = v \land \operatorname{fits}(\mathit{sp}, v) \\ (\mathit{sp}.\mathit{name}, \mathrm{null}) & \lnot(\operatorname{look}(F, \mathit{sp}.\mathit{name}) = v \land \operatorname{fits}(\mathit{sp}, v)) \land \mathit{sp}.\mathit{required} \\ \bot & \text{otherwise} \end{cases}$$
-
 Keep a good value, and put null in place of a bad or missing required one.
 -/
 def Spec.keep (fs : List (String × Val)) (sp : Spec) : Option (String × Val) :=
@@ -415,8 +355,6 @@ def Spec.keep (fs : List (String × Val)) (sp : Spec) : Option (String × Val) :
 
 /-- The verdict on a record: accepted with its kept known fields, the names of its unknown fields and
 the notes on its soft fields, or rejected with a reason.
-
-$$\mathrm{Verdict} = \mathrm{accept}(K, U, N) \cup \mathrm{reject}(w)$$
 -/
 inductive Verdict where
   | accept (kept : List (String × Val)) (unknown : List String) (notes : List Why)
@@ -424,8 +362,6 @@ inductive Verdict where
 deriving Repr, DecidableEq
 
 /-- The rejection reason of a verdict, none for an accepted record.
-
-$$\operatorname{why}(\mathrm{reject}(w)) = w,\qquad \operatorname{why}(\mathrm{accept}(K, U, N)) = \bot$$
 
 The reason a record was refused, if it was.
 -/
@@ -435,8 +371,6 @@ def Verdict.why? : Verdict → Option Why
 
 /-- The decision fields: the specs marked strict.
 
-$$\mathit{strictSpecs} = [\mathit{sp} \in \mathit{specs} \mid \mathit{sp}.\mathit{strict}]$$
-
 The fields whose value a decision reads.
 -/
 def strictSpecs : List Spec := specs.filter (·.strict)
@@ -445,8 +379,6 @@ def strictSpecs : List Spec := specs.filter (·.strict)
 otherwise accepted, keeping the known fields in spec order (a soft field that is missing or does not
 fit becomes null when required and is left out when optional), listing the unknown field names in
 record order and the errors of the soft fields in spec order.
-
-$$\operatorname{admit}(F) = \begin{cases} \mathrm{reject}(w) & w = \text{the first } \operatorname{err}(F, \mathit{sp}) \ne \bot,\ \mathit{sp} \in \mathit{strictSpecs} \\ \mathrm{accept}\big([\, \operatorname{keep}(F, \mathit{sp}) \ne \bot : \mathit{sp} \in \mathit{specs} \,],\ [\, x : (x, \_) \in F,\ \lnot\operatorname{known}(x) \,],\ [\, \operatorname{err}(F, \mathit{sp}) \ne \bot : \mathit{sp} \in \mathit{specs},\ \lnot\mathit{sp}.\mathit{strict} \,]\big) & \text{no strict spec has an error} \end{cases}$$
 
 Refuse a record only for a bad decision field; keep everything else, noting what was wrong.
 -/
@@ -458,8 +390,6 @@ def admit (fs : List (String × Val)) : Verdict :=
 
 /-- Appending a pair adds a value only for a name that had none.
 
-$$\forall F, x, v, y:\quad \operatorname{look}(F \mathbin{+\!\!+} [(x, v)], y) = \begin{cases} \operatorname{look}(F, y) & \operatorname{look}(F, y) \ne \bot \\ v & \operatorname{look}(F, y) = \bot \land x = y \\ \bot & \operatorname{look}(F, y) = \bot \land x \ne y \end{cases}$$
-
 A later duplicate of a field never changes its value.
 -/
 theorem look_append (fs : List (String × Val)) (x : String) (v : Val) (y : String) :
@@ -470,10 +400,7 @@ theorem look_append (fs : List (String × Val)) (x : String) (v : Val) (y : Stri
   | some p => simp
   | none => by_cases h : x = y <;> simp [h]
 
-/-- `findSome?` agrees for two functions that agree on the list.
-
-$$\forall f, g, l:\quad (\forall a \in l:\ f(a) = g(a)) \Rightarrow \operatorname{findSome}(f, l) = \operatorname{findSome}(g, l)$$
--/
+/-- `findSome?` agrees for two functions that agree on the list. -/
 private theorem findSome?_congr {α β : Type} {f g : α → Option β} :
     ∀ {l : List α}, (∀ a ∈ l, f a = g a) → l.findSome? f = l.findSome? g
   | [], _ => rfl
@@ -481,10 +408,7 @@ private theorem findSome?_congr {α β : Type} {f g : α → Option β} :
     simp only [List.findSome?_cons, h a (List.mem_cons_self ..),
       findSome?_congr (fun b hb => h b (List.mem_cons_of_mem _ hb))]
 
-/-- `filterMap` agrees for two functions that agree on the list.
-
-$$\forall f, g, l:\quad (\forall a \in l:\ f(a) = g(a)) \Rightarrow \operatorname{filterMap}(f, l) = \operatorname{filterMap}(g, l)$$
--/
+/-- `filterMap` agrees for two functions that agree on the list. -/
 private theorem filterMap_congr' {α β : Type} {f g : α → Option β} :
     ∀ {l : List α}, (∀ a ∈ l, f a = g a) → l.filterMap f = l.filterMap g
   | [], _ => rfl
@@ -492,18 +416,13 @@ private theorem filterMap_congr' {α β : Type} {f g : α → Option β} :
     simp only [List.filterMap_cons, h a (List.mem_cons_self ..),
       filterMap_congr' (fun b hb => h b (List.mem_cons_of_mem _ hb))]
 
-/-- Every spec name is known.
-
-$$\forall \mathit{sp} \in \mathit{specs}:\quad \operatorname{known}(\mathit{sp}.\mathit{name}) = \mathrm{true}$$
--/
+/-- Every spec name is known. -/
 private theorem known_of_spec {sp : Spec} (h : sp ∈ specs) : known sp.name = true :=
   List.any_eq_true.mpr ⟨sp, h, by simp⟩
 
 /-- **Only decision fields decide a rejection** (`soft_never_rejects`): two records whose decision
 fields read the same get the same rejection reason (or are both accepted), whatever their soft and
 unknown fields hold.
-
-$$\forall F, G:\quad (\forall \mathit{sp} \in \mathit{strictSpecs}:\ \operatorname{look}(F, \mathit{sp}.\mathit{name}) = \operatorname{look}(G, \mathit{sp}.\mathit{name})) \Rightarrow \operatorname{why}(\operatorname{admit}(F)) = \operatorname{why}(\operatorname{admit}(G))$$
 
 A soft or unknown field never decides whether a line is refused.
 -/
@@ -519,8 +438,6 @@ theorem soft_never_rejects {fs gs : List (String × Val)}
 /-- **A soft or unknown field never rejects**: adding a field whose name no strict spec has, with any
 value, leaves the rejection reason as it was.
 
-$$\forall F, x, v:\quad (\forall \mathit{sp} \in \mathit{strictSpecs}:\ \mathit{sp}.\mathit{name} \ne x) \Rightarrow \operatorname{why}(\operatorname{admit}(F \mathbin{+\!\!+} [(x, v)])) = \operatorname{why}(\operatorname{admit}(F))$$
-
 Whatever a non-decision field holds, a line is refused only if it was refused without it.
 -/
 theorem soft_extra (fs : List (String × Val)) {x : String} (v : Val)
@@ -532,8 +449,6 @@ theorem soft_extra (fs : List (String × Val)) {x : String} (v : Val)
 /-- **An extra unknown field never rejects a record** (`accept_extra`): a record that differs from an
 accepted one only by one more field of an unknown name is accepted, with the same kept fields and
 notes and that name added to its unknown names.
-
-$$\forall F, K, U, N, x, v:\quad \operatorname{admit}(F) = \mathrm{accept}(K, U, N) \land \lnot\operatorname{known}(x) \Rightarrow \operatorname{admit}(F \mathbin{+\!\!+} [(x, v)]) = \mathrm{accept}(K, U \mathbin{+\!\!+} [x], N)$$
 
 An unknown field is only named, never judged.
 -/
@@ -564,8 +479,6 @@ theorem accept_extra {fs k : List (String × Val)} {u : List String} {n : List W
 /-- The verdict on a spool line: a line that is not a JSON object is rejected (`json`); an object is
 admitted by its fields.
 
-$$\operatorname{verdict}(\bot) = \mathrm{reject}(\mathrm{json}),\qquad \operatorname{verdict}(F) = \operatorname{admit}(F)$$
-
 Judge one raw line.
 -/
 def verdictOf : Option (List (String × Val)) → Verdict
@@ -573,8 +486,6 @@ def verdictOf : Option (List (String × Val)) → Verdict
   | some fs => admit fs
 
 /-- The accepted lines of a drain: kept fields, unknown names and notes, in line order.
-
-$$\operatorname{acc}(L) = [\, (K, U, N) : \ell \in L,\ \operatorname{verdict}(\ell) = \mathrm{accept}(K, U, N) \,]$$
 
 The lines that got in.
 -/
@@ -586,16 +497,12 @@ def acceptedOf (ls : List (Option (List (String × Val)))) :
 
 /-- The rejection reasons of a drain, one per rejected line, in line order.
 
-$$\operatorname{rej}(L) = [\, w : \ell \in L,\ \operatorname{verdict}(\ell) = \mathrm{reject}(w) \,]$$
-
 Why each refused line was refused.
 -/
 def rejectedOf (ls : List (Option (List (String × Val)))) : List Why :=
   ls.filterMap fun l => (verdictOf l).why?
 
 /-- The unknown field names of a drain's accepted lines, one entry per occurrence.
-
-$$\operatorname{unk}(L) = \operatorname{concat}[\, U : (K, U, N) \in \operatorname{acc}(L) \,]$$
 
 Every unknown field seen, with repeats.
 -/
@@ -604,8 +511,6 @@ def unknownOf (ls : List (Option (List (String × Val)))) : List String :=
 
 /-- **The drain drops no line uncounted** (`drop_counted`): every line is accepted or rejected with a
 reason, so the two counts add up to the number of lines.
-
-$$\forall L:\quad |\operatorname{acc}(L)| + |\operatorname{rej}(L)| = |L|$$
 
 No line disappears without being counted.
 -/
@@ -621,10 +526,7 @@ theorem drop_counted (ls : List (Option (List (String × Val)))) :
     · have e : (Verdict.reject w).why? = some w := rfl
       simp only [e, List.length_cons]; omega
 
-/-- The unknown names of an accepted record are its field names that are not known.
-
-$$\forall F, K, U, N:\quad \operatorname{admit}(F) = \mathrm{accept}(K, U, N) \Rightarrow U = [\, x : (x, \_) \in F,\ \operatorname{known}(x) = \mathrm{false} \,]$$
--/
+/-- The unknown names of an accepted record are its field names that are not known. -/
 private theorem unknown_of_accept {fs k : List (String × Val)} {u : List String} {n : List Why}
     (ha : admit fs = .accept k u n) : u = (fs.map (·.1)).filter (!known ·) := by
   unfold admit at ha; split at ha
@@ -633,8 +535,6 @@ private theorem unknown_of_accept {fs k : List (String × Val)} {u : List String
 
 /-- **Every unknown field is reported**: a name is among the drain's unknown names exactly when some
 accepted line has a field of that name and the name is not known.
-
-$$\forall L, x:\quad x \in \operatorname{unk}(L) \iff \exists F:\ \mathrm{some}(F) \in L \land (\exists K, U, N:\ \operatorname{admit}(F) = \mathrm{accept}(K, U, N)) \land x \in [\, y : (y, \_) \in F \,] \land \lnot\operatorname{known}(x)$$
 
 An unknown field of an accepted line is always named.
 -/
@@ -662,8 +562,6 @@ theorem mem_unknown (ls : List (Option (List (String × Val)))) (x : String) :
 /-- The issues of one verdict: a rejection as `rejected:` and its reason; for an accepted record its
 soft-field notes, then its unknown fields marked `:unknown`.
 
-$$\operatorname{issues}(\mathrm{reject}(w)) = [\texttt{rejected:} \cdot \operatorname{name}(w)],\qquad \operatorname{issues}(\mathrm{accept}(K, U, N)) = [\, \operatorname{name}(w) : w \in N \,] \mathbin{+\!\!+} [\, x \cdot \texttt{:unknown} : x \in U \,]$$
-
 What a person should look at in one line.
 -/
 def Verdict.issues : Verdict → List String
@@ -672,8 +570,6 @@ def Verdict.issues : Verdict → List String
 
 /-- The issues of a drain, one entry per occurrence, in line order.
 
-$$\operatorname{issues}(L) = \operatorname{concat}[\, \operatorname{issues}(\operatorname{verdict}(\ell)) : \ell \in L \,]$$
-
 Everything about the drained lines a person should look at.
 -/
 def issuesOf (ls : List (Option (List (String × Val)))) : List String :=
@@ -681,29 +577,20 @@ def issuesOf (ls : List (Option (List (String × Val)))) : List String :=
 
 /-- The issue names with their counts, in first-seen order.
 
-$$\operatorname{counts}(U) = [\, (x, |[\, y \in U : y = x \,]|) : x \in \operatorname{uniq}(U) \,]$$
-
 Count each issue once per occurrence.
 -/
 def fieldCounts (u : List String) : List (String × Nat) := (uniq u).map fun x => (x, u.count x)
 
-/-- The owner name of the spool alert step (`Fw.Console.Alert.stepId (some "spool") now`).
-
-$$\operatorname{spoolOwner} = \texttt{spool}$$
--/
+/-- The owner name of the spool alert step (`Fw.Console.Alert.stepId (some "spool") now`). -/
 def spoolOwner : String := "spool"
 
 /-- The JavaScript (UTF-16) length of one character: 2 above U+FFFF, else 1.
-
-$$u(c) = \begin{cases} 2 & \operatorname{code}(c) > \texttt{0xFFFF} \\ 1 & \text{otherwise} \end{cases}$$
 
 How many UTF-16 units JavaScript spends on the character.
 -/
 def u16 (c : Char) : Nat := if 0xFFFF < c.val.toNat then 2 else 1
 
 /-- The longest prefix of a character list whose UTF-16 length fits a budget.
-
-$$\operatorname{take}_{16}(b, [\,]) = [\,],\qquad \operatorname{take}_{16}(b, c :: l) = \begin{cases} c :: \operatorname{take}_{16}(b - u(c), l) & u(c) \le b \\ [\,] & \text{otherwise} \end{cases}$$
 
 Keep characters from the front while they still fit.
 -/
@@ -712,8 +599,6 @@ def takeU16 : Nat → List Char → List Char
   | b, c :: l => if u16 c ≤ b then c :: takeU16 (b - u16 c) l else []
 
 /-- The JavaScript length of a string is the sum of its characters' UTF-16 lengths.
-
-$$\forall s:\quad \operatorname{utf16}(s) = \textstyle\sum_{c \in s} u(c)$$
 
 Counting the whole string equals adding up each character.
 -/
@@ -729,8 +614,6 @@ theorem utf16Len_eq (s : String) : utf16Len s = (s.toList.map u16).sum := by
 
 /-- A capped prefix fits its budget.
 
-$$\forall b, l:\quad \textstyle\sum_{c \in \operatorname{take}_{16}(b, l)} u(c) \le b$$
-
 The kept prefix never exceeds the budget.
 -/
 theorem takeU16_le (b : Nat) (l : List Char) : ((takeU16 b l).map u16).sum ≤ b := by
@@ -744,14 +627,10 @@ theorem takeU16_le (b : Nat) (l : List Char) : ((takeU16 b l).map u16).sum ≤ b
 
 /-- The fixed start of the spool alert title (25 UTF-16 units).
 
-$$H = \text{“Spool lines need a look: ”}$$
-
 What every spool alert title starts with.
 -/
 def alertHead : String := "Spool lines need a look: "
 /-- The fixed end of the spool alert title (51 UTF-16 units).
-
-$$T = \text{“; fix emit.mjs or Fw.Ops.Obs.specs, then press Done”}$$
 
 What every spool alert title ends with.
 -/
@@ -759,41 +638,25 @@ def alertTail : String := "; fix emit.mjs or Fw.Ops.Obs.specs, then press Done"
 
 /-- The issue list of the spool alert as characters: `x₁ xn₁, x₂ xn₂, …`.
 
-$$N(C) = \text{“}x_1\ \texttt{x}n_1\texttt{, }\dots\texttt{, }x_k\ \texttt{x}n_k\text{”},\quad C = [(x_1, n_1), \dots, (x_k, n_k)]\ (N([\,]) = \varepsilon)$$
-
 Each issue with its count, comma separated.
 -/
 def alertNames (cs : List (String × Nat)) : List Char :=
   (", ".intercalate (cs.map fun (x, n) => s!"{x} x{n}")).toList
 
-/-- Whether an issue is a caught fwcore throw of the drain (`sweep:<op>`), not a spool-line problem.
-
-$$\operatorname{isSweep}(x) \iff \text{“sweep:”} \text{ is a prefix of } x$$
--/
+/-- Whether an issue is a caught fwcore throw of the drain (`sweep:<op>`), not a spool-line problem. -/
 def isSweep (x : String) : Bool := x.startsWith "sweep:"
 
-/-- The fixed start of the title when every issue is a caught throw (23 UTF-16 units).
-
-$$H_s = \text{“Drain threw in fwcore: ”}$$
--/
+/-- The fixed start of the title when every issue is a caught throw (23 UTF-16 units). -/
 def sweepHead : String := "Drain threw in fwcore: "
-/-- The fixed end of the title when every issue is a caught throw (38 UTF-16 units).
-
-$$T_s = \text{“; see console-api log, then press Done”}$$
--/
+/-- The fixed end of the title when every issue is a caught throw (38 UTF-16 units). -/
 def sweepTail : String := "; see console-api log, then press Done"
 
-/-- The title is the throw title exactly when there is an issue and all issues are caught throws.
-
-$$\operatorname{allSweep}(C) \iff C \ne [\,] \land \forall (x, n) \in C:\ \operatorname{isSweep}(x)$$
--/
+/-- The title is the throw title exactly when there is an issue and all issues are caught throws. -/
 def allSweep (cs : List (String × Nat)) : Bool := !cs.isEmpty && cs.all fun (x, _) => isSweep x
 
 /-- The spool alert title: the issue list `x₁ xn₁, …` cut to 123 UTF-16 units (an ellipsis marks a cut)
 between a fixed head and tail, so it fits the 200-unit step title. When every issue is a caught fwcore throw
 (`sweep:<op>`) the head and tail are the throw ones (`sweepHead`, `sweepTail`: the fix is not in `emit.mjs`).
-
-$$\operatorname{title}(C) = h \cdot \operatorname{take}_{16}(123, N) \cdot e \cdot t,\quad N = N(C),\quad (h, t) = \begin{cases} (H_s, T_s) & \operatorname{allSweep}(C) \\ (H, T) & \text{otherwise} \end{cases},\quad e = \begin{cases} \text{“…”} & |\operatorname{take}_{16}(123, N)| < |N| \\ \varepsilon & \text{otherwise} \end{cases}$$
 
 Name every issue with its count, cut short when the list is long.
 -/
@@ -805,8 +668,6 @@ def alertTitle (cs : List (String × Nat)) : String :=
 
 /-- **Throws get their own title**: when every issue is a caught throw the title has the throw head and tail and not the
 `emit.mjs` ones.
-
-$$\operatorname{allSweep}(C) \Rightarrow \operatorname{title}(C) = H_s \cdot \operatorname{take}_{16}(123, N) \cdot e \cdot T_s$$
 -/
 theorem alertTitle_sweep (cs : List (String × Nat)) (h : allSweep cs = true) :
     alertTitle cs = String.ofList (sweepHead.toList ++ takeU16 123 (alertNames cs) ++
@@ -814,10 +675,7 @@ theorem alertTitle_sweep (cs : List (String × Nat)) (h : allSweep cs = true) :
   unfold alertTitle
   simp [h]
 
-/-- **A spool-line problem keeps the old title**: when some issue is not a caught throw the title is the old one.
-
-$$\lnot\operatorname{allSweep}(C) \Rightarrow \operatorname{title}(C) = H \cdot \operatorname{take}_{16}(123, N) \cdot e \cdot T$$
--/
+/-- **A spool-line problem keeps the old title**: when some issue is not a caught throw the title is the old one. -/
 theorem alertTitle_spool (cs : List (String × Nat)) (h : allSweep cs = false) :
     alertTitle cs = String.ofList (alertHead.toList ++ takeU16 123 (alertNames cs) ++
       (if (takeU16 123 (alertNames cs)).length < (alertNames cs).length then ['…'] else []) ++ alertTail.toList) := by
@@ -825,8 +683,6 @@ theorem alertTitle_spool (cs : List (String × Nat)) (h : allSweep cs = false) :
   simp [h]
 
 /-- **The title fits**: the spool alert title is at most 200 UTF-16 units (the contract's step title).
-
-$$\forall C:\quad \operatorname{utf16}(\operatorname{title}(C)) \le 200$$
 
 The alert title is never too long for the board.
 -/
@@ -846,8 +702,6 @@ theorem alertTitle_le (cs : List (String × Nat)) : utf16Len (alertTitle cs) ≤
 /-- **The spool alert**: none when there is no issue or a spool alert is still open; otherwise a step
 `alert-spool-<now>` titled with each issue and its count (`alertTitle`).
 
-$$\operatorname{fieldAlert}(t, O, C) = \begin{cases} \bot & C = [\,] \lor \exists \mathit{id} \in O:\ \operatorname{owner}(\mathit{id}) = \texttt{spool} \\ (s, \texttt{alert:} \cdot s, \operatorname{title}(C)) & \text{otherwise} \end{cases},\quad s = \operatorname{stepId}(\texttt{spool}, t)$$
-
 Raise one alert for all spool problems, unless one is already open.
 -/
 def fieldAlert (now : Nat) (opn : List String) (cs : List (String × Nat)) :
@@ -858,8 +712,6 @@ def fieldAlert (now : Nat) (opn : List String) (cs : List (String × Nat)) :
     some (id, "alert:" ++ id, alertTitle cs)
 
 /-- A spool alert is raised exactly when there is an issue and no spool alert is open.
-
-$$\forall t, O, C:\quad \operatorname{fieldAlert}(t, O, C) \ne \bot \iff C \ne [\,] \land \lnot\exists \mathit{id} \in O:\ \operatorname{owner}(\mathit{id}) = \texttt{spool}$$
 
 The alert fires on any issue while none is open.
 -/
@@ -881,8 +733,6 @@ theorem fieldAlert_some_iff (t : Nat) (opn : List String) (cs : List (String × 
 /-- **Every issue raises the alert, counted**: an issue in the list makes the spool alert fire (when
 none is open) and appears in the counts with a positive count.
 
-$$\forall t, O, I, x:\quad x \in I \land \lnot\exists \mathit{id} \in O:\ \operatorname{owner}(\mathit{id}) = \texttt{spool} \Rightarrow \operatorname{fieldAlert}(t, O, \operatorname{counts}(I)) \ne \bot \land \exists n > 0:\ (x, n) \in \operatorname{counts}(I)$$
-
 No issue goes unreported.
 -/
 theorem issue_alerts (t : Nat) (opn : List String) {is : List String} {x : String} (hx : x ∈ is)
@@ -894,10 +744,8 @@ theorem issue_alerts (t : Nat) (opn : List String) {is : List String} {x : Strin
   exact List.count_pos_iff.mpr hx
 
 /-- **Every rejected line raises the spool alert** (`reject_alerts`): when a line of the drain was
-rejected with reason $w$ and no spool alert is open, the alert over the drain's issues (plus any
-extra issues, such as `lifeOf:error`) fires and counts `rejected:` $w$ at least once.
-
-$$\forall t, O, L, E, w:\quad w \in \operatorname{rej}(L) \land \lnot\exists \mathit{id} \in O:\ \operatorname{owner}(\mathit{id}) = \texttt{spool} \Rightarrow \operatorname{fieldAlert}(t, O, \operatorname{counts}(\operatorname{issues}(L) \mathbin{+\!\!+} E)) \ne \bot \land \exists n > 0:\ (\texttt{rejected:} \cdot \operatorname{name}(w), n) \in \operatorname{counts}(\operatorname{issues}(L) \mathbin{+\!\!+} E)$$
+rejected with reason `w` and no spool alert is open, the alert over the drain's issues (plus any
+extra issues, such as `lifeOf:error`) fires and counts `rejected:` `w` at least once.
 
 A refused line is never silent: it shows in the spool alert with its reason.
 -/
@@ -923,11 +771,11 @@ record is keyed by the record's agent id or by its obs key, never by a name. A n
 task row sees the key (`Fw.Plan.keysOf`). The decision never reads `background_tasks` (MEASURED: a
 session-wide count, 6 to 31 on every one of the spool's SubagentStop records, never 0).
 
-* `SubagentStart` of id $i$ spawns $i$ at the record time (event key `start:<obs key>`);
-* `SubagentStop` of id $i$ stops $i$ at the record time (`stop:<obs key>`), named or not, and nothing
+* `SubagentStart` of id `i` spawns `i` at the record time (event key `start:<obs key>`);
+* `SubagentStop` of id `i` stops `i` at the record time (`stop:<obs key>`), named or not, and nothing
   else: two agents of one name are two keys, and the stop of one leaves the other live
   (`Fw.Plan.concurrent_keep`);
-* **any other event** of id $i$, named or unnamed, is a heartbeat: a spawn of $i$ at the record time
+* **any other event** of id `i`, named or unnamed, is a heartbeat: a spawn of `i` at the record time
   with event key `seen:<i>|<epoch>|<time / 10 min>`, so at most one per id and 10 minutes, and only
   while no stop of the id was sent (`no_revive_after_stop`: after a stop only a `SubagentStart` revives it,
   `start_revives`, by `Fw.Plan.revive_on_event`; `stoppedAtOf` is the same rule over a whole spool); an id with no sighting within the quiet
@@ -935,23 +783,18 @@ session-wide count, 6 to 31 on every one of the spool's SubagentStop records, ne
   (`Fw.Plan.running_needs_recent_sighting`, `Fw.Plan.timeout_never_ends`); a lead or user mark ends
   it (`Fw.Plan.mark_ends_quiet`);
 * a named `SpawnGuard` record (the spawner's guard, before the new agent has an id) spawns its own
-  obs key $k$ (event key `guard:<k>`) and labels $k$ with the requested name (event key
+  obs key `k` (event key `guard:<k>`) and labels `k` with the requested name (event key
   `guard-label:<k>`): the task row is running from the spawn on, before the health index labels the
-  new id. A `SubagentStop` record carries no obs key of the guard, so no record stops $k$: it runs
+  new id. A `SubagentStop` record carries no obs key of the guard, so no record stops `k`: it runs
   for the quiet limit after its record and then shows quiet (`Fw.Plan.no_forever_running`), never
   ended.
 -/
 
-/-- The heartbeat bucket: 10 minutes in milliseconds.
-
-$$\mathit{seenBucketMs} = 600000$$
--/
+/-- The heartbeat bucket: 10 minutes in milliseconds. -/
 def seenBucketMs : Nat := 10 * 60000
 
 /-- What a record does to agent life: a spawn or stop of a life key (event key, life key, time), or a
 label of a life key with a name (event key, life key, name).
-
-$$\mathrm{Life} = \mathrm{spawn}(e, k, t) \cup \mathrm{stop}(e, k, t) \cup \mathrm{label}(e, k, n)$$
 -/
 inductive Life where
   | spawn (key agent : String) (time : Nat)
@@ -959,36 +802,27 @@ inductive Life where
   | label (key agent name : String)
 deriving Repr, DecidableEq
 
-/-- The life key a life command names.
-
-$$\operatorname{agent}(\mathrm{spawn}(e, k, t)) = \operatorname{agent}(\mathrm{stop}(e, k, t)) = \operatorname{agent}(\mathrm{label}(e, k, n)) = k$$
--/
+/-- The life key a life command names. -/
 def Life.agent : Life → String
   | .spawn _ a _ | .stop _ a _ | .label _ a _ => a
 
 /-- A usable agent name: non-empty and at most 120 UTF-16 units (a contract id).
 
-$$\operatorname{okName}(n) \iff 0 < \operatorname{len}_{16}(n) \le 120$$
-
 Is this string fit to be a name.
 -/
 def okName (n : String) : Bool := decide (0 < utf16Len n ∧ utf16Len n ≤ 120)
 
-/-- The heartbeat event key of id $i$ at time $t$ in stop epoch $p$.
+/-- The heartbeat event key of id `i` at time `t` in stop epoch `p`.
 
-$$\operatorname{seenKey}(i, p, t) = \texttt{seen:} \cdot i \cdot \texttt{|} \cdot p \cdot \texttt{|} \cdot \lfloor t / 600000 \rfloor$$
-
-($p$ and $\lfloor t / 600000 \rfloor$ written in decimal.) One key per id, epoch and 10 minutes.
+(`p` and `⌊ t / 600000 ⌋` written in decimal.) One key per id, epoch and 10 minutes.
 -/
 def seenKey (i : String) (p t : Nat) : String :=
   "seen:" ++ i ++ "|" ++ toString p ++ "|" ++ toString (t / seenBucketMs)
 
-/-- The life commands of a record by its agent id $i$ (event $e$, obs key $k$, time $t$, stop epoch $p$
-of $i$).
+/-- The life commands of a record by its agent id `i` (event `e`, obs key `k`, time `t`, stop epoch `p`
+of `i`).
 
-$$\operatorname{byId}(e, i, k, t, p) = \begin{cases} [\,] & i = \bot \\ [\mathrm{spawn}(\texttt{start:}k, i, t)] & i \ne \bot \land e = \texttt{SubagentStart} \\ [\mathrm{stop}(\texttt{stop:}k, i, t)] & i \ne \bot \land e = \texttt{SubagentStop} \\ [\mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t)] & i \ne \bot \land e \notin \{\texttt{SubagentStart}, \texttt{SubagentStop}\} \land p = 0 \\ [\,] & \text{otherwise} \end{cases}$$
-
-The id starts, stops, or is seen alive. Once the drain has sent a stop of $i$ ($p > 0$), only a `SubagentStart` makes it live
+The id starts, stops, or is seen alive. Once the drain has sent a stop of `i` (`p > 0`), only a `SubagentStart` makes it live
 again: 56 of 2026-10-19's stops were followed by a `PostToolUse` of tool `SubagentHandback` with no start (MEASURED).
 -/
 def byId (event : String) (agentId : Option String) (key : String) (ts epoch : Nat) : List Life :=
@@ -1000,11 +834,9 @@ def byId (event : String) (agentId : Option String) (key : String) (ts epoch : N
     else if epoch == 0 then [.spawn (seenKey i epoch ts) i ts]
     else []
 
-/-- The life commands of a spawn guard (event $e$, requested name $g$, obs key $k$, time $t$): a named
-guard spawns its obs key and labels it with the name, when $k$, $g$ and the label's event key are
+/-- The life commands of a spawn guard (event `e`, requested name `g`, obs key `k`, time `t`): a named
+guard spawns its obs key and labels it with the name, when `k`, `g` and the label's event key are
 usable contract ids.
-
-$$\operatorname{byGuard}(e, g, k, t) = \begin{cases} [\mathrm{spawn}(\texttt{guard:}k, k, t), \mathrm{label}(\texttt{guard-label:}k, k, \gamma)] & e = \texttt{SpawnGuard} \land g = \mathrm{some}(\gamma) \land \operatorname{okName}(\gamma) \land \operatorname{okName}(k) \land \operatorname{okName}(\texttt{guard-label:}k) \\ [\,] & \text{otherwise} \end{cases}$$
 
 A guard makes the requested name running under the guard's own key.
 -/
@@ -1018,10 +850,8 @@ def byGuard (event : String) (agentName : Option String) (key : String) (ts : Na
     | none => []
   else []
 
-/-- **The life decision of a record** (event $e$, agent id $i$, spawn-guard name $g$, obs key $k$,
-time $t$, stop epoch $p$ of $i$): the guard commands, then the id commands.
-
-$$\operatorname{lifeOf}(e, i, g, k, t, p) = \operatorname{byGuard}(e, g, k, t) \mathbin{+\!\!+} \operatorname{byId}(e, i, k, t, p)$$
+/-- **The life decision of a record** (event `e`, agent id `i`, spawn-guard name `g`, obs key `k`,
+time `t`, stop epoch `p` of `i`): the guard commands, then the id commands.
 
 What one spool record says about which agents live.
 -/
@@ -1031,8 +861,6 @@ def lifeOf (event : String) (agentId agentName : Option String) (key : String) (
 
 /-- **Identity only** (`life_identity`): every life command of a record is keyed by the record's agent
 id or by its obs key, and every stop is a stop of the agent id.
-
-$$\forall e, i, g, k, t, p, c:\quad c \in \operatorname{lifeOf}(e, i, g, k, t, p) \Rightarrow \big(\operatorname{agent}(c) = k \lor \mathrm{some}(\operatorname{agent}(c)) = i\big) \land \big(\forall e', a, t':\ c = \mathrm{stop}(e', a, t') \Rightarrow \mathrm{some}(a) = i\big)$$
 
 No name is ever a life key, and no record stops anything but its own agent.
 -/
@@ -1060,10 +888,8 @@ theorem life_identity (e : String) (i g : Option String) (k : String) (t p : Nat
           · simp only [List.mem_singleton] at hc; subst hc; simp [Life.agent]
           · simp at hc
 
-/-- **A stop ends its id** (`stop_by_id`): a `SubagentStop` with agent id $i$ stops $i$ at the record
+/-- **A stop ends its id** (`stop_by_id`): a `SubagentStop` with agent id `i` stops `i` at the record
 time, named or not, whatever `background_tasks` says (the decision has no such input).
-
-$$\forall i, g, k, t, p:\quad \mathrm{stop}(\texttt{stop:}k, i, t) \in \operatorname{lifeOf}(\texttt{SubagentStop}, \mathrm{some}(i), g, k, t, p)$$
 
 Every subagent stop reaches the board as a stop of that id.
 -/
@@ -1071,10 +897,8 @@ theorem stop_by_id (i : String) (g : Option String) (k : String) (t p : Nat) :
     Life.stop ("stop:" ++ k) i t ∈ lifeOf "SubagentStop" (some i) g k t p := by
   simp [lifeOf, byId]
 
-/-- **A start spawns its id** (`start_by_id`): a `SubagentStart` with agent id $i$ spawns $i$ at the
+/-- **A start spawns its id** (`start_by_id`): a `SubagentStart` with agent id `i` spawns `i` at the
 record time.
-
-$$\forall i, g, k, t, p:\quad \mathrm{spawn}(\texttt{start:}k, i, t) \in \operatorname{lifeOf}(\texttt{SubagentStart}, \mathrm{some}(i), g, k, t, p)$$
 
 Every subagent start reaches the board as a spawn of that id.
 -/
@@ -1082,12 +906,10 @@ theorem start_by_id (i : String) (g : Option String) (k : String) (t p : Nat) :
     Life.spawn ("start:" ++ k) i t ∈ lifeOf "SubagentStart" (some i) g k t p := by
   simp [lifeOf, byId]
 
-/-- **An event revives an id nobody has stopped** (`event_revives`): an event of id $i$ other than a start or stop,
-named or unnamed, with no stop of $i$ sent yet ($p = 0$), gives a heartbeat spawn of $i$ at the record time; applied to a
-plan state where $i$ is a key labelled with name $a$ and every stop of $i$ is older than $t$, it makes $i$ live and $a$
+/-- **An event revives an id nobody has stopped** (`event_revives`): an event of id `i` other than a start or stop,
+named or unnamed, with no stop of `i` sent yet (`p = 0`), gives a heartbeat spawn of `i` at the record time; applied to a
+plan state where `i` is a key labelled with name `a` and every stop of `i` is older than `t`, it makes `i` live and `a`
 not ended.
-
-$$\forall \pi, e, i, a, g, k, t:\quad e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \land i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\operatorname{seenKey}(i, 0, t), i, t) \in \operatorname{lifeOf}(e, \mathrm{some}(i), g, k, t, 0) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false},\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
 
 An agent with no stop that does anything is live (running while that event is within the quiet limit).
 -/
@@ -1100,11 +922,9 @@ theorem event_revives (π : Fw.Plan.State) {e i a : String} (g : Option String) 
   refine ⟨?_, Fw.Plan.revive_on_event π hk hs⟩
   simp [lifeOf, byId, h1, h2]
 
-/-- **No event but a start revives a stopped id** (`no_revive_after_stop`): once a stop of $i$ was sent ($p > 0$), an
-event of $i$ other than a start or stop gives no life command for $i$ (a `SubagentHandback` call after the stop is not a
+/-- **No event but a start revives a stopped id** (`no_revive_after_stop`): once a stop of `i` was sent (`p > 0`), an
+event of `i` other than a start or stop gives no life command for `i` (a `SubagentHandback` call after the stop is not a
 resume).
-
-$$\forall e, i, k, t, p:\quad p > 0 \land e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \Rightarrow \operatorname{byId}(e, \mathrm{some}(i), k, t, p) = [\,]$$
 -/
 theorem no_revive_after_stop (e i k : String) (t p : Nat) (hp : 0 < p)
     (h1 : e ≠ "SubagentStart") (h2 : e ≠ "SubagentStop") :
@@ -1112,10 +932,8 @@ theorem no_revive_after_stop (e i k : String) (t p : Nat) (hp : 0 < p)
   have : (p == 0) = false := by simp; omega
   simp [byId, h1, h2, this]
 
-/-- **A start revives a stopped id** (`start_revives`): a `SubagentStart` of $i$ later than every stop of $i$ makes $i$
+/-- **A start revives a stopped id** (`start_revives`): a `SubagentStart` of `i` later than every stop of `i` makes `i`
 live and its name not ended, whatever the stop epoch.
-
-$$\forall \pi, i, a, g, k, t, p:\quad i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\texttt{start:}k, i, t) \in \operatorname{lifeOf}(\texttt{SubagentStart}, \mathrm{some}(i), g, k, t, p) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false},\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
 -/
 theorem start_revives (π : Fw.Plan.State) {i a : String} (g : Option String) (k : String)
     (t p : Nat) (hk : i ∈ Fw.Plan.keysOf π a) (hs : ∀ q ∈ π.stops, q.1 = i → q.2 < t) :
@@ -1124,11 +942,9 @@ theorem start_revives (π : Fw.Plan.State) {i a : String} (g : Option String) (k
       Fw.Plan.ended (Fw.Plan.step π (.spawn i t)) a = false :=
   ⟨start_by_id i g k t p, Fw.Plan.revive_on_event π hk hs⟩
 
-/-- **The stop epoch after a record** (`epochNext`): a `SubagentStop` at $t$ raises the epoch to $\max(p, t)$; a
-`SubagentStart` at $t$ newer than the epoch resets it to $0$ (the agent lives again, so its tool calls are heartbeats
+/-- **The stop epoch after a record** (`epochNext`): a `SubagentStop` at `t` raises the epoch to `max(p, t)`; a
+`SubagentStart` at `t` newer than the epoch resets it to `0` (the agent lives again, so its tool calls are heartbeats
 again; an older start resets nothing, as in `stoppedAtOf`); any other event leaves it.
-
-$$\operatorname{epochNext}(e, t, p) = \begin{cases} \max(p, t) & e = \texttt{SubagentStop} \\ 0 & e = \texttt{SubagentStart} \land p < t \\ p & \text{otherwise} \end{cases}$$
 
 The drain keeps one epoch per agent id and sets it from this function after each record.
 -/
@@ -1137,12 +953,10 @@ def epochNext (event : String) (ts epoch : Nat) : Nat :=
   else if event == "SubagentStart" && decide (epoch < ts) then 0
   else epoch
 
-/-- **A resumed agent heartbeats again** (`heartbeat_after_resume`): a stop of $i$ at $s$, then a start at $t$ newer than
-the stop and than every earlier stop ($p < t$), then an event $e$ of $i$ other than a start or stop at $u$ gives a
-heartbeat spawn of $i$ at $u$, so the agent shows running again. Without the start the same event gives no command
+/-- **A resumed agent heartbeats again** (`heartbeat_after_resume`): a stop of `i` at `s`, then a start at `t` newer than
+the stop and than every earlier stop (`p < t`), then an event `e` of `i` other than a start or stop at `u` gives a
+heartbeat spawn of `i` at `u`, so the agent shows running again. Without the start the same event gives no command
 (`silent_after_stop_epoch`).
-
-$$\forall e, i, k, p, s, t, u:\quad p < t \land s < t \land e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \Rightarrow \operatorname{byId}(e, \mathrm{some}(i), k, u, q) = [\mathrm{spawn}(\operatorname{seenKey}(i, 0, u), i, u)],\quad q = \operatorname{epochNext}(\texttt{SubagentStart}, t, \operatorname{epochNext}(\texttt{SubagentStop}, s, p))$$
 -/
 theorem heartbeat_after_resume (e i k : String) (p s t u : Nat) (hp : p < t) (hs : s < t)
     (h1 : e ≠ "SubagentStart") (h2 : e ≠ "SubagentStop") :
@@ -1152,10 +966,8 @@ theorem heartbeat_after_resume (e i k : String) (p s t u : Nat) (hp : p < t) (hs
   have : max p s < t := by omega
   simp [byId, epochNext, h1, h2, this]
 
-/-- **Stopped without a start stays silent** (`silent_after_stop_epoch`): after a stop at $s > 0$ the epoch is positive, so an
+/-- **Stopped without a start stays silent** (`silent_after_stop_epoch`): after a stop at `s > 0` the epoch is positive, so an
 event other than a start or stop gives no command.
-
-$$\forall e, i, k, p, s, u:\quad 0 < s \land e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \Rightarrow \operatorname{byId}(e, \mathrm{some}(i), k, u, \operatorname{epochNext}(\texttt{SubagentStop}, s, p)) = [\,]$$
 -/
 theorem silent_after_stop_epoch (e i k : String) (p s u : Nat) (hs : 0 < s)
     (h1 : e ≠ "SubagentStart") (h2 : e ≠ "SubagentStop") :
@@ -1170,40 +982,28 @@ A spool is a list of (hook name, time). The agent's stop time is the newest `Sub
 0 real tool calls without a start).
 -/
 
-/-- Fold step of `lastStop`: a stop raises the running maximum.
-
-$$\operatorname{step}(a, (h, t)) = \begin{cases} \mathrm{some}(\max(a_0, t)) & h = \texttt{SubagentStop} \\ a & \text{otherwise} \end{cases},\quad a_0 = a \text{ or } 0$$
--/
+/-- Fold step of `lastStop`: a stop raises the running maximum. -/
 def stopStep (acc : Option Nat) (x : String × Nat) : Option Nat :=
   if x.1 == "SubagentStop" then some (max (acc.getD 0) x.2) else acc
 
 /-- The newest `SubagentStop` time of a spool.
 
-$$\operatorname{lastStop}(h) = \max \{ t \mid (\texttt{SubagentStop}, t) \in h \}$$ (`none` for the empty set)
+(`none` for the empty set)
 -/
 def lastStop (h : List (String × Nat)) : Option Nat :=
   h.foldl stopStep none
 
-/-- Whether a spool has a `SubagentStart` newer than $s$.
-
-$$\operatorname{startAfter}(h, s) \iff \exists (\texttt{SubagentStart}, t) \in h.\ s < t$$
--/
+/-- Whether a spool has a `SubagentStart` newer than `s`. -/
 def startAfter (h : List (String × Nat)) (s : Nat) : Bool :=
   h.any fun (e, t) => e == "SubagentStart" && decide (s < t)
 
-/-- **The stop time of an agent** (`stoppedAtOf`): the newest stop, unless a start is newer.
-
-$$\operatorname{stoppedAt}(h) = \begin{cases} \bot & \operatorname{lastStop}(h) = \bot \lor \operatorname{startAfter}(h, \operatorname{lastStop}(h)) \\ \operatorname{lastStop}(h) & \text{otherwise} \end{cases}$$
--/
+/-- **The stop time of an agent** (`stoppedAtOf`): the newest stop, unless a start is newer. -/
 def stoppedAtOf (h : List (String × Nat)) : Option Nat :=
   match lastStop h with
   | none => none
   | some s => if startAfter h s then none else some s
 
-/-- **A start after the stop resumes** (`resumed_by_start`): with a stop at $s$ and a start at $t > s$ the agent has no stop time.
-
-$$\forall h, s, t:\quad \operatorname{lastStop}(h) = \mathrm{some}(s) \land (\texttt{SubagentStart}, t) \in h \land s < t \Rightarrow \operatorname{stoppedAt}(h) = \bot$$
--/
+/-- **A start after the stop resumes** (`resumed_by_start`): with a stop at `s` and a start at `t > s` the agent has no stop time. -/
 theorem resumed_by_start (h : List (String × Nat)) (s t : Nat) (hs : lastStop h = some s)
     (hm : ("SubagentStart", t) ∈ h) (hlt : s < t) : stoppedAtOf h = none := by
   have : startAfter h s = true := by
@@ -1211,10 +1011,7 @@ theorem resumed_by_start (h : List (String × Nat)) (s t : Nat) (hs : lastStop h
     exact ⟨_, hm, by simp [hlt]⟩
   simp [stoppedAtOf, hs, this]
 
-/-- **Nothing else resumes** (`not_resumed_without_start`): when no start is newer than the stop $s$, the stop time stays $s$.
-
-$$\forall h, s:\quad \operatorname{lastStop}(h) = \mathrm{some}(s) \land (\forall t.\ (\texttt{SubagentStart}, t) \in h \Rightarrow t \le s) \Rightarrow \operatorname{stoppedAt}(h) = \mathrm{some}(s)$$
--/
+/-- **Nothing else resumes** (`not_resumed_without_start`): when no start is newer than the stop `s`, the stop time stays `s`. -/
 theorem not_resumed_without_start (h : List (String × Nat)) (s : Nat) (hs : lastStop h = some s)
     (hm : ∀ t, ("SubagentStart", t) ∈ h → t ≤ s) : stoppedAtOf h = some s := by
   have : startAfter h s = false := by
@@ -1225,10 +1022,7 @@ theorem not_resumed_without_start (h : List (String × Nat)) (s : Nat) (hs : las
     · simp [he]
   simp [stoppedAtOf, hs, this]
 
-/-- **No stop, no stop time** (`no_stop_no_stoppedAt`): a spool without a `SubagentStop` has no stop time.
-
-$$\forall h:\quad (\forall t.\ (\texttt{SubagentStop}, t) \notin h) \Rightarrow \operatorname{stoppedAt}(h) = \bot$$
--/
+/-- **No stop, no stop time** (`no_stop_no_stoppedAt`): a spool without a `SubagentStop` has no stop time. -/
 theorem no_stop_no_stoppedAt (h : List (String × Nat)) (hn : ∀ t, ("SubagentStop", t) ∉ h) :
     stoppedAtOf h = none := by
   have key : ∀ (l : List (String × Nat)) (acc : Option Nat), (∀ t, ("SubagentStop", t) ∉ l) →
@@ -1246,8 +1040,6 @@ theorem no_stop_no_stoppedAt (h : List (String × Nat)) (hn : ∀ t, ("SubagentS
 
 /-- The label command of an agent id from the health index: event key `label:<id>|<name>`, when the
 id, the name and that key are all usable contract ids.
-
-$$\operatorname{labelOf}(i, n) = \begin{cases} (e, i, n) & \operatorname{okName}(i) \land \operatorname{okName}(n) \land \operatorname{okName}(e) \\ \bot & \text{otherwise} \end{cases},\quad e = \texttt{label:} \cdot i \cdot \texttt{|} \cdot n$$
 
 Tell the board which name an id goes by.
 -/
