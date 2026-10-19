@@ -6,7 +6,7 @@ Checkpoint C3 of PLAN §10 (deadline 2026-10-19 23:15 +0700), decided at 22:55.
 
 | C3 criterion | Result |
 |---|---|
-| Wave-2 whole-page gate on `v2-proved` | PASS. Run 39271987926 (full, not narrowed, branch with the platform will-change fix, landed on main as platform-willchange): Chromium verdict pass, 7056 readings, 0 fail, 7 excused; WebKit 0 fail, 291 excused, incomplete only by the 2 phone-rotation NC cells, identical to wave 1 (accepted limit). MEASURED |
+| Wave-2 whole-page gate on `v2-proved` | PASS. Run 39271987926 (full, not narrowed, branch with the platform will-change fix, landed on main as platform-willchange): Chromium verdict pass, 7056 readings, 0 fail, 7 excused; WebKit 0 fail, 291 excused, incomplete only by 1 phone-rotation cell (matchMedia =Lean, 2 not-comparable readings at stops 1 and 3), identical to wave 1 (accepted limit). MEASURED |
 | Default arm | PASS on platform after the fix: run 39266552780, both engines. MEASURED |
 | Combined counts per profile | Style recalcs 1832 -> 821 (swipe-v1), 1864 -> 856 (swipe-touch-v1), 3 of 3 shards, deterministic (research/notes/2026/10-19-integrate-wave-2.md). MEASURED |
 | Proof ledger | 14 of 15 closed. `variant-hidden-pause` closed by evidence 726cc17b (its three flags are on main and pass the gate). `variant-morph-panel-rest` is cut: reported as "modelled, not proved"; `morph.panel:rest` is not in `v2-proved` |
@@ -26,7 +26,7 @@ Checkpoint C3 of PLAN §10 (deadline 2026-10-19 23:15 +0700), decided at 22:55.
 | engine.scroll:batched, morph.tween:waapi | keep, unmeasured per part | no part page (accepted limit) |
 | hero.countdown:strip | out of `v2-proved`; reported "modelled, not proved" | its only prediction (census.layers below the original) is unchecked: 12960 = 12960 in every shard, which the stable class cannot refute. The strip arm MEASURED more pipeline work: UpdateLayoutTree / RecalcStyleCount 1161 -> 1182, commits 1064 -> 1085, UpdateLayoutTree.elementCount 11264 -> 22445 (runs 39257533380, 39259074927). Not falsified, so the drop rule does not force it; out because G1 asks for a checked theorem pair |
 
-`c3-preset-update` (landed 639f9475) adds `hero.countdown:strip` and `morph.countdown:strip` to the curated exclusions in `lean/Fw/Preset/Gen.lean`; the generated `v2-proved` now has 9 flags. Re-run on main at 639f9475, run 39282664077: Chromium pass (7056 readings, 0 fail, 7 excused); WebKit 0 fail, 291 excused, incomplete only by the 2 phone-rotation NC cells, the same as run 39271987926. MEASURED
+`c3-preset-update` (landed 639f9475) adds `hero.countdown:strip` and `morph.countdown:strip` to the curated exclusions in `lean/Fw/Preset/Gen.lean`; the generated `v2-proved` now has 9 flags. Re-run on main at 639f9475, run 39282664077: Chromium pass (7056 readings, 0 fail, 7 excused); WebKit 0 fail, 291 excused, incomplete only by the same phone-rotation cell (2 readings), as in run 39271987926. MEASURED
 
 ## Findings recorded at C3
 

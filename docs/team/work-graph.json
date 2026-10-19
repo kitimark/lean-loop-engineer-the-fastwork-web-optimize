@@ -5610,7 +5610,8 @@
    "writes": [
     "docs/report/**",
     "docs/team/handoffs/report-draft-3.md"
-   ]
+   ],
+   "evidence": "22e4047"
   },
   {
    "devices": [
@@ -7463,7 +7464,8 @@
     "apps/console-web/src/Health*.tsx",
     "research/notes/2026/10-2*-gh-status*.md",
     "docs/team/handoffs/gh-status.md"
-   ]
+   ],
+   "evidence": "a7c9ad1"
   }
  ],
  "deadline": {
