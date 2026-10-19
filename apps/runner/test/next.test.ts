@@ -135,14 +135,19 @@ describe("end to end with a real child process", () => {
     const child = spawn("sh", ["-c", script], { detached: true, stdio: "ignore" });
     child.unref();
     started.push(child.pid!);
-    const now = Date.now();
-    const ps = await psCommands();
-    const raw: Raw = {
-      now, session: process.pid, ps, alive: () => true, file: statFile, queuedText: "", ci: [], board: new Map(),
-      procs: [{ pid: child.pid!, name: "sh", startedAt: now, pids: [], agent: "e2e" }],
-      agents: [{ id: "e2e", name: "e2e", task: "e2e", state, ctxTokens: 0, handbackAt: null, worktree: null, ahead: null, landed: null, mergesClean: null, branchDeps: [], handoff: false }],
-    };
-    return { facts: buildFacts(raw), now, pid: child.pid! };
+    const deadline = Date.now() + (Number(process.env.FW_EXEC_TIMEOUT_MS) || 5000) * 2;
+    for (;;) { // the forked shell is not in `ps` the instant spawn returns, and ps itself can time out under load: poll, bounded
+      const now = Date.now();
+      const ps = await psCommands();
+      const raw: Raw = {
+        now, session: process.pid, ps, alive: () => true, file: statFile, queuedText: "", ci: [], board: new Map(),
+        procs: [{ pid: child.pid!, name: "sh", startedAt: now, pids: [], agent: "e2e" }],
+        agents: [{ id: "e2e", name: "e2e", task: "e2e", state, ctxTokens: 0, handbackAt: null, worktree: null, ahead: null, landed: null, mergesClean: null, branchDeps: [], handoff: false }],
+      };
+      const facts = buildFacts(raw);
+      if (facts[0]!.children.length > 0 || Date.now() > deadline) return { facts, now, pid: child.pid! };
+      await new Promise((r) => setTimeout(r, 50));
+    }
   }
 
   it("a real `until false; do sleep 1; done` is a sleepLoop owned by the session", async () => {
