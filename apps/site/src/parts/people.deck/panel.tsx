@@ -2,17 +2,17 @@ import { useState } from 'react';
 import { avatarOf, bg, coverOf, postOf, thumbOf } from '../people/assets';
 import type { Profile } from '../people/data';
 import css from './deck.module.css';
+import { AboutPanel, ReviewsPanel, ServicesPanel } from './feedPanels';
+import { ClockIcon, MuteIcon, PlayIcon, StarIcon } from './icons';
+import { FEED_TAB_IDS, tabOf, type FeedTab } from './panels.logic';
+import { PANELS } from '../people/panels.data';
 
-const FEED_TABS = [
-  ['posts', 'Portfolio'],
-  ['services', 'Services'],
-  ['reviews', 'Reviews'],
-  ['about', 'About'],
-] as const;
+const FEED_LABELS: Record<FeedTab, string> = { posts: 'Portfolio', services: 'Services', reviews: 'Reviews', about: 'About' };
+const FEED_TABS = FEED_TAB_IDS.map((id) => [id, FEED_LABELS[id]] as const);
 
 /** One profile panel (nodes/2.DyWL8TcE.js 10857-11140 and the feed widgets): header, stats, cover, feed tabs and the posts tab. */
 export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
-  const [tab, setTab] = useState<(typeof FEED_TABS)[number][0]>('posts');
+  const [tab, setTab] = useState<FeedTab>('posts');
   const followers = `${p.followers} followers`;
   return (
     <div className={css.panel} role="tabpanel" aria-hidden={hidden || undefined}>
@@ -77,7 +77,7 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                 aria-selected={tab === id}
                 data-selenium={`start-selling.profile-showcase.button.feed-tab.${p.id}_${id}`}
                 className={tab === id ? css.isActive : undefined}
-                onClick={() => setTab(id)}
+                onClick={() => setTab(tabOf({ id }))}
               >
                 {label}
               </button>
@@ -90,7 +90,31 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                   <div className={css.masonry}>
                     {p.posts.map((post) => (
                       <div key={post.id} className={css.tile}>
-                        {post.kind !== 'audio' ? (
+                        {post.kind === 'article' ? (
+                          <button
+                            type="button"
+                            className={`${css.postCard} ${css.isArticle}`}
+                            data-selenium={`start-selling.profile-showcase.button.post.${p.id}_${post.id}`}
+                          >
+                            <span className={css.articleCover}>
+                              <span className={css.postFill} style={bg(postOf(p, post))} />
+                            </span>
+                            <span className={css.byline}>
+                              <span className={css.bylineAvatar}>
+                                <span className={css.postFill} style={bg(avatarOf(p))} />
+                              </span>{' '}
+                              <span className={css.author}>{p.name}</span>{' '}
+                              <span aria-hidden="true">
+                                ·
+                              </span>{' '}
+                              <span className={css.read}>
+                                <ClockIcon className={css.clock} /> {`${post.readMinutes} min read`}
+                              </span>
+                            </span>
+                            <span className={css.articleTitle}>{post.title}</span>
+                            <span className={css.excerpt}>{post.excerpt}</span>
+                          </button>
+                        ) : post.kind !== 'audio' ? (
                           <button
                             type="button"
                             className={css.postCard}
@@ -98,6 +122,12 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                             style={{ aspectRatio: post.ratio ?? '16 / 10' }}
                           >
                             <span className={css.postFill} style={bg(postOf(p, post))} />
+                            {post.price ? <span className={css.postPrice}>{post.price}</span> : null}
+                            {post.video ? (
+                              <span className={css.videoBadge} aria-hidden="true">
+                                <PlayIcon />
+                              </span>
+                            ) : null}
                           </button>
                         ) : (
                           <button
@@ -116,7 +146,7 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                             </span>
                             <span className={css.fade} aria-hidden="true" />
                             <span className={css.mute} aria-hidden="true">
-                              <span className={css.muteIcon} />
+                              <MuteIcon className={css.muteIcon} />
                             </span>
                           </button>
                         )}
@@ -127,7 +157,7 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                     <div className={css.rail}>
                       <div className={css.railHead}>
                         <h3>Services</h3>
-                        <button type="button" className={css.viewAll} data-selenium={`start-selling.profile-showcase.button.view-all-services.${p.id}`}>
+                        <button type="button" className={css.viewAll} data-selenium={`start-selling.profile-showcase.button.view-all-services.${p.id}`} onClick={() => setTab('services')}>
                           View all
                         </button>
                       </div>
@@ -153,7 +183,7 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                                       ·
                                     </span>{' '}
                                     <span className={css.rating}>
-                                      ★ {s.rating.toFixed(1)} <span>({s.reviewCount})</span>
+                                      <StarIcon size={14} /> {s.rating.toFixed(1)} <span>({s.reviewCount})</span>
                                     </span>
                                   </span>
                                 </span>
@@ -167,7 +197,11 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                 </div>
               </div>
             ) : (
-              <div className={css.feedPanel} />
+              <div className={css.feedPanel}>
+                {tab === 'services' ? <ServicesPanel p={p} /> : null}
+                {tab === 'reviews' && PANELS[p.id] ? <ReviewsPanel p={p} data={PANELS[p.id]!} /> : null}
+                {tab === 'about' && PANELS[p.id] ? <AboutPanel p={p} data={PANELS[p.id]!} /> : null}
+              </div>
             )}
           </div>
         </section>
