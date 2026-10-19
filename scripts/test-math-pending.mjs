@@ -8,7 +8,7 @@ let n = 0;
 const t = (name, f) => { f(); n++; console.log(`ok ${n} ${name}`); };
 const rec = (file, round, rows) => ({
   file,
-  text: `---\ntitle: x\n${round === null ? '' : `round: ${round}\n`}---\n\n| Declaration | Verdict | stmtHash | mathHash | Note |\n|---|---|---|---|---|\n${rows.join('\n')}\n`,
+  text: `---\ntitle: x\n${round === null ? '' : `round: ${round}\n`}---\n\n| Declaration | Verdict | stmtHash | Note |\n|---|---|---|---|\n${rows.join('\n')}\n`,
 });
 
 t('rows: highest round wins, unnumbered ranks lowest, last row within a record wins', () => {
@@ -28,9 +28,18 @@ t('rows: old formats, backticked hashes, non-review tables ignored', () => {
     '| Batch | 3 | 1 | 2 |', '| `Other.d` | agree | 1 | 2 |  |',
   ])]);
   assert.deepEqual([...rows.keys()], ['Fw.B.a', 'Fw.B.b', 'Fw.B.c']);
-  assert.deepEqual([rows.get('Fw.B.a').stmtHash, rows.get('Fw.B.a').mathHash], [null, null]);
-  assert.deepEqual([rows.get('Fw.B.b').stmtHash, rows.get('Fw.B.b').mathHash], ['11', null]);
-  assert.deepEqual([rows.get('Fw.B.c').stmtHash, rows.get('Fw.B.c').mathHash], ['11', '22']);
+  assert.deepEqual(['Fw.B.a', 'Fw.B.b', 'Fw.B.c'].map((x) => rows.get(x).stmtHash), [null, '11', '11']);
+});
+
+t('rows: artifact records rank after every review round, by file name; their columns are decl, stmtHash, agree', () => {
+  const art = (file, rows) => ({ file, text: `| decl | stmtHash | agree | artifact |\n|---|---|---|---|\n${rows.join('\n')}\n` });
+  const rows = parseRecords([
+    art('n/10-20-math-artifact-b.md', ['| `Fw.A.x` | 5 | agree | p.html |']),
+    rec('r99.md', 99, ['| `Fw.A.x` | disagree | 1 |  |', '| `Fw.A.y` | agree | 2 |  |']),
+    art('n/10-19-math-artifact-a.md', ['| `Fw.A.x` | 4 | disagree | p.html |', '| `Fw.A.y` | `3` | **agree** | p.html |']),
+  ]);
+  assert.deepEqual([rows.get('Fw.A.x').verdict, rows.get('Fw.A.x').stmtHash], ['agree', '5']);
+  assert.deepEqual([rows.get('Fw.A.y').verdict, rows.get('Fw.A.y').stmtHash], ['agree', '3']);
 });
 
 t('rows: two records with one round fail', () => {
@@ -38,21 +47,19 @@ t('rows: two records with one round fail', () => {
 });
 
 t('status: the six cases', () => {
-  const e = { name: 'Fw.A.x', stmtHash: '1', mathHash: '2' };
-  const r = (verdict, stmtHash, mathHash) => ({ verdict, stmtHash, mathHash });
+  const e = { name: 'Fw.A.x', stmtHash: '1' };
+  const r = (verdict, stmtHash) => ({ verdict, stmtHash });
   assert.equal(statusOf(e, undefined), 'new');
-  assert.equal(statusOf(e, r('agree', '1', '2')), 'signed');
-  assert.equal(statusOf(e, r('agree', '9', '2')), 'stale');
-  assert.equal(statusOf(e, r('agree', '1', '9')), 'stale');
-  assert.equal(statusOf(e, r('agree', '9', null)), 'stale');
-  assert.equal(statusOf(e, r('agree', '1', null)), 'unhashed');
-  assert.equal(statusOf(e, r('agree', null, null)), 'unhashed');
-  assert.equal(statusOf(e, r('disagree', '1', '2')), 'disagree');
-  assert.equal(statusOf(e, r('disagree', '1', '3')), 'disagree-changed');
-  assert.equal(statusOf({ ...e, stmtHash: 1, mathHash: 2 }, r('agree', '1', '2')), 'signed'); // numeric export
+  assert.equal(statusOf(e, r('agree', '1')), 'signed');
+  assert.equal(statusOf(e, r('agree', '9')), 'stale');
+  assert.equal(statusOf(e, r('agree', null)), 'unhashed');
+  assert.equal(statusOf(e, r('disagree', '1')), 'disagree');
+  assert.equal(statusOf(e, r('disagree', null)), 'disagree');
+  assert.equal(statusOf(e, r('disagree', '3')), 'disagree-changed');
+  assert.equal(statusOf({ ...e, stmtHash: 1 }, r('agree', '1')), 'signed'); // numeric export
 });
 
-const ent = (module, i) => ({ module, name: `${module}.d${i}`, kind: 'def', line: i, stmtHash: `${i}`, mathHash: `${i}` });
+const ent = (module, i) => ({ module, name: `${module}.d${i}`, kind: 'def', line: i, stmtHash: `${i}` });
 const many = (module, k) => Array.from({ length: k }, (_, i) => ent(module, i + 1));
 
 t('batches: partition, modules kept whole, balanced', () => {
@@ -87,7 +94,7 @@ t('batches: deterministic and sorted by module then line inside a batch', () => 
 t('decide: pending ∪ signed = all, disjoint, batches partition pending', () => {
   const entries = [...many('Fw.A', 4), ...many('Fw.B', 3)];
   const rows = parseRecords([rec('r.md', 1, [
-    '| `Fw.A.d1` | agree | 1 | 1 |  |', '| `Fw.A.d2` | agree | 1 | 1 |  |', '| `Fw.B.d1` | disagree | 1 | 1 |  |',
+    '| `Fw.A.d1` | agree | 1 |  |', '| `Fw.A.d2` | agree | 1 |  |', '| `Fw.B.d1` | disagree | 1 |  |',
   ])]);
   const { status, signed, pending, batches } = decide(entries, rows, 2);
   assert.deepEqual(signed.map((e) => e.name), ['Fw.A.d1']);
@@ -99,7 +106,7 @@ t('decide: pending ∪ signed = all, disjoint, batches partition pending', () =>
 });
 
 t('output format', () => {
-  assert.equal(tsvLine(ent('Fw.A', 7)), 'Fw.A\tFw.A.d7\tdef\t7\t7');
+  assert.equal(tsvLine(ent('Fw.A', 7)), 'Fw.A\tFw.A.d7\tdef\t7');
   assert.deepEqual([0, 3, 25].map(batchId), ['A', 'D', 'Z']);
 });
 

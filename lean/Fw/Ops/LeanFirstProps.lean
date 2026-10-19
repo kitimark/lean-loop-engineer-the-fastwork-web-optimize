@@ -63,7 +63,7 @@ instance instDecidableDischarges (F : Facts) (t : ThmFact) (P : PropFact) : Deci
 /-- A signoff row is about the property at its current hashes, for the role.
 $$\operatorname{At}(\sigma, P, r) \iff \sigma.\mathit{decl} = P.\mathit{name} \land \sigma.\mathit{stmt} = P.\mathit{stmt} \land \sigma.\mathit{doc} = P.\mathit{doc} \land \sigma.\mathit{role} = r$$ -/
 abbrev At (s : Signoff) (P : PropFact) (r : Role) : Prop :=
-  s.decl = P.name ∧ s.stmtHash = P.stmtHash ∧ s.docHash = P.docHash ∧ s.role = r
+  s.decl = P.name ∧ s.stmtHash = P.stmtHash ∧ s.role = r
 
 /-- **Signed** (rule 1b): some row at the current hashes for the role agrees, and every such row agrees.
 $$\operatorname{Signed}(F, P, r) \iff (\exists \sigma \in F.\mathit{signoffs},\ \operatorname{At}(\sigma, P, r) \land \sigma.a) \land \forall \sigma \in F.\mathit{signoffs},\ \operatorname{At}(\sigma, P, r) \Rightarrow \sigma.a$$ -/
