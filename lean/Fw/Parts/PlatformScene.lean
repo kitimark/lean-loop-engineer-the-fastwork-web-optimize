@@ -5,16 +5,16 @@ import Fw.Parts.PlatformSweep
 
 Restated (not copied) from `snapshot/site-pretty/_app/immutable/nodes/2.DyWL8TcE.js`: `lE` 2715-2718 (initial activity),
 `cE` 2709-2713 (attribute on each observer change), `uE` 2719-2748 (shared IntersectionObserver), `dE` 2749-2782
-(registration, `rootMargin` default `100% 0px`, `manageAnimations` default true); the platform section registers at
-12448 (`dE(r, {deferRendering: !0, element: o})`, `o` bound to the section root at 12668-12672). CSS:
-`assets/2.gBuqKVzi.css` 11754-11758. Consumers: `platform/scene.ts` (golden `platform.scene.jsonl`) and
+(registration; `rootMargin` defaults to `100% 0px`, `manageAnimations` to true when an element is given); the platform
+section registers at 12448 (`dE(r, {deferRendering: !0, element: o})`, `o` bound to the section root at 12668-12672).
+CSS: `assets/2.gBuqKVzi.css` 11754-11758. Consumers: `platform/scene.ts` (golden `platform.scene.jsonl`) and
 `HiddenPausePlatform` (the engine.scene variant's clock).
 
 Not covered, in the original and the port alike: the SMIL glint (`platform.glint`) and the JS count-up (2.DyWL8TcE.js
-11996-12040), which `animation-play-state` does not pause. Not ported: the scheduler's per-frame gate `e.active &&
-e.callback()` (2670-2673) on the section's shrink callback (12436-12448); the port runs `platform.shrink` every scroll
-frame. INFERRED same visual: while inactive the section lies more than one viewport from the viewport; the work differs and
-is not claimed. Pixel equality is left to the gate and visual run.
+11996-12040), which `animation-play-state` does not pause. Not ported: the scheduler's per-frame gate
+`e.active && e.callback()` (2670-2673) on the section's shrink callback (12436-12448); the port runs `platform.shrink`
+every scroll frame. INFERRED same visual: while inactive the section lies more than one viewport from the viewport; the
+work differs and is not claimed. Pixel equality is left to the gate and visual run.
 -/
 namespace Fw.Parts.PlatformScene
 open Fw.Parts.PlatformSweep (frac)
