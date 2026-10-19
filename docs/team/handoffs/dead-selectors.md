@@ -21,4 +21,4 @@ Accepted limits: (1) `[data-fw-note="<id>"]` is client-written and templated: fo
 Follow-up (lead to add to work-graph; not edited here): nav/index.tsx defaults `stickySelector`/`sectionSelector`/`splashSelector` still use
 original class names ("nav defaults selectors dead", nav lane).
 Verified at r1: site test 88 files/5352 pass, typecheck, part-footprint --check, ci-paths 32, land-inputs 40, lake build, ContractsGolden --check.
-check.sh result: see the report.
+check.sh: green at cf5a7aa7 (all lean gates).
