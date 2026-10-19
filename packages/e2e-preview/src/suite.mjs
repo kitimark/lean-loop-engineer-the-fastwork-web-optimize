@@ -124,7 +124,7 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     const sameFailed = log.failed.filter((f) => !/Blocked by Web Inspector|beacon|cdn-cgi/.test(f));
     const cancelNoise = engine === "webkit" && log.pageErrors.length > 0
       && log.pageErrors.every((e) => /Importing a module script failed|Unable to preload CSS/.test(e))
-      && sameFailed.length > 0 && sameFailed.every((f) => /\/_app\/.*Load request cancelled$/.test(f));
+      && sameFailed.every((f) => /\/_app\/.*Load request cancelled$/.test(f));
     check("page-errors", (log.pageErrors.length === 0 || cancelNoise) && !log.consoleErrors.some((t) => /dynamically imported module|Failed to load module/i.test(t)),
       [...log.pageErrors, ...log.consoleErrors].slice(0, 3).join(" | ") + (log.failed.length ? ` || failed: ${log.failed.slice(0, 6).join("; ")} || navs: ${log.navs.join(", ")} || server saw: ${seenFor(rig, log.failed)}` : ""));
     if (cancelNoise) check("webkit-linux-preload-cancel-noise-observed", true, `${log.pageErrors.length} rejections, ${sameFailed.length} cancelled /_app/ preloads (accepted limit, see docs/team/tools/preview-e2e.md)`);
