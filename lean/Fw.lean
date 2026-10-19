@@ -93,6 +93,7 @@ import Fw.Wire.Gate
 import Fw.Wire.GateDeclared
 import Fw.Engine
 import Fw.Engine.Compose  -- compose-lean: units compose over parts, passes do not; Lego swap
+import Fw.Parts.Bridge  -- indep-bridge: Independent rows to Flow-Indep, Lego swaps on isolated rows, S3 passes
 import Fw.Guidance.Basic
 import Fw.Guidance.Motion
 import Fw.Guidance.Scroll
@@ -132,10 +133,12 @@ import Fw.Site.GenRoute  -- site-build-cache: breakgen / sweepsgen split (split_
 import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split
 import Fw.Gate.Shard  -- gate-shard-balance: LPT shard plan over measured unit costs
 import Fw.Gate.ShardObs  -- gate-shard-balance: observed jobs of a CI run, reduced to the cost table (ShardCosts)
+import Fw.Gate.Search  -- gate-preset-input: the search string of the gate rewrite arm from its fw and preset inputs
 import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict
 import Fw.Gate.PageOffset  -- fix-page-offset: page-level top-of-part check (proposal)
+import Fw.Gate.PageRoot  -- gate-page-root-anchor: the page-root anchor scrollWidth <= requested width
 import Fw.Spec.Props  -- lfg-props-shape: property-over-impl convention, Assume premise marker, kill-witness naming
 import Fw.Search  -- lfg-props-shape: Enum, bounded counterexample search, link to properties
 import Fw.Spec.LandDrySig  -- lfg-props-shape: the dry-run implementation signature (Out, DryImpl)
