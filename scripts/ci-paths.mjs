@@ -23,6 +23,8 @@
 //   - the first steps of every non-guard job re-check the branch tip (`tip re-check`, then `stale: ...` fails the job
 //     when a newer push moved the tip; Lean `stale_never_works`), and every step whose `if:` uses a status function
 //     carries the conjunct `steps.stale.outcome == 'skipped'` (Lean `workConj`).
+// Task ci-main-triggers: only rows with a Lean seeder list `main`; in such a workflow every job but the guard and the
+// seeders carries the Lean `notMainPush` conjunct in its `if:` (--write adds it), so a main push runs only the seeders.
 // --check also fails when the Lean macOS flag of a lane differs from its workflow (a job on `macos-*` / `xcode-*` whose
 // `if:` is not dispatch-only), and when a job's `if:` uses a status function without a conjunct that is false when the
 // guard skipped.
@@ -449,8 +451,17 @@ export function guardJob(file, lane) {
   ];
 }
 
-/** Everything wrong with one workflow's text, and the fixed text. */
-export function reconcile(file, text, row, lane = null) {
+/** A job `if:` with the Lean `notMainPush` conjunct added (`${{ e && (conj) }}`); a text that has it is unchanged. */
+export function withNotMain(ifText, conj) {
+  const c = `(${conj})`;
+  if (ifText.includes(c)) return ifText;
+  const m = /^\$\{\{\s*(.*?)\s*\}\}$/.exec(ifText.trim());
+  return `\${{ ${m ? m[1] : ifText.trim()} && ${c} }}`;
+}
+
+/** Everything wrong with one workflow's text, and the fixed text. `main` (Lean `seeders`, `notMainPush`): the jobs of
+ *  this file a `main` push runs besides the guard, and the conjunct every other job carries when the row lists `main`. */
+export function reconcile(file, text, row, lane = null, main = null) {
   const problems = [];
   let lines = text.split('\n');
   // 1. on.push: the branches, no paths (a docs-only tip push must still create the run whose guard decides)
@@ -602,6 +613,24 @@ export function reconcile(file, text, row, lane = null) {
   for (const j of jobs7) {
     if (j.name !== 'guard' && unsafeStatusIf(j.ifText)) problems.push(`${file}: job ${j.name}: its \`if:\` uses a status function without a needs success or guard run conjunct, so it would run (and enter its group) after the guard skipped (edit by hand)`);
   }
+  // 8. a row that lists `main`: a main push runs the guard and the seeders only (Lean Fw.Ci.Trigger.mainRuns_iff), so
+  // every other job carries the `notMainPush` conjunct and no seeder does
+  if (main && row.branches.includes('main')) {
+    const c = `(${main.conj})`;
+    for (const name of readJobs(lines).map((j) => j.name).filter((n) => n !== 'guard')) {
+      const j = readJobs(lines).find((x) => x.name === name);
+      const k = lines.findIndex((l, i) => i > j.at && i < j.end && /^ {4}if:/.test(l));
+      const seeds = main.jobs.includes(name);
+      if (seeds) {
+        if (j.ifText.includes(c)) problems.push(`${file}: job ${name} is a seeder (Lean Fw.Ci.Trigger.seeders) but its \`if:\` skips a main push (edit by hand)`);
+        continue;
+      }
+      if (j.ifText.includes(c)) continue;
+      problems.push(`${file}: job ${name} would run on a main push but is no seeder (Lean Fw.Ci.Trigger.seeders); its \`if:\` lacks \`${c}\``);
+      if (k >= 0) lines[k] = `    if: ${withNotMain(j.ifText, main.conj)}`;
+      else lines.splice(j.at + 1, 0, `    if: \${{ ${c} }}`);
+    }
+  }
   return { problems, text: lines.join('\n') };
 }
 
@@ -657,7 +686,9 @@ export function run(root, write) {
     for (const p of paths) if (!portableGlob(p)) problems.push(`${f}: glob ${p} is not read the same by GitHub and by Lean PathCheck`);
     const text = readFileSync(join(dir, f), 'utf8');
     let r;
-    try { r = reconcile(f, text, row, lane ?? null); } catch (e) { problems.push(`${f}: ${e.message}`); continue; }
+    if (row.branches.includes('main') && !table.notMainPush) problems.push(`${f}: lists main but the Lean golden has no notMainPush (lake test -- --write-ci-trigger-golden)`);
+    const main = table.notMainPush ? { jobs: (table.seeders ?? []).filter((s) => s.file === f).map((s) => s.job), conj: table.notMainPush } : null;
+    try { r = reconcile(f, text, row, lane ?? null, main); } catch (e) { problems.push(`${f}: ${e.message}`); continue; }
     problems.push(...r.problems);
     if (write && r.text !== text) { writeFileSync(join(dir, f), r.text); wrote++; }
   }

@@ -8,7 +8,7 @@ on:
   # the edited declaration's ids move, see gen.mjs), the killers, equivalent.tsv
   # and the design patches (lean/FwTest/Mutants/**), the driver, setup-lean. Other Lean edits run in lean.yml only.
   push:
-    branches: ['ci/**', main]
+    branches: ['ci/**']
   workflow_dispatch:
     inputs:
       tag:

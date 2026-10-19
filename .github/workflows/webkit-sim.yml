@@ -6,7 +6,7 @@ name: webkit-sim
 # producing counts under the old platform key. The Simulator is booted once and stays booted for the whole job.
 on:
   push:
-    branches: ['ci/**', main]
+    branches: ['ci/**']
   workflow_dispatch:
     inputs:
       vms:

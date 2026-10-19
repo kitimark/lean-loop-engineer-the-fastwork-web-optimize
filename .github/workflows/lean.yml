@@ -109,7 +109,7 @@ jobs:
   # modules whose key changed. `mathview-cached.sh --diff` runs both and compares.
   mathview-differential:
     needs: [guard]
-    if: ${{ needs.guard.outputs.run == 'true' }}
+    if: ${{ needs.guard.outputs.run == 'true' && (github.event_name != 'push' || github.ref != 'refs/heads/main') }}
     concurrency:
       group: ci-lane:lean:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:mathview-differential:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm

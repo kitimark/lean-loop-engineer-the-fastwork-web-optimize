@@ -132,6 +132,9 @@ def own (f : String) : String := s!".github/workflows/{f}"
 /-- Branches of a `ci/*` lane that also runs on `main`. $$B = [\texttt{ci/**},\ \texttt{main}]$$ -/
 def ciMain : List String := ["ci/**", "main"]
 
+/-- Branches of a `ci/*` lane that does not run on `main`. -/
+def ciAll : List String := ["ci/**"]
+
 /-- The files `lake build fwcore` reads besides the import cone of `Main`: the build files. `@fwcore.cone` is the cone.
 $$F_{\mathrm{core}} = [\texttt{lean/Main.lean},\ \texttt{lean/lakefile.toml},\ \texttt{lean/lake-manifest.json},\ \texttt{lean/lean-toolchain},\ @\mathrm{cone}(\mathrm{Main})]$$ -/
 def fwcoreFiles : List String :=
@@ -158,7 +161,7 @@ def setMap (cone : String → List String) (g : String) : List String :=
 
 /-- The workflow table: the single place where a push trigger is decided.
 $$\begin{aligned}
-W &= [w_1, \dots, w_{14}],\quad B = \mathrm{ciMain} \\
+W &= [w_1, \dots, w_{14}],\quad B = \mathrm{ciAll} \\
 w_{1} &= (\texttt{breakpoint-gate.yml}, B, G_{1}) \\
 G_{1} &= [\texttt{packages/gate-breakpoints/**}, \texttt{apps/site/**}, \texttt{@}\mathrm{fwcore}, \texttt{@}\mathrm{breakgen}, \\
 &\quad \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \texttt{package.json}, \texttt{pnpm-lock.yaml}, \\
@@ -184,7 +187,7 @@ G_{5} &= [\texttt{packages/gate-breakpoints/**}, \texttt{apps/site/**}, \texttt{
 &\quad \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \texttt{package.json}, \texttt{pnpm-lock.yaml}, \\
 &\quad \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/check-simulator.sh}, \texttt{.github/scripts/changed-inputs.mjs}, \\
 &\quad \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \operatorname{own}(\texttt{gate-gaps.yml})] \\
-w_{6} &= (\texttt{lean.yml}, B, G_{6}) \\
+w_{6} &= (\texttt{lean.yml}, \mathrm{ciMain}, G_{6}) \\
 G_{6} &= [\texttt{lean/**}, \texttt{apps/site/src/breakpoints.gen.json}, \texttt{apps/site/src/sweeps.gen.json}, \texttt{apps/site/src/head.gen.json}, \texttt{scripts/span.sh}, \\
 &\quad \texttt{scripts/fwcore-build.sh}, \texttt{packages/contracts/golden/gate/sweeps.jsonl}, \texttt{packages/contracts/golden/gate/exit.jsonl}, \texttt{packages/contracts/golden/gate/search.jsonl}, \\
 &\quad \texttt{packages/gate-breakpoints/src/scope.gen.json}, \texttt{packages/contracts/golden/parts/contracts.gen.json}, \texttt{packages/contracts/golden/parts/stage.jsonl}, \texttt{packages/contracts/golden/parts/stage-mode.jsonl}, \\
@@ -229,7 +232,7 @@ G_{14} &= [\texttt{packages/measure-wktr/**}, \texttt{packages/measure-chromium/
 Each row is (workflow file, branches, input globs); `lean/**` is replaced by the binary's own inputs where the
 workflow only builds `fwcore` or `breakgen`, while `lean.yml` and the lean checks keep `lean/**`. -/
 def table : List Wf := [
-  ⟨"breakpoint-gate.yml", ciMain, [
+  ⟨"breakpoint-gate.yml", ciAll, [
     "packages/gate-breakpoints/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/gate-shards.mjs",
     ".github/scripts/gate-jobs.mjs", ".github/scripts/gate-jobs.test.mjs", ".github/scripts/cache-key.mjs", "packages/contracts/golden/gate/schedule.jsonl",
@@ -238,20 +241,20 @@ def table : List Wf := [
     "packages/contracts/golden/ops/cache.jsonl", ".github/scripts/gate-smoke.mjs", ".github/scripts/merge-gate.mjs",
     ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
     ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**", own "breakpoint-gate.yml"]⟩,
-  ⟨"chromium-counts.yml", ciMain, [
+  ⟨"chromium-counts.yml", ciAll, [
     "packages/measure-chromium/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
     ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
     ".github/actions/setup-pnpm/**", own "chromium-counts.yml"]⟩,
-  ⟨"difftest.yml", ciMain, [
+  ⟨"difftest.yml", ciAll, [
     "packages/difftest/**", "packages/measure-webkit/src/**", "packages/measure-chromium/src/**",
     "apps/runner/hooks/cap.mjs", "apps/console-api/src/cap/**", "@fwcore", "pnpm-lock.yaml",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**",
     own "difftest.yml"]⟩,
-  ⟨"engine-premises.yml", ["ci/**"], [
+  ⟨"engine-premises.yml", ciAll, [
     "packages/measure-chromium/**", "packages/measure-wktr/**", "packages/contracts/golden/ops/engine-premises.jsonl",
     ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", own "engine-premises.yml"]⟩,
-  ⟨"gate-gaps.yml", ciMain, [
+  ⟨"gate-gaps.yml", ciAll, [
     "packages/gate-breakpoints/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
     ".github/scripts/check-simulator.sh", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
@@ -263,12 +266,12 @@ def table : List Wf := [
     "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl", "packages/measure-chromium/scenarios.gen.json",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh",
     own "lean.yml"]⟩,
-  ⟨"mutants.yml", ciMain, [
+  ⟨"mutants.yml", ciAll, [
     "lean/Fw/Console.lean", "lean/Fw/Serve.lean", "lean/Fw/Ops/Meter.lean", "lean/Fw/Ops/PathCheck.lean",
     "lean/Fw/Ops/SpawnGuard.lean", "lean/Fw/Ops/Usage.lean", "lean/Fw/Ops/Wire.lean", "lean/Fw/Spec/DeviceQueue.lean",
     "lean/Fw/Wire.lean", "lean/FwTest/Mutants/**", "lean/scripts/mutants.sh", ".github/scripts/changed-inputs.mjs",
     ".github/actions/setup-lean/**", own "mutants.yml"]⟩,
-  ⟨"premise-tests.yml", ciMain, [
+  ⟨"premise-tests.yml", ciAll, [
     "packages/premise-tests/**", "packages/contracts/golden/ops/premise.jsonl", "lean/Fw/Ops/Premise.lean",
     "apps/runner/src/premises.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
@@ -276,27 +279,27 @@ def table : List Wf := [
   ⟨"sim-speed.yml", ["ci/sim-speed"], [
     "packages/measure-webkit/**", ".github/scripts/sim-speed-*", ".github/scripts/check-simulator.sh",
     ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", own "sim-speed.yml"]⟩,
-  ⟨"snapshot-extract.yml", ciMain, [
+  ⟨"snapshot-extract.yml", ciAll, [
     "packages/snapshot-extract/**", "packages/gate-breakpoints/**", "apps/site/**", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**",
     ".github/actions/gate-engine/**", own "snapshot-extract.yml"]⟩,
-  ⟨"visual-diff.yml", ciMain, [
+  ⟨"visual-diff.yml", ciAll, [
     "packages/visual-diff/**", "packages/gate-breakpoints/src/**", "packages/gate-breakpoints/package.json",
     "packages/contracts/golden/gate/**", "packages/contracts/golden/port/**", "scripts/port/**", "apps/site/**",
     "@breakgen", "snapshot/**", "snapshot.lock.json", "package.json",
     "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs",
     ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
     own "visual-diff.yml"]⟩,
-  ⟨"webkit-sim.yml", ciMain, [
+  ⟨"webkit-sim.yml", ciAll, [
     "packages/measure-webkit/**", "snapshot/**", "snapshot.lock.json", ".github/scripts/check-simulator.sh",
     ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs",
     own "webkit-sim.yml"]⟩,
-  ⟨"wktr-fixtures.yml", ["ci/**"], [
+  ⟨"wktr-fixtures.yml", ciAll, [
     "packages/measure-wktr/**", "packages/measure-chromium/src/classify.mjs", "packages/measure-chromium/src/fwcore.mjs",
     "@fwcore", "packages/contracts/golden/measure/wktr.fixtures.jsonl", ".github/scripts/runner-info.sh",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", own "wktr-fixtures.yml"]⟩,
-  ⟨"wktr.yml", ["ci/**"], [
+  ⟨"wktr.yml", ciAll, [
     "packages/measure-wktr/**", "packages/measure-chromium/src/classify.mjs", "packages/measure-chromium/src/fwcore.mjs",
     "@fwcore", "snapshot/**", "snapshot.lock.json", ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", own "wktr.yml"]⟩]
@@ -329,6 +332,65 @@ def run (diff merged : List String) : List String :=
 -- a fixture page starts both wktr lanes; the fixture workflow file starts only itself
 #guard run ["packages/measure-wktr/fixtures/control/index.html"] [] == ["engine-premises.yml", "wktr-fixtures.yml", "wktr.yml"]
 #guard run [".github/workflows/wktr-fixtures.yml"] [] == ["wktr-fixtures.yml"]
+
+/-! ## Main pushes (task `ci-main-triggers`)
+
+A `main` push runs only the jobs that save a cache `ci/*` runs restore: a run restores caches of its own branch and of
+the default branch only (docs.github.com, dependency caching, "Restrictions for accessing a cache"). -/
+
+/-- The (workflow, job) pairs a `main` push runs besides the workflow's `guard`: the Lake cache writers
+(`Fw.Ops.LakeCache.seeders_are_writers`). -/
+def seeders : List (String × String) := [("lean.yml", "lean")]
+
+/-- The job `if:` conjunct that skips a job on a `main` push and keeps it on every other event. -/
+def notMainPush : String := "github.event_name != 'push' || github.ref != 'refs/heads/main'"
+
+/-- A push to `main` starts a run of the workflow. -/
+def Wf.onMain (w : Wf) : Bool := w.branches.contains "main"
+
+/-- A `main` push runs job `j` of workflow `w`. -/
+def mainRuns (w : Wf) (j : String) : Bool := w.onMain && (j == "guard" || seeders.contains (w.file, j))
+
+/-- The branches of a list other than `main`. -/
+def ciPart (bs : List String) : List String := bs.filter (· != "main")
+
+/-- A workflow lists `main` iff a seeder job is in it. -/
+theorem main_iff_seeder : ∀ w ∈ table, w.onMain = true ↔ w.file ∈ seeders.map Prod.fst := by decide
+
+/-- Every seeder names a workflow of the table. -/
+theorem seeders_in_table : ∀ s ∈ seeders, ∃ w ∈ table, w.file = s.1 := by decide
+
+/-- **A `main` push runs only the seeders.** It runs a job iff the job is a seeder, or the guard of a seeder's
+workflow. -/
+theorem mainRuns_iff (w : Wf) (hw : w ∈ table) (j : String) :
+    mainRuns w j = true ↔ (w.file, j) ∈ seeders ∨ (j = "guard" ∧ w.file ∈ seeders.map Prod.fst) := by
+  have hm := main_iff_seeder w hw
+  simp only [mainRuns, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, List.contains_iff_mem]
+  constructor
+  · rintro ⟨h, rfl | hs⟩
+    · exact Or.inr ⟨rfl, hm.mp h⟩
+    · exact Or.inl hs
+  · rintro (hs | ⟨rfl, hf⟩)
+    · exact ⟨hm.mpr (List.mem_map.mpr ⟨_, hs, rfl⟩), Or.inr hs⟩
+    · exact ⟨hm.mpr hf, Or.inl rfl⟩
+
+/-- A row lists its `ci/` branches, then `main` iff it runs on `main`. -/
+theorem branches_split : ∀ w ∈ table, w.branches = ciPart w.branches ++ (if w.onMain then ["main"] else []) := by
+  decide
+
+/-- The `ci/**` triggers, unchanged by task `ci-main-triggers`. -/
+theorem ci_triggers : table.map (fun w => (w.file, ciPart w.branches)) = [
+    ("breakpoint-gate.yml", ["ci/**"]), ("chromium-counts.yml", ["ci/**"]), ("difftest.yml", ["ci/**"]),
+    ("engine-premises.yml", ["ci/**"]), ("gate-gaps.yml", ["ci/**"]), ("lean.yml", ["ci/**"]),
+    ("mutants.yml", ["ci/**"]), ("premise-tests.yml", ["ci/**"]), ("sim-speed.yml", ["ci/sim-speed"]),
+    ("snapshot-extract.yml", ["ci/**"]), ("visual-diff.yml", ["ci/**"]), ("webkit-sim.yml", ["ci/**"]),
+    ("wktr-fixtures.yml", ["ci/**"]), ("wktr.yml", ["ci/**"])] := by decide
+
+#guard (table.filter (·.onMain)).map (·.file) == ["lean.yml"]
+#guard table.all fun w => (ciPart w.branches).all (·.startsWith "ci/")
+#guard table.any fun w => w.file == "lean.yml" && mainRuns w "lean" && mainRuns w "guard"
+#guard !table.any fun w => w.file == "lean.yml" && mainRuns w "mathview-differential"
+#guard !table.any fun w => w.file == "breakpoint-gate.yml" && mainRuns w "guard"
 
 /-! ## Coarse push filter, precise guard (task `ci-cone-glob`)
 
@@ -494,7 +556,9 @@ def tableLine : Json :=
   Json.mkObj [("kind", "table"),
     ("workflows", .arr (table.map fun w => Json.mkObj [("file", .str w.file), ("branches", strs w.branches),
       ("inputs", strs w.inputs)]).toArray),
-    ("sets", Json.mkObj (sets.map fun (n, xs) => (n, strs xs))), ("coneGlobs", strs coneGlobs)]
+    ("sets", Json.mkObj (sets.map fun (n, xs) => (n, strs xs))), ("coneGlobs", strs coneGlobs),
+    ("seeders", .arr (seeders.map fun (f, j) => Json.mkObj [("file", .str f), ("job", .str j)]).toArray),
+    ("notMainPush", .str notMainPush)]
 
 /-- The replay cases: a push (its diff, the paths that already equal `main`); the workflows it starts under the
 sample cones are added by `caseLine`.

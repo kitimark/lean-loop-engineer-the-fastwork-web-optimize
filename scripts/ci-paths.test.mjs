@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { decide, loadIntent, matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
-import { coarseMap, coneOf, coneProblems, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
+import { coarseMap, coneOf, coneProblems, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -124,10 +124,11 @@ test('coarse push paths: every cone of the checkout stays inside coneGlobs (Lean
 
 const sample = readFileSync(join(root, WF, 'gate-gaps.yml'), 'utf8');
 const row = table.workflows.find((w) => w.file === 'gate-gaps.yml');
+const pushLine = renderPush(row.branches)[1];
 
 test('lint: a paths list under on.push is reported and removed (round 3: every push creates a run)', () => {
   assert.ok(!/^ {4}paths:/m.test(sample));
-  const bad = sample.replace("branches: ['ci/**', main]\n", "branches: ['ci/**', main]\n    paths:\n      - 'extra/**'\n");
+  const bad = sample.replace(`${pushLine}\n`, `${pushLine}\n    paths:\n      - 'extra/**'\n`);
   assert.notEqual(bad, sample);
   const r = reconcile('gate-gaps.yml', bad, row);
   assert.ok(r.problems.some((p) => /on\.push differs/.test(p)), r.problems.join('\n'));
@@ -135,7 +136,8 @@ test('lint: a paths list under on.push is reported and removed (round 3: every p
 });
 
 test('lint: a branches change is reported', () => {
-  const bad = sample.replace("branches: ['ci/**', main]", "branches: ['**']");
+  const bad = sample.replace(pushLine, "    branches: ['**']");
+  assert.notEqual(bad, sample);
   assert.ok(reconcile('gate-gaps.yml', bad, row).problems.some((p) => /on\.push differs/.test(p)));
 });
 
@@ -154,6 +156,32 @@ test('lint: a new root job that does not wait for the guard is reported', () => 
   const r = reconcile('gate-gaps.yml', bad, row);
   assert.ok(r.problems.some((p) => /job extra does not wait for guard/.test(p)), r.problems.join('\n'));
   assert.deepEqual(unguarded(readJobs(r.text.split('\n'))), []);
+});
+
+test('main pushes: only the Lean seeders\' workflows list main, and the seeders are the Lake cache writers', () => {
+  const seedFiles = [...new Set(table.seeders.map((s) => s.file))];
+  assert.deepEqual(table.workflows.filter((w) => w.branches.includes('main')).map((w) => w.file), seedFiles);
+  assert.deepEqual(table.seeders.map((s) => `${s.file}/${s.job}`), lakeJobs(root).filter((r) => r.saves).map((r) => `${r.file}/${r.job}`));
+  for (const w of table.workflows) assert.ok(w.branches.filter((b) => b !== 'main').every((b) => b.startsWith('ci/')), w.file);
+});
+
+test('lint: a non-seeder job of a main workflow without the notMainPush conjunct is reported and fixed', () => {
+  const lean = readFileSync(join(root, WF, 'lean.yml'), 'utf8');
+  const leanRow = table.workflows.find((w) => w.file === 'lean.yml');
+  const intent = loadIntent(root).lanes;
+  const lane = { ...intent.lanes.find((l) => l.file === 'lean.yml'), decision: intent.decision, recheck: intent.recheck };
+  const main = { jobs: ['lean'], conj: table.notMainPush };
+  const c = ` && (${table.notMainPush})`;
+  assert.ok(lean.includes(c));
+  const bad = lean.replace(c, '');
+  const r = reconcile('lean.yml', bad, leanRow, lane, main);
+  assert.ok(r.problems.some((p) => /mathview-differential would run on a main push/.test(p)), r.problems.join('\n'));
+  assert.equal(r.text, lean);
+  assert.deepEqual(reconcile('lean.yml', lean, leanRow, lane, main).problems, []);
+  const seederSkips = reconcile('lean.yml', lean, leanRow, lane, { ...main, jobs: ['lean', 'mathview-differential'] });
+  assert.ok(seederSkips.problems.some((p) => /is a seeder .* skips a main push/.test(p)), seederSkips.problems.join('\n'));
+  assert.equal(withNotMain("${{ a == 'b' }}", 'x'), "${{ a == 'b' && (x) }}");
+  assert.equal(withNotMain('${{ a && (x) }}', 'x'), '${{ a && (x) }}');
 });
 
 test('renderPush writes the branches and no paths', () => {

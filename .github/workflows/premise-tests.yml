@@ -7,7 +7,7 @@ name: premise-tests
 # log) or when the registry and the tests disagree (lint).
 on:
   push:
-    branches: ['ci/**', main]
+    branches: ['ci/**']
   workflow_dispatch:
 
 permissions:

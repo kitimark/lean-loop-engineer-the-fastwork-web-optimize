@@ -9,7 +9,7 @@ name: difftest
 on:
   # Inputs: the package, the TS modules it checks, the Lean project (fwcore), the lockfile, the actions it uses.
   push:
-    branches: ['ci/**', main]
+    branches: ['ci/**']
   schedule:
     - cron: '23 4 * * *'
   workflow_dispatch:

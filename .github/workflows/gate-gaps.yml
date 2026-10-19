@@ -13,7 +13,7 @@ name: gate-gaps
 # Counts and verdicts only: nothing measured here is phone time.
 on:
   push:
-    branches: ['ci/**', main]
+    branches: ['ci/**']
   workflow_dispatch:
     inputs:
       macos:
