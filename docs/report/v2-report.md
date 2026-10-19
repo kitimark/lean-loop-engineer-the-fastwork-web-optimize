@@ -911,8 +911,7 @@ runners are the free ones of a public repo, so the minutes cost no money; they c
 Webhooks": investigating at 15:49Z, degraded Actions at 15:56Z, recovery under way at 16:30Z with delays possible,
 resolved at 16:56Z. CONFIRMED, https://www.githubstatus.com/incidents/8tzbpcnl75jp (read through the status history feed). That is
 22:49-23:56 +0700, the last half hour before the C3 deadline and past it. The C3 confirmation gate run 39282664077 ran 16:04-16:34Z
-(29.8 min) inside that window. MEASURED (`gh run list`). The incident ledger has no row for it
-(`docs/team/incidents/ledger.json`, 64 rows). The task `gh-status` (added at `dcd3e13d`) reads githubstatus.com in `fw watch`, raises an alert
+(29.8 min) inside that window. MEASURED (`gh run list`). The GitHub incident is a platform event, not a team mistake, so it has no ledger row; the lead's misattribution of the queue to the slot cap does (`inc-` rows of `incidents-1019`, landed `2f82db9d`; `docs/team/incidents/ledger.json` now holds 105 incidents, lint 0 errors). The task `gh-status` (added at `dcd3e13d`) reads githubstatus.com in `fw watch`, raises an alert
 while Actions is degraded and names the incident on slow or queued CI alerts [WG].
 
 `gh-status` landed at `f39818c8` (2026-10-20 00:05 +0700): `fw watch` reads the githubstatus summary each pass (Lean `Fw.Obs.GhStatus`: `sys.ghDegraded` opens while Actions is not operational, closes when it is, keeps its state when the fetch fails; a `ci.slow` alert raised during an open Actions incident names it). The console Health tab shows the component states and the open incident. Delay the incident added (MEASURED, `gh run view`): the `lean` and `premise-tests` runs of the main push of 2026-10-19 15:50Z (836bbba6; runs 39281019901, 39281019914) were reported finished after 24 min, although the lean job itself ran 15:51-15:54Z; those of the 16:08Z push (639f9475; runs 39283085798, 39283085790) after 16 and 22 min; the C3 confirmation gate run 39282664077 took 29.8 min. Without a run outside the incident at the same load, the share of that time due to the incident is INFERRED.
@@ -972,7 +971,6 @@ nobody swiped `v2-proved` against `original` on the phone. `variant-morph-panel-
 - Port gaps: the audit found 26 gaps, 12 with no task (`research/notes/2026/10-19-port-completeness.md`). Ten follow-up tasks landed (`svg-extract`, `people-o-glyph`, `deck-panels-lean`, `asset-icons-gaps`, `doc-head-locale`, `morph-panel-content`, `dead-selectors`, `port-completeness-gate`, `port-pin-gap`, `port-wordmark-g`); which gaps remain was not measured again. The people.o "o" ownership move is left (§5.2).
 - TS stand-ins with no Lean rule: the wave-2 analysis (`packages/engine-check/src/wave2.mjs`), the nav-hide analysis, the preview rewrite, the fonts reader, the people-layout analyzer (`packages/visual-diff/src/people-layout-analyze.mjs`) and the console Builds `readPresets` extends resolution (`apps/console-api/src/preview/builds.ts`).
 - Tooling backlog: `visual-diff-3`, `claim-lint`, `plan-principles-lint`, `task-spec-lint`, `ci-runner-lint`, the Lean-first gate past its spec (`lfg-shadow` and later) and the Jev oracle (`jev-oracle`, `jev-eval`) have not landed.
-- The incident ledger has no rows for 2026-10-19 (§6.5).
 
 ---
 

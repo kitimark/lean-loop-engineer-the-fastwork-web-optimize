@@ -6607,15 +6607,25 @@
    "title": "Optimize O5 (after C3): hero.exit writes a non-inherited registered var on the readers only (units ~230 -> ~14 per scrolled frame); Chromium cite computed_style.cc:468-480, WebKit StyleTreeResolver.cpp:307-311; judged by elementCount only if the lead admits the quarantined counter, else proved-unmeasured",
    "stream": "proofs",
    "milestone": "M5",
-   "deps": [
-    "speed-after-c3"
-   ],
+   "deps": [],
    "owner": "lean-prover",
    "writes": [
     "lean/Fw/Parts/HeroExitOpt.lean",
     "apps/site/src/parts/hero.exit/**",
     "apps/site/src/parts/hero/*.css",
-    "docs/team/handoffs/exit-scoped-var.md"
+    "docs/team/handoffs/exit-scoped-var.md",
+    "lean/Fw/Engine/Restyle.lean",
+    "lean/Fw/Engine/Restyle/**",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**",
+    "apps/site/src/parts/hero.orbit/**",
+    "apps/site/src/parts/hero.cue/**",
+    "apps/site/src/parts/hero.deck/**",
+    "apps/site/src/parts/hero/**",
+    "apps/site/src/stage/**",
+    "lean/Fw/Site/Stage*.lean",
+    "packages/contracts/golden/**",
+    "research/notes/2026/10-20-exit-scoped-var*.md"
    ]
   },
   {
@@ -7468,6 +7478,554 @@
     "docs/team/handoffs/gh-status.md"
    ],
    "evidence": "a7c9ad1"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "workflow-salvage-wire",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): salvage stage in build-review on a null build, decided by Fw.Ops.Salvage via fwcore",
+   "deps": [],
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "lean/Fw/Ops/Salvage.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/scripts/SalvageGolden.lean",
+    "packages/contracts/golden/ops/salvage.jsonl",
+    "apps/runner/src/workflow/salvage.ts",
+    "apps/runner/test/workflow-salvage.test.ts",
+    "docs/team/tools/prompt-rules.md",
+    "docs/team/handoffs/workflow-salvage-wire.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "build-review-lint",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): Lean rule over build-review task args: Lean stages iff writes touch lean/, fix round needs findings, per-item report, preamble lines incl. \"builder and reviewer run pnpm -s fw land --dry at the final commit; the report carries its VERDICT line\"",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/BuildReview.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ops/build-review.jsonl",
+    ".claude/workflows/build-review.js",
+    "apps/runner/test/build-review.test.ts",
+    "docs/team/tools/prompt-rules.md",
+    "docs/team/handoffs/build-review-lint.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fw-task-add",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): `fw task add`: contract shape check (stream, writes incl. handoff), 1-space serializer, zero deleted lines",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Plan/Lint.lean",
+    "lean/Fw/Plan/Golden.lean",
+    "packages/contracts/golden/plan/**",
+    "apps/runner/src/task-add.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/task-add.test.ts",
+    "docs/team/tools/task-add.md",
+    "docs/team/handoffs/fw-task-add.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "queue-idle-guard",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): Lean queueIdle gates a new `fw console restart` and main-checkout edits",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/QueueIdle.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ops/queue-idle.jsonl",
+    "apps/runner/src/console-restart.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/test/console-restart.test.ts",
+    "docs/team/handoffs/queue-idle-guard.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-rows",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): `fw land --queue --rows <file>`; branch from each worktree HEAD; no env vars",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/src/fw.ts",
+    "fw.ts:81-98)",
+    "apps/runner/test/land-queue.test.ts",
+    "docs/team/tools/land-queue.md",
+    "docs/team/handoffs/land-rows.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-no-api",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): fw land --dry without console-api: plan from the graph file, land-scope via fwcore",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land.ts",
+    ":507 land-scope)",
+    "apps/runner/src/lib.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/land-dry.test.ts",
+    "apps/runner/test/lib.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-no-api.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-queue-verdict",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): queue maps a thrown refusal to its Kind and logs it; unknown only with a reason",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/src/land-verdict.ts",
+    "lean/Fw/Console/LandVerdict.lean",
+    "packages/contracts/golden/console/land-dry.jsonl",
+    "apps/runner/test/land-queue.test.ts",
+    "apps/runner/test/land-verdict.test.ts",
+    "docs/team/handoffs/land-queue-verdict.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-order-overlap",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): queue order by declared-write overlap on shared generated files",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/LandOrder.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ops/land-order.jsonl",
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/test/land-queue.test.ts",
+    "docs/team/handoffs/land-order-overlap.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "manifest-merge",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): url-keyed union merge driver for apps/site/assets.manifest.json (LedgerMerge pattern)",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/LedgerMerge.lean",
+    "lean/FwTestMain.lean",
+    "scripts/merge-manifest.mjs",
+    ".gitattributes",
+    "apps/runner/test/ledger-merge.test.ts",
+    "docs/team/tools/ledger-merge.md",
+    "docs/team/handoffs/manifest-merge.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lane-admit-load",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): admit local-heavy lanes by load1 < 2 x cores and a running check.sh cap",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Sched/Admit.lean",
+    "lean/Fw/Wire/Sched.lean",
+    "lean/Fw/Wire/SchedGolden.lean",
+    "packages/contracts/golden/ops/admit.jsonl",
+    "apps/runner/src/watch.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/watch.test.ts",
+    "docs/team/tools/watch-rules.md",
+    "docs/team/handoffs/lane-admit-load.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-narrowed-out",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "title": "Incident fix (incidents-1019): narrowed gate readings excluded from the C3/flag decision domain (theorem + golden)",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Gate/Exit.lean",
+    "lean/Fw/Preset/V2Proved.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/gate/exit.jsonl",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "docs/team/handoffs/gate-narrowed-out.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wait-guard-enforce-on",
+   "owner": "lead",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): wait-guard enforce mode on, in workflow agents too (the user writes the local config)",
+   "deps": [],
+   "writes": [
+    "gitignored)",
+    "apps/runner/hooks/wait-guard.mjs",
+    "apps/runner/test/wait-guard.test.ts",
+    "docs/team/tools/wait-guard.md",
+    "docs/team/handoffs/wait-guard-enforce-on.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "overflow-on-land",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Incident fix (incidents-1019): viewport overflow check selected for lands that touch apps/site/**",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandSpeed.lean",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-inputs.test.ts",
+    "packages/measure-chromium/src/overflow.mjs",
+    "packages/measure-chromium/test/overflow.test.mjs",
+    "docs/team/handoffs/overflow-on-land.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "watch-liveness",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): heartbeat-age alert for fw watch, raised outside the watcher",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/WatchDiff.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/ops/ops.watchDiff.jsonl",
+    "apps/runner/src/watch.ts",
+    "apps/runner/src/watch-svc.ts",
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "apps/runner/test/watch.test.ts",
+    "docs/team/tools/fw-watch.md",
+    "docs/team/handoffs/watch-liveness.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-dispatch-no-push",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): a ci/dispatch-* push starts no push run (Lean onKeys table + ci-paths test)",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "packages/contracts/golden/ci/**",
+    ".github/workflows/**",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "apps/runner/src/ci.ts",
+    "docs/team/tools/fw-ci.md",
+    "docs/team/handoffs/ci-dispatch-no-push.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "runner-bin-mode",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): fw.ts committed as 100755 (or the unused bin dropped); test: every bin target is 100755 in the index",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/fw.ts",
+    "apps/runner/package.json",
+    "apps/runner/test/bin-mode.test.ts",
+    "docs/team/handoffs/runner-bin-mode.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "incidents-1019",
+   "owner": "researcher",
+   "stream": "team",
+   "title": "Incident ledger: one incident per root cause for the lead's mistakes of 2026-10-19/20 (with retro rows); recurrences point to the original and an open fix task",
+   "deps": [],
+   "writes": [
+    "docs/team/incidents/ledger.json",
+    "research/mistakes/ledger.json",
+    "docs/team/handoffs/incidents-1019.md"
+   ],
+   "evidence": "ffe7d76"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-layers",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Optimize (discovery R3): remove the +9 drawing layers per frame (frames 0-116, +1053 per run) that morph.mount:shift brings: attribute the 9 layers first (C7), then a morph.columns variant (idle-none, folding hidden-pause) or the C3 fallback; same visual in both engines, Lean proof from Blink/WebKit compositing source, single-flag counts arms",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/Morph*.lean",
+    "lean/Fw/Engine/**",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**",
+    "apps/site/src/parts/morph*/**",
+    "packages/contracts/golden/**",
+    "research/notes/2026/10-20-morph-layers*.md",
+    "docs/team/handoffs/morph-layers.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-telemetry",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "One telemetry artifact for every CI job on GitHub Actions and CircleCI: per-step spans, queue time, machine facts, CPU/memory/disk samples, cache hit and size, network bytes; a collector that normalizes both providers; Lean schema and slow verdict (Fw.Obs.Timing) raising investigate items",
+   "deps": [],
+   "writes": [
+    ".github/actions/telemetry/**",
+    ".github/workflows/**",
+    "scripts/ci-telemetry/**",
+    "scripts/span.sh",
+    "apps/runner/src/ci-telemetry*.ts",
+    "apps/runner/src/timing.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/ci-telemetry*.test.ts",
+    "lean/Fw/Obs/**",
+    "lean/Fw/Ci/**",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**",
+    "packages/contracts/golden/obs/**",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "docs/team/tools/ci-telemetry.md",
+    "research/notes/2026/10-20-ci-telemetry*.md",
+    "docs/team/handoffs/ci-telemetry.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "runner-standins-fwcore",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Replace the runner's TS stand-ins with fwcore ops and delete the TS copies: land-queue (Fw.Console.LandQueue step/pending/next/retryAfter/runnerLive, with land-order-overlap and land-queue-verdict), coverage lint (Fw.Gate.Coverage), premise checks (Fw.Ops.Premise); batched calls on hot paths; goldens stay the contract",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/src/coverage.ts",
+    "apps/runner/src/premises.ts",
+    "apps/runner/src/lib.ts",
+    "apps/runner/test/**",
+    "lean/Fw/Console/LandQueue*.lean",
+    "lean/Fw/Gate/Coverage*.lean",
+    "lean/Fw/Ops/Premise*.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw/Wire/**",
+    "lean/FwCore*.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/**",
+    "docs/team/handoffs/runner-standins-fwcore.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "countdown-one-chain",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "milestone": "M5",
+   "title": "Optimize (discovery R7, hero half): hero.countdown variant one-chain steps all rolling digits from one shared clock subscriber alive only while a digit rolls (10 faces and setInterval(1000) kept); Lean scheduling model with oneChain_writes_eq / oneChain_raf, Chromium frame_request_callback_collection.cc + WebKit ScriptedAnimationController cites; single-flag counts arms on both profiles; morph.countdown half follows morph-layers",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/hero.countdown/**",
+    "lean/Fw/Parts/HeroCountdownOneChain*.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**",
+    "packages/contracts/golden/parts/hero.countdown*",
+    "research/notes/2026/10-20-countdown-one-chain.md",
+    "results/countdown-one-chain/**",
+    "docs/team/handoffs/countdown-one-chain.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "waapi-touch-arm",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "milestone": "M5",
+   "title": "Optimize (discovery R8): MorphTweenOpt golden rows depend on the profile (=o on swipe-v1, which never pushes; <o on swipe-touch-v1) with the lemma no pushes => =o; one single-flag morph.tween:waapi arm on swipe-touch-v1 against the touch base; no site change",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "lean/Fw/Parts/MorphTweenProfile*.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/parts/morph.tween.jsonl",
+    "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
+    "research/notes/2026/10-20-waapi-touch-arm.md",
+    "results/waapi-touch-arm/**",
+    "docs/team/handoffs/waapi-touch-arm.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "countdown-hidden-arm",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "milestone": "M5",
+   "title": "Optimize (discovery R6, re-aimed): single-flag hero.countdown:hidden-pause arms on swipe-v1 and swipe-touch-v1 over v2-proved and base, judged on trace.UpdateLayoutTree.elementCount in frames 104-200 (FireAnimationFrame cannot drop: callbacks kept by design); only on a measured win add the linkTable row (Gen.lean) + ledger row and regenerate v2-proved.json; else a negative-result note with the Lean why",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Preset/Gen.lean",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "packages/contracts/golden/preset/v2-proved.json",
+    "packages/contracts/golden/parts/hero.countdown.hidden.jsonl",
+    "lean/Fw/Parts/HeroCountdownHidden.lean",
+    "research/notes/2026/10-20-countdown-hidden-arm.md",
+    "results/countdown-hidden-arm/**",
+    "docs/team/handoffs/countdown-hidden-arm.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-inspect",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Original preview arm on the phone (plain-HTTP LAN sends no Sec-Fetch-Dest, so Referer-routed scripts missed the 302): redirect Referer-routed .js/.mjs; plus fw preview grant, a loopback-only, single-use, preview-only access link for agents (Lean console.previewGrant + ownerGate)",
+   "deps": [],
+   "writes": [
+    "apps/console-api/src/app.ts",
+    "apps/console-api/src/main.ts",
+    "apps/console-api/src/preview/**",
+    "apps/console-api/test/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/preview.ts",
+    "apps/runner/test/preview-grant.test.ts",
+    "docs/team/handoffs/preview-inspect.md",
+    "docs/team/tools/preview-grant.md",
+    "lean/Fw/Console/PreviewOwner.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "research/notes/2026/10-20-preview-original-gate.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-script-move",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Follow-up of preview-inspect: Lean scriptMove(path, secFetchDest) replaces the TS isScriptPath stand-in; golden covers script, empty (plain-HTTP LAN), serviceworker and worker (serve in place)",
+   "deps": [
+    "preview-inspect"
+   ],
+   "writes": [
+    "lean/Fw/Console/PreviewOwner.lean",
+    "lean/Fw/Wire/Console.lean",
+    "apps/console-api/src/preview/proxy.ts",
+    "apps/console-api/test/**",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/preview-script-move.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "console-daemon",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "User 2026-10-20: console runs in the background with no Terminal window; fw console start|stop|restart|status|logs [-f]; owner access without a tty sink an agent can read; Lean lifecycle rules (start refused when a verified console runs, stop only the health-verified pid, link sink); post-land routine uses it",
+   "deps": [
+    "preview-inspect"
+   ],
+   "writes": [
+    "apps/console-api/src/main.ts",
+    "apps/console-api/src/daemon*.ts",
+    "apps/console-api/src/owner-link.ts",
+    "apps/console-api/src/preview/link.ts",
+    "apps/console-api/package.json",
+    "apps/console-api/test/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/console*.ts",
+    "apps/runner/test/console*.test.ts",
+    "lean/Fw/Console/Daemon*.lean",
+    "lean/Fw/Console/PreviewOwner.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/**",
+    "docs/team/tools/console.md",
+    "docs/team/handoffs/console-daemon.md"
+   ]
   }
  ],
  "deadline": {
