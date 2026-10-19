@@ -31,8 +31,6 @@ namespace Fw.Gate
 
 /-- Status of one compared item: `na` items take no part in a verdict.
 
-$$\mathcal S = \{\mathrm{equal}, \mathrm{differ}, \mathrm{missing}, \mathrm{na}\}$$
-
 One of the four outcomes of comparing an item of the original with the rewrite. -/
 inductive Status where
   | equal
@@ -42,8 +40,6 @@ inductive Status where
   deriving DecidableEq, Repr, Inhabited
 
 /-- Why a cell cannot be measured on an engine port (`Fw.Gate.Reach` proves each one).
-
-$$\mathcal R = \{\mathrm{primaryPair}, \mathrm{wholeWidth}, \mathrm{widthDpr}\}$$
 
 The port has no such primary hover/pointer pair, its media width is whole but the probe's is not,
 or its device pixels are whole but width times dpr is not. -/
@@ -55,8 +51,6 @@ inductive Reason where
 
 /-- Verdict of a cell: the three outcomes of the rule, or unreachable on the port for a reason.
 
-$$\mathcal V = \{\mathrm{pass}, \mathrm{fail}, \mathrm{nc}\} \cup \{\mathrm{unreachable}(r) \mid r \in \mathcal R\}$$
-
 A table cell passes, fails, is not comparable, or cannot be reached on this engine port. -/
 inductive Verdict where
   | pass
@@ -67,8 +61,6 @@ inductive Verdict where
 
 /-- Whether a verdict is `unreachable` (for any reason).
 
-$$\forall v \in \mathcal V,\quad \operatorname{isU}(v) \iff \exists r \in \mathcal R,\ v = \mathrm{unreachable}(r)$$
-
 True only for the unreachable verdicts. -/
 def Verdict.isUnreachable : Verdict → Bool
   | .unreachable _ => true
@@ -76,17 +68,13 @@ def Verdict.isUnreachable : Verdict → Bool
 
 /-- Whether a verdict counts as compared: `pass` or `fail`.
 
-$$\forall v \in \mathcal V,\quad \operatorname{isC}(v) \iff v \in \{\mathrm{pass}, \mathrm{fail}\}$$
-
 Only passing and failing cells enter the compared count. -/
 def Verdict.isComparable : Verdict → Bool
   | .pass | .fail => true
   | _ => false
 
-/-- **The rule.** Let $A$ be the statuses that are not `na`: not comparable if $A$ is empty, fail if
-some status in $A$ is not `equal`, pass otherwise.
-
-$$\operatorname{cell}(ss) = \begin{cases} \mathrm{nc} & A = [\,] \\ \mathrm{pass} & A \ne [\,] \wedge \forall s \in A,\ s = \mathrm{equal} \\ \mathrm{fail} & \text{otherwise} \end{cases}, \qquad A = [\, s \in ss \mid s \ne \mathrm{na} \,]$$
+/-- **The rule.** Let `A` be the statuses that are not `na`: not comparable if `A` is empty, fail if
+some status in `A` is not `equal`, pass otherwise.
 
 A cell passes when it compared something and everything it compared was equal. -/
 def cellVerdict (ss : List Status) : Verdict :=
@@ -94,8 +82,6 @@ def cellVerdict (ss : List Status) : Verdict :=
   if a.isEmpty then .nc else if a.all (· == .equal) then .pass else .fail
 
 /-- A verdict as a status, so verdicts roll up with the same rule.
-
-$$\mathrm{pass} \mapsto \mathrm{equal},\quad \mathrm{fail} \mapsto \mathrm{differ},\quad \mathrm{nc} \mapsto \mathrm{na},\quad \forall r \in \mathcal R,\ \mathrm{unreachable}(r) \mapsto \mathrm{na}$$
 
 A passing probe counts as an equal item, a failing one as a differing item, an incomparable or
 unreachable one not at all. -/
@@ -108,8 +94,6 @@ def toStatus : Verdict → Status
 /-- The reason a fully unreachable rollup reports: the first of `primaryPair`, `wholeWidth`,
 `widthDpr` that occurs among the verdicts (`widthDpr` when none occurs).
 
-$$\forall vs \in \mathcal V^*,\quad \rho(vs) = \begin{cases} \mathrm{primaryPair} & \mathrm{unreachable}(\mathrm{primaryPair}) \in vs \\ \mathrm{wholeWidth} & \text{else, if } \mathrm{unreachable}(\mathrm{wholeWidth}) \in vs \\ \mathrm{widthDpr} & \text{otherwise} \end{cases}$$
-
 A fixed order of reasons, so the reported reason does not depend on row order. -/
 def unreachableReason (vs : List Verdict) : Reason :=
   if vs.contains (.unreachable .primaryPair) then .primaryPair
@@ -118,8 +102,6 @@ def unreachableReason (vs : List Verdict) : Reason :=
 
 /-- Verdict of a list of verdicts (a block of probes, the rows of a state, or the stops of a
 sweep): unreachable when every verdict is, else the rule over their statuses.
-
-$$\forall vs \in \mathcal V^*,\quad \operatorname{rollup}(vs) = \begin{cases} \mathrm{unreachable}(\rho(vs)) & vs \ne [\,] \wedge \forall v \in vs,\ \operatorname{isU}(v) \\ \operatorname{cell}(\operatorname{map}\ \operatorname{toStatus}\ vs) & \text{otherwise} \end{cases}$$
 
 A block passes when some probe passed and none failed; it is unreachable only when all of it is.
 
@@ -132,8 +114,6 @@ def rollup (vs : List Verdict) : Verdict :=
 /-- A table cell as printed: the rolled-up verdict, the failing probes, the compared probes, the
 unreachable probes.
 
-$$t = (\mathit{verdict},\ \mathit{failing},\ \mathit{total},\ \mathit{unreachable}) \in \mathcal V \times \mathbb N^{3}$$
-
 What `FAIL failing/total` in the summary table shows, plus the unreachable count. -/
 structure Tally where
   verdict : Verdict
@@ -144,8 +124,6 @@ structure Tally where
 
 /-- The tally of a list of verdicts: only `pass` and `fail` count as compared.
 
-$$\forall vs \in \mathcal V^*,\quad \operatorname{tally}(vs) = \bigl(\operatorname{rollup}(vs),\ |[\,v \in vs \mid v = \mathrm{fail}\,]|,\ |[\,v \in vs \mid \operatorname{isC}(v)\,]|,\ |[\,v \in vs \mid \operatorname{isU}(v)\,]|\bigr)$$
-
 The block cell with its counts. -/
 def tally (vs : List Verdict) : Tally :=
   { verdict := rollup vs, failing := vs.countP (· == .fail), total := vs.countP (·.isComparable),
@@ -155,8 +133,6 @@ def tally (vs : List Verdict) : Tally :=
 
 /-- The rule never gives `unreachable`: only a proved fact does.
 
-$$\forall ss \in \mathcal S^*,\quad \neg \operatorname{isU}(\operatorname{cell}(ss))$$
-
 Comparing items yields pass, fail or not comparable, never unreachable. -/
 theorem cellVerdict_isUnreachable (ss : List Status) : (cellVerdict ss).isUnreachable = false := by
   simp only [cellVerdict]
@@ -165,8 +141,6 @@ theorem cellVerdict_isUnreachable (ss : List Status) : (cellVerdict ss).isUnreac
   · split <;> rfl
 
 /-- The rule without the filter: not comparable iff all `na`; else pass iff all `na` or `equal`.
-
-$$\forall ss \in \mathcal S^*,\quad \operatorname{cell}(ss) = \begin{cases} \mathrm{nc} & \forall s \in ss,\ s = \mathrm{na} \\ \mathrm{pass} & \text{else, if } \forall s \in ss,\ s \in \{\mathrm{na}, \mathrm{equal}\} \\ \mathrm{fail} & \text{otherwise} \end{cases}$$
 
 The same rule stated over the whole list. -/
 theorem cellVerdict_eq (ss : List Status) : cellVerdict ss =
@@ -183,8 +157,6 @@ theorem cellVerdict_eq (ss : List Status) : cellVerdict ss =
 
 /-- Not comparable exactly when every status is `na`.
 
-$$\forall ss \in \mathcal S^*,\quad \operatorname{cell}(ss) = \mathrm{nc} \iff \forall s \in ss,\ s = \mathrm{na}$$
-
 A cell is incomparable exactly when nothing in it was comparable. -/
 theorem cellVerdict_nc_iff (ss : List Status) : cellVerdict ss = .nc ↔ ∀ s ∈ ss, s = .na := by
   rw [cellVerdict_eq]
@@ -196,8 +168,6 @@ theorem cellVerdict_nc_iff (ss : List Status) : cellVerdict ss = .nc ↔ ∀ s �
     split <;> simp [this]
 
 /-- Fail exactly when some status is neither `na` nor `equal`.
-
-$$\forall ss \in \mathcal S^*,\quad \operatorname{cell}(ss) = \mathrm{fail} \iff \exists s \in ss,\ s \ne \mathrm{na} \wedge s \ne \mathrm{equal}$$
 
 A cell fails exactly when one compared item differs or is missing. -/
 theorem cellVerdict_fail_iff (ss : List Status) :
@@ -225,8 +195,6 @@ theorem cellVerdict_fail_iff (ss : List Status) :
     simp only [h1, h2, Bool.false_eq_true, ite_false, hex]
 
 /-- Pass exactly when some status is `equal` and every status is `na` or `equal`.
-
-$$\forall ss \in \mathcal S^*,\quad \operatorname{cell}(ss) = \mathrm{pass} \iff (\exists s \in ss,\ s = \mathrm{equal}) \wedge \forall s \in ss,\ s = \mathrm{na} \vee s = \mathrm{equal}$$
 
 A cell passes exactly when it compared something and all it compared was equal. -/
 theorem cellVerdict_pass_iff (ss : List Status) :
@@ -264,8 +232,6 @@ theorem cellVerdict_pass_iff (ss : List Status) :
 
 /-- The verdict depends only on which statuses occur.
 
-$$\forall ss, ts \in \mathcal S^*,\quad (\forall s,\ s \in ss \iff s \in ts) \implies \operatorname{cell}(ss) = \operatorname{cell}(ts)$$
-
 Two cells holding the same statuses, in any order and multiplicity, have the same verdict. -/
 theorem cellVerdict_congr (ss ts : List Status) (h : ∀ s, s ∈ ss ↔ s ∈ ts) :
     cellVerdict ss = cellVerdict ts := by
@@ -284,15 +250,11 @@ theorem cellVerdict_congr (ss ts : List Status) (h : ∀ s, s ∈ ss ↔ s ∈ t
 
 /-- Row order does not matter: a permutation of the statuses has the same verdict.
 
-$$\forall ss, ts \in \mathcal S^*,\quad ss \sim ts \implies \operatorname{cell}(ss) = \operatorname{cell}(ts)$$
-
 Reordering the compared items (or the probes of a block) never changes a verdict. -/
 theorem cellVerdict_perm (ss ts : List Status) (h : ss.Perm ts) : cellVerdict ss = cellVerdict ts :=
   cellVerdict_congr ss ts fun _ => h.mem_iff
 
 /-- `na` items never matter: dropping them keeps the verdict.
-
-$$\forall ss \in \mathcal S^*,\quad \operatorname{cell}([\, s \in ss \mid s \ne \mathrm{na} \,]) = \operatorname{cell}(ss)$$
 
 Items outside any verdict (information, unachieved environments) cannot change a cell. -/
 theorem cellVerdict_filter_na (ss : List Status) :
@@ -303,16 +265,12 @@ theorem cellVerdict_filter_na (ss : List Status) :
 
 /-- `toStatus` is `na` exactly on `nc` and the unreachable verdicts, and `equal` exactly on `pass`.
 
-$$\forall v \in \mathcal V,\quad (\operatorname{toStatus}(v) = \mathrm{na} \iff v = \mathrm{nc} \vee \operatorname{isU}(v)) \wedge (\operatorname{toStatus}(v) = \mathrm{equal} \iff v = \mathrm{pass})$$
-
 The rollup sees passes as equal items and skips incomparable and unreachable probes. -/
 theorem toStatus_spec (v : Verdict) :
     (toStatus v = .na ↔ v = .nc ∨ v.isUnreachable = true) ∧ (toStatus v = .equal ↔ v = .pass) := by
   cases v <;> simp [toStatus, Verdict.isUnreachable]
 
 /-- The rule over the statuses of verdicts fails exactly when some verdict fails.
-
-$$\forall vs \in \mathcal V^*,\quad \operatorname{cell}(\operatorname{map}\ \operatorname{toStatus}\ vs) = \mathrm{fail} \iff \mathrm{fail} \in vs$$
 
 Only a failing verdict becomes a failing status. -/
 theorem cellVerdict_map_fail_iff (vs : List Verdict) :
@@ -332,8 +290,6 @@ theorem cellVerdict_map_fail_iff (vs : List Verdict) :
 /-- The rule over the statuses of verdicts is not comparable exactly when no verdict passes or
 fails.
 
-$$\forall vs \in \mathcal V^*,\quad \operatorname{cell}(\operatorname{map}\ \operatorname{toStatus}\ vs) = \mathrm{nc} \iff \mathrm{pass} \notin vs \wedge \mathrm{fail} \notin vs$$
-
 Incomparable and unreachable verdicts are both skipped. -/
 theorem cellVerdict_map_nc_iff (vs : List Verdict) :
     cellVerdict (vs.map toStatus) = .nc ↔ .pass ∉ vs ∧ .fail ∉ vs := by
@@ -351,8 +307,6 @@ theorem cellVerdict_map_nc_iff (vs : List Verdict) :
     | unreachable r => rfl
 
 /-- The rule over the statuses of verdicts passes exactly when some verdict passes and none fails.
-
-$$\forall vs \in \mathcal V^*,\quad \operatorname{cell}(\operatorname{map}\ \operatorname{toStatus}\ vs) = \mathrm{pass} \iff \mathrm{pass} \in vs \wedge \mathrm{fail} \notin vs$$
 
 One pass and no fail make a pass. -/
 theorem cellVerdict_map_pass_iff (vs : List Verdict) :
@@ -372,10 +326,8 @@ theorem cellVerdict_map_pass_iff (vs : List Verdict) :
   | unreachable r => rw [h] at hu; cases hu
 
 /-- The two cases of a rollup: the rule over the statuses (when the list is empty or holds a
-reachable verdict), or unreachable with reason $\rho$ (when the list is non-empty and all
+reachable verdict), or unreachable with reason `ρ` (when the list is non-empty and all
 unreachable).
-
-$$\forall vs \in \mathcal V^*,\quad \bigl(\operatorname{rollup}(vs) = \operatorname{cell}(\operatorname{map}\ \operatorname{toStatus}\ vs) \wedge (vs = [\,] \vee \exists v \in vs,\ \neg \operatorname{isU}(v))\bigr) \vee \bigl(vs \ne [\,] \wedge (\forall v \in vs,\ \operatorname{isU}(v)) \wedge \operatorname{rollup}(vs) = \mathrm{unreachable}(\rho(vs))\bigr)$$
 
 Every rollup is one of the two branches of its definition, with the branch condition. -/
 theorem rollup_cases (vs : List Verdict) :
@@ -399,8 +351,6 @@ theorem rollup_cases (vs : List Verdict) :
 
 /-- A list holding a reachable verdict rolls up by the rule over its statuses.
 
-$$\forall vs \in \mathcal V^*,\quad (\exists v \in vs,\ \neg \operatorname{isU}(v)) \implies \operatorname{rollup}(vs) = \operatorname{cell}(\operatorname{map}\ \operatorname{toStatus}\ vs)$$
-
 One reachable row makes the cell an ordinary verdict. -/
 theorem rollup_of_reachable (vs : List Verdict) (h : ∃ v ∈ vs, v.isUnreachable = false) :
     rollup vs = cellVerdict (vs.map toStatus) := by
@@ -411,8 +361,6 @@ theorem rollup_of_reachable (vs : List Verdict) (h : ∃ v ∈ vs, v.isUnreachab
 
 /-- A list with no unreachable verdict rolls up by the rule over its statuses.
 
-$$\forall vs \in \mathcal V^*,\quad (\forall v \in vs,\ \neg \operatorname{isU}(v)) \implies \operatorname{rollup}(vs) = \operatorname{cell}(\operatorname{map}\ \operatorname{toStatus}\ vs)$$
-
 Without unreachable rows the rollup is the old rule. -/
 theorem rollup_no_unreachable (vs : List Verdict) (h : ∀ v ∈ vs, v.isUnreachable = false) :
     rollup vs = cellVerdict (vs.map toStatus) := by
@@ -421,8 +369,6 @@ theorem rollup_no_unreachable (vs : List Verdict) (h : ∀ v ∈ vs, v.isUnreach
   | cons v t => exact rollup_of_reachable _ ⟨v, List.mem_cons_self, h v List.mem_cons_self⟩
 
 /-- The reported reason occurs in the list whenever some unreachable verdict does.
-
-$$\forall vs \in \mathcal V^*,\quad (\exists r \in \mathcal R,\ \mathrm{unreachable}(r) \in vs) \implies \mathrm{unreachable}(\rho(vs)) \in vs$$
 
 A rollup never invents a reason its rows do not carry. -/
 theorem unreachableReason_mem (vs : List Verdict) (h : ∃ r, .unreachable r ∈ vs) :
@@ -442,8 +388,6 @@ theorem unreachableReason_mem (vs : List Verdict) (h : ∃ r, .unreachable r ∈
 /-- A rollup is unreachable exactly when the list is non-empty and every verdict in it is
 unreachable.
 
-$$\forall vs \in \mathcal V^*,\quad (\exists r \in \mathcal R,\ \operatorname{rollup}(vs) = \mathrm{unreachable}(r)) \iff vs \ne [\,] \wedge \forall v \in vs,\ \operatorname{isU}(v)$$
-
 One reachable row, or no row at all, keeps a cell out of the unreachable state. -/
 theorem rollup_unreachable_iff (vs : List Verdict) :
     (∃ r, rollup vs = .unreachable r) ↔ vs ≠ [] ∧ ∀ v ∈ vs, v.isUnreachable = true := by
@@ -461,8 +405,6 @@ theorem rollup_unreachable_iff (vs : List Verdict) :
 
 /-- An unreachable rollup carries a reason from its rows.
 
-$$\forall vs \in \mathcal V^*,\ \forall r \in \mathcal R,\quad \operatorname{rollup}(vs) = \mathrm{unreachable}(r) \implies \mathrm{unreachable}(r) \in vs$$
-
 The reason of a block is the reason of one of its probes. -/
 theorem rollup_unreachable_mem (vs : List Verdict) (r : Reason) (h : rollup vs = .unreachable r) :
     .unreachable r ∈ vs := by
@@ -479,8 +421,6 @@ theorem rollup_unreachable_mem (vs : List Verdict) (r : Reason) (h : rollup vs =
 
 /-- A rollup fails exactly when some verdict fails.
 
-$$\forall vs \in \mathcal V^*,\quad \operatorname{rollup}(vs) = \mathrm{fail} \iff \mathrm{fail} \in vs$$
-
 One failing probe fails its block; unreachable probes never do. -/
 theorem rollup_fail_iff (vs : List Verdict) : rollup vs = .fail ↔ .fail ∈ vs := by
   rcases rollup_cases vs with ⟨hr, _⟩ | ⟨_, ha, hr⟩
@@ -489,8 +429,6 @@ theorem rollup_fail_iff (vs : List Verdict) : rollup vs = .fail ↔ .fail ∈ vs
     exact ⟨fun h => (by cases h), fun hm => (by have := ha _ hm; cases this)⟩
 
 /-- A rollup passes exactly when some verdict passes and none fails.
-
-$$\forall vs \in \mathcal V^*,\quad \operatorname{rollup}(vs) = \mathrm{pass} \iff \mathrm{pass} \in vs \wedge \mathrm{fail} \notin vs$$
 
 A block passes when one probe passed and no probe failed; unreachable probes never pass it. -/
 theorem rollup_pass_iff (vs : List Verdict) : rollup vs = .pass ↔ .pass ∈ vs ∧ .fail ∉ vs := by
@@ -501,8 +439,6 @@ theorem rollup_pass_iff (vs : List Verdict) : rollup vs = .pass ↔ .pass ∈ vs
 
 /-- A rollup is not comparable exactly when no verdict passes or fails and the list is empty or
 holds an `nc`.
-
-$$\forall vs \in \mathcal V^*,\quad \operatorname{rollup}(vs) = \mathrm{nc} \iff \mathrm{pass} \notin vs \wedge \mathrm{fail} \notin vs \wedge (vs = [\,] \vee \mathrm{nc} \in vs)$$
 
 A block is incomparable when nothing in it was compared and not all of it is unreachable. -/
 theorem rollup_nc_iff (vs : List Verdict) :
@@ -528,8 +464,6 @@ theorem rollup_nc_iff (vs : List Verdict) :
 
 /-- A rollup depends only on which verdicts occur.
 
-$$\forall vs, ws \in \mathcal V^*,\quad (\forall v,\ v \in vs \iff v \in ws) \implies \operatorname{rollup}(vs) = \operatorname{rollup}(ws)$$
-
 Two blocks holding the same verdicts, in any order and multiplicity, roll up alike. -/
 theorem rollup_congr (vs ws : List Verdict) (h : ∀ v, v ∈ vs ↔ v ∈ ws) : rollup vs = rollup ws := by
   have e1 : vs.isEmpty = ws.isEmpty := Bool.eq_iff_iff.mpr (by
@@ -547,15 +481,11 @@ theorem rollup_congr (vs ws : List Verdict) (h : ∀ v, v ∈ vs ↔ v ∈ ws) :
 /-- Rollups ignore order: a permutation of the verdicts has the same rollup, unreachable reason
 included.
 
-$$\forall vs, ws \in \mathcal V^*,\quad vs \sim ws \implies \operatorname{rollup}(vs) = \operatorname{rollup}(ws)$$
-
 Reordering the probes or rows of a cell keeps its verdict. -/
 theorem rollup_perm (vs ws : List Verdict) (h : vs.Perm ws) : rollup vs = rollup ws :=
   rollup_congr vs ws fun _ => h.mem_iff
 
 /-- Rolling up per-group verdicts is the verdict of all items at once.
-
-$$\forall gs \in (\mathcal S^*)^*,\quad \operatorname{rollup}(\operatorname{map}\ \operatorname{cell}\ gs) = \operatorname{cell}(\operatorname{flatten}\ gs)$$
 
 A block verdict equals the verdict over every item of every probe of the block. -/
 theorem rollup_flatten (gs : List (List Status)) :
@@ -595,8 +525,6 @@ theorem rollup_flatten (gs : List (List Status)) :
 
 /-- Unreachable rows never matter while a reachable row exists: dropping them keeps the rollup.
 
-$$\forall vs \in \mathcal V^*,\quad (\exists v \in vs,\ \neg \operatorname{isU}(v)) \implies \operatorname{rollup}([\,v \in vs \mid \neg \operatorname{isU}(v)\,]) = \operatorname{rollup}(vs)$$
-
 An unreachable probe can neither pass nor fail a block that has a reachable probe. -/
 theorem rollup_filter_unreachable (vs : List Verdict) (h : ∃ v ∈ vs, v.isUnreachable = false) :
     rollup (vs.filter fun v => !v.isUnreachable) = rollup vs := by
@@ -619,15 +547,11 @@ theorem rollup_filter_unreachable (vs : List Verdict) (h : ∃ v ∈ vs, v.isUnr
 
 /-- The printed counts agree with the verdict: fail iff some probe fails.
 
-$$\forall vs \in \mathcal V^*,\quad \operatorname{tally}(vs).\mathrm{verdict} = \mathrm{fail} \iff 0 < \operatorname{tally}(vs).\mathrm{failing}$$
-
 `FAIL n/m` is printed with n at least 1. -/
 theorem tally_fail_iff (vs : List Verdict) : (tally vs).verdict = .fail ↔ 0 < (tally vs).failing := by
   simp only [tally, rollup_fail_iff, List.countP_pos_iff, beq_iff_eq, exists_eq_right]
 
 /-- Pass iff no probe fails and some probe was compared (unreachable probes are not compared).
-
-$$\forall vs \in \mathcal V^*,\quad \operatorname{tally}(vs).\mathrm{verdict} = \mathrm{pass} \iff \operatorname{tally}(vs).\mathrm{failing} = 0 \wedge 0 < \operatorname{tally}(vs).\mathrm{total}$$
 
 `pass` is printed exactly when nothing failed and something was compared. -/
 theorem tally_pass_iff (vs : List Verdict) :
@@ -646,8 +570,6 @@ theorem tally_pass_iff (vs : List Verdict) :
 
 /-- Unreachable iff some probe is counted and every probe is unreachable.
 
-$$\forall vs \in \mathcal V^*,\quad (\exists r \in \mathcal R,\ \operatorname{tally}(vs).\mathrm{verdict} = \mathrm{unreachable}(r)) \iff 0 < \operatorname{tally}(vs).\mathrm{unreachable} \wedge \operatorname{tally}(vs).\mathrm{unreachable} = |vs|$$
-
 A cell is printed unreachable exactly when all of its probes are. -/
 theorem tally_unreachable_iff (vs : List Verdict) :
     (∃ r, (tally vs).verdict = .unreachable r) ↔
@@ -665,8 +587,6 @@ theorem tally_unreachable_iff (vs : List Verdict) :
 
 /-- Not comparable iff nothing was compared and not every probe is unreachable (or there are
 none).
-
-$$\forall vs \in \mathcal V^*,\quad \operatorname{tally}(vs).\mathrm{verdict} = \mathrm{nc} \iff \operatorname{tally}(vs).\mathrm{total} = 0 \wedge (\operatorname{tally}(vs).\mathrm{unreachable} < |vs| \vee vs = [\,])$$
 
 `NC` is printed exactly when the compared count is zero and either some probe is reachable or there are no probes. -/
 theorem tally_nc_iff (vs : List Verdict) :
@@ -713,8 +633,6 @@ theorem tally_nc_iff (vs : List Verdict) :
 
 /-- Every probe is counted exactly once: as compared, as unreachable, or as not comparable.
 
-$$\forall vs \in \mathcal V^*,\quad \operatorname{tally}(vs).\mathrm{total} + \operatorname{tally}(vs).\mathrm{unreachable} + |[\,v \in vs \mid v = \mathrm{nc}\,]| = |vs|$$
-
 An unreachable probe never enters the compared count `total`. -/
 theorem tally_counts (vs : List Verdict) :
     (tally vs).total + (tally vs).unreachable + vs.countP (· == .nc) = vs.length := by
@@ -730,8 +648,6 @@ theorem tally_counts (vs : List Verdict) :
     omega
 
 /-- Unreachable probes never count as pass or fail: dropping them keeps both printed counts.
-
-$$\forall vs \in \mathcal V^*,\quad \text{with } vs' = [\,v \in vs \mid \neg \operatorname{isU}(v)\,]:\quad \operatorname{tally}(vs').\mathrm{failing} = \operatorname{tally}(vs).\mathrm{failing} \wedge \operatorname{tally}(vs').\mathrm{total} = \operatorname{tally}(vs).\mathrm{total} \wedge \operatorname{tally}(vs').\mathrm{unreachable} = 0$$
 
 Removing the unreachable probes of a block changes neither `failing` nor `total`. -/
 theorem tally_filter_unreachable (vs : List Verdict) :
