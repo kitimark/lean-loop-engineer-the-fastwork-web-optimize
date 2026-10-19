@@ -5797,7 +5797,13 @@
     "packages/contracts/golden/**",
     "apps/site/assets.manifest.json",
     "docs/team/handoffs/deck-panels-lean.md",
-    "apps/site/src/GenSvg.tsx"
+    "apps/site/src/GenSvg.tsx",
+    "apps/site/src/svg-extract.test.ts",
+    "lean/Fw/Gate/Scope.lean",
+    "packages/gate-breakpoints/src/scope.gen.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "lean/Fw/Parts/FootprintData.lean"
    ]
   },
   {
@@ -6232,7 +6238,10 @@
    "owner": "part-builder",
    "writes": [
     "apps/site/src/parts/morph.panel/**",
-    "docs/team/handoffs/morph-panel-content.md"
+    "docs/team/handoffs/morph-panel-content.md",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "lean/Fw/Parts/FootprintData.lean"
    ]
   },
   {
@@ -6293,7 +6302,8 @@
     "packages/gate-breakpoints/src/**",
     "packages/gate-breakpoints/test/**",
     "packages/contracts/golden/gate/**",
-    "docs/team/handoffs/gate-variant-roles.md"
+    "docs/team/handoffs/gate-variant-roles.md",
+    "lean/Fw/Wire/GateGolden.lean"
    ]
   },
   {
@@ -6457,7 +6467,12 @@
     "apps/site/src/parts/hero.countdown/**",
     "packages/contracts/golden/parts/hero.countdown.jsonl",
     "research/findings/ledger.json",
-    "docs/team/handoffs/countdown-hidden-pause.md"
+    "docs/team/handoffs/countdown-hidden-pause.md",
+    "packages/contracts/golden/parts/hero.countdown.hidden.jsonl",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/scripts/CountdownHiddenGolden.lean"
    ]
   },
   {
