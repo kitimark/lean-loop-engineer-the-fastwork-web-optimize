@@ -6448,7 +6448,8 @@
     "lean/Fw/Parts/OverlayGolden.lean",
     "lean/Fw/Parts/FootprintData.lean",
     "packages/contracts/golden/parts/footprint.gen.json"
-   ]
+   ],
+   "evidence": "61a4b47"
   },
   {
    "devices": [
@@ -6711,7 +6712,8 @@
     "apps/site/src/svg-extract.test.ts",
     "lean/Fw/Parts/FootprintData.lean",
     "packages/contracts/golden/parts/footprint.gen.json"
-   ]
+   ],
+   "evidence": "cf93cbb"
   },
   {
    "devices": [
@@ -6840,7 +6842,9 @@
    "milestone": "M5",
    "deps": [
     "skills-reframe",
-    "latex-lint-relax"
+    "latex-lint-relax",
+    "latex-generators",
+    "latex-mathview-b2"
    ],
    "owner": "lead",
    "writes": [
@@ -6953,7 +6957,207 @@
     "apps/runner/test/land*.test.ts",
     "packages/contracts/golden/**",
     ".github/workflows/lean.yml",
-    "docs/team/handoffs/lint-axioms.md"
+    "docs/team/handoffs/lint-axioms.md",
+    "lean/scripts/axiom-check.sh",
+    "lean/scripts/axiom-check-cases/**",
+    "apps/runner/test/land-verdict.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-generators",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "lean-latex-removal step B1: no generator writes $$ into a checked-in Lean file (ci-paths LakeJobsGen, faithful Measured, shard-obs ShardObs, gen-preview-facts PreviewFacts, part-footprint FootprintData, Contract.rowsText FootprintRows); each output regenerated with a GENERATED first line",
+   "deps": [
+    "latex-lint-relax"
+   ],
+   "writes": [
+    "scripts/ci-paths.mjs",
+    "packages/measure-chromium/src/faithful.mjs",
+    "packages/gate-breakpoints/scripts/shard-obs.mjs",
+    "apps/console-api/scripts/gen-preview-facts.ts",
+    "apps/site/scripts/part-footprint.mjs",
+    "lean/Fw/Parts/Contract.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean",
+    "lean/Fw/Faithful/Measured.lean",
+    "lean/Fw/Gate/ShardObs.lean",
+    "lean/Fw/Console/PreviewFacts.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/**",
+    "docs/team/handoffs/latex-generators.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "port-fonts-check",
+   "owner": "measure-engineer",
+   "stream": "parts",
+   "title": "Port completeness check 5 (fonts): per text element computed font family/weight/style and loaded faces equal the original's on CI; the visual diff compares the port as built (assets mode none by default, inject only as a diagnostic)",
+   "deps": [
+    "port-completeness-gate"
+   ],
+   "writes": [
+    "packages/visual-diff/**",
+    ".github/workflows/visual-diff.yml",
+    "apps/site/test/port-*.test.mjs",
+    "apps/site/test/**",
+    "lean/Fw/Gate/**",
+    "packages/contracts/golden/port/**",
+    "research/notes/2026/10-19-port-fonts.md",
+    "docs/team/handoffs/port-fonts-check.md",
+    "lean/Fw/Port/**",
+    "lean/Fw.lean",
+    "lean/scripts/PortGolden.lean",
+    "scripts/port/**",
+    "docs/team/tools/visual-diff.md",
+    "apps/runner/src/land.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-lane",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "CI land lane: .github/workflows/land.yml runs the Lean-selected remote-tier suites (runner, console-api, gate-breakpoints, gh-budget, measure-chromium, engine-check) on a pushed ci/land-* commit with fwcore built and no silent skips; tier decided in Lean (Fw.Console.LandTier); fw checks --affected",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandTier*.lean",
+    "lean/FwCore*.lean",
+    "lean/Fw/Wire*.lean",
+    "packages/contracts/golden/console/**",
+    "apps/runner/src/checks.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/checks*.test.ts",
+    ".github/workflows/land.yml",
+    "scripts/ci-paths.mjs",
+    "lean/Fw/Ops/LakeJobsGen.lean",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-lane.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-wait",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "fw land pushes ci/land-<task> and waits on the land lane through fw ci wait; only the local tier runs on this Mac; pass = both",
+   "deps": [
+    "land-lane",
+    "land-fwcore-key"
+   ],
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-verdict.ts",
+    "lean/Fw/Console/LandDry*.lean",
+    "apps/runner/test/land*.test.ts",
+    "packages/contracts/golden/**",
+    "docs/team/handoffs/land-wait.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "nav-scroll-hide-check",
+   "owner": "measure-engineer",
+   "stream": "parts",
+   "title": "Verify on CI that the nav hides (slides up) through the people section on desktop exactly as the original: per width and engine, hidden-state onset/offset and transform path equal, or each difference named with its cause; fix if local and clear",
+   "deps": [],
+   "writes": [
+    "packages/gate-breakpoints/**",
+    "packages/visual-diff/**",
+    ".github/workflows/*.yml",
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/people/**",
+    "apps/site/src/parts/people.*/**",
+    "lean/Fw/Parts/Nav*.lean",
+    "packages/contracts/golden/parts/**",
+    "research/notes/2026/10-19-nav-scroll-hide.md",
+    "docs/team/handoffs/nav-scroll-hide-check.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-speed",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Preview loads fast without stale builds: Lean cache policy (hashed -> immutable, else ETag + no-cache), 304s, gzip/brotli for text, proxy passes encoding and cache headers; before/after measured",
+   "deps": [],
+   "writes": [
+    "apps/console-api/src/preview/**",
+    "apps/console-api/test/**",
+    "lean/Fw/Console/Preview*.lean",
+    "lean/FwCore*.lean",
+    "lean/Fw/Wire*.lean",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/preview-speed.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "port-font-gaps",
+   "owner": "part-builder",
+   "stream": "parts",
+   "title": "Port font gaps from check 5: buttons and form controls inherit the font as the original's base rule does; countdown digits and the morph.panel text use the original's font settings; proved on CI by check 5 in both engines",
+   "deps": [],
+   "writes": [
+    "apps/site/src/styles/**",
+    "apps/site/src/parts/**/*.css",
+    "apps/site/src/parts/**/*.tsx",
+    "docs/team/handoffs/port-font-gaps.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-mathview-b2",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "lean-latex-removal step B2: retire the mathview module cache and its CI differential job; MathView export without LaTeX fields/lints, with --decl/--module for on-demand artifact math; build-math-view.mjs retired; docs/team/tools/math-artifact.md; Lean-first signoff on stmtHash",
+   "deps": [
+    "lint-axioms",
+    "latex-generators"
+   ],
+   "writes": [
+    "lean/MathView.lean",
+    "lean/MathViewMain.lean",
+    "lean/scripts/**",
+    "lean/Fw/Console/LandSpeed*.lean",
+    "lean/Fw/Spec/ConeMiss*.lean",
+    "lean/Fw/Ops/LeanFirst*.lean",
+    "lean/Fw/Ops/Wire*.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean",
+    "lean/Fw.lean",
+    "lean/README.md",
+    ".github/workflows/lean.yml",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "scripts/math-pending.mjs",
+    "docs/plan/tools/build-math-view.mjs",
+    "docs/plan/math-view.html",
+    "docs/team/tools/math-artifact.md",
+    ".claude/agents/math-reviewer.md",
+    ".claude/agents/page-writer.md",
+    "packages/contracts/golden/**",
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/**",
+    "docs/team/handoffs/latex-mathview-b2.md"
    ]
   }
  ],

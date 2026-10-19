@@ -204,3 +204,10 @@
 {"fn":"stripEntryDigit","in":{"j":9},"out":8}
 {"fn":"stripEntryDigit","in":{"j":10},"out":9}
 {"fn":"stripEntryDigit","in":{"j":11},"out":0}
+{"fn":"refreshShown","in":{"nowMs":1790787600000,"readMs":1790787600000},"out":[32,12,0,0]}
+{"fn":"refreshShown","in":{"nowMs":1790787601000,"readMs":1790787600000},"out":[32,11,59,59]}
+{"fn":"refreshShown","in":{"nowMs":1790791200000,"readMs":1790787600000},"out":[32,11,0,0]}
+{"fn":"refreshShown","in":{"nowMs":1793595599999,"readMs":1790787600000},"out":[0,0,0,1]}
+{"fn":"refreshShown","in":{"nowMs":1793595600000,"readMs":1790787600000},"out":[0,0,0,0]}
+{"fn":"refreshShown","in":{"nowMs":1793595605000,"readMs":1790787600000},"out":[0,0,0,0]}
+{"fn":"refreshShown","in":{"nowMs":1790787600000,"readMs":0},"out":[32,12,0,0]}

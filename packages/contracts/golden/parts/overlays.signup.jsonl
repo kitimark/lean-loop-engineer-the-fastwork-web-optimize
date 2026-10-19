@@ -185,6 +185,10 @@
 {"fn":"valid","in":{"email":"a@example.com","name":"　"},"out":false}
 {"fn":"valid","in":{"email":"ปก@example.com","name":"Ann"},"out":true}
 {"fn":"valid","in":{"email":"a@example.com ","name":"Ann"},"out":true}
+{"fn":"valid","in":{"email":"a@example.com","name":"😀"},"out":true}
+{"fn":"valid","in":{"email":"a@example.com","name":"👩‍💻"},"out":true}
+{"fn":"valid","in":{"email":"a@example.com","name":"1"},"out":true}
+{"fn":"valid","in":{"email":"a@example.com","name":"\n"},"out":false}
 {"fn":"submit","in":{"form":{"done":false,"error":false,"submitting":false},"hasHandler":false,"valid":false},"out":{"form":{"done":false,"error":false,"submitting":false},"send":false}}
 {"fn":"submit","in":{"form":{"done":false,"error":false,"submitting":false},"hasHandler":true,"valid":false},"out":{"form":{"done":false,"error":false,"submitting":false},"send":false}}
 {"fn":"submit","in":{"form":{"done":false,"error":false,"submitting":false},"hasHandler":false,"valid":true},"out":{"form":{"done":false,"error":true,"submitting":false},"send":false}}

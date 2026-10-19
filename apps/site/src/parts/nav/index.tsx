@@ -7,7 +7,7 @@ import { createNavDriver, type NavEnv } from './driver';
 import { CLASS_OF, type Sticky } from './logic';
 import { matchList } from './media';
 import css from './nav.module.css';
-import svg from '../../svg.gen.json';
+import { art, GenSvg } from '../../GenSvg';
 
 /** Where the nav's own scroll callback sits on the engine: before nav.hitTest (100), as the original reads the sticky item first. */
 export const NAV_ORDER = 99;
@@ -140,11 +140,7 @@ export function Nav({
     <header ref={header} className={`${css.nav} is-hero-pill`} aria-label="Primary navigation" data-fw="nav">
       <div className={css.bar}>
         <a className={css.logo} href="/" aria-label="Fastwork home">
-          <svg width={svg.wordmark.width} viewBox={svg.wordmark.viewBox} fill="currentColor" aria-hidden="true" focusable="false">
-            {svg.wordmark.paths.map((d, i) => (
-              <path key={i} d={d} />
-            ))}
-          </svg>
+          <GenSvg art={art('nav.wordmark')} />
         </a>
         <div className={css.actions} data-fw="nav-actions">
           <LangMenu variant="faithful" locale={locale} onSelect={onSelectLocale} onOpenChange={onOpenChange} />
