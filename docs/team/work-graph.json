@@ -8054,7 +8054,8 @@
     "lean/scripts/*.lean",
     "docs/team/handoffs/latex-strip-c.md",
     "lean/FwTest/**"
-   ]
+   ],
+   "evidence": "a498ee0"
   },
   {
    "devices": [

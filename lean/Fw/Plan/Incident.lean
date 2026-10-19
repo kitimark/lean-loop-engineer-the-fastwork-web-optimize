@@ -48,25 +48,16 @@ hardening task, which must then exist).
 namespace Fw.Plan.Incident
 open Fw.Plan
 
-/-- The evidence kinds of an incident.
-
-$$\mathrm{EKind} = \{\mathrm{commit}, \mathrm{ci}, \mathrm{file}, \mathrm{event}, \mathrm{proc}\}$$
--/
+/-- The evidence kinds of an incident. -/
 inductive EKind | commit | ci | file | event | proc
 deriving DecidableEq, Repr
 
-/-- The evidence kind a `kind` string names, if any.
-
-$$\operatorname{kindOf}(s) = \begin{cases}\mathrm{commit} & s = \texttt{"commit"}\\ \mathrm{ci} & s = \texttt{"ci"}\\ \mathrm{file} & s = \texttt{"file"}\\ \mathrm{event} & s = \texttt{"event"}\\ \mathrm{proc} & s = \texttt{"proc"}\\ \bot & \text{otherwise}\end{cases}$$
--/
+/-- The evidence kind a `kind` string names, if any. -/
 def kindOf : String → Option EKind
   | "commit" => some .commit | "ci" => some .ci | "file" => some .file
   | "event" => some .event | "proc" => some .proc | _ => none
 
-/-- One evidence item: its kind string (as written in the file) and its ref.
-
-$$e = (\mathit{kind}, \mathit{ref})$$
--/
+/-- One evidence item: its kind string (as written in the file) and its ref. -/
 structure Ev where
   kind : String
   ref  : String
@@ -75,8 +66,6 @@ deriving Repr, DecidableEq
 /-- One ledger record, as the lint reads it: id, cause, evidence, repro, the fix task and the `also`
 tasks, regression, whether the record carries a `status` field, and the Lean fields of the mistake
 retro (verdict, reason, hardening task, empirical check, mistake class). Missing text fields are `none`.
-
-$$i = (\mathit{id}, \mathit{cause}, \mathit{evidence}, \mathit{repro}_\bot, \mathit{fix}_\bot, \mathit{also}, \mathit{regression}_\bot, \mathit{hasStatus}, \mathit{leanVerdict}_\bot, \mathit{leanReason}_\bot, \mathit{hardening}_\bot, \mathit{empiricalCheck}_\bot, \mathit{mistakeClass}_\bot)$$
 -/
 structure Incident where
   id             : String
@@ -94,31 +83,21 @@ structure Incident where
   mistakeClass   : Option String := none
 deriving Repr, DecidableEq
 
-/-- The Lean verdict of an incident: provable, partly provable, or not provable in Lean.
-
-$$\mathrm{Verdict} = \{\mathrm{provable}, \mathrm{partly}, \mathrm{no}\}$$
--/
+/-- The Lean verdict of an incident: provable, partly provable, or not provable in Lean. -/
 inductive Verdict | provable | partly | no
 deriving DecidableEq, Repr
 
-/-- The verdict a `leanVerdict` string names, if any (exact and case-sensitive).
-
-$$\operatorname{verdictOf}(s) = \begin{cases}\mathrm{provable} & s = \texttt{"provable"}\\ \mathrm{partly} & s = \texttt{"partly"}\\ \mathrm{no} & s = \texttt{"no"}\\ \bot & \text{otherwise}\end{cases}$$
--/
+/-- The verdict a `leanVerdict` string names, if any (exact and case-sensitive). -/
 def verdictOf : String → Option Verdict
   | "provable" => some .provable | "partly" => some .partly | "no" => some .no | _ => none
 
 /-- The verdict of an incident: its `leanVerdict` read by `verdictOf`; none when the field is missing
 or names no verdict.
-
-$$\operatorname{verdict}(i) = \begin{cases}\operatorname{verdictOf}(s) & i.\mathit{leanVerdict} = s\\ \bot & i.\mathit{leanVerdict} = \bot\end{cases}$$
 -/
 def verdict (i : Incident) : Option Verdict := i.leanVerdict.bind verdictOf
 
 /-- The facts the CLI collects: the work graph rows with their board state, the commit refs that are
 commits on main, the file refs that exist, and the class ids of `research/mistakes/ledger.json`.
-
-$$F = (\mathit{tasks}, \mathit{commits}, \mathit{files}, \mathit{classes})$$
 -/
 structure Facts where
   tasks   : List Task
@@ -126,10 +105,7 @@ structure Facts where
   files   : List String
   classes : List String := []
 
-/-- A lint code.
-
-$$\mathrm{Code} = \{\mathrm{noEvidence}, \mathrm{unknownKind}, \mathrm{badRef}, \mathrm{commitNotOnMain}, \mathrm{fileMissing}, \mathrm{missingFixTask}, \mathrm{missingRepro}, \mathrm{missingRegression}, \mathrm{noStatusPrefix}, \mathrm{statusField}, \mathrm{missingLeanVerdict}, \mathrm{badLeanVerdict}, \mathrm{missingLeanReason}, \mathrm{missingHardening}, \mathrm{unknownHardening}, \mathrm{missingEmpiricalCheck}, \mathrm{unknownMistakeClass}, \mathrm{dupId}, \mathrm{eventRef}, \mathrm{procRef}\}$$
--/
+/-- A lint code. -/
 inductive Code
   | noEvidence | unknownKind | badRef | commitNotOnMain | fileMissing | missingFixTask
   | missingRepro | missingRegression | noStatusPrefix | statusField
@@ -138,20 +114,14 @@ inductive Code
   | dupId | eventRef | procRef
 deriving DecidableEq, Repr
 
-/-- The codes in report order.
-
-$$\mathrm{Codes} = [\mathrm{noEvidence}, \mathrm{unknownKind}, \mathrm{badRef}, \mathrm{commitNotOnMain}, \mathrm{fileMissing}, \mathrm{missingFixTask}, \mathrm{missingRepro}, \mathrm{missingRegression}, \mathrm{noStatusPrefix}, \mathrm{statusField}, \mathrm{missingLeanVerdict}, \mathrm{badLeanVerdict}, \mathrm{missingLeanReason}, \mathrm{missingHardening}, \mathrm{unknownHardening}, \mathrm{missingEmpiricalCheck}, \mathrm{unknownMistakeClass}, \mathrm{dupId}, \mathrm{eventRef}, \mathrm{procRef}]$$
--/
+/-- The codes in report order. -/
 def Code.all : List Code :=
   [.noEvidence, .unknownKind, .badRef, .commitNotOnMain, .fileMissing, .missingFixTask,
    .missingRepro, .missingRegression, .noStatusPrefix, .statusField,
    .missingLeanVerdict, .badLeanVerdict, .missingLeanReason, .missingHardening, .unknownHardening,
    .missingEmpiricalCheck, .unknownMistakeClass, .dupId, .eventRef, .procRef]
 
-/-- The wire name of a code: its constructor name.
-
-$$\operatorname{name}(k) = \text{the identifier of } k \text{ as a string, e.g. } \operatorname{name}(\mathrm{noEvidence}) = \texttt{"noEvidence"}$$
--/
+/-- The wire name of a code: its constructor name. -/
 def Code.name : Code → String
   | .noEvidence => "noEvidence" | .unknownKind => "unknownKind" | .badRef => "badRef"
   | .commitNotOnMain => "commitNotOnMain" | .fileMissing => "fileMissing"
@@ -163,59 +133,31 @@ def Code.name : Code → String
   | .missingEmpiricalCheck => "missingEmpiricalCheck" | .unknownMistakeClass => "unknownMistakeClass"
   | .dupId => "dupId" | .eventRef => "eventRef" | .procRef => "procRef"
 
-/-- Is the code an error (else a warning)? Only the two non-reproducible evidence kinds are warnings.
-
-$$\operatorname{isError}(k) \iff k \notin \{\mathrm{eventRef}, \mathrm{procRef}\}$$
--/
+/-- Is the code an error (else a warning)? Only the two non-reproducible evidence kinds are warnings. -/
 def Code.isError : Code → Bool
   | .eventRef | .procRef => false
   | _ => true
 
-/-- The severity name of a code.
-
-$$\operatorname{sev}(k) = \begin{cases}\texttt{"error"} & \operatorname{isError}(k)\\ \texttt{"warn"} & \text{otherwise}\end{cases}$$
--/
+/-- The severity name of a code. -/
 def Code.severity (k : Code) : String := if k.isError then "error" else "warn"
 
-/-- A text field that is missing or holds only whitespace (the empty string included).
-
-$$\operatorname{blank}(o) \iff o = \bot \lor (o = s \land \forall c \in s:\ c \text{ is whitespace})$$
--/
+/-- A text field that is missing or holds only whitespace (the empty string included). -/
 def blank : Option String → Bool
   | none => true
   | some s => s.all Char.isWhitespace
 
-/-- The claim status prefixes of the project rules.
-
-$$\mathrm{Prefixes} = [\texttt{"CONFIRMED"}, \texttt{"INFERRED"}, \texttt{"MEASURED"}]$$
--/
+/-- The claim status prefixes of the project rules. -/
 def statusPrefixes : List String := ["CONFIRMED", "INFERRED", "MEASURED"]
 
-/-- Does the cause start with a status prefix?
-
-$$\operatorname{hasPrefix}(c) \iff \exists p \in \mathrm{Prefixes}:\ p \text{ is a prefix of } c$$
--/
+/-- Does the cause start with a status prefix? -/
 def hasPrefix (c : String) : Bool := statusPrefixes.any fun p => c.startsWith p
 
 /-- A file ref must be a repo-relative path: non-empty, not starting with `/` (an absolute or home
 path) or `~`.
-
-$$\operatorname{relPath}(r) \iff r \ne \varepsilon \land r_0 \ne \texttt{/} \land r_0 \ne \texttt{\textasciitilde}$$
 -/
 def relPath (r : String) : Bool := !r.isEmpty && !r.startsWith "/" && !r.startsWith "~"
 
-/-- Does an evidence-level code hold for one evidence item? (Incident-level codes never do.)
-
-$$\begin{aligned}
-\mathrm{unknownKind}(e) &\iff \operatorname{kindOf}(e.\mathit{kind}) = \bot\\
-\mathrm{badRef}(e) &\iff \begin{cases}\neg\operatorname{isCommit}(e.\mathit{ref}) & \operatorname{kindOf}(e.\mathit{kind}) = \mathrm{commit}\\ \neg\operatorname{isRun}(e.\mathit{ref}) & \operatorname{kindOf}(e.\mathit{kind}) = \mathrm{ci}\\ \neg\operatorname{relPath}(e.\mathit{ref}) & \operatorname{kindOf}(e.\mathit{kind}) = \mathrm{file}\\ e.\mathit{ref} = \varepsilon & \operatorname{kindOf}(e.\mathit{kind}) \in \{\mathrm{event}, \mathrm{proc}\}\\ \mathrm{false} & \operatorname{kindOf}(e.\mathit{kind}) = \bot\end{cases}\\
-\mathrm{commitNotOnMain}(e) &\iff \operatorname{kindOf}(e.\mathit{kind}) = \mathrm{commit} \land e.\mathit{ref} \notin F.\mathit{commits}\\
-\mathrm{fileMissing}(e) &\iff \operatorname{kindOf}(e.\mathit{kind}) = \mathrm{file} \land e.\mathit{ref} \notin F.\mathit{files}\\
-\mathrm{eventRef}(e) &\iff \operatorname{kindOf}(e.\mathit{kind}) = \mathrm{event}\\
-\mathrm{procRef}(e) &\iff \operatorname{kindOf}(e.\mathit{kind}) = \mathrm{proc}\\
-k(e) &\iff \mathrm{false} \quad \text{for every other code } k
-\end{aligned}$$
--/
+/-- Does an evidence-level code hold for one evidence item? (Incident-level codes never do.) -/
 def evHolds (F : Facts) (e : Ev) : Code → Bool
   | .unknownKind => (kindOf e.kind).isNone
   | .badRef => match kindOf e.kind with
@@ -230,45 +172,17 @@ def evHolds (F : Facts) (e : Ev) : Code → Bool
   | .procRef => kindOf e.kind == some .proc
   | _ => false
 
-/-- The fix tasks of an incident: `fix.task` (when present), then the `also` tasks.
-
-$$\operatorname{fixTasks}(i) = [\, x \mid i.\mathit{fix} = x \,] \mathbin{+\!\!+} i.\mathit{also}$$
--/
+/-- The fix tasks of an incident: `fix.task` (when present), then the `also` tasks. -/
 def fixTasks (i : Incident) : List String := i.fixTask.toList ++ i.also
 
-/-- The work graph ids of the facts.
-
-$$\operatorname{ids}(F.\mathit{tasks}) = [\, t.\mathit{id} : t \in F.\mathit{tasks} \,]$$
--/
+/-- The work graph ids of the facts. -/
 def taskIds (F : Facts) : List String := F.tasks.map (·.id)
 
-/-- Does the verdict ask for a hardening task (provable or partly)?
-
-$$\operatorname{needsHardening}(i) \iff \operatorname{verdict}(i) \in \{\mathrm{provable}, \mathrm{partly}\}$$
--/
+/-- Does the verdict ask for a hardening task (provable or partly)? -/
 def needsHardening (i : Incident) : Bool :=
   verdict i == some .provable || verdict i == some .partly
 
-/-- Does code `k` hold for incident `i`, given the facts and whether its id is duplicated?
-
-$$\begin{aligned}
-\mathrm{noEvidence}(i) &\iff i.\mathit{evidence} = [\,]\\
-\mathrm{missingFixTask}(i) &\iff i.\mathit{fix} = \bot \lor \exists x \in \operatorname{fixTasks}(i):\ x \notin \operatorname{ids}(F.\mathit{tasks})\\
-\mathrm{missingRepro}(i) &\iff \operatorname{blank}(i.\mathit{repro})\\
-\mathrm{missingRegression}(i) &\iff \operatorname{blank}(i.\mathit{regression})\\
-\mathrm{noStatusPrefix}(i) &\iff \neg\operatorname{hasPrefix}(i.\mathit{cause})\\
-\mathrm{statusField}(i) &\iff i.\mathit{hasStatus}\\
-\mathrm{missingLeanVerdict}(i) &\iff \operatorname{blank}(i.\mathit{leanVerdict})\\
-\mathrm{badLeanVerdict}(i) &\iff \neg\operatorname{blank}(i.\mathit{leanVerdict}) \land \operatorname{verdict}(i) = \bot\\
-\mathrm{missingLeanReason}(i) &\iff \operatorname{blank}(i.\mathit{leanReason})\\
-\mathrm{missingHardening}(i) &\iff \operatorname{verdict}(i) \in \{\mathrm{provable}, \mathrm{partly}\} \land \operatorname{blank}(i.\mathit{hardening})\\
-\mathrm{unknownHardening}(i) &\iff \exists h:\ i.\mathit{hardening} = h \land h \notin \operatorname{ids}(F.\mathit{tasks})\\
-\mathrm{missingEmpiricalCheck}(i) &\iff \operatorname{verdict}(i) = \mathrm{no} \land \operatorname{blank}(i.\mathit{empiricalCheck})\\
-\mathrm{unknownMistakeClass}(i) &\iff \exists c:\ i.\mathit{mistakeClass} = c \land c \notin F.\mathit{classes}\\
-\mathrm{dupId}(i) &\iff \mathit{dup}\\
-k(i) &\iff \exists e \in i.\mathit{evidence}:\ \operatorname{evHolds}_F(e, k) \quad \text{for } k \in \{\mathrm{unknownKind}, \mathrm{badRef}, \mathrm{commitNotOnMain}, \mathrm{fileMissing}, \mathrm{eventRef}, \mathrm{procRef}\}
-\end{aligned}$$
--/
+/-- Does code `k` hold for incident `i`, given the facts and whether its id is duplicated? -/
 def holds (F : Facts) (dup : Bool) (i : Incident) : Code → Bool
   | .noEvidence => i.evidence.isEmpty
   | .missingFixTask => i.fixTask.isNone || (fixTasks i).any fun x => !(F.tasks.map (·.id)).contains x
@@ -295,54 +209,35 @@ def holds (F : Facts) (dup : Bool) (i : Incident) : Code → Bool
   | .eventRef => i.evidence.any fun e => evHolds F e .eventRef
   | .procRef => i.evidence.any fun e => evHolds F e .procRef
 
-/-- Is `k` an evidence-level code (one that `evHolds` decides)?
-
-$$\operatorname{isEv}(k) \iff k \in \{\mathrm{unknownKind}, \mathrm{badRef}, \mathrm{commitNotOnMain}, \mathrm{fileMissing}, \mathrm{eventRef}, \mathrm{procRef}\}$$
--/
+/-- Is `k` an evidence-level code (one that `evHolds` decides)? -/
 def Code.isEv : Code → Bool
   | .unknownKind | .badRef | .commitNotOnMain | .fileMissing | .eventRef | .procRef => true
   | _ => false
 
-/-- The codes that hold for an incident, in report order.
-
-$$\operatorname{codes}_F(\mathit{dup}, i) = [\, k \in \mathrm{Codes} : \operatorname{holds}_F(\mathit{dup}, i, k) \,]$$
--/
+/-- The codes that hold for an incident, in report order. -/
 def codes (F : Facts) (dup : Bool) (i : Incident) : List Code := Code.all.filter (holds F dup i)
 
-/-- The derived status of an incident.
-
-$$\mathrm{Status} = \{\mathrm{fixed}, \mathrm{fixing}, \mathrm{open}\}$$
--/
+/-- The derived status of an incident. -/
 inductive Status | fixed | fixing | «open»
 deriving DecidableEq, Repr
 
-/-- The wire name of a status.
-
-$$\operatorname{name}(\mathrm{fixed}) = \texttt{"fixed"},\ \operatorname{name}(\mathrm{fixing}) = \texttt{"fixing"},\ \operatorname{name}(\mathrm{open}) = \texttt{"open"}$$
--/
+/-- The wire name of a status. -/
 def Status.name : Status → String
   | .fixed => "fixed" | .fixing => "fixing" | .open => "open"
 
 /-- A task is claimed: some row with that id has a claiming agent and no evidence (claimed or running,
 not done).
-
-$$\operatorname{claimed}(ts, x) \iff \exists t \in ts:\ t.\mathit{id} = x \land t.\mathit{agent} \ne \bot \land t.\mathit{evidence} = \bot$$
 -/
 def claimed (ts : List Task) (x : String) : Bool :=
   ts.any fun t => t.id == x && t.agent.isSome && t.evidence.isNone
 
-/-- Every fix task is done: `fix.task` is present and done, and every `also` task is done.
-
-$$\operatorname{fixedB}(ts, i) \iff \exists x:\ i.\mathit{fix} = x \land \operatorname{isDone}(ts, x) \land \forall a \in i.\mathit{also}:\ \operatorname{isDone}(ts, a)$$
--/
+/-- Every fix task is done: `fix.task` is present and done, and every `also` task is done. -/
 def fixedB (ts : List Task) (i : Incident) : Bool :=
   match i.fixTask with
   | none => false
   | some x => isDone ts x && i.also.all (isDone ts)
 
 /-- The derived status; it is never read from the file.
-
-$$\operatorname{status}(ts, i) = \begin{cases}\mathrm{fixed} & \operatorname{fixedB}(ts, i)\\ \mathrm{fixing} & \exists x \in \operatorname{fixTasks}(i):\ \operatorname{claimed}(ts, x)\\ \mathrm{open} & \text{otherwise}\end{cases}$$
 
 Checked in this order.
 -/
@@ -351,20 +246,15 @@ def status (ts : List Task) (i : Incident) : Status :=
   else if (fixTasks i).any (claimed ts) then .fixing
   else .open
 
-/-- One finding: a code and a detail text.
-
-$$f = (\mathit{code}, \mathit{detail})$$
--/
+/-- One finding: a code and a detail text. -/
 structure Finding where
   code   : Code
   detail : String
 deriving Repr, DecidableEq
 
 /-- The detail text of a Lean-field finding: it names the field and what it must hold, so an entry
-written after this lint learns exactly which field is missing ($\langle x \rangle$ is the field's value,
-$v$ the verdict name).
-
-$$\operatorname{leanDetail}(i, k) = \begin{cases}\texttt{"leanVerdict missing: one of provable, partly (both also need hardening), no (also needs empiricalCheck)"} & k = \mathrm{missingLeanVerdict}\\ \texttt{"leanVerdict '}\langle x \rangle\texttt{' is not one of provable, partly, no"} & k = \mathrm{badLeanVerdict}\\ \texttt{"leanReason missing: why Lean can or cannot prove it"} & k = \mathrm{missingLeanReason}\\ \texttt{"hardening missing: a work graph task id (required when leanVerdict is }v\texttt{)"} & k = \mathrm{missingHardening}\\ \texttt{"hardening '}\langle x \rangle\texttt{' is not a work graph task id"} & k = \mathrm{unknownHardening}\\ \texttt{"empiricalCheck missing: the test or CI check that covers it (required when leanVerdict is no)"} & k = \mathrm{missingEmpiricalCheck}\\ \texttt{"mistakeClass '}\langle x \rangle\texttt{' is not a class id of research/mistakes/ledger.json"} & k = \mathrm{unknownMistakeClass}\\ \varepsilon & \text{otherwise}\end{cases}$$
+written after this lint learns exactly which field is missing (`⟨ x ⟩` is the field's value,
+`v` the verdict name).
 
 A missing value prints as empty.
 -/
@@ -385,8 +275,6 @@ def leanDetail (i : Incident) : Code → String
 ids (`no fix.task` when there is none), the id for `dupId`, the field text of `leanDetail` for the
 Lean-field codes, else empty.
 
-$$\operatorname{detail}_F(i, k) = \begin{cases}\text{the kinds } e.\mathit{kind} \text{ with } \operatorname{evHolds}_F(e, k) & k = \mathrm{unknownKind}\\ \text{the refs } e.\mathit{ref} \text{ with } \operatorname{evHolds}_F(e, k) & \operatorname{isEv}(k) \land k \ne \mathrm{unknownKind}\\ \texttt{"no fix.task"} & k = \mathrm{missingFixTask} \land i.\mathit{fix} = \bot\\ \text{the } x \in \operatorname{fixTasks}(i) \text{ with } x \notin \operatorname{ids}(F.\mathit{tasks}) & k = \mathrm{missingFixTask} \land i.\mathit{fix} \ne \bot\\ i.\mathit{id} & k = \mathrm{dupId}\\ \operatorname{leanDetail}(i, k) & \text{otherwise}\end{cases}$$
-
 Lists are joined with `", "`; the cases are checked in this order.
 -/
 def detail (F : Facts) (i : Incident) (k : Code) : String :=
@@ -398,59 +286,38 @@ def detail (F : Facts) (i : Incident) (k : Code) : String :=
   else if k == .dupId then i.id
   else leanDetail i k
 
-/-- The lint result of one incident: id, derived status, findings.
-
-$$r = (\mathit{id}, \mathit{status}, \mathit{findings})$$
--/
+/-- The lint result of one incident: id, derived status, findings. -/
 structure Result where
   id       : String
   status   : Status
   findings : List Finding
 deriving Repr, DecidableEq
 
-/-- Lint one incident.
-
-$$\operatorname{lintOne}_F(\mathit{dup}, i) = \big(i.\mathit{id},\ \operatorname{status}(F.\mathit{tasks}, i),\ [\, (k, \operatorname{detail}_F(i, k)) : k \in \operatorname{codes}_F(\mathit{dup}, i) \,]\big)$$
--/
+/-- Lint one incident. -/
 def lintOne (F : Facts) (dup : Bool) (i : Incident) : Result :=
   { id := i.id, status := status F.tasks i,
     findings := (codes F dup i).map fun k => { code := k, detail := detail F i k } }
 
-/-- Is the id of `i` used by more than one incident of `l`?
-
-$$\operatorname{dupIn}(l, i) \iff |[\, j \in l : j.\mathit{id} = i.\mathit{id} \,]| > 1$$
--/
+/-- Is the id of `i` used by more than one incident of `l`? -/
 def dupIn (l : List Incident) (i : Incident) : Bool := decide (1 < (l.map (·.id)).count i.id)
 
-/-- Lint every incident, in file order.
-
-$$\operatorname{lintAll}_F(l) = [\, \operatorname{lintOne}_F(\operatorname{dupIn}(l, i), i) : i \in l \,]$$
--/
+/-- Lint every incident, in file order. -/
 def lintAll (F : Facts) (l : List Incident) : List Result :=
   l.map fun i => lintOne F (dupIn l i) i
 
-/-- Ok: no finding of any incident is an error.
-
-$$\operatorname{ok}_F(l) \iff \forall r \in \operatorname{lintAll}_F(l),\ \forall f \in r.\mathit{findings}:\ \neg\operatorname{isError}(f.\mathit{code})$$
--/
+/-- Ok: no finding of any incident is an error. -/
 def okAll (F : Facts) (l : List Incident) : Bool :=
   (lintAll F l).all fun r => r.findings.all fun f => !f.code.isError
 
 /-! ## Theorems -/
 
-/-- **Each reported code holds, and each code that holds is reported.**
-
-$$\forall F, \mathit{dup}, i, k:\quad k \in \operatorname{codes}_F(\mathit{dup}, i) \iff \operatorname{holds}_F(\mathit{dup}, i, k)$$
--/
+/-- **Each reported code holds, and each code that holds is reported.** -/
 theorem mem_codes (F : Facts) (dup : Bool) (i : Incident) (k : Code) :
     k ∈ codes F dup i ↔ holds F dup i k = true := by
   unfold codes
   cases k <;> simp [Code.all]
 
-/-- **Fixed is exactly: the fix task and every `also` task are done.**
-
-$$\forall ts, i:\quad \operatorname{status}(ts, i) = \mathrm{fixed} \iff \exists x:\ i.\mathit{fix} = x \land \operatorname{isDone}(ts, x) \land \forall a \in i.\mathit{also}:\ \operatorname{isDone}(ts, a)$$
--/
+/-- **Fixed is exactly: the fix task and every `also` task are done.** -/
 theorem status_fixed_iff (ts : List Task) (i : Incident) :
     status ts i = .fixed ↔
       ∃ x, i.fixTask = some x ∧ isDone ts x = true ∧ ∀ a ∈ i.also, isDone ts a = true := by
@@ -465,10 +332,7 @@ theorem status_fixed_iff (ts : List Task) (i : Incident) :
     split <;> simp
   · simp
 
-/-- **Fixing is exactly: not fixed, and some fix task is claimed and not done.**
-
-$$\forall ts, i:\quad \operatorname{status}(ts, i) = \mathrm{fixing} \iff \neg\operatorname{fixedB}(ts, i) \land \exists x \in \operatorname{fixTasks}(i),\ \exists t \in ts:\ t.\mathit{id} = x \land t.\mathit{agent} \ne \bot \land t.\mathit{evidence} = \bot$$
--/
+/-- **Fixing is exactly: not fixed, and some fix task is claimed and not done.** -/
 theorem status_fixing_iff (ts : List Task) (i : Incident) :
     status ts i = .fixing ↔ fixedB ts i = false ∧
       ∃ x ∈ fixTasks i, ∃ t ∈ ts, t.id = x ∧ t.agent ≠ none ∧ t.evidence = none := by
@@ -488,10 +352,7 @@ theorem status_fixing_iff (ts : List Task) (i : Incident) :
       simp [h1, Option.isSome_iff_ne_none, h2, h3]
   · simp
 
-/-- **A fixed incident never reports `missingFixTask`**: a done task is a row of the work graph.
-
-$$\forall F, \mathit{dup}, i:\quad \operatorname{status}(F.\mathit{tasks}, i) = \mathrm{fixed} \Rightarrow \mathrm{missingFixTask} \notin \operatorname{codes}_F(\mathit{dup}, i)$$
--/
+/-- **A fixed incident never reports `missingFixTask`**: a done task is a row of the work graph. -/
 theorem fixed_no_missingFixTask (F : Facts) (dup : Bool) (i : Incident)
     (h : status F.tasks i = .fixed) : Code.missingFixTask ∉ codes F dup i := by
   rw [mem_codes]
@@ -510,8 +371,6 @@ theorem fixed_no_missingFixTask (F : Facts) (dup : Bool) (i : Incident)
 
 /-- **Adding evidence never adds a finding beyond those of the added items**: every code that holds
 after appending evidence `es` held before, or holds for one of the added items.
-
-$$\forall F, \mathit{dup}, i, es, k:\quad \operatorname{holds}_F(\mathit{dup}, i[\mathit{evidence} := i.\mathit{evidence} \mathbin{+\!\!+} es], k) \Rightarrow \operatorname{holds}_F(\mathit{dup}, i, k) \lor \exists e \in es:\ \operatorname{evHolds}_F(e, k)$$
 -/
 theorem holds_addEvidence (F : Facts) (dup : Bool) (i : Incident) (es : List Ev) (k : Code)
     (h : holds F dup { i with evidence := i.evidence ++ es } k = true) :
@@ -522,8 +381,6 @@ theorem holds_addEvidence (F : Facts) (dup : Bool) (i : Incident) (es : List Ev)
 
 /-- **Lint is monotone in evidence: adding evidence never adds an error.** When no added item has an
 error-level finding by itself, every error code after the addition was already reported before.
-
-$$\forall F, \mathit{dup}, i, es, k:\quad (\forall e \in es,\ \forall k':\ \operatorname{isError}(k') \Rightarrow \neg\operatorname{evHolds}_F(e, k')) \land \operatorname{isError}(k) \land k \in \operatorname{codes}_F(\mathit{dup}, i[\mathit{evidence} := i.\mathit{evidence} \mathbin{+\!\!+} es]) \Rightarrow k \in \operatorname{codes}_F(\mathit{dup}, i)$$
 -/
 theorem errors_addEvidence (F : Facts) (dup : Bool) (i : Incident) (es : List Ev) (k : Code)
     (hes : ∀ e ∈ es, ∀ k', k'.isError = true → evHolds F e k' = false)
@@ -536,8 +393,6 @@ theorem errors_addEvidence (F : Facts) (dup : Bool) (i : Incident) (es : List Ev
 
 /-- **More facts never add a finding**: with at least the same main commits, existing files, work
 graph ids and mistake classes, every code that holds held already with the smaller facts.
-
-$$\forall F, F', \mathit{dup}, i, k:\quad F.\mathit{commits} \subseteq F'.\mathit{commits} \land F.\mathit{files} \subseteq F'.\mathit{files} \land \operatorname{ids}(F.\mathit{tasks}) \subseteq \operatorname{ids}(F'.\mathit{tasks}) \land F.\mathit{classes} \subseteq F'.\mathit{classes} \land \operatorname{holds}_{F'}(\mathit{dup}, i, k) \Rightarrow \operatorname{holds}_F(\mathit{dup}, i, k)$$
 -/
 theorem holds_mono_facts (F F' : Facts) (dup : Bool) (i : Incident) (k : Code)
     (hc : ∀ c ∈ F.commits, c ∈ F'.commits) (hf : ∀ f ∈ F.files, f ∈ F'.files)
@@ -577,9 +432,7 @@ theorem holds_mono_facts (F F' : Facts) (dup : Bool) (i : Incident) (k : Code)
 
 /-- **Lint is order-independent**: a permutation of the incidents gives the same results, permuted.
 
-$$\forall F, l_1, l_2:\quad l_1 \sim l_2 \Rightarrow \operatorname{lintAll}_F(l_1) \sim \operatorname{lintAll}_F(l_2)$$
-
-($\sim$ is "is a permutation of".)
+(`∼` is "is a permutation of".)
 -/
 theorem lintAll_perm (F : Facts) {l₁ l₂ : List Incident} (hp : l₁.Perm l₂) :
     (lintAll F l₁).Perm (lintAll F l₂) := by
@@ -590,10 +443,7 @@ theorem lintAll_perm (F : Facts) {l₁ l₂ : List Incident} (hp : l₁.Perm l�
   simp only [hd]
   exact hp.map _
 
-/-- **The verdict is order-independent**: permuted incidents give the same ok.
-
-$$\forall F, l_1, l_2:\quad l_1 \sim l_2 \Rightarrow \operatorname{ok}_F(l_1) = \operatorname{ok}_F(l_2)$$
--/
+/-- **The verdict is order-independent**: permuted incidents give the same ok. -/
 theorem okAll_perm (F : Facts) {l₁ l₂ : List Incident} (hp : l₁.Perm l₂) :
     okAll F l₁ = okAll F l₂ := by
   unfold okAll
@@ -606,8 +456,6 @@ theorem okAll_perm (F : Facts) {l₁ l₂ : List Incident} (hp : l₁.Perm l₂)
 /-- The Lean fields of an entry are complete and their refs exist: the verdict is one of the three and
 is covered (an empirical check for `no`, a hardening task for `provable` / `partly`), the reason is not
 blank, a named hardening task is a work graph id, and a named mistake class is a retro class.
-
-$$\begin{aligned}\operatorname{leanComplete}_F(i) \iff{} & \exists v:\ \operatorname{verdict}(i) = v \land (v = \mathrm{no} \Rightarrow \neg\operatorname{blank}(i.\mathit{empiricalCheck})) \land (v \ne \mathrm{no} \Rightarrow \neg\operatorname{blank}(i.\mathit{hardening}))\\ & \land \neg\operatorname{blank}(i.\mathit{leanReason}) \land (\forall h:\ i.\mathit{hardening} = h \Rightarrow h \in \operatorname{ids}(F.\mathit{tasks}))\\ & \land (\forall c:\ i.\mathit{mistakeClass} = c \Rightarrow c \in F.\mathit{classes})\end{aligned}$$
 -/
 def LeanComplete (F : Facts) (i : Incident) : Prop :=
   (∃ v, verdict i = some v ∧ (v = .no → blank i.empiricalCheck = false) ∧
@@ -620,8 +468,6 @@ def LeanComplete (F : Facts) (i : Incident) : Prop :=
 kind and a well-formed ref, every commit ref is on main and every file ref exists, it has a fix task
 and every fix and `also` task is a work graph id, repro and regression are not blank, the cause has a
 status prefix, it has no `status` field, and its Lean fields are complete (`LeanComplete`).
-
-$$\begin{aligned}\operatorname{complete}_F(\mathit{dup}, i) \iff{} & \neg\mathit{dup} \land i.\mathit{evidence} \ne [\,] \land \forall e \in i.\mathit{evidence}:\ \operatorname{kindOf}(e.\mathit{kind}) \ne \bot\\ & \land \forall e \in i.\mathit{evidence}:\ \neg\operatorname{evHolds}_F(e, \mathrm{badRef})\\ & \land \forall e \in i.\mathit{evidence}:\ \operatorname{kindOf}(e.\mathit{kind}) = \mathrm{commit} \Rightarrow e.\mathit{ref} \in F.\mathit{commits}\\ & \land \forall e \in i.\mathit{evidence}:\ \operatorname{kindOf}(e.\mathit{kind}) = \mathrm{file} \Rightarrow e.\mathit{ref} \in F.\mathit{files}\\ & \land i.\mathit{fix} \ne \bot \land \forall x \in \operatorname{fixTasks}(i):\ x \in \operatorname{ids}(F.\mathit{tasks})\\ & \land \neg\operatorname{blank}(i.\mathit{repro}) \land \neg\operatorname{blank}(i.\mathit{regression}) \land \operatorname{hasPrefix}(i.\mathit{cause}) \land \neg i.\mathit{hasStatus} \land \operatorname{leanComplete}_F(i)\end{aligned}$$
 -/
 def Complete (F : Facts) (dup : Bool) (i : Incident) : Prop :=
   dup = false ∧ i.evidence ≠ [] ∧
@@ -633,10 +479,7 @@ def Complete (F : Facts) (dup : Bool) (i : Incident) : Prop :=
     blank i.repro = false ∧ blank i.regression = false ∧ hasPrefix i.cause = true ∧
     i.hasStatus = false ∧ LeanComplete F i
 
-/-- A string that names a verdict is not blank.
-
-$$\forall s, v:\quad \operatorname{verdictOf}(s) = v \Rightarrow \neg\operatorname{blank}(\mathrm{some}\ s)$$
--/
+/-- A string that names a verdict is not blank. -/
 theorem verdictOf_not_blank (s : String) (v : Verdict) (h : verdictOf s = some v) :
     blank (some s) = false := by
   unfold verdictOf at h
@@ -644,9 +487,7 @@ theorem verdictOf_not_blank (s : String) (v : Verdict) (h : verdictOf s = some v
 
 /-- **The four verdict codes are silent exactly when the verdict is known and covered.**
 
-$$\begin{aligned}\forall F, \mathit{dup}, i:\quad & \neg\operatorname{holds}_F(\mathit{dup}, i, \mathrm{missingLeanVerdict}) \land \neg\operatorname{holds}_F(\mathit{dup}, i, \mathrm{badLeanVerdict}) \land \neg\operatorname{holds}_F(\mathit{dup}, i, \mathrm{missingHardening}) \land \neg\operatorname{holds}_F(\mathit{dup}, i, \mathrm{missingEmpiricalCheck})\\ \iff{} & \exists v:\ \operatorname{verdict}(i) = v \land (v = \mathrm{no} \Rightarrow \neg\operatorname{blank}(i.\mathit{empiricalCheck})) \land (v \ne \mathrm{no} \Rightarrow \neg\operatorname{blank}(i.\mathit{hardening}))\end{aligned}$$
-
-(The four codes do not read the facts or $\mathit{dup}$.)
+(The four codes do not read the facts or `dup`.)
 -/
 theorem verdict_codes_iff (F : Facts) (dup : Bool) (i : Incident) :
     (holds F dup i .missingLeanVerdict = false ∧ holds F dup i .badLeanVerdict = false ∧
@@ -670,10 +511,7 @@ theorem verdict_codes_iff (F : Facts) (dup : Bool) (i : Incident) :
     have := hb v hv
     cases v <;> simp [this]
 
-/-- **One entry passes exactly when it is complete**: no error code holds iff `complete`.
-
-$$\forall F, \mathit{dup}, i:\quad (\forall k:\ \operatorname{isError}(k) \Rightarrow \neg\operatorname{holds}_F(\mathit{dup}, i, k)) \iff \operatorname{complete}_F(\mathit{dup}, i)$$
--/
+/-- **One entry passes exactly when it is complete**: no error code holds iff `complete`. -/
 theorem okOne_iff (F : Facts) (dup : Bool) (i : Incident) :
     (∀ k : Code, k.isError = true → holds F dup i k = false) ↔ Complete F dup i := by
   have hall : (∀ k : Code, k.isError = true → holds F dup i k = false) ↔
@@ -722,8 +560,6 @@ theorem okOne_iff (F : Facts) (dup : Bool) (i : Incident) :
 /-- **The lint passes exactly when every entry is complete and every referenced task and class
 exists** (`complete` includes: fix and `also` tasks and the hardening task are work graph ids, the
 mistake class is a retro class, and the id is not duplicated in the list).
-
-$$\forall F, l:\quad \operatorname{ok}_F(l) \iff \forall i \in l:\ \operatorname{complete}_F(\operatorname{dupIn}(l, i), i)$$
 -/
 theorem lint_ok_iff (F : Facts) (l : List Incident) :
     okAll F l = true ↔ ∀ i ∈ l, Complete F (dupIn l i) i := by
@@ -746,8 +582,6 @@ theorem lint_ok_iff (F : Facts) (l : List Incident) :
 
 /-- **A `no` verdict without an empirical check is refused**: if some entry's verdict is `no` and its
 `empiricalCheck` is missing or blank, the lint does not pass.
-
-$$\forall F, l, i:\quad i \in l \land \operatorname{verdict}(i) = \mathrm{no} \land \operatorname{blank}(i.\mathit{empiricalCheck}) \Rightarrow \neg\operatorname{ok}_F(l)$$
 -/
 theorem no_without_empiricalCheck_refused (F : Facts) (l : List Incident) (i : Incident)
     (hi : i ∈ l) (hv : verdict i = some .no) (he : blank i.empiricalCheck = true) :
@@ -759,10 +593,7 @@ theorem no_without_empiricalCheck_refused (F : Facts) (l : List Incident) (i : I
     cases hv'
     simp [hno rfl] at he
 
-/-- **A passing provable or partly entry names an existing hardening task.**
-
-$$\forall F, l, i:\quad \operatorname{ok}_F(l) \land i \in l \land \operatorname{verdict}(i) \in \{\mathrm{provable}, \mathrm{partly}\} \Rightarrow \exists h:\ i.\mathit{hardening} = h \land h \in \operatorname{ids}(F.\mathit{tasks})$$
--/
+/-- **A passing provable or partly entry names an existing hardening task.** -/
 theorem ok_hardening_exists (F : Facts) (l : List Incident) (i : Incident)
     (hok : okAll F l = true) (hi : i ∈ l)
     (hv : verdict i = some .provable ∨ verdict i = some .partly) :
@@ -778,10 +609,7 @@ theorem ok_hardening_exists (F : Facts) (l : List Incident) (i : Incident)
 
 /-! ## Examples -/
 
-/-- A sample fact set for the `#guard` examples: task `a` done, task `b` claimed, task `c` open; one main commit, one file and one mistake class.
-
-$$F_0 = ([a \text{ done}, b \text{ claimed}, c \text{ open}],\ [\texttt{1c64c85}],\ [\texttt{README.md}],\ [\texttt{c-quota}])$$
--/
+/-- A sample fact set for the `#guard` examples: task `a` done, task `b` claimed, task `c` open; one main commit, one file and one mistake class. -/
 def sampleFacts : Facts :=
   let row (id : String) (ev ag : Option String) : Task :=
     { id, title := "", stream := "", milestone := none, deps := [], owner := "", writes := [],
@@ -791,8 +619,6 @@ def sampleFacts : Facts :=
 
 /-- A sample incident for the `#guard` examples: one main commit as evidence, fixed by task `a`,
 verdict provable with hardening task `c`, no empirical check, class `c-quota`.
-
-$$i_0 = (\texttt{inc}, \texttt{"CONFIRMED: x"}, [(\mathrm{commit}, \texttt{1c64c85})], \texttt{"r"}, a, [\,], \texttt{"g"}, \mathrm{false}, \texttt{"provable"}, \texttt{"why"}, c, \bot, \texttt{c-quota})$$
 -/
 def sampleIncident : Incident :=
   { id := "inc", cause := "CONFIRMED: x", evidence := [⟨"commit", "1c64c85"⟩], repro := some "r",

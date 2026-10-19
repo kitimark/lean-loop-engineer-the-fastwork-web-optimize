@@ -30,37 +30,33 @@ open Lean
 
 /-! ## Encoders -/
 
-/-- Exact decimal of a rational whose reduced denominator is $2^a 5^b$ with $a, b \le 40$ (i.e. divides
-$10^{40}$), with the fewest digits; none otherwise.
-
-$$\operatorname{dec}(q) = \begin{cases} \operatorname{some}\big(q.\mathrm{num} \cdot \tfrac{10^{e}}{q.\mathrm{den}},\ e\big),\ e = \min\{e \le 40 : q.\mathrm{den} \mid 10^{e}\} & \text{if such } e \text{ exists} \\ \operatorname{none} & \text{otherwise} \end{cases},\quad \text{where } (m, e) \text{ stands for the JSON number } m \cdot 10^{-e} \text{ (so } q = m \cdot 10^{-e} \text{ in the first case)}$$
+/-- Exact decimal of a rational whose reduced denominator is `2^a 5^b` with `a, b ≤ 40` (i.e. divides
+`10^40`), with the fewest digits; none otherwise.
 
 The JSON number for a rational input, when one exists. -/
 def decimal? (q : Rat) : Option JsonNumber :=
   (List.range 41).findSome? fun e =>
     if (10 ^ e : Nat) % q.den == 0 then some ⟨q.num * ((10 ^ e : Nat) / q.den : Nat), e⟩ else none
 
-/-- The `Rat` wire form. $$q \mapsto \{\mathrm{num}: \operatorname{str}(q.\mathrm{num}), \mathrm{den}: \operatorname{str}(q.\mathrm{den})\}$$ An exact fraction for JSON. -/
+/-- The `Rat` wire form. An exact fraction for JSON. -/
 def ratWire (q : Rat) : Json := Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
 
 /-- A rational input: an exact JSON decimal, else the wire form.
 
-$$\operatorname{rin}(q) = \begin{cases} n & \operatorname{dec}(q) = \operatorname{some}(n) \\ \operatorname{wire}(q) & \operatorname{dec}(q) = \operatorname{none} \end{cases}$$
-
-(so a terminating $q$ whose denominator does not divide $10^{40}$, e.g. $2^{-41}$, goes to the wire form).
+(so a terminating `q` whose denominator does not divide `10^40`, e.g. `2^(-41)`, goes to the wire form).
 
 How a rational argument is written into a golden line. -/
 def rin (q : Rat) : Json := match decimal? q with
   | some n => .num n
   | none => ratWire q
 
-/-- An integer as JSON. $$z \mapsto z$$ A JSON integer. -/
+/-- An integer as JSON. A JSON integer. -/
 def jint (z : Int) : Json := .num ⟨z, 0⟩
 
-/-- A natural number as JSON. $$n \mapsto n$$ A JSON integer. -/
+/-- A natural number as JSON. A JSON integer. -/
 def jnat (n : Nat) : Json := jint n
 
-/-- One golden line. $$(\mathit{fn}, \mathit{in}, \mathit{out}) \mapsto \text{JSON line}$$ A single compressed JSON line. -/
+/-- One golden line. A single compressed JSON line. -/
 def line (fn : String) (inp : List (String × Json)) (out : Json) : String :=
   (Json.mkObj [("fn", .str fn), ("in", Json.mkObj inp), ("out", out)]).compress
 
@@ -69,25 +65,23 @@ def line (fn : String) (inp : List (String × Json)) (out : Json) : String :=
 section Engine
 open Fw.Parts.EngineScroll
 
-/-- JSON of an entry. $$e \mapsto \{\mathrm{id}, \mathrm{order}, \mathrm{seq}\}$$ One registered callback. -/
+/-- JSON of an entry. One registered callback. -/
 def entryJ (e : Entry) : Json := Json.mkObj [("id", .str e.id), ("order", jint e.order), ("seq", jint e.seq)]
 
-/-- JSON of a step. $$(\mathit{op}, i) \mapsto \{\mathrm{op}, \mathrm{i}\}$$ One frame-plan step. -/
+/-- JSON of a step. One frame-plan step. -/
 def stepJ (s : Step) : Json :=
   Json.mkObj [("op", .str (match s.op with | .read => "read" | .write => "write")), ("i", jnat s.i)]
 
-/-- Variant name. $$v \mapsto \text{"faithful"} \mid \text{"batched"}$$ The variant's wire name. -/
+/-- Variant name. The variant's wire name. -/
 def variantName : Variant → String
   | .faithful => "faithful"
   | .batched => "batched"
 
-/-- Access name. $$a \mapsto \text{"RS"} \mid \text{"RL"} \mid \text{"WS"} \mid \text{"WL"}$$ The access's wire name. -/
+/-- Access name. The access's wire name. -/
 def accessName : Access → String
   | .readStyle => "RS" | .readLayout => "RL" | .writeStyle => "WS" | .writeLayout => "WL"
 
 /-- Writer patterns used for the frame plans (every pattern up to length 3, plus longer ones).
-
-$$W = \{0,1\}^{\le 3} \cup \{w_1, w_2\}$$
 
 The callback write patterns the golden lines cover. -/
 def writerPatterns : List (List Bool) :=
@@ -96,7 +90,7 @@ def writerPatterns : List (List Bool) :=
    [true, false, false], [true, false, true], [true, true, false], [true, true, true],
    [false, true, false, true, true], [true, true, true, true, true, true]]
 
-/-- engine.scroll lines (TS functions). $$\text{lines}$$ The conformance vectors for the TS engine. -/
+/-- engine.scroll lines (TS functions). The conformance vectors for the TS engine. -/
 def engineLines : List String :=
   let orders : List (List Entry) :=
     [[], [⟨"a", 0, 0⟩], [⟨"b", 2, 0⟩, ⟨"a", 1, 1⟩, ⟨"c", 1, 2⟩], [⟨"x", 0, 2⟩, ⟨"y", 0, 1⟩, ⟨"z", 0, 0⟩],
@@ -113,26 +107,14 @@ def engineLines : List String :=
 
 /-- engine.scroll Lean-only lines: forced counts, plan layouts, runs.
 
-The `forcedCounts` and `forcedCountsBatched` rows carry **forced passes only** ($\operatorname{forced}_\rho$), not the
+The `forcedCounts` and `forcedCountsBatched` rows carry **forced passes only** (`forced_ρ`), not the
 stage's trace total: they omit the frame-end lifecycle pass. The trace total is
-$\operatorname{total}_\rho = \operatorname{forced}_\rho + [\operatorname{fE}]$ (`EngineScroll.total_eq`). For the
-pilot frame the batched rows read style $1/0$ (dirty/clean start) while the batched total is $2/1$, against a faithful
-total of $4/3$: batching saves 2 style passes in the trace, not 3 (`pilot_batched_rows_forced_only`).
+`total_ρ = forced_ρ + [fE]` (`EngineScroll.total_eq`). For the
+pilot frame the batched rows read style `1/0` (dirty/clean start) while the batched total is `2/1`, against a faithful
+total of `4/3`: batching saves 2 style passes in the trace, not 3 (`pilot_batched_rows_forced_only`).
 
-$$\begin{aligned}
-\mathit{lines} = {} & [\,\mathrm{fc}(as, d),\ \mathrm{fcb}(as, d) \mid as \in \mathit{seqs},\ d \in [\bot, \top]\,] \\
-\mathbin{+\!\!+} {} & [\,\mathrm{planLayouts}(v, ws, d) \mapsto \operatorname{layouts}(d, \operatorname{framePlan}(v, ws)) \mid v \in [\mathrm{faithful}, \mathrm{batched}],\ ws \in W,\ d \in [\bot, \top]\,] \\
-\mathbin{+\!\!+} {} & [\,\mathrm{engineRuns}(p, es) \mapsto \operatorname{runs}(p, es) \mid es \in E,\ p \in [\bot, \top]\,]
-\end{aligned}$$
-$$\begin{aligned}
-\mathit{seqs} &= [\,[\,],\ [\mathrm{RL}],\ [\mathrm{WS}, \mathrm{RL}],\ [\mathrm{RL}, \mathrm{WL}, \mathrm{RL}],\ [\mathrm{RS}, \mathrm{WS}, \mathrm{RS}, \mathrm{WL}, \mathrm{RL}],\ \mathrm{heroExit},\ \mathrm{nav},\ \mathrm{pilot}\,] \\
-E &= [\,[\,],\ [\mathrm{frame}],\ [\mathrm{scroll}, \mathrm{frame}],\ [\mathrm{scroll}, \mathrm{scroll}, \mathrm{scroll}, \mathrm{frame}, \mathrm{frame}, \mathrm{scroll}, \mathrm{frame}],\ [\mathrm{frame}, \mathrm{scroll}, \mathrm{frame}, \mathrm{scroll}, \mathrm{scroll}]\,] \\
-\mathrm{fc}(as, d) &= \mathrm{forcedCounts}(as, d) \mapsto (\operatorname{forced}_{\rho_S}(d, as), \operatorname{forced}_{\rho_L}(d, as)) \\
-\mathrm{fcb}(as, d) &= \mathrm{forcedCountsBatched}(as, d) \mapsto (\operatorname{forced}_{\rho_S}(d, \operatorname{bat}(as)), \operatorname{forced}_{\rho_L}(d, \operatorname{bat}(as)))
-\end{aligned}$$
-
-Each line is labelled with its inputs (left of $\mapsto$) and carries its value (right of $\mapsto$); the batched rows
-are labelled with $as$, not with $\operatorname{bat}(as)$, and $W$ is `writerPatterns`.
+Each line is labelled with its inputs (left of `↦`) and carries its value (right of `↦`); the batched rows
+are labelled with `as`, not with `bat(as)`, and `W` is `writerPatterns`.
 
 Vectors for the cost model, labelled as forced counts rather than totals. -/
 def engineSpecLines : List String :=
@@ -156,7 +138,7 @@ def engineSpecLines : List String :=
         ("events", .arr (es.map (fun e => Json.str (match e with | .scroll => "scroll" | .frame => "frame"))).toArray)]
         (jnat (runs p es)))
 
-/-- The read-first reordering the `forcedCountsBatched` rows use. $$\operatorname{bat}(as) = [a \in as \mid a \text{ is a read}] \mathbin{+\!\!+} [a \in as \mid a \text{ is a write}]$$ All reads, then all writes, each in order. -/
+/-- The read-first reordering the `forcedCountsBatched` rows use. All reads, then all writes, each in order. -/
 def batchedOrder (as : List Access) : List Access := as.filter Access.isRead ++ as.filter (fun a => !a.isRead)
 
 #guard batchedOrder [.writeStyle, .readLayout] == [.readLayout, .writeStyle]
@@ -164,10 +146,8 @@ def batchedOrder (as : List Access) : List Access := as.filter Access.isRead ++ 
 #guard total styleRole true (batchedOrder pilotFrame) == 2
 
 /-- **The batched golden rows are forced counts, not totals.** For the pilot frame and either start flag, the
-`forcedCountsBatched` style value is $[d]$ while the batched trace total is $1 + [d]$; the faithful forced count and
-total are both $3 + [d]$; layout is $[d]$ in all four.
-
-$$\forall d \in \mathbb{B}:\ \operatorname{forced}_{\rho_S}(d, \operatorname{bat}(\mathit{pilot})) = [d] \land \operatorname{total}_{\rho_S}(d, \operatorname{bat}(\mathit{pilot})) = 1 + [d] \land \operatorname{forced}_{\rho_S}(d, \mathit{pilot}) = \operatorname{total}_{\rho_S}(d, \mathit{pilot}) = 3 + [d] \land \operatorname{forced}_{\rho_L}(d, \operatorname{bat}(\mathit{pilot})) = \operatorname{total}_{\rho_L}(d, \operatorname{bat}(\mathit{pilot})) = \operatorname{forced}_{\rho_L}(d, \mathit{pilot}) = \operatorname{total}_{\rho_L}(d, \mathit{pilot}) = [d]$$
+`forcedCountsBatched` style value is `[d]` while the batched trace total is `1 + [d]`; the faithful forced count and
+total are both `3 + [d]`; layout is `[d]` in all four.
 
 Read as totals the pilot's batched row is 2/1, not 1/0, so batching saves two style passes, not three. -/
 theorem pilot_batched_rows_forced_only (d : Bool) :
@@ -186,7 +166,7 @@ end Engine
 section Nav
 open Fw.Parts.NavHitTest
 
-/-- nav.hitTest lines (TS functions). $$\text{lines}$$ The conformance vectors for the TS hit test. -/
+/-- nav.hitTest lines (TS functions). The conformance vectors for the TS hit test. -/
 def navLines : List String :=
   let rects : List Rect :=
     [⟨0, 0, 390, 64⟩, ⟨0, 0, 393, 56⟩, ⟨12, 8, 361, 100⟩, ⟨16.5, 12.25, 1200, 64⟩, ⟨0, -10, 0, 0⟩,
@@ -204,7 +184,7 @@ def navLines : List String :=
   ([false, true].flatMap fun p => [false, true].map fun n =>
     line "changed" [("prev", .bool p), ("next", .bool n)] (.bool (changed p n)))
 
-/-- nav.hitTest Lean-only lines: faithful hit and `is-on-dark`. $$\text{lines}$$ Vectors for the faithful reading. -/
+/-- nav.hitTest Lean-only lines: faithful hit and `is-on-dark`. Vectors for the faithful reading. -/
 def navSpecLines : List String :=
   let hitJ (h : Hit) : Json := Json.mkObj [("insideNav", .bool h.insideNav), ("reEnabled", .bool h.reEnabled)]
   ([[], [⟨false, false⟩], [⟨true, false⟩, ⟨false, false⟩], [⟨true, true⟩, ⟨false, false⟩],
@@ -223,17 +203,15 @@ open Fw.Parts.HeroCountdown
 
 /-- JSON of a spring state, in the wire form or as `rin` inputs.
 
-$$\operatorname{springJ}(\mathit{wire}, (x, v)) = \{\mathrm{value}: \operatorname{enc}(x), \mathrm{velocity}: \operatorname{enc}(v)\},\quad \operatorname{enc} = \begin{cases} \operatorname{wire} & \mathit{wire} \\ \operatorname{rin} & \lnot\mathit{wire} \end{cases}$$
-
 A spring as JSON. -/
 def springJ (wire : Bool) (s : Spring) : Json :=
   if wire then Json.mkObj [("value", ratWire s.value), ("velocity", ratWire s.velocity)]
   else Json.mkObj [("value", rin s.value), ("velocity", rin s.velocity)]
 
-/-- The capture pin $t_0$ = 2026-10-01T00:00:00+07:00 in epoch ms. $$t_0 = 1\,790\,787\,600\,000$$ The pinned clock. -/
+/-- The capture pin `t_0` = 2026-10-01T00:00:00+07:00 in epoch ms. The pinned clock. -/
 def t0Ms : Int := 1790787600000
 
-/-- hero.countdown lines (TS functions). $$\text{lines}$$ The conformance vectors for the TS countdown. -/
+/-- hero.countdown lines (TS functions). The conformance vectors for the TS countdown. -/
 def countdownLines : List String :=
   let rs : List (Int × Int) :=
     [(0, 1), (0, 999), (0, 1000), (0, 1001), (5000, 1000), (1000, 1000), (1001, 1000), (999, 1000),
@@ -288,7 +266,7 @@ end Countdown
 section Exit
 open Fw.Parts.HeroExit
 
-/-- hero.exit lines (TS functions). $$\text{lines}$$ The conformance vectors for the TS hero exit. -/
+/-- hero.exit lines (TS functions). The conformance vectors for the TS hero exit. -/
 def exitLines : List String :=
   let geoms : List (Rat × Rat × Rat) :=
     -- (trackTop, trackHeight, viewportHeight): desktop vh 800 (n = 800), 700-range, degenerate, phone vh 844
@@ -328,7 +306,7 @@ def exitLines : List String :=
       line "cardTranslate" [("entered", rin n), ("enter", rin x), ("scatter", rin s), ("scatterOffset", rin o)]
         (ratWire (cardTranslate n x s o)))
 
-/-- hero.exit Lean-only lines: band, full cue reading, nav progress. $$\text{lines}$$ Vectors for the extra readings. -/
+/-- hero.exit Lean-only lines: band, full cue reading, nav progress. Vectors for the extra readings. -/
 def exitSpecLines : List String :=
   (([599.5, 600, 600.5, 601, 320, 1512] : List Rat).map fun w => line "le600" [("width", rin w)] (.bool (le600 w))) ++
   ([false, true].flatMap fun l => [false, true].flatMap fun d => ([(0, 0), (0.5, 0.5), (1, 0.5), (1, 1)] : List (Rat × Rat)).flatMap
@@ -347,20 +325,18 @@ end Exit
 section Tween
 open Fw.Parts.MorphTween
 
-/-- A tween state as JSON. $$s \mapsto \{r, w, \mathit{from}, \mathit{to}, o, n\}$$ The wire form of `St`. -/
+/-- A tween state as JSON. The wire form of `St`. -/
 def stJson (s : St) : Json :=
   Json.mkObj [("value", ratWire s.value), ("target", ratWire s.target), ("from", ratWire s.f), ("to", ratWire s.t),
     ("start", ratWire s.start), ("pending", .bool s.pending)]
 
-/-- A tween state as the input of a golden line. $$s \mapsto \{r, w, \mathit{from}, \mathit{to}, o, n\}$$ -/
+/-- A tween state as the input of a golden line. -/
 def stIn (s : St) : Json :=
   Json.mkObj [("value", rin s.value), ("target", rin s.target), ("from", rin s.f), ("to", rin s.t),
     ("start", rin s.start), ("pending", .bool s.pending)]
 
 /-- morph.tween lines (TS functions): the conformance vectors for the TS tween. Comprehensions run their generators
-left to right, outer to inner; `line`, `rin`, `ratWire` as in `PlatformGolden`.
-
-$$\begin{aligned} \mathrm{tweenLines} = {} &[\, \operatorname{line}(\texttt{ease}, \{\texttt{x}{:}\ \operatorname{rin}(x)\}, \operatorname{ratWire}(\operatorname{ease}(x))) \mid x \in X \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{tween}, \{\texttt{from}{:}\ \operatorname{rin}(f), \texttt{to}{:}\ \operatorname{rin}(t), \texttt{elapsed}{:}\ \operatorname{rin}(e)\}, \{\texttt{value}{:}\ \operatorname{ratWire}(\operatorname{tween}(f, t, e).\mathrm{value}), \texttt{done}{:}\ \operatorname{tween}(f, t, e).\mathrm{done}\}) \mid (f, t) \in \mathit{Ends},\ e \in \mathit{Els} \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{dir}, \{\texttt{delta}{:}\ \operatorname{rin}(d)\}, (\operatorname{dir}(d) = \operatorname{some}(g)\ ?\ \operatorname{ratWire}(g) : \texttt{null})) \mid d \in [0, 0.5, 0.99, 1, -1, 1.5, -0.5, 120, -120, 0] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{armed}, \{\texttt{rectHeight}{:}\ \operatorname{rin}(h), \texttt{rectBottom}{:}\ \operatorname{rin}(b), \texttt{viewportHeight}{:}\ \operatorname{rin}(v)\}, \operatorname{armed}(h, b, v)) \\ &\qquad \mid (h, b, v) \in [(360, 800, 800), (359.9, 800, 800), (800, 808, 800), (800, 808.5, 800), (0, 0, 800), (380.25, 844, 844), (379.8, 844, 844), (900, 852, 844), (900, 852.01, 844)] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{taken}, \{\texttt{active}{:}\ a, \texttt{delta}{:}\ \operatorname{rin}(d), \texttt{armed}{:}\ r\}, \operatorname{taken}(a, d, r)) \mid a \in [\bot, \top],\ d \in [-5, 0, 0.5, 5],\ r \in [\bot, \top] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{active}, \{\texttt{target}{:}\ \operatorname{rin}(w), \texttt{value}{:}\ \operatorname{rin}(r)\}, \operatorname{active}(w, r)) \mid (w, r) \in [(0, 0), (0.001, 0), (0, 0.001), (0.0011, 0), (0, 0.0011), (1, 0), (0, 1), (1, 1)] \,] \\ \mathbin{+\!\!+} {} &[\, y \mid m \in [0, 0.1, 0.275, 0.5, 0.5225, 0.5226, 0.55, 0.9, 1],\ y \in [\operatorname{line}(\texttt{fade}, \{\texttt{m}{:}\ \operatorname{rin}(m)\}, \operatorname{ratWire}(\operatorname{fade}(m))),\ \operatorname{line}(\texttt{pointerNone}, \{\texttt{m}{:}\ \operatorname{rin}(m)\}, \operatorname{pointerNone}(m))] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{push}, \{\texttt{state}{:}\ \operatorname{stIn}(s), \texttt{goal}{:}\ \operatorname{rin}(g), \texttt{reduced}{:}\ \rho, \texttt{now}{:}\ \operatorname{rin}(1000)\}, \operatorname{stJson}(\operatorname{push}(s, g, \rho, 1000))) \mid s \in S_p,\ g \in [0, 1],\ \rho \in [\bot, \top] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{frame}, \{\texttt{state}{:}\ \operatorname{stIn}(s), \texttt{now}{:}\ \operatorname{rin}(n)\}, \operatorname{stJson}(\operatorname{frame}(s, n))) \mid s \in S_f,\ n \in [100, 116.667, 440, 780, 781, 90] \,], \\ \text{with } X = {} &[-1, 0, 0.1, 0.25, 0.5, 0.75, 0.9, 1, 1.5],\quad \mathit{Els} = [-16, 0, 16.667, 100, 340, 500, 679, 679.9, 680, 680.1, 1000], \\ \mathit{Ends} = {} &[(0, 1), (1, 0), (0.3, 1), (0.8, 0), (0.5, 0.5)],\quad q_1 = \operatorname{push}(\mathrm{rest}, 1, \bot, 100), \\ S_p = {} &[\mathrm{rest}, q_1, \operatorname{frame}(q_1, 440), \operatorname{frame}(q_1, 780), \operatorname{push}(\mathrm{rest}, 1, \top, 100), \operatorname{frame}(\operatorname{push}(\operatorname{frame}(q_1, 440), 0, \bot, 450), 450)], \\ S_f = {} &[\mathrm{rest}, q_1, \operatorname{frame}(q_1, 440), \operatorname{push}(\mathrm{rest}, 1, \top, 100)] \end{aligned}$$ -/
+left to right, outer to inner; `line`, `rin`, `ratWire` as in `PlatformGolden`. -/
 def tweenLines : List String :=
   let xs : List Rat := [-1, 0, 0.1, 0.25, 0.5, 0.75, 0.9, 1, 1.5]
   let els : List Rat := [-16, 0, 16.667, 100, 340, 500, 679, 679.9, 680, 680.1, 1000]
@@ -396,7 +372,7 @@ end Tween
 section MorphPanelSec
 open Fw.Parts.MorphPanel
 
-/-- morph.panel lines (TS functions). $$\text{lines}$$ The conformance vectors for the TS morph panel. -/
+/-- morph.panel lines (TS functions). The conformance vectors for the TS morph panel. -/
 def morphPanelLines : List String :=
   let ms : List Rat := [0, 0.001, 0.0011, 0.08, 0.2, 0.35, 0.3499, 0.44, 0.55, 0.5499, 0.8, 0.92, 0.9201, 1]
   (ms.flatMap fun m =>
@@ -413,8 +389,6 @@ end MorphPanelSec
 
 /-- Write the 27 golden files into `outDir` (first argument `args_0`, default `../packages/contracts/golden/parts`),
 in this order, each file's lines joined with a newline after every line, and print each name with its line count.
-
-$$\mathit{files} = [\text{engine.scroll.jsonl}, \text{engine.scroll.spec.jsonl}, \text{nav.hitTest.jsonl}, \text{nav.hitTest.spec.jsonl}, \text{hero.countdown.jsonl}, \text{hero.exit.jsonl}, \text{hero.exit.spec.jsonl}, \text{morph.tween.jsonl}, \text{morph.panel.jsonl}, \text{nav.jsonl}, \text{nav.langMenu.jsonl}, \text{commission.jsonl}, \text{commission.typing.jsonl}, \text{overlays.drawer.jsonl}, \text{overlays.signup.jsonl}, \text{hero.orbit.jsonl}, \text{hero.accent.jsonl}, \text{people.card.jsonl}, \text{people.o.jsonl}, \text{people.deck.jsonl}, \text{people.carousel.jsonl}, \text{pain.notes.jsonl}, \text{platform.jsonl}, \text{platform.sweep.jsonl}, \text{platform.glint.jsonl}, \text{platform.marquee.jsonl}, \text{platform.entries.jsonl}],\quad |\mathit{files}| = 27$$
 
 Regenerates the pilot parts' golden vectors from the Lean definitions. -/
 def main (args : List String) : IO Unit := do

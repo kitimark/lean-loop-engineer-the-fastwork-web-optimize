@@ -30,45 +30,28 @@ the serialised declared inputs, `hashFiles` is one more hash).
 -/
 namespace Fw.Ops.Cache
 
-/-- The values of all named inputs of the world a step runs in (a version string, an image tag, ...).
-
-$$\mathrm{Env} = \mathrm{Name} \to \mathrm{Value}$$
--/
+/-- The values of all named inputs of the world a step runs in (a version string, an image tag, ...). -/
 abbrev Env := String → String
 
-/-- The declared-input vector: the declared names with their values in `e`, in declaration order.
-
-$$\operatorname{declared}(D, e) = \big( (n, e(n)) \big)_{n \in D}$$
--/
+/-- The declared-input vector: the declared names with their values in `e`, in declaration order. -/
 def declared (decl : List String) (e : Env) : List (String × String) :=
   decl.map fun n => (n, e n)
 
-/-- The cache key: a hash of the declared-input vector.
-
-$$\operatorname{key}_h(D, e) = h\big(\operatorname{declared}(D, e)\big)$$
--/
+/-- The cache key: a hash of the declared-input vector. -/
 def key {K : Type} (h : List (String × String) → K) (decl : List String) (e : Env) : K :=
   h (declared decl e)
 
-/-- The hash separates different declared-input vectors (the explicit collision-freeness premise).
-
-$$\operatorname{CollisionFree}(h) \iff \forall a, b.\; h(a) = h(b) \Rightarrow a = b$$
--/
+/-- The hash separates different declared-input vectors (the explicit collision-freeness premise). -/
 def CollisionFree {K : Type} (h : List (String × String) → K) : Prop :=
   ∀ a b, h a = h b → a = b
 
 /-- The check reads only its declared inputs: two worlds that agree on every declared name give the
 same result.
-
-$$\operatorname{DependsOnlyOn}(D, f) \iff \forall e, e'.\; (\forall n \in D.\; e(n) = e'(n)) \Rightarrow f(e) = f(e')$$
 -/
 def DependsOnlyOn {R : Type} (decl : List String) (run : Env → R) : Prop :=
   ∀ e e' : Env, (∀ n ∈ decl, e n = e' n) → run e = run e'
 
-/-- Two worlds have the same declared-input vector exactly when they agree on every declared name.
-
-$$\operatorname{declared}(D, e) = \operatorname{declared}(D, e') \iff \forall n \in D.\; e(n) = e'(n)$$
--/
+/-- Two worlds have the same declared-input vector exactly when they agree on every declared name. -/
 theorem declared_eq_iff (decl : List String) (e e' : Env) :
     declared decl e = declared decl e' ↔ ∀ n ∈ decl, e n = e' n := by
   induction decl with
@@ -80,8 +63,6 @@ theorem declared_eq_iff (decl : List String) (e e' : Env) :
 
 /-- The key ignores undeclared inputs: worlds that agree on every declared name get the same key
 (for any hash, no premise).
-
-$$(\forall n \in D.\; e(n) = e'(n)) \Rightarrow \operatorname{key}_h(D, e) = \operatorname{key}_h(D, e')$$
 -/
 theorem key_congr {K : Type} (h : List (String × String) → K) (decl : List String) (e e' : Env)
     (hagree : ∀ n ∈ decl, e n = e' n) : key h decl e = key h decl e' := by
@@ -90,8 +71,6 @@ theorem key_congr {K : Type} (h : List (String × String) → K) (decl : List St
 
 /-- **Key completeness.** If any declared input changes, the key changes, provided the hash is
 collision-free.
-
-$$\operatorname{CollisionFree}(h) \wedge \big(\exists n \in D.\; e(n) \ne e'(n)\big) \Rightarrow \operatorname{key}_h(D, e) \ne \operatorname{key}_h(D, e')$$
 -/
 theorem key_complete {K : Type} (h : List (String × String) → K) (hcf : CollisionFree h)
     (decl : List String) (e e' : Env) (hdiff : ∃ n ∈ decl, e n ≠ e' n) :
@@ -101,10 +80,7 @@ theorem key_complete {K : Type} (h : List (String × String) → K) (hcf : Colli
   obtain ⟨n, hn, hne⟩ := hdiff
   exact hne ((declared_eq_iff decl e e').1 hd n hn)
 
-/-- The key is equal exactly when every declared input is equal (completeness and congruence in one).
-
-$$\operatorname{CollisionFree}(h) \Rightarrow \big(\operatorname{key}_h(D, e) = \operatorname{key}_h(D, e') \iff \forall n \in D.\; e(n) = e'(n)\big)$$
--/
+/-- The key is equal exactly when every declared input is equal (completeness and congruence in one). -/
 theorem key_eq_iff {K : Type} (h : List (String × String) → K) (hcf : CollisionFree h)
     (decl : List String) (e e' : Env) :
     key h decl e = key h decl e' ↔ ∀ n ∈ decl, e n = e' n :=
@@ -112,8 +88,6 @@ theorem key_eq_iff {K : Type} (h : List (String × String) → K) (hcf : Collisi
 
 /-- **Equal keys give equal results.** For a check that reads only its declared inputs, two worlds
 with the same key produce the same result.
-
-$$\operatorname{CollisionFree}(h) \wedge \operatorname{DependsOnlyOn}(D, f) \wedge \operatorname{key}_h(D, e) = \operatorname{key}_h(D, e') \Rightarrow f(e) = f(e')$$
 -/
 theorem key_sound {K R : Type} (h : List (String × String) → K) (hcf : CollisionFree h)
     (decl : List String) (run : Env → R) (hdep : DependsOnlyOn decl run) (e e' : Env)
@@ -122,33 +96,22 @@ theorem key_sound {K R : Type} (h : List (String × String) → K) (hcf : Collis
 
 /-! ## The cache itself -/
 
-/-- A result cache: stored `(key, result)` pairs, newest first.
-
-$$\mathrm{Cache}(K, R) = (K \times R)^{*}$$
--/
+/-- A result cache: stored `(key, result)` pairs, newest first. -/
 abbrev Cache (K R : Type) := List (K × R)
 
-/-- Look a key up (the newest entry wins).
-
-$$\operatorname{lookup}(c, k) = r \text{ for the first } (k, r) \in c, \text{ else none}$$
--/
+/-- Look a key up (the newest entry wins). -/
 def lookup {K R : Type} [DecidableEq K] (c : Cache K R) (k : K) : Option R :=
   match c.find? (fun p => decide (p.1 = k)) with
   | some p => some p.2
   | none => none
 
-/-- Every stored entry was produced by a fresh run in some world whose key it carries.
-
-$$\operatorname{Valid}(c) \iff \forall (k, r) \in c.\; \exists e.\; \operatorname{key}_h(D, e) = k \wedge f(e) = r$$
--/
+/-- Every stored entry was produced by a fresh run in some world whose key it carries. -/
 def Valid {K R : Type} (h : List (String × String) → K) (decl : List String) (run : Env → R)
     (c : Cache K R) : Prop :=
   ∀ p ∈ c, ∃ e, key h decl e = p.1 ∧ run e = p.2
 
 /-- Get the result for the world `e`: a hit returns the stored result, a miss runs the check and
 stores it under its key.
-
-$$\operatorname{getOrRun}(c, e) = \begin{cases} (r, c) & \operatorname{lookup}(c, \operatorname{key}(e)) = r \\ (f(e), (\operatorname{key}(e), f(e)) :: c) & \text{miss} \end{cases}$$
 -/
 def getOrRun {K R : Type} [DecidableEq K] (h : List (String × String) → K) (decl : List String)
     (run : Env → R) (c : Cache K R) (e : Env) : R × Cache K R :=
@@ -156,10 +119,7 @@ def getOrRun {K R : Type} [DecidableEq K] (h : List (String × String) → K) (d
   | some r => (r, c)
   | none => (run e, (key h decl e, run e) :: c)
 
-/-- A hit comes from a stored entry with that key.
-
-$$\operatorname{lookup}(c, k) = r \Rightarrow \exists (k', r') \in c.\; k' = k \wedge r' = r$$
--/
+/-- A hit comes from a stored entry with that key. -/
 theorem lookup_mem {K R : Type} [DecidableEq K] (c : Cache K R) (k : K) (r : R)
     (hl : lookup c k = some r) : ∃ p ∈ c, p.1 = k ∧ p.2 = r := by
   unfold lookup at hl
@@ -173,8 +133,6 @@ theorem lookup_mem {K R : Type} [DecidableEq K] (c : Cache K R) (k : K) (r : R)
 
 /-- **Cache soundness, one step.** Starting from a valid cache, a get-or-run returns exactly the
 fresh result, hit or miss, and the cache stays valid.
-
-$$\operatorname{CollisionFree}(h) \wedge \operatorname{DependsOnlyOn}(D, f) \wedge \operatorname{Valid}(c) \Rightarrow \operatorname{getOrRun}(c, e).1 = f(e) \wedge \operatorname{Valid}(\operatorname{getOrRun}(c, e).2)$$
 -/
 theorem cache_sound {K R : Type} [DecidableEq K] (h : List (String × String) → K)
     (hcf : CollisionFree h) (decl : List String) (run : Env → R) (hdep : DependsOnlyOn decl run)
@@ -196,10 +154,7 @@ theorem cache_sound {K R : Type} [DecidableEq K] (h : List (String × String) �
     · exact ⟨e, rfl, rfl⟩
     · exact hv p hp
 
-/-- Run a whole sequence of worlds through one cache (a workflow run after run).
-
-$$\operatorname{runAll}(c, [\,]) = ([\,], c), \quad \operatorname{runAll}(c, e :: es) = (r :: rs, c'') \text{ with } (r, c') = \operatorname{getOrRun}(c, e),\ (rs, c'') = \operatorname{runAll}(c', es)$$
--/
+/-- Run a whole sequence of worlds through one cache (a workflow run after run). -/
 def runAll {K R : Type} [DecidableEq K] (h : List (String × String) → K) (decl : List String)
     (run : Env → R) : Cache K R → List Env → List R × Cache K R
   | c, [] => ([], c)
@@ -210,8 +165,6 @@ def runAll {K R : Type} [DecidableEq K] (h : List (String × String) → K) (dec
 
 /-- **Cache soundness, any history.** From an empty (or valid) cache, a cache shared by any sequence
 of runs returns exactly what fresh runs would.
-
-$$\operatorname{CollisionFree}(h) \wedge \operatorname{DependsOnlyOn}(D, f) \wedge \operatorname{Valid}(c) \Rightarrow \operatorname{runAll}(c, es).1 = \operatorname{map}\, f\, es$$
 -/
 theorem cache_sound_all {K R : Type} [DecidableEq K] (h : List (String × String) → K)
     (hcf : CollisionFree h) (decl : List String) (run : Env → R) (hdep : DependsOnlyOn decl run) :
@@ -226,10 +179,7 @@ theorem cache_sound_all {K R : Type} [DecidableEq K] (h : List (String × String
     simp only [runAll, List.map_cons]
     rw [h1, ih _ h2]
 
-/-- The empty cache is valid.
-
-$$\operatorname{Valid}([\,])$$
--/
+/-- The empty cache is valid. -/
 theorem valid_empty {K R : Type} (h : List (String × String) → K) (decl : List String)
     (run : Env → R) : Valid h decl run ([] : Cache K R) := by
   intro p hp; simp at hp
@@ -237,8 +187,6 @@ theorem valid_empty {K R : Type} (h : List (String × String) → K) (decl : Lis
 /-- **A key that leaves out a read input is unsound.** If two worlds agree on every name of the key
 but the check gives different results, they share a key and a hit would return a wrong result.
 (Why a partial key such as a `restore-keys` prefix is refused.)
-
-$$\big(\forall n \in D_k.\; e(n) = e'(n)\big) \wedge f(e) \ne f(e') \Rightarrow \operatorname{key}_h(D_k, e) = \operatorname{key}_h(D_k, e') \wedge f(e) \ne f(e')$$
 -/
 theorem partial_key_unsound {K R : Type} (h : List (String × String) → K) (dkey : List String)
     (run : Env → R) (e e' : Env) (hagree : ∀ n ∈ dkey, e n = e' n) (hne : run e ≠ run e') :
@@ -267,68 +215,50 @@ source tree (one exact cache key; a fallback entry from another tree has other h
 still hold).
 -/
 
-/-- Module `m` is in the import cone of the roots `ts`: a root, or imported by a module of the cone.
-
-$$\forall \mathit{deps}, T:\ \operatorname{cl}_{\mathit{deps}}(T) = \text{the least } X \text{ with } T \subseteq X \text{ and } \forall m \in X,\ \forall d \in \mathit{deps}(m):\ d \in X$$ -/
+/-- Module `m` is in the import cone of the roots `ts`: a root, or imported by a module of the cone. -/
 inductive InCone (deps : String → List String) (ts : List String) : String → Prop
   | root {m : String} : m ∈ ts → InCone deps ts m
   | dep {m d : String} : InCone deps ts m → d ∈ deps m → InCone deps ts d
 
-/-- **The cone is transitive.** If every root of `ts'` is in the cone of `ts`, the whole cone of `ts'` is.
-
-$$\forall \mathit{deps}, T, T':\ (\forall t \in T':\ t \in \operatorname{cl}(T)) \Rightarrow \forall m:\ (m \in \operatorname{cl}(T') \Rightarrow m \in \operatorname{cl}(T))$$ -/
+/-- **The cone is transitive.** If every root of `ts'` is in the cone of `ts`, the whole cone of `ts'` is. -/
 theorem inCone_trans (deps : String → List String) (ts ts' : List String)
     (hroots : ∀ t ∈ ts', InCone deps ts t) {m : String} (h : InCone deps ts' m) : InCone deps ts m := by
   induction h with
   | root hm => exact hroots _ hm
   | dep _ hd ih => exact InCone.dep ih hd
 
-/-- **More roots, larger cone.**
-
-$$\forall \mathit{deps}, T, T':\ T' \subseteq T \Rightarrow \forall m:\ (m \in \operatorname{cl}(T') \Rightarrow m \in \operatorname{cl}(T))$$ -/
+/-- **More roots, larger cone.** -/
 theorem inCone_mono (deps : String → List String) (ts ts' : List String) (hsub : ∀ t ∈ ts', t ∈ ts)
     {m : String} (h : InCone deps ts' m) : InCone deps ts m :=
   inCone_trans deps ts ts' (fun t ht => InCone.root (hsub t ht)) h
 
-/-- A restored Lake entry: the set of artifact hashes it holds.
-
-$$\mathrm{Entry}(H) = H \to \mathrm{Prop}$$ -/
+/-- A restored Lake entry: the set of artifact hashes it holds. -/
 abbrev Entry (H : Type) := H → Prop
 
 /-- Module `m` is rebuilt by a job with targets `ts` that restored the entry `C`: it is in the job's cone and its
-artifact is not in `C`.
-
-$$\forall \mathit{deps}, h, C, T, m:\ m \in \operatorname{rb}(T, C) \iff m \in \operatorname{cl}(T) \land h(m) \notin C$$ -/
+artifact is not in `C`. -/
 def Rebuilds {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H) (ts : List String)
     (m : String) : Prop :=
   InCone deps ts m ∧ ¬ C (hash m)
 
 /-- The entry after a job builds its targets on top of the restored entry `C`: `C` plus the artifact of every
-module of its cone (what the job saves, if it saves).
-
-$$\forall \mathit{deps}, h, C, T:\ \operatorname{after}(T, C) = C \cup \{\, h(m) \mid m \in \operatorname{cl}(T) \,\}$$ -/
+module of its cone (what the job saves, if it saves). -/
 def afterBuild {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H) (ts : List String) :
     Entry H :=
   fun x => C x ∨ ∃ m, InCone deps ts m ∧ hash m = x
 
-/-- **A job never rebuilds outside its own cone.**
-
-$$\forall \mathit{deps}, h, C, T, m:\ m \in \operatorname{rb}(T, C) \Rightarrow m \in \operatorname{cl}(T)$$ -/
+/-- **A job never rebuilds outside its own cone.** -/
 theorem rebuild_in_cone {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H)
     (ts : List String) (m : String) (h : Rebuilds deps hash C ts m) : InCone deps ts m := h.1
 
 /-- **Rebuilds are monotone in the cone.** A job whose cone lies inside another job's cone rebuilds no module the
-other would not rebuild from the same entry.
-
-$$\forall \mathit{deps}, h, C, T, T':\ \operatorname{cl}(T') \subseteq \operatorname{cl}(T) \Rightarrow \forall m:\ (m \in \operatorname{rb}(T', C) \Rightarrow m \in \operatorname{rb}(T, C))$$ -/
+other would not rebuild from the same entry. -/
 theorem rebuild_mono {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H)
     (ts ts' : List String) (hcl : ∀ m, InCone deps ts' m → InCone deps ts m) (m : String)
     (h : Rebuilds deps hash C ts' m) : Rebuilds deps hash C ts m :=
   ⟨hcl m h.1, h.2⟩
 
-/-- **A larger entry never rebuilds more.**
-
-$$\forall \mathit{deps}, h, C, C', T:\ C \subseteq C' \Rightarrow \forall m:\ (m \in \operatorname{rb}(T, C') \Rightarrow m \in \operatorname{rb}(T, C))$$ -/
+/-- **A larger entry never rebuilds more.** -/
 theorem rebuild_antitone {H : Type} (deps : String → List String) (hash : String → H) (C C' : Entry H)
     (ts : List String) (hsub : ∀ x, C x → C' x) (m : String) (h : Rebuilds deps hash C' ts m) :
     Rebuilds deps hash C ts m :=
@@ -336,18 +266,14 @@ theorem rebuild_antitone {H : Type} (deps : String → List String) (hash : Stri
 
 /-- **Cache completeness.** If every target of a restoring job is in the writer's cone, the entry the writer saves
 (whatever entry it restored) holds every module the restoring job needs on the same source tree: the job
-rebuilds nothing.
-
-$$\forall \mathit{deps}, h, C, T_w, T_j:\ (\forall t \in T_j:\ t \in \operatorname{cl}(T_w)) \Rightarrow \forall m:\ m \notin \operatorname{rb}(T_j, \operatorname{after}(T_w, C))$$ -/
+rebuilds nothing. -/
 theorem cache_complete {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H)
     (tw tj : List String) (hcov : ∀ t ∈ tj, InCone deps tw t) (m : String) :
     ¬ Rebuilds deps hash (afterBuild deps hash C tw) tj m :=
   fun h => h.2 (Or.inr ⟨m, inCone_trans deps tw tj hcov h.1, rfl⟩)
 
 /-- **Why the first-save race was slow.** If a narrow job saves the entry, a job whose cone holds a module that was
-not in the restored entry and whose artifact the saver did not build rebuilds it.
-
-$$\forall \mathit{deps}, h, C, T_s, T_j, m:\ m \in \operatorname{cl}(T_j) \land h(m) \notin C \land (\forall m' \in \operatorname{cl}(T_s):\ h(m') \ne h(m)) \Rightarrow m \in \operatorname{rb}(T_j, \operatorname{after}(T_s, C))$$ -/
+not in the restored entry and whose artifact the saver did not build rebuilds it. -/
 theorem narrow_saver_rebuilds {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H)
     (ts tj : List String) (m : String) (hj : InCone deps tj m) (hc : ¬ C (hash m))
     (hout : ∀ m', InCone deps ts m' → hash m' ≠ hash m) :

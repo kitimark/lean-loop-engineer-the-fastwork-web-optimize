@@ -58,9 +58,7 @@ open Fw.Parts.MorphMountOpt (CountType series predict crTypes wkTypes stageName)
 
 /-! ## The original lerp, restated -/
 
-/-- `C(e)` of the snapshot (`2.DyWL8TcE.js` pretty 11278-11280): clamp to $[0, 1]$.
-
-$$\forall x \in \mathbb{Q}:\ \operatorname{clamp01}(x) =\begin{cases} 0 & x < 0 \\ 1 & 0 \le x \land 1 < x \\ x & 0 \le x \le 1 \end{cases} = \min(1, \max(0, x))$$
+/-- `C(e)` of the snapshot (`2.DyWL8TcE.js` pretty 11278-11280): clamp to `[0, 1]`.
 
 The value cut to the unit interval. -/
 def clamp01 (x : Rat) : Rat := if x < 0 then 0 else if 1 < x then 1 else x
@@ -69,8 +67,6 @@ def clamp01 (x : Rat) : Rat := if x < 0 then 0 else if 1 < x then 1 else x
 
 /-- `w(e)` of the snapshot (pretty 11281-11284): the smoothstep of the clamped value.
 
-$$\forall x \in \mathbb{Q}:\ \operatorname{smooth}(x) = c^2 (3 - 2c),\quad c = \operatorname{clamp01}(x)$$
-
 The eased progress the lerp aims at. -/
 def smooth (x : Rat) : Rat := let c := clamp01 x; c * c * (3 - 2 * c)
 
@@ -78,8 +74,6 @@ def smooth (x : Rat) : Rat := let c := clamp01 x; c * c * (3 - 2 * c)
 
 /-- `T(rect, ih)` of the snapshot (pretty 11285-11290): the progress of the card's bottom edge `b` through the band
 from 85 % down to 35 % of the viewport height `ih` (first match).
-
-$$\forall b, h \in \mathbb{Q}:\ \operatorname{progress}(b, h) = \begin{cases} 0 & h \le 0 \\ 0 & h > 0 \land b \ge \tfrac{85}{100} h \\ 1 & h > 0 \land b < \tfrac{85}{100} h \land b \le \tfrac{35}{100} h \\ \operatorname{clamp}\!\Big(\dfrac{\frac{85}{100} h - b}{\frac{85}{100} h - \frac{35}{100} h}\Big) & \text{otherwise} \end{cases}$$
 
 How far the card has risen into the shrink band, from 0 to 1. -/
 def progress (b ih : Rat) : Rat :=
@@ -92,34 +86,26 @@ def progress (b ih : Rat) : Rat :=
 #guard progress 900 1000 == 0 && progress 850 1000 == 0 && progress 350 1000 == 1 && progress 600 1000 == 1/2
 #guard progress 10 0 == 0
 
-/-- The lerp target `n` (pretty 11314): a step at $\tfrac12$ under reduced motion, the smoothstep otherwise.
-
-$$\forall \mathit{rm} \in \mathbb{B},\ \forall t \in \mathbb{Q}:\ \operatorname{target}(\mathit{rm}, t) = \begin{cases} 1 & \mathit{rm} \land t \ge \tfrac12 \\ 0 & \mathit{rm} \land t < \tfrac12 \\ \operatorname{smooth}(t) & \lnot \mathit{rm} \end{cases}$$
+/-- The lerp target `n` (pretty 11314): a step at `1/2` under reduced motion, the smoothstep otherwise.
 
 Where `--future-shrink` is heading. -/
 def target (rm : Bool) (t : Rat) : Rat := if rm then (if 1 / 2 ≤ t then 1 else 0) else smooth t
 
 #guard target true (1/2) == 1 && target true (2/5) == 0 && target false (1/2) == 1/2
 
-/-- The settle test `|d| < 8e-4` (pretty 11316, 11319), with $8 \cdot 10^{-4} = \tfrac{1}{1250}$.
-
-$$\forall d \in \mathbb{Q}:\ \operatorname{near8}(d) \iff -\tfrac{1}{1250} < d < \tfrac{1}{1250}$$
+/-- The settle test `|d| < 8e-4` (pretty 11316, 11319), with `8 · 10^(-4) = 1/1250`.
 
 The lerp counts as arrived. -/
 def near8 (d : Rat) : Bool := decide (-(1 / 1250) < d) && decide (d < 1 / 1250)
 
 #guard near8 0 && near8 (1/2000) && !near8 (1/1250) && !near8 (-1/1250)
 
-/-- One lerp move before the snap (pretty 11315): factor 1 under reduced motion, $\tfrac{22}{100}$ otherwise.
-
-$$\forall \mathit{rm} \in \mathbb{B},\ \forall o, n \in \mathbb{Q}:\ \operatorname{raw}(\mathit{rm}, o, n) = o + (n - o) \cdot \begin{cases} 1 & \mathit{rm} \\ \tfrac{22}{100} & \lnot \mathit{rm} \end{cases}$$
+/-- One lerp move before the snap (pretty 11315): factor 1 under reduced motion, `22/100` otherwise.
 
 The value moved part of the way to the target. -/
 def lerpRaw (rm : Bool) (o n : Rat) : Rat := o + (n - o) * (if rm then 1 else 22 / 100)
 
 /-- One lerp step with the snap (pretty 11315-11316): the new `o`.
-
-$$\forall \mathit{rm} \in \mathbb{B},\ \forall o, n \in \mathbb{Q}:\ \operatorname{step}(\mathit{rm}, o, n) = \begin{cases} n & \operatorname{near8}(n - \operatorname{raw}(\mathit{rm}, o, n)) \\ \operatorname{raw}(\mathit{rm}, o, n) & \text{otherwise} \end{cases}$$
 
 The value `l` writes to `--future-shrink`. -/
 def lerpStep (rm : Bool) (o n : Rat) : Rat :=
@@ -130,16 +116,12 @@ def lerpStep (rm : Bool) (o n : Rat) : Rat :=
 
 /-- The self re-request (pretty 11319): `l` asks for another frame while the new value is not near the target.
 
-$$\forall \mathit{rm} \in \mathbb{B},\ \forall o, n \in \mathbb{Q}:\ \operatorname{again}(\mathit{rm}, o, n) \iff \lnot\operatorname{near8}(n - \operatorname{step}(\mathit{rm}, o, n))$$
-
 Whether the lerp keeps running without a scroll. -/
 def again (rm : Bool) (o n : Rat) : Bool := !near8 (n - lerpStep rm o n)
 
 #guard again false 0 1 && !again true 0 1 && !again false (9995/10000) 1 && !again false 1 1
 
-/-- The class `is-future-shrinking` (pretty 11318, class map 11469): on when the progress passes $\tfrac{1}{25}$.
-
-$$\forall t \in \mathbb{Q}:\ \operatorname{shrinking}(t) \iff t > \tfrac{1}{25}$$
+/-- The class `is-future-shrinking` (pretty 11318, class map 11469): on when the progress passes `1/25`.
 
 Whether the card takes the scale transform rule. -/
 def shrinking (t : Rat) : Bool := decide (1 / 25 < t)
@@ -148,8 +130,6 @@ def shrinking (t : Rat) : Bool := decide (1 / 25 < t)
 
 /-- The lerp state between frames: the last written value `val` (the section's `--future-shrink`, initially the
 CSS `0`, pretty CSS 2359 and JS `o = 0`, 11301), whether a self re-request is pending, and the class.
-
-$$\mathrm{St} = \underbrace{\mathbb{Q}}_{\mathrm{val}} \times \underbrace{\mathbb{B}}_{\mathrm{pend}} \times \underbrace{\mathbb{B}}_{\mathrm{cls}}$$
 
 What the component remembers from one frame to the next. -/
 structure St where
@@ -160,14 +140,10 @@ deriving Repr, DecidableEq
 
 /-- The state at load: value 0, nothing pending, class off.
 
-$$\mathrm{init} = (0, \bot, \bot)$$
-
 Before the first frame. -/
 def St.init : St := ⟨0, false, false⟩
 
 /-- One run of `l` at progress `t` (pretty 11312-11319).
-
-$$\forall \mathit{rm},\ t,\ s:\ \operatorname{runL}(\mathit{rm}, t, s) = \big(\operatorname{step}(\mathit{rm}, s.\mathrm{val}, n),\ \operatorname{again}(\mathit{rm}, s.\mathrm{val}, n),\ \operatorname{shrinking}(t)\big),\quad n = \operatorname{target}(\mathit{rm}, t)$$
 
 The state after the callback runs once. -/
 def runL (rm : Bool) (t : Rat) (s : St) : St :=
@@ -177,8 +153,6 @@ def runL (rm : Bool) (t : Rat) (s : St) : St :=
 /-- **The original's frame step**: `l` runs when the scroll engine called `u` before this frame or a re-request is
 pending (one `rAF` per frame, `i ||= rAF(l)`, pretty 11327-11329); otherwise nothing changes and nothing is pending.
 
-$$\forall \mathit{rm}, c \in \mathbb{B},\ t \in \mathbb{Q},\ s \in \mathrm{St}:\ \operatorname{stepO}(\mathit{rm}, c, t, s) = \begin{cases} \operatorname{runL}(\mathit{rm}, t, s) & c \lor s.\mathrm{pend} \\ (s.\mathrm{val}, \bot, s.\mathrm{cls}) & \text{otherwise} \end{cases}$$
-
 What one frame does to the original's state. -/
 def stepO (rm call : Bool) (t : Rat) (s : St) : St :=
   if call || s.pend then runL rm t s else { s with pend := false }
@@ -186,15 +160,11 @@ def stepO (rm call : Bool) (t : Rat) (s : St) : St :=
 /-- **The variant's frame step**: with the gate on, `l` runs only on a scroll call and only sets the class (no
 write, no re-request); with the gate off it is the original's step.
 
-$$\forall g, \mathit{rm}, c,\ t,\ s:\ \operatorname{stepV}(g, \mathit{rm}, c, t, s) = \begin{cases} (s.\mathrm{val}, \bot, \operatorname{shrinking}(t)) & g \land c \\ (s.\mathrm{val}, \bot, s.\mathrm{cls}) & g \land \lnot c \\ \operatorname{stepO}(\mathit{rm}, c, t, s) & \lnot g \end{cases}$$
-
 What one frame does to the variant's state. -/
 def stepV (gate rm call : Bool) (t : Rat) (s : St) : St :=
   if gate then (if call then ⟨s.val, false, shrinking t⟩ else { s with pend := false }) else stepO rm call t s
 
 /-- The original's state after `k` frames, frame `j` having scroll call `call j` and progress `t j`.
-
-$$\forall \mathit{rm}, c, t:\ \operatorname{stO}(0) = \mathrm{init},\quad \operatorname{stO}(k+1) = \operatorname{stepO}(\mathit{rm}, c_k, t_k, \operatorname{stO}(k))$$
 
 The original's lerp state frame by frame. -/
 def stO (rm : Bool) (call : Nat → Bool) (t : Nat → Rat) : Nat → St
@@ -202,8 +172,6 @@ def stO (rm : Bool) (call : Nat → Bool) (t : Nat → Rat) : Nat → St
   | k + 1 => stepO rm (call k) (t k) (stO rm call t k)
 
 /-- The variant's state after `k` frames.
-
-$$\forall g, \mathit{rm}, c, t:\ \operatorname{stV}(0) = \mathrm{init},\quad \operatorname{stV}(k+1) = \operatorname{stepV}(g, \mathit{rm}, c_k, t_k, \operatorname{stV}(k))$$
 
 The variant's lerp state frame by frame. -/
 def stV (gate rm : Bool) (call : Nat → Bool) (t : Nat → Rat) : Nat → St
@@ -225,15 +193,11 @@ private def exT : Nat → Rat := fun k => [0, 1/10, 1/5, 3/10, 2/5, 2/5, 2/5, 1/
 
 /-- The condition that always matches: one arm with no feature.
 
-$$\forall e \in \mathrm{Env}:\ e \models \mathrm{always}$$
-
 The base rule's condition. -/
 def always : MQ := ⟨[[]]⟩
 
 /-- **The cascade of one custom property** on the section: declarations `(q, x)` in source order, the last one
 whose condition matches wins, `d` when none matches.
-
-$$\forall e,\ d,\ D:\ \operatorname{cascade}(e, D, d) = \operatorname{foldl}\big((a, (q, x)) \mapsto (x \text{ if } e \models q \text{ else } a),\ d,\ D\big)$$
 
 The value the section computes for that property. -/
 def cascade (env : Env) (ds : List (MQ × Rat)) (d : Rat) : Rat :=
@@ -241,22 +205,16 @@ def cascade (env : Env) (ds : List (MQ × Rat)) (d : Rat) : Rat :=
 
 /-- `--future-shrink-scale` on the section at shrink `s`: pretty CSS 2360, 3386, 3652.
 
-$$\forall s:\ \mathrm{scaleDecls}(s) = [(\mathrm{always},\ 1 - \tfrac{83333}{1000000} s),\ (\mathrm{c860}, 1),\ (\mathrm{c860}, 1)]$$
-
 The scale declarations in source order. -/
 def scaleDecls (s : Rat) : List (MQ × Rat) := [(always, 1 - 83333 / 1000000 * s), (c860, 1), (c860, 1)]
 
 /-- `--future-shrink-radius` on the section, in px: pretty CSS 2361, 3387, 3588, 3653.
-
-$$\mathrm{radiusDecls} = [(\mathrm{always}, 32),\ (\mathrm{c860}, 0),\ (\mathrm{wLe640}, 24),\ (\mathrm{c860}, 0)]$$
 
 The radius declarations in source order. -/
 def radiusDecls : List (MQ × Rat) := [(always, 32), (c860, 0), (wLe640, 24), (c860, 0)]
 
 /-- **The card's look** at shrink `s`: the scale its transform uses when the class is on (pretty CSS 2389-2392,
 2415-2418) and its border radius `radius · s` (2378).
-
-$$\forall e \in \mathrm{Env},\ \forall s \in \mathbb{Q}:\ \operatorname{look}(e, s) = \big(\operatorname{cascade}(e, \mathrm{scaleDecls}(s), 0),\ \operatorname{cascade}(e, \mathrm{radiusDecls}, 0) \cdot s\big)$$
 
 The two values of the card that `--future-shrink` feeds. -/
 def look (env : Env) (s : Rat) : Rat × Rat := (cascade env (scaleDecls s) 0, cascade env radiusDecls 0 * s)
@@ -268,8 +226,6 @@ def look (env : Env) (s : Rat) : Rat × Rat := (cascade env (scaleDecls s) 0, ca
 
 /-- The 640 band lies inside the c860 band.
 
-$$\forall e \in \mathrm{Env}:\ e \models \mathrm{wLe640} \Rightarrow e \models \mathrm{c860}$$
-
 Every viewport at most 640 px wide is gated. -/
 theorem wLe640_c860 (env : Env) (h : wLe640.eval env = true) : c860.eval env = true := by
   apply (c860_iff env).2
@@ -280,15 +236,11 @@ theorem wLe640_c860 (env : Env) (h : wLe640.eval env = true) : c860.eval env = t
 
 /-- **The gated look.** In the c860 band the card's scale is 1 and its radius 0, whatever the shrink.
 
-$$\forall e \in \mathrm{Env},\ \forall s \in \mathbb{Q}:\ e \models \mathrm{c860} \Rightarrow \operatorname{look}(e, s) = (1, 0)$$
-
 Where the gate is on, the lerp's output never shows. -/
 theorem look_gated (env : Env) (s : Rat) (h : c860.eval env = true) : look env s = (1, 0) := by
   simp [look, cascade, scaleDecls, radiusDecls, h]
 
-/-- **The ungated look.** Outside the c860 band the scale is $1 - \tfrac{83333}{1000000} s$ and the radius $32 s$.
-
-$$\forall e \in \mathrm{Env},\ \forall s \in \mathbb{Q}:\ e \not\models \mathrm{c860} \Rightarrow \operatorname{look}(e, s) = \big(1 - \tfrac{83333}{1000000} s,\ 32 s\big)$$
+/-- **The ungated look.** Outside the c860 band the scale is `1 - 83333/1000000 s` and the radius `32 s`.
 
 Where the gate is off, the card follows the lerp. -/
 theorem look_ungated (env : Env) (s : Rat) (h : c860.eval env = false) :
@@ -301,8 +253,6 @@ theorem look_ungated (env : Env) (s : Rat) (h : c860.eval env = false) :
   simp [look, cascade, scaleDecls, radiusDecls, h, h640, ha]
 
 /-- **The gate is exact.** The look does not depend on the shrink exactly in the c860 band.
-
-$$\forall e \in \mathrm{Env}:\ \big(\forall s \in \mathbb{Q}:\ \operatorname{look}(e, s) = \operatorname{look}(e, 0)\big) \iff e \models \mathrm{c860}$$
 
 The variant skips the lerp precisely where it is invisible, and nowhere else. -/
 theorem look_const_iff (env : Env) : (∀ s, look env s = look env 0) ↔ c860.eval env = true := by
@@ -320,8 +270,6 @@ theorem look_const_iff (env : Env) : (∀ s, look env s = look env 0) ↔ c860.e
 
 /-- With the gate off the variant's state is the original's.
 
-$$\forall \mathit{rm}, c, t,\ \forall k \in \mathbb{N}:\ \operatorname{stV}(\bot, \mathit{rm}, c, t, k) = \operatorname{stO}(\mathit{rm}, c, t, k)$$
-
 Outside the band the variant is the original. -/
 theorem stV_ungated (rm : Bool) (call : Nat → Bool) (t : Nat → Rat) :
     ∀ k, stV false rm call t k = stO rm call t k
@@ -331,8 +279,6 @@ theorem stV_ungated (rm : Bool) (call : Nat → Bool) (t : Nat → Rat) :
 /-- **The class sequences agree in the band** (premise P2). If a frame without a scroll call sees the progress of
 the frame before it, then after every frame the original's and the variant's class are equal, the variant has
 nothing pending, and an original re-request comes from a frame whose progress set the class.
-
-$$\forall \mathit{rm}, c, t:\ \big(\forall j:\ c_{j+1} = \bot \Rightarrow t_{j+1} = t_j\big) \Rightarrow \forall k \in \mathbb{N}:\ \operatorname{stO}(\mathit{rm}, c, t, k).\mathrm{cls} = \operatorname{stV}(\top, \mathit{rm}, c, t, k).\mathrm{cls} \land \operatorname{stV}(\top, \mathit{rm}, c, t, k).\mathrm{pend} = \bot \land \big(\operatorname{stO}(\mathit{rm}, c, t, k).\mathrm{pend} \Rightarrow \exists j:\ k = j + 1 \land \operatorname{stO}(\mathit{rm}, c, t, k).\mathrm{cls} = \operatorname{shrinking}(t_j)\big)$$
 
 A tail frame re-sets the class to the value the last scroll call set. -/
 theorem cls_agree (rm : Bool) (call : Nat → Bool) (t : Nat → Rat)
@@ -355,8 +301,6 @@ theorem cls_agree (rm : Bool) (call : Nat → Bool) (t : Nat → Rat)
 scenes are equal, for any scene built from the frame, the card's look at the current `--future-shrink` and the
 class (premise P2 in the band; P1: the environment is fixed per run).
 
-$$\forall \mathit{vp},\ \forall S,\ \forall c, t:\ \Big(\forall e, j:\ e \models \mathrm{c860} \Rightarrow c_e(j+1) = \bot \Rightarrow t_e(j+1) = t_e(j)\Big) \Rightarrow \operatorname{VisSame}_{\mathrm{E}}\Big(\mathit{vp},\ (e, k) \mapsto S\big(e, k, \operatorname{look}(e, \operatorname{stO}([e \models \mathrm{rmReduce}], c_e, t_e, k).\mathrm{val}), \operatorname{stO}([e \models \mathrm{rmReduce}], c_e, t_e, k).\mathrm{cls}\big),\ (e, k) \mapsto S\big(e, k, \operatorname{look}(e, \operatorname{stV}([e \models \mathrm{c860}], [e \models \mathrm{rmReduce}], c_e, t_e, k).\mathrm{val}), \operatorname{stV}([e \models \mathrm{c860}], [e \models \mathrm{rmReduce}], c_e, t_e, k).\mathrm{cls}\big)\Big)$$
-
 The gated card looks the same in every frame at every width. -/
 theorem peopleCard_visSame (vp : Env → Rect) (scn : Env → Nat → Rat × Rat → Bool → Scene)
     (call : Env → Nat → Bool) (t : Env → Nat → Rat)
@@ -377,8 +321,6 @@ theorem peopleCard_visSame (vp : Env → Rect) (scn : Env → Nat → Rat × Rat
 
 /-- Two frame inputs side by side: callbacks, forced passes, hit tests and animations add, changes append.
 
-$$\forall a, b \in \mathrm{FrameIn}(P):\ a \oplus b = (a.\mathrm{script} + b.\mathrm{script},\ a.\mathrm{fS} + b.\mathrm{fS},\ a.\mathrm{fL} + b.\mathrm{fL},\ a.\mathrm{hits} + b.\mathrm{hits},\ a.\mathrm{changes} \mathbin{+\!\!+} b.\mathrm{changes},\ a.\mathrm{compAnims} + b.\mathrm{compAnims})$$
-
 One frame made of the rest of the page and the lerp. -/
 def addF {P : Type} (a b : FrameIn P) : FrameIn P :=
   ⟨a.script + b.script, a.forcedStyle + b.forcedStyle, a.forcedLayout + b.forcedLayout, a.hits + b.hits,
@@ -386,15 +328,11 @@ def addF {P : Type} (a b : FrameIn P) : FrameIn P :=
 
 /-- The lerp's own part of a frame: one callback when `l` runs, the write's changes `W`, and `f` forced style passes.
 
-$$\forall r \in \mathbb{B},\ W,\ f \in \mathbb{N}:\ \operatorname{lerp}(r, W, f) = ([r],\ f,\ 0,\ 0,\ W,\ 0)$$
-
 What `l` adds to a frame. -/
 def lerpFrame {P : Type} (run : Bool) (wr : List (Change P)) (fs : Nat) : FrameIn P :=
   ⟨if run then 1 else 0, fs, 0, 0, wr, 0⟩
 
 /-- A list of changes covers itself.
-
-$$\forall E,\ \forall L \in \mathrm{Change}(P)^{*}:\ \operatorname{cover}_E(L, L) = \mathrm{true}$$
 
 Every change dirties its own stages. -/
 theorem coverB_refl {P M : Type} (E : Engine P M) : ∀ l : List (Change P), coverB E l l = true
@@ -403,8 +341,6 @@ theorem coverB_refl {P M : Type} (E : Engine P M) : ∀ l : List (Change P), cov
 
 /-- **Frame dominance of the gate**, every engine: the variant's frame (the rest plus at most the callback) is `⪯`
 the original's (the rest plus the callback whenever the variant has one, its write and its forced passes).
-
-$$\forall E,\ \forall X \in \mathrm{FrameIn}(P),\ \forall c, r \in \mathbb{B},\ \forall W,\ \forall f \in \mathbb{N}:\ (c \Rightarrow r) \Rightarrow \operatorname{frameWork}_E(X \oplus \operatorname{lerp}(c, [\,], 0)) \preceq \operatorname{frameWork}_E(X \oplus \operatorname{lerp}(r, W, f))$$
 
 Dropping the write and the re-request never adds work. -/
 theorem gate_le {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool) (h : cv = true → ro = true)
@@ -422,8 +358,6 @@ theorem gate_le {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool) (
 /-- **A tail frame is strictly less**, every engine: where the original runs `l` only because it re-requested
 itself, the variant runs nothing, one `script` unit fewer.
 
-$$\forall E,\ \forall X,\ \forall W,\ \forall f:\ \operatorname{frameWork}_E(X \oplus \operatorname{lerp}(\bot, [\,], 0)) \prec \operatorname{frameWork}_E(X \oplus \operatorname{lerp}(\top, W, f))$$
-
 No lerp frame after the scroll stops. -/
 theorem gate_lt_tail {P M : Type} (E : Engine P M) (oth : FrameIn P) (wr : List (Change P)) (fs : Nat) :
     (frameWork E (addF oth (lerpFrame false [] 0))).lt (frameWork E (addF oth (lerpFrame true wr fs))) := by
@@ -434,8 +368,6 @@ theorem gate_lt_tail {P M : Type} (E : Engine P M) (oth : FrameIn P) (wr : List 
 
 /-- **A written stage is strictly less**, every engine: when the write's changes dirty stage `s`, the variant has
 fewer `s` units.
-
-$$\forall E,\ \forall X,\ \forall c, r \in \mathbb{B},\ \forall W,\ \forall f \in \mathbb{N},\ \forall s \in \mathrm{Stage},\ \forall w:\ (c \Rightarrow r) \land w \in W \land s \in E.\mathrm{stagesOf}(w) \Rightarrow \operatorname{frameWork}_E(X \oplus \operatorname{lerp}(c, [\,], 0)) \prec \operatorname{frameWork}_E(X \oplus \operatorname{lerp}(r, W, f))$$
 
 A skipped write that would have cost work saves it. -/
 theorem gate_lt_stage {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool) (h : cv = true → ro = true)
@@ -449,8 +381,6 @@ theorem gate_lt_stage {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : B
 
 /-- **A forced style pass is strictly less**, every engine: when the original's write is followed by a rect read
 (`f > 0` forced style passes), the variant has fewer `style` passes.
-
-$$\forall E,\ \forall X,\ \forall c, r,\ \forall W,\ \forall f \in \mathbb{N}:\ (c \Rightarrow r) \land 0 < f \Rightarrow \operatorname{frameWork}_E(X \oplus \operatorname{lerp}(c, [\,], 0)) \prec \operatorname{frameWork}_E(X \oplus \operatorname{lerp}(r, W, f))$$
 
 No restyle forced by a write that is not made. -/
 theorem gate_lt_forced {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool) (h : cv = true → ro = true)
@@ -470,17 +400,13 @@ theorem gate_lt_forced {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : 
 change (the changes `W`) only when the value moves (premise P5), and is followed by a forced style pass when `ra`
 (a rect read after the write, pretty 11321-11323, at width ≤ 860).
 
-$$\forall X, W, \mathit{ra}, \mathit{rm}, c, t, s:\ \operatorname{frO}(X, W, \mathit{ra}, \mathit{rm}, c, t, s) = X \oplus \operatorname{lerp}\big(r,\ [w]\cdot W,\ [w \land \mathit{ra}]\big),\quad r = c \lor s.\mathrm{pend},\ w = r \land \operatorname{runL}(\mathit{rm}, t, s).\mathrm{val} \ne s.\mathrm{val}$$
-
-($[w] \cdot W$ is $W$ when $w$, else $[\,]$.) What the original asks of the engine in one frame. -/
+(`[w] · W` is `W` when `w`, else `[]`.) What the original asks of the engine in one frame. -/
 def frameO {P : Type} (oth : FrameIn P) (wr : List (Change P)) (ra rm call : Bool) (t : Rat) (s : St) : FrameIn P :=
   let run := call || s.pend
   let w := run && decide ((runL rm t s).val ≠ s.val)
   addF oth (lerpFrame run (if w then wr else []) (if w && ra then 1 else 0))
 
 /-- **The variant's frame**: gated, the rest plus one callback on a call; ungated, the original's frame.
-
-$$\forall g, X, W, \mathit{ra}, \mathit{rm}, c, t, s:\ \operatorname{frV}(g, X, W, \mathit{ra}, \mathit{rm}, c, t, s) = \begin{cases} X \oplus \operatorname{lerp}(c, [\,], 0) & g \\ \operatorname{frO}(X, W, \mathit{ra}, \mathit{rm}, c, t, s) & \lnot g \end{cases}$$
 
 What the variant asks of the engine in one frame. -/
 def frameV {P : Type} (gate : Bool) (oth : FrameIn P) (wr : List (Change P)) (ra rm call : Bool) (t : Rat)
@@ -489,16 +415,12 @@ def frameV {P : Type} (gate : Bool) (oth : FrameIn P) (wr : List (Change P)) (ra
 
 /-- The original's works over the frames `ks`.
 
-$$\forall E, X, W, \mathit{ra}, \mathit{rm}, c, t, K:\ \operatorname{WO} = [\,\operatorname{frameWork}_E(\operatorname{frO}(X_k, W, \mathit{ra}, \mathit{rm}, c_k, t_k, \operatorname{stO}(\mathit{rm}, c, t, k)))\,]_{k \in K}$$
-
 The original's run. -/
 def worksO {P M : Type} (E : Engine P M) (oth : Nat → FrameIn P) (wr : List (Change P)) (ra rm : Bool)
     (call : Nat → Bool) (t : Nat → Rat) (ks : List Nat) : List Work :=
   ks.map fun k => frameWork E (frameO (oth k) wr ra rm (call k) (t k) (stO rm call t k))
 
 /-- The variant's works over the frames `ks`.
-
-$$\forall E, g, X, W, \mathit{ra}, \mathit{rm}, c, t, K:\ \operatorname{WV} = [\,\operatorname{frameWork}_E(\operatorname{frV}(g, X_k, W, \mathit{ra}, \mathit{rm}, c_k, t_k, \operatorname{stV}(g, \mathit{rm}, c, t, k)))\,]_{k \in K}$$
 
 The variant's run. -/
 def worksV {P M : Type} (E : Engine P M) (gate : Bool) (oth : Nat → FrameIn P) (wr : List (Change P))
@@ -507,8 +429,6 @@ def worksV {P M : Type} (E : Engine P M) (gate : Bool) (oth : Nat → FrameIn P)
 
 /-- **Ungated, the frames are the original's.**
 
-$$\forall E, X, W, \mathit{ra}, \mathit{rm}, c, t, K:\ \operatorname{WV}(\bot) = \operatorname{WO}$$
-
 Outside the band the variant does exactly the original's work. -/
 theorem frames_ungated_eq {P M : Type} (E : Engine P M) (oth : Nat → FrameIn P) (wr : List (Change P))
     (ra rm : Bool) (call : Nat → Bool) (t : Nat → Rat) (ks : List Nat) :
@@ -516,8 +436,6 @@ theorem frames_ungated_eq {P M : Type} (E : Engine P M) (oth : Nat → FrameIn P
   simp [worksV, worksO, frameV, stV_ungated]
 
 /-- Pointwise `⪯` over a list gives `leAll`.
-
-$$\forall f, g,\ \forall K:\ (\forall k \in K:\ f(k) \preceq g(k)) \Rightarrow \operatorname{leAll}([f(k)]_{k \in K}, [g(k)]_{k \in K}) = \mathrm{true}$$
 
 Frame by frame at most is run-wise at most. -/
 theorem leAll_map {α : Type} (f g : α → Work) :
@@ -528,8 +446,6 @@ theorem leAll_map {α : Type} (f g : α → Work) :
     exact ⟨(Work.leb_iff _ _).2 (h k (by simp)), leAll_map f g ks (fun j hj => h j (by simp [hj]))⟩
 
 /-- One strictly smaller frame gives `someLt`.
-
-$$\forall f, g,\ \forall K:\ (\exists k \in K:\ f(k) \prec g(k)) \Rightarrow \operatorname{someLt}([f(k)]_{k \in K}, [g(k)]_{k \in K}) = \mathrm{true}$$
 
 A strict frame shows in the run. -/
 theorem someLt_map {α : Type} (f g : α → Work) :
@@ -542,8 +458,6 @@ theorem someLt_map {α : Type} (f g : α → Work) :
     · exact .inr (someLt_map f g ks ⟨j, hj, hlt⟩)
 
 /-- **Work, every engine, every band.** Frame by frame the variant's run is `⪯` the original's.
-
-$$\forall E, g, X, W, \mathit{ra}, \mathit{rm}, c, t, K:\ \operatorname{leAll}(\operatorname{WV}(g), \operatorname{WO}) = \mathrm{true}$$
 
 The gate never costs a frame anything. -/
 theorem run_le {P M : Type} (E : Engine P M) (gate : Bool) (oth : Nat → FrameIn P) (wr : List (Change P))
@@ -560,9 +474,7 @@ theorem run_le {P M : Type} (E : Engine P M) (gate : Bool) (oth : Nat → FrameI
 /-- **Run dominance from one strict frame**, every engine: in the band, if some frame of the variant is strictly
 below the original's, the screen says "dominates".
 
-$$\forall E, X, W, \mathit{ra}, \mathit{rm}, c, t, K:\ \big(\exists k \in K:\ \operatorname{WV}(\top)_k \prec \operatorname{WO}_k\big) \Rightarrow \operatorname{screen}(\operatorname{toRun}(\operatorname{WO}), \operatorname{toRun}(\operatorname{WV}(\top))) = \mathrm{ok}(\mathrm{dominates})$$
-
-($\operatorname{WV}(\top)_k$ and $\operatorname{WO}_k$ are the frame works at $k$.) Once a lerp frame is saved, the gated run wins. -/
+(`WV(⊤)_k` and `WO_k` are the frame works at `k`.) Once a lerp frame is saved, the gated run wins. -/
 theorem run_dominates_of_lt {P M : Type} (E : Engine P M) (oth : Nat → FrameIn P) (wr : List (Change P))
     (ra rm : Bool) (call : Nat → Bool) (t : Nat → Rat) (ks : List Nat)
     (h : ∃ k ∈ ks, (frameWork E (frameV true (oth k) wr ra rm (call k) (t k) (stV true rm call t k))).lt
@@ -573,14 +485,10 @@ theorem run_dominates_of_lt {P M : Type} (E : Engine P M) (oth : Nat → FrameIn
 
 /-- A value-changing lerp frame of the original: `l` runs (a call or a pending re-request) and moves the value.
 
-$$\forall \mathit{rm}, c, t, s:\ \operatorname{moves}(\mathit{rm}, c, t, s) \iff (c \lor s.\mathrm{pend}) \land \operatorname{runL}(\mathit{rm}, t, s).\mathrm{val} \ne s.\mathrm{val}$$
-
 Which original frames the gate saves. -/
 def moves (rm call : Bool) (t : Rat) (s : St) : Bool := (call || s.pend) && decide ((runL rm t s).val ≠ s.val)
 
 /-- **A gated tail frame is strictly less**, every engine.
-
-$$\forall E, X, W, \mathit{ra}, \mathit{rm}, c, t, s, s':\ \lnot c \land s.\mathrm{pend} \Rightarrow \operatorname{frameWork}_E(\operatorname{frV}(\top, X, W, \mathit{ra}, \mathit{rm}, c, t, s')) \prec \operatorname{frameWork}_E(\operatorname{frO}(X, W, \mathit{ra}, \mathit{rm}, c, t, s))$$
 
 The original's re-requested frame costs more than the variant's idle one. -/
 theorem frame_lt_tail {P M : Type} (E : Engine P M) (oth : FrameIn P) (wr : List (Change P)) (ra rm call : Bool)
@@ -591,8 +499,6 @@ theorem frame_lt_tail {P M : Type} (E : Engine P M) (oth : FrameIn P) (wr : List
   exact gate_lt_tail E oth _ _
 
 /-- **A gated moving write with a following rect read is strictly less**, every engine (the forced style pass).
-
-$$\forall E, X, W, \mathit{rm}, c, t, s, s':\ \operatorname{moves}(\mathit{rm}, c, t, s) \Rightarrow \operatorname{frameWork}_E(\operatorname{frV}(\top, X, W, \top, \mathit{rm}, c, t, s')) \prec \operatorname{frameWork}_E(\operatorname{frO}(X, W, \top, \mathit{rm}, c, t, s))$$
 
 At width ≤ 860 each skipped write also skips a forced restyle. -/
 theorem frame_lt_read {P M : Type} (E : Engine P M) (oth : FrameIn P) (wr : List (Change P)) (rm call : Bool)
@@ -608,23 +514,17 @@ open Fw.Engine.Chromium in
 /-- The Chromium write in the band: `--future-shrink` on the section `e`, a custom property with no reader whose
 computed value moves (the scale reads the band's `1`, the radius `0 · s = 0`), so `styleOnly`.
 
-$$\forall e \in \mathbb{N}:\ \operatorname{crWrite}(e) = (e,\ \mathrm{custom}(0, [\,]),\ \mathrm{none})$$
-
 The one change the original's write makes on Chromium. -/
 def crWrite (e : Nat) : Change CrProp := ⟨e, .custom 0 [], .none⟩
 
 open Fw.Engine.Chromium in
 /-- The Chromium write dirties style only.
 
-$$\forall e \in \mathbb{N}:\ \operatorname{stagesOf}_{\mathrm{cr}}(\operatorname{crWrite}(e)) = [\mathrm{style}]$$
-
 A restyle and nothing after it. -/
 theorem cr_write_stages (e : Nat) : chromium.stagesOf (crWrite e) = [.style] := rfl
 
 open Fw.Engine.Chromium in
 /-- **Chromium: a gated moving write is strictly less** (one style unit), with or without a following read.
-
-$$\forall X, \mathit{ra}, \mathit{rm}, c, t, s, s', e:\ \operatorname{moves}(\mathit{rm}, c, t, s) \Rightarrow \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{frV}(\top, X, [\operatorname{crWrite}(e)], \mathit{ra}, \mathit{rm}, c, t, s')) \prec \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{frO}(X, [\operatorname{crWrite}(e)], \mathit{ra}, \mathit{rm}, c, t, s))$$
 
 No restyle per scroll frame on Chromium. -/
 theorem cr_write_lt (oth : FrameIn CrProp) (ra rm call : Bool) (t : Rat) (s s' : St) (e : Nat)
@@ -638,8 +538,6 @@ theorem cr_write_lt (oth : FrameIn CrProp) (ra rm call : Bool) (t : Rat) (s s' :
 open Fw.Engine.Chromium in
 /-- **Work, Chromium (people.card).** In the band, with the write `crWrite(e)`: if the original has a tail frame or
 a value-changing write in the run, the screen says "dominates".
-
-$$\forall X, \mathit{ra}, \mathit{rm}, c, t, K, e:\ \big(\exists k \in K:\ (\lnot c_k \land \operatorname{stO}(\mathit{rm}, c, t, k).\mathrm{pend}) \lor \operatorname{moves}(\mathit{rm}, c_k, t_k, \operatorname{stO}(\mathit{rm}, c, t, k))\big) \Rightarrow \operatorname{screen}\big(\operatorname{toRun}(\operatorname{WO}_{\mathrm{cr}}(X, [\operatorname{crWrite}(e)], \mathit{ra}, \mathit{rm}, c, t, K)), \operatorname{toRun}(\operatorname{WV}_{\mathrm{cr}}(\top, X, [\operatorname{crWrite}(e)], \mathit{ra}, \mathit{rm}, c, t, K))\big) = \mathrm{ok}(\mathrm{dominates})$$
 
 One saved lerp frame makes the gated run dominate on Chromium. -/
 theorem cr_dominates (oth : Nat → FrameIn CrProp) (ra rm : Bool) (call : Nat → Bool) (t : Nat → Rat)
@@ -660,8 +558,6 @@ open Fw.Engine.WebKit in
 /-- **Work, WebKit (people.card).** In the band, with no change counted for the write (no custom-property row): if
 the original has a tail frame, or a value-changing write followed by a rect read (`ra`), the screen says
 "dominates".
-
-$$\forall X, \mathit{ra}, \mathit{rm}, c, t, K:\ \big(\exists k \in K:\ (\lnot c_k \land \operatorname{stO}(\mathit{rm}, c, t, k).\mathrm{pend}) \lor (\mathit{ra} \land \operatorname{moves}(\mathit{rm}, c_k, t_k, \operatorname{stO}(\mathit{rm}, c, t, k)))\big) \Rightarrow \operatorname{screen}\big(\operatorname{toRun}(\operatorname{WO}_{\mathrm{wk}}(X, [\,], \mathit{ra}, \mathit{rm}, c, t, K)), \operatorname{toRun}(\operatorname{WV}_{\mathrm{wk}}(\top, X, [\,], \mathit{ra}, \mathit{rm}, c, t, K))\big) = \mathrm{ok}(\mathrm{dominates})$$
 
 The saved re-requests and forced restyles make the gated run dominate on WebKit. -/
 theorem wk_dominates (oth : Nat → FrameIn WkProp) (ra rm : Bool) (call : Nat → Bool) (t : Nat → Rat)
@@ -687,8 +583,6 @@ another part in the rest frame, so the counts the gate does not touch read `=o`,
 
 /-- The swipe env: 430 × 932, DPR 3, touch, no reduced motion.
 
-$$\mathrm{swipeEnv} = \operatorname{touch}(430, 932, 3, \text{no-preference})$$
-
 The profile's viewport as a breakpoint environment. -/
 def swipeEnv : Env := touchEnv (.ofNat 430) (.ofNat 932) (.ofNat 3) .noPreference
 
@@ -696,15 +590,11 @@ def swipeEnv : Env := touchEnv (.ofNat 430) (.ofNat 932) (.ofNat 3) .noPreferenc
 
 /-- The schematic run's frames.
 
-$$\mathrm{ks} = [0, 1, \dots, 11]$$
-
 Twelve frames. -/
 def ks : List Nat := List.range 12
 
 open Fw.Engine.Chromium in
 /-- The Chromium rest of frame `k`: a scroll change on scroll frames, a `width` change of another part in frame 0.
-
-$$\forall k:\ X^{\mathrm{cr}}_k = \begin{cases} \operatorname{jsWrite}(0, [(1, \mathrm{css}(\mathrm{width}), \mathrm{none})]) & k = 0 \\ \operatorname{jsWrite}(0, [(0, \mathrm{scroll}(\bot), \mathrm{own})]) & k \ne 0 \land c_k \\ \operatorname{jsWrite}(0, [\,]) & \text{otherwise} \end{cases}$$
 
 The page's other work, the same in both arms. -/
 def crOth (k : Nat) : FrameIn CrProp :=
@@ -714,8 +604,6 @@ def crOth (k : Nat) : FrameIn CrProp :=
 open Fw.Engine.WebKit in
 /-- The WebKit rest of frame `k`: a scroll position on scroll frames, a `size` change of another part in frame 0.
 
-$$\forall k:\ X^{\mathrm{wk}}_k = \begin{cases} (0,0,0,0,[(1, \mathrm{size}, \mathrm{none})],0) & k = 0 \\ (0,0,0,0,[(0, \mathrm{scrollPos}, \mathrm{none})],0) & k \ne 0 \land c_k \\ (0,0,0,0,[\,],0) & \text{otherwise} \end{cases}$$
-
 The page's other work, the same in both arms. -/
 def wkOth (k : Nat) : FrameIn WkProp :=
   if k = 0 then ⟨0, 0, 0, 0, [⟨1, .size, .none⟩], 0⟩
@@ -723,27 +611,21 @@ def wkOth (k : Nat) : FrameIn WkProp :=
 
 /-- The Chromium works of the schematic run, original and variant.
 
-$$\mathrm{crO} = \operatorname{WO}_{\mathrm{cr}},\quad \mathrm{crV} = \operatorname{WV}_{\mathrm{cr}}(\top)\quad \text{at } X^{\mathrm{cr}}, W = [\operatorname{crWrite}(2)], \mathit{ra} = \top, \mathit{rm} = \bot, c, t, \mathrm{ks}$$
-
 Model counts for the golden rows. -/
 def crO : List Work := worksO Fw.Engine.Chromium.chromium crOth [crWrite 2] true false exCall exT ks
-/-- See `crO`. $$\mathrm{crV} = \operatorname{WV}_{\mathrm{cr}}(\top)$$ The variant's model counts. -/
+/-- See `crO`. The variant's model counts. -/
 def crV : List Work := worksV Fw.Engine.Chromium.chromium true crOth [crWrite 2] true false exCall exT ks
 
 /-- The WebKit works of the schematic run.
 
-$$\mathrm{wkO} = \operatorname{WO}_{\mathrm{wk}},\quad \mathrm{wkV} = \operatorname{WV}_{\mathrm{wk}}(\top)\quad \text{at } X^{\mathrm{wk}}, W = [\,], \mathit{ra} = \top, \mathit{rm} = \bot, c, t, \mathrm{ks}$$
-
 Model counts for the golden rows. -/
 def wkO : List Work := worksO Fw.Engine.WebKit.webkit wkOth [] true false exCall exT ks
-/-- See `wkO`. $$\mathrm{wkV} = \operatorname{WV}_{\mathrm{wk}}(\top)$$ The variant's model counts. -/
+/-- See `wkO`. The variant's model counts. -/
 def wkV : List Work := worksV Fw.Engine.WebKit.webkit true wkOth [] true false exCall exT ks
 
 #guard leAll crV crO && someLt crV crO && leAll wkV wkO && someLt wkV wkO
 
 /-- The emitted prediction: the model's, with a strict `<o` weakened to `≤o`.
-
-$$\forall p:\ \operatorname{soften}(p) = \begin{cases} \text{"≤o"} & p = \text{"<o"} \\ p & p \ne \text{"<o"} \end{cases}$$
 
 The model's strict drop needs a tail frame (no scroll, lerp unsettled) or a frame where the card is the only style
 writer; the swipe profiles guarantee neither (`swipe-v1` scrolls on every frame, other parts write style on scroll),
@@ -754,8 +636,6 @@ def soften (p : String) : String := if p = "<o" then "≤o" else p
 
 /-- One JSON row, keys sorted.
 
-$$\operatorname{row}(e, sc, \tau, V, O) = \{\mathrm{base} = \text{rewrite}, \mathrm{countType} = \tau.\mathrm{name}, \mathrm{engine} = e, \mathrm{prediction} = \operatorname{soften}(\operatorname{predict}(\tau.\mathrm{exact}, \operatorname{series}(V, \tau), \operatorname{series}(O, \tau))),\mathrm{scenario} = sc, \mathrm{stage} = \operatorname{stageName}(\tau.\mathrm{stage}), \mathrm{variant} = \text{rewrite+?fw=people.card:mq}\}$$
-
 The variant flag is `?fw=people.card:mq`; the base is the faithful rewrite. -/
 def row (engine scenario : String) (t : CountType) (vs os : List Work) : String :=
   "{\"base\":\"rewrite\",\"countType\":\"" ++ t.name ++ "\",\"engine\":\"" ++ engine ++ "\",\"prediction\":\"" ++
@@ -764,16 +644,12 @@ def row (engine scenario : String) (t : CountType) (vs os : List Work) : String 
 
 /-- All golden rows: Chromium on `swipe-v1` and `swipe-touch-v1`, WebKit on `swipe-v1` (all in the c860 band).
 
-$$|\mathrm{goldenLines}| = 2 \cdot |\mathrm{crTypes}| + |\mathrm{wkTypes}| = 20$$
-
 The file `packages/contracts/golden/engine/people-card.jsonl`, line by line. -/
 def goldenLines : List String :=
   (["swipe-v1", "swipe-touch-v1"].flatMap fun sc => crTypes.map fun t => row "chromium" sc t crV crO) ++
     wkTypes.map fun t => row "webkit" "swipe-v1" t wkV wkO
 
 /-- The golden file text: one row per line, trailing newline.
-
-$$\mathrm{goldenText} = \operatorname{concat}[\, \ell \mathbin{+\!\!+} \text{"\textbackslash n"} \,]_{\ell \in \mathrm{goldenLines}}$$
 
 What the driver writes. -/
 def goldenText : String := String.join (goldenLines.map (· ++ "\n"))
@@ -788,9 +664,9 @@ def goldenText : String := String.join (goldenLines.map (· ++ "\n"))
 
 /-! ## Under the frame-end pass (`frameWorkE`, ledger n=1, 17)
 
-The original's write is followed by a rect read, which pays $f$ forced style passes and leaves the style flag clean.
-`frameWork` also charged the write's lifecycle style pass, so it saw a saving of $f + 1$ style passes (2 for the one
-read, `gate_forced_margin_old`). With the frame-end pass counted, the saving is the $f$ forced passes only
+The original's write is followed by a rect read, which pays `f` forced style passes and leaves the style flag clean.
+`frameWork` also charged the write's lifecycle style pass, so it saw a saving of `f + 1` style passes (2 for the one
+read, `gate_forced_margin_old`). With the frame-end pass counted, the saving is the `f` forced passes only
 (`gate_forced_marginE`): the margin halves. When the rest of the frame also dirties style, the variant pays that
 style pass at frame end while the original's read already covered it, so with one read the style passes tie
 (`gate_forced_tieE`) and the strict win rests on the skipped units (`gate_lt_stageE`). The `⪯` verdict holds for
@@ -804,19 +680,14 @@ open Fw.Parts.EndFlags
 /-- The style passes of a frame under `frameWorkE`: the end pass, if style is touched and ends dirty, plus the
 forced style passes.
 
-$$\forall E, F, e:\ \operatorname{frameWork}^{e}_E(F).\mathrm{passes}(\mathrm{style}) = [\mathrm{style} \in \operatorname{touched}_E(F) \land e(\mathrm{style})] + F.\mathrm{forcedStyle}$$
-
 The definition read at the style stage. -/
 theorem passesE_style {P M : Type} (E : Engine P M) (F : FrameIn P) (e : Stage → Bool) :
     (frameWorkE E F e).passes .style =
       (if Stage.style ∈ touched E F ∧ e .style = true then 1 else 0) + F.forcedStyle := rfl
 
 /-- **Gate frame under `frameWorkE`: `⪯`.** If every stage the variant touches and ends dirty also ends dirty in the
-original, or is the style stage and the original forces $f > 0$ style passes, the gated frame costs at most the
+original, or is the style stage and the original forces `f > 0` style passes, the gated frame costs at most the
 original's.
-
-$$\forall E, X, c, r, W, f,\ \forall e_v, e_o:\ (c \Rightarrow r) \land \big(\forall s \in \operatorname{touched}_E(V):\ e_v(s) = \top \Rightarrow e_o(s) = \top \lor (s = \mathrm{style} \land f > 0)\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(V) \preceq \operatorname{frameWork}^{e_o}_E(O)$$
-$$\text{where } V = X \oplus \operatorname{lerp}(c, [\,], 0),\ O = X \oplus \operatorname{lerp}(r, W, f)$$
 
 Skipping the write and its read never leaves more to do at frame end. -/
 theorem gate_leE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool) (h : cv = true → ro = true)
@@ -832,11 +703,8 @@ theorem gate_leE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool) 
     cases s <;> simp only [forcedPasses, addF, lerpFrame] <;> revert this <;> cases ev _ <;> cases eo _ <;>
       simp <;> omega
 
-/-- **Gate frame with a forced read under `frameWorkE`: still `≺`.** If the original forces $f > 0$ style passes and
+/-- **Gate frame with a forced read under `frameWorkE`: still `≺`.** If the original forces `f > 0` style passes and
 the variant's end-dirty stages are end-dirty in the original, the gated frame is strictly cheaper on style passes.
-
-$$\forall E, X, c, r, W,\ \forall f > 0,\ \forall e_v, e_o:\ (c \Rightarrow r) \land \big(\forall s \in \operatorname{touched}_E(V):\ e_v(s) = \top \Rightarrow e_o(s) = \top\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(V) \prec \operatorname{frameWork}^{e_o}_E(O)$$
-$$\text{where } V = X \oplus \operatorname{lerp}(c, [\,], 0),\ O = X \oplus \operatorname{lerp}(r, W, f)$$
 
 The forced restyle is saved and not paid back at frame end. -/
 theorem gate_lt_forcedE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool) (h : cv = true → ro = true)
@@ -855,11 +723,8 @@ theorem gate_lt_forcedE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro :
   · simp only [hv, false_and, ↓reduceIte]
     omega
 
-/-- **Gate frame under `frameWorkE`: strict by units.** If some change of the write dirties a stage $s$, the gated
+/-- **Gate frame under `frameWorkE`: strict by units.** If some change of the write dirties a stage `s`, the gated
 frame is strictly cheaper, under the flag condition of `gate_leE`.
-
-$$\forall E, X, c, r, W, f,\ \forall e_v, e_o,\ \forall s,\ \forall w \in W:\ (c \Rightarrow r) \land s \in E.\mathrm{stagesOf}(w) \land \big(\forall t \in \operatorname{touched}_E(V):\ e_v(t) = \top \Rightarrow e_o(t) = \top \lor (t = \mathrm{style} \land f > 0)\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(V) \prec \operatorname{frameWork}^{e_o}_E(O)$$
-$$\text{where } V = X \oplus \operatorname{lerp}(c, [\,], 0),\ O = X \oplus \operatorname{lerp}(r, W, f)$$
 
 The skipped write's units stay saved whatever the end flags. -/
 theorem gate_lt_stageE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool) (h : cv = true → ro = true)
@@ -876,10 +741,7 @@ theorem gate_lt_stageE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : 
   split <;> split <;> cases cv <;> cases ro <;> simp_all <;> omega
 
 /-- **The margin under `frameWorkE` (ledger n=17).** If the variant does not touch style and the original's read
-leaves the style flag clean, the original pays exactly $f$ more style passes.
-
-$$\forall E, X, c, r, W, f,\ \forall e_v, e_o:\ \mathrm{style} \notin \operatorname{touched}_E(V) \land e_o(\mathrm{style}) = \bot \Rightarrow \operatorname{frameWork}^{e_o}_E(O).\mathrm{passes}(\mathrm{style}) = \operatorname{frameWork}^{e_v}_E(V).\mathrm{passes}(\mathrm{style}) + f$$
-$$\text{where } V = X \oplus \operatorname{lerp}(c, [\,], 0),\ O = X \oplus \operatorname{lerp}(r, W, f)$$
+leaves the style flag clean, the original pays exactly `f` more style passes.
 
 The saving is the forced passes, not one more. -/
 theorem gate_forced_marginE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool)
@@ -893,10 +755,7 @@ theorem gate_forced_marginE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv 
   omega
 
 /-- **The tie under `frameWorkE`.** If the variant touches style and ends it dirty while the original's single
-forced read ($f = 1$) leaves it clean, both pay the same style passes.
-
-$$\forall E, X, c, r, W,\ \forall e_v, e_o:\ \mathrm{style} \in \operatorname{touched}_E(V) \land e_v(\mathrm{style}) = \top \land e_o(\mathrm{style}) = \bot \Rightarrow \operatorname{frameWork}^{e_o}_E(O).\mathrm{passes}(\mathrm{style}) = \operatorname{frameWork}^{e_v}_E(V).\mathrm{passes}(\mathrm{style})$$
-$$\text{where } V = X \oplus \operatorname{lerp}(c, [\,], 0),\ O = X \oplus \operatorname{lerp}(r, W, 1)$$
+forced read (`f = 1`) leaves it clean, both pay the same style passes.
 
 The read's forced restyle is the pass the variant pays at frame end. -/
 theorem gate_forced_tieE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool)
@@ -911,10 +770,7 @@ theorem gate_forced_tieE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro 
   omega
 
 /-- **The old margin (`frameWork`, over-counted).** If the variant does not touch style and some change of the write
-dirties style, `frameWork` charges the original $f + 1$ more style passes.
-
-$$\forall E, X, c, r, W, f,\ \forall w \in W:\ \mathrm{style} \notin \operatorname{touched}_E(V) \land \mathrm{style} \in E.\mathrm{stagesOf}(w) \Rightarrow \operatorname{frameWork}_E(O).\mathrm{passes}(\mathrm{style}) = \operatorname{frameWork}_E(V).\mathrm{passes}(\mathrm{style}) + f + 1$$
-$$\text{where } V = X \oplus \operatorname{lerp}(c, [\,], 0),\ O = X \oplus \operatorname{lerp}(r, W, f)$$
+dirties style, `frameWork` charges the original `f + 1` more style passes.
 
 The extra one is the lifecycle pass the read already paid. -/
 theorem gate_forced_margin_old {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool)
