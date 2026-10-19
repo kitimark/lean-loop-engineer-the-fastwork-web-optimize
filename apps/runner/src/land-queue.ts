@@ -5,14 +5,14 @@
 // Nobody writes a "state". The runner lock `<consoleDir>/land-queue.runner` holds (pid, start time); a holder is alive only when the
 // start time of the process now at that pid is the recorded one. No process is ever found by a command-line pattern.
 import { execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { retryable, type Kind } from "./land-verdict.ts";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { refusalReason, refusedLine, retryable, type Kind } from "./land-verdict.ts";
 
 export type Entry = { task: string; branch: string };
 /** a pending entry also carries the `--allow` globs it was queued with */
 export type QEntry = Entry & { allow: string[] };
-export type Ev = ({ ev: "enq" } & QEntry) | { ev: "res"; task: string; kind: Kind; tries?: number; ms?: number };
+export type Ev = ({ ev: "enq" } & QEntry) | { ev: "res"; task: string; kind: Kind; tries?: number; ms?: number; reason?: string };
 
 export const queueFile = (consoleDir: string): string => join(consoleDir, "land-queue.jsonl");
 export const runnerFile = (consoleDir: string): string => join(consoleDir, "land-queue.runner");
@@ -101,13 +101,34 @@ export function takeRunner(consoleDir: string, startTime: (pid: number) => strin
 export type QueueOptions = {
   consoleDir: string;
   /** one land attempt of an entry; resolves to its verdict kind (the land's own kind, never parsed from prose) */
-  attempt: (e: QEntry) => Promise<Kind>;
+  attempt: (e: QEntry) => Promise<Kind | { kind: Kind; reason?: string }>;
+  /** where `REFUSED: <reason>` goes before the VERDICT line, default stderr */
+  err?: (line: string) => void;
   /** attempts per entry (busy and dirty only), default 5 */
   maxTries?: number;
   retryMs?: number;
   startTime?: (pid: number) => string | null;
 };
-export type QueueResult = { task: string; kind: Kind; tries: number; ms: number };
+export type QueueResult = { task: string; kind: Kind; tries: number; ms: number; reason?: string };
+
+/** The land log of a task under `<consoleDir>/land-logs`: its newest `<task>-<sha7>.log`, else `<task>-queue.log`. */
+export function landLogOf(consoleDir: string, task: string): string {
+  const dir = join(consoleDir, "land-logs");
+  const stem = task.replace(/[^A-Za-z0-9._-]/g, "_") + "-";
+  const mine = new RegExp(`^${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[0-9a-f]{7}\\.log$`); // the name land.ts writes
+  let best: { f: string; t: number } | null = null;
+  try {
+    for (const f of readdirSync(dir)) if (mine.test(f)) { const t = statSync(join(dir, f)).mtimeMs; if (!best || t > best.t) best = { f, t }; }
+  } catch { /* no dir yet */ }
+  return join(dir, best?.f ?? `${stem}queue.log`);
+}
+
+/** The queue's view of one real land: its kind, and the reason of a refusal taken from the land's last `REFUSED: ` line. */
+export function landAttemptResult(res: { ok: boolean; kind?: Kind; lines: string[] }): Kind | { kind: Kind; reason: string } {
+  const kind = res.kind ?? (res.ok ? "done" : "unknown");
+  const why = res.lines.filter((l) => l.startsWith("REFUSED: ")).pop()?.slice("REFUSED: ".length);
+  return !res.ok && why !== undefined ? { kind, reason: why } : kind;
+}
 
 /** Run the queue: take the runner lock (or return `ran: false` when a live runner has it), land the head until the queue is empty,
  *  then look again after releasing the lock so an entry queued in between is not forgotten. */
@@ -126,14 +147,26 @@ export async function runQueue(o: QueueOptions): Promise<{ ran: boolean; results
         const t0 = Date.now();
         let tries = 1;
         let kind: Kind;
+        let reason: string | undefined;
+        let shown = false; // a refusal the attempt already explained on stderr (`fw land` prints its REFUSED lines)
         for (;;) {
-          try { kind = await o.attempt(e); } catch { kind = "unknown"; }
+          reason = undefined;
+          shown = false;
+          try {
+            const r = await o.attempt(e);
+            if (typeof r === "string") kind = r; else { kind = r.kind; reason = r.reason; shown = r.reason !== undefined && r.reason !== ""; }
+          } catch (x) { kind = "unknown"; reason = x instanceof Error ? x.message : String(x); }
+          reason = refusalReason(kind, reason);
           if (!retryAfter(kind, tries, max)) break;
           await new Promise((r) => setTimeout(r, o.retryMs ?? 3000));
           tries++;
         }
-        appendFileSync(queueFile(o.consoleDir), JSON.stringify({ ev: "res", task: e.task, kind, tries, ms: Date.now() - t0, at: Date.now() }) + "\n");
-        done.push({ task: e.task, kind, tries, ms: Date.now() - t0 });
+        if (reason !== undefined) {
+          if (!shown) (o.err ?? ((l) => console.error(l)))(refusedLine(reason));
+          try { const f = landLogOf(o.consoleDir, e.task); mkdirSync(dirname(f), { recursive: true }); appendFileSync(f, `queue: ${refusedLine(reason)}\n`); } catch { /* the queue log has it too */ }
+        }
+        appendFileSync(queueFile(o.consoleDir), JSON.stringify({ ev: "res", task: e.task, kind, tries, ms: Date.now() - t0, at: Date.now(), ...(reason !== undefined ? { reason } : {}) }) + "\n");
+        done.push({ task: e.task, kind, tries, ms: Date.now() - t0, ...(reason !== undefined ? { reason } : {}) });
       }
     } finally { lock.release(); }
     if (pending(readLog(o.consoleDir)).length === 0) return { ran, results: done };
