@@ -30,4 +30,11 @@ Branch `worktree-wf_11ac09ad-a60-4`, CI branch `ci/gate-preset-input`.
 - work-graph `writes` of this task lists `apps/site/scripts/prerender*.mjs` etc.; the files actually written are above
   (lead to adjust).
 - TS stand-in: none; `gate-search.mjs` is checked against the Lean golden.
-- Gate run on the v2-proved arm: see the report (run id, verdict).
+- Gate run on the v2-proved arm (MEASURED, CI): run 39189945037, `workflow_dispatch` on `ci/gate-preset-input` at 8a6b34ba
+  with `engines=chromium preset=v2-proved`. Smoke and all 3 gate jobs passed; the page loaded was `?preset=v2-proved`,
+  config 6762d15c2b8b6d35. Verdict chromium: fail (7056 readings, 6533 pass, 516 fail, 7 excused; universe identical, not
+  narrowed). Failing rows: hero.countdown (all 14 columns; strip: `face` count 64 vs 0) and nav (6 columns; `actions`
+  1 vs 4, `bar` 1 vs 2 in the count lens), plus one platform style `--morph-fade` that differs. Every other row passes.
+  Next: the lead decides whether the strip / nav variants are meant to change those counts (then the gate needs a
+  Lean exemption) or the preset must drop them.
+- Not run: WebKit (Chromium only was asked).
