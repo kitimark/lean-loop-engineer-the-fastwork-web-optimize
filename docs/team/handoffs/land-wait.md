@@ -30,3 +30,6 @@ Open / follow-ups: (1) CircleCI adapter is a stub (`circleciAdapter`, always una
 `allow` (default `["github"]`). (3) `land-remote.test.ts` takes ~2-4 min (one fwcore spawn per case); batch them if it hurts.
 (4) The fallback (locked) protocol and the card fast-forward stay all-local. Queue stays serial.
 Read first: `lean/Fw/Console/LandRemote.lean`, `apps/runner/src/land-remote.ts`, `docs/team/tools/land.md`.
+
+Live pass, round 2 (MEASURED): `ci/land-probe-r2-bd45639` run 39326507586 passed on the changed land.yml; its step reads
+`lane: sha=bd4563917db3b81287dbc13e22b24a462673bb03 digest=remote:apps/runner,packages/engine-check` (the commit under test).
