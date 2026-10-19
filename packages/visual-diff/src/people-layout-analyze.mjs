@@ -78,20 +78,24 @@ export function compareDumps(da, db) {
   const onlyA = [], onlyB = [];
   const ox = ta.b[0] - tb.b[0];
   const oy = ta.b[1] - tb.b[1];
-  const walk = (a, b, pa, pb, prev) => {
+  const walk = (a, b, pa, pb, prev, pd) => {
     const rel = (n, p) => [n.b[0] - p.b[0], n.b[1] - p.b[1]];
     const ra = pa ? rel(a, pa) : [0, 0];
     const rb = pb ? rel(b, pb) : [0, 0];
     const d = { a, b, dw: a.b[2] - b.b[2], dh: a.b[3] - b.b[3], dx: ra[0] - rb[0], dy: ra[1] - rb[1] };
     d.diff = Math.abs(d.dw) > TOL || Math.abs(d.dh) > TOL || Math.abs(d.dx) > TOL || Math.abs(d.dy) > TOL;
     d.prev = prev;
+    d.pd = pd || null;
+    d.tfAnc = !!pd && ((pd.a.tf || '') !== (pd.b.tf || '') || pd.tfAnc);
     out.push(d);
     const { pairs, onlyA: oa, onlyB: ob } = lcsPairs(a.kids, b.kids);
     for (const x of oa) onlyA.push(x);
     for (const x of ob) onlyB.push(x);
+    d.xa = oa;
+    d.xb = ob;
     let pv = null;
     d.kids = [];
-    for (const [ka, kb] of pairs) { const kd = walk(ka, kb, a, b, pv); d.kids.push(kd); pv = kd; }
+    for (const [ka, kb] of pairs) { const kd = walk(ka, kb, a, b, pv, d); d.kids.push(kd); pv = kd; }
     return d;
   };
   const root = walk(ta, tb, null, null, null);
@@ -114,10 +118,15 @@ const SKEYS = ['d', 'ps', 't', 'w', 'h', 'mg', 'pd', 'gap', 'ff', 'fs', 'lh', 'f
 const styleDiff = (a, b) => (a.s && b.s ? SKEYS.filter((k) => a.s[k] !== b.s[k] && !['w', 'h', 't'].includes(k)).map((k) => `${k}:${a.s[k]}|${b.s[k]}`) : []);
 
 /** Cause hint of a differing pair, from facts in the records only. */
-function causeOf(d) {
+export function causeOf(d) {
   const a = d.a, b = d.b;
   const sd = styleDiff(a, b);
   if ((a.tf || '') !== (b.tf || '')) return { cause: 'transform differs (scroll-driven motion)', detail: `${a.tf || 'none'} | ${b.tf || 'none'}`.slice(0, 120) };
+  if (d.tfAnc) return { cause: 'transform of an ancestor differs (scroll-driven motion)', detail: '' };
+  // a child with no partner in the other arm: it may be a flex or grid item of its own (gap, order), whatever it paints
+  const un = (n) => (n || []).map((x) => label(x)).join(',');
+  if ((d.xa && d.xa.length) || (d.xb && d.xb.length)) return { cause: 'structure: unmatched child', detail: `orig only [${un(d.xa)}] port only [${un(d.xb)}]` };
+  if (d.pd && ((d.pd.xa && d.pd.xa.length) || (d.pd.xb && d.pd.xb.length))) return { cause: 'structure: parent has an unmatched child', detail: `orig only [${un(d.pd.xa)}] port only [${un(d.pd.xb)}]` };
   const font = sd.filter((x) => /^(ff|fs|lh|fw|ls):/.test(x));
   if (font.length) return { cause: 'restated CSS value (font)', detail: font.join(' ') };
   if (a.img || b.img) {

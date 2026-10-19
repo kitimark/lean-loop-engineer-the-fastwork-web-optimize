@@ -356,6 +356,8 @@ def cacheWriters : List (String × String × String) := [
   ("snapshot-extract.yml", "extract", "gate-apt"), ("snapshot-extract.yml", "extract", "ms-playwright"),
   ("snapshot-extract.yml", "extract", "hs-zip"), ("visual-diff.yml", "navscroll", "gate-apt"),
   ("visual-diff.yml", "navscroll", "ms-playwright"), ("visual-diff.yml", "navscroll", "hs-zip"),
+  ("visual-diff.yml", "people-layout", "gate-apt"),
+  ("visual-diff.yml", "people-layout", "ms-playwright"), ("visual-diff.yml", "people-layout", "hs-zip"),
   ("visual-diff.yml", "port-fonts", "gate-apt"),
   ("visual-diff.yml", "port-fonts", "ms-playwright"), ("visual-diff.yml", "port-fonts", "hs-zip"),
   ("visual-diff.yml", "shoot", "gate-apt"), ("visual-diff.yml", "shoot", "ms-playwright"),
