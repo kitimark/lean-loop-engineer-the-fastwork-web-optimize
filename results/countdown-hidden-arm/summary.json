@@ -1,0 +1,1074 @@
+{
+ "task": "countdown-hidden-arm",
+ "flag": "hero.countdown:hidden-pause",
+ "sha": "bcf9c7e039f7638b55ca420cf81842fc065e3ef0",
+ "lane": "chromium-counts, 3 reps per run, image_run 39292310716",
+ "judge": "trace.UpdateLayoutTree.elementCount, frames 104-200",
+ "decision": "negative: no drop in any arm; no preset change",
+ "pairs": [
+  {
+   "profile": "swipe-v1",
+   "over": "base",
+   "controlRun": 39313893490,
+   "armRun": 39312082945,
+   "ranges": {
+    "0-103": {
+     "trace.UpdateLayoutTree.elementCount": {
+      "control": [
+       13195,
+       13195,
+       13196
+      ],
+      "arm": [
+       13195,
+       13195,
+       13195
+      ]
+     },
+     "trace.UpdateLayoutTree": {
+      "control": [
+       401,
+       401,
+       401
+      ],
+      "arm": [
+       401,
+       401,
+       401
+      ]
+     },
+     "trace.FireAnimationFrame": {
+      "control": [
+       461,
+       461,
+       461
+      ],
+      "arm": [
+       461,
+       461,
+       461
+      ]
+     },
+     "trace.FunctionCall": {
+      "control": [
+       779,
+       779,
+       779
+      ],
+      "arm": [
+       872,
+       872,
+       872
+      ]
+     },
+     "trace.Layout": {
+      "control": [
+       123,
+       123,
+       123
+      ],
+      "arm": [
+       123,
+       122,
+       123
+      ]
+     },
+     "trace.Paint": {
+      "control": [
+       839,
+       839,
+       839
+      ],
+      "arm": [
+       839,
+       839,
+       839
+      ]
+     },
+     "raster.invalidatedLayers": {
+      "control": [
+       449,
+       449,
+       449
+      ],
+      "arm": [
+       449,
+       449,
+       449
+      ]
+     }
+    },
+    "104-200": {
+     "trace.UpdateLayoutTree.elementCount": {
+      "control": [
+       9499,
+       9497,
+       9502
+      ],
+      "arm": [
+       9501,
+       9499,
+       9502
+      ]
+     },
+     "trace.UpdateLayoutTree": {
+      "control": [
+       368,
+       368,
+       368
+      ],
+      "arm": [
+       368,
+       368,
+       368
+      ]
+     },
+     "trace.FireAnimationFrame": {
+      "control": [
+       469,
+       469,
+       469
+      ],
+      "arm": [
+       469,
+       470,
+       470
+      ]
+     },
+     "trace.FunctionCall": {
+      "control": [
+       877,
+       877,
+       877
+      ],
+      "arm": [
+       877,
+       878,
+       878
+      ]
+     },
+     "trace.Layout": {
+      "control": [
+       76,
+       76,
+       76
+      ],
+      "arm": [
+       76,
+       76,
+       76
+      ]
+     },
+     "trace.Paint": {
+      "control": [
+       494,
+       494,
+       494
+      ],
+      "arm": [
+       494,
+       494,
+       494
+      ]
+     },
+     "raster.invalidatedLayers": {
+      "control": [
+       482,
+       482,
+       482
+      ],
+      "arm": [
+       482,
+       482,
+       482
+      ]
+     }
+    },
+    "201-end": {
+     "trace.UpdateLayoutTree.elementCount": {
+      "control": [
+       21493,
+       21492,
+       21429
+      ],
+      "arm": [
+       21429,
+       21482,
+       21436
+      ]
+     },
+     "trace.UpdateLayoutTree": {
+      "control": [
+       1080,
+       1080,
+       1080
+      ],
+      "arm": [
+       1080,
+       1080,
+       1080
+      ]
+     },
+     "trace.FireAnimationFrame": {
+      "control": [
+       1127,
+       1127,
+       1127
+      ],
+      "arm": [
+       1127,
+       1127,
+       1127
+      ]
+     },
+     "trace.FunctionCall": {
+      "control": [
+       2715,
+       2716,
+       2715
+      ],
+      "arm": [
+       2715,
+       2715,
+       2715
+      ]
+     },
+     "trace.Layout": {
+      "control": [
+       159,
+       159,
+       159
+      ],
+      "arm": [
+       159,
+       159,
+       159
+      ]
+     },
+     "trace.Paint": {
+      "control": [
+       1160,
+       1164,
+       1160
+      ],
+      "arm": [
+       1160,
+       1161,
+       1163
+      ]
+     },
+     "raster.invalidatedLayers": {
+      "control": [
+       1647,
+       1647,
+       1647
+      ],
+      "arm": [
+       1647,
+       1647,
+       1647
+      ]
+     }
+    }
+   }
+  },
+  {
+   "profile": "swipe-v1",
+   "over": "v2-proved",
+   "controlRun": 39313899612,
+   "armRun": 39312057983,
+   "ranges": {
+    "0-103": {
+     "trace.UpdateLayoutTree.elementCount": {
+      "control": [
+       10639,
+       10639,
+       10639
+      ],
+      "arm": [
+       10639,
+       10639,
+       10639
+      ]
+     },
+     "trace.UpdateLayoutTree": {
+      "control": [
+       212,
+       212,
+       212
+      ],
+      "arm": [
+       212,
+       212,
+       212
+      ]
+     },
+     "trace.FireAnimationFrame": {
+      "control": [
+       456,
+       456,
+       456
+      ],
+      "arm": [
+       456,
+       456,
+       456
+      ]
+     },
+     "trace.FunctionCall": {
+      "control": [
+       868,
+       868,
+       868
+      ],
+      "arm": [
+       962,
+       962,
+       962
+      ]
+     },
+     "trace.Layout": {
+      "control": [
+       120,
+       119,
+       119
+      ],
+      "arm": [
+       120,
+       119,
+       120
+      ]
+     },
+     "trace.Paint": {
+      "control": [
+       776,
+       776,
+       776
+      ],
+      "arm": [
+       776,
+       776,
+       776
+      ]
+     },
+     "raster.invalidatedLayers": {
+      "control": [
+       552,
+       552,
+       552
+      ],
+      "arm": [
+       552,
+       552,
+       552
+      ]
+     }
+    },
+    "104-200": {
+     "trace.UpdateLayoutTree.elementCount": {
+      "control": [
+       1257,
+       1255,
+       1255
+      ],
+      "arm": [
+       1257,
+       1257,
+       1255
+      ]
+     },
+     "trace.UpdateLayoutTree": {
+      "control": [
+       119,
+       119,
+       119
+      ],
+      "arm": [
+       119,
+       119,
+       119
+      ]
+     },
+     "trace.FireAnimationFrame": {
+      "control": [
+       377,
+       378,
+       378
+      ],
+      "arm": [
+       377,
+       378,
+       377
+      ]
+     },
+     "trace.FunctionCall": {
+      "control": [
+       825,
+       826,
+       826
+      ],
+      "arm": [
+       825,
+       826,
+       825
+      ]
+     },
+     "trace.Layout": {
+      "control": [
+       75,
+       75,
+       75
+      ],
+      "arm": [
+       75,
+       75,
+       75
+      ]
+     },
+     "trace.Paint": {
+      "control": [
+       462,
+       461,
+       461
+      ],
+      "arm": [
+       462,
+       462,
+       461
+      ]
+     },
+     "raster.invalidatedLayers": {
+      "control": [
+       327,
+       327,
+       327
+      ],
+      "arm": [
+       327,
+       327,
+       327
+      ]
+     }
+    },
+    "201-end": {
+     "trace.UpdateLayoutTree.elementCount": {
+      "control": [
+       12250,
+       12253,
+       12252
+      ],
+      "arm": [
+       12250,
+       12251,
+       12249
+      ]
+     },
+     "trace.UpdateLayoutTree": {
+      "control": [
+       507,
+       507,
+       507
+      ],
+      "arm": [
+       507,
+       507,
+       507
+      ]
+     },
+     "trace.FireAnimationFrame": {
+      "control": [
+       854,
+       854,
+       854
+      ],
+      "arm": [
+       854,
+       854,
+       854
+      ]
+     },
+     "trace.FunctionCall": {
+      "control": [
+       2717,
+       2716,
+       2716
+      ],
+      "arm": [
+       2716,
+       2717,
+       2717
+      ]
+     },
+     "trace.Layout": {
+      "control": [
+       159,
+       159,
+       159
+      ],
+      "arm": [
+       159,
+       159,
+       159
+      ]
+     },
+     "trace.Paint": {
+      "control": [
+       981,
+       983,
+       983
+      ],
+      "arm": [
+       981,
+       983,
+       981
+      ]
+     },
+     "raster.invalidatedLayers": {
+      "control": [
+       1329,
+       1329,
+       1329
+      ],
+      "arm": [
+       1329,
+       1329,
+       1329
+      ]
+     }
+    }
+   }
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "over": "base",
+   "controlRun": 39313905095,
+   "armRun": 39312091230,
+   "ranges": {
+    "0-103": {
+     "trace.UpdateLayoutTree.elementCount": {
+      "control": [
+       12085,
+       12086,
+       12085
+      ],
+      "arm": [
+       12085,
+       12085,
+       12085
+      ]
+     },
+     "trace.UpdateLayoutTree": {
+      "control": [
+       375,
+       375,
+       375
+      ],
+      "arm": [
+       375,
+       375,
+       375
+      ]
+     },
+     "trace.FireAnimationFrame": {
+      "control": [
+       433,
+       433,
+       433
+      ],
+      "arm": [
+       433,
+       433,
+       433
+      ]
+     },
+     "trace.FunctionCall": {
+      "control": [
+       938,
+       938,
+       938
+      ],
+      "arm": [
+       1023,
+       1023,
+       1023
+      ]
+     },
+     "trace.Layout": {
+      "control": [
+       118,
+       119,
+       119
+      ],
+      "arm": [
+       117,
+       117,
+       117
+      ]
+     },
+     "trace.Paint": {
+      "control": [
+       791,
+       791,
+       791
+      ],
+      "arm": [
+       791,
+       791,
+       791
+      ]
+     },
+     "raster.invalidatedLayers": {
+      "control": [
+       462,
+       462,
+       462
+      ],
+      "arm": [
+       462,
+       462,
+       462
+      ]
+     }
+    },
+    "104-200": {
+     "trace.UpdateLayoutTree.elementCount": {
+      "control": [
+       9517,
+       9515,
+       9515
+      ],
+      "arm": [
+       9515,
+       9517,
+       9515
+      ]
+     },
+     "trace.UpdateLayoutTree": {
+      "control": [
+       362,
+       362,
+       362
+      ],
+      "arm": [
+       362,
+       362,
+       362
+      ]
+     },
+     "trace.FireAnimationFrame": {
+      "control": [
+       445,
+       445,
+       445
+      ],
+      "arm": [
+       446,
+       446,
+       446
+      ]
+     },
+     "trace.FunctionCall": {
+      "control": [
+       1219,
+       1219,
+       1219
+      ],
+      "arm": [
+       1228,
+       1228,
+       1228
+      ]
+     },
+     "trace.Layout": {
+      "control": [
+       94,
+       94,
+       94
+      ],
+      "arm": [
+       95,
+       95,
+       94
+      ]
+     },
+     "trace.Paint": {
+      "control": [
+       512,
+       512,
+       512
+      ],
+      "arm": [
+       512,
+       512,
+       512
+      ]
+     },
+     "raster.invalidatedLayers": {
+      "control": [
+       515,
+       505,
+       515
+      ],
+      "arm": [
+       505,
+       505,
+       505
+      ]
+     }
+    },
+    "201-end": {
+     "trace.UpdateLayoutTree.elementCount": {
+      "control": [
+       26925,
+       26922,
+       26925
+      ],
+      "arm": [
+       26876,
+       26937,
+       26940
+      ]
+     },
+     "trace.UpdateLayoutTree": {
+      "control": [
+       1144,
+       1144,
+       1144
+      ],
+      "arm": [
+       1144,
+       1144,
+       1144
+      ]
+     },
+     "trace.FireAnimationFrame": {
+      "control": [
+       1234,
+       1234,
+       1234
+      ],
+      "arm": [
+       1233,
+       1233,
+       1233
+      ]
+     },
+     "trace.FunctionCall": {
+      "control": [
+       4155,
+       4151,
+       4151
+      ],
+      "arm": [
+       4150,
+       4150,
+       4158
+      ]
+     },
+     "trace.Layout": {
+      "control": [
+       205,
+       205,
+       205
+      ],
+      "arm": [
+       205,
+       205,
+       205
+      ]
+     },
+     "trace.Paint": {
+      "control": [
+       1452,
+       1452,
+       1452
+      ],
+      "arm": [
+       1452,
+       1453,
+       1452
+      ]
+     },
+     "raster.invalidatedLayers": {
+      "control": [
+       1856,
+       1856,
+       1856
+      ],
+      "arm": [
+       1856,
+       1856,
+       1856
+      ]
+     }
+    }
+   }
+  },
+  {
+   "profile": "swipe-touch-v1",
+   "over": "v2-proved",
+   "controlRun": 39313910145,
+   "armRun": 39312076214,
+   "ranges": {
+    "0-103": {
+     "trace.UpdateLayoutTree.elementCount": {
+      "control": [
+       9838,
+       9839,
+       9838
+      ],
+      "arm": [
+       9838,
+       9839,
+       9839
+      ]
+     },
+     "trace.UpdateLayoutTree": {
+      "control": [
+       201,
+       201,
+       201
+      ],
+      "arm": [
+       201,
+       201,
+       201
+      ]
+     },
+     "trace.FireAnimationFrame": {
+      "control": [
+       435,
+       435,
+       435
+      ],
+      "arm": [
+       435,
+       435,
+       435
+      ]
+     },
+     "trace.FunctionCall": {
+      "control": [
+       1027,
+       1027,
+       1027
+      ],
+      "arm": [
+       1114,
+       1114,
+       1114
+      ]
+     },
+     "trace.Layout": {
+      "control": [
+       115,
+       115,
+       115
+      ],
+      "arm": [
+       114,
+       114,
+       115
+      ]
+     },
+     "trace.Paint": {
+      "control": [
+       732,
+       732,
+       732
+      ],
+      "arm": [
+       732,
+       732,
+       732
+      ]
+     },
+     "raster.invalidatedLayers": {
+      "control": [
+       565,
+       565,
+       565
+      ],
+      "arm": [
+       565,
+       565,
+       565
+      ]
+     }
+    },
+    "104-200": {
+     "trace.UpdateLayoutTree.elementCount": {
+      "control": [
+       2168,
+       2168,
+       2166
+      ],
+      "arm": [
+       2166,
+       2168,
+       2166
+      ]
+     },
+     "trace.UpdateLayoutTree": {
+      "control": [
+       130,
+       130,
+       130
+      ],
+      "arm": [
+       130,
+       130,
+       130
+      ]
+     },
+     "trace.FireAnimationFrame": {
+      "control": [
+       362,
+       362,
+       362
+      ],
+      "arm": [
+       363,
+       363,
+       362
+      ]
+     },
+     "trace.FunctionCall": {
+      "control": [
+       1171,
+       1171,
+       1171
+      ],
+      "arm": [
+       1180,
+       1180,
+       1179
+      ]
+     },
+     "trace.Layout": {
+      "control": [
+       92,
+       92,
+       93
+      ],
+      "arm": [
+       92,
+       92,
+       92
+      ]
+     },
+     "trace.Paint": {
+      "control": [
+       488,
+       488,
+       487
+      ],
+      "arm": [
+       487,
+       488,
+       487
+      ]
+     },
+     "raster.invalidatedLayers": {
+      "control": [
+       377,
+       377,
+       387
+      ],
+      "arm": [
+       387,
+       377,
+       387
+      ]
+     }
+    },
+    "201-end": {
+     "trace.UpdateLayoutTree.elementCount": {
+      "control": [
+       22715,
+       22713,
+       22715
+      ],
+      "arm": [
+       22833,
+       22851,
+       22834
+      ]
+     },
+     "trace.UpdateLayoutTree": {
+      "control": [
+       542,
+       542,
+       542
+      ],
+      "arm": [
+       543,
+       543,
+       543
+      ]
+     },
+     "trace.FireAnimationFrame": {
+      "control": [
+       925,
+       925,
+       925
+      ],
+      "arm": [
+       924,
+       924,
+       925
+      ]
+     },
+     "trace.FunctionCall": {
+      "control": [
+       4132,
+       4128,
+       4128
+      ],
+      "arm": [
+       4123,
+       4127,
+       4128
+      ]
+     },
+     "trace.Layout": {
+      "control": [
+       206,
+       206,
+       206
+      ],
+      "arm": [
+       206,
+       206,
+       206
+      ]
+     },
+     "trace.Paint": {
+      "control": [
+       1249,
+       1249,
+       1251
+      ],
+      "arm": [
+       1249,
+       1250,
+       1248
+      ]
+     },
+     "raster.invalidatedLayers": {
+      "control": [
+       1510,
+       1510,
+       1510
+      ],
+      "arm": [
+       1510,
+       1510,
+       1510
+      ]
+     }
+    }
+   }
+  }
+ ]
+}
