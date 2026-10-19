@@ -208,6 +208,30 @@ describe("gate and login routes", () => {
     const r = await app.request("/owner/login", form(FAKE), LAN);
     expect(r.status).toBe(429); expect(Number(r.headers.get("retry-after"))).toBeGreaterThan(0);
   });
+  it("console-daemon: loopback passphrase login works with no terminal, gives a token and the preview cookie, and the token opens owner actions", async () => {
+    const { app, owner } = await mk(false);
+    const LH = { host: "127.0.0.1:4000", origin: "http://127.0.0.1:4000" };
+    const post = (p: string) => ({ method: "POST", body: JSON.stringify({ passphrase: p }), headers: { "content-type": "application/json", ...LH } });
+    expect((await app.request("/owner/login", { headers: { host: LH.host } }, LOOP)).status).toBe(200);
+    expect((await app.request("/owner/login", post("nope"), LOOP)).status).toBe(401);
+    const ok = await app.request("/owner/login", post(FAKE), LOOP);
+    expect(ok.status).toBe(200);
+    const token = ((await ok.json()) as { token: string }).token;
+    expect(ok.headers.get("set-cookie") ?? "").toMatch(/^fw_preview=/);
+    const me = (await (await app.request("/api/owner", { headers: { host: LH.host, authorization: `Bearer ${token}` } }, LOOP)).json()) as { session: boolean };
+    expect(me.session).toBe(true);
+    // then a preview route: without the cookie the preview app refuses (401), with the cookie from the login it answers
+    const up = createServer((_q, res) => { res.setHeader("content-type", "text/plain"); res.end("preview body"); });
+    await new Promise<void>((r) => up.listen(0, "127.0.0.1", () => r())); servers.push(up);
+    const port = (up.address() as { port: number }).port;
+    const pm = { serving: (id: string) => (id === "p1" ? { rp: port, op: port } : null), touch: () => undefined } as unknown as PreviewManager;
+    const pv = createPreviewApp((await store()).core, owner, pm, { lan: false });
+    expect((await pv.request("/preview/p1/r/x")).status).toBe(401);
+    const cookie = (ok.headers.get("set-cookie") ?? "").split(";")[0]!;
+    const seen = await pv.request("/preview/p1/r/x", { headers: { cookie } });
+    expect([seen.status]).not.toContain(401); expect([seen.status]).not.toContain(403);
+    expect(seen.status).toBe(200);
+  });
   it("loopback: today's rules (API open), the console never serves previews; disabled login says 503", async () => {
     const { app } = await mk(false, null);
     expect((await app.request("/api/tasks", {}, LOOP)).status).not.toBe(401);

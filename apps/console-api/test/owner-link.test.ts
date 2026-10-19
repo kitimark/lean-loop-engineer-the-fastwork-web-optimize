@@ -35,6 +35,16 @@ describe("announceLink (Lean console.previewLink decides the sink)", () => {
     expect(said.join("")).not.toContain(owner.token()!);
   });
 
+  it("console-daemon: with no terminal the link is never even built, so no log or output can hold the token", async () => {
+    const owner = new OwnerAuth();
+    const token = owner.token()!;
+    let built = 0; const said: string[] = [];
+    await announceLink(core, () => { built++; return `http://127.0.0.1:1/owner?t=${token}`; }, (m) => said.push(m), () => null);
+    expect(built).toBe(0);
+    expect(said.join("\n")).not.toContain(token);
+    expect(said.join("\n")).toContain("/owner/login");
+  });
+
   it("reissue replaces the unused link; the old one no longer redeems", () => {
     const owner = new OwnerAuth();
     const old = owner.token()!;

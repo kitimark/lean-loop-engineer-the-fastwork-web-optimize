@@ -1,0 +1,183 @@
+{
+ "tally": {
+  "modelBug": 0,
+  "pass": 3,
+  "unusable": 3
+ },
+ "verdicts": [
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.FireAnimationFrame",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 2,
+    "variant": 2
+   },
+   "scenario": "swipe-v1",
+   "stage": "script",
+   "totals": {
+    "base": [
+     2057,
+     2058
+    ],
+    "variant": [
+     2057,
+     2057
+    ]
+   },
+   "variant": "rewrite+?fw=morph.tween:waapi",
+   "verdict": "unusable"
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "deterministic",
+    "variant": "deterministic"
+   },
+   "countType": "trace.UpdateLayoutTree",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 2,
+    "variant": 2
+   },
+   "scenario": "swipe-v1",
+   "stage": "style",
+   "totals": {
+    "base": [
+     1849,
+     1849
+    ],
+    "variant": [
+     1849,
+     1849
+    ]
+   },
+   "variant": "rewrite+?fw=morph.tween:waapi",
+   "verdict": "pass"
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.Layout",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 2,
+    "variant": 2
+   },
+   "scenario": "swipe-v1",
+   "stage": "layout",
+   "totals": {
+    "base": [
+     358,
+     357
+    ],
+    "variant": [
+     358,
+     358
+    ]
+   },
+   "variant": "rewrite+?fw=morph.tween:waapi",
+   "verdict": "unusable"
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.Paint",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 2,
+    "variant": 2
+   },
+   "scenario": "swipe-v1",
+   "stage": "paint",
+   "totals": {
+    "base": [
+     2493,
+     2498
+    ],
+    "variant": [
+     2494,
+     2493
+    ]
+   },
+   "variant": "rewrite+?fw=morph.tween:waapi",
+   "verdict": "unusable"
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "deterministic",
+    "variant": "deterministic"
+   },
+   "countType": "trace.cc.Commit",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 2,
+    "variant": 2
+   },
+   "scenario": "swipe-v1",
+   "stage": "commit",
+   "totals": {
+    "base": [
+     503,
+     503
+    ],
+    "variant": [
+     503,
+     503
+    ]
+   },
+   "variant": "rewrite+?fw=morph.tween:waapi",
+   "verdict": "pass"
+  },
+  {
+   "base": "rewrite+?fw=morph.tween:waapi",
+   "class": {
+    "base": "deterministic",
+    "variant": "deterministic"
+   },
+   "countType": "trace.Animation.compositeFailedBits",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 2,
+    "variant": 2
+   },
+   "scenario": "swipe-v1",
+   "stage": "comp",
+   "totals": {
+    "base": [
+     2011936,
+     2011936
+    ],
+    "variant": [
+     2011936,
+     2011936
+    ]
+   },
+   "variant": "rewrite",
+   "verdict": "pass"
+  }
+ ]
+}

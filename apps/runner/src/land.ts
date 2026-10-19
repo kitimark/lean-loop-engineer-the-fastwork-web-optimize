@@ -182,6 +182,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     ".github/workflows/**", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs",
     // ci-own-trigger: the intent helper and its test (run by test/ci-triggers.test.ts; fw ci push spawns it)
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs",
+    // ci-telemetry: test/ci-telemetry.test.ts runs the producer's own tests and replays golden/ci/telemetry.jsonl (golden/** above)
+    "scripts/ci-telemetry/**",
     // site-build-cache: ci-paths reads each setup-lean job's Lake targets (lakefile, the scripts its run: blocks call) into
     // the generated lean/Fw/Ops/LakeJobsGen.lean and compares
     "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],

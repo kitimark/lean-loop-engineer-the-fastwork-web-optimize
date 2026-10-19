@@ -9,6 +9,7 @@ import Fw.Console.Preview
 import Fw.Console.PreviewOwner
 import Fw.Console.PreviewCache
 import Fw.Console.Builds
+import Fw.Console.Daemon
 import Fw.Plan.Trailer
 import Fw.Plan.Lint
 /-!
@@ -41,6 +42,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.previewGrant` | `kind` (`issue`: may a grant be issued, from `lan`; `redeem`: a grant token is presented, with `known`, `used`, `issuedAt`, `now` (ms)), `lan` | `allow`, `verdict` (redeem: `ok`/`lan`/`unknown`/`used`/`expired`), `ttlMs` (issue), `cookieMs` (`Fw.Console.Preview.Owner.issueAllowed`, `redeem`) |
 | `console.ownerAction` | `kind` (`owner`: an owner action, needs the bearer token and an Origin; `command`: any other non-GET route, an Origin if present; `login`: an Origin, no token), `bearer` (a valid owner token in the Authorization header), `origin`? ({host, port} or null: none sent), `host`? (the origin of the Host header when it names this console, else null), `extra` [{host, port}] (configured web origins), `previewPort`? (null = unset: nothing is trusted) | `allow`, `trusted` (the computed trusted origins, none on the preview port) (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`) |
 | `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
+| `console.daemon` | `kind`: `start` (`recorded`? pid in api.json, `answered`? pid the health request reported, `alive`? whether the recorded pid exists), `stop` (same), `restart` (same), `rotate` (`size`, `limit`? default 5 MiB) | start: `allow`, `verified` (pid or null), `reason` (`ok`/`running`/`unverifiedAlive`); stop: `target` (the only pid to signal, or null), `reason` (`ok`/`notRunning`); restart: `steps` [{step: `stop`+`pid` / `start`}]; rotate: `rotate`, `limit`, `warn` (size above 50 MiB), `warnLimit` (`Fw.Console.Daemon.startAllowed`, `stopTarget`, `restartPlan`, `rotate`, `logWarns`) |
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
 | `console.landTier` | `ids` [check ids] | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept) |
 | `console.landLane` | `exitOk`, `coreUser`, `skipped` (skipped plus todo tests the summary reports; `null` when no summary was recognised) | `verdict` (`pass`/`fail`/`skipped`/`unknown`), `ok` (`Fw.Console.LandTier.laneVerdict`) |
@@ -558,13 +560,42 @@ def opBuildsPicker (req : Json) : Except String Reply := do
   let cur ← strD req "current" ""
   pure [("searches", Json.arr ((picker keys).map Json.str).toArray), ("current", Json.str (choose keys cur))]
 
+open Fw.Console.Daemon in
+/-- `console.daemon` (`Fw.Console.Daemon`): what `fw console start|stop|restart` may do, when the log is rotated and when status warns about its size. -/
+def opDaemon (req : Json) : Except String Reply := do
+  let pid (k : String) : Except String (Option Nat) := match opt req k with
+    | none | some .null => pure none
+    | some _ => do pure (some (← nat req k))
+  let pj : Option Nat → Json := fun o => match o with | some p => Json.num p | none => Json.null
+  match ← str req "kind" with
+  | "start" =>
+    let r ← pid "recorded"; let a ← pid "answered"
+    let live ← boolD req "alive" false
+    pure [("allow", .bool (startAllowed r a live)), ("verified", pj (verified r a)),
+      ("reason", .str (if (verified r a).isSome then "running" else if unverifiedAlive r a live then "unverifiedAlive" else "ok"))]
+  | "stop" =>
+    let t := stopTarget (← pid "recorded") (← pid "answered")
+    pure [("target", pj t), ("reason", .str (if t.isSome then "ok" else "notRunning"))]
+  | "restart" =>
+    let steps := restartPlan (verified (← pid "recorded") (← pid "answered"))
+    pure [("steps", Json.arr (steps.toArray.map fun s => match s with
+      | .stop p => Json.mkObj [("step", .str "stop"), ("pid", .num p)]
+      | .start => Json.mkObj [("step", .str "start")]))]
+  | "rotate" =>
+    let limit ← match opt req "limit" with
+      | none => pure logLimit
+      | some _ => nat req "limit"
+    let size ← nat req "size"
+    pure [("rotate", .bool (rotate size limit)), ("limit", .num limit), ("warn", .bool (logWarns size)), ("warnLimit", .num logWarnLimit)]
+  | _ => throw "field kind: expected start, stop, restart or rotate"
+
 /-! ## Dispatch -/
 
 /-- The ops of this module. -/
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
   "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLane", "console.landRemote", "console.landDigest", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
-  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker"]
+  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.daemon"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -601,6 +632,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.previewCache" => some (opPreviewCache req)
   | "console.builds" => some (opBuilds req)
   | "console.buildsPicker" => some (opBuildsPicker req)
+  | "console.daemon" => some (opDaemon req)
   | _ => none
 
 end Fw.Wire.Console
