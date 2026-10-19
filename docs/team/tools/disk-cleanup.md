@@ -25,7 +25,9 @@ through hardlinks and APFS clones, so removing a tree can free far less than its
    pnpm -s fw lake-gc --delete
    ```
    Safe: Lake treats a missing artifact as a cache miss and rebuilds
-   (`Lake/Build/Common.lean:524-534`, `getArtifactsUsingCache?`, toolchain v4.35.0, CONFIRMED). The auto-mode
+   (`Lake/Build/Common.lean:524-534`, `getArtifactsUsingCache?`, toolchain v4.35.0, CONFIRMED), except for a build
+   that starts during the run (resolved at Common.lean:585, linked at :652): run it only when `fw lake-gc` shows
+   `writers: none`, and rerun a build that failed meanwhile. The auto-mode
    classifier blocks this as irreversible: the user runs it or approves it. Never uninstall the pinned toolchain
    (`lean/lean-toolchain`).
 2. **Finished worktrees.** For each worktree whose workflow is not running: `git worktree remove
