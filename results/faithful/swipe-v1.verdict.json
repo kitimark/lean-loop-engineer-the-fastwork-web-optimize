@@ -9,7 +9,7 @@
  ],
  "classTable": {
   "file": "packages/measure-chromium/classes.frozen.json",
-  "sha256": "29e1635e1de2dceeaea41622bd79b3b4ce710b139e9291bec88d5e4b416b8fa2",
+  "sha256": "bfe908167305afb4879d931dc5737ba074545508b6d58e9ab8682c2d76bfc9bb",
   "image": "sha256:8f0e17f50db9e3ae59f06d12d8b2fd483ba39582999a8469fab4fd8432cff2b0"
  },
  "files": {
@@ -588,8 +588,8 @@
     "pxA": 0,
     "pxR": 0,
     "tally": {
-     "fail": 15,
-     "pass": 23,
+     "fail": 14,
+     "pass": 24,
      "skipped": 10,
      "unbanded": 11
     },
@@ -607,8 +607,7 @@
      "raster.invalidationAreaPx",
      "raster.invalidationRects",
      "trace.FireAnimationFrame",
-     "trace.RequestAnimationFrame",
-     "trace.UpdateLayer"
+     "trace.RequestAnimationFrame"
     ],
     "offBand": [
      {
@@ -722,14 +721,6 @@
       "hiA": 51,
       "a": 51,
       "r": 50
-     },
-     {
-      "type": "trace.UpdateLayer",
-      "family": "pct10",
-      "loA": 1446,
-      "hiA": 1448,
-      "a": 1446,
-      "r": 1598
      }
     ],
     "unbandedDiffs": [
@@ -2369,7 +2360,7 @@
       "hi": 1448,
       "lo": 1446,
       "r": 1598,
-      "status": "fail"
+      "status": "pass"
      },
      "trace.UpdateLayoutTree": {
       "a": 30,
@@ -2434,8 +2425,7 @@
      "raster.invalidationAreaPx",
      "raster.invalidationRects",
      "trace.FireAnimationFrame",
-     "trace.RequestAnimationFrame",
-     "trace.UpdateLayer"
+     "trace.RequestAnimationFrame"
     ],
     "framesA": 30,
     "framesR": 30,
@@ -2446,8 +2436,8 @@
     "pxR": 0,
     "shape": true,
     "tally": {
-     "fail": 15,
-     "pass": 23,
+     "fail": 14,
+     "pass": 24,
      "skipped": 10,
      "unbanded": 11
     }

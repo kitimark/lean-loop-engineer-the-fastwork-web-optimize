@@ -12,13 +12,13 @@
  },
  "classTable": {
   "file": "packages/measure-chromium/classes.frozen.json",
-  "sha256": "29e1635e1de2dceeaea41622bd79b3b4ce710b139e9291bec88d5e4b416b8fa2",
+  "sha256": "bfe908167305afb4879d931dc5737ba074545508b6d58e9ab8682c2d76bfc9bb",
   "profile": "swipe-touch-v1",
   "image": "sha256:8f0e17f50db9e3ae59f06d12d8b2fd483ba39582999a8469fab4fd8432cff2b0",
   "workflowRuns": [
-   "39049471997",
-   "39049481754",
-   "39050423094"
+   "39184646781",
+   "39186485136",
+   "39187013275"
   ]
  },
  "target": "original",
@@ -32,9 +32,9 @@
   "r3"
  ],
  "tally": {
-  "deterministic": 23,
-  "quarantined": 15,
-  "stable": 32,
+  "deterministic": 24,
+  "quarantined": 11,
+  "stable": 35,
   "unlisted": 0
  },
  "totals": {
@@ -388,7 +388,7 @@
   },
   "trace.DecodeImage": {
    "base": 39,
-   "class": "stable",
+   "class": "deterministic",
    "hi": 39,
    "lo": 39,
    "perRun": [
@@ -396,11 +396,11 @@
     39,
     39
    ],
-   "rule": "stable"
+   "rule": "deterministic"
   },
   "trace.DisplayItemListRaster": {
    "base": 1735,
-   "class": "quarantined",
+   "class": "stable",
    "hi": 1735,
    "lo": 1735,
    "perRun": [
@@ -408,7 +408,7 @@
     1735,
     1735
    ],
-   "rule": "quarantined"
+   "rule": "stable"
   },
   "trace.EvaluateScript": {
    "base": 531,
@@ -676,7 +676,7 @@
   },
   "trace.Paint": {
    "base": 2797,
-   "class": "quarantined",
+   "class": "stable",
    "hi": 2797,
    "lo": 2796,
    "perRun": [
@@ -684,7 +684,7 @@
     2797,
     2796
    ],
-   "rule": "quarantined"
+   "rule": "stable"
   },
   "trace.PaintImage": {
    "base": 1348,
@@ -712,7 +712,7 @@
   },
   "trace.PrePaint": {
    "base": 1975,
-   "class": "quarantined",
+   "class": "stable",
    "hi": 1975,
    "lo": 1975,
    "perRun": [
@@ -720,11 +720,11 @@
     1975,
     1975
    ],
-   "rule": "quarantined"
+   "rule": "stable"
   },
   "trace.RasterTask": {
    "base": 1735,
-   "class": "quarantined",
+   "class": "stable",
    "hi": 1735,
    "lo": 1735,
    "perRun": [
@@ -732,7 +732,7 @@
     1735,
     1735
    ],
-   "rule": "quarantined"
+   "rule": "stable"
   },
   "trace.RequestAnimationFrame": {
    "base": 2495,
@@ -1237,7 +1237,7 @@
     },
     "trace.DisplayItemListRaster": {
      "base": 19,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 19,
      "lo": 19,
      "perRun": [
@@ -1245,7 +1245,7 @@
       19,
       19
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.EvaluateScript": {
      "base": 10,
@@ -1465,7 +1465,7 @@
     },
     "trace.Paint": {
      "base": 45,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 45,
      "lo": 45,
      "perRun": [
@@ -1473,7 +1473,7 @@
       45,
       45
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.PaintImage": {
      "base": 16,
@@ -1489,7 +1489,7 @@
     },
     "trace.PrePaint": {
      "base": 22,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 22,
      "lo": 22,
      "perRun": [
@@ -1497,11 +1497,11 @@
       22,
       22
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RasterTask": {
      "base": 19,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 19,
      "lo": 19,
      "perRun": [
@@ -1509,7 +1509,7 @@
       19,
       19
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RequestAnimationFrame": {
      "base": 22,
@@ -1978,7 +1978,7 @@
     },
     "trace.DecodeImage": {
      "base": 6,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 6,
      "lo": 6,
      "perRun": [
@@ -1986,11 +1986,11 @@
       6,
       6
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 51,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 51,
      "lo": 51,
      "perRun": [
@@ -1998,7 +1998,7 @@
       51,
       51
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.EvaluateScript": {
      "base": 23,
@@ -2254,7 +2254,7 @@
     },
     "trace.Paint": {
      "base": 178,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 178,
      "lo": 178,
      "perRun": [
@@ -2262,7 +2262,7 @@
       178,
       178
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.PaintImage": {
      "base": 171,
@@ -2290,7 +2290,7 @@
     },
     "trace.PrePaint": {
      "base": 172,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 172,
      "lo": 172,
      "perRun": [
@@ -2298,11 +2298,11 @@
       172,
       172
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RasterTask": {
      "base": 51,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 51,
      "lo": 51,
      "perRun": [
@@ -2310,7 +2310,7 @@
       51,
       51
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RequestAnimationFrame": {
      "base": 69,
@@ -2815,7 +2815,7 @@
     },
     "trace.DisplayItemListRaster": {
      "base": 63,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 63,
      "lo": 63,
      "perRun": [
@@ -2823,7 +2823,7 @@
       63,
       63
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.EvaluateScript": {
      "base": 52,
@@ -3043,7 +3043,7 @@
     },
     "trace.Paint": {
      "base": 405,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 405,
      "lo": 405,
      "perRun": [
@@ -3051,11 +3051,11 @@
       405,
       405
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.PrePaint": {
      "base": 196,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 196,
      "lo": 196,
      "perRun": [
@@ -3063,11 +3063,11 @@
       196,
       196
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RasterTask": {
      "base": 63,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 63,
      "lo": 63,
      "perRun": [
@@ -3075,7 +3075,7 @@
       63,
       63
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RequestAnimationFrame": {
      "base": 241,
@@ -3556,7 +3556,7 @@
     },
     "trace.DecodeImage": {
      "base": 14,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 14,
      "lo": 14,
      "perRun": [
@@ -3564,11 +3564,11 @@
       14,
       14
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 280,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 280,
      "lo": 280,
      "perRun": [
@@ -3576,7 +3576,7 @@
       280,
       280
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.EvaluateScript": {
      "base": 51,
@@ -3832,7 +3832,7 @@
     },
     "trace.Paint": {
      "base": 382,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 382,
      "lo": 382,
      "perRun": [
@@ -3840,7 +3840,7 @@
       382,
       382
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.PaintImage": {
      "base": 136,
@@ -3856,7 +3856,7 @@
     },
     "trace.PrePaint": {
      "base": 206,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 206,
      "lo": 206,
      "perRun": [
@@ -3864,11 +3864,11 @@
       206,
       206
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RasterTask": {
      "base": 280,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 280,
      "lo": 280,
      "perRun": [
@@ -3876,7 +3876,7 @@
       280,
       280
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RequestAnimationFrame": {
      "base": 219,
@@ -4369,7 +4369,7 @@
     },
     "trace.DisplayItemListRaster": {
      "base": 392,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 392,
      "lo": 392,
      "perRun": [
@@ -4377,7 +4377,7 @@
       392,
       392
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.EvaluateScript": {
      "base": 50,
@@ -4633,7 +4633,7 @@
     },
     "trace.Paint": {
      "base": 232,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 232,
      "lo": 232,
      "perRun": [
@@ -4641,7 +4641,7 @@
       232,
       232
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.PaintImage": {
      "base": 170,
@@ -4669,7 +4669,7 @@
     },
     "trace.PrePaint": {
      "base": 189,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 189,
      "lo": 189,
      "perRun": [
@@ -4677,11 +4677,11 @@
       189,
       189
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RasterTask": {
      "base": 392,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 392,
      "lo": 392,
      "perRun": [
@@ -4689,7 +4689,7 @@
       392,
       392
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RequestAnimationFrame": {
      "base": 263,
@@ -5194,7 +5194,7 @@
     },
     "trace.DisplayItemListRaster": {
      "base": 64,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 64,
      "lo": 64,
      "perRun": [
@@ -5202,7 +5202,7 @@
       64,
       64
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.EvaluateScript": {
      "base": 50,
@@ -5458,7 +5458,7 @@
     },
     "trace.Paint": {
      "base": 259,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 259,
      "lo": 259,
      "perRun": [
@@ -5466,7 +5466,7 @@
       259,
       259
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.PaintImage": {
      "base": 90,
@@ -5482,7 +5482,7 @@
     },
     "trace.PrePaint": {
      "base": 176,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 176,
      "lo": 176,
      "perRun": [
@@ -5490,11 +5490,11 @@
       176,
       176
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RasterTask": {
      "base": 64,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 64,
      "lo": 64,
      "perRun": [
@@ -5502,7 +5502,7 @@
       64,
       64
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RequestAnimationFrame": {
      "base": 292,
@@ -5995,7 +5995,7 @@
     },
     "trace.DecodeImage": {
      "base": 1,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 1,
      "lo": 1,
      "perRun": [
@@ -6003,11 +6003,11 @@
       1,
       1
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 40,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 40,
      "lo": 40,
      "perRun": [
@@ -6015,7 +6015,7 @@
       40,
       40
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.EvaluateScript": {
      "base": 51,
@@ -6271,7 +6271,7 @@
     },
     "trace.Paint": {
      "base": 242,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 242,
      "lo": 242,
      "perRun": [
@@ -6279,7 +6279,7 @@
       242,
       242
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.PaintImage": {
      "base": 44,
@@ -6295,7 +6295,7 @@
     },
     "trace.PrePaint": {
      "base": 192,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 192,
      "lo": 192,
      "perRun": [
@@ -6303,11 +6303,11 @@
       192,
       192
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RasterTask": {
      "base": 40,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 40,
      "lo": 40,
      "perRun": [
@@ -6315,7 +6315,7 @@
       40,
       40
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RequestAnimationFrame": {
      "base": 333,
@@ -6808,7 +6808,7 @@
     },
     "trace.DecodeImage": {
      "base": 2,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 2,
      "lo": 2,
      "perRun": [
@@ -6816,11 +6816,11 @@
       2,
       2
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 6,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 6,
      "lo": 6,
      "perRun": [
@@ -6828,7 +6828,7 @@
       6,
       6
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.EvaluateScript": {
      "base": 50,
@@ -7072,7 +7072,7 @@
     },
     "trace.Paint": {
      "base": 212,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 212,
      "lo": 212,
      "perRun": [
@@ -7080,7 +7080,7 @@
       212,
       212
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.PaintImage": {
      "base": 68,
@@ -7108,7 +7108,7 @@
     },
     "trace.PrePaint": {
      "base": 169,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 169,
      "lo": 169,
      "perRun": [
@@ -7116,11 +7116,11 @@
       169,
       169
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RasterTask": {
      "base": 6,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 6,
      "lo": 6,
      "perRun": [
@@ -7128,7 +7128,7 @@
       6,
       6
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RequestAnimationFrame": {
      "base": 325,
@@ -7621,7 +7621,7 @@
     },
     "trace.DecodeImage": {
      "base": 5,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 5,
      "lo": 5,
      "perRun": [
@@ -7629,11 +7629,11 @@
       5,
       5
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 53,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 53,
      "lo": 53,
      "perRun": [
@@ -7641,7 +7641,7 @@
       53,
       53
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.EvaluateScript": {
      "base": 50,
@@ -7885,7 +7885,7 @@
     },
     "trace.Paint": {
      "base": 192,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 192,
      "lo": 191,
      "perRun": [
@@ -7893,7 +7893,7 @@
       192,
       191
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.PaintImage": {
      "base": 18,
@@ -7909,7 +7909,7 @@
     },
     "trace.PrePaint": {
      "base": 176,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 176,
      "lo": 176,
      "perRun": [
@@ -7917,11 +7917,11 @@
       176,
       176
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RasterTask": {
      "base": 53,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 53,
      "lo": 53,
      "perRun": [
@@ -7929,7 +7929,7 @@
       53,
       53
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RequestAnimationFrame": {
      "base": 220,
@@ -8422,7 +8422,7 @@
     },
     "trace.DecodeImage": {
      "base": 3,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 3,
      "lo": 3,
      "perRun": [
@@ -8430,11 +8430,11 @@
       3,
       3
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 55,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 55,
      "lo": 55,
      "perRun": [
@@ -8442,7 +8442,7 @@
       55,
       55
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.EvaluateScript": {
      "base": 51,
@@ -8710,7 +8710,7 @@
     },
     "trace.Paint": {
      "base": 188,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 188,
      "lo": 188,
      "perRun": [
@@ -8718,7 +8718,7 @@
       188,
       188
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.PaintImage": {
      "base": 21,
@@ -8734,7 +8734,7 @@
     },
     "trace.PrePaint": {
      "base": 199,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 199,
      "lo": 199,
      "perRun": [
@@ -8742,11 +8742,11 @@
       199,
       199
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RasterTask": {
      "base": 55,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 55,
      "lo": 55,
      "perRun": [
@@ -8754,7 +8754,7 @@
       55,
       55
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RequestAnimationFrame": {
      "base": 224,
@@ -9235,7 +9235,7 @@
     },
     "trace.DisplayItemListRaster": {
      "base": 28,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 28,
      "lo": 28,
      "perRun": [
@@ -9243,7 +9243,7 @@
       28,
       28
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.EvaluateScript": {
      "base": 50,
@@ -9427,7 +9427,7 @@
     },
     "trace.Paint": {
      "base": 173,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 173,
      "lo": 173,
      "perRun": [
@@ -9435,7 +9435,7 @@
       173,
       173
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.PaintImage": {
      "base": 19,
@@ -9451,7 +9451,7 @@
     },
     "trace.PrePaint": {
      "base": 152,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 152,
      "lo": 152,
      "perRun": [
@@ -9459,11 +9459,11 @@
       152,
       152
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RasterTask": {
      "base": 28,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 28,
      "lo": 28,
      "perRun": [
@@ -9471,7 +9471,7 @@
       28,
       28
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RequestAnimationFrame": {
      "base": 175,
@@ -9952,7 +9952,7 @@
     },
     "trace.DecodeImage": {
      "base": 2,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 2,
      "lo": 2,
      "perRun": [
@@ -9960,11 +9960,11 @@
       2,
       2
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 28,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 28,
      "lo": 28,
      "perRun": [
@@ -9972,7 +9972,7 @@
       28,
       28
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.EvaluateScript": {
      "base": 13,
@@ -10216,7 +10216,7 @@
     },
     "trace.Paint": {
      "base": 42,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 42,
      "lo": 42,
      "perRun": [
@@ -10224,7 +10224,7 @@
       42,
       42
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.PaintImage": {
      "base": 4,
@@ -10252,7 +10252,7 @@
     },
     "trace.PrePaint": {
      "base": 40,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 40,
      "lo": 40,
      "perRun": [
@@ -10260,11 +10260,11 @@
       40,
       40
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RasterTask": {
      "base": 28,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 28,
      "lo": 28,
      "perRun": [
@@ -10272,7 +10272,7 @@
       28,
       28
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RequestAnimationFrame": {
      "base": 67,
@@ -10765,7 +10765,7 @@
     },
     "trace.DecodeImage": {
      "base": 6,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 6,
      "lo": 6,
      "perRun": [
@@ -10773,11 +10773,11 @@
       6,
       6
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 656,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 656,
      "lo": 656,
      "perRun": [
@@ -10785,7 +10785,7 @@
       656,
       656
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.EvaluateScript": {
      "base": 30,
@@ -11017,7 +11017,7 @@
     },
     "trace.Paint": {
      "base": 247,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 247,
      "lo": 247,
      "perRun": [
@@ -11025,7 +11025,7 @@
       247,
       247
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.PaintImage": {
      "base": 591,
@@ -11041,7 +11041,7 @@
     },
     "trace.PrePaint": {
      "base": 86,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 86,
      "lo": 86,
      "perRun": [
@@ -11049,11 +11049,11 @@
       86,
       86
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RasterTask": {
      "base": 656,
-     "class": "quarantined",
+     "class": "stable",
      "hi": 656,
      "lo": 656,
      "perRun": [
@@ -11061,7 +11061,7 @@
       656,
       656
      ],
-     "rule": "quarantined"
+     "rule": "stable"
     },
     "trace.RequestAnimationFrame": {
      "base": 45,

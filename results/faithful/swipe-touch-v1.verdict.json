@@ -9,7 +9,7 @@
  ],
  "classTable": {
   "file": "packages/measure-chromium/classes.frozen.json",
-  "sha256": "29e1635e1de2dceeaea41622bd79b3b4ce710b139e9291bec88d5e4b416b8fa2",
+  "sha256": "bfe908167305afb4879d931dc5737ba074545508b6d58e9ab8682c2d76bfc9bb",
   "image": "sha256:8f0e17f50db9e3ae59f06d12d8b2fd483ba39582999a8469fab4fd8432cff2b0"
  },
  "files": {
@@ -145,9 +145,9 @@
     "pxA": 500,
     "pxR": 500,
     "tally": {
-     "fail": 26,
-     "pass": 14,
-     "skipped": 15,
+     "fail": 28,
+     "pass": 16,
+     "skipped": 11,
      "unbanded": 11
     },
     "failed": [
@@ -165,9 +165,11 @@
      "raster.invalidationRects",
      "trace.Animation.begin",
      "trace.Animation.instant",
+     "trace.DisplayItemListRaster",
      "trace.FireAnimationFrame",
      "trace.Layer.created",
      "trace.PaintImage",
+     "trace.RasterTask",
      "trace.RequestAnimationFrame",
      "trace.ScheduleStyleRecalculation",
      "trace.UpdateLayoutTree",
@@ -292,6 +294,14 @@
       "r": 15
      },
      {
+      "type": "trace.DisplayItemListRaster",
+      "family": "pct10",
+      "loA": 28,
+      "hiA": 28,
+      "a": 28,
+      "r": 20
+     },
+     {
       "type": "trace.FireAnimationFrame",
       "family": "exact",
       "loA": 175,
@@ -354,6 +364,14 @@
       "hiA": 19,
       "a": 19,
       "r": 11
+     },
+     {
+      "type": "trace.RasterTask",
+      "family": "pct10",
+      "loA": 28,
+      "hiA": 28,
+      "a": 28,
+      "r": 20
      },
      {
       "type": "trace.RequestAnimationFrame",
@@ -422,8 +440,8 @@
     "pxR": 129,
     "tally": {
      "fail": 14,
-     "pass": 27,
-     "skipped": 14,
+     "pass": 31,
+     "skipped": 10,
      "unbanded": 12
     },
     "failed": [
@@ -585,8 +603,8 @@
     "pxR": 0,
     "tally": {
      "fail": 10,
-     "pass": 31,
-     "skipped": 14,
+     "pass": 35,
+     "skipped": 10,
      "unbanded": 11
     },
     "failed": [
@@ -718,8 +736,8 @@
     "pxR": 500,
     "tally": {
      "fail": 0,
-     "pass": 35,
-     "skipped": 15,
+     "pass": 39,
+     "skipped": 11,
      "unbanded": 11
     },
     "failed": [],
@@ -737,8 +755,8 @@
     "pxR": 129,
     "tally": {
      "fail": 0,
-     "pass": 41,
-     "skipped": 13,
+     "pass": 45,
+     "skipped": 9,
      "unbanded": 12
     },
     "failed": [],
@@ -756,8 +774,8 @@
     "pxR": 0,
     "tally": {
      "fail": 0,
-     "pass": 41,
-     "skipped": 14,
+     "pass": 45,
+     "skipped": 10,
      "unbanded": 11
     },
     "failed": [],
@@ -1007,7 +1025,7 @@
       "hi": 28,
       "lo": 28,
       "r": 20,
-      "status": "skipped"
+      "status": "fail"
      },
      "trace.EvaluateScript": {
       "a": 50,
@@ -1191,7 +1209,7 @@
       "hi": 173,
       "lo": 173,
       "r": 175,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.PaintImage": {
       "a": 19,
@@ -1207,7 +1225,7 @@
       "hi": 152,
       "lo": 152,
       "r": 171,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.RasterTask": {
       "a": 28,
@@ -1215,7 +1233,7 @@
       "hi": 28,
       "lo": 28,
       "r": 20,
-      "status": "skipped"
+      "status": "fail"
      },
      "trace.RequestAnimationFrame": {
       "a": 175,
@@ -1321,9 +1339,11 @@
      "raster.invalidationRects",
      "trace.Animation.begin",
      "trace.Animation.instant",
+     "trace.DisplayItemListRaster",
      "trace.FireAnimationFrame",
      "trace.Layer.created",
      "trace.PaintImage",
+     "trace.RasterTask",
      "trace.RequestAnimationFrame",
      "trace.ScheduleStyleRecalculation",
      "trace.UpdateLayoutTree",
@@ -1343,9 +1363,9 @@
     "pxR": 500,
     "shape": true,
     "tally": {
-     "fail": 26,
-     "pass": 14,
-     "skipped": 15,
+     "fail": 28,
+     "pass": 16,
+     "skipped": 11,
      "unbanded": 11
     }
    },
@@ -1589,7 +1609,7 @@
       "hi": 28,
       "lo": 28,
       "r": 22,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.EvaluateScript": {
       "a": 13,
@@ -1765,7 +1785,7 @@
       "hi": 42,
       "lo": 42,
       "r": 40,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.PaintImage": {
       "a": 4,
@@ -1789,7 +1809,7 @@
       "hi": 40,
       "lo": 40,
       "r": 40,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.RasterTask": {
       "a": 28,
@@ -1797,7 +1817,7 @@
       "hi": 28,
       "lo": 28,
       "r": 22,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.RequestAnimationFrame": {
       "a": 67,
@@ -1914,8 +1934,8 @@
     "shape": true,
     "tally": {
      "fail": 14,
-     "pass": 27,
-     "skipped": 14,
+     "pass": 31,
+     "skipped": 10,
      "unbanded": 12
     }
    },
@@ -2167,7 +2187,7 @@
       "hi": 656,
       "lo": 656,
       "r": 656,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.EvaluateScript": {
       "a": 30,
@@ -2343,7 +2363,7 @@
       "hi": 247,
       "lo": 247,
       "r": 236,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.PaintImage": {
       "a": 591,
@@ -2359,7 +2379,7 @@
       "hi": 86,
       "lo": 86,
       "r": 81,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.RasterTask": {
       "a": 656,
@@ -2367,7 +2387,7 @@
       "hi": 656,
       "lo": 656,
       "r": 656,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.RequestAnimationFrame": {
       "a": 45,
@@ -2472,8 +2492,8 @@
     "shape": true,
     "tally": {
      "fail": 10,
-     "pass": 31,
-     "skipped": 14,
+     "pass": 35,
+     "skipped": 10,
      "unbanded": 11
     }
    }
@@ -2715,7 +2735,7 @@
       "hi": 28,
       "lo": 28,
       "r": 28,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.EvaluateScript": {
       "a": 50,
@@ -2859,7 +2879,7 @@
       "hi": 173,
       "lo": 173,
       "r": 173,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.PaintImage": {
       "a": 19,
@@ -2875,7 +2895,7 @@
       "hi": 152,
       "lo": 152,
       "r": 152,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.RasterTask": {
       "a": 28,
@@ -2883,7 +2903,7 @@
       "hi": 28,
       "lo": 28,
       "r": 28,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.RequestAnimationFrame": {
       "a": 175,
@@ -2985,8 +3005,8 @@
     "shape": true,
     "tally": {
      "fail": 0,
-     "pass": 35,
-     "skipped": 15,
+     "pass": 39,
+     "skipped": 11,
      "unbanded": 11
     }
    },
@@ -3230,7 +3250,7 @@
       "hi": 28,
       "lo": 28,
       "r": 28,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.EvaluateScript": {
       "a": 13,
@@ -3398,7 +3418,7 @@
       "hi": 42,
       "lo": 42,
       "r": 42,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.PaintImage": {
       "a": 4,
@@ -3422,7 +3442,7 @@
       "hi": 40,
       "lo": 40,
       "r": 40,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.RasterTask": {
       "a": 28,
@@ -3430,7 +3450,7 @@
       "hi": 28,
       "lo": 28,
       "r": 28,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.RequestAnimationFrame": {
       "a": 67,
@@ -3532,8 +3552,8 @@
     "shape": true,
     "tally": {
      "fail": 0,
-     "pass": 41,
-     "skipped": 13,
+     "pass": 45,
+     "skipped": 9,
      "unbanded": 12
     }
    },
@@ -3785,7 +3805,7 @@
       "hi": 656,
       "lo": 656,
       "r": 656,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.EvaluateScript": {
       "a": 30,
@@ -3961,7 +3981,7 @@
       "hi": 247,
       "lo": 247,
       "r": 247,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.PaintImage": {
       "a": 591,
@@ -3977,7 +3997,7 @@
       "hi": 86,
       "lo": 86,
       "r": 86,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.RasterTask": {
       "a": 656,
@@ -3985,7 +4005,7 @@
       "hi": 656,
       "lo": 656,
       "r": 656,
-      "status": "skipped"
+      "status": "pass"
      },
      "trace.RequestAnimationFrame": {
       "a": 45,
@@ -4079,8 +4099,8 @@
     "shape": true,
     "tally": {
      "fail": 0,
-     "pass": 41,
-     "skipped": 14,
+     "pass": 45,
+     "skipped": 10,
      "unbanded": 11
     }
    }

@@ -21,7 +21,7 @@ const own = (cells) => wireKeys(cells);
 const TRUTH_ROWS = ['matchMedia orig=rewrite', 'matchMedia =Lean', 'matchMedia legacy text'];
 
 test('golden: the file has the registry, the universe, the narrowed excuse and every kind of case', () => {
-  assert.equal(golden.filter((g) => g.kind === 'exemption').length, 9);
+  assert.equal(golden.filter((g) => g.kind === 'exemption').length, 5);
   assert.equal(golden.filter((g) => g.kind === 'universe').length, 1);
   assert.equal(golden.filter((g) => g.kind === 'narrowed').length, 1);
   assert.ok(engines.length >= 55);
@@ -44,23 +44,14 @@ test('the universe is the table summary.mjs builds: the matchMedia rows and the 
   assert.equal(new Set(reg.universe.map((k) => JSON.stringify(k))).size, u.size, 'no key twice');
 });
 
-test('the registry cli.mjs reads is the one Lean generated: nine exemptions, each listing its rows and ids (no wildcard), all in the universe', () => {
+test('the registry cli.mjs reads is the one Lean generated: five exemptions, each listing its rows and ids (no wildcard), all in the universe', () => {
   const reg = loadRegistry();
   const u = golden.find((g) => g.kind === 'universe');
   const keys = new Set(reg.universe.map((k) => JSON.stringify(k)));
   assert.deepEqual(reg.exemptions.map((x) => x.id), ['webkit-cross-primary-pair', 'webkit-fractional-whole-width', 'chromium-matchmedia-lean-fractional',
-    'chromium-touch-1024-no-vector', 'webkit-touch-1024-no-vector', 'chromium-commission-resize-desktop', 'chromium-commission-resize-touch',
-    'chromium-commission-resize-pain', 'chromium-commission-typing-resize-desktop']);
-  const resizeKeys = reg.exemptions.filter((x) => x.verdict === 'fail').flatMap((x) => x.rows.flatMap((row) => x.ids.map((id) => [x.engine, row, x.col, id].join('|'))));
-  const stops = (w, is) => is.map((i) => `${w}#${i}`);
-  const want = [...stops('desktop-1512-320-1512', Array.from({ length: 45 }, (_, i) => i + 7)).map((id) => `chromium|commission|sweep:desktop-1512-320-1512|${id}`),
-    ...stops('touch-1024-1201', [2, 4]).map((id) => `chromium|commission|sweep:touch-1024-1201|${id}`),
-    ...stops('pain-1440-600-1440', [0, 2, 4]).map((id) => `chromium|commission|sweep:pain-1440-600-1440|${id}`),
-    ...stops('desktop-1512-320-1512', [17, 18, 19, 29, 39, 40, 41]).map((id) => `chromium|commission.typing|sweep:desktop-1512-320-1512|${id}`)];
-  assert.deepEqual(resizeKeys, want, 'the fail exemptions are exactly the 57 Chromium commission readings of run 39139490674');
+    'chromium-touch-1024-no-vector', 'webkit-touch-1024-no-vector']);
   for (const x of reg.exemptions) {
-    assert.ok(x.verdict !== 'pass', x.id);
-    if (x.verdict === 'fail') assert.ok(x.engine === 'chromium' && x.premise === 'Fw.Gate.Exit.commission_resize_scope' && x.reason.startsWith('commission port unfaithful under live resize'), x.id);
+    assert.ok(x.verdict !== 'pass' && x.verdict !== 'fail', x.id);
     assert.ok(x.reason.length > 20 && /^Fw\.Gate\.[A-Za-z0-9_.]+$/.test(x.premise), x.id);
     assert.ok(Array.isArray(x.rows) && x.rows.length > 0 && Array.isArray(x.ids) && x.ids.length > 0, x.id);
     assert.ok(!('row' in x), x.id);
@@ -103,14 +94,15 @@ test('golden: the universe cases (a missing, extra, doubled or misplaced reading
   assert.ok(ok.some((g) => perm(g) && JSON.stringify(wireKeys(g.cells)) !== JSON.stringify(g.universe) && g.verdict === 'pass'));
 });
 
-test('golden: the cases cover the rule (an unexcused not-comparable or unreachable reading is not a pass, even beside passes; a fail is excused only as a listed commission-resize reading)', () => {
+test('golden: the cases cover the rule (an unexcused not-comparable or unreachable reading is not a pass, even beside passes; no fail is excused)', () => {
   const ok = engines.filter((g) => g.error === undefined && g.verdict !== 'refused');
   const unexcused = (g, name) => g.cells.some(([row, col, rs]) => rs.some(([id, n]) => (name instanceof RegExp ? name.test(n) : n === name)
     && excuseReading(g.engine, row, col, { id, v: n }) === null));
   assert.ok(ok.filter((g) => unexcused(g, 'not-comparable')).every((g) => g.verdict !== 'pass'));
   assert.ok(ok.filter((g) => unexcused(g, /^unreachable/)).every((g) => g.verdict !== 'pass'));
   assert.ok(ok.filter((g) => unexcused(g, 'fail')).every((g) => g.verdict === 'fail'));
-  assert.ok(ok.some((g) => readings(g).some((r) => r[1] === 'fail') && !unexcused(g, 'fail') && g.verdict === 'pass'));
+  assert.ok(ok.some((g) => readings(g).some((r) => r[1] === 'fail')));
+  assert.ok(!ok.some((g) => readings(g).some((r) => r[1] === 'fail') && !unexcused(g, 'fail')));
   assert.ok(ok.filter((g) => !g.narrowed && g.cells.some((c) => c[2].length === 0)).every((g) => g.verdict !== 'pass'));
   assert.ok(ok.filter((g) => g.narrowed && g.cells.some((c) => c[2].length === 0)).some((g) => g.verdict === 'pass'));
   assert.ok(ok.some((g) => g.exempt.length > 0 && g.verdict === 'pass'));
