@@ -5,19 +5,22 @@ import Fw.Gate.State
 The page root clips horizontal overflow (original `.start-selling`, rewrite `[data-fw="page-root"]`: `overflow-x: clip`). Without the
 clip, content wider than the viewport widens the layout viewport under mobile emulation (CI run 39130842058: 645 px for a 430 px
 profile) and every width-dependent count is measured on another page. The anchor says, on each arm: the document's `scrollWidth`
-does not exceed the width the probe **requested**.
+does not exceed the viewport the engines give for the width the probe **requested**: $\lceil q \rceil$.
+
+**Which viewport: $\lceil q \rceil$.** Both engines take whole CSS px (`packages/gate-breakpoints/src/engines.mjs:37-38`: a request of
+600.5 gets a 601 px viewport, MEASURED), so the page's `scrollWidth` is an integer at least the viewport the engine gave. The
+first version compared it with $q$ itself and so called every fractional probe an overflow. `fits` uses the viewport the engines
+actually give, `viewportOf q = ⌈q⌉` (`#guard viewportOf 600.5 == 601`); for a whole $q$ nothing changes (`viewportOf_int`).
 
 **Why the requested width and not `innerWidth`.** The first model (round 1 of `faithful-checks-rerun`, ledger finding
 `gate.pageRoot.fixedInnerWidth`) compared `scrollWidth` with `innerWidth`. In the 645 px run `innerWidth` was 645 too, so the
 anchor held for exactly the run it was written to catch. The requested width is an input of the probe (`Requested.width`), not a
-reading of the page, so an enlarged layout viewport cannot move it.
+reading of the page, so an enlarged layout viewport cannot move it; $\lceil q \rceil$ is a function of that input alone.
 
-**Limit (stated, not proved here).** The item takes the requested width as the width the page has. It does not check that
-`innerWidth` equals it. That is the job of the environment check `width` (`Fw.Gate.envChecks`, the `(width: Wpx)` media query),
+**Limit (stated, not proved here).** The item takes the requested width (rounded up) as the width the page has. It does not check
+that `innerWidth` equals it. That is the job of the environment check `width` (`Fw.Gate.envChecks`, the `(width: Wpx)` media query),
 of `Fw.Measure.Viewport.viewportFaithful` and of `Fw.Faithful.comparable`. An arm whose layout viewport is wider than requested
-shows up here as `scrollWidth > requested` (differ), and there as a deviation. `scrollWidth` is an integer on the pages and every
-requested width of the matrix is an integer (`scope.gen.json`), so no rounding is involved; a fractional requested width would
-need a rule of its own. The item is a box item of part `engine.scroll`, role `pageRoot`, appended to the part's items, so it rolls
+shows up here as `scrollWidth > ⌈requested⌉` (differ), and there as a deviation. `scrollWidth` is an integer on the pages. The item is a box item of part `engine.scroll`, role `pageRoot`, appended to the part's items, so it rolls
 up with `cellVerdict` like every other item.
 
 Proved: each branch of the status has its own theorem (`status_missing_left`, `status_missing_right`, `status_na`,
@@ -29,10 +32,15 @@ cell that already compared something (`cell_append_equal`); an arm pair that rep
 namespace Fw.Gate.PageRoot
 open Fw.Gate
 
-/-- The anchor on one arm: no horizontal overflow beyond the requested width.
+/-- The viewport the engines give for a requested width: the next whole CSS px (`engines.mjs:37-38`: 600.5 gives 601).
 
-$$\operatorname{fits}(q, s) \iff s \le q \qquad (s = \texttt{scrollWidth},\ q = \text{requested width};\ s, q \in \mathbb Q)$$ -/
-def fits (req s : Rat) : Bool := decide (s ≤ req)
+$$\operatorname{viewportOf}(q) = \lceil q \rceil \qquad (q \in \mathbb Q)$$ -/
+def viewportOf (req : Rat) : Rat := (Rat.ceil req : Int)
+
+/-- The anchor on one arm: no horizontal overflow beyond the viewport the engines give for the requested width.
+
+$$\operatorname{fits}(q, s) \iff s \le \lceil q \rceil \qquad (s = \texttt{scrollWidth},\ q = \text{requested width};\ s, q \in \mathbb Q)$$ -/
+def fits (req s : Rat) : Bool := decide (s ≤ viewportOf req)
 
 /-- The status of the anchor item for one probe: the original is the control, the rewrite is judged.
 
@@ -76,9 +84,10 @@ def addRoot (req : Rat) (o r : Option Rat) (ps : List (String × List PItem)) : 
 /-- One state judged with the anchor: `evalState` with the item added to `engine.scroll`, then the rows, the compared counts and
 the verdict taken again from the new part table (the truth items and the reach are those of `evalState`).
 
-$$\operatorname{evalRoot}(C, s, o, r) = \operatorname{evalState}(C, s)\ \text{with}\ \Pi' = \operatorname{add}_{s.\mathrm{requested}.\mathrm{width}}(o, r, \Pi),\ \mathit{rows}' = \operatorname{reachRows}(\operatorname{reach}, \operatorname{rowVerdicts}(T, \Pi')),\ \mathit{verdict}' = \operatorname{rollup}(\mathit{rows}')$$
+$$\operatorname{evalRoot}(C, s, o, r) = \operatorname{evalState}(C, s)\ \text{with}\ \Pi' = \operatorname{add}_{s.\mathrm{requested}.\mathrm{width}}(o, r, \Pi),\ \mathit{rows}' = \operatorname{reachRows}(\operatorname{reach}, \operatorname{rowVerdicts}(T, \Pi')),\ \mathit{compared}' = [\,(p, |\{\iota \in I : \iota \text{ is compared}\}|) \mid (p, I) \in \Pi'\,],\ \mathit{verdict}' = \operatorname{rollup}(\mathit{rows}')$$
 
-Here $o, r$ are the `scrollWidth` of the original and the rewrite arm. -/
+Here $o, r$ are the `scrollWidth` of the original and the rewrite arm; $\mathit{compared}'$ is recomputed from the new part table $\Pi'$
+(an item that compares something raises the count of `engine.scroll` by one), not carried over from $\operatorname{evalState}$. -/
 def evalStateRoot (c : Ctx) (s : StateIn) (o r : Option Rat) : StateOut :=
   let e := evalState c s
   let ps := addRoot s.requested.width o r e.parts
@@ -88,11 +97,35 @@ def evalStateRoot (c : Ctx) (s : StateIn) (o r : Option Rat) : StateOut :=
 
 /-! ## The status, branch by branch -/
 
-/-- A fit is exactly a scroll width within the requested width.
+/-- A fit is exactly a scroll width within the viewport the engines give.
 
-$$\operatorname{fits}(q, s) = \mathrm{true} \iff s \le q$$ -/
-theorem fits_iff (req s : Rat) : fits req s = true ↔ s ≤ req := by
+$$\operatorname{fits}(q, s) = \mathrm{true} \iff s \le \lceil q \rceil$$ -/
+theorem fits_iff (req s : Rat) : fits req s = true ↔ s ≤ viewportOf req := by
   simp [fits]
+
+/-- The viewport is never narrower than the request.
+
+$$q \le \lceil q \rceil$$ -/
+theorem le_viewportOf (req : Rat) : req ≤ viewportOf req := Rat.le_ceil
+
+/-- For a whole requested width the viewport is the request itself: whole widths are judged as before.
+
+$$\forall n \in \mathbb Z,\quad \lceil n \rceil = n$$ -/
+theorem viewportOf_int (n : Int) : viewportOf (n : Rat) = n := by
+  simp [viewportOf, Rat.ceil_intCast]
+
+/-- A fractional request is judged against the next whole px: a page of that width fits, a page one px wider does not.
+
+$$\lceil 600.5 \rceil = 601 \ \wedge\ \operatorname{fits}(600.5, 601) \ \wedge\ \neg\operatorname{fits}(600.5, 602)$$ -/
+theorem fits_fractional_example :
+    viewportOf (1201 / 2) = 601 ∧ fits (1201 / 2) 601 = true ∧ fits (1201 / 2) 602 = false := by
+  decide +kernel
+
+/-- A scroll width within the request itself fits.
+
+$$s \le q \implies \operatorname{fits}(q, s)$$ -/
+theorem fits_of_le (req s : Rat) (h : s ≤ req) : fits req s = true :=
+  (fits_iff _ _).mpr (Rat.le_trans h (le_viewportOf req))
 
 /-- An original that was not observed gives `missing`.
 
@@ -108,8 +141,8 @@ theorem status_missing_right (req : Rat) (o : Option Rat) : status req o none = 
 
 /-- An overflowing original is never a verdict: the item is `na`, whatever the rewrite does.
 
-$$o > q \implies \operatorname{status}_q(o, r) = \mathrm{na} \qquad (o, r \in \mathbb Q)$$ -/
-theorem status_na (req o r : Rat) (h : req < o) : status req (some o) (some r) = .na := by
+$$o > \lceil q \rceil \implies \operatorname{status}_q(o, r) = \mathrm{na} \qquad (o, r \in \mathbb Q)$$ -/
+theorem status_na (req o r : Rat) (h : viewportOf req < o) : status req (some o) (some r) = .na := by
   have : fits req o = false := by
     simp [fits, Rat.not_le.mpr h]
   simp [status, this]
@@ -213,10 +246,10 @@ theorem evalStateRoot_none (c : Ctx) (s : StateIn) : evalStateRoot c s none none
 /-- **A differing anchor fails the state.** On a reachable state with part `engine.scroll` covered, an original that fits and a
 rewrite that overflows the requested width give verdict `fail`.
 
-$$\forall C, s,\ \texttt{engine.scroll} \in C.\mathrm{parts} \wedge \operatorname{reach}(C, s) = \bot \wedge o \le q \wedge q < r \implies \operatorname{evalRoot}(C, s, \mathrm{some}\ o, \mathrm{some}\ r).\mathit{verdict} = \mathrm{fail}$$ -/
+$$\forall C, s,\ \texttt{engine.scroll} \in C.\mathrm{parts} \wedge \operatorname{reach}(C, s) = \bot \wedge o \le \lceil q \rceil \wedge \lceil q \rceil < r \implies \operatorname{evalRoot}(C, s, \mathrm{some}\ o, \mathrm{some}\ r).\mathit{verdict} = \mathrm{fail}$$ -/
 theorem evalStateRoot_fail_of_differ (c : Ctx) (s : StateIn) (o r : Rat)
     (hp : ∃ sp ∈ c.parts, sp.id = partId) (h0 : stateReach c s = none)
-    (ho : o ≤ s.requested.width) (hr : s.requested.width < r) :
+    (ho : o ≤ viewportOf s.requested.width) (hr : viewportOf s.requested.width < r) :
     (evalStateRoot c s (some o) (some r)).verdict = .fail := by
   obtain ⟨sp, hsp, hid⟩ := hp
   have hdiff : status s.requested.width (some o) (some r) = .differ :=
@@ -250,33 +283,40 @@ theorem evalStateRoot_fail_of_differ (c : Ctx) (s : StateIn) (o r : Rat)
 $$\operatorname{scrollW}(c, v, W) = \begin{cases} v & c \\ \max(v, W) & \neg c \end{cases} \qquad (c \in \mathbb B,\ v, W \in \mathbb Q)$$
 
 With `overflow-x: clip` on the page root the content's width cannot extend the scrollable area; without it the scroll width is
-the content's. The layout viewport itself is not modelled: `v` is the requested width. -/
+the content's. The layout viewport itself is not modelled: `v` is the viewport the engines give, `viewportOf q`. -/
 def scrollWidthOf (clip : Bool) (viewport content : Rat) : Rat :=
   if clip then viewport else if viewport ≤ content then content else viewport
 
 /-- With the clip, the anchor holds for any content width.
 
-$$\forall q, W \in \mathbb Q,\quad \operatorname{fits}(q, \operatorname{scrollW}(\mathrm{true}, q, W))$$ -/
-theorem clip_fits (q w : Rat) : fits q (scrollWidthOf true q w) = true := by
+$$\forall q, W \in \mathbb Q,\quad \operatorname{fits}(q, \operatorname{scrollW}(\mathrm{true}, \lceil q \rceil, W))$$ -/
+theorem clip_fits (q w : Rat) : fits q (scrollWidthOf true (viewportOf q) w) = true := by
   simp [fits, scrollWidthOf]
 
-/-- Without the clip, content wider than the requested width breaks the anchor.
+/-- Without the clip, content wider than the viewport breaks the anchor.
 
-$$\forall q, W \in \mathbb Q,\quad q < W \implies \neg\operatorname{fits}(q, \operatorname{scrollW}(\mathrm{false}, q, W))$$ -/
-theorem noclip_overflows (q w : Rat) (h : q < w) : fits q (scrollWidthOf false q w) = false := by
+$$\forall q, W \in \mathbb Q,\quad \lceil q \rceil < W \implies \neg\operatorname{fits}(q, \operatorname{scrollW}(\mathrm{false}, \lceil q \rceil, W))$$ -/
+theorem noclip_overflows (q w : Rat) (h : viewportOf q < w) :
+    fits q (scrollWidthOf false (viewportOf q) w) = false := by
   simp [fits, scrollWidthOf, Rat.le_of_lt h, Rat.not_le.mpr h]
 
-/-- Without the clip, content no wider than the requested width keeps the anchor.
+/-- Without the clip, content no wider than the viewport keeps the anchor.
 
-$$\forall q, W \in \mathbb Q,\quad W \le q \implies \operatorname{fits}(q, \operatorname{scrollW}(\mathrm{false}, q, W))$$ -/
-theorem noclip_fits_of_le (q w : Rat) (h : w ≤ q) : fits q (scrollWidthOf false q w) = true := by
-  by_cases hv : q ≤ w
-  · have : w = q := Rat.le_antisymm h hv
+$$\forall q, W \in \mathbb Q,\quad W \le \lceil q \rceil \implies \operatorname{fits}(q, \operatorname{scrollW}(\mathrm{false}, \lceil q \rceil, W))$$ -/
+theorem noclip_fits_of_le (q w : Rat) (h : w ≤ viewportOf q) :
+    fits q (scrollWidthOf false (viewportOf q) w) = true := by
+  by_cases hv : viewportOf q ≤ w
+  · have : w = viewportOf q := Rat.le_antisymm h hv
     simp [fits, scrollWidthOf, this]
   · simp [fits, scrollWidthOf, hv]
 
 /-! ## Examples -/
 
+#guard viewportOf 600.5 == 601
+#guard viewportOf 430 == 430
+#guard status 600.5 (some 601) (some 601) == .equal
+#guard status 600.5 (some 601) (some 602) == .differ
+#guard status 600.5 (some 602) (some 601) == .na
 #guard status 430 (some 430) (some 430) == .equal
 #guard status 430 (some 430) (some 645) == .differ
 #guard status 430 (some 645) (some 430) == .na

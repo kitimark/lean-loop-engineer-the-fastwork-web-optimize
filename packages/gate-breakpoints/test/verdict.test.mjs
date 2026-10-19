@@ -148,7 +148,7 @@ test('anchors that drop a comparison without a reason are refused', () => {
   assert.throws(() => evaluate({ ...ctx, anchors: bad }, [{ requested, orig: arm(), rewrite: arm() }]), /without a reason/);
 });
 
-test('page-root anchor: each arm scrollWidth <= the requested width, judged by Lean (Fw.Gate.PageRoot)', () => {
+test('page-root anchor: each arm scrollWidth <= the viewport the engines give (the requested width rounded up), judged by Lean (Fw.Gate.PageRoot)', () => {
   const rootAnchors = { style: anchors.style, parts: { 'engine.scroll': { roles: [{ role: 'pageRoot', boxRel: null, dims: [], skipSets: [], skipProps: [], why: 'the page root' }] } } };
   const rootCtx = context({ anchors: rootAnchors, parts: ['engine.scroll'], props: {}, deviceEdges: [[500, 501]] });
   const req = { ...requested, width: 430, deviceWidth: 430 };
@@ -165,4 +165,9 @@ test('page-root anchor: each arm scrollWidth <= the requested width, judged by L
   assert.equal(run({ scrollWidth: 645 }, { scrollWidth: 645 }).compared['engine.scroll'], 1);
   assert.equal(run({ scrollWidth: 430 }, {}).fails['engine.scroll'][0].status, 'missing');
   assert.equal(run({}, {}).compared['engine.scroll'], 1);
+  // a fractional request gets the next whole px (engines.mjs): 600.5 -> 601 fits, 602 does not
+  const frac = (o, r) => evaluate(rootCtx, [{ requested: { ...req, width: 600.5 }, orig: rootArm(o), rewrite: rootArm(r), expect: { a: true, b: false }, expectNeutral: { print: false } }]).states[0];
+  assert.equal(frac({ scrollWidth: 601 }, { scrollWidth: 601 }).rows['engine.scroll'], 'pass');
+  assert.equal(frac({ scrollWidth: 601 }, { scrollWidth: 602 }).verdict, 'fail');
+  assert.equal(frac({ scrollWidth: 602 }, { scrollWidth: 602 }).compared['engine.scroll'], 1);
 });

@@ -31,7 +31,7 @@
       ],
       "cites": [
         "rewrite: EngineScroll marks the document element with data-fw=\"engine-scroll\" once mounted; original: the page scrolls the document and its callbacks run on the window scroll, 2.DyWL8TcE.js:2667-2782",
-        "rewrite: apps/site wraps main in div[data-fw=\"page-root\"] with the original rule (min-width 320px, direction ltr, overflow-x clip); original: .start-selling, 2.gBuqKVzi.css:1. Lean: Fw.Gate.PageRoot (item scrollWidth <= requested width on each arm, theorems clip_fits, noclip_overflows, evalStateRoot_fail_of_differ). Limit: the item uses the requested width as the page width; that innerWidth equals it is the environment check width and Fw.Faithful.comparable, not this item"
+        "rewrite: apps/site wraps main in div[data-fw=\"page-root\"] with the original rule (min-width 320px, direction ltr, overflow-x clip); original: .start-selling, 2.gBuqKVzi.css:1. Lean: Fw.Gate.PageRoot (item scrollWidth <= ceil(requested width), the viewport the engines give, on each arm; theorems clip_fits, noclip_overflows, evalStateRoot_fail_of_differ). Limit: the item uses the requested width (rounded up) as the page width; that innerWidth equals it is the environment check width and Fw.Faithful.comparable, not this item"
       ],
       "roles": [
         {
@@ -66,7 +66,7 @@
           "dims": [],
           "skipSets": [],
           "skipProps": [],
-          "why": "the page root whose clip (overflow-x: clip) keeps content wider than the viewport from enlarging the layout viewport under mobile emulation (CI run 39130842058: 645 px for 430 px). Only its count is compared here; the item that holds the anchor is added by Lean to this role: fits(arm) := the arm's document scrollWidth <= the requested width (Fw.Gate.PageRoot, key scrollWidth<=requestedWidth), read by page.mjs as viewport.scrollWidth"
+          "why": "the page root whose clip (overflow-x: clip) keeps content wider than the viewport from enlarging the layout viewport under mobile emulation (CI run 39130842058: 645 px for 430 px). Only its count is compared here; the item that holds the anchor is added by Lean to this role: fits(arm) := the arm's document scrollWidth <= ceil(the requested width), the viewport the engines give (Fw.Gate.PageRoot, key scrollWidth<=requestedWidth), read by page.mjs as viewport.scrollWidth"
         }
       ]
     },

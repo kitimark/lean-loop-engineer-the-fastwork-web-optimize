@@ -1,30 +1,30 @@
-# Handoff gate-page-root-anchor
+# Handoff gate-page-root-anchor (fix round 1)
 
-State: branch worktree-wf_11ac09ad-a60-5 (pushed as ci/gate-page-root-anchor). Measurement run id: 39190672752 (see CI).
+State: branch worktree-wf_11ac09ad-a60-5 (pushed as ci/gate-page-root-anchor for the measurement run 39190672752 at the older head).
+Fix round 1 is unpushed: no new dispatch; the numbers below are recomputed from that run's raw records.
 
 Done (PROVED in Lean, wired, tested):
-- lean/Fw/Gate/PageRoot.lean: `fits q s := s <= q` (q = requested width, NOT innerWidth: ledger gate.pageRoot.fixedInnerWidth),
-  `status` with one theorem per branch (status_missing_left/right, status_na, status_equal_iff, status_differ_iff), cell_pass_iff,
-  cell_fail_iff, cell_append_equal (an equal item changes no cell that already compared something), pageRootItems_none /
-  addRoot_none / evalStateRoot_none (nothing reported = evalState), evalStateRoot_fail_of_differ, clip_fits, noclip_overflows.
-- lean/Fw/Wire/Gate.lean: gate.state reads `viewport.scrollWidth` of each arm and judges with `evalStateRoot` (reply shape unchanged;
-  item = box, role pageRoot, key scrollWidth<=requestedWidth, part engine.scroll). 6 guards.
-- lean/Fw/Gate/Coverage.lean: the `engine.scroll` wildcard role claim is replaced by one claim per role (scroller, content, pageRoot);
-  theorems engine_scroll_no_wildcard, pageRootItems_covered; coverage.jsonl regenerated (26 claims).
-- page.mjs records `viewport.scrollWidth`; anchors.json role pageRoot (dims [], count only) + cite; verdict.mjs shows the arms' scrollWidth for
-  a failing anchor (a/b); test in packages/gate-breakpoints/test/verdict.test.mjs.
+- lean/Fw/Gate/PageRoot.lean: `viewportOf q := ceil q` (the viewport the engines give, engines.mjs:37-38: 600.5 -> 601) and
+  `fits q s := s <= viewportOf q`. Theorems: fits_iff, le_viewportOf, viewportOf_int (whole widths judged as before),
+  fits_fractional_example, fits_of_le; per-branch status theorems (status_missing_left/right, status_na, status_equal_iff,
+  status_differ_iff), cell_pass_iff, cell_fail_iff, cell_append_equal, pageRootItems_none/_some, addRoot_none, evalStateRoot_none,
+  evalStateRoot_fail_of_differ, clip_fits, noclip_overflows, noclip_fits_of_le (all against `viewportOf q`). #guards: 600.5 -> 601.
+- evalStateRoot LaTeX states compared' recomputed from the new part table Pi' (not carried over from evalState).
+- lean/Fw/Wire/Gate.lean: gate.state reads each arm's `viewport.scrollWidth`, judges with `evalStateRoot`; 2 new guards (600.5 with 601 pass, 602 fail).
+- Coverage.lean: one claim per role of engine.scroll (no wildcard); coverage.jsonl is current (`--check` exit 0).
+- page.mjs records `viewport.scrollWidth`; anchors.json role pageRoot + cites say ceil(requested); verdict.mjs shows the arms' scrollWidth;
+  verdict.test.mjs has a fractional case.
 
-Limits (accepted): the item takes the requested width as the page width; `innerWidth = requested` is not checked here (environment
-check `width`, Fw.Measure.Viewport.viewportFaithful, Fw.Faithful.comparable). Requested widths are integers (scope.gen.json), scrollWidth
-is an integer; a fractional width would need its own rule. Records without `viewport.scrollWidth` on both arms add no item (older raw
-runs keep their verdicts). The item's coverage source is `exempt transcribedEmpiricalOnly` (the clip rule is hand-restated CSS in
-apps/site reset.css); count probe of role pageRoot stays uncovered like every count probe. The `compared` count of engine.scroll is +1 in
-the summary (expected). TS stand-ins: none (decision is Lean; verdict.mjs only shapes the display value).
+CI (run 39190672752, breakpoint-gate dispatch, head fc222d6b; recomputed with the new item from the merged raw records of both engines):
+- old item (s <= q): 117 equal, na 7 = 3 at 319 (min-width 320) + 4 fractional (viewport rounded up), 0 differ, 0 missing.
+- new item (s <= ceil q): 121 equal, na 3 (the 319 probes: the original is 320 wide by min-width 320), 0 differ, 0 missing; same on chromium and playwright-webkit.
+- engine.scroll row: pass in every reachable cell; webkit hover-pointer-cross and fractional-gaps UNREACHABLE (environment not achieved).
+- The run is red only by playwright-webkit "incomplete": matchMedia =Lean | sweep:phone-rotation (not our row; open item, not baselined on main).
+
+Accepted limits: `innerWidth = requested (rounded)` is not checked by this item (environment check width, Fw.Faithful.comparable).
+The 14 new pageRoot count probes (role pageRoot, key count, one per breakpoint class) are uncovered in `fw coverage`, and the anchor item itself is not enumerated by
+`allProbes` (it is added by evalStateRoot, outside roleKeys); making allProbes emit it is more than a one-line change, so it is a follow-up.
+Records without `viewport.scrollWidth` on both arms add no item. TS stand-ins: none (verdict.mjs shapes the display value only).
 
 Conventions: after a bare lake build run `lake build fwcore`; `pnpm install --offline --frozen-lockfile` first in a fresh worktree.
 Read first: lean/Fw/Gate/PageRoot.lean, then the guards at the end of lean/Fw/Wire/Gate.lean.
-
-CI: breakpoint-gate run 39190672752 (dispatch, both engines, head fc222d6b). engine.scroll row pass in every cell, both engines. Raw
-records: all 124 probes carry viewport.scrollWidth on both arms; 117 both fit (equal), 7 at width 319 the original is 320 (na, = the 7
-excused chromium readings), 0 differ, 0 missing, same in both. Chromium verdict pass. The run is red only by playwright-webkit
-"incomplete": matchMedia =Lean | sweep:phone-rotation (#1, #3 not-comparable), not our row; not baselined on main (open item).

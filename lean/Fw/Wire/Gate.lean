@@ -396,12 +396,14 @@ private def run (s : String) : String :=
 #guard run "{\"op\":\"gate.state\",\"anchors\":{\"style\":{\"skipPrefixes\":[],\"skipSets\":{}},\"parts\":{}},\"parts\":[\"x\"],\"states\":[]}" ==
   "unknown part x"
 
-private def rootReq (so : String) : String :=
+private def rootReqW (w : String) (so : String) : String :=
   "{\"op\":\"gate.state\",\"anchors\":{\"style\":{\"skipPrefixes\":[],\"skipSets\":{}},\"parts\":{\"engine.scroll\":{\"roles\":[" ++
   "{\"role\":\"pageRoot\",\"boxRel\":null,\"dims\":[],\"skipSets\":[],\"skipProps\":[],\"why\":\"w\"}]}}},\"parts\":[\"engine.scroll\"],\"states\":[{" ++
-  "\"requested\":{\"width\":430,\"height\":932,\"deviceWidth\":430,\"dpr\":3,\"hover\":\"none\",\"pointer\":\"coarse\",\"reducedMotion\":\"no-preference\",\"colorScheme\":\"light\"}," ++
-  "\"orig\":{\"viewport\":{\"scrollWidth\":430},\"observed\":{},\"truth\":[],\"truthLegacy\":[],\"neutral\":[],\"parts\":{\"engine.scroll\":{\"pageRoot\":{\"count\":1,\"items\":[{}]}}}}," ++
+  "\"requested\":{\"width\":" ++ w ++ ",\"height\":932,\"deviceWidth\":430,\"dpr\":3,\"hover\":\"none\",\"pointer\":\"coarse\",\"reducedMotion\":\"no-preference\",\"colorScheme\":\"light\"}," ++
+  "\"orig\":{\"viewport\":{\"scrollWidth\":" ++ (if w == "430" then "430" else "601") ++ "},\"observed\":{},\"truth\":[],\"truthLegacy\":[],\"neutral\":[],\"parts\":{\"engine.scroll\":{\"pageRoot\":{\"count\":1,\"items\":[{}]}}}}," ++
   "\"rewrite\":{\"viewport\":{" ++ so ++ "},\"observed\":{},\"truth\":[],\"truthLegacy\":[],\"neutral\":[],\"parts\":{\"engine.scroll\":{\"pageRoot\":{\"count\":1,\"items\":[{}]}}}}}]}"
+
+private def rootReq (so : String) : String := rootReqW "430" so
 
 private def has (hay needle : String) : Bool := (hay.splitOn needle).length > 1
 
@@ -411,5 +413,7 @@ private def has (hay needle : String) : Bool := (hay.splitOn needle).length > 1
 #guard has (run (rootReq "\"scrollWidth\":645")) "\"verdict\":\"fail\""
 #guard has (run (rootReq "\"scrollWidth\":null")) "scrollWidth<=requestedWidth"
 #guard has (run (rootReq "\"x\":0")) "scrollWidth<=requestedWidth"
+#guard has (run (rootReqW "600.5" "\"scrollWidth\":601")) "\"verdict\":\"pass\""
+#guard has (run (rootReqW "600.5" "\"scrollWidth\":602")) "\"verdict\":\"fail\""
 
 end Fw.Wire.Gate
