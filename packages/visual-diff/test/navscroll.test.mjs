@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { bezier, compareSweeps, easingOf, pathError, transitions, wheelEdges } from '../src/navscroll-analyze.mjs';
 import { gridOf, settledGrid } from '../src/navscroll.mjs';
+import { settledDiffs } from '../src/navscroll-report.mjs';
 
 const rec = (uw, hidden, extra = {}) => ({ uw, u: uw, y: uw + 1000, hidden, cls: hidden ? 'is-scroll-hidden' : '', vis: hidden ? 'hidden' : 'visible', top: hidden ? -88 : 16, stTop: 48, op: hidden ? 0 : 1, ...extra });
 
@@ -54,6 +55,13 @@ test('wheelEdges: first hidden and first visible frame in each direction', () =>
   const r = (y, hidden) => ({ y, u: y - 1000, hidden });
   const rec2 = [r(900, false), r(1100, true), r(1500, true), r(2100, false), r(2400, false), r(2000, false), r(1600, true), r(1200, true), r(1000, false)];
   assert.deepEqual(wheelEdges(rec2), { downOn: 100, downOff: 1100, upOn: 600, upOff: 0, peakU: 1400, frames: 9 });
+});
+
+test('settledDiffs: only positions whose final hidden flag differs, with the flag over time', () => {
+  const e = (h) => [50, 250, 500].map((t) => ({ t, hidden: h }));
+  const o = [{ uw: 0, u: 51, hidden: true, early: e(true) }, { uw: 540, u: 591, hidden: true, early: e(true) }];
+  const p = [{ uw: 0, u: 49, hidden: false, early: e(false) }, { uw: 540, u: 589, hidden: true, early: e(true) }];
+  assert.deepEqual(settledDiffs(o, p), [{ uw: 0, u: { orig: 51, rewrite: 49 }, orig: '50ms H, 250ms H, 500ms H, end H', rewrite: '50ms V, 250ms V, 500ms V, end V' }]);
 });
 
 test('grids: sweep from one viewport above to half a viewport past the section, same values for equal geometry', () => {

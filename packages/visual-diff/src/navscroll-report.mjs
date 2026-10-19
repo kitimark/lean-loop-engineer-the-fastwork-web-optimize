@@ -25,6 +25,19 @@ function transitionOf(t) {
   return { ...describeTransition(t), u: t.u, uBefore: t.uBefore, path: pathError(t.frames, t.anims, { ty: from.ty, op: from.op }, { ty: to.ty, op: to.op }) };
 }
 
+const series = (r) => [...(r.early ?? []).map((e) => `${e.t}ms ${e.hidden ? 'H' : 'V'}`), `end ${r.hidden ? 'H' : 'V'}`].join(', ');
+
+/** The held positions where the arms' hidden flag differs at the end, with the flag after 50, 250, 500 ms and at the end (H hidden, V visible). */
+export function settledDiffs(orig, rewrite) {
+  const byUw = new Map(rewrite.map((r) => [r.uw, r]));
+  const out = [];
+  for (const o of orig) {
+    const p = byUw.get(o.uw);
+    if (p && o.hidden !== p.hidden) out.push({ uw: o.uw, u: { orig: o.u, rewrite: p.u }, orig: series(o), rewrite: series(p) });
+  }
+  return out;
+}
+
 /** One width of one engine: the numbers of every table. */
 export function summarizeCase(c) {
   if (c.orig.error || c.rewrite.error) return { id: c.id, error: { orig: c.orig.error ?? null, rewrite: c.rewrite.error ?? null } };
@@ -46,6 +59,7 @@ export function summarizeCase(c) {
     edges: { down: { orig: edges(o.sweepDown), rewrite: edges(p.sweepDown) }, up: { orig: edges(o.sweepUp), rewrite: edges(p.sweepUp) } },
     sweep: { down: compareSweeps(o.sweepDown, p.sweepDown), up: compareSweeps(o.sweepUp, p.sweepUp) },
     settled: { ...settled, equalStates: settled.diff.hidden.length + settled.diff.cls.length + settled.diff.vis.length === 0, maxPosDelta: +settledPos.toFixed(2) },
+    settledDiffs: settledDiffs(o.settled, p.settled),
     transitions: trans,
     wheel: { orig: o.wheel ? wheelEdges(o.wheel) : null, rewrite: p.wheel ? wheelEdges(p.wheel) : null },
   };
@@ -75,6 +89,8 @@ export function markdown(runs) {
     for (const s of ok) {
       L.push(`| ${s.id} | ${s.sweep.down.matched} | ${first(s.sweep.down.diff.hidden)} | ${first(s.sweep.down.diff.cls)} | ${first(s.sweep.up.diff.hidden)} | ${first(s.sweep.up.diff.cls)} | ${Math.max(s.sweep.down.maxStickyTopDelta, s.sweep.up.maxStickyTopDelta)} | ${Math.max(s.sweep.down.maxNavTopDelta, s.sweep.up.maxNavTopDelta)} | ${s.settled.equalStates ? 'no' : first(s.settled.diff.hidden)} | ${s.settled.maxPosDelta} |`);
     }
+    L.push('', '### Held positions whose hidden flag differs at the end (H hidden, V visible; live u in brackets)', '', '| width | u asked | orig | rewrite |', '|---|---|---|---|');
+    for (const s of ok) for (const d of s.settledDiffs) L.push(`| ${s.id} | ${d.uw} | [${d.u.orig}] ${d.orig} | [${d.u.rewrite}] ${d.rewrite} |`);
     L.push('', '### Transition (native rAF; elapsed from the animation start time; error against the browser-reported easing)', '', '| width | event | arm | animations | frames | end hidden / ty / op / vis | transform max err px | opacity max err |', '|---|---|---|---|---|---|---|---|');
     for (const s of ok) {
       for (const [key, arms] of Object.entries(s.transitions)) {

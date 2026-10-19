@@ -133,9 +133,18 @@ export async function navScrollInPage(arg) {
     await wait(op === 'settled' ? arg.settleMs : 300);
     for (const y of arg.ys) {
       go(y);
-      if (op === 'settled') await wait(arg.settleMs);
-      else for (let i = 0; i < arg.frames; i++) await raf();
-      out.push({ ...snap(), want: y });
+      const early = [];
+      if (op === 'settled') {
+        let at = 0;
+        for (const t of [50, 250, 500]) {
+          await wait(t - at);
+          at = t;
+          const e = snap();
+          early.push({ t, hidden: e.hidden, secTop: e.secTop, stTop: e.stTop });
+        }
+        await wait(arg.settleMs - at);
+      } else for (let i = 0; i < arg.frames; i++) await raf();
+      out.push({ ...snap(), want: y, ...(op === 'settled' ? { early } : {}) });
     }
     return out;
   }
