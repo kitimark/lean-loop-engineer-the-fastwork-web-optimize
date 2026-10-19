@@ -62,11 +62,12 @@ describe.skipIf(!have)("wait guard vs the Lean goldens (ops.wait.jsonl)", () => 
   // One fwcore process answers every case (ids match replies to cases); each case is still asserted under its own name.
   const batch = (() => {
     const input = withCmd.map((c, i) => JSON.stringify({ id: i, ...req(c) })).join("\n") + "\n";
-    const r = spawnSync(bin, [], { input, encoding: "utf8", timeout: 60_000 });
+    const r = spawnSync(bin, [], { input, encoding: "utf8", timeout: 60_000, env: { ...process.env, LEAN_ABORT_ON_PANIC: "1" } });
     const byId = new Map<number, Record<string, unknown>>();
     for (const l of (r.stdout ?? "").split("\n").filter(Boolean)) { const m = JSON.parse(l) as { id: number }; byId.set(m.id, m); }
     return byId;
   })();
+  it("one reply per request", () => expect(batch.size).toBe(withCmd.length));
   it.each(withCmd.map((c, i) => [c.name, c, i] as const))("%s", (_n, c, i) => {
     expect(batch.get(i)).toMatchObject({ decision: c.response.decision, reason: c.response.reason, shape: c.response.shape });
   });
@@ -77,10 +78,27 @@ describe.skipIf(!have)("wait guard vs the Lean goldens (ops.wait.jsonl)", () => 
 });
 
 describe.skipIf(!have)("wait guard: shadow-log false positives are allowed, true positives stay refused (wait-guard-enforce)", () => {
+  type Reply = { decision: string; reason?: string | null; shape?: string | null };
+  const fmt = (r: Reply | null | undefined) => (r ? [r.decision, r.reason, r.shape].filter((x) => typeof x === "string").join(":") : "unavailable");
+  let replies: Map<string, Reply> | null = null;
   const verb = (cmd: string) => {
-    const r = ask(bin, { op: "ops.wait", cmd }, 30_000) as { decision: string; reason?: string | null; shape?: string | null } | null;
-    return r ? [r.decision, r.reason, r.shape].filter((x) => typeof x === "string").join(":") : "unavailable";
+    if (!replies) {
+      const cmds = [...new Set([...allow, ...deny.map((d) => d[0]), ...review.map((d) => d[0]), ...review3.map((d) => d[0])])];
+      const input = cmds.map((c, i) => JSON.stringify({ id: i, op: "ops.wait", cmd: c })).join("\n") + "\n";
+      const r = spawnSync(bin, [], { input, encoding: "utf8", timeout: 120_000, env: { ...process.env, LEAN_ABORT_ON_PANIC: "1" } });
+      const byId = new Map<number, Reply>();
+      for (const l of (r.stdout ?? "").split("\n").filter(Boolean)) { const m = JSON.parse(l) as Reply & { id: number }; byId.set(m.id, m); }
+      expect(byId.size).toBe(cmds.length);
+      replies = new Map(cmds.map((c, i) => [c, byId.get(i)!]));
+    }
+    return fmt(replies.get(cmd));
   };
+  it("the per-call path (ask) gives the same verb as the batch", () => {
+    const c = deny[0]![0];
+    const r = ask(bin, { op: "ops.wait", cmd: c }, 30_000) as Reply | null;
+    expect(fmt(r)).toBe(deny[0]![1]);
+    expect(verb(c)).toBe(fmt(r));
+  }, 35_000);
   // The 4 shadow-log denies that were false positives (paths replaced), then corpus shapes agents use.
   const allow = [
     "S=/tmp/s; cd \"${S:?}\" && find . -mindepth 1 -maxdepth 1 -type d -mmin +60 > \"$S/del.txt\"; while read -r d; do [ -n \"$d\" ] || continue; rm -rf -- \"${S:?}/${d:?}\"; done < \"$S/del.txt\"; df -h / | tail -1",
