@@ -439,8 +439,8 @@
           {
             "kind": "mount",
             "scrollNear": "[data-fw=\"platform\"]",
-            "waitFor": "[data-fw=\"platform\"]",
-            "why": "the same scroll excursion as the original, to the platform section of the rewrite: the page's history is part of what is compared (the original recomputes the pain notes' base positions when its content-visibility section renders after a resize, so a page that never scrolled keeps the old ones); the rewrite has the panel from the start, so there is nothing to wait for but the section"
+            "waitFor": "[data-fw=\"morph-columns\"]",
+            "why": "the same scroll excursion as the original, to the platform section of the rewrite: the page's history is part of what is compared (the original recomputes the pain notes' base positions when its content-visibility section renders after a resize, so a page that never scrolled keeps the old ones); the panel is lazy in the rewrite too (morph.mount), so the gate waits for its columns"
           }
         ]
       },
@@ -469,7 +469,7 @@
         {
           "role": "backdrop",
           "orig": ".start-selling-morph-backdrop",
-          "rewrite": "[data-fw=\"morph-columns\"] > div",
+          "rewrite": "[data-fw=\"morph-panel\"] > [data-fw-role=\"backdrop\"]",
           "boxRel": null,
           "dims": [],
           "skipSets": [
@@ -484,7 +484,7 @@
         {
           "role": "col",
           "orig": ".start-selling-morph-col",
-          "rewrite": "[data-fw=\"morph-columns\"] > div > div",
+          "rewrite": "[data-fw=\"morph-columns\"] > div",
           "boxRel": null,
           "dims": [],
           "skipSets": [
@@ -498,7 +498,7 @@
         {
           "role": "track",
           "orig": ".start-selling-morph-col-track",
-          "rewrite": "[data-fw=\"morph-columns\"] > div > div > div",
+          "rewrite": "[data-fw=\"morph-columns\"] > div > div",
           "boxRel": null,
           "dims": [
             "h"
@@ -1446,7 +1446,7 @@
         "rewrite": [
           {
             "kind": "overlay",
-            "trigger": "#open-drawer",
+            "trigger": "[data-selenium=\"start-selling.commission.button.why\"]",
             "ready": "[data-fw=\"overlay-drawer\"][class*=\"module_open\"]",
             "close": "[data-fw=\"overlay-drawer\"] button[aria-label=\"Close\"]",
             "gone": "[data-fw=\"overlay-drawer\"]",
@@ -1460,7 +1460,7 @@
       "cites": [
         "snapshot 2.gBuqKVzi.css:684-734 (root, backdrop, panel), 735-899 (content), 899-914 (<=860), 1145-1165 (<=640), 1215-1218 (reduced motion)",
         "2.DyWL8TcE.js:2893-3030 (the drawer component), 3284-3290 (mounted by the commission section)",
-        "collected in the open state: run.mjs PREPARE clicks the commission \"why\" button in the original and the placeholder nav button #open-drawer in the rewrite, waits until the panel is shown and every transition has ended, collects, then clicks the close button and waits for the unmount"
+        "collected in the open state: run.mjs PREPARE clicks the commission \"why\" button in the original and the same button in the rewrite, waits until the panel is shown and every transition has ended, collects, then clicks the close button and waits for the unmount"
       ],
       "excluded": [
         {
@@ -1633,7 +1633,7 @@
         "rewrite": [
           {
             "kind": "overlay",
-            "trigger": "#open-dialog",
+            "trigger": "[data-fw=\"hero\"] button",
             "ready": "dialog[data-fw=\"overlay-signup\"][open]",
             "close": "dialog[data-fw=\"overlay-signup\"] button[aria-label=\"Close\"]",
             "gone": "dialog[data-fw=\"overlay-signup\"][open]",
@@ -1647,7 +1647,7 @@
       "cites": [
         "snapshot DialogHeader.Qcgwm6ST.css:642-714 (the sb-dialog shell and enter animation), 2.gBuqKVzi.css:11613-11623 (waitlist overrides), 11624-11740 (form)",
         "2.DyWL8TcE.js:13265-13400 (the dialog content), 7201-7270 (the modal shell), chunks/D313Dngs.js:1927-2038 (open/close)",
-        "collected in the open state: run.mjs PREPARE clicks the hero get-started button in the original and the placeholder nav button #open-dialog in the rewrite (focus stays on the body, so both open with the (0, 16) direction), waits until the dialog is open and the enter animation has ended, collects, then clicks the close button"
+        "collected in the open state: run.mjs PREPARE clicks the hero get-started button in the original and the hero button in the rewrite (focus stays on the body, so both open with the (0, 16) direction), waits until the dialog is open and the enter animation has ended, collects, then clicks the close button"
       ],
       "excluded": [
         {
