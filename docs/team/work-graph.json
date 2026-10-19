@@ -8216,8 +8216,13 @@
     ".github/workflows/land.yml",
     "docs/team/tools/preview-e2e.md",
     "docs/team/handoffs/preview-e2e.md",
-    "pnpm-lock.yaml"
-   ]
+    "pnpm-lock.yaml",
+    ".github/workflows/preview-e2e.yml",
+    "apps/runner/src/checks.ts",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean"
+   ],
+   "evidence": "0481d65"
   },
   {
    "devices": [
@@ -9349,7 +9354,12 @@
     "apps/runner/src/fw.ts",
     "apps/runner/test/land-queue*.test.ts",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/land-queue-why.md"
+    "docs/team/handoffs/land-queue-why.md",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/land-digest.test.ts",
+    "lean/Fw/Console/LandQueue.lean",
+    "packages/contracts/golden/console/land-queue.jsonl",
+    "lean/scripts/*Golden.lean"
    ]
   },
   {
@@ -9914,7 +9924,88 @@
    "writes": [
     "scripts/scrub.mjs",
     "scripts/scrub.test.mjs",
-    "docs/team/handoffs/scrub-session-paths.md"
+    "docs/team/handoffs/scrub-session-paths.md",
+    "docs/team/tools/land.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-proxy-direct",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Preview without the root-path 302: preview-e2e's controls show the console proxy's Referer-routed 302 for root-absolute /_app/ imports makes WebKit (the phone's engine) fail real module imports (proxy-only arm; raw and tap-only clean). Decide in Lean a design with no redirect (e.g. each preview arm on its own origin/port so root paths resolve natively; identity over Referer inference), keep the owner gate and grants per origin, assert zero rejections in both engines, add a WebKit client-side navigation check; rename the suite check to webkit-proxy-preload-cancel-observed until removed, strict attribution check, review doc/comment fixes",
+   "deps": [
+    "preview-e2e"
+   ],
+   "writes": [
+    "apps/console-api/src/preview/**",
+    "apps/console-api/src/app.ts",
+    "apps/console-api/test/preview*.test.ts",
+    "lean/Fw/Console/Preview*.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/console/**",
+    "packages/e2e-preview/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/console*.ts",
+    "apps/runner/test/preview-e2e-selection.test.ts",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/tools/console.md",
+    "research/notes/2026/10-20-preview-proxy-direct.md",
+    "docs/team/handoffs/preview-proxy-direct.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scrub-session-paths-r2",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "scrub review follow-ups: encoded-home trailing and glued forms, rules on file paths, override only under FW_SCRUB_TEST, GENERIC exported, scrub tests run on CI",
+   "deps": [
+    "scrub-session-paths"
+   ],
+   "writes": [
+    "scripts/scrub.mjs",
+    "scripts/scrub.test.mjs",
+    "scripts/test-scrub.mjs",
+    ".github/workflows/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/scrub-session-paths-r2.md",
+    "apps/runner/test/scrub.test.ts",
+    "apps/runner/src/land.ts",
+    "lean/scripts/*Golden.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-fail-wins",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "Land gate: a lane run that completed with conclusion failure for the wanted sha+digest is always fail (refuse), whatever exit code fw ci wait returned; the remote verdict and its reason are printed in the VERDICT output and the land log. Incident: preview-e2e landed 2026-10-19T23:08Z after run 39338755874 failed (fallback to local, suites passed here)",
+   "deps": [
+    "land-wait"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-remote.test.ts",
+    "lean/Fw/Console/LandRemote.lean",
+    "packages/contracts/golden/console/land-remote.jsonl",
+    "lean/scripts/*Golden.lean",
+    "packages/gh-budget/src/wait.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-remote-fail-wins.md"
    ]
   }
  ],

@@ -504,3 +504,18 @@ test('lint: a lean script reading a file outside the lean.yml row fails the chec
     assert.deepEqual(leanInputProblems(dir, { sets: {}, workflows: [] }).length, 1);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('preview-e2e.yml: a change inside its read set selects it, a change outside does not (task preview-e2e)', () => {
+  const inputs = preciseInputs(root, 'preview-e2e.yml');
+  assert.ok(inputs, 'the workflow has a Lean row');
+  for (const f of ['packages/e2e-preview/src/suite.mjs', 'packages/e2e-preview/fixture/site/index.html', 'apps/console-api/src/preview/proxy.ts',
+    'apps/console-api/src/app.ts', 'apps/console-api/src/cap/cap.ts', 'apps/console-api/src/ops/routes.ts', 'packages/contracts/src/index.ts', 'packages/contracts/package.json',
+    'lean/Fw/Console/PreviewOwner.lean', 'lean/Fw/Console/Preview.lean', 'lean/Fw/Wire/Console.lean',
+    'packages/contracts/golden/console/preview-owner.jsonl', '.github/workflows/preview-e2e.yml']) {
+    assert.ok(matches(inputs, f), `${f} selects the lane`);
+  }
+  for (const f of ['apps/console-web/src/main.tsx', 'apps/site/src/index.ts', 'packages/measure-chromium/src/a.mjs', 'docs/team/handoffs/x.md',
+    'apps/console-api/test/app.test.ts', 'lean/FwTest/Lease.lean', '.github/workflows/premise-tests.yml']) {
+    assert.ok(!matches(inputs, f), `${f} does not select the lane`);
+  }
+});
