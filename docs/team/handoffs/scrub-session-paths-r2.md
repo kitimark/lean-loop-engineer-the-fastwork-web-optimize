@@ -9,3 +9,5 @@ Branch worktree-wf_06234e28-4d2-3. It merges the scrub-session-paths commit (1e9
 Verified: scrub.test.mjs 17 pass; test-scrub.mjs all pass; `scrub.mjs --tree --where` on the tracked tree: 0 hits for every rule; ci-paths --check and ci-paths.test.mjs (40) pass; lean/scripts/check.sh green; apps/runner pnpm test 1233 pass.
 Open: Lean spec of allowed path shapes; git history not rewritten; follow-ups from review r1: right edge `(?![A-Za-z0-9._])` for quoted trailing form, glued Linux `claude-N-home-` branch. TS stand-in: all rule logic (no Lean golden).
 Read first: scripts/scrub.mjs, scripts/scrub.test.mjs.
+
+CI (round 2): run 39340537849 (land, branch ci/land-scrub-session-paths-r2, sha 1a60fc88): test/scrub.test.ts passed (2/2) in the apps/runner suite. The suite is red on one older test: scripts/circleci.test.mjs:253 asserts the fixtures do not contain the OS account name; on the CI runner that name is "runner", which the recorded logs contain. Proposed fix (blocked by the auto classifier as a security-test change, so not applied): skip the account check when the account is the generic "runner". Lead decides.
