@@ -48,8 +48,6 @@ open Fw.Site.Breakpoints
 
 /-- The merged verdict of one engine.
 
-$$\mathcal E = \{\mathrm{pass}, \mathrm{fail}, \mathrm{unsettled}, \mathrm{incomplete}, \mathrm{notRendered}, \mathrm{refused}\}$$
-
 What the gate says about one engine after the shards are merged. -/
 inductive EngineVerdict where
   | pass
@@ -63,8 +61,6 @@ inductive EngineVerdict where
 /-- One reading of a cell: the verdict of one probe, or of one stop of a sweep, in one (row, column) cell. Its id is the probe id, or
 `<sweep id>#<stop index>` for a sweep stop.
 
-$$\mathrm{Reading} = \mathrm{Id} \times \mathcal V$$
-
 A reading is judged on its own; no other reading of the cell can absorb it. -/
 structure Reading where
   id : String
@@ -72,61 +68,41 @@ structure Reading where
   deriving DecidableEq, Repr
 
 /-- One cell of an engine's table: its row, its column (a probe block or `sweep:<id>`) and the readings the cell is made of; no
-reading at all is a block that was not run (`not-run`).
-
-$$\mathrm{Cell} = \mathrm{Row} \times \mathrm{Col} \times \mathrm{Reading}^{*}$$ -/
+reading at all is a block that was not run (`not-run`). -/
 structure TableCell where
   row : String
   col : String
   readings : List Reading
   deriving DecidableEq, Repr
 
-/-- Some reading of the cell passed.
-
-$$\operatorname{isPass}(c) \iff \exists r \in c.\mathit{readings},\ r.v = \mathrm{pass}$$ -/
+/-- Some reading of the cell passed. -/
 def TableCell.isPass (c : TableCell) : Bool := c.readings.any (·.v == .pass)
 
-/-- Some reading of the cell failed.
-
-$$\operatorname{isFail}(c) \iff \exists r \in c.\mathit{readings},\ r.v = \mathrm{fail}$$ -/
+/-- Some reading of the cell failed. -/
 def TableCell.isFail (c : TableCell) : Bool := c.readings.any (·.v == .fail)
 
-/-- The ten matrix blocks, in matrix order (the block columns of the table, `gen.matrix.blocks`).
-
-$$\mathrm{blocks} = [\text{desk}, \text{desk-rm}, \text{touch}, \text{touch-rm}, \text{phone-landscape}, \text{dw-arm-isolate}, \text{hover-pointer-cross}, \text{dark}, \text{fractional-gaps}, \text{height-probes}]$$ -/
+/-- The ten matrix blocks, in matrix order (the block columns of the table, `gen.matrix.blocks`). -/
 def gateBlocks : List Block :=
   [.desk, .deskRm, .touch, .touchRm, .phoneLandscape, .dwArmIsolate, .hoverPointerCross, .dark, .fractionalGaps, .heightProbes]
 
-/-- The probe ids of one block, in matrix order.
-
-$$\forall b,\quad \operatorname{ids}(b) = [\,\operatorname{id}(p) \mid p \in M,\ p.\mathit{block} = b\,]$$ -/
+/-- The probe ids of one block, in matrix order. -/
 def blockIds (b : Block) : List String := (matrix.filter (·.block == b)).map (·.id)
 
-/-- The reading ids of one sweep: `<sweep id>#<i>` for each stop index $i$.
-
-$$\forall w,\quad \operatorname{stopIds}(w) = [\,w.\mathit{id} \mathbin{+\!\!+} \texttt{\#} \mathbin{+\!\!+} \operatorname{str}(i) \mid 0 \le i < |w.\mathit{stops}|\,]$$ -/
+/-- The reading ids of one sweep: `<sweep id>#<i>` for each stop index `i`. -/
 def stopIds (w : Sweep) : List String := (List.range w.stops.length).map fun i => s!"{w.id}#{i}"
 
-/-- The rows of the gate table: the three matchMedia rows, then the pilot parts.
-
-$$\mathrm{rows} = [\,n \mid (n, K) \in \mathrm{truthRows}\,] \mathbin{+\!\!+} [\,u.\mathit{id} \mid u \in \mathrm{pilot}\,]$$ -/
+/-- The rows of the gate table: the three matchMedia rows, then the pilot parts. -/
 def gateRows : List String := truthRows.map (·.1) ++ pilotParts.map (·.id)
 
 /-- The columns of the gate table with their reading ids: each block with its probe ids, then each sweep (`sweep:<id>`) with its
-stop ids.
-
-$$\mathrm{cols} = [\,(\operatorname{str}(b), \operatorname{ids}(b)) \mid b \in \mathrm{blocks}\,] \mathbin{+\!\!+} [\,(\texttt{sweep:} \mathbin{+\!\!+} w.\mathit{id}, \operatorname{stopIds}(w)) \mid w \in W\,]$$ -/
+stop ids. -/
 def gateCols : List (String × List String) :=
   gateBlocks.map (fun b => (b.str, blockIds b)) ++ sweeps.map fun w => ("sweep:" ++ w.id, stopIds w)
 
-/-- The key of a reading: its row, its column and its id.
-
-$$\mathrm{Key} = \mathrm{Row} \times \mathrm{Col} \times \mathrm{Id}$$ -/
+/-- The key of a reading: its row, its column and its id. -/
 abbrev Key := String × String × String
 
 /-- **The universe of readings of one engine**: every row, every column, every reading id of that column.
-
-$$U = [\,(\rho, \kappa, i) \mid \rho \in \mathrm{rows},\ (\kappa, I) \in \mathrm{cols},\ i \in I\,]$$
 
 A full run supplies exactly these readings, each as often as it occurs in this list (a permutation of it). -/
 def gateUniverse (_ : Unit := ()) : List Key := gateRows.flatMap fun row => gateCols.flatMap fun c => c.2.map fun i => (row, c.1, i)
@@ -134,9 +110,7 @@ def gateUniverse (_ : Unit := ()) : List Key := gateRows.flatMap fun row => gate
 /-- **Premise of the Chromium fractional exemption**: the fractional-gaps block is exactly four probes, Chromium reaches each of them,
 none has a whole width, and without an achieved environment every check against Lean's value is `na`.
 
-$$\operatorname{ids}(\text{fractional-gaps}) = [\texttt{fractional-gaps-600.5}, \texttt{fractional-gaps-640.5}, \texttt{fractional-gaps-860.5}, \texttt{fractional-gaps-1000.5}] \wedge \bigl(\forall p \in M,\ p.\mathit{block} = \text{fractional-gaps} \implies \rho_{\mathrm{chromium}}(p) = \bot \wedge \neg\operatorname{Whole}(w(p))\bigr) \wedge \bigl(\forall o, r, e, e^N,\ \forall it \in \operatorname{truthItems}(o, r, e, e^N, \bot),\ it.\mathrm{cls} \in \{\mathrm{lean}, \mathrm{neutral.lean}\} \implies it.\mathrm{status} = \mathrm{na}\bigr)$$
-
-Chromium loads a width of $N + \tfrac12$ at its ceiling (an engine fact the run records as not achieved), so the four Lean
+Chromium loads a width of `N + 1/2` at its ceiling (an engine fact the run records as not achieved), so the four Lean
 readings of that block are not comparable; the exemption names those four ids and the `matchMedia =Lean` row only. -/
 theorem fractional_chromium_lean_na :
     blockIds .fractionalGaps =
@@ -148,9 +122,7 @@ theorem fractional_chromium_lean_na :
 
 /-- One entry of the allowlist of excused readings: which engine, which rows, which column, which reading ids, which verdict it
 excuses, why, and the Lean fact that is the premise (a name that must resolve: a renamed theorem breaks the build). Rows and ids
-are lists; there is no wildcard.
-
-$$\mathrm{Ex} = \mathrm{Id} \times \mathrm{Engine} \times \mathrm{Row}^{*} \times \mathrm{Col} \times \mathrm{Id}^{*} \times \mathcal V \times \mathrm{Reason} \times \mathrm{Premise}$$ -/
+are lists; there is no wildcard. -/
 structure Exemption where
   id : String
   engine : String
@@ -161,30 +133,24 @@ structure Exemption where
   reason : String
   premise : Lean.Name
 
-/-- An exemption names a reading: the same engine, column and verdict, a row of its list and a reading id of its list.
-
-$$\forall x, e, \rho, \kappa, r,\quad \operatorname{matches}(x, e, \rho, \kappa, r) \iff x.\mathit{engine} = e \wedge x.\mathit{col} = \kappa \wedge r.v = x.\mathit{verdict} \wedge \rho \in x.\mathit{rows} \wedge r.\mathit{id} \in x.\mathit{ids}$$ -/
+/-- An exemption names a reading: the same engine, column and verdict, a row of its list and a reading id of its list. -/
 def Exemption.matches (x : Exemption) (engine row col : String) (r : Reading) : Bool :=
   x.engine == engine && x.col == col && r.v == x.verdict && x.rows.contains row && x.ids.contains r.id
 
-/-- The reading ids of the 1024 stops of the tablet sweep (stops 0, 2 and 4 of `touch-1024-1201`, `touch1024_lean_na`).
-
-$$\mathrm{touch1024Ids} = [\texttt{touch-1024-1201\#}i]_{i \in [0, 2, 4]}$$ -/
+/-- The reading ids of the 1024 stops of the tablet sweep (stops 0, 2 and 4 of `touch-1024-1201`, `touch1024_lean_na`). -/
 def touch1024Ids : List String := [0, 2, 4].map fun i => s!"touch-1024-1201#{i}"
 
 /-- **The allowlist of excused readings** (an exemption is an engine, enumerated rows, a column, enumerated reading ids, a verdict,
 a reason and a premise; nothing outside this list is ever excused; the list excuses only `not-comparable` and `unreachable`
 verdicts, never `pass` or `fail`, `exemptions_verdict`, `excused_not_fail`).
 
-$$\mathrm{exemptions} = [x_{\mathrm{cross}},\ x_{\mathrm{frac}},\ x_{\mathrm{mm}},\ x_{\mathrm{touch}}^{\mathrm{chromium}},\ x_{\mathrm{touch}}^{\mathrm{webkit}}]$$
-
-* $x_{\mathrm{cross}}$: WebKit, the 36 rows of $\mathrm{rows}$ (listed), column `hover-pointer-cross`, the 4 ids
-  $\operatorname{ids}(\text{hover-pointer-cross})$, `unreachable:primary-pair`, premise `matrix_cross_webkit`.
-* $x_{\mathrm{frac}}$: WebKit, the 36 rows of $\mathrm{rows}$, column `fractional-gaps`, the 4 ids $\operatorname{ids}(\text{fractional-gaps})$,
+* `x_cross`: WebKit, the 36 rows of `rows` (listed), column `hover-pointer-cross`, the 4 ids
+  `ids(hover-pointer-cross)`, `unreachable:primary-pair`, premise `matrix_cross_webkit`.
+* `x_frac`: WebKit, the 36 rows of `rows`, column `fractional-gaps`, the 4 ids `ids(fractional-gaps)`,
   `unreachable:whole-width`, premise `matrix_fractional_webkit`.
-* $x_{\mathrm{mm}}$: Chromium, rows [`matchMedia =Lean`], column `fractional-gaps`, the 4 ids $\operatorname{ids}(\text{fractional-gaps})$,
+* `x_mm`: Chromium, rows [`matchMedia =Lean`], column `fractional-gaps`, the 4 ids `ids(fractional-gaps)`,
   `not-comparable`, premise `fractional_chromium_lean_na`.
-* $x_{\mathrm{touch}}$: each engine, rows [`matchMedia =Lean`], column `sweep:touch-1024-1201`, ids `touch-1024-1201#0`, `#2`, `#4`,
+* `x_touch`: each engine, rows [`matchMedia =Lean`], column `sweep:touch-1024-1201`, ids `touch-1024-1201#0`, `#2`, `#4`,
   `not-comparable`, premise `touch1024_lean_na`. The other two stops (1201) and the phone-rotation sweep have no entry: a
   not-comparable reading there is a finding, not an excuse.
 
@@ -211,31 +177,21 @@ def exemptions : List Exemption :=
       reason := "the 1024 stops of the tablet sweep have no Lean vector (no matrix probe has that environment), so every check against Lean's value there is not applicable",
       premise := ``Fw.Gate.touch1024_lean_na } ]
 
-/-- The id under which a not-run cell of a narrowed run is excused.
-
-$$\mathrm{narrowedId} = \texttt{narrowed-run}$$ -/
+/-- The id under which a not-run cell of a narrowed run is excused. -/
 def narrowedId : String := "narrowed-run"
 
-/-- Why a narrowed run excuses its not-run cells: the parts it did not cover carry no verdict, and the summary names them.
-
-$$\mathrm{narrowedReason} \in \mathrm{String}$$ -/
+/-- Why a narrowed run excuses its not-run cells: the parts it did not cover carry no verdict, and the summary names them. -/
 def narrowedReason : String :=
   "a run narrowed to parts (header.parts) does not load the others; its cells for them carry no verdict and the summary names the skipped parts"
 
-/-- **The excuse of a reading**, or none: the id of the first exemption that names it. Only a registered exemption excuses.
-
-$$\operatorname{excuse}(e, \rho, \kappa, r) = \operatorname{id}(\text{first } x \in \mathrm{exemptions} \text{ with } \operatorname{matches}(x, e, \rho, \kappa, r))$$ -/
+/-- **The excuse of a reading**, or none: the id of the first exemption that names it. Only a registered exemption excuses. -/
 def excuseReading (engine row col : String) (r : Reading) : Option String :=
   (exemptions.find? (·.matches engine row col r)).map (·.id)
 
-/-- A reading is `ok` when it passed or is excused.
-
-$$\operatorname{ok}(e, \rho, \kappa, r) \iff r.v = \mathrm{pass} \vee \operatorname{excuse}(e, \rho, \kappa, r) \ne \bot$$ -/
+/-- A reading is `ok` when it passed or is excused. -/
 def Reading.ok (r : Reading) (e row col : String) : Bool := r.v == .pass || (excuseReading e row col r).isSome
 
 /-- **A cell is `ok` when every one of its readings is ok** (a cell with no reading is `ok` only in a run narrowed to parts).
-
-$$\operatorname{ok}(e, N, c) \iff \begin{cases} N & c.\mathit{readings} = [\,] \\ \forall r \in c.\mathit{readings},\ \operatorname{ok}(e, c.\mathit{row}, c.\mathit{col}, r) & \text{otherwise} \end{cases}$$
 
 There is no tolerance: one reading that is neither a pass nor excused makes the cell not ok, whatever its other readings say. -/
 def TableCell.ok (e : String) (narrowed : Bool) (c : TableCell) : Bool :=
@@ -243,15 +199,11 @@ def TableCell.ok (e : String) (narrowed : Bool) (c : TableCell) : Bool :=
 
 /-- The registry never excuses a pass or a fail.
 
-$$\forall x \in \mathrm{exemptions},\ x.\mathit{verdict} \ne \mathrm{pass} \wedge x.\mathit{verdict} \ne \mathrm{fail}$$
-
 Every entry excuses a `not-comparable` or `unreachable` verdict only. -/
 theorem exemptions_verdict : ∀ x ∈ exemptions, x.verdict ≠ .pass ∧ x.verdict ≠ .fail := by
   decide +kernel
 
 /-- A reading with an excuse did not pass.
-
-$$\forall e, \rho, \kappa, r,\quad \operatorname{excuse}(e, \rho, \kappa, r) \ne \bot \implies r.v \ne \mathrm{pass}$$
 
 An excuse is only ever looked up for a reading that did not pass. -/
 theorem excuseReading_not_pass (e row col : String) (r : Reading) (h : (excuseReading e row col r).isSome = true) :
@@ -270,8 +222,6 @@ theorem excuseReading_not_pass (e row col : String) (r : Reading) (h : (excuseRe
 /-- **An excuse names its reading by enumeration**: the exemption that excuses a reading lists the reading's row and the reading's id,
 for that engine, column and verdict.
 
-$$\forall e, \rho, \kappa, r, i,\quad \operatorname{excuse}(e, \rho, \kappa, r) = i \implies \exists x \in \mathrm{exemptions},\ x.\mathit{id} = i \wedge x.\mathit{engine} = e \wedge \rho \in x.\mathit{rows} \wedge x.\mathit{col} = \kappa \wedge r.\mathit{id} \in x.\mathit{ids} \wedge r.v = x.\mathit{verdict}$$
-
 No exemption excuses a row or a reading id it does not list. -/
 theorem exemptions_enumerated (e row col : String) (r : Reading) (i : String) (h : excuseReading e row col r = some i) :
     ∃ x ∈ exemptions, x.id = i ∧ x.engine = e ∧ row ∈ x.rows ∧ x.col = col ∧ r.id ∈ x.ids ∧ r.v = x.verdict := by
@@ -288,16 +238,12 @@ theorem exemptions_enumerated (e row col : String) (r : Reading) (i : String) (h
 /-- **Every exemption lists rows and ids of the universe**: its rows are rows of the table, and its column is a column of the table
 whose reading ids include all of its ids; neither list is empty.
 
-$$\forall x \in \mathrm{exemptions},\quad x.\mathit{rows} \ne [\,] \wedge x.\mathit{ids} \ne [\,] \wedge (\forall \rho \in x.\mathit{rows},\ \rho \in \mathrm{rows}) \wedge \exists (\kappa, I) \in \mathrm{cols},\ \kappa = x.\mathit{col} \wedge \forall i \in x.\mathit{ids},\ i \in I$$
-
 The allowlist has no dead or invented entry. -/
 theorem exemptions_in_universe : ∀ x ∈ exemptions, x.rows ≠ [] ∧ x.ids ≠ [] ∧ (∀ ρ ∈ x.rows, ρ ∈ gateRows) ∧
     ∃ c ∈ gateCols, c.1 = x.col ∧ ∀ i ∈ x.ids, i ∈ c.2 := by
   decide +kernel
 
 /-- **An excused reading is a reading of the universe.**
-
-$$\forall e, \rho, \kappa, r,\quad \operatorname{excuse}(e, \rho, \kappa, r) \ne \bot \implies (\rho, \kappa, r.\mathit{id}) \in U$$
 
 An excuse can only cover a reading the gate was meant to take. -/
 theorem excused_in_universe (e row col : String) (r : Reading) (h : (excuseReading e row col r).isSome = true) :
@@ -311,8 +257,6 @@ theorem excused_in_universe (e row col : String) (r : Reading) (h : (excuseReadi
 
 /-- **No excused reading is a fail.**
 
-$$\forall e, \rho, \kappa, r,\quad \operatorname{excuse}(e, \rho, \kappa, r) \ne \bot \implies r.v \ne \mathrm{fail}$$
-
 A failing reading is never excused, in either engine. -/
 theorem excused_not_fail (e row col : String) (r : Reading) (h : (excuseReading e row col r).isSome = true) :
     r.v ≠ .fail := by
@@ -323,8 +267,6 @@ theorem excused_not_fail (e row col : String) (r : Reading) (h : (excuseReading 
 
 /-- An ok reading is not a fail.
 
-$$\forall e, \rho, \kappa, r,\quad \operatorname{ok}(e, \rho, \kappa, r) \implies r.v \ne \mathrm{fail}$$
-
 Every failing reading is not ok. -/
 theorem Reading.ok_not_fail (e row col : String) (r : Reading) (h : r.ok e row col = true) : r.v ≠ .fail := by
   simp only [Reading.ok, Bool.or_eq_true, beq_iff_eq] at h
@@ -333,8 +275,6 @@ theorem Reading.ok_not_fail (e row col : String) (r : Reading) (h : r.ok e row c
   · exact excused_not_fail e row col r h
 
 /-- **A cell is ok exactly when every one of its readings is ok.**
-
-$$\operatorname{ok}(e, N, c) \iff (c.\mathit{readings} = [\,] \wedge N) \vee \bigl(c.\mathit{readings} \ne [\,] \wedge \forall r \in c.\mathit{readings},\ \operatorname{ok}(e, c.\mathit{row}, c.\mathit{col}, r)\bigr)$$
 
 The rollup of a cell passes iff every reading passes or is excused by a registry entry. The old rollup of `Fw.Gate.Rule.rollup` (some
 pass and no fail) is no longer what decides: a not-comparable reading next to a pass is not absorbed. -/
@@ -347,17 +287,11 @@ theorem rollup_pass_iff_all_readings (e : String) (N : Bool) (c : TableCell) :
   · have : c.readings.isEmpty = false := by simpa [List.isEmpty_iff] using h
     simp [this, h]
 
-/-- Some reading of the cell failed and no exemption excuses it.
-
-$$\forall e, c,\quad \operatorname{failsOn}(e, c) \iff \exists r \in c.\mathit{readings},\ r.v = \mathrm{fail} \wedge \operatorname{excuse}(e, c.\mathit{row}, c.\mathit{col}, r) = \bot$$ -/
+/-- Some reading of the cell failed and no exemption excuses it. -/
 def TableCell.failsOn (e : String) (c : TableCell) : Bool :=
   c.readings.any fun r => r.v == .fail && (excuseReading e c.row c.col r).isNone
 
-/-- An ok cell has no unexcused failing reading.
-
-$$\forall e, N, c,\quad \operatorname{ok}(e, N, c) \implies \neg\operatorname{failsOn}(e, c)$$
-
--/
+/-- An ok cell has no unexcused failing reading. -/
 theorem TableCell.ok_not_failsOn (e : String) (N : Bool) (c : TableCell) (h : c.ok e N = true) : c.failsOn e = false := by
   cases hf : c.failsOn e with
   | false => rfl
@@ -369,11 +303,7 @@ theorem TableCell.ok_not_failsOn (e : String) (N : Bool) (c : TableCell) (h : c.
     · have hok := hall r hr
       simp [Reading.ok, hv.1, hv.2] at hok
 
-/-- A reading that is not ok makes its cell not ok.
-
-$$r \in c.\mathit{readings} \wedge \neg\operatorname{ok}(e, c.\mathit{row}, c.\mathit{col}, r) \implies \neg\operatorname{ok}(e, N, c)$$
-
--/
+/-- A reading that is not ok makes its cell not ok. -/
 theorem TableCell.not_ok_of_reading (e : String) (N : Bool) (c : TableCell) (r : Reading) (hr : r ∈ c.readings)
     (h : r.ok e c.row c.col = false) : c.ok e N = false := by
   cases hk : c.ok e N with
@@ -386,8 +316,6 @@ theorem TableCell.not_ok_of_reading (e : String) (N : Bool) (c : TableCell) (r :
 /-- The verdict of one engine from the cells of its table, whether the run was narrowed to parts, and the number of unsettled
 samples.
 
-$$\operatorname{ev}_C(e, N, cs, u) = \begin{cases} \mathrm{fail} & \exists c \in cs,\ \operatorname{failsOn}(e, c) \\ \mathrm{unsettled} & \text{no fail} \wedge u > 0 \\ \mathrm{incomplete} & \text{no fail} \wedge u = 0 \wedge \exists c \in cs,\ \neg\operatorname{ok}(e, N, c) \\ \mathrm{pass} & \text{the above fail} \wedge \exists c \in cs,\ \operatorname{isPass}(c) \\ \mathrm{notRendered} & \text{otherwise} \end{cases}$$
-
 A cell with an unexcused failing reading fails the engine; else an unsettled sample makes it unsettled; else a cell that is neither a pass nor excused makes it
 incomplete; else it passes only if some cell passed. -/
 def engineVerdictC (e : String) (narrowed : Bool) (cs : List TableCell) (unsettled : Nat) : EngineVerdict :=
@@ -399,15 +327,11 @@ def engineVerdictC (e : String) (narrowed : Bool) (cs : List TableCell) (unsettl
 
 /-- The exit code of `summary` from the verdicts of the engines it judged.
 
-$$\operatorname{exit}(vs) = \begin{cases} 0 & vs \ne [\,] \wedge \forall v \in vs,\ v = \mathrm{pass} \\ 1 & \text{otherwise} \end{cases}$$
-
 0 only when something was judged and everything judged passed; an empty list (no engine file) is not a pass. -/
 def exitCode (vs : List EngineVerdict) : Nat :=
   if !vs.isEmpty && vs.all (· == .pass) then 0 else 1
 
 /-- **Exit 0 exactly when every judged engine passed.**
-
-$$\forall vs,\quad \operatorname{exit}(vs) = 0 \iff vs \ne [\,] \wedge \forall v \in vs,\ v = \mathrm{pass}$$
 
 The exit code is the verdict: nothing else gives 0. -/
 theorem exit_zero_iff (vs : List EngineVerdict) :
@@ -428,8 +352,6 @@ theorem exit_zero_iff (vs : List EngineVerdict) :
 
 /-- An engine that failed never gives exit 0.
 
-$$\forall vs,\ \mathrm{fail} \in vs \implies \operatorname{exit}(vs) \ne 0$$
-
 A failing engine is not a pass. -/
 theorem exit_ne_zero_of_fail (vs : List EngineVerdict) (h : EngineVerdict.fail ∈ vs) : exitCode vs ≠ 0 := by
   intro e
@@ -437,8 +359,6 @@ theorem exit_ne_zero_of_fail (vs : List EngineVerdict) (h : EngineVerdict.fail �
   cases this
 
 /-- An unsettled engine never gives exit 0.
-
-$$\forall vs,\ \mathrm{unsettled} \in vs \implies \operatorname{exit}(vs) \ne 0$$
 
 A run whose probes did not settle is not a pass. -/
 theorem exit_ne_zero_of_unsettled (vs : List EngineVerdict) (h : EngineVerdict.unsettled ∈ vs) :
@@ -449,8 +369,6 @@ theorem exit_ne_zero_of_unsettled (vs : List EngineVerdict) (h : EngineVerdict.u
 
 /-- An incomplete engine never gives exit 0.
 
-$$\forall vs,\ \mathrm{incomplete} \in vs \implies \operatorname{exit}(vs) \ne 0$$
-
 A run with a cell that was neither passed nor excused is not a pass. -/
 theorem exit_ne_zero_of_incomplete (vs : List EngineVerdict) (h : EngineVerdict.incomplete ∈ vs) :
     exitCode vs ≠ 0 := by
@@ -460,8 +378,6 @@ theorem exit_ne_zero_of_incomplete (vs : List EngineVerdict) (h : EngineVerdict.
 
 /-- A not-rendered engine never gives exit 0.
 
-$$\forall vs,\ \mathrm{notRendered} \in vs \implies \operatorname{exit}(vs) \ne 0$$
-
 A run that compared nothing is not a pass. -/
 theorem exit_ne_zero_of_notRendered (vs : List EngineVerdict) (h : EngineVerdict.notRendered ∈ vs) :
     exitCode vs ≠ 0 := by
@@ -470,8 +386,6 @@ theorem exit_ne_zero_of_notRendered (vs : List EngineVerdict) (h : EngineVerdict
   cases this
 
 /-- **An engine passes exactly when every one of its cells is ok, no sample is unsettled and some cell passed.**
-
-$$\forall e, N, cs, u,\quad \operatorname{ev}_C(e, N, cs, u) = \mathrm{pass} \iff u = 0 \wedge \bigl(\forall c \in cs,\ \operatorname{ok}(e, N, c)\bigr) \wedge \exists c \in cs,\ \operatorname{isPass}(c)$$
 
 There is no aggregate: a single cell that is neither a pass nor excused keeps the engine from passing, and a cell is ok only when
 each of its readings is (`rollup_pass_iff_all_readings`). -/
@@ -513,8 +427,6 @@ theorem engine_pass_iff_all_cells (e : String) (N : Bool) (cs : List TableCell) 
 
 /-- **An engine passes exactly when every reading of every cell is ok, no sample is unsettled, no cell is missing unless the run was narrowed.**
 
-$$\operatorname{ev}_C(e, N, cs, u) = \mathrm{pass} \iff u = 0 \wedge \bigl(\forall c \in cs,\ c.\mathit{readings} = [\,] \implies N\bigr) \wedge \bigl(\forall c \in cs,\ \forall r \in c.\mathit{readings},\ \operatorname{ok}(e, c.\mathit{row}, c.\mathit{col}, r)\bigr) \wedge \exists c \in cs,\ \exists r \in c.\mathit{readings},\ r.v = \mathrm{pass}$$
-
 Each reading is judged on its own: a pass in a cell does not cover a not-comparable, not-run or unfit reading of the same cell. -/
 theorem engine_pass_iff_all_readings (e : String) (N : Bool) (cs : List TableCell) (u : Nat) :
     engineVerdictC e N cs u = .pass ↔
@@ -541,8 +453,6 @@ theorem engine_pass_iff_all_readings (e : String) (N : Bool) (cs : List TableCel
 
 /-- A cell that is neither a pass nor excused keeps its engine from passing.
 
-$$c \in cs \wedge \neg\operatorname{ok}(e, N, c) \implies \operatorname{ev}_C(e, N, cs, u) \ne \mathrm{pass}$$
-
 Whatever the other cells say. -/
 theorem engineVerdictC_ne_pass_of_cell (e : String) (N : Bool) (cs : List TableCell) (u : Nat) (c : TableCell)
     (hc : c ∈ cs) (h : c.ok e N = false) : engineVerdictC e N cs u ≠ .pass := by
@@ -553,16 +463,12 @@ theorem engineVerdictC_ne_pass_of_cell (e : String) (N : Bool) (cs : List TableC
 
 /-- A reading that is neither a pass nor excused keeps its engine from passing, whatever the other readings of its cell say.
 
-$$c \in cs \wedge r \in c.\mathit{readings} \wedge \neg\operatorname{ok}(e, c.\mathit{row}, c.\mathit{col}, r) \implies \operatorname{ev}_C(e, N, cs, u) \ne \mathrm{pass}$$
-
 A cell with a pass and one unexcused reading is not a pass. -/
 theorem engineVerdictC_ne_pass_of_reading (e : String) (N : Bool) (cs : List TableCell) (u : Nat) (c : TableCell)
     (hc : c ∈ cs) (r : Reading) (hr : r ∈ c.readings) (h : r.ok e c.row c.col = false) : engineVerdictC e N cs u ≠ .pass :=
   engineVerdictC_ne_pass_of_cell e N cs u c hc (TableCell.not_ok_of_reading e N c r hr h)
 
 /-- A not-comparable reading that no exemption names keeps its engine from passing, even beside passing readings of the same cell.
-
-$$c \in cs \wedge r \in c.\mathit{readings} \wedge r.v = \mathrm{nc} \wedge \operatorname{excuse}(e, c.\mathit{row}, c.\mathit{col}, r) = \bot \implies \operatorname{ev}_C(e, N, cs, u) \ne \mathrm{pass}$$
 
 Not comparable is never a pass. -/
 theorem engineVerdictC_nc_ne_pass (e : String) (N : Bool) (cs : List TableCell) (u : Nat) (c : TableCell)
@@ -573,8 +479,6 @@ theorem engineVerdictC_nc_ne_pass (e : String) (N : Bool) (cs : List TableCell) 
 
 /-- In a run that was not narrowed, a not-run cell keeps its engine from passing.
 
-$$c \in cs \wedge c.\mathit{readings} = [\,] \implies \operatorname{ev}_C(e, \bot, cs, u) \ne \mathrm{pass}$$
-
 A full run has no missing cell. -/
 theorem engineVerdictC_notRun_ne_pass (e : String) (cs : List TableCell) (u : Nat) (c : TableCell)
     (hc : c ∈ cs) (hv : c.readings = []) : engineVerdictC e false cs u ≠ .pass := by
@@ -582,8 +486,6 @@ theorem engineVerdictC_notRun_ne_pass (e : String) (cs : List TableCell) (u : Na
   simp [TableCell.ok, hv]
 
 /-- A failing reading that no exemption excuses fails its engine.
-
-$$\forall e, N, cs, u, c, r,\quad c \in cs \wedge r \in c.\mathit{readings} \wedge r.v = \mathrm{fail} \wedge \operatorname{excuse}(e, c.\mathit{row}, c.\mathit{col}, r) = \bot \implies \operatorname{ev}_C(e, N, cs, u) = \mathrm{fail}$$
 
 Unsettled samples do not hide a failure; by `excused_not_fail` the excuse is absent for every fail. -/
 theorem engineVerdictC_fail (e : String) (N : Bool) (cs : List TableCell) (u : Nat) (c : TableCell)
@@ -595,8 +497,6 @@ theorem engineVerdictC_fail (e : String) (N : Bool) (cs : List TableCell) (u : N
   simp [this]
 
 /-- Unsettled samples keep an engine from passing.
-
-$$u > 0 \implies \operatorname{ev}_C(e, N, cs, u) \ne \mathrm{pass}$$
 
 A run with a sample that did not settle is not a pass. -/
 theorem engineVerdictC_unsettled_ne_pass (e : String) (N : Bool) (cs : List TableCell) (u : Nat) (h : 0 < u) :
@@ -614,33 +514,19 @@ open Fw.Gate.Settle (Outcome report Report)
 
 /-- A sample (probe or sweep stop) is unsettled when either arm's wait ended unsettled.
 
-$$\operatorname{unst}(a, b) \iff \operatorname{report}(a, b, \mathrm{true}) = \mathrm{unsettled}$$
-
 The values' equality is not needed for that case, so `true` is passed. -/
 def stateUnsettled (s : Outcome × Outcome) : Bool := decide (report s.1 s.2 true = Report.unsettled)
 
-/-- Unsettled exactly when one of the two waits is.
-
-$$\operatorname{unst}(a, b) \iff a = \mathrm{unsettled} \vee b = \mathrm{unsettled}$$
-
--/
+/-- Unsettled exactly when one of the two waits is. -/
 theorem stateUnsettled_iff (s : Outcome × Outcome) :
     stateUnsettled s = true ↔ s.1 = .unsettled ∨ s.2 = .unsettled := by
   obtain ⟨a, b⟩ := s
   cases a <;> cases b <;> simp [stateUnsettled, report]
 
-/-- The number of unsettled samples among an engine's samples.
-
-$$\operatorname{u}(ws) = \bigl|\{\, w \in ws \mid \operatorname{unst}(w) \,\}\bigr|$$
-
--/
+/-- The number of unsettled samples among an engine's samples. -/
 def unsettledStates (ws : List (Outcome × Outcome)) : Nat := (ws.filter stateUnsettled).length
 
-/-- The count is positive exactly when some sample has an unsettled wait.
-
-$$\forall ws,\quad \operatorname{u}(ws) > 0 \iff \exists (a, b) \in ws,\ a = \mathrm{unsettled} \vee b = \mathrm{unsettled}$$
-
--/
+/-- The count is positive exactly when some sample has an unsettled wait. -/
 theorem unsettledStates_pos_iff (ws : List (Outcome × Outcome)) :
     0 < unsettledStates ws ↔ ∃ s ∈ ws, s.1 = .unsettled ∨ s.2 = .unsettled := by
   unfold unsettledStates
@@ -652,11 +538,7 @@ theorem unsettledStates_pos_iff (ws : List (Outcome × Outcome)) :
   · rintro ⟨s, hs, h⟩
     exact ⟨s, List.mem_filter.2 ⟨hs, (stateUnsettled_iff s).2 h⟩⟩
 
-/-- The count is zero exactly when every wait of every sample settled.
-
-$$\operatorname{u}(ws) = 0 \iff \forall (a, b) \in ws,\ a \ne \mathrm{unsettled} \wedge b \ne \mathrm{unsettled}$$
-
--/
+/-- The count is zero exactly when every wait of every sample settled. -/
 theorem unsettledStates_zero_iff (ws : List (Outcome × Outcome)) :
     unsettledStates ws = 0 ↔ ∀ s ∈ ws, s.1 ≠ .unsettled ∧ s.2 ≠ .unsettled := by
   have hp := unsettledStates_pos_iff ws
@@ -677,17 +559,11 @@ theorem unsettledStates_zero_iff (ws : List (Outcome × Outcome)) :
       · exact (hall s hs).1 h
       · exact (hall s hs).2 h
 
-/-- The verdict of one engine from its cells and the wait outcomes of its samples.
-
-$$\operatorname{ev}_S(e, N, cs, ws) = \operatorname{ev}_C(e, N, cs, \operatorname{u}(ws))$$
-
--/
+/-- The verdict of one engine from its cells and the wait outcomes of its samples. -/
 def engineVerdictCS (e : String) (narrowed : Bool) (cs : List TableCell) (ws : List (Outcome × Outcome)) : EngineVerdict :=
   engineVerdictC e narrowed cs (unsettledStates ws)
 
 /-- **An engine passes exactly when every cell is ok, every wait of every sample settled and some cell passed.**
-
-$$\operatorname{ev}_S(e, N, cs, ws) = \mathrm{pass} \iff \bigl(\forall (a, b) \in ws,\ a \ne \mathrm{unsettled} \wedge b \ne \mathrm{unsettled}\bigr) \wedge \bigl(\forall c \in cs,\ \operatorname{ok}(e, N, c)\bigr) \wedge \exists c,\ \operatorname{isPass}(c)$$
 
 Each cell and each wait is judged on its own. -/
 theorem engineVerdictCS_pass_iff (e : String) (N : Bool) (cs : List TableCell) (ws : List (Outcome × Outcome)) :
@@ -698,8 +574,6 @@ theorem engineVerdictCS_pass_iff (e : String) (N : Bool) (cs : List TableCell) (
 
 /-- A sample with an unsettled wait keeps its engine from passing.
 
-$$\forall (a, b) \in ws,\ (a = \mathrm{unsettled} \vee b = \mathrm{unsettled}) \implies \operatorname{ev}_S(e, N, cs, ws) \ne \mathrm{pass}$$
-
 Whatever the cells say, an engine with a sample that did not settle is not a pass. -/
 theorem engineVerdictCS_ne_pass_of_unsettled (e : String) (N : Bool) (cs : List TableCell) (ws : List (Outcome × Outcome))
     (s : Outcome × Outcome) (hs : s ∈ ws) (h : s.1 = .unsettled ∨ s.2 = .unsettled) : engineVerdictCS e N cs ws ≠ .pass := by
@@ -709,25 +583,19 @@ theorem engineVerdictCS_ne_pass_of_unsettled (e : String) (N : Bool) (cs : List 
   · exact this.1 h
   · exact this.2 h
 
-/-- The keys of a table's readings, cell by cell, reading by reading (a cell with no reading adds none).
-
-$$\forall cs,\quad \operatorname{keys}(cs) = [\,(c.\mathit{row}, c.\mathit{col}, r.\mathit{id}) \mid c \in cs,\ r \in c.\mathit{readings}\,]$$ -/
+/-- The keys of a table's readings, cell by cell, reading by reading (a cell with no reading adds none). -/
 def keysOf (cs : List TableCell) : List Key := cs.flatMap fun c => c.readings.map fun r => (c.row, c.col, r.id)
 
 /-- **The verdict of one engine against a universe.** A run that is not narrowed is `refused` unless its reading keys are a
-permutation of the universe (each key of $U$ exactly as often as in $U$, nothing else); otherwise the per-reading rule decides. A
+permutation of the universe (each key of `U` exactly as often as in `U`, nothing else); otherwise the per-reading rule decides. A
 narrowed run is judged by the per-reading rule alone (it never exits 0, `narrowed_never_zero`).
 
-$$\forall U, e, N, cs, ws,\quad \operatorname{ev}_U(U, e, N, cs, ws) = \begin{cases} \mathrm{refused} & N = \bot \wedge \neg(\operatorname{keys}(cs) \sim U) \\ \operatorname{ev}_S(e, N, cs, ws) & \text{otherwise} \end{cases}$$
-
-Here $\sim$ is "is a permutation of". -/
+Here `∼` is "is a permutation of". -/
 def engineVerdictU (U : List Key) (e : String) (narrowed : Bool) (cs : List TableCell) (ws : List (Outcome × Outcome)) :
     EngineVerdict :=
   if !narrowed && !(keysOf cs).isPerm U then .refused else engineVerdictCS e narrowed cs ws
 
 /-- **Universe identity**: an engine of a run that is not narrowed passes only if its readings are exactly the universe.
-
-$$\forall U, e, cs, ws,\quad \operatorname{ev}_U(U, e, \bot, cs, ws) = \mathrm{pass} \implies \operatorname{keys}(cs) \sim U$$
 
 A missing, extra or doubled reading is never a pass. -/
 theorem universe_identity (U : List Key) (e : String) (cs : List TableCell) (ws : List (Outcome × Outcome))
@@ -739,9 +607,6 @@ theorem universe_identity (U : List Key) (e : String) (cs : List TableCell) (ws 
 
 /-- **An engine of a full run passes exactly when its readings are the universe, every wait settled, every cell is ok and some cell
 passed.**
-
-$$\forall U, e, cs, ws,\quad \operatorname{ev}_U(U, e, \bot, cs, ws) = \mathrm{pass} \iff \operatorname{keys}(cs) \sim U \wedge \bigl(\forall (a, b) \in ws,\ a \ne \mathrm{unsettled} \wedge b \ne \mathrm{unsettled}\bigr) \wedge \bigl(\forall c \in cs,\ \operatorname{ok}(e, \bot, c)\bigr) \wedge \exists c \in cs,\ \operatorname{isPass}(c)$$
-
 -/
 theorem engineVerdictU_pass_iff (U : List Key) (e : String) (cs : List TableCell) (ws : List (Outcome × Outcome)) :
     engineVerdictU U e false cs ws = .pass ↔ (keysOf cs).Perm U ∧
@@ -760,37 +625,25 @@ theorem engineVerdictU_pass_iff (U : List Key) (e : String) (cs : List TableCell
     exact (engineVerdictCS_pass_iff e false cs ws).2 hrest
 
 /-- One engine of a run: its name, its cells and its samples' wait outcomes. Whether the run is narrowed is not a field of the engine:
-it is the run's command-line flag.
-
-$$\mathrm{In} = \mathrm{Engine} \times \mathrm{Cell}^{*} \times (\mathrm{Outcome} \times \mathrm{Outcome})^{*}$$ -/
+it is the run's command-line flag. -/
 structure EngineInput where
   engine : String
   cells : List TableCell
   waits : List (Outcome × Outcome)
 
-/-- The verdict of one engine of a run, against the universe $U$, for the run's narrowed flag $N$.
-
-$$\forall U, N, i,\quad \operatorname{eng}_{U,N}(i) = \operatorname{ev}_U(U, i.\mathit{engine}, N, i.\mathit{cells}, i.\mathit{waits})$$ -/
+/-- The verdict of one engine of a run, against the universe `U`, for the run's narrowed flag `N`. -/
 def EngineInput.verdict (U : List Key) (N : Bool) (i : EngineInput) : EngineVerdict := engineVerdictU U i.engine N i.cells i.waits
 
-/-- **The exit code of a run**: 1 for a run narrowed to parts (the `--parts` flag), else the exit code of the engine verdicts.
-
-$$\forall N, vs,\quad \operatorname{runExit}(N, vs) = \begin{cases} 1 & N = \top \\ \operatorname{exit}(vs) & N = \bot \end{cases}$$ -/
+/-- **The exit code of a run**: 1 for a run narrowed to parts (the `--parts` flag), else the exit code of the engine verdicts. -/
 def runExit (narrowed : Bool) (vs : List EngineVerdict) : Nat := if narrowed then 1 else exitCode vs
 
 /-- **A narrowed run never exits 0.**
-
-$$\forall vs,\quad \operatorname{runExit}(\top, vs) \ne 0$$
 
 A run that compared only some parts is never a gate pass, whatever its verdicts say. -/
 theorem narrowed_never_zero (vs : List EngineVerdict) : runExit true vs ≠ 0 := by
   simp [runExit]
 
-/-- A run exits 0 exactly when it is not narrowed, some engine was judged and every judged engine passed.
-
-$$\forall N, vs,\quad \operatorname{runExit}(N, vs) = 0 \iff N = \bot \wedge vs \ne [\,] \wedge \forall v \in vs,\ v = \mathrm{pass}$$
-
--/
+/-- A run exits 0 exactly when it is not narrowed, some engine was judged and every judged engine passed. -/
 theorem runExit_zero_iff (N : Bool) (vs : List EngineVerdict) :
     runExit N vs = 0 ↔ N = false ∧ vs ≠ [] ∧ ∀ v ∈ vs, v = .pass := by
   cases N
@@ -799,8 +652,6 @@ theorem runExit_zero_iff (N : Bool) (vs : List EngineVerdict) :
 
 /-- **A run exits 0 exactly when it is not narrowed, and every engine supplied exactly the universe, settled every wait, has every cell
 ok and a passing cell.**
-
-$$\forall U, N, is,\quad \operatorname{runExit}(N, [\operatorname{eng}_{U,N}(i)]_{i \in is}) = 0 \iff N = \bot \wedge is \ne [\,] \wedge \forall i \in is,\ \operatorname{keys}(i.\mathit{cells}) \sim U \wedge \Bigl(\forall s \in i.\mathit{waits},\ s_1, s_2 \ne \mathrm{unsettled}\Bigr) \wedge \bigl(\forall c \in i.\mathit{cells},\ \operatorname{ok}(i.\mathit{engine}, \bot, c)\bigr) \wedge \exists c \in i.\mathit{cells},\ \operatorname{isPass}(c)$$
 
 The exit code is the conjunction over every engine, every reading key, every cell and every wait; nothing is aggregated first. -/
 theorem exit_zero_iff_all_cells (U : List Key) (N : Bool) (is : List EngineInput) :
@@ -819,18 +670,12 @@ theorem exit_zero_iff_all_cells (U : List Key) (N : Bool) (is : List EngineInput
     obtain ⟨i, hi, rfl⟩ := List.mem_map.1 hv
     exact (engineVerdictU_pass_iff U _ _ _).2 (hall i hi)
 
-/-- **Universe identity of a run**: a run that exits 0 supplied, for every engine, exactly the readings of the universe.
-
-$$\forall U, N, is,\quad \operatorname{runExit}(N, [\operatorname{eng}_{U,N}(i)]_{i \in is}) = 0 \implies \forall i \in is,\ \operatorname{keys}(i.\mathit{cells}) \sim U$$
-
--/
+/-- **Universe identity of a run**: a run that exits 0 supplied, for every engine, exactly the readings of the universe. -/
 theorem universe_identity_run (U : List Key) (N : Bool) (is : List EngineInput)
     (h : runExit N (is.map (EngineInput.verdict U N)) = 0) : ∀ i ∈ is, (keysOf i.cells).Perm U :=
   fun i hi => (((exit_zero_iff_all_cells U N is).1 h).2.2 i hi).1
 
 /-- **A cell that is neither a pass nor excused, in any engine, gives a non-zero exit.**
-
-$$\forall U, N, is,\ \forall i \in is,\ \forall c \in i.\mathit{cells},\quad \neg\operatorname{ok}(i.\mathit{engine}, N, c) \implies \operatorname{runExit}(N, [\operatorname{eng}_{U,N}(i')]_{i' \in is}) \ne 0$$
 
 One failing, not-comparable, unreachable-unregistered or missing cell in one engine is enough. -/
 theorem exit_ne_zero_of_cell (U : List Key) (N : Bool) (is : List EngineInput) (i : EngineInput) (hi : i ∈ is) (c : TableCell)
@@ -842,8 +687,6 @@ theorem exit_ne_zero_of_cell (U : List Key) (N : Bool) (is : List EngineInput) (
   cases h
 
 /-- **A sample with an unsettled wait anywhere gives a non-zero exit.**
-
-$$\forall U, N, is,\ \forall i \in is,\ \forall s \in i.\mathit{waits},\quad (s_1 = \mathrm{unsettled} \vee s_2 = \mathrm{unsettled}) \implies \operatorname{runExit}(N, [\operatorname{eng}_{U,N}(i')]_{i' \in is}) \ne 0$$
 
 The exit code is taken from the waits, not from a flag the page sets. -/
 theorem exit_ne_zero_of_wait_unsettled (U : List Key) (N : Bool) (is : List EngineInput) (i : EngineInput) (hi : i ∈ is)
@@ -857,31 +700,20 @@ theorem exit_ne_zero_of_wait_unsettled (U : List Key) (N : Bool) (is : List Engi
 
 /-- The hysteresis pair (the arm after a sweep, the arm freshly loaded at the same final environment) is compared only when
 both of its waits settled.
-
-$$\operatorname{cmp}(a, f) \iff \operatorname{report}(a, f, \mathrm{true}) = \mathrm{pass}$$
-
 -/
 def staleComparable (after fresh : Outcome) : Bool := decide (report after fresh true = Report.pass)
 
-/-- Comparable exactly when both waits settled; an unsettled pair is never compared.
-
-$$\operatorname{cmp}(a, f) \iff a \ne \mathrm{unsettled} \wedge f \ne \mathrm{unsettled}$$
-
--/
+/-- Comparable exactly when both waits settled; an unsettled pair is never compared. -/
 theorem staleComparable_iff (a f : Outcome) :
     staleComparable a f = true ↔ a ≠ .unsettled ∧ f ≠ .unsettled := by
   cases a <;> cases f <;> simp [staleComparable, report]
 
 /-- A natural number from plain ASCII digits only: nonempty, every character `0`..`9`. (`String.toNat?` also accepts `_`
-separators, which no summary writes and no wire should carry.)
-
-$$\operatorname{digits}(s) = \begin{cases} \sum_i d_i 10^{|s| - 1 - i} & s \ne \varepsilon \wedge \forall i,\ s_i \in \{\texttt{0}, \ldots, \texttt{9}\} \\ \bot & \text{otherwise} \end{cases}$$ -/
+separators, which no summary writes and no wire should carry.) -/
 def plainNat? (s : String) : Option Nat :=
   if !s.isEmpty && s.all Char.isDigit then some (s.foldl (fun n c => 10 * n + (c.toNat - 48)) 0) else none
 
 /-- A plain number is read exactly from a nonempty string of ASCII digits.
-
-$$\operatorname{digits}(s) \ne \bot \iff s \ne \varepsilon \wedge \forall i,\ s_i \in \{\texttt{0}, \ldots, \texttt{9}\}$$
 
 Underscores, signs and empty strings are not numbers. -/
 theorem plainNat_isSome_iff (s : String) : (plainNat? s).isSome = true ↔ s.isEmpty = false ∧ s.all Char.isDigit = true := by
@@ -896,8 +728,6 @@ theorem plainNat_isSome_iff (s : String) : (plainNat? s).isSome = true ↔ s.isE
 /-- The wire form of a wait outcome: `settled@<i>` with plain digits, `unsettled`, and `missing` (a sample the run made
 without the wait), which is read as unsettled.
 
-$$\operatorname{ow}(s) = \begin{cases} \mathrm{settled}(i) & s = \texttt{settled@}d,\ \operatorname{digits}(d) = i \\ \mathrm{unsettled} & s \in \{\texttt{unsettled}, \texttt{missing}\} \\ \text{error} & \text{otherwise} \end{cases}$$
-
 A wait that is absent is not a pass; `settled@`, `settled@+1`, `settled@1_0` and `settled@x` are errors. -/
 def outcomeOfWire (s : String) : Except String Outcome :=
   if s = "unsettled" ∨ s = "missing" then .ok .unsettled
@@ -907,17 +737,11 @@ def outcomeOfWire (s : String) : Except String Outcome :=
     | none => .error s!"unknown outcome {s}"
   else .error s!"unknown outcome {s}"
 
-/-- A missing wait is read as unsettled.
-
-$$\operatorname{ow}(\texttt{missing}) = \mathrm{unsettled}$$
-
--/
+/-- A missing wait is read as unsettled. -/
 theorem outcomeOfWire_missing : outcomeOfWire "missing" = .ok .unsettled := by simp [outcomeOfWire]
 
 /-- One table cell from its wire form: the row, the column and the readings (reading id, verdict name), each name `pass`, `fail`,
 `not-comparable` or `unreachable:<reason>`; no reading at all is a block that was not run.
-
-$$\operatorname{cell}(\rho, \kappa, [(i_k, n_k)]_k) = \begin{cases} \operatorname{ok}\bigl((\rho, \kappa, [(i_k, v(n_k))]_k)\bigr) & \text{every } v(n_k) \text{ known} \\ \operatorname{error}(\texttt{unknown verdict } n_k) & n_k \text{ the first unknown name} \end{cases}$$
 
 An unknown name is an error, never a pass; there is no `not-run` reading name, only the empty list. -/
 def tableCellOfWire (row col : String) (readings : List (String × String)) : Except String TableCell := do
@@ -926,17 +750,12 @@ def tableCellOfWire (row col : String) (readings : List (String × String)) : Ex
     return (⟨p.1, v⟩ : Reading)
   return ⟨row, col, rs⟩
 
-/-- The keys of wire cells, cell by cell, reading by reading.
-
-$$\forall ns,\quad \operatorname{keys}_W(ns) = [\,(\rho, \kappa, i) \mid (\rho, \kappa, rs) \in ns,\ (i, n) \in rs\,]$$ -/
+/-- The keys of wire cells, cell by cell, reading by reading. -/
 def wireKeys (cells : List (String × String × List (String × String))) : List Key :=
   cells.flatMap fun c => c.2.2.map fun p => (c.1, c.2.1, p.1)
 
-/-- The verdict of one engine against a universe $U$ from the wire form of its cells (row, column, readings) and of its samples' wait
+/-- The verdict of one engine against a universe `U` from the wire form of its cells (row, column, readings) and of its samples' wait
 outcomes (one pair per probe or sweep stop).
-
-$$\forall U, e, N, ns, ws,\quad \operatorname{ev}_{UW}(U, e, N, ns, ws) = \begin{cases} \operatorname{ok}\bigl(\operatorname{ev}_U(U, e, N, [\operatorname{cell}(\rho, \kappa, rs)]_{(\rho, \kappa, rs) \in ns},\ [(\operatorname{ow}(a), \operatorname{ow}(b))]_{(a, b) \in ws})\bigr) & \text{every name is known} \\ \operatorname{error}(m) & m \text{ the first error: the cells are read first, in order, then the waits} \end{cases}$$
-
 -/
 def engineVerdictUW (U : List Key) (engine : String) (narrowed : Bool) (cells : List (String × String × List (String × String)))
     (waits : List (String × String)) : Except String EngineVerdict := do
@@ -944,9 +763,7 @@ def engineVerdictUW (U : List Key) (engine : String) (narrowed : Bool) (cells : 
   let ws ← waits.mapM fun w => do return ((← outcomeOfWire w.1), (← outcomeOfWire w.2))
   return engineVerdictU U engine narrowed cs ws
 
-/-- The verdict of one engine from wire cells, taking the cells' own keys as the universe (so only the per-reading rule decides).
-
-$$\forall e, N, ns, ws,\quad \operatorname{ev}_{WW}(e, N, ns, ws) = \operatorname{ev}_{UW}(\operatorname{keys}_W(ns), e, N, ns, ws)$$ -/
+/-- The verdict of one engine from wire cells, taking the cells' own keys as the universe (so only the per-reading rule decides). -/
 def engineVerdictCW (engine : String) (narrowed : Bool) (cells : List (String × String × List (String × String)))
     (waits : List (String × String)) : Except String EngineVerdict :=
   engineVerdictUW (wireKeys cells) engine narrowed cells waits
@@ -956,8 +773,6 @@ def engineVerdictCW (engine : String) (narrowed : Bool) (cells : List (String ×
 
 /-- The wire names of an engine verdict, as `cli.mjs` prints them.
 
-$$\operatorname{wire}(v) = \text{the name of the constructor } v \in \{\texttt{pass}, \texttt{fail}, \texttt{unsettled}, \texttt{incomplete}, \texttt{notRendered}, \texttt{refused}\}$$
-
 Each verdict is printed under the name of its constructor. -/
 def verdictWire : EngineVerdict → String
   | .pass => "pass" | .fail => "fail" | .unsettled => "unsettled" | .incomplete => "incomplete" | .notRendered => "notRendered"
@@ -966,35 +781,26 @@ def verdictWire : EngineVerdict → String
 /-! ## Golden vectors -/
 
 open Lean in
-/-- The JSON of one exemption: id, engine, the rows it lists, column, the reading ids it lists, verdict wire name, reason and premise.
-
-$$\forall x,\quad x \mapsto \{\mathrm{col}, \mathrm{engine}, \mathrm{id}, \mathrm{ids}, \mathrm{kind} = \texttt{exemption}, \mathrm{premise}, \mathrm{reason}, \mathrm{rows}, \mathrm{verdict}\}$$ -/
+/-- The JSON of one exemption: id, engine, the rows it lists, column, the reading ids it lists, verdict wire name, reason and premise. -/
 def exemptionLine (x : Exemption) : String :=
   (Json.mkObj [("kind", "exemption"), ("id", x.id), ("engine", x.engine), ("rows", toJson x.rows), ("col", x.col),
     ("ids", toJson x.ids), ("verdict", Fw.Wire.Gate.verdictName x.verdict), ("reason", x.reason),
     ("premise", x.premise.toString)]).compress
 
 open Lean in
-/-- The JSON of the universe: its rows, its columns with their reading ids, and its size.
-
-$$\{\mathrm{cols} = \mathrm{cols},\ \mathrm{kind} = \texttt{universe},\ \mathrm{rows} = \mathrm{rows},\ \mathrm{size} = |U|\}$$ -/
+/-- The JSON of the universe: its rows, its columns with their reading ids, and its size. -/
 def universeLine (_ : Unit := ()) : String :=
   (Json.mkObj [("kind", "universe"), ("rows", toJson gateRows),
     ("cols", Json.arr (gateCols.map fun c => Json.arr #[Json.str c.1, toJson c.2]).toArray),
     ("size", toJson gateUniverse.length)]).compress
 
 open Lean in
-/-- The JSON of the narrowed-run excuse.
-
-$$\{\mathrm{id} = \texttt{narrowed-run},\ \mathrm{kind} = \texttt{narrowed},\ \mathrm{reason}\}$$ -/
+/-- The JSON of the narrowed-run excuse. -/
 def narrowedLine : String :=
   (Json.mkObj [("kind", "narrowed"), ("id", narrowedId), ("reason", narrowedReason)]).compress
 
 /-- The excuses of a cell, one per excused reading: (excuse id, `row|col` of the cell, reading id). A not-run cell of a narrowed run has one,
 under `narrowed-run` with an empty reading id.
-
-$$\forall e, N, c,\ \text{with } \rho = c.\mathit{row},\ \kappa = c.\mathit{col}:\quad X(e, N, c) = \begin{cases} [(\texttt{narrowed-run}, \rho \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} \kappa, \varepsilon)] & c.\mathit{readings} = [\,] \wedge N \\ [\,] & c.\mathit{readings} = [\,] \wedge \neg N \\ [(\operatorname{excuse}(e, \rho, \kappa, r), \rho \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} \kappa, r.\mathit{id}) \mid r \in c.\mathit{readings},\ \operatorname{excuse}(e, \rho, \kappa, r) \ne \bot] & \text{otherwise} \end{cases}$$
-
 -/
 def cellExcuses (e : String) (narrowed : Bool) (c : TableCell) : List (List String) :=
   if c.readings.isEmpty then (if narrowed then [[narrowedId, c.row ++ "|" ++ c.col, ""]] else [])
@@ -1004,10 +810,8 @@ open Lean in
 /-- One engine case against a universe: the universe keys, the engine, whether the run was narrowed, the wire form of its cells (row,
 column, readings) and of its samples' waits; the verdict, the unsettled count and the excused readings, or the first error.
 
-$$\forall U, e, N, ns, ws,\quad \operatorname{engineCase}_U(U, e, N, ns, ws) = \begin{cases} H \cup \{\mathrm{exempt} = X,\ \mathrm{unsettled} = \operatorname{u}(ws'),\ \mathrm{verdict} = \operatorname{wire}(v)\} & \operatorname{ev}_{UW}(U, e, N, ns, ws) = \operatorname{ok}(v) \\ H \cup \{\mathrm{error} = m\} & \operatorname{ev}_{UW}(U, e, N, ns, ws) = \operatorname{error}(m) \end{cases}$$
-
-Here $H = \{\mathrm{cells} = ns,\ \mathrm{engine} = e,\ \mathrm{kind} = \texttt{engine},\ \mathrm{narrowed} = N,\ \mathrm{universe} = U,\ \mathrm{waits} = ws\}$,
-$ws'$ the waits read from $ws$ and $X = \bigoplus_{c} X(e, N, c)$ over the cells $c$ read from $ns$, in order.
+Here `H = {cells = ns, engine = e, kind = engine, narrowed = N, universe = U, waits = ws}`,
+`ws'` the waits read from `ws` and `X = ⨁_c X(e, N, c)` over the cells `c` read from `ns`, in order.
 One compact JSON object with keys in sorted order. -/
 def engineCaseU (U : List Key) (engine : String) (narrowed : Bool) (cells : List (String × String × List (String × String)))
     (waits : List (String × String)) : String :=
@@ -1025,19 +829,13 @@ def engineCaseU (U : List Key) (engine : String) (narrowed : Bool) (cells : List
     (Json.mkObj (head ++ [("unsettled", toJson (unsettledStates ws)), ("verdict", Json.str (verdictWire v)), ("exempt", toJson ex)])).compress
   | .error e => (Json.mkObj (head ++ [("error", Json.str e)])).compress
 
-/-- One engine case whose universe is its own cells' keys.
-
-$$\forall e, N, ns, ws,\quad \operatorname{engineCase}(e, N, ns, ws) = \operatorname{engineCase}_U(\operatorname{keys}_W(ns), e, N, ns, ws)$$ -/
+/-- One engine case whose universe is its own cells' keys. -/
 def engineCase (engine : String) (narrowed : Bool) (cells : List (String × String × List (String × String)))
     (waits : List (String × String)) : String :=
   engineCaseU (wireKeys cells) engine narrowed cells waits
 
 open Lean in
-/-- One hysteresis case: the wire outcomes of the two waits and whether the pair is compared.
-
-$$\forall a, f,\quad \operatorname{staleCase}(a, f) = \begin{cases} \{\mathrm{after} = a,\ \mathrm{comparable} = \operatorname{cmp}(\operatorname{ow}(a), \operatorname{ow}(f)),\ \mathrm{fresh} = f,\ \mathrm{kind} = \texttt{stale}\} & \operatorname{ow}(a), \operatorname{ow}(f) \text{ both ok} \\ \{\mathrm{after} = a,\ \mathrm{error} = \texttt{unknown outcome},\ \mathrm{fresh} = f,\ \mathrm{kind} = \texttt{stale}\} & \text{otherwise} \end{cases}$$
-
--/
+/-- One hysteresis case: the wire outcomes of the two waits and whether the pair is compared. -/
 def staleCase (after fresh : String) : String :=
   match outcomeOfWire after, outcomeOfWire fresh with
   | .ok a, .ok f => (Json.mkObj [("kind", "stale"), ("after", after), ("fresh", fresh),
@@ -1047,24 +845,18 @@ def staleCase (after fresh : String) : String :=
 open Lean in
 /-- One run case: whether the run was narrowed, the verdicts of the judged engines and the exit code.
 
-$$\forall N, vs,\quad \operatorname{exitCase}(N, vs) = \{\mathrm{engines} = [\,\operatorname{wire}(v) \mid v \in vs\,],\ \mathrm{exit} = \operatorname{runExit}(N, vs),\ \mathrm{kind} = \texttt{exit},\ \mathrm{narrowed} = N\}$$
-
 One compact JSON object with keys in sorted order: the narrowed flag, the wire names of the verdicts, in order, and the exit code. -/
 def exitCase (narrowed : Bool) (vs : List EngineVerdict) : String :=
   (Json.mkObj [("kind", "exit"), ("narrowed", toJson narrowed), ("engines", toJson (vs.map verdictWire)),
     ("exit", toJson (runExit narrowed vs))]).compress
 
 /-- A single-reading wire cell from a (row, column, verdict name) triple; the name `not-run` is a cell with no reading. The reading is
-called `probe`.
-
-$$\forall \rho, \kappa, n,\quad \operatorname{cell}_1(\rho, \kappa, n) = \begin{cases} (\rho, \kappa, [\,]) & n = \texttt{not-run} \\ (\rho, \kappa, [(\texttt{probe}, n)]) & \text{otherwise} \end{cases}$$ -/
+called `probe`. -/
 def cell1 (c : String × String × String) : String × String × List (String × String) :=
   (c.1, c.2.1, if c.2.2 == "not-run" then [] else [("probe", c.2.2)])
 
 /-- One engine case whose cells each have one reading, from (row, column, verdict name) triples; the name `not-run` is a cell with no
 reading. The reading is called `probe`.
-
-$$\forall e, N, ns, ws,\quad \operatorname{engineCase}_1(e, N, ns, ws) = \operatorname{engineCase}(e, N, [\operatorname{cell}_1(t)]_{t \in ns}, ws)$$
 
 The single-reading cases of the golden file. -/
 def engineCase1 (engine : String) (narrowed : Bool) (cells : List (String × String × String))
@@ -1073,75 +865,51 @@ def engineCase1 (engine : String) (narrowed : Bool) (cells : List (String × Str
 
 /-- The verdict of the single-reading wire cells, for the `#guard`s below.
 
-$$\forall e, N, ns, ws,\quad \operatorname{ev}_1(e, N, ns, ws) = \operatorname{ev}_{WW}(e, N, [\operatorname{cell}_1(t)]_{t \in ns}, ws)$$
-
 It is returned as an Option (`.toOption`). -/
 def verdict1 (engine : String) (narrowed : Bool) (cells : List (String × String × String))
     (waits : List (String × String)) : Option EngineVerdict :=
   (engineVerdictCW engine narrowed (cells.map cell1) waits).toOption
 
-/-- The cells of a sweep from the verdict names of its stops, the stop `i` being the reading `<sweep>#i`.
-
-$$\forall \rho, s, [n_i]_i,\quad \operatorname{sweepCell}(\rho, s, [n_i]_i) = (\rho, \texttt{sweep:}s, [(s \mathbin{+\!\!+} \texttt{"\#"} \mathbin{+\!\!+} i, n_i)]_i)$$ -/
+/-- The cells of a sweep from the verdict names of its stops, the stop `i` being the reading `<sweep>#i`. -/
 def sweepCell (row sweep : String) (names : List String) : String × String × List (String × String) :=
   (row, "sweep:" ++ sweep, ((List.range names.length).zip names).map fun p => (s!"{sweep}#{p.1}", p.2))
 
-/-- The Lean row of the tablet sweep from the verdict names of its five stops.
-
-$$\forall [n_i]_i,\quad \operatorname{touch}([n_i]_i) = \operatorname{sweepCell}(\texttt{matchMedia =Lean}, \texttt{touch-1024-1201}, [n_i]_i)$$ -/
+/-- The Lean row of the tablet sweep from the verdict names of its five stops. -/
 def touchMm (names : List String) : String × String × List (String × String) :=
   sweepCell "matchMedia =Lean" "touch-1024-1201" names
 
-/-- A passing cell in the original's `desk` column, for the cases below.
-
-$$\mathrm{ok}_0 = (\texttt{engine.scroll}, \texttt{desk}, \texttt{pass})$$ -/
+/-- A passing cell in the original's `desk` column, for the cases below. -/
 def okCell : String × String × String := ("engine.scroll", "desk", "pass")
 
-/-- The registered `matchMedia` cell, as a wire triple; its reading id `probe` is not one of the exemption's ids.
-
-$$\mathrm{nc}_{mm} = (\texttt{matchMedia =Lean}, \texttt{fractional-gaps}, \texttt{not-comparable})$$ -/
+/-- The registered `matchMedia` cell, as a wire triple; its reading id `probe` is not one of the exemption's ids. -/
 def ncMm : String × String × String := ("matchMedia =Lean", "fractional-gaps", "not-comparable")
 
-/-- The registered `matchMedia` cell with a reading id the exemption lists.
-
-$$\mathrm{nc}'_{mm} = (\texttt{matchMedia =Lean}, \texttt{fractional-gaps}, [(\texttt{fractional-gaps-600.5}, \texttt{not-comparable})])$$ -/
+/-- The registered `matchMedia` cell with a reading id the exemption lists. -/
 def ncMmId : String × String × List (String × String) :=
   ("matchMedia =Lean", "fractional-gaps", [("fractional-gaps-600.5", "not-comparable")])
 
-/-- A cross cell of a WebKit table, with a reading id the exemption lists.
-
-$$\mathrm{cross} = (\texttt{hero.exit}, \texttt{hover-pointer-cross}, [(\texttt{hover-pointer-cross-1024x768-hover-coarse}, \texttt{unreachable:primary-pair})])$$ -/
+/-- A cross cell of a WebKit table, with a reading id the exemption lists. -/
 def crossCell : String × String × List (String × String) :=
   ("hero.exit", "hover-pointer-cross", [("hover-pointer-cross-1024x768-hover-coarse", "unreachable:primary-pair")])
 
-/-- A fractional cell of a WebKit table, with a reading id the exemption lists.
-
-$$\mathrm{frac} = (\texttt{hero.exit}, \texttt{fractional-gaps}, [(\texttt{fractional-gaps-600.5}, \texttt{unreachable:whole-width})])$$ -/
+/-- A fractional cell of a WebKit table, with a reading id the exemption lists. -/
 def fracCell : String × String × List (String × String) :=
   ("hero.exit", "fractional-gaps", [("fractional-gaps-600.5", "unreachable:whole-width")])
 
-/-- Two passing readings `a`, `b` in one cell, for the universe cases below.
-
-$$\mathrm{ab} = (\texttt{engine.scroll}, \texttt{desk}, [(\texttt{a}, \texttt{pass}), (\texttt{b}, \texttt{pass})])$$ -/
+/-- Two passing readings `a`, `b` in one cell, for the universe cases below. -/
 def abCell : String × String × List (String × String) := ("engine.scroll", "desk", [("a", "pass"), ("b", "pass")])
 
-/-- A failing stop `i` of sweep `w` in row `ρ`, as a one-reading wire cell.
-
-$$\forall \rho, w, i,\quad \operatorname{resizeCell}(\rho, w, i) = (\rho, \texttt{sweep:} \mathbin{+\!\!+} w, [(w \mathbin{+\!\!+} \texttt{\#} \mathbin{+\!\!+} \operatorname{str}(i), \texttt{fail})])$$ -/
+/-- A failing stop `i` of sweep `w` in row `ρ`, as a one-reading wire cell. -/
 def resizeCell (row sweep : String) (i : Nat) : String × String × List (String × String) :=
   (row, "sweep:" ++ sweep, [(s!"{sweep}#{i}", "fail")])
 
-/-- The key of reading `i` of the `engine.scroll` row in the `desk` column.
-
-$$\forall i,\quad \operatorname{k}(i) = (\texttt{engine.scroll}, \texttt{desk}, i)$$ -/
+/-- The key of reading `i` of the `engine.scroll` row in the `desk` column. -/
 def deskKey (i : String) : Key := ("engine.scroll", "desk", i)
 
 /-- The golden lines (`packages/contracts/golden/gate/exit.jsonl`).
 
-$$\mathrm{goldenLines} = [\operatorname{exemptionLine}(x)]_{x \in \mathrm{exemptions}} \mathbin{+\!\!+} [\mathrm{universeLine}, \mathrm{narrowedLine}] \mathbin{+\!\!+} [\operatorname{engineCase}_U(U, e, N, ns, ws)]_{(U, e, N, ns, ws) \in E} \mathbin{+\!\!+} [\operatorname{exitCase}(N, vs)]_{(N, vs) \in X} \mathbin{+\!\!+} [\operatorname{staleCase}(a, f)]_{(a, f) \in S}$$
-
-The sizes are $|\mathrm{exemptions}| = 5$, $|E| = 62$ engine cases, $|X| = 15$ run cases and $|S| = 8$ hysteresis cases, so the file has
-$5 + 2 + 62 + 15 + 8 = 92$ lines in that order. The engine cases cover: every registered exemption and each of its
+The sizes are `|exemptions| = 5`, `|E| = 62` engine cases, `|X| = 15` run cases and `|S| = 8` hysteresis cases, so the file has
+`5 + 2 + 62 + 15 + 8 = 92` lines in that order. The engine cases cover: every registered exemption and each of its
 conditions broken (other engine, other row, other column, other verdict, a reading id it does not list), a cell that mixes an excused
 and an unexcused reading, a not-comparable or unreachable cell with no exemption, a not-run cell in a full and in a narrowed run, the
 order fail over unsettled over incomplete over not-rendered, the wait outcomes (plain digits only, a missing wait, an unknown name,
@@ -1275,15 +1043,11 @@ def goldenLines (_ : Unit := ()) : List String :=
 #guard (engineVerdictUW [deskKey "b", deskKey "a"] "chromium" false [abCell] []).toOption == some .pass
 #guard (engineVerdictUW [deskKey "a", deskKey "b", deskKey "c"] "chromium" true [abCell] []).toOption == some .pass
 
-/-- The exact bytes of `packages/contracts/golden/gate/exit.jsonl`: the lines, each newline-terminated.
-
-$$\text{goldenText} = \mathbin{+\!\!+}_{\ell \in \text{goldenLines}} (\ell \mathbin{+\!\!+} \texttt{newline})$$ -/
+/-- The exact bytes of `packages/contracts/golden/gate/exit.jsonl`: the lines, each newline-terminated. -/
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
 /-- Command-line driver (`lean/scripts/ExitGolden.lean`): print the golden text, or with `--check <file>` exit 0 when the file holds
 exactly these bytes and 1 otherwise.
-
-$$\forall f,\quad \operatorname{run}(\texttt{--check}\ f) = 0 \iff \operatorname{bytes}(f) = \operatorname{goldenText}$$
 
 Print mode returns 0. -/
 def run (args : List String) : IO UInt32 := do

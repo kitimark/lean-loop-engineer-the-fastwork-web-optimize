@@ -29,8 +29,6 @@ open Fw.Measure
 
 /-- The prediction kinds of one row, about a variant series `v` and the original's series `b`:
 `zero` ("=0"), `eqO` ("=o"), `leO` ("≤o"), `ltO` ("<o"), `any`.
-
-$$\mathrm{Pred} = \{=0,\ =o,\ \le o,\ <o,\ \mathrm{any}\}$$
 -/
 inductive Pred where
   | zero
@@ -40,10 +38,7 @@ inductive Pred where
   | any
 deriving Repr, DecidableEq
 
-/-- A prediction by its name in the rows; `none` for any other name.
-
-$$\operatorname{pred}(s) = \begin{cases} =0 & s = \text{"=0"} \\ =o & s = \text{"=o"} \\ \le o & s \in \{\text{"\char"2264o"}, \text{"<=o"}\} \\ <o & s = \text{"<o"} \\ \mathrm{any} & s = \text{"any"} \\ \bot & \text{otherwise} \end{cases}$$
--/
+/-- A prediction by its name in the rows; `none` for any other name. -/
 def Pred.ofName : String → Option Pred
   | "=0" => some .zero
   | "=o" => some .eqO
@@ -57,8 +52,6 @@ def Pred.ofName : String → Option Pred
 
 /-- A class is *frame exact* when an unseen run equals the observed one in every frame: `deterministic`,
 and `stable(0, t)` (no frame may differ).
-
-$$\operatorname{exact}(c) \iff c = \mathrm{det} \ \lor\ \exists t:\ c = \mathrm{stable}(0, t)$$
 -/
 def exact : Class → Bool
   | .deterministic => true
@@ -67,8 +60,6 @@ def exact : Class → Bool
 
 /-- The total gap one unseen run can have from the observed one: `t` for `stable(k, t)`, `k ≥ 1`;
 0 for the frame-exact classes (and for `quarantined`, where nothing is claimed).
-
-$$\operatorname{slack}(c) = \begin{cases} t & c = \mathrm{stable}(k, t),\ k \ge 1 \\ 0 & \text{otherwise} \end{cases}$$
 -/
 def slack : Class → Nat
   | .stable (_ + 1) t => t
@@ -80,18 +71,6 @@ def slack : Class → Nat
 /-- **The claim** a prediction makes about an unseen pair of runs `(b', v')` of class `c`. On a frame
 exact class it is per frame; otherwise it is about totals (for non-negative counts a zero total is a
 zero in every frame, `total_zero_frames`).
-
-$$\operatorname{Claim}(p, c, b', v') = \begin{cases}
-\forall i:\ v'[i] = 0 & p = {=0},\ \operatorname{exact}(c) \\
-\forall i:\ v'[i] = b'[i] & p = {=o},\ \operatorname{exact}(c) \\
-\forall i:\ v'[i] \le b'[i] & p = {\le o},\ \operatorname{exact}(c) \\
-(\forall i:\ v'[i] \le b'[i]) \land \Sigma v' < \Sigma b' & p = {<o},\ \operatorname{exact}(c) \\
-\Sigma v' = 0 & p = {=0},\ \lnot\operatorname{exact}(c) \\
-\Sigma v' = \Sigma b' & p = {=o},\ \lnot\operatorname{exact}(c) \\
-\Sigma v' \le \Sigma b' & p = {\le o},\ \lnot\operatorname{exact}(c) \\
-\Sigma v' < \Sigma b' & p = {<o},\ \lnot\operatorname{exact}(c) \\
-\top & p = \mathrm{any}
-\end{cases}$$
 -/
 def Claim (p : Pred) (c : Class) (b' v' : Series) : Prop :=
   if exact c = true then
@@ -114,15 +93,6 @@ def Claim (p : Pred) (c : Class) (b' v' : Series) : Prop :=
 /-- The observation certifies the claim for every unseen run. Frame-exact classes: the observation
 itself satisfies the claim. Totals: `=0` and `=o` need no slack at all (`slack = 0`) and the observed
 totals equal; `≤o` needs the margin of `margin_sound`; strict `<o` is never certified here.
-
-$$\operatorname{passes}(p, c, b, v) \iff \begin{cases}
-\operatorname{Claim}(p, c, b, v) & \operatorname{exact}(c) \\
-\Sigma v = 0 \land s = 0 & p = {=0},\ \lnot\operatorname{exact}(c) \\
-\Sigma v = \Sigma b \land s = 0 & p = {=o},\ \lnot\operatorname{exact}(c) \\
-\Sigma v + 2s \le \Sigma b & p = {\le o},\ \lnot\operatorname{exact}(c) \\
-\bot & p = {<o},\ \lnot\operatorname{exact}(c) \\
-\top & p = \mathrm{any}
-\end{cases} \quad (s = \operatorname{slack}(c))$$
 -/
 def passes (p : Pred) (c : Class) (b v : Series) : Bool :=
   if exact c = true then
@@ -143,14 +113,6 @@ def passes (p : Pred) (c : Class) (b v : Series) : Bool :=
 /-- The observation refutes the claim for every unseen run. Frame-exact classes: the observation does
 not satisfy the claim. Totals: the observed total is further from the claim than one unseen run can move
 it (`slack` per series).
-
-$$\operatorname{fails}(p, c, b, v) \iff \begin{cases}
-\lnot\operatorname{Claim}(p, c, b, v) & \operatorname{exact}(c),\ p \ne \mathrm{any} \\
-s < |\Sigma v| & p = {=0},\ \lnot\operatorname{exact}(c) \\
-2s < |\Sigma v - \Sigma b| & p = {=o},\ \lnot\operatorname{exact}(c) \\
-\Sigma b + 2s < \Sigma v & p = {\le o},\ \lnot\operatorname{exact}(c) \\
-\bot & \text{otherwise}
-\end{cases} \quad (s = \operatorname{slack}(c))$$
 -/
 def fails (p : Pred) (c : Class) (b v : Series) : Bool :=
   if exact c = true then
@@ -168,10 +130,7 @@ def fails (p : Pred) (c : Class) (b v : Series) : Bool :=
     | .ltO => false
     | .any => false
 
-/-- Why a row is unusable.
-
-$$\mathrm{Why} = \{\mathrm{quarantined},\ \mathrm{strictNeedsExact},\ \mathrm{inconclusive},\ \mathrm{noObs},\ \mathrm{noLane}\}$$
--/
+/-- Why a row is unusable. -/
 inductive Why where
   | quarantined
   | strictNeedsExact
@@ -180,10 +139,7 @@ inductive Why where
   | noLane
 deriving Repr, DecidableEq
 
-/-- A verdict.
-
-$$\mathrm{Res} = \{\mathrm{pass},\ \mathrm{bug}\} \cup \{\mathrm{unusable}(w) \mid w \in \mathrm{Why}\}$$
--/
+/-- A verdict. -/
 inductive Res where
   | pass
   | bug
@@ -194,15 +150,6 @@ deriving Repr, DecidableEq
 is unusable before anything else; `any` passes (it claims nothing); a strict `<o` on a class that is not
 frame exact is unusable; otherwise `passes` gives `pass`, `fails` gives `bug`, and the rest is
 inconclusive.
-
-$$\operatorname{verdict}(p, c, b, v) = \begin{cases}
-\mathrm{unusable}(\mathrm{quarantined}) & c = \mathrm{quar} \\
-\mathrm{pass} & p = \mathrm{any} \\
-\mathrm{unusable}(\mathrm{strictNeedsExact}) & p = {<o},\ \lnot\operatorname{exact}(c) \\
-\mathrm{pass} & \operatorname{passes}(p, c, b, v) \\
-\mathrm{bug} & \operatorname{fails}(p, c, b, v) \\
-\mathrm{unusable}(\mathrm{inconclusive}) & \text{otherwise}
-\end{cases}$$
 -/
 def verdict (p : Pred) (c : Class) (b v : Series) : Res :=
   if c = .quarantined then .unusable .quarantined
@@ -237,10 +184,7 @@ def verdict (p : Pred) (c : Class) (b v : Series) : Res :=
 
 /-! ## Proofs -/
 
-/-- A pair within a frame-exact class agrees in every frame.
-
-$$\operatorname{exact}(c) \land \operatorname{Within}(c, a, a') \;\Rightarrow\; \forall i:\ a[i] = a'[i]$$
--/
+/-- A pair within a frame-exact class agrees in every frame. -/
 theorem exact_frames {c : Class} {a a' : Series} (hc : exact c = true) (h : Within c a a') :
     ∀ i, valAt a i = valAt a' i := by
   rw [← diffFrames_zero_iff]
@@ -252,10 +196,7 @@ theorem exact_frames {c : Class} {a a' : Series} (hc : exact c = true) (h : With
     | succ k => simp [exact] at hc
   | quarantined => simp [exact] at hc
 
-/-- A pair within a stable class with a positive `k` has totals at most `slack` apart.
-
-$$\lnot\operatorname{exact}(c) \land c \ne \mathrm{quar} \land \operatorname{Within}(c, a, a') \;\Rightarrow\; |\Sigma a - \Sigma a'| \le \operatorname{slack}(c)$$
--/
+/-- A pair within a stable class with a positive `k` has totals at most `slack` apart. -/
 theorem totals_gap {c : Class} {a a' : Series} (hc : exact c = false) (hq : c ≠ .quarantined)
     (h : Within c a a') : (total a - total a').natAbs ≤ slack c := by
   cases c with
@@ -266,10 +207,7 @@ theorem totals_gap {c : Class} {a a' : Series} (hc : exact c = false) (hq : c �
     | succ k => exact h.2
   | quarantined => exact absurd rfl hq
 
-/-- On a frame-exact class the claim of an unseen pair is the claim of the observed pair.
-
-$$\operatorname{exact}(c) \land \operatorname{Within}(c, b, b') \land \operatorname{Within}(c, v, v') \;\Rightarrow\; (\operatorname{Claim}(p, c, b', v') \iff \operatorname{Claim}(p, c, b, v))$$
--/
+/-- On a frame-exact class the claim of an unseen pair is the claim of the observed pair. -/
 theorem claim_exact_iff {p : Pred} {c : Class} {b b' v v' : Series} (hc : exact c = true)
     (hb : Within c b b') (hv : Within c v v') : Claim p c b' v' ↔ Claim p c b v := by
   have eb := exact_frames hc hb
@@ -281,8 +219,6 @@ theorem claim_exact_iff {p : Pred} {c : Class} {b b' v v' : Series} (hc : exact 
 
 /-- On a frame-exact class `passes` is the claim on the observation (deterministic types must match
 exactly).
-
-$$\operatorname{exact}(c) \;\Rightarrow\; (\operatorname{passes}(p, c, b, v) = \mathrm{true} \iff \operatorname{Claim}(p, c, b, v))$$
 -/
 theorem exact_pass_iff {p : Pred} {c : Class} {b v : Series} (hc : exact c = true) :
     passes p c b v = true ↔ Claim p c b v := by
@@ -294,25 +230,17 @@ theorem exact_pass_iff {p : Pred} {c : Class} {b v : Series} (hc : exact c = tru
 
 /-- Quarantined types are never used: every prediction on a quarantined class is unusable, with no
 verdict (the reason is `quarantined_unsound`: no margin makes them sound).
-
-$$\forall p, b, v:\ \operatorname{verdict}(p, \mathrm{quar}, b, v) = \mathrm{unusable}(\mathrm{quarantined})$$
 -/
 theorem quarantined_unusable (p : Pred) (b v : Series) :
     verdict p .quarantined b v = .unusable .quarantined := by
   simp [verdict]
 
-/-- Strict `<o` is only checked on frame-exact classes.
-
-$$\forall k, t, b, v:\ \operatorname{verdict}({<o}, \mathrm{stable}(k+1, t), b, v) = \mathrm{unusable}(\mathrm{strictNeedsExact})$$
--/
+/-- Strict `<o` is only checked on frame-exact classes. -/
 theorem ltO_stable_unusable (k t : Nat) (b v : Series) :
     verdict .ltO (.stable (k + 1) t) b v = .unusable .strictNeedsExact := by
   simp [verdict, exact]
 
-/-- What a `pass` verdict says about the decision functions.
-
-$$\operatorname{verdict}(p, c, b, v) = \mathrm{pass} \;\Rightarrow\; c \ne \mathrm{quar} \land (p = \mathrm{any} \lor (\lnot(p = {<o} \land \lnot\operatorname{exact}(c)) \land \operatorname{passes}(p, c, b, v)))$$
--/
+/-- What a `pass` verdict says about the decision functions. -/
 theorem verdict_pass {p : Pred} {c : Class} {b v : Series} (h : verdict p c b v = .pass) :
     c ≠ .quarantined ∧ (p = .any ∨ (¬ (p = .ltO ∧ exact c = false) ∧ passes p c b v = true)) := by
   unfold verdict at h
@@ -326,10 +254,7 @@ theorem verdict_pass {p : Pred} {c : Class} {b v : Series} (h : verdict p c b v 
   · simp [h1, h2, h3, h4]
   · by_cases h5 : fails p c b v = true <;> simp [h1, h2, h3, h4, h5] at h
 
-/-- What a `bug` verdict says about the decision functions.
-
-$$\operatorname{verdict}(p, c, b, v) = \mathrm{bug} \;\Rightarrow\; c \ne \mathrm{quar} \land p \ne \mathrm{any} \land \lnot(p = {<o} \land \lnot\operatorname{exact}(c)) \land \lnot\operatorname{passes}(p, c, b, v) \land \operatorname{fails}(p, c, b, v)$$
--/
+/-- What a `bug` verdict says about the decision functions. -/
 theorem verdict_bug {p : Pred} {c : Class} {b v : Series} (h : verdict p c b v = .bug) :
     c ≠ .quarantined ∧ p ≠ .any ∧ ¬ (p = .ltO ∧ exact c = false) ∧ passes p c b v = false ∧
       fails p c b v = true := by
@@ -349,8 +274,6 @@ theorem verdict_bug {p : Pred} {c : Class} {b v : Series} (h : verdict p c b v =
 /-- **A `pass` is sound.** If the verdict on the observed pair is `pass`, the class is not
 quarantined and the prediction's claim holds for every unseen pair within the class of the observed one
 (frame by frame for deterministic types, by totals with the margin for stable ones).
-
-$$\operatorname{verdict}(p, c, b, v) = \mathrm{pass} \;\Rightarrow\; c \ne \mathrm{quar} \land \forall b', v':\ \operatorname{Within}(c, b, b') \land \operatorname{Within}(c, v, v') \Rightarrow \operatorname{Claim}(p, c, b', v')$$
 -/
 theorem pass_sound {p : Pred} {c : Class} {b v : Series} (h : verdict p c b v = .pass) :
     c ≠ .quarantined ∧ ∀ b' v' : Series, Within c b b' → Within c v v' → Claim p c b' v' := by
@@ -370,8 +293,6 @@ theorem pass_sound {p : Pred} {c : Class} {b v : Series} (h : verdict p c b v = 
 
 /-- **A `bug` is sound.** If the verdict on the observed pair is `bug`, the prediction's claim fails
 for every unseen pair within the class of the observed one: the model is wrong, not the run.
-
-$$\operatorname{verdict}(p, c, b, v) = \mathrm{bug} \;\Rightarrow\; \forall b', v':\ \operatorname{Within}(c, b, b') \land \operatorname{Within}(c, v, v') \Rightarrow \lnot\operatorname{Claim}(p, c, b', v')$$
 -/
 theorem bug_sound {p : Pred} {c : Class} {b v : Series} (h : verdict p c b v = .bug) :
     ∀ b' v' : Series, Within c b b' → Within c v v' → ¬ Claim p c b' v' := by
@@ -389,8 +310,6 @@ theorem bug_sound {p : Pred} {c : Class} {b v : Series} (h : verdict p c b v = .
 
 /-- The stable `≤o` pass is the margin test of the screen: it implies `Σv + margin(k, t) ≤ Σb`,
 the hypothesis of `margin_sound` (and `typeOk` of the class).
-
-$$\operatorname{verdict}({\le o}, \mathrm{stable}(k, t), b, v) = \mathrm{pass} \;\Rightarrow\; \Sigma v + \operatorname{margin}(k, t) \le \Sigma b$$
 -/
 theorem leO_pass_margin {k t : Nat} {b v : Series} (h : verdict .leO (.stable k t) b v = .pass) :
     total v + marginOf k t ≤ total b := by
@@ -407,10 +326,7 @@ theorem leO_pass_margin {k t : Nat} {b v : Series} (h : verdict .leO (.stable k 
     simp only [passes, exact, ↓reduceIte, Bool.false_eq_true, slack] at hps
     rw [hm]; exact of_decide_eq_true hps
 
-/-- A series of non-negative counts has a non-negative total.
-
-$$\left(\forall x \in v:\ 0 \le x\right) \;\Rightarrow\; 0 \le \Sigma v$$
--/
+/-- A series of non-negative counts has a non-negative total. -/
 theorem total_nonneg : ∀ {v : Series}, (∀ x ∈ v, 0 ≤ x) → 0 ≤ total v
   | [], _ => by simp [total, sumBy]
   | x :: r, h => by
@@ -418,10 +334,7 @@ theorem total_nonneg : ∀ {v : Series}, (∀ x ∈ v, 0 ≤ x) → 0 ≤ total 
     have hr := total_nonneg (v := r) (fun y hy => h y (by simp [hy]))
     simp only [total, sumBy, id] at hr ⊢; omega
 
-/-- With non-negative counts, a zero total is a zero in every frame.
-
-$$\left(\forall x \in v':\ 0 \le x\right) \land \Sigma v' = 0 \;\Rightarrow\; \forall i:\ v'[i] = 0$$
--/
+/-- With non-negative counts, a zero total is a zero in every frame. -/
 theorem total_zero_frames : ∀ {v' : Series}, (∀ x ∈ v', 0 ≤ x) → total v' = 0 → ∀ i, valAt v' i = 0
   | [], _, _, i => valAt_nil i
   | x :: r, hn, h, i => by
@@ -438,8 +351,6 @@ theorem total_zero_frames : ∀ {v' : Series}, (∀ x ∈ v', 0 ≤ x) → total
 
 /-- The class a prediction is judged in: the variant's own class for `=0` and `any`; for a comparison with
 the original, the join of the two arms' classes (so both unseen runs are within it).
-
-$$\operatorname{cls}(p, c_v, c_b) = \begin{cases} c_v & p \in \{=0, \mathrm{any}\} \\ c_v \sqcup c_b & \text{otherwise} \end{cases}$$
 -/
 def judgeClass (p : Pred) (cV cB : Class) : Class :=
   match p with
@@ -451,10 +362,7 @@ def judgeClass (p : Pred) (cV cB : Class) : Class :=
 #guard judgeClass .leO (.stable 4 0) (.stable 2 3) == .stable 4 3
 #guard judgeClass .leO .deterministic .deterministic == .deterministic
 
-/-- A pair within the variant's arm class is within the judged class (and likewise for the original's).
-
-$$\operatorname{Within}(c_v, a, a') \;\Rightarrow\; \operatorname{Within}(\operatorname{cls}(p, c_v, c_b), a, a') \quad\text{and}\quad p \notin \{=0, \mathrm{any}\} \land \operatorname{Within}(c_b, a, a') \;\Rightarrow\; \operatorname{Within}(\operatorname{cls}(p, c_v, c_b), a, a')$$
--/
+/-- A pair within the variant's arm class is within the judged class (and likewise for the original's). -/
 theorem within_judge {p : Pred} {cV cB : Class} {a a' : Series} :
     (Within cV a a' → Within (judgeClass p cV cB) a a') ∧
     (p ≠ .zero → p ≠ .any → Within cB a a' → Within (judgeClass p cV cB) a a') := by
@@ -469,8 +377,6 @@ theorem within_judge {p : Pred} {cV cB : Class} {a a' : Series} :
 
 /-- The observed pairs of a row: the `i`-th run of the variant with the `i`-th run of the original (the
 first when the original has fewer runs; the empty series when it has none), as `(b, v)`.
-
-$$\operatorname{pairs}(vs, bs) = \big[(bs_i,\ vs_i)\big]_{i < |vs|},\quad bs_i = bs[i] \text{ if } i < |bs|,\ bs[0] \text{ if } i \ge |bs| > 0,\ [\,] \text{ if } bs = [\,]$$
 -/
 def pairs (vs bs : List Series) : List (Series × Series) :=
   (vs.zipIdx).map fun (v, i) => (bs.getD i (bs.headD []), v)
@@ -481,8 +387,6 @@ def pairs (vs bs : List Series) : List (Series × Series) :=
 
 /-- Combine the verdicts of the runs: `pass` only if there is a run and all pass; `bug` if any run is a
 bug; otherwise the first run that is not a pass. No run is `unusable noObs`.
-
-$$\operatorname{combine}(rs) = \begin{cases} \mathrm{unusable}(\mathrm{noObs}) & rs = [\,] \\ \mathrm{pass} & rs \ne [\,] \land \forall r \in rs:\ r = \mathrm{pass} \\ \mathrm{bug} & \exists r \in rs:\ r = \mathrm{bug} \\ r_1 & \text{otherwise, } r_1 \text{ the first } r \in rs \text{ with } r \ne \mathrm{pass} \end{cases}$$
 -/
 def combine : List Res → Res
   | [] => .unusable .noObs
@@ -496,10 +400,7 @@ def combine : List Res → Res
 #guard combine [.pass, .bug, .unusable .inconclusive] == .bug
 #guard combine [.pass, .unusable .inconclusive] == .unusable .inconclusive
 
-/-- A combined `pass` is a pass of every run (and there is a run).
-
-$$\operatorname{combine}(rs) = \mathrm{pass} \;\Rightarrow\; rs \ne [\,] \land \forall r \in rs:\ r = \mathrm{pass}$$
--/
+/-- A combined `pass` is a pass of every run (and there is a run). -/
 theorem combine_pass {rs : List Res} (h : combine rs = .pass) : rs ≠ [] ∧ ∀ r ∈ rs, r = .pass := by
   cases rs with
   | nil => simp [combine] at h
@@ -517,10 +418,7 @@ theorem combine_pass {rs : List Res} (h : combine rs = .pass) : rs ≠ [] ∧ �
           simp [hf] at h
           subst h; simp at hx
 
-/-- A combined `bug` comes from a run that is a bug.
-
-$$\operatorname{combine}(rs) = \mathrm{bug} \;\Rightarrow\; \exists r \in rs:\ r = \mathrm{bug}$$
--/
+/-- A combined `bug` comes from a run that is a bug. -/
 theorem combine_bug {rs : List Res} (h : combine rs = .bug) : ∃ r ∈ rs, r = .bug := by
   cases rs with
   | nil => simp [combine] at h
@@ -540,8 +438,6 @@ theorem combine_bug {rs : List Res} (h : combine rs = .bug) : ∃ r ∈ rs, r = 
 /-- **The verdict of a row** from the arms' classes `cV`, `cB`, the variant's runs `vs` and the original's
 runs `bs`: `unusable noObs` when a comparison has no original run, else the combined verdict of the
 run pairs in the judged class.
-
-$$\operatorname{row}(p, c_v, c_b, vs, bs) = \begin{cases} \mathrm{unusable}(\mathrm{noObs}) & p \in \{{=o}, {\le o}, {<o}\} \land bs = [\,] \\ \operatorname{combine}\big([\operatorname{verdict}(p, \operatorname{cls}(p, c_v, c_b), b, v)]_{(b, v) \in \operatorname{pairs}(vs, bs)}\big) & \text{otherwise} \end{cases}$$
 -/
 def rowRes (p : Pred) (cV cB : Class) (vs bs : List Series) : Res :=
   if (p = .eqO ∨ p = .leO ∨ p = .ltO) ∧ bs = [] then .unusable .noObs
@@ -549,8 +445,6 @@ def rowRes (p : Pred) (cV cB : Class) (vs bs : List Series) : Res :=
 
 /-- **A row's `pass` is sound.** If a row passes, the judged class is not quarantined and, for every observed run
 pair, every unseen pair within the judged class satisfies the claim.
-
-$$\operatorname{row}(p, c_v, c_b, vs, bs) = \mathrm{pass} \;\Rightarrow\; \operatorname{cls}(p, c_v, c_b) \ne \mathrm{quar} \land \forall (b, v) \in \operatorname{pairs}(vs, bs),\ \forall b', v':\ \operatorname{Within}(c, b, b') \land \operatorname{Within}(c, v, v') \Rightarrow \operatorname{Claim}(p, c, b', v') \quad (c = \operatorname{cls}(p, c_v, c_b))$$
 -/
 theorem rowRes_pass_sound {p : Pred} {cV cB : Class} {vs bs : List Series}
     (h : rowRes p cV cB vs bs = .pass) :
@@ -574,8 +468,6 @@ theorem rowRes_pass_sound {p : Pred} {cV cB : Class} {vs bs : List Series}
 
 /-- **A row's `bug` is sound.** If a row is a bug, some observed run pair refutes the claim for every
 unseen pair within the judged class.
-
-$$\operatorname{row}(p, c_v, c_b, vs, bs) = \mathrm{bug} \;\Rightarrow\; \exists (b, v) \in \operatorname{pairs}(vs, bs),\ \forall b', v':\ \operatorname{Within}(c, b, b') \land \operatorname{Within}(c, v, v') \Rightarrow \lnot\operatorname{Claim}(p, c, b', v') \quad (c = \operatorname{cls}(p, c_v, c_b))$$
 -/
 theorem rowRes_bug_sound {p : Pred} {cV cB : Class} {vs bs : List Series}
     (h : rowRes p cV cB vs bs = .bug) :
@@ -592,23 +484,15 @@ theorem rowRes_bug_sound {p : Pred} {cV cB : Class} {vs bs : List Series}
 
 /-- The lanes: only the Chromium lane is served; any other engine's rows are unusable until its lane
 exists (the Simulator lane does not serve the rewrite yet).
-
-$$\operatorname{lane}(e, r) = \begin{cases} r & e = \text{"chromium"} \\ \mathrm{unusable}(\mathrm{noLane}) & \text{otherwise} \end{cases}$$
 -/
 def laneRes (engine : String) (r : Res) : Res :=
   if engine = "chromium" then r else .unusable .noLane
 
-/-- A webkit row is unusable (no lane yet), whatever the observation says.
-
-$$\forall r:\ \operatorname{lane}(\text{"webkit"}, r) = \mathrm{unusable}(\mathrm{noLane})$$
--/
+/-- A webkit row is unusable (no lane yet), whatever the observation says. -/
 theorem laneRes_webkit (r : Res) : laneRes "webkit" r = .unusable .noLane := by
   simp [laneRes]
 
-/-- A chromium row keeps its verdict.
-
-$$\forall r:\ \operatorname{lane}(\text{"chromium"}, r) = r$$
--/
+/-- A chromium row keeps its verdict. -/
 theorem laneRes_chromium (r : Res) : laneRes "chromium" r = r := by
   simp [laneRes]
 

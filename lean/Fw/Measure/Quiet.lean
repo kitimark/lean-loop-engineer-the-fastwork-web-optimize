@@ -25,7 +25,7 @@ open Fw.Measure Fw.Measure.WebKit
 
 /-- The number of steps compared: the shortest pass.
 
-$$n = \min_{r} |d_r|$$ ($n = 0$ for no passes)
+(`n = 0` for no passes)
 -/
 def stepCount (durs : List (List Nat)) : Nat :=
   match durs with
@@ -34,17 +34,11 @@ def stepCount (durs : List (List Nat)) : Nat :=
 
 #guard stepCount [[1, 2, 3], [4, 5]] == 2 && stepCount [] == 0 && stepCount [[1], [1], [1]] == 1
 
-/-- Step `k` is quiet at limit `L`: every pass took at most `L` there.
-
-$$\operatorname{quiet}_L(k) \iff \forall r:\ d_r[k] \le L$$
--/
+/-- Step `k` is quiet at limit `L`: every pass took at most `L` there. -/
 def quietAt (L : Nat) (durs : List (List Nat)) (k : Nat) : Bool :=
   durs.all fun d => decide (d.getD k 0 ≤ L)
 
-/-- The quiet steps, in order.
-
-$$Q_L = [\, k < n \mid \operatorname{quiet}_L(k) \,]$$
--/
+/-- The quiet steps, in order. -/
 def quietSteps (L : Nat) (durs : List (List Nat)) : List Nat :=
   (List.range (stepCount durs)).filter (quietAt L durs)
 
@@ -53,23 +47,15 @@ def quietSteps (L : Nat) (durs : List (List Nat)) : List Nat :=
 #guard quietSteps 20 [[5, 20, 7], [9, 3, 11]] == [0, 1, 2]
 #guard quietSteps 0 [[5, 20, 7]] == []
 
-/-- The series restricted to the listed steps (0 past the end, like `valAt`).
-
-$$\rho_{I}(r) = [\, r[k] \,]_{k \in I}$$
--/
+/-- The series restricted to the listed steps (0 past the end, like `valAt`). -/
 def restrict (idx : List Nat) (s : Series) : Series := idx.map (valAt s)
 
-/-- **The class over the quiet steps**: the cell-spread class of the runs restricted to `Q_L`.
-
-$$\operatorname{classifyQuiet}(L, d, R, \mathrm{tol}) = \operatorname{classifyCells}\big([\rho_{Q_L}(r)]_{r \in R}, \mathrm{tol}\big)$$
--/
+/-- **The class over the quiet steps**: the cell-spread class of the runs restricted to `Q_L`. -/
 def classifyQuiet (tol : Tol) (L : Nat) (durs : List (List Nat)) (runs : List Series) : Nat :=
   classifyCells tol (runs.map (restrict (quietSteps L durs)))
 
 /-- A quiet-step verdict: the class over the kept steps, and how many steps were kept out of how
 many (the `none` case for too few quiet steps belongs to `verdict`).
-
-$$\mathrm{Verdict} = (\mathit{cls}, \mathit{kept}, \mathit{total}) \in \mathbb{N}^3$$
 -/
 structure Verdict where
   cls : Nat
@@ -77,10 +63,7 @@ structure Verdict where
   total : Nat
 deriving Repr, DecidableEq
 
-/-- The verdict of one series family at limit `L` with at least `minKept` kept steps.
-
-$$\operatorname{verdict}(L, m) = \begin{cases} \bot & |Q_L| < m \\ \mathrm{some}(\operatorname{classifyQuiet},\ |Q_L|,\ n) & \text{otherwise} \end{cases}$$
--/
+/-- The verdict of one series family at limit `L` with at least `minKept` kept steps. -/
 def verdict (tol : Tol) (L minKept : Nat) (durs : List (List Nat)) (runs : List Series) : Option Verdict :=
   let q := quietSteps L durs
   if q.length < minKept then none
@@ -92,28 +75,19 @@ def verdict (tol : Tol) (L minKept : Nat) (durs : List (List Nat)) (runs : List 
 
 /-! ## The quiet steps -/
 
-/-- **Membership.** A step is kept iff it is below the shortest pass and fast in every pass.
-
-$$\forall k:\ k \in Q_L \iff k < n \ \land\ \forall r:\ d_r[k] \le L$$
--/
+/-- **Membership.** A step is kept iff it is below the shortest pass and fast in every pass. -/
 theorem mem_quietSteps (L : Nat) (durs : List (List Nat)) (k : Nat) :
     k ∈ quietSteps L durs ↔ k < stepCount durs ∧ ∀ d ∈ durs, d.getD k 0 ≤ L := by
   simp [quietSteps, quietAt, List.mem_filter, List.mem_range, List.all_eq_true]
 
-/-- **A larger limit keeps more steps.**
-
-$$L \le L' \Rightarrow Q_L \subseteq Q_{L'}$$
--/
+/-- **A larger limit keeps more steps.** -/
 theorem quietSteps_mono {L L' : Nat} (h : L ≤ L') (durs : List (List Nat)) :
     ∀ k ∈ quietSteps L durs, k ∈ quietSteps L' durs := by
   intro k hk
   rw [mem_quietSteps] at hk ⊢
   exact ⟨hk.1, fun d hd => Nat.le_trans (hk.2 d hd) h⟩
 
-/-- **A limit above every duration keeps every compared step.**
-
-$$(\forall r, k:\ d_r[k] \le L) \Rightarrow Q_L = [0, \dots, n-1]$$
--/
+/-- **A limit above every duration keeps every compared step.** -/
 theorem quietSteps_all {L : Nat} {durs : List (List Nat)} (h : ∀ d ∈ durs, ∀ k, d.getD k 0 ≤ L) :
     quietSteps L durs = List.range (stepCount durs) := by
   simp only [quietSteps]
@@ -124,18 +98,13 @@ theorem quietSteps_all {L : Nat} {durs : List (List Nat)} (h : ∀ d ∈ durs, �
 
 /-! ## Restricting the runs -/
 
-/-- The value of a restricted series at position `i` is the original at the `i`-th kept step.
-
-$$\rho_I(r)[i] = r[I_i] \quad (i < |I|)$$
--/
+/-- The value of a restricted series at position `i` is the original at the `i`-th kept step. -/
 theorem valAt_restrict (idx : List Nat) (s : Series) (i : Nat) (hi : i < idx.length) :
     valAt (restrict idx s) i = valAt s (idx.getD i 0) := by
   simp [restrict, valAt, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_eq_getElem hi]
 
 /-- **Restricting a family of runs.** The class of the restricted runs is the worst status of
 the cells at the listed steps (all runs restricted to the same steps have the same length).
-
-$$\operatorname{classifyCells}([\rho_I(r)]_{r \in R}) = \max{}^{*}_{k \in I}\ \operatorname{status}(\operatorname{cell}_k(R))$$
 -/
 theorem classifyCells_restrict (tol : Tol) (idx : List Nat) (runs : List Series) :
     classifyCells tol (runs.map (restrict idx)) =
@@ -186,10 +155,7 @@ theorem classifyCells_restrict (tol : Tol) (idx : List Nat) (runs : List Series)
     simp only [Bool.false_eq_true, ite_false, hh, hrl]
     rw [hcells]
 
-/-- **More steps, no better class.** Restricting to fewer steps never makes the class stricter.
-
-$$I \subseteq I' \Rightarrow \operatorname{classifyCells}([\rho_I(r)]_r) \le \operatorname{classifyCells}([\rho_{I'}(r)]_r)$$
--/
+/-- **More steps, no better class.** Restricting to fewer steps never makes the class stricter. -/
 theorem classifyCells_restrict_mono (tol : Tol) {idx idx' : List Nat} (h : ∀ k ∈ idx, k ∈ idx')
     (runs : List Series) :
     classifyCells tol (runs.map (restrict idx)) ≤ classifyCells tol (runs.map (restrict idx')) := by
@@ -202,17 +168,12 @@ theorem classifyCells_restrict_mono (tol : Tol) {idx idx' : List Nat} (h : ∀ k
 
 /-- **A larger limit never gives a better class.** A larger limit keeps more steps, so the class
 over them is at least as strict.
-
-$$L \le L' \Rightarrow \operatorname{classifyQuiet}(L, d, R) \le \operatorname{classifyQuiet}(L', d, R)$$
 -/
 theorem classifyQuiet_mono (tol : Tol) {L L' : Nat} (h : L ≤ L') (durs : List (List Nat))
     (runs : List Series) : classifyQuiet tol L durs runs ≤ classifyQuiet tol L' durs runs :=
   classifyCells_restrict_mono tol (quietSteps_mono h durs) runs
 
-/-- Restricting a series of exactly `n` values to the first `n` steps changes nothing.
-
-$$|r| = n \Rightarrow \rho_{[0,n)}(r) = r$$
--/
+/-- Restricting a series of exactly `n` values to the first `n` steps changes nothing. -/
 theorem restrict_range (s : Series) (n : Nat) (h : s.length = n) : restrict (List.range n) s = s := by
   apply List.ext_getElem
   · simp [restrict, h]
@@ -222,8 +183,6 @@ theorem restrict_range (s : Series) (n : Nat) (h : s.length = n) : restrict (Lis
 
 /-- **Leaving steps out never makes the class stricter.** For runs of exactly the compared number of
 steps, the class over the quiet steps is at most the plain class.
-
-$$(\forall r \in R:\ |r| = n) \Rightarrow \operatorname{classifyQuiet}(L, d, R) \le \operatorname{classifyCells}(R)$$
 -/
 theorem classifyQuiet_le (tol : Tol) (L : Nat) (durs : List (List Nat)) (runs : List Series)
     (hn : ∀ r ∈ runs, r.length = stepCount durs) :
@@ -238,10 +197,7 @@ theorem classifyQuiet_le (tol : Tol) (L : Nat) (durs : List (List Nat)) (runs : 
   rw [hid] at this
   exact this
 
-/-- **A limit above every duration reproduces the plain class.**
-
-$$(\forall r, k:\ d_r[k] \le L) \land (\forall r \in R:\ |r| = n) \Rightarrow \operatorname{classifyQuiet}(L, d, R) = \operatorname{classifyCells}(R)$$
--/
+/-- **A limit above every duration reproduces the plain class.** -/
 theorem classifyQuiet_all (tol : Tol) {L : Nat} {durs : List (List Nat)} (runs : List Series)
     (hd : ∀ d ∈ durs, ∀ k, d.getD k 0 ≤ L) (hn : ∀ r ∈ runs, r.length = stepCount durs) :
     classifyQuiet tol L durs runs = classifyCells tol runs := by

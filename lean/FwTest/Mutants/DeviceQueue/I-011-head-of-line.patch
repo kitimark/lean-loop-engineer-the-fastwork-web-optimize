@@ -2,9 +2,9 @@ Design mutant (m0-mutants, PLAN V-r): v1 I-011 head-of-line blocking: only the t
 
 --- a/Fw/Spec/DeviceQueue.lean
 +++ b/Fw/Spec/DeviceQueue.lean
-@@ -211,6 +211,8 @@
- $$\operatorname{dispatch}(p, t) = \begin{cases} p[\mathit{running} := (j, t),\ Q := Q \ominus j] & \text{if } \mathit{running} = \bot,\ \mathit{window} = (s, e),\ \operatorname{pick}_t\big([\, k \in Q \mid \operatorname{fits}(s, e, t, k) \,]\big) = j \\ p & \text{otherwise} \end{cases}$$
- -/
+@@ -164,6 +164,8 @@
+ 
+ /-- Start the most urgent job **among those that fit** the booked window (no head-of-line blocking). -/
  def dispatch (p : Phone) (t : Nat) : Phone :=
 +  dispatchHoL p t
 +def dispatchOld (p : Phone) (t : Nat) : Phone :=

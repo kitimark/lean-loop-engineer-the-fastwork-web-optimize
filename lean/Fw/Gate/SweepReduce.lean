@@ -11,8 +11,8 @@ A sweep stop whose key equals the previous stop's key adds nothing to the collap
 * `dropStutter` keeps the first stop of every run of equal keys; `map_dropStutter` says its keys are exactly the
   collapsed key history, and `dropStutter_history_comp` carries this to every key that is a function of the
   dropped-on key (`collapse_map_collapse`).
-* The combined key `sweepKey` is the condition key $\kappa_T$ (the 30 catalogue conditions and the 4 neutral queries,
-  the truth rows of `summary.mjs`) together with every pilot part key $\kappa_u$. `reduceSweep` drops its stutters;
+* The combined key `sweepKey` is the condition key `κ_T` (the 30 catalogue conditions and the 4 neutral queries,
+  the truth rows of `summary.mjs`) together with every pilot part key `κ_u`. `reduceSweep` drops its stutters;
   `reduceSweep_part_history` and `reduceSweep_cond_history` keep every history, so `reduced_scopedVerdict`,
   `reduced_scope_sound` and `reduced_cond_scopedVerdict` keep every verdict cell.
 * `reducedDeskWidths`: the desktop sweep's 57 widths reduce to 45 (`reducedDeskWidths_eq`).
@@ -32,15 +32,11 @@ variable {α κ μ : Type} [DecidableEq κ] [DecidableEq μ]
 
 /-- The defining equation of `collapse` on two leading entries.
 
-$$\forall a, b \in \kappa,\ \forall t \in \kappa^*,\quad \operatorname{collapse}(a :: b :: t) = \begin{cases} \operatorname{collapse}(b :: t) & a = b \\ a :: \operatorname{collapse}(b :: t) & a \ne b \end{cases}$$
-
 Two equal neighbours merge into one. -/
 theorem collapse_cons_cons (a b : κ) (t : List κ) :
     collapse (a :: b :: t) = if a = b then collapse (b :: t) else a :: collapse (b :: t) := rfl
 
 /-- Collapsing keeps the first entry.
-
-$$\forall l \in \kappa^*,\quad \operatorname{head?}(\operatorname{collapse}(l)) = \operatorname{head?}(l)$$
 
 The history starts with the key of the first stop (and is empty only for no stops). -/
 theorem collapse_head? : ∀ l : List κ, (collapse l).head? = l.head?
@@ -53,8 +49,6 @@ theorem collapse_head? : ∀ l : List κ, (collapse l).head? = l.head?
     · simp
 
 /-- Collapsing a cons only looks at the collapsed tail.
-
-$$\forall a \in \kappa,\ \forall l \in \kappa^*,\quad \operatorname{collapse}(a :: l) = \begin{cases} \operatorname{collapse}(l) & \operatorname{head?}(\operatorname{collapse}(l)) = \mathrm{some}(a) \\ a :: \operatorname{collapse}(l) & \text{otherwise} \end{cases}$$
 
 A new first entry is kept exactly when it differs from the history's first entry. -/
 theorem collapse_cons (a : κ) (l : List κ) :
@@ -70,8 +64,6 @@ theorem collapse_cons (a : κ) (l : List κ) :
 
 /-- Collapsing before a projection changes nothing.
 
-$$\forall f : \kappa \to \mu,\ \forall l \in \kappa^*,\quad \operatorname{collapse}([f(x) \mid x \in \operatorname{collapse}(l)]) = \operatorname{collapse}([f(x) \mid x \in l])$$
-
 A coarser key's history is determined by the finer key's history. -/
 theorem collapse_map_collapse (f : κ → μ) : ∀ l : List κ, collapse ((collapse l).map f) = collapse (l.map f)
   | [] => rfl
@@ -86,16 +78,12 @@ theorem collapse_map_collapse (f : κ → μ) : ∀ l : List κ, collapse ((coll
       rw [this]; simp
     · rw [List.map_cons, collapse_cons, ih, List.map_cons, collapse_cons (f a) (l.map f)]
 
-/-- The collapsed histories the stops of a sweep see: stop $i$ sees the collapse of stops $0..i$.
-
-$$\forall l \in \kappa^*,\quad \operatorname{stopHist}(l) = [\operatorname{collapse}(l_{0..i}) \mid 0 \le i < |l|]$$
+/-- The collapsed histories the stops of a sweep see: stop `i` sees the collapse of stops `0..i`.
 
 One history per stop, in stop order. -/
 def stopHist (l : List κ) : List (List κ) := (List.range l.length).map fun i => collapse (l.take (i + 1))
 
 /-- The nonempty prefixes of a list, shortest first.
-
-$$\forall c \in \kappa^*,\quad \operatorname{prefs}(c) = [c_{0..j} \mid 0 \le j < |c|]$$
 
 The histories a stutter-free sweep's stops see. -/
 def prefs (c : List κ) : List (List κ) := (List.range c.length).map fun j => c.take (j + 1)
@@ -106,8 +94,6 @@ def prefs (c : List κ) : List (List κ) := (List.range c.length).map fun j => c
 
 omit [DecidableEq κ] in
 /-- The prefixes of a cons are the singleton and the extended prefixes of the tail.
-
-$$\forall a, c, x,\quad x \in \operatorname{prefs}(a :: c) \iff x = [a] \lor \exists y \in \operatorname{prefs}(c),\ x = a :: y$$
 
 Unfolds `prefs` one entry. -/
 theorem mem_prefs_cons (a : κ) (c : List κ) (x : List κ) :
@@ -123,8 +109,6 @@ theorem mem_prefs_cons (a : κ) (c : List κ) (x : List κ) :
     · exact ⟨k + 1, by omega, by simp⟩
 
 /-- The stop histories of a two-or-more stop list, from those of its tail.
-
-$$\forall a, b, t, x,\quad x \in \operatorname{stopHist}(a :: b :: t) \iff x = [a] \lor \exists y \in \operatorname{stopHist}(b :: t),\ x = \begin{cases} y & a = b \\ a :: y & a \ne b \end{cases}$$
 
 Unfolds `stopHist` one stop. -/
 theorem mem_stopHist_cons (a b : κ) (t : List κ) (x : List κ) :
@@ -146,8 +130,6 @@ theorem mem_stopHist_cons (a b : κ) (t : List κ) (x : List κ) :
 
 /-- A nonempty list collapses to a list with the same head.
 
-$$\forall b, t,\ \exists c,\quad \operatorname{collapse}(b :: t) = b :: c$$
-
 The first stop's key always opens the history. -/
 theorem collapse_cons_eq (b : κ) (t : List κ) : ∃ c, collapse (b :: t) = b :: c := by
   have h := collapse_head? (b :: t)
@@ -156,8 +138,6 @@ theorem collapse_cons_eq (b : κ) (t : List κ) : ∃ c, collapse (b :: t) = b :
   | cons x c => simp [hc] at h; exact ⟨c, by rw [h]⟩
 
 /-- **Stops see exactly the prefixes of the collapsed history.**
-
-$$\forall l \in \kappa^*,\ \forall x \in \kappa^*,\quad x \in [\operatorname{collapse}(l_{0..i}) \mid 0 \le i < |l|] \iff x \in [\operatorname{collapse}(l)_{0..j} \mid 0 \le j < |\operatorname{collapse}(l)|]$$
 
 The set of histories a sweep's stops see depends only on its collapsed history. -/
 theorem mem_stopHist_iff : ∀ (l : List κ) (x : List κ), x ∈ stopHist l ↔ x ∈ prefs (collapse l)
@@ -181,16 +161,12 @@ theorem mem_stopHist_iff : ∀ (l : List κ) (x : List κ), x ∈ stopHist l ↔
 
 /-- A sweep's stop verdicts, as a list, have one entry per stop.
 
-$$\forall \kappa, \mathrm{hv}, s,\quad |\operatorname{stops}_{\kappa,\mathrm{hv}}(s)| = |s|$$
-
 A sweep cell counts stops. -/
 theorem stopVerdicts_length (key : Env → κ) (hv : List κ → Verdict) (s : List Env) :
     (stopVerdicts key hv s).length = s.length := by
   simp [stopVerdicts]
 
 /-- **Collapse-equal sweeps give the same set of stop verdicts.**
-
-$$\forall \kappa, \mathrm{hv}, s, s',\quad \operatorname{collapse}(\kappa(s)) = \operatorname{collapse}(\kappa(s')) \implies \forall v,\ \bigl(v \in \operatorname{stops}_{\kappa,\mathrm{hv}}(s) \iff v \in \operatorname{stops}_{\kappa,\mathrm{hv}}(s')\bigr)$$
 
 Under H only the collapsed key history of a sweep matters, not how many stops repeat a key. -/
 theorem stopVerdicts_mem_of_collapse_eq (key : Env → κ) (hv : List κ → Verdict) (s s' : List Env)
@@ -206,10 +182,8 @@ theorem stopVerdicts_mem_of_collapse_eq (key : Env → κ) (hv : List κ → Ver
     · rintro ⟨x, hx, rfl⟩; obtain ⟨i, hi, rfl⟩ := (this x).mpr hx; exact ⟨i, hi, rfl⟩
   rw [e, e, h]
 
-/-- **Reduced sweeps keep the part's verdict.** Replacing every sweep $w$ of the run by $r(w)$ with the same collapsed
+/-- **Reduced sweeps keep the part's verdict.** Replacing every sweep `w` of the run by `r(w)` with the same collapsed
 key history keeps the scoped verdict.
-
-$$\forall \rho, \kappa, \mathrm{hv}, S, K, r,\quad \bigl(\forall w \in K,\ \operatorname{collapse}([\kappa(e) \mid e \in \mathrm{stops}(r(w))]) = \operatorname{collapse}([\kappa(e) \mid e \in \mathrm{stops}(w)])\bigr) \implies V_{\rho,\kappa,\mathrm{hv}}(S, [r(w) \mid w \in K]) = V_{\rho,\kappa,\mathrm{hv}}(S, K)$$
 
 A sweep can be shortened to any sweep with the same history. -/
 theorem scopedVerdict_reduce (reach : Env → Option Reason) (key : Env → κ) (hv : List κ → Verdict)
@@ -227,8 +201,6 @@ theorem scopedVerdict_reduce (reach : Env → Option Reason) (key : Env → κ) 
 /-- **A sweep cell keeps its verdict.** The sweep column's cell of a row is the tally of the row's stop verdicts
 (`summary.mjs`, `gate.tally` with `block` false); its verdict depends only on the collapsed history.
 
-$$\forall \kappa, \mathrm{hv}, s, s',\quad \operatorname{collapse}(\kappa(s)) = \operatorname{collapse}(\kappa(s')) \implies \operatorname{tally}(\operatorname{stops}_{\kappa,\mathrm{hv}}(s)).\mathrm{verdict} = \operatorname{tally}(\operatorname{stops}_{\kappa,\mathrm{hv}}(s')).\mathrm{verdict}$$
-
 The pass / FAIL / NC word of a sweep cell survives the reduction. -/
 theorem sweepCell_verdict_reduce (key : Env → κ) (hv : List κ → Verdict) (s s' : List Env)
     (h : collapse (s.map key) = collapse (s'.map key)) :
@@ -239,16 +211,12 @@ theorem sweepCell_verdict_reduce (key : Env → κ) (hv : List κ → Verdict) (
 
 /-- Keep an entry only when its key differs from the key `prev` of the last kept entry.
 
-$$\forall k, p,\quad \operatorname{drop}_k(p, [\,]) = [\,],\quad \operatorname{drop}_k(p, e :: t) = \begin{cases} \operatorname{drop}_k(p, t) & k(e) = p \\ e :: \operatorname{drop}_k(k(e), t) & k(e) \ne p \end{cases}$$
-
 The tail of `dropStutter`. -/
 def dropStutterFrom (k : α → κ) (prev : κ) : List α → List α
   | [] => []
   | e :: rest => if k e = prev then dropStutterFrom k prev rest else e :: dropStutterFrom k (k e) rest
 
 /-- **Drop every stutter stop**: keep the first entry and every entry whose key differs from the previous entry's key.
-
-$$\forall k,\quad \operatorname{dropStutter}_k([\,]) = [\,],\quad \forall e, t,\ \operatorname{dropStutter}_k(e :: t) = e :: \operatorname{drop}_k(k(e), t)$$
 
 A resize that changes no key is left out; of every run of equal keys the first stop stays. -/
 def dropStutter (k : α → κ) : List α → List α
@@ -260,8 +228,6 @@ def dropStutter (k : α → κ) : List α → List α
 #guard dropStutter (· / 10) [5] = [5]
 
 /-- The kept entries' keys after `prev` are the collapsed history.
-
-$$\forall k, p, l,\quad p :: k(\operatorname{drop}_k(p, l)) = \operatorname{collapse}(p :: k(l))$$
 
 The induction step of `map_dropStutter`. -/
 theorem map_dropStutterFrom (k : α → κ) : ∀ (prev : κ) (l : List α),
@@ -279,8 +245,6 @@ theorem map_dropStutterFrom (k : α → κ) : ∀ (prev : κ) (l : List α),
 
 /-- **The kept stops' keys are the collapsed key history.**
 
-$$\forall k, l,\quad k(\operatorname{dropStutter}_k(l)) = \operatorname{collapse}(k(l))$$
-
 The reduced sweep is stutter-free and has the full sweep's history. -/
 theorem map_dropStutter (k : α → κ) : ∀ l : List α, (dropStutter k l).map k = collapse (l.map k)
   | [] => rfl
@@ -288,10 +252,8 @@ theorem map_dropStutter (k : α → κ) : ∀ l : List α, (dropStutter k l).map
     simp only [dropStutter, List.map_cons]
     exact map_dropStutterFrom k (k e) rest
 
-/-- **Every coarser key keeps its history.** For any key $f \circ k$ that factors through $k$, dropping $k$-stutters
-keeps the collapsed $f \circ k$ history.
-
-$$\forall k, f, l,\quad \operatorname{collapse}((f \circ k)(\operatorname{dropStutter}_k(l))) = \operatorname{collapse}((f \circ k)(l))$$
+/-- **Every coarser key keeps its history.** For any key `f ∘ k` that factors through `k`, dropping `k`-stutters
+keeps the collapsed `f ∘ k` history.
 
 Dropping stutters of the combined key keeps the history of each of its parts. -/
 theorem dropStutter_history_comp (k : α → κ) (f : κ → μ) (l : List α) :
@@ -301,8 +263,6 @@ theorem dropStutter_history_comp (k : α → κ) (f : κ → μ) (l : List α) :
   rw [h1, h2, map_dropStutter, collapse_map_collapse]
 
 /-- `dropStutter` commutes with relabelling the entries.
-
-$$\forall k, g, l,\quad \operatorname{dropStutter}_k(g(l)) = g(\operatorname{dropStutter}_{k \circ g}(l))$$
 
 The reduced sweep can be computed on widths and then turned into stops. -/
 theorem dropStutter_map {β : Type} (k : α → κ) (g : β → α) (l : List β) :
@@ -320,8 +280,6 @@ theorem dropStutter_map {β : Type} (k : α → κ) (g : β → α) (l : List β
   | cons b t => simp [dropStutter, aux]
 
 /-- `dropStutter` keeps a sublist of the entries.
-
-$$\forall k, l,\quad \operatorname{dropStutter}_k(l) \sqsubseteq l$$
 
 (as a sublist: entries kept in order). The reduced sweep only removes stops. -/
 theorem dropStutter_sublist (k : α → κ) (l : List α) : (dropStutter k l).Sublist l := by
@@ -342,31 +300,23 @@ end generic
 
 /-! ## The gate's combined key and the reduced sweeps -/
 
-/-- The condition key $\kappa_T$: the value of each of the 30 catalogue conditions, then of each of the 4 neutral
+/-- The condition key `κ_T`: the value of each of the 30 catalogue conditions, then of each of the 4 neutral
 queries, at an environment (what the matchMedia truth rows of `summary.mjs` read at every stop).
-
-$$\forall e,\quad \kappa_T(e) = [\,e \models c \mid c \in \mathrm{catalogue}\,] \mathbin{+\!\!+} [\,e \models n \mid n \in \mathrm{neutral}\,]$$
 
 The truth rows' key. -/
 def condKey (e : Env) : List Bool := catalogue.map (·.query.eval e) ++ neutral.map (·.query.eval e)
 
 /-- The combined sweep key: the condition key and every pilot part's key.
 
-$$\forall e,\quad \kappa(e) = \bigl(\kappa_T(e),\ [\,\kappa_u(e) \mid u \in \mathrm{pilot}\,]\bigr)$$
-
 Two stops with equal combined keys look the same to every row of the gate under H. -/
 def sweepKey (e : Env) : List Bool × List (List Bool) := (condKey e, pilotParts.map (·.key e))
 
 /-- A sweep with its stutter stops (under the combined key) dropped.
 
-$$\forall w,\quad r(w) = (\mathrm{id}(w), \mathrm{blurb}(w), \operatorname{dropStutter}_\kappa(\mathrm{stops}(w)))$$
-
 The reduced sweep keeps the id, so reports and merges see the same sweep. -/
 def reduceSweep (w : Sweep) : Sweep := { w with stops := dropStutter sweepKey w.stops }
 
 /-- Every pilot part key is a projection of the combined key.
-
-$$\forall u \in \mathrm{pilot},\ \exists f,\ \forall e,\quad \kappa_u(e) = f(\kappa(e))$$
 
 A part key factors through the combined key. -/
 theorem partKey_factors (u : PartUse) (hu : u ∈ pilotParts) :
@@ -377,8 +327,6 @@ theorem partKey_factors (u : PartUse) (hu : u ∈ pilotParts) :
 
 /-- **The reduced sweep keeps every part key's history.**
 
-$$\forall u \in \mathrm{pilot},\ \forall w,\quad \operatorname{collapse}(\kappa_u(r(w))) = \operatorname{collapse}(\kappa_u(w))$$
-
 What `scopedVerdict_reduce` needs, for every pilot part. -/
 theorem reduceSweep_part_history (u : PartUse) (hu : u ∈ pilotParts) (w : Sweep) :
     collapse ((reduceSweep w).stops.map u.key) = collapse (w.stops.map u.key) := by
@@ -387,9 +335,7 @@ theorem reduceSweep_part_history (u : PartUse) (hu : u ∈ pilotParts) (w : Swee
   rw [e]
   exact dropStutter_history_comp sweepKey f w.stops
 
-/-- **The reduced sweep keeps the condition key's history** (the truth rows' hypothesis $H_T$ sees the same input).
-
-$$\forall w,\quad \operatorname{collapse}(\kappa_T(r(w))) = \operatorname{collapse}(\kappa_T(w))$$
+/-- **The reduced sweep keeps the condition key's history** (the truth rows' hypothesis `H_T` sees the same input).
 
 The matchMedia rows see every condition change, in order, as before. -/
 theorem reduceSweep_cond_history (w : Sweep) :
@@ -398,18 +344,14 @@ theorem reduceSweep_cond_history (w : Sweep) :
 
 /-- **Reduced sweeps keep each part's verdict.**
 
-$$\forall u \in \mathrm{pilot},\ \forall \rho, \mathrm{hv}, S, K,\quad V_{\rho,\kappa_u,\mathrm{hv}}(S, \operatorname{map}\ r\ K) = V_{\rho,\kappa_u,\mathrm{hv}}(S, K)$$
-
 Any run may replace its sweeps by the reduced ones. -/
 theorem reduced_scopedVerdict (u : PartUse) (hu : u ∈ pilotParts) (reach : Env → Option Reason)
     (hv : List (List Bool) → Verdict) (S : List Probe) (K : List Sweep) :
     scopedVerdict reach u.key hv S (K.map reduceSweep) = scopedVerdict reach u.key hv S K :=
   scopedVerdict_reduce reach u.key hv S K reduceSweep fun w _ => reduceSweep_part_history u hu w
 
-/-- **Reduced sweeps keep the truth rows' verdict** under $H_T$ (a truth row's stop verdict is a function
-$\mathrm{hv}_T$ of the collapsed condition-key history).
-
-$$\forall \rho, \mathrm{hv}_T, S, K,\quad V_{\rho,\kappa_T,\mathrm{hv}_T}(S, \operatorname{map}\ r\ K) = V_{\rho,\kappa_T,\mathrm{hv}_T}(S, K)$$
+/-- **Reduced sweeps keep the truth rows' verdict** under `H_T` (a truth row's stop verdict is a function
+`hv_T` of the collapsed condition-key history).
 
 The matchMedia rows keep their verdict too. -/
 theorem reduced_cond_scopedVerdict (reach : Env → Option Reason) (hv : List (List Bool) → Verdict)
@@ -417,11 +359,9 @@ theorem reduced_cond_scopedVerdict (reach : Env → Option Reason) (hv : List (L
     scopedVerdict reach condKey hv S (K.map reduceSweep) = scopedVerdict reach condKey hv S K :=
   scopedVerdict_reduce reach condKey hv S K reduceSweep fun w _ => reduceSweep_cond_history w
 
-/-- **Scoped and reduced runs keep the full verdict.** For a pilot part $u$, a port $\pi$, an $\mathrm{hv}$ that never
-says unreachable, and a run whose loads $S_r$ lie between the scope and the matrix and whose sweeps $K_r$ lie between
-the sweep scope and all sweeps, running the reduced sweeps of $K_r$ gives the full matrix's verdict.
-
-$$\begin{aligned} &\forall u \in \mathrm{pilot},\ \forall \pi \in \mathcal P,\ \forall \mathrm{hv},\ \forall S_r, K_r,\quad (\forall h,\ \neg\operatorname{isU}(\mathrm{hv}(h))) \wedge S(u) \subseteq S_r \subseteq M \wedge K(u) \subseteq K_r \subseteq W \\ &\quad\implies V_{\rho_\pi,\kappa_u,\mathrm{hv}}(S_r, \operatorname{map}\ r\ K_r) = V_{\rho_\pi,\kappa_u,\mathrm{hv}}(M, W) \end{aligned}$$
+/-- **Scoped and reduced runs keep the full verdict.** For a pilot part `u`, a port `π`, an `hv` that never
+says unreachable, and a run whose loads `S_r` lie between the scope and the matrix and whose sweeps `K_r` lie between
+the sweep scope and all sweeps, running the reduced sweeps of `K_r` gives the full matrix's verdict.
 
 `scope_sound`, then `reduced_scopedVerdict`. -/
 theorem reduced_scope_sound (u : PartUse) (hu : u ∈ pilotParts) (π : Port) (hv : List (List Bool) → Verdict)
@@ -437,21 +377,15 @@ theorem reduced_scope_sound (u : PartUse) (hu : u ∈ pilotParts) (π : Port) (h
 
 /-- The desktop sweep's widths: down through every edge pair to 320 and back up.
 
-$$D_{\mathrm{full}} = D \mathbin{+\!\!+} \operatorname{tail}(\operatorname{reverse}(D)),\quad D = \mathrm{deskSweepWidths}$$
-
 The 57 widths of `desktop-1512-320-1512`. -/
 def deskSweepFull : List Nat := deskSweepWidths ++ deskSweepWidths.reverse.drop 1
 
 /-- The reduced desktop sweep widths: the stutter stops of the combined key dropped.
 
-$$R = \operatorname{dropStutter}_{\kappa \circ \operatorname{deskStop}}(D_{\mathrm{full}})$$
-
 What `gate-speed-impl` runs instead of the 57 widths (`sweeps.gen.json`). -/
 def reducedDeskWidths (_ : Unit := ()) : List Nat := dropStutter (fun n => sweepKey (deskStop n)) deskSweepFull
 
 /-- The desktop sweep is the first sweep, with stops `deskStop` of the full widths.
-
-$$\operatorname{head}(W) = (\texttt{desktop-1512-320-1512}, \_, \operatorname{deskStop}(D_{\mathrm{full}}))$$
 
 Ties `deskSweepFull` to `sweeps`. -/
 theorem sweeps_head_desk :
@@ -459,8 +393,6 @@ theorem sweeps_head_desk :
       some ("desktop-1512-320-1512", deskSweepFull.map deskStop) := rfl
 
 /-- The reduced desktop sweep, as a sweep, is `deskStop` of the reduced widths.
-
-$$\forall w,\quad w = \operatorname{head}(W) \implies \mathrm{stops}(r(w)) = \operatorname{deskStop}(R)$$
 
 The JSON's widths are exactly the reduced sweep's stops. -/
 theorem reduceSweep_desk (w : Sweep) (h : sweeps.head? = some w) :
@@ -474,8 +406,6 @@ theorem reduceSweep_desk (w : Sweep) (h : sweeps.head? = some w) :
 stops repeat the previous stop's combined key and are dropped. With every ported part in the scope the turn at 320 is
 kept (a ported part's key tells 320 from 400); before the ports, 35 stops remained.
 
-$$R = (1512, 1511, 1280, 1279, 1200, 1100, 1030, 1000, 960, 861, 860, 721, 720, 640, 601, 600, 481, 480, 462, 461, 401, 400, 320,\ 400, 401, 461, 462, 480, 481, 600, 601, 640, 641, 721, 860, 861, 960, 961, 1001, 1031, 1101, 1201, 1280, 1511, 1512)$$
-
 The exact width list `sweeps.gen.json` carries. -/
 theorem reducedDeskWidths_eq : reducedDeskWidths =
     [1512, 1511, 1280, 1279, 1200, 1100, 1030, 1000, 960, 861, 860, 721, 720, 640, 601, 600, 481, 480, 462, 461,
@@ -485,16 +415,12 @@ theorem reducedDeskWidths_eq : reducedDeskWidths =
 
 /-- The stop counts: 57 before, 45 after.
 
-$$|D_{\mathrm{full}}| = 57 \wedge |R| = 45$$
-
 12 resize stops fewer per engine. -/
 theorem reducedDesk_length : deskSweepFull.length = 57 ∧ reducedDeskWidths.length = 45 := by
   rw [reducedDeskWidths_eq]; decide
 
 /-- The reduced desktop sweep starts and ends where the full one does, so the first load and the hysteresis pair
 (`Fw.Gate.stale`: the state after the last stop against a fresh load there) use the same environments.
-
-$$\operatorname{last}(R) = \operatorname{last}(D_{\mathrm{full}}) = 1512 \wedge \operatorname{head}(R) = \operatorname{head}(D_{\mathrm{full}}) = 1512$$
 
 The fresh-final load and the first load are unchanged. -/
 theorem reducedDesk_ends : reducedDeskWidths.getLast? = some 1512 ∧ deskSweepFull.getLast? = some 1512 ∧
@@ -504,15 +430,11 @@ theorem reducedDesk_ends : reducedDeskWidths.getLast? = some 1512 ∧ deskSweepF
 /-- Every desktop sweep width, full or reduced, is the environment of a matrix probe, so the matchMedia `=Lean` row
 (`spec.mjs` `expectFor`, which looks a stop up among the matrix probes) can find a vector at every stop of both.
 
-$$\forall n \in D_{\mathrm{full}},\ \exists p \in M,\quad e(p) = \operatorname{deskStop}(n)$$
-
-(and $R \sqsubseteq D_{\mathrm{full}}$ by `dropStutter_sublist`). The reduction loses no vector-carrying width class. -/
+(and `R ⊑ D_full` by `dropStutter_sublist`). The reduction loses no vector-carrying width class. -/
 theorem deskSweep_has_probes : (deskSweepFull.all fun n => matrix.any fun p => p.env == deskStop n) = true := by
   decide +kernel
 
 /-- The other three sweeps have no stutter stop: the reduction keeps all their stops.
-
-$$\forall w \in \operatorname{tail}(W),\quad |\mathrm{stops}(r(w))| = |\mathrm{stops}(w)|$$
 
 Only the desktop sweep gets shorter (with `dropStutter_sublist`, the other three are unchanged). -/
 theorem reduceSweep_short :
@@ -522,8 +444,6 @@ theorem reduceSweep_short :
 /-! ## Caveat: the verdict cells are equal, the tally counts are not -/
 
 /-- With every stop failing, a nonempty sweep's cell counts every stop as failing and compared.
-
-$$\forall \kappa,\ \forall s \ne [\,],\quad \operatorname{tally}(\operatorname{stops}_{\kappa,\,h \mapsto \mathrm{fail}}(s)) = (\mathrm{fail}, |s|, |s|, 0)$$
 
 Both numbers of a sweep cell's `FAIL k/n` count stops. -/
 theorem tally_const_fail {κ : Type} [DecidableEq κ] (key : Env → κ) (s : List Env) (hs : s ≠ []) :
@@ -539,9 +459,7 @@ theorem tally_const_fail {κ : Type} [DecidableEq κ] (key : Env → κ) (s : Li
 
 /-- **Caveat: a reduced sweep's cell has other counts.** The verdict of a sweep cell is the same after the reduction
 whenever the row's key history is (`sweepCell_verdict_reduce`), but its counts are not: when every stop fails, the
-full desktop sweep's cell is $(\mathrm{fail}, 57, 57, 0)$ and the reduced one's $(\mathrm{fail}, 45, 45, 0)$.
-
-$$\forall \kappa,\quad \operatorname{tally}(\operatorname{stops}_{\kappa,\,h \mapsto \mathrm{fail}}(\operatorname{deskStop}(R))) = (\mathrm{fail}, 45, 45, 0) \wedge \operatorname{tally}(\operatorname{stops}_{\kappa,\,h \mapsto \mathrm{fail}}(\operatorname{deskStop}(D_{\mathrm{full}}))) = (\mathrm{fail}, 57, 57, 0)$$
+full desktop sweep's cell is `(fail, 57, 57, 0)` and the reduced one's `(fail, 45, 45, 0)`.
 
 So the report text changes from `FAIL 57/57` to `FAIL 45/45`. Reports that print counts change: the sweep column's
 `FAIL k/n` (`summary.mjs` cell text) and the failure list's per-item stop counts. The verdict word of every cell

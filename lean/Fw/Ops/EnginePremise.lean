@@ -15,7 +15,7 @@ nobody had measured. This module is the spec of the measurement:
   or a hit test); every case is followed by an idle frame (`steps`). Everything the page needs (the element's style,
   the changed property and value, the layer hint) is data generated from here.
 * **Expectation.** The expected presence of every observed stage in a frame is *computed from the model*:
-  $0 < \mathrm{frameWork}(f).\mathrm{passes}(s)$ (Chromium: with the hit-test PrePaint correction `crWorkH`). For frames
+  `0 < frameWork(f).passes(s)` (Chromium: with the hit-test PrePaint correction `crWorkH`). For frames
   without forced reads, `passes` is 0 or 1, so presence is all a count of a stage can say; `units` is not observed by
   a presence test, and the registry statements of the moved premises say so.
 * **Verdict.** Per (step, stage) the observed presences of all passes of all jobs form a cell: `agree`, `mismatch`
@@ -41,8 +41,6 @@ open Fw.Engine.WebKit (WkProp)
 
 /-- What a test reads for one stage: the stage's name, the model stage it observes (`none` for the hit-test count,
 which is `Work.hits`), and the counters whose sum is the observation (present iff the sum is positive).
-
-$$o = (\mathrm{stage},\ \mathrm{model} \in \mathrm{Stage}\ \cup\ \{\mathrm{hits}\},\ \mathrm{counters})$$
 -/
 structure Observer where
   stage : String
@@ -51,8 +49,6 @@ structure Observer where
 
 /-- **Chromium's observers**: one per counted stage the lane can observe per frame (the compositor stage `comp` is
 not observed: `census.layers` is positive in every frame).
-
-$$\begin{aligned} [&(\texttt{script}, \mathrm{script}, [\texttt{trace.FireAnimationFrame}, \texttt{trace.FunctionCall}]),\ (\texttt{style}, \mathrm{style}, [\texttt{trace.UpdateLayoutTree}]),\ (\texttt{layout}, \mathrm{layout}, [\texttt{trace.Layout}]), \\ &(\texttt{props}, \mathrm{props}, [\texttt{trace.PrePaint}]),\ (\texttt{paint}, \mathrm{paint}, [\texttt{trace.Paint}]),\ (\texttt{raster}, \mathrm{raster}, [\texttt{trace.RasterTask}]), \\ &(\texttt{commit}, \mathrm{commit}, [\texttt{trace.cc.Commit}]),\ (\texttt{hits}, \bot, [\texttt{trace.HitTest}])] \end{aligned}$$
 -/
 def crObservers : List Observer :=
   [⟨"script", some .script, ["trace.FireAnimationFrame", "trace.FunctionCall"]⟩,
@@ -64,8 +60,6 @@ def crObservers : List Observer :=
 /-- **WebKit's observers** (WebKitTestRunner internals counters, per rendering update): the stages that have a
 counter. `script` (no `FireAnimationFrame` counter; the harness's own rAF would be circular) and `paint` (no paint
 counter) are not observable.
-
-$$\mathrm{style}: \texttt{styleRecalcs};\ \mathrm{layout}: \texttt{layoutUpdates};\ \mathrm{props}: \texttt{compositingUpdates};\ \mathrm{commit}: \texttt{layerFlushes}$$
 -/
 def wkObservers : List Observer :=
   [⟨"style", some .style, ["styleRecalcs"]⟩, ⟨"layout", some .layout, ["layoutUpdates"]⟩,
@@ -73,24 +67,16 @@ def wkObservers : List Observer :=
 
 /-- The model's expected presence of an observer in a frame with work `w`: the stage ran at least once (hits: at
 least one hit test).
-
-$$\operatorname{expect}(w, o) \iff \begin{cases} 0 < w.\mathrm{passes}(s) & o.\mathrm{model} = \mathrm{some}\ s \\ 0 < w.\mathrm{hits} & o.\mathrm{model} = \mathrm{none} \end{cases}$$
 -/
 def expectOf (w : Work) (o : Observer) : Bool :=
   match o.model with
   | some s => decide (0 < w.passes s)
   | none => decide (0 < w.hits)
 
-/-- The expected presences of all observers `os` in a frame with work `w`, by stage name.
-
-$$\operatorname{expectAll}(w, os) = [(o.\mathrm{stage},\ \operatorname{expect}(w, o)) \mid o \in os]$$
--/
+/-- The expected presences of all observers `os` in a frame with work `w`, by stage name. -/
 def expectAll (os : List Observer) (w : Work) : List (String × Bool) := os.map fun o => (o.stage, expectOf w o)
 
-/-- The stage names expected present, in observer order.
-
-$$\operatorname{names}(e) = [s \mid (s, \mathrm{true}) \in e]$$
--/
+/-- The stage names expected present, in observer order. -/
 def names (e : List (String × Bool)) : List String := (e.filter (·.2)).map (·.1)
 
 /-! ## Cases -/
@@ -101,25 +87,18 @@ rAF callback with no change (`raf`), pass an empty callback to the page's `setTi
 clock shim's (`packages/measure-chromium/src/clock-shim.js:38`), and the driver's `advanceTo` runs the callback as a
 plain call (`clock-shim.js:59`) inside the same `Runtime.evaluate` that runs the step (`run.mjs:108`), so `shimTimer`
 is not a Chromium timer task.
-
-$$\mathrm{Act} = \{\mathrm{set},\ \mathrm{raf},\ \mathrm{shimTimer},\ \mathrm{hit},\ \mathrm{idle}\}$$
 -/
 inductive Act where
   | set | raf | shimTimer | hit | idle
 deriving DecidableEq, Repr
 
-/-- The act's name in the golden.
-
-$$\operatorname{name}(\mathrm{set}) = \texttt{set},\ \operatorname{name}(\mathrm{raf}) = \texttt{raf},\ \operatorname{name}(\mathrm{shimTimer}) = \texttt{shimTimer},\ \operatorname{name}(\mathrm{hit}) = \texttt{hit},\ \operatorname{name}(\mathrm{idle}) = \texttt{idle}$$
--/
+/-- The act's name in the golden. -/
 def Act.name : Act → String
   | .set => "set" | .raf => "raf" | .shimTimer => "shimTimer" | .hit => "hit" | .idle => "idle"
 
 /-- One measured frame: the member id, the act, the element's inline style before the frame (`style`), the changed
 property and its new value (`set` only), the extra elements changed in the same frame (`more`: each one's style,
 property and new value; empty for a one-change frame), and the model's expected presence per observed stage.
-
-$$c = (\mathrm{id},\ \mathrm{act},\ \mathrm{style},\ \mathrm{prop},\ \mathrm{to},\ \mathrm{more},\ \mathrm{expect})$$
 -/
 structure Case where
   id : String
@@ -130,10 +109,7 @@ structure Case where
   more : List (String × String × String) := []
   expect : List (String × Bool)
 
-/-- How a property is changed on a page: its CSS name, the value before and the value after.
-
-$$\mathrm{css} = (\mathrm{prop},\ v_0,\ v_1)$$
--/
+/-- How a property is changed on a page: its CSS name, the value before and the value after. -/
 structure Css where
   prop : String
   v0 : String
@@ -141,8 +117,6 @@ structure Css where
 
 /-- The inline style of an element in layer state `l`: none, a positioned box (a paint layer), or a positioned box with
 the will-change hint `h` (its own composited layer).
-
-$$\operatorname{layerStyle}(\ell, h) = \begin{cases} \texttt{""} & \ell = \mathrm{none} \\ \texttt{position:relative;} & \ell = \mathrm{layer} \\ \texttt{position:relative;will-change:}h\texttt{;} & \ell = \mathrm{own} \end{cases}$$
 -/
 def layerStyle (l : LayerState) (hint : String) : String :=
   match l with
@@ -152,40 +126,28 @@ def layerStyle (l : LayerState) (hint : String) : String :=
 
 /-- The base style every element of the page shares (a 20 px box with a colour, a gradient, a letter and a border in the text colour, so that a colour change is visible without glyphs); the case's
 inline style follows it, so a case's own declarations win.
-
-$$\mathrm{baseStyle} = \texttt{width:20px;height:20px;background-color:\#ccc;background-image:linear-gradient(\#f00,\#00f);color:\#000;border:2px solid;font:10px/10px monospace;}$$
 -/
 def baseStyle : String :=
   "width:20px;height:20px;background-color:#ccc;background-image:linear-gradient(#f00,#00f);color:#000;border:2px solid;font:10px/10px monospace;"
 
-/-- The idle frame after every case: no script, no change, no hit test.
-
-$$\mathrm{idle} = (0, 0, 0, 0, [\,], 0)$$
--/
+/-- The idle frame after every case: no script, no change, no hit test. -/
 def idleFrame {P : Type} : FrameIn P := ⟨0, 0, 0, 0, [], 0⟩
 
 /-- The steps of the page: every case, each followed by an idle frame (so a late async stage lands in a frame that
 expects nothing, and a mismatch there is visible).
 
-$$\operatorname{steps}(e, cs) = \mathop{+\!\!+}_{c \in cs}\ [c,\ (c.\mathrm{id} \mathbin{+\!\!+} \texttt{"+idle"},\ \mathrm{idle},\ \texttt{""},\ \texttt{""},\ \texttt{""},\ e)]$$
-
-Here $e$ is the idle frame's expectation list, passed in by the caller.
+Here `e` is the idle frame's expectation list, passed in by the caller.
 -/
 def steps (idle : List (String × Bool)) (cs : List Case) : List Case :=
   cs.flatMap fun c => [c, { id := c.id ++ "+idle", act := .idle, expect := idle }]
 
 /-! ## Chromium cases -/
 
-/-- The three layer states, in table order.
-
-$$\mathrm{layers} = [\mathrm{none}, \mathrm{layer}, \mathrm{own}]$$
--/
+/-- The three layer states, in table order. -/
 def layers : List LayerState := [.none, .layer, .own]
 
 /-- **How each Chromium property is changed.** `strokeDashoffset` has no entry: it is an SVG-only property, and an SVG
 element's layer states are not those of the page's boxes, so it is not measured.
-
-$$\operatorname{crCss}(k) = \begin{cases} (\texttt{transform}, \texttt{translateX(10px)}, \texttt{translateX(20px)}) & k = \mathrm{transform} \\ (\texttt{transform}, \texttt{none}, \texttt{translateX(10px)}) & k = \mathrm{transformToggle} \\ (\texttt{translate}, \texttt{10px 0px}, \texttt{20px 0px}) & k = \mathrm{translate} \\ (\texttt{scale}, \texttt{1.1}, \texttt{1.2}) & k = \mathrm{scale} \\ (\texttt{rotate}, \texttt{5deg}, \texttt{10deg}) & k = \mathrm{rotate} \\ (\texttt{opacity}, \texttt{0.5}, \texttt{0.6}) & k = \mathrm{opacity} \\ (\texttt{filter}, \texttt{brightness(0.9)}, \texttt{brightness(0.8)}) & k = \mathrm{filter}(\bot) \\ (\texttt{filter}, \texttt{blur(2px)}, \texttt{blur(4px)}) & k = \mathrm{filter}(\top) \\ (\texttt{backdrop-filter}, \texttt{blur(2px)}, \texttt{blur(4px)}) & k = \mathrm{backdropFilter} \\ (\texttt{background-position}, \texttt{0px 0px}, \texttt{5px 5px}) & k = \mathrm{backgroundPosition} \\ (\texttt{background-image}, \texttt{linear-gradient(\#f00,\#00f)}, \texttt{linear-gradient(\#00f,\#f00)}) & k = \mathrm{backgroundImage} \\ (\texttt{background-color}, \texttt{\#ccc}, \texttt{\#bbb}) & k = \mathrm{backgroundColor} \\ (\texttt{color}, \texttt{\#000}, \texttt{\#111}) & k = \mathrm{color} \\ (\texttt{clip-path}, \texttt{inset(0px)}, \texttt{inset(2px)}) & k = \mathrm{clipPath} \\ \bot & k = \mathrm{strokeDashoffset} \\ (\texttt{visibility}, \texttt{visible}, \texttt{hidden}) & k = \mathrm{visibility} \\ (\texttt{z-index}, \texttt{0}, \texttt{1}) & k = \mathrm{zIndex} \\ (\texttt{top}, \texttt{0px}, \texttt{2px}) & k = \mathrm{top} \\ (\texttt{left}, \texttt{0px}, \texttt{2px}) & k = \mathrm{left} \\ (\texttt{width}, \texttt{20px}, \texttt{24px}) & k = \mathrm{width} \\ (\texttt{height}, \texttt{20px}, \texttt{24px}) & k = \mathrm{height} \\ (\texttt{margin}, \texttt{0px}, \texttt{2px}) & k = \mathrm{margin} \\ (\texttt{padding}, \texttt{0px}, \texttt{2px}) & k = \mathrm{padding} \end{cases}$$
 -/
 def crCss : CrKey → Option Css
   | .transform => some ⟨"transform", "translateX(10px)", "translateX(20px)"⟩
@@ -214,8 +176,6 @@ def crCss : CrKey → Option Css
 
 /-- The will-change hint that gives an element its own composited layer for a property: the property itself for the
 compositable ones, `transform` for the rest.
-
-$$\operatorname{hint}(k) = \begin{cases} \text{the CSS name of } k & k \in \{\mathrm{transform}, \mathrm{translate}, \mathrm{scale}, \mathrm{rotate}, \mathrm{opacity}, \mathrm{filter}, \mathrm{backdropFilter}\} \\ \texttt{transform} & \text{otherwise} \end{cases}$$
 -/
 def crHint : CrKey → String
   | .translate => "translate" | .scale => "scale" | .rotate => "rotate" | .opacity => "opacity"
@@ -223,8 +183,6 @@ def crHint : CrKey → String
 
 /-- Properties that act only on a positioned box (a positioned box always has a paint layer, so the state `none` does
 not exist for them).
-
-$$\operatorname{positioned}(k) \iff k \in \{\mathrm{top}, \mathrm{left}, \mathrm{zIndex}\}$$
 -/
 def crPositioned : CrKey → Bool
   | .top | .left | .zIndex => true
@@ -232,42 +190,24 @@ def crPositioned : CrKey → Bool
 
 /-- A member (property, layer state) of the Chromium table is realizable on a page iff the property has a CSS spelling
 here and, for a positioned-only property, the box is not in state `none`.
-
-$$\operatorname{real}_{\mathrm{cr}}(k, \ell) \iff \operatorname{crCss}(k) \ne \bot \land \lnot(\operatorname{positioned}(k) \land \ell = \mathrm{none})$$
 -/
 def crRealizable (k : CrKey) (l : LayerState) : Bool :=
   (crCss k).isSome && !(crPositioned k && l == .none)
 
-/-- All 69 members of the Chromium signature table (23 plain properties times three layer states).
-
-$$\mathrm{crMembers} = \mathrm{CrKey.all} \times \{\mathrm{none}, \mathrm{layer}, \mathrm{own}\}$$
--/
+/-- All 69 members of the Chromium signature table (23 plain properties times three layer states). -/
 def crMembers : List (CrKey × LayerState) := CrKey.all.flatMap fun k => layers.map fun l => (k, l)
 
-/-- The id of a member as `chromium.jsonl` writes it.
-
-$$\operatorname{id}(k, \ell) = \operatorname{name}(k) \mathbin{+\!\!+} \texttt{@} \mathbin{+\!\!+} \operatorname{name}(\ell)$$
--/
+/-- The id of a member as `chromium.jsonl` writes it. -/
 def memberId (k : CrKey) (l : LayerState) : String := k.name ++ "@" ++ Fw.Engine.Chromium.layerName l
 
-/-- The model's work of a Chromium frame in the lane (with the hit-test PrePaint correction `crWorkH`).
-
-$$W_{\mathrm{cr}}(f) = \operatorname{crWorkH}(\mathrm{lane}, f)$$
--/
+/-- The model's work of a Chromium frame in the lane (with the hit-test PrePaint correction `crWorkH`). -/
 def crWork (f : FrameIn CrProp) : Work := Fw.Engine.Chromium.crWorkH Fw.Engine.Chromium.lane f
 
-/-- The frame of a member: one change of the property at the layer state.
-
-$$\operatorname{crFrame}(k, \ell) = (0, 0, 0, 0, [(0, \mathrm{css}(k), \ell)], 0)$$
--/
+/-- The frame of a member: one change of the property at the layer state. -/
 def crFrame (k : CrKey) (l : LayerState) : FrameIn CrProp := ⟨0, 0, 0, 0, [⟨0, .css k, l⟩], 0⟩
 
 /-- **The Chromium cases**: every realizable member as a `set`, a script-only frame (one rAF callback) and a hit-test
 frame.
-
-$$\mathrm{crCases} = [\,\mathrm{set}(k, \ell) \mid (k, \ell) \in \mathrm{crMembers},\ \operatorname{crCss}(k) \ne \bot,\ \operatorname{real}_{\mathrm{cr}}(k, \ell)\,] \mathbin{+\!\!+} [\mathrm{script},\ \mathrm{hit}]$$
-
-$$\begin{aligned} \mathrm{set}(k, \ell) &= (\operatorname{id}(k, \ell),\ \mathrm{set},\ \operatorname{layerStyle}(\ell, \operatorname{hint}(k)) \mathbin{+\!\!+} q \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} v_0 \mathbin{+\!\!+} \texttt{;},\ q,\ v_1,\ \operatorname{expectAll}(\mathrm{crObservers}, W_{\mathrm{cr}}(\operatorname{crFrame}(k, \ell))))\ \text{ where } \operatorname{crCss}(k) = (q, v_0, v_1) \\ \mathrm{script} &= (\texttt{script},\ \mathrm{raf},\ \texttt{""},\ \texttt{""},\ \texttt{""},\ \operatorname{expectAll}(\mathrm{crObservers}, W_{\mathrm{cr}}(1, 0, 0, 0, [\,], 0))) \\ \mathrm{hit} &= (\texttt{hit},\ \mathrm{hit},\ \texttt{""},\ \texttt{""},\ \texttt{""},\ \operatorname{expectAll}(\mathrm{crObservers}, W_{\mathrm{cr}}(0, 0, 0, 1, [\,], 0))) \end{aligned}$$
 -/
 def crCases (_ : Unit := ()) : List Case :=
   (crMembers.filterMap fun (k, l) =>
@@ -281,24 +221,16 @@ def crCases (_ : Unit := ()) : List Case :=
   [{ id := "script", act := .raf, expect := expectAll crObservers (crWork ⟨1, 0, 0, 0, [], 0⟩) },
    { id := "hit", act := .hit, expect := expectAll crObservers (crWork ⟨0, 0, 0, 1, [], 0⟩) }]
 
-/-- The Chromium table steps (each case of the table and its idle frame), the steps of CI run 39088367495.
-
-$$\mathrm{crSteps}_0 = \operatorname{steps}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{idle})), \mathrm{crCases})$$
--/
+/-- The Chromium table steps (each case of the table and its idle frame), the steps of CI run 39088367495. -/
 def crSteps0 (_ : Unit := ()) : List Case := steps (expectAll crObservers (crWork idleFrame)) crCases
 
 /-! ## Chromium extra cases (task engine-model-fix-2): a clock-shim control, joins, frames with two changes -/
 
-/-- The model's Chromium frame of a list of changes and nothing else.
-
-$$\forall C:\ \operatorname{crFrames}(C) = (0, 0, 0, 0, C, 0)$$
--/
+/-- The model's Chromium frame of a list of changes and nothing else. -/
 def crFrames (cs : List (Change CrProp)) : FrameIn CrProp := ⟨0, 0, 0, 0, cs, 0⟩
 
 /-- **A join case**: one element on its own layer (will-change `hints`) whose readers `rs` all read the custom property
 `--x` (their CSS in `css`); the frame sets `--x` from `0` to `1`, a custom-property change with readers `rs`.
-
-$$\forall i, rs, h, css:\ \operatorname{join}(i, rs, h, css) = \big(i,\ \mathrm{set},\ \operatorname{layerStyle}(\mathrm{own}, h) \mathbin{+\!\!+} \texttt{--x:0;} \mathbin{+\!\!+} css,\ \texttt{--x},\ \texttt{1},\ [\,],\ \operatorname{expect}(W_{\mathrm{cr}}(\operatorname{crFrames}[(0, \operatorname{custom}(0, rs), \mathrm{own})]))\big)$$
 
 One custom-property write read by several properties of one box. -/
 def crJoin (id : String) (rs : List CrKey) (hints css : String) : Case :=
@@ -308,7 +240,6 @@ def crJoin (id : String) (rs : List CrKey) (hints css : String) : Case :=
 /-- **A two-element case**: the table members `a` and `b` changed in one frame, `a` on the case's box and `b` on an
 extra box; `none` if a member has no CSS spelling or is not realizable.
 
-$$\forall a = (k_a, \ell_a),\ b = (k_b, \ell_b):\ \operatorname{pair}(a, b) = \begin{cases} \mathrm{some}\big(\operatorname{id}(a) \mathbin{+\!\!+} \texttt{+} \mathbin{+\!\!+} \operatorname{id}(b),\ \mathrm{set},\ \operatorname{layerStyle}(\ell_a, \operatorname{hint}(k_a)) \mathbin{+\!\!+} c_a.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_a.v_0 \mathbin{+\!\!+} \texttt{;},\ c_a.\mathrm{prop},\ c_a.v_1,\ [(\operatorname{layerStyle}(\ell_b, \operatorname{hint}(k_b)) \mathbin{+\!\!+} c_b.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_b.v_0 \mathbin{+\!\!+} \texttt{;},\ c_b.\mathrm{prop},\ c_b.v_1)],\ \operatorname{expect}(W_{\mathrm{cr}}(\operatorname{crFrames}[(0, \operatorname{css}(k_a), \ell_a), (1, \operatorname{css}(k_b), \ell_b)]))\big) & \operatorname{crCss}(k_a) = \mathrm{some}\ c_a \land \operatorname{crCss}(k_b) = \mathrm{some}\ c_b \land \operatorname{real}_{\mathrm{cr}}(k_a, \ell_a) \land \operatorname{real}_{\mathrm{cr}}(k_b, \ell_b) \\ \bot & \text{otherwise} \end{cases}$$
 Two boxes changed in the same frame. -/
 def crPair (a b : CrKey × LayerState) : Option Case :=
   match crCss a.1, crCss b.1 with
@@ -326,9 +257,7 @@ driver's evaluate of the step, where the `set` and `hit` steps also run their pa
 evaluate as no script callback, so it expects an idle frame; it is not a Chromium timer task, see `Act`); three joins
 (`top` and `scale`, `top` and `transform`, `background-color` and `opacity` on one own-layer box); three two-element
 frames (`top@own` with `scale@own`, `transform@own` with `background-color@none`, `top@own` with `transform@own`); a
-pair that is $\bot$ is dropped (none is, `extra_counts`).
-
-$$\mathrm{crExtra} = [(\texttt{shimTimer},\ \mathrm{shimTimer},\ \texttt{""},\ \texttt{""},\ \texttt{""},\ [\,],\ \operatorname{expect}(W_{\mathrm{cr}}(\mathrm{idle})))] \mathbin{+\!\!+} [\operatorname{join}(\texttt{custom[top,scale]@own},\ [\mathrm{top}, \mathrm{scale}],\ \texttt{transform,scale},\ \texttt{top:calc(var(--x) * 2px);scale:calc(1.1 + var(--x) * 0.1);}),\ \operatorname{join}(\texttt{custom[top,transform]@own},\ [\mathrm{top}, \mathrm{transform}],\ \texttt{transform},\ \texttt{top:calc(var(--x) * 2px);transform:translateX(calc(10px + var(--x) * 10px));}),\ \operatorname{join}(\texttt{custom[backgroundColor,opacity]@own},\ [\mathrm{backgroundColor}, \mathrm{opacity}],\ \texttt{opacity},\ \texttt{opacity:calc(0.5 + var(--x) * 0.1);background-color:rgb(calc(200 + var(--x) * 10), 200, 200);})] \mathbin{+\!\!+} \operatorname{filterMap}\big(\operatorname{pair},\ [(\mathrm{top}@\mathrm{own}, \mathrm{scale}@\mathrm{own}),\ (\mathrm{transform}@\mathrm{own}, \mathrm{backgroundColor}@\mathrm{none}),\ (\mathrm{top}@\mathrm{own}, \mathrm{transform}@\mathrm{own})]\big)$$
+pair that is `⊥` is dropped (none is, `extra_counts`).
 
 The frames that test how levels combine, after one harness control. -/
 def crExtraCases : List Case :=
@@ -343,18 +272,10 @@ def crExtraCases : List Case :=
     ((.transform, .own), (.backgroundColor, .none)), ((.top, .own), (.transform, .own))].filterMap
     fun (a, b) => crPair a b)
 
-/-- The Chromium steps: the table steps, then each extra case and its idle frame.
-
-$$\mathrm{crSteps} = \mathrm{crSteps}_0 \mathbin{+\!\!+} \operatorname{steps}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{idle})), \mathrm{crExtra})$$
--/
+/-- The Chromium steps: the table steps, then each extra case and its idle frame. -/
 def crSteps : List Case := crSteps0 ++ steps (expectAll crObservers (crWork idleFrame)) crExtraCases
 
-/-- The members the Chromium page does not realize, with the reason.
-
-$$\mathrm{crExcluded} = [(\operatorname{id}(k, \ell), \operatorname{reason}(k)) \mid (k, \ell) \in \mathrm{crMembers},\ \lnot \operatorname{real}_{\mathrm{cr}}(k, \ell)]$$
-
-$$\operatorname{reason}(k) = \begin{cases} \texttt{SVG-only property: not a box of the page} & \operatorname{crCss}(k) = \bot \\ \texttt{acts only on a positioned box, which always has a paint layer} & \text{otherwise} \end{cases}$$
--/
+/-- The members the Chromium page does not realize, with the reason. -/
 def crExcluded : List (String × String) :=
   crMembers.filterMap fun (k, l) =>
     if crRealizable k l then none
@@ -367,8 +288,6 @@ def crExcluded : List (String × String) :=
 `clipPath`, `clipPathShape` (whether the filter or clip is composited depends on the shape and the layer), `willChange`
 (the change moves the layer state itself), `colorCurrent`, `strokeDashoffset` (SVG-only) and `scrollPos` (the scroll
 step has its own table, `scrollStep`).
-
-$$\operatorname{wkCss}(p) = \begin{cases} (\texttt{transform}, \texttt{translateX(10px)}, \texttt{translateX(20px)}) & p = \mathrm{transform} \\ (\texttt{transform}, \texttt{none}, \texttt{translateX(10px)}) & p = \mathrm{transformToggle} \\ (\texttt{opacity}, \texttt{0.5}, \texttt{0.6}) & p = \mathrm{opacity} \\ (\texttt{opacity}, \texttt{1}, \texttt{0.5}) & p = \mathrm{opacityCross1} \\ (\texttt{filter}, \texttt{blur(2px)}, \texttt{blur(4px)}) & p = \mathrm{filter} \\ (\texttt{filter}, \texttt{none}, \texttt{blur(2px)}) & p = \mathrm{filterToggle} \\ (\texttt{background-color}, \texttt{\#ccc}, \texttt{\#bbb}) & p = \mathrm{background} \\ (\texttt{color}, \texttt{\#000}, \texttt{\#111}) & p = \mathrm{color} \\ (\texttt{mask-image}, \texttt{linear-gradient(\#000,transparent)}, \texttt{linear-gradient(transparent,\#000)}) & p = \mathrm{mask} \\ (\texttt{top}, \texttt{0px}, \texttt{2px}) & p \in \{\mathrm{insetAbs}, \mathrm{inset}\} \\ (\texttt{width}, \texttt{20px}, \texttt{24px}) & p = \mathrm{size} \\ \bot & \text{otherwise} \end{cases}$$
 -/
 def wkCss : WkProp → Option Css
   | .transform => some ⟨"transform", "translateX(10px)", "translateX(20px)"⟩
@@ -385,10 +304,7 @@ def wkCss : WkProp → Option Css
   | .size => some ⟨"width", "20px", "24px"⟩
   | _ => none
 
-/-- The WebKit property's name in the cases (the constructor name).
-
-$$\operatorname{name}(p) = \text{the constructor name of } p$$
--/
+/-- The WebKit property's name in the cases (the constructor name). -/
 def wkName : WkProp → String
   | .transform => "transform" | .transformToggle => "transformToggle" | .opacity => "opacity"
   | .opacityCross1 => "opacityCross1" | .filter => "filter" | .filterPainted => "filterPainted"
@@ -397,19 +313,13 @@ def wkName : WkProp → String
   | .mask => "mask" | .insetAbs => "insetAbs" | .inset => "inset" | .size => "size"
   | .strokeDashoffset => "strokeDashoffset" | .scrollPos => "scrollPos"
 
-/-- All WebKit properties once.
-
-$$\mathrm{wkAll} = [\mathrm{transform}, \mathrm{transformToggle}, \mathrm{opacity}, \mathrm{opacityCross1}, \mathrm{filter}, \mathrm{filterPainted}, \mathrm{filterToggle}, \mathrm{clipPath}, \mathrm{clipPathShape}, \mathrm{willChange}, \mathrm{background}, \mathrm{color}, \mathrm{colorCurrent}, \mathrm{mask}, \mathrm{insetAbs}, \mathrm{inset}, \mathrm{size}, \mathrm{strokeDashoffset}, \mathrm{scrollPos}]$$
--/
+/-- All WebKit properties once. -/
 def wkAll : List WkProp :=
   [.transform, .transformToggle, .opacity, .opacityCross1, .filter, .filterPainted, .filterToggle, .clipPath,
    .clipPathShape, .willChange, .background, .color, .colorCurrent, .mask, .insetAbs, .inset, .size,
    .strokeDashoffset, .scrollPos]
 
-/-- The will-change hint for an own layer.
-
-$$\operatorname{hint}(p) = \begin{cases} \texttt{opacity} & p \in \{\mathrm{opacity}, \mathrm{opacityCross1}\} \\ \texttt{filter} & p \in \{\mathrm{filter}, \mathrm{filterToggle}\} \\ \texttt{transform} & \text{otherwise} \end{cases}$$
--/
+/-- The will-change hint for an own layer. -/
 def wkHint : WkProp → String
   | .opacity | .opacityCross1 => "opacity"
   | .filter | .filterToggle => "filter"
@@ -418,25 +328,18 @@ def wkHint : WkProp → String
 /-- A property whose very presence gives the box a layer (a transformed, translucent, filtered or masked box has a
 layer), so the state `none` does not exist for its value changes; the toggles and crossings are the changes that
 create the layer.
-
-$$\operatorname{makesLayer}(p) \iff p \in \{\mathrm{transform}, \mathrm{opacity}, \mathrm{filter}, \mathrm{mask}\}$$
 -/
 def wkMakesLayer : WkProp → Bool
   | .transform | .opacity | .filter | .mask => true
   | _ => false
 
-/-- Positioned-box properties (a positioned box always has a layer, so `none` does not exist for them).
-
-$$\operatorname{positioned}(p) \iff p \in \{\mathrm{insetAbs}, \mathrm{inset}\}$$
--/
+/-- Positioned-box properties (a positioned box always has a layer, so `none` does not exist for them). -/
 def wkPositioned : WkProp → Bool
   | .insetAbs | .inset => true
   | _ => false
 
 /-- The inline layer style of a WebKit member: `insetAbs` uses an absolute box (with the transform hint for an own
 layer), every other property the shared `layerStyle` with its own hint.
-
-$$\operatorname{wkLayerStyle}(p, \ell) = \begin{cases} \texttt{""} & p = \mathrm{insetAbs},\ \ell = \mathrm{none} \\ \texttt{position:absolute;} & p = \mathrm{insetAbs},\ \ell = \mathrm{layer} \\ \texttt{position:absolute;will-change:transform;} & p = \mathrm{insetAbs},\ \ell = \mathrm{own} \\ \operatorname{layerStyle}(\ell, \operatorname{hint}(p)) & p \ne \mathrm{insetAbs} \end{cases}$$
 -/
 def wkLayerStyle (p : WkProp) (l : LayerState) : String :=
   match p, l with
@@ -445,39 +348,23 @@ def wkLayerStyle (p : WkProp) (l : LayerState) : String :=
   | .insetAbs, .own => "position:absolute;will-change:transform;"
   | _, _ => layerStyle l (wkHint p)
 
-/-- A WebKit member is realizable iff the property is measured and the state exists for it.
-
-$$\operatorname{real}_{\mathrm{wk}}(p, \ell) \iff \operatorname{wkCss}(p) \ne \bot \land \lnot((\operatorname{makesLayer}(p) \lor \operatorname{positioned}(p)) \land \ell = \mathrm{none})$$
--/
+/-- A WebKit member is realizable iff the property is measured and the state exists for it. -/
 def wkRealizable (p : WkProp) (l : LayerState) : Bool :=
   (wkCss p).isSome && !((wkMakesLayer p || wkPositioned p) && l == .none)
 
-/-- All 57 members of the WebKit table.
-
-$$\mathrm{wkMembers} = \mathrm{WkProp.all} \times \{\mathrm{none}, \mathrm{layer}, \mathrm{own}\}$$
--/
+/-- All 57 members of the WebKit table. -/
 def wkMembers : List (WkProp × LayerState) := wkAll.flatMap fun p => layers.map fun l => (p, l)
 
-/-- The id of a WebKit member.
-
-$$\operatorname{id}(p, \ell) = \operatorname{name}(p) \mathbin{+\!\!+} \texttt{@} \mathbin{+\!\!+} \operatorname{name}(\ell)$$
--/
+/-- The id of a WebKit member. -/
 def wkMemberId (p : WkProp) (l : LayerState) : String := wkName p ++ "@" ++ Fw.Engine.Chromium.layerName l
 
 /-- The model's work of a WebKit frame in the page: the harness's own rAF callback runs in every frame (script 1), so a
 frame with one change is `jsFrame [c]` and an idle frame `jsFrame []`.
-
-$$W_{\mathrm{wk}}(cs) = \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{jsFrame}(cs))$$
 -/
 def wkWork (cs : List (Change WkProp)) : Work :=
   frameWork Fw.Engine.WebKit.webkit (Fw.Engine.WebKit.jsFrame cs)
 
-/-- **The WebKit cases**: every realizable member as a `set`.
-
-$$\mathrm{wkCases} = [\,\mathrm{set}(p, \ell) \mid (p, \ell) \in \mathrm{wkMembers},\ \operatorname{real}_{\mathrm{wk}}(p, \ell)\,]$$
-
-$$\mathrm{set}(p, \ell) = (\operatorname{id}(p, \ell),\ \mathrm{set},\ \operatorname{wkLayerStyle}(p, \ell) \mathbin{+\!\!+} q \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} v_0 \mathbin{+\!\!+} \texttt{;},\ q,\ v_1,\ \operatorname{expectAll}(\mathrm{wkObservers}, W_{\mathrm{wk}}([(0, p, \ell)])))\ \text{ where } \operatorname{wkCss}(p) = (q, v_0, v_1)$$
--/
+/-- **The WebKit cases**: every realizable member as a `set`. -/
 def wkCases : List Case :=
   wkMembers.filterMap fun (p, l) =>
     match wkCss p with
@@ -490,15 +377,12 @@ def wkCases : List Case :=
 
 /-- The WebKit table steps (each case and its idle frame, which still runs the harness's rAF callback), the steps of
 CI run 39088367495.
-
-$$\mathrm{wkSteps}_0 = \operatorname{steps}(\operatorname{expect}(W_{\mathrm{wk}}([\,])), \mathrm{wkCases})$$
 -/
 def wkSteps0 : List Case := steps (expectAll wkObservers (wkWork [])) wkCases
 
 /-- **A WebKit two-element case**: the members `a` and `b` changed in one frame, `a` on the case's box and `b` on an
 extra box; `none` if a member has no CSS spelling or is not realizable.
 
-$$\forall a = (p_a, \ell_a),\ b = (p_b, \ell_b):\ \operatorname{pair}_{\mathrm{wk}}(a, b) = \begin{cases} \mathrm{some}\big(\operatorname{id}(a) \mathbin{+\!\!+} \texttt{+} \mathbin{+\!\!+} \operatorname{id}(b),\ \mathrm{set},\ \operatorname{wkLayerStyle}(p_a, \ell_a) \mathbin{+\!\!+} c_a.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_a.v_0 \mathbin{+\!\!+} \texttt{;},\ c_a.\mathrm{prop},\ c_a.v_1,\ [(\operatorname{wkLayerStyle}(p_b, \ell_b) \mathbin{+\!\!+} c_b.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_b.v_0 \mathbin{+\!\!+} \texttt{;},\ c_b.\mathrm{prop},\ c_b.v_1)],\ \operatorname{expect}(W_{\mathrm{wk}}[(0, p_a, \ell_a), (1, p_b, \ell_b)])\big) & \operatorname{wkCss}(p_a) = \mathrm{some}\ c_a \land \operatorname{wkCss}(p_b) = \mathrm{some}\ c_b \land \operatorname{real}_{\mathrm{wk}}(p_a, \ell_a) \land \operatorname{real}_{\mathrm{wk}}(p_b, \ell_b) \\ \bot & \text{otherwise} \end{cases}$$
 Two boxes changed in the same WebKit frame. -/
 def wkPair (a b : WkProp × LayerState) : Option Case :=
   match wkCss a.1, wkCss b.1 with
@@ -514,67 +398,43 @@ def wkPair (a b : WkProp × LayerState) : Option Case :=
 /-- **The WebKit extra cases** (task engine-model-fix-2): three two-element frames, `opacity@own` with
 `background@layer`, `opacity@own` with `size@none`, `transform@own` with `color@own`.
 
-$$\mathrm{wkExtra} = [\operatorname{pair}_{\mathrm{wk}}(\mathrm{opacity}@\mathrm{own}, \mathrm{background}@\mathrm{layer}), \operatorname{pair}_{\mathrm{wk}}(\mathrm{opacity}@\mathrm{own}, \mathrm{size}@\mathrm{none}), \operatorname{pair}_{\mathrm{wk}}(\mathrm{transform}@\mathrm{own}, \mathrm{color}@\mathrm{own})]$$
-
-where the pairs go through `filterMap` (a pair that is $\bot$ is dropped; all three are defined, `extra_counts`). The
+The
 WebKit frames that test whether two changes take the union of their stages. -/
 def wkExtraCases : List Case :=
   [((WkProp.opacity, LayerState.own), (WkProp.background, LayerState.layer)),
    ((.opacity, .own), (.size, .none)), ((.transform, .own), (.color, .own))].filterMap fun (a, b) => wkPair a b
 
-/-- The WebKit steps: the table steps, then each extra case and its idle frame.
-
-$$\mathrm{wkSteps} = \mathrm{wkSteps}_0 \mathbin{+\!\!+} \operatorname{steps}(\operatorname{expect}(W_{\mathrm{wk}}([\,])), \mathrm{wkExtra})$$
--/
+/-- The WebKit steps: the table steps, then each extra case and its idle frame. -/
 def wkSteps : List Case := wkSteps0 ++ steps (expectAll wkObservers (wkWork [])) wkExtraCases
 
 /-! ## Step sets -/
 
 /-- The step set of a step: the property table and its idle frames (`table`), or the extra cases of task
 engine-model-fix-2 and their idle frames (`extra`). The lane decides each stage once per step set.
-
-$$\mathrm{Group} = \{\mathrm{table},\ \mathrm{extra}\}$$
 -/
 inductive Group where
   | table | extra
 deriving DecidableEq, Repr
 
-/-- The step set's name in the golden.
-
-$$\operatorname{name}(\mathrm{table}) = \texttt{table},\ \operatorname{name}(\mathrm{extra}) = \texttt{extra}$$
--/
+/-- The step set's name in the golden. -/
 def Group.name : Group → String
   | .table => "table" | .extra => "extra"
 
-/-- The Chromium steps with their step set: the table steps are `table`, the extra steps `extra`.
-
-$$\mathrm{crGrouped} = [(c, \mathrm{table}) \mid c \in \mathrm{crSteps}_0] \mathbin{+\!\!+} [(c, \mathrm{extra}) \mid c \in \operatorname{steps}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{idle})), \mathrm{crExtra})]$$
--/
+/-- The Chromium steps with their step set: the table steps are `table`, the extra steps `extra`. -/
 def crGrouped : List (Case × Group) :=
   crSteps0.map (·, .table) ++ (steps (expectAll crObservers (crWork idleFrame)) crExtraCases).map (·, .extra)
 
-/-- The WebKit steps with their step set: the table steps are `table`, the extra steps `extra`.
-
-$$\mathrm{wkGrouped} = [(c, \mathrm{table}) \mid c \in \mathrm{wkSteps}_0] \mathbin{+\!\!+} [(c, \mathrm{extra}) \mid c \in \operatorname{steps}(\operatorname{expect}(W_{\mathrm{wk}}([\,])), \mathrm{wkExtra})]$$
--/
+/-- The WebKit steps with their step set: the table steps are `table`, the extra steps `extra`. -/
 def wkGrouped : List (Case × Group) :=
   wkSteps0.map (·, .table) ++ (steps (expectAll wkObservers (wkWork [])) wkExtraCases).map (·, .extra)
 
-/-- The steps of a step set, in order.
-
-$$\forall G, g:\ \operatorname{of}(G, g) = [c \mid (c, g') \in G,\ g' = g]$$
--/
+/-- The steps of a step set, in order. -/
 def stepsOf (gs : List (Case × Group)) (g : Group) : List Case := (gs.filter fun x => decide (x.2 = g)).map (·.1)
 
 #guard (stepsOf [({ id := "a", act := .idle, expect := [] }, .table), ({ id := "b", act := .idle, expect := [] }, .extra)]
   .extra).map (·.id) == ["b"]
 
-/-- The WebKit members the page does not realize, with the reason.
-
-$$\mathrm{wkExcluded} = [(\operatorname{id}(p, \ell), \operatorname{reason}(p)) \mid (p, \ell) \in \mathrm{wkMembers},\ \lnot \operatorname{real}_{\mathrm{wk}}(p, \ell)]$$
-
-$$\operatorname{reason}(p) = \begin{cases} \texttt{not measured: the change depends on more than the property and the layer state} & \operatorname{wkCss}(p) = \bot \\ \texttt{the state does not exist for this property (it gives the box a layer, or needs a positioned box)} & \text{otherwise} \end{cases}$$
--/
+/-- The WebKit members the page does not realize, with the reason. -/
 def wkExcluded : List (String × String) :=
   wkMembers.filterMap fun (p, l) =>
     if wkRealizable p l then none
@@ -589,46 +449,30 @@ set_option linter.deprecated false
 /-- The cell of one (step, stage): the model's expected presence `e` against the observed presences `os` of all
 passes. `agree`: at least one pass and all equal `e`; `mismatch`: at least one pass and none equals `e`; `unstable`:
 the passes disagree; `missing`: no pass.
-
-$$\operatorname{cell}(e, os) = \begin{cases} \mathrm{missing} & os = [\,] \\ \mathrm{agree} & os \ne [\,] \land \forall o \in os: o = e \\ \mathrm{mismatch} & os \ne [\,] \land \forall o \in os: o \ne e \\ \mathrm{unstable} & \text{otherwise} \end{cases}$$
 -/
 inductive Cell where
   | agree | mismatch | unstable | missing
 deriving DecidableEq, Repr
 
-/-- The cell's name in the golden.
-
-$$\operatorname{name}(c) = \text{the constructor name of } c$$
--/
+/-- The cell's name in the golden. -/
 def Cell.name : Cell → String
   | .agree => "agree" | .mismatch => "mismatch" | .unstable => "unstable" | .missing => "missing"
 
-/-- The cell of an expectation against the observations of all passes.
-
-$$\operatorname{cell}(e, os) = \begin{cases} \mathrm{missing} & os = [\,] \\ \mathrm{agree} & os \ne [\,] \land \forall o \in os: o = e \\ \mathrm{mismatch} & os \ne [\,] \land \forall o \in os: o \ne e \\ \mathrm{unstable} & \text{otherwise} \end{cases}$$
--/
+/-- The cell of an expectation against the observations of all passes. -/
 def cell (e : Bool) (os : List Bool) : Cell :=
   if os.isEmpty then .missing else if os.all (· == e) then .agree else if os.all (· != e) then .mismatch else .unstable
 
-/-- The verdict on a stage rule: it holds, fails, or the measurement cannot say.
-
-$$\mathrm{Verdict} = \{\mathrm{holds},\ \mathrm{fails},\ \mathrm{inconclusive}\}$$
--/
+/-- The verdict on a stage rule: it holds, fails, or the measurement cannot say. -/
 inductive Verdict where
   | holds | fails | inconclusive
 deriving DecidableEq, Repr
 
-/-- The verdict's name in the golden.
-
-$$\operatorname{name}(v) = \text{the constructor name of } v$$
--/
+/-- The verdict's name in the golden. -/
 def Verdict.name : Verdict → String
   | .holds => "holds" | .fails => "fails" | .inconclusive => "inconclusive"
 
 /-- **The verdict** of a stage rule from the cells of its stage over all steps: `fails` if some cell is a mismatch,
 `holds` if there is a cell and all agree, else `inconclusive`.
-
-$$\operatorname{verdict}(cs) = \begin{cases} \mathrm{fails} & \exists c \in cs: c = \mathrm{mismatch} \\ \mathrm{holds} & cs \ne [\,] \land \forall c \in cs: c = \mathrm{agree} \\ \mathrm{inconclusive} & \text{otherwise} \end{cases}$$
 -/
 def verdict (cs : List Cell) : Verdict :=
   if cs.any (· == .mismatch) then .fails else if !cs.isEmpty && cs.all (· == .agree) then .holds else .inconclusive
@@ -641,10 +485,7 @@ private theorem all_bne_iff (e : Bool) (os : List Bool) : os.all (· != e) = tru
   rw [List.all_eq_true]
   exact ⟨fun h o ho => bne_iff_ne.mp (h o ho), fun h o ho => bne_iff_ne.mpr (h o ho)⟩
 
-/-- The cell is `agree` iff there is a pass and every pass equals the expectation.
-
-$$\operatorname{cell}(e, os) = \mathrm{agree} \iff os \ne [\,] \land \forall o \in os:\ o = e$$
--/
+/-- The cell is `agree` iff there is a pass and every pass equals the expectation. -/
 theorem cell_agree_iff (e : Bool) (os : List Bool) : cell e os = .agree ↔ os ≠ [] ∧ ∀ o ∈ os, o = e := by
   unfold cell
   by_cases hE : os.isEmpty = true
@@ -660,10 +501,7 @@ theorem cell_agree_iff (e : Bool) (os : List Bool) : cell e os = .agree ↔ os �
         · intro h; cases h
         · intro ⟨_, h⟩; exact absurd ((all_beq_iff e os).mpr h) hA
 
-/-- The cell is `mismatch` iff there is a pass and no pass equals the expectation.
-
-$$\operatorname{cell}(e, os) = \mathrm{mismatch} \iff os \ne [\,] \land \forall o \in os:\ o \ne e$$
--/
+/-- The cell is `mismatch` iff there is a pass and no pass equals the expectation. -/
 theorem cell_mismatch_iff (e : Bool) (os : List Bool) : cell e os = .mismatch ↔ os ≠ [] ∧ ∀ o ∈ os, o ≠ e := by
   unfold cell
   by_cases hE : os.isEmpty = true
@@ -701,8 +539,6 @@ private theorem holds_cond_iff (cs : List Cell) :
 
 /-- **A stage rule fails iff some cell is a mismatch**: a deterministic disagreement of one step with the model is
 enough, whatever the other cells say.
-
-$$\operatorname{verdict}(cs) = \mathrm{fails} \iff \exists c \in cs:\ c = \mathrm{mismatch}$$
 -/
 theorem verdict_fails_iff (cs : List Cell) : verdict cs = .fails ↔ ∃ c ∈ cs, c = .mismatch := by
   unfold verdict
@@ -714,10 +550,7 @@ theorem verdict_fails_iff (cs : List Cell) : verdict cs = .fails ↔ ∃ c ∈ c
       · intro h'; cases h'
       · intro h'; exact absurd ((any_mismatch_iff cs).mpr h') h
 
-/-- **A stage rule holds iff there is a cell and every cell agrees.**
-
-$$\operatorname{verdict}(cs) = \mathrm{holds} \iff cs \ne [\,] \land \forall c \in cs:\ c = \mathrm{agree}$$
--/
+/-- **A stage rule holds iff there is a cell and every cell agrees.** -/
 theorem verdict_holds_iff (cs : List Cell) : verdict cs = .holds ↔ cs ≠ [] ∧ ∀ c ∈ cs, c = .agree := by
   unfold verdict
   by_cases h : cs.any (· == Cell.mismatch) = true
@@ -735,17 +568,12 @@ theorem verdict_holds_iff (cs : List Cell) : verdict cs = .holds ↔ cs ≠ [] �
       · intro h'; cases h'
       · intro h'; exact absurd ((holds_cond_iff cs).mpr h') hb
 
-/-- **Holds and fails exclude each other.**
-
-$$\operatorname{verdict}(cs) = \mathrm{holds} \Rightarrow \operatorname{verdict}(cs) \ne \mathrm{fails}$$
--/
+/-- **Holds and fails exclude each other.** -/
 theorem verdict_holds_ne_fails (cs : List Cell) (h : verdict cs = .holds) : verdict cs ≠ .fails := by
   rw [h]; decide
 
 /-- **One more mismatching cell cannot restore a premise**: adding a cell to a list never turns `fails` into anything
 else.
-
-$$\operatorname{verdict}(cs) = \mathrm{fails} \Rightarrow \operatorname{verdict}(c :: cs) = \mathrm{fails}$$
 -/
 theorem verdict_fails_cons (c : Cell) (cs : List Cell) (h : verdict cs = .fails) : verdict (c :: cs) = .fails := by
   rw [verdict_fails_iff] at h ⊢
@@ -767,14 +595,12 @@ from these records against the current model: every stage rule of both engines h
 
 /-- **The Chromium record** of CI run 39088367495: per case id, the observed stages (MEASURED, 3 passes, all equal).
 
-The 65 rows, in step order. Below, $k@(x, y, z)$ stands for the three rows $(k@\texttt{none}, x), (k@\texttt{layer}, y), (k@\texttt{own}, z)$
-and $k@(\cdot, y, z)$ for the last two only, with the stage lists
-$a = [\mathrm{style}, \mathrm{props}, \mathrm{raster}, \mathrm{commit}]$, $b = [\mathrm{style}, \mathrm{props}, \mathrm{commit}]$,
-$g = [\mathrm{style}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}]$,
-$L = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}, \mathrm{hits}]$,
-$L' = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{commit}, \mathrm{hits}]$.
-
-$$\begin{aligned} \mathrm{crRecorded} = [\,&\texttt{transform}@(a, a, b),\ \texttt{transform(none<->some)}@(L, L, a),\ \texttt{translate}@(a, a, b),\ \texttt{scale}@(a, a, a),\ \texttt{rotate}@(a, a, b),\ \texttt{opacity}@(a, a, b), \\ &\texttt{filter}@(a, a, b),\ \texttt{filter(blur)}@(a, a, a),\ \texttt{backdrop-filter}@(b, b, b),\ \texttt{background-position}@(g, g, g),\ \texttt{background-image}@(g, g, g), \\ &\texttt{background-color}@(g, g, g),\ \texttt{color}@(g, g, g),\ \texttt{clip-path}@(g, g, g),\ \texttt{visibility}@(g, g, g),\ \texttt{z-index}@(\cdot, g, g), \\ &\texttt{top}@(\cdot, L, L'),\ \texttt{left}@(\cdot, L, L'),\ \texttt{width}@(L, L, L),\ \texttt{height}@(L, L, L),\ \texttt{margin}@(L, L, L'),\ \texttt{padding}@(L, L, L), \\ &(\texttt{script}, [\mathrm{script}, \mathrm{props}]),\ (\texttt{hit}, [\mathrm{props}, \mathrm{hits}])\,] \end{aligned}$$
+The 65 rows, in step order. Below, `k@(x, y, z)` stands for the three rows `(k@none, x), (k@layer, y), (k@own, z)`
+and `k@(·, y, z)` for the last two only, with the stage lists
+`a = [style, props, raster, commit]`, `b = [style, props, commit]`,
+`g = [style, props, paint, raster, commit]`,
+`L = [style, layout, props, paint, raster, commit, hits]`,
+`L' = [style, layout, props, commit, hits]`.
 
 What the Chromium lane saw in each non-idle frame. -/
 def crRecorded : List (String × List String) :=
@@ -838,11 +664,9 @@ def crRecorded : List (String × List String) :=
 
 /-- **The WebKit record** of CI run 39088367495: per case id, the observed stages (MEASURED, 6 passes, all equal).
 
-The 30 rows, in step order, written as in `crRecorded` ($p@(x, y, z)$ for the rows at none, layer, own; $p@(\cdot, y, z)$
-for layer and own only), with $T = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{commit}]$,
-$b = [\mathrm{style}, \mathrm{props}, \mathrm{commit}]$, $c = [\mathrm{style}, \mathrm{commit}]$.
-
-$$\begin{aligned} \mathrm{wkRecorded} = [\,&\texttt{transform}@(\cdot, T, b),\ \texttt{transformToggle}@(T, T, T),\ \texttt{opacity}@(\cdot, b, c),\ \texttt{opacityCross1}@(T, T, T),\ \texttt{filter}@(\cdot, T, T), \\ &\texttt{filterToggle}@(T, T, T),\ \texttt{background}@(c, c, b),\ \texttt{color}@(c, c, b),\ \texttt{mask}@(\cdot, b, b),\ \texttt{insetAbs}@(\cdot, T, T), \\ &\texttt{inset}@(\cdot, T, T),\ \texttt{size}@(T, T, T)\,] \end{aligned}$$
+The 30 rows, in step order, written as in `crRecorded` (`p@(x, y, z)` for the rows at none, layer, own; `p@(·, y, z)`
+for layer and own only), with `T = [style, layout, props, commit]`,
+`b = [style, props, commit]`, `c = [style, commit]`.
 
 What the WKTR lane saw in each non-idle rendering update. -/
 def wkRecorded : List (String × List String) :=
@@ -871,18 +695,14 @@ def wkRecorded : List (String × List String) :=
 /-- The observations of a step from a record: an idle step observes the record's idle stages `i`, any other step the
 stages recorded for its id, `none` if the record has no row for it.
 
-$$\operatorname{obs}(i, R, c) = \begin{cases} \mathrm{some}\ i & c.\mathrm{act} = \mathrm{idle} \\ R(c.\mathrm{id}) & \text{otherwise (the first row of } R \text{ with that id, } \bot \text{ if none)} \end{cases}$$
-
 Which stages a recorded step showed. -/
 def recordedObs (idle : List String) (rec : List (String × List String)) (c : Case) : Option (List String) :=
   if c.act = .idle then some idle else rec.lookup c.id
 
-/-- **The cells of a stage from a record**: per step, the model's expectation for stage $s$ (absent: `false`)
-against $p$ passes that each observed the recorded presence; a step without a record has no pass (`missing`).
+/-- **The cells of a stage from a record**: per step, the model's expectation for stage `s` (absent: `false`)
+against `p` passes that each observed the recorded presence; a step without a record has no pass (`missing`).
 
-$$\operatorname{cells}(p, i, R, cs, s) = \Big[\operatorname{cell}\big(e_c(s),\ \begin{cases} [\,s \in O\,]^{p} & \operatorname{obs}(i, R, c) = \mathrm{some}\ O \\ [\,] & \operatorname{obs}(i, R, c) = \bot \end{cases}\big) \Bigm| c \in cs\Big],\quad e_c(s) = \begin{cases} b & (s, b) \text{ the first entry of } c.\mathrm{expect} \text{ named } s \\ \mathrm{false} & \text{none} \end{cases}$$
-
-where $[x]^{p}$ is the list of $p$ copies of $x$. The cells a verdict reads, rebuilt from a record. -/
+The cells a verdict reads, rebuilt from a record. -/
 def recordedCells (passes : Nat) (idle : List String) (rec : List (String × List String)) (cs : List Case)
     (s : String) : List Cell :=
   cs.map fun c =>
@@ -902,8 +722,6 @@ def recordedCells (passes : Nat) (idle : List String) (rec : List (String × Lis
 /-- **Every Chromium stage rule holds on the recorded run.** For every Chromium observer, the cells rebuilt from
 `crRecorded` (3 passes; idle steps observed nothing) against the current model's table steps all agree.
 
-$$\forall o \in \mathrm{crObservers}:\ \operatorname{verdict}\big(\operatorname{cells}(3, [\,], \mathrm{crRecorded}, \mathrm{crSteps}_0, o.\mathrm{stage})\big) = \mathrm{holds}$$
-
 The fixed Chromium model predicts every cell of CI run 39088367495, the 5 refuted rules included. -/
 theorem cr_recorded_holds :
     ∀ o ∈ crObservers, verdict (recordedCells 3 [] crRecorded crSteps0 o.stage) = .holds := by
@@ -912,16 +730,12 @@ theorem cr_recorded_holds :
 /-- **Every WebKit stage rule holds on the recorded run.** For every WebKit observer, the cells rebuilt from
 `wkRecorded` (6 passes; idle steps observed `commit`) against the current model's table steps all agree.
 
-$$\forall o \in \mathrm{wkObservers}:\ \operatorname{verdict}\big(\operatorname{cells}(6, [\mathrm{commit}], \mathrm{wkRecorded}, \mathrm{wkSteps}_0, o.\mathrm{stage})\big) = \mathrm{holds}$$
-
 The fixed WebKit model predicts every cell of CI run 39088367495, the 2 refuted rules included. -/
 theorem wk_recorded_holds :
     ∀ o ∈ wkObservers, verdict (recordedCells 6 ["commit"] wkRecorded wkSteps0 o.stage) = .holds := by
   decide +kernel
 
 /-- The records cover the run: 65 Chromium and 30 WebKit non-idle steps, one row each.
-
-$$|\mathrm{crRecorded}| = |\mathrm{crCases}| = 65 \land |\mathrm{wkRecorded}| = |\mathrm{wkCases}| = 30$$
 
 One recorded row per case. -/
 theorem recorded_length : crRecorded.length = crCases.length ∧ crCases.length = 65 ∧
@@ -930,40 +744,25 @@ theorem recorded_length : crRecorded.length = crCases.length ∧ crCases.length 
 
 /-! ## Facts about the tables -/
 
-/-- The Chromium table has 69 members (23 properties times three layer states), 63 of them realizable.
-
-$$|\mathrm{crMembers}| = 69 \land |\mathrm{crCases}| = 63 + 2 \land |\mathrm{crExcluded}| = 3 + 3$$
--/
+/-- The Chromium table has 69 members (23 properties times three layer states), 63 of them realizable. -/
 theorem cr_counts : crMembers.length = 69 ∧ crCases.length = 63 + 2 ∧ crExcluded.length = 6 := by
   decide +kernel
 
-/-- Realizable and excluded members partition the table.
-
-$$|\{m \mid \operatorname{real}_{\mathrm{cr}}(m)\}| + |\mathrm{crExcluded}| = |\mathrm{crMembers}|$$
--/
+/-- Realizable and excluded members partition the table. -/
 theorem cr_partition : (crMembers.filter fun (k, l) => crRealizable k l).length + crExcluded.length = crMembers.length := by
   decide +kernel
 
-/-- The WebKit table has 57 members, 30 realizable.
-
-$$|\mathrm{wkMembers}| = 57 \land |\mathrm{wkCases}| = 30 \land |\mathrm{wkExcluded}| = 27$$
--/
+/-- The WebKit table has 57 members, 30 realizable. -/
 theorem wk_counts : wkMembers.length = 57 ∧ wkCases.length = 30 ∧ wkExcluded.length = 27 := by
   decide +kernel
 
-/-- Every step list alternates a case and its idle frame, so it has twice the cases.
-
-$$|\operatorname{steps}(i, cs)| = 2\,|cs|$$
--/
+/-- Every step list alternates a case and its idle frame, so it has twice the cases. -/
 theorem steps_length (idle : List (String × Bool)) (cs : List Case) : (steps idle cs).length = 2 * cs.length := by
   induction cs with
   | nil => simp [steps]
   | cons c rest ih => simp [steps] at ih ⊢; omega
 
-/-- **The model expects an own-layer transform change to run exactly style, props and commit** (the direct path).
-
-$$\operatorname{names}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{transform}@\mathrm{own}))) = [\mathrm{style}, \mathrm{props}, \mathrm{commit}]$$
--/
+/-- **The model expects an own-layer transform change to run exactly style, props and commit** (the direct path). -/
 theorem cr_direct_names : names (expectAll crObservers (crWork (crFrame .transform .own))) = ["style", "props", "commit"] := by
   decide +kernel
 
@@ -971,58 +770,39 @@ theorem cr_direct_names : names (expectAll crObservers (crWork (crFrame .transfo
 paint, raster, commit and hits. Changed since CI run 39088367495: `hits` is new (a frame that lays out pays one hover
 hit test, MEASURED, `crWorkH`).
 
-$$\operatorname{names}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{width}@\mathrm{none}))) = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}, \mathrm{hits}]$$
-
 A width change on a box without a layer dirties every main-thread stage but script. -/
 theorem cr_width_names : names (expectAll crObservers (crWork (crFrame .width .none))) =
     ["style", "layout", "props", "paint", "raster", "commit", "hits"] := by
   decide +kernel
 
-/-- **An idle Chromium frame expects nothing**: no stage, no hit test.
-
-$$\operatorname{names}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{idle}))) = [\,]$$
--/
+/-- **An idle Chromium frame expects nothing**: no stage, no hit test. -/
 theorem cr_idle_names : names (expectAll crObservers (crWork idleFrame)) = [] := by
   decide +kernel
 
-/-- **The hit-test frame expects the hit test and its PrePaint** (`crWorkH`), nothing else.
-
-$$\operatorname{names}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{hit}))) = [\mathrm{props}, \mathrm{hits}]$$
--/
+/-- **The hit-test frame expects the hit test and its PrePaint** (`crWorkH`), nothing else. -/
 theorem cr_hit_names : names (expectAll crObservers (crWork ⟨0, 0, 0, 1, [], 0⟩)) = ["props", "hits"] := by
   decide +kernel
 
 /-- **An idle WebKit frame expects only the commit**: the harness's rAF callback is a script, so the frame has a
 rendering update, which pays the base `commit` stage ("commit even if nothing changed"). Style, layout and props are
 not expected.
-
-$$\operatorname{names}(\operatorname{expect}(W_{\mathrm{wk}}([\,]))) = [\mathrm{commit}]$$
 -/
 theorem wk_idle_names : names (expectAll wkObservers (wkWork [])) = ["commit"] := by
   decide +kernel
 
-/-- **A width change on a box without a layer** runs style, layout, props and commit on WebKit.
-
-$$\operatorname{names}(\operatorname{expect}(W_{\mathrm{wk}}([(0, \mathrm{size}, \mathrm{none})]))) = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{commit}]$$
--/
+/-- **A width change on a box without a layer** runs style, layout, props and commit on WebKit. -/
 theorem wk_size_names : names (expectAll wkObservers (wkWork [⟨0, .size, .none⟩])) =
     ["style", "layout", "props", "commit"] := by
   decide +kernel
 
 /-! ## The extra cases (task engine-model-fix-2) -/
 
-/-- The extra cases: 7 Chromium (one clock-shim control, three joins, three two-element frames) and 3 WebKit; no two-element pair is dropped as unrealizable.
-
-$$|\mathrm{crExtra}| = 7 \land |\mathrm{wkExtra}| = 3 \land |\mathrm{crSteps}| = 2 \cdot (65 + 7) \land |\mathrm{wkSteps}| = 2 \cdot (30 + 3)$$
--/
+/-- The extra cases: 7 Chromium (one clock-shim control, three joins, three two-element frames) and 3 WebKit; no two-element pair is dropped as unrealizable. -/
 theorem extra_counts : crExtraCases.length = 7 ∧ wkExtraCases.length = 3 ∧
     crSteps.length = 2 * (65 + 7) ∧ wkSteps.length = 2 * (30 + 3) := by
   decide +kernel
 
-/-- Splitting a list tagged `table` then `extra` by step set gives back both parts.
-
-$$\forall a, b:\ \operatorname{of}([(c, \mathrm{table}) \mid c \in a] \mathbin{+\!\!+} [(c, \mathrm{extra}) \mid c \in b], \mathrm{table}) = a \land \operatorname{of}([(c, \mathrm{table}) \mid c \in a] \mathbin{+\!\!+} [(c, \mathrm{extra}) \mid c \in b], \mathrm{extra}) = b$$
--/
+/-- Splitting a list tagged `table` then `extra` by step set gives back both parts. -/
 private theorem stepsOf_split (a b : List Case) :
     stepsOf (a.map (·, .table) ++ b.map (·, .extra)) .table = a ∧
     stepsOf (a.map (·, .table) ++ b.map (·, .extra)) .extra = b := by
@@ -1031,9 +811,6 @@ private theorem stepsOf_split (a b : List Case) :
 /-- **The step sets are the step lists.** Both engines' grouped steps, without the step set, are the steps of the
 page in order; the `table` set is exactly the table steps that `cr_recorded_holds` and `wk_recorded_holds` judge,
 and the `extra` set is exactly the extra steps.
-
-$$[c \mid (c, g) \in \mathrm{crGrouped}] = \mathrm{crSteps} \land \operatorname{of}(\mathrm{crGrouped}, \mathrm{table}) = \mathrm{crSteps}_0 \land \operatorname{of}(\mathrm{crGrouped}, \mathrm{extra}) = \operatorname{steps}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{idle})), \mathrm{crExtra})$$
-$$\land\ [c \mid (c, g) \in \mathrm{wkGrouped}] = \mathrm{wkSteps} \land \operatorname{of}(\mathrm{wkGrouped}, \mathrm{table}) = \mathrm{wkSteps}_0 \land \operatorname{of}(\mathrm{wkGrouped}, \mathrm{extra}) = \operatorname{steps}(\operatorname{expect}(W_{\mathrm{wk}}([\,])), \mathrm{wkExtra})$$
 
 The lane's per-set verdicts read exactly these steps. -/
 theorem grouped_steps :
@@ -1048,8 +825,6 @@ theorem grouped_steps :
 timer callback as one script callback, as it counts a `raf` callback, so the frame updates and pays the base `props`
 stage. The model only: no lane has run a Chromium timer task (the `shimTimer` step is the clock shim's plain call, not
 a timer task; see `Act`), so whether an empty timer task runs `PrePaint` is OPEN.
-
-$$\operatorname{names}(\operatorname{expect}(W_{\mathrm{cr}}((1, 0, 0, 0, [\,], 0)))) = [\mathrm{script}, \mathrm{props}]$$
 -/
 theorem cr_timer_names : names (expectAll crObservers (crWork ⟨1, 0, 0, 0, [], 0⟩)) = ["script", "props"] := by
   decide +kernel
@@ -1058,8 +833,6 @@ theorem cr_timer_names : names (expectAll crObservers (crWork ⟨1, 0, 0, 0, [],
 box are incomparable levels, so a custom property both read joins to `layoutFull`, which paints; the same two
 changes on two boxes take the union of their stages, which has no paint.
 
-$$\operatorname{lvl}(\mathrm{custom}(0, [\mathrm{top}, \mathrm{scale}]), \mathrm{own}) = \mathrm{layoutFull} \ \land\ \mathrm{paint} \in \operatorname{names}(\operatorname{expect}(W_{\mathrm{cr}}(\operatorname{crFrames}[(0, \operatorname{custom}(0, [\mathrm{top}, \mathrm{scale}]), \mathrm{own})]))) \ \land\ \mathrm{paint} \notin \operatorname{names}(\operatorname{expect}(W_{\mathrm{cr}}(\operatorname{crFrames}[(0, \operatorname{css}(\mathrm{top}), \mathrm{own}), (1, \operatorname{css}(\mathrm{scale}), \mathrm{own})])))$$
-
 `join_ne_union_iff` shows the two combining rules differ only on this pair of levels. -/
 theorem cr_join_vs_union :
     Fw.Engine.Chromium.crLevel (.custom 0 [.top, .scale]) .own = .layoutFull ∧
@@ -1067,13 +840,10 @@ theorem cr_join_vs_union :
     "paint" ∉ names (expectAll crObservers (crWork (crFrames [⟨0, .css .top, .own⟩, ⟨1, .css .scale, .own⟩]))) := by
   decide +kernel
 
-/-- **The join and the union differ only on `layoutMove` with `raster`.** For any two levels, the join $\max(a, b)$
-has a stage that neither $a$ nor $b$ has exactly when $\{a, b\} = \{\mathrm{layoutMove}, \mathrm{raster}\}$; such
-levels are incomparable. Since every stage of $a$ and of $b$ is a stage of $\max(a, b)$ (`CrLevel.le_max_left`,
+/-- **The join and the union differ only on `layoutMove` with `raster`.** For any two levels, the join `max(a, b)`
+has a stage that neither `a` nor `b` has exactly when `{a, b} = {layoutMove, raster}`; such
+levels are incomparable. Since every stage of `a` and of `b` is a stage of `max(a, b)` (`CrLevel.le_max_left`,
 `le_max_right`), this is exactly when the join's stages differ from the union's.
-
-$$\forall a \in \mathrm{CrLevel.all},\ \forall b \in \mathrm{CrLevel.all}:\ \big(\exists s \in \operatorname{stages}(\max(a, b)):\ s \notin \operatorname{stages}(a) \land s \notin \operatorname{stages}(b)\big) \iff \big((a, b) = (\mathrm{layoutMove}, \mathrm{raster}) \lor (a, b) = (\mathrm{raster}, \mathrm{layoutMove})\big)$$
-$$\land\ \lnot(\mathrm{layoutMove} \le \mathrm{raster}) \land \lnot(\mathrm{raster} \le \mathrm{layoutMove})$$
 
 Among all pairs of levels, only this one makes highest-level-wins predict more than the union. -/
 theorem join_ne_union_iff :
@@ -1083,10 +853,8 @@ theorem join_ne_union_iff :
     ¬(CrLevel.layoutMove ≤ .raster) ∧ ¬(CrLevel.raster ≤ .layoutMove) := by
   decide +kernel
 
-/-- **For comparable levels the join is the union.** If $a \le b$ or $b \le a$, the stages of $\max(a, b)$ are
-exactly the stages of $a$ and of $b$ together.
-
-$$\forall a, b:\ (a \le b \lor b \le a) \Rightarrow \forall s:\ \big(s \in \operatorname{stages}(\max(a, b)) \iff s \in \operatorname{stages}(a) \lor s \in \operatorname{stages}(b)\big)$$
+/-- **For comparable levels the join is the union.** If `a ≤ b` or `b ≤ a`, the stages of `max(a, b)` are
+exactly the stages of `a` and of `b` together.
 
 Only incomparable levels make the two rules disagree. -/
 theorem max_stages_of_comparable (a b : CrLevel) (h : a ≤ b ∨ b ≤ a) (s : Fw.Engine.Stage) :
@@ -1106,8 +874,6 @@ the stages whose counters ran. The clock-shim control ran nothing, like an idle 
 through one custom property, and `top@own` with `scale@own` on two boxes, ran layout but neither `Paint` nor
 `RasterTask`.
 
-$$\mathrm{crExtraRec} = [(\texttt{shimTimer}, [\,]),\ (\texttt{custom[top,scale]@own}, L),\ (\texttt{custom[top,transform]@own}, L),\ (\texttt{custom[backgroundColor,opacity]@own}, P),\ (\texttt{top@own+scale@own}, L),\ (\texttt{transform@own+background-color@none}, P),\ (\texttt{top@own+transform@own}, L)],\quad L = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{commit}, \mathrm{hits}],\quad P = [\mathrm{style}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}]$$
-
 Which counters ran in each extra Chromium step. -/
 def crExtraRecorded : List (String × List String) :=
   let l := ["style", "layout", "props", "commit", "hits"]
@@ -1118,8 +884,6 @@ def crExtraRecorded : List (String × List String) :=
 
 /-- **The recorded WebKit extra steps** (CI run 39124427211, 6 passes, every pass alike): per case, the counters that
 ran; the idle frames after them ran only `layerFlushes`.
-
-$$\mathrm{wkExtraRec} = [(\mathrm{opacity}@\mathrm{own} + \mathrm{background}@\mathrm{layer}, [\mathrm{style}, \mathrm{commit}]),\ (\mathrm{opacity}@\mathrm{own} + \mathrm{size}@\mathrm{none}, [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{commit}]),\ (\mathrm{transform}@\mathrm{own} + \mathrm{color}@\mathrm{own}, [\mathrm{style}, \mathrm{props}, \mathrm{commit}])]$$
 -/
 def wkExtraRecorded : List (String × List String) :=
   [("opacity@own+background@layer", ["style", "commit"]), ("opacity@own+size@none", ["style", "layout", "props", "commit"]),
@@ -1127,8 +891,6 @@ def wkExtraRecorded : List (String × List String) :=
 
 /-- The cells that do not agree: per observer (in observer order), per step (in step order), the case id, the stage
 and the cell, for every cell that is not `agree`.
-
-$$\operatorname{off}(p, i, R, cs, os) = \big[\,(c.\mathrm{id}, o.\mathrm{stage}, \operatorname{name}(x)) \bigm| o \in os,\ (c, x) \in \operatorname{zip}(cs, \operatorname{cells}(p, i, R, cs, o.\mathrm{stage})),\ x \ne \mathrm{agree}\,\big]$$
 
 Which cells a record refutes. -/
 def offCells (passes : Nat) (idle : List String) (rec : List (String × List String)) (cs : List Case)
@@ -1140,11 +902,9 @@ def offCells (passes : Nat) (idle : List String) (rec : List (String × List Str
   [⟨"style", some .style, []⟩] == [("a", "style", "mismatch")]
 
 /-- **What the Chromium extra steps measured** (CI run 39124427211): every cell agrees with the model except three
-mismatches. The join of `top` and `scale` ran neither `paint` nor `raster` (the join $\mathrm{layoutFull}$ expects
+mismatches. The join of `top` and `scale` ran neither `paint` nor `raster` (the join `layoutFull` expects
 both), and `top@own` with `scale@own` on two boxes ran no `raster` (the union expects it). The clock-shim control
 agrees with an idle frame, and the comparable joins and pairs agree on every stage.
-
-$$\operatorname{off}(3, [\,], \mathrm{crExtraRec}, \operatorname{steps}(\operatorname{expect}(W_{\mathrm{cr}}(\mathrm{idle})), \mathrm{crExtra}), \mathrm{crObservers}) = [(\texttt{custom[top,scale]@own}, \texttt{paint}, \texttt{mismatch}),\ (\texttt{custom[top,scale]@own}, \texttt{raster}, \texttt{mismatch}),\ (\texttt{top@own+scale@own}, \texttt{raster}, \texttt{mismatch})]$$
 
 Highest-level-wins and the union are MEASURED only where the levels are comparable; for `layoutMove` with `raster`
 both are refuted. -/
@@ -1158,8 +918,6 @@ theorem cr_extra_cells :
 `extra` step set alone; `paint` and `raster` fail, every other stage holds. These are the rows `chromium.extra.<stage>` that
 `premise-verdict.mjs` prints next to the table rows.
 
-$$[(o.\mathrm{stage}, \operatorname{verdict}(\operatorname{cells}(3, [\,], \mathrm{crExtraRec}, \operatorname{of}(\mathrm{crGrouped}, \mathrm{extra}), o.\mathrm{stage}))) \mid o \in \mathrm{crObservers}] = [(\texttt{script}, \mathrm{holds}), (\texttt{style}, \mathrm{holds}), (\texttt{layout}, \mathrm{holds}), (\texttt{props}, \mathrm{holds}), (\texttt{paint}, \mathrm{fails}), (\texttt{raster}, \mathrm{fails}), (\texttt{commit}, \mathrm{holds}), (\texttt{hits}, \mathrm{holds})]$$
-
 What the extra rows of that run report. -/
 theorem cr_extra_verdicts :
     crObservers.map (fun o => (o.stage, verdict (recordedCells 3 [] crExtraRecorded (stepsOf crGrouped .extra) o.stage))) =
@@ -1170,8 +928,6 @@ theorem cr_extra_verdicts :
 
 /-- **Every WebKit stage rule holds on the extra steps** (CI run 39124427211, 6 passes): two changes on two boxes
 in one frame run the union of their stages, for the three measured pairs.
-
-$$\forall o \in \mathrm{wkObservers}:\ \operatorname{verdict}\big(\operatorname{cells}(6, [\mathrm{commit}], \mathrm{wkExtraRec}, \operatorname{steps}(\operatorname{expect}(W_{\mathrm{wk}}([\,])), \mathrm{wkExtra}), o.\mathrm{stage})\big) = \mathrm{holds}$$
 
 The WebKit union rule, MEASURED on three pairs. -/
 theorem wk_extra_holds :
@@ -1209,11 +965,7 @@ private def verdictVectors : List (String × List Cell) :=
 /-- The golden rows: the page's base style, observers, steps (each with its step set, from `crGrouped` and
 `wkGrouped`) and excluded members per engine, then the cell and verdict vectors.
 
-$$\begin{aligned} \mathrm{rows} = {} & [\{\texttt{kind}: \texttt{page}, \texttt{baseStyle}: \mathrm{baseStyle}\}] \\ \mathbin{+\!\!+} {} & [\{\texttt{kind}: \texttt{observer}, \texttt{engine}: \texttt{chromium}, \texttt{stage}: o.\mathrm{stage}, \texttt{counters}: o.\mathrm{counters}\} \mid o \in \mathrm{crObservers}] \mathbin{+\!\!+} [\text{the same with } \texttt{webkit} \mid o \in \mathrm{wkObservers}] \\ \mathbin{+\!\!+} {} & [\operatorname{step}(\texttt{chromium}, j, c) \mid (c, j) \in \operatorname{zipIdx}(\mathrm{crSteps})] \mathbin{+\!\!+} [\operatorname{step}(\texttt{webkit}, j, c) \mid (c, j) \in \operatorname{zipIdx}(\mathrm{wkSteps})] \\ \mathbin{+\!\!+} {} & [\{\texttt{kind}: \texttt{excluded}, \texttt{engine}: \texttt{chromium}, \texttt{member}: m, \texttt{reason}: r\} \mid (m, r) \in \mathrm{crExcluded}] \mathbin{+\!\!+} [\text{the same with } \texttt{webkit} \mid (m, r) \in \mathrm{wkExcluded}] \\ \mathbin{+\!\!+} {} & [\{\texttt{kind}: \texttt{cell}, \texttt{expect}: e, \texttt{observed}: os, \texttt{cell}: \operatorname{name}(\operatorname{cell}(e, os))\} \mid (e, os) \in [(\top, [\,]), (\top, [\top]), (\bot, [\bot, \bot, \bot]), (\top, [\bot]), (\bot, [\top, \top]), (\top, [\top, \bot]), (\bot, [\bot, \top, \bot]), (\top, [\bot, \bot, \top])]] \\ \mathbin{+\!\!+} {} & [\{\texttt{kind}: \texttt{verdict}, \texttt{name}: n, \texttt{cells}: \operatorname{names}(cs), \texttt{verdict}: \operatorname{name}(\operatorname{verdict}(cs))\} \mid (n, cs) \in V] \end{aligned}$$
-
-$$\begin{aligned} \operatorname{step}(\mathit{eng}, j, c) &= \{\texttt{kind}: \texttt{step}, \texttt{engine}: \mathit{eng}, \texttt{step}: j, \texttt{case}: c.\mathrm{id}, \texttt{act}: \operatorname{name}(c.\mathrm{act}), \texttt{style}: c.\mathrm{style}, \texttt{prop}: c.\mathrm{prop}, \texttt{to}: c.\mathrm{to}, \texttt{expect}: \{s: b \mid (s, b) \in c.\mathrm{expect}\}\} \\ V &= [(\texttt{empty}, [\,]), (\texttt{agree}, [\mathrm{agree}, \mathrm{agree}]), (\texttt{one-mismatch}, [\mathrm{agree}, \mathrm{mismatch}, \mathrm{agree}]), (\texttt{unstable}, [\mathrm{agree}, \mathrm{unstable}]), \\ &\phantom{= [} (\texttt{missing}, [\mathrm{missing}, \mathrm{agree}]), (\texttt{mismatch-and-unstable}, [\mathrm{unstable}, \mathrm{mismatch}]), (\texttt{only-mismatch}, [\mathrm{mismatch}])] \end{aligned}$$
-
-The step index $j$ counts from 0 within each engine's steps.
+The step index `j` counts from 0 within each engine's steps.
 -/
 def goldenRows (_ : Unit := ()) : List Json :=
   [Json.mkObj [("kind", "page"), ("baseStyle", .str baseStyle)]] ++
@@ -1227,22 +979,13 @@ def goldenRows (_ : Unit := ()) : List Json :=
   verdictVectors.map (fun (n, cs) => Json.mkObj [("kind", "verdict"), ("name", .str n),
     ("cells", strs (cs.map Cell.name)), ("verdict", .str (verdict cs).name)])
 
-/-- The golden text: one compact JSON object per line.
-
-$$\mathrm{goldenText} = \mathop{+\!\!+}_{r \in \mathrm{goldenRows}} (\operatorname{compress}(r) \mathbin{+\!\!+} \texttt{"\textbackslash n"})$$
--/
+/-- The golden text: one compact JSON object per line. -/
 def goldenText (_ : Unit := ()) : String := String.join (goldenRows.map fun r => r.compress ++ "\n")
 
-/-- The golden file, relative to `lean/`.
-
-$$\mathrm{goldenPath} = \texttt{../packages/contracts/golden/ops/engine-premises.jsonl}$$
--/
+/-- The golden file, relative to `lean/`. -/
 def goldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops" / "engine-premises.jsonl"
 
-/-- Write the golden (`write`) or compare it; returns 1 when the file is stale, else 0.
-
-$$\operatorname{goldenRun}(r, \mathrm{true}) = 0 \text{ after writing},\quad \operatorname{goldenRun}(r, \mathrm{false}) = [\operatorname{read}(r / \mathrm{goldenPath}) \ne \mathrm{goldenText}]$$
--/
+/-- Write the golden (`write`) or compare it; returns 1 when the file is stale, else 0. -/
 def goldenRun (root : System.FilePath) (write : Bool) : IO Nat := do
   let p := root / goldenPath
   if write then

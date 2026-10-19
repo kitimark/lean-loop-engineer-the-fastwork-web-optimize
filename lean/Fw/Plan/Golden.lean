@@ -42,7 +42,7 @@ def apply (key actor type : String) (fields : List (String × Json)) : Json :=
 def queryAt (now : Nat) : Json :=
   Json.mkObj [("op", .str "console.query"), ("now", toJson now), ("seq", toJson (0 : Nat))]
 
-/-- A `console.query` request at time $0$. -/
+/-- A `console.query` request at time `0`. -/
 def query : Json := queryAt 0
 
 /-- The body fields of a `task.define`. -/
