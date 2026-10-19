@@ -1,3 +1,6 @@
+import Fw.Engine.Core
+import Fw.Engine.Chromium
+import Fw.Engine.WebKit
 /-!
 # people.o: the "o" of "people" that opens into a row of faces (`faithful`)
 
@@ -199,5 +202,155 @@ theorem card_below (vh y z : Rat) (h : z + 12 + cardHeight ≤ vh - 12) : cardTo
 #guard cardLeft 1280 1270 56 == 1280 - 320 - 12
 #guard cardTop 900 50 90 == 102
 #guard cardTop 900 600 640 == 600 - 12 - 440
+
+/-! ## The FLIP variant's work inside the transition (ledger n=18)
+
+The original opens the `o` by a 0.92 s CSS transition of `grid-template-columns` and `height`: every frame strictly
+inside the transition carries one main-thread size change `oc` and no script. The FLIP variant (people-gpu) sets the
+final size once and moves the parts with $m$ compositor translate animations, so a frame inside the motion carries no
+main-thread change and no script, only the $m$ running animations. Both frames are stated over any engine `E` of
+`Fw.Engine.Core`; the premises on `E` are hypotheses, not a table lookup.
+
+Layout leaves this part's frame strictly inside the transition (part alone; on the page a layout pass is saved only
+if no other part touches layout, `Compose.passes_absorb_part`).
+
+Not covered: the first and last frames (where FLIP pays the size change and the cleanup), resident layers (the
+spans' transient composited layers, ledger `claim_ne_dominates_of_layers`) and pixels (class L). -/
+
+section Flip
+
+open Fw.Engine (Stage Change FrameIn Engine Work frameWork touched stageUnits forcedPasses)
+
+/-- Length of the open transition in ms (CSS 2450, `0.92s`). $$T = 920$$ -/
+def openMs : Nat := 920
+
+/-- The original's frame strictly inside the transition: one main-thread change `oc` (the animated grid size), no
+script, no forced passes, no hit tests, no compositor animation.
+
+$$o(\mathit{oc}) = (0, 0, 0, 0, [\mathit{oc}], 0)$$ -/
+def origMid {P : Type} (oc : Change P) : FrameIn P := ⟨0, 0, 0, 0, [oc], 0⟩
+
+/-- The FLIP variant's frame strictly inside the motion: no main-thread change, no script, $m$ running compositor
+animations (the translated parts).
+
+$$v(m) = (0, 0, 0, 0, [\,], m)$$ -/
+def flipMid {P : Type} (m : Nat) : FrameIn P := ⟨0, 0, 0, 0, [], m⟩
+
+/-- **The FLIP frame pays only the compositor-animation stages.** Its passes are one on each stage of
+$E.\mathrm{compStages}$ when an animation runs, its units are $m$ on those stages, zero elsewhere, and no hit tests.
+
+$$\forall E,\ \forall m \in \mathbb{N},\ \forall s \in \mathrm{Stage}:\ W_E(v(m)).\mathrm{passes}(s) = [\,0 < m \land s \in E.\mathrm{compStages}\,] \ \land\ W_E(v(m)).\mathrm{units}(s) = [\,s \in E.\mathrm{compStages}\,]\cdot m \ \land\ W_E(v(m)).\mathrm{hits} = 0$$
+
+Nothing runs on the main thread while the parts slide. -/
+theorem flipMid_work {P M : Type} (E : Engine P M) (m : Nat) (s : Stage) :
+    (frameWork E (flipMid (P := P) m)).passes s = (if 0 < m ∧ s ∈ E.compStages then 1 else 0) ∧
+      (frameWork E (flipMid (P := P) m)).units s = (if s ∈ E.compStages then m else 0) ∧
+      (frameWork E (flipMid (P := P) m)).hits = 0 := by
+  refine ⟨?_, ?_, rfl⟩
+  · simp only [frameWork, touched, flipMid, FrameIn.updates, forcedPasses]
+    by_cases hm : 0 < m <;> by_cases hs : s ∈ E.compStages <;> cases s <;> simp_all
+  · simp only [frameWork, stageUnits, flipMid]
+    cases s <;> simp
+
+/-- **The original frame pays the size change's stages and the base stages.** One pass on each stage the change
+dirties or the engine pays per updating frame, one unit on each stage the change dirties, no hit tests.
+
+$$\forall E,\ \forall \mathit{oc},\ \forall s \in \mathrm{Stage}:\ W_E(o(\mathit{oc})).\mathrm{passes}(s) = [\,s \in E.\mathrm{stagesOf}(\mathit{oc}) \lor s \in E.\mathrm{base}\,] \ \land\ W_E(o(\mathit{oc})).\mathrm{units}(s) = [\,s \in E.\mathrm{stagesOf}(\mathit{oc})\,] \ \land\ W_E(o(\mathit{oc})).\mathrm{hits} = 0$$
+
+The grid transition runs style, layout and everything after it each frame. -/
+theorem origMid_work {P M : Type} (E : Engine P M) (oc : Change P) (s : Stage) :
+    (frameWork E (origMid oc)).passes s = (if s ∈ E.stagesOf oc ∨ s ∈ E.base then 1 else 0) ∧
+      (frameWork E (origMid oc)).units s = (if s ∈ E.stagesOf oc then 1 else 0) ∧
+      (frameWork E (origMid oc)).hits = 0 := by
+  refine ⟨?_, ?_, rfl⟩
+  · simp only [frameWork, touched, origMid, FrameIn.updates, forcedPasses]
+    cases s <;> simp
+  · simp only [frameWork, stageUnits, origMid]
+    cases s <;> simp [List.countP_cons]
+
+/-- **Main-thread work falls inside the motion.** On every stage outside the compositor-animation stages the FLIP
+frame does at most the original's passes and units (it does none), and when `layout` is dirtied by the size change but
+is not a compositor-animation stage, the FLIP frame has strictly fewer layout passes.
+
+$$\forall E,\ \forall \mathit{oc},\ \forall m \in \mathbb{N}:\ \mathrm{layout} \in E.\mathrm{stagesOf}(\mathit{oc}) \land \mathrm{layout} \notin E.\mathrm{compStages} \Rightarrow \Big(\forall s \notin E.\mathrm{compStages}:\ W_E(v(m)).\mathrm{passes}(s) \le W_E(o(\mathit{oc})).\mathrm{passes}(s) \land W_E(v(m)).\mathrm{units}(s) \le W_E(o(\mathit{oc})).\mathrm{units}(s)\Big) \land W_E(v(m)).\mathrm{passes}(\mathrm{layout}) = 0 < 1 = W_E(o(\mathit{oc})).\mathrm{passes}(\mathrm{layout})$$
+
+Layout leaves this part's frame strictly inside the transition (part alone; on the page a layout pass is saved only
+if no other part touches layout, `Compose.passes_absorb_part`). -/
+theorem flip_main_lt {P M : Type} (E : Engine P M) (oc : Change P) (m : Nat)
+    (hL : Stage.layout ∈ E.stagesOf oc) (hLc : Stage.layout ∉ E.compStages) :
+    (∀ s, s ∉ E.compStages →
+      (frameWork E (flipMid (P := P) m)).passes s ≤ (frameWork E (origMid oc)).passes s ∧
+      (frameWork E (flipMid (P := P) m)).units s ≤ (frameWork E (origMid oc)).units s) ∧
+    (frameWork E (flipMid (P := P) m)).passes .layout = 0 ∧ (frameWork E (origMid oc)).passes .layout = 1 := by
+  refine ⟨fun s hs => ?_, ?_, ?_⟩
+  · obtain ⟨v1, v2, -⟩ := flipMid_work (P := P) E m s
+    rw [v1, v2]
+    simp [hs]
+  · rw [(flipMid_work (P := P) E m .layout).1]
+    simp [hLc]
+  · rw [(origMid_work E oc .layout).1]
+    simp [hL]
+
+/-- **FLIP is not below the original in Core's order (a trade).** If an animation runs and some compositor-animation
+stage is neither dirtied by the size change nor a base stage, the FLIP frame is not $\preceq$ the original frame:
+it pays a pass there that the original does not.
+
+$$\forall E,\ \forall \mathit{oc},\ \forall m \in \mathbb{N},\ \forall s \in \mathrm{Stage}:\ 0 < m \land s \in E.\mathrm{compStages} \land s \notin E.\mathrm{stagesOf}(\mathit{oc}) \land s \notin E.\mathrm{base} \Rightarrow \lnot\big(W_E(v(m)) \preceq W_E(o(\mathit{oc}))\big)$$
+
+Both engine tables have such a stage (`comp`) for the height change: the `#guard` lines after this theorem check
+the refutation on `Fw.Engine.Chromium.chromium` (`height`) and `Fw.Engine.WebKit.webkit` (`size`). So `flip_work_lt`
+as $\prec$ is false there; the variant trades compositor work for main-thread work. -/
+theorem flip_not_le {P M : Type} (E : Engine P M) (oc : Change P) (m : Nat) (s : Stage) (hm : 0 < m)
+    (hs : s ∈ E.compStages) (hso : s ∉ E.stagesOf oc) (hsb : s ∉ E.base) :
+    ¬ (frameWork E (flipMid (P := P) m)).le (frameWork E (origMid oc)) := by
+  intro h
+  have h1 := (h.1 s).1
+  rw [(flipMid_work (P := P) E m s).1, (origMid_work E oc s).1] at h1
+  simp [hm, hs, hso, hsb] at h1
+
+#guard !(frameWork Fw.Engine.Chromium.chromium (flipMid 1)).leb
+  (frameWork Fw.Engine.Chromium.chromium (origMid ⟨0, .css .height, .none⟩))
+#guard !(frameWork Fw.Engine.WebKit.webkit (flipMid 1)).leb
+  (frameWork Fw.Engine.WebKit.webkit (origMid ⟨0, .size, .none⟩))
+
+/-- **When FLIP is strictly below.** If every compositor-animation stage is dirtied by the size change, at most one
+animation runs, and `layout` is dirtied by the size change but is not a compositor-animation stage, the FLIP frame is
+$\prec$ the original frame.
+
+$$\forall E,\ \forall \mathit{oc},\ \forall m \in \mathbb{N}:\ m \le 1 \land E.\mathrm{compStages} \subseteq E.\mathrm{stagesOf}(\mathit{oc}) \land \mathrm{layout} \in E.\mathrm{stagesOf}(\mathit{oc}) \land \mathrm{layout} \notin E.\mathrm{compStages} \Rightarrow W_E(v(m)) \prec W_E(o(\mathit{oc}))$$
+
+These are the conditions the ledger's `flip_work_lt` needs. -/
+theorem flip_lt_of_comp_sub {P M : Type} (E : Engine P M) (oc : Change P) (m : Nat) (hm : m ≤ 1)
+    (hc : ∀ s ∈ E.compStages, s ∈ E.stagesOf oc) (hL : Stage.layout ∈ E.stagesOf oc)
+    (hLc : Stage.layout ∉ E.compStages) :
+    (frameWork E (flipMid (P := P) m)).lt (frameWork E (origMid oc)) := by
+  refine ⟨⟨fun s => ?_, Nat.zero_le _⟩, ?_⟩
+  · obtain ⟨v1, v2, -⟩ := flipMid_work (P := P) E m s
+    obtain ⟨o1, o2, -⟩ := origMid_work E oc s
+    rw [v1, v2, o1, o2]
+    by_cases hs : s ∈ E.compStages
+    · have := hc s hs
+      by_cases h0 : 0 < m <;> simp [hs, this, h0] <;> omega
+    · simp [hs]
+  · refine Or.inl ⟨.layout, Or.inl ?_⟩
+    rw [(flipMid_work (P := P) E m .layout).1, (origMid_work E oc .layout).1]
+    simp [hL, hLc]
+
+/-- A stage table restating the Chromium `layoutFull` row with one compositor stage `comp` and base `props`, for the
+examples below. $$E_0 = \big((),\ \_ \mapsto [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}],\ [\mathrm{comp}],\ [\mathrm{props}]\big)$$ -/
+def layoutTable : Engine Unit Unit :=
+  ⟨(), fun _ => [.style, .layout, .props, .paint, .raster, .commit], [.comp], [.props]⟩
+
+/-- The example size change. $$\mathit{oc}_0 = (0, (), \mathrm{none})$$ -/
+def oc0 : Change Unit := ⟨0, (), .none⟩
+
+#guard (frameWork layoutTable (flipMid (P := Unit) 3)).passes .layout == 0
+#guard (frameWork layoutTable (origMid oc0)).passes .layout == 1
+#guard (frameWork layoutTable (flipMid (P := Unit) 3)).units .comp == 3
+#guard (frameWork layoutTable (origMid oc0)).passes .comp == 0
+#guard !(frameWork layoutTable (flipMid (P := Unit) 1)).leb (frameWork layoutTable (origMid oc0))
+#guard (frameWork layoutTable (flipMid (P := Unit) 0)).ltb (frameWork layoutTable (origMid oc0))
+
+end Flip
 
 end Fw.Parts.PeopleO

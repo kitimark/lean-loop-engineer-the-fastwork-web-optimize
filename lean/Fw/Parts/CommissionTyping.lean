@@ -1,4 +1,5 @@
 import Fw.Parts.MorphTween
+import Fw.Parts.Contract
 /-!
 # commission.typing: the fee visual's looping timeline (P4 port, `faithful`)
 
@@ -566,5 +567,250 @@ theorem visualScale_flat (w : Rat) (h : 3456 / 10 ≤ w) : visualScale w = 4 / 5
 
 /-- Below the knee the scale is proportional. $$\forall w \in \mathbb{Q}:\ w \le 345.6 \Rightarrow \mathrm{scale}(w) = w/432$$ The picture fills its column. -/
 theorem visualScale_prop (w : Rat) (h : w ≤ 3456 / 10) : visualScale w = w / 432 := by unfold visualScale; grind
+
+/-! ## The forced-layout variant (ledger n=22): passes in any frame
+
+The variant only drops accesses from the `commission` callback (`Fw.Parts.Contract.commission`), so over the
+`Fw.Parts.EngineScroll` flag model it never adds a style or layout pass, forced or total, whatever runs around it.
+Not covered: the ResizeObserver delivery after layout, work units per pass, and the script cost of `matchMedia`. -/
+
+section ForcedLayout
+
+open Fw.Engine (FlagOp flagForced flagEnd flagTotal firstFlag flagForced_append flagEnd_append flagTotal_append
+  flagTotal_remove_check)
+open Fw.Parts.EngineScroll (Access Role forced total flags styleRole layoutRole forced_eq_flagForced)
+
+/-- A dirty start never lowers the forced count and raises it by at most one.
+
+$$\forall as \in \mathrm{FlagOp}^{*}:\ \operatorname{fF}(\bot, as) \le \operatorname{fF}(\top, as) \le \operatorname{fF}(\bot, as) + 1$$ -/
+theorem flagForced_start : ∀ as : List FlagOp,
+    flagForced false as ≤ flagForced true as ∧ flagForced true as ≤ flagForced false as + 1
+  | [] => by simp [flagForced]
+  | .check :: as => by simp [flagForced]; omega
+  | .dirty :: as => by simp [flagForced]
+  | .neutral :: as => by simpa [flagForced] using flagForced_start as
+
+/-- A dirty start never lowers the total and raises it by at most one.
+
+$$\forall as \in \mathrm{FlagOp}^{*}:\ \operatorname{fT}(\bot, as) \le \operatorname{fT}(\top, as) \le \operatorname{fT}(\bot, as) + 1$$ -/
+theorem flagTotal_start : ∀ as : List FlagOp,
+    flagTotal false as ≤ flagTotal true as ∧ flagTotal true as ≤ flagTotal false as + 1
+  | [] => by decide
+  | .check :: as => by simp [flagTotal, flagForced, flagEnd]; omega
+  | .dirty :: as => by simp [flagTotal, flagForced, flagEnd]
+  | .neutral :: as => by simpa [flagTotal, flagForced, flagEnd] using flagTotal_start as
+
+/-- One more access in front never lowers the forced count.
+
+$$\forall o,\ \forall d \in \mathbb{B},\ \forall as:\ \operatorname{fF}(d, as) \le \operatorname{fF}(d, o :: as)$$ -/
+theorem flagForced_le_cons (o : FlagOp) (d : Bool) (as : List FlagOp) : flagForced d as ≤ flagForced d (o :: as) := by
+  have h := flagForced_start as
+  cases o <;> cases d <;> simp [flagForced] <;> omega
+
+/-- One more access in front never lowers the total.
+
+$$\forall o,\ \forall d \in \mathbb{B},\ \forall as:\ \operatorname{fT}(d, as) \le \operatorname{fT}(d, o :: as)$$ -/
+theorem flagTotal_le_cons (o : FlagOp) (d : Bool) (as : List FlagOp) : flagTotal d as ≤ flagTotal d (o :: as) := by
+  have h := flagTotal_start as
+  cases o <;> cases d <;> simp [flagTotal, flagForced, flagEnd] at h ⊢ <;> omega
+
+/-- **Dropping accesses never adds a pass.** For flag sequences $l_1$ a sublist of $l_2$ (same order, some entries
+removed), forced and total passes of $l_1$ are at most those of $l_2$.
+
+$$\forall l_1, l_2 \in \mathrm{FlagOp}^{*}:\ l_1 \sqsubseteq l_2 \Rightarrow \forall d \in \mathbb{B}:\ \operatorname{fF}(d, l_1) \le \operatorname{fF}(d, l_2) \land \operatorname{fT}(d, l_1) \le \operatorname{fT}(d, l_2)$$
+
+Removing reads or writes from a frame, anywhere, can only remove passes. -/
+theorem flag_sublist {l₁ l₂ : List FlagOp} (h : l₁.Sublist l₂) :
+    ∀ d, flagForced d l₁ ≤ flagForced d l₂ ∧ flagTotal d l₁ ≤ flagTotal d l₂ := by
+  induction h with
+  | slnil => intro d; simp
+  | cons o _ ih =>
+    intro d
+    exact ⟨Nat.le_trans (ih d).1 (flagForced_le_cons o d _), Nat.le_trans (ih d).2 (flagTotal_le_cons o d _)⟩
+  | @cons_cons l₁ l₂ o _ ih =>
+    intro d
+    have e1 : ∀ l, flagForced d (o :: l) = flagForced d [o] + flagForced (flagEnd d [o]) l :=
+      fun l => flagForced_append d [o] l
+    have e2 : ∀ l, flagTotal d (o :: l) = flagForced d [o] + flagTotal (flagEnd d [o]) l :=
+      fun l => flagTotal_append d [o] l
+    rw [e1 l₁, e1 l₂, e2 l₁, e2 l₂]
+    have := ih (flagEnd d [o])
+    omega
+
+/-- **Frame form.** If the variant's callback is a sublist of the original's, then in every frame (accesses $p$ before,
+$q$ after, any start flag, any role assignment) its forced and total passes are at most the original's.
+
+$$\forall \rho,\ \forall v, o \in \mathrm{Access}^{*}:\ v \sqsubseteq o \Rightarrow \forall d \in \mathbb{B},\ \forall p, q:\ \operatorname{forced}_\rho(d, p \mathbin{+\!\!+} v \mathbin{+\!\!+} q) \le \operatorname{forced}_\rho(d, p \mathbin{+\!\!+} o \mathbin{+\!\!+} q) \land \operatorname{total}_\rho(d, p \mathbin{+\!\!+} v \mathbin{+\!\!+} q) \le \operatorname{total}_\rho(d, p \mathbin{+\!\!+} o \mathbin{+\!\!+} q)$$
+
+The bound holds in place, so it needs no per-part sum of passes. -/
+theorem frame_sublist_le (ρ : Access → Role) {v o : List Access} (h : v.Sublist o) (d : Bool) (p q : List Access) :
+    forced ρ d (p ++ v ++ q) ≤ forced ρ d (p ++ o ++ q) ∧ total ρ d (p ++ v ++ q) ≤ total ρ d (p ++ o ++ q) := by
+  have hs : (p ++ v ++ q).Sublist (p ++ o ++ q) := ((List.Sublist.refl p).append h).append (List.Sublist.refl q)
+  have := flag_sublist (hs.map fun a => (ρ a).toFlag) d
+  simpa [forced_eq_flagForced, total, flags] using this
+
+/-- The original callback in one frame: the contract row's accesses, where the line-box read happens only in the
+compact band (`compactNow && ...lineBoxes(...)`, apps/site/src/parts/commission/driver.ts:119).
+
+$$O(c) = \begin{cases} [\mathrm{RL}, \mathrm{RL}, \mathrm{WS}, \mathrm{WS}, \mathrm{WS}, \mathrm{WS}, \mathrm{WL}, \mathrm{RL}, \mathrm{WS}] & c \\ [\mathrm{RL}, \mathrm{RL}, \mathrm{WS}, \mathrm{WS}, \mathrm{WS}, \mathrm{WS}, \mathrm{WL}, \mathrm{WS}] & \lnot c \end{cases}$$ -/
+def origFrame (compact : Bool) : List Access :=
+  if compact then Fw.Parts.Contract.commission.listAccess else Fw.Parts.Contract.commission.listAccess.eraseIdx 7
+
+/-- The two bands' original callbacks, as lists.
+
+$$O(\top) = [\mathrm{RL}, \mathrm{RL}, \mathrm{WS}, \mathrm{WS}, \mathrm{WS}, \mathrm{WS}, \mathrm{WL}, \mathrm{RL}, \mathrm{WS}] \land O(\bot) = [\mathrm{RL}, \mathrm{RL}, \mathrm{WS}, \mathrm{WS}, \mathrm{WS}, \mathrm{WS}, \mathrm{WL}, \mathrm{WS}]$$ -/
+theorem origFrame_eq :
+    origFrame true = [.readLayout, .readLayout, .writeStyle, .writeStyle, .writeStyle, .writeStyle, .writeLayout,
+      .readLayout, .writeStyle] ∧
+    origFrame false = [.readLayout, .readLayout, .writeStyle, .writeStyle, .writeStyle, .writeStyle, .writeLayout,
+      .writeStyle] := by
+  decide
+
+/-- Keep the entries whose index (counted from $i$) and value pass $f$.
+
+$$\operatorname{pick}_f(i, [\,]) = [\,],\quad \operatorname{pick}_f(i, a :: as) = \begin{cases} a :: \operatorname{pick}_f(i+1, as) & f(i, a) \\ \operatorname{pick}_f(i+1, as) & \lnot f(i, a) \end{cases}$$ -/
+def pick (f : Nat → Access → Bool) : Nat → List Access → List Access
+  | _, [] => []
+  | i, a :: as => if f i a then a :: pick f (i + 1) as else pick f (i + 1) as
+
+/-- A pick is a sublist. $$\forall f,\ \forall i,\ \forall as:\ \operatorname{pick}_f(i, as) \sqsubseteq as$$ -/
+theorem pick_sublist (f : Nat → Access → Bool) : ∀ (i : Nat) (as : List Access), (pick f i as).Sublist as
+  | _, [] => List.Sublist.slnil
+  | i, a :: as => by
+    unfold pick
+    split
+    · exact (pick_sublist f (i + 1) as).cons_cons a
+    · exact (pick_sublist f (i + 1) as).cons a
+
+/-- The variant's callback in one frame. With `ro` the line count comes from a ResizeObserver, so the tail from index 7
+(line-box read, title class write) leaves the callback; a write at index $i$ stays only when $k(i)$ (write-on-change
+and the compact-band snap decide $k$). `mqGate` caches `matchMedia`, which is no access of the row.
+
+$$V(c, ro, k) = \operatorname{pick}_f(0, O(c)),\quad f(i, a) = \lnot(ro \land 7 \le i) \land (\operatorname{isReadA}(a) \lor k(i))$$ -/
+def variantFrame (compact ro : Bool) (keep : Nat → Bool) : List Access :=
+  pick (fun i a => !(ro && decide (7 ≤ i)) && (a.isRead || keep i)) 0 (origFrame compact)
+
+#guard variantFrame true true (fun _ => true) ==
+  [.readLayout, .readLayout, .writeStyle, .writeStyle, .writeStyle, .writeStyle, .writeLayout]
+#guard variantFrame true false (fun _ => true) == origFrame true
+#guard variantFrame false false (fun i => i == 6) == [.readLayout, .readLayout, .writeLayout]
+#guard variantFrame true true (fun _ => false) == [.readLayout, .readLayout]
+
+/-- **The n=22 total-pass lemma.** For every band, observer choice and write mask, in the scroll-list phase of every
+frame (RO delivery not counted; any accesses $p$ before and $q$ after the callback, any start flag) and for every role
+assignment (so for style and for layout), the variant forces no more passes, runs no more passes in total (forced
+plus frame end), and makes no more accesses than the original.
+
+$$\forall c, ro \in \mathbb{B},\ \forall k : \mathbb{N} \to \mathbb{B},\ \forall \rho,\ \forall d \in \mathbb{B},\ \forall p, q \in \mathrm{Access}^{*}:\ \operatorname{forced}_\rho(d, p \mathbin{+\!\!+} V(c, ro, k) \mathbin{+\!\!+} q) \le \operatorname{forced}_\rho(d, p \mathbin{+\!\!+} O(c) \mathbin{+\!\!+} q) \land \operatorname{total}_\rho(d, p \mathbin{+\!\!+} V(c, ro, k) \mathbin{+\!\!+} q) \le \operatorname{total}_\rho(d, p \mathbin{+\!\!+} O(c) \mathbin{+\!\!+} q) \land |V(c, ro, k)| \le |O(c)|$$
+
+Passes of the scroll-list phase only: an observer delivery after layout is a separate phase this does not bound. -/
+theorem variant_total_le (compact ro : Bool) (keep : Nat → Bool) (ρ : Access → Role) (d : Bool) (p q : List Access) :
+    forced ρ d (p ++ variantFrame compact ro keep ++ q) ≤ forced ρ d (p ++ origFrame compact ++ q) ∧
+      total ρ d (p ++ variantFrame compact ro keep ++ q) ≤ total ρ d (p ++ origFrame compact ++ q) ∧
+      (variantFrame compact ro keep).length ≤ (origFrame compact).length := by
+  have hs := pick_sublist (fun i a => !(ro && decide (7 ≤ i)) && (a.isRead || keep i)) 0 (origFrame compact)
+  exact ⟨(frame_sublist_le ρ hs d p q).1, (frame_sublist_le ρ hs d p q).2, hs.length_le⟩
+
+/-- Dropping a write right after the flag is dirty changes no total.
+
+$$\forall d,\ \forall P, Q \in \mathrm{FlagOp}^{*}:\ \operatorname{fE}(d, P) \Rightarrow \operatorname{fT}(d, P \mathbin{+\!\!+} \mathrm{dirty} :: Q) = \operatorname{fT}(d, P \mathbin{+\!\!+} Q)$$ -/
+theorem flagTotal_drop_dirty (d : Bool) (P Q : List FlagOp) (h : flagEnd d P = true) :
+    flagTotal d (P ++ .dirty :: Q) = flagTotal d (P ++ Q) := by
+  rw [flagTotal_append, flagTotal_append, h]
+  simp [flagTotal, flagForced, flagEnd]
+
+/-- Dropping a neutral access changes no total.
+
+$$\forall d,\ \forall P, Q \in \mathrm{FlagOp}^{*}:\ \operatorname{fT}(d, P \mathbin{+\!\!+} \mathrm{neutral} :: Q) = \operatorname{fT}(d, P \mathbin{+\!\!+} Q)$$ -/
+theorem flagTotal_drop_neutral (d : Bool) (P Q : List FlagOp) :
+    flagTotal d (P ++ .neutral :: Q) = flagTotal d (P ++ Q) := by
+  rw [flagTotal_append, flagTotal_append]
+  simp [flagTotal, flagForced, flagEnd]
+
+/-- The callback that stays with `ro` and every write kept.
+
+$$W = [\mathrm{RL}, \mathrm{RL}, \mathrm{WS}, \mathrm{WS}, \mathrm{WS}, \mathrm{WS}, \mathrm{WL}],\quad O(\top) = W \mathbin{+\!\!+} [\mathrm{RL}, \mathrm{WS}],\quad O(\bot) = W \mathbin{+\!\!+} [\mathrm{WS}],\quad V(c, \top, \lambda\_.\,\top) = W$$ -/
+theorem ro_shape :
+    origFrame true = [.readLayout, .readLayout, .writeStyle, .writeStyle, .writeStyle, .writeStyle, .writeLayout] ++
+      [.readLayout, .writeStyle] ∧
+    origFrame false = [.readLayout, .readLayout, .writeStyle, .writeStyle, .writeStyle, .writeStyle, .writeLayout] ++
+      [.writeStyle] ∧
+    ∀ c, variantFrame c true (fun _ => true) =
+      [.readLayout, .readLayout, .writeStyle, .writeStyle, .writeStyle, .writeStyle, .writeLayout] := by
+  refine ⟨by decide, by decide, fun c => by cases c <;> decide⟩
+
+/-- After the kept callback both stage flags are dirty, in either band and whatever came before.
+
+$$\forall c, d \in \mathbb{B},\ \forall p \in \mathrm{Access}^{*}:\ \operatorname{fE}(d, \operatorname{flags}_{\rho_S}(p \mathbin{+\!\!+} V(c, \top, \lambda\_.\,\top))) = \top \land \operatorname{fE}(d, \operatorname{flags}_{\rho_L}(p \mathbin{+\!\!+} V(c, \top, \lambda\_.\,\top))) = \top$$ -/
+theorem kept_end_dirty (c d : Bool) (p : List Access) :
+    flagEnd d (flags styleRole (p ++ variantFrame c true (fun _ => true))) = true ∧
+      flagEnd d (flags layoutRole (p ++ variantFrame c true (fun _ => true))) = true := by
+  rw [(ro_shape).2.2 c, Fw.Parts.EngineScroll.flags_append, Fw.Parts.EngineScroll.flags_append, flagEnd_append,
+    flagEnd_append]
+  constructor
+  · cases flagEnd d (flags styleRole p) <;> decide
+  · cases flagEnd d (flags layoutRole p) <;> decide
+
+/-- **What `ro` saves in the compact band.** With every write kept, taking the line count out of the callback removes
+exactly one style pass in the scroll-list phase of every frame (RO delivery not counted), and one layout pass exactly
+when the next layout access after the callback is a layout write; otherwise the layout pass only moves later (to
+$q$'s first layout read, or to the frame-end pass).
+
+$$\forall d \in \mathbb{B},\ \forall p, q \in \mathrm{Access}^{*}:\ \operatorname{total}_{\rho_S}(d, p \mathbin{+\!\!+} O(\top) \mathbin{+\!\!+} q) = \operatorname{total}_{\rho_S}(d, p \mathbin{+\!\!+} V(\top, \top, \lambda\_.\,\top) \mathbin{+\!\!+} q) + 1 \land \operatorname{total}_{\rho_L}(d, p \mathbin{+\!\!+} O(\top) \mathbin{+\!\!+} q) = \operatorname{total}_{\rho_L}(d, p \mathbin{+\!\!+} V(\top, \top, \lambda\_.\,\top) \mathbin{+\!\!+} q) + [\operatorname{first}(\operatorname{flags}_{\rho_L}(q)) = \operatorname{some}(\mathrm{dirty})]$$ -/
+theorem ro_compact_saves (d : Bool) (p q : List Access) :
+    total styleRole d (p ++ origFrame true ++ q) =
+        total styleRole d (p ++ variantFrame true true (fun _ => true) ++ q) + 1 ∧
+      total layoutRole d (p ++ origFrame true ++ q) =
+        total layoutRole d (p ++ variantFrame true true (fun _ => true) ++ q) +
+          (if firstFlag (flags layoutRole q) = some .dirty then 1 else 0) := by
+  obtain ⟨hS, hL⟩ := kept_end_dirty true d p
+  have e : p ++ origFrame true ++ q =
+      (p ++ variantFrame true true (fun _ => true)) ++ .readLayout :: .writeStyle :: q := by
+    rw [(ro_shape).1, (ro_shape).2.2 true]; simp
+  rw [e]
+  constructor
+  · rw [Fw.Parts.EngineScroll.total_remove_read styleRole d _ _ .readLayout rfl]
+    have hf : firstFlag (flags styleRole (.writeStyle :: q)) = some .dirty := rfl
+    simp only [hS, hf, and_self, ↓reduceIte]
+    congr 1
+    rw [total, total, Fw.Parts.EngineScroll.flags_append _ _ (.writeStyle :: q),
+      Fw.Parts.EngineScroll.flags_append _ _ q]
+    exact flagTotal_drop_dirty d _ _ hS
+  · rw [Fw.Parts.EngineScroll.total_remove_read layoutRole d _ _ .readLayout rfl]
+    have hf : firstFlag (flags layoutRole (.writeStyle :: q)) = firstFlag (flags layoutRole q) := rfl
+    rw [hf]
+    simp only [hL, true_and]
+    congr 1
+    rw [total, total, Fw.Parts.EngineScroll.flags_append _ _ (.writeStyle :: q),
+      Fw.Parts.EngineScroll.flags_append _ _ q]
+    exact flagTotal_drop_neutral d _ _
+
+/-- **`ro` saves nothing in the desktop band.** There the original reads no line boxes, so with every write kept the
+variant's style and layout totals equal the original's in the scroll-list phase of every frame (RO delivery not counted).
+
+$$\forall d \in \mathbb{B},\ \forall p, q \in \mathrm{Access}^{*}:\ \operatorname{total}_{\rho_S}(d, p \mathbin{+\!\!+} O(\bot) \mathbin{+\!\!+} q) = \operatorname{total}_{\rho_S}(d, p \mathbin{+\!\!+} V(\bot, \top, \lambda\_.\,\top) \mathbin{+\!\!+} q) \land \operatorname{total}_{\rho_L}(d, p \mathbin{+\!\!+} O(\bot) \mathbin{+\!\!+} q) = \operatorname{total}_{\rho_L}(d, p \mathbin{+\!\!+} V(\bot, \top, \lambda\_.\,\top) \mathbin{+\!\!+} q)$$ -/
+theorem ro_desktop_eq (d : Bool) (p q : List Access) :
+    total styleRole d (p ++ origFrame false ++ q) =
+        total styleRole d (p ++ variantFrame false true (fun _ => true) ++ q) ∧
+      total layoutRole d (p ++ origFrame false ++ q) =
+        total layoutRole d (p ++ variantFrame false true (fun _ => true) ++ q) := by
+  obtain ⟨hS, -⟩ := kept_end_dirty false d p
+  have e : p ++ origFrame false ++ q =
+      (p ++ variantFrame false true (fun _ => true)) ++ .writeStyle :: q := by
+    rw [(ro_shape).2.1, (ro_shape).2.2 false]; simp
+  rw [e]
+  constructor
+  · rw [total, total, Fw.Parts.EngineScroll.flags_append _ _ (.writeStyle :: q),
+      Fw.Parts.EngineScroll.flags_append _ _ q]
+    exact flagTotal_drop_dirty d _ _ hS
+  · rw [total, total, Fw.Parts.EngineScroll.flags_append _ _ (.writeStyle :: q),
+      Fw.Parts.EngineScroll.flags_append _ _ q]
+    exact flagTotal_drop_neutral d _ _
+
+#guard total styleRole false (origFrame true) == 2 && total styleRole false (variantFrame true true (fun _ => true)) == 1
+#guard total layoutRole false (origFrame true) == 1 && total layoutRole false (variantFrame true true (fun _ => true)) == 1
+#guard forced layoutRole false (origFrame true) == 1 && forced layoutRole false (variantFrame true true (fun _ => true)) == 0
+
+end ForcedLayout
 
 end Fw.Parts.CommissionTyping

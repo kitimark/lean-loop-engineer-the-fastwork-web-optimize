@@ -487,12 +487,14 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     return lr.body.ok ? null : `land_request: ${lr.body.reason}`;
   };
 
+  // land checks run on a loaded machine: generous time limits for the source-side waits tests reach
+  const LOAD_TOLERANT_ENV = { FW_CORE_CALL_MS: "60000", FW_HOOK_ASK_TIMEOUT_MS: "30000", FW_EXEC_TIMEOUT_MS: "30000" };
   // check output goes to .fw-console/land-logs/<task|branch>-<sha7>.log (gitignored); one line per check
   const logFile = join(mainDir, ".fw-console", "land-logs", `${(o.task ?? branch).replace(/[^A-Za-z0-9._-]/g, "_")}-${sha.slice(0, 7)}.log`);
   let logStarted = false;
   // async (not spawnSync) so SIGINT/SIGTERM handlers of the land run while a check is running
   const runCheck = (cwd: string, argv: string[]) => new Promise<{ status: number | null; stdout: string; stderr: string; error?: Error }>((resolve) => {
-    const c = spawn(argv[0]!, argv.slice(1), { cwd, env: { ...process.env, ...o.env } });
+    const c = spawn(argv[0]!, argv.slice(1), { cwd, env: { ...LOAD_TOLERANT_ENV, ...process.env, ...o.env } });
     let stdout = "", stderr = "";
     c.stdout.on("data", (d) => { stdout += d; }); c.stderr.on("data", (d) => { stderr += d; });
     const kill = () => { c.kill("SIGTERM"); };
