@@ -39,7 +39,7 @@ section Card
 open Fw.Parts.PeopleCard
 
 /-- people.card lines. Conformance vectors for the card's reveal, shrink and lerp. -/
-def cardLines : List String :=
+def cardLines (_ : Unit := ()) : List String :=
   let xs : List Rat := [-1, 0, 0.1, 0.25, 0.5, 0.75, 0.9, 1, 1.5]
   let vhs : List Rat := [0, 600, 900]
   (xs.map fun x => line "clamp01" [("x", rin x)] (ratWire (clamp01 x))) ++
@@ -111,7 +111,7 @@ section Deck
 open Fw.Parts.PeopleDeck
 
 /-- people.deck lines. Conformance vectors for the ease, ranges, targets, lerp steps and picks. -/
-def deckLines : List String :=
+def deckLines (_ : Unit := ()) : List String :=
   let xs : List Rat := [-1, 0, 0.1, 0.25, 0.4999, 0.5, 0.6, 0.75, 0.9, 1, 1.5]
   (xs.map fun x => line "ae" [("x", rin x)] (ratWire (ae x))) ++
   (([600, 720, 900, 1080] : List Rat).flatMap fun vh => ([1, 2, 6] : List Nat).map fun n =>
@@ -182,7 +182,7 @@ def panelsLines : List String :=
 end Panels
 
 /-- The golden files. -/
-def files : List (String × List String) :=
+def files (_ : Unit := ()) : List (String × List String) :=
   [("people.card.jsonl", cardLines), ("people.o.jsonl", oLines), ("people.deck.jsonl", deckLines),
    ("people.carousel.jsonl", carouselLines), ("people.deck.panels.jsonl", panelsLines)]
 

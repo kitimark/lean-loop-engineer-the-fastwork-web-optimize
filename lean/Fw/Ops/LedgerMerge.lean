@@ -610,7 +610,7 @@ def line (kj : KeyJson K) (name : String) (b o t : List (K × String)) : String 
     ("merged", match merge b o t with | some m => listJson kj m | none => .null)]).compress
 
 /-- The text of the golden file: the id-keyed cases, then the note cases. -/
-def fileText : String :=
+def fileText (_ : Unit := ()) : String :=
   String.join (cases.map fun (n, b, o, t) => line idKey n b o t ++ "\n") ++
     String.join (noteCases.map fun (n, b, o, t) => line noteKey n b o t ++ "\n")
 

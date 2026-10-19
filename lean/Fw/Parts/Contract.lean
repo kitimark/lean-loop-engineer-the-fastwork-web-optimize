@@ -774,7 +774,7 @@ def components (ps : List PartSpec) : List (List String) :=
 /-- Text of `lean/Fw/Parts/FootprintRows.lean`: the code row of every contract row and the components of the table
 widened by them.
 One row and one group per line, newline-terminated. -/
-def rowsText : String :=
+def rowsText (_ : Unit := ()) : String :=
   let rs := parts.map (codeRowOf ·.id)
   let wl (ws : List (String × String)) : String :=
     "[" ++ ", ".intercalate (ws.map fun w => "(" ++ jstr w.1 ++ ", " ++ jstr w.2 ++ ")") ++ "]"
@@ -869,7 +869,7 @@ theorem code_pageLevel :
 count, the groups re-decided on the widened table and its page-level parts.
 
 One row and one group per line, newline-terminated. -/
-def diffText : String :=
+def diffText (_ : Unit := ()) : String :=
   "{\"parts\":[\n" ++ ",\n".intercalate (parts.map diffJson) ++ "\n],\n\"findings\":" ++
     toString FootprintData.findings.length ++ ",\n\"codeGroups\":[\n" ++
     ",\n".intercalate (FootprintRows.groups.map fun g => jarr (g.map jstr)) ++ "\n],\n\"codePageLevel\":" ++
@@ -902,7 +902,7 @@ def premise : String := "declared-rows-unverified"
 moves and the premise.
 
 One row per line, newline-terminated. -/
-def contractsText : String :=
+def contractsText (_ : Unit := ()) : String :=
   "{\"parts\":[\n" ++ ",\n".intercalate (parts.map rowJson) ++ "\n],\n\"groups\":{" ++
     ",".intercalate (groups.map fun g => jstr g.name ++ ":" ++ jarr ((members g).map jstr)) ++
     "},\n\"moved\":" ++ jarr (moved.map jstr) ++ ",\n\"premise\":" ++ jstr premise ++ "}\n"
@@ -933,7 +933,7 @@ def checkFile (path text : String) : IO Bool := do
 
 /-- Text of `packages/contracts/golden/parts/footprint.gen.json` from the generated data.
 Byte-equal to the extractor's output when the data module is fresh. -/
-def footprintText : String :=
+def footprintText (_ : Unit := ()) : String :=
   Footprint.golden FootprintData.partIds FootprintData.accesses FootprintData.findings
 
 /-- Command-line driver (`lean/scripts/ContractsGolden.lean`): `--contracts`, `--scenarios`, `--diff` or `--rows`

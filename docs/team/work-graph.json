@@ -7842,7 +7842,14 @@
     "apps/site/src/parts/morph*/**",
     "packages/contracts/golden/**",
     "research/notes/2026/10-20-morph-layers*.md",
-    "docs/team/handoffs/morph-layers.md"
+    "docs/team/handoffs/morph-layers.md",
+    "apps/site/src/App.tsx",
+    "apps/site/src/parts/hero.countdown/index.tsx",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/scripts/MorphDormantGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/triggers.jsonl"
    ]
   },
   {
@@ -8218,7 +8225,8 @@
     ".github/workflows/lean.yml",
     "research/notes/2026/10-20-fwcore-startup.md",
     "docs/team/handoffs/fwcore-lazy-tables.md"
-   ]
+   ],
+   "evidence": "43a66a4"
   },
   {
    "devices": [
@@ -9235,6 +9243,86 @@
     "research/notes/2026/10-20-morph-layers.md",
     "apps/site/src/parts/hero.countdown/index.tsx",
     "docs/team/handoffs/morph-layers-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-gc-followups",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "lake-gc review: --delete re-reads the process table right before unlinking and aborts if a new Lake writer appeared; refs read .hash files or the docstrings say trace outputs and hash stems only; per-worktree git ls-files for lake project dirs; narrow the outputs-map check to the live build's package; identity rule before the CI lake cache save",
+   "deps": [
+    "lake-gc-refs"
+   ],
+   "writes": [
+    "lean/Fw/Ops/LakeGc.lean",
+    "lean/scripts/LakeGcGolden.lean",
+    "packages/contracts/golden/ops/lakegc.jsonl",
+    "apps/runner/src/lake-gc.ts",
+    "scripts/lake-gc.mjs",
+    "scripts/lake-gc.test.mjs",
+    "docs/team/tools/lake-gc.md",
+    "docs/team/handoffs/lake-gc-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fwcore-lazy-followups",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "fwcore start: drop `import Lean` from fwcore's module closure (Fw.Spec.MathFacts, Fw.Spec.Reach, MathView); init-cost lint prints the closure size; add the 11 uncovered generator --check runs to check.sh",
+   "deps": [
+    "fwcore-lazy-tables"
+   ],
+   "writes": [
+    "lean/Fw/Spec/**",
+    "lean/MathView.lean",
+    "lean/Fw/Lint/InitCostScan.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-20-fwcore-startup.md",
+    "docs/team/handoffs/fwcore-lazy-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "chromium-per-pass-elementcount",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "measure-chromium emits per-pass UpdateLayoutTree elementCount (trace.mjs sums per frame today); one-arm rerun splits hero.exit writers and settles the ~7-node question; Lean per-pass sum theorem over the frame reducer. Until it lands no task cites an absolute Restyle unit as measured elementCount",
+   "deps": [
+    "exit-scoped-var"
+   ],
+   "writes": [
+    "packages/measure-chromium/src/**",
+    "packages/measure-chromium/test/**",
+    "lean/Fw/Measure/**",
+    "research/notes/2026/10-20-per-pass-elementcount.md",
+    "docs/team/handoffs/chromium-per-pass-elementcount.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-queue-why",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "fw land --queue keeps the exception text: land-queue.ts attempt catch records kind unknown with no message; print REFUSED: <message> and write it to the land log (first real land through the land-wait remote tier ended VERDICT unknown with no reason)",
+   "deps": [
+    "land-wait"
+   ],
+   "writes": [
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/land-queue*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-queue-why.md"
    ]
   }
  ],

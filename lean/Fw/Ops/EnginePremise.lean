@@ -209,7 +209,7 @@ def crFrame (k : CrKey) (l : LayerState) : FrameIn CrProp := ⟨0, 0, 0, 0, [⟨
 /-- **The Chromium cases**: every realizable member as a `set`, a script-only frame (one rAF callback) and a hit-test
 frame.
 -/
-def crCases : List Case :=
+def crCases (_ : Unit := ()) : List Case :=
   (crMembers.filterMap fun (k, l) =>
     match crCss k with
     | some c =>
@@ -222,7 +222,7 @@ def crCases : List Case :=
    { id := "hit", act := .hit, expect := expectAll crObservers (crWork ⟨0, 0, 0, 1, [], 0⟩) }]
 
 /-- The Chromium table steps (each case of the table and its idle frame), the steps of CI run 39088367495. -/
-def crSteps0 : List Case := steps (expectAll crObservers (crWork idleFrame)) crCases
+def crSteps0 (_ : Unit := ()) : List Case := steps (expectAll crObservers (crWork idleFrame)) crCases
 
 /-! ## Chromium extra cases (task engine-model-fix-2): a clock-shim control, joins, frames with two changes -/
 
@@ -967,7 +967,7 @@ private def verdictVectors : List (String × List Cell) :=
 
 The step index `j` counts from 0 within each engine's steps.
 -/
-def goldenRows : List Json :=
+def goldenRows (_ : Unit := ()) : List Json :=
   [Json.mkObj [("kind", "page"), ("baseStyle", .str baseStyle)]] ++
   crObservers.map (observerRow "chromium") ++ wkObservers.map (observerRow "webkit") ++
   (crGrouped.zipIdx.map fun ((c, g), j) => stepRow "chromium" j c g) ++
@@ -980,7 +980,7 @@ def goldenRows : List Json :=
     ("cells", strs (cs.map Cell.name)), ("verdict", .str (verdict cs).name)])
 
 /-- The golden text: one compact JSON object per line. -/
-def goldenText : String := String.join (goldenRows.map fun r => r.compress ++ "\n")
+def goldenText (_ : Unit := ()) : String := String.join (goldenRows.map fun r => r.compress ++ "\n")
 
 /-- The golden file, relative to `lean/`. -/
 def goldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops" / "engine-premises.jsonl"

@@ -73,6 +73,6 @@ def webkitJobs : List JobObs := [
     sweeps := [("pain", 33185)] }]
 
 /-- Measured costs of both engines: the reduction of the observed jobs. -/
-def measured : Fw.Gate.Shard.Costs := { chromium := reduce chromiumJobs, webkit := reduce webkitJobs }
+def measured (_ : Unit := ()) : Fw.Gate.Shard.Costs := { chromium := reduce chromiumJobs, webkit := reduce webkitJobs }
 
 end Fw.Gate.ShardCosts
