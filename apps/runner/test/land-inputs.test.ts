@@ -27,6 +27,15 @@ describe("the choice of checks equals the Lean decision", () => {
       expect(selectChecks(c.request.checks as Decl[], c.request.changed as string[])).toEqual(c.response.selected);
     });
   }
+  for (const c of selects) {
+    const cs = c.request.checks as Decl[];
+    if (cs.at(-1)?.id !== "reads-scan") continue;
+    it(`golden scan: ${c.name}`, () => {
+      const w = withScan(cs.slice(0, -1) as unknown as Check[]);
+      expect(READS_SCAN_ID).toBe(cs.at(-1)!.id);
+      expect(w.map((x) => ({ id: x.id, reads: x.reads }))).toEqual(cs);
+    });
+  }
   it("check.sh declares what Lean declares (checkShReads)", () => {
     const decl = (selects[0].request.checks as Decl[]).find((d) => d.id === "check.sh")!;
     expect(CHECK_SH_READS).toEqual(decl.reads);

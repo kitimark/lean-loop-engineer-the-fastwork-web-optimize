@@ -22,6 +22,13 @@ Open
 - When `apps/runner` is also selected the scan runs twice (once alone, once inside the suite); dedupe would deviate from the
   Lean table, so left. A real land of a Lean-only change now also runs the scan (cheap, vitest file).
 - The scan is the one vitest file, so it needs `pnpm install` done first (checkDeps already orders install first).
-- Not run here: `sh lean/scripts/check.sh` (math-view lint of the new docstrings) if the report says so.
 
 Read first: `lean/Fw/Console/LandSpeed.lean` section "The read-set scan", then `candidateChecks` in `apps/runner/src/land.ts`.
+
+Fix round 1 (after the adversarial refusal)
+- `scanId` docstring has LaTeX; `scan_not_selected` restated (no table id equals scanId, no changed path in scan scope => scanId not in selectChecks (withScan ds) changed) and proved.
+- land-inputs test golden-checks `withScan` and `READS_SCAN_ID` against every golden select row ending in reads-scan.
+- dryReads doc (land.ts) and LandDry Stages doc now say "selected when the change selects the reads-scan check (LandSpeed.scan_selected)".
+- `sh lean/scripts/check.sh`: exit 0 (all lean/ gates green). Runner suite: only wait-guard flaked under load, passes alone; ci-paths test 32/32.
+- Commit: see the fix-round commit on this branch (git log -1).
+- Follow-ups: exclude READS_SCAN_ARGV from usesCore; declare the scan's own git ls-files reads.

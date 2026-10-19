@@ -303,7 +303,8 @@ theorem workflow_selects_checkSh (ds : List Decl) (changed : List String) (x : S
 
 /-! ### The read-set scan: selected by every change a check can read -/
 
-/-- The id of the static read-set scan (`apps/runner` `test/land-inputs.test.ts`, premise `land.readsOnly`). -/
+/-- The id of the static read-set scan (`apps/runner` `test/land-inputs.test.ts`, premise `land.readsOnly`).
+$$\mathrm{scanId} = \texttt{reads-scan}$$ -/
 def scanId : String := "reads-scan"
 
 /-- The inclusion globs of a declared read list (exclusions dropped, so the scan over-approximates).
@@ -353,12 +354,19 @@ theorem scan_selected (ds : List Decl) (changed : List String) (d : Decl) (hd : 
   (mem_selectChecks _ _ _).2 ⟨⟨scanId, scanReads ds⟩, by simp [withScan],
     List.any_eq_true.2 ⟨x, hx, inScope_scanReads ds d hd x hin⟩, rfl⟩
 
-/-- Precision: with no changed path in the scan's scope the scan is not selected.
-$$\forall D, X:\ (\forall x \in X:\ \lnot\mathrm{in}(\mathrm{parse}(G_{\mathrm{scan}}(D)), x)) \Rightarrow \operatorname{sel}(G_{\mathrm{scan}}(D), X) = \bot$$ -/
-theorem scan_not_selected (changed : List String) (ds : List Decl)
-    (h : ∀ x ∈ changed, inScope (parseScope (scanReads ds)) x = false) : selected (scanReads ds) changed = false := by
-  simp only [selected, List.any_eq_false]
-  intro x hx; simp [h x hx]
+/-- Precision: if no table check has the scan's id and no changed path lies in the scope of the scan's reads, the scan is not selected.
+$$\left(\forall d \in D:\ d.\mathit{id} \ne \texttt{reads-scan}\right) \Rightarrow \left(\forall x \in X:\ \lnot\mathrm{in}(\mathrm{parse}(G_{\mathrm{scan}}(D)), x)\right) \Rightarrow \texttt{reads-scan} \notin \operatorname{select}(D^{+}, X)$$ -/
+theorem scan_not_selected (ds : List Decl) (changed : List String)
+    (hid : ∀ d ∈ ds, d.id ≠ scanId)
+    (h : ∀ x ∈ changed, inScope (parseScope (scanReads ds)) x = false) :
+    scanId ∉ selectChecks (withScan ds) changed := by
+  intro hm
+  obtain ⟨d, hd, hsel, hid'⟩ := (mem_selectChecks _ _ _).1 hm
+  simp only [withScan, List.mem_append, List.mem_singleton] at hd
+  rcases hd with hd | rfl
+  · exact hid d hd hid'
+  · obtain ⟨x, hx, hx'⟩ := List.any_eq_true.1 hsel
+    simp [h x hx] at hx'
 
 /-- The sample table with a site package check and the scan.
 $$D_1 = (D_0 \mathbin{+\!\!+} [(\texttt{site}, [\texttt{apps/site/**}])])^{+}$$ -/

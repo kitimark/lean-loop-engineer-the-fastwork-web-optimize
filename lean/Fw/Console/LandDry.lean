@@ -36,7 +36,7 @@ namespace Fw.Console.LandDry
 open Fw.Console.LandVerdict
 
 /-- The pure stage functions of a land, of the main commit $m$ and the branch tip $b$: the scope check of the diff, the
-clean merge, whether `apps/runner` is selected by the change (so the static reads test is part of the real checks), and
+clean merge, whether the change selects the reads-scan check (`LandSpeed.scan_selected`; so the static reads test is part of the real checks), and
 that test's verdict on the merge tree, whether the branch has commits of its own, and the fast lints (the math-view lint and
 `ci-paths --check`, run on the merge tree) that refused real lands (task `land-dry-full`).
 $$W = (\mathit{scope}, \mathit{merges}, \mathit{sel}, \mathit{test}, \mathit{own}, \mathit{lints}) : (M \times B \to \mathbb B)^6$$ -/

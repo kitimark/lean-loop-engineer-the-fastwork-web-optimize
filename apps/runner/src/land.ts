@@ -66,8 +66,8 @@ export type LandOptions = {
   /** `--dry` (needs `task`): only the cheap stages (stale base, scope, merge-tree, the static reads test on the merge tree); no lock, no
    *  full check, main untouched. Lean `Fw.Console.LandDry` decides the kind (`Outcome.kind`). */
   dry?: boolean;
-  /** the dry land's reads test: its argv and whether the change selects it; default: the land-inputs test of apps/runner, selected
-   *  when `checksFor` selects apps/runner (tests inject both) */
+  /** the dry land's reads test: its argv and whether the change selects it; default: the land-inputs test, selected when the change
+   *  selects the reads-scan check (`LandSpeed.scan_selected`; tests inject both) */
   dryReads?: { argv: string[]; selected?: boolean };
   /** the dry land's fast lints (argv list, run in the merge-tree worktree); default: `dryLintArgv` (ci-paths --check, and the math-view
    *  lint when the change touches `lean/`) */
