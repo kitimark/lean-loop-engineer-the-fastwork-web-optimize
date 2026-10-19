@@ -203,7 +203,7 @@ w_{8} &= (\texttt{premise-tests.yml}, B, G_{8}) \\
 G_{8} &= [\texttt{packages/premise-tests/**}, \texttt{packages/contracts/golden/ops/premise.jsonl}, \texttt{lean/Fw/Ops/Premise.lean}, \texttt{apps/runner/src/premises.ts}, \\
 &\quad \texttt{package.json}, \texttt{pnpm-lock.yaml}, \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/changed-inputs.mjs}, \\
 &\quad \texttt{.github/actions/setup-pnpm/**}, \texttt{.github/actions/gate-engine/**}, \texttt{.github/scripts/cache-key.mjs}, \\
-&\quad \texttt{packages/contracts/golden/ops/cache.jsonl}, \operatorname{own}(\texttt{premise-tests.yml})] \\
+&\quad \texttt{packages/contracts/golden/ops/cache.jsonl}, \texttt{scripts/scrub*.mjs}, \texttt{scripts/scrub-allow.json}, \operatorname{own}(\texttt{premise-tests.yml})] \\
 w_{9} &= (\texttt{sim-speed.yml}, [\texttt{ci/sim-speed}], G_{9}) \\
 G_{9} &= [\texttt{packages/measure-webkit/**}, \texttt{.github/scripts/sim-speed-*}, \texttt{.github/scripts/check-simulator.sh}, \texttt{.github/scripts/runner-info.sh}, \\
 &\quad \texttt{.github/scripts/changed-inputs.mjs}, \operatorname{own}(\texttt{sim-speed.yml})] \\
@@ -284,7 +284,8 @@ def table : List Wf := [
     "packages/premise-tests/**", "packages/contracts/golden/ops/premise.jsonl", "lean/Fw/Ops/Premise.lean",
     "apps/runner/src/premises.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
-    ".github/scripts/cache-key.mjs", "packages/contracts/golden/ops/cache.jsonl", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "premise-tests.yml"], []⟩,
+    ".github/scripts/cache-key.mjs", "packages/contracts/golden/ops/cache.jsonl", ".github/actions/telemetry/**", "scripts/ci-telemetry/**",
+    "scripts/scrub.mjs", "scripts/scrub.test.mjs", "scripts/test-scrub.mjs", "scripts/scrub-allow.json", own "premise-tests.yml"], []⟩,
   ⟨"sim-speed.yml", ["ci/sim-speed"], [
     "packages/measure-webkit/**", ".github/scripts/sim-speed-*", ".github/scripts/check-simulator.sh",
     ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", own "sim-speed.yml"], []⟩,

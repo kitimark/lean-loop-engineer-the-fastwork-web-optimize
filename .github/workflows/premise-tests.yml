@@ -147,6 +147,9 @@ jobs:
         run: |
           set -o pipefail
           pnpm fw premises --results premise-results | tee premises-verdict.txt
+      # The privacy scrub's own tests (scripts/scrub.mjs rules; invented names only), Node stdlib, no install needed.
+      - name: Scrub tests
+        run: node --test scripts/scrub.test.mjs && node scripts/test-scrub.mjs
       - name: Step summary
         if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
         run: |
