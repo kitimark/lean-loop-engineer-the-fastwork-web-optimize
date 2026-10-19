@@ -1,12 +1,13 @@
 // CI spans (timing-spans): fetch a finished run's jobs ONCE through the gh-budget charged call and write one span per job
 // and per step. Deduped by run id (timing.ts seenRuns), so a second call for the same run costs no gh request.
 import { ghCharged, realEnv } from "@fw/gh-budget";
+import { ghCost } from "./run.ts";
 import { CI_VIEW_FIELDS, parseTimings, recordCiRun, seenRuns, timingsFile, type GhRun } from "./timing.ts";
 
 type Gh = (args: string[]) => Promise<string | null>;
 
 const chargedGh = (cwd: string): Gh => async (args) => {
-  const r = await ghCharged(realEnv(cwd), args, { cost: 2 });
+  const r = await ghCharged(realEnv(cwd), args, { cost: ghCost(args) });
   return r.ran && r.code === 0 ? r.stdout : null; // wait / stop / failure: skip silently, the next wait tries again
 };
 
