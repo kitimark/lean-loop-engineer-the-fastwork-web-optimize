@@ -96,9 +96,9 @@ export const ATTRIBUTION = [
 export const MARKER_RE = "^(<<<<<<<|>>>>>>>)";
 
 const git = (cwd: string, args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-/** Personal-data scan (scripts/scrub.mjs --range) of what a ci/land push adds to origin: null when clean, else the hits (rule and place, never values). */
+/** Personal-data scan (scripts/scrub.mjs --range) of what a ci/land push adds to origin, run from the main checkout so a branch cannot set its own gate: null when clean, else the hits (rule and place, never values). */
 const scanRange = (dir: string, mainDir: string, mergeSha: string): string | null => {
-  try { execFileSync("node", [join(dir, "scripts/scrub.mjs"), "--range", "origin/main", mergeSha], { cwd: mainDir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }); return null; }
+  try { execFileSync("node", [join(mainDir, "scripts/scrub.mjs"), "--range", "origin/main", mergeSha], { cwd: mainDir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }); return null; }
   catch (e) { return String((e as { stderr?: string }).stderr ?? e).replace(/\s+/g, " ").slice(0, 300); }
 };
 const tryGit = (cwd: string, args: string[]) => { try { git(cwd, args); return true; } catch { return false; } };
