@@ -690,7 +690,8 @@ $k_1 + \cdots + k_m$ frames of 16 ms leave it.
 
 $$\forall s,\ \forall x^\ast,\ \forall [k_1, \ldots, k_m] \in \mathbb{N}^{*}:\ \operatorname{roll}(s, x^\ast, [16k_1, \ldots, 16k_m]) = \operatorname{run}(s, x^\ast, [16]^{k_1 + \cdots + k_m})$$
 
-At 30, 60 or 62.5 Hz on a 16 ms grid the spring passes through the same states. -/
+Frame gaps that are whole multiples of 16 ms (62.5 Hz, 31.25 Hz, or any mix) leave the spring in the state of the
+same number of 16 ms frames; 60 Hz (50/3 ms) does not (see #guard). -/
 theorem rollFrames_mul16 (s : Spring) (target : Rat) (ks : List Nat) :
     rollFrames s target (ks.map fun (k : Nat) => 16 * (k : Rat)) = runSlices s target (List.replicate ks.sum 16) := by
   rw [rollFrames_eq_run]

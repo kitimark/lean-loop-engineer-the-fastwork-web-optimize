@@ -290,7 +290,9 @@ $d$ (same other changes, same animations).
 
 $$\forall E,\ \forall c, d,\ \forall \mathit{xs},\ \forall a \in \mathbb{N}:\ E.\mathrm{stagesOf}(c) \subseteq E.\mathrm{stagesOf}(d) \land \mathrm{layout} \in E.\mathrm{stagesOf}(d) \land \mathrm{layout} \notin E.\mathrm{stagesOf}(c) \land \mathrm{layout} \notin E.\mathrm{compStages} \Rightarrow W_E(F(c, \mathit{xs}, a)) \prec W_E(F(d, \mathit{xs}, a))$$
 
-This is the bridge for the 0.999 rest: $d$ is the presence-flip change, $c$ the change that stops short of it. -/
+This is the bridge for the 0.999 rest: $d$ is the presence-flip change, $c$ the change that stops short of it.
+Premise open: stagesOf(rest change) ⊆ stagesOf(flip change) and layout only in the flip change, for both tables
+(handoff row 30); applies only to frames with no added animations; with the slide's animations see `swap_not_le`. -/
 theorem swap_lt {P M : Type} (E : Engine P M) (c d : Change P) (xs : List (Change P)) (a : Nat)
     (hcov : ∀ s ∈ E.stagesOf c, s ∈ E.stagesOf d) (hd : Stage.layout ∈ E.stagesOf d)
     (hc : Stage.layout ∉ E.stagesOf c) (hcs : Stage.layout ∉ E.compStages) :
@@ -309,7 +311,8 @@ theorem swap_lt {P M : Type} (E : Engine P M) (c d : Change P) (xs : List (Chang
     omega
 
 /-- **Added animations make it a trade.** If $m > 0$ animations are added and some compositor-animation stage is not
-a stage of $d$, the frame with $c$ is not $\preceq$ the frame with $d$: it has $m$ more units there.
+a stage of $d$, the frame with $c$ is not $\preceq$ the frame with $d$: it has $m$ more units there, or $m + 1$ when $s$ is in
+$E.\mathrm{stagesOf}(c)$.
 
 $$\forall E,\ \forall c, d,\ \forall \mathit{xs},\ \forall a, m \in \mathbb{N},\ \forall s \in \mathrm{Stage}:\ 0 < m \land s \in E.\mathrm{compStages} \land s \notin E.\mathrm{stagesOf}(d) \Rightarrow \lnot\big(W_E(F(c, \mathit{xs}, a + m)) \preceq W_E(F(d, \mathit{xs}, a))\big)$$
 
@@ -422,7 +425,10 @@ theorem st5_flip (l : Look) (ht : l.transform = true) :
 `avatars-exit` takes the leaver's width (and flex-basis) from 32 px to 0 and its margin from $-8$ to 0 px. The
 followers sit after the leaver's margin box, so they shift left by what it gives up. st6 keeps the leaver's box and
 moves the followers by a translate of $-24p$ px; in exact arithmetic the shift is the same at every progress $p$ when
-both use the same progress. -/
+both use the same progress.
+
+Assumes box-sizing: border-box (global reset in the snapshot CSS) and flex-basis = width throughout, so border-width
+does not enter the advance. -/
 
 /-- The leaver's margin-box advance at progress $p$: width plus margin.
 

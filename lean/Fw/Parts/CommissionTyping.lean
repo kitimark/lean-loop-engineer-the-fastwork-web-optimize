@@ -696,10 +696,10 @@ def variantFrame (compact ro : Bool) (keep : Nat → Bool) : List Access :=
 #guard variantFrame false false (fun i => i == 6) == [.readLayout, .readLayout, .writeLayout]
 #guard variantFrame true true (fun _ => false) == [.readLayout, .readLayout]
 
-/-- **The n=22 total-pass lemma.** For every band, observer choice and write mask, in every frame (any accesses $p$
-before and $q$ after the callback, any start flag) and for every role assignment (so for style and for layout), the
-variant forces no more passes, runs no more passes in total (forced plus frame end), and makes no more accesses than
-the original.
+/-- **The n=22 total-pass lemma.** For every band, observer choice and write mask, in the scroll-list phase of every
+frame (RO delivery not counted; any accesses $p$ before and $q$ after the callback, any start flag) and for every role
+assignment (so for style and for layout), the variant forces no more passes, runs no more passes in total (forced
+plus frame end), and makes no more accesses than the original.
 
 $$\forall c, ro \in \mathbb{B},\ \forall k : \mathbb{N} \to \mathbb{B},\ \forall \rho,\ \forall d \in \mathbb{B},\ \forall p, q \in \mathrm{Access}^{*}:\ \operatorname{forced}_\rho(d, p \mathbin{+\!\!+} V(c, ro, k) \mathbin{+\!\!+} q) \le \operatorname{forced}_\rho(d, p \mathbin{+\!\!+} O(c) \mathbin{+\!\!+} q) \land \operatorname{total}_\rho(d, p \mathbin{+\!\!+} V(c, ro, k) \mathbin{+\!\!+} q) \le \operatorname{total}_\rho(d, p \mathbin{+\!\!+} O(c) \mathbin{+\!\!+} q) \land |V(c, ro, k)| \le |O(c)|$$
 
@@ -752,10 +752,11 @@ theorem kept_end_dirty (c d : Bool) (p : List Access) :
   · cases flagEnd d (flags layoutRole p) <;> decide
 
 /-- **What `ro` saves in the compact band.** With every write kept, taking the line count out of the callback removes
-exactly one style pass in every frame, and one layout pass exactly when the next layout access after the callback is a
-layout write; otherwise the forced layout only moves to the frame-end pass.
+exactly one style pass in the scroll-list phase of every frame (RO delivery not counted), and one layout pass exactly
+when the next layout access after the callback is a layout write; otherwise the forced layout only moves to the
+frame-end pass.
 
-$$\forall d \in \mathbb{B},\ \forall p, q \in \mathrm{Access}^{*}:\ \operatorname{total}_{\rho_S}(d, p \mathbin{+\!\!+} O(\top) \mathbin{+\!\!+} q) = \operatorname{total}_{\rho_S}(d, p \mathbin{+\!\!+} V(\top, \top, \lambda\_.\,\top) \mathbin{+\!\!+} q) + 1 \land \operatorname{total}_{\rho_L}(d, p \mathbin{+\!\!+} O(\top) \mathbin{+\!\!+} q) = \operatorname{total}_{\rho_L}(d, p \mathbin{+\!\!+} V(\top, \top, \lambda\_.\,\top) \mathbin{+\!\!+} q) + [\operatorname{first}(\operatorname{flags}_{\rho_L}(q)) = \mathrm{dirty}]$$ -/
+$$\forall d \in \mathbb{B},\ \forall p, q \in \mathrm{Access}^{*}:\ \operatorname{total}_{\rho_S}(d, p \mathbin{+\!\!+} O(\top) \mathbin{+\!\!+} q) = \operatorname{total}_{\rho_S}(d, p \mathbin{+\!\!+} V(\top, \top, \lambda\_.\,\top) \mathbin{+\!\!+} q) + 1 \land \operatorname{total}_{\rho_L}(d, p \mathbin{+\!\!+} O(\top) \mathbin{+\!\!+} q) = \operatorname{total}_{\rho_L}(d, p \mathbin{+\!\!+} V(\top, \top, \lambda\_.\,\top) \mathbin{+\!\!+} q) + [\operatorname{first}(\operatorname{flags}_{\rho_L}(q)) = \operatorname{some}(\mathrm{dirty})]$$ -/
 theorem ro_compact_saves (d : Bool) (p q : List Access) :
     total styleRole d (p ++ origFrame true ++ q) =
         total styleRole d (p ++ variantFrame true true (fun _ => true) ++ q) + 1 ∧

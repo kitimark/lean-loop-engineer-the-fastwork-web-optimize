@@ -1,4 +1,6 @@
 import Fw.Engine.Core
+import Fw.Engine.Chromium
+import Fw.Engine.WebKit
 /-!
 # people.o: the "o" of "people" that opens into a row of faces (`faithful`)
 
@@ -209,6 +211,9 @@ final size once and moves the parts with $m$ compositor translate animations, so
 main-thread change and no script, only the $m$ running animations. Both frames are stated over any engine `E` of
 `Fw.Engine.Core`; the premises on `E` are hypotheses, not a table lookup.
 
+Layout leaves this part's frame strictly inside the transition (part alone; on the page a layout pass is saved only
+if no other part touches layout, `Compose.passes_absorb_part`).
+
 Not covered: the first and last frames (where FLIP pays the size change and the cleanup), resident layers (the
 spans' transient composited layers, ledger `claim_ne_dominates_of_layers`) and pixels (class L). -/
 
@@ -269,7 +274,8 @@ is not a compositor-animation stage, the FLIP frame has strictly fewer layout pa
 
 $$\forall E,\ \forall \mathit{oc},\ \forall m \in \mathbb{N}:\ \mathrm{layout} \in E.\mathrm{stagesOf}(\mathit{oc}) \land \mathrm{layout} \notin E.\mathrm{compStages} \Rightarrow \Big(\forall s \notin E.\mathrm{compStages}:\ W_E(v(m)).\mathrm{passes}(s) \le W_E(o(\mathit{oc})).\mathrm{passes}(s) \land W_E(v(m)).\mathrm{units}(s) \le W_E(o(\mathit{oc})).\mathrm{units}(s)\Big) \land W_E(v(m)).\mathrm{passes}(\mathrm{layout}) = 0 < 1 = W_E(o(\mathit{oc})).\mathrm{passes}(\mathrm{layout})$$
 
-Layout leaves every frame strictly inside the transition. -/
+Layout leaves this part's frame strictly inside the transition (part alone; on the page a layout pass is saved only
+if no other part touches layout, `Compose.passes_absorb_part`). -/
 theorem flip_main_lt {P M : Type} (E : Engine P M) (oc : Change P) (m : Nat)
     (hL : Stage.layout ∈ E.stagesOf oc) (hLc : Stage.layout ∉ E.compStages) :
     (∀ s, s ∉ E.compStages →
@@ -291,8 +297,9 @@ it pays a pass there that the original does not.
 
 $$\forall E,\ \forall \mathit{oc},\ \forall m \in \mathbb{N},\ \forall s \in \mathrm{Stage}:\ 0 < m \land s \in E.\mathrm{compStages} \land s \notin E.\mathrm{stagesOf}(\mathit{oc}) \land s \notin E.\mathrm{base} \Rightarrow \lnot\big(W_E(v(m)) \preceq W_E(o(\mathit{oc}))\big)$$
 
-Both engine tables have such a stage (`comp`), so `flip_work_lt` as $\prec$ is false there; the variant trades
-compositor work for main-thread work. -/
+Both engine tables have such a stage (`comp`) for the height change: the `#guard` lines after this theorem check
+the refutation on `Fw.Engine.Chromium.chromium` (`height`) and `Fw.Engine.WebKit.webkit` (`size`). So `flip_work_lt`
+as $\prec$ is false there; the variant trades compositor work for main-thread work. -/
 theorem flip_not_le {P M : Type} (E : Engine P M) (oc : Change P) (m : Nat) (s : Stage) (hm : 0 < m)
     (hs : s ∈ E.compStages) (hso : s ∉ E.stagesOf oc) (hsb : s ∉ E.base) :
     ¬ (frameWork E (flipMid (P := P) m)).le (frameWork E (origMid oc)) := by
@@ -300,6 +307,11 @@ theorem flip_not_le {P M : Type} (E : Engine P M) (oc : Change P) (m : Nat) (s :
   have h1 := (h.1 s).1
   rw [(flipMid_work (P := P) E m s).1, (origMid_work E oc s).1] at h1
   simp [hm, hs, hso, hsb] at h1
+
+#guard !(frameWork Fw.Engine.Chromium.chromium (flipMid 1)).leb
+  (frameWork Fw.Engine.Chromium.chromium (origMid ⟨0, .css .height, .none⟩))
+#guard !(frameWork Fw.Engine.WebKit.webkit (flipMid 1)).leb
+  (frameWork Fw.Engine.WebKit.webkit (origMid ⟨0, .size, .none⟩))
 
 /-- **When FLIP is strictly below.** If every compositor-animation stage is dirtied by the size change, at most one
 animation runs, and `layout` is dirtied by the size change but is not a compositor-animation stage, the FLIP frame is
