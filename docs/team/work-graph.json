@@ -7372,6 +7372,29 @@
     "research/notes/2026/10-19-people-layout*.md",
     "docs/team/handoffs/people-layout-shift.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-original-missing",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Console preview: the original arm (/preview/<id>/o/ on the preview port) does not display some parts although the direct snapshot server serves every file; find each request that fails or routes wrong through the proxy (rewrite.ts, viaReferer, cache) and fix it, decisions in Lean",
+   "deps": [],
+   "writes": [
+    "apps/console-api/src/preview/**",
+    "apps/console-api/test/**",
+    "apps/console-api/scripts/**",
+    "lean/Fw/Console/Preview*.lean",
+    "lean/Fw/Console/Preview/**",
+    "lean/Fw/Wire*.lean",
+    "lean/Fw/Wire/**",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/**",
+    "research/notes/2026/10-19-preview-original*.md",
+    "docs/team/handoffs/preview-original-missing.md"
+   ]
   }
  ],
  "deadline": {
