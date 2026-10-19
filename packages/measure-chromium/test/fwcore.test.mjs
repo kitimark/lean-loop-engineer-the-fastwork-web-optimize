@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { classify, fwcoreBin, zoneSums } from '../src/fwcore.mjs';
+import { call, classify, fwcoreBin, zoneSums } from '../src/fwcore.mjs';
 import { snapshotCounts, traceToFrameCounts, SPLITS, MAIN, N1_KEYS } from '../src/trace.mjs';
 import { n0Windows, n0FrameCounts } from '../src/n0.mjs';
 import { freezeRuns, diffPaths } from '../src/freeze.mjs';
@@ -109,6 +109,7 @@ const OVERLAY = 'trace.HitTest.overlayAdDetector';
 function fakeRuns({ images = ['sha256:i', 'sha256:i', 'sha256:i'], n = 3, tamper = false, short = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'fw-freeze-'));
   const dirs = [];
+  const pending = [];
   for (let r = 0; r < n; r++) {
     const dir = join(root, `run${r}`);
     mkdirSync(join(dir, 'chromium-classes'), { recursive: true });
@@ -123,15 +124,21 @@ function fakeRuns({ images = ['sha256:i', 'sha256:i', 'sha256:i'], n = 3, tamper
         writeFileSync(join(dir, `chromium-counts-${target}-r${j + 1}`, 'counts.json'), JSON.stringify(c));
         writeFileSync(join(dir, `chromium-counts-${target}-r${j + 1}`, 'image-id.txt'), `${images[r]}\n`);
       });
-      const classes = classify(jobs, 4, 24);
-      if (tamper && r === 0 && target === 'original') classes.a.class = 'stable';
-      mkdirSync(join(dir, 'chromium-classes', target));
-      writeFileSync(join(dir, 'chromium-classes', target, 'classes.json'), JSON.stringify(classes));
+      pending.push({ r, target, dir, jobs });
     }
     writeFileSync(join(dir, 'chromium-classes', 'run.txt'), `profile swipe-v1, workflow run ${100 + r}, attempt 1, sha abc\n`);
     writeFileSync(join(dir, 'chromium-classes', 'image-inputs.txt'), 'd0  Dockerfile\nd1  docker/apt-manifest.txt\n');
     dirs.push(dir);
   }
+  // one fwcore process classifies every (run, arm) of this fixture; replies are matched by position and counted
+  const replies = call(pending.map(({ jobs }) => ({ op: 'measure.classify', mode: 'frames', kMax: 4, tMax: 24, runs: jobs })));
+  assert.equal(replies.length, pending.length);
+  pending.forEach(({ r, target, dir }, i) => {
+    const classes = replies[i].classes;
+    if (tamper && r === 0 && target === 'original') classes.a.class = 'stable';
+    mkdirSync(join(dir, 'chromium-classes', target));
+    writeFileSync(join(dir, 'chromium-classes', target, 'classes.json'), JSON.stringify(classes));
+  });
   return dirs;
 }
 

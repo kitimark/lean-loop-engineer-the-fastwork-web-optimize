@@ -17,6 +17,7 @@ import Fw.Wire.Obs
 import Fw.Wire.Console
 import Fw.Wire.Store
 import Fw.Ci.Wire
+import Fw.Faithful.Wire
 import Fw.Ops.CheckMap
 import Fw.Ops.WatchDiff
 import Fw.Lint.Context
@@ -456,6 +457,7 @@ def ops : List String :=
   ++ Fw.Wire.Lint.ops -- context-slop: lint.context
   ++ Fw.Wire.LakeGc.ops -- lean-bin-slim: ops.lakeGc
   ++ Fw.Wire.WatchDiff.ops -- watch-stream: ops.watchDiff, ops.watchKeep
+  ++ Fw.Wire.Faithful.ops -- faithful-checks: faithful.verdict
   ++ ["console.replay", "console.query", "console.reset"] -- stateful ops: Fw/Serve.lean (fwcore serve)
 
 /-- Dispatch one parsed request object (every op but `samples`). -/
@@ -506,6 +508,9 @@ def handleCore (req : Json) : Except String Reply := do
     | some r => r
     | none =>
     match Fw.Wire.WatchDiff.handle other req with  -- watch-stream
+    | some r => r
+    | none =>
+    match Fw.Wire.Faithful.handle other req with  -- faithful-checks: faithful.verdict
     | some r => r
     | none => throw s!"unknown op {other}"
 
