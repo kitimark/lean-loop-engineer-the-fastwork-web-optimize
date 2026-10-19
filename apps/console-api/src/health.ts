@@ -13,6 +13,14 @@ const Output = z.object({
   counts: z.object({ active: Num, idle: Num, parked: Num, stalled: Num, gone: Num.default(0), done: Num }), // gone/critical: watch-slow; older lines lack them
   alerts: z.array(z.object({ code: Str, subject: Str, detail: Str, critical: z.boolean().default(false) })),
 });
+// the GitHub reading `fw watch` collected (watch-gh.ts); older lines lack it
+const Gh = z.object({
+  actions: Str.default("unknown"), pages: Str.default("unknown"), webhooks: Str.default("unknown"),
+  incidents: z.array(z.object({
+    name: Str, status: Str.default(""), impact: Str.default(""), createdAt: Num.default(0), updatedAt: Num.default(0),
+    body: Str.default(""), actions: z.boolean().default(false),
+  })).default([]),
+});
 const Input = z.object({
   now: Num,
   agents: z.array(z.object({
@@ -26,6 +34,7 @@ const Input = z.object({
     worktrees: Num.optional(),
     ci: z.array(z.object({ workflow: Str, branch: Str, status: Str, conclusion: Str.nullish(), startedAt: Num }).passthrough()).optional(),
     stale: z.array(Str).optional(),
+    gh: Gh.optional(),
   }).passthrough(),
 });
 const Line = z.object({ at: Num, input: Input, output: Output });
@@ -58,6 +67,9 @@ function project(line: z.infer<typeof Line>) {
       ci: (input.system.ci ?? []).map((r) => ({ workflow: r.workflow, branch: r.branch, status: r.status, conclusion: r.conclusion ?? null })),
       stale: input.system.stale ?? [],
     },
+    // whether Actions is flagged is fwcore's decision (alert sys.ghDegraded); the rest is the collected reading
+    gh: input.system.gh ? { ...input.system.gh, degraded: output.system.alerts.includes("sys.ghDegraded"),
+      alert: output.alerts.find((a) => a.code === "sys.ghDegraded")?.detail ?? null } : null,
   };
 }
 
