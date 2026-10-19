@@ -278,7 +278,7 @@ async function controlLoad(browser, rig, engine, arm, url, prepare) {
   const errors = []; const failed = [];
   try {
     const page = await ctx.newPage();
-    page.on("pageerror", (e) => errors.push(String(e)));
+    page.on("pageerror", (e) => { if (!noise.test(String(e))) errors.push(String(e)); }); // the analytics beacon is no module error
     page.on("requestfailed", (r) => failed.push(`${r.method()} ${new URL(r.url()).pathname} ${r.failure()?.errorText ?? ""}`));
     const target = await prepare(page, ctx);
     await page.goto(target ?? url, { waitUntil: "load" });
