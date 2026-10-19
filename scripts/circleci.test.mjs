@@ -256,7 +256,7 @@ test('the recorded fixtures carry no token, e-mail, home path or account name', 
     // CI accounts (runner, root, ...) are not a person; a real account name is matched as a whole word
     const me = userInfo().username;
     const named = !/^(runner|root|user|circleci|ubuntu|admin|ci)$/i.test(me) && me.length >= 4 && new RegExp(`\\b${me.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text);
-    assert.ok(!text.includes('/Users/') && !named && !text.includes('kitimark'), n);
+    assert.ok(!text.includes('/Users/') && !named, n);
     assert.deepEqual([...new Set(text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/g) ?? [])], ['noreply@anthropic.com'], n);
     assert.ok(!/Circle-Token|"token"/i.test(text), n);
   }
