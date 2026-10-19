@@ -131,6 +131,9 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     const link = await rig.grantUrl(host.origin, target.arm);
     const g = await page.goto(link, { waitUntil: "load" });
     check("grant-redeemed", g && g.status() === 200 && page.url() === `${host.arm[target.arm]}/`, `${g?.status()} ${page.url()}`);
+    // the landing page hydrates after its load event; leaving it mid-import would cancel that import (the browser's doing, not the server's)
+    await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+    await page.waitForTimeout(300);
     resetLog(log); // rig.seen keeps the grant load: the arm requests of both loads are read below
 
     const doc = await page.goto(documentUrl(host, target), { waitUntil: "load" });
