@@ -84,7 +84,7 @@ jobs:
       # gate-engine action runs `pnpm exec playwright-core install` from its directory (same playwright-core 1.64.1).
       - uses: ./.github/actions/setup-pnpm
         with:
-          filter: '@fw/gate-breakpoints @fw/console-api @fw/e2e-preview'
+          filter: '@fw/gate-breakpoints @fw/console-api... @fw/e2e-preview'
       - uses: ./.github/actions/gate-engine
         with:
           engine: ${{ matrix.engine }}
