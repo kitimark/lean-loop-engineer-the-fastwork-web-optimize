@@ -130,6 +130,7 @@ import Fw.Site.GenRoute  -- site-build-cache: breakgen / sweepsgen split (split_
 import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split
 import Fw.Gate.Shard  -- gate-shard-balance: LPT shard plan over measured unit costs
 import Fw.Gate.ShardObs  -- gate-shard-balance: observed jobs of a CI run, reduced to the cost table (ShardCosts)
+import Fw.Gate.Search  -- gate-preset-input: the search string of the gate rewrite arm from its fw and preset inputs
 import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict
