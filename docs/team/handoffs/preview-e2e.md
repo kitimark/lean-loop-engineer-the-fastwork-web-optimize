@@ -9,8 +9,10 @@ State
 - Selection tests: `apps/runner/test/preview-e2e-selection.test.ts`, last test of `scripts/ci-paths.test.mjs`.
 
 Verified (local debug runs, not results)
-- Chromium 73/73, WebKit 72/72 earlier; package, runner, ci-paths tests pass. CI run ids are in the report.
+- CI run 39330324128 (head f05938d3, success): chromium 77/77, playwright-webkit green. Package, runner, ci-paths, Lean checks pass.
 - Double import: no. Modules evaluate once on both engines and both hosts; proxy unchanged.
+- Limit: WebKit on Linux cancels redirected duplicate `/_app/` preloads (3 rejections, 13 cancelled per page); direct-serve control and Chromium have 0. Named as check `webkit-linux-preload-cancel-noise-observed`.
+- Local macOS WebKit may stall on the LAN page (permission): use `--no-lan`. `--no-route` is a diagnosis flag.
 
 Open
 - Confirm on the phone (iOS Safari is not in the suite).

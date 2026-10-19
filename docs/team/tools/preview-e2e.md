@@ -49,5 +49,15 @@ host (its root-module and hydration checks go red) and passes on loopback. Local
 ## Accepted limits
 
 - Playwright WebKit stands in for iOS Safari; the user's phone check is the final confirmation.
+- Playwright WebKit on Linux (libsoup) cancels the preloads of other routes that the app builds with root-absolute `/_app/...`
+  URLs: the proxy answers them 302 to the prefixed URL while the same file is imported by its prefixed URL, and WebKit
+  cancels the duplicate ("Load request cancelled"); the page logs 3 unhandled rejections per load (module preload, CSS
+  preload). Measured on CI (run 39330324128): every server answer is 2xx/3xx, the entry modules still evaluate once, the page
+  hydrates, fonts and images are fine; Chromium and a direct-served control (no proxy) show none of it. The suite names this
+  signature (WebKit only, only preload rejections, only cancelled `/_app/` requests) as check
+  `webkit-linux-preload-cancel-noise-observed` and fails on anything else. A local macOS WebKit debug run showed none of it
+  (CFNetwork, as on the phone), so it is read as a libsoup behaviour; the phone check settles it. Not fixed in the proxy:
+  rewriting the app's JavaScript is out of the proxy's contract. `--no-route` drops the external-request blocking (diagnosis).
+- WebKit on macOS may stall on the LAN-address page load (local network permission); use `--no-lan` there. CI has no such prompt.
 - `PreviewManager` is a stub; the preview server process is real.
 - TS stand-ins: none new. `isScriptPath` (suffix test) remains the existing stand-in in proxy.ts.
