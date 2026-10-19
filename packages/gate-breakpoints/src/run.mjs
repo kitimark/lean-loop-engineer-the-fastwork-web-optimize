@@ -8,10 +8,9 @@ import { attachAlignFacts, collectAlignFacts } from './align-equiv.mjs';
 import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
 import { KIT_SRC, PIN_SRC, bringInPage, collectInPage, freezeInPage, prepareInPage, scrollTopInPage, settleInPage, waitReady, waitResize } from './page.mjs';
 import { HOLD_LOAD_MS, MAIN_OFF_MS, ORIG_GRACE_MS, POST_RESIZE_MS, READY_TO_MS, SLOT_MS, STEP_MS, checkAt, instant, lateWait, mountRank, newRec, observeAt, ovRank, stopBase, viewRank } from './freeze.mjs';
-import { GATE_POLICY, fold, idlePolicy, view, viewFor, waitTrace } from './settle.mjs';
+import { GATE_POLICY, commitHolds, commitNeeded, commitOutcome, crosses, fold, idlePolicy, nudge, view, viewFor, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { makeViewBarrier, skippedParts, viewStage } from './view.mjs';
-import { DIAG_INIT, diagEvents, diagSnap } from './diag-cv.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
 const collectWith = async (s, arg) => { const raw = await s.evaluate(collectInPage, arg); if (arg.props) attachAlignFacts(raw, await s.evaluate(collectAlignFacts, { parts: arg.parts, props: arg.props })); return raw; };
@@ -64,7 +63,6 @@ export const portOf = (engineName, platform = process.platform) =>
  * (what the verdict rule is asked about) and the mapped one as `realized`. Null (the default) adds no `realized` and no `raw.gap`.
  */
 export async function runEngine({ engineName, outDir, concurrency = 4, probeFilter = null, sweepFilter = null, partFilter = null, gaps = null }) {
-  const DIAG_CV = process.env.FW_GATE_DIAG_CV === '1' || (Array.isArray(partFilter) && partFilter.join() === 'commission' && process.env.FW_GATE_DIAG_CV !== '0'); // TEMPORARY diag, removed with the fix
   const { gen, sha256: genSha } = loadGen();
   const anchors = loadAnchors();
   // Part selection (glue): only the chosen parts' elements are collected, so only their raw facts and property lists are
@@ -94,7 +92,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     }))]));
 
   async function load(env, site) {
-    return engine.open(env, { origin: servers[site].origin, path: site === 'rewrite' ? '/' + variantPage.search : '/', init: (frozen ? PIN_SRC + '\n' + KIT_SRC : PIN_SRC) + (DIAG_CV ? '\n' + DIAG_INIT : ''), frozen });
+    return engine.open(env, { origin: servers[site].origin, path: site === 'rewrite' ? '/' + variantPage.search : '/', init: frozen ? PIN_SRC + '\n' + KIT_SRC : PIN_SRC, frozen });
   }
   // anchors.json `prepare` (per part and arm) is the one route for page states that exist only after an action, all run by
   // page.mjs prepareInPage. A part with a prepare step is collected AFTER the rest, so every other part is read in the state a
@@ -138,6 +136,20 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     await s.evaluate(waitResize, { holdTo: base + POST_RESIZE_MS });
     checkAt(rec, `resize ${i}`, base + POST_RESIZE_MS, s.clockMs());
   };
+  // Lean Fw.Gate.Settle.committed / nudge: a used auto margin in a content-visibility:auto skipped subtree reads 0px after a fresh load
+  // until a committed layout pass includes the box (research/notes/2026/10-20-commission-margin-recur.md). A fresh load that is read
+  // without a view bring is therefore opened one CSS pixel wider and resized to the read width first, as every later stop of a sweep
+  // is; a read with no resize behind it has an `unsettled` wait (Lean commitOutcome), never a pass or a fail. The nudge must not cross
+  // a breakpoint edge (Lean crosses_iff): the page would then load in another regime than the one it is read in.
+  const EDGE_PAIRS = [...gen.edgePairs.width, ...gen.edgePairs.deviceWidth, ...gen.edgePairs.touchRm];
+  const nudgeEnv = (env) => {
+    if (crosses(EDGE_PAIRS, env.width) || (env.deviceWidth === env.width ? false : crosses(EDGE_PAIRS, env.deviceWidth))) {
+      throw new Error(`the nudge from width ${env.width} (device ${env.deviceWidth}) crosses a breakpoint edge`);
+    }
+    return { ...env, width: nudge(env.width), deviceWidth: env.deviceWidth === env.width ? nudge(env.deviceWidth) : env.deviceWidth };
+  };
+  const COMMIT_ON = !gaps && commitNeeded(VIEW_ENV, engineName);
+  const afterCommit = (settleWait, viewed, resizes) => ({ ...settleWait, outcome: commitOutcome(commitHolds(COMMIT_ON, viewed, resizes), settleWait.outcome) });
   // The settle wait (Lean Fw.Gate.Settle, settle.mjs): before anything is collected, in both arms and both engines, the pointer is
   // parked where it is over no probed element (hover cannot move a probed value), then the page is observed on real frames
   // until nothing animates, two frames have passed since the resize, the probed values stay within eps for three frames, and the
@@ -293,15 +305,17 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     Object.entries(roles).map(([role, v]) => [role, [...v.restated, ...v.originOnly]]))]));
 
   // `viewSync` (only a pair sample, samplePair) makes the view set the union over both arms; the pair retries as one, an arm never alone.
-  async function sample(env, site, view = VIEW_ON, viewSync = null) {
+  // `nudged` (a read without the view bring, Lean committed): the load is one pixel wider and resized to `env` before the read.
+  async function sample(env, site, view = VIEW_ON, viewSync = null, nudged = false) {
     const retry = viewSync ? (label, fn) => fn() : withRetry;
     return retry(`${site} ${env.width}x${env.height}`, async () => {
-      const s = await load(env, site);
+      const s = await load(nudged && COMMIT_ON ? nudgeEnv(env) : env, site);
       try {
         await parkEarly(s, env);
         const rec = newRec();
         const settle = await evalReady(s, site, rec);
-        const settleWait = await settleArm(s, site, env);
+        if (nudged && COMMIT_ON) await resizeTo(s, env, 0, view, rec);
+        const settleWait = afterCommit(await settleArm(s, site, env), view, nudged && COMMIT_ON ? 1 : 0);
         const raw = await evalCollect(s, site, env, collectProps, (roots, e) => settleArm(s, site, e, roots), view, frozen ? { base: stopBase(0, readingCount(view)), rec } : null, viewSync);
         raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
         if (gaps) raw.gap = await s.evaluate(gaps.collect, gaps.collectArg);
@@ -320,51 +334,6 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       if (bad) throw bad.reason;
       return rs.map((r) => r.value);
     });
-  }
-
-
-  if (DIAG_CV) {
-    // Both arms load together as a sweep's first stop does; variant C reads nothing before the sweep's own collect, variant S snapshots first.
-    const N = Number(process.env.FW_DIAG_LOADS || 16);
-    const sel = (site, role) => partsArg[site].commission.find((r) => r.role === role).selector;
-    const withTimeout = (p, ms, label) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('diag timeout ' + label)), ms))]);
-    for (const width of [1440, 1512]) {
-      const env = { ...refEnv, width, deviceWidth: width };
-      const next = { ...env, width: width + 1, deviceWidth: width + 1 };
-      for (let k = 0; k < N; k++) {
-        const variant = k % 2 === 0 ? 'C' : 'S';
-        await Promise.all(SITES.map(async (site) => {
-          const t0 = Date.now();
-          const s = await load(env, site);
-          const out = { engine: engineName, site, width, k, variant, snaps: [] };
-          try {
-            await withTimeout((async () => {
-              const SEL = { section: sel(site, 'section'), inner: sel(site, 'inner'), rows: sel(site, 'rows') };
-              const snap = async (tag) => out.snaps.push(await s.evaluate(diagSnap, { ...SEL, tag }));
-              await parkEarly(s, env);
-              const rec = newRec();
-              await evalReady(s, site, rec);
-              if (variant === 'S') await snap('ready');
-              await settleArm(s, site, env);
-              if (variant === 'S') { await snap('settled'); await snap('again'); }
-              const raw = await evalCollect(s, site, env, collectProps, null, false, frozen ? { base: stopBase(0, readingCount(false)), rec } : null, null, null);
-              const c = raw.parts.commission;
-              out.collect = { inner: c.inner.items[0].style['margin-inline-start'], rows: c.rows.items[0].style['margin-inline-start'], rect: c.inner.items[0].rect };
-              await snap('afterCollect');
-              await resizeTo(s, next, 1, false, rec);
-              await snap('wig+1');
-              await resizeTo(s, env, 2, false, rec);
-              await snap('wigback');
-              out.ev = await s.evaluate(diagEvents);
-            })(), 90000, `${site} ${width} ${k}`);
-          } catch (e) { out.error = String(e.message || e); }
-          finally { await s.close().catch(() => {}); }
-          out.ms = Date.now() - t0;
-          log('DIAGCV ' + JSON.stringify(out));
-        }));
-      }
-    }
-    process.exit(0);
   }
 
   // Phase 1: the matrix.
@@ -405,20 +374,22 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     const tSweep = Date.now();
     // One page load of one arm: all stops of the sweep, with the parts of `page` (Lean Fw.Gate.Freeze.pageOf; null = all of them).
     const armStops = (site, page) => withRetry(`sweep ${sw.id} ${site}${page ? ` ${page}` : ''}`, async () => {
-      const s = await load(sw.stops[0], site);
+      const s = await load(COMMIT_ON ? nudgeEnv(sw.stops[0]) : sw.stops[0], site);
       try {
         const stops = [];
+        let resizes = 0;
         await parkEarly(s, sw.stops[0]);
         const rec0 = newRec();
         await evalReady(s, site, rec0);
         for (let i = 0; i < sw.stops.length; i++) {
           const rec = i === 0 ? rec0 : newRec();
-          if (i > 0) {
+          if (i > 0 || COMMIT_ON) {
             const t1 = Date.now();
             await resizeTo(s, sw.stops[i], i, false, rec);
+            resizes++;
             log(`  resize ${engineName} ${site} ${sw.stops[i].width}x${sw.stops[i].height}: ${Date.now() - t1} ms`);
           }
-          const settleWait = await settleArm(s, site, sw.stops[i]);
+          const settleWait = afterCommit(await settleArm(s, site, sw.stops[i]), false, resizes);
           const raw = await evalCollect(s, site, sw.stops[i], collectProps, (roots, e) => settleArm(s, site, e, roots), false, frozen ? { base: stopBase(i, readingCount(false)), rec } : null, null, page);
           raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
           stops.push(raw);
@@ -443,7 +414,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       return (await armStops(site, 'plain')).map((a, i) => joinStop(a, mounted[i]));
     }));
     const last = sw.stops[sw.stops.length - 1];
-    const fresh = await Promise.all(SITES.map((site) => sample(last, site, false)));
+    const fresh = await Promise.all(SITES.map((site) => sample(last, site, false, null, true)));
     sweepRecords.push({ id: sw.id, blurb: sw.blurb, stops: sw.stops, orig: perSite[0], rewrite: perSite[1], freshFinal: { orig: fresh[0], rewrite: fresh[1] } });
     log(`  ${engineName}: sweep ${sw.id} done (${sw.stops.length} stops, ${Date.now() - tSweep} ms)`);
   }
