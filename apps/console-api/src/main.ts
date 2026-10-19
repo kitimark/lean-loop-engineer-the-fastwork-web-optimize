@@ -10,6 +10,7 @@ import { execFileSync } from "node:child_process";
 import { buildBase } from "./core/build-base.ts";
 import { PreviewManager } from "./preview/manager.ts";
 import { OwnerAuth } from "./preview/owner.ts";
+import { Grants } from "./preview/grants.ts";
 import { announceLink, reissueLink, type LinkClock } from "./preview/link.ts";
 import { networkInterfaces } from "node:os";
 import { LoginGuard, readPassphrase, KEYCHAIN_HINT } from "./preview/login.ts";
@@ -77,8 +78,9 @@ if (wantLan && lanAddr === null) {
   console.error(`console-api: LAN mode is disabled (${why[String(lanDecision.result)] ?? "not allowed"}); staying on loopback only. Set a longer passphrase with:\n  ${KEYCHAIN_HINT}`);
 }
 const login = new LoginGuard(core, passphrase);
-const app = createApp(store, join(here, "../../console-web/dist"), reconciler, previews, owner, service, { login, lan: lanAddr !== null });
-const previewApp = createPreviewApp(core, owner, previews, { lan: lanAddr !== null });
+const grants = new Grants(core, (rec) => previews.audit(rec));
+const app = createApp(store, join(here, "../../console-web/dist"), reconciler, previews, owner, service, { login, lan: lanAddr !== null, grants });
+const previewApp = createPreviewApp(core, owner, previews, { lan: lanAddr !== null, grants });
 
 setInterval(() => { void app.drain.run().catch((e) => console.error("spool drain failed:", e)); }, 2000).unref();
 

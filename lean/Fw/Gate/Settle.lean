@@ -763,6 +763,143 @@ theorem viewCell_webkit_default {α : Type} [DecidableEq α] (fo go fr gr : Read
   exact viewCell_inert fo go fr gr a b
 
 -- ---------------------------------------------------------------------------------------------------------------
+-- a used auto margin of a node in a skipped subtree is not a reading (commission-margin-recur)
+-- ---------------------------------------------------------------------------------------------------------------
+
+/-- The keys whose computed value is layout output: `getComputedStyle` of an `auto` margin goes through the box's first
+fragment (Blink `LayoutBox::MarginOutsets`, `PhysicalBoxFragment::Margins`, whose value the container's layout writes), so the
+value exists only after a layout pass of the container that included the box. The margin keys: the three shorthands and the eight
+longhands, physical and logical.
+
+$$K_{\mathrm{layout}} = \{\mathrm{margin},\ \mathrm{margin}\text{-}\{block,inline\}\} \cup \{\mathrm{margin}\text{-}\{top,right,bottom,left\},\ \mathrm{margin}\text{-}\{block,inline\}\text{-}\{start,end\}\}$$ -/
+def layoutOutputKeys : List String :=
+  ["margin", "margin-block", "margin-inline", "margin-top", "margin-right", "margin-bottom", "margin-left",
+   "margin-block-start", "margin-block-end", "margin-inline-start", "margin-inline-end"]
+
+/-- Whether a key is a layout-output key.
+
+$$\operatorname{layoutOutputKey}(k) \iff k \in K_{\mathrm{layout}}$$ -/
+def layoutOutputKey (k : String) : Bool := layoutOutputKeys.contains k
+
+/-- Whether the pair of values of one key of one node has no verdict: either arm's node was read in a skipped subtree (the
+collector's flag, premise `cv.skip-flag`) and the key is layout output. In a skipped subtree a box whose container never laid
+it out reads the zero strut (`0px`) whatever the steady value is (run 39333030506: the original read it in 21 of 96 loads, the
+rewrite in 1 of 96; a viewport change cures `inner`, not `rows`). The rect is not a key here: it stays compared, and an
+`auto` margin is the remainder of the geometry.
+
+$$\operatorname{keyMasked}(s_o, s_r, k) = (s_o \vee s_r) \wedge k \in K_{\mathrm{layout}}$$ -/
+def keyMasked (so sr : Bool) (k : String) : Bool := (so || sr) && layoutOutputKey k
+
+/-- The two values the comparison sees for one key of one node: the original's value on both sides where the pair is masked
+(the copy `maskNotRendered` makes for a whole item), the two values as read otherwise.
+
+$$\operatorname{keyPair}(s_o, s_r, k, a, b) = \begin{cases}(a, a) & \operatorname{keyMasked}(s_o, s_r, k)\\ (a, b) & \text{otherwise}\end{cases}$$ -/
+def keyPair {α : Type} (so sr : Bool) (k : String) (a b : α) : α × α :=
+  if keyMasked so sr k then (a, a) else (a, b)
+
+/-- The cell of one key of one node of a live sweep: both arms' waits, and equality of the two values the comparison sees.
+
+$$\operatorname{keyCell}(s_o, s_r, k, a, b, w_a, w_b) = \operatorname{cell}(\top, \top, w_a, w_b, [\operatorname{keyPair}(s_o, s_r, k, a, b)_1 = \operatorname{keyPair}(s_o, s_r, k, a, b)_2])$$ -/
+def keyCell {α : Type} [DecidableEq α] (so sr : Bool) (k : String) (a b : α) (wa wb : Outcome) : Cell :=
+  cell true true wa wb (decide ((keyPair so sr k a b).1 = (keyPair so sr k a b).2))
+
+/-- Nothing is masked where both nodes are rendered: the pair is as read.
+
+$$\operatorname{keyPair}(\bot, \bot, k, a, b) = (a, b)$$ -/
+theorem keyPair_rendered {α : Type} (k : String) (a b : α) : keyPair false false k a b = (a, b) := by
+  simp [keyPair, keyMasked]
+
+/-- Nothing is masked for a key outside the layout-output set, whatever the flags say.
+
+$$k \notin K_{\mathrm{layout}} \Longrightarrow \operatorname{keyPair}(s_o, s_r, k, a, b) = (a, b)$$ -/
+theorem keyPair_other_key {α : Type} (so sr : Bool) (k : String) (a b : α) (h : layoutOutputKey k = false) :
+    keyPair so sr k a b = (a, b) := by
+  simp [keyPair, keyMasked, h]
+
+/-- A masked pair is two equal values, so it can neither fail nor pass by its values.
+
+$$\operatorname{keyMasked}(s_o, s_r, k) \Longrightarrow \operatorname{keyPair}(s_o, s_r, k, a, b)_1 = \operatorname{keyPair}(s_o, s_r, k, a, b)_2$$ -/
+theorem keyPair_masked_equal {α : Type} (so sr : Bool) (k : String) (a b : α) (h : keyMasked so sr k = true) :
+    (keyPair so sr k a b).1 = (keyPair so sr k a b).2 := by
+  simp [keyPair, h]
+
+/-- The original's value is kept on its side in every case.
+
+$$\operatorname{keyPair}(s_o, s_r, k, a, b)_1 = a$$ -/
+theorem keyPair_fst {α : Type} (so sr : Bool) (k : String) (a b : α) : (keyPair so sr k a b).1 = a := by
+  unfold keyPair; split <;> rfl
+
+/-- **The mask never hides a real difference.** The two values the comparison sees differ exactly when the values as read differ
+and the pair is not masked: a difference of a rendered node, of a key outside the layout-output set, or of the rect is never
+lost, and a difference is lost only for a layout-output key of a flagged node.
+
+$$\operatorname{keyPair}(s_o, s_r, k, a, b)_1 \ne \operatorname{keyPair}(s_o, s_r, k, a, b)_2 \iff a \ne b \wedge \neg\operatorname{keyMasked}(s_o, s_r, k)$$ -/
+theorem keyPair_differs_iff {α : Type} (so sr : Bool) (k : String) (a b : α) :
+    (keyPair so sr k a b).1 ≠ (keyPair so sr k a b).2 ↔ a ≠ b ∧ keyMasked so sr k = false := by
+  unfold keyPair
+  cases h : keyMasked so sr k <;> simp
+
+/-- A real difference of an unmasked pair fails the key, whatever the original's and the rewrite's values are.
+
+$$a \ne b \wedge \neg\operatorname{keyMasked}(s_o, s_r, k) \Longrightarrow \operatorname{keyCell}(s_o, s_r, k, a, b, \mathrm{settled}(i), \mathrm{settled}(j)) = \mathrm{fail}$$ -/
+theorem keyCell_fail_of_real_diff {α : Type} [DecidableEq α] (so sr : Bool) (k : String) (a b : α) (i j : Nat)
+    (hd : a ≠ b) (hm : keyMasked so sr k = false) :
+    keyCell so sr k a b (.settled i) (.settled j) = .fail := by
+  have h : (keyPair so sr k a b).1 ≠ (keyPair so sr k a b).2 := (keyPair_differs_iff so sr k a b).2 ⟨hd, hm⟩
+  simp [keyCell, cell, report, h]
+
+/-- A pass needs both arms settled and the values as read equal, or the pair masked; the mask never makes an unsettled arm pass.
+
+$$\operatorname{keyCell}(s_o, s_r, k, a, b, w_a, w_b) = \mathrm{pass} \Longrightarrow (a = b \vee \operatorname{keyMasked}(s_o, s_r, k)) \wedge \exists i\, j,\ w_a = \mathrm{settled}(i) \wedge w_b = \mathrm{settled}(j)$$ -/
+theorem keyCell_pass_sound {α : Type} [DecidableEq α] (so sr : Bool) (k : String) (a b : α) (wa wb : Outcome)
+    (h : keyCell so sr k a b wa wb = .pass) :
+    (a = b ∨ keyMasked so sr k = true) ∧ ∃ i j, wa = .settled i ∧ wb = .settled j := by
+  rcases wa with i | _ <;> rcases wb with j | _
+  · refine ⟨?_, i, j, rfl, rfl⟩
+    by_cases hm : keyMasked so sr k = true
+    · exact Or.inr hm
+    · have hm' : keyMasked so sr k = false := by simpa using hm
+      by_cases hab : a = b
+      · exact Or.inl hab
+      · have := keyCell_fail_of_real_diff so sr k a b i j hab hm'
+        rw [this] at h
+        exact absurd h (by decide)
+  all_goals simp [keyCell, cell, report] at h
+
+/-- A masked pair of settled arms passes: the mask turns the stale `0px` against a steady value into no difference, in either
+direction.
+
+$$\operatorname{keyMasked}(s_o, s_r, k) \Longrightarrow \operatorname{keyCell}(s_o, s_r, k, a, b, \mathrm{settled}(i), \mathrm{settled}(j)) = \mathrm{pass}$$ -/
+theorem keyCell_masked_pass {α : Type} [DecidableEq α] (so sr : Bool) (k : String) (a b : α) (i j : Nat)
+    (hm : keyMasked so sr k = true) : keyCell so sr k a b (.settled i) (.settled j) = .pass := by
+  have h := keyPair_masked_equal so sr k a b hm
+  simp [keyCell, cell, report, h]
+
+/-- The margin keys, shorthand and longhand, are layout output, and no other key listed here is.
+
+$$\operatorname{layoutOutputKey}(\mathrm{margin\text{-}inline\text{-}start}) \wedge \neg\operatorname{layoutOutputKey}(\mathrm{width}) \wedge \neg\operatorname{layoutOutputKey}(\mathrm{padding\text{-}left})$$ -/
+theorem layoutOutputKey_examples :
+    layoutOutputKey "margin-inline-start" = true ∧ layoutOutputKey "margin-left" = true ∧ layoutOutputKey "margin-inline" = true ∧ layoutOutputKey "width" = false ∧
+    layoutOutputKey "padding-left" = false ∧ layoutOutputKey "color" = false := by
+  decide
+
+/-- Whether a run flags the skipped nodes of its live sweeps: the engines that bring skipped parts into view are the ones whose
+skipped subtrees read zero used margins (the flag is only read, nothing is scrolled, so a sweep keeps its page state).
+
+$$\operatorname{flagSweeps}(s, n) = \operatorname{viewFor}(s, n)$$ -/
+def flagSweeps (s : Option String) (n : String) : Bool := viewFor s n
+
+/-- WebKit by default flags nothing in a sweep, so its readings are exactly as before.
+
+$$\operatorname{flagSweeps}(\bot, \texttt{playwright-webkit}) = \bot$$ -/
+theorem flagSweeps_webkit_default : flagSweeps none "playwright-webkit" = false := viewFor_default.2
+
+/-- Chromium by default flags the skipped nodes of its sweeps.
+
+$$\operatorname{flagSweeps}(\bot, \texttt{chromium}) = \top$$ -/
+theorem flagSweeps_chromium_default : flagSweeps none "chromium" = true := viewFor_default.1
+
+-- ---------------------------------------------------------------------------------------------------------------
 -- the model: a settled sample does not depend on when it was taken
 -- ---------------------------------------------------------------------------------------------------------------
 
@@ -1145,6 +1282,22 @@ def viewForCases : List (String × Option String × String) :=
     ("unknown engine, no switch", none, "firefox"),
     ("unknown engine forced on", some "1", "firefox") ]
 
+/-- Key masks: (name, original node read in a skipped subtree, rewrite node read in a skipped subtree, key, original value,
+rewrite value).
+
+$$\text{keyMaskCases} = [(n_k, s_o, s_r, k, a, b)]_k$$ -/
+def keyMaskCases : List (String × Bool × Bool × String × String × String) :=
+  [ ("rendered, equal margins", false, false, "margin-left", "132px", "132px"),
+    ("rendered, different margins", false, false, "margin-left", "0px", "8px"),
+    ("commission rows: original skipped, stale zero against steady value", true, false, "margin-left", "0px", "8px"),
+    ("rewrite skipped, stale zero against steady value", false, true, "margin-right", "8px", "0px"),
+    ("both skipped, different margins", true, true, "margin-inline-start", "0px", "132px"),
+    ("skipped, the width is still compared", true, true, "width", "100px", "120px"),
+    ("skipped, a colour difference is still compared", true, false, "color", "rgb(0, 0, 0)", "rgb(1, 1, 1)"),
+    ("skipped, a padding difference is still compared", false, true, "padding-left", "4px", "8px"),
+    ("skipped, equal margins", true, true, "margin-top", "8px", "8px"),
+    ("commission inner: the margin-inline shorthand, original skipped", true, false, "margin-inline", "0px", "96px") ]
+
 /-- Probe cells: (name, arm a rendered, arm b rendered, outcome a, outcome b, equal).
 
 $$\text{cellCases} = [(n_k, r_a, r_b, a_k, b_k, e_k)]_k$$ -/
@@ -1191,9 +1344,9 @@ def quietCases : List (String × Nat × List Int × List Int) :=
     ("no values at all", 100, [], []),
     ("people.deck scale mid lerp", 100, [977000], [979000]) ]
 
-/-- One golden line per case, in the order of the nine case lists: observation, wait, quiet, rendered, cell, view, fold, report, viewFor.
+/-- One golden line per case, in the order of the eleven case lists: observation, wait, quiet, rendered, cell, view, fold, report, viewFor, keyMask, flagSweeps.
 
-$$\text{lines} = [\ell_{\mathrm{obs}}(c)]_{c \in \mathrm{obsCases}} \mathbin{+\!\!+} [\ell_{\mathrm{wait}}(c)]_{c \in \mathrm{waitCases}} \mathbin{+\!\!+} [\ell_{\mathrm{quiet}}(c)]_{c \in \mathrm{quietCases}} \mathbin{+\!\!+} [\ell_{\mathrm{rendered}}(c)]_{c \in \mathrm{renderedCases}} \mathbin{+\!\!+} [\ell_{\mathrm{cell}}(c)]_{c \in \mathrm{cellCases}} \mathbin{+\!\!+} [\ell_{\mathrm{view}}(c)]_{c \in \mathrm{viewCases}} \mathbin{+\!\!+} [\ell_{\mathrm{fold}}(c)]_{c \in \mathrm{foldCases}} \mathbin{+\!\!+} [\ell_{\mathrm{report}}(c)]_{c \in \mathrm{reportCases}} \mathbin{+\!\!+} [\ell_{\mathrm{viewFor}}(c)]_{c \in \mathrm{viewForCases}}$$ -/
+$$\text{lines} = [\ell_{\mathrm{obs}}(c)]_{c \in \mathrm{obsCases}} \mathbin{+\!\!+} [\ell_{\mathrm{wait}}(c)]_{c \in \mathrm{waitCases}} \mathbin{+\!\!+} [\ell_{\mathrm{quiet}}(c)]_{c \in \mathrm{quietCases}} \mathbin{+\!\!+} [\ell_{\mathrm{rendered}}(c)]_{c \in \mathrm{renderedCases}} \mathbin{+\!\!+} [\ell_{\mathrm{cell}}(c)]_{c \in \mathrm{cellCases}} \mathbin{+\!\!+} [\ell_{\mathrm{view}}(c)]_{c \in \mathrm{viewCases}} \mathbin{+\!\!+} [\ell_{\mathrm{fold}}(c)]_{c \in \mathrm{foldCases}} \mathbin{+\!\!+} [\ell_{\mathrm{report}}(c)]_{c \in \mathrm{reportCases}} \mathbin{+\!\!+} [\ell_{\mathrm{viewFor}}(c)]_{c \in \mathrm{viewForCases}} \mathbin{+\!\!+} [\ell_{\mathrm{keyMask}}(c)]_{c \in \mathrm{keyMaskCases}} \mathbin{+\!\!+} [\ell_{\mathrm{flagSweeps}}(c)]_{c \in \mathrm{viewForCases}}$$ -/
 def goldenLines : List String :=
   obsCases.map (fun (n, o) =>
     (Json.mkObj [("kind", "settled"), ("name", toJson n), ("policy", policyJson gatePolicy), ("obs", obsJson o),
@@ -1226,6 +1379,14 @@ def goldenLines : List String :=
   ++ viewForCases.map (fun (n, s, e) =>
     (Json.mkObj [("kind", "viewFor"), ("name", toJson n), ("switch", toJson s), ("engine", toJson e),
       ("view", toJson (viewFor s e))]).compress)
+  ++ keyMaskCases.map (fun (n, so, sr, k, a, b) =>
+    let pr := keyPair so sr k a b
+    (Json.mkObj [("kind", "keymask"), ("name", toJson n), ("skippedO", toJson so), ("skippedR", toJson sr), ("key", toJson k),
+      ("a", toJson a), ("b", toJson b), ("masked", toJson (keyMasked so sr k)), ("seenA", toJson pr.1), ("seenB", toJson pr.2),
+      ("cell", toJson (cellText (keyCell so sr k a b (.settled 1) (.settled 2))))]).compress)
+  ++ viewForCases.map (fun (n, s, e) =>
+    (Json.mkObj [("kind", "flagSweeps"), ("name", toJson n), ("switch", toJson s), ("engine", toJson e),
+      ("flag", toJson (flagSweeps s e))]).compress)
 
 /-- The exact bytes of `packages/contracts/golden/gate/settle.jsonl`: the lines, each newline-terminated.
 
@@ -1273,5 +1434,8 @@ def run (args : List String) : IO UInt32 := do
 #guard viewCell true false (α := Nat) ⟨true, 0⟩ ⟨false, 132⟩ ⟨false, 132⟩ ⟨false, 0⟩ (.settled 1) (.settled 2) == .pass
 #guard viewCell false true (α := Nat) ⟨false, 132⟩ ⟨false, 0⟩ ⟨true, 0⟩ ⟨false, 7⟩ (.settled 1) (.settled 2) == .fail
 #guard viewCell false true (α := Nat) ⟨false, 132⟩ ⟨false, 0⟩ ⟨true, 0⟩ ⟨true, 0⟩ (.settled 1) (.settled 2) == .notRendered
+#guard keyCell true false "margin-left" "0px" "8px" (.settled 1) (.settled 2) == .pass
+#guard keyCell true false "width" "0px" "8px" (.settled 1) (.settled 2) == .fail
+#guard keyCell false false "margin-left" "0px" "8px" (.settled 1) (.settled 2) == .fail
 
 end Fw.Gate.Settle

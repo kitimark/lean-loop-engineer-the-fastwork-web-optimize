@@ -465,9 +465,10 @@ export function collectInPage(arg) {
   // Whether the engine has the node's subtree skipped (content-visibility:auto, off screen): rendered by the DOM
   // (checkVisibility() true) but not by contentVisibilityAuto. Read for every probed node BEFORE any rect or style is read: a
   // style read forces a skipped subtree's lock open for the length of the read (premise cv.read-forces-lock). An engine without
-  // the option reports nothing skipped. Premise cv.skip-flag. Only when the caller asks (`flagSkipped`: the probes, which load
-  // fresh): bringing a part into view starts its animations (commission typing), and a sweep carries that state to all later stops
-  // (CI run 39084163586: 111 of 114 samples of one sweep ended unsettled), so sweeps read as before.
+  // the option reports nothing skipped. Premise cv.skip-flag. Only when the caller asks (`flagSkipped`): the probes, which bring a
+  // flagged part into view (run.mjs bringSkipped), and the sweeps, which only read the flag (Lean Fw.Gate.Settle.flagSweeps). A sweep
+  // must not bring a part into view: that starts its animations (commission typing) and carries the state to all later stops (CI run
+  // 39084163586: 111 of 114 samples of one sweep ended unsettled).
   const skippedOf = new Map();
   if (arg.props && arg.flagSkipped) {
     for (const roles of Object.values(arg.parts)) {
@@ -498,7 +499,8 @@ export function collectInPage(arg) {
         const style = {};
         for (const n of names) style[n] = cs.getPropertyValue(n);
         // An item read in a skipped subtree carries `skipped: true`: the gate brings its part into view and reads again
-        // (run.mjs, Lean Fw.Gate.Settle.view); one still skipped then is masked by summary.mjs maskNotRendered.
+        // (run.mjs, Lean Fw.Gate.Settle.view); one still skipped then is masked by summary.mjs maskNotRendered, and in a sweep its
+        // layout-output keys (margins) by maskKeys (Lean keyMasked).
         // `inline`: the properties of the role's anchors.json `skipIfInline` that the element's own style attribute sets (a hover
         // raise written by a script); Lean (Fw.Gate.cmpAt) leaves such a property out of that pair on the original's element only.
         const inline = (inlineNames || []).filter((n) => el.style.getPropertyValue(n) !== '');
