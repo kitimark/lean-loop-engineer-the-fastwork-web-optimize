@@ -7819,7 +7819,8 @@
     "apps/runner/package.json",
     "apps/runner/test/bin-mode.test.ts",
     "docs/team/handoffs/runner-bin-mode.md"
-   ]
+   ],
+   "evidence": "d5c4c07"
   },
   {
    "devices": [
