@@ -229,7 +229,7 @@ test('the recorded arm.large.gen2 pipeline: same digests, credits at 12 a minute
 });
 
 test('the recorded fixtures carry no token, e-mail, home path or account name', () => {
-  for (const n of ['premise-tests', 'premise-tests-large']) {
+  for (const n of ['premise-tests', 'premise-tests-large', 'webkit-sim']) {
     const text = readFileSync(join(ROOT, 'scripts', 'circleci-fixtures', `${n}.json`), 'utf8');
     assert.ok(!/\/Users\/|kitimark|markmark/.test(text), n);
     assert.deepEqual([...new Set(text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/g) ?? [])], ['noreply@anthropic.com'], n);
@@ -264,7 +264,7 @@ test('dry run: prints the requests with the token redacted, and the fixture comp
   assert.match(text, /POST https:\/\/circleci\.com\/api\/v2\/project\/<project-slug>\/pipeline\/run/);
   assert.match(text, /Circle-Token: <redacted>/);
   assert.ok(!text.includes('fixture-token'));
-  assert.match(text, /webkit-sim \(github: sim \(original, 430, 1, abc1234d, v1\)\): verdicts equal; duration 0\.50x GitHub; queue github 60s \(run start to job start\), circleci 85s; credits 2000/);
+  assert.match(text, /webkit-sim \(github: sim \(original, 430, 1, 9145de1d8afc378a2b260530f3cb01745325cc7d, v1\)\): verdicts equal; duration 0\.19x GitHub; queue github 87s \(run start to job start\), circleci 58s; credits 992/);
   assert.equal(r.cmp.code, 0);
 });
 
