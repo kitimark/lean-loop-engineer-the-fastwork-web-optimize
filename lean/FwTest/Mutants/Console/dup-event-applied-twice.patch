@@ -2,8 +2,8 @@ Design mutant (m0-mutants, PLAN V-r): idempotency: a redelivered event key is ap
 
 --- a/Fw/Console.lean
 +++ b/Fw/Console.lean
-@@ -470,7 +470,7 @@
- $$\operatorname{step}(\sigma, e) = \begin{cases} (\sigma,\ \mathrm{accepted}(\mathrm{true})) & \mathit{key}(e) \in S \\ (\sigma,\ \mathrm{refused}(w)) & \text{else if } \operatorname{check}(\sigma, e) = w \\ \big(\operatorname{accept}(\sigma, e)[S := \mathit{key}(e) :: S],\ \mathrm{accepted}(\mathrm{false})\big) & \text{otherwise} \end{cases}$$
+@@ -354,7 +354,7 @@
+ list.
  -/
  def step (s : State) (e : Event) : State × Outcome :=
 -  if s.seen.contains e.key then (s, .accepted true)
