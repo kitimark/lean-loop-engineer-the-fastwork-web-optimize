@@ -7438,6 +7438,30 @@
     "packages/contracts/golden/console/**",
     "docs/team/handoffs/console-builds-tab.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gh-status",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "GitHub platform status in fw watch and the console Health tab: read githubstatus.com summary (Actions, Pages, Webhooks components and open incidents) each watch pass; a sys.ghDegraded alert opens/closes; ci.slow and ci.queued alerts raised while Actions is degraded name the incident; Health shows the component states and incident with its last update. Status-to-alert rules decided in Lean (Fw.Obs.Health) with goldens",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Wire/Obs.lean",
+    "lean/Fw.lean",
+    "lean/FwCore*.lean",
+    "packages/contracts/golden/obs/**",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/watch*",
+    "apps/console-api/src/health.ts",
+    "apps/console-api/test/health*",
+    "apps/console-web/src/Health*.tsx",
+    "research/notes/2026/10-2*-gh-status*.md",
+    "docs/team/handoffs/gh-status.md"
+   ]
   }
  ],
  "deadline": {
