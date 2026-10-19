@@ -294,7 +294,7 @@ function Dash({ side, playing }: { side: 'left' | 'right'; playing: boolean }) {
             ) : null}
           </linearGradient>
         </defs>
-        <GenShape art={art('platform.dashLeft')} className={cx(v.highlight, playing && v.highlightActive)} stroke={`url(#${id})`} />
+        <GenShape art={art(side === 'left' ? 'platform.dashLeft' : 'platform.dashRight')} className={cx(v.highlight, playing && v.highlightActive)} stroke={`url(#${id})`} />
       </svg>
     </span>
   );
