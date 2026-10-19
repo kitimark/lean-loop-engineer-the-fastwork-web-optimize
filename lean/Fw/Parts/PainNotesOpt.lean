@@ -925,6 +925,12 @@ theorem naive_not_E :
     (runN lineOps line0 [.move () 1, .scroll true, relayout]).dom () = 1 ∧
       (runO lineOps line0 [.move () 1, .scroll true, relayout]).dom () = 0 := by decide
 
+/-- **The original port keeps a moved note after a layout to its committed value.** Without a commit between the move
+and the layout, React's memory still holds 0, so the layout writes nothing and the note stays at 1.
+
+The covered commit is what puts the note back in `naive_not_E`. -/
+theorem move_layout_stale : (runO lineOps line0 [.move () 1, relayout]).dom () = 1 := by decide
+
 /-- The event a golden word names: `cover`, `open`, `key`, `add` or `layout`.
 
 The trace vocabulary the TS replay shares. -/
