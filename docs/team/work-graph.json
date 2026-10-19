@@ -7373,7 +7373,8 @@
     "packages/contracts/golden/parts/**",
     "research/notes/2026/10-19-people-layout*.md",
     "docs/team/handoffs/people-layout-shift.md"
-   ]
+   ],
+   "evidence": "c031f4f"
   },
   {
    "devices": [
