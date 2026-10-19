@@ -1,11 +1,10 @@
 # Handoff: latex-mathview-b2
 
 State: branch worktree-wf_76a43ad0-1d2-1 (step B2 of lean-latex-removal). Commits are on this branch only.
-
 What changed
 - Retired: the mathview-differential job in lean.yml (the whole job, its negative probe included),
   `lean/scripts/mathview-cached.sh`, `docs/plan/tools/build-math-view.mjs`, the job's LakeJobsGen row, LandSpeed
-  section (b) "cone skip" and its premise rows `land.coneLocal` and `land.lintOrder` (7 premises, 34 golden cases).
+  section (b) "cone skip" and its premise rows `land.coneLocal` and `land.lintOrder` (after the main merge with land-fwcore-key: 8 premises, 44 golden cases).
   check-fast.sh runs `scripts/axiom-check.sh`.
 - MathView export: the fields english, math, mathHash and binders are gone, and so are the quantifier lint,
   ShadowLint, WhereLint, the module-cache keys, `--store`/`--stats` and `--dependents`. New: `MathView.Filter`
@@ -19,13 +18,13 @@ What changed
   notes. Artifact notes rank after every review round. It exports through `lake exe mathview --out`.
 - `docs/team/tools/math-artifact.md` is the procedure. The math-reviewer and page-writer files point to it.
   `docs/plan/math-view.html` is frozen and carries a header line that says so.
-
+Main merge: LandSpeed keeps main's two-phase selection, drops cone skip; LakeJobsGen from `ci-paths --write`.
 Verified: lake build (Fw, mathview, FwTest via the commit hook), runner land-inputs/land-prelock/incidents,
 ci-paths tests and `--check`, test-math-pending, check.sh at the final commit.
 
 Open
 - Fw.Spec.ConeMiss is kept. Incident inc-ci-hardcoded-expect cites the file, and the incident lint needs it to exist.
-- Item (6) said to keep the lean.yml:195 probe, but it sat inside the retired job, so it went with the job.
+- The lean.yml:195 probe sat inside the retired job, so it went with the job.
 - PLAN.md, loop-plan.html and the docs `$$` strip belong to other steps (C/D, latex-generators).
 
 Read first: lean/MathView.lean (`Filter`), lean/MathViewMain.lean (`main`), docs/team/tools/math-artifact.md.
