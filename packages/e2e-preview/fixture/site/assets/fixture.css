@@ -1,0 +1,2 @@
+@font-face { font-family: "Fixture Playpen"; src: url(/selling/fonts/playpen-sans-latin.woff2) format("woff2"); font-display: swap; }
+body { font-family: "Fixture Playpen", sans-serif; margin: 8px; }
