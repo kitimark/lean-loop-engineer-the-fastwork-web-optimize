@@ -1,0 +1,10 @@
+[{"sec": "hero.countdown",
+  "reason":
+  "countdown digits are the time left until launch, read from the clock at render time",
+  "key": "*",
+  "check": "text"},
+ {"sec": "morph.countdown",
+  "reason":
+  "countdown digits are the time left until launch, read from the clock at render time",
+  "key": "*",
+  "check": "text"}]

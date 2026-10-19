@@ -209,7 +209,7 @@ G_{10} &= [\texttt{packages/snapshot-extract/**}, \texttt{packages/gate-breakpoi
 &\quad \texttt{.github/actions/gate-engine/**}, \operatorname{own}(\texttt{snapshot-extract.yml})] \\
 w_{11} &= (\texttt{visual-diff.yml}, B, G_{11}) \\
 G_{11} &= [\texttt{packages/visual-diff/**}, \texttt{packages/gate-breakpoints/src/**}, \texttt{packages/gate-breakpoints/package.json}, \texttt{packages/contracts/golden/gate/**}, \\
-&\quad \texttt{apps/site/**}, \texttt{@}\mathrm{breakgen}, \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \\
+&\quad \texttt{packages/contracts/golden/port/**}, \texttt{scripts/port/**}, \texttt{apps/site/**}, \texttt{@}\mathrm{breakgen}, \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \\
 &\quad \texttt{package.json}, \texttt{pnpm-lock.yaml}, \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/verify-snapshot.mjs}, \\
 &\quad \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \texttt{.github/actions/gate-engine/**}, \\
 &\quad \operatorname{own}(\texttt{visual-diff.yml})] \\
@@ -283,7 +283,8 @@ def table : List Wf := [
     ".github/actions/gate-engine/**", own "snapshot-extract.yml"]⟩,
   ⟨"visual-diff.yml", ciMain, [
     "packages/visual-diff/**", "packages/gate-breakpoints/src/**", "packages/gate-breakpoints/package.json",
-    "packages/contracts/golden/gate/**", "apps/site/**", "@breakgen", "snapshot/**", "snapshot.lock.json", "package.json",
+    "packages/contracts/golden/gate/**", "packages/contracts/golden/port/**", "scripts/port/**", "apps/site/**",
+    "@breakgen", "snapshot/**", "snapshot.lock.json", "package.json",
     "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs",
     ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
     own "visual-diff.yml"]⟩,
