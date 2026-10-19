@@ -9,11 +9,12 @@ import { availableParallelism, loadavg } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
-import { begin, span } from "./timing.ts";
+import { begin, record, span } from "./timing.ts";
+import { circleciAdapter, DEFAULT_ALLOW, githubAdapter, runTiered, spawnWait, type Adapter, type Provider } from "./land-remote.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { checkFailKind, failedStages, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
-import { ghCost } from "./run.ts";
+import { chargedGh, fwcoreCall, ghCost } from "./run.ts";
 import { chargedOnce, realEnv, type Env } from "@fw/gh-budget";
 
 export type Http = {
@@ -43,6 +44,8 @@ export type LandOptions = {
   submit?: (cmd: Command) => Promise<{ status: number; body: any }>;
   /** checks run in the main checkout after the merge, before it is committed; default: derived from the changed files */
   checks?: string[][];
+  /** the remote tier waits on the land lane of these providers (task land-wait); `false` runs every check on this Mac. Default: GitHub only. */
+  remote?: false | { allow?: Provider[]; adapters?: Partial<Record<Provider, Adapter>>; sliceS?: number; deadlineS?: number; waitsLeft?: number };
   /** Max checks running at once (default: the number of cores). */
   concurrency?: number;
   env?: Record<string, string | undefined>;
@@ -556,7 +559,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   // the binary they run). A bounded pool (cores) starts a check when its dependencies have finished.
   // Lean `selectTwoPhase`: phase 1 builds fwcore in the merge-tree worktree when the change reaches the build, phase 2 selects
   // the fwcore users by the digests of main0's binary and that build (unknown when the build failed or the tree is dirty).
-  const twoPhaseChecks = async (dir: string, main0: string, c: string): Promise<string[][]> => {
+  const twoPhaseChecks = async (dir: string, main0: string, c: string): Promise<Check[]> => {
     const d0 = storedDigest(mainDir, main0);
     let d1: Digest = d0;
     if (changed.some((p) => inScope(FWCORE_BUILD_READS, p))) {
@@ -565,7 +568,26 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       lines.push(`fwcore digest: ${main} ${d0?.slice(0, 12) ?? "unknown"}, merge ${d1?.slice(0, 12) ?? "unknown"}: fwcore users ${binMoved(changed, d0, d1) ? "selected" : "skipped"}`);
     }
     if (d1) storeDigest(mainDir, c, d1);
-    return checksWithReads(dir, changed, d0, d1).map((x) => x.argv);
+    return checksWithReads(dir, changed, d0, d1);
+  };
+  // Lean `Fw.Console.LandRemote`: the Lean local tier runs here, the remote tier on the land lane of the allowed providers (land-remote.ts)
+  const tieredChecks = async (dir: string, main0: string, c: string, list: Check[]): Promise<string | null> => {
+    if (o.remote === false || !o.task) return runChecks(dir, list.map((x) => x.argv));
+    const r = o.remote ?? {};
+    const call = fwcoreCall(mainDir);
+    const laneChanged = git(mainDir, ["diff", "--name-only", main0, c]).split("\n").filter(Boolean);
+    const all = candidateChecks(dir);
+    const laneSel = new Set(selectTwoPhase(all, laneChanged, null, null));
+    const laneIds = (call({ op: "console.landTier", ids: all.filter((x) => laneSel.has(x.id)).map((x) => x.id) }) as { remote: string[] }).remote;
+    const res = await runTiered({
+      call, checks: list, laneIds, task: o.task, mergeSha: c, allow: r.allow ?? DEFAULT_ALLOW,
+      adapters: r.adapters ?? { github: githubAdapter({ git: (a) => git(mainDir, a), wait: spawnWait(mainDir), gh: chargedGh(realEnv(mainDir)) }), circleci: circleciAdapter(() => tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/circleci.mjs`])) },
+      runLocal: async (argv) => { const bad = await runChecks(dir, argv); return { bad, kind: badKind }; },
+      log: (l) => lines.push(l), span: (step, startMs, durMs, exit) => record({ tool: "fw land", step, startMs, durMs, exit }, mainDir),
+      sliceS: r.sliceS, deadlineS: r.deadlineS, waitsLeft: r.waitsLeft,
+    });
+    if (res.bad !== null) badKind = res.kind as Kind;
+    return res.bad;
   };
   let badKind: Kind = "checks";
   const runChecks = async (cwd: string, list: string[][]): Promise<string | null> => {
@@ -687,7 +709,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         let marks = "";
         try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
         if (marks) return { kind: "refuse", msg: `conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, k: "conflict" };
-        const bad = await runChecks(slot.dir, o.checks ?? await twoPhaseChecks(slot.dir, main0, c));
+        const bad = o.checks ? await runChecks(slot.dir, o.checks) : await tieredChecks(slot.dir, main0, c, await twoPhaseChecks(slot.dir, main0, c));
         let act = prelockAction(git(mainDir, ["rev-parse", "HEAD"]), main0, bad === null, attempt, maxRetry);
         if (act === "refuse") return { kind: "refuse", msg: bad!, k: badKind };
         if (act === "ff") {

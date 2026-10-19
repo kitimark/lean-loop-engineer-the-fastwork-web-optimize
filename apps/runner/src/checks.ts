@@ -5,6 +5,7 @@
 // This file holds no decision. TS stand-in: the skipped-test counts are read from vitest / node:test summaries here.
 import { execFileSync, spawn } from "node:child_process";
 import { candidateChecks, FWCORE_USERS, selectTwoPhase, type Check } from "./land.ts";
+import { remoteDigest } from "./land-remote.ts";
 import { UsageError } from "./lib.ts";
 import { fwcoreCall, type FwCall } from "./run.ts";
 
@@ -102,6 +103,7 @@ export async function checksCli(argv: string[], cwd: string, deps: { core?: FwCa
   const tierOf = (id: string) => (p.remote.includes(id) ? "remote" : "local");
   const chosen = p.selected.filter((c) => (a.tier ? tierOf(c.id) === a.tier : true));
   log(`checks: ${p.changed.length} changed files; selected ${p.selected.length}: ${p.selected.map((c) => `${tierOf(c.id)}:${c.id}`).join(" ") || "none"}`);
+  if (a.tier === "remote") log(`LANE digest=${remoteDigest(core, chosen.map((c) => c.id))}`); // land.yml binds the run to this (Lean console.landDigest)
   if (a.list) { for (const c of chosen) log(`${tierOf(c.id)} ${c.id}`); return 0; }
   if (chosen.length === 0) { log(`checks: no ${a.tier ?? "selected"} checks`); return 0; }
   return runTier(chosen, root, core, deps.run ?? spawnRunner, log);
