@@ -104,7 +104,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       const mode = modeOf(dir);
       if (dir && mode !== "off") {
         const q = request(p);
-        const reply = ask(fwcorePath(dir), q);
+        const reply = ask(fwcorePath(dir), q, Number(process.env.FW_SPAWN_GUARD_TIMEOUT_MS) || 3000);
         appendLine(join(dir, "spool", `${safeName(p.agent_id)}.jsonl`), record(p, reply));
         const out = verdict(mode, q.req, reply);
         if (out) process.stdout.write(JSON.stringify(out) + "\n");

@@ -37,6 +37,7 @@ export function PeopleCard({ variant, o, deck, pill }: PeopleCardProps) {
     if (!section || !card || !header) return;
     const reduce = matchList('mq.rm-reduce');
     const narrow = matchList('mq.w-le-860');
+    const c860 = variant === 'mq' ? matchList('mq.c860') : null;
     const pain = () => document.querySelector<HTMLElement>(PAIN);
     const env: CardEnv = {
       reduced: () => reduce?.matches ?? false,
@@ -63,7 +64,7 @@ export function PeopleCard({ variant, o, deck, pill }: PeopleCardProps) {
         },
       },
     };
-    const driver = createCardDriver(env, getClock());
+    const driver = createCardDriver(env, getClock(), { gate: () => c860?.matches === true });
     let active = false;
     const off = getScrollEngine().register('people.card', ORDER.card, () => {
       if (active) driver.onScroll();
@@ -76,16 +77,18 @@ export function PeopleCard({ variant, o, deck, pill }: PeopleCardProps) {
     const onMedia = () => driver.onMediaChange();
     reduce?.addEventListener('change', onMedia);
     narrow?.addEventListener('change', onMedia);
+    c860?.addEventListener('change', onMedia);
     driver.runNow();
     return () => {
       reduce?.removeEventListener('change', onMedia);
       narrow?.removeEventListener('change', onMedia);
+      c860?.removeEventListener('change', onMedia);
       stopActive();
       section.removeAttribute('data-fw-scene');
       off();
       driver.dispose();
     };
-  }, []);
+  }, [variant]);
 
   const word = COPY.titleWord;
   const at = word.indexOf('o');
