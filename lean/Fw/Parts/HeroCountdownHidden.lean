@@ -265,7 +265,7 @@ def gInit (D : K → V) : Gate K V := ⟨false, fun _ => none, D⟩
 /-- The gate's invariant against the faithful faces $D$: open, it shows $D$ and holds nothing; closed, each face's held
 value (or, if none, its shown value) is $D$'s.
 
-$$\forall g,\ \forall D:\ \operatorname{Inv}(g, D) \iff \begin{cases} \forall k:\ g.\mathrm{pend}(k) \mathbin{?\!?} g.\mathrm{shown}(k) = D(k) & g.\mathrm{hidden} \\ g.\mathrm{shown} = D \land \forall k:\ g.\mathrm{pend}(k) = \bot & \lnot g.\mathrm{hidden} \end{cases}$$ -/
+$$\forall g,\ \forall D:\ \operatorname{Inv}(g, D) \iff \begin{cases} \forall k:\ g.\mathrm{pend}(k) \mathbin{?\!?} g.\mathrm{shown}(k) = D(k) & g.\mathrm{hidden} \\ \forall k:\ g.\mathrm{shown}(k) = D(k) \land g.\mathrm{pend}(k) = \bot & \lnot g.\mathrm{hidden} \end{cases}$$ -/
 def Inv (g : Gate K V) (D : K → V) : Prop :=
   if g.hidden then ∀ k, (g.pend k).getD (g.shown k) = D k else g.shown = D ∧ ∀ k, g.pend k = none
 
