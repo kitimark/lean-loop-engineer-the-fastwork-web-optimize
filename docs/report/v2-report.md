@@ -598,8 +598,12 @@ one profile; the after round took 247 min for 7 parts plus both profiles and the
 | census.drawingAreaPx (stable) | +8.8e7 | +9.7e7 |
 
 MEASURED, runs 39253166643 / 39253172750 (swipe-v1) and 39253177864 / 39253184136 (touch) [W2:91-101]. The preset
-JSON at `c6912998` lists `"hero.countdown":"strip"` (CONFIRMED). No counts run exists for the 9-flag preset, so the
-numbers above include the strip; on its part page it added 21 recalcs (1161 -> 1182, a different trajectory, so its share of the whole-page count is INFERRED) (§7).
+JSON at `c6912998` lists `"hero.countdown":"strip"` (CONFIRMED). **Re-run with the 9-flag preset** (strip out, `639f9475`,
+same frozen image 39049264131, 3 shards per arm): swipe-v1 1832 -> 821 (all shards agree; runs 39292304129 /
+39292310716); swipe-touch-v1 1864 -> 856 or 857 (runs 39292317241 / 39292323514). MEASURED. So dropping the strip
+changed no whole-page recalc count. One new fact: the 9-flag touch arm is not deterministic by one recalc. Shards r1
+and r3 count 2 recalcs at frame 498 of 531, shard r2 counts 1 (MEASURED); the 10-flag run counted 856 in 3 of 3. Its
+cause is not examined (§7).
 
 **Per flag, before and after.**
 
@@ -911,7 +915,7 @@ Each line names what is missing, what the result lacks without it, and its task 
 > **SLOT people-layout-shift** (filled by the lead before 11:15; else it stays here as not done). Per width and
 > engine: the boxes and shifts that differ, each with its cause, with run ids.
 
-- No counts run of the 9-flag preset. The combined counts of §4.6 include hero.countdown:strip. The C3 gate was re-run without it (run 39282664077); the counts were not.
+- The 9-flag swipe-touch-v1 arm differs by one recalc between shards at frame 498 (856 or 857, run 39292323514, §4.6); the cause is not examined.
 - The WebKit phone-rotation cell (matchMedia =Lean, 2 readings, stops 1 and 3) cannot be compared, so every WebKit gate verdict is "incomplete" (an accepted limit; `gate-webkit-red` not landed).
 - Gate box-model coverage: unanchored people descendants and section height are not gated, and the "host font" exclusion premise is stale since the fonts ship [C3].
 - The narrowed-run difference of §5.2 is not explained.
