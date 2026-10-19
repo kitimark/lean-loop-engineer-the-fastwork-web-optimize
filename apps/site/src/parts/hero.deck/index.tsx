@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { HeroCard } from '../hero.orbit/card';
-import { DECK } from '../hero.orbit/data';
+import { CARDS, DECK } from '../hero.orbit/data';
 import css from './deck.module.css';
 
 export interface HeroDeckProps {
@@ -18,8 +18,10 @@ export function HeroDeck({ variant }: HeroDeckProps) {
         <HeroCard
           key={d.slot}
           className={css[d.slot]}
-          name="Placeholder name"
-          role="Role · Place"
+          name={CARDS[d.piece]!.name}
+          role={CARDS[d.piece]!.role}
+          cover={CARDS[d.piece]!.cover}
+          avatar={CARDS[d.piece]!.avatar}
           style={{ '--orbit-rot': `${d.rotate}deg` } as CSSProperties}
         />
       ))}

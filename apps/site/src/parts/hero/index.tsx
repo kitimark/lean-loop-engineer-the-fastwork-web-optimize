@@ -40,7 +40,7 @@ function CalendarIcon() {
 /**
  * hero: the first section of the home page. Composes the sticky stage (hero.exit) with the ring (hero.orbit), the phone deck
  * (hero.deck), the copy (headline with the hand-drawn word, countdown, call to action) and the scroll cue (hero.cue).
- * The copy itself is static markup and CSS; the splash state arrives as the stage's `data-splash`. Placeholder text.
+ * The copy itself is static markup and CSS; the splash state arrives as the stage's `data-splash`.
  */
 export function Hero({ variants }: HeroProps) {
   return (
@@ -50,26 +50,26 @@ export function Hero({ variants }: HeroProps) {
       <header className={css.copy} data-fw="hero" data-fw-variant={v(variants, 'hero')}>
         <div className={css.copyMain}>
           <h1 id="start-selling-heading" className={css.title}>
-            <span className={css.line}>Placeholder headline</span>{' '}
+            <span className={css.line}>Show the world</span>{' '}
             <span className={css.words}>
-              <span>word</span> <HeroAccent variant={v(variants, 'hero.accent')} /> <span>word</span>
+              <span>what</span> <HeroAccent variant={v(variants, 'hero.accent')} /> <span>can do</span>
             </span>
           </h1>
-          <p>Placeholder supporting text.</p>
+          <p>In the age of AI, your portfolio proves why clients need you.</p>
         </div>
         <HeroCountdown variant={v(variants, 'hero.countdown')} />
         <div className={css.ctaStack}>
           <div className={css.cta}>
             <button type="button">
               <BellIcon />
-              Join list
+              Join waitlist
             </button>
           </div>{' '}
-          <a className={css.rsvp} href="#rsvp">
+          <a className={css.rsvp} href="https://f.fastwork.co/demoday" target="_blank" rel="noopener">
             <CalendarIcon />
-            RSVP
+            RSVP Demo day
           </a>{' '}
-          <p className={`${css.note} ${css.invite}`}>* Placeholder note.</p>
+          <p className={`${css.note} ${css.invite}`}>* Available October 1st, by invitation only.</p>
         </div>
       </header>
       <HeroCue variant={v(variants, 'hero.cue')} />

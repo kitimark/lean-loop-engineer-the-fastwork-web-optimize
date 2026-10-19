@@ -1,7 +1,7 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import { getClock } from '../../engine/clock';
 import { HeroCard } from './card';
-import { PIECES } from './data';
+import { CARDS, PIECES } from './data';
 import { createOrbitDriver } from './driver';
 import { CANVAS_H, CANVAS_W, CHIP, enterDelay, place, ringIndex, scatter, type Piece } from './logic';
 import { matchList } from './media';
@@ -53,7 +53,7 @@ function raise(e: React.PointerEvent<HTMLElement>) {
 /**
  * hero.orbit: the ring of ten cards and its load splash. Server render: hero in `prep`, cards at their start offsets. After
  * mount the driver (Lean `HeroOrbit`) runs the splash on the clock, then sets `data-done`; under reduced motion or at
- * width <= 600 the splash is skipped. Placeholder names and pictures.
+ * width <= 600 the splash is skipped.
  */
 export function HeroOrbit({ variant }: HeroOrbitProps) {
   const orbitRef = useRef<HTMLDivElement>(null);
@@ -99,8 +99,10 @@ export function HeroOrbit({ variant }: HeroOrbitProps) {
           {PIECES.map((p, i) => (
             <HeroCard
               key={p.id}
-              name="Placeholder name"
-              role="Role · Place"
+              name={CARDS[i]!.name}
+              role={CARDS[i]!.role}
+              cover={CARDS[i]!.cover}
+              avatar={CARDS[i]!.avatar}
               data-orbit-id={p.id}
               data-orbit-side={p.left / CANVAS_W * 100 < 50 ? 'left' : 'right'}
               data-piece={p.id}
