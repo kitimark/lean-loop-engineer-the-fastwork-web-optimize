@@ -7937,7 +7937,8 @@
     "results/waapi-touch-arm/**",
     "docs/team/handoffs/waapi-touch-arm.md",
     "packages/contracts/golden/parts/morph-tween-waapi.swipe-v1.jsonl"
-   ]
+   ],
+   "evidence": "3c694ef"
   },
   {
    "devices": [
