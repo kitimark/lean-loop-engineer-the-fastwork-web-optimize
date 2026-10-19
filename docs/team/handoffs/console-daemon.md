@@ -1,21 +1,22 @@
-# Handoff: console-daemon
+# Handoff: console-daemon (round 2)
 
-State: branch worktree-wf_8e08bb9a-7b4-1 (built on the merged preview-inspect branch worktree-wf_472752b6-0dc-1).
+State: branch worktree-wf_8e08bb9a-7b4-1, round 2 on top of 38b8290a (commit named in the report).
 
 Done
-- Lean `lean/Fw/Console/Daemon.lean`: `verified`, `startAllowed`, `stopTarget`, `restartPlan`, log line kinds
-  (`logAdmits`, four secret kinds refused, one theorem each), `login_loopback`, `login_lan_or_loopback`, `rotate`.
-  Op `console.daemon` in `lean/Fw/Wire/Console.lean`, 22 goldens in `lean/Fw/Ops/Golden.lean` ->
-  `packages/contracts/golden/console/console.daemon.jsonl` (generated: `cd lean && lake env lean --run scripts/OpsGolden.lean`).
-- CLI `apps/runner/src/console.ts`, wired as `pnpm fw console ...` in `apps/runner/src/fw.ts` ("console" is in NO_API_GROUPS,
-  it needs no running console). Detached spawn of `apps/console-api/src/main.ts` (own session, stdin null, log append).
-- `apps/console-api/src/main.ts`: api.json now also holds `lan`. `preview/link.ts` NO_TTY_MESSAGE points to /owner/login.
-- Loopback login was already admitted by Lean (`allow` login class has no lan condition); now named by `login_loopback` and
-  tested (`lan-owner.test.ts`, loopback login -> token -> session).
-- Tests: `apps/runner/test/console-daemon.test.ts` (real detached console, spare port, temp dir, FW_CONSOLE_KEYCHAIN=off;
-  ~95 s), `owner-link.test.ts` (no-tty: link never built). Docs: `docs/team/tools/console.md`.
+- Lean `lean/Fw/Console/Daemon.lean`: `verified`, `unverifiedAlive`, `startAllowed r a alive`, `stopTarget`, `restartPlan`,
+  `rotate`, `logWarns` (50 MiB), login theorems; one theorem per branch. No `$$` blocks. The log-admission rule (Line,
+  logAdmits, `line` op kind, goldens) is deleted: the guarantee is `no_file_sink`/`no_nontty_sink` plus the whole-log test.
+- Op `console.daemon` (`lean/Fw/Wire/Console.lean`): start takes `alive`, reason `unverifiedAlive`; rotate returns `warn`.
+  Goldens: `cd lean && lake env lean --run scripts/OpsGolden.lean` -> `packages/contracts/golden/console/console.daemon.jsonl`.
+- CLI `apps/runner/src/console.ts`: one Lean call per probe; start refuses a live silent pid; start prints the keychain hint
+  when `GET /owner/login` is 503; stop checks `kill(-pid,0)` plus recorded `pstart`; `logs -f` reopens on a new inode;
+  `status` prints log size and warns.
+- Tests: `apps/runner/test/console-daemon.test.ts` (7 tests, real detached console, FW_CONSOLE_KEYCHAIN=off, fake preview
+  group, live silent pid, rotation follow); `lan-owner.test.ts` loopback login then preview route with the fw_preview cookie.
+  `scripts/wallclock-allow.json` has the 120_000 hang-cap entry.
 
-Verified: console-api `pnpm test` 444 passed; runner console-daemon test 4 passed; the CLI by hand on a spare port.
-Open: the user's own check of passphrase login and previews on the live console; lead updates the post-land routine memory
-(step 3 = `pnpm fw console restart --lan`) and work-graph; stop does not SIGKILL a console that ignores SIGTERM.
-Conventions: Lean decides, TS is glue; no TS stand-ins for decisions. Read first: `docs/team/tools/console.md`.
+Verified: runner 1145 passed (40 files), console-api 444 passed (27 files), ci-paths 40 passed, `sh lean/scripts/check.sh` green.
+Accepted limits: rotation at start only (console.md, Daemon.lean doc, start output); stop never SIGKILLs a console that
+ignores SIGTERM; the user's own check of passphrase login and previews on the live console is the final confirmation.
+Open: lead updates the post-land routine memory (`pnpm fw console restart --lan`) and the work-graph.
+Read first: `docs/team/tools/console.md`.

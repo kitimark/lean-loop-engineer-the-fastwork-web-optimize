@@ -12,18 +12,21 @@ CLI (`apps/runner/src/console.ts`) is I/O glue.
 | `pnpm fw console start [--lan] [--port 8787]` | starts the console and returns after `GET /api/health` answers; prints pid, console port, preview port, LAN on/off and the log path. Refused (exit 1) when a console is verified. |
 | `pnpm fw console stop` | SIGTERM to the verified pid only; waits for exit; the console's own shutdown stops the previews it owns, and `stop` checks that none of the recorded preview processes is left. |
 | `pnpm fw console restart [--lan] [--port N]` | stop (if one is verified), then start. Flags are not remembered: pass `--lan` each time. |
-| `pnpm fw console status` | pid, uptime, ports, LAN on/off, previews running, log path. Exit 1 when stopped. |
+| `pnpm fw console status` | pid, uptime, ports, LAN on/off, previews running, log path and size (warns above 50 MiB). Exit 1 when stopped. |
 | `pnpm fw console logs [-n N] [-f]` | last N lines (default 50) of `console.log`; `-f` follows until Ctrl-C. |
 
 Verified: `.fw-console/api.json` names a pid, and the port in that file answers `/api/health` with the same pid in
 `x-fw-console-pid` (Lean `verified`; a stale file or a reused pid is never signalled; `stop` then says nothing is
-running). The log rotates at 5 MiB: the old file becomes `console.log.1` at the next start.
+running). A recorded pid that is alive but did not answer (a busy console) also refuses `start`
+(Lean `start_refused_unverified_alive`; run `status`, then `stop`). The log rotates at 5 MiB: the old file becomes
+`console.log.1` at the next start. **Accepted limit: rotation runs at start only**; a console that runs for days appends
+without a bound, so `status` prints the log size and warns above 50 MiB (`pnpm fw console restart` rotates).
 
 ## Signing in
 
-- The console log and stdout never hold the owner link or an owner token (Lean `log_refuses_owner_link`,
-  `log_refuses_owner_token`, `log_refuses_passphrase`, `log_refuses_keychain`; `no_file_sink`). With no terminal the
-  console prints no link.
+- The log holds no owner link or token because `link.ts` never builds the link without a terminal (Lean `no_file_sink`,
+  `no_nontty_sink`), and a daemon test reads the whole log for it. No log-line rule exists in Lean.
+  With no keychain passphrase, login is disabled and `start` prints the keychain command instead of the sign-in line.
 - Sign in with the owner passphrase (keychain item `fw-console-owner`) at `http://127.0.0.1:<port>/owner/login`, or at the
   LAN address printed in the log when started with `--lan` (needs a passphrase of at least 12 characters). Loopback is
   admitted by Lean (`login_loopback`), the LAN with the right Host (`login_lan_or_loopback`). After login the browser holds

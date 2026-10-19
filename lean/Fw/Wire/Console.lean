@@ -41,7 +41,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.previewGrant` | `kind` (`issue`: may a grant be issued, from `lan`; `redeem`: a grant token is presented, with `known`, `used`, `issuedAt`, `now` (ms)), `lan` | `allow`, `verdict` (redeem: `ok`/`lan`/`unknown`/`used`/`expired`), `ttlMs` (issue), `cookieMs` (`Fw.Console.Preview.Owner.issueAllowed`, `redeem`) |
 | `console.ownerAction` | `kind` (`owner`: an owner action, needs the bearer token and an Origin; `command`: any other non-GET route, an Origin if present; `login`: an Origin, no token), `bearer` (a valid owner token in the Authorization header), `origin`? ({host, port} or null: none sent), `host`? (the origin of the Host header when it names this console, else null), `extra` [{host, port}] (configured web origins), `previewPort`? (null = unset: nothing is trusted) | `allow`, `trusted` (the computed trusted origins, none on the preview port) (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`) |
 | `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
-| `console.daemon` | `kind`: `start` (`recorded`? pid in api.json, `answered`? pid the health request reported), `stop` (same), `restart` (same), `line` (`line`: a log line kind), `rotate` (`size`, `limit`? default 5 MiB) | start: `allow`, `verified` (pid or null), `reason` (`ok`/`running`); stop: `target` (the only pid to signal, or null), `reason` (`ok`/`notRunning`); restart: `steps` [{step: `stop`+`pid` / `start`}]; line: `admit`, `secret`; rotate: `rotate`, `limit` (`Fw.Console.Daemon.startAllowed`, `stopTarget`, `restartPlan`, `logAdmits`, `rotate`) |
+| `console.daemon` | `kind`: `start` (`recorded`? pid in api.json, `answered`? pid the health request reported, `alive`? whether the recorded pid exists), `stop` (same), `restart` (same), `rotate` (`size`, `limit`? default 5 MiB) | start: `allow`, `verified` (pid or null), `reason` (`ok`/`running`/`unverifiedAlive`); stop: `target` (the only pid to signal, or null), `reason` (`ok`/`notRunning`); restart: `steps` [{step: `stop`+`pid` / `start`}]; rotate: `rotate`, `limit`, `warn` (size above 50 MiB), `warnLimit` (`Fw.Console.Daemon.startAllowed`, `stopTarget`, `restartPlan`, `rotate`, `logWarns`) |
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
 | `console.landTier` | `ids` [check ids] | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept) |
 | `console.landLane` | `exitOk`, `coreUser`, `skipped` (skipped plus todo tests the summary reports; `null` when no summary was recognised) | `verdict` (`pass`/`fail`/`skipped`/`unknown`), `ok` (`Fw.Console.LandTier.laneVerdict`) |
@@ -530,7 +530,7 @@ def opBuildsPicker (req : Json) : Except String Reply := do
   pure [("searches", Json.arr ((picker keys).map Json.str).toArray), ("current", Json.str (choose keys cur))]
 
 open Fw.Console.Daemon in
-/-- `console.daemon` (`Fw.Console.Daemon`): what `fw console start|stop|restart` may do, which log line kinds are admitted, and when the log is rotated. -/
+/-- `console.daemon` (`Fw.Console.Daemon`): what `fw console start|stop|restart` may do, when the log is rotated and when status warns about its size. -/
 def opDaemon (req : Json) : Except String Reply := do
   let pid (k : String) : Except String (Option Nat) := match opt req k with
     | none | some .null => pure none
@@ -539,7 +539,9 @@ def opDaemon (req : Json) : Except String Reply := do
   match ← str req "kind" with
   | "start" =>
     let r ← pid "recorded"; let a ← pid "answered"
-    pure [("allow", .bool (startAllowed r a)), ("verified", pj (verified r a)), ("reason", .str (if startAllowed r a then "ok" else "running"))]
+    let live ← boolD req "alive" false
+    pure [("allow", .bool (startAllowed r a live)), ("verified", pj (verified r a)),
+      ("reason", .str (if (verified r a).isSome then "running" else if unverifiedAlive r a live then "unverifiedAlive" else "ok"))]
   | "stop" =>
     let t := stopTarget (← pid "recorded") (← pid "answered")
     pure [("target", pj t), ("reason", .str (if t.isSome then "ok" else "notRunning"))]
@@ -548,17 +550,13 @@ def opDaemon (req : Json) : Except String Reply := do
     pure [("steps", Json.arr (steps.toArray.map fun s => match s with
       | .stop p => Json.mkObj [("step", .str "stop"), ("pid", .num p)]
       | .start => Json.mkObj [("step", .str "start")]))]
-  | "line" =>
-    let name ← str req "line"
-    match Line.ofName? name with
-    | some l => pure [("admit", .bool (logAdmits l)), ("secret", .bool l.secret)]
-    | none => throw "field line: unknown line kind"
   | "rotate" =>
     let limit ← match opt req "limit" with
       | none => pure logLimit
       | some _ => nat req "limit"
-    pure [("rotate", .bool (rotate (← nat req "size") limit)), ("limit", .num limit)]
-  | _ => throw "field kind: expected start, stop, restart, line or rotate"
+    let size ← nat req "size"
+    pure [("rotate", .bool (rotate size limit)), ("limit", .num limit), ("warn", .bool (logWarns size)), ("warnLimit", .num logWarnLimit)]
+  | _ => throw "field kind: expected start, stop, restart or rotate"
 
 /-! ## Dispatch -/
 

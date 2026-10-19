@@ -1,6 +1,6 @@
-import { afterAll, describe, expect, it } from "vitest";
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import { execFileSync, spawn } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync, renameSync, appendFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -32,13 +32,17 @@ describe("fw console (detached)", () => {
     expect(await consoleCli(["start", "--port", String(port)], deps())).toBe(0);
     const pid = pidOf();
     expect(outs.join("\n")).toContain(`pid ${pid}`);
+    // FW_CONSOLE_KEYCHAIN=off: login is disabled, so start prints the keychain hint, not the sign-in line
+    expect(outs.join("\n")).toContain("owner login is DISABLED");
+    expect(outs.join("\n")).toContain("security add-generic-password");
+    expect(outs.join("\n")).not.toContain("sign in with the owner passphrase");
     expect(alive(pid)).toBe(true);
     expect((await fetch(`http://127.0.0.1:${port}/api/health`)).headers.get("x-fw-console-pid")).toBe(String(pid));
 
     outs.length = 0;
     expect(await consoleCli(["status"], deps())).toBe(0);
     const st = outs.join("\n");
-    expect(st).toContain(`pid ${pid}`); expect(st).toContain(`:${port}`); expect(st).toContain("LAN off"); expect(st).toContain("console.log");
+    expect(st).toContain(`pid ${pid}`); expect(st).toContain(`:${port}`); expect(st).toContain("LAN off"); expect(st).toContain("console.log"); expect(st).toMatch(/\(\d+\.\d MiB\)/);
 
     errs.length = 0;
     expect(await consoleCli(["start", "--port", String(port)], deps())).toBe(1);
@@ -95,4 +99,64 @@ describe("fw console (detached)", () => {
     await expect(consoleCli(["bogus"], deps())).rejects.toThrow(/usage/);
     await expect(consoleCli(["start", "--port", "x"], deps())).rejects.toThrow(/usage/);
   }, 120_000);
+
+  it("start refuses when api.json names a live pid that did not answer", async () => {
+    const port = await free();
+    const quiet = spawn("sleep", ["60"], { stdio: "ignore", detached: true });
+    try {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, "api.json"), JSON.stringify({ port, pid: quiet.pid }));
+      errs.length = 0;
+      expect(await consoleCli(["start", "--port", String(port)], deps())).toBe(1);
+      expect(errs.join("\n")).toMatch(/alive but did not answer/);
+      outs.length = 0;
+      expect(await consoleCli(["status"], deps())).toBe(1);
+      expect(outs.join("\n")).toContain("UNRESPONSIVE");
+      expect(alive(quiet.pid!)).toBe(true); // nothing was signalled
+    } finally { process.kill(quiet.pid!, "SIGKILL"); rmSync(join(dir, "api.json"), { force: true }); }
+  });
+
+  it("stop checks the preview process group: a left-over group is reported, a reused pid is not", async () => {
+    const port = await free();
+    expect(await consoleCli(["start", "--port", String(port)], deps())).toBe(0);
+    // a fake preview: a shell leader in its own group with a child, as a build or server grandchild would be
+    const leader = spawn("sh", ["-c", "sleep 60 & wait"], { stdio: "ignore", detached: true });
+    const lp = leader.pid!;
+    try {
+      const pstart = execFileSync("ps", ["-o", "lstart=", "-p", String(lp)]).toString().trim();
+      writeFileSync(join(dir, "preview", "table.json"), JSON.stringify([
+        { id: "fake1", pid: lp, pstart },
+        { id: "reused", pid: lp, pstart: "Thu Jan  1 00:00:00 1970" },
+      ]));
+      outs.length = 0; errs.length = 0;
+      expect(await consoleCli(["stop"], deps())).toBe(1);
+      expect(errs.join("\n")).toContain(`fake1(${lp})`);
+      expect(errs.join("\n")).not.toContain("reused(");
+      // kill the group and the leader (the pid the test started); the group is then gone and stop finds none
+      process.kill(-lp, "SIGKILL");
+      for (let i = 0; i < 50 && alive(lp); i++) await new Promise((r) => setTimeout(r, 100));
+    } finally { try { process.kill(-lp, "SIGKILL"); } catch { /* gone */ } }
+    expect(alive(lp)).toBe(false);
+  }, 120_000);
+
+  it("logs -f reopens the log after a restart rotated it", async () => {
+    mkdirSync(dir, { recursive: true });
+    const log = join(dir, "console.log");
+    writeFileSync(log, "old line\n");
+    const seen: string[] = [];
+    const w = vi.spyOn(process.stdout, "write").mockImplementation(((c: string | Uint8Array) => { seen.push(String(c)); return true; }) as typeof process.stdout.write);
+    try {
+      const done = consoleCli(["logs", "-n", "1", "-f"], deps());
+      await new Promise((r) => setTimeout(r, 700));
+      renameSync(log, `${log}.1`);
+      writeFileSync(log, "after rotation\n");
+      await new Promise((r) => setTimeout(r, 1000));
+      appendFileSync(log, "more\n");
+      await new Promise((r) => setTimeout(r, 800));
+      process.emit("SIGINT");
+      expect(await done).toBe(0);
+    } finally { w.mockRestore(); }
+    expect(seen.join("")).toContain("after rotation");
+    expect(seen.join("")).toContain("more");
+  });
 });
