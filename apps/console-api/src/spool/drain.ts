@@ -79,12 +79,13 @@ export async function admitLines(core: Pick<Core, "ops">, raw: readonly string[]
   return (await core.ops("ops.obs", { raw })).admitted as Admitted[];
 }
 
-/** Lean's life commands of one admitted record (`Fw.Ops.Obs.lifeOf`): `epoch` is the time of the last stop the drain sent
- *  for its agent id (0 if none). No name is sent: a name never keys a life. */
-export async function lifeOf(core: Pick<Core, "ops">, rec: ObsRecord, key: string, epoch: number): Promise<LifeDecision[]> {
+/** Lean's life commands of one admitted record (`Fw.Ops.Obs.lifeOf`) and the agent's stop epoch after it
+ *  (`Fw.Ops.Obs.epochNext`: a stop raises it, a newer start resets it to 0 so the agent heartbeats again). `epoch` is the
+ *  epoch before the record (0 if the drain sent no stop for its agent id). No name is sent: a name never keys a life. */
+export async function lifeOf(core: Pick<Core, "ops">, rec: ObsRecord, key: string, epoch: number): Promise<{ life: LifeDecision[]; epoch: number }> {
   const r = await core.ops("ops.obs", { life: [{ event: rec.hook_event_name, agent_id: rec.agent_id, agent_name: rec.agent_name ?? null,
     key, ts: rec.ts, epoch }] });
-  return (r.life as LifeDecision[][])[0]!;
+  return { life: (r.life as LifeDecision[][])[0]!, epoch: (r.epochs as number[])[0]! };
 }
 
 /** Lean's label commands for (agent id, name) pairs of the health index (`Fw.Ops.Obs.labelOf`); null for an unusable pair. */
@@ -107,7 +108,7 @@ export class Drain {
   private wfSent = new Set<string>();
   /** agent id -> name, from health.jsonl (read once, then only what was appended) */
   private names: NameIndex;
-  /** agent id -> the record time of the last stop this drain sent for it (the heartbeat key's epoch; empty after a restart) */
+  /** agent id -> its stop epoch (Lean `epochNext`: the time of the last stop this drain sent, reset by a newer start; the heartbeat key's epoch; empty after a restart) */
   private epochs = new Map<string, number>();
   /** issue -> count since the last spool alert was posted (Lean `Fw.Ops.Obs.issuesOf`, plus `lifeOf:error`) */
   private issues = new Map<string, number>();
@@ -280,20 +281,23 @@ export class Drain {
     // retried (not marked seen).
     const name = rec.agent_id ? this.names.get(rec.agent_id) : null;
     let life: LifeDecision[];
-    try { life = await lifeOf(this.store.core, rec, key, rec.agent_id ? this.epochs.get(rec.agent_id) ?? 0 : 0); }
+    let epoch = 0;
+    try { ({ life, epoch } = await lifeOf(this.store.core, rec, key, rec.agent_id ? this.epochs.get(rec.agent_id) ?? 0 : 0)); }
     catch (e) { this.caught("lifeOf", e, res); res.retry++; return "retry"; }
+    let allOk = true;
     for (const c of life) {
       if (this.lifeSent.has(c.key)) continue;
       const reply = await this.store.submit(c.kind === "label"
         ? { type: "agent.label", key: c.key, actor: "hook", agent: c.agent, name: c.name }
         : { type: c.kind === "spawn" ? "agent.spawn" : "agent.stop", key: c.key, actor: "hook", agent: c.agent, at: c.at });
-      if (reply.ok) this.lifeSent.add(c.key);
+      if (reply.ok) this.lifeSent.add(c.key); else if (c.agent === rec.agent_id) allOk = false;
       if (c.kind === "stop" && reply.ok && c.agent === rec.agent_id) {
         res.stops++;
         if (!name) res.unnamed++;
-        this.epochs.set(c.agent, Math.max(this.epochs.get(c.agent) ?? 0, c.at));
       }
     }
+    // the epoch after the record is Lean's, kept only when the agent's own commands were all accepted
+    if (rec.agent_id && allOk) { if (epoch === 0) this.epochs.delete(rec.agent_id); else this.epochs.set(rec.agent_id, epoch); }
     // flight bookkeeping (glue): a PreToolUse starts a tool call, its PostToolUse(Failure) ends it, SubagentStop drops the agent's
     if (rec.tool_use_id && rec.hook_event_name === "PreToolUse") this.flights.set(rec.tool_use_id, { agent_id: rec.agent_id, agent_type: rec.agent_type, tool_name: rec.tool_name });
     if (rec.tool_use_id && (rec.hook_event_name === "PostToolUse" || rec.hook_event_name === "PostToolUseFailure")) this.flights.delete(rec.tool_use_id);

@@ -846,7 +846,7 @@
         {
           "role": "bar",
           "orig": ".start-selling-top-nav-bar",
-          "rewrite": "[data-fw=\"nav\"] > div",
+          "rewrite": "[data-fw=\"nav\"] > div:not([data-fw=\"morph-panel\"])",
           "boxRel": {
             "role": "nav",
             "index": 0
@@ -882,7 +882,7 @@
         {
           "role": "actions",
           "orig": ".start-selling-top-nav-actions",
-          "rewrite": "[data-fw=\"nav\"] > div > div",
+          "rewrite": "[data-fw=\"nav\"] > div:not([data-fw=\"morph-panel\"]) > div",
           "boxRel": null,
           "dims": [
             "h"

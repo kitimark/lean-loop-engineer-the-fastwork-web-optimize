@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Observer hook (PLAN 3.2 "observers", 3.4 hooks). Appends ONE privacy-filtered JSON line to
 // .fw-console/spool/<agent>.jsonl. No socket, no stdout, always exit 0. Never decides anything.
-import { readdirSync, readFileSync, unlinkSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { appendLine, consoleDir, readPayload, safeName } from "./lib.mjs";
 
@@ -29,8 +30,52 @@ export function notification(p) {
   return { type, len: msg.length, tool: m ? m[1] : null };
 }
 
+/** The nearest `claude` ancestor of this hook (at most 6 hops of `ps -o ppid=,comm= -p`); null when none is found, so
+ *  the record carries no session pid and no agent is judged by it. TS glue: it reads the process table, decides nothing. */
+export function claudePid(start = process.ppid, ps = psRow) {
+  let pid = start;
+  for (let i = 0; i < 6 && Number.isInteger(pid) && pid > 1; i++) {
+    const row = ps(pid);
+    if (!row) return null;
+    if (basename(row.comm.split(" ")[0] ?? "") === "claude") return pid;
+    pid = row.ppid;
+  }
+  return null;
+}
+let table = null;
+function psRow(pid) {
+  if (!table) {
+    table = new Map();
+    try {
+      const out = execFileSync("ps", ["-A", "-o", "pid=,ppid=,comm="], { encoding: "utf8", timeout: 1500 });
+      for (const line of out.split("\n")) {
+        const m = /^\s*(\d+)\s+(\d+)\s+(.+)$/.exec(line);
+        if (m) table.set(Number(m[1]), { ppid: Number(m[2]), comm: m[3] });
+      }
+    } catch { /* no table: nobody is judged */ }
+  }
+  return table.get(pid) ?? null;
+}
+
+/** The session pid with a per-session cache: one `ps` per session, later hooks read a small file and probe the pid
+ *  (a hook may not spawn a process on every call). A dead cached pid is looked up again (a resumed session). */
+export function sessionPidCached(p, dir, find = claudePid) {
+  const sid = str(p.session_id);
+  const file = sid && dir ? join(dir, `session-pid-${safeName(sid)}`) : null;
+  if (file) {
+    try {
+      const pid = Number(readFileSync(file, "utf8"));
+      if (pid === 0) return null; // looked up before: no claude ancestor, nobody is judged
+      if (Number.isInteger(pid) && pid > 1) { process.kill(pid, 0); return pid; }
+    } catch { /* no cache, or the cached pid is gone */ }
+  }
+  const pid = find();
+  if (file) { try { writeFileSync(file, String(pid ?? 0)); } catch { /* cache only */ } }
+  return pid;
+}
+
 /** The only fields that ever leave the payload. */
-export function record(p, now = Date.now()) {
+export function record(p, now = Date.now(), sessionPid = null) {
   const ev = str(p.hook_event_name);
   if (!ev) return null;
   const failed = ev === "PostToolUseFailure";
@@ -42,6 +87,8 @@ export function record(p, now = Date.now()) {
     is_error: ev === "PostToolUse" || failed ? failed : null,
     verb: p.tool_name === "Bash" ? verbOf(p.tool_input?.command) : null,
     ts: now,
+    // the Claude session that fired the hook: the hook's parent process (an agent whose session pid is gone is dead)
+    ...(sessionPid === null ? {} : { session_pid: sessionPid }),
     // SPK-p part 3 (wake test): a count only, never the task text
     ...(Array.isArray(p.background_tasks) || Number.isFinite(p.background_tasks)
       ? { background_tasks: Array.isArray(p.background_tasks) ? p.background_tasks.length : Math.round(p.background_tasks) } : {}),
@@ -73,8 +120,8 @@ export function unseenSpawn(p, dir, now = Date.now()) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     const p = readPayload();
-    const r = p && record(p);
-    const dir = r && consoleDir(p.cwd);
+    const dir = p && consoleDir(p.cwd);
+    const r = p && record(p, Date.now(), sessionPidCached(p, dir));
     if (r && dir) {
       appendLine(join(dir, "spool", `${safeName(p.agent_id)}.jsonl`), r);
       const u = unseenSpawn(p, dir);
