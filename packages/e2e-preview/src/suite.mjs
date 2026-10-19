@@ -68,6 +68,15 @@ export function evalReport(evals) {
   return { total: evals.length, files: byFile.size, duplicates };
 }
 
+/** What the preview port answered for the first failed request paths (diagnosis of a cancelled load). */
+function seenFor(rig, failed) {
+  const paths = [...new Set(failed.slice(0, 3).map((f) => f.split(" ")[1]))];
+  return paths.map((pth) => {
+    const base = pth.replace(/^\/preview\/[^/]+\/[ro]/, "");
+    return `${base}: ` + rig.seen.filter((r) => r.path.endsWith(base)).map((r) => `${r.path.startsWith("/preview/") ? "pfx" : "root"} ${r.status} dest=${r.dest || "-"}`).join(", ");
+  }).join(" ## ");
+}
+
 async function runTarget(browser, rig, engine, host, target, opts) {
   process.stderr.write(`# ${engine} ${host.name} ${target.id}\n`);
   const ctx = await browser.newContext({
@@ -107,7 +116,7 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     const sameOrigin = log.responses.filter((r) => new URL(r.url).origin === host.origin);
     const bad = sameOrigin.filter((r) => r.status >= 400 && !ACCEPTED_FAILURES.some((a) => new URL(r.url).pathname === a));
     check("same-origin-2xx-3xx", sameOrigin.length > 0 && bad.length === 0, bad.length ? bad.slice(0, 5).map((r) => `${r.status} ${r.method} ${new URL(r.url).pathname}`).join("; ") : `${sameOrigin.length} responses`);
-    check("page-errors", log.pageErrors.length === 0 && !log.consoleErrors.some((t) => /dynamically imported module|Failed to load module/i.test(t)), [...log.pageErrors, ...log.consoleErrors].slice(0, 3).join(" | ") + (log.failed.length ? ` || failed: ${log.failed.slice(0, 6).join("; ")} || navs: ${log.navs.join(", ")}` : ""));
+    check("page-errors", log.pageErrors.length === 0 && !log.consoleErrors.some((t) => /dynamically imported module|Failed to load module/i.test(t)), [...log.pageErrors, ...log.consoleErrors].slice(0, 3).join(" | ") + (log.failed.length ? ` || failed: ${log.failed.slice(0, 6).join("; ")} || navs: ${log.navs.join(", ")} || server saw: ${seenFor(rig, log.failed)}` : ""));
 
     // the phone case, read at the preview port: a plain-HTTP host that is not potentially trustworthy gets no Sec-Fetch-Dest
     const hostPart = new URL(host.origin).host;
