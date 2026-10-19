@@ -9,8 +9,12 @@ const open = { type: "card.open", key: "k1", actor: "owner", card: "A", owner: "
 const approve = { type: "card.approve", key: "k2", actor: "lead", card: "A", ts: 2 } as const;
 // No absolute wall-clock bound (task land-wallclock-off-gate): the deadline the fake core must miss and the generous cap
 // for a call that must succeed come from env knobs the land can raise; the elapsed time is only checked from below.
-const DEADLINE_MS = Number(process.env.FW_TEST_DEADLINE_MS ?? 1500);
-const CALL_MS = Number(process.env.FW_TEST_CALL_MS ?? 30000);
+const knob = (name: string, dflt: number): number => {
+  const v = Number(process.env[name]);
+  return Number.isFinite(v) && v > 0 ? v : dflt;
+};
+const DEADLINE_MS = knob("FW_TEST_DEADLINE_MS", 1500);
+const CALL_MS = knob("FW_TEST_CALL_MS", 30000);
 let core: ReturnType<typeof selectCore> | null = null;
 afterEach(() => core?.close());
 

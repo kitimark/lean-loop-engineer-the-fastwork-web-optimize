@@ -12,3 +12,9 @@
 {"name":"zero assert","request":{"ms":0,"op":"wallclock.verdict","reason":"","site":"assertLt"},"response":{"bound":false,"refuse":false}}
 {"name":"zero timeout","request":{"ms":0,"op":"wallclock.verdict","reason":"","site":"timeoutOpt"},"response":{"bound":false,"refuse":false}}
 {"name":"one ms assert","request":{"ms":1,"op":"wallclock.verdict","reason":"","site":"assertLt"},"response":{"bound":true,"refuse":true}}
+{"name":"loop cap, no reason","request":{"ms":100,"op":"wallclock.verdict","reason":"","site":"loopCap"},"response":{"bound":true,"refuse":true}}
+{"name":"loop cap, reason","request":{"ms":100,"op":"wallclock.verdict","reason":"poll count","site":"loopCap"},"response":{"bound":true,"refuse":false}}
+{"name":"reason is a space","request":{"ms":5000,"op":"wallclock.verdict","reason":" ","site":"assertLt"},"response":{"bound":true,"refuse":true}}
+{"name":"reason is tab, cr, lf","request":{"ms":5000,"op":"wallclock.verdict","reason":"\u0009\r\n","site":"assertLt"},"response":{"bound":true,"refuse":true}}
+{"name":"reason is a vertical tab","request":{"ms":5000,"op":"wallclock.verdict","reason":"\u000b","site":"assertLt"},"response":{"bound":true,"refuse":false}}
+{"name":"reason is a no-break space","request":{"ms":5000,"op":"wallclock.verdict","reason":" ","site":"assertLt"},"response":{"bound":true,"refuse":false}}

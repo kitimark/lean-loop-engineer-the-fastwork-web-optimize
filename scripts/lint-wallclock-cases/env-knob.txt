@@ -1,0 +1,1 @@
+expect(elapsedMs).toBeLessThan(Number(process.env.K ?? 2000));

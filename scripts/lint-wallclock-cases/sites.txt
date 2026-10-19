@@ -1,0 +1,13 @@
+assertLt:5000	expect(replayMs).toBeLessThan(5000);
+assertLt:3000	expect(Date.now() - t0).toBeLessThan(3_000);
+	expect(out.split("\\n").length).toBeLessThanOrEqual(40);
+timeoutOpt:60000	  }, 60_000);
+timeoutOpt:120000	spawnSync(bin, [], { timeout: 120_000 });
+timeoutOpt:35000	vi.setConfig({ testTimeout: 35_000 });
+deadlineArg:100	core.callTimeoutForTest(100);
+deadlineArg:30000	const r = ask(bin, q, 30_000);
+elapsedCmp:80000	while (!done && Date.now() - t0 < 80_000) await x;
+sleep:300	await new Promise((r) => setTimeout(r, 300));
+	const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+	const D = Number(process.env.FW_TEST_DEADLINE_MS ?? 1500);
+	// toBeLessThan(5000) was the old bound

@@ -90,6 +90,31 @@
    "file": "apps/runner/test/wait-guard.test.ts",
    "text": "{ op: \"ops.wait\", cmd: c }, 30_000)",
    "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/runner/test/land-timeout.ts",
+   "text": "testTimeout: 120_000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run (vitest default raised for land tests that spawn many children)"
+  },
+  {
+   "file": "packages/gh-budget/test/fixtures.test.ts",
+   "text": "timeout: 600_000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "packages/gh-budget/test/wait.test.ts",
+   "text": "timeout: 120_000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "packages/measure-webkit/test/poll.test.mjs",
+   "text": "Date.now() - t0 < 500",
+   "reason": "known debt, a real speed assertion: it detects a fixed 1500 ms pause (3x margin); to become an injected-clock check in a follow-up"
+  },
+  {
+   "file": "packages/measure-webkit/test/watchdog.test.mjs",
+   "text": "timeout: 20000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
   }
  ]
 }
