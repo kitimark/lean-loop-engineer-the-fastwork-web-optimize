@@ -6821,10 +6821,35 @@
    "title": "User 10-19: remove LaTeX $$ math from Lean docstrings and the processes that require it (mathview lint stages, math-review step, CLAUDE.md 'Lean math' rule, agent definitions); math only on demand in artifacts; Lean comments per no-comments/no-slop. Plan: workflow lean-latex-removal-plan",
    "stream": "ops",
    "milestone": "M5",
-   "deps": [],
+   "deps": [
+    "skills-reframe"
+   ],
    "owner": "lead",
    "writes": [
     "docs/team/handoffs/lean-latex-removal.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "skills-reframe",
+   "title": "User 10-19: re-frame no-comments and no-slop skills after cursor/plugins pstack (no-comments orchestrator + comment-sicko agent + unslop), adapted to our harness and Lean; no LaTeX in Lean (CLAUDE.md line); MIT attribution",
+   "stream": "ops",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "plan-editor",
+   "writes": [
+    ".claude/skills/no-comments/SKILL.md",
+    ".claude/skills/no-slop/SKILL.md",
+    ".claude/agents/comment-sicko.md",
+    ".claude/agents/slop-checker.md",
+    ".claude/agents/lean-prover.md",
+    ".claude/agents/math-reviewer.md",
+    ".claude/agents/checker.md",
+    "docs/team/token-policy.md",
+    "CLAUDE.md",
+    "docs/team/handoffs/skills-reframe.md"
    ]
   }
  ],
