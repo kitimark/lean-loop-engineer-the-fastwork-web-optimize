@@ -5914,7 +5914,8 @@
     "lean/Fw/Parts/PeopleO.lean",
     "lean/Fw/Parts/PeopleCarousel.lean",
     "docs/team/handoffs/lean-specs-now.md"
-   ]
+   ],
+   "evidence": "6a13670"
   },
   {
    "devices": [
