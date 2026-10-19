@@ -339,6 +339,6 @@
   }
  ],
  "bundled": [
-  "snapshot/site/selling/sellers/*/*.jpg"
+  "snapshot/site/selling/sellers/**"
  ]
 }

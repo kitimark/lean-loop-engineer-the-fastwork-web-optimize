@@ -169,7 +169,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],
   "apps/site": ["packages/gate-breakpoints/src/serve.mjs", "packages/contracts/golden/parts/**", ...siteAssetReads()],
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
-  "packages/measure-chromium": ["packages/contracts/golden/measure/**", "results/baselines/chromium/**"],
+  "packages/measure-chromium": ["packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "results/baselines/chromium/**"],
   "packages/gate-breakpoints": ["packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
     "packages/contracts/golden/gate/**"],
   "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
