@@ -33,6 +33,10 @@ on:
         description: Rewrite flag set, comma separated part:variant (for example hero.countdown:strip), on top of the preset; empty = none. Applies to the rewrite jobs only
         type: string
         default: ''
+      only:
+        description: Part page to measure instead of the whole page (a part or group id such as hero or hero.exit; the rewrite stage route ?only=<id>, Fw.Site.Stage). Rewrite target only. A part page is client-rendered; its counts are those of one mounted part, so the frozen classes of the full page are a premise there (declared-rows-unverified)
+        type: string
+        default: ''
       image_run:
         description: Optional run id of an earlier chromium-counts run; its chromium-image artifact is reused instead of building (class-freeze pins one image across workflow runs this way)
         type: string
@@ -117,6 +121,7 @@ jobs:
           TARGET: ${{ inputs.target || 'both' }}
           PRESET: ${{ inputs.preset || 'original' }}
           FW: ${{ inputs.fw || '' }}
+          ONLY: ${{ inputs.only || '' }}
         run: |
           set -euo pipefail
           case "$PROFILE" in ''|*[!a-z0-9-]*) echo "bad profile name" >&2; exit 1 ;; esac
@@ -127,10 +132,15 @@ jobs:
           # config has the empty query. The site build prerenders exactly this query, so the measured page hydrates.
           case "$PRESET" in ''|*[!a-z0-9-]*) echo "bad preset name" >&2; exit 1 ;; esac
           case "$FW" in *[!A-Za-z0-9.:@,_-]*) echo "bad fw flag set" >&2; exit 1 ;; esac
+          case "$ONLY" in *[!A-Za-z0-9.]*|.*|*.) echo "bad only id" >&2; exit 1 ;; esac
           search=""
           if [ "$PRESET" != original ]; then search="?preset=$PRESET"; fi
           if [ -n "$FW" ]; then
             if [ -n "$search" ]; then search="$search&fw=$FW"; else search="?fw=$FW"; fi
+          fi
+          if [ -n "$ONLY" ]; then
+            if [ "$TARGET" != rewrite ]; then echo "only applies to the rewrite: use target rewrite" >&2; exit 1; fi
+            if [ -n "$search" ]; then search="$search&only=$ONLY"; else search="?only=$ONLY"; fi
           fi
           if [ -n "$search" ] && [ "$TARGET" = original ]; then echo "preset/fw apply to the rewrite: use target both or rewrite" >&2; exit 1; fi
           echo "search=$search" >> "$GITHUB_OUTPUT"
@@ -224,7 +234,11 @@ jobs:
         run: |
           set -euo pipefail
           # An empty search is the default config, which every build prerenders; any other query is added as a page.
-          if [ -n "$SEARCH" ]; then pnpm --filter @fw/site build --config "$SEARCH"; else pnpm --filter @fw/site build; fi
+          # A part page (?only=) is not prerendered: its shell is the home page and the client renders the stage.
+          case "$SEARCH" in
+            ''|*only=*) pnpm --filter @fw/site build ;;
+            *) pnpm --filter @fw/site build --config "$SEARCH" ;;
+          esac
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: site-dist
@@ -475,6 +489,13 @@ jobs:
           ls
           echo "profile $PROFILE, workflow run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT, sha $GITHUB_SHA" > "$out/run.txt"
           echo "search of the rewrite: '$SEARCH'" >> "$out/run.txt"
+          # A part page counts one mounted part; the frozen classes were measured on the whole page (apps/runner/src/engine-check.ts
+          # checks against them), so every verdict on this run carries that premise (INFERRED, not measured).
+          case "$SEARCH" in
+            *only=*)
+              echo "premise: part page, frozen-classes: the classes frozen for the whole page are assumed to bound this part page (declared-rows-unverified)" >> "$out/run.txt"
+              echo '> Part page (`?only=`): counts of one mounted part. Premise: the classes frozen on the whole page are assumed to bound it (declared-rows-unverified).' >> "$GITHUB_STEP_SUMMARY" ;;
+          esac
           # The pinned inputs of the image (class-freeze records them next to the image id).
           (cd "$GITHUB_WORKSPACE/packages/measure-chromium" && sha256sum Dockerfile docker/apt-manifest.txt docker/driver/package-lock.json) > "$out/image-inputs.txt"
           echo '### chromium-counts: classes over the runs' >> "$GITHUB_STEP_SUMMARY"
