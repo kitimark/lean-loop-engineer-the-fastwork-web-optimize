@@ -11,7 +11,7 @@ State: branch `worktree-wf_ebd5ee90-ef5-1` (main merged). CI: the `port` job of 
 - Site side: `scripts/port/digest.mjs` scans `data:` URIs, `renameFiles` feeds `renameRows`. The tests check inlineNorm
   and renameRows against goldens, renameFiles on temp files, and node-distinct rows on snapshot + dist (FW_SITE_DIST).
 
-Gap list on main (fresh local dist/aot; the CI run confirms it):
+Gap list on main (MEASURED, CI run 39221773141 at 01e784ce, artifact `port-report`; the local dist agrees):
 - assets: 0 missing of 111. The two commission arrows are inlined (`inline:svgtext:`); Bold.ttf is excluded.
 - svg: the nav wordmark loses its `<g>` (10 vs 9 elements; one missing, one extra). The platform.entries pin is a
   REAL GAP: the original prerenders an inline 24x24 svg, while Visuals.tsx:97 draws `<img /selling/icons/pin.svg>`, which
