@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { avatarOf, bg, coverOf, postOf, thumbOf } from '../people/assets';
 import type { Profile } from '../people/data';
 import css from './deck.module.css';
 
@@ -20,7 +21,7 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
         <div className={css.hero}>
           <div className={css.identity}>
             <div className={css.avatarWrap}>
-              <span className={css.avatar} />
+              <span className={css.avatar} style={bg(avatarOf(p))} />
               <span className={css.online} aria-hidden="true" />
             </div>
             <div className={css.meta}>
@@ -53,7 +54,7 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
             </div>
           </div>
           <div className={css.coverBlock}>
-            <span className={css.cover} />
+            <span className={css.cover} style={bg(coverOf(p))} />
             <div className={css.coverMeta}>
               <ul className={css.tags}>
                 {p.tags.slice(0, 3).map((t) => (
@@ -96,7 +97,7 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                             data-selenium={`start-selling.profile-showcase.button.post.${p.id}_${post.id}`}
                             style={{ aspectRatio: post.ratio ?? '16 / 10' }}
                           >
-                            <span className={css.postFill} />
+                            <span className={css.postFill} style={bg(postOf(p, post))} />
                           </button>
                         ) : (
                           <button
@@ -107,7 +108,7 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                             <span className={css.vinylWrap}>
                               <span className={css.vinyl}>
                                 <span className={`${css.record} ${css.spinning}`}>
-                                  <span className={css.label} />
+                                  <span className={css.label} style={bg(postOf(p, post))} />
                                   <span className={css.hole} />
                                 </span>
                                 <span className={css.gloss} aria-hidden="true" />
@@ -136,7 +137,7 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                           return (
                             <li key={s.id}>
                               <button type="button" className={css.row} data-selenium={`start-selling.profile-showcase.button.service.${p.id}_${s.id}`}>
-                                <span className={css.thumb} />
+                                <span className={css.thumb} style={bg(thumbOf(p, s))} />
                                 <span className={css.copy}>
                                   <span className={css.rowTitle}>{s.title}</span>
                                   <span className={css.meta2}>

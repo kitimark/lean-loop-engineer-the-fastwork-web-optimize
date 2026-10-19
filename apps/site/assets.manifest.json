@@ -1,0 +1,344 @@
+{
+ "note": "Hand-written allowlist (stand-in for Lean Fw.Site.Assets). files: each snapshot file the site serves by URL; build.mjs copies it byte for byte to dist/<engine>/<url>. bundled: snapshot globs a Vite import.meta.glob bundles (declared reads only, not copied).",
+ "files": [
+  {
+   "url": "/fonts/google-sans-latin-normal.BbZhqv4U.woff2",
+   "src": "snapshot/site/_app/immutable/assets/google-sans-latin-normal.BbZhqv4U.woff2"
+  },
+  {
+   "url": "/fonts/google-sans-latin-italic.XUjF_20c.woff2",
+   "src": "snapshot/site/_app/immutable/assets/google-sans-latin-italic.XUjF_20c.woff2"
+  },
+  {
+   "url": "/fonts/google-sans-thai-normal.CD79Hmaw.woff2",
+   "src": "snapshot/site/_app/immutable/assets/google-sans-thai-normal.CD79Hmaw.woff2"
+  },
+  {
+   "url": "/fonts/google-sans-thai-italic.Cygf3A0N.woff2",
+   "src": "snapshot/site/_app/immutable/assets/google-sans-thai-italic.Cygf3A0N.woff2"
+  },
+  {
+   "url": "/fonts/playpen-sans-latin.woff2",
+   "src": "snapshot/site/selling/fonts/playpen-sans-latin.woff2"
+  },
+  {
+   "url": "/selling/commission/avatar-john.jpg",
+   "src": "snapshot/site/selling/commission/avatar-john.jpg"
+  },
+  {
+   "url": "/selling/commission/client-avatar-1.png",
+   "src": "snapshot/site/selling/commission/client-avatar-1.png"
+  },
+  {
+   "url": "/selling/commission/client-avatar-2.png",
+   "src": "snapshot/site/selling/commission/client-avatar-2.png"
+  },
+  {
+   "url": "/selling/commission/client-avatar-3.png",
+   "src": "snapshot/site/selling/commission/client-avatar-3.png"
+  },
+  {
+   "url": "/selling/commission/compact-your-client-arrow.svg",
+   "src": "snapshot/site/selling/commission/compact-your-client-arrow.svg"
+  },
+  {
+   "url": "/selling/commission/direct-client-arrow.svg",
+   "src": "snapshot/site/selling/commission/direct-client-arrow.svg"
+  },
+  {
+   "url": "/selling/hero/bold-cover.jpg",
+   "src": "snapshot/site/selling/hero/bold-cover.jpg"
+  },
+  {
+   "url": "/selling/hero/buttercup-avatar.jpg",
+   "src": "snapshot/site/selling/hero/buttercup-avatar.jpg"
+  },
+  {
+   "url": "/selling/hero/buttercup-cover.jpg",
+   "src": "snapshot/site/selling/hero/buttercup-cover.jpg"
+  },
+  {
+   "url": "/selling/hero/chapavich-avatar.jpg",
+   "src": "snapshot/site/selling/hero/chapavich-avatar.jpg"
+  },
+  {
+   "url": "/selling/hero/chapavich-cover.jpg",
+   "src": "snapshot/site/selling/hero/chapavich-cover.jpg"
+  },
+  {
+   "url": "/selling/hero/leobeer-cover.jpg",
+   "src": "snapshot/site/selling/hero/leobeer-cover.jpg"
+  },
+  {
+   "url": "/selling/hero/mod-avatar.jpg",
+   "src": "snapshot/site/selling/hero/mod-avatar.jpg"
+  },
+  {
+   "url": "/selling/hero/mod-cover.jpg",
+   "src": "snapshot/site/selling/hero/mod-cover.jpg"
+  },
+  {
+   "url": "/selling/hero/nam-avatar.jpg",
+   "src": "snapshot/site/selling/hero/nam-avatar.jpg"
+  },
+  {
+   "url": "/selling/hero/nam-cover.jpg",
+   "src": "snapshot/site/selling/hero/nam-cover.jpg"
+  },
+  {
+   "url": "/selling/hero/pakincht-avatar.jpg",
+   "src": "snapshot/site/selling/hero/pakincht-avatar.jpg"
+  },
+  {
+   "url": "/selling/hero/pakincht-cover.jpg",
+   "src": "snapshot/site/selling/hero/pakincht-cover.jpg"
+  },
+  {
+   "url": "/selling/hero/peter-avatar.jpg",
+   "src": "snapshot/site/selling/hero/peter-avatar.jpg"
+  },
+  {
+   "url": "/selling/hero/peter-cover.jpg",
+   "src": "snapshot/site/selling/hero/peter-cover.jpg"
+  },
+  {
+   "url": "/selling/hero/slayalldeep-avatar.jpg",
+   "src": "snapshot/site/selling/hero/slayalldeep-avatar.jpg"
+  },
+  {
+   "url": "/selling/hero/slayalldeep-cover.jpg",
+   "src": "snapshot/site/selling/hero/slayalldeep-cover.jpg"
+  },
+  {
+   "url": "/selling/hero/weng-avatar.jpg",
+   "src": "snapshot/site/selling/hero/weng-avatar.jpg"
+  },
+  {
+   "url": "/selling/hero/weng-cover.jpg",
+   "src": "snapshot/site/selling/hero/weng-cover.jpg"
+  },
+  {
+   "url": "/selling/media/avatar-alt-2.jpg",
+   "src": "snapshot/site/selling/media/avatar-alt-2.jpg"
+  },
+  {
+   "url": "/selling/media/avatar-cat.png",
+   "src": "snapshot/site/selling/media/avatar-cat.png"
+  },
+  {
+   "url": "/selling/media/cover-cafe.jpg",
+   "src": "snapshot/site/selling/media/cover-cafe.jpg"
+  },
+  {
+   "url": "/selling/media/post-1.png",
+   "src": "snapshot/site/selling/media/post-1.png"
+  },
+  {
+   "url": "/selling/media/post-2.png",
+   "src": "snapshot/site/selling/media/post-2.png"
+  },
+  {
+   "url": "/selling/media/post-3.png",
+   "src": "snapshot/site/selling/media/post-3.png"
+  },
+  {
+   "url": "/selling/media/post-4.jpg",
+   "src": "snapshot/site/selling/media/post-4.jpg"
+  },
+  {
+   "url": "/selling/media/post-5.jpg",
+   "src": "snapshot/site/selling/media/post-5.jpg"
+  },
+  {
+   "url": "/selling/media/service-cafe.png",
+   "src": "snapshot/site/selling/media/service-cafe.png"
+  },
+  {
+   "url": "/selling/media/service-kitchen.png",
+   "src": "snapshot/site/selling/media/service-kitchen.png"
+  },
+  {
+   "url": "/selling/optimized/external/lawyer-consult-cover-240.avif",
+   "src": "snapshot/site/selling/optimized/external/lawyer-consult-cover-240.avif"
+  },
+  {
+   "url": "/selling/optimized/media/post-5.avif",
+   "src": "snapshot/site/selling/optimized/media/post-5.avif"
+  },
+  {
+   "url": "/selling/optimized/platform/service-bg.avif",
+   "src": "snapshot/site/selling/optimized/platform/service-bg.avif"
+  },
+  {
+   "url": "/selling/platform/features/agents/mesh.jpg",
+   "src": "snapshot/site/selling/platform/features/agents/mesh.jpg"
+  },
+  {
+   "url": "/selling/platform/features/credibility/star.svg",
+   "src": "snapshot/site/selling/platform/features/credibility/star.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/dash.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/dash.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/flag-eu.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/flag-eu.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/flag-jp.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/flag-jp.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/flag-kr-base.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/flag-kr-base.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/flag-kr-trigram-a.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/flag-kr-trigram-a.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/flag-kr-trigram-b.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/flag-kr-trigram-b.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/flag-th.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/flag-th.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/flag-uk-2.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/flag-uk-2.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/flag-uk-3.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/flag-uk-3.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/flag-uk-4.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/flag-uk-4.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/flag-uk-5.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/flag-uk-5.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/flag-uk.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/flag-uk.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/flag-us.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/flag-us.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/hex-rings.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/hex-rings.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/portrait-left.png",
+   "src": "snapshot/site/selling/platform/features/secure/network/portrait-left.png"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/portrait-right.png",
+   "src": "snapshot/site/selling/platform/features/secure/network/portrait-right.png"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/shield-border.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/shield-border.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/shield-fill.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/shield-fill.svg"
+  },
+  {
+   "url": "/selling/platform/features/secure/network/shield-sheen.svg",
+   "src": "snapshot/site/selling/platform/features/secure/network/shield-sheen.svg"
+  },
+  {
+   "url": "/selling/platform/grain.png",
+   "src": "snapshot/site/selling/platform/grain.png"
+  },
+  {
+   "url": "/selling/platform/service-bg.jpg",
+   "src": "snapshot/site/selling/platform/service-bg.jpg"
+  },
+  {
+   "url": "/selling/platform/service-quote/bg.png",
+   "src": "snapshot/site/selling/platform/service-quote/bg.png"
+  },
+  {
+   "url": "/selling/platform/service-thumb-bot.jpg",
+   "src": "snapshot/site/selling/platform/service-thumb-bot.jpg"
+  },
+  {
+   "url": "/selling/platform/service-thumb-main.jpg",
+   "src": "snapshot/site/selling/platform/service-thumb-main.jpg"
+  },
+  {
+   "url": "/selling/profile/online.svg",
+   "src": "snapshot/site/selling/profile/online.svg"
+  },
+  {
+   "url": "/selling/profile/portfolio-1.jpg",
+   "src": "snapshot/site/selling/profile/portfolio-1.jpg"
+  },
+  {
+   "url": "/selling/profile/portfolio-2.jpg",
+   "src": "snapshot/site/selling/profile/portfolio-2.jpg"
+  },
+  {
+   "url": "/selling/profile/portfolio-3.jpg",
+   "src": "snapshot/site/selling/profile/portfolio-3.jpg"
+  },
+  {
+   "url": "/selling/roles/architect.png",
+   "src": "snapshot/site/selling/roles/architect.png"
+  },
+  {
+   "url": "/selling/roles/graphic-designer.png",
+   "src": "snapshot/site/selling/roles/graphic-designer.png"
+  },
+  {
+   "url": "/selling/roles/project-manager.png",
+   "src": "snapshot/site/selling/roles/project-manager.png"
+  },
+  {
+   "url": "/selling/roles/software-engineer.png",
+   "src": "snapshot/site/selling/roles/software-engineer.png"
+  },
+  {
+   "url": "/selling/roles/web-developer.png",
+   "src": "snapshot/site/selling/roles/web-developer.png"
+  },
+  {
+   "url": "/selling/sellers/ai-video-editor/avatar.jpg",
+   "src": "snapshot/site/selling/sellers/ai-video-editor/avatar.jpg"
+  },
+  {
+   "url": "/selling/sellers/reviewers/r5.jpg",
+   "src": "snapshot/site/selling/sellers/reviewers/r5.jpg"
+  },
+  {
+   "url": "/selling/sellers/ux-ui-designer/avatar.jpg",
+   "src": "snapshot/site/selling/sellers/ux-ui-designer/avatar.jpg"
+  },
+  {
+   "url": "/selling/work/work-a.jpg",
+   "src": "snapshot/site/selling/work/work-a.jpg"
+  },
+  {
+   "url": "/selling/work/work-c.jpg",
+   "src": "snapshot/site/selling/work/work-c.jpg"
+  },
+  {
+   "url": "/selling/work/work-e.jpg",
+   "src": "snapshot/site/selling/work/work-e.jpg"
+  },
+  {
+   "url": "/selling/work/work-f.jpg",
+   "src": "snapshot/site/selling/work/work-f.jpg"
+  }
+ ],
+ "bundled": [
+  "snapshot/site/selling/sellers/*/*.jpg"
+ ]
+}
