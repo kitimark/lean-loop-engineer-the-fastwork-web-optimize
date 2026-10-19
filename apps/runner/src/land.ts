@@ -23,10 +23,12 @@ export type Http = {
 
 /** `localhost` may resolve to ::1 first while console-api listens on 127.0.0.1 only: always dial the IPv4 loopback. */
 export const loopback = (base: string) => base.replace(/^(https?:\/\/)localhost(?=[:/]|$)/, "$1127.0.0.1");
+/** Own deadline per request, shorter than undici's 300 s headers timeout; the land step's retry takes it from there. */
+export const HTTP_DEADLINE_MS = 90_000;
 export const httpFor = (base0: string): Http => { const base = loopback(base0); let secret: string | undefined; return {
-  get: async (p) => { const r = await fetch(base + p); return { status: r.status, body: await r.json() }; },
+  get: async (p) => { const r = await fetch(base + p, { signal: AbortSignal.timeout(HTTP_DEADLINE_MS) }); return { status: r.status, body: await r.json() }; },
   post: async (p, b) => {
-    const r = await fetch(base + p, { method: "POST", headers: { "content-type": "application/json", "x-fw-secret": (secret ??= consoleSecret()) }, body: JSON.stringify(b) });
+    const r = await fetch(base + p, { method: "POST", headers: { "content-type": "application/json", "x-fw-secret": (secret ??= consoleSecret()) }, body: JSON.stringify(b), signal: AbortSignal.timeout(HTTP_DEADLINE_MS) });
     return { status: r.status, body: await r.json() };
   },
 }; };
