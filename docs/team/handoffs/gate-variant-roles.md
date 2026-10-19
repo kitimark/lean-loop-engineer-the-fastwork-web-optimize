@@ -34,3 +34,4 @@ Open:
 
 Conventions: regenerate literal.jsonl with `cd lean && lake env lean --run scripts/GateGolden.lean`, and coverage.jsonl per docs/team/tools/coverage.md; then run each with `--check`.
 Read first: Items.lean section "Variant roles"; Wire/Gate.lean `variantSelOf` / `opState`.
+- Land fix 2026-10-19: the where/with definitions of `variantOrig`, `partItems_variant_others`, `partItems_variant_role` moved into `$$` blocks; mathview lint 0 dangling-where; check.sh green.

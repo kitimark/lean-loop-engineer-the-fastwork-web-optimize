@@ -786,10 +786,9 @@ def setCount (k : String) (c : Option Nat) (pr : PartRaw) : PartRaw :=
 
 /-- The original arm under a variant role: the new role carries the original's count of $\rho_{\mathrm{of}}$.
 
-$$\operatorname{vOrig}(w, P) = \operatorname{setCount}(w.\rho_{\mathrm{new}},\ c,\ P),\quad c = \begin{cases} P[w.\rho_{\mathrm{of}}].n & P[w.\rho_{\mathrm{of}}] \ne \bot \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{vOrig}(w, P) = \operatorname{setCount}(w.\rho_{\mathrm{new}},\ c,\ P),\quad c = \begin{cases} P[w.\rho_{\mathrm{of}}].n & P[w.\rho_{\mathrm{of}}] \ne \bot \\ \bot & \text{otherwise} \end{cases},\quad P[k] = \text{the first entry of } P \text{ with key } k$$
 
-where $P[k]$ is the first entry with key $k$. The original has no element of the new role; its reference count is that of
-the role it stands for. -/
+The original has no element of the new role; its reference count is that of the role it stands for. -/
 def variantOrig (w : VariantRole) (pr : PartRaw) : PartRaw :=
   setCount w.role ((pr.lookup w.countOf).map (·.count)) pr
 
@@ -1003,9 +1002,9 @@ theorem partItems_variant (a : Anchors) (w : VariantRole) (spec : PartSpec) (o r
 
 $$\forall A, w, P, o, r, \Pi,\quad \operatorname{fresh}(w, P) \implies [\,it \in \mathcal I_w \mid it.\rho \ne w.\rho_{\mathrm{rep}} \wedge it.\rho \ne w.\rho_{\mathrm{new}}\,] = [\,it \in \mathcal I \mid it.\rho \ne w.\rho_{\mathrm{rep}} \wedge it.\rho \ne w.\rho_{\mathrm{new}}\,]$$
 
-where $\mathcal I_w = \operatorname{partItems}(A, \operatorname{vSpec}(w, P), \operatorname{vOrig}(w, \cdot)(o), \operatorname{vRew}(w, \cdot)(r), \Pi)$
-and $\mathcal I = \operatorname{partItems}(A, P, o, r, \Pi)$. The items of every role other than the replaced and the new one,
-with their statuses, are the same list. -/
+$$\text{with}\quad \mathcal I_w = \operatorname{partItems}(A, \operatorname{vSpec}(w, P), \operatorname{vOrig}(w, \cdot)(o), \operatorname{vRew}(w, \cdot)(r), \Pi),\quad \mathcal I = \operatorname{partItems}(A, P, o, r, \Pi)$$
+
+The items of every role other than the replaced and the new one, with their statuses, are the same list. -/
 theorem partItems_variant_others (a : Anchors) (w : VariantRole) (spec : PartSpec) (o r : Option PartRaw)
     (props : PartProps) (hf : Fresh w spec) :
     (partItems a (variantSpec w spec) (o.map (variantOrig w)) (r.map (variantRewrite w)) props).filter
@@ -1023,7 +1022,9 @@ counted role.**
 
 $$\forall A, w, P, o, r, \Pi,\quad \operatorname{fresh}(w, P) \wedge w.\rho_{\mathrm{rep}} \ne w.\rho_{\mathrm{new}} \implies [\,it \in \mathcal I_w \mid it.\rho = w.\rho_{\mathrm{rep}}\,] = [\,] \wedge [\,it \in \mathcal I_w \mid it.\rho = w.\rho_{\mathrm{new}}\,] = [\,(\mathrm{count}, w.\rho_{\mathrm{new}}, -1, \texttt{count}, \operatorname{vCount}(w, o, r), \mathrm{false})\,]$$
 
-with $\mathcal I_w$ as in `partItems_variant_others`. For `hero.countdown` under `strip` ($\rho_{\mathrm{rep}} = $ `face`,
+$$\text{with}\quad \mathcal I_w = \operatorname{partItems}(A, \operatorname{vSpec}(w, P), \operatorname{vOrig}(w, \cdot)(o), \operatorname{vRew}(w, \cdot)(r), \Pi)$$
+
+For `hero.countdown` under `strip` ($\rho_{\mathrm{rep}} = $ `face`,
 $\rho_{\mathrm{new}} = $ `strip`, $\rho_{\mathrm{of}} = $ `digit`) the faces are not judged and the strips are judged by
 count against the original's digits. -/
 theorem partItems_variant_role (a : Anchors) (w : VariantRole) (spec : PartSpec) (o r : Option PartRaw)
