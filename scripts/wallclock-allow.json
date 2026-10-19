@@ -43,6 +43,11 @@
   },
   {
    "file": "apps/runner/test/wait-guard.test.ts",
+   "text": "testTimeout: 35_000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/runner/test/wait-guard.test.ts",
    "text": "timeout: 60_000",
    "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
   },
