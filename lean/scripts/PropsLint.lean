@@ -52,11 +52,9 @@ def guardedCtors : List Name := [`Fw.Spec.Props.Incident.mk, `Fw.Spec.Props.Regi
 
 /-! ## Pure decisions (with `#guard` examples) -/
 
-/-- **Exempt from `registry-outside` and `convention-at-outside`.** A declaration of module $m$ named $n$ is exempt
-exactly when $m$ is `Fw.Spec.Incidents`, or $m$ is `Fw.Spec.Props` and $n$ lies in the namespace of a guarded
-structure or of `ConventionAt` (their constructors, projections and generated lemmas).
-$$\operatorname{exempt}(m, n) \iff m = \texttt{Fw.Spec.Incidents} \lor (m = \texttt{Fw.Spec.Props} \land \exists T \in \{\texttt{Incident}, \texttt{Registry}, \texttt{ConventionAt}\},\ T \preceq n)$$
-where $T \preceq n$ is "the name $T$ is a prefix of $n$". -/
+/-- **Exempt from `registry-outside` and `convention-at-outside`.** A declaration of module `m` named `n` is exempt
+exactly when `m` is `Fw.Spec.Incidents`, or `m` is `Fw.Spec.Props` and `n` lies in the namespace of a guarded
+structure or of `ConventionAt` (their constructors, projections and generated lemmas). -/
 def exempt (mod n : Name) : Bool :=
   mod == incidentsMod ||
     (mod == propsMod && (guardedTypes ++ [`Fw.Spec.Props.ConventionAt]).any (·.isPrefixOf n))
@@ -69,8 +67,7 @@ def exempt (mod n : Name) : Bool :=
 
 /-- **The `lean_lib` names of a `lakefile.toml`**, given as its lines: for every line `[[lean_lib]]`, the quoted value
 of the first later line of the form `name = "…"` (spaces trimmed), in file order. A `[[lean_lib]]` with no later name
-line, or whose name value is not quoted, contributes nothing.
-$$\forall \ell,\ \operatorname{libNames}(\ell) = [\operatorname{name}(\ell_j) : \ell_i = \texttt{[[lean\_lib]]},\ j = \min\{j > i : \ell_j \text{ is a name line}\},\ \ell_j \text{ quoted}] \text{ in order of } i$$ -/
+line, or whose name value is not quoted, contributes nothing. -/
 def libNames (lines : List String) : List String :=
   go lines false
 where
@@ -93,10 +90,9 @@ where
 #guard libNames ["[[lean_lib]]"] == []
 #guard libNames [] == []
 
-/-- **A misplaced convention** (rule `convention-wrapped`). Given the names that count as a convention $W$ (the
-constant `Convention` $c$ and the wrappers), the head $h$ of a theorem's result type (`none` for a definition's value),
-and the other constants $U$ of the type (or value): the names of $W$ that occur anywhere but as the head $c$.
-$$\forall W, c, h, U,\ \operatorname{misplaced}(W, c, h, U) = \operatorname{dedup}[x \in U \mathbin{+\!\!+} [h' : h = \mathrm{some}(h'),\ h' \ne c] : x \in W]$$ -/
+/-- **A misplaced convention** (rule `convention-wrapped`). Given the names that count as a convention `W` (the
+constant `Convention` `c` and the wrappers), the head `h` of a theorem's result type (`none` for a definition's value),
+and the other constants `U` of the type (or value): the names of `W` that occur anywhere but as the head `c`. -/
 def misplaced (conv : List Name) (c : Name) (head : Option Name) (others : List Name) : List Name :=
   (others ++ (head.filter (· != c)).toList).filter conv.contains |>.eraseDups
 
@@ -106,14 +102,12 @@ def misplaced (conv : List Name) (c : Name) (head : Option Name) (others : List 
 #guard misplaced [`C] `C none [`C, `PinImpl] == [`C]
 #guard misplaced [`C] `C none [] == []
 
-/-- **The implementation's internals**: the implementation's own names $I_0$, and every project definition the
-implementation unfolds to ($C_I$) that the vocabulary does not unfold to ($C_V$).
-$$\operatorname{forbidden}(I_0, C_I, C_V) = I_0 \cup [c \in C_I : c \notin C_V]$$ -/
+/-- **The implementation's internals**: the implementation's own names `I_0`, and every project definition the
+implementation unfolds to (`C_I`) that the vocabulary does not unfold to (`C_V`). -/
 def forbidden (implRoots implClos vocabClos : List Name) : List Name :=
   (implRoots ++ implClos.filter (!vocabClos.contains ·)).eraseDups
 
-/-- **The forbidden names a property reaches**: the names of the property's closure $C_P$ that are forbidden.
-$$\operatorname{propHits}(C_P, F) = [c \in C_P : c \in F]$$ -/
+/-- **The forbidden names a property reaches**: the names of the property's closure `C_P` that are forbidden. -/
 def propHits (propClos forb : List Name) : List Name := propClos.filter forb.contains
 
 -- the dry-run example: `dryOut` unfolds to `dryRun` (internal) and to `Outcome.kind` (vocabulary)
@@ -124,10 +118,9 @@ def propHits (propClos forb : List Name) : List Name := propClos.filter forb.con
 #guard propHits [`TruthfulVerdict, `Outcome.kind] (forbidden [`dryOut] [`dryOut, `Outcome.kind] [`Outcome.kind]) == []
 #guard forbidden [] [] [] == []
 
-/-- **One ledger row check.** For a row id $i$, its predicate and replay names $p, r$, and the ledger's entries as
-(id, `leanPred`, `leanReplay`) triples $L$: the empty list when the first entry with id $i$ names $p$ and $r$, else
-the problems.
-$$\operatorname{rowCheck}(i, p, r, L) = \begin{cases} [\texttt{not in the ledger}] & \lnot\exists e \in L,\ e.\mathit{id} = i \\ [\texttt{leanPred} \mid e.p \ne p] \mathbin{+\!\!+} [\texttt{leanReplay} \mid e.r \ne r] & e = \text{the first } e \in L \text{ with } e.\mathit{id} = i \end{cases}$$ -/
+/-- **One ledger row check.** For a row id `i`, its predicate and replay names `p, r`, and the ledger's entries as
+(id, `leanPred`, `leanReplay`) triples `L`: the empty list when the first entry with id `i` names `p` and `r`, else
+the problems. -/
 def rowCheck (id pred replay : String) (ledger : List (String × Option String × Option String)) : List String :=
   match ledger.find? (·.1 == id) with
   | none => [s!"{id} is not an incident id of the ledger"]

@@ -2,7 +2,7 @@ import Std.Data.HashMap
 /-!
 # Axiom reachability with one memo shared by many queries (task mathview-axreach)
 
-The math view asks, for every exported declaration $c$, which axioms $c$ depends on. Lean's `collectAxioms`
+The math view asks, for every exported declaration `c`, which axioms `c` depends on. Lean's `collectAxioms`
 starts every query from an empty cache, so the lint re-walked the same closure through Init and Lean core for each
 of ~4,000 entries (research/notes/2026/10-18-land-speed.md, MEASURED 96 % of the lint). This module specifies the
 shared-memo search the math view now runs, over an abstract graph: `succ c` lists the constants that `c` mentions
@@ -25,27 +25,19 @@ variable {α : Type} [BEq α] [Hashable α]
 
 /-- A path of exactly `n` edges from `c` to `e` in the graph `succ`.
 
-$$\forall c:\ \mathrm{Path}_{\mathit{succ}}(0, c, c), \qquad \forall n\ c\ d\ e:\ d \in \mathit{succ}(c) \land
-\mathrm{Path}_{\mathit{succ}}(n, d, e) \implies \mathrm{Path}_{\mathit{succ}}(n+1, c, e)$$
-and nothing else is a path.
+And nothing else is a path.
 -/
 inductive Path (succ : α → List α) : Nat → α → α → Prop
   | refl (c : α) : Path succ 0 c c
   | step {n : Nat} {c d e : α} : d ∈ succ c → Path succ n d e → Path succ (n + 1) c e
 
-/-- The axioms reachable from `c`: nodes `a` with `isAx a` on the end of some path from `c`.
-
-$$a \in R(c) \iff \mathit{isAx}(a) = \mathrm{true} \land \exists n \in \mathbb{N},\ \mathrm{Path}_{\mathit{succ}}(n, c, a)$$
--/
+/-- The axioms reachable from `c`: nodes `a` with `isAx a` on the end of some path from `c`. -/
 def AxR (succ : α → List α) (isAx : α → Bool) (c a : α) : Prop :=
   (∃ n, Path succ n c a) ∧ isAx a = true
 
 omit [BEq α] [Hashable α] in
 /-- T1, the fixpoint equation: the axioms reachable from `c` are `c` itself if it is an axiom, plus the axioms
 reachable from its successors.
-
-$$\forall\, \mathit{succ},\ \mathit{isAx},\ c,\ a:\quad a \in R(c) \iff \bigl(a = c \land \mathit{isAx}(c) =
-\mathrm{true}\bigr) \lor \exists d \in \mathit{succ}(c),\ a \in R(d)$$
 -/
 theorem reach_fix (succ : α → List α) (isAx : α → Bool) (c a : α) :
     AxR succ isAx c a ↔ (a = c ∧ isAx c = true) ∨ ∃ d ∈ succ c, AxR succ isAx d a := by
@@ -62,27 +54,16 @@ theorem reach_fix (succ : α → List α) (isAx : α → Bool) (c a : α) :
 
 /-- Search state: `memo` maps finished nodes to their axiom lists, `prog` maps the nodes on the current search
 stack to their depth.
-
-$$\mathrm{St} = (\alpha \rightharpoonup \alpha^{*}) \times (\alpha \rightharpoonup \mathbb{N}), \qquad
-s = (s.\mathit{memo},\ s.\mathit{prog})$$
 -/
 structure St (α : Type) [BEq α] [Hashable α] where
   memo : Std.HashMap α (List α)
   prog : Std.HashMap α Nat
 
-/-- Add the elements of `s` to `acc`, skipping those already present.
-
-$$\mathrm{union}(\mathit{acc}, [\,]) = \mathit{acc}, \qquad \mathrm{union}(\mathit{acc}, x :: s) =
-\mathrm{union}(\mathrm{insert}(x, \mathit{acc}), s)$$
--/
+/-- Add the elements of `s` to `acc`, skipping those already present. -/
 def union (acc s : List α) : List α := s.foldl (fun a x => a.insert x) acc
 
 /-- Run `g` on each node of `ds` in order, threading the state, adding each result to `acc` and taking the minimum
 of the returned low-links; `none` as soon as one call returns `none`.
-
-$$\mathrm{loop}_g([\,], A, l, s) = (A, l, s), \qquad \mathrm{loop}_g(d :: \mathit{ds}, A, l, s) =
-\begin{cases} \bot & g(d, s) = \bot \\ \mathrm{loop}_g(\mathit{ds}, \mathrm{union}(A, S), \min(l, l'), s') &
-g(d, s) = (S, l', s') \end{cases}$$
 -/
 def loop (g : α → St α → Option (List α × Nat × St α)) :
     List α → List α → Nat → St α → Option (List α × Nat × St α)
@@ -97,20 +78,6 @@ axiom list found, the low-link (the smallest depth of a stack node it reached, o
 returns the stored list; a node on the stack at depth `j` returns `[]` with low-link `j`; otherwise `c` goes on the
 stack, its successors are searched at depth `k + 1`, `c` leaves the stack, and its list is stored only when the
 low-link is at least `k`.
-
-$$\mathrm{search}(0, c, k, s) = \bot$$
-$$\mathrm{search}(f+1, c, k, s) = \begin{cases}
-(M, k, s) & s.\mathit{memo}(c) = M \\
-([\,], j, s) & s.\mathit{memo}(c) = \bot \land s.\mathit{prog}(c) = j \\
-\bot & s.\mathit{memo}(c) = \bot \land s.\mathit{prog}(c) = \bot \land
-\mathrm{loop}_{g}(\mathit{succ}(c), A_0, k, s_1) = \bot \\
-(A, l, s_2') & s.\mathit{memo}(c) = \bot \land s.\mathit{prog}(c) = \bot \land
-\mathrm{loop}_{g}(\mathit{succ}(c), A_0, k, s_1) = (A, l, s_2)
-\end{cases}$$
-$$\text{with } g(d, t) = \mathrm{search}(f, d, k+1, t),\quad A_0 = \begin{cases} [c] & \mathit{isAx}(c) =
-\mathrm{true} \\ [\,] & \mathit{isAx}(c) = \mathrm{false} \end{cases},\quad s_1 = (s.\mathit{memo},\
-s.\mathit{prog}[c \mapsto k]),\quad s_2' = \bigl(\text{if } k \le l \text{ then } s_2.\mathit{memo}[c \mapsto A]
-\text{ else } s_2.\mathit{memo},\ s_2.\mathit{prog} \setminus \{c\}\bigr)$$
 -/
 def search (succ : α → List α) (isAx : α → Bool) :
     Nat → α → Nat → St α → Option (List α × Nat × St α)
@@ -131,9 +98,6 @@ def search (succ : α → List α) (isAx : α → Bool) :
 
 /-- One query against a shared memo: search from `c` at depth 0 with an empty stack and return the axiom list and
 the new memo (`none` when the fuel ran out).
-
-$$\mathrm{query}(f, M, c) = \begin{cases} (A, s.\mathit{memo}) & \mathrm{search}(f, c, 0, (M, \emptyset)) =
-(A, l, s) \\ \bot & \mathrm{search}(f, c, 0, (M, \emptyset)) = \bot \end{cases}$$
 -/
 def query (succ : α → List α) (isAx : α → Bool) (fuel : Nat) (memo : Std.HashMap α (List α)) (c : α) :
     Option (List α × Std.HashMap α (List α)) :=
@@ -141,18 +105,12 @@ def query (succ : α → List α) (isAx : α → Bool) (fuel : Nat) (memo : Std.
 
 /-! ## Invariants -/
 
-/-- The memo invariant: every stored list holds exactly the axioms reachable from its key.
-
-$$\mathrm{MemoOK}(M) \iff \forall c\ A,\ M(c) = A \implies \forall a,\ (a \in A \iff a \in R(c))$$
--/
+/-- The memo invariant: every stored list holds exactly the axioms reachable from its key. -/
 def MemoOK (succ : α → List α) (isAx : α → Bool) (memo : Std.HashMap α (List α)) : Prop :=
   ∀ c s, memo[c]? = some s → ∀ a, a ∈ s ↔ AxR succ isAx c a
 
 /-- Completeness up to the stack: every axiom at the end of an `n`-edge path from `c` is in `s`, or some stack node
 `p` at depth `j ≥ low` reaches it in at most `n` edges.
-
-$$\mathrm{Compl}(P, c, S, l) \iff \forall n\ a,\ \mathrm{Path}(n, c, a) \land \mathit{isAx}(a) = \mathrm{true}
-\implies a \in S \lor \exists p\ j\ m,\ P(p) = j \land l \le j \land m \le n \land \mathrm{Path}(m, p, a)$$
 -/
 def Compl (succ : α → List α) (isAx : α → Bool) (prog : Std.HashMap α Nat) (c : α) (s : List α) (low : Nat) :
     Prop :=
@@ -163,10 +121,7 @@ section Proofs
 variable [LawfulBEq α]
 
 omit [Hashable α] in
-/-- Membership in a union.
-
-$$\forall A\ S\ a:\quad a \in \mathrm{union}(A, S) \iff a \in A \lor a \in S$$
--/
+/-- Membership in a union. -/
 theorem mem_union (acc s : List α) (a : α) : a ∈ union acc s ↔ a ∈ acc ∨ a ∈ s := by
   induction s generalizing acc with
   | nil => simp [union]
@@ -178,11 +133,7 @@ theorem mem_union (acc s : List α) (a : α) : a ∈ union acc s ↔ a ∈ acc �
     · rintro (h | h | h) <;> simp_all
 
 omit [LawfulBEq α] in
-/-- Completeness is monotone: a larger list and a smaller low-link keep it.
-
-$$\forall \mathit{succ}\ \mathit{isAx}\ P\ c\ S\ S'\ l\ l':\quad S \subseteq S' \land l' \le l \land \mathrm{Compl}(P, c, S, l) \implies
-\mathrm{Compl}(P, c, S', l')$$
--/
+/-- Completeness is monotone: a larger list and a smaller low-link keep it. -/
 theorem compl_mono {succ : α → List α} {isAx : α → Bool} {prog : Std.HashMap α Nat} {c : α} {s s' : List α}
     {low low' : Nat} (hs : ∀ a ∈ s, a ∈ s') (hl : low' ≤ low) (h : Compl succ isAx prog c s low) :
     Compl succ isAx prog c s' low' := by
@@ -192,11 +143,7 @@ theorem compl_mono {succ : α → List α} {isAx : α → Bool} {prog : Std.Hash
   · exact .inr ⟨p, j, m, hpj, Nat.le_trans hl hj, hm, hp'⟩
 
 omit [LawfulBEq α] in
-/-- Completeness depends on the stack map only through its lookups.
-
-$$\forall \mathit{succ}\ \mathit{isAx}\ P\ P'\ c\ S\ l:\quad (\forall x,\ P(x) = P'(x)) \land \mathrm{Compl}(P, c, S, l) \implies
-\mathrm{Compl}(P', c, S, l)$$
--/
+/-- Completeness depends on the stack map only through its lookups. -/
 theorem compl_congr {succ : α → List α} {isAx : α → Bool} {prog prog' : Std.HashMap α Nat} {c : α} {s : List α}
     {low : Nat} (he : ∀ x : α, prog[x]? = prog'[x]?) (h : Compl succ isAx prog c s low) :
     Compl succ isAx prog' c s low := by
@@ -207,17 +154,6 @@ theorem compl_congr {succ : α → List α} {isAx : α → Bool} {prog prog' : S
 
 /-- The loop invariant: if every call of `g` on a node of `ds` keeps the memo exact, restores the stack `P`, is sound
 and complete up to `P`, then so is the whole loop, which also keeps `acc` and lowers the low-link.
-
-$$\begin{aligned}&\forall \mathit{succ}\ \mathit{isAx}\ g\ P\ \mathit{ds}:\ \Bigl(\forall d \in \mathit{ds}\ \forall t\ S\ l\ t',\
-\mathrm{MemoOK}(t.\mathit{memo}) \land t.\mathit{prog} \equiv P \land g(d, t) = (S, l, t') \implies
-\mathrm{MemoOK}(t'.\mathit{memo}) \land t'.\mathit{prog} \equiv P \land S \subseteq R(d) \land
-\mathrm{Compl}(P, d, S, l)\Bigr) \implies \\
-&\forall A\ l\ s\ A'\ l'\ s',\ \mathrm{MemoOK}(s.\mathit{memo}) \land s.\mathit{prog} \equiv P \land
-\mathrm{loop}_g(\mathit{ds}, A, l, s) = (A', l', s') \implies \mathrm{MemoOK}(s'.\mathit{memo}) \land
-s'.\mathit{prog} \equiv P \land l' \le l \land A \subseteq A' \\
-&\qquad \land \bigl(\forall a \in A',\ a \in A \lor \exists d \in \mathit{ds},\ a \in R(d)\bigr) \land
-\forall d \in \mathit{ds},\ \mathrm{Compl}(P, d, A', l') \\
-&\text{with } t \equiv P \iff \forall x,\ t(x) = P(x)\end{aligned}$$
 -/
 theorem loop_spec (succ : α → List α) (isAx : α → Bool) (g : α → St α → Option (List α × Nat × St α))
     (P : Std.HashMap α Nat) (ds : List α)
@@ -259,13 +195,8 @@ theorem loop_spec (succ : α → List α) (isAx : α → Bool) (g : α → St α
         · exact hc2 d' hd'
 
 /-- The search invariant (T2, general form): started with an exact memo and every stack depth below `k`, a search
-that returns $(S, l, s')$ keeps the memo exact, restores the stack, returns $l \le k$, is sound, and is complete up
+that returns `(S, l, s')` keeps the memo exact, restores the stack, returns `l ≤ k`, is sound, and is complete up
 to the stack.
-
-$$\begin{aligned}&\forall \mathit{succ}\ \mathit{isAx}\ f\ c\ k\ s\ S\ l\ s':\ \mathrm{MemoOK}(s.\mathit{memo}) \land \bigl(\forall p\ j,\
-s.\mathit{prog}(p) = j \implies j < k\bigr) \land \mathrm{search}(f, c, k, s) = (S, l, s') \implies \\
-&\quad \mathrm{MemoOK}(s'.\mathit{memo}) \land \bigl(\forall x,\ s'.\mathit{prog}(x) = s.\mathit{prog}(x)\bigr)
-\land l \le k \land S \subseteq R(c) \land \mathrm{Compl}(s.\mathit{prog}, c, S, l)\end{aligned}$$
 -/
 theorem search_spec (succ : α → List α) (isAx : α → Bool) (f : Nat) :
     ∀ (c : α) (k : Nat) (st : St α) s low (st' : St α), MemoOK succ isAx st.memo →
@@ -371,10 +302,6 @@ theorem search_spec (succ : α → List α) (isAx : α → Bool) (f : Nat) :
 
 /-- T2: a search started with an exact memo and every stack depth below `k` that returns a low-link `l ≥ k` returns
 exactly the axioms reachable from `c`, and leaves an exact memo.
-
-$$\forall \mathit{succ}\ \mathit{isAx}\ f\ c\ k\ s\ S\ l\ s':\ \mathrm{MemoOK}(s.\mathit{memo}) \land \bigl(\forall p\ j,\ s.\mathit{prog}(p) = j
-\implies j < k\bigr) \land \mathrm{search}(f, c, k, s) = (S, l, s') \land k \le l \implies \bigl(\forall a,\ a \in S
-\iff a \in R(c)\bigr) \land \mathrm{MemoOK}(s'.\mathit{memo})$$
 -/
 theorem search_exact (succ : α → List α) (isAx : α → Bool) (f : Nat) (c : α) (k : Nat) (st : St α) (s : List α)
     (low : Nat) (st' : St α) (hm : MemoOK succ isAx st.memo) (hb : ∀ (p : α) (j : Nat), st.prog[p]? = some j → j < k)
@@ -388,9 +315,6 @@ theorem search_exact (succ : α → List α) (isAx : α → Bool) (f : Nat) (c :
 
 /-- T3: a query against an exact memo returns exactly the axioms reachable from `c` and an exact memo, so the
 shared-memo result equals a fresh per-query walk.
-
-$$\forall \mathit{succ}\ \mathit{isAx}\ f\ M\ c\ s\ M':\ \mathrm{MemoOK}(M) \land \mathrm{query}(f, M, c) = (s, M')
-\implies \bigl(\forall a,\ a \in s \iff a \in R(c)\bigr) \land \mathrm{MemoOK}(M')$$
 -/
 theorem query_exact (succ : α → List α) (isAx : α → Bool) (f : Nat) (memo : Std.HashMap α (List α)) (c : α)
     (s : List α) (memo' : Std.HashMap α (List α)) (hm : MemoOK succ isAx memo)
@@ -402,18 +326,12 @@ theorem query_exact (succ : α → List α) (isAx : α → Bool) (f : Nat) (memo
   obtain ⟨rfl, rfl⟩ := he
   exact search_exact succ isAx f c 0 _ _ low st' hm (fun p j hpj => by simp at hpj) hs (Nat.zero_le _)
 
-/-- The empty memo is exact.
-
-$$\forall\, \mathit{succ},\ \mathit{isAx}:\quad \mathrm{MemoOK}(\emptyset)$$
--/
+/-- The empty memo is exact. -/
 theorem memoOK_empty (succ : α → List α) (isAx : α → Bool) : MemoOK succ isAx (∅ : Std.HashMap α (List α)) := by
   intro c s h; simp at h
 
 /-- T3 for the first query: on an empty memo the root of the search returns exactly the axioms reachable from `c`,
 the result of the old per-call walk.
-
-$$\forall \mathit{succ}\ \mathit{isAx}\ f\ c\ s\ M':\ \mathrm{query}(f, \emptyset, c) = (s, M') \implies \forall a,\
-a \in s \iff a \in R(c)$$
 -/
 theorem query_fresh (succ : α → List α) (isAx : α → Bool) (f : Nat) (c : α) (s : List α)
     (memo' : Std.HashMap α (List α)) (h : query succ isAx f ∅ c = some (s, memo')) :
@@ -424,28 +342,20 @@ end Proofs
 
 /-! ## Example: a cyclic graph where a naive shared memo goes wrong
 
-Edges $0 \to 1$, $1 \to 0$, $1 \to 2$, $0 \to 3$; axioms $2$ and $3$. From the root $0$, node $1$ sees $0$ still on
-the stack and finds only $\{2\}$, although $R(1) = \{2, 3\}$. A naive memo would store $1 \mapsto \{2\}$; this search
-does not store $1$ (its low-link $0$ is below its depth $1$), so the next query from $1$ walks again and is exact. -/
+Edges `0 → 1`, `1 → 0`, `1 → 2`, `0 → 3`; axioms `2` and `3`. From the root `0`, node `1` sees `0` still on
+the stack and finds only `{2}`, although `R(1) = {2, 3}`. A naive memo would store `1 ↦ {2}`; this search
+does not store `1` (its low-link `0` is below its depth `1`), so the next query from `1` walks again and is exact. -/
 
-/-- The example graph's successor lists.
-
-$$\mathit{succ}(0) = [1, 3],\ \mathit{succ}(1) = [0, 2],\ \mathit{succ}(n) = [\,]\ (n \ge 2)$$
--/
+/-- The example graph's successor lists. -/
 def exSucc : Nat → List Nat
   | 0 => [1, 3] | 1 => [0, 2] | _ => []
 
-/-- The example graph's axioms.
-
-$$\mathit{isAx}(n) \iff n = 2 \lor n = 3$$
--/
+/-- The example graph's axioms. -/
 def exIsAx (n : Nat) : Bool := n == 2 || n == 3
 
 /-- Run queries in order on one shared memo, returning each result (sorted) and the memo's keys (sorted).
 
-$$\mathrm{exRun}(\mathit{cs}) = \bigl([\mathrm{sort}(A_i)]_i,\ \mathrm{sort}(\mathrm{keys}(M_{|\mathit{cs}|}))\bigr),\qquad
-(A_i, M_{i+1}) = \mathrm{query}(10, M_i, \mathit{cs}_i),\ M_0 = \emptyset$$
-(a query that runs out of fuel contributes $[\,]$ and keeps the memo)
+(a query that runs out of fuel contributes `[]` and keeps the memo)
 -/
 def exRun (cs : List Nat) : List (List Nat) × List Nat :=
   let (out, memo) := cs.foldl (fun (out, memo) c =>

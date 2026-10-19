@@ -16,25 +16,17 @@ in its inputs (`holds_mono`, `verdict_mono`).
 -/
 namespace Fw.Ops.Meter
 
-/-- The alert rules.
-
-$$\mathrm{Rule} = \{\mathrm{ctxBig},\ \mathrm{idleExpiring},\ \mathrm{coldWake}\}$$
--/
+/-- The alert rules. -/
 inductive Rule where
   | ctxBig | idleExpiring | coldWake
 deriving DecidableEq, Repr
 
-/-- All rules, in output order.
-
-$$\mathrm{Rules} = [\mathrm{ctxBig}, \mathrm{idleExpiring}, \mathrm{coldWake}]$$
--/
+/-- All rules, in output order. -/
 def Rule.all : List Rule := [.ctxBig, .idleExpiring, .coldWake]
 
 /-- The meter's parameters: the context cap, the lead time before TTL expiry, the dedupe window
 and the context above which an expired agent should be respawned rather than resumed (all in
 tokens or seconds).
-
-$$\mathrm{Params} = (c_{max}, \lambda, \omega, c_{resp}), \qquad \text{defaults } c_{max} = 200000,\ \lambda = 60,\ \omega = 3600,\ c_{resp} = 30000$$
 -/
 structure Params where
   ctxMax     : Nat := 200000
@@ -45,8 +37,6 @@ deriving Repr
 
 /-- One agent observation: its last-turn context in tokens, seconds since its last transcript line,
 its cache TTL in seconds, and the idle gap before its latest wake (0 when it was not woken).
-
-$$o = (o.\mathit{agent},\ o.\mathit{ctx},\ o.\mathit{idle},\ o.\mathit{ttl},\ o.\mathit{gap}) \in \mathrm{String} \times \mathbb{N}^4$$
 -/
 structure Obs where
   agent      : String
@@ -58,15 +48,10 @@ deriving DecidableEq, Repr
 
 /-- The cache TTL an agent's writes used (as in `agent-idle.py`): 1 h when its 1-hour cache
 writes exceed its 5-minute ones, else 5 min.
-
-$$\mathrm{ttl}(w_{5m}, w_{1h}) = \begin{cases} 3600 & w_{1h} > w_{5m} \\ 300 & \text{otherwise} \end{cases}$$
 -/
 def ttlOf (w5m w1h : Nat) : Nat := if w1h > w5m then 3600 else 300
 
-/-- Whether a rule fires for an observation.
-
-$$\mathrm{ctxBig}(o) \iff o.\mathit{ctx} > c_{max}, \qquad \mathrm{idleExpiring}(o) \iff o.\mathit{idle} + \lambda > o.\mathit{ttl}, \qquad \mathrm{coldWake}(o) \iff o.\mathit{gap} > o.\mathit{ttl}$$
--/
+/-- Whether a rule fires for an observation. -/
 def holds (p : Params) (o : Obs) : Rule → Bool
   | .ctxBig => Decidable.decide (p.ctxMax < o.ctx)
   | .idleExpiring => Decidable.decide (o.ttlSec < o.idleSec + p.leadSec)
@@ -74,8 +59,6 @@ def holds (p : Params) (o : Obs) : Rule → Bool
 
 /-- The pointwise order on observations of one agent: more context, more idle time, a longer wake
 gap, a shorter TTL.
-
-$$o \preceq o' \iff o.\mathit{agent} = o'.\mathit{agent} \land o.\mathit{ctx} \le o'.\mathit{ctx} \land o.\mathit{idle} \le o'.\mathit{idle} \land o.\mathit{gap} \le o'.\mathit{gap} \land o'.\mathit{ttl} \le o.\mathit{ttl}$$
 -/
 def Obs.le (o o' : Obs) : Prop :=
   o.agent = o'.agent ∧ o.ctx ≤ o'.ctx ∧ o.idleSec ≤ o'.idleSec ∧ o.wakeGapSec ≤ o'.wakeGapSec ∧
@@ -83,8 +66,6 @@ def Obs.le (o o' : Obs) : Prop :=
 
 /-- Monotone alerts: a rule that fires keeps firing when context, idle time or wake gap grow or
 the TTL shrinks.
-
-$$\forall p, o, o', r:\quad o \preceq o' \land r(o) \Rightarrow r(o')$$
 -/
 theorem holds_mono (p : Params) {o o' : Obs} (h : o.le o') (r : Rule) (hr : holds p o r = true) :
     holds p o' r = true := by
@@ -93,33 +74,22 @@ theorem holds_mono (p : Params) {o o' : Obs} (h : o.le o') (r : Rule) (hr : hold
 
 /-- The verdict of `agent-idle.py`: resume within the TTL, resume cheaply a small expired agent,
 respawn a large expired one.
-
-$$\mathrm{Verdict} = \mathrm{resumeOk} \mid \mathrm{resumeCheap} \mid \mathrm{respawn}$$
 -/
 inductive Verdict where
   | resumeOk | resumeCheap | respawn
 deriving DecidableEq, Repr
 
-/-- The rank of a verdict (worse is higher).
-
-$$\mathrm{rank}(\mathrm{resumeOk}) = 0,\quad \mathrm{rank}(\mathrm{resumeCheap}) = 1,\quad \mathrm{rank}(\mathrm{respawn}) = 2$$
--/
+/-- The rank of a verdict (worse is higher). -/
 def Verdict.rank : Verdict → Nat
   | .resumeOk => 0 | .resumeCheap => 1 | .respawn => 2
 
-/-- The verdict for an observation.
-
-$$\mathrm{verdict}(o) = \begin{cases} \mathrm{respawn} & o.\mathit{idle} > o.\mathit{ttl} \land o.\mathit{ctx} > c_{resp} \\ \mathrm{resumeOk} & o.\mathit{idle} \le o.\mathit{ttl} \\ \mathrm{resumeCheap} & \text{otherwise} \end{cases}$$
--/
+/-- The verdict for an observation. -/
 def verdict (p : Params) (o : Obs) : Verdict :=
   if o.ttlSec < o.idleSec ∧ p.respawnCtx < o.ctx then .respawn
   else if o.idleSec ≤ o.ttlSec then .resumeOk
   else .resumeCheap
 
-/-- The verdict only gets worse as context or idle time grow or the TTL shrinks.
-
-$$\forall p, o, o':\quad o \preceq o' \Rightarrow \mathrm{rank}(\mathrm{verdict}(o)) \le \mathrm{rank}(\mathrm{verdict}(o'))$$
--/
+/-- The verdict only gets worse as context or idle time grow or the TTL shrinks. -/
 theorem verdict_mono (p : Params) {o o' : Obs} (h : o.le o') :
     (verdict p o).rank ≤ (verdict p o').rank := by
   obtain ⟨_, hc, hi, _, ht⟩ := h
@@ -135,46 +105,29 @@ theorem verdict_mono (p : Params) {o o' : Obs} (h : o.le o') :
 
 /-! ## Dedupe: once per (agent, rule, window) -/
 
-/-- An alert key: (agent, rule).
-
-$$\mathrm{Key} = \mathrm{String} \times \mathrm{Rule}$$
--/
+/-- An alert key: (agent, rule). -/
 abbrev Key := String × Rule
 
-/-- An emitted alert: (agent, rule, window index).
-
-$$\mathrm{Alert} = \mathrm{String} \times \mathrm{Rule} \times \mathbb{N}$$
--/
+/-- An emitted alert: (agent, rule, window index). -/
 abbrev Alert := String × Rule × Nat
 
-/-- The dedupe state: the current window index and the keys already alerted in it.
-
-$$\sigma = (\sigma.w,\ \sigma.F), \qquad \sigma_0 = (0, [\,])$$
--/
+/-- The dedupe state: the current window index and the keys already alerted in it. -/
 structure State where
   window : Nat := 0
   fired  : List Key := []
 deriving DecidableEq, Repr
 
-/-- The keys whose rule fires, in observation order.
-
-$$\mathrm{cand}(p, O) = [\,(o.\mathit{agent}, r) : o \in O,\ r \in \mathrm{Rules},\ r(o)\,]$$
--/
+/-- The keys whose rule fires, in observation order. -/
 def candidates (p : Params) (obs : List Obs) : List Key :=
   obs.flatMap fun o => (Rule.all.filter (holds p o)).map ((o.agent, ·))
 
-/-- The candidates not yet seen, each once, in order.
-
-$$\mathrm{fresh}(S, [\,]) = [\,], \qquad \mathrm{fresh}(S, c :: C) = \begin{cases} \mathrm{fresh}(S, C) & c \in S \\ c :: \mathrm{fresh}(c :: S, C) & c \notin S \end{cases}$$
--/
+/-- The candidates not yet seen, each once, in order. -/
 def fresh : List Key → List Key → List Key
   | _, [] => []
   | seen, c :: cs => if c ∈ seen then fresh seen cs else c :: fresh (c :: seen) cs
 
-/-- One meter tick at time `now` (seconds): the window is $\lfloor \mathit{now} / \omega \rfloor$ (0 when
-$\omega = 0$); a new window forgets the fired keys; the fresh candidates are emitted and remembered.
-
-$$\mathrm{step}(\sigma, \mathit{now}, O) = \big((w,\ N \mathbin{+\!\!+} F_0),\ [(a, r, w) : (a, r) \in N]\big), \quad w = \lfloor \mathit{now}/\omega \rfloor \ (w = 0 \text{ when } \omega = 0),\ F_0 = \begin{cases} \sigma.F & w = \sigma.w \\ [\,] & w \ne \sigma.w \end{cases},\ N = \mathrm{fresh}(F_0, \mathrm{cand}(p, O))$$
+/-- One meter tick at time `now` (seconds): the window is `⌊ now / ω ⌋` (0 when
+`ω = 0`); a new window forgets the fired keys; the fresh candidates are emitted and remembered.
 -/
 def step (p : Params) (s : State) (now : Nat) (obs : List Obs) : State × List Alert :=
   let w := now / p.windowSec
@@ -182,10 +135,7 @@ def step (p : Params) (s : State) (now : Nat) (obs : List Obs) : State × List A
   let new := fresh f0 (candidates p obs)
   (⟨w, new ++ f0⟩, new.map fun k => (k.1, k.2, w))
 
-/-- Run the meter over a trace of ticks, collecting all alerts.
-
-$$\mathrm{run}(\sigma, [\,]) = (\sigma, [\,]), \qquad \mathrm{run}(\sigma, (t, O) :: T) = (\sigma'',\ A \mathbin{+\!\!+} A'') \text{ where } (\sigma', A) = \mathrm{step}(\sigma, t, O),\ (\sigma'', A'') = \mathrm{run}(\sigma', T)$$
--/
+/-- Run the meter over a trace of ticks, collecting all alerts. -/
 def run (p : Params) : State → List (Nat × List Obs) → State × List Alert
   | s, [] => (s, [])
   | s, (now, obs) :: rest =>
@@ -193,10 +143,7 @@ def run (p : Params) : State → List (Nat × List Obs) → State × List Alert
     let r2 := run p r1.1 rest
     (r2.1, r1.2 ++ r2.2)
 
-/-- Membership in `fresh`: a candidate not seen before.
-
-$$\forall S, C, x:\quad x \in \mathrm{fresh}(S, C) \iff x \in C \land x \notin S$$
--/
+/-- Membership in `fresh`: a candidate not seen before. -/
 theorem mem_fresh (seen cs : List Key) (x : Key) : x ∈ fresh seen cs ↔ x ∈ cs ∧ x ∉ seen := by
   induction cs generalizing seen with
   | nil => simp [fresh]
@@ -223,10 +170,7 @@ theorem mem_fresh (seen cs : List Key) (x : Key) : x ∈ fresh seen cs ↔ x ∈
           · exact .inl e
           · exact .inr ⟨h1, fun m => m.elim e h2⟩
 
-/-- `fresh` has no repeats.
-
-$$\forall S, C:\quad \mathrm{fresh}(S, C) \text{ has no repeats}$$
--/
+/-- `fresh` has no repeats. -/
 theorem fresh_nodup (seen cs : List Key) : (fresh seen cs).Nodup := by
   induction cs generalizing seen with
   | nil => simp [fresh]
@@ -238,10 +182,7 @@ theorem fresh_nodup (seen cs : List Key) : (fresh seen cs).Nodup := by
       intro m
       exact ((mem_fresh _ _ _).mp m).2 List.mem_cons_self
 
-/-- A tick is complete: a firing rule whose key was not yet alerted in this window is alerted now.
-
-$$\forall p, \sigma, \mathit{now}, O,\ o \in O,\ r:\quad r(o) \land (o.\mathit{agent}, r) \notin F_0 \Rightarrow (o.\mathit{agent}, r, w) \in \mathrm{step}(\sigma, \mathit{now}, O).2, \qquad w = \lfloor \mathit{now}/\omega \rfloor \ (0 \text{ when } \omega = 0),\ F_0 = \begin{cases} \sigma.F & w = \sigma.w \\ [\,] & w \ne \sigma.w \end{cases}$$
--/
+/-- A tick is complete: a firing rule whose key was not yet alerted in this window is alerted now. -/
 theorem step_complete (p : Params) (s : State) (now : Nat) (obs : List Obs) (o : Obs) (ho : o ∈ obs)
     (r : Rule) (hr : holds p o r = true)
     (hn : (o.agent, r) ∉ (if now / p.windowSec = s.window then s.fired else [])) :
@@ -251,10 +192,7 @@ theorem step_complete (p : Params) (s : State) (now : Nat) (obs : List Obs) (o :
   simp only [candidates, List.mem_flatMap, List.mem_map, List.mem_filter]
   exact ⟨o, ho, r, ⟨by cases r <;> simp [Rule.all], hr⟩, rfl⟩
 
-/-- A tick is sound: every alert is a firing rule of an observed agent.
-
-$$\forall p, \sigma, \mathit{now}, O,\ (a, r, w) \in \mathrm{step}(\sigma, \mathit{now}, O).2:\quad \exists o \in O:\ o.\mathit{agent} = a \land r(o)$$
--/
+/-- A tick is sound: every alert is a firing rule of an observed agent. -/
 theorem step_sound (p : Params) (s : State) (now : Nat) (obs : List Obs) (a : Alert)
     (h : a ∈ (step p s now obs).2) : ∃ o ∈ obs, o.agent = a.1 ∧ holds p o a.2.1 = true := by
   simp only [step, List.mem_map] at h
@@ -267,8 +205,6 @@ theorem step_sound (p : Params) (s : State) (now : Nat) (obs : List Obs) (a : Al
 /-- The run invariant: with non-decreasing tick times not before the state's window, the alerts
 have no repeats, and each is in a later window than the state's, or in the same window with a key
 not yet fired.
-
-$$\forall p, \sigma, T:\quad \big(\mathrm{times}(T) \text{ non-decreasing} \land \forall (t, O) \in T:\ \sigma.w \le \lfloor t/\omega \rfloor\big) \Rightarrow \big(\mathrm{run}(\sigma, T).2 \text{ has no repeats} \land \forall (a, r, w) \in \mathrm{run}(\sigma, T).2:\ w > \sigma.w \lor (w = \sigma.w \land (a, r) \notin \sigma.F)\big) \qquad (\lfloor t/0 \rfloor = 0)$$
 -/
 theorem run_inv (p : Params) (s : State) (tr : List (Nat × List Obs))
     (hmono : (tr.map (·.1)).Pairwise (· ≤ ·)) (hge : ∀ x ∈ tr, s.window ≤ x.1 / p.windowSec) :
@@ -327,8 +263,6 @@ theorem run_inv (p : Params) (s : State) (tr : List (Nat × List Obs))
 
 /-- Once per window: over any trace with non-decreasing times, starting from the empty state,
 no (agent, rule, window) alert is emitted twice.
-
-$$\forall T:\quad \mathrm{times}(T) \text{ non-decreasing} \Rightarrow \mathrm{run}(\sigma_0, T).2 \text{ has no repeats}$$
 -/
 theorem once_per_window (p : Params) (tr : List (Nat × List Obs))
     (hmono : (tr.map (·.1)).Pairwise (· ≤ ·)) : (run p {} tr).2.Nodup :=
@@ -336,10 +270,7 @@ theorem once_per_window (p : Params) (tr : List (Nat × List Obs))
 
 /-! ## Examples -/
 
-/-- An example observation.
-
-$$\mathrm{ex}(a, c, i, t, g) = (a, c, i, t, g)$$
--/
+/-- An example observation. -/
 def exObs (a : String) (ctx idle ttl gap : Nat) : Obs := ⟨a, ctx, idle, ttl, gap⟩
 
 #guard ttlOf 10 20 == 3600 && ttlOf 20 20 == 300

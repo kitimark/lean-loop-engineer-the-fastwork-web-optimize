@@ -27,130 +27,83 @@ namespace Fw.Store
 
 /-! ## Engines -/
 
-/-- The two engines of the study.
-
-$$\mathrm{Engine} = \{\mathrm{chromium}, \mathrm{webkit}\}$$
--/
+/-- The two engines of the study. -/
 inductive Engine where
   | chromium
   | webkit
 deriving DecidableEq, Repr
 
-/-- Wire name of an engine.
-
-$$\operatorname{name}(\mathrm{chromium}) = \texttt{"chromium"},\quad \operatorname{name}(\mathrm{webkit}) = \texttt{"webkit"}$$
--/
+/-- Wire name of an engine. -/
 def Engine.name : Engine → String
   | .chromium => "chromium"
   | .webkit => "webkit"
 
-/-- An engine from its wire name.
-
-$$\operatorname{ofName}(s) = \begin{cases} \mathrm{chromium} & s = \texttt{"chromium"} \\ \mathrm{webkit} & s = \texttt{"webkit"} \\ \bot & \text{otherwise} \end{cases}$$
--/
+/-- An engine from its wire name. -/
 def Engine.ofName : String → Option Engine
   | "chromium" => some .chromium
   | "webkit" => some .webkit
   | _ => none
 
-/-- Names round-trip.
-
-$$\forall e:\ \operatorname{ofName}(\operatorname{name}(e)) = e$$
--/
+/-- Names round-trip. -/
 theorem Engine.ofName_name (e : Engine) : Engine.ofName e.name = some e := by
   cases e <;> rfl
 
-/-- Names are injective.
-
-$$\forall e, e':\ \operatorname{name}(e) = \operatorname{name}(e') \Rightarrow e = e'$$
--/
+/-- Names are injective. -/
 theorem Engine.name_inj {e e' : Engine} (h : e.name = e'.name) : e = e' := by
   cases e <;> cases e' <;> first | rfl | (exact absurd h (by decide))
 
-/-- The engines in canonical order, restricted to those requested: no duplicates, chromium first.
-
-$$\operatorname{canon}(E) = [\, e \in [\mathrm{chromium}, \mathrm{webkit}] \mid e \in E \,]$$
--/
+/-- The engines in canonical order, restricted to those requested: no duplicates, chromium first. -/
 def canonEngines (es : List Engine) : List Engine :=
   [Engine.chromium, Engine.webkit].filter (fun e => decide (e ∈ es))
 
-/-- Canonical engines are exactly the requested ones.
-
-$$\forall E, e:\ e \in \operatorname{canon}(E) \iff e \in E$$
--/
+/-- Canonical engines are exactly the requested ones. -/
 theorem mem_canonEngines (es : List Engine) (e : Engine) : e ∈ canonEngines es ↔ e ∈ es := by
   cases e <;> simp [canonEngines]
 
-/-- Canonical engines have no duplicates.
-
-$$\forall E:\ \operatorname{canon}(E)\ \text{has no repeated element}$$
--/
+/-- Canonical engines have no duplicates. -/
 theorem canonEngines_nodup (es : List Engine) : (canonEngines es).Nodup := by
   unfold canonEngines
   exact List.Nodup.sublist (List.filter_sublist) (by decide)
 
 /-! ## Targets -/
 
-/-- The page a run measures: the original site (the unmodified snapshot) or the rewrite (`apps/site`).
-
-$$\mathrm{Target} = \{\mathrm{original}, \mathrm{rewrite}\}$$
--/
+/-- The page a run measures: the original site (the unmodified snapshot) or the rewrite (`apps/site`). -/
 inductive Target where
   | original
   | rewrite
 deriving DecidableEq, Repr
 
-/-- Wire name of a target (the values of the `target` input of chromium-counts.yml).
-
-$$\operatorname{name}(\mathrm{original}) = \texttt{"original"},\quad \operatorname{name}(\mathrm{rewrite}) = \texttt{"rewrite"}$$
--/
+/-- Wire name of a target (the values of the `target` input of chromium-counts.yml). -/
 def Target.name : Target → String
   | .original => "original"
   | .rewrite => "rewrite"
 
-/-- A target from its wire name (`both`, which the workflow also accepts, is not one target).
-
-$$\operatorname{ofName}(s) = \begin{cases} \mathrm{original} & s = \texttt{"original"} \\ \mathrm{rewrite} & s = \texttt{"rewrite"} \\ \bot & \text{otherwise} \end{cases}$$
--/
+/-- A target from its wire name (`both`, which the workflow also accepts, is not one target). -/
 def Target.ofName : String → Option Target
   | "original" => some .original
   | "rewrite" => some .rewrite
   | _ => none
 
-/-- Target names round-trip.
-
-$$\forall t:\ \operatorname{ofName}(\operatorname{name}(t)) = \mathrm{some}\ t$$
--/
+/-- Target names round-trip. -/
 theorem Target.ofName_name (t : Target) : Target.ofName t.name = some t := by
   cases t <;> rfl
 
-/-- A target is the target of its name.
-
-$$\forall s, t:\ \operatorname{ofName}(s) = \mathrm{some}\ t \Rightarrow \operatorname{name}(t) = s$$
--/
+/-- A target is the target of its name. -/
 theorem Target.name_ofName {s : String} {t : Target} (h : Target.ofName s = some t) : t.name = s := by
   unfold Target.ofName at h
   split at h <;> first | (cases h; rfl) | cases h
 
-/-- Target names are injective.
-
-$$\forall t, t':\ \operatorname{name}(t) = \operatorname{name}(t') \Rightarrow t = t'$$
--/
+/-- Target names are injective. -/
 theorem Target.name_inj {t t' : Target} (h : t.name = t'.name) : t = t' := by
   cases t <;> cases t' <;> first | rfl | (exact absurd h (by decide))
 
 #guard Target.ofName "both" == none
 
-/-- The default preset name (with no flags and `defaultProfile` it is the default configuration).
-
-$$\mathrm{defaultPreset} = \texttt{original}$$
--/
+/-- The default preset name (with no flags and `defaultProfile` it is the default configuration). -/
 def defaultPreset : String := "original"
 
 /-- The configuration fits the target: presets and flags exist only in the rewrite, so the original target takes the
 default preset and no flag (chromium-counts.yml refuses `target=original` with a preset or flags).
-
-$$\operatorname{fits}(t, p, F) \iff t \ne \texttt{original} \lor (p = \mathrm{defaultPreset} \land F = [\,])$$
 -/
 def targetFits (target preset : String) (fw : List (String × String)) : Bool :=
   target != "original" || (preset == defaultPreset && fw.isEmpty)
@@ -160,35 +113,21 @@ def targetFits (target preset : String) (fw : List (String × String)) : Bool :=
 
 /-! ## Digests and object paths -/
 
-/-- A lowercase hexadecimal digit.
-
-$$\mathrm{hex}(c) \iff c \in \{0..9\} \cup \{a..f\}$$
--/
+/-- A lowercase hexadecimal digit. -/
 def isHexChar (c : Char) : Bool := c.isDigit || (decide ('a' ≤ c) && decide (c ≤ 'f'))
 
-/-- A lowercase hex string of exactly `n` digits.
-
-$$\operatorname{isHex}_n(s) \iff |s| = n \land \forall c \in s:\ \mathrm{hex}(c)$$
--/
+/-- A lowercase hex string of exactly `n` digits. -/
 def isHex (n : Nat) (s : String) : Bool := s.toList.length == n && s.toList.all isHexChar
 
-/-- The characters of an object path: `objects/`, the first two digits, `/`, the other digits.
-
-$$\operatorname{pathChars}(d) = \texttt{objects/} \mathbin{+\!\!+} d_{[0,2)} \mathbin{+\!\!+} \texttt{/} \mathbin{+\!\!+} d_{[2,\infty)}$$
--/
+/-- The characters of an object path: `objects/`, the first two digits, `/`, the other digits. -/
 def pathChars (d : List Char) : List Char :=
   "objects/".toList ++ (d.take 2 ++ '/' :: d.drop 2)
 
-/-- The path of an object, relative to the store root.
-
-$$\operatorname{objectPath}(d) = \texttt{objects/} d_{[0,2)} \texttt{/} d_{[2,\infty)}$$
--/
+/-- The path of an object, relative to the store root. -/
 def objectPath (d : String) : String := String.ofList (pathChars d.toList)
 
 /-- **Content addressing is injective.** Two digests of at least two digits with the same path are
 the same digest, so two different byte strings (different sha256) never share a file.
-
-$$\forall d, d' \text{ with } |d|, |d'| \ge 2:\ \operatorname{objectPath}(d) = \operatorname{objectPath}(d') \Rightarrow d = d'$$
 -/
 theorem objectPath_inj {d d' : String} (h2 : 2 ≤ d.toList.length) (h2' : 2 ≤ d'.toList.length)
     (h : objectPath d = objectPath d') : d = d' := by
@@ -212,8 +151,6 @@ theorem objectPath_inj {d d' : String} (h2 : 2 ≤ d.toList.length) (h2' : 2 ≤
 
 /-- A short identifier: 1 to 64 characters from `a-z 0-9 . _ -`, starting with a letter or digit.
 Colons, commas, slashes and spaces are excluded, which is what keeps flag lists unambiguous.
-
-$$\operatorname{isId}(s) \iff 1 \le |s| \le 64 \land s_0 \in [a\text{-}z0\text{-}9] \land \forall c \in s:\ c \in [a\text{-}z0\text{-}9\_.\text{-}]$$
 -/
 def isId (s : String) : Bool :=
   let cs := s.toList
@@ -225,8 +162,6 @@ def isId (s : String) : Bool :=
 
 /-- A flag part: like `isId`, but letters after the first may also be upper case, because the
 site's part ids are camelCase (`nav.hitTest`).
-
-$$\operatorname{isPart}(s) \iff 1 \le |s| \le 64 \land s_0 \in [a\text{-}z0\text{-}9] \land \forall c \in s:\ c \in [a\text{-}zA\text{-}Z0\text{-}9\_.\text{-}]$$
 -/
 def isPart (s : String) : Bool :=
   let cs := s.toList
@@ -241,18 +176,13 @@ def isPart (s : String) : Bool :=
 
 /-- An artifact name inside a run: `/`-separated segments of `A-Za-z0-9._-`, none empty, `.` or `..`,
 so a name can never leave the run's directory.
-
-$$\operatorname{safeName}(n) \iff n \ne \varepsilon \land \forall s \in \operatorname{split}_{/}(n):\ s \ne \varepsilon \land s \notin \{\texttt{.}, \texttt{..}\} \land s \in [A\text{-}Za\text{-}z0\text{-}9\_.\text{-}]^{*}$$
 -/
 def safeName (n : String) : Bool :=
   !n.isEmpty && (n.splitOn "/").all fun s =>
     !s.isEmpty && s != "." && s != ".." &&
       s.toList.all (fun c => c.isAlphanum || c == '.' || c == '_' || c == '-')
 
-/-- **A safe name has no `..` segment.**
-
-$$\forall n:\ \operatorname{safeName}(n) \Rightarrow \forall s \in \operatorname{split}_{/}(n):\ s \ne \texttt{..}$$
--/
+/-- **A safe name has no `..` segment.** -/
 theorem safeName_no_dotdot {n : String} (h : safeName n = true) :
     ∀ s ∈ n.splitOn "/", s ≠ ".." := by
   intro s hs
@@ -267,10 +197,7 @@ theorem safeName_no_dotdot {n : String} (h : safeName n = true) :
 #guard !safeName "/abs"
 #guard !safeName "a/./b"
 
-/-- One stored artifact of a run.
-
-$$\mathrm{Entry} = \mathrm{Name} \times \mathrm{Digest} \times \mathbb{N}$$
--/
+/-- One stored artifact of a run. -/
 structure Entry where
   name : String
   digest : String
@@ -279,8 +206,6 @@ deriving Repr, DecidableEq
 
 /-- What one run measured and where its bytes are, as read from the wire: the engine and the target are names (strings
 checked by `problems`), the flags are (part, variant) pairs.
-
-$$\mathrm{Manifest} = (\mathit{engine}, \mathit{target}, \mathit{preset}, \mathit{fw}, \mathit{profile}, \mathit{gitSha}, \mathit{image}, \mathit{runId}, \mathit{entries}) \in \mathrm{String}^{3} \times (\mathrm{String} \times \mathrm{String})^{*} \times \mathrm{String}^{4} \times \mathrm{Entry}^{*}$$
 -/
 structure Manifest where
   engine : String
@@ -294,17 +219,11 @@ structure Manifest where
   entries : List Entry
 deriving Repr
 
-/-- The flags are strictly increasing by part, so a part appears at most once and the list is canonical.
-
-$$\operatorname{flagsOk}(F) \iff \forall i < j:\ F_i.\mathrm{part} < F_j.\mathrm{part}$$
--/
+/-- The flags are strictly increasing by part, so a part appears at most once and the list is canonical. -/
 def flagsOk (fw : List (String × String)) : Bool :=
   decide (fw.Pairwise (fun a b => a.1 < b.1))
 
-/-- The flag list is free of duplicate parts when strictly increasing.
-
-$$\forall F:\ \operatorname{flagsOk}(F) \Rightarrow \text{the parts of } F \text{ are pairwise distinct}$$
--/
+/-- The flag list is free of duplicate parts when strictly increasing. -/
 theorem flagsOk_nodup {fw : List (String × String)} (h : flagsOk fw = true) :
     (fw.map (·.1)).Nodup := by
   have h' : fw.Pairwise (fun a b => a.1 < b.1) := by simpa [flagsOk] using h
@@ -312,34 +231,22 @@ theorem flagsOk_nodup {fw : List (String × String)} (h : flagsOk fw = true) :
   rw [List.pairwise_map]
   exact h'.imp (fun {a b} hab => fun e => String.lt_irrefl _ (e ▸ hab))
 
-/-- An image: a container digest `sha256:<64 hex>` or a CI runner label `runner:<id>`.
-
-$$\operatorname{imageOk}(s) \iff \exists d:\ s = \texttt{sha256:} d \land \operatorname{isHex}_{64}(d)\ \lor\ \exists r:\ s = \texttt{runner:} r \land \operatorname{isId}(r)$$
--/
+/-- An image: a container digest `sha256:<64 hex>` or a CI runner label `runner:<id>`. -/
 def imageOk (s : String) : Bool :=
   (s.startsWith "sha256:" && isHex 64 (s.drop 7).toString) ||
   (s.startsWith "runner:" && isId (s.drop 7).toString)
 
-/-- Strictly increasing entry names (sorted, no duplicate name).
-
-$$\operatorname{entriesSorted}(E) \iff \forall i < j:\ E_i.\mathrm{name} < E_j.\mathrm{name}$$
--/
+/-- Strictly increasing entry names (sorted, no duplicate name). -/
 def entriesSorted (es : List Entry) : Bool := decide (es.Pairwise (fun a b => a.name < b.name))
 
-/-- Sorted entries have distinct names.
-
-$$\forall E:\ \operatorname{entriesSorted}(E) \Rightarrow \text{the names of } E \text{ are pairwise distinct}$$
--/
+/-- Sorted entries have distinct names. -/
 theorem entriesSorted_nodup {es : List Entry} (h : entriesSorted es = true) :
     (es.map (·.name)).Nodup := by
   have h' : es.Pairwise (fun a b => a.name < b.name) := by simpa [entriesSorted] using h
   rw [List.nodup_iff_pairwise_ne, List.pairwise_map]
   exact h'.imp (fun {a b} hab => fun e => String.lt_irrefl _ (e ▸ hab))
 
-/-- Every problem of a manifest, as a message (empty = valid).
-
-$$\begin{aligned} \operatorname{problems}(m) ={} & [\texttt{engine: unknown} \mid \operatorname{ofName}(m.\mathit{engine}) = \bot] \mathbin{+\!\!+} [\texttt{target: not original or rewrite} \mid \operatorname{ofName}_{\mathrm{Target}}(m.\mathit{target}) = \bot] \\ & \mathbin{+\!\!+} [\texttt{target: original takes no preset or flags} \mid \neg\operatorname{fits}(m.\mathit{target}, m.\mathit{preset}, m.\mathit{fw})] \mathbin{+\!\!+} [\texttt{preset: not an id} \mid \neg\operatorname{isId}(m.\mathit{preset})] \mathbin{+\!\!+} [\texttt{profile: not an id} \mid \neg\operatorname{isId}(m.\mathit{profile})] \\ & \mathbin{+\!\!+} [\texttt{fw: parts must be strictly increasing} \mid \neg\operatorname{flagsOk}(m.\mathit{fw})] \mathbin{+\!\!+} [\texttt{fw: part and variant must be ids} \mid \exists (a, v) \in m.\mathit{fw}:\ \neg\operatorname{isPart}(a) \lor \neg\operatorname{isId}(v)] \\ & \mathbin{+\!\!+} [\texttt{gitSha: not 40 hex digits} \mid \neg\operatorname{isHex}_{40}(m.\mathit{gitSha})] \mathbin{+\!\!+} [\texttt{image: not sha256:<64 hex> or runner:<id>} \mid \neg\operatorname{imageOk}(m.\mathit{image})] \\ & \mathbin{+\!\!+} [\texttt{runId: not digits} \mid m.\mathit{runId} = \varepsilon \lor \exists c \in m.\mathit{runId}:\ c \notin \{\texttt{0}..\texttt{9}\}] \mathbin{+\!\!+} [\texttt{entries: names must be strictly increasing} \mid \neg\operatorname{entriesSorted}(m.\mathit{entries})] \\ & \mathbin{+\!\!+} [\texttt{entries: name escapes the run directory} \mid \exists e \in m.\mathit{entries}:\ \neg\operatorname{safeName}(e.\mathit{name})] \\ & \mathbin{+\!\!+} [\texttt{entries: digest not 64 hex digits} \mid \exists e \in m.\mathit{entries}:\ \neg\operatorname{isHex}_{64}(e.\mathit{digest})] \end{aligned}\qquad \text{where } [x \mid c] = \begin{cases} [x] & c \\ [\,] & \neg c \end{cases} \text{ (the messages come in this order)}$$
--/
+/-- Every problem of a manifest, as a message (empty = valid). -/
 def Manifest.problems (m : Manifest) : List String :=
   (if (Engine.ofName m.engine).isSome then [] else ["engine: unknown"]) ++
   (if (Target.ofName m.target).isSome then [] else ["target: not original or rewrite"]) ++
@@ -355,16 +262,10 @@ def Manifest.problems (m : Manifest) : List String :=
   (if m.entries.all (fun e => safeName e.name) then [] else ["entries: name escapes the run directory"]) ++
   (if m.entries.all (fun e => isHex 64 e.digest) then [] else ["entries: digest not 64 hex digits"])
 
-/-- A manifest is valid when it has no problem.
-
-$$\operatorname{valid}(m) \iff \operatorname{problems}(m) = [\,]$$
--/
+/-- A manifest is valid when it has no problem. -/
 def Manifest.valid (m : Manifest) : Bool := m.problems.isEmpty
 
-/-- A valid manifest names a known engine.
-
-$$\forall m:\ \operatorname{valid}(m) \Rightarrow \exists e:\ \operatorname{ofName}(m.\mathrm{engine}) = \mathrm{some}\ e$$
--/
+/-- A valid manifest names a known engine. -/
 theorem Manifest.valid_engine {m : Manifest} (h : m.valid = true) :
     ∃ e, Engine.ofName m.engine = some e := by
   simp only [valid, problems, List.isEmpty_iff, List.append_eq_nil_iff] at h
@@ -373,10 +274,7 @@ theorem Manifest.valid_engine {m : Manifest} (h : m.valid = true) :
   · exact Option.isSome_iff_exists.mp hs
   · simp [hs] at h1
 
-/-- A valid manifest names a known target, and its configuration fits that target.
-
-$$\forall m:\ \operatorname{valid}(m) \Rightarrow (\exists t:\ \operatorname{ofName}_{\mathrm{Target}}(m.\mathrm{target}) = \mathrm{some}\ t) \land \operatorname{fits}(m.\mathrm{target}, m.\mathrm{preset}, m.\mathrm{fw})$$
--/
+/-- A valid manifest names a known target, and its configuration fits that target. -/
 theorem Manifest.valid_target {m : Manifest} (h : m.valid = true) :
     (∃ t, Target.ofName m.target = some t) ∧ targetFits m.target m.preset m.fw = true := by
   simp only [valid, problems, List.isEmpty_iff, List.append_eq_nil_iff] at h
@@ -390,10 +288,7 @@ theorem Manifest.valid_target {m : Manifest} (h : m.valid = true) :
     · exact hs
     · simp [hs] at h2
 
-/-- A valid manifest has sorted, hence name-distinct, entries with 64-hex digests.
-
-$$\forall m:\ \operatorname{valid}(m) \Rightarrow \text{entry names pairwise distinct} \land \forall e \in m.\mathrm{entries}:\ \operatorname{isHex}_{64}(e.\mathrm{digest})$$
--/
+/-- A valid manifest has sorted, hence name-distinct, entries with 64-hex digests. -/
 theorem Manifest.valid_entries {m : Manifest} (h : m.valid = true) :
     (m.entries.map (·.name)).Nodup ∧ ∀ e ∈ m.entries, isHex 64 e.digest = true := by
   simp only [valid, problems, List.isEmpty_iff, List.append_eq_nil_iff] at h
@@ -412,8 +307,6 @@ theorem Manifest.valid_entries {m : Manifest} (h : m.valid = true) :
 
 /-- What a run's identity depends on. `target` selects the page (original or rewrite), `preset` and the flags the
 site configuration, `profile` the scroll script, `sha` the code, `image` the browser build and machine.
-
-$$\mathrm{Req} = \mathrm{Engine} \times \mathrm{Target} \times \mathrm{Preset} \times \mathrm{Flags} \times \mathrm{Profile} \times \mathrm{Sha} \times \mathrm{Image}$$
 -/
 structure Req where
   engine : Engine
@@ -424,17 +317,11 @@ structure Req where
   sha : String
   image : String
 
-/-- Flatten flags to key pairs: each part and each variant is its own pair.
-
-$$\operatorname{flagPairs}([(a_1, v_1), \dots]) = [(\texttt{fw}, a_1), (\texttt{fwv}, v_1), \dots]$$
--/
+/-- Flatten flags to key pairs: each part and each variant is its own pair. -/
 def flagPairs (fw : List (String × String)) : List (String × String) :=
   fw.flatMap fun p => [("fw", p.1), ("fwv", p.2)]
 
-/-- Flattening flags loses nothing.
-
-$$\forall a, b:\ \operatorname{flagPairs}(a) = \operatorname{flagPairs}(b) \Rightarrow a = b$$
--/
+/-- Flattening flags loses nothing. -/
 theorem flagPairs_inj : ∀ {a b : List (String × String)}, flagPairs a = flagPairs b → a = b
   | [], [], _ => rfl
   | [], _ :: _, h => by simp [flagPairs] at h
@@ -449,17 +336,12 @@ theorem flagPairs_inj : ∀ {a b : List (String × String)}, flagPairs a = flagP
 /-- The pairs whose canonical JSON the caller hashes to get the run key.
 
 Version 2 added the target (version 1 keys had none, so an original and a rewrite run shared one key).
-
-$$\operatorname{keyPairs}(r) = [(\texttt{v}, \texttt{2}), (\texttt{engine}, \operatorname{name}(r.\mathrm{engine})), (\texttt{target}, \operatorname{name}(r.\mathrm{target})), (\texttt{preset}, r.\mathrm{preset}), (\texttt{profile}, r.\mathrm{profile}), (\texttt{sha}, r.\mathrm{sha}), (\texttt{image}, r.\mathrm{image})] \mathbin{+\!\!+} \operatorname{flagPairs}(r.\mathrm{fw})$$
 -/
 def keyPairs (r : Req) : List (String × String) :=
   [("v", "2"), ("engine", r.engine.name), ("target", r.target.name), ("preset", r.preset), ("profile", r.profile),
    ("sha", r.sha), ("image", r.image)] ++ flagPairs r.fw
 
-/-- **Distinct configurations never share the input of the key hash.**
-
-$$\forall r, r':\ \operatorname{keyPairs}(r) = \operatorname{keyPairs}(r') \Rightarrow r = r'$$
--/
+/-- **Distinct configurations never share the input of the key hash.** -/
 theorem keyPairs_inj {r r' : Req} (h : keyPairs r = keyPairs r') : r = r' := by
   simp only [keyPairs, List.cons_append, List.nil_append, List.cons.injEq, Prod.mk.injEq] at h
   obtain ⟨_, ⟨_, he⟩, ⟨_, ht⟩, ⟨_, hp⟩, ⟨_, hr⟩, ⟨_, hs⟩, ⟨_, hi⟩, hf⟩ := h
@@ -470,26 +352,18 @@ theorem keyPairs_inj {r r' : Req} (h : keyPairs r = keyPairs r') : r = r' := by
 
 /-- **Different targets give different keys:** an original run and a rewrite run never share a key, whatever else they
 have in common.
-
-$$\forall r, r':\ r.\mathrm{target} \ne r'.\mathrm{target} \Rightarrow \operatorname{keyPairs}(r) \ne \operatorname{keyPairs}(r')$$
 -/
 theorem keyPairs_target_ne {r r' : Req} (h : r.target ≠ r'.target) : keyPairs r ≠ keyPairs r' :=
   fun hk => h (congrArg Req.target (keyPairs_inj hk))
 
-/-- The run identity a manifest records, when its engine and target are known names.
-
-$$\operatorname{req}(m) = \begin{cases} \mathrm{some}\ (e, t, m.\mathrm{preset}, m.\mathrm{fw}, m.\mathrm{profile}, m.\mathrm{gitSha}, m.\mathrm{image}) & \operatorname{ofName}(m.\mathrm{engine}) = \mathrm{some}\ e \land \operatorname{ofName}_{\mathrm{Target}}(m.\mathrm{target}) = \mathrm{some}\ t \\ \bot & \text{otherwise} \end{cases}$$
--/
+/-- The run identity a manifest records, when its engine and target are known names. -/
 def Manifest.req (m : Manifest) : Option Req :=
   match Engine.ofName m.engine, Target.ofName m.target with
   | some e, some t => some { engine := e, target := t, preset := m.preset, fw := m.fw, profile := m.profile,
                              sha := m.gitSha, image := m.image }
   | _, _ => none
 
-/-- **A valid manifest has a key**, and its key records the manifest's target name.
-
-$$\forall m:\ \operatorname{valid}(m) \Rightarrow \exists r:\ \operatorname{req}(m) = \mathrm{some}\ r \land (\texttt{target}, m.\mathrm{target}) \in \operatorname{keyPairs}(r)$$
--/
+/-- **A valid manifest has a key**, and its key records the manifest's target name. -/
 theorem Manifest.valid_req {m : Manifest} (h : m.valid = true) :
     ∃ r, m.req = some r ∧ ("target", m.target) ∈ keyPairs r := by
   obtain ⟨e, he⟩ := Manifest.valid_engine h
@@ -504,8 +378,6 @@ theorem Manifest.valid_req {m : Manifest} (h : m.valid = true) :
 pins are an association list from engine name to image (first match wins, unknown names allowed until `reqProblems`).
 
 The target is a name too (checked by `reqProblems`).
-
-$$\mathrm{Request} = (\mathit{target}, \mathit{preset}, \mathit{fw}, \mathit{engines}, \mathit{profile}, \mathit{runs}, \mathit{sha}, \mathit{images}) \in \mathrm{String} \times \mathrm{String} \times (\mathrm{String} \times \mathrm{String})^{*} \times \mathrm{String}^{*} \times \mathrm{String} \times \mathbb{N} \times \mathrm{String} \times (\mathrm{String} \times \mathrm{String})^{*}$$
 -/
 structure Request where
   target : String
@@ -517,48 +389,31 @@ structure Request where
   sha : String
   images : List (String × String)
 
-/-- The default scroll profile.
-
-$$\mathrm{defaultProfile} = \texttt{swipe-v1}$$
--/
+/-- The default scroll profile. -/
 def defaultProfile : String := "swipe-v1"
 
-/-- The image an engine's workflow runs on unless the request pins another (a container digest).
-
-$$\operatorname{defaultImage}(\mathrm{chromium}) = \texttt{runner:ubuntu-24.04-arm},\quad \operatorname{defaultImage}(\mathrm{webkit}) = \texttt{runner:xcode-27}$$
--/
+/-- The image an engine's workflow runs on unless the request pins another (a container digest). -/
 def defaultImage : Engine → String
   | .chromium => "runner:ubuntu-24.04-arm"
   | .webkit => "runner:xcode-27"
 
-/-- The image of a job: the request's pin for that engine, else the default.
-
-$$\operatorname{imageOf}(q, e) = \begin{cases} i & (e.\mathrm{name}, i) \in q.\mathrm{images} \text{ (first)} \\ \operatorname{defaultImage}(e) & \text{otherwise} \end{cases}$$
--/
+/-- The image of a job: the request's pin for that engine, else the default. -/
 def imageOf (q : Request) (e : Engine) : String :=
   ((q.images.find? (fun p => p.1 == e.name)).map (·.2)).getD (defaultImage e)
 
-/-- The CI workflow file that measures an engine.
-
-$$\operatorname{workflow}(\mathrm{chromium}) = \texttt{chromium-counts.yml},\quad \operatorname{workflow}(\mathrm{webkit}) = \texttt{webkit-sim.yml}$$
--/
+/-- The CI workflow file that measures an engine. -/
 def workflowOf : Engine → String
   | .chromium => "chromium-counts.yml"
   | .webkit => "webkit-sim.yml"
 
 /-- The `workflow_dispatch` inputs a workflow declares (as of its file in `.github/workflows/`; chromium-counts.yml
 gained `target`, `preset`, `fw` and `image_run` with the rewrite lane).
-
-$$\operatorname{inputs}(\mathrm{chromium}) = [\texttt{profile}, \texttt{runs}, \texttt{target}, \texttt{preset}, \texttt{fw}, \texttt{image\_run}],\quad \operatorname{inputs}(\mathrm{webkit}) = [\texttt{vms}, \texttt{sessions}, \texttt{fresh\_boot}]$$
 -/
 def workflowInputs : Engine → List String
   | .chromium => ["profile", "runs", "target", "preset", "fw", "image_run"]
   | .webkit => ["vms", "sessions", "fresh_boot"]
 
-/-- The `fw` dispatch input: the flags as `part:variant`, joined by commas (empty for no flag).
-
-$$\operatorname{fwInput}([(a_1, v_1), \dots, (a_k, v_k)]) = a_1\texttt{:}v_1\texttt{,}\dots\texttt{,}a_k\texttt{:}v_k,\qquad \operatorname{fwInput}([\,]) = \varepsilon$$
--/
+/-- The `fw` dispatch input: the flags as `part:variant`, joined by commas (empty for no flag). -/
 def fwInput (fw : List (String × String)) : String :=
   ",".intercalate (fw.map fun p => p.1 ++ ":" ++ p.2)
 
@@ -567,8 +422,6 @@ def fwInput (fw : List (String × String)) : String :=
 
 /-- The request fields that differ from a fixed workflow's built-in configuration (the original site, the default
 profile, preset and flags), so the workflow must accept them as inputs.
-
-$$\operatorname{needs}(q) = [\texttt{target} \mid q.\mathrm{target} \ne \texttt{original}] \mathbin{+\!\!+} [\texttt{profile} \mid q.\mathrm{profile} \ne \mathrm{defaultProfile}] \mathbin{+\!\!+} [\texttt{preset} \mid q.\mathrm{preset} \ne \texttt{original}] \mathbin{+\!\!+} [\texttt{fw} \mid q.\mathrm{fw} \ne [\,]]$$
 -/
 def needs (q : Request) : List String :=
   (if q.target == Target.original.name then [] else ["target"]) ++
@@ -579,8 +432,6 @@ def needs (q : Request) : List String :=
 /-- The dispatch inputs: the engine's own, from the request. Chromium takes the profile, the run count (in decimal),
 the target (always sent, so the workflow never falls back to its default `both`), the preset and the flags
 (`image_run` keeps its default); WebKit takes none of the request (its experiment is fixed).
-
-$$\operatorname{dispatch}(\mathrm{chromium}, q) = [(\texttt{profile}, q.\mathrm{profile}), (\texttt{runs}, \operatorname{dec}(q.\mathrm{runs})), (\texttt{target}, q.\mathrm{target}), (\texttt{preset}, q.\mathrm{preset}), (\texttt{fw}, \operatorname{fwInput}(q.\mathrm{fw}))],\quad \operatorname{dispatch}(\mathrm{webkit}, q) = [\,]$$
 -/
 def dispatchInputs (e : Engine) (q : Request) : List (String × String) :=
   match e with
@@ -588,34 +439,22 @@ def dispatchInputs (e : Engine) (q : Request) : List (String × String) :=
                   ("fw", fwInput q.fw)]
   | .webkit => []
 
-/-- **Chromium is told the target:** its dispatch inputs carry the request's target, never the workflow default.
-
-$$\forall q:\ (\texttt{target}, q.\mathrm{target}) \in \operatorname{dispatch}(\mathrm{chromium}, q)$$
--/
+/-- **Chromium is told the target:** its dispatch inputs carry the request's target, never the workflow default. -/
 theorem dispatch_target (q : Request) : ("target", q.target) ∈ dispatchInputs .chromium q := by
   simp [dispatchInputs]
 
-/-- Why a job cannot run: the first needed field its workflow has no input for.
-
-$$\operatorname{blocked}(e, q) = \begin{cases} \bot & \forall x \in \operatorname{needs}(q):\ x \in \operatorname{inputs}(e) \\ \text{the first } x \text{ not in } \operatorname{inputs}(e) & \text{otherwise} \end{cases}$$
--/
+/-- Why a job cannot run: the first needed field its workflow has no input for. -/
 def blocked (e : Engine) (q : Request) : Option String :=
   (needs q).find? (fun x => !(workflowInputs e).contains x)
 
-/-- **A job that is not blocked can express everything the request needs.**
-
-$$\forall e, q:\ \operatorname{blocked}(e, q) = \bot \Rightarrow \forall x \in \operatorname{needs}(q):\ x \in \operatorname{inputs}(e)$$
--/
+/-- **A job that is not blocked can express everything the request needs.** -/
 theorem blocked_none_sound {e : Engine} {q : Request} (h : blocked e q = none) :
     ∀ x ∈ needs q, x ∈ workflowInputs e := by
   intro x hx
   have := (List.find?_eq_none.mp h) x hx
   simpa using this
 
-/-- **The Chromium workflow can express every request:** a chromium job is never blocked.
-
-$$\forall q:\quad \operatorname{blocked}(\mathrm{chromium}, q) = \bot$$
--/
+/-- **The Chromium workflow can express every request:** a chromium job is never blocked. -/
 theorem blocked_chromium (q : Request) : blocked .chromium q = none := by
   unfold blocked needs
   apply List.find?_eq_none.mpr
@@ -623,20 +462,14 @@ theorem blocked_chromium (q : Request) : blocked .chromium q = none := by
   simp only [List.mem_append] at hx
   rcases hx with ((hx | hx) | hx) | hx <;> split at hx <;> simp_all [workflowInputs]
 
-/-- **A chromium job sends what the request needs:** every needed field is a key of its dispatch inputs.
-
-$$\forall q, x:\quad x \in \operatorname{needs}(q) \Rightarrow \exists v:\ (x, v) \in \operatorname{dispatch}(\mathrm{chromium}, q)$$
--/
+/-- **A chromium job sends what the request needs:** every needed field is a key of its dispatch inputs. -/
 theorem needs_dispatched (q : Request) (x : String) (hx : x ∈ needs q) :
     ∃ v, (x, v) ∈ dispatchInputs .chromium q := by
   unfold needs at hx
   simp only [List.mem_append] at hx
   rcases hx with ((hx | hx) | hx) | hx <;> split at hx <;> simp_all [dispatchInputs]
 
-/-- One job of a plan.
-
-$$\mathrm{Job} = \mathrm{Engine} \times \mathrm{Workflow} \times \mathrm{Inputs} \times \mathrm{Key} \times \mathrm{Blocked}?$$
--/
+/-- One job of a plan. -/
 structure Job where
   engine : Engine
   workflow : String
@@ -646,9 +479,7 @@ structure Job where
 
 /-- Request-level problems (empty = the request is well formed).
 
-$$\begin{aligned} \operatorname{reqProblems}(q) ={} & [\texttt{engines: none given} \mid q.\mathit{engines} = [\,]] \mathbin{+\!\!+} [\texttt{engines: unknown name} \mid \exists n \in q.\mathit{engines}:\ \operatorname{ofName}(n) = \bot] \\ & \mathbin{+\!\!+} [\texttt{target: not original or rewrite} \mid \operatorname{ofName}_{\mathrm{Target}}(q.\mathit{target}) = \bot] \mathbin{+\!\!+} [\texttt{target: original takes no preset or flags} \mid \neg\operatorname{fits}(q.\mathit{target}, q.\mathit{preset}, q.\mathit{fw})] \\ & \mathbin{+\!\!+} [\texttt{preset: not an id} \mid \neg\operatorname{isId}(q.\mathit{preset})] \mathbin{+\!\!+} [\texttt{profile: not an id} \mid \neg\operatorname{isId}(q.\mathit{profile})] \\ & \mathbin{+\!\!+} [\texttt{fw: part and variant must be ids} \mid \exists (a, v) \in q.\mathit{fw}:\ \neg\operatorname{isPart}(a) \lor \neg\operatorname{isId}(v)] \mathbin{+\!\!+} [\texttt{fw: a part appears twice} \mid \neg\operatorname{flagsOk}(q.\mathit{fw})] \\ & \mathbin{+\!\!+} [\texttt{runs: must be 2 to 10} \mid \neg(2 \le q.\mathit{runs} \le 10)] \mathbin{+\!\!+} [\texttt{sha: not 40 hex digits} \mid \neg\operatorname{isHex}_{40}(q.\mathit{sha})] \\ & \mathbin{+\!\!+} [\texttt{images: unknown engine or bad image} \mid \exists (n, i) \in q.\mathit{images}:\ \operatorname{ofName}(n) = \bot \lor \neg\operatorname{imageOk}(i)] \end{aligned}$$
-
-where $[x \mid c]$ is $[x]$ when $c$ holds and $[\,]$ otherwise; the messages come in this order. `flagsOk` checks the
+`flagsOk` checks the
 flags in the order given (the wire layer sorts them by part first, so there a failure means a repeated part).
 -/
 def reqProblems (q : Request) : List String :=
@@ -664,10 +495,7 @@ def reqProblems (q : Request) : List String :=
   (if isHex 40 q.sha then [] else ["sha: not 40 hex digits"]) ++
   (if q.images.all (fun p => (Engine.ofName p.1).isSome && imageOk p.2) then [] else ["images: unknown engine or bad image"])
 
-/-- The jobs of a request for one target: one per distinct requested engine, in canonical order.
-
-$$\operatorname{jobsFor}(q, t) = [\,(e, \operatorname{workflow}(e), \operatorname{dispatch}(e, q), \operatorname{keyPairs}((e, t, q.\mathit{preset}, q.\mathit{fw}, q.\mathit{profile}, q.\mathit{sha}, \operatorname{imageOf}(q, e))), \operatorname{blocked}(e, q)) \mid e \in \operatorname{canon}(E_q)\,],\quad \text{where } E_q = [\,\operatorname{ofName}(n) \mid n \in q.\mathit{engines},\ \operatorname{ofName}(n) \ne \bot\,] \text{ (unknown names dropped); the tuple is (engine, workflow, inputs, key, blocked) and the inner tuple is a } \texttt{Req}$$
--/
+/-- The jobs of a request for one target: one per distinct requested engine, in canonical order. -/
 def jobsFor (q : Request) (t : Target) : List Job :=
   let es := canonEngines (q.engines.filterMap Engine.ofName)
   es.map fun e =>
@@ -675,32 +503,20 @@ def jobsFor (q : Request) (t : Target) : List Job :=
       key := keyPairs { engine := e, target := t, preset := q.preset, fw := q.fw, profile := q.profile, sha := q.sha,
                         image := imageOf q e } }
 
-/-- The jobs of a request: those for its target, none when the target is not a known name.
-
-$$\operatorname{jobs}(q) = \begin{cases} \operatorname{jobsFor}(q, t) & \operatorname{ofName}_{\mathrm{Target}}(q.\mathit{target}) = \mathrm{some}\ t \\ [\,] & \operatorname{ofName}_{\mathrm{Target}}(q.\mathit{target}) = \bot \end{cases}$$
--/
+/-- The jobs of a request: those for its target, none when the target is not a known name. -/
 def jobsOf (q : Request) : List Job :=
   match Target.ofName q.target with
   | some t => jobsFor q t
   | none => []
 
-/-- The plan: the jobs when the request is well formed, no job otherwise.
-
-$$\operatorname{plan}(q) = \begin{cases} \operatorname{jobs}(q) & \operatorname{reqProblems}(q) = [\,] \\ [\,] & \text{otherwise} \end{cases}$$
--/
+/-- The plan: the jobs when the request is well formed, no job otherwise. -/
 def plan (q : Request) : List Job := if (reqProblems q).isEmpty then jobsOf q else []
 
-/-- **A refused request plans nothing.**
-
-$$\forall q:\ \operatorname{reqProblems}(q) \ne [\,] \Rightarrow \operatorname{plan}(q) = [\,]$$
--/
+/-- **A refused request plans nothing.** -/
 theorem plan_nil_of_problems {q : Request} (h : reqProblems q ≠ []) : plan q = [] := by
   simp [plan, h]
 
-/-- **An accepted request names a known target that fits its configuration.**
-
-$$\forall q:\ \operatorname{reqProblems}(q) = [\,] \Rightarrow (\exists t:\ \operatorname{ofName}_{\mathrm{Target}}(q.\mathrm{target}) = \mathrm{some}\ t) \land \operatorname{fits}(q.\mathrm{target}, q.\mathrm{preset}, q.\mathrm{fw})$$
--/
+/-- **An accepted request names a known target that fits its configuration.** -/
 theorem reqProblems_nil_target {q : Request} (h : reqProblems q = []) :
     (∃ t, Target.ofName q.target = some t) ∧ targetFits q.target q.preset q.fw = true := by
   simp only [reqProblems, List.append_eq_nil_iff] at h
@@ -714,18 +530,13 @@ theorem reqProblems_nil_target {q : Request} (h : reqProblems q = []) :
     · exact hs
     · simp [hs] at h2
 
-/-- The plan of an accepted request is the job list for its target.
-
-$$\forall q, t:\ \operatorname{reqProblems}(q) = [\,] \land \operatorname{ofName}_{\mathrm{Target}}(q.\mathrm{target}) = \mathrm{some}\ t \Rightarrow \operatorname{plan}(q) = \operatorname{jobsFor}(q, t)$$
--/
+/-- The plan of an accepted request is the job list for its target. -/
 theorem plan_eq_jobsFor {q : Request} {t : Target} (h : reqProblems q = []) (ht : Target.ofName q.target = some t) :
     plan q = jobsFor q t := by
   simp [plan, h, jobsOf, ht]
 
 /-- **One job per distinct engine.** The engines of a plan are exactly the requested ones, in
 canonical order, with no repeat.
-
-$$\forall q:\ \operatorname{reqProblems}(q) = [\,] \Rightarrow \operatorname{engines}(\operatorname{plan}(q)) = \operatorname{canon}(E_q)\ \land\ \operatorname{engines}(\operatorname{plan}(q))\ \text{has no repeated element},\quad \text{where } E_q = [\,\operatorname{ofName}(n) \mid n \in q.\mathit{engines},\ \operatorname{ofName}(n) \ne \bot\,],\ \operatorname{engines}(P) = [\,j.\mathrm{engine} \mid j \in P\,]$$
 -/
 theorem plan_engines {q : Request} (h : reqProblems q = []) :
     (plan q).map (·.engine) = canonEngines (q.engines.filterMap Engine.ofName) ∧
@@ -738,8 +549,6 @@ theorem plan_engines {q : Request} (h : reqProblems q = []) :
 
 /-- **A well-formed plan has canonical flags.** When the request is accepted, its flags are strictly
 increasing by part, so two orderings of the same flags give the same key after sorting.
-
-$$\forall q:\ \operatorname{reqProblems}(q) = [\,] \Rightarrow \operatorname{flagsOk}(q.\mathrm{fw})$$
 -/
 theorem reqProblems_nil_flags {q : Request} (h : reqProblems q = []) : flagsOk q.fw = true := by
   simp only [reqProblems, List.append_eq_nil_iff] at h
@@ -749,8 +558,6 @@ theorem reqProblems_nil_flags {q : Request} (h : reqProblems q = []) : flagsOk q
 
 /-- **A job's key carries its engine and the request's flags.** Two jobs of one plan have different
 keys (they differ in the engine pair).
-
-$$\forall q:\ \operatorname{reqProblems}(q) = [\,] \Rightarrow \forall j, j' \in \operatorname{plan}(q):\ j.\mathrm{key} = j'.\mathrm{key} \Rightarrow j = j'$$
 -/
 theorem plan_key_inj {q : Request} (h : reqProblems q = []) {j j' : Job} (hj : j ∈ plan q)
     (hj' : j' ∈ plan q) (hk : j.key = j'.key) : j = j' := by
@@ -763,10 +570,7 @@ theorem plan_key_inj {q : Request} (h : reqProblems q = []) {j j' : Job} (hj : j
   have he : e = e' := by cases this; rfl
   subst he; rfl
 
-/-- **Every job's key records the request's target.**
-
-$$\forall q:\ \operatorname{reqProblems}(q) = [\,] \Rightarrow \forall j \in \operatorname{plan}(q):\ (\texttt{target}, q.\mathrm{target}) \in j.\mathrm{key}$$
--/
+/-- **Every job's key records the request's target.** -/
 theorem plan_key_target {q : Request} (h : reqProblems q = []) {j : Job} (hj : j ∈ plan q) :
     ("target", q.target) ∈ j.key := by
   obtain ⟨⟨t, ht⟩, _⟩ := reqProblems_nil_target h
@@ -777,8 +581,6 @@ theorem plan_key_target {q : Request} (h : reqProblems q = []) {j : Job} (hj : j
 
 /-- **An original run and a rewrite run never share a key.** Two accepted requests with different targets give jobs
 with different keys, whatever else (engine, preset, flags, profile, sha, image) they have in common.
-
-$$\forall q, q':\ \operatorname{reqProblems}(q) = [\,] \land \operatorname{reqProblems}(q') = [\,] \land q.\mathrm{target} \ne q'.\mathrm{target} \Rightarrow \forall j \in \operatorname{plan}(q),\ j' \in \operatorname{plan}(q'):\ j.\mathrm{key} \ne j'.\mathrm{key}$$
 -/
 theorem plan_key_target_ne {q q' : Request} (h : reqProblems q = []) (h' : reqProblems q' = [])
     (ht : q.target ≠ q'.target) {j j' : Job} (hj : j ∈ plan q) (hj' : j' ∈ plan q') : j.key ≠ j'.key := by
@@ -795,18 +597,13 @@ theorem plan_key_target_ne {q q' : Request} (h : reqProblems q = []) (h' : reqPr
   rw [← Target.name_ofName hq, ← Target.name_ofName hq']
   exact congrArg Target.name htt
 
-/-- The manifest path of a run, relative to the store root, from the hex digest of its key.
-
-$$\operatorname{manifestPath}(d) = \texttt{runs/} d \texttt{/manifest.json}$$
--/
+/-- The manifest path of a run, relative to the store root, from the hex digest of its key. -/
 def manifestPath (d : String) : String := "runs/" ++ d ++ "/manifest.json"
 
 #guard manifestPath "ab" == "runs/ab/manifest.json"
 
 /-- A cache verdict of a job: the digest of its key is in the store (`hit`), is not (`miss`), or was
 not computed (`unknown`).
-
-$$\operatorname{cache}(d, P) = \begin{cases} \mathrm{unknown} & d = \bot \\ \mathrm{hit} & d \in P \\ \mathrm{miss} & \text{otherwise} \end{cases}$$
 -/
 def cacheOf (d : Option String) (present : List String) : String :=
   match d with
@@ -815,20 +612,15 @@ def cacheOf (d : Option String) (present : List String) : String :=
 
 #guard canonEngines [.webkit, .chromium, .webkit] == [.chromium, .webkit]
 
-/-- A well-formed request for the guards (the `#guard` below checks $\operatorname{reqProblems}(\mathrm{exReq}) = [\,]$).
+/-- A well-formed request for the guards (the `#guard` below checks `reqProblems(exReq) = []`).
 
-$$\mathrm{exReq} = (\texttt{original}, \texttt{original}, [\,], [\texttt{webkit}, \texttt{chromium}, \texttt{webkit}], \texttt{swipe-v1}, 3, \texttt{0123456789abcdef0123456789abcdef01234567}, [\,])$$
-
-in the field order (target, preset, fw, engines, profile, runs, sha, images).
+In the field order (target, preset, fw, engines, profile, runs, sha, images).
 -/
 def exReq : Request :=
   { target := "original", preset := "original", fw := [], engines := ["webkit", "chromium", "webkit"],
     profile := "swipe-v1", runs := 3, sha := "0123456789abcdef0123456789abcdef01234567", images := [] }
 
-/-- `exReq` on the rewrite with a preset and one flag (accepted too).
-
-$$\mathrm{exRw} = \mathrm{exReq}[\mathit{target} := \texttt{rewrite}, \mathit{preset} := \texttt{strip-demo}, \mathit{fw} := [(\texttt{hero.countdown}, \texttt{strip})]]$$
--/
+/-- `exReq` on the rewrite with a preset and one flag (accepted too). -/
 def exRw : Request := { exReq with target := "rewrite", preset := "strip-demo", fw := [("hero.countdown", "strip")] }
 
 #guard reqProblems exReq == []

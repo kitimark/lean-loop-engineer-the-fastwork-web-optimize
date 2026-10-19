@@ -9,14 +9,10 @@ names the surviving mechanical mutants (`line:col:op`) of the round-1 run it kil
 namespace FwTest.Mutants.Console
 open Fw.Console
 
-/-- An event with key `k`, time `t`, actor `a` and body `b`.
-
-$$\operatorname{ev}(k, t, a, b) = (k, t, a, b)$$ -/
+/-- An event with key `k`, time `t`, actor `a` and body `b`. -/
 def ev (k : String) (t : Nat) (a : Actor) (b : Body) : Event := ⟨k, t, a, b⟩
 
-/-- The outcome of event `e` after replaying `log`.
-
-$$\operatorname{out}(L, e) = \operatorname{step}(\operatorname{project}(L), e)_2$$ -/
+/-- The outcome of event `e` after replaying `log`. -/
 def out (log : List Event) (e : Event) : Outcome := (step (project log) e).2
 
 /-- Card `A` (owner `o`, no device) opened at time 1. -/

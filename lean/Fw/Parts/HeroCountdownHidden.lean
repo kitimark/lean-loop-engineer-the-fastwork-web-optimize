@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Parts.HiddenPause
 import Fw.Parts.HeroExit
+import Fw.Engine.Compose
 /-!
 # hero.countdown `hidden-pause`: hold the face writes while the hero clock paints nothing
 
@@ -388,6 +389,19 @@ theorem hidden_work (d : Nat) (l : LayerState) (hd : 0 < d) :
       ∀ {P M : Type} (E : Engine P M) (p : P) (keep : Change P → Bool),
         (frameWork E (unhideFrame p d l keep)).le (frameWork E (cdFrame p d l)) :=
   ⟨(cr_countdown_style d l hd).2.2, (wk_countdown_style d l hd).2.2, fun E p keep => unhide_le E p d l keep⟩
+
+theorem hidden_work_idle {P M : Type} (E : Engine P M) (p : P) (l : LayerState) :
+    skipWrites (cdFrame p 0 l) = cdFrame p 0 l ∧
+      frameWork E (skipWrites (cdFrame p 0 l)) = frameWork E (cdFrame p 0 l) :=
+  ⟨rfl, rfl⟩
+
+theorem hidden_pass_absorbed {P M : Type} (E : Engine P M) (p : P) (d : Nat) (l : LayerState) (g : FrameIn P)
+    (s : Stage) (hs : s ∈ touched E g) :
+    (frameWork E (skipWrites (cdFrame p d l) ++ g)).passes s = (frameWork E (cdFrame p d l ++ g)).passes s :=
+  passes_absorb_part E (cdFrame p d l) (skipWrites (cdFrame p d l)) g s hs (by cases s <;> rfl)
+
+#guard (skipWrites (cdFrame (0 : Nat) 0 .none)).changes.isEmpty
+#guard (cdFrame (0 : Nat) 2 .none).changes.length == 32
 
 /-! ## 8. Golden rows: gate open or closed per zone -/
 
