@@ -7395,6 +7395,23 @@
     "research/notes/2026/10-19-preview-original*.md",
     "docs/team/handoffs/preview-original-missing.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "c3-preset-update",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "C3 decision: take hero.countdown:strip out of v2-proved (curated exclusion in Fw.Preset.Gen with its reason, like hero.accent:steps); regenerate the preset and its decision rows; v2-proved.test passes",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "apps/site/src/registry/presets/v2-proved.test.ts",
+    "packages/contracts/golden/preset/**",
+    "docs/team/handoffs/c3-preset-update.md"
+   ]
   }
  ],
  "deadline": {
