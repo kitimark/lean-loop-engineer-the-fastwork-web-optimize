@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { candidateChecks, CHECK_SH_READS, FWCORE_USERS, checksFor, checksWithReads, inScope, inputKey, selectChecks, type Check } from "../src/land.ts";
+import { candidateChecks, CHECK_SH_READS, FWCORE_USERS, checksFor, checksWithReads, inScope, inputKey, READS_SCAN_ARGV, READS_SCAN_ID, selectChecks, withScan, type Check } from "../src/land.ts";
 
 const root = join(dirname(new URL(import.meta.url).pathname), "../../..");
 
@@ -25,6 +25,15 @@ describe("the choice of checks equals the Lean decision", () => {
   for (const c of selects) {
     it(`golden: ${c.name}`, () => {
       expect(selectChecks(c.request.checks as Decl[], c.request.changed as string[])).toEqual(c.response.selected);
+    });
+  }
+  for (const c of selects) {
+    const cs = c.request.checks as Decl[];
+    if (cs.at(-1)?.id !== "reads-scan") continue;
+    it(`golden scan: ${c.name}`, () => {
+      const w = withScan(cs.slice(0, -1) as unknown as Check[]);
+      expect(READS_SCAN_ID).toBe(cs.at(-1)!.id);
+      expect(w.map((x) => ({ id: x.id, reads: x.reads }))).toEqual(cs);
     });
   }
   it("check.sh declares what Lean declares (checkShReads)", () => {
@@ -53,6 +62,22 @@ describe("the choice of checks equals the Lean decision", () => {
     expect(checksFor(root, ["packages/gate-breakpoints/src/scope.gen.json"])).toContainEqual(["sh", "lean/scripts/check.sh"]);
     // the lane lint of Fw.Ops.Premise reads the workflows (Lean workflow_selects_checkSh)
     expect(checksFor(root, [".github/workflows/lean.yml"])).toContainEqual(["sh", "lean/scripts/check.sh"]);
+  });
+  it("the read-set scan is selected by every change a check can read (Lean scan_selected), as its own cheap check", () => {
+    const all = candidateChecks(root);
+    const scan = all.find((c) => c.id === READS_SCAN_ID)!;
+    expect(all[all.length - 1]).toBe(scan);
+    expect(scan.argv).toEqual(READS_SCAN_ARGV);
+    expect(scan.argv).not.toContain("test");
+    expect(scan.reads).toEqual(withScan(all.slice(0, -1)).at(-1)!.reads);
+    // the finding: a site-only change skipped the scan; now it selects it without selecting apps/runner
+    const ids = checksWithReads(root, ["apps/site/src/registry/presets/original.json"]).map((c) => c.id);
+    expect(ids).toContain(READS_SCAN_ID);
+    expect(ids).not.toContain("apps/runner");
+    expect(checksWithReads(root, ["docs/team/handoffs/x.md"])).toEqual([]);
+    const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
+    const missing = tracked.filter((f) => all.some((c) => c.id !== READS_SCAN_ID && inScope(c.reads, f)) && !inScope(scan.reads, f));
+    expect(missing).toEqual([]);
   });
 });
 
@@ -130,9 +155,9 @@ describe("premise land.readsOnly: no read outside the declared inputs (static)",
       .some((f) => /\.lake|["'/]fwcore["']|FWCORE|bin\/fwcore/.test(readFileSync(f, "utf8")))).map((c) => c.id);
     // measure-wktr runs the binary through measure-chromium/src/fwcore.mjs (a declared extra read), not by itself
     expect([...users, "packages/measure-wktr"].sort()).toEqual([...FWCORE_USERS].sort());
-    for (const c of candidateChecks(root, true)) expect(inScope(c.reads, "lean/.lake/build/bin/fwcore"), c.id).toBe(FWCORE_USERS.includes(c.id) || c.id === "check.sh");
+    for (const c of candidateChecks(root, true)) expect(inScope(c.reads, "lean/.lake/build/bin/fwcore"), c.id).toBe(FWCORE_USERS.includes(c.id) || c.id === "check.sh" || c.id === READS_SCAN_ID);
     // a Lean change selects check.sh and every fwcore user
-    expect(checksWithReads(root, ["lean/Fw/A.lean"]).map((c) => c.id).sort()).toEqual(["check.sh", ...FWCORE_USERS].sort());
+    expect(checksWithReads(root, ["lean/Fw/A.lean"]).map((c) => c.id).sort()).toEqual(["check.sh", READS_SCAN_ID, ...FWCORE_USERS].sort());
   });
 
   it("new selection is a superset of the old one: every tracked path alone, and the last 30 land diffs", () => {
@@ -181,7 +206,7 @@ describe("premise land.readsOnly: the key over the declared inputs (dynamic)", (
   it("the fixture holds install, check.sh and three package tests; a workspace dependency is declared", () => {
     const fx = fixture();
     try {
-      expect(fx.checks.map((c) => c.id)).toEqual(["install", "check.sh", "apps/runner", "packages/contracts", "packages/lone"]);
+      expect(fx.checks.map((c) => c.id)).toEqual(["install", "check.sh", "apps/runner", "packages/contracts", "packages/lone", READS_SCAN_ID]);
       expect(fx.checks.find((c) => c.id === "apps/runner")!.reads).toContain("packages/contracts/**");
     } finally { fx.done(); }
   });

@@ -66,8 +66,8 @@ export type LandOptions = {
   /** `--dry` (needs `task`): only the cheap stages (stale base, scope, merge-tree, the static reads test on the merge tree); no lock, no
    *  full check, main untouched. Lean `Fw.Console.LandDry` decides the kind (`Outcome.kind`). */
   dry?: boolean;
-  /** the dry land's reads test: its argv and whether the change selects it; default: the land-inputs test of apps/runner, selected
-   *  when `checksFor` selects apps/runner (tests inject both) */
+  /** the dry land's reads test: its argv and whether the change selects it; default: the land-inputs test, selected when the change
+   *  selects the reads-scan check (`LandSpeed.scan_selected`; tests inject both) */
   dryReads?: { argv: string[]; selected?: boolean };
   /** the dry land's fast lints (argv list, run in the merge-tree worktree); default: `dryLintArgv` (ci-paths --check, and the math-view
    *  lint when the change touches `lean/`) */
@@ -217,6 +217,14 @@ export function checkDeps(list: string[][]): number[][] {
   return list.map((a, i) => [...(isInstall(a) ? [] : inst), ...(usesCore(a) ? sh : [])].filter((d) => d !== i));
 }
 
+/** The static read-set scan as its own check: Lean `Fw.Console.LandSpeed.scanId` / `scanReads` / `withScan`. Its reads are every
+ *  inclusion glob any other check declares, so a change to anything a check can read selects it (`scan_selected`), also when
+ *  `apps/runner` itself is not selected. */
+export const READS_SCAN_ID = "reads-scan";
+export const READS_SCAN_ARGV = ["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/land-inputs.test.ts"];
+export const withScan = (cs: Check[]): Check[] =>
+  [...cs, { id: READS_SCAN_ID, argv: READS_SCAN_ARGV, reads: cs.flatMap((c) => c.reads.filter((g) => !g.startsWith("!"))) }];
+
 export function candidateChecks(root: string, fwcoreReads = LEAN_BINARY_READS): Check[] {
   const out: Check[] = [
     { id: "install", argv: ["pnpm", "install", "--frozen-lockfile"], reads: INSTALL_READS },
@@ -234,7 +242,7 @@ export function candidateChecks(root: string, fwcoreReads = LEAN_BINARY_READS): 
       } catch { /* no package.json: nothing to run */ }
     }
   }
-  return out;
+  return withScan(out);
 }
 
 /** The checks that cover the changed files, each with its declared input set. */
@@ -568,14 +576,14 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
       if (marks) return fail(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, "conflict", outcome({ merges: false }));
       lines.push(`dry: merge ok (${main} ${main0.slice(0, 7)}, tip ${sha.slice(0, 7)}), no conflict markers`);
-      const selected = o.dryReads?.selected ?? selectChecks(candidateChecks(slot.dir), changed).includes("apps/runner");
+      const selected = o.dryReads?.selected ?? selectChecks(candidateChecks(slot.dir), changed).includes(READS_SCAN_ID);
       let test = true, detail = "";
       if (selected) {
-        const argv = o.dryReads?.argv ?? ["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/land-inputs.test.ts"];
+        const argv = o.dryReads?.argv ?? READS_SCAN_ARGV;
         const bad = await runChecks(slot.dir, [argv]);
         test = bad === null; detail = bad ?? "";
         if (test) lines.push("dry: reads ok (the static land-inputs test passes on the merge tree)");
-      } else lines.push("dry: reads not selected (the change does not select apps/runner, so the real land does not run the test either)");
+      } else lines.push("dry: reads not selected (the change selects no read-set scan, so the real land does not run the test either)");
       const reads = !selected || test; // Lean `Stages.reads`: a test the change does not select cannot refuse
       let lints = true;
       if (reads) {

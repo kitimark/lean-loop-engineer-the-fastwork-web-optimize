@@ -5875,7 +5875,8 @@
     "lean/Fw/Console/LandDry.lean",
     "lean/Fw/Console/LandSpeed.lean",
     "packages/contracts/golden/console/land-speed.jsonl"
-   ]
+   ],
+   "evidence": "bbe9265"
   },
   {
    "devices": [
