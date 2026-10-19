@@ -426,6 +426,7 @@ export function collectInPage(arg) {
     innerHeight: window.innerHeight,
     clientWidth: document.documentElement.clientWidth,
     clientHeight: document.documentElement.clientHeight,
+    scrollWidth: document.documentElement.scrollWidth,
     screenWidth: window.screen.width,
     screenHeight: window.screen.height,
     dpr: window.devicePixelRatio,

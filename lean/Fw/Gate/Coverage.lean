@@ -1,4 +1,5 @@
 import Fw.Gate.Items
+import Fw.Gate.PageRoot
 import Lean.Data.Json
 /-!
 # Coverage of the breakpoint gate's probes by Lean sources (`lean-coverage`)
@@ -493,8 +494,11 @@ $$C_{\mathrm{repo}} = [\,c_1, \dots, c_{n}\,] \quad \text{(the literal list belo
 
 The source table `fw coverage` lints the gate's probes against. -/
 def claims : List Claim :=
-  [ -- engine layout: the document's width is the viewport width
-    ⟨"engine.scroll", .any, some .box, .is "w", .any, .exempt .engineDefault⟩,
+  [ -- engine layout: the document's width is the viewport width (one claim per role: no wildcard over engine.scroll)
+    ⟨"engine.scroll", .is "scroller", some .box, .is "w", .any, .exempt .engineDefault⟩,
+    ⟨"engine.scroll", .is "content", some .box, .is "w", .any, .exempt .engineDefault⟩,
+    -- the page-root anchor (Fw.Gate.PageRoot): the clip rule is transcribed from the snapshot, only the gate checks it
+    ⟨"engine.scroll", .is "pageRoot", some .box, .is Fw.Gate.PageRoot.itemKey, .any, .exempt .transcribedEmpiricalOnly⟩,
     ⟨"morph.tween", .is "scroller", some .box, .is "w", .any, .exempt .engineDefault⟩,
     -- driver-written values from golden-checked logic
     styleGolden "commission" "runway" "height",
@@ -519,6 +523,27 @@ def claims : List Claim :=
     styleGolden "people.deck" "shell" "transform-origin",
     styleGolden "people.deck" "sticky" "--profile-scale",
     styleGolden "platform" "section" "--platform-shrink" ]
+
+/-- **No wildcard over `engine.scroll`.** Every claim of part `engine.scroll` names its role, so a role added to the part is
+uncovered until a claim names it.
+
+$$\forall c \in C_{\mathrm{repo}},\ c.\mathit{part} = \texttt{engine.scroll} \implies c.P_\rho \ne \ast$$ -/
+theorem engine_scroll_no_wildcard : ∀ c ∈ claims, c.part = "engine.scroll" → c.role ≠ Pat.any := by
+  decide
+
+/-- **The page-root anchor has its row.** Every item `Fw.Gate.PageRoot` adds to a state, at every breakpoint class and under
+any evidence, is covered by a claim of the repository.
+
+$$\forall E, q, o, r, b,\ \forall it \in \operatorname{items}_q(o, r),\ \operatorname{covered}_E(C_{\mathrm{repo}}, (\texttt{engine.scroll}, it.\rho, it.\mathrm{cls}, it.k, b))$$ -/
+theorem pageRootItems_covered (ev : Evidence) (req : Rat) (o r : Option Rat) (b : String)
+    (it : PItem) (h : it ∈ PageRoot.pageRootItems req o r) :
+    covered ev claims ⟨PageRoot.partId, it.role, it.cls, it.key, b⟩ = true := by
+  unfold PageRoot.pageRootItems at h
+  split at h
+  · simp at h
+  · simp only [List.mem_singleton] at h
+    subst h
+    simp [covered, claims, usable, Claim.hits, Pat.ok, PageRoot.partId, PageRoot.itemKey, PageRoot.pageRootItem, Source.ok, styleGolden]
 
 /-- A pattern is wire-safe unless it is an exact pattern that ends in `*` (the wire spelling of `any` and of a prefix).
 

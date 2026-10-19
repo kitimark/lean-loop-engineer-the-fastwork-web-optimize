@@ -147,3 +147,27 @@ test('anchors that drop a comparison without a reason are refused', () => {
   const bad = { ...anchors, style: { ...anchors.style, skipPrefixes: [{ prefix: 'animation', why: '' }] } };
   assert.throws(() => evaluate({ ...ctx, anchors: bad }, [{ requested, orig: arm(), rewrite: arm() }]), /without a reason/);
 });
+
+test('page-root anchor: each arm scrollWidth <= the viewport the engines give (the requested width rounded up), judged by Lean (Fw.Gate.PageRoot)', () => {
+  const rootAnchors = { style: anchors.style, parts: { 'engine.scroll': { roles: [{ role: 'pageRoot', boxRel: null, dims: [], skipSets: [], skipProps: [], why: 'the page root' }] } } };
+  const rootCtx = context({ anchors: rootAnchors, parts: ['engine.scroll'], props: {}, deviceEdges: [[500, 501]] });
+  const req = { ...requested, width: 430, deviceWidth: 430 };
+  const rootArm = (viewport) => ({ ...arm({ viewport }), parts: { 'engine.scroll': { pageRoot: { count: 1, items: [{}] } } } });
+  const run = (o, r) => evaluate(rootCtx, [{ requested: req, orig: rootArm(o), rewrite: rootArm(r), expect: { a: true, b: false }, expectNeutral: { print: false } }]).states[0];
+  const equal = run({ scrollWidth: 430 }, { scrollWidth: 430 });
+  assert.equal(equal.rows['engine.scroll'], 'pass');
+  assert.equal(equal.compared['engine.scroll'], 2);
+  // the layout viewport widened (run 39130842058): innerWidth would be 645 too, the requested width is not
+  const wide = run({ scrollWidth: 430 }, { scrollWidth: 645 });
+  assert.equal(wide.verdict, 'fail');
+  assert.deepEqual(wide.fails['engine.scroll'].map((x) => [x.cls, x.role, x.key, x.status, x.a, x.b]), [['box', 'pageRoot', 'scrollWidth<=requestedWidth', 'differ', 430, 645]]);
+  // an original that overflows is no control; an arm that did not report is missing; nobody reporting adds no item
+  assert.equal(run({ scrollWidth: 645 }, { scrollWidth: 645 }).compared['engine.scroll'], 1);
+  assert.equal(run({ scrollWidth: 430 }, {}).fails['engine.scroll'][0].status, 'missing');
+  assert.equal(run({}, {}).compared['engine.scroll'], 1);
+  // a fractional request gets the next whole px (engines.mjs): 600.5 -> 601 fits, 602 does not
+  const frac = (o, r) => evaluate(rootCtx, [{ requested: { ...req, width: 600.5 }, orig: rootArm(o), rewrite: rootArm(r), expect: { a: true, b: false }, expectNeutral: { print: false } }]).states[0];
+  assert.equal(frac({ scrollWidth: 601 }, { scrollWidth: 601 }).rows['engine.scroll'], 'pass');
+  assert.equal(frac({ scrollWidth: 601 }, { scrollWidth: 602 }).verdict, 'fail');
+  assert.equal(frac({ scrollWidth: 602 }, { scrollWidth: 602 }).compared['engine.scroll'], 1);
+});

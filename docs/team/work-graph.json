@@ -5750,7 +5750,8 @@
     "packages/gate-breakpoints/test/verdict.test.mjs",
     "packages/contracts/golden/gate/coverage.jsonl",
     "packages/contracts/golden/**"
-   ]
+   ],
+   "evidence": "0553dfc"
   },
   {
    "devices": [
