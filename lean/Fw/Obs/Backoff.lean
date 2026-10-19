@@ -15,7 +15,10 @@ killed only when the stretched deadline has passed. At low load the rule is toda
 
 namespace Fw.Obs.Backoff
 
-/-- The thresholds of the rule. -/
+/-- The thresholds of the rule: $(L, e) \in \mathbb N \times \mathbb N$, with defaults $L = 50$, $e = 2$.
+
+$$p = (L, e) = (\mathit{loadHigh}, \mathit{extra})$$
+-/
 structure Params where
   loadHigh : Nat := 50
   extra    : Nat := 2

@@ -1131,7 +1131,10 @@ A spool is a list of (hook name, time). The agent's stop time is the newest `Sub
 0 real tool calls without a start).
 -/
 
-/-- Fold step of `lastStop`: a stop raises the running maximum. -/
+/-- Fold step of `lastStop`: a stop raises the running maximum.
+
+$$\operatorname{step}(a, (h, t)) = \begin{cases} \mathrm{some}(\max(a_0, t)) & h = \texttt{SubagentStop} \\ a & \text{otherwise} \end{cases},\quad a_0 = a \text{ or } 0$$
+-/
 def stopStep (acc : Option Nat) (x : String × Nat) : Option Nat :=
   if x.1 == "SubagentStop" then some (max (acc.getD 0) x.2) else acc
 
