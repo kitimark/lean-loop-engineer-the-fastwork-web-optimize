@@ -59,7 +59,7 @@ latter runs passed; the two former were replaced by new dispatches (same inputs)
 
 - MEASURED: flags read from the loaded page are `?preset=v2-proved`, config 6762d15c2b8b6d35.
 - Chromium failing items (20 cells): `platform.stageBg` style `artboard` `will-change` 496 probes (first at `desk-319`) and `platform.marquee` style `track` `will-change` 124 probes, original
-  "transform", rewrite "auto"; every width of desk, touch, dark, height and fractional-gaps rows, none in the sweeps. The 7 excused are the matchMedia =Lean not-comparable cells (4 fractional gaps, 3 touch-1024).
+  "transform", rewrite "auto"; every probe of the 10 non-sweep rows (desk, desk-rm, touch, touch-rm, phone-landscape, dw-arm-isolate, hover-pointer-cross, dark, fractional-gaps, height-probes; 124 probes per part, 2 x 124 = 248 readings), none in the 4 sweeps. The 7 excused are the matchMedia =Lean not-comparable cells (4 fractional gaps, 3 touch-1024).
 - INFERRED cause: the rewrite's `[data-fw-scene='paused']` rule (`will-change: auto !important`, platform.module.css, added by 8276822d) is in force at the probe states while the original's section reads
   "transform"; the original carries the same rule under `data-start-selling-scene=paused` (CONFIRMED in the snapshot CSS), so the two differ in the scene state, not in the rule. The platform-scene handoff lists the original's frame-callback gate (`iE`) as not ported;
   that is the likely difference, unchecked. The rule does not depend on a flag (`scene.ts` binds it in every arm).
@@ -81,7 +81,7 @@ latter runs passed; the two former were replaced by new dispatches (same inputs)
 
 The one extra failing probe of the default arm is `commission` style `margin-inline-start/-end` (`inner` "132px" vs "0px", `rows` "8px" vs "0px") at `desktop-1512-320-1512#0@1512x900`, 1 of 57 comparable probes, 0 unsettled
 samples. Round 0 read the default arm twice, runs 39220962049 and 39230139617: it failed 1 of 2 runs; cause unknown. Round 1 reads it again in 39253066988 (default arm, fail) and not in the
-v2-proved arm (39253059266, and round 0's 39220947437: 0 of 2). INFERRED: a live-resize transient of the commission part (wave 1 excused 57 such readings and then read them all pass). Not isolated; follow-up.
+v2-proved arm (39253059266, and round 0's 39220947437: 0 of 2). INFERRED: a live-resize transient of the commission part (wave 1 excused 57 such readings and then read them all pass). Not isolated; follow-up. Default arm overall: failed 2 of 3 runs, v2-proved arm 0 of 2; cause unknown (INFERRED).
 
 ## Counts per profile (whole page, v2-proved vs base, Chromium)
 
@@ -148,7 +148,7 @@ C3 rule: "0 mismatches or each filed as a model bug"; "a falsified prediction th
 |---|---|---|---|---|
 | pain.notes:visible | UpdateLayoutTree `<=o` | totals equal in all 6 shards; arm shards identical to each other; base shard 0 differs from base shards 1 and 2 (which are identical) in 12 tail frames (698 to 713), 6 above and 6 below | the frozen class `deterministic` does not hold at this page's tail: the base itself has two states there; the flag has no measured effect (0 off-band types) | keep in v2-proved; row filed as class-premise model bug; C3 repairs the class table (tail zone), not the flag |
 | pain.notes:visible | cc.Commit `=o` | same 12 frames, totals 713 equal | same | same |
-| people.card:mq | UpdateLayoutTree `<=o` | 895 > 834; in the 4 clean shard pairs the arm is below in 61 frames (145 to 206) and above in none; pairs that include a jittering shard add 12 tail frames (6 above) | the 61-recalc saving is a flag effect in the predicted direction; the 6 "above" frames are the tail jitter (base shard 0 or arm shard 2 is the odd one) | keep; filed as class-premise model bug; C3 repairs the tail-zone class |
+| people.card:mq | UpdateLayoutTree `<=o` | 895 > 834; in the 5 shard pairs where the odd shards (base 0, arm 2) are both present or both absent, the arm is below in 61 frames (145 to 206) and above in none; pairs that include a jittering shard add 12 tail frames (6 above) | the 61-recalc saving is a flag effect in the predicted direction; the 6 "above" frames are the tail jitter (base shard 0 or arm shard 2 is the odd one) | keep; filed as class-premise model bug; C3 repairs the tail-zone class |
 | people.card:mq | cc.Commit `=o` | totals 713 equal; only tail frames 698 to 713 differ, and only in shard pairs where exactly one of base shard 0 and arm shard 2 (the two odd shards) is present | same | keep; same |
 
 The jitter is two-state, equal in totals and alternating above and below, and it appears in base shard 0 and in people.card arm shard 2, so it is not a flag effect. A hand-rewritten class would be a decision for C3; this round does not edit the frozen table.
@@ -163,7 +163,7 @@ The people.card and g1 rows, recounted after staging: each page now stages only 
 | nav.hitTest:elements-skip | keep | 5 pass; UpdateLayoutTree 2060 > 155 deterministic, MEASURED |
 | pain.notes:visible | keep | 2 model-bug rows filed (class premise), no effect measured; the prediction `<=o` is met by equality |
 | people.card:mq | keep | 2 model-bug rows filed (class premise); recalcs fall by 61 |
-| hero.countdown:strip + morph.countdown:strip | keep, prediction unchecked | no usable row; `census.layers <o` reads 12960 = 12960 in every shard, which a frame-exact class could refute; stable k=2 cannot. The lead decides if equality drops it |
+| hero.countdown:strip + morph.countdown:strip | keep, prediction unchecked | no usable row; `census.layers <o` reads 12960 = 12960 in every shard, which a frame-exact class could refute; stable k=2 cannot. The lead decides if equality drops it. Strip arm also measured (runs 39257533380 / 39259074927): UpdateLayoutTree, RecalcStyleCount, ScheduleStyleRecalculation 1161 > 1182; cc.Commit, Commit, Layerize, cc.Activate 1064 > 1085; UpdateLayoutTree.elementCount 11264 > 22445; Layout.totalObjects 47161 > 53433; FireAnimationFrame 2649 > 2130. No row predicts these types: descriptive MEASURED, not a Lean verdict |
 | morph.columns:hidden-pause | keep | 2 pass, equal to base (weak) |
 | morph.mount:shift | keep | 5 pass (3 `any`); arm adds 952 FunctionCall (quarantined, no claim) |
 | engine.scene:hidden-pause | keep | 2 pass, weak (no hidden state on the stage page); the platform gate failure is not this flag (default arm identical) |
@@ -174,7 +174,7 @@ No flag meets the drop rule: no prediction is falsified by a flag effect. The ga
 ## G2 (commission, platform, nav, panel), base vs `preset=v2-proved`
 
 Round 0 was refused by the viewport gate (443 px frame at a 430 px viewport); with main's host-frame change (eed1eb1a, overflow-430) both runs are measured: base 39261906990 (`?only=g2&stage=vw:430,vh:932`), arm 39262007729
-(`?preset=v2-proved&only=g2&stage=vw:430,vh:932`). Attribution INFERRED (a preset arm; PLAN 10.7 open bridge). 862 frames in both. 11 of 71 types are off-band (4 above, 7 below):
+(`?preset=v2-proved&only=g2&stage=vw:430,vh:932`). Attribution INFERRED (a preset arm; PLAN 10.7 open bridge). Attribution INFERRED written by hand: the check path skips pages without row variants before stageAs (follow-up). 862 frames in both. 11 of 71 types are off-band (4 above, 7 below):
 
 | type | base > arm | where |
 |---|---|---|
@@ -196,7 +196,7 @@ different trajectories (503 frames whole page; 1085, 992, 727, 727, 1329, 992, 9
 - 48 types moved on at least one page: 11 are pass types (UpdateLayoutTree, RecalcStyleCount, ScheduleStyleRecalculation, LayoutCount, Layout, Layout.partial, PrePaint, Paint, cc.Commit, FireAnimationFrame, UpdateLayer;
   a TS stand-in name list, not covered by F6) and 37 are other. Of the 37, 24 have a class margin and 13 are quarantined.
 - Of the 24 with a margin: 1 additive within the strict margin (trace.MinorGC, stable k=4: combined -2, sum +2, residual -4), 2 within the widened margin (margin x (parts + 1): MinorGC and trace.PaintImage, combined +4, sum 0),
-  22 not additive at totals (all deterministic types: Animation.compositeFailedBits combined -73600, sum -106496; Animation.instant -9 vs -13; Animation.begin -3 vs 0; and the census and raster rows).
+  22 not additive at totals (11 deterministic: Animation.compositeFailedBits -73600 vs -106496, Animation.instant -9 vs -13, Animation.begin -3 vs 0, Commit/CullRectUpdate/Layerize/cc.Activate 0 vs +21, ...; 11 stable: the census, raster and metric.Resources rows). compositeFailedBits matches on the per-frame rate (rateWithin10pct true), not only the style family.
 - Pass types, actual deterministic values: UpdateLayoutTree combined -1011, parts [+21, -1904, 0, -61, 0, 0, 0] (sum -1944, residual +933); RecalcStyleCount same; cc.Commit combined 0, parts [+21, 0, 0, 0, 0, 0, 0] (sum +21).
   Per frame, the style family reads -2.01 combined against -1.98 for the parts' sum (within 10 percent, my threshold, not a class margin).
 - census.layers combined +1054, parts [0, 0, 0, -1, 0, 0, +2] (sum +1): the layer promotion comes from something the part pages do not contain (engine.scroll or morph.tween, or the interaction of flags), INFERRED.
