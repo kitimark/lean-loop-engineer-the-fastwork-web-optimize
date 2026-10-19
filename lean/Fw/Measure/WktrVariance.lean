@@ -28,28 +28,16 @@ Lean specifies and proves; the tables are CI measurements and the kinds are `Fw.
 namespace Fw.Measure.WktrVariance
 open Fw.Measure.WktrLayout
 
-/-- A table: the kind of class per key (arm, variant, type joined by `/`). It is a list of pairs, keys unique by convention only; lookup takes the first match.
-
-$$\mathrm{Table} = (\mathrm{Key} \times \mathrm{Kind})^{*}, \qquad t[k] = \text{the first } v \text{ with } (k, v) \in t, \text{ else } \bot$$
--/
+/-- A table: the kind of class per key (arm, variant, type joined by `/`). It is a list of pairs, keys unique by convention only; lookup takes the first match. -/
 abbrev Table := List (String × Kind)
 
-/-- The keys of two tables, each once when the tables' keys are unique (`b`'s keys not already in `a`).
-
-$$\operatorname{keys}(a, b) = \operatorname{dom}(a) \cup \operatorname{dom}(b)$$
--/
+/-- The keys of two tables, each once when the tables' keys are unique (`b`'s keys not already in `a`). -/
 def keys (a b : Table) : List String := a.map Prod.fst ++ (b.map Prod.fst).filter (fun k => !(a.map Prod.fst).contains k)
 
-/-- The keys whose kind of class differs between two tables, or that exist on one side only.
-
-$$\operatorname{differs}(a, b) = \{k \mid a[k] \ne b[k]\}$$
--/
+/-- The keys whose kind of class differs between two tables, or that exist on one side only. -/
 def differs (a b : Table) : List String := (keys a b).filter (fun k => a.lookup k != b.lookup k)
 
-/-- A key absent from both tables looks up to the same nothing, so a differing key is in one of them.
-
-$$a[k] \ne b[k] \Rightarrow k \in \operatorname{dom}(a) \lor k \in \operatorname{dom}(b)$$
--/
+/-- A key absent from both tables looks up to the same nothing, so a differing key is in one of them. -/
 theorem key_of_ne (a b : Table) (k : String) (h : a.lookup k ≠ b.lookup k) : (∃ p ∈ a, p.1 = k) ∨ (∃ p ∈ b, p.1 = k) := by
   refine Classical.byContradiction fun hn => ?_
   rw [not_or] at hn
@@ -67,10 +55,7 @@ theorem key_of_ne (a b : Table) (k : String) (h : a.lookup k ≠ b.lookup k) : (
     exact hn.2 ⟨p, hp, e.symm⟩
   exact h (by rw [h1, h2])
 
-/-- A key is in `differs` exactly when the two lookups disagree.
-
-$$k \in \operatorname{differs}(a, b) \iff a[k] \ne b[k]$$
--/
+/-- A key is in `differs` exactly when the two lookups disagree. -/
 theorem mem_differs (a b : Table) (k : String) : k ∈ differs a b ↔ a.lookup k ≠ b.lookup k := by
   unfold differs keys
   rw [List.mem_filter]
@@ -92,34 +77,22 @@ theorem mem_differs (a b : Table) (k : String) : k ∈ differs a b ↔ a.lookup 
       exact ha ⟨(k, q), hq, rfl⟩
 
 
-/-- The diff of two tables is symmetric: the baseline and the candidate play the same role.
-
-$$k \in \operatorname{differs}(a, b) \iff k \in \operatorname{differs}(b, a)$$
--/
+/-- The diff of two tables is symmetric: the baseline and the candidate play the same role. -/
 theorem differs_comm (a b : Table) (k : String) : k ∈ differs a b ↔ k ∈ differs b a := by
   rw [mem_differs, mem_differs]
   exact ⟨fun h e => h e.symm, fun h e => h e.symm⟩
 
-/-- A table does not differ from itself.
-
-$$\operatorname{differs}(a, a) = \emptyset$$
--/
+/-- A table does not differ from itself. -/
 theorem differs_self (a : Table) : differs a a = [] := by
   rw [List.eq_nil_iff_forall_not_mem]
   intro k hk
   exact ((mem_differs a a k).1 hk) rfl
 
-/-- The keys whose kind is not the same in every run of the set: two runs of the set that disagree on the key.
-
-$$\operatorname{varying}(R) = \{k \mid \exists r, s \in R:\ r[k] \ne s[k]\}$$
--/
+/-- The keys whose kind is not the same in every run of the set: two runs of the set that disagree on the key. -/
 def varying (rs : List Table) : List String :=
   (rs.flatMap (·.map Prod.fst)).filter (fun k => rs.any (fun r => rs.any (fun s => r.lookup k != s.lookup k)))
 
-/-- A key varies exactly when two runs of the set disagree on it.
-
-$$k \in \operatorname{varying}(R) \iff \exists r, s \in R:\ r[k] \ne s[k]$$
--/
+/-- A key varies exactly when two runs of the set disagree on it. -/
 theorem mem_varying (rs : List Table) (k : String) :
     k ∈ varying rs ↔ ∃ r ∈ rs, ∃ s ∈ rs, r.lookup k ≠ s.lookup k := by
   unfold varying
@@ -133,10 +106,7 @@ theorem mem_varying (rs : List Table) (k : String) :
     · exact ⟨r, hr, p, hp, e⟩
     · exact ⟨s, hs, p, hp, e⟩
 
-/-- More runs in the set can only add varying keys.
-
-$$R \subseteq R' \Rightarrow \operatorname{varying}(R) \subseteq \operatorname{varying}(R')$$
--/
+/-- More runs in the set can only add varying keys. -/
 theorem varying_mono {rs rs' : List Table} (h : ∀ r, r ∈ rs → r ∈ rs') : ∀ k, k ∈ varying rs → k ∈ varying rs' := by
   intro k hk
   rw [mem_varying] at hk ⊢
@@ -145,26 +115,18 @@ theorem varying_mono {rs rs' : List Table} (h : ∀ r, r ∈ rs → r ∈ rs') :
 
 /-- The **findings**: the keys on which the baseline and the candidate differ and which do not vary among the same-code serial
 runs.
-
-$$\operatorname{findings}(b, c, R) = \operatorname{differs}(b, c) \setminus \operatorname{varying}(R)$$
 -/
 def findings (base cand : Table) (rs : List Table) : List String :=
   (differs base cand).filter (fun k => !(varying rs).contains k)
 
-/-- A finding is a key that differs and does not vary.
-
-$$k \in \operatorname{findings}(b, c, R) \iff b[k] \ne c[k] \ \land\ k \notin \operatorname{varying}(R)$$
--/
+/-- A finding is a key that differs and does not vary. -/
 theorem mem_findings (base cand : Table) (rs : List Table) (k : String) :
     k ∈ findings base cand rs ↔ base.lookup k ≠ cand.lookup k ∧ k ∉ varying rs := by
   unfold findings
   rw [List.mem_filter, mem_differs]
   simp
 
-/-- **No findings iff every diff is a varying key.**
-
-$$\operatorname{findings}(b, c, R) = \emptyset \iff \operatorname{differs}(b, c) \subseteq \operatorname{varying}(R)$$
--/
+/-- **No findings iff every diff is a varying key.** -/
 theorem findings_nil_iff (base cand : Table) (rs : List Table) :
     findings base cand rs = [] ↔ ∀ k, k ∈ differs base cand → k ∈ varying rs := by
   rw [List.eq_nil_iff_forall_not_mem]
@@ -178,8 +140,6 @@ theorem findings_nil_iff (base cand : Table) (rs : List Table) :
 
 /-- **Yardstick soundness.** A diff between two runs that are both in the baseline set is never a finding: the set explains
 every diff among its own members.
-
-$$b, c \in R \Rightarrow \operatorname{findings}(b, c, R) = \emptyset$$
 -/
 theorem findings_of_mem {base cand : Table} {rs : List Table} (hb : base ∈ rs) (hc : cand ∈ rs) :
     findings base cand rs = [] := by
@@ -188,88 +148,56 @@ theorem findings_of_mem {base cand : Table} {rs : List Table} (hb : base ∈ rs)
   rw [mem_varying]
   exact ⟨base, hb, cand, hc, (mem_differs base cand k).1 hk⟩
 
-/-- **More baselines, fewer findings.**
-
-$$R \subseteq R' \Rightarrow \operatorname{findings}(b, c, R') \subseteq \operatorname{findings}(b, c, R)$$
--/
+/-- **More baselines, fewer findings.** -/
 theorem findings_anti {rs rs' : List Table} (h : ∀ r, r ∈ rs → r ∈ rs') (base cand : Table) :
     ∀ k, k ∈ findings base cand rs' → k ∈ findings base cand rs := by
   intro k hk
   rw [mem_findings] at hk ⊢
   exact ⟨hk.1, fun hv => hk.2 (varying_mono h k hv)⟩
 
-/-- A finding is a diff.
-
-$$\operatorname{findings}(b, c, R) \subseteq \operatorname{differs}(b, c)$$
--/
+/-- A finding is a diff. -/
 theorem findings_sub_differs (base cand : Table) (rs : List Table) :
     ∀ k, k ∈ findings base cand rs → k ∈ differs base cand := by
   intro k hk
   rw [mem_findings] at hk
   exact (mem_differs base cand k).2 hk.1
 
-/-- The count type of a key `arm/variant/type`: its last `/` part. Descriptive labelling of keys only; no verdict uses it.
-
-$$\operatorname{typeOf}(s_1/\cdots/s_m) = s_m \qquad (m \ge 1,\ s_i \text{ free of } /)$$
--/
+/-- The count type of a key `arm/variant/type`: its last `/` part. Descriptive labelling of keys only; no verdict uses it. -/
 def typeOf (k : String) : String := (k.splitOn "/").getLast?.getD k
 
 #guard typeOf "control-f1/live/layoutUpdates" == "layoutUpdates" && typeOf "x" == "x" && typeOf "a/b" == "b"
 
-/-- The status of the claim "the diffs are run-to-run variance".
-
-$$\mathrm{Verdict} = \{\mathrm{measured}, \mathrm{unexplained}, \mathrm{noBaseline}\}$$
--/
+/-- The status of the claim "the diffs are run-to-run variance". -/
 inductive Verdict where
   | measured | unexplained | noBaseline
 deriving Repr, DecidableEq
 
-/-- The verdict from the number of distinct baselines and the findings: fewer than two baselines measure no variance.
-
-$$\operatorname{verdict}(n, F) = \begin{cases} \mathrm{noBaseline} & n < 2 \\ \mathrm{measured} & n \ge 2 \wedge F = \emptyset \\ \mathrm{unexplained} & \text{otherwise} \end{cases}$$
--/
+/-- The verdict from the number of distinct baselines and the findings: fewer than two baselines measure no variance. -/
 def verdict (n : Nat) (fs : List String) : Verdict :=
   if n < 2 then .noBaseline else if fs.isEmpty then .measured else .unexplained
 
-/-- A run: its id (the workflow run id) and its table. A run id names one table; the same id twice is one run. Lean does not enforce this: two tables under one id count as one baseline but both feed `varying`; variance.mjs checkIds refuses that input.
-
-$$\mathrm{Run} = \mathbb{N} \times \mathrm{Table}$$
--/
+/-- A run: its id (the workflow run id) and its table. A run id names one table; the same id twice is one run. Lean does not enforce this: two tables under one id count as one baseline but both feed `varying`; variance.mjs checkIds refuses that input. -/
 abbrev Run := Nat × Table
 
 /-- The runs of the set `R` that are neither the baseline nor the candidate of the claim, decided by run id: a run never explains
 its own diff.
-
-$$\operatorname{rivals}(b, c, R) = \{ r \in R \mid \mathrm{id}(r) \ne \mathrm{id}(b) \ \land\ \mathrm{id}(r) \ne \mathrm{id}(c) \}$$
 -/
 def rivals (b c : Run) (rs : List Run) : List Run := rs.filter (fun r => r.1 != b.1 && r.1 != c.1)
 
-/-- A run of the set is a rival exactly when it is in the set and has the id of neither side.
-
-$$r \in \operatorname{rivals}(b, c, R) \iff r \in R \ \land\ \mathrm{id}(r) \ne \mathrm{id}(b) \ \land\ \mathrm{id}(r) \ne \mathrm{id}(c)$$
--/
+/-- A run of the set is a rival exactly when it is in the set and has the id of neither side. -/
 theorem mem_rivals (b c : Run) (rs : List Run) (r : Run) :
     r ∈ rivals b c rs ↔ r ∈ rs ∧ r.1 ≠ b.1 ∧ r.1 ≠ c.1 := by
   unfold rivals
   simp [List.mem_filter]
 
-/-- The number of distinct runs in a list: ids are counted once.
-
-$$n(R) = \bigl|\{ \mathrm{id}(r) \mid r \in R \}\bigr|$$
--/
+/-- The number of distinct runs in a list: ids are counted once. -/
 def nBaselines (rs : List Run) : Nat := (rs.map Prod.fst).eraseDups.length
 
-/-- The claim about a baseline and a candidate over a set of serial runs: the rivals decide, counted by distinct id.
-
-$$\operatorname{claim}(b, c, R) = \operatorname{verdict}\bigl(n(\operatorname{rivals}(b,c,R)),\ \operatorname{findings}(b, c, \operatorname{tables}(\operatorname{rivals}(b,c,R)))\bigr)$$
--/
+/-- The claim about a baseline and a candidate over a set of serial runs: the rivals decide, counted by distinct id. -/
 def claim (b c : Run) (rs : List Run) : Verdict :=
   verdict (nBaselines (rivals b c rs)) (findings b.2 c.2 ((rivals b c rs).map Prod.snd))
 
-/-- **The claim is measured exactly when there are two distinct rival runs and every diff varies among them.**
-
-$$\operatorname{claim}(b, c, R) = \mathrm{measured} \iff n(\operatorname{rivals}(b,c,R)) \ge 2 \ \land\ \operatorname{differs}(b_2, c_2) \subseteq \operatorname{varying}(\operatorname{tables}(\operatorname{rivals}(b,c,R)))$$
--/
+/-- **The claim is measured exactly when there are two distinct rival runs and every diff varies among them.** -/
 theorem claim_measured_iff (b c : Run) (rs : List Run) :
     claim b c rs = .measured ↔
       2 ≤ nBaselines (rivals b c rs) ∧ ∀ k, k ∈ differs b.2 c.2 → k ∈ varying ((rivals b c rs).map Prod.snd) := by
@@ -280,44 +208,30 @@ theorem claim_measured_iff (b c : Run) (rs : List Run) :
   · have h2 : 2 ≤ nBaselines (rivals b c rs) := by omega
     simp [h, h2, List.isEmpty_iff]
 
-/-- With fewer than two distinct rival runs the claim is never measured.
-
-$$n(\operatorname{rivals}(b,c,R)) < 2 \Rightarrow \operatorname{claim}(b, c, R) \ne \mathrm{measured}$$
--/
+/-- With fewer than two distinct rival runs the claim is never measured. -/
 theorem claim_needs_two (b c : Run) (rs : List Run) (h : nBaselines (rivals b c rs) < 2) : claim b c rs ≠ .measured := by
   intro hm
   have := ((claim_measured_iff b c rs).1 hm).1
   omega
 
-/-- A pair of equal numbers has one distinct element.
-
-$$\operatorname{dedup}([n, n]) = [n]$$
--/
+/-- A pair of equal numbers has one distinct element. -/
 theorem eraseDups_pair (n : Nat) : [n, n].eraseDups = [n] := by
   simp [List.eraseDups, List.eraseDupsBy, List.eraseDupsBy.loop]
 
-/-- **One run listed twice is one baseline.**
-
-$$\operatorname{claim}(b, c, [x, x]) \ne \mathrm{measured}$$
--/
+/-- **One run listed twice is one baseline.** -/
 theorem claim_repeat_not_measured (b c x : Run) : claim b c [x, x] ≠ .measured := by
   apply claim_needs_two
   unfold nBaselines rivals
   simp only [List.filter_cons, List.filter_nil]
   split <;> simp [eraseDups_pair]
 
-/-- **The baseline never explains its own diff.** Putting the baseline run `b` at the head of the list changes nothing.
-
-$$\operatorname{claim}(b, c, b :: R) = \operatorname{claim}(b, c, R)$$
--/
+/-- **The baseline never explains its own diff.** Putting the baseline run `b` at the head of the list changes nothing. -/
 theorem claim_baseline_free (b c : Run) (rs : List Run) : claim b c (b :: rs) = claim b c rs := by
   simp [claim, rivals]
 
 /-- The diff count of every pair of runs, as a list of lengths of the `differs` lists, the pairs in lexicographic order of
 position (`i` first, then `j`). A length counts list entries; it equals the number of differing keys when each table has
 unique keys.
-
-$$\operatorname{pairDiffs}(r_1, \dots, r_n) = \bigl[\ \operatorname{len}(\operatorname{differs}(r_i, r_j))\ \bigr]_{(i,j),\ 1 \le i < j \le n,\ \text{lexicographic}}$$
 -/
 def pairDiffs : List Table → List Nat
   | [] => []
@@ -325,33 +239,22 @@ def pairDiffs : List Table → List Nat
 
 /-- Two pairs of numbers, read as closed intervals when `lo ≤ hi`, overlap when neither lies wholly below the other. This is the
 definition over ℕ; for an interval with `lo > hi` it is only this test (`overlap_iff` gives the meaning for real intervals).
-
-$$\operatorname{overlap}((l_1,h_1),(l_2,h_2)) = \mathrm{true} \iff l_1 \le h_2 \ \land\ l_2 \le h_1 \qquad (l_i, h_i \in \mathbb{N})$$
 -/
 def overlap (a b : Nat × Nat) : Bool := a.1 ≤ b.2 && b.1 ≤ a.2
 
-/-- Overlap is symmetric.
-
-$$\operatorname{overlap}(a, b) = \operatorname{overlap}(b, a)$$
--/
+/-- Overlap is symmetric. -/
 theorem overlap_comm (a b : Nat × Nat) : overlap a b = overlap b a := by
   unfold overlap
   exact Bool.and_comm _ _
 
-/-- Two ranges that share a value overlap.
-
-$$x \in [l_1, h_1] \cap [l_2, h_2] \Rightarrow \operatorname{overlap}((l_1,h_1),(l_2,h_2))$$
--/
+/-- Two ranges that share a value overlap. -/
 theorem overlap_of_mem (a b : Nat × Nat) (x : Nat) (h1 : a.1 ≤ x ∧ x ≤ a.2) (h2 : b.1 ≤ x ∧ x ≤ b.2) :
     overlap a b = true := by
   unfold overlap
   simp only [Bool.and_eq_true, decide_eq_true_eq]
   omega
 
-/-- **For non-empty intervals the test is the intersection.**
-
-$$l_1 \le h_1 \ \land\ l_2 \le h_2 \Rightarrow \bigl(\operatorname{overlap}((l_1,h_1),(l_2,h_2)) = \mathrm{true} \iff [l_1,h_1] \cap [l_2,h_2] \ne \emptyset\bigr)$$
--/
+/-- **For non-empty intervals the test is the intersection.** -/
 theorem overlap_iff (a b : Nat × Nat) (ha : a.1 ≤ a.2) (hb : b.1 ≤ b.2) :
     overlap a b = true ↔ ∃ x, (a.1 ≤ x ∧ x ≤ a.2) ∧ (b.1 ≤ x ∧ x ≤ b.2) := by
   constructor
@@ -362,10 +265,7 @@ theorem overlap_iff (a b : Nat × Nat) (ha : a.1 ≤ a.2) (hb : b.1 ≤ b.2) :
   · rintro ⟨x, h1, h2⟩
     exact overlap_of_mem a b x h1 h2
 
-/-- The range of a sample: its minimum and maximum, or nothing for the empty sample.
-
-$$\operatorname{range}(xs) = \begin{cases} \mathrm{some}(\min xs, \max xs) & xs \ne [\,] \\ \mathrm{none} & xs = [\,] \end{cases}$$
--/
+/-- The range of a sample: its minimum and maximum, or nothing for the empty sample. -/
 def rangeOf (xs : List Nat) : Option (Nat × Nat) :=
   match xs.min?, xs.max? with
   | some l, some h => some (l, h)

@@ -42,8 +42,6 @@ open Fw.Gate Lean
 
 /-- The used behaviour class of an `align-self` value on a grid item, in the block axis.
 
-$$\mathrm{Mode} = \{\mathrm{content},\ \mathrm{fill},\ \mathrm{other}\}$$
-
 `content`: start-aligned at its content (fit-content) size; `fill`: start-aligned and stretched to the grid area;
 `other`: anything this rule does not judge. -/
 inductive Mode
@@ -51,8 +49,6 @@ inductive Mode
   deriving DecidableEq, Repr, Inhabited
 
 /-- Mode names as written in the golden vectors.
-
-$$\operatorname{name}(\mathrm{content}) = \texttt{"content"},\ \operatorname{name}(\mathrm{fill}) = \texttt{"fill"},\ \operatorname{name}(\mathrm{other}) = \texttt{"other"}$$
 
 The wire spelling of a mode. -/
 def Mode.name : Mode → String
@@ -66,8 +62,6 @@ declared-style facts read from the matched rules and the inline style (`autoMarg
 `block-size` declared other than `auto`), and three viewport-relative tops from `getBoundingClientRect`
 (`rectTop`, `rectHeight` of the item, `parentRectTop` of its container). `parent*` and `alignItems`,
 `alignContent`, `rows`, `rowGap` are the container's.
-
-$$s \in \mathrm{String}^{24} \times \mathbb B^{3} \times \mathbb Q^{3}$$
 
 One arm's view of one item. -/
 structure Side where
@@ -105,15 +99,11 @@ structure Side where
 
 /-- The value `align-self` resolves to: the container's `align-items` for `auto` (css-align-3 §6.2).
 
-$$\operatorname{resolve}(s) = \begin{cases} s.\mathrm{alignItems} & s.\mathrm{alignSelf} = \texttt{auto} \\ s.\mathrm{alignSelf} & \text{otherwise} \end{cases}$$
-
 `auto` defers to the parent. -/
 def resolve (s : Side) : String :=
   if s.alignSelf == "auto" then s.alignItems else s.alignSelf
 
 /-- A positive number with nothing after it, in the number grammar of `Fw.Gate.numAt`.
-
-$$\operatorname{pos}(v) \iff \exists d,\ \operatorname{numAt}(\operatorname{chars}(v)) = \mathrm{some}(d, [\,]) \wedge \operatorname{val}(d) > 0$$
 
 A ratio term that is a positive number. -/
 def posNum (v : String) : Bool :=
@@ -122,9 +112,7 @@ def posNum (v : String) : Bool :=
   | _ => false
 
 /-- Whether the computed `aspect-ratio` gives a preferred aspect ratio: `auto` none; `a / b` or `auto a / b` with
-$a, b > 0$ one (the box is non-replaced where it matters, so `auto a / b` uses the ratio); anything else unknown.
-
-$$\operatorname{ratio}(v) = \begin{cases} \mathrm{some}(\mathrm{false}) & v = \texttt{auto} \\ \mathrm{some}(\mathrm{true}) & \operatorname{split}_{\texttt{" / "}}(v') = [a, b] \text{ (exactly one separator)},\ \operatorname{pos}(a),\ \operatorname{pos}(b) \\ \bot & \text{otherwise} \end{cases},\quad v' = \begin{cases} v \text{ without its first 5 chars} & v \text{ starts with } \texttt{"auto "} \\ v & \text{otherwise} \end{cases}$$
+`a, b > 0` one (the box is non-replaced where it matters, so `auto a / b` uses the ratio); anything else unknown.
 
 (a degenerate ratio such as `0 / 1` is unknown). Tri-state, so an unreadable value never picks a mode. -/
 def ratioOf (v : String) : Option Bool :=
@@ -137,8 +125,6 @@ def ratioOf (v : String) : Option Bool :=
 
 /-- Local names of replaced (or form-control) HTML elements.
 
-$$\mathrm{Replaced} = [\texttt{img}, \texttt{video}, \texttt{audio}, \texttt{canvas}, \texttt{iframe}, \texttt{embed}, \texttt{object}, \texttt{input}, \texttt{textarea}, \texttt{select}, \texttt{button}, \texttt{meter}, \texttt{progress}, \texttt{frame}]$$
-
 Elements whose `normal` sizing may follow a natural size. -/
 def replacedTags : List String :=
   ["img", "video", "audio", "canvas", "iframe", "embed", "object", "input", "textarea", "select", "button", "meter",
@@ -146,15 +132,11 @@ def replacedTags : List String :=
 
 /-- A non-replaced HTML block container (blockified grid items compute `display: block`).
 
-$$\operatorname{blockC}(s) \iff s.\mathrm{html} \wedge s.\mathrm{display} \in \{\texttt{block}, \texttt{flow-root}\} \wedge s.\mathrm{localName} \notin \mathrm{Replaced}$$
-
 Boxes whose fit-content block size is their block-level auto height (css-sizing-3 §2.1). -/
 def blockContainer (s : Side) : Bool :=
   s.html && (s.display == "block" || s.display == "flow-root") && !replacedTags.contains s.localName
 
 /-- The mode of the resolved value (css-align-3 §6.1, §4.1, §6.2.5; css-grid-1 §6.2).
-
-$$\operatorname{mode}(s) = \begin{cases} \mathrm{fill} & v = \texttt{stretch} \\ \mathrm{content} & v \in \{\texttt{start}, \texttt{flex-start}\} \\ \mathrm{fill} & v = \texttt{normal} \wedge \operatorname{blockC}(s) \wedge \operatorname{ratio}(s.\mathrm{aspectRatio}) = \mathrm{some}(\mathrm{false}) \\ \mathrm{other} & \text{otherwise} \end{cases},\quad v = \operatorname{resolve}(s)$$
 
 How the value sizes and places the item, or `other` (also for `normal` with a preferred aspect ratio, where the
 engines differ). -/
@@ -175,8 +157,6 @@ def modeOf (s : Side) : Mode :=
 /-- `normal` on a box with a preferred aspect ratio is never judged: Chromium stretches it, WebKit does not
 (MEASURED, premise `grid.normal-aspect-ratio-no-stretch`).
 
-$$\forall s,\quad \operatorname{resolve}(s) = \texttt{normal} \wedge \operatorname{ratio}(s.\mathrm{aspectRatio}) = \mathrm{some}(\mathrm{true}) \implies \operatorname{mode}(s) = \mathrm{other}$$
-
 An engine-dependent size gives no mode. -/
 theorem modeOf_normal_ratio (s : Side) (hn : resolve s = "normal") (hr : ratioOf s.aspectRatio = some true) :
     modeOf s = .other := by
@@ -186,8 +166,6 @@ theorem modeOf_normal_ratio (s : Side) (hn : resolve s = "normal") (hr : ratioOf
 
 /-- The item is an in-flow grid item in a horizontal writing mode, with no auto block margin and no declared
 non-auto height.
-
-$$\operatorname{elig}(s) \iff s.\mathrm{parentDisplay} \in \{\texttt{grid}, \texttt{inline-grid}\} \wedge s.\mathrm{position} \notin \{\texttt{absolute}, \texttt{fixed}\} \wedge s.\mathrm{display} \notin \{\texttt{none}, \texttt{contents}\} \wedge s.\mathrm{writingMode} = s.\mathrm{parentWritingMode} = \texttt{horizontal-tb} \wedge \neg s.\mathrm{autoMargin} \wedge s.\mathrm{heightAuto}$$
 
 The cases where the modes mean what `place` says. -/
 def eligible (s : Side) : Bool :=
@@ -201,8 +179,6 @@ def eligible (s : Side) : Bool :=
 
 /-- A CSS pixel length `<number>px`.
 
-$$\operatorname{px}(v) = \begin{cases} \operatorname{val}(d) & \operatorname{numAt}(\operatorname{chars}(v)) = \mathrm{some}(d, [\texttt{p}, \texttt{x}]) \\ \bot & \text{otherwise} \end{cases}$$
-
 Reads a resolved length. -/
 def px (v : String) : Option Rat :=
   match numAt v.toList with
@@ -210,8 +186,6 @@ def px (v : String) : Option Rat :=
   | _ => none
 
 /-- Replace bracketed line names by spaces (depth counted; `]` at depth 0 stays at depth 0).
-
-$$\operatorname{strip}(c_1 \dots c_n, d) = c'_1 \dots,\quad c'_k = \begin{cases} \text{space} & c_k \in \{\texttt{[}, \texttt{]}\} \\ c_k & c_k \notin \{\texttt{[}, \texttt{]}\},\ d_k = 0 \\ \text{dropped} & \text{otherwise} \end{cases},\quad d_{k+1} = \begin{cases} d_k + 1 & c_k = \texttt{[} \\ d_k \mathbin{\dot-} 1 & c_k = \texttt{]} \\ d_k & \text{otherwise} \end{cases},\ d_1 = d$$
 
 Line names carry no size. -/
 def stripNames : List Char → Nat → List Char
@@ -222,8 +196,6 @@ def stripNames : List Char → Nat → List Char
 
 /-- The row track sizes from the container's resolved `grid-template-rows` (every track listed in px).
 
-$$\operatorname{tracks}(v) = \begin{cases} [\operatorname{px}(w_1), \dots, \operatorname{px}(w_n)] & n \ge 1 \wedge \forall k,\ \operatorname{px}(w_k) \ne \bot \\ \bot & \text{otherwise} \end{cases},\quad [w_1, \dots, w_n] = \text{the non-empty space-separated words of } \operatorname{strip}(v, 0)$$
-
 The used row sizes. -/
 def parseTracks (v : String) : Option (List Rat) :=
   let ws := ((String.ofList (stripNames v.toList 0)).splitOn " ").filter (· != "")
@@ -231,17 +203,13 @@ def parseTracks (v : String) : Option (List Rat) :=
 
 /-- The row gap: `normal` is 0 in a grid (css-align-3 §8.1), otherwise a px length.
 
-$$\operatorname{gap}(s) = \begin{cases} 0 & s.\mathrm{rowGap} = \texttt{normal} \\ \operatorname{px}(s.\mathrm{rowGap}) & \text{otherwise} \end{cases}$$
-
 Space between rows. -/
 def gapOf (s : Side) : Option Rat :=
   if s.rowGap == "normal" then some 0 else px s.rowGap
 
 /-- The item's border-box height from computed values (`height` is the border-box height under `border-box`).
 
-$$\operatorname{bh}(s) = \begin{cases} \operatorname{px}(s.\mathrm{height}) & s.\mathrm{boxSizing} = \texttt{border-box} \\ \operatorname{px}(s.\mathrm{height}) + \operatorname{px}(s.\mathrm{paddingTop}) + \operatorname{px}(s.\mathrm{paddingBottom}) + \operatorname{px}(s.\mathrm{borderTop}) + \operatorname{px}(s.\mathrm{borderBottom}) & \text{otherwise} \end{cases}$$
-
-$\operatorname{bh}(s) = \bot$ iff $\operatorname{px}(s.\mathrm{height}) = \bot$ (under `border-box`; the other four are not read), or any of the five $\operatorname{px}$ terms is $\bot$ (otherwise). Layout height, free of transforms. -/
+`bh(s) = ⊥` iff `px(s.height) = ⊥` (under `border-box`; the other four are not read), or any of the five `px` terms is `⊥` (otherwise). Layout height, free of transforms. -/
 def borderH (s : Side) : Option Rat := do
   let h ← px s.height
   if s.boxSizing == "border-box" then some h
@@ -254,8 +222,6 @@ def borderH (s : Side) : Option Rat := do
 
 /-- The item's outer (margin-box) block size.
 
-$$\operatorname{outer}(s) = \operatorname{bh}(s) + \operatorname{px}(s.\mathrm{marginTop}) + \operatorname{px}(s.\mathrm{marginBottom})\quad (\bot \text{ if } \operatorname{bh}(s) = \bot \text{ or either } \operatorname{px} \text{ is } \bot)$$
-
 What the alignment container holds. -/
 def outerOf (s : Side) : Option Rat := do
   let b ← borderH s
@@ -264,8 +230,6 @@ def outerOf (s : Side) : Option Rat := do
   some (b + mt + mb)
 
 /-- Where the item's margin box starts below the container's content-box top.
-
-$$\operatorname{off}(s) = s.\mathrm{rectTop} - s.\mathrm{parentRectTop} - \operatorname{px}(s.\mathrm{parentBorderTop}) - \operatorname{px}(s.\mathrm{parentPaddingTop}) - \operatorname{px}(s.\mathrm{marginTop})\quad (\bot \text{ if any } \operatorname{px} \text{ is } \bot)$$
 
 The measured block offset. -/
 def offsetOf (s : Side) : Option Rat := do
@@ -276,23 +240,17 @@ def offsetOf (s : Side) : Option Rat := do
 
 /-- Track start offsets: prefix sums of tracks and gaps.
 
-$$\operatorname{starts}([t_0, \dots, t_{n-1}], g) = [S_0, \dots, S_{n-1}],\quad S_k = \sum_{m < k} (t_m + g)$$
-
 Where each row begins. -/
 def starts : List Rat → Rat → List Rat
   | [], _ => []
   | t :: ts, g => 0 :: (starts ts g).map (· + (t + g))
 
-/-- The tolerance of the fill test, $\tfrac1{16}$ CSS px (the gate's box tolerance is $\tfrac12$).
-
-$$\tau_f = \tfrac{1}{16}$$
+/-- The tolerance of the fill test, `1/16` CSS px (the gate's box tolerance is `1/2`).
 
 Sub-pixel slack for layout rounding. -/
 def tolFill : Rat := 1 / 16
 
-/-- The indices whose start is within $\tau_f$ of an offset.
-
-$$\operatorname{at}(S, x) = [\,k : 0 \le k < |S|,\ |S_k - x| \le \tau_f\,] \text{ (the list of such } k \text{ in increasing order; no } k \ge |S| \text{)}$$
+/-- The indices whose start is within `τ_f` of an offset.
 
 Rows the measured offset could belong to. -/
 def matchesAt (ss : List Rat) (x : Rat) : List Nat :=
@@ -303,8 +261,6 @@ def matchesAt (ss : List Rat) (x : Rat) : List Nat :=
 
 /-- An integer (optional `-`, at least one digit).
 
-$$\operatorname{int}(v) \iff v \in \texttt{-}^{?}[\texttt{0}\text{-}\texttt{9}]^{+}$$
-
 A grid line number. -/
 def isIntStr (v : String) : Bool :=
   match v.toList with
@@ -313,17 +269,12 @@ def isIntStr (v : String) : Bool :=
 
 /-- The item spans exactly one row.
 
-$$\operatorname{span1}(s) \iff s.\mathrm{rowEnd} \in \{\texttt{auto}, \texttt{span 1}\} \wedge (s.\mathrm{rowStart} = \texttt{auto} \vee \operatorname{int}(s.\mathrm{rowStart}))$$
-
 Its grid area is one track. -/
 def spanOne (s : Side) : Bool :=
   (s.rowEnd == "auto" || s.rowEnd == "span 1") && (s.rowStart == "auto" || isIntStr s.rowStart)
 
 /-- The content-sized item already fills its row: the container packs rows at its start, the item spans one row,
-is unscaled, exactly one row starts at its offset, and that row's size is its outer size (each within $\tau_f$).
-
-$$\operatorname{fills}(s) \iff s.\mathrm{alignContent} \in \{\texttt{normal}, \texttt{stretch}, \texttt{start}, \texttt{flex-start}\} \wedge \operatorname{span1}(s) \wedge T = \operatorname{tracks}(s.\mathrm{rows}) \ne \bot \wedge g = \operatorname{gap}(s) \ne \bot \wedge b = \operatorname{bh}(s) \ne \bot \wedge o = \operatorname{outer}(s) \ne \bot \wedge x = \operatorname{off}(s) \ne \bot$$
-$$\wedge\ b > 0 \wedge |s.\mathrm{rectHeight} - b| \le \tau_f \wedge \operatorname{at}(\operatorname{starts}(T, g), x) = [i] \text{ (exactly one index)} \wedge i < |T| \wedge |T_i - o| \le \tau_f$$
+is unscaled, exactly one row starts at its offset, and that row's size is its outer size (each within `τ_f`).
 
 So stretching it would change nothing. -/
 def contentFill (s : Side) : Bool :=
@@ -344,8 +295,6 @@ def contentFill (s : Side) : Bool :=
 /-- Spec equivalence of two arms' values: both eligible, and the same mode, or `fill` against a `content` arm that
 already fills its row.
 
-$$\operatorname{eqv}(o, r) \iff \operatorname{elig}(o) \wedge \operatorname{elig}(r) \wedge \begin{cases} \mathrm{true} & \operatorname{mode}(o) = \operatorname{mode}(r) \in \{\mathrm{content}, \mathrm{fill}\} \\ \operatorname{fills}(r) & \operatorname{mode}(o) = \mathrm{fill},\ \operatorname{mode}(r) = \mathrm{content} \\ \operatorname{fills}(o) & \operatorname{mode}(o) = \mathrm{content},\ \operatorname{mode}(r) = \mathrm{fill} \\ \mathrm{false} & \text{otherwise (a mode is other)} \end{cases}$$
-
 The two values place the item alike. -/
 def equivSpec (o r : Side) : Bool :=
   eligible o && eligible r &&
@@ -358,15 +307,11 @@ def equivSpec (o r : Side) : Bool :=
 
 /-- The gate's judgement for a declared `align-self` pair: the same computed value, or spec-equivalent.
 
-$$\operatorname{alignEquiv}(o, r) \iff o.\mathrm{alignSelf} = r.\mathrm{alignSelf} \ \vee\ \operatorname{eqv}(o, r)$$
-
 Equal values stay equal; different values are equal only by the spec rule. -/
 def alignEquiv (o r : Side) : Bool :=
   o.alignSelf == r.alignSelf || equivSpec o r
 
 /-- The rule judges every value equal to itself.
-
-$$\forall s,\quad \operatorname{alignEquiv}(s, s)$$
 
 Reflexive. -/
 theorem alignEquiv_refl (s : Side) : alignEquiv s s = true := by
@@ -374,16 +319,12 @@ theorem alignEquiv_refl (s : Side) : alignEquiv s s = true := by
 
 /-- The spec equivalence does not depend on which arm is the original.
 
-$$\forall o, r,\quad \operatorname{eqv}(o, r) = \operatorname{eqv}(r, o)$$
-
 Symmetric. -/
 theorem equivSpec_symm (o r : Side) : equivSpec o r = equivSpec r o := by
   unfold equivSpec
   cases modeOf o <;> cases modeOf r <;> cases eligible o <;> cases eligible r <;> rfl
 
 /-- The gate's judgement does not depend on which arm is the original.
-
-$$\forall o, r,\quad \operatorname{alignEquiv}(o, r) = \operatorname{alignEquiv}(r, o)$$
 
 Symmetric. -/
 theorem alignEquiv_symm (o r : Side) : alignEquiv o r = alignEquiv r o := by
@@ -393,9 +334,7 @@ theorem alignEquiv_symm (o r : Side) : alignEquiv o r = alignEquiv r o := by
 /-! ## Soundness against the spec's placement -/
 
 /-- The spec facts of one item in its row: the area's start and size, the content (fit-content = block-level auto)
-outer size, and the outer sizes min/max allow, $[\mathit{lo}, \mathit{hi}]$ ($\mathit{hi} = \bot$: no maximum).
-
-$$L = (\mathit{start}, A, C, \mathit{lo}, \mathit{hi}) \in \mathbb Q^{4} \times \mathbb Q_\bot$$
+outer size, and the outer sizes min/max allow, `[lo, hi]` (`hi = ⊥`: no maximum).
 
 What the spec computes before alignment. -/
 structure Layout where
@@ -405,9 +344,7 @@ structure Layout where
   lo : Rat
   hi : Option Rat
 
-/-- Clamp a size to $[\mathit{lo}, \mathit{hi}]$, min winning over max (CSS 2 §10.7).
-
-$$\operatorname{clamp}(\mathit{lo}, \mathit{hi}, x) = \max(\mathit{lo}, \min(\mathit{hi}, x))\quad (\min(\bot, x) = x)$$
+/-- Clamp a size to `[lo, hi]`, min winning over max (CSS 2 §10.7).
 
 The stretch-fit size honouring min/max. -/
 def clampTo (lo : Rat) (hi : Option Rat) (x : Rat) : Rat :=
@@ -416,17 +353,13 @@ def clampTo (lo : Rat) (hi : Option Rat) (x : Rat) : Rat :=
 /-- The margin box the spec gives each mode: offset from the area start and outer size (css-align-3 §6.1, §6.2.5;
 css-grid-1 §6.2).
 
-$$\operatorname{place}(L, m) = \begin{cases} (0, L.C) & m = \mathrm{content} \\ (0, \operatorname{clamp}(L.\mathit{lo}, L.\mathit{hi}, L.A)) & m = \mathrm{fill} \\ \bot & m = \mathrm{other} \end{cases}$$
-
 Start-aligned, at content size or stretched. -/
 def place (L : Layout) : Mode → Option (Rat × Rat)
   | .content => some (0, L.content)
   | .fill => some (0, clampTo L.lo L.hi L.area)
   | .other => none
 
-/-- Distance on $\mathbb Q$.
-
-$$\operatorname{dist}(a, b) = |a - b|$$
+/-- Distance on `ℚ`.
 
 How far apart two sizes are. -/
 def dist (a b : Rat) : Rat := if a ≤ b then b - a else a - b
@@ -434,10 +367,7 @@ def dist (a b : Rat) : Rat := if a ≤ b then b - a else a - b
 /-- The measurement premise for one arm: its layout's content size is allowed by min/max, its tracks and gap are the
 parsed ones, its area is one of those rows, and the measured offset and outer size are its placed box.
 
-$$\operatorname{agrees}(s, L) \iff L.\mathit{lo} \le L.C \wedge (\forall h,\ L.\mathit{hi} = h \implies L.C \le h) \wedge \exists T, g, j,\ \big(\operatorname{tracks}(s.\mathrm{rows}) = \mathrm{some}(T) \wedge \operatorname{gap}(s) = \mathrm{some}(g) \wedge j < |T| \wedge T_j = L.A \wedge \operatorname{starts}(T, g)_j = L.\mathit{start}$$
-$$\wedge\ \forall p,\ \operatorname{place}(L, \operatorname{mode}(s)) = \mathrm{some}(p) \implies \operatorname{off}(s) = \mathrm{some}(L.\mathit{start} + p_1) \wedge \operatorname{outer}(s) = \mathrm{some}(p_2)\big)$$
-
-When $\operatorname{mode}(s) = \mathrm{other}$, $\operatorname{place} = \bot$ and the last clause holds vacuously.
+When `mode(s) = other`, `place = ⊥` and the last clause holds vacuously.
 
 Rects and resolved values report the layout (registered premise `grid.stretch-fill-equals-start`). -/
 def Agrees (s : Side) (L : Layout) : Prop :=
@@ -446,9 +376,7 @@ def Agrees (s : Side) (L : Layout) : Prop :=
     parseTracks s.rows = some ts ∧ gapOf s = some g ∧ ts[j]? = some L.area ∧ (starts ts g)[j]? = some L.start ∧
     ∀ p, place L (modeOf s) = some p → offsetOf s = some (L.start + p.1) ∧ outerOf s = some p.2
 
-/-- A size within $t$ of an allowed content size clamps to within $t$ of it.
-
-$$\forall \mathit{lo}, \mathit{hi}, a, c, t,\quad \mathit{lo} \le c \wedge (\forall h,\ \mathit{hi} = h \implies c \le h) \wedge |a - c| \le t \implies \operatorname{dist}(\operatorname{clamp}(\mathit{lo}, \mathit{hi}, a), c) \le t$$
+/-- A size within `t` of an allowed content size clamps to within `t` of it.
 
 Clamping never moves a size away from an allowed one. -/
 theorem clamp_dist (lo : Rat) (hi : Option Rat) (a c t : Rat) (hlo : lo ≤ c) (hhi : ∀ h, hi = some h → c ≤ h)
@@ -461,9 +389,7 @@ theorem clamp_dist (lo : Rat) (hi : Option Rat) (a c t : Rat) (hlo : lo ≤ c) (
     have := hhi h rfl
     simp only [clampTo, dist]; grind
 
-/-- If row $j$ starts exactly at the offset and the offset matches only row $i$, then $i = j$.
-
-$$\forall S, x, i, j,\quad j < |S| \wedge S_j = x \wedge \operatorname{at}(S, x) = [i] \implies i = j$$
+/-- If row `j` starts exactly at the offset and the offset matches only row `i`, then `i = j`.
 
 The measured offset identifies the row. -/
 theorem matchesAt_unique (ss : List Rat) (x : Rat) (i j : Nat) (hj : ss[j]? = some x)
@@ -482,9 +408,7 @@ theorem matchesAt_unique (ss : List Rat) (x : Rat) (i j : Nat) (hj : ss[j]? = so
 
 /-- Soundness: when the rule judges two values equivalent, on one of the two arms (the measured content arm, or
 either when the modes agree) placing the item with the original's mode or with the rewrite's mode gives the same
-offset exactly ($p_1 = q_1$) and outer sizes within $\tau_f$ ($\operatorname{dist}(p_2, q_2) \le \tau_f$), for every layout that agrees with that arm's facts; neither mode is `other`.
-
-$$\forall o, r,\quad \operatorname{eqv}(o, r) \implies \exists X \in \{o, r\},\ \forall L,\ \operatorname{agrees}(X, L) \implies \exists p, q,\ \operatorname{place}(L, \operatorname{mode}(o)) = \mathrm{some}(p) \wedge \operatorname{place}(L, \operatorname{mode}(r)) = \mathrm{some}(q) \wedge p_1 = q_1 \wedge \operatorname{dist}(p_2, q_2) \le \tau_f$$
+offset exactly (`p_1 = q_1`) and outer sizes within `τ_f` (`dist(p_2, q_2) ≤ τ_f`), for every layout that agrees with that arm's facts; neither mode is `other`.
 
 The two values give the same used alignment. -/
 theorem equivSpec_sound (o r : Side) (h : equivSpec o r = true) :
@@ -528,8 +452,6 @@ theorem equivSpec_sound (o r : Side) (h : equivSpec o r = true) :
 
 /-- The fill tolerance stays well inside the gate's box tolerance.
 
-$$2\tau_f \le \tfrac12 = \tau_{\mathrm{box}}$$
-
 Accepting a pair never needs more slack than a box comparison allows. -/
 theorem tol_below_box : 2 * tolFill ≤ tolBox := by
   simp only [tolFill, tolBox]; grind
@@ -539,23 +461,17 @@ theorem tol_below_box : 2 * tolFill ≤ tolBox := by
 /-- Canonicalise the rewrite element of a pair: when the pair is judged equivalent, its `align-self` value is set to
 the original's; otherwise it is unchanged.
 
-$$\operatorname{canon}(e, x, y) = \begin{cases} \operatorname{setStyle}_{\texttt{align-self},\, x[\texttt{align-self}]}(y) & e \\ y & \neg e \end{cases}$$
-
 The only edit the rule makes. -/
 def canonItem (e : Bool) (io ir : Item) : Item :=
   if e then setStyle "align-self" (io.style.lookup "align-self") ir else ir
 
 /-- Canonicalising keeps the box.
 
-$$\forall e, x, y,\quad \operatorname{canon}(e, x, y).\mathrm{rect} = y.\mathrm{rect}$$
-
 No geometry is touched. -/
 theorem canonItem_rect (e : Bool) (x y : Item) : (canonItem e x y).rect = y.rect := by
   unfold canonItem; split <;> rfl
 
 /-- Canonicalising keeps every other property.
-
-$$\forall e, x, y, q,\quad q \ne \texttt{align-self} \implies \operatorname{canon}(e, x, y)[q] = y[q]$$
 
 Only `align-self` can change. -/
 theorem canonItem_lookup_ne (e : Bool) (x y : Item) (q : String) (hq : q ≠ "align-self") :
@@ -566,16 +482,12 @@ theorem canonItem_lookup_ne (e : Bool) (x y : Item) (q : String) (hq : q ≠ "al
 
 /-- An equivalent pair's `align-self` items become equal.
 
-$$\forall x, y, v,\quad x[\texttt{align-self}] = v \ne \bot \implies \operatorname{styleStatus}(x[\texttt{align-self}], \operatorname{canon}(\mathrm{true}, x, y)[\texttt{align-self}]) = \mathrm{equal}$$
-
 The judged property passes. -/
 theorem canonItem_align_equal (x y : Item) (v : String) (hv : x.style.lookup "align-self" = some v) :
     styleStatus (x.style.lookup "align-self") ((canonItem true x y).style.lookup "align-self") = .equal := by
   simp [canonItem, setStyle, hv, styleStatus, styleValueEq_refl]
 
-/-- Hide the status of the non-box items with key $p$.
-
-$$\operatorname{hide}_p(it) = \begin{cases} it \text{ with status } \mathrm{na},\ \delta = \mathrm{false} & it.\mathit{cls} \ne \mathrm{box} \wedge it.k = p \\ it & \text{otherwise} \end{cases}$$
+/-- Hide the status of the non-box items with key `p`.
 
 Everything the rule leaves as it was. -/
 def hideKey (p : String) (it : PItem) : PItem :=
@@ -583,8 +495,6 @@ def hideKey (p : String) (it : PItem) : PItem :=
 
 /-- Geometry is still compared: canonicalising changes no box item and no item of another property; only the
 `align-self` style and information items may change.
-
-$$\forall \mathit{rs}, C, I, q_o, q_r, i, e, x, y,\quad [\operatorname{hide}_{\texttt{align-self}}(it) \mid it \in \operatorname{itemAt}_{\mathit{rs}, C, I, q_o, q_r}(i, x, \operatorname{canon}(e, x, y))] = [\operatorname{hide}_{\texttt{align-self}}(it) \mid it \in \operatorname{itemAt}_{\mathit{rs}, C, I, q_o, q_r}(i, x, y)]$$
 
 A wrong judgement can never hide a moved or resized box. -/
 theorem geometry_still_compared (rs : RoleSpec) (cmp info : List String) (refO refR : Option Rect) (i : Nat)
@@ -612,8 +522,6 @@ theorem geometry_still_compared (rs : RoleSpec) (cmp info : List String) (refO r
 
 /-- The platform stage at width ≤ 640 on the rewrite arm: `align-self: start`, container `align-items: stretch`,
 an aspect-ratio box of 300 px in a 300 px first row.
-
-$$s_0 = (\mathrm{alignSelf} = \texttt{start},\ \mathrm{alignItems} = \texttt{stretch},\ \mathrm{display} = \texttt{block},\ \mathrm{aspectRatio} = \texttt{640 / 512},\ \mathrm{parentDisplay} = \texttt{grid},\ \mathrm{rows} = \texttt{300px 52.1875px},\ \mathrm{height} = \texttt{300px},\ \mathrm{rectTop} = \mathrm{parentRectTop} = 100,\ \mathrm{rectHeight} = 300,\ \dots)$$
 
 Every field is listed in the definition below; all paddings, borders and margins are `0px`.
 
@@ -652,14 +560,10 @@ def base : Side where
 
 /-- The original arm of the stage: `align-self: auto` under `align-items: stretch`.
 
-$$o_0 = s_0 \text{ with } \mathrm{alignSelf} = \texttt{auto}$$
-
 The original's facts at the stage. -/
 def baseO : Side := { base with alignSelf := "auto" }
 
 /-- The golden cases: name, original facts, rewrite facts.
-
-$$\mathrm{cases} = [(n_k, o_k, r_k)]_k$$
 
 Every branch of the rule, and each thing that breaks it. -/
 def cases : List (String × Side × Side) := [
@@ -710,19 +614,15 @@ def cases : List (String × Side × Side) := [
   ("off-by-an-eighth", baseO, { base with rows := "300.125px" })
 ]
 
-/-- An exact decimal JSON number (the golden values are multiples of $10^{-6}$).
+/-- An exact decimal JSON number (the golden values are multiples of `10^(-6)`).
 
-$$\operatorname{dec}(x) = \tfrac{x_{\mathrm{num}} \cdot \lfloor 10^6 / x_{\mathrm{den}} \rfloor}{10^6}$$
-
-Exact only when $x_{\mathrm{den}} \mid 10^6$ (true for every golden value); otherwise the printed value is wrong, not rounded.
+Exact only when `x_den | 10^6` (true for every golden value); otherwise the printed value is wrong, not rounded.
 
 Golden numbers print as JavaScript reads them. -/
 def ratJson (x : Rat) : Json :=
   Json.num ⟨x.num * ((1000000 / x.den : Nat) : Int), 6⟩
 
 /-- The facts as the collector writes them (keys as in `align-equiv.mjs`).
-
-$$\operatorname{json}(s) = \{\,f : s.f \mid f \in \text{the 30 fields of } \mathrm{Side}\,\},\quad \text{numbers via } \operatorname{dec}$$
 
 One arm's facts as JSON. -/
 def sideJson (s : Side) : Json :=
@@ -740,8 +640,6 @@ def sideJson (s : Side) : Json :=
 
 /-- One golden line: the request (both arms' facts) and every intermediate answer.
 
-$$\operatorname{row}(n, o, r) = (n,\ (\operatorname{json}(o), \operatorname{json}(r)),\ (\operatorname{alignEquiv}(o, r), \operatorname{eqv}(o, r), \operatorname{mode}(o), \operatorname{mode}(r), \operatorname{elig}(o), \operatorname{elig}(r), \operatorname{fills}(o), \operatorname{fills}(r)))$$
-
 A case and its answers. -/
 def caseRow (n : String) (o r : Side) : Json :=
   Json.mkObj [
@@ -755,23 +653,17 @@ def caseRow (n : String) (o r : Side) : Json :=
 
 /-- The golden text, one JSON line per case.
 
-$$\mathrm{goldenText} = \textstyle\bigoplus_{(n, o, r) \in \mathrm{cases}} \operatorname{row}(n, o, r) \mathbin{+\!\!+} \texttt{\textbackslash n}\quad (\text{in list order})$$
-
 The golden file's contents. -/
 def goldenText : String :=
   String.join (cases.map fun (n, o, r) => (caseRow n o r).compress ++ "\n")
 
 /-- The golden file, relative to `lean/`.
 
-$$\mathrm{goldenPath} = \texttt{../packages/contracts/golden/gate/align-equiv.jsonl}$$
-
 Where the vectors live. -/
 def goldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "gate" / "align-equiv.jsonl"
 
-/-- Writes the golden file, or compares it with the generated text and returns $\mathrm{fail} \in \{0, 1\}$ (1 when
+/-- Writes the golden file, or compares it with the generated text and returns `fail ∈ {0, 1}` (1 when
 the file differs).
-
-$$\operatorname{run}(\mathit{root}, w) = \begin{cases} 0 \text{ after writing} & w \\ [\,\text{file} \ne \mathrm{goldenText}\,] & \neg w \end{cases}$$
 
 Keeps the JavaScript mirror's vectors in step with the rule. -/
 def run (root : System.FilePath) (write : Bool) : IO Nat := do

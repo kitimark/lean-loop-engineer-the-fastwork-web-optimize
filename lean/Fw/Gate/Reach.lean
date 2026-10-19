@@ -30,8 +30,6 @@ open Fw.Site.Breakpoints
 
 /-- An engine port the gate runs on.
 
-$$\mathcal P = \{\mathrm{chromium}, \mathrm{webkitApple}, \mathrm{webkitGLib}\}$$
-
 Chromium, Apple WebKit (Safari, WKWebView, the iOS Simulator), or WebKit GTK/WPE (Playwright WebKit on
 Linux). -/
 inductive Port where
@@ -42,8 +40,6 @@ inductive Port where
 
 /-- The primary (hover, pointer) pairs a port can report.
 
-$$\begin{aligned} \operatorname{pairs}(\mathrm{chromium}) &= \{\mathrm{none}, \mathrm{hover}\} \times \{\mathrm{none}, \mathrm{coarse}, \mathrm{fine}\} \\ \operatorname{pairs}(\mathrm{webkitApple}) &= [(\mathrm{hover}, \mathrm{fine}), (\mathrm{none}, \mathrm{coarse})] \\ \operatorname{pairs}(\mathrm{webkitGLib}) &= [(\mathrm{hover}, \mathrm{fine}), (\mathrm{none}, \mathrm{coarse}), (\mathrm{none}, \mathrm{none})] \end{aligned}$$
-
 WebKit drives both features from one value; Chromium's emulation sets them apart. -/
 def Port.pairs : Port → List (Hover × Pointer)
   | .chromium =>
@@ -53,8 +49,6 @@ def Port.pairs : Port → List (Hover × Pointer)
 
 /-- Whether the port's media width is always a whole number of CSS px.
 
-$$\operatorname{wholeWidth}(\mathrm{chromium}) = \bot,\quad \operatorname{wholeWidth}(\mathrm{webkitApple}) = \operatorname{wholeWidth}(\mathrm{webkitGLib}) = \top$$
-
 WebKit compares queries against its integer layout width. -/
 def Port.wholeWidth : Port → Bool
   | .chromium => false
@@ -62,18 +56,14 @@ def Port.wholeWidth : Port → Bool
 
 /-- Whether the port's media width times DPR is always a whole number (of physical px).
 
-$$\operatorname{wholeDevPx}(\mathrm{chromium}) = \top,\quad \operatorname{wholeDevPx}(\mathrm{webkitApple}) = \operatorname{wholeDevPx}(\mathrm{webkitGLib}) = \bot$$
-
 Chromium's media width is a whole number of physical px divided by the DPR (no claim for WebKit). -/
 def Port.wholeDevPx : Port → Bool
   | .chromium => true
   | .webkitApple | .webkitGLib => false
 
 /-- **The reach rule** (first match): the reason a requested environment is unreachable on a port,
-or none. Inputs: whether its (hover, pointer) pair is a primary pair of the port ($a$), whether its
-width is whole ($b$), whether width times DPR is whole ($c$).
-
-$$\forall \pi \in \mathcal P,\ \forall a, b, c \in \mathbb B,\quad \operatorname{reason}_\pi(a, b, c) = \begin{cases} \mathrm{primaryPair} & \neg a \\ \mathrm{wholeWidth} & a \wedge \operatorname{wholeWidth}(\pi) \wedge \neg b \\ \mathrm{widthDpr} & a \wedge \neg(\operatorname{wholeWidth}(\pi) \wedge \neg b) \wedge \operatorname{wholeDevPx}(\pi) \wedge \neg c \\ \bot & \text{otherwise} \end{cases}$$
+or none. Inputs: whether its (hover, pointer) pair is a primary pair of the port (`a`), whether its
+width is whole (`b`), whether width times DPR is whole (`c`).
 
 A cell is unreachable only for one of the three proved facts. -/
 def Port.reason (pt : Port) (pairIn wWhole wdWhole : Bool) : Option Reason :=
@@ -84,16 +74,12 @@ def Port.reason (pt : Port) (pairIn wWhole wdWhole : Bool) : Option Reason :=
 
 /-- The reach rule applied to a Lean environment.
 
-$$\forall \pi \in \mathcal P,\ \forall e,\quad \operatorname{reach}_\pi(e) = \operatorname{reason}_\pi\bigl((\eta(e), \kappa(e)) \in \operatorname{pairs}(\pi),\ \mathrm{Whole}(w(e)),\ \mathrm{MulWhole}(w(e), r(e))\bigr)$$
-
 Whether the port can produce this probe, and if not, why. -/
 def envReason (pt : Port) (e : Env) : Option Reason :=
   pt.reason (pt.pairs.contains (e.hover, e.pointer)) (decide e.width.Whole)
     (decide (e.width.MulWhole e.dpr))
 
 /-- A port reaches an environment exactly when all three tests pass.
-
-$$\forall \pi, a, b, c,\quad \operatorname{reason}_\pi(a, b, c) = \bot \iff a \wedge (\operatorname{wholeWidth}(\pi) \Rightarrow b) \wedge (\operatorname{wholeDevPx}(\pi) \Rightarrow c)$$
 
 No reason means the pair is primary and the port's width facts hold. -/
 theorem Port.reason_eq_none_iff (π : Port) (a b c : Bool) :
@@ -103,15 +89,11 @@ theorem Port.reason_eq_none_iff (π : Port) (a b c : Bool) :
 
 /-- The GLib pairs are the Apple pairs plus (none, none).
 
-$$\operatorname{pairs}(\mathrm{webkitGLib}) = \operatorname{pairs}(\mathrm{webkitApple}) \mathbin{+\!\!+} [(\mathrm{none}, \mathrm{none})]$$
-
 Linux WebKit without a pointing device adds the pair (none, none). -/
 theorem glib_pairs : Port.webkitGLib.pairs = Port.webkitApple.pairs ++ [(.none, .none)] := rfl
 
 /-- The four cross probes, in matrix order: (none, fine) and (hover, coarse) at 1024x768 and
 1200x900.
-
-$$[\,(w(p), h(p), \eta(p), \kappa(p)) \mid p \in M_{\text{cross}}\,] = [(1024, 768, \mathrm{none}, \mathrm{fine}), (1024, 768, \mathrm{hover}, \mathrm{coarse}), (1200, 900, \mathrm{none}, \mathrm{fine}), (1200, 900, \mathrm{hover}, \mathrm{coarse})]$$
 
 The cross block is exactly these four loads. -/
 theorem matrix_cross_probes :
@@ -123,16 +105,12 @@ theorem matrix_cross_probes :
 /-- **The cross pairs exist on no WebKit.** Neither (none, fine) nor (hover, coarse) is a primary pair
 of Apple or GLib WebKit.
 
-$$\forall \pi \in \{\mathrm{webkitApple}, \mathrm{webkitGLib}\},\quad (\mathrm{none}, \mathrm{fine}) \notin \operatorname{pairs}(\pi) \wedge (\mathrm{hover}, \mathrm{coarse}) \notin \operatorname{pairs}(\pi)$$
-
 Half a touch device is no WebKit's primary input. -/
 theorem cross_pairs_not_webkit :
     ∀ π ∈ [Port.webkitApple, .webkitGLib], (Hover.none, Pointer.fine) ∉ π.pairs ∧ (Hover.hover, Pointer.coarse) ∉ π.pairs := by
   decide
 
 /-- On both WebKit ports, a matrix probe's pair is outside the port's pairs exactly in the cross block.
-
-$$\forall \pi \in \{\mathrm{webkitApple}, \mathrm{webkitGLib}\},\ \forall p \in M,\quad (\eta(p), \kappa(p)) \notin \operatorname{pairs}(\pi) \iff b(p) = \text{hover-pointer-cross}$$
 
 The four cross loads, and only they, ask WebKit for an impossible input pair. -/
 theorem matrix_outside_pairs_iff :
@@ -143,8 +121,6 @@ theorem matrix_outside_pairs_iff :
 /-- **Whole widths have no gap.** For a whole-valued width, `(width<=Npx)` and `(width>=N+1px)` are
 complementary, in any representation (`no_gap_ofNat` after cancelling the denominator).
 
-$$\forall w \in \mathrm{Px},\ \forall N \in \mathbb N,\quad \mathrm{Whole}(w) \implies (w \le N \iff \neg(w \ge N + 1))$$
-
 A port with whole media widths never shows a width that neither side of an edge claims. -/
 theorem Px.whole_no_gap (w : Px) (hw : w.Whole) (N : Nat) : w.LeNat N ↔ ¬ w.GeNat (N + 1) := by
   have hd : w.den ∣ w.num := Nat.dvd_of_mod_eq_zero hw
@@ -154,9 +130,7 @@ theorem Px.whole_no_gap (w : Px) (hw : w.Whole) (N : Nat) : w.LeNat N ↔ ¬ w.G
   rw [e, Nat.mul_le_mul_right_iff w.den_pos, Nat.mul_le_mul_right_iff w.den_pos]
   exact key
 
-/-- A whole width is never strictly inside a gap $(N, N+1)$.
-
-$$\forall w \in \mathrm{Px},\ \forall N \in \mathbb N,\quad \mathrm{Whole}(w) \implies \neg(N < w < N + 1)$$
+/-- A whole width is never strictly inside a gap `(N, N+1)`.
 
 So the fractional-gap cells cannot be produced by a port whose media width is whole. -/
 theorem Px.whole_not_in_gap (w : Px) (hw : w.Whole) (N : Nat) : ¬ (w.GtNat N ∧ ¬ w.GeNat (N + 1)) := by
@@ -168,9 +142,7 @@ theorem Px.whole_not_in_gap (w : Px) (hw : w.Whole) (N : Nat) : ¬ (w.GtNat N �
 /-- **The fractional probes are unreachable on WebKit**, for the whole-width reason, and each lies in a
 gap that no whole width reaches.
 
-$$\forall \pi \in \{\mathrm{webkitApple}, \mathrm{webkitGLib}\},\ \forall p \in M_{\text{frac}},\quad \operatorname{reach}_\pi(p) = \mathrm{wholeWidth} \wedge \exists N \in \{600, 640, 860, 1000\},\ N < w(p) < N + 1$$
-
-WebKit cannot show a media width of $N + \tfrac12$. -/
+WebKit cannot show a media width of `N + 1/2`. -/
 theorem matrix_fractional_webkit :
     ∀ pt ∈ [Port.webkitApple, .webkitGLib], ∀ p ∈ matrix, p.block = .fractionalGaps →
       envReason pt p.env = some .wholeWidth ∧ ∃ N ∈ [600, 640, 860, 1000],
@@ -178,8 +150,6 @@ theorem matrix_fractional_webkit :
   decide +kernel
 
 /-- **The cross probes are unreachable on WebKit**, for the primary-pair reason.
-
-$$\forall \pi \in \{\mathrm{webkitApple}, \mathrm{webkitGLib}\},\ \forall p \in M_{\text{cross}},\quad \operatorname{reach}_\pi(p) = \mathrm{primaryPair}$$
 
 WebKit cannot report hover without a fine pointer, or a fine pointer without hover. -/
 theorem matrix_cross_webkit :
@@ -189,8 +159,6 @@ theorem matrix_cross_webkit :
 
 /-- On WebKit exactly the cross and fractional probes are unreachable.
 
-$$\forall \pi \in \{\mathrm{webkitApple}, \mathrm{webkitGLib}\},\ \forall p \in M,\quad \operatorname{reach}_\pi(p) \ne \bot \iff b(p) \in \{\text{hover-pointer-cross}, \text{fractional-gaps}\}$$
-
 The other 116 WebKit cells stay ordinary pass/fail/NC cells. -/
 theorem matrix_webkit_unreachable_iff :
     ∀ pt ∈ [Port.webkitApple, .webkitGLib], ∀ p ∈ matrix,
@@ -198,8 +166,6 @@ theorem matrix_webkit_unreachable_iff :
   decide +kernel
 
 /-- Chromium reaches every probe (it needs the DPR-2 fractional probes).
-
-$$\forall p \in M,\quad \operatorname{reach}_{\mathrm{chromium}}(p) = \bot$$
 
 No Chromium cell is unreachable. -/
 theorem matrix_chromium_reachable : ∀ p ∈ matrix, envReason .chromium p.env = none := by

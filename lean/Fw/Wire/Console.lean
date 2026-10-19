@@ -37,7 +37,8 @@ imports it, so it decodes the card fields it needs itself).
 | `console.previewReap` | `live` | `kill` [ids] (all of the table, `reap`) |
 | `console.previewLink` | `hasTty`, `now`? (ms), `last`? (ms of the last link) | `sink` (`tty` or null: print no link), `allowed` [sinks] (`linkSink`: only `tty`), `reissue`? (with `now`: may a new link be issued, `mayReissue`: one per minute) |
 | `console.ownerLogin` | `enabled` (the console has an owner passphrase), `correct` (the constant-time compare matched), `now` (ms), `fails`? [ms] and `lockUntil`? (the client address's record; missing = fresh), `gFails`? [ms] and `gLockUntil`? (the global record across all addresses; missing = fresh) | `verdict` (`disabled`/`locked`/`wrong`/`ok`), `fails`, `lockUntil` (the new address record), `gFails`, `gLockUntil` (the new global record), `retryAt` (the end of the longest active lock, else null), `maxTries`, `window`, `lock`, `globMax`, `globWindow`, `globLock` (`Fw.Console.Preview.Owner.attempt`) |
-| `console.ownerGate` | `lan` (non-loopback or unknown remote address), `session` (console port: a valid owner bearer token in the Authorization header, never a cookie; preview port: a valid preview-access cookie), `hostOk` (Host names this port), `path`, `port`? (`console` default, or `preview`) | `allow`, `class` (`login`/`preview`/`other`/`shell`) (`Fw.Console.Preview.Owner.allow` for the console port, `allowPreview` for the preview port; `classify`) |
+| `console.ownerGate` | `lan` (non-loopback or unknown remote address), `session` (console port: a valid owner bearer token in the Authorization header, never a cookie; preview port: a valid preview-access cookie), `hostOk` (Host names this port), `path`, `port`? (`console` default, or `preview`; the preview port also reads `grant` (the cookie names an inspect grant), `grantStarted`, `now` (ms), `via` (a Referer-routed path)) | `allow`, `by` (`session`/`grant`/`none`), `class` (`login`/`preview`/`other`/`shell`) (`Fw.Console.Preview.Owner.allow` for the console port, `allowPreview` for the preview port; `classify`) |
+| `console.previewGrant` | `kind` (`issue`: may a grant be issued, from `lan`; `redeem`: a grant token is presented, with `known`, `used`, `issuedAt`, `now` (ms)), `lan` | `allow`, `verdict` (redeem: `ok`/`lan`/`unknown`/`used`/`expired`), `ttlMs` (issue), `cookieMs` (`Fw.Console.Preview.Owner.issueAllowed`, `redeem`) |
 | `console.ownerAction` | `kind` (`owner`: an owner action, needs the bearer token and an Origin; `command`: any other non-GET route, an Origin if present; `login`: an Origin, no token), `bearer` (a valid owner token in the Authorization header), `origin`? ({host, port} or null: none sent), `host`? (the origin of the Host header when it names this console, else null), `extra` [{host, port}] (configured web origins), `previewPort`? (null = unset: nothing is trusted) | `allow`, `trusted` (the computed trusted origins, none on the preview port) (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`) |
 | `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
@@ -429,11 +430,35 @@ def opOwnerGate (req : Json) : Except String Reply := do
   let port ← match opt req "port" with
     | none => pure "console"
     | some _ => str req "port"
-  let ok ← match port with
-    | "console" => pure (allow lan session hostOk c)
-    | "preview" => pure (allowPreview lan session hostOk)
+  let flag (k : String) : Except String Bool := match opt req k with
+    | none => pure false
+    | some j => asBool k j
+  let num (k : String) : Except String Nat := match opt req k with
+    | none => pure 0
+    | some _ => nat req k
+  let (ok, by_) ← match port with
+    | "console" => pure (allow lan session hostOk c, "none")
+    | "preview" => do
+      let viaSession := allowPreview lan session hostOk
+      let viaGrant := allowGrant lan hostOk (← flag "grant") (← num "grantStarted") (← num "now") (← flag "via") c
+      pure (servePreview lan session hostOk (← flag "grant") (← num "grantStarted") (← num "now") (← flag "via") c,
+        if viaSession then "session" else if viaGrant then "grant" else "none")
     | _ => throw "field port: expected console or preview"
-  pure [("allow", .bool ok), ("class", .str c.name)]
+  pure [("allow", .bool ok), ("class", .str c.name), ("by", .str (if ok then by_ else "none"))]
+
+open Fw.Console.Preview.Owner in
+/-- `console.previewGrant` (`Fw.Console.Preview.Owner.issueAllowed`, `redeem`): may a grant be issued (`kind` issue, from
+`lan`), and what happens when a grant token is presented (`kind` redeem). -/
+def opPreviewGrant (req : Json) : Except String Reply := do
+  let lan ← asBool "lan" (← field req "lan")
+  match ← str req "kind" with
+  | "issue" => pure [("allow", .bool (issueAllowed lan)), ("ttlMs", .num grantTokenTtl), ("cookieMs", .num grantCookieTtl)]
+  | "redeem" =>
+    let known ← asBool "known" (← field req "known")
+    let used ← asBool "used" (← field req "used")
+    let r := redeem lan known used (← nat req "issuedAt") (← nat req "now")
+    pure [("allow", .bool (r == .ok)), ("verdict", .str r.name), ("cookieMs", .num grantCookieTtl)]
+  | _ => throw "field kind: expected issue or redeem"
 
 open Fw.Console.Preview.Owner in
 /-- `console.ownerAction` (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`): may this request
@@ -539,7 +564,7 @@ def opBuildsPicker (req : Json) : Except String Reply := do
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
   "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLane", "console.landRemote", "console.landDigest", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
-  "console.ownerLogin", "console.ownerGate", "console.ownerAction", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker"]
+  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -569,6 +594,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.previewLink" => some (opPreviewLink req)
   | "console.ownerLogin" => some (opOwnerLogin req)
   | "console.ownerGate" => some (opOwnerGate req)
+  | "console.previewGrant" => some (opPreviewGrant req)
   | "console.ownerAction" => some (opOwnerAction req)
   | "console.lanStart" => some (opLanStart req)
   | "console.previewSweep" => some (opPreviewSweep req)
