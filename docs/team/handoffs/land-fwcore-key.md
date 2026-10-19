@@ -1,7 +1,7 @@
 # land-fwcore-key handoff
 
 ## State
-Branch `worktree-wf_f4119fe3-e43-1`. Round 1 builds on round 0 (469dc603, 81546e47) with these commits: ea5c35ed (Lean), 86029be8 (scan and digest tests), fcbcdb1e (strip once per link), and the final commit (premise row and this file).
+Branch `worktree-wf_f4119fe3-e43-1`. Round 1 builds on round 0 (469dc603, 81546e47) with these commits: ea5c35ed (Lean), 86029be8 (scan and digest tests), fcbcdb1e (strip once per link), 788db674 (premise row). Green at 788db674: check.sh (113 s), apps/runner `pnpm test` (1072 tests), contracts and ci-paths.
 
 ## What is verified
 - `LandSpeed.lean`: `BinaryOfBuildReads build` is a premise about a build function, and `fwcore_nobuild_skip` takes `build`, `hb` and `hb'`. Non-vacuity is shown by `binaryOfBuildReads_satisfiable` and an `example` (states that differ at a docs path). The `cases` and `premises` docstrings have no LaTeX.
@@ -24,8 +24,7 @@ Setup: land pool 4, scratch runner over `checksWithReads`, `checkDeps` and `pool
 - `fw land --dry` runs no checks, so it could not measure this.
 
 ## Open items
-- These were accepted as limits for this task: check.sh rows, the key cache, the CI land lane and the builder preamble.
-- Stand-ins: the `twoPhaseChecks` glue and the digest I/O (TS, tested, not proved), and the strip-once guard (shell).
+- Accepted limits: check.sh rows, key cache, CI land lane, builder preamble. Stand-ins: the `twoPhaseChecks` glue and the digest I/O (TS, tested, not proved), and the strip-once guard (shell).
 
 ## Read first
 `lean/Fw/Console/LandSpeed.lean` (after `scanDecls`), `apps/runner/src/land.ts` (`twoPhaseChecks`), `scripts/fwcore-build.sh`.
