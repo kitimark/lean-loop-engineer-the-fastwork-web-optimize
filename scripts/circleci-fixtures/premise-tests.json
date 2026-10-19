@@ -1,0 +1,183 @@
+{
+  "note": "Synthetic: shaped after the CircleCI API v2 and gh run view --json; replace by a real recording after the first pilot run.",
+  "slug": "circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002",
+  "pipelineId": "pipe-1",
+  "sha": "abc1234def5678abc1234def5678abc1234def56",
+  "now": "2026-10-20T09:05:00.000Z",
+  "api": {
+    "routes": {
+      "GET /pipeline/pipe-1/workflow": {
+        "items": [
+          {
+            "id": "wf-1",
+            "name": "premise-tests",
+            "status": "success",
+            "created_at": "2026-10-20T09:00:00.000Z",
+            "stopped_at": "2026-10-20T09:04:00.000Z"
+          }
+        ]
+      },
+      "GET /workflow/wf-1/job": {
+        "items": [
+          {
+            "id": "j1",
+            "name": "engine-chromium",
+            "job_number": 1,
+            "status": "success",
+            "started_at": "2026-10-20T09:00:11.000Z",
+            "stopped_at": "2026-10-20T09:02:41.000Z",
+            "type": "build"
+          },
+          {
+            "id": "j2",
+            "name": "engine-playwright-webkit",
+            "job_number": 2,
+            "status": "success",
+            "started_at": "2026-10-20T09:00:10.000Z",
+            "stopped_at": "2026-10-20T09:03:10.000Z",
+            "type": "build"
+          },
+          {
+            "id": "j3",
+            "name": "verdict",
+            "job_number": 3,
+            "status": "success",
+            "started_at": "2026-10-20T09:03:15.000Z",
+            "stopped_at": "2026-10-20T09:04:00.000Z",
+            "type": "build"
+          }
+        ]
+      },
+      "GET /project/circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/job/1": {
+        "name": "engine-chromium",
+        "number": 1,
+        "status": "success",
+        "executor": {
+          "resource_class": "arm.medium.gen2",
+          "type": "machine"
+        },
+        "queued_at": "2026-10-20T09:00:02.000Z",
+        "created_at": "2026-10-20T09:00:01.000Z",
+        "started_at": "2026-10-20T09:00:11.000Z",
+        "stopped_at": "2026-10-20T09:02:41.000Z",
+        "duration": 150000,
+        "pipeline": {
+          "vcs": {
+            "revision": "abc1234def5678abc1234def5678abc1234def56"
+          }
+        }
+      },
+      "GET /project/circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/job/2": {
+        "name": "engine-playwright-webkit",
+        "number": 2,
+        "status": "success",
+        "executor": {
+          "resource_class": "arm.medium.gen2",
+          "type": "machine"
+        },
+        "queued_at": "2026-10-20T09:00:02.000Z",
+        "created_at": "2026-10-20T09:00:01.000Z",
+        "started_at": "2026-10-20T09:00:10.000Z",
+        "stopped_at": "2026-10-20T09:03:10.000Z",
+        "duration": 180000,
+        "pipeline": {
+          "vcs": {
+            "revision": "abc1234def5678abc1234def5678abc1234def56"
+          }
+        }
+      },
+      "GET /project/circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/job/3": {
+        "name": "verdict",
+        "number": 3,
+        "status": "success",
+        "executor": {
+          "resource_class": "arm.medium.gen2",
+          "type": "machine"
+        },
+        "queued_at": "2026-10-20T09:03:10.000Z",
+        "created_at": "2026-10-20T09:03:09.000Z",
+        "started_at": "2026-10-20T09:03:15.000Z",
+        "stopped_at": "2026-10-20T09:04:00.000Z",
+        "duration": 45000,
+        "pipeline": {
+          "vcs": {
+            "revision": "abc1234def5678abc1234def5678abc1234def56"
+          }
+        }
+      },
+      "GET /project/circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/1/artifacts": {
+        "items": [
+          {
+            "path": "timings.json",
+            "url": "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000001/artifacts/0/timings.json"
+          },
+          {
+            "path": "premises-chromium/chromium.json",
+            "url": "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000001/artifacts/0/premises-chromium/chromium.json"
+          }
+        ]
+      },
+      "GET /project/circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/2/artifacts": {
+        "items": [
+          {
+            "path": "timings.json",
+            "url": "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000002/artifacts/0/timings.json"
+          },
+          {
+            "path": "premises-playwright-webkit/webkit.json",
+            "url": "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000002/artifacts/0/premises-playwright-webkit/webkit.json"
+          }
+        ]
+      },
+      "GET /project/circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/3/artifacts": {
+        "items": [
+          {
+            "path": "timings.json",
+            "url": "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000003/artifacts/0/timings.json"
+          },
+          {
+            "path": "premises-verdict.txt",
+            "url": "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000003/artifacts/0/premises-verdict.txt"
+          }
+        ]
+      }
+    },
+    "files": {
+      "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000001/artifacts/0/timings.json": "{\"schema\":\"fw.circleci-timings/1\",\"job\":\"engine-chromium\",\"class\":\"arm.medium.gen2\",\"sha\":\"abc1234def5678abc1234def5678abc1234def56\",\"digest\":\"3845c050bc708264fc58e48c235e65e0cc0b3776cdacbebe00e029c075cf7730\",\"spans\":[{\"tool\":\"circleci/engine-chromium\",\"step\":\"checkout\",\"startMs\":1792486811000,\"durMs\":4000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"node\",\"startMs\":1792486815000,\"durMs\":9000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"pnpm\",\"startMs\":1792486824000,\"durMs\":3000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"cache restore\",\"startMs\":1792486827000,\"durMs\":6000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"deps install\",\"startMs\":1792486833000,\"durMs\":14000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"system libraries\",\"startMs\":1792486847000,\"durMs\":30000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"browser install\",\"startMs\":1792486877000,\"durMs\":25000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"test\",\"startMs\":1792486902000,\"durMs\":40000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"}]}",
+      "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000001/artifacts/0/premises-chromium/chromium.json": "{\"schema\":1,\"engine\":\"x\",\"results\":[{\"testId\":\"prem.a\",\"ok\":true},{\"testId\":\"prem.b\",\"ok\":true},{\"testId\":\"prem.c\",\"ok\":true}]}",
+      "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000002/artifacts/0/timings.json": "{\"schema\":\"fw.circleci-timings/1\",\"job\":\"engine-playwright-webkit\",\"class\":\"arm.medium.gen2\",\"sha\":\"abc1234def5678abc1234def5678abc1234def56\",\"digest\":\"3845c050bc708264fc58e48c235e65e0cc0b3776cdacbebe00e029c075cf7730\",\"spans\":[{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"checkout\",\"startMs\":1792486810000,\"durMs\":4000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"node\",\"startMs\":1792486814000,\"durMs\":9000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"pnpm\",\"startMs\":1792486823000,\"durMs\":3000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"cache restore\",\"startMs\":1792486826000,\"durMs\":6000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"deps install\",\"startMs\":1792486832000,\"durMs\":14000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"system libraries\",\"startMs\":1792486846000,\"durMs\":40000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"browser install\",\"startMs\":1792486886000,\"durMs\":50000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"test\",\"startMs\":1792486936000,\"durMs\":45000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"}]}",
+      "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000002/artifacts/0/premises-playwright-webkit/webkit.json": "{\"schema\":1,\"engine\":\"x\",\"results\":[{\"testId\":\"prem.a\",\"ok\":true},{\"testId\":\"prem.b\",\"ok\":true},{\"testId\":\"prem.c\",\"ok\":true}]}",
+      "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000003/artifacts/0/timings.json": "{\"schema\":\"fw.circleci-timings/1\",\"job\":\"verdict\",\"class\":\"arm.medium.gen2\",\"sha\":\"abc1234def5678abc1234def5678abc1234def56\",\"digest\":null,\"spans\":[{\"tool\":\"circleci/verdict\",\"step\":\"checkout\",\"startMs\":1792486995000,\"durMs\":4000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/verdict\",\"step\":\"node\",\"startMs\":1792486999000,\"durMs\":9000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/verdict\",\"step\":\"pnpm\",\"startMs\":1792487008000,\"durMs\":3000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/verdict\",\"step\":\"cache restore\",\"startMs\":1792487011000,\"durMs\":6000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/verdict\",\"step\":\"deps install\",\"startMs\":1792487017000,\"durMs\":12000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/verdict\",\"step\":\"fw premises\",\"startMs\":1792487029000,\"durMs\":9000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"}]}",
+      "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000003/artifacts/0/premises-verdict.txt": "premises: ok\n"
+    }
+  },
+  "github": {
+    "workflowName": "premise-tests",
+    "headSha": "abc1234def5678abc1234def5678abc1234def56",
+    "createdAt": "2026-10-20T09:00:00.000Z",
+    "digests": {
+      "engine (chromium)": "3845c050bc708264fc58e48c235e65e0cc0b3776cdacbebe00e029c075cf7730",
+      "engine (playwright-webkit)": "3845c050bc708264fc58e48c235e65e0cc0b3776cdacbebe00e029c075cf7730"
+    },
+    "jobs": [
+      {
+        "name": "engine (chromium)",
+        "conclusion": "success",
+        "startedAt": "2026-10-20T09:00:04.000Z",
+        "completedAt": "2026-10-20T09:01:44.000Z"
+      },
+      {
+        "name": "engine (playwright-webkit)",
+        "conclusion": "success",
+        "startedAt": "2026-10-20T09:00:05.000Z",
+        "completedAt": "2026-10-20T09:02:05.000Z"
+      },
+      {
+        "name": "verdict",
+        "conclusion": "success",
+        "startedAt": "2026-10-20T09:02:10.000Z",
+        "completedAt": "2026-10-20T09:02:40.000Z"
+      }
+    ]
+  }
+}
