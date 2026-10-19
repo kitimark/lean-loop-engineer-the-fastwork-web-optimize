@@ -4,7 +4,7 @@ import { registerScroll } from '../../engine/scroll';
 import { createTweenDriver, type TweenEnv } from './driver';
 import { matchList } from './media';
 import { createWaapiDriver, type AnimTarget, type WaapiEnv } from './waapi.driver';
-import { FADE_CSS, REGISTERED } from './waapi.logic';
+import { FADE_CSS, REGISTRATIONS } from './waapi.logic';
 
 /** Where the scroll pin sits on the engine: after the nav's hit test (order 100), as the original's pin callback follows it. */
 export const MORPH_PIN_ORDER = 110;
@@ -63,11 +63,11 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
   return null;
 }
 
-/** `CSS.registerProperty` for the animated properties: `<number>`, not inherited, initial 0 (once; a second call throws and is ignored). */
+/** `CSS.registerProperty` for the animated properties, as `REGISTRATIONS` gives them (once; a second call throws and is ignored). */
 function registerProperties(): void {
-  for (const name of REGISTERED) {
+  for (const r of REGISTRATIONS) {
     try {
-      CSS.registerProperty({ name, syntax: '<number>', inherits: false, initialValue: '0' });
+      CSS.registerProperty({ ...r });
     } catch {
       /* already registered */
     }
