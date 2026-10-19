@@ -8216,7 +8216,11 @@
     ".github/workflows/land.yml",
     "docs/team/tools/preview-e2e.md",
     "docs/team/handoffs/preview-e2e.md",
-    "pnpm-lock.yaml"
+    "pnpm-lock.yaml",
+    ".github/workflows/preview-e2e.yml",
+    "apps/runner/src/checks.ts",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean"
    ]
   },
   {
