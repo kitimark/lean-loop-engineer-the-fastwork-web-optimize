@@ -3,6 +3,7 @@ import Fw.Parts.PeopleCard
 import Fw.Parts.PeopleO
 import Fw.Parts.PeopleDeck
 import Fw.Parts.PeopleCarousel
+import Fw.Parts.PeopleDeckPanels
 /-!
 # Golden vectors for the People parts
 
@@ -149,9 +150,42 @@ def deckLines : List String :=
 
 end Deck
 
-/-- The four golden files. $$\mathit{files} = \{\text{people.card, people.o, people.deck, people.carousel}\}.\mathrm{jsonl}$$ -/
+/-! ## people.deck panels -/
+
+section Panels
+open Fw.Parts.PeopleDeckPanels
+
+/-- A list of strings as JSON. $$L \mapsto [\ldots]$$ -/
+def jstrs (l : List String) : Json := .arr (l.map Json.str).toArray
+
+/-- people.deck.panels lines. $$\text{lines}$$ Conformance vectors for the feed panel dispatch, review filters, faces,
+verdicts, stars and about sections. -/
+def panelsLines : List String :=
+  (["posts", "services", "reviews", "about", "", "x", "Posts"].map fun s =>
+    line "tabOf" [("id", .str s)] (.str (tabOf s).id)) ++
+  (([[], [("a", 0)], [("a", 3), ("b", 0), ("c", 1)], [("a", 1), ("b", 2)]] : List (List (String × Nat))).map fun ss =>
+    line "filterIds" [("services", .arr (ss.map (fun (i, c) => Json.mkObj [("id", .str i), ("reviewCount", jnat c)])).toArray)]
+      (jstrs (filterIds (ss.map fun (i, c) => { id := i, reviewCount := c })))) ++
+  ((["all", "a", "b", "zz"].flatMap fun f => ([[], ["a", "b", "a"], ["b", "b"]] : List (List String)).map fun rs =>
+    line "shown" [("filter", .str f), ("reviews", jstrs rs)] (jstrs (shown f rs)))) ++
+  (([[], ["u1"], ["u1", "u2", "u1"], ["u1", "u2", "u3", "u4"], ["u1", "u1", "u1"]] : List (List String)).flatMap fun l =>
+    [line "faces" [("avatars", jstrs l)] (jstrs (faces l))] ++
+    ([0, 2, 20, 47] : List Nat).map fun t => line "more" [("total", jnat t), ("avatars", jstrs l)] (jnat (more t l))) ++
+  (([0, 2.4, 2.5, 3.4, 3.5, 3.9, 4, 4.4, 4.5, 4.8, 5] : List Rat).flatMap fun x =>
+    [line "verdict" [("score", rin x)] (.str (verdict x).name)] ++
+    (List.range 5).map fun i => line "filled" [("score", rin x), ("i", jnat i)] (.bool (filled x i))) ++
+  ((["Fastwork.co", "BuddyBBB", "phil_wc · artist project", "UCLA Extension, USA", "  a  ", "", "Moonshot Digital Co.,Ltd. (Rabbit Digital Group)", "x"].map fun n =>
+    line "initials" [("name", .str n)] (.str (initials n)))) ++
+  ([false, true].map fun b => line "flip" [("b", .bool b)] (.bool (flip b))) ++
+  (([(1, 1, 2, 0), (0, 0, 0, 0), (1, 0, 0, 3), (0, 2, 1, 0)] : List (Nat × Nat × Nat × Nat)).map fun (e, c, l, a) =>
+    line "sections" [("education", jnat e), ("certificates", jnat c), ("languages", jnat l), ("awards", jnat a)]
+      (jstrs (sections { education := e, certificates := c, languages := l, awards := a })))
+
+end Panels
+
+/-- The golden files. $$\mathit{files} = \{\text{people.card, people.o, people.deck, people.carousel, people.deck.panels}\}.\mathrm{jsonl}$$ -/
 def files : List (String × List String) :=
   [("people.card.jsonl", cardLines), ("people.o.jsonl", oLines), ("people.deck.jsonl", deckLines),
-   ("people.carousel.jsonl", carouselLines)]
+   ("people.carousel.jsonl", carouselLines), ("people.deck.panels.jsonl", panelsLines)]
 
 end Fw.Parts.PeopleGolden

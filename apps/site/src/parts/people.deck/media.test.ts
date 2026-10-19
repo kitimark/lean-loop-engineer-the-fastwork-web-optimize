@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { mediaCondition } from '../../breakpoints';
 import { MEDIA_IDS } from './media';
 
-const css = readFileSync(resolve(__dirname, 'deck.module.css'), 'utf8');
+const css = ['deck.module.css', 'panels.module.css']
+  .map((f) => readFileSync(resolve(__dirname, f), 'utf8'))
+  .join('\n');
 const norm = (s: string) => s.trim().replace(/\s+/g, ' ');
 
 describe('people.deck media', () => {

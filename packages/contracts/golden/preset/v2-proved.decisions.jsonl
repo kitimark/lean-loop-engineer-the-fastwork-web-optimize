@@ -11,3 +11,4 @@
 {"flag":"pain.notes:visible","flagRows":[],"member":true,"registered":true,"rows":[{"candidate":"arm the 3 s rotation interval only while visible (armed = inView and not narrow and not covered)","found":[{"fResult":null,"status":"proved"}],"part":"pain.notes"}],"shadowedBy":null,"why":{"verdict":"proved"}}
 {"flag":"people.card:mq","flagRows":[],"member":true,"registered":true,"rows":[{"candidate":"MQ-gated shrink (KD#3): skip the --future-shrink write and the rAF re-request in the c860 band","found":[{"fResult":null,"status":"proved"}],"part":"people.card"}],"shadowedBy":null,"why":{"verdict":"proved"}}
 {"flag":"hero.accent:steps","flagRows":[],"member":false,"registered":true,"rows":[],"shadowedBy":null,"why":{"verdict":"no-link"}}
+{"flag":"hero.countdown:hidden-pause","flagRows":[],"member":false,"registered":true,"rows":[],"shadowedBy":null,"why":{"verdict":"no-link"}}

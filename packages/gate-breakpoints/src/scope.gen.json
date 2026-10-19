@@ -985,7 +985,14 @@
      "id": "js.profile-sticky-computed"}],
    "conditions":
    {"rewrite":
-    ["mq.rm-reduce", "mq.w-le-640", "mq.w-ge-861", "mq.w-ge-861-nopref", "mq.w-le-1200", "mq.c860", "mq.c1030"],
+    ["mq.rm-reduce",
+     "mq.w-le-480",
+     "mq.w-le-640",
+     "mq.w-ge-861",
+     "mq.w-ge-861-nopref",
+     "mq.w-le-1200",
+     "mq.c860",
+     "mq.c1030"],
     "orig":
     ["mq.rm-reduce",
      "mq.w-le-480",

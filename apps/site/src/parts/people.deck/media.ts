@@ -7,6 +7,7 @@ import { mediaCondition } from '../../breakpoints';
  */
 export const MEDIA_IDS = [
   'mq.rm-reduce',
+  'mq.w-le-480',
   'mq.w-le-640',
   'mq.w-ge-861',
   'mq.w-ge-861-nopref',

@@ -5804,7 +5804,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "lean/Fw/Parts/FootprintData.lean"
-   ]
+   ],
+   "evidence": "6c4ecde"
   },
   {
    "devices": [
@@ -6264,7 +6265,17 @@
     "apps/site/assets.manifest.json",
     "apps/site/src/parts/nav/**",
     "docs/team/handoffs/doc-head-locale.md",
-    "apps/site/src/parts/hero.countdown/index.tsx"
+    "apps/site/src/parts/hero.countdown/index.tsx",
+    "apps/runner/src/land.ts",
+    "apps/site/scripts/head.mjs",
+    "apps/site/src/head.gen.json",
+    "apps/site/src/head.test.ts",
+    "lean/HeadgenMain.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/console/land-speed.jsonl"
    ]
   },
   {
@@ -6287,7 +6298,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "lean/Fw/Parts/FootprintData.lean"
-   ]
+   ],
+   "evidence": "cfd4e18"
   },
   {
    "devices": [
@@ -6372,7 +6384,7 @@
     "local"
    ],
    "id": "port-completeness-gate",
-   "title": "Port plan L7: decide 'fully ported' in Lean: Fw.Port.{Text,Attrs,Svg,Sections} (normalised text digest per section with an orig<->rewrite root map, attribute multiset up to the manifest rename map, svg skeleton digest, asset subset) + new Fw.Site.Assets; per-check exclusion lists with reasons, no pooled threshold; scripts/port/digest.mjs reads the snapshot at run time and stores hashes/skeletons only; checks 3+4 on a fresh dist/aot prerender first, then 1+2, then interaction states",
+   "title": "Port plan L7: decide 'fully ported' in Lean: Fw.Port.{Text,Attrs,Svg,Sections} (normalised text digest per section with an orig<->rewrite root map, attribute multiset up to the manifest rename map, svg skeleton digest, asset subset) + new Fw.Site.Assets; per-check exclusion lists with reasons, no pooled threshold; scripts/port/digest.mjs reads the snapshot at run time and stores hashes/skeletons only; checks 3+4 on a fresh dist/aot prerender first, then 1+2, then interaction states; also runs every built-page site test (head.test.ts, port-*.test.mjs) in CI after a fresh dist/aot build: at land they skip (git clean -fdx), so no gate decides them today",
    "stream": "measure",
    "milestone": "M5",
    "deps": [],
@@ -6479,7 +6491,8 @@
     "lean/Fw/Parts/FootprintData.lean",
     "lean/scripts/CountdownHiddenGolden.lean",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
-   ]
+   ],
+   "evidence": "8e862ca"
   },
   {
    "devices": [
@@ -6595,6 +6608,25 @@
     "lean/Fw.lean",
     "research/findings/ledger.json",
     "docs/team/handoffs/negative-lemmas.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "doc-head-followups",
+   "title": "Split from doc-head-locale (3rd refusal, review-loop rule): the built locale nav's links (href, hreflang, lang, text) and aria-label compared with the snapshot nav, not with the renderer (reviewer's exact navParts assertion, scratchpad b6e4/fix.mjs); Head.lean module docstring (declared differences incl. stylesheets/inline styles; entry order charset, viewport, icons, manifest, description, title, og, twitter, canonical, hreflang); math minors (defs state values: locales, defaultAlt, descText, hreflangEntry, headFor, genJson; titleText spaces)",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "doc-head-locale"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/head.test.ts",
+    "lean/Fw/Site/Head.lean",
+    "apps/site/src/head.gen.json",
+    "docs/team/handoffs/doc-head-followups.md"
    ]
   }
  ],
