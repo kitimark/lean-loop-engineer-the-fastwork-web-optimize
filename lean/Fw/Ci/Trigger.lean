@@ -203,7 +203,7 @@ w_{8} &= (\texttt{premise-tests.yml}, B, G_{8}) \\
 G_{8} &= [\texttt{packages/premise-tests/**}, \texttt{packages/contracts/golden/ops/premise.jsonl}, \texttt{lean/Fw/Ops/Premise.lean}, \texttt{apps/runner/src/premises.ts}, \\
 &\quad \texttt{package.json}, \texttt{pnpm-lock.yaml}, \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/changed-inputs.mjs}, \\
 &\quad \texttt{.github/actions/setup-pnpm/**}, \texttt{.github/actions/gate-engine/**}, \texttt{.github/scripts/cache-key.mjs}, \\
-&\quad \texttt{packages/contracts/golden/ops/cache.jsonl}, \texttt{scripts/scrub*.mjs}, \texttt{scripts/scrub-allow.json}, \operatorname{own}(\texttt{premise-tests.yml})] \\
+&\quad \texttt{packages/contracts/golden/ops/cache.jsonl}, \operatorname{own}(\texttt{premise-tests.yml})] \\
 w_{9} &= (\texttt{sim-speed.yml}, [\texttt{ci/sim-speed}], G_{9}) \\
 G_{9} &= [\texttt{packages/measure-webkit/**}, \texttt{.github/scripts/sim-speed-*}, \texttt{.github/scripts/check-simulator.sh}, \texttt{.github/scripts/runner-info.sh}, \\
 &\quad \texttt{.github/scripts/changed-inputs.mjs}, \operatorname{own}(\texttt{sim-speed.yml})] \\
@@ -265,7 +265,7 @@ def table : List Wf := [
     "apps/**", "packages/**", "lean/**", "scripts/**", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
     "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "research/findings/ledger.json",
     "results/baselines/chromium/**", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
-    ".github/actions/setup-pnpm/**", own "land.yml"], []⟩,
+    ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**", ".github/scripts/cache-key.mjs", own "land.yml"], []⟩,
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "scripts/span.sh",
     "scripts/fwcore-build.sh", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/search.jsonl",
@@ -284,8 +284,13 @@ def table : List Wf := [
     "packages/premise-tests/**", "packages/contracts/golden/ops/premise.jsonl", "lean/Fw/Ops/Premise.lean",
     "apps/runner/src/premises.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
-    ".github/scripts/cache-key.mjs", "packages/contracts/golden/ops/cache.jsonl", ".github/actions/telemetry/**", "scripts/ci-telemetry/**",
-    "scripts/scrub.mjs", "scripts/scrub.test.mjs", "scripts/test-scrub.mjs", "scripts/scrub-allow.json", own "premise-tests.yml"], []⟩,
+    ".github/scripts/cache-key.mjs", "packages/contracts/golden/ops/cache.jsonl", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "premise-tests.yml"], []⟩,
+  ⟨"preview-e2e.yml", ciAll, [
+    "packages/e2e-preview/**", "apps/console-api/src/**", "apps/console-api/package.json", "@fwcore",
+    "packages/contracts/src/**", "packages/contracts/package.json", "packages/contracts/golden/console/**",
+    "snapshot/**", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/changed-inputs.mjs",
+    ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
+    own "preview-e2e.yml"], []⟩,
   ⟨"sim-speed.yml", ["ci/sim-speed"], [
     "packages/measure-webkit/**", ".github/scripts/sim-speed-*", ".github/scripts/check-simulator.sh",
     ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", own "sim-speed.yml"], []⟩,
@@ -330,7 +335,7 @@ def run (diff merged : List String) : List String :=
 
 -- a Lean test file, a script and a golden change do not start the lanes that only build the binary
 #guard run ["lean/FwTest/Lease.lean"] [] == ["land.yml", "lean.yml"]
-#guard run ["lean/Fw/Wire.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "land.yml", "lean.yml", "mutants.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard run ["lean/Fw/Wire.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "land.yml", "lean.yml", "mutants.yml", "preview-e2e.yml", "wktr-fixtures.yml", "wktr.yml"]
 #guard run ["lean/Fw/Parts/HeroExit.lean"] [] == ["land.yml", "lean.yml"]
 -- the site builder (breakgen) cone starts the lanes that build the site; a pixel golden starts the visual diff only
 #guard run ["lean/Fw/Site/Breakpoints.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "gate-gaps.yml", "land.yml", "lean.yml", "visual-diff.yml"]
@@ -354,8 +359,11 @@ excluded. A run restores caches of its own branch and of the default branch only
 def cacheWriters : List (String × String × String) := [
   ("breakpoint-gate.yml", "gate", "gate-apt"), ("breakpoint-gate.yml", "gate", "ms-playwright"),
   ("breakpoint-gate.yml", "gate", "hs-zip"), ("engine-premises.yml", "webkit", "wktr-zip"),
+  ("land.yml", "land", "gate-apt"), ("land.yml", "land", "ms-playwright"), ("land.yml", "land", "hs-zip"),
   ("lean.yml", "lean", ".lake-cache"), ("premise-tests.yml", "engine", "gate-apt"),
   ("premise-tests.yml", "engine", "ms-playwright"), ("premise-tests.yml", "engine", "hs-zip"),
+  ("preview-e2e.yml", "engine", "gate-apt"), ("preview-e2e.yml", "engine", "ms-playwright"),
+  ("preview-e2e.yml", "engine", "hs-zip"),
   ("snapshot-extract.yml", "extract", "gate-apt"), ("snapshot-extract.yml", "extract", "ms-playwright"),
   ("snapshot-extract.yml", "extract", "hs-zip"), ("visual-diff.yml", "navscroll", "gate-apt"),
   ("visual-diff.yml", "navscroll", "ms-playwright"), ("visual-diff.yml", "navscroll", "hs-zip"),
@@ -470,7 +478,7 @@ theorem branches_split : ∀ w ∈ table, w.branches = ciPart w.branches ++ (if 
 theorem ci_triggers : table.map (fun w => (w.file, ciPart w.branches)) = [
     ("breakpoint-gate.yml", ["ci/**"]), ("chromium-counts.yml", ["ci/**"]), ("difftest.yml", ["ci/**"]),
     ("engine-premises.yml", ["ci/**"]), ("gate-gaps.yml", ["ci/**"]), ("land.yml", ["ci/land-*"]),
-    ("lean.yml", ["ci/**"]), ("mutants.yml", ["ci/**"]), ("premise-tests.yml", ["ci/**"]), ("sim-speed.yml", ["ci/sim-speed"]),
+    ("lean.yml", ["ci/**"]), ("mutants.yml", ["ci/**"]), ("premise-tests.yml", ["ci/**"]), ("preview-e2e.yml", ["ci/**"]), ("sim-speed.yml", ["ci/sim-speed"]),
     ("snapshot-extract.yml", ["ci/**"]), ("visual-diff.yml", ["ci/**"]), ("webkit-sim.yml", ["ci/**"]),
     ("wktr-fixtures.yml", ["ci/**"]), ("wktr.yml", ["ci/**"])] := by decide
 
@@ -725,7 +733,7 @@ def filtered (diff : List String) : List String :=
   (table.filter fun w => selected (pushPaths w) diff).map (·.file)
 
 -- the coarse filter passes a new module under lean/Fw for every fwcore user; the guard then starts only lean.yml
-#guard filtered ["lean/Fw/New.lean"] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "land.yml", "lean.yml", "visual-diff.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard filtered ["lean/Fw/New.lean"] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "land.yml", "lean.yml", "preview-e2e.yml", "visual-diff.yml", "wktr-fixtures.yml", "wktr.yml"]
 #guard run ["lean/Fw/New.lean"] [] == ["land.yml", "lean.yml"]
 -- a test module is outside every coarse fwcore glob
 #guard filtered ["lean/FwTest/Lease.lean"] == ["land.yml", "lean.yml"]

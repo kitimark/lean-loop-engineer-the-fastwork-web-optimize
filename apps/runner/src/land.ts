@@ -184,6 +184,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs",
     // circleci-pilot: the glue, its fixtures and the pilot config (test/ci-triggers.test.ts runs scripts/circleci.test.mjs; fw ci circleci spawns the glue)
     "scripts/circleci.mjs", "scripts/circleci.test.mjs", "scripts/circleci-fixtures/**", ".circleci/**",
+    // scrub-session-paths: test/scrub.test.ts runs the privacy scrub's tests (test-scrub.mjs is outside the scripts/*.test.mjs glob)
+    "scripts/scrub.mjs", "scripts/test-scrub.mjs", "scripts/scrub.test.mjs", "scripts/scrub-allow.json",
     // ci-telemetry: test/ci-telemetry.test.ts runs the producer's own tests and replays golden/ci/telemetry.jsonl (golden/** above)
     "scripts/ci-telemetry/**",
     // site-build-cache: ci-paths reads each setup-lean job's Lake targets (lakefile, the scripts its run: blocks call) into
@@ -197,6 +199,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
     "packages/contracts/golden/gate/**"],
   "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
+  // preview-e2e: the rig starts console-api's server files (imported by file URL) and the preview servers over the snapshot
+  "packages/e2e-preview": ["apps/console-api/src/**", "apps/console-api/package.json", "packages/contracts/src/**", "packages/contracts/package.json", "packages/contracts/golden/console/**", "snapshot/site/**"],
   "packages/engine-check": ["packages/contracts/golden/measure/**"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
@@ -221,7 +225,7 @@ function workspaceDeps(root: string, pkg: any): string[] {
  *  packages that have a `test` script (sorted). Which of them a change selects is `selectChecks` (Lean `landSpeed.select`). */
 /** Packages whose tests run the `fwcore` binary. Found by the scan in test/land-inputs.test.ts. Each declares `FWCORE_BIN`;
  *  which of them a Lean change selects is `selectTwoPhase` (the binary digest). */
-export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/engine-check", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr"];
+export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/e2e-preview", "packages/engine-check", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr"];
 /** Lean `fwcoreBin`: the stripped binary as a declared read. */
 export const FWCORE_BIN = "lean/.lake/build/bin/fwcore";
 /** Lean `fwcoreBuildReads`. */

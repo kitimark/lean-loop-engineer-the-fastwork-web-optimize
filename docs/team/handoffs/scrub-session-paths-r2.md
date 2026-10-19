@@ -5,7 +5,7 @@ Branch worktree-wf_06234e28-4d2-3. It merges the scrub-session-paths commit (1e9
 - scanPath runs encoded-home and account-name on the file path (line 0), allowlist applies.
 - FW_SCRUB_ACCOUNT counts only with FW_SCRUB_TEST=1; otherwise ignored, stderr note.
 - `node scripts/scrub.mjs --self-check` prints `{"generic":[...],"account":bool}` (never the name); tests assert every GENERIC name turns the rule off. A case with FW_SCRUB_ACCOUNT unset and fake HOME/USER/LOGNAME: the name comes from the OS account (os.userInfo), the env is ignored.
-- CI: premise-tests.yml `verdict` job step "Scrub tests" runs `node --test scripts/scrub.test.mjs && node scripts/test-scrub.mjs`. Trigger.lean row for premise-tests.yml got scripts/scrub.mjs, scrub.test.mjs, test-scrub.mjs, scrub-allow.json; triggers.jsonl regenerated. The verdict job does not run on main pushes.
+- CI: apps/runner/test/scrub.test.ts spawns `node --test scripts/scrub.test.mjs` and `node scripts/test-scrub.mjs` (exit 0); the scrub files are in PACKAGE_EXTRA_READS["apps/runner"], so every land touching them runs the runner suite. The premise-tests step and its Trigger rows were dropped (one place: the land lane).
 Verified: scrub.test.mjs 17 pass; test-scrub.mjs all pass; `scrub.mjs --tree --where` on the tracked tree: 0 hits for every rule; ci-paths --check and ci-paths.test.mjs (40) pass; lean/scripts/check.sh green; apps/runner pnpm test 1233 pass.
-Open: Lean spec of allowed path shapes; git history not rewritten; no CI run yet (premise-tests runs on `[ci:premise-tests]` push). TS stand-in: all rule logic (no Lean golden).
+Open: Lean spec of allowed path shapes; git history not rewritten; follow-ups from review r1: right edge `(?![A-Za-z0-9._])` for quoted trailing form, glued Linux `claude-N-home-` branch. TS stand-in: all rule logic (no Lean golden).
 Read first: scripts/scrub.mjs, scripts/scrub.test.mjs.

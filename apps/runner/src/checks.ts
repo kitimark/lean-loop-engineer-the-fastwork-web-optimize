@@ -35,15 +35,15 @@ export function parseChecksArgs(argv: string[]): ChecksArgs {
   return { base: a.base, tier: a.tier, list: a.list };
 }
 
-export type Plan = { changed: string[]; selected: Check[]; local: string[]; remote: string[] };
+export type Plan = { changed: string[]; selected: Check[]; local: string[]; remote: string[]; browser: boolean };
 
 /** The selected checks of `changed` in table order, split by the Lean tier (`console.landTier`). */
 export function planFor(root: string, changed: string[], core: FwCall): Plan {
   const all = candidateChecks(root);
   const ids = new Set(selectTwoPhase(all, changed, null, null));
   const selected = all.filter((c) => ids.has(c.id));
-  const r = core({ op: "console.landTier", ids: selected.map((c) => c.id) }) as { local: string[]; remote: string[] };
-  return { changed, selected, local: r.local, remote: r.remote };
+  const r = core({ op: "console.landTier", ids: selected.map((c) => c.id) }) as { local: string[]; remote: string[]; browser: boolean };
+  return { changed, selected, local: r.local, remote: r.remote, browser: r.browser };
 }
 
 export const changedBetween = (root: string, base: string): string[] =>
@@ -103,7 +103,10 @@ export async function checksCli(argv: string[], cwd: string, deps: { core?: FwCa
   const tierOf = (id: string) => (p.remote.includes(id) ? "remote" : "local");
   const chosen = p.selected.filter((c) => (a.tier ? tierOf(c.id) === a.tier : true));
   log(`checks: ${p.changed.length} changed files; selected ${p.selected.length}: ${p.selected.map((c) => `${tierOf(c.id)}:${c.id}`).join(" ") || "none"}`);
-  if (a.tier === "remote") log(`LANE digest=${remoteDigest(core, chosen.map((c) => c.id))}`); // land.yml binds the run to this (Lean console.landDigest)
+  if (a.tier === "remote") {
+    log(`LANE digest=${remoteDigest(core, chosen.map((c) => c.id))}`); // land.yml binds the run to this (Lean console.landDigest)
+    log(`LANE browser=${p.browser}`); // land.yml runs the preview browser suite on both engines iff true (Lean LandTier.browserRuns)
+  }
   if (a.list) { for (const c of chosen) log(`${tierOf(c.id)} ${c.id}`); return 0; }
   if (chosen.length === 0) { log(`checks: no ${a.tier ?? "selected"} checks`); return 0; }
   return runTier(chosen, root, core, deps.run ?? spawnRunner, log);
