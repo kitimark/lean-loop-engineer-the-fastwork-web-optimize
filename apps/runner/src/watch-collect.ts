@@ -111,14 +111,14 @@ export interface SpoolSummary {
   idleAt: number | null;
 }
 export function summarizeSpool(events: SpoolEvent[]): SpoolSummary {
+  let lastStart = -1;
   const s: SpoolSummary = { agentType: null, startedAt: null, lastAt: null, stoppedAt: null, tools: 0, errors: 0, errTail: 0, lastTool: null, lastToolAt: null, idleAt: null };
-  let lastActive = -1;
   for (const e of events) {
     s.agentType ||= str(e.agent_type);
     if (s.startedAt === null || e.ts < s.startedAt) s.startedAt = e.ts;
     if (s.lastAt === null || e.ts > s.lastAt) s.lastAt = e.ts;
     const h = e.hook_event_name;
-    if (h === "SubagentStart") lastActive = Math.max(lastActive, e.ts);
+    if (h === "SubagentStart") lastStart = Math.max(lastStart, e.ts);
     if (h === "SubagentStop") s.stoppedAt = Math.max(s.stoppedAt ?? 0, e.ts);
     if (h === "TeammateIdle") s.idleAt = Math.max(s.idleAt ?? 0, e.ts);
     if (h === "PostToolUse" || h === "PostToolUseFailure") {
@@ -126,12 +126,12 @@ export function summarizeSpool(events: SpoolEvent[]): SpoolSummary {
       const bad = h === "PostToolUseFailure" || e.is_error === true;
       if (bad) s.errors++;
       s.errTail = bad ? s.errTail + 1 : 0;
-      lastActive = Math.max(lastActive, e.ts);
       if (s.lastToolAt === null || e.ts >= s.lastToolAt) { s.lastToolAt = e.ts; s.lastTool = str(e.tool_name); }
     }
   }
-  // a Start or a tool call after the last Stop means it was resumed
-  if (s.stoppedAt !== null && lastActive > s.stoppedAt) s.stoppedAt = null;
+  // resumed iff a SubagentStart is newer than the newest Stop; a tool call is not a resume (Lean `Fw.Ops.Obs.stoppedAtOf`,
+  // golden: packages/contracts/golden/ops/ops.obs.jsonl, the `resume` cases)
+  if (s.stoppedAt !== null && lastStart > s.stoppedAt) s.stoppedAt = null;
   // a teammate fires SubagentStop at the end of each turn and then TeammateIdle: that is a pause, not an exit
   // (fwcore then sees idleAt newer than lastToolAt: parked)
   if (s.stoppedAt !== null && s.idleAt !== null && s.idleAt >= s.stoppedAt) s.stoppedAt = null;

@@ -40,7 +40,17 @@ describe("spool", () => {
     expect(s).toMatchObject({ tools: 3, errors: 2, errTail: 2, startedAt: T0, lastAt: T0 + 3000, stoppedAt: null, lastTool: "Bash", lastToolAt: T0 + 3000, idleAt: null });
     expect(summarizeSpool(parseSpool([ev("a", "SubagentStart", 1), ev("a", "SubagentStop", 5)].join("\n"))).stoppedAt).toBe(5);
     expect(summarizeSpool(parseSpool([ev("a", "SubagentStart", 1), ev("a", "SubagentStop", 5), ev("a", "SubagentStart", 9)].join("\n"))).stoppedAt).toBeNull();
-    expect(summarizeSpool(parseSpool([ev("a", "SubagentStop", 5), ev("a", "PostToolUse", 9)].join("\n"))).stoppedAt).toBeNull();
+    expect(summarizeSpool(parseSpool([ev("a", "SubagentStop", 5), ev("a", "PostToolUse", 9)].join("\n"))).stoppedAt).toBe(5);
+  });
+  it("follows the Lean golden of the resume predicate (Fw.Ops.Obs.stoppedAtOf): only a SubagentStart after the stop resumes", () => {
+    const rows = readFileSync(join(here, "../../../packages/contracts/golden/ops/ops.obs.jsonl"), "utf8").trim().split("\n")
+      .map((l) => JSON.parse(l) as { name: string; request: { resume?: { hooks: { event: string; ts: number }[] }[] }; response: { resume?: (number | null)[] } })
+      .filter((c) => c.request.resume);
+    expect(rows.length).toBeGreaterThanOrEqual(9);
+    for (const c of rows) {
+      const got = c.request.resume!.map((r) => summarizeSpool(parseSpool(r.hooks.map((h) => ev("a", h.event, h.ts)).join("\n"))).stoppedAt);
+      expect({ name: c.name, got }).toEqual({ name: c.name, got: c.response.resume });
+    }
   });
   it("last tool and TeammateIdle; a teammate's Stop then Idle is a turn end, not an exit", () => {
     const t = summarizeSpool(parseSpool([

@@ -495,6 +495,14 @@ def opObs (req : Json) : Except String Reply := do
         pure (lifeOf (← str l "event") (← optS l "agent_id") (← optS l "agent_name")
           (← str l "key") (← nat l "ts") (← natD l "epoch" 0))
       pure [("life", .arr (ds.toArray.map fun d => .arr (d.toArray.map lifeJson)))]
+  let resume : Reply ← match opt req "resume" with
+    | none => pure []
+    | some _ => do
+      let rs ← (← arr req "resume").toList.mapM fun r => do
+        pure (stoppedAtOf (← (← arr r "hooks").toList.mapM fun h => do pure ((← str h "event"), (← nat h "ts"))))
+      pure [("resume", .arr (rs.toArray.map fun
+        | none => .null
+        | some t => toJson t))]
   let labels : Reply ← match opt req "labels" with
     | none => pure []
     | some _ => do
@@ -512,7 +520,7 @@ def opObs (req : Json) : Except String Reply := do
       pure [("alert", match fieldAlert (← nat a "now") opn cs with
         | none => .null
         | some (s, k, t) => Json.mkObj [("step", .str s), ("key", .str k), ("title", .str t)])]
-  pure (base ++ adm ++ life ++ labels ++ alert)
+  pure (base ++ adm ++ life ++ resume ++ labels ++ alert)
 
 -- the real SubagentStop line with background_tasks is admitted (task task-state-truth regression)
 #guard (fieldsOf "{\"agent_id\":\"a0e52ab0600cc97da\",\"agent_type\":\"\",\"hook_event_name\":\"SubagentStop\",\"tool_name\":null,\"tool_use_id\":null,\"duration_ms\":null,\"is_error\":null,\"verb\":null,\"ts\":1792269356759,\"background_tasks\":20}").map Fw.Ops.Obs.admit

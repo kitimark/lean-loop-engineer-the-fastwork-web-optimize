@@ -879,9 +879,9 @@ session-wide count, 6 to 31 on every one of the spool's SubagentStop records, ne
   else: two agents of one name are two keys, and the stop of one leaves the other live
   (`Fw.Plan.concurrent_keep`);
 * **any other event** of id $i$, named or unnamed, is a heartbeat: a spawn of $i$ at the record time
-  with event key `seen:<i>|<epoch>|<time / 10 min>`, so at most one per id and 10 minutes between
-  stops, and the first event after a stop gets a new key. A heartbeat later than the stop revives
-  the id (`event_revives`, by `Fw.Plan.revive_on_event`); an id with no sighting within the quiet
+  with event key `seen:<i>|<epoch>|<time / 10 min>`, so at most one per id and 10 minutes, and only
+  while no stop of the id was sent (`no_revive_after_stop`: after a stop only a `SubagentStart` revives it,
+  `start_revives`, by `Fw.Plan.revive_on_event`; `stoppedAtOf` is the same rule over a whole spool); an id with no sighting within the quiet
   limit shows quiet with its last-seen time, never ended by the time
   (`Fw.Plan.running_needs_recent_sighting`, `Fw.Plan.timeout_never_ends`); a lead or user mark ends
   it (`Fw.Plan.mark_ends_quiet`);
@@ -937,9 +937,10 @@ def seenKey (i : String) (p t : Nat) : String :=
 /-- The life commands of a record by its agent id $i$ (event $e$, obs key $k$, time $t$, stop epoch $p$
 of $i$).
 
-$$\operatorname{byId}(e, i, k, t, p) = \begin{cases} [\,] & i = \bot \\ [\mathrm{spawn}(\texttt{start:}k, i, t)] & i \ne \bot \land e = \texttt{SubagentStart} \\ [\mathrm{stop}(\texttt{stop:}k, i, t)] & i \ne \bot \land e = \texttt{SubagentStop} \\ [\mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t)] & \text{otherwise} \end{cases}$$
+$$\operatorname{byId}(e, i, k, t, p) = \begin{cases} [\,] & i = \bot \\ [\mathrm{spawn}(\texttt{start:}k, i, t)] & i \ne \bot \land e = \texttt{SubagentStart} \\ [\mathrm{stop}(\texttt{stop:}k, i, t)] & i \ne \bot \land e = \texttt{SubagentStop} \\ [\mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t)] & i \ne \bot \land e \notin \{\texttt{SubagentStart}, \texttt{SubagentStop}\} \land p = 0 \\ [\,] & \text{otherwise} \end{cases}$$
 
-The id starts, stops, or is seen alive.
+The id starts, stops, or is seen alive. Once the drain has sent a stop of $i$ ($p > 0$), only a `SubagentStart` makes it live
+again: 56 of 2026-10-19's stops were followed by a `PostToolUse` of tool `SubagentHandback` with no start (MEASURED).
 -/
 def byId (event : String) (agentId : Option String) (key : String) (ts epoch : Nat) : List Life :=
   match agentId with
@@ -947,7 +948,8 @@ def byId (event : String) (agentId : Option String) (key : String) (ts epoch : N
   | some i =>
     if event == "SubagentStart" then [.spawn ("start:" ++ key) i ts]
     else if event == "SubagentStop" then [.stop ("stop:" ++ key) i ts]
-    else [.spawn (seenKey i epoch ts) i ts]
+    else if epoch == 0 then [.spawn (seenKey i epoch ts) i ts]
+    else []
 
 /-- The life commands of a spawn guard (event $e$, requested name $g$, obs key $k$, time $t$): a named
 guard spawns its obs key and labels it with the name, when $k$, $g$ and the label's event key are
@@ -1005,7 +1007,9 @@ theorem life_identity (e : String) (i g : Option String) (k : String) (t p : Nat
       · simp only [List.mem_singleton] at hc; subst hc; simp [Life.agent]
       · split at hc
         · simp only [List.mem_singleton] at hc; subst hc; simp [Life.agent]
-        · simp only [List.mem_singleton] at hc; subst hc; simp [Life.agent]
+        · split at hc
+          · simp only [List.mem_singleton] at hc; subst hc; simp [Life.agent]
+          · simp at hc
 
 /-- **A stop ends its id** (`stop_by_id`): a `SubagentStop` with agent id $i$ stops $i$ at the record
 time, named or not, whatever `background_tasks` says (the decision has no such input).
@@ -1029,23 +1033,126 @@ theorem start_by_id (i : String) (g : Option String) (k : String) (t p : Nat) :
     Life.spawn ("start:" ++ k) i t ∈ lifeOf "SubagentStart" (some i) g k t p := by
   simp [lifeOf, byId]
 
-/-- **Any event revives its id** (`event_revives`): an event of id $i$ other than a start or stop,
-named or unnamed, gives a heartbeat spawn of $i$ at the record time; applied to a plan state where
-$i$ is a key labelled with name $a$ and every stop of $i$ is older
-than $t$, it makes $i$ live and $a$ not ended.
+/-- **An event revives an id nobody has stopped** (`event_revives`): an event of id $i$ other than a start or stop,
+named or unnamed, with no stop of $i$ sent yet ($p = 0$), gives a heartbeat spawn of $i$ at the record time; applied to a
+plan state where $i$ is a key labelled with name $a$ and every stop of $i$ is older than $t$, it makes $i$ live and $a$
+not ended.
 
-$$\forall \pi, e, i, a, g, k, t, p:\quad e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \land i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t) \in \operatorname{lifeOf}(e, \mathrm{some}(i), g, k, t, p) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false},\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
+$$\forall \pi, e, i, a, g, k, t:\quad e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \land i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\operatorname{seenKey}(i, 0, t), i, t) \in \operatorname{lifeOf}(e, \mathrm{some}(i), g, k, t, 0) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false},\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
 
-An agent that does anything after its stop is live again (running while that event is within the quiet limit).
+An agent with no stop that does anything is live (running while that event is within the quiet limit).
 -/
 theorem event_revives (π : Fw.Plan.State) {e i a : String} (g : Option String) (k : String)
-    (t p : Nat) (h1 : e ≠ "SubagentStart") (h2 : e ≠ "SubagentStop")
+    (t : Nat) (h1 : e ≠ "SubagentStart") (h2 : e ≠ "SubagentStop")
     (hk : i ∈ Fw.Plan.keysOf π a) (hs : ∀ q ∈ π.stops, q.1 = i → q.2 < t) :
-    Life.spawn (seenKey i p t) i t ∈ lifeOf e (some i) g k t p ∧
+    Life.spawn (seenKey i 0 t) i t ∈ lifeOf e (some i) g k t 0 ∧
       Fw.Plan.liveK (Fw.Plan.step π (.spawn i t)) i = true ∧
       Fw.Plan.ended (Fw.Plan.step π (.spawn i t)) a = false := by
   refine ⟨?_, Fw.Plan.revive_on_event π hk hs⟩
   simp [lifeOf, byId, h1, h2]
+
+/-- **No event but a start revives a stopped id** (`no_revive_after_stop`): once a stop of $i$ was sent ($p > 0$), an
+event of $i$ other than a start or stop gives no life command for $i$ (a `SubagentHandback` call after the stop is not a
+resume).
+
+$$\forall e, i, k, t, p:\quad p > 0 \land e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \Rightarrow \operatorname{byId}(e, \mathrm{some}(i), k, t, p) = [\,]$$
+-/
+theorem no_revive_after_stop (e i k : String) (t p : Nat) (hp : 0 < p)
+    (h1 : e ≠ "SubagentStart") (h2 : e ≠ "SubagentStop") :
+    byId e (some i) k t p = [] := by
+  have : (p == 0) = false := by simp; omega
+  simp [byId, h1, h2, this]
+
+/-- **A start revives a stopped id** (`start_revives`): a `SubagentStart` of $i$ later than every stop of $i$ makes $i$
+live and its name not ended, whatever the stop epoch.
+
+$$\forall \pi, i, a, g, k, t, p:\quad i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\texttt{start:}k, i, t) \in \operatorname{lifeOf}(\texttt{SubagentStart}, \mathrm{some}(i), g, k, t, p) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false}$$
+-/
+theorem start_revives (π : Fw.Plan.State) {i a : String} (g : Option String) (k : String)
+    (t p : Nat) (hk : i ∈ Fw.Plan.keysOf π a) (hs : ∀ q ∈ π.stops, q.1 = i → q.2 < t) :
+    Life.spawn ("start:" ++ k) i t ∈ lifeOf "SubagentStart" (some i) g k t p ∧
+      Fw.Plan.liveK (Fw.Plan.step π (.spawn i t)) i = true ∧
+      Fw.Plan.ended (Fw.Plan.step π (.spawn i t)) a = false :=
+  ⟨start_by_id i g k t p, Fw.Plan.revive_on_event π hk hs⟩
+
+/-! ### The resume predicate (task `alert-rules-fix`)
+
+A spool is a list of (hook name, time). The agent's stop time is the newest `SubagentStop`; it is resumed iff a
+`SubagentStart` is newer than that stop. Nothing else resumes it: not a tool call, not `StructuredOutput`, not
+`SubagentHandback` (MEASURED 2026-10-19: 56 stops were followed by a `SubagentHandback` and no start, 120 by a start,
+0 real tool calls without a start).
+-/
+
+/-- Fold step of `lastStop`: a stop raises the running maximum. -/
+def stopStep (acc : Option Nat) (x : String × Nat) : Option Nat :=
+  if x.1 == "SubagentStop" then some (max (acc.getD 0) x.2) else acc
+
+/-- The newest `SubagentStop` time of a spool.
+
+$$\operatorname{lastStop}(h) = \max \{ t \mid (\texttt{SubagentStop}, t) \in h \}$$ (`none` for the empty set)
+-/
+def lastStop (h : List (String × Nat)) : Option Nat :=
+  h.foldl stopStep none
+
+/-- Whether a spool has a `SubagentStart` newer than $s$.
+
+$$\operatorname{startAfter}(h, s) \iff \exists (\texttt{SubagentStart}, t) \in h.\ s < t$$
+-/
+def startAfter (h : List (String × Nat)) (s : Nat) : Bool :=
+  h.any fun (e, t) => e == "SubagentStart" && decide (s < t)
+
+/-- **The stop time of an agent** (`stoppedAtOf`): the newest stop, unless a start is newer.
+
+$$\operatorname{stoppedAt}(h) = \begin{cases} \bot & \operatorname{lastStop}(h) = \bot \lor \operatorname{startAfter}(h, \operatorname{lastStop}(h)) \\ \operatorname{lastStop}(h) & \text{otherwise} \end{cases}$$
+-/
+def stoppedAtOf (h : List (String × Nat)) : Option Nat :=
+  match lastStop h with
+  | none => none
+  | some s => if startAfter h s then none else some s
+
+/-- **A start after the stop resumes** (`resumed_by_start`): with a stop at $s$ and a start at $t > s$ the agent has no stop time.
+
+$$\forall h, s, t:\quad \operatorname{lastStop}(h) = \mathrm{some}(s) \land (\texttt{SubagentStart}, t) \in h \land s < t \Rightarrow \operatorname{stoppedAt}(h) = \bot$$
+-/
+theorem resumed_by_start (h : List (String × Nat)) (s t : Nat) (hs : lastStop h = some s)
+    (hm : ("SubagentStart", t) ∈ h) (hlt : s < t) : stoppedAtOf h = none := by
+  have : startAfter h s = true := by
+    simp only [startAfter, List.any_eq_true]
+    exact ⟨_, hm, by simp [hlt]⟩
+  simp [stoppedAtOf, hs, this]
+
+/-- **Nothing else resumes** (`not_resumed_without_start`): when no start is newer than the stop $s$, the stop time stays $s$.
+
+$$\forall h, s:\quad \operatorname{lastStop}(h) = \mathrm{some}(s) \land (\forall t.\ (\texttt{SubagentStart}, t) \in h \Rightarrow t \le s) \Rightarrow \operatorname{stoppedAt}(h) = \mathrm{some}(s)$$
+-/
+theorem not_resumed_without_start (h : List (String × Nat)) (s : Nat) (hs : lastStop h = some s)
+    (hm : ∀ t, ("SubagentStart", t) ∈ h → t ≤ s) : stoppedAtOf h = some s := by
+  have : startAfter h s = false := by
+    simp only [startAfter, Bool.eq_false_iff, ne_eq, List.any_eq_true, not_exists, not_and]
+    intro ⟨e, t⟩ hmem
+    by_cases he : e = "SubagentStart"
+    · subst he; have := hm t hmem; simp; omega
+    · simp [he]
+  simp [stoppedAtOf, hs, this]
+
+/-- **No stop, no stop time** (`no_stop_no_stoppedAt`): a spool without a `SubagentStop` has no stop time.
+
+$$\forall h:\quad (\forall t.\ (\texttt{SubagentStop}, t) \notin h) \Rightarrow \operatorname{stoppedAt}(h) = \bot$$
+-/
+theorem no_stop_no_stoppedAt (h : List (String × Nat)) (hn : ∀ t, ("SubagentStop", t) ∉ h) :
+    stoppedAtOf h = none := by
+  have key : ∀ (l : List (String × Nat)) (acc : Option Nat), (∀ t, ("SubagentStop", t) ∉ l) →
+      l.foldl stopStep acc = acc := by
+    intro l; induction l with
+    | nil => intros; rfl
+    | cons x xs ih =>
+      intro acc hl
+      obtain ⟨e, t⟩ := x
+      have hne : e ≠ "SubagentStop" := by
+        rintro rfl; exact hl t (by simp)
+      simp only [List.foldl_cons, stopStep, beq_iff_eq, hne, ite_false]
+      exact ih _ (fun t' ht => hl t' (List.mem_cons_of_mem _ ht))
+  simp [stoppedAtOf, lastStop, key h none hn]
 
 /-- The label command of an agent id from the health index: event key `label:<id>|<name>`, when the
 id, the name and that key are all usable contract ids.
@@ -1144,8 +1251,11 @@ private def realStop : List (String × Val) :=
 #guard lifeOf "SubagentStop" (some "i") (some "fix-nav") "k" 9 0 = [.stop "stop:k" "i" 9]
 #guard lifeOf "SubagentStop" none none "k" 9 0 = []
 -- any other event of an id is a heartbeat, named or not
-#guard lifeOf "PostToolUse" (some "i") none "k" 1200000 9 = [.spawn "seen:i|9|2" "i" 1200000]
-#guard lifeOf "PreToolUse" (some "i") none "k" 1200000 9 = [.spawn "seen:i|9|2" "i" 1200000]
+#guard lifeOf "PostToolUse" (some "i") none "k" 1200000 0 = [.spawn "seen:i|0|2" "i" 1200000]
+#guard lifeOf "PreToolUse" (some "i") none "k" 1200000 0 = [.spawn "seen:i|0|2" "i" 1200000]
+-- after a stop only a start revives: a heartbeat gives nothing
+#guard lifeOf "PostToolUse" (some "i") none "k" 1200000 9 = []
+#guard lifeOf "SubagentStart" (some "i") none "k" 1200000 9 = [.spawn "start:k" "i" 1200000]
 #guard lifeOf "Notification" (some "i") none "k" 1 0 = [.spawn "seen:i|0|0" "i" 1]
 #guard lifeOf "PreToolUse" none none "k" 1 0 = []
 -- a named spawn guard spawns and labels its obs key, and is a heartbeat of the spawning id
