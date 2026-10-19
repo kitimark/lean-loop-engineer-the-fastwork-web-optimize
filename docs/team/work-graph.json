@@ -6545,7 +6545,8 @@
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/platform.scene.jsonl"
-   ]
+   ],
+   "evidence": "d7b1d30"
   },
   {
    "devices": [

@@ -12,7 +12,7 @@ Each wire is split at its first `:` into a (kind, name) pair. -/
 def rows : List Row := [
   ⟨"commission", [("cssVar", "?/?"), ("cssVar", "?/hero.accent"), ("cssVar", "?/morph.columns"), ("cssVar", "?/nav"), ("cssVar", "?/platform"), ("cssVar", "--start-selling-intrinsic-block-size/pain"), ("clock", ""), ("rect", "commission"), ("vw", ""), ("vh", ""), ("rect", "?")], [("className", "data-render/commission"), ("cssVar", "--start-selling-intrinsic-block-size/commission"), ("className", "data-scene/commission")], [], ["commission"], [50]⟩,
   ⟨"commission.typing", [("clock", ""), ("rect", "commission.typing^"), ("rect", "commission.typing"), ("vw", ""), ("vh", ""), ("cssVar", "?/?"), ("cssVar", "?/hero.accent"), ("cssVar", "?/morph.columns"), ("cssVar", "?/nav"), ("cssVar", "?/platform")], [], [], ["commission.typing"], []⟩,
-  ⟨"engine.scene", [("clock", ""), ("className", "data-fw-hidden/morph.columns")], [("cssVar", "?/?"), ("className", "data-fw-hidden/?")], [], [], []⟩,
+  ⟨"engine.scene", [("clock", ""), ("className", "data-fw-hidden/morph.columns"), ("rect", "people.card"), ("rect", "people.deck"), ("rect", "platform"), ("vh", "")], [("cssVar", "?/?"), ("className", "data-fw-hidden/?")], [], [], []⟩,
   ⟨"engine.scroll", [], [], [], [], []⟩,
   ⟨"hero", [("cssVar", "?/?"), ("cssVar", "?/hero.accent"), ("cssVar", "?/morph.columns"), ("cssVar", "?/nav"), ("cssVar", "?/platform"), ("cssVar", "--exit-opacity/hero.exit"), ("className", "data-splash/hero.exit")], [], [], ["hero"], []⟩,
   ⟨"hero.accent", [("clock", ""), ("rect", "hero.accent"), ("vw", ""), ("vh", "")], [("cssVar", "?/hero.accent")], [], ["hero.accent"], []⟩,
@@ -38,7 +38,7 @@ def rows : List Row := [
   ⟨"people.carousel", [("clock", ""), ("vw", ""), ("vh", ""), ("rect", "people.card")], [], [], ["people.carousel"], []⟩,
   ⟨"people.deck", [("cssVar", "?/?"), ("cssVar", "?/hero.accent"), ("cssVar", "?/morph.columns"), ("cssVar", "?/nav"), ("cssVar", "?/platform"), ("rect", "people.deck"), ("rect", "?"), ("clock", ""), ("vw", ""), ("vh", ""), ("scrollY", "")], [("scrollY", "")], [], ["people.deck"], [30]⟩,
   ⟨"people.o", [("clock", ""), ("rect", "people.o"), ("vw", ""), ("vh", ""), ("rect", "people.card"), ("cssVar", "?/?"), ("cssVar", "?/hero.accent"), ("cssVar", "?/morph.columns"), ("cssVar", "?/nav"), ("cssVar", "?/platform")], [("className", "data-o-stack/people.o")], [], ["people.o"], [20]⟩,
-  ⟨"platform", [("clock", ""), ("rect", "platform"), ("vh", ""), ("vw", ""), ("cssVar", "?/?"), ("cssVar", "?/hero.accent"), ("cssVar", "?/morph.columns"), ("cssVar", "?/nav"), ("cssVar", "?/platform"), ("cssVar", "--morph-fade/platform")], [("rect", "platform")], [], ["platform"], [95]⟩,
+  ⟨"platform", [("rect", "platform"), ("vh", ""), ("clock", ""), ("vw", ""), ("cssVar", "?/?"), ("cssVar", "?/hero.accent"), ("cssVar", "?/morph.columns"), ("cssVar", "?/nav"), ("cssVar", "?/platform"), ("cssVar", "--morph-fade/platform")], [("rect", "platform")], [], ["platform"], [95]⟩,
   ⟨"platform.entries", [("rect", "platform"), ("clock", "")], [], [], [], []⟩,
   ⟨"platform.glint", [("clock", "")], [], [], [], []⟩,
   ⟨"platform.marquee", [], [], [], [], []⟩,

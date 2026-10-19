@@ -1,7 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { GenSvg, art } from '../../GenSvg';
 import { getScrollEngine } from '../../engine/scroll';
+import { watchActive } from '../people/shared';
 import { HEADING } from './content';
+import { bindScene } from './scene';
 import { createShrink } from './driver';
 import { matchList } from './media';
 import css from './platform.module.css';
@@ -100,7 +102,11 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
     );
     frame();
     const off = getScrollEngine().register('platform.shrink', SHRINK_ORDER, () => frame());
-    return off;
+    const stopScene = bindScene(sec, watchActive);
+    return () => {
+      stopScene();
+      off();
+    };
   }, []);
 
   return (
