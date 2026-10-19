@@ -7103,7 +7103,8 @@
     "apps/site/src/parts/pain.notes/liveness.test.ts",
     "lean/Fw/Parts/FootprintData.lean",
     "lean/Fw/Parts/FootprintRows.lean"
-   ]
+   ],
+   "evidence": "580a96c"
   },
   {
    "devices": [
@@ -7145,7 +7146,8 @@
     "docs/team/handoffs/port-font-gaps.md",
     "apps/site/src/theme.ts",
     "apps/site/src/font-stack.test.ts"
-   ]
+   ],
+   "evidence": "a86cb55"
   },
   {
    "devices": [

@@ -3,6 +3,7 @@ import { getClock } from '../../engine/clock';
 import { registerScroll } from '../../engine/scroll';
 import type { PanelWriter } from '../morph.panel';
 import { LangMenu, type LocaleCode } from '../nav.langMenu';
+import { PROFILE_SECTION_SELECTOR, PROFILE_STICKY_SELECTOR } from '../nav.hitTest/probe';
 import { createNavDriver, type NavEnv } from './driver';
 import { CLASS_OF, type Sticky } from './logic';
 import { matchList } from './media';
@@ -56,14 +57,14 @@ function measureSticky(stickySelector: string, sectionSelector: string): Sticky 
  * specified in lean/Fw/Parts/Nav.lean; the decisions are logic.ts (golden vectors).
  *
  * Deltas (named): the logo glyph is read from svg.gen.json; the morph panel is the `children`, hosted
- * here as in the original (title, columns, CTAs and footer are morph.panel's); no `.hero-track`/profile
- * elements exist in the page yet beyond the hero.exit track, which stands in for the former.
+ * here as in the original (title, columns, CTAs and footer are morph.panel's); no `.hero-track`, hero.exit stands in;
+ * the profile sticky and section are the people section's data-fw hooks (nav.hitTest/probe.ts).
  */
 export function Nav({
   heroSelector = '[data-fw="hero-exit"]',
   splashSelector = '.hero.is-ring-splash-done',
-  stickySelector = '.start-selling-profile-sticky',
-  sectionSelector = '#profile-showcase, .start-selling-profile',
+  stickySelector = PROFILE_STICKY_SELECTOR,
+  sectionSelector = PROFILE_SECTION_SELECTOR,
   locale = 'en',
   onSelectLocale,
   onJoin,
