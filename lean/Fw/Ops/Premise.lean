@@ -1408,7 +1408,7 @@ def flagRow (name : String) (rs : List Result) : Json :=
 
 -- The text of the golden file: the registry rows, the lint rows, the flag rows, then the acknowledgement rows, the
 -- ack cases, the ack-lint cases and the error-class cases.
-private def goldenText : String :=
+private def goldenText (_ : Unit := ()) : String :=
   let rows : List Json := registry.map premiseRow ++ lintCases.map (fun (n, ts, fs) => lintRow n ts fs) ++
     flagCases.map (fun (n, rs) => flagRow n rs) ++ acks.map ackRow ++
     ackCases.map (fun (n, rs) => ackCaseRow n rs) ++ ackLintCases.map (fun (n, ids, ks) => ackLintRow n ids ks) ++

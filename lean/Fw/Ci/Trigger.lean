@@ -192,7 +192,7 @@ w_{6} &= (\texttt{lean.yml}, \mathrm{ciMain}, G_{6}) \\
 G_{6} &= [\texttt{lean/**}, \texttt{apps/site/src/breakpoints.gen.json}, \texttt{apps/site/src/sweeps.gen.json}, \texttt{apps/site/src/head.gen.json}, \texttt{scripts/span.sh}, \\
 &\quad \texttt{scripts/fwcore-build.sh}, \texttt{packages/contracts/golden/gate/sweeps.jsonl}, \texttt{packages/contracts/golden/gate/exit.jsonl}, \texttt{packages/contracts/golden/gate/search.jsonl}, \\
 &\quad \texttt{packages/gate-breakpoints/src/scope.gen.json}, \texttt{packages/contracts/golden/parts/contracts.gen.json}, \texttt{packages/contracts/golden/parts/stage.jsonl}, \texttt{packages/contracts/golden/parts/stage-mode.jsonl}, \\
-&\quad \texttt{packages/measure-chromium/scenarios.gen.json}, \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \\
+&\quad \texttt{packages/measure-chromium/scenarios.gen.json}, \texttt{packages/contracts/golden/parts/morph.mount.dormant.jsonl}, \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \\
 &\quad \texttt{.github/scripts/runner-info.sh}, \operatorname{own}(\texttt{lean.yml})] \\
 w_{7} &= (\texttt{mutants.yml}, B, G_{7}) \\
 G_{7} &= [\texttt{lean/Fw/Console.lean}, \texttt{lean/Fw/Serve.lean}, \texttt{lean/Fw/Ops/Meter.lean}, \texttt{lean/Fw/Ops/PathCheck.lean}, \\
@@ -270,7 +270,9 @@ def table : List Wf := [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "scripts/span.sh",
     "scripts/fwcore-build.sh", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/search.jsonl",
     "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
-    "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl", "packages/measure-chromium/scenarios.gen.json",
+    "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl",
+    "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/measure-chromium/scenarios.gen.json",
+    "packages/contracts/golden/parts/morph.mount.dormant.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh",
     ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "lean.yml"], []⟩,
   ⟨"mutants.yml", ciAll, [
@@ -817,7 +819,7 @@ def ifCheckLine (t : String) : Json :=
   Json.mkObj [("kind", "ifCheck"), ("text", .str t), ("carries", .bool (carriesNotMain t))]
 
 /-- The text of the golden file. $$\text{one JSON object per line: the table, the cases, the if forms and checks}$$ -/
-def goldenText : String :=
+def goldenText (_ : Unit := ()) : String :=
   String.join ((tableLine :: cases.map caseLine ++ ifOrigs.map ifFormLine ++ ifTexts.map ifCheckLine).map
     fun j => j.compress ++ "\n")
 

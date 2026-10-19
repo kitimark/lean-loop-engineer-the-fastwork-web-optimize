@@ -129,7 +129,7 @@ def fixtures : List (String × List Json) := [
 /-! ## Files -/
 
 /-- The text of `wire.jsonl`. -/
-def wireText : String :=
+def wireText (_ : Unit := ()) : String :=
   String.join (cases.map fun (name, op, req) =>
     (Json.mkObj [("name", .str name), ("request", withOp op req), ("response", respond op req)]).compress ++ "\n")
 
@@ -137,7 +137,7 @@ def wireText : String :=
 def limitsText : String := (Fw.Wire.Ci.limitsJson Fw.Ci.Budget.defaults).compress ++ "\n"
 
 /-- Every file: (path relative to the golden directory, text). -/
-def files : List (System.FilePath × String) :=
+def files (_ : Unit := ()) : List (System.FilePath × String) :=
   [(("limits.json" : System.FilePath), limitsText), (("wire.jsonl" : System.FilePath), wireText)] ++
   fixtures.map fun (stem, ls) =>
     ((("fixtures" : System.FilePath) / s!"{stem}.jsonl"), String.join (ls.map fun (j : Json) => j.compress ++ "\n"))

@@ -1,0 +1,9 @@
+{"fn":"dormant","in":{"mountedO":false,"mountedV":false},"out":false}
+{"fn":"dormant","in":{"mountedO":true,"mountedV":false},"out":false}
+{"fn":"dormant","in":{"mountedO":false,"mountedV":true},"out":true}
+{"fn":"dormant","in":{"mountedO":true,"mountedV":true},"out":false}
+{"fn":"dormantRun","in":{"ticks":[[false,false,false],[false,false,true],[false,false,false],[true,false,false],[false,false,false]]},"out":[{"d":false,"o":false,"v":false},{"d":false,"o":false,"v":false},{"d":true,"o":false,"v":true},{"d":true,"o":false,"v":true},{"d":false,"o":true,"v":true},{"d":false,"o":true,"v":true}]}
+{"fn":"dormantRun","in":{"ticks":[[true,false,false],[false,false,true],[false,false,false]]},"out":[{"d":false,"o":false,"v":false},{"d":false,"o":true,"v":true},{"d":false,"o":true,"v":true},{"d":false,"o":true,"v":true}]}
+{"fn":"dormantRun","in":{"ticks":[[false,false,true],[false,true,false],[false,false,false]]},"out":[{"d":false,"o":false,"v":false},{"d":true,"o":false,"v":true},{"d":false,"o":true,"v":true},{"d":false,"o":true,"v":true}]}
+{"fn":"dormantRun","in":{"ticks":[[false,false,false],[false,false,false]]},"out":[{"d":false,"o":false,"v":false},{"d":false,"o":false,"v":false},{"d":false,"o":false,"v":false}]}
+{"fn":"dormantRun","in":{"ticks":[[false,false,true],[false,false,true],[false,false,false],[false,false,false]]},"out":[{"d":false,"o":false,"v":false},{"d":true,"o":false,"v":true},{"d":true,"o":false,"v":true},{"d":true,"o":false,"v":true},{"d":true,"o":false,"v":true}]}

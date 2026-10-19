@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { registerScroll } from '../../engine/scroll';
-import { action, armed, IO_ROOT_MARGIN, isShift, mountNextWarm, warmStill, WARM_QUIET_MS, MOUNT_PIN_ORDER, repin, takes, touchDelta, viewportHeight, wanted } from './logic';
+import { action, armed, IO_ROOT_MARGIN, isShift, mountNext, mountNextWarm, warmStill, WARM_QUIET_MS, MOUNT_PIN_ORDER, repin, takes, touchDelta, viewportHeight, wanted } from './logic';
 
 /** Handle given to the owner (morph.tween) so it can re-evaluate the listeners when the morph goes idle or active (`I`). */
 export interface MorphMountHandle {
@@ -16,8 +16,10 @@ export interface MorphMountProps {
   isActive?: () => boolean;
   /** A taken push: wheel `deltaY`, or touch `previous y - current y`. Starts the tween (owned by morph.tween). */
   onPush?: (delta: number) => void;
-  /** The panel should be mounted (first intersecting entry, or first taken push). Called once. */
+  /** The panel should be mounted (first intersecting entry, or first taken push; `shift`: or a still moment). Called once. */
   onMount?: () => void;
+  /** The original's trigger fired (first intersecting entry, or first taken push). Called once. */
+  onWake?: () => void;
   onReady?: (h: MorphMountHandle | null) => void;
 }
 
@@ -31,12 +33,13 @@ export interface MorphMountProps {
  * Renders a hidden sentinel that carries the breakpoint-gate anchor and stands in for the platform until that section
  * is ported (the part restates no CSS).
  */
-export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]', isActive = () => false, onPush, onMount, onReady }: MorphMountProps) {
+export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]', isActive = () => false, onPush, onMount, onWake, onReady }: MorphMountProps) {
   useEffect(() => {
     const target = document.querySelector<HTMLElement>(targetSelector);
     let near = false;
     let attached = false;
     let mounted = false;
+    let woken = false;
     let pin = window.scrollY;
     let lastY = 0;
 
@@ -47,6 +50,10 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
       if (next && !mounted) {
         mounted = true;
         onMount?.();
+      }
+      if (!woken && mountNext(woken, intersecting, pushed)) {
+        woken = true;
+        onWake?.();
       }
     };
     const geom = () => {

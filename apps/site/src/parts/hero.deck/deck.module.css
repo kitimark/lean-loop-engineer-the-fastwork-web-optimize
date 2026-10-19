@@ -1,6 +1,10 @@
 /* Values restated from the original (assets/2.gBuqKVzi.css:1962-1964 `.mobile-deck`, 2053-2127 the <=600 block). The card
    itself is hero.orbit's card.module.css; the deck overrides its animation state and places four of them. */
 @layer parts {
+  [data-exit-scope] .deck {
+    --exit-opacity: inherit;
+    --exit-scatter: inherit;
+  }
   .deck {
     display: none;
   }

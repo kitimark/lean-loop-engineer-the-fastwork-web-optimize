@@ -395,6 +395,26 @@ theorem pageLevel_never_mounted (hs : List Host) : ∀ P ∈ parts, pageLevel P 
   simp only [mountedOf, List.mem_filter, h0] at hm
   simp at hm
 
+theorem effect_write_unmounted (m : List String) (s : Signal) (w : Write) (h : effect m s = .write w) :
+    m.contains w.owner = false := by
+  cases s <;> simp only [effect] at h <;> (repeat' split at h) <;> (try cases h) <;> simp_all
+
+theorem hero_host_mounts_exit (hs : List Host) (i : String) (hi : hostOf i = some .hero) (hm : i ∈ mountedOf hs) :
+    "hero.exit" ∈ mountedOf hs := by
+  simp only [mountedOf, List.mem_filter, hi] at hm ⊢
+  exact ⟨by decide, by rw [show hostOf "hero.exit" = some .hero by decide]; exact hm.2⟩
+
+/-- No stage that mounts a hero part writes a rest value on hero.exit: the stage's own CSS default holds instead. -/
+theorem exit_owner_never_written (hs : List Host) (i : String) (hi : hostOf i = some .hero) (hm : i ∈ mountedOf hs)
+    (s : Signal) (w : Write) (he : effect (mountedOf hs) s = .write w) : w.owner ≠ "hero.exit" := by
+  intro hw
+  have hu := effect_write_unmounted _ _ _ he
+  rw [hw] at hu
+  simp [hero_host_mounts_exit hs i hi hm] at hu
+
+theorem exit_readers_on_hero : ["hero", "hero.cue", "hero.orbit", "hero.deck"].all (hostOf · == some .hero) = true := by
+  decide
+
 /-- Wire form of a stub: `host=px`. $$\operatorname{wire}(h, p) = h \texttt{=} p$$ -/
 def stubWire (x : Host × Nat) : String := x.1.name ++ "=" ++ toString x.2
 

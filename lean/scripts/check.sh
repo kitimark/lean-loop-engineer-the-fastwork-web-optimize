@@ -9,6 +9,7 @@
 #            | checkmap golden check (golden/ops/checkmap.jsonl equals the Lean output; Fw.Ops.CheckMap)
 #            | headgen check (the document head table equals the Lean output; Fw.Site.Head)
 #            | preset v2-proved check (golden/preset/* and the site preset equal Fw.Preset.Gen.run on the findings ledger)
+#            | init cost lint + its cases (no constant fwcore evaluates at start allocates more than Fw.Lint.InitCost.bound)
 # The parallel jobs call the built binaries directly (.lake/build/bin/...), not `lake exe`, so none of them takes Lake's lock (the `lake env lean --run` jobs build nothing and take no lock).
 # Every failing stage is reported (not just the first); exit non-zero if any failed. The verdict is the conjunction of the
 # stage verdicts, independent of order and completion: Lean Fw.Console.LandSpeed.verdict_perm.
@@ -64,11 +65,13 @@ run_group() {
   job "exit golden check" lake env lean --run scripts/ExitGolden.lean --check ../packages/contracts/golden/gate/exit.jsonl  # the exit verdict vectors cli.mjs is checked against (Fw.Gate.Exit)
   job "search golden check" lake env lean --run scripts/SearchGolden.lean --check  # the gate rewrite-arm search vectors gate-search.mjs is checked against (Fw.Gate.Search)
   job "contracts golden check" lake env lean --run scripts/ContractsGolden.lean --check ../packages/contracts/golden/parts/contracts.gen.json ../packages/measure-chromium/scenarios.gen.json  # part contract rows + per-part profiles (Fw.Parts.Contract)
+  job "exit scoped golden check" lake env lean --run scripts/ExitScopedGolden.lean --check ../packages/contracts/golden/parts/hero.exit.scoped.json  # hero.exit:scoped reader list, inherit chain and units (Fw.Parts.HeroExitOpt)
   job "stage golden check" lake env lean --run scripts/StageGolden.lean --check ../packages/contracts/golden/parts/stage.jsonl  # the ?only= stage plans the site is checked against (Fw.Site.Stage)
   job "port golden check" lake env lean --run scripts/PortGolden.lean --check  # golden/port/* the port digest is checked against (Fw.Port.*, Fw.Site.Assets)
   job "stage-mode golden check" lake env lean --run scripts/StageModeGolden.lean --check ../packages/contracts/golden/parts/stage-mode.jsonl  # the part-page plan, accept and read decisions the Chromium driver is checked against (Fw.Site.StageMode)
   job "lakegc golden check" lake env lean --run scripts/LakeGcGolden.lean --check  # golden/ops/lakegc.jsonl (Fw.Ops.LakeGc)
   job "preset v2-proved check" sh -c "printf 'import Fw.Preset.Gen\\n#eval Fw.Preset.Gen.run [\"--check\"]\\n' | lake env lean --stdin"  # regenerates the v2-proved preset files from the findings ledger and the parts; any byte difference fails (Fw.Preset.Gen.run)
+  job "dormant golden check" lake env lean --run scripts/MorphDormantGolden.lean --check ../packages/contracts/golden/parts/morph.mount.dormant.jsonl
   job "salvage golden check" lake env lean --run scripts/SalvageGolden.lean --check  # golden/ops/salvage.jsonl (Fw.Ops.Salvage)
   job "obs golden check" lake env lean --run scripts/ObsGolden.lean --check  # golden/obs/health.jsonl and backoff.jsonl (Fw.Obs)
   job "timing golden check" lake env lean --run scripts/TimingGolden.lean --check  # golden/obs/timing.jsonl (Fw.Obs.Timing)
@@ -77,6 +80,7 @@ run_group() {
   job "land-tier golden check" lake env lean --run scripts/LandTierGolden.lean --check  # golden/console/land-tier.jsonl + lean/land-filter.txt (Fw.Console.LandTier)
   job "land-remote golden check" lake env lean --run scripts/LandRemoteGolden.lean --check  # golden/console/land-remote.jsonl (Fw.Console.LandRemote)
   job "reconcile-sched golden check" lake env lean --run scripts/ReconcileSchedGolden.lean --check  # golden/console/reconcile-sched.jsonl
+  job "provider golden check" lake env lean --run scripts/ProviderGolden.lean --check  # golden/ci/provider.jsonl (Fw.Ci.Provider)
   job "faithful golden check" lake env lean --run scripts/FaithfulGolden.lean --check  # golden/faithful/faithful.{verdict,comparable}.jsonl (Fw.Faithful)
   # props lint (one registry in Fw.Spec.Incidents, rows match the ledger, properties do not name the impl), run once over
   # every lean_lib plus the test cases scripts/props-lint-cases/Adv.lean: the findings must be exactly Adv.expected.txt
@@ -87,6 +91,17 @@ run_group() {
       if sed -n "s/^props-lint: \([a-z-]*\) \([^:]*\):.*/\1 \2/p" "$1/out" | LC_ALL=C sort | diff scripts/props-lint-cases/Adv.expected.txt -
       then echo "props-lint: the findings are exactly scripts/props-lint-cases/Adv.expected.txt (the project itself has none)"
       else echo "props-lint: findings differ from scripts/props-lint-cases/Adv.expected.txt (< expected, > found); output:"; cat "$1/out"; exit 1; fi; }' _ "$tmp/plc"
+  # init-cost lint (Fw.Lint.InitCost): no constant fwcore evaluates at start allocates more than the bound; the cases
+  # scripts/init-cost-cases/Adv.lean and NoC.lean (built with no C file) must yield exactly Adv.expected.txt
+  job "init cost lint" lake env lean scripts/InitCostLint.lean
+  job "init cost lint cases" sh -c 'mkdir -p "$1" && cp scripts/init-cost-cases/Adv.lean scripts/init-cost-cases/NoC.lean "$1/" &&
+    lake env lean -R "$1" -o "$1/NoC.olean" "$1/NoC.lean" &&
+    lake env lean -R "$1" -o "$1/Adv.olean" -c "$1/Adv.c" "$1/Adv.lean" &&
+    { printf "import Fw.Lint.InitCostScan\nimport Adv\nimport NoC\nset_option maxHeartbeats 0 in\nrun_cmd Fw.Lint.InitCostScan.scan [\`Adv, \`NoC] [\".\"]\n" > "$1/AdvLint.lean"
+      lake env sh -c "cd \"\$1\" && LEAN_PATH=\"\$1:\$LEAN_PATH\" lean AdvLint.lean" _ "$1" > "$1/out" 2>&1
+      if sed -n "s/^init-cost: \([a-z]*\) \([^:]*\):.*/\1 \2/p" "$1/out" | LC_ALL=C sort | diff scripts/init-cost-cases/Adv.expected.txt -
+      then echo "init-cost: the findings are exactly scripts/init-cost-cases/Adv.expected.txt"
+      else echo "init-cost: findings differ from scripts/init-cost-cases/Adv.expected.txt (< expected, > found); output:"; cat "$1/out"; exit 1; fi; }' _ "$tmp/icc"
   i=0
   for p in $pids; do
     wait "$p" || echo "$i" >> "$tmp/failed"

@@ -57,7 +57,7 @@ def scenario : List (String × String) := [
   ("admit event on a quiescent state: nothing changes", "{\"type\":\"admit\"}")]
 
 /-- The scenario as cases: each request carries the previous reply's state. -/
-def scenarioCases : List (String × Json) :=
+def scenarioCases (_ : Unit := ()) : List (String × Json) :=
   (scenario.foldl (fun (acc : List (String × Json) × Json) (name, ev) =>
     let req := Json.mkObj [("budget", lit budget), ("state", acc.2), ("event", lit ev)]
     let st := ((respond "ops.admit" req).getObjVal? "state").toOption.getD (Json.mkObj [])
@@ -72,7 +72,7 @@ def agedState : String :=
   "{\"run\":[{\"id\":\"r\",\"demand\":{\"cores\":3}}],\"queue\":[{\"id\":\"o\",\"writes\":[\"apps/site\"],\"demand\":{\"cores\":2},\"seq\":1},{\"id\":\"x\",\"writes\":[\"docs\"],\"demand\":{\"cores\":1},\"seq\":2},{\"id\":\"y\",\"writes\":[\"research\"],\"seq\":3,\"base\":2}],\"t\":0,\"next\":4}"
 
 /-- The `ops.admit` cases: the scenario, then single cases. -/
-def admitCases : List (String × Json) := scenarioCases ++ [
+def admitCases (_ : Unit := ()) : List (String × Json) := scenarioCases ++ [
   ("no state field: the empty state", admitReq "{}" "{\"type\":\"admit\"}" ""),
   ("aged o over budget holds x and y back (behindAged), though both would fit",
    admitReq agedState "{\"type\":\"tick\",\"now\":10}" ""),
@@ -142,7 +142,7 @@ def gateCases : List (String × Json) := [
 
 /-- The `ops.gate` cases whose `guard` field is not the `ops.spawn` reply to the same request
 (should be none: `ops.gate` decodes the guard input as `ops.spawn` does). -/
-def gateGuardMismatches : List String :=
+def gateGuardMismatches (_ : Unit := ()) : List String :=
   gateCases.filterMap fun (name, req) =>
     match (respond "ops.gate" req).getObjVal? "guard" with
     | .ok g => if g == respond "ops.spawn" req then none else some name
@@ -235,7 +235,7 @@ def fileText (cs : List (String × String × Json)) : String :=
     (Json.mkObj [("name", .str name), ("request", withOp op req), ("response", respond op req)]).compress ++ "\n")
 
 /-- The files: (file stem, cases). -/
-def files : List (String × List (String × String × Json)) :=
+def files (_ : Unit := ()) : List (String × List (String × String × Json)) :=
   [("admit", admitCases.map fun (n, r) => (n, "ops.admit", r)), ("metrics", metricsCases),
    ("gate", gateCases.map fun (n, r) => (n, "ops.gate", r))]
 

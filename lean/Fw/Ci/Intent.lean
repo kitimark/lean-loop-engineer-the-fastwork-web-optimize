@@ -779,7 +779,7 @@ def pushLine : Json :=
     Json.arr #[.bool part, .arr (ps.map fun p => Json.arr #[.bool p.named, .bool p.run]).toArray, .bool ok]).toArray)]
 
 /-- The golden text. $$\text{one JSON object per line: the lanes, the cases, one gate line per lane, then the push line}$$ -/
-def goldenText : String :=
+def goldenText (_ : Unit := ()) : String :=
   String.join (((lanesLine :: cases.map caseLine) ++ lanes.map gateLine ++ [pushLine]).map fun j => j.compress ++ "\n")
 
 /-- Compare (or write) the golden file; returns the number of stale files.

@@ -45,6 +45,7 @@ import Fw.Parts.PlatformGolden
 import Fw.Parts.MorphTweenOpt
 import Fw.Parts.HiddenPause
 import Fw.Parts.MorphMountOpt
+import Fw.Parts.MorphMountDormant
 import Fw.Parts.HeroExitOpt
 import Fw.Parts.PainNotes
 import Fw.Parts.PainNotesGolden
@@ -95,6 +96,7 @@ import Fw.Wire.Gate
 import Fw.Wire.GateDeclared
 import Fw.Engine
 import Fw.Engine.Compose  -- compose-lean: units compose over parts, passes do not; Lego swap
+import Fw.Engine.Restyle
 import Fw.Parts.Bridge  -- indep-bridge: Independent rows to Flow-Indep, Lego swaps on isolated rows, S3 passes
 import Fw.Guidance.Basic
 import Fw.Guidance.Motion
@@ -117,6 +119,7 @@ import Fw.Ci.Trigger  -- ci-trigger-lean: which workflows a push starts
 import Fw.Ci.Intent  -- ci-own-trigger: a ci/* push starts only the lanes its head commit asks for
 import Fw.Ci.Verdict  -- ci-own-trigger: a run passes only if its guard ran and some heavy job ran and all passed
 import Fw.Ci.Cancel  -- ci-own-trigger: no concurrency group is shared on ci/**, so nothing cancels a ci/** run
+import Fw.Ci.Provider  -- circleci-pilot: pair verdict, credits, stop rule and routing rule of the CircleCI pilot
 import Fw.Ci.Telemetry  -- ci-telemetry: the CI job telemetry record and its slow verdicts (ci.telemetry)
 import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged engine verdicts
 import Fw.Spec.AxReach  -- mathview-axreach: shared-memo axiom reachability, exact on cycles

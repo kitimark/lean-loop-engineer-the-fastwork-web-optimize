@@ -198,7 +198,7 @@ def composeReq (comb : Json) (singles : List Json) : Json :=
   Json.mkObj [("classes", cclasses), ("combined", comb), ("singles", .arr singles.toArray)]
 
 /-- The cases, per op file: (file stem, [(name, request without op)]). -/
-def cases : List (String × List (String × Json)) := [
+def cases (_ : Unit := ()) : List (String × List (String × Json)) := [
   ("measure.zoneSums", [
     ("seed vector of pure.test.mjs (500 px zones, rest/tail by phase)", lit "{\"zoneHeightPx\":500,\"frames\":[{\"n\":0,\"phase\":\"rest\",\"scrollY\":0,\"counts\":{\"a\":1,\"b\":2}},{\"n\":1,\"phase\":\"swipe\",\"scrollY\":10,\"counts\":{\"a\":1,\"b\":0}},{\"n\":2,\"phase\":\"swipe\",\"scrollY\":490,\"counts\":{\"a\":2,\"b\":1}},{\"n\":3,\"phase\":\"swipe\",\"scrollY\":500,\"counts\":{\"a\":4,\"b\":1}},{\"n\":4,\"phase\":\"tail\",\"scrollY\":500,\"counts\":{\"a\":0,\"b\":7}}]}"),
     ("no frames", lit "{\"zoneHeightPx\":500,\"frames\":[]}"),
