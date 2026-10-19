@@ -7829,6 +7829,37 @@
     "research/notes/2026/10-20-morph-layers*.md",
     "docs/team/handoffs/morph-layers.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-telemetry",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "One telemetry artifact for every CI job on GitHub Actions and CircleCI: per-step spans, queue time, machine facts, CPU/memory/disk samples, cache hit and size, network bytes; a collector that normalizes both providers; Lean schema and slow verdict (Fw.Obs.Timing) raising investigate items",
+   "deps": [],
+   "writes": [
+    ".github/actions/telemetry/**",
+    ".github/workflows/**",
+    "scripts/ci-telemetry/**",
+    "scripts/span.sh",
+    "apps/runner/src/ci-telemetry*.ts",
+    "apps/runner/src/timing.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/ci-telemetry*.test.ts",
+    "lean/Fw/Obs/**",
+    "lean/Fw/Ci/**",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**",
+    "packages/contracts/golden/obs/**",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "docs/team/tools/ci-telemetry.md",
+    "research/notes/2026/10-20-ci-telemetry*.md",
+    "docs/team/handoffs/ci-telemetry.md"
+   ]
   }
  ],
  "deadline": {
