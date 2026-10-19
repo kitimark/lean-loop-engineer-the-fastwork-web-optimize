@@ -6989,7 +6989,8 @@
     "lean/Fw/Parts/FootprintRows.lean",
     "packages/contracts/golden/**",
     "docs/team/handoffs/latex-generators.md"
-   ]
+   ],
+   "evidence": "870ae3f"
   },
   {
    "devices": [
