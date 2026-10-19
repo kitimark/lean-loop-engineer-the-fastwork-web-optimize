@@ -49,6 +49,7 @@ import Fw.Parts.HeroExitOpt
 import Fw.Parts.PainNotes
 import Fw.Parts.PainNotesGolden
 import Fw.Parts.PeopleDeck
+import Fw.Parts.PeopleDeckPanels
 import Fw.Parts.PeopleCard
 import Fw.Parts.PainNotesOpt
 import Fw.Parts.MorphPanelOpt

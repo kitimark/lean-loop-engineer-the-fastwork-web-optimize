@@ -1,7 +1,7 @@
 /* Values restated from the original (assets/2.gBuqKVzi.css:2888-3350 showcase, shell, panel; 3351-3560 phone/touch layout;
    3599-3650 reduced motion; 3833-3905 vinyl; 4119-4525 post cards, rail, posts grid; 5069-5150 feed). Photos are not
    shipped: avatars, covers, post tiles and service thumbs are neutral fills at the same boxes. The page font is the host's,
-   so font-family / font are not declared. Not restated (delta): the Services, Reviews and About panels of the feed. */
+   so font-family / font are not declared. The Services, Reviews and About panels are in panels.module.css. */
 @layer parts {
   .profile {
     width: 100%;

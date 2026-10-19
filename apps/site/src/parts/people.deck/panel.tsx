@@ -2,17 +2,16 @@ import { useState } from 'react';
 import { avatarOf, bg, coverOf, postOf, thumbOf } from '../people/assets';
 import type { Profile } from '../people/data';
 import css from './deck.module.css';
+import { AboutPanel, ReviewsPanel, ServicesPanel } from './feedPanels';
+import { FEED_TAB_IDS, tabOf, type FeedTab } from './panels.logic';
+import { PANELS } from '../people/panels.data';
 
-const FEED_TABS = [
-  ['posts', 'Portfolio'],
-  ['services', 'Services'],
-  ['reviews', 'Reviews'],
-  ['about', 'About'],
-] as const;
+const FEED_LABELS: Record<FeedTab, string> = { posts: 'Portfolio', services: 'Services', reviews: 'Reviews', about: 'About' };
+const FEED_TABS = FEED_TAB_IDS.map((id) => [id, FEED_LABELS[id]] as const);
 
 /** One profile panel (nodes/2.DyWL8TcE.js 10857-11140 and the feed widgets): header, stats, cover, feed tabs and the posts tab. */
 export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
-  const [tab, setTab] = useState<(typeof FEED_TABS)[number][0]>('posts');
+  const [tab, setTab] = useState<FeedTab>('posts');
   const followers = `${p.followers} followers`;
   return (
     <div className={css.panel} role="tabpanel" aria-hidden={hidden || undefined}>
@@ -77,7 +76,7 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                 aria-selected={tab === id}
                 data-selenium={`start-selling.profile-showcase.button.feed-tab.${p.id}_${id}`}
                 className={tab === id ? css.isActive : undefined}
-                onClick={() => setTab(id)}
+                onClick={() => setTab(tabOf({ id }))}
               >
                 {label}
               </button>
@@ -127,7 +126,7 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                     <div className={css.rail}>
                       <div className={css.railHead}>
                         <h3>Services</h3>
-                        <button type="button" className={css.viewAll} data-selenium={`start-selling.profile-showcase.button.view-all-services.${p.id}`}>
+                        <button type="button" className={css.viewAll} data-selenium={`start-selling.profile-showcase.button.view-all-services.${p.id}`} onClick={() => setTab('services')}>
                           View all
                         </button>
                       </div>
@@ -167,7 +166,11 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                 </div>
               </div>
             ) : (
-              <div className={css.feedPanel} />
+              <div className={css.feedPanel}>
+                {tab === 'services' ? <ServicesPanel p={p} /> : null}
+                {tab === 'reviews' && PANELS[p.id] ? <ReviewsPanel p={p} data={PANELS[p.id]!} /> : null}
+                {tab === 'about' && PANELS[p.id] ? <AboutPanel p={p} data={PANELS[p.id]!} /> : null}
+              </div>
             )}
           </div>
         </section>
