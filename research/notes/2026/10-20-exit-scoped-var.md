@@ -98,7 +98,8 @@ The counter is `UpdateLayoutTree.elementCount` per frame. `counts.json` holds pe
 
 The exit range is defined by scrollY, not by frame index:
 - The last exit-write frame is swipe n=103 (scrollY 940) and touch n=111 (scrollY 939). From scrollY ≈ 950 on
-  (swipe n=104 at 950, touch n=112 at 949) the written value no longer changes and Δ is 0 in every run.
+  (swipe n=104 at 950, touch n=112 at 949) the written value no longer changes: Δ is 0 in every run over swipe n 104-131 and touch n 112-139; later frames
+  show other-writer noise of |Δ| ≤ 4.
 - Exit-write frames (Δ ≠ 0): 93 per run, swipe n 11-103 and touch n 14-90 and 96-111.
 - Δ is 0 in the first frame of each scroll segment (swipe n=10, touch n=13 and n=95) and in the touch frames that hold
   scrollY 774 (n 91-94). The faithful driver writes in the part's own rAF, one frame after the scroll
@@ -133,7 +134,9 @@ The Δ 56 frame. Each profile's Δ 56 frame is the first frame past the driver's
   (third_party/blink/renderer/core/css/css_properties.json5:5316-5320@f842f52).
 - In the faithful arm the frame is 142 (swipe) and 141 (touch), the same as its neighbours: the change rides in the
   pass the exit write already runs. In the scoped arm it is 86 and 85 against 51 in its neighbours, 34-35 more.
-- The timing is MEASURED and matches the source threshold. The mechanism (a one-time inherited write on the stage that
+- The timing is INFERRED: the Δ 56 frame is the threshold crossing if the write lags one frame and the track top
+  sits about 6-12 px above scrollY 0 (this fits n=10/13 with Δ 0 and the last write at n=103/111); the 932 px range
+  and the offset are not measured. The mechanism (a one-time inherited write on the stage that
   the scoped arm pays for and the faithful arm absorbs) is INFERRED. The extra 34-35 is not derived: a walk of the
   narrow tree under the `Fw.Engine.Restyle` clone rule gives 75 resolutions for an independent-inherited change, not 44.
   This frame is an accepted limit (see Limits).
