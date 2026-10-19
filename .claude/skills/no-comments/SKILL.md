@@ -1,51 +1,38 @@
 ---
 name: no-comments
-description: Use when writing or reviewing code comments in TS, JS, shell, YAML or Lean. Keep a comment only for a why the code cannot show; Lean $$ math docstrings stay mandatory with minimal prose around them.
+description: Use before review of code in TS, JS, shell, YAML or Lean. Spawns comment-sicko on the scope, judges its findings, fixes accepted ones at the root and offers to encode constraint comments as a type, Lean theorem, test or lint.
 ---
 
 # No comments
 
-Every agent that opens a file reads its comments. Keep a comment only when it changes what the reader does. Rule ids (C)
-refer to `research/notes/2026/10-18-context-slop.md`.
+Spawn `comment-sicko` and act on the findings you accept. Its keep list and Lean rules live in
+`.claude/agents/comment-sicko.md`; do not restate them. Write new code so it would delete nothing. Defer to its fresh
+view: you wrote the code it reviews.
 
-## Keep
+Adapted from cursor/plugins pstack (MIT, (c) 2026 Lauren Tan), commit d457567
 
-- A why the code cannot show: a constraint, a non-obvious choice, a trap (C1).
-- Behavior forced by code we cannot change (WebKit, Chromium, Lean core, a vendor, a protocol), cited as
-  `file:line@commit` (C2).
-- A doc comment on an exported function: what it returns, units, edge cases, in one line where possible.
-- The status (CONFIRMED, INFERRED, MEASURED) of a measured constant.
+## Scope
 
-## Cut
+The caller's files or diff. Otherwise the diff against `main`, working tree included (`git diff main`).
 
-- What the next line does, the function name restated, banners (C4).
-- History: `(task x)` tags, "previously", "used to", "no longer", incident ids. Git holds history.
-- Commented-out code; git has it (C4).
-- Phase comments in tests and scripts (`// Phase 1`); the assertion or log line names the step (C5).
-- Research in a file header. A header says in at most 3 lines what the file is for and where its spec lives; findings go
-  to a research note.
-- Comments that explain our own surprising code: rename, extract or retype instead (C3).
-- An invariant stated in prose: move it into a type, a Lean proof, a test or a lint (C7).
-- A paragraph that explains a workaround: fix the code (C6).
-- `IMPORTANT` or `do not remove` with no evidence nearby: check it, then keep it with the reason or delete it (C8).
-- A suppression (`eslint-disable`, `@ts-ignore`, `set_option linter.* false`) that hides a real finding: fix the code (C9).
+## Steps
 
-## Lean
-
-- Every `theorem` and key `def` keeps its docstring: the statement as LaTeX between `$$`, exactly as strong as the Lean
-  statement (same hypotheses, Nat/Int/Rat semantics, edge cases), then one plain English sentence. The user reviews
-  the math, so this is never slop.
-- Docstring checklist (lean-prover runs it through one `checker` before its handoff): (1) every binder quantified, none
-  free; (2) quantifier order as in Lean; (3) Nat/Int/Rat semantics (truncated subtraction ∸, division, rounding);
-  (4) every hypothesis present, ≤ vs <; (5) edge cases stated (empty list, missing key, zero, out of range); (6) list
-  counts as |[...]|, not set-builder, and first-match cases not overlapping.
-- Around the math: no proof narration, no restated Lean, no history. A helper lemma needs one sentence.
-- A `/-! -/` module doc says what the module decides and who consumes it, in at most 5 lines.
-- Inside a proof, comment only a step that is not obvious.
-
-## Shell and YAML
-
-- A `#` comment only for a flag or value whose reason is not obvious, with the doc or issue it comes from.
-- Workflow YAML: the step `name:` names the step; no narration around it.
-
-Review: spawn `slop-checker`, a reviewer that did not write the comments (C10).
+1. Spawn it with the Agent tool: `subagent_type: "comment-sicko"`, a `name`, the scope as paths or a diff range. Pass
+   no `model` (sizing: `docs/team/token-policy.md`). It edits comments, so only the lead spawns it. A role names its
+   scope in its report and the lead runs this skill before the land.
+2. Read its report and `git diff`. Reject code edits, files outside the scope, deleted keep-list comments, a `MUST
+   KILL` with a wrong reason, and flags on code we keep on purpose. A keep survives only with proof that it is about
+   code we cannot change. Check the scope for suppressions it missed. Before you accept a thin `IMPORTANT` or `do not
+   remove` kill or keep, read the named symbol and its callers (`scout` for a sweep over 8 KB). An ambiguous kill
+   stays deleted. A refuted or ambiguous keep is deleted. Revert and rerun once a rejected report with the failure
+   named. Report a second rejection open.
+3. Fix trivial accepted flags directly: delete the dead path, drop the parameter, call the real API. If a fix needs a
+   new shape, write one design note (at most 10 lines, in your report or handoff) for the accepted set first.
+4. Make the smallest root-cause fix in scope and remove every named workaround. If the root cause lies outside the
+   scope, land the in-scope part and report the rest open. Never add a guard that hides the symptom.
+5. A constraint comment (`do not remove`, `do not change`, `ask X first`) about our own code: offer the cheapest
+   in-scope encoding, a type, a Lean theorem or `#guard`, a test or a CI lint. Wait for a yes from the lead or the
+   user (a workflow prompt may give it in advance). Yes: encode it, then delete the comment. No: delete it and report
+   the constraint open.
+6. Report counts: deleted, restored, reruns, fixes, encodings offered and done, constraints left unenforced, other open
+   work.
