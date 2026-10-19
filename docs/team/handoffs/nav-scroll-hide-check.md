@@ -7,7 +7,7 @@ State: branch worktree-wf_67e3b54e-69c-1, also pushed as ci/nav-scroll-hide-chec
   apps/site/src/parts/nav/index.tsx:66-67 (reuse PROFILE_* from nav.hitTest/probe.ts). After the fix, onset/offset, class flip, CSS
   transition and end states equal the original's at 861/1280/1440/1920 px in Chromium and WebKit; 860 px hides in neither arm.
   Seven runs per engine (39251940538, 39253432942, 39253457408, 39257593393, 39257616351, 39257621940, 39264165879).
-- Differences (each with cause or "cause unknown" in the note): Chromium section layout 1 to 12 px taller in the port (edges 1 px,
+- Differences (each with cause or "cause unknown" in the note): Chromium section layout 1 to 12 px taller in the port (port stable at 4219.4 px at 1920, original varies up to 9 px between runs; edges 1 px,
   1920 one 16 px step); Chromium transform start lag 0 to 3 frames, cause = compositor start notification (pending frames = lag, 32
   of 32 edges), the port's lag is longer on 42 of 111 edge pairs, why: cause unknown; WebKit held-position race after a jump, either
   arm, 1 to 3 widths per run, cause unknown (bidirectional, 13 + 2 + 1 positions).

@@ -117,11 +117,13 @@ Per width and engine, port minus original; ranges over the 7 runs:
 
 1. Chromium section layout (cause of the 1 px edge shifts and the 1920 step). The section is taller in the port than in the original
    in Chromium: 1.0 to 2.7 px at 861, 2.5 to 5.3 at 1280, 2.9 to 4.8 at 1440, 2.3 to 11.6 at 1920 (7 runs, recorded geometry); in WebKit
-   -0.7 to 0.2 px. In run 39264165879 the port's section top is 0.4 to 1.5 px above the original's at 861 to 1920, which is the 1 px
+   -0.7 to 0.2 px. The port's height is stable across runs (4219.4 px at 1920); the original's varies by up to 9 px between runs
+   (cause unknown). In run 39264165879 the port's section top is 0.4 to 1.5 px above the original's at 861 to 1920, which is the 1 px
    edge shift at 1280 and 1440. The stuck test (`nav/logic.ts:46-49`, as the original's) needs `sectionBottom > itemBottom + 1`;
    at 1920 in Chromium the original's section bottom was 868.19 px against the item bottom 868 at u=3304 (round-0 run), so the test
    is false there and the port's 869.19 makes it true: one 16 px step differs each way, and the off edge is 12 to 15 px apart
-   (INFERRED from those two numbers, not re-read per run). Rule equal, layout different; the visual gate owns the layout. Why Chromium
+   (MEASURED in every run: at grid u 3304 the port's secBottom - stickyBottom is 1.19 px (hidden), the original's
+   0.0-0.19 px (visible); the 16 px grid quantises a 2-12 px layout delta into one step). Rule equal, layout different; the visual gate owns the layout. Why Chromium
    lays the port out taller: not examined here (cause unknown).
 2. Chromium transform start lag. The class flips on the same frame in both arms (frame 2, 16 of 16 edges in run 39264165879; flip
    frame equal in every run). The transform then starts moving 0 to 3 frames after the flip, in either arm. Mechanism (CONFIRMED,
