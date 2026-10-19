@@ -7867,7 +7867,11 @@
     "scripts/ci-paths.test.mjs",
     "docs/team/tools/ci-telemetry.md",
     "research/notes/2026/10-20-ci-telemetry*.md",
-    "docs/team/handoffs/ci-telemetry.md"
+    "docs/team/handoffs/ci-telemetry.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Wire.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/TelemetryGolden.lean"
    ]
   },
   {
@@ -7937,7 +7941,8 @@
     "results/waapi-touch-arm/**",
     "docs/team/handoffs/waapi-touch-arm.md",
     "packages/contracts/golden/parts/morph-tween-waapi.swipe-v1.jsonl"
-   ]
+   ],
+   "evidence": "3c694ef"
   },
   {
    "devices": [
@@ -7959,7 +7964,8 @@
     "results/countdown-hidden-arm/**",
     "docs/team/handoffs/countdown-hidden-arm.md",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "d8017ce"
   },
   {
    "devices": [
@@ -8036,8 +8042,11 @@
     "lean/Fw.lean",
     "packages/contracts/golden/console/**",
     "docs/team/tools/console.md",
-    "docs/team/handoffs/console-daemon.md"
-   ]
+    "docs/team/handoffs/console-daemon.md",
+    "apps/runner/src/lib.ts",
+    "scripts/wallclock-allow.json"
+   ],
+   "evidence": "ab8e636"
   },
   {
    "devices": [
@@ -8194,7 +8203,12 @@
     "lean/Fw/Wire/ShardGolden.lean",
     "lean/Fw/Parts/Golden.lean",
     "lean/scripts/ShardGolden.lean",
-    "lean/Fw/Lint/**"
+    "lean/Fw/Lint/**",
+    "lean/Fw/**",
+    "lean/scripts/**",
+    ".github/workflows/lean.yml",
+    "research/notes/2026/10-20-fwcore-startup.md",
+    "docs/team/handoffs/fwcore-lazy-tables.md"
    ]
   },
   {
@@ -9058,6 +9072,30 @@
     "research/notes/2026/10-20-commission-margin-recur.md",
     "results/commission-margin-recur/**",
     "docs/team/handoffs/commission-margin-recur.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-gc-refs",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "Lake gc by identity: an artifact is listed when no checkout references it (trace hashes, hard links) and no live lake/lean process may still write or link it; age floor only as a named Lean fallback; fw lake-gc --delete (no shell pipe); cache inventory note with measured sizes and per-cache reference rules",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/LakeGc.lean",
+    "lean/scripts/LakeGcGolden.lean",
+    "packages/contracts/golden/ops/lakegc.jsonl",
+    "apps/runner/src/lake-gc.ts",
+    "apps/runner/src/fw.ts",
+    "scripts/lake-gc.mjs",
+    "scripts/lake-gc.test.mjs",
+    "apps/runner/test/lake-gc*.test.ts",
+    "docs/team/tools/lake-gc.md",
+    "docs/team/tools/disk-cleanup.md",
+    "research/notes/2026/10-20-cache-relations.md",
+    "docs/team/handoffs/lake-gc-refs.md"
    ]
   }
  ],

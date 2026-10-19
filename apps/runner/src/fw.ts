@@ -19,7 +19,7 @@ import { backfill, ingestRuns, runIdsOf } from "./timing-ci.ts";
 
 const [group, ...rest] = process.argv.slice(2);
 // timing-spans: one span per invocation (step = group + subcommand); `watch` times each pass itself, `timings` is a view
-const SUBS = new Set(["plan", "ci", "incidents", "step", "card", "task"]);
+const SUBS = new Set(["plan", "ci", "incidents", "step", "card", "task", "console"]);
 if (group && group !== "watch" && group !== "timings") { const end = begin("fw", SUBS.has(group) && rest[0] && !rest[0].startsWith("-") ? `${group} ${rest[0]}` : group); process.once("exit", (c) => end(c)); }
 try {
   const base = NO_API_GROUPS.includes(group ?? "") ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
@@ -59,6 +59,9 @@ try {
     process.exitCode = await watchMain(rest, process.cwd());
   } else if (group === "next") {
     process.exitCode = await nextMain(rest, process.cwd()); // read-only: prints the NEXT list once
+  } else if (group === "console") {
+    const { consoleCli } = await import("./console.ts"); // console-daemon: console-api as a background process, no terminal
+    process.exitCode = await consoleCli(rest, { call: fwcoreCall(process.cwd()), env: process.env, cwd: process.cwd(), out: console.log, err: console.error, now: Date.now });
   } else if (group === "preview") {
     process.exitCode = await (await import("./preview.ts")).previewCli(rest, base); // inspect grant: a one-time loopback link (docs/team/tools/preview-grant.md)
   } else if (group === "status") {
@@ -152,7 +155,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw preview grant [<id>] | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json] [--check] | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json] [--check] | fw step post|start|answer|done|cancel ... | fw task handback|integrate|park|unpark ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));
