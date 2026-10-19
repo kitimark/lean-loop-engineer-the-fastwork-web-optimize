@@ -9360,7 +9360,9 @@
     "apps/runner/test/land-digest.test.ts",
     "lean/Fw/Console/LandQueue.lean",
     "packages/contracts/golden/console/land-queue.jsonl",
-    "lean/scripts/*Golden.lean"
+    "lean/scripts/*Golden.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land.test.ts"
    ]
   },
   {
