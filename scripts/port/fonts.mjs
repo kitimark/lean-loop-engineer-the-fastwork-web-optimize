@@ -42,9 +42,10 @@ export function check(E, O, R) {
 export const excl = exclusions.filter((e) => e.check === 'text' || e.check === 'fonts');
 
 /**
- * Page side: every text leaf with the computed first font family, weight and style of its element, the section that owns it
- * (the innermost element matching a section row, else `page`), and every FontFace of document.fonts. It first sweeps the page
- * in viewport steps (native scrolling, no animation is sought) so that lazily laid out sections draw their text, then waits
+ * Page side: every text-carrying element (its own text nodes joined, so a text split by the framework is one leaf) with its
+ * computed first font family, weight and style, the section that owns it (the innermost element matching a section row, else
+ * `page`), and every FontFace of document.fonts. It first sweeps the page in viewport steps (native scrolling, no animation is
+ * sought) so that lazily laid out sections draw their text, then waits
  * until no face is loading. arg: { rows: [{part, sel}], waitMs }
  */
 export async function fontsInPage({ rows, waitMs }) {
@@ -67,13 +68,18 @@ export async function fontsInPage({ rows, waitMs }) {
   for (const { part, sel } of rows) for (const el of document.querySelectorAll(sel)) if (!owned.has(el)) owned.set(el, part);
   const ownerOf = (el) => { for (let e = el; e; e = e.parentElement) if (owned.has(e)) return owned.get(e); return 'page'; };
   const skip = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
-  const leaves = [];
+  const texts = new Map();
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  for (let n = walker.nextNode(); n && leaves.length < 20000; n = walker.nextNode()) {
+  for (let n = walker.nextNode(); n && texts.size < 20000; n = walker.nextNode()) {
     const el = n.parentElement;
-    if (!el || skip.has(el.tagName) || n.nodeValue.trim() === '') continue;
+    if (!el || skip.has(el.tagName)) continue;
+    texts.set(el, (texts.get(el) ?? '') + n.nodeValue);
+  }
+  const leaves = [];
+  for (const [el, text] of texts) {
+    if (text.trim() === '') continue;
     const cs = getComputedStyle(el);
-    leaves.push({ sec: ownerOf(el), text: n.nodeValue, family: unq(cs.fontFamily.split(',')[0] ?? ''), weight: cs.fontWeight, style: cs.fontStyle });
+    leaves.push({ sec: ownerOf(el), text, family: unq(cs.fontFamily.split(',')[0] ?? ''), weight: cs.fontWeight, style: cs.fontStyle });
   }
   return { leaves, faces: faces() };
 }
