@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { bezier, compareSweeps, compareTransitionFrames, easingOf, eventSequence, frameIndexes, lagSummary, pathError, transitions, wheelEdges } from '../src/navscroll-analyze.mjs';
 import { gridOf, settledGrid } from '../src/navscroll.mjs';
-import { settledDiffs } from '../src/navscroll-report.mjs';
+import { edgeDeltas, settledDiffs, wheelDelta } from '../src/navscroll-report.mjs';
 
 const rec = (uw, hidden, extra = {}) => ({ uw, u: uw, y: uw + 1000, hidden, cls: hidden ? 'is-scroll-hidden' : '', vis: hidden ? 'hidden' : 'visible', top: hidden ? -88 : 16, stTop: 48, op: hidden ? 0 : 1, ...extra });
 
@@ -116,4 +116,19 @@ test('lagSummary: counts longer / shorter / equal per engine, width and edge; sk
   ];
   const [g] = lagSummary(rows);
   assert.deepEqual([g.orig, g.port, g.longer, g.shorter, g.equal], [[1, 1, 2], [2, 1, 1], 1, 1, 1]);
+});
+
+test('edgeDeltas: live-u difference per edge, port minus original; different edge counts are named', () => {
+  const orig = [rec(0, false, { u: 0 }), rec(16, true, { u: 16.5 }), rec(32, false, { u: 32.5 })];
+  const port = [rec(0, false, { u: 0 }), rec(16, true, { u: 15.5 }), rec(32, false, { u: 31.5 })];
+  assert.equal(edgeDeltas(orig, port), 'on -1.00, off -1.00');
+  assert.equal(edgeDeltas(orig, orig), 'on +0.00, off +0.00');
+  assert.equal(edgeDeltas(orig, [rec(0, false), rec(16, false)]), 'edges 2 vs 0');
+});
+
+test('wheelDelta: the largest edge difference; null when an edge is missing in an arm', () => {
+  const e = { downOn: 100, downOff: 2500, upOn: 2600, upOff: 200 };
+  assert.equal(wheelDelta({ orig: e, rewrite: { ...e, downOff: 2400 } }), 100);
+  assert.equal(wheelDelta({ orig: e, rewrite: { ...e, upOn: null } }), null);
+  assert.equal(wheelDelta({ orig: e, rewrite: null }), null);
 });

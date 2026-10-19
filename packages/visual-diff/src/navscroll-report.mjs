@@ -128,6 +128,65 @@ export function markdown(runs) {
   return { text: L.join('\n'), json };
 }
 
+/** Live u of each hidden-state edge of a sweep, in order: [{ to, u }]. */
+const edgeList = (sweep) => transitions(sweep).map((t) => ({ to: t.to, u: t.u }));
+
+/** Port minus original live u per edge of a sweep ("n/a" when the arms found different numbers of edges). */
+export function edgeDeltas(a, b) {
+  const x = edgeList(a), y = edgeList(b);
+  if (x.length !== y.length || x.some((e, i) => e.to !== y[i].to)) return `edges ${x.length} vs ${y.length}`;
+  return x.map((e, i) => `${e.to ? 'on' : 'off'} ${(y[i].u - e.u) >= 0 ? '+' : ''}${(y[i].u - e.u).toFixed(2)}`).join(', ') || 'none';
+}
+
+/** Largest |port - orig| of the four wheel edges (px), or null when an edge is missing in one arm. */
+export function wheelDelta(w) {
+  if (!w.orig || !w.rewrite) return null;
+  let m = 0;
+  for (const k of ['downOn', 'downOff', 'upOn', 'upOff']) {
+    if (w.orig[k] == null || w.rewrite[k] == null) return null;
+    m = Math.max(m, Math.abs(w.rewrite[k] - w.orig[k]));
+  }
+  return m;
+}
+
+/**
+ * One row per run, engine and width, every completed run given: the number of steps whose hidden flag differs (down/up), the
+ * live-u difference of each edge, the held positions whose end state differs, the largest wheel edge difference, whether the
+ * animation lists of the captured edges are equal between the arms, and the edges that were not captured in an arm.
+ */
+export function perRunRows(runs) {
+  const rows = [];
+  for (const r of runs) {
+    for (const c of r.cases) {
+      if (c.orig.error || c.rewrite.error || c.orig.absent || c.rewrite.absent) continue;
+      const s = summarizeCase(c);
+      const misses = [];
+      let animsDiffer = 0;
+      for (const [key, arms] of Object.entries(s.transitions)) {
+        if (!arms.orig || !arms.rewrite) { misses.push(`${key} (${arms.orig ? 'port' : 'orig'} arm not captured)`); continue; }
+        if (arms.orig.classFlipFrame < 0 || arms.rewrite.classFlipFrame < 0) { misses.push(`${key} (${arms.orig.classFlipFrame < 0 ? 'orig' : 'port'} arm never flips in the record)`); continue; }
+        if (arms.orig.anims.join('|') !== arms.rewrite.anims.join('|')) animsDiffer++;
+      }
+      rows.push({
+        run: runLabel(r.file), engine: r.header.engine, id: s.id,
+        hiddenDiff: `${s.sweep.down.diff.hidden.length}/${s.sweep.up.diff.hidden.length}`,
+        edgesDown: edgeDeltas(c.orig.sweepDown, c.rewrite.sweepDown), edgesUp: edgeDeltas(c.orig.sweepUp, c.rewrite.sweepUp),
+        held: s.settledDiffs.map((d) => `u${d.uw} orig ${d.orig} | port ${d.rewrite}`),
+        wheel: wheelDelta(s.wheel), animsDiffer, misses,
+      });
+    }
+  }
+  return rows;
+}
+
+export function perRunMarkdown(runs) {
+  const rows = perRunRows(runs);
+  const L = ['## Every run, every width (port minus original)', '',
+    '| engine | run | width | hidden steps differ (down/up) | down edges, live u | up edges, live u | wheel max edge diff px | captured edges with other animations | captured-edge misses | held end states that differ |', '|---|---|---|---|---|---|---|---|---|---|'];
+  for (const x of rows) L.push(`| ${x.engine} | ${x.run} | ${x.id} | ${x.hiddenDiff} | ${x.edgesDown} | ${x.edgesUp} | ${x.wheel ?? 'edge missing'} | ${x.animsDiffer} | ${x.misses.join('; ') || 'none'} | ${x.held.join('; ') || 'none'} |`);
+  return { text: L.join('\n'), rows };
+}
+
 /** The run id of an artifact path (the digits of the run directory), or the file name. */
 export const runLabel = (file) => /(\d{8,})/.exec(file)?.[1] ?? file;
 
@@ -155,9 +214,10 @@ export function report(dirs, outBase) {
   const runs = loadRuns(dirs);
   const { text, json } = markdown(runs);
   const pooled = pooledLag(runs);
+  const perRun = perRunMarkdown(runs);
   if (outBase) {
-    writeFileSync(`${outBase}.md`, text + '\n\n' + pooled.text + '\n');
-    writeFileSync(`${outBase}.json`, JSON.stringify({ ...json, pooledLag: pooled.groups }, null, 1) + '\n');
+    writeFileSync(`${outBase}.md`, perRun.text + '\n\n' + text + '\n\n' + pooled.text + '\n');
+    writeFileSync(`${outBase}.json`, JSON.stringify({ ...json, perRun: perRun.rows, pooledLag: pooled.groups }, null, 1) + '\n');
   }
-  return text + '\n\n' + pooled.text + '\n';
+  return perRun.text + '\n\n' + text + '\n\n' + pooled.text + '\n';
 }
