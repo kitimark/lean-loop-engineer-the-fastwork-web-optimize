@@ -1,16 +1,22 @@
-# svg-extract handoff
+# svg-extract handoff (fix round 1)
 
-State: branch worktree-wf_f0e4209d-fe6-2, one commit.
+State: branch worktree-wf_f0e4209d-fe6-2, see git log.
 
-- `apps/site/scripts/svg-extract.mjs` reads the nav wordmark (9 paths) from snapshot/site/index.html and the accent
-  base word plus the 6 visible words (3 boil frames each) from snapshot nodes/2.*.js (`LE`, `RE`) into the gitignored
-  `apps/site/src/svg.gen.json`. Runs as pretest, prebuild(:runtime/:all) and pretypecheck; `pnpm gen:svg` by hand.
-- Parts reading it: `hero.accent` (`strokePath`, replaces the stand-in wave), `nav` (wordmark replaces two rects).
-- `src/svg-extract.test.ts`: shape check, plus a fail if a tracked file under apps/ holds a snapshot path string
-  of >= 40 chars. Known offenders sit in `PENDING_CLEANUP` (hero, morph.panel, overlays.drawer/signup, platform
-  Visuals, commission); task `snapshot-paths-cleanup` moves them and empties the list.
-- Footprint golden regenerated (nav line shift only; Lean FootprintData regenerated with it).
-- Verified: apps/site test (5149 pass), typecheck. Not run: build, browser, CI.
-- Open: commission underline/zero frames and the waitlist/shield logos are also inline paths in index.html; not yet
-  in svg.gen.json. No Lean piece: pure extraction/glue, no decision logic.
-- Read first: svg-extract.mjs, hero.accent/data.ts.
+- `apps/site/scripts/svg-extract.mjs` exports `extractSvg()` (writes only when changed) and runs standalone. It reads the
+  nav wordmark, the accent words and 14 more artworks (`art` map: nav.globe, icon.bell, icon.calendar, platform.star/pin/
+  shield, brand.mark, commission.chevron/underline/zero, hero.cue, drawer.close) from snapshot/site/index.html and
+  nodes/2.*.js into the gitignored `src/svg.gen.json` (svg attrs + child shapes, class/style dropped).
+- `build.mjs` calls `extractSvg()` itself (console preview and CI call it directly); `test` and `typecheck` scripts run the
+  extraction first; the npm pre* hooks are gone.
+- `src/GenSvg.tsx`: `GenSvg`, `art(name)`, `frames(name)`; renders with the original's viewBox and attributes.
+- Parts now reading it: hero, morph.panel, hero.cue, overlays.drawer/signup, platform Visuals, commission, nav.langMenu,
+  nav, hero.accent. No snapshot path string remains in a tracked file.
+- Guard (`src/svg-extract.test.ts`): fails if any tracked file under apps/ or packages/ holds a 24-char run of any snapshot
+  `d` string (html and script templates); no allowlist. Checked against the old Visuals pin path: it is caught.
+- Reads declared in apps/runner/src/land.ts (apps/site: snapshot/site/index.html, snapshot/site/_app/**). The script builds
+  its snapshot paths as files so land-inputs sees them as files.
+- Footprint golden and lean FootprintData regenerated (--write), not hand-edited.
+- Verified: apps/site test + typecheck, build.mjs --engine aot (15 pages, gates pass), ci-paths, land-inputs, runner test.
+- Not run: browser, CI, pixel equality (the gate/visual run decides). Stand-ins left: langMenu check circle, short icon
+  paths under 24 chars (close, search, check, mute) are not in the guard's reach.
+- No Lean piece: extraction and rendering are glue; no decision logic. TS stand-in: none.

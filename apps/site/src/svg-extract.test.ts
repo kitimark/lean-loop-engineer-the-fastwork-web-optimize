@@ -1,54 +1,71 @@
-// svg.gen.json is built from the snapshot and never committed; no tracked file under apps/ may hold a snapshot path string.
+// svg.gen.json is built from the snapshot and never committed; no tracked file under apps/ or packages/ may hold any
+// 24-character run of a snapshot SVG path. No file is exempt, this test included.
 import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import gen from './svg.gen.json';
 
 const repo = fileURLToPath(new URL('../../../', import.meta.url));
-const gen = JSON.parse(readFileSync(new URL('./svg.gen.json', import.meta.url), 'utf8')) as {
-  wordmark: { paths: string[] };
-  accent: { base: string[]; words: { paths: string[] }[] };
-};
+const RUN = 24;
 
-// Inline paths already on main, moved to svg.gen.json by task snapshot-paths-cleanup; the list only shrinks.
-const PENDING_CLEANUP = new Set([
-  'apps/site/src/parts/hero/index.tsx',
-  'apps/site/src/parts/morph.panel/index.tsx',
-  'apps/site/src/parts/overlays.drawer/index.tsx',
-  'apps/site/src/parts/overlays.signup/index.tsx',
-  'apps/site/src/parts/platform/Visuals.tsx',
-  'apps/site/src/parts/commission/data.ts',
-  'apps/site/src/parts/commission/index.tsx',
-]);
+function walk(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}${e.name}/`) : [`${dir}${e.name}`]));
+}
+
+/** Every SVG path string the snapshot carries: `d="..."` attributes in the page and its scripts, and path template strings in scripts. */
+function snapshotPaths(): Set<string> {
+  const out = new Set<string>();
+  const site = `${repo}snapshot/site/`;
+  const files = [`${site}index.html`, ...walk(`${site}_app/`).filter((f) => f.endsWith('.js'))];
+  for (const f of files) {
+    const text = readFileSync(f, 'utf8');
+    for (const m of text.matchAll(/\sd="([^"]{24,})"/g)) out.add(m[1]!);
+    for (const m of text.matchAll(/`([Mm][-\d\s.,A-Za-z]{23,})`/g)) out.add(m[1]!);
+    for (const m of text.matchAll(/"([Mm][-\d.,]+[-\d\s.,A-Za-z]{22,})"/g)) out.add(m[1]!);
+  }
+  return out;
+}
 
 describe('svg-extract', () => {
-  it('extracts the wordmark and every visible accent word with three boil frames', () => {
+  it('extracts the wordmark, every visible accent word and each moved artwork', () => {
     expect(gen.wordmark.paths.length).toBeGreaterThan(0);
     expect(gen.accent.base).toHaveLength(3);
     expect(gen.accent.words).toHaveLength(6);
     for (const w of gen.accent.words) expect(w.paths).toHaveLength(3);
+    expect(gen.art['icon.calendar'].kids).toHaveLength(10);
+    expect(gen.art['icon.bell'].kids).toHaveLength(2);
+    expect(gen.art['commission.underline']).toHaveLength(3);
+    expect(gen.art['commission.zero']).toHaveLength(3);
+    for (const k of ['nav.globe', 'platform.star', 'platform.pin', 'platform.shield', 'brand.mark'] as const) {
+      expect(gen.art[k].kids.length).toBeGreaterThan(0);
+    }
+    expect(gen.art['brand.mark'].svg.viewBox).toBe('0 0 74 66');
   });
 
-  it('no tracked file under apps/ holds a snapshot path string of >= 40 chars', () => {
-    const html = readFileSync(`${repo}snapshot/site/index.html`, 'utf8');
-    const nodes = `${repo}snapshot/site/_app/immutable/nodes/`;
-    const js = readFileSync(nodes + readdirSync(nodes).find((f) => /^2\..*\.js$/.test(f))!, 'utf8');
-    const strings = new Set<string>();
-    for (const m of html.matchAll(/ d="([^"]{40,})"/g)) strings.add(m[1]!);
-    for (const m of js.matchAll(/`(M[^`]{39,})`/g)) strings.add(m[1]!);
-    expect(strings.size).toBeGreaterThan(0);
-    const tracked = execFileSync('git', ['ls-files', '--', 'apps'], { cwd: repo, encoding: 'utf8' }).split('\n').filter(Boolean);
-    const bad = new Set<string>();
+  it(`no tracked file under apps/ or packages/ holds ${RUN} characters of a snapshot path`, () => {
+    const paths = snapshotPaths();
+    expect(paths.size).toBeGreaterThan(40);
+    const runs = new Set<string>();
+    for (const p of paths) for (let i = 0; i + RUN <= p.length; i++) runs.add(p.slice(i, i + RUN));
+    const tracked = execFileSync('git', ['ls-files', '-z', '--', 'apps', 'packages'], { cwd: repo, encoding: 'utf8', maxBuffer: 1 << 28 })
+      .split('\0')
+      .filter(Boolean);
+    const bad: string[] = [];
     for (const f of tracked) {
-      if (f === 'apps/site/src/svg-extract.test.ts' || PENDING_CLEANUP.has(f)) continue;
       let text: string;
       try {
         text = readFileSync(`${repo}${f}`, 'utf8');
       } catch {
         continue;
       }
-      for (const s of strings) if (text.includes(s)) bad.add(f);
+      for (let i = 0; i + RUN <= text.length; i++) {
+        if (runs.has(text.slice(i, i + RUN))) {
+          bad.push(f);
+          break;
+        }
+      }
     }
-    expect([...bad]).toEqual([]);
+    expect(bad).toEqual([]);
   });
 });

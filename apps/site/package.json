@@ -14,13 +14,8 @@
     "check:shell-boxes": "node scripts/shell-measure.mjs check",
     "census": "node scripts/census.mjs",
     "gen:svg": "node scripts/svg-extract.mjs",
-    "pretest": "node scripts/svg-extract.mjs",
-    "prebuild": "node scripts/svg-extract.mjs",
-    "prebuild:runtime": "node scripts/svg-extract.mjs",
-    "prebuild:all": "node scripts/svg-extract.mjs",
-    "pretypecheck": "node scripts/svg-extract.mjs",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "test": "node scripts/svg-extract.mjs && vitest run",
+    "typecheck": "node scripts/svg-extract.mjs && tsc --noEmit"
   },
   "dependencies": {
     "@emotion/cache": "11.14.0",

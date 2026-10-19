@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
+import { GenSvg, art, frames } from '../../GenSvg';
 import { getClock } from '../../engine/clock';
 import { getScrollEngine } from '../../engine/scroll';
 import { CommissionTyping } from '../commission.typing';
 import { openDrawer } from '../overlays.drawer';
-import { ARROW, ARROW_COMPACT, FACES, TEXT, UNDERLINE_PATHS, ZERO_PATHS } from './data';
+import { ARROW, ARROW_COMPACT, FACES, TEXT } from './data';
 import { mountCommission } from './driver';
 import { matchList } from './media';
 import css from './commission.module.css';
@@ -105,10 +106,8 @@ export function Commission({ variant, typingVariant = 'faithful' }: CommissionPr
                   <span className={css.titleAccent}>
                     {TEXT.titleAccent}{' '}
                     <span ref={underline} className={css.underline} aria-hidden="true">
-                      {UNDERLINE_PATHS.map((d, i) => (
-                        <svg key={i} className={`${css.underlineFrame} ${css[`frame${i}`]}`} viewBox="0 0 199.201 19.8599" preserveAspectRatio="none">
-                          <path pathLength={1} d={d} />
-                        </svg>
+                      {frames('commission.underline').map((a, i) => (
+                        <GenSvg key={i} art={a} className={`${css.underlineFrame} ${css[`frame${i}`]}`} />
                       ))}
                     </span>
                   </span>
@@ -128,12 +127,8 @@ export function Commission({ variant, typingVariant = 'faithful' }: CommissionPr
                       </div>
                       <img ref={arrow} className={css.clientArrow} loading="lazy" decoding="async" src={ARROW} alt="" />
                       <span className={css.zeroMark} aria-hidden="true">
-                        {ZERO_PATHS.map((paths, i) => (
-                          <svg key={i} className={`${css.zeroFrame} ${css[`frame${i}`]}`} viewBox="0 0 107.498 98.0007" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            {paths.map((d, j) => (
-                              <path key={j} d={d} stroke="#2B313B" strokeWidth={j === 0 ? 8 : 4.8} strokeLinecap={j === 0 ? undefined : 'round'} />
-                            ))}
-                          </svg>
+                        {frames('commission.zero').map((a, i) => (
+                          <GenSvg key={i} art={a} className={`${css.zeroFrame} ${css[`frame${i}`]}`} />
                         ))}
                       </span>
                     </div>
@@ -145,9 +140,7 @@ export function Commission({ variant, typingVariant = 'faithful' }: CommissionPr
                     <p>{TEXT.directBody}</p>
                     <button type="button" className={css.whyLink} onClick={openDrawer} data-selenium="start-selling.commission.button.why">
                       {TEXT.why}{' '}
-                      <svg className={css.whyChevron} viewBox="0 0 16 16" aria-hidden="true">
-                        <path d="M6 3.33333L10 8L6 12.6667" />
-                      </svg>
+                      <GenSvg art={art('commission.chevron')} className={css.whyChevron} />
                     </button>
                   </div>
                 </div>

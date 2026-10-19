@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { GenSvg, art } from '../../GenSvg';
 import { getClock } from '../../engine/clock';
 import { createMenuController, type MenuController } from './controller';
 import { flags, type Phase } from './logic';
@@ -83,11 +84,7 @@ export function LangMenu({ locale = 'en', onSelect, onOpenChange }: LangMenuProp
         onClick={() => ctl.current?.dispatch('toggle')}
       >
         <span className={css.icon} aria-hidden="true">
-          <svg viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="8.5" />
-            <path d="M3.5 12h17" />
-            <ellipse cx="12" cy="12" rx="3.6" ry="8.5" />
-          </svg>
+          <GenSvg art={art('nav.globe')} />
         </span>
         <span className={css.code}>{locale.toUpperCase()}</span>
         <svg className={css.chevron} viewBox="0 0 16 16" aria-hidden="true">
