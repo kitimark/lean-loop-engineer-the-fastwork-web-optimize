@@ -436,7 +436,7 @@ def ckCase (name : String) (fs : List FailedCheck) : Json :=
 
 /-- Every golden case: 13 kinds, one kind without a task, 15 dry-verdict cases, 13 hand-back cases, 129 dry-run cases (all 128 stage
 outcomes and one without a task), 7 lint-plan cases, 9 real-kind cases. -/
-def cases : List Json :=
+def cases (_ : Unit := ()) : List Json :=
   Kind.all.map (kindCase · "land-dry") ++
   [kindCase .dry "",
    dryCase "all pass" true true true true true,
@@ -468,7 +468,7 @@ def cases : List Json :=
 #guard cases.length == 187
 
 /-- The golden file text: one compressed JSON line per case. -/
-def goldenText : String := String.join (cases.map fun c => c.compress ++ "\n")
+def goldenText (_ : Unit := ()) : String := String.join (cases.map fun c => c.compress ++ "\n")
 
 /-- The golden file, relative to `lean/`. -/
 def goldenPath : System.FilePath := "../packages/contracts/golden/console/land-dry.jsonl"

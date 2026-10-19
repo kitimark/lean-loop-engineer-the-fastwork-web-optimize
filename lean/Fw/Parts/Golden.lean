@@ -212,7 +212,7 @@ def springJ (wire : Bool) (s : Spring) : Json :=
 def t0Ms : Int := 1790787600000
 
 /-- hero.countdown lines (TS functions). The conformance vectors for the TS countdown. -/
-def countdownLines : List String :=
+def countdownLines (_ : Unit := ()) : List String :=
   let rs : List (Int × Int) :=
     [(0, 1), (0, 999), (0, 1000), (0, 1001), (5000, 1000), (1000, 1000), (1001, 1000), (999, 1000),
      (0, 86400000), (0, 86400001), (0, 86399999), (t0Ms, targetMs), (targetMs - 1, targetMs),
@@ -267,7 +267,7 @@ section Exit
 open Fw.Parts.HeroExit
 
 /-- hero.exit lines (TS functions). The conformance vectors for the TS hero exit. -/
-def exitLines : List String :=
+def exitLines (_ : Unit := ()) : List String :=
   let geoms : List (Rat × Rat × Rat) :=
     -- (trackTop, trackHeight, viewportHeight): desktop vh 800 (n = 800), 700-range, degenerate, phone vh 844
     ([100, 0, -0.5, -1, -400, -560, -576, -760, -761, -799, -800, -801, -5000].map fun t => (t, 1600, 800)) ++
@@ -337,7 +337,7 @@ def stIn (s : St) : Json :=
 
 /-- morph.tween lines (TS functions): the conformance vectors for the TS tween. Comprehensions run their generators
 left to right, outer to inner; `line`, `rin`, `ratWire` as in `PlatformGolden`. -/
-def tweenLines : List String :=
+def tweenLines (_ : Unit := ()) : List String :=
   let xs : List Rat := [-1, 0, 0.1, 0.25, 0.5, 0.75, 0.9, 1, 1.5]
   let els : List Rat := [-16, 0, 16.667, 100, 340, 500, 679, 679.9, 680, 680.1, 1000]
   let ends : List (Rat × Rat) := [(0, 1), (1, 0), (0.3, 1), (0.8, 0), (0.5, 0.5)]

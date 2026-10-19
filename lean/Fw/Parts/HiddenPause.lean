@@ -506,7 +506,7 @@ WebKit Simulator types (no lane yet, so `unusable` until one exists): script, st
 `relPred wkPairs`.
 
 The predictions CI checks for the hidden-pause variant, eight rows. -/
-def goldenRows : List Lean.Json :=
+def goldenRows (_ : Unit := ()) : List Lean.Json :=
   ([(Stage.script, "script", "trace.FireAnimationFrame"), (.style, "style", "trace.UpdateLayoutTree"),
       (.layout, "layout", "trace.Layout"), (.commit, "commit", "trace.cc.Commit")].map fun (s, n, c) =>
       row "chromium" n c (relPred crPairs s)) ++
@@ -517,7 +517,7 @@ def goldenRows : List Lean.Json :=
 /-- The contents of `packages/contracts/golden/engine/hidden-pause.jsonl`: one compact JSON row per line.
 
 The file text the exporter writes. -/
-def goldenJsonl : String := String.join (goldenRows.map fun r => r.compress ++ "\n")
+def goldenJsonl (_ : Unit := ()) : String := String.join (goldenRows.map fun r => r.compress ++ "\n")
 
 #guard relPred crPairs .script == "=o" && relPred crPairs .style == "≤o" && relPred crPairs .layout == "=o"
 #guard relPred wkPairs .script == "=o" && relPred wkPairs .style == "≤o" && relPred wkPairs .layout == "≤o"

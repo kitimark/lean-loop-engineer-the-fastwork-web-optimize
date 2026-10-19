@@ -49,7 +49,7 @@ def wait' (cmd : String) (caps : String) : Json :=
 def wait (cmd : String) : Json := Json.mkObj [("cmd", .str cmd)]
 
 /-- The cases, per op file: (file stem, [(name, request without op)]). -/
-def cases : List (String × List (String × Json)) := [
+def cases (_ : Unit := ()) : List (String × List (String × Json)) := [
   ("ops.spawn", [
     ("named worktree subagent with isolation: allow", spawn "[]" "" "{\"name\":\"lean-ops\",\"role\":\"lean-prover\",\"isolation\":\"worktree\",\"spawner\":\"lead\",\"depth\":0}"),
     ("worktree role without isolation becomes a teammate: deny (I-272 trap)", spawn "[]" "" "{\"name\":\"lean-ops\",\"role\":\"lean-prover\",\"spawner\":\"lead\",\"depth\":0}"),
@@ -384,7 +384,7 @@ def lintCases : List (String × Json) := [
     Json.mkObj [("files", .arr #[Json.mkObj [("path", .str "CLAUDE.md"), ("bytes", toJson 1)]])])]
 
 /-- Golden files outside `ops/`: (directory under `packages/contracts/golden`, op, cases). -/
-def extra : List (String × String × List (String × Json)) := [
+def extra (_ : Unit := ()) : List (String × String × List (String × Json)) := [
   ("lint", "lint.context", lintCases),
   ("plan", "plan.trailers", [
     ("oldest trailer marks done; later ones are duplicates; done and unknown ids are reported", lit "{\"commits\":[{\"sha\":\"s3\",\"body\":\"merge x\\n\\nTask: a\\nTask: c\"},{\"sha\":\"s2\",\"body\":\"Task: b\"},{\"sha\":\"s1\",\"body\":\"subject\\n\\nTask: a\"}],\"tasks\":[{\"id\":\"a\",\"state\":\"claimed\"},{\"id\":\"b\",\"state\":\"done\"}]}"),
@@ -644,6 +644,28 @@ def extra : List (String × String × List (String × Json)) := [
     ("no passphrase in the keychain", lit "{\"want\":true,\"hasAddr\":true,\"hasPass\":false,\"passLen\":0}"),
     ("eleven characters is too short", lit "{\"want\":true,\"hasAddr\":true,\"hasPass\":true,\"passLen\":11}"),
     ("twelve characters starts", lit "{\"want\":true,\"hasAddr\":true,\"hasPass\":true,\"passLen\":12}")]),
+  ("console", "console.daemon", [
+    ("start with nothing recorded is allowed", lit "{\"kind\":\"start\"}"),
+    ("start with a recorded pid that does not answer is allowed (stale file)", lit "{\"kind\":\"start\",\"recorded\":4242}"),
+    ("start while the recorded pid answers is refused", lit "{\"kind\":\"start\",\"recorded\":4242,\"answered\":4242}"),
+    ("start when another pid answers on the recorded port is allowed", lit "{\"kind\":\"start\",\"recorded\":4242,\"answered\":9999}"),
+    ("pid 1 is never a console", lit "{\"kind\":\"start\",\"recorded\":1,\"answered\":1}"),
+    ("start is refused when the recorded pid is alive but did not answer", lit "{\"kind\":\"start\",\"recorded\":4242,\"alive\":true}"),
+    ("a recorded pid that is not alive does not block start", lit "{\"kind\":\"start\",\"recorded\":4242,\"alive\":false}"),
+    ("pid 1 alive and silent blocks nothing", lit "{\"kind\":\"start\",\"recorded\":1,\"alive\":true}"),
+    ("a different pid answered while the recorded one is alive: allowed", lit "{\"kind\":\"start\",\"recorded\":4242,\"answered\":9999,\"alive\":true}"),
+    ("stop signals the verified pid", lit "{\"kind\":\"stop\",\"recorded\":4242,\"answered\":4242}"),
+    ("stop signals nothing when nothing answers", lit "{\"kind\":\"stop\",\"recorded\":4242,\"answered\":null}"),
+    ("stop signals nothing on a pid mismatch", lit "{\"kind\":\"stop\",\"recorded\":4242,\"answered\":9999}"),
+    ("stop signals nothing when nothing is recorded", lit "{\"kind\":\"stop\",\"answered\":4242}"),
+    ("restart of a verified console stops then starts", lit "{\"kind\":\"restart\",\"recorded\":4242,\"answered\":4242}"),
+    ("restart with no verified console only starts", lit "{\"kind\":\"restart\",\"recorded\":4242}"),
+    ("a log below the default limit is kept", lit "{\"kind\":\"rotate\",\"size\":5242879}"),
+    ("a log at the default limit is rotated", lit "{\"kind\":\"rotate\",\"size\":5242880}"),
+    ("a log of exactly 50 MiB draws no warning", lit "{\"kind\":\"rotate\",\"size\":52428800}"),
+    ("a log above 50 MiB draws the warning", lit "{\"kind\":\"rotate\",\"size\":52428801}"),
+    ("a custom limit", lit "{\"kind\":\"rotate\",\"size\":100,\"limit\":100}"),
+    ("an unknown kind is refused", lit "{\"kind\":\"x\"}")]),
   ("console", "console.previewSweep", [
     ("nothing live", lit "{\"now\":10,\"live\":[]}"),
     ("a fresh and a busy preview stay", lit "{\"now\":1000000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0,\"seen\":500000},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":900000}]}"),
@@ -673,7 +695,7 @@ open Fw.Ops.LeanFirst in
 /-- The `ops.leanFirst` cases, all judged at the deployed constant `stage` (a request cannot choose it): the base
 facts (all rules met), each single fault of the grid, the binding, decision-path and read-at-main cases, a request
 `stage` field (ignored), and the decoder edge cases. -/
-def leanFirstCases : List (String × Json) :=
+def leanFirstCases (_ : Unit := ()) : List (String × Json) :=
   let at_ := s!"at the deployed stage {stage.name}"
   [(s!"all rules met {at_}", leanFirstReq base)] ++
   Fault.all.map (fun f => (s!"fault {faultName f} {at_}", leanFirstReq (factsOf [f]))) ++
@@ -703,7 +725,7 @@ def leanFirstCases : List (String × Json) :=
    ("registry row without a status is refused", lit "{\"registry\":[{\"id\":\"p\"}]}")]
 
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
-def named : List (String × String × String × List (String × Json)) := [
+def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [
   ("ops", "lean-first", "ops.leanFirst", leanFirstCases)]
 
 /-- The request with its `op` field set. -/

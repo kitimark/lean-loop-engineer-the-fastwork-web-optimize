@@ -81,6 +81,10 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: engine-${{ matrix.engine }}
       # gate-breakpoints is installed too: the gate-engine action runs `pnpm exec playwright-core install` from its directory
       # (same playwright-core 1.64.1 as packages/premise-tests).
       - uses: ./.github/actions/setup-pnpm
@@ -100,6 +104,11 @@ jobs:
           path: packages/premise-tests/out/*.json
           if-no-files-found: error
           retention-days: 14
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: engine-${{ matrix.engine }}
 
   verdict:
     if: ${{ (github.event_name != 'push' || github.ref != 'refs/heads/main') }}

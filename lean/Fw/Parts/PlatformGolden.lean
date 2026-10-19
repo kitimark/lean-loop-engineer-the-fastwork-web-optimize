@@ -46,7 +46,7 @@ def rgbWire (c : Rat × Rat × Rat) : Json := Json.arr #[ratWire c.1, ratWire c.
 open Fw.Parts.PlatformSection in
 /-- Lines of `platform.jsonl`: per viewport height and bottom the four position lines, then scale, then the stage
 size per width, then one `const` line. Comprehensions run their generators left to right, outer to inner. -/
-def platformLines : List String :=
+def platformLines (_ : Unit := ()) : List String :=
   let vhs : List Rat := [600, 800, 900]
   let bottoms : List Rat := [-100, 0, 280, 300, 350, 400, 500, 600, 680, 700, 765, 770, 800, 900, 1200]
   (vhs.flatMap fun vh => bottoms.flatMap fun b =>
@@ -125,7 +125,7 @@ def evIn : Ev → Json
 open Fw.Parts.PlatformGlint in
 /-- Lines of `platform.glint.jsonl`: dash samples, the step function over states, times and events, the view, one
 `const` line. Comprehensions run their generators left to right, outer to inner. -/
-def glintLines : List String :=
+def glintLines (_ : Unit := ()) : List String :=
   ([Side.left, Side.right].flatMap fun s =>
     ([0, 1, 250, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 4999, 5000, 5001, 7500, 12345] : List Rat).map fun e =>
       let z := sample s e
@@ -161,7 +161,7 @@ open Fw.Parts.PlatformEntries in
 /-- Lines of `platform.entries.jsonl`: the spring ease, every table entry's progress, the count-up, the search view,
 one `const` line. Comprehensions run their generators left to right, outer to inner; `ease` is on the
 spring curve. -/
-def entriesLines : List String :=
+def entriesLines (_ : Unit := ()) : List String :=
   (([-1, 0, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 1, 1.5] : List Rat).map fun x =>
     line "ease" [("x", rin x)] (ratWire (ease spring x))) ++
   (entryTable.flatMap fun (n, e) =>
@@ -219,7 +219,7 @@ def syncLines : List String :=
 order.
 
 Seven files, each written whole. -/
-def files : List (String × List String) :=
+def files (_ : Unit := ()) : List (String × List String) :=
   [("platform.jsonl", platformLines), ("platform.sweep.jsonl", sweepLines), ("platform.glint.jsonl", glintLines),
    ("platform.marquee.jsonl", marqueeLines), ("platform.entries.jsonl", entriesLines),
    ("platform.scene.jsonl", sceneLines), ("engine.scene.jsonl", syncLines)]
