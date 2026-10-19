@@ -230,7 +230,8 @@ theorem viewportGate_stage_refuses (q : String) (p c : Size) (h : onlySearch q =
 
 /-- Planned search of a part page parses to the profile environment, checked by evaluation (the string round trip is not
 a theorem): for every part id and group target and every viewport of the list, `Stage.parse` of the planned search
-is a stage at `E(p)`. -/
+is a stage at `E(p)`.
+$$\forall t \in T,\ \forall p \in V:\ \operatorname{parse}(\operatorname{plan}(\texttt{?only=}t, p)) \text{ has env } E(p)$$ -/
 def roundTrips (vps : List Size) : Bool :=
   let targets := (parts.map (·.id)) ++ ["g1", "g2", "g3", "g4", "g5"]
   targets.all fun t => vps.all fun p =>
@@ -240,7 +241,7 @@ def roundTrips (vps : List Size) : Bool :=
     | .err e, some q' => (match parse q' with | .err e' => e == e' | _ => false)
     | _, _ => false
 
-/-- Viewports of the profiles in `packages/measure-chromium/profiles` plus a second phone size. -/
+/-- Viewports of the profiles in `packages/measure-chromium/profiles` plus two more phone sizes. $$V = \{(430,932), (390,844), (360,640)\}$$ -/
 def viewports : List Size := [⟨430, 932⟩, ⟨390, 844⟩, ⟨360, 640⟩]
 
 #guard roundTrips viewports
@@ -251,21 +252,22 @@ def viewports : List Size := [⟨430, 932⟩, ⟨390, 844⟩, ⟨360, 640⟩]
 #guard planSearch "" ⟨430, 932⟩ == some ""
 #guard onlySearch "?only=hero" && !onlySearch "?fw=only" && !onlySearch "?stage=y:1"
 
-/-- Profile viewport used by the golden. -/
+/-- Profile viewport used by the golden. $$p_0 = (430, 932)$$ -/
 def goldenProfile : Size := ⟨430, 932⟩
 
-/-- Queries of the plan vectors. -/
+/-- Queries of the plan vectors. $$Q_{\mathrm{plan}} = [q_1, \dots, q_{21}]$$ -/
 def planQueries : List String :=
   ["", "?", "?fw=original", "?preset=v2-proved", "?preset=v2-proved&fw=hero.countdown:strip", "?stage=y:100", "?only=hero",
    "?only=hero.exit", "?only=g1", "?only=g2", "?only=g4", "?only=morph.tween", "?only=nope", "?only", "?only=",
    "?preset=v2-proved&only=hero", "?fw=hero.countdown:strip&only=nav", "?only=hero&stage=y:5", "?only=hero&stage=vw:430,vh:932",
    "?stage=vw:1,vh:1&only=hero", "?only=hero&only=nav"]
 
-/-- JSON of an optional search. -/
+/-- JSON of an optional search. $$\operatorname{json}(\bot) = \texttt{null},\ \operatorname{json}(s) = \text{string literal of } s$$ -/
 def optStr : Option String → String | some s => jstr s | none => "null"
 
 /-- JSON of what `Stage.parse` makes of a planned search: `null` when not a stage page, else the refusal code or the
-environment. -/
+environment.
+$$\operatorname{parseJson}(q) \in \{\texttt{none}, \texttt{err}, \texttt{ok}\}\ \text{by}\ \operatorname{parse}(q)$$ -/
 def parseJson (q : String) : String :=
   match parse q with
   | .none => "{\"kind\":\"none\"}"
@@ -279,13 +281,13 @@ def planRows : List String :=
     "{\"kind\":\"plan\",\"query\":" ++ jstr q ++ ",\"profile\":[" ++ toString p.w ++ "," ++ toString p.h ++ "],\"only\":" ++
       toString (onlySearch q) ++ ",\"search\":" ++ optStr r ++ ",\"parsed\":" ++ (match r with | some s => parseJson s | none => "null") ++ "}"
 
-/-- Queries of the accept and read vectors: a plain and a part-page search. -/
+/-- Queries of the accept and read vectors: plain and part-page searches. $$Q_{\mathrm{mode}} = [q_1, \dots, q_4]$$ -/
 def modeQueries : List String := ["", "?fw=original", "?only=hero&stage=vw:430,vh:932", "?preset=v2-proved&only=g1&stage=vw:430,vh:932"]
 
-/-- Environments a page can report. -/
+/-- Environments a page can report. $$\{\bot, E(p_0), E_0, E(p_0)[y := 300]\}$$ -/
 def stageReports : List (Option Env) := [none, some (plannedEnv goldenProfile), some Env.default, some { plannedEnv goldenProfile with y := 300 }]
 
-/-- JSON of an optional environment. -/
+/-- JSON of an optional environment. $$\operatorname{json}(E) = [y, v_w, v_h],\ \operatorname{json}(\bot) = \texttt{null}$$ -/
 def optEnv : Option Env → String
   | some e => "[" ++ toString e.y ++ "," ++ toString e.vw ++ "," ++ toString e.vh ++ "]"
   | none => "null"
@@ -299,7 +301,7 @@ def acceptRows : List String :=
         "],\"mode\":" ++ jstr m.wire ++ ",\"hydrated\":" ++ toString h ++ ",\"errors\":" ++ toString e ++ ",\"stage\":" ++ optEnv s ++
         ",\"accept\":" ++ toString (accepts q goldenProfile r) ++ "}"
 
-/-- Sizes the gate vectors read. -/
+/-- Sizes the gate vectors read. $$S = \{(430,932), (645,1398), (1280,800)\}$$ -/
 def sizes : List Size := [⟨430, 932⟩, ⟨645, 1398⟩, ⟨1280, 800⟩]
 
 /-- Read vectors: the scroll read and the viewport gate for a plain and a part-page search with pinned (`inner`) and real
