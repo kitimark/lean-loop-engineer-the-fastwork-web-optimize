@@ -52,8 +52,8 @@ def trio : List Agent :=
   [{ ag "x" 25 with errTail := 4 }, ag "y" 0, { ag "z" 12 with ctxTokens := some 260000 }]
 
 /-- A CI run with no end time. -/
-def run0 (w b st : String) (c : Option String) (t : Nat) (e : Option Nat := none) : CiRun :=
-  { workflow := w, branch := b, status := st, conclusion := c, startedAt := t, endedAt := e }
+def run0 (w b st : String) (c : Option String) (t : Nat) (e : Option Nat := none) (sha : String := "") : CiRun :=
+  { workflow := w, branch := b, status := st, conclusion := c, startedAt := t, endedAt := e, headSha := sha }
 
 /-- A typed case: name, thresholds, observation. -/
 structure Typed where
@@ -180,12 +180,29 @@ def typed : List Typed := [
     o := { now := t0, system := { okSys with simLock := { since := some (ago 90) } } } },
   { name := "ci: a failure superseded by a later success, a running run, a cancelled run: no alert",
     o := { now := t0, system := { okSys with ci := [
-      ⟨"lean", "ci/x", "completed", some "failure", ago 30, none⟩, ⟨"lean", "ci/x", "completed", some "success", ago 20, none⟩,
-      ⟨"lean", "ci/y", "in_progress", none, ago 3, none⟩, ⟨"site", "ci/x", "completed", some "cancelled", ago 9, none⟩] } } },
+      ⟨"lean", "ci/x", "completed", some "failure", ago 30, none, ""⟩, ⟨"lean", "ci/x", "completed", some "success", ago 20, none, ""⟩,
+      ⟨"lean", "ci/y", "in_progress", none, ago 3, none, ""⟩, ⟨"site", "ci/x", "completed", some "cancelled", ago 9, none, ""⟩] } } },
   { name := "ci: the latest run of lean@ci/x failed, of site@ci/x timed out: ci.failed twice",
     o := { now := t0, system := { okSys with ci := [
-      ⟨"lean", "ci/x", "completed", some "success", ago 30, none⟩, ⟨"lean", "ci/x", "completed", some "failure", ago 20, none⟩,
-      ⟨"site", "ci/x", "completed", some "timed_out", ago 9, none⟩] } } },
+      ⟨"lean", "ci/x", "completed", some "success", ago 30, none, ""⟩, ⟨"lean", "ci/x", "completed", some "failure", ago 20, none, ""⟩,
+      ⟨"site", "ci/x", "completed", some "timed_out", ago 9, none, ""⟩] } } },
+  { name := "ci set: lean@ci/x@abc has one failed run among completed ones (cancelled, success): one ci.failed; a second failed run of the same set adds none",
+    o := { now := t0, system := { okSys with ci := [
+      run0 "lean" "ci/x" "completed" (some "failure") (ago 30) none "abc", run0 "lean" "ci/x" "completed" (some "cancelled") (ago 25) none "abc",
+      run0 "lean" "ci/x" "completed" (some "failure") (ago 20) none "abc"] } } },
+  { name := "ci set: a run of the same set still running makes the set pending: no ci.failed until it ends",
+    o := { now := t0, system := { okSys with ci := [
+      run0 "lean" "ci/x" "completed" (some "failure") (ago 30) none "abc", run0 "lean" "ci/x" "in_progress" none (ago 3) none "abc"] } } },
+  { name := "ci set: a push (new sha) after a failure supersedes it; two shas of the failing branch, the older failed, the newer green: no alert",
+    o := { now := t0, system := { okSys with ci := [
+      run0 "lean" "ci/x" "completed" (some "failure") (ago 30) none "abc", run0 "lean" "ci/x" "completed" (some "success") (ago 10) none "def"] } } },
+  { name := "ciSlowBy: breakpoint-gate may run 40 min (30 min in progress is fine), another workflow at 30 min is ci.slow",
+    o := { now := t0, system := { okSys with ci := [run0 "breakpoint-gate" "ci/x" "in_progress" none (ago 30),
+                                                    run0 "lean" "ci/x" "in_progress" none (ago 30)] } } },
+  { name := "ciSlowBy [lean 10]: lean at 11 min in progress is ci.slow, breakpoint-gate (no entry) uses the global 20",
+    p := { ciSlowBy := [("lean", 10)] },
+    o := { now := t0, system := { okSys with ci := [run0 "lean" "ci/x" "in_progress" none (ago 11),
+                                                    run0 "breakpoint-gate" "ci/x" "in_progress" none (ago 11)] } } },
   { name := "docker: a container older than every live agent is docker.orphan; one started after a live agent is not",
     o := { now := t0, agents := [{ ag "a" 0 with startedAt := ago 50 }, { ag "b" 0 with startedAt := ago 90, stoppedAt := some (ago 1) }],
            system := { okSys with docker := [⟨"c0ffee", "pg-old", ago 80⟩, ⟨"beef01", "pg-new", ago 50⟩] } } },
@@ -255,7 +272,7 @@ def typed : List Typed := [
            lead := { lastToolAt := some (ago 2), noteAt := some (ago 1) },
            system := { diskFreeGB := 100, memPressure := .critical, simLock := { holder := some "d", since := some (ago 1) },
                        docker := [⟨"c1", "orphan", ago 120⟩], worktrees := 2,
-                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3, none⟩] } } },
+                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3, none, ""⟩] } } },
   { name := "the same snapshot with default thresholds: fewer alerts (loosening never adds one)",
     o := { now := t0,
            agents := [{ ag "a" 5 with inflight := some ⟨"Bash", ago 5⟩, errTail := 1, ctxTokens := some 101 },
@@ -263,7 +280,7 @@ def typed : List Typed := [
            lead := { lastToolAt := some (ago 2), noteAt := some (ago 1) },
            system := { diskFreeGB := 100, memPressure := .critical, simLock := { holder := some "d", since := some (ago 1) },
                        docker := [⟨"c1", "orphan", ago 120⟩], worktrees := 2,
-                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3, none⟩] } } }]
+                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3, none, ""⟩] } } }]
 
 /-- Literal cases: optional and ignored fields, and refused requests. -/
 def literal : List (String × Json) := [

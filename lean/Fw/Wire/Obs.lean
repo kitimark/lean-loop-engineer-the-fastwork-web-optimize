@@ -19,13 +19,13 @@ number is a non-negative integer (a fraction is refused, so the caller floors `d
 
 Shapes. Params (every field optional, defaults in brackets): `{idleMin [10], stallMin [20], toolHangMin [30]` (minutes),
 `errStreak [3], ctxResumeMax [250000], ctxWarn [200000], diskMinGB [20], agentCap [10], simLockMaxMin [30]` (minutes),
-`worktreesMax [20], wfQuietMin [30], goneAfterMin [120], ciSlowMin [20], toolSlowMin [15], procMaxMin [20]`
+`worktreesMax [20], wfQuietMin [30], goneAfterMin [120], ciSlowMin [20], toolSlowMin [15], procMaxMin [20], ciSlowBy [[{workflow: "breakpoint-gate", min: 40}]]`
 (minutes), `loadMax [150]}`. Agent: `{id, name?, task?, kind? ["lead"|"teammate"|"subagent"|"workflow";
 "subagent"], parent?, startedAt, lastAt, stoppedAt?, errTail? [0], inflight? {tool, since}, lastTool?, lastToolAt?,
 idleAt?, workflowDone? [false], transcriptOnly? [false], ctxTokens?}` (any other field, e.g. `type`, `model`, `tools`,
 `errors`, `tokens`, `inflight.verb`, is ignored). Lead: `{lastToolAt?, noteAt?}` (absent: no events). System:
 `{diskFreeGB, memPressure? ["normal"|"warn"|"critical"], simLock? {holder?, since?}, docker? [{id, name, startedAt}],
-worktrees? [0] (a count), ci? [{workflow, branch, status, conclusion?, startedAt, endedAt?}], loadFloor? [0] (the floor
+worktrees? [0] (a count), ci? [{workflow, branch, status, conclusion?, startedAt, endedAt?, headSha? [""]}], loadFloor? [0] (the floor
 of the 1-min load average), procs? [{pid, name, startedAt, pids? [[]], agent?}] (`agent`: the
 id of the agent whose Bash call started the tree), services? [[]] (pids), keep? [[]] (pids the lead declared), svcs? [{name, inputs? [{path, changed? false}], unknown? (why the code that runs cannot be identified: raises svc.unknown), sweepErrors? 0 (fwcore throws its drain caught since start: raises svc.sweepError)}] (services and, for each input group, whether
 `main` changed it since the service's base commit)}` (any other field,
@@ -77,6 +77,21 @@ def onat : Option Nat → Json
   | some n => toJson n
   | none => .null
 
+/-- A per-workflow `ci.slow` limit as JSON: `{workflow, min}`. -/
+def slowByJson (e : String × Nat) : Json := Json.mkObj [("workflow", .str e.1), ("min", toJson e.2)]
+
+/-- Decode a per-workflow `ci.slow` limit. -/
+def slowByOf (j : Json) : Except String (String × Nat) := do
+  pure (← Fw.Wire.Ops.str j "workflow", ← nat j "min")
+
+/-- Per-workflow limits round-trip.
+
+$$\forall e:\quad \operatorname{slowByOf}(\operatorname{slowByJson}(e)) = \mathrm{ok}(e)$$
+-/
+theorem slowByOf_slowByJson (e : String × Nat) : slowByOf (slowByJson e) = .ok e := by
+  obtain ⟨w, m⟩ := e
+  rfl
+
 /-- The thresholds' JSON fields (every field written). -/
 def paramsFields (p : Params) : List (String × Json) :=
   [("idleMin", toJson p.idleMin), ("stallMin", toJson p.stallMin), ("toolHangMin", toJson p.toolHangMin),
@@ -84,7 +99,8 @@ def paramsFields (p : Params) : List (String × Json) :=
     ("diskMinGB", toJson p.diskMinGB), ("agentCap", toJson p.agentCap), ("simLockMaxMin", toJson p.simLockMaxMin),
     ("worktreesMax", toJson p.worktreesMax), ("wfQuietMin", toJson p.wfQuietMin),
     ("goneAfterMin", toJson p.goneAfterMin), ("ciSlowMin", toJson p.ciSlowMin), ("toolSlowMin", toJson p.toolSlowMin),
-    ("procMaxMin", toJson p.procMaxMin), ("loadMax", toJson p.loadMax)]
+    ("procMaxMin", toJson p.procMaxMin), ("loadMax", toJson p.loadMax),
+    ("ciSlowBy", .arr (p.ciSlowBy.toArray.map slowByJson))]
 
 /-- The thresholds as JSON (every field written). -/
 def paramsJson (p : Params) : Json := Json.mkObj (paramsFields p)
@@ -100,7 +116,10 @@ def paramsOf (j : Json) : Except String Params := do
          worktreesMax := ← natD j "worktreesMax" d.worktreesMax, wfQuietMin := ← natD j "wfQuietMin" d.wfQuietMin,
          goneAfterMin := ← natD j "goneAfterMin" d.goneAfterMin, ciSlowMin := ← natD j "ciSlowMin" d.ciSlowMin,
          toolSlowMin := ← natD j "toolSlowMin" d.toolSlowMin, procMaxMin := ← natD j "procMaxMin" d.procMaxMin,
-         loadMax := ← natD j "loadMax" d.loadMax }
+         loadMax := ← natD j "loadMax" d.loadMax,
+         ciSlowBy := ← (match opt j "ciSlowBy" with
+           | none => pure d.ciSlowBy
+           | some _ => do (← arrD j "ciSlowBy").mapM slowByOf) }
 
 /-- A tool call in flight as JSON. -/
 def inflightJson (f : Inflight) : Json := Json.mkObj [("tool", .str f.tool), ("since", toJson f.since)]
@@ -185,12 +204,14 @@ def containerOf (j : Json) : Except String Container := do
 /-- A CI run as JSON. -/
 def ciJson (r : CiRun) : Json :=
   Json.mkObj [("workflow", .str r.workflow), ("branch", .str r.branch), ("status", .str r.status),
-    ("conclusion", ostr r.conclusion), ("startedAt", toJson r.startedAt), ("endedAt", onat r.endedAt)]
+    ("conclusion", ostr r.conclusion), ("startedAt", toJson r.startedAt), ("endedAt", onat r.endedAt),
+    ("headSha", .str r.headSha)]
 
 /-- Decode a CI run (`conclusion` and `endedAt` optional). -/
 def ciOf (j : Json) : Except String CiRun := do
   pure { workflow := ← str j "workflow", branch := ← str j "branch", status := ← str j "status",
-         conclusion := ← optS j "conclusion", startedAt := ← nat j "startedAt", endedAt := ← optN j "endedAt" }
+         conclusion := ← optS j "conclusion", startedAt := ← nat j "startedAt", endedAt := ← optN j "endedAt",
+         headSha := ← Fw.Wire.Ops.strD j "headSha" "" }
 
 /-- A process tree as JSON. -/
 def procJson (q : Proc) : Json :=
@@ -309,7 +330,9 @@ theorem paramsOf_paramsJson (p : Params) : paramsOf (paramsJson p) = .ok p := by
     g "worktreesMax" _ (by unfold paramsFields; mem_lit), g "wfQuietMin" _ (by unfold paramsFields; mem_lit),
     g "goneAfterMin" _ (by unfold paramsFields; mem_lit), g "ciSlowMin" _ (by unfold paramsFields; mem_lit),
     g "toolSlowMin" _ (by unfold paramsFields; mem_lit), g "procMaxMin" _ (by unfold paramsFields; mem_lit),
-    g "loadMax" _ (by unfold paramsFields; mem_lit)]
+    g "loadMax" _ (by unfold paramsFields; mem_lit), g "ciSlowBy" _ (by unfold paramsFields; mem_lit),
+    arrD_arr (paramsJson p) "ciSlowBy" _ (g "ciSlowBy" _ (by unfold paramsFields; mem_lit)), Array.toList_map,
+    ok_bind, mapM_rt slowByJson slowByOf slowByOf_slowByJson]
   rfl
 
 /-- An agent's keys are pairwise distinct.
@@ -391,7 +414,7 @@ theorem containerOf_containerJson (c : Container) : containerOf (containerJson c
 $$\forall r:\quad \operatorname{ciOf}(\operatorname{ciJson}(r)) = \mathrm{ok}(r)$$
 -/
 theorem ciOf_ciJson (r : CiRun) : ciOf (ciJson r) = .ok r := by
-  obtain ⟨w, b, s, c, t, e⟩ := r
+  obtain ⟨w, b, s, c, t, e, h⟩ := r
   cases c <;> cases e <;> rfl
 
 /-- Process trees round-trip.

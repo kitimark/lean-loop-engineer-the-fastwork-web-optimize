@@ -100,7 +100,41 @@ structure Params where
   toolSlowMin   : Nat := 15
   procMaxMin    : Nat := 20
   loadMax       : Nat := 150
+  ciSlowBy      : List (String × Nat) := [("breakpoint-gate", 40)]
 deriving DecidableEq, Repr
+
+/-- **The `ci.slow` limit of a workflow**: the entry of the per-workflow map `ciSlowBy` when the workflow has one,
+otherwise the global `ciSlowMin`.
+
+$$\mu_p(w) = \begin{cases} m & (w, m) \in \mathit{ciSlowBy}_p\ (\text{first entry for } w) \\ \mathit{ciSlowMin}_p & \text{no entry for } w \end{cases}$$
+
+`breakpoint-gate` runs 20 to 25 minutes (p50 of 2026-10-19), so its default limit is 40 minutes, not the global 20.
+-/
+def ciSlowFor (p : Params) (w : String) : Nat :=
+  (p.ciSlowBy.lookup w).getD p.ciSlowMin
+
+/-- **The global value is the default** (`ciSlowFor_default`): a workflow with no entry in the map is judged by `ciSlowMin`.
+
+$$\forall p, w:\quad w \notin \operatorname{dom}(\mathit{ciSlowBy}_p) \Rightarrow \mu_p(w) = \mathit{ciSlowMin}_p$$
+-/
+theorem ciSlowFor_default (p : Params) (w : String) (h : p.ciSlowBy.lookup w = none) :
+    ciSlowFor p w = p.ciSlowMin := by
+  simp [ciSlowFor, h]
+
+/-- **With an empty map every workflow uses the global value** (`ciSlowFor_nil`).
+
+$$\forall p, w:\quad \mathit{ciSlowBy}_p = [\,] \Rightarrow \mu_p(w) = \mathit{ciSlowMin}_p$$
+-/
+theorem ciSlowFor_nil (p : Params) (w : String) (h : p.ciSlowBy = []) : ciSlowFor p w = p.ciSlowMin := by
+  simp [ciSlowFor, h, List.lookup]
+
+/-- **An entry overrides the global value** (`ciSlowFor_entry`): when the first entry for $w$ is $m$, the limit of $w$ is $m$.
+
+$$\forall p, w, m:\quad \mathit{ciSlowBy}_p.\mathrm{lookup}(w) = \mathrm{some}(m) \Rightarrow \mu_p(w) = m$$
+-/
+theorem ciSlowFor_entry (p : Params) (w : String) (m : Nat) (h : p.ciSlowBy.lookup w = some m) :
+    ciSlowFor p w = m := by
+  simp [ciSlowFor, h]
 
 /-- A tool call still running: the tool's name and its start time (ms).
 
@@ -187,7 +221,9 @@ deriving DecidableEq, Repr
 /-- A CI run: workflow, branch, status, conclusion (`none` while running), start time and end time (ms; `endedAt` is
 the run's last update, `none` when unknown).
 
-$$r = (\mathit{wf}, \mathit{br}, \mathit{status}, \mathit{concl}_\bot, \mathit{start}, \mathit{end}_\bot)$$
+$$r = (\mathit{wf}, \mathit{br}, \mathit{status}, \mathit{concl}_\bot, \mathit{start}, \mathit{end}_\bot, \mathit{sha})$$
+
+`headSha` is the commit the run was triggered for (`""` when unknown); runs of one workflow, branch and sha form a set.
 -/
 structure CiRun where
   workflow   : String
@@ -196,6 +232,7 @@ structure CiRun where
   conclusion : Option String := none
   startedAt  : Nat
   endedAt    : Option Nat := none
+  headSha    : String := ""
 deriving DecidableEq, Repr
 
 /-- A local process tree started by the observed session (one Bash tool call): the pid of its root, the program name
@@ -998,20 +1035,20 @@ def ciRunning (r : CiRun) : Bool :=
 
 /-- Whether a run is slow: waiting or running for strictly more than `ciSlowMin` minutes since it started.
 
-$$\operatorname{ciSlow}(p, t, r) \iff \operatorname{running}(r) \wedge \mu\,\mathit{ciSlowMin} < t \mathbin{\dot-} \mathit{start}(r)$$
+$$\operatorname{ciSlow}(p, t, r) \iff \operatorname{running}(r) \wedge \mu_p(\mathit{wf}(r)) < t \mathbin{\dot-} \mathit{start}(r)$$
 -/
 def ciSlowB (p : Params) (now : Nat) (r : CiRun) : Bool :=
-  ciRunning r && decide (p.ciSlowMin * msPerMin < now - r.startedAt)
+  ciRunning r && decide (ciSlowFor p r.workflow * msPerMin < now - r.startedAt)
 
 /-- Whether a run that the previous check flagged as slow has finished since: it is completed, it ended after the
 previous check's time $q$, and at $q$ it had run for strictly more than `ciSlowMin` minutes (so it was still running
 at $q$ and `ci.slow` was raised). False on the first check or without an end time.
 
-$$\operatorname{ciFin}(p, q_\bot, r) \iff \exists q, e.\ q_\bot = q \wedge \mathit{end}(r) = e \wedge \mathit{status}(r) = \texttt{completed} \wedge q < e \wedge \mu\,\mathit{ciSlowMin} < q \mathbin{\dot-} \mathit{start}(r)$$
+$$\operatorname{ciFin}(p, q_\bot, r) \iff \exists q, e.\ q_\bot = q \wedge \mathit{end}(r) = e \wedge \mathit{status}(r) = \texttt{completed} \wedge q < e \wedge \mu_p(\mathit{wf}(r)) < q \mathbin{\dot-} \mathit{start}(r)$$
 -/
 def ciFinishedB (p : Params) (prev : Option Nat) (r : CiRun) : Bool :=
   match prev, r.endedAt with
-  | some q, some e => r.status == "completed" && decide (q < e) && decide (p.ciSlowMin * msPerMin < q - r.startedAt)
+  | some q, some e => r.status == "completed" && decide (q < e) && decide (ciSlowFor p r.workflow * msPerMin < q - r.startedAt)
   | _, _ => false
 
 /-- Whether a container is orphaned: no live agent started at or before it (so none could have started it).
@@ -1148,13 +1185,168 @@ def sOrphan (p : Params) (o : Obs) : List Alert :=
   when (orphanB p o.now o.agents o.system.simLock)
     ⟨.simLockOrphan, "sim", s!"held by {o.system.simLock.holder.getD ""}", false⟩
 
-/-- `ci.failed`: the latest run of a workflow and branch failed (critical when the branch is a critical task's).
+/-- The list without repeats with `n` steps of fuel, each element kept at its first position.
 
-$$\operatorname{sCiFailed}(o) = [\,(\texttt{ci.failed}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“latest run }c_\varepsilon(r)\text{”}, \operatorname{critR}(K, r)) \mid r \leftarrow R,\ \operatorname{ciFailing}(r) \wedge \operatorname{ciLatest}(R, r)\,],\quad \text{where } c_\varepsilon(r) = \begin{cases} \mathit{concl}(r) & \mathit{concl}(r) \ne \bot \\ \varepsilon & \mathit{concl}(r) = \bot \end{cases}\ \text{(the order of } R \text{ is kept)},\ o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
+$$\operatorname{dedup}_0(l) = [\,],\quad \operatorname{dedup}_{n+1}([\,]) = [\,],\quad \operatorname{dedup}_{n+1}(x :: l) = x :: \operatorname{dedup}_n([\,y \in l \mid y \ne x\,])$$
+-/
+def dedupN {α : Type} [DecidableEq α] : Nat → List α → List α
+  | 0, _ => []
+  | _ + 1, [] => []
+  | n + 1, x :: xs => x :: dedupN n (xs.filter fun y => decide (y ≠ x))
+
+/-- The list without repeats, each element kept at its first position (fuel: the length).
+
+$$\operatorname{dedup}(l) = \operatorname{dedup}_{|l|}(l)$$
+-/
+def dedupFirst {α : Type} [DecidableEq α] (l : List α) : List α := dedupN l.length l
+
+/-- With enough fuel membership is unchanged.
+
+$$|l| \le n \Rightarrow (y \in \operatorname{dedup}_n(l) \iff y \in l)$$
+-/
+theorem mem_dedupN {α : Type} [DecidableEq α] : ∀ (n : Nat) (l : List α), l.length ≤ n → ∀ y, y ∈ dedupN n l ↔ y ∈ l
+  | 0, [], _, y => by simp [dedupN]
+  | 0, _ :: _, h, _ => by simp at h
+  | _ + 1, [], _, y => by simp [dedupN]
+  | n + 1, x :: xs, h, y => by
+    have hf : (xs.filter fun y => decide (y ≠ x)).length ≤ n := by
+      have := List.length_filter_le (fun y => decide (y ≠ x)) xs
+      simp only [List.length_cons] at h; omega
+    simp only [dedupN, List.mem_cons, mem_dedupN n _ hf y, List.mem_filter, decide_eq_true_eq]
+    by_cases hy : y = x <;> simp [hy]
+
+/-- With enough fuel there is no repeated element.
+
+$$|l| \le n \Rightarrow \operatorname{dedup}_n(l)\ \text{has no repeated element}$$
+-/
+theorem nodup_dedupN {α : Type} [DecidableEq α] : ∀ (n : Nat) (l : List α), l.length ≤ n → (dedupN n l).Nodup
+  | 0, [], _ => by simp [dedupN]
+  | 0, _ :: _, h => by simp at h
+  | _ + 1, [], _ => by simp [dedupN]
+  | n + 1, x :: xs, h => by
+    have hf : (xs.filter fun y => decide (y ≠ x)).length ≤ n := by
+      have := List.length_filter_le (fun y => decide (y ≠ x)) xs
+      simp only [List.length_cons] at h; omega
+    simp only [dedupN, List.nodup_cons]
+    refine ⟨fun hm => ?_, nodup_dedupN n _ hf⟩
+    have := (mem_dedupN n _ hf x).1 hm
+    simp at this
+
+/-- `dedupFirst` keeps membership.
+
+$$y \in \operatorname{dedup}(l) \iff y \in l$$
+-/
+theorem mem_dedupFirst {α : Type} [DecidableEq α] (l : List α) (y : α) : y ∈ dedupFirst l ↔ y ∈ l :=
+  mem_dedupN _ _ (Nat.le_refl _) y
+
+/-- `dedupFirst` has no repeated element.
+
+$$\operatorname{dedup}(l)\ \text{has no repeated element}$$
+-/
+theorem nodup_dedupFirst {α : Type} [DecidableEq α] (l : List α) : (dedupFirst l).Nodup :=
+  nodup_dedupN _ _ (Nat.le_refl _)
+
+/-- **The set of a run**: the workflow, branch and commit it ran for. A push and the dispatches that follow it share one set
+(`fw ci` dispatches `breakpoint-gate` once per engine, 3 to 7 s apart).
+
+$$\operatorname{key}(r) = (\mathit{wf}(r), \mathit{br}(r), \mathit{sha}(r))$$
+-/
+def ciKey (r : CiRun) : String × String × String := (r.workflow, r.branch, r.headSha)
+
+/-- The runs of a set.
+
+$$\operatorname{set}(R, k) = [\,r \in R \mid \operatorname{key}(r) = k\,]$$
+-/
+def ciSet (runs : List CiRun) (k : String × String × String) : List CiRun :=
+  runs.filter fun r => ciKey r == k
+
+/-- **A set failed** (`ci.failed` per set): every run of the set is completed and one of them failed. A set with a run still
+running (or queued) is pending, not failed.
+
+$$\operatorname{failed}(R, k) \iff (\forall r \in \operatorname{set}(R, k).\ \mathit{status}(r) = \texttt{completed}) \wedge \exists r \in \operatorname{set}(R, k).\ \operatorname{ciFailing}(r)$$
+-/
+def ciSetFailed (runs : List CiRun) (k : String × String × String) : Bool :=
+  (ciSet runs k).all (fun r => r.status == "completed") && (ciSet runs k).any ciFailing
+
+/-- A set is the latest of its workflow and branch when it holds a latest run of that pair.
+
+$$\operatorname{latestSet}(R, k) \iff \exists r \in \operatorname{set}(R, k).\ \operatorname{ciLatest}(R, r)$$
+-/
+def ciSetLatest (runs : List CiRun) (k : String × String × String) : Bool :=
+  (ciSet runs k).any (ciLatest runs)
+
+/-- The sets that raise `ci.failed`: each distinct set once, in order of first appearance, when it failed and is the latest.
+
+$$\operatorname{failedKeys}(R) = [\,k \in \operatorname{dedup}(\operatorname{key}(R)) \mid \operatorname{failed}(R, k) \wedge \operatorname{latestSet}(R, k)\,]$$
+-/
+def ciFailedKeys (runs : List CiRun) : List (String × String × String) :=
+  (dedupFirst (runs.map ciKey)).filter fun k => ciSetFailed runs k && ciSetLatest runs k
+
+/-- `ci.failed`: the latest set of a workflow and branch failed (critical when the branch is a critical task's), once per set.
+
+$$\operatorname{sCiFailed}(o) = [\,(\texttt{ci.failed}, \mathit{wf}\texttt{@}\mathit{br}, \text{“latest run }c_\varepsilon\text{”}, \operatorname{critR}(K, r_k)) \mid k = (\mathit{wf}, \mathit{br}, \mathit{sha}) \leftarrow \operatorname{failedKeys}(R)\,],\quad r_k = \text{the first failing run of } \operatorname{set}(R, k),\ c_\varepsilon = \mathit{concl}(r_k)\ \text{or}\ \varepsilon,\ o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sCiFailed (o : Obs) : List Alert :=
-  (o.system.ci.filter fun r => ciFailing r && ciLatest o.system.ci r).map fun r =>
-    ⟨.ciFailed, s!"{r.workflow}@{r.branch}", s!"latest run {r.conclusion.getD ""}", critCi o.critical r⟩
+  (ciFailedKeys o.system.ci).map fun k =>
+    let r := (ciSet o.system.ci k).find? ciFailing
+    ⟨.ciFailed, s!"{k.1}@{k.2.1}", s!"latest run {(r.bind (·.conclusion)).getD ""}",
+      critCi o.critical (r.getD { workflow := k.1, branch := k.2.1, status := "completed", startedAt := 0 })⟩
+
+/-- **A set with a running run is pending** (`ciSetFailed_of_running`): while a run of the set is waiting or running, the
+set has not failed, whatever its siblings concluded.
+
+$$\forall R, r \in R:\quad \operatorname{running}(r) \Rightarrow \neg \operatorname{failed}(R, \operatorname{key}(r))$$
+-/
+theorem ciSetFailed_of_running (runs : List CiRun) (r : CiRun) (hr : r ∈ runs) (h : ciRunning r = true) :
+    ciSetFailed runs (ciKey r) = false := by
+  have hmem : r ∈ ciSet runs (ciKey r) := List.mem_filter.2 ⟨hr, by simp⟩
+  have hs : (r.status == "completed") = false := by
+    simp only [ciRunning, Bool.or_eq_true, beq_iff_eq] at h
+    rcases h with ((((h | h) | h) | h) | h) <;> simp [h]
+  have hall : (ciSet runs (ciKey r)).all (fun r => r.status == "completed") = false := by
+    rw [Bool.eq_false_iff]
+    intro hall
+    have := List.all_eq_true.1 hall r hmem
+    simp [hs] at this
+  simp [ciSetFailed, hall]
+
+/-- **A completed set fails iff one run failed** (`ciSetFailed_iff`): when every run of a set is completed, the set failed
+exactly when some run of it failed.
+
+$$\forall R, k:\quad (\forall r \in \operatorname{set}(R, k).\ \mathit{status}(r) = \texttt{completed}) \Rightarrow (\operatorname{failed}(R, k) \iff \exists r \in \operatorname{set}(R, k).\ \operatorname{ciFailing}(r))$$
+-/
+theorem ciSetFailed_iff (runs : List CiRun) (k : String × String × String)
+    (h : ∀ r ∈ ciSet runs k, r.status = "completed") :
+    ciSetFailed runs k = true ↔ ∃ r ∈ ciSet runs k, ciFailing r = true := by
+  have ha : (ciSet runs k).all (fun r => r.status == "completed") = true := by
+    simp only [List.all_eq_true, beq_iff_eq]; exact h
+  simp [ciSetFailed, ha]
+
+/-- **Once per set** (`ciFailedKeys_nodup`): no set is reported twice, however many of its runs failed.
+
+$$\forall R:\quad \operatorname{failedKeys}(R)\ \text{has no repeated element}$$
+-/
+theorem ciFailedKeys_nodup (runs : List CiRun) : (ciFailedKeys runs).Nodup :=
+  (nodup_dedupFirst _).sublist List.filter_sublist
+
+/-- One `ci.failed` alert per failed latest set (`sCiFailed_length`).
+
+$$\forall o:\quad |\operatorname{sCiFailed}(o)| = |\operatorname{failedKeys}(R)|$$
+-/
+theorem sCiFailed_length (o : Obs) : (sCiFailed o).length = (ciFailedKeys o.system.ci).length := by
+  simp [sCiFailed]
+
+/-- **A failed latest set raises** (`ciSetFailed_raised`): the set of any run $r$ that failed (all runs completed, one
+failing) and is the latest of its pair has an alert with subject `workflow@branch`.
+
+$$\forall o, r \in R:\quad \operatorname{failed}(R, \operatorname{key}(r)) \wedge \operatorname{latestSet}(R, \operatorname{key}(r)) \Rightarrow \exists x \in \operatorname{sCiFailed}(o).\ x.\mathit{code} = \texttt{ci.failed} \wedge x.\mathit{subject} = \mathit{wf}(r)\texttt{@}\mathit{br}(r)$$
+-/
+theorem ciSetFailed_raised (o : Obs) (r : CiRun) (hr : r ∈ o.system.ci)
+    (hf : ciSetFailed o.system.ci (ciKey r) = true) (hl : ciSetLatest o.system.ci (ciKey r) = true) :
+    ∃ x ∈ sCiFailed o, x.code = .ciFailed ∧ x.subject = s!"{r.workflow}@{r.branch}" := by
+  have hk : ciKey r ∈ ciFailedKeys o.system.ci :=
+    List.mem_filter.2 ⟨(mem_dedupFirst _ _).2 (List.mem_map.2 ⟨r, hr, rfl⟩), by simp [hf, hl]⟩
+  exact ⟨_, List.mem_map.2 ⟨ciKey r, hk, rfl⟩, rfl, rfl⟩
 
 /-- `ci.slow`: a run waiting or running for more than `ciSlowMin` minutes.
 
@@ -1763,7 +1955,7 @@ structure Looser (p q : Params) : Prop where
   wf : p.wfQuietMin = q.wfQuietMin
   gone : p.goneAfterMin = q.goneAfterMin
   toolSlow : p.toolSlowMin ≤ q.toolSlowMin
-  ciSlow : p.ciSlowMin ≤ q.ciSlowMin
+  ciSlow : ∀ w, ciSlowFor p w ≤ ciSlowFor q w
   procMax : p.procMaxMin ≤ q.procMaxMin
   load : p.loadMax ≤ q.loadMax
 
@@ -1930,11 +2122,11 @@ theorem sysPiece_mono (p q : Params) (o : Obs) (hpq : Looser p q) (c : Code) (x 
       | none => simp [hp, he] at hr
       | some e =>
         simp only [hp, he, Bool.and_eq_true, decide_eq_true_eq] at hr ⊢
-        exact ⟨hr.1, Nat.lt_of_le_of_lt (Nat.mul_le_mul_right _ hpq.ciSlow) hr.2⟩
+        exact ⟨hr.1, Nat.lt_of_le_of_lt (Nat.mul_le_mul_right _ (hpq.ciSlow r.workflow)) hr.2⟩
   · refine fm_sub _ _ _ _ (fun r _ hr => ?_) x h
     unfold ciSlowB at *
     simp only [Bool.and_eq_true, decide_eq_true_eq] at hr ⊢
-    exact ⟨hr.1, Nat.lt_of_le_of_lt (Nat.mul_le_mul_right _ hpq.ciSlow) hr.2⟩
+    exact ⟨hr.1, Nat.lt_of_le_of_lt (Nat.mul_le_mul_right _ (hpq.ciSlow r.workflow)) hr.2⟩
   · simp only [sysPiece, sDocker] at h ⊢; rw [← hdo]; exact h
   · refine fm_sub _ _ _ _ (fun r _ hr => ?_) x h
     have hw : ownerLiveB q o.now o.agents r = ownerLiveB p o.now o.agents r := by simp only [ownerLiveB, hl]
@@ -2175,6 +2367,27 @@ def ci0 : CiRun := { workflow := "ci", branch := "main", status := "completed", 
 #guard ciLatest [{ ci0 with conclusion := some "failure", startedAt := 1 }, { ci0 with conclusion := some "success", startedAt := 2 }]
   { ci0 with conclusion := some "failure", startedAt := 1 } == false
 #guard ciLatest [{ ci0 with startedAt := 1 }, { ci0 with branch := "x", startedAt := 2 }] { ci0 with startedAt := 1 } == true
+-- ci.failed per (workflow, branch, sha) set (alert-rules-fix): the push (skipped) and two dispatches of ci/morph-tween-inherit
+#guard (sCiFailed { now := 0, system := { ci := [
+  { ci0 with workflow := "gate", branch := "ci/m", conclusion := some "failure", startedAt := 8, headSha := "a" },
+  { ci0 with workflow := "gate", branch := "ci/m", status := "in_progress", startedAt := 5, headSha := "a" },
+  { ci0 with workflow := "gate", branch := "ci/m", conclusion := some "skipped", startedAt := 3, headSha := "a" }] } }).length == 0
+#guard (sCiFailed { now := 0, system := { ci := [
+  { ci0 with workflow := "gate", branch := "ci/m", conclusion := some "failure", startedAt := 8, headSha := "a" },
+  { ci0 with workflow := "gate", branch := "ci/m", conclusion := some "failure", startedAt := 5, headSha := "a" },
+  { ci0 with workflow := "gate", branch := "ci/m", conclusion := some "skipped", startedAt := 3, headSha := "a" }] } }).map (·.subject)
+  == ["gate@ci/m"]
+-- an older failed sha is not the latest set; a newer pending sha hides it
+#guard (sCiFailed { now := 0, system := { ci := [
+  { ci0 with workflow := "gate", branch := "ci/m", status := "queued", startedAt := 9, headSha := "b" },
+  { ci0 with workflow := "gate", branch := "ci/m", conclusion := some "failure", startedAt := 5, headSha := "a" }] } }).length == 0
+-- a run without a sha is its own set per workflow and branch (the old behaviour)
+#guard (sCiFailed { now := 0, system := { ci := [{ ci0 with conclusion := some "failure", startedAt := 1 }] } }).length == 1
+#guard ciSlowFor {} "ci" == 20
+#guard ciSlowFor {} "breakpoint-gate" == 40
+#guard ciSlowFor { ciSlowBy := [] } "breakpoint-gate" == 20
+#guard ciSlowB {} (30 * msPerMin) { ci0 with workflow := "breakpoint-gate", status := "in_progress" } == false
+#guard ciSlowB {} (41 * msPerMin) { ci0 with workflow := "breakpoint-gate", status := "in_progress" } == true
 -- ci.slow: waiting or running for strictly more than ciSlowMin (20) minutes
 #guard ciRunning { ci0 with status := "queued" } == true
 #guard ciRunning { ci0 with status := "in_progress" } == true
