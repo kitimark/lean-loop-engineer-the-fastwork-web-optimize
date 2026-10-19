@@ -692,161 +692,6 @@ theorem viewCell_pass_sound {α : Type} [DecidableEq α] (bo br : Bool) (fo go f
   · simpa using hd
 
 -- ---------------------------------------------------------------------------------------------------------------
--- a layout-output value is read only after a committed layout pass (commission-margin-recur)
--- ---------------------------------------------------------------------------------------------------------------
-
-/-- One arm's layout-output value (a used auto margin) as a page can show it: the value read before any committed layout pass
-included the box (`stale`) and the value after one (`steady`).
-
-$$\mathrm{Layout}_\alpha = \{\ \mathit{stale}\in\alpha,\ \mathit{steady}\in\alpha\ \}$$ -/
-structure Layout (α : Type) where
-  stale : α
-  steady : α
-  deriving Repr
-
-/-- The value a read returns: the steady one when a committed layout pass preceded it, the stale one otherwise.
-
-$$\operatorname{readLayout}(c, m) = \begin{cases} m.\mathit{steady} & c \\ m.\mathit{stale} & \neg c\end{cases}$$ -/
-def readLayout {α : Type} (c : Bool) (m : Layout α) : α := if c then m.steady else m.stale
-
-/-- Whether a read follows a committed layout pass that includes the box: the reading was taken on the view path (the part was
-brought into view first, `view`) or the arm lived through at least one resize before it.
-
-$$\operatorname{committed}(v, n) = v \vee n \ge 1$$ -/
-def committed (viewed : Bool) (resizes : Nat) : Bool := viewed || decide (0 < resizes)
-
-/-- The wait outcome of a reading whose layout-output values are kept: `unsettled` unless a committed layout pass preceded it.
-
-$$\operatorname{commitOutcome}(c, o) = \begin{cases} o & c \\ \mathrm{unsettled} & \neg c\end{cases}$$ -/
-def commitOutcome (c : Bool) (o : Outcome) : Outcome := if c then o else .unsettled
-
-/-- The cell of a layout-output probe: both arms' waits are made `unsettled` unless committed, and the values compared are the
-reads of the two arms.
-
-$$\operatorname{layoutCell}(c_o, c_r, m_o, m_r, a, b) = \operatorname{report}\big(\operatorname{commitOutcome}(c_o, a),\ \operatorname{commitOutcome}(c_r, b),\ [\operatorname{readLayout}(c_o, m_o) = \operatorname{readLayout}(c_r, m_r)]\big)$$ (as a cell) -/
-def layoutCell {α : Type} [DecidableEq α] (co cr : Bool) (mo mr : Layout α) (a b : Outcome) : Cell :=
-  match report (commitOutcome co a) (commitOutcome cr b) (decide (readLayout co mo = readLayout cr mr)) with
-  | .pass => .pass
-  | .fail => .fail
-  | .unsettled => .unsettled
-
-/-- A committed read is the steady value, whatever the stale one was.
-
-$$\operatorname{readLayout}(\top, m) = m.\mathit{steady}$$ -/
-theorem readLayout_committed {α : Type} (m : Layout α) : readLayout true m = m.steady := by simp [readLayout]
-
-/-- An uncommitted wait is `unsettled`, whatever it measured.
-
-$$\operatorname{commitOutcome}(\bot, o) = \mathrm{unsettled}$$ -/
-theorem commitOutcome_uncommitted (o : Outcome) : commitOutcome false o = .unsettled := by simp [commitOutcome]
-
-/-- A committed wait is left as it was: the rule is inert where a layout pass preceded the read.
-
-$$\operatorname{commitOutcome}(\top, o) = o$$ -/
-theorem commitOutcome_committed (o : Outcome) : commitOutcome true o = o := by simp [commitOutcome]
-
-/-- With every read committed the layout cell is the plain settle cell on the steady values.
-
-$$\operatorname{layoutCell}(\top, \top, m_o, m_r, a, b) = \operatorname{cell}(\top, \top, a, b, [m_o.\mathit{steady} = m_r.\mathit{steady}])$$ -/
-theorem layoutCell_committed {α : Type} [DecidableEq α] (mo mr : Layout α) (a b : Outcome) :
-    layoutCell true true mo mr a b = cell true true a b (decide (mo.steady = mr.steady)) := by
-  simp [layoutCell, cell, commitOutcome, readLayout]
-
-/-- An uncommitted read in either arm never passes, even when both arms' stale values agree.
-
-$$\neg c_o \vee \neg c_r \;\Longrightarrow\; \operatorname{layoutCell}(c_o, c_r, m_o, m_r, a, b) \ne \mathrm{pass}$$ -/
-theorem layoutCell_uncommitted_never_pass {α : Type} [DecidableEq α] (co cr : Bool) (mo mr : Layout α) (a b : Outcome)
-    (h : co = false ∨ cr = false) : layoutCell co cr mo mr a b ≠ .pass := by
-  rcases h with h | h <;> subst h <;> cases a <;> cases b <;> simp [layoutCell, report, commitOutcome]
-
-/-- It never fails either: a stale value is not a difference the gate may report.
-
-$$\neg c_o \vee \neg c_r \;\Longrightarrow\; \operatorname{layoutCell}(c_o, c_r, m_o, m_r, a, b) = \mathrm{unsettled}$$ -/
-theorem layoutCell_uncommitted_unsettled {α : Type} [DecidableEq α] (co cr : Bool) (mo mr : Layout α) (a b : Outcome)
-    (h : co = false ∨ cr = false) : layoutCell co cr mo mr a b = .unsettled := by
-  rcases h with h | h <;> subst h <;> cases a <;> cases b <;> simp [layoutCell, report, commitOutcome]
-
-/-- The rule never hides a real difference: when both reads are committed, both arms settled and the steady values differ, the cell
-is `fail`, whatever the stale values are (equal stale values do not mask it).
-
-$$m_o.\mathit{steady} \ne m_r.\mathit{steady} \Longrightarrow \operatorname{layoutCell}(\top, \top, m_o, m_r, \mathrm{settled}(i), \mathrm{settled}(j)) = \mathrm{fail}$$ -/
-theorem layoutCell_fail_of_steady_diff {α : Type} [DecidableEq α] (mo mr : Layout α) (i j : Nat)
-    (hd : mo.steady ≠ mr.steady) : layoutCell true true mo mr (.settled i) (.settled j) = .fail := by
-  simp [layoutCell, commitOutcome, readLayout, report, hd]
-
-/-- The rule never invents a pass: a pass needs both reads committed, equal steady values and both arms settled.
-
-$$\operatorname{layoutCell}(c_o, c_r, m_o, m_r, a, b) = \mathrm{pass} \Longrightarrow c_o \wedge c_r \wedge m_o.\mathit{steady} = m_r.\mathit{steady} \wedge \exists i\, j,\ a = \mathrm{settled}(i) \wedge b = \mathrm{settled}(j)$$ -/
-theorem layoutCell_pass_sound {α : Type} [DecidableEq α] (co cr : Bool) (mo mr : Layout α) (a b : Outcome)
-    (h : layoutCell co cr mo mr a b = .pass) :
-    co = true ∧ cr = true ∧ mo.steady = mr.steady ∧ ∃ i j, a = .settled i ∧ b = .settled j := by
-  cases co <;> cases cr
-  · exact absurd h (layoutCell_uncommitted_never_pass _ _ mo mr a b (Or.inl rfl))
-  · exact absurd h (layoutCell_uncommitted_never_pass _ _ mo mr a b (Or.inl rfl))
-  · exact absurd h (layoutCell_uncommitted_never_pass _ _ mo mr a b (Or.inr rfl))
-  · rcases a with i | _ <;> rcases b with j | _
-    · by_cases hs : mo.steady = mr.steady
-      · exact ⟨rfl, rfl, hs, i, j, rfl, rfl⟩
-      · simp [layoutCell, report, commitOutcome, readLayout, hs] at h
-    all_goals simp [layoutCell, report, commitOutcome, readLayout] at h
-
-/-- A page loaded and read at once has lived through no resize, so its read is uncommitted; this is the stop 0 of a sweep and the
-fresh load that follows it, before the rule.
-
-$$\operatorname{committed}(\bot, 0) = \bot$$ -/
-theorem committed_fresh_load : committed false 0 = false := rfl
-
-/-- A page that lived through one resize or more is committed, whatever its stop.
-
-$$n \ge 1 \Longrightarrow \operatorname{committed}(v, n) = \top$$ -/
-theorem committed_of_resized (v : Bool) (n : Nat) (h : 0 < n) : committed v n = true := by simp [committed, h]
-
-/-- The view path is committed without a resize: the part was brought into view before the kept reading.
-
-$$\operatorname{committed}(\top, n) = \top$$ -/
-theorem committed_viewed (n : Nat) : committed true n = true := by simp [committed]
-
-/-- The width a fresh load is opened at, one CSS pixel above the width it is read at: the arm then resizes to the read width, so the
-read follows a committed layout pass.
-
-$$\operatorname{nudge}(w) = w + 1$$ -/
-def nudge (w : Nat) : Nat := w + 1
-
-/-- The nudge is a real viewport change: a resize to the same size commits no layout pass.
-
-$$\operatorname{nudge}(w) \ne w$$ -/
-theorem nudge_ne (w : Nat) : nudge w ≠ w := by simp [nudge]
-
-/-- The nudged load followed by the resize to the read width has lived through one resize: every read of the arm is committed.
-
-$$\operatorname{committed}(v, i + 1) = \top$$ for the stop index `i`, and so for a fresh load read at index 0 -/
-theorem committed_nudged (v : Bool) (i : Nat) : committed v (i + 1) = true := committed_of_resized v (i + 1) (Nat.succ_pos i)
-
-/-- Whether the nudge from `w` crosses a breakpoint edge: some pair `(lo, hi)` has `w ≤ lo` and `hi ≤ nudge w`.
-
-$$\operatorname{crosses}(P, w) = \exists (l, h) \in P,\ w \le l \wedge h \le w + 1$$ -/
-def crosses (pairs : List (Nat × Nat)) (w : Nat) : Bool := pairs.any (fun (lo, hi) => decide (w ≤ lo ∧ hi ≤ nudge w))
-
-/-- For edge pairs of the form `(n, n + 1)` the nudge from `w` crosses an edge exactly when `w` is the lower member of a pair, so a
-width in the interior of a breakpoint regime keeps its regime.
-
-$$P = [(n, n+1)]_n \Longrightarrow (\operatorname{crosses}(P, w) \iff w \in \{n\})$$ -/
-theorem crosses_iff (pairs : List (Nat × Nat)) (hp : ∀ p ∈ pairs, p.2 = p.1 + 1) (w : Nat) :
-    crosses pairs w = true ↔ ∃ p ∈ pairs, p.1 = w := by
-  unfold crosses
-  rw [List.any_eq_true]
-  constructor
-  · rintro ⟨⟨lo, hi⟩, hp', h⟩
-    have h2 : hi = lo + 1 := hp (lo, hi) hp'
-    have h3 : w ≤ lo ∧ hi ≤ w + 1 := of_decide_eq_true h
-    exact ⟨(lo, hi), hp', by show lo = w; omega⟩
-  · rintro ⟨⟨lo, hi⟩, hp', h⟩
-    have h2 : hi = lo + 1 := hp (lo, hi) hp'
-    have h4 : lo = w := h
-    refine ⟨(lo, hi), hp', ?_⟩
-    exact decide_eq_true (by unfold nudge; omega)
-
--- ---------------------------------------------------------------------------------------------------------------
 -- which engine reads a skipped part again (the bring flag as a function of the engine)
 -- ---------------------------------------------------------------------------------------------------------------
 
@@ -917,31 +762,142 @@ theorem viewCell_webkit_default {α : Type} [DecidableEq α] (fo go fr gr : Read
   rw [viewFor_default.2]
   exact viewCell_inert fo go fr gr a b
 
-/-- Whether a run commits a layout pass before a read: the engines that bring skipped parts into view are the ones whose skipped subtrees read stale used margins, so the commit follows the bring flag.
+-- ---------------------------------------------------------------------------------------------------------------
+-- a used auto margin of a node in a skipped subtree is not a reading (commission-margin-recur)
+-- ---------------------------------------------------------------------------------------------------------------
 
-$$\operatorname{commitNeeded}(s, n) = \operatorname{viewFor}(s, n)$$ -/
-def commitNeeded (s : Option String) (n : String) : Bool := viewFor s n
+/-- The keys whose computed value is layout output: `getComputedStyle` of an `auto` margin goes through the box's first
+fragment (Blink `LayoutBox::MarginOutsets`, `PhysicalBoxFragment::Margins`, whose value the container's layout writes), so the
+value exists only after a layout pass of the container that included the box. The margin keys: the three shorthands and the eight
+longhands, physical and logical.
 
-/-- A read keeps its layout-output values when the run needs no commit, or a committed layout pass preceded it.
+$$K_{\mathrm{layout}} = \{\mathrm{margin},\ \mathrm{margin}\text{-}\{block,inline\}\} \cup \{\mathrm{margin}\text{-}\{top,right,bottom,left\},\ \mathrm{margin}\text{-}\{block,inline\}\text{-}\{start,end\}\}$$ -/
+def layoutOutputKeys : List String :=
+  ["margin", "margin-block", "margin-inline", "margin-top", "margin-right", "margin-bottom", "margin-left",
+   "margin-block-start", "margin-block-end", "margin-inline-start", "margin-inline-end"]
 
-$$\operatorname{commitHolds}(h, v, n) = \neg h \vee \operatorname{committed}(v, n)$$ -/
-def commitHolds (needs viewed : Bool) (resizes : Nat) : Bool := !needs || committed viewed resizes
+/-- Whether a key is a layout-output key.
 
-/-- Where no commit is needed (WebKit by default) every read holds, so the rule leaves a WebKit run as it was.
+$$\operatorname{layoutOutputKey}(k) \iff k \in K_{\mathrm{layout}}$$ -/
+def layoutOutputKey (k : String) : Bool := layoutOutputKeys.contains k
 
-$$\forall v\, n,\ \operatorname{commitHolds}(\operatorname{commitNeeded}(\bot, \texttt{playwright-webkit}), v, n) = \top$$ -/
-theorem commitHolds_webkit_default (v : Bool) (n : Nat) :
-    commitHolds (commitNeeded none "playwright-webkit") v n = true := by
-  have : commitNeeded none "playwright-webkit" = false := viewFor_default.2
-  simp [commitHolds, this]
+/-- Whether the pair of values of one key of one node has no verdict: either arm's node was read in a skipped subtree (the
+collector's flag, premise `cv.skip-flag`) and the key is layout output. In a skipped subtree a box whose container never laid
+it out reads the zero strut (`0px`) whatever the steady value is (run 39333030506: the original read it in 21 of 96 loads, the
+rewrite in 1 of 96; a viewport change cures `inner`, not `rows`). The rect is not a key here: it stays compared, and an
+`auto` margin is the remainder of the geometry.
 
-/-- Where a commit is needed (Chromium by default) a read holds exactly when it is committed.
+$$\operatorname{keyMasked}(s_o, s_r, k) = (s_o \vee s_r) \wedge k \in K_{\mathrm{layout}}$$ -/
+def keyMasked (so sr : Bool) (k : String) : Bool := (so || sr) && layoutOutputKey k
 
-$$\operatorname{commitHolds}(\operatorname{commitNeeded}(\bot, \texttt{chromium}), v, n) = \operatorname{committed}(v, n)$$ -/
-theorem commitHolds_chromium_default (v : Bool) (n : Nat) :
-    commitHolds (commitNeeded none "chromium") v n = committed v n := by
-  have : commitNeeded none "chromium" = true := viewFor_default.1
-  simp [commitHolds, this]
+/-- The two values the comparison sees for one key of one node: the original's value on both sides where the pair is masked
+(the copy `maskNotRendered` makes for a whole item), the two values as read otherwise.
+
+$$\operatorname{keyPair}(s_o, s_r, k, a, b) = \begin{cases}(a, a) & \operatorname{keyMasked}(s_o, s_r, k)\\ (a, b) & \text{otherwise}\end{cases}$$ -/
+def keyPair {α : Type} (so sr : Bool) (k : String) (a b : α) : α × α :=
+  if keyMasked so sr k then (a, a) else (a, b)
+
+/-- The cell of one key of one node of a live sweep: both arms' waits, and equality of the two values the comparison sees.
+
+$$\operatorname{keyCell}(s_o, s_r, k, a, b, w_a, w_b) = \operatorname{cell}(\top, \top, w_a, w_b, [\operatorname{keyPair}(s_o, s_r, k, a, b)_1 = \operatorname{keyPair}(s_o, s_r, k, a, b)_2])$$ -/
+def keyCell {α : Type} [DecidableEq α] (so sr : Bool) (k : String) (a b : α) (wa wb : Outcome) : Cell :=
+  cell true true wa wb (decide ((keyPair so sr k a b).1 = (keyPair so sr k a b).2))
+
+/-- Nothing is masked where both nodes are rendered: the pair is as read.
+
+$$\operatorname{keyPair}(\bot, \bot, k, a, b) = (a, b)$$ -/
+theorem keyPair_rendered {α : Type} (k : String) (a b : α) : keyPair false false k a b = (a, b) := by
+  simp [keyPair, keyMasked]
+
+/-- Nothing is masked for a key outside the layout-output set, whatever the flags say.
+
+$$k \notin K_{\mathrm{layout}} \Longrightarrow \operatorname{keyPair}(s_o, s_r, k, a, b) = (a, b)$$ -/
+theorem keyPair_other_key {α : Type} (so sr : Bool) (k : String) (a b : α) (h : layoutOutputKey k = false) :
+    keyPair so sr k a b = (a, b) := by
+  simp [keyPair, keyMasked, h]
+
+/-- A masked pair is two equal values, so it can neither fail nor pass by its values.
+
+$$\operatorname{keyMasked}(s_o, s_r, k) \Longrightarrow \operatorname{keyPair}(s_o, s_r, k, a, b)_1 = \operatorname{keyPair}(s_o, s_r, k, a, b)_2$$ -/
+theorem keyPair_masked_equal {α : Type} (so sr : Bool) (k : String) (a b : α) (h : keyMasked so sr k = true) :
+    (keyPair so sr k a b).1 = (keyPair so sr k a b).2 := by
+  simp [keyPair, h]
+
+/-- The original's value is kept on its side in every case.
+
+$$\operatorname{keyPair}(s_o, s_r, k, a, b)_1 = a$$ -/
+theorem keyPair_fst {α : Type} (so sr : Bool) (k : String) (a b : α) : (keyPair so sr k a b).1 = a := by
+  unfold keyPair; split <;> rfl
+
+/-- **The mask never hides a real difference.** The two values the comparison sees differ exactly when the values as read differ
+and the pair is not masked: a difference of a rendered node, of a key outside the layout-output set, or of the rect is never
+lost, and a difference is lost only for a layout-output key of a flagged node.
+
+$$\operatorname{keyPair}(s_o, s_r, k, a, b)_1 \ne \operatorname{keyPair}(s_o, s_r, k, a, b)_2 \iff a \ne b \wedge \neg\operatorname{keyMasked}(s_o, s_r, k)$$ -/
+theorem keyPair_differs_iff {α : Type} (so sr : Bool) (k : String) (a b : α) :
+    (keyPair so sr k a b).1 ≠ (keyPair so sr k a b).2 ↔ a ≠ b ∧ keyMasked so sr k = false := by
+  unfold keyPair
+  cases h : keyMasked so sr k <;> simp
+
+/-- A real difference of an unmasked pair fails the key, whatever the original's and the rewrite's values are.
+
+$$a \ne b \wedge \neg\operatorname{keyMasked}(s_o, s_r, k) \Longrightarrow \operatorname{keyCell}(s_o, s_r, k, a, b, \mathrm{settled}(i), \mathrm{settled}(j)) = \mathrm{fail}$$ -/
+theorem keyCell_fail_of_real_diff {α : Type} [DecidableEq α] (so sr : Bool) (k : String) (a b : α) (i j : Nat)
+    (hd : a ≠ b) (hm : keyMasked so sr k = false) :
+    keyCell so sr k a b (.settled i) (.settled j) = .fail := by
+  have h : (keyPair so sr k a b).1 ≠ (keyPair so sr k a b).2 := (keyPair_differs_iff so sr k a b).2 ⟨hd, hm⟩
+  simp [keyCell, cell, report, h]
+
+/-- A pass needs both arms settled and the values as read equal, or the pair masked; the mask never makes an unsettled arm pass.
+
+$$\operatorname{keyCell}(s_o, s_r, k, a, b, w_a, w_b) = \mathrm{pass} \Longrightarrow (a = b \vee \operatorname{keyMasked}(s_o, s_r, k)) \wedge \exists i\, j,\ w_a = \mathrm{settled}(i) \wedge w_b = \mathrm{settled}(j)$$ -/
+theorem keyCell_pass_sound {α : Type} [DecidableEq α] (so sr : Bool) (k : String) (a b : α) (wa wb : Outcome)
+    (h : keyCell so sr k a b wa wb = .pass) :
+    (a = b ∨ keyMasked so sr k = true) ∧ ∃ i j, wa = .settled i ∧ wb = .settled j := by
+  rcases wa with i | _ <;> rcases wb with j | _
+  · refine ⟨?_, i, j, rfl, rfl⟩
+    by_cases hm : keyMasked so sr k = true
+    · exact Or.inr hm
+    · have hm' : keyMasked so sr k = false := by simpa using hm
+      by_cases hab : a = b
+      · exact Or.inl hab
+      · have := keyCell_fail_of_real_diff so sr k a b i j hab hm'
+        rw [this] at h
+        exact absurd h (by decide)
+  all_goals simp [keyCell, cell, report] at h
+
+/-- A masked pair of settled arms passes: the mask turns the stale `0px` against a steady value into no difference, in either
+direction.
+
+$$\operatorname{keyMasked}(s_o, s_r, k) \Longrightarrow \operatorname{keyCell}(s_o, s_r, k, a, b, \mathrm{settled}(i), \mathrm{settled}(j)) = \mathrm{pass}$$ -/
+theorem keyCell_masked_pass {α : Type} [DecidableEq α] (so sr : Bool) (k : String) (a b : α) (i j : Nat)
+    (hm : keyMasked so sr k = true) : keyCell so sr k a b (.settled i) (.settled j) = .pass := by
+  have h := keyPair_masked_equal so sr k a b hm
+  simp [keyCell, cell, report, h]
+
+/-- The margin keys, shorthand and longhand, are layout output, and no other key listed here is.
+
+$$\operatorname{layoutOutputKey}(\mathrm{margin\text{-}inline\text{-}start}) \wedge \neg\operatorname{layoutOutputKey}(\mathrm{width}) \wedge \neg\operatorname{layoutOutputKey}(\mathrm{padding\text{-}left})$$ -/
+theorem layoutOutputKey_examples :
+    layoutOutputKey "margin-inline-start" = true ∧ layoutOutputKey "margin-left" = true ∧ layoutOutputKey "margin-inline" = true ∧ layoutOutputKey "width" = false ∧
+    layoutOutputKey "padding-left" = false ∧ layoutOutputKey "color" = false := by
+  decide
+
+/-- Whether a run flags the skipped nodes of its live sweeps: the engines that bring skipped parts into view are the ones whose
+skipped subtrees read zero used margins (the flag is only read, nothing is scrolled, so a sweep keeps its page state).
+
+$$\operatorname{flagSweeps}(s, n) = \operatorname{viewFor}(s, n)$$ -/
+def flagSweeps (s : Option String) (n : String) : Bool := viewFor s n
+
+/-- WebKit by default flags nothing in a sweep, so its readings are exactly as before.
+
+$$\operatorname{flagSweeps}(\bot, \texttt{playwright-webkit}) = \bot$$ -/
+theorem flagSweeps_webkit_default : flagSweeps none "playwright-webkit" = false := viewFor_default.2
+
+/-- Chromium by default flags the skipped nodes of its sweeps.
+
+$$\operatorname{flagSweeps}(\bot, \texttt{chromium}) = \top$$ -/
+theorem flagSweeps_chromium_default : flagSweeps none "chromium" = true := viewFor_default.1
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- the model: a settled sample does not depend on when it was taken
@@ -1326,6 +1282,22 @@ def viewForCases : List (String × Option String × String) :=
     ("unknown engine, no switch", none, "firefox"),
     ("unknown engine forced on", some "1", "firefox") ]
 
+/-- Key masks: (name, original node read in a skipped subtree, rewrite node read in a skipped subtree, key, original value,
+rewrite value).
+
+$$\text{keyMaskCases} = [(n_k, s_o, s_r, k, a, b)]_k$$ -/
+def keyMaskCases : List (String × Bool × Bool × String × String × String) :=
+  [ ("rendered, equal margins", false, false, "margin-left", "132px", "132px"),
+    ("rendered, different margins", false, false, "margin-left", "0px", "8px"),
+    ("commission rows: original skipped, stale zero against steady value", true, false, "margin-left", "0px", "8px"),
+    ("rewrite skipped, stale zero against steady value", false, true, "margin-right", "8px", "0px"),
+    ("both skipped, different margins", true, true, "margin-inline-start", "0px", "132px"),
+    ("skipped, the width is still compared", true, true, "width", "100px", "120px"),
+    ("skipped, a colour difference is still compared", true, false, "color", "rgb(0, 0, 0)", "rgb(1, 1, 1)"),
+    ("skipped, a padding difference is still compared", false, true, "padding-left", "4px", "8px"),
+    ("skipped, equal margins", true, true, "margin-top", "8px", "8px"),
+    ("commission inner: the margin-inline shorthand, original skipped", true, false, "margin-inline", "0px", "96px") ]
+
 /-- Probe cells: (name, arm a rendered, arm b rendered, outcome a, outcome b, equal).
 
 $$\text{cellCases} = [(n_k, r_a, r_b, a_k, b_k, e_k)]_k$$ -/
@@ -1372,36 +1344,9 @@ def quietCases : List (String × Nat × List Int × List Int) :=
     ("no values at all", 100, [], []),
     ("people.deck scale mid lerp", 100, [977000], [979000]) ]
 
-/-- Reads: (name, the run needs a commit, viewed, resizes the arm lived through before the read).
+/-- One golden line per case, in the order of the eleven case lists: observation, wait, quiet, rendered, cell, view, fold, report, viewFor, keyMask, flagSweeps.
 
-$$\text{commitCases} = [(n_k, h_k, v_k, r_k)]_k$$ -/
-def commitCases : List (String × Bool × Bool × Nat) :=
-  [ ("fresh load, plain read", true, false, 0), ("one resize before", true, false, 1), ("sweep stop 3", true, false, 3),
-    ("view path, no resize", true, true, 0), ("view path, resized", true, true, 2),
-    ("no commit needed, fresh load", false, false, 0) ]
-
-/-- Layout-output probes: (name, committed orig, committed rewrite, (stale, steady) orig, (stale, steady) rewrite, outcome orig,
-outcome rewrite). Values are used margins in px.
-
-$$\text{layoutCases} = [(n_k, c_o, c_r, m_o, m_r, a_k, b_k)]_k$$ -/
-def layoutCases : List (String × Bool × Bool × (Nat × Nat) × (Nat × Nat) × Outcome × Outcome) :=
-  [ ("commission: orig reads stale 0 at a fresh load, rewrite fresh", false, true, (0, 96), (96, 96), .settled 2, .settled 2),
-    ("both arms stale and equal, neither committed", false, false, (0, 96), (0, 96), .settled 2, .settled 2),
-    ("both committed, steady equal", true, true, (0, 96), (0, 96), .settled 2, .settled 2),
-    ("both committed, steady differ, stale equal", true, true, (0, 96), (0, 8), .settled 2, .settled 2),
-    ("both committed, one arm unsettled", true, true, (0, 96), (0, 96), .settled 2, .unsettled),
-    ("rewrite uncommitted only", true, false, (0, 96), (0, 96), .settled 2, .settled 2) ]
-
-/-- Nudges: (name, edge pairs, width). The pairs are `(n, n + 1)`.
-
-$$\text{nudgeCases} = [(n_k, P_k, w_k)]_k$$ -/
-def nudgeCases : List (String × List (Nat × Nat) × Nat) :=
-  [ ("interior of a regime", [(600, 601), (1200, 1201)], 1440), ("the lower member of a pair", [(600, 601), (1200, 1201)], 1200),
-    ("the upper member of a pair", [(600, 601), (1200, 1201)], 1201), ("no edges", [], 430), ("narrow, below all edges", [(600, 601)], 430) ]
-
-/-- One golden line per case, in the order of the twelve case lists: observation, wait, quiet, rendered, cell, view, fold, report, viewFor, committed, layout, nudge.
-
-$$\text{lines} = [\ell_{\mathrm{obs}}(c)]_{c \in \mathrm{obsCases}} \mathbin{+\!\!+} [\ell_{\mathrm{wait}}(c)]_{c \in \mathrm{waitCases}} \mathbin{+\!\!+} [\ell_{\mathrm{quiet}}(c)]_{c \in \mathrm{quietCases}} \mathbin{+\!\!+} [\ell_{\mathrm{rendered}}(c)]_{c \in \mathrm{renderedCases}} \mathbin{+\!\!+} [\ell_{\mathrm{cell}}(c)]_{c \in \mathrm{cellCases}} \mathbin{+\!\!+} [\ell_{\mathrm{view}}(c)]_{c \in \mathrm{viewCases}} \mathbin{+\!\!+} [\ell_{\mathrm{fold}}(c)]_{c \in \mathrm{foldCases}} \mathbin{+\!\!+} [\ell_{\mathrm{report}}(c)]_{c \in \mathrm{reportCases}} \mathbin{+\!\!+} [\ell_{\mathrm{viewFor}}(c)]_{c \in \mathrm{viewForCases}} \mathbin{+\!\!+} [\ell_{\mathrm{committed}}(c)]_{c \in \mathrm{commitCases}} \mathbin{+\!\!+} [\ell_{\mathrm{layout}}(c)]_{c \in \mathrm{layoutCases}} \mathbin{+\!\!+} [\ell_{\mathrm{nudge}}(c)]_{c \in \mathrm{nudgeCases}}$$ -/
+$$\text{lines} = [\ell_{\mathrm{obs}}(c)]_{c \in \mathrm{obsCases}} \mathbin{+\!\!+} [\ell_{\mathrm{wait}}(c)]_{c \in \mathrm{waitCases}} \mathbin{+\!\!+} [\ell_{\mathrm{quiet}}(c)]_{c \in \mathrm{quietCases}} \mathbin{+\!\!+} [\ell_{\mathrm{rendered}}(c)]_{c \in \mathrm{renderedCases}} \mathbin{+\!\!+} [\ell_{\mathrm{cell}}(c)]_{c \in \mathrm{cellCases}} \mathbin{+\!\!+} [\ell_{\mathrm{view}}(c)]_{c \in \mathrm{viewCases}} \mathbin{+\!\!+} [\ell_{\mathrm{fold}}(c)]_{c \in \mathrm{foldCases}} \mathbin{+\!\!+} [\ell_{\mathrm{report}}(c)]_{c \in \mathrm{reportCases}} \mathbin{+\!\!+} [\ell_{\mathrm{viewFor}}(c)]_{c \in \mathrm{viewForCases}} \mathbin{+\!\!+} [\ell_{\mathrm{keyMask}}(c)]_{c \in \mathrm{keyMaskCases}} \mathbin{+\!\!+} [\ell_{\mathrm{flagSweeps}}(c)]_{c \in \mathrm{viewForCases}}$$ -/
 def goldenLines : List String :=
   obsCases.map (fun (n, o) =>
     (Json.mkObj [("kind", "settled"), ("name", toJson n), ("policy", policyJson gatePolicy), ("obs", obsJson o),
@@ -1434,17 +1379,14 @@ def goldenLines : List String :=
   ++ viewForCases.map (fun (n, s, e) =>
     (Json.mkObj [("kind", "viewFor"), ("name", toJson n), ("switch", toJson s), ("engine", toJson e),
       ("view", toJson (viewFor s e))]).compress)
-  ++ commitCases.map (fun (n, h, v, r) =>
-    (Json.mkObj [("kind", "committed"), ("name", toJson n), ("needs", toJson h), ("viewed", toJson v), ("resizes", toJson r),
-      ("holds", toJson (commitHolds h v r))]).compress)
-  ++ layoutCases.map (fun (n, co, cr, mo, mr, a, b) =>
-    let ly (x : Nat × Nat) : Json := Json.mkObj [("stale", toJson x.1), ("steady", toJson x.2)]
-    (Json.mkObj [("kind", "layout"), ("name", toJson n), ("committedO", toJson co), ("committedR", toJson cr),
-      ("o", ly mo), ("r", ly mr), ("a", toJson (outcomeText a)), ("b", toJson (outcomeText b)),
-      ("cell", toJson (cellText (layoutCell co cr (⟨mo.1, mo.2⟩ : Layout Nat) ⟨mr.1, mr.2⟩ a b)))]).compress)
-  ++ nudgeCases.map (fun (n, ps, w) =>
-    (Json.mkObj [("kind", "nudge"), ("name", toJson n), ("pairs", toJson (ps.map (fun p => [p.1, p.2]))), ("width", toJson w),
-      ("nudge", toJson (nudge w)), ("crosses", toJson (crosses ps w))]).compress)
+  ++ keyMaskCases.map (fun (n, so, sr, k, a, b) =>
+    let pr := keyPair so sr k a b
+    (Json.mkObj [("kind", "keymask"), ("name", toJson n), ("skippedO", toJson so), ("skippedR", toJson sr), ("key", toJson k),
+      ("a", toJson a), ("b", toJson b), ("masked", toJson (keyMasked so sr k)), ("seenA", toJson pr.1), ("seenB", toJson pr.2),
+      ("cell", toJson (cellText (keyCell so sr k a b (.settled 1) (.settled 2))))]).compress)
+  ++ viewForCases.map (fun (n, s, e) =>
+    (Json.mkObj [("kind", "flagSweeps"), ("name", toJson n), ("switch", toJson s), ("engine", toJson e),
+      ("flag", toJson (flagSweeps s e))]).compress)
 
 /-- The exact bytes of `packages/contracts/golden/gate/settle.jsonl`: the lines, each newline-terminated.
 
@@ -1492,13 +1434,8 @@ def run (args : List String) : IO UInt32 := do
 #guard viewCell true false (α := Nat) ⟨true, 0⟩ ⟨false, 132⟩ ⟨false, 132⟩ ⟨false, 0⟩ (.settled 1) (.settled 2) == .pass
 #guard viewCell false true (α := Nat) ⟨false, 132⟩ ⟨false, 0⟩ ⟨true, 0⟩ ⟨false, 7⟩ (.settled 1) (.settled 2) == .fail
 #guard viewCell false true (α := Nat) ⟨false, 132⟩ ⟨false, 0⟩ ⟨true, 0⟩ ⟨true, 0⟩ (.settled 1) (.settled 2) == .notRendered
-#guard committed false 0 == false
-#guard committed false 1 == true
-#guard committed true 0 == true
-#guard layoutCell false false (⟨0, 96⟩ : Layout Nat) ⟨0, 96⟩ (.settled 2) (.settled 2) == .unsettled
-#guard layoutCell true true (⟨0, 96⟩ : Layout Nat) ⟨0, 8⟩ (.settled 2) (.settled 2) == .fail
-#guard layoutCell true true (⟨0, 96⟩ : Layout Nat) ⟨0, 96⟩ (.settled 2) (.settled 2) == .pass
-#guard crosses [(600, 601), (1200, 1201)] 1440 == false
-#guard crosses [(600, 601), (1200, 1201)] 1200 == true
+#guard keyCell true false "margin-left" "0px" "8px" (.settled 1) (.settled 2) == .pass
+#guard keyCell true false "width" "0px" "8px" (.settled 1) (.settled 2) == .fail
+#guard keyCell false false "margin-left" "0px" "8px" (.settled 1) (.settled 2) == .fail
 
 end Fw.Gate.Settle

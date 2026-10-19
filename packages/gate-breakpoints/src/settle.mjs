@@ -98,31 +98,30 @@ export function viewCell(bo, br, fo, go, fr, gr, a, b) {
   return cell(!o.skipped, !r.skipped, a, b, o.val === r.val);
 }
 
-/** Fw.Gate.Settle.readLayout: the value a read returns of a layout-output value `{ stale, steady }`: the steady one after a committed layout pass. */
-export const readLayout = (c, m) => (c ? m.steady : m.stale);
-
 /**
- * Fw.Gate.Settle.committed: whether a read follows a committed layout pass that includes the box. `viewed`: the reading is on the view
- * path (the part was brought into view first); `resizes`: the resizes the arm lived through before the read (a nudged load counts one).
+ * Fw.Gate.Settle.layoutOutputKeys: the keys whose computed value is layout output. getComputedStyle of an `auto` margin reads the
+ * box's first fragment (Blink LayoutBox::MarginOutsets), written by the container's layout; a box in a skipped subtree that no
+ * layout pass included reads the zero strut `0px`, whatever the steady value (research/notes/2026/10-20-commission-margin-recur.md).
  */
-export const committed = (viewed, resizes) => viewed || resizes > 0;
+export const LAYOUT_OUTPUT_KEYS = Object.freeze([
+  'margin', 'margin-block', 'margin-inline', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+  'margin-block-start', 'margin-block-end', 'margin-inline-start', 'margin-inline-end',
+]);
 
-/** Fw.Gate.Settle.commitNeeded: whether a run commits a layout pass before a read; it follows the bring flag (`viewFor`). */
-export const commitNeeded = viewFor;
+/** Fw.Gate.Settle.layoutOutputKey. */
+export const layoutOutputKey = (k) => LAYOUT_OUTPUT_KEYS.includes(k);
 
-/** Fw.Gate.Settle.commitHolds: a read keeps its layout-output values when the run needs no commit or the read is committed. */
-export const commitHolds = (needs, viewed, resizes) => !needs || committed(viewed, resizes);
+/** Fw.Gate.Settle.keyMasked: either arm's node was read in a skipped subtree and the key is layout output. */
+export const keyMasked = (so, sr, k) => (so || sr) && layoutOutputKey(k);
 
-/** Fw.Gate.Settle.commitOutcome: an uncommitted reading's wait is 'unsettled', a committed one keeps its outcome. */
-export const commitOutcome = (c, o) => (c ? o : 'unsettled');
+/** Fw.Gate.Settle.keyPair: the original's value on both sides where the pair is masked, the two values as read otherwise. */
+export const keyPair = (so, sr, k, a, b) => (keyMasked(so, sr, k) ? [a, a] : [a, b]);
 
-/** Fw.Gate.Settle.layoutCell: the cell of a layout-output probe from both arms' commit flags, `{ stale, steady }` values and waits. */
-export function layoutCell(co, cr, mo, mr, a, b) {
-  return report(commitOutcome(co, a), commitOutcome(cr, b), readLayout(co, mo) === readLayout(cr, mr));
+/** Fw.Gate.Settle.keyCell: the cell of one key of one node of a live sweep, from both arms' waits and the two values. */
+export function keyCell(so, sr, k, a, b, wa, wb) {
+  const [x, y] = keyPair(so, sr, k, a, b);
+  return cell(true, true, wa, wb, x === y);
 }
 
-/** Fw.Gate.Settle.nudge: the width a fresh load is opened at before the arm resizes to the width it is read at. */
-export const nudge = (w) => w + 1;
-
-/** Fw.Gate.Settle.crosses: whether the nudge from `w` crosses a breakpoint edge, `pairs` = [[lo, hi], ...]. */
-export const crosses = (pairs, w) => pairs.some(([lo, hi]) => w <= lo && hi <= nudge(w));
+/** Fw.Gate.Settle.flagSweeps: whether the live sweeps flag the skipped nodes they read (only read, nothing is scrolled). */
+export const flagSweeps = viewFor;
