@@ -6772,6 +6772,60 @@
     "packages/measure-chromium/src/overflow.mjs",
     "docs/team/handoffs/stage-host-lean.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-wait-lean",
+   "title": "CI wait study (user 10-19): Pmin 30 -> 10 in Fw.Ci.Budget with a liveness latency theorem and a budget theorem over all ledger entries (5000 REST/h per user account, margin for uncharged callers); rate-limit headers accepted only from the REST core bucket; timing-ci jobs view booked at cost 3; land.ts gh through the charged client",
+   "stream": "ops",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ci/Budget.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "packages/gh-budget/**",
+    "packages/contracts/golden/ci-budget/**",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/timing-ci.ts",
+    "apps/runner/test/run-budget.test.ts",
+    "research/notes/2026/10-18-gh-rate-budget.md",
+    "docs/team/handoffs/ci-wait-lean.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-wait-lag",
+   "title": "CI wait study: measured wait lag p50 27 / p90 55 / max 87 s exceeds the P + slice + view model in 36 % of waits; instrument fw ci wait spans per phase with the run id, find each lag component, count the agents' Bash gh loops wait-guard allows",
+   "stream": "ops",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gh-budget/src/wait.ts",
+    "apps/runner/src/timing-ci.ts",
+    "apps/runner/hooks/wait-guard.mjs",
+    "research/notes/2026/10-19-ci-wait-lag.md",
+    "docs/team/handoffs/ci-wait-lag.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lean-latex-removal",
+   "title": "User 10-19: remove LaTeX $$ math from Lean docstrings and the processes that require it (mathview lint stages, math-review step, CLAUDE.md 'Lean math' rule, agent definitions); math only on demand in artifacts; Lean comments per no-comments/no-slop. Plan: workflow lean-latex-removal-plan",
+   "stream": "ops",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lead",
+   "writes": [
+    "docs/team/handoffs/lean-latex-removal.md"
+   ]
   }
  ],
  "deadline": {
