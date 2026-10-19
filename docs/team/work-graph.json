@@ -6818,7 +6818,7 @@
     "local"
    ],
    "id": "lean-latex-removal",
-   "title": "User 10-19: remove LaTeX $$ math from Lean docstrings and the processes that require it (mathview lint stages, math-review step, CLAUDE.md 'Lean math' rule, agent definitions); math only on demand in artifacts; Lean comments per no-comments/no-slop. Plan: workflow lean-latex-removal-plan",
+   "title": "User 10-19: remove LaTeX $$ math from Lean docstrings and the processes that require it (mathview lint stages, math-review step, CLAUDE.md 'Lean math' rule, agent definitions); math only on demand in artifacts; Lean comments per no-comments/no-slop. Plan: workflow lean-latex-removal-plan. Done only when the temporary guardrails are gone: delete every negative rule added for this migration (build-review preamble 'No LaTeX: add no $$ math...', any 'no LaTeX' line in CLAUDE.md, agent and skill files) and keep only positive rules (user 10-19: no long-term negative feedback about removed things)",
    "stream": "ops",
    "milestone": "M5",
    "deps": [
@@ -6834,7 +6834,7 @@
     "local"
    ],
    "id": "skills-reframe",
-   "title": "User 10-19: re-frame no-comments and no-slop skills after cursor/plugins pstack (no-comments orchestrator + comment-sicko agent + unslop), adapted to our harness and Lean; no LaTeX in Lean (CLAUDE.md line); MIT attribution",
+   "title": "User 10-19: re-frame no-comments and no-slop skills after cursor/plugins pstack (no-comments orchestrator + comment-sicko agent + unslop), adapted to our harness and Lean; no LaTeX in Lean (CLAUDE.md line); MIT attribution; state rules positively (what to write), no 'No LaTeX' style negative lines that outlive the migration",
    "stream": "ops",
    "milestone": "M5",
    "deps": [],
