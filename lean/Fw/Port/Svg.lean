@@ -47,9 +47,8 @@ def letters (d : String) : String := String.ofList (d.toList.filter cmdLetters.c
 #guard letters "M0 0L1e-5 2c1 2 3 4 5 6z" == "MLcz"
 #guard letters "" == ""
 
-/-- The skeleton of an svg.
-$$\operatorname{skel}(v, K) = \bigl(\operatorname{norm}(v),\ \operatorname{counts}(K),\ [(\operatorname{bytes}(k.d), \operatorname{letters}(k.d)) \mid k \in K,\ k.\tau = \texttt{path}]\bigr)$$
-where $\operatorname{bytes}$ is the UTF-8 byte length. -/
+/-- The skeleton of an svg, with $\operatorname{bytes}$ the UTF-8 byte length.
+$$\operatorname{skel}(v, K) = \bigl(\operatorname{norm}(v),\ \operatorname{counts}(K),\ [(\operatorname{bytes}(k.d), \operatorname{letters}(k.d)) \mid k \in K,\ k.\tau = \texttt{path}]\bigr)$$ -/
 structure Skel where
   viewBox : String
   counts : List Nat
