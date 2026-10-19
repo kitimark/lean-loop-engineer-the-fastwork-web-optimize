@@ -12,10 +12,8 @@ namespace Fw.Frames
 /-- Chrome tick: the number of 120 Hz ticks in a frame of `dt` µs, rounded to the nearest tick
 with halves rounded up, computed exactly in integers.
 
-$$\forall dt \in \mathbb{N}:\quad \operatorname{tick}(dt) = \left\lfloor \frac{240\,dt + 10^{6}}{2 \cdot 10^{6}} \right\rfloor = \left\lfloor \frac{dt}{8333.\overline{3}} + \frac12 \right\rfloor$$
-
-Edge: $\operatorname{tick}(4166) = 0$, $\operatorname{tick}(4167) = 1$, $\operatorname{tick}(37499) = 4$,
-$\operatorname{tick}(37500) = 5$, $\operatorname{tick}(54166) = 6$, $\operatorname{tick}(54167) = 7$.
+Edge: `tick(4166) = 0`, `tick(4167) = 1`, `tick(37499) = 4`,
+`tick(37500) = 5`, `tick(54166) = 6`, `tick(54167) = 7`.
 -/
 def tick (dt : Nat) : Nat := (dt * 240 + 1000000) / 2000000
 
@@ -25,24 +23,17 @@ def tick (dt : Nat) : Nat := (dt * 240 + 1000000) / 2000000
 
 /-- A frame is at least 5 ticks long exactly when it lasts at least 37.5 ms (the ≥ 5-tick bucket
 (≥ 37.5 ms; see `countAbove34_sub_tick5`)).
-
-$$\forall dt \in \mathbb{N}:\quad 5 \le \operatorname{tick}(dt) \iff 37\,500 \le dt$$
 -/
 theorem tick_ge5_iff (dt : Nat) : 5 ≤ tick dt ↔ 37500 ≤ dt := by
   unfold tick; constructor <;> intro h <;> omega
 
 /-- A frame is at least 7 ticks long exactly when it lasts at least 54 167 µs (54.1667 ms rounded
 up to a whole µs; the ">50" bucket in tick form).
-
-$$\forall dt \in \mathbb{N}:\quad 7 \le \operatorname{tick}(dt) \iff 54\,167 \le dt$$
 -/
 theorem tick_ge7_iff (dt : Nat) : 7 ≤ tick dt ↔ 54167 ≤ dt := by
   unfold tick; constructor <;> intro h <;> omega
 
-/-- A longer frame never gets a smaller tick.
-
-$$\forall a, b \in \mathbb{N}:\quad a \le b \;\Rightarrow\; \operatorname{tick}(a) \le \operatorname{tick}(b)$$
--/
+/-- A longer frame never gets a smaller tick. -/
 theorem tick_mono {a b : Nat} (h : a ≤ b) : tick a ≤ tick b := by
   unfold tick; exact Nat.div_le_div_right (by omega)
 
@@ -50,9 +41,7 @@ theorem tick_mono {a b : Nat} (h : a ≤ b) : tick a ≤ tick b := by
 `dtNs` integer nanoseconds (the unit times cross the TS ↔ Lean boundary in), rounded to the
 nearest tick with halves rounded up, computed exactly in integers.
 
-$$\forall r, d \in \mathbb{N}:\quad \operatorname{tickAt}(r, d) = \left\lfloor \frac{2 r d + 10^{9}}{2 \cdot 10^{9}} \right\rfloor$$
-
-Edge: $\operatorname{tickAt}(0, d) = 0$ for every $d$ (a 0 Hz display has no ticks).
+Edge: `tickAt(0, d) = 0` for every `d` (a 0 Hz display has no ticks).
 -/
 def tickAt (hz dtNs : Nat) : Nat := (2 * hz * dtNs + 1000000000) / 2000000000
 
@@ -61,33 +50,24 @@ def tickAt (hz dtNs : Nat) : Nat := (2 * hz * dtNs + 1000000000) / 2000000000
 
 /-- At 120 Hz the nanosecond tick agrees with the microsecond `tick` on every whole number of
 microseconds.
-
-$$\forall dt \in \mathbb{N}:\quad \operatorname{tickAt}(120,\ 1000\,dt) = \operatorname{tick}(dt)$$
 -/
 theorem tickAt_120_us (dt : Nat) : tickAt 120 (dt * 1000) = tick dt := by
   unfold tickAt tick; omega
 
-/-- A longer frame never gets a smaller tick, at any rate.
-
-$$\forall r, a, b \in \mathbb{N}:\quad a \le b \;\Rightarrow\; \operatorname{tickAt}(r, a) \le \operatorname{tickAt}(r, b)$$
--/
+/-- A longer frame never gets a smaller tick, at any rate. -/
 theorem tickAt_mono (hz : Nat) {a b : Nat} (h : a ≤ b) : tickAt hz a ≤ tickAt hz b := by
   unfold tickAt
   exact Nat.div_le_div_right (Nat.add_le_add_right (Nat.mul_le_mul_left _ h) _)
 
 /-- On the iPhone's 60 Hz page rendering, a frame counts as at least 2 ticks (one missed vsync)
 exactly when it lasts at least 25 ms.
-
-$$\forall d \in \mathbb{N}:\quad 2 \le \operatorname{tickAt}(60, d) \iff 25\,000\,000 \le d$$
 -/
 theorem tickAt60_ge2_iff (dtNs : Nat) : 2 ≤ tickAt 60 dtNs ↔ 25000000 ≤ dtNs := by
   unfold tickAt; constructor <;> intro h <;> omega
 
 /-- The number of frames strictly longer than `t` µs, repeats counted.
 
-$$\forall t \in \mathbb{N},\ \forall xs = [x_1, \dots, x_n] \in \mathbb{N}^{*}:\quad \operatorname{countAbove}(t, xs) = \#\{\, i : x_i > t \,\} = \sum_{i=1}^{n} [\,x_i > t\,]$$
-
-Edge: $\operatorname{countAbove}(t, [\,]) = 0$; a frame equal to $t$ is not counted.
+Edge: `countAbove(t, []) = 0`; a frame equal to `t` is not counted.
 -/
 def countAbove (t : Nat) (xs : List Nat) : Nat := (xs.filter (fun x => decide (t < x))).length
 
@@ -96,8 +76,6 @@ def countAbove (t : Nat) (xs : List Nat) : Nat := (xs.filter (fun x => decide (t
 
 /-- Raising the threshold never raises the count (e.g. with thresholds 54 000 ≥ 50 000 ≥ 46 000 µs,
 gt54 ≤ gt50 ≤ gt46 on every run).
-
-$$\forall t, t' \in \mathbb{N},\ \forall xs \in \mathbb{N}^{*}:\quad t \le t' \;\Rightarrow\; \operatorname{countAbove}(t', xs) \le \operatorname{countAbove}(t, xs)$$
 -/
 theorem countAbove_antitone {t t' : Nat} (h : t ≤ t') (xs : List Nat) :
     countAbove t' xs ≤ countAbove t xs := by
@@ -115,8 +93,6 @@ theorem countAbove_antitone {t t' : Nat} (h : t ≤ t') (xs : List Nat) :
 /-- Counting frames of at least 5 ticks is the same as counting frames strictly above 37 499 µs,
 i.e. of at least 37.5 ms (how this relates to the legacy ">34 ms" count is
 `countAbove34_sub_tick5`).
-
-$$\forall xs = [x_1, \dots, x_n] \in \mathbb{N}^{*}:\quad \#\{\, i : 5 \le \operatorname{tick}(x_i) \,\} = \operatorname{countAbove}(37\,499, xs)$$
 -/
 theorem tick5_eq_countAbove (xs : List Nat) :
     (xs.filter (fun x => decide (5 ≤ tick x))).length = countAbove 37499 xs := by
@@ -128,13 +104,11 @@ theorem tick5_eq_countAbove (xs : List Nat) :
   rw [tick_ge5_iff]; omega
 
 /-- The legacy ms count ">34" (frames longer than 34 000 µs) exceeds the tick count (frames of at
-least 5 ticks) by exactly the frames in $(34\,000, 37\,499]$ µs: "tick-sensitivity" in Chrome is a
+least 5 ticks) by exactly the frames in `(34 000, 37 499]` µs: "tick-sensitivity" in Chrome is a
 +3.5 ms twin, nothing more (gap G1 of the Lean-to-math note).
 
-$$\forall xs = [x_1, \dots, x_n] \in \mathbb{N}^{*}:\quad \operatorname{countAbove}(34\,000, xs) \mathbin{\dot-} \#\{\, i : 5 \le \operatorname{tick}(x_i) \,\} = \#\{\, i : 34\,000 < x_i \le 37\,499 \,\}$$
-
-Here $\dot-$ is truncated subtraction on $\mathbb{N}$; it never truncates in this equation, because
-$5 \le \operatorname{tick}(x)$ implies $x \ge 37\,500 > 34\,000$.
+Here `∸` is truncated subtraction on `ℕ`; it never truncates in this equation, because
+`5 ≤ tick(x)` implies `x ≥ 37 500 > 34 000`.
 -/
 theorem countAbove34_sub_tick5 (xs : List Nat) :
     countAbove 34000 xs - (xs.filter (5 ≤ tick ·)).length

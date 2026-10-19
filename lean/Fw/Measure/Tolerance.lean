@@ -23,10 +23,7 @@ namespace Fw.Measure
 
 /-! ## Frame-by-frame order with zero padding -/
 
-/-- One series is at most another in every frame (the shorter padded with zeros).
-
-$$\operatorname{leF}(v, b) = \mathrm{true} \iff \forall i:\ v[i] \le b[i]$$
--/
+/-- One series is at most another in every frame (the shorter padded with zeros). -/
 def leFrames : Series → Series → Bool
   | [], [] => true
   | x :: xs, [] => decide (x ≤ 0) && leFrames xs []
@@ -36,35 +33,20 @@ def leFrames : Series → Series → Bool
 #guard leFrames [1, 2] [1, 3, 0]
 #guard !leFrames [1, 2, 1] [1, 3]
 
-/-- The padded value of a non-empty series at index 0.
-
-$$\forall x \in \mathbb{Z}, r \in \mathbb{Z}^{*}:\ (x :: r)[0] = x$$
--/
+/-- The padded value of a non-empty series at index 0. -/
 theorem valAt_cons_zero (x : Int) (r : Series) : valAt (x :: r) 0 = x := rfl
 
-/-- The padded value at a successor index.
-
-$$\forall x \in \mathbb{Z}, r \in \mathbb{Z}^{*}, i \in \mathbb{N}:\ (x :: r)[i + 1] = r[i]$$
--/
+/-- The padded value at a successor index. -/
 theorem valAt_cons_succ (x : Int) (r : Series) (i : Nat) : valAt (x :: r) (i + 1) = valAt r i := rfl
 
-/-- The padded value of the empty series.
-
-$$\forall i \in \mathbb{N}:\ [\,][i] = 0$$
--/
+/-- The padded value of the empty series. -/
 theorem valAt_nil (i : Nat) : valAt [] i = 0 := by simp [valAt]
 
-/-- Pointwise statements about a cons split into index 0 and the rest.
-
-$$\forall P : \mathbb{N} \to \mathbf{Prop}:\ (\forall i:\ P(i)) \iff P(0) \land \forall i:\ P(i + 1)$$
--/
+/-- Pointwise statements about a cons split into index 0 and the rest. -/
 theorem forall_nat_split (P : Nat → Prop) : (∀ i, P i) ↔ P 0 ∧ ∀ i, P (i + 1) :=
   ⟨fun h => ⟨h 0, fun i => h (i + 1)⟩, fun ⟨h0, hs⟩ i => by cases i with | zero => exact h0 | succ i => exact hs i⟩
 
-/-- `leFrames` is the padded frame-by-frame order.
-
-$$\forall v, b:\ \operatorname{leF}(v, b) = \mathrm{true} \iff \forall i:\ v[i] \le b[i]$$
--/
+/-- `leFrames` is the padded frame-by-frame order. -/
 theorem leFrames_iff : ∀ v b : Series, leFrames v b = true ↔ ∀ i, valAt v i ≤ valAt b i
   | [], [] => by simp [leFrames, valAt_nil]
   | x :: xs, [] => by
@@ -77,10 +59,7 @@ theorem leFrames_iff : ∀ v b : Series, leFrames v b = true ↔ ∀ i, valAt v 
     rw [forall_nat_split]; simp only [leFrames, Bool.and_eq_true, decide_eq_true_eq, leFrames_iff xs ys]
     simp [valAt_cons_zero, valAt_cons_succ]
 
-/-- No differing frame is padded equality.
-
-$$\forall a, b:\ \operatorname{diff}(a, b) = 0 \iff \forall i:\ a[i] = b[i]$$
--/
+/-- No differing frame is padded equality. -/
 theorem diffFrames_zero_iff : ∀ a b : Series, diffFrames a b = 0 ↔ ∀ i, valAt a i = valAt b i
   | [], [] => by simp [diffFrames, valAt_nil]
   | x :: xs, [] => by
@@ -102,10 +81,7 @@ theorem diffFrames_zero_iff : ∀ a b : Series, diffFrames a b = 0 ↔ ∀ i, va
     rw [← ih]; simp only [diffFrames]
     by_cases h : x = y <;> simp [h]
 
-/-- Frame-by-frame at most implies total at most.
-
-$$\forall v, b:\ \operatorname{leF}(v, b) = \mathrm{true} \;\Rightarrow\; \Sigma v \le \Sigma b$$
--/
+/-- Frame-by-frame at most implies total at most. -/
 theorem total_le_of_leFrames : ∀ v b : Series, leFrames v b = true → total v ≤ total b
   | [], [], _ => Int.le_refl 0
   | x :: xs, [], h => by
@@ -126,8 +102,6 @@ theorem total_le_of_leFrames : ∀ v b : Series, leFrames v b = true → total v
 /-- **Deterministic types keep frame-by-frame dominance.** If the variant is at most the baseline
 in every frame, and the unseen runs `b'`, `v'` have no frame differing from `b`, `v`, then `v'` is
 at most `b'` in every frame.
-
-$$\forall b, b', v, v':\ \operatorname{leF}(v, b) \ \land\ \operatorname{diff}(b, b') = 0 \ \land\ \operatorname{diff}(v, v') = 0 \;\Rightarrow\; \operatorname{leF}(v', b')$$
 -/
 theorem det_frames_sound {b b' v v' : Series} (h : leFrames v b = true)
     (hb : diffFrames b b' = 0) (hv : diffFrames v v' = 0) : leFrames v' b' = true := by
@@ -138,8 +112,6 @@ theorem det_frames_sound {b b' v v' : Series} (h : leFrames v b = true)
 /-- **Stable types can not enter frame by frame.** With two frames allowed to differ (`k ≥ 2`) and
 no total gap, frame-by-frame dominance of the observed runs does not carry over (a unit of work moved one
 frame earlier in the variant's unseen run).
-
-$$\forall k \ge 2:\ \exists b, b', v, v' \in \mathbb{N}^{*}:\ \operatorname{leF}(v, b) \ \land\ \operatorname{Within}(\mathrm{stable}(k, 0), b, b') \ \land\ \operatorname{Within}(\mathrm{stable}(k, 0), v, v') \ \land\ \neg\operatorname{leF}(v', b')$$
 -/
 theorem stable_frames_unsound (k : Nat) (hk : 2 ≤ k) :
     ∃ b b' v v' : Series, (∀ x ∈ b ++ b' ++ v ++ v', 0 ≤ x) ∧ leFrames v b = true ∧
@@ -153,16 +125,12 @@ theorem stable_frames_unsound (k : Nat) (hk : 2 ≤ k) :
 
 /-- The total margin a stable(k, t) type needs: 0 when no frame may differ, else twice the total
 gap.
-
-$$\operatorname{margin}(k, t) = \begin{cases} 0 & k = 0 \\ 2t & k \ge 1 \end{cases}$$
 -/
 def marginOf (k t : Nat) : Int := if k = 0 then 0 else 2 * (t : Int)
 
 /-- **The margin is sound.** If the variant's observed total plus the margin is at most the
 baseline's, then every unseen pair within stable(k, t) of the observed runs has the variant's total
 at most the baseline's (for any integer counts).
-
-$$\forall k, t \in \mathbb{N},\ b, b', v, v' \in \mathbb{Z}^{*}:\ \operatorname{Within}(\mathrm{stable}(k, t), b, b') \land \operatorname{Within}(\mathrm{stable}(k, t), v, v') \land \Sigma v + \operatorname{margin}(k, t) \le \Sigma b \;\Rightarrow\; \Sigma v' \le \Sigma b'$$
 -/
 theorem margin_sound {k t : Nat} {b b' v v' : Series} (hb : Within (.stable k t) b b')
     (hv : Within (.stable k t) v v') (h : total v + marginOf k t ≤ total b) : total v' ≤ total b' := by
@@ -177,8 +145,6 @@ theorem margin_sound {k t : Nat} {b b' v v' : Series} (hb : Within (.stable k t)
 
 /-- A margin is sound for stable(k, t) on non-negative counts when it carries the observed total
 order to every unseen pair of runs within the class.
-
-$$\operatorname{Sound}(k, t, m) \iff \forall b, b', v, v' \in \mathbb{N}^{*}:\ \operatorname{Within}(\mathrm{stable}(k, t), b, b') \land \operatorname{Within}(\mathrm{stable}(k, t), v, v') \land \Sigma v + m \le \Sigma b \Rightarrow \Sigma v' \le \Sigma b'$$
 -/
 def SoundMargin (k t : Nat) (m : Int) : Prop :=
   ∀ b b' v v' : Series, (∀ x ∈ b ++ b' ++ v ++ v', 0 ≤ x) →
@@ -187,8 +153,6 @@ def SoundMargin (k t : Nat) (m : Int) : Prop :=
 /-- **The margin is exact.** A margin `m` is sound for stable(k, t) types, even when only
 non-negative counts are considered, if and only if it is at least `margin(k, t)` (0 for k = 0,
 2t otherwise).
-
-$$\forall k, t \in \mathbb{N},\ m \in \mathbb{Z}:\ \operatorname{Sound}(k, t, m) \iff \operatorname{margin}(k, t) \le m$$
 -/
 theorem margin_exact (k t : Nat) (m : Int) : SoundMargin k t m ↔ marginOf k t ≤ m := by
   constructor
@@ -228,8 +192,6 @@ theorem margin_exact (k t : Nat) (m : Int) : SoundMargin k t m ↔ marginOf k t 
 
 /-- **Quarantined types can not enter.** For every margin there are runs, with non-negative
 counts, whose observed totals clear the margin and whose unseen totals are in the other order.
-
-$$\forall m \in \mathbb{Z}:\ \exists b, b', v, v' \in \mathbb{N}^{*}:\ \operatorname{Within}(\mathrm{quar}, b, b') \land \operatorname{Within}(\mathrm{quar}, v, v') \land \Sigma v + m \le \Sigma b \land \Sigma v' > \Sigma b'$$
 -/
 theorem quarantined_unsound (m : Int) :
     ∃ b b' v v' : Series, (∀ x ∈ b ++ b' ++ v ++ v', 0 ≤ x) ∧ Within .quarantined b b' ∧
@@ -243,8 +205,6 @@ theorem quarantined_unsound (m : Int) :
 
 /-- One count type's input to the screen: its class (joined over both arms' runs) and one observed
 series per arm.
-
-$$\mathrm{Obs} = \mathrm{Class} \times \mathbb{Z}^{*} \times \mathbb{Z}^{*}$$
 -/
 structure TypeObs where
   cls : Class
@@ -254,18 +214,13 @@ deriving Repr, DecidableEq
 
 /-- The per-type test: deterministic types frame by frame, stable types by totals with the margin,
 quarantined types are left out.
-
-$$\operatorname{ok}(c, b, v) = \begin{cases} \operatorname{leF}(v, b) & c = \mathrm{det} \\ \Sigma v + \operatorname{margin}(k, t) \le \Sigma b & c = \mathrm{stable}(k, t) \\ \mathrm{true} & c = \mathrm{quar} \end{cases}$$
 -/
 def typeOk : Class → Series → Series → Bool
   | .deterministic, b, v => leFrames v b
   | .stable k t, b, v => decide (total v + marginOf k t ≤ total b)
   | .quarantined, _, _ => true
 
-/-- **The class-aware screen**: no more work when every non-quarantined type passes its test.
-
-$$\operatorname{noMoreWork}(O) = \bigwedge_{o \in O} \operatorname{ok}(o.\mathrm{cls}, o.\mathrm{base}, o.\mathrm{var})$$
--/
+/-- **The class-aware screen**: no more work when every non-quarantined type passes its test. -/
 def noMoreWork (os : List TypeObs) : Bool := os.all fun o => typeOk o.cls o.base o.var
 
 #guard noMoreWork [⟨.deterministic, [3, 1], [2, 1]⟩, ⟨.stable 2 1, [10, 0], [0, 8]⟩, ⟨.quarantined, [0], [99]⟩]
@@ -275,18 +230,13 @@ def noMoreWork (os : List TypeObs) : Bool := os.all fun o => typeOk o.cls o.base
 
 /-- What the screen promises about unseen runs of one type: frame by frame for deterministic
 types, on totals for stable types, nothing for quarantined ones.
-
-$$\operatorname{Promise}(c, b', v') \iff \begin{cases} \forall i:\ v'[i] \le b'[i] & c = \mathrm{det} \\ \Sigma v' \le \Sigma b' & c = \mathrm{stable}(k, t) \\ \top & c = \mathrm{quar} \end{cases}$$
 -/
 def Promise : Class → Series → Series → Prop
   | .deterministic, b', v' => ∀ i, valAt v' i ≤ valAt b' i
   | .stable _ _, b', v' => total v' ≤ total b'
   | .quarantined, _, _ => True
 
-/-- One type's test is sound under the class premise.
-
-$$\forall c, b, b', v, v':\ \operatorname{ok}(c, b, v) \land \operatorname{Within}(c, b, b') \land \operatorname{Within}(c, v, v') \;\Rightarrow\; \operatorname{Promise}(c, b', v')$$
--/
+/-- One type's test is sound under the class premise. -/
 theorem typeOk_sound {c : Class} {b b' v v' : Series} (h : typeOk c b v = true)
     (hb : Within c b b') (hv : Within c v v') : Promise c b' v' := by
   cases c with
@@ -301,8 +251,6 @@ theorem typeOk_sound {c : Class} {b b' v v' : Series} (h : typeOk c b v = true)
 /-- **Soundness of the class-aware screen.** If it says "no more work", then for every type and
 all unseen runs within the type's class of the observed ones, the variant does no more work than
 the baseline: in every frame for deterministic types, in total for stable types.
-
-$$\forall O:\ \operatorname{noMoreWork}(O) \;\Rightarrow\; \forall o \in O,\ \forall b', v':\ \operatorname{Within}(o.\mathrm{cls}, o.\mathrm{base}, b') \land \operatorname{Within}(o.\mathrm{cls}, o.\mathrm{var}, v') \Rightarrow \operatorname{Promise}(o.\mathrm{cls}, b', v')$$
 -/
 theorem noMoreWork_sound {os : List TypeObs} (h : noMoreWork os = true) :
     ∀ o ∈ os, ∀ b' v' : Series, Within o.cls o.base b' → Within o.cls o.var v' → Promise o.cls b' v' := by
@@ -310,10 +258,7 @@ theorem noMoreWork_sound {os : List TypeObs} (h : noMoreWork os = true) :
   simp only [noMoreWork, List.all_eq_true] at h
   exact typeOk_sound (h o ho) hb hv
 
-/-- A promise for a non-quarantined type bounds the total.
-
-$$\forall c, b', v':\ c \ne \mathrm{quar} \land \operatorname{Promise}(c, b', v') \;\Rightarrow\; \Sigma v' \le \Sigma b'$$
--/
+/-- A promise for a non-quarantined type bounds the total. -/
 theorem promise_total {c : Class} {b' v' : Series} (hc : c ≠ .quarantined) (h : Promise c b' v') :
     total v' ≤ total b' := by
   cases c with
@@ -323,20 +268,14 @@ theorem promise_total {c : Class} {b' v' : Series} (hc : c ≠ .quarantined) (h 
   | stable _ _ => exact h
   | quarantined => exact absurd rfl hc
 
-/-- One screened type with its unseen runs and its cost coefficient.
-
-$$\mathrm{Entry} = \mathrm{Obs} \times \mathbb{Z}^{*} \times \mathbb{Z}^{*} \times \mathbb{Q}$$
--/
+/-- One screened type with its unseen runs and its cost coefficient. -/
 structure Entry where
   obs : TypeObs
   base' : Series
   var' : Series
   coef : Rat
 
-/-- The linear run cost of the screened (non-quarantined) types of one arm.
-
-$$\operatorname{cost}(E, \mathrm{sel}) = \sum_{e \in E,\ e.\mathrm{cls} \ne \mathrm{quar}} e.\mathrm{coef} \cdot \Sigma\,\mathrm{sel}(e)$$
--/
+/-- The linear run cost of the screened (non-quarantined) types of one arm. -/
 def runCost (sel : Entry → Series) : List Entry → Rat
   | [] => 0
   | e :: es => (if e.obs.cls = .quarantined then 0 else e.coef * ((total (sel e) : Int) : Rat)) + runCost sel es
@@ -344,8 +283,6 @@ def runCost (sel : Entry → Series) : List Entry → Rat
 /-- **No more work in run cost.** If the class-aware screen says "no more work", then under every
 non-negative cost coefficients the screened types' linear run cost of any unseen variant run is at
 most that of any unseen baseline run (each within its type's class of the observed runs).
-
-$$\forall E:\ \operatorname{noMoreWork}([e.\mathrm{obs}]_{e \in E}) \land \forall e \in E:\ \big(0 \le e.\mathrm{coef} \land \operatorname{Within}(e.\mathrm{cls}, e.\mathrm{base}, e.b') \land \operatorname{Within}(e.\mathrm{cls}, e.\mathrm{var}, e.v')\big) \;\Rightarrow\; \operatorname{cost}(E, e \mapsto e.v') \le \operatorname{cost}(E, e \mapsto e.b')$$
 -/
 theorem noMoreWork_cost (es : List Entry) (h : noMoreWork (es.map (·.obs)) = true)
     (hw : ∀ e ∈ es, 0 ≤ e.coef) (hb : ∀ e ∈ es, Within e.obs.cls e.obs.base e.base')

@@ -1,7 +1,7 @@
 /-!
 # Agent state from transcript signals
 
-What one agent is doing at time $t$, read from its own transcript, the lead's queue and `ps`, never from
+What one agent is doing at time `t`, read from its own transcript, the lead's queue and `ps`, never from
 `meta.finished` (research: `research/notes/2026/10-18-transcript-signals.md`, part B; the rule reproduces the
 timelines of the 8 agents studied there).
 
@@ -17,8 +17,8 @@ Facts per agent (all times in one unit, ms on the wire, seconds in the golden ti
   their command kind (reads stdin, sleep loop, other).
 
 Rule (`rule`, the note's table): an open turn is `working`; a closed one is decided by the pending set
-$\mathrm{PEND} = \mathrm{BG} \setminus \mathrm{END}$, the handback and the latest lead notice. `classify` adds
-`hung(b)`: a closed turn with a pending id $b$ launched more than `hungAfter` ago whose live process reads stdin or
+`PEND = BG ∖ END`, the handback and the latest lead notice. `classify` adds
+`hung(b)`: a closed turn with a pending id `b` launched more than `hungAfter` ago whose live process reads stdin or
 is a sleep loop (port-nav's `cat > file` ran 3 h with no end signal; only `ps` shows it).
 
 Proved: `classify_table`, `classify_total`, `classify_det`, `state_working_iff_open`, `held_iff`, `classify_held_iff`,
@@ -27,47 +27,32 @@ Proved: `classify_table`, `classify_total`, `classify_det`, `state_working_iff_o
 -/
 namespace Fw.Obs.Signals
 
-/-- The hung threshold, in the facts' time unit (default 30; the golden uses 1800 s, the wire passes ms).
-
-$$p = (\mathit{hungAfter}) \in \mathbb N,\quad \text{default } 30$$
--/
+/-- The hung threshold, in the facts' time unit (default 30; the golden uses 1800 s, the wire passes ms). -/
 structure Params where
   hungAfter : Nat := 30
 deriving DecidableEq, Repr
 
-/-- A background id launched by the agent at a time.
-
-$$\ell = (\mathit{id}, \mathit{time}) \in \mathrm{String} \times \mathbb N$$
--/
+/-- A background id launched by the agent at a time. -/
 structure Launch where
   id   : String
   time : Nat
 deriving DecidableEq, Repr
 
-/-- How an end was seen: a task notification, the exit marker `[exited with code N]`, or the marker `[killed]`.
-
-$$\mathcal H = \{\mathrm{notified}, \mathrm{killed}\} \cup \{\mathrm{exited}(n) : n \in \mathbb Z\}$$
--/
+/-- How an end was seen: a task notification, the exit marker `[exited with code N]`, or the marker `[killed]`. -/
 inductive How where
   | notified
   | exited (code : Int)
   | killed
 deriving DecidableEq, Repr
 
-/-- An end event of a background id at a time.
-
-$$e = (\mathit{id}, \mathit{time}, \mathit{how}) \in \mathrm{String} \times \mathbb N \times \mathcal H$$
--/
+/-- An end event of a background id at a time. -/
 structure EndEv where
   id   : String
   time : Nat
   how  : How := .notified
 deriving DecidableEq, Repr
 
-/-- A turn boundary: its time and whether it starts a turn (`true`) or ends one (`false`).
-
-$$\beta = (\mathit{time}, \mathit{start}) \in \mathbb N \times \mathbb B$$
--/
+/-- A turn boundary: its time and whether it starts a turn (`true`) or ends one (`false`). -/
 structure Bound where
   time  : Nat
   start : Bool
@@ -75,8 +60,6 @@ deriving DecidableEq, Repr
 
 /-- A lead notice for the agent: its time and whether it says 'finished' (`false`: 'waiting on its own background
 work').
-
-$$n = (\mathit{time}, \mathit{fin}) \in \mathbb N \times \mathbb B$$
 -/
 structure Notice where
   time     : Nat
@@ -85,8 +68,6 @@ deriving DecidableEq, Repr
 
 /-- What a live process of a background id does, read from its command: it reads stdin (`cat > file` with no
 input), it is a sleep loop (`until …; do sleep …`), or anything else.
-
-$$\mathcal P = \{\mathrm{stdin}, \mathrm{sleepLoop}, \mathrm{other}\}$$
 -/
 inductive ProcKind where
   | stdin
@@ -94,10 +75,7 @@ inductive ProcKind where
   | other
 deriving DecidableEq, Repr
 
-/-- A live process of a background id: the id, its pid and its kind.
-
-$$q = (\mathit{id}, \mathit{pid}, k) \in \mathrm{String} \times \mathbb N \times \mathcal P$$
--/
+/-- A live process of a background id: the id, its pid and its kind. -/
 structure Proc where
   id   : String
   pid  : Nat
@@ -107,8 +85,6 @@ deriving DecidableEq, Repr
 /-- The signal facts of one agent: its id, launched ids, end events, turn boundaries (in file order), handback
 times, lead notices (in file order), live processes, and the times `meta.finished` was written (recorded, never read
 by the rule).
-
-$$f = (a, L, E, B, H, N, Q, M)$$
 -/
 structure Facts where
   agent        : String
@@ -123,8 +99,6 @@ deriving DecidableEq, Repr
 
 /-- The agent's state: working (open turn), waiting on its own background ids, handed back but held by pending ids,
 handed back and done, finished (lead notice), idle after a turn, or hung on one id.
-
-$$\mathcal S = \{\mathrm{working}, \mathrm{done}, \mathrm{finished}, \mathrm{idle}\} \cup \{\mathrm{waiting}(P), \mathrm{held}(P) : P \in \mathrm{String}^*\} \cup \{\mathrm{hung}(b) : b \in \mathrm{String}\}$$
 -/
 inductive State where
   | working
@@ -138,75 +112,47 @@ deriving DecidableEq, Repr
 
 /-! ## The sets at time t -/
 
-/-- Whether id $b$ has an end event at or before $t$.
-
-$$\operatorname{END}(t, f, b) \iff \exists e \in E(f).\ \mathit{id}(e) = b \wedge \mathit{time}(e) \le t$$
--/
+/-- Whether id `b` has an end event at or before `t`. -/
 def endedB (t : Nat) (f : Facts) (b : String) : Bool :=
   f.ends.any fun e => e.id == b && decide (e.time ≤ t)
 
-/-- The ids launched at or before $t$, first launch order, without repeats.
-
-$$\operatorname{BG}(t, f) = \operatorname{dedup}\,[\mathit{id}(\ell) : \ell \in L(f),\ \mathit{time}(\ell) \le t]$$
--/
+/-- The ids launched at or before `t`, first launch order, without repeats. -/
 def bg (t : Nat) (f : Facts) : List String :=
   ((f.launched.filter fun l => decide (l.time ≤ t)).map (·.id)).eraseDups
 
-/-- The pending ids: launched and not ended at $t$.
-
-$$\operatorname{PEND}(t, f) = [b \in \operatorname{BG}(t, f) : \neg\operatorname{END}(t, f, b)]$$
--/
+/-- The pending ids: launched and not ended at `t`. -/
 def pend (t : Nat) (f : Facts) : List String :=
   (bg t f).filter fun b => !endedB t f b
 
-/-- Whether the agent handed back at or before $t$.
-
-$$\operatorname{HB}(t, f) \iff \exists h \in H(f).\ h \le t$$
--/
+/-- Whether the agent handed back at or before `t`. -/
 def hbB (t : Nat) (f : Facts) : Bool := f.handbacks.any fun h => decide (h ≤ t)
 
-/-- The latest handback at or before $t$ (`none`: none).
-
-$$\operatorname{lastHB}(t, f) = \max\{h \in H(f) : h \le t\}\ (\bot \text{ if empty})$$
--/
+/-- The latest handback at or before `t` (`none`: none). -/
 def lastHandback (t : Nat) (f : Facts) : Option Nat := (f.handbacks.filter fun h => decide (h ≤ t)).max?
 
-/-- Whether the turn is open at $t$: the last boundary (in file order) with time at or before $t$ is a START. No such
+/-- Whether the turn is open at `t`: the last boundary (in file order) with time at or before `t` is a START. No such
 boundary: closed.
-
-$$\operatorname{open}(t, f) \iff \exists \beta.\ \operatorname{last}[\beta' \in B(f) : \mathit{time}(\beta') \le t] = \beta \wedge \mathit{start}(\beta)$$
 -/
 def openB (t : Nat) (f : Facts) : Bool :=
   match (f.bounds.filter fun b => decide (b.time ≤ t)).getLast? with
   | some b => b.start
   | none => false
 
-/-- Whether the latest lead notice (in file order) at or before $t$ says 'finished'. No notice: no.
-
-$$\operatorname{fin}(t, f) \iff \exists n.\ \operatorname{last}[n' \in N(f) : \mathit{time}(n') \le t] = n \wedge \mathit{fin}(n)$$
--/
+/-- Whether the latest lead notice (in file order) at or before `t` says 'finished'. No notice: no. -/
 def finNoticeB (t : Nat) (f : Facts) : Bool :=
   match (f.notices.filter fun n => decide (n.time ≤ t)).getLast? with
   | some n => n.finished
   | none => false
 
-/-- The time of the first launch of id $b$ at or before $t$ (`none`: not launched by $t$).
-
-$$\operatorname{at}(t, f, b) = \mathit{time}\bigl(\operatorname{first}[\ell \in L(f) : \mathit{id}(\ell) = b \wedge \mathit{time}(\ell) \le t]\bigr)\ (\bot \text{ if empty})$$
--/
+/-- The time of the first launch of id `b` at or before `t` (`none`: not launched by `t`). -/
 def launchAt (t : Nat) (f : Facts) (b : String) : Option Nat :=
   (f.launched.find? fun l => l.id == b && decide (l.time ≤ t)).map (·.time)
 
-/-- A process kind that never ends on its own: it reads stdin or it is a sleep loop.
-
-$$\operatorname{waits}(k) \iff k \in \{\mathrm{stdin}, \mathrm{sleepLoop}\}$$
--/
+/-- A process kind that never ends on its own: it reads stdin or it is a sleep loop. -/
 def waitsB (k : ProcKind) : Bool := k == .stdin || k == .sleepLoop
 
-/-- Whether id $b$ is hung at $t$: launched strictly more than `hungAfter` before $t$, and a live process of $b$
+/-- Whether id `b` is hung at `t`: launched strictly more than `hungAfter` before `t`, and a live process of `b`
 reads stdin or is a sleep loop. (Used on pending ids only.)
-
-$$\operatorname{hung}(p, t, f, b) \iff \bigl(\exists a.\ \operatorname{at}(t, f, b) = a \wedge \mathit{hungAfter}(p) < t \mathbin{\dot-} a\bigr) \wedge \exists q \in Q(f).\ \mathit{id}(q) = b \wedge \operatorname{waits}(k(q))$$
 -/
 def hungB (p : Params) (t : Nat) (f : Facts) (b : String) : Bool :=
   (match launchAt t f b with
@@ -214,18 +160,13 @@ def hungB (p : Params) (t : Nat) (f : Facts) (b : String) : Bool :=
    | none => false) &&
   f.procs.any fun q => q.id == b && waitsB q.kind
 
-/-- The hung pending ids, in pending order.
-
-$$\operatorname{HUNG}(p, t, f) = [b \in \operatorname{PEND}(t, f) : \operatorname{hung}(p, t, f, b)]$$
--/
+/-- The hung pending ids, in pending order. -/
 def hungIds (p : Params) (t : Nat) (f : Facts) : List String := (pend t f).filter (hungB p t f)
 
 /-! ## The rule and the classification -/
 
 /-- **The note's rule.** Open turn: working. Closed: pending ids and a handback: held; pending ids, no handback:
 waiting; nothing pending: finished if the latest lead notice says so, else done if handed back, else idle.
-
-$$\operatorname{rule}(t, f) = \begin{cases} \mathrm{working} & \operatorname{open}(t, f) \\ \mathrm{held}(P) & \neg\operatorname{open} \wedge \operatorname{PEND}(t, f) = P \ne [\,] \wedge \operatorname{HB}(t, f) \\ \mathrm{waiting}(P) & \neg\operatorname{open} \wedge \operatorname{PEND}(t, f) = P \ne [\,] \wedge \neg\operatorname{HB}(t, f) \\ \mathrm{finished} & \neg\operatorname{open} \wedge \operatorname{PEND}(t, f) = [\,] \wedge \operatorname{fin}(t, f) \\ \mathrm{done} & \neg\operatorname{open} \wedge \operatorname{PEND}(t, f) = [\,] \wedge \neg\operatorname{fin}(t, f) \wedge \operatorname{HB}(t, f) \\ \mathrm{idle} & \text{otherwise} \end{cases}$$
 -/
 def rule (t : Nat) (f : Facts) : State :=
   if openB t f then .working
@@ -235,8 +176,6 @@ def rule (t : Nat) (f : Facts) : State :=
 
 /-- **The classification.** Open turn: working; closed with a hung pending id: hung on the first one; otherwise
 the rule.
-
-$$\operatorname{classify}(p, t, f) = \begin{cases} \mathrm{working} & \operatorname{open}(t, f) \\ \mathrm{hung}(b) & \neg\operatorname{open}(t, f) \wedge \operatorname{HUNG}(p, t, f) = b :: \_ \\ \operatorname{rule}(t, f) & \text{otherwise} \end{cases}$$
 -/
 def classify (p : Params) (t : Nat) (f : Facts) : State :=
   if openB t f then .working
@@ -244,61 +183,38 @@ def classify (p : Params) (t : Nat) (f : Facts) : State :=
     | b :: _ => .hung b
     | [] => rule t f
 
-/-- The states in which nothing of the agent's own is pending: done, finished, idle.
-
-$$\operatorname{quiet}(s) \iff s \in \{\mathrm{done}, \mathrm{finished}, \mathrm{idle}\}$$
--/
+/-- The states in which nothing of the agent's own is pending: done, finished, idle. -/
 def quietB : State → Bool
   | .handedBackDone | .finished | .idle => true
   | _ => false
 
-/-- A producer counts as exited (for a loop watching its output) when it is finished or handed back and done.
-
-$$\operatorname{producerDone}(s) \iff s \in \{\mathrm{finished}, \mathrm{done}\}$$
--/
+/-- A producer counts as exited (for a loop watching its output) when it is finished or handed back and done. -/
 def producerDoneB : State → Bool
   | .handedBackDone | .finished => true
   | _ => false
 
-/-- The ids a state names: the pending ids of waiting and held, the id of hung, else none.
-
-$$\operatorname{ids}(s) = \begin{cases} P & s \in \{\mathrm{waiting}(P), \mathrm{held}(P)\} \\ [b] & s = \mathrm{hung}(b) \\ [\,] & \text{otherwise} \end{cases}$$
--/
+/-- The ids a state names: the pending ids of waiting and held, the id of hung, else none. -/
 def State.ids : State → List String
   | .waitingOwnBg P | .handedBackHeld P => P
   | .hung b => [b]
   | _ => []
 
-/-- The wire name of a state.
-
-$$\begin{aligned}
-&\operatorname{name}(\mathrm{working}) = \texttt{working},\ \operatorname{name}(\mathrm{waiting}(P)) = \texttt{waitingOwnBg},\ \operatorname{name}(\mathrm{held}(P)) = \texttt{handedBackHeld},\ \operatorname{name}(\mathrm{done}) = \texttt{handedBackDone}, \\
-&\operatorname{name}(\mathrm{finished}) = \texttt{finished},\ \operatorname{name}(\mathrm{idle}) = \texttt{idle},\ \operatorname{name}(\mathrm{hung}(b)) = \texttt{hung}
-\end{aligned}$$
--/
+/-- The wire name of a state. -/
 def State.name : State → String
   | .working => "working" | .waitingOwnBg _ => "waitingOwnBg" | .handedBackHeld _ => "handedBackHeld"
   | .handedBackDone => "handedBackDone" | .finished => "finished" | .idle => "idle" | .hung _ => "hung"
 
-/-- One more end event, appended.
-
-$$\operatorname{addEnd}(e, f) = f[E := E(f) \mathbin{+\!\!+} [e]]$$
--/
+/-- One more end event, appended. -/
 def addEnd (e : EndEv) (f : Facts) : Facts := { f with ends := f.ends ++ [e] }
 
 /-! ## Proofs -/
 
-/-- **Deterministic.** The classification is a function: two results for the same input are equal.
-
-$$\forall p, t, f, s, s':\quad s = \operatorname{classify}(p, t, f) \wedge s' = \operatorname{classify}(p, t, f) \Rightarrow s = s'$$
--/
+/-- **Deterministic.** The classification is a function: two results for the same input are equal. -/
 theorem classify_det (p : Params) (t : Nat) (f : Facts) (s s' : State)
     (h : s = classify p t f) (h' : s' = classify p t f) : s = s' := h.trans h'.symm
 
 /-- **The case table** (first match, so the cases do not overlap): open turn; a hung id; pending ids with and without a
 handback; nothing pending with a 'finished' notice, with a handback, or neither.
-
-$$\forall p, t, f:\quad \operatorname{classify}(p, t, f) = \begin{cases} \mathrm{working} & \operatorname{open}(t, f) \\ \mathrm{hung}(b) & \neg\operatorname{open} \wedge \operatorname{HUNG}(p, t, f) = b :: \_ \\ \mathrm{held}(P) & \neg\operatorname{open} \wedge \operatorname{HUNG} = [\,] \wedge \operatorname{PEND}(t, f) = P \ne [\,] \wedge \operatorname{HB}(t, f) \\ \mathrm{waiting}(P) & \neg\operatorname{open} \wedge \operatorname{HUNG} = [\,] \wedge \operatorname{PEND}(t, f) = P \ne [\,] \wedge \neg\operatorname{HB}(t, f) \\ \mathrm{finished} & \neg\operatorname{open} \wedge \operatorname{HUNG} = [\,] \wedge \operatorname{PEND} = [\,] \wedge \operatorname{fin}(t, f) \\ \mathrm{done} & \neg\operatorname{open} \wedge \operatorname{HUNG} = [\,] \wedge \operatorname{PEND} = [\,] \wedge \neg\operatorname{fin} \wedge \operatorname{HB}(t, f) \\ \mathrm{idle} & \neg\operatorname{open} \wedge \operatorname{HUNG} = [\,] \wedge \operatorname{PEND} = [\,] \wedge \neg\operatorname{fin} \wedge \neg\operatorname{HB}(t, f) \end{cases}$$
 -/
 theorem classify_table (p : Params) (t : Nat) (f : Facts) :
     classify p t f =
@@ -313,17 +229,12 @@ theorem classify_table (p : Params) (t : Nat) (f : Facts) :
   · simp only [Bool.false_eq_true, ite_false]
   · rfl
 
-/-- The hung ids are pending ids.
-
-$$\forall p, t, f, b:\quad b \in \operatorname{HUNG}(p, t, f) \Rightarrow b \in \operatorname{PEND}(t, f)$$
--/
+/-- The hung ids are pending ids. -/
 theorem mem_pend_of_hung (p : Params) (t : Nat) (f : Facts) (b : String) (h : b ∈ hungIds p t f) :
     b ∈ pend t f := (List.mem_filter.1 h).1
 
 /-- **Total**: every input gets one of the seven forms; the id of hung is pending; the ids of waiting and held are
 the pending set, non-empty.
-
-$$\forall p, t, f:\quad \operatorname{classify}(p, t, f) \in \{\mathrm{working}, \mathrm{done}, \mathrm{finished}, \mathrm{idle}\} \vee \bigl(\exists b \in \operatorname{PEND}(t, f).\ \operatorname{classify}(p, t, f) = \mathrm{hung}(b)\bigr) \vee \bigl(\operatorname{PEND}(t, f) \ne [\,] \wedge \operatorname{classify}(p, t, f) \in \{\mathrm{waiting}(\operatorname{PEND}(t, f)), \mathrm{held}(\operatorname{PEND}(t, f))\}\bigr)$$
 -/
 theorem classify_total (p : Params) (t : Nat) (f : Facts) :
     (classify p t f = .working ∨ classify p t f = .handedBackDone ∨ classify p t f = .finished ∨
@@ -341,10 +252,7 @@ theorem classify_total (p : Params) (t : Nat) (f : Facts) :
       | cons b bs => cases hbB t f <;> simp
   · simp
 
-/-- **Working exactly when the turn is open** (for the rule).
-
-$$\forall t, f:\quad \operatorname{rule}(t, f) = \mathrm{working} \iff \operatorname{open}(t, f)$$
--/
+/-- **Working exactly when the turn is open** (for the rule). -/
 theorem rule_working_iff_open (t : Nat) (f : Facts) : rule t f = .working ↔ openB t f = true := by
   unfold rule
   cases openB t f
@@ -353,10 +261,7 @@ theorem rule_working_iff_open (t : Nat) (f : Facts) : rule t f = .working ↔ op
     | cons b bs => cases hbB t f <;> simp
   · simp
 
-/-- **Working exactly when the turn is open.**
-
-$$\forall p, t, f:\quad \operatorname{classify}(p, t, f) = \mathrm{working} \iff \operatorname{open}(t, f)$$
--/
+/-- **Working exactly when the turn is open.** -/
 theorem state_working_iff_open (p : Params) (t : Nat) (f : Facts) :
     classify p t f = .working ↔ openB t f = true := by
   unfold classify
@@ -366,10 +271,8 @@ theorem state_working_iff_open (p : Params) (t : Nat) (f : Facts) :
     | nil => simpa [ho] using rule_working_iff_open t f
   · simp
 
-/-- **Held exactly when handed back with pending ids** (the note's rule): the rule says held on $P$ iff the turn is
-closed, the agent handed back, and the pending set is $P \ne [\,]$.
-
-$$\forall t, f, P:\quad \operatorname{rule}(t, f) = \mathrm{held}(P) \iff \neg\operatorname{open}(t, f) \wedge \operatorname{HB}(t, f) \wedge \operatorname{PEND}(t, f) = P \wedge P \ne [\,]$$
+/-- **Held exactly when handed back with pending ids** (the note's rule): the rule says held on `P` iff the turn is
+closed, the agent handed back, and the pending set is `P ≠ []`.
 -/
 theorem held_iff (t : Nat) (f : Facts) (P : List String) :
     rule t f = .handedBackHeld P ↔ openB t f = false ∧ hbB t f = true ∧ pend t f = P ∧ P ≠ [] := by
@@ -381,10 +284,8 @@ theorem held_iff (t : Nat) (f : Facts) (P : List String) :
     | cons b bs => cases hbB t f <;> simp [eq_comm] <;> rintro rfl <;> simp
   · simp
 
-/-- **Held, with hung ids.** The classification says held on $P$ iff the turn is closed, no pending id is hung, the
-agent handed back, and the pending set is $P \ne [\,]$.
-
-$$\forall p, t, f, P:\quad \operatorname{classify}(p, t, f) = \mathrm{held}(P) \iff \neg\operatorname{open}(t, f) \wedge \operatorname{HUNG}(p, t, f) = [\,] \wedge \operatorname{HB}(t, f) \wedge \operatorname{PEND}(t, f) = P \wedge P \ne [\,]$$
+/-- **Held, with hung ids.** The classification says held on `P` iff the turn is closed, no pending id is hung, the
+agent handed back, and the pending set is `P ≠ []`.
 -/
 theorem classify_held_iff (p : Params) (t : Nat) (f : Facts) (P : List String) :
     classify p t f = .handedBackHeld P ↔
@@ -397,10 +298,7 @@ theorem classify_held_iff (p : Params) (t : Nat) (f : Facts) (P : List String) :
     | nil => simpa [ho] using hr
   · simp
 
-/-- A quiet classification (done, finished, idle) means a closed turn with nothing pending.
-
-$$\forall p, t, f:\quad \operatorname{quiet}(\operatorname{classify}(p, t, f)) \Rightarrow \neg\operatorname{open}(t, f) \wedge \operatorname{PEND}(t, f) = [\,]$$
--/
+/-- A quiet classification (done, finished, idle) means a closed turn with nothing pending. -/
 theorem closed_nil_of_quiet (p : Params) (t : Nat) (f : Facts) (hq : quietB (classify p t f) = true) :
     openB t f = false ∧ pend t f = [] := by
   rw [classify_table] at hq
@@ -415,29 +313,20 @@ theorem closed_nil_of_quiet (p : Params) (t : Nat) (f : Facts) (hq : quietB (cla
       | cons b bs => rw [hp] at hq; cases hb : hbB t f <;> simp [hb, quietB] at hq
   · rw [ho] at hq; simp [quietB] at hq
 
-/-- Ends only grow: an end at $t$ stays an end at every later time.
-
-$$\forall t, t', f, b:\quad t \le t' \wedge \operatorname{END}(t, f, b) \Rightarrow \operatorname{END}(t', f, b)$$
--/
+/-- Ends only grow: an end at `t` stays an end at every later time. -/
 theorem endedB_mono (t t' : Nat) (f : Facts) (b : String) (htt : t ≤ t') (h : endedB t f b = true) :
     endedB t' f b = true := by
   simp only [endedB, List.any_eq_true, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at h ⊢
   obtain ⟨e, he, hb, ht⟩ := h
   exact ⟨e, he, hb, by omega⟩
 
-/-- Adding an end keeps every old end.
-
-$$\forall e, t, f, b:\quad \operatorname{END}(t, f, b) \Rightarrow \operatorname{END}(t, \operatorname{addEnd}(e, f), b)$$
--/
+/-- Adding an end keeps every old end. -/
 theorem endedB_addEnd (e : EndEv) (t : Nat) (f : Facts) (b : String) (h : endedB t f b = true) :
     endedB t (addEnd e f) b = true := by
   simp only [endedB, addEnd, List.any_append, Bool.or_eq_true] at h ⊢
   exact .inl h
 
-/-- Adding an end only removes pending ids.
-
-$$\forall e, t, f, b:\quad b \in \operatorname{PEND}(t, \operatorname{addEnd}(e, f)) \Rightarrow b \in \operatorname{PEND}(t, f)$$
--/
+/-- Adding an end only removes pending ids. -/
 theorem pend_addEnd (e : EndEv) (t : Nat) (f : Facts) (b : String) (h : b ∈ pend t (addEnd e f)) :
     b ∈ pend t f := by
   simp only [pend, List.mem_filter, Bool.not_eq_true'] at h ⊢
@@ -448,19 +337,14 @@ theorem pend_addEnd (e : EndEv) (t : Nat) (f : Facts) (b : String) (h : b ∈ pe
     rw [h.2] at this
     exact absurd this (by simp)
 
-/-- A list whose members all lie in the empty list is empty.
-
-$$\forall \ell:\quad (\forall b \in \ell.\ b \in [\,]) \Rightarrow \ell = [\,]$$
--/
+/-- A list whose members all lie in the empty list is empty. -/
 theorem nil_of_sub_nil (l : List String) (h : ∀ b ∈ l, b ∈ ([] : List String)) : l = [] := by
   cases l with
   | nil => rfl
   | cons b _ => exact absurd (h b (by simp)) (by simp)
 
-/-- **Monotone in END.** If the agent is done, finished or idle at $t$, adding any end event leaves its state
+/-- **Monotone in END.** If the agent is done, finished or idle at `t`, adding any end event leaves its state
 unchanged: an end never moves it back to held, waiting or hung.
-
-$$\forall p, t, f, e:\quad \operatorname{quiet}(\operatorname{classify}(p, t, f)) \Rightarrow \operatorname{classify}(p, t, \operatorname{addEnd}(e, f)) = \operatorname{classify}(p, t, f)$$
 -/
 theorem classify_quiet_addEnd (p : Params) (t : Nat) (f : Facts) (e : EndEv)
     (hq : quietB (classify p t f) = true) : classify p t (addEnd e f) = classify p t f := by
@@ -475,10 +359,7 @@ theorem classify_quiet_addEnd (p : Params) (t : Nat) (f : Facts) (e : EndEv)
   unfold classify rule
   rw [ho, hb, hn, hH, hH', hP, hP']
 
-/-- **`meta.finished` is never read**: changing the recorded `meta.finished` times changes no state.
-
-$$\forall p, t, f,\ \forall m \in \mathbb{N}^{*}:\quad \operatorname{classify}(p, t, f[M := m]) = \operatorname{classify}(p, t, f)$$
--/
+/-- **`meta.finished` is never read**: changing the recorded `meta.finished` times changes no state. -/
 theorem classify_metaFinished (p : Params) (t : Nat) (f : Facts) (m : List Nat) :
     classify p t { f with metaFinished := m } = classify p t f := rfl
 
@@ -516,32 +397,20 @@ proof-morph-panel wait 3:24:00-3:24:05). The facts were read from the transcript
 processes are those the note names, and `metaFinished` lists every closing boundary (what `meta.finished` would have
 said). -/
 
-/-- Seconds since 2026-10-17 23:00 +07:00 for the clock time $h{:}m{:}s$ (hour 23 is the evening before).
-
-$$\operatorname{hms}(h, m, s) = 3600\,((h + 1) \bmod 24) + 60\,m + s$$
--/
+/-- Seconds since 2026-10-17 23:00 +07:00 for the clock time `h:m:s` (hour 23 is the evening before). -/
 def hms (h m s : Nat) : Nat := 3600 * ((h + 1) % 24) + 60 * m + s
 
-/-- The golden parameters: an id is hung after 30 minutes, i.e. 1800 seconds.
-
-$$P_{\mathrm{gold}} = (\mathit{hungAfter} := 1800)$$
--/
+/-- The golden parameters: an id is hung after 30 minutes, i.e. 1800 seconds. -/
 def goldenParams : Params := { hungAfter := 1800 }
 
-/-- A golden checkpoint: time, the note's expected rule state, and the expected classification.
-
-$$c = (t, s_{\mathrm{rule}}, s) \in \mathbb N \times \mathcal S^2$$
--/
+/-- A golden checkpoint: time, the note's expected rule state, and the expected classification. -/
 structure Check where
   t     : Nat
   rule  : State
   state : State
 deriving DecidableEq, Repr
 
-/-- A golden timeline: name, facts, checkpoints.
-
-$$\tau = (\mathit{name}, f, C)$$
--/
+/-- A golden timeline: name, facts, checkpoints. -/
 structure Timeline where
   name   : String
   facts  : Facts
@@ -551,23 +420,7 @@ deriving DecidableEq, Repr
 
 /-- Golden timeline `port-nav` (research note part B): its facts and checkpoints.
 
-$$\begin{aligned}
-\tau_{\mathrm{portNav}} &= (\texttt{port-nav}, f, C),\quad f = (\texttt{port-nav}, L, E, B, H, N, Q, M) \\
-L &= [(\texttt{bh6n4n7sw}, 0{:}54{:}21), (\texttt{btxvry2hv}, 1{:}15{:}00)] \\
-E &= [(\texttt{btxvry2hv}, 1{:}21{:}05, \mathrm{notified}), (\texttt{btxvry2hv}, 1{:}21{:}05, \mathrm{exited}(0)), (\texttt{bh6n4n7sw}, 4{:}02{:}37, \mathrm{notified}), \\
-&\quad (\texttt{bh6n4n7sw}, 4{:}02{:}37, \mathrm{exited}(144))] \\
-B &= [(0{:}48{:}01, \top), (1{:}23{:}27, \bot)] \\
-H &= [1{:}23{:}27] \\
-N &= [(1{:}23{:}27, \bot)] \\
-Q &= [(\texttt{bh6n4n7sw}, 10476, \mathrm{stdin})] \\
-M &= [1{:}23{:}27] \\
-C &= [(0{:}50{:}00, \mathrm{working}, \mathrm{working}), (1{:}00{:}00, \mathrm{working}, \mathrm{working}), \\
-&\quad (1{:}23{:}00, \mathrm{working}, \mathrm{working}), (1{:}23{:}30, \mathrm{held}([\texttt{bh6n4n7sw}]), \mathrm{held}([\texttt{bh6n4n7sw}])), \\
-&\quad (1{:}24{:}30, \mathrm{held}([\texttt{bh6n4n7sw}]), \mathrm{hung}(\texttt{bh6n4n7sw})), (3{:}58{:}00, \mathrm{held}([\texttt{bh6n4n7sw}]), \mathrm{hung}(\texttt{bh6n4n7sw})), \\
-&\quad (4{:}05{:}00, \mathrm{done}, \mathrm{done})]
-\end{aligned}$$
-
-A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
+A time `h:mm:ss` stands for `hms(h, mm, ss)`; each checkpoint is `(t, s_rule, s)`.
 -/
 def portNav : Timeline where
   name := "port-nav"
@@ -591,21 +444,7 @@ def portNav : Timeline where
 
 /-- Golden timeline `ghb-runner` (research note part B): its facts and checkpoints.
 
-$$\begin{aligned}
-\tau_{\mathrm{ghbRunner}} &= (\texttt{ghb-runner}, f, C),\quad f = (\texttt{ghb-runner}, L, E, B, H, N, Q, M) \\
-L &= [(\texttt{boknfh6jg}, 2{:}39{:}31), (\texttt{bxy829o5c}, 2{:}45{:}17)] \\
-E &= [(\texttt{boknfh6jg}, 2{:}40{:}46, \mathrm{notified}), (\texttt{boknfh6jg}, 2{:}40{:}46, \mathrm{exited}(0)), (\texttt{bxy829o5c}, 3{:}02{:}27, \mathrm{notified}), \\
-&\quad (\texttt{bxy829o5c}, 3{:}02{:}27, \mathrm{exited}(144))] \\
-B &= [(2{:}31{:}49, \top), (2{:}45{:}38, \bot)] \\
-H &= [2{:}45{:}38] \\
-N &= [(2{:}45{:}39, \bot)] \\
-Q &= [(\texttt{bxy829o5c}, 11343, \mathrm{sleepLoop})] \\
-M &= [2{:}45{:}38] \\
-C &= [(2{:}35{:}00, \mathrm{working}, \mathrm{working}), (2{:}46{:}00, \mathrm{held}([\texttt{bxy829o5c}]), \mathrm{held}([\texttt{bxy829o5c}])), \\
-&\quad (3{:}00{:}00, \mathrm{held}([\texttt{bxy829o5c}]), \mathrm{held}([\texttt{bxy829o5c}])), (3{:}05{:}00, \mathrm{done}, \mathrm{done})]
-\end{aligned}$$
-
-A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
+A time `h:mm:ss` stands for `hms(h, mm, ss)`; each checkpoint is `(t, s_rule, s)`.
 -/
 def ghbRunner : Timeline where
   name := "ghb-runner"
@@ -626,33 +465,7 @@ def ghbRunner : Timeline where
 
 /-- Golden timeline `wktr-ci-lane` (research note part B): its facts and checkpoints.
 
-$$\begin{aligned}
-\tau_{\mathrm{wktrCiLane}} &= (\texttt{wktr-ci-lane}, f, C),\quad f = (\texttt{wktr-ci-lane}, L, E, B, H, N, Q, M) \\
-L &= [(\texttt{bo3l3w42q}, 23{:}46{:}06), (\texttt{bnk9xvb62}, 0{:}02{:}17), (\texttt{b37xkdhwk}, 0{:}12{:}35), (\texttt{bcnhpjdld}, 0{:}28{:}01), \\
-&\quad (\texttt{bsla5ik1n}, 1{:}22{:}19), (\texttt{bgkff8phc}, 1{:}22{:}41), (\texttt{brr7ydi4e}, 1{:}32{:}35), (\texttt{bfx3xiqre}, 1{:}37{:}40), \\
-&\quad (\texttt{b91tnu6nf}, 1{:}47{:}38), (\texttt{b7rt996kn}, 1{:}58{:}08), (\texttt{biyz06cmr}, 1{:}58{:}47), (\texttt{busaq7jf8}, 2{:}08{:}42), \\
-&\quad (\texttt{bodiephr3}, 2{:}19{:}12), (\texttt{bmi65i9id}, 2{:}20{:}14), (\texttt{b301x7muk}, 2{:}30{:}09), (\texttt{betbu6rpd}, 2{:}40{:}43)] \\
-E &= [(\texttt{bo3l3w42q}, 23{:}58{:}38, \mathrm{notified}), (\texttt{bo3l3w42q}, 23{:}58{:}38, \mathrm{exited}(1)), (\texttt{bnk9xvb62}, 0{:}17{:}02, \mathrm{notified}), \\
-&\quad (\texttt{bnk9xvb62}, 0{:}17{:}02, \mathrm{exited}(0)), (\texttt{bcnhpjdld}, 0{:}31{:}43, \mathrm{notified}), (\texttt{bcnhpjdld}, 0{:}31{:}43, \mathrm{exited}(0)), \\
-&\quad (\texttt{bsla5ik1n}, 1{:}22{:}36, \mathrm{notified}), (\texttt{bsla5ik1n}, 1{:}22{:}36, \mathrm{exited}(0)), (\texttt{bgkff8phc}, 1{:}32{:}51, \mathrm{notified}), \\
-&\quad (\texttt{bgkff8phc}, 1{:}32{:}51, \mathrm{exited}(0)), (\texttt{brr7ydi4e}, 1{:}33{:}05, \mathrm{notified}), (\texttt{brr7ydi4e}, 1{:}33{:}05, \mathrm{exited}(0)), \\
-&\quad (\texttt{bfx3xiqre}, 1{:}47{:}50, \mathrm{notified}), (\texttt{bfx3xiqre}, 1{:}47{:}50, \mathrm{exited}(0)), (\texttt{b91tnu6nf}, 1{:}48{:}18, \mathrm{notified}), \\
-&\quad (\texttt{b91tnu6nf}, 1{:}48{:}18, \mathrm{exited}(0)), (\texttt{b7rt996kn}, 1{:}58{:}26, \mathrm{notified}), (\texttt{b7rt996kn}, 1{:}58{:}26, \mathrm{exited}(0)), \\
-&\quad (\texttt{biyz06cmr}, 2{:}08{:}56, \mathrm{notified}), (\texttt{biyz06cmr}, 2{:}08{:}56, \mathrm{exited}(0)), (\texttt{busaq7jf8}, 2{:}09{:}21, \mathrm{notified}), \\
-&\quad (\texttt{busaq7jf8}, 2{:}09{:}21, \mathrm{exited}(0)), (\texttt{bodiephr3}, 2{:}19{:}32, \mathrm{notified}), (\texttt{bodiephr3}, 2{:}19{:}32, \mathrm{exited}(0)), \\
-&\quad (\texttt{bmi65i9id}, 2{:}30{:}23, \mathrm{notified}), (\texttt{bmi65i9id}, 2{:}30{:}23, \mathrm{exited}(0)), (\texttt{b301x7muk}, 2{:}30{:}49, \mathrm{notified}), \\
-&\quad (\texttt{b301x7muk}, 2{:}30{:}49, \mathrm{exited}(0)), (\texttt{betbu6rpd}, 2{:}41{:}01, \mathrm{notified}), (\texttt{betbu6rpd}, 2{:}41{:}01, \mathrm{exited}(0)), \\
-&\quad (\texttt{b37xkdhwk}, 2{:}57{:}19, \mathrm{notified}), (\texttt{b37xkdhwk}, 2{:}57{:}19, \mathrm{exited}(144))] \\
-B &= [(23{:}34{:}56, \top), (2{:}50{:}37, \bot), (2{:}57{:}19, \top), (2{:}57{:}23, \bot)] \\
-H &= [2{:}50{:}37] \\
-N &= [(2{:}50{:}37, \bot), (2{:}57{:}23, \top)] \\
-Q &= [(\texttt{b37xkdhwk}, 14919, \mathrm{sleepLoop})] \\
-M &= [2{:}50{:}37, 2{:}57{:}23] \\
-C &= [(1{:}00{:}00, \mathrm{working}, \mathrm{working}), (2{:}51{:}00, \mathrm{held}([\texttt{b37xkdhwk}]), \mathrm{hung}(\texttt{b37xkdhwk})), \\
-&\quad (2{:}57{:}20, \mathrm{working}, \mathrm{working}), (2{:}58{:}00, \mathrm{finished}, \mathrm{finished})]
-\end{aligned}$$
-
-A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
+A time `h:mm:ss` stands for `hms(h, mm, ss)`; each checkpoint is `(t, s_rule, s)`.
 -/
 def wktrCiLane : Timeline where
   name := "wktr-ci-lane"
@@ -673,30 +486,7 @@ def wktrCiLane : Timeline where
 
 /-- Golden timeline `port-platform` (research note part B): its facts and checkpoints.
 
-$$\begin{aligned}
-\tau_{\mathrm{portPlatform}} &= (\texttt{port-platform}, f, C),\quad f = (\texttt{port-platform}, L, E, B, H, N, Q, M) \\
-L &= [(\texttt{biu3n8870}, 1{:}24{:}22), (\texttt{bllt3toag}, 1{:}30{:}09), (\texttt{ba3831u4g}, 1{:}42{:}37), (\texttt{bacokdv9j}, 1{:}52{:}45), \\
-&\quad (\texttt{bj5eod011}, 2{:}15{:}24), (\texttt{bo3ksfboe}, 2{:}37{:}49), (\texttt{bsyg2ztsj}, 2{:}47{:}50), (\texttt{bchejj937}, 2{:}58{:}27), \\
-&\quad (\texttt{b1hwqtb0u}, 3{:}08{:}23)] \\
-E &= [(\texttt{biu3n8870}, 1{:}25{:}45, \mathrm{notified}), (\texttt{biu3n8870}, 1{:}25{:}45, \mathrm{exited}(0)), (\texttt{bllt3toag}, 1{:}31{:}08, \mathrm{notified}), \\
-&\quad (\texttt{bllt3toag}, 1{:}31{:}08, \mathrm{exited}(0)), (\texttt{ba3831u4g}, 1{:}52{:}46, \mathrm{notified}), (\texttt{ba3831u4g}, 1{:}52{:}46, \mathrm{exited}(0)), \\
-&\quad (\texttt{bacokdv9j}, 1{:}52{:}55, \mathrm{notified}), (\texttt{bacokdv9j}, 1{:}52{:}55, \mathrm{exited}(0)), (\texttt{bj5eod011}, 2{:}17{:}13, \mathrm{notified}), \\
-&\quad (\texttt{bj5eod011}, 2{:}17{:}13, \mathrm{exited}(0)), (\texttt{bo3ksfboe}, 2{:}37{:}59, \mathrm{notified}), (\texttt{bo3ksfboe}, 2{:}37{:}59, \mathrm{exited}(0)), \\
-&\quad (\texttt{bchejj937}, 2{:}58{:}46, \mathrm{notified}), (\texttt{bchejj937}, 2{:}58{:}46, \mathrm{exited}(0)), (\texttt{bsyg2ztsj}, 3{:}13{:}25, \mathrm{notified}), \\
-&\quad (\texttt{bsyg2ztsj}, 3{:}13{:}25, \mathrm{exited}(144)), (\texttt{b1hwqtb0u}, 3{:}45{:}21, \mathrm{notified}), (\texttt{b1hwqtb0u}, 3{:}45{:}21, \mathrm{exited}(144))] \\
-B &= [(0{:}48{:}01, \top), (3{:}08{:}43, \bot), (3{:}13{:}25, \top), (3{:}13{:}33, \bot), \\
-&\quad (3{:}45{:}21, \top), (3{:}45{:}25, \bot)] \\
-H &= [3{:}08{:}43] \\
-N &= [(3{:}08{:}43, \bot), (3{:}13{:}33, \bot), (3{:}45{:}25, \top)] \\
-Q &= [(\texttt{bsyg2ztsj}, 65901, \mathrm{sleepLoop}), (\texttt{b1hwqtb0u}, 71852, \mathrm{sleepLoop})] \\
-M &= [3{:}08{:}43, 3{:}13{:}33, 3{:}45{:}25] \\
-C &= [(3{:}00{:}00, \mathrm{working}, \mathrm{working}), (3{:}09{:}00, \mathrm{held}([\texttt{bsyg2ztsj}, \texttt{b1hwqtb0u}]), \mathrm{held}([\texttt{bsyg2ztsj}, \texttt{b1hwqtb0u}])), \\
-&\quad (3{:}13{:}30, \mathrm{working}, \mathrm{working}), (3{:}14{:}00, \mathrm{held}([\texttt{b1hwqtb0u}]), \mathrm{held}([\texttt{b1hwqtb0u}])), \\
-&\quad (3{:}39{:}00, \mathrm{held}([\texttt{b1hwqtb0u}]), \mathrm{hung}(\texttt{b1hwqtb0u})), (3{:}45{:}23, \mathrm{working}, \mathrm{working}), \\
-&\quad (3{:}46{:}00, \mathrm{finished}, \mathrm{finished})]
-\end{aligned}$$
-
-A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
+A time `h:mm:ss` stands for `hms(h, mm, ss)`; each checkpoint is `(t, s_rule, s)`.
 -/
 def portPlatform : Timeline where
   name := "port-platform"
@@ -720,25 +510,7 @@ def portPlatform : Timeline where
 
 /-- Golden timeline `integrate-ports` (research note part B): its facts and checkpoints.
 
-$$\begin{aligned}
-\tau_{\mathrm{integratePorts}} &= (\texttt{integrate-ports}, f, C),\quad f = (\texttt{integrate-ports}, L, E, B, H, N, Q, M) \\
-L &= [(\texttt{brrnark6l}, 2{:}11{:}16), (\texttt{bwijlczj7}, 2{:}36{:}32), (\texttt{bt1wbtdzw}, 2{:}58{:}38), (\texttt{bs7nps5z8}, 3{:}08{:}48), \\
-&\quad (\texttt{b3li7m67k}, 3{:}18{:}53), (\texttt{b1lq5ond0}, 3{:}22{:}01), (\texttt{b2vhxaiq7}, 3{:}23{:}19)] \\
-E &= [(\texttt{brrnark6l}, 2{:}11{:}37, \mathrm{notified}), (\texttt{brrnark6l}, 2{:}11{:}37, \mathrm{exited}(0)), (\texttt{bwijlczj7}, 2{:}36{:}41, \mathrm{notified}), \\
-&\quad (\texttt{bwijlczj7}, 2{:}36{:}41, \mathrm{exited}(0)), (\texttt{bt1wbtdzw}, 2{:}58{:}48, \mathrm{notified}), (\texttt{bt1wbtdzw}, 2{:}58{:}48, \mathrm{exited}(0)), \\
-&\quad (\texttt{bs7nps5z8}, 3{:}08{:}57, \mathrm{notified}), (\texttt{bs7nps5z8}, 3{:}08{:}57, \mathrm{exited}(0)), (\texttt{b3li7m67k}, 3{:}19{:}12, \mathrm{notified}), \\
-&\quad (\texttt{b3li7m67k}, 3{:}19{:}12, \mathrm{exited}(0)), (\texttt{b1lq5ond0}, 3{:}24{:}22, \mathrm{notified}), (\texttt{b1lq5ond0}, 3{:}24{:}22, \mathrm{exited}(0)), \\
-&\quad (\texttt{b2vhxaiq7}, 3{:}24{:}25, \mathrm{notified}), (\texttt{b2vhxaiq7}, 3{:}24{:}25, \mathrm{exited}(0))] \\
-B &= [(1{:}26{:}48, \top)] \\
-H &= [\,] \\
-N &= [\,] \\
-Q &= [\,] \\
-M &= [\,] \\
-C &= [(2{:}00{:}00, \mathrm{working}, \mathrm{working}), (3{:}30{:}00, \mathrm{working}, \mathrm{working}), \\
-&\quad (3{:}51{:}00, \mathrm{working}, \mathrm{working})]
-\end{aligned}$$
-
-A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
+A time `h:mm:ss` stands for `hms(h, mm, ss)`; each checkpoint is `(t, s_rule, s)`.
 -/
 def integratePorts : Timeline where
   name := "integrate-ports"
@@ -758,19 +530,7 @@ def integratePorts : Timeline where
 
 /-- Golden timeline `obs-next-lean` (research note part B): its facts and checkpoints.
 
-$$\begin{aligned}
-\tau_{\mathrm{obsNextLean}} &= (\texttt{obs-next-lean}, f, C),\quad f = (\texttt{obs-next-lean}, L, E, B, H, N, Q, M) \\
-L &= [(\texttt{a8526f8}, 3{:}29{:}50)] \\
-E &= [(\texttt{a8526f8}, 3{:}30{:}31, \mathrm{notified})] \\
-B &= [(3{:}03{:}23, \top), (3{:}32{:}56, \bot)] \\
-H &= [3{:}32{:}56] \\
-N &= [(3{:}32{:}56, \top)] \\
-Q &= [\,] \\
-M &= [3{:}32{:}56] \\
-C &= [(3{:}10{:}00, \mathrm{working}, \mathrm{working}), (3{:}33{:}00, \mathrm{finished}, \mathrm{finished})]
-\end{aligned}$$
-
-A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
+A time `h:mm:ss` stands for `hms(h, mm, ss)`; each checkpoint is `(t, s_rule, s)`.
 -/
 def obsNextLean : Timeline where
   name := "obs-next-lean"
@@ -789,24 +549,7 @@ def obsNextLean : Timeline where
 
 /-- Golden timeline `variant-morph-mount-shift` (research note part B): its facts and checkpoints.
 
-$$\begin{aligned}
-\tau_{\mathrm{variantMorphMountShift}} &= (\texttt{variant-morph-mount-shift}, f, C),\quad f = (\texttt{variant-morph-mount-shift}, L, E, B, H, N, Q, M) \\
-L &= [(\texttt{bmxas8ezt}, 3{:}32{:}48), (\texttt{bxu1oyp6p}, 3{:}42{:}27), (\texttt{bbl4re6pg}, 3{:}51{:}37)] \\
-E &= [(\texttt{bmxas8ezt}, 3{:}41{:}49, \mathrm{notified}), (\texttt{bmxas8ezt}, 3{:}41{:}49, \mathrm{exited}(0)), (\texttt{bxu1oyp6p}, 3{:}51{:}29, \mathrm{notified}), \\
-&\quad (\texttt{bxu1oyp6p}, 3{:}51{:}29, \mathrm{exited}(0)), (\texttt{bbl4re6pg}, 3{:}57{:}33, \mathrm{notified}), (\texttt{bbl4re6pg}, 3{:}57{:}33, \mathrm{exited}(0))] \\
-B &= [(3{:}30{:}51, \top), (3{:}32{:}52, \bot), (3{:}32{:}59, \top), (3{:}42{:}35, \bot), \\
-&\quad (3{:}51{:}29, \top), (3{:}51{:}40, \bot), (3{:}57{:}33, \top), (3{:}57{:}41, \bot)] \\
-H &= [3{:}32{:}52] \\
-N &= [(3{:}32{:}52, \bot), (3{:}42{:}35, \bot), (3{:}51{:}40, \bot), (3{:}57{:}41, \top)] \\
-Q &= [\,] \\
-M &= [3{:}32{:}52, 3{:}42{:}35, 3{:}51{:}40, 3{:}57{:}41] \\
-C &= [(3{:}31{:}00, \mathrm{working}, \mathrm{working}), (3{:}32{:}55, \mathrm{held}([\texttt{bmxas8ezt}]), \mathrm{held}([\texttt{bmxas8ezt}])), \\
-&\quad (3{:}35{:}00, \mathrm{working}, \mathrm{working}), (3{:}45{:}00, \mathrm{held}([\texttt{bxu1oyp6p}]), \mathrm{held}([\texttt{bxu1oyp6p}])), \\
-&\quad (3{:}51{:}35, \mathrm{working}, \mathrm{working}), (3{:}52{:}00, \mathrm{held}([\texttt{bbl4re6pg}]), \mathrm{held}([\texttt{bbl4re6pg}])), \\
-&\quad (3{:}57{:}35, \mathrm{working}, \mathrm{working}), (3{:}58{:}00, \mathrm{finished}, \mathrm{finished})]
-\end{aligned}$$
-
-A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
+A time `h:mm:ss` stands for `hms(h, mm, ss)`; each checkpoint is `(t, s_rule, s)`.
 -/
 def variantMorphMountShift : Timeline where
   name := "variant-morph-mount-shift"
@@ -831,20 +574,7 @@ def variantMorphMountShift : Timeline where
 
 /-- Golden timeline `proof-morph-panel` (research note part B): its facts and checkpoints.
 
-$$\begin{aligned}
-\tau_{\mathrm{proofMorphPanel}} &= (\texttt{proof-morph-panel}, f, C),\quad f = (\texttt{proof-morph-panel}, L, E, B, H, N, Q, M) \\
-L &= [(\texttt{bn2yh3tk6}, 3{:}23{:}19), (\texttt{a0481ef}, 3{:}23{:}27)] \\
-E &= [(\texttt{a0481ef}, 3{:}24{:}05, \mathrm{notified}), (\texttt{bn2yh3tk6}, 3{:}24{:}23, \mathrm{notified}), (\texttt{bn2yh3tk6}, 3{:}24{:}23, \mathrm{exited}(0))] \\
-B &= [(2{:}54{:}21, \top), (3{:}24{:}00, \bot), (3{:}24{:}05, \top), (3{:}24{:}48, \bot)] \\
-H &= [3{:}24{:}48] \\
-N &= [(3{:}24{:}48, \top)] \\
-Q &= [\,] \\
-M &= [3{:}24{:}00, 3{:}24{:}48] \\
-C &= [(3{:}00{:}00, \mathrm{working}, \mathrm{working}), (3{:}24{:}02, \mathrm{waiting}([\texttt{bn2yh3tk6}, \texttt{a0481ef}]), \mathrm{waiting}([\texttt{bn2yh3tk6}, \texttt{a0481ef}])), \\
-&\quad (3{:}24{:}10, \mathrm{working}, \mathrm{working}), (3{:}25{:}00, \mathrm{finished}, \mathrm{finished})]
-\end{aligned}$$
-
-A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
+A time `h:mm:ss` stands for `hms(h, mm, ss)`; each checkpoint is `(t, s_rule, s)`.
 -/
 def proofMorphPanel : Timeline where
   name := "proof-morph-panel"
@@ -864,20 +594,12 @@ def proofMorphPanel : Timeline where
       ⟨hms 3 25 0, .finished, .finished⟩ ]
 
 
-/-- The 8 golden timelines, in the note's order.
-
-$$G = [\tau_{\mathrm{portNav}}, \tau_{\mathrm{ghbRunner}}, \tau_{\mathrm{wktrCiLane}}, \tau_{\mathrm{portPlatform}},
-\tau_{\mathrm{integratePorts}}, \tau_{\mathrm{obsNextLean}}, \tau_{\mathrm{variantMorphMountShift}},
-\tau_{\mathrm{proofMorphPanel}}]$$
--/
+/-- The 8 golden timelines, in the note's order. -/
 def golden : List Timeline :=
   [portNav, ghbRunner, wktrCiLane, portPlatform, integratePorts, obsNextLean, variantMorphMountShift, proofMorphPanel]
 
 /-- A timeline reproduces when, at every checkpoint, the rule gives the note's rule state and the classification
 (with the golden parameters) gives the expected state.
-
-$$\operatorname{ok}(\tau) \iff \forall c \in C_\tau,\ \operatorname{rule}(c.t, f_\tau) = c.s_{\mathrm{rule}} \wedge
-\operatorname{classify}(P_{\mathrm{gold}}, c.t, f_\tau) = c.s$$
 -/
 def Timeline.ok (τ : Timeline) : Bool :=
   τ.checks.all fun c => rule c.t τ.facts == c.rule && classify goldenParams c.t τ.facts == c.state
@@ -885,24 +607,16 @@ def Timeline.ok (τ : Timeline) : Bool :=
 /-- **The golden reproduces**: all 8 real timelines give the note's states at every checkpoint, including
 port-nav `hung(bh6n4n7sw)` after 30 minutes. `classify` never reads `meta.finished`
 (`classify_metaFinished`), so this is the classification without it.
-
-$$\forall \tau \in G,\ \operatorname{ok}(\tau)$$
 -/
 theorem golden_ok : golden.all Timeline.ok = true := by decide +kernel
 
 /-- The naive reading the incident replaced: an agent counts as done once any `meta.finished` time is at or before
-$t$.
-
-$$\operatorname{naiveDone}(t, f) \iff \exists m \in f.\mathit{metaFinished},\ m \le t$$
+`t`.
 -/
 def naiveDone (t : Nat) (f : Facts) : Bool := f.metaFinished.any (· ≤ t)
 
 /-- The checkpoints where the naive `meta.finished` reading says done but the classification is not quiet (held,
 waiting, working or hung), as (timeline, time) pairs.
-
-$$\operatorname{wrong}(G) = [(\tau.\mathit{name}, c.t) \mid \tau \in G,\ c \in C_\tau,\
-\operatorname{naiveDone}(c.t, f_\tau) \wedge \neg\operatorname{quiet}(\operatorname{classify}(P_{\mathrm{gold}}, c.t,
-f_\tau))]$$
 -/
 def naiveWrong (g : List Timeline) : List (String × Nat) :=
   g.flatMap fun τ => (τ.checks.filter fun c =>

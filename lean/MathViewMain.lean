@@ -39,13 +39,11 @@ structure Stored where
   facts : Option Fw.Spec.MathFacts.Facts
 deriving ToJson, FromJson
 
-/-- Heartbeat budget of the facts of one theorem, in thousands.
-$$\mathrm{factsBudget} = 20000$$ -/
+/-- Heartbeat budget of the facts of one theorem, in thousands. -/
 def factsBudget : Nat := 20000
 
 /-- The global inputs of the facts: the registry rows (`Fw.Spec.MathFacts.rows`) and a text key over every registered
-signature constructor $s$ with its reduced `Sig.Dom s` and `Sig.Cod s`, then every row's id, row name and replay name.
-$$\operatorname{factsGlobals} = \bigl(R,\ \operatorname{join}_{\texttt{\textbackslash n}}([\texttt{sig}\ s\ \operatorname{whnf}(\mathrm{Dom}\ s)\ \operatorname{whnf}(\mathrm{Cod}\ s) : s \in \operatorname{sigCtors}] \mathbin{+\!\!+} [\texttt{row}\ \iota\ \rho\ r : (\iota, \rho, r) \in R])\bigr)$$ -/
+signature constructor `s` with its reduced `Sig.Dom s` and `Sig.Cod s`, then every row's id, row name and replay name. -/
 def factsGlobals : MetaM (List Fw.Spec.MathFacts.Row × String) := Fw.Spec.MathFacts.plainUnfold do
   let rs ← Fw.Spec.MathFacts.rows
   let mut parts : Array String := #[]
@@ -62,8 +60,7 @@ def nameIndex (env : Environment) : Std.HashMap String Name :=
 
 /-- **The facts of the theorem entries** of `es`, each by `factsOf` in a fresh `Core`/`Meta` state within
 `factsBudget`; none for a non-theorem, for a printed name missing from `names` or from the environment, and when
-`factsOf` throws any error (running out of the budget included).
-$$\operatorname{withFacts}(es) = [(e,\ \phi(e)) : e \in es],\quad \phi(e) = \begin{cases} \operatorname{factsOf}(n_e) & e.\mathrm{kind} = \texttt{theorem},\ n_e = \mathit{names}(e.\mathrm{name}) \text{ defined},\ n_e \in \mathrm{env},\ \operatorname{factsOf}(n_e) \text{ returns within the budget without error} \\ \bot & \text{otherwise} \end{cases}$$ -/
+`factsOf` throws any error (running out of the budget included). -/
 def withFacts (env : Environment) (rs : List Fw.Spec.MathFacts.Row) (names : Std.HashMap String Name)
     (es : Array MathView.Entry) : IO (Array Stored) := do
   let ctx : Core.Context := { fileName := "<mathview>", fileMap := default }
@@ -75,7 +72,7 @@ def withFacts (env : Environment) (rs : List Fw.Spec.MathFacts.Row) (names : Std
     let (r, _) ← (x.run' {} {}).toIO ctx { env }
     return { entry := e, facts := r.toOption }
 
-/-- The wire reach $W$ (`Fw.Spec.MathFacts.wireReach` over `Fw.Spec.MathFacts.goldenSources root`) by printed name. -/
+/-- The wire reach `W` (`Fw.Spec.MathFacts.wireReach` over `Fw.Spec.MathFacts.goldenSources root`) by printed name. -/
 def wireSet (env : Environment) (root : System.FilePath) : IO (Std.HashSet String) := do
   let w := Fw.Spec.MathFacts.wireReach env (← Fw.Spec.MathFacts.goldenSources root)
   return w.foldl (fun s n => s.insert n.toString) {}
@@ -83,9 +80,8 @@ def wireSet (env : Environment) (root : System.FilePath) : IO (Std.HashSet Strin
 /-- **The JSON of one entry**: `toJson` of the entry, unchanged for a non-theorem; a theorem also gets the keys
 `headConst`, `implArg` (`{index, expr}` or null), `assumes`, `killOf`, `class`, `reach`, `reachFromWire` and
 `subjectsWire` (`[{name, wired}]`), each null when its facts are missing; `reachFromWire` is also null when the
-theorem has no subjects (`Fw.Spec.MathFacts.reachFromWire`, true only when every subject is in $W$).
-`reach` keeps only the names in the set $E$ of exported entry names, in order.
-$$\operatorname{entryJson}_{W, E}(e, \phi) = \begin{cases} \operatorname{toJson}(e) & e.\mathrm{kind} \ne \texttt{theorem} \\ \operatorname{toJson}(e) \cup \{h, (i, a), A, k, c, [r \in \mathit{reach} : r \in E], \operatorname{reachFromWire}(S, W), \operatorname{subjectsWire}(S, W)\} & e.\mathrm{kind} = \texttt{theorem},\ \phi = (h, i, a, A, k, c, \mathit{reach}, S) \\ \operatorname{toJson}(e) \cup \{\text{the 8 keys} \mapsto \mathrm{null}\} & e.\mathrm{kind} = \texttt{theorem},\ \phi = \bot \end{cases}$$ -/
+theorem has no subjects (`Fw.Spec.MathFacts.reachFromWire`, true only when every subject is in `W`).
+`reach` keeps only the names in the set `E` of exported entry names, in order. -/
 def entryJson (inWire isEntry : String → Bool) (s : Stored) : Json :=
   let j := toJson s.entry
   if s.entry.kind != "theorem" then j else

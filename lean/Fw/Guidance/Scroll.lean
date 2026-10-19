@@ -13,9 +13,6 @@ open Fw.Engine
 scrolled frame, a scroll-driven animation that runs on the compositor costs no more off `comp` than a listener
 callback that writes a transform, on any element and layer state, and it runs no callback.
 
-$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim},\ \forall r \in \mathbb{B},\ \forall e \in \mathbb{N},\ \forall l \in \mathrm{LayerState}:\ \operatorname{crThread}(m, a) = \mathrm{comp} \Rightarrow \operatorname{offLe}_{\mathrm{comp}}(N, J) \land N.\mathrm{units}(\mathrm{script}) < J.\mathrm{units}(\mathrm{script})$$
-$$\text{where } \sigma = (0, \mathrm{scroll}(r), \mathrm{own}),\ N = \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{join}(\operatorname{changesOnly}([\sigma]), \operatorname{animFrame}(m, [a]))\big),\ J = \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{join}(\operatorname{changesOnly}([\sigma]), \operatorname{jsWrite}(1, [(e, \mathrm{css}(\mathrm{transform}), l)]))\big)$$
-
 The premise is that Chromium threads the animation: threaded animation on and a user-scrollable source. -/
 theorem cr_native_scroll (m : Chromium.CrMode) (a : Chromium.CrAnim) (hc : Chromium.crThread m a = .comp) (r : Bool)
     (e : Nat) (l : LayerState) :
@@ -37,8 +34,6 @@ theorem cr_native_scroll (m : Chromium.CrMode) (a : Chromium.CrAnim) (hc : Chrom
 scroll timeline whose source is user-scrollable, on a valid target, runs on the compositor when threaded animation is
 on; on a source that is not user-scrollable it runs on the main thread.
 
-$$\forall m \in \mathrm{CrMode},\ \forall e \in \mathbb{N},\ \forall l \in \mathrm{LayerState}:\ \big(m.\mathrm{threadedAnim} \Rightarrow \operatorname{crThread}(m, (e, [\mathrm{css}(\mathrm{transform})], l, \mathrm{true}, \mathrm{scroll}(\mathrm{true}))) = \mathrm{comp}\big) \land \operatorname{crThread}(m, (e, [\mathrm{css}(\mathrm{transform})], l, \mathrm{true}, \mathrm{scroll}(\mathrm{false}))) = \mathrm{main}$$
-
 The native animation stays on main when its scroller cannot be scrolled by the user. -/
 theorem cr_scroll_anim_thread (m : Chromium.CrMode) (e : Nat) (l : LayerState) :
     (m.threadedAnim = true → Chromium.crThread m ⟨e, [.css .transform], l, true, .scroll true⟩ = .comp) ∧
@@ -49,9 +44,6 @@ theorem cr_scroll_anim_thread (m : Chromium.CrMode) (e : Nat) (l : LayerState) :
 /-- **A native scroll-driven animation does no more main-thread work than a scroll listener (WebKit).** In a scrolled
 frame, a UI-process scroll-driven animation (with its style ride-along) costs no more off `comp` than a listener
 callback that writes a transform, on any elements and layer states, and it runs no callback.
-
-$$\forall m \in \mathrm{WkMode},\ \forall a \in \mathrm{WkAnim},\ \forall e, e' \in \mathbb{N},\ \forall \ell, \ell' \in \mathrm{LayerState},\ \forall \mathit{cs},\ \forall \sigma \in \mathbb{B}:\ \operatorname{wkThread}(m, a) = \mathrm{comp} \land a.\tau = \mathrm{scroll} \Rightarrow \operatorname{offLe}_{\mathrm{comp}}(N, J) \land N.\mathrm{units}(\mathrm{script}) < J.\mathrm{units}(\mathrm{script})$$
-$$\text{where } N = \operatorname{frameWork}_{\operatorname{webkitX}(m)}\big(\operatorname{withAnim}(m, a, e, \ell, \mathit{cs}, \operatorname{scrollStep}^{X}(\varnothing), \sigma)\big),\ J = \operatorname{frameWork}_{\operatorname{webkitX}(m)}\big(\operatorname{scrollStep}^{X}((1, 0, 0, 0, [(e', \mathrm{base}(\mathrm{transform}), \ell')], 0))\big)$$
 
 The premise is that WebKit accelerates the animation, which needs threaded scroll-driven animations. -/
 theorem wk_native_scroll (m : WebKit.WkMode) (a : WebKit.WkAnim) (hc : WebKit.wkThread m a = .comp)
@@ -72,8 +64,6 @@ theorem wk_native_scroll (m : WebKit.WkMode) (a : WebKit.WkAnim) (hc : WebKit.wk
 /-- **A listener callback is strict extra work (any engine).** Adding `n > 0` callbacks to a frame is strictly more
 work, whatever the frame and the engine.
 
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall n \in \mathbb{N}:\ 0 < n \Rightarrow \operatorname{frameWork}_E(f) \prec \operatorname{frameWork}_E\big(\operatorname{join}(f, \operatorname{scriptOnly}(n))\big)$$
-
 When the native feature makes the same style changes as the listener, the listener's callbacks are pure overhead. -/
 theorem listener_lt {P M : Type} (E : Engine P M) (f : FrameIn P) (n : Nat) (hn : 0 < n) :
     (frameWork E f).lt (frameWork E (join f (scriptOnly n))) :=
@@ -81,8 +71,6 @@ theorem listener_lt {P M : Type} (E : Engine P M) (f : FrameIn P) (n : Nat) (hn 
 
 /-- **Throttling helps only when the handler runs more than once per frame (any engine).** `k` handler runs in a
 frame are no more work than `n ≥ k`, and strictly less when `k < n` and the handler runs a callback.
-
-$$\forall E,\ \forall h \in \mathrm{FrameIn}(P),\ \forall k, n \in \mathbb{N}:\ \big(k \le n \Rightarrow \operatorname{frameWork}_E(\operatorname{rep}(k, h)) \preceq \operatorname{frameWork}_E(\operatorname{rep}(n, h))\big) \land \big(0 < h.\mathrm{script} \land k < n \Rightarrow \operatorname{frameWork}_E(\operatorname{rep}(k, h)) \prec \operatorname{frameWork}_E(\operatorname{rep}(n, h))\big)$$
 
 With `n = k` (events already one per frame) throttling saves nothing. -/
 theorem throttle {P M : Type} (E : Engine P M) (h : FrameIn P) (k n : Nat) :
@@ -92,8 +80,6 @@ theorem throttle {P M : Type} (E : Engine P M) (h : FrameIn P) (k n : Nat) :
 
 /-- The run total's units on a stage are the sum of the frames' units.
 
-$$\forall W \in \mathrm{Work}^{*},\ \forall s \in \mathrm{Stage}:\ (\Sigma W).\mathrm{units}(s) = \sum_{w \in W} w.\mathrm{units}(s)$$
-
 The total is componentwise. -/
 theorem total_units (ws : List Work) (s : Stage) : (total ws).units s = (ws.map fun w => w.units s).sum := by
   induction ws with
@@ -102,23 +88,17 @@ theorem total_units (ws : List Work) (s : Stage) : (total ws).units s = (ws.map 
 
 /-- The run of a scroll where the handler's work `w` runs in every scrolled frame.
 
-$$\operatorname{perFrame}_E(F, w) = [\operatorname{frameWork}_E(\operatorname{join}(f, w)) \mid f \in F]$$
-
 The handler joins each scroll frame. -/
 def perFrame {P M : Type} (E : Engine P M) (fs : List (FrameIn P)) (w : FrameIn P) : List Work :=
   fs.map fun f => frameWork E (join f w)
 
 /-- The run of a scroll where the handler's work `w` runs once, in its own frame after the last scrolled frame.
 
-$$\operatorname{deferred}_E(F, w) = [\operatorname{frameWork}_E(f) \mid f \in F \mathbin{+\!\!+} [w]]$$
-
 The handler waits for `scrollend`. -/
 def deferred {P M : Type} (E : Engine P M) (fs : List (FrameIn P)) (w : FrameIn P) : List Work :=
   (fs ++ [w]).map (frameWork E)
 
 /-- Units of the per-frame run.
-
-$$\forall E, F, w, s:\ (\Sigma\operatorname{perFrame}_E(F, w)).\mathrm{units}(s) = \sum_{f \in F} \operatorname{units}_E(f, s) + |F| \cdot \operatorname{units}_E(w, s)$$
 
 Each scrolled frame pays the handler's units once more. -/
 theorem perFrame_units {P M : Type} (E : Engine P M) (fs : List (FrameIn P)) (w : FrameIn P) (s : Stage) :
@@ -133,8 +113,6 @@ theorem perFrame_units {P M : Type} (E : Engine P M) (fs : List (FrameIn P)) (w 
 
 /-- Units of the deferred run.
 
-$$\forall E, F, w, s:\ (\Sigma\operatorname{deferred}_E(F, w)).\mathrm{units}(s) = \sum_{f \in F} \operatorname{units}_E(f, s) + \operatorname{units}_E(w, s)$$
-
 The handler's units are paid once. -/
 theorem deferred_units {P M : Type} (E : Engine P M) (fs : List (FrameIn P)) (w : FrameIn P) (s : Stage) :
     (total (deferred E fs w)).units s = (fs.map fun f => stageUnits E f s).sum + stageUnits E w s := by
@@ -143,8 +121,6 @@ theorem deferred_units {P M : Type} (E : Engine P M) (fs : List (FrameIn P)) (w 
 /-- **Deferring to `scrollend` lowers the run's units (any engine).** Over a scroll of at least one frame the deferred
 run has no more units on any stage than the per-frame run, and strictly fewer on a stage the handler touches when the
 scroll has at least two frames.
-
-$$\forall E, F, w, s:\ \big(F \ne [\,] \Rightarrow (\Sigma\operatorname{deferred}_E(F, w)).\mathrm{units}(s) \le (\Sigma\operatorname{perFrame}_E(F, w)).\mathrm{units}(s)\big) \land \big(2 \le |F| \land 0 < \operatorname{units}_E(w, s) \Rightarrow (\Sigma\operatorname{deferred}_E(F, w)).\mathrm{units}(s) < (\Sigma\operatorname{perFrame}_E(F, w)).\mathrm{units}(s)\big)$$
 
 The claim is about units; passes are a separate question (`cr_defer_more_props`). -/
 theorem defer_units {P M : Type} (E : Engine P M) (fs : List (FrameIn P)) (w : FrameIn P) (s : Stage) :
@@ -163,8 +139,6 @@ theorem defer_units {P M : Type} (E : Engine P M) (fs : List (FrameIn P)) (w : F
 the per-frame run's forced passes on a stage are the frames' own plus `|F|` times the handler's; the deferred run pays
 the handler's once.
 
-$$\forall F \in \mathrm{FrameIn}(P)^{*},\ \forall w \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\ \sum_{f \in F} \operatorname{forced}(\operatorname{join}(f, w), s) = \sum_{f \in F} \operatorname{forced}(f, s) + |F| \cdot \operatorname{forced}(w, s) \land \sum_{f \in F \mathbin{+\!\!+} [w]} \operatorname{forced}(f, s) = \sum_{f \in F} \operatorname{forced}(f, s) + \operatorname{forced}(w, s)$$
-
 A layout read in the handler forces layout in every scrolled frame, or once after the scroll. -/
 theorem defer_forced {P : Type} (fs : List (FrameIn P)) (w : FrameIn P) (s : Stage) :
     (fs.map fun f => forcedPasses (join f w) s).sum =
@@ -181,9 +155,6 @@ theorem defer_forced {P : Type} (fs : List (FrameIn P)) (w : FrameIn P) (s : Sta
 layer: the deferred run pays three property-tree passes, the per-frame run two, because the handler's own frame
 commits again.
 
-$$(\Sigma D).\mathrm{passes}(\mathrm{props}) = 3 \land (\Sigma P).\mathrm{passes}(\mathrm{props}) = 2 \land (\Sigma D).\mathrm{passes}(\mathrm{script}) = 1 \land (\Sigma P).\mathrm{passes}(\mathrm{script}) = 2$$
-$$\text{where } E = \operatorname{chromiumAt}(\mathrm{realChrome}),\ \phi = \operatorname{changesOnly}([(0, \mathrm{scroll}(\mathrm{false}), \mathrm{own})]),\ w = \operatorname{jsWrite}(1, [(1, \mathrm{css}(\mathrm{transform}), \mathrm{own})]),\ D = \operatorname{deferred}_E([\phi, \phi], w),\ P = \operatorname{perFrame}_E([\phi, \phi], w)$$
-
 Deferring trades per-frame units for one extra frame's passes, so neither run dominates. -/
 theorem cr_defer_more_props :
     (total (deferred (Chromium.chromiumAt Chromium.realChrome) [changesOnly [⟨0, .scroll false, .own⟩],
@@ -198,9 +169,6 @@ theorem cr_defer_more_props :
 
 /-- **Counterexample on passes (WebKit).** Two scrolled frames and a handler that writes a transform on an own layer:
 the deferred run pays three commit passes, the per-frame run two.
-
-$$(\Sigma D).\mathrm{passes}(\mathrm{commit}) = 3 \land (\Sigma P).\mathrm{passes}(\mathrm{commit}) = 2 \land (\Sigma D).\mathrm{passes}(\mathrm{script}) = 1 \land (\Sigma P).\mathrm{passes}(\mathrm{script}) = 2$$
-$$\text{where } E = \operatorname{webkitAt}(\mathrm{safari}),\ \phi = \operatorname{changesOnly}([(0, \mathrm{scrollPos}, \mathrm{none})]),\ w = \operatorname{jsFrame}([(1, \mathrm{transform}, \mathrm{own})]),\ D = \operatorname{deferred}_E([\phi, \phi], w),\ P = \operatorname{perFrame}_E([\phi, \phi], w)$$
 
 On WebKit too the deferred handler's own frame commits once more. -/
 theorem wk_defer_more_commit :
