@@ -80,6 +80,11 @@ Not a candidate yet: `lean/scripts/check.sh` (13 s, the longest checks about 11 
 - `ImageOS` is already `ubuntu24-arm64` on these runners, so the class read `ubuntu24-arm64-arm64-4c`. The class no
   longer repeats the arch. Records of the first three runs carry the old class, so the new runs start a new baseline.
 
+- Round 2 check, premise-tests run 39324688269 (dispatch, head 1bacb6b0, both jobs passed): `machine.cpu` is
+  `arm 0x41 part 0xd49` (the arm64 runners have no cpuinfo model name; so `lscpu` gave no usable "Model name" and
+  the implementer and part fallback ran; INFERRED), and the last step before finish (upload-artifact) now has exit 0 where the first
+  records had none. MEASURED, collected with `fw ci telemetry github 39324688269`.
+
 ## Findings about the method
 
 - The in-job jobs API call (`/actions/runs/{id}/attempts/{n}/jobs`, `GITHUB_TOKEN`, workflow permission `contents: read`)

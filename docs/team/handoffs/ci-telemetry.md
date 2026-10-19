@@ -12,6 +12,12 @@ collector, docs, first measured note are done. Read first: `docs/team/tools/ci-t
 - Tests: `node --test scripts/ci-telemetry/cli.test.mjs`, `scripts/ci-paths.test.mjs`, `apps/runner` tests + tsc.
 - Not run: CircleCI, webkit-sim (Simulator boot), chromium-counts (wired, the same action).
 
+## Round 2 (fixes of the 6 review findings)
+- Step keys: `keysFrom` in Lean gives a repeated step name `#1`, `#2`; `keysFrom_nodup`, `spans_steps_nodup`, golden case, #guards.
+- CPU model: `parseCpuModel` (cpuinfo, then `lscpu`, then implementer/part) with a node test; confirmed on a new CI record.
+- Exit backfill: `backfillExits` in the collector, always from `gh run view --json jobs`, vitest case of run 39314718340.
+- Note: job counts 6, provenance of the old-producer gate and lean tables stated. Gate/lean tables stay old-producer.
+
 ## Open
 - Verdicts need 3 runs per lane on the same class; run `fw ci telemetry github <id>` on new runs to build history.
 - CircleCI: apply the config lines of the tool doc (circleci-pilot owns `.circleci/**`).
@@ -20,7 +26,7 @@ collector, docs, first measured note are done. Read first: `docs/team/tools/ci-t
 
 ## Conventions
 - Producer never fails a job (every command but `step` exits 0 on error). Step names containing "telemetry" are dropped.
-- Runner class `ubuntu24-arm64-4c`; a class change starts a new baseline.
+- Runner class `ubuntu24-arm64-4c` (the first gate and lean records carry the old doubled-arch class); a class change starts a new baseline.
 - TS stand-ins (not checked against a Lean golden): `scripts/ci-telemetry/lib.mjs` probes and normalisation (node tests
   plus fwcore decode of its output), the collector's gh / CircleCI glue and table printer in `apps/runner/src/ci-telemetry.ts`.
 - Writes outside the task graph: `apps/runner/src/land.ts` (`PACKAGE_EXTRA_READS`), `apps/runner/src/fw.ts` (dispatch),
