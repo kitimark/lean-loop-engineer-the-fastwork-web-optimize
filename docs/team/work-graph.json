@@ -7395,6 +7395,48 @@
     "research/notes/2026/10-19-preview-original*.md",
     "docs/team/handoffs/preview-original-missing.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "c3-preset-update",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "C3 decision: take hero.countdown:strip out of v2-proved (curated exclusion in Fw.Preset.Gen with its reason, like hero.accent:steps); regenerate the preset and its decision rows; v2-proved.test passes",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "apps/site/src/registry/presets/v2-proved.test.ts",
+    "packages/contracts/golden/preset/**",
+    "docs/team/handoffs/c3-preset-update.md"
+   ],
+   "evidence": "be37f21"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "console-builds-tab",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Console tab Builds: Port list (each landed port-*/fix-* task with its land commit; preview of main at that commit vs the original) and Optimize list (each flag variant and preset, previewed as ?fw=/?preset= vs the original, with its v2-proved status after C3); a flag picker in the preview switches among the prerendered searches; list, grouping and allowed searches decided in Lean with goldens",
+   "deps": [],
+   "writes": [
+    "apps/console-web/src/**",
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "apps/console-web/test/**",
+    "lean/Fw/Console/Builds*.lean",
+    "lean/Fw/Console/Preview*.lean",
+    "lean/Fw/Wire*.lean",
+    "lean/Fw/Wire/**",
+    "lean/Fw.lean",
+    "lean/FwCore*.lean",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/console-builds-tab.md"
+   ]
   }
  ],
  "deadline": {
