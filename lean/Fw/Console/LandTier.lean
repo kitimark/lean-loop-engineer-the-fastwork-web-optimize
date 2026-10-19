@@ -160,3 +160,4 @@ def writeGolden : IO Unit := IO.FS.writeFile goldenPath goldenText
 def checkGolden : IO Bool := do return (← IO.FS.readFile goldenPath) == goldenText
 
 end Fw.Console.LandTier
+
