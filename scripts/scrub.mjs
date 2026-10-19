@@ -3,12 +3,13 @@
 //   node scripts/scrub.mjs          scan the staged diff (pre-commit)
 //   node scripts/scrub.mjs --range <a> <b>   scan the lines added between two revisions (fw land, before a ci/land push)
 //   node scripts/scrub.mjs --tree   scan every tracked file (git ls-files), print counts by rule only
-// Rules: email, home-path, lan-ip, device-id, secret. Skips snapshot/** and binary files.
+// Rules: email, home-path, session-path, encoded-home, account-name, lan-ip, device-id, secret. Skips snapshot/** and binary files.
 // Matched values are never printed (only file:line:col and rule). Allowlist: scripts/scrub-allow.json,
 // a JSON array of {"rule","path","reason"}; path is an exact file or a "dir/" prefix; reason is mandatory.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { userInfo } from 'node:os';
 
 const top = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
 const git = (args) => execFileSync('git', ['-c', 'core.quotepath=false', ...args],
@@ -20,6 +21,19 @@ const OKMAILFULL = new Set(['noreply@anthropic.com']);
 const FILEEXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg', 'ico', 'css', 'js', 'mjs', 'json',
   'ts', 'tsx', 'woff', 'woff2', 'ttf', 'otf', 'mp4', 'webm', 'html', 'map', 'lean', 'md', 'zip', 'gz', 'tar', 'tgz']);
 const OKHOME = new Set(['runner', 'user', 'you', 'name', 'me', 'username', 'Shared', 'example', 'x']);
+
+// The account name is read at run time, never written to a file. FW_SCRUB_ACCOUNT overrides it (tests inject a name).
+// Generic CI/service names are not personal and would flag every `runner` directory.
+const GENERIC = new Set(['runner', 'root', 'user', 'admin', 'ubuntu', 'circleci', 'node', 'nobody', 'name', 'me', 'you']);
+function accountName() {
+  let n = process.env.FW_SCRUB_ACCOUNT;
+  if (n === undefined) { try { n = userInfo().username; } catch { n = ''; } }
+  n = String(n).trim();
+  return n.length >= 3 && !GENERIC.has(n.toLowerCase()) ? n : '';
+}
+const ACCOUNT = accountName();
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const ACCOUNT_RE = ACCOUNT ? new RegExp('(?<![A-Za-z0-9])' + esc(ACCOUNT) + '(?![A-Za-z0-9])', 'gi') : null;
 
 const rules = [
   ['email', (l) => {
@@ -38,6 +52,21 @@ const rules = [
       if (!OKHOME.has(m[1])) out.push(m.index);
     return out;
   }],
+  // Claude scratch/project dirs: /private/tmp/claude-<uid>/-Users-<name>-... encode the home path in one segment.
+  ['session-path', (l) => {
+    const out = [];
+    for (const m of l.matchAll(/\/(?:private\/)?tmp\/claude-\d+\/-(?:Users|home)-([A-Za-z0-9._]+)-/g))
+      if (!OKHOME.has(m[1])) out.push(m.index);
+    return out;
+  }],
+  // Any encoded home path (slashes turned into dashes), as in ~/.claude/projects/-Users-<name>-source-...
+  ['encoded-home', (l) => {
+    const out = [];
+    for (const m of l.matchAll(/(?<![A-Za-z0-9-])-(?:Users|home)-([A-Za-z0-9._]+)-/g))
+      if (!OKHOME.has(m[1])) out.push(m.index);
+    return out;
+  }],
+  ['account-name', (l) => (ACCOUNT_RE ? [...l.matchAll(ACCOUNT_RE)].map((m) => m.index) : [])],
   ['lan-ip', (l) => {
     const out = [];
     for (const m of l.matchAll(/(?<![\d.])(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})(?!\d)/g))

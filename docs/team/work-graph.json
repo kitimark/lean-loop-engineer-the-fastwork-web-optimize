@@ -9926,7 +9926,8 @@
     "scripts/scrub.test.mjs",
     "docs/team/handoffs/scrub-session-paths.md",
     "docs/team/tools/land.md"
-   ]
+   ],
+   "evidence": "f1f9d08"
   },
   {
    "devices": [
