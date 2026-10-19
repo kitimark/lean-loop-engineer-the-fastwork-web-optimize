@@ -1,6 +1,7 @@
 ---
 name: no-comments
-description: Use before review of code in TS, JS, shell, YAML or Lean. Spawns comment-sicko on the scope, judges its findings, fixes accepted ones at the root and offers to encode constraint comments as a type, Lean theorem, test or lint.
+description: Lead runs this before review of code in TS, JS, shell, YAML or Lean: spawns comment-sicko on the scope, judges its findings, fixes accepted ones at the root and offers to encode constraint comments as a type, Lean theorem, test or lint.
+disable-model-invocation: true
 ---
 
 # No comments
@@ -17,11 +18,11 @@ The caller's files or diff. Otherwise the diff against `main`, working tree incl
 
 ## Steps
 
-1. Spawn it with the Agent tool: `subagent_type: "comment-sicko"`, a `name`, the scope as paths or a diff range. Pass
+1. Spawn it with the Agent tool: `subagent_type: "comment-sicko"`, no `name` (an unnamed lead spawn, like `patcher`), the scope as paths or a diff range. Pass
    no `model` (sizing: `docs/team/token-policy.md`). It edits comments, so only the lead spawns it. A role names its
    scope in its report and the lead runs this skill before the land.
 2. Read its report and `git diff`. Reject code edits, files outside the scope, deleted keep-list comments, a `MUST
-   KILL` with a wrong reason, and flags on code we keep on purpose. A keep survives only with proof that it is about
+   KILL` with a wrong reason, and flags on code we keep on purpose. A MUST KILL on our own surprising code stays actionable; never restore its comment. A suppression of a correctness or safety rule stays a MUST KILL. A keep survives only with proof that it is about
    code we cannot change. Check the scope for suppressions it missed. Before you accept a thin `IMPORTANT` or `do not
    remove` kill or keep, read the named symbol and its callers (`scout` for a sweep over 8 KB). An ambiguous kill
    stays deleted. A refuted or ambiguous keep is deleted. Revert and rerun once a rejected report with the failure

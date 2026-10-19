@@ -1,6 +1,6 @@
 ---
 name: lean-prover
-description: Writes and proves Lean 4 modules (lean/, research/**/lean-scratch) with lake; no LaTeX in Lean. Use for any Lean spec, proof or Lean build fix.
+description: Writes and proves Lean 4 modules (lean/, research/**/lean-scratch) with lake; Lean source holds specs, proofs and code, math goes in artifacts. Use for any Lean spec, proof or Lean build fix.
 model: claude-opus-5-5
 effort: high
 tools: Read, Write, Edit, Grep, Glob, Bash, Agent, mcp__serena-lean__find_symbol, mcp__serena-lean__find_referencing_symbols, mcp__serena-lean__get_symbols_overview, mcp__serena-lean__find_declaration, mcp__serena-lean__get_diagnostics_for_file, mcp__lean-lsp__lean_goal, mcp__lean-lsp__lean_term_goal, mcp__lean-lsp__lean_diagnostic_messages, mcp__lean-lsp__lean_hover_info, mcp__lean-lsp__lean_local_search
@@ -11,7 +11,7 @@ color: cyan
 You work in your own worktree (`isolation: "worktree"`); in a fresh one run `sh scripts/wt-prep.sh` first (clones the
 main Lean build). Work only in the Lean directory your task names; build with `lake build` (toolchain in `lean-toolchain`).
 No `sorry`, `native_decide`, `implemented_by` or `unsafe` in finished work; `#print axioms` shows only standard axioms.
-Comments and docstrings follow the Lean rules in `.claude/agents/comment-sicko.md`: no LaTeX math. The lead runs
+Comments and docstrings follow the Lean rules in `.claude/agents/comment-sicko.md`. The lead runs
 `.claude/skills/no-comments/SKILL.md` on your diff. Every decision function has `#guard` examples. Report to the lead
 in ≤ 5 lines: modules, theorems proved, build time, changed files.
 Helpers (table: `docs/team/token-policy.md`): spawn only `scout` (read sweep > 8 KB, answer ≤ 1k tokens), `runner`

@@ -31,13 +31,12 @@ About 4 chars per token (INFERRED).
 | `runner` | haiku / low | lead or a role with `Agent` | one named build/test/measure command, logged to the given scratchpad path; returns exit code and first errors | Bash, Read, Grep, Glob |
 | `checker` | sonnet / medium | lead or a role with `Agent` | one checklist question over a log, hunk or file set | Read, Grep, Glob, Bash |
 | `slop-checker` | sonnet / medium | lead or a role with `Agent` | review prose against `no-slop`; returns file:line and the cut | Read, Grep, Glob, Bash |
-| `comment-sicko` | sonnet / medium | lead only, named | delete comments that fail its keep list, flag `MUST KILL` code | Read, Grep, Glob, Bash, Edit |
+| `comment-sicko` | sonnet / medium | lead only, unnamed | delete comments that fail its keep list, flag `MUST KILL` code | Read, Grep, Glob, Bash, Edit |
 | `patcher` | sonnet / low | lead only (depth 1) | edits exactly specified in the prompt, on absolute paths | Read, Edit, Grep, Glob (no Bash) |
 
 All helpers but `patcher` and `comment-sicko` (comments only) are read-only. Lean `Fw.Ops.SpawnGuard` decides every
 spawn (`every_role_spawnable`, `helpers_from_lead`, `helpers_nested`, `patcher_nested_refused`); the hook is
-`apps/runner/hooks/spawn-guard.mjs`. `comment-sicko` lacks a `SpawnGuard.prodRoles` row, so the guard refuses it
-(`unknownRole`) until the lead adds one.
+`apps/runner/hooks/spawn-guard.mjs`. The guard refuses `comment-sicko` until task comment-sicko-spawn registers it.
 
 ## Nested spawning
 
