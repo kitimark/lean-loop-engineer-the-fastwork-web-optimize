@@ -38,6 +38,12 @@ theorem animated_eq_mountO (x : Nat → Tick) (t : Nat) : (mountV x t && !dorman
   · cases mountV x t <;> rfl
   · rw [mountV_of_mountO x t h]; rfl
 
+/-- The tracks' animation starts at the frame where the original mounts the panel. -/
+theorem animStart_eq_mountStart (x : Nat → Tick) (t : Nat) :
+    ((mountV x (t + 1) && !dormant x (t + 1)) && !(mountV x t && !dormant x t)) =
+      (mountO x (t + 1) && !mountO x t) := by
+  rw [animated_eq_mountO, animated_eq_mountO]
+
 /-! ## The visual claim -/
 
 /-- The variant's scene: mounted with the variant's history, animated with the original's. -/
