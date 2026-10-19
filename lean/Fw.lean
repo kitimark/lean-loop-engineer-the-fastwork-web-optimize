@@ -127,6 +127,7 @@ import Fw.Spec.ConeMiss  -- mathview-ci-fix: expected module-cache misses after 
 import Fw.Console.LandSpeed  -- land-speed-lean: result cache, pre-lock land, check verdict
 import Fw.Console.Preview  -- task-preview: preview target, admission, ports, expiry
 import Fw.Console.PreviewCache  -- preview-speed: cache policy of preview files
+import Fw.Console.PreviewArm  -- preview-proxy-direct: one origin per preview arm, route and gate
 import Fw.Console.Daemon  -- console-daemon: verified console, start/stop/restart plan, log admission, rotation
 import Fw.Console.Builds  -- console-builds-tab: Builds tab rows, targets, picker searches
 import Fw.Console.PreviewFacts  -- task-preview: GENERATED facts of the 25 tasks (apps/console-api/scripts/gen-preview-facts.ts)
