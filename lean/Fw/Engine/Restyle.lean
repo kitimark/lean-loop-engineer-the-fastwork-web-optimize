@@ -1,101 +1,112 @@
 import Lean.Data.Json
 
-/-! Elements the next style pass resolves after one element's custom-property write, in Chromium and WebKit, for an
-inherited property and for a registered non-inherited one passed down by `inherit`. -/
+/-! Elements one style pass resolves after a custom-property write on a root, in Chromium and WebKit, for unregistered
+(inherited) properties and for registered non-inherited ones passed down by `inherit`. -/
 namespace Fw.Engine.Restyle
 
-/-- DOM summary: `chain` children declare `inherit` for the written properties, `extra` counts the other children,
-`explicit` those that `inherit` another non-inherited property, `rest` the elements of the other children's subtrees. -/
+/-- Per-element cascade facts: `vars` custom property declared or referenced, `slow` refused by Chromium
+`Element::PropagateInheritedProperties` (third_party/blink/renderer/core/dom/element.cc:5554-5596@f842f52), `hidden`
+no box, `inh` `inherit` for both written properties, `explicit` `inherit` for another non-inherited property, `reads`
+reads a written property. -/
+structure Flags where
+  vars : Bool := false
+  slow : Bool := false
+  hidden : Bool := false
+  inh : Bool := false
+  explicit : Bool := false
+  reads : Bool := false
+deriving Repr, DecidableEq, Inhabited
+
+/-- Golden letters of the set flags, in the order `v s h i x r`. -/
+def Flags.letters (f : Flags) : String :=
+  String.join ([(f.vars, "v"), (f.slow, "s"), (f.hidden, "h"), (f.inh, "i"), (f.explicit, "x"), (f.reads, "r")].filterMap
+    fun (b, l) => if b then some l else none)
+
+#guard ({ vars := true, inh := true } : Flags).letters == "vi"
+#guard ({} : Flags).letters == ""
+
 inductive Node where
-  | mk (name : String) (extra explicit rest : Nat) (chain : List Node)
+  | mk (name : String) (flags : Flags) (kids : List Node)
 deriving Repr, Inhabited
 
 namespace Node
 
 def name : Node → String | mk n .. => n
-def extra : Node → Nat | mk _ e .. => e
-def explicit : Node → Nat | mk _ _ x .. => x
-def rest : Node → Nat | mk _ _ _ r _ => r
-def chain : Node → List Node | mk _ _ _ _ c => c
-
-/-- Chromium `ChildHasExplicitInheritance` on the node: some child declares `inherit` for a non-inherited property
-(style_builder.cc:114-117@f842f52). -/
-def flagged (n : Node) : Bool := !n.chain.isEmpty || n.explicit > 0
-
-#guard (mk "a" 0 0 0 [mk "b" 0 0 0 []]).flagged
-#guard !(mk "a" 3 0 9 []).flagged
-#guard (mk "a" 3 1 9 []).flagged
+def flags : Node → Flags | mk _ f _ => f
 
 mutual
-def size : Node → Nat
-  | mk _ _ _ r c => 1 + r + sizes c
-def sizes : List Node → Nat
+/-- Chromium `ResolveStyle` calls for a node whose inherited variables changed and whose style is resolved in full:
+`display: none` resolves no child (element.cc:5713-5717@f842f52); a node with variables turns the change into
+`kInherited` (third_party/blink/renderer/core/style/computed_style.cc:470-475@f842f52), which resolves every child
+(element.cc:5618-5619@f842f52); otherwise `kIndependentInherited` (computed_style.cc:476-478@f842f52) lets each child
+take the clone path (element.cc:5621-5622,5698-5702@f842f52). -/
+def crFull : Node → Nat
+  | mk _ f ks => 1 + (if f.hidden then 0 else if f.vars then crFullL ks else crCloneL ks)
+/-- Chromium `ResolveStyle` calls for a node reached by `kIndependentInherit`: the clone is not counted, and a node
+with variables, animation or transition data, links, decorations, SVG callbacks or no stored style is resolved in
+full (element.cc:5554-5596@f842f52). -/
+def crClone : Node → Nat
+  | mk _ f ks => (if f.vars || f.slow || f.hidden then 1 else 0) +
+      (if f.hidden then 0 else if f.vars then crFullL ks else crCloneL ks)
+def crFullL : List Node → Nat
   | [] => 0
-  | n :: ns => size n + sizes ns
+  | k :: ks => crFull k + crFullL ks
+def crCloneL : List Node → Nat
+  | [] => 0
+  | k :: ks => crClone k + crCloneL ks
 end
 
 mutual
-/-- Chromium elements resolved below a changed chain node: `ChildHasExplicitInheritance` turns a non-inherited diff
-into `kInherited` (computed_style.cc:466-468@f842f52), which recalcs every child (element.cc:5618-5619@f842f52);
-otherwise `kNonInherited` stops (computed_style.cc:504@f842f52). -/
-def crBelow : Node → Nat
-  | n@(mk _ e _ _ c) => if n.flagged then c.length + e + crBelows c else 0
-def crBelows : List Node → Nat
+/-- WebKit resolutions for a node whose inherited custom properties changed: `Change::Inherited` resolves every child
+(Source/WebCore/style/StyleTreeResolver.cpp:307-308@862f17d), custom properties have no
+fast path (Source/WebCore/style/computed/StyleComputedStyle.cpp:212@862f17d), and `display: none` stops the descent
+(StyleTreeResolver.cpp:1387-1388@862f17d). -/
+def wkFull : Node → Nat
+  | mk _ f ks => 1 + (if f.hidden then 0 else wkFullL ks)
+def wkFullL : List Node → Nat
   | [] => 0
-  | n :: ns => crBelow n + crBelows ns
+  | k :: ks => wkFull k + wkFullL ks
+end
+
+/-- Chromium `ChildHasExplicitInheritance` (third_party/blink/renderer/core/css/resolver/style_builder.cc:114-117@f842f52):
+some child declares `inherit` for a non-inherited property. -/
+def explicitKid (ks : List Node) : Bool := ks.any fun k => k.flags.inh || k.flags.explicit
+
+mutual
+/-- Chromium resolutions for a node whose registered non-inherited values changed: with an explicitly inheriting
+child the non-inherited diff becomes `kInherited` (computed_style.cc:466-468@f842f52) and every child is resolved, a
+child whose values follow by `inherit` recursing; otherwise `kNonInherited` stops (computed_style.cc:504@f842f52). -/
+def crScoped : Node → Nat
+  | mk _ f ks => 1 + (if !f.hidden && explicitKid ks then crScopedL ks else 0)
+def crScopedL : List Node → Nat
+  | [] => 0
+  | k :: ks => (if k.flags.inh then crScoped k else 1) + crScopedL ks
 end
 
 mutual
-/-- WebKit elements resolved below a changed chain node: `Change::NonInherited` resolves only the children with
-explicitly inherited properties (StyleTreeResolver.cpp:310-311,1207-1210@862f17d). -/
-def wkBelow : Node → Nat
-  | mk _ _ x _ c => c.length + x + wkBelows c
-def wkBelows : List Node → Nat
+/-- WebKit resolutions for the same change: `Change::NonInherited` resolves only children with explicitly inherited
+properties (StyleTreeResolver.cpp:310-311,1207-1209@862f17d; Source/WebCore/style/StyleBuilder.cpp:576-577@862f17d). -/
+def wkScoped : Node → Nat
+  | mk _ f ks => 1 + (if f.hidden then 0 else wkScopedL ks)
+def wkScopedL : List Node → Nat
   | [] => 0
-  | n :: ns => wkBelow n + wkBelows ns
+  | k :: ks => (if k.flags.inh then wkScoped k else if k.flags.explicit then 1 else 0) + wkScopedL ks
 end
 
 mutual
-/-- Names of the node and every chain node below it. -/
-def chainNames : Node → List String
-  | mk n _ _ _ c => n :: chainNamesL c
-def chainNamesL : List Node → List String
+/-- Each node's name, `reads` flag and the `inh` flags of the path below the root. -/
+def paths (p : List Bool) : Node → List (String × Bool × List Bool)
+  | mk n f ks => (n, f.reads, p) :: pathsL p ks
+def pathsL (p : List Bool) : List Node → List (String × Bool × List Bool)
   | [] => []
-  | n :: ns => chainNames n ++ chainNamesL ns
+  | k :: ks => paths (p ++ [k.flags.inh]) k ++ pathsL p ks
 end
 
 mutual
-def flaggedKids : Node → Nat
-  | n@(mk _ e _ _ c) => (if n.flagged then c.length + e else 0) + flaggedKidsL c
-def flaggedKidsL : List Node → Nat
-  | [] => 0
-  | n :: ns => flaggedKids n + flaggedKidsL ns
-end
-
-mutual
-def wf : Node → Bool
-  | mk _ e x r c => x ≤ e && e ≤ r && wfL c
-def wfL : List Node → Bool
-  | [] => true
-  | n :: ns => wf n && wfL ns
-end
-
-mutual
-/-- Every node with the `inherit` flags, read from `rule` by name, of the path below the root. -/
-def paths (rule : String → Bool) (p : List Bool) : Node → List (String × List Bool)
-  | mk n _ _ _ c => (n, p) :: pathsL rule p c
-def pathsL (rule : String → Bool) (p : List Bool) : List Node → List (String × List Bool)
-  | [] => []
-  | k :: ks => paths rule (p ++ [rule k.name]) k ++ pathsL rule p ks
-end
-
-#guard paths (· == "a") [] (mk "s" 0 0 0 [mk "a" 0 0 0 [mk "b" 0 0 0 []]]) == [("s", []), ("a", [true]), ("b", [true, false])]
-
-mutual
-/-- Golden JSON of a summary: `name`, `extra`, `explicit`, `rest`, `chain`. -/
+/-- Golden JSON of a tree: `[name, letters]` for a leaf, `[name, letters, kids]` otherwise. -/
 def json : Node → Lean.Json
-  | mk n e x r c => Lean.Json.mkObj [("name", Lean.toJson n), ("extra", Lean.toJson e), ("explicit", Lean.toJson x),
-      ("rest", Lean.toJson r), ("chain", Lean.Json.arr (jsonL c).toArray)]
+  | mk n f [] => Lean.Json.arr #[Lean.toJson n, Lean.toJson f.letters]
+  | mk n f (k :: ks) => Lean.Json.arr #[Lean.toJson n, Lean.toJson f.letters, Lean.Json.arr (jsonL (k :: ks)).toArray]
 def jsonL : List Node → List Lean.Json
   | [] => []
   | k :: ks => json k :: jsonL ks
@@ -105,104 +116,129 @@ end Node
 
 open Node
 
+private def leaf (n : String) (f : Flags := {}) : Node := mk n f []
+
+private def ex : Node :=
+  mk "s" { vars := true } [mk "a" { inh := true } [leaf "b" { vars := true }, leaf "c"], leaf "d" { slow := true },
+    leaf "e" { hidden := true }]
+
+#guard crFull ex == 5
+#guard crClone (leaf "c") == 0
+#guard crClone (leaf "c" { slow := true }) == 1
+#guard crClone (mk "c" { hidden := true } [leaf "d" { vars := true }]) == 1
+#guard wkFull ex == 6
+#guard crScoped ex == 4
+#guard wkScoped ex == 2
+#guard crScoped (mk "s" {} [leaf "a", leaf "b" { explicit := true }]) == 3
+#guard wkScoped (mk "s" {} [leaf "a", leaf "b" { explicit := true }]) == 2
+#guard crScoped (mk "s" {} [leaf "a", leaf "b"]) == 1
+#guard (paths [] ex).map (·.2.2) == [[], [true], [true, false], [true, false], [false], [false]]
+
+theorem crClone_of_vars (n : String) (f : Flags) (ks : List Node) (h : f.vars = true) :
+    crClone (mk n f ks) = crFull (mk n f ks) := by
+  simp [crClone, crFull, h]
+
+theorem crClone_of_slow (n : String) (f : Flags) (ks : List Node) (h : f.slow = true) :
+    crClone (mk n f ks) = crFull (mk n f ks) := by
+  simp [crClone, crFull, h]
+
+theorem crClone_of_hidden (n : String) (f : Flags) (ks : List Node) (h : f.hidden = true) :
+    crClone (mk n f ks) = crFull (mk n f ks) := by
+  simp [crClone, crFull, h]
+
+theorem crClone_fast (n : String) (f : Flags) (ks : List Node) (hv : f.vars = false) (hs : f.slow = false)
+    (hh : f.hidden = false) : crClone (mk n f ks) = crCloneL ks := by
+  simp [crClone, hv, hs, hh]
+
+theorem explicitKid_of_inh (ks : List Node) (k : Node) (hk : k ∈ ks) (h : k.flags.inh = true) : explicitKid ks = true :=
+  List.any_eq_true.2 ⟨k, hk, by simp [h]⟩
+
+theorem explicitKid_of_explicit (ks : List Node) (k : Node) (hk : k ∈ ks) (h : k.flags.explicit = true) :
+    explicitKid ks = true :=
+  List.any_eq_true.2 ⟨k, hk, by simp [h]⟩
+
+theorem one_le_wkFull : ∀ n : Node, 1 ≤ wkFull n
+  | mk _ _ _ => by simp [wkFull]
+
+mutual
+theorem crFull_le_wkFull : ∀ n : Node, crFull n ≤ wkFull n
+  | mk _ f ks => by
+    have a := crFullL_le ks
+    have b := crCloneL_le ks
+    simp only [crFull, wkFull]
+    split
+    · omega
+    · split <;> omega
+theorem crClone_le_wkFull : ∀ n : Node, crClone n ≤ wkFull n
+  | mk _ f ks => by
+    have a := crFullL_le ks
+    have b := crCloneL_le ks
+    simp only [crClone, wkFull]
+    split <;> split <;> (try split) <;> omega
+theorem crFullL_le : ∀ l : List Node, crFullL l ≤ wkFullL l
+  | [] => by simp [crFullL, wkFullL]
+  | k :: ks => by
+    have a := crFull_le_wkFull k
+    have b := crFullL_le ks
+    simp only [crFullL, wkFullL]; omega
+theorem crCloneL_le : ∀ l : List Node, crCloneL l ≤ wkFullL l
+  | [] => by simp [crCloneL, wkFullL]
+  | k :: ks => by
+    have a := crClone_le_wkFull k
+    have b := crCloneL_le ks
+    simp only [crCloneL, wkFullL]; omega
+end
+
+mutual
+theorem crScoped_le_wkFull : ∀ n : Node, crScoped n ≤ wkFull n
+  | mk _ f ks => by
+    have a := crScopedL_le ks
+    simp only [crScoped, wkFull]
+    split <;> split <;> simp_all <;> omega
+theorem crScopedL_le : ∀ l : List Node, crScopedL l ≤ wkFullL l
+  | [] => by simp [crScopedL, wkFullL]
+  | k :: ks => by
+    have a := crScoped_le_wkFull k
+    have b := crScopedL_le ks
+    have c := one_le_wkFull k
+    simp only [crScopedL, wkFullL]
+    split <;> omega
+end
+
+mutual
+theorem wkScoped_le_crScoped : ∀ n : Node, wkScoped n ≤ crScoped n
+  | mk _ f ks => by
+    have a := wkScopedL_le ks
+    simp only [wkScoped, crScoped]
+    by_cases hh : f.hidden
+    · simp [hh]
+    · by_cases he : explicitKid ks
+      · simp [hh, he]; omega
+      · have z := wkScopedL_zero ks (by simpa [explicitKid] using he)
+        simp [hh, he, z]
+theorem wkScopedL_le : ∀ l : List Node, wkScopedL l ≤ crScopedL l
+  | [] => by simp [wkScopedL, crScopedL]
+  | k :: ks => by
+    have a := wkScoped_le_crScoped k
+    have b := wkScopedL_le ks
+    simp only [wkScopedL, crScopedL]
+    split
+    · omega
+    · split <;> omega
+theorem wkScopedL_zero : ∀ l : List Node, (∀ k ∈ l, k.flags.inh = false ∧ k.flags.explicit = false) →
+    wkScopedL l = 0
+  | [] => fun _ => by simp [wkScopedL]
+  | k :: ks => fun h => by
+    have hk := h k (by simp)
+    have r := wkScopedL_zero ks fun k' hk' => h k' (by simp [hk'])
+    simp [wkScopedL, hk.1, hk.2, r]
+end
+
 /-- Declaration of the written custom properties: unregistered (inherited) or registered with `inherits: false`. -/
 inductive Reg where
   | inherited
   | registered
 deriving Repr, DecidableEq
-
-/-- Chromium bound on the elements resolved in a frame that writes the root; an inherited variable diff is
-`kInherited` or `kIndependentInherited` and reaches the whole subtree (computed_style.cc:470-478@f842f52). -/
-def crUnits : Reg → Node → Nat
-  | .inherited, t => t.size
-  | .registered, t => 1 + t.crBelow
-
-/-- WebKit elements resolved in the same frame; a custom property is inherited unless registered with
-`inherits: false` (StyleBuilder.cpp:103-106@862f17d) and an inherited change resolves every child
-(StyleTreeResolver.cpp:307-308@862f17d). -/
-def wkUnits : Reg → Node → Nat
-  | .inherited, t => t.size
-  | .registered, t => 1 + t.wkBelow
-
-#guard crUnits .registered (mk "s" 0 0 0 [mk "a" 2 0 5 [mk "d" 0 0 0 []]]) == 5
-#guard wkUnits .registered (mk "s" 0 0 0 [mk "a" 2 0 5 [mk "d" 0 0 0 []]]) == 3
-#guard crUnits .inherited (mk "s" 0 0 0 [mk "a" 2 0 5 [mk "d" 0 0 0 []]]) == 8
-#guard crUnits .registered (mk "s" 0 0 0 [mk "a" 2 1 5 []]) == 4
-#guard wkUnits .registered (mk "s" 0 0 0 [mk "a" 2 1 5 []]) == 3
-
-theorem crBelow_eq_flaggedKids : ∀ n : Node, n.crBelow = n.flaggedKids
-  | mk name e x r c => by
-    have h := crBelows_eq c
-    unfold crBelow flaggedKids
-    by_cases hf : (mk name e x r c).flagged
-    · simp only [hf, ite_true]; omega
-    · simp only [hf]
-      have hc : c = [] := by
-        cases c with
-        | nil => rfl
-        | cons _ _ => simp [flagged, chain] at hf
-      subst hc; simp [flaggedKidsL]
-where
-  crBelows_eq : ∀ l : List Node, crBelows l = flaggedKidsL l
-    | [] => by simp [crBelows, flaggedKidsL]
-    | n :: ns => by simp only [crBelows, flaggedKidsL, crBelow_eq_flaggedKids n, crBelows_eq ns]
-
-theorem scoped_le (t : Node) : crUnits .registered t ≤ 1 + t.flaggedKids := by
-  simp [crUnits, crBelow_eq_flaggedKids]
-
-theorem wk_le_cr : ∀ n : Node, n.wf → n.wkBelow ≤ n.crBelow
-  | mk name e x r c, hw => by
-    simp only [wf, Bool.and_eq_true, decide_eq_true_eq] at hw
-    obtain ⟨⟨hxe, _⟩, hc⟩ := hw
-    have ih := go c hc
-    unfold wkBelow crBelow
-    by_cases hf : (mk name e x r c).flagged
-    · simp only [hf, ite_true]; omega
-    · simp only [hf]
-      have hx : x = 0 := by
-        cases x with
-        | zero => rfl
-        | succ k => simp [flagged, explicit] at hf
-      have hcn : c = [] := by
-        cases c with
-        | nil => rfl
-        | cons _ _ => simp [flagged, chain] at hf
-      subst hx hcn
-      simp [wkBelows]
-where
-  go : ∀ l : List Node, wfL l → wkBelows l ≤ crBelows l
-    | [], _ => by simp [wkBelows, crBelows]
-    | n :: ns, h => by
-      simp only [wfL, Bool.and_eq_true] at h
-      obtain ⟨h1, h2⟩ := h
-      have a := wk_le_cr n h1
-      have b := go ns h2
-      simp only [wkBelows, crBelows]; omega
-
-theorem wk_le_cr_units (t : Node) (h : t.wf) : wkUnits .registered t ≤ crUnits .registered t := by
-  have := wk_le_cr t h
-  simp only [wkUnits, crUnits]; omega
-
-theorem crBelow_lt_size : ∀ n : Node, n.wf → n.crBelow < n.size
-  | mk name e x r c, hw => by
-    simp only [wf, Bool.and_eq_true, decide_eq_true_eq] at hw
-    obtain ⟨⟨_, her⟩, hc⟩ := hw
-    have ih := go c hc
-    unfold crBelow size
-    split <;> omega
-where
-  go : ∀ l : List Node, wfL l → l.length + crBelows l ≤ sizes l
-    | [], _ => by simp [crBelows, sizes]
-    | n :: ns, h => by
-      simp only [wfL, Bool.and_eq_true] at h
-      obtain ⟨h1, h2⟩ := h
-      have a := crBelow_lt_size n h1
-      have b := go ns h2
-      simp only [List.length_cons, crBelows, sizes]; omega
-
-theorem registered_le_inherited (t : Node) (h : t.wf) : crUnits .registered t ≤ crUnits .inherited t := by
-  have := crBelow_lt_size t h
-  simp only [crUnits]; omega
 
 /-- Value at a node from the root's value `v` and the path's `inherit` declarations; `none` is guaranteed-invalid. -/
 def valueAt : Reg → Option String → List Bool → Option String
