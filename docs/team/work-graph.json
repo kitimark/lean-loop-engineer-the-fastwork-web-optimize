@@ -926,7 +926,8 @@
    "deps": [
     "integrate-ports-4"
    ],
-   "owner": "part-builder"
+   "owner": "part-builder",
+   "evidence": "5 parts on main (wave-1); gate 39184687325 Chromium pass"
   },
   {
    "id": "model-checks",
@@ -1792,7 +1793,8 @@
     "port-morph-tween",
     "morph-group-integrate"
    ],
-   "owner": "lead"
+   "owner": "lead",
+   "evidence": "umbrella: 87730de2; gate 39149624174 Chromium pass"
   },
   {
    "id": "phone-session-2",
@@ -5748,7 +5750,8 @@
     "packages/gate-breakpoints/test/verdict.test.mjs",
     "packages/contracts/golden/gate/coverage.jsonl",
     "packages/contracts/golden/**"
-   ]
+   ],
+   "evidence": "0553dfc"
   },
   {
    "devices": [
@@ -6099,7 +6102,12 @@
     "packages/contracts/golden/**",
     "apps/site/src/stage/**",
     "apps/site/src/entry-client.tsx",
-    "docs/team/handoffs/driver-stage-mode.md"
+    "docs/team/handoffs/driver-stage-mode.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw/Site/StageMode.lean",
+    "research/notes/2026/10-19-driver-stage-mode.md"
    ]
   },
   {
@@ -6143,7 +6151,8 @@
     "apps/console-api/test/**",
     "packages/contracts/golden/**",
     "research/notes/2026/10-19-alert-rules.md",
-    "docs/team/handoffs/alert-rules-fix.md"
+    "docs/team/handoffs/alert-rules-fix.md",
+    "lean/Fw/Ops/**"
    ]
   }
  ],

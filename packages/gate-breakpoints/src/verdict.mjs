@@ -96,6 +96,10 @@ function shown(roleSpecs, oPart, rPart, it) {
   return { a: o.items[it.idx].style[it.key], b: r.items[it.idx].style[it.key] };
 }
 
+/** The key of the page-root anchor item (Lean `Fw.Gate.PageRoot.itemKey`): its values are the arms' document scrollWidth. */
+const PAGE_ROOT_KEY = 'scrollWidth<=requestedWidth';
+const scrollWidthOf = (arm) => (arm.raw ?? arm).viewport?.scrollWidth ?? null;
+
 /** One `gate.state` reply entry with the raw arms it was asked about -> {dev, achieved, truth, truthCounts, rows,
  *  compared, reach, verdict, fails, infoDiffs}. `reach`: null or the reason the port cannot reach the state;
  *  `verdict`: Lean's rollup of every row, part rows included. `fails`: per part, the failing count/box/style items; `infoDiffs`: per part, the
@@ -105,7 +109,7 @@ export function readState(anchors, state, ev) {
   const fails = {}, infoDiffs = {};
   for (const [pid, p] of ev.parts) {
     const roles = anchors.parts[pid].roles;
-    fails[pid] = p.fails.map((it) => ({ ...it, ...shown(roles, o?.[pid], r?.[pid], it) }));
+    fails[pid] = p.fails.map((it) => ({ ...it, ...(it.key === PAGE_ROOT_KEY ? { a: scrollWidthOf(state.orig), b: scrollWidthOf(state.rewrite) } : shown(roles, o?.[pid], r?.[pid], it)) }));
     infoDiffs[pid] = p.infoDiffs.map((it) => ({ ...it, ...shown(roles, o?.[pid], r?.[pid], it) }));
   }
   return {
