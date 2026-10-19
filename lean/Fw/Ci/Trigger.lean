@@ -256,6 +256,11 @@ def table : List Wf := [
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
     ".github/scripts/check-simulator.sh", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
     ".github/actions/setup-pnpm/**", own "gate-gaps.yml"]⟩,
+  ⟨"land.yml", ["ci/land-*"], [
+    "apps/**", "packages/**", "lean/**", "scripts/**", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
+    "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "research/findings/ledger.json",
+    "results/baselines/chromium/**", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
+    ".github/actions/setup-pnpm/**", own "land.yml"]⟩,
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "scripts/span.sh",
     "scripts/fwcore-build.sh", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/search.jsonl",
@@ -316,18 +321,18 @@ def run (diff merged : List String) : List String :=
   startedBy (setMap sampleCone) table diff (fun x => !merged.contains x)
 
 -- a Lean test file, a script and a golden change do not start the lanes that only build the binary
-#guard run ["lean/FwTest/Lease.lean"] [] == ["lean.yml"]
-#guard run ["lean/Fw/Wire.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "lean.yml", "mutants.yml", "wktr-fixtures.yml", "wktr.yml"]
-#guard run ["lean/Fw/Parts/HeroExit.lean"] [] == ["lean.yml"]
+#guard run ["lean/FwTest/Lease.lean"] [] == ["land.yml", "lean.yml"]
+#guard run ["lean/Fw/Wire.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "land.yml", "lean.yml", "mutants.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard run ["lean/Fw/Parts/HeroExit.lean"] [] == ["land.yml", "lean.yml"]
 -- the site builder (breakgen) cone starts the lanes that build the site; a pixel golden starts the visual diff only
-#guard run ["lean/Fw/Site/Breakpoints.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "gate-gaps.yml", "lean.yml", "visual-diff.yml"]
-#guard run ["packages/contracts/golden/gate/pixel.jsonl"] [] == ["visual-diff.yml"]
+#guard run ["lean/Fw/Site/Breakpoints.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "gate-gaps.yml", "land.yml", "lean.yml", "visual-diff.yml"]
+#guard run ["packages/contracts/golden/gate/pixel.jsonl"] [] == ["land.yml", "visual-diff.yml"]
 #guard run ["docs/team/handoffs/x.md"] [] == []
 -- a merge of main changes lean/ and apps/site but starts nothing
 #guard run ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] == []
-#guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["engine-premises.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["engine-premises.yml", "land.yml", "wktr-fixtures.yml", "wktr.yml"]
 -- a fixture page starts both wktr lanes; the fixture workflow file starts only itself
-#guard run ["packages/measure-wktr/fixtures/control/index.html"] [] == ["engine-premises.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard run ["packages/measure-wktr/fixtures/control/index.html"] [] == ["engine-premises.yml", "land.yml", "wktr-fixtures.yml", "wktr.yml"]
 #guard run [".github/workflows/wktr-fixtures.yml"] [] == ["wktr-fixtures.yml"]
 
 /-! ## Coarse push filter, precise guard (task `ci-cone-glob`)
@@ -474,10 +479,10 @@ def filtered (diff : List String) : List String :=
   (table.filter fun w => selected (pushPaths w) diff).map (·.file)
 
 -- the coarse filter passes a new module under lean/Fw for every fwcore user; the guard then starts only lean.yml
-#guard filtered ["lean/Fw/New.lean"] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "lean.yml", "visual-diff.yml", "wktr-fixtures.yml", "wktr.yml"]
-#guard run ["lean/Fw/New.lean"] [] == ["lean.yml"]
+#guard filtered ["lean/Fw/New.lean"] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "land.yml", "lean.yml", "visual-diff.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard run ["lean/Fw/New.lean"] [] == ["land.yml", "lean.yml"]
 -- a test module is outside every coarse fwcore glob
-#guard filtered ["lean/FwTest/Lease.lean"] == ["lean.yml"]
+#guard filtered ["lean/FwTest/Lease.lean"] == ["land.yml", "lean.yml"]
 -- the sample cones stay inside the coarse globs
 #guard (["Main", "BreakgenMain"].flatMap sampleCone).all (inScope (parseScope coneGlobs))
 -- the old precise paths moved with a new module; the push paths do not depend on the cone

@@ -1,0 +1,100 @@
+name: land
+
+# The land lane (task land-lane): the heavy land checks on a free Linux runner instead of this Mac. `pnpm fw checks --affected
+# --tier remote` selects the checks the diff against --base touches (Lean selectChecks over the declared reads of
+# apps/runner/src/land.ts) and runs the ones Lean puts in the remote tier (lean/Fw/Console/LandTier.lean `remoteIds`), one
+# `VERDICT <pass|fail|skipped> <id>` line each. fwcore is built first, so the tests that need the binary run; a skipped test of
+# a suite that runs fwcore fails the lane (Lean `laneVerdict`). Push `ci/land-<task>` with `[ci:land]` in the head commit.
+on:
+  push:
+    branches: ['ci/land-*']
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Revision the diff is taken against (empty means the first parent of HEAD)
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole
+  # branch is an input. A main push runs when its own diff passes the coarse paths; dispatches, schedules always run.
+  # Fails open.
+  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
+  guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:land]') }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/land.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
+
+  land:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:land:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:land:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-lean
+
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/runner... @fw/console-api... @fw/gate-breakpoints... @fw/gh-budget... @fw/measure-chromium... @fw/engine-check...'
+
+      - name: fwcore build
+        working-directory: lean
+        run: lake build fwcore
+
+      - name: suites (the remote tier of the Lean-selected checks)
+        env:
+          BASE: ${{ github.event.inputs.base }}
+        run: |
+          set -euo pipefail
+          base="${BASE:-}"
+          if [ -z "$base" ]; then base=$(git rev-parse HEAD^); fi
+          pnpm fw checks --affected --base "$base" --tier remote 2>&1 | tee "$RUNNER_TEMP/land.log"
+          grep -E '^(VERDICT|TIMING|checks:)' "$RUNNER_TEMP/land.log" >> "$GITHUB_STEP_SUMMARY" || true
