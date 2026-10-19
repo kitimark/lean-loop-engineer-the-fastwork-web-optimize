@@ -11,6 +11,7 @@ import { HOLD_LOAD_MS, MAIN_OFF_MS, ORIG_GRACE_MS, POST_RESIZE_MS, READY_TO_MS, 
 import { GATE_POLICY, commitHolds, commitNeeded, commitOutcome, crosses, fold, idlePolicy, nudge, view, viewFor, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { makeViewBarrier, skippedParts, viewStage } from './view.mjs';
+import { DIAG_INIT, diagSnap } from './diag-cv.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
 const collectWith = async (s, arg) => { const raw = await s.evaluate(collectInPage, arg); if (arg.props) attachAlignFacts(raw, await s.evaluate(collectAlignFacts, { parts: arg.parts, props: arg.props })); return raw; };
@@ -63,6 +64,7 @@ export const portOf = (engineName, platform = process.platform) =>
  * (what the verdict rule is asked about) and the mapped one as `realized`. Null (the default) adds no `realized` and no `raw.gap`.
  */
 export async function runEngine({ engineName, outDir, concurrency = 4, probeFilter = null, sweepFilter = null, partFilter = null, gaps = null }) {
+  const DIAG_CV = process.env.FW_GATE_DIAG_CV === '1' || (Array.isArray(partFilter) && partFilter.join() === 'commission' && process.env.FW_GATE_DIAG_CV !== '0'); // TEMPORARY
   const { gen, sha256: genSha } = loadGen();
   const anchors = loadAnchors();
   // Part selection (glue): only the chosen parts' elements are collected, so only their raw facts and property lists are
@@ -334,6 +336,61 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       if (bad) throw bad.reason;
       return rs.map((r) => r.value);
     });
+  }
+
+
+  if (DIAG_CV) {
+    // Variants: [load offset, steps]. R<d> = resize to width+d, S = settle, r = snapshot, c = the gate's own collect.
+    const VARIANTS = {
+      A: [0, ['S', 'c', 'r']],
+      B: [1, ['R0', 'S', 'c', 'r']],
+      C: [1, ['r', 'R0', 'r', 'S', 'c']],
+      D: [0, ['R1', 'S', 'c', 'r']],
+      E: [0, ['r', 'R1', 'r', 'S', 'c']],
+      F: [1, ['R0', 'R1', 'R0', 'S', 'c', 'r']],
+      G: [0, ['R-1', 'S', 'c', 'r']],
+      H: [1, ['r', 'S', 'r', 'R0', 'S', 'c', 'r']],
+    };
+    const N = Number(process.env.FW_DIAG_LOADS || 12);
+    const sel = (site, role) => partsArg[site].commission.find((r) => r.role === role).selector;
+    const withTimeout = (p, ms, label) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('diag timeout ' + label)), ms))]);
+    for (const width of [1440, 1512]) {
+      const env = { ...refEnv, width, deviceWidth: width };
+      for (let k = 0; k < N; k++) {
+        for (const [name, [off, steps]] of Object.entries(VARIANTS)) {
+          await Promise.all(SITES.map(async (site) => {
+            const t0 = Date.now();
+            const at = (d) => ({ ...env, width: width + d, deviceWidth: width + d });
+            const s = await load(at(off), site);
+            const out = { engine: engineName, site, width, k, variant: name, snaps: [] };
+            try {
+              await withTimeout((async () => {
+                const INNER = sel(site, 'inner');
+                await parkEarly(s, env);
+                const rec = newRec();
+                await evalReady(s, site, rec);
+                let touched = false, used = -1, cur = at(off);
+                for (const st of steps) {
+                  if (st === 'S') { await settleArm(s, site, cur); touched = true; }
+                  else if (st === 'r') { out.snaps.push(await s.evaluate(diagSnap, { inner: INNER, tag: 'r' + out.snaps.length })); touched = true; }
+                  else if (st === 'c') {
+                    const raw = await evalCollect(s, site, cur, collectProps, null, false, frozen ? { base: stopBase(Math.max(used, 0), readingCount(false)), rec } : null, null, null);
+                    out.collect = raw.parts.commission.inner.items[0].style['margin-inline-start']; touched = true;
+                  } else {
+                    const d = Number(st.slice(1)); cur = at(d);
+                    used = touched && used < 0 ? 1 : used + 1; await resizeTo(s, cur, used, false, rec);
+                  }
+                }
+              })(), 120000, `${site} ${width} ${k} ${name}`);
+            } catch (e) { out.error = String(e.message || e); }
+            finally { await s.close().catch(() => {}); }
+            out.ms = Date.now() - t0;
+            log('DIAGCV ' + JSON.stringify(out));
+          }));
+        }
+      }
+    }
+    process.exit(0);
   }
 
   // Phase 1: the matrix.
