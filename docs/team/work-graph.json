@@ -8118,6 +8118,34 @@
     "docs/team/tools/**",
     "docs/team/handoffs/ci-route.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-pilot",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "title": "CircleCI pilot: .circleci config for premise-tests (arm.medium.gen2 / arm.large.gen2) and a one-job webkit-sim probe on m4pro.medium with per-step timings; trigger/wait/fetch/compare glue with the Keychain token never printed; Lean Fw.Ci.Provider pair verdict, credits, stop rule, routing rule; real runs compared with GitHub twins",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ci/Provider*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/ProviderGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/**",
+    ".circleci/**",
+    "scripts/circleci.mjs",
+    "scripts/circleci.test.mjs",
+    "scripts/circleci-fixtures/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/ci-triggers.test.ts",
+    "docs/team/tools/circleci.md",
+    "docs/team/tools/fw-ci.md",
+    "research/notes/2026/10-20-circleci-pilot.md",
+    "docs/team/handoffs/circleci-pilot.md"
+   ]
   }
  ],
  "deadline": {
