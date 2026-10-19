@@ -113,7 +113,9 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
-          sparse-checkout: packages/measure-chromium/profiles
+          sparse-checkout: |
+            packages/measure-chromium/profiles
+            packages/measure-chromium/src
       - id: m
         env:
           PROFILE: ${{ inputs.profile || 'swipe-v1' }}
@@ -141,6 +143,10 @@ jobs:
           if [ -n "$ONLY" ]; then
             if [ "$TARGET" != rewrite ]; then echo "only applies to the rewrite: use target rewrite" >&2; exit 1; fi
             if [ -n "$search" ]; then search="$search&only=$ONLY"; else search="?only=$ONLY"; fi
+            # Fw.Site.StageMode: the part page gets the profile viewport as its stage environment (the page pins innerWidth/innerHeight to it).
+            vw=$(jq -r '.viewport.width' "packages/measure-chromium/profiles/$PROFILE.json")
+            vh=$(jq -r '.viewport.height' "packages/measure-chromium/profiles/$PROFILE.json")
+            search=$(node packages/measure-chromium/src/stage-mode.mjs plan "$search" "$vw" "$vh")
           fi
           if [ -n "$search" ] && [ "$TARGET" = original ]; then echo "preset/fw apply to the rewrite: use target both or rewrite" >&2; exit 1; fi
           echo "search=$search" >> "$GITHUB_OUTPUT"

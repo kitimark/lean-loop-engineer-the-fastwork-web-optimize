@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync, mkdirSync, openSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 import { startServer } from './server.mjs';
 import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
-import { viewportFaithful } from './viewport.mjs';
+import { accepts, observedSize, scrollRead, viewportGate } from './stage-mode.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
 
 const N0_ON = !process.env.FW_NO_N0; // FW_NO_N0=1: no N0 census in the page (harness-neutrality control)
@@ -36,6 +36,7 @@ const EPOCH_MS = Date.parse(profile.pinnedDate);
 const ROOT = args.root ?? '/snapshot/site';
 const SEARCH = args.search && args.search !== true ? args.search : '';
 const TARGET = args.target ?? 'original';
+const POS = scrollRead(SEARCH) === 'scrollTop' ? 'document.scrollingElement.scrollTop' : 'scrollY'; // a stage page pins window.scrollY (Lean Fw.Site.StageMode)
 const srv = await startServer(ROOT);
 const CHROME_ARGS = [
   '--remote-debugging-port=9222', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--user-data-dir=/tmp/fw-profile',
@@ -145,10 +146,12 @@ loaded = true;
 // Jump to the fixed profile start, whatever number of frames the load took, then pre-roll with the page idle.
 vt = START_VT;
 for (let i = 0; i < profile.load.prerollFrames; i++, vt += dt) { await frame(vt); }
-const geo = await ev(`({ docH: document.documentElement.scrollHeight, innerH: innerHeight, innerW: innerWidth, y: scrollY, dpr: devicePixelRatio, lang: navigator.language, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, now: new Date().toISOString(), el: document.getElementsByTagName('*').length, scrollW: document.documentElement.scrollWidth, scale: window.visualViewport ? visualViewport.scale : null })`);
+const geo = await ev(`({ docH: document.documentElement.scrollHeight, innerH: innerHeight, innerW: innerWidth, y: scrollY, dpr: devicePixelRatio, lang: navigator.language, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, now: new Date().toISOString(), el: document.getElementsByTagName('*').length, scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, clientH: document.documentElement.clientHeight, scale: window.visualViewport ? visualViewport.scale : null })`);
 // Content wider than the viewport enlarges the layout viewport under mobile emulation: not the profile, refuse (Lean Fw.Measure.Viewport).
-if (!viewportFaithful({ w: profile.viewport.width, h: profile.viewport.height }, { w: geo.innerW, h: geo.innerH })) {
-  throw new Error(`viewport not faithful: the page reports ${geo.innerW}x${geo.innerH} (scrollWidth ${geo.scrollW}, scale ${geo.scale}), the profile ${profile.viewport.width}x${profile.viewport.height}; the run is refused`);
+const profileSize = { w: profile.viewport.width, h: profile.viewport.height };
+const observed = observedSize(SEARCH, { w: geo.innerW, h: geo.innerH }, { w: geo.clientW, h: geo.clientH });
+if (!viewportGate(SEARCH, profileSize, { w: geo.innerW, h: geo.innerH }, { w: geo.clientW, h: geo.clientH })) {
+  throw new Error(`viewport not faithful: the page reports ${observed.w}x${observed.h} (scrollWidth ${geo.scrollW}, scale ${geo.scale}), the profile ${profile.viewport.width}x${profile.viewport.height}; the run is refused`);
 }
 const maxScroll = geo.docH - geo.innerH;
 if (process.env.FW_PROBE === '1') { // debugging only: which input events reach the page
@@ -158,9 +161,9 @@ if (process.env.FW_PROBE === '1') { // debugging only: which input events reach 
 // errors is not a measurement of the prerendered page: refuse it (apps/site/README.md: "a measured run should refuse that").
 let rewrite = null;
 if (TARGET === 'rewrite') {
-  rewrite = await ev(`(() => { const f = window.__fw; if (!f) return null; if (f.markMeasureStart) f.markMeasureStart(); return { configHash: f.configHash, config: f.config, mode: f.mode, hydrated: f.hydrated, hydrationErrors: f.hydrationErrors, buildId: f.buildId, styleMisses: f.styleMisses.length }; })()`);
+  rewrite = await ev(`(() => { const f = window.__fw; if (!f) return null; if (f.markMeasureStart) f.markMeasureStart(); return { configHash: f.configHash, config: f.config, mode: f.mode, hydrated: f.hydrated, hydrationErrors: f.hydrationErrors, buildId: f.buildId, styleMisses: f.styleMisses.length, stage: window.__fwStage ? [window.__fwStage.env.y, window.__fwStage.env.vw, window.__fwStage.env.vh] : null }; })()`);
   if (!rewrite) throw new Error('target rewrite: window.__fw missing');
-  if (rewrite.mode !== 'hydrate' || !rewrite.hydrated || rewrite.hydrationErrors.length) throw new Error('rewrite not measurable: ' + JSON.stringify({ mode: rewrite.mode, hydrated: rewrite.hydrated, errors: rewrite.hydrationErrors }));
+  if (!accepts(SEARCH, profileSize, { mode: rewrite.mode, hydrated: rewrite.hydrated, errors: rewrite.hydrationErrors.length, stage: rewrite.stage })) throw new Error('rewrite not measurable: ' + JSON.stringify({ search: SEARCH, mode: rewrite.mode, hydrated: rewrite.hydrated, errors: rewrite.hydrationErrors, stage: rewrite.stage }));
 }
 
 // ---- input
@@ -237,8 +240,8 @@ if (inputMode === 'scrollTo' || inputMode === 'page') {
     const { phase, y } = plan[n];
     // "page" (engine premise fixtures): the page itself acts once per frame, from its own step table (window.__fwStep(n)), inside the frame's mark window.
     const pre = inputMode === 'page'
-      ? `console.timeStamp('F${n}'); ${phase === 'warm' ? `window.__fwWarm(${n})` : `window.__fwStep(${n - warmN})`}; var __fwStepResult = scrollY;`
-      : `console.timeStamp('F${n}'); window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = scrollY;`;
+      ? `console.timeStamp('F${n}'); ${phase === 'warm' ? `window.__fwWarm(${n})` : `window.__fwStep(${n - warmN})`}; var __fwStepResult = ${POS};`
+      : `console.timeStamp('F${n}'); window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`;
     const r = await frame(vt, pre);
     r.metrics = await metricsNow();
     record(n, phase, r.out, r);
@@ -252,7 +255,7 @@ if (inputMode === 'scrollTo' || inputMode === 'page') {
   let last = null, yMax = 0, n = 0, swipeFrames = 0, ended = false, finished = false;
   const runFrame = async (choose) => {
     let step = null;
-    const r = await frame(vt, `var __fwStepResult = scrollY; console.timeStamp('F${n}')`, async (yNow) => {
+    const r = await frame(vt, `var __fwStepResult = ${POS}; console.timeStamp('F${n}')`, async (yNow) => {
       if (last) last.scrollY = yNow;
       yMax = Math.max(yMax, yNow); if (DEBUG) console.error("y", yNow);
       if (process.env.FW_PROBE) console.error('probe', n, yNow, process.env.FW_PROBE === '1' ? JSON.stringify(await ev('JSON.stringify(window.__probe)')) : '');
@@ -284,7 +287,7 @@ if (inputMode === 'scrollTo' || inputMode === 'page') {
   }
   await Promise.race([touch.settled(), sleep(TOUCH_ACK_MS * 10)]);
   if (touch.error || touch.unacked) throw new Error('touch events failed or unacknowledged at the end: ' + (touch.error ?? touch.unacked));
-  const lastY = await ev('scrollY');
+  const lastY = await ev(POS);
   last.scrollY = lastY; // the final frame's position, read outside every frame window
 }
 const wallMs = Date.now() - wallStart;
@@ -320,7 +323,7 @@ const result = {
     servedFiles: Object.keys(served).length, servedSha256: servedSha, missing: srv.missing(),
     viewport: profile.viewport, hz: profile.hz, startVirtualMs: START_VT, pinnedDate: profile.pinnedDate, pageDateAtStart: geo.now, timezone: geo.tz,
     target: TARGET, search: SEARCH, rewrite, input: { mode: inputMode, touchEventsSent: touch.sent }, trajectorySha256: createHash('sha256').update(JSON.stringify(frames.map((f) => [f.phase, f.scrollY]))).digest('hex'),
-    n0, docHeightPx: geo.docH, innerWidthPx: geo.innerW, innerHeightPx: geo.innerH, scrollWidthPx: geo.scrollW, visualViewportScale: geo.scale, maxScrollPx: maxScroll, elementCountAtStart: geo.el, threads,
+    n0, docHeightPx: geo.docH, innerWidthPx: observed.w, innerHeightPx: observed.h, scrollRead: scrollRead(SEARCH), scrollWidthPx: geo.scrollW, visualViewportScale: geo.scale, maxScrollPx: maxScroll, elementCountAtStart: geo.el, threads,
   },
   frames,
   runLevel,

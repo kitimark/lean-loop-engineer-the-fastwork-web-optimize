@@ -28,7 +28,7 @@ test('fwcore answers every measure.viewport golden', () => {
 test('run.mjs calls the guard after the geometry read and records the viewport in meta', () => {
   const src = readFileSync(join(HERE, '../src/run.mjs'), 'utf8');
   const geo = src.indexOf('const geo = await ev(');
-  const guard = src.indexOf('viewportFaithful({');
+  const guard = src.indexOf('viewportGate(SEARCH');
   assert.ok(geo > 0 && guard > geo, 'guard after the geometry read');
   for (const k of ['innerWidthPx', 'innerHeightPx', 'scrollWidthPx', 'visualViewportScale']) assert.ok(src.includes(k + ':'), k);
 });
