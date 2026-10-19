@@ -270,10 +270,10 @@ name it could not read (`?`, a dynamic property, class or attribute)?
 
 $$\operatorname{same}(u, v) \iff u = v \lor \big(o_u \ne \texttt{""} \land o_v \ne \texttt{""} \land (o_u = o_v \lor
 \{o_u, o_v\} \cap \{\texttt{*}, \texttt{?}\} \ne \emptyset) \land (p_u = p_v \lor (k_u = k_v \land \texttt{?} \in
-\{n_u, n_v\}))\big)$$
+\{n_u, n_v\}))\big),\quad (p_x, o_x) = \operatorname{split}(x),\ (k_x, n_x) = \operatorname{kind}(p_x)\ (x \in \{u,
+v\})$$
 
-where $(p_u, o_u) = \operatorname{split}(u)$, $(k_u, n_u) = \operatorname{kind}(p_u)$, and likewise for $v$. A wire with
-an empty owner (no `/` or a trailing one) matches only itself. -/
+A wire with an empty owner (no `/` or a trailing one) matches only itself. -/
 def same (u v : String) : Bool :=
   u == v ||
     let (pu, ou) := splitOwner u

@@ -1149,7 +1149,7 @@ enters the table unrecorded.
 
 $$\forall a \in \mathrm{accesses}:\ \operatorname{open}(a) \to \operatorname{flagged}(\mathrm{findings}, a)$$
 
-The extractor emits `dynamic-name` or `unresolved-target` where it writes the `?`. -/
+The extractor emits a finding (such as `dynamic-name` or `unresolved-target`) wherever it writes a `?`. -/
 theorem flagged_total :
     ∀ a ∈ FootprintData.accesses, a.isOpen = true → Footprint.flagged FootprintData.findings a = true := by
   decide +kernel
