@@ -275,7 +275,11 @@ def countdownLines : List String :=
           ("labelPx", jnat m.labelPx)])) ++
   (([0, 1, 9, 9.5, 4.25, -0.5, 10, 27.5] : List Rat).map fun a =>
       line "stripOffsetCells" [("spring", rin a)] (ratWire (stripOffsetCells a))) ++
-  ((List.range 12).map fun j => line "stripEntryDigit" [("j", jnat j)] (jint (stripEntryDigit j)))
+  ((List.range 12).map fun j => line "stripEntryDigit" [("j", jnat j)] (jint (stripEntryDigit j))) ++
+  (([(t0Ms, t0Ms), (t0Ms, t0Ms + 1000), (t0Ms, t0Ms + 3600000), (t0Ms, targetMs - 1), (t0Ms, targetMs),
+     (t0Ms, targetMs + 5000), (0, t0Ms)] : List (Int × Int)).map fun (r, n) =>
+      line "refreshShown" [("readMs", jint r), ("nowMs", jint n)]
+        (.arr ((shown (refreshNow ⟨r⟩ n)).map jnat).toArray))
 
 end Countdown
 

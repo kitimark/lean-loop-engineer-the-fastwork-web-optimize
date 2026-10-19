@@ -810,4 +810,50 @@ theorem drift_skips (t d : Nat → Int) (δ T : Int) (n : Nat) (ht : ∀ i, t (i
   have hx : 0 ≤ T - t n := by omega
   omega
 
+/-! ## Refresh on visibility -/
+
+/-- The clock reading the countdown last took: the epoch ms stored by the original's `e` (JS 3926-3928, `z(c, Date.now())`).
+
+$$\mathrm{Reading} = \{\mathit{readMs} \in \mathbb{Z}\}$$
+
+What the shown digits are computed from; between refreshes it is stale. -/
+structure Reading where
+  readMs : Int
+
+/-- The digits shown for a reading. $$\operatorname{shown}(r) = \operatorname{units}(\operatorname{remainingSeconds}(r.\mathit{readMs}, \mathit{target}))$$ -/
+def shown (r : Reading) : List Nat := unitsFromSeconds (remainingSeconds r.readMs targetMs)
+
+/-- The "refresh now" event: store the current time (JS 3926-3940: the same `e` runs at mount, on every 1 s interval
+tick and on every `visibilitychange`, hidden or visible).
+
+$$\operatorname{refreshNow}(r, t) = \{\mathit{readMs} = t\}$$
+
+The old reading is discarded. -/
+def refreshNow (_ : Reading) (nowMs : Int) : Reading := ⟨nowMs⟩
+
+/-- After a refresh the shown digits equal the current time's.
+
+$$\forall r,\ t \in \mathbb{Z}:\quad \operatorname{shown}(\operatorname{refreshNow}(r, t)) = \operatorname{units}(\operatorname{remainingSeconds}(t, \mathit{target}))$$
+
+A tab that comes back after a long hidden gap shows the right time at once. -/
+theorem refreshNow_shows (r : Reading) (t : Int) :
+    shown (refreshNow r t) = unitsFromSeconds (remainingSeconds t targetMs) := rfl
+
+/-- The refresh forgets the stale reading. $$\forall r, r', t:\ \operatorname{refreshNow}(r, t) = \operatorname{refreshNow}(r', t)$$ -/
+theorem refreshNow_forgets (r r' : Reading) (t : Int) : refreshNow r t = refreshNow r' t := rfl
+
+/-- A second refresh at the same time changes nothing (a `visibilitychange` right after a tick).
+
+$$\forall r, t:\ \operatorname{refreshNow}(\operatorname{refreshNow}(r, t), t) = \operatorname{refreshNow}(r, t)$$ -/
+theorem refreshNow_idem (r : Reading) (t : Int) : refreshNow (refreshNow r t) t = refreshNow r t := rfl
+
+/-- A refresh never moves the display backwards past the stale one: it is no later in clock order.
+
+$$\forall r,\ t \ge r.\mathit{readMs}:\quad \operatorname{shown}(\operatorname{refreshNow}(r, t)) \preceq \operatorname{shown}(r)$$
+
+The catch-up after a hidden gap only counts down. -/
+theorem refreshNow_catches_up (r : Reading) (t : Int) (h : r.readMs ≤ t) :
+    lexLe (shown (refreshNow r t)) (shown r) :=
+  countdown_mono_in_time r.readMs t targetMs h
+
 end Fw.Parts.HeroCountdown
