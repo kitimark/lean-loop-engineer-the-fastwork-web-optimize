@@ -184,6 +184,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs",
     // circleci-pilot: the glue, its fixtures and the pilot config (test/ci-triggers.test.ts runs scripts/circleci.test.mjs; fw ci circleci spawns the glue)
     "scripts/circleci.mjs", "scripts/circleci.test.mjs", "scripts/circleci-fixtures/**", ".circleci/**",
+    // scrub-session-paths: test/scrub.test.ts runs the privacy scrub's tests (test-scrub.mjs is outside the scripts/*.test.mjs glob)
+    "scripts/scrub.mjs", "scripts/test-scrub.mjs", "scripts/scrub.test.mjs", "scripts/scrub-allow.json",
     // ci-telemetry: test/ci-telemetry.test.ts runs the producer's own tests and replays golden/ci/telemetry.jsonl (golden/** above)
     "scripts/ci-telemetry/**",
     // site-build-cache: ci-paths reads each setup-lean job's Lake targets (lakefile, the scripts its run: blocks call) into

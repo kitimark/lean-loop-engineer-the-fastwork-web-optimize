@@ -3,6 +3,7 @@
 //   node scripts/scrub.mjs          scan the staged diff (pre-commit)
 //   node scripts/scrub.mjs --range <a> <b>   scan the lines added between two revisions (fw land, before a ci/land push)
 //   node scripts/scrub.mjs --tree   scan every tracked file (git ls-files), print counts by rule only
+//   node scripts/scrub.mjs --self-check   print {"generic":[...],"account":true|false} (never the name), exit 0
 // Rules: email, home-path, session-path, encoded-home, account-name, lan-ip, device-id, secret. Skips snapshot/** and binary files.
 // Matched values are never printed (only file:line:col and rule). Allowlist: scripts/scrub-allow.json,
 // a JSON array of {"rule","path","reason"}; path is an exact file or a "dir/" prefix; reason is mandatory.
@@ -22,11 +23,16 @@ const FILEEXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg', 'ic
   'ts', 'tsx', 'woff', 'woff2', 'ttf', 'otf', 'mp4', 'webm', 'html', 'map', 'lean', 'md', 'zip', 'gz', 'tar', 'tgz']);
 const OKHOME = new Set(['runner', 'user', 'you', 'name', 'me', 'username', 'Shared', 'example', 'x']);
 
-// The account name is read at run time, never written to a file. FW_SCRUB_ACCOUNT overrides it (tests inject a name).
+// The account name is read at run time, never written to a file. FW_SCRUB_ACCOUNT overrides it only together with
+// FW_SCRUB_TEST=1 (tests inject a name); alone it is ignored with a stderr note.
 // Generic CI/service names are not personal and would flag every `runner` directory.
 const GENERIC = new Set(['runner', 'root', 'user', 'admin', 'ubuntu', 'circleci', 'node', 'nobody', 'name', 'me', 'you']);
 function accountName() {
   let n = process.env.FW_SCRUB_ACCOUNT;
+  if (n !== undefined && process.env.FW_SCRUB_TEST !== '1') {
+    console.error('scrub: FW_SCRUB_ACCOUNT ignored (it needs FW_SCRUB_TEST=1)');
+    n = undefined;
+  }
   if (n === undefined) { try { n = userInfo().username; } catch { n = ''; } }
   n = String(n).trim();
   return n.length >= 3 && !GENERIC.has(n.toLowerCase()) ? n : '';
@@ -34,6 +40,11 @@ function accountName() {
 const ACCOUNT = accountName();
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const ACCOUNT_RE = ACCOUNT ? new RegExp('(?<![A-Za-z0-9])' + esc(ACCOUNT) + '(?![A-Za-z0-9])', 'gi') : null;
+
+if (process.argv.includes('--self-check')) {
+  console.log(JSON.stringify({ generic: [...GENERIC].sort(), account: ACCOUNT !== '' }));
+  process.exit(0);
+}
 
 const rules = [
   ['email', (l) => {
@@ -55,14 +66,16 @@ const rules = [
   // Claude scratch/project dirs: /private/tmp/claude-<uid>/-Users-<name>-... encode the home path in one segment.
   ['session-path', (l) => {
     const out = [];
-    for (const m of l.matchAll(/\/(?:private\/)?tmp\/claude-\d+\/-(?:Users|home)-([A-Za-z0-9._]+)-/g))
+    for (const m of l.matchAll(/\/(?:private\/)?tmp\/claude-\d+\/-(?:Users|home)-([A-Za-z0-9._]+)(?=[-\/]|$)/g))
       if (!OKHOME.has(m[1])) out.push(m.index);
     return out;
   }],
-  // Any encoded home path (slashes turned into dashes), as in ~/.claude/projects/-Users-<name>-source-...
+  // Any encoded home path (slashes turned into dashes), as in ~/.claude/projects/-Users-<name>-source-...; the name may
+  // end the text or precede '/', and the prefix may be glued (claude-501-Users-<name>-, %2F-Users-, C--Users-).
+  // Lowercase -home- is also an English word in kebab-case, so only that branch needs a clean left edge.
   ['encoded-home', (l) => {
     const out = [];
-    for (const m of l.matchAll(/(?<![A-Za-z0-9-])-(?:Users|home)-([A-Za-z0-9._]+)-/g))
+    for (const m of l.matchAll(/(?:-Users-|(?<![A-Za-z0-9-])-home-)([A-Za-z0-9._]+)(?=[-\/]|$)/g))
       if (!OKHOME.has(m[1])) out.push(m.index);
     return out;
   }],
@@ -86,6 +99,8 @@ const rules = [
 ];
 const pathRules = [['secret', (p) => /(^|\/)\.fw-console\//.test(p) && /secret/i.test(p)]];
 
+const PATH_TEXT_RULES = new Set(['encoded-home', 'account-name']);
+
 let allow = [];
 const af = join(top, 'scripts/scrub-allow.json');
 if (existsSync(af)) {
@@ -107,6 +122,9 @@ function scanLine(p, n, text) {
 }
 function scanPath(p) {
   for (const [rule, f] of pathRules) if (!allowed(rule, p) && f(p)) hits.push({ path: p, line: 0, col: 0, rule });
+  // Text rules that also run on the path itself (a file named after the account or an encoded home).
+  for (const [rule, f] of rules)
+    if (PATH_TEXT_RULES.has(rule) && !allowed(rule, p) && f(p).length) hits.push({ path: p, line: 0, col: 0, rule });
 }
 
 const tree = process.argv.includes('--tree');
