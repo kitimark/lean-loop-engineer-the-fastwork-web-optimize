@@ -1,3 +1,4 @@
+import Fw.Engine.Core
 /-!
 # people.carousel: the avatar carousel of the community pill (`faithful`)
 
@@ -222,5 +223,230 @@ theorem afterSwap_lt (s : State) (a : Bool) (h : s.x < ringSize) : (afterSwap s 
   unfold afterSwap
   cases a <;> simp [h]
   exact Nat.mod_lt _ (by decide)
+
+/-! ## Swapping one change of a frame (work only, ledger n=19)
+
+Both st6 parts replace one main-thread change of a frame by a change with fewer stages, keeping the other changes
+`xs`, and may add $m$ compositor animations. The frames below are stated over any engine `E` of `Fw.Engine.Core`; the
+premises on `E` are hypotheses. -/
+
+section Swap
+
+open Fw.Engine (Stage Change FrameIn Engine Work frameWork touched stageUnits forcedPasses coverB frame_le_of_cover)
+
+/-- A frame with no script, forced passes or hit tests, the change list $c :: \mathit{xs}$ and $a$ compositor
+animations. $$F(c, \mathit{xs}, a) = (0, 0, 0, 0, c :: \mathit{xs}, a)$$ -/
+def frameWith {P : Type} (c : Change P) (xs : List (Change P)) (a : Nat) : FrameIn P := ⟨0, 0, 0, 0, c :: xs, a⟩
+
+/-- **Main-thread work does not grow.** If every stage of $c$ is a stage of $d$, then on every stage outside the
+compositor-animation stages, the frame with $c$ and $a + m$ animations has at most the passes and units of the frame
+with $d$ and $a$ animations.
+
+$$\forall E,\ \forall c, d,\ \forall \mathit{xs},\ \forall a, m \in \mathbb{N}:\ E.\mathrm{stagesOf}(c) \subseteq E.\mathrm{stagesOf}(d) \Rightarrow \forall s \notin E.\mathrm{compStages}:\ W_E(F(c, \mathit{xs}, a + m)).\mathrm{passes}(s) \le W_E(F(d, \mathit{xs}, a)).\mathrm{passes}(s) \land W_E(F(c, \mathit{xs}, a + m)).\mathrm{units}(s) \le W_E(F(d, \mathit{xs}, a)).\mathrm{units}(s)$$
+
+Added compositor animations cost nothing on the main-thread stages. -/
+theorem swap_main_le {P M : Type} (E : Engine P M) (c d : Change P) (xs : List (Change P)) (a m : Nat)
+    (hcov : ∀ s ∈ E.stagesOf c, s ∈ E.stagesOf d) (s : Stage) (hs : s ∉ E.compStages) :
+    (frameWork E (frameWith c xs (a + m))).passes s ≤ (frameWork E (frameWith d xs a)).passes s ∧
+      (frameWork E (frameWith c xs (a + m))).units s ≤ (frameWork E (frameWith d xs a)).units s := by
+  have key : s ∈ touched E (frameWith c xs (a + m)) → s ∈ touched E (frameWith d xs a) := by
+    simp only [touched, frameWith, FrameIn.updates, List.mem_append, List.flatMap_cons]
+    intro h
+    rcases h with (((h | h) | h) | h) | h
+    · exact Or.inl (Or.inl (Or.inl (Or.inl (hcov s h))))
+    · exact Or.inl (Or.inl (Or.inl (Or.inr h)))
+    · exfalso
+      by_cases ha : 0 < a + m <;> simp [ha] at h
+      exact hs h
+    · exact Or.inl (Or.inr (by simpa using h))
+    · exact Or.inr h
+  have hf : ∀ (e : Change P) (b : Nat), forcedPasses (frameWith e xs b) s = 0 := by
+    intro e b; cases s <;> rfl
+  constructor
+  · simp only [frameWork, hf]
+    by_cases h1 : s ∈ touched E (frameWith c xs (a + m))
+    · simp [h1, key h1]
+    · simp [h1]
+  · simp only [frameWork, stageUnits, frameWith, List.countP_cons, hs, ite_false, ite_self, Nat.add_zero]
+    by_cases hc : s ∈ E.stagesOf c
+    · simp [hc, hcov s hc]
+    · by_cases hd : s ∈ E.stagesOf d <;> simp [hc, hd] <;> omega
+
+/-- **Layout units fall by one.** If `layout` is a stage of $d$ but neither of $c$ nor a compositor-animation stage,
+the frame with $c$ has one layout unit fewer.
+
+$$\forall E,\ \forall c, d,\ \forall \mathit{xs},\ \forall a, m \in \mathbb{N}:\ \mathrm{layout} \in E.\mathrm{stagesOf}(d) \land \mathrm{layout} \notin E.\mathrm{stagesOf}(c) \land \mathrm{layout} \notin E.\mathrm{compStages} \Rightarrow W_E(F(c, \mathit{xs}, a + m)).\mathrm{units}(\mathrm{layout}) + 1 = W_E(F(d, \mathit{xs}, a)).\mathrm{units}(\mathrm{layout})$$
+
+The swapped change no longer dirties layout. -/
+theorem swap_layout_units {P M : Type} (E : Engine P M) (c d : Change P) (xs : List (Change P)) (a m : Nat)
+    (hd : Stage.layout ∈ E.stagesOf d) (hc : Stage.layout ∉ E.stagesOf c) (hcs : Stage.layout ∉ E.compStages) :
+    (frameWork E (frameWith c xs (a + m))).units .layout + 1 = (frameWork E (frameWith d xs a)).units .layout := by
+  simp only [frameWork, stageUnits, frameWith, List.countP_cons, hd, hc, hcs, decide_true, decide_false, ite_false]
+  simp
+
+/-- **Without added animations the swap is strictly below.** If every stage of $c$ is a stage of $d$, and `layout`
+is a stage of $d$ but neither of $c$ nor a compositor-animation stage, the frame with $c$ is $\prec$ the frame with
+$d$ (same other changes, same animations).
+
+$$\forall E,\ \forall c, d,\ \forall \mathit{xs},\ \forall a \in \mathbb{N}:\ E.\mathrm{stagesOf}(c) \subseteq E.\mathrm{stagesOf}(d) \land \mathrm{layout} \in E.\mathrm{stagesOf}(d) \land \mathrm{layout} \notin E.\mathrm{stagesOf}(c) \land \mathrm{layout} \notin E.\mathrm{compStages} \Rightarrow W_E(F(c, \mathit{xs}, a)) \prec W_E(F(d, \mathit{xs}, a))$$
+
+This is the bridge for the 0.999 rest: $d$ is the presence-flip change, $c$ the change that stops short of it.
+Premise open: stagesOf(rest change) ⊆ stagesOf(flip change) and layout only in the flip change, for both tables
+(handoff row 30); applies only to frames with no added animations; with the slide's animations see `swap_not_le`. -/
+theorem swap_lt {P M : Type} (E : Engine P M) (c d : Change P) (xs : List (Change P)) (a : Nat)
+    (hcov : ∀ s ∈ E.stagesOf c, s ∈ E.stagesOf d) (hd : Stage.layout ∈ E.stagesOf d)
+    (hc : Stage.layout ∉ E.stagesOf c) (hcs : Stage.layout ∉ E.compStages) :
+    (frameWork E (frameWith c xs a)).lt (frameWork E (frameWith d xs a)) := by
+  refine ⟨frame_le_of_cover E (d :: xs) [] (by simp [frameWith]) ?_ (Nat.le_refl _) (Nat.le_refl _)
+    (Nat.le_refl _) (Nat.le_refl _) (Nat.le_refl _), Or.inl ⟨.layout, Or.inr ?_⟩⟩
+  · have hr : ∀ l : List (Change P), coverB E l l = true := by
+      intro l
+      induction l with
+      | nil => rfl
+      | cons x l ih => simp [coverB, ih]
+    simp only [frameWith, coverB, hr, Bool.and_true, List.all_eq_true, decide_eq_true_eq]
+    exact hcov
+  · have := swap_layout_units E c d xs a 0 hd hc hcs
+    simp only [Nat.add_zero] at this
+    omega
+
+/-- **Added animations make it a trade.** If $m > 0$ animations are added and some compositor-animation stage is not
+a stage of $d$, the frame with $c$ is not $\preceq$ the frame with $d$: it has $m$ more units there, or $m + 1$ when $s$ is in
+$E.\mathrm{stagesOf}(c)$.
+
+$$\forall E,\ \forall c, d,\ \forall \mathit{xs},\ \forall a, m \in \mathbb{N},\ \forall s \in \mathrm{Stage}:\ 0 < m \land s \in E.\mathrm{compStages} \land s \notin E.\mathrm{stagesOf}(d) \Rightarrow \lnot\big(W_E(F(c, \mathit{xs}, a + m)) \preceq W_E(F(d, \mathit{xs}, a))\big)$$
+
+The st6 slide adds the followers' translate animations, so it is a trade under Core's order. -/
+theorem swap_not_le {P M : Type} (E : Engine P M) (c d : Change P) (xs : List (Change P)) (a m : Nat) (s : Stage)
+    (hm : 0 < m) (hs : s ∈ E.compStages) (hd : s ∉ E.stagesOf d) :
+    ¬ (frameWork E (frameWith c xs (a + m))).le (frameWork E (frameWith d xs a)) := by
+  intro h
+  have h1 := (h.1 s).2
+  simp only [frameWork, stageUnits, frameWith, List.countP_cons, hs, hd, ite_true, decide_false] at h1
+  split at h1 <;> simp at h1 <;> omega
+
+end Swap
+
+/-! ## st6 rest at opacity 0.999 and `scale(1)` (ledger n=19, KD#8)
+
+Restated from v1 `fixes/rotator-st6/README.md` (st5: the five slots stay mounted; st6: every slot rests at
+`transform: scale(1); opacity: 0.999`, `avatars-exit` starts and `avatars-pop` ends at 0.999) and CSS 2866-2915
+(`avatars-exit` from opacity 1, `scale(1)` to 0, `scale(.35)`; `avatars-pop` from 0, `scale(.35)` to 1, `scale(1)`;
+both `forwards`). A slot's look is its opacity, whether it has a transform, and whether an animation holds it.
+
+The flip rules: WebKit asks for layout when `opacity.isOpaque()` or `hasTransform()` changes (StyleDifference.cpp
+208-215, CONFIRMED at 862f17d); Chromium makes a stacking context for opacity below 1 (HasNonInitialOpacity, CONFIRMED
+at f842f52), a transform (INFERRED) or a current opacity/transform animation (computed_style.h 2070-2076), and a
+stacking flip calls SetNeedsFullLayout (computed_style.cc 779-784). Easings `cubic-bezier(.16,1,.3,1)` and
+`(.33,1,.68,1)` have control ordinates in $[0, 1]$, so the progress $p$ stays in $[0, 1]$. -/
+
+/-- A slot's look: opacity, transform present, animation current. $$\ell = (\alpha, \tau, \kappa) \in \mathbb{Q} \times \{\top,\bot\}^2$$ -/
+structure Look where
+  opacity : Rat
+  transform : Bool
+  anim : Bool
+deriving DecidableEq
+
+/-- The st5 rest look (the original's rest): opaque, no transform, no animation. $$\ell_5 = (1, \bot, \bot)$$ -/
+def st5Rest : Look := ⟨1, false, false⟩
+
+/-- The st6 rest look. $$\ell_6 = (\tfrac{999}{1000}, \top, \bot)$$ -/
+def st6Rest : Look := ⟨999 / 1000, true, false⟩
+
+/-- WebKit's layout flip between two looks: opaqueness or transform presence differs.
+
+$$\mathrm{wk}(\ell, \ell') \iff [\alpha < 1] \ne [\alpha' < 1] \ \lor\ \tau \ne \tau'$$ -/
+def wkFlip (l l' : Look) : Bool := (decide (l.opacity < 1) != decide (l'.opacity < 1)) || (l.transform != l'.transform)
+
+/-- Chromium's stacking context of a look. $$\mathrm{sc}(\ell) \iff \alpha < 1 \lor \tau \lor \kappa$$ -/
+def crSC (l : Look) : Bool := decide (l.opacity < 1) || l.transform || l.anim
+
+/-- Chromium's full-layout flip: the stacking context differs. $$\mathrm{cr}(\ell, \ell') \iff \mathrm{sc}(\ell) \ne \mathrm{sc}(\ell')$$ -/
+def crFlip (l l' : Look) : Bool := crSC l != crSC l'
+
+/-- The animated look at progress $p$ of keyframes from opacity $x$ to $y$ (transform present, animation current).
+
+$$\mathrm{at}(x, y, p) = \big((1 - p)\,x + p\,y,\ \top,\ \top\big)$$ -/
+def animAt (x y p : Rat) : Look := ⟨(1 - p) * x + p * y, true, true⟩
+
+/-- **No flip between the st6 rest and any animated look below opacity 1.** For every look with opacity below 1 and a
+transform, neither engine's flip fires from or to the st6 rest.
+
+$$\forall \ell:\ \alpha < 1 \land \tau \Rightarrow \lnot\mathrm{wk}(\ell_6, \ell) \land \lnot\mathrm{wk}(\ell, \ell_6) \land \lnot\mathrm{cr}(\ell_6, \ell) \land \lnot\mathrm{cr}(\ell, \ell_6)$$
+
+Entering or leaving a slide never asks for layout. -/
+theorem st6_no_flip (l : Look) (ho : l.opacity < 1) (ht : l.transform = true) :
+    wkFlip st6Rest l = false ∧ wkFlip l st6Rest = false ∧ crFlip st6Rest l = false ∧ crFlip l st6Rest = false := by
+  have h6 : (999 / 1000 : Rat) < 1 := by grind
+  simp [wkFlip, crFlip, crSC, st6Rest, ho, ht, h6]
+
+/-- **The st6 keyframes stay below opacity 1.** Between two opacities at most $\tfrac{999}{1000}$ (either direction),
+every progress $p \in [0, 1]$ gives opacity at most $\tfrac{999}{1000}$, so below 1.
+
+$$\forall x, y, p \in \mathbb{Q}:\ x \le \tfrac{999}{1000} \land y \le \tfrac{999}{1000} \land 0 \le p \land p \le 1 \Rightarrow \mathrm{at}(x, y, p).\alpha \le \tfrac{999}{1000} \land \mathrm{at}(x, y, p).\alpha < 1$$ -/
+theorem st6_anim_lt_one (x y p : Rat) (hx : x ≤ 999 / 1000) (hy : y ≤ 999 / 1000)
+    (hp0 : 0 ≤ p) (hp1 : p ≤ 1) : (animAt x y p).opacity ≤ 999 / 1000 ∧ (animAt x y p).opacity < 1 := by
+  simp only [animAt]
+  have h1 : (1 - p) * x ≤ (1 - p) * (999 / 1000) := Rat.mul_le_mul_of_nonneg_left hx (by grind)
+  have h2 : p * y ≤ p * (999 / 1000) := Rat.mul_le_mul_of_nonneg_left hy hp0
+  constructor <;> grind
+
+/-- **The st6 slide never flips.** For the st6 pop (from $0$ to $\tfrac{999}{1000}$) and exit (from
+$\tfrac{999}{1000}$ to $0$) at any progress $p \in [0, 1]$, neither engine's flip fires from or to the rest look.
+
+$$\forall p \in \mathbb{Q}:\ 0 \le p \le 1 \Rightarrow \forall \ell \in \{\mathrm{at}(0, \tfrac{999}{1000}, p),\ \mathrm{at}(\tfrac{999}{1000}, 0, p)\}:\ \lnot\mathrm{wk}(\ell_6, \ell) \land \lnot\mathrm{wk}(\ell, \ell_6) \land \lnot\mathrm{cr}(\ell_6, \ell) \land \lnot\mathrm{cr}(\ell, \ell_6)$$ -/
+theorem st6_slide_no_flip (p : Rat) (hp0 : 0 ≤ p) (hp1 : p ≤ 1) :
+    (wkFlip st6Rest (animAt 0 (999 / 1000) p) = false ∧ wkFlip (animAt 0 (999 / 1000) p) st6Rest = false ∧
+      crFlip st6Rest (animAt 0 (999 / 1000) p) = false ∧ crFlip (animAt 0 (999 / 1000) p) st6Rest = false) ∧
+    (wkFlip st6Rest (animAt (999 / 1000) 0 p) = false ∧ wkFlip (animAt (999 / 1000) 0 p) st6Rest = false ∧
+      crFlip st6Rest (animAt (999 / 1000) 0 p) = false ∧ crFlip (animAt (999 / 1000) 0 p) st6Rest = false) :=
+  ⟨st6_no_flip _ (st6_anim_lt_one 0 _ p (by grind) (by grind) hp0 hp1).2 rfl,
+    st6_no_flip _ (st6_anim_lt_one _ 0 p (by grind) (by grind) hp0 hp1).2 rfl⟩
+
+/-- **The st5 rest flips at every slide edge.** For every look with a transform, both engines' flips fire from and to
+the st5 rest.
+
+$$\forall \ell:\ \tau \Rightarrow \mathrm{wk}(\ell_5, \ell) \land \mathrm{wk}(\ell, \ell_5) \land \mathrm{cr}(\ell_5, \ell) \land \mathrm{cr}(\ell, \ell_5)$$
+
+So a slide's start and end each ask for layout in both engines without the 0.999 rest. -/
+theorem st5_flip (l : Look) (ht : l.transform = true) :
+    wkFlip st5Rest l = true ∧ wkFlip l st5Rest = true ∧ crFlip st5Rest l = true ∧ crFlip l st5Rest = true := by
+  simp [wkFlip, crFlip, crSC, st5Rest, ht]
+
+#guard wkFlip st5Rest (animAt 0 1 1)
+#guard !wkFlip st6Rest (animAt 0 (999 / 1000) 1)
+#guard !crFlip st6Rest (animAt (999 / 1000) 0 0)
+#guard wkFlip ⟨1, true, false⟩ ⟨9 / 10, true, false⟩
+#guard !crFlip ⟨1, true, false⟩ ⟨9 / 10, true, false⟩
+#guard crFlip ⟨1, false, false⟩ ⟨9 / 10, false, false⟩
+
+/-! ## st6 slide geometry: the followers' shift (ledger n=19)
+
+`avatars-exit` takes the leaver's width (and flex-basis) from 32 px to 0 and its margin from $-8$ to 0 px. The
+followers sit after the leaver's margin box, so they shift left by what it gives up. st6 keeps the leaver's box and
+moves the followers by a translate of $-24p$ px; in exact arithmetic the shift is the same at every progress $p$ when
+both use the same progress.
+
+Assumes box-sizing: border-box (global reset in the snapshot CSS) and flex-basis = width throughout, so border-width
+does not enter the advance. -/
+
+/-- The leaver's margin-box advance at progress $p$: width plus margin.
+
+$$a(p) = \big((1-p)\cdot 32 + p \cdot 0\big) + \big((1-p)\cdot(-8) + p\cdot 0\big)$$ -/
+def leaverAdvance (p : Rat) : Rat := ((1 - p) * 32 + p * 0) + ((1 - p) * (-8) + p * 0)
+
+/-- **The followers' shift is the translate.** At every progress the followers have moved left by $24p$ px, the
+st6 translate.
+
+$$\forall p \in \mathbb{Q}:\ a(0) - a(p) = 24\,p$$
+
+Exact in arithmetic; pixels still differ (device-pixel snapping against compositor resampling, class L). -/
+theorem follower_shift (p : Rat) : leaverAdvance 0 - leaverAdvance p = 24 * p := by
+  unfold leaverAdvance
+  grind
+
+#guard leaverAdvance 0 == 24
+#guard leaverAdvance 1 == 0
+#guard leaverAdvance 0 - leaverAdvance (1 / 2) == 12
 
 end Fw.Parts.PeopleCarousel

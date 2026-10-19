@@ -9,7 +9,7 @@ import { selectCore } from "../../console-api/src/core/index.ts";
 import { Reconciler } from "../../console-api/src/reconcile/reconciler.ts";
 import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
-import { checksFor, land, type Http } from "../src/land.ts";
+import { checksFor, land, READS_SCAN_ARGV, type Http } from "../src/land.ts";
 
 let stores: Store[] = [];
 afterEach(() => { stores.forEach((s) => s.close()); stores = []; });
@@ -199,12 +199,12 @@ describe("fw land --task on an agent branch", () => {
 describe("checksFor", () => {
   it("derives the checks from the changed files", () => {
     expect(checksFor("/nonexistent", ["docs/a.md"])).toEqual([]);
-    expect(checksFor("/nonexistent", ["lean/Fw/A.lean"])).toEqual([["sh", "lean/scripts/check.sh"]]);
+    expect(checksFor("/nonexistent", ["lean/Fw/A.lean"])).toEqual([["sh", "lean/scripts/check.sh"], READS_SCAN_ARGV]);
     const root = join(dirname(new URL(import.meta.url).pathname), "../../..");
-    expect(checksFor(root, ["apps/runner/src/land.ts", "apps/runner/test/x.ts"])).toEqual([["pnpm", "--filter", "./apps/runner", "test"], ["pnpm", "--filter", "./packages/engine-check", "test"]]);
+    expect(checksFor(root, ["apps/runner/src/land.ts", "apps/runner/test/x.ts"])).toEqual([["pnpm", "--filter", "./apps/runner", "test"], ["pnpm", "--filter", "./packages/engine-check", "test"], READS_SCAN_ARGV]);
   });
   it("installs first when a dependency changes", () => {
-    expect(checksFor("/nonexistent", ["pnpm-lock.yaml"])).toEqual([["pnpm", "install", "--frozen-lockfile"]]);
+    expect(checksFor("/nonexistent", ["pnpm-lock.yaml"])).toEqual([["pnpm", "install", "--frozen-lockfile"], READS_SCAN_ARGV]);
     expect(checksFor("/nonexistent", ["packages/x/package.json"])[0]).toEqual(["pnpm", "install", "--frozen-lockfile"]);
   });
 });
