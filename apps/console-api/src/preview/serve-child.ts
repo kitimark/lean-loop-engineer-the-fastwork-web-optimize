@@ -2,7 +2,7 @@
 // Two read-only static servers on 127.0.0.1: the rewrite (`--rewrite <dist>` on --rp) and the original snapshot
 // (`--original <dir>` on --op). Only I/O: no decisions (ports, lifetime and who may start come from Lean
 // `Fw.Console.Preview`). GET/HEAD only, path containment, analytics stubbed. Files carry the cache policy of Lean
-// `Fw.Console.PreviewCache` (cache-policy.ts): hashed names immutable, the rest no-cache with a strong ETag (304 on a match);
+// `Fw.Console.PreviewCache` (cache-policy.ts): files under /_app/immutable/, listed in the build's .vite/manifest.json or named mui.<sha8>.css immutable, the rest no-cache with a strong ETag (304 on a match);
 // text types are compressed once per file and kept in memory, keyed by the file's mtime, ctime, size and inode.
 //   node serve-child.ts --fw-preview=<id> --rewrite <dist> --original <dir> --media <dir> --rp N --op N [--prefix /preview/<id>]
 // `--prefix`: the side-by-side page links the two sides through the console's proxy path instead of the loopback ports.
@@ -10,7 +10,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize, relative, resolve, sep } from "node:path";
-import { cachePolicy, etagMatches, etagOf, pickEncoding, Variants } from "./cache-policy.ts";
+import { cachePolicy, etagMatches, etagOf, manifestNames, pickEncoding, Variants } from "./cache-policy.ts";
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
@@ -42,18 +42,19 @@ function send(res: ServerResponse, req: IncomingMessage, status: number, type: s
   res.end(req.method === "HEAD" ? undefined : body);
 }
 
-/** Files up to this size keep their bytes in memory; larger ones are read per request (their ETag is still kept). */
+/** Files up to this size keep their bytes in memory; larger ones are read per request and their ETag hashes the bytes sent. */
 const KEEP_BYTES = 4 * 1024 * 1024;
 const MAX_FILES = 2000;
-type Cached = { key: string; variants?: Variants; etag?: string };
+type Cached = { key: string; variants?: Variants };
 const files = new Map<string, Cached>();
 
 function cached(file: string, size: number, key: string): Cached {
+  if (size > KEEP_BYTES) throw new Error("too large to keep");
   let c = files.get(file);
   if (!c || c.key !== key) {
     c = { key };
     const bytes = readFileSync(file);
-    if (size <= KEEP_BYTES) c.variants = new Variants(bytes); else c.etag = etagOf(bytes);
+    c.variants = new Variants(bytes);
     files.set(file, c);
     if (files.size > MAX_FILES) files.delete(files.keys().next().value!);
   }
@@ -61,21 +62,21 @@ function cached(file: string, size: number, key: string): Cached {
 }
 
 /** `rel`: the file's path below the root it was found in (the policy reads this, never the requested path). */
-function serveFile(req: IncomingMessage, res: ServerResponse, file: string, rel: string) {
+function serveFile(req: IncomingMessage, res: ServerResponse, file: string, rel: string, names: ReadonlySet<string>) {
   const st = statSync(file);
-  const c = cached(file, st.size, `${st.mtimeMs}:${st.ctimeMs}:${st.size}:${st.ino}`);
+  const c = st.size <= KEEP_BYTES ? cached(file, st.size, `${st.mtimeMs}:${st.ctimeMs}:${st.size}:${st.ino}`) : null;
   const ct = MIME[extname(file).toLowerCase()] ?? "application/octet-stream";
-  const pol = cachePolicy(rel);
-  const enc = pol.compress && c.variants ? pickEncoding(req.headers["accept-encoding"]) : "identity";
+  const pol = cachePolicy(rel, names);
+  const enc = pol.compress && c?.variants ? pickEncoding(req.headers["accept-encoding"]) : "identity";
   const headers: Record<string, string> = { "content-type": ct, "cache-control": pol.cacheControl };
   if (pol.compress) headers.vary = "accept-encoding";
   let body: Buffer;
-  if (c.variants) {
+  if (c?.variants) {
     const v = c.variants.get(enc);
     headers.etag = v.etag; body = v.body;
     if (enc !== "identity") headers["content-encoding"] = enc;
   } else {
-    headers.etag = c.etag!; body = readFileSync(file);
+    body = readFileSync(file); headers.etag = etagOf(body);
   }
   if (etagMatches(req.headers["if-none-match"], headers.etag)) {
     res.writeHead(304, headers);
@@ -86,12 +87,28 @@ function serveFile(req: IncomingMessage, res: ServerResponse, file: string, rel:
   res.end(req.method === "HEAD" ? undefined : body);
 }
 
+/** The rewrite build's manifest names, re-read when `.vite/manifest.json` changes (a rebuild). */
+function manifestReader(root: string): () => ReadonlySet<string> {
+  const file = join(root, ".vite", "manifest.json");
+  let key = "", names: ReadonlySet<string> = new Set();
+  return () => {
+    let k = "";
+    try { const st = statSync(file); k = `${st.mtimeMs}:${st.ctimeMs}:${st.size}:${st.ino}`; } catch { /* no manifest: nothing is listed */ }
+    if (k !== key) {
+      key = k;
+      try { names = k ? manifestNames(JSON.parse(readFileSync(file, "utf8"))) : new Set(); } catch { names = new Set(); }
+    }
+    return names;
+  };
+}
+
 type Opts = { root: string; mediaRoot?: string; prerendered?: boolean; compare?: { rp: number; op: number; prefix?: string } };
 
 export function handler(o: Opts) {
   const configs = o.prerendered && existsSync(join(o.root, "configs.json"))
     ? JSON.parse(readFileSync(join(o.root, "configs.json"), "utf8")) as { bySearch: Record<string, string>; byHash: Record<string, string> }
     : null;
+  const names = manifestReader(o.root);
   return (req: IncomingMessage, res: ServerResponse) => {
     if (req.method !== "GET" && req.method !== "HEAD") return send(res, req, 405, "text/plain", "read-only");
     const u = new URL(req.url ?? "/", "http://127.0.0.1");
@@ -108,7 +125,8 @@ export function handler(o: Opts) {
     let f = safeFile(o.root, path), base = o.root;
     if (!f && o.mediaRoot && MEDIA.has(extname(path).toLowerCase())) { f = safeFile(o.mediaRoot, path); base = o.mediaRoot; }
     if (!f) return send(res, req, 404, "text/plain", "not found");
-    serveFile(req, res, f, "/" + relative(resolve(base), f).split(sep).join("/"));
+    const rel = "/" + relative(resolve(base), f).split(sep).join("/");
+    serveFile(req, res, f, rel, base === o.root ? names() : new Set());
   };
 }
 

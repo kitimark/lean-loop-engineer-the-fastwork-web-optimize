@@ -1,4 +1,4 @@
-// TS stand-in for Lean `Fw.Console.PreviewCache` (`kind`, `cacheControl`, `compressible`), checked against the golden
+// TS stand-in for Lean `Fw.Console.PreviewCache` (`kind`, `cacheControl`, `compressible`; the manifest name set is an input), checked against the golden
 // `packages/contracts/golden/console/console.previewCache.jsonl` by test/preview-speed.test.ts. A serve-child process has no
 // fwcore, so the pure rule is mirrored here; replace by the Lean op when the child can reach fwcore.
 import { brotliCompressSync, constants, gzipSync } from "node:zlib";
@@ -14,28 +14,28 @@ export function ext(path: string): string {
   return parts.length < 2 ? "" : "." + parts.at(-1)!.toLowerCase();
 }
 
-function stem(path: string): string {
-  const name = lastSegment(path);
-  const e = ext(path);
-  return e === "" ? name : [...name].slice(0, [...name].length - [...e].length).join("");
-}
+const MUI_NAME = /^\/mui\.[0-9a-f]{8}\.css$/;
 
-function hashedStem(s: string): boolean {
-  const cs = [...s];
-  const n = cs.length;
-  if (n <= 8) return false;
-  const sep = cs[n - 9];
-  const t = cs.slice(n - 8);
-  if (sep !== "-" && sep !== ".") return false;
-  if (!t.every((c) => /[A-Za-z0-9_]/.test(c))) return false;
-  const digit = t.some((c) => /[0-9]/.test(c)), alpha = t.some((c) => /[A-Za-z]/.test(c));
-  return (digit && alpha) || (t.slice(1).some((c) => /[A-Z]/.test(c)) && t.some((c) => /[a-z]/.test(c)));
-}
-
-export function kind(path: string): Kind {
+/** Identity, not inference: immutable iff under /_app/immutable/, listed in the rewrite build's `.vite/manifest.json`
+ *  (`names`, each as `/<name>`), or `mui.<sha8>.css` (apps/site/scripts/build.mjs). Html is always `html`. */
+export function kind(path: string, names: ReadonlySet<string> = NO_NAMES): Kind {
   if (ext(path) === ".html") return "html";
-  if (path.startsWith(IMMUTABLE_DIR) || hashedStem(stem(path))) return "hashed";
+  if (path.startsWith(IMMUTABLE_DIR) || names.has(path) || MUI_NAME.test(path)) return "hashed";
   return "other";
+}
+
+const NO_NAMES: ReadonlySet<string> = new Set();
+
+/** The names a Vite manifest lists (`file`, `css`, `assets` of every entry), each as `/<name>`. */
+export function manifestNames(manifest: unknown): Set<string> {
+  const out = new Set<string>();
+  if (typeof manifest !== "object" || manifest === null) return out;
+  for (const e of Object.values(manifest as Record<string, unknown>)) {
+    if (typeof e !== "object" || e === null) continue;
+    const { file, css, assets } = e as { file?: unknown; css?: unknown; assets?: unknown };
+    for (const n of [file, ...(Array.isArray(css) ? css : []), ...(Array.isArray(assets) ? assets : [])]) if (typeof n === "string") out.add("/" + n);
+  }
+  return out;
 }
 
 export const cacheControl = (k: Kind): string => (k === "hashed" ? "public, max-age=31536000, immutable" : "no-cache");
@@ -44,8 +44,8 @@ const COMPRESSIBLE = new Set([".html", ".css", ".js", ".mjs", ".json", ".svg", "
 export const compressible = (path: string): boolean => COMPRESSIBLE.has(ext(path));
 
 /** The reply of Lean `console.previewCache` for one path. */
-export function cachePolicy(path: string) {
-  const k = kind(path);
+export function cachePolicy(path: string, names: ReadonlySet<string> = NO_NAMES) {
+  const k = kind(path, names);
   return { kind: k, cacheControl: cacheControl(k), immutable: k === "hashed", compress: compressible(path) };
 }
 

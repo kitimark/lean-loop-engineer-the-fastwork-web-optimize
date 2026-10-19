@@ -33,10 +33,10 @@ function site(files: Record<string, string>) {
 const body = (n: number) => "<p>hello preview</p>".repeat(n);
 
 describe("cache policy: TS stand-in equals the Lean golden", () => {
-  const lines = readFileSync(GOLDEN, "utf8").trim().split("\n").map((l) => JSON.parse(l) as { name: string; request: { path?: string }; response: Record<string, unknown> });
+  const lines = readFileSync(GOLDEN, "utf8").trim().split("\n").map((l) => JSON.parse(l) as { name: string; request: { path?: string; manifest?: string[] }; response: Record<string, unknown> });
   it("has cases", () => expect(lines.length).toBeGreaterThan(10));
-  for (const l of lines.filter((x) => x.request.path !== undefined)) {
-    it(l.name, () => expect(cachePolicy(l.request.path!)).toEqual(l.response));
+  for (const l of lines.filter((x) => x.request.path !== undefined && x.response.error === undefined)) {
+    it(l.name, () => expect(cachePolicy(l.request.path!, new Set(l.request.manifest ?? []))).toEqual(l.response));
   }
   it("only hashed files are immutable", () => {
     for (const l of lines) if (l.response.cacheControl === IMMUTABLE) expect(l.response.kind).toBe("hashed");
@@ -74,16 +74,38 @@ describe("serve-child file serving", () => {
   };
 
   it("hashed names are immutable, html and plain files revalidate with a strong etag", async () => {
-    const s = site({ "index.html": "<h1>x</h1>", "assets/index-BxK3a9Qz.js": "export{}", "_app/immutable/chunks/x.js": "1", "plain/app.js": "2", "fonts/a.woff2": "font" });
+    const manifest = { "src/e.tsx": { file: "assets/index-BxK3a9Qz.js", css: ["assets/e-AbC12345.css"], assets: ["assets/pic-Zy98xw76.png"] } };
+    const s = site({ "index.html": "<h1>x</h1>", "assets/index-BxK3a9Qz.js": "export{}", "assets/e-AbC12345.css": "a{}", "assets/pic-Zy98xw76.png": "p", "mui.b3bea9d9.css": "m{}",
+      "fonts/Roboto-SemiBold.woff2": "f", "img/og-1200x630.png": "o", "icons/icon-darkMode.svg": "<svg/>", "assets/other-Qw3Er4Ty.js": "x",
+      ".vite/manifest.json": JSON.stringify(manifest), "_app/immutable/chunks/x.js": "1", "plain/app.js": "2", "fonts/a.woff2": "font" });
     const { get } = await start(s.root);
     const h = async (p: string) => (await get(p)).headers;
     expect((await h("/assets/index-BxK3a9Qz.js")).get("cache-control")).toBe(IMMUTABLE);
     expect((await h("/_app/immutable/chunks/x.js")).get("cache-control")).toBe(IMMUTABLE);
-    for (const p of ["/", "/plain/app.js", "/fonts/a.woff2"]) {
+    for (const p of ["/assets/e-AbC12345.css", "/assets/pic-Zy98xw76.png", "/mui.b3bea9d9.css"]) expect((await h(p)).get("cache-control")).toBe(IMMUTABLE);
+    for (const p of ["/", "/plain/app.js", "/fonts/a.woff2", "/fonts/Roboto-SemiBold.woff2", "/img/og-1200x630.png", "/icons/icon-darkMode.svg", "/assets/other-Qw3Er4Ty.js"]) {
       const hd = await h(p);
       expect(hd.get("cache-control")).toBe("no-cache");
       expect(hd.get("etag")).toMatch(/^"[A-Za-z0-9_-]{43}"$/);
     }
+  });
+
+  it("a rebuilt manifest is re-read: a name that leaves it revalidates", async () => {
+    const s = site({ "assets/a-Zq12Wx34.js": "1", ".vite/manifest.json": JSON.stringify({ e: { file: "assets/a-Zq12Wx34.js" } }) });
+    const { get } = await start(s.root);
+    expect((await get("/assets/a-Zq12Wx34.js")).headers.get("cache-control")).toBe(IMMUTABLE);
+    s.put(".vite/manifest.json", JSON.stringify({ e: { file: "assets/b-Zq12Wx34.js" } }) + " ");
+    expect((await get("/assets/a-Zq12Wx34.js")).headers.get("cache-control")).toBe("no-cache");
+  });
+
+  it("a file above the keep limit hashes the bytes it sends", async () => {
+    const s = site({ "big.bin": "a".repeat(4 * 1024 * 1024 + 1) });
+    const { get } = await start(s.root);
+    const r1 = await get("/big.bin");
+    const e1 = r1.headers.get("etag")!;
+    expect(e1).toBe(etagOf(Buffer.from("a".repeat(4 * 1024 * 1024 + 1))));
+    s.put("big.bin", "b".repeat(4 * 1024 * 1024 + 1));
+    expect((await get("/big.bin", { "if-none-match": e1 })).status).toBe(200);
   });
 
   it("a request path that climbs out of _app/immutable is judged by the file it resolves to", async () => {
@@ -243,7 +265,8 @@ describe("proxy", () => {
   });
 
   it("css is rewritten and cached; hashed files pass through immutable; other files revalidate", async () => {
-    const { raw } = await rig({ "index.html": HTML("x"), "assets/app.4f3a9c1d.css": "a{background:url(/b.png)}", "a.png": "png", "assets/index-BxK3a9Qz.js": body(100) });
+    const { raw } = await rig({ "index.html": HTML("x"), "assets/app.4f3a9c1d.css": "a{background:url(/b.png)}", "a.png": "png", "assets/index-BxK3a9Qz.js": body(100),
+      ".vite/manifest.json": JSON.stringify({ e: { file: "assets/index-BxK3a9Qz.js", css: ["assets/app.4f3a9c1d.css"] } }) });
     const css = await raw("/preview/p1/r/assets/app.4f3a9c1d.css");
     expect(css.bytes.toString()).toBe("a{background:url(/preview/p1/r/b.png)}");
     expect(css.headers["cache-control"]).toBe(IMMUTABLE);
