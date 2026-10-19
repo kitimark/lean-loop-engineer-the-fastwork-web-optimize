@@ -8052,7 +8052,8 @@
     "lean/Fw/**/*.lean",
     "lean/*.lean",
     "lean/scripts/*.lean",
-    "docs/team/handoffs/latex-strip-c.md"
+    "docs/team/handoffs/latex-strip-c.md",
+    "lean/FwTest/**"
    ]
   },
   {
