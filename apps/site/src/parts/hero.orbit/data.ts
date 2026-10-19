@@ -2,7 +2,7 @@ import type { Piece } from './logic';
 
 /**
  * The ten ring cards: geometry restated from the original's piece list (nodes/2.DyWL8TcE.js:3322-3463; px on the 1512 x 779
- * design canvas) and the Lean spec `HeroOrbit.pieces`. Names, roles and pictures are placeholders, not the site's.
+ * design canvas) and the Lean spec `HeroOrbit.pieces`. Names, roles and pictures are in `CARDS` (same order).
  */
 export const PIECES: readonly Piece[] = [
   { id: 'p1', left: -27, top: 71.6, width: 195, height: 243, rotate: 3.05, unit: 1, float: false },
@@ -17,6 +17,31 @@ export const PIECES: readonly Piece[] = [
   { id: 'p10', left: 1273, top: 265, width: 230, height: 287, rotate: -5.18, unit: 2, float: true },
 ];
 
+export interface CardInfo {
+  readonly name: string;
+  readonly role: string;
+  readonly cover: string;
+  readonly avatar: string;
+}
+
+const hero = (id: string) => ({ cover: `/selling/hero/${id}-cover.jpg`, avatar: `/selling/hero/${id}-avatar.jpg` });
+
+/** Card content in `PIECES` order, restated from the original's prerendered ring (names, roles, pictures served from /selling/). */
+export const CARDS: readonly CardInfo[] = [
+  { name: 'Chapavich Temnitikul', role: 'Sound Composer · Bangkok', ...hero('chapavich') },
+  { name: 'buttercup', role: 'Packaging Designer · Bangkok', ...hero('buttercup') },
+  { name: 'LEOBEER', role: 'AI Video Editor · Bangkok', cover: '/selling/hero/leobeer-cover.jpg', avatar: '/selling/sellers/ai-video-editor/avatar.jpg' },
+  { name: 'Slayalldeep', role: 'Artist · Jakarta', ...hero('slayalldeep') },
+  { name: 'Bold Sarunyoo', role: 'Web Designer · Bangkok', cover: '/selling/hero/bold-cover.jpg', avatar: '/selling/sellers/ux-ui-designer/avatar.jpg' },
+  { name: 'Weng Kitsana', role: 'Photographer · San Francisco', ...hero('weng') },
+  { name: 'Pakincht', role: '', ...hero('pakincht') },
+  { name: 'Peter Sato', role: 'Interior Designer · Osaka', ...hero('peter') },
+  { name: 'MOD SUPACHA', role: 'Graphic Designer · Bangkok', ...hero('mod') },
+  { name: 'Nguyen Van Nam', role: 'Wedding Photographer · Ho Chi Minh', ...hero('nam') },
+];
+
+export const ONLINE_ICON = '/selling/profile/online.svg';
+
 /** The phone deck: slot class, piece index it repeats, rest rotation (N2:3464-3468). */
 export const DECK: readonly { slot: 'a' | 'b' | 'd' | 'e'; piece: number; rotate: number }[] = [
   { slot: 'a', piece: 2, rotate: -2 },
@@ -24,6 +49,3 @@ export const DECK: readonly { slot: 'a' | 'b' | 'd' | 'e'; piece: number; rotate
   { slot: 'd', piece: 5, rotate: 2 },
   { slot: 'e', piece: 8, rotate: -4 },
 ];
-
-/** 1x1 transparent GIF; keeps the `<img>` boxes without any picture. */
-export const BLANK_GIF = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';

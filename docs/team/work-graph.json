@@ -5291,7 +5291,8 @@
     "apps/site/src/parts/hero/**",
     "apps/site/src/parts/hero.*/**",
     "docs/team/handoffs/content-hero.md"
-   ]
+   ],
+   "evidence": "725cc51"
   },
   {
    "devices": [

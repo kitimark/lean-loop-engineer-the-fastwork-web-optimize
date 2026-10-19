@@ -1,7 +1,7 @@
 /**
- * Per-word artwork frame of the accent: the SVG view box and the paint insets (percent strings written inline), restated
- * from the original's word list (nodes/2.DyWL8TcE.js:3501-3665, hidden words removed; index -1 is the base word, 3667).
- * The strokes themselves are NOT the original's hand-drawn paths: a plain stand-in wave per frame (delta, see the handoff).
+ * Per-word artwork frame of the accent: the SVG view box, the paint insets (percent strings written inline) and the label,
+ * restated from the original's word list (nodes/2.DyWL8TcE.js:3484-3665, hidden words removed; index -1 is the base word).
+ * The strokes are NOT the original's paths: a plain stand-in wave per frame (svg-extract reads the real ones at build time).
  */
 export interface WordArt {
   readonly viewBox: readonly [number, number];
@@ -12,17 +12,41 @@ export interface WordArt {
 export const BASE_ART: WordArt = {
   viewBox: [114.25, 83.2543],
   inset: { top: '0', right: '0', bottom: '-12.51%', left: '-7.78%' },
-  label: 'word',
+  label: 'you',
 };
 
-/** Cursor order 0..5 (matches `WORD_WIDTHS`). Labels are placeholders. */
+/** Cursor order 0..5 (matches `WORD_WIDTHS`). */
 export const WORD_ART: readonly WordArt[] = [
-  { viewBox: [98, 87], inset: { top: '10.14%', right: '5.8%', bottom: '-27.7%', left: '6.7%' }, label: 'word 1' },
-  { viewBox: [64, 71], inset: { top: '6.05%', right: '10.63%', bottom: '-2%', left: '9.38%' }, label: 'word 2' },
-  { viewBox: [67, 75], inset: { top: '3.38%', right: '15.63%', bottom: '-4.73%', left: '14.58%' }, label: 'word 3' },
-  { viewBox: [134, 59], inset: { top: '10.16%', right: '-0.37%', bottom: '10.11%', left: '0.37%' }, label: 'word 4' },
-  { viewBox: [151, 62], inset: { top: '11.49%', right: '3.42%', bottom: '4.73%', left: '2.8%' }, label: 'word 5' },
-  { viewBox: [103, 82], inset: { top: '-2.03%', right: '7.08%', bottom: '-8.78%', left: '7.08%' }, label: 'word 6' },
+  {
+    viewBox: [98, 87],
+    inset: { top: '10.14%', right: '5.8%', bottom: '-27.7%', left: '6.7%' },
+    label: 'คุณ',
+  },
+  {
+    viewBox: [64, 71],
+    inset: { top: '6.05%', right: '10.63%', bottom: '-2%', left: '9.38%' },
+    label: '你',
+  },
+  {
+    viewBox: [67, 75],
+    inset: { top: '3.38%', right: '15.63%', bottom: '-4.73%', left: '14.58%' },
+    label: '너',
+  },
+  {
+    viewBox: [134, 59],
+    inset: { top: '10.16%', right: '-0.37%', bottom: '10.11%', left: '0.37%' },
+    label: 'あなた',
+  },
+  {
+    viewBox: [151, 62],
+    inset: { top: '11.49%', right: '3.42%', bottom: '4.73%', left: '2.8%' },
+    label: 'kamu',
+  },
+  {
+    viewBox: [103, 82],
+    inset: { top: '-2.03%', right: '7.08%', bottom: '-8.78%', left: '7.08%' },
+    label: 'du',
+  },
 ];
 
 export const artOf = (cursor: number): WordArt => (cursor < 0 ? BASE_ART : (WORD_ART[cursor] ?? BASE_ART));
