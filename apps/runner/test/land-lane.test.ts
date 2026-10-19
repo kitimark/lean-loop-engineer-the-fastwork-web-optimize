@@ -9,14 +9,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const REMOTE = ["apps/runner", "apps/console-api", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/engine-check"];
 
 describe("land-filter.txt (written by Lean, read by land.yml)", () => {
-  const file = readFileSync(join(root, ".github/land-filter.txt"), "utf8");
+  const file = readFileSync(join(root, "lean/land-filter.txt"), "utf8");
   it("has one selector per Lean remote id, naming the package of that directory", () => {
     const names = REMOTE.map((d) => (JSON.parse(readFileSync(join(root, d, "package.json"), "utf8")) as { name: string }).name + "...");
     expect(file.trim().split(" ")).toEqual(names);
   });
   it("is what land.yml installs", () => {
     const yml = readFileSync(join(root, ".github/workflows/land.yml"), "utf8");
-    expect(yml).toContain("cat .github/land-filter.txt");
+    expect(yml).toContain("cat lean/land-filter.txt");
     expect(yml).not.toMatch(/filter: '@fw/);
   });
 });

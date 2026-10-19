@@ -172,11 +172,11 @@ theorem selector_mem (id : String) (h : id ∈ remoteIds) : selector id ∈ filt
 #guard filterList.head? == some "@fw/runner..."
 #guard filterList.length == 6
 
-/-- The text of `.github/land-filter.txt`: the selectors separated by one space, one line. -/
+/-- The text of `lean/land-filter.txt`: the selectors separated by one space, one line. -/
 def filterText : String := " ".intercalate filterList ++ "\n"
 
 /-- The filter file, relative to `lean/`. -/
-def filterPath : System.FilePath := "../.github/land-filter.txt"
+def filterPath : System.FilePath := "land-filter.txt"
 
 /-- Write the golden file and the filter file. -/
 def writeGolden : IO Unit := do

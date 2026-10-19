@@ -104,11 +104,11 @@ jobs:
 
       - uses: ./.github/actions/setup-lean
 
-      # One source: .github/land-filter.txt is written by Lean (Fw.Console.LandTier.filterList, one selector per remoteIds
+      # One source: lean/land-filter.txt is written by Lean (Fw.Console.LandTier.filterList, one selector per remoteIds
       # entry) and checked by lean/scripts/check.sh, so a suite added to the allowlist is installed here too.
       - name: package filter (from Lean)
         id: filter
-        run: echo "filter=$(cat .github/land-filter.txt)" >> "$GITHUB_OUTPUT"
+        run: echo "filter=$(cat lean/land-filter.txt)" >> "$GITHUB_OUTPUT"
 
       - uses: ./.github/actions/setup-pnpm
         with:
