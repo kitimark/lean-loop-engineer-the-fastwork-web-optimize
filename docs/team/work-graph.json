@@ -10011,7 +10011,29 @@
     "lean/scripts/*Golden.lean",
     "packages/gh-budget/src/wait.ts",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/land-remote-fail-wins.md"
+    "docs/team/handoffs/land-remote-fail-wins.md",
+    "apps/runner/src/run.ts",
+    "packages/gh-budget/src/index.ts",
+    "lean/Fw/Wire/Console.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-followups",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "land-remote-fail-wins review lows: a test of cachedLaneView on real runs-status/jobs.json shapes; abort seen during a budget sleep in chargedGh; poll deadline capped by the overall awaitRemote deadline; a note when the filtered list is empty or the view is another workflow; exact deadline/signal assertions",
+   "deps": [
+    "land-remote-fail-wins"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/run.ts",
+    "apps/runner/test/land-remote.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-remote-followups.md"
    ]
   }
  ],
