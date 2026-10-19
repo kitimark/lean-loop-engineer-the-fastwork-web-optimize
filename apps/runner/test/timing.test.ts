@@ -3,8 +3,9 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { begin, ciSpans, parseTimings, quantile, recordCiRun, renderRows, span, summarize, whereIs } from "../src/timing.ts";
+import { begin, ciSpans, inputsKind, kindsFile, kindsOf, parseTimings, quantile, recordCiRun, recordRunKind, renderRows, span, summarize, whereIs } from "../src/timing.ts";
 import { backfill, ingestRuns, runIdsOf } from "../src/timing-ci.ts";
+import { parseSamples } from "../src/watch-collect.ts";
 
 let dir: string, file: string;
 beforeEach(() => { dir = mkdtempSync(join(tmpdir(), "fw-timing-")); file = join(dir, "sub", "timings.jsonl"); process.env.FW_TIMINGS_FILE = file; });
@@ -55,6 +56,22 @@ describe("CI spans", () => {
     expect(await ingestRuns([42, 43], process.cwd(), gh)).toBe(0);
     expect(calls).toBe(2);
     expect(recordCiRun(42, run)).toBe(0);
+  });
+  it("the run kind round-trips: fw run records the inputs digest, the CI spans of that run carry it, parseSamples reads it as runKind", () => {
+    const a = { profile: "swipe-v1", runs: "3", target: "both" }, b = { ...a, runs: "1" };
+    expect(inputsKind(a)).toBe(inputsKind({ target: "both", runs: "3", profile: "swipe-v1" })); // key order is not part of the kind
+    expect(inputsKind(a)).not.toBe(inputsKind(b));
+    expect(recordRunKind(42, a)).toBe(inputsKind(a));
+    expect(recordRunKind(43, b)).toBe(inputsKind(b));
+    expect(kindsOf(kindsFile(file)).get(42)).toBe(inputsKind(a));
+    expect(recordCiRun(42, run)).toBe(2);
+    expect(recordCiRun(43, run)).toBe(2);
+    expect(recordCiRun(44, run)).toBe(2); // not dispatched by fw run: no kind line
+    const ls = lines();
+    expect(ls.filter((l) => l.runId === 42).every((l) => l.kind === inputsKind(a))).toBe(true);
+    expect(ls.filter((l) => l.runId === 44).every((l) => !("kind" in l))).toBe(true);
+    const samples = parseSamples(readFileSync(file, "utf8"));
+    expect(new Set(samples.map((s) => s.runKind ?? ""))).toEqual(new Set([inputsKind(a), inputsKind(b), ""]));
   });
   it("reads run ids from `fw ci wait` output", () => { expect(runIdsOf(["run 7 lean success", "wait: x", "run 9 - failure"])).toEqual([7, 9]); });
   it("backfill takes the named runs plus up to --per completed runs per workflow", async () => {

@@ -34,6 +34,9 @@ export const ObsRecord = z.object({
    *  (task-state-truth): session-wide, 6 to 31 on every SubagentStop of the spool, never 0, so it does not decide
    *  whether an agent ended; the drain does not read it (Lean `Fw.Ops.Obs.lifeOf`). */
   background_tasks: z.number().int().nonnegative().nullable().optional(),
+  /** The pid of the Claude session whose hook wrote the line (the hook's parent process); an agent whose session pid is
+   *  not in the process table is dead (Lean `Fw.Obs.Health.deadSession`). */
+  session_pid: z.number().int().nonnegative().nullable().optional(),
   ts: z.number().int().nonnegative(),
 }).strict();
 export type ObsRecord = z.infer<typeof ObsRecord>;
