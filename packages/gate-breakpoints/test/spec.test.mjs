@@ -36,6 +36,21 @@ test('every role names a box reference that exists, dims need a reference unless
   }
 });
 
+test('variant roles: a rewrite selector, one per variant, and Lean variantWellFormed (known replaced and counted roles, a fresh name)', () => {
+  const anchors = loadAnchors();
+  for (const [pid, spec] of Object.entries(anchors.parts)) {
+    const names = spec.roles.map((r) => r.role);
+    const ws = spec.variantRoles ?? [];
+    assert.equal(new Set(ws.map((w) => w.variant)).size, ws.length, `${pid}: one variant role per variant`);
+    for (const w of ws) {
+      assert.ok(w.variant && w.why && w.rewrite, `${pid}.${w.role}: variant, why and rewrite selector`);
+      assert.ok(names.includes(w.replaces) && names.includes(w.countOf), `${pid}.${w.role}: replaced and counted roles exist`);
+      assert.ok(!names.includes(w.role) && spec.roles.every((r) => r.boxRel?.role !== w.role), `${pid}.${w.role}: the new role name is fresh`);
+    }
+  }
+  assert.deepEqual(anchors.parts['hero.countdown'].variantRoles.map((w) => [w.variant, w.replaces, w.role, w.countOf]), [['strip', 'face', 'strip', 'digit']]);
+});
+
 test('sweeps: stops stay on the matrix edge widths and the Lean vector is found where the matrix has one', () => {
   const { gen } = loadGen();
   const sweeps = sweepDefs(gen);
