@@ -5974,6 +5974,64 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "docs/team/handoffs/gate-preset-input.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "waapi-threshold-attr",
+   "title": "Finding (morph-tween-inherit r1): on the waapi arm data-fw-morph is written only at tween start and end, so the panel's discrete attributes may flip at the tween end instead of the threshold frame (visual divergence vs waapi_vis VisSame); Lean model of the attribute timing, then fix or unlink waapi from Λ",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "morph-tween-inherit"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "apps/site/src/parts/morph.tween/**",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "docs/team/handoffs/waapi-threshold-attr.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "premise-inherits-retarget",
+   "title": "Premise css.inherits-false (Fw.Ops.Premise) still cites waapi_vis; point it at panel_blind_without_inherit / registrations_see",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "morph-tween-inherit"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/**",
+    "docs/team/handoffs/premise-inherits-retarget.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wallclock-lint-lean",
+   "title": "After C3: the wall-clock lint's site classification, allow-entry matching and stale rule move from the TS stand-in (scripts/lint-wallclock.mjs) into Lean Fw.Console.WallClock with golden cases",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-wallclock-off-gate"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Console/WallClock.lean",
+    "packages/contracts/golden/console/wallclock.jsonl",
+    "scripts/lint-wallclock.mjs",
+    "docs/team/handoffs/wallclock-lint-lean.md"
+   ]
   }
  ],
  "deadline": {
