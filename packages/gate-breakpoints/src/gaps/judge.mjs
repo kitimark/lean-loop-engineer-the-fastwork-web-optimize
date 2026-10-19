@@ -54,7 +54,7 @@ const armFacts = (raw) => ({
  */
 export function judgeRun({ cells, engine, run, anchors, deviceEdges, parts }) {
   const port = run.header.port ?? null;
-  const ctx = context({ anchors, parts, props: run.header.props, deviceEdges, port });
+  const ctx = context({ anchors, parts, props: run.header.props, deviceEdges, port, variants: run.header.variants });
   const mine = cells.filter((c) => run.probes.some((p) => p.id === c.id));
   const recs = mine.map((c) => run.probes.find((p) => p.id === c.id));
   const { states } = evaluate(ctx, mine.map((c, i) => ({ requested: recs[i].env, orig: recs[i].orig, rewrite: recs[i].rewrite, expect: c.probe.expect, expectNeutral: c.probe.expectNeutral })));
