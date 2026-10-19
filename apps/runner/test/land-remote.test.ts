@@ -106,6 +106,19 @@ describe("a recorded lane run (live proof of task land-wait: ci/land-probe-30a30
   });
 });
 
+describe("the recorded passing lane run (ci/land-probe-e5b7f17, run 39319745028)", () => {
+  const v = recorded("pass.json");
+  const b = laneBind(v)!;
+  const w: Want = { sha: b.sha, laneId: "land", laneDigest: b.digest };
+  it("fw ci wait exit 0: accepted for the sha it printed, not for another", () => {
+    expect(b.sha).toBe("e5b7f17739f4df104dcdf4ac774b3b016f453855");
+    const run = normalizeGithub(0, v, { marker: v.headSha, want: w });
+    expect(run.state).toBe("pass");
+    expect(remoteVerdict(call, { localOk: true, needed: true, allow: ["github"], want: w, waitsLeft: 0, runs: [run] })).toMatchObject({ kind: "accept", reason: "remote-pass" });
+    expect(remoteVerdict(call, { localOk: true, needed: true, allow: ["github"], want: { ...w, sha: "e".repeat(40) }, waitsLeft: 0, runs: [run] }).kind).not.toBe("accept");
+  });
+});
+
 describe("golden land-remote.jsonl (written by Lean) through fwcore", () => {
   const lines = readFileSync(join(root, "packages/contracts/golden/console/land-remote.jsonl"), "utf8").trim().split("\n");
   it("has the Lean cases", () => expect(lines.length).toBeGreaterThanOrEqual(30));
