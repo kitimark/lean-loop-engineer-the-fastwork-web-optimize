@@ -7101,7 +7101,11 @@
     ".github/workflows/land.yml",
     "packages/contracts/golden/console/**",
     "docs/team/tools/**",
-    "scripts/scrub.mjs"
+    "scripts/scrub.mjs",
+    ".github/scripts/land-base.sh",
+    "apps/runner/src/checks.ts",
+    "lean/scripts/LandRemoteGolden.lean",
+    "lean/scripts/check.sh"
    ]
   },
   {
