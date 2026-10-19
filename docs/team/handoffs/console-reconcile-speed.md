@@ -18,6 +18,9 @@ Done
 
 Open
 - Profiling console.query in Lean (M) and the 120 s replay deadline: follow-ups.
-- Measurements: see the report; the Mac load was 240+ so numbers are only before/after on equal footing.
+- MEASURED on this Mac (scratch console, copy of the event log, load 276 before / 229 after; one run each, so a ratio, not a rate):
+  idle reconcile pass median 14.7 s -> 1.0 s; POST /api/reconcile under 12 requests 150 ms apart: median 130.7 s (max 150.9 s)
+  -> 1.5 s (max 4.7 s); syncCommands (407 cmds, ancestry test) 27.2 s -> 0.2 s; post-merge reconcile 168.9 s + old plan sync
+  698.4 s -> reconcile 3.4 s and no plan sync step. Bench: scratchpad crs/bench.mjs (not committed).
 
 Read first: the Lean module docstrings, then reconciler.ts `reconcile`/`launch`.
