@@ -12,7 +12,7 @@ import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
 import { land, type Http } from "../src/land.ts";
 import { enqueue, parseLog, pending, queued, queuedBranches, queueFile, readLog, results, retryAfter, runQueue, runnerFile, runnerLive, takeRunner, type Ev } from "../src/land-queue.ts";
-import { KINDS, type Kind } from "../src/land-verdict.ts";
+import { fwcoreStale, KINDS, reasonOf, refusedLine, type Kind } from "../src/land-verdict.ts";
 
 const golden = join(dirname(new URL(import.meta.url).pathname), "../../../packages/contracts/golden/console/land-queue.jsonl");
 type G = { name: string; request: Record<string, unknown> & { op: string }; response: Record<string, unknown> };
@@ -29,6 +29,8 @@ describe("land queue vs Lean golden", () => {
     } else if (q.op === "landQueue.queued") expect(g.response).toEqual({ queued: queued(pending(logOf(q)), q.branch as string) });
     else if (q.op === "landQueue.retry") expect(g.response).toEqual({ retry: retryAfter(q.kind as Kind, q.tries as number, q.max as number) });
     else if (q.op === "landQueue.live") expect(g.response).toEqual({ live: runnerLive(q.held as string, q.probe as string | null) });
+    else if (q.op === "landQueue.reason") expect(g.response).toEqual({ reason: reasonOf(q.message as string), line: refusedLine(q.message as string) });
+    else if (q.op === "landQueue.fwcoreStale") expect(g.response).toEqual({ stale: fwcoreStale(q.recorded as string | null, q.same as boolean, q.moved as boolean) });
     else throw new Error(`unknown op ${q.op}`);
   });
   it("covers every kind", () => expect(rows.filter((g) => g.request.op === "landQueue.retry").length).toBeGreaterThanOrEqual(KINDS.length));
@@ -108,6 +110,27 @@ describe("runQueue", () => {
     ["a", "b"].forEach((t) => entry(dir, t));
     const r = await runQueue({ consoleDir: dir, retryMs: 1, attempt: async (e) => { if (e.task === "a") throw new Error("boom"); return "done"; } });
     expect(r.results.map((x) => x.kind)).toEqual(["unknown", "done"]);
+  });
+  it("a throwing attempt prints its message before the verdict and records it in the queue and land logs", async () => {
+    const dir = tmp();
+    entry(dir, "a");
+    mkdirSync(join(dir, "land-logs"), { recursive: true });
+    writeFileSync(join(dir, "land-logs", "a-abc1234.log"), "check output\n");
+    const err: string[] = [];
+    const r = await runQueue({ consoleDir: dir, retryMs: 1, err: (l) => err.push(l), attempt: async () => { throw new Error("unknown op console.landDigest"); } });
+    expect(err).toEqual(["REFUSED: unknown op console.landDigest"]);
+    expect(r.results[0]).toMatchObject({ kind: "unknown", reason: "unknown op console.landDigest" });
+    const res = readFileSync(queueFile(dir), "utf8").trim().split("\n").map((l) => JSON.parse(l)).find((e) => e.ev === "res");
+    expect(res.reason).toBe("unknown op console.landDigest");
+    expect(readFileSync(join(dir, "land-logs", "a-abc1234.log"), "utf8")).toContain("REFUSED: unknown op console.landDigest");
+  });
+  it("a refusal without a message still carries a reason; one the attempt explained is not printed twice", async () => {
+    const dir = tmp();
+    ["a", "b"].forEach((t) => entry(dir, t));
+    const err: string[] = [];
+    const r = await runQueue({ consoleDir: dir, err: (l) => err.push(l), attempt: async (e) => (e.task === "a" ? "unknown" : { kind: "scope", reason: "out of scope" }) });
+    expect(err).toEqual(["REFUSED: no message"]);
+    expect(r.results.map((x) => x.reason)).toEqual(["no message", "out of scope"]);
   });
   it("does not run while a live runner holds the lock; the entry stays pending", async () => {
     const dir = tmp();

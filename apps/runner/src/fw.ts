@@ -123,7 +123,9 @@ try {
           attempt: async (e) => {
             const res = await land(e.branch, landOpts(e.task, e.allow));
             for (const l of res.lines) console.error(l);
-            return res.kind ?? (res.ok ? "done" : "unknown");
+            const kind = res.kind ?? (res.ok ? "done" : "unknown");
+            const why = res.lines.filter((l) => l.startsWith("REFUSED: ")).pop()?.slice("REFUSED: ".length);
+            return !res.ok && why !== undefined ? { kind, reason: why } : kind;
           } });
         for (const r of run.results) console.log(verdictLine(r.kind, r.task));
         const own = run.results.find((r) => r.task === t);

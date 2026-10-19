@@ -12,7 +12,7 @@ import { branchCard } from "../../console-api/src/reconcile/naming.ts";
 import { begin, record, span } from "./timing.ts";
 import { circleciAdapter, DEFAULT_ALLOW, githubAdapter, runTiered, spawnWait, type Adapter, type Provider } from "./land-remote.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
-import { checkFailKind, failedStages, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
+import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
 import { chargedGh, fwcoreCall, ghCost } from "./run.ts";
 import { chargedOnce, realEnv, type Env } from "@fw/gh-budget";
@@ -408,6 +408,24 @@ export function storedDigest(mainDir: string, commit: string): Digest {
   } catch { /* no record */ }
   return null;
 }
+/** The land preflight (task land-queue-why): the reason to refuse early, or null. Facts only; Lean `fwcoreStale` decides. The installed binary is
+ *  the main checkout's; its record (`fwcore.commit`) names the commit it was built from, and counts only when the binary's sha256 is the recorded one.
+ *  A tree without `scripts/fwcore-build.sh` has no binary to be stale. */
+export function fwcorePreflight(mainDir: string, main: string): string | null {
+  if (!tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/fwcore-build.sh`])) return null;
+  let recorded: string | null = null;
+  try {
+    const [c, h] = readFileSync(join(mainDir, `${FWCORE_BIN}.commit`), "utf8").trim().split(" ");
+    if (c && h !== undefined && HEX64.test(h) && binDigest(mainDir) === h) recorded = c;
+  } catch { /* no record */ }
+  const head = git(mainDir, ["rev-parse", main]);
+  const same = recorded === head;
+  let moved = true; // an unknown commit counts as moved
+  if (recorded !== null && !same) {
+    try { moved = git(mainDir, ["diff", "--name-only", recorded, main, "--", "lean", "scripts/fwcore-build.sh"]) !== ""; } catch { moved = true; }
+  }
+  return fwcoreStale(recorded, same, moved) ? FWCORE_STALE_REASON : null;
+}
 export function storeDigest(mainDir: string, commit: string, d: string): void {
   try { const f = digestFile(mainDir, commit); mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, `${d}\n`); } catch { /* the next land builds unknown */ }
 }
@@ -470,6 +488,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   if (!mainDir) return fail(`${main} is not checked out in any worktree`);
   if (o.dry && !o.task) return fail("--dry needs --task <id>: the scope check is the task's");
   if (!o.dry && git(mainDir, ["status", "--porcelain", "--untracked-files=no"])) return fail(`${main} checkout has uncommitted changes`, "dirty");
+  if (!o.dry && !o.checks) { const why = fwcorePreflight(mainDir, main); if (why) return fail(why, "stale"); }
   // 0. the given branch has nothing to land: the agent may have committed on its ci/<task> branch (Lean: console.landPick)
   if (!via && !o.dry) {
     const pk = pickFacts(o.cwd, main, branch, o.task);

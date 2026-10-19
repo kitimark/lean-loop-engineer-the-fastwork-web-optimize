@@ -95,3 +95,14 @@ export function failedStages(out: string): string[] {
   }
   return [...names];
 }
+
+// ---- Refusal reasons and the fwcore preflight (Lean `Fw.Console.LandQueue.reasonOf`, `refusedLine`, `fwcoreStale`; task land-queue-why) ----
+// Checked against the golden ops `landQueue.reason` and `landQueue.fwcoreStale` (test/land-queue.test.ts).
+/** Lean `reasonOf`: the message of a refusal, or a fixed text when it is empty (`reasonOf_nonempty`). */
+export const reasonOf = (msg: string): string => (msg === "" ? "no message" : msg);
+/** Lean `refusedLine`: the stderr line printed before the `VERDICT` line. */
+export const refusedLine = (msg: string): string => `REFUSED: ${reasonOf(msg)}`;
+/** Lean `fwcoreStaleReason`. */
+export const FWCORE_STALE_REASON = "fwcore-stale: run sh scripts/fwcore-build.sh";
+/** Lean `fwcoreStale`: no build record, or a record of another commit with a Lean source or the build script changed since. */
+export const fwcoreStale = (recorded: string | null, same: boolean, moved: boolean): boolean => recorded === null || (!same && moved);

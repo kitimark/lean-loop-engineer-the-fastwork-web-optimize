@@ -26,3 +26,9 @@
 {"name":"pid reused (other start time)","request":{"held":"Sat Oct 18 10:00:00 2026","op":"landQueue.live","probe":"Sat Oct 18 11:00:00 2026"},"response":{"live":false}}
 {"name":"no such process","request":{"held":"Sat Oct 18 10:00:00 2026","op":"landQueue.live","probe":null},"response":{"live":false}}
 {"name":"empty start time, no process","request":{"held":"","op":"landQueue.live","probe":null},"response":{"live":false}}
+{"name":"reason: thrown message kept","request":{"message":"unknown op console.landDigest","op":"landQueue.reason"},"response":{"line":"REFUSED: unknown op console.landDigest","reason":"unknown op console.landDigest"}}
+{"name":"reason: empty message gets a fixed reason","request":{"message":"","op":"landQueue.reason"},"response":{"line":"REFUSED: no message","reason":"no message"}}
+{"name":"fwcore stale: no record","request":{"moved":false,"op":"landQueue.fwcoreStale","recorded":null,"same":false},"response":{"stale":true}}
+{"name":"fwcore stale: record is main's head","request":{"moved":false,"op":"landQueue.fwcoreStale","recorded":"abc","same":true},"response":{"stale":false}}
+{"name":"fwcore stale: other commit, lean moved","request":{"moved":true,"op":"landQueue.fwcoreStale","recorded":"abc","same":false},"response":{"stale":true}}
+{"name":"fwcore stale: other commit, lean unchanged","request":{"moved":false,"op":"landQueue.fwcoreStale","recorded":"abc","same":false},"response":{"stale":false}}

@@ -193,6 +193,54 @@ $$p = \mathrm{some}(s') \wedge s' \ne s \ \vee\ p = \bot \Rightarrow \lnot\opera
 theorem runnerLive_stale (held : String) (probe : Option String) (h : probe ≠ some held) : runnerLive held probe = false := by
   simpa [runnerLive] using h
 
+/-- The reason a refusal prints and records: the message of the exception, or a fixed text when the message is empty.
+$$\operatorname{reason}(m) = m \ \text{if}\ m \ne \varepsilon,\ \text{else}\ \text{"no message"}$$ -/
+def reasonOf (msg : String) : String := if msg.isEmpty then "no message" else msg
+
+/-- **A refusal always carries a reason.** For the kind `unknown` (an attempt that threw) and for every other kind the reason is non-empty.
+$$\forall m:\ \operatorname{reason}(m) \ne \varepsilon$$ -/
+theorem reasonOf_nonempty (msg : String) : (reasonOf msg).isEmpty = false := by
+  unfold reasonOf
+  by_cases h : msg.isEmpty <;> simp [h]
+
+/-- A non-empty message is kept as it is.
+$$m \ne \varepsilon \Rightarrow \operatorname{reason}(m) = m$$ -/
+theorem reasonOf_keeps (msg : String) (h : msg.isEmpty = false) : reasonOf msg = msg := by
+  simp [reasonOf, h]
+
+/-- The line printed to stderr before the `VERDICT` line.
+$$\operatorname{refused}(m) = \text{"REFUSED: "} + \operatorname{reason}(m)$$ -/
+def refusedLine (msg : String) : String := "REFUSED: " ++ reasonOf msg
+
+/-- The named reason of the preflight refusal.
+$$\mathrm{fwcoreStaleReason} = \text{"fwcore-stale: run sh scripts/fwcore-build.sh"}$$ -/
+def fwcoreStaleReason : String := "fwcore-stale: run sh scripts/fwcore-build.sh"
+
+/-- Is the installed fwcore binary stale? `recorded` is the commit in its build record (`none`: no record), `same` says that commit is
+`main`'s head, `moved` says a Lean source or the build script changed between the two (an unknown commit counts as moved).
+$$\operatorname{stale}(r, s, v) = (r = \bot) \vee (\lnot s \wedge v)$$ -/
+def fwcoreStale (recorded : Option String) (same moved : Bool) : Bool := recorded.isNone || (!same && moved)
+
+/-- Branch one: no build record is stale.
+$$r = \bot \Rightarrow \operatorname{stale}$$ -/
+theorem fwcoreStale_noRecord (same moved : Bool) : fwcoreStale none same moved = true := by
+  simp [fwcoreStale]
+
+/-- Branch two: a record of another commit with changed Lean sources is stale.
+$$r \ne \bot \wedge \lnot s \wedge v \Rightarrow \operatorname{stale}$$ -/
+theorem fwcoreStale_moved (c : String) : fwcoreStale (some c) false true = true := by
+  simp [fwcoreStale]
+
+/-- A record of main's own head is fresh.
+$$r \ne \bot \wedge s \Rightarrow \lnot\operatorname{stale}$$ -/
+theorem fwcoreFresh_same (c : String) (moved : Bool) : fwcoreStale (some c) true moved = false := by
+  simp [fwcoreStale]
+
+/-- A record of another commit whose Lean sources did not change is fresh.
+$$r \ne \bot \wedge \lnot v \Rightarrow \lnot\operatorname{stale}$$ -/
+theorem fwcoreFresh_unmoved (c : String) (same : Bool) : fwcoreStale (some c) same false = false := by
+  simp [fwcoreStale]
+
 /-- A premise row: id, statement, the theorems that assume it, and the test that asserts it.
 $$p = (\mathit{id},\ \mathit{statement},\ \mathit{theorems},\ \mathit{test})$$ -/
 structure PremiseRow where
@@ -265,11 +313,22 @@ def liveCase (name : String) (held : String) (probe : Option String) : Json :=
   line name [("op", "landQueue.live"), ("held", held), ("probe", match probe with | some p => Json.str p | none => Json.null)]
     [("live", .bool (runnerLive held probe))]
 
+/-- A `landQueue.reason` case: the reason and the stderr line of a refusal with a message.
+$$\operatorname{reasonCase}(n, m) = \operatorname{line}(n, \{m\}, \{\operatorname{reason}(m), \operatorname{refused}(m)\})$$ -/
+def reasonCase (name : String) (msg : String) : Json :=
+  line s!"reason: {name}" [("op", "landQueue.reason"), ("message", msg)] [("reason", reasonOf msg), ("line", refusedLine msg)]
+
+/-- A `landQueue.fwcoreStale` case.
+$$\operatorname{staleCase}(n, r, s, v) = \operatorname{line}(n, \{r, s, v\}, \{\operatorname{stale}(r, s, v)\})$$ -/
+def staleCase (name : String) (recorded : Option String) (same moved : Bool) : Json :=
+  line s!"fwcore stale: {name}" [("op", "landQueue.fwcoreStale"), ("recorded", match recorded with | some p => Json.str p | none => Json.null),
+    ("same", .bool same), ("moved", .bool moved)] [("stale", .bool (fwcoreStale recorded same moved))]
+
 /-- The sample log of the golden cases: three tasks enqueued, one twice with another branch.
 $$\ell_0 = [\mathrm{enq}(a), \mathrm{enq}(b), \mathrm{enq}(c)]$$ -/
 def sample : List Ev := [.enq ⟨"a", "wa"⟩, .enq ⟨"b", "wb"⟩, .enq ⟨"c", "wc"⟩]
 
-/-- Every golden case: 6 pending, 4 queued, 11 retry (every kind, one at the bound), 4 live.
+/-- Every golden case: 6 pending, 4 queued, 11 retry (every kind, one at the bound), 4 live, 2 reason, 4 fwcore stale.
 $$\mathrm{cases} = \mathrm{pend}_{1..6} \mathbin{+\!\!+} \mathrm{queued}_{1..4} \mathbin{+\!\!+} \mathrm{retry}_{1..11} \mathbin{+\!\!+} \mathrm{live}_{1..4}$$ -/
 def cases : List Json :=
   [pendCase "empty" [],
@@ -287,9 +346,15 @@ def cases : List Json :=
    liveCase "same start time" "Sat Oct 18 10:00:00 2026" (some "Sat Oct 18 10:00:00 2026"),
    liveCase "pid reused (other start time)" "Sat Oct 18 10:00:00 2026" (some "Sat Oct 18 11:00:00 2026"),
    liveCase "no such process" "Sat Oct 18 10:00:00 2026" none,
-   liveCase "empty start time, no process" "" none]
+   liveCase "empty start time, no process" "" none] ++
+  [reasonCase "thrown message kept" "unknown op console.landDigest",
+   reasonCase "empty message gets a fixed reason" "",
+   staleCase "no record" none false false,
+   staleCase "record is main's head" (some "abc") true false,
+   staleCase "other commit, lean moved" (some "abc") false true,
+   staleCase "other commit, lean unchanged" (some "abc") false false]
 
-#guard cases.length == 28
+#guard cases.length == 34
 
 /-- The golden file text: one compressed JSON line per case.
 $$\mathrm{goldenText} = \operatorname{concat}[\, \operatorname{compress}(c) \mathbin{+\!\!+} \text{"\textbackslash n"} \,]_{c \in \mathrm{cases}}$$ -/
