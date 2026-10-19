@@ -1,7 +1,7 @@
 {
  "tally": {
-  "modelBug": 1,
-  "pass": 1,
+  "modelBug": 0,
+  "pass": 2,
   "unusable": 2
  },
  "verdicts": [
@@ -46,7 +46,7 @@
    "countType": "trace.UpdateLayoutTree",
    "engine": "chromium",
    "prediction": "≤o",
-   "reason": "refuted for every run within the class: the model is wrong",
+   "reason": "certified for every run within the class",
    "runs": {
     "base": 3,
     "variant": 3
@@ -55,18 +55,18 @@
    "stage": "style",
    "totals": {
     "base": [
-     1050,
-     1050,
-     1049
+     460,
+     460,
+     460
     ],
     "variant": [
-     1050,
-     1049,
-     1050
+     460,
+     460,
+     460
     ]
    },
    "variant": "hidden-pause",
-   "verdict": "model-bug",
+   "verdict": "pass",
    "confounds": []
   },
   {
@@ -87,14 +87,14 @@
    "stage": "layout",
    "totals": {
     "base": [
-     131,
-     131,
+     128,
+     128,
      128
     ],
     "variant": [
-     131,
      128,
-     131
+     128,
+     128
     ]
    },
    "variant": "hidden-pause",
@@ -119,19 +119,33 @@
    "stage": "commit",
    "totals": {
     "base": [
-     936,
-     936,
-     936
+     935,
+     935,
+     935
     ],
     "variant": [
-     936,
-     936,
-     936
+     935,
+     935,
+     935
     ]
    },
    "variant": "hidden-pause",
    "verdict": "pass",
    "confounds": []
   }
- ]
+ ],
+ "page": {
+  "part": "engine.scene",
+  "base": "39260614233",
+  "arm": "39260841413",
+  "baseSearch": "?only=engine.scene&stage=vw:430,vh:932",
+  "search": "?fw=engine.scene:hidden-pause&only=engine.scene&stage=vw:430,vh:932",
+  "pairs": [
+   "engine.scene:hidden-pause"
+  ],
+  "armFlags": [
+   "engine.scene:hidden-pause"
+  ],
+  "attribution": "MEASURED"
+ }
 }

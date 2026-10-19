@@ -1,6 +1,6 @@
 ## chromium (156.0.8078.4)
 
-**Flags: (none, the default config) - config ede2c7641aacf2d2 (read from the loaded page).**
+**Flags: ?preset=v2-proved - config 6762d15c2b8b6d35 (read from the loaded page).**
 
 Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; against Lean's expected value (compared only where the env was achieved on both arms and a vector exists, else NC); the legacy max-/min- text against the range text; then the anchors of each part. Cells: pass / FAIL probes-failing/probes-comparable / NC = not comparable / UNREACHABLE n (reason) = every probe of the cell is a cell this engine port cannot build (Lean-proved reach rule), `+n unreachable` = n such probes left out of the count / - = block not run.
 
@@ -37,26 +37,28 @@ Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; 
 | pain | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 | pain.notes | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 | platform | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
-| platform.stageBg | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
+| platform.stageBg | FAIL 30/30 | FAIL 30/30 | FAIL 30/30 | FAIL 10/10 | FAIL 2/2 | FAIL 6/6 | FAIL 4/4 | FAIL 2/2 | FAIL 4/4 | FAIL 6/6 | pass | pass | pass | pass |
 | platform.sweep | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 | platform.glint | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 | platform.entries | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
-| platform.marquee | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
+| platform.marquee | FAIL 30/30 | FAIL 30/30 | FAIL 30/30 | FAIL 10/10 | FAIL 2/2 | FAIL 6/6 | FAIL 4/4 | FAIL 2/2 | FAIL 4/4 | FAIL 6/6 | pass | pass | pass | pass |
 | engine.scene | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 
-Settle wait (Lean Fw.Gate.Settle): 392 arm samples waited 195072 ms in total (max 1088 ms); 0 ended UNSETTLED. A state with an unsettled arm has no verdict (its rows are NC) and its items are not in the failing list.
+Settle wait (Lean Fw.Gate.Settle): 392 arm samples waited 195312 ms in total (max 1088 ms); 0 ended UNSETTLED. A state with an unsettled arm has no verdict (its rows are NC) and its items are not in the failing list.
 
 Sweep hysteresis (state after the sequence vs a fresh load at the same final env, per arm; items differing / compared):
 
-- desktop-1512-320-1512: orig 9/7932, rewrite 5/7932
-- phone-rotation: orig 0/8184, rewrite 0/8184
-- touch-1024-1201: orig 6/7932, rewrite 6/7932
-- pain-1440-600-1440: orig 1/7932, rewrite 1/7932
+- desktop-1512-320-1512: orig 5/7394, rewrite 6/7394
+- phone-rotation: orig 0/7646, rewrite 1/7646
+- touch-1024-1201: orig 6/7394, rewrite 7/7394
+- pain-1440-600-1440: orig 1/7394, rewrite 2/7394
 
 Failing items (count = probes or stops where the item differed; first example):
 
 | part | kind | role | key | count | first at | orig | rewrite | lean |
 |---|---|---|---|---|---|---|---|---|
+| platform.stageBg | style | artboard | will-change | 496 | desk-319 | "transform" | "auto" |  |
+| platform.marquee | style | track | will-change | 124 | desk-319 | "transform" | "auto" |  |
 
 Properties only the original declares for a compared element (information, not in any verdict): 1 distinct (part, role, property); top 25:
 

@@ -37,5 +37,21 @@
    "verdict": "unusable",
    "confounds": []
   }
- ]
+ ],
+ "page": {
+  "part": "hero.countdown",
+  "base": "39257533380",
+  "arm": "39259074927",
+  "baseSearch": "?only=hero.countdown&stage=vw:430,vh:932",
+  "search": "?fw=hero.countdown:strip,morph.countdown:strip&only=hero.countdown&stage=vw:430,vh:932",
+  "pairs": [
+   "hero.countdown:strip",
+   "morph.countdown:strip"
+  ],
+  "armFlags": [
+   "hero.countdown:strip",
+   "morph.countdown:strip"
+  ],
+  "attribution": "MEASURED"
+ }
 }

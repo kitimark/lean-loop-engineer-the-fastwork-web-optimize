@@ -37,30 +37,32 @@ Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; 
 | pain | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 | pain.notes | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 | platform | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
-| platform.stageBg | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
+| platform.stageBg | FAIL 30/30 | FAIL 30/30 | FAIL 30/30 | FAIL 10/10 | FAIL 2/2 | FAIL 6/6 | FAIL 4/4 | FAIL 2/2 | FAIL 4/4 | FAIL 6/6 | pass | pass | pass | pass |
 | platform.sweep | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 | platform.glint | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 | platform.entries | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
-| platform.marquee | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
+| platform.marquee | FAIL 30/30 | FAIL 30/30 | FAIL 30/30 | FAIL 10/10 | FAIL 2/2 | FAIL 6/6 | FAIL 4/4 | FAIL 2/2 | FAIL 4/4 | FAIL 6/6 | pass | pass | pass | pass |
 | engine.scene | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass |
 
-Settle wait (Lean Fw.Gate.Settle): 392 arm samples waited 195232 ms in total (max 1088 ms); 0 ended UNSETTLED. A state with an unsettled arm has no verdict (its rows are NC) and its items are not in the failing list.
+Settle wait (Lean Fw.Gate.Settle): 392 arm samples waited 195168 ms in total (max 1088 ms); 0 ended UNSETTLED. A state with an unsettled arm has no verdict (its rows are NC) and its items are not in the failing list.
 
 Sweep hysteresis (state after the sequence vs a fresh load at the same final env, per arm; items differing / compared):
 
-- desktop-1512-320-1512: orig 5/7932, rewrite 5/7932
-- phone-rotation: orig 0/8184, rewrite 0/8184
-- touch-1024-1201: orig 6/7932, rewrite 6/7932
-- pain-1440-600-1440: orig 1/7932, rewrite 1/7932
+- desktop-1512-320-1512: orig 9/7970, rewrite 5/7970
+- phone-rotation: orig 0/8222, rewrite 0/8222
+- touch-1024-1201: orig 6/7970, rewrite 6/7970
+- pain-1440-600-1440: orig 1/7970, rewrite 1/7970
 
 Failing items (count = probes or stops where the item differed; first example):
 
 | part | kind | role | key | count | first at | orig | rewrite | lean |
 |---|---|---|---|---|---|---|---|---|
-| commission | style | inner | margin-inline-end | 1 | desktop-1512-320-1512#0@1512x900 | "0px" | "132px" |  |
-| commission | style | inner | margin-inline-start | 1 | desktop-1512-320-1512#0@1512x900 | "0px" | "132px" |  |
-| commission | style | rows | margin-inline-end | 1 | desktop-1512-320-1512#0@1512x900 | "0px" | "8px" |  |
-| commission | style | rows | margin-inline-start | 1 | desktop-1512-320-1512#0@1512x900 | "0px" | "8px" |  |
+| platform.stageBg | style | artboard | will-change | 496 | desk-319 | "transform" | "auto" |  |
+| platform.marquee | style | track | will-change | 124 | desk-319 | "transform" | "auto" |  |
+| commission | style | inner | margin-inline-end | 1 | desktop-1512-320-1512#0@1512x900 | "132px" | "0px" |  |
+| commission | style | inner | margin-inline-start | 1 | desktop-1512-320-1512#0@1512x900 | "132px" | "0px" |  |
+| commission | style | rows | margin-inline-end | 1 | desktop-1512-320-1512#0@1512x900 | "8px" | "0px" |  |
+| commission | style | rows | margin-inline-start | 1 | desktop-1512-320-1512#0@1512x900 | "8px" | "0px" |  |
 
 Properties only the original declares for a compared element (information, not in any verdict): 1 distinct (part, role, property); top 25:
 

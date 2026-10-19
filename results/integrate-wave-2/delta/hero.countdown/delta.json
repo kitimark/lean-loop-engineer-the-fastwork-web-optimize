@@ -180,13 +180,13 @@
   "where": "within"
  },
  "metric.Documents": {
-  "base": -10,
+  "base": -5,
   "arm": -5,
-  "delta": 5,
+  "delta": 0,
   "baseRuns": [
    -5,
    -10,
-   -10
+   -5
   ],
   "armRuns": [
    -5,
@@ -198,13 +198,13 @@
   "where": "within"
  },
  "metric.Frames": {
-  "base": -5,
+  "base": -3,
   "arm": -3,
-  "delta": 2,
+  "delta": 0,
   "baseRuns": [
    -3,
    -5,
-   -5
+   -3
   ],
   "armRuns": [
    -3,
@@ -252,39 +252,39 @@
   "where": "within"
  },
  "metric.LayoutObjects": {
-  "base": -890,
-  "arm": -881,
-  "delta": 9,
+  "base": -884,
+  "arm": -884,
+  "delta": 0,
   "baseRuns": [
-   -881,
-   -890,
-   -890
+   -884,
+   -893,
+   -884
   ],
   "armRuns": [
-   -881,
-   -881,
-   -881
+   -884,
+   -884,
+   -884
   ],
-  "baseLo": -890,
-  "baseHi": -881,
+  "baseLo": -893,
+  "baseHi": -884,
   "where": "within"
  },
  "metric.Nodes": {
-  "base": -1377,
-  "arm": -1355,
-  "delta": 22,
+  "base": -1358,
+  "arm": -1358,
+  "delta": 0,
   "baseRuns": [
-   -1355,
-   -1377,
-   -1377
+   -1358,
+   -1380,
+   -1358
   ],
   "armRuns": [
-   -1355,
-   -1355,
-   -1355
+   -1358,
+   -1358,
+   -1358
   ],
-  "baseLo": -1377,
-  "baseHi": -1355,
+  "baseLo": -1380,
+  "baseHi": -1358,
   "where": "within"
  },
  "metric.RecalcStyleCount": {
@@ -720,13 +720,13 @@
   "where": "within"
  },
  "trace.Layer.deleted": {
-  "base": 28,
+  "base": 8,
   "arm": 8,
-  "delta": -20,
+  "delta": 0,
   "baseRuns": [
    8,
    28,
-   28
+   8
   ],
   "armRuns": [
    8,
@@ -942,7 +942,7 @@
   "baseRuns": [
    995,
    995,
-   995
+   999
   ],
   "armRuns": [
    995,
@@ -950,7 +950,7 @@
    995
   ],
   "baseLo": 995,
-  "baseHi": 995,
+  "baseHi": 999,
   "where": "within"
  },
  "trace.PaintImage": {
@@ -1122,15 +1122,15 @@
   "baseRuns": [
    11264,
    11264,
-   11264
+   11268
   ],
   "armRuns": [
    22445,
-   22446,
+   22445,
    22445
   ],
   "baseLo": 11264,
-  "baseHi": 11264,
+  "baseHi": 11268,
   "where": "above"
  },
  "trace.cc.Activate": {

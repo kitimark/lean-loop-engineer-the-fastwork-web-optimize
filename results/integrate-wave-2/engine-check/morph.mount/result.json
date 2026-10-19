@@ -1,7 +1,7 @@
 {
  "tally": {
-  "modelBug": 2,
-  "pass": 3,
+  "modelBug": 0,
+  "pass": 5,
   "unusable": 3
  },
  "verdicts": [
@@ -13,7 +13,7 @@
    },
    "countType": "trace.FunctionCall",
    "engine": "chromium",
-   "prediction": "≤o",
+   "prediction": "any",
    "reason": "quarantined type: never used",
    "runs": {
     "base": 3,
@@ -23,17 +23,17 @@
    "stage": "script",
    "totals": {
     "base": [
-     3590,
-     3590,
-     3589
+     2471,
+     2471,
+     2471
     ],
     "variant": [
-     3589,
-     3589,
-     3589
+     3423,
+     3423,
+     3423
     ]
    },
-   "variant": "rewrite+?fw=people.card:mq",
+   "variant": "rewrite+?fw=morph.mount:shift",
    "verdict": "unusable",
    "confounds": []
   },
@@ -45,8 +45,8 @@
    },
    "countType": "trace.UpdateLayoutTree",
    "engine": "chromium",
-   "prediction": "≤o",
-   "reason": "refuted for every run within the class: the model is wrong",
+   "prediction": "any",
+   "reason": "any: no claim",
    "runs": {
     "base": 3,
     "variant": 3
@@ -55,18 +55,18 @@
    "stage": "style",
    "totals": {
     "base": [
-     895,
-     895,
-     895
+     0,
+     0,
+     0
     ],
     "variant": [
-     834,
-     834,
-     834
+     0,
+     0,
+     0
     ]
    },
-   "variant": "rewrite+?fw=people.card:mq",
-   "verdict": "model-bug",
+   "variant": "rewrite+?fw=morph.mount:shift",
+   "verdict": "pass",
    "confounds": []
   },
   {
@@ -87,17 +87,17 @@
    "stage": "layout",
    "totals": {
     "base": [
-     203,
-     203,
-     203
+     0,
+     0,
+     0
     ],
     "variant": [
-     203,
-     203,
-     203
+     0,
+     0,
+     0
     ]
    },
-   "variant": "rewrite+?fw=people.card:mq",
+   "variant": "rewrite+?fw=morph.mount:shift",
    "verdict": "unusable",
    "confounds": []
   },
@@ -119,17 +119,17 @@
    "stage": "layout",
    "totals": {
     "base": [
-     4633,
-     4633,
-     4633
+     0,
+     0,
+     0
     ],
     "variant": [
-     4633,
-     4633,
-     4633
+     0,
+     0,
+     0
     ]
    },
-   "variant": "rewrite+?fw=people.card:mq",
+   "variant": "rewrite+?fw=morph.mount:shift",
    "verdict": "unusable",
    "confounds": []
   },
@@ -151,17 +151,17 @@
    "stage": "layout",
    "totals": {
     "base": [
-     198,
-     198,
-     198
+     0,
+     0,
+     0
     ],
     "variant": [
-     198,
-     198,
-     198
+     0,
+     0,
+     0
     ]
    },
-   "variant": "rewrite+?fw=people.card:mq",
+   "variant": "rewrite+?fw=morph.mount:shift",
    "verdict": "pass",
    "confounds": []
   },
@@ -173,8 +173,8 @@
    },
    "countType": "trace.PrePaint",
    "engine": "chromium",
-   "prediction": "≤o",
-   "reason": "certified for every run within the class",
+   "prediction": "any",
+   "reason": "any: no claim",
    "runs": {
     "base": 3,
     "variant": 3
@@ -183,17 +183,17 @@
    "stage": "props",
    "totals": {
     "base": [
-     1422,
-     1422,
-     1422
+     1939,
+     1939,
+     1939
     ],
     "variant": [
-     1422,
-     1422,
-     1422
+     1939,
+     1939,
+     1939
     ]
    },
-   "variant": "rewrite+?fw=people.card:mq",
+   "variant": "rewrite+?fw=morph.mount:shift",
    "verdict": "pass",
    "confounds": []
   },
@@ -215,17 +215,17 @@
    "stage": "paint",
    "totals": {
     "base": [
-     96887306,
-     96887306,
-     96887306
+     386416920,
+     386416920,
+     386416920
     ],
     "variant": [
-     96887306,
-     96887306,
-     96887306
+     386416920,
+     386416920,
+     386416920
     ]
    },
-   "variant": "rewrite+?fw=people.card:mq",
+   "variant": "rewrite+?fw=morph.mount:shift",
    "verdict": "pass",
    "confounds": []
   },
@@ -237,8 +237,8 @@
    },
    "countType": "trace.cc.Commit",
    "engine": "chromium",
-   "prediction": "=o",
-   "reason": "refuted for every run within the class: the model is wrong",
+   "prediction": "any",
+   "reason": "any: no claim",
    "runs": {
     "base": 3,
     "variant": 3
@@ -247,19 +247,33 @@
    "stage": "commit",
    "totals": {
     "base": [
-     713,
-     713,
-     713
+     953,
+     953,
+     953
     ],
     "variant": [
-     713,
-     713,
-     713
+     953,
+     953,
+     953
     ]
    },
-   "variant": "rewrite+?fw=people.card:mq",
-   "verdict": "model-bug",
+   "variant": "rewrite+?fw=morph.mount:shift",
+   "verdict": "pass",
    "confounds": []
   }
- ]
+ ],
+ "page": {
+  "part": "morph.mount",
+  "base": "39259991865",
+  "arm": "39260576409",
+  "baseSearch": "?only=morph.mount&stage=vw:430,vh:932",
+  "search": "?fw=morph.mount:shift&only=morph.mount&stage=vw:430,vh:932",
+  "pairs": [
+   "morph.mount:shift"
+  ],
+  "armFlags": [
+   "morph.mount:shift"
+  ],
+  "attribution": "MEASURED"
+ }
 }

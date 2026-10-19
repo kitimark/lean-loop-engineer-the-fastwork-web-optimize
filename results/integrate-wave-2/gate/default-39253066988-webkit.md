@@ -44,14 +44,14 @@ Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; 
 | platform.marquee | pass | pass | pass | pass | pass | pass | UNREACHABLE 4 (primary-pair) | pass | UNREACHABLE 4 (whole-width) | pass | pass | pass | pass | pass |
 | engine.scene | pass | pass | pass | pass | pass | pass | UNREACHABLE 4 (primary-pair) | pass | UNREACHABLE 4 (whole-width) | pass | pass | pass | pass | pass |
 
-Settle wait (Lean Fw.Gate.Settle): 392 arm samples waited 157760 ms in total (max 1968 ms); 0 ended UNSETTLED. A state with an unsettled arm has no verdict (its rows are NC) and its items are not in the failing list.
+Settle wait (Lean Fw.Gate.Settle): 392 arm samples waited 168592 ms in total (max 2032 ms); 0 ended UNSETTLED. A state with an unsettled arm has no verdict (its rows are NC) and its items are not in the failing list.
 
 Sweep hysteresis (state after the sequence vs a fresh load at the same final env, per arm; items differing / compared):
 
-- desktop-1512-320-1512: orig 5/8044, rewrite 5/8044
-- phone-rotation: orig 0/8302, rewrite 0/8302
-- touch-1024-1201: orig 5/8044, rewrite 5/8044
-- pain-1440-600-1440: orig 0/8044, rewrite 0/8044
+- desktop-1512-320-1512: orig 5/8082, rewrite 5/8082
+- phone-rotation: orig 0/8340, rewrite 0/8340
+- touch-1024-1201: orig 5/8082, rewrite 5/8082
+- pain-1440-600-1440: orig 0/8082, rewrite 0/8082
 
 Failing items (count = probes or stops where the item differed; first example):
 

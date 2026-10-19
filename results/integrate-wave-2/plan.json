@@ -1,4 +1,7 @@
 {
+  "branch": "ci/integrate-wave-2-r1",
+  "builtFrom": "c6912998",
+  "image_run": "39049264131",
   "rowFiles": [
     "packages/contracts/golden/engine/countdown-strip.jsonl",
     "packages/contracts/golden/engine/nav-hittest.jsonl",
@@ -8,22 +11,27 @@
     "packages/contracts/golden/engine/hidden-pause.jsonl"
   ],
   "pages": {
-    "hero.countdown": { "base": "39225528196", "arm": "39225547720", "rowVariants": ["rewrite+?fw=hero.countdown:strip,morph.countdown:strip"], "scenario": "swipe-v1" },
-    "nav.hitTest": { "base": "39225578464", "arm": "39226582881", "rowVariants": ["rewrite+?fw=nav.hitTest:elements-skip"], "scenario": "swipe-v1" },
-    "platform": { "base": "39227563060", "arm": "39227571736", "rowVariants": ["hidden-pause"], "scenario": "swipe-v1" },
-    "columns": { "base": "39228387861", "arm": "39229363194", "rowVariants": ["hidden-pause"], "scenario": "swipe-v1" },
-    "g1-pain.notes": { "base": "39226593120", "arm": "39228396423", "rowVariants": ["rewrite+?fw=pain.notes:visible"], "scenario": "swipe-v1" },
-    "g1-people.card": { "base": "39226593120", "arm": "39228407395", "rowVariants": ["rewrite+?fw=people.card:mq"], "scenario": "swipe-v1" },
-    "g1": { "base": "39226593120", "arm": "39226604309", "rowVariants": ["rewrite+?fw=hero.countdown:strip,morph.countdown:strip", "rewrite+?fw=pain.notes:visible", "rewrite+?fw=people.card:mq"], "scenario": "swipe-v1" }
+    "nav.hitTest": { "part": "nav.hitTest", "base": "39253271676", "arm": "39253292170", "rowVariants": ["rewrite+?fw=nav.hitTest:elements-skip"], "scenario": "swipe-v1" },
+    "pain.notes": { "part": "pain.notes", "base": "39253313203", "arm": "39257459959", "rowVariants": ["rewrite+?fw=pain.notes:visible"], "scenario": "swipe-v1" },
+    "people.card": { "part": "people.card", "base": "39253313203", "arm": "39257496442", "rowVariants": ["rewrite+?fw=people.card:mq"], "scenario": "swipe-v1" },
+    "hero.countdown": { "part": "hero.countdown", "base": "39257533380", "arm": "39259074927", "rowVariants": ["rewrite+?fw=hero.countdown:strip,morph.countdown:strip"], "scenario": "swipe-v1" },
+    "morph.columns": { "part": "morph.columns", "base": "39259109607", "arm": "39259146065", "rowVariants": ["hidden-pause"], "scenario": "swipe-v1" },
+    "morph.mount": { "part": "morph.mount", "base": "39259991865", "arm": "39260576409", "rowVariants": ["rewrite+?fw=morph.mount:shift"], "scenario": "swipe-v1" },
+    "engine.scene": { "part": "engine.scene", "base": "39260614233", "arm": "39260841413", "rowVariants": ["hidden-pause"], "scenario": "swipe-v1" },
+    "g2": { "part": "g2", "base": "39261906990", "arm": "39262007729", "rowVariants": [], "scenario": "swipe-v1" }
   },
   "f6": {
     "profile": "swipe-v1",
-    "combined": { "base": "39224113958", "arm": "39224078326" },
+    "combined": { "base": "39253166643", "arm": "39253172750" },
     "parts": [
-      { "name": "g1 (hero, pain, people)", "base": "39226593120", "arm": "39226604309" },
-      { "name": "nav", "base": "39225578464", "arm": "39226582881" },
-      { "name": "platform", "base": "39227563060", "arm": "39227571736" },
-      { "name": "columns", "base": "39228387861", "arm": "39229363194" }
+      { "name": "hero.countdown+morph.countdown", "base": "39257533380", "arm": "39259074927" },
+      { "name": "nav.hitTest", "base": "39253271676", "arm": "39253292170" },
+      { "name": "pain.notes", "base": "39253313203", "arm": "39257459959" },
+      { "name": "people.card", "base": "39253313203", "arm": "39257496442" },
+      { "name": "morph.columns", "base": "39259109607", "arm": "39259146065" },
+      { "name": "morph.mount", "base": "39259991865", "arm": "39260576409" },
+      { "name": "engine.scene", "base": "39260614233", "arm": "39260841413" }
     ]
-  }
+  },
+  "blobs": "zones/ and faithful/runs-* hold the same baseline files twice on purpose: zones/ is the input of zonecmp, faithful/runs-* the input of Fw.Faithful; each directory is self-contained so a reader can rerun either command without the other."
 }

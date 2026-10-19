@@ -133,5 +133,19 @@
    "verdict": "pass",
    "confounds": []
   }
- ]
+ ],
+ "page": {
+  "part": "morph.columns",
+  "base": "39259109607",
+  "arm": "39259146065",
+  "baseSearch": "?only=morph.columns&stage=vw:430,vh:932",
+  "search": "?fw=morph.columns:hidden-pause&only=morph.columns&stage=vw:430,vh:932",
+  "pairs": [
+   "morph.columns:hidden-pause"
+  ],
+  "armFlags": [
+   "morph.columns:hidden-pause"
+  ],
+  "attribution": "MEASURED"
+ }
 }

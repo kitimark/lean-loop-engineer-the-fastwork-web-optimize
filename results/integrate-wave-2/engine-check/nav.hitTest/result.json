@@ -23,14 +23,14 @@
    "stage": "script",
    "totals": {
     "base": [
-     1988,
-     1988,
-     1988
+     2156,
+     2156,
+     2156
     ],
     "variant": [
-     1988,
-     1988,
-     1988
+     2156,
+     2156,
+     2156
     ]
    },
    "variant": "rewrite+?fw=nav.hitTest:elements-skip",
@@ -87,14 +87,14 @@
    "stage": "style",
    "totals": {
     "base": [
-     1995,
-     1995,
-     1995
+     2060,
+     2059,
+     2059
     ],
     "variant": [
-     91,
-     91,
-     91
+     155,
+     155,
+     155
     ]
    },
    "variant": "rewrite+?fw=nav.hitTest:elements-skip",
@@ -151,14 +151,14 @@
    "stage": "paint",
    "totals": {
     "base": [
-     2857,
-     2857,
-     2857
+     2868,
+     2868,
+     2868
     ],
     "variant": [
-     2857,
-     2857,
-     2857
+     2868,
+     2868,
+     2868
     ]
    },
    "variant": "rewrite+?fw=nav.hitTest:elements-skip",
@@ -183,14 +183,14 @@
    "stage": "paint",
    "totals": {
     "base": [
-     1944,
-     1944,
-     1944
+     1977,
+     1977,
+     1977
     ],
     "variant": [
-     222,
-     222,
-     222
+     410,
+     410,
+     410
     ]
    },
    "variant": "rewrite+?fw=nav.hitTest:elements-skip",
@@ -215,14 +215,14 @@
    "stage": "raster",
    "totals": {
     "base": [
-     26400120,
-     26400120,
-     26400120
+     16717200,
+     16717200,
+     16717200
     ],
     "variant": [
-     26400120,
-     26400120,
-     26400120
+     16717200,
+     16717200,
+     16717200
     ]
    },
    "variant": "rewrite+?fw=nav.hitTest:elements-skip",
@@ -247,14 +247,14 @@
    "stage": "commit",
    "totals": {
     "base": [
-     952,
-     952,
-     952
+     963,
+     963,
+     963
     ],
     "variant": [
-     952,
-     952,
-     952
+     963,
+     963,
+     963
     ]
    },
    "variant": "rewrite+?fw=nav.hitTest:elements-skip",
@@ -293,5 +293,19 @@
    "verdict": "pass",
    "confounds": []
   }
- ]
+ ],
+ "page": {
+  "part": "nav.hitTest",
+  "base": "39253271676",
+  "arm": "39253292170",
+  "baseSearch": "?only=nav.hitTest&stage=vw:430,vh:932",
+  "search": "?fw=nav.hitTest:elements-skip&only=nav.hitTest&stage=vw:430,vh:932",
+  "pairs": [
+   "nav.hitTest:elements-skip"
+  ],
+  "armFlags": [
+   "nav.hitTest:elements-skip"
+  ],
+  "attribution": "MEASURED"
+ }
 }

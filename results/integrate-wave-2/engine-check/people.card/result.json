@@ -23,17 +23,17 @@
    "stage": "script",
    "totals": {
     "base": [
+     3589,
      3590,
-     3590,
-     3589
+     3590
     ],
     "variant": [
-     3589,
-     3589,
+     3590,
+     3590,
      3590
     ]
    },
-   "variant": "rewrite+?fw=pain.notes:visible",
+   "variant": "rewrite+?fw=people.card:mq",
    "verdict": "unusable",
    "confounds": []
   },
@@ -60,12 +60,12 @@
      895
     ],
     "variant": [
-     895,
-     895,
-     895
+     834,
+     834,
+     834
     ]
    },
-   "variant": "rewrite+?fw=pain.notes:visible",
+   "variant": "rewrite+?fw=people.card:mq",
    "verdict": "model-bug",
    "confounds": []
   },
@@ -77,7 +77,7 @@
    },
    "countType": "trace.Layout",
    "engine": "chromium",
-   "prediction": "≤o",
+   "prediction": "=o",
    "reason": "quarantined type: never used",
    "runs": {
     "base": 3,
@@ -97,7 +97,7 @@
      203
     ]
    },
-   "variant": "rewrite+?fw=pain.notes:visible",
+   "variant": "rewrite+?fw=people.card:mq",
    "verdict": "unusable",
    "confounds": []
   },
@@ -129,7 +129,7 @@
      4633
     ]
    },
-   "variant": "rewrite+?fw=pain.notes:visible",
+   "variant": "rewrite+?fw=people.card:mq",
    "verdict": "unusable",
    "confounds": []
   },
@@ -141,7 +141,7 @@
    },
    "countType": "metric.LayoutCount",
    "engine": "chromium",
-   "prediction": "≤o",
+   "prediction": "=o",
    "reason": "certified for every run within the class",
    "runs": {
     "base": 3,
@@ -161,7 +161,7 @@
      198
     ]
    },
-   "variant": "rewrite+?fw=pain.notes:visible",
+   "variant": "rewrite+?fw=people.card:mq",
    "verdict": "pass",
    "confounds": []
   },
@@ -193,7 +193,7 @@
      1422
     ]
    },
-   "variant": "rewrite+?fw=pain.notes:visible",
+   "variant": "rewrite+?fw=people.card:mq",
    "verdict": "pass",
    "confounds": []
   },
@@ -225,7 +225,7 @@
      96887306
     ]
    },
-   "variant": "rewrite+?fw=pain.notes:visible",
+   "variant": "rewrite+?fw=people.card:mq",
    "verdict": "pass",
    "confounds": []
   },
@@ -257,9 +257,23 @@
      713
     ]
    },
-   "variant": "rewrite+?fw=pain.notes:visible",
+   "variant": "rewrite+?fw=people.card:mq",
    "verdict": "model-bug",
    "confounds": []
   }
- ]
+ ],
+ "page": {
+  "part": "people.card",
+  "base": "39253313203",
+  "arm": "39257496442",
+  "baseSearch": "?only=g1&stage=vw:430,vh:932",
+  "search": "?fw=people.card:mq&only=g1&stage=vw:430,vh:932",
+  "pairs": [
+   "people.card:mq"
+  ],
+  "armFlags": [
+   "people.card:mq"
+  ],
+  "attribution": "MEASURED"
+ }
 }
