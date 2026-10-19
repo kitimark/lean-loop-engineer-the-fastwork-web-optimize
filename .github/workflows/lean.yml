@@ -71,12 +71,20 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: lean
 
       # The one Lake cache writer (lean/Fw/Ops/LakeCache.lean `isWriter`): it builds every target, so its entry holds every
       # module the restore-only jobs need (Fw.Ops.LakeCache.table_complete).
       - uses: ./.github/actions/setup-lean
         with:
           save: 'true'
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: cache
+          cache-dirs: lake=${{ github.workspace }}/.lake-cache
 
       - name: lake build
         working-directory: lean
@@ -85,6 +93,9 @@ jobs:
       # check-partial grep gates, lake build, lake test (golden round trips), axiom check, the real fwcore binary on
       # golden/wire-requests.txt, breakgen --check.
       - name: lean/scripts/check.sh
+        env:
+          # check.sh's own spans (scripts/span.sh) land in the telemetry record as steps (task ci-telemetry)
+          FW_TIMINGS_FILE: ${{ runner.temp }}/fw-telemetry/spans.jsonl
         run: sh lean/scripts/check.sh
 
       - name: Runner facts
@@ -102,3 +113,8 @@ jobs:
             lean-runner.json
           if-no-files-found: error
           retention-days: 14
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: lean

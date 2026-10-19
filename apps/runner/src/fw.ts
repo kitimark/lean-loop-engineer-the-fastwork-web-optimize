@@ -42,6 +42,8 @@ try {
     // ci-own-trigger: ask CI for lanes with [ci:<lane>] tokens and push (scripts/ci-push.mjs; no decision here)
     const script = new URL("../../../scripts/ci-push.mjs", import.meta.url).pathname;
     process.exitCode = spawnSync(process.execPath, [script, ...rest.slice(1)], { cwd: process.cwd(), stdio: "inherit" }).status ?? 1;
+  } else if (group === "ci" && rest[0] === "telemetry") {
+    process.exitCode = await (await import("./ci-telemetry.ts")).telemetryCli(rest.slice(1), process.cwd()); // ci-telemetry: job artifacts of both CI providers
   } else if (group === "ci") {
     process.exitCode = await ciCli(rest, process.cwd());
   } else if (group === "incidents") {
