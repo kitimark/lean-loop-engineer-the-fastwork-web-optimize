@@ -12,13 +12,14 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { candidateChecks, CHECK_SH_READS, FWCORE_USERS, checksFor, checksWithReads, inScope, inputKey, READS_SCAN_ARGV, READS_SCAN_ID, selectChecks, withScan, type Check } from "../src/land.ts";
+import { binMoved, candidateChecks, CHECK_SH_READS, FWCORE_BIN, FWCORE_USERS, checksFor, selectTwoPhase, checksWithReads, inScope, inputKey, READS_SCAN_ARGV, READS_SCAN_ID, selectChecks, withScan, type Check } from "../src/land.ts";
 
 const root = join(dirname(new URL(import.meta.url).pathname), "../../..");
 
 type Decl = { id: string; reads: string[] };
 const golden = readFileSync(join(root, "packages/contracts/golden/console/land-speed.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
 const selects = golden.filter((c) => c.request.op === "landSpeed.select");
+const select2s = golden.filter((c) => c.request.op === "landSpeed.select2");
 
 describe("the choice of checks equals the Lean decision", () => {
   it("the golden has select cases", () => expect(selects.length).toBeGreaterThan(3));
@@ -36,6 +37,14 @@ describe("the choice of checks equals the Lean decision", () => {
       expect(w.map((x) => ({ id: x.id, reads: x.reads }))).toEqual(cs);
     });
   }
+  it("the golden has two-phase cases", () => expect(select2s.length).toBeGreaterThan(5));
+  for (const c of select2s) {
+    it(`golden two-phase: ${c.name}`, () => {
+      const { checks, changed, main0Digest, mergeDigest } = c.request as { checks: Decl[]; changed: string[]; main0Digest: string | null; mergeDigest: string | null };
+      expect(binMoved(changed, main0Digest, mergeDigest)).toBe(c.response.binMoved);
+      expect(selectTwoPhase(checks, changed, main0Digest, mergeDigest)).toEqual(c.response.selected);
+    });
+  }
   it("check.sh declares what Lean declares (checkShReads)", () => {
     const decl = (selects[0].request.checks as Decl[]).find((d) => d.id === "check.sh")!;
     expect(CHECK_SH_READS).toEqual(decl.reads);
@@ -47,12 +56,12 @@ describe("the choice of checks equals the Lean decision", () => {
     for (const g of m.bundled) expect(site.reads).toContain(g);
     expect(inScope(site.reads, "snapshot/site/selling/hero/not-listed.jpg")).toBe(false);
   });
-  it("checksFor is the argv of the selected checks, in table order", () => {
+  it("checksFor is the argv of the two-phase selection with unknown digests, in table order", () => {
     const all = candidateChecks(root);
     expect(all.map((c) => c.id).slice(0, 2)).toEqual(["install", "check.sh"]);
     expect(all.some((c) => c.id === "apps/runner")).toBe(true);
     const changed = ["lean/Fw/A.lean", "apps/runner/src/land.ts"];
-    expect(checksFor(root, changed)).toEqual(all.filter((c) => selectChecks(all, changed).includes(c.id)).map((c) => c.argv));
+    expect(checksFor(root, changed)).toEqual(all.filter((c) => selectTwoPhase(all, changed, null, null).includes(c.id)).map((c) => c.argv));
     expect(checksWithReads(root, ["docs/team/handoffs/x.md"])).toEqual([]);
     expect(checksWithReads(root, ["lean/Fw/A.lean"]).map((c) => c.id)).toContain("check.sh");
     // a golden or a generated site file is read by check.sh: the old rule (lean/ only) missed these
@@ -133,6 +142,49 @@ const NOT_REACHED_BY_CHECK_SH: Record<string, string> = {
   "docs/team/work-graph.json": "lean/Fw/Plan/Golden.lean reads it only in write mode (`lake test -- --write-plan-golden`); check.sh runs `lake test` without it",
 };
 
+/** Quoted Lean source paths in a package that its land check does not read, each with the reason. */
+const LEAN_NAMED_NOT_READ: Record<string, string> = {
+  "lean/Fw/Parts/FootprintData.lean <- apps/site/scripts/part-footprint.mjs": "the generator writes it; `pnpm test` does not run the generator",
+  "lean/Fw/Measure/Classes.lean <- packages/measure-wktr/test/runset.test.mjs": "a classifier input path, not a file read",
+  "lean/Fw/Measure/WktrLayout.lean <- packages/measure-wktr/test/runset.test.mjs": "a classifier input path, not a file read",
+  "lean/Fw/Measure/Retry.lean <- packages/measure-wktr/test/runset.test.mjs": "a classifier input path, not a file read",
+  "lean/Fw/Wire/WktrFixturesGolden.lean <- packages/measure-wktr/fixtures/runset.mjs": "a classifier input path, not a file read",
+  "lean/Fw/Measure/Classes.lean <- packages/measure-chromium/src/freeze.mjs": "a provenance string in the frozen output",
+};
+/** Files that spawn `lake` but run only outside the package's `test` script, each with the reason. */
+const LAKE_NOT_IN_TEST: Record<string, string> = {
+  "apps/site/scripts/check-breakpoints.mjs": "runs in the `build` scripts only; the land runs `test`",
+};
+
+/** The source without its block comments and `//` line comments (a Lean path in a doc comment is not a read). */
+const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
+
+/** Lean source reads of the package checks that their declared reads miss: quoted `lean/...lean` paths (after any `../`
+ *  segments, in any quote), `join`/`resolve` calls with a `"lean"` segment not followed by `".lake"`, and `lake` spawns. The
+ *  last two need `lean/**`. Comments are not scanned. `seen` counts the quoted paths checked. */
+function leanReadMisses(checks: Check[], tracked: Set<string>): { missing: string[]; seen: number } {
+  const missing: string[] = [];
+  let seen = 0;
+  for (const c of checks.filter((x) => /^(apps|packages)\//.test(x.id))) {
+    const allLean = inScope(c.reads, "lean/Fw/A.lean");
+    for (const f of walk(join(root, c.id), /\.(ts|tsx|mjs|js)$/)) {
+      const rel = relative(root, f), src = codeOnly(readFileSync(f, "utf8"));
+      for (const [, p] of src.matchAll(/["'`](?:\.\.\/)*(lean\/[\w./-]+\.lean)["'`]/g) as Iterable<[string, string]>) {
+        if (!tracked.has(p) || `${p} <- ${rel}` in LEAN_NAMED_NOT_READ) continue;
+        seen++;
+        if (!inScope(c.reads, p)) missing.push(`${c.id}: ${p} <- ${rel}`);
+      }
+      for (const [call] of src.matchAll(/\b(?:join|resolve)\((?:[^()]|\([^()]*\))*\)/g)) {
+        if (/["'`]lean["'`]/.test(call) && !/["'`]lean["'`]\s*,\s*["'`]\.lake["'`]/.test(call) && !allLean && !(rel in LAKE_NOT_IN_TEST))
+          missing.push(`${c.id}: joins a lean/ segment <- ${rel}`);
+      }
+      if (/(?:spawnSync|execFileSync|spawn)\(\s*["']lake["']/.test(src) && !allLean && !(rel in LAKE_NOT_IN_TEST)) missing.push(`${c.id}: runs lake <- ${rel}`);
+    }
+  }
+  return { missing, seen };
+}
+const trackedLean = () => new Set(execFileSync("git", ["ls-files", "-z", "--", "lean"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean));
+
 describe("premise land.readsOnly: no read outside the declared inputs (static)", () => {
   it("lean/scripts/check.sh and everything it runs read only CHECK_SH_READS or lean/", () => {
     const found = uniq(escapes("lean", /\.(lean|sh|mjs|toml)$/)).filter((x) => !(x.path in NOT_REACHED_BY_CHECK_SH));
@@ -155,9 +207,34 @@ describe("premise land.readsOnly: no read outside the declared inputs (static)",
       .some((f) => /\.lake|["'/]fwcore["']|FWCORE|bin\/fwcore/.test(readFileSync(f, "utf8")))).map((c) => c.id);
     // measure-wktr runs the binary through measure-chromium/src/fwcore.mjs (a declared extra read), not by itself
     expect([...users, "packages/measure-wktr"].sort()).toEqual([...FWCORE_USERS].sort());
-    for (const c of candidateChecks(root, true)) expect(inScope(c.reads, "lean/.lake/build/bin/fwcore"), c.id).toBe(FWCORE_USERS.includes(c.id) || c.id === "check.sh" || c.id === READS_SCAN_ID);
-    // a Lean change selects check.sh and every fwcore user
+    for (const c of candidateChecks(root)) expect(inScope(c.reads, FWCORE_BIN), c.id).toBe(FWCORE_USERS.includes(c.id) || c.id === "check.sh" || c.id === READS_SCAN_ID);
+    // a Lean change with an unknown or a moved digest selects check.sh and every fwcore user
     expect(checksWithReads(root, ["lean/Fw/A.lean"]).map((c) => c.id).sort()).toEqual(["check.sh", READS_SCAN_ID, ...FWCORE_USERS].sort());
+    expect(checksWithReads(root, ["lean/Fw/A.lean"], "a".repeat(64), "b".repeat(64)).map((c) => c.id).sort()).toEqual(["check.sh", READS_SCAN_ID, ...FWCORE_USERS].sort());
+  });
+  it("a Lean change with an equal digest selects only the packages that read Lean sources (Lean fwcore_digest_skip)", () => {
+    const d = "a".repeat(64);
+    const leanReaders = candidateChecks(root).filter((c) => /^(apps|packages)\//.test(c.id) && inScope(c.reads, "lean/Fw/A.lean")).map((c) => c.id);
+    expect(leanReaders.sort()).toEqual(["apps/runner", "packages/gate-breakpoints"]);
+    expect(checksWithReads(root, ["lean/Fw/A.lean"], d, d).map((c) => c.id).sort()).toEqual(["check.sh", READS_SCAN_ID, ...leanReaders].sort());
+    expect(checksWithReads(root, ["lean/Fw/Console/PreviewFacts.lean"], d, d).map((c) => c.id)).toContain("apps/console-api");
+  });
+  it("every Lean source a package names by a repo path is a declared read, and a package that joins a lean/ segment or runs lake declares lean/**", () => {
+    const tracked = trackedLean();
+    const { missing, seen } = leanReadMisses(candidateChecks(root), tracked);
+    expect(missing).toEqual([]);
+    expect(seen).toBeGreaterThan(3);
+    for (const k of Object.keys(LEAN_NAMED_NOT_READ)) expect(tracked.has(k.split(" <- ")[0]!), k).toBe(true);
+  });
+  it("mutation: dropping measure-chromium's read of lean/Fw/Store/Layout.lean (named as ../../../lean/...) is reported", () => {
+    const layout = "lean/Fw/Store/Layout.lean";
+    const cs = candidateChecks(root).map((c) => c.id === "packages/measure-chromium" ? { ...c, reads: c.reads.filter((g) => g !== layout) } : c);
+    expect(candidateChecks(root).find((c) => c.id === "packages/measure-chromium")!.reads).toContain(layout);
+    expect(leanReadMisses(cs, trackedLean()).missing).toContain(`packages/measure-chromium: ${layout} <- packages/measure-chromium/test/stage-mode.test.mjs`);
+  });
+  it("mutation: dropping lean/** from apps/runner reports its lean/ segment joins (src/premises.ts)", () => {
+    const cs = candidateChecks(root).map((c) => c.id === "apps/runner" ? { ...c, reads: c.reads.filter((g) => g !== "lean/**") } : c);
+    expect(leanReadMisses(cs, trackedLean()).missing).toContain("apps/runner: joins a lean/ segment <- apps/runner/src/premises.ts");
   });
 
   it("new selection is a superset of the old one: every tracked path alone, and the last 30 land diffs", () => {
@@ -177,7 +254,8 @@ describe("premise land.readsOnly: no read outside the declared inputs (static)",
   });
   it("every PACKAGE_EXTRA_READS entry is exercised: it matches a tracked file or is a deliberate directory", () => {
     const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
-    for (const c of candidateChecks(root)) for (const g of c.reads) expect(tracked.some((f) => inScope([g], f)), `${c.id}: ${g}`).toBe(true);
+    // the fwcore binary is a build output, never tracked
+    for (const c of candidateChecks(root)) for (const g of c.reads.filter((x) => x !== FWCORE_BIN)) expect(tracked.some((f) => inScope([g], f)), `${c.id}: ${g}`).toBe(true);
   });
 });
 

@@ -349,8 +349,10 @@ def cacheWriters : List (String × String × String) := [
   ("lean.yml", "lean", ".lake-cache"), ("premise-tests.yml", "engine", "gate-apt"),
   ("premise-tests.yml", "engine", "ms-playwright"), ("premise-tests.yml", "engine", "hs-zip"),
   ("snapshot-extract.yml", "extract", "gate-apt"), ("snapshot-extract.yml", "extract", "ms-playwright"),
-  ("snapshot-extract.yml", "extract", "hs-zip"), ("visual-diff.yml", "shoot", "gate-apt"),
-  ("visual-diff.yml", "shoot", "ms-playwright"), ("visual-diff.yml", "shoot", "hs-zip"),
+  ("snapshot-extract.yml", "extract", "hs-zip"), ("visual-diff.yml", "port-fonts", "gate-apt"),
+  ("visual-diff.yml", "port-fonts", "ms-playwright"), ("visual-diff.yml", "port-fonts", "hs-zip"),
+  ("visual-diff.yml", "shoot", "gate-apt"), ("visual-diff.yml", "shoot", "ms-playwright"),
+  ("visual-diff.yml", "shoot", "hs-zip"),
   ("wktr-fixtures.yml", "fixtures", "wktr-zip"), ("wktr.yml", "wktr", "wktr-zip")]
 
 /-- The workflows whose push trigger listed `main` before task `ci-main-triggers` (commit 473b49c1). -/
@@ -464,7 +466,7 @@ theorem ci_triggers : table.map (fun w => (w.file, ciPart w.branches)) = [
 #guard table.all fun w => (ciPart w.branches).all (·.startsWith "ci/")
 #guard table.any fun w => w.file == "lean.yml" && mainRuns w "lean" && mainRuns w "guard"
 #guard table.any fun w => w.file == "premise-tests.yml" && mainRuns w "engine" && !mainRuns w "verdict"
-#guard !table.any fun w => w.file == "lean.yml" && mainRuns w "mathview-differential"
+#guard !table.any fun w => w.file == "lean.yml" && mainRuns w "engine"
 #guard !table.any fun w => w.file == "breakpoint-gate.yml" && mainRuns w "guard"
 #guard savedBy "premise-tests.yml" "engine" == ["gate-apt", "ms-playwright", "hs-zip"]
 

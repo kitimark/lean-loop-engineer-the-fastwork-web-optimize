@@ -1,7 +1,8 @@
 # Handoff: ci-main-triggers
 
 ## State
-- Final design round on branch `worktree-wf_3dd2b320-67f-1` (after 28bb1007). Not landed.
+- Final design round on branch `worktree-wf_3dd2b320-67f-1`, accepted; merge-conflict round merged main (after 7896402f). Not landed.
+- Merge: main retired the `mathview-differential` job, so `lean.yml` keeps only guard + `lean`. The Lean guard that named it now checks `engine` in lean.yml; the ci-paths lint test of the notMainPush form uses `premise-tests.yml` `verdict`. `cacheWriters` gained `visual-diff.yml` `port-fonts` (from port-fonts-check); golden regenerated.
 - A `main` push runs only `lean.yml` (guard + `lean`, the Lake cache) and `premise-tests.yml` (guard + `engine`, both engines: the gate-engine caches apt-debs, browsers, hs-zip). All other workflows list `ci/**` only. Every `on:` holds only `push` and `workflow_dispatch` (Lean `onKeys`); difftest's nightly cron is gone.
 - `fw ci` now needs a run id or `--branch`. Without either it exits 64 and prints the usage.
 
@@ -17,7 +18,7 @@
   - scans the cache writers (actions/cache steps, local actions with input-gated saves) and compares them to Lean `cacheWriters`;
   - lists every indent-2 key under `on:` (quoted or not, flow or block form) and rejects any key outside the golden row's `onKeys`; a non-key line there is a problem too;
   - checks the if-form structurally (Lean golden `ifForm`/`ifCheck` lines; tests include `a || b` and `(x) || true`).
-- Results at the final commit: check.sh green (25 s); ci-paths tests 40 pass; .github + ci-* 69 pass; runner 1044 pass.
+- Merge round: ci-paths --check green; ci-paths tests 40 pass; runner tsc + ci, ci-triggers, land-inputs 78 pass; check.sh at the merge commit.
 
 ## Accepted limits / open
 - Gain of the gate-engine seed: WebKit saves up to ~36 s per gate job on a ci branch's first run; Chromium saves ~0 s (MEASURED, gate-speed-ci.md:20).

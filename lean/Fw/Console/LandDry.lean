@@ -37,7 +37,7 @@ open Fw.Console.LandVerdict
 
 /-- The pure stage functions of a land, of the main commit $m$ and the branch tip $b$: the scope check of the diff, the
 clean merge, whether the change selects the reads-scan check (`LandSpeed.scan_selected`; so the static reads test is part of the real checks), and
-that test's verdict on the merge tree, whether the branch has commits of its own, and the fast lints (the math-view lint and
+that test's verdict on the merge tree, whether the branch has commits of its own, and the fast lints (the axiom check and
 `ci-paths --check`, run on the merge tree) that refused real lands (task `land-dry-full`).
 $$W = (\mathit{scope}, \mathit{merges}, \mathit{sel}, \mathit{test}, \mathit{own}, \mathit{lints}) : (M \times B \to \mathbb B)^6$$ -/
 structure Stages where
@@ -317,40 +317,40 @@ theorem kind_ofStages (w : Stages) (c : Bool) (m0 b : String) : (Outcome.ofStage
 /-! ### Which lints a dry run runs -/
 
 /-- The fast lints a dry run can run.
-$$\mathrm{Lint} = \{\mathrm{ciPaths}, \mathrm{mathview}\}$$ -/
+$$\mathrm{Lint} = \{\mathrm{ciPaths}, \mathrm{axioms}\}$$ -/
 inductive Lint where
-  | ciPaths | mathview
+  | ciPaths | axioms
 deriving DecidableEq, Repr
 
 /-- The command of a lint, run in the merge-tree worktree.
-$$\operatorname{argv}(\mathrm{ciPaths}) = \texttt{node scripts/ci-paths.mjs --check},\ \operatorname{argv}(\mathrm{mathview}) = \texttt{sh -c "cd lean \&\& scripts/mathview-cached.sh --build >/dev/null"}$$ -/
+$$\operatorname{argv}(\mathrm{ciPaths}) = \texttt{node scripts/ci-paths.mjs --check},\ \operatorname{argv}(\mathrm{axioms}) = \texttt{sh -c "cd lean \&\& lake build >\&2 \&\& sh scripts/axiom-check.sh"}$$ -/
 def Lint.argv : Lint → List String
   | .ciPaths => ["node", "scripts/ci-paths.mjs", "--check"]
-  | .mathview => ["sh", "-c", "cd lean && scripts/mathview-cached.sh --build >/dev/null"]
+  | .axioms => ["sh", "-c", "cd lean && lake build >&2 && sh scripts/axiom-check.sh"]
 
 /-- The lints a dry run runs, given the changed paths and whether the tree has each script: `ci-paths` whenever its script exists,
-the math-view lint when its script exists and some changed path is under `lean/`.
-$$\operatorname{plan}(P, a, v) = [\mathrm{ciPaths} \mid a] \mathbin{+\!\!+} [\mathrm{mathview} \mid v \wedge \exists p \in P,\ p \text{ starts with } \texttt{lean/}]$$ -/
-def lintPlan (changed : List String) (hasCiPaths hasMathview : Bool) : List Lint :=
+the axiom check when its script exists and some changed path is under `lean/`.
+$$\operatorname{plan}(P, a, v) = [\mathrm{ciPaths} \mid a] \mathbin{+\!\!+} [\mathrm{axioms} \mid v \wedge \exists p \in P,\ p \text{ starts with } \texttt{lean/}]$$ -/
+def lintPlan (changed : List String) (hasCiPaths hasAxioms : Bool) : List Lint :=
   (if hasCiPaths then [Lint.ciPaths] else []) ++
-  (if hasMathview && changed.any (·.startsWith "lean/") then [Lint.mathview] else [])
+  (if hasAxioms && changed.any (·.startsWith "lean/") then [Lint.axioms] else [])
 
 /-- **ci-paths runs exactly when its script exists.**
 $$\mathrm{ciPaths} \in \operatorname{plan}(P, a, v) \iff a$$ -/
 theorem ciPaths_mem_plan (P : List String) (a v : Bool) : Lint.ciPaths ∈ lintPlan P a v ↔ a = true := by
   cases a <;> cases v <;> simp [lintPlan]
 
-/-- **The math-view lint runs exactly when its script exists and the change touches `lean/`.**
-$$\mathrm{mathview} \in \operatorname{plan}(P, a, v) \iff v \wedge \exists p \in P,\ p \text{ starts with } \texttt{lean/}$$ -/
-theorem mathview_mem_plan (P : List String) (a v : Bool) :
-    Lint.mathview ∈ lintPlan P a v ↔ (v = true ∧ ∃ p ∈ P, p.startsWith "lean/" = true) := by
+/-- **The axiom check runs exactly when its script exists and the change touches `lean/`.**
+$$\mathrm{axioms} \in \operatorname{plan}(P, a, v) \iff v \wedge \exists p \in P,\ p \text{ starts with } \texttt{lean/}$$ -/
+theorem axioms_mem_plan (P : List String) (a v : Bool) :
+    Lint.axioms ∈ lintPlan P a v ↔ (v = true ∧ ∃ p ∈ P, p.startsWith "lean/" = true) := by
   cases a <;> cases v <;> simp [lintPlan]
 
-/-- A change that touches no path under `lean/` never runs the math-view lint.
-$$(\forall p \in P,\ p \text{ does not start with } \texttt{lean/}) \Rightarrow \mathrm{mathview} \notin \operatorname{plan}(P, a, v)$$ -/
-theorem no_mathview_without_lean (P : List String) (a v : Bool) (h : ∀ p ∈ P, p.startsWith "lean/" = false) :
-    Lint.mathview ∉ lintPlan P a v := by
-  rw [mathview_mem_plan]
+/-- A change that touches no path under `lean/` never runs the axiom check.
+$$(\forall p \in P,\ p \text{ does not start with } \texttt{lean/}) \Rightarrow \mathrm{axioms} \notin \operatorname{plan}(P, a, v)$$ -/
+theorem no_axioms_without_lean (P : List String) (a v : Bool) (h : ∀ p ∈ P, p.startsWith "lean/" = false) :
+    Lint.axioms ∉ lintPlan P a v := by
+  rw [axioms_mem_plan]
   rintro ⟨_, p, hp, hs⟩
   have := h p hp; simp_all
 
@@ -365,9 +365,9 @@ theorem lintsPass_iff (plan : List Lint) (r : Lint → Bool) : lintsPass plan r 
 
 /-! ### The real land prints the same kind for the same failure -/
 
-/-- The stage names of `check.sh` that the dry lint stage runs (`mathview-cached.sh --build` is `lake build` then the math-view lint).
-$$\mathrm{lintStages} = \{\texttt{lake build}, \texttt{mathview lint}\}$$ -/
-def lintStages : List String := ["lake build", "mathview lint"]
+/-- The stage names of `check.sh` that the dry lint stage runs (its command is `lake build` then the axiom check).
+$$\mathrm{lintStages} = \{\texttt{lake build}, \texttt{axiom check}\}$$ -/
+def lintStages : List String := ["lake build", "axiom check"]
 
 /-- One failed check of the real land: did its output match the reads test, and which `check.sh` stages did it report failed?
 $$\mathrm{FC} = \mathbb B \times \operatorname{List}(\mathrm{String})$$ -/
@@ -402,7 +402,7 @@ $$\forall s, r:\ \operatorname{real}(s) = \mathrm{some}(r) \Rightarrow \operator
 theorem dry_kind_is_real_kind (s : DStage) (r : RealFailure) (h : s.real = some r) : r.kind = s.kind := by
   cases s <;> simp [DStage.real] at h <;> subst h <;> decide
 
-/-- Any non-empty set of failed lint stages (only `lake build` and `mathview lint`) from one check is a `lint` in the real land.
+/-- Any non-empty set of failed lint stages (only `lake build` and `axiom check`) from one check is a `lint` in the real land.
 $$S \ne \emptyset \wedge S \subseteq \mathrm{lintStages} \Rightarrow \operatorname{ck}\{(\bot, S)\} = \mathrm{lint}$$ -/
 theorem lint_stages_are_lint (S : List String) (hne : S ≠ []) (h : ∀ n ∈ S, n ∈ lintStages) :
     checkFailKind [(false, S)] = .lint := by
@@ -486,7 +486,7 @@ def outcomes : List Outcome :=
 /-- A `landDry.lintPlan` case: the argv list of the lints run.
 $$\operatorname{planCase}(P, a, v) = \operatorname{line}(\ldots, \{P, a, v\}, \{\operatorname{argv}(l)\}_{l \in \operatorname{plan}(P,a,v)})$$ -/
 def planCase (name : String) (changed : List String) (a v : Bool) : Json :=
-  line name [("op", "landDry.lintPlan"), ("changed", toJson changed), ("hasCiPaths", .bool a), ("hasMathview", .bool v)]
+  line name [("op", "landDry.lintPlan"), ("changed", toJson changed), ("hasCiPaths", .bool a), ("hasAxioms", .bool v)]
     [("argv", toJson ((lintPlan changed a v).map Lint.argv))]
 
 /-- A `landDry.checkKind` case: the kind of the real land's refusal from its failed checks (each: reads-test match, failed stages).
@@ -518,13 +518,13 @@ def cases : List Json :=
    dryCase "lint fails though reads not selected" true true true false false (lints := false)] ++
   Kind.all.map handbackCase ++ outcomes.map (runCase · "land-dry") ++ [runCase ⟨false, true, true, true, true, true, true⟩ ""] ++
   [planCase "plan: no lean change" ["apps/x.ts"] true true, planCase "plan: lean change" ["apps/x.ts", "lean/Fw/X.lean"] true true,
-   planCase "plan: lean change, no mathview script" ["lean/Fw/X.lean"] true false, planCase "plan: no ci-paths script" ["lean/Fw/X.lean"] false true,
+   planCase "plan: lean change, no axiom-check script" ["lean/Fw/X.lean"] true false, planCase "plan: no ci-paths script" ["lean/Fw/X.lean"] false true,
    planCase "plan: nothing changed" [] true true, planCase "plan: lean-like prefix is not lean" ["leanx/a", "apps/lean/b"] true true,
    planCase "plan: no scripts" ["lean/a"] false false] ++
-  [ckCase "real: reads wins" [(true, ["mathview lint"]), (false, [])], ckCase "real: mathview only" [(false, ["mathview lint"])],
-   ckCase "real: lake build only" [(false, ["lake build"])], ckCase "real: both lint stages" [(false, ["lake build", "mathview lint"])],
-   ckCase "real: lint and test" [(false, ["mathview lint", "lake test"])], ckCase "real: no stage reported" [(false, [])],
-   ckCase "real: lint check and a plain check" [(false, ["mathview lint"]), (false, [])], ckCase "real: two lint checks" [(false, ["lake build"]), (false, ["mathview lint"])],
+  [ckCase "real: reads wins" [(true, ["axiom check"]), (false, [])], ckCase "real: axiom check only" [(false, ["axiom check"])],
+   ckCase "real: lake build only" [(false, ["lake build"])], ckCase "real: both lint stages" [(false, ["lake build", "axiom check"])],
+   ckCase "real: lint and test" [(false, ["axiom check", "lake test"])], ckCase "real: no stage reported" [(false, [])],
+   ckCase "real: lint check and a plain check" [(false, ["axiom check"]), (false, [])], ckCase "real: two lint checks" [(false, ["lake build"]), (false, ["axiom check"])],
    ckCase "real: no failed check" []]
 
 #guard cases.length == 187

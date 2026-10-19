@@ -1,0 +1,5796 @@
+{
+ "schema": "fw.wave2.zonecmp/1",
+ "note": "RV (v2-proved) against R0 (base): descriptive band check per whole-run type and off-band cells per zone; verdicts are fwcore faithful.verdict.",
+ "profile": "swipe-v1",
+ "runs": {
+  "base": "39253166643",
+  "v2proved": "39253172750",
+  "control": "39253166643"
+ },
+ "totals": [
+  {
+   "type": "census.activeTileAreaPx",
+   "class": "stable",
+   "base": 2291838976,
+   "arm": 2292346880,
+   "delta": 507904,
+   "baseRuns": [
+    2291847168,
+    2291380224,
+    2291838976
+   ],
+   "armRuns": [
+    2292346880,
+    2292346880,
+    2292805632
+   ],
+   "baseLo": 2291380224,
+   "baseHi": 2291847168,
+   "where": "above",
+   "control": 2811101184
+  },
+  {
+   "type": "census.activeTiles",
+   "class": "stable",
+   "base": 37337,
+   "arm": 37449,
+   "delta": 112,
+   "baseRuns": [
+    37339,
+    37330,
+    37337
+   ],
+   "armRuns": [
+    37449,
+    37449,
+    37456
+   ],
+   "baseLo": 37330,
+   "baseHi": 37339,
+   "where": "above",
+   "control": 44747
+  },
+  {
+   "type": "census.drawingAreaPx",
+   "class": "stable",
+   "base": 4939938370,
+   "arm": 5028067790,
+   "delta": 88129420,
+   "baseRuns": [
+    4939939122,
+    4937894202,
+    4939938370
+   ],
+   "armRuns": [
+    5028067790,
+    5028067790,
+    5030111958
+   ],
+   "baseLo": 4937894202,
+   "baseHi": 4939939122,
+   "where": "above",
+   "control": 5340886817
+  },
+  {
+   "type": "census.drawingLayers",
+   "class": "stable",
+   "base": 22573,
+   "arm": 23626,
+   "delta": 1053,
+   "baseRuns": [
+    22574,
+    22572,
+    22573
+   ],
+   "armRuns": [
+    23626,
+    23626,
+    23627
+   ],
+   "baseLo": 22572,
+   "baseHi": 22574,
+   "where": "above",
+   "control": 22952
+  },
+  {
+   "type": "census.layers",
+   "class": "stable",
+   "base": 25781,
+   "arm": 26835,
+   "delta": 1054,
+   "baseRuns": [
+    25782,
+    25781,
+    25780
+   ],
+   "armRuns": [
+    26835,
+    26835,
+    26835
+   ],
+   "baseLo": 25780,
+   "baseHi": 25782,
+   "where": "above",
+   "control": 26293
+  },
+  {
+   "type": "census.snapshots",
+   "class": "deterministic",
+   "base": 500,
+   "arm": 500,
+   "delta": 0,
+   "baseRuns": [
+    500,
+    500,
+    500
+   ],
+   "armRuns": [
+    500,
+    500,
+    500
+   ],
+   "baseLo": 500,
+   "baseHi": 500,
+   "where": "within",
+   "control": 499
+  },
+  {
+   "type": "census.solidTiles",
+   "class": "deterministic",
+   "base": 13410,
+   "arm": 13410,
+   "delta": 0,
+   "baseRuns": [
+    13410,
+    13410,
+    13410
+   ],
+   "armRuns": [
+    13410,
+    13410,
+    13410
+   ],
+   "baseLo": 13410,
+   "baseHi": 13410,
+   "where": "within",
+   "control": 18071
+  },
+  {
+   "type": "census.tiles",
+   "class": "stable",
+   "base": 41351,
+   "arm": 41463,
+   "delta": 112,
+   "baseRuns": [
+    41353,
+    41344,
+    41351
+   ],
+   "armRuns": [
+    41463,
+    41463,
+    41470
+   ],
+   "baseLo": 41344,
+   "baseHi": 41353,
+   "where": "above",
+   "control": 49386
+  },
+  {
+   "type": "census.tilings",
+   "class": "stable",
+   "base": 16596,
+   "arm": 16715,
+   "delta": 119,
+   "baseRuns": [
+    16598,
+    16596,
+    16596
+   ],
+   "armRuns": [
+    16715,
+    16715,
+    16715
+   ],
+   "baseLo": 16596,
+   "baseHi": 16598,
+   "where": "above",
+   "control": 16487
+  },
+  {
+   "type": "hasDamage",
+   "class": "deterministic",
+   "base": 500,
+   "arm": 500,
+   "delta": 0,
+   "baseRuns": [
+    500,
+    500,
+    500
+   ],
+   "armRuns": [
+    500,
+    500,
+    500
+   ],
+   "baseLo": 500,
+   "baseHi": 500,
+   "where": "within",
+   "control": 499
+  },
+  {
+   "type": "metric.Documents",
+   "class": "stable",
+   "base": 9,
+   "arm": 9,
+   "delta": 0,
+   "baseRuns": [
+    9,
+    9,
+    8
+   ],
+   "armRuns": [
+    9,
+    9,
+    9
+   ],
+   "baseLo": 8,
+   "baseHi": 9,
+   "where": "within",
+   "control": 9
+  },
+  {
+   "type": "metric.Frames",
+   "class": "stable",
+   "base": 14,
+   "arm": 14,
+   "delta": 0,
+   "baseRuns": [
+    14,
+    14,
+    14
+   ],
+   "armRuns": [
+    14,
+    14,
+    14
+   ],
+   "baseLo": 14,
+   "baseHi": 14,
+   "where": "within",
+   "control": 14
+  },
+  {
+   "type": "metric.JSEventListeners",
+   "class": "quarantined",
+   "base": 1,
+   "arm": -68,
+   "delta": -69,
+   "baseRuns": [
+    1,
+    1,
+    1
+   ],
+   "armRuns": [
+    -68,
+    -68,
+    -68
+   ],
+   "baseLo": 1,
+   "baseHi": 1,
+   "where": "below",
+   "control": 4
+  },
+  {
+   "type": "metric.LayoutCount",
+   "class": "stable",
+   "base": 319,
+   "arm": 315,
+   "delta": -4,
+   "baseRuns": [
+    319,
+    319,
+    319
+   ],
+   "armRuns": [
+    315,
+    315,
+    315
+   ],
+   "baseLo": 319,
+   "baseHi": 319,
+   "where": "below",
+   "control": 295
+  },
+  {
+   "type": "metric.LayoutObjects",
+   "class": "quarantined",
+   "base": 526,
+   "arm": 166,
+   "delta": -360,
+   "baseRuns": [
+    526,
+    526,
+    527
+   ],
+   "armRuns": [
+    167,
+    166,
+    165
+   ],
+   "baseLo": 526,
+   "baseHi": 527,
+   "where": "below",
+   "control": 255
+  },
+  {
+   "type": "metric.Nodes",
+   "class": "quarantined",
+   "base": 664,
+   "arm": 370,
+   "delta": -294,
+   "baseRuns": [
+    664,
+    664,
+    662
+   ],
+   "armRuns": [
+    371,
+    370,
+    369
+   ],
+   "baseLo": 662,
+   "baseHi": 664,
+   "where": "below",
+   "control": 671
+  },
+  {
+   "type": "metric.RecalcStyleCount",
+   "class": "deterministic",
+   "base": 1832,
+   "arm": 821,
+   "delta": -1011,
+   "baseRuns": [
+    1832,
+    1832,
+    1832
+   ],
+   "armRuns": [
+    821,
+    821,
+    821
+   ],
+   "baseLo": 1832,
+   "baseHi": 1832,
+   "where": "below",
+   "control": 1742
+  },
+  {
+   "type": "metric.Resources",
+   "class": "stable",
+   "base": 14,
+   "arm": -3,
+   "delta": -17,
+   "baseRuns": [
+    14,
+    14,
+    14
+   ],
+   "armRuns": [
+    -3,
+    -3,
+    -3
+   ],
+   "baseLo": 14,
+   "baseHi": 14,
+   "where": "below",
+   "control": -1
+  },
+  {
+   "type": "n0.cssom",
+   "class": "deterministic",
+   "base": 0,
+   "arm": 0,
+   "delta": 0,
+   "baseRuns": [
+    0,
+    0,
+    0
+   ],
+   "armRuns": [
+    0,
+    0,
+    0
+   ],
+   "baseLo": 0,
+   "baseHi": 0,
+   "where": "within",
+   "control": 0
+  },
+  {
+   "type": "n0.events",
+   "class": "deterministic",
+   "base": 0,
+   "arm": 0,
+   "delta": 0,
+   "baseRuns": [
+    0,
+    0,
+    0
+   ],
+   "armRuns": [
+    0,
+    0,
+    0
+   ],
+   "baseLo": 0,
+   "baseHi": 0,
+   "where": "within",
+   "control": 0
+  },
+  {
+   "type": "n0.sheetNode",
+   "class": "deterministic",
+   "base": 0,
+   "arm": 0,
+   "delta": 0,
+   "baseRuns": [
+    0,
+    0,
+    0
+   ],
+   "armRuns": [
+    0,
+    0,
+    0
+   ],
+   "baseLo": 0,
+   "baseHi": 0,
+   "where": "within",
+   "control": 0
+  },
+  {
+   "type": "raster.invalidatedLayers",
+   "class": "stable",
+   "base": 2585,
+   "arm": 2214,
+   "delta": -371,
+   "baseRuns": [
+    2585,
+    2585,
+    2585
+   ],
+   "armRuns": [
+    2214,
+    2214,
+    2214
+   ],
+   "baseLo": 2585,
+   "baseHi": 2585,
+   "where": "below",
+   "control": 1920
+  },
+  {
+   "type": "raster.invalidationAreaPx",
+   "class": "stable",
+   "base": 93482093,
+   "arm": 92916938,
+   "delta": -565155,
+   "baseRuns": [
+    93482093,
+    93482093,
+    93482093
+   ],
+   "armRuns": [
+    92916938,
+    92916938,
+    92916938
+   ],
+   "baseLo": 93482093,
+   "baseHi": 93482093,
+   "where": "below",
+   "control": 97163923
+  },
+  {
+   "type": "raster.invalidationRects",
+   "class": "stable",
+   "base": 5566,
+   "arm": 6355,
+   "delta": 789,
+   "baseRuns": [
+    5566,
+    5566,
+    5566
+   ],
+   "armRuns": [
+    6355,
+    6355,
+    6355
+   ],
+   "baseLo": 5566,
+   "baseHi": 5566,
+   "where": "above",
+   "control": 4664
+  },
+  {
+   "type": "trace.Animation.begin",
+   "class": "deterministic",
+   "base": 143,
+   "arm": 140,
+   "delta": -3,
+   "baseRuns": [
+    143,
+    143,
+    143
+   ],
+   "armRuns": [
+    140,
+    140,
+    140
+   ],
+   "baseLo": 143,
+   "baseHi": 143,
+   "where": "below",
+   "control": 147
+  },
+  {
+   "type": "trace.Animation.compositeFailedBits",
+   "class": "deterministic",
+   "base": 2011936,
+   "arm": 1938336,
+   "delta": -73600,
+   "baseRuns": [
+    2011936,
+    2011936,
+    2011936
+   ],
+   "armRuns": [
+    1938336,
+    1938336,
+    1938336
+   ],
+   "baseLo": 2011936,
+   "baseHi": 2011936,
+   "where": "below",
+   "control": 2016032
+  },
+  {
+   "type": "trace.Animation.instant",
+   "class": "deterministic",
+   "base": 235,
+   "arm": 226,
+   "delta": -9,
+   "baseRuns": [
+    235,
+    235,
+    235
+   ],
+   "armRuns": [
+    226,
+    226,
+    226
+   ],
+   "baseLo": 235,
+   "baseHi": 235,
+   "where": "below",
+   "control": 236
+  },
+  {
+   "type": "trace.Commit",
+   "class": "deterministic",
+   "base": 503,
+   "arm": 503,
+   "delta": 0,
+   "baseRuns": [
+    503,
+    503,
+    503
+   ],
+   "armRuns": [
+    503,
+    503,
+    503
+   ],
+   "baseLo": 503,
+   "baseHi": 503,
+   "where": "within",
+   "control": 503
+  },
+  {
+   "type": "trace.CullRectUpdate",
+   "class": "deterministic",
+   "base": 585,
+   "arm": 585,
+   "delta": 0,
+   "baseRuns": [
+    585,
+    585,
+    585
+   ],
+   "armRuns": [
+    585,
+    585,
+    585
+   ],
+   "baseLo": 585,
+   "baseHi": 585,
+   "where": "within",
+   "control": 595
+  },
+  {
+   "type": "trace.DecodeImage",
+   "class": "deterministic",
+   "base": 30,
+   "arm": 30,
+   "delta": 0,
+   "baseRuns": [
+    30,
+    30,
+    30
+   ],
+   "armRuns": [
+    30,
+    30,
+    30
+   ],
+   "baseLo": 30,
+   "baseHi": 30,
+   "where": "within",
+   "control": 27
+  },
+  {
+   "type": "trace.DisplayItemListRaster",
+   "class": "quarantined",
+   "base": 938,
+   "arm": 937,
+   "delta": -1,
+   "baseRuns": [
+    936,
+    938,
+    938
+   ],
+   "armRuns": [
+    937,
+    935,
+    937
+   ],
+   "baseLo": 936,
+   "baseHi": 938,
+   "where": "within",
+   "control": 931
+  },
+  {
+   "type": "trace.EvaluateScript",
+   "class": "deterministic",
+   "base": 502,
+   "arm": 502,
+   "delta": 0,
+   "baseRuns": [
+    502,
+    502,
+    502
+   ],
+   "armRuns": [
+    502,
+    502,
+    502
+   ],
+   "baseLo": 502,
+   "baseHi": 502,
+   "where": "within",
+   "control": 502
+  },
+  {
+   "type": "trace.EventDispatch",
+   "class": "quarantined",
+   "base": 1561,
+   "arm": 1537,
+   "delta": -24,
+   "baseRuns": [
+    1561,
+    1561,
+    1560
+   ],
+   "armRuns": [
+    1537,
+    1537,
+    1537
+   ],
+   "baseLo": 1560,
+   "baseHi": 1561,
+   "where": "below",
+   "control": 1220
+  },
+  {
+   "type": "trace.FireAnimationFrame",
+   "class": "quarantined",
+   "base": 2057,
+   "arm": 1454,
+   "delta": -603,
+   "baseRuns": [
+    2057,
+    2057,
+    2058
+   ],
+   "armRuns": [
+    1454,
+    1454,
+    1454
+   ],
+   "baseLo": 2057,
+   "baseHi": 2058,
+   "where": "below",
+   "control": 2459
+  },
+  {
+   "type": "trace.FunctionCall",
+   "class": "quarantined",
+   "base": 4371,
+   "arm": 4176,
+   "delta": -195,
+   "baseRuns": [
+    4371,
+    4371,
+    4372
+   ],
+   "armRuns": [
+    4176,
+    4176,
+    4176
+   ],
+   "baseLo": 4371,
+   "baseHi": 4372,
+   "where": "below",
+   "control": 3861
+  },
+  {
+   "type": "trace.HitTest",
+   "class": "stable",
+   "base": 928,
+   "arm": 928,
+   "delta": 0,
+   "baseRuns": [
+    928,
+    928,
+    928
+   ],
+   "armRuns": [
+    928,
+    928,
+    928
+   ],
+   "baseLo": 928,
+   "baseHi": 928,
+   "where": "within",
+   "control": 935
+  },
+  {
+   "type": "trace.HitTest.overlayAdDetector",
+   "class": "quarantined",
+   "base": 58,
+   "arm": 57,
+   "delta": -1,
+   "baseRuns": [
+    58,
+    58,
+    58
+   ],
+   "armRuns": [
+    58,
+    57,
+    57
+   ],
+   "baseLo": 58,
+   "baseHi": 58,
+   "where": "within",
+   "control": 57
+  },
+  {
+   "type": "trace.ImageDecodeTask",
+   "class": "stable",
+   "base": 408,
+   "arm": 408,
+   "delta": 0,
+   "baseRuns": [
+    408,
+    408,
+    408
+   ],
+   "armRuns": [
+    408,
+    408,
+    408
+   ],
+   "baseLo": 408,
+   "baseHi": 408,
+   "where": "within",
+   "control": 238
+  },
+  {
+   "type": "trace.IntersectionObserverCompute",
+   "class": "deterministic",
+   "base": 1008,
+   "arm": 1007,
+   "delta": -1,
+   "baseRuns": [
+    1008,
+    1008,
+    1008
+   ],
+   "armRuns": [
+    1007,
+    1007,
+    1007
+   ],
+   "baseLo": 1008,
+   "baseHi": 1008,
+   "where": "below",
+   "control": 1013
+  },
+  {
+   "type": "trace.InvalidateLayout",
+   "class": "quarantined",
+   "base": 415,
+   "arm": 409,
+   "delta": -6,
+   "baseRuns": [
+    415,
+    415,
+    413
+   ],
+   "armRuns": [
+    409,
+    409,
+    409
+   ],
+   "baseLo": 413,
+   "baseHi": 415,
+   "where": "below",
+   "control": 402
+  },
+  {
+   "type": "trace.Layer.created",
+   "class": "deterministic",
+   "base": 106,
+   "arm": 97,
+   "delta": -9,
+   "baseRuns": [
+    106,
+    106,
+    106
+   ],
+   "armRuns": [
+    97,
+    97,
+    97
+   ],
+   "baseLo": 106,
+   "baseHi": 106,
+   "where": "below",
+   "control": 107
+  },
+  {
+   "type": "trace.Layer.deleted",
+   "class": "quarantined",
+   "base": 43,
+   "arm": 56,
+   "delta": 13,
+   "baseRuns": [
+    43,
+    43,
+    44
+   ],
+   "armRuns": [
+    56,
+    56,
+    56
+   ],
+   "baseLo": 43,
+   "baseHi": 44,
+   "where": "above",
+   "control": 70
+  },
+  {
+   "type": "trace.Layerize",
+   "class": "deterministic",
+   "base": 503,
+   "arm": 503,
+   "delta": 0,
+   "baseRuns": [
+    503,
+    503,
+    503
+   ],
+   "armRuns": [
+    503,
+    503,
+    503
+   ],
+   "baseLo": 503,
+   "baseHi": 503,
+   "where": "within",
+   "control": 503
+  },
+  {
+   "type": "trace.Layout",
+   "class": "quarantined",
+   "base": 359,
+   "arm": 355,
+   "delta": -4,
+   "baseRuns": [
+    359,
+    359,
+    358
+   ],
+   "armRuns": [
+    355,
+    355,
+    355
+   ],
+   "baseLo": 358,
+   "baseHi": 359,
+   "where": "below",
+   "control": 335
+  },
+  {
+   "type": "trace.Layout.dirtyObjects",
+   "class": "quarantined",
+   "base": 9898,
+   "arm": 9484,
+   "delta": -414,
+   "baseRuns": [
+    9898,
+    9898,
+    9896
+   ],
+   "armRuns": [
+    9484,
+    9484,
+    9484
+   ],
+   "baseLo": 9896,
+   "baseHi": 9898,
+   "where": "below",
+   "control": 12459
+  },
+  {
+   "type": "trace.Layout.partial",
+   "class": "stable",
+   "base": 110,
+   "arm": 107,
+   "delta": -3,
+   "baseRuns": [
+    110,
+    110,
+    110
+   ],
+   "armRuns": [
+    107,
+    107,
+    107
+   ],
+   "baseLo": 110,
+   "baseHi": 110,
+   "where": "below",
+   "control": 84
+  },
+  {
+   "type": "trace.Layout.totalObjects",
+   "class": "quarantined",
+   "base": 298448,
+   "arm": 347585,
+   "delta": 49137,
+   "baseRuns": [
+    298448,
+    298448,
+    298441
+   ],
+   "armRuns": [
+    347585,
+    347585,
+    347585
+   ],
+   "baseLo": 298441,
+   "baseHi": 298448,
+   "where": "above",
+   "control": 186056
+  },
+  {
+   "type": "trace.MajorGC",
+   "class": "quarantined",
+   "base": 8,
+   "arm": 7,
+   "delta": -1,
+   "baseRuns": [
+    8,
+    8,
+    8
+   ],
+   "armRuns": [
+    7,
+    7,
+    7
+   ],
+   "baseLo": 8,
+   "baseHi": 8,
+   "where": "below",
+   "control": 9
+  },
+  {
+   "type": "trace.MinorGC",
+   "class": "stable",
+   "base": 5,
+   "arm": 3,
+   "delta": -2,
+   "baseRuns": [
+    5,
+    5,
+    5
+   ],
+   "armRuns": [
+    3,
+    3,
+    3
+   ],
+   "baseLo": 5,
+   "baseHi": 5,
+   "where": "below",
+   "control": 1
+  },
+  {
+   "type": "trace.N1.fontUpdateInvalidation",
+   "class": "deterministic",
+   "base": 0,
+   "arm": 0,
+   "delta": 0,
+   "baseRuns": [
+    0,
+    0,
+    0
+   ],
+   "armRuns": [
+    0,
+    0,
+    0
+   ],
+   "baseLo": 0,
+   "baseHi": 0,
+   "where": "within",
+   "control": 0
+  },
+  {
+   "type": "trace.N1.scheduleInvalidationsForRuleSets",
+   "class": "deterministic",
+   "base": 0,
+   "arm": 0,
+   "delta": 0,
+   "baseRuns": [
+    0,
+    0,
+    0
+   ],
+   "armRuns": [
+    0,
+    0,
+    0
+   ],
+   "baseLo": 0,
+   "baseHi": 0,
+   "where": "within",
+   "control": 0
+  },
+  {
+   "type": "trace.N1.svgImageDocument",
+   "class": "deterministic",
+   "base": 17,
+   "arm": 17,
+   "delta": 0,
+   "baseRuns": [
+    17,
+    17,
+    17
+   ],
+   "armRuns": [
+    17,
+    17,
+    17
+   ],
+   "baseLo": 17,
+   "baseHi": 17,
+   "where": "within",
+   "control": 17
+  },
+  {
+   "type": "trace.N1.updateActiveStyleSheets",
+   "class": "deterministic",
+   "base": 0,
+   "arm": 0,
+   "delta": 0,
+   "baseRuns": [
+    0,
+    0,
+    0
+   ],
+   "armRuns": [
+    0,
+    0,
+    0
+   ],
+   "baseLo": 0,
+   "baseHi": 0,
+   "where": "within",
+   "control": 0
+  },
+  {
+   "type": "trace.Paint",
+   "class": "quarantined",
+   "base": 2492,
+   "arm": 2218,
+   "delta": -274,
+   "baseRuns": [
+    2492,
+    2492,
+    2490
+   ],
+   "armRuns": [
+    2218,
+    2217,
+    2218
+   ],
+   "baseLo": 2490,
+   "baseHi": 2492,
+   "where": "below",
+   "control": 2506
+  },
+  {
+   "type": "trace.PaintImage",
+   "class": "stable",
+   "base": 767,
+   "arm": 771,
+   "delta": 4,
+   "baseRuns": [
+    766,
+    767,
+    767
+   ],
+   "armRuns": [
+    771,
+    770,
+    771
+   ],
+   "baseLo": 766,
+   "baseHi": 767,
+   "where": "above",
+   "control": 688
+  },
+  {
+   "type": "trace.ParseHTML",
+   "class": "deterministic",
+   "base": 17,
+   "arm": 17,
+   "delta": 0,
+   "baseRuns": [
+    17,
+    17,
+    17
+   ],
+   "armRuns": [
+    17,
+    17,
+    17
+   ],
+   "baseLo": 17,
+   "baseHi": 17,
+   "where": "within",
+   "control": 35
+  },
+  {
+   "type": "trace.PrePaint",
+   "class": "stable",
+   "base": 1571,
+   "arm": 1570,
+   "delta": -1,
+   "baseRuns": [
+    1571,
+    1571,
+    1571
+   ],
+   "armRuns": [
+    1570,
+    1570,
+    1570
+   ],
+   "baseLo": 1571,
+   "baseHi": 1571,
+   "where": "below",
+   "control": 1593
+  },
+  {
+   "type": "trace.RasterTask",
+   "class": "quarantined",
+   "base": 938,
+   "arm": 937,
+   "delta": -1,
+   "baseRuns": [
+    936,
+    938,
+    938
+   ],
+   "armRuns": [
+    937,
+    935,
+    937
+   ],
+   "baseLo": 936,
+   "baseHi": 938,
+   "where": "within",
+   "control": 931
+  },
+  {
+   "type": "trace.RequestAnimationFrame",
+   "class": "quarantined",
+   "base": 2147,
+   "arm": 1544,
+   "delta": -603,
+   "baseRuns": [
+    2147,
+    2147,
+    2148
+   ],
+   "armRuns": [
+    1544,
+    1544,
+    1544
+   ],
+   "baseLo": 2147,
+   "baseHi": 2148,
+   "where": "below",
+   "control": 2460
+  },
+  {
+   "type": "trace.ResizeObserverNotify",
+   "class": "deterministic",
+   "base": 587,
+   "arm": 586,
+   "delta": -1,
+   "baseRuns": [
+    587,
+    587,
+    587
+   ],
+   "armRuns": [
+    586,
+    586,
+    586
+   ],
+   "baseLo": 587,
+   "baseHi": 587,
+   "where": "below",
+   "control": 600
+  },
+  {
+   "type": "trace.ResourceSendRequest",
+   "class": "deterministic",
+   "base": 45,
+   "arm": 24,
+   "delta": -21,
+   "baseRuns": [
+    45,
+    45,
+    45
+   ],
+   "armRuns": [
+    24,
+    24,
+    24
+   ],
+   "baseLo": 45,
+   "baseHi": 45,
+   "where": "below",
+   "control": 44
+  },
+  {
+   "type": "trace.ScheduleStyleRecalculation",
+   "class": "deterministic",
+   "base": 1865,
+   "arm": 855,
+   "delta": -1010,
+   "baseRuns": [
+    1865,
+    1865,
+    1865
+   ],
+   "armRuns": [
+    855,
+    855,
+    855
+   ],
+   "baseLo": 1865,
+   "baseHi": 1865,
+   "where": "below",
+   "control": 1771
+  },
+  {
+   "type": "trace.ScrollLayer",
+   "class": "deterministic",
+   "base": 463,
+   "arm": 463,
+   "delta": 0,
+   "baseRuns": [
+    463,
+    463,
+    463
+   ],
+   "armRuns": [
+    463,
+    463,
+    463
+   ],
+   "baseLo": 463,
+   "baseHi": 463,
+   "where": "within",
+   "control": 463
+  },
+  {
+   "type": "trace.UpdateLayer",
+   "class": "stable",
+   "base": 17165,
+   "arm": 17283,
+   "delta": 118,
+   "baseRuns": [
+    17167,
+    17164,
+    17165
+   ],
+   "armRuns": [
+    17283,
+    17283,
+    17284
+   ],
+   "baseLo": 17164,
+   "baseHi": 17167,
+   "where": "above",
+   "control": 17970
+  },
+  {
+   "type": "trace.UpdateLayoutTree",
+   "class": "deterministic",
+   "base": 1849,
+   "arm": 838,
+   "delta": -1011,
+   "baseRuns": [
+    1849,
+    1849,
+    1849
+   ],
+   "armRuns": [
+    838,
+    838,
+    838
+   ],
+   "baseLo": 1849,
+   "baseHi": 1849,
+   "where": "below",
+   "control": 1758
+  },
+  {
+   "type": "trace.UpdateLayoutTree.elementCount",
+   "class": "quarantined",
+   "base": 44001,
+   "arm": 35366,
+   "delta": -8635,
+   "baseRuns": [
+    44001,
+    44000,
+    44064
+   ],
+   "armRuns": [
+    35366,
+    35366,
+    35370
+   ],
+   "baseLo": 44000,
+   "baseHi": 44064,
+   "where": "below",
+   "control": 48357
+  },
+  {
+   "type": "trace.cc.Activate",
+   "class": "deterministic",
+   "base": 503,
+   "arm": 503,
+   "delta": 0,
+   "baseRuns": [
+    503,
+    503,
+    503
+   ],
+   "armRuns": [
+    503,
+    503,
+    503
+   ],
+   "baseLo": 503,
+   "baseHi": 503,
+   "where": "within",
+   "control": 503
+  },
+  {
+   "type": "trace.cc.Commit",
+   "class": "deterministic",
+   "base": 503,
+   "arm": 503,
+   "delta": 0,
+   "baseRuns": [
+    503,
+    503,
+    503
+   ],
+   "armRuns": [
+    503,
+    503,
+    503
+   ],
+   "baseLo": 503,
+   "baseHi": 503,
+   "where": "within",
+   "control": 503
+  },
+  {
+   "type": "trace.cc.Draw",
+   "class": "deterministic",
+   "base": 503,
+   "arm": 503,
+   "delta": 0,
+   "baseRuns": [
+    503,
+    503,
+    503
+   ],
+   "armRuns": [
+    503,
+    503,
+    503
+   ],
+   "baseLo": 503,
+   "baseHi": 503,
+   "where": "within",
+   "control": 503
+  },
+  {
+   "type": "trace.cc.SynchronizeTrees",
+   "class": "stable",
+   "base": 80,
+   "arm": 82,
+   "delta": 2,
+   "baseRuns": [
+    82,
+    80,
+    80
+   ],
+   "armRuns": [
+    82,
+    82,
+    82
+   ],
+   "baseLo": 80,
+   "baseHi": 82,
+   "where": "within",
+   "control": 82
+  }
+ ],
+ "zones": [
+  {
+   "id": "rest",
+   "frames": 10,
+   "cells": [
+    {
+     "type": "census.activeTileAreaPx",
+     "class": "stable",
+     "base": 10403840,
+     "arm": 10485760,
+     "delta": 81920,
+     "baseRuns": [
+      10403840,
+      10403840,
+      10403840
+     ],
+     "armRuns": [
+      10485760,
+      10485760,
+      10485760
+     ],
+     "baseLo": 10403840,
+     "baseHi": 10403840,
+     "where": "above"
+    },
+    {
+     "type": "census.activeTiles",
+     "class": "stable",
+     "base": 180,
+     "arm": 190,
+     "delta": 10,
+     "baseRuns": [
+      180,
+      180,
+      180
+     ],
+     "armRuns": [
+      190,
+      190,
+      190
+     ],
+     "baseLo": 180,
+     "baseHi": 180,
+     "where": "above"
+    },
+    {
+     "type": "census.drawingAreaPx",
+     "class": "stable",
+     "base": 42898680,
+     "arm": 50605760,
+     "delta": 7707080,
+     "baseRuns": [
+      42898680,
+      42898680,
+      42898680
+     ],
+     "armRuns": [
+      50605760,
+      50605760,
+      50605760
+     ],
+     "baseLo": 42898680,
+     "baseHi": 42898680,
+     "where": "above"
+    },
+    {
+     "type": "census.drawingLayers",
+     "class": "stable",
+     "base": 140,
+     "arm": 230,
+     "delta": 90,
+     "baseRuns": [
+      140,
+      140,
+      140
+     ],
+     "armRuns": [
+      230,
+      230,
+      230
+     ],
+     "baseLo": 140,
+     "baseHi": 140,
+     "where": "above"
+    },
+    {
+     "type": "census.layers",
+     "class": "stable",
+     "base": 190,
+     "arm": 280,
+     "delta": 90,
+     "baseRuns": [
+      190,
+      190,
+      190
+     ],
+     "armRuns": [
+      280,
+      280,
+      280
+     ],
+     "baseLo": 190,
+     "baseHi": 190,
+     "where": "above"
+    },
+    {
+     "type": "census.tiles",
+     "class": "stable",
+     "base": 180,
+     "arm": 190,
+     "delta": 10,
+     "baseRuns": [
+      180,
+      180,
+      180
+     ],
+     "armRuns": [
+      190,
+      190,
+      190
+     ],
+     "baseLo": 180,
+     "baseHi": 180,
+     "where": "above"
+    },
+    {
+     "type": "census.tilings",
+     "class": "stable",
+     "base": 110,
+     "arm": 120,
+     "delta": 10,
+     "baseRuns": [
+      110,
+      110,
+      110
+     ],
+     "armRuns": [
+      120,
+      120,
+      120
+     ],
+     "baseLo": 110,
+     "baseHi": 110,
+     "where": "above"
+    },
+    {
+     "type": "raster.invalidatedLayers",
+     "class": "stable",
+     "base": 92,
+     "arm": 101,
+     "delta": 9,
+     "baseRuns": [
+      92,
+      92,
+      92
+     ],
+     "armRuns": [
+      101,
+      101,
+      101
+     ],
+     "baseLo": 92,
+     "baseHi": 92,
+     "where": "above"
+    },
+    {
+     "type": "raster.invalidationAreaPx",
+     "class": "stable",
+     "base": 29963601,
+     "arm": 29971782,
+     "delta": 8181,
+     "baseRuns": [
+      29963601,
+      29963601,
+      29963601
+     ],
+     "armRuns": [
+      29971782,
+      29971782,
+      29971782
+     ],
+     "baseLo": 29963601,
+     "baseHi": 29963601,
+     "where": "above"
+    },
+    {
+     "type": "raster.invalidationRects",
+     "class": "stable",
+     "base": 206,
+     "arm": 305,
+     "delta": 99,
+     "baseRuns": [
+      206,
+      206,
+      206
+     ],
+     "armRuns": [
+      305,
+      305,
+      305
+     ],
+     "baseLo": 206,
+     "baseHi": 206,
+     "where": "above"
+    },
+    {
+     "type": "trace.DisplayItemListRaster",
+     "class": "quarantined",
+     "base": 19,
+     "arm": 20,
+     "delta": 1,
+     "baseRuns": [
+      19,
+      19,
+      19
+     ],
+     "armRuns": [
+      20,
+      20,
+      20
+     ],
+     "baseLo": 19,
+     "baseHi": 19,
+     "where": "above"
+    },
+    {
+     "type": "trace.FireAnimationFrame",
+     "class": "quarantined",
+     "base": 18,
+     "arm": 10,
+     "delta": -8,
+     "baseRuns": [
+      18,
+      18,
+      20
+     ],
+     "armRuns": [
+      10,
+      10,
+      10
+     ],
+     "baseLo": 18,
+     "baseHi": 20,
+     "where": "below"
+    },
+    {
+     "type": "trace.FunctionCall",
+     "class": "quarantined",
+     "base": 18,
+     "arm": 10,
+     "delta": -8,
+     "baseRuns": [
+      18,
+      18,
+      20
+     ],
+     "armRuns": [
+      10,
+      10,
+      10
+     ],
+     "baseLo": 18,
+     "baseHi": 20,
+     "where": "below"
+    },
+    {
+     "type": "trace.Paint",
+     "class": "quarantined",
+     "base": 45,
+     "arm": 48,
+     "delta": 3,
+     "baseRuns": [
+      45,
+      45,
+      45
+     ],
+     "armRuns": [
+      48,
+      48,
+      48
+     ],
+     "baseLo": 45,
+     "baseHi": 45,
+     "where": "above"
+    },
+    {
+     "type": "trace.PaintImage",
+     "class": "stable",
+     "base": 37,
+     "arm": 58,
+     "delta": 21,
+     "baseRuns": [
+      37,
+      37,
+      37
+     ],
+     "armRuns": [
+      58,
+      58,
+      58
+     ],
+     "baseLo": 37,
+     "baseHi": 37,
+     "where": "above"
+    },
+    {
+     "type": "trace.RasterTask",
+     "class": "quarantined",
+     "base": 19,
+     "arm": 20,
+     "delta": 1,
+     "baseRuns": [
+      19,
+      19,
+      19
+     ],
+     "armRuns": [
+      20,
+      20,
+      20
+     ],
+     "baseLo": 19,
+     "baseHi": 19,
+     "where": "above"
+    },
+    {
+     "type": "trace.RequestAnimationFrame",
+     "class": "quarantined",
+     "base": 20,
+     "arm": 10,
+     "delta": -10,
+     "baseRuns": [
+      20,
+      20,
+      22
+     ],
+     "armRuns": [
+      10,
+      10,
+      10
+     ],
+     "baseLo": 20,
+     "baseHi": 22,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayer",
+     "class": "stable",
+     "base": 120,
+     "arm": 130,
+     "delta": 10,
+     "baseRuns": [
+      120,
+      120,
+      120
+     ],
+     "armRuns": [
+      130,
+      130,
+      130
+     ],
+     "baseLo": 120,
+     "baseHi": 120,
+     "where": "above"
+    }
+   ]
+  },
+  {
+   "id": "y00000",
+   "frames": 49,
+   "cells": [
+    {
+     "type": "census.activeTileAreaPx",
+     "class": "stable",
+     "base": 100458496,
+     "arm": 100859904,
+     "delta": 401408,
+     "baseRuns": [
+      100458496,
+      100458496,
+      100458496
+     ],
+     "armRuns": [
+      100859904,
+      100859904,
+      100859904
+     ],
+     "baseLo": 100458496,
+     "baseHi": 100458496,
+     "where": "above"
+    },
+    {
+     "type": "census.activeTiles",
+     "class": "stable",
+     "base": 1637,
+     "arm": 1686,
+     "delta": 49,
+     "baseRuns": [
+      1637,
+      1637,
+      1637
+     ],
+     "armRuns": [
+      1686,
+      1686,
+      1686
+     ],
+     "baseLo": 1637,
+     "baseHi": 1637,
+     "where": "above"
+    },
+    {
+     "type": "census.drawingAreaPx",
+     "class": "stable",
+     "base": 210176022,
+     "arm": 247940714,
+     "delta": 37764692,
+     "baseRuns": [
+      210176022,
+      210176022,
+      210176022
+     ],
+     "armRuns": [
+      247940714,
+      247940714,
+      247940714
+     ],
+     "baseLo": 210176022,
+     "baseHi": 210176022,
+     "where": "above"
+    },
+    {
+     "type": "census.drawingLayers",
+     "class": "stable",
+     "base": 686,
+     "arm": 1127,
+     "delta": 441,
+     "baseRuns": [
+      686,
+      686,
+      686
+     ],
+     "armRuns": [
+      1127,
+      1127,
+      1127
+     ],
+     "baseLo": 686,
+     "baseHi": 686,
+     "where": "above"
+    },
+    {
+     "type": "census.layers",
+     "class": "stable",
+     "base": 931,
+     "arm": 1372,
+     "delta": 441,
+     "baseRuns": [
+      931,
+      931,
+      931
+     ],
+     "armRuns": [
+      1372,
+      1372,
+      1372
+     ],
+     "baseLo": 931,
+     "baseHi": 931,
+     "where": "above"
+    },
+    {
+     "type": "census.tiles",
+     "class": "stable",
+     "base": 1637,
+     "arm": 1686,
+     "delta": 49,
+     "baseRuns": [
+      1637,
+      1637,
+      1637
+     ],
+     "armRuns": [
+      1686,
+      1686,
+      1686
+     ],
+     "baseLo": 1637,
+     "baseHi": 1637,
+     "where": "above"
+    },
+    {
+     "type": "census.tilings",
+     "class": "stable",
+     "base": 539,
+     "arm": 588,
+     "delta": 49,
+     "baseRuns": [
+      539,
+      539,
+      539
+     ],
+     "armRuns": [
+      588,
+      588,
+      588
+     ],
+     "baseLo": 539,
+     "baseHi": 539,
+     "where": "above"
+    },
+    {
+     "type": "metric.LayoutCount",
+     "class": "stable",
+     "base": 56,
+     "arm": 53,
+     "delta": -3,
+     "baseRuns": [
+      56,
+      56,
+      56
+     ],
+     "armRuns": [
+      53,
+      53,
+      53
+     ],
+     "baseLo": 56,
+     "baseHi": 56,
+     "where": "below"
+    },
+    {
+     "type": "metric.RecalcStyleCount",
+     "class": "deterministic",
+     "base": 199,
+     "arm": 102,
+     "delta": -97,
+     "baseRuns": [
+      199,
+      199,
+      199
+     ],
+     "armRuns": [
+      102,
+      102,
+      102
+     ],
+     "baseLo": 199,
+     "baseHi": 199,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidatedLayers",
+     "class": "stable",
+     "base": 148,
+     "arm": 197,
+     "delta": 49,
+     "baseRuns": [
+      148,
+      148,
+      148
+     ],
+     "armRuns": [
+      197,
+      197,
+      197
+     ],
+     "baseLo": 148,
+     "baseHi": 148,
+     "where": "above"
+    },
+    {
+     "type": "raster.invalidationAreaPx",
+     "class": "stable",
+     "base": 1502751,
+     "arm": 1547292,
+     "delta": 44541,
+     "baseRuns": [
+      1502751,
+      1502751,
+      1502751
+     ],
+     "armRuns": [
+      1547292,
+      1547292,
+      1547292
+     ],
+     "baseLo": 1502751,
+     "baseHi": 1502751,
+     "where": "above"
+    },
+    {
+     "type": "raster.invalidationRects",
+     "class": "stable",
+     "base": 152,
+     "arm": 691,
+     "delta": 539,
+     "baseRuns": [
+      152,
+      152,
+      152
+     ],
+     "armRuns": [
+      691,
+      691,
+      691
+     ],
+     "baseLo": 152,
+     "baseHi": 152,
+     "where": "above"
+    },
+    {
+     "type": "trace.FireAnimationFrame",
+     "class": "quarantined",
+     "base": 236,
+     "arm": 206,
+     "delta": -30,
+     "baseRuns": [
+      236,
+      236,
+      234
+     ],
+     "armRuns": [
+      206,
+      206,
+      206
+     ],
+     "baseLo": 234,
+     "baseHi": 236,
+     "where": "below"
+    },
+    {
+     "type": "trace.FunctionCall",
+     "class": "quarantined",
+     "base": 356,
+     "arm": 375,
+     "delta": 19,
+     "baseRuns": [
+      356,
+      356,
+      354
+     ],
+     "armRuns": [
+      375,
+      375,
+      375
+     ],
+     "baseLo": 354,
+     "baseHi": 356,
+     "where": "above"
+    },
+    {
+     "type": "trace.InvalidateLayout",
+     "class": "quarantined",
+     "base": 61,
+     "arm": 57,
+     "delta": -4,
+     "baseRuns": [
+      61,
+      61,
+      61
+     ],
+     "armRuns": [
+      57,
+      57,
+      57
+     ],
+     "baseLo": 61,
+     "baseHi": 61,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layout",
+     "class": "quarantined",
+     "base": 58,
+     "arm": 55,
+     "delta": -3,
+     "baseRuns": [
+      58,
+      58,
+      58
+     ],
+     "armRuns": [
+      55,
+      55,
+      55
+     ],
+     "baseLo": 58,
+     "baseHi": 58,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layout.dirtyObjects",
+     "class": "quarantined",
+     "base": 2050,
+     "arm": 2003,
+     "delta": -47,
+     "baseRuns": [
+      2050,
+      2050,
+      2050
+     ],
+     "armRuns": [
+      2003,
+      2003,
+      2003
+     ],
+     "baseLo": 2050,
+     "baseHi": 2050,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layout.partial",
+     "class": "stable",
+     "base": 5,
+     "arm": 2,
+     "delta": -3,
+     "baseRuns": [
+      5,
+      5,
+      5
+     ],
+     "armRuns": [
+      2,
+      2,
+      2
+     ],
+     "baseLo": 5,
+     "baseHi": 5,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layout.totalObjects",
+     "class": "quarantined",
+     "base": 59316,
+     "arm": 79150,
+     "delta": 19834,
+     "baseRuns": [
+      59316,
+      59316,
+      59316
+     ],
+     "armRuns": [
+      79150,
+      79150,
+      79150
+     ],
+     "baseLo": 59316,
+     "baseHi": 59316,
+     "where": "above"
+    },
+    {
+     "type": "trace.MinorGC",
+     "class": "stable",
+     "base": 1,
+     "arm": 0,
+     "delta": -1,
+     "baseRuns": [
+      1,
+      1,
+      1
+     ],
+     "armRuns": [
+      0,
+      0,
+      0
+     ],
+     "baseLo": 1,
+     "baseHi": 1,
+     "where": "below"
+    },
+    {
+     "type": "trace.Paint",
+     "class": "quarantined",
+     "base": 403,
+     "arm": 356,
+     "delta": -47,
+     "baseRuns": [
+      403,
+      403,
+      403
+     ],
+     "armRuns": [
+      356,
+      356,
+      356
+     ],
+     "baseLo": 403,
+     "baseHi": 403,
+     "where": "below"
+    },
+    {
+     "type": "trace.PaintImage",
+     "class": "stable",
+     "base": 12,
+     "arm": 11,
+     "delta": -1,
+     "baseRuns": [
+      12,
+      12,
+      12
+     ],
+     "armRuns": [
+      11,
+      11,
+      11
+     ],
+     "baseLo": 12,
+     "baseHi": 12,
+     "where": "below"
+    },
+    {
+     "type": "trace.RequestAnimationFrame",
+     "class": "quarantined",
+     "base": 237,
+     "arm": 208,
+     "delta": -29,
+     "baseRuns": [
+      237,
+      237,
+      235
+     ],
+     "armRuns": [
+      208,
+      208,
+      208
+     ],
+     "baseLo": 235,
+     "baseHi": 237,
+     "where": "below"
+    },
+    {
+     "type": "trace.ResourceSendRequest",
+     "class": "deterministic",
+     "base": 8,
+     "arm": 4,
+     "delta": -4,
+     "baseRuns": [
+      8,
+      8,
+      8
+     ],
+     "armRuns": [
+      4,
+      4,
+      4
+     ],
+     "baseLo": 8,
+     "baseHi": 8,
+     "where": "below"
+    },
+    {
+     "type": "trace.ScheduleStyleRecalculation",
+     "class": "deterministic",
+     "base": 201,
+     "arm": 104,
+     "delta": -97,
+     "baseRuns": [
+      201,
+      201,
+      201
+     ],
+     "armRuns": [
+      104,
+      104,
+      104
+     ],
+     "baseLo": 201,
+     "baseHi": 201,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayer",
+     "class": "stable",
+     "base": 588,
+     "arm": 637,
+     "delta": 49,
+     "baseRuns": [
+      588,
+      588,
+      588
+     ],
+     "armRuns": [
+      637,
+      637,
+      637
+     ],
+     "baseLo": 588,
+     "baseHi": 588,
+     "where": "above"
+    },
+    {
+     "type": "trace.UpdateLayoutTree",
+     "class": "deterministic",
+     "base": 200,
+     "arm": 103,
+     "delta": -97,
+     "baseRuns": [
+      200,
+      200,
+      200
+     ],
+     "armRuns": [
+      103,
+      103,
+      103
+     ],
+     "baseLo": 200,
+     "baseHi": 200,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree.elementCount",
+     "class": "quarantined",
+     "base": 6666,
+     "arm": 11175,
+     "delta": 4509,
+     "baseRuns": [
+      6666,
+      6666,
+      6666
+     ],
+     "armRuns": [
+      11175,
+      11175,
+      11175
+     ],
+     "baseLo": 6666,
+     "baseHi": 6666,
+     "where": "above"
+    }
+   ]
+  },
+  {
+   "id": "y00500",
+   "frames": 50,
+   "cells": [
+    {
+     "type": "census.activeTileAreaPx",
+     "class": "stable",
+     "base": 196014080,
+     "arm": 196423680,
+     "delta": 409600,
+     "baseRuns": [
+      196014080,
+      196014080,
+      196014080
+     ],
+     "armRuns": [
+      196423680,
+      196423680,
+      196423680
+     ],
+     "baseLo": 196014080,
+     "baseHi": 196014080,
+     "where": "above"
+    },
+    {
+     "type": "census.activeTiles",
+     "class": "stable",
+     "base": 3100,
+     "arm": 3150,
+     "delta": 50,
+     "baseRuns": [
+      3100,
+      3100,
+      3100
+     ],
+     "armRuns": [
+      3150,
+      3150,
+      3150
+     ],
+     "baseLo": 3100,
+     "baseHi": 3100,
+     "where": "above"
+    },
+    {
+     "type": "census.drawingAreaPx",
+     "class": "stable",
+     "base": 386409471,
+     "arm": 424944871,
+     "delta": 38535400,
+     "baseRuns": [
+      386409471,
+      386409471,
+      386409471
+     ],
+     "armRuns": [
+      424944871,
+      424944871,
+      424944871
+     ],
+     "baseLo": 386409471,
+     "baseHi": 386409471,
+     "where": "above"
+    },
+    {
+     "type": "census.drawingLayers",
+     "class": "stable",
+     "base": 1485,
+     "arm": 1935,
+     "delta": 450,
+     "baseRuns": [
+      1485,
+      1485,
+      1485
+     ],
+     "armRuns": [
+      1935,
+      1935,
+      1935
+     ],
+     "baseLo": 1485,
+     "baseHi": 1485,
+     "where": "above"
+    },
+    {
+     "type": "census.layers",
+     "class": "stable",
+     "base": 1743,
+     "arm": 2193,
+     "delta": 450,
+     "baseRuns": [
+      1743,
+      1743,
+      1743
+     ],
+     "armRuns": [
+      2193,
+      2193,
+      2193
+     ],
+     "baseLo": 1743,
+     "baseHi": 1743,
+     "where": "above"
+    },
+    {
+     "type": "census.tiles",
+     "class": "stable",
+     "base": 3307,
+     "arm": 3357,
+     "delta": 50,
+     "baseRuns": [
+      3307,
+      3307,
+      3307
+     ],
+     "armRuns": [
+      3357,
+      3357,
+      3357
+     ],
+     "baseLo": 3307,
+     "baseHi": 3307,
+     "where": "above"
+    },
+    {
+     "type": "census.tilings",
+     "class": "stable",
+     "base": 1266,
+     "arm": 1316,
+     "delta": 50,
+     "baseRuns": [
+      1266,
+      1266,
+      1266
+     ],
+     "armRuns": [
+      1316,
+      1316,
+      1316
+     ],
+     "baseLo": 1266,
+     "baseHi": 1266,
+     "where": "above"
+    },
+    {
+     "type": "metric.RecalcStyleCount",
+     "class": "deterministic",
+     "base": 204,
+     "arm": 102,
+     "delta": -102,
+     "baseRuns": [
+      204,
+      204,
+      204
+     ],
+     "armRuns": [
+      102,
+      102,
+      102
+     ],
+     "baseLo": 204,
+     "baseHi": 204,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidatedLayers",
+     "class": "stable",
+     "base": 243,
+     "arm": 293,
+     "delta": 50,
+     "baseRuns": [
+      243,
+      243,
+      243
+     ],
+     "armRuns": [
+      293,
+      293,
+      293
+     ],
+     "baseLo": 243,
+     "baseHi": 243,
+     "where": "above"
+    },
+    {
+     "type": "raster.invalidationAreaPx",
+     "class": "stable",
+     "base": 15929215,
+     "arm": 15974665,
+     "delta": 45450,
+     "baseRuns": [
+      15929215,
+      15929215,
+      15929215
+     ],
+     "armRuns": [
+      15974665,
+      15974665,
+      15974665
+     ],
+     "baseLo": 15929215,
+     "baseHi": 15929215,
+     "where": "above"
+    },
+    {
+     "type": "raster.invalidationRects",
+     "class": "stable",
+     "base": 303,
+     "arm": 853,
+     "delta": 550,
+     "baseRuns": [
+      303,
+      303,
+      303
+     ],
+     "armRuns": [
+      853,
+      853,
+      853
+     ],
+     "baseLo": 303,
+     "baseHi": 303,
+     "where": "above"
+    },
+    {
+     "type": "trace.FireAnimationFrame",
+     "class": "quarantined",
+     "base": 227,
+     "arm": 177,
+     "delta": -50,
+     "baseRuns": [
+      227,
+      227,
+      227
+     ],
+     "armRuns": [
+      177,
+      177,
+      177
+     ],
+     "baseLo": 227,
+     "baseHi": 227,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layout.totalObjects",
+     "class": "quarantined",
+     "base": 44292,
+     "arm": 65404,
+     "delta": 21112,
+     "baseRuns": [
+      44292,
+      44292,
+      44285
+     ],
+     "armRuns": [
+      65404,
+      65404,
+      65404
+     ],
+     "baseLo": 44285,
+     "baseHi": 44292,
+     "where": "above"
+    },
+    {
+     "type": "trace.Paint",
+     "class": "quarantined",
+     "base": 430,
+     "arm": 411,
+     "delta": -19,
+     "baseRuns": [
+      430,
+      430,
+      430
+     ],
+     "armRuns": [
+      411,
+      411,
+      411
+     ],
+     "baseLo": 430,
+     "baseHi": 430,
+     "where": "below"
+    },
+    {
+     "type": "trace.RequestAnimationFrame",
+     "class": "quarantined",
+     "base": 227,
+     "arm": 177,
+     "delta": -50,
+     "baseRuns": [
+      227,
+      227,
+      227
+     ],
+     "armRuns": [
+      177,
+      177,
+      177
+     ],
+     "baseLo": 227,
+     "baseHi": 227,
+     "where": "below"
+    },
+    {
+     "type": "trace.ScheduleStyleRecalculation",
+     "class": "deterministic",
+     "base": 211,
+     "arm": 110,
+     "delta": -101,
+     "baseRuns": [
+      211,
+      211,
+      211
+     ],
+     "armRuns": [
+      110,
+      110,
+      110
+     ],
+     "baseLo": 211,
+     "baseHi": 211,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayer",
+     "class": "stable",
+     "base": 1326,
+     "arm": 1376,
+     "delta": 50,
+     "baseRuns": [
+      1326,
+      1326,
+      1326
+     ],
+     "armRuns": [
+      1376,
+      1376,
+      1376
+     ],
+     "baseLo": 1326,
+     "baseHi": 1326,
+     "where": "above"
+    },
+    {
+     "type": "trace.UpdateLayoutTree",
+     "class": "deterministic",
+     "base": 208,
+     "arm": 106,
+     "delta": -102,
+     "baseRuns": [
+      208,
+      208,
+      208
+     ],
+     "armRuns": [
+      106,
+      106,
+      106
+     ],
+     "baseLo": 208,
+     "baseHi": 208,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree.elementCount",
+     "class": "quarantined",
+     "base": 6701,
+     "arm": 10766,
+     "delta": 4065,
+     "baseRuns": [
+      6701,
+      6701,
+      6701
+     ],
+     "armRuns": [
+      10766,
+      10766,
+      10766
+     ],
+     "baseLo": 6701,
+     "baseHi": 6701,
+     "where": "above"
+    }
+   ]
+  },
+  {
+   "id": "y01000",
+   "frames": 50,
+   "cells": [
+    {
+     "type": "census.activeTileAreaPx",
+     "class": "stable",
+     "base": 227409920,
+     "arm": 227475456,
+     "delta": 65536,
+     "baseRuns": [
+      227409920,
+      227409920,
+      227409920
+     ],
+     "armRuns": [
+      227475456,
+      227475456,
+      227475456
+     ],
+     "baseLo": 227409920,
+     "baseHi": 227409920,
+     "where": "above"
+    },
+    {
+     "type": "census.activeTiles",
+     "class": "stable",
+     "base": 3603,
+     "arm": 3611,
+     "delta": 8,
+     "baseRuns": [
+      3603,
+      3603,
+      3603
+     ],
+     "armRuns": [
+      3611,
+      3611,
+      3611
+     ],
+     "baseLo": 3603,
+     "baseHi": 3603,
+     "where": "above"
+    },
+    {
+     "type": "census.drawingAreaPx",
+     "class": "stable",
+     "base": 519931802,
+     "arm": 526097466,
+     "delta": 6165664,
+     "baseRuns": [
+      519931802,
+      519931802,
+      519931802
+     ],
+     "armRuns": [
+      526097466,
+      526097466,
+      526097466
+     ],
+     "baseLo": 519931802,
+     "baseHi": 519931802,
+     "where": "above"
+    },
+    {
+     "type": "census.drawingLayers",
+     "class": "stable",
+     "base": 2304,
+     "arm": 2375,
+     "delta": 71,
+     "baseRuns": [
+      2303,
+      2304,
+      2304
+     ],
+     "armRuns": [
+      2375,
+      2375,
+      2375
+     ],
+     "baseLo": 2303,
+     "baseHi": 2304,
+     "where": "above"
+    },
+    {
+     "type": "census.layers",
+     "class": "stable",
+     "base": 2623,
+     "arm": 2694,
+     "delta": 71,
+     "baseRuns": [
+      2622,
+      2623,
+      2623
+     ],
+     "armRuns": [
+      2694,
+      2694,
+      2694
+     ],
+     "baseLo": 2622,
+     "baseHi": 2623,
+     "where": "above"
+    },
+    {
+     "type": "census.tiles",
+     "class": "stable",
+     "base": 3971,
+     "arm": 3979,
+     "delta": 8,
+     "baseRuns": [
+      3971,
+      3971,
+      3971
+     ],
+     "armRuns": [
+      3979,
+      3979,
+      3979
+     ],
+     "baseLo": 3971,
+     "baseHi": 3971,
+     "where": "above"
+    },
+    {
+     "type": "census.tilings",
+     "class": "stable",
+     "base": 1721,
+     "arm": 1729,
+     "delta": 8,
+     "baseRuns": [
+      1721,
+      1721,
+      1721
+     ],
+     "armRuns": [
+      1729,
+      1729,
+      1729
+     ],
+     "baseLo": 1721,
+     "baseHi": 1721,
+     "where": "above"
+    },
+    {
+     "type": "metric.JSEventListeners",
+     "class": "quarantined",
+     "base": -53,
+     "arm": -112,
+     "delta": -59,
+     "baseRuns": [
+      -53,
+      -53,
+      -43
+     ],
+     "armRuns": [
+      -112,
+      -112,
+      -112
+     ],
+     "baseLo": -53,
+     "baseHi": -43,
+     "where": "below"
+    },
+    {
+     "type": "metric.LayoutCount",
+     "class": "stable",
+     "base": 38,
+     "arm": 37,
+     "delta": -1,
+     "baseRuns": [
+      38,
+      38,
+      38
+     ],
+     "armRuns": [
+      37,
+      37,
+      37
+     ],
+     "baseLo": 38,
+     "baseHi": 38,
+     "where": "below"
+    },
+    {
+     "type": "metric.LayoutObjects",
+     "class": "quarantined",
+     "base": 360,
+     "arm": 17,
+     "delta": -343,
+     "baseRuns": [
+      360,
+      360,
+      364
+     ],
+     "armRuns": [
+      17,
+      17,
+      17
+     ],
+     "baseLo": 360,
+     "baseHi": 364,
+     "where": "below"
+    },
+    {
+     "type": "metric.Nodes",
+     "class": "quarantined",
+     "base": 319,
+     "arm": 42,
+     "delta": -277,
+     "baseRuns": [
+      319,
+      319,
+      320
+     ],
+     "armRuns": [
+      42,
+      42,
+      42
+     ],
+     "baseLo": 319,
+     "baseHi": 320,
+     "where": "below"
+    },
+    {
+     "type": "metric.RecalcStyleCount",
+     "class": "deterministic",
+     "base": 170,
+     "arm": 57,
+     "delta": -113,
+     "baseRuns": [
+      170,
+      170,
+      170
+     ],
+     "armRuns": [
+      57,
+      57,
+      57
+     ],
+     "baseLo": 170,
+     "baseHi": 170,
+     "where": "below"
+    },
+    {
+     "type": "metric.Resources",
+     "class": "stable",
+     "base": 14,
+     "arm": -3,
+     "delta": -17,
+     "baseRuns": [
+      14,
+      14,
+      14
+     ],
+     "armRuns": [
+      -3,
+      -3,
+      -3
+     ],
+     "baseLo": 14,
+     "baseHi": 14,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidatedLayers",
+     "class": "stable",
+     "base": 258,
+     "arm": 182,
+     "delta": -76,
+     "baseRuns": [
+      258,
+      258,
+      258
+     ],
+     "armRuns": [
+      182,
+      182,
+      182
+     ],
+     "baseLo": 258,
+     "baseHi": 258,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationAreaPx",
+     "class": "stable",
+     "base": 30485659,
+     "arm": 30377263,
+     "delta": -108396,
+     "baseRuns": [
+      30485659,
+      30485659,
+      30485659
+     ],
+     "armRuns": [
+      30377263,
+      30377263,
+      30377263
+     ],
+     "baseLo": 30485659,
+     "baseHi": 30485659,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationRects",
+     "class": "stable",
+     "base": 262,
+     "arm": 266,
+     "delta": 4,
+     "baseRuns": [
+      262,
+      262,
+      262
+     ],
+     "armRuns": [
+      266,
+      266,
+      266
+     ],
+     "baseLo": 262,
+     "baseHi": 262,
+     "where": "above"
+    },
+    {
+     "type": "trace.Animation.begin",
+     "class": "deterministic",
+     "base": 21,
+     "arm": 18,
+     "delta": -3,
+     "baseRuns": [
+      21,
+      21,
+      21
+     ],
+     "armRuns": [
+      18,
+      18,
+      18
+     ],
+     "baseLo": 21,
+     "baseHi": 21,
+     "where": "below"
+    },
+    {
+     "type": "trace.Animation.compositeFailedBits",
+     "class": "deterministic",
+     "base": 77984,
+     "arm": 53408,
+     "delta": -24576,
+     "baseRuns": [
+      77984,
+      77984,
+      77984
+     ],
+     "armRuns": [
+      53408,
+      53408,
+      53408
+     ],
+     "baseLo": 77984,
+     "baseHi": 77984,
+     "where": "below"
+    },
+    {
+     "type": "trace.Animation.instant",
+     "class": "deterministic",
+     "base": 28,
+     "arm": 25,
+     "delta": -3,
+     "baseRuns": [
+      28,
+      28,
+      28
+     ],
+     "armRuns": [
+      25,
+      25,
+      25
+     ],
+     "baseLo": 28,
+     "baseHi": 28,
+     "where": "below"
+    },
+    {
+     "type": "trace.DisplayItemListRaster",
+     "class": "quarantined",
+     "base": 298,
+     "arm": 296,
+     "delta": -2,
+     "baseRuns": [
+      298,
+      298,
+      298
+     ],
+     "armRuns": [
+      296,
+      296,
+      296
+     ],
+     "baseLo": 298,
+     "baseHi": 298,
+     "where": "below"
+    },
+    {
+     "type": "trace.EventDispatch",
+     "class": "quarantined",
+     "base": 312,
+     "arm": 288,
+     "delta": -24,
+     "baseRuns": [
+      312,
+      312,
+      312
+     ],
+     "armRuns": [
+      288,
+      288,
+      288
+     ],
+     "baseLo": 312,
+     "baseHi": 312,
+     "where": "below"
+    },
+    {
+     "type": "trace.FireAnimationFrame",
+     "class": "quarantined",
+     "base": 236,
+     "arm": 177,
+     "delta": -59,
+     "baseRuns": [
+      236,
+      236,
+      236
+     ],
+     "armRuns": [
+      177,
+      177,
+      177
+     ],
+     "baseLo": 236,
+     "baseHi": 236,
+     "where": "below"
+    },
+    {
+     "type": "trace.FunctionCall",
+     "class": "quarantined",
+     "base": 542,
+     "arm": 476,
+     "delta": -66,
+     "baseRuns": [
+      542,
+      542,
+      542
+     ],
+     "armRuns": [
+      476,
+      476,
+      476
+     ],
+     "baseLo": 542,
+     "baseHi": 542,
+     "where": "below"
+    },
+    {
+     "type": "trace.IntersectionObserverCompute",
+     "class": "deterministic",
+     "base": 101,
+     "arm": 100,
+     "delta": -1,
+     "baseRuns": [
+      101,
+      101,
+      101
+     ],
+     "armRuns": [
+      100,
+      100,
+      100
+     ],
+     "baseLo": 101,
+     "baseHi": 101,
+     "where": "below"
+    },
+    {
+     "type": "trace.InvalidateLayout",
+     "class": "quarantined",
+     "base": 84,
+     "arm": 82,
+     "delta": -2,
+     "baseRuns": [
+      84,
+      84,
+      84
+     ],
+     "armRuns": [
+      82,
+      82,
+      82
+     ],
+     "baseLo": 84,
+     "baseHi": 84,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layer.created",
+     "class": "deterministic",
+     "base": 13,
+     "arm": 4,
+     "delta": -9,
+     "baseRuns": [
+      13,
+      13,
+      13
+     ],
+     "armRuns": [
+      4,
+      4,
+      4
+     ],
+     "baseLo": 13,
+     "baseHi": 13,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layer.deleted",
+     "class": "quarantined",
+     "base": 22,
+     "arm": 20,
+     "delta": -2,
+     "baseRuns": [
+      22,
+      22,
+      21
+     ],
+     "armRuns": [
+      20,
+      20,
+      20
+     ],
+     "baseLo": 21,
+     "baseHi": 22,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layout",
+     "class": "quarantined",
+     "base": 62,
+     "arm": 61,
+     "delta": -1,
+     "baseRuns": [
+      62,
+      62,
+      62
+     ],
+     "armRuns": [
+      61,
+      61,
+      61
+     ],
+     "baseLo": 62,
+     "baseHi": 62,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layout.dirtyObjects",
+     "class": "quarantined",
+     "base": 1854,
+     "arm": 1487,
+     "delta": -367,
+     "baseRuns": [
+      1854,
+      1854,
+      1854
+     ],
+     "armRuns": [
+      1487,
+      1487,
+      1487
+     ],
+     "baseLo": 1854,
+     "baseHi": 1854,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layout.totalObjects",
+     "class": "quarantined",
+     "base": 54724,
+     "arm": 58155,
+     "delta": 3431,
+     "baseRuns": [
+      54724,
+      54724,
+      54724
+     ],
+     "armRuns": [
+      58155,
+      58155,
+      58155
+     ],
+     "baseLo": 54724,
+     "baseHi": 54724,
+     "where": "above"
+    },
+    {
+     "type": "trace.MinorGC",
+     "class": "stable",
+     "base": 2,
+     "arm": 1,
+     "delta": -1,
+     "baseRuns": [
+      2,
+      2,
+      2
+     ],
+     "armRuns": [
+      1,
+      1,
+      1
+     ],
+     "baseLo": 2,
+     "baseHi": 2,
+     "where": "below"
+    },
+    {
+     "type": "trace.PaintImage",
+     "class": "stable",
+     "base": 316,
+     "arm": 300,
+     "delta": -16,
+     "baseRuns": [
+      316,
+      316,
+      316
+     ],
+     "armRuns": [
+      300,
+      300,
+      300
+     ],
+     "baseLo": 316,
+     "baseHi": 316,
+     "where": "below"
+    },
+    {
+     "type": "trace.PrePaint",
+     "class": "stable",
+     "base": 213,
+     "arm": 212,
+     "delta": -1,
+     "baseRuns": [
+      213,
+      213,
+      213
+     ],
+     "armRuns": [
+      212,
+      212,
+      212
+     ],
+     "baseLo": 213,
+     "baseHi": 213,
+     "where": "below"
+    },
+    {
+     "type": "trace.RasterTask",
+     "class": "quarantined",
+     "base": 298,
+     "arm": 296,
+     "delta": -2,
+     "baseRuns": [
+      298,
+      298,
+      298
+     ],
+     "armRuns": [
+      296,
+      296,
+      296
+     ],
+     "baseLo": 298,
+     "baseHi": 298,
+     "where": "below"
+    },
+    {
+     "type": "trace.RequestAnimationFrame",
+     "class": "quarantined",
+     "base": 236,
+     "arm": 178,
+     "delta": -58,
+     "baseRuns": [
+      236,
+      236,
+      236
+     ],
+     "armRuns": [
+      178,
+      178,
+      178
+     ],
+     "baseLo": 236,
+     "baseHi": 236,
+     "where": "below"
+    },
+    {
+     "type": "trace.ResizeObserverNotify",
+     "class": "deterministic",
+     "base": 77,
+     "arm": 76,
+     "delta": -1,
+     "baseRuns": [
+      77,
+      77,
+      77
+     ],
+     "armRuns": [
+      76,
+      76,
+      76
+     ],
+     "baseLo": 77,
+     "baseHi": 77,
+     "where": "below"
+    },
+    {
+     "type": "trace.ResourceSendRequest",
+     "class": "deterministic",
+     "base": 29,
+     "arm": 12,
+     "delta": -17,
+     "baseRuns": [
+      29,
+      29,
+      29
+     ],
+     "armRuns": [
+      12,
+      12,
+      12
+     ],
+     "baseLo": 29,
+     "baseHi": 29,
+     "where": "below"
+    },
+    {
+     "type": "trace.ScheduleStyleRecalculation",
+     "class": "deterministic",
+     "base": 194,
+     "arm": 81,
+     "delta": -113,
+     "baseRuns": [
+      194,
+      194,
+      194
+     ],
+     "armRuns": [
+      81,
+      81,
+      81
+     ],
+     "baseLo": 194,
+     "baseHi": 194,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayer",
+     "class": "stable",
+     "base": 1459,
+     "arm": 1467,
+     "delta": 8,
+     "baseRuns": [
+      1459,
+      1459,
+      1459
+     ],
+     "armRuns": [
+      1467,
+      1467,
+      1467
+     ],
+     "baseLo": 1459,
+     "baseHi": 1459,
+     "where": "above"
+    },
+    {
+     "type": "trace.UpdateLayoutTree",
+     "class": "deterministic",
+     "base": 182,
+     "arm": 69,
+     "delta": -113,
+     "baseRuns": [
+      182,
+      182,
+      182
+     ],
+     "armRuns": [
+      69,
+      69,
+      69
+     ],
+     "baseLo": 182,
+     "baseHi": 182,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree.elementCount",
+     "class": "quarantined",
+     "base": 3747,
+     "arm": 772,
+     "delta": -2975,
+     "baseRuns": [
+      3747,
+      3747,
+      3746
+     ],
+     "armRuns": [
+      772,
+      772,
+      772
+     ],
+     "baseLo": 3746,
+     "baseHi": 3747,
+     "where": "below"
+    }
+   ]
+  },
+  {
+   "id": "y01500",
+   "frames": 50,
+   "cells": [
+    {
+     "type": "metric.RecalcStyleCount",
+     "class": "deterministic",
+     "base": 200,
+     "arm": 52,
+     "delta": -148,
+     "baseRuns": [
+      200,
+      200,
+      200
+     ],
+     "armRuns": [
+      52,
+      52,
+      52
+     ],
+     "baseLo": 200,
+     "baseHi": 200,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidatedLayers",
+     "class": "stable",
+     "base": 238,
+     "arm": 138,
+     "delta": -100,
+     "baseRuns": [
+      238,
+      238,
+      238
+     ],
+     "armRuns": [
+      138,
+      138,
+      138
+     ],
+     "baseLo": 238,
+     "baseHi": 238,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationAreaPx",
+     "class": "stable",
+     "base": 3237107,
+     "arm": 3099407,
+     "delta": -137700,
+     "baseRuns": [
+      3237107,
+      3237107,
+      3237107
+     ],
+     "armRuns": [
+      3099407,
+      3099407,
+      3099407
+     ],
+     "baseLo": 3237107,
+     "baseHi": 3237107,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationRects",
+     "class": "stable",
+     "base": 247,
+     "arm": 147,
+     "delta": -100,
+     "baseRuns": [
+      247,
+      247,
+      247
+     ],
+     "armRuns": [
+      147,
+      147,
+      147
+     ],
+     "baseLo": 247,
+     "baseHi": 247,
+     "where": "below"
+    },
+    {
+     "type": "trace.Animation.compositeFailedBits",
+     "class": "deterministic",
+     "base": 123008,
+     "arm": 41088,
+     "delta": -81920,
+     "baseRuns": [
+      123008,
+      123008,
+      123008
+     ],
+     "armRuns": [
+      41088,
+      41088,
+      41088
+     ],
+     "baseLo": 123008,
+     "baseHi": 123008,
+     "where": "below"
+    },
+    {
+     "type": "trace.Animation.instant",
+     "class": "deterministic",
+     "base": 21,
+     "arm": 11,
+     "delta": -10,
+     "baseRuns": [
+      21,
+      21,
+      21
+     ],
+     "armRuns": [
+      11,
+      11,
+      11
+     ],
+     "baseLo": 21,
+     "baseHi": 21,
+     "where": "below"
+    },
+    {
+     "type": "trace.FireAnimationFrame",
+     "class": "quarantined",
+     "base": 254,
+     "arm": 169,
+     "delta": -85,
+     "baseRuns": [
+      254,
+      254,
+      254
+     ],
+     "armRuns": [
+      169,
+      169,
+      169
+     ],
+     "baseLo": 254,
+     "baseHi": 254,
+     "where": "below"
+    },
+    {
+     "type": "trace.FunctionCall",
+     "class": "quarantined",
+     "base": 364,
+     "arm": 329,
+     "delta": -35,
+     "baseRuns": [
+      364,
+      364,
+      364
+     ],
+     "armRuns": [
+      329,
+      329,
+      329
+     ],
+     "baseLo": 364,
+     "baseHi": 364,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layer.deleted",
+     "class": "quarantined",
+     "base": 4,
+     "arm": 0,
+     "delta": -4,
+     "baseRuns": [
+      4,
+      4,
+      6
+     ],
+     "armRuns": [
+      0,
+      0,
+      0
+     ],
+     "baseLo": 4,
+     "baseHi": 6,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layout.totalObjects",
+     "class": "quarantined",
+     "base": 22260,
+     "arm": 23044,
+     "delta": 784,
+     "baseRuns": [
+      22260,
+      22260,
+      22260
+     ],
+     "armRuns": [
+      23044,
+      23044,
+      23044
+     ],
+     "baseLo": 22260,
+     "baseHi": 22260,
+     "where": "above"
+    },
+    {
+     "type": "trace.MajorGC",
+     "class": "quarantined",
+     "base": 1,
+     "arm": 0,
+     "delta": -1,
+     "baseRuns": [
+      1,
+      1,
+      2
+     ],
+     "armRuns": [
+      0,
+      0,
+      0
+     ],
+     "baseLo": 1,
+     "baseHi": 2,
+     "where": "below"
+    },
+    {
+     "type": "trace.Paint",
+     "class": "quarantined",
+     "base": 285,
+     "arm": 245,
+     "delta": -40,
+     "baseRuns": [
+      285,
+      285,
+      285
+     ],
+     "armRuns": [
+      245,
+      244,
+      245
+     ],
+     "baseLo": 285,
+     "baseHi": 285,
+     "where": "below"
+    },
+    {
+     "type": "trace.RequestAnimationFrame",
+     "class": "quarantined",
+     "base": 254,
+     "arm": 170,
+     "delta": -84,
+     "baseRuns": [
+      254,
+      254,
+      254
+     ],
+     "armRuns": [
+      170,
+      170,
+      170
+     ],
+     "baseLo": 254,
+     "baseHi": 254,
+     "where": "below"
+    },
+    {
+     "type": "trace.ScheduleStyleRecalculation",
+     "class": "deterministic",
+     "base": 200,
+     "arm": 52,
+     "delta": -148,
+     "baseRuns": [
+      200,
+      200,
+      200
+     ],
+     "armRuns": [
+      52,
+      52,
+      52
+     ],
+     "baseLo": 200,
+     "baseHi": 200,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree",
+     "class": "deterministic",
+     "base": 200,
+     "arm": 52,
+     "delta": -148,
+     "baseRuns": [
+      200,
+      200,
+      200
+     ],
+     "armRuns": [
+      52,
+      52,
+      52
+     ],
+     "baseLo": 200,
+     "baseHi": 200,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree.elementCount",
+     "class": "quarantined",
+     "base": 6297,
+     "arm": 499,
+     "delta": -5798,
+     "baseRuns": [
+      6296,
+      6298,
+      6297
+     ],
+     "armRuns": [
+      500,
+      498,
+      499
+     ],
+     "baseLo": 6296,
+     "baseHi": 6298,
+     "where": "below"
+    }
+   ]
+  },
+  {
+   "id": "y02000",
+   "frames": 50,
+   "cells": [
+    {
+     "type": "metric.JSEventListeners",
+     "class": "quarantined",
+     "base": 0,
+     "arm": -10,
+     "delta": -10,
+     "baseRuns": [
+      0,
+      0,
+      18
+     ],
+     "armRuns": [
+      -10,
+      -10,
+      -10
+     ],
+     "baseLo": 0,
+     "baseHi": 18,
+     "where": "below"
+    },
+    {
+     "type": "metric.LayoutObjects",
+     "class": "quarantined",
+     "base": 0,
+     "arm": -5,
+     "delta": -5,
+     "baseRuns": [
+      0,
+      0,
+      9
+     ],
+     "armRuns": [
+      -5,
+      -5,
+      -5
+     ],
+     "baseLo": 0,
+     "baseHi": 9,
+     "where": "below"
+    },
+    {
+     "type": "metric.Nodes",
+     "class": "quarantined",
+     "base": 0,
+     "arm": -5,
+     "delta": -5,
+     "baseRuns": [
+      0,
+      0,
+      9
+     ],
+     "armRuns": [
+      -5,
+      -5,
+      -5
+     ],
+     "baseLo": 0,
+     "baseHi": 9,
+     "where": "below"
+    },
+    {
+     "type": "metric.RecalcStyleCount",
+     "class": "deterministic",
+     "base": 156,
+     "arm": 56,
+     "delta": -100,
+     "baseRuns": [
+      156,
+      156,
+      156
+     ],
+     "armRuns": [
+      56,
+      56,
+      56
+     ],
+     "baseLo": 156,
+     "baseHi": 156,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidatedLayers",
+     "class": "stable",
+     "base": 245,
+     "arm": 183,
+     "delta": -62,
+     "baseRuns": [
+      245,
+      245,
+      245
+     ],
+     "armRuns": [
+      183,
+      183,
+      183
+     ],
+     "baseLo": 245,
+     "baseHi": 245,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationAreaPx",
+     "class": "stable",
+     "base": 355312,
+     "arm": 269938,
+     "delta": -85374,
+     "baseRuns": [
+      355312,
+      355312,
+      355312
+     ],
+     "armRuns": [
+      269938,
+      269938,
+      269938
+     ],
+     "baseLo": 355312,
+     "baseHi": 355312,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationRects",
+     "class": "stable",
+     "base": 625,
+     "arm": 563,
+     "delta": -62,
+     "baseRuns": [
+      625,
+      625,
+      625
+     ],
+     "armRuns": [
+      563,
+      563,
+      563
+     ],
+     "baseLo": 625,
+     "baseHi": 625,
+     "where": "below"
+    },
+    {
+     "type": "trace.FireAnimationFrame",
+     "class": "quarantined",
+     "base": 241,
+     "arm": 167,
+     "delta": -74,
+     "baseRuns": [
+      241,
+      241,
+      242
+     ],
+     "armRuns": [
+      167,
+      167,
+      167
+     ],
+     "baseLo": 241,
+     "baseHi": 242,
+     "where": "below"
+    },
+    {
+     "type": "trace.FunctionCall",
+     "class": "quarantined",
+     "base": 489,
+     "arm": 466,
+     "delta": -23,
+     "baseRuns": [
+      489,
+      489,
+      490
+     ],
+     "armRuns": [
+      466,
+      466,
+      466
+     ],
+     "baseLo": 489,
+     "baseHi": 490,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layer.deleted",
+     "class": "quarantined",
+     "base": 2,
+     "arm": 8,
+     "delta": 6,
+     "baseRuns": [
+      2,
+      2,
+      0
+     ],
+     "armRuns": [
+      8,
+      8,
+      8
+     ],
+     "baseLo": 0,
+     "baseHi": 2,
+     "where": "above"
+    },
+    {
+     "type": "trace.Layout.totalObjects",
+     "class": "quarantined",
+     "base": 84220,
+     "arm": 87188,
+     "delta": 2968,
+     "baseRuns": [
+      84220,
+      84220,
+      84220
+     ],
+     "armRuns": [
+      87188,
+      87188,
+      87188
+     ],
+     "baseLo": 84220,
+     "baseHi": 84220,
+     "where": "above"
+    },
+    {
+     "type": "trace.MajorGC",
+     "class": "quarantined",
+     "base": 1,
+     "arm": 2,
+     "delta": 1,
+     "baseRuns": [
+      1,
+      1,
+      0
+     ],
+     "armRuns": [
+      2,
+      2,
+      2
+     ],
+     "baseLo": 0,
+     "baseHi": 1,
+     "where": "above"
+    },
+    {
+     "type": "trace.Paint",
+     "class": "quarantined",
+     "base": 235,
+     "arm": 216,
+     "delta": -19,
+     "baseRuns": [
+      235,
+      235,
+      234
+     ],
+     "armRuns": [
+      216,
+      216,
+      216
+     ],
+     "baseLo": 234,
+     "baseHi": 235,
+     "where": "below"
+    },
+    {
+     "type": "trace.RequestAnimationFrame",
+     "class": "quarantined",
+     "base": 243,
+     "arm": 167,
+     "delta": -76,
+     "baseRuns": [
+      243,
+      243,
+      244
+     ],
+     "armRuns": [
+      167,
+      167,
+      167
+     ],
+     "baseLo": 243,
+     "baseHi": 244,
+     "where": "below"
+    },
+    {
+     "type": "trace.ScheduleStyleRecalculation",
+     "class": "deterministic",
+     "base": 156,
+     "arm": 56,
+     "delta": -100,
+     "baseRuns": [
+      156,
+      156,
+      156
+     ],
+     "armRuns": [
+      56,
+      56,
+      56
+     ],
+     "baseLo": 156,
+     "baseHi": 156,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree",
+     "class": "deterministic",
+     "base": 156,
+     "arm": 56,
+     "delta": -100,
+     "baseRuns": [
+      156,
+      156,
+      156
+     ],
+     "armRuns": [
+      56,
+      56,
+      56
+     ],
+     "baseLo": 156,
+     "baseHi": 156,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree.elementCount",
+     "class": "quarantined",
+     "base": 2904,
+     "arm": 1304,
+     "delta": -1600,
+     "baseRuns": [
+      2904,
+      2904,
+      2904
+     ],
+     "armRuns": [
+      1304,
+      1304,
+      1304
+     ],
+     "baseLo": 2904,
+     "baseHi": 2904,
+     "where": "below"
+    }
+   ]
+  },
+  {
+   "id": "y02500",
+   "frames": 50,
+   "cells": [
+    {
+     "type": "metric.Nodes",
+     "class": "quarantined",
+     "base": 38,
+     "arm": 32,
+     "delta": -6,
+     "baseRuns": [
+      38,
+      38,
+      39
+     ],
+     "armRuns": [
+      32,
+      32,
+      28
+     ],
+     "baseLo": 38,
+     "baseHi": 39,
+     "where": "below"
+    },
+    {
+     "type": "metric.RecalcStyleCount",
+     "class": "deterministic",
+     "base": 216,
+     "arm": 117,
+     "delta": -99,
+     "baseRuns": [
+      216,
+      216,
+      216
+     ],
+     "armRuns": [
+      117,
+      117,
+      117
+     ],
+     "baseLo": 216,
+     "baseHi": 216,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidatedLayers",
+     "class": "stable",
+     "base": 276,
+     "arm": 226,
+     "delta": -50,
+     "baseRuns": [
+      276,
+      276,
+      276
+     ],
+     "armRuns": [
+      226,
+      226,
+      226
+     ],
+     "baseLo": 276,
+     "baseHi": 276,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationAreaPx",
+     "class": "stable",
+     "base": 2410520,
+     "arm": 2341670,
+     "delta": -68850,
+     "baseRuns": [
+      2410520,
+      2410520,
+      2410520
+     ],
+     "armRuns": [
+      2341670,
+      2341670,
+      2341670
+     ],
+     "baseLo": 2410520,
+     "baseHi": 2410520,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationRects",
+     "class": "stable",
+     "base": 776,
+     "arm": 726,
+     "delta": -50,
+     "baseRuns": [
+      776,
+      776,
+      776
+     ],
+     "armRuns": [
+      726,
+      726,
+      726
+     ],
+     "baseLo": 776,
+     "baseHi": 776,
+     "where": "below"
+    },
+    {
+     "type": "trace.Animation.compositeFailedBits",
+     "class": "deterministic",
+     "base": 393216,
+     "arm": 426112,
+     "delta": 32896,
+     "baseRuns": [
+      393216,
+      393216,
+      393216
+     ],
+     "armRuns": [
+      426112,
+      426112,
+      426112
+     ],
+     "baseLo": 393216,
+     "baseHi": 393216,
+     "where": "above"
+    },
+    {
+     "type": "trace.Animation.instant",
+     "class": "deterministic",
+     "base": 14,
+     "arm": 18,
+     "delta": 4,
+     "baseRuns": [
+      14,
+      14,
+      14
+     ],
+     "armRuns": [
+      18,
+      18,
+      18
+     ],
+     "baseLo": 14,
+     "baseHi": 14,
+     "where": "above"
+    },
+    {
+     "type": "trace.FireAnimationFrame",
+     "class": "quarantined",
+     "base": 257,
+     "arm": 191,
+     "delta": -66,
+     "baseRuns": [
+      257,
+      257,
+      257
+     ],
+     "armRuns": [
+      191,
+      191,
+      191
+     ],
+     "baseLo": 257,
+     "baseHi": 257,
+     "where": "below"
+    },
+    {
+     "type": "trace.FunctionCall",
+     "class": "quarantined",
+     "base": 514,
+     "arm": 499,
+     "delta": -15,
+     "baseRuns": [
+      514,
+      514,
+      514
+     ],
+     "armRuns": [
+      499,
+      499,
+      499
+     ],
+     "baseLo": 514,
+     "baseHi": 514,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layout.totalObjects",
+     "class": "quarantined",
+     "base": 23848,
+     "arm": 24688,
+     "delta": 840,
+     "baseRuns": [
+      23848,
+      23848,
+      23848
+     ],
+     "armRuns": [
+      24688,
+      24688,
+      24688
+     ],
+     "baseLo": 23848,
+     "baseHi": 23848,
+     "where": "above"
+    },
+    {
+     "type": "trace.MajorGC",
+     "class": "quarantined",
+     "base": 2,
+     "arm": 1,
+     "delta": -1,
+     "baseRuns": [
+      2,
+      2,
+      2
+     ],
+     "armRuns": [
+      1,
+      1,
+      1
+     ],
+     "baseLo": 2,
+     "baseHi": 2,
+     "where": "below"
+    },
+    {
+     "type": "trace.Paint",
+     "class": "quarantined",
+     "base": 220,
+     "arm": 170,
+     "delta": -50,
+     "baseRuns": [
+      220,
+      220,
+      220
+     ],
+     "armRuns": [
+      170,
+      170,
+      170
+     ],
+     "baseLo": 220,
+     "baseHi": 220,
+     "where": "below"
+    },
+    {
+     "type": "trace.RequestAnimationFrame",
+     "class": "quarantined",
+     "base": 287,
+     "arm": 219,
+     "delta": -68,
+     "baseRuns": [
+      287,
+      287,
+      287
+     ],
+     "armRuns": [
+      219,
+      219,
+      219
+     ],
+     "baseLo": 287,
+     "baseHi": 287,
+     "where": "below"
+    },
+    {
+     "type": "trace.ScheduleStyleRecalculation",
+     "class": "deterministic",
+     "base": 216,
+     "arm": 117,
+     "delta": -99,
+     "baseRuns": [
+      216,
+      216,
+      216
+     ],
+     "armRuns": [
+      117,
+      117,
+      117
+     ],
+     "baseLo": 216,
+     "baseHi": 216,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree",
+     "class": "deterministic",
+     "base": 216,
+     "arm": 117,
+     "delta": -99,
+     "baseRuns": [
+      216,
+      216,
+      216
+     ],
+     "armRuns": [
+      117,
+      117,
+      117
+     ],
+     "baseLo": 216,
+     "baseHi": 216,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree.elementCount",
+     "class": "quarantined",
+     "base": 4383,
+     "arm": 2795,
+     "delta": -1588,
+     "baseRuns": [
+      4383,
+      4383,
+      4425
+     ],
+     "armRuns": [
+      2795,
+      2795,
+      2797
+     ],
+     "baseLo": 4383,
+     "baseHi": 4425,
+     "where": "below"
+    }
+   ]
+  },
+  {
+   "id": "y03000",
+   "frames": 50,
+   "cells": [
+    {
+     "type": "metric.RecalcStyleCount",
+     "class": "deterministic",
+     "base": 252,
+     "arm": 152,
+     "delta": -100,
+     "baseRuns": [
+      252,
+      252,
+      252
+     ],
+     "armRuns": [
+      152,
+      152,
+      152
+     ],
+     "baseLo": 252,
+     "baseHi": 252,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidatedLayers",
+     "class": "stable",
+     "base": 268,
+     "arm": 218,
+     "delta": -50,
+     "baseRuns": [
+      268,
+      268,
+      268
+     ],
+     "armRuns": [
+      218,
+      218,
+      218
+     ],
+     "baseLo": 268,
+     "baseHi": 268,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationAreaPx",
+     "class": "stable",
+     "base": 5829738,
+     "arm": 5760888,
+     "delta": -68850,
+     "baseRuns": [
+      5829738,
+      5829738,
+      5829738
+     ],
+     "armRuns": [
+      5760888,
+      5760888,
+      5760888
+     ],
+     "baseLo": 5829738,
+     "baseHi": 5829738,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationRects",
+     "class": "stable",
+     "base": 768,
+     "arm": 718,
+     "delta": -50,
+     "baseRuns": [
+      768,
+      768,
+      768
+     ],
+     "armRuns": [
+      718,
+      718,
+      718
+     ],
+     "baseLo": 768,
+     "baseHi": 768,
+     "where": "below"
+    },
+    {
+     "type": "trace.EventDispatch",
+     "class": "quarantined",
+     "base": 155,
+     "arm": 160,
+     "delta": 5,
+     "baseRuns": [
+      155,
+      156,
+      155
+     ],
+     "armRuns": [
+      160,
+      160,
+      160
+     ],
+     "baseLo": 155,
+     "baseHi": 156,
+     "where": "above"
+    },
+    {
+     "type": "trace.FireAnimationFrame",
+     "class": "quarantined",
+     "base": 195,
+     "arm": 136,
+     "delta": -59,
+     "baseRuns": [
+      195,
+      195,
+      194
+     ],
+     "armRuns": [
+      136,
+      136,
+      136
+     ],
+     "baseLo": 194,
+     "baseHi": 195,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layout.totalObjects",
+     "class": "quarantined",
+     "base": 3188,
+     "arm": 3244,
+     "delta": 56,
+     "baseRuns": [
+      3188,
+      3188,
+      3188
+     ],
+     "armRuns": [
+      3244,
+      3244,
+      3244
+     ],
+     "baseLo": 3188,
+     "baseHi": 3188,
+     "where": "above"
+    },
+    {
+     "type": "trace.Paint",
+     "class": "quarantined",
+     "base": 195,
+     "arm": 176,
+     "delta": -19,
+     "baseRuns": [
+      195,
+      195,
+      194
+     ],
+     "armRuns": [
+      176,
+      176,
+      176
+     ],
+     "baseLo": 194,
+     "baseHi": 195,
+     "where": "below"
+    },
+    {
+     "type": "trace.RequestAnimationFrame",
+     "class": "quarantined",
+     "base": 242,
+     "arm": 184,
+     "delta": -58,
+     "baseRuns": [
+      242,
+      242,
+      241
+     ],
+     "armRuns": [
+      184,
+      184,
+      184
+     ],
+     "baseLo": 241,
+     "baseHi": 242,
+     "where": "below"
+    },
+    {
+     "type": "trace.ScheduleStyleRecalculation",
+     "class": "deterministic",
+     "base": 252,
+     "arm": 152,
+     "delta": -100,
+     "baseRuns": [
+      252,
+      252,
+      252
+     ],
+     "armRuns": [
+      152,
+      152,
+      152
+     ],
+     "baseLo": 252,
+     "baseHi": 252,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree",
+     "class": "deterministic",
+     "base": 252,
+     "arm": 152,
+     "delta": -100,
+     "baseRuns": [
+      252,
+      252,
+      252
+     ],
+     "armRuns": [
+      152,
+      152,
+      152
+     ],
+     "baseLo": 252,
+     "baseHi": 252,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree.elementCount",
+     "class": "quarantined",
+     "base": 6340,
+     "arm": 4740,
+     "delta": -1600,
+     "baseRuns": [
+      6340,
+      6340,
+      6362
+     ],
+     "armRuns": [
+      4740,
+      4740,
+      4740
+     ],
+     "baseLo": 6340,
+     "baseHi": 6362,
+     "where": "below"
+    }
+   ]
+  },
+  {
+   "id": "y03500",
+   "frames": 50,
+   "cells": [
+    {
+     "type": "metric.LayoutObjects",
+     "class": "quarantined",
+     "base": 0,
+     "arm": -1,
+     "delta": -1,
+     "baseRuns": [
+      0,
+      0,
+      0
+     ],
+     "armRuns": [
+      -1,
+      -1,
+      -1
+     ],
+     "baseLo": 0,
+     "baseHi": 0,
+     "where": "below"
+    },
+    {
+     "type": "metric.Nodes",
+     "class": "quarantined",
+     "base": -54,
+     "arm": -59,
+     "delta": -5,
+     "baseRuns": [
+      -54,
+      -54,
+      20
+     ],
+     "armRuns": [
+      -60,
+      -59,
+      -57
+     ],
+     "baseLo": -54,
+     "baseHi": 20,
+     "where": "below"
+    },
+    {
+     "type": "metric.RecalcStyleCount",
+     "class": "deterministic",
+     "base": 175,
+     "arm": 74,
+     "delta": -101,
+     "baseRuns": [
+      175,
+      175,
+      175
+     ],
+     "armRuns": [
+      74,
+      74,
+      74
+     ],
+     "baseLo": 175,
+     "baseHi": 175,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidatedLayers",
+     "class": "stable",
+     "base": 274,
+     "arm": 224,
+     "delta": -50,
+     "baseRuns": [
+      274,
+      274,
+      274
+     ],
+     "armRuns": [
+      224,
+      224,
+      224
+     ],
+     "baseLo": 274,
+     "baseHi": 274,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationAreaPx",
+     "class": "stable",
+     "base": 1956374,
+     "arm": 1887524,
+     "delta": -68850,
+     "baseRuns": [
+      1956374,
+      1956374,
+      1956374
+     ],
+     "armRuns": [
+      1887524,
+      1887524,
+      1887524
+     ],
+     "baseLo": 1956374,
+     "baseHi": 1956374,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationRects",
+     "class": "stable",
+     "base": 774,
+     "arm": 724,
+     "delta": -50,
+     "baseRuns": [
+      774,
+      774,
+      774
+     ],
+     "armRuns": [
+      724,
+      724,
+      724
+     ],
+     "baseLo": 774,
+     "baseHi": 774,
+     "where": "below"
+    },
+    {
+     "type": "trace.FireAnimationFrame",
+     "class": "quarantined",
+     "base": 161,
+     "arm": 87,
+     "delta": -74,
+     "baseRuns": [
+      161,
+      161,
+      161
+     ],
+     "armRuns": [
+      87,
+      87,
+      87
+     ],
+     "baseLo": 161,
+     "baseHi": 161,
+     "where": "below"
+    },
+    {
+     "type": "trace.FunctionCall",
+     "class": "quarantined",
+     "base": 486,
+     "arm": 460,
+     "delta": -26,
+     "baseRuns": [
+      486,
+      486,
+      488
+     ],
+     "armRuns": [
+      460,
+      460,
+      462
+     ],
+     "baseLo": 486,
+     "baseHi": 488,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layout.totalObjects",
+     "class": "quarantined",
+     "base": 5195,
+     "arm": 5307,
+     "delta": 112,
+     "baseRuns": [
+      5195,
+      5195,
+      5195
+     ],
+     "armRuns": [
+      5307,
+      5307,
+      5307
+     ],
+     "baseLo": 5195,
+     "baseHi": 5195,
+     "where": "above"
+    },
+    {
+     "type": "trace.Paint",
+     "class": "quarantined",
+     "base": 173,
+     "arm": 154,
+     "delta": -19,
+     "baseRuns": [
+      173,
+      173,
+      173
+     ],
+     "armRuns": [
+      154,
+      154,
+      154
+     ],
+     "baseLo": 173,
+     "baseHi": 173,
+     "where": "below"
+    },
+    {
+     "type": "trace.RequestAnimationFrame",
+     "class": "quarantined",
+     "base": 169,
+     "arm": 96,
+     "delta": -73,
+     "baseRuns": [
+      169,
+      169,
+      169
+     ],
+     "armRuns": [
+      96,
+      96,
+      96
+     ],
+     "baseLo": 169,
+     "baseHi": 169,
+     "where": "below"
+    },
+    {
+     "type": "trace.ScheduleStyleRecalculation",
+     "class": "deterministic",
+     "base": 175,
+     "arm": 74,
+     "delta": -101,
+     "baseRuns": [
+      175,
+      175,
+      175
+     ],
+     "armRuns": [
+      74,
+      74,
+      74
+     ],
+     "baseLo": 175,
+     "baseHi": 175,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree",
+     "class": "deterministic",
+     "base": 175,
+     "arm": 74,
+     "delta": -101,
+     "baseRuns": [
+      175,
+      175,
+      175
+     ],
+     "armRuns": [
+      74,
+      74,
+      74
+     ],
+     "baseLo": 175,
+     "baseHi": 175,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree.elementCount",
+     "class": "quarantined",
+     "base": 3305,
+     "arm": 1705,
+     "delta": -1600,
+     "baseRuns": [
+      3305,
+      3305,
+      3305
+     ],
+     "armRuns": [
+      1705,
+      1705,
+      1705
+     ],
+     "baseLo": 3305,
+     "baseHi": 3305,
+     "where": "below"
+    }
+   ]
+  },
+  {
+   "id": "y04000",
+   "frames": 50,
+   "cells": [
+    {
+     "type": "metric.LayoutObjects",
+     "class": "quarantined",
+     "base": 20,
+     "arm": 9,
+     "delta": -11,
+     "baseRuns": [
+      20,
+      20,
+      22
+     ],
+     "armRuns": [
+      10,
+      9,
+      8
+     ],
+     "baseLo": 20,
+     "baseHi": 22,
+     "where": "below"
+    },
+    {
+     "type": "metric.Nodes",
+     "class": "quarantined",
+     "base": 3,
+     "arm": 8,
+     "delta": 5,
+     "baseRuns": [
+      3,
+      3,
+      1
+     ],
+     "armRuns": [
+      8,
+      8,
+      7
+     ],
+     "baseLo": 1,
+     "baseHi": 3,
+     "where": "above"
+    },
+    {
+     "type": "metric.RecalcStyleCount",
+     "class": "deterministic",
+     "base": 175,
+     "arm": 52,
+     "delta": -123,
+     "baseRuns": [
+      175,
+      175,
+      175
+     ],
+     "armRuns": [
+      52,
+      52,
+      52
+     ],
+     "baseLo": 175,
+     "baseHi": 175,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidatedLayers",
+     "class": "stable",
+     "base": 244,
+     "arm": 197,
+     "delta": -47,
+     "baseRuns": [
+      244,
+      244,
+      244
+     ],
+     "armRuns": [
+      197,
+      197,
+      197
+     ],
+     "baseLo": 244,
+     "baseHi": 244,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationAreaPx",
+     "class": "stable",
+     "base": 1341808,
+     "arm": 1277089,
+     "delta": -64719,
+     "baseRuns": [
+      1341808,
+      1341808,
+      1341808
+     ],
+     "armRuns": [
+      1277089,
+      1277089,
+      1277089
+     ],
+     "baseLo": 1341808,
+     "baseHi": 1341808,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationRects",
+     "class": "stable",
+     "base": 714,
+     "arm": 667,
+     "delta": -47,
+     "baseRuns": [
+      714,
+      714,
+      714
+     ],
+     "armRuns": [
+      667,
+      667,
+      667
+     ],
+     "baseLo": 714,
+     "baseHi": 714,
+     "where": "below"
+    },
+    {
+     "type": "trace.EventDispatch",
+     "class": "quarantined",
+     "base": 143,
+     "arm": 140,
+     "delta": -3,
+     "baseRuns": [
+      144,
+      143,
+      143
+     ],
+     "armRuns": [
+      140,
+      140,
+      139
+     ],
+     "baseLo": 143,
+     "baseHi": 144,
+     "where": "below"
+    },
+    {
+     "type": "trace.FireAnimationFrame",
+     "class": "quarantined",
+     "base": 154,
+     "arm": 77,
+     "delta": -77,
+     "baseRuns": [
+      154,
+      154,
+      154
+     ],
+     "armRuns": [
+      77,
+      77,
+      77
+     ],
+     "baseLo": 154,
+     "baseHi": 154,
+     "where": "below"
+    },
+    {
+     "type": "trace.FunctionCall",
+     "class": "quarantined",
+     "base": 451,
+     "arm": 418,
+     "delta": -33,
+     "baseRuns": [
+      453,
+      451,
+      451
+     ],
+     "armRuns": [
+      418,
+      418,
+      416
+     ],
+     "baseLo": 451,
+     "baseHi": 453,
+     "where": "below"
+    },
+    {
+     "type": "trace.Layer.deleted",
+     "class": "quarantined",
+     "base": 2,
+     "arm": 15,
+     "delta": 13,
+     "baseRuns": [
+      2,
+      2,
+      2
+     ],
+     "armRuns": [
+      15,
+      15,
+      15
+     ],
+     "baseLo": 2,
+     "baseHi": 2,
+     "where": "above"
+    },
+    {
+     "type": "trace.Paint",
+     "class": "quarantined",
+     "base": 178,
+     "arm": 128,
+     "delta": -50,
+     "baseRuns": [
+      178,
+      178,
+      178
+     ],
+     "armRuns": [
+      128,
+      128,
+      128
+     ],
+     "baseLo": 178,
+     "baseHi": 178,
+     "where": "below"
+    },
+    {
+     "type": "trace.RequestAnimationFrame",
+     "class": "quarantined",
+     "base": 154,
+     "arm": 77,
+     "delta": -77,
+     "baseRuns": [
+      154,
+      154,
+      154
+     ],
+     "armRuns": [
+      77,
+      77,
+      77
+     ],
+     "baseLo": 154,
+     "baseHi": 154,
+     "where": "below"
+    },
+    {
+     "type": "trace.ScheduleStyleRecalculation",
+     "class": "deterministic",
+     "base": 175,
+     "arm": 52,
+     "delta": -123,
+     "baseRuns": [
+      175,
+      175,
+      175
+     ],
+     "armRuns": [
+      52,
+      52,
+      52
+     ],
+     "baseLo": 175,
+     "baseHi": 175,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree",
+     "class": "deterministic",
+     "base": 175,
+     "arm": 52,
+     "delta": -123,
+     "baseRuns": [
+      175,
+      175,
+      175
+     ],
+     "armRuns": [
+      52,
+      52,
+      52
+     ],
+     "baseLo": 175,
+     "baseHi": 175,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree.elementCount",
+     "class": "quarantined",
+     "base": 2488,
+     "arm": 887,
+     "delta": -1601,
+     "baseRuns": [
+      2488,
+      2487,
+      2488
+     ],
+     "armRuns": [
+      886,
+      887,
+      888
+     ],
+     "baseLo": 2487,
+     "baseHi": 2488,
+     "where": "below"
+    }
+   ]
+  },
+  {
+   "id": "y04500",
+   "frames": 14,
+   "cells": [
+    {
+     "type": "metric.RecalcStyleCount",
+     "class": "deterministic",
+     "base": 45,
+     "arm": 17,
+     "delta": -28,
+     "baseRuns": [
+      45,
+      45,
+      45
+     ],
+     "armRuns": [
+      17,
+      17,
+      17
+     ],
+     "baseLo": 45,
+     "baseHi": 45,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidatedLayers",
+     "class": "stable",
+     "base": 89,
+     "arm": 75,
+     "delta": -14,
+     "baseRuns": [
+      89,
+      89,
+      89
+     ],
+     "armRuns": [
+      75,
+      75,
+      75
+     ],
+     "baseLo": 89,
+     "baseHi": 89,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationAreaPx",
+     "class": "stable",
+     "base": 229948,
+     "arm": 210670,
+     "delta": -19278,
+     "baseRuns": [
+      229948,
+      229948,
+      229948
+     ],
+     "armRuns": [
+      210670,
+      210670,
+      210670
+     ],
+     "baseLo": 229948,
+     "baseHi": 229948,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationRects",
+     "class": "stable",
+     "base": 229,
+     "arm": 215,
+     "delta": -14,
+     "baseRuns": [
+      229,
+      229,
+      229
+     ],
+     "armRuns": [
+      215,
+      215,
+      215
+     ],
+     "baseLo": 229,
+     "baseHi": 229,
+     "where": "below"
+    },
+    {
+     "type": "trace.FireAnimationFrame",
+     "class": "quarantined",
+     "base": 28,
+     "arm": 14,
+     "delta": -14,
+     "baseRuns": [
+      28,
+      28,
+      28
+     ],
+     "armRuns": [
+      14,
+      14,
+      14
+     ],
+     "baseLo": 28,
+     "baseHi": 28,
+     "where": "below"
+    },
+    {
+     "type": "trace.Paint",
+     "class": "quarantined",
+     "base": 43,
+     "arm": 29,
+     "delta": -14,
+     "baseRuns": [
+      43,
+      43,
+      43
+     ],
+     "armRuns": [
+      29,
+      29,
+      29
+     ],
+     "baseLo": 43,
+     "baseHi": 43,
+     "where": "below"
+    },
+    {
+     "type": "trace.RequestAnimationFrame",
+     "class": "quarantined",
+     "base": 28,
+     "arm": 14,
+     "delta": -14,
+     "baseRuns": [
+      28,
+      28,
+      28
+     ],
+     "armRuns": [
+      14,
+      14,
+      14
+     ],
+     "baseLo": 28,
+     "baseHi": 28,
+     "where": "below"
+    },
+    {
+     "type": "trace.ScheduleStyleRecalculation",
+     "class": "deterministic",
+     "base": 45,
+     "arm": 17,
+     "delta": -28,
+     "baseRuns": [
+      45,
+      45,
+      45
+     ],
+     "armRuns": [
+      17,
+      17,
+      17
+     ],
+     "baseLo": 45,
+     "baseHi": 45,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree",
+     "class": "deterministic",
+     "base": 45,
+     "arm": 17,
+     "delta": -28,
+     "baseRuns": [
+      45,
+      45,
+      45
+     ],
+     "armRuns": [
+      17,
+      17,
+      17
+     ],
+     "baseLo": 45,
+     "baseHi": 45,
+     "where": "below"
+    },
+    {
+     "type": "trace.UpdateLayoutTree.elementCount",
+     "class": "quarantined",
+     "base": 672,
+     "arm": 224,
+     "delta": -448,
+     "baseRuns": [
+      672,
+      672,
+      672
+     ],
+     "armRuns": [
+      224,
+      224,
+      224
+     ],
+     "baseLo": 672,
+     "baseHi": 672,
+     "where": "below"
+    }
+   ]
+  },
+  {
+   "id": "tail",
+   "frames": 30,
+   "cells": [
+    {
+     "type": "raster.invalidatedLayers",
+     "class": "stable",
+     "base": 210,
+     "arm": 180,
+     "delta": -30,
+     "baseRuns": [
+      210,
+      210,
+      210
+     ],
+     "armRuns": [
+      180,
+      180,
+      180
+     ],
+     "baseLo": 210,
+     "baseHi": 210,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationAreaPx",
+     "class": "stable",
+     "base": 240060,
+     "arm": 198750,
+     "delta": -41310,
+     "baseRuns": [
+      240060,
+      240060,
+      240060
+     ],
+     "armRuns": [
+      198750,
+      198750,
+      198750
+     ],
+     "baseLo": 240060,
+     "baseHi": 240060,
+     "where": "below"
+    },
+    {
+     "type": "raster.invalidationRects",
+     "class": "stable",
+     "base": 510,
+     "arm": 480,
+     "delta": -30,
+     "baseRuns": [
+      510,
+      510,
+      510
+     ],
+     "armRuns": [
+      480,
+      480,
+      480
+     ],
+     "baseLo": 510,
+     "baseHi": 510,
+     "where": "below"
+    },
+    {
+     "type": "trace.FireAnimationFrame",
+     "class": "quarantined",
+     "base": 50,
+     "arm": 43,
+     "delta": -7,
+     "baseRuns": [
+      50,
+      50,
+      51
+     ],
+     "armRuns": [
+      43,
+      43,
+      43
+     ],
+     "baseLo": 50,
+     "baseHi": 51,
+     "where": "below"
+    },
+    {
+     "type": "trace.FunctionCall",
+     "class": "quarantined",
+     "base": 74,
+     "arm": 67,
+     "delta": -7,
+     "baseRuns": [
+      74,
+      74,
+      75
+     ],
+     "armRuns": [
+      67,
+      67,
+      67
+     ],
+     "baseLo": 74,
+     "baseHi": 75,
+     "where": "below"
+    },
+    {
+     "type": "trace.RequestAnimationFrame",
+     "class": "quarantined",
+     "base": 50,
+     "arm": 44,
+     "delta": -6,
+     "baseRuns": [
+      50,
+      50,
+      51
+     ],
+     "armRuns": [
+      44,
+      44,
+      44
+     ],
+     "baseLo": 50,
+     "baseHi": 51,
+     "where": "below"
+    }
+   ]
+  }
+ ]
+}

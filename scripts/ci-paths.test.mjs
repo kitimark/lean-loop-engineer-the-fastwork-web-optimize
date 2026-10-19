@@ -60,7 +60,7 @@ test('Lake cache jobs are read from the workflows: one writer, every setup-lean 
   const by = (k) => rows.find((r) => `${r.file}/${r.job}` === k);
   assert.deepEqual(rows.filter((r) => r.saves).map((r) => `${r.file}/${r.job}`), ['lean.yml/lean']);
   const lean = readFileSync(join(root, WF, 'lean.yml'), 'utf8').split('\n');
-  assert.deepEqual(setupLeanJobs(lean), [{ job: 'lean', save: 'true' }, { job: 'mathview-differential', save: 'false' }]);
+  assert.deepEqual(setupLeanJobs(lean), [{ job: 'lean', save: 'true' }]);
   // `lake build` = the lakefile defaults; `lake test` runs `fwcore fwtest`, a default target (task lean-bin-slim)
   assert.deepEqual(by('lean.yml/lean').targets, readLakefile(root).defaults);
   // a site build reaches `lake exe breakgen` through pnpm -> package.json -> scripts/check-breakpoints.mjs (spawnSync)
@@ -195,21 +195,21 @@ test('withNotMain: `a || b` is grouped before the conjunct; `(x) || true` and a 
 });
 
 test('lint: a non-seeder job of a main workflow without the notMainPush form is reported and fixed', () => {
-  const lean = readFileSync(join(root, WF, 'lean.yml'), 'utf8');
-  const leanRow = table.workflows.find((w) => w.file === 'lean.yml');
+  const pt = readFileSync(join(root, WF, 'premise-tests.yml'), 'utf8');
+  const ptRow = table.workflows.find((w) => w.file === 'premise-tests.yml');
   const intent = loadIntent(root).lanes;
-  const lane = { ...intent.lanes.find((l) => l.file === 'lean.yml'), decision: intent.decision, recheck: intent.recheck };
-  const main = { jobs: ['lean'], conj: table.notMainPush };
-  const good = `if: \${{ (needs.guard.outputs.run == 'true') && (${table.notMainPush}) }}`;
-  assert.ok(lean.includes(good));
-  for (const bad of [`if: \${{ needs.guard.outputs.run == 'true' }}`, `if: \${{ needs.guard.outputs.run == 'true' || (${table.notMainPush}) }}`]) {
-    const r = reconcile('lean.yml', lean.replace(good, bad), leanRow, lane, main);
-    assert.ok(r.problems.some((p) => /mathview-differential would run on a main push/.test(p)), r.problems.join('\n'));
-    assert.ok(reconcile('lean.yml', r.text, leanRow, lane, main).problems.length === 0);
+  const lane = { ...intent.lanes.find((l) => l.file === 'premise-tests.yml'), decision: intent.decision, recheck: intent.recheck };
+  const main = { jobs: ['engine'], conj: table.notMainPush };
+  const good = `  verdict:\n    if: \${{ (${table.notMainPush}) }}\n`;
+  assert.ok(pt.includes(good));
+  for (const bad of ['  verdict:\n', `  verdict:\n    if: \${{ true || (${table.notMainPush}) }}\n`]) {
+    const r = reconcile('premise-tests.yml', pt.replace(good, bad), ptRow, lane, main);
+    assert.ok(r.problems.some((p) => /verdict would run on a main push/.test(p)), r.problems.join('\n'));
+    assert.ok(reconcile('premise-tests.yml', r.text, ptRow, lane, main).problems.length === 0);
   }
-  assert.equal(reconcile('lean.yml', lean.replace(good, `if: \${{ needs.guard.outputs.run == 'true' }}`), leanRow, lane, main).text, lean);
-  assert.deepEqual(reconcile('lean.yml', lean, leanRow, lane, main).problems, []);
-  const seederSkips = reconcile('lean.yml', lean, leanRow, lane, { ...main, jobs: ['lean', 'mathview-differential'] });
+  assert.equal(reconcile('premise-tests.yml', pt.replace(good, '  verdict:\n'), ptRow, lane, main).text, pt);
+  assert.deepEqual(reconcile('premise-tests.yml', pt, ptRow, lane, main).problems, []);
+  const seederSkips = reconcile('premise-tests.yml', pt, ptRow, lane, { ...main, jobs: ['engine', 'verdict'] });
   assert.ok(seederSkips.problems.some((p) => /is a seeder .* skips a main push/.test(p)), seederSkips.problems.join('\n'));
 });
 

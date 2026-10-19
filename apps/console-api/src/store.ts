@@ -104,7 +104,20 @@ export class Store {
     return { ok: true, seq, duplicate: false };
   }
 
-  board(): Promise<LiveBoard> { return this.core.board(this.clock(), this.seq); }
+  private shared: { seq: number; at: number; board: Promise<LiveBoard> } | null = null;
+
+  /** One `console.query` per seq: callers within 1 s of a query at the same seq (a reconcile pass, every SSE client)
+   *  share it. Glue only; the board is fwcore's. */
+  board(): Promise<LiveBoard> {
+    const now = this.clock();
+    const c = this.shared;
+    if (c && c.seq === this.seq && now - c.at < 1000) return c.board;
+    const board = this.core.board(now, this.seq);
+    const mine = { seq: this.seq, at: now, board };
+    this.shared = mine;
+    board.catch(() => { if (this.shared === mine) this.shared = null; });
+    return board;
+  }
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);

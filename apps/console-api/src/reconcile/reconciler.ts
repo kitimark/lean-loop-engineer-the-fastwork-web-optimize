@@ -3,8 +3,9 @@
 import { createHash } from "node:crypto";
 import { syncCommands, syncFrom, type Command, type WorkGraph } from "@fw/contracts";
 import type { Store } from "../store.ts";
-import { branches, commitsAhead, fileAt, isAncestor, trailerFacts } from "./git.ts";
+import { branches, commitsAhead, fileAt, isAncestor, onMainSet, trailerFacts } from "./git.ts";
 import { branchCard } from "./naming.ts";
+import { fin, init, req, ticket, type Sched } from "./coalesce.ts";
 
 /** The plan sync content digest, the same as `fw plan sync`'s (apps/runner/src/plan.ts), so both send the same keys. */
 const sha10 = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 10);
@@ -15,7 +16,9 @@ export class Reconciler {
   /** keys already answered in this process; a fresh Reconciler replays and the reducer dedups by key */
   private done = new Set<string>();
   private timer: NodeJS.Timeout | null = null;
-  private last: Promise<unknown> = Promise.resolve();
+  private sched: Sched = init;
+  /** the answer of each pass not yet finished, by pass index (Lean `ticket`) */
+  private waiting = new Map<number, { promise: Promise<ReconcileStats>; resolve: (s: ReconcileStats) => void; reject: (e: unknown) => void }>();
 
   private store: Store;
   private repo: string;
@@ -30,11 +33,32 @@ export class Reconciler {
 
   get repoDir() { return this.repo; }
 
-  /** Serialized: passes never overlap. */
+  /** Coalesced (Lean `Fw.Console.ReconcileSched`): one pass runs and at most one waits; a request is answered by a pass
+   *  that starts after it. */
   reconcile(): Promise<ReconcileStats> {
-    const next = this.last.catch(() => undefined).then(() => this.pass());
-    this.last = next;
-    return next;
+    const k = ticket(this.sched);
+    let w = this.waiting.get(k);
+    if (!w) {
+      let resolve!: (s: ReconcileStats) => void, reject!: (e: unknown) => void;
+      const promise = new Promise<ReconcileStats>((a, b) => { resolve = a; reject = b; });
+      w = { promise, resolve, reject };
+      this.waiting.set(k, w);
+    }
+    const before = this.sched.started;
+    this.sched = req(this.sched);
+    if (this.sched.started > before) this.launch();
+    return w.promise;
+  }
+
+  private launch() {
+    const k = this.sched.started - 1;
+    const w = this.waiting.get(k)!;
+    this.pass().then(w.resolve, w.reject).finally(() => {
+      this.waiting.delete(k);
+      const before = this.sched.started;
+      this.sched = fin(this.sched);
+      if (this.sched.started > before) this.launch();
+    });
   }
 
   private async send(cmd: Command, s: ReconcileStats) {
@@ -61,7 +85,7 @@ export class Reconciler {
       if (text !== null) {
         let cmds: Command[] = [];
         // the ancestry fact of each evidence sha against main (Lean refuses a define whose commit is off main)
-        const onMain = (e: string) => isAncestor(this.repo, e, this.mainRef);
+        const onMain = onMainSet(this.repo, this.mainRef);
         try { cmds = syncCommands(JSON.parse(text) as WorkGraph, "script", sha10, undefined, onMain); }
         catch (e) { console.error(`plan sync at ${at.slice(0, 7)}: ${(e as Error).message}`); }
         for (const c of cmds) await this.send(c, s);

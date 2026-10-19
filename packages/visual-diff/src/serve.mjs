@@ -1,9 +1,8 @@
-// The rewrite arm's server and the fonts it is given. The rewrite build ships none of the original's images or fonts (its theme
-// keeps a system font stack as a placeholder, and its image URLs point at /selling/... files that only the snapshot has), so
-// without help it draws serif fallback glyphs and grey placeholder boxes, and a pixel diff of that measures the missing files,
-// not the port. The harness therefore serves, for the rewrite arm only, the snapshot's own static files at the same URL for every
-// request the rewrite build does not answer itself, and declares the original's font faces in the rewrite page. Nothing is copied
-// into git; both are read from snapshot/site at run time and held in memory.
+// Diagnostic only (`--assets inject`; the default `none` serves the port as built): the rewrite arm's overlay server and fonts.
+// The overlay serves, for the rewrite arm only, the snapshot's own static files at the same URL for every request the rewrite build
+// does not answer itself, and the harness declares the original's font faces in the rewrite page with a forced font-family. A diff
+// in this mode measures the port with the original's assets, not the port's own. Both are read from snapshot/site at run time and
+// held in memory; nothing is committed.
 import http from 'node:http';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
