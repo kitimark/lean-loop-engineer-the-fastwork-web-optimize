@@ -13,6 +13,7 @@ function fakeEl(rect: { top: number; bottom: number }) {
     style: { setProperty: (n: string, v: string) => void props.set(n, v), height: '' },
     classList: { toggle: (c: string, on: boolean) => void (on ? classes.add(c) : classes.delete(c)) },
     setAttribute: (n: string, v: string) => void attrs.set(n, v),
+    toggleAttribute: (n: string, on: boolean) => (on ? void attrs.set(n, '') : void attrs.delete(n), on),
     getAttribute: (n: string) => attrs.get(n) ?? null,
     getBoundingClientRect: () => ({ top: rect.top, bottom: rect.bottom }),
   };

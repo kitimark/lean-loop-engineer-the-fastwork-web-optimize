@@ -1,0 +1,11 @@
+{"fn":"scene","in":{"bottom":800,"top":0,"vh":900},"out":"active"}
+{"fn":"scene","in":{"bottom":-901,"top":-5000,"vh":900},"out":"paused"}
+{"fn":"scene","in":{"bottom":-900,"top":-5000,"vh":900},"out":"active"}
+{"fn":"scene","in":{"bottom":2600,"top":1800,"vh":900},"out":"active"}
+{"fn":"scene","in":{"bottom":2600,"top":1801,"vh":900},"out":"paused"}
+{"fn":"scene","in":{"bottom":-500,"top":-1000,"vh":900},"out":"active"}
+{"fn":"scene","in":{"bottom":3800,"top":3000,"vh":900},"out":"paused"}
+{"fn":"scene","in":{"bottom":100,"top":-300,"vh":400},"out":"active"}
+{"fn":"scene","in":{"bottom":1200,"top":801,"vh":400},"out":"paused"}
+{"fn":"scene","in":{"bottom":1200,"top":800,"vh":400},"out":"active"}
+{"fn":"const","in":{},"out":{"active":"active","attr":"data-fw-scene","paused":"paused","playState":"paused","rootMargin":"100% 0px"}}

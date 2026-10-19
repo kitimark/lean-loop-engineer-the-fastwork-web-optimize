@@ -4,9 +4,12 @@ import { describe, expect, it } from 'vitest';
 import colPart from '../morph.columns/part.json';
 import cdPart from '../morph.countdown/part.json';
 import scenePart from './part.json';
+import { goldenConformance } from '../../engine/golden.testutil';
+import { advanceAnimations } from './index';
 import {
   HIDDEN_FRACTION,
   SCENE_ACTIVE_ABOVE,
+  createResumeSync,
   createSceneClock,
   createWriteGate,
   hiddenAtFraction,
@@ -125,5 +128,44 @@ describe('golden rows and registry', () => {
   it('the rows promise no script/layout growth: FireAnimationFrame equal, style and commit at most', () => {
     for (const r of rows.filter((x) => x.stage === 'script')) expect(r.prediction).toBe('=o');
     for (const r of rows.filter((x) => x.stage === 'style')) expect(r.prediction).toBe('≤o');
+  });
+});
+
+goldenConformance('engine.scene', {
+  sync: (i) => {
+    const s = createResumeSync(0, true);
+    let t = 0;
+    let loc = 0;
+    let o = 0;
+    const shown: number[] = [];
+    const orig: number[] = [];
+    for (const [d, a, h] of i.frames as [number, boolean, boolean][]) {
+      s.setActive(t, a);
+      if (h) s.hide(t);
+      else loc += s.unhide(t) ?? 0;
+      shown.push(loc);
+      orig.push(o);
+      if (!h && a) loc += d;
+      if (a) o += d;
+      t += d;
+    }
+    return { shown, orig, local: loc };
+  },
+});
+
+describe('engine.scene hidden-pause wiring', () => {
+  const index = readFileSync(resolve(__dirname, 'index.tsx'), 'utf8');
+  it('the clock follows watchActive and the unhide advances only the animations held at the hide', () => {
+    expect(index).toMatch(/watchActive\(el, \(active\) => syncs\.get\(el\)!\.setActive\(timelineNow\(\), active\)\)/);
+    expect(index).toMatch(/sync\.hide\(timelineNow\(\)\);\s*if \(!held\.has\(el\)\) held\.set\(el, new Set\(el\.getAnimations\(\{ subtree: true \}\)\)\);/);
+    expect(index).toMatch(/const ms = sync\.unhide\(timelineNow\(\)\);[\s\S]*?if \(ms !== null && kept\) advanceAnimations\(el, kept, ms\);/);
+  });
+  it('advanceAnimations adds the span to kept animations only', () => {
+    const a = { currentTime: 100 as number | null };
+    const b = { currentTime: 5 as number | null };
+    const idle = { currentTime: null as number | null };
+    const root = { getAnimations: () => [a, b, idle] } as unknown as Element;
+    advanceAnimations(root, new Set([a, idle] as unknown as Animation[]), 40);
+    expect([a.currentTime, b.currentTime, idle.currentTime]).toEqual([140, 5, null]);
   });
 });

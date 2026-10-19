@@ -14,7 +14,7 @@
     "check:shell-boxes": "node scripts/shell-measure.mjs check",
     "census": "node scripts/census.mjs",
     "gen:svg": "node scripts/svg-extract.mjs",
-    "test": "node scripts/svg-extract.mjs && vitest run",
+    "test": "node scripts/svg-extract.mjs && vitest run && node --test 'test/port-*.test.mjs'",
     "typecheck": "node scripts/svg-extract.mjs && tsc --noEmit"
   },
   "dependencies": {

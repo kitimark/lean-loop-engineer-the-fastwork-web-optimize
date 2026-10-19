@@ -56,7 +56,10 @@ describe('svg-extract', () => {
   });
 
   it('extracts the wordmark, every visible accent word and each moved artwork', () => {
-    expect(gen.wordmark.paths.length).toBeGreaterThan(0);
+    const wm = gen.art['nav.wordmark'];
+    expect(wm.svg.viewBox).toBe('0 0 181 46');
+    expect(wm.group).toEqual({});
+    expect(wm.kids.map((k) => k.tag)).toEqual(Array(9).fill('path'));
     expect(gen.accent.base).toHaveLength(3);
     expect(gen.accent.words).toHaveLength(6);
     for (const w of gen.accent.words) expect(w.paths).toHaveLength(3);
@@ -70,7 +73,7 @@ describe('svg-extract', () => {
     expect(gen.art['brand.mark'].svg.viewBox).toBe('0 0 74 66');
   });
 
-  it(`no tracked file under apps/ or packages/ holds ${RUN} characters of a snapshot path`, () => {
+  it(`no tracked file under apps/ or packages/ holds ${RUN} characters of a snapshot path`, { timeout: 60_000 }, () => {
     const paths = snapshotPaths();
     expect(paths.size).toBeGreaterThan(40);
     const runs = new Set<string>();

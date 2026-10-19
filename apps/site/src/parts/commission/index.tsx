@@ -96,7 +96,7 @@ export function Commission({ variant, typingVariant = 'faithful' }: CommissionPr
     <section ref={section} className={css.commission} aria-labelledby="commission-heading" data-fw="commission" data-fw-variant={variant}>
       <div className={css.track}>
         <div className={css.sticky}>
-          <div ref={card} className={css.card}>
+          <div ref={card} className={css.card} data-fw="commission-card">
             <div className={css.inner}>
               <div ref={header} className={css.header}>
                 <h2 ref={title} id="commission-heading">
