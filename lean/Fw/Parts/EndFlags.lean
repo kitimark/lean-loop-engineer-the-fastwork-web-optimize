@@ -23,8 +23,6 @@ open Fw.Engine
 /-- **A read-free stage ends dirty.** If an access sequence forces no pass and the stage is dirty at the start or the
 sequence writes, the flag is dirty at the end.
 
-$$\forall d \in \mathbb{B},\ \forall as \in \mathrm{FlagOp}^{*}:\ \operatorname{fF}(d, as) = 0 \land (d \lor \mathrm{dirty} \in as) \Rightarrow \operatorname{fE}(d, as) = \top$$
-
 Nothing that never forces a pass can have cleaned the flag. -/
 theorem flagEnd_of_forced_zero : ∀ (d : Bool) (as : List FlagOp),
     flagForced d as = 0 → (d = true ∨ FlagOp.dirty ∈ as) → flagEnd d as = true
@@ -41,8 +39,6 @@ theorem flagEnd_of_forced_zero : ∀ (d : Bool) (as : List FlagOp),
 /-- **All touched stages dirty: `frameWorkE` is `frameWork`.** If the end-flag assignment is true on every touched
 stage, the corrected work equals the old work.
 
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall e : \mathrm{Stage} \to \mathbb{B}:\ (\forall s \in \operatorname{touched}_E(f):\ e(s) = \top) \Rightarrow \operatorname{frameWork}^{e}_E(f) = \operatorname{frameWork}_E(f)$$
-
 On a frame whose touched stages all end dirty, the old model has no over-count. -/
 theorem frameWorkE_eq_of_dirty {P M : Type} (E : Engine P M) (f : FrameIn P) (e : Stage → Bool)
     (h : ∀ s, s ∈ touched E f → e s = true) : frameWorkE E f e = frameWork E f := by
@@ -54,8 +50,6 @@ theorem frameWorkE_eq_of_dirty {P M : Type} (E : Engine P M) (f : FrameIn P) (e 
 /-- **Same forced passes: the order transfers.** If two frames have the same forced passes on every stage and the
 variant does no more `frameWork` than the original, then it does no more `frameWorkE` work for every common end-flag
 assignment.
-
-$$\forall E,\ \forall v, o \in \mathrm{FrameIn}(P),\ \forall e : \mathrm{Stage} \to \mathbb{B}:\ (\forall s:\ \operatorname{forced}(v, s) = \operatorname{forced}(o, s)) \land \operatorname{frameWork}_E(v) \preceq \operatorname{frameWork}_E(o) \Rightarrow \operatorname{frameWork}^{e}_E(v) \preceq \operatorname{frameWork}^{e}_E(o)$$
 
 When the script is the same, the end flags are the same and the old proof still holds. -/
 theorem frameE_le_of_same_forced {P M : Type} (E : Engine P M) {v o : FrameIn P} (e : Stage → Bool)
@@ -69,8 +63,6 @@ theorem frameE_le_of_same_forced {P M : Type} (E : Engine P M) {v o : FrameIn P}
 /-- **Stage-wise end-flag bound.** The variant does no more `frameWorkE` work than the original if its touched stages
 are touched by the original, its `frameWork` units and hits are no larger, its forced passes are no larger on every
 stage, and on every stage it touches its forced plus end passes are no larger.
-
-$$\forall E,\ \forall v, o,\ \forall e_v, e_o:\ \big(\forall s:\ s \in \operatorname{touched}_E(v) \Rightarrow s \in \operatorname{touched}_E(o)\big) \land \big(\forall s:\ \operatorname{units}_E(v, s) \le \operatorname{units}_E(o, s)\big) \land v.\mathrm{hits} \le o.\mathrm{hits} \land \big(\forall s:\ \operatorname{forced}(v, s) \le \operatorname{forced}(o, s)\big) \land \big(\forall s \in \operatorname{touched}_E(v):\ \operatorname{forced}(v, s) + [e_v(s)] \le \operatorname{forced}(o, s) + [e_o(s)]\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \preceq \operatorname{frameWork}^{e_o}_E(o)$$
 
 A variant that never ends a stage dirtier than the original without paying for it in forced passes is no costlier. -/
 theorem frameE_le_of_total {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
@@ -92,8 +84,6 @@ theorem frameE_le_of_total {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev e
 /-- **Stage-wise strictness.** Under the hypotheses of `frameE_le_of_total`, a stage with strictly fewer forced passes
 and, if the variant touches it, strictly fewer forced plus end passes makes the variant strictly cheaper.
 
-$$\forall E, v, o, e_v, e_o, s_0:\ \text{hyp.\ of } \texttt{frameE\_le\_of\_total} \land \operatorname{forced}(v, s_0) < \operatorname{forced}(o, s_0) \land \big(s_0 \in \operatorname{touched}_E(v) \Rightarrow \operatorname{forced}(v, s_0) + [e_v(s_0)] < \operatorname{forced}(o, s_0) + [e_o(s_0)]\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \prec \operatorname{frameWork}^{e_o}_E(o)$$
-
 A forced pass saved and not paid back at frame end is a strict win. -/
 theorem frameE_lt_of_total {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
     (ht : ∀ s, s ∈ touched E v → s ∈ touched E o) (hu : ∀ s, stageUnits E v s ≤ stageUnits E o s)
@@ -114,8 +104,6 @@ theorem frameE_lt_of_total {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev e
 
 /-- Strictness from hits carries over to every end-flag assignment pair that satisfies the stage-wise bound.
 
-$$\forall E, v, o, e_v, e_o:\ \text{hyp.\ of } \texttt{frameE\_le\_of\_total} \land v.\mathrm{hits} < o.\mathrm{hits} \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \prec \operatorname{frameWork}^{e_o}_E(o)$$
-
 A saved hit test is a strict win in either model. -/
 theorem frameE_lt_of_hits {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
     (ht : ∀ s, s ∈ touched E v → s ∈ touched E o) (hu : ∀ s, stageUnits E v s ≤ stageUnits E o s)
@@ -125,8 +113,6 @@ theorem frameE_lt_of_hits {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo
   ⟨frameE_le_of_total E ev eo ht hu (Nat.le_of_lt hh) hf htot, Or.inr hh⟩
 
 /-- `frameWork`'s order gives the touched-stage inclusion when forced passes are equal.
-
-$$\forall E,\ \forall v, o:\ (\forall s:\ \operatorname{forced}(v, s) = \operatorname{forced}(o, s)) \land \operatorname{frameWork}_E(v) \preceq \operatorname{frameWork}_E(o) \Rightarrow \forall s:\ s \in \operatorname{touched}_E(v) \Rightarrow s \in \operatorname{touched}_E(o)$$
 
 With the same script, a smaller old count means fewer touched stages. -/
 theorem touched_of_le_same_forced {P M : Type} (E : Engine P M) {v o : FrameIn P}
@@ -144,8 +130,6 @@ theorem touched_of_le_same_forced {P M : Type} (E : Engine P M) {v o : FrameIn P
 /-- **Read-free transfer of `≤`.** If both frames' end-flag assignments are true on every touched stage (what a frame
 with no forced read gets, `flagEnd_of_forced_zero`), a `frameWork` bound is a `frameWorkE` bound.
 
-$$\forall E,\ \forall v, o \in \mathrm{FrameIn}(P),\ \forall e_v, e_o:\ (\forall s \in \operatorname{touched}_E(v):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}_E(o):\ e_o(s) = \top) \land \operatorname{frameWork}_E(v) \preceq \operatorname{frameWork}_E(o) \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \preceq \operatorname{frameWork}^{e_o}_E(o)$$
-
 With nothing cleaning a flag, both models count the same. -/
 theorem frameE_le_of_dirty {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
     (hv : ∀ s, s ∈ touched E v → ev s = true) (ho : ∀ s, s ∈ touched E o → eo s = true)
@@ -154,8 +138,6 @@ theorem frameE_le_of_dirty {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev e
 
 /-- **Read-free transfer of `≺`.**
 
-$$\forall E,\ \forall v, o \in \mathrm{FrameIn}(P),\ \forall e_v, e_o:\ (\forall s \in \operatorname{touched}_E(v):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}_E(o):\ e_o(s) = \top) \land \operatorname{frameWork}_E(v) \prec \operatorname{frameWork}_E(o) \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \prec \operatorname{frameWork}^{e_o}_E(o)$$
-
 A strict win with nothing cleaning a flag stays strict. -/
 theorem frameE_lt_of_dirty {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
     (hv : ∀ s, s ∈ touched E v → ev s = true) (ho : ∀ s, s ∈ touched E o → eo s = true)
@@ -163,8 +145,6 @@ theorem frameE_lt_of_dirty {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev e
   rw [frameWorkE_eq_of_dirty E v ev hv, frameWorkE_eq_of_dirty E o eo ho]; exact h
 
 /-- **Read-free transfer of `⋠`** (a trade or a loss stays one).
-
-$$\forall E,\ \forall v, o \in \mathrm{FrameIn}(P),\ \forall e_v, e_o:\ (\forall s \in \operatorname{touched}_E(v):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}_E(o):\ e_o(s) = \top) \land \operatorname{frameWork}_E(v) \not\preceq \operatorname{frameWork}_E(o) \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \not\preceq \operatorname{frameWork}^{e_o}_E(o)$$
 
 A read-free frame that costs more in one stage still does. -/
 theorem frameE_not_le_of_dirty {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
@@ -175,8 +155,6 @@ theorem frameE_not_le_of_dirty {P M : Type} (E : Engine P M) {v o : FrameIn P} (
 /-- **Same forced passes, end flags no dirtier: `≤` transfers.** If the frames force the same passes, the variant
 does no more `frameWork` work, and on every stage the variant touches its end flag is dirty only if the original's
 is, then the variant does no more `frameWorkE` work.
-
-$$\forall E,\ \forall v, o,\ \forall e_v, e_o:\ (\forall s:\ \operatorname{forced}(v, s) = \operatorname{forced}(o, s)) \land \operatorname{frameWork}_E(v) \preceq \operatorname{frameWork}_E(o) \land \big(\forall s \in \operatorname{touched}_E(v):\ e_v(s) = \top \Rightarrow e_o(s) = \top\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \preceq \operatorname{frameWork}^{e_o}_E(o)$$
 
 Removing writes under the same reads cannot leave a stage dirtier. -/
 theorem frameE_le_mono {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
@@ -190,8 +168,6 @@ theorem frameE_le_mono {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : 
 
 /-- **Same forced passes: a strict saving in units or hits transfers.** Under the hypotheses of `frameE_le_mono`, a
 stage with fewer units, or fewer hits, keeps the variant strictly cheaper.
-
-$$\forall E, v, o, e_v, e_o:\ \text{hyp.\ of } \texttt{frameE\_le\_mono} \land \big((\exists s:\ \operatorname{units}_E(v, s) < \operatorname{units}_E(o, s)) \lor v.\mathrm{hits} < o.\mathrm{hits}\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \prec \operatorname{frameWork}^{e_o}_E(o)$$
 
 Units and hits do not depend on the end flags. -/
 theorem frameE_lt_mono {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
