@@ -34,9 +34,9 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference.
   unless named for an edit, never commit, write no handoff, and return ≤ 1k tokens to their spawner, not the lead.
 
 ## Rules
-- **Public repo** (MIT for our code): every committed file is public. Only the user pushes `main`, adds remotes
-  and creates repos. Agents push only `ci/*` branches to `origin` to trigger CI (`git push origin ci/<name>`; never
-  force, never delete, never `main`).
+- **Public repo** (MIT for our code): every committed file is public. The lead pushes `main` (`git push origin main`,
+  after scanning `origin/main..main` for personal data); only the user adds remotes and creates repos. Agents push
+  only `ci/*` branches to `origin` to trigger CI (`git push origin ci/<name>`; never force, never delete, never `main`).
 - **No personal data** in committed files: no emails, names, LAN IPs, device ids, home paths. `.local/` holds
   local-only data and is gitignored; never copy from it verbatim.
 - **Fastwork material:** Fastwork approved publishing its compiled site, fonts included. It enters git only as the

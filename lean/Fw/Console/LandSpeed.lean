@@ -365,6 +365,169 @@ def scanDecls : List Decl := withScan (sampleDecls ++ [⟨"site", ["apps/site/**
 #guard selectChecks scanDecls ["docs/team/handoffs/x.md"] == []
 #guard selectChecks scanDecls ["packages/contracts/golden/obs/timing.jsonl"] == ["check.sh", "contracts", "reads-scan"]
 
+/-! ### Two-phase selection: the fwcore users follow the binary digest -/
+
+/-- The path that stands for the stripped fwcore binary in a check's declared reads. -/
+def fwcoreBin : String := "lean/.lake/build/bin/fwcore"
+
+/-- The tracked paths the fwcore build reads. -/
+def fwcoreBuildReads : List String := ["lean/**", "scripts/fwcore-build.sh"]
+
+/-- Two binary digests (`none`: unknown) that do not show one binary. -/
+def digestDiffers : Option String → Option String → Bool
+  | some a, some b => a != b
+  | _, _ => true
+
+/-- Did the binary move between main₀ (`d0`) and the merge tree (`d1`): the change reaches the build and the digests differ or one is unknown. -/
+def binMoved (changed : List String) (d0 d1 : Option String) : Bool :=
+  selected fwcoreBuildReads changed && digestDiffers d0 d1
+
+/-- The phase-2 change: the changed paths, plus `fwcoreBin` when the binary moved. -/
+def withBin (changed : List String) (d0 d1 : Option String) : List String :=
+  if binMoved changed d0 d1 then changed ++ [fwcoreBin] else changed
+
+/-- The two-phase selection: `selectChecks` over the phase-2 change. -/
+def selectTwoPhase (ds : List Decl) (changed : List String) (d0 d1 : Option String) : List String :=
+  selectChecks ds (withBin changed d0 d1)
+
+theorem binMoved_unbuilt (changed : List String) (d0 d1 : Option String)
+    (h : selected fwcoreBuildReads changed = false) : binMoved changed d0 d1 = false := by
+  simp [binMoved, h]
+
+theorem binMoved_main_unknown (changed : List String) (d1 : Option String)
+    (h : selected fwcoreBuildReads changed = true) : binMoved changed none d1 = true := by
+  simp [binMoved, h, digestDiffers]
+
+theorem binMoved_merge_unknown (changed : List String) (d0 : Option String)
+    (h : selected fwcoreBuildReads changed = true) : binMoved changed d0 none = true := by
+  cases d0 <;> simp [binMoved, h, digestDiffers]
+
+theorem binMoved_differ (changed : List String) (a b : String)
+    (h : selected fwcoreBuildReads changed = true) (hab : a ≠ b) : binMoved changed (some a) (some b) = true := by
+  simp [binMoved, h, digestDiffers, hab]
+
+theorem binMoved_same (changed : List String) (a : String) : binMoved changed (some a) (some a) = false := by
+  simp [binMoved, digestDiffers]
+
+theorem binMoved_iff (changed : List String) (d0 d1 : Option String) :
+    binMoved changed d0 d1 = true ↔ selected fwcoreBuildReads changed = true ∧ ¬ ∃ a, d0 = some a ∧ d1 = some a := by
+  cases d0 <;> cases d1 <;> simp [binMoved, digestDiffers]
+  exact fun _ => not_congr eq_comm
+
+theorem withBin_unmoved (changed : List String) (d0 d1 : Option String) (h : binMoved changed d0 d1 = false) :
+    withBin changed d0 d1 = changed := by
+  simp [withBin, h]
+
+theorem selectTwoPhase_same (ds : List Decl) (changed : List String) (a : String) :
+    selectTwoPhase ds changed (some a) (some a) = selectChecks ds changed := by
+  simp [selectTwoPhase, withBin_unmoved _ _ _ (binMoved_same changed a)]
+
+theorem user_selected_of_moved (ds : List Decl) (changed : List String) (d0 d1 : Option String) (d : Decl)
+    (hd : d ∈ ds) (hbin : inScope (parseScope d.reads) fwcoreBin = true) (hm : binMoved changed d0 d1 = true) :
+    d.id ∈ selectTwoPhase ds changed d0 d1 := by
+  refine (mem_selectChecks _ _ _).2 ⟨d, hd, selected_of_mem _ _ fwcoreBin ?_ hbin, rfl⟩
+  simp [withBin, hm]
+
+/-- **Empirical premise `land.binaryOfLean`**: the build maps a state to the binary it writes, and two states that agree on
+the paths of `fwcoreBuildReads` (the binary itself aside) build the same binary. -/
+def BinaryOfBuildReads (build : St → Blob) : Prop :=
+  ∀ σ σ' : St, (∀ p, p ≠ fwcoreBin → inScope (parseScope fwcoreBuildReads) p = true → σ p = σ' p) → build σ = build σ'
+
+theorem fwcore_digest_skip {R} (run : St → R) (G changed : List String) (hrw : ReadsWithin run G) (a : String)
+    (hs : selected G changed = false) (dig : Blob → String) (hinj : ∀ x y, dig x = dig y → x = y) (σ σ' : St)
+    (hd : ∀ p, p ∉ changed → p ≠ fwcoreBin → σ p = σ' p) (h0 : dig (σ fwcoreBin) = a) (h1 : dig (σ' fwcoreBin) = a) :
+    selected G (withBin changed (some a) (some a)) = false ∧ run σ = run σ' := by
+  rw [withBin_unmoved _ _ _ (binMoved_same changed a)]
+  refine ⟨hs, skip_sound run G changed hrw hs σ σ' fun p hp => ?_⟩
+  by_cases hb : p = fwcoreBin
+  · subst hb; exact hinj _ _ (h0.trans h1.symm)
+  · exact hd p hp hb
+
+theorem fwcore_nobuild_skip {R} (run : St → R) (G changed : List String) (hrw : ReadsWithin run G)
+    (d0 d1 : Option String) (hs : selected G changed = false) (hnb : selected fwcoreBuildReads changed = false)
+    (build : St → Blob) (hbin : BinaryOfBuildReads build) (σ σ' : St) (hb : σ fwcoreBin = build σ)
+    (hb' : σ' fwcoreBin = build σ') (hd : ∀ p, p ∉ changed → p ≠ fwcoreBin → σ p = σ' p) :
+    selected G (withBin changed d0 d1) = false ∧ run σ = run σ' := by
+  rw [withBin_unmoved _ _ _ (binMoved_unbuilt changed d0 d1 hnb)]
+  refine ⟨hs, skip_sound run G changed hrw hs σ σ' fun p hp => ?_⟩
+  by_cases hp' : p = fwcoreBin
+  · subst hp'
+    rw [hb, hb']
+    refine hbin σ σ' fun q hq hin => hd q (fun hm => ?_) hq
+    rw [selected_of_mem _ _ q hm hin] at hnb
+    exact Bool.noConfusion hnb
+  · exact hd p hp hp'
+
+theorem leanFw_inScope : inScope (parseScope fwcoreBuildReads) "lean/Fw.lean" = true := by
+  have hp : segs "lean/Fw.lean" = ["lean", "Fw.lean"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have hg : segs "lean/**" = ["lean", "**"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have hs : segs "scripts/fwcore-build.sh" = ["scripts", "fwcore-build.sh"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have h1 : "lean/**".startsWith "!" = false := by simp
+  have h2 : "scripts/fwcore-build.sh".startsWith "!" = false := by simp
+  have hm : matchesPath ["lean", "**"] ["lean", "Fw.lean"] = true := by
+    simp only [matchesPath, List.any_eq_true, List.mem_range]
+    exact ⟨1, by decide, by simp [globMatch, segMatch_lit]⟩
+  simp [inScope, parseScope, fwcoreBuildReads, h1, h2, hp, hg, hs, hm]
+
+/-- A build that copies one Lean source into the binary. -/
+def copyBuild : St → Blob := fun σ => σ "lean/Fw.lean"
+
+theorem copyBuild_binaryOfBuildReads : BinaryOfBuildReads copyBuild :=
+  fun _ _ h => h "lean/Fw.lean" (by decide) leanFw_inScope
+
+theorem binaryOfBuildReads_satisfiable :
+    ∃ build : St → Blob, BinaryOfBuildReads build ∧
+      ∃ σ σ' : St, σ fwcoreBin = build σ ∧ σ' fwcoreBin = build σ' ∧ build σ ≠ build σ' :=
+  ⟨copyBuild, copyBuild_binaryOfBuildReads, fun p => if p = fwcoreBin ∨ p = "lean/Fw.lean" then 1 else 0,
+    fun _ => 0, by decide, by decide, by decide⟩
+
+example : (fun σ : St => σ fwcoreBin) (fun p => if p = fwcoreBin ∨ p = "lean/Fw.lean" then 1 else 0)
+    = (fun σ : St => σ fwcoreBin) (fun p => if p = fwcoreBin ∨ p = "lean/Fw.lean" ∨ p = "docs/x.md" then 1 else 0) := by
+  have hb : segs fwcoreBin = ["lean", ".lake", "build", "bin", "fwcore"] := by
+    simp (config := {decide := true}) [fwcoreBin, segs, String.splitOn, String.splitOnAux]
+  have hx : segs "docs/x.md" = ["docs", "x.md"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have hg : segs "lean/**" = ["lean", "**"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have hs : segs "scripts/fwcore-build.sh" = ["scripts", "fwcore-build.sh"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have h0 : fwcoreBin.startsWith "!" = false := by simp [fwcoreBin]
+  have h1 : "lean/**".startsWith "!" = false := by simp
+  have h2 : "scripts/fwcore-build.sh".startsWith "!" = false := by simp
+  have hrw : ReadsWithin (fun σ : St => σ fwcoreBin) [fwcoreBin] := fun σ σ' h => h fwcoreBin (by
+    have hm : matchesPath (segs fwcoreBin) (segs fwcoreBin) = true := by
+      rw [hb]; simp only [matchesPath, List.any_eq_true, List.mem_range]
+      exact ⟨4, by decide, by simp [globMatch, segMatch_lit]⟩
+    simp [inScope, parseScope, h0, hm]
+    rw [hb]; simp)
+  refine (fwcore_nobuild_skip (fun σ : St => σ fwcoreBin) [fwcoreBin] ["docs/x.md"] hrw none none ?_ ?_ copyBuild
+    copyBuild_binaryOfBuildReads _ _ (by decide) (by decide) ?_).2
+  · simp [selected, inScope, parseScope, h0, hb, hx, matchesPath, globMatch, segMatch]
+  · simp [selected, inScope, parseScope, fwcoreBuildReads, h1, h2, hg, hs, hx, matchesPath, globMatch, segMatch]
+  · intro p hp _
+    simp only [List.mem_singleton] at hp
+    simp [hp]
+
+/-- The sample table of the two-phase golden cases: check.sh, two fwcore users, a site check and the scan. -/
+def binDecls : List Decl :=
+  withScan [⟨"check.sh", checkShReads⟩, ⟨"console-api", ["apps/console-api/**", "lean/Fw/Console/PreviewFacts.lean", fwcoreBin]⟩,
+    ⟨"difftest", ["packages/difftest/**", fwcoreBin]⟩, ⟨"site", ["apps/site/**"]⟩]
+
+#guard selectTwoPhase binDecls ["lean/Fw/Console/Land.lean"] (some "a") (some "a") == ["check.sh", "reads-scan"]
+#guard selectTwoPhase binDecls ["lean/Fw/Console/Land.lean"] (some "a") (some "b") == ["check.sh", "console-api", "difftest", "reads-scan"]
+#guard selectTwoPhase binDecls ["lean/Fw/Console/Land.lean"] none (some "a") == ["check.sh", "console-api", "difftest", "reads-scan"]
+#guard selectTwoPhase binDecls ["lean/Fw/Console/Land.lean"] (some "a") none == ["check.sh", "console-api", "difftest", "reads-scan"]
+#guard selectTwoPhase binDecls ["lean/Fw/Console/PreviewFacts.lean"] (some "a") (some "a") == ["check.sh", "console-api", "reads-scan"]
+#guard selectTwoPhase binDecls ["apps/site/src/x.ts"] none none == ["site", "reads-scan"]
+#guard selectTwoPhase binDecls ["scripts/fwcore-build.sh"] (some "a") (some "a") == ["check.sh", "reads-scan"]
+#guard selectTwoPhase binDecls ["scripts/fwcore-build.sh"] (some "a") (some "b") == ["check.sh", "console-api", "difftest", "reads-scan"]
+#guard selectTwoPhase binDecls ["docs/team/handoffs/x.md"] none none == []
+#guard binMoved ["lean/x.lean"] (some "a") (some "a") == false
+#guard binMoved ["apps/site/x.ts"] (some "a") (some "b") == false
+
 /-! ## (c) Pre-lock checking: check merge(main₀, tip) outside the lock, commit it only if main is still main₀ -/
 
 /-- What the commit step decides.
@@ -748,8 +911,7 @@ structure PremiseRow where
   theorems : List String
   test : String
 
-/-- The empirical premises and assumptions of this module, with the test that covers each (7 rows, distinct ids).
-$$\mathrm{premises} = [p_1, \dots, p_7],\quad p_k = (\mathit{id}_k, \mathit{statement}_k, \mathit{theorems}_k, \mathit{test}_k)$$ -/
+/-- The empirical premises and assumptions of this module, with the test that covers each (8 rows, distinct ids). -/
 def premises : List PremiseRow := [
   ⟨"land.readsOnly", "a check reads only its declared inputs (E1)",
     ["cache_sound", "cachedRun_eq", "skip_sound", "seq_eq_all", "evidence_irrelevant"],
@@ -765,9 +927,11 @@ def premises : List PremiseRow := [
   ⟨"land.mergeTreeReproduces", "git -c attr.tree=<m0> merge-tree --write-tree m0 tip equals the tree git merge makes",
     ["pre_eq_old", "preLand_eq_old"], "replay test over the last 30 land merges (30/30 measured)"⟩,
   ⟨"land.checkedWorktreeExact", "the land worktree holds exactly commit C (checkout --detach C; clean -fdx -e .lake -e node_modules)",
-    ["pre_commit_checked"], "apps/runner/test: an untracked imported .lean file in the land worktree is cleaned or refused"⟩]
+    ["pre_commit_checked"], "apps/runner/test: an untracked imported .lean file in the land worktree is cleaned or refused"⟩,
+  ⟨"land.binaryOfLean", "on one machine scripts/fwcore-build.sh is a function `build` of the state that reads only lean/** and scripts/fwcore-build.sh (BinaryOfBuildReads build, satisfiable: binaryOfBuildReads_satisfiable), the binary the land checks is `build` of its tree, and sha256 of its bytes has no collision",
+    ["fwcore_digest_skip", "fwcore_nobuild_skip"], "MEASURED 2026-10-19 (task land-fwcore-key): a docstring-only edit of lean/Fw/Console/LandQueue.lean (linked into fwcore), rebuilt with scripts/fwcore-build.sh, left the sha256 of the binary at 8a4fd2d6ff6f, as did a rerun and the rebuild after the revert; fwcore-build.sh strips once per link because on macOS a second strip changes the bytes (8a4fd2d6ff6f to 495249a32f9b); the land hashes real builds, so a toolchain change only selects more"⟩]
 
-#guard premises.length == 7
+#guard premises.length == 8
 #guard (premises.map (·.id)).eraseDups.length == premises.length
 
 /-! ## Golden vectors (`packages/contracts/golden/console/land-speed.jsonl`) -/
@@ -790,6 +954,14 @@ def selectCase (name : String) (ds : List Decl) (changed : List String) : Json :
       ("checks", .arr (ds.map fun d => Json.mkObj [("id", .str d.id), ("reads", strs d.reads)]).toArray),
       ("changed", strs changed)]
     [("selected", strs (selectChecks ds changed))]
+
+/-- A `landSpeed.select2` case: the reply is `binMoved` and `selectTwoPhase`. -/
+def select2Case (name : String) (ds : List Decl) (changed : List String) (d0 d1 : Option String) : Json :=
+  let dj : Option String → Json := fun d => match d with | some a => .str a | none => .null
+  line name [("op", "landSpeed.select2"),
+      ("checks", .arr (ds.map fun d => Json.mkObj [("id", .str d.id), ("reads", strs d.reads)]).toArray),
+      ("changed", strs changed), ("main0Digest", dj d0), ("mergeDigest", dj d1)]
+    [("binMoved", .bool (binMoved changed d0 d1)), ("selected", strs (selectTwoPhase ds changed d0 d1))]
 
 /-- A `landSpeed.prelock` case: the reply is `prelockAction`.
 $$\operatorname{prelockCase}(n, h, m_0, v, a, k) = \operatorname{line}(n, \{h, m_0, v, a, k\}, \{\texttt{action}: \operatorname{act}(h, m_0, v, a, k)\})$$ -/
@@ -825,8 +997,7 @@ def premiseCase (p : PremiseRow) : Json :=
   line s!"premise {p.id}" [("op", "landSpeed.premise"), ("id", .str p.id)]
     [("statement", .str p.statement), ("theorems", strs p.theorems), ("test", .str p.test)]
 
-/-- Every golden case: 11 select, 6 prelock, 6 verdict and 4 cache cases, then one row per premise.
-$$\mathrm{cases} = \mathrm{select}_{1..11} \mathbin{+\!\!+} \mathrm{prelock}_{1..6} \mathbin{+\!\!+} \mathrm{verdict}_{1..6} \mathbin{+\!\!+} \mathrm{cache}_{1..4} \mathbin{+\!\!+} [\operatorname{premiseCase}(p) : p \in \mathrm{premises}]$$ -/
+/-- Every golden case: 11 select, 6 prelock, 6 verdict, 4 cache and 9 select2 cases, then one row per premise. -/
 def cases : List Json :=
   [selectCase "golden-only change selects check.sh (P5 mutation)" sampleDecls
       ["packages/contracts/golden/obs/timing.jsonl"],
@@ -856,9 +1027,18 @@ def cases : List Json :=
     cacheCase "hit replays the stored verdict" [(7, true), (9, false)] 9,
     cacheCase "first entry wins" [(7, true), (7, false)] 7,
     cacheCase "miss: run the check" [(7, true)] 8,
-    cacheCase "empty store: miss" [] 0] ++ premises.map premiseCase
+    cacheCase "empty store: miss" [] 0,
+    select2Case "lean change, equal digest: no fwcore user" binDecls ["lean/Fw/Console/Land.lean"] (some "a") (some "a"),
+    select2Case "lean change, digests differ: every fwcore user" binDecls ["lean/Fw/Console/Land.lean"] (some "a") (some "b"),
+    select2Case "lean change, main0 digest unknown: every fwcore user" binDecls ["lean/Fw/Console/Land.lean"] none (some "a"),
+    select2Case "lean change, merge build dirty or missing: every fwcore user" binDecls ["lean/Fw/Console/Land.lean"] (some "a") none,
+    select2Case "explicit lean source read selects its package at equal digest" binDecls ["lean/Fw/Console/PreviewFacts.lean"] (some "a") (some "a"),
+    select2Case "no build read changed: unknown digests select no fwcore user" binDecls ["apps/site/src/x.ts"] none none,
+    select2Case "build script change, equal digest: no fwcore user" binDecls ["scripts/fwcore-build.sh"] (some "a") (some "a"),
+    select2Case "build script change, digests differ: every fwcore user" binDecls ["scripts/fwcore-build.sh"] (some "a") (some "b"),
+    select2Case "docs-only change selects nothing" binDecls ["docs/team/handoffs/x.md"] none none] ++ premises.map premiseCase
 
-#guard cases.length == 34
+#guard cases.length == 44
 
 /-- The golden file text: one compressed JSON line per case.
 $$\mathrm{goldenText} = \operatorname{concat}[\, \operatorname{compress}(c) \mathbin{+\!\!+} \text{"\textbackslash n"} \,]_{c \in \mathrm{cases}}$$ -/
