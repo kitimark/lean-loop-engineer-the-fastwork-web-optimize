@@ -9,7 +9,7 @@ URLs plus one name `inline:` ++ i per `data:` URI found in its HTML, scripts and
 `bytes:` and the SHA-256 of the decoded bytes for a base64 payload, `svgtext:` and the SHA-256 of the percent-decoded
 text for an `image/svg+xml,` payload. Vite 8.3.4 inlines every imported asset under 4096 bytes this way
 (`DEFAULT_ASSETS_INLINE_LIMIT`, `shouldInline`, `svgToDataURL` in
-`node_modules/.pnpm/vite@8.3.4*/node_modules/vite/dist/node/chunks/node.js:803,32712-32739`). An original asset has the
+`node_modules/.pnpm/vite@8.3.4*/node_modules/vite/dist/node/chunks/node.js:803,32711-32739`). An original asset has the
 identity `bytes:` and the SHA-256 of its bytes, and an svg also `svgtext:` and the SHA-256 of `inlineNorm` of its text.
 This module decides each URL on its own (`verdict`) and is checked against `packages/contracts/golden/port/assets.jsonl`.
 The rename map is first one row per original asset that shares an identity with a rewrite asset (`renameRows`: the
@@ -94,7 +94,7 @@ def trimJs (l : List Char) : List Char := ((l.dropWhile isJsWs).reverse.dropWhil
 
 /-- Tag collapse: left to right and without overlap, every `>` followed by a nonempty run of $W$ and then `<` becomes
 `><`. The state `some w` holds the run read since the last `>` (reversed); `none` is outside such a run.
-$$\operatorname{collapse}(s) = s \text{ with each match of } \texttt{>}\,W^{+}\,\texttt{<} \text{ replaced by } \texttt{><}$$ -/
+$$\operatorname{collapse}(s) = \operatorname{collapseTags}(\bot, s) = s \text{ with each match of } \texttt{>}\,W^{+}\,\texttt{<} \text{ replaced by } \texttt{><}$$ -/
 def collapseTags : Option (List Char) → List Char → List Char
   | none, [] => []
   | none, c :: r => if c == '>' then '>' :: collapseTags (some []) r else c :: collapseTags none r
@@ -104,8 +104,9 @@ def collapseTags : Option (List Char) → List Char → List Char
     else if c == '<' then '<' :: collapseTags none r
     else w.reverse ++ if c == '>' then '>' :: collapseTags (some []) r else c :: collapseTags none r
 
-/-- Run squash: every maximal run of characters of $W$ becomes one space; `b` says the last character read was in $W$.
-$$\operatorname{squash}(s) = s \text{ with each maximal run } W^{+} \text{ replaced by } \texttt{" "}$$ -/
+/-- Run squash: every maximal run of characters of $W$ becomes one space; `b` says the last character read was in $W$
+(so `true` at the start drops a leading run).
+$$\operatorname{squash}(s) = \operatorname{squash}(\mathrm{false}, s) = s \text{ with each maximal run } W^{+} \text{ replaced by } \texttt{" "}$$ -/
 def squash : Bool → List Char → List Char
   | _, [] => []
   | b, c :: r => if isJsWs c then (if b then squash true r else ' ' :: squash true r) else c :: squash false r
