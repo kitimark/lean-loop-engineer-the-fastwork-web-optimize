@@ -258,14 +258,78 @@ describe("a completed bound failed lane run always refuses, whatever `fw ci wait
       expect(verdictOf([run])).toMatchObject({ kind: "refuse", reason: "remote-lane-failed" });
     });
   }
-  const adapterFor = (code: number, out: string) => {
+  // The fake gh honours its arguments: a list or view that is not for the land workflow answers with another workflow's run first.
+  type Other = { conclusion: string };
+  const adapterFor = (code: number, out: string, other?: Other, land: GhRunView = failed(), cache?: (h: unknown, id?: string) => GhRunView | null) => {
     const ghCalls: string[][] = [];
     const a = githubAdapter({
       call, git: () => MARKER, wait: async () => ({ code, out }),
-      gh: async (args) => { ghCalls.push(args); return args[1] === "list" ? JSON.stringify([{ databaseId: 123 }]) : JSON.stringify(failed()); },
+      gh: async (args) => {
+        ghCalls.push(args);
+        const landOnly = args.includes("--workflow") && args[args.indexOf("--workflow") + 1] === "land";
+        if (args[1] === "list") return JSON.stringify(other && !landOnly ? [{ databaseId: 999 }, { databaseId: 123 }] : [{ databaseId: 123 }]);
+        const id = args[2];
+        if (id === "999") return JSON.stringify({ ...passView(), workflowName: "lean", conclusion: other!.conclusion });
+        return JSON.stringify({ ...land, workflowName: "land" });
+      },
+      ...(cache ? { cache } : {}),
     });
     return { a, ghCalls };
   };
+  const awaitWith = async (a: ReturnType<typeof adapterFor>["a"]) => {
+    const logs: string[] = [];
+    const o = await awaitRemote({ call, adapters: { github: a }, allow: ["github"], ctx: { task: "t", mergeSha: SHA, want }, local: Promise.resolve(true), log: (l) => logs.push(l), span: () => {}, sliceS: 0.05, deadlineS: 5, waitsLeft: 3 });
+    return { o, logs };
+  };
+  it("the run list is filtered to the land workflow", async () => {
+    const { a, ghCalls } = adapterFor(4, "wait: no id");
+    await awaitWith(a);
+    const list = ghCalls.find((c) => c[1] === "list")!;
+    expect(list[list.indexOf("--workflow") + 1]).toBe("land");
+  });
+  it("another workflow's newest success never lets a failed land run fall back to local", async () => {
+    const { a } = adapterFor(4, "wait: no id", { conclusion: "success" });
+    const { o, logs } = await awaitWith(a);
+    expect(o.verdict).toMatchObject({ kind: "refuse", reason: "remote-lane-failed" });
+    expect(logs.join("\n")).not.toMatch(/on this Mac/);
+  });
+  it("another workflow's newest failure never refuses a land whose own run passed", async () => {
+    const { a } = adapterFor(0, "wait: no id", { conclusion: "failure" }, passView());
+    const { o } = await awaitWith(a);
+    expect(o.verdict).not.toMatchObject({ reason: "remote-lane-failed" });
+    expect(o.verdict.kind).toBe("accept");
+  });
+  it("a view of another workflow is not used even when asked for by id", async () => {
+    const { a } = adapterFor(4, "run 999 something", { conclusion: "failure" });
+    const { o } = await awaitWith(a);
+    expect(o.verdict).not.toMatchObject({ reason: "remote-lane-failed" });
+  });
+  it("cached waiter facts decide before any gh call", async () => {
+    const cached = { ...failed(), workflowName: "land" };
+    const { a, ghCalls } = adapterFor(3, "wait: no gh call for the jobs of run 123: refused (budget)", undefined, failed(), () => cached);
+    const { o } = await awaitWith(a);
+    expect(o.verdict).toMatchObject({ kind: "refuse", reason: "remote-lane-failed" });
+    expect(ghCalls).toEqual([]);
+  });
+  it("extra gh calls carry the slice deadline and the abort signal", async () => {
+    const seen: unknown[] = [];
+    const a = githubAdapter({ call, git: () => MARKER, wait: async () => ({ code: 4, out: "run 123 x" }), gh: async (args, o) => { seen.push(o); return JSON.stringify({ ...failed(), workflowName: "land" }); } });
+    await a.poll({ provider: "github", branch: "b", marker: MARKER }, { task: "t", mergeSha: SHA, want }, 5, new AbortController().signal);
+    expect(seen[0]).toMatchObject({ deadline: expect.any(Number), signal: expect.anything() });
+  });
+  it("budget refused and no cached record: the waiter outcome stands and the reason is logged", async () => {
+    const a = githubAdapter({ call, git: () => MARKER, wait: async () => ({ code: 3, out: "wait: no gh call for the jobs of run 123: refused" }), gh: async () => { throw new Error("gh run view not made: the request budget says stop"); } });
+    const p = await a.poll({ provider: "github", branch: "b", marker: MARKER }, { task: "t", mergeSha: SHA, want }, 5);
+    expect(p.run.state).toBe("unavailable");
+    expect(p.note).toMatch(/land run record not read/);
+  });
+  // Incident run 39338755874 (INFERRED exit 4: the guard job logged both `decision: run` and `decision: skip`, the land job exited 1 at
+  // `stale: a newer push is the branch tip`; the verdict of the waiter for such a run is not-run, exit 4).
+  it("incident run 39338755874: waiter exit 4 (not-run) on a failed land run refuses", async () => {
+    const { a } = adapterFor(4, "run 39338755874 land failure -> not-run");
+    const { o } = await awaitWith(a);
+    expect(o.verdict).toMatchObject({ kind: "refuse", reason: "remote-lane-failed" });
+  });
   for (const code of [0, 1, 2, 3, 4]) {
     for (const withId of [true, false]) {
       it(`adapter, waiter exit ${code}, run id ${withId ? "in the output when it prints one" : "found by the branch listing"}: no fallback to the local tier`, async () => {
@@ -293,11 +357,10 @@ describe("a completed bound failed lane run always refuses, whatever `fw ci wait
       allow: ["github"], runLocal: async () => { localRuns++; return { bad: null, kind: "checks" }; }, log: (l) => logs.push(l), span: () => {}, sliceS: 0.05, deadlineS: 5, waitsLeft: 3,
     });
     const tier = call({ op: "console.landTier", ids }) as { local: string[]; remote: string[] };
-    if (tier.remote.length) {
-      expect(r.bad).toMatch(/the land lane failed/);
-      expect(logs.some((l) => /^remote: verdict refuse reason=remote-lane-failed/.test(l))).toBe(true);
-      expect(logs.join("\n")).not.toMatch(/on this Mac/);
-      expect(localRuns).toBe(1); // only the local tier
-    }
+    expect(tier.remote.length).toBeGreaterThan(0);
+    expect(r.bad).toMatch(/the land lane failed/);
+    expect(logs.some((l) => /^remote: verdict refuse reason=remote-lane-failed/.test(l))).toBe(true);
+    expect(logs.join("\n")).not.toMatch(/on this Mac/);
+    expect(localRuns).toBe(1); // only the local tier
   });
 });

@@ -25,7 +25,7 @@ force push), waits with `fw ci wait` (no CPU: one sleeping child per slice) and 
   `lane: sha=.. digest=..` (land.yml); a pass for another sha or suite list is ignored. Any provider's fail refuses.
 - Fallback is explicit, never silent: provider unavailable -> try the next allowed provider, else the remote tier runs on this Mac
   and the log says `remote: running the remote tier on this Mac instead (<reason>)`. Cancelled or timed out: same.
-- **A completed failed lane run always refuses (incident 2026-10-20, task preview-e2e).** After the waiter returns, with any exit
+- **A completed failed lane run always refuses (incident 2026-10-19, run 39338755874, task preview-e2e).** After the waiter returns, with any exit
   code, the adapter reads the run's own record (`gh run view`; the run id comes from the waiter output or `gh run list --branch
   <ci/land-..> --commit <marker>`). Lean `laneState` (`console.landLaneState`) makes the state `fail` when the run completed with
   conclusion `failure`, whatever the exit code; the waiter's exit decides only for runs without such a record. Theorems
@@ -34,7 +34,7 @@ force push), waits with `fw ci wait` (no CPU: one sleeping child per slice) and 
 - Every remote line (`remote: ...`, including `remote: verdict <kind> reason=<reason>` and the fallback line) goes to the land log
   file `.fw-console/land-logs/<task>-<sha7>.log` and to stderr, whether or not the land passes.
 - `fw ci wait` exit 3 means a run still going only when its output says `timed out after`; a stopped poller or a refused gh call
-  is `unavailable` (no retry on a refusal). A `running` poll that returns before its slice is slept out, so waiting costs no CPU.
+  is `unavailable` (no retry on a refusal). After any exit but a plain timeout the adapter reads the land workflow's own run (`--workflow land`; a view whose `workflowName` is not the lane is dropped, so another workflow's run on the commit never decides): first the waiter's cached facts (gh-budget runs-status file, `meta/<id>.jobs.json`; no budget), then at most a list and a view, bounded by the slice deadline and the abort signal. Accepted limit: if the budget refuses those calls and no cached record exists, the waiter's outcome stands (fallback to the local tier), logged as `land run record not read (<reason>)`. A `running` poll that returns before its slice is slept out, so waiting costs no CPU.
 - Before the push, `scripts/scrub.mjs --range origin/main <C>` scans the lines the push adds (home paths, Claude session/project paths and encoded home paths such as `-Users-<name>-`, the run-time account name, LAN IPs, emails, ...);
   a hit makes the provider `unavailable` with `personal-data scan refused ...` and the remote tier runs here. If `origin/main` is
   missing the scan fails the same way (closed). The waiter runs in its own process group; an abort stops the whole group.

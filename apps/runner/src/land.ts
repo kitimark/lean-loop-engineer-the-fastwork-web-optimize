@@ -10,7 +10,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
 import { begin, record, span } from "./timing.ts";
-import { circleciAdapter, DEFAULT_ALLOW, githubAdapter, runTiered, spawnWait, type Adapter, type Provider } from "./land-remote.ts";
+import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, runTiered, spawnWait, type Adapter, type Provider } from "./land-remote.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { checkFailKind, failedStages, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
@@ -592,7 +592,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const laneIds = (call({ op: "console.landTier", ids: all.filter((x) => laneSel.has(x.id)).map((x) => x.id) }) as { remote: string[] }).remote;
     const res = await runTiered({
       call, checks: list, laneIds, task: o.task, mergeSha: c, allow: r.allow ?? DEFAULT_ALLOW,
-      adapters: r.adapters ?? { github: githubAdapter({ call, git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), wait: spawnWait(mainDir), gh: chargedGh(realEnv(mainDir)) }), circleci: circleciAdapter(() => tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/circleci.mjs`])) },
+      adapters: r.adapters ?? { github: githubAdapter({ call, git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), wait: spawnWait(mainDir), gh: chargedGh(realEnv(mainDir)), cache: (h, id) => cachedLaneView(realEnv(mainDir).dir, h, id) }), circleci: circleciAdapter(() => tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/circleci.mjs`])) },
       runLocal: async (argv) => { const bad = await runChecks(dir, argv); return { bad, kind: badKind }; },
       log: (l) => { lines.push(l); logLine(l); }, span: (step, startMs, durMs, exit) => record({ tool: "fw land", step, startMs, durMs, exit }, mainDir),
       sliceS: r.sliceS, deadlineS: r.deadlineS, waitsLeft: r.waitsLeft,

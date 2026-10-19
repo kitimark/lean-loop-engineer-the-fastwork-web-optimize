@@ -460,18 +460,16 @@ def laneRun (p : Provider) (sha laneId digest : String) (code : Nat) (t : Bool) 
 /-- A completed bound failed lane run refuses the land, whatever exit code the waiter returned and whatever the other runs say. -/
 theorem verdict_completed_failure_refuses (a : List Provider) (w : Want) (k : Nat) (rs : List Run) (p : Provider)
     (code : Nat) (t : Bool) (status conclusion : String) (hc : completedFailure status conclusion = true)
-    (hb : w.binds (laneRun p w.sha w.laneId w.laneDigest code t status conclusion) = true)
     (hm : laneRun p w.sha w.laneId w.laneDigest code t status conclusion ∈ rs) :
     verdict true true a w k rs = .refuse .remoteFail :=
-  verdict_fail a w k rs ⟨_, hm, hb, laneState_completed_failure code t status conclusion hc⟩
+  verdict_fail a w k rs ⟨_, hm, by simp [Want.binds, laneRun], laneState_completed_failure code t status conclusion hc⟩
 
 /-- A fallback to the local tier is impossible while a completed bound failed run is among the runs. -/
 theorem verdict_no_local_after_failure (a : List Provider) (w : Want) (k : Nat) (rs : List Run) (p : Provider)
     (code : Nat) (t : Bool) (status conclusion : String) (hc : completedFailure status conclusion = true)
-    (hb : w.binds (laneRun p w.sha w.laneId w.laneDigest code t status conclusion) = true)
     (hm : laneRun p w.sha w.laneId w.laneDigest code t status conclusion ∈ rs) (y : LocalWhy) :
     verdict true true a w k rs ≠ .runLocal y := by
-  rw [verdict_completed_failure_refuses a w k rs p code t status conclusion hc hb hm]
+  rw [verdict_completed_failure_refuses a w k rs p code t status conclusion hc hm]
   intro h; cases h
 
 #guard laneDigest .onCi ["apps/runner", "packages/gh-budget"] == "remote:apps/runner,packages/gh-budget"
