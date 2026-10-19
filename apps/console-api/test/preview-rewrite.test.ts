@@ -39,3 +39,27 @@ describe("preview rewrite keeps inline scripts", () => {
     for (const h of hashes) expect(have).toContain(h);
   });
 });
+
+describe("module imports through the Referer", () => {
+  it("a script-destination request from a preview page is sent below the arm; other requests are served in place", async () => {
+    const { createServer } = await import("node:http");
+    const { createPreviewApp } = await import("../src/preview/preview-app.ts");
+    const { OwnerAuth } = await import("../src/preview/owner.ts");
+    const { selectCore } = await import("../src/core/index.ts");
+    const up = createServer((_q, res) => { res.setHeader("content-type", "text/plain"); res.end("up"); });
+    await new Promise<void>((r) => up.listen(0, "127.0.0.1", () => r()));
+    try {
+      const port = (up.address() as { port: number }).port;
+      const pm = { serving: (id: string) => (id === "p1" ? { rp: port, op: port } : null), touch: () => undefined } as never;
+      const owner = new OwnerAuth();
+      const app = createPreviewApp(selectCore(process.env, undefined, () => undefined), owner, pm, { lan: false });
+      const cookie = owner.previewCookieFor(owner.open())[0]!.split(";")[0]!;
+      const ref = "http://h:1/preview/p1/o/";
+      const imp = await app.request("/_app/immutable/entry/start.js?v=1", { headers: { cookie, referer: ref, host: "h:1", "sec-fetch-dest": "script" } });
+      expect(imp.status).toBe(302);
+      expect(imp.headers.get("location")).toBe("/preview/p1/o/_app/immutable/entry/start.js?v=1");
+      const img = await app.request("/x.png", { headers: { cookie, referer: ref, host: "h:1", "sec-fetch-dest": "image" } });
+      expect(img.status).toBe(200);
+    } finally { up.close(); }
+  });
+});
