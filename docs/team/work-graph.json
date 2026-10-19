@@ -5484,7 +5484,8 @@
     "lean/Fw/Console/LandSpeed.lean",
     "packages/contracts/golden/console/land-speed.jsonl",
     "apps/runner/src/land.ts"
-   ]
+   ],
+   "evidence": "37317ab"
   },
   {
    "devices": [
