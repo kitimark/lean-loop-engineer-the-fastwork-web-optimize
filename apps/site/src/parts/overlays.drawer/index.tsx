@@ -104,7 +104,7 @@ export function OverlayDrawer({ variant, onGetStarted }: OverlayDrawerProps) {
         </button>
         <div className={css.body}>
           <div className={css.header}>
-            <GenSvg art={art('brand.mark')} className={css.mark} />
+            <GenSvg art={art('drawer.mark')} className={css.mark} />
             <div className={css.intro}>
               <h2 id="why-bring-title">Why bring your client to Fastwork?</h2>
               <p>Discover the benefits of bringing your clients with you.</p>

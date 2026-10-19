@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { GenSvg, art } from '../../GenSvg';
+import { GenShape, GenSvg, art } from '../../GenSvg';
 import { getClock } from '../../engine/clock';
 import { createAskDriver, createCountUp, observeVisible } from '../platform.entries/driver';
 import type { View } from '../platform.entries/logic';
@@ -236,10 +236,7 @@ export function Ask({ subs }: { subs: Subs }) {
         <div className={v.askHero}>
           <p className={v.askTitle}>{ASK_TITLE}</p>
           <div className={v.askField}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-              <circle cx="11" cy="11" r="6.5" />
-              <path d="m16 16 4 4" />
-            </svg>{' '}
+            <GenSvg art={art('platform.search')} />{' '}
             <span ref={field} />
           </div>
         </div>
@@ -297,7 +294,7 @@ function Dash({ side, playing }: { side: 'left' | 'right'; playing: boolean }) {
             ) : null}
           </linearGradient>
         </defs>
-        <line className={cx(v.highlight, playing && v.highlightActive)} x1="1.6" y1="1.6" x2="92.4" y2="1.6" strokeWidth="3.2" strokeLinecap="round" stroke={`url(#${id})`} />
+        <GenShape art={art('platform.dashLeft')} className={cx(v.highlight, playing && v.highlightActive)} stroke={`url(#${id})`} />
       </svg>
     </span>
   );

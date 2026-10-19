@@ -7,7 +7,22 @@ export interface Art {
   kids: Array<{ tag: string; attrs: Record<string, string> }>;
 }
 
-type Single = 'nav.globe' | 'icon.bell' | 'icon.calendar' | 'platform.star' | 'platform.pin' | 'platform.shield' | 'brand.mark' | 'commission.chevron' | 'hero.cue' | 'drawer.close';
+type Single = 'nav.globe' | 'icon.bell' | 'icon.calendar' | 'platform.star' | 'platform.pin' | 'platform.shield' | 'brand.mark' | 'commission.chevron' | 'hero.cue' | 'drawer.close'
+  | 'drawer.mark'
+  | 'nav.chevron'
+  | 'nav.langCheck'
+  | 'platform.search'
+  | 'platform.check'
+  | 'platform.dashLeft'
+  | 'platform.dashRight'
+  | 'people.star'
+  | 'people.mute'
+  | 'people.play'
+  | 'people.clock'
+  | 'review.bolt'
+  | 'review.shield'
+  | 'review.star'
+  | 'review.tag';
 type Frames = 'commission.underline' | 'commission.zero';
 
 const store = gen.art as unknown as Record<Single, Art> & Record<Frames, Art[]>;
@@ -32,4 +47,10 @@ export function GenSvg({ art: a, ...rest }: { art: Art } & SVGProps<SVGSVGElemen
       {a.kids.map((k, i) => createElement(k.tag, { key: i, ...props(k.attrs) }))}
     </svg>
   );
+}
+
+/** The shape `index` of an artwork, for artwork that needs its own `<svg>` wrapper (gradients, animation); `rest` is applied over the original's attributes. */
+export function GenShape({ art: a, index = 0, ...rest }: { art: Art; index?: number } & Record<string, unknown>) {
+  const k = a.kids[index]!;
+  return createElement(k.tag, { ...props(k.attrs), ...rest });
 }

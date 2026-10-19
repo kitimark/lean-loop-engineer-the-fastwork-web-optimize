@@ -27,7 +27,34 @@ function snapshotPaths(): Set<string> {
   return out;
 }
 
+const IDENTITY: Record<string, { viewBox: string; kids: string[] }> = {
+  'drawer.mark': { viewBox: '0 0 46 46', kids: ['path'] },
+  'nav.chevron': { viewBox: '0 0 16 16', kids: ['path'] },
+  'nav.langCheck': { viewBox: '0 0 24 24', kids: ['path'] },
+  'platform.search': { viewBox: '0 0 24 24', kids: ['circle', 'path'] },
+  'platform.check': { viewBox: '0 0 24 24', kids: ['circle', 'path'] },
+  'platform.dashLeft': { viewBox: '0 0 94 3.2', kids: ['line'] },
+  'platform.dashRight': { viewBox: '0 0 94 3.2', kids: ['line'] },
+  'people.star': { viewBox: '0 0 24 24', kids: ['path'] },
+  'people.mute': { viewBox: '0 0 24 24', kids: ['path'] },
+  'people.play': { viewBox: '0 0 24 24', kids: ['path'] },
+  'people.clock': { viewBox: '0 0 16 16', kids: ['circle', 'path'] },
+  'review.bolt': { viewBox: '0 0 24 24', kids: ['path'] },
+  'review.shield': { viewBox: '0 0 24 24', kids: ['path', 'path'] },
+  'review.star': { viewBox: '0 0 24 24', kids: ['path'] },
+  'review.tag': { viewBox: '0 0 24 24', kids: ['path', 'circle'] },
+  'brand.mark': { viewBox: '0 0 74 66', kids: ['path'] },
+};
+
 describe('svg-extract', () => {
+  it('each art id is the snapshot artwork it names: viewBox and child shapes', () => {
+    const art = gen.art as unknown as Record<string, { svg: { viewBox: string }; kids: Array<{ tag: string }> }>;
+    for (const [id, want] of Object.entries(IDENTITY)) {
+      expect(art[id]!.svg.viewBox, id).toBe(want.viewBox);
+      expect(art[id]!.kids.map((k) => k.tag), id).toEqual(want.kids);
+    }
+  });
+
   it('extracts the wordmark, every visible accent word and each moved artwork', () => {
     expect(gen.wordmark.paths.length).toBeGreaterThan(0);
     expect(gen.accent.base).toHaveLength(3);

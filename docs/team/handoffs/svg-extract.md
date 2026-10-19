@@ -20,3 +20,9 @@ State: branch worktree-wf_f0e4209d-fe6-2, see git log.
 - Not run: browser, CI, pixel equality (the gate/visual run decides). Stand-ins left: langMenu check circle, short icon
   paths under 24 chars (close, search, check, mute) are not in the guard's reach.
 - No Lean piece: extraction and rendering are glue; no decision logic. TS stand-in: none.
+
+## Round 3 (final design round)
+- Identity table: `IDENTITY` in apps/site/src/svg-extract.test.ts pins viewBox and child tags of 16 art ids (drawer.mark 0 0 46 46, nav.chevron, nav.langCheck, platform.search/check/dashLeft/dashRight, people.star/mute/play/clock, review.bolt/shield/star/tag, brand.mark). Review icons are the four svelte-19hdikk svgs in order. Deck panel files (not on main) render through these ids (deck-panels-lean).
+- Guard: apps/site/src/svg-guard.test.ts fails on any path/polygon/polyline/circle/ellipse/line/rect (JSX or createElement) in src/parts/**/*.tsx not listed in src/svg-allow.json; the two entries (hero.accent, nav wordmark) hold no literal geometry, d comes from svg.gen.json. GenShape (GenSvg.tsx) draws a single original shape inside a caller's own svg (the secure-network dash line).
+- Moved to GenSvg: drawer mark, nav chevron, language check (the original is a filled path, not circle+stroke), platform search, platform check, dash line.
+- Limits: indirect eval of the snapshot LE/RE slice stays (follow-up: literal parser); the allowlist reason for two entries says "no literal geometry", not "not from the snapshot", because they render snapshot data; pixel equality is for the gate.

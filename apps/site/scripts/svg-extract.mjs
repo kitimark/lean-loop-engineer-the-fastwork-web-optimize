@@ -67,6 +67,17 @@ export function extractSvg() {
     const from = js.indexOf('<svg', at);
     return js.slice(from, js.indexOf('</svg>', from) + 6);
   };
+  const jsSelf = (needle) => {
+    const at = js.indexOf(needle);
+    if (at < 0) throw new Error(`svg-extract: ${needle} not found`);
+    const from = js.lastIndexOf('<svg', at);
+    return js.slice(from, js.indexOf('</svg>', from) + 6);
+  };
+  const jsReview = (n) => {
+    const hit = jsBlocks.filter((b) => b.includes('svelte-19hdikk'));
+    if (hit.length !== 4) throw new Error('svg-extract: review icons not found');
+    return parseSvg(hit[n]);
+  };
   const many = (name, test) => {
     const hit = blocks.filter(test);
     if (hit.length === 0) throw new Error(`svg-extract: ${name} not found`);
@@ -95,6 +106,21 @@ export function extractSvg() {
       'brand.mark': one('brand.mark', (s) => s.includes('viewBox="0 0 74 66"')),
       'commission.chevron': one('commission.chevron', (s) => s.includes('class="why-link-chevron"')),
       'hero.cue': one('hero.cue', (s) => s.includes('viewBox="0 0 20 20"')),
+      'drawer.mark': parseSvg(jsSelf('class="why-bring-mark"')),
+      'nav.chevron': parseSvg(jsSelf('class="start-selling-language-switch__chevron')),
+      'nav.langCheck': parseSvg(jsSelf('class="start-selling-language-switch-option__check')),
+      'platform.search': one('platform.search', (s) => s.startsWith('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"') && s.includes('<circle')),
+      'platform.check': one('platform.check', (s) => s.startsWith('<svg viewBox="0 0 24 24"><circle')),
+      'platform.dashLeft': one('platform.dashLeft', (s) => s.includes('secure-network-dash-left"') && s.includes('<line')),
+      'platform.dashRight': one('platform.dashRight', (s) => s.includes('secure-network-dash-right"') && s.includes('<line')),
+      'people.star': parseSvg(jsSelf('class="star svelte-ndydzv"')),
+      'people.mute': parseSvg(jsContext('class="mute svelte-18m48uz"')),
+      'people.play': parseSvg(jsContext('class="video svelte-18m48uz"')),
+      'people.clock': parseSvg(jsSelf('class="clock svelte-18m48uz"')),
+      'review.bolt': jsReview(0),
+      'review.shield': jsReview(1),
+      'review.star': jsReview(2),
+      'review.tag': jsReview(3),
       'drawer.close': parseSvg(jsContext('class="why-bring-close">')),
       'commission.underline': many('commission.underline', (s) => s.includes('class="underline-frame')),
       'commission.zero': many('commission.zero', (s) => s.includes('class="zero-frame')),
