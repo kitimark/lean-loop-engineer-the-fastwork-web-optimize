@@ -17,7 +17,9 @@ Verified:
 - `sh lean/scripts/check.sh` green at the final commit; apps/site tests, ci-paths and land-inputs tests pass.
 
 Open:
-- Breakpoint gate run 39312308450 (`fw=morph.mount:shift-dormant`): see the report for the verdict.
+- Breakpoint gate run 39312308450 (`fw=morph.mount:shift-dormant`). Attempt 1 failed only on the known commission
+  margin-inline flake (desktop-1512, pain-1440); every morph.* part passes. Attempt 2 is running; read it with
+  `gh run view 39312308450 --attempt 2 --log-failed` (`fw ci wait` still reports attempt 1).
 - Whether to put `shift-dormant` into v2-proved instead of `shift` is a lead decision (layers vs one recalc).
   It needs a findings-ledger row.
 - WebKit census of the dormant build was not run (accepted limit: source-only).

@@ -88,7 +88,11 @@ same kind of single-frame noise also appears between faithful and shift. Recalc:
 `shift` instead saves 1 at frame 117 (swipe) and 2 at frames 125-126 (touch). Layout: dormant keeps `shift`'s -1 at
 swipe frames 18, 39 and 46 (touch 21, 42 and 49). It gives back the -1 at the trigger frame.
 
-Breakpoint gate, `fw=morph.mount:shift-dormant`: run 39312308450 (result in the handoff).
+Breakpoint gate, `fw=morph.mount:shift-dormant`, run 39312308450 attempt 1 (MEASURED). Every morph.* part passes in
+every sweep on Chromium. Its only 2 failing cells are `commission` margin-inline at desktop-1512 and pain-1440
+(orig 132px / 8px, rewrite 0px): the known commission flake (10-19-integrate-wave-2.md, "Commission probe flake";
+default arm failed 2 of 3 runs). This change does not touch that part. WebKit: 0 fail. The verdict is incomplete
+(UNREACHABLE envs, phone-rotation matchMedia not comparable). Attempt 2 was started to read the flake again.
 
 ## Accepted limits
 
