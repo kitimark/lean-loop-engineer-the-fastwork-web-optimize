@@ -6457,7 +6457,11 @@
     "apps/site/src/parts/hero.countdown/**",
     "packages/contracts/golden/parts/hero.countdown.jsonl",
     "research/findings/ledger.json",
-    "docs/team/handoffs/countdown-hidden-pause.md"
+    "docs/team/handoffs/countdown-hidden-pause.md",
+    "packages/contracts/golden/parts/hero.countdown.hidden.jsonl",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "lean/Fw/Parts/FootprintData.lean"
    ]
   },
   {
