@@ -16,6 +16,14 @@ export interface Post {
   id: string;
   /** CSS aspect-ratio of a photo post (inline on the card); audio posts are square */
   ratio?: string;
+  /** price badge of a photo post */
+  price?: string;
+  /** play badge of a video post */
+  video?: boolean;
+  /** article posts */
+  title?: string;
+  excerpt?: string;
+  readMinutes?: number;
 }
 export interface Profile {
   id: string;
@@ -93,11 +101,11 @@ export const PROFILES: Profile[] = [
       { id: "cinematic-edit", title: "Cinematic vdo edit", price: "฿25,000", sold: 9, rating: 5, reviewCount: 7 },
     ],
     posts: [
-      { kind: "photo", id: "graffiti", ratio: "2 / 1" },
-      { kind: "photo", id: "chainmail", ratio: "9 / 16" },
-      { kind: "photo", id: "oym", ratio: "9 / 16" },
-      { kind: "photo", id: "neon-smile", ratio: "16 / 9" },
-      { kind: "photo", id: "club", ratio: "3 / 5" },
+      { kind: "photo", id: "graffiti", ratio: "2 / 1", video: true },
+      { kind: "photo", id: "chainmail", ratio: "9 / 16", video: true },
+      { kind: "photo", id: "oym", ratio: "9 / 16", video: true },
+      { kind: "photo", id: "neon-smile", ratio: "16 / 9", video: true },
+      { kind: "photo", id: "club", ratio: "3 / 5", video: true },
     ],
   },
   {
@@ -115,9 +123,9 @@ export const PROFILES: Profile[] = [
       { id: "graphic-design", title: "Graphic Designer", price: "฿10,000 / day", sold: 12, rating: 4.9, reviewCount: 5 },
     ],
     posts: [
-      { kind: "photo", id: "star-coffee", ratio: "3 / 4" },
-      { kind: "photo", id: "hunq", ratio: "1 / 1" },
-      { kind: "article", id: "cine-cafe" },
+      { kind: "photo", id: "star-coffee", ratio: "3 / 4", price: "฿5,000" },
+      { kind: "photo", id: "hunq", ratio: "1 / 1", price: "฿5,000" },
+      { kind: "article", id: "cine-cafe", title: "Cine cafe", excerpt: "Create unique, custom illustrations designed to enhance the atmosphere and visual identity of restaurants, cafes, and other hospitality spaces.", readMinutes: 2 },
       { kind: "photo", id: "nefertem", ratio: "1 / 1" },
       { kind: "photo", id: "dream-team", ratio: "3 / 4" },
       { kind: "photo", id: "fraction", ratio: "1 / 1" },
@@ -138,9 +146,9 @@ export const PROFILES: Profile[] = [
       { id: "custom-ai-chatbot", title: "Custom AI Chatbot", price: "฿35,000", sold: 20, rating: 4.9, reviewCount: 8 },
     ],
     posts: [
-      { kind: "article", id: "local-llm" },
+      { kind: "article", id: "local-llm", title: "Efficient Local LLM on one DGX Spark.", excerpt: "Upload a document, ask in plain language, and get answers that cite their exact page.", readMinutes: 4 },
       { kind: "photo", id: "spark", ratio: "4 / 3" },
-      { kind: "photo", id: "marketing", ratio: "12 / 13" },
+      { kind: "photo", id: "marketing", ratio: "12 / 13", price: "฿35,000" },
       { kind: "photo", id: "symposium", ratio: "3 / 4" },
     ],
   },
@@ -161,7 +169,7 @@ export const PROFILES: Profile[] = [
     posts: [
       { kind: "photo", id: "haus-clinic", ratio: "4 / 5" },
       { kind: "photo", id: "greengo", ratio: "1 / 1" },
-      { kind: "article", id: "slow-website" },
+      { kind: "article", id: "slow-website", title: "How Much Does a Slow Website Cost your Business — And How to Check and Fix It Yourself", excerpt: "Think about the last time you clicked a website and saw a blank screen. How many seconds did you wait before leaving?", readMinutes: 7 },
       { kind: "photo", id: "speed-addict", ratio: "9 / 16" },
     ],
   },

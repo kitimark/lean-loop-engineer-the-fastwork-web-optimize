@@ -147,7 +147,7 @@ interface RootProps {
   fwId: string;
   children: ReactNode;
 }
-const rootAttrs = { role: 'timer', 'aria-live': 'off' as const, 'aria-label': 'countdown' };
+const rootAttrs = { role: 'timer', 'aria-live': 'off' as const, 'aria-label': 'Time until launch' };
 
 function PlainRoot({ rootRef, className, variant, fwId, children }: RootProps) {
   return (
