@@ -101,3 +101,4 @@ export async function checksCli(argv: string[], cwd: string, deps: { core?: FwCa
   if (chosen.length === 0) { log(`checks: no ${a.tier ?? "selected"} checks`); return 0; }
   return runTier(chosen, root, core, deps.run ?? spawnRunner, log);
 }
+// probe
