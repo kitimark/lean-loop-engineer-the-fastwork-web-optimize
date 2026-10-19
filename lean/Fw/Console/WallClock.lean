@@ -26,7 +26,7 @@ open Lean
 
 /-- The syntactic site of a literal: an assertion upper bound, a timeout option, a hard-coded deadline argument, an
 elapsed-time comparison, a sleep delay, or anything else.
-$$\mathrm{Site} = \{\mathrm{assertLt}, \mathrm{timeoutOpt}, \mathrm{deadlineArg}, \mathrm{elapsedCmp}, \mathrm{sleep}, \mathrm{other}\}$$ -/
+$$\mathrm{Site} = \{\mathrm{assertLt}, \mathrm{timeoutOpt}, \mathrm{deadlineArg}, \mathrm{elapsedCmp}, \mathrm{loopCap}, \mathrm{sleep}, \mathrm{other}\}$$ -/
 inductive Site | assertLt | timeoutOpt | deadlineArg | elapsedCmp | loopCap | sleep | other
   deriving DecidableEq, Repr
 
@@ -79,7 +79,7 @@ theorem refuse_iff (s : Site) (n : Nat) (r : String) :
 /-! ## Golden vectors -/
 
 /-- One golden case.
-$$\operatorname{case}(s, n, r) = \{\mathrm{request}: (s, n, r),\ \mathrm{response}: \{\mathrm{refuse}(s,n,r),\ \mathrm{bound}(s,n)\}\}$$ -/
+$$\operatorname{case}(m, s, n, r) = \{\mathrm{name}: m,\ \mathrm{request}: \{\mathrm{op}: \texttt{wallclock.verdict}, \mathrm{site}: \mathrm{name}(s), \mathrm{ms}: n, \mathrm{reason}: r\},\ \mathrm{response}: \{\mathrm{refuse}: \mathrm{refuse}(s,n,r), \mathrm{bound}: \mathrm{bound}(s,n)\}\}$$ -/
 def case (name : String) (s : Site) (n : Nat) (r : String) : Json :=
   Json.mkObj [("name", .str name),
     ("request", Json.mkObj [("op", "wallclock.verdict"), ("site", s.name), ("ms", toJson n), ("reason", .str r)]),

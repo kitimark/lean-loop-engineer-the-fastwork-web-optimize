@@ -101,9 +101,9 @@ describe("fwcore serve: timings (100k synthetic events)", () => {
     expect(b.cards).toHaveLength(4167 + 1000);
     console.log(`fwcore serve: replay ${es.length} events ${replayMs.toFixed(0)} ms; ` +
       `apply round trip p50 ${rtt[500]!.toFixed(0)} µs, p90 ${rtt[900]!.toFixed(0)} µs; query (${b.cards.length} cards) ${queryMs.toFixed(0)} ms`);
-    // Load-independent (task land-wallclock-off-gate): a same-run linearity ratio. Replay of n/10 events into a fresh core
-    // is timed here too; linear replay costs about 10x that, an O(n^2) apply path about 100x. K = 3 allows 30x: 3x slack for
-    // noise and for the small run's fixed costs (child start, JIT) being a larger share. Load scales both sides alike.
+    // A load-independent sanity bound, not a regression detector: replay of n/10 events into a fresh core is timed in the
+    // same run, so load scales both sides alike. Child-process spawn cost dominates the small run, so this does not detect
+    // an O(n^2) apply path; replay slowdowns are the CI timing lane's job (Fw.Obs.Timing). K = 3 is slack for noise.
     const K = 3;
     const small = synth(417, 4); // 417 cards x 24 events = 10,008 events
     const c2 = fresh();
