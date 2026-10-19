@@ -148,6 +148,8 @@ export class PreviewManager {
 
   private get tablePath() { return join(this.dir, "preview", "table.json"); }
   private persist() { writeFileSync(this.tablePath, JSON.stringify(this.entries)); }
+  /** The same log for lines written outside the manager (inspect grants); no secret may be in `rec`. */
+  audit(rec: Record<string, unknown>) { this.note(rec); }
   private note(rec: Record<string, unknown>) { appendFileSync(join(this.dir, "preview", "log.jsonl"), JSON.stringify({ at: this.hooks.now(), ...rec }) + "\n"); }
   /** the Lean table: only what Lean reads */
   private live() { return this.entries.map(({ id, task, rp, op, started }) => ({ id, task, rp, op, started })); }

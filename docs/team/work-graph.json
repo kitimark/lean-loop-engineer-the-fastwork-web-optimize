@@ -7974,7 +7974,8 @@
     "lean/Fw/Wire/Console.lean",
     "packages/contracts/golden/console/**",
     "research/notes/2026/10-20-preview-original-gate.md"
-   ]
+   ],
+   "evidence": "55e571b"
   },
   {
    "devices": [

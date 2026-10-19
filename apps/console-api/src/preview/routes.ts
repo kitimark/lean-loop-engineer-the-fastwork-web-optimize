@@ -15,6 +15,9 @@ import { workGraphRow, partsOf } from "./facts.ts";
 import type { PreviewManager, Proof } from "./manager.ts";
 import { OwnerAuth } from "./owner.ts";
 import { buildRows, rowAt } from "./builds.ts";
+import type { Grants } from "./grants.ts";
+import { isLoopback } from "./lan.ts";
+import { remoteOf } from "./gate.ts";
 
 const TaskId = z.string().regex(/^[a-z0-9][a-z0-9-]{0,80}$/);
 const StartReq = z.object({ task: TaskId });
@@ -28,7 +31,7 @@ const SRC_LABEL: Record<string, string> = {
 
 type Hdr = { req: { header(n: string): string | undefined } };
 
-export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: PreviewManager, owner: OwnerAuth) {
+export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: PreviewManager, owner: OwnerAuth, inspect?: { grants: Grants; lan: boolean }) {
   const proofOf = async (c: Hdr): Promise<Proof> => ({
     secret: caps.secretMatches(c.req.header(SECRET_HEADER)),
     cookie: owner.bearerOk(c.req.header("authorization")),
@@ -79,6 +82,29 @@ export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: Previe
   app.get("/api/builds", async (c) => {
     const b = await buildRows(pm.root, store.core);
     return c.json({ ok: true, ...b, canPreview: owner.bearerOk(c.req.header("authorization")), previewPort: owner.previewPort, ...pm.list() });
+  });
+
+  /** An inspect grant for the lead and agents (preview-inspect): `{id?}` -> a one-time link on the preview port. Lean
+   *  `console.previewGrant` allows it only for a loopback request; the link opens preview paths only, for at most an hour. */
+  if (inspect) app.post("/api/preview/grant", async (c) => {
+    c.header("Cache-Control", "no-store");
+    const bad = jsonOnly(c); if (bad) return c.json({ ok: false, reason: bad }, 403);
+    // a page of another origin (a preview) may not ask: the Origin, when present, must be a console origin
+    if (!(await owner.actionOk(store.core, "command", false, c.req.header("origin"), c.req.header("host")))) return c.json({ ok: false, reason: "refused: not from the console origin" }, 403);
+    const body = await c.req.json().catch(() => ({})) as { id?: unknown; arm?: unknown };
+    let id: string | null = null;
+    if (body.id !== undefined && body.id !== null) {
+      if (typeof body.id !== "string" || !/^[a-z0-9][a-z0-9-]{0,100}$/.test(body.id)) return c.json({ ok: false, reason: "bad preview id" }, 400);
+      if (!pm.serving(body.id)) return c.json({ ok: false, reason: "no such running preview" }, 404);
+      id = body.id;
+    }
+    const port = owner.previewPort;
+    if (port === null) return c.json({ ok: false, reason: "the preview port is not listening yet" }, 503);
+    const arm = body.arm === "o" ? "o" : "r";
+    const lan = inspect.lan && !isLoopback(remoteOf(c));
+    const g = await inspect.grants.issue(lan, id ? `/preview/${id}/${arm}/` : null);
+    if (!g.ok) return c.json({ ok: false, reason: "grants are issued to loopback requests only" }, 403);
+    return c.json({ ok: true, url: `http://127.0.0.1:${port}/__grant?t=${g.token}`, expiresInSec: Math.floor(g.ttlMs / 1000) });
   });
 
   app.post("/api/previews", async (c) => {
