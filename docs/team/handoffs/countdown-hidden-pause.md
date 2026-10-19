@@ -20,10 +20,11 @@ Verified (round 1):
 - Tests: site vitest 5174 pass, site tsc clean, ci-paths 32 pass, runner tsc clean, land-inputs 40 pass.
 TS: `hidden.ts` (`countdownHidden(exit)`, `gatedInstance`, `installHiddenGate(root, MO)`). index.tsx uses
 `gatedInstance`. part.json limit: under reduced motion the gate never closes.
+- Land fix (after merge 86d40878): `v2-proved.decisions.jsonl` was stale because the generator reads every part.json
+  variant. It was regenerated with `Fw.Preset.Gen.run []`: one new row, `hero.countdown:hidden-pause`, `member:false`,
+  `no-link` (not in `links`). The preset is unchanged (the same 10 flags). The lead adds preset entries.
 Open:
 - Measured verdict: from the wave-2 whole-page run.
-- A morph.countdown comment says its IO runs "before paint". IO is a posted task
-  (intersection_observer_controller.cc:90-97@f842f52), so the comment is likely wrong. The file is outside this
-  task's write set.
-- Checker subagent: this run had no Agent tool either, so the 6-point checklist was again self-applied.
+- A morph.countdown comment says its IO runs "before paint", but IO is a posted task
+  (intersection_observer_controller.cc:90-97@f842f52). That file is outside this task's write set.
 Read first: the Lean module §2–§3 (the redundancy theorems and the decision), §6 visSame, then `hidden.ts`.
