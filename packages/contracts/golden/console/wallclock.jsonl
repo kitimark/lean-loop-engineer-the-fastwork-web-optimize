@@ -1,0 +1,14 @@
+{"name":"assert bound, no reason","request":{"ms":5000,"op":"wallclock.verdict","reason":"","site":"assertLt"},"response":{"bound":true,"refuse":true}}
+{"name":"assert bound, blank reason","request":{"ms":5000,"op":"wallclock.verdict","reason":"  ","site":"assertLt"},"response":{"bound":true,"refuse":true}}
+{"name":"assert bound, reason","request":{"ms":5000,"op":"wallclock.verdict","reason":"ratio of two timed runs","site":"assertLt"},"response":{"bound":true,"refuse":false}}
+{"name":"timeout option, no reason","request":{"ms":120000,"op":"wallclock.verdict","reason":"","site":"timeoutOpt"},"response":{"bound":true,"refuse":true}}
+{"name":"timeout option, reason","request":{"ms":120000,"op":"wallclock.verdict","reason":"generous cap","site":"timeoutOpt"},"response":{"bound":true,"refuse":false}}
+{"name":"deadline arg, no reason","request":{"ms":150,"op":"wallclock.verdict","reason":"","site":"deadlineArg"},"response":{"bound":true,"refuse":true}}
+{"name":"deadline arg, reason","request":{"ms":150,"op":"wallclock.verdict","reason":"frozen child never answers","site":"deadlineArg"},"response":{"bound":true,"refuse":false}}
+{"name":"elapsed comparison, no reason","request":{"ms":3000,"op":"wallclock.verdict","reason":"","site":"elapsedCmp"},"response":{"bound":true,"refuse":true}}
+{"name":"elapsed comparison, reason","request":{"ms":3000,"op":"wallclock.verdict","reason":"x","site":"elapsedCmp"},"response":{"bound":true,"refuse":false}}
+{"name":"sleep, no reason","request":{"ms":300,"op":"wallclock.verdict","reason":"","site":"sleep"},"response":{"bound":false,"refuse":false}}
+{"name":"other number","request":{"ms":5000,"op":"wallclock.verdict","reason":"","site":"other"},"response":{"bound":false,"refuse":false}}
+{"name":"zero assert","request":{"ms":0,"op":"wallclock.verdict","reason":"","site":"assertLt"},"response":{"bound":false,"refuse":false}}
+{"name":"zero timeout","request":{"ms":0,"op":"wallclock.verdict","reason":"","site":"timeoutOpt"},"response":{"bound":false,"refuse":false}}
+{"name":"one ms assert","request":{"ms":1,"op":"wallclock.verdict","reason":"","site":"assertLt"},"response":{"bound":true,"refuse":true}}

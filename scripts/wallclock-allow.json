@@ -1,0 +1,95 @@
+{
+ "_doc": "Whitelist for scripts/lint-wallclock.mjs: a literal ms bound in a land-selected test is allowed only with a reason. file + a substring of the line. Stale entries fail the lint.",
+ "allow": [
+  {
+   "file": "apps/console-api/test/owner-link.test.ts",
+   "text": "}, 30_000)",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/console-api/test/preview-facts-gen.test.ts",
+   "text": "timeout: 120_000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/console-api/test/preview-facts-gen.test.ts",
+   "text": "}, 130_000)",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/console-api/test/serve.test.ts",
+   "text": "}, 30_000)",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/console-api/test/serve.test.ts",
+   "text": "}, 60_000)",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run (the 100k-event replay)"
+  },
+  {
+   "file": "apps/runner/test/land-hardening.test.ts",
+   "text": "< 80_000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run: polls for the child's start marker"
+  },
+  {
+   "file": "apps/runner/test/run-budget.test.ts",
+   "text": "timeout: 120_000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/runner/test/timing-alert.test.ts",
+   "text": "timeout: 120_000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/runner/test/wait-guard.test.ts",
+   "text": "timeout: 60_000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/runner/test/wait-guard.test.ts",
+   "text": "timeout: 120_000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/runner/test/wait-guard.test.ts",
+   "text": "}, 35_000)",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/runner/test/wait-guard.test.ts",
+   "text": "ask(bin, req(c), 30_000)",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/console-api/test/plan.test.ts",
+   "text": "testTimeout: 120_000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/runner/test/land-hardening.test.ts",
+   "text": "}, 100000)",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/runner/test/spawn-guard.test.ts",
+   "text": "request(p as never, 1000), 30_000)",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/runner/test/spawn-guard.test.ts",
+   "text": "testTimeout: 35_000",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/runner/test/spawn-guard.test.ts",
+   "text": "ask(bin, q, 30_000)",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "apps/runner/test/wait-guard.test.ts",
+   "text": "{ op: \"ops.wait\", cmd: c }, 30_000)",
+   "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  }
+ ]
+}

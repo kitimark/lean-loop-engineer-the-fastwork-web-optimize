@@ -101,6 +101,9 @@ describe("fwcore serve: timings (100k synthetic events)", () => {
     expect(b.cards).toHaveLength(4167 + 1000);
     console.log(`fwcore serve: replay ${es.length} events ${replayMs.toFixed(0)} ms; ` +
       `apply round trip p50 ${rtt[500]!.toFixed(0)} µs, p90 ${rtt[900]!.toFixed(0)} µs; query (${b.cards.length} cards) ${queryMs.toFixed(0)} ms`);
-    expect(replayMs).toBeLessThan(5000); // PLAN target < 1 s; the loose bound only catches an O(n²) regression
+    // Load-independent (task land-wallclock-off-gate): replay of n events costs less than n apply round trips measured in
+    // this run (replay is one streamed pass; apply is one round trip per event), 4x slack. An O(n²) replay at this n
+    // is orders of magnitude over it; machine load scales both sides alike. PLAN target < 1 s is read from the log line.
+    expect(replayMs).toBeLessThan(es.length * (rtt[500]! / 1000) * 4);
   }, 60_000);
 });
