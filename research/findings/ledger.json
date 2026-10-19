@@ -1755,6 +1755,27 @@
    "v1Evidence": "none",
    "lesson": "A premise test sampled after a fixed number of frames can fail on a slow runner; record the elapsed time with every observation so a timing flake and an engine difference can be told apart.",
    "next": "Acknowledged as intermittent in Fw.Ops.Premise.acks (WebKit only); the test now records the elapsed ms on failure; decide once a failing run carries it."
+  },
+  {
+   "id": "gate.pageRoot.fixedInnerWidth",
+   "n": 28,
+   "part": "gate.page-root",
+   "candidate": "page-root gate anchor scrollWidth <= innerWidth, modelled with innerWidth fixed at the requested viewport (Fw.Gate.PageRoot, faithful-checks-rerun round 1)",
+   "status": "refuted",
+   "chromium": "model-false",
+   "webkit": "not-tried",
+   "visual": "n/a (a gate anchor, not an optimization)",
+   "mechanism": "MEASURED: in CI run 39130842058 the layout viewport widened under mobile emulation to 645 x 1398 for a 430 x 932 profile, so innerWidth was 645 and scrollWidth 645: scrollWidth <= innerWidth holds and the anchor reports equal for exactly the run it was written to catch. The model kept innerWidth fixed at the requested width (scrollWidthOf), the one assumption this run refutes. CONFIRMED by lean/Fw/Measure/Viewport.lean (innerWidth widens when content is wider than the device width; guard !viewportFaithful 430x932 645x1398). The branch's own #guard asserted the failing run passes. The module and its anchors.json role were removed from the branch; the task gate-page-root-anchor re-derives the item against the requested width (scrollWidth <= requested width), which needs the requested width as input, not innerWidth.",
+   "leanFor": [
+    "Fw.Measure.Viewport.viewportFaithful",
+    "Fw.Faithful.comparable"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Model an observable the way the measured run behaved, not the way the fix intends it to behave: a check whose model holds the quantity under test constant cannot fail. Test an anchor against the run that motivated it before accepting it.",
+   "next": "gate-page-root-anchor: collect scrollWidth in page.mjs, parse it in Fw.Wire.Gate, decide fits(o) := scrollWidth(o) <= requested width, one explicit row in Fw.Gate.Coverage, a breakpoint-gate run with the item equal in both arms."
   }
  ],
  "notes": [

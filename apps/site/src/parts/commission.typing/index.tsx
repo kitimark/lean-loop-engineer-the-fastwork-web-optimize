@@ -2,15 +2,15 @@ import { useEffect, useRef } from 'react';
 import { getClock } from '../../engine/clock';
 import { mountTyping } from './driver';
 import { matchList } from './media';
+import john from '../../../../../snapshot/site/selling/commission/avatar-john.jpg';
 import css from './typing.module.css';
 
 export interface CommissionTypingProps {
   variant: string;
 }
 
-/** Placeholder pictures (the original's avatars are not copied): a flat grey square, scaled by the avatar's own box. */
-const PHOTO =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'%3E%3Crect width='1' height='1' fill='%23cfd4dc'/%3E%3C/svg%3E";
+/** The fee visual's avatar (snapshot/site/selling/commission/avatar-john.jpg), scaled by the avatar's own box. */
+const PHOTO = john;
 
 /**
  * commission.typing: the fee visual of the referral row (432 x 224 design box scaled to its column). The markup is static;

@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 import { getClock } from '../../engine/clock';
 import { getScrollEngine } from '../../engine/scroll';
 import { CommissionTyping } from '../commission.typing';
-import { BLANK, PHOTO, TEXT, UNDERLINE_PATHS, ZERO_PATHS } from './data';
+import { openDrawer } from '../overlays.drawer';
+import { ARROW, ARROW_COMPACT, FACES, TEXT, UNDERLINE_PATHS, ZERO_PATHS } from './data';
 import { mountCommission } from './driver';
 import { matchList } from './media';
 import css from './commission.module.css';
@@ -17,8 +18,8 @@ export interface CommissionProps {
  * commission (P4): a rounded white card that shrinks in from the pain section and out to the platform section, with a
  * hand-drawn underline on the heading and two rows (bring your own client, a client from us). The shrink is the Lean
  * `frame` run by `driver.ts` on the scroll engine; the typing visual in the second row is the part `commission.typing`.
- * Plain elements and a CSS Module; placeholder pictures (the original's are not copied). The "why bring a client" dialog
- * belongs to the overlays and is not rendered, the link is.
+ * Plain elements and a CSS Module; pictures bundled from the snapshot. The "why bring a client" link opens the drawer of
+ * overlays.drawer (`openDrawer`, a discrete flag).
  */
 export function Commission({ variant, typingVariant = 'faithful' }: CommissionProps) {
   const section = useRef<HTMLElement>(null);
@@ -28,6 +29,20 @@ export function Commission({ variant, typingVariant = 'faithful' }: CommissionPr
   const title = useRef<HTMLHeadingElement>(null);
   const muted = useRef<HTMLSpanElement>(null);
   const underline = useRef<HTMLSpanElement>(null);
+
+  const arrow = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    const img = arrow.current;
+    const compact = matchList('mq.c1000');
+    if (!img || !compact) return;
+    const swap = () => {
+      img.src = compact.matches ? ARROW_COMPACT : ARROW;
+    };
+    swap();
+    compact.addEventListener('change', swap);
+    return () => compact.removeEventListener('change', swap);
+  }, []);
 
   useEffect(() => {
     const els = {
@@ -106,12 +121,12 @@ export function Commission({ variant, typingVariant = 'faithful' }: CommissionPr
                       <div className={css.clientPill}>
                         <span className={css.clientFaces}>
                           {[0, 1, 2].map((i) => (
-                            <img key={i} loading="lazy" decoding="async" src={PHOTO} alt="" />
+                            <img key={i} loading="lazy" decoding="async" src={FACES[i]} alt="" />
                           ))}
                         </span>
                         <span>{TEXT.yourClient}</span>
                       </div>
-                      <img className={css.clientArrow} loading="lazy" decoding="async" src={BLANK} alt="" />
+                      <img ref={arrow} className={css.clientArrow} loading="lazy" decoding="async" src={ARROW} alt="" />
                       <span className={css.zeroMark} aria-hidden="true">
                         {ZERO_PATHS.map((paths, i) => (
                           <svg key={i} className={`${css.zeroFrame} ${css[`frame${i}`]}`} viewBox="0 0 107.498 98.0007" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -128,7 +143,7 @@ export function Commission({ variant, typingVariant = 'faithful' }: CommissionPr
                       <span>{TEXT.yourClientQuestion}</span> <strong>{TEXT.forever}</strong>
                     </h3>
                     <p>{TEXT.directBody}</p>
-                    <button type="button" className={css.whyLink} data-selenium="start-selling.commission.button.why">
+                    <button type="button" className={css.whyLink} onClick={openDrawer} data-selenium="start-selling.commission.button.why">
                       {TEXT.why}{' '}
                       <svg className={css.whyChevron} viewBox="0 0 16 16" aria-hidden="true">
                         <path d="M6 3.33333L10 8L6 12.6667" />

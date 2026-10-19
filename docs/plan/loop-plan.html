@@ -215,7 +215,7 @@ section[id] { scroll-margin-top: 3.5rem; }
     <span class="eyebrow">Loop engineering · experiment 2 · plan for review</span>
     <h1>Fastwork Loop v2</h1>
     <p class="thesis">Rebuild the fastwork.com homepage as MUI parts behind flags, <b>count the work the engine does</b> on every change, put <b>Lean first for everything reproducible</b> (it runs in <code>fwcore</code>, Lean generates it, or the code must pass Lean golden vectors) and show it as math, and prove each optimization in Lean under engine models of Chromium and WebKit, with <i>the iPhone</i> as an optional spot check.</p>
-    <div class="meta"><span><b>Report due 2026-10-20 13:15 +0700</b></span><span>Next checkpoint: C2, 2026-10-18 23:15 +0700</span><span>Plan revision 10</span><span>docs/plan/PLAN.md</span></div>
+    <div class="meta"><span><b>Report due 2026-10-20 13:15 +0700</b></span><span>Next checkpoint: C3, 2026-10-19 23:15 +0700</span><span>Plan revision 11</span><span>docs/plan/PLAN.md</span></div>
   </header>
 </div>
 
@@ -237,32 +237,41 @@ section[id] { scroll-margin-top: 3.5rem; }
     <div class="stack col">
       <span class="eyebrow">Status</span>
       <h2>Where the experiment stands</h2>
-      <p class="lede">Plan revision 10. The report is due <strong>2026-10-20 13:15 +0700</strong>, three days after the first commit. Nothing waits on the user now. The live task list is <code>docs/team/work-graph.json</code>.</p>
-      <p class="stamp mono">As of main a3196a4, 2026-10-18 20:16 +0700. Written by hand from <code>docs/team/work-graph.json</code> and PLAN rev 10; it is not regenerated, so check the date.</p>
+      <p class="lede">Plan revision 11. The report is due <strong>2026-10-20 13:15 +0700</strong>, three days after the first commit. Nothing waits on the user now. The live task list is <code>docs/team/work-graph.json</code>.</p>
+      <p class="stamp mono">As of main 16207afb, 2026-10-19 00:50 +0700. Written by hand from <code>docs/team/work-graph.json</code> and PLAN rev 11; it is not regenerated, so check the date.</p>
     </div>
     <div class="tbl">
       <table>
         <thead><tr><th>Checkpoint</th><th>When (local)</th><th>Must be true</th><th>In the plan</th></tr></thead>
         <tbody>
           <tr><td class="k" data-label="Checkpoint">C1 WebKit go/no-go</td><td data-label="When (local)">2026-10-18 11:15</td><td data-label="Must be true">Two consecutive <code>webkit-sim</code> runs completed with the determinism step in 45 minutes or less.</td><td data-label="In the plan"><span class="chip ok">GO</span> (f03e94b)</td></tr>
-          <tr><td class="k" data-label="Checkpoint">C2 Region faithful, engine models</td><td data-label="When (local)">2026-10-18 23:15</td><td data-label="Must be true">The 9 end-of-page parts <code>faithful</code> through the gate; <code>engine-core-lean</code>, <code>engine-chromium-lean</code> and <code>engine-webkit-lean</code> landed; <code>engine-ci-check</code> green on F0-F2.</td><td data-label="In the plan"><span class="chip open">in progress</span> The three engine tasks, <code>engine-ci-check</code> and <code>morph-tween-curve</code> have landed. Four of the five morph ports have landed; <code>port-morph-panel</code> and <code>integrate-ports-4</code> are open.</td></tr>
-          <tr><td class="k" data-label="Checkpoint">C3 Decision</td><td data-label="When (local)">2026-10-19 23:15</td><td data-label="Must be true">Proof ledger closed; F3/F4 show 0 mismatches per proved flag; <code>v2-proved</code> named.</td><td data-label="In the plan"><span class="chip open">not reached</span></td></tr>
-          <tr><td class="k" data-label="Checkpoint">C4 Report</td><td data-label="When (local)">2026-10-20 13:15</td><td data-label="Must be true">Report published; math view 0 disagree, 0 stale (<code>math-final</code> by T+52h).</td><td data-label="In the plan"><span class="chip open">not reached</span> <code>math-final</code> has landed (8e3ee35).</td></tr>
+          <tr><td class="k" data-label="Checkpoint">C2 Region faithful, engine models</td><td data-label="When (local)">2026-10-18 23:15</td><td data-label="Must be true">The 9 end-of-page parts <code>faithful</code> through the gate; <code>engine-core-lean</code>, <code>engine-chromium-lean</code> and <code>engine-webkit-lean</code> landed; <code>engine-ci-check</code> green on F0-F2.</td><td data-label="In the plan"><span class="chip ok">met</span> except the faithful check: the engine models and all 10 proof tasks landed; <code>integrate-ports-4</code> passed the gate in Chromium (run 39142015714: 0 bad, 57 excused); <code>page-root-clip</code> landed (3600b283).</td></tr>
+          <tr><td class="k" data-label="Checkpoint">C3 Decision</td><td data-label="When (local)">2026-10-19 23:15</td><td data-label="Must be true">Proof ledger closed; two whole-page gates passed, one per wave; combined counts per profile with F3/F4 per part zone, 0 mismatches or each filed as a model bug; <code>v2-proved</code> named.</td><td data-label="In the plan"><span class="chip open">not reached</span> Wave 1 is running (PLAN §10.7).</td></tr>
+          <tr><td class="k" data-label="Checkpoint">C4 Report</td><td data-label="When (local)">2026-10-20 13:15</td><td data-label="Must be true">Report published; math view 0 disagree, 0 stale (<code>math-final</code> by T+52h).</td><td data-label="In the plan"><span class="chip open">not reached</span> <code>math-final</code> has landed (d159442a): 5,109 agree, 0 disagree, 517 stale, 1,373 pending.</td></tr>
         </tbody>
       </table>
     </div>
     <div class="stack col">
-      <p><b>Critical path</b> (6 tasks, measured by <code>fw plan show</code> after revision 10): <code>engine-core-lean → engine-chromium-lean → morph-tween-waapi → variant-morph-tween-waapi → experiments → write-up</code>. The first four have landed. <code>experiments</code> waits on <code>port-morph</code>, <code>faithful-checks</code>, <code>variant-morph-panel-rest</code>, <code>model-checks</code> and <code>preset-v2-proved</code>; <code>write-up</code> waits on <code>experiments</code> and <code>report-draft-2</code>.</p>
+      <p><b>Critical path</b> (revision 11, from the work-graph edges at 16207afb): <code>site-assets → content-hero ‖ content-people-pain-commission → integrate-wave-1 → model-bug-fixes → integrate-wave-2 → C3 → report-draft-3</code>. <code>morph-group-integrate → part-stage → counts-only</code> runs beside it and joins at wave 2. The revision 10 path (engine models, then proofs, then <code>experiments</code>) is done.</p>
       <p><b>Next for the user.</b> Optional: phone session 2, 30 minutes, any time (<code>variant-morph-tween-waapi</code> has landed). At T+62h: read the report; publishing it is the user's call.</p>
-      <h3>Changed in revision 10</h3>
+      <h3>Changed in revision 11: parts as Lego</h3>
       <ul class="tight">
-        <li>The evidence is a Lean proof per part and optimization: the optimized part shows the same picture as the original, and the engine does less work, under models of Chromium and WebKit at every width. CI counts check the models (F0-F5).</li>
-        <li>The phone is an optional spot check with no dependents (D1); no cost model is fitted (Q37 resolved).</li>
-        <li><code>faithful-checks</code> computes and reports the PL5 bands; there is no separate <code>bands-freeze</code>.</li>
-        <li>Milestone M5 holds 23 proof tasks; M3 is the optional phone spot checks.</li>
-        <li>Constant glass, FLIP / st6 and typing chunks get Try-it pages (D2).</li>
+        <li><b>Units add up, passes do not</b> (<code>Fw.Engine.Compose</code>, a8678ca0). Element and object counts saved by independent parts add up on the page. A saved style or layout pass does not: another part's pass in the same frame can absorb it. A page claim for a pass saving needs a per-part union or cover condition (PLAN §4.8).</li>
+        <li><b>The part contract</b> (<code>Fw.Parts.Contract</code>, cf3eebf3): 34 part rows, what each reads and writes, and coupled groups CG1-CG5 decided from the code. <code>engine.scroll</code> and <code>morph.tween</code> are page-level parts. The rows are written by hand until <code>contract-rows-from-code</code> lands (PLAN §6.8).</li>
+        <li><b>Two waves to C3</b>: one combined counts run per profile replaces one run per flag whose saving is in element and object counts (INFERRED under the open bridge, PLAN §4.8 limit 3). A saved pass is reported as model-only (proof, no count check) unless its own counts run lands before C3. Sibling gate re-runs and visual re-checks of untouched parts are dropped only under an open premise (the bridge from the contract to the swap theorem), so the two whole-page gates are the evidence for them. The gate and the faithful check stay whole-page, because the original is one page. CI needs no workflow change for the whole-page lanes (PLAN §10.7).</li>
+        <li><b>Review loop</b>: <code>contract-lean</code> was refused twice, then split; its final design round landed.</li>
       </ul>
-      <p>The sections under <a href="#loop">How it works</a> still describe the measurement design of revisions 7 to 9; where they differ, this section and PLAN §4.7 apply.</p>
+      <p>The sections under <a href="#loop">How it works</a> still describe the measurement design of revisions 7 to 9; where they differ, this section and PLAN §4.7-§4.8 apply.</p>
+      <details>
+        <summary>Revision 10: proofs, not phone measurement</summary>
+        <ul class="tight">
+          <li>The evidence is a Lean proof per part and optimization: the optimized part shows the same picture as the original, and the engine does less work, under models of Chromium and WebKit at every width. CI counts check the models (F0-F5).</li>
+          <li>The phone is an optional spot check with no dependents (D1); no cost model is fitted (Q37 resolved).</li>
+          <li><code>faithful-checks</code> computes and reports the PL5 bands; there is no separate <code>bands-freeze</code>.</li>
+          <li>Milestone M5 holds 23 proof tasks; M3 is the optional phone spot checks.</li>
+          <li>Constant glass, FLIP / st6 and typing chunks get Try-it pages (D2).</li>
+        </ul>
+      </details>
       <details>
         <summary>Revisions 9 and 9.1: the 3-day frame, then parallel ports</summary>
         <p>On 2026-10-17 at 23:13 the user decided that the whole experiment may take no more than 3 days from its first commit (931aa35, 2026-10-17 13:15 +0700). Revision 9 cuts the plan to the smallest experiment that still answers the study question, fixes four checkpoints, and names what the user does and when. Revision 9.1 (2026-10-18, after the user answered Q34-Q36 in chat) records those answers and the WebKit GO, and restructures the work graph so independent work runs at once: five morph ports and seven section ports in parallel, shells first. Revisions 7 and 7.1 are summarised in PLAN.md Appendix D.</p>
@@ -803,7 +812,7 @@ section[id] { scroll-margin-top: 3.5rem; }
   <section id="parts">
     <div class="stack col">
       <span class="eyebrow">The rewrite</span>
-      <h2>About 36 parts, each behind a flag, all built with MUI</h2>
+      <h2>34 parts, each behind a flag, all built with MUI</h2>
       <p>The homepage is rebuilt in React 19 with Material UI 9.5 as parts such as <code>hero.countdown</code>, <code>people.deck</code> and <code>morph.tween</code>. Every part has a <b>faithful</b> variant that matches the original, plus variants an experiment can switch on from the URL.</p>
     </div>
     <div class="two">
@@ -1044,7 +1053,7 @@ $$\Pr_{\text{null}}[\mathrm{better}] \le 1/\binom{8}{4}$$ -/</span>
 
 <div class="wrap">
   <footer>
-    <span>Source: <span class="mono">docs/plan/PLAN.md</span> (revision 10; evidence and history in <span class="mono">research/notes/2026/10-17-plan-evidence.md</span>), <span class="mono">research/kickoff/01–11</span> and the Lean sketch <span class="mono">research/kickoff/05-lean-sketch/Fw/Spec</span>, plus the user's decisions of 2026-10-17.</span>
+    <span>Source: <span class="mono">docs/plan/PLAN.md</span> (revision 11; evidence and history in <span class="mono">research/notes/2026/10-17-plan-evidence.md</span>), <span class="mono">research/kickoff/01–11</span> and the Lean sketch <span class="mono">research/kickoff/05-lean-sketch/Fw/Spec</span>, plus the user's decisions of 2026-10-17.</span>
     <span>A personal, educational study of the public fastwork.com homepage. Not affiliated with Fastwork.</span>
   </footer>
 </div>
