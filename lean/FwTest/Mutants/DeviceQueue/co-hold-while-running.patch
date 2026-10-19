@@ -2,8 +2,8 @@ Design mutant (m0-mutants, PLAN V-r): v1 I-041 class: a second job starts while 
 
 --- a/Fw/Spec/DeviceQueue.lean
 +++ b/Fw/Spec/DeviceQueue.lean
-@@ -212,7 +212,7 @@
- -/
+@@ -165,7 +165,7 @@
+ /-- Start the most urgent job **among those that fit** the booked window (no head-of-line blocking). -/
  def dispatch (p : Phone) (t : Nat) : Phone :=
    match p.running, p.window with
 -  | none, some (s, e) =>

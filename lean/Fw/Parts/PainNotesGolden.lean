@@ -12,56 +12,54 @@ own table in one line (left to the lead: shared file).
 namespace Fw.Parts.PainNotesGolden
 open Lean Fw.Parts.PainNotes
 
-/-- A rational input as an exact JSON decimal (denominators here divide $1000$).
-$$q \mapsto q \cdot 10^3 \cdot 10^{-3}$$ -/
+/-- A rational input as an exact JSON decimal (denominators here divide `1000`). -/
 def rin (q : Rat) : Json := .num ⟨q.num * ((1000 / q.den : Nat) : Int), 3⟩
 
-/-- The `Rat` output wire form. $$q \mapsto \{\mathrm{num}, \mathrm{den}\}$$ -/
+/-- The `Rat` output wire form. -/
 def ratWire (q : Rat) : Json := Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
 
-/-- One golden line. $$(\mathit{fn}, \mathit{in}, \mathit{out}) \mapsto \text{JSON line}$$ -/
+/-- One golden line. -/
 def line (fn : String) (inp : List (String × Json)) (out : Json) : String :=
   (Json.mkObj [("fn", .str fn), ("in", Json.mkObj inp), ("out", out)]).compress
 
-/-- A box as an input. $$B \mapsto \{\ell, t, w, h\}$$ -/
+/-- A box as an input. -/
 def boxIn (b : Box) : Json :=
   Json.mkObj [("left", rin b.left), ("top", rin b.top), ("width", rin b.width), ("height", rin b.height)]
 
-/-- A box as an output. $$B \mapsto \{\ell, t, w, h\}$$ with wire rationals. -/
+/-- A box as an output. With wire rationals. -/
 def boxOut (b : Box) : Json :=
   Json.mkObj [("left", ratWire b.left), ("top", ratWire b.top), ("width", ratWire b.width), ("height", ratWire b.height)]
 
-/-- A note as an output. $$n \mapsto \{\mathrm{id}, \mathrm{text}, \mathrm{bg}, \theta, \ell, t, z, \mathrm{extra}\}$$ -/
+/-- A note as an output. -/
 def noteOut (n : Note) : Json :=
   Json.mkObj [("id", .str n.id), ("text", .num ⟨n.text, 0⟩), ("bg", .str n.bg), ("rotate", .num ⟨n.rotate, 0⟩),
     ("left", ratWire n.left), ("top", ratWire n.top), ("z", .num ⟨n.z, 0⟩), ("extra", .bool n.extra)]
 
-/-- Option of a note. $$\operatorname{some}(n) \mapsto n,\ \operatorname{none} \mapsto \mathrm{null}$$ -/
+/-- Option of a note. -/
 def noteOpt : Option Note → Json
   | some n => noteOut n
   | none => .null
 
-/-- Option of a pair. $$\operatorname{some}(a, b) \mapsto [a, b],\ \operatorname{none} \mapsto \mathrm{null}$$ -/
+/-- Option of a pair. -/
 def pairOpt : Option (Rat × Rat) → Json
   | some (a, b) => Json.arr #[ratWire a, ratWire b]
   | none => .null
 
-/-- Tick name. $$t \mapsto \text{"skip"} \mid \text{"clear"} \mid \text{"add"}$$ -/
+/-- Tick name. -/
 def tickName : Tick → String
   | .skip => "skip" | .clear => "clear" | .add => "add"
 
-/-- Unsigned seed as a JSON integer. $$s \mapsto s \in \mathbb{N}$$ -/
+/-- Unsigned seed as a JSON integer. -/
 def seedJ (s : UInt32) : Json := .num ⟨s.toNat, 0⟩
 
-/-- Booleans. $$\mathbb B$$ -/
+/-- Booleans. -/
 def bs : List Bool := [false, true]
 
-/-- Sample numbers around the edges. $$X = \{-5, 0, 0.5, 3, 12.5, 50, 99.9, 100, 120\}$$ -/
+/-- Sample numbers around the edges. -/
 def xs : List Rat := [-5, 0, 0.5, 3, 12.5, 50, 99.9, 100, 120]
 
 /-- A session of `n` ticks from a seed: start from the base layout and run the tick; when it says `add`, add an
-extra (JS 4590-4646 with visible, not dragging, wide, no reduced motion, card below the fold, the copy rect given).
-$$\mathrm{session}(W_s, H_s, \mathit{seed}, c_t, c_h, s_t, n)$$ -/
+extra (JS 4590-4646 with visible, not dragging, wide, no reduced motion, card below the fold, the copy rect given). -/
 def session (stageW stageH : Rat) (seed : UInt32) (copyTop copyH stageTop : Rat) (n : Nat) : List Note :=
   let avoid := [avoidBox copyTop copyH stageTop stageH]
   let base := baseLayout false stageW stageH
@@ -76,7 +74,7 @@ def session (stageW stageH : Rat) (seed : UInt32) (copyTop copyH stageTop : Rat)
     | _ => acc
   base ++ ((List.range n).foldl step ([], 0, seed)).1
 
-/-- The golden lines. $$\text{lines}$$ Vectors the TS logic must reproduce. -/
+/-- The golden lines. Vectors the TS logic must reproduce. -/
 def lines : List String :=
   (xs.flatMap fun x => [(0, 100), (10, 90), (0, -3)].map fun (lo, hi) =>
     line "clampTo" [("x", rin x), ("lo", rin lo), ("hi", rin hi)] (ratWire (clampTo x lo hi))) ++

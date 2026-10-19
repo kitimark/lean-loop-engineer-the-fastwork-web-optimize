@@ -2,12 +2,12 @@ Design mutant (m0-mutants, PLAN V-r): an alert fires again for the same key insi
 
 --- a/Fw/Ops/Meter.lean
 +++ b/Fw/Ops/Meter.lean
-@@ -169,7 +169,7 @@
- -/
+@@ -124,7 +124,7 @@
+ /-- The candidates not yet seen, each once, in order. -/
  def fresh : List Key → List Key → List Key
    | _, [] => []
 -  | seen, c :: cs => if c ∈ seen then fresh seen cs else c :: fresh (c :: seen) cs
 +  | seen, c :: cs => c :: fresh seen cs
  
- /-- One meter tick at time `now` (seconds): the window is $\lfloor \mathit{now} / \omega \rfloor$ (0 when
- $\omega = 0$); a new window forgets the fired keys; the fresh candidates are emitted and remembered.
+ /-- One meter tick at time `now` (seconds): the window is `⌊ now / ω ⌋` (0 when
+ `ω = 0`); a new window forgets the fired keys; the fresh candidates are emitted and remembered.

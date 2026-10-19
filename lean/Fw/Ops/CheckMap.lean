@@ -38,8 +38,6 @@ open Fw.Ops.PathCheck (segs)
 
 /-- A file kind.
 
-$$\mathrm{Kind} = \{\mathtt{jsMod}, \mathtt{ts}, \mathtt{tsDecl}, \mathtt{tsx}, \mathtt{leanModule}, \mathtt{leanScript}, \mathtt{lakeConfig}, \mathtt{json}, \mathtt{jsonl}, \mathtt{yaml}, \mathtt{shell}, \mathtt{python}, \mathtt{swift}, \mathtt{snapshot}, \mathtt{sketch}, \mathtt{asset}, \mathtt{prose}, \mathtt{text}\}$$
-
 The eighteen kinds a tracked file can have.
 -/
 inductive Kind
@@ -48,8 +46,6 @@ inductive Kind
 deriving DecidableEq, Repr
 
 /-- A static check. `exempt`: no check (the kind is not code our tools parse or run).
-
-$$\mathrm{Check} = \{\mathtt{lakeBuild}, \mathtt{leanElab}, \mathtt{nodeCheck}, \mathtt{tsStrip}, \mathtt{tscProject}, \mathtt{jsonParse}, \mathtt{jsonlParse}, \mathtt{yamlParse}, \mathtt{shParse}, \mathtt{pyParse}, \mathtt{swiftParse}, \mathtt{exempt}\}$$
 
 The eleven static checks, plus `exempt` for files with none.
 -/
@@ -60,8 +56,6 @@ deriving DecidableEq, Repr
 
 /-- The check of a kind.
 
-$$\mathrm{check}(k) = \begin{cases} \mathtt{nodeCheck} & k = \mathtt{jsMod} \\ \mathtt{tsStrip} & k = \mathtt{ts} \\ \mathtt{tscProject} & k \in \{\mathtt{tsDecl}, \mathtt{tsx}\} \\ \mathtt{lakeBuild} & k \in \{\mathtt{leanModule}, \mathtt{lakeConfig}\} \\ \mathtt{leanElab} & k = \mathtt{leanScript} \\ \mathtt{jsonParse} & k = \mathtt{json} \\ \mathtt{jsonlParse} & k = \mathtt{jsonl} \\ \mathtt{yamlParse} & k = \mathtt{yaml} \\ \mathtt{shParse} & k = \mathtt{shell} \\ \mathtt{pyParse} & k = \mathtt{python} \\ \mathtt{swiftParse} & k = \mathtt{swift} \\ \mathtt{exempt} & k \in \{\mathtt{snapshot}, \mathtt{sketch}, \mathtt{asset}, \mathtt{prose}, \mathtt{text}\} \end{cases}$$
-
 Each kind of file is checked by the one static check that parses or builds it, and the five non-code kinds by none.
 -/
 def checkOf : Kind → Check
@@ -70,15 +64,10 @@ def checkOf : Kind → Check
   | .yaml => .yamlParse | .shell => .shParse | .python => .pyParse | .swift => .swiftParse
   | .snapshot => .exempt | .sketch => .exempt | .asset => .exempt | .prose => .exempt | .text => .exempt
 
-/-- The kinds without a static check.
-
-$$\mathrm{Exempt} = [\mathtt{snapshot}, \mathtt{sketch}, \mathtt{asset}, \mathtt{prose}, \mathtt{text}]$$
--/
+/-- The kinds without a static check. -/
 def exemptKinds : List Kind := [.snapshot, .sketch, .asset, .prose, .text]
 
 /-- The kind of an extension (`extOf`).
-
-$$\mathrm{byExt}(e) = \begin{cases} \mathtt{jsMod} & e \in \{\texttt{mjs}, \texttt{js}, \texttt{cjs}\} \\ \mathtt{ts} & e \in \{\texttt{ts}, \texttt{mts}, \texttt{cts}\} \\ \mathtt{tsDecl} & e \in \{\texttt{d.ts}, \texttt{d.mts}, \texttt{d.cts}\} \\ \mathtt{tsx} & e = \texttt{tsx} \\ \mathtt{json} & e \in \{\texttt{json}, \texttt{webmanifest}\} \\ \mathtt{jsonl} & e = \texttt{jsonl} \\ \mathtt{yaml} & e \in \{\texttt{yml}, \texttt{yaml}\} \\ \mathtt{shell} & e = \texttt{sh} \\ \mathtt{python} & e = \texttt{py} \\ \mathtt{swift} & e = \texttt{swift} \\ \mathtt{leanModule} & e = \texttt{lean} \\ \mathtt{asset} & e \in \{\texttt{jpg}, \texttt{jpeg}, \texttt{png}, \texttt{avif}, \texttt{webp}, \texttt{gif}, \texttt{svg}, \texttt{ico}, \texttt{woff}, \texttt{woff2}, \texttt{ttf}, \texttt{otf}, \texttt{gz}, \texttt{br}\} \\ \mathtt{prose} & e \in \{\texttt{md}, \texttt{txt}\} \\ \mathtt{text} & e \in \{\texttt{css}, \texttt{html}, \texttt{patch}, \texttt{tsv}, \texttt{toml}, \texttt{conf}, \texttt{gitignore}, \texttt{gitattributes}, \texttt{dockerignore}\} \\ \bot & \text{otherwise} \end{cases}$$
 
 An extension names its kind, and an unknown extension names none.
 -/
@@ -102,8 +91,6 @@ def byExt : String → Option Kind
 
 /-- The kind of an extensionless basename.
 
-$$\mathrm{byName}(b) = \begin{cases} \mathtt{prose} & b \in \{\texttt{LICENSE}, \texttt{NOTICE}\} \\ \mathtt{text} & b \in \{\texttt{Dockerfile}, \texttt{lean-toolchain}\} \\ \bot & \text{otherwise} \end{cases}$$
-
 A few known files without an extension have a kind, every other one has none.
 -/
 def byName : String → Option Kind
@@ -113,16 +100,12 @@ def byName : String → Option Kind
 
 /-- A research sketch: a Lean scratch project file under `research/kickoff/` (built by its own lakefile, not ours).
 
-$$\mathrm{sketch}(s, e) \iff s_{0..2} = [\texttt{research}, \texttt{kickoff}] \land \big(e \in \{\texttt{lean}, \texttt{toml}\} \lor \mathrm{last}(s) = \texttt{lean-toolchain}\big)$$
-
 A path is a sketch exactly when it lies under research/kickoff and is a Lean source, a toml file or a lean-toolchain.
 -/
 def isSketch (s : List String) (e : String) : Bool :=
   s.take 2 == ["research", "kickoff"] && (e == "lean" || e == "toml" || s.getLast? == some "lean-toolchain")
 
 /-- The kind of a path given as its segments `s` and extension `e` (the table of the module doc, first match wins).
-
-$$\mathrm{kind}(s, e) = \begin{cases} \bot & s = [\,] \\ \mathtt{snapshot} & s_0 = \texttt{snapshot} \\ \mathtt{sketch} & \mathrm{sketch}(s, e) \\ \mathtt{lakeConfig} & s \in \{[\texttt{lean}, \texttt{lakefile.toml}], [\texttt{lean}, \texttt{lean-toolchain}]\} \\ \mathtt{leanScript} & s_0 = \texttt{lean} \land e = \texttt{lean} \land s_{0..2} = [\texttt{lean}, \texttt{scripts}] \\ \mathtt{leanModule} & s_0 = \texttt{lean} \land e = \texttt{lean} \\ \mathtt{shell} & s_{0..2} = [\texttt{scripts}, \texttt{hooks}] \land e = \texttt{""} \\ \mathrm{byExt}(e) & \mathrm{byExt}(e) \ne \bot \\ \mathrm{byName}(\mathrm{last}(s)) & e = \texttt{""} \\ \bot & \text{otherwise} \end{cases}$$
 
 The first matching row of the table gives the kind; a path no row matches has none.
 -/
@@ -138,10 +121,8 @@ def classifyKey (s : List String) (e : String) : Option Kind :=
     | some k => some k
     | none => if e == "" then byName (s.getLast?.getD "") else none
 
-/-- The extension of a basename split at `.` into $b_0.b_1.\cdots.b_n$: the last part, except that a TypeScript
+/-- The extension of a basename split at `.` into `b_0.b_1.....b_n`: the last part, except that a TypeScript
 declaration file (`x.d.ts`, `x.d.mts`, `x.d.cts`) has extension `d.ts` / `d.mts` / `d.cts`; empty when there is no `.`.
-
-$$\mathrm{ext}(b_0.\cdots.b_n) = \begin{cases} \texttt{""} & n = 0 \\ \texttt{d.} \mathbin{+\!\!+} b_n & n \ge 2 \land b_{n-1} = \texttt{d} \land b_n \in \{\texttt{ts}, \texttt{mts}, \texttt{cts}\} \\ b_n & \text{otherwise} \end{cases}$$
 
 The extension is whatever follows the last dot (so `.gitignore` has `gitignore` and `foo.` has the empty one), with the
 declaration-file suffixes kept whole.
@@ -154,8 +135,6 @@ def extOf (base : String) : String :=
 
 /-- The kind of a path.
 
-$$\mathrm{kind}(p) = \mathrm{kind}\big(\mathrm{segs}(p),\ \mathrm{ext}(\mathrm{last}(\mathrm{segs}(p)))\big)$$
-
 A path's kind is the kind of its segments and the extension of its last segment.
 -/
 def classify (p : String) : Option Kind :=
@@ -163,8 +142,6 @@ def classify (p : String) : Option Kind :=
   classifyKey s (extOf (s.getLast?.getD ""))
 
 /-- The check of a path: none when the path is unmapped or its kind is exempt.
-
-$$\mathrm{chk}(p) = \begin{cases} \mathrm{check}(k) & \mathrm{kind}(p) = k \land \mathrm{check}(k) \ne \mathtt{exempt} \\ \bot & \text{otherwise} \end{cases}$$
 
 A path gets the check of its kind unless it has no kind or its kind is exempt.
 -/
@@ -178,8 +155,6 @@ def checkOfPath (p : String) : Option Check :=
 /-- One command of the plan: its check, the directory it runs in (relative to the repository root), its argv and the
 files it checks.
 
-$$\mathrm{Cmd} = \mathrm{Check} \times \mathrm{String} \times \mathrm{List}\ \mathrm{String} \times \mathrm{List}\ \mathrm{String} \ni (c, \mathit{cwd}, \mathit{argv}, F)$$
-
 A command is a check, a working directory, an argv and the files it covers.
 -/
 structure Cmd where
@@ -189,29 +164,18 @@ structure Cmd where
   files : List String
 deriving DecidableEq, Repr
 
-/-- The checks that run, in plan order (`lakeBuild` before `leanElab`, which elaborates against the built modules).
-
-$$\mathrm{order} = [\mathtt{lakeBuild}, \mathtt{leanElab}, \mathtt{nodeCheck}, \mathtt{tsStrip}, \mathtt{tscProject}, \mathtt{jsonParse}, \mathtt{jsonlParse}, \mathtt{yamlParse}, \mathtt{shParse}, \mathtt{pyParse}, \mathtt{swiftParse}]$$
--/
+/-- The checks that run, in plan order (`lakeBuild` before `leanElab`, which elaborates against the built modules). -/
 def order : List Check :=
   [.lakeBuild, .leanElab, .nodeCheck, .tsStrip, .tscProject, .jsonParse, .jsonlParse, .yamlParse, .shParse, .pyParse,
     .swiftParse]
 
-/-- A path relative to `lean/` (its segments without the first, joined by `/`).
-
-$$\mathrm{rel}(p) = \mathrm{join}_{/}(\mathrm{segs}(p)_{1..})$$
--/
+/-- A path relative to `lean/` (its segments without the first, joined by `/`). -/
 def rel (p : String) : String := "/".intercalate ((segs p).drop 1)
 
-/-- The package directory of a path: its first two segments joined by `/`.
-
-$$\mathrm{pkg}(p) = \mathrm{join}_{/}(\mathrm{segs}(p)_{0..2})$$
--/
+/-- The package directory of a path: its first two segments joined by `/`. -/
 def pkgOf (p : String) : String := "/".intercalate ((segs p).take 2)
 
 /-- The YAML parse program (Ruby's Psych, which ships with macOS and the GitHub runners).
-
-$$\mathrm{yamlProg} = \texttt{ARGV.each \{ |f| YAML.parse\_file(f) \}}$$
 
 Ruby parses every file named on its command line as YAML.
 -/
@@ -219,18 +183,12 @@ def yamlProg : String := "ARGV.each { |f| YAML.parse_file(f) }"
 
 /-- The Python parse program (stdlib `ast`; writes no `__pycache__`).
 
-$$\mathrm{pyProg} = \texttt{import ast,sys}\ \texttt{\textbackslash n}\ \texttt{for f in sys.argv[1:]: ast.parse(open(f,'rb').read(), f)}$$
-
 Python parses every file named on its command line without running it.
 -/
 def pyProg : String := "import ast,sys\nfor f in sys.argv[1:]: ast.parse(open(f,'rb').read(), f)"
 
 /-- The commands of one check over its files `fs` (argv of our own CLI `scripts/checkmap.mjs file <mode>` where no
 standard tool parses the file).
-
-$$\mathrm{cmds}(c, F) = \begin{cases} [(\texttt{lean}, \texttt{lake build}, F)] & c = \mathtt{lakeBuild} \\ [(\texttt{lean}, \texttt{lake env lean}\ \mathrm{rel}(f), [f]) : f \in F] & c = \mathtt{leanElab} \\ [(\texttt{.}, \texttt{node --check}\ f, [f]) : f \in F] & c = \mathtt{nodeCheck} \\ [(\texttt{.}, \texttt{sh -n}\ f, [f]) : f \in F] & c = \mathtt{shParse} \\ [(\texttt{.}, \texttt{swiftc -parse}\ f, [f]) : f \in F] & c = \mathtt{swiftParse} \\ [(\texttt{.}, \texttt{node scripts/checkmap.mjs file tsc}\ g, [f \in F : \mathrm{pkg}(f) = g]) : g \in \mathrm{dedup}[\mathrm{pkg}(f) : f \in F]] & c = \mathtt{tscProject} \\ [(\texttt{.}, \mathrm{tool}(c) \mathbin{+\!\!+} F, F)] & c \in \{\mathtt{tsStrip}, \mathtt{jsonParse}, \mathtt{jsonlParse}, \mathtt{yamlParse}, \mathtt{pyParse}\} \\ [\,] & c = \mathtt{exempt} \end{cases}$$
-
-$$\mathrm{tool}(\mathtt{tsStrip}) = \texttt{node scripts/checkmap.mjs file ts}, \quad \mathrm{tool}(\mathtt{jsonParse}) = \texttt{node scripts/checkmap.mjs file json}, \quad \mathrm{tool}(\mathtt{jsonlParse}) = \texttt{node scripts/checkmap.mjs file jsonl}, \quad \mathrm{tool}(\mathtt{yamlParse}) = \texttt{ruby -ryaml -e}\ \mathrm{yamlProg}, \quad \mathrm{tool}(\mathtt{pyParse}) = \texttt{python3 -c}\ \mathrm{pyProg}$$
 
 Per-file checks get one command per file, project checks one per package, batch checks one for all files, and exempt
 none.
@@ -254,8 +212,6 @@ def cmdsFor (c : Check) (fs : List String) : List Cmd :=
 /-- The plan for the paths `P`: for each check in `order`, the commands over the paths of that check (in their
 order); a check with no path gets no command.
 
-$$\mathrm{plan}(P) = \mathop{+\!\!+}_{c \in \mathrm{order}} \begin{cases} [\,] & F_c = [\,] \\ \mathrm{cmds}(c, F_c) & \text{otherwise} \end{cases}, \qquad F_c = [p \in P : \mathrm{chk}(p) = c]$$
-
 Each check runs once over exactly the given paths that need it, in a fixed order.
 -/
 def plan (paths : List String) : List Cmd :=
@@ -263,18 +219,13 @@ def plan (paths : List String) : List Cmd :=
     let fs := paths.filter (checkOfPath · == some c)
     if fs.isEmpty then [] else cmdsFor c fs
 
-/-- The unmapped paths: those with no kind, in their order.
-
-$$\mathrm{unmapped}(P) = [p \in P : \mathrm{kind}(p) = \bot]$$
--/
+/-- The unmapped paths: those with no kind, in their order. -/
 def unmapped (paths : List String) : List String := paths.filter fun p => (classify p).isNone
 
 /-! ## The verdict -/
 
 /-- The verdict over the exit codes of the plan's commands: every command passed (exit 0), or, unless `strict`, its
 tool was not installed (exit 127, the shell's "command not found"; the runner reports a spawn `ENOENT` as 127).
-
-$$\mathrm{ok}(\sigma, X) \iff \forall x \in X:\ x = 0 \lor (\lnot\sigma \land x = 127)$$
 
 The checks pass when every command exited 0, where a missing tool is forgiven only outside strict mode.
 -/
@@ -283,8 +234,6 @@ def verdict (strict : Bool) (codes : List Nat) : Bool :=
 
 /-- The run's verdict: no path is unmapped and the commands pass (`verdict`). An unmapped path fails the run: a new
 file kind must get a rule (and a check) here before it can be committed, which keeps `tracked_mapped` true.
-
-$$\mathrm{run}(\sigma, u, X) \iff u = 0 \land \mathrm{ok}(\sigma, X)$$
 
 The run passes exactly when no path is unmapped and every command passed.
 -/
@@ -295,24 +244,17 @@ def runOk (strict : Bool) (unmappedCount : Nat) (codes : List Nat) : Bool :=
 
 /-- Exactly the five exempt kinds have no static check.
 
-$$\forall k:\quad \mathrm{check}(k) = \mathtt{exempt} \iff k \in \mathrm{Exempt}$$
-
 A kind goes unchecked if and only if it is one of snapshot, sketch, asset, prose or text.
 -/
 theorem checkOf_exempt_iff (k : Kind) : checkOf k = .exempt ↔ k ∈ exemptKinds := by
   cases k <;> simp [checkOf, exemptKinds]
 
-/-- The extensions of code our tools parse, run or build.
-
-$$\mathrm{Code} = [\texttt{mjs}, \texttt{js}, \texttt{cjs}, \texttt{ts}, \texttt{mts}, \texttt{cts}, \texttt{d.ts}, \texttt{d.mts}, \texttt{d.cts}, \texttt{tsx}, \texttt{json}, \texttt{webmanifest}, \texttt{jsonl}, \texttt{yml}, \texttt{yaml}, \texttt{sh}, \texttt{py}, \texttt{swift}, \texttt{lean}]$$
--/
+/-- The extensions of code our tools parse, run or build. -/
 def codeExts : List String :=
   ["mjs", "js", "cjs", "ts", "mts", "cts", "d.ts", "d.mts", "d.cts", "tsx", "json", "webmanifest", "jsonl", "yml", "yaml",
     "sh", "py", "swift", "lean"]
 
 /-- Every code extension names a kind with a static check.
-
-$$\forall e \in \mathrm{Code}:\quad \exists k:\ \mathrm{byExt}(e) = k \land \mathrm{check}(k) \ne \mathtt{exempt}$$
 
 Each extension in the code list maps to a kind that has a real check.
 -/
@@ -323,8 +265,6 @@ theorem byExt_code (e : String) (h : e ∈ codeExts) : ∃ k, byExt e = some k �
 
 /-- Pre-commit covers code: every non-empty path with a code extension, outside `snapshot/` and the research sketches,
 has a kind whose check is not exempt.
-
-$$\forall s \ne [\,], e:\quad e \in \mathrm{Code} \land s_0 \ne \texttt{snapshot} \land \lnot\mathrm{sketch}(s, e) \Rightarrow \exists k:\ \mathrm{kind}(s, e) = k \land \mathrm{check}(k) \ne \mathtt{exempt}$$
 
 Every source file of a parsed or built kind outside Fastwork's snapshot and the research sketches gets a real check.
 -/
@@ -346,8 +286,6 @@ theorem precommit_covers (s : List String) (e : String) (hs : s ≠ []) (he : e 
 
 /-- One representative path (segments, extension) per distinct (first two directories, extension or basename) of
 `git ls-files` at commit c85c1b6 (156 keys); generated, not hand-written.
-
-$$\mathrm{Tracked} = [(s_1, e_1), \dots, (s_{156}, e_{156})],\quad |\mathrm{Tracked}| = 156$$
 
 The frozen list of tracked-file representatives that `tracked_mapped` covers.
 -/
@@ -512,15 +450,11 @@ def trackedKeys : List (List String × String) := [
 
 /-- Every tracked representative is mapped.
 
-$$\forall x \in \mathrm{Tracked}:\quad \mathrm{kind}(x_1, x_2) \ne \bot$$
-
 Each of the 156 representative tracked paths falls in some kind; `scripts/check.sh --tracked` checks the live tree.
 -/
 theorem tracked_mapped : ∀ x ∈ trackedKeys, (classifyKey x.1 x.2).isSome = true := by decide +kernel
 
 /-- Every non-exempt check is in the plan order.
-
-$$\forall c:\quad c \ne \mathtt{exempt} \Rightarrow c \in \mathrm{order}$$
 
 No real check is left out of the plan order.
 -/
@@ -528,8 +462,6 @@ theorem mem_order (c : Check) (h : c ≠ .exempt) : c ∈ order := by
   cases c <;> simp_all [order]
 
 /-- The commands of a non-exempt check cover every one of its files.
-
-$$\forall c \ne \mathtt{exempt}, F, f \in F:\quad \exists m \in \mathrm{cmds}(c, F):\ m.\mathrm{check} = c \land f \in m.\mathrm{files}$$
 
 Every file handed to a real check is checked by one of that check's commands.
 -/
@@ -542,8 +474,6 @@ theorem cmdsFor_covers (c : Check) (fs : List String) (f : String) (hc : c ≠ .
     | exact ⟨_, List.mem_map_of_mem (List.mem_eraseDups.mpr (List.mem_map_of_mem hf)), rfl, by simp [hf]⟩
 
 /-- The commands of a check check nothing but its files.
-
-$$\forall c, F, m \in \mathrm{cmds}(c, F):\quad m.\mathrm{check} = c \land m.\mathrm{files} \subseteq F$$
 
 A check's commands carry that check and only files it was handed.
 -/
@@ -558,8 +488,6 @@ theorem cmdsFor_sound (c : Check) (fs : List String) (m : Cmd) (hm : m ∈ cmdsF
 
 /-- No path's check is `exempt` (an exempt kind gives no check at all).
 
-$$\forall p:\quad \mathrm{chk}(p) \ne \mathtt{exempt}$$
-
 A path either has a real check or none.
 -/
 theorem checkOfPath_ne_exempt (p : String) : checkOfPath p ≠ some .exempt := by
@@ -569,8 +497,6 @@ theorem checkOfPath_ne_exempt (p : String) : checkOfPath p ≠ some .exempt := b
   · simp
 
 /-- The plan covers: every given path that has a check gets a command of that check over it.
-
-$$\forall P, p \in P, c:\quad \mathrm{chk}(p) = c \Rightarrow \exists m \in \mathrm{plan}(P):\ m.\mathrm{check} = c \land p \in m.\mathrm{files}$$
 
 No checked file is skipped: the plan always runs its check on it.
 -/
@@ -589,8 +515,6 @@ theorem plan_covers (paths : List String) (p : String) (hp : p ∈ paths) (c : C
 
 /-- The plan is sound: every file a command checks is a given path whose check is the command's.
 
-$$\forall P, m \in \mathrm{plan}(P), f \in m.\mathrm{files}:\quad f \in P \land \mathrm{chk}(f) = m.\mathrm{check}$$
-
 The plan never checks a file it was not given, and never with a check other than the file's own.
 -/
 theorem plan_sound (paths : List String) (m : Cmd) (hm : m ∈ plan paths) (f : String) (hf : f ∈ m.files) :
@@ -605,8 +529,6 @@ theorem plan_sound (paths : List String) (m : Cmd) (hm : m ∈ plan paths) (f : 
 
 /-- The verdict, unfolded.
 
-$$\forall \sigma, C:\quad \mathrm{ok}(\sigma, C) \iff \forall x \in C:\ x = 0 \lor (\sigma = \mathrm{false} \land x = 127)$$
-
 The checks pass exactly when each exit code is 0, or 127 (tool missing) outside strict mode.
 -/
 theorem verdict_ok_iff (strict : Bool) (codes : List Nat) :
@@ -615,16 +537,12 @@ theorem verdict_ok_iff (strict : Bool) (codes : List Nat) :
 
 /-- Strict mode passes only when every command exited 0.
 
-$$\forall C:\quad \mathrm{ok}(\mathrm{true}, C) \iff \forall x \in C:\ x = 0$$
-
 With strict on, a missing tool fails the checks like a failed command.
 -/
 theorem verdict_strict (codes : List Nat) : verdict true codes = true ↔ ∀ x ∈ codes, x = 0 := by
   simp [verdict]
 
 /-- The run's verdict, unfolded.
-
-$$\forall \sigma, u, C:\quad \mathrm{run}(\sigma, u, C) \iff u = 0 \land \forall x \in C:\ x = 0 \lor (\sigma = \mathrm{false} \land x = 127)$$
 
 A run passes exactly when nothing is unmapped and each exit code is 0, or 127 outside strict mode.
 -/
