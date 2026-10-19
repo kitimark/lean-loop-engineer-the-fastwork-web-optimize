@@ -11,14 +11,13 @@
   - `seeded_caches`, `unseeded_caches`: wktr-zip is excluded on purpose; main never seeded it.
   - `onKeys_push`, `onKeys_dispatch`, `onKeys_schedule`, `onKeys_iff`, `table_onKeys`: the `on:` allowlist.
   - `mainRuns_iff`, `main_iff_seeder`, `no_crons`, `ci_triggers` (ci/** unchanged).
-  - `carries_bare`, `carries_wrap`, `carries_sound`, `withNotMain_none`, `withNotMain_some`: the `if:` form `${{ (e) && (notMainPush) }}`.
+  - `carries_bare`, `carries_wrap`, `carries_sound`, `withNotMain_none`, `withNotMain_some`: the `if:` form `${{ (e) && (notMainPush) }}`. Standard axioms only.
 - `Fw.Ops.LakeCache.lake_writers`: the Lake rows of `cacheWriters` equal the generated Lake writers.
-- Axioms: propext, Classical.choice, Quot.sound only.
 - `scripts/ci-paths.mjs --check`:
   - scans the cache writers (actions/cache steps, local actions with input-gated saves) and compares them to Lean `cacheWriters`;
   - lists every indent-2 key under `on:` (quoted or not, flow or block form) and rejects any key outside the golden row's `onKeys`; a non-key line there is a problem too;
   - checks the if-form structurally (Lean golden `ifForm`/`ifCheck` lines; tests include `a || b` and `(x) || true`).
-- Results: see the final report (check.sh, ci-paths 40 tests, runner suite).
+- Results at the final commit: check.sh green (25 s); ci-paths tests 40 pass; .github + ci-* 69 pass; runner 1044 pass.
 
 ## Accepted limits / open
 - Gain of the gate-engine seed: WebKit saves up to ~36 s per gate job on a ci branch's first run; Chromium saves ~0 s (MEASURED, gate-speed-ci.md:20).
