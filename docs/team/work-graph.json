@@ -7468,6 +7468,321 @@
     "docs/team/handoffs/gh-status.md"
    ],
    "evidence": "a7c9ad1"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "workflow-salvage-wire",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): salvage stage in build-review on a null build, decided by Fw.Ops.Salvage via fwcore",
+   "deps": [],
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "lean/Fw/Ops/Salvage.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/scripts/SalvageGolden.lean",
+    "packages/contracts/golden/ops/salvage.jsonl",
+    "apps/runner/src/workflow/salvage.ts",
+    "apps/runner/test/workflow-salvage.test.ts",
+    "docs/team/tools/prompt-rules.md",
+    "docs/team/handoffs/workflow-salvage-wire.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "build-review-lint",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): Lean rule over build-review task args: Lean stages iff writes touch lean/, fix round needs findings, per-item report, preamble lines incl. \"builder and reviewer run pnpm -s fw land --dry at the final commit; the report carries its VERDICT line\"",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/BuildReview.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ops/build-review.jsonl",
+    ".claude/workflows/build-review.js",
+    "apps/runner/test/build-review.test.ts",
+    "docs/team/tools/prompt-rules.md",
+    "docs/team/handoffs/build-review-lint.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fw-task-add",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): `fw task add`: contract shape check (stream, writes incl. handoff), 1-space serializer, zero deleted lines",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Plan/Lint.lean",
+    "lean/Fw/Plan/Golden.lean",
+    "packages/contracts/golden/plan/**",
+    "apps/runner/src/task-add.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/task-add.test.ts",
+    "docs/team/tools/task-add.md",
+    "docs/team/handoffs/fw-task-add.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "queue-idle-guard",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): Lean queueIdle gates a new `fw console restart` and main-checkout edits",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/QueueIdle.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ops/queue-idle.jsonl",
+    "apps/runner/src/console-restart.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/test/console-restart.test.ts",
+    "docs/team/handoffs/queue-idle-guard.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-rows",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): `fw land --queue --rows <file>`; branch from each worktree HEAD; no env vars",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/src/fw.ts",
+    "fw.ts:81-98)",
+    "apps/runner/test/land-queue.test.ts",
+    "docs/team/tools/land-queue.md",
+    "docs/team/handoffs/land-rows.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-no-api",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): fw land --dry without console-api: plan from the graph file, land-scope via fwcore",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land.ts",
+    ":507 land-scope)",
+    "apps/runner/src/lib.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/land-dry.test.ts",
+    "apps/runner/test/lib.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-no-api.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-queue-verdict",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): queue maps a thrown refusal to its Kind and logs it; unknown only with a reason",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/src/land-verdict.ts",
+    "lean/Fw/Console/LandVerdict.lean",
+    "packages/contracts/golden/console/land-dry.jsonl",
+    "apps/runner/test/land-queue.test.ts",
+    "apps/runner/test/land-verdict.test.ts",
+    "docs/team/handoffs/land-queue-verdict.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-order-overlap",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): queue order by declared-write overlap on shared generated files",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/LandOrder.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ops/land-order.jsonl",
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/test/land-queue.test.ts",
+    "docs/team/handoffs/land-order-overlap.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "manifest-merge",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): url-keyed union merge driver for apps/site/assets.manifest.json (LedgerMerge pattern)",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/LedgerMerge.lean",
+    "lean/FwTestMain.lean",
+    "scripts/merge-manifest.mjs",
+    ".gitattributes",
+    "apps/runner/test/ledger-merge.test.ts",
+    "docs/team/tools/ledger-merge.md",
+    "docs/team/handoffs/manifest-merge.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lane-admit-load",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): admit local-heavy lanes by load1 < 2 x cores and a running check.sh cap",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Sched/Admit.lean",
+    "lean/Fw/Wire/Sched.lean",
+    "lean/Fw/Wire/SchedGolden.lean",
+    "packages/contracts/golden/ops/admit.jsonl",
+    "apps/runner/src/watch.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/watch.test.ts",
+    "docs/team/tools/watch-rules.md",
+    "docs/team/handoffs/lane-admit-load.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-narrowed-out",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "title": "Incident fix (incidents-1019): narrowed gate readings excluded from the C3/flag decision domain (theorem + golden)",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Gate/Exit.lean",
+    "lean/Fw/Preset/V2Proved.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/gate/exit.jsonl",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "docs/team/handoffs/gate-narrowed-out.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wait-guard-enforce-on",
+   "owner": "lead",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): wait-guard enforce mode on, in workflow agents too (the user writes the local config)",
+   "deps": [],
+   "writes": [
+    "gitignored)",
+    "apps/runner/hooks/wait-guard.mjs",
+    "apps/runner/test/wait-guard.test.ts",
+    "docs/team/tools/wait-guard.md",
+    "docs/team/handoffs/wait-guard-enforce-on.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "overflow-on-land",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Incident fix (incidents-1019): viewport overflow check selected for lands that touch apps/site/**",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandSpeed.lean",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-inputs.test.ts",
+    "packages/measure-chromium/src/overflow.mjs",
+    "packages/measure-chromium/test/overflow.test.mjs",
+    "docs/team/handoffs/overflow-on-land.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "watch-liveness",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): heartbeat-age alert for fw watch, raised outside the watcher",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/WatchDiff.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/ops/ops.watchDiff.jsonl",
+    "apps/runner/src/watch.ts",
+    "apps/runner/src/watch-svc.ts",
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "apps/runner/test/watch.test.ts",
+    "docs/team/tools/fw-watch.md",
+    "docs/team/handoffs/watch-liveness.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-dispatch-no-push",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): a ci/dispatch-* push starts no push run (Lean onKeys table + ci-paths test)",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "packages/contracts/golden/ci/**",
+    ".github/workflows/**",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "apps/runner/src/ci.ts",
+    "docs/team/tools/fw-ci.md",
+    "docs/team/handoffs/ci-dispatch-no-push.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "runner-bin-mode",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Incident fix (incidents-1019): fw.ts committed as 100755 (or the unused bin dropped); test: every bin target is 100755 in the index",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/fw.ts",
+    "apps/runner/package.json",
+    "apps/runner/test/bin-mode.test.ts",
+    "docs/team/handoffs/runner-bin-mode.md"
+   ]
   }
  ],
  "deadline": {
