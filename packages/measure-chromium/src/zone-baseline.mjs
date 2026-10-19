@@ -61,7 +61,10 @@ for (const r of shards) {
   const zones = zoneSums(counts.frames, h);
   if (JSON.stringify(zones) !== JSON.stringify(stored.zones)) throw new Error(`${r}: fwcore zoneSums differs from the stored zones.json`);
   perShard[r] = { frames: counts.frames.length, zones, countsSha256: createHash('sha256').update(entry(`${r}/counts.json`)).digest('hex') };
-  meta ??= { zoneHeightPx: h, browser: counts.meta?.browser, viewport: counts.meta?.viewport, pageHeight: counts.meta?.pageHeight };
+  const mine = { zoneHeightPx: h, browser: counts.meta?.browser, viewport: counts.meta?.viewport, pageHeight: counts.meta?.pageHeight,
+    innerWidthPx: counts.meta?.innerWidthPx, innerHeightPx: counts.meta?.innerHeightPx, scrollWidthPx: counts.meta?.scrollWidthPx };
+  meta ??= mine;
+  if (JSON.stringify(mine) !== JSON.stringify(meta)) throw new Error(`${r}: the shards disagree on how the page was measured: ${JSON.stringify(mine)} vs ${JSON.stringify(meta)}`);
 }
 
 const file = {
@@ -109,7 +112,10 @@ function baselineMode() {
       'class = the type in the frozen table (unlisted = not in it; rule quarantined); perRun in the order of runs; lo, hi; ' +
       'base = the observed value at sorted index floor((n-1)/2). Raw counts are work, not milliseconds. Regenerate after every refreeze.',
     source: { zonesFile: relative(root, resolve(zonesPath)), zonesSha256: sha(zonesText), storeKey: zf.storeKey, runId: zf.runId,
-      gitSha: zf.gitSha, image: zf.image, zoneHeightPx: zf.zoneHeightPx },
+      gitSha: zf.gitSha, image: zf.image, zoneHeightPx: zf.zoneHeightPx,
+      // how the page was measured, for Fw.Faithful.comparable; zones files written before the page reported its viewport lack it
+      ...(zf.innerWidthPx === undefined ? {} : { preset: zf.preset, browser: zf.browser, viewport: zf.viewport,
+        innerWidthPx: zf.innerWidthPx, innerHeightPx: zf.innerHeightPx, scrollWidthPx: zf.scrollWidthPx }) },
     classTable: { file: relative(root, classesPath), sha256: sha(classesText), profile, image: frozen.image,
       workflowRuns: frozen.workflowRuns },
     target: tgt, engine: zf.engine, profile: zf.profile,
