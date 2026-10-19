@@ -7,8 +7,8 @@ import { digitPlaces, remainingSeconds, unitsFromSeconds } from './logic';
 import { matchList } from './media';
 import css from './hero.module.css';
 
-/** Placeholder unit labels (not the site's text). */
-const LABELS = ['Days', 'Hrs', 'Min', 'Sec'] as const;
+/** Unit labels, as the original shows them. */
+const LABELS = ['days', 'hours', 'mins', 'seconds'] as const;
 
 export interface HeroCountdownProps {
   variant: string;
