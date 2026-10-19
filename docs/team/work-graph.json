@@ -7886,6 +7886,69 @@
     "packages/contracts/golden/**",
     "docs/team/handoffs/runner-standins-fwcore.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "countdown-one-chain",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "milestone": "M5",
+   "title": "Optimize (discovery R7, hero half): hero.countdown variant one-chain steps all rolling digits from one shared clock subscriber alive only while a digit rolls (10 faces and setInterval(1000) kept); Lean scheduling model with oneChain_writes_eq / oneChain_raf, Chromium frame_request_callback_collection.cc + WebKit ScriptedAnimationController cites; single-flag counts arms on both profiles; morph.countdown half follows morph-layers",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/hero.countdown/**",
+    "lean/Fw/Parts/HeroCountdownOneChain*.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**",
+    "packages/contracts/golden/parts/hero.countdown*",
+    "research/notes/2026/10-20-countdown-one-chain.md",
+    "results/countdown-one-chain/**",
+    "docs/team/handoffs/countdown-one-chain.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "waapi-touch-arm",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "milestone": "M5",
+   "title": "Optimize (discovery R8): MorphTweenOpt golden rows depend on the profile (=o on swipe-v1, which never pushes; <o on swipe-touch-v1) with the lemma no pushes => =o; one single-flag morph.tween:waapi arm on swipe-touch-v1 against the touch base; no site change",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "lean/Fw/Parts/MorphTweenProfile*.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/parts/morph.tween.jsonl",
+    "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
+    "research/notes/2026/10-20-waapi-touch-arm.md",
+    "results/waapi-touch-arm/**",
+    "docs/team/handoffs/waapi-touch-arm.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "countdown-hidden-arm",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "milestone": "M5",
+   "title": "Optimize (discovery R6, re-aimed): single-flag hero.countdown:hidden-pause arms on swipe-v1 and swipe-touch-v1 over v2-proved and base, judged on trace.UpdateLayoutTree.elementCount in frames 104-200 (FireAnimationFrame cannot drop: callbacks kept by design); only on a measured win add the linkTable row (Gen.lean) + ledger row and regenerate v2-proved.json; else a negative-result note with the Lean why",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Preset/Gen.lean",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "packages/contracts/golden/preset/v2-proved.json",
+    "packages/contracts/golden/parts/hero.countdown.hidden.jsonl",
+    "lean/Fw/Parts/HeroCountdownHidden.lean",
+    "research/notes/2026/10-20-countdown-hidden-arm.md",
+    "results/countdown-hidden-arm/**",
+    "docs/team/handoffs/countdown-hidden-arm.md"
+   ]
   }
  ],
  "deadline": {
