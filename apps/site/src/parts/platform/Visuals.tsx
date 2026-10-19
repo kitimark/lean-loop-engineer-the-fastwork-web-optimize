@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { GenShape, GenSvg, art } from '../../GenSvg';
 import { getClock } from '../../engine/clock';
 import { createAskDriver, createCountUp, observeVisible } from '../platform.entries/driver';
 import type { View } from '../platform.entries/logic';
@@ -26,9 +27,7 @@ function toggle(el: Element | null, name: string, on: boolean) {
 
 function Star() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" />
-    </svg>
+    <GenSvg art={art('platform.star')} />
   );
 }
 
@@ -95,10 +94,7 @@ export function Profile({ subs }: { subs: Subs }) {
           </div>
           <p className={v.bio}>{PROFILE.bio}</p>
           <p className={v.loc}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 21s6-5.25 6-11a6 6 0 1 0-12 0c0 5.75 6 11 6 11z" />
-              <circle cx="12" cy="10" r="2.25" />
-            </svg>{' '}
+            <GenSvg art={art('platform.pin')} />{' '}
             {PROFILE.location}
           </p>
         </div>
@@ -240,10 +236,7 @@ export function Ask({ subs }: { subs: Subs }) {
         <div className={v.askHero}>
           <p className={v.askTitle}>{ASK_TITLE}</p>
           <div className={v.askField}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-              <circle cx="11" cy="11" r="6.5" />
-              <path d="m16 16 4 4" />
-            </svg>{' '}
+            <GenSvg art={art('platform.search')} />{' '}
             <span ref={field} />
           </div>
         </div>
@@ -301,7 +294,7 @@ function Dash({ side, playing }: { side: 'left' | 'right'; playing: boolean }) {
             ) : null}
           </linearGradient>
         </defs>
-        <line className={cx(v.highlight, playing && v.highlightActive)} x1="1.6" y1="1.6" x2="92.4" y2="1.6" strokeWidth="3.2" strokeLinecap="round" stroke={`url(#${id})`} />
+        <GenShape art={art(side === 'left' ? 'platform.dashLeft' : 'platform.dashRight')} className={cx(v.highlight, playing && v.highlightActive)} stroke={`url(#${id})`} />
       </svg>
     </span>
   );
@@ -375,10 +368,7 @@ export function Secure({ subs }: { subs: Subs }) {
           </span>
           <span className={v.shieldLogo}>
             <span className={v.logoMark}>
-              {/* stand-in glyph: the original's logo mark is a brand asset and is not restated */}
-              <svg viewBox="0 0 46 46" aria-hidden="true">
-                <circle cx="23" cy="23" r="14" />
-              </svg>
+              <GenSvg art={art('platform.shield')} />
             </span>
           </span>
         </div>

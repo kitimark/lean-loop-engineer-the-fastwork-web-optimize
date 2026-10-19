@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { GenSvg, art } from '../../GenSvg';
 import { getScrollEngine } from '../../engine/scroll';
 import { HEADING } from './content';
 import { createShrink } from './driver';
@@ -65,10 +66,7 @@ function Stage({ kind, flip, invoice, children }: { kind: 'secureMesh' | 'mesh' 
 function Check() {
   return (
     <span className={css.rowCheckIcon} aria-hidden="true">
-      <svg viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="9" />
-        <path d="m8 12 2.5 2.5L16.5 9" />
-      </svg>
+      <GenSvg art={art('platform.check')} />
     </span>
   );
 }

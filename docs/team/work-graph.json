@@ -5709,7 +5709,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "apps/site/src/svg-guard.test.ts",
     "apps/site/src/svg-allow.json"
-   ]
+   ],
+   "evidence": "ae6e1ba"
   },
   {
    "devices": [

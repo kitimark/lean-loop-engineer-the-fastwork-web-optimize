@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { getClock } from '../../engine/clock';
+import { GenSvg, art } from '../../GenSvg';
 import css from './drawer.module.css';
 import { bodyOverflow, escapeCloses, raf, REST, setOpen, tick, type St } from './logic';
 import { matchList } from './media';
@@ -99,16 +100,11 @@ export function OverlayDrawer({ variant, onGetStarted }: OverlayDrawerProps) {
       <button type="button" className={css.backdrop} aria-label="Close dialog" onClick={closeDrawer} />
       <div className={css.panel} role="dialog" aria-modal="true" aria-labelledby="why-bring-title">
         <button type="button" className={css.close} aria-label="Close" ref={closeButton} onClick={closeDrawer}>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M6.5 6.5L17.5 17.5M17.5 6.5L6.5 17.5" />
-          </svg>
+          <GenSvg art={art('drawer.close')} />
         </button>
         <div className={css.body}>
           <div className={css.header}>
-            {/* placeholder glyph: the brand mark's path is not restated */}
-            <svg className={css.mark} viewBox="0 0 46 46" aria-hidden="true">
-              <path d="M23 5a18 18 0 1 0 0 36a18 18 0 1 0 0-36zm0 8a10 10 0 1 1 0 20a10 10 0 1 1 0-20z" />
-            </svg>
+            <GenSvg art={art('drawer.mark')} className={css.mark} />
             <div className={css.intro}>
               <h2 id="why-bring-title">Why bring your client to Fastwork?</h2>
               <p>Discover the benefits of bringing your clients with you.</p>

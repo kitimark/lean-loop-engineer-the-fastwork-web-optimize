@@ -1,8 +1,10 @@
 /**
  * Per-word artwork frame of the accent: the SVG view box, the paint insets (percent strings written inline) and the label,
  * restated from the original's word list (nodes/2.DyWL8TcE.js:3484-3665, hidden words removed; index -1 is the base word).
- * The strokes are NOT the original's paths: a plain stand-in wave per frame (svg-extract reads the real ones at build time).
+ * The strokes come from svg.gen.json (gitignored; scripts/svg-extract.mjs reads them from the snapshot at build time).
  */
+import svg from '../../svg.gen.json';
+
 export interface WordArt {
   readonly viewBox: readonly [number, number];
   readonly inset: { readonly top: string; readonly right: string; readonly bottom: string; readonly left: string };
@@ -51,9 +53,8 @@ export const WORD_ART: readonly WordArt[] = [
 
 export const artOf = (cursor: number): WordArt => (cursor < 0 ? BASE_ART : (WORD_ART[cursor] ?? BASE_ART));
 
-/** Plain stand-in stroke for a view box: one wave with a small per-frame wobble (the 3 boil frames). */
-export function standInPath(w: number, h: number, frame: number): string {
-  const j = frame * 1.2;
-  const f = (x: number, y: number) => `${(x * w + j).toFixed(2)} ${(y * h - j).toFixed(2)}`;
-  return `M${f(0.12, 0.55)}C${f(0.3, 0.1)} ${f(0.45, 0.9)} ${f(0.62, 0.45)}S${f(0.85, 0.3)} ${f(0.9, 0.6)}`;
+/** The original's stroke for a word (cursor -1 = base word) and boil frame, read at build time from the snapshot. */
+export function strokePath(cursor: number, frame: number): string {
+  const paths = cursor < 0 ? svg.accent.base : (svg.accent.words[cursor]?.paths ?? svg.accent.base);
+  return paths[frame] ?? paths[0]!;
 }

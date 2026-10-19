@@ -1,3 +1,4 @@
+import { GenSvg, art } from '../../GenSvg';
 import css from './cue.module.css';
 
 export interface HeroCueProps {
@@ -19,10 +20,7 @@ export function HeroCue({ variant }: HeroCueProps) {
     <button type="button" className={css.cue} data-fw="hero-cue" data-fw-variant={variant} onClick={scrollNext}>
       <span className={css.float}>
         <span className={css.label}>Scroll down</span>{' '}
-        <svg viewBox="0 0 20 20" aria-hidden="true">
-          <path d="m5.5 7.25 4.5 4.5 4.5-4.5" />
-          <path d="m5.5 11.25 4.5 4.5 4.5-4.5" />
-        </svg>
+        <GenSvg art={art('hero.cue')} />
       </span>
     </button>
   );
