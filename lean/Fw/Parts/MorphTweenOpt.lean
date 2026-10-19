@@ -1194,14 +1194,15 @@ deriving Repr, DecidableEq
 /-- Every reader of the animated properties in the rewrite (`nav.module.css`, `morph.module.css`, and the platform's
 inline `--morph-fade`, `fade_css`). The nav animates `--morph`: the `header.nav` itself, `.bar > .logo`,
 `.bar > .actions`, `.bar > .actions > .btn.earn`, and the hosted `.panel`, its child. The platform section animates
-its own `--morph`. No CSS reads the two flags.
+its own `--morph`, reads it in its inline `--morph-fade`, and reads `--morph-fade` itself (`platform.module.css`).
+No CSS reads the two flags.
 
-$$\mathrm{readers} = [(\texttt{--morph}, \texttt{nav}, 0), (\texttt{--morph}, \texttt{logo}, 2), (\texttt{--morph}, \texttt{actions}, 2), (\texttt{--morph}, \texttt{earn}, 3), (\texttt{--morph}, \texttt{panel}, 1), (\texttt{--morph}, \texttt{section}, 0)]$$
+$$\mathrm{readers} = [(\texttt{--morph}, \texttt{nav}, 0), (\texttt{--morph}, \texttt{logo}, 2), (\texttt{--morph}, \texttt{actions}, 2), (\texttt{--morph}, \texttt{earn}, 3), (\texttt{--morph}, \texttt{panel}, 1), (\texttt{--morph}, \texttt{section}, 0), (\texttt{--morph-fade}, \texttt{section}, 0)]$$
 
-Where `--morph` is read. -/
+Where the animated properties are read. -/
 def readers : List Reader :=
   [⟨"--morph", "nav", 0⟩, ⟨"--morph", "logo", 2⟩, ⟨"--morph", "actions", 2⟩, ⟨"--morph", "earn", 3⟩,
-   ⟨"--morph", "panel", 1⟩, ⟨"--morph", "section", 0⟩]
+   ⟨"--morph", "panel", 1⟩, ⟨"--morph", "section", 0⟩, ⟨"--morph-fade", "section", 0⟩]
 
 /-- The reader depths of the property $p$, in list order (empty for a property nothing reads).
 
@@ -1262,22 +1263,35 @@ structure Registration where
   initialValue : String
 deriving Repr, DecidableEq
 
-/-- The registrations of the variant: `--morph` inherited (the nav's descendants and the hosted panel read it), the
-two flags not inherited (nothing reads them below the nav), all `<number>` with initial value `0`.
+/-- Whether the original has the property $p$ as an inherited custom property: `--morph` and `--morph-fade` are
+written there unregistered, so inherited (Chromium `custom_property.cc:22-23`@f842f52, WebKit
+`StyleBuilder.cpp:103-106`@862f17d); the flags are classes there, and any other name is absent.
 
-$$\mathrm{regs} = [(\texttt{--morph}, \texttt{<number>}, \top, \texttt{0}), (\texttt{--fw-morph-dark}, \texttt{<number>}, \bot, \texttt{0}), (\texttt{--fw-morph-expanded}, \texttt{<number>}, \bot, \texttt{0})]$$
+$$\forall p:\quad h_o(p) \iff p \in \{\texttt{--morph}, \texttt{--morph-fade}\}$$
+
+The original's inheritance bit per property. -/
+def origInheritsOf (p : String) : Bool := p == "--morph" || p == "--morph-fade"
+
+/-- The registrations of the variant: `--morph` inherited (the nav's descendants and the hosted panel read it),
+`--morph-fade` inherited (as in the original, so the same elements recompute; registered so that its computed value
+is a number, `1` at rest, as the original's), the two flags not inherited (nothing reads them below the nav). All
+`<number>`; initial value `0`, `--morph-fade` `1` (its value at rest).
+
+$$\mathrm{regs} = [(\texttt{--morph}, \texttt{<number>}, \top, \texttt{0}), (\texttt{--morph-fade}, \texttt{<number>}, \top, \texttt{1}), (\texttt{--fw-morph-dark}, \texttt{<number>}, \bot, \texttt{0}), (\texttt{--fw-morph-expanded}, \texttt{<number>}, \bot, \texttt{0})]$$
 
 What `index.tsx` passes to `CSS.registerProperty`. -/
 def registrations : List Registration :=
-  [⟨"--morph", "<number>", true, "0"⟩, ⟨"--fw-morph-dark", "<number>", false, "0"⟩,
-   ⟨"--fw-morph-expanded", "<number>", false, "0"⟩]
+  [⟨"--morph", "<number>", true, "0"⟩, ⟨"--morph-fade", "<number>", true, "1"⟩,
+   ⟨"--fw-morph-dark", "<number>", false, "0"⟩, ⟨"--fw-morph-expanded", "<number>", false, "0"⟩]
 
-/-- Each registration inherits exactly when the rule asks for it.
+/-- Each registration inherits exactly when a reader sits below the element that sets it or the original's property
+inherits.
 
-$$\forall r \in \mathrm{regs}:\quad r.\mathit{inherits} = \operatorname{need}(\operatorname{depths}(r.\mathit{name}))$$
+$$\forall r \in \mathrm{regs}:\quad r.\mathit{inherits} = \big(\operatorname{need}(\operatorname{depths}(r.\mathit{name})) \lor h_o(r.\mathit{name})\big)$$
 
-No property inherits without a descendant reader, none lacks it with one. -/
-theorem registrations_rule : ∀ r ∈ registrations, r.inherits = needsInherit (readersOf r.name) := by decide
+No property inherits without a reason, none lacks it with one. -/
+theorem registrations_rule :
+    ∀ r ∈ registrations, r.inherits = (needsInherit (readersOf r.name) || origInheritsOf r.name) := by decide
 
 /-- **MT-R, visual.** Under the variant's registrations every reader of every registered property sees the animated
 value, whatever the value and the initial value; so the view of `waapi_vis` is what each reader renders, the hosted
@@ -1291,7 +1305,7 @@ theorem registrations_see :
   intro r hr a i d hd
   refine (sees_iff r.inherits i (readersOf r.name)).2 ?_ a d hd
   rw [registrations_rule r hr]
-  cases needsInherit (readersOf r.name) <;> simp
+  cases needsInherit (readersOf r.name) <;> cases origInheritsOf r.name <;> simp
 
 /-- **MT-R, the finding.** Registered with `inherits` false, `--morph` leaves the hosted panel (depth 1) at its
 initial value while the nav animates any other value.
@@ -1303,16 +1317,12 @@ theorem panel_blind_without_inherit (a i : Rat) (h : a ≠ i) :
     (⟨"--morph", "panel", 1⟩ : Reader) ∈ readers ∧ seenAt false a i 1 ≠ a :=
   ⟨by decide, fun e => h (by rw [seenAt_false_succ] at e; exact e.symm)⟩
 
-/-- The original's `--morph`: written unregistered, so inherited (Chromium `custom_property.cc:22-23`@f842f52, WebKit
-`StyleBuilder.cpp:103-106`@862f17d). $$h_o = \top$$ The original's inheritance bit. -/
-def origInherits : Bool := true
+/-- The variant's inheritance bit of the property $p$: that of its registration, $\bot$ if it has none.
 
-/-- The variant's inheritance bit of `--morph`: that of its registration, $\bot$ if it had none.
+$$\forall p:\quad h_v(p) = \begin{cases} g.\mathit{inherits} & g \text{ the first } r \in \mathrm{regs} \text{ with } r.\mathit{name} = p \\ \bot & \text{no such } r \end{cases}$$
 
-$$h_m = \begin{cases} g.\mathit{inherits} & g \text{ the first } r \in \mathrm{regs} \text{ with } r.\mathit{name} = \texttt{--morph} \\ \bot & \text{no such } r \end{cases}$$
-
-The variant's inheritance bit. -/
-def morphInherits : Bool := ((registrations.find? (·.name == "--morph")).map (·.inherits)).getD false
+The variant's inheritance bit per property. -/
+def regInherits (p : String) : Bool := ((registrations.find? (·.name == p)).map (·.inherits)).getD false
 
 /-- Whether an element at depth $d$ recomputes its style when the animated value changes: the animated element
 always, a descendant iff the property is inherited (the inherited-data change of the section note).
@@ -1322,29 +1332,35 @@ $$\forall h \in \mathbb{B},\ \forall d \in \mathbb{N}:\quad \operatorname{recalc
 Which elements a value change invalidates. -/
 def recalcs (inh : Bool) (d : Nat) : Bool := d == 0 || inh
 
-/-- **MT-R, work.** With `--morph` inherited the variant's per-frame style changes cover exactly the original's
-elements in every subtree, and every element sees the same value as in the original, so `waapi_work_le` applies with
-one change list $C$ for both arms. With `inherits` false the variant would change fewer elements than the original
-on any subtree with a strict descendant: a smaller style count bought by a wrong picture.
+/-- **MT-R, work.** For every property the original has as an inherited custom property (`--morph`, `--morph-fade`),
+the variant's registration inherits too, so its per-frame style changes cover exactly the original's elements in
+every subtree and every element sees the same value as in the original: `waapi_work_le` applies with one change list
+$C$ for both arms. With `inherits` false the variant would change fewer elements than the original on any subtree
+with a strict descendant: a smaller style count bought by a wrong picture.
 
-$$\Big(\forall D \in \mathbb{N}^{*},\ \forall a, i \in \mathbb{Q},\ \forall d \in \mathbb{N}:\quad \operatorname{filter}(\operatorname{recalc}(h_m), D) = \operatorname{filter}(\operatorname{recalc}(h_o), D) \land \operatorname{seen}(h_m, a, i, d) = \operatorname{seen}(h_o, a, i, d)\Big)$$
-$$\land\ \Big(\forall D \in \mathbb{N}^{*}:\quad \operatorname{need}(D) \Rightarrow \operatorname{filter}(\operatorname{recalc}(\bot), D) \ne \operatorname{filter}(\operatorname{recalc}(h_o), D)\Big)$$
+$$\Big(\forall p,\ \forall D \in \mathbb{N}^{*},\ \forall a, i \in \mathbb{Q},\ \forall d \in \mathbb{N}:\quad h_o(p) \Rightarrow \operatorname{filter}(\operatorname{recalc}(h_v(p)), D) = \operatorname{filter}(\operatorname{recalc}(h_o(p)), D) \land \operatorname{seen}(h_v(p), a, i, d) = \operatorname{seen}(h_o(p), a, i, d)\Big)$$
+$$\land\ \Big(\forall D \in \mathbb{N}^{*}:\quad \operatorname{need}(D) \Rightarrow \operatorname{filter}(\operatorname{recalc}(\bot), D) \ne \operatorname{filter}(\operatorname{recalc}(\top), D)\Big)$$
 
 Same invalidation as the original; the work claim keeps its premise. -/
 theorem morph_scope_eq :
-    (∀ (ds : List Nat) (a i : Rat) (d : Nat),
-      ds.filter (recalcs morphInherits) = ds.filter (recalcs origInherits) ∧
-        seenAt morphInherits a i d = seenAt origInherits a i d) ∧
-    (∀ ds : List Nat, needsInherit ds = true → ds.filter (recalcs false) ≠ ds.filter (recalcs origInherits)) := by
-  refine ⟨fun ds a i d => ⟨rfl, rfl⟩, fun ds h e => ?_⟩
-  simp only [needsInherit, List.any_eq_true, decide_eq_true_eq] at h
-  obtain ⟨d, hd, hpos⟩ := h
-  have hin : d ∈ ds.filter (recalcs origInherits) := by simp [recalcs, origInherits, hd]
-  rw [← e] at hin
-  simp [recalcs] at hin
-  omega
+    (∀ (p : String) (ds : List Nat) (a i : Rat) (d : Nat), origInheritsOf p = true →
+      ds.filter (recalcs (regInherits p)) = ds.filter (recalcs (origInheritsOf p)) ∧
+        seenAt (regInherits p) a i d = seenAt (origInheritsOf p) a i d) ∧
+    (∀ ds : List Nat, needsInherit ds = true → ds.filter (recalcs false) ≠ ds.filter (recalcs true)) := by
+  refine ⟨fun p ds a i d hp => ?_, fun ds h e => ?_⟩
+  · have hv : regInherits p = true := by
+      simp only [origInheritsOf, Bool.or_eq_true, beq_iff_eq] at hp
+      rcases hp with rfl | rfl <;> decide
+    rw [hv, hp]; exact ⟨rfl, rfl⟩
+  · simp only [needsInherit, List.any_eq_true, decide_eq_true_eq] at h
+    obtain ⟨d, hd, hpos⟩ := h
+    have hin : d ∈ ds.filter (recalcs true) := by simp [recalcs, hd]
+    rw [← e] at hin
+    simp [recalcs] at hin
+    omega
 
-#guard morphInherits && registrations.head? == some ⟨"--morph", "<number>", true, "0"⟩
+#guard regInherits "--morph" && regInherits "--morph-fade" && !regInherits "--fw-morph-dark" && !regInherits "--x"
+#guard registrations.head? == some ⟨"--morph", "<number>", true, "0"⟩
 #guard readers.all fun r => (registrations.find? (·.name == r.prop)).isSome
 #guard seenAt false 1 0 1 == 0 && seenAt true 1 0 3 == 1
 
