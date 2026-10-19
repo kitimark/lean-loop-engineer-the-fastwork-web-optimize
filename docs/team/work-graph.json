@@ -6203,7 +6203,14 @@
     "packages/contracts/golden/**",
     "research/notes/2026/10-19-alert-rules.md",
     "docs/team/handoffs/alert-rules-fix.md",
-    "lean/Fw/Ops/**"
+    "lean/Fw/Ops/**",
+    "apps/runner/hooks/emit.d.mts",
+    "apps/runner/hooks/emit.mjs",
+    "apps/runner/src/run.ts",
+    "apps/runner/src/timing.ts",
+    "apps/runner/src/watch-svc.ts",
+    "lean/scripts/check.sh",
+    "packages/contracts/src/obs.ts"
    ]
   },
   {
@@ -6299,7 +6306,8 @@
     "packages/gate-breakpoints/test/**",
     "packages/contracts/golden/gate/**",
     "docs/team/handoffs/nav-anchor-hosted.md"
-   ]
+   ],
+   "evidence": "7fa9321"
   },
   {
    "devices": [
