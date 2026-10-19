@@ -185,8 +185,9 @@ G_{5} &= [\texttt{packages/gate-breakpoints/**}, \texttt{apps/site/**}, \texttt{
 &\quad \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \operatorname{own}(\texttt{gate-gaps.yml})] \\
 w_{6} &= (\texttt{lean.yml}, B, G_{6}) \\
 G_{6} &= [\texttt{lean/**}, \texttt{apps/site/src/breakpoints.gen.json}, \texttt{apps/site/src/sweeps.gen.json}, \texttt{scripts/span.sh}, \\
-&\quad \texttt{scripts/fwcore-build.sh}, \texttt{packages/contracts/golden/gate/sweeps.jsonl}, \texttt{packages/gate-breakpoints/src/scope.gen.json}, \texttt{.github/scripts/changed-inputs.mjs}, \\
-&\quad \texttt{.github/actions/setup-lean/**}, \texttt{.github/scripts/runner-info.sh}, \operatorname{own}(\texttt{lean.yml})] \\
+&\quad \texttt{scripts/fwcore-build.sh}, \texttt{packages/contracts/golden/gate/sweeps.jsonl}, \texttt{packages/contracts/golden/gate/exit.jsonl}, \\
+&\quad \texttt{packages/gate-breakpoints/src/scope.gen.json}, \texttt{packages/contracts/golden/parts/contracts.gen.json}, \texttt{packages/measure-chromium/scenarios.gen.json}, \\
+&\quad \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \texttt{.github/scripts/runner-info.sh}, \operatorname{own}(\texttt{lean.yml})] \\
 w_{7} &= (\texttt{mutants.yml}, B, G_{7}) \\
 G_{7} &= [\texttt{lean/Fw/Console.lean}, \texttt{lean/Fw/Serve.lean}, \texttt{lean/Fw/Ops/Meter.lean}, \texttt{lean/Fw/Ops/PathCheck.lean}, \\
 &\quad \texttt{lean/Fw/Ops/SpawnGuard.lean}, \texttt{lean/Fw/Ops/Usage.lean}, \texttt{lean/Fw/Ops/Wire.lean}, \texttt{lean/Fw/Spec/DeviceQueue.lean}, \\
@@ -255,7 +256,8 @@ def table : List Wf := [
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "scripts/span.sh",
     "scripts/fwcore-build.sh", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl",
-    "packages/gate-breakpoints/src/scope.gen.json", ".github/scripts/changed-inputs.mjs",
+    "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
+    "packages/measure-chromium/scenarios.gen.json", ".github/scripts/changed-inputs.mjs",
     ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh", own "lean.yml"]⟩,
   ⟨"mutants.yml", ciMain, [
     "lean/Fw/Console.lean", "lean/Fw/Serve.lean", "lean/Fw/Ops/Meter.lean", "lean/Fw/Ops/PathCheck.lean",

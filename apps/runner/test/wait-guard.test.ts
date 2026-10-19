@@ -57,15 +57,28 @@ describe.skipIf(!have)("wait guard vs the Lean goldens (ops.wait.jsonl)", () => 
     for (const s of ["fwWatch", "loop", "server", "tail", "longSleep"]) expect(shapes.has(s)).toBe(true);
     expect(cases.some((c) => c.response.reason === "unboundedLoop")).toBe(true);
   });
-  it.each(cases.filter((c) => typeof c.request.cmd === "string").map((c) => [c.name, c] as const))("%s", (_n, c) => {
-    const reply = ask(bin, { op: "ops.wait", cmd: c.request.cmd, ...(c.request.caps ? { caps: c.request.caps } : {}) }, 30_000);
-    expect(reply).toMatchObject({ decision: c.response.decision, reason: c.response.reason, shape: c.response.shape });
+  const withCmd = cases.filter((c) => typeof c.request.cmd === "string");
+  const req = (c: (typeof cases)[number]) => ({ op: "ops.wait", cmd: c.request.cmd, ...(c.request.caps ? { caps: c.request.caps } : {}) });
+  // One fwcore process answers every case (ids match replies to cases); each case is still asserted under its own name.
+  const batch = (() => {
+    const input = withCmd.map((c, i) => JSON.stringify({ id: i, ...req(c) })).join("\n") + "\n";
+    const r = spawnSync(bin, [], { input, encoding: "utf8", timeout: 60_000 });
+    const byId = new Map<number, Record<string, unknown>>();
+    for (const l of (r.stdout ?? "").split("\n").filter(Boolean)) { const m = JSON.parse(l) as { id: number }; byId.set(m.id, m); }
+    return byId;
+  })();
+  it.each(withCmd.map((c, i) => [c.name, c, i] as const))("%s", (_n, c, i) => {
+    expect(batch.get(i)).toMatchObject({ decision: c.response.decision, reason: c.response.reason, shape: c.response.shape });
+  });
+  it("the per-call path (ask) answers a golden case", () => {
+    const c = withCmd[0]!;
+    expect(ask(bin, req(c), 30_000)).toMatchObject({ decision: c.response.decision, reason: c.response.reason, shape: c.response.shape });
   }, 35_000);
 });
 
 describe.skipIf(!have)("wait guard: shadow-log false positives are allowed, true positives stay refused (wait-guard-enforce)", () => {
   const verb = (cmd: string) => {
-    const r = ask(bin, { op: "ops.wait", cmd }) as { decision: string; reason?: string | null; shape?: string | null } | null;
+    const r = ask(bin, { op: "ops.wait", cmd }, 30_000) as { decision: string; reason?: string | null; shape?: string | null } | null;
     return r ? [r.decision, r.reason, r.shape].filter((x) => typeof x === "string").join(":") : "unavailable";
   };
   // The 4 shadow-log denies that were false positives (paths replaced), then corpus shapes agents use.
