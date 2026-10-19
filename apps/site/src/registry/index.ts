@@ -34,6 +34,7 @@ import platformMarquee from '../parts/platform.marquee/part.json';
 import original from './presets/original.json';
 import stripDemo from './presets/strip-demo.json';
 import v2Proved from './presets/v2-proved.json';
+import c3Probe from './presets/c3-probe.json';
 import { resolve } from './resolve';
 import type { PartDef, PresetDef, ResolveResult } from './types';
 
@@ -42,6 +43,7 @@ export const presets: Record<string, PresetDef> = {
   original: original as PresetDef,
   'strip-demo': stripDemo as PresetDef,
   'v2-proved': v2Proved as PresetDef,
+  'c3-probe': c3Probe as PresetDef,
 };
 
 export function resolveSearch(search: string): ResolveResult {
