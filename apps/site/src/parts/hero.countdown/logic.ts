@@ -112,6 +112,14 @@ export function stripEntryDigit(j: number): number {
   return (j + 9) % 10;
 }
 
+/**
+ * Lean `refreshShown` (`shown (refreshNow ⟨readMs⟩ nowMs)`): the digits after a "refresh now" event. The stale reading
+ * is forgotten, so the result depends on `nowMs` only.
+ */
+export function refreshShown(_readMs: number, nowMs: number): [number, number, number, number] {
+  return unitsFromSeconds(remainingSeconds(nowMs));
+}
+
 /** Golden-vector argument names per function, in call order (lines are {fn, in: {name: value}, out}). */
 export const GOLDEN_ARGS: Record<string, string[]> = {
   remainingSeconds: ['nowMs', 'targetMs'],
@@ -126,4 +134,5 @@ export const GOLDEN_ARGS: Record<string, string[]> = {
   countdownMetrics: ['le400', 'c1000nodw'],
   stripOffsetCells: ['spring'],
   stripEntryDigit: ['j'],
+  refreshShown: ['readMs', 'nowMs'],
 };
