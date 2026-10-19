@@ -46,23 +46,71 @@ theorem animStart_eq_mountStart (x : Nat → Tick) (t : Nat) :
 
 /-! ## The visual claim -/
 
-/-- The variant's scene: mounted with the variant's history, animated with the original's. -/
-def armD {Env : Type} (base : Env → Nat → Scene) (panel : Env → Nat → (Nat → Bool) → Scene)
-    (x : Env → Nat → Tick) (env : Env) (t : Nat) : Scene :=
-  sceneOf (base env t) (panel env t (mountO (x env))) (mountV (x env) t)
+/-- The panel at frame `t`, given the history its timed state starts from and whether it is mounted now. -/
+abbrev Panel (Env : Type) := Env → Nat → (Nat → Bool) → Bool → Scene
 
-theorem visSame_dormant {Env : Type} (base : Env → Nat → Scene) (panel : Env → Nat → (Nat → Bool) → Scene)
-    (x : Env → Nat → Tick) (vp : Env → Fw.Engine.Rect) (hh : HiddenBefore vp panel x) :
-    VisSame E vp (armO base panel x) (armD base panel x) := by
+/-- The panel as `MorphMountOpt` sees it: one mount history drives both inputs. -/
+def single {Env : Type} (p : Panel Env) : Env → Nat → (Nat → Bool) → Scene := fun env t h => p env t h (h t)
+
+/-- The variant's scene: mounted with the variant's history, timed state woken with the original's. -/
+def armD {Env : Type} (base : Env → Nat → Scene) (p : Panel Env) (x : Env → Nat → Tick) (env : Env) (t : Nat) :
+    Scene :=
+  sceneOf (base env t) (p env t (mountO (x env)) (mountV (x env) t)) (mountV (x env) t)
+
+/-- While the original has not mounted it, the panel draws nothing in the viewport, whatever its inputs. -/
+def Hidden {Env : Type} (vp : Env → Fw.Engine.Rect) (p : Panel Env) (x : Env → Nat → Tick) : Prop :=
+  ∀ env t (w : Nat → Bool) (b : Bool), mountO (x env) t = false → visible (vp env) (p env t w b) = []
+
+theorem hiddenBefore_of_hidden {Env : Type} (vp : Env → Fw.Engine.Rect) (p : Panel Env) (x : Env → Nat → Tick)
+    (hh : Hidden vp p x) : HiddenBefore vp (single p) x :=
+  fun env t h hO => hh env t h (h t) hO
+
+theorem visSame_dormant {Env : Type} (base : Env → Nat → Scene) (p : Panel Env) (x : Env → Nat → Tick)
+    (vp : Env → Fw.Engine.Rect) (hh : Hidden vp p x) :
+    VisSame E vp (armO base (single p) x) (armD base p x) := by
   intro env t
-  unfold E armO armD sceneOf
+  unfold E armO armD sceneOf single
   cases h : mountO (x env) t with
   | true => rw [mountV_of_mountO (x env) t h]
   | false =>
     rw [visible_append, visible_append]
     cases mountV (x env) t
     · rfl
-    · simp only [ite_true]; rw [hh env t _ h]; rfl
+    · simp only [ite_true]; rw [hh env t _ _ h]; rfl
+
+/-- A panel whose state reads only the current mount bit. -/
+def Untimed {Env : Type} (p : Panel Env) : Prop := ∀ env t (w w' : Nat → Bool) b, p env t w b = p env t w' b
+
+theorem phaseFree_of_untimed {Env : Type} (p : Panel Env) (hu : Untimed p) : PhaseFree (single p) := by
+  intro env t h h' ht ht'
+  unfold single
+  rw [ht, ht', hu env t h h' true]
+
+/-! ## The countdown's clock -/
+
+/-- Frames up to `t` in which `w` holds. -/
+def since (w : Nat → Bool) (t : Nat) : Nat := ((List.range (t + 1)).filter w).length
+
+/-- The frame of the clock's latest refresh: it refreshes on waking and every `P` frames after. -/
+def lastRefresh (P : Nat) (w : Nat → Bool) (t : Nat) : Nat := t + 1 - since w t + (since w t - 1) / P * P
+
+#guard lastRefresh 2 (fun _ => true) 2 == 2
+#guard lastRefresh 2 (fun t => t ≥ 1) 2 == 1
+#guard lastRefresh 2 (fun t => t ≥ 1) 3 == 3
+#guard lastRefresh 3 (fun t => t ≥ 2) 7 == 5
+
+def clockBox (shown : Nat) : Fw.Engine.BoxVis :=
+  ⟨⟨0, 0, 10, 10⟩, ⟨0, 0, 10, 10⟩, [("refreshed", toString shown)], ⟨1, 0, 0, 1, 0, 0⟩, 1, none, [], 0⟩
+
+/-- A panel holding only the countdown, refreshed every `P` frames from the first frame of `w`. -/
+def clockPanel (P : Nat) : Panel Unit := fun _ t w b => if b then [("clock", clockBox (lastRefresh P w t))] else []
+
+/-- The countdown is timed: with the clock started at mount, two mount frames give two scenes. -/
+theorem clock_not_phaseFree : ¬ PhaseFree (single (clockPanel 2)) := by
+  intro hp
+  have := hp () 2 (fun _ => true) (fun t => decide (t ≥ 1)) rfl rfl
+  simp [single, clockPanel, lastRefresh, since, clockBox] at this
+  exact absurd this (by decide)
 
 /-! ## Layerization -/
 
@@ -194,28 +242,19 @@ theorem census_dormant_eq (direct : Nat → Bool) (pre post panelOn panelOff : L
   congr 1
   exact List.map_congr_left (fun t _ => by rw [layers_dormant_eq direct pre post panelOn panelOff x h t])
 
-/-! ## A ≤ 640 frame in the model -/
+theorem absorbed_nil (l : Layer) (rest : List Layer) : Absorbed (l :: rest) [] :=
+  ⟨l, rest, rfl, fun _ h => absurd h List.not_mem_nil⟩
 
-/-- Spaces 2, 3, 4: the three tracks, each with an active transform animation; space 1: the fixed nav header. -/
-def exDirect (s : Nat) : Bool := s ≥ 1 && s ≤ 4
-
-def exHeader : Fw.Engine.Rect := ⟨16, 8, 398, 52⟩
-def exPre : List Chunk := [⟨0, ⟨0, 0, 430, 3000⟩⟩, ⟨1, exHeader⟩]
-def exPost : List Chunk := [⟨1, ⟨16, 8, 398, 52⟩⟩]
-def exOn : List Chunk :=
-  [⟨2, ⟨20, -40, 135, 1348⟩⟩, ⟨1, ⟨150, 8, 136, 52⟩⟩, ⟨3, ⟨157, -40, 136, 1340⟩⟩, ⟨1, ⟨290, 8, 135, 52⟩⟩,
-   ⟨4, ⟨294, -40, 135, 1612⟩⟩]
-def exOff : List Chunk := [⟨1, ⟨20, 8, 135, 52⟩⟩, ⟨1, ⟨157, 8, 136, 52⟩⟩, ⟨1, ⟨294, 8, 120, 52⟩⟩]
-
-#guard (layerize exDirect (exPre ++ exPost)).length == 2
-#guard (layerize exDirect (exPre ++ exOff ++ exPost)).length == 2
-#guard (layerize exDirect (exPre ++ exOn ++ exPost)).length == 8
-#guard (layerize exDirect (exPre ++ exOn ++ exPost)).map (·.why) ==
-  [.overlap, .direct, .overlap, .direct, .overlap, .direct, .direct, .plain]
-
-#guard absorbedB (layerize exDirect exPre) exOff
-#guard !absorbedB (layerize exDirect exPre) exOn
-#guard !absorbedB [] exOff
+#guard (layerize (· == 1) [⟨0, ⟨0, 0, 100, 100⟩⟩, ⟨1, ⟨0, 0, 10, 10⟩⟩, ⟨0, ⟨50, 50, 10, 10⟩⟩]).map (·.why) ==
+  [.direct, .plain]
+#guard (layerize (· == 1) [⟨0, ⟨0, 0, 100, 100⟩⟩, ⟨1, ⟨0, 0, 10, 10⟩⟩, ⟨0, ⟨5, 5, 10, 10⟩⟩]).map (·.why) ==
+  [.overlap, .direct, .plain]
+#guard (layerize (fun _ => false) [⟨0, ⟨0, 0, 100, 100⟩⟩, ⟨0, ⟨5, 5, 10, 10⟩⟩]).length == 1
+#guard absorbedB [⟨0, ⟨0, 0, 100, 100⟩, .plain⟩] [⟨0, ⟨5, 5, 10, 10⟩⟩]
+#guard !absorbedB [⟨0, ⟨0, 0, 100, 100⟩, .plain⟩] [⟨1, ⟨5, 5, 10, 10⟩⟩]
+#guard !absorbedB [⟨0, ⟨0, 0, 100, 100⟩, .plain⟩] [⟨0, ⟨95, 5, 10, 10⟩⟩]
+#guard absorbedB [⟨0, ⟨0, 0, 100, 100⟩, .plain⟩] []
+#guard !absorbedB [] []
 
 /-! ## Golden rows for the TS replay -/
 

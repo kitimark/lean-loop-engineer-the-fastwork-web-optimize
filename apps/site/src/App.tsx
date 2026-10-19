@@ -28,6 +28,7 @@ export function App({ config }: { config: FwConfig }) {
   const [panel, setPanel] = useState(false); // morph.mount: the panel's DOM insertion (once, never unmounted)
   const [woken, setWoken] = useState(false);
   const mountVariant = config.variants['morph.mount'] ?? 'faithful';
+  const asleep = isDormantVariant(mountVariant) && dormant(panel, woken);
   const writerRef = useRef<PanelWriter | null>(null); // the nav hands each --morph value to the panel's attribute writer
 
   useEffect(() => setHydrated(), []); // root effects run after hydration has committed
@@ -58,8 +59,8 @@ export function App({ config }: { config: FwConfig }) {
             impl={config.impl['morph.panel']}
             writerRef={writerRef}
             onAction={openSignup}
-            backdrop={<MorphColumns variant={config.variants['morph.columns'] ?? 'faithful'} dormant={isDormantVariant(mountVariant) && dormant(panel, woken)} />}
-            countdown={<MorphCountdown variant={config.variants['morph.countdown'] ?? 'faithful'} impl={config.impl['morph.countdown']} />}
+            backdrop={<MorphColumns variant={config.variants['morph.columns'] ?? 'faithful'} dormant={asleep} />}
+            countdown={<MorphCountdown variant={config.variants['morph.countdown'] ?? 'faithful'} impl={config.impl['morph.countdown']} dormant={asleep} />}
           />
         )}
       </Nav>
