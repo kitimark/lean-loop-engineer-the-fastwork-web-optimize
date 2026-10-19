@@ -7872,7 +7872,8 @@
     "lean/Fw/Wire.lean",
     "lean/scripts/check.sh",
     "lean/scripts/TelemetryGolden.lean"
-   ]
+   ],
+   "evidence": "0c989bd"
   },
   {
    "devices": [

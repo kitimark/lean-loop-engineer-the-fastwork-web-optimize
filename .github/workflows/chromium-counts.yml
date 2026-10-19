@@ -229,7 +229,15 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: site
       - uses: ./.github/actions/setup-lean
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: cache
+          cache-dirs: lake=${{ github.workspace }}/.lake-cache
       - uses: ./.github/actions/setup-pnpm
         with:
           filter: '@fw/site...'
@@ -250,6 +258,11 @@ jobs:
           path: apps/site/dist/aot
           if-no-files-found: error
           retention-days: 3
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: site
 
   # Build the image once. The matrix jobs load this exact image and check its content id (the config digest)
   # against the one printed here, so no matrix job rebuilds it (apt packages are not pinned, so a rebuild could differ).
@@ -285,6 +298,10 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: image
       - id: build
         if: ${{ inputs.image_run == '' }}
         run: |
@@ -325,6 +342,11 @@ jobs:
           compression-level: 0
           if-no-files-found: error
           retention-days: 3
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: image
 
   counts:
     needs: [plan, fwcore, image, site]
@@ -357,6 +379,10 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: counts-${{ matrix.target }}-${{ matrix.run }}
 
       # First step that touches data: the snapshot in git must equal snapshot.lock.json.
       - name: Verify the snapshot against snapshot.lock.json
@@ -438,6 +464,11 @@ jobs:
           path: ${{ runner.temp }}/result
           if-no-files-found: error
           retention-days: 30
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: counts-${{ matrix.target }}-${{ matrix.run }}
 
   # Classes over all runs, decided by fwcore (the same classify the local lane uses), plus the byte comparison.
   classify:
