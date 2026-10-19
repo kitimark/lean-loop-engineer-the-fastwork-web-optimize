@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { GenSvg, art } from '../../GenSvg';
 import { getClock } from '../../engine/clock';
 import { createMenuController, type MenuController } from './controller';
 import { flags, type Phase } from './logic';
@@ -83,16 +84,10 @@ export function LangMenu({ locale = 'en', onSelect, onOpenChange }: LangMenuProp
         onClick={() => ctl.current?.dispatch('toggle')}
       >
         <span className={css.icon} aria-hidden="true">
-          <svg viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="8.5" />
-            <path d="M3.5 12h17" />
-            <ellipse cx="12" cy="12" rx="3.6" ry="8.5" />
-          </svg>
+          <GenSvg art={art('nav.globe')} />
         </span>
         <span className={css.code}>{locale.toUpperCase()}</span>
-        <svg className={css.chevron} viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M4.5 6l3.5 3.5L11.5 6" />
-        </svg>
+        <GenSvg art={art('nav.chevron')} className={css.chevron} />
       </button>
       {f.mounted && (
         <div id={menuId} role="listbox" aria-label="Language" className={cx(css.menu!, f.isOpen && css.menuOpen!, f.isClosing && css.menuClosing!)}>
@@ -113,10 +108,7 @@ export function LangMenu({ locale = 'en', onSelect, onOpenChange }: LangMenuProp
             >
               <span className={css.check} aria-hidden="true">
                 {l.code === locale && (
-                  <svg viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M7.2 12.4l3.1 3.1 6.2-6.2" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  <GenSvg art={art('nav.langCheck')} />
                 )}
               </span>
               <span className={css.label}>{l.label}</span>
