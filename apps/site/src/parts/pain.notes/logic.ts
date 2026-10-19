@@ -11,6 +11,10 @@
  */
 
 /** The commission card the notes avoid (the original's `.commission-card`): the hook on our card. */
+export const PAIN_SELECTOR = '[data-fw="pain"]';
+export const PAIN_COPY_SELECTOR = '[data-fw="pain-copy"]';
+/** Client-written hook on each note (index.tsx renders it); the footprint reports the templated query as `templated-selector`. */
+export const NOTE_SELECTOR = (id: string | number): string => `[data-fw-note="${id}"]`;
 export const CARD_SELECTOR = '[data-fw="commission-card"]';
 
 

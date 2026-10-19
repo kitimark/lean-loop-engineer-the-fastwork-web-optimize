@@ -34,7 +34,7 @@ export function defaultEnv(): ProbeEnv {
 export const HERO_TRACK_SELECTOR = '[data-fw="hero-exit"]';
 
 /** The profile showcase's pinned bar (`.start-selling-profile-sticky`): the first child of the showcase section. */
-export const PROFILE_STICKY_SELECTOR = '[data-fw="people-deck"] > [class*="sticky"]';
+export const PROFILE_STICKY_SELECTOR = '[data-fw="people-sticky"]';
 export const PROFILE_SECTION_SELECTOR = '#profile-showcase, [data-fw="people-deck"]';
 
 function classify(el: Element | null): boolean {

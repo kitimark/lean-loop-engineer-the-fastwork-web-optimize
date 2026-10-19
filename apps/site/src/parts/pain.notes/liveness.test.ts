@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { prerender } from '../../entry-server';
-import { ALLOW_SELECTOR, EXCLUDE_SELECTOR, INCLUDE_SELECTOR, SHRINKING_SELECTOR } from '../nav.hitTest/logic';
+import { ALLOW_SELECTOR, EXCLUDE_SELECTOR, INCLUDE_SELECTOR, NAV_SELECTOR, SHRINKING_SELECTOR } from '../nav.hitTest/logic';
 import { HERO_TRACK_SELECTOR, PROFILE_SECTION_SELECTOR, PROFILE_STICKY_SELECTOR } from '../nav.hitTest/probe';
-import { CARD_SELECTOR } from './logic';
+import { CARD_SELECTOR, NOTE_SELECTOR, PAIN_COPY_SELECTOR, PAIN_SELECTOR } from './logic';
 
 /**
  * Port plan check 6, for the parts that query the page by selector (pain.notes, nav.hitTest): each selector matches at
@@ -108,7 +108,7 @@ const count = (els: El[], sel: string): number => els.filter((e) => matchComplex
 
 /** Selectors whose last condition is a runtime state; the static part (given) must still be present. */
 const STATEFUL: Record<string, { why: string; staticPart: string }> = {
-  [SHRINKING_SELECTOR]: { why: 'the class is toggled by the commission driver on scroll', staticPart: '[data-fw="commission"]' },
+  [SHRINKING_SELECTOR]: { why: 'the attribute is toggled by the commission driver on scroll', staticPart: '[data-fw="commission"]' },
   '[data-fw="nav"]:not(.is-hero-pill, .is-morphing) [data-fw="nav-earn"]': {
     why: 'the nav carries is-hero-pill until the hero is passed',
     staticPart: '[data-fw="nav"] [data-fw="nav-earn"]',
@@ -116,13 +116,22 @@ const STATEFUL: Record<string, { why: string; staticPart: string }> = {
 };
 
 /** Client-mounted: App mounts the morph panel after the hero (`setPanel(true)`), so it is absent from the prerender. */
-const CLIENT_MOUNTED = '[data-fw="morph-panel"][data-expanded]';
+const CLIENT_MOUNTED = '[data-expanded]';
+
+/** Client-written and templated per note id (`[data-fw-note="<id>"]`); checked by source, never by the prerender. */
+const NOTE_PREFIX = '[data-fw-note]';
+
+const src = (rel: string): string => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 describe('selectors the parts query match the prerendered page', () => {
   (globalThis as Record<string, unknown>).__FW_ENGINE__ = 'runtime'; // build-time define of scripts/build.mjs
   const els = parse(prerender(['']).homeHtml);
   const units = new Set([
     CARD_SELECTOR,
+    PAIN_SELECTOR,
+    PAIN_COPY_SELECTOR,
+    NAV_SELECTOR,
+    NOTE_PREFIX,
     HERO_TRACK_SELECTOR,
     PROFILE_STICKY_SELECTOR,
     ...splitTop(PROFILE_SECTION_SELECTOR, ','),
@@ -136,7 +145,17 @@ describe('selectors the parts query match the prerendered page', () => {
   });
   for (const sel of units) {
     const st = STATEFUL[sel];
-    if (sel === CLIENT_MOUNTED) {
+    if (sel === NOTE_PREFIX) {
+      it(`${sel}: each note id renders the attribute, and the query is built from it`, () => {
+        expect(src('./index.tsx')).toContain('data-fw-note={n.id}');
+        expect(NOTE_SELECTOR('x')).toBe('[data-fw-note="x"]');
+      });
+    } else if (sel === SHRINKING_SELECTOR) {
+      it(`${sel}: the commission driver writes the attribute; its static part is present`, () => {
+        expect(src('../commission/driver.ts')).toContain("toggleAttribute('data-fw-shrinking'");
+        expect(count(els, STATEFUL[sel]!.staticPart)).toBeGreaterThan(0);
+      });
+    } else if (sel === CLIENT_MOUNTED) {
       it(`${sel}: the panel is mounted on the client; its hook and the attribute the driver writes exist in source`, () => {
         const panel = readFileSync(new URL('../morph.panel/index.tsx', import.meta.url), 'utf8');
         const driver = readFileSync(new URL('../morph.panel/driver.ts', import.meta.url), 'utf8');
@@ -153,6 +172,15 @@ describe('selectors the parts query match the prerendered page', () => {
       });
     }
   }
+  it('nav-earn state: the nav driver toggles is-hero-pill and is-morphing off again', () => {
+    const logic = src('../nav/logic.ts');
+    expect(logic).toContain("heroPill: ['is-hero-pill']");
+    expect(logic).toContain("morphing: ['is-morphing']");
+    expect(src('../nav/index.tsx')).toContain('nav.classList.toggle(c, v[key])');
+  });
+  it('no selector the parts query matches by class substring', () => {
+    for (const sel of units) expect(sel).not.toContain('class*=');
+  });
   it('the matcher rejects the original class names', () => {
     expect(count(els, '.commission-card')).toBe(0);
   });
