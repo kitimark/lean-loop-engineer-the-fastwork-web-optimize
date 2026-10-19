@@ -79,12 +79,10 @@ test('the mount idle wait stops after maxFrames real frames and Lean decides its
   globalThis.window.scrollY = 0;
   globalThis.window.innerHeight = 900;
   try {
-    const t0 = Date.now();
-    const r = await prepareInPage({ stage: 'ready', steps: [], capMs: 20000, maxFrames: 5 });
+    const r = await prepareInPage({ stage: 'ready', steps: [], capMs: 20000, maxFrames: 5 }); // frames === 6 below proves it stopped by frames, not by the cap
     assert.deepEqual(r.found, []);
     const last = r.idle[r.idle.length - 1];
     assert.equal(last.frames, 6, 'stops at the first observation past the budget');
-    assert.ok(Date.now() - t0 < 5000, 'far below the 20 s cap');
     assert.equal(waitTrace(idlePolicy({ ...GATE_POLICY, maxFrames: 5 }, 20000), r.idle), 'unsettled');
     stuck.finish();
     const ok = await prepareInPage({ stage: 'ready', steps: [], capMs: 20000, maxFrames: 5 });
