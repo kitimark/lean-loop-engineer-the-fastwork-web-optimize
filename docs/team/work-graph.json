@@ -7100,8 +7100,14 @@
     "apps/runner/test/land-remote*.test.ts",
     ".github/workflows/land.yml",
     "packages/contracts/golden/console/**",
-    "docs/team/tools/**"
-   ]
+    "docs/team/tools/**",
+    "scripts/scrub.mjs",
+    ".github/scripts/land-base.sh",
+    "apps/runner/src/checks.ts",
+    "lean/scripts/LandRemoteGolden.lean",
+    "lean/scripts/check.sh"
+   ],
+   "evidence": "bee4e64"
   },
   {
    "devices": [
@@ -7867,8 +7873,13 @@
     "scripts/ci-paths.test.mjs",
     "docs/team/tools/ci-telemetry.md",
     "research/notes/2026/10-20-ci-telemetry*.md",
-    "docs/team/handoffs/ci-telemetry.md"
-   ]
+    "docs/team/handoffs/ci-telemetry.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Wire.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/TelemetryGolden.lean"
+   ],
+   "evidence": "0c989bd"
   },
   {
    "devices": [
@@ -8038,8 +8049,11 @@
     "lean/Fw.lean",
     "packages/contracts/golden/console/**",
     "docs/team/tools/console.md",
-    "docs/team/handoffs/console-daemon.md"
-   ]
+    "docs/team/handoffs/console-daemon.md",
+    "apps/runner/src/lib.ts",
+    "scripts/wallclock-allow.json"
+   ],
+   "evidence": "ab8e636"
   },
   {
    "devices": [
@@ -8071,7 +8085,8 @@
    "title": "CircleCI land job running the same fw checks --tier remote entry as land.yml and emitting laneDigest; the CircleCI adapter in land-remote.ts (pipeline/run with definition id, sha from GET /pipeline/{id}); live proof on one ci/land-* probe",
    "deps": [
     "land-wait",
-    "circleci-pilot"
+    "circleci-pilot",
+    "circleci-cache-accounting"
    ],
    "writes": [
     ".circleci/**",
@@ -8111,7 +8126,8 @@
    "title": "One Lean router for every CI lane across GitHub Actions and CircleCI: inputs health (gh-status, circleci-status), free quota left, measured queue p50/p95 per provider and class, per-provider lane allowlist; outputs an ordered provider list (failover) and an optional hedge start when the first queue exceeds T; feeds fw ci push and LandRemote",
    "deps": [
     "land-lane-circleci",
-    "circleci-status"
+    "circleci-status",
+    "circleci-series"
    ],
    "writes": [
     "lean/Fw/Ci/Route*.lean",
@@ -8196,7 +8212,12 @@
     "lean/Fw/Wire/ShardGolden.lean",
     "lean/Fw/Parts/Golden.lean",
     "lean/scripts/ShardGolden.lean",
-    "lean/Fw/Lint/**"
+    "lean/Fw/Lint/**",
+    "lean/Fw/**",
+    "lean/scripts/**",
+    ".github/workflows/lean.yml",
+    "research/notes/2026/10-20-fwcore-startup.md",
+    "docs/team/handoffs/fwcore-lazy-tables.md"
    ]
   },
   {
@@ -9060,6 +9081,160 @@
     "research/notes/2026/10-20-commission-margin-recur.md",
     "results/commission-margin-recur/**",
     "docs/team/handoffs/commission-margin-recur.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-gc-refs",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "Lake gc by identity: an artifact is listed when no checkout references it (trace hashes, hard links) and no live lake/lean process may still write or link it; age floor only as a named Lean fallback; fw lake-gc --delete (no shell pipe); cache inventory note with measured sizes and per-cache reference rules",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/LakeGc.lean",
+    "lean/scripts/LakeGcGolden.lean",
+    "packages/contracts/golden/ops/lakegc.jsonl",
+    "apps/runner/src/lake-gc.ts",
+    "apps/runner/src/fw.ts",
+    "scripts/lake-gc.mjs",
+    "scripts/lake-gc.test.mjs",
+    "apps/runner/test/lake-gc*.test.ts",
+    "docs/team/tools/lake-gc.md",
+    "docs/team/tools/disk-cleanup.md",
+    "research/notes/2026/10-20-cache-relations.md",
+    "docs/team/handoffs/lake-gc-refs.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-wait-followups",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "land-wait review lows: abort the detached ci-wait waiter when fw land exits on SIGINT/SIGTERM (no orphan for a slice); sleep out the slice for any early poll in the degraded branch, not only running",
+   "deps": [
+    "land-wait"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-remote.test.ts",
+    "docs/team/handoffs/land-wait-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-cache-accounting",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "title": "CircleCI storage: save the pnpm cache only when its key changes (108 milli GB-month per Arm pipeline today trips the 1000 stop after ~9 runs); ledger counts saves, Lean storageMilli unchanged",
+   "deps": [
+    "circleci-pilot"
+   ],
+   "writes": [
+    ".circleci/**",
+    "scripts/circleci*",
+    "research/notes/2026/10-20-circleci-pilot.md",
+    "docs/team/handoffs/circleci-cache-accounting.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-series",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "title": "CircleCI 10-run series per class (Arm medium/large; sim within the base-pool budget): duration spread and queue p50/p95 per provider and class, MEASURED, for ci-route",
+   "deps": [
+    "circleci-pilot",
+    "circleci-cache-accounting"
+   ],
+   "writes": [
+    "scripts/circleci*",
+    "research/notes/2026/10-20-circleci-series.md",
+    "results/circleci-series/**",
+    "docs/team/handoffs/circleci-series.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-sim-digest",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "title": "CircleCI sim pair compares the class-table digest, not only the conclusion; pair every GitHub sim matrix job, not the first",
+   "deps": [
+    "circleci-pilot"
+   ],
+   "writes": [
+    "scripts/circleci*",
+    "lean/Fw/Ci/Provider*.lean",
+    "lean/scripts/Provider*",
+    "packages/contracts/golden/ci/**",
+    "docs/team/handoffs/circleci-sim-digest.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-insights-credits",
+   "owner": "researcher",
+   "stream": "ops",
+   "title": "Billed CircleCI credits per job from the Insights API (docs first); replaces the price-list INFERRED credits in the pilot note when confirmed",
+   "deps": [
+    "circleci-pilot"
+   ],
+   "writes": [
+    "scripts/circleci*",
+    "research/notes/2026/10-20-circleci-pilot.md",
+    "docs/team/handoffs/circleci-insights-credits.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-preset-dormant",
+   "owner": "part-builder",
+   "stream": "proofs",
+   "title": "Switch the preset from morph.mount:shift to shift-dormant (morph-layers: -1052/-1136 drawing layers vs shift, +1 recalc/layout, elementCount +10/-14; all morph.* gate cells pass both engines, gate 39325704868); preset gate + counts on CI",
+   "deps": [
+    "morph-layers"
+   ],
+   "writes": [
+    "lean/Fw/Preset/**",
+    "packages/contracts/golden/preset/**",
+    "packages/contracts/golden/engine/**",
+    "packages/engine-check/golden/**",
+    "lean/Fw/Engine/Keys.lean",
+    "research/notes/2026/10-20-morph-layers.md",
+    "docs/team/handoffs/morph-preset-dormant.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-layers-followups",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "morph-layers review lows: Absorbed stays INFERRED (dump measures the conclusion); armD docstring names its MEASURED premise; probe branch heads + artifact expiry or a committed per-run digest; stale digit shape under hold stated",
+   "deps": [
+    "morph-layers"
+   ],
+   "writes": [
+    "lean/Fw/Parts/MorphMountDormant.lean",
+    "research/notes/2026/10-20-morph-layers.md",
+    "apps/site/src/parts/hero.countdown/index.tsx",
+    "docs/team/handoffs/morph-layers-followups.md"
    ]
   }
  ],

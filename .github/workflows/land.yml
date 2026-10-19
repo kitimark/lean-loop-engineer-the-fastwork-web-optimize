@@ -134,15 +134,32 @@ jobs:
           lake build fwcore
           echo "WARM_FWCORE=$(( $(date +%s) - s ))s" >> "$GITHUB_ENV"
 
+      # The lane states which commit and which check set it ran (Lean Fw.Console.LandRemote Want): sha is the change under test,
+      # digest is the `LANE digest=` line of `fw checks --tier remote`. Both are in the step name below and in the summary.
       - name: suites (the remote tier of the Lean-selected checks)
+        id: suites
+        shell: bash
         env:
           BASE: ${{ github.event.inputs.base }}
         run: |
-          set -euo pipefail
+          set -u
           base="${BASE:-}"
           if [ -z "$base" ]; then base=$(sh .github/scripts/land-base.sh base); fi
+          echo "sha=$(sh .github/scripts/land-base.sh rev)" >> "$GITHUB_OUTPUT"
+          set +e
           pnpm fw checks --affected --base "$base" --tier remote 2>&1 | tee "$RUNNER_TEMP/land.log"
-          grep -E '^(VERDICT|TIMING|checks:)' "$RUNNER_TEMP/land.log" >> "$GITHUB_STEP_SUMMARY" || true
+          rc=${PIPESTATUS[0]}
+          set -e
+          echo "digest=$(sed -n 's/^LANE digest=//p' "$RUNNER_TEMP/land.log" | head -n1)" >> "$GITHUB_OUTPUT"
+          grep -E '^(VERDICT|TIMING|checks:|LANE)' "$RUNNER_TEMP/land.log" >> "$GITHUB_STEP_SUMMARY" || true
+          exit "$rc"
+
+      - name: 'lane: sha=${{ steps.suites.outputs.sha }} digest=${{ steps.suites.outputs.digest }}'
+        if: ${{ always() && steps.stale.outcome == 'skipped' && steps.suites.outcome != 'skipped' }}
+        env:
+          SHA: ${{ steps.suites.outputs.sha }}
+          DIGEST: ${{ steps.suites.outputs.digest }}
+        run: echo "LANE sha=$SHA digest=$DIGEST"
 
       - name: phases
         if: ${{ always() && steps.stale.outcome == 'skipped' }}
