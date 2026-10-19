@@ -7783,6 +7783,21 @@
     "apps/runner/test/bin-mode.test.ts",
     "docs/team/handoffs/runner-bin-mode.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "incidents-1019",
+   "owner": "researcher",
+   "stream": "team",
+   "title": "Incident ledger: one incident per root cause for the lead's mistakes of 2026-10-19/20 (with retro rows); recurrences point to the original and an open fix task",
+   "deps": [],
+   "writes": [
+    "docs/team/incidents/ledger.json",
+    "research/mistakes/ledger.json",
+    "docs/team/handoffs/incidents-1019.md"
+   ]
   }
  ],
  "deadline": {
