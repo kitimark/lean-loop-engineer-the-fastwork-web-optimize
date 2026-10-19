@@ -3415,6 +3415,843 @@
         "lean/Fw/Parts/HeroExitOpt.lean wk_trade_not_general"
       ],
       "evidenceStatus": "MEASURED"
+    },
+    {
+      "id": "m176",
+      "classId": "c-spec-gap",
+      "title": "Workflow builders ended without a structured result four times; the build-review template has no salvage stage",
+      "when": "2026-10-18 ~15:00 to ~22:15 (4 builders)",
+      "who": "workflow builders / lead",
+      "symptom": "The gate-shard-balance builder (about 80 min, 5 uncommitted files, no handoff), task-state-truth r3 and r4 builders (r3 after 67 min, work committed) and the integrate-ports-4 builder (context 249k to 404k over about 100 min, no commit for 79+ min) ended without calling StructuredOutput, so their review or verify stage never ran. The lead salvaged each by hand (WIP commits, handoff edits) and relaunched. See inc-workflow-agent-stall for the engine-model-fix stall (the integrate-and-engine-fix builder, 18 uncommitted files), which is not counted here.",
+      "rootCause": "The build-review template turns a null builder into a silent stop; the Lean salvage rule was never wired into a stage, and builders ran long without WIP commits.",
+      "detectedBy": "lead (workflow result null)",
+      "cost": "4 lost review rounds, about 1 h of lead salvage, one 100-min builder",
+      "leanVerdict": "partly",
+      "leanReason": "Lean decides what a salvage does from worktree facts (Fw.Ops.Salvage, salvage_iff_missing, golden salvage.jsonl). Why an agent ends without its result (context size, harness) is outside Lean; a cut rule over watch events (ctxHigh and no commit for 30 min) is decidable.",
+      "evidence": [
+        "incident inc-workflow-null-result",
+        "commit 6f23955f",
+        "commit a70216ee",
+        "commit 2300aa59",
+        ".claude/workflows/build-review.js",
+        "docs/team/handoffs/workflow-salvage.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m177",
+      "classId": "c-env-assume",
+      "title": "Lead one-off shell and JS glue for routine steps failed in five different ways",
+      "when": "2026-10-18 to 2026-10-19 ~21:45",
+      "who": "lead",
+      "symptom": "(1) A placeholder `git commit -q --no-verify-not-used -m x` in a compound command made the --no-verify deny rule refuse the whole call. (2) A JS String.replace(a, b) with \"$'\" in b inserted the text after the match and broke CommissionTyping.lean (lake build caught it; restored from git). (3) land-r36 was started with a shell `&`, so no completion notice came. (4) land-r33's `BR=x land ...` leaked BR into the next POSIX sh call and refused port-fonts-check ('no such branch'). (5) An echo with a newline broke the graph script while a land started in a parallel call.",
+      "rootCause": "Routine lead actions run as untested one-off shell/JS instead of a tested command.",
+      "detectedBy": "deny rule, lake build, land refusal, lead",
+      "cost": "one broken Lean file (restored), one refused land, one land without notice",
+      "leanVerdict": "no",
+      "leanReason": "Shell and JS idioms (deny-rule substring match, replacement patterns, `&`, variable scope) are tool behaviour, not a decision Lean can own; a tested fw command removes the glue.",
+      "empiricalCheck": "proposed land-rows tests in apps/runner/test; the settings deny rule for --no-verify",
+      "evidence": [
+        "incident inc-lead-adhoc-glue",
+        "docs/team/tools/land-queue.md",
+        "apps/runner/src/land-queue.ts"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m178",
+      "classId": "c-spec-gap",
+      "title": "Lean lanes ran without the math review: workflow builders cannot spawn helpers, and a lane launched without lean:true got none",
+      "when": "2026-10-18 (8 tasks), 2026-10-19 ~13:35 (doc-head-locale)",
+      "who": "lead / workflow builders",
+      "symptom": "On about 8 tasks (lfg-props-shape r3-r5, wait-guard r3-r4, task-state-truth r2, engine-model-fix, jev-oracle) the math-docstring checker the lean-prover role expects never ran; each builder self-checked. doc-head-locale wrote lean/Fw/Site/Head.lean but was launched without lean:true, so build-review ran no math review for it.",
+      "rootCause": "Review steps depended on a helper spawn (impossible in workflows) and on a lead-typed lean flag, not on the task's writes.",
+      "detectedBy": "lead",
+      "cost": "about 9 Lean lanes landed with only self-checked docstring math",
+      "leanVerdict": "partly",
+      "leanReason": "The rule 'the Lean stages run iff the task's writes touch lean/' is decidable over the task args. Whether the harness gives an agent the Agent tool is outside Lean.",
+      "evidence": [
+        "incident inc-lean-lane-no-math-review",
+        "commit ada50cfa",
+        "commit 049e609d",
+        "commit 4e55971c",
+        ".claude/workflows/build-review.js"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m179",
+      "classId": "c-env-assume",
+      "title": "Stopping console-api for a preview left three builders without a fw land --dry verdict",
+      "when": "2026-10-18 afternoon",
+      "who": "lead",
+      "symptom": "The lead stopped the shared console-api for the user's manual preview; three builders then could not run fw land --dry (no api.json) and returned without a VERDICT line.",
+      "rootCause": "fw land --dry routes through console-api although it needs only git, the work graph and the fwcore land-scope op (same class as inc-ci-verdict-needs-api).",
+      "detectedBy": "builders (no VERDICT)",
+      "cost": "3 builders returned without a land verdict",
+      "leanVerdict": "no",
+      "leanReason": "Whether a command needs a running service is I/O wiring; the dry verdict itself is already Lean (land Outcome), only its inputs came through the API.",
+      "empiricalCheck": "proposed land-no-api test (fw land --dry without console-api prints a VERDICT line)",
+      "evidence": [
+        "incident inc-land-dry-needs-console",
+        "apps/runner/src/lib.ts",
+        "apps/runner/src/fw.ts",
+        "apps/runner/src/land.ts"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m180",
+      "classId": "c-proxy-verdict",
+      "title": "Gate verdicts passed with most probes never compared ('faster or greener by comparing less')",
+      "when": "2026-10-18 ~15:35 (integrate-ports-3), gate-shard-balance r1",
+      "who": "integrate-ports-3, gate-shard-balance builders / lead",
+      "symptom": "integrate-ports-3 claimed a green gate (run 39112059806) that compared 40 of 124 probes (84 not-comparable) while the CLI printed 'unsettled probes: 0'. gate-shard-balance r1 reported 50 to 12 min, but its 60-frame settle budget left 312 of 392 samples unsettled and the engine verdict counted unsettled from the old ready flag (0), so 156 of 196 states were never compared; the lead relayed '12 min, verdicts equal' to the user before review. Rule.rollup passed a cell when some probe passed and none failed, so not-comparable sweep stops were absorbed.",
+      "rootCause": "The gate verdict counted probes without a verdict as passes (any-of rollup, two unsettled counters).",
+      "detectedBy": "lead review of the gate output",
+      "cost": "a green land claim and a speed claim relayed to the user, both on uncompared states",
+      "leanVerdict": "provable",
+      "leanReason": "The gate passes only if every probe of the universe has a compared verdict and every reading passes; proved per cell and per reading. Reporting coverage (states compared) next to any speed-up is a reporting rule, not Lean.",
+      "evidence": [
+        "incident inc-gate-pass-uncompared",
+        "ci run 39112059806",
+        "commit 01ca9629",
+        "commit d818e29d",
+        "commit b70291be",
+        "commit 612e9678"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m181",
+      "classId": "c-orphan-wait",
+      "title": "fw watch was down about 2 h, and every Monitor re-arm raised proc.long",
+      "when": "2026-10-18 evening",
+      "who": "lead",
+      "symptom": "fw watch exited 0 after a pass and was not relaunched for about 2 h; the disk-low and 43-worktrees alerts surfaced only on relaunch. Every 30-min Monitor re-arm started a new tail PID, so watch raised proc.long until the lead ran fw watch --keep <pid> again.",
+      "rootCause": "The watcher could exit quietly and its liveness had no owner; re-armed Monitors looked like stray long processes. watch-stream removed the exit-0 relaunch gap; proposed watch-liveness owns liveness.",
+      "detectedBy": "lead (alerts appeared on relaunch)",
+      "cost": "about 2 h without alerts (disk low, 43 worktrees)",
+      "leanVerdict": "partly",
+      "leanReason": "The alert diff is Lean (WatchDiff). That the watcher process is alive is a liveness fact outside a snapshot; a heartbeat-age alert over the console's view would be a decidable rule.",
+      "evidence": [
+        "incident inc-watch-not-live",
+        "commit cceb720",
+        "docs/team/tools/fw-watch.md"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m182",
+      "classId": "c-late-check",
+      "title": "Hand-rolled work-graph edits: whole-file reformat, empty or narrow writes, tasks without stream",
+      "when": "2026-10-18 evening to 2026-10-19 ~17:40",
+      "who": "lead",
+      "symptom": "(1) JSON.stringify(g, null, 2) on the 1-space work graph rewrote 9856 lines (caught by --stat after the commit, amended before any land). (2) land-select-readsonly got writes [] and land-wallclock-off-gate too narrow writes: 2 scope refusals. (3) doc-head-locale's writes omitted its Lean files: 2 scope refusals. (4) Lead main commit 81e2158c added tasks without stream (plan.test ZodError) and 60 s test timeouts not in scripts/wallclock-allow.json, which broke 3 lands.",
+      "rootCause": "Work-graph tasks were added by guessed one-off scripts with no shape or serializer check before the commit.",
+      "detectedBy": "git --stat, land scope refusals, plan.test",
+      "cost": "4 scope refusals, 3 broken lands, one near 9856-line conflict",
+      "leanVerdict": "partly",
+      "leanReason": "The task shape (required fields, non-empty writes, writes covering every file the title names plus its handoff) is a decidable check over the graph; whether the writes are complete for work not done yet is a judgement.",
+      "evidence": [
+        "incident inc-graph-hand-edit",
+        "commit 81e2158c",
+        "commit cd4c6e77",
+        "commit d0a84170",
+        "commit 2a86b7f4",
+        "docs/team/work-graph.json"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m183",
+      "classId": "c-spec-gap",
+      "title": "Final design rounds refused because a decision clause had no theorem or check bound to it",
+      "when": "2026-10-18 ~16:00 to ~18:00",
+      "who": "lead",
+      "symptom": "task-state-truth r3 (3rd refusal): the design said 'liveness by agent id' but workflow life events kept task-name keys (Workflow.lean agentEvents, spool/workflow.ts). jev-oracle r3: per-option hits but pooled precision, so a model mostly wrong on a minority option still calibrated (probe 5/11/5/90). jev-oracle r4: the threat model named held-out evidence but no decision required it. task-state-truth r5: the end condition 'identity stop OR mark' had theorems only for the stop side, so park, integrate and handback never ended a quiet task (12 marks hidden).",
+      "rootCause": "Final designs named rules without mapping each clause, unit and OR-branch to a theorem or check.",
+      "detectedBy": "adversarial reviewers",
+      "cost": "4 refused rounds (task-state-truth r3, r5; jev-oracle r3, r4)",
+      "leanVerdict": "partly",
+      "leanReason": "Per-clause coverage (each threat-model clause, unit and OR-branch maps to a named theorem) is decidable over a spec table; whether the clauses capture the threat is a review judgement.",
+      "evidence": [
+        "incident inc-design-clause-unmapped",
+        "commit 9cb284d9",
+        "commit a7e8727d",
+        "commit ada50cfa",
+        "docs/team/handoffs/task-state-truth.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m184",
+      "classId": "c-env-assume",
+      "title": "Land checks refused unrelated branches under host load (wall-clock bounds, spawn deadlines, single ps reads)",
+      "when": "2026-10-18 ~20:30 to 2026-10-19 ~12:46 (5 tests)",
+      "who": "test authors / land",
+      "symptom": "hooks.test 'emit.mjs costs less than two bare node startups' failed at load ~70; serve.test 'replays 100k events' < 5000 ms took 5739 ms at load 43; wait-guard.test ask() spawnSync 3000 ms returned null at load 36-60 and refused integrate-ports-4 three times; next.ts exec timeout 5000 ms refused land-select-readsonly; next.test observe() read ps before the child was visible at load ~50.",
+      "rootCause": "Tests that gate lands asserted wall-clock bounds and one-shot process reads on a loaded Mac.",
+      "detectedBy": "land refusals (VERDICT checks)",
+      "cost": "about 8 refused lands and re-queues",
+      "leanVerdict": "partly",
+      "leanReason": "The lint 'no absolute ms bound in a land-selected test' is Lean-specified with a golden; the timing of a loaded host is I/O.",
+      "evidence": [
+        "incident inc-land-load-flake",
+        "commit efd57a89",
+        "commit 0ef868b5",
+        "commit 4bfc560e",
+        "commit 790eacfe",
+        "commit 5a6197e8"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m185",
+      "classId": "c-unearned-claim",
+      "title": "Numbers told to the user or written into notes were restated from memory or a partial output",
+      "when": "2026-10-18 evening (disk), 2026-10-20 ~02:30 (C3 count)",
+      "who": "lead",
+      "symptom": "The lead said lean/.lake was about 1 GB, 'nearly all math-view cache (~860 MB)'; measured: mathview-cache 37 MB, build/bin 662 MB. The C3 note said '2 phone-rotation NC cells' while the merge log says 1 cell with 2 readings (stops 1 and 3); it was copied into report draft 3 three times and caught by review.",
+      "rootCause": "Numbers were restated from memory or a partial run, not pasted from one source output.",
+      "detectedBy": "lead re-measure; report reviewer",
+      "cost": "a wrong size told to the user; 3 wrong copies in report draft 3",
+      "leanVerdict": "partly",
+      "leanReason": "'Every MEASURED number cites a run id or log line' is a decidable lint over notes; that the cited line holds that number needs the log, which is a test.",
+      "evidence": [
+        "incident inc-number-from-memory",
+        "commit 45d84ec2",
+        "commit 4d1a187a",
+        "research/notes/2026/10-19-c3-decision.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m186",
+      "classId": "c-identity-heuristic",
+      "title": "'The commit exists locally' was taken as 'the commit is public'",
+      "when": "2026-10-18 jev-oracle r3",
+      "who": "jev-oracle builder / lead design",
+      "symptom": "In jev-oracle r3 a commit's presence in the local repository was taken as proof that its text was published; the reviewer refused, and the identity fix reads the text from origin/main.",
+      "rootCause": "Published-ness was inferred from local existence instead of read from origin/main.",
+      "detectedBy": "adversarial reviewer",
+      "cost": "part of one refused round",
+      "leanVerdict": "provable",
+      "leanReason": "'Public' is defined by identity: the commit is an ancestor of origin/main and the text is read from that tree; this is a decidable predicate over git facts.",
+      "evidence": [
+        "incident inc-provenance-by-existence",
+        "docs/team/work-graph.json",
+        "docs/team/tools/console-stale.md"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m187",
+      "classId": "c-unearned-claim",
+      "title": "Builders' stated limits and claims described code they had not reread",
+      "when": "2026-10-18 ~18:00",
+      "who": "task-state-truth r5 and gate-shard-balance r3 builders",
+      "symptom": "task-state-truth r5's own stated limit said park, integrate and handback end a quiet task (they did not), its drain limit text was wrong, and a Cmd docstring contradicted claim_never_sights. gate-shard-balance r3 stated 'gate code unchanged since measured head' after its main merge had dropped the times=measured default.",
+      "rootCause": "Stated limits were written from memory, not cited from the code at the commit.",
+      "detectedBy": "reviewers",
+      "cost": "part of 2 refused rounds",
+      "leanVerdict": "partly",
+      "leanReason": "A lint can require each stated limit to cite file:line@commit and refuse a citation to a changed line; whether the prose matches the code is review.",
+      "evidence": [
+        "incident inc-stated-limit-unread",
+        "commit 859a7357",
+        "commit 43bd59c9",
+        "commit f65abb72"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m188",
+      "classId": "c-env-assume",
+      "title": "The workflow harness relayed lead-directed user messages to builders as their only user voice",
+      "when": "2026-10-18 evening and ~23:00",
+      "who": "lead / harness",
+      "symptom": "After the user's 'Can you ask me for approve ?' (meant for the lead), engine-model-fix-2 made no change and webkit-sim-rewrite did not push CI; both returned asking for approval (about 1 h of two slots; wktr-serial-baseline also saw it). After 'Ask me for run it' (about a DevTools MCP install) the integrate-ports-4 r2 builder skipped its CI gate push, so a ~20 min round had no verdict.",
+      "rootCause": "Builders treated a relayed lead-directed user message as their own instruction.",
+      "detectedBy": "lead (builders returned asking approval)",
+      "cost": "about 1 h of two slots and one 20-min round",
+      "leanVerdict": "no",
+      "leanReason": "What the harness relays is outside the repo; the guard is a prompt line that a template lint can only check for presence.",
+      "empiricalCheck": "build-review.js PREAMBLE line 15 present in every build prompt (proposed build-review-lint checks it)",
+      "evidence": [
+        "incident inc-relayed-user-voice",
+        "commit ada50cfa",
+        ".claude/workflows/build-review.js"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m189",
+      "classId": "c-late-check",
+      "title": "A main merge resolved a task-owned file to main's side and dropped the change the CI run had measured",
+      "when": "2026-10-18 ~18:20",
+      "who": "gate-shard-balance r3 builder",
+      "symptom": "gate-shard-balance r3's main merge (63b3a686) took main's breakpoint-gate.yml, dropping the task's times=measured default, so CI at the landing head would not use the LPT plan; r4 re-applied it with a guard.",
+      "rootCause": "Nothing ties the landing diff to the head that CI measured.",
+      "detectedBy": "r3 reviewer",
+      "cost": "one refused round",
+      "leanVerdict": "provable",
+      "leanReason": "'The measured head's changed files are a subset of the landing diff' and 'the run's gate tree hash equals the landing tree's' are decidable over git facts.",
+      "evidence": [
+        "incident inc-merge-drops-measured-change",
+        "commit 63b3a686",
+        "commit f65abb72",
+        "commit 21f511b7"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m190",
+      "classId": "c-late-check",
+      "title": "The mutants workflow was red on main (SpawnGuard survivors) with no task owning it",
+      "when": "2026-10-18 13:07 (main run) and ~17:33",
+      "who": "spawn-enforce (lands) / lead",
+      "symptom": "mutants run 39102911603 on main failed; gate-shard-balance r3's run 39119690461 lists surviving mutants in lean/Fw/Ops/SpawnGuard.lean (prodRoles#6 and #7, shapeOf#1 and #4, hookInput#1). No work-graph task owned the red.",
+      "rootCause": "Mutation results are not a land check and red on main had no task.",
+      "detectedBy": "gate-shard-balance r3 builder",
+      "cost": "red mutants check on main with no owner",
+      "leanVerdict": "provable",
+      "leanReason": "A surviving mutant names a definition no theorem pins; a kill theorem or a recorded equivalence is a Lean deliverable.",
+      "evidence": [
+        "incident inc-mutants-red-no-task",
+        "ci run 39102911603",
+        "ci run 39119690461",
+        "lean/Fw/Ops/SpawnGuard.lean"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m191",
+      "classId": "c-env-assume",
+      "title": "Recurrence of inc-console-stale-service: console-web served a dist built before console-lan-owner landed; the lead called the failure 'by design' twice",
+      "when": "2026-10-18 after 16:50",
+      "who": "lead",
+      "symptom": "console-lan-owner landed (0c183695); apps/console-web/dist was built at 15:10 and not rebuilt, so the served page had no bearer code and sat on 'reconnecting' after LAN login (/api/stream 401). The lead told the user twice it was by design before opening the page.",
+      "rootCause": "The served web bundle has no build record tied to its sources, and the post-land routine skipped it.",
+      "detectedBy": "the user (page stuck reconnecting)",
+      "cost": "two wrong explanations to the user",
+      "leanVerdict": "provable",
+      "leanReason": "Same shape as the fwcore build record: the served dist carries a hash of its sources, and serving is allowed iff it equals the tree's hash (decidable).",
+      "evidence": [
+        "incident inc-console-web-stale-dist",
+        "incident inc-console-stale-service",
+        "commit 0c183695",
+        "commit 20fa87f1",
+        "docs/team/tools/console-stale.md"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m192",
+      "classId": "c-shared-no-lock",
+      "title": "console-api preview tests bound the live preview range and failed every land while a preview was open",
+      "when": "2026-10-18 ~18:30",
+      "who": "console-api tests",
+      "symptom": "apps/console-api preview tests started real servers on the production preview range 47100-47139; with the user's two live previews open, 8 tests failed and every land got VERDICT checks for about 1 h.",
+      "rootCause": "Tests and production shared one port range constant.",
+      "detectedBy": "land refusals",
+      "cost": "about 1 h of refused lands",
+      "leanVerdict": "provable",
+      "leanReason": "The preview decision theorems hold for any port base, so tests and production take disjoint ranges by parameter.",
+      "evidence": [
+        "incident inc-preview-port-collision",
+        "commit 277cf4cb",
+        "commit 73e2d401",
+        "commit 237ba01a"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m193",
+      "classId": "c-spec-gap",
+      "title": "fw land --queue printed VERDICT unknown with no reason for a stale branch that --dry called stale",
+      "when": "2026-10-18 ~21:30",
+      "who": "fw land --queue",
+      "symptom": "fw land --queue on a branch that did not contain main printed VERDICT unknown with no reason and no land log; --dry on the same branch printed VERDICT stale with the REFUSED line.",
+      "rootCause": "The queue swallowed the attempt's refusal and printed unknown.",
+      "detectedBy": "lead",
+      "cost": "one misread refusal",
+      "leanVerdict": "provable",
+      "leanReason": "The map from an attempt's refusal to its VERDICT kind is total over the refusal kinds; 'unknown only when no kind applies' is a theorem over that map.",
+      "evidence": [
+        "incident inc-land-queue-unknown",
+        "apps/runner/src/land-queue.ts",
+        "apps/runner/src/land-verdict.ts"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m194",
+      "classId": "c-policy-prose",
+      "title": "Lead Bash calls ran `cd` six times; the session cwd persisted and once broke the next workflow's worktree",
+      "when": "2026-10-18 21:35 to 2026-10-19 14:00 (6 times)",
+      "who": "lead",
+      "symptom": "Lead calls ran cd into the scratchpad, into worktrees (four times) and into .fw-console/land-logs. The first left the session outside the repo, so the next Workflow's worktree agent failed (WorktreeIsolationError: not in a git repository), losing about 8 min; the others were caught by the environment notice and reverted.",
+      "rootCause": "A persistent-cwd tool with a prose-only 'never cd' rule.",
+      "detectedBy": "WorktreeIsolationError; environment notice",
+      "cost": "about 8 min once; 5 near misses",
+      "leanVerdict": "partly",
+      "leanReason": "'The command's top-level words include cd outside a subshell' is a pure decision over the parsed command, provable like wait-guard; the cwd state belongs to the harness.",
+      "evidence": [
+        "incident inc-lead-cd-cwd",
+        ".claude/workflows/build-review.js",
+        "docs/team/tools/wait-guard.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m195",
+      "classId": "c-env-assume",
+      "title": "CI pushes and dispatches were blocked in agent sandboxes, with no sanctioned fallback",
+      "when": "2026-10-18 ~23:00, 2026-10-19 13:00, 2026-10-19",
+      "who": "lead / builders",
+      "symptom": "The lead's ci/* push was denied by the permission check twice even after the user's yes, so the user ran it with !. gate-variant-roles' lean-prover sandbox could not reach api.github.com (dispatch refused), a pinned-unit gate run was missing and the review refused. people-layout-shift's builder passed dangerouslyDisableSandbox on a gh dispatch after a network error, and the classifier denied later retries.",
+      "rootCause": "CI dispatch rights vary by sandbox and the template had no blocked-dispatch path.",
+      "detectedBy": "permission check, reviewer, classifier",
+      "cost": "one 20-min round without a verdict, one refused review",
+      "leanVerdict": "no",
+      "leanReason": "Sandbox network and the permission classifier are outside the repo; the fallback is a prompt rule.",
+      "empiricalCheck": "build-review.js PREAMBLE line 16 and the lead's dispatch before review",
+      "evidence": [
+        "incident inc-ci-push-blocked",
+        "commit 4187b241",
+        ".claude/workflows/build-review.js"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m196",
+      "classId": "c-unearned-claim",
+      "title": "The lead gave the user UI steps (press Preview) for a panel that task type did not show",
+      "when": "2026-10-18 before 22:58",
+      "who": "lead",
+      "symptom": "The lead told the user to press Preview on page-root-clip, but console-web showed the task panel only for port-*/fix-* tasks (TaskDetail.wantsDetail); the user replied there was no preview button.",
+      "rootCause": "User steps were given from memory of the UI, not from the served UI.",
+      "detectedBy": "the user",
+      "cost": "one wrong instruction to the user",
+      "leanVerdict": "no",
+      "leanReason": "Whether the lead checks a UI path before giving steps is process; the panel rule is a UI condition already removed.",
+      "empiricalCheck": "console-task-details: details toggle on every task (90337d4c)",
+      "evidence": [
+        "incident inc-ui-steps-unchecked",
+        "commit f658e907",
+        "commit 90337d4c",
+        "apps/console-web/src/Plan.tsx"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m197",
+      "classId": "c-late-check",
+      "title": "Recurrence of inc-handback-without-check: builders and reviewers verified less than the land runs, so accepted branches were refused at land",
+      "when": "2026-10-19 ~00:20 to ~13:35 (4 lanes)",
+      "who": "lead prompts / builders / reviewers",
+      "symptom": "test-batch: land refused on a tsc strict-index error in wait-guard.test.ts:75 (builder and reviewer ran vitest on one file). contract-lean: land refused VERDICT reads; check.sh gained two golden reads outside lean/ with no Lean CI trigger row or CHECK_SH_READS, missed by 3 reviews that read the diff, not the land premises. countdown-hidden-pause and gate-variant-roles passed both reviews but check.sh refused at land (mathview lint where-clause after $$; v2-proved golden stale).",
+      "rootCause": "Recurrence of inc-handback-without-check: verification scope in prompts was narrower than the land's check set, and the existing fw land --dry (land-dry-full, done before these occurrences) was not run by builders or reviewers.",
+      "detectedBy": "land refusals",
+      "cost": "4 refused lands and extra rounds",
+      "leanVerdict": "partly",
+      "leanReason": "The land's check selection is Lean (LandSpeed.select); 'the review ran a superset of the selected checks at the reviewed commit' is decidable from a record of what ran; that agents run them is process.",
+      "evidence": [
+        "incident inc-verify-below-land",
+        "incident inc-handback-without-check",
+        "commit c79cdc6f",
+        "commit 0bb55e01",
+        "commit dc806213",
+        "commit f5ba5f04",
+        "commit aa3f9fa3",
+        "commit 2ec5a228"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m198",
+      "classId": "c-shared-no-lock",
+      "title": "Lead edits and a console restart in the main checkout while lands were queued",
+      "when": "2026-10-19 01:15, 20:45, 21:15",
+      "who": "lead",
+      "symptom": "The lead edited docs/team/work-graph.json (01:15) and .claude/settings.json (20:45) in the main checkout while lands were queued; both lands refused VERDICT dirty. At 21:15 the lead restarted the console while integrate-wave-2's land was queued; osascript hit an AppleEvent timeout at load ~180, so the console was down about 2 min during the land.",
+      "rootCause": "Main-checkout side effects were not gated on an idle land queue.",
+      "detectedBy": "land refusals (VERDICT dirty); console down",
+      "cost": "2 refused lands, about 2 min console downtime in a land",
+      "leanVerdict": "provable",
+      "leanReason": "'Edit or restart allowed iff the queue has no pending or running land' is one decidable predicate over the queue log, the same one the dirty refusal implies.",
+      "evidence": [
+        "incident inc-main-checkout-busy-queue",
+        "apps/runner/src/land.ts",
+        "docs/team/tools/land-queue.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m199",
+      "classId": "c-late-check",
+      "title": "An undeclared read landed because the reads scan was selected by the runner's inputs, not by the changed package",
+      "when": "2026-10-19 ~08:50",
+      "who": "land selection",
+      "symptom": "content-people-pain-commission landed with an undeclared read (people/assets.ts import.meta.glob prefix not matched by the manifest glob sellers/*/*.jpg). Its land did not select the apps/runner test that holds the land.readsOnly scan, so the next land touching apps/runner (faithful-checks-rerun) took the refusal.",
+      "rootCause": "The premise scan was selected by the scanner's own inputs, not by the package whose reads changed.",
+      "detectedBy": "the next land's refusal",
+      "cost": "a refusal charged to an unrelated land",
+      "leanVerdict": "provable",
+      "leanReason": "Selection soundness: every package whose sources change selects the reads scan for that package (LandSpeed.select).",
+      "evidence": [
+        "incident inc-readsonly-selection",
+        "commit f040f11b",
+        "commit 2da142ba"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m200",
+      "classId": "c-quota",
+      "title": "Too many local-heavy lanes at once drove load to 106-115 and console fwcore calls into a timeout loop",
+      "when": "2026-10-19 ~10:12",
+      "who": "lead",
+      "symptom": "Five build-review lanes, a Fable agent and a land ran at once, each check.sh spawning many fwcore processes; load reached 106-115 and console fwcore calls timed out at 10 s in a crash and replay cycle (svc.sweepError, 88 timeouts).",
+      "rootCause": "Local-heavy lanes were admitted by slot count with no load budget.",
+      "detectedBy": "fw watch (svc.sweepError, timeouts)",
+      "cost": "console crash/replay cycle; slow lanes",
+      "leanVerdict": "provable",
+      "leanReason": "Admission 'start a local-heavy lane iff load1 < 2 x cores and running check.sh count < k' is a pure rule over sampled load, in the style of Fw.Sched.",
+      "evidence": [
+        "incident inc-local-lane-overload",
+        "commit a9ac8c96",
+        "commit 0ef868b5"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m201",
+      "classId": "c-orphan-wait",
+      "title": "Recurrence of inc-orphan-wait-loop: a builder waited with an until-grep loop on a finished test output for a line that never appears",
+      "when": "2026-10-19 ~09:30",
+      "who": "gate-page-root-anchor builder",
+      "symptom": "The gate-page-root-anchor builder waited for '# fail' in a finished pnpm test output (never printed); it held 12 min until the lead killed its pid on the agent.held alert.",
+      "rootCause": "Recurrence of inc-orphan-wait-loop: an unbounded wait on an output whose text could never appear; the wait-guard that decides the refusal ships in shadow mode (wait-guard.mjs:6,27) and no enforce config exists, so it only logged the loop.",
+      "detectedBy": "fw watch agent.held",
+      "cost": "12 min of one slot",
+      "leanVerdict": "provable",
+      "leanReason": "wait_bounded: a wait is allowed only with a bound and an owner; an until-loop on a file with no bound is refused by the Lean decision.",
+      "evidence": [
+        "incident inc-until-grep-finished-output",
+        "incident inc-orphan-wait-loop",
+        "commit c997a92e",
+        "commit ddaf2789",
+        "apps/runner/hooks/wait-guard.mjs",
+        "docs/team/tools/wait-guard.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m202",
+      "classId": "c-spec-gap",
+      "title": "Fix rounds lost items: a sibling sentence, half an item, and a whole refusal never shown to the builder",
+      "when": "2026-10-19 ~09:35 to 12:25",
+      "who": "lead / builders",
+      "symptom": "lean-specs-now r1 fixed the named sentence but not its sibling (ro_desktop_eq kept the unscoped 'every frame'): 2nd refusal. land-wallclock-off-gate's final round applied half of item (1) and reported it done: 3rd refusal on that line; the lead then applied the reviewer's exact text. svg-extract r1's fix prompt said 'apply every finding of the refusal' without the findings path; the builder never saw the refusal.",
+      "rootCause": "Fix-round findings were prose, not a checked item list.",
+      "detectedBy": "reviewers",
+      "cost": "3 extra refused rounds",
+      "leanVerdict": "partly",
+      "leanReason": "'Every finding id of the refusal appears in the builder's report with a diff hunk' is decidable over two lists; whether the hunk fixes the finding is review.",
+      "evidence": [
+        "incident inc-fix-round-item-drift",
+        "commit 7c89d657",
+        "commit 76f509d8",
+        "commit 4187b241"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m203",
+      "classId": "c-spec-gap",
+      "title": "A builder edited the work graph on its branch to declare its writes; the land refused on scope",
+      "when": "2026-10-19 ~13:30",
+      "who": "svg-extract builder",
+      "symptom": "svg-extract's branch edited docs/team/work-graph.json to declare its own writes; the land refused on scope and the edit was reset to main.",
+      "rootCause": "The build prompt did not say the work graph is lead-only.",
+      "detectedBy": "land scope refusal",
+      "cost": "one refused land",
+      "leanVerdict": "provable",
+      "leanReason": "The land scope check is already a decidable rule (the branch diff stays inside the task's writes, and the graph is lead-only); it refused the branch as designed.",
+      "evidence": [
+        "incident inc-graph-edit-in-branch",
+        "commit ae6e1bae",
+        "commit 2ec5a228"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m204",
+      "classId": "c-shared-no-lock",
+      "title": "Two branches appended to apps/site/assets.manifest.json and conflicted; the lead merged by hand",
+      "when": "2026-10-19 ~14:40",
+      "who": "lead",
+      "symptom": "doc-head-locale and asset-icons-gaps both appended entries to apps/site/assets.manifest.json; the merge conflicted and the lead resolved it as a union by hand.",
+      "rootCause": "A shared append-only file with no merge driver.",
+      "detectedBy": "git merge conflict",
+      "cost": "a hand merge during a land",
+      "leanVerdict": "provable",
+      "leanReason": "A url-keyed union that refuses one url with two srcs is the LedgerMerge shape: commutative and lossless, decidable per key.",
+      "evidence": [
+        "incident inc-manifest-append-conflict",
+        "commit 654320b1",
+        "apps/site/assets.manifest.json",
+        "lean/Fw/Ops/LedgerMerge.lean"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m205",
+      "classId": "c-unearned-claim",
+      "title": "engine.scene:hidden-pause was proved against a port that omitted the original's scene pause",
+      "when": "2026-10-19 ~15:30",
+      "who": "port authors / proof authors",
+      "symptom": "The v2-proved flag engine.scene:hidden-pause was proved against a port whose platform faithful arm omitted the original's 100%-margin scene pause; against the original, hsync fails for the platform.",
+      "rootCause": "A proof rested on a port that was not checked as faithful.",
+      "detectedBy": "port completeness audit",
+      "cost": "a flag in v2-proved on a refuted premise",
+      "leanVerdict": "partly",
+      "leanReason": "Lean proves the flag relative to the modelled port; that the port matches the original is the faithful check, a measurement, so the proof must name it as a premise.",
+      "evidence": [
+        "incident inc-hidden-pause-unfaithful-port",
+        "commit 8276822d",
+        "commit 06d21834",
+        "commit 96d60fe5"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m206",
+      "classId": "c-late-check",
+      "title": "A 13 px horizontal overflow at 430 px landed; only the wave-2 viewport gate caught it",
+      "when": "2026-10-19 ~16:00",
+      "who": "port lane / land",
+      "symptom": "A port lane added a 13 px horizontal overflow at 430 px; nothing at land caught it (site tests do not render layout, gates run only on ci branches). driver-stage-mode's viewport gate in the wave-2 counts found it.",
+      "rootCause": "No layout check ran on port lands. overflow-430 fixed the instance; proposed overflow-on-land covers the cause.",
+      "detectedBy": "driver-stage-mode viewport gate",
+      "cost": "a wave-2 blocker",
+      "leanVerdict": "provable",
+      "leanReason": "'scrollWidth <= viewport width per profile' is a decidable gate condition with per-branch theorems (Fw.Gate.PageRoot).",
+      "evidence": [
+        "incident inc-overflow-unchecked-at-land",
+        "commit eed1eb1a",
+        "commit 2b693e95",
+        "commit 6c235b75"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m207",
+      "classId": "c-spec-gap",
+      "title": "The no-LaTeX rule entered the build prompt before the lint stopped requiring LaTeX",
+      "when": "2026-10-19 ~16:50",
+      "who": "lead",
+      "symptom": "The lead added 'add no $$ math and no docstrings to new declarations' to the build-review preamble (4e55971c) while the mathview lint still refused Fw declarations without $$; every Lean lane started then would have been refused at land. The latex-plan check caught it.",
+      "rootCause": "A rule change shipped before its enforcer change.",
+      "detectedBy": "latex-plan check",
+      "cost": "a window where Lean lanes would be refused",
+      "leanVerdict": "partly",
+      "leanReason": "lintPlan and lintEntry are Lean; 'the preamble's rules are a subset of what the lint accepts' is provable once the preamble rules are data.",
+      "evidence": [
+        "incident inc-rule-before-enforcer",
+        "commit 4e55971c",
+        "commit 7f010142",
+        "lean/MathView.lean"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m208",
+      "classId": "c-order-derived",
+      "title": "Recurrence of inc-plan-sync-on-land-only: new graph tasks reached the board only through a manual plan sync, which the capability hook refused when prefixed",
+      "when": "2026-10-18 22:58 to 2026-10-19 ~18:05",
+      "who": "lead",
+      "symptom": "console-task-details' first land said 'unknown task' right after its graph commit (a retry after plan sync passed); at 18:05 a new task's land was refused 'unknown task (fw plan sync first)'; plan sync after lands exited 2 (ELIFECYCLE) repeatedly, and the lead first told the user it was console staleness.",
+      "rootCause": "Board plan state depended on a manual step with a call-shape rule (recurrence of inc-plan-sync-on-land-only).",
+      "detectedBy": "land refusals; plan sync exit 2",
+      "cost": "2 refused lands, a wrong explanation to the user",
+      "leanVerdict": "provable",
+      "leanReason": "ReconcileSched (Lean) decides a sync whenever main moves, so the board follows main without a manual step; capDecide (Lean) already names the prefix refusal.",
+      "evidence": [
+        "incident inc-plan-sync-manual",
+        "incident inc-plan-sync-on-land-only",
+        "commit f658e907",
+        "apps/runner/hooks/cap.mjs",
+        "commit 1db2c286",
+        "docs/team/handoffs/console-reconcile-speed.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m209",
+      "classId": "c-shared-no-lock",
+      "title": "Accepted branches re-conflicted on shared generated files because lands ran in acceptance order",
+      "when": "2026-10-19 ~20:30 to ~22:10",
+      "who": "lead",
+      "symptom": "ci-main-triggers needed 3 merge rounds after acceptance (lean.yml from B2; Trigger.lean and triggers.jsonl from land-lane; navscroll cache writers from nav-scroll-hide-check), each a builder plus a reviewer.",
+      "rootCause": "Land order ignored write overlap on shared generated files.",
+      "detectedBy": "merge conflicts at land",
+      "cost": "3 extra build plus review rounds",
+      "leanVerdict": "provable",
+      "leanReason": "Land order as a function of declared writes (branches editing a generated table before branches adding rows to it; overlapping writes batched) is decidable over the graph.",
+      "evidence": [
+        "incident inc-land-order-overlap",
+        "commit 50b10f4d",
+        "commit 33a9beea",
+        "commit e774c666"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m210",
+      "classId": "c-sample-validity",
+      "title": "A C3 flag proposal rested on a narrowed gate run; the full run then passed",
+      "when": "2026-10-19 ~22:15",
+      "who": "lead",
+      "symptom": "The lead proposed dropping engine.scene:hidden-pause from v2-proved on run 39271938577 (narrowed to 6 platform ids, verdict recomputed by a reviewer, cause INFERRED). The full run 39271987926 then passed every platform and engine.scene row in both engines. A probe branch (ci/c3-probe) and a gate run went to the wrong premise.",
+      "rootCause": "A narrowed run was used as decision evidence.",
+      "detectedBy": "the full gate run",
+      "cost": "a probe branch and a gate run on a wrong premise",
+      "leanVerdict": "provable",
+      "leanReason": "Readings from a run with narrowed: true are not in the C3 decision domain; 'a decision input is un-narrowed' is decidable from the run record.",
+      "evidence": [
+        "incident inc-decision-from-narrowed-run",
+        "ci run 39271938577",
+        "ci run 39271987926",
+        "commit fb56c62a",
+        "commit 836bbba6"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m211",
+      "classId": "c-env-assume",
+      "title": "The preview proxy's HTML rewrite broke the original arm's inline boot script under its hash CSP",
+      "when": "2026-10-19 ~22:45",
+      "who": "preview proxy",
+      "symptom": "The preview proxy rewrote the inline SvelteKit boot script; the original's hash-based CSP blocked it, so the original arm never hydrated (blank pain notes, no hero/people motion, no platform media). The user compared the port against a broken original.",
+      "rootCause": "The proxy rewrote CSP-hashed inline scripts.",
+      "detectedBy": "the user",
+      "cost": "a user comparison against a broken original",
+      "leanVerdict": "provable",
+      "leanReason": "'The rewrite leaves inline script byte ranges unchanged' and 'the CSP hash set of the rewritten page equals the original's' are decidable over the HTML.",
+      "evidence": [
+        "incident inc-preview-csp-rewrite",
+        "commit 1e6ac921",
+        "commit 8e190ed0",
+        "commit 38052b5a"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m212",
+      "classId": "c-identity-heuristic",
+      "title": "The lead spawned a helper with a name; spawn-guard refused kindMismatch (2nd time)",
+      "when": "2026-10-19 23:05",
+      "who": "lead",
+      "symptom": "The lead spawned a runner with name set; spawn-guard refused kindMismatch because a named spawn is a teammate. Same as the earlier patcher spawn.",
+      "rootCause": "Helper spawns were named by habit and the refusal did not name the fix.",
+      "detectedBy": "spawn-guard",
+      "cost": "two refused spawns",
+      "leanVerdict": "provable",
+      "leanReason": "Each refusal kind maps to one fix hint ('drop name' for kindMismatch on a helper role); a total map over refusal kinds is provable.",
+      "evidence": [
+        "incident inc-helper-spawn-named",
+        "lean/Fw/Ops/SpawnGuard.lean",
+        "apps/runner/hooks/spawn-guard.mjs"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m213",
+      "classId": "c-quota",
+      "title": "Recurrence of inc-ci-trigger-drift: pushing a ci/* branch to dispatch one workflow fired 13 push runs",
+      "when": "2026-10-19 23:04",
+      "who": "lead",
+      "symptom": "Pushing ci/c3-gate to dispatch the gate also fired 13 push runs (12 skipped at the guard, lean 39282663959 cancelled), for example mutants run 39282663904.",
+      "rootCause": "Recurrence of inc-ci-trigger-drift: every workflow keeps on.push for ci/**, so no push form starts zero push runs.",
+      "detectedBy": "lead (run list)",
+      "cost": "13 push runs (12 skipped at the guard, 1 cancelled) during a GitHub incident",
+      "leanVerdict": "provable",
+      "leanReason": "Which workflows a push starts is a function of the branch prefix and the Lean onKeys allowlist; 'a ci/dispatch-* push starts no push run' is decidable over that table.",
+      "evidence": [
+        "incident inc-dispatch-push-runs",
+        "incident inc-ci-trigger-drift",
+        "ci run 39282663904",
+        "ci run 39282663959",
+        "ci run 39282664077",
+        "commit 33a9beea"
+      ],
+      "evidenceStatus": "MEASURED"
+    },
+    {
+      "id": "m214",
+      "classId": "c-env-assume",
+      "title": "The lead flip-flopped on CI run status and blamed the slot cap during a GitHub Actions incident",
+      "when": "2026-10-19 23:50 to 23:55",
+      "who": "lead",
+      "symptom": "The lead called the ci/c3-gate push runs no-op, then 'really ran', then jobs skipped and lean cancelled; it attributed a 21-min lean@main queue to the 20-job slot cap while GitHub had an Actions incident open since 15:49Z (degraded, then critical).",
+      "rootCause": "CI conclusions drawn from lagging run status without platform status.",
+      "detectedBy": "lead",
+      "cost": "three contradicting statements; a wrong cause",
+      "leanVerdict": "partly",
+      "leanReason": "The attribution rule (ci.slow names an open GitHub incident when one exists) is Lean; status lag inside GitHub is outside it.",
+      "evidence": [
+        "incident inc-ci-status-misread",
+        "commit f5fc5dcd",
+        "commit 0dc95329"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m215",
+      "classId": "c-sample-validity",
+      "title": "C3 counts measured with the 10-flag preset stayed in the report after the preset changed",
+      "when": "2026-10-19 ~22:54 to 2026-10-20 ~02:30",
+      "who": "lead",
+      "symptom": "C3 counts 1832 to 821 were measured with the 10-flag preset (including hero.countdown:strip); after the strip left v2-proved (b56a8fc3) no counts were re-run until the report review flagged it.",
+      "rootCause": "Measured numbers were not bound to the preset they measured.",
+      "detectedBy": "report reviewer",
+      "cost": "report numbers for a preset no longer in use",
+      "leanVerdict": "provable",
+      "leanReason": "A MEASURED number tagged with its preset hash is stale iff the current preset hash differs: a decidable check.",
+      "evidence": [
+        "incident inc-preset-change-stale-counts",
+        "commit b56a8fc3",
+        "docs/report/v2-report.md",
+        "research/notes/2026/10-19-integrate-wave-2.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m216",
+      "classId": "c-env-assume",
+      "title": "pnpm install in a worktree flips apps/runner/src/fw.ts to mode 100755, and builders commit the flip",
+      "when": "2026-10-19 10:46 to 2026-10-20 (every workflow worktree with an install)",
+      "who": "builders (install), reviewers and lead (restores)",
+      "symptom": "apps/runner/src/fw.ts shows an uncommitted mode change 100644 -> 100755 in workflow worktrees (seen in wf_88c85d5a-2b0-1, wf_a10164f7-fb5-1, wf_c01d6050-edd-1, wf_07cbabb8-80d-1). Builders that edited fw.ts committed the flip 5 times on main's history (c0f9ee49, ac38ddc3, 2d43b7e3, 1db2c286, d9f0ae9d) and 5 commits restored it (41bc90a8, f4ec3838, a38dd720, 05c03daf, 38052b5a); reviewers flag it as a write outside the task.",
+      "rootCause": "A workspace bin target tracked as 100644 is chmodded 0o755 by pnpm's bin linking since engine-check depends on @fw/runner; agents assumed install leaves tracked files untouched.",
+      "detectedBy": "reviewers (mode change outside the task)",
+      "cost": "5 restore commits, review findings on 4 worktrees",
+      "leanVerdict": "no",
+      "leanReason": "The file mode is set by the package manager's install step, not by a decision of ours; a repo test over git ls-files modes and package.json bin fields covers it.",
+      "empiricalCheck": "proposed runner-bin-mode test (every bin target is 100755 in the git index; pnpm install leaves git diff --summary empty)",
+      "evidence": [
+        "incident inc-runner-bin-mode-flip",
+        "apps/runner/package.json",
+        "packages/engine-check/package.json",
+        "commit 9feebf3c",
+        "commit c0f9ee49",
+        "commit 38052b5a"
+      ],
+      "evidenceStatus": "CONFIRMED"
     }
   ],
   "dropped": [
@@ -3425,6 +4262,10 @@
     {
       "title": "Docker Hub auth outage as such",
       "reason": "kept only as the unpinned-image mistake; the outage is external"
+    },
+    {
+      "title": "lfg-mathview-facts follow-up (import-set limit, note 10-18-lean-first-gate.md section 6, CI mathview-differential job)",
+      "reason": "a follow-up list for the next lfg task, not a mistake"
     }
   ]
 }
