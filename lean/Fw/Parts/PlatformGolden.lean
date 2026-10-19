@@ -4,6 +4,7 @@ import Fw.Parts.PlatformSweep
 import Fw.Parts.PlatformGlint
 import Fw.Parts.PlatformMarquee
 import Fw.Parts.PlatformEntries
+import Fw.Parts.PlatformScene
 /-!
 # Golden vectors for the platform parts
 
@@ -211,11 +212,27 @@ def entriesLines : List String :=
         Json.mkObj [("name", .str n), ("keyframes", .str e.name), ("durMs", ratWire e.dur), ("delayMs", ratWire e.delay),
           ("props", Json.arr (e.trs.map fun tr => Json.mkObj [("key", .str tr.key), ("from", ratWire tr.a), ("to", ratWire tr.b)]).toArray)]).toArray)])]
 
-/-- The five golden files of the platform parts: name and lines, in this order.
+open Fw.Parts.PlatformScene in
+/-- Lines of `platform.scene.jsonl`: the scene value at rects, and one `const` line with the attribute name, its two values,
+the observer margin and the rule's property.
 
-$$\mathrm{files} = [(\texttt{platform.jsonl}, \mathrm{platformLines}),\ (\texttt{platform.sweep.jsonl}, \mathrm{sweepLines}),\ (\texttt{platform.glint.jsonl}, \mathrm{glintLines}),\ (\texttt{platform.marquee.jsonl}, \mathrm{marqueeLines}),\ (\texttt{platform.entries.jsonl}, \mathrm{entriesLines})]$$ -/
+$$\mathrm{sceneLines} = [\operatorname{line}(\texttt{scene}, \{\texttt{top}{:}\ t, \texttt{bottom}{:}\ b, \texttt{vh}{:}\ h\}, \operatorname{sceneOf}(t, b, h)) \mid (t, b, h) \in R] \mathbin{+\!\!+} [\operatorname{line}(\texttt{const}, \{\}, \{\texttt{attr}{:}\ \texttt{data-fw-scene},\ \texttt{active}{:}\ \operatorname{attr}(\top),\ \texttt{paused}{:}\ \operatorname{attr}(\bot),\ \texttt{rootMargin}{:}\ \texttt{100\% 0px},\ \texttt{playState}{:}\ \texttt{paused}\})]$$
+
+with $R$ the rects (top, bottom, viewport height) at and around the two edges $b = -h$ and $t = 2h$. -/
+def sceneLines : List String :=
+  (([(0, 800, 900), (-5000, -901, 900), (-5000, -900, 900), (1800, 2600, 900), (1801, 2600, 900), (-1000, -500, 900),
+     (3000, 3800, 900), (-300, 100, 400), (801, 1200, 400), (800, 1200, 400)] : List (Rat × Rat × Rat)).map fun (t, b, h) =>
+    line "scene" [("top", rin t), ("bottom", rin b), ("vh", rin h)] (.str (sceneOf t b h))) ++
+  [line "const" [] (Json.mkObj
+    [("attr", .str "data-fw-scene"), ("active", .str (attr true)), ("paused", .str (attr false)),
+     ("rootMargin", .str "100% 0px"), ("playState", .str "paused")])]
+
+/-- The six golden files of the platform parts: name and lines, in this order.
+
+$$\mathrm{files} = [(\texttt{platform.jsonl}, \mathrm{platformLines}),\ (\texttt{platform.sweep.jsonl}, \mathrm{sweepLines}),\ (\texttt{platform.glint.jsonl}, \mathrm{glintLines}),\ (\texttt{platform.marquee.jsonl}, \mathrm{marqueeLines}),\ (\texttt{platform.entries.jsonl}, \mathrm{entriesLines}),\ (\texttt{platform.scene.jsonl}, \mathrm{sceneLines})]$$ -/
 def files : List (String × List String) :=
   [("platform.jsonl", platformLines), ("platform.sweep.jsonl", sweepLines), ("platform.glint.jsonl", glintLines),
-   ("platform.marquee.jsonl", marqueeLines), ("platform.entries.jsonl", entriesLines)]
+   ("platform.marquee.jsonl", marqueeLines), ("platform.entries.jsonl", entriesLines),
+   ("platform.scene.jsonl", sceneLines)]
 
 end Fw.Parts.PlatformGolden
