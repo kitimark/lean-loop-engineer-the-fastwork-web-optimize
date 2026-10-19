@@ -168,3 +168,4 @@ import Fw.Port.Text  -- port-completeness-gate: check 1, text digest
 import Fw.Port.Attrs  -- port-completeness-gate: check 2, attribute multiset
 import Fw.Site.Assets  -- port-completeness-gate: check 3, asset subset
 import Fw.Port.Svg  -- port-completeness-gate: check 4, svg skeleton
+import Fw.Port.Fonts  -- port-fonts-check: check 5, fonts per leaf and loaded faces

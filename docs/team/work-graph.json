@@ -7022,7 +7022,8 @@
     "docs/team/tools/visual-diff.md",
     "apps/runner/src/land.ts",
     "research/notes/2026/10-19-port-fonts-check-cells.md"
-   ]
+   ],
+   "evidence": "688f476"
   },
   {
    "devices": [
