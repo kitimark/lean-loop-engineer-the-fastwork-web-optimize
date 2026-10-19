@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { fwcoreCall } from "../src/run.ts";
 import {
-  circleHttp, circleRecords, fillFromGhJobs, loadStore, mergeStore, parseLoose, parseTelArgs, readRecords, recordKey, tableLines,
+  backfillExits, circleHttp, circleRecords, fillFromGhJobs, loadStore, mergeStore, parseLoose, parseTelArgs, readRecords, recordKey, tableLines,
   telemetryMain, type GhJob, type Http, type TelRecord,
 } from "../src/ci-telemetry.ts";
 
@@ -93,6 +93,34 @@ describe("store and GitHub fill", () => {
     expect(r.times.startedMs).toBe(T0 - 7000);
     const withCreated = rec("1", "engine-chromium", 10, 9000);
     expect(fillFromGhJobs(withCreated, jobs)).toBe(withCreated);
+  });
+
+  it("backfillExits sets the exit of a failed step and of the last open step from gh run view, and keeps the record's own times (run 39314718340, job gate playwright-webkit j0)", () => {
+    const at = (s: number) => new Date(T0 + s * 1000).toISOString();
+    // gh run view --json jobs: the failing smoke test is conclusion=failure, the artifact upload was skipped, the download ran twice
+    const jobs: GhJob[] = [{ name: "gate playwright-webkit j0", startedAt: at(0), steps: [
+      { name: "Run actions/download-artifact@x", conclusion: "success", startedAt: at(1), completedAt: at(2) },
+      { name: "Run ./.github/actions/gate-engine", conclusion: "success", startedAt: at(2), completedAt: at(32) },
+      { name: "Smoke test the engine (fails in under two minutes instead of burning the job budget)", conclusion: "failure", startedAt: at(32), completedAt: at(72) },
+      { name: "Run actions/download-artifact@x", conclusion: "success", startedAt: at(72), completedAt: at(73) },
+      { name: "Run actions/upload-artifact@x", conclusion: "skipped", startedAt: at(73), completedAt: at(73) },
+    ] }];
+    const base = rec("1", "gate-playwright-webkit-j0", 10, 9000);
+    const r: TelRecord = { ...base, times: { ...base.times, startedMs: T0 }, steps: [
+      { name: "Run actions/download-artifact@x", startMs: T0 + 1000, endMs: T0 + 2000, exit: 0 },
+      { name: "Run ./.github/actions/gate-engine", startMs: T0 + 2000, endMs: T0 + 32000, exit: 0 },
+      { name: "Smoke test the engine (fails in under two minutes instead of burning the job budget)", startMs: T0 + 32000, endMs: T0 + 73500 }, // exit undefined, end = finish time
+      { name: "Run actions/download-artifact@x", startMs: T0 + 72000, endMs: T0 + 73500 }, // second step of that name: matched with the second one
+    ] };
+    const out = backfillExits(r, jobs);
+    expect(out.steps.map((s) => s.exit)).toEqual([0, 0, 1, 0]);
+    expect(out.steps[2]!.endMs).toBe(T0 + 72000); // the open end is replaced by the settled one
+    expect(out.steps[3]!.endMs).toBe(T0 + 73000);
+    expect(out.times).toEqual(r.times); // the in-job times are kept
+    expect(out.steps[0]).toBe(r.steps[0]); // a step with an exit is left alone
+    const none = { ...r, steps: [r.steps[0]!] };
+    expect(backfillExits(none, jobs)).toBe(none);
+    expect(backfillExits(r, [])).toBe(r);
   });
 
   it("readRecords reads telemetry.json of every artifact directory and refuses a file that is no record", () => {

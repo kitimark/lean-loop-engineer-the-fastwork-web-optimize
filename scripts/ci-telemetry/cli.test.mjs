@@ -7,7 +7,7 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildRecord, busyTotal, cpuPct, downsample, githubJobFacts, mergeSteps, parseMeminfo, parseProcStat, parseVmStat, pickJob, runnerClass, spanLine, stepsOfSpans } from "./lib.mjs";
+import { buildRecord, busyTotal, cpuPct, downsample, githubJobFacts, mergeSteps, parseCpuModel, parseMeminfo, parseProcStat, parseVmStat, pickJob, runnerClass, spanLine, stepsOfSpans } from "./lib.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const cli = join(here, "cli.mjs");
@@ -16,6 +16,14 @@ const fwcore = join(here, "../../lean/.lake/build/bin/fwcore");
 test("parseProcStat: busy and total jiffies, idle includes iowait", () => {
   assert.deepEqual(parseProcStat("cpu  100 0 50 800 50 0 0 0 0 0\ncpu0 1 1 1 1\n"), [150, 1000]);
   assert.equal(parseProcStat("nonsense"), null);
+});
+
+test("parseCpuModel: x86 model name; arm64 lscpu Model name; arm64 implementer and part when lscpu is missing", () => {
+  assert.equal(parseCpuModel("processor\t: 0\nmodel name\t: AMD EPYC 7763 64-Core Processor\n", null), "AMD EPYC 7763 64-Core Processor");
+  const arm = "processor\t: 0\nBogoMIPS\t: 2100.00\nFeatures\t: fp asimd evtstrm aes\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x3\nCPU part\t: 0xd49\nCPU revision\t: 0\n";
+  assert.equal(parseCpuModel(arm, "Architecture: aarch64\nModel name:          Neoverse-N2\nThread(s) per core: 1\n"), "Neoverse-N2");
+  assert.equal(parseCpuModel(arm, null), "arm 0x41 part 0xd49");
+  assert.equal(parseCpuModel("processor\t: 0\n", "Model name:  -\n"), null);
 });
 
 test("cpuPct: integer share of the busy delta, clamped", () => {

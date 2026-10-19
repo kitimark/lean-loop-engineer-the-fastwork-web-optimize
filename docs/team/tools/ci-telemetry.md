@@ -31,6 +31,10 @@ the same (lane, job/step, provider, runner class) only (`kindOf_inj`, `key_ne_of
 never moves a Linux GitHub baseline). Slow = longer than max(budget 5 s, 3/2 of the median of the last runs) with at
 least 3 earlier runs (`slow_iff` branches: `slow_of_ceiling`, `slow_of_window`, `not_slow_of_neither`). The window is
 oldest first by start time (`byStart_perm`), so the order of the input does not matter.
+A step name repeated inside one job gets the key `name#1`, `name#2` and so on in order of occurrence (`keysFrom`; the
+first keeps its name, so existing histories do not move). The keys of one record are pairwise distinct for any step
+names, even a step literally called `name#1` (`keysFrom_nodup`, `spans_steps_nodup`), so a step is never judged against
+another step of the same run; the golden has a case with a repeated name. A row in the table shows the keyed name.
 Limit: job and step names are joined with `/`; a `/` inside a job name could alias two keys.
 
 ## Producer
@@ -48,13 +52,17 @@ line format, so `FW_TIMINGS_FILE=$FW_TELEMETRY_DIR/spans.jsonl` also takes the s
 does this for `check.sh`). Every command but `step` exits 0 on any internal error: telemetry never fails a job.
 
 - Sampler: Linux reads `/proc/stat` and `/proc/meminfo`; macOS `vm_stat` (memory) and `os.cpus()` (CPU), machine name
-  from `sysctl`. Load is `os.loadavg()`, disk is `statfs` of the telemetry directory. At most 360 probes are kept.
+  from `sysctl`. The Linux CPU model is the cpuinfo `model name`; arm64 runners have none, so `lscpu` "Model name" (for
+  example `Neoverse-N2`), else the cpuinfo implementer and part (`arm 0x41 part 0xd49`) (`parseCpuModel`). Load is `os.loadavg()`, disk is `statfs` of the telemetry directory. At most 360 probes are kept.
 - Runner class: `ImageOS-RUNNER_ARCH-<cores>c` on GitHub (arch not repeated when ImageOS ends with it) (for example `ubuntu24-arm64-4c`), `<os>-<arch>-<cores>c`
   elsewhere, `FW_RUNNER_CLASS` overrides.
 - GitHub: `finish` makes one best-effort call to the jobs API (`GITHUB_TOKEN`, 15 s cap) and takes this job's step
   list (all steps, `uses:` steps included) and the true queue time (`created_at` to `started_at`). If the call fails the
   collector fills the steps from `gh run view --json jobs`; the queue time then stays empty (that reply has no job
-  creation time).
+  creation time). The collector always reads `gh run view --json jobs` and, for each step the record has without an exit,
+  fills the exit (and an end the in-job call left open) from the same-named step of the same-named job
+  (`backfillExits`): the in-job call runs before GitHub settles the conclusion of the step that is running, which is the
+  failing step of a failed job and the last step before `finish`. Times of the in-job call are kept.
 
 ## GitHub wiring
 

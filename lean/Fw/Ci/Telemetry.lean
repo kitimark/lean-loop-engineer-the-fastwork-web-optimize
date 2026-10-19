@@ -89,13 +89,35 @@ structure Span where
   sample : Sample
 deriving DecidableEq, Repr
 
-/-- The timing samples of a record: queue time when known, each step, simulator boot when known, the whole job. -/
+/-- The named durations of a record in order: queue time when known, each step, simulator boot when known, the whole job. -/
+def Record.parts (r : Record) : List (String × Nat) :=
+  (r.createdMs.toList.map fun c => ("(queue)", r.startedMs - c)) ++ r.steps.map (fun s => (s.name, s.durMs)) ++
+    (r.simBootMs.toList.map fun b => ("(sim boot)", b)) ++ [("(job)", r.endedMs - r.startedMs)]
+
+/-- The text that spells the k-th try of a name: the name itself for k = 0, then name#1, name#2 and so on. -/
+def tryName (name : String) (k : Nat) : String := if k = 0 then name else name ++ "#" ++ toString k
+
+/-- The first try of the name that no earlier key uses. Out of tries (never, the tries outnumber the used keys) it
+returns the used keys joined and one more character, which is longer than each of them. -/
+def freshGo (used : List String) (name : String) : Nat → Nat → String
+  | 0, _ => String.join used ++ "#"
+  | f + 1, k => if tryName name k ∈ used then freshGo used name f (k + 1) else tryName name k
+
+/-- The key of a name given the keys already taken in its record. -/
+def freshKey (used : List String) (name : String) : String := freshGo used name (used.length + 1) 0
+
+/-- The keys of a list of names: a repeated name gets name#1, name#2 and so on, so no two keys are equal. -/
+def keysFrom (used : List String) : List String → List String
+  | [] => []
+  | n :: rest => let k := freshKey used n; k :: keysFrom (k :: used) rest
+
+/-- The timing samples of a record. A step name repeated inside one job is told apart by its occurrence index, so
+each step has its own history key. -/
 def Record.spans (r : Record) : List Span :=
-  let mk (name : String) (d : Nat) : Span :=
+  let ps := r.parts
+  (List.zip (keysFrom [] (ps.map (·.1))) (ps.map (·.2))).map fun (name, d) =>
     { runId := r.runId, job := r.job, name,
       sample := { tool := r.lane, step := r.job ++ "/" ++ name, durMs := d, host := .ci, kind := kindOf r.provider r.cls } }
-  (r.createdMs.toList.map fun c => mk "(queue)" (r.startedMs - c)) ++ r.steps.map (fun s => mk s.name s.durMs) ++
-    (r.simBootMs.toList.map fun b => mk "(sim boot)" b) ++ [mk "(job)" (r.endedMs - r.startedMs)]
 
 /-- Records in start-time order. -/
 def byStart (rs : List Record) : List Record := rs.mergeSort (fun a b => decide (a.startedMs ≤ b.startedMs))
@@ -165,8 +187,86 @@ theorem window_unmoved (p : Params) (hist : List Sample) (s : Sample) (k : Fw.Ob
 
 theorem spans_kind (r : Record) (t : Span) (h : t ∈ r.spans) :
     t.sample.kind = kindOf r.provider r.cls ∧ t.sample.tool = r.lane ∧ t.sample.host = .ci := by
-  simp only [Record.spans, List.mem_append, List.mem_map, List.mem_singleton, Option.mem_toList] at h
-  rcases h with ((⟨c, _, rfl⟩ | ⟨c, _, rfl⟩) | ⟨c, _, rfl⟩) | rfl <;> simp
+  simp only [Record.spans, List.mem_map] at h
+  obtain ⟨_, _, rfl⟩ := h
+  simp
+
+theorem string_len_le_join (used : List String) (u : String) (h : u ∈ used) : u.length ≤ (String.join used).length := by
+  rw [String.length_join]
+  induction used with
+  | nil => simp at h
+  | cons a t ih =>
+    simp only [List.map_cons, List.sum_cons]
+    rcases List.mem_cons.1 h with rfl | h
+    · omega
+    · have := ih h; omega
+
+theorem freshGo_not_mem (used : List String) (name : String) : ∀ f k, freshGo used name f k ∉ used := by
+  intro f
+  induction f with
+  | zero =>
+    intro k h
+    have h1 := string_len_le_join used _ h
+    have h2 : "#".length = 1 := by decide
+    simp only [freshGo, String.length_append, h2] at h1
+    omega
+  | succ f ih =>
+    intro k
+    unfold freshGo
+    split
+    · exact ih _
+    · assumption
+
+/-- A key is never one of the keys taken before it. -/
+theorem freshKey_not_mem (used : List String) (name : String) : freshKey used name ∉ used :=
+  freshGo_not_mem used name _ _
+
+theorem keysFrom_not_mem : ∀ (names used : List String), ∀ k ∈ keysFrom used names, k ∉ used := by
+  intro names
+  induction names with
+  | nil => intro used k h; simp [keysFrom] at h
+  | cons n rest ih =>
+    intro used k h
+    simp only [keysFrom, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact freshKey_not_mem used n
+    · intro hu
+      exact ih _ k h (List.mem_cons_of_mem _ hu)
+
+/-- The keys of any list of names are pairwise distinct. -/
+theorem keysFrom_nodup : ∀ (names used : List String), (keysFrom used names).Nodup := by
+  intro names
+  induction names with
+  | nil => intro used; simp [keysFrom]
+  | cons n rest ih =>
+    intro used
+    simp only [keysFrom, List.nodup_cons]
+    exact ⟨fun h => keysFrom_not_mem rest _ _ h (List.mem_cons_self ..), ih _⟩
+
+theorem keysFrom_length : ∀ (names used : List String), (keysFrom used names).length = names.length := by
+  intro names
+  induction names with
+  | nil => intro used; simp [keysFrom]
+  | cons n rest ih => intro used; simp [keysFrom, ih]
+
+/-- The samples of one record have pairwise distinct history steps, so no span of a run is judged against another span
+of the same run through a shared key. -/
+theorem spans_steps_nodup (r : Record) : (r.spans.map (·.sample.step)).Nodup := by
+  have hk := keysFrom_nodup (r.parts.map (·.1)) []
+  have hl : (keysFrom [] (r.parts.map (·.1))).length ≤ (r.parts.map (·.2)).length := by
+    simp [keysFrom_length]
+  have hfst := List.map_fst_zip hl
+  have hinj : Function.Injective (fun k : String => r.job ++ "/" ++ k) := by
+    intro a b h
+    apply String.toList_inj.1
+    have := congrArg String.toList h
+    simp only [String.toList_append] at this
+    exact List.append_cancel_left this
+  have : r.spans.map (·.sample.step) =
+      (List.map Prod.fst (List.zip (keysFrom [] (r.parts.map (·.1))) (r.parts.map (·.2)))).map (fun k => r.job ++ "/" ++ k) := by
+    simp [Record.spans, List.map_map, Function.comp_def]
+  rw [this, hfst]
+  exact List.Pairwise.map _ (fun a b hab h => hab (hinj h)) hk
 
 theorem byStart_perm (rs : List Record) : (byStart rs).Perm rs := List.mergeSort_perm _ _
 
@@ -417,6 +517,11 @@ def cases : List (String × Json) :=
       reqJson ((List.range 3).map (fun i => rj (mkRec .github "webkit-sim" "sim" "macos-14" s!"r{i}" (t0 + i * 600000)
         [("run", 1000)] (some 4000) (some 20000))) ++
         [rj (mkRec .github "webkit-sim" "sim" "macos-14" "r3" (t0 + 1800000) [("run", 1000)] (some 30000) (some 60000))])),
+   ("a step name twice in one job: the second download is download#1 with its own history: it and the job are slow, the first download is not",
+      reqJson ((List.range 3).map (fun i => rj (mkRec .github "chromium-counts" "counts" "ubuntu-24.04" s!"r{i}" (t0 + i * 600000)
+        [("download", 3000), ("build", 40000), ("download", 4000)])) ++
+        [rj (mkRec .github "chromium-counts" "counts" "ubuntu-24.04" "r3" (t0 + 1800000)
+          [("download", 3000), ("build", 40000), ("download", 70000)])])),
    ("params with a ceiling of 1 s on the job: slow at once with no history",
       reqJson [rj (mkRec .github "lean" "check" "ubuntu-24.04" "r1" t0 [("check", 2000)] none)]
         (some (Json.mkObj [("ceilings", Json.arr #[Json.mkObj [("tool", Json.str "lean"), ("step", Json.str "check/(job)"),
@@ -453,6 +558,17 @@ private def slowNames (rs : List Record) : List String := (slowItems telemetryPa
 #guard slowNames (hist3 .github "ubuntu-24.04" ++ [fourth .circleci "ubuntu-24.04" 70]) == []
 #guard slowNames (hist3 .github "ubuntu-24.04" ++ [fourth .github "ubuntu-24.04" 61]) == []
 #guard slowNames (hist3 .github "ubuntu-24.04" ++ [fourth .github "ubuntu-24.04" 62]) == ["install"]
+private def dupRecs (last : Nat) : List Record :=
+  (List.range 3).map (fun i => mkRec .github "chromium-counts" "counts" "ubuntu-24.04" s!"r{i}" (t0 + i * 600000)
+    [("download", 3000), ("build", 40000), ("download", 4000)]) ++
+  [mkRec .github "chromium-counts" "counts" "ubuntu-24.04" "r3" (t0 + 1800000) [("download", 3000), ("build", 40000), ("download", last)]]
+
+#guard keysFrom [] ["a", "a", "b", "a"] == ["a", "a#1", "b", "a#2"]
+#guard keysFrom [] ["x", "x#1", "x"] == ["x", "x#1", "x#2"]
+#guard keysFrom [] ["(job)", "(job)"] == ["(job)", "(job)#1"]
+#guard ((dupRecs 70000).getLast?.map fun r => r.spans.map (·.name)) == some ["(queue)", "download", "build", "download#1", "(job)"]
+#guard slowNames (dupRecs 70000) == ["download#1", "(job)"]
+#guard slowNames (dupRecs 5000) == []
 #guard (match recordOf (recordJson (fourth .circleci "x" 5)) with | .ok r => r == fourth .circleci "x" 5 | .error _ => false)
 #guard (match recordOf (Json.mkObj [("schema", toJson 2)]) with | .error e => e == "field schema: expected 1" | .ok _ => false)
 

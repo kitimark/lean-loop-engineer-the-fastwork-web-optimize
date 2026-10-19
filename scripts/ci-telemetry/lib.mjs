@@ -64,13 +64,26 @@ export function downsample(xs, max) {
 
 const read = (p) => { try { return readFileSync(p, "utf8"); } catch { return null; } };
 
-/** Machine facts. macOS uses sysctl for the CPU name; Linux the first "model name" of /proc/cpuinfo or the os.cpus() model. */
+/** The CPU model of a Linux machine from /proc/cpuinfo and `lscpu`. x86 has a "model name" line. The arm64 runners have
+ *  none: `lscpu` gives "Model name: Neoverse-N2"; failing that the cpuinfo implementer and part ("arm 0x41 part 0xd49"). */
+export function parseCpuModel(cpuinfo, lscpu) {
+  const m = /^(?:model name|Model|Hardware)\s*:\s*(.+)$/m.exec(cpuinfo ?? "");
+  if (m) return m[1].trim();
+  const l = /^Model name:\s*(.+)$/m.exec(lscpu ?? "");
+  if (l && l[1].trim() !== "-") return l[1].trim();
+  const imp = /^CPU implementer\s*:\s*(0x[0-9a-f]+)/im.exec(cpuinfo ?? ""), part = /^CPU part\s*:\s*(0x[0-9a-f]+)/im.exec(cpuinfo ?? "");
+  if (imp && part) return `arm ${imp[1].toLowerCase()} part ${part[1].toLowerCase()}`;
+  return null;
+}
+
+/** Machine facts. macOS uses sysctl for the CPU name; Linux parseCpuModel (lscpu only when cpuinfo has no name), else the os.cpus() model. */
 export function machineFacts(exec) {
   const cpus = os.cpus();
   let cpu = cpus[0]?.model ?? "unknown";
   if (process.platform === "linux") {
-    const m = /^(?:model name|Model|Hardware)\s*:\s*(.+)$/m.exec(read("/proc/cpuinfo") ?? "");
-    if (m) cpu = m[1];
+    const info = read("/proc/cpuinfo") ?? "";
+    const named = parseCpuModel(info, "");
+    cpu = named ?? parseCpuModel(info, exec ? exec("lscpu", []) : null) ?? cpu;
   } else if (process.platform === "darwin" && exec) {
     const b = exec("sysctl", ["-n", "machdep.cpu.brand_string"]);
     if (b) cpu = b.trim();

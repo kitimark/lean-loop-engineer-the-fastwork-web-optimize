@@ -13,12 +13,20 @@ runs of the same lane, job, step, provider and runner class). Treat the ranking 
 | premise-tests | 39318599357 (dispatch) | cde71c57 (producer fixes below) |
 
 The breakpoint-gate run failed in `gate playwright-webkit j0` (Smoke test, "orig 430px open: no answer in 30 s", a
-browser smoke timeout; the other 7 gate jobs passed). Its telemetry record still exists, so `finish` also works on a
-failed job. The cause of the smoke timeout is not investigated here.
+browser smoke timeout; the other 6 gate jobs passed: chromium j0 to j2, webkit j1 to j3). Its telemetry record still
+exists, so `finish` also works on a failed job; the failing step's exit is not in that record, because the in-job
+jobs API reports the running step before its conclusion settles. The collector fills it from `gh run view --json jobs`
+(`backfillExits`). The cause of the smoke timeout is not investigated here.
 
-## What the records show (seconds)
+Provenance of the numbers: the breakpoint-gate and lean records were written by the first producer (class
+`ubuntu24-arm64-arm64-4c`, and the telemetry action's own steps, `Run ./.github/actions/telemetry`, still among the
+steps; this note leaves those rows out). Only premise-tests run 39318599357 used the fixed producer. No gate or lean
+run has a step table from the final producer; the tables below are the old-producer records with the telemetry rows
+removed by hand. Their class is the old one, so a new run does not share their baseline.
 
-breakpoint-gate, steps of the 7 gate jobs that completed plus `site` (chromium = ch, webkit = wk):
+## What the records show (seconds; old-producer records for breakpoint-gate and lean, see above)
+
+breakpoint-gate, steps of the 6 gate jobs that completed plus `site` (chromium = ch, webkit = wk):
 
 | step | site | ch j0 | ch j1 | ch j2 | wk j1 | wk j2 | wk j3 |
 |---|---|---|---|---|---|---|---|

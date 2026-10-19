@@ -82,18 +82,45 @@ export type GhJob = { name: string; startedAt?: string | null; completedAt?: str
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const ms = (iso?: string | null): number | null => { const t = Date.parse(iso ?? ""); return Number.isFinite(t) ? t : null; };
 
+const findJob = (jobs: GhJob[], job: string): GhJob | undefined =>
+  jobs.find((j) => norm(j.name) === norm(job)) ?? jobs.find((j) => norm(j.name).startsWith(norm(job)));
+const exitOf = (c?: string | null): number | null =>
+  c === "success" ? 0 : c === "failure" || c === "cancelled" || c === "timed_out" ? 1 : null;
+
+/** The in-job jobs API call runs before GitHub settles the conclusion of the step that is running (the failing step, and the
+ *  last one before the telemetry finish), so those steps have no exit. Every step with `exit == null` gets the exit (and an
+ *  end that the job API left open) from the run's job of the same name in `gh run view --json jobs`; the k-th step of a name
+ *  is matched with the k-th step of that name there. Created time, start and all other steps stay as the record has them. */
+export function backfillExits(r: TelRecord, jobs: GhJob[]): TelRecord {
+  const job = findJob(jobs, r.ident.job);
+  if (!job || !r.steps.some((s) => s.exit == null)) return r;
+  const byName = new Map<string, NonNullable<GhJob["steps"]>>();
+  for (const g of job.steps ?? []) if (g.conclusion !== "skipped") byName.set(g.name, [...(byName.get(g.name) ?? []), g]);
+  const seen = new Map<string, number>();
+  const steps = r.steps.map((s) => {
+    const k = seen.get(s.name) ?? 0;
+    seen.set(s.name, k + 1);
+    const g = byName.get(s.name)?.[k];
+    if (s.exit != null || !g) return s;
+    const e = exitOf(g.conclusion), end = ms(g.completedAt);
+    if (e === null) return s;
+    return { ...s, exit: e, endMs: end === null ? s.endMs : Math.max(s.startMs, end) };
+  });
+  return { ...r, steps };
+}
+
 /** A record without a created time (the in-job jobs API call failed) gets the steps of the run's job of the same name from
  *  `gh run view --json jobs`; the queue time stays unknown (that reply has no job creation time). */
 export function fillFromGhJobs(r: TelRecord, jobs: GhJob[]): TelRecord {
   if (r.times.createdMs != null) return r;
-  const job = jobs.find((j) => norm(j.name) === norm(r.ident.job)) ?? jobs.find((j) => norm(j.name).startsWith(norm(r.ident.job)));
+  const job = findJob(jobs, r.ident.job);
   if (!job) return r;
   const own = new Set(r.steps.map((s) => s.name));
   const add: TelStep[] = [];
   for (const s of job.steps ?? []) {
     const a = ms(s.startedAt), b = ms(s.completedAt);
     if (a === null || b === null || s.conclusion === "skipped" || /^Telemetry/.test(s.name) || own.has(s.name)) continue;
-    add.push({ name: s.name, startMs: a, endMs: Math.max(a, b), exit: s.conclusion === "success" ? 0 : s.conclusion === "failure" ? 1 : null });
+    add.push({ name: s.name, startMs: a, endMs: Math.max(a, b), exit: exitOf(s.conclusion) });
   }
   const started = ms(job.startedAt);
   return { ...r, steps: [...r.steps, ...add].sort((x, y) => x.startMs - y.startMs), times: { ...r.times, startedMs: started ?? r.times.startedMs } };
@@ -184,10 +211,8 @@ export async function telemetryMain(args: TelArgs, d: TelDeps): Promise<number> 
     try {
       await d.gh(["run", "download", args.id, "-D", dl, "--pattern", "telemetry-*"]);
       fresh = readRecords(dl);
-      if (fresh.some((r) => r.times.createdMs == null)) {
-        const v = JSON.parse(await d.gh(["run", "view", args.id, "--json", "jobs"])) as { jobs: GhJob[] };
-        fresh = fresh.map((r) => fillFromGhJobs(r, v.jobs));
-      }
+      const v = JSON.parse(await d.gh(["run", "view", args.id, "--json", "jobs"])) as { jobs: GhJob[] };
+      fresh = fresh.map((r) => backfillExits(fillFromGhJobs(r, v.jobs), v.jobs));
     } finally { rmSync(dl, { recursive: true, force: true }); }
   } else {
     fresh = await circleRecords(d.http, args.slug ?? d.slug(), args.id);
