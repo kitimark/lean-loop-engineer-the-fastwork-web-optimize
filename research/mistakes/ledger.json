@@ -3418,11 +3418,11 @@
     },
     {
       "id": "m176",
-      "classId": "c-orphan-wait",
+      "classId": "c-spec-gap",
       "title": "Workflow builders ended without a structured result four times; the build-review template has no salvage stage",
       "when": "2026-10-18 ~15:00 to ~22:15 (4 builders)",
       "who": "workflow builders / lead",
-      "symptom": "The gate-shard-balance builder (about 80 min, 5 uncommitted files, no handoff), task-state-truth r3 and r4 builders (r3 after 67 min, work committed), the integrate-and-engine-fix builder (18 uncommitted files) and the integrate-ports-4 builder (context 249k to 404k over about 100 min, no commit for 79+ min) ended without calling StructuredOutput, so their review or verify stage never ran. The lead salvaged each by hand (WIP commits, handoff edits) and relaunched.",
+      "symptom": "The gate-shard-balance builder (about 80 min, 5 uncommitted files, no handoff), task-state-truth r3 and r4 builders (r3 after 67 min, work committed) and the integrate-ports-4 builder (context 249k to 404k over about 100 min, no commit for 79+ min) ended without calling StructuredOutput, so their review or verify stage never ran. The lead salvaged each by hand (WIP commits, handoff edits) and relaunched. See inc-workflow-agent-stall for the engine-model-fix stall (the integrate-and-engine-fix builder, 18 uncommitted files), which is not counted here.",
       "rootCause": "The build-review template turns a null builder into a silent stop; the Lean salvage rule was never wired into a stage, and builders ran long without WIP commits.",
       "detectedBy": "lead (workflow result null)",
       "cost": "4 lost review rounds, about 1 h of lead salvage, one 100-min builder",
@@ -3441,7 +3441,7 @@
     {
       "id": "m177",
       "classId": "c-env-assume",
-      "title": "Lead one-off shell and JS glue for routine steps failed in four different ways",
+      "title": "Lead one-off shell and JS glue for routine steps failed in five different ways",
       "when": "2026-10-18 to 2026-10-19 ~21:45",
       "who": "lead",
       "symptom": "(1) A placeholder `git commit -q --no-verify-not-used -m x` in a compound command made the --no-verify deny rule refuse the whole call. (2) A JS String.replace(a, b) with \"$'\" in b inserted the text after the match and broke CommissionTyping.lean (lake build caught it; restored from git). (3) land-r36 was started with a shell `&`, so no completion notice came. (4) land-r33's `BR=x land ...` leaked BR into the next POSIX sh call and refused port-fonts-check ('no such branch'). (5) An echo with a newline broke the graph script while a land started in a parallel call.",
@@ -3486,7 +3486,7 @@
       "when": "2026-10-18 afternoon",
       "who": "lead",
       "symptom": "The lead stopped the shared console-api for the user's manual preview; three builders then could not run fw land --dry (no api.json) and returned without a VERDICT line.",
-      "rootCause": "fw land --dry routes through console-api although it needs only git and the work graph (same class as inc-ci-verdict-needs-api).",
+      "rootCause": "fw land --dry routes through console-api although it needs only git, the work graph and the fwcore land-scope op (same class as inc-ci-verdict-needs-api).",
       "detectedBy": "builders (no VERDICT)",
       "cost": "3 builders returned without a land verdict",
       "leanVerdict": "no",
@@ -3495,7 +3495,8 @@
       "evidence": [
         "incident inc-land-dry-needs-console",
         "apps/runner/src/lib.ts",
-        "apps/runner/src/fw.ts"
+        "apps/runner/src/fw.ts",
+        "apps/runner/src/land.ts"
       ],
       "evidenceStatus": "CONFIRMED"
     },
@@ -3528,7 +3529,7 @@
       "when": "2026-10-18 evening",
       "who": "lead",
       "symptom": "fw watch exited 0 after a pass and was not relaunched for about 2 h; the disk-low and 43-worktrees alerts surfaced only on relaunch. Every 30-min Monitor re-arm started a new tail PID, so watch raised proc.long until the lead ran fw watch --keep <pid> again.",
-      "rootCause": "The watcher could exit quietly and its liveness had no owner; re-armed Monitors looked like stray long processes.",
+      "rootCause": "The watcher could exit quietly and its liveness had no owner; re-armed Monitors looked like stray long processes. watch-stream removed the exit-0 relaunch gap; proposed watch-liveness owns liveness.",
       "detectedBy": "lead (alerts appeared on relaunch)",
       "cost": "about 2 h without alerts (disk low, 43 worktrees)",
       "leanVerdict": "partly",
@@ -3727,7 +3728,7 @@
     {
       "id": "m191",
       "classId": "c-env-assume",
-      "title": "console-web served a dist built before console-lan-owner landed; the lead called the failure 'by design' twice",
+      "title": "Recurrence of inc-console-stale-service: console-web served a dist built before console-lan-owner landed; the lead called the failure 'by design' twice",
       "when": "2026-10-18 after 16:50",
       "who": "lead",
       "symptom": "console-lan-owner landed (0c183695); apps/console-web/dist was built at 15:10 and not rebuilt, so the served page had no bearer code and sat on 'reconnecting' after LAN login (/api/stream 401). The lead told the user twice it was by design before opening the page.",
@@ -3738,6 +3739,7 @@
       "leanReason": "Same shape as the fwcore build record: the served dist carries a hash of its sources, and serving is allowed iff it equals the tree's hash (decidable).",
       "evidence": [
         "incident inc-console-web-stale-dist",
+        "incident inc-console-stale-service",
         "commit 0c183695",
         "commit 20fa87f1",
         "docs/team/tools/console-stale.md"
@@ -3826,7 +3828,7 @@
       "id": "m196",
       "classId": "c-unearned-claim",
       "title": "The lead gave the user UI steps (press Preview) for a panel that task type did not show",
-      "when": "2026-10-19 ~00:20",
+      "when": "2026-10-18 before 22:58",
       "who": "lead",
       "symptom": "The lead told the user to press Preview on page-root-clip, but console-web showed the task panel only for port-*/fix-* tasks (TaskDetail.wantsDetail); the user replied there was no preview button.",
       "rootCause": "User steps were given from memory of the UI, not from the served UI.",
@@ -3837,6 +3839,7 @@
       "empiricalCheck": "console-task-details: details toggle on every task (90337d4c)",
       "evidence": [
         "incident inc-ui-steps-unchecked",
+        "commit f658e907",
         "commit 90337d4c",
         "apps/console-web/src/Plan.tsx"
       ],
@@ -3845,17 +3848,19 @@
     {
       "id": "m197",
       "classId": "c-late-check",
-      "title": "Builders and reviewers verified less than the land runs, so accepted branches were refused at land",
+      "title": "Recurrence of inc-handback-without-check: builders and reviewers verified less than the land runs, so accepted branches were refused at land",
       "when": "2026-10-19 ~00:20 to ~13:35 (4 lanes)",
       "who": "lead prompts / builders / reviewers",
       "symptom": "test-batch: land refused on a tsc strict-index error in wait-guard.test.ts:75 (builder and reviewer ran vitest on one file). contract-lean: land refused VERDICT reads; check.sh gained two golden reads outside lean/ with no Lean CI trigger row or CHECK_SH_READS, missed by 3 reviews that read the diff, not the land premises. countdown-hidden-pause and gate-variant-roles passed both reviews but check.sh refused at land (mathview lint where-clause after $$; v2-proved golden stale).",
-      "rootCause": "Verification scope in prompts was narrower than the land's check set.",
+      "rootCause": "Recurrence of inc-handback-without-check: verification scope in prompts was narrower than the land's check set, and the existing fw land --dry (land-dry-full, done before these occurrences) was not run by builders or reviewers.",
       "detectedBy": "land refusals",
       "cost": "4 refused lands and extra rounds",
       "leanVerdict": "partly",
       "leanReason": "The land's check selection is Lean (LandSpeed.select); 'the review ran a superset of the selected checks at the reviewed commit' is decidable from a record of what ran; that agents run them is process.",
       "evidence": [
         "incident inc-verify-below-land",
+        "incident inc-handback-without-check",
+        "commit c79cdc6f",
         "commit 0bb55e01",
         "commit dc806213",
         "commit f5ba5f04",
@@ -3924,18 +3929,21 @@
     {
       "id": "m201",
       "classId": "c-orphan-wait",
-      "title": "A builder waited with an until-grep loop on a finished test output for a line that never appears",
+      "title": "Recurrence of inc-orphan-wait-loop: a builder waited with an until-grep loop on a finished test output for a line that never appears",
       "when": "2026-10-19 ~09:30",
       "who": "gate-page-root-anchor builder",
       "symptom": "The gate-page-root-anchor builder waited for '# fail' in a finished pnpm test output (never printed); it held 12 min until the lead killed its pid on the agent.held alert.",
-      "rootCause": "An unbounded wait on an output whose text could never appear.",
+      "rootCause": "Recurrence of inc-orphan-wait-loop: an unbounded wait on an output whose text could never appear; the wait-guard that decides the refusal ships in shadow mode (wait-guard.mjs:6,27) and no enforce config exists, so it only logged the loop.",
       "detectedBy": "fw watch agent.held",
       "cost": "12 min of one slot",
       "leanVerdict": "provable",
       "leanReason": "wait_bounded: a wait is allowed only with a bound and an owner; an until-loop on a file with no bound is refused by the Lean decision.",
       "evidence": [
         "incident inc-until-grep-finished-output",
+        "incident inc-orphan-wait-loop",
         "commit c997a92e",
+        "commit ddaf2789",
+        "apps/runner/hooks/wait-guard.mjs",
         "docs/team/tools/wait-guard.md"
       ],
       "evidenceStatus": "CONFIRMED"
@@ -4026,7 +4034,7 @@
       "when": "2026-10-19 ~16:00",
       "who": "port lane / land",
       "symptom": "A port lane added a 13 px horizontal overflow at 430 px; nothing at land caught it (site tests do not render layout, gates run only on ci branches). driver-stage-mode's viewport gate in the wave-2 counts found it.",
-      "rootCause": "No layout check ran on port lands.",
+      "rootCause": "No layout check ran on port lands. overflow-430 fixed the instance; proposed overflow-on-land covers the cause.",
       "detectedBy": "driver-stage-mode viewport gate",
       "cost": "a wave-2 blocker",
       "leanVerdict": "provable",
@@ -4062,8 +4070,8 @@
     {
       "id": "m208",
       "classId": "c-order-derived",
-      "title": "New graph tasks reached the board only through a manual plan sync, which the capability hook refused when prefixed",
-      "when": "2026-10-19 ~00:20 to ~18:05",
+      "title": "Recurrence of inc-plan-sync-on-land-only: new graph tasks reached the board only through a manual plan sync, which the capability hook refused when prefixed",
+      "when": "2026-10-18 22:58 to 2026-10-19 ~18:05",
       "who": "lead",
       "symptom": "console-task-details' first land said 'unknown task' right after its graph commit (a retry after plan sync passed); at 18:05 a new task's land was refused 'unknown task (fw plan sync first)'; plan sync after lands exited 2 (ELIFECYCLE) repeatedly, and the lead first told the user it was console staleness.",
       "rootCause": "Board plan state depended on a manual step with a call-shape rule (recurrence of inc-plan-sync-on-land-only).",
@@ -4073,6 +4081,8 @@
       "leanReason": "ReconcileSched (Lean) decides a sync whenever main moves, so the board follows main without a manual step; capDecide (Lean) already names the prefix refusal.",
       "evidence": [
         "incident inc-plan-sync-manual",
+        "incident inc-plan-sync-on-land-only",
+        "commit f658e907",
         "apps/runner/hooks/cap.mjs",
         "commit 1db2c286",
         "docs/team/handoffs/console-reconcile-speed.md"
@@ -4162,22 +4172,24 @@
     {
       "id": "m213",
       "classId": "c-quota",
-      "title": "Pushing a ci/* branch to dispatch one workflow fired 9 push runs",
+      "title": "Recurrence of inc-ci-trigger-drift: pushing a ci/* branch to dispatch one workflow fired 13 push runs",
       "when": "2026-10-19 23:04",
       "who": "lead",
-      "symptom": "Pushing ci/c3-gate to dispatch the gate also fired 9 push runs (most completed as no-op skips, lean cancelled), for example mutants run 39282663904.",
-      "rootCause": "No push form starts zero push runs.",
+      "symptom": "Pushing ci/c3-gate to dispatch the gate also fired 13 push runs (12 skipped at the guard, lean 39282663959 cancelled), for example mutants run 39282663904.",
+      "rootCause": "Recurrence of inc-ci-trigger-drift: every workflow keeps on.push for ci/**, so no push form starts zero push runs.",
       "detectedBy": "lead (run list)",
-      "cost": "9 runner slots during a GitHub incident",
+      "cost": "13 push runs (12 skipped at the guard, 1 cancelled) during a GitHub incident",
       "leanVerdict": "provable",
       "leanReason": "Which workflows a push starts is a function of the branch prefix and the Lean onKeys allowlist; 'a ci/dispatch-* push starts no push run' is decidable over that table.",
       "evidence": [
         "incident inc-dispatch-push-runs",
+        "incident inc-ci-trigger-drift",
         "ci run 39282663904",
+        "ci run 39282663959",
         "ci run 39282664077",
         "commit 33a9beea"
       ],
-      "evidenceStatus": "INFERRED"
+      "evidenceStatus": "MEASURED"
     },
     {
       "id": "m214",
@@ -4215,6 +4227,29 @@
         "commit b56a8fc3",
         "docs/report/v2-report.md",
         "research/notes/2026/10-19-integrate-wave-2.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m216",
+      "classId": "c-env-assume",
+      "title": "pnpm install in a worktree flips apps/runner/src/fw.ts to mode 100755, and builders commit the flip",
+      "when": "2026-10-19 10:46 to 2026-10-20 (every workflow worktree with an install)",
+      "who": "builders (install), reviewers and lead (restores)",
+      "symptom": "apps/runner/src/fw.ts shows an uncommitted mode change 100644 -> 100755 in workflow worktrees (seen in wf_88c85d5a-2b0-1, wf_a10164f7-fb5-1, wf_c01d6050-edd-1, wf_07cbabb8-80d-1). Builders that edited fw.ts committed the flip 5 times on main's history (c0f9ee49, ac38ddc3, 2d43b7e3, 1db2c286, d9f0ae9d) and 5 commits restored it (41bc90a8, f4ec3838, a38dd720, 05c03daf, 38052b5a); reviewers flag it as a write outside the task.",
+      "rootCause": "A workspace bin target tracked as 100644 is chmodded 0o755 by pnpm's bin linking since engine-check depends on @fw/runner; agents assumed install leaves tracked files untouched.",
+      "detectedBy": "reviewers (mode change outside the task)",
+      "cost": "5 restore commits, review findings on 4 worktrees",
+      "leanVerdict": "no",
+      "leanReason": "The file mode is set by the package manager's install step, not by a decision of ours; a repo test over git ls-files modes and package.json bin fields covers it.",
+      "empiricalCheck": "proposed runner-bin-mode test (every bin target is 100755 in the git index; pnpm install leaves git diff --summary empty)",
+      "evidence": [
+        "incident inc-runner-bin-mode-flip",
+        "apps/runner/package.json",
+        "packages/engine-check/package.json",
+        "commit 9feebf3c",
+        "commit c0f9ee49",
+        "commit 38052b5a"
       ],
       "evidenceStatus": "CONFIRMED"
     }
