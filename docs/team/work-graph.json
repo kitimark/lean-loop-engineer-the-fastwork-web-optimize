@@ -8146,6 +8146,34 @@
     "research/notes/2026/10-20-circleci-pilot.md",
     "docs/team/handoffs/circleci-pilot.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-e2e",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Playwright e2e for the console preview (/r, /o, /compare; Chromium + WebKit, phone UA) over loopback and a non-trustworthy plain-HTTP host; decides the double /_app import question; selected only when its declared inputs change (land remote tier + ci-paths cone)",
+   "deps": [
+    "preview-inspect"
+   ],
+   "writes": [
+    "apps/console-api/e2e/**",
+    "packages/e2e-preview/**",
+    "apps/console-api/src/preview/**",
+    "apps/console-api/package.json",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Console/LandTier.lean",
+    "lean/land-filter.txt",
+    "packages/contracts/golden/console/land-tier.jsonl",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    ".github/workflows/land.yml",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/handoffs/preview-e2e.md",
+    "pnpm-lock.yaml"
+   ]
   }
  ],
  "deadline": {
