@@ -117,7 +117,7 @@ describe("main.ts started as a background task (stdout and stderr are files, no 
     closeSync(fd);
     try {
       let text = "";
-      for (let i = 0; i < 100; i++) { // up to 10 s for the "listening" line and the owner-link message
+      for (;;) { // poll until the "listening" line and the owner-link message appear; the test timeout catches a hang
         await wait(100);
         text = readFileSync(out, "utf8");
         if (text.includes("listening on") && text.includes("no controlling terminal")) break;

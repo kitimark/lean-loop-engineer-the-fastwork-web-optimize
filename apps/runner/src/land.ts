@@ -153,12 +153,18 @@ export function siteAssetReads(manifestPath = join(new URL(import.meta.url).path
   const m = JSON.parse(readFileSync(manifestPath, "utf8")) as { files: { src: string }[]; bundled?: string[] };
   return [...new Set([...m.files.map((f) => f.src), ...(m.bundled ?? [])])].sort();
 }
+const WALLCLOCK_LINT_FILES = ["scripts/lint-wallclock.mjs", "scripts/wallclock-allow.json", "scripts/lint-wallclock-cases/**"];
+// land-wallclock-off-gate: test/wallclock-lint.test.ts (runner and console-api) runs scripts/lint-wallclock.mjs, which reads
+// the three files above and every tracked test file in its SCOPE. The runner wrapper also declares those test files, so a
+// changed or new test file anywhere selects the runner and with it the lint; console-api declares only the lint's own files.
+const WALLCLOCK_LINT_TESTS = ["scripts/*.test.mjs", "apps/*/test/**", "packages/*/test/**", ".github/scripts/*.test.mjs", "apps/site/src/**/*.test.*", "apps/site/scripts/*.test.*"];
+
 /** Files a package's tests read outside their own directory and outside their `workspace:` dependencies, found by the
  *  static scan in test/land-inputs.test.ts (which fails on any it finds that is not covered here). Dynamic reads the scan
  *  cannot see are listed in docs/team/handoffs/checksfor-inputs.md. */
 export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
-  "apps/console-api": ["apps/console-web/**", "apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**"],
-  "apps/runner": ["apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
+  "apps/console-api": ["apps/console-web/**", "apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**", ...WALLCLOCK_LINT_FILES],
+  "apps/runner": [...WALLCLOCK_LINT_FILES, ...WALLCLOCK_LINT_TESTS, "apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
     "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh",
     // ci-trigger-lean: test/ci-triggers.test.ts reads every workflow, the guard script and the lint
     ".github/workflows/**", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs",
