@@ -14,7 +14,7 @@ const selected = (changed: string[]) => checksWithReads(root, changed).map((c) =
 describe("packages/e2e-preview is selected by its read set only", () => {
   it("is a candidate check on the CI tier and reads the fwcore binary", () => {
     expect(candidateChecks(root).map((c) => c.id)).toContain(ID);
-    expect(FWCORE_USERS).not.toContain(ID); // the rig serves the console-api over a store; no fwcore binary runs
+    expect(FWCORE_USERS).toContain(ID); // console-api decides through fwcore
     const golden = readFileSync(join(root, "packages/contracts/golden/console/land-tier.jsonl"), "utf8");
     expect(golden).toContain(`"${ID}"`);
     expect(readFileSync(join(root, "lean/land-filter.txt"), "utf8")).toContain("@fw/e2e-preview...");

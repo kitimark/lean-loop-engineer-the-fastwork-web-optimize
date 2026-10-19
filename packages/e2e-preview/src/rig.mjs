@@ -5,7 +5,7 @@
 // entry, because a real manager builds a git worktree per preview. No keychain is read: the owner passphrase is a test value
 // handed to the LoginGuard. Nothing here is a decision; the gate verdicts come from fwcore.
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { createServer, request as httpRequest } from "node:http";
 import { createRequire } from "node:module";
 import { networkInterfaces, tmpdir } from "node:os";
@@ -22,6 +22,10 @@ export const PREVIEW_ID = "e2e-fixture";
 export const TEST_PASSPHRASE = "preview-e2e-test-passphrase";
 /** A host name that is not potentially trustworthy (WHATWG secure contexts: only localhost, *.localhost, 127/8 and ::1 are). */
 export const PLAIN_HOST = "fw-phone.test";
+
+/** console-api decides every request through the Lean binary (`fwcore`): the owner gate and the grants. Build it first
+ *  (`sh scripts/fwcore-build.sh`); the land lane and the preview-e2e workflow build it before this package runs. */
+export const FWCORE_BIN = join(REPO, "lean/.lake/build/bin/fwcore");
 
 const imp = (rel) => import(pathToFileURL(join(API, rel)).href);
 
@@ -86,6 +90,7 @@ function startTap(port) {
 
 /** Start everything. `lan`: also listen on the LAN address and turn LAN mode on (needs an address; null = loopback only). */
 export async function startRig({ lan = null } = {}) {
+  if (!existsSync(FWCORE_BIN)) throw new Error(`fwcore binary not found at ${FWCORE_BIN}; build it with: sh scripts/fwcore-build.sh`);
   const req = createRequire(join(API, "package.json"));
   const { serve } = await import(pathToFileURL(req.resolve("@hono/node-server")).href);
   const [{ createApp }, { selectCore }, { Store }, { OwnerAuth }, { Grants }, { LoginGuard }, { createPreviewApp }] = await Promise.all([

@@ -285,9 +285,9 @@ def table : List Wf := [
     ".github/scripts/cache-key.mjs", "packages/contracts/golden/ops/cache.jsonl", own "premise-tests.yml"], []⟩,
   ⟨"preview-e2e.yml", ciAll, [
     "packages/e2e-preview/**", "apps/console-api/src/preview/**", "apps/console-api/src/app.ts", "apps/console-api/src/store.ts",
-    "apps/console-api/src/core/**", "apps/console-api/package.json", "lean/Fw/Console/PreviewOwner.lean",
-    "packages/contracts/golden/console/**", "snapshot/**", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
-    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
+    "apps/console-api/src/core/**", "apps/console-api/package.json", "lean/Fw/Console/PreviewOwner.lean", "packages/contracts/golden/console/**",
+    "snapshot/**", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/changed-inputs.mjs",
+    ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
     own "preview-e2e.yml"], []⟩,
   ⟨"sim-speed.yml", ["ci/sim-speed"], [
     "packages/measure-webkit/**", ".github/scripts/sim-speed-*", ".github/scripts/check-simulator.sh",

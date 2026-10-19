@@ -80,6 +80,10 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/setup-lean
+      - name: Build fwcore (console-api decides through it)
+        working-directory: lean
+        run: lake build fwcore
       # console-api is installed for its dependencies (the rig imports its server files); gate-breakpoints because the
       # gate-engine action runs `pnpm exec playwright-core install` from its directory (same playwright-core 1.64.1).
       - uses: ./.github/actions/setup-pnpm
