@@ -417,7 +417,7 @@ def registry : List Premise := [
     testId := "prem.css.number-linear" },
   { id := "css.inherits-false"
     statement := r"\text{a property registered with } \mathrm{inherits}=\bot \text{ and set on } e \text{ reads its initial value on every child } d \ne e"
-    theorems := ["Fw.Parts.MorphTweenOpt.waapi_vis"]
+    theorems := ["Fw.Parts.MorphTweenOpt.waapi_vis", "Fw.Parts.MorphTweenOpt.registrationsScoped_see"]
     engines := both
     testId := "prem.css.inherits-false" },
   { id := "dom.token-toggle-noop"
