@@ -5509,7 +5509,10 @@
     ".github/workflows/chromium-counts.yml",
     "lean/Fw/Engine/Keys.lean",
     "packages/contracts/golden/engine/**",
-    "docs/team/handoffs/counts-only.md"
+    "docs/team/handoffs/counts-only.md",
+    "packages/engine-check/golden/keys.jsonl",
+    "packages/engine-check/test/keys.test.mjs",
+    "research/notes/2026/10-19-counts-only-finding.md"
    ]
   },
   {
@@ -5546,7 +5549,8 @@
     "part-stage",
     "counts-only",
     "contract-rows-from-code",
-    "gate-preset-input"
+    "gate-preset-input",
+    "preset-gate-triage"
    ],
    "owner": "lead",
    "writes": []
@@ -5710,7 +5714,8 @@
     "apps/site/src/parts/morph.tween/**",
     "research/findings/ledger.json",
     "docs/team/handoffs/morph-tween-inherit.md"
-   ]
+   ],
+   "evidence": "7af3df9"
   },
   {
    "devices": [
@@ -5732,7 +5737,11 @@
     "lean/Fw/Gate/PageRoot.lean",
     "lean/Fw/Gate/Coverage.lean",
     "lean/Fw.lean",
-    "docs/team/handoffs/gate-page-root-anchor.md"
+    "docs/team/handoffs/gate-page-root-anchor.md",
+    "packages/gate-breakpoints/src/verdict.mjs",
+    "packages/gate-breakpoints/test/verdict.test.mjs",
+    "packages/contracts/golden/gate/coverage.jsonl",
+    "packages/contracts/golden/**"
    ]
   },
   {
@@ -5857,7 +5866,17 @@
    "milestone": "M5",
    "deps": [],
    "owner": "console-builder",
-   "writes": []
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-inputs.test.ts",
+    "apps/runner/test/land-scope.test.ts",
+    "docs/team/handoffs/land-select-readsonly.md",
+    "docs/team/tools/land.md",
+    "lean/Fw/Console/LandDry.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "packages/contracts/golden/console/land-speed.jsonl"
+   ],
+   "evidence": "bbe9265"
   },
   {
    "devices": [
@@ -5896,7 +5915,8 @@
     "lean/Fw/Parts/PeopleO.lean",
     "lean/Fw/Parts/PeopleCarousel.lean",
     "docs/team/handoffs/lean-specs-now.md"
-   ]
+   ],
+   "evidence": "6a13670"
   },
   {
    "devices": [
@@ -5953,8 +5973,18 @@
     "apps/console-api/test/**",
     "apps/runner/hooks/**",
     "scripts/lint-wallclock.mjs",
-    "docs/team/handoffs/land-wallclock-off-gate.md"
-   ]
+    "docs/team/handoffs/land-wallclock-off-gate.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Console/WallClock.lean",
+    "lean/Fw.lean",
+    "package.json",
+    "packages/*/test/**",
+    "packages/contracts/golden/console/wallclock.jsonl",
+    "scripts/lint-wallclock.test.mjs",
+    "scripts/lint-wallclock-cases/**",
+    "scripts/wallclock-allow.json"
+   ],
+   "evidence": "cb594e2"
   },
   {
    "devices": [
@@ -5972,7 +6002,115 @@
     "apps/site/scripts/prerender*.mjs",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
-    "docs/team/handoffs/gate-preset-input.md"
+    "docs/team/handoffs/gate-preset-input.md",
+    ".github/scripts/gate-search.mjs",
+    ".github/scripts/gate-search.test.mjs",
+    ".github/scripts/gate-smoke.mjs",
+    "lean/Fw.lean",
+    "lean/Fw/Gate/Search.lean",
+    "lean/scripts/SearchGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/gate/search.jsonl"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "waapi-threshold-attr",
+   "title": "Finding (morph-tween-inherit r1): on the waapi arm data-fw-morph is written only at tween start and end, so the panel's discrete attributes may flip at the tween end instead of the threshold frame (visual divergence vs waapi_vis VisSame); Lean model of the attribute timing, then fix or unlink waapi from Λ",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "morph-tween-inherit"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "apps/site/src/parts/morph.tween/**",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "docs/team/handoffs/waapi-threshold-attr.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "premise-inherits-retarget",
+   "title": "Premise css.inherits-false (Fw.Ops.Premise) still cites waapi_vis; point it at panel_blind_without_inherit / registrations_see",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "morph-tween-inherit"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/**",
+    "docs/team/handoffs/premise-inherits-retarget.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wallclock-lint-lean",
+   "title": "After C3: the wall-clock lint's site classification, allow-entry matching and stale rule move from the TS stand-in (scripts/lint-wallclock.mjs) into Lean Fw.Console.WallClock with golden cases",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-wallclock-off-gate"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Console/WallClock.lean",
+    "packages/contracts/golden/console/wallclock.jsonl",
+    "scripts/lint-wallclock.mjs",
+    "docs/team/handoffs/wallclock-lint-lean.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "driver-stage-mode",
+   "title": "Finding (counts-only): the Chromium counts driver cannot measure a ?only= part page (pinEnv default env 1280x800, client-render vs the hydrate gate, pinned scrollY); Lean stage-mode decisions (stage env from the profile, client-render accepted for a parsed ?only=, scroll plan on a stage page), run.mjs and the counts plan follow them; one pilot dispatch",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Engine/**",
+    "lean/Fw/Site/Stage.lean",
+    "lean/Fw.lean",
+    "lean/scripts/**",
+    "packages/measure-chromium/**",
+    ".github/workflows/chromium-counts.yml",
+    "packages/contracts/golden/**",
+    "apps/site/src/stage/**",
+    "apps/site/src/entry-client.tsx",
+    "docs/team/handoffs/driver-stage-mode.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preset-gate-triage",
+   "title": "Finding (gate-preset-input run 39189945037): v2-proved fails the gate on hero.countdown 14/14 (face 64 vs 0), nav 14/14 (actions 1 vs 4, bar 1 vs 2), platform 10/14 (--morph-fade); after morph-tween-inherit, re-gate the preset and bisect by single-flag gate arms (Chromium, <= 4 dispatches); a flag that fails without a Lean-proved same-visual exemption leaves Λ (lead decides)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "morph-tween-inherit",
+    "gate-preset-input"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "research/notes/2026/10-19-preset-gate-triage.md",
+    "results/**",
+    "docs/team/handoffs/preset-gate-triage.md"
    ]
   }
  ],

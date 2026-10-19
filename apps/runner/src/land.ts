@@ -66,8 +66,8 @@ export type LandOptions = {
   /** `--dry` (needs `task`): only the cheap stages (stale base, scope, merge-tree, the static reads test on the merge tree); no lock, no
    *  full check, main untouched. Lean `Fw.Console.LandDry` decides the kind (`Outcome.kind`). */
   dry?: boolean;
-  /** the dry land's reads test: its argv and whether the change selects it; default: the land-inputs test of apps/runner, selected
-   *  when `checksFor` selects apps/runner (tests inject both) */
+  /** the dry land's reads test: its argv and whether the change selects it; default: the land-inputs test, selected when the change
+   *  selects the reads-scan check (`LandSpeed.scan_selected`; tests inject both) */
   dryReads?: { argv: string[]; selected?: boolean };
   /** the dry land's fast lints (argv list, run in the merge-tree worktree); default: `dryLintArgv` (ci-paths --check, and the math-view
    *  lint when the change touches `lean/`) */
@@ -153,12 +153,18 @@ export function siteAssetReads(manifestPath = join(new URL(import.meta.url).path
   const m = JSON.parse(readFileSync(manifestPath, "utf8")) as { files: { src: string }[]; bundled?: string[] };
   return [...new Set([...m.files.map((f) => f.src), ...(m.bundled ?? [])])].sort();
 }
+const WALLCLOCK_LINT_FILES = ["scripts/lint-wallclock.mjs", "scripts/wallclock-allow.json", "scripts/lint-wallclock-cases/**"];
+// land-wallclock-off-gate: test/wallclock-lint.test.ts (runner and console-api) runs scripts/lint-wallclock.mjs, which reads
+// the three files above and every tracked test file in its SCOPE. The runner wrapper also declares those test files, so a
+// changed or new test file anywhere selects the runner and with it the lint; console-api declares only the lint's own files.
+const WALLCLOCK_LINT_TESTS = ["scripts/*.test.mjs", "apps/*/test/**", "packages/*/test/**", ".github/scripts/*.test.mjs", "apps/site/src/**/*.test.*", "apps/site/scripts/*.test.*"];
+
 /** Files a package's tests read outside their own directory and outside their `workspace:` dependencies, found by the
  *  static scan in test/land-inputs.test.ts (which fails on any it finds that is not covered here). Dynamic reads the scan
  *  cannot see are listed in docs/team/handoffs/checksfor-inputs.md. */
 export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
-  "apps/console-api": ["apps/console-web/**", "apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**"],
-  "apps/runner": ["apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
+  "apps/console-api": ["apps/console-web/**", "apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**", ...WALLCLOCK_LINT_FILES],
+  "apps/runner": [...WALLCLOCK_LINT_FILES, ...WALLCLOCK_LINT_TESTS, "apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
     "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh",
     // ci-trigger-lean: test/ci-triggers.test.ts reads every workflow, the guard script and the lint
     ".github/workflows/**", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs",
@@ -211,6 +217,14 @@ export function checkDeps(list: string[][]): number[][] {
   return list.map((a, i) => [...(isInstall(a) ? [] : inst), ...(usesCore(a) ? sh : [])].filter((d) => d !== i));
 }
 
+/** The static read-set scan as its own check: Lean `Fw.Console.LandSpeed.scanId` / `scanReads` / `withScan`. Its reads are every
+ *  inclusion glob any other check declares, so a change to anything a check can read selects it (`scan_selected`), also when
+ *  `apps/runner` itself is not selected. */
+export const READS_SCAN_ID = "reads-scan";
+export const READS_SCAN_ARGV = ["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/land-inputs.test.ts"];
+export const withScan = (cs: Check[]): Check[] =>
+  [...cs, { id: READS_SCAN_ID, argv: READS_SCAN_ARGV, reads: cs.flatMap((c) => c.reads.filter((g) => !g.startsWith("!"))) }];
+
 export function candidateChecks(root: string, fwcoreReads = LEAN_BINARY_READS): Check[] {
   const out: Check[] = [
     { id: "install", argv: ["pnpm", "install", "--frozen-lockfile"], reads: INSTALL_READS },
@@ -228,7 +242,7 @@ export function candidateChecks(root: string, fwcoreReads = LEAN_BINARY_READS): 
       } catch { /* no package.json: nothing to run */ }
     }
   }
-  return out;
+  return withScan(out);
 }
 
 /** The checks that cover the changed files, each with its declared input set. */
@@ -473,12 +487,14 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     return lr.body.ok ? null : `land_request: ${lr.body.reason}`;
   };
 
+  // land checks run on a loaded machine: generous time limits for the source-side waits tests reach
+  const LOAD_TOLERANT_ENV = { FW_CORE_CALL_MS: "60000", FW_HOOK_ASK_TIMEOUT_MS: "30000", FW_EXEC_TIMEOUT_MS: "30000" };
   // check output goes to .fw-console/land-logs/<task|branch>-<sha7>.log (gitignored); one line per check
   const logFile = join(mainDir, ".fw-console", "land-logs", `${(o.task ?? branch).replace(/[^A-Za-z0-9._-]/g, "_")}-${sha.slice(0, 7)}.log`);
   let logStarted = false;
   // async (not spawnSync) so SIGINT/SIGTERM handlers of the land run while a check is running
   const runCheck = (cwd: string, argv: string[]) => new Promise<{ status: number | null; stdout: string; stderr: string; error?: Error }>((resolve) => {
-    const c = spawn(argv[0]!, argv.slice(1), { cwd, env: { ...process.env, ...o.env } });
+    const c = spawn(argv[0]!, argv.slice(1), { cwd, env: { ...LOAD_TOLERANT_ENV, ...process.env, ...o.env } });
     let stdout = "", stderr = "";
     c.stdout.on("data", (d) => { stdout += d; }); c.stderr.on("data", (d) => { stderr += d; });
     const kill = () => { c.kill("SIGTERM"); };
@@ -560,14 +576,14 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
       if (marks) return fail(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, "conflict", outcome({ merges: false }));
       lines.push(`dry: merge ok (${main} ${main0.slice(0, 7)}, tip ${sha.slice(0, 7)}), no conflict markers`);
-      const selected = o.dryReads?.selected ?? selectChecks(candidateChecks(slot.dir), changed).includes("apps/runner");
+      const selected = o.dryReads?.selected ?? selectChecks(candidateChecks(slot.dir), changed).includes(READS_SCAN_ID);
       let test = true, detail = "";
       if (selected) {
-        const argv = o.dryReads?.argv ?? ["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/land-inputs.test.ts"];
+        const argv = o.dryReads?.argv ?? READS_SCAN_ARGV;
         const bad = await runChecks(slot.dir, [argv]);
         test = bad === null; detail = bad ?? "";
         if (test) lines.push("dry: reads ok (the static land-inputs test passes on the merge tree)");
-      } else lines.push("dry: reads not selected (the change does not select apps/runner, so the real land does not run the test either)");
+      } else lines.push("dry: reads not selected (the change selects no read-set scan, so the real land does not run the test either)");
       const reads = !selected || test; // Lean `Stages.reads`: a test the change does not select cannot refuse
       let lints = true;
       if (reads) {

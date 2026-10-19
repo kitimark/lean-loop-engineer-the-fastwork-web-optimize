@@ -101,6 +101,16 @@ describe("fwcore serve: timings (100k synthetic events)", () => {
     expect(b.cards).toHaveLength(4167 + 1000);
     console.log(`fwcore serve: replay ${es.length} events ${replayMs.toFixed(0)} ms; ` +
       `apply round trip p50 ${rtt[500]!.toFixed(0)} µs, p90 ${rtt[900]!.toFixed(0)} µs; query (${b.cards.length} cards) ${queryMs.toFixed(0)} ms`);
-    expect(replayMs).toBeLessThan(5000); // PLAN target < 1 s; the loose bound only catches an O(n²) regression
+    // A load-independent sanity bound, not a regression detector: replay of n/10 events into a fresh core is timed in the
+    // same run, so load scales both sides alike. Child-process spawn cost dominates the small run, so this does not detect
+    // an O(n^2) apply path; replay slowdowns are the CI timing lane's job (Fw.Obs.Timing). K = 3 is slack for noise.
+    const K = 3;
+    const small = synth(417, 4); // 417 cards x 24 events = 10,008 events
+    const c2 = fresh();
+    const s0 = performance.now();
+    await c2.open(() => lines(small));
+    const smallMs = performance.now() - s0;
+    const linearBound = 10 * smallMs * K;
+    expect(replayMs).toBeLessThan(linearBound);
   }, 60_000);
 });
