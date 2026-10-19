@@ -6448,7 +6448,8 @@
     "lean/Fw/Parts/OverlayGolden.lean",
     "lean/Fw/Parts/FootprintData.lean",
     "packages/contracts/golden/parts/footprint.gen.json"
-   ]
+   ],
+   "evidence": "61a4b47"
   },
   {
    "devices": [
