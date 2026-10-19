@@ -1,0 +1,4 @@
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m21 passed[39m[22m[90m (22)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m360 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (362)[39m
+[2m   Start at [22m 12:13:53

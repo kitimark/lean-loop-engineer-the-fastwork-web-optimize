@@ -25,6 +25,9 @@ try {
   const base = NO_API_GROUPS.includes(group ?? "") ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
   if (group === "timings") {
     console.log(rest.includes("--backfill") ? await backfill(rest, process.cwd()) : timingsView(rest, process.cwd()));
+  } else if (group === "checks") {
+    const { checksCli } = await import("./checks.ts");
+    process.exitCode = await checksCli(rest, process.cwd()); // land-lane: the Lean-selected checks of one tier
   } else if (group === "engine-check") {
     process.exitCode = engineCheckCli(rest, process.cwd());
   } else if (group === "run") {
