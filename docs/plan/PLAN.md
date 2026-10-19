@@ -5,7 +5,7 @@ title: "v2 loop-engineering experiment: design and plan (for user review)"
 status: review
 created: 2026-10-17
 updated: 2026-10-19
-revision: 11.1 (round 2 of `plan-rev11`: §4.8 rows restate the Lean hypotheses and conclusions; §10.7 cuts that rest on the open bridge are dropped under premise; passes-type savings model-only. Rev 11: Lego parts: units compose and passes do not (Fw.Engine.Compose, §4.8); the part contract with coupled groups CG1-CG5 (Fw.Parts.Contract, §6.8); waves 1 and 2 to C3 with the CI and speed reviews (§10.7); state at 16207afb; rev 10 was a8c05f4)
+revision: 11.2 (final design round of `plan-rev11`: a theorem cited for a cut carries its If/Then, CONFIRMED only when every If is discharged; units-type combined run and per-flag attribution INFERRED under the open bridge; §4.8 passes and Visual rows split by theorem. Rev 11.1, round 2: §4.8 rows restate the Lean hypotheses and conclusions; §10.7 cuts that rest on the open bridge are dropped under premise; passes-type savings model-only. Rev 11: Lego parts: units compose and passes do not (Fw.Engine.Compose, §4.8); the part contract with coupled groups CG1-CG5 (Fw.Parts.Contract, §6.8); waves 1 and 2 to C3 with the CI and speed reviews (§10.7); state at 16207afb; rev 10 was a8c05f4)
 authors: [agent:plan-architect]
 topics: [plan, architecture, measurement, lean, parts, agent-teams, styling]
 links:
@@ -100,7 +100,8 @@ generated page (§5.3).
   and WebKit (§4.7). CI counts check the models (F0-F6); the phone is an optional spot check; no cost model (Q37).
 - **Parts as Lego (rev 11).** Unit savings of independent parts add up on the page; pass savings are part-local
   unless §4.8's condition holds. The contract (§6.8) says which parts are independent; one combined run per profile
-  replaces one run per units-type flag, and the gate stays whole-page because the original is one page.
+  replaces one run per units-type flag (INFERRED under the open bridge, §4.8 limit 3), and the gate stays whole-page
+  because the original is one page.
 - **MUI everywhere, styles compiled ahead of time** (2026-10-17): Emotion styles rendered at build time into one
   static CSS file (§6.5); a neutrality gate (§6.7) checks MUI adds no sheet mutations, DOM writes or commits.
 - **Chromium counts validate the Chromium model; WebKit is validated on the Simulator lane where it ran, else
@@ -470,13 +471,15 @@ row for the site is CONFIRMED only when the plan discharges every hypothesis; th
 | `frameWork_append_units`, `_hits` (217, 227) | nothing (any two frames, any engine) | page units per stage and page hit tests are the sums of the parts' | unit savings add up |
 | `frame_le_append_units` (234) | per-part ≼ (the full order, passes included) | page ≤ on every stage's units and on hits (not page ≼) | F6 checks units only |
 | `someLt_append_units` (249) | part 1 strictly lower on some stage's units, part 2 no larger on units in every stage | page strictly lower on some stage's units | the second premise is part of the claim |
-| `passes_not_compositional` (137, + `_chromium`, `_webkit`) | a change dirties stage $s$ | there are parts $f_1, g_1, f_2$: $g_1$ skips $s$, $g_1 \prec f_1$ with fewer $s$ passes, $f_2$ touches $s$, and $g_1 \mathbin{+\!\!+} f_2$ runs exactly as many $s$ passes as $f_1 \mathbin{+\!\!+} f_2$ | a pass saving can vanish on the page (equal, never more); reported part-local |
+| `passes_not_compositional` (137, + `_chromium`, `_webkit`) | a change dirties stage $s$ | there are parts $f_1, g_1, f_2$: $g_1$ skips $s$, $f_1$ and $f_2$ touch $s$, $g_1 \prec f_1$ with fewer $s$ passes, and $g_1 \mathbin{+\!\!+} f_2$ runs exactly as many $s$ passes as $f_1 \mathbin{+\!\!+} f_2$ | a pass saving can vanish on the page (equal passes, CONFIRMED); that it never becomes an increase follows by arithmetic from `passes_append` (108) but is stated by no theorem (INFERRED); reported part-local |
 | `frame_le_append_passes_fails` (194) | a change dirties style | there are parts with $v_1 \preceq o_1$, $v_2 \preceq o_2$ and $v_1 \mathbin{+\!\!+} v_2 \not\preceq o_1 \mathbin{+\!\!+} o_2$ | per-part ≼ does **not** give page ≼ |
 | `unionLe_append`, `frame_le_append`, `frame_lt_append` (264, 283, 293) | per-part `unionLe` (stage-set union check, `Core.lean:425`) | page `unionLe` and page ≼; page ≺ if, in addition, part 1 is strictly lower on some stage's units or on hit tests | the page condition |
 | `frame_le_append_cover` (326) | each part covered (a sub-multiset of its original's changes, no more callbacks, forced passes, hits or compositor animations) | page ≼ | the other page condition |
 | `lego_swap_sound` (371) | every part's frame and arm satisfy `ReadsOnly Indep`, and part $p$ is `Indep` of every other part | swapping $p$'s variant leaves every other part's frame, frame work (any engine) and arm unchanged | INFERRED for the site: `Indep` is abstract (limit 3) |
 | `lego_swap_units`, `_visible` (411, 449) | `_units`: frames `ReadsOnly Indep`, $p$ `Indep` of every other part, $p < n$; `_visible`: arms `ReadsOnly Indep`, the same `Indep`, $p$'s height exactly equal and its visible scene equal at every offset | page units move by exactly $p$'s change, per stage; the visible stacked page of parts $0..n-1$ is unchanged from every offset | same premise; stacked parts only |
-| `visible_scene_append`, `Q_append`, `visible_append_of_boxes_eq` (Visual.lean:866, 873, 888) | same part count; part by part exactly equal heights and equal visible scenes at every offset | equal visible stacked page (`stackScene`) from every offset | PL1's ½ px is not covered (INFERRED); nav and overlays are outside `stackScene` |
+| `visible_scene_append` (Visual.lean:866) | nothing | $\mathrm{visible}(S \mathbin{+\!\!+} U) = \mathrm{visible}\,S \mathbin{+\!\!+} \mathrm{visible}\,U$ | visibility splits over parts |
+| `Q_append` (Visual.lean:873) | $Q(S_1,U_1)$ and $Q(S_2,U_2)$ | $Q(S_1 \mathbin{+\!\!+} S_2,\ U_1 \mathbin{+\!\!+} U_2)$ | the tolerance check composes |
+| `visible_append_of_boxes_eq`, `_Q` (Visual.lean:888, 909) | same part count; part by part exactly equal heights and equal (resp. $Q$) visible scenes at every offset | equal (resp. $Q$) visible `stackScene` from every offset | PL1's ½ px box tolerance composes (`boxQ` uses `tolBox`, Visual.lean:232, CONFIRMED); a ½ px band-height difference is not covered (INFERRED); nav and overlays are outside `stackScene` |
 
 **Which way the plan goes.** The Lego note's `frame_le_append` over ≼ alone is false (`frame_le_append_passes_fails`);
 the plan uses the true forms: the combined-run condition is per-part **`unionLe` or cover**, not per-part ≼. A
@@ -1111,14 +1114,19 @@ constant glass, FLIP, st6, typing chunks, PR-040/041.
 
 **The idea** (`10-19-lego-parts-plan.md`). A part cannot be measured alone against the original, because the
 original is one page; the gate and the faithful check stay whole-page. Lean removes repetition only where §4.8's
-hypotheses hold. One **combined** counts run per profile replaces one whole-page run per units-type flag: units add up
-with no hypothesis (`frameWork_append_units`), and F3/F4 check the model. Passes do not add up, so a passes-type flag
+hypotheses hold. One **combined** counts run per profile replaces one whole-page run per units-type flag (INFERRED
+under the open bridge, §4.8 limit 3). If nothing, then page units per stage are the sum of the parts' frames in that
+same run (`frameWork_append_units`, Compose.lean:217). Reading one part's own-flag saving out of the combined run also
+needs its frame unchanged by the other flags: if `ReadsOnly Indep frame` and $p$ is `Indep` of every other part, then
+swapping $p$'s variant moves page units by exactly $p$'s own frame delta (`lego_swap_units`, 411); `Indep` is abstract
+(bridge open) and the rows carry `declared-rows-unverified`, so per-flag attribution is INFERRED until the bridge
+lands. F3/F4 check the combined prediction per part zone; F6 checks additivity after C3. Passes do not add up, so a passes-type flag
 (hidden-pause, scene pausing, panel blur) keeps a **model-only (proof, no count check)** pass saving; one per-flag
 counts run each is scheduled before C3 (tonight, 23:15) if CI minutes allow, and a run that lands replaces that label.
 Sibling gate re-runs and visual re-checks of untouched parts are **dropped under premise** (INFERRED): they rest on
 `lego_swap_sound` and `lego_swap_visible` under the abstract `Indep` (bridge open, §4.8 limit 3), on rows carrying
-`declared-rows-unverified`, and for the visual cut on exactly equal heights (not PL1's ½ px) of stacked parts only,
-never nav or overlays. `scope_sound` (`Scope.lean:710`) does not back them: it needs $u \in$ `pilotParts` (33 part
+`declared-rows-unverified`, and for the visual cut on exactly equal band heights of stacked parts only (box ½ px
+composes under $Q$, `visible_append_of_boxes_Q`), never nav or overlays. `scope_sound` (`Scope.lean:710`) does not back them: it needs $u \in$ `pilotParts` (33 part
 uses, lines 319-470) and says only that a scoped run keeps that part's own verdict, nothing about siblings. Until the
 bridge lands, the two whole-page gates are the evidence for siblings and untouched parts. Content lanes change no
 mechanism and need no theorem. Every part carries a contract row and a units-or-passes tag for its win.
@@ -1308,6 +1316,20 @@ SPK-q; SPK-n (device link) moot without phone sessions. **Out of scope for v2:**
 ## Appendix C. (folded into Q17, §12.2, in revision 9)
 
 ## Appendix D. Review log
+
+### Revision 11.2 (final design round of `plan-rev11`; review of 45c46c37 refused)
+
+Inputs: the round-2 review (1 medium, 2 low, 2 info) and the Fable retro. Both refusals were one defect: a theorem
+cited as the reason for a cut without its hypotheses. Rule now applied per sentence: every theorem mention carries
+If/Then from the Lean statement; a cut or saving is CONFIRMED only if every If holds for the site today, else
+INFERRED naming the open premise. Five sentences rewritten, nothing else; line cuts wait for rev 12.
+
+| Change | Where |
+|---|---|
+| Units-type combined run: INFERRED under the open bridge. `frameWork_append_units` (217) gives the page sum within one run with no hypothesis; per-flag attribution needs `lego_swap_units` (411), whose `Indep` is abstract, so it is INFERRED until the bridge lands. F3/F4 check the combined prediction per part zone; F6 checks additivity after C3 | §10.7 S1, §0 S2 |
+| `passes_not_compositional`: Then restated ($f_1$ and $f_2$ touch $s$); "equal passes" CONFIRMED; "never an increase" follows from `passes_append` (108) by arithmetic, stated by no theorem (INFERRED) | §4.8 S3 |
+| Visual row split into three: `visible_scene_append`, `Q_append`, `visible_append_of_boxes_eq`/`_Q` (909 added). PL1's ½ px box tolerance composes (`boxQ` uses `tolBox`, CONFIRMED); a ½ px band-height difference is not covered (INFERRED) | §4.8 S4, §10.7 S5 |
+| Accepted limits: plan stays ~1,365 lines; bridge task added by the lead; C3 facts, per-flag passes runs and F6 go in rev 12; no new theorem. Follow-ups: `passes_append_le` and the bridge proof (owner `lean-prover`) | review note |
 
 ### Revision 11.1 (round 2 of `plan-rev11`; review of ce0df27d refused)
 
