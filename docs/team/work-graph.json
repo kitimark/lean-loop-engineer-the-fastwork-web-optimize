@@ -5361,7 +5361,11 @@
     "site-assets"
    ],
    "owner": "lead",
-   "writes": []
+   "writes": [
+    "docs/team/handoffs/integrate-wave-1.md",
+    "research/notes/2026/10-19-integrate-wave-1.md",
+    "results/**"
+   ]
   },
   {
    "devices": [
@@ -6111,6 +6115,31 @@
     "research/notes/2026/10-19-preset-gate-triage.md",
     "results/**",
     "docs/team/handoffs/preset-gate-triage.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "alert-rules-fix",
+   "title": "Fable alert review (research/notes/2026/10-19-alert-rules.md): resume = a SubagentStart after the Stop (identity; fixes 3/3 false agent.stalled and the Ops/Obs revive_on_event twin), ci.failed decided per (workflow, branch, headSha) set once every run completed, timing.slow key includes the run kind and alerts on the ok->slow transition, per-workflow ciSlowMin, console fwcore call timeout under load (svc.sweepError); each rule in Lean with golden vectors from today's spools",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Ops/Obs.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "lean/Fw.lean",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/next.ts",
+    "apps/runner/test/**",
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "packages/contracts/golden/**",
+    "research/notes/2026/10-19-alert-rules.md",
+    "docs/team/handoffs/alert-rules-fix.md"
    ]
   }
  ],
