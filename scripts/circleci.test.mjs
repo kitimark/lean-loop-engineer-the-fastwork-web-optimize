@@ -4,7 +4,7 @@
 import { strict as assert } from 'node:assert';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { tmpdir, userInfo } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -253,7 +253,7 @@ test('the recorded webkit-sim stall (pipeline 36): CircleCI fails, GitHub passes
 test('the recorded fixtures carry no token, e-mail, home path or account name', () => {
   for (const n of ['premise-tests', 'premise-tests-large', 'webkit-sim', 'webkit-sim-stall']) {
     const text = readFileSync(join(ROOT, 'scripts', 'circleci-fixtures', `${n}.json`), 'utf8');
-    assert.ok(!/\/Users\/|kitimark|markmark/.test(text), n);
+    assert.ok(!text.includes('/Users/') && !text.includes(userInfo().username) && !text.includes('kitimark'), n);
     assert.deepEqual([...new Set(text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/g) ?? [])], ['noreply@anthropic.com'], n);
     assert.ok(!/Circle-Token|"token"/i.test(text), n);
   }

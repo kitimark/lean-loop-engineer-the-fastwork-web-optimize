@@ -23,10 +23,12 @@ Pipelines on this project (the project-wide numbering counts every push; job lis
 - API pilot pipelines: 15, 16, 18 (round 2), 36 and 45 (sim, this round). Pipeline 18 is the replaced sim row: its job
   exit was masked by `tee`, so its "equal" was not a check; its 992 credits were spent all the same.
 - Pilot webhook pipelines 7, 14, 35 and 44 (pushes of `ci/circleci-pilot`) ran no workflow (lane-gated config), 0 credits.
-- Other `ci/*` webhook pipelines 3, 5, 8-13, 17, 19-34, 37-40, 42, 43, 46, 47 (33 of them at the time of listing) each ran
+- Other `ci/*` webhook pipelines 3, 5, 8-13, 17, 19-34, 37-40, 42, 43, 46, 47 (33 up to pipeline 47, job listings checked; later `ci/*` pushes 48-57, 59 and 60 not checked) each ran
   main's stub job `probe` (CONFIRMED by their job listings, e.g. pipeline 17 job 16). That is not pilot cost; about 1 credit
   each is INFERRED. Landing this branch ends it only for branches that merge main later; deleting the push trigger (setup
   step 4 in the tool doc) is open for the user.
+- Pipelines 1 and 4 are the setup smoke API pipelines (main, `ci/circleci-smoke`); 2, 6 and 41 are main pushes, which
+  the stub's `^ci/` rule does not run.
 
 | Pair | CircleCI class | Verdict | CircleCI s | GitHub s | Ratio | Queue GitHub / CircleCI | CircleCI credits (INFERRED, Lean `credits` from the price list) | GitHub cost: 0 billed (public repo, standard runners; CONFIRMED research/notes/2026/10-20-circleci-free-tier.md:44) |
 |---|---|---|---|---|---|---|---|---|
@@ -56,6 +58,7 @@ The sim pair, step by step (CircleCI pipeline 45 spans from `run.json`; GitHub s
 | determinism session (`--runs 2`, the same command) | 235.3 | 1197 |
 | simulator delete | 0.6 | 24 |
 | upload and the rest | 1.3 | 65 (keep logs 37, artifact upload 15, telemetry 4, job set up and complete 4, tool facts and post steps and rounding 5) |
+| between steps (no span) | 15.8 (12.9 between boot and session) | 0 |
 | job | 307.3 | 1700 |
 
 The 0.18x ratio is the boot (33 s against 378 s) and the session (235 s against 1197 s). GitHub's own boot was 74 s in the
