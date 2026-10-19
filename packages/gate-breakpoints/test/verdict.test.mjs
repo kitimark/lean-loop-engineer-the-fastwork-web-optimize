@@ -20,10 +20,11 @@ test('golden: the binary answers the saved-run cases as Lean does', () => {
 });
 
 test('golden: the literal cases, refusals included', () => {
-  for (const c of lines('literal.jsonl')) {
-    if (c.response.error !== undefined) assert.throws(() => call([c.request]), new RegExp(c.response.error.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), c.name);
-    else assert.deepEqual(call([c.request])[0], c.response, c.name);
-  }
+  const all = lines('literal.jsonl');
+  const ok = all.filter((c) => c.response.error === undefined);
+  const got = call(ok.map((c) => c.request));
+  ok.forEach((c, i) => assert.deepEqual(got[i], c.response, c.name));
+  for (const c of all.filter((x) => x.response.error !== undefined)) assert.throws(() => call([c.request]), new RegExp(c.response.error.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), c.name);
 });
 
 test('cellVerdict: the one rule', () => {

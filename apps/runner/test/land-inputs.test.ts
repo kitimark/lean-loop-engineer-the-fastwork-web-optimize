@@ -31,6 +31,13 @@ describe("the choice of checks equals the Lean decision", () => {
     const decl = (selects[0].request.checks as Decl[]).find((d) => d.id === "check.sh")!;
     expect(CHECK_SH_READS).toEqual(decl.reads);
   });
+  it("apps/site declares a read for every snapshot asset of its manifest (listed <=> read)", () => {
+    const m = JSON.parse(readFileSync(join(root, "apps/site/assets.manifest.json"), "utf8")) as { files: { src: string }[]; bundled: string[] };
+    const site = candidateChecks(root).find((c) => c.id === "apps/site")!;
+    for (const f of m.files) expect(inScope(site.reads, f.src), f.src).toBe(true);
+    for (const g of m.bundled) expect(site.reads).toContain(g);
+    expect(inScope(site.reads, "snapshot/site/selling/hero/not-listed.jpg")).toBe(false);
+  });
   it("checksFor is the argv of the selected checks, in table order", () => {
     const all = candidateChecks(root);
     expect(all.map((c) => c.id).slice(0, 2)).toEqual(["install", "check.sh"]);
