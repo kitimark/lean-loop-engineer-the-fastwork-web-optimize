@@ -285,8 +285,8 @@ theorem never_lists_named_by_trace (c : Config) (fs : List Fact) (ws : List Chec
   simp only [referenced, hc, Option.getD_some, List.any_eq_false, refersTo, Bool.or_eq_true, not_or] at h
   simpa using (h w hw).1
 
-/-- **Never lists an entry a checkout's hash file names.** -/
-theorem never_lists_named_by_hash (c : Config) (fs : List Fact) (ws : List Checkout) (w : Checkout) (f : Fact)
+/-- **Never lists an entry whose stem a checkout names.** -/
+theorem never_lists_named_by_stem (c : Config) (fs : List Fact) (ws : List Checkout) (w : Checkout) (f : Fact)
     (hc : c.checkouts = some ws) (hw : w ∈ ws) (hf : f ∈ gcList c fs) : w.refs.contains (stem f.name) = false := by
   have h := listed_unreferenced c fs f hf
   simp only [referenced, hc, Option.getD_some, List.any_eq_false, refersTo, Bool.or_eq_true, not_or] at h
