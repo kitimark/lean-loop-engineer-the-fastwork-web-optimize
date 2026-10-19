@@ -613,4 +613,341 @@ theorem tick_passes_eq {P M : Type} (E : Engine P M) (f : FrameIn P) (n : Nat) (
   · simp [h, hm.mpr h]
   · simp [h, mt hm.mp h]
 
+/-! ## Variant `visible-idem`: skip the cover clear that commits nothing new
+
+React writes a style key only when its new value differs from the last committed one
+(`CSSPropertyOperations.js:151-157`@61aa00d, old props from `ReactFiberCommitWork.js:2244-2248`@61aa00d). -/
+
+namespace Idem
+
+/-- The driver's view: the base notes, the extra notes and the dragged note.
+
+What `commit` hands React. -/
+structure M (N : Type) where
+  base : List N
+  extras : List N
+  dragging : Option Nat
+
+/-- The view, React's last committed props (`last`), what the elements hold (`dom`), and whether a move wrote an
+element since that commit (`dirty`).
+
+The notes as the driver and the page hold them. -/
+structure Sys (N K V : Type) where
+  m : M N
+  last : K → V
+  dom : K → V
+  dirty : Bool
+
+/-- The parts the model leaves open: the render from the view to props, a move's view update (`setPos`) and its
+direct element write (`writeNote`).
+
+Any renderer and any move. -/
+structure Ops (N K V I P : Type) where
+  render : M N → K → V
+  setPos : I → P → M N → M N
+  write : I → P → (K → V) → (K → V)
+
+/-- An event the notes see: a scroll frame (`covered`: the commission card's top is above `0.995·innerHeight`), a move
+of note `i` to `p` (drag or key), or any other committing handler (layout, tick, drag start and end, IO leave).
+
+The things that can change the notes, in order. -/
+inductive Ev (N I P : Type) where
+  | scroll (covered : Bool)
+  | move (i : I) (p : P)
+  | other (g : M N → M N)
+
+variable {N K V I P : Type} [DecidableEq V]
+
+/-- One React commit of the current view: a key whose rendered value differs from the last committed one is written,
+every other key keeps what the element holds.
+
+What `env.commit` does to the page. -/
+def commit (o : Ops N K V I P) (s : Sys N K V) : Sys N K V :=
+  { s with dom := fun k => if o.render s.m k = s.last k then s.dom k else o.render s.m k, last := o.render s.m,
+           dirty := false }
+
+/-- The cover clear's state change: no extra notes.
+
+`extras = []`. -/
+def clear (s : Sys N K V) : Sys N K V := { s with m := { s.m with extras := [] } }
+
+/-- A move: the view takes the new position and the element is written directly, without a commit.
+
+`setPos` in driver.ts. -/
+def onMove (o : Ops N K V I P) (i : I) (p : P) (s : Sys N K V) : Sys N K V :=
+  { s with m := o.setPos i p s.m, dom := o.write i p s.dom, dirty := true }
+
+/-- **The original's step**: a covered scroll frame always clears and commits.
+
+How `visible` reacts to one event. -/
+def stepO (o : Ops N K V I P) (s : Sys N K V) : Ev N I P → Sys N K V
+  | .scroll c => if c then commit o (clear s) else s
+  | .move i p => onMove o i p s
+  | .other g => commit o { s with m := g s.m }
+
+/-- **The variant's skip** (decision function): no extra notes and no move since the last commit.
+
+When the cover clear would hand React the view it already has. -/
+def skips (s : Sys N K V) : Bool := s.m.extras.isEmpty && !s.dirty
+
+/-- **The variant's step**: a covered scroll frame commits unless `skips`.
+
+How `visible-idem` reacts to one event. -/
+def stepV (o : Ops N K V I P) (s : Sys N K V) : Ev N I P → Sys N K V
+  | .scroll c => if c && !skips s then commit o (clear s) else s
+  | .move i p => onMove o i p s
+  | .other g => commit o { s with m := g s.m }
+
+/-- **The rejected step**: a covered scroll frame commits only while extra notes exist, ignoring moves.
+
+`if (extras.length) { extras = []; view(); }`. -/
+def stepN (o : Ops N K V I P) (s : Sys N K V) : Ev N I P → Sys N K V
+  | .scroll c => if c && !s.m.extras.isEmpty then commit o (clear s) else s
+  | .move i p => onMove o i p s
+  | .other g => commit o { s with m := g s.m }
+
+/-- Whether the original commits on this event.
+
+One React render or none. -/
+def didO (_ : Sys N K V) : Ev N I P → Bool
+  | .scroll c => c
+  | .move _ _ => false
+  | .other _ => true
+
+/-- Whether the variant commits on this event.
+
+One React render or none. -/
+def didV (s : Sys N K V) : Ev N I P → Bool
+  | .scroll c => c && !skips s
+  | .move _ _ => false
+  | .other _ => true
+
+/-- The original's system after the events.
+
+The page after these events. -/
+def runO (o : Ops N K V I P) (s0 : Sys N K V) (evs : List (Ev N I P)) : Sys N K V := evs.foldl (stepO o) s0
+
+/-- The variant's system after the events.
+
+The page after these events. -/
+def runV (o : Ops N K V I P) (s0 : Sys N K V) (evs : List (Ev N I P)) : Sys N K V := evs.foldl (stepV o) s0
+
+/-- The rejected variant's system after the events.
+
+The page after these events. -/
+def runN (o : Ops N K V I P) (s0 : Sys N K V) (evs : List (Ev N I P)) : Sys N K V := evs.foldl (stepN o) s0
+
+/-- The original's commits over the events.
+
+How many React renders the original asks for. -/
+def countO (o : Ops N K V I P) : Sys N K V → List (Ev N I P) → Nat
+  | _, [] => 0
+  | s, e :: es => (if didO s e then 1 else 0) + countO o (stepO o s e) es
+
+/-- The variant's commits over the events.
+
+How many React renders the variant asks for. -/
+def countV (o : Ops N K V I P) : Sys N K V → List (Ev N I P) → Nat
+  | _, [] => 0
+  | s, e :: es => (if didV s e then 1 else 0) + countV o (stepV o s e) es
+
+/-- **The invariant**: with no move since the last commit, the last committed props are the render of the view.
+
+React's memory matches the view unless a move wrote around it. -/
+def Inv (o : Ops N K V I P) (s : Sys N K V) : Prop := s.dirty = false → s.last = o.render s.m
+
+omit [DecidableEq V] in
+/-- After the mount commit of view `m` the invariant holds.
+
+The first render starts in step. -/
+theorem inv_mount (o : Ops N K V I P) (m : M N) : Inv o ⟨m, o.render m, o.render m, false⟩ := fun _ => rfl
+
+/-- A commit restores the invariant.
+
+After a render, React's memory is the view. -/
+theorem inv_commit (o : Ops N K V I P) (s : Sys N K V) : Inv o (commit o s) := fun _ => rfl
+
+/-- **Every original step keeps the invariant.**
+
+No event breaks it. -/
+theorem inv_step (o : Ops N K V I P) (s : Sys N K V) (e : Ev N I P) (h : Inv o s) : Inv o (stepO o s e) := by
+  cases e with
+  | scroll c => cases c
+                · exact h
+                · exact inv_commit o _
+  | move i p => intro hd; simp [onMove, stepO] at hd
+  | other g => exact inv_commit o _
+
+/-- **A skipped clear is idempotent**: under the invariant, when `skips` holds the original's clear-and-commit leaves
+the view, the props memory and every element as they were.
+
+The covered frame's commit writes nothing. -/
+theorem scroll_idem (o : Ops N K V I P) (s : Sys N K V) (h : Inv o s) (hs : skips s = true) :
+    commit o (clear s) = s := by
+  obtain ⟨⟨b, ex, d⟩, last, dom, dirty⟩ := s
+  simp only [skips, Bool.and_eq_true, List.isEmpty_iff, Bool.not_eq_true'] at hs
+  obtain ⟨rfl, rfl⟩ := hs
+  have hl := h rfl
+  simp only at hl
+  subst hl
+  simp [commit, clear]
+
+/-- The variant's step equals the original's under the invariant.
+
+Skipping or committing gives the same page. -/
+theorem step_eq (o : Ops N K V I P) (s : Sys N K V) (e : Ev N I P) (h : Inv o s) : stepV o s e = stepO o s e := by
+  cases e with
+  | scroll c =>
+    cases c
+    · rfl
+    · cases hs : skips s
+      · simp [stepV, stepO, hs]
+      · simp [stepV, stepO, hs, scroll_idem o s h hs]
+  | move i p => rfl
+  | other g => rfl
+
+/-- **The variant's page equals the original's after every event list**: the view, React's props memory, every
+element and the move flag.
+
+Skipping the idempotent commits ends in exactly the original's page. -/
+theorem run_eq (o : Ops N K V I P) : ∀ (s0 : Sys N K V) (evs : List (Ev N I P)), Inv o s0 →
+    runV o s0 evs = runO o s0 evs
+  | _, [], _ => rfl
+  | s0, e :: es, h => by
+    simp only [runV, runO, List.foldl_cons]
+    rw [step_eq o s0 e h]
+    exact run_eq o _ es (inv_step o s0 e h)
+
+/-- **Same DOM at every instant** (class E): after the first `n` events, for every `n` and every event list, the
+elements hold the same values in both arms.
+
+The two arms show the same notes at every moment. -/
+theorem scroll_dom_eq (o : Ops N K V I P) (s0 : Sys N K V) (h : Inv o s0) (evs : List (Ev N I P)) (n : Nat) :
+    (runV o s0 (evs.take n)).dom = (runO o s0 (evs.take n)).dom := by
+  rw [run_eq o s0 _ h]
+
+/-- **The variant never commits more.**
+
+At most the original's React renders. -/
+theorem commits_le (o : Ops N K V I P) : ∀ (s0 : Sys N K V) (evs : List (Ev N I P)), Inv o s0 →
+    countV o s0 evs ≤ countO o s0 evs
+  | _, [], _ => Nat.le_refl 0
+  | s0, e :: es, h => by
+    have ih := commits_le o (stepO o s0 e) es (inv_step o s0 e h)
+    have hd : (if didV s0 e then 1 else 0) ≤ (if didO s0 e then 1 else 0) := by
+      cases e with
+      | scroll c => cases c <;> simp [didV, didO]; split <;> simp
+      | move i p => simp [didV, didO]
+      | other g => simp [didV, didO]
+    simp only [countV, countO, step_eq o s0 e h]
+    omega
+
+/-- The original's commits split at any point of the list.
+
+Counting in two parts. -/
+theorem countO_append (o : Ops N K V I P) : ∀ (s : Sys N K V) (p q : List (Ev N I P)),
+    countO o s (p ++ q) = countO o s p + countO o (runO o s p) q
+  | _, [], _ => by simp [countO, runO]
+  | s, e :: es, q => by
+    simp only [List.cons_append, countO, runO, List.foldl_cons]
+    rw [countO_append o _ es q]
+    simp only [runO]
+    omega
+
+/-- The variant's commits split at any point of the list.
+
+Counting in two parts. -/
+theorem countV_append (o : Ops N K V I P) : ∀ (s : Sys N K V) (p q : List (Ev N I P)),
+    countV o s (p ++ q) = countV o s p + countV o (runV o s p) q
+  | _, [], _ => by simp [countV, runV]
+  | s, e :: es, q => by
+    simp only [List.cons_append, countV, runV, List.foldl_cons]
+    rw [countV_append o _ es q]
+    simp only [runV]
+    omega
+
+/-- **Strictly fewer commits** when some covered scroll frame meets `skips` (no extra notes, no move since the last
+commit): the variant saves at least that frame's React render.
+
+Each idempotent covered frame is one render less. -/
+theorem commits_lt (o : Ops N K V I P) (s0 : Sys N K V) (h : Inv o s0) (p q : List (Ev N I P))
+    (hs : skips (runO o s0 p) = true) :
+    countV o s0 (p ++ Ev.scroll true :: q) < countO o s0 (p ++ Ev.scroll true :: q) := by
+  have hi : ∀ (l : List (Ev N I P)) (s : Sys N K V), Inv o s → Inv o (runO o s l) := by
+    intro l
+    induction l with
+    | nil => intro s hs; exact hs
+    | cons e es ih => intro s hs; exact ih _ (inv_step o s e hs)
+  have hp := hi p s0 h
+  have hle := commits_le o _ q (inv_step o (runO o s0 p) (.scroll true) hp)
+  have hpl := commits_le o s0 p h
+  rw [countV_append, countO_append, run_eq o s0 p h]
+  simp only [countV, countO, didV, didO, hs, step_eq o _ _ hp]
+  simp only [Bool.not_true, Bool.and_false, Bool.false_eq_true, ↓reduceIte] at *
+  omega
+
+/-! ### One note on a line: the counterexample and the golden instance -/
+
+/-- One note's position on a line; a move writes it, the render shows the first base note.
+
+The smallest page with a movable note. -/
+def lineOps : Ops Nat Unit Nat Unit Nat where
+  render m _ := m.base.headD 0
+  setPos _ p m := { m with base := [p] }
+  write _ p _ := fun _ => p
+
+/-- The mounted page: one base note at 0, no extra notes, rendered and committed.
+
+The start of every golden trace. -/
+def line0 : Sys Nat Unit Nat := ⟨⟨[0], [], none⟩, fun _ => 0, fun _ => 0, false⟩
+
+/-- A layout back to 0 (a resize that keeps the stage width, JS 4555 `ce`).
+
+The base layout puts the note back. -/
+def relayout : Ev Nat Unit Nat := .other fun m => { m with base := [0] }
+
+/-- An added extra note (the 3 s tick).
+
+One more note. -/
+def addOne : Ev Nat Unit Nat := .other fun m => { m with extras := m.extras ++ [m.extras.length] }
+
+/-- The mounted page satisfies the invariant.
+
+Every golden trace starts in step. -/
+theorem line0_inv : Inv lineOps line0 := inv_mount lineOps ⟨[0], [], none⟩
+
+/-- **The rejected step is not E.** Move the note to 1, scroll one covered frame, lay out back to 0: the original's
+covered commit taught React the moved value, so the layout writes 0; the rejected variant skipped it, React still
+remembers 0, writes nothing, and the note stays at 1.
+
+Skipping on `extras = []` alone leaves a moved note where the original puts it back. -/
+theorem naive_not_E :
+    (runN lineOps line0 [.move () 1, .scroll true, relayout]).dom () = 1 ∧
+      (runO lineOps line0 [.move () 1, .scroll true, relayout]).dom () = 0 := by decide
+
+/-- The event a golden word names: `cover`, `open`, `key`, `add` or `layout`.
+
+The trace vocabulary the TS replay shares. -/
+def evOf : String → Ev Nat Unit Nat
+  | "cover" => .scroll true
+  | "key" => .move () 1
+  | "add" => addOne
+  | "layout" => relayout
+  | _ => .scroll false
+
+/-- **Golden commit counts** (original, variant) for a trace of golden words from the mounted page.
+
+What the TS driver must count. -/
+def goldenCommits (ws : List String) : Nat × Nat :=
+  let evs := ws.map evOf
+  (countO lineOps line0 evs, countV lineOps line0 evs)
+
+#guard goldenCommits ["cover", "cover", "cover"] == (3, 0)
+#guard goldenCommits ["add", "cover", "cover", "open", "cover"] == (4, 2)
+#guard goldenCommits ["key", "cover", "cover"] == (2, 1)
+#guard goldenCommits ["open", "open"] == (0, 0)
+#guard skips line0 && !skips (stepO lineOps line0 (.move () 1)) && !skips (stepO lineOps line0 addOne)
+
+end Idem
+
 end Fw.Parts.PainNotesOpt
