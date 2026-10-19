@@ -3,6 +3,7 @@ import { getClock } from '../../engine/clock';
 import { registerScroll } from '../../engine/scroll';
 import type { PanelWriter } from '../morph.panel';
 import { LangMenu, type LocaleCode } from '../nav.langMenu';
+import { PROFILE_SECTION_SELECTOR, PROFILE_STICKY_SELECTOR } from '../nav.hitTest/probe';
 import { createNavDriver, type NavEnv } from './driver';
 import { CLASS_OF, type Sticky } from './logic';
 import { matchList } from './media';
@@ -62,8 +63,8 @@ function measureSticky(stickySelector: string, sectionSelector: string): Sticky 
 export function Nav({
   heroSelector = '[data-fw="hero-exit"]',
   splashSelector = '.hero.is-ring-splash-done',
-  stickySelector = '.start-selling-profile-sticky',
-  sectionSelector = '#profile-showcase, .start-selling-profile',
+  stickySelector = PROFILE_STICKY_SELECTOR,
+  sectionSelector = PROFILE_SECTION_SELECTOR,
   locale = 'en',
   onSelectLocale,
   onJoin,
