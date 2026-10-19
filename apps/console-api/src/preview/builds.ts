@@ -85,7 +85,7 @@ export function evidenceLands(tasks: WorkTask[], git: Git): { evidence: { task: 
       const full = (git(["rev-parse", "--verify", "--quiet", `${tok}^{commit}`]) ?? "").trim();
       if (!full) continue;
       land = firstParent.has(full) ? full : oldestWith(full);
-      break;
+      if (land) break;
     }
     if (land) evidence.push({ task: t.id, sha: land }); else missing.push(t.id);
   }
