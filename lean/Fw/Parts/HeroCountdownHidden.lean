@@ -120,8 +120,8 @@ def exitVal (ex : Option Rat) : Rat := ex.getD 1
 
 $$\forall x \in \mathbb{Q}_\bot,\ \forall \mathit{vp}, R \in \mathrm{Rect}:\ \operatorname{gateHidden}(x, \mathit{vp}, R) = \big(x = 0\big) \lor \operatorname{farOff}(\mathit{vp}, R)$$
 
-Hold the face writes while the copy is transparent or the track is more than a viewport away; a missing write never
-hides. -/
+Here $x = 0$ means a written 0 ($\bot \ne 0$). Hold the face writes while the copy is transparent or the track is
+more than a viewport away; before hero.exit writes, only distance closes the gate. -/
 def gateHidden (ex : Option Rat) (vp R : Rect) : Bool := decide (ex = some 0) || farOff vp R
 
 /-- **The decision, both branches.**
@@ -406,10 +406,11 @@ open Fw.Engine.Chromium Fw.Engine.WebKit in
 held) is strictly below the original's frame in the Chromium lane and in WebKit, and the reopening frame (any subset
 of the face writes) costs at most the original's frame in every engine.
 
-$$\forall d \in \mathbb{N},\ \forall l:\ 0 < d \Rightarrow W^{\mathrm{cr}}(\operatorname{skipWrites}(\operatorname{cdFrame}(\mathrm{css}(\mathrm{transform}), d, l))) \prec W^{\mathrm{cr}}(\operatorname{cdFrame}(\mathrm{css}(\mathrm{transform}), d, l)) \land W^{\mathrm{wk}}(\operatorname{skipWrites}(\operatorname{cdFrame}(\mathrm{transform}, d, l))) \prec W^{\mathrm{wk}}(\operatorname{cdFrame}(\mathrm{transform}, d, l))$$
-$$\forall E,\ \forall p, d, l,\ \forall q:\ W^{E}(\operatorname{unhide}(p, d, l, q)) \preceq W^{E}(\operatorname{cdFrame}(p, d, l))$$
+$$\forall d \in \mathbb{N},\ \forall l:\ 0 < d \Rightarrow \Big(W^{\mathrm{cr}}(\operatorname{skipWrites}(\operatorname{cdFrame}(\mathrm{css}(\mathrm{transform}), d, l))) \prec W^{\mathrm{cr}}(\operatorname{cdFrame}(\mathrm{css}(\mathrm{transform}), d, l))$$
+$$\land\ W^{\mathrm{wk}}(\operatorname{skipWrites}(\operatorname{cdFrame}(\mathrm{transform}, d, l))) \prec W^{\mathrm{wk}}(\operatorname{cdFrame}(\mathrm{transform}, d, l))$$
+$$\land\ \forall E,\ \forall p,\ \forall \kappa:\ W^{E}(\operatorname{unhideFrame}(p, d, l, \kappa)) \preceq W^{E}(\operatorname{cdFrame}(p, d, l))\Big)$$
 
-The hidden clock saves the style pass per springing frame in both engines and its re-sync never costs more than an
+Here $\kappa$ is any filter on the frame's changes (the held writes the reopening frame replays). The hidden clock saves the style pass per springing frame in both engines and its re-sync never costs more than an
 original frame (`cr_countdown_style`, `wk_countdown_style`, `unhide_le`). -/
 theorem hidden_work (d : Nat) (l : LayerState) (hd : 0 < d) :
     (frameWork chromium (skipWrites (cdFrame (.css .transform) d l))).lt
@@ -484,7 +485,9 @@ def goldenText : String := String.join (zones.map fun z => (row z).compress ++ "
 
 /-- Print the golden, or with `--check <file>` compare it byte for byte (exit 1 on a difference).
 
-$$\forall f:\ \operatorname{run}(\texttt{--check}\ f) = 0 \iff \operatorname{bytes}(f) = \mathrm{goldenText}$$ -/
+$$\forall f:\ \operatorname{run}([\texttt{--check}, f]) = \begin{cases} 0 & \operatorname{bytes}(f) = \mathrm{goldenText} \\ 1 & \text{otherwise} \end{cases}$$
+
+Any other argument list prints goldenText and returns 0; an unreadable $f$ raises an IO error instead of a code. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
