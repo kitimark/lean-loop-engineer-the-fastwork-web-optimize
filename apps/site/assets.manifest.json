@@ -348,6 +348,34 @@
   {
    "url": "/selling/icons/pin.svg",
    "src": "snapshot/site/selling/icons/pin.svg"
+  },
+  {
+   "url": "/icon-192.png",
+   "src": "snapshot/site/icon-192.png"
+  },
+  {
+   "url": "/favicon.ico",
+   "src": "snapshot/site/favicon.ico"
+  },
+  {
+   "url": "/favicon.svg",
+   "src": "snapshot/site/favicon.svg"
+  },
+  {
+   "url": "/apple-touch-icon.png",
+   "src": "snapshot/site/apple-touch-icon.png"
+  },
+  {
+   "url": "/site.webmanifest",
+   "src": "snapshot/site/site.webmanifest"
+  },
+  {
+   "url": "/icon-512.png",
+   "src": "snapshot/site/icon-512.png"
+  },
+  {
+   "url": "/icon-maskable-512.png",
+   "src": "snapshot/site/icon-maskable-512.png"
   }
  ],
  "bundled": [
