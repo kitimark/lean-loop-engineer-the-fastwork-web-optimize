@@ -1,7 +1,7 @@
 // timing-alert: `timing.slow` / `NEXT investigate step=` come from fwcore's Fw.Obs.Timing verdicts (obs.slow), the TS is
 // checked against packages/contracts/golden/obs/timing.jsonl; and the two watch false positives (landed after
 // `fw land`, alert while the land lock is held) are decided by Lean (Fw.Obs.Next lands) from the facts built here.
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -18,6 +18,17 @@ const core = coreCaller([fwcore]);
 const golden = readFileSync(join(root, "packages/contracts/golden/obs/timing.jsonl"), "utf8").trim().split("\n")
   .map((l) => JSON.parse(l) as { name: string; request: { op: string; params: unknown; samples: unknown[] }; response: { verdicts: unknown[] } });
 
+const batchCore = (reqs: object[]) => {
+  const input = reqs.map((q, i) => JSON.stringify({ id: i, ...q })).join("\n") + "\n";
+  const r = spawnSync(fwcore, [], { input, encoding: "utf8", timeout: 120_000, maxBuffer: 64 << 20, env: { ...process.env, LEAN_ABORT_ON_PANIC: "1" } });
+  const byId = new Map<number, Record<string, unknown>>();
+  for (const l of (r.stdout ?? "").split("\n").filter(Boolean)) { const m = JSON.parse(l) as { id: number }; byId.set(m.id, m); }
+  return byId;
+};
+const goldenReq = (op: string) => golden.map((g) => ({ op, params: g.request.params, samples: g.request.samples }));
+let timingBatch: Map<number, Record<string, unknown>> | null = null;
+let slowBatch: Map<number, Record<string, unknown>> | null = null;
+
 const dirs: string[] = [];
 afterAll(() => dirs.forEach((d) => rmSync(d, { recursive: true, force: true })));
 
@@ -27,21 +38,26 @@ describe.skipIf(!haveCore)("obs.timing / obs.slow against the Lean golden", () =
     const withCeil = golden.filter((g) => ((g.request.params as { ceilings?: unknown[] })?.ceilings ?? []).length > 0);
     expect(withCeil.length).toBeGreaterThanOrEqual(2);
   });
-  for (const g of golden) {
-    it(`obs.timing replays: ${g.name.slice(0, 70)}`, async () => {
-      const r = await core({ op: "obs.timing", params: g.request.params, samples: g.request.samples });
-      expect(r.verdicts).toEqual(g.response.verdicts);
+  it("one fwcore process answers every golden obs.timing and obs.slow request, one reply each", () => {
+    timingBatch = batchCore(goldenReq("obs.timing"));
+    slowBatch = batchCore(goldenReq("obs.slow"));
+    expect(timingBatch.size).toBe(golden.length);
+    expect(slowBatch.size).toBe(golden.length);
+  });
+  golden.forEach((g, i) => {
+    it(`obs.timing replays: ${g.name.slice(0, 70)}`, () => {
+      expect(timingBatch!.get(i)!.verdicts).toEqual(g.response.verdicts);
     });
-  }
+  });
   it("obs.slow names the step of a slow latest sample, from the Lean verdict", async () => {
     const slow = golden.find((g) => /205 s .*slow/.test(g.name))!;
     expect((await core({ op: "obs.slow", params: slow.request.params, samples: slow.request.samples })).slow).toEqual(["lean/check.sh"]);
     const ok = golden.find((g) => /128 s .*ok/.test(g.name))!;
     expect((await core({ op: "obs.slow", params: ok.request.params, samples: ok.request.samples })).slow).toEqual([]);
   });
-  it("every obs.slow subject of every golden case is a slow sample verdict of the same request", async () => {
-    for (const g of golden) {
-      const r = (await core({ op: "obs.slow", params: g.request.params, samples: g.request.samples })).slow as string[];
+  it("every obs.slow subject of every golden case is a slow sample verdict of the same request", () => {
+    for (const [i, g] of golden.entries()) {
+      const r = slowBatch!.get(i)!.slow as string[];
       const slowNames = new Set((g.response.verdicts as any[]).filter((v) => v.kind === "sample" && v.code === "slow").map((v) => `${v.tool}/${v.step}`));
       for (const s of r) expect(slowNames.has(s)).toBe(true);
       if (slowNames.size === 0) expect(r).toEqual([]);
