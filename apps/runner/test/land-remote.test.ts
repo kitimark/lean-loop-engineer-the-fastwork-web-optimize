@@ -85,14 +85,24 @@ describe("normalize a GitHub land run, then ask fwcore", () => {
   });
 });
 
-describe("a recorded lane run (live proof of task land-wait)", () => {
-  it("normalizes to a run bound to its sha", () => {
-    const v = recorded("pass.json");
-    const b = laneBind(v)!;
-    expect(b.sha).toMatch(/^[0-9a-f]{40}$/);
-    const run = normalizeGithub(0, v, { marker: v.headSha, want: { sha: b.sha, laneId: "land", laneDigest: b.digest } });
-    expect(run.state).toBe("pass");
-    expect(remoteVerdict(call, { localOk: true, needed: true, allow: ["github"], want: { sha: b.sha, laneId: "land", laneDigest: b.digest }, waitsLeft: 0, runs: [run] }).kind).toBe("accept");
+describe("a recorded lane run (live proof of task land-wait: ci/land-probe-30a307f, run 39317802669)", () => {
+  // fail.json is `gh run view` of the real lane run: its apps/runner suite failed because the test file had no fixture yet.
+  const v = recorded("fail.json");
+  const b = laneBind(v)!;
+  const w: Want = { sha: b.sha, laneId: "land", laneDigest: b.digest };
+  it("the lane's step name binds the run to the merge commit and its suite list", () => {
+    expect(b.sha).toBe("30a307f82747ff8c632d14592134597220c66fe5");
+    expect(b.digest).toBe(remoteDigest(call, ["apps/console-api", "apps/runner", "packages/engine-check", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium"]));
+  });
+  it("fw ci wait exit 1 on it: a run bound to the sha, refused", () => {
+    const run = normalizeGithub(1, v, { marker: v.headSha, want: w });
+    expect(run).toEqual({ provider: "github", sha: b.sha, laneId: "land", laneDigest: b.digest, state: "fail" });
+    expect(remoteVerdict(call, { localOk: true, needed: true, allow: ["github"], want: w, waitsLeft: 0, runs: [run] })).toMatchObject({ kind: "refuse", reason: "remote-lane-failed" });
+  });
+  it("derived: the same record with exit 0 is accepted for its sha and not for another", () => {
+    const run = normalizeGithub(0, v, { marker: v.headSha, want: w });
+    expect(remoteVerdict(call, { localOk: true, needed: true, allow: ["github"], want: w, waitsLeft: 0, runs: [run] }).kind).toBe("accept");
+    expect(remoteVerdict(call, { localOk: true, needed: true, allow: ["github"], want: { ...w, sha: "e".repeat(40) }, waitsLeft: 0, runs: [run] }).kind).not.toBe("accept");
   });
 });
 
