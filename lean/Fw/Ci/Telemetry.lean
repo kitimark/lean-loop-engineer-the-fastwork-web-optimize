@@ -497,7 +497,7 @@ def fourth (pv : Provider) (cls : String) (last : Nat) : Record :=
   mkRec pv "breakpoint-gate" "gate (chromium, s0)" cls "r4" (t0 + 1800000) (gateSteps last)
 
 /-- The cases: name, request, expected reply or error. -/
-def cases : List (String × Json) :=
+def cases (_ : Unit := ()) : List (String × Json) :=
   let rj := recordJson
   let h4 := hist3 .github "ubuntu-24.04" ++ [fourth .github "ubuntu-24.04" 70]
   [("one run, no history: every span is noBaseline, nothing slow",
@@ -536,7 +536,7 @@ def replyJson (req : Json) : Json :=
   | .error e => Json.mkObj [("error", .str e)]
 
 /-- The golden file text: one `{name, request, response}` line per case. -/
-def goldenText : String :=
+def goldenText (_ : Unit := ()) : String :=
   String.join (cases.map fun (n, rq) => (Json.mkObj [("name", .str n), ("request", rq), ("response", replyJson rq)]).compress ++ "\n")
 
 /-- Where the golden lives, relative to `lean/`. -/

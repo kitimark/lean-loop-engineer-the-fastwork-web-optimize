@@ -154,7 +154,7 @@ def genJson : Json :=
     ("countdownAriaLabel", .str countdownLabel)]
 
 /-- The generated file's bytes. -/
-def genText : String := genJson.pretty 120 ++ "\n"
+def genText (_ : Unit := ()) : String := genJson.pretty 120 ++ "\n"
 
 /-- The driver: print the generated JSON, or with `--check <file>` exit 1 when the file's bytes differ. -/
 def run (args : List String) : IO UInt32 := do

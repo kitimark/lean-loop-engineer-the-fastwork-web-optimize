@@ -916,7 +916,7 @@ def premiseCase (p : PremiseRow) : Json :=
     [("statement", .str p.statement), ("theorems", strs p.theorems), ("test", .str p.test)]
 
 /-- Every golden case: 11 select, 6 prelock, 6 verdict, 4 cache and 9 select2 cases, then one row per premise. -/
-def cases : List Json :=
+def cases (_ : Unit := ()) : List Json :=
   [selectCase "golden-only change selects check.sh (P5 mutation)" sampleDecls
       ["packages/contracts/golden/obs/timing.jsonl"],
     selectCase "lean change selects check.sh only" sampleDecls ["lean/Fw/Console/Land.lean"],
@@ -959,7 +959,7 @@ def cases : List Json :=
 #guard cases.length == 44
 
 /-- The golden file text: one compressed JSON line per case. -/
-def goldenText : String := String.join (cases.map fun c => c.compress ++ "\n")
+def goldenText (_ : Unit := ()) : String := String.join (cases.map fun c => c.compress ++ "\n")
 
 /-- The golden file, relative to `lean/`. -/
 def goldenPath : System.FilePath := "../packages/contracts/golden/console/land-speed.jsonl"

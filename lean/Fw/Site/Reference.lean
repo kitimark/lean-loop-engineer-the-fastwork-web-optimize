@@ -408,7 +408,7 @@ def referenceWebkitText : String :=
 /-- The Chromium reference dataset (empty if the file does not parse; the `#guard`s below fail then).
 
 The original's computed styles in Chrome Headless Shell. -/
-def referenceChromium : Dataset :=
+def referenceChromium (_ : Unit := ()) : Dataset :=
   match parseDataset .chromium referenceChromiumText with
   | .ok d => d
   | .error _ => ⟨.chromium, [], [], []⟩
@@ -416,7 +416,7 @@ def referenceChromium : Dataset :=
 /-- The WebKit reference dataset (empty if the file does not parse; the `#guard`s below fail then).
 
 The original's computed styles in Playwright WebKit. -/
-def referenceWebkit : Dataset :=
+def referenceWebkit (_ : Unit := ()) : Dataset :=
   match parseDataset .webkit referenceWebkitText with
   | .ok d => d
   | .error _ => ⟨.webkit, [], [], []⟩

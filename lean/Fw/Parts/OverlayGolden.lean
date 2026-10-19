@@ -59,7 +59,7 @@ def states : List St :=
    tick (raf (setOpen opened false 5 false)) 485, setOpen shown false 1000 true]
 
 /-- Lines for `overlays.drawer`. The conformance vectors for the TS drawer. -/
-def drawerLines : List String :=
+def drawerLines (_ : Unit := ()) : List String :=
   let ts : List Rat := [-50, 0, 25, 50, 100, 133.333, 200, 300, 399, 400, 401, 1000]
   let widths : List Rat := [320, 480, 640, 640.5, 641, 860, 860.5, 861, 1440]
   (([("easeInOut", easeInOut), ("easeStandard", easeStandard)] : List (String × Bez)).flatMap fun (n, c) =>
@@ -109,7 +109,7 @@ def formJ (f : Form) : Json :=
   Json.mkObj [("submitting", .bool f.submitting), ("done", .bool f.done), ("error", .bool f.error)]
 
 /-- Lines for `overlays.signup`. The conformance vectors for the TS dialog logic. -/
-def signupLines : List String :=
+def signupLines (_ : Unit := ()) : List String :=
   let offs : List (Rat × Rat) :=
     [(0, 0), (0, 1), (1, 0), (-1, 0), (0, -1), (3, 4), (-3, 4), (100, -100), (123.5, 67.25), (-640, -20), (0.5, 0.5),
      (1, 10), (10, 1), (-0.5, 300), (700, 0.25), (7, 7), (1, 1), (5, 12)]

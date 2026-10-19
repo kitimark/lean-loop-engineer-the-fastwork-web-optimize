@@ -81,7 +81,7 @@ def gapsJson : Json :=
 /-- The generated document.
 
 The single source the site and the breakpoint gate consume. -/
-def genJson : Json :=
+def genJson (_ : Unit := ()) : Json :=
   Json.mkObj [
     ("schema", .str "fw.breakpoints.gen/1"),
     ("generatedBy", .str "lean/Fw/Site/BreakpointGen.lean (Fw.Site.BreakpointGen.genJson); do not edit"),
@@ -194,7 +194,7 @@ def argOf : List String → String → Option String
 /-- The exact bytes of the generated file: `genJson` pretty-printed at width 120, newline-terminated.
 
 What `breakgen` prints and what `--check` compares against. -/
-def genText : String := genJson.pretty 120 ++ "\n"
+def genText (_ : Unit := ()) : String := genJson.pretty 120 ++ "\n"
 
 /-- Command-line driver of `lake exe breakgen [--inventory <breakpoints.json>] [--check <file>]`: without
 `--check` it prints the generated JSON to stdout; with `--check <file>` it fails when the file's bytes differ from

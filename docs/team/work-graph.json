@@ -7842,8 +7842,16 @@
     "apps/site/src/parts/morph*/**",
     "packages/contracts/golden/**",
     "research/notes/2026/10-20-morph-layers*.md",
-    "docs/team/handoffs/morph-layers.md"
-   ]
+    "docs/team/handoffs/morph-layers.md",
+    "apps/site/src/App.tsx",
+    "apps/site/src/parts/hero.countdown/index.tsx",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/scripts/MorphDormantGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "evidence": "dad23c4"
   },
   {
    "devices": [
@@ -8218,7 +8226,8 @@
     ".github/workflows/lean.yml",
     "research/notes/2026/10-20-fwcore-startup.md",
     "docs/team/handoffs/fwcore-lazy-tables.md"
-   ]
+   ],
+   "evidence": "43a66a4"
   },
   {
    "devices": [
@@ -9105,7 +9114,8 @@
     "docs/team/tools/disk-cleanup.md",
     "research/notes/2026/10-20-cache-relations.md",
     "docs/team/handoffs/lake-gc-refs.md"
-   ]
+   ],
+   "evidence": "096f7fc"
   },
   {
    "devices": [
@@ -9235,6 +9245,456 @@
     "research/notes/2026/10-20-morph-layers.md",
     "apps/site/src/parts/hero.countdown/index.tsx",
     "docs/team/handoffs/morph-layers-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-gc-followups",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "lake-gc review: --delete re-reads the process table right before unlinking and aborts if a new Lake writer appeared; refs read .hash files or the docstrings say trace outputs and hash stems only; per-worktree git ls-files for lake project dirs; narrow the outputs-map check to the live build's package; identity rule before the CI lake cache save",
+   "deps": [
+    "lake-gc-refs"
+   ],
+   "writes": [
+    "lean/Fw/Ops/LakeGc.lean",
+    "lean/scripts/LakeGcGolden.lean",
+    "packages/contracts/golden/ops/lakegc.jsonl",
+    "apps/runner/src/lake-gc.ts",
+    "scripts/lake-gc.mjs",
+    "scripts/lake-gc.test.mjs",
+    "docs/team/tools/lake-gc.md",
+    "docs/team/handoffs/lake-gc-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fwcore-lazy-followups",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "fwcore start: drop `import Lean` from fwcore's module closure (Fw.Spec.MathFacts, Fw.Spec.Reach, MathView); init-cost lint prints the closure size; add the 11 uncovered generator --check runs to check.sh",
+   "deps": [
+    "fwcore-lazy-tables"
+   ],
+   "writes": [
+    "lean/Fw/Spec/**",
+    "lean/MathView.lean",
+    "lean/Fw/Lint/InitCostScan.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-20-fwcore-startup.md",
+    "docs/team/handoffs/fwcore-lazy-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "chromium-per-pass-elementcount",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "measure-chromium emits per-pass UpdateLayoutTree elementCount (trace.mjs sums per frame today); one-arm rerun splits hero.exit writers and settles the ~7-node question; Lean per-pass sum theorem over the frame reducer. Until it lands no task cites an absolute Restyle unit as measured elementCount",
+   "deps": [
+    "exit-scoped-var"
+   ],
+   "writes": [
+    "packages/measure-chromium/src/**",
+    "packages/measure-chromium/test/**",
+    "lean/Fw/Measure/**",
+    "research/notes/2026/10-20-per-pass-elementcount.md",
+    "docs/team/handoffs/chromium-per-pass-elementcount.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-queue-why",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "fw land --queue keeps the exception text: land-queue.ts attempt catch records kind unknown with no message; print REFUSED: <message> and write it to the land log (first real land through the land-wait remote tier ended VERDICT unknown with no reason)",
+   "deps": [
+    "land-wait"
+   ],
+   "writes": [
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/land-queue*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-queue-why.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "tween-platform-scope",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Scope the waapi platform tween to a non-inherited registered property [style S1 + style S3 (census) + layout L3 open tail item] — MEASURED, touch, frames 498-530 (39312308173 faithful vs 39312313059 waapi): elementCount 4077 vs 10655 (+6578, +161%). waapi holds 318 per frame to frame 530; faithful drops to 85-88 at frame 509. v2-proved (which uses waapi) shows the same in 39292323514 r1-r3. INFERR",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/morph.tween/part.json",
+    "apps/site/src/parts/morph.tween/waapi.driver.ts",
+    "apps/site/src/parts/morph.tween/waapi.golden.test.ts",
+    "apps/site/src/parts/morph.tween/waapi.logic.ts",
+    "apps/site/src/stage/inputs.ts",
+    "docs/plan/math-view.html",
+    "docs/team/handoffs/tween-platform-scope.md",
+    "lean/Fw/Ops/**",
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
+    "research/notes/2026/10-20-tween-platform-scope.md",
+    "results/tween-platform-scope/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "mount-scroll-tap",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Detach the dead window scroll listener in morph.mount after mount [script S1 (option A only)] — MEASURED indirectly: +1 non-rAF FunctionCall on every scroll-moving frame under shift-dormant vs faithful (swipe 39325709978 vs 39325721909: 422 frames exactly +1, 463 in all; touch 39325727288 vs 39325741608 the same). Expected about -460 FunctionCall per profile (about 10% of FC), with the same JS pat",
+   "deps": [
+    "morph-layers"
+   ],
+   "writes": [
+    "apps/site/src/parts/morph.mount/index.tsx",
+    "docs/team/handoffs/mount-scroll-tap.md",
+    "lean/Fw/Parts/MorphMountOpt.lean",
+    "packages/contracts/golden/parts/morph-mount-tap.jsonl",
+    "research/notes/2026/10-20-mount-scroll-tap.md",
+    "results/mount-scroll-tap/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "breakpoints-named-import",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Import only breakpoint conditions in the client bundle [load L2] — MEASURED, static: raw JS 730,103 → about 627,583 B (-14% of the bytes parsed and scanned); gzipped 208,054 → 204,662 B (-1.6% transfer). About 386 fewer object/array allocations and about 1,004 fewer string lookups per load, in both engines. Profile window =o. Load ms INFERRED until the load-window lane exists.",
+   "deps": [],
+   "writes": [
+    "apps/site/scripts/check-breakpoints.mjs",
+    "apps/site/src/breakpoints.client.gen.json",
+    "apps/site/src/breakpoints.ts",
+    "docs/team/handoffs/breakpoints-named-import.md",
+    "lean/BreakgenMain.lean",
+    "lean/Fw/Site/BreakpointGen.lean",
+    "research/notes/2026/10-20-breakpoints-named-import.md",
+    "results/breakpoints-named-import/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fill-release-platform",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Release finished platform entry animations (fill backwards + static to-values) [paint PC1] — Chromium swipe 430x932 dpr3. Layer-frames still held by filled, finished animations: about 1383 of 28107 over the whole run and about 954 of 7941 in the tail (frames 367-472), from 39309334426. Appearance frames are MEASURED; the after-phase model is INFERRED. .order (228 layer-frames) is not yet modelled,",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/platform.entries/part.json",
+    "apps/site/src/parts/platform/Visuals.tsx",
+    "apps/site/src/parts/platform/visuals.module.css",
+    "docs/team/handoffs/fill-release-platform.md",
+    "lean/Fw/Engine/VisualTimed.lean",
+    "lean/Fw/Parts/PlatformEntries.lean",
+    "packages/contracts/golden/parts/platform-entries-fill.jsonl",
+    "research/notes/2026/10-20-fill-release-platform.md",
+    "results/fill-release-platform/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "react-root-quiet-events",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Stop React registering root/portal listeners for 7 unused animation/transition events [webkit W1 + script S3 (duplicates merged)] — INFERRED; measure first. WebKit pass 0 of 39309416016: EventDispatch 1607 vs 107 in the original, FunctionCall 2202, mostly in batches of 2, but the event type is not recorded. Upper bound about 1400 dispatches and calls per pass. Chromium: these events are no longer ",
+   "deps": [],
+   "writes": [
+    "apps/site/src/entry-client.tsx",
+    "apps/site/src/parts/engine.events/part.json",
+    "apps/site/src/parts/engine.events/quiet.gen.ts",
+    "apps/site/src/parts/engine.events/quiet.scan.test.ts",
+    "docs/team/handoffs/react-root-quiet-events.md",
+    "lean/Fw/Parts/ReactRootOpt.lean",
+    "packages/contracts/golden/parts/react-root-quiet.jsonl",
+    "research/notes/2026/10-20-react-root-quiet-events.md",
+    "results/react-root-quiet-events/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "layer-path-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Chromium layer-path probe: LCD reason, raster scale, transform, opacity per owner [paint PC3 (enabler)] — No count win. It turns the Chromium sides of C1, C2, C4 and C5 from INFERRED into MEASURED, per frame and per pinned owner. That unblocks fill-release-platform (raster scale), typing-avatar-fill and morph-idle-none (text AA at dpr 1). Cost: 1 matrix run (2 arms).",
+   "deps": [],
+   "writes": [
+    ".github/workflows/chromium-counts.yml",
+    "docs/team/handoffs/layer-path-probe.md",
+    "lean/Fw/Measure/PathProbe.lean",
+    "packages/contracts/golden/measure/path-probe.jsonl",
+    "packages/measure-chromium/src/layer-dump.mjs",
+    "packages/measure-chromium/src/run.mjs",
+    "research/notes/2026/10-20-layer-path-probe.md",
+    "results/layer-path-probe/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "notes-scroll-idem",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Skip the redundant pain.notes React commit on covered scroll frames [script S2] — At most -1 non-rAF FunctionCall per covered scroll frame: about -250 per swipe profile, plus one React render's script time per frame. NOT confirmed: the frame-225 step also brings other work (commission). A single-arm run measures it.",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/pain.notes/driver.ts",
+    "apps/site/src/parts/pain.notes/part.json",
+    "docs/team/handoffs/notes-scroll-idem.md",
+    "lean/Fw/Parts/PainNotesGolden.lean",
+    "lean/Fw/Parts/PainNotesOpt.lean",
+    "research/notes/2026/10-20-notes-scroll-idem.md",
+    "results/notes-scroll-idem/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "mui-css-site-only",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Ship only the MUI rules the site renders (mui.css 199.6 KB → 1.4 KB) [load L1] — Load window only. MEASURED static (local dist; recheck on the CI artifact): mui.css 199,629 → 1,437 B, gz 8,229 → 581, 736 → 6 rules, 174 → 1 @media. Emotion ids 240 → about 4 is INFERRED until gate (a) passes. Profile =o. Load ms INFERRED until the load-window lane exists.",
+   "deps": [],
+   "writes": [
+    "apps/site/scripts/build.mjs",
+    "apps/site/src/Census.tsx",
+    "apps/site/src/entry-server.tsx",
+    "docs/team/handoffs/mui-css-site-only.md",
+    "lean/Fw/Site/SheetPrune.lean",
+    "packages/contracts/golden/site/sheet-prune.jsonl",
+    "research/notes/2026/10-20-mui-css-site-only.md",
+    "results/mui-css-site-only/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-idle-none",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Remove the paused morph track animations while the scene is paused (idle-none) [paint PC4 (amends R3 scope)] — MEASURED, Chromium swipe base 39309334426: tracks 1146 + cols 764 = 1910 of 28107 layer-frames (6.8%), across 382 snapshots in frames 117-502; tail zone 145 of 2243. The veil and backdrop may also merge (INFERRED, not claimed). Touch and WebKit are not attributed.",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/morph.columns/index.tsx",
+    "apps/site/src/parts/morph.columns/morph.module.css",
+    "apps/site/src/parts/morph.columns/part.json",
+    "docs/team/handoffs/morph-idle-none.md",
+    "lean/Fw/Parts/MorphIdleNone.lean",
+    "packages/contracts/golden/parts/morph-idle-none.jsonl",
+    "research/notes/2026/10-20-morph-idle-none.md",
+    "results/morph-idle-none/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-pause-rule",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Port the original's paused-scene rule to hero (will-change auto off-screen) [webkit W2a (split from W2 = R5)] — MEASURED, WebKit census at 430x775 (39309416016 vs original 39318078000): 136-145 vs 42-47 layers at y 3000/4500, and 124-128 vs 30 at y=5267. The hero has 87 descendant layers (80 face spans composited for willChange+stacking, 4 deck cards, 2 cue), 0.75 MB. INFERRED: up to about -87 Web",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/hero.countdown/hero.module.css",
+    "apps/site/src/parts/hero/index.tsx",
+    "apps/site/src/parts/hero/part.json",
+    "docs/team/handoffs/hero-pause-rule.md",
+    "lean/Fw/Parts/HeroScenePause.lean",
+    "packages/contracts/golden/parts/hero-scene-pause.jsonl",
+    "research/notes/2026/10-20-hero-pause-rule.md",
+    "results/hero-pause-rule/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trace-attribution-mode",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Chromium attribution trace mode: who dirties layout/style and who forces passes [layout L2 + style S4 (diagnostics merged)] — No count win. It attributes three things: the 3-5 UpdateLayoutTree passes per frame on current main (39314340270/39314368756); the full-chain Layout windows; and whether the hero accent passes share frames with dirty sources outside the hero. That last answer sizes hero-rel",
+   "deps": [
+    "layer-path-probe"
+   ],
+   "writes": [
+    ".github/workflows/chromium-counts.yml",
+    "docs/team/handoffs/trace-attribution-mode.md",
+    "lean/Fw/Measure/TraceAttribution.lean",
+    "packages/contracts/golden/measure/attribution.jsonl",
+    "packages/measure-chromium/src/attribution.mjs",
+    "packages/measure-chromium/src/run.mjs",
+    "packages/measure-chromium/src/trace.mjs",
+    "research/notes/2026/10-20-trace-attribution-mode.md",
+    "results/trace-attribution-mode/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "load-window-lane",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Separate load-window trace session in chromium-counts [load L4 (enabler)] — No page win. It turns load-time claims (mui-css-site-only, breakpoints-named-import, one-sheet) from INFERRED into MEASURED, for deterministic size and count keys only.",
+   "deps": [
+    "trace-attribution-mode"
+   ],
+   "writes": [
+    "docs/team/handoffs/load-window-lane.md",
+    "lean/Fw/Measure/Windows.lean",
+    "packages/contracts/golden/measure/windows.jsonl",
+    "packages/measure-chromium/classes.frozen.json",
+    "packages/measure-chromium/src/load-trace.mjs",
+    "packages/measure-chromium/src/run.mjs",
+    "research/notes/2026/10-20-load-window-lane.md",
+    "results/load-window-lane/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "typing-avatar-fill",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Release the finished typing avatar-pop animation (explicit from, fill none) [paint PC2] — MEASURED in 39309334426/39309340297: the filled avatar layer (owner 537) holds 1.0 opacity in frames 301-502, about 198 layer-frames. The message layer (owner 539, Overlap only) may also go: INFERRED, up to 2 tail layers. Chromium only.",
+   "deps": [
+    "fill-release-platform"
+   ],
+   "writes": [
+    "apps/site/src/parts/commission.typing/part.json",
+    "apps/site/src/parts/commission.typing/typing.module.css",
+    "docs/team/handoffs/typing-avatar-fill.md",
+    "lean/Fw/Parts/CommissionTypingFill.lean",
+    "packages/contracts/golden/parts/typing-avatar-fill.jsonl",
+    "research/notes/2026/10-20-typing-avatar-fill.md",
+    "results/typing-avatar-fill/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-relayout-boundary",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "contain: size layout on the sticky .hero (relayout boundary), combined with R1 [layout L1] — UNPROVEN. Upper bound 0 to about 123k totalObjects of 335,770 on swipe (0-37%), and dirty 0 to -770. Reached only if the accent draw-in passes have no dirty source outside the hero in the same frame. WebKit is source-only.",
+   "deps": [
+    "hero-pause-rule"
+   ],
+   "writes": [
+    "apps/site/src/parts/hero.exit/hero.module.css",
+    "apps/site/src/parts/hero.exit/part.json",
+    "docs/team/handoffs/hero-relayout-boundary.md",
+    "lean/Fw/Parts/HeroContainOpt.lean",
+    "packages/contracts/golden/parts/hero-contain.jsonl",
+    "research/notes/2026/10-20-hero-relayout-boundary.md",
+    "results/hero-relayout-boundary/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-nav-scope",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Scope the nav-side morph tween to an explicit-inherit reader chain [style S2] — UNMEASURED and possibly small. The tween costs about 113 elements per frame (faithful) and about 231 (waapi). The bound is the nav subtree (panel included) minus the chain and Chromium's chain children. A DOM census decides.",
+   "deps": [
+    "tween-platform-scope"
+   ],
+   "writes": [
+    "apps/site/src/parts/morph.panel/morph.module.css",
+    "apps/site/src/parts/morph.tween/index.tsx",
+    "apps/site/src/parts/morph.tween/waapi.logic.ts",
+    "apps/site/src/parts/nav/nav.module.css",
+    "docs/team/handoffs/morph-nav-scope.md",
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
+    "research/notes/2026/10-20-morph-nav-scope.md",
+    "results/morph-nav-scope/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "one-sheet",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Merge the pruned MUI sheet and the app CSS into one stylesheet [load L3] — MEASURED shape: linkSheets 2 → 1. Load-only: one fewer request (fetched in parallel), one fewer small parse; Chromium also builds one fewer RuleSet, WebKit does not. INFERRED near zero on CI.",
+   "deps": [
+    "mui-css-site-only"
+   ],
+   "writes": [
+    "apps/site/scripts/build.mjs",
+    "docs/team/handoffs/one-sheet.md",
+    "lean/Fw/Site/SheetPrune.lean",
+    "research/notes/2026/10-20-one-sheet.md",
+    "results/one-sheet/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "root-touch-events",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Drop React's passive root touchstart/touchmove listeners [script S4] — INFERRED upper bound ≤ -960 FunctionCall on the touch profile, 0 on swipe. Unattributed: EventDispatch is equal across touch and swipe. Re-measure after R8.",
+   "deps": [
+    "react-root-quiet-events"
+   ],
+   "writes": [
+    "apps/site/src/entry-client.tsx",
+    "apps/site/src/parts/engine.events/part.json",
+    "docs/team/handoffs/root-touch-events.md",
+    "lean/Fw/Parts/ReactRootOpt.lean",
+    "research/notes/2026/10-20-root-touch-events.md",
+    "results/root-touch-events/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "nav-oof-root-finding",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "No containment boundary can scope a relayout that starts at the fixed nav [layout L3 (negative finding)] — None (negative finding). Run 39292323514 frames 498-530, r1-r3 identical: 33 passes, dirty 1077, 32 per pass, partial 0. The nav attribution is INFERRED. The no-rAF tail restyle goes to tween-platform-scope.",
+   "deps": [],
+   "writes": [
+    "docs/team/handoffs/nav-oof-root-finding.md",
+    "lean/Fw/Parts/NavOofRoot.lean",
+    "research/notes/2026/10-20-nav-oof-root-finding.md",
+    "results/nav-oof-root-finding/**"
    ]
   }
  ],

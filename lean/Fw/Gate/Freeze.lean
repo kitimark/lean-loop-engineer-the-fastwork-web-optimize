@@ -511,7 +511,7 @@ def readingCases : List (String × Nat × List Stage) :=
     ("no stages", 7, []) ]
 
 /-- One golden line per case: frozen waits, then freeze passes, the clock constants, instants, readings, then pages. -/
-def goldenLines : List String :=
+def goldenLines (_ : Unit := ()) : List String :=
   frozenCases.map (fun (n, run, st, hov) =>
     (Json.mkObj [("kind", "frozenWait"), ("name", toJson n), ("policy", policyJson gatePolicy), ("stepMs", toJson stepMs),
       ("run", toJson run), ("stable", toJson st), ("hover", toJson hov),
@@ -535,7 +535,7 @@ def goldenLines : List String :=
       ("runsMount", toJson (runsMount (pageOf mo mr)))]).compress)
 
 /-- The exact bytes of `packages/contracts/golden/gate/freeze.jsonl`. -/
-def goldenText : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
+def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
 /-- Command-line driver: print the golden text (exit 0), or with `--check <file>` exit 0 exactly when the file holds these bytes
 and 1 otherwise. -/

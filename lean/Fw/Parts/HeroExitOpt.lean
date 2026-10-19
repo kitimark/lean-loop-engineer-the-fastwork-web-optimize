@@ -1340,7 +1340,7 @@ def zoneFrames : Nat := zoneLast + 1 - zoneFirst
 #guard zoneFrames == 94
 
 /-- Contents of `packages/contracts/golden/parts/hero.exit.scoped.json`. -/
-def scopedJson : Lean.Json :=
+def scopedJson (_ : Unit := ()) : Lean.Json :=
   let prop (n : String) : Lean.Json :=
     Lean.Json.mkObj [("name", Lean.toJson n), ("syntax", Lean.toJson "*"), ("inherits", Lean.toJson false)]
   let units (narrow : Bool) : Lean.Json :=
@@ -1364,19 +1364,19 @@ def scopedJson : Lean.Json :=
       ("frames", Lean.toJson zoneFrames), ("narrowChromiumFaithful", Lean.toJson (zoneFrames * crFull (heroTree true))),
       ("narrowChromiumScoped", Lean.toJson (zoneFrames * crScoped (heroTree true)))])]
 
-def scopedText : String := scopedJson.pretty ++ "\n"
+def scopedText (_ : Unit := ()) : String := (scopedJson ()).pretty ++ "\n"
 
 /-- Print the golden, or with `--check <file>` compare it; exit 1 on a difference. -/
 def runScoped (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
-    if (← IO.FS.readFile path) == scopedText then
+    if (← IO.FS.readFile path) == scopedText () then
       IO.eprintln s!"exit scoped golden: {path} is up to date"
       return 0
     IO.eprintln s!"exit scoped golden: {path} differs from the generated text"
     return 1
   | _ =>
-    IO.print scopedText
+    IO.print (scopedText ())
     return 0
 
 end Scoped
