@@ -10,6 +10,10 @@
  * `Math.random()`, and the candidate shuffle draws without replacement instead of a random-comparator sort.
  */
 
+/** The commission card the notes avoid (the original's `.commission-card`): the hook on our card. */
+export const CARD_SELECTOR = '[data-fw="commission-card"]';
+
+
 export const NOTE_SIZE = 240;
 export const MAX_EXTRAS = 12;
 export const INTERVAL_MS = 3000;

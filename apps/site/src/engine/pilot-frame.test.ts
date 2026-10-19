@@ -37,7 +37,7 @@ function rig(engineVariant: ScrollVariant, navVariant: NavVariant) {
   const track = { getBoundingClientRect: rects('RL') };
   const env: ProbeEnv = {
     doc: {
-      querySelector: ((sel: string) => (sel.includes('profile-sticky') ? sticky : track)) as unknown as Document['querySelector'],
+      querySelector: ((sel: string) => (sel.includes('sticky') ? sticky : track)) as unknown as Document['querySelector'],
       elementFromPoint: () => (log.push('RL'), null),
       elementsFromPoint: () => (log.push('RL'), []),
     },

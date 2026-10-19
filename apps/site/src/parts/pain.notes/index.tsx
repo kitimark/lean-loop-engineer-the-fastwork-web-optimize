@@ -5,7 +5,7 @@ import { registerScroll } from "../../engine/scroll";
 import { dragNoteLabel, NOTE_TEXT } from "./data";
 import { createNotesDriver } from "./driver";
 import type { Note } from "./logic";
-import { SCENE_MARGIN } from "./logic";
+import { CARD_SELECTOR, SCENE_MARGIN } from "./logic";
 import { matchList } from "./media";
 import { createScene } from "./scene";
 import css from "./notes.module.css";
@@ -37,7 +37,7 @@ export interface PainNotesProps {
  */
 export function PainNotes({
   variant,
-  cardSelector = '[data-fw="commission-card"], .commission-card',
+  cardSelector = CARD_SELECTOR,
 }: PainNotesProps) {
   const [view, setView] = useState<View>(EMPTY);
   const stageRef = useRef<HTMLDivElement>(null);

@@ -15,10 +15,10 @@ export function hitPoint(rect: Rect): { x: number; y: number } {
   return { x: rect.left + rect.width / 2, y: rect.top + Math.min(rect.height, 64) / 2 };
 }
 
-/** `closest()` selectors, restated from the original. Excluded wins over included; shrinking is checked last. */
-export const EXCLUDE_SELECTOR = '.commission-card, .start-selling-future-card, .hero';
-export const INCLUDE_SELECTOR = '.pain, .start-selling-platform-card, .start-selling-platform';
-export const SHRINKING_SELECTOR = '.commission.shrinking';
+/** `closest()` selectors on our hooks (the original's `.commission-card`, `.start-selling-future-card` = people-card, `.hero`; `.pain`; the platform card sits inside the platform section; `.commission.shrinking`, the class is a CSS-Module name so it matches by substring). Excluded wins over included; shrinking is checked last. */
+export const EXCLUDE_SELECTOR = '[data-fw="commission-card"], [data-fw="people-card"], [data-fw="hero"]';
+export const INCLUDE_SELECTOR = '[data-fw="pain"], [data-fw="platform"]';
+export const SHRINKING_SELECTOR = '[data-fw="commission"][class*="shrinking"]';
 
 /** j(): is the hit element over a dark section. The flags are the `el.closest(...)` results for the three selectors. */
 export function classifyHit(f: { hasElement: boolean; inExclude: boolean; inInclude: boolean; inShrinking: boolean }): boolean {
@@ -76,14 +76,14 @@ export function skipHitTest(morph: number): boolean {
   return morph > MORPH_DARK_ABOVE;
 }
 
-/** Selectors of the nav boxes that set `pointer-events` themselves (CSS 11442, 10557, 10519, 11498). */
+/** Selectors of the nav boxes that set `pointer-events` themselves (original CSS 11442, 10557, 10519, 11498), on our hooks. */
 export const ALLOW_SELECTOR = [
-  '.start-selling-top-nav-actions',
-  '.start-selling-morph.is-expanded .start-selling-morph-panel',
-  '.start-selling-top-nav.is-expanded .start-selling-morph-panel',
-  '.start-selling-morph.is-active:not(.is-expanded) .start-selling-morph-pill',
-  '.start-selling-top-nav:not(.is-hero-pill, .is-morphing) .start-selling-top-nav-btn.is-earn',
+  '[data-fw="nav"] [class*="actions"]',
+  '[data-fw="morph-panel"][data-expanded]',
+  '[data-fw="nav"]:not(.is-hero-pill, .is-morphing) [data-fw="nav-earn"]',
 ].join(', ');
+
+/** The original's `.start-selling-morph-pill` entry has no counterpart: our pill is the nav itself, which the probe already steps over. */
 
 /** Write on change only. */
 export function changed(prev: boolean, next: boolean): boolean {
