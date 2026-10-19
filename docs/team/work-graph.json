@@ -6807,7 +6807,8 @@
     "docs/team/handoffs/ci-wait-lean.md",
     "lean/Fw/Ci/Golden.lean",
     "lean/FwTest/CiBudget.lean"
-   ]
+   ],
+   "evidence": "ecc0a2f"
   },
   {
    "devices": [
@@ -6888,7 +6889,8 @@
     "packages/contracts/golden/ops/**",
     "docs/team/handoffs/latex-lint-relax.md"
    ],
-   "stream": "ops"
+   "stream": "ops",
+   "evidence": "69bff1f"
   },
   {
    "devices": [
