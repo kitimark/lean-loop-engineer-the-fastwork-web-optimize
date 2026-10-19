@@ -5543,7 +5543,8 @@
     "lean/Fw/Measure/Compose.lean",
     "packages/engine-check/src/**",
     "docs/team/handoffs/compose-check.md"
-   ]
+   ],
+   "evidence": "2bf13b3"
   },
   {
    "devices": [

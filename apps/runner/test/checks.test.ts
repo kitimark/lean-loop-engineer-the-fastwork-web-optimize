@@ -95,7 +95,7 @@ describe("runTier", () => {
   it("an unrecognised summary is not a pass", async () =>
     expect(await go("apps/runner", 0, "nothing")).toEqual({ exit: 1, verdict: "VERDICT unknown apps/runner" }));
   it("a skipped test of a suite that does not run fwcore passes", async () =>
-    expect(await go("packages/engine-check", 0, "# tests 2\n# skipped 1")).toEqual({ exit: 0, verdict: "VERDICT pass packages/engine-check" }));
+    expect(await go("packages/visual-diff", 0, "# tests 2\n# skipped 1")).toEqual({ exit: 0, verdict: "VERDICT pass packages/visual-diff" }));
 });
 
 describe("fw checks", () => {

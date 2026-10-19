@@ -5,7 +5,6 @@
 //
 //   node wave2.mjs check --plan plan.json --dl <dir of gh-downloaded runs> --out <dir>   engine-check per page of the plan
 //   node wave2.mjs zonecmp --dir results/integrate-wave-2/zones --profile p --out <dir>    v2-proved zone baseline against the base one
-//   node wave2.mjs f6 --plan plan.json --dl <dir> --out <dir>                              F6 pilot: combined delta against the sum of part deltas
 //   node wave2.mjs frames --plan plan.json --dl <dir> --res <engine-check dir>             frame lists of the model-bug rows (after check)
 //   node wave2.mjs delta --plan plan.json --dl <dir> --out <dir>                          raw per-type sums, base vs arm, per page
 //
@@ -124,45 +123,6 @@ export function bandCells(r0, rv) {
 }
 
 /**
- * Count types that count pipeline passes (style, layout, paint, commit, frame callbacks), by name. PLAN 4.8: passes do not compose and F6
- * checks units only, so these rows are "not covered by F6 (passes)". TS stand-in, INFERRED: the name list is mine, no Lean twin.
- */
-export const PASS_TYPES = /(^|\.)(UpdateLayoutTree|RecalcStyleCount|ScheduleStyleRecalculation|LayoutCount|Layout|Layout\.partial|PrePaint|Paint|cc\.Commit|FireAnimationFrame|UpdateLayer)$/;
-
-/**
- * Totals pilot (descriptive, not F6; PLAN 4.8 limit 4): per count type, the combined run's delta against the sum of the part-page deltas. Margin: deterministic 0, stable its k,
- * quarantined none (not decidable). `strict` = |residual| <= margin, `widened` = |residual| <= margin * (parts + 1) (each run adds its own noise).
- * Only types where some delta is off its base band are listed. With `frames` ({combined, parts: number[]}, frames per run of each page)
- * every row also carries the per-frame rates, their sum and whether the rate residual is within 10 percent of the combined rate
- * (descriptive, a threshold of this pilot, not a class margin). @param {Record<string, any>} combined pageDeltas of the whole page
- * @param {{name: string, deltas: Record<string, any>}[]} parts @param {Record<string, {class: string, k: number}>} classes
- */
-export function f6(combined, parts, classes, frames) {
-  const types = [...new Set([combined, ...parts.map((p) => p.deltas)].flatMap((d) => Object.keys(d)))].sort();
-  const rows = [];
-  for (const type of types) {
-    const involved = [combined[type], ...parts.map((p) => p.deltas[type])];
-    if (involved.every((d) => !d || d.where === 'within')) continue;
-    const cls = classes[type]?.class ?? 'unlisted';
-    const margin = cls === 'deterministic' ? 0 : cls === 'stable' ? classes[type].k : null;
-    const c = combined[type]?.delta ?? 0;
-    const per = parts.map((p) => p.deltas[type]?.delta ?? 0);
-    const sum = per.reduce((a, b) => a + b, 0);
-    const residual = c - sum;
-    const row = { type, class: cls, kind: PASS_TYPES.test(type) ? 'passes' : 'other', margin, combined: c, parts: per, sum, residual,
-      strict: margin === null ? null : Math.abs(residual) <= margin,
-      widened: margin === null ? null : Math.abs(residual) <= margin * (parts.length + 1) };
-    if (frames) {
-      const rate = c / frames.combined, rates = per.map((d, i) => d / frames.parts[i]);
-      const rsum = rates.reduce((a, b) => a + b, 0);
-      Object.assign(row, { rate, rates, rateSum: rsum, rateResidual: rate - rsum, rateWithin10pct: Math.abs(rate - rsum) <= 0.1 * Math.abs(rate) });
-    }
-    rows.push(row);
-  }
-  return rows;
-}
-
-/**
  * Frame-level reading of one count type across shards (descriptive; the verdict is fwcore's). `self` lists, per pair of shards of one arm, the
  * frames where the two differ; `cross` lists per (base shard, arm shard) the frames where the arm is above / below the base.
  * @param {number[][]} base per-frame series per base shard @param {number[][]} arm per-frame series per arm shard
@@ -222,23 +182,9 @@ function framesCmd(a) {
   }
 }
 
-function f6cmd(a) {
-  const plan = readJson(a.plan);
-  const f = plan.f6;
-  const classes = readJson(resolve(ROOT, 'packages/measure-chromium/classes.frozen.json')).profiles[f.profile].arms.rewrite.types;
-  const d = (pg) => pageDeltas(load(a.dl, pg.base).map((x) => x.counts), load(a.dl, pg.arm).map((x) => x.counts));
-  const nFrames = (pg) => median(load(a.dl, pg.base).map((x) => x.counts.frames.length));
-  const rows = f6(d(f.combined), f.parts.map((p) => ({ name: p.name, deltas: d(p) })), classes, { combined: nFrames(f.combined), parts: f.parts.map(nFrames) });
-  mkdirSync(a.out, { recursive: true });
-  writeFileSync(join(a.out, 'f6.json'), JSON.stringify({ schema: 'fw.wave2.f6pilot/1', note: 'Totals pilot (descriptive, not F6; PLAN 4.8 limit 4), INFERRED: raw whole-run delta of the combined page against the sum of part-page deltas; kind=passes rows are not covered by F6 (passes). TS stand-in; the per-zone F6 verdict is compose-check after C3.', profile: f.profile, combined: f.combined, parts: f.parts, frames: { combined: nFrames(f.combined), parts: f.parts.map(nFrames) }, rows }, null, 1));
-  const other = rows.filter((r) => r.kind === 'other'), dec = other.filter((r) => r.strict !== null);
-  console.log(`totals pilot ${f.profile}: ${rows.length} types moved, ${rows.length - other.length} passes (not covered by F6), ${other.length} other, ${dec.length} with a margin: strict ${dec.filter((r) => r.strict).length} widened ${dec.filter((r) => r.widened).length}, per-frame rate within 10% ${dec.filter((r) => r.rateWithin10pct).length}, quarantined ${other.length - dec.length}`);
-}
-
 function main(argv) {
   const [cmd, ...rest] = argv;
   if (cmd === 'frames') { const o = {}; for (let i = 0; i < rest.length; i += 2) o[rest[i].slice(2)] = rest[i + 1]; return framesCmd(o); }
-  if (cmd === 'f6') { const o = {}; for (let i = 0; i < rest.length; i += 2) o[rest[i].slice(2)] = rest[i + 1]; return f6cmd(o); }
   if (cmd === 'zonecmp') { const o = {}; for (let i = 0; i < rest.length; i += 2) o[rest[i].slice(2)] = rest[i + 1]; return zonecmp(o); }
   const a = {};
   for (let i = 0; i < rest.length; i += 2) a[rest[i].slice(2)] = rest[i + 1];

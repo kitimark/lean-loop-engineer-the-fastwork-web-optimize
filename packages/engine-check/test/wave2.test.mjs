@@ -1,7 +1,7 @@
 // wave2.mjs: the staging, the whole-run totals and the labels it adds around fwcore's verdicts.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PASS_TYPES, bandCells, confounds, deltaRow, f6, median, nonFaithful, pageDeltas, pairsOf, stageAs, totalsOf } from '../src/wave2.mjs';
+import { bandCells, confounds, deltaRow, median, nonFaithful, pageDeltas, pairsOf, stageAs, totalsOf } from '../src/wave2.mjs';
 import { variantKeys } from '../../../apps/runner/src/engine-check.ts';
 
 const file = (frames, runLevel = {}) => ({ profile: { id: 'swipe-v1' }, meta: { target: 'rewrite', search: '?only=g2&stage=vw:430,vh:932' }, frames: frames.map((counts) => ({ counts })), runLevel });
@@ -85,26 +85,3 @@ test('bandCells compares per-run values of two baselines, a type missing on one 
   assert.deepEqual(cells.map((c) => [c.type, c.class, c.delta, c.where]), [['a', 'deterministic', -3, 'below'], ['b', 'stable', 2, 'above']]);
 });
 
-test('f6: residual of the combined delta against the part sum, margin by class, quarantined not decidable', () => {
-  const d = (x) => deltaRow([10, 10, 10], [10 + x, 10 + x, 10 + x]);
-  const classes = { det: { class: 'deterministic', k: 0 }, st: { class: 'stable', k: 2 }, q: { class: 'quarantined', k: 6 } };
-  const rows = f6(
-    { det: d(-5), st: d(-6), q: d(-9), still: d(0) },
-    [{ name: 'p1', deltas: { det: d(-3), st: d(-2), q: d(-4) } }, { name: 'p2', deltas: { det: d(-2), st: d(-3), q: d(-4) } }],
-    classes);
-  assert.deepEqual(rows.map((r) => [r.type, r.residual, r.strict, r.widened]), [['det', 0, true, true], ['q', -1, null, null], ['st', -1, true, true]]);
-  const off = f6({ st: d(-8) }, [{ name: 'p1', deltas: { st: d(-2) } }, { name: 'p2', deltas: { st: d(-2) } }], classes);
-  assert.deepEqual([off[0].residual, off[0].strict, off[0].widened], [-4, false, true]);
-});
-
-test('f6 with frames: the per-frame rates of the parts are summed against the combined rate', () => {
-  const d = (x) => deltaRow([10, 10, 10], [10 + x, 10 + x, 10 + x]);
-  const classes = { st: { class: 'stable', k: 2 } };
-  const [r] = f6({ st: d(-10) }, [{ name: 'p1', deltas: { st: d(-18) } }, { name: 'p2', deltas: { st: d(-2) } }], classes, { combined: 5, parts: [10, 10] });
-  assert.deepEqual([r.rate, r.rates, r.rateSum, r.rateWithin10pct, r.strict], [-2, [-1.8, -0.2], -2, true, false]);
-});
-
-test('PASS_TYPES names pipeline pass counts, not units or census types', () => {
-  for (const t of ['trace.UpdateLayoutTree', 'metric.RecalcStyleCount', 'trace.cc.Commit', 'trace.PrePaint', 'metric.LayoutCount']) assert.ok(PASS_TYPES.test(t), t);
-  for (const t of ['census.layers', 'trace.FunctionCall', 'raster.invalidationAreaPx', 'trace.MinorGC']) assert.ok(!PASS_TYPES.test(t), t);
-});
