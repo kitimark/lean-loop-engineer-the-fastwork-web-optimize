@@ -1,0 +1,8 @@
+v2-proved-39253059266-chromium  gate verdict chromium: fail (cells: 504, readings: 7056 total, 6801 pass, 248 fail, 7 excused, 20 cells not ok; unsettled samples: 0)
+v2-proved-39253059266-chromium  gate readings chromium: total 7056, pass 6801, excused 7, bad 248; universe 7056: identical; narrowed: false; table sha256 1d19d0ff278e808381661fa394c0153a668ceeb38faf9785f2b0209094a7b75b
+default-39253066988-chromium  gate verdict chromium: fail (cells: 504, readings: 7056 total, 6800 pass, 249 fail, 7 excused, 21 cells not ok; unsettled samples: 0)
+default-39253066988-chromium  gate readings chromium: total 7056, pass 6800, excused 7, bad 249; universe 7056: identical; narrowed: false; table sha256 f07c39fa8a908415e9e791ae10c07d4ec3f76edbe361734b587ea51d67e7439d
+v2-proved-39257945326-webkit  gate verdict playwright-webkit: incomplete (cells: 504, readings: 7056 total, 6763 pass, 0 fail, 291 excused, 1 cells not ok; unsettled samples: 0)
+v2-proved-39257945326-webkit  gate readings playwright-webkit: total 7056, pass 6763, excused 291, bad 2; universe 7056: identical; narrowed: false; table sha256 67393f1b196e4cc80514b44a9b8218a94c2e45e80b2858ca03d1df6d63775431
+default-39253066988-webkit  gate verdict playwright-webkit: incomplete (cells: 504, readings: 7056 total, 6763 pass, 0 fail, 291 excused, 1 cells not ok; unsettled samples: 0)
+default-39253066988-webkit  gate readings playwright-webkit: total 7056, pass 6763, excused 291, bad 2; universe 7056: identical; narrowed: false; table sha256 67393f1b196e4cc80514b44a9b8218a94c2e45e80b2858ca03d1df6d63775431

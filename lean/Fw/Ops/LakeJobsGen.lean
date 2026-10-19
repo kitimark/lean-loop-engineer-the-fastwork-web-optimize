@@ -11,7 +11,6 @@ def rows : List (String × String × Bool × List String) := [
   ("gate-gaps.yml", "site", false, ["breakgen"]),
   ("gate-gaps.yml", "judge", false, ["fwcore"]),
   ("lean.yml", "lean", true, ["Fw", "fwcore", "mathview", "breakgen"]),
-  ("lean.yml", "mathview-differential", false, ["Fw", "fwcore", "mathview", "breakgen"]),
   ("mutants.yml", "shard", false, ["Fw", "FwTest.Mutants.Kill", "fwcore", "mathview", "breakgen"]),
   ("snapshot-extract.yml", "site", false, ["breakgen"]),
   ("visual-diff.yml", "site", false, ["breakgen"]),

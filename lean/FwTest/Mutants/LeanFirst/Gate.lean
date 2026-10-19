@@ -177,7 +177,7 @@ theorem MissingFactPending_rejects_gPendingPass : ¬ MissingFactPending gPending
 $$\lnot\operatorname{GateMono}(g_{\mathrm{oneSignoff}})$$
 A gate that refuses a duplicate agreeing signoff turns a pass into a refusal when evidence is added, and is caught. -/
 theorem GateMono_rejects_gOneSignoff : ¬ GateMono gOneSignoff :=
-  refutes_of_search _ _ _ [(.ratchet, base, ⟨[], [⟨"P", "hP", "dP", .math, false⟩], [], ⟨false, false, false⟩⟩)]
+  refutes_of_search _ _ _ [(.ratchet, base, ⟨[], [⟨"P", "hP", .math, false⟩], [], ⟨false, false, false⟩⟩)]
     (fun h => (qGateMono_iff _).mp h) (by decide +kernel)
 
 /-- **Kill of `stage_mono`**.

@@ -10,6 +10,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { UsageError } from "./lib.ts";
+import { onMainSet } from "../../console-api/src/reconcile/git.ts";
 import { coreCandidates, coreCaller, type CoreCall } from "./watch.ts";
 
 export type { WorkGraph } from "@fw/contracts";
@@ -27,11 +28,11 @@ export const topoSort = (tasks: GraphTask[]): GraphTask[] => sharedTopoSort(task
 export const syncCommands = (g: WorkGraph, actor: Actor = "lead", onMain?: OnMain): Command[] =>
   sharedSyncCommands(g, actor, digest, usage, onMain);
 
-/** The ancestry fact for plan sync and lint: `git merge-base --is-ancestor <sha> <main>` in `cwd` (an unknown sha is
- *  not on main). Glue only; Lean decides what an off-main sha means. */
-export const gitOnMain = (cwd: string, main = "main"): OnMain => (sha) => {
-  try { execFileSync("git", ["merge-base", "--is-ancestor", sha, main], { cwd, stdio: "ignore" }); return true; }
-  catch { return false; }
+/** The ancestry fact for plan sync and lint: membership in one `git rev-list <main>` read lazily in `cwd` (an unknown
+ *  sha is not on main). Glue only; Lean decides what an off-main sha means. */
+export const gitOnMain = (cwd: string, main = "main"): OnMain => {
+  let test: ((sha: string) => boolean) | null = null;
+  return (sha) => (test ??= onMainSet(cwd, main))(sha);
 };
 /** Glue filter as in @fw/contracts plan-sync: only strings that can be a commit id are asked about. */
 const shaLike = (e: string) => /^[0-9a-f]{7,40}$/.test(e) && !/^[0-9]{8,}$/.test(e);
@@ -123,17 +124,4 @@ export function syncRefusal(cwd: string, main = "main"): string | null {
   const head = q("symbolic-ref", "--short", "-q", "HEAD");
   if (head !== main) return `plan sync refused: HEAD is ${head ?? "detached"}, not ${main}; drafts never reach the live board`;
   return null;
-}
-
-/** Plan sync through the plain command door (no capability), for `fw land`'s internal sync: the single-use capability
- *  of the `pnpm fw land ...` call may already be spent on a card's land request, and the hook only mints one for a
- *  command that starts with `pnpm fw`. The caller has checked `syncRefusal`. Throws when a command was refused. */
-export async function syncViaCommands(http: { post(path: string, body: unknown): Promise<{ status: number; body: any }> }, g: WorkGraph, onMain?: OnMain): Promise<string> {
-  let applied = 0, unchanged = 0;
-  for (const c of syncCommands(g, "lead", onMain)) {
-    const r = await http.post("/api/commands", c);
-    if (r.body?.ok) { if (r.body.duplicate) unchanged++; else applied++; }
-    else throw new Error(`plan sync refused ${c.type}: ${r.body?.reason ?? r.status}`);
-  }
-  return `plan sync: ${applied} applied, ${unchanged} unchanged`;
 }

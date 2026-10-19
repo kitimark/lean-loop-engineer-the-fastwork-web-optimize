@@ -12,13 +12,13 @@ decide the selector strings only. -/
 
 namespace Fw.Port.Sections
 
-/-- The four checks of the gate. $$c \in \{\mathrm{text}, \mathrm{attrs}, \mathrm{assets}, \mathrm{svg}\}$$ -/
-inductive Check | text | attrs | assets | svg
+/-- The five checks of the gate. $$c \in \{\mathrm{text}, \mathrm{attrs}, \mathrm{assets}, \mathrm{svg}, \mathrm{fonts}\}$$ -/
+inductive Check | text | attrs | assets | svg | fonts
 deriving Repr, DecidableEq, Inhabited
 
 /-- Wire name of a check. $$\operatorname{name}(c)$$ is the constructor name. -/
 def Check.name : Check → String
-  | .text => "text" | .attrs => "attrs" | .assets => "assets" | .svg => "svg"
+  | .text => "text" | .attrs => "attrs" | .assets => "assets" | .svg => "svg" | .fonts => "fonts"
 
 /-- One section: a part id, the root selector in the snapshot and the root selector in the prerendered rewrite.
 $$R = (i, \sigma_{\mathrm{orig}}, \sigma_{\mathrm{rw}})$$ -/
@@ -233,10 +233,10 @@ theorem exclIn_iff (E : List Excl) (c : Check) (s k : String) :
 
 /-- The section an entry may name: the page for a page-wide check (assets, svg), a section row for a sectioned check
 (text, attrs).
-$$\operatorname{secOk}(e) \iff \begin{cases} e.s = \texttt{page} & e.c \in \{\mathrm{assets}, \mathrm{svg}\} \\ \exists R \in T_s:\ R.i = e.s & e.c \in \{\mathrm{text}, \mathrm{attrs}\} \end{cases}$$ -/
+$$\operatorname{secOk}(e) \iff \begin{cases} e.s = \texttt{page} & e.c \in \{\mathrm{assets}, \mathrm{svg}, \mathrm{fonts}\} \\ \exists R \in T_s:\ R.i = e.s & e.c \in \{\mathrm{text}, \mathrm{attrs}\} \end{cases}$$ -/
 def Excl.secOk (e : Excl) : Bool :=
   match e.check with
-  | .assets | .svg => e.sec == page
+  | .assets | .svg | .fonts => e.sec == page
   | .text | .attrs => sections.any (·.part == e.sec)
 
 #guard Excl.secOk ⟨.svg, "page", "k", "r"⟩

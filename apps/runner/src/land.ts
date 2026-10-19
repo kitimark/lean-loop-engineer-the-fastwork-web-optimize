@@ -23,10 +23,12 @@ export type Http = {
 
 /** `localhost` may resolve to ::1 first while console-api listens on 127.0.0.1 only: always dial the IPv4 loopback. */
 export const loopback = (base: string) => base.replace(/^(https?:\/\/)localhost(?=[:/]|$)/, "$1127.0.0.1");
+/** Own deadline per request, shorter than undici's 300 s headers timeout; the land step's retry takes it from there. */
+export const HTTP_DEADLINE_MS = 90_000;
 export const httpFor = (base0: string): Http => { const base = loopback(base0); let secret: string | undefined; return {
-  get: async (p) => { const r = await fetch(base + p); return { status: r.status, body: await r.json() }; },
+  get: async (p) => { const r = await fetch(base + p, { signal: AbortSignal.timeout(HTTP_DEADLINE_MS) }); return { status: r.status, body: await r.json() }; },
   post: async (p, b) => {
-    const r = await fetch(base + p, { method: "POST", headers: { "content-type": "application/json", "x-fw-secret": (secret ??= consoleSecret()) }, body: JSON.stringify(b) });
+    const r = await fetch(base + p, { method: "POST", headers: { "content-type": "application/json", "x-fw-secret": (secret ??= consoleSecret()) }, body: JSON.stringify(b), signal: AbortSignal.timeout(HTTP_DEADLINE_MS) });
     return { status: r.status, body: await r.json() };
   },
 }; };
@@ -177,7 +179,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],
   // svg-extract: scripts/svg-extract.mjs (build, test, typecheck) and src/svg-extract.test.ts read the snapshot page and its scripts
   "apps/site": ["lean/Fw/Parts/HiddenPause.lean", "lean/Fw/Parts/HeroCountdownHidden.lean", "packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/anchors.json", "packages/contracts/golden/parts/**",
-    "packages/contracts/golden/port/**", "scripts/port/**", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
+    "packages/contracts/golden/port/**", "scripts/port/**", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/fonts.mjs", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
   "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**"],
   "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
@@ -187,7 +189,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
   "packages/measure-webkit": ["packages/contracts/golden/measure/**"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
-  "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**"],
+  "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**", "scripts/port/**", "packages/contracts/golden/port/**"],
 };
 
 /** Directories of the `workspace:` dependencies of a package (`@fw/x` is `packages/x` or `apps/x`). */
@@ -403,12 +405,10 @@ export function buildClean(dir: string): boolean {
 }
 
 /** The fast lints of a dry land (task land-dry-full), in the merge-tree worktree `dir`: `node scripts/ci-paths.mjs --check` (0.1 s), and,
- *  when the change touches `lean/`, the math-view lint exactly as `lean/scripts/check.sh` runs it (`scripts/mathview-cached.sh`: whole-tree
- *  cache, per-module store), after an incremental `lake build` (no `fwtest`, no tests; the .lake of the slot is warm). An unchanged Lean tree
- *  is a cache hit and builds nothing. A script the tree lacks is skipped. */
+ *  when the change touches `lean/`, the axiom check exactly as `lean/scripts/check.sh` runs it (`scripts/axiom-check.sh`), after an
+ *  incremental `lake build` (no `fwtest`, no tests; the .lake of the slot is warm). A script the tree lacks is skipped. */
 export function dryLintArgv(dir: string, changed: string[]): string[][] {
-  // which lints run is decided by Lean `lintPlan` (land-verdict.ts); this only reads which scripts exist
-  return lintPlan(changed, existsSync(join(dir, "scripts/ci-paths.mjs")), existsSync(join(dir, "lean/scripts/mathview-cached.sh")));
+  return lintPlan(changed, existsSync(join(dir, "scripts/ci-paths.mjs")), existsSync(join(dir, "lean/scripts/axiom-check.sh")));
 }
 
 type PreResult = { kind: "done"; sha: string } | { kind: "refuse"; msg: string; k?: Kind } | { kind: "fallback"; why: string };

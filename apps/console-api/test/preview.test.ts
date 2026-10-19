@@ -200,7 +200,7 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     expect(new Set([p!.rp, p!.op]).size).toBe(2);
     expect([p!.rp, p!.op].every((q) => q >= TEST_BASE && q < TEST_BASE + 40)).toBe(true); // never the production range
     const rw = await fetch(`http://127.0.0.1:${p!.rp}/`); expect(await rw.text()).toContain("rewrite");
-    expect(rw.headers.get("cache-control")).toBe("no-store");
+    expect(rw.headers.get("cache-control")).toBe("no-cache");
     expect(await (await fetch(`http://127.0.0.1:${p!.rp}/?fw=x:y`)).text()).toContain("variant");
     expect(await (await fetch(`http://127.0.0.1:${p!.rp}/pic.png`)).text()).toBe("PNG"); // media from the snapshot
     expect((await fetch(`http://127.0.0.1:${p!.rp}/analytics.js`)).status).toBe(200);
