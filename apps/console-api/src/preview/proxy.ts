@@ -43,6 +43,10 @@ export function viaReferer(path: string, referer: string | undefined, host: stri
   return `/preview/${m[2]}/${m[3]}${path}`;
 }
 
+/** A root-absolute request for JavaScript (a module or classic script file): moved below the preview prefix so its own relative
+ *  imports stay inside the preview. TS stand-in: one extension test, no Lean spec yet. */
+export const isScriptPath = (path: string): boolean => /\.m?js$/i.test(path);
+
 export function mountPreviewProxy(app: Hono, pm: PreviewManager) {
   const handle = async (c: Context, full: string) => {
     const id = /^\/preview\/([^/]+)/.exec(full)![1]!;
@@ -114,7 +118,9 @@ export function mountPreviewProxy(app: Hono, pm: PreviewManager) {
     if (!via || !pm.serving(/^\/preview\/([^/]+)/.exec(via)![1]!)) return next();
     // A module the page imported by a root-absolute string (the boot script's `import("/_app/…")`) must live below the prefix, or
     // its own relative imports (`../chunks/x.js`, Referer = the module) leave the preview: send it there.
-    if (c.req.header("sec-fetch-dest") === "script") return c.redirect(`${via}${new URL(c.req.url).search}`, 302);
+    // Not keyed on `Sec-Fetch-Dest`: a browser sends it only to a secure origin or loopback, never to the plain-HTTP LAN address
+    // the phone uses (found by preview-inspect, 10-20-preview-original-gate.md). The path decides: JavaScript is always moved.
+    if (isScriptPath(c.req.path) || c.req.header("sec-fetch-dest") === "script") return c.redirect(`${via}${new URL(c.req.url).search}`, 302);
     return handle(c, via);
   });
   app.all("/preview/:id/*", (c) => handle(c, c.req.path));

@@ -5,7 +5,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadAnchors, loadGen, expectFor, partJson, selectParts } from './spec.mjs';
 import { context, evaluate, tallies } from './verdict.mjs';
-import { cell as settleCell, report as settleReport, staleComparable } from './settle.mjs';
+import { cell as settleCell, keyMasked, keyPair, report as settleReport, staleComparable } from './settle.mjs';
 
 const ENGINES = ['chromium', 'playwright-webkit'];
 /** The matchMedia rows of the table, as Lean names them (Fw.Gate.truthRows); the part rows follow. */
@@ -72,9 +72,10 @@ const unsettledRows = (rows) => Object.fromEntries(Object.entries(rows).map(([k,
 /**
  * Probes the collector flagged unrendered (Fw.Gate.Settle.cell; an item carrying `skipped: true`). collectInPage flags a node whose
  * subtree the engine has skipped (premise cv.skip-flag: checkVisibility() true, checkVisibility({contentVisibilityAuto:true}) false),
- * (probes only, which load fresh; sweeps read as before; on in the Chromium probes) and run.mjs bringSkipped then scrolls the part into view, settles and reads again (Fw.Gate.Settle.viewCell: the second reading
+ * (the probes, which load fresh; on in the Chromium probes) and run.mjs bringSkipped then scrolls the part into view, settles and reads again (Fw.Gate.Settle.viewCell: the second reading
  * replaces the first), so only a node still skipped after that reaches here. A skipped subtree's used auto margins can be stale
- * after a resize and are fresh once it is visible (premise cv.fresh-after-resize), so the first reading is not a verdict. A flagged item gets no verdict: the other arm's item is
+ * after a resize and are fresh once it is visible (premise cv.fresh-after-resize), so the first reading is not a verdict. (Sweeps do
+ * not scroll: they flag and `maskKeys` below leaves only the layout-output keys of a flagged node out.) A flagged item gets no verdict: the other arm's item is
  * copied over it before Lean compares (so it can neither fail nor pass), and a part row that would pass is not-comparable.
  * Returns the state with the copies and the list of masked items.
  */
@@ -95,6 +96,52 @@ export function maskNotRendered(state) {
       outO = put(outO, mask(ro.items, ro.items));
       outR = put(outR, mask(rr.items, ro.items));
       for (const i of hit) masked.push({ part: pid, role, idx: i, orig: !!ro.items[i].skipped, rewrite: !!rr.items[i].skipped });
+    }
+  }
+  if (masked.length === 0) return { state, masked };
+  return { state: { ...state, orig: withRaw(state.orig, outO), rewrite: withRaw(state.rewrite, outR) }, masked };
+}
+
+/**
+ * The live sweeps and the hysteresis pair: a node read in a skipped subtree (collectInPage's `skipped`, flagged in a sweep without
+ * scrolling) has no verdict for the keys that are layout output, the margins (Fw.Gate.Settle.keyMasked, keyPair). Each such key's
+ * pair is set to the original's value on both sides (so the key can neither fail nor pass by its value), every other key and the
+ * rect stay compared as read (Lean keyPair_differs_iff: a difference is lost only for a masked key). The flag is stripped.
+ * Returns the state with the copies and the list of masked keys per item.
+ */
+export function maskKeys(state) {
+  const rawOf = (arm) => arm.raw ?? arm;
+  const withRaw = (arm, raw) => (arm.raw ? { ...arm, raw } : raw);
+  const o = rawOf(state.orig), r = rawOf(state.rewrite);
+  const strip = (it) => { const { skipped, ...rest } = it; return rest; };
+  const masked = [];
+  let outO = o, outR = r;
+  for (const [pid, roles] of Object.entries(o.parts ?? {})) {
+    for (const [role, ro] of Object.entries(roles)) {
+      const rr = r.parts?.[pid]?.[role];
+      if (!rr || ro.items.length !== rr.items.length) continue;
+      const itemsO = [...ro.items], itemsR = [...rr.items];
+      let any = false;
+      ro.items.forEach((io, i) => {
+        const ir = rr.items[i];
+        if (!io.skipped && !ir.skipped) return;
+        const so = !!io.skipped, sr = !!ir.skipped;
+        const styleO = { ...io.style }, styleR = { ...ir.style };
+        const keys = [];
+        for (const k of Object.keys(io.style ?? {})) {
+          if (!keyMasked(so, sr, k)) continue;
+          const [a, b] = keyPair(so, sr, k, io.style[k], ir.style?.[k]);
+          styleO[k] = a; styleR[k] = b; keys.push(k);
+        }
+        itemsO[i] = { ...strip(io), style: styleO };
+        itemsR[i] = { ...strip(ir), style: styleR };
+        masked.push({ part: pid, role, idx: i, orig: so, rewrite: sr, keys });
+        any = true;
+      });
+      if (!any) continue;
+      const put = (raw, items) => ({ ...raw, parts: { ...raw.parts, [pid]: { ...raw.parts[pid], [role]: { ...raw.parts[pid][role], items } } } });
+      outO = put(outO, itemsO);
+      outR = put(outR, itemsR);
     }
   }
   if (masked.length === 0) return { state, masked };
@@ -136,9 +183,18 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     const port = run.header.port ?? (engine === 'chromium' ? 'chromium' : null);
     const ctx = context({ anchors, parts: PARTS, props: run.header.props, deviceEdges, port, variants: run.header.variants });
     const maskedOf = [];
-    const stateOf = (requested, orig, rewrite, expect, expectNeutral) => {
+    // probes: the item-level mask (Lean cell); sweep stops: the key-level mask (Lean keyPair), which keeps a flagged node's other keys
+    const keyMaskedOf = [];
+    const stateOf = (requested, orig, rewrite, expect, expectNeutral, sweep = false) => {
+      if (sweep) {
+        const m = maskKeys({ requested, orig, rewrite, expect, expectNeutral });
+        maskedOf.push([]);
+        keyMaskedOf.push(m.masked);
+        return m.state;
+      }
       const m = maskNotRendered({ requested, orig, rewrite, expect, expectNeutral });
       maskedOf.push(m.masked);
+      keyMaskedOf.push([]);
       return m.state;
     };
     const states = run.probes.map((rec) => {
@@ -148,11 +204,17 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     const vectors = run.sweeps.map((sw) => sw.stops.map((env) => expectFor(gen, env)));
     run.sweeps.forEach((sw, j) => sw.stops.forEach((env, i) => {
       const v = vectors[j][i];
-      states.push(stateOf(env, sw.orig[i], sw.rewrite[i], v?.expect, v?.expectNeutral));
+      states.push(stateOf(env, sw.orig[i], sw.rewrite[i], v?.expect, v?.expectNeutral, true));
     }));
     // The hysteresis pair (the arm after the sweep against a fresh load) is compared only when both its waits settled
     // (Fw.Gate.Exit.staleComparable); an unsettled or missing one is not compared and says so.
-    const staleAll = run.sweeps.flatMap((sw) => ['orig', 'rewrite'].map((site) => ({ after: sw[site][sw.stops.length - 1], fresh: sw.freshFinal[site] })));
+    // The same key mask applies to the pair (Lean keyPair: the arm after the sweep as the first side, the fresh load as the second).
+    const staleMasked = [];
+    const staleAll = run.sweeps.flatMap((sw) => ['orig', 'rewrite'].map((site) => {
+      const m = maskKeys({ orig: sw[site][sw.stops.length - 1], rewrite: sw.freshFinal[site] });
+      if (m.masked.length > 0) staleMasked.push({ at: `${sw.id} ${site} (after the sweep against a fresh load)`, items: m.masked });
+      return { after: m.state.orig, fresh: m.state.rewrite };
+    }));
     const staleOk = staleAll.map((p) => staleComparable(outcomeOf(p.after), outcomeOf(p.fresh)));
     const { states: evs, stale: staleDone } = evaluate(ctx, states, staleAll.filter((_, k) => staleOk[k]));
     let staleNext = 0;
@@ -163,6 +225,8 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     const probeRows = [];
     const unsettledList = [];
     const notRenderedList = [];
+    // Sweep nodes read in a skipped subtree whose layout-output keys (margins) were left out of the comparison (Lean keyMasked).
+    const keyMaskedList = [];
     const noteMasked = (label, k, ev) => {
       if (maskedOf[k].length === 0) return;
       ev.rows = notRenderedRows(ev.rows, maskedOf[k]);
@@ -199,6 +263,7 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     let next = run.probes.length;
     const sweepStops = run.sweeps.map((sw, j) => sw.stops.map((env, i) => {
       noteMasked(`${sw.id}#${i}@${env.width}x${env.height}`, next, evs[next]);
+      if (keyMaskedOf[next].length > 0) keyMaskedList.push({ at: `${sw.id}#${i}@${env.width}x${env.height}`, items: keyMaskedOf[next] });
       const ev = evs[next++];
       const label = `${sw.id}#${i}@${env.width}x${env.height}`;
       countWait({ orig: sw.orig[i], rewrite: sw.rewrite[i] });
@@ -245,8 +310,8 @@ export function summarize(outDir, { parts: requested = null } = {}) {
 
     const failList = [...fails.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
     const infoList = [...infos.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
-    result.engines[engine] = { browser: run.header.browser, flags: flagsOf(run.header), ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, settleWait: waitStats, unsettled: unsettledList, notRendered: notRenderedList, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
-    md.push(...render(engine, run.header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList));
+    result.engines[engine] = { browser: run.header.browser, flags: flagsOf(run.header), ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, settleWait: waitStats, unsettled: unsettledList, notRendered: notRenderedList, keyMasked: { sweepStops: keyMaskedList, hysteresis: staleMasked }, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
+    md.push(...render(engine, run.header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList, keyMaskedList, staleMasked));
   }
 
   writeFileSync(join(outDir, 'summary.json'), JSON.stringify(result, null, 1) + '\n');
@@ -274,7 +339,7 @@ const cell = (c) => {
 };
 
 const staleText = (x) => (x.skipped ? `not compared (${x.skipped})` : `${x.differ}/${x.compared}`);
-function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList) {
+function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList, keyMaskedList = [], staleMasked = []) {
   const cols = [...blocks, ...sweepRows.map((s) => `sweep:${s.id}`)];
   const out = [`## ${engine} (${header.browser})`, '', flagsLine(header), '', `Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; against Lean's expected value (compared only where the env was achieved on both arms and a vector exists, else NC); the legacy max-/min- text against the range text; then the anchors of each part. Cells: pass / FAIL probes-failing/probes-comparable / NC = not comparable / UNREACHABLE n (reason) = every probe of the cell is a cell this engine port cannot build (Lean-proved reach rule), \`+n unreachable\` = n such probes left out of the count / - = block not run.`, ''];
   // No silent narrowing: a narrowed verdict says which parts it covers and which it does not. matchMedia rows are
@@ -287,6 +352,10 @@ function render(engine, header, table, envRow, sweepRows, failList, infoList, bl
   for (const u of unsettledList.slice(0, 40)) out.push(`- UNSETTLED ${u.at}: ${u.arms.map((a) => a.missing ? `${a.arm} (no wait recorded)` : `${a.arm} (frames ${a.frames}, ${a.waitedMs} ms, running ${a.running}, quiet run ${a.stable}, pointer in target ${a.hoverInside}, parked ${a.parked})`).join('; ')}`);
   for (const n of notRenderedList.slice(0, 40)) out.push(`- NOT RENDERED ${n.at}: ${n.items.map((m) => `${m.part}/${m.role}[${m.idx}] (original ${m.orig ? 'skipped' : 'rendered'}, rewrite ${m.rewrite ? 'skipped' : 'rendered'})`).join(', ')} -> ${n.cell}, never pass or fail`);
   if (notRenderedList.length > 40) out.push(`- ... ${notRenderedList.length - 40} more in summary.json`);
+  const nodes = (l) => l.reduce((n, e) => n + e.items.length, 0);
+  if (keyMaskedList.length + staleMasked.length > 0) {
+    out.push(`- KEYS NOT COMPARED (a node read in a skipped subtree: its margins are layout output the engine has not computed, Lean keyMasked): ${nodes(keyMaskedList)} sweep nodes at ${keyMaskedList.length} stops, ${nodes(staleMasked)} hysteresis nodes; every other key of those nodes and the rect are compared`);
+  }
   if (unsettledList.length > 40) out.push(`- ... ${unsettledList.length - 40} more in summary.json`);
   out.push('', 'Sweep hysteresis (state after the sequence vs a fresh load at the same final env, per arm; items differing / compared):', '');
   for (const s of sweepRows) out.push(`- ${s.id}: orig ${staleText(s.stale.orig)}, rewrite ${staleText(s.stale.rewrite)}`);
