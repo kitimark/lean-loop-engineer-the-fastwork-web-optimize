@@ -24,6 +24,6 @@ State: branch `worktree-wf_40d66781-cd1-1`, one commit on top of main (see `git 
 - token-policy: dropped the lake build log line (the generic Long output line covers it) and the handoff 30-line line
   (in CLAUDE.md), to stay under 6000 B.
 - context-lint warns `sha` on the three attribution lines; an exemption belongs in `Fw.Lint.Context`.
-- CLAUDE.md was already over its 5600 B budget (6266 B, now 6295 B).
+- CLAUDE.md was already over its 5600 B budget (6266 B, now 6284 B).
 - `docs/team/tools/prompt-rules.md` R4 and `docs/team/tools/lean-first.md` still ask for `$$` docstrings:
   lean-latex-removal.

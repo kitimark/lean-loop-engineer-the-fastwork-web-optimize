@@ -1,7 +1,7 @@
 # Token policy: helpers and context hygiene
 
 The rules agents follow. Evidence and decisions: `research/notes/2026/10-18-token-policy-rationale.md`. Writing
-rules: `.claude/skills/no-slop/SKILL.md`, `.claude/skills/no-comments/SKILL.md`. Shared prompt rules:
+rules: `.claude/skills/no-slop/SKILL.md`, `.claude/agents/comment-sicko.md`. Shared prompt rules:
 `docs/team/tools/prompt-rules.md`. Gate: `node scripts/context-lint.mjs` (`docs/team/tools/context-lint.md`).
 About 4 chars per token (INFERRED).
 
