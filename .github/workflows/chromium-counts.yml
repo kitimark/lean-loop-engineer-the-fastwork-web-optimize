@@ -432,6 +432,7 @@ jobs:
           printf '%s\n' "$WANT_ID" > "$res/image-id.txt"
           (cd "$res" && sha256sum counts.json zones.json | tee sha256.txt)
           node --max-old-space-size=12000 packages/measure-chromium/src/layer-dump.mjs "packages/measure-chromium/out/$PROFILE/$LABEL/trace.json" > "$res/layers.json"
+          cp "packages/measure-chromium/out/$PROFILE/$LABEL/phase.json" "$res/phase.json"
           ls -l "$res"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

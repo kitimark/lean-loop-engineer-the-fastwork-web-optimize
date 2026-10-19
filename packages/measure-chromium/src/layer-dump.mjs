@@ -25,4 +25,6 @@ for (const e of comp) {
   }));
   (frames[f] ??= []).push(layers);
 }
-process.stdout.write(JSON.stringify({ frames: bounds.length, perFrame: frames }) + '\n');
+const anims = events.filter((e) => rendererPids.has(e.pid) && e.name === 'Animation' && (e.ph === 'b' || e.ph === 'e' || e.ph === 'n')).sort((a, b) => a.ts - b.ts)
+  .map((e) => ({ frame: frameAt(e.ts), ph: e.ph, id: e.id2?.local ?? e.id ?? null, name: e.args?.data?.name ?? null, state: e.args?.data?.state ?? null }));
+process.stdout.write(JSON.stringify({ frames: bounds.length, perFrame: frames, animations: anims }) + '\n');
