@@ -85,6 +85,8 @@ await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__FW
 // both to its stage environment). The viewport gate decides on these (Lean Fw.Site.StageMode.gateSize).
 await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const g = (k) => { const d = Object.getOwnPropertyDescriptor(window, k); return d && typeof d.get === 'function' ? d.get : null; }; const w = g('innerWidth'), h = g('innerHeight'); Object.defineProperty(window, '__fwRealSize', { value: () => (w && h ? { w: w.call(window), h: h.call(window) } : null) }); })();` });
 if (N0_ON) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: readFileSync('/driver/n0-census.js', 'utf8') }); // after the shim: it stamps events with the virtual clock
+// probe only (morph-layers r2, never landed): every setInterval/clearInterval with its virtual time
+await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { if (globalThis.__fwPhase) return; const ev = []; const si = globalThis.setInterval, ci = globalThis.clearInterval; globalThis.setInterval = function (fn, d, ...a) { const id = si.call(this, fn, d, ...a); ev.push({ kind: 'setInterval', vt: performance.now(), detail: String(d), id }); return id; }; globalThis.clearInterval = function (id) { ev.push({ kind: 'clearInterval', vt: performance.now(), detail: '', id }); return ci.call(this, id); }; globalThis.__fwPhase = { read: () => ev }; })();` });
 
 let vt = 0;
 // Network barrier: a request started during a frame (lazy image, chunk) must finish, and its load handlers run, before
@@ -317,6 +319,13 @@ if (N0_ON) {
   n0 = { enabled: true, keys: N0_KEYS, load: total(win.load), preroll: total(win.preroll), profile: total(n0Frames.flat()), after: total(win.after), shapeAtProfileStart: n0Start.shape, shapeAtEnd: n0End.shape, firstProfileEvents: n0Frames.flat().slice(0, 10) };
 }
 
+{
+  const pe = JSON.parse(await ev('JSON.stringify(__fwPhase.read())'));
+  const { win, perFrame: pf } = n0Windows(pe, frames.map((f) => f.vt + START_VT), START_VT, dt);
+  const byFrame = {};
+  pf.forEach((l, n) => { if (l.length) byFrame[n] = l; });
+  writeFileSync(`${OUT}/phase.json`, JSON.stringify({ startVt: START_VT, load: win.load, preroll: win.preroll, after: win.after, byFrame }) + '\n');
+}
 const served = srv.served();
 const servedSha = createHash('sha256').update(JSON.stringify(served)).digest('hex');
 const result = {
