@@ -1,29 +1,28 @@
 # morph-layers handoff (branch worktree-wf_f4cccc1d-568-2)
 
-State: variant `morph.mount:shift-dormant` built, measured and noted. CI ran on ci/morph-layers at d5a219cc. Later
-commits add only the note, `animStart_eq_mountStart` and the regenerated preset decisions row (`no-link`).
+State: round 3 done. Code at f59fdbf0 (pushed as ci/morph-layers); the commit after it adds only this handoff and the
+note. `shift-dormant` stays out of v2-proved (decisions row `no-link`); the preset change is the lead's call.
 
 Verified:
-- Attribution of the 9 Chromium layers (probe ci/morph-layers-probe, 1f7ef2d6, never landed): 3 tracks
-  [ActiveTransformAnimation], panel [FixedPosition], backdrop, 2 column + center + nav bar [Overlap]. WebKit sim
-  run 39309416016 (`shift`, y=0): 11 panel layers + nav bar, all hung on the 3 animated tracks.
-- `lean/Fw/Parts/MorphMountDormant.lean`: `dormant` (+ `#guard`s), `animated_eq_mountO`,
-  `animStart_eq_mountStart`, `visSame_dormant` (from HiddenBefore), `layerize` model with `layers_dormant_eq` and
-  `census_dormant_eq` under the `Absorbed` premise (INFERRED). Golden `morph.mount.dormant.jsonl` and its TS replay
-  test; no TS stand-in.
-- chromium-counts, 3 runs per arm: dormant drawingLayers/layers equal faithful per frame (swipe and touch);
-  the +1053 / +1134 of `shift` is gone. Recalc: dormant equals faithful on swipe and is -1 on touch; `shift`'s
-  trigger-frame recalc win is given back. Layout keeps -3 of `shift`'s -4.
-- `sh lean/scripts/check.sh` green at the final commit; apps/site tests, ci-paths and land-inputs tests pass.
+- Lean `Fw/Parts/MorphMountDormant.lean`: `dormant`, `animated_eq_mountO`, `animStart_eq_mountStart`; `Panel` model
+  (timed history, mount bit), `armD`, `visSame_dormant` from `Hidden`; `clock_not_phaseFree` (shift's PhaseFree is
+  false for the countdown); `phaseFree_of_untimed`; `layerize` / `Absorbed` / `layers_dormant_eq` / `census_dormant_eq`.
+- Site: tracks get `animation-name: none` and the morph countdown driver is held (`HeroCountdown` `hold`) while dormant.
+  Round 2 also held the digit shape; WebKit gate 39322625340 failed morph.countdown counts at touch-rm because of it.
+- Probe dumps (Chromium, swipe-v1, artifact `chromium-counts-rewrite-r1`, `layers.json` + `phase.json`):
+  ci/morph-layers-probe2 runs 39322953386 / 39322959537 / 39322964853 and ci/morph-layers-probe3 runs 39325816743 /
+  39325823271. Dormant layers equal faithful in frames 0-116; interval and track animations start in frame 116 as in
+  faithful; shift starts the 1 s interval at load.
+- Counts at f59fdbf0 (runs 39325709978..39325741608): dormant layers = faithful; recalc 0 / -1; layout -3 / -4;
+  elementCount +216 / +202 (swipe / touch medians).
+- Gate 39325704868: every morph.* cell passes on both engines; only non-pass cell is the pre-existing WebKit
+  phone-rotation `matchMedia =Lean` NC.
+- `sh lean/scripts/check.sh`, apps/site typecheck+test, ci-paths and land-inputs tests green.
 
 Open:
-- Breakpoint gate run 39312308450 (`fw=morph.mount:shift-dormant`). Attempt 1 failed only on the known commission
-  margin-inline flake (desktop-1512, pain-1440); every morph.* part passes. Attempt 2 is running; read it with
-  `gh run view 39312308450 --attempt 2 --log-failed` (`fw ci wait` still reports attempt 1).
-- Whether to put `shift-dormant` into v2-proved instead of `shift` is a lead decision (layers vs one recalc).
-  It needs a findings-ledger row.
-- WebKit census of the dormant build was not run (accepted limit: source-only).
+- Lead: replace `morph.mount:shift` with `shift-dormant` in v2-proved (recommended), or keep both off.
+- The probe code (layer dump, interval recorder) lives only on the probe branches; not committed here.
+- Extra restyled elements in frames 10-116 of both early-mount arms are not attributed.
 
-Conventions: arms are told apart by `meta.search` in each counts.json. Per-frame diffs came from a scratch reducer
-(sum and run-length diff of `frames[].counts`), which is not committed.
-Read first: the note research/notes/2026/10-20-morph-layers.md (Answer, Measurements), then MorphMountDormant.lean.
+Conventions: arms are told apart by `meta.search`. Reductions are described in the note (Attribution, Measurements).
+Read first: research/notes/2026/10-20-morph-layers.md (Answer, Real-dump checks), then MorphMountDormant.lean.
