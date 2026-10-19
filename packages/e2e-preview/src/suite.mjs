@@ -39,6 +39,7 @@ async function frameFacts(frame) {
       pending: imgs.filter((i) => !i.complete).length,
       evals: globalThis.__fwEvals ?? [],
       fixtureHydrations: globalThis.__fixtureHydrations ?? null,
+      starts: globalThis.__fwStarts ?? null,
       hydratedAttr: document.documentElement.getAttribute("data-hydrated"),
       bodyText: (document.body?.innerText ?? "").length,
     };
@@ -75,6 +76,28 @@ function seenFor(rig, failed) {
     const base = pth.replace(/^\/preview\/[^/]+\/[ro]/, "");
     return `${base}: ` + rig.seen.filter((r) => r.path.endsWith(base)).map((r) => `${r.path.startsWith("/preview/") ? "pfx" : "root"} ${r.status} dest=${r.dest || "-"}`).join(", ");
   }).join(" ## ");
+}
+
+/** The accepted WebKit-on-Linux signature of one /o load: how many unhandled rejections and how many cancelled /_app/ requests. */
+export const CANCEL_SIGNATURE = { rejections: 3, cancelled: 13 };
+
+/** Is this load's noise exactly the signature? `failed` are "METHOD /path text" lines of the failed same-origin requests;
+ *  `seen` is what the preview port saw. Every cancelled request must be an /_app/ request (with or without the preview prefix)
+ *  whose root URL got a 302 at this host's preview port. */
+export function cancelSignature(pageErrors, failed, seen, host) {
+  const hostPart = new URL(host.origin).host;
+  const rejectionsOk = pageErrors.length === CANCEL_SIGNATURE.rejections && pageErrors.every((e) => /Importing a module script failed|Unable to preload CSS/.test(e));
+  const paths = failed.map((f) => (/^\S+ (\S+) Load request cancelled$/.exec(f) ?? [])[1]);
+  const shapeOk = paths.every((p) => typeof p === "string" && /^(\/preview\/[^/]+\/[ro])?\/_app\//.test(p));
+  const root = (p) => p.replace(/^\/preview\/[^/]+\/[ro]/, "");
+  const redirected = (p) => seen.some((r) => r.host === hostPart && r.path === root(p) && r.status === 302);
+  const noRedirect = shapeOk ? paths.filter((p) => !redirected(p)) : [];
+  const countOk = failed.length === CANCEL_SIGNATURE.cancelled;
+  return {
+    ok: rejectionsOk && shapeOk && countOk && noRedirect.length === 0,
+    rejections: pageErrors.length, cancelled: failed.length,
+    detail: `${pageErrors.length} rejections (expect ${CANCEL_SIGNATURE.rejections}${rejectionsOk ? "" : ", not all preload failures or wrong count"}), ${failed.length} cancelled (expect ${CANCEL_SIGNATURE.cancelled}${shapeOk ? "" : ", not all /_app/ cancels"}), ${noRedirect.length} without a root 302`,
+  };
 }
 
 async function runTarget(browser, rig, engine, host, target, opts) {
@@ -116,18 +139,18 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     const sameOrigin = log.responses.filter((r) => new URL(r.url).origin === host.origin);
     const bad = sameOrigin.filter((r) => r.status >= 400 && !ACCEPTED_FAILURES.some((a) => new URL(r.url).pathname === a));
     check("same-origin-2xx-3xx", sameOrigin.length > 0 && bad.length === 0, bad.length ? bad.slice(0, 5).map((r) => `${r.status} ${r.method} ${new URL(r.url).pathname}`).join("; ") : `${sameOrigin.length} responses`);
-    // Playwright WebKit on Linux (libsoup) cancels a preload that the proxy redirected (root URL -> prefixed URL) while the same
-    // file is being imported by its prefixed URL; the page then logs unhandled rejections for those *preloads* of other routes.
-    // That is told apart from a real failure by its signature: WebKit only, every rejection a module/CSS preload, every failed
-    // same-origin request "cancelled" under /_app/. The direct-serve control shows none of it; Chromium shows none; the
-    // hydration, module-evaluation, font and image checks below still decide the page. Counted in its own check.
+    // Playwright WebKit on Linux (libsoup) cancels preloads that the proxy redirected (root URL -> prefixed URL) while the same
+    // file is imported by its prefixed URL; the page then logs unhandled rejections for those preloads of other routes. The
+    // signature is asserted exactly, for the original arm on WebKit only: CANCEL_SIGNATURE rejections, each a module/CSS preload
+    // failure, and CANCEL_SIGNATURE.cancelled same-origin /_app/ requests "Load request cancelled", each of which had a root-URL
+    // 302 at the preview port (rig.seen). Anything else (another count, another message, a cancelled request without that
+    // redirect, a page error with no cancelled request) fails page-errors. The attribution check below says where it comes from.
     const sameFailed = log.failed.filter((f) => !/Blocked by Web Inspector|beacon|cdn-cgi/.test(f));
-    const cancelNoise = engine === "webkit" && log.pageErrors.length > 0
-      && log.pageErrors.every((e) => /Importing a module script failed|Unable to preload CSS/.test(e))
-      && sameFailed.every((f) => /\/_app\/.*Load request cancelled$/.test(f));
-    check("page-errors", (log.pageErrors.length === 0 || cancelNoise) && !log.consoleErrors.some((t) => /dynamically imported module|Failed to load module/i.test(t)),
-      [...log.pageErrors, ...log.consoleErrors].slice(0, 3).join(" | ") + (log.failed.length ? ` || failed: ${log.failed.slice(0, 6).join("; ")} || navs: ${log.navs.join(", ")} || server saw: ${seenFor(rig, log.failed)}` : ""));
-    if (cancelNoise) check("webkit-linux-preload-cancel-noise-observed", true, `${log.pageErrors.length} rejections, ${sameFailed.length} cancelled /_app/ preloads (accepted limit, see docs/team/tools/preview-e2e.md)`);
+    const sig = engine === "webkit" && target.frames.some((f) => f.kind === "original") ? cancelSignature(log.pageErrors, sameFailed, rig.seen, host) : null;
+    const cancelNoise = sig !== null && sig.ok;
+    check("page-errors", (cancelNoise || (log.pageErrors.length === 0 && sameFailed.length === 0)) && !log.consoleErrors.some((t) => /dynamically imported module|Failed to load module/i.test(t)),
+      [...log.pageErrors, ...log.consoleErrors].slice(0, 3).join(" | ") + (sig ? ` || signature: ${sig.detail}` : "") + (log.failed.length ? ` || failed: ${log.failed.slice(0, 6).join("; ")} || navs: ${log.navs.join(", ")} || server saw: ${seenFor(rig, log.failed)}` : ""));
+    if (cancelNoise) check("webkit-linux-preload-cancel-noise-observed", true, `${sig.detail} (accepted limit, see docs/team/tools/preview-e2e.md)`);
 
     // the phone case, read at the preview port: a plain-HTTP host that is not potentially trustworthy gets no Sec-Fetch-Dest
     const hostPart = new URL(host.origin).host;
@@ -149,7 +172,7 @@ async function runTarget(browser, rig, engine, host, target, opts) {
       const rep = evalReport(facts.evals);
       check(`${tag}entry-modules-evaluated-once`, rep.total > 0 && rep.duplicates.length === 0, `${rep.total} evaluations of ${rep.files} files${rep.duplicates.length ? `; twice: ${rep.duplicates.join(" ; ")}` : ""}`);
       if (f.kind === "fixture") check(`${tag}hydrated-once`, facts.fixtureHydrations === 1 && facts.hydratedAttr === "1", `start() ran ${facts.fixtureHydrations} times`);
-      else check(`${tag}hydrated`, rep.total >= 2 && facts.bodyText > 200, `${rep.total} modules, ${facts.bodyText} text chars`);
+      else check(`${tag}hydrated-once`, rep.total >= 2 && facts.starts === 1, `start() ran ${facts.starts} times (tap counter), ${rep.total} modules evaluated`);
     }
     if (opts.keep) opts.keep({ engine, host: host.name, target: target.id, responses: log.responses });
   } catch (e) {
@@ -197,22 +220,64 @@ async function lanLogin(browser, rig, engine, host, passphrase) {
   return checks;
 }
 
-/** Control, not a pass/fail check: the original arm served straight from its own port (no proxy, no prefix, no redirect) and
- *  loaded the same way. What it reports is the engine's and the app's own noise, to read the proxy's runs against. */
-async function directControl(browser, rig, engine) {
+/** One control load of the original arm, to attribute the WebKit signature: how many unhandled rejections and cancelled
+ *  /_app/ requests the page shows. `how` names the arm. The load is asserted only to complete; the numbers are read by
+ *  `attribution`. */
+async function controlLoad(browser, rig, engine, arm, url, prepare) {
   const ctx = await browser.newContext({ userAgent: IPHONE_UA, viewport: VIEWPORT, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
   const errors = []; const failed = [];
   try {
     const page = await ctx.newPage();
-    page.on("pageerror", (e) => errors.push(String(e).slice(0, 90)));
-    page.on("requestfailed", (r) => failed.push(`${new URL(r.url()).pathname.slice(-24)} ${r.failure()?.errorText ?? ""}`));
-    await page.goto(`http://127.0.0.1:${rig.ports.op}/`, { waitUntil: "load" });
+    page.on("pageerror", (e) => errors.push(String(e)));
+    page.on("requestfailed", (r) => failed.push(`${r.method()} ${new URL(r.url()).pathname} ${r.failure()?.errorText ?? ""}`));
+    const target = await prepare(page, ctx);
+    await page.goto(target ?? url, { waitUntil: "load" });
     await settle(page.mainFrame());
     await page.waitForTimeout(500);
-    return [{ id: `${engine}/control/o-direct/page-errors-observed`, ok: true, detail: `${errors.length} page errors, ${failed.length} failed requests: ${[...errors, ...failed].slice(0, 4).join(" | ")}` }];
+    const cancelled = failed.filter((f) => /Load request cancelled$/.test(f)).length;
+    return { arm, ok: true, rejections: errors.length, cancelled, detail: `${errors.length} rejections, ${cancelled} cancelled, ${failed.length} failed: ${[...errors.map((e) => e.slice(0, 80)), ...failed].slice(0, 3).join(" | ")}` };
   } catch (e) {
-    return [{ id: `${engine}/control/o-direct/run`, ok: true, detail: String(e?.message ?? e).split("\n")[0] }];
+    return { arm, ok: false, rejections: -1, cancelled: -1, detail: String(e?.message ?? e).split("\n")[0] };
   } finally { await ctx.close().catch(() => undefined); }
+}
+
+/** Controls of the original arm (3 loads each), none of them a pass/fail check on the page itself:
+ *   raw        the raw preview server port: no proxy, no tap, no redirect;
+ *   tap-only   the same server behind the evaluation tap: no proxy;
+ *   proxy-only the console's preview proxy (grant, redirects, prefix) in front of the raw server: no tap.
+ *  The arms of the suite itself are proxy + tap. */
+async function controls(browser, rig, engine) {
+  const out = [];
+  const noop = async () => null;
+  for (let i = 1; i <= 3; i++) {
+    out.push(await controlLoad(browser, rig, engine, "raw", `http://127.0.0.1:${rig.ports.op}/`, noop));
+    out.push(await controlLoad(browser, rig, engine, "tap-only", `http://127.0.0.1:${rig.ports.tapOp}/`, noop));
+    rig.useTap(false);
+    try {
+      out.push(await controlLoad(browser, rig, engine, "proxy-only", null, async (page) => {
+        const link = await rig.grantUrl(rig.hosts.loopback.origin, "o");
+        await page.goto(link, { waitUntil: "load" });
+        return `${rig.hosts.loopback.origin}/preview/${PREVIEW_ID}/o/`;
+      }));
+    } finally { rig.useTap(true); }
+  }
+  return out;
+}
+
+/** Which arm shows the signature: a control arm shows it when every one of its loads has rejections > 0 and cancelled > 0. */
+export function attribution(ctl, suiteSig) {
+  const arms = ["raw", "tap-only", "proxy-only"];
+  const shows = (a) => { const xs = ctl.filter((c) => c.arm === a); return xs.length > 0 && xs.every((c) => c.rejections > 0 && c.cancelled > 0); };
+  const clean = (a) => { const xs = ctl.filter((c) => c.arm === a); return xs.length > 0 && xs.every((c) => c.ok && c.rejections === 0 && c.cancelled === 0); };
+  const shown = arms.filter(shows);
+  let cause;
+  if (!suiteSig) cause = "the suite's own arms (proxy + tap) show no signature on this engine";
+  else if (shown.length === 0) cause = clean("raw") && clean("tap-only") && clean("proxy-only")
+    ? "only the combination proxy + tap shows it (each control is clean)" : "controls inconclusive";
+  else if (shown.includes("raw")) cause = "the engine (raw server shows it)";
+  else if (shown.includes("tap-only")) cause = "the tap (tap-only shows it; the fix is to keep the original cache headers in the tap)";
+  else cause = "the proxy path (proxy-only shows it, tap-only and raw do not)";
+  return { shown, cause };
 }
 
 export async function runEngine(browser, rig, engine, { passphrase, keep, route } = {}) {
@@ -227,10 +292,12 @@ export async function runEngine(browser, rig, engine, { passphrase, keep, route 
       out.push(...cs);
     }
   }
-  const ctl = [];
-  for (let i = 0; i < 4; i++) ctl.push(...(await directControl(browser, rig, engine)).map((c) => ({ ...c, id: `${c.id}#${i + 1}` })));
-  for (const c of ctl) process.stderr.write(`  ctl  ${c.id}  (${c.detail})\n`);
-  out.push(...ctl);
+  const ctl = await controls(browser, rig, engine);
+  ctl.forEach((c, i) => out.push({ id: `${engine}/control/${c.arm}/o-load#${i + 1}`, ok: c.ok, detail: c.detail }));
+  const suiteSig = out.some((c) => /webkit-linux-preload-cancel-noise-observed$/.test(c.id));
+  const at = attribution(ctl, suiteSig);
+  out.push({ id: `${engine}/control/attribution`, ok: true, detail: `arms showing the signature: ${at.shown.join(", ") || "none"}; attributed to ${at.cause}` });
+  for (const c of out.filter((x) => x.id.includes("/control/"))) process.stderr.write(`  ctl  ${c.id}  (${c.detail})\n`);
   return out;
 }
 

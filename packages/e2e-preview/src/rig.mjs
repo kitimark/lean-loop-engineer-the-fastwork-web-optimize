@@ -66,6 +66,12 @@ function startHostProxy() {
  *  statement to each module under `/_app/` (`__fwEvals.push(import.meta.url)`), so the page can say at which URLs a module was
  *  evaluated. It sits behind the console's preview proxy, so the browser still talks to the unmodified proxy path. */
 const EVAL_MARK = "(globalThis.__fwEvals ||= []).push(import.meta.url);\n";
+/** SvelteKit's client `start(app, target, hydrate)` is the one async function of three parameters that begins by reading
+ *  `globalThis.__sveltekit_<hash>.data`. The tap adds a call counter at its first statement (`__fwStarts`): how often the app was
+ *  started, which the suite requires to be exactly 1. A module without that function passes through unchanged. */
+const START_FN = /(async function \w+\(\w+,\w+,\w+\)\{)(if\(globalThis\.__sveltekit_\w+\.data\))/;
+const START_MARK = "(globalThis.__fwStarts=(globalThis.__fwStarts||0)+1);";
+export const instrumentModule = (text) => EVAL_MARK + text.replace(START_FN, `$1${START_MARK}$2`);
 function startTap(port) {
   const srv = createServer((req, res) => {
     const headers = { ...req.headers, "accept-encoding": "identity" };
@@ -76,7 +82,7 @@ function startTap(port) {
       const chunks = [];
       r.on("data", (c) => chunks.push(c));
       r.on("end", () => {
-        const body = Buffer.concat([Buffer.from(EVAL_MARK), ...chunks]);
+        const body = Buffer.from(instrumentModule(Buffer.concat(chunks).toString("utf8")));
         const h = { ...r.headers, "content-length": String(body.length) };
         delete h.etag; delete h["content-encoding"]; h["cache-control"] = "no-store";
         res.writeHead(200, h); res.end(req.method === "HEAD" ? undefined : body);
@@ -120,8 +126,11 @@ export async function startRig({ lan = null } = {}) {
   const store = await Store.open(join(tmp, ".fw-console"), core);
   closers.push(() => store.close());
   const touched = [];
+  /** Which ports the stub PreviewManager hands the console proxy: the tapped ones (the suite's arms) or the raw preview server
+   *  ports (the "proxy without tap" control). The real manager always hands out the raw ones; the tap only counts evaluations. */
+  const wiring = { tap: true };
   const pm = {
-    serving: (id) => (id === PREVIEW_ID ? { rp: tapR.address().port, op: tapO.address().port } : null),
+    serving: (id) => (id !== PREVIEW_ID ? null : wiring.tap ? { rp: tapR.address().port, op: tapO.address().port } : { rp, op }),
     touch: (id) => { touched.push(id); },
     list: () => ({ previews: [], failed: [] }),
   };
@@ -164,8 +173,10 @@ export async function startRig({ lan = null } = {}) {
     return new URL((await r.json()).url);
   }
   return {
-    ports: { console: consolePort, preview: previewPort, rp, op, proxy: proxy.address().port },
+    ports: { console: consolePort, preview: previewPort, rp, op, tapOp: tapO.address().port, proxy: proxy.address().port },
     consoleOrigin, lan, audit, touched, seen,
+    /** `useTap(false)`: the console proxy talks to the raw preview server (control: proxy without tap); `useTap(true)` restores. */
+    useTap(on) { wiring.tap = Boolean(on); },
     hosts: {
       loopback: { name: "loopback", origin: `http://127.0.0.1:${previewPort}`, trustworthy: true },
       plain: { name: "plain-http", origin: `http://${PLAIN_HOST}:${previewPort}`, trustworthy: false },
