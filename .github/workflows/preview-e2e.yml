@@ -1,0 +1,102 @@
+name: preview-e2e
+
+# The preview proxy in a real browser (packages/e2e-preview, docs/team/tools/preview-e2e.md): /r, /o and /compare of a fixture
+# preview through the grant path and LAN-mode passphrase login, over loopback and over a plain-HTTP host that is not
+# potentially trustworthy (the phone's case), on both engines of the gate (Chrome Headless Shell and Playwright WebKit on
+# Linux). Selected only when a declared input changes (Lean Fw.Ci.Trigger row `preview-e2e.yml`); a ci/* push asks for it with
+# `[ci:preview-e2e]`. Red = a check failed; the JSON of every engine is uploaded either way.
+on:
+  push:
+    branches: ['ci/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Same pinned browser as breakpoint-gate and packages/measure-chromium/Dockerfile.
+  HS_VERSION: 156.0.8078.4
+  HS_SHA256: 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
+
+jobs:
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole
+  # branch is an input. A main push starts no run; dispatches always run. Fails open.
+  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
+  guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:preview-e2e]') }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/preview-e2e.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
+
+  engine:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:preview-e2e:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:engine:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, playwright-webkit]
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      # console-api is installed for its dependencies (the rig imports its server files); gate-breakpoints because the
+      # gate-engine action runs `pnpm exec playwright-core install` from its directory (same playwright-core 1.64.1).
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints @fw/console-api @fw/e2e-preview'
+      - uses: ./.github/actions/gate-engine
+        with:
+          engine: ${{ matrix.engine }}
+      - name: Run the suite (red when a check fails; the JSON is uploaded either way)
+        env:
+          ENGINE: ${{ matrix.engine }}
+        run: node src/run.mjs --engine "$ENGINE" --out out
+        working-directory: packages/e2e-preview
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() && steps.stale.outcome == 'skipped' }}
+        with:
+          name: preview-e2e-${{ matrix.engine }}
+          path: packages/e2e-preview/out/*.json
+          if-no-files-found: warn
+          retention-days: 14
