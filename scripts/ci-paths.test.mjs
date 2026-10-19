@@ -515,7 +515,7 @@ test('preview-e2e.yml: a change inside its read set selects it, a change outside
     assert.ok(matches(inputs, f), `${f} selects the lane`);
   }
   for (const f of ['apps/console-web/src/main.tsx', 'apps/site/src/index.ts', 'packages/measure-chromium/src/a.mjs', 'docs/team/handoffs/x.md',
-    'apps/console-api/test/app.test.ts', 'lean/Fw/Parts/HeroExit.lean', '.github/workflows/premise-tests.yml']) {
+    'apps/console-api/test/app.test.ts', 'lean/FwTest/Lease.lean', '.github/workflows/premise-tests.yml']) {
     assert.ok(!matches(inputs, f), `${f} does not select the lane`);
   }
 });
