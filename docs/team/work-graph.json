@@ -6687,7 +6687,8 @@
     "docs/team/handoffs/port-pin-gap.md",
     "apps/site/src/parts/platform/assets.test.ts",
     "apps/site/src/parts/platform/visuals.module.css"
-   ]
+   ],
+   "evidence": "4392d54"
   },
   {
    "devices": [
