@@ -31,8 +31,8 @@ flags, as discrete keyframes at the eased-progress offset, flip on the same fram
 `>` tests, except at an exact tie $p = c$ (R3b: the engines flip at $p \ge c$). Visual (`waapi_vis`): the scene is
 `VisSame E` for every env. MT-W (`waapi_work_le`): per tween frame the variant drops the script stage and keeps
 every other stage, in both engine tables (a custom property animates on the main thread in both). MT-R
-(`registrations_see`, `morph_scope_eq`): `--morph` is registered inherited, so every reader below the nav (the hosted
-panel included) sees the animated value and the style invalidation scope equals the original's.
+(`registrations_see`, `morph_scope_eq`): `--morph` and `--morph-fade` are registered inherited, so every reader below
+the nav (the hosted panel included) sees the animated value and the style invalidation scope equals the original's.
 Golden rows (predictions, registrations, readers): `packages/contracts/golden/parts/morph-tween-waapi.jsonl`
 (`goldenJsonl`).
 -/
@@ -1146,7 +1146,7 @@ Inherited custom values live in the inherited style data (Chromium `style/comput
 `StyleInheritedRareData.h:153` against `StyleNonInheritedRareData.h:162`@862f17d), and a change there propagates the
 style recalc to the children (Chromium `style/computed_style.cc:472-478`@f842f52, `kInherited` /
 `kIndependentInherited`; WebKit `style/StyleChange.cpp:42-43` with `StyleComputedStyle.cpp:296`@862f17d,
-`Change::Inherited`). The original writes `--morph` unregistered, so inherited. -/
+`Change::Inherited`). The original writes `--morph` and `--morph-fade` unregistered, so inherited. -/
 
 /-- The value an element at depth $d$ below the animated element $e$ computes for a property whose value on $e$ is $a$
 and whose initial value is $i$, when no element below $e$ on the path to it declares the property: $e$ itself has
@@ -1451,7 +1451,7 @@ def PredRow.json (r : PredRow) : String :=
 
 $$\mathrm{goldenJsonl} = \mathop{\Vert}_{r \in \mathrm{rows}} \big(\operatorname{json}(r) \mathbin{+\!\!+} \texttt{\textbackslash n}\big) \mathbin{\Vert} \mathop{\Vert}_{g \in \mathrm{regs}} \big(\operatorname{json}(g) \mathbin{+\!\!+} \texttt{\textbackslash n}\big) \mathbin{\Vert} \mathop{\Vert}_{q \in \mathrm{readers}} \big(\operatorname{json}(q) \mathbin{+\!\!+} \texttt{\textbackslash n}\big)$$
 
-The golden file: the eleven predictions, then the three registrations, then the six readers. -/
+The golden file: the eleven predictions, then the four registrations, then the seven readers. -/
 def goldenJsonl : String :=
   String.join (goldenRows.map fun r => r.json ++ "\n") ++ String.join (registrations.map fun r => r.json ++ "\n") ++
     String.join (readers.map fun r => r.json ++ "\n")
