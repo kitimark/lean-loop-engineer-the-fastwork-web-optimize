@@ -56,7 +56,7 @@ export function logLines(path: string): string[] {
 type Pending = { ok: (v: Record<string, unknown>) => void; err: (e: Error) => void; timer: NodeJS.Timeout };
 
 /** Per-call deadline (ms). A call that exceeds it kills the child (crash-restart with replay). Replay chunks get more. */
-export const CALL_TIMEOUT_MS = 10_000;
+export const CALL_TIMEOUT_MS = Number(process.env.FW_CORE_CALL_MS) || 10_000;
 export const REPLAY_TIMEOUT_MS = 120_000;
 
 export class LeanCore implements Core {
