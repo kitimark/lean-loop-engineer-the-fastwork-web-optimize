@@ -156,6 +156,35 @@ const LAKE_NOT_IN_TEST: Record<string, string> = {
   "apps/site/scripts/check-breakpoints.mjs": "runs in the `build` scripts only; the land runs `test`",
 };
 
+/** The source without its block comments and `//` line comments (a Lean path in a doc comment is not a read). */
+const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
+
+/** Lean source reads of the package checks that their declared reads miss: quoted `lean/...lean` paths (after any `../`
+ *  segments, in any quote), `join`/`resolve` calls with a `"lean"` segment not followed by `".lake"`, and `lake` spawns. The
+ *  last two need `lean/**`. Comments are not scanned. `seen` counts the quoted paths checked. */
+function leanReadMisses(checks: Check[], tracked: Set<string>): { missing: string[]; seen: number } {
+  const missing: string[] = [];
+  let seen = 0;
+  for (const c of checks.filter((x) => /^(apps|packages)\//.test(x.id))) {
+    const allLean = inScope(c.reads, "lean/Fw/A.lean");
+    for (const f of walk(join(root, c.id), /\.(ts|tsx|mjs|js)$/)) {
+      const rel = relative(root, f), src = codeOnly(readFileSync(f, "utf8"));
+      for (const [, p] of src.matchAll(/["'`](?:\.\.\/)*(lean\/[\w./-]+\.lean)["'`]/g) as Iterable<[string, string]>) {
+        if (!tracked.has(p) || `${p} <- ${rel}` in LEAN_NAMED_NOT_READ) continue;
+        seen++;
+        if (!inScope(c.reads, p)) missing.push(`${c.id}: ${p} <- ${rel}`);
+      }
+      for (const [call] of src.matchAll(/\b(?:join|resolve)\((?:[^()]|\([^()]*\))*\)/g)) {
+        if (/["'`]lean["'`]/.test(call) && !/["'`]lean["'`]\s*,\s*["'`]\.lake["'`]/.test(call) && !allLean && !(rel in LAKE_NOT_IN_TEST))
+          missing.push(`${c.id}: joins a lean/ segment <- ${rel}`);
+      }
+      if (/(?:spawnSync|execFileSync|spawn)\(\s*["']lake["']/.test(src) && !allLean && !(rel in LAKE_NOT_IN_TEST)) missing.push(`${c.id}: runs lake <- ${rel}`);
+    }
+  }
+  return { missing, seen };
+}
+const trackedLean = () => new Set(execFileSync("git", ["ls-files", "-z", "--", "lean"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean));
+
 describe("premise land.readsOnly: no read outside the declared inputs (static)", () => {
   it("lean/scripts/check.sh and everything it runs read only CHECK_SH_READS or lean/", () => {
     const found = uniq(escapes("lean", /\.(lean|sh|mjs|toml)$/)).filter((x) => !(x.path in NOT_REACHED_BY_CHECK_SH));
@@ -190,24 +219,22 @@ describe("premise land.readsOnly: no read outside the declared inputs (static)",
     expect(checksWithReads(root, ["lean/Fw/A.lean"], d, d).map((c) => c.id).sort()).toEqual(["check.sh", READS_SCAN_ID, ...leanReaders].sort());
     expect(checksWithReads(root, ["lean/Fw/Console/PreviewFacts.lean"], d, d).map((c) => c.id)).toContain("apps/console-api");
   });
-  it("every Lean source a package names by a quoted repo path is a declared read, and a package that runs lake declares lean/**", () => {
-    const tracked = new Set(execFileSync("git", ["ls-files", "-z", "--", "lean"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean));
-    const missing: string[] = [];
-    let seen = 0;
-    for (const c of candidateChecks(root).filter((x) => /^(apps|packages)\//.test(x.id))) {
-      for (const f of walk(join(root, c.id), /\.(ts|tsx|mjs|js)$/)) {
-        const rel = relative(root, f), src = readFileSync(f, "utf8");
-        for (const [, p] of src.matchAll(/["'](lean\/[\w./-]+\.lean)["']/g) as Iterable<[string, string]>) {
-          if (!tracked.has(p) || `${p} <- ${rel}` in LEAN_NAMED_NOT_READ) continue;
-          seen++;
-          if (!inScope(c.reads, p)) missing.push(`${c.id}: ${p} <- ${rel}`);
-        }
-        if (/(?:spawnSync|execFileSync|spawn)\(\s*["']lake["']/.test(src) && !inScope(c.reads, "lean/Fw/A.lean") && !(rel in LAKE_NOT_IN_TEST)) missing.push(`${c.id}: runs lake <- ${rel}`);
-      }
-    }
+  it("every Lean source a package names by a repo path is a declared read, and a package that joins a lean/ segment or runs lake declares lean/**", () => {
+    const tracked = trackedLean();
+    const { missing, seen } = leanReadMisses(candidateChecks(root), tracked);
     expect(missing).toEqual([]);
     expect(seen).toBeGreaterThan(3);
     for (const k of Object.keys(LEAN_NAMED_NOT_READ)) expect(tracked.has(k.split(" <- ")[0]!), k).toBe(true);
+  });
+  it("mutation: dropping measure-chromium's read of lean/Fw/Store/Layout.lean (named as ../../../lean/...) is reported", () => {
+    const layout = "lean/Fw/Store/Layout.lean";
+    const cs = candidateChecks(root).map((c) => c.id === "packages/measure-chromium" ? { ...c, reads: c.reads.filter((g) => g !== layout) } : c);
+    expect(candidateChecks(root).find((c) => c.id === "packages/measure-chromium")!.reads).toContain(layout);
+    expect(leanReadMisses(cs, trackedLean()).missing).toContain(`packages/measure-chromium: ${layout} <- packages/measure-chromium/test/stage-mode.test.mjs`);
+  });
+  it("mutation: dropping lean/** from apps/runner reports its lean/ segment joins (src/premises.ts)", () => {
+    const cs = candidateChecks(root).map((c) => c.id === "apps/runner" ? { ...c, reads: c.reads.filter((g) => g !== "lean/**") } : c);
+    expect(leanReadMisses(cs, trackedLean()).missing).toContain("apps/runner: joins a lean/ segment <- apps/runner/src/premises.ts");
   });
 
   it("new selection is a superset of the old one: every tracked path alone, and the last 30 land diffs", () => {
