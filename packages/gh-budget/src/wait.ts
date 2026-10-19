@@ -28,6 +28,36 @@ export type Target =
 /** 0 pass, 1 fail, 2 a gh error, 3 timeout / budget stop, 4 not run (every decisive run's guard skipped). */
 export type Waited = { code: 0 | 1 | 2 | 3 | 4; lines: string[] };
 
+/** What one wait measured about its own latency (task ci-wait-lag), all epoch ms unless noted; written on the `fw ci wait`
+ *  span. Fields in the order the run's finish travels: GitHub marks the run done (`updMs`, GitHub's `updatedAt`, whole
+ *  seconds), the poller's list shows it completed (`tickMs`, whole seconds), this waiter reads the file (`readMs`),
+ *  fetches the jobs (`readMs` to `viewEndMs`), fwcore decides (`doneMs`), the waiter's cleanup ends (`retMs`).
+ *  `how`: done = a tick after this wait began showed the run completed (the only kind whose lag is the wait's own);
+ *  late = the file already showed it when the wait began; already = the run was completed before the wait began;
+ *  grace = a requested lane had no run and the missing-lane grace elapsed (lag by design); timeout; stopped. */
+export type WaitPhases = {
+  how: "done" | "late" | "already" | "grace" | "timeout" | "stopped";
+  /** This process held poller.lock when it decided (it ran the tick itself). */
+  holder: boolean;
+  regMs: number;
+  /** Ids of the runs the verdict covers. */
+  runIds: number[];
+  updMs?: number;
+  /** Tick of the list read just before the deciding one, when that list still showed the latest decisive run unfinished. */
+  prevTickMs?: number;
+  tickMs?: number;
+  readMs?: number;
+  viewEndMs?: number;
+  doneMs?: number;
+  retMs: number;
+  /** Charged `gh run view --json jobs` calls this wait made, jobs answered from the cache, ms waiting for the per-run lock, ms inside the charged calls. */
+  views: number; cached: number; lockMs: number; ghMs: number;
+  /** Passes of the wait loop. */
+  loops: number;
+};
+export type WaitOpts = { timeoutS: number; nowMs?: () => number; phases?: (p: WaitPhases) => void };
+type Probe = { ms: () => number; ph: WaitPhases };
+
 /** Local re-read period of a waiter, seconds (file reads and lock checks only, no GitHub call). */
 const SLICE = 2;
 
@@ -95,16 +125,21 @@ export function evaluate(st: Status | null, t: Target, regAt: number, required: 
 
 /** The facts of a finished run: one charged `gh run view <id> --json jobs`, cached in meta/<id>.jobs.json (a finished
  *  run's jobs never change), one call per run id however many waiters ask. */
-async function jobsOf(env: Env, runId: number, deadline: number): Promise<{ facts: RunFacts } | { fail: Waited }> {
+async function jobsOf(env: Env, runId: number, deadline: number, pr: Probe): Promise<{ facts: RunFacts } | { fail: Waited }> {
   const file = paths(env.dir).jobs(runId);
   const k = readJson<RunFacts>(file);
-  if (k) return { facts: k };
+  if (k) { pr.ph.cached++; return { facts: k }; }
   mkdirSync(join(env.dir, "meta"), { recursive: true });
+  const t0 = pr.ms();
   const l = await lockAsync(paths(env.dir).jobsLock(runId), 120, env.now, env.sleepUntil);
+  pr.ph.lockMs += pr.ms() - t0;
   try {
     const k2 = readJson<RunFacts>(file);
-    if (k2) return { facts: k2 };
+    if (k2) { pr.ph.cached++; return { facts: k2 }; }
+    const g0 = pr.ms();
     const res = await ghCharged(env, ["run", "view", String(runId), "--json", "jobs"], { cost: 3, block: true, deadline });
+    pr.ph.ghMs += pr.ms() - g0;
+    pr.ph.views++;
     if (!res.ran) return { fail: { code: 3, lines: [`wait: no gh call for the jobs of run ${runId}: ${res.decision} (${res.reason}); see \`fw ci budget\``] } };
     if (res.code !== 0) return { fail: { code: 2, lines: [`wait: gh run view ${runId} --json jobs failed: ${res.error ?? "unknown"}`] } };
     const facts = factsOf((JSON.parse(res.stdout) as { jobs: Job[] }).jobs ?? []);
@@ -117,16 +152,18 @@ async function jobsOf(env: Env, runId: number, deadline: number): Promise<{ fact
 
 /** Lanes mode: the newest run of each requested lane for the commit, then fwcore `ci.verdict {msg, lanes}` decides
  *  (Lean `combineRequested`): a lane with no run is `missing`, never a pass. */
-async function lanesVerdictOf(env: Env, msg: string | null, required: string[], rs: Row[], deadline: number): Promise<Waited> {
+async function lanesVerdictOf(env: Env, msg: string | null, required: string[], rs: Row[], deadline: number, pr: Probe): Promise<Waited> {
   const lanes: Record<string, RunFacts | null> = {};
   for (const n of required) {
     const r = rs.find((x) => x.workflowName === n);
     if (!r) { lanes[n] = null; continue; }
-    const f = await jobsOf(env, r.databaseId, deadline);
+    const f = await jobsOf(env, r.databaseId, deadline, pr);
     if ("fail" in f) return f.fail;
     lanes[n] = f.facts;
   }
+  pr.ph.viewEndMs = pr.ms();
   const v = env.core({ op: "ci.verdict", msg, lanes });
+  pr.ph.doneMs = pr.ms();
   const per = v.lanes as { name: string; verdict: string; code: number; reason: string }[];
   const lines = per.map((p) => {
     const r = rs.find((x) => x.workflowName === p.name);
@@ -136,14 +173,16 @@ async function lanesVerdictOf(env: Env, msg: string | null, required: string[], 
 }
 
 /** The verdict of finished decisive runs: their jobs, then fwcore `ci.verdict` decides (Lean `Fw.Ci.Verdict`). */
-async function verdictOf(env: Env, rs: Row[], deadline: number): Promise<Waited> {
+async function verdictOf(env: Env, rs: Row[], deadline: number, pr: Probe): Promise<Waited> {
   const facts: RunFacts[] = [];
   for (const r of rs) {
-    const f = await jobsOf(env, r.databaseId, deadline);
+    const f = await jobsOf(env, r.databaseId, deadline, pr);
     if ("fail" in f) return f.fail;
     facts.push(f.facts);
   }
+  pr.ph.viewEndMs = pr.ms();
   const v = env.core({ op: "ci.verdict", runs: facts });
+  pr.ph.doneMs = pr.ms();
   const per = v.runs as { verdict: string; code: number; reason: string }[];
   const lines = rs.map((r, i) => `${line(r)} -> ${per[i]!.verdict}${per[i]!.reason ? ` (${per[i]!.reason})` : ""}`);
   return { code: Number(v.code) as Waited["code"], lines };
@@ -204,7 +243,32 @@ async function createdOf(env: Env, runId: number, deadline: number): Promise<{ r
   }
 }
 
-export async function waitFor(env: Env, t: Target, o: { timeoutS: number }): Promise<Waited> {
+/** The phases of the run whose finish decided the wait: the latest `updatedAt` among the decisive rows is the critical one. */
+function noteDecided(pr: Probe, rows: Row[], st: Status | null, prev: Status | null, readMs: number, holder: boolean, required: string[] | null): void {
+  const ph = pr.ph;
+  ph.runIds = rows.map((r) => r.databaseId);
+  ph.holder = holder;
+  ph.readMs = readMs;
+  const stamped = rows.filter((r) => r.updatedAt && Number.isFinite(Date.parse(r.updatedAt))).sort((a, b) => Date.parse(b.updatedAt!) - Date.parse(a.updatedAt!));
+  const crit = stamped[0];
+  if (crit) ph.updMs = Date.parse(crit.updatedAt!);
+  if (st?.tickAt !== undefined) ph.tickMs = st.tickAt * 1000;
+  const lanesMissing = required !== null && !required.every((n) => rows.some((r) => r.workflowName === n && r.status === "completed"));
+  ph.how = lanesMissing ? "grace" : ph.tickMs !== undefined && ph.tickMs < ph.regMs ? "late" : "done";
+  const before = crit ? prev?.rows.find((r) => r.databaseId === crit.databaseId) : undefined;
+  if (before && before.status !== "completed" && prev?.tickAt !== undefined) ph.prevTickMs = prev.tickAt * 1000;
+}
+
+export async function waitFor(env: Env, t: Target, o: WaitOpts): Promise<Waited> {
+  const ms = o.nowMs ?? (() => env.now() * 1000);
+  const ph: WaitPhases = { how: "timeout", holder: false, regMs: ms(), runIds: [], retMs: 0, views: 0, cached: 0, lockMs: 0, ghMs: 0, loops: 0 };
+  const w = await waitRun(env, t, o, { ms, ph });
+  ph.retMs = ms();
+  try { o.phases?.(ph); } catch { /* the measurement never fails a wait */ }
+  return w;
+}
+
+async function waitRun(env: Env, t: Target, o: WaitOpts, pr: Probe): Promise<Waited> {
   const regAt = env.now();
   const deadline = regAt + o.timeoutS;
   const req = lanesMode(t) ? env.core({ op: "ci.required", msg: msgOf(t) }) : null;
@@ -219,7 +283,11 @@ export async function waitFor(env: Env, t: Target, o: { timeoutS: number }): Pro
     id = t.runId;
     const c = await createdOf(env, id, deadline);
     if ("fail" in c) return c.fail;
-    if (c.row.status === "completed") return await verdictOf(env, [c.row], deadline);
+    if (c.row.status === "completed") {
+      pr.ph.how = "already"; pr.ph.runIds = [c.row.databaseId]; pr.ph.readMs = pr.ms();
+      if (c.row.updatedAt) pr.ph.updMs = Date.parse(c.row.updatedAt);
+      return await verdictOf(env, [c.row], deadline, pr);
+    }
     createdAt = epoch(c.row.createdAt);
   } else {
     id = sentinelId(t);
@@ -231,10 +299,19 @@ export async function waitFor(env: Env, t: Target, o: { timeoutS: number }): Pro
   cleanups.add(cleanup);
   try {
     let nextAt = 0;
+    let cur: Status | null = null; // the newest list this waiter read, and the one before it (lag phases)
+    let prev: Status | null = null;
     for (;;) {
-      const ev = evaluate(readStatus(env.dir), t, regAt, required, env.now());
-      if ("done" in ev) return required ? await lanesVerdictOf(env, msgOf(t), required, ev.done, deadline) : await verdictOf(env, ev.done, deadline);
-      if ("stopped" in ev) return { code: 3, lines: [`wait: the poller stopped (${ev.stopped}); see \`fw ci budget\`, \`fw ci budget --resume\``] };
+      pr.ph.loops++;
+      const st = readStatus(env.dir);
+      const readMs = pr.ms();
+      if (st && st.tickAt !== undefined && st.tickAt !== cur?.tickAt) { prev = cur; cur = st; }
+      const ev = evaluate(st, t, regAt, required, env.now());
+      if ("done" in ev) {
+        noteDecided(pr, ev.done, st, prev, readMs, poller !== null, required);
+        return required ? await lanesVerdictOf(env, msgOf(t), required, ev.done, deadline, pr) : await verdictOf(env, ev.done, deadline, pr);
+      }
+      if ("stopped" in ev) { pr.ph.how = "stopped"; return { code: 3, lines: [`wait: the poller stopped (${ev.stopped}); see \`fw ci budget\`, \`fw ci budget --resume\``] }; }
       if (env.now() >= deadline) return { code: 3, lines: [`wait: timed out after ${o.timeoutS} s; run it again to keep waiting (\`fw ci budget\` shows the poller)`] };
       poller ??= tryLock(paths(env.dir).poller);
       let wake = env.now() + SLICE;

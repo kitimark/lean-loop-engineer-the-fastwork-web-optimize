@@ -56,7 +56,9 @@ export function stepUnlocked(env: Env, event: Json): Json {
 export const stepEvent = (env: Env, event: Json): Json => locked(env, () => stepUnlocked(env, event));
 
 /** The row `gh run list` gave for one run. */
-export type Row = { status: string; conclusion: string | null; databaseId: number; headBranch: string; workflowName: string; headSha: string; createdAt: string };
+export type Row = { status: string; conclusion: string | null; databaseId: number; headBranch: string; workflowName: string; headSha: string; createdAt: string;
+  /** GitHub's own time of the last change of the run (lag instrumentation: `fw ci wait` phases); absent in files written before it was listed. */
+  updatedAt?: string };
 /** The runs-status file: the last list the poller read. `stopped` is set when fwcore said stop. */
 export type Status = { at: number; tickAt?: number; createdSince?: number | null; rows: Row[]; stopped?: string; stoppedAt?: number };
 

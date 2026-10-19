@@ -12,19 +12,20 @@ import { nextMain, watchMain } from "./watch.ts";
 import { fwcoreCall, runCli } from "./run.ts";
 import { execFileSync } from "node:child_process";
 import { ciCli } from "./ci.ts";
-import { ghBudgetCli } from "@fw/gh-budget";
+import { ghBudgetCli, lastWaitPhases } from "@fw/gh-budget";
 import { engineCheckCli } from "./engine-check.ts";
 import { begin, timingsView } from "./timing.ts";
-import { backfill, ingestRuns, runIdsOf } from "./timing-ci.ts";
+import { backfill, ingestRuns, lagCli, runIdsOf, waitSpanExtra } from "./timing-ci.ts";
 
 const [group, ...rest] = process.argv.slice(2);
 // timing-spans: one span per invocation (step = group + subcommand); `watch` times each pass itself, `timings` is a view
 const SUBS = new Set(["plan", "ci", "incidents", "step", "card", "task"]);
-if (group && group !== "watch" && group !== "timings") { const end = begin("fw", SUBS.has(group) && rest[0] && !rest[0].startsWith("-") ? `${group} ${rest[0]}` : group); process.once("exit", (c) => end(c)); }
+let spanExtra: ReturnType<typeof waitSpanExtra> = {}; // ci-wait-lag: the phases of a `fw ci wait`, written on its span at exit
+if (group && group !== "watch" && group !== "timings") { const end = begin("fw", SUBS.has(group) && rest[0] && !rest[0].startsWith("-") ? `${group} ${rest[0]}` : group); process.once("exit", (c) => end(c, spanExtra)); }
 try {
   const base = NO_API_GROUPS.includes(group ?? "") ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
   if (group === "timings") {
-    console.log(rest.includes("--backfill") ? await backfill(rest, process.cwd()) : timingsView(rest, process.cwd()));
+    console.log(rest.includes("--backfill") ? await backfill(rest, process.cwd()) : rest.includes("--lag") ? lagCli(rest, process.cwd()) : timingsView(rest, process.cwd()));
   } else if (group === "engine-check") {
     process.exitCode = engineCheckCli(rest, process.cwd());
   } else if (group === "run") {
@@ -34,7 +35,11 @@ try {
     if (rest[0] === "wait") console.log = (...a: unknown[]) => { seen.push(String(a[0])); log(...a); }; // timing-spans: run ids that finished
     process.exitCode = await ghBudgetCli(rest, process.cwd()); // shared GitHub poller: no gh loops (packages/gh-budget)
     console.log = log;
-    if (rest[0] === "wait") await ingestRuns(runIdsOf(seen.flatMap((x) => x.split("\n"))), process.cwd()); // jobs fetched once, deduped by run id
+    if (rest[0] === "wait") {
+      const i0 = Date.now();
+      await ingestRuns(runIdsOf(seen.flatMap((x) => x.split("\n"))), process.cwd()); // jobs fetched once, deduped by run id
+      spanExtra = waitSpanExtra(lastWaitPhases(), i0, Date.now());
+    }
   } else if (group === "ci" && rest[0] === "push") {
     // ci-own-trigger: ask CI for lanes with [ci:<lane>] tokens and push (scripts/ci-push.mjs; no decision here)
     const script = new URL("../../../scripts/ci-push.mjs", import.meta.url).pathname;

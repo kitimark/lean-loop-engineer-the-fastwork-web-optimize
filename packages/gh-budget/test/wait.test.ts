@@ -175,6 +175,55 @@ test("timeout is exit 3 and the state keeps no watcher behind", async () => {
   assert.deepEqual(st.watched, []);
 });
 
+// task ci-wait-lag: the phases of a wait are recorded in order and cost no gh call
+async function phased(N: number, runs: Record<string, unknown>[], target: Parameters<typeof waitFor>[1], timeoutS = 3600) {
+  const w = mkWorld(T0, { fastGh: true });
+  w.config({ start: T0, listCost: 2, runs });
+  const got: import("../src/wait.ts").WaitPhases[] = [];
+  const res = await drive(w.sim, Array.from({ length: N }, () => waitFor(w.env, target, { timeoutS, phases: (p) => got.push(p) })));
+  return { res, got, calls: w.calls() };
+}
+
+test("phases: a wait on a running run records run, update, tick, read, view, verdict and return in order", async () => {
+  const r = await phased(3, [run(70)], { kind: "run", runId: 70 });
+  assert.equal(r.got.length, 3);
+  assert.equal(r.got.filter((p) => p.holder).length, 1, "one waiter runs the poller");
+  for (const p of r.got) {
+    assert.equal(p.how, "done");
+    assert.deepEqual(p.runIds, [70]);
+    const t = [p.regMs, p.tickMs!, p.readMs!, p.viewEndMs!, p.doneMs!, p.retMs];
+    assert.ok(t.every((x) => typeof x === "number"), JSON.stringify(p));
+    assert.ok(t.every((x, i) => i === 0 || x >= t[i - 1]!), `phases ordered: ${t.join(",")}`);
+    assert.ok(p.tickMs! >= p.updMs!, "the tick that showed the run completed is not before its updatedAt");
+    assert.equal(p.updMs, (T0 + 100) * 1000);
+  }
+  assert.equal(r.got.filter((p) => p.views === 1).length + r.got.filter((p) => p.cached === 1).length, 3, "each waiter either fetched the jobs or read the cache");
+});
+
+test("phases: the instrumentation adds no gh call, whatever the waiter count", async () => {
+  const plain = await wait(5, [run(71)], { kind: "run", runId: 71 });
+  const withPh = await phased(5, [run(71)], { kind: "run", runId: 71 });
+  assert.deepEqual(withPh.calls.map((c) => [c.t, c.args.slice(0, 3).join(" ")]), plain.calls.map((c) => [c.t, c.args.slice(0, 3).join(" ")]));
+});
+
+test("phases: an already finished run is `already` with no tick, a timeout is `timeout`", async () => {
+  const a = await phased(1, [run(72, { completeAt: T0 - 1 })], { kind: "run", runId: 72 });
+  assert.equal(a.got[0]!.how, "already");
+  assert.equal(a.got[0]!.tickMs, undefined);
+  const t = await phased(1, [run(73, { completeAt: 1e12 })], { kind: "run", runId: 73 }, 120);
+  assert.equal(t.res[0]!.code, 3);
+  assert.equal(t.got[0]!.how, "timeout");
+  assert.equal(t.got[0]!.doneMs, undefined);
+});
+
+test("phases: the tick before the finish is the previous tick (the list still showed the run unfinished)", async () => {
+  const r = await phased(1, [run(74, { completeAt: T0 + 100 })], { kind: "run", runId: 74 });
+  const p = r.got[0]!;
+  assert.equal(p.how, "done");
+  assert.ok(p.prevTickMs !== undefined && p.prevTickMs < p.updMs!, "previous tick precedes the update");
+  assert.ok(p.tickMs! > p.prevTickMs!);
+});
+
 // ---- real processes, real clock ----------------------------------------------------------------------------------------
 function cli(w: ReturnType<typeof mkWorld>, args: string[]): Promise<{ code: number | null; out: string }> {
   return new Promise((res) => {

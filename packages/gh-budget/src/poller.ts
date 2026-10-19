@@ -4,7 +4,7 @@ import type { Env, Json } from "./core.ts";
 import { chargedCall } from "./charged.ts";
 import { loadState, readStatus, stepEvent, writeStatus, type Row } from "./state.ts";
 
-export const LIST_FIELDS = "status,conclusion,databaseId,headBranch,workflowName,headSha,createdAt";
+export const LIST_FIELDS = "status,conclusion,databaseId,headBranch,workflowName,headSha,createdAt,updatedAt";
 /** gh rows per page (a page is what `pages` in the budget state counts). */
 const PAGE = 100;
 

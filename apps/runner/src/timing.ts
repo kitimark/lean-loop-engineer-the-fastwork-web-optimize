@@ -10,7 +10,9 @@ import { dirname, join, resolve } from "node:path";
 
 export type Span = { tool: string; step: string; startMs: number; durMs: number; exit: number | null; commit: string; load: number; host: "local" | "ci"; runId?: number;
   /** the run kind (Lean `Fw.Obs.Timing.Sample.kind`): for a CI run dispatched by `fw run`, the digest of its workflow inputs; "" and absent for every other span */
-  kind?: string };
+  kind?: string;
+  /** `fw ci wait` spans only (task ci-wait-lag): the runs the verdict covers (key `runIds`, never `runId`: `seenRuns` dedupes CI spans on `"runId":`) and the phase times of the wait (`WaitPhases`, epoch ms). */
+  runIds?: number[]; phases?: Record<string, number | string | boolean> };
 
 type Where = { main: string; sha: string };
 const cache = new Map<string, Where>();
@@ -66,14 +68,15 @@ export function record(s: Partial<Span> & Pick<Span, "tool" | "step" | "startMs"
   } catch { /* a timing line never fails a step */ }
 }
 
-/** Start a span now; call the returned function once with the exit code when the step ends (later calls are ignored). */
-export function begin(tool: string, step: string, cwd: string = process.cwd()): (exit?: number | null) => void {
+/** Start a span now; call the returned function once with the exit code when the step ends (later calls are ignored).
+ *  `extra`: fields to add to the line (the phases of a `fw ci wait`). */
+export function begin(tool: string, step: string, cwd: string = process.cwd()): (exit?: number | null, extra?: Partial<Span>) => void {
   const startMs = Date.now(), t0 = performance.now();
   let done = false;
-  return (exit = 0) => {
+  return (exit = 0, extra = {}) => {
     if (done) return;
     done = true;
-    record({ tool, step, startMs, durMs: Math.round(performance.now() - t0), exit }, cwd);
+    record({ ...extra, tool, step, startMs, durMs: Math.round(performance.now() - t0), exit }, cwd);
   };
 }
 
@@ -201,15 +204,16 @@ export function renderRows(rows: Row[]): string {
   return cells.map((c) => c.map((x, i) => (i < 2 ? x.padEnd(w[i]!) : x.padStart(w[i]!))).join("  ").trimEnd()).join("\n");
 }
 
-export const TIMINGS_USAGE = "usage: fw timings [--tool <t>] [--since <hours>] [--backfill [<runId>...] [--per <n>]]";
+export const TIMINGS_USAGE = "usage: fw timings [--tool <t>] [--since <hours>] [--backfill [<runId>...] [--per <n>]] | fw timings --lag [--since <hours>]";
 
-export function parseTimings(args: string[]): { tool?: string; sinceH?: number; backfill: boolean; runs: number[]; per: number } {
-  const o = { backfill: false, runs: [] as number[], per: 3 } as ReturnType<typeof parseTimings>;
+export function parseTimings(args: string[]): { tool?: string; sinceH?: number; backfill: boolean; lag: boolean; runs: number[]; per: number } {
+  const o = { backfill: false, lag: false, runs: [] as number[], per: 3 } as ReturnType<typeof parseTimings>;
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!;
     if (a === "--tool" && args[i + 1]) o.tool = args[++i];
     else if (a === "--since" && Number(args[i + 1]) > 0) o.sinceH = Number(args[++i]);
     else if (a === "--per" && Number(args[i + 1]) > 0) o.per = Number(args[++i]);
+    else if (a === "--lag") o.lag = true;
     else if (a === "--backfill") o.backfill = true;
     else if (/^\d+$/.test(a) && o.backfill) o.runs.push(Number(a));
     else throw new Error(TIMINGS_USAGE);

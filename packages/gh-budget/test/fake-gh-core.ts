@@ -80,7 +80,7 @@ export function fakeGh(dir: string, args: string[], costEnv: string | undefined,
   const row = (r: NonNullable<Cfg["runs"]>[number]) => {
     const done = t >= r.completeAt;
     return { databaseId: r.databaseId, status: done ? "completed" : "in_progress", conclusion: done ? r.conclusion : null,
-      headBranch: r.headBranch ?? "ci/x", workflowName: r.workflowName ?? "chromium-counts", headSha: r.headSha ?? "abc", createdAt: iso(r.createdAt) };
+      headBranch: r.headBranch ?? "ci/x", workflowName: r.workflowName ?? "chromium-counts", headSha: r.headSha ?? "abc", createdAt: iso(r.createdAt), updatedAt: iso(done ? r.completeAt : r.createdAt) };
   };
   const runs = cfg.runs ?? [];
   if (isList) {
