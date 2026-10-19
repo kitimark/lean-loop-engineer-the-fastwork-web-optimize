@@ -1,0 +1,22 @@
+{"name":"start with nothing recorded is allowed","request":{"kind":"start","op":"console.daemon"},"response":{"allow":true,"reason":"ok","verified":null}}
+{"name":"start with a recorded pid that does not answer is allowed (stale file)","request":{"kind":"start","op":"console.daemon","recorded":4242},"response":{"allow":true,"reason":"ok","verified":null}}
+{"name":"start while the recorded pid answers is refused","request":{"answered":4242,"kind":"start","op":"console.daemon","recorded":4242},"response":{"allow":false,"reason":"running","verified":4242}}
+{"name":"start when another pid answers on the recorded port is allowed","request":{"answered":9999,"kind":"start","op":"console.daemon","recorded":4242},"response":{"allow":true,"reason":"ok","verified":null}}
+{"name":"pid 1 is never a console","request":{"answered":1,"kind":"start","op":"console.daemon","recorded":1},"response":{"allow":true,"reason":"ok","verified":null}}
+{"name":"stop signals the verified pid","request":{"answered":4242,"kind":"stop","op":"console.daemon","recorded":4242},"response":{"reason":"ok","target":4242}}
+{"name":"stop signals nothing when nothing answers","request":{"answered":null,"kind":"stop","op":"console.daemon","recorded":4242},"response":{"reason":"notRunning","target":null}}
+{"name":"stop signals nothing on a pid mismatch","request":{"answered":9999,"kind":"stop","op":"console.daemon","recorded":4242},"response":{"reason":"notRunning","target":null}}
+{"name":"stop signals nothing when nothing is recorded","request":{"answered":4242,"kind":"stop","op":"console.daemon"},"response":{"reason":"notRunning","target":null}}
+{"name":"restart of a verified console stops then starts","request":{"answered":4242,"kind":"restart","op":"console.daemon","recorded":4242},"response":{"steps":[{"pid":4242,"step":"stop"},{"step":"start"}]}}
+{"name":"restart with no verified console only starts","request":{"kind":"restart","op":"console.daemon","recorded":4242},"response":{"steps":[{"step":"start"}]}}
+{"name":"the log admits a startup banner","request":{"kind":"line","line":"banner","op":"console.daemon"},"response":{"admit":true,"secret":false}}
+{"name":"the log admits an error line","request":{"kind":"line","line":"error","op":"console.daemon"},"response":{"admit":true,"secret":false}}
+{"name":"the log refuses the owner link","request":{"kind":"line","line":"ownerLink","op":"console.daemon"},"response":{"admit":false,"secret":true}}
+{"name":"the log refuses an owner token","request":{"kind":"line","line":"ownerToken","op":"console.daemon"},"response":{"admit":false,"secret":true}}
+{"name":"the log refuses the passphrase","request":{"kind":"line","line":"passphrase","op":"console.daemon"},"response":{"admit":false,"secret":true}}
+{"name":"the log refuses a keychain value","request":{"kind":"line","line":"keychain","op":"console.daemon"},"response":{"admit":false,"secret":true}}
+{"name":"an unknown line kind is refused","request":{"kind":"line","line":"x","op":"console.daemon"},"response":{"error":"field line: unknown line kind"}}
+{"name":"a log below the default limit is kept","request":{"kind":"rotate","op":"console.daemon","size":5242879},"response":{"limit":5242880,"rotate":false}}
+{"name":"a log at the default limit is rotated","request":{"kind":"rotate","op":"console.daemon","size":5242880},"response":{"limit":5242880,"rotate":true}}
+{"name":"a custom limit","request":{"kind":"rotate","limit":100,"op":"console.daemon","size":100},"response":{"limit":100,"rotate":true}}
+{"name":"an unknown kind is refused","request":{"kind":"x","op":"console.daemon"},"response":{"error":"field kind: expected start, stop, restart, line or rotate"}}
