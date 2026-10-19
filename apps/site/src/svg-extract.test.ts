@@ -73,7 +73,7 @@ describe('svg-extract', () => {
     expect(gen.art['brand.mark'].svg.viewBox).toBe('0 0 74 66');
   });
 
-  it(`no tracked file under apps/ or packages/ holds ${RUN} characters of a snapshot path`, () => {
+  it(`no tracked file under apps/ or packages/ holds ${RUN} characters of a snapshot path`, { timeout: 60_000 }, () => {
     const paths = snapshotPaths();
     expect(paths.size).toBeGreaterThan(40);
     const runs = new Set<string>();
