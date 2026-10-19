@@ -88,7 +88,8 @@ it: `ReadsOnly` with `Flow` as `Indep`.
 
 $$\operatorname{FlowSound}_{ps}(\mathit{obs}) \iff \operatorname{ReadsOnly}(\operatorname{Flow}_{ps}, \mathit{obs})$$
 
-What the contract rows claim of the site; complete rows, I5 and the reads no wire carries are its open parts. -/
+What the contract rows claim of the site; complete rows, I5 and the reads no wire carries are its open parts.
+Positions are indices into `ps`; for `codeParts` they follow alphabetical id order, not stack order. -/
 def FlowSound {V α : Type} (ps : List PartSpec) (obs : Nat → (Nat → V) → α) : Prop := ReadsOnly (Flow ps) obs
 
 /-- `FlowSound` unfolded: equal variants on every position that reaches `j` give `j` the same observable.
@@ -217,8 +218,8 @@ theorem lego_swap_units_flow {V P M : Type} (ps : List PartSpec) (frame : Nat �
   lego_swap_units (Flow ps) frame E n p x sel s hf (flow_of_isolated hi) hp
 
 /-- **Swap keeps the visible page, contract rows.** If arms are `FlowSound` over `ps`, `p` is isolated, and `p`'s arm
-keeps its band height and its visible scene at every offset, the visible page scene of parts $0, \dots, n-1$ is
-unchanged from every start offset.
+keeps its band height and its visible scene at every offset, the visible scene of the arms of positions $0, \dots,
+n-1$, stacked in index order, is unchanged from every start offset.
 
 $$\forall ps,\ \forall \mathit{arm},\ \forall \mathit{vp},\ \forall n, p \in \mathbb{N},\ \forall x \in V,\ \forall
 \sigma,\ \forall y \in \mathbb{Q}:\ \operatorname{FlowSound}_{ps}(\mathit{arm}) \land \operatorname{Isolated}_{ps}(p)
@@ -229,7 +230,8 @@ $$\forall ps,\ \forall \mathit{arm},\ \forall \mathit{vp},\ \forall n, p \in \ma
 \operatorname{visible}_{\mathit{vp}}\bigl(\operatorname{stackScene}(y, [\mathit{arm}(j,\sigma)]_{j<n})\bigr),\quad
 \sigma' = \operatorname{swap}(\sigma,p,x)$$
 
-`lego_swap_visible` with `Indep` discharged by `flow_of_isolated`. -/
+`lego_swap_visible` with `Indep` discharged by `flow_of_isolated`. Positions are indices into `ps`; for `codeParts`
+they follow alphabetical id order, not stack order, so this scene is the page only under a map from index to band. -/
 theorem lego_swap_visible_flow {V : Type} (ps : List PartSpec) (arm : Nat → (Nat → V) → PartArm) (vp : Rect)
     (n p : Nat) (x : V) (sel : Nat → V) (y : Rat) (ha : FlowSound ps arm) (hi : Isolated ps p)
     (hh : (arm p (swapSel sel p x)).height = (arm p sel).height)
