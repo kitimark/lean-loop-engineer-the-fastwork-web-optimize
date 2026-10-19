@@ -19,3 +19,6 @@ dist/
 # agent scratch written inside a worktree by mistake; the session scratchpad is outside the repo
 scratchpad/
 .claude/land-wt/
+
+# Fastwork inline SVG path data, read from the snapshot at build time (apps/site/scripts/svg-extract.mjs)
+apps/site/src/svg.gen.json

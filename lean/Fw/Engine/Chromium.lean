@@ -1,4 +1,5 @@
 import Fw.Engine.Core
+import Fw.Measure.EngineCheck
 import Lean.Data.Json
 /-!
 # The Chromium table of the engine model (design note 2026-10-18 §1.2, §1.4, §3.2-3.3)
@@ -1595,5 +1596,187 @@ theorem crRounds_remove (chains : List (List (Nat × Bool))) (c : Nat) :
 
 #guard crRounds [] == 1 && crRounds [[(1, true), (2, false), (3, true)], [(4, true)]] == 3
 #guard crRounds [[(1, false), (2, false)]] == 1
+
+/-! ### Refuted predictions of `model-checks`, re-judged (task model-bug-fixes)
+
+`research/notes/2026/10-19-model-checks.md` refuted four Chromium rows on swipe-v1 (base run 39130874266). Each one is
+re-judged here, on the same CI counts, under the adopted wave-1 class table
+(`packages/measure-chromium/classes.frozen.json`), with the mechanism from Chromium source @f842f52. Two are class
+findings (the frame a task's work lands in is not fixed), two are model findings (a forced style pass; a tween that
+never starts). -/
+
+section Refuted
+open Fw.Measure
+
+/-- **One unit of work crosses one frame boundary.** The main-thread frame is itself a task:
+`ProxyImpl::ScheduledActionSendBeginMainFrame` posts `ProxyMain::BeginMainFrame` to the main-thread task runner
+(`cc/trees/proxy_impl.cc:848-851`@f842f52, CONFIRMED), so a script task (timer, idle or observer callback) runs before or
+after it by arrival order, and the harness books its work in the frame on either side. Moving `m` units from frame
+`|p|` to frame `|p| + 1`:
+
+$$\forall p, q \in \mathbb{Z}^{*},\ \forall a, b, m \in \mathbb{Z}:\ \operatorname{cross}(p, a, b, m, q) = p \mathbin{+\!\!+} [a - m,\ b + m] \mathbin{+\!\!+} q$$
+
+The series in which `m` units of frame `|p|` were booked one frame later. -/
+def crossFrame (p : Series) (a b m : Int) (q : Series) : Series := p ++ [a - m, b + m] ++ q
+
+#guard crossFrame [5] 1 0 1 [2] == [5, 0, 1, 2]
+#guard crossFrame [] 13 5 8 [] == [5, 13]
+
+/-- **A crossing keeps the run total.**
+
+$$\forall p, q \in \mathbb{Z}^{*},\ \forall a, b, m \in \mathbb{Z}:\ \Sigma\,\operatorname{cross}(p, a, b, m, q) = \Sigma\,(p \mathbin{+\!\!+} [a, b] \mathbin{+\!\!+} q)$$
+
+Booking work one frame later moves it between frames and changes no total. -/
+theorem crossFrame_total (p q : Series) (a b m : Int) :
+    Measure.total (crossFrame p a b m q) = Measure.total (p ++ [a, b] ++ q) := by
+  simp only [crossFrame, Measure.total, sumBy_append, sumBy, id]
+  omega
+
+/-- **Totals certify `=o` on a class with frame slack and no total slack.** For `stable(k + 1, 0)` the claim is about
+totals (`Claim`), and equal observed totals pass.
+
+$$\forall k \in \mathbb{N},\ \forall b, v \in \mathbb{Z}^{*}:\ \Sigma v = \Sigma b \Rightarrow \operatorname{verdict}(=o,\ \mathrm{stable}(k + 1, 0),\ b,\ v) = \mathrm{pass}$$
+
+A class that lets frames move but not totals judges `=o` by the totals. -/
+theorem eqO_totals_pass (k : Nat) (b v : Series) (h : Measure.total v = Measure.total b) :
+    EngineCheck.verdict .eqO (.stable (k + 1) 0) b v = .pass := by
+  simp [EngineCheck.verdict, EngineCheck.passes, EngineCheck.exact, EngineCheck.slack, h]
+
+/-- **A deterministic class refutes `=o` at the first differing frame.**
+
+$$\forall b, v \in \mathbb{Z}^{*}:\ \operatorname{diff}(v, b) \ne 0 \Rightarrow \operatorname{verdict}(=o,\ \mathrm{det},\ b,\ v) = \mathrm{bug}$$
+
+Under a frame-exact class a single moved unit is a model bug. -/
+theorem eqO_det_bug (b v : Series) (h : diffFrames v b ≠ 0) :
+    EngineCheck.verdict .eqO .deterministic b v = .bug := by
+  simp [EngineCheck.verdict, EngineCheck.passes, EngineCheck.fails, EngineCheck.exact, h]
+
+/-- **Two base runs that differ in a frame refute the deterministic class.**
+
+$$\forall b_1, b_2 \in \mathbb{Z}^{*}:\ \operatorname{diff}(b_1, b_2) \ne 0 \Rightarrow \lnot\operatorname{Within}(\mathrm{det}, b_1, b_2)$$
+
+A class that the base runs themselves break is stale, and a bug verdict judged in it is a class finding. -/
+theorem det_stale (b₁ b₂ : Series) (h : diffFrames b₁ b₂ ≠ 0) : ¬ Within .deterministic b₁ b₂ := h
+
+/-- **A comparison judged with a quarantined variant class is unusable.** `judgeClass` joins the two arms' classes,
+and a quarantined class joins to quarantined with every class.
+
+$$\forall p \in \mathrm{Pred} \setminus \{=0, \mathrm{any}\},\ \forall c_b \in \mathrm{Class},\ \forall b, v \in \mathbb{Z}^{*}:\ \operatorname{verdict}(p,\ \operatorname{cls}(p, \mathrm{quar}, c_b),\ b,\ v) = \mathrm{unusable}(\mathrm{quarantined})$$
+
+Nothing is concluded from a count type the class table quarantines. -/
+theorem judge_quarantined (p : EngineCheck.Pred) (hz : p ≠ .zero) (ha : p ≠ .any) (cB : Class) (b v : Series) :
+    EngineCheck.verdict p (EngineCheck.judgeClass p .quarantined cB) b v = .unusable .quarantined := by
+  cases p <;> cases cB <;> simp_all [EngineCheck.judgeClass, Class.join, EngineCheck.verdict]
+
+/-- **Row nav.hitTest `trace.FunctionCall =o`, re-judged** (hit-skip run 39131343835, elements-skip run 39131395370).
+MEASURED: every differing frame pairs with its neighbour at an equal pair sum (e.g. frames 181-182: 13, 5 against
+5, 13), base runs differ among themselves the same way (r2 against r1 in 6 frames), and all totals are 2552. So the
+old `det` class was stale (`det_stale`) and the moves are frame-boundary crossings (`crossFrame_total`). The adopted
+table quarantines `trace.FunctionCall` on the swipe-v1 rewrite arm (k = 57, t = 1), so the row is unusable, not a bug.
+
+$$\forall b, v \in \mathbb{Z}^{*}:\ \operatorname{verdict}(=o,\ \operatorname{cls}(=o, \mathrm{quar}, \mathrm{quar}),\ b,\ v) = \mathrm{unusable}(\mathrm{quarantined})$$
+
+The FunctionCall row says nothing on the current classes; its frames move with task order, not with the flag. -/
+theorem navHit_functionCall_rejudged (b v : Series) :
+    EngineCheck.verdict .eqO (EngineCheck.judgeClass .eqO .quarantined .quarantined) b v = .unusable .quarantined :=
+  judge_quarantined .eqO (by decide) (by decide) .quarantined b v
+
+/-- **Row morph.mount:shift `metric.LayoutCount =o`, re-judged** (run 39131302530). MEASURED: the three base runs are
+equal; one variant run books the layout of frame 525 at frame 524 (`[0, 1]` against `[1, 0]`), totals 94 = 94. The
+shift arm mounts from an idle callback after a 150 ms timer (`apps/site/src/parts/morph.mount/index.tsx`), a task whose
+place against `BeginMainFrame` is arrival order (`crossFrame`). The adopted class of the rewrite arm is
+`stable(4, 0)`, so the row is judged by totals and passes.
+
+$$\forall p, q \in \mathbb{Z}^{*},\ \forall a, b, m \in \mathbb{Z}:\ \operatorname{verdict}\big(=o,\ \operatorname{cls}(=o, \mathrm{stable}(4, 0), \mathrm{stable}(4, 0)),\ p \mathbin{+\!\!+} [a, b] \mathbin{+\!\!+} q,\ \operatorname{cross}(p, a, b, m, q)\big) = \mathrm{pass}$$
+
+A layout booked one frame early passes `=o` on the refrozen class. -/
+theorem mount_layoutCount_rejudged (p q : Series) (a b m : Int) :
+    EngineCheck.verdict .eqO (EngineCheck.judgeClass .eqO (.stable 4 0) (.stable 4 0)) (p ++ [a, b] ++ q)
+      (crossFrame p a b m q) = .pass :=
+  eqO_totals_pass 3 _ _ (crossFrame_total p q a b m)
+
+#guard EngineCheck.verdict .eqO .deterministic [1, 0] [0, 1] == .bug
+#guard EngineCheck.verdict .eqO (.stable 4 0) [1, 0] [0, 1] == .pass
+
+/-- **The frame of a hidden section's return** (engine.scene `hidden-pause`). On return the arm removes
+`data-fw-hidden` (a style change `c` of the subtree) and then seeks its animations with `getAnimations({subtree: true})`.
+`Element::GetAnimationsInternal` first calls `UpdateStyleAndLayoutTreeForSubtree` (`B/core/dom/element.cc:833-842`),
+which recalculates style whenever the subtree needs it (`B/core/dom/document.cc:3004-3020`), and every recalculation
+emits one `UpdateLayoutTree` trace event (`document.cc:2815`); all CONFIRMED @f842f52. So the order "remove, then seek"
+forces one style pass in the callback task; "seek, then remove" finds the subtree clean and forces none (INFERRED: no
+other write is pending in that task).
+
+$$\forall f \in \mathrm{FrameIn}(\mathrm{CrProp}),\ \forall c,\ \forall \sigma \in \mathbb{B}:\ \operatorname{ret}(f, c, \sigma) = f\big[\mathrm{changes} := c :: f.\mathrm{changes},\ \mathrm{forcedStyle} := f.\mathrm{forcedStyle} + [\lnot\sigma]\big]$$
+
+The page frame `f` plus the return's write, and a forced style pass unless the seek runs first (`σ`). -/
+def sceneReturn (f : FrameIn CrProp) (c : Change CrProp) (seekFirst : Bool) : FrameIn CrProp :=
+  { f with changes := c :: f.changes, forcedStyle := f.forcedStyle + (if seekFirst then 0 else 1) }
+
+/-- **Row engine.scene:hidden-pause `trace.UpdateLayoutTree ≤o`, corrected.** If the rest of the frame already
+restyles, the return adds exactly its forced pass: one with "remove, then seek", none with "seek, then remove".
+MEASURED (run 39131168588 against base 39130874266): one frame (351, scrollY 3420) has 4 passes against 3 in all three
+runs, totals 1851 against 1850; the all-arms run 39131249517 gives the same 1851. Against `passes_not_compositional`
+(`Fw.Engine.Compose`): the return's write joins the frame's style pass and is absorbed, but a forced pass is not a frame
+pass and adds; the theorem holds for every rest-of-page frame `f`, so the columns and countdown arms (no forced pass)
+leave the +1 unchanged.
+
+$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}),\ \forall c,\ \forall \sigma \in \mathbb{B}:\ \mathrm{style} \in \operatorname{touched}_{\operatorname{chromiumAt}(m)}(f) \Rightarrow \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(\operatorname{ret}(f, c, \sigma)).\mathrm{passes}(\mathrm{style}) = \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f).\mathrm{passes}(\mathrm{style}) + [\lnot\sigma]$$
+
+The scene arm's `≤o` is false by one pass per return as written, and true once the seek runs before the removal. -/
+theorem sceneReturn_style (m : CrMode) (f : FrameIn CrProp) (c : Change CrProp) (sf : Bool)
+    (hf : Stage.style ∈ touched (chromiumAt m) f) :
+    (frameWork (chromiumAt m) (sceneReturn f c sf)).passes .style =
+      (frameWork (chromiumAt m) f).passes .style + (if sf then 0 else 1) := by
+  have h' : Stage.style ∈ touched (chromiumAt m) (sceneReturn f c sf) := by
+    simp only [touched, sceneReturn, FrameIn.updates, List.mem_append, List.mem_flatMap, List.mem_cons] at hf ⊢
+    rcases hf with ((⟨x, hx, hs⟩ | h2) | h3) | h4
+    · exact .inl (.inl (.inl ⟨x, .inr hx, hs⟩))
+    · exact .inl (.inl (.inr h2))
+    · refine .inl (.inr ?_)
+      by_cases hu : (!f.changes.isEmpty || decide (0 < f.script)) = true
+      · simp only [hu, ↓reduceIte] at h3; simpa using h3
+      · simp only [hu] at h3; simp at h3
+    · exact .inr h4
+  show (if Stage.style ∈ touched (chromiumAt m) (sceneReturn f c sf) then 1 else 0) +
+      forcedPasses (sceneReturn f c sf) .style =
+    (if Stage.style ∈ touched (chromiumAt m) f then 1 else 0) + forcedPasses f .style + (if sf then 0 else 1)
+  simp only [h', hf, ↓reduceIte]
+  simp only [forcedPasses, sceneReturn]
+  omega
+
+/-- **A rAF series of one arm.** Each frame lists the callbacks the rest of the page registers and whether the
+original's tween is running. `FrameRequestCallbackCollection::ExecuteFrameCallbacksImpl` emits one
+`FireAnimationFrame` per registered, uncancelled callback
+(`B/core/dom/frame_request_callback_collection.cc:95-116`@f842f52, CONFIRMED), and the original tween requests a frame
+only between a push and its end (`Fw.Parts.MorphTweenOpt.stepO`); the `waapi` arm requests none.
+
+$$\forall F \in (\mathbb{N} \times \mathbb{B})^{*},\ \forall w \in \mathbb{B}:\ \operatorname{raf}(F, w) = [\,o + [w \land t] \mid (o, t) \in F\,]$$
+
+The callbacks fired per frame: the page's own, plus one for the tween in the arm that runs it (`w`). -/
+def rafSeries (fs : List (Nat × Bool)) (tween : Bool) : List Nat :=
+  fs.map fun x => x.1 + if tween && x.2 then 1 else 0
+
+#guard rafSeries [(2, false), (2, true)] true == [2, 3] && rafSeries [(2, false), (2, true)] false == [2, 2]
+
+/-- **Row morph.tween:waapi `trace.FireAnimationFrame <o`, corrected.** The two arms fire the same callbacks in every
+frame iff no frame runs the tween. swipe-v1 scrolls with `scrollTo` and never pushes the morph, so no frame does and the
+row is `=o` on swipe-v1; `<o` needs a profile that pushes. MEASURED (run 39131146372): 1748 = 1748 in all three pairs.
+The same cause gives the reverse row `trace.Animation.compositeFailedBits <o` (rewrite against waapi): no WAAPI
+animation of `--morph` (registered, `inherits: true`) starts without a push, 167936 = 167936; the adopted table makes it
+deterministic, so it surfaces as a bug under the new classes, and the old FireAnimationFrame row is now quarantined.
+
+$$\forall F \in (\mathbb{N} \times \mathbb{B})^{*}:\ \operatorname{raf}(F, \bot) = \operatorname{raf}(F, \top) \iff \forall (o, t) \in F:\ t = \bot$$
+
+On a run without a push the waapi arm saves no animation frame. -/
+theorem waapi_raf_eq_iff (fs : List (Nat × Bool)) :
+    rafSeries fs false = rafSeries fs true ↔ ∀ x ∈ fs, x.2 = false := by
+  induction fs with
+  | nil => simp [rafSeries]
+  | cons x xs ih =>
+    simp only [rafSeries, List.map_cons, List.cons.injEq, List.mem_cons, forall_eq_or_imp] at ih ⊢
+    rw [ih]
+    cases x.2 <;> simp
+
+end Refuted
 
 end Fw.Engine.Chromium

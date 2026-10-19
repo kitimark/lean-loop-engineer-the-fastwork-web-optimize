@@ -187,7 +187,7 @@ G_{5} &= [\texttt{packages/gate-breakpoints/**}, \texttt{apps/site/**}, \texttt{
 w_{6} &= (\texttt{lean.yml}, B, G_{6}) \\
 G_{6} &= [\texttt{lean/**}, \texttt{apps/site/src/breakpoints.gen.json}, \texttt{apps/site/src/sweeps.gen.json}, \texttt{scripts/span.sh}, \\
 &\quad \texttt{scripts/fwcore-build.sh}, \texttt{packages/contracts/golden/gate/sweeps.jsonl}, \texttt{packages/contracts/golden/gate/exit.jsonl}, \texttt{packages/contracts/golden/gate/search.jsonl}, \\
-&\quad \texttt{packages/gate-breakpoints/src/scope.gen.json}, \texttt{packages/contracts/golden/parts/contracts.gen.json}, \texttt{packages/contracts/golden/parts/stage.jsonl}, \\
+&\quad \texttt{packages/gate-breakpoints/src/scope.gen.json}, \texttt{packages/contracts/golden/parts/contracts.gen.json}, \texttt{packages/contracts/golden/parts/stage.jsonl}, \texttt{packages/contracts/golden/parts/stage-mode.jsonl}, \\
 &\quad \texttt{packages/measure-chromium/scenarios.gen.json}, \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \\
 &\quad \texttt{.github/scripts/runner-info.sh}, \operatorname{own}(\texttt{lean.yml})] \\
 w_{7} &= (\texttt{mutants.yml}, B, G_{7}) \\
@@ -260,7 +260,7 @@ def table : List Wf := [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "scripts/span.sh",
     "scripts/fwcore-build.sh", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/search.jsonl",
     "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
-    "packages/contracts/golden/parts/stage.jsonl", "packages/measure-chromium/scenarios.gen.json",
+    "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl", "packages/measure-chromium/scenarios.gen.json",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh",
     own "lean.yml"]⟩,
   ⟨"mutants.yml", ciMain, [

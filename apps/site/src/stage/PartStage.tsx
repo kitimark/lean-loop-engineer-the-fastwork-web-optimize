@@ -18,7 +18,7 @@ import type { FwConfig } from '../registry/types';
 import { parts } from '../registry';
 import type { StageSpec } from '../registry/only';
 import type { Pinned } from './fixedEnv';
-import { hostOf, SECTION_ANCHOR, SECTIONS, type Host } from './hosts';
+import { COLUMNS_SECTIONS, hostOf, MAIN_SECTIONS, SECTION_ANCHOR, SECTIONS, type Host } from './hosts';
 import { applyInputs } from './inputs';
 import { planStage } from './plan';
 
@@ -109,6 +109,8 @@ const SECTION_HOST: Record<(typeof SECTIONS)[number], Host> = {
 /**
  * Mounts one part, or one contract group, in a fixed scroll environment (y, vw, vh from the stage, the real MotionClock).
  * The environment is pinned by the caller before the first render (`pinEnv` in entry-client), so mount-time reads see it.
+ * The page's own root wraps the main sections (`data-fw="page-root"`, overflow-x clip: App.tsx) so a part wider than the viewport is clipped
+ * here as on the page; the columns section sits outside it, as it does in the page (the nav panel's backdrop).
  * Hosts of staged parts render for real; every other page section is a fixed-height stub in page order, so geometry and
  * a neighbour box exist. Inputs that mounted parts read from unmounted owners are set once from the Lean contract rows.
  * Which hosts, stubs and writes follow `planStage` (a port of Lean `Stage.plan`). Every result carries the contract
@@ -149,23 +151,27 @@ export function PartStage({ stage, config, pinned }: { stage: StageSpec; config:
   const owners = [...new Set([...plan.neighbours, ...plan.writes.map((w) => w.owner)])];
   const stubFor = (host: Host) => owners.filter((o) => hostOf(o) === host && !hosts.includes(host));
 
+  const sectionNode = (s: (typeof SECTIONS)[number]): ReactNode =>
+    !stubbed.includes(s) ? (
+      <div key={s} data-fw-stage-host={s}>
+        {renderHost(SECTION_HOST[s], config)}
+      </div>
+    ) : (
+      <div key={s} data-fw={SECTION_ANCHOR[s]} data-fw-stub="" style={{ height: stubPxOf.get(s), position: 'relative' }}>
+        {stubFor(SECTION_HOST[s])
+          .filter((o) => (anchorOf.get(o) ?? o) !== SECTION_ANCHOR[s])
+          .map((o) => (
+            <div key={o} data-fw={anchorOf.get(o) ?? o} data-fw-stub="" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+          ))}
+      </div>
+    );
+
   return (
     <div data-fw-stage={stage.target} data-fw-premise={stage.premise} data-fw-scroll-engine={plan.scrollEngine}>
-      {SECTIONS.map((s) =>
-        !stubbed.includes(s) ? (
-          <div key={s} data-fw-stage-host={s}>
-            {renderHost(SECTION_HOST[s], config)}
-          </div>
-        ) : (
-          <div key={s} data-fw={SECTION_ANCHOR[s]} data-fw-stub="" style={{ height: stubPxOf.get(s), position: 'relative' }}>
-            {stubFor(SECTION_HOST[s])
-              .filter((o) => (anchorOf.get(o) ?? o) !== SECTION_ANCHOR[s])
-              .map((o) => (
-                <div key={o} data-fw={anchorOf.get(o) ?? o} data-fw-stub="" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
-              ))}
-          </div>
-        ),
-      )}
+      <div data-fw="page-root">
+        <main>{MAIN_SECTIONS.map(sectionNode)}</main>
+      </div>
+      {COLUMNS_SECTIONS.map(sectionNode)}
       {hosts
         .filter((h) => !SECTIONS.some((s) => s === h))
         .map((h) => (

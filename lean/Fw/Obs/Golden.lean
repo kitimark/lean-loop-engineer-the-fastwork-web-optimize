@@ -52,8 +52,8 @@ def trio : List Agent :=
   [{ ag "x" 25 with errTail := 4 }, ag "y" 0, { ag "z" 12 with ctxTokens := some 260000 }]
 
 /-- A CI run with no end time. -/
-def run0 (w b st : String) (c : Option String) (t : Nat) (e : Option Nat := none) : CiRun :=
-  { workflow := w, branch := b, status := st, conclusion := c, startedAt := t, endedAt := e }
+def run0 (w b st : String) (c : Option String) (t : Nat) (e : Option Nat := none) (sha : String := "") : CiRun :=
+  { workflow := w, branch := b, status := st, conclusion := c, startedAt := t, endedAt := e, headSha := sha }
 
 /-- A typed case: name, thresholds, observation. -/
 structure Typed where
@@ -64,6 +64,13 @@ structure Typed where
 /-- The typed cases (encoded with `reqJson`, so every field is written). -/
 def typed : List Typed := [
   { name := "empty team, healthy system: no alerts", o := { now := t0, system := okSys } },
+  { name := "dead session (alert-rules-fix): an agent whose session pid is not in the process table is done: no stalled, no toolHang, not counted live",
+    o := { now := t0, agents := [{ ag "a" 99 with sessionPid := some 100, inflight := some ⟨"Bash", ago 99⟩ }, { ag "b" 99 with sessionPid := some 200, inflight := some ⟨"Bash", ago 99⟩ }],
+           system := { okSys with alivePids := some [1, 200] } } },
+  { name := "unread process table (alert-rules-fix): no agent is judged by its session pid",
+    o := { now := t0, agents := [{ ag "a" 99 with sessionPid := some 100 }], system := okSys } },
+  { name := "no session pid (alert-rules-fix): an agent without one is judged as before even when the table is read",
+    o := { now := t0, agents := [ag "a" 99], system := { okSys with alivePids := some [1] } } },
   { name := "active: last event 9 min 59.999 s ago (idleMin 10)", o := { now := t0, agents := [{ ag "a" 0 with lastAt := ago 10 1 }], system := okSys } },
   { name := "idle: last event exactly 10 min ago", o := { now := t0, agents := [ag "a" 10], system := okSys } },
   { name := "idle: 19 min 59.999 s ago, just under stallMin 20", o := { now := t0, agents := [{ ag "a" 0 with lastAt := ago 20 1 }], system := okSys } },
@@ -180,12 +187,29 @@ def typed : List Typed := [
     o := { now := t0, system := { okSys with simLock := { since := some (ago 90) } } } },
   { name := "ci: a failure superseded by a later success, a running run, a cancelled run: no alert",
     o := { now := t0, system := { okSys with ci := [
-      ⟨"lean", "ci/x", "completed", some "failure", ago 30, none⟩, ⟨"lean", "ci/x", "completed", some "success", ago 20, none⟩,
-      ⟨"lean", "ci/y", "in_progress", none, ago 3, none⟩, ⟨"site", "ci/x", "completed", some "cancelled", ago 9, none⟩] } } },
+      ⟨"lean", "ci/x", "completed", some "failure", ago 30, none, ""⟩, ⟨"lean", "ci/x", "completed", some "success", ago 20, none, ""⟩,
+      ⟨"lean", "ci/y", "in_progress", none, ago 3, none, ""⟩, ⟨"site", "ci/x", "completed", some "cancelled", ago 9, none, ""⟩] } } },
   { name := "ci: the latest run of lean@ci/x failed, of site@ci/x timed out: ci.failed twice",
     o := { now := t0, system := { okSys with ci := [
-      ⟨"lean", "ci/x", "completed", some "success", ago 30, none⟩, ⟨"lean", "ci/x", "completed", some "failure", ago 20, none⟩,
-      ⟨"site", "ci/x", "completed", some "timed_out", ago 9, none⟩] } } },
+      ⟨"lean", "ci/x", "completed", some "success", ago 30, none, ""⟩, ⟨"lean", "ci/x", "completed", some "failure", ago 20, none, ""⟩,
+      ⟨"site", "ci/x", "completed", some "timed_out", ago 9, none, ""⟩] } } },
+  { name := "ci set: lean@ci/x@abc has one failed run among completed ones (cancelled, success): one ci.failed; a second failed run of the same set adds none",
+    o := { now := t0, system := { okSys with ci := [
+      run0 "lean" "ci/x" "completed" (some "failure") (ago 30) none "abc", run0 "lean" "ci/x" "completed" (some "cancelled") (ago 25) none "abc",
+      run0 "lean" "ci/x" "completed" (some "failure") (ago 20) none "abc"] } } },
+  { name := "ci set: a run of the same set still running makes the set pending: no ci.failed until it ends",
+    o := { now := t0, system := { okSys with ci := [
+      run0 "lean" "ci/x" "completed" (some "failure") (ago 30) none "abc", run0 "lean" "ci/x" "in_progress" none (ago 3) none "abc"] } } },
+  { name := "ci set: a push (new sha) after a failure supersedes it; two shas of the failing branch, the older failed, the newer green: no alert",
+    o := { now := t0, system := { okSys with ci := [
+      run0 "lean" "ci/x" "completed" (some "failure") (ago 30) none "abc", run0 "lean" "ci/x" "completed" (some "success") (ago 10) none "def"] } } },
+  { name := "ciSlowBy: breakpoint-gate may run 40 min (30 min in progress is fine), another workflow at 30 min is ci.slow",
+    o := { now := t0, system := { okSys with ci := [run0 "breakpoint-gate" "ci/x" "in_progress" none (ago 30),
+                                                    run0 "lean" "ci/x" "in_progress" none (ago 30)] } } },
+  { name := "ciSlowBy [lean 10]: lean at 11 min in progress is ci.slow, breakpoint-gate (no entry) uses the global 20",
+    p := { ciSlowBy := [("lean", 10)] },
+    o := { now := t0, system := { okSys with ci := [run0 "lean" "ci/x" "in_progress" none (ago 11),
+                                                    run0 "breakpoint-gate" "ci/x" "in_progress" none (ago 11)] } } },
   { name := "docker: a container older than every live agent is docker.orphan; one started after a live agent is not",
     o := { now := t0, agents := [{ ag "a" 0 with startedAt := ago 50 }, { ag "b" 0 with startedAt := ago 90, stoppedAt := some (ago 1) }],
            system := { okSys with docker := [⟨"c0ffee", "pg-old", ago 80⟩, ⟨"beef01", "pg-new", ago 50⟩] } } },
@@ -255,7 +279,7 @@ def typed : List Typed := [
            lead := { lastToolAt := some (ago 2), noteAt := some (ago 1) },
            system := { diskFreeGB := 100, memPressure := .critical, simLock := { holder := some "d", since := some (ago 1) },
                        docker := [⟨"c1", "orphan", ago 120⟩], worktrees := 2,
-                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3, none⟩] } } },
+                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3, none, ""⟩] } } },
   { name := "the same snapshot with default thresholds: fewer alerts (loosening never adds one)",
     o := { now := t0,
            agents := [{ ag "a" 5 with inflight := some ⟨"Bash", ago 5⟩, errTail := 1, ctxTokens := some 101 },
@@ -263,7 +287,7 @@ def typed : List Typed := [
            lead := { lastToolAt := some (ago 2), noteAt := some (ago 1) },
            system := { diskFreeGB := 100, memPressure := .critical, simLock := { holder := some "d", since := some (ago 1) },
                        docker := [⟨"c1", "orphan", ago 120⟩], worktrees := 2,
-                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3, none⟩] } } }]
+                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3, none, ""⟩] } } }]
 
 /-- Literal cases: optional and ignored fields, and refused requests. -/
 def literal : List (String × Json) := [
@@ -305,6 +329,43 @@ def fileText : String :=
     (Json.mkObj [("name", .str name), ("request", withOp "obs.health" req),
       ("response", respond "obs.health" req)]).compress ++ "\n")
 
+/-- An `obs.backoff` case: name, thresholds, load, base deadline, ms already waited. -/
+structure BackoffCase where
+  name   : String
+  p      : Fw.Obs.Backoff.Params := {}
+  load   : Nat
+  base   : Nat := 10000
+  waited : Nat := 10000
+  noParams : Bool := false
+
+/-- The `obs.backoff` cases: both sides of `loadHigh`, the wait, the restart after it, and the edges of the total. -/
+def backoffCases : List BackoffCase := [
+  { name := "not loaded (load 3): a call that missed its 10 s deadline restarts the child", load := 3 },
+  { name := "load 49, one under loadHigh 50: restart at the first deadline", load := 49 },
+  { name := "load 50 = loadHigh: wait 20 s more (total 30 s) instead of killing", load := 50 },
+  { name := "load 115 (the sweepError storm): wait 20 s more", load := 115 },
+  { name := "load 115, waited the whole 30 s: restart", load := 115, waited := 30000 },
+  { name := "load 115, waited 29.999 s: wait the last 1 ms", load := 115, waited := 29999 },
+  { name := "load fell to 3 while waiting: restart at once", load := 3, waited := 20000 },
+  { name := "replay chunk (base 120 s), load 115: wait 240 s more", load := 115, base := 120000, waited := 120000 },
+  { name := "no params in the request: the defaults loadHigh 50, extra 2 apply", load := 115, noParams := true },
+  { name := "extra 0: loaded or not, restart at the first deadline", p := { extra := 0 }, load := 115 },
+  { name := "loadHigh 10, extra 5, base 1 s, load 10: wait 5 s more", p := { loadHigh := 10, extra := 5 }, load := 10, base := 1000, waited := 1000 }]
+
+/-- The text of the `obs.backoff` golden file. -/
+def backoffText : String :=
+  String.join (backoffCases.map fun c =>
+    let params := if c.noParams then [] else
+      [("params", Json.mkObj [("loadHigh", toJson c.p.loadHigh), ("extra", toJson c.p.extra)])]
+    let req := Json.mkObj ([("op", .str "obs.backoff")] ++ params ++
+      [("load", toJson c.load), ("baseMs", toJson c.base), ("waitedMs", toJson c.waited)])
+    (Json.mkObj [("name", .str c.name), ("request", req),
+      ("response", Json.mkObj (Fw.Wire.Obs.Backoff.decisionJson
+        (Fw.Obs.Backoff.onTimeout c.p c.load c.base c.waited)))]).compress ++ "\n")
+
+/-- The `obs.backoff` golden file, relative to `lean/`. -/
+def backoffPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "obs" / "backoff.jsonl"
+
 /-- The golden file, relative to `lean/`. -/
 def path : System.FilePath := ".." / "packages" / "contracts" / "golden" / "obs" / "health.jsonl"
 
@@ -315,10 +376,15 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
   if write then
     IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / "obs")
     IO.FS.writeFile p fileText
+    IO.FS.writeFile (root / backoffPath) backoffText
   else
     let cur ← try IO.FS.readFile p catch _ => pure ""
     if cur != fileText then
       IO.println s!"obs golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
+      bad := bad + 1
+    let curB ← try IO.FS.readFile (root / backoffPath) catch _ => pure ""
+    if curB != backoffText then
+      IO.println s!"obs golden: {root / backoffPath} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
       bad := bad + 1
   for g in gaps do
     IO.println s!"obs golden: no case covers {g}"

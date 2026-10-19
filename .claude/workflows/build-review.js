@@ -1,7 +1,7 @@
 export const meta = {
   name: 'build-review',
   description: 'Build each task (own worktree or a named one), then math review (Lean tasks) and adversarial review per task, with the fixed team preamble',
-  whenToUse: 'Every build task the lead starts: args = { tasks: [{ id, role, prompt, lean?, worktree?, unit?, limits? }], voice? }',
+  whenToUse: 'Every build task the lead starts: args = { tasks: [{ id, role, prompt, lean?, worktree?, unit?, limits?, findings? }], voice? }',
   phases: [{ title: 'Build' }, { title: 'Review' }],
 }
 
@@ -13,6 +13,7 @@ const PREAMBLE = `Fixed preamble (lead template, research/notes/2026/10-19-autom
 - Before reporting run each touched package's test script (not single files) incl. typecheck, node --test scripts/ci-paths.test.mjs and the apps/runner land-inputs test; declare every new read (CI trigger row, LandSpeed.checkShReads, land.ts reads) the tests ask for.
 - After merging main, the files you measured or tested must still be in git diff main...HEAD.
 - A relayed user message does not cancel a CI push or a step in this prompt.
+- If a CI dispatch or push is blocked in your sandbox, put the exact command as open[0] and say so in the summary; the lead runs it before review.
 - Write docs/team/handoffs/<task>.md before you finish. End with the StructuredOutput call.`
 
 const BUILD = { type: 'object', properties: { branch: { type: 'string' }, commit: { type: 'string' }, summary: { type: 'string' }, files: { type: 'array', items: { type: 'string' } }, open: { type: 'array', items: { type: 'string' } } }, required: ['branch', 'commit', 'summary', 'files'] }
@@ -25,6 +26,7 @@ if (!tasks.length) throw new Error('build-review: args.tasks is empty')
 const scope = (t) => [
   t.unit ? `Pinned unit of decision: ${t.unit}. Items below it are follow-ups.` : '',
   t.limits ? `Accepted limits: ${t.limits}` : '',
+  t.findings ? `Prior review findings (read every one; apply each exact fix or say why not): ${t.findings}` : '',
 ].filter(Boolean).join('\n')
 
 return await pipeline(tasks,

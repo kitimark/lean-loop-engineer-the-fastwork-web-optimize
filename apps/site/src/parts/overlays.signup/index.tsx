@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type MouseEvent, type SyntheticEvent } from 'react';
+import { GenSvg, art } from '../../GenSvg';
 import { closeAllowed, FORM_INIT, openDir, react, settle, submit, sync, triggerOffset, valid, type Form } from './logic';
 import css from './signup.module.css';
 import { closeSignup, signupStore } from './store';
@@ -133,10 +134,7 @@ export function OverlaySignup({ variant, onSignup }: OverlaySignupProps) {
             ×
           </button>
           <div className={css.heading}>
-            {/* placeholder glyph: the brand mark is not restated */}
-            <svg className={css.mark} viewBox="0 0 46 46" aria-hidden="true">
-              <path d="M23 5a18 18 0 1 0 0 36a18 18 0 1 0 0-36zm0 8a10 10 0 1 1 0 20a10 10 0 1 1 0-20z" />
-            </svg>
+            <GenSvg art={art('brand.mark')} className={css.mark} />
             <h2>{form.done ? "You're on the waitlist!" : 'Join our waitlist'}</h2>
             <p>{form.done ? "We'll email you when access is available." : 'Be one of the first to access the future'}</p>
           </div>

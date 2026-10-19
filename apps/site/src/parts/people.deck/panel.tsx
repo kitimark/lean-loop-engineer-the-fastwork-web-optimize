@@ -29,13 +29,13 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
               <div className={css.handleRow}>
                 <span className={css.handle}>{p.handle}</span>{' '}
                 <span className={css.claim}>
-                  <span className={css.claimIcon} /> Claim
+                  <img src="/selling/icons/claim.svg" alt="" loading="lazy" decoding="async" /> Claim
                 </span>{' '}
                 <span className={css.social}>{`· ${followers}`}</span> <span className={css.followers}>{followers}</span>
               </div>
               <p className={css.bio}>{p.bio}</p>
               <p className={`${css.location} ${css.isCompact}`}>
-                <span className={css.pin} /> {p.location}
+                <img src="/selling/icons/pin.svg" alt="" loading="lazy" decoding="async" /> {p.location}
               </p>
               <div className={css.stats} aria-label="Profile stats">
                 <div>
@@ -62,7 +62,7 @@ export function ProfilePanel({ p, hidden }: { p: Profile; hidden: boolean }) {
                 ))}
               </ul>
               <p className={css.location}>
-                <span className={css.pin} /> {p.location}
+                <img src="/selling/icons/pin.svg" alt="" loading="lazy" decoding="async" /> {p.location}
               </p>
             </div>
           </div>

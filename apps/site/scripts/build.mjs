@@ -8,6 +8,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'vite';
+import { extractSvg } from './svg-extract.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argEngine = process.argv.indexOf('--engine');
@@ -41,6 +42,7 @@ const base = {
   css: { modules: { generateScopedName: '[name]_[local]_[hash:base64:6]' } },
 };
 
+extractSvg();
 const t0 = performance.now();
 await build({
   ...base,
