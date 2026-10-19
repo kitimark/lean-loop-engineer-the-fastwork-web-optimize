@@ -279,6 +279,7 @@
     transform: translate(-50%, -50%);
   }
   .track {
+    will-change: transform;
     width: max-content;
     display: flex;
   }
