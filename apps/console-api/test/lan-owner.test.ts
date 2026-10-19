@@ -14,7 +14,7 @@ import { createPreviewApp } from "../src/preview/preview-app.ts";
 import { LoginGuard, readPassphrase, sameSecret, loginPage, KEYCHAIN_HINT } from "../src/preview/login.ts";
 import { isLoopback, isPrivateV4, pickLanAddr } from "../src/preview/lan.ts";
 import { rewriteBody } from "../src/preview/rewrite.ts";
-import { viaReferer } from "../src/preview/proxy.ts";
+import { viaReferer, isScriptPath } from "../src/preview/proxy.ts";
 import type { PreviewManager } from "../src/preview/manager.ts";
 
 const FAKE = "fake-pass-for-tests-only";
@@ -247,7 +247,12 @@ describe("preview proxy", () => {
     expect(await (await app.request("/preview/p1/r/a.js", { headers: H })).text()).toBe('import("/x.js")'); // JS is not rewritten
     // a path built inside the preview's scripts ("/x.js") reaches that preview by its Referer, and is gated as a preview path
     const ref = { referer: "http://h:1/preview/p1/r/", host: "h:1" };
-    expect((await app.request("/x.js", { headers: { ...H, ...ref } })).status).toBe(200);
+    // a script is moved below the prefix whether or not the browser sent Sec-Fetch-Dest (it sends none to a plain-HTTP LAN address:
+    // the phone's original arm broke on this, preview-inspect), so its relative imports stay inside the preview
+    const mv = await app.request("/x.js", { headers: { ...H, ...ref }, redirect: "manual" });
+    expect(mv.status).toBe(302); expect(mv.headers.get("location")).toBe("/preview/p1/r/x.js");
+    expect((await app.request("/x.js", { headers: { ...H, ...ref, "sec-fetch-dest": "script" } })).status).toBe(302);
+    expect((await app.request("/x.png", { headers: { ...H, ...ref } })).status).toBe(200); // other files are served in place
     expect((await app.request("/x.js", { headers: ref })).status).toBe(401);
     expect((await app.request("/x.js", { headers: { ...H, referer: "http://evil/preview/p1/r/", host: "h:1" } })).status).toBe(404); // another origin's Referer is the console's own path
     expect((await app.request("/preview/nope/r/", { headers: H })).status).toBe(404);
@@ -379,6 +384,11 @@ describe("helpers", () => {
     expect(rewriteBody("text/css", "a{background:url(/i.png)} @import '/b.css'; b{background:url(https://x/y)}", P))
       .toBe("a{background:url(/preview/a/r/i.png)} @import '/preview/a/r/b.css'; b{background:url(https://x/y)}");
     expect(rewriteBody("application/javascript", "import('/x')", P)).toBeNull();
+  });
+  it("isScriptPath: only .js/.mjs files are moved", () => {
+    expect(isScriptPath("/_app/immutable/entry/start.X.js")).toBe(true);
+    expect(isScriptPath("/a/b.MJS")).toBe(true);
+    for (const p of ["/a.json", "/a.js.map", "/a.png", "/js", "/a.jsx"]) expect(isScriptPath(p)).toBe(false);
   });
   it("viaReferer", () => {
     expect(viaReferer("/a/b.png", "http://h:1/preview/p1/o/x", "h:1")).toBe("/preview/p1/o/a/b.png");

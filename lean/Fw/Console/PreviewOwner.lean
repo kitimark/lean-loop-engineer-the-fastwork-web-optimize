@@ -518,6 +518,119 @@ $$\operatorname{allowPreview}(\mathrm{true}, k, \mathrm{false}) = \mathrm{false}
 theorem preview_wrong_host (previewCookie : Bool) : allowPreview true previewCookie false = false := by
   simp [allowPreview]
 
+/-! ## 2b'. Inspect grants: a loopback-only, one-time, preview-only way in for agents -/
+
+/-- How long a grant link can be redeemed (ms). -/
+def grantTokenTtl : Nat := 600000
+
+/-- How long the cookie a redeemed grant sets is valid (ms). -/
+def grantCookieTtl : Nat := 3600000
+
+/-- Whether a grant may be issued: only for a request from the loopback address. -/
+def issueAllowed (lan : Bool) : Bool := !lan
+
+/-- **A grant is never issued to a LAN request.** -/
+theorem issue_requires_loopback (lan : Bool) (h : issueAllowed lan = true) : lan = false := by
+  cases lan <;> simp_all [issueAllowed]
+
+/-- A loopback request may issue. -/
+theorem issue_from_loopback : issueAllowed false = true := rfl
+
+/-- The outcome of presenting a grant token. -/
+inductive Redeem where
+  | ok | lan | unknown | used | expired
+deriving Repr, DecidableEq
+
+/-- Its wire name. -/
+def Redeem.name : Redeem → String
+  | .ok => "ok" | .lan => "lan" | .unknown => "unknown" | .used => "used" | .expired => "expired"
+
+/-- A token is redeemed once, within its time, by a loopback request that names a token this console issued. -/
+def redeem (lan known used : Bool) (issuedAt now : Nat) : Redeem :=
+  if lan then .lan
+  else if !known then .unknown
+  else if used then .used
+  else if issuedAt + grantTokenTtl ≤ now then .expired
+  else .ok
+
+/-- **Redeeming works exactly for a loopback request, a known token, not used before, inside its ten minutes.** -/
+theorem redeem_ok_iff (lan known used : Bool) (a now : Nat) :
+    redeem lan known used a now = .ok ↔ lan = false ∧ known = true ∧ used = false ∧ now < a + grantTokenTtl := by
+  unfold redeem
+  cases lan <;> cases known <;> cases used <;> simp [Nat.not_le]
+
+/-- A LAN request never redeems. -/
+theorem redeem_lan (known used : Bool) (a now : Nat) : redeem true known used a now = .lan := by
+  simp [redeem]
+
+/-- A token this console did not issue never redeems. -/
+theorem redeem_unknown (used : Bool) (a now : Nat) : redeem false false used a now = .unknown := by
+  simp [redeem]
+
+/-- **Single use**: a token already redeemed never redeems again. -/
+theorem redeem_used (a now : Nat) : redeem false true true a now = .used := by
+  simp [redeem]
+
+/-- **Expiry**: an unused known token redeems no more after ten minutes. -/
+theorem redeem_expired (a now : Nat) (h : a + grantTokenTtl ≤ now) : redeem false true false a now = .expired := by
+  simp [redeem, h]
+
+/-- Whether the preview port serves a request on the strength of a grant cookie. `known`: the cookie names a grant this
+console opened; `started`: when; `via`: the path is a root-absolute one read as below a preview by its Referer. Only a
+preview path or a Referer-routed shell path is served, never `/api`, `/owner` or the login page. -/
+def allowGrant (lan hostOk known : Bool) (started now : Nat) (via : Bool) (c : Cls) : Bool :=
+  (!lan || hostOk) && known && decide (now < started + grantCookieTtl) &&
+    (match c with | .preview => true | .shell => via | .login => false | .other => false)
+
+/-- **A grant cookie is a known one.** -/
+theorem grant_requires_known (lan hostOk known : Bool) (s now : Nat) (via : Bool) (c : Cls)
+    (h : allowGrant lan hostOk known s now via c = true) : known = true := by
+  cases known <;> simp_all [allowGrant]
+
+/-- **A grant cookie expires after sixty minutes.** -/
+theorem grant_expires (lan hostOk known : Bool) (s now : Nat) (via : Bool) (c : Cls)
+    (h : s + grantCookieTtl ≤ now) : allowGrant lan hostOk known s now via c = false := by
+  simp [allowGrant, Nat.not_lt.mpr h]
+
+/-- A grant never opens `/api` or `/owner`. -/
+theorem grant_never_other (lan hostOk known : Bool) (s now : Nat) (via : Bool) :
+    allowGrant lan hostOk known s now via .other = false := by
+  simp [allowGrant]
+
+/-- A grant never opens the login page. -/
+theorem grant_never_login (lan hostOk known : Bool) (s now : Nat) (via : Bool) :
+    allowGrant lan hostOk known s now via .login = false := by
+  simp [allowGrant]
+
+/-- A grant opens a shell path (`/_app/x.js`) only when the Referer put it below a preview. -/
+theorem grant_shell_needs_via (lan hostOk known : Bool) (s now : Nat) (via : Bool)
+    (h : allowGrant lan hostOk known s now via .shell = true) : via = true := by
+  cases via <;> simp_all [allowGrant]
+
+/-- A LAN request with a foreign Host is refused whatever it carries. -/
+theorem grant_wrong_host (known : Bool) (s now : Nat) (via : Bool) (c : Cls) :
+    allowGrant true false known s now via c = false := by
+  simp [allowGrant]
+
+/-- A live grant opens a preview path. -/
+theorem grant_opens_preview (lan : Bool) (s now : Nat) (via : Bool) (h : now < s + grantCookieTtl) :
+    allowGrant lan true true s now via .preview = true := by
+  simp [allowGrant, h]
+
+/-- Whether the preview port serves a request: a preview-access cookie of an owner session, or a live grant. -/
+def servePreview (lan session hostOk known : Bool) (started now : Nat) (via : Bool) (c : Cls) : Bool :=
+  allowPreview lan session hostOk || allowGrant lan hostOk known started now via c
+
+/-- **Without a session cookie, the preview port serves only what a grant opens**: never `/api`, `/owner` or the login page. -/
+theorem serve_grant_only_preview (lan hostOk known : Bool) (s now : Nat) (via : Bool) (c : Cls)
+    (h : servePreview lan false hostOk known s now via c = true) : c = .preview ∨ c = .shell := by
+  cases c <;> simp_all [servePreview, allowPreview, allowGrant]
+
+/-- With no grant and no session cookie nothing is served. -/
+theorem serve_needs_credential (lan hostOk : Bool) (s now : Nat) (via : Bool) (c : Cls) :
+    servePreview lan false hostOk false s now via c = false := by
+  simp [servePreview, allowPreview, allowGrant]
+
 /-! ## 2c. Origins: the preview never shares the console's -/
 
 /-- A web origin (scheme `http`): host and port.

@@ -17,15 +17,11 @@ namespace Fw.Plan.Trailer
 
 /-- A blank: space or tab.
 
-$$\operatorname{blank}(c) \iff c \in \{\texttt{' '}, \texttt{'\textbackslash t'}\}$$
-
 The characters allowed around a trailer id.
 -/
 def isBlank (c : Char) : Bool := c == ' ' || c == '\t'
 
 /-- An id character: an ASCII letter or digit, `.`, `_` or `-`.
-
-$$\operatorname{idChar}(c) \iff c \in \{\texttt{A}..\texttt{Z}, \texttt{a}..\texttt{z}, \texttt{0}..\texttt{9}, \texttt{.}, \texttt{\_}, \texttt{-}\}$$
 
 The characters a task id is made of.
 -/
@@ -33,16 +29,12 @@ def isIdChar (c : Char) : Bool := c.isAlphanum || c == '.' || c == '_' || c == '
 
 /-- A line end: `\n`, `\r`, U+2028 or U+2029.
 
-$$\operatorname{eol}(c) \iff c \in \{\mathrm{U{+}000A}, \mathrm{U{+}000D}, \mathrm{U{+}2028}, \mathrm{U{+}2029}\}$$
-
 The characters that end a line in a JavaScript multiline match.
 -/
 def isEol (c : Char) : Bool := c == '\n' || c == '\r' || c == '\u2028' || c == '\u2029'
 
-/-- The id a line names, if it is a trailer line: the line is `Task:` $\cdot\, b_1 \cdot x \cdot b_2$
-with $b_1, b_2$ blank runs and $x$ a non-empty id.
-
-$$\operatorname{trailer}(w) = \begin{cases} x & w = \texttt{Task:} \cdot b_1 \cdot x \cdot b_2,\ b_1, b_2 \in \{\texttt{' '}, \texttt{'\textbackslash t'}\}^{*},\ x \in \{c : \operatorname{isIdChar}(c)\}^{+} \\ \bot & \text{otherwise} \end{cases}$$
+/-- The id a line names, if it is a trailer line: the line is `Task:` `· b_1 · x · b_2`
+with `b_1, b_2` blank runs and `x` a non-empty id.
 
 A line is a trailer when it says `Task:` and one id, with only spaces or tabs around it.
 -/
@@ -56,16 +48,12 @@ def trailerOf (w : List Char) : Option String :=
 
 /-- The trailer ids of a commit message, in line order.
 
-$$\operatorname{trailers}(B) = [\, \operatorname{trailer}(w) \mid w \in \operatorname{lines}(B),\ \operatorname{trailer}(w) \ne \bot \,],\quad \text{where } \operatorname{lines}(B) \text{ splits } B \text{ at every line end } (\operatorname{eol})$$
-
 Every `Task:` line of a message, in order.
 -/
 def trailers (body : String) : List String :=
   (body.toList.splitOnP isEol).filterMap trailerOf
 
 /-- A commit of the first-parent history: its sha and its message.
-
-$$c = (\mathit{sha}, \mathit{body})$$
 
 What the reconciler reads from `git log --first-parent`.
 -/
@@ -76,8 +64,6 @@ deriving Repr, DecidableEq
 
 /-- What a trailer does.
 
-$$\mathrm{Verdict} = \{\mathrm{done}, \mathrm{unknown}, \mathrm{alreadyDone}, \mathrm{duplicate}\}$$
-
 A trailer marks a task done, or is ignored with a reason.
 -/
 inductive Verdict where
@@ -85,8 +71,6 @@ inductive Verdict where
 deriving Repr, DecidableEq
 
 /-- The wire name of a verdict.
-
-$$\operatorname{name}(v) = \text{the constructor name of } v, \text{ e.g. } \operatorname{name}(\mathrm{alreadyDone}) = \texttt{"alreadyDone"}$$
 
 How a verdict is spelled in JSON.
 -/
@@ -96,17 +80,13 @@ def Verdict.name : Verdict → String
 /-- The (task, sha) pairs of a newest-first history, oldest commit first (inside one commit, in
 line order).
 
-$$\operatorname{pairs}(C) = [\, (x, c.\mathit{sha}) \mid c \in \operatorname{rev}(C),\ x \in \operatorname{trailers}(c.\mathit{body}) \,]$$
-
 Every trailer with its commit, from the oldest commit to the newest.
 -/
 def pairs (cs : List Commit) : List (String × String) :=
   cs.reverse.flatMap fun c => (trailers c.body).map fun x => (x, c.sha)
 
-/-- The verdict of one trailer for task $x$, given the plan's tasks $P$ (id, done) and the tasks
-already marked by older trailers $S$ (the first row of $P$ with id $x$ counts).
-
-$$\operatorname{verdict}(P, S, x) = \begin{cases} \mathrm{unknown} & \operatorname{lookup}(x, P) = \bot \\ \mathrm{alreadyDone} & \operatorname{lookup}(x, P) = \mathrm{true} \\ \mathrm{duplicate} & \operatorname{lookup}(x, P) = \mathrm{false} \land x \in S \\ \mathrm{done} & \operatorname{lookup}(x, P) = \mathrm{false} \land x \notin S \end{cases}$$
+/-- The verdict of one trailer for task `x`, given the plan's tasks `P` (id, done) and the tasks
+already marked by older trailers `S` (the first row of `P` with id `x` counts).
 
 A trailer counts only for a known, undone task that no older trailer has marked.
 -/
@@ -119,8 +99,6 @@ def verdict (tasks : List (String × Bool)) (seen : List String) (x : String) : 
 /-- The verdicts of a list of (task, sha) pairs, walking it in order and remembering the tasks
 marked so far.
 
-$$\operatorname{judge}(P, S, [\,]) = [\,], \qquad \operatorname{judge}(P, S, (x, s) :: L) = (x, s, v) :: \operatorname{judge}(P, S', L), \quad v = \operatorname{verdict}(P, S, x),\ S' = \begin{cases} \{x\} \cup S & v = \mathrm{done} \\ S & \text{otherwise} \end{cases}$$
-
 Each trailer is judged after all older ones.
 -/
 def judge (tasks : List (String × Bool)) : List String → List (String × String) → List (String × String × Verdict)
@@ -131,8 +109,6 @@ def judge (tasks : List (String × Bool)) : List String → List (String × Stri
 
 /-- Every trailer of a newest-first history with its verdict, oldest first.
 
-$$\operatorname{verdicts}(P, C) = \operatorname{judge}(P, \emptyset, \operatorname{pairs}(C))$$
-
 The verdict of each `Task:` line on main.
 -/
 def verdicts (tasks : List (String × Bool)) (cs : List Commit) : List (String × String × Verdict) :=
@@ -140,16 +116,12 @@ def verdicts (tasks : List (String × Bool)) (cs : List Commit) : List (String �
 
 /-- The `task.done` facts: the trailers judged `done`, as (task, evidence sha), oldest first.
 
-$$\operatorname{facts}(P, C) = [\, (x, s) \mid (x, s, \mathrm{done}) \in \operatorname{verdicts}(P, C) \,]$$
-
 The tasks that main's history marks done, each with the commit that did it.
 -/
 def facts (tasks : List (String × Bool)) (cs : List Commit) : List (String × String) :=
   (verdicts tasks cs).filterMap fun (x, s, v) => if v = .done then some (x, s) else none
 
-/-- The sha of the first pair for task $x$ (the oldest commit that names it).
-
-$$\operatorname{first}(L, x) = \begin{cases} s & (x, s) \text{ is the first pair of } L \text{ with task } x \\ \bot & \text{no pair of } L \text{ has task } x \end{cases}$$
+/-- The sha of the first pair for task `x` (the oldest commit that names it).
 
 Where a task is first named.
 -/
@@ -158,9 +130,7 @@ def firstSha (ps : List (String × String)) (x : String) : Option String :=
 
 /-! ## Proofs -/
 
-/-- The `done` verdicts of `judge`: exactly the first pair of each known undone task not in $S$.
-
-$$\forall P, S, L, x, s:\quad (x, s, \mathrm{done}) \in \operatorname{judge}(P, S, L) \iff \operatorname{lookup}(x, P) = \mathrm{false} \land x \notin S \land \operatorname{first}(L, x) = s$$
+/-- The `done` verdicts of `judge`: exactly the first pair of each known undone task not in `S`.
 
 The walk marks a task at its first pair, and only if it is known, undone and not yet marked.
 -/
@@ -201,8 +171,6 @@ theorem mem_judge_done (tasks : List (String × Bool)) (seen : List String)
 
 /-- **The facts are the oldest trailer of each known undone task.**
 
-$$\forall P, C, x, s:\quad (x, s) \in \operatorname{facts}(P, C) \iff \operatorname{lookup}(x, P) = \mathrm{false} \land \operatorname{first}(\operatorname{pairs}(C), x) = s$$
-
 A task is marked done by main exactly when the plan knows it, has it undone, and some commit names it; the evidence is the oldest such commit.
 -/
 theorem mem_facts_iff (tasks : List (String × Bool)) (cs : List Commit) (x s : String) :
@@ -220,9 +188,7 @@ theorem mem_facts_iff (tasks : List (String × Bool)) (cs : List Commit) (x s : 
   · intro hm
     exact ⟨(x, s, .done), hm, by simp⟩
 
-/-- Done verdicts never repeat a task of $S$ nor each other.
-
-$$\forall P, S, L:\quad [\, x \mid (x, s, \mathrm{done}) \in \operatorname{judge}(P, S, L) \,] \text{ has pairwise distinct elements, none in } S$$
+/-- Done verdicts never repeat a task of `S` nor each other.
 
 The walk marks each task at most once.
 -/
@@ -260,8 +226,6 @@ theorem judge_done_nodup (tasks : List (String × Bool)) (seen : List String) (p
       exact ⟨ih1, ih2⟩
 
 /-- **Each task is marked done at most once.**
-
-$$\forall P, C:\quad [\, x \mid (x, s) \in \operatorname{facts}(P, C) \,] \text{ has pairwise distinct elements}$$
 
 No task gets two `task.done` facts from main's trailers.
 -/

@@ -24,8 +24,6 @@ def ag (n r : String) (k : Kind) : Agent := ⟨n, r, k, "lead"⟩
 /-- Why the mutant `List.range (|s| + 2)` of `hasInfix` is equivalent: the extra start position
 `|s| + 1` tests the same window as the existing position `|s|` (both suffixes are empty).
 
-$$\forall l, p \in \mathrm{Char}^{*},\ n \in \mathbb{N}:\quad \mathrm{take}_n(\mathrm{drop}_{|l|+1}(l)) = p \iff \mathrm{take}_n(\mathrm{drop}_{|l|}(l)) = p$$
-
 Starting one character past the end reads the same empty window as starting at the end. -/
 theorem infix_past_end (l p : List Char) (n : Nat) :
     ((l.drop (l.length + 1)).take n == p) = ((l.drop l.length).take n == p) := by

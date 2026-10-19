@@ -11,33 +11,31 @@ import Fw.Parts.CommissionTyping
 namespace Fw.Parts.CommissionGolden
 open Lean Fw.Parts.Commission Fw.Parts.CommissionTyping
 
-/-- A rational input as an exact JSON decimal (denominators here divide $1000$).
-
-$$q \mapsto q \cdot 10^3 \cdot 10^{-3}$$ -/
+/-- A rational input as an exact JSON decimal (denominators here divide `1000`). -/
 def rin (q : Rat) : Json := .num ⟨q.num * ((1000 / q.den : Nat) : Int), 3⟩
 
-/-- The `Rat` output wire form. $$q \mapsto \{\mathrm{num}, \mathrm{den}\}$$ -/
+/-- The `Rat` output wire form. -/
 def ratWire (q : Rat) : Json := Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
 
-/-- One golden line. $$(\mathit{fn}, \mathit{in}, \mathit{out}) \mapsto \text{JSON line}$$ -/
+/-- One golden line. -/
 def line (fn : String) (inp : List (String × Json)) (out : Json) : String :=
   (Json.mkObj [("fn", .str fn), ("in", Json.mkObj inp), ("out", out)]).compress
 
-/-- Booleans. $$\mathbb B$$ -/
+/-- Booleans. -/
 def bs : List Bool := [false, true]
 
-/-- An optional rational (`none` is JSON null). $$\mathrm{Option}\ \mathbb Q \to \mathrm{JSON}$$ -/
+/-- An optional rational (`none` is JSON null). -/
 def optIn (q : Option Rat) : Json := match q with | some x => rin x | none => .null
 
-/-- An optional rational output. $$\mathrm{Option}\ \mathbb Q \to \mathrm{JSON}$$ -/
+/-- An optional rational output. -/
 def optWire (q : Option Rat) : Json := match q with | some x => ratWire x | none => .null
 
-/-- A frame as JSON. $$F \mapsto \{n, r, \mathit{entering}, \mathit{shrinking}, \mathit{runway}, \mathit{more}\}$$ -/
+/-- A frame as JSON. -/
 def frameJson (f : Frame) : Json :=
   Json.mkObj [("n", ratWire f.n), ("r", ratWire f.r), ("entering", .bool f.entering), ("shrinking", .bool f.shrinking),
     ("runway", optWire f.runway), ("more", .bool f.more)]
 
-/-- The golden lines of the section logic. $$\text{lines}$$ Vectors the TS section logic must reproduce. -/
+/-- The golden lines of the section logic. Vectors the TS section logic must reproduce. -/
 def commissionLines : List String :=
   (([-1, 0, 0.1, 0.25, 0.5, 0.9, 1, 2] : List Rat).map fun x => line "smooth" [("x", rin x)] (ratWire (smooth x))) ++
   (([(0, 1000), (60, 1000), (150, 1000), (240, 1000), (420, 1000), (421, 1000), (5000, 1000), (-300, 800), (200, 800)] :
@@ -63,23 +61,23 @@ def commissionLines : List String :=
       List (Rat × Rat × Rat)).map fun (t, b, h) =>
     line "sceneActive" [("top", rin t), ("bottom", rin b), ("h", rin h)] (.bool (sceneActive t b h)))
 
-/-- A view as JSON. $$V \mapsto \{\text{ten fields}\}$$ -/
+/-- A view as JSON. -/
 def viewJson (v : View) : Json :=
   Json.mkObj [("resetting", .bool v.resetting), ("avatar", .bool v.avatar), ("bubble", .bool v.bubble),
     ("chars", .num ⟨Int.ofNat v.chars, 0⟩), ("caret", .bool v.caret), ("card", .bool v.card), ("out", .bool v.out),
     ("earned", ratWire v.earned), ("pct", ratWire v.pct), ("progress", ratWire v.progress)]
 
-/-- A trigger state as the input of a golden line. $$S \mapsto \{\mathit{visible}, \mathit{token}, \mathit{since}, \mathit{frozen}, \mathit{static}\}$$ -/
+/-- A trigger state as the input of a golden line. -/
 def trigIn (s : Trig) : Json :=
   Json.mkObj [("visible", .bool s.visible), ("token", .num ⟨Int.ofNat s.token, 0⟩), ("since", optIn s.since),
     ("frozen", rin s.frozen), ("static", .bool s.static)]
 
-/-- A trigger state as an output. $$S \mapsto \{\mathit{visible}, \mathit{token}, \mathit{since}, \mathit{frozen}, \mathit{static}\}$$ -/
+/-- A trigger state as an output. -/
 def trigWire (s : Trig) : Json :=
   Json.mkObj [("visible", .bool s.visible), ("token", .num ⟨Int.ofNat s.token, 0⟩), ("since", optWire s.since),
     ("frozen", ratWire s.frozen), ("static", .bool s.static)]
 
-/-- The golden lines of the typing timeline. $$\text{lines}$$ Vectors the TS typing logic must reproduce. -/
+/-- The golden lines of the typing timeline. Vectors the TS typing logic must reproduce. -/
 def typingLines : List String :=
   let taus : List Rat :=
     [0, 40, 79, 79.5, 80, 499, 499.9, 500, 513.5, 527, 527.9, 528, 556, 1000, 1535, 1535.9, 1536, 1563, 1563.5, 1564, 1743,

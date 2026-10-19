@@ -1,0 +1,9 @@
+{"name":"issue from loopback is allowed","request":{"kind":"issue","lan":false,"op":"console.previewGrant"},"response":{"allow":true,"cookieMs":3600000,"ttlMs":600000}}
+{"name":"issue from a LAN address is refused","request":{"kind":"issue","lan":true,"op":"console.previewGrant"},"response":{"allow":false,"cookieMs":3600000,"ttlMs":600000}}
+{"name":"redeem: loopback, known, unused, inside ten minutes","request":{"issuedAt":1000,"kind":"redeem","known":true,"lan":false,"now":2000,"op":"console.previewGrant","used":false},"response":{"allow":true,"cookieMs":3600000,"verdict":"ok"}}
+{"name":"redeem: the last millisecond of the ten minutes","request":{"issuedAt":1000,"kind":"redeem","known":true,"lan":false,"now":600999,"op":"console.previewGrant","used":false},"response":{"allow":true,"cookieMs":3600000,"verdict":"ok"}}
+{"name":"redeem: ten minutes are over","request":{"issuedAt":1000,"kind":"redeem","known":true,"lan":false,"now":601000,"op":"console.previewGrant","used":false},"response":{"allow":false,"cookieMs":3600000,"verdict":"expired"}}
+{"name":"redeem: a second use is refused","request":{"issuedAt":1000,"kind":"redeem","known":true,"lan":false,"now":2000,"op":"console.previewGrant","used":true},"response":{"allow":false,"cookieMs":3600000,"verdict":"used"}}
+{"name":"redeem: a token this console never issued","request":{"issuedAt":0,"kind":"redeem","known":false,"lan":false,"now":2000,"op":"console.previewGrant","used":false},"response":{"allow":false,"cookieMs":3600000,"verdict":"unknown"}}
+{"name":"redeem: from a LAN address is refused even with a good token","request":{"issuedAt":1000,"kind":"redeem","known":true,"lan":true,"now":2000,"op":"console.previewGrant","used":false},"response":{"allow":false,"cookieMs":3600000,"verdict":"lan"}}
+{"name":"an unknown kind is refused","request":{"kind":"x","lan":false,"op":"console.previewGrant"},"response":{"error":"field kind: expected issue or redeem"}}

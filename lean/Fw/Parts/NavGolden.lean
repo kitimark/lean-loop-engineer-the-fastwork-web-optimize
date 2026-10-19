@@ -12,41 +12,41 @@ driver (`IO.FS.writeFile path (String.intercalate "\n" lines ++ "\n")`, run thro
 namespace Fw.Parts.NavGolden
 open Lean Fw.Parts.Nav Fw.Parts.NavLangMenu
 
-/-- A rational input as an exact JSON decimal (denominators here divide $10^4$). $$q \mapsto q \cdot 10^4 \cdot 10^{-4}$$ -/
+/-- A rational input as an exact JSON decimal (denominators here divide `10^4`). -/
 def rin (q : Rat) : Json := .num ⟨q.num * ((10000 / q.den : Nat) : Int), 4⟩
 
-/-- The `Rat` output wire form. $$q \mapsto \{\mathrm{num}, \mathrm{den}\}$$ -/
+/-- The `Rat` output wire form. -/
 def ratWire (q : Rat) : Json := Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
 
-/-- One golden line. $$(\mathit{fn}, \mathit{in}, \mathit{out}) \mapsto \text{JSON line}$$ -/
+/-- One golden line. -/
 def line (fn : String) (inp : List (String × Json)) (out : Json) : String :=
   (Json.mkObj [("fn", .str fn), ("in", Json.mkObj inp), ("out", out)]).compress
 
-/-- Booleans. $$\mathbb B$$ -/
+/-- Booleans. -/
 def bs : List Bool := [false, true]
 
-/-- The class set as JSON. $$c \mapsto \{\ldots\}$$ -/
+/-- The class set as JSON. -/
 def viewJ (v : View) : Json :=
   Json.mkObj [("heroPill", .bool v.heroPill), ("ready", .bool v.ready), ("morphing", .bool v.morphing),
     ("expanded", .bool v.expanded), ("onDark", .bool v.onDark), ("localeOpen", .bool v.localeOpen),
     ("scrollHidden", .bool v.scrollHidden)]
 
-/-- Phase name. $$p \mapsto \text{string}$$ -/
+/-- Phase name. -/
 def phaseName : Phase → String
   | .closed => "closed" | .open_ => "open" | .closing => "closing"
 
-/-- Event name. $$e \mapsto \text{string}$$ -/
+/-- Event name. -/
 def evName : Ev → String
   | .toggle => "toggle" | .select => "select" | .outside => "outside" | .timer => "timer"
 
-/-- Timer action name. $$\tau \mapsto \text{string}$$ -/
+/-- Timer action name. -/
 def timerName : Timer → String
   | .keep => "keep" | .clear => "clear" | .rearm => "rearm"
 
-/-- Morph values around every cut. $$m$$ -/
+/-- Morph values around every cut. -/
 def ms : List Rat := [0, 0.001, 0.0011, 0.2, 0.2001, 0.4, 0.4001, 0.55, 0.5501, 0.92, 0.9201, 1]
 
-/-- nav lines. $$\text{lines}$$ Vectors the TS logic must reproduce. -/
+/-- nav lines. Vectors the TS logic must reproduce. -/
 def navLines : List String :=
   (([(0, 2000, 800), (-863, 2000, 800), (-864, 2000, 800), (-1000, 2000, 800), (10, 2000, 800), (0, 500, 800),
      (-100, 500, 800), (-5, 1000, 1000)] : List (Rat × Rat × Rat)).flatMap fun (t, h, v) =>
@@ -77,7 +77,7 @@ def navLines : List String :=
   (([0, 1139, 1140, 1141, 5000] : List Nat).map fun (t : Nat) =>
     line "readyAt" [("t", .num ⟨(t : Int), 0⟩)] (.bool (readyAt t)))
 
-/-- nav.langMenu lines. $$\text{lines}$$ Vectors the TS logic must reproduce. -/
+/-- nav.langMenu lines. Vectors the TS logic must reproduce. -/
 def menuLines : List String :=
   (([Phase.closed, .open_, .closing]).flatMap fun p => ([Ev.toggle, .select, .outside, .timer]).map fun e =>
     let o := step p e
