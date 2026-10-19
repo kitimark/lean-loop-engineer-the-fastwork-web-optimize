@@ -4,7 +4,7 @@ import { getScrollEngine } from '../../engine/scroll';
 import { createExitDriver, mountExit } from './driver';
 import { matchList } from './media';
 import css from './hero.module.css';
-import { registerScoped, SCOPE_ATTR, SCOPED } from './scope';
+import { registerScoped, SCOPED } from './scope';
 
 export interface HeroExitProps {
   variant: string;
@@ -32,10 +32,9 @@ export function HeroExit({ variant, children }: HeroExitProps) {
     return mountExit({ driver, engine: getScrollEngine(), clock: getClock(), readVh: () => window.innerHeight });
   }, [variant]);
 
-  const scope = variant === SCOPED ? { [SCOPE_ATTR]: '' } : {};
   return (
     <section ref={trackRef} className={css.track} data-fw="hero-exit" data-fw-variant={variant} aria-labelledby="start-selling-heading">
-      <div ref={heroRef} className={css.hero} data-splash="prep" {...scope}>
+      <div ref={heroRef} className={css.hero} data-splash="prep" data-exit-scope={variant === SCOPED ? '' : undefined}>
         {children}
       </div>
     </section>
