@@ -52,7 +52,7 @@ First-in-first-out landing: `land-queue.md`.
 
 Hand-back rule: before an agent hands a branch back it merges `main` into it and runs `pnpm fw land <branch> --task <id>
 [--allow <glob>]... --dry`, and hands back only when the last line is `VERDICT dry <id>` (exit 0). Other kinds are fixed
-first: `stale` = merge main again, `scope` = declare the write or pass `--allow`, `reads` = declare the read in the
+first: `stale` = merge main again (or, when the REFUSED line starts with `fwcore-stale:`, run `sh scripts/fwcore-build.sh` in the main checkout; the branch is fine), `scope` = declare the write or pass `--allow`, `reads` = declare the read in the
 premise, `conflict` = resolve. Lean `handback_pass_land_pass`: if the dry land passes and main has not moved, the real
 land's scope, merge and reads stages pass.
 
@@ -64,7 +64,7 @@ Every `fw land` prints a last line `VERDICT <kind> <task>` and exits with a code
 |---|---|---|
 | done, dry, queued, empty | 0 | landed, dry land passes, queued, the branch has no commit of its own (nothing to land) |
 | busy 10, dirty 11 | 10, 11 | retryable: the lock or the main checkout is in the way |
-| scope 12, reads 13, conflict 14, checks 15, stale 16, lint 17 | 12-17 | fix the branch (lint: a fast lint failed) |
+| scope 12, reads 13, conflict 14, checks 15, stale 16, lint 17 | 12-17 | fix the branch (lint: a fast lint failed; stale: or, when the REFUSED line starts with `fwcore-stale:`, run `sh scripts/fwcore-build.sh` in the main checkout, the branch is fine) |
 | unknown | 2 | anything else |
 
 Scripts read the word after `VERDICT` or the exit code, never prose. A dry run (also one that throws or is refused before any stage) prints
@@ -82,3 +82,7 @@ land prints `lint` too when a failed check reports only the `check.sh` stages `l
 `dry_kind_is_real_kind`); the real land has no `ci-paths` check, so a `ci-paths` failure has no real counterpart. Glue: `dryLintArgv` in `apps/runner/src/land.ts`; tests inject `dryLints`.
 Cost: see the handoff note `docs/team/handoffs/land-dry-full.md`. TS stand-in `apps/runner/src/land-verdict.ts`, checked against `packages/contracts/golden/console/land-dry.jsonl`.
 
+
+## Refusal reasons and the fwcore preflight (task land-queue-why)
+- Every queue refusal carries a reason. An attempt that throws is kind `unknown`; the runner keeps the exception message, prints `REFUSED: <message>` to stderr before the `VERDICT` line, writes it as `reason` in the `res` line of `land-queue.jsonl`, and appends `queue: REFUSED: <message>` to the task's newest log under `.fw-console/land-logs` (`<task>-queue.log` when the task has none). An empty message becomes `no message`. A refusal that `fw land` already explained (its own `REFUSED:` line) is recorded but not printed twice. Lean: `Fw.Console.LandQueue.reasonOf_nonempty`, `reasonOf_keeps`; golden ops `landQueue.reason` and `landQueue.refusalReason` (`refusal_has_reason`: every refusal kind gets a non-empty reason; the queue calls the TS mirror `refusalReason`). The task's land log is matched by exact name (`<task>-<sha7>.log`).
+- Preflight (real lands only, not `--dry`, not with `FW_LAND_CHECKS`): before any check, `fwcorePreflight` compares the commit in the main checkout's `lean/.lake/build/bin/fwcore.commit` (counted only when the binary's sha256 is the recorded one) with `main`. No record, or a record of another commit with a change under `lean/` or to `scripts/fwcore-build.sh` since, refuses at once with kind `stale` and the reason `fwcore-stale: run sh scripts/fwcore-build.sh`. Lean: `fwcoreStale` with one theorem per branch (`fwcoreStale_noRecord`, `fwcoreStale_moved`, `fwcoreFresh_same`, `fwcoreFresh_unmoved`); golden op `landQueue.fwcoreStale`. A tree without `scripts/fwcore-build.sh` is skipped. Cause of the 2026-10-20 incident: a stale binary failed mid-run with `unknown op console.landDigest`.
