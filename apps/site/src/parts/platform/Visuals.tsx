@@ -94,7 +94,7 @@ export function Profile({ subs }: { subs: Subs }) {
           </div>
           <p className={v.bio}>{PROFILE.bio}</p>
           <p className={v.loc}>
-            <GenSvg art={art('platform.pin')} />{' '}
+            <img src="/selling/icons/pin.svg" alt="" loading="lazy" decoding="async" />{' '}
             {PROFILE.location}
           </p>
         </div>
