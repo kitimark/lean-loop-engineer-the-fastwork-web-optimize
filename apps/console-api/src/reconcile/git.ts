@@ -28,6 +28,15 @@ export function isAncestor(repo: string, sha: string, of: string): boolean {
   catch { return false; }
 }
 
+/** Membership test for "is an ancestor of `of`" from one `git rev-list` (no process per sha). A full sha is a set lookup,
+ *  an abbreviation a prefix scan; an unknown ref gives the empty set (nothing is on it). */
+export function onMainSet(repo: string, of: string): (sha: string) => boolean {
+  let all: string[] = [];
+  try { all = execFileSync("git", ["rev-list", of], { cwd: repo, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 1 << 28 }).split("\n").filter(Boolean); } catch { all = []; }
+  const set = new Set(all);
+  return (sha) => (sha.length === 40 ? set.has(sha) : sha.length >= 7 && all.some((c) => c.startsWith(sha)));
+}
+
 /** The text of `path` in commit `sha` (`git show <sha>:<path>`, the committed blob, never a checkout's copy); null
  *  when the commit has no such file. */
 export function fileAt(repo: string, sha: string, path: string): string | null {
