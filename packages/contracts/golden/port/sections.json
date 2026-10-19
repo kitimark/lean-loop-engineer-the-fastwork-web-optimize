@@ -1,16 +1,10 @@
-{"table":
+{"unrooted":
+ ["morph.countdown", "morph.columns", "morph.panel", "overlays.drawer"],
+ "table":
  [{"rewrite": "html[data-fw=\"engine-scroll\"]",
    "part": "engine.scroll",
    "pageLevel": true,
    "orig": "html"},
-  {"rewrite": "[data-fw=\"nav\"]",
-   "part": "nav.hitTest",
-   "pageLevel": false,
-   "orig": "header.start-selling-top-nav"},
-  {"rewrite": "[data-fw=\"morph-mount\"]",
-   "part": "morph.mount",
-   "pageLevel": false,
-   "orig": ".start-selling-platform"},
   {"rewrite": "[data-fw=\"hero-countdown\"]",
    "part": "hero.countdown",
    "pageLevel": false,
@@ -19,10 +13,6 @@
    "part": "morph.countdown",
    "pageLevel": false,
    "orig": ".start-selling-morph-center .waitlist-closing-countdown"},
-  {"rewrite": "[data-fw=\"hero-exit\"]",
-   "part": "hero.exit",
-   "pageLevel": false,
-   "orig": ".hero-track"},
   {"rewrite": "[data-fw=\"morph-panel\"] > [data-fw-role=\"backdrop\"]",
    "part": "morph.columns",
    "pageLevel": false,
@@ -128,16 +118,23 @@
   {"rewrite": "[data-marquee]",
    "part": "platform.marquee",
    "pageLevel": false,
-   "orig": ".start-selling-platform-profile-reviews-track"},
-  {"rewrite": "[data-fw=\"platform\"]",
-   "part": "engine.scene",
-   "pageLevel": false,
-   "orig": ".start-selling-platform"}],
+   "orig": ".start-selling-platform-profile-reviews-track"}],
  "page": "page",
  "owner":
  [{"owner": "page", "ancestors": []},
   {"owner": "page", "ancestors": [[], []]},
   {"owner": "hero.accent",
    "ancestors": [[], ["hero.accent", "hero"], ["hero"]]},
-  {"owner": "nav", "ancestors": [["nav", "nav.hitTest"]]},
-  {"owner": "pain", "ancestors": [[], [], ["pain"]]}]}
+  {"owner": "nav", "ancestors": [["nav", "hero"]]},
+  {"owner": "pain", "ancestors": [[], [], ["pain"]]}],
+ "dropped":
+ [{"reason": "same root pair as nav: the nav header in both arms",
+   "part": "nav.hitTest"},
+  {"reason":
+   "a runtime mount that owns no markup: its original root .start-selling-platform is the section#platform node of platform, its rewrite root an empty hidden div",
+   "part": "morph.mount"},
+  {"reason": "same root pair as hero: the hero track in both arms",
+   "part": "hero.exit"},
+  {"reason":
+   "a runtime scene over the platform section: its original root is the section#platform node of platform, its rewrite root is platform's",
+   "part": "engine.scene"}]}

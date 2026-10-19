@@ -3,7 +3,7 @@
 // time and writes a report of hashes, skeleton keys, URLs and verdicts; never path data or command letters.
 // Decisions mirror lean/Fw/Site/Assets.lean and lean/Fw/Port/Svg.lean and are checked against
 // packages/contracts/golden/port/*.jsonl by apps/site/test/port-*.test.mjs. Unproved glue (TS stand-in): the HTML
-// tokenizer, the selector matcher and the URL scanner.
+// tokenizer, the selector matcher, the URL scanner, the data: URI scanner and the hashing of asset identities.
 // Run: node scripts/port/digest.mjs --dist apps/site/dist/aot [--snapshot snapshot/site] [--out report.json]
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -13,7 +13,9 @@ import { fileURLToPath } from 'node:url';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const golden = path.join(repo, 'packages/contracts/golden/port');
 export const sections = JSON.parse(readFileSync(path.join(golden, 'sections.json'), 'utf8'));
-export const exclusions = JSON.parse(readFileSync(path.join(golden, 'exclusions.json'), 'utf8'));
+const excl = JSON.parse(readFileSync(path.join(golden, 'exclusions.json'), 'utf8'));
+export const exclusions = excl.entries;
+export const crawlSkip = excl.crawlSkip.map((k) => k.prefix);
 
 const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
 const RAW = new Set(['script', 'style', 'textarea', 'title']);
@@ -207,6 +209,36 @@ export function verdict(F, R, E, u) {
 }
 export const assetsMissing = (F, R, E, O) => [...new Set(O)].filter((u) => verdict(F, R, E, u) === 'missing');
 
+// Fw.Site.Assets.inlineNorm: JS trim and \s are the ECMAScript white space set W of the Lean.
+export const inlineNorm = (t) => t.trim().replaceAll(/>\s+</g, '><').replaceAll('"', "'").replaceAll(/\s+/g, ' ');
+export const inlineName = (i) => 'inline:' + i;
+export const firstHit = (W, ids) => W.find((w) => ids.includes(w.id));
+export function renameRows(O, W, M) {
+  const rows = O.flatMap((o) => {
+    const w = firstHit(W, o.ids);
+    return w ? [{ url: w.name, src: o.src }] : [];
+  });
+  return [...rows, ...M];
+}
+
+// data: URI scanner: identity bytes:<sha256> of a base64 payload, svgtext:<sha256> of a percent-decoded svg text
+// payload (the form svgToDataURL of Vite 8.3.4 writes: no white space, no double quote, % < > # escaped).
+const DATA = /data:([a-z]+\/[a-z0-9.+-]+)(?:;charset=[\w-]+)?(;base64)?,([^"`\s\\]*)/gi;
+export function dataIdents(text) {
+  const out = [];
+  for (const m of text.matchAll(DATA)) {
+    if (m[2]) {
+      const b64 = /^[A-Za-z0-9+/]*={0,2}/.exec(m[3])[0];
+      out.push('bytes:' + createHash('sha256').update(Buffer.from(b64, 'base64')).digest('hex'));
+    } else if (m[1].toLowerCase() === 'image/svg+xml') {
+      try {
+        out.push('svgtext:' + createHash('sha256').update(decodeURIComponent(m[3])).digest('hex'));
+      } catch {}
+    }
+  }
+  return out;
+}
+
 // URL scanner: path-like tokens ending in an asset or code extension, resolved against the referring file's
 // directory (root-absolute paths as is); query and fragment dropped; external hosts skipped.
 const CODE = ['js', 'mjs', 'css'];
@@ -236,14 +268,18 @@ const isFile = (root, u) => {
   return f.startsWith(root) && existsSync(f) && statSync(f).isFile();
 };
 
-// The asset URLs a built page references: index.html and every script or stylesheet reachable from it.
+// The asset URLs a built page references: index.html and every script or stylesheet reachable from it, and the
+// identities of the data: URIs in those files (an HTML file is read with its character references decoded).
 export function crawl(root, skip = []) {
   const assets = new Set();
+  const inline = new Set();
   const seen = new Set(['/index.html']);
   const queue = ['/index.html'];
   while (queue.length) {
     const u = queue.shift();
-    const text = readFileSync(path.join(root, u), 'utf8');
+    const raw = readFileSync(path.join(root, u), 'utf8');
+    const text = u.endsWith('.html') ? decode(raw) : raw;
+    for (const i of dataIdents(text)) inline.add(i);
     const dir = u.endsWith('.html') ? '/' : path.posix.dirname(u);
     for (const r of scanRefs(text, dir)) {
       if (skip.some((s) => r.startsWith(s)) || !isFile(root, r)) continue;
@@ -252,31 +288,37 @@ export function crawl(root, skip = []) {
       } else if (isAsset(r)) assets.add(r);
     }
   }
-  return { assets: [...assets].sort(), code: [...seen].sort() };
+  return { assets: [...assets].sort(), code: [...seen].sort(), inline: [...inline] };
 }
 
-const sha = (f) => createHash('sha256').update(readFileSync(f)).digest('hex');
+const sha = (b) => createHash('sha256').update(b).digest('hex');
 
-// The rename map F of Fw.Site.Assets: first one row per original asset whose bytes a referenced rewrite asset has
-// (the bundler's hashed copies), then the manifest rows.
-export function renameFiles(manifest, snapshot, origAssets, dist, rwAssets) {
-  const byHash = new Map();
-  for (const u of rwAssets) {
-    const h = sha(path.join(dist, u));
-    if (!byHash.has(h)) byHash.set(h, u);
-  }
-  const same = origAssets.flatMap((u) => {
-    const r = byHash.get(sha(path.join(snapshot, u)));
-    return r ? [{ url: r, src: 'snapshot/site' + u }] : [];
-  });
-  return [...same, ...manifest.files];
+// The identities of one original asset (Fw.Site.Assets): bytes:<sha256>, and for an svg also svgtext:<sha256> of
+// inlineNorm of its text.
+export function origIdents(file) {
+  const b = readFileSync(file);
+  const ids = ['bytes:' + sha(b)];
+  if (ext(file) === 'svg') ids.push('svgtext:' + sha(inlineNorm(b.toString('utf8'))));
+  return ids;
+}
+
+// The inputs of Fw.Site.Assets.renameRows read from disk: O the original assets with their identities, W the rewrite's
+// referenced URLs (identity bytes:<sha256> of the file) then its inlined data: identities; returns the rename map F.
+export function renameFiles(manifest, snapshot, origAssets, dist, rw) {
+  const O = origAssets.map((u) => ({ src: 'snapshot/site' + u, ids: origIdents(path.join(snapshot, u)) }));
+  const W = [
+    ...rw.assets.map((u) => ({ name: u, id: 'bytes:' + sha(readFileSync(path.join(dist, u))) })),
+    ...rw.inline.map((i) => ({ name: inlineName(i), id: i })),
+  ];
+  return renameRows(O, W, manifest.files);
 }
 
 export function digest({ snapshot, dist }) {
   const manifest = JSON.parse(readFileSync(path.join(repo, 'apps/site/assets.manifest.json'), 'utf8'));
-  const orig = crawl(snapshot, ['/__vendor/']);
+  const orig = crawl(snapshot, crawlSkip);
   const rw = crawl(dist);
-  const F = renameFiles(manifest, snapshot, orig.assets, dist, rw.assets);
+  const F = renameFiles(manifest, snapshot, orig.assets, dist, rw);
+  const R = [...rw.assets, ...rw.inline.map(inlineName)];
   const oTree = parseHtml(readFileSync(path.join(snapshot, 'index.html'), 'utf8'));
   const rTree = parseHtml(readFileSync(path.join(dist, 'index.html'), 'utf8'));
   const oOwner = owners('orig');
@@ -286,13 +328,15 @@ export function digest({ snapshot, dist }) {
     for (const v of Object.values(e.attrs))
       for (const r of scanRefs(v, '/')) if (!ownerOfUrl.has(r)) ownerOfUrl.set(r, oOwner(e));
 
-  const verdicts = orig.assets.map((u) => ({ url: u, served: rename(F, u), verdict: verdict(F, rw.assets, exclusions, u), owner: ownerOfUrl.get(u) ?? sections.page }));
+  const verdicts = orig.assets.map((u) => ({ url: u, served: rename(F, u), verdict: verdict(F, R, exclusions, u), owner: ownerOfUrl.get(u) ?? sections.page }));
   const assets = {
     orig: orig.assets.length,
     rewrite: rw.assets.length,
+    inline: rw.inline.length,
+    inlined: verdicts.filter((v) => v.verdict === 'present' && v.served.startsWith('inline:')),
     missing: verdicts.filter((v) => v.verdict === 'missing'),
     excluded: verdicts.filter((v) => v.verdict === 'excluded'),
-    pass: assetsMissing(F, rw.assets, exclusions, orig.assets).length === 0,
+    pass: assetsMissing(F, R, exclusions, orig.assets).length === 0,
   };
 
   const oSvg = svgUnits(oTree, oOwner);

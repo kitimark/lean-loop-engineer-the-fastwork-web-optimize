@@ -3,9 +3,10 @@ import Fw.Port.Text
 /-! Check 4 of the port completeness gate: the shape of every inline `<svg>` of the prerendered page. The skeleton of
 an svg is its normalised `viewBox`, the number of descendant elements per tag, and for each `<path>` in document order
 the byte length of its `d` and its command letters; never the path data itself. `scripts/port/digest.mjs` computes the
-skeleton (checked against `packages/contracts/golden/port/svg.jsonl`), keys it by a SHA-256 of its canonical JSON, and
-matches the keys of the two arms with `Fw.Port.Sections.unmatched`: each svg is decided on its own. The key stands for
-the skeleton under the premise that SHA-256 has no collision on these inputs. -/
+skeleton (checked against `packages/contracts/golden/port/svg.jsonl`), keys it by the first 64 bits (16 hex digits) of
+a SHA-256 of its canonical JSON, and matches the keys of the two arms with `Fw.Port.Sections.unmatched`: each svg is
+decided on its own. The key stands for the skeleton under the premise that this 64-bit truncation has no collision on
+these inputs (a few dozen svgs per page). -/
 
 namespace Fw.Port.Svg
 
@@ -146,7 +147,7 @@ theorem pass_nil_iff (o r : List String) : pass [] o r = true ↔ ∀ k, o.count
   · rintro ⟨a, b⟩ k; exact Nat.le_antisymm (a k) (b k)
   · intro h; exact ⟨fun k => Nat.le_of_eq (h k), fun k => Nat.le_of_eq (h k).symm⟩
 
-/-- Svg exclusions (none yet): each entry names a skeleton key, the section that owns the svg, and why.
+/-- Svg exclusions (none yet): each entry names a skeleton key, the page as its section, and why.
 $$E_{\mathrm{svg}} = [\,]$$ -/
 def exclusions : List Excl := []
 

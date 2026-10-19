@@ -22,19 +22,25 @@ def exclsJ (E : List Excl) : Json := .arr (E.map exclJ).toArray
 
 /-- The owner cases, ancestors innermost first. -/
 def ownerCases : List (List (List String)) :=
-  [[], [[], []], [[], ["hero.accent", "hero"], ["hero"]], [["nav", "nav.hitTest"]], [[], [], ["pain"]]]
+  [[], [[], []], [[], ["hero.accent", "hero"], ["hero"]], [["nav", "hero"]], [[], [], ["pain"]]]
 
 /-- `sections.json`. -/
 def sectionsJ : Json :=
   Json.mkObj [("page", .str page),
     ("table", .arr (table.map fun r => Json.mkObj [("part", .str r.part), ("orig", .str r.orig),
       ("rewrite", .str r.rewrite), ("pageLevel", .bool r.pageLevel)]).toArray),
+    ("dropped", .arr (dropped.map fun (i, r) => Json.mkObj [("part", .str i), ("reason", .str r)]).toArray),
+    ("unrooted", strs unrooted),
     ("owner", .arr (ownerCases.map fun A => Json.mkObj [("ancestors", .arr (A.map strs).toArray),
       ("owner", .str (owner A))]).toArray)]
 
-/-- `exclusions.json`: every check's list, in check order. -/
+/-- `exclusions.json`: every check's list, in check order, and the crawl skips of check 3. -/
 def exclusionsJ : Json :=
-  exclsJ (Fw.Port.Text.exclusions ++ Fw.Port.Attrs.exclusions ++ Fw.Site.Assets.exclusions ++ Fw.Port.Svg.exclusions)
+  Json.mkObj [
+    ("entries", exclsJ (Fw.Port.Text.exclusions ++ Fw.Port.Attrs.exclusions ++ Fw.Site.Assets.exclusions ++
+      Fw.Port.Svg.exclusions)),
+    ("crawlSkip", .arr (Fw.Site.Assets.crawlSkip.map fun (k, r) =>
+      Json.mkObj [("prefix", .str k), ("reason", .str r)]).toArray)]
 
 section Assets
 open Fw.Site.Assets
@@ -69,9 +75,37 @@ def verdictCases : List (List String × List String) := [
   ([], []),
   (["/selling/b2.png"], ["/selling/b.png"])]
 
+/-- Texts for `inlineNorm`: tags, quotes, runs, non-ASCII white space, empty and blank input. -/
+def normCases : List String :=
+  ["  <svg a=\"1\">\n  <g/>\t</svg>\n", "<p>a  \n b</p> > <", "\u00A0<svg>\u2003\n<g/>\u3000x\u2028y</svg>\uFEFF",
+    "> >  <", "", " \n ", "<svg>\u0085\u200B<g/></svg>", "<a b='c'\r\n>\u000B<b/>"]
+
+/-- Rename-row cases: original assets with identities, rewrite assets (served name, identity), manifest rows, the
+original URLs to decide. The first is an svg inlined as text, the second an svg inlined as base64 (the `<text` branch),
+the third a hashed copy that wins over a later inlined one, the fourth no hit (manifest row, then missing). -/
+def rowCases : List (List (String × List String) × List (String × String) × List File × List String) := [
+  ([("snapshot/site/a.svg", ["bytes:1", "svgtext:2"])], [("/x/z.png", "bytes:7"), (inlineName "svgtext:2", "svgtext:2")],
+    [], ["/a.svg"]),
+  ([("snapshot/site/t.svg", ["bytes:3", "svgtext:4"])], [(inlineName "bytes:3", "bytes:3")], [], ["/t.svg"]),
+  ([("snapshot/site/c.png", ["bytes:5"]), ("snapshot/site/d.png", ["bytes:6"])],
+    [("/x/c.H.png", "bytes:5"), (inlineName "bytes:5", "bytes:5")], [⟨"/m/c.png", "snapshot/site/c.png"⟩],
+    ["/c.png", "/d.png"]),
+  ([("snapshot/site/e.png", ["bytes:8"])], [("/x/f.png", "bytes:9")], [⟨"/m/e.png", "snapshot/site/e.png"⟩],
+    ["/e.png", "/g.png"])]
+
 /-- `assets.jsonl`. -/
 def assetsText : String :=
-  String.join ((fnCases ++ verdictCases.map fun (R, O) =>
+  String.join ((fnCases ++
+    normCases.map (fun t => Json.mkObj [("fn", .str "inlineNorm"), ("in", .str t), ("out", .str (inlineNorm t))]) ++
+    rowCases.map (fun (O, W, M, U) =>
+      let F := renameRows O W M
+      let R := W.map (fun (w : String × String) => w.1)
+      Json.mkObj [("fn", .str "renameRows"),
+        ("orig", .arr (O.map fun (s, I) => Json.mkObj [("src", .str s), ("ids", strs I)]).toArray),
+        ("rewrite", .arr (W.map fun (n, i) => Json.mkObj [("name", .str n), ("id", .str i)]).toArray),
+        ("files", .arr (M.map fileJ).toArray), ("rows", .arr (F.map fileJ).toArray), ("urls", strs U),
+        ("verdicts", strs (U.map fun u => (verdict F R [] u).name))]) ++
+    verdictCases.map fun (R, O) =>
     Json.mkObj [("fn", .str "verdict"), ("files", .arr (files.map fileJ).toArray), ("served", strs R),
       ("excl", exclsJ exclA), ("orig", strs O),
       ("verdicts", strs (O.map fun u => (verdict files R exclA u).name)),

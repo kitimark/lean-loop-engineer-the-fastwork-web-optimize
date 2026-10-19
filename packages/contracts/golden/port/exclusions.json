@@ -1,10 +1,20 @@
-[{"sec": "hero.countdown",
-  "reason":
-  "countdown digits are the time left until launch, read from the clock at render time",
-  "key": "*",
-  "check": "text"},
- {"sec": "morph.countdown",
-  "reason":
-  "countdown digits are the time left until launch, read from the clock at render time",
-  "key": "*",
-  "check": "text"}]
+{"entries":
+ [{"sec": "hero.countdown",
+   "reason":
+   "countdown digits are the time left until launch, read from the clock at render time",
+   "key": "*",
+   "check": "text"},
+  {"sec": "morph.countdown",
+   "reason":
+   "countdown digits are the time left until launch, read from the clock at render time",
+   "key": "*",
+   "check": "text"},
+  {"sec": "page",
+   "reason":
+   "@font-face declared; --font-fastwork defined but never referenced; no rule applies the face",
+   "key": "/fonts/fastwork-Bold.ttf",
+   "check": "assets"}],
+ "crawlSkip":
+ [{"reason":
+   "mirrored third-party scripts (Amplitude, Hotjar, Cloudflare Insights, Google Tag Manager), not the page's own assets",
+   "prefix": "/__vendor/"}]}

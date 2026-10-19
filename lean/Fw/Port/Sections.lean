@@ -2,9 +2,13 @@
 multiset difference every check decides its units with.
 
 The snapshot carries no `data-fw` attribute, so a section is named by a pair of root selectors, one per arm, read from
-the breakpoint gate's `anchors.json` (the first role of each part). `scripts/port/digest.mjs` reads this table from
-`packages/contracts/golden/port/sections.json` (`lean/scripts/PortGolden.lean`); `apps/site/test/port-sections.test.mjs`
-checks that the table equals `anchors.json`. -/
+the breakpoint gate's `anchors.json` (the first role of each part). A part whose roots name the same nodes as another
+part's is left out (`dropped`, with the reason), so that each row owns its own nodes. `scripts/port/digest.mjs` reads
+this table from `packages/contracts/golden/port/sections.json` (`lean/scripts/PortGolden.lean`);
+`apps/site/test/port-sections.test.mjs` checks that the table and `dropped` cover `anchors.json`, that no node of the
+snapshot page or of the prerendered page is matched by two section rows, and that the rows matching no node there are
+exactly `unrooted`. Node matching runs in the site test (the selector matcher is a TS stand-in); the theorems here
+decide the selector strings only. -/
 
 namespace Fw.Port.Sections
 
@@ -24,15 +28,12 @@ structure Root where
   rewrite : String
 deriving Repr, DecidableEq
 
-/-- One row per part id of `anchors.json`, in its order: the part's first role.
-$$T = [R_1, \dots, R_{33}]$$ -/
+/-- One row per part id of `anchors.json` that is not in `dropped`, in its order: the part's first role.
+$$T = [R_1, \dots, R_{29}]$$ -/
 def table : List Root := [
   ⟨"engine.scroll", "html", "html[data-fw=\"engine-scroll\"]"⟩,
-  ⟨"nav.hitTest", "header.start-selling-top-nav", "[data-fw=\"nav\"]"⟩,
-  ⟨"morph.mount", ".start-selling-platform", "[data-fw=\"morph-mount\"]"⟩,
   ⟨"hero.countdown", ".hero-track .countdown", "[data-fw=\"hero-countdown\"]"⟩,
   ⟨"morph.countdown", ".start-selling-morph-center .waitlist-closing-countdown", "[data-fw=\"morph-countdown\"]"⟩,
-  ⟨"hero.exit", ".hero-track", "[data-fw=\"hero-exit\"]"⟩,
   ⟨"morph.columns", ".start-selling-morph-backdrop", "[data-fw=\"morph-panel\"] > [data-fw-role=\"backdrop\"]"⟩,
   ⟨"morph.tween", "html", "html[data-fw-morph-tween]"⟩,
   ⟨"morph.panel", ".start-selling-top-nav .start-selling-morph-panel", "[data-fw=\"morph-panel\"]"⟩,
@@ -58,8 +59,7 @@ def table : List Root := [
   ⟨"platform.sweep", ".start-selling-platform-row-title-doc,.start-selling-platform-row-title-earn,.start-selling-platform-row-title-secure,.start-selling-platform-row-title-organized", "[data-fw-sweep]"⟩,
   ⟨"platform.glint", ".start-selling-platform-secure-network-dash", "[data-fw-dash]"⟩,
   ⟨"platform.entries", ".start-selling-platform-profile,.start-selling-platform-visual.is-search,.start-selling-platform-secure,.start-selling-platform-invoice", "[data-fw-visual]"⟩,
-  ⟨"platform.marquee", ".start-selling-platform-profile-reviews-track", "[data-marquee]"⟩,
-  ⟨"engine.scene", ".start-selling-platform", "[data-fw=\"platform\"]"⟩]
+  ⟨"platform.marquee", ".start-selling-platform-profile-reviews-track", "[data-marquee]"⟩]
 
 /-- A root is page level when its original selector is the document element: such a part owns no section and its
 nodes count for the page. $$\operatorname{pageLevel}(R) \iff R.\sigma_{\mathrm{orig}} = \texttt{html}$$ -/
@@ -102,16 +102,41 @@ theorem owner_innermost (B A : List (List String)) (i : String) (m' : List Strin
     subst hb
     exact ih (fun x hx => h x (by simp [hx]))
 
-#guard owner [[], ["nav", "nav.hitTest"], ["hero"]] == "nav"
+#guard owner [[], ["nav", "hero"], ["hero"]] == "nav"
 #guard owner [[], []] == "page"
 #guard owner [] == "page"
 
-/-- The part ids of the table are distinct, there are 33 rows, and exactly two are page level (`engine.scroll`,
-`morph.tween`).
-$$|T| = 33 \land \operatorname{nodup}([R.i \mid R \in T]) \land [R.i \mid R \in T, \operatorname{pageLevel}(R)] = [\texttt{engine.scroll}, \texttt{morph.tween}]$$ -/
+/-- The parts of `anchors.json` that own no section, each with the reason: two parts whose roots name the same node
+cannot both own it, so one of them is left out.
+$$D = [(\texttt{nav.hitTest}, \rho_1), (\texttt{morph.mount}, \rho_2), (\texttt{hero.exit}, \rho_3), (\texttt{engine.scene}, \rho_4)]$$ -/
+def dropped : List (String × String) := [
+  ("nav.hitTest", "same root pair as nav: the nav header in both arms"),
+  ("morph.mount", "a runtime mount that owns no markup: its original root .start-selling-platform is the section#platform node of platform, its rewrite root an empty hidden div"),
+  ("hero.exit", "same root pair as hero: the hero track in both arms"),
+  ("engine.scene", "a runtime scene over the platform section: its original root is the section#platform node of platform, its rewrite root is platform's")]
+
+/-- The part ids of the table and of `dropped` are distinct, the table has 29 rows, exactly two are page level
+(`engine.scroll`, `morph.tween`), and every dropped part has a reason.
+$$|T| = 29 \land \operatorname{nodup}([R.i \mid R \in T] \mathbin{+\!\!+} [d.1 \mid d \in D]) \land [R.i \mid R \in T, \operatorname{pageLevel}(R)] = [\texttt{engine.scroll}, \texttt{morph.tween}] \land \forall d \in D,\ d.2 \ne \texttt{""}$$ -/
 theorem table_shape :
-    table.length = 33 ∧ (table.map (·.part)).Nodup ∧
-      (table.filter (·.pageLevel)).map (·.part) = ["engine.scroll", "morph.tween"] := by decide +kernel
+    table.length = 29 ∧ (table.map (·.part) ++ dropped.map (·.1)).Nodup ∧
+      (table.filter (·.pageLevel)).map (·.part) = ["engine.scroll", "morph.tween"] ∧
+      ∀ d ∈ dropped, d.2 ≠ "" := by decide +kernel
+
+/-- No two section rows share an original root selector, and none share a rewrite root selector. Distinct strings do
+not yet mean distinct nodes (two selectors can name one element); the site test decides that on both built pages.
+$$\operatorname{nodup}([R.\sigma_{\mathrm{orig}} \mid R \in T_s]) \land \operatorname{nodup}([R.\sigma_{\mathrm{rw}} \mid R \in T_s])$$ -/
+theorem roots_distinct :
+    (sections.map (·.orig)).Nodup ∧ (sections.map (·.rewrite)).Nodup := by decide +kernel
+
+/-- The section rows whose roots match no node of the prerendered page, on either arm: their markup mounts at run
+time, so they own no node of the prerendered page, and their ownership is undecided until check 5 (runtime states).
+$$N = [\texttt{morph.countdown}, \texttt{morph.columns}, \texttt{morph.panel}, \texttt{overlays.drawer}]$$ -/
+def unrooted : List String := ["morph.countdown", "morph.columns", "morph.panel", "overlays.drawer"]
+
+/-- Every unrooted part is a section row.
+$$\forall i \in N,\ \exists R \in T_s:\ R.i = i$$ -/
+theorem unrooted_sections : ∀ i ∈ unrooted, ∃ r ∈ sections, r.part = i := by decide +kernel
 
 /-! ## Units and the multiset difference -/
 
@@ -174,7 +199,7 @@ theorem unmatched_nil_iff {α : Type} [BEq α] [LawfulBEq α] (o r : List α) :
 
 /-! ## Exclusions -/
 
-/-- One exclusion: the check, the section that owns it, the unit key (a URL, a skeleton hash, a leaf, an attribute
+/-- One exclusion: the check, the section it belongs to (the page for a page-wide check), the unit key (a URL, a skeleton hash, a leaf, an attribute
 name) and why the unit is not compared.
 $$e = (c, s, k, \rho)$$ -/
 structure Excl where
@@ -184,8 +209,8 @@ structure Excl where
   reason : String
 deriving Repr, DecidableEq
 
-/-- A unit of a page-wide check (assets, svg) is excluded when an entry of that check names its key; the entry's
-section is its owner.
+/-- A unit of a page-wide check (assets, svg) is excluded when an entry of that check names its key (such entries
+name the page as their section, see `wf`).
 $$\operatorname{exclKey}(E, c, k) \iff \exists e \in E:\ e.c = c \land e.k = k$$ -/
 def exclKey (E : List Excl) (c : Check) (k : String) : Bool := E.any fun e => e.check == c && e.key == k
 
@@ -206,13 +231,30 @@ theorem exclIn_iff (E : List Excl) (c : Check) (s k : String) :
     exclIn E c s k = true ↔ ∃ e ∈ E, e.check = c ∧ e.sec = s ∧ e.key = k := by
   simp [exclIn, and_assoc]
 
-/-- A list is well formed when every entry has a reason and no two entries share check, section and key.
-$$\operatorname{wf}(E) \iff (\forall e \in E,\ e.\rho \ne \texttt{""}) \land \operatorname{nodup}([(e.c, e.s, e.k) \mid e \in E])$$ -/
-def wf (E : List Excl) : Bool :=
-  E.all (·.reason != "") && (E.map fun e => (e.check.name, e.sec, e.key)).Nodup
+/-- The section an entry may name: the page for a page-wide check (assets, svg), a section row for a sectioned check
+(text, attrs).
+$$\operatorname{secOk}(e) \iff \begin{cases} e.s = \texttt{page} & e.c \in \{\mathrm{assets}, \mathrm{svg}\} \\ \exists R \in T_s:\ R.i = e.s & e.c \in \{\mathrm{text}, \mathrm{attrs}\} \end{cases}$$ -/
+def Excl.secOk (e : Excl) : Bool :=
+  match e.check with
+  | .assets | .svg => e.sec == page
+  | .text | .attrs => sections.any (·.part == e.sec)
 
-#guard wf [⟨.svg, "nav", "k", "r"⟩, ⟨.svg, "hero", "k", "r"⟩]
-#guard !wf [⟨.svg, "nav", "k", ""⟩]
-#guard !wf [⟨.svg, "nav", "k", "r"⟩, ⟨.svg, "nav", "k", "s"⟩]
+#guard Excl.secOk ⟨.svg, "page", "k", "r"⟩
+#guard !Excl.secOk ⟨.assets, "nav", "k", "r"⟩
+#guard Excl.secOk ⟨.text, "hero.countdown", "*", "r"⟩
+#guard !Excl.secOk ⟨.text, "page", "*", "r"⟩
+#guard !Excl.secOk ⟨.attrs, "engine.scene", "k", "r"⟩
+
+/-- A list is well formed when every entry has a reason and a section its check allows, and no two entries share
+check, section and key; for the page-wide checks the section is the page, so their keys are distinct per check.
+$$\operatorname{wf}(E) \iff (\forall e \in E,\ e.\rho \ne \texttt{""} \land \operatorname{secOk}(e)) \land \operatorname{nodup}([(e.c, e.s, e.k) \mid e \in E])$$ -/
+def wf (E : List Excl) : Bool :=
+  E.all (fun e => e.reason != "" && e.secOk) && (E.map fun e => (e.check.name, e.sec, e.key)).Nodup
+
+#guard wf [⟨.text, "nav", "k", "r"⟩, ⟨.text, "hero", "k", "r"⟩]
+#guard !wf [⟨.text, "nav", "k", ""⟩]
+#guard !wf [⟨.text, "nav", "k", "r"⟩, ⟨.text, "nav", "k", "s"⟩]
+#guard !wf [⟨.svg, "nav", "k", "r"⟩]
+#guard !wf [⟨.svg, "page", "k", "r"⟩, ⟨.svg, "page", "k", "s"⟩]
 
 end Fw.Port.Sections

@@ -1,12 +1,29 @@
 // Run: node --test test/port-assets.test.mjs (from apps/site). Check 3 of the port completeness gate
 // (Fw.Site.Assets): scripts/port/digest.mjs replays every Lean case of packages/contracts/golden/port/assets.jsonl;
-// with FW_SITE_DIST set to a built dist/aot, every asset the snapshot page references is served by the rewrite.
+// renameFiles and the crawl read identities from files as Lean's renameRows expects; with FW_SITE_DIST set to a built
+// dist/aot, every asset the snapshot page references is served by the rewrite (as a URL or inlined) or excluded.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { assetsMissing, digest, ext, isAsset, origUrl, rename, scanRefs, verdict } from '../../../scripts/port/digest.mjs';
+import {
+  assetsMissing,
+  crawl,
+  dataIdents,
+  digest,
+  ext,
+  inlineNorm,
+  isAsset,
+  origIdents,
+  origUrl,
+  rename,
+  renameFiles,
+  renameRows,
+  scanRefs,
+  verdict,
+} from '../../../scripts/port/digest.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const cases = readFileSync(path.join(repo, 'packages/contracts/golden/port/assets.jsonl'), 'utf8')
@@ -34,6 +51,57 @@ test('verdicts and the missing list equal Lean', () => {
   }
 });
 
+test('inlineNorm, renameRows and their verdicts equal Lean', () => {
+  const ns = cases.filter((c) => c.fn === 'inlineNorm');
+  assert.ok(ns.length > 0);
+  for (const c of ns) assert.equal(inlineNorm(c.in), c.out, JSON.stringify(c.in));
+  const rs = cases.filter((c) => c.fn === 'renameRows');
+  assert.ok(rs.length > 0);
+  for (const c of rs) {
+    const F = renameRows(c.orig, c.rewrite, c.files);
+    assert.deepEqual(F, c.rows);
+    assert.deepEqual(c.urls.map((u) => verdict(F, c.rewrite.map((w) => w.name), [], u)), c.verdicts);
+  }
+});
+
+test('renameFiles reads identities from files: equal bytes, the first rewrite URL, inlined svg text and base64', () => {
+  const t = mkdtempSync(path.join(tmpdir(), 'port-assets-'));
+  try {
+    const snap = path.join(t, 'snap');
+    const dist = path.join(t, 'dist');
+    mkdirSync(path.join(snap, 's'), { recursive: true });
+    mkdirSync(path.join(dist, 'assets'), { recursive: true });
+    const svg = '<svg viewBox="0 0 1 1">\n  <g/>\n</svg>\n';
+    const txt = '<svg><text>a</text></svg>';
+    writeFileSync(path.join(snap, 's/a.png'), 'PNGDATA');
+    writeFileSync(path.join(snap, 's/b.svg'), svg);
+    writeFileSync(path.join(snap, 's/c.svg'), txt);
+    writeFileSync(path.join(snap, 's/d.png'), 'OTHER');
+    writeFileSync(path.join(dist, 'assets/a1.png'), 'PNGDATA');
+    writeFileSync(path.join(dist, 'assets/a2.png'), 'PNGDATA');
+    const enc = 'data:image/svg+xml,' + encodeURIComponent(inlineNorm(svg));
+    const b64 = 'data:image/svg+xml;base64,' + Buffer.from(txt).toString('base64');
+    writeFileSync(path.join(dist, 'assets/x.js'), `const a="/assets/a2.png",b="/assets/a1.png",c="${enc}",d="${b64}";`);
+    writeFileSync(path.join(dist, 'index.html'), `<script src="/assets/x.js"></script><img src="${enc.replaceAll("'", '&#x27;')}">`);
+    const rw = crawl(dist);
+    assert.deepEqual(rw.assets, ['/assets/a1.png', '/assets/a2.png']);
+    assert.equal(rw.inline.length, 2);
+    assert.deepEqual(dataIdents(`url("${enc}")`), [origIdents(path.join(snap, 's/b.svg'))[1]]);
+    const O = ['/s/a.png', '/s/b.svg', '/s/c.svg', '/s/d.png'];
+    const F = renameFiles({ files: [{ url: '/m/d.png', src: 'snapshot/site/s/d.png' }] }, snap, O, dist, rw);
+    assert.deepEqual(F.map((f) => [f.url.replace(/[0-9a-f]{64}$/, 'H'), f.src]), [
+      ['/assets/a1.png', 'snapshot/site/s/a.png'],
+      ['inline:svgtext:H', 'snapshot/site/s/b.svg'],
+      ['inline:bytes:H', 'snapshot/site/s/c.svg'],
+      ['/m/d.png', 'snapshot/site/s/d.png'],
+    ]);
+    const R = [...rw.assets, ...rw.inline.map((i) => 'inline:' + i)];
+    assert.deepEqual(O.map((u) => verdict(F, R, [], u)), ['present', 'present', 'present', 'missing']);
+  } finally {
+    rmSync(t, { recursive: true, force: true });
+  }
+});
+
 test('the scanner resolves relative URLs, drops queries and skips other hosts', () => {
   assert.deepEqual(scanRefs('url(./a.woff2) url("../b.png?v=1") "/c.svg#x" https://cdn.example/d.png https://fastwork.co/e.jpg', '/_app/x'), [
     '/_app/x/a.woff2',
@@ -43,7 +111,7 @@ test('the scanner resolves relative URLs, drops queries and skips other hosts', 
   ]);
 });
 
-test('built page: every snapshot asset is served by the rewrite or excluded', { skip: !dist && 'FW_SITE_DIST unset' }, () => {
+test('built page: every snapshot asset is served by the rewrite (as a URL or inlined) or excluded', { skip: !dist && 'FW_SITE_DIST unset' }, () => {
   const { assets } = digest({ snapshot: path.join(repo, 'snapshot/site'), dist: path.resolve(dist) });
   assert.ok(assets.orig > 0 && assets.rewrite > 0);
   assert.ok(assets.pass, `missing (${assets.missing.length}):\n${assets.missing.map((m) => `${m.owner} ${m.url}`).join('\n')}`);
