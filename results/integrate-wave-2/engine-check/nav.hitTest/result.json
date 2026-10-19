@@ -1,0 +1,297 @@
+{
+ "tally": {
+  "modelBug": 0,
+  "pass": 5,
+  "unusable": 4
+ },
+ "verdicts": [
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.FunctionCall",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "script",
+   "totals": {
+    "base": [
+     1988,
+     1988,
+     1988
+    ],
+    "variant": [
+     1988,
+     1988,
+     1988
+    ]
+   },
+   "variant": "rewrite+?fw=nav.hitTest:elements-skip",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.FireAnimationFrame",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "script",
+   "totals": {
+    "base": [
+     952,
+     952,
+     952
+    ],
+    "variant": [
+     952,
+     952,
+     952
+    ]
+   },
+   "variant": "rewrite+?fw=nav.hitTest:elements-skip",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "deterministic",
+    "variant": "deterministic"
+   },
+   "countType": "trace.UpdateLayoutTree",
+   "engine": "chromium",
+   "prediction": "<o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "style",
+   "totals": {
+    "base": [
+     1995,
+     1995,
+     1995
+    ],
+    "variant": [
+     91,
+     91,
+     91
+    ]
+   },
+   "variant": "rewrite+?fw=nav.hitTest:elements-skip",
+   "verdict": "pass",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.Layout",
+   "engine": "chromium",
+   "prediction": "≤o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "layout",
+   "totals": {
+    "base": [
+     41,
+     41,
+     41
+    ],
+    "variant": [
+     41,
+     41,
+     41
+    ]
+   },
+   "variant": "rewrite+?fw=nav.hitTest:elements-skip",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "stable(k=2, t=0)",
+    "variant": "stable(k=2, t=0)"
+   },
+   "countType": "trace.PrePaint",
+   "engine": "chromium",
+   "prediction": "≤o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "paint",
+   "totals": {
+    "base": [
+     2857,
+     2857,
+     2857
+    ],
+    "variant": [
+     2857,
+     2857,
+     2857
+    ]
+   },
+   "variant": "rewrite+?fw=nav.hitTest:elements-skip",
+   "verdict": "pass",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.Paint",
+   "engine": "chromium",
+   "prediction": "≤o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "paint",
+   "totals": {
+    "base": [
+     1944,
+     1944,
+     1944
+    ],
+    "variant": [
+     222,
+     222,
+     222
+    ]
+   },
+   "variant": "rewrite+?fw=nav.hitTest:elements-skip",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "stable(k=4, t=0)",
+    "variant": "stable(k=4, t=0)"
+   },
+   "countType": "raster.invalidationAreaPx",
+   "engine": "chromium",
+   "prediction": "≤o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "raster",
+   "totals": {
+    "base": [
+     26400120,
+     26400120,
+     26400120
+    ],
+    "variant": [
+     26400120,
+     26400120,
+     26400120
+    ]
+   },
+   "variant": "rewrite+?fw=nav.hitTest:elements-skip",
+   "verdict": "pass",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "deterministic",
+    "variant": "deterministic"
+   },
+   "countType": "trace.cc.Commit",
+   "engine": "chromium",
+   "prediction": "≤o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "commit",
+   "totals": {
+    "base": [
+     952,
+     952,
+     952
+    ],
+    "variant": [
+     952,
+     952,
+     952
+    ]
+   },
+   "variant": "rewrite+?fw=nav.hitTest:elements-skip",
+   "verdict": "pass",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "stable(k=2, t=0)",
+    "variant": "stable(k=2, t=0)"
+   },
+   "countType": "trace.HitTest",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "hits",
+   "totals": {
+    "base": [
+     1904,
+     1904,
+     1904
+    ],
+    "variant": [
+     1904,
+     1904,
+     1904
+    ]
+   },
+   "variant": "rewrite+?fw=nav.hitTest:elements-skip",
+   "verdict": "pass",
+   "confounds": []
+  }
+ ]
+}

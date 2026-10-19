@@ -1,0 +1,37 @@
+{
+ "hero.countdown": {
+  "modelBug": 0,
+  "pass": 0,
+  "unusable": 1
+ },
+ "nav.hitTest": {
+  "modelBug": 0,
+  "pass": 5,
+  "unusable": 4
+ },
+ "platform": {
+  "modelBug": 1,
+  "pass": 1,
+  "unusable": 2
+ },
+ "columns": {
+  "modelBug": 0,
+  "pass": 2,
+  "unusable": 2
+ },
+ "g1-pain.notes": {
+  "modelBug": 2,
+  "pass": 3,
+  "unusable": 3
+ },
+ "g1-people.card": {
+  "modelBug": 2,
+  "pass": 3,
+  "unusable": 3
+ },
+ "g1": {
+  "modelBug": 6,
+  "pass": 4,
+  "unusable": 7
+ }
+}

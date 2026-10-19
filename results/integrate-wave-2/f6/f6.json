@@ -1,0 +1,1238 @@
+{
+ "schema": "fw.wave2.f6pilot/1",
+ "note": "PILOT, INFERRED: raw whole-run delta of the combined page against the sum of part-page deltas; TS stand-in, the compose-check F6 verdict is not built in Lean.",
+ "profile": "swipe-v1",
+ "combined": {
+  "base": "39224113958",
+  "arm": "39224078326"
+ },
+ "parts": [
+  {
+   "name": "g1 (hero, pain, people)",
+   "base": "39226593120",
+   "arm": "39226604309"
+  },
+  {
+   "name": "nav",
+   "base": "39225578464",
+   "arm": "39226582881"
+  },
+  {
+   "name": "platform",
+   "base": "39227563060",
+   "arm": "39227571736"
+  },
+  {
+   "name": "columns",
+   "base": "39228387861",
+   "arm": "39229363194"
+  }
+ ],
+ "frames": {
+  "combined": 503,
+  "parts": [
+   727,
+   992,
+   975,
+   1329
+  ]
+ },
+ "rows": [
+  {
+   "type": "census.activeTileAreaPx",
+   "class": "stable",
+   "margin": 2,
+   "combined": 1409024,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": 1409024,
+   "strict": false,
+   "widened": false,
+   "rate": 2801.2405566600396,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": 2801.2405566600396,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "census.activeTiles",
+   "class": "stable",
+   "margin": 2,
+   "combined": 122,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": 122,
+   "strict": false,
+   "widened": false,
+   "rate": 0.24254473161033796,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": 0.24254473161033796,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "census.drawingAreaPx",
+   "class": "stable",
+   "margin": 2,
+   "combined": 92216252,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": 92216252,
+   "strict": false,
+   "widened": false,
+   "rate": 183332.50894632208,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": 183332.50894632208,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "census.drawingLayers",
+   "class": "stable",
+   "margin": 2,
+   "combined": 1052,
+   "parts": [
+    1,
+    0,
+    0,
+    0
+   ],
+   "sum": 1,
+   "residual": 1051,
+   "strict": false,
+   "widened": false,
+   "rate": 2.091451292246521,
+   "rates": [
+    0.001375515818431912,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0.001375515818431912,
+   "rateResidual": 2.090075776428089,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "census.layers",
+   "class": "stable",
+   "margin": 2,
+   "combined": 1051,
+   "parts": [
+    1,
+    0,
+    0,
+    0
+   ],
+   "sum": 1,
+   "residual": 1050,
+   "strict": false,
+   "widened": false,
+   "rate": 2.0894632206759445,
+   "rates": [
+    0.001375515818431912,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0.001375515818431912,
+   "rateResidual": 2.0880877048575126,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "census.tiles",
+   "class": "stable",
+   "margin": 2,
+   "combined": 122,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": 122,
+   "strict": false,
+   "widened": false,
+   "rate": 0.24254473161033796,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": 0.24254473161033796,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "census.tilings",
+   "class": "stable",
+   "margin": 1,
+   "combined": 115,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": 115,
+   "strict": false,
+   "widened": false,
+   "rate": 0.2286282306163022,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": 0.2286282306163022,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "metric.JSEventListeners",
+   "class": "quarantined",
+   "margin": null,
+   "combined": -68,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -68,
+   "strict": null,
+   "widened": null,
+   "rate": -0.13518886679920478,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": -0.13518886679920478,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "metric.LayoutCount",
+   "class": "stable",
+   "margin": 4,
+   "combined": -4,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -4,
+   "strict": true,
+   "widened": true,
+   "rate": -0.007952286282306162,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": -0.007952286282306162,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "metric.LayoutObjects",
+   "class": "quarantined",
+   "margin": null,
+   "combined": -357,
+   "parts": [
+    1,
+    0,
+    0,
+    0
+   ],
+   "sum": 1,
+   "residual": -358,
+   "strict": null,
+   "widened": null,
+   "rate": -0.709741550695825,
+   "rates": [
+    0.001375515818431912,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0.001375515818431912,
+   "rateResidual": -0.7111170665142569,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "metric.Nodes",
+   "class": "quarantined",
+   "margin": null,
+   "combined": -291,
+   "parts": [
+    4,
+    0,
+    0,
+    0
+   ],
+   "sum": 4,
+   "residual": -295,
+   "strict": null,
+   "widened": null,
+   "rate": -0.5785288270377733,
+   "rates": [
+    0.005502063273727648,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0.005502063273727648,
+   "rateResidual": -0.5840308903115009,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "metric.RecalcStyleCount",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": -1011,
+   "parts": [
+    -51,
+    -1904,
+    0,
+    0
+   ],
+   "sum": -1955,
+   "residual": 944,
+   "strict": false,
+   "widened": false,
+   "rate": -2.0099403578528827,
+   "rates": [
+    -0.07015130674002751,
+    -1.9193548387096775,
+    0,
+    0
+   ],
+   "rateSum": -1.989506145449705,
+   "rateResidual": -0.020434212403177776,
+   "rateWithin10pct": true
+  },
+  {
+   "type": "metric.Resources",
+   "class": "stable",
+   "margin": 2,
+   "combined": -17,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -17,
+   "strict": false,
+   "widened": false,
+   "rate": -0.033797216699801194,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": -0.033797216699801194,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "raster.invalidatedLayers",
+   "class": "stable",
+   "margin": 4,
+   "combined": -650,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -650,
+   "strict": false,
+   "widened": false,
+   "rate": -1.2922465208747516,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": -1.2922465208747516,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "raster.invalidationAreaPx",
+   "class": "stable",
+   "margin": 4,
+   "combined": -949338,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -949338,
+   "strict": false,
+   "widened": false,
+   "rate": -1887.351888667992,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": -1887.351888667992,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "raster.invalidationRects",
+   "class": "stable",
+   "margin": 4,
+   "combined": 510,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": 510,
+   "strict": false,
+   "widened": false,
+   "rate": 1.0139165009940359,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": 1.0139165009940359,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.Animation.begin",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": -3,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -3,
+   "strict": false,
+   "widened": false,
+   "rate": -0.005964214711729622,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": -0.005964214711729622,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.Animation.compositeFailedBits",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": -73600,
+   "parts": [
+    -106496,
+    0,
+    0,
+    0
+   ],
+   "sum": -106496,
+   "residual": 32896,
+   "strict": false,
+   "widened": false,
+   "rate": -146.3220675944334,
+   "rates": [
+    -146.4869325997249,
+    0,
+    0,
+    0
+   ],
+   "rateSum": -146.4869325997249,
+   "rateResidual": 0.16486500529148884,
+   "rateWithin10pct": true
+  },
+  {
+   "type": "trace.Animation.instant",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": -9,
+   "parts": [
+    -13,
+    0,
+    0,
+    0
+   ],
+   "sum": -13,
+   "residual": 4,
+   "strict": false,
+   "widened": false,
+   "rate": -0.017892644135188866,
+   "rates": [
+    -0.017881705639614855,
+    0,
+    0,
+    0
+   ],
+   "rateSum": -0.017881705639614855,
+   "rateResidual": -0.000010938495574010915,
+   "rateWithin10pct": true
+  },
+  {
+   "type": "trace.Commit",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": 0,
+   "parts": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "sum": 10,
+   "residual": -10,
+   "strict": false,
+   "widened": false,
+   "rate": 0,
+   "rates": [
+    0.013755158184319119,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0.013755158184319119,
+   "rateResidual": -0.013755158184319119,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.CullRectUpdate",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": 0,
+   "parts": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "sum": 10,
+   "residual": -10,
+   "strict": false,
+   "widened": false,
+   "rate": 0,
+   "rates": [
+    0.013755158184319119,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0.013755158184319119,
+   "rateResidual": -0.013755158184319119,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.EventDispatch",
+   "class": "quarantined",
+   "margin": null,
+   "combined": -20,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -20,
+   "strict": null,
+   "widened": null,
+   "rate": -0.039761431411530816,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": -0.039761431411530816,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.FireAnimationFrame",
+   "class": "quarantined",
+   "margin": null,
+   "combined": -603,
+   "parts": [
+    -359,
+    0,
+    0,
+    0
+   ],
+   "sum": -359,
+   "residual": -244,
+   "strict": null,
+   "widened": null,
+   "rate": -1.1988071570576542,
+   "rates": [
+    -0.4938101788170564,
+    0,
+    0,
+    0
+   ],
+   "rateSum": -0.4938101788170564,
+   "rateResidual": -0.7049969782405978,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.FunctionCall",
+   "class": "quarantined",
+   "margin": null,
+   "combined": -188,
+   "parts": [
+    -359,
+    0,
+    2,
+    1
+   ],
+   "sum": -356,
+   "residual": 168,
+   "strict": null,
+   "widened": null,
+   "rate": -0.37375745526838966,
+   "rates": [
+    -0.4938101788170564,
+    0,
+    0.0020512820512820513,
+    0.0007524454477050414
+   ],
+   "rateSum": -0.4910064513180693,
+   "rateResidual": 0.11724899604967964,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.IntersectionObserverCompute",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": -1,
+   "parts": [
+    20,
+    0,
+    0,
+    0
+   ],
+   "sum": 20,
+   "residual": -21,
+   "strict": false,
+   "widened": false,
+   "rate": -0.0019880715705765406,
+   "rates": [
+    0.027510316368638238,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0.027510316368638238,
+   "rateResidual": -0.02949838793921478,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.InvalidateLayout",
+   "class": "quarantined",
+   "margin": null,
+   "combined": -6,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -6,
+   "strict": null,
+   "widened": null,
+   "rate": -0.011928429423459244,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": -0.011928429423459244,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.Layer.created",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": -9,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -9,
+   "strict": false,
+   "widened": false,
+   "rate": -0.017892644135188866,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": -0.017892644135188866,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.Layerize",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": 0,
+   "parts": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "sum": 10,
+   "residual": -10,
+   "strict": false,
+   "widened": false,
+   "rate": 0,
+   "rates": [
+    0.013755158184319119,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0.013755158184319119,
+   "rateResidual": -0.013755158184319119,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.Layout",
+   "class": "quarantined",
+   "margin": null,
+   "combined": -4,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -4,
+   "strict": null,
+   "widened": null,
+   "rate": -0.007952286282306162,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": -0.007952286282306162,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.Layout.dirtyObjects",
+   "class": "quarantined",
+   "margin": null,
+   "combined": -414,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -414,
+   "strict": null,
+   "widened": null,
+   "rate": -0.8230616302186878,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": -0.8230616302186878,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.Layout.partial",
+   "class": "stable",
+   "margin": 2,
+   "combined": -3,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -3,
+   "strict": false,
+   "widened": true,
+   "rate": -0.005964214711729622,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": -0.005964214711729622,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.Layout.totalObjects",
+   "class": "quarantined",
+   "margin": null,
+   "combined": 48752,
+   "parts": [
+    11088,
+    0,
+    0,
+    0
+   ],
+   "sum": 11088,
+   "residual": 37664,
+   "strict": null,
+   "widened": null,
+   "rate": 96.92246520874751,
+   "rates": [
+    15.25171939477304,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 15.25171939477304,
+   "rateResidual": 81.67074581397446,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.MajorGC",
+   "class": "quarantined",
+   "margin": null,
+   "combined": -1,
+   "parts": [
+    1,
+    -1,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -1,
+   "strict": null,
+   "widened": null,
+   "rate": -0.0019880715705765406,
+   "rates": [
+    0.001375515818431912,
+    -0.0010080645161290322,
+    0,
+    0
+   ],
+   "rateSum": 0.00036745130230287975,
+   "rateResidual": -0.0023555228728794203,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.MinorGC",
+   "class": "stable",
+   "margin": 4,
+   "combined": -3,
+   "parts": [
+    -1,
+    1,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -3,
+   "strict": true,
+   "widened": true,
+   "rate": -0.005964214711729622,
+   "rates": [
+    -0.001375515818431912,
+    0.0010080645161290322,
+    0,
+    0
+   ],
+   "rateSum": -0.00036745130230287975,
+   "rateResidual": -0.005596763409426742,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.Paint",
+   "class": "quarantined",
+   "margin": null,
+   "combined": -367,
+   "parts": [
+    0,
+    -1722,
+    0,
+    0
+   ],
+   "sum": -1722,
+   "residual": 1355,
+   "strict": null,
+   "widened": null,
+   "rate": -0.7296222664015904,
+   "rates": [
+    0,
+    -1.7358870967741935,
+    0,
+    0
+   ],
+   "rateSum": -1.7358870967741935,
+   "rateResidual": 1.006264830372603,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.PaintImage",
+   "class": "stable",
+   "margin": 3,
+   "combined": 3,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": 3,
+   "strict": true,
+   "widened": true,
+   "rate": 0.005964214711729622,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": 0.005964214711729622,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.PrePaint",
+   "class": "stable",
+   "margin": 2,
+   "combined": -1,
+   "parts": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "sum": 10,
+   "residual": -11,
+   "strict": false,
+   "widened": false,
+   "rate": -0.0019880715705765406,
+   "rates": [
+    0.013755158184319119,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0.013755158184319119,
+   "rateResidual": -0.01574322975489566,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.RequestAnimationFrame",
+   "class": "quarantined",
+   "margin": null,
+   "combined": -603,
+   "parts": [
+    -360,
+    0,
+    0,
+    0
+   ],
+   "sum": -360,
+   "residual": -243,
+   "strict": null,
+   "widened": null,
+   "rate": -1.1988071570576542,
+   "rates": [
+    -0.4951856946354883,
+    0,
+    0,
+    0
+   ],
+   "rateSum": -0.4951856946354883,
+   "rateResidual": -0.7036214624221659,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.ResizeObserverNotify",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": -1,
+   "parts": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "sum": 10,
+   "residual": -11,
+   "strict": false,
+   "widened": false,
+   "rate": -0.0019880715705765406,
+   "rates": [
+    0.013755158184319119,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0.013755158184319119,
+   "rateResidual": -0.01574322975489566,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.ResourceSendRequest",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": -21,
+   "parts": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "sum": 0,
+   "residual": -21,
+   "strict": false,
+   "widened": false,
+   "rate": -0.041749502982107355,
+   "rates": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0,
+   "rateResidual": -0.041749502982107355,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.ScheduleStyleRecalculation",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": -1010,
+   "parts": [
+    -51,
+    -1904,
+    0,
+    0
+   ],
+   "sum": -1955,
+   "residual": 945,
+   "strict": false,
+   "widened": false,
+   "rate": -2.0079522862823063,
+   "rates": [
+    -0.07015130674002751,
+    -1.9193548387096775,
+    0,
+    0
+   ],
+   "rateSum": -1.989506145449705,
+   "rateResidual": -0.01844614083260132,
+   "rateWithin10pct": true
+  },
+  {
+   "type": "trace.UpdateLayer",
+   "class": "stable",
+   "margin": 2,
+   "combined": 116,
+   "parts": [
+    110,
+    0,
+    0,
+    0
+   ],
+   "sum": 110,
+   "residual": 6,
+   "strict": false,
+   "widened": true,
+   "rate": 0.23061630218687873,
+   "rates": [
+    0.15130674002751032,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0.15130674002751032,
+   "rateResidual": 0.07930956215936841,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.UpdateLayoutTree",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": -1011,
+   "parts": [
+    -51,
+    -1904,
+    0,
+    0
+   ],
+   "sum": -1955,
+   "residual": 944,
+   "strict": false,
+   "widened": false,
+   "rate": -2.0099403578528827,
+   "rates": [
+    -0.07015130674002751,
+    -1.9193548387096775,
+    0,
+    0
+   ],
+   "rateSum": -1.989506145449705,
+   "rateResidual": -0.020434212403177776,
+   "rateWithin10pct": true
+  },
+  {
+   "type": "trace.UpdateLayoutTree.elementCount",
+   "class": "quarantined",
+   "margin": null,
+   "combined": -7716,
+   "parts": [
+    5686,
+    -26656,
+    3,
+    0
+   ],
+   "sum": -20967,
+   "residual": 13251,
+   "strict": null,
+   "widened": null,
+   "rate": -15.339960238568588,
+   "rates": [
+    7.821182943603851,
+    -26.870967741935484,
+    0.003076923076923077,
+    0
+   ],
+   "rateSum": -19.04670787525471,
+   "rateResidual": 3.7067476366861225,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.cc.Activate",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": 0,
+   "parts": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "sum": 10,
+   "residual": -10,
+   "strict": false,
+   "widened": false,
+   "rate": 0,
+   "rates": [
+    0.013755158184319119,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0.013755158184319119,
+   "rateResidual": -0.013755158184319119,
+   "rateWithin10pct": false
+  },
+  {
+   "type": "trace.cc.Commit",
+   "class": "deterministic",
+   "margin": 0,
+   "combined": 0,
+   "parts": [
+    10,
+    0,
+    0,
+    0
+   ],
+   "sum": 10,
+   "residual": -10,
+   "strict": false,
+   "widened": false,
+   "rate": 0,
+   "rates": [
+    0.013755158184319119,
+    0,
+    0,
+    0
+   ],
+   "rateSum": 0.013755158184319119,
+   "rateResidual": -0.013755158184319119,
+   "rateWithin10pct": false
+  }
+ ]
+}

@@ -1,0 +1,137 @@
+{
+ "tally": {
+  "modelBug": 1,
+  "pass": 1,
+  "unusable": 2
+ },
+ "verdicts": [
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.FireAnimationFrame",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "script",
+   "totals": {
+    "base": [
+     935,
+     935,
+     935
+    ],
+    "variant": [
+     935,
+     935,
+     935
+    ]
+   },
+   "variant": "hidden-pause",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "deterministic",
+    "variant": "deterministic"
+   },
+   "countType": "trace.UpdateLayoutTree",
+   "engine": "chromium",
+   "prediction": "≤o",
+   "reason": "refuted for every run within the class: the model is wrong",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "style",
+   "totals": {
+    "base": [
+     1050,
+     1050,
+     1049
+    ],
+    "variant": [
+     1050,
+     1049,
+     1050
+    ]
+   },
+   "variant": "hidden-pause",
+   "verdict": "model-bug",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.Layout",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "layout",
+   "totals": {
+    "base": [
+     131,
+     131,
+     128
+    ],
+    "variant": [
+     131,
+     128,
+     131
+    ]
+   },
+   "variant": "hidden-pause",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "deterministic",
+    "variant": "deterministic"
+   },
+   "countType": "trace.cc.Commit",
+   "engine": "chromium",
+   "prediction": "≤o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "commit",
+   "totals": {
+    "base": [
+     936,
+     936,
+     936
+    ],
+    "variant": [
+     936,
+     936,
+     936
+    ]
+   },
+   "variant": "hidden-pause",
+   "verdict": "pass",
+   "confounds": []
+  }
+ ]
+}

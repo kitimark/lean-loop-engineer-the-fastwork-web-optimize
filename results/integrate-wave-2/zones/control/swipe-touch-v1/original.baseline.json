@@ -1,0 +1,11213 @@
+{
+ "schema": "fw.zonebaseline.chromium.baseline/1",
+ "note": "Cross-shard baseline per zone and count type, and whole-run totals: fwcore measure.zoneBaseline (Lean Fw.Measure.ZoneBaseline). class = the type in the frozen table (unlisted = not in it; rule quarantined); perRun in the order of runs; lo, hi; base = the observed value at sorted index floor((n-1)/2). Raw counts are work, not milliseconds. Regenerate after every refreeze.",
+ "source": {
+  "zonesFile": "results/integrate-wave-2/zones/control/swipe-touch-v1/original.zones.json",
+  "zonesSha256": "f2436d38d4aecf6ec1293d57bcd46e95a1c7b2faa2a1b74b76a35cbdf8aacc26",
+  "storeKey": "0d3576cad9208036b4c947ad7979bdeed5792ce469059dfa7ffa8505919df2a5",
+  "runId": "39224091514",
+  "gitSha": "ef8b2cd370879aff9f6dbf541b5ae2faf7809292",
+  "image": "sha256:8f0e17f50db9e3ae59f06d12d8b2fd483ba39582999a8469fab4fd8432cff2b0",
+  "zoneHeightPx": 500,
+  "preset": "original",
+  "browser": "HeadlessChrome/156.0.8078.4",
+  "viewport": {
+   "width": 430,
+   "height": 932,
+   "dpr": 3,
+   "mobile": true,
+   "touch": true
+  },
+  "innerWidthPx": 430,
+  "innerHeightPx": 932,
+  "scrollWidthPx": 430
+ },
+ "classTable": {
+  "file": "packages/measure-chromium/classes.frozen.json",
+  "sha256": "bfe908167305afb4879d931dc5737ba074545508b6d58e9ab8682c2d76bfc9bb",
+  "profile": "swipe-touch-v1",
+  "image": "sha256:8f0e17f50db9e3ae59f06d12d8b2fd483ba39582999a8469fab4fd8432cff2b0",
+  "workflowRuns": [
+   "39184646781",
+   "39186485136",
+   "39187013275"
+  ]
+ },
+ "target": "original",
+ "engine": "chromium",
+ "profile": "swipe-touch-v1",
+ "detDrift": [],
+ "detDriftTotals": [],
+ "runs": [
+  "r1",
+  "r2",
+  "r3"
+ ],
+ "tally": {
+  "deterministic": 24,
+  "quarantined": 11,
+  "stable": 35,
+  "unlisted": 0
+ },
+ "totals": {
+  "census.activeTileAreaPx": {
+   "base": 2875248640,
+   "class": "stable",
+   "hi": 2875265024,
+   "lo": 2874855424,
+   "perRun": [
+    2874855424,
+    2875265024,
+    2875248640
+   ],
+   "rule": "stable"
+  },
+  "census.activeTiles": {
+   "base": 45450,
+   "class": "stable",
+   "hi": 45452,
+   "lo": 45444,
+   "perRun": [
+    45444,
+    45452,
+    45450
+   ],
+   "rule": "stable"
+  },
+  "census.drawingAreaPx": {
+   "base": 5608802751,
+   "class": "stable",
+   "hi": 5608803503,
+   "lo": 5606758583,
+   "perRun": [
+    5606758583,
+    5608803503,
+    5608802751
+   ],
+   "rule": "stable"
+  },
+  "census.drawingLayers": {
+   "base": 24024,
+   "class": "stable",
+   "hi": 24027,
+   "lo": 24024,
+   "perRun": [
+    24024,
+    24027,
+    24024
+   ],
+   "rule": "stable"
+  },
+  "census.layers": {
+   "base": 27520,
+   "class": "stable",
+   "hi": 27522,
+   "lo": 27519,
+   "perRun": [
+    27520,
+    27522,
+    27519
+   ],
+   "rule": "stable"
+  },
+  "census.snapshots": {
+   "base": 523,
+   "class": "deterministic",
+   "hi": 523,
+   "lo": 523,
+   "perRun": [
+    523,
+    523,
+    523
+   ],
+   "rule": "deterministic"
+  },
+  "census.solidTiles": {
+   "base": 18171,
+   "class": "deterministic",
+   "hi": 18171,
+   "lo": 18171,
+   "perRun": [
+    18171,
+    18171,
+    18171
+   ],
+   "rule": "deterministic"
+  },
+  "census.tiles": {
+   "base": 51882,
+   "class": "stable",
+   "hi": 51884,
+   "lo": 51876,
+   "perRun": [
+    51876,
+    51884,
+    51882
+   ],
+   "rule": "stable"
+  },
+  "census.tilings": {
+   "base": 17416,
+   "class": "stable",
+   "hi": 17418,
+   "lo": 17416,
+   "perRun": [
+    17416,
+    17418,
+    17416
+   ],
+   "rule": "stable"
+  },
+  "hasDamage": {
+   "base": 523,
+   "class": "deterministic",
+   "hi": 523,
+   "lo": 523,
+   "perRun": [
+    523,
+    523,
+    523
+   ],
+   "rule": "deterministic"
+  },
+  "metric.Documents": {
+   "base": 9,
+   "class": "stable",
+   "hi": 9,
+   "lo": 9,
+   "perRun": [
+    9,
+    9,
+    9
+   ],
+   "rule": "stable"
+  },
+  "metric.Frames": {
+   "base": 14,
+   "class": "stable",
+   "hi": 14,
+   "lo": 14,
+   "perRun": [
+    14,
+    14,
+    14
+   ],
+   "rule": "stable"
+  },
+  "metric.JSEventListeners": {
+   "base": 4,
+   "class": "deterministic",
+   "hi": 4,
+   "lo": 4,
+   "perRun": [
+    4,
+    4,
+    4
+   ],
+   "rule": "deterministic"
+  },
+  "metric.LayoutCount": {
+   "base": 345,
+   "class": "stable",
+   "hi": 345,
+   "lo": 345,
+   "perRun": [
+    345,
+    345,
+    345
+   ],
+   "rule": "stable"
+  },
+  "metric.LayoutObjects": {
+   "base": 255,
+   "class": "quarantined",
+   "hi": 255,
+   "lo": 255,
+   "perRun": [
+    255,
+    255,
+    255
+   ],
+   "rule": "quarantined"
+  },
+  "metric.Nodes": {
+   "base": 543,
+   "class": "quarantined",
+   "hi": 663,
+   "lo": 543,
+   "perRun": [
+    543,
+    543,
+    663
+   ],
+   "rule": "quarantined"
+  },
+  "metric.RecalcStyleCount": {
+   "base": 1775,
+   "class": "stable",
+   "hi": 1777,
+   "lo": 1775,
+   "perRun": [
+    1775,
+    1777,
+    1775
+   ],
+   "rule": "stable"
+  },
+  "metric.Resources": {
+   "base": -1,
+   "class": "stable",
+   "hi": -1,
+   "lo": -1,
+   "perRun": [
+    -1,
+    -1,
+    -1
+   ],
+   "rule": "stable"
+  },
+  "n0.cssom": {
+   "base": 0,
+   "class": "deterministic",
+   "hi": 0,
+   "lo": 0,
+   "perRun": [
+    0,
+    0,
+    0
+   ],
+   "rule": "deterministic"
+  },
+  "n0.events": {
+   "base": 0,
+   "class": "deterministic",
+   "hi": 0,
+   "lo": 0,
+   "perRun": [
+    0,
+    0,
+    0
+   ],
+   "rule": "deterministic"
+  },
+  "n0.sheetNode": {
+   "base": 0,
+   "class": "deterministic",
+   "hi": 0,
+   "lo": 0,
+   "perRun": [
+    0,
+    0,
+    0
+   ],
+   "rule": "deterministic"
+  },
+  "raster.invalidatedLayers": {
+   "base": 2223,
+   "class": "stable",
+   "hi": 2233,
+   "lo": 2223,
+   "perRun": [
+    2233,
+    2223,
+    2223
+   ],
+   "rule": "stable"
+  },
+  "raster.invalidationAreaPx": {
+   "base": 193521586,
+   "class": "quarantined",
+   "hi": 196449838,
+   "lo": 193521586,
+   "perRun": [
+    196449838,
+    193521586,
+    193521586
+   ],
+   "rule": "quarantined"
+  },
+  "raster.invalidationRects": {
+   "base": 5212,
+   "class": "stable",
+   "hi": 5231,
+   "lo": 5212,
+   "perRun": [
+    5231,
+    5212,
+    5212
+   ],
+   "rule": "stable"
+  },
+  "trace.Animation.begin": {
+   "base": 164,
+   "class": "deterministic",
+   "hi": 164,
+   "lo": 164,
+   "perRun": [
+    164,
+    164,
+    164
+   ],
+   "rule": "deterministic"
+  },
+  "trace.Animation.compositeFailedBits": {
+   "base": 2081568,
+   "class": "deterministic",
+   "hi": 2081568,
+   "lo": 2081568,
+   "perRun": [
+    2081568,
+    2081568,
+    2081568
+   ],
+   "rule": "deterministic"
+  },
+  "trace.Animation.instant": {
+   "base": 261,
+   "class": "deterministic",
+   "hi": 261,
+   "lo": 261,
+   "perRun": [
+    261,
+    261,
+    261
+   ],
+   "rule": "deterministic"
+  },
+  "trace.Commit": {
+   "base": 531,
+   "class": "deterministic",
+   "hi": 531,
+   "lo": 531,
+   "perRun": [
+    531,
+    531,
+    531
+   ],
+   "rule": "deterministic"
+  },
+  "trace.CullRectUpdate": {
+   "base": 649,
+   "class": "stable",
+   "hi": 649,
+   "lo": 649,
+   "perRun": [
+    649,
+    649,
+    649
+   ],
+   "rule": "stable"
+  },
+  "trace.DecodeImage": {
+   "base": 39,
+   "class": "deterministic",
+   "hi": 39,
+   "lo": 39,
+   "perRun": [
+    39,
+    39,
+    39
+   ],
+   "rule": "deterministic"
+  },
+  "trace.DisplayItemListRaster": {
+   "base": 1733,
+   "class": "stable",
+   "hi": 1735,
+   "lo": 1733,
+   "perRun": [
+    1733,
+    1735,
+    1733
+   ],
+   "rule": "stable"
+  },
+  "trace.EvaluateScript": {
+   "base": 531,
+   "class": "deterministic",
+   "hi": 531,
+   "lo": 531,
+   "perRun": [
+    531,
+    531,
+    531
+   ],
+   "rule": "deterministic"
+  },
+  "trace.EventDispatch": {
+   "base": 1288,
+   "class": "stable",
+   "hi": 1290,
+   "lo": 1288,
+   "perRun": [
+    1288,
+    1290,
+    1288
+   ],
+   "rule": "stable"
+  },
+  "trace.FireAnimationFrame": {
+   "base": 2494,
+   "class": "stable",
+   "hi": 2497,
+   "lo": 2494,
+   "perRun": [
+    2494,
+    2497,
+    2494
+   ],
+   "rule": "stable"
+  },
+  "trace.FunctionCall": {
+   "base": 4339,
+   "class": "stable",
+   "hi": 4345,
+   "lo": 4339,
+   "perRun": [
+    4339,
+    4345,
+    4339
+   ],
+   "rule": "stable"
+  },
+  "trace.HitTest": {
+   "base": 1263,
+   "class": "stable",
+   "hi": 1265,
+   "lo": 1263,
+   "perRun": [
+    1263,
+    1265,
+    1263
+   ],
+   "rule": "stable"
+  },
+  "trace.HitTest.overlayAdDetector": {
+   "base": 128,
+   "class": "quarantined",
+   "hi": 128,
+   "lo": 127,
+   "perRun": [
+    128,
+    127,
+    128
+   ],
+   "rule": "quarantined"
+  },
+  "trace.ImageDecodeTask": {
+   "base": 641,
+   "class": "stable",
+   "hi": 641,
+   "lo": 638,
+   "perRun": [
+    641,
+    638,
+    641
+   ],
+   "rule": "stable"
+  },
+  "trace.IntersectionObserverCompute": {
+   "base": 1069,
+   "class": "deterministic",
+   "hi": 1069,
+   "lo": 1069,
+   "perRun": [
+    1069,
+    1069,
+    1069
+   ],
+   "rule": "deterministic"
+  },
+  "trace.InvalidateLayout": {
+   "base": 450,
+   "class": "stable",
+   "hi": 450,
+   "lo": 450,
+   "perRun": [
+    450,
+    450,
+    450
+   ],
+   "rule": "stable"
+  },
+  "trace.Layer.created": {
+   "base": 116,
+   "class": "deterministic",
+   "hi": 116,
+   "lo": 116,
+   "perRun": [
+    116,
+    116,
+    116
+   ],
+   "rule": "deterministic"
+  },
+  "trace.Layer.deleted": {
+   "base": 81,
+   "class": "quarantined",
+   "hi": 81,
+   "lo": 71,
+   "perRun": [
+    81,
+    81,
+    71
+   ],
+   "rule": "quarantined"
+  },
+  "trace.Layerize": {
+   "base": 531,
+   "class": "deterministic",
+   "hi": 531,
+   "lo": 531,
+   "perRun": [
+    531,
+    531,
+    531
+   ],
+   "rule": "deterministic"
+  },
+  "trace.Layout": {
+   "base": 385,
+   "class": "stable",
+   "hi": 385,
+   "lo": 385,
+   "perRun": [
+    385,
+    385,
+    385
+   ],
+   "rule": "stable"
+  },
+  "trace.Layout.dirtyObjects": {
+   "base": 14514,
+   "class": "stable",
+   "hi": 14514,
+   "lo": 14514,
+   "perRun": [
+    14514,
+    14514,
+    14514
+   ],
+   "rule": "stable"
+  },
+  "trace.Layout.partial": {
+   "base": 84,
+   "class": "deterministic",
+   "hi": 84,
+   "lo": 84,
+   "perRun": [
+    84,
+    84,
+    84
+   ],
+   "rule": "deterministic"
+  },
+  "trace.Layout.totalObjects": {
+   "base": 225540,
+   "class": "stable",
+   "hi": 225540,
+   "lo": 225540,
+   "perRun": [
+    225540,
+    225540,
+    225540
+   ],
+   "rule": "stable"
+  },
+  "trace.MajorGC": {
+   "base": 12,
+   "class": "quarantined",
+   "hi": 12,
+   "lo": 11,
+   "perRun": [
+    12,
+    12,
+    11
+   ],
+   "rule": "quarantined"
+  },
+  "trace.MinorGC": {
+   "base": 3,
+   "class": "quarantined",
+   "hi": 3,
+   "lo": 2,
+   "perRun": [
+    2,
+    3,
+    3
+   ],
+   "rule": "quarantined"
+  },
+  "trace.N1.fontUpdateInvalidation": {
+   "base": 0,
+   "class": "deterministic",
+   "hi": 0,
+   "lo": 0,
+   "perRun": [
+    0,
+    0,
+    0
+   ],
+   "rule": "deterministic"
+  },
+  "trace.N1.scheduleInvalidationsForRuleSets": {
+   "base": 0,
+   "class": "deterministic",
+   "hi": 0,
+   "lo": 0,
+   "perRun": [
+    0,
+    0,
+    0
+   ],
+   "rule": "deterministic"
+  },
+  "trace.N1.svgImageDocument": {
+   "base": 17,
+   "class": "deterministic",
+   "hi": 17,
+   "lo": 17,
+   "perRun": [
+    17,
+    17,
+    17
+   ],
+   "rule": "deterministic"
+  },
+  "trace.N1.updateActiveStyleSheets": {
+   "base": 0,
+   "class": "deterministic",
+   "hi": 0,
+   "lo": 0,
+   "perRun": [
+    0,
+    0,
+    0
+   ],
+   "rule": "deterministic"
+  },
+  "trace.Paint": {
+   "base": 2798,
+   "class": "stable",
+   "hi": 2800,
+   "lo": 2797,
+   "perRun": [
+    2797,
+    2798,
+    2800
+   ],
+   "rule": "stable"
+  },
+  "trace.PaintImage": {
+   "base": 1347,
+   "class": "stable",
+   "hi": 1348,
+   "lo": 1347,
+   "perRun": [
+    1347,
+    1348,
+    1347
+   ],
+   "rule": "stable"
+  },
+  "trace.ParseHTML": {
+   "base": 35,
+   "class": "deterministic",
+   "hi": 35,
+   "lo": 35,
+   "perRun": [
+    35,
+    35,
+    35
+   ],
+   "rule": "deterministic"
+  },
+  "trace.PrePaint": {
+   "base": 1975,
+   "class": "stable",
+   "hi": 1977,
+   "lo": 1975,
+   "perRun": [
+    1975,
+    1977,
+    1975
+   ],
+   "rule": "stable"
+  },
+  "trace.RasterTask": {
+   "base": 1733,
+   "class": "stable",
+   "hi": 1735,
+   "lo": 1733,
+   "perRun": [
+    1733,
+    1735,
+    1733
+   ],
+   "rule": "stable"
+  },
+  "trace.RequestAnimationFrame": {
+   "base": 2495,
+   "class": "stable",
+   "hi": 2498,
+   "lo": 2495,
+   "perRun": [
+    2495,
+    2498,
+    2495
+   ],
+   "rule": "stable"
+  },
+  "trace.ResizeObserverNotify": {
+   "base": 654,
+   "class": "stable",
+   "hi": 654,
+   "lo": 654,
+   "perRun": [
+    654,
+    654,
+    654
+   ],
+   "rule": "stable"
+  },
+  "trace.ResourceSendRequest": {
+   "base": 44,
+   "class": "deterministic",
+   "hi": 44,
+   "lo": 44,
+   "perRun": [
+    44,
+    44,
+    44
+   ],
+   "rule": "deterministic"
+  },
+  "trace.ScheduleStyleRecalculation": {
+   "base": 1804,
+   "class": "stable",
+   "hi": 1806,
+   "lo": 1804,
+   "perRun": [
+    1804,
+    1806,
+    1804
+   ],
+   "rule": "stable"
+  },
+  "trace.ScrollLayer": {
+   "base": 459,
+   "class": "stable",
+   "hi": 460,
+   "lo": 459,
+   "perRun": [
+    459,
+    460,
+    459
+   ],
+   "rule": "stable"
+  },
+  "trace.UpdateLayer": {
+   "base": 18397,
+   "class": "quarantined",
+   "hi": 18444,
+   "lo": 18396,
+   "perRun": [
+    18396,
+    18444,
+    18397
+   ],
+   "rule": "quarantined"
+  },
+  "trace.UpdateLayoutTree": {
+   "base": 1791,
+   "class": "stable",
+   "hi": 1793,
+   "lo": 1791,
+   "perRun": [
+    1791,
+    1793,
+    1791
+   ],
+   "rule": "stable"
+  },
+  "trace.UpdateLayoutTree.elementCount": {
+   "base": 53848,
+   "class": "quarantined",
+   "hi": 53868,
+   "lo": 53843,
+   "perRun": [
+    53843,
+    53868,
+    53848
+   ],
+   "rule": "quarantined"
+  },
+  "trace.cc.Activate": {
+   "base": 460,
+   "class": "quarantined",
+   "hi": 461,
+   "lo": 459,
+   "perRun": [
+    461,
+    459,
+    460
+   ],
+   "rule": "quarantined"
+  },
+  "trace.cc.Commit": {
+   "base": 460,
+   "class": "quarantined",
+   "hi": 461,
+   "lo": 459,
+   "perRun": [
+    461,
+    459,
+    460
+   ],
+   "rule": "quarantined"
+  },
+  "trace.cc.Draw": {
+   "base": 531,
+   "class": "deterministic",
+   "hi": 531,
+   "lo": 531,
+   "perRun": [
+    531,
+    531,
+    531
+   ],
+   "rule": "deterministic"
+  },
+  "trace.cc.SynchronizeTrees": {
+   "base": 118,
+   "class": "stable",
+   "hi": 118,
+   "lo": 118,
+   "perRun": [
+    118,
+    118,
+    118
+   ],
+   "rule": "stable"
+  }
+ },
+ "zones": [
+  {
+   "firstFrame": 0,
+   "frames": 10,
+   "id": "rest",
+   "lastFrame": 9,
+   "scrolledPx": 0,
+   "types": {
+    "census.activeTileAreaPx": {
+     "base": 10403840,
+     "class": "stable",
+     "hi": 10403840,
+     "lo": 10403840,
+     "perRun": [
+      10403840,
+      10403840,
+      10403840
+     ],
+     "rule": "stable"
+    },
+    "census.activeTiles": {
+     "base": 180,
+     "class": "stable",
+     "hi": 180,
+     "lo": 180,
+     "perRun": [
+      180,
+      180,
+      180
+     ],
+     "rule": "stable"
+    },
+    "census.drawingAreaPx": {
+     "base": 42898680,
+     "class": "stable",
+     "hi": 42898680,
+     "lo": 42898680,
+     "perRun": [
+      42898680,
+      42898680,
+      42898680
+     ],
+     "rule": "stable"
+    },
+    "census.drawingLayers": {
+     "base": 140,
+     "class": "stable",
+     "hi": 140,
+     "lo": 140,
+     "perRun": [
+      140,
+      140,
+      140
+     ],
+     "rule": "stable"
+    },
+    "census.layers": {
+     "base": 190,
+     "class": "stable",
+     "hi": 190,
+     "lo": 190,
+     "perRun": [
+      190,
+      190,
+      190
+     ],
+     "rule": "stable"
+    },
+    "census.snapshots": {
+     "base": 10,
+     "class": "deterministic",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "deterministic"
+    },
+    "census.solidTiles": {
+     "base": 80,
+     "class": "deterministic",
+     "hi": 80,
+     "lo": 80,
+     "perRun": [
+      80,
+      80,
+      80
+     ],
+     "rule": "deterministic"
+    },
+    "census.tiles": {
+     "base": 180,
+     "class": "stable",
+     "hi": 180,
+     "lo": 180,
+     "perRun": [
+      180,
+      180,
+      180
+     ],
+     "rule": "stable"
+    },
+    "census.tilings": {
+     "base": 110,
+     "class": "stable",
+     "hi": 110,
+     "lo": 110,
+     "perRun": [
+      110,
+      110,
+      110
+     ],
+     "rule": "stable"
+    },
+    "hasDamage": {
+     "base": 10,
+     "class": "deterministic",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "deterministic"
+    },
+    "metric.Documents": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.Frames": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.JSEventListeners": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "metric.LayoutCount": {
+     "base": 8,
+     "class": "stable",
+     "hi": 8,
+     "lo": 8,
+     "perRun": [
+      8,
+      8,
+      8
+     ],
+     "rule": "stable"
+    },
+    "metric.LayoutObjects": {
+     "base": 5,
+     "class": "quarantined",
+     "hi": 5,
+     "lo": 5,
+     "perRun": [
+      5,
+      5,
+      5
+     ],
+     "rule": "quarantined"
+    },
+    "metric.Nodes": {
+     "base": 10,
+     "class": "quarantined",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "quarantined"
+    },
+    "metric.RecalcStyleCount": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "metric.Resources": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "n0.cssom": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.events": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.sheetNode": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "raster.invalidatedLayers": {
+     "base": 92,
+     "class": "stable",
+     "hi": 92,
+     "lo": 92,
+     "perRun": [
+      92,
+      92,
+      92
+     ],
+     "rule": "stable"
+    },
+    "raster.invalidationAreaPx": {
+     "base": 29963601,
+     "class": "quarantined",
+     "hi": 29963601,
+     "lo": 29963601,
+     "perRun": [
+      29963601,
+      29963601,
+      29963601
+     ],
+     "rule": "quarantined"
+    },
+    "raster.invalidationRects": {
+     "base": 206,
+     "class": "stable",
+     "hi": 206,
+     "lo": 206,
+     "perRun": [
+      206,
+      206,
+      206
+     ],
+     "rule": "stable"
+    },
+    "trace.Animation.begin": {
+     "base": 2,
+     "class": "deterministic",
+     "hi": 2,
+     "lo": 2,
+     "perRun": [
+      2,
+      2,
+      2
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.compositeFailedBits": {
+     "base": 270336,
+     "class": "deterministic",
+     "hi": 270336,
+     "lo": 270336,
+     "perRun": [
+      270336,
+      270336,
+      270336
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.instant": {
+     "base": 4,
+     "class": "deterministic",
+     "hi": 4,
+     "lo": 4,
+     "perRun": [
+      4,
+      4,
+      4
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Commit": {
+     "base": 10,
+     "class": "deterministic",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "deterministic"
+    },
+    "trace.CullRectUpdate": {
+     "base": 14,
+     "class": "stable",
+     "hi": 14,
+     "lo": 14,
+     "perRun": [
+      14,
+      14,
+      14
+     ],
+     "rule": "stable"
+    },
+    "trace.DisplayItemListRaster": {
+     "base": 19,
+     "class": "stable",
+     "hi": 19,
+     "lo": 19,
+     "perRun": [
+      19,
+      19,
+      19
+     ],
+     "rule": "stable"
+    },
+    "trace.EvaluateScript": {
+     "base": 10,
+     "class": "deterministic",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "deterministic"
+    },
+    "trace.EventDispatch": {
+     "base": 6,
+     "class": "stable",
+     "hi": 6,
+     "lo": 6,
+     "perRun": [
+      6,
+      6,
+      6
+     ],
+     "rule": "stable"
+    },
+    "trace.FireAnimationFrame": {
+     "base": 20,
+     "class": "stable",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20
+     ],
+     "rule": "stable"
+    },
+    "trace.FunctionCall": {
+     "base": 42,
+     "class": "stable",
+     "hi": 42,
+     "lo": 42,
+     "perRun": [
+      42,
+      42,
+      42
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest": {
+     "base": 7,
+     "class": "stable",
+     "hi": 7,
+     "lo": 7,
+     "perRun": [
+      7,
+      7,
+      7
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest.overlayAdDetector": {
+     "base": 1,
+     "class": "quarantined",
+     "hi": 1,
+     "lo": 1,
+     "perRun": [
+      1,
+      1,
+      1
+     ],
+     "rule": "quarantined"
+    },
+    "trace.ImageDecodeTask": {
+     "base": 8,
+     "class": "stable",
+     "hi": 8,
+     "lo": 8,
+     "perRun": [
+      8,
+      8,
+      8
+     ],
+     "rule": "stable"
+    },
+    "trace.IntersectionObserverCompute": {
+     "base": 20,
+     "class": "deterministic",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20
+     ],
+     "rule": "deterministic"
+    },
+    "trace.InvalidateLayout": {
+     "base": 13,
+     "class": "stable",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "stable"
+    },
+    "trace.Layerize": {
+     "base": 10,
+     "class": "deterministic",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout": {
+     "base": 11,
+     "class": "stable",
+     "hi": 11,
+     "lo": 11,
+     "perRun": [
+      11,
+      11,
+      11
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.dirtyObjects": {
+     "base": 346,
+     "class": "stable",
+     "hi": 346,
+     "lo": 346,
+     "perRun": [
+      346,
+      346,
+      346
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.partial": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout.totalObjects": {
+     "base": 4401,
+     "class": "stable",
+     "hi": 4401,
+     "lo": 4401,
+     "perRun": [
+      4401,
+      4401,
+      4401
+     ],
+     "rule": "stable"
+    },
+    "trace.N1.fontUpdateInvalidation": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.scheduleInvalidationsForRuleSets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.svgImageDocument": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.updateActiveStyleSheets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Paint": {
+     "base": 45,
+     "class": "stable",
+     "hi": 45,
+     "lo": 45,
+     "perRun": [
+      45,
+      45,
+      45
+     ],
+     "rule": "stable"
+    },
+    "trace.PaintImage": {
+     "base": 16,
+     "class": "stable",
+     "hi": 16,
+     "lo": 16,
+     "perRun": [
+      16,
+      16,
+      16
+     ],
+     "rule": "stable"
+    },
+    "trace.PrePaint": {
+     "base": 22,
+     "class": "stable",
+     "hi": 22,
+     "lo": 22,
+     "perRun": [
+      22,
+      22,
+      22
+     ],
+     "rule": "stable"
+    },
+    "trace.RasterTask": {
+     "base": 19,
+     "class": "stable",
+     "hi": 19,
+     "lo": 19,
+     "perRun": [
+      19,
+      19,
+      19
+     ],
+     "rule": "stable"
+    },
+    "trace.RequestAnimationFrame": {
+     "base": 22,
+     "class": "stable",
+     "hi": 22,
+     "lo": 22,
+     "perRun": [
+      22,
+      22,
+      22
+     ],
+     "rule": "stable"
+    },
+    "trace.ResizeObserverNotify": {
+     "base": 14,
+     "class": "stable",
+     "hi": 14,
+     "lo": 14,
+     "perRun": [
+      14,
+      14,
+      14
+     ],
+     "rule": "stable"
+    },
+    "trace.ScheduleStyleRecalculation": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayer": {
+     "base": 120,
+     "class": "quarantined",
+     "hi": 120,
+     "lo": 120,
+     "perRun": [
+      120,
+      120,
+      120
+     ],
+     "rule": "quarantined"
+    },
+    "trace.UpdateLayoutTree": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayoutTree.elementCount": {
+     "base": 69,
+     "class": "quarantined",
+     "hi": 69,
+     "lo": 69,
+     "perRun": [
+      69,
+      69,
+      69
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Activate": {
+     "base": 10,
+     "class": "quarantined",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Commit": {
+     "base": 10,
+     "class": "quarantined",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Draw": {
+     "base": 10,
+     "class": "deterministic",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "deterministic"
+    }
+   }
+  },
+  {
+   "firstFrame": 10,
+   "frames": 23,
+   "id": "settle",
+   "lastFrame": 500,
+   "scrolledPx": 97,
+   "types": {
+    "census.activeTileAreaPx": {
+     "base": 121606144,
+     "class": "stable",
+     "hi": 121606144,
+     "lo": 121606144,
+     "perRun": [
+      121606144,
+      121606144,
+      121606144
+     ],
+     "rule": "stable"
+    },
+    "census.activeTiles": {
+     "base": 1911,
+     "class": "stable",
+     "hi": 1911,
+     "lo": 1911,
+     "perRun": [
+      1911,
+      1911,
+      1911
+     ],
+     "rule": "stable"
+    },
+    "census.drawingAreaPx": {
+     "base": 238299306,
+     "class": "stable",
+     "hi": 238299306,
+     "lo": 238299306,
+     "perRun": [
+      238299306,
+      238299306,
+      238299306
+     ],
+     "rule": "stable"
+    },
+    "census.drawingLayers": {
+     "base": 969,
+     "class": "stable",
+     "hi": 969,
+     "lo": 969,
+     "perRun": [
+      969,
+      969,
+      969
+     ],
+     "rule": "stable"
+    },
+    "census.layers": {
+     "base": 1107,
+     "class": "stable",
+     "hi": 1107,
+     "lo": 1107,
+     "perRun": [
+      1107,
+      1107,
+      1107
+     ],
+     "rule": "stable"
+    },
+    "census.snapshots": {
+     "base": 21,
+     "class": "deterministic",
+     "hi": 21,
+     "lo": 21,
+     "perRun": [
+      21,
+      21,
+      21
+     ],
+     "rule": "deterministic"
+    },
+    "census.solidTiles": {
+     "base": 767,
+     "class": "deterministic",
+     "hi": 767,
+     "lo": 767,
+     "perRun": [
+      767,
+      767,
+      767
+     ],
+     "rule": "deterministic"
+    },
+    "census.tiles": {
+     "base": 2085,
+     "class": "stable",
+     "hi": 2085,
+     "lo": 2085,
+     "perRun": [
+      2085,
+      2085,
+      2085
+     ],
+     "rule": "stable"
+    },
+    "census.tilings": {
+     "base": 701,
+     "class": "stable",
+     "hi": 701,
+     "lo": 701,
+     "perRun": [
+      701,
+      701,
+      701
+     ],
+     "rule": "stable"
+    },
+    "hasDamage": {
+     "base": 21,
+     "class": "deterministic",
+     "hi": 21,
+     "lo": 21,
+     "perRun": [
+      21,
+      21,
+      21
+     ],
+     "rule": "deterministic"
+    },
+    "metric.Documents": {
+     "base": 17,
+     "class": "stable",
+     "hi": 17,
+     "lo": 17,
+     "perRun": [
+      17,
+      17,
+      17
+     ],
+     "rule": "stable"
+    },
+    "metric.Frames": {
+     "base": 17,
+     "class": "stable",
+     "hi": 17,
+     "lo": 17,
+     "perRun": [
+      17,
+      17,
+      17
+     ],
+     "rule": "stable"
+    },
+    "metric.JSEventListeners": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "metric.LayoutCount": {
+     "base": 16,
+     "class": "stable",
+     "hi": 16,
+     "lo": 16,
+     "perRun": [
+      16,
+      16,
+      16
+     ],
+     "rule": "stable"
+    },
+    "metric.LayoutObjects": {
+     "base": 126,
+     "class": "quarantined",
+     "hi": 184,
+     "lo": 126,
+     "perRun": [
+      126,
+      184,
+      126
+     ],
+     "rule": "quarantined"
+    },
+    "metric.Nodes": {
+     "base": -423,
+     "class": "quarantined",
+     "hi": 36,
+     "lo": -717,
+     "perRun": [
+      -423,
+      36,
+      -717
+     ],
+     "rule": "quarantined"
+    },
+    "metric.RecalcStyleCount": {
+     "base": 60,
+     "class": "stable",
+     "hi": 60,
+     "lo": 60,
+     "perRun": [
+      60,
+      60,
+      60
+     ],
+     "rule": "stable"
+    },
+    "metric.Resources": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "n0.cssom": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.events": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.sheetNode": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "raster.invalidatedLayers": {
+     "base": 107,
+     "class": "stable",
+     "hi": 107,
+     "lo": 107,
+     "perRun": [
+      107,
+      107,
+      107
+     ],
+     "rule": "stable"
+    },
+    "raster.invalidationAreaPx": {
+     "base": 13896559,
+     "class": "quarantined",
+     "hi": 13896559,
+     "lo": 13896559,
+     "perRun": [
+      13896559,
+      13896559,
+      13896559
+     ],
+     "rule": "quarantined"
+    },
+    "raster.invalidationRects": {
+     "base": 238,
+     "class": "stable",
+     "hi": 238,
+     "lo": 238,
+     "perRun": [
+      238,
+      238,
+      238
+     ],
+     "rule": "stable"
+    },
+    "trace.Animation.begin": {
+     "base": 11,
+     "class": "deterministic",
+     "hi": 11,
+     "lo": 11,
+     "perRun": [
+      11,
+      11,
+      11
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.compositeFailedBits": {
+     "base": 49152,
+     "class": "deterministic",
+     "hi": 49152,
+     "lo": 49152,
+     "perRun": [
+      49152,
+      49152,
+      49152
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.instant": {
+     "base": 17,
+     "class": "deterministic",
+     "hi": 17,
+     "lo": 17,
+     "perRun": [
+      17,
+      17,
+      17
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Commit": {
+     "base": 23,
+     "class": "deterministic",
+     "hi": 23,
+     "lo": 23,
+     "perRun": [
+      23,
+      23,
+      23
+     ],
+     "rule": "deterministic"
+    },
+    "trace.CullRectUpdate": {
+     "base": 62,
+     "class": "stable",
+     "hi": 62,
+     "lo": 62,
+     "perRun": [
+      62,
+      62,
+      62
+     ],
+     "rule": "stable"
+    },
+    "trace.DecodeImage": {
+     "base": 6,
+     "class": "deterministic",
+     "hi": 6,
+     "lo": 6,
+     "perRun": [
+      6,
+      6,
+      6
+     ],
+     "rule": "deterministic"
+    },
+    "trace.DisplayItemListRaster": {
+     "base": 49,
+     "class": "stable",
+     "hi": 51,
+     "lo": 49,
+     "perRun": [
+      49,
+      51,
+      49
+     ],
+     "rule": "stable"
+    },
+    "trace.EvaluateScript": {
+     "base": 23,
+     "class": "deterministic",
+     "hi": 23,
+     "lo": 23,
+     "perRun": [
+      23,
+      23,
+      23
+     ],
+     "rule": "deterministic"
+    },
+    "trace.EventDispatch": {
+     "base": 230,
+     "class": "stable",
+     "hi": 230,
+     "lo": 230,
+     "perRun": [
+      230,
+      230,
+      230
+     ],
+     "rule": "stable"
+    },
+    "trace.FireAnimationFrame": {
+     "base": 86,
+     "class": "stable",
+     "hi": 86,
+     "lo": 86,
+     "perRun": [
+      86,
+      86,
+      86
+     ],
+     "rule": "stable"
+    },
+    "trace.FunctionCall": {
+     "base": 155,
+     "class": "stable",
+     "hi": 155,
+     "lo": 155,
+     "perRun": [
+      155,
+      155,
+      155
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest": {
+     "base": 53,
+     "class": "stable",
+     "hi": 53,
+     "lo": 53,
+     "perRun": [
+      53,
+      53,
+      53
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest.overlayAdDetector": {
+     "base": 5,
+     "class": "quarantined",
+     "hi": 5,
+     "lo": 5,
+     "perRun": [
+      5,
+      5,
+      5
+     ],
+     "rule": "quarantined"
+    },
+    "trace.ImageDecodeTask": {
+     "base": 16,
+     "class": "stable",
+     "hi": 16,
+     "lo": 16,
+     "perRun": [
+      16,
+      16,
+      16
+     ],
+     "rule": "stable"
+    },
+    "trace.IntersectionObserverCompute": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.InvalidateLayout": {
+     "base": 74,
+     "class": "stable",
+     "hi": 74,
+     "lo": 74,
+     "perRun": [
+      74,
+      74,
+      74
+     ],
+     "rule": "stable"
+    },
+    "trace.Layer.created": {
+     "base": 3,
+     "class": "deterministic",
+     "hi": 3,
+     "lo": 3,
+     "perRun": [
+      3,
+      3,
+      3
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layer.deleted": {
+     "base": 37,
+     "class": "quarantined",
+     "hi": 52,
+     "lo": 26,
+     "perRun": [
+      37,
+      26,
+      52
+     ],
+     "rule": "quarantined"
+    },
+    "trace.Layerize": {
+     "base": 23,
+     "class": "deterministic",
+     "hi": 23,
+     "lo": 23,
+     "perRun": [
+      23,
+      23,
+      23
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout": {
+     "base": 51,
+     "class": "stable",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.dirtyObjects": {
+     "base": 1010,
+     "class": "stable",
+     "hi": 1010,
+     "lo": 1010,
+     "perRun": [
+      1010,
+      1010,
+      1010
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.partial": {
+     "base": 4,
+     "class": "deterministic",
+     "hi": 4,
+     "lo": 4,
+     "perRun": [
+      4,
+      4,
+      4
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout.totalObjects": {
+     "base": 12245,
+     "class": "stable",
+     "hi": 12245,
+     "lo": 12245,
+     "perRun": [
+      12245,
+      12245,
+      12245
+     ],
+     "rule": "stable"
+    },
+    "trace.MajorGC": {
+     "base": 4,
+     "class": "quarantined",
+     "hi": 5,
+     "lo": 2,
+     "perRun": [
+      4,
+      2,
+      5
+     ],
+     "rule": "quarantined"
+    },
+    "trace.N1.fontUpdateInvalidation": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.scheduleInvalidationsForRuleSets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.svgImageDocument": {
+     "base": 17,
+     "class": "deterministic",
+     "hi": 17,
+     "lo": 17,
+     "perRun": [
+      17,
+      17,
+      17
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.updateActiveStyleSheets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Paint": {
+     "base": 178,
+     "class": "stable",
+     "hi": 178,
+     "lo": 178,
+     "perRun": [
+      178,
+      178,
+      178
+     ],
+     "rule": "stable"
+    },
+    "trace.PaintImage": {
+     "base": 170,
+     "class": "stable",
+     "hi": 171,
+     "lo": 170,
+     "perRun": [
+      170,
+      171,
+      170
+     ],
+     "rule": "stable"
+    },
+    "trace.ParseHTML": {
+     "base": 17,
+     "class": "deterministic",
+     "hi": 17,
+     "lo": 17,
+     "perRun": [
+      17,
+      17,
+      17
+     ],
+     "rule": "deterministic"
+    },
+    "trace.PrePaint": {
+     "base": 172,
+     "class": "stable",
+     "hi": 172,
+     "lo": 172,
+     "perRun": [
+      172,
+      172,
+      172
+     ],
+     "rule": "stable"
+    },
+    "trace.RasterTask": {
+     "base": 49,
+     "class": "stable",
+     "hi": 51,
+     "lo": 49,
+     "perRun": [
+      49,
+      51,
+      49
+     ],
+     "rule": "stable"
+    },
+    "trace.RequestAnimationFrame": {
+     "base": 69,
+     "class": "stable",
+     "hi": 69,
+     "lo": 69,
+     "perRun": [
+      69,
+      69,
+      69
+     ],
+     "rule": "stable"
+    },
+    "trace.ResizeObserverNotify": {
+     "base": 65,
+     "class": "stable",
+     "hi": 65,
+     "lo": 65,
+     "perRun": [
+      65,
+      65,
+      65
+     ],
+     "rule": "stable"
+    },
+    "trace.ResourceSendRequest": {
+     "base": 23,
+     "class": "deterministic",
+     "hi": 23,
+     "lo": 23,
+     "perRun": [
+      23,
+      23,
+      23
+     ],
+     "rule": "deterministic"
+    },
+    "trace.ScheduleStyleRecalculation": {
+     "base": 91,
+     "class": "stable",
+     "hi": 91,
+     "lo": 91,
+     "perRun": [
+      91,
+      91,
+      91
+     ],
+     "rule": "stable"
+    },
+    "trace.ScrollLayer": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayer": {
+     "base": 860,
+     "class": "quarantined",
+     "hi": 860,
+     "lo": 860,
+     "perRun": [
+      860,
+      860,
+      860
+     ],
+     "rule": "quarantined"
+    },
+    "trace.UpdateLayoutTree": {
+     "base": 76,
+     "class": "stable",
+     "hi": 76,
+     "lo": 76,
+     "perRun": [
+      76,
+      76,
+      76
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayoutTree.elementCount": {
+     "base": 2938,
+     "class": "quarantined",
+     "hi": 2939,
+     "lo": 2937,
+     "perRun": [
+      2937,
+      2938,
+      2939
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Activate": {
+     "base": 23,
+     "class": "quarantined",
+     "hi": 23,
+     "lo": 23,
+     "perRun": [
+      23,
+      23,
+      23
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Commit": {
+     "base": 23,
+     "class": "quarantined",
+     "hi": 23,
+     "lo": 23,
+     "perRun": [
+      23,
+      23,
+      23
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Draw": {
+     "base": 23,
+     "class": "deterministic",
+     "hi": 23,
+     "lo": 23,
+     "perRun": [
+      23,
+      23,
+      23
+     ],
+     "rule": "deterministic"
+    },
+    "trace.cc.SynchronizeTrees": {
+     "base": 6,
+     "class": "stable",
+     "hi": 6,
+     "lo": 6,
+     "perRun": [
+      6,
+      6,
+      6
+     ],
+     "rule": "stable"
+    }
+   }
+  },
+  {
+   "firstFrame": 11,
+   "frames": 52,
+   "id": "y00000",
+   "lastFrame": 62,
+   "scrolledPx": 495,
+   "types": {
+    "census.activeTileAreaPx": {
+     "base": 104038400,
+     "class": "stable",
+     "hi": 104038400,
+     "lo": 104038400,
+     "perRun": [
+      104038400,
+      104038400,
+      104038400
+     ],
+     "rule": "stable"
+    },
+    "census.activeTiles": {
+     "base": 1698,
+     "class": "stable",
+     "hi": 1698,
+     "lo": 1698,
+     "perRun": [
+      1698,
+      1698,
+      1698
+     ],
+     "rule": "stable"
+    },
+    "census.drawingAreaPx": {
+     "base": 223042482,
+     "class": "stable",
+     "hi": 223042482,
+     "lo": 223042482,
+     "perRun": [
+      223042482,
+      223042482,
+      223042482
+     ],
+     "rule": "stable"
+    },
+    "census.drawingLayers": {
+     "base": 728,
+     "class": "stable",
+     "hi": 728,
+     "lo": 728,
+     "perRun": [
+      728,
+      728,
+      728
+     ],
+     "rule": "stable"
+    },
+    "census.layers": {
+     "base": 988,
+     "class": "stable",
+     "hi": 988,
+     "lo": 988,
+     "perRun": [
+      988,
+      988,
+      988
+     ],
+     "rule": "stable"
+    },
+    "census.snapshots": {
+     "base": 52,
+     "class": "deterministic",
+     "hi": 52,
+     "lo": 52,
+     "perRun": [
+      52,
+      52,
+      52
+     ],
+     "rule": "deterministic"
+    },
+    "census.solidTiles": {
+     "base": 714,
+     "class": "deterministic",
+     "hi": 714,
+     "lo": 714,
+     "perRun": [
+      714,
+      714,
+      714
+     ],
+     "rule": "deterministic"
+    },
+    "census.tiles": {
+     "base": 1698,
+     "class": "stable",
+     "hi": 1698,
+     "lo": 1698,
+     "perRun": [
+      1698,
+      1698,
+      1698
+     ],
+     "rule": "stable"
+    },
+    "census.tilings": {
+     "base": 572,
+     "class": "stable",
+     "hi": 572,
+     "lo": 572,
+     "perRun": [
+      572,
+      572,
+      572
+     ],
+     "rule": "stable"
+    },
+    "hasDamage": {
+     "base": 52,
+     "class": "deterministic",
+     "hi": 52,
+     "lo": 52,
+     "perRun": [
+      52,
+      52,
+      52
+     ],
+     "rule": "deterministic"
+    },
+    "metric.Documents": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.Frames": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.JSEventListeners": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "metric.LayoutCount": {
+     "base": 46,
+     "class": "stable",
+     "hi": 46,
+     "lo": 46,
+     "perRun": [
+      46,
+      46,
+      46
+     ],
+     "rule": "stable"
+    },
+    "metric.LayoutObjects": {
+     "base": 10,
+     "class": "quarantined",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "quarantined"
+    },
+    "metric.Nodes": {
+     "base": 115,
+     "class": "quarantined",
+     "hi": 115,
+     "lo": 115,
+     "perRun": [
+      115,
+      115,
+      115
+     ],
+     "rule": "quarantined"
+    },
+    "metric.RecalcStyleCount": {
+     "base": 204,
+     "class": "stable",
+     "hi": 204,
+     "lo": 204,
+     "perRun": [
+      204,
+      204,
+      204
+     ],
+     "rule": "stable"
+    },
+    "metric.Resources": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "n0.cssom": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.events": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.sheetNode": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "raster.invalidatedLayers": {
+     "base": 170,
+     "class": "stable",
+     "hi": 170,
+     "lo": 170,
+     "perRun": [
+      170,
+      170,
+      170
+     ],
+     "rule": "stable"
+    },
+    "raster.invalidationAreaPx": {
+     "base": 8055053,
+     "class": "quarantined",
+     "hi": 8055053,
+     "lo": 8055053,
+     "perRun": [
+      8055053,
+      8055053,
+      8055053
+     ],
+     "rule": "quarantined"
+    },
+    "raster.invalidationRects": {
+     "base": 198,
+     "class": "stable",
+     "hi": 198,
+     "lo": 198,
+     "perRun": [
+      198,
+      198,
+      198
+     ],
+     "rule": "stable"
+    },
+    "trace.Animation.begin": {
+     "base": 4,
+     "class": "deterministic",
+     "hi": 4,
+     "lo": 4,
+     "perRun": [
+      4,
+      4,
+      4
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.compositeFailedBits": {
+     "base": 32896,
+     "class": "deterministic",
+     "hi": 32896,
+     "lo": 32896,
+     "perRun": [
+      32896,
+      32896,
+      32896
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.instant": {
+     "base": 8,
+     "class": "deterministic",
+     "hi": 8,
+     "lo": 8,
+     "perRun": [
+      8,
+      8,
+      8
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Commit": {
+     "base": 52,
+     "class": "deterministic",
+     "hi": 52,
+     "lo": 52,
+     "perRun": [
+      52,
+      52,
+      52
+     ],
+     "rule": "deterministic"
+    },
+    "trace.CullRectUpdate": {
+     "base": 52,
+     "class": "stable",
+     "hi": 52,
+     "lo": 52,
+     "perRun": [
+      52,
+      52,
+      52
+     ],
+     "rule": "stable"
+    },
+    "trace.DisplayItemListRaster": {
+     "base": 63,
+     "class": "stable",
+     "hi": 63,
+     "lo": 63,
+     "perRun": [
+      63,
+      63,
+      63
+     ],
+     "rule": "stable"
+    },
+    "trace.EvaluateScript": {
+     "base": 52,
+     "class": "deterministic",
+     "hi": 52,
+     "lo": 52,
+     "perRun": [
+      52,
+      52,
+      52
+     ],
+     "rule": "deterministic"
+    },
+    "trace.EventDispatch": {
+     "base": 110,
+     "class": "stable",
+     "hi": 110,
+     "lo": 110,
+     "perRun": [
+      110,
+      110,
+      110
+     ],
+     "rule": "stable"
+    },
+    "trace.FireAnimationFrame": {
+     "base": 239,
+     "class": "stable",
+     "hi": 239,
+     "lo": 239,
+     "perRun": [
+      239,
+      239,
+      239
+     ],
+     "rule": "stable"
+    },
+    "trace.FunctionCall": {
+     "base": 348,
+     "class": "stable",
+     "hi": 348,
+     "lo": 348,
+     "perRun": [
+      348,
+      348,
+      348
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest": {
+     "base": 144,
+     "class": "stable",
+     "hi": 144,
+     "lo": 144,
+     "perRun": [
+      144,
+      144,
+      144
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest.overlayAdDetector": {
+     "base": 13,
+     "class": "quarantined",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "quarantined"
+    },
+    "trace.IntersectionObserverCompute": {
+     "base": 104,
+     "class": "deterministic",
+     "hi": 104,
+     "lo": 104,
+     "perRun": [
+      104,
+      104,
+      104
+     ],
+     "rule": "deterministic"
+    },
+    "trace.InvalidateLayout": {
+     "base": 47,
+     "class": "stable",
+     "hi": 47,
+     "lo": 47,
+     "perRun": [
+      47,
+      47,
+      47
+     ],
+     "rule": "stable"
+    },
+    "trace.Layerize": {
+     "base": 52,
+     "class": "deterministic",
+     "hi": 52,
+     "lo": 52,
+     "perRun": [
+      52,
+      52,
+      52
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout": {
+     "base": 46,
+     "class": "stable",
+     "hi": 46,
+     "lo": 46,
+     "perRun": [
+      46,
+      46,
+      46
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.dirtyObjects": {
+     "base": 1977,
+     "class": "stable",
+     "hi": 1977,
+     "lo": 1977,
+     "perRun": [
+      1977,
+      1977,
+      1977
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.partial": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout.totalObjects": {
+     "base": 25314,
+     "class": "stable",
+     "hi": 25314,
+     "lo": 25314,
+     "perRun": [
+      25314,
+      25314,
+      25314
+     ],
+     "rule": "stable"
+    },
+    "trace.MinorGC": {
+     "base": 1,
+     "class": "quarantined",
+     "hi": 1,
+     "lo": 1,
+     "perRun": [
+      1,
+      1,
+      1
+     ],
+     "rule": "quarantined"
+    },
+    "trace.N1.fontUpdateInvalidation": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.scheduleInvalidationsForRuleSets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.svgImageDocument": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.updateActiveStyleSheets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Paint": {
+     "base": 405,
+     "class": "stable",
+     "hi": 405,
+     "lo": 405,
+     "perRun": [
+      405,
+      405,
+      405
+     ],
+     "rule": "stable"
+    },
+    "trace.PrePaint": {
+     "base": 196,
+     "class": "stable",
+     "hi": 196,
+     "lo": 196,
+     "perRun": [
+      196,
+      196,
+      196
+     ],
+     "rule": "stable"
+    },
+    "trace.RasterTask": {
+     "base": 63,
+     "class": "stable",
+     "hi": 63,
+     "lo": 63,
+     "perRun": [
+      63,
+      63,
+      63
+     ],
+     "rule": "stable"
+    },
+    "trace.RequestAnimationFrame": {
+     "base": 241,
+     "class": "stable",
+     "hi": 241,
+     "lo": 241,
+     "perRun": [
+      241,
+      241,
+      241
+     ],
+     "rule": "stable"
+    },
+    "trace.ResizeObserverNotify": {
+     "base": 52,
+     "class": "stable",
+     "hi": 52,
+     "lo": 52,
+     "perRun": [
+      52,
+      52,
+      52
+     ],
+     "rule": "stable"
+    },
+    "trace.ScheduleStyleRecalculation": {
+     "base": 204,
+     "class": "stable",
+     "hi": 204,
+     "lo": 204,
+     "perRun": [
+      204,
+      204,
+      204
+     ],
+     "rule": "stable"
+    },
+    "trace.ScrollLayer": {
+     "base": 50,
+     "class": "stable",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayer": {
+     "base": 624,
+     "class": "quarantined",
+     "hi": 624,
+     "lo": 624,
+     "perRun": [
+      624,
+      624,
+      624
+     ],
+     "rule": "quarantined"
+    },
+    "trace.UpdateLayoutTree": {
+     "base": 204,
+     "class": "stable",
+     "hi": 204,
+     "lo": 204,
+     "perRun": [
+      204,
+      204,
+      204
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayoutTree.elementCount": {
+     "base": 7187,
+     "class": "quarantined",
+     "hi": 7187,
+     "lo": 7187,
+     "perRun": [
+      7187,
+      7187,
+      7187
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Activate": {
+     "base": 52,
+     "class": "quarantined",
+     "hi": 52,
+     "lo": 52,
+     "perRun": [
+      52,
+      52,
+      52
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Commit": {
+     "base": 52,
+     "class": "quarantined",
+     "hi": 52,
+     "lo": 52,
+     "perRun": [
+      52,
+      52,
+      52
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Draw": {
+     "base": 52,
+     "class": "deterministic",
+     "hi": 52,
+     "lo": 52,
+     "perRun": [
+      52,
+      52,
+      52
+     ],
+     "rule": "deterministic"
+    }
+   }
+  },
+  {
+   "firstFrame": 63,
+   "frames": 51,
+   "id": "y00500",
+   "lastFrame": 117,
+   "scrolledPx": 485,
+   "types": {
+    "census.activeTileAreaPx": {
+     "base": 200458240,
+     "class": "stable",
+     "hi": 200458240,
+     "lo": 200458240,
+     "perRun": [
+      200458240,
+      200458240,
+      200458240
+     ],
+     "rule": "stable"
+    },
+    "census.activeTiles": {
+     "base": 3185,
+     "class": "stable",
+     "hi": 3185,
+     "lo": 3185,
+     "perRun": [
+      3185,
+      3185,
+      3185
+     ],
+     "rule": "stable"
+    },
+    "census.drawingAreaPx": {
+     "base": 401382280,
+     "class": "stable",
+     "hi": 401382280,
+     "lo": 401382280,
+     "perRun": [
+      401382280,
+      401382280,
+      401382280
+     ],
+     "rule": "stable"
+    },
+    "census.drawingLayers": {
+     "base": 1578,
+     "class": "stable",
+     "hi": 1578,
+     "lo": 1578,
+     "perRun": [
+      1578,
+      1578,
+      1578
+     ],
+     "rule": "stable"
+    },
+    "census.layers": {
+     "base": 1842,
+     "class": "stable",
+     "hi": 1842,
+     "lo": 1842,
+     "perRun": [
+      1842,
+      1842,
+      1842
+     ],
+     "rule": "stable"
+    },
+    "census.snapshots": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "census.solidTiles": {
+     "base": 812,
+     "class": "deterministic",
+     "hi": 812,
+     "lo": 812,
+     "perRun": [
+      812,
+      812,
+      812
+     ],
+     "rule": "deterministic"
+    },
+    "census.tiles": {
+     "base": 3432,
+     "class": "stable",
+     "hi": 3432,
+     "lo": 3432,
+     "perRun": [
+      3432,
+      3432,
+      3432
+     ],
+     "rule": "stable"
+    },
+    "census.tilings": {
+     "base": 1349,
+     "class": "stable",
+     "hi": 1349,
+     "lo": 1349,
+     "perRun": [
+      1349,
+      1349,
+      1349
+     ],
+     "rule": "stable"
+    },
+    "hasDamage": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "metric.Documents": {
+     "base": -8,
+     "class": "stable",
+     "hi": -8,
+     "lo": -8,
+     "perRun": [
+      -8,
+      -8,
+      -8
+     ],
+     "rule": "stable"
+    },
+    "metric.Frames": {
+     "base": -3,
+     "class": "stable",
+     "hi": -3,
+     "lo": -3,
+     "perRun": [
+      -3,
+      -3,
+      -3
+     ],
+     "rule": "stable"
+    },
+    "metric.JSEventListeners": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "metric.LayoutCount": {
+     "base": 54,
+     "class": "stable",
+     "hi": 54,
+     "lo": 54,
+     "perRun": [
+      54,
+      54,
+      54
+     ],
+     "rule": "stable"
+    },
+    "metric.LayoutObjects": {
+     "base": -53,
+     "class": "quarantined",
+     "hi": -53,
+     "lo": -53,
+     "perRun": [
+      -53,
+      -53,
+      -53
+     ],
+     "rule": "quarantined"
+    },
+    "metric.Nodes": {
+     "base": -239,
+     "class": "quarantined",
+     "hi": -239,
+     "lo": -239,
+     "perRun": [
+      -239,
+      -239,
+      -239
+     ],
+     "rule": "quarantined"
+    },
+    "metric.RecalcStyleCount": {
+     "base": 199,
+     "class": "stable",
+     "hi": 199,
+     "lo": 199,
+     "perRun": [
+      199,
+      199,
+      199
+     ],
+     "rule": "stable"
+    },
+    "metric.Resources": {
+     "base": -18,
+     "class": "stable",
+     "hi": -18,
+     "lo": -18,
+     "perRun": [
+      -18,
+      -18,
+      -18
+     ],
+     "rule": "stable"
+    },
+    "n0.cssom": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.events": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.sheetNode": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "raster.invalidatedLayers": {
+     "base": 238,
+     "class": "stable",
+     "hi": 238,
+     "lo": 238,
+     "perRun": [
+      238,
+      238,
+      238
+     ],
+     "rule": "stable"
+    },
+    "raster.invalidationAreaPx": {
+     "base": 33480332,
+     "class": "quarantined",
+     "hi": 33480332,
+     "lo": 33480332,
+     "perRun": [
+      33480332,
+      33480332,
+      33480332
+     ],
+     "rule": "quarantined"
+    },
+    "raster.invalidationRects": {
+     "base": 301,
+     "class": "stable",
+     "hi": 301,
+     "lo": 301,
+     "perRun": [
+      301,
+      301,
+      301
+     ],
+     "rule": "stable"
+    },
+    "trace.Animation.begin": {
+     "base": 43,
+     "class": "deterministic",
+     "hi": 43,
+     "lo": 43,
+     "perRun": [
+      43,
+      43,
+      43
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.compositeFailedBits": {
+     "base": 606336,
+     "class": "deterministic",
+     "hi": 606336,
+     "lo": 606336,
+     "perRun": [
+      606336,
+      606336,
+      606336
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.instant": {
+     "base": 54,
+     "class": "deterministic",
+     "hi": 54,
+     "lo": 54,
+     "perRun": [
+      54,
+      54,
+      54
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Commit": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "trace.CullRectUpdate": {
+     "base": 56,
+     "class": "stable",
+     "hi": 56,
+     "lo": 56,
+     "perRun": [
+      56,
+      56,
+      56
+     ],
+     "rule": "stable"
+    },
+    "trace.DecodeImage": {
+     "base": 14,
+     "class": "deterministic",
+     "hi": 14,
+     "lo": 14,
+     "perRun": [
+      14,
+      14,
+      14
+     ],
+     "rule": "deterministic"
+    },
+    "trace.DisplayItemListRaster": {
+     "base": 280,
+     "class": "stable",
+     "hi": 280,
+     "lo": 280,
+     "perRun": [
+      280,
+      280,
+      280
+     ],
+     "rule": "stable"
+    },
+    "trace.EvaluateScript": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "trace.EventDispatch": {
+     "base": 123,
+     "class": "stable",
+     "hi": 123,
+     "lo": 123,
+     "perRun": [
+      123,
+      123,
+      123
+     ],
+     "rule": "stable"
+    },
+    "trace.FireAnimationFrame": {
+     "base": 217,
+     "class": "stable",
+     "hi": 217,
+     "lo": 217,
+     "perRun": [
+      217,
+      217,
+      217
+     ],
+     "rule": "stable"
+    },
+    "trace.FunctionCall": {
+     "base": 312,
+     "class": "stable",
+     "hi": 312,
+     "lo": 312,
+     "perRun": [
+      312,
+      312,
+      312
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest": {
+     "base": 148,
+     "class": "stable",
+     "hi": 148,
+     "lo": 148,
+     "perRun": [
+      148,
+      148,
+      148
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest.overlayAdDetector": {
+     "base": 13,
+     "class": "quarantined",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "quarantined"
+    },
+    "trace.ImageDecodeTask": {
+     "base": 72,
+     "class": "stable",
+     "hi": 72,
+     "lo": 69,
+     "perRun": [
+      72,
+      69,
+      72
+     ],
+     "rule": "stable"
+    },
+    "trace.IntersectionObserverCompute": {
+     "base": 102,
+     "class": "deterministic",
+     "hi": 102,
+     "lo": 102,
+     "perRun": [
+      102,
+      102,
+      102
+     ],
+     "rule": "deterministic"
+    },
+    "trace.InvalidateLayout": {
+     "base": 81,
+     "class": "stable",
+     "hi": 81,
+     "lo": 81,
+     "perRun": [
+      81,
+      81,
+      81
+     ],
+     "rule": "stable"
+    },
+    "trace.Layer.created": {
+     "base": 30,
+     "class": "deterministic",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layer.deleted": {
+     "base": 12,
+     "class": "quarantined",
+     "hi": 12,
+     "lo": 12,
+     "perRun": [
+      12,
+      12,
+      12
+     ],
+     "rule": "quarantined"
+    },
+    "trace.Layerize": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout": {
+     "base": 56,
+     "class": "stable",
+     "hi": 56,
+     "lo": 56,
+     "perRun": [
+      56,
+      56,
+      56
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.dirtyObjects": {
+     "base": 1547,
+     "class": "stable",
+     "hi": 1547,
+     "lo": 1547,
+     "perRun": [
+      1547,
+      1547,
+      1547
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.partial": {
+     "base": 24,
+     "class": "deterministic",
+     "hi": 24,
+     "lo": 24,
+     "perRun": [
+      24,
+      24,
+      24
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout.totalObjects": {
+     "base": 18405,
+     "class": "stable",
+     "hi": 18405,
+     "lo": 18405,
+     "perRun": [
+      18405,
+      18405,
+      18405
+     ],
+     "rule": "stable"
+    },
+    "trace.MajorGC": {
+     "base": 2,
+     "class": "quarantined",
+     "hi": 2,
+     "lo": 2,
+     "perRun": [
+      2,
+      2,
+      2
+     ],
+     "rule": "quarantined"
+    },
+    "trace.N1.fontUpdateInvalidation": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.scheduleInvalidationsForRuleSets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.svgImageDocument": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.updateActiveStyleSheets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Paint": {
+     "base": 382,
+     "class": "stable",
+     "hi": 382,
+     "lo": 382,
+     "perRun": [
+      382,
+      382,
+      382
+     ],
+     "rule": "stable"
+    },
+    "trace.PaintImage": {
+     "base": 136,
+     "class": "stable",
+     "hi": 136,
+     "lo": 136,
+     "perRun": [
+      136,
+      136,
+      136
+     ],
+     "rule": "stable"
+    },
+    "trace.PrePaint": {
+     "base": 206,
+     "class": "stable",
+     "hi": 206,
+     "lo": 206,
+     "perRun": [
+      206,
+      206,
+      206
+     ],
+     "rule": "stable"
+    },
+    "trace.RasterTask": {
+     "base": 280,
+     "class": "stable",
+     "hi": 280,
+     "lo": 280,
+     "perRun": [
+      280,
+      280,
+      280
+     ],
+     "rule": "stable"
+    },
+    "trace.RequestAnimationFrame": {
+     "base": 219,
+     "class": "stable",
+     "hi": 219,
+     "lo": 219,
+     "perRun": [
+      219,
+      219,
+      219
+     ],
+     "rule": "stable"
+    },
+    "trace.ResizeObserverNotify": {
+     "base": 56,
+     "class": "stable",
+     "hi": 56,
+     "lo": 56,
+     "perRun": [
+      56,
+      56,
+      56
+     ],
+     "rule": "stable"
+    },
+    "trace.ScheduleStyleRecalculation": {
+     "base": 199,
+     "class": "stable",
+     "hi": 199,
+     "lo": 199,
+     "perRun": [
+      199,
+      199,
+      199
+     ],
+     "rule": "stable"
+    },
+    "trace.ScrollLayer": {
+     "base": 49,
+     "class": "stable",
+     "hi": 49,
+     "lo": 49,
+     "perRun": [
+      49,
+      49,
+      49
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayer": {
+     "base": 1410,
+     "class": "quarantined",
+     "hi": 1410,
+     "lo": 1410,
+     "perRun": [
+      1410,
+      1410,
+      1410
+     ],
+     "rule": "quarantined"
+    },
+    "trace.UpdateLayoutTree": {
+     "base": 199,
+     "class": "stable",
+     "hi": 199,
+     "lo": 199,
+     "perRun": [
+      199,
+      199,
+      199
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayoutTree.elementCount": {
+     "base": 6640,
+     "class": "quarantined",
+     "hi": 6640,
+     "lo": 6639,
+     "perRun": [
+      6639,
+      6640,
+      6640
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Activate": {
+     "base": 51,
+     "class": "quarantined",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Commit": {
+     "base": 51,
+     "class": "quarantined",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Draw": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "trace.cc.SynchronizeTrees": {
+     "base": 18,
+     "class": "stable",
+     "hi": 18,
+     "lo": 18,
+     "perRun": [
+      18,
+      18,
+      18
+     ],
+     "rule": "stable"
+    }
+   }
+  },
+  {
+   "firstFrame": 118,
+   "frames": 50,
+   "id": "y01000",
+   "lastFrame": 167,
+   "scrolledPx": 500,
+   "types": {
+    "census.activeTileAreaPx": {
+     "base": 222101504,
+     "class": "stable",
+     "hi": 222101504,
+     "lo": 222101504,
+     "perRun": [
+      222101504,
+      222101504,
+      222101504
+     ],
+     "rule": "stable"
+    },
+    "census.activeTiles": {
+     "base": 3522,
+     "class": "stable",
+     "hi": 3522,
+     "lo": 3522,
+     "perRun": [
+      3522,
+      3522,
+      3522
+     ],
+     "rule": "stable"
+    },
+    "census.drawingAreaPx": {
+     "base": 519828593,
+     "class": "stable",
+     "hi": 519828593,
+     "lo": 519828593,
+     "perRun": [
+      519828593,
+      519828593,
+      519828593
+     ],
+     "rule": "stable"
+    },
+    "census.drawingLayers": {
+     "base": 2281,
+     "class": "stable",
+     "hi": 2281,
+     "lo": 2280,
+     "perRun": [
+      2281,
+      2281,
+      2280
+     ],
+     "rule": "stable"
+    },
+    "census.layers": {
+     "base": 2601,
+     "class": "stable",
+     "hi": 2601,
+     "lo": 2600,
+     "perRun": [
+      2601,
+      2601,
+      2600
+     ],
+     "rule": "stable"
+    },
+    "census.snapshots": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "census.solidTiles": {
+     "base": 678,
+     "class": "deterministic",
+     "hi": 678,
+     "lo": 678,
+     "perRun": [
+      678,
+      678,
+      678
+     ],
+     "rule": "deterministic"
+    },
+    "census.tiles": {
+     "base": 3870,
+     "class": "stable",
+     "hi": 3870,
+     "lo": 3870,
+     "perRun": [
+      3870,
+      3870,
+      3870
+     ],
+     "rule": "stable"
+    },
+    "census.tilings": {
+     "base": 1704,
+     "class": "stable",
+     "hi": 1704,
+     "lo": 1704,
+     "perRun": [
+      1704,
+      1704,
+      1704
+     ],
+     "rule": "stable"
+    },
+    "hasDamage": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "metric.Documents": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.Frames": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.JSEventListeners": {
+     "base": 4,
+     "class": "deterministic",
+     "hi": 4,
+     "lo": 4,
+     "perRun": [
+      4,
+      4,
+      4
+     ],
+     "rule": "deterministic"
+    },
+    "metric.LayoutCount": {
+     "base": 40,
+     "class": "stable",
+     "hi": 40,
+     "lo": 40,
+     "perRun": [
+      40,
+      40,
+      40
+     ],
+     "rule": "stable"
+    },
+    "metric.LayoutObjects": {
+     "base": 104,
+     "class": "quarantined",
+     "hi": 104,
+     "lo": 104,
+     "perRun": [
+      104,
+      104,
+      104
+     ],
+     "rule": "quarantined"
+    },
+    "metric.Nodes": {
+     "base": 191,
+     "class": "quarantined",
+     "hi": 191,
+     "lo": 191,
+     "perRun": [
+      191,
+      191,
+      191
+     ],
+     "rule": "quarantined"
+    },
+    "metric.RecalcStyleCount": {
+     "base": 171,
+     "class": "stable",
+     "hi": 171,
+     "lo": 171,
+     "perRun": [
+      171,
+      171,
+      171
+     ],
+     "rule": "stable"
+    },
+    "metric.Resources": {
+     "base": 17,
+     "class": "stable",
+     "hi": 17,
+     "lo": 17,
+     "perRun": [
+      17,
+      17,
+      17
+     ],
+     "rule": "stable"
+    },
+    "n0.cssom": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.events": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.sheetNode": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "raster.invalidatedLayers": {
+     "base": 260,
+     "class": "stable",
+     "hi": 260,
+     "lo": 260,
+     "perRun": [
+      260,
+      260,
+      260
+     ],
+     "rule": "stable"
+    },
+    "raster.invalidationAreaPx": {
+     "base": 51259282,
+     "class": "quarantined",
+     "hi": 51259282,
+     "lo": 51259282,
+     "perRun": [
+      51259282,
+      51259282,
+      51259282
+     ],
+     "rule": "quarantined"
+    },
+    "raster.invalidationRects": {
+     "base": 269,
+     "class": "stable",
+     "hi": 269,
+     "lo": 269,
+     "perRun": [
+      269,
+      269,
+      269
+     ],
+     "rule": "stable"
+    },
+    "trace.Animation.begin": {
+     "base": 12,
+     "class": "deterministic",
+     "hi": 12,
+     "lo": 12,
+     "perRun": [
+      12,
+      12,
+      12
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.compositeFailedBits": {
+     "base": 53408,
+     "class": "deterministic",
+     "hi": 53408,
+     "lo": 53408,
+     "perRun": [
+      53408,
+      53408,
+      53408
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.instant": {
+     "base": 19,
+     "class": "deterministic",
+     "hi": 19,
+     "lo": 19,
+     "perRun": [
+      19,
+      19,
+      19
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Commit": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.CullRectUpdate": {
+     "base": 52,
+     "class": "stable",
+     "hi": 52,
+     "lo": 52,
+     "perRun": [
+      52,
+      52,
+      52
+     ],
+     "rule": "stable"
+    },
+    "trace.DisplayItemListRaster": {
+     "base": 392,
+     "class": "stable",
+     "hi": 392,
+     "lo": 392,
+     "perRun": [
+      392,
+      392,
+      392
+     ],
+     "rule": "stable"
+    },
+    "trace.EvaluateScript": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.EventDispatch": {
+     "base": 134,
+     "class": "stable",
+     "hi": 134,
+     "lo": 134,
+     "perRun": [
+      134,
+      134,
+      134
+     ],
+     "rule": "stable"
+    },
+    "trace.FireAnimationFrame": {
+     "base": 262,
+     "class": "stable",
+     "hi": 262,
+     "lo": 262,
+     "perRun": [
+      262,
+      262,
+      262
+     ],
+     "rule": "stable"
+    },
+    "trace.FunctionCall": {
+     "base": 393,
+     "class": "stable",
+     "hi": 393,
+     "lo": 393,
+     "perRun": [
+      393,
+      393,
+      393
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest": {
+     "base": 136,
+     "class": "stable",
+     "hi": 136,
+     "lo": 136,
+     "perRun": [
+      136,
+      136,
+      136
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest.overlayAdDetector": {
+     "base": 12,
+     "class": "quarantined",
+     "hi": 12,
+     "lo": 12,
+     "perRun": [
+      12,
+      12,
+      12
+     ],
+     "rule": "quarantined"
+    },
+    "trace.ImageDecodeTask": {
+     "base": 80,
+     "class": "stable",
+     "hi": 80,
+     "lo": 80,
+     "perRun": [
+      80,
+      80,
+      80
+     ],
+     "rule": "stable"
+    },
+    "trace.IntersectionObserverCompute": {
+     "base": 101,
+     "class": "deterministic",
+     "hi": 101,
+     "lo": 101,
+     "perRun": [
+      101,
+      101,
+      101
+     ],
+     "rule": "deterministic"
+    },
+    "trace.InvalidateLayout": {
+     "base": 46,
+     "class": "stable",
+     "hi": 46,
+     "lo": 46,
+     "perRun": [
+      46,
+      46,
+      46
+     ],
+     "rule": "stable"
+    },
+    "trace.Layer.created": {
+     "base": 14,
+     "class": "deterministic",
+     "hi": 14,
+     "lo": 14,
+     "perRun": [
+      14,
+      14,
+      14
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layer.deleted": {
+     "base": 5,
+     "class": "quarantined",
+     "hi": 5,
+     "lo": 5,
+     "perRun": [
+      5,
+      5,
+      5
+     ],
+     "rule": "quarantined"
+    },
+    "trace.Layerize": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout": {
+     "base": 40,
+     "class": "stable",
+     "hi": 40,
+     "lo": 40,
+     "perRun": [
+      40,
+      40,
+      40
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.dirtyObjects": {
+     "base": 1866,
+     "class": "stable",
+     "hi": 1866,
+     "lo": 1866,
+     "perRun": [
+      1866,
+      1866,
+      1866
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.partial": {
+     "base": 2,
+     "class": "deterministic",
+     "hi": 2,
+     "lo": 2,
+     "perRun": [
+      2,
+      2,
+      2
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout.totalObjects": {
+     "base": 28100,
+     "class": "stable",
+     "hi": 28100,
+     "lo": 28100,
+     "perRun": [
+      28100,
+      28100,
+      28100
+     ],
+     "rule": "stable"
+    },
+    "trace.MajorGC": {
+     "base": 2,
+     "class": "quarantined",
+     "hi": 2,
+     "lo": 2,
+     "perRun": [
+      2,
+      2,
+      2
+     ],
+     "rule": "quarantined"
+    },
+    "trace.N1.fontUpdateInvalidation": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.scheduleInvalidationsForRuleSets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.svgImageDocument": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.updateActiveStyleSheets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Paint": {
+     "base": 232,
+     "class": "stable",
+     "hi": 232,
+     "lo": 232,
+     "perRun": [
+      232,
+      232,
+      232
+     ],
+     "rule": "stable"
+    },
+    "trace.PaintImage": {
+     "base": 170,
+     "class": "stable",
+     "hi": 170,
+     "lo": 170,
+     "perRun": [
+      170,
+      170,
+      170
+     ],
+     "rule": "stable"
+    },
+    "trace.ParseHTML": {
+     "base": 12,
+     "class": "deterministic",
+     "hi": 12,
+     "lo": 12,
+     "perRun": [
+      12,
+      12,
+      12
+     ],
+     "rule": "deterministic"
+    },
+    "trace.PrePaint": {
+     "base": 189,
+     "class": "stable",
+     "hi": 189,
+     "lo": 189,
+     "perRun": [
+      189,
+      189,
+      189
+     ],
+     "rule": "stable"
+    },
+    "trace.RasterTask": {
+     "base": 392,
+     "class": "stable",
+     "hi": 392,
+     "lo": 392,
+     "perRun": [
+      392,
+      392,
+      392
+     ],
+     "rule": "stable"
+    },
+    "trace.RequestAnimationFrame": {
+     "base": 263,
+     "class": "stable",
+     "hi": 263,
+     "lo": 263,
+     "perRun": [
+      263,
+      263,
+      263
+     ],
+     "rule": "stable"
+    },
+    "trace.ResizeObserverNotify": {
+     "base": 53,
+     "class": "stable",
+     "hi": 53,
+     "lo": 53,
+     "perRun": [
+      53,
+      53,
+      53
+     ],
+     "rule": "stable"
+    },
+    "trace.ResourceSendRequest": {
+     "base": 21,
+     "class": "deterministic",
+     "hi": 21,
+     "lo": 21,
+     "perRun": [
+      21,
+      21,
+      21
+     ],
+     "rule": "deterministic"
+    },
+    "trace.ScheduleStyleRecalculation": {
+     "base": 171,
+     "class": "stable",
+     "hi": 171,
+     "lo": 171,
+     "perRun": [
+      171,
+      171,
+      171
+     ],
+     "rule": "stable"
+    },
+    "trace.ScrollLayer": {
+     "base": 50,
+     "class": "stable",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayer": {
+     "base": 1458,
+     "class": "quarantined",
+     "hi": 1458,
+     "lo": 1458,
+     "perRun": [
+      1458,
+      1458,
+      1458
+     ],
+     "rule": "quarantined"
+    },
+    "trace.UpdateLayoutTree": {
+     "base": 171,
+     "class": "stable",
+     "hi": 171,
+     "lo": 171,
+     "perRun": [
+      171,
+      171,
+      171
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayoutTree.elementCount": {
+     "base": 4288,
+     "class": "quarantined",
+     "hi": 4288,
+     "lo": 4288,
+     "perRun": [
+      4288,
+      4288,
+      4288
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Activate": {
+     "base": 50,
+     "class": "quarantined",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Commit": {
+     "base": 50,
+     "class": "quarantined",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Draw": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.cc.SynchronizeTrees": {
+     "base": 12,
+     "class": "stable",
+     "hi": 12,
+     "lo": 12,
+     "perRun": [
+      12,
+      12,
+      12
+     ],
+     "rule": "stable"
+    }
+   }
+  },
+  {
+   "firstFrame": 168,
+   "frames": 50,
+   "id": "y01500",
+   "lastFrame": 221,
+   "scrolledPx": 475,
+   "types": {
+    "census.activeTileAreaPx": {
+     "base": 223100928,
+     "class": "stable",
+     "hi": 223100928,
+     "lo": 222707712,
+     "perRun": [
+      222707712,
+      223100928,
+      223100928
+     ],
+     "rule": "stable"
+    },
+    "census.activeTiles": {
+     "base": 3545,
+     "class": "stable",
+     "hi": 3545,
+     "lo": 3539,
+     "perRun": [
+      3539,
+      3545,
+      3545
+     ],
+     "rule": "stable"
+    },
+    "census.drawingAreaPx": {
+     "base": 433329714,
+     "class": "stable",
+     "hi": 433329714,
+     "lo": 431285546,
+     "perRun": [
+      431285546,
+      433329714,
+      433329714
+     ],
+     "rule": "stable"
+    },
+    "census.drawingLayers": {
+     "base": 2033,
+     "class": "stable",
+     "hi": 2033,
+     "lo": 2032,
+     "perRun": [
+      2032,
+      2033,
+      2033
+     ],
+     "rule": "stable"
+    },
+    "census.layers": {
+     "base": 2428,
+     "class": "stable",
+     "hi": 2428,
+     "lo": 2428,
+     "perRun": [
+      2428,
+      2428,
+      2428
+     ],
+     "rule": "stable"
+    },
+    "census.snapshots": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "census.solidTiles": {
+     "base": 891,
+     "class": "deterministic",
+     "hi": 891,
+     "lo": 891,
+     "perRun": [
+      891,
+      891,
+      891
+     ],
+     "rule": "deterministic"
+    },
+    "census.tiles": {
+     "base": 3752,
+     "class": "stable",
+     "hi": 3752,
+     "lo": 3746,
+     "perRun": [
+      3746,
+      3752,
+      3752
+     ],
+     "rule": "stable"
+    },
+    "census.tilings": {
+     "base": 1528,
+     "class": "stable",
+     "hi": 1528,
+     "lo": 1528,
+     "perRun": [
+      1528,
+      1528,
+      1528
+     ],
+     "rule": "stable"
+    },
+    "hasDamage": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "metric.Documents": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.Frames": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.JSEventListeners": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "metric.LayoutCount": {
+     "base": 30,
+     "class": "stable",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "stable"
+    },
+    "metric.LayoutObjects": {
+     "base": 15,
+     "class": "quarantined",
+     "hi": 15,
+     "lo": 0,
+     "perRun": [
+      15,
+      0,
+      15
+     ],
+     "rule": "quarantined"
+    },
+    "metric.Nodes": {
+     "base": 26,
+     "class": "quarantined",
+     "hi": 26,
+     "lo": 0,
+     "perRun": [
+      26,
+      0,
+      26
+     ],
+     "rule": "quarantined"
+    },
+    "metric.RecalcStyleCount": {
+     "base": 195,
+     "class": "stable",
+     "hi": 195,
+     "lo": 195,
+     "perRun": [
+      195,
+      195,
+      195
+     ],
+     "rule": "stable"
+    },
+    "metric.Resources": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "n0.cssom": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.events": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.sheetNode": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "raster.invalidatedLayers": {
+     "base": 243,
+     "class": "stable",
+     "hi": 253,
+     "lo": 243,
+     "perRun": [
+      253,
+      243,
+      243
+     ],
+     "rule": "stable"
+    },
+    "raster.invalidationAreaPx": {
+     "base": 3605611,
+     "class": "quarantined",
+     "hi": 6533863,
+     "lo": 3605611,
+     "perRun": [
+      6533863,
+      3605611,
+      3605611
+     ],
+     "rule": "quarantined"
+    },
+    "raster.invalidationRects": {
+     "base": 252,
+     "class": "stable",
+     "hi": 271,
+     "lo": 252,
+     "perRun": [
+      271,
+      252,
+      252
+     ],
+     "rule": "stable"
+    },
+    "trace.Animation.begin": {
+     "base": 6,
+     "class": "deterministic",
+     "hi": 6,
+     "lo": 6,
+     "perRun": [
+      6,
+      6,
+      6
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.compositeFailedBits": {
+     "base": 147584,
+     "class": "deterministic",
+     "hi": 147584,
+     "lo": 147584,
+     "perRun": [
+      147584,
+      147584,
+      147584
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.instant": {
+     "base": 24,
+     "class": "deterministic",
+     "hi": 24,
+     "lo": 24,
+     "perRun": [
+      24,
+      24,
+      24
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Commit": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.CullRectUpdate": {
+     "base": 53,
+     "class": "stable",
+     "hi": 53,
+     "lo": 53,
+     "perRun": [
+      53,
+      53,
+      53
+     ],
+     "rule": "stable"
+    },
+    "trace.DisplayItemListRaster": {
+     "base": 64,
+     "class": "stable",
+     "hi": 64,
+     "lo": 64,
+     "perRun": [
+      64,
+      64,
+      64
+     ],
+     "rule": "stable"
+    },
+    "trace.EvaluateScript": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.EventDispatch": {
+     "base": 114,
+     "class": "stable",
+     "hi": 114,
+     "lo": 114,
+     "perRun": [
+      114,
+      114,
+      114
+     ],
+     "rule": "stable"
+    },
+    "trace.FireAnimationFrame": {
+     "base": 289,
+     "class": "stable",
+     "hi": 289,
+     "lo": 289,
+     "perRun": [
+      289,
+      289,
+      289
+     ],
+     "rule": "stable"
+    },
+    "trace.FunctionCall": {
+     "base": 454,
+     "class": "stable",
+     "hi": 454,
+     "lo": 454,
+     "perRun": [
+      454,
+      454,
+      454
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest": {
+     "base": 123,
+     "class": "stable",
+     "hi": 123,
+     "lo": 123,
+     "perRun": [
+      123,
+      123,
+      123
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest.overlayAdDetector": {
+     "base": 13,
+     "class": "quarantined",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "quarantined"
+    },
+    "trace.ImageDecodeTask": {
+     "base": 65,
+     "class": "stable",
+     "hi": 65,
+     "lo": 65,
+     "perRun": [
+      65,
+      65,
+      65
+     ],
+     "rule": "stable"
+    },
+    "trace.IntersectionObserverCompute": {
+     "base": 100,
+     "class": "deterministic",
+     "hi": 100,
+     "lo": 100,
+     "perRun": [
+      100,
+      100,
+      100
+     ],
+     "rule": "deterministic"
+    },
+    "trace.InvalidateLayout": {
+     "base": 31,
+     "class": "stable",
+     "hi": 31,
+     "lo": 31,
+     "perRun": [
+      31,
+      31,
+      31
+     ],
+     "rule": "stable"
+    },
+    "trace.Layer.created": {
+     "base": 2,
+     "class": "deterministic",
+     "hi": 2,
+     "lo": 2,
+     "perRun": [
+      2,
+      2,
+      2
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layer.deleted": {
+     "base": 0,
+     "class": "quarantined",
+     "hi": 2,
+     "lo": 0,
+     "perRun": [
+      0,
+      2,
+      0
+     ],
+     "rule": "quarantined"
+    },
+    "trace.Layerize": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout": {
+     "base": 30,
+     "class": "stable",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.dirtyObjects": {
+     "base": 1860,
+     "class": "stable",
+     "hi": 1860,
+     "lo": 1860,
+     "perRun": [
+      1860,
+      1860,
+      1860
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.partial": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout.totalObjects": {
+     "base": 35114,
+     "class": "stable",
+     "hi": 35114,
+     "lo": 35114,
+     "perRun": [
+      35114,
+      35114,
+      35114
+     ],
+     "rule": "stable"
+    },
+    "trace.MajorGC": {
+     "base": 0,
+     "class": "quarantined",
+     "hi": 1,
+     "lo": 0,
+     "perRun": [
+      0,
+      1,
+      0
+     ],
+     "rule": "quarantined"
+    },
+    "trace.N1.fontUpdateInvalidation": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.scheduleInvalidationsForRuleSets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.svgImageDocument": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.updateActiveStyleSheets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Paint": {
+     "base": 259,
+     "class": "stable",
+     "hi": 259,
+     "lo": 259,
+     "perRun": [
+      259,
+      259,
+      259
+     ],
+     "rule": "stable"
+    },
+    "trace.PaintImage": {
+     "base": 90,
+     "class": "stable",
+     "hi": 90,
+     "lo": 90,
+     "perRun": [
+      90,
+      90,
+      90
+     ],
+     "rule": "stable"
+    },
+    "trace.PrePaint": {
+     "base": 176,
+     "class": "stable",
+     "hi": 176,
+     "lo": 176,
+     "perRun": [
+      176,
+      176,
+      176
+     ],
+     "rule": "stable"
+    },
+    "trace.RasterTask": {
+     "base": 64,
+     "class": "stable",
+     "hi": 64,
+     "lo": 64,
+     "perRun": [
+      64,
+      64,
+      64
+     ],
+     "rule": "stable"
+    },
+    "trace.RequestAnimationFrame": {
+     "base": 292,
+     "class": "stable",
+     "hi": 292,
+     "lo": 292,
+     "perRun": [
+      292,
+      292,
+      292
+     ],
+     "rule": "stable"
+    },
+    "trace.ResizeObserverNotify": {
+     "base": 53,
+     "class": "stable",
+     "hi": 53,
+     "lo": 53,
+     "perRun": [
+      53,
+      53,
+      53
+     ],
+     "rule": "stable"
+    },
+    "trace.ScheduleStyleRecalculation": {
+     "base": 195,
+     "class": "stable",
+     "hi": 195,
+     "lo": 195,
+     "perRun": [
+      195,
+      195,
+      195
+     ],
+     "rule": "stable"
+    },
+    "trace.ScrollLayer": {
+     "base": 47,
+     "class": "stable",
+     "hi": 47,
+     "lo": 47,
+     "perRun": [
+      47,
+      47,
+      47
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayer": {
+     "base": 1433,
+     "class": "quarantined",
+     "hi": 1433,
+     "lo": 1432,
+     "perRun": [
+      1432,
+      1433,
+      1433
+     ],
+     "rule": "quarantined"
+    },
+    "trace.UpdateLayoutTree": {
+     "base": 195,
+     "class": "stable",
+     "hi": 195,
+     "lo": 195,
+     "perRun": [
+      195,
+      195,
+      195
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayoutTree.elementCount": {
+     "base": 8080,
+     "class": "quarantined",
+     "hi": 8080,
+     "lo": 8079,
+     "perRun": [
+      8080,
+      8080,
+      8079
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Activate": {
+     "base": 50,
+     "class": "quarantined",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Commit": {
+     "base": 50,
+     "class": "quarantined",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Draw": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.cc.SynchronizeTrees": {
+     "base": 4,
+     "class": "stable",
+     "hi": 4,
+     "lo": 4,
+     "perRun": [
+      4,
+      4,
+      4
+     ],
+     "rule": "stable"
+    }
+   }
+  },
+  {
+   "firstFrame": 222,
+   "frames": 51,
+   "id": "y02000",
+   "lastFrame": 276,
+   "scrolledPx": 485,
+   "types": {
+    "census.activeTileAreaPx": {
+     "base": 244908032,
+     "class": "stable",
+     "hi": 244908032,
+     "lo": 244908032,
+     "perRun": [
+      244908032,
+      244908032,
+      244908032
+     ],
+     "rule": "stable"
+    },
+    "census.activeTiles": {
+     "base": 4040,
+     "class": "stable",
+     "hi": 4040,
+     "lo": 4040,
+     "perRun": [
+      4040,
+      4040,
+      4040
+     ],
+     "rule": "stable"
+    },
+    "census.drawingAreaPx": {
+     "base": 649944222,
+     "class": "stable",
+     "hi": 649944222,
+     "lo": 649944222,
+     "perRun": [
+      649944222,
+      649944222,
+      649944222
+     ],
+     "rule": "stable"
+    },
+    "census.drawingLayers": {
+     "base": 2592,
+     "class": "stable",
+     "hi": 2592,
+     "lo": 2592,
+     "perRun": [
+      2592,
+      2592,
+      2592
+     ],
+     "rule": "stable"
+    },
+    "census.layers": {
+     "base": 2976,
+     "class": "stable",
+     "hi": 2976,
+     "lo": 2976,
+     "perRun": [
+      2976,
+      2976,
+      2976
+     ],
+     "rule": "stable"
+    },
+    "census.snapshots": {
+     "base": 48,
+     "class": "deterministic",
+     "hi": 48,
+     "lo": 48,
+     "perRun": [
+      48,
+      48,
+      48
+     ],
+     "rule": "deterministic"
+    },
+    "census.solidTiles": {
+     "base": 1678,
+     "class": "deterministic",
+     "hi": 1678,
+     "lo": 1678,
+     "perRun": [
+      1678,
+      1678,
+      1678
+     ],
+     "rule": "deterministic"
+    },
+    "census.tiles": {
+     "base": 4536,
+     "class": "stable",
+     "hi": 4536,
+     "lo": 4536,
+     "perRun": [
+      4536,
+      4536,
+      4536
+     ],
+     "rule": "stable"
+    },
+    "census.tilings": {
+     "base": 1924,
+     "class": "stable",
+     "hi": 1924,
+     "lo": 1924,
+     "perRun": [
+      1924,
+      1924,
+      1924
+     ],
+     "rule": "stable"
+    },
+    "hasDamage": {
+     "base": 48,
+     "class": "deterministic",
+     "hi": 48,
+     "lo": 48,
+     "perRun": [
+      48,
+      48,
+      48
+     ],
+     "rule": "deterministic"
+    },
+    "metric.Documents": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.Frames": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.JSEventListeners": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "metric.LayoutCount": {
+     "base": 42,
+     "class": "stable",
+     "hi": 42,
+     "lo": 42,
+     "perRun": [
+      42,
+      42,
+      42
+     ],
+     "rule": "stable"
+    },
+    "metric.LayoutObjects": {
+     "base": 9,
+     "class": "quarantined",
+     "hi": 9,
+     "lo": 5,
+     "perRun": [
+      9,
+      5,
+      9
+     ],
+     "rule": "quarantined"
+    },
+    "metric.Nodes": {
+     "base": 217,
+     "class": "quarantined",
+     "hi": 217,
+     "lo": 94,
+     "perRun": [
+      217,
+      94,
+      217
+     ],
+     "rule": "quarantined"
+    },
+    "metric.RecalcStyleCount": {
+     "base": 153,
+     "class": "stable",
+     "hi": 153,
+     "lo": 153,
+     "perRun": [
+      153,
+      153,
+      153
+     ],
+     "rule": "stable"
+    },
+    "metric.Resources": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "n0.cssom": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.events": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.sheetNode": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "raster.invalidatedLayers": {
+     "base": 256,
+     "class": "stable",
+     "hi": 256,
+     "lo": 256,
+     "perRun": [
+      256,
+      256,
+      256
+     ],
+     "rule": "stable"
+    },
+    "raster.invalidationAreaPx": {
+     "base": 5549058,
+     "class": "quarantined",
+     "hi": 5549058,
+     "lo": 5549058,
+     "perRun": [
+      5549058,
+      5549058,
+      5549058
+     ],
+     "rule": "quarantined"
+    },
+    "raster.invalidationRects": {
+     "base": 626,
+     "class": "stable",
+     "hi": 626,
+     "lo": 626,
+     "perRun": [
+      626,
+      626,
+      626
+     ],
+     "rule": "stable"
+    },
+    "trace.Animation.begin": {
+     "base": 15,
+     "class": "deterministic",
+     "hi": 15,
+     "lo": 15,
+     "perRun": [
+      15,
+      15,
+      15
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.compositeFailedBits": {
+     "base": 229568,
+     "class": "deterministic",
+     "hi": 229568,
+     "lo": 229568,
+     "perRun": [
+      229568,
+      229568,
+      229568
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.instant": {
+     "base": 28,
+     "class": "deterministic",
+     "hi": 28,
+     "lo": 28,
+     "perRun": [
+      28,
+      28,
+      28
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Commit": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "trace.CullRectUpdate": {
+     "base": 56,
+     "class": "stable",
+     "hi": 56,
+     "lo": 56,
+     "perRun": [
+      56,
+      56,
+      56
+     ],
+     "rule": "stable"
+    },
+    "trace.DecodeImage": {
+     "base": 1,
+     "class": "deterministic",
+     "hi": 1,
+     "lo": 1,
+     "perRun": [
+      1,
+      1,
+      1
+     ],
+     "rule": "deterministic"
+    },
+    "trace.DisplayItemListRaster": {
+     "base": 40,
+     "class": "stable",
+     "hi": 40,
+     "lo": 40,
+     "perRun": [
+      40,
+      40,
+      40
+     ],
+     "rule": "stable"
+    },
+    "trace.EvaluateScript": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "trace.EventDispatch": {
+     "base": 116,
+     "class": "stable",
+     "hi": 116,
+     "lo": 116,
+     "perRun": [
+      116,
+      116,
+      116
+     ],
+     "rule": "stable"
+    },
+    "trace.FireAnimationFrame": {
+     "base": 327,
+     "class": "stable",
+     "hi": 327,
+     "lo": 327,
+     "perRun": [
+      327,
+      327,
+      327
+     ],
+     "rule": "stable"
+    },
+    "trace.FunctionCall": {
+     "base": 524,
+     "class": "stable",
+     "hi": 524,
+     "lo": 524,
+     "perRun": [
+      524,
+      524,
+      524
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest": {
+     "base": 136,
+     "class": "stable",
+     "hi": 136,
+     "lo": 136,
+     "perRun": [
+      136,
+      136,
+      136
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest.overlayAdDetector": {
+     "base": 13,
+     "class": "quarantined",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "quarantined"
+    },
+    "trace.ImageDecodeTask": {
+     "base": 2,
+     "class": "stable",
+     "hi": 2,
+     "lo": 2,
+     "perRun": [
+      2,
+      2,
+      2
+     ],
+     "rule": "stable"
+    },
+    "trace.IntersectionObserverCompute": {
+     "base": 102,
+     "class": "deterministic",
+     "hi": 102,
+     "lo": 102,
+     "perRun": [
+      102,
+      102,
+      102
+     ],
+     "rule": "deterministic"
+    },
+    "trace.InvalidateLayout": {
+     "base": 49,
+     "class": "stable",
+     "hi": 49,
+     "lo": 49,
+     "perRun": [
+      49,
+      49,
+      49
+     ],
+     "rule": "stable"
+    },
+    "trace.Layer.created": {
+     "base": 15,
+     "class": "deterministic",
+     "hi": 15,
+     "lo": 15,
+     "perRun": [
+      15,
+      15,
+      15
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layerize": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout": {
+     "base": 42,
+     "class": "stable",
+     "hi": 42,
+     "lo": 42,
+     "perRun": [
+      42,
+      42,
+      42
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.dirtyObjects": {
+     "base": 2658,
+     "class": "stable",
+     "hi": 2658,
+     "lo": 2658,
+     "perRun": [
+      2658,
+      2658,
+      2658
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.partial": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout.totalObjects": {
+     "base": 49151,
+     "class": "stable",
+     "hi": 49151,
+     "lo": 49151,
+     "perRun": [
+      49151,
+      49151,
+      49151
+     ],
+     "rule": "stable"
+    },
+    "trace.MajorGC": {
+     "base": 0,
+     "class": "quarantined",
+     "hi": 2,
+     "lo": 0,
+     "perRun": [
+      0,
+      2,
+      0
+     ],
+     "rule": "quarantined"
+    },
+    "trace.N1.fontUpdateInvalidation": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.scheduleInvalidationsForRuleSets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.svgImageDocument": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.updateActiveStyleSheets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Paint": {
+     "base": 242,
+     "class": "stable",
+     "hi": 245,
+     "lo": 242,
+     "perRun": [
+      242,
+      242,
+      245
+     ],
+     "rule": "stable"
+    },
+    "trace.PaintImage": {
+     "base": 44,
+     "class": "stable",
+     "hi": 44,
+     "lo": 44,
+     "perRun": [
+      44,
+      44,
+      44
+     ],
+     "rule": "stable"
+    },
+    "trace.PrePaint": {
+     "base": 192,
+     "class": "stable",
+     "hi": 192,
+     "lo": 192,
+     "perRun": [
+      192,
+      192,
+      192
+     ],
+     "rule": "stable"
+    },
+    "trace.RasterTask": {
+     "base": 40,
+     "class": "stable",
+     "hi": 40,
+     "lo": 40,
+     "perRun": [
+      40,
+      40,
+      40
+     ],
+     "rule": "stable"
+    },
+    "trace.RequestAnimationFrame": {
+     "base": 333,
+     "class": "stable",
+     "hi": 333,
+     "lo": 333,
+     "perRun": [
+      333,
+      333,
+      333
+     ],
+     "rule": "stable"
+    },
+    "trace.ResizeObserverNotify": {
+     "base": 56,
+     "class": "stable",
+     "hi": 56,
+     "lo": 56,
+     "perRun": [
+      56,
+      56,
+      56
+     ],
+     "rule": "stable"
+    },
+    "trace.ScheduleStyleRecalculation": {
+     "base": 153,
+     "class": "stable",
+     "hi": 153,
+     "lo": 153,
+     "perRun": [
+      153,
+      153,
+      153
+     ],
+     "rule": "stable"
+    },
+    "trace.ScrollLayer": {
+     "base": 48,
+     "class": "stable",
+     "hi": 48,
+     "lo": 48,
+     "perRun": [
+      48,
+      48,
+      48
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayer": {
+     "base": 2098,
+     "class": "quarantined",
+     "hi": 2098,
+     "lo": 2098,
+     "perRun": [
+      2098,
+      2098,
+      2098
+     ],
+     "rule": "quarantined"
+    },
+    "trace.UpdateLayoutTree": {
+     "base": 153,
+     "class": "stable",
+     "hi": 153,
+     "lo": 153,
+     "perRun": [
+      153,
+      153,
+      153
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayoutTree.elementCount": {
+     "base": 3018,
+     "class": "quarantined",
+     "hi": 3022,
+     "lo": 3018,
+     "perRun": [
+      3018,
+      3018,
+      3022
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Activate": {
+     "base": 51,
+     "class": "quarantined",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Commit": {
+     "base": 51,
+     "class": "quarantined",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Draw": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "trace.cc.SynchronizeTrees": {
+     "base": 6,
+     "class": "stable",
+     "hi": 6,
+     "lo": 6,
+     "perRun": [
+      6,
+      6,
+      6
+     ],
+     "rule": "stable"
+    }
+   }
+  },
+  {
+   "firstFrame": 277,
+   "frames": 50,
+   "id": "y02500",
+   "lastFrame": 326,
+   "scrolledPx": 500,
+   "types": {
+    "census.activeTileAreaPx": {
+     "base": 269832192,
+     "class": "stable",
+     "hi": 269832192,
+     "lo": 269832192,
+     "perRun": [
+      269832192,
+      269832192,
+      269832192
+     ],
+     "rule": "stable"
+    },
+    "census.activeTiles": {
+     "base": 4428,
+     "class": "stable",
+     "hi": 4428,
+     "lo": 4428,
+     "perRun": [
+      4428,
+      4428,
+      4428
+     ],
+     "rule": "stable"
+    },
+    "census.drawingAreaPx": {
+     "base": 682701554,
+     "class": "stable",
+     "hi": 682701554,
+     "lo": 682701554,
+     "perRun": [
+      682701554,
+      682701554,
+      682701554
+     ],
+     "rule": "stable"
+    },
+    "census.drawingLayers": {
+     "base": 2745,
+     "class": "stable",
+     "hi": 2745,
+     "lo": 2745,
+     "perRun": [
+      2745,
+      2745,
+      2745
+     ],
+     "rule": "stable"
+    },
+    "census.layers": {
+     "base": 3220,
+     "class": "stable",
+     "hi": 3220,
+     "lo": 3220,
+     "perRun": [
+      3220,
+      3220,
+      3220
+     ],
+     "rule": "stable"
+    },
+    "census.snapshots": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "census.solidTiles": {
+     "base": 2102,
+     "class": "deterministic",
+     "hi": 2102,
+     "lo": 2102,
+     "perRun": [
+      2102,
+      2102,
+      2102
+     ],
+     "rule": "deterministic"
+    },
+    "census.tiles": {
+     "base": 5195,
+     "class": "stable",
+     "hi": 5195,
+     "lo": 5195,
+     "perRun": [
+      5195,
+      5195,
+      5195
+     ],
+     "rule": "stable"
+    },
+    "census.tilings": {
+     "base": 2009,
+     "class": "stable",
+     "hi": 2009,
+     "lo": 2009,
+     "perRun": [
+      2009,
+      2009,
+      2009
+     ],
+     "rule": "stable"
+    },
+    "hasDamage": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "metric.Documents": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.Frames": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.JSEventListeners": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "metric.LayoutCount": {
+     "base": 20,
+     "class": "stable",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20
+     ],
+     "rule": "stable"
+    },
+    "metric.LayoutObjects": {
+     "base": 36,
+     "class": "quarantined",
+     "hi": 36,
+     "lo": 2,
+     "perRun": [
+      36,
+      2,
+      36
+     ],
+     "rule": "quarantined"
+    },
+    "metric.Nodes": {
+     "base": 199,
+     "class": "quarantined",
+     "hi": 199,
+     "lo": -41,
+     "perRun": [
+      199,
+      -41,
+      199
+     ],
+     "rule": "quarantined"
+    },
+    "metric.RecalcStyleCount": {
+     "base": 192,
+     "class": "stable",
+     "hi": 192,
+     "lo": 192,
+     "perRun": [
+      192,
+      192,
+      192
+     ],
+     "rule": "stable"
+    },
+    "metric.Resources": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "n0.cssom": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.events": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.sheetNode": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "raster.invalidatedLayers": {
+     "base": 195,
+     "class": "stable",
+     "hi": 195,
+     "lo": 195,
+     "perRun": [
+      195,
+      195,
+      195
+     ],
+     "rule": "stable"
+    },
+    "raster.invalidationAreaPx": {
+     "base": 2514384,
+     "class": "quarantined",
+     "hi": 2514384,
+     "lo": 2514384,
+     "perRun": [
+      2514384,
+      2514384,
+      2514384
+     ],
+     "rule": "quarantined"
+    },
+    "raster.invalidationRects": {
+     "base": 505,
+     "class": "stable",
+     "hi": 505,
+     "lo": 505,
+     "perRun": [
+      505,
+      505,
+      505
+     ],
+     "rule": "stable"
+    },
+    "trace.Animation.begin": {
+     "base": 18,
+     "class": "deterministic",
+     "hi": 18,
+     "lo": 18,
+     "perRun": [
+      18,
+      18,
+      18
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.compositeFailedBits": {
+     "base": 401408,
+     "class": "deterministic",
+     "hi": 401408,
+     "lo": 401408,
+     "perRun": [
+      401408,
+      401408,
+      401408
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.instant": {
+     "base": 18,
+     "class": "deterministic",
+     "hi": 18,
+     "lo": 18,
+     "perRun": [
+      18,
+      18,
+      18
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Commit": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.CullRectUpdate": {
+     "base": 50,
+     "class": "stable",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "stable"
+    },
+    "trace.DecodeImage": {
+     "base": 2,
+     "class": "deterministic",
+     "hi": 2,
+     "lo": 2,
+     "perRun": [
+      2,
+      2,
+      2
+     ],
+     "rule": "deterministic"
+    },
+    "trace.DisplayItemListRaster": {
+     "base": 6,
+     "class": "stable",
+     "hi": 6,
+     "lo": 6,
+     "perRun": [
+      6,
+      6,
+      6
+     ],
+     "rule": "stable"
+    },
+    "trace.EvaluateScript": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.EventDispatch": {
+     "base": 112,
+     "class": "stable",
+     "hi": 112,
+     "lo": 112,
+     "perRun": [
+      112,
+      112,
+      112
+     ],
+     "rule": "stable"
+    },
+    "trace.FireAnimationFrame": {
+     "base": 326,
+     "class": "stable",
+     "hi": 326,
+     "lo": 326,
+     "perRun": [
+      326,
+      326,
+      326
+     ],
+     "rule": "stable"
+    },
+    "trace.FunctionCall": {
+     "base": 545,
+     "class": "stable",
+     "hi": 545,
+     "lo": 545,
+     "perRun": [
+      545,
+      545,
+      545
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest": {
+     "base": 117,
+     "class": "stable",
+     "hi": 117,
+     "lo": 117,
+     "perRun": [
+      117,
+      117,
+      117
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest.overlayAdDetector": {
+     "base": 12,
+     "class": "quarantined",
+     "hi": 12,
+     "lo": 12,
+     "perRun": [
+      12,
+      12,
+      12
+     ],
+     "rule": "quarantined"
+    },
+    "trace.ImageDecodeTask": {
+     "base": 5,
+     "class": "stable",
+     "hi": 5,
+     "lo": 5,
+     "perRun": [
+      5,
+      5,
+      5
+     ],
+     "rule": "stable"
+    },
+    "trace.IntersectionObserverCompute": {
+     "base": 102,
+     "class": "deterministic",
+     "hi": 102,
+     "lo": 102,
+     "perRun": [
+      102,
+      102,
+      102
+     ],
+     "rule": "deterministic"
+    },
+    "trace.InvalidateLayout": {
+     "base": 20,
+     "class": "stable",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20
+     ],
+     "rule": "stable"
+    },
+    "trace.Layer.created": {
+     "base": 7,
+     "class": "deterministic",
+     "hi": 7,
+     "lo": 7,
+     "perRun": [
+      7,
+      7,
+      7
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layer.deleted": {
+     "base": 2,
+     "class": "quarantined",
+     "hi": 8,
+     "lo": 2,
+     "perRun": [
+      2,
+      8,
+      2
+     ],
+     "rule": "quarantined"
+    },
+    "trace.Layerize": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout": {
+     "base": 20,
+     "class": "stable",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.dirtyObjects": {
+     "base": 1262,
+     "class": "stable",
+     "hi": 1262,
+     "lo": 1262,
+     "perRun": [
+      1262,
+      1262,
+      1262
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.partial": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout.totalObjects": {
+     "base": 23247,
+     "class": "stable",
+     "hi": 23247,
+     "lo": 23247,
+     "perRun": [
+      23247,
+      23247,
+      23247
+     ],
+     "rule": "stable"
+    },
+    "trace.MajorGC": {
+     "base": 2,
+     "class": "quarantined",
+     "hi": 2,
+     "lo": 1,
+     "perRun": [
+      2,
+      1,
+      2
+     ],
+     "rule": "quarantined"
+    },
+    "trace.N1.fontUpdateInvalidation": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.scheduleInvalidationsForRuleSets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.svgImageDocument": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.updateActiveStyleSheets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Paint": {
+     "base": 212,
+     "class": "stable",
+     "hi": 212,
+     "lo": 212,
+     "perRun": [
+      212,
+      212,
+      212
+     ],
+     "rule": "stable"
+    },
+    "trace.PaintImage": {
+     "base": 68,
+     "class": "stable",
+     "hi": 68,
+     "lo": 68,
+     "perRun": [
+      68,
+      68,
+      68
+     ],
+     "rule": "stable"
+    },
+    "trace.ParseHTML": {
+     "base": 4,
+     "class": "deterministic",
+     "hi": 4,
+     "lo": 4,
+     "perRun": [
+      4,
+      4,
+      4
+     ],
+     "rule": "deterministic"
+    },
+    "trace.PrePaint": {
+     "base": 169,
+     "class": "stable",
+     "hi": 169,
+     "lo": 169,
+     "perRun": [
+      169,
+      169,
+      169
+     ],
+     "rule": "stable"
+    },
+    "trace.RasterTask": {
+     "base": 6,
+     "class": "stable",
+     "hi": 6,
+     "lo": 6,
+     "perRun": [
+      6,
+      6,
+      6
+     ],
+     "rule": "stable"
+    },
+    "trace.RequestAnimationFrame": {
+     "base": 325,
+     "class": "stable",
+     "hi": 325,
+     "lo": 325,
+     "perRun": [
+      325,
+      325,
+      325
+     ],
+     "rule": "stable"
+    },
+    "trace.ResizeObserverNotify": {
+     "base": 51,
+     "class": "stable",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "stable"
+    },
+    "trace.ScheduleStyleRecalculation": {
+     "base": 192,
+     "class": "stable",
+     "hi": 192,
+     "lo": 192,
+     "perRun": [
+      192,
+      192,
+      192
+     ],
+     "rule": "stable"
+    },
+    "trace.ScrollLayer": {
+     "base": 50,
+     "class": "stable",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayer": {
+     "base": 2110,
+     "class": "quarantined",
+     "hi": 2110,
+     "lo": 2110,
+     "perRun": [
+      2110,
+      2110,
+      2110
+     ],
+     "rule": "quarantined"
+    },
+    "trace.UpdateLayoutTree": {
+     "base": 192,
+     "class": "stable",
+     "hi": 192,
+     "lo": 192,
+     "perRun": [
+      192,
+      192,
+      192
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayoutTree.elementCount": {
+     "base": 4665,
+     "class": "quarantined",
+     "hi": 4665,
+     "lo": 4663,
+     "perRun": [
+      4665,
+      4663,
+      4665
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Activate": {
+     "base": 50,
+     "class": "quarantined",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Commit": {
+     "base": 50,
+     "class": "quarantined",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Draw": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.cc.SynchronizeTrees": {
+     "base": 12,
+     "class": "stable",
+     "hi": 12,
+     "lo": 12,
+     "perRun": [
+      12,
+      12,
+      12
+     ],
+     "rule": "stable"
+    }
+   }
+  },
+  {
+   "firstFrame": 327,
+   "frames": 50,
+   "id": "y03000",
+   "lastFrame": 380,
+   "scrolledPx": 475,
+   "types": {
+    "census.activeTileAreaPx": {
+     "base": 309682176,
+     "class": "stable",
+     "hi": 309682176,
+     "lo": 309682176,
+     "perRun": [
+      309682176,
+      309682176,
+      309682176
+     ],
+     "rule": "stable"
+    },
+    "census.activeTiles": {
+     "base": 4856,
+     "class": "stable",
+     "hi": 4856,
+     "lo": 4856,
+     "perRun": [
+      4856,
+      4856,
+      4856
+     ],
+     "rule": "stable"
+    },
+    "census.drawingAreaPx": {
+     "base": 708203556,
+     "class": "stable",
+     "hi": 708203556,
+     "lo": 708203556,
+     "perRun": [
+      708203556,
+      708203556,
+      708203556
+     ],
+     "rule": "stable"
+    },
+    "census.drawingLayers": {
+     "base": 2769,
+     "class": "stable",
+     "hi": 2769,
+     "lo": 2769,
+     "perRun": [
+      2769,
+      2769,
+      2769
+     ],
+     "rule": "stable"
+    },
+    "census.layers": {
+     "base": 3132,
+     "class": "stable",
+     "hi": 3132,
+     "lo": 3132,
+     "perRun": [
+      3132,
+      3132,
+      3132
+     ],
+     "rule": "stable"
+    },
+    "census.snapshots": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "census.solidTiles": {
+     "base": 2412,
+     "class": "deterministic",
+     "hi": 2412,
+     "lo": 2412,
+     "perRun": [
+      2412,
+      2412,
+      2412
+     ],
+     "rule": "deterministic"
+    },
+    "census.tiles": {
+     "base": 5679,
+     "class": "stable",
+     "hi": 5679,
+     "lo": 5679,
+     "perRun": [
+      5679,
+      5679,
+      5679
+     ],
+     "rule": "stable"
+    },
+    "census.tilings": {
+     "base": 1821,
+     "class": "stable",
+     "hi": 1821,
+     "lo": 1821,
+     "perRun": [
+      1821,
+      1821,
+      1821
+     ],
+     "rule": "stable"
+    },
+    "hasDamage": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "metric.Documents": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.Frames": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.JSEventListeners": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "metric.LayoutCount": {
+     "base": 24,
+     "class": "stable",
+     "hi": 24,
+     "lo": 24,
+     "perRun": [
+      24,
+      24,
+      24
+     ],
+     "rule": "stable"
+    },
+    "metric.LayoutObjects": {
+     "base": 0,
+     "class": "quarantined",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "quarantined"
+    },
+    "metric.Nodes": {
+     "base": 250,
+     "class": "quarantined",
+     "hi": 250,
+     "lo": 250,
+     "perRun": [
+      250,
+      250,
+      250
+     ],
+     "rule": "quarantined"
+    },
+    "metric.RecalcStyleCount": {
+     "base": 199,
+     "class": "stable",
+     "hi": 199,
+     "lo": 199,
+     "perRun": [
+      199,
+      199,
+      199
+     ],
+     "rule": "stable"
+    },
+    "metric.Resources": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "n0.cssom": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.events": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.sheetNode": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "raster.invalidatedLayers": {
+     "base": 114,
+     "class": "stable",
+     "hi": 114,
+     "lo": 114,
+     "perRun": [
+      114,
+      114,
+      114
+     ],
+     "rule": "stable"
+    },
+    "raster.invalidationAreaPx": {
+     "base": 8625574,
+     "class": "quarantined",
+     "hi": 8625574,
+     "lo": 8625574,
+     "perRun": [
+      8625574,
+      8625574,
+      8625574
+     ],
+     "rule": "quarantined"
+    },
+    "raster.invalidationRects": {
+     "base": 574,
+     "class": "stable",
+     "hi": 574,
+     "lo": 574,
+     "perRun": [
+      574,
+      574,
+      574
+     ],
+     "rule": "stable"
+    },
+    "trace.Animation.begin": {
+     "base": 17,
+     "class": "deterministic",
+     "hi": 17,
+     "lo": 17,
+     "perRun": [
+      17,
+      17,
+      17
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.compositeFailedBits": {
+     "base": 86048,
+     "class": "deterministic",
+     "hi": 86048,
+     "lo": 86048,
+     "perRun": [
+      86048,
+      86048,
+      86048
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.instant": {
+     "base": 32,
+     "class": "deterministic",
+     "hi": 32,
+     "lo": 32,
+     "perRun": [
+      32,
+      32,
+      32
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Commit": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.CullRectUpdate": {
+     "base": 58,
+     "class": "stable",
+     "hi": 58,
+     "lo": 58,
+     "perRun": [
+      58,
+      58,
+      58
+     ],
+     "rule": "stable"
+    },
+    "trace.DecodeImage": {
+     "base": 5,
+     "class": "deterministic",
+     "hi": 5,
+     "lo": 5,
+     "perRun": [
+      5,
+      5,
+      5
+     ],
+     "rule": "deterministic"
+    },
+    "trace.DisplayItemListRaster": {
+     "base": 53,
+     "class": "stable",
+     "hi": 53,
+     "lo": 53,
+     "perRun": [
+      53,
+      53,
+      53
+     ],
+     "rule": "stable"
+    },
+    "trace.EvaluateScript": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.EventDispatch": {
+     "base": 102,
+     "class": "stable",
+     "hi": 102,
+     "lo": 102,
+     "perRun": [
+      102,
+      102,
+      102
+     ],
+     "rule": "stable"
+    },
+    "trace.FireAnimationFrame": {
+     "base": 216,
+     "class": "stable",
+     "hi": 216,
+     "lo": 216,
+     "perRun": [
+      216,
+      216,
+      216
+     ],
+     "rule": "stable"
+    },
+    "trace.FunctionCall": {
+     "base": 465,
+     "class": "stable",
+     "hi": 465,
+     "lo": 465,
+     "perRun": [
+      465,
+      465,
+      465
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest": {
+     "base": 118,
+     "class": "stable",
+     "hi": 118,
+     "lo": 118,
+     "perRun": [
+      118,
+      118,
+      118
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest.overlayAdDetector": {
+     "base": 13,
+     "class": "quarantined",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "quarantined"
+    },
+    "trace.ImageDecodeTask": {
+     "base": 9,
+     "class": "stable",
+     "hi": 9,
+     "lo": 9,
+     "perRun": [
+      9,
+      9,
+      9
+     ],
+     "rule": "stable"
+    },
+    "trace.IntersectionObserverCompute": {
+     "base": 100,
+     "class": "deterministic",
+     "hi": 100,
+     "lo": 100,
+     "perRun": [
+      100,
+      100,
+      100
+     ],
+     "rule": "deterministic"
+    },
+    "trace.InvalidateLayout": {
+     "base": 24,
+     "class": "stable",
+     "hi": 24,
+     "lo": 24,
+     "perRun": [
+      24,
+      24,
+      24
+     ],
+     "rule": "stable"
+    },
+    "trace.Layer.created": {
+     "base": 10,
+     "class": "deterministic",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layerize": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout": {
+     "base": 24,
+     "class": "stable",
+     "hi": 24,
+     "lo": 24,
+     "perRun": [
+      24,
+      24,
+      24
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.dirtyObjects": {
+     "base": 484,
+     "class": "stable",
+     "hi": 484,
+     "lo": 484,
+     "perRun": [
+      484,
+      484,
+      484
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.partial": {
+     "base": 22,
+     "class": "deterministic",
+     "hi": 22,
+     "lo": 22,
+     "perRun": [
+      22,
+      22,
+      22
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout.totalObjects": {
+     "base": 3572,
+     "class": "stable",
+     "hi": 3572,
+     "lo": 3572,
+     "perRun": [
+      3572,
+      3572,
+      3572
+     ],
+     "rule": "stable"
+    },
+    "trace.N1.fontUpdateInvalidation": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.scheduleInvalidationsForRuleSets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.svgImageDocument": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.updateActiveStyleSheets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Paint": {
+     "base": 192,
+     "class": "stable",
+     "hi": 192,
+     "lo": 192,
+     "perRun": [
+      192,
+      192,
+      192
+     ],
+     "rule": "stable"
+    },
+    "trace.PaintImage": {
+     "base": 18,
+     "class": "stable",
+     "hi": 18,
+     "lo": 18,
+     "perRun": [
+      18,
+      18,
+      18
+     ],
+     "rule": "stable"
+    },
+    "trace.PrePaint": {
+     "base": 176,
+     "class": "stable",
+     "hi": 176,
+     "lo": 176,
+     "perRun": [
+      176,
+      176,
+      176
+     ],
+     "rule": "stable"
+    },
+    "trace.RasterTask": {
+     "base": 53,
+     "class": "stable",
+     "hi": 53,
+     "lo": 53,
+     "perRun": [
+      53,
+      53,
+      53
+     ],
+     "rule": "stable"
+    },
+    "trace.RequestAnimationFrame": {
+     "base": 220,
+     "class": "stable",
+     "hi": 220,
+     "lo": 220,
+     "perRun": [
+      220,
+      220,
+      220
+     ],
+     "rule": "stable"
+    },
+    "trace.ResizeObserverNotify": {
+     "base": 58,
+     "class": "stable",
+     "hi": 58,
+     "lo": 58,
+     "perRun": [
+      58,
+      58,
+      58
+     ],
+     "rule": "stable"
+    },
+    "trace.ScheduleStyleRecalculation": {
+     "base": 198,
+     "class": "stable",
+     "hi": 198,
+     "lo": 198,
+     "perRun": [
+      198,
+      198,
+      198
+     ],
+     "rule": "stable"
+    },
+    "trace.ScrollLayer": {
+     "base": 47,
+     "class": "stable",
+     "hi": 47,
+     "lo": 47,
+     "perRun": [
+      47,
+      47,
+      47
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayer": {
+     "base": 2089,
+     "class": "quarantined",
+     "hi": 2089,
+     "lo": 2089,
+     "perRun": [
+      2089,
+      2089,
+      2089
+     ],
+     "rule": "quarantined"
+    },
+    "trace.UpdateLayoutTree": {
+     "base": 199,
+     "class": "stable",
+     "hi": 199,
+     "lo": 199,
+     "perRun": [
+      199,
+      199,
+      199
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayoutTree.elementCount": {
+     "base": 5684,
+     "class": "quarantined",
+     "hi": 5684,
+     "lo": 5676,
+     "perRun": [
+      5684,
+      5676,
+      5684
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Activate": {
+     "base": 45,
+     "class": "quarantined",
+     "hi": 45,
+     "lo": 45,
+     "perRun": [
+      45,
+      45,
+      45
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Commit": {
+     "base": 45,
+     "class": "quarantined",
+     "hi": 45,
+     "lo": 45,
+     "perRun": [
+      45,
+      45,
+      45
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Draw": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.cc.SynchronizeTrees": {
+     "base": 8,
+     "class": "stable",
+     "hi": 8,
+     "lo": 8,
+     "perRun": [
+      8,
+      8,
+      8
+     ],
+     "rule": "stable"
+    }
+   }
+  },
+  {
+   "firstFrame": 381,
+   "frames": 51,
+   "id": "y03500",
+   "lastFrame": 435,
+   "scrolledPx": 485,
+   "types": {
+    "census.activeTileAreaPx": {
+     "base": 402251776,
+     "class": "stable",
+     "hi": 402251776,
+     "lo": 402251776,
+     "perRun": [
+      402251776,
+      402251776,
+      402251776
+     ],
+     "rule": "stable"
+    },
+    "census.activeTiles": {
+     "base": 6087,
+     "class": "stable",
+     "hi": 6087,
+     "lo": 6087,
+     "perRun": [
+      6087,
+      6087,
+      6087
+     ],
+     "rule": "stable"
+    },
+    "census.drawingAreaPx": {
+     "base": 616771869,
+     "class": "stable",
+     "hi": 616771869,
+     "lo": 616771869,
+     "perRun": [
+      616771869,
+      616771869,
+      616771869
+     ],
+     "rule": "stable"
+    },
+    "census.drawingLayers": {
+     "base": 2708,
+     "class": "stable",
+     "hi": 2708,
+     "lo": 2708,
+     "perRun": [
+      2708,
+      2708,
+      2708
+     ],
+     "rule": "stable"
+    },
+    "census.layers": {
+     "base": 3014,
+     "class": "stable",
+     "hi": 3014,
+     "lo": 3014,
+     "perRun": [
+      3014,
+      3014,
+      3014
+     ],
+     "rule": "stable"
+    },
+    "census.snapshots": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "census.solidTiles": {
+     "base": 2839,
+     "class": "deterministic",
+     "hi": 2839,
+     "lo": 2839,
+     "perRun": [
+      2839,
+      2839,
+      2839
+     ],
+     "rule": "deterministic"
+    },
+    "census.tiles": {
+     "base": 6663,
+     "class": "stable",
+     "hi": 6663,
+     "lo": 6663,
+     "perRun": [
+      6663,
+      6663,
+      6663
+     ],
+     "rule": "stable"
+    },
+    "census.tilings": {
+     "base": 1670,
+     "class": "stable",
+     "hi": 1670,
+     "lo": 1670,
+     "perRun": [
+      1670,
+      1670,
+      1670
+     ],
+     "rule": "stable"
+    },
+    "hasDamage": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "metric.Documents": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.Frames": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.JSEventListeners": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "metric.LayoutCount": {
+     "base": 34,
+     "class": "stable",
+     "hi": 34,
+     "lo": 34,
+     "perRun": [
+      34,
+      34,
+      34
+     ],
+     "rule": "stable"
+    },
+    "metric.LayoutObjects": {
+     "base": 3,
+     "class": "quarantined",
+     "hi": 3,
+     "lo": -2,
+     "perRun": [
+      3,
+      -2,
+      3
+     ],
+     "rule": "quarantined"
+    },
+    "metric.Nodes": {
+     "base": -65,
+     "class": "quarantined",
+     "hi": 225,
+     "lo": -135,
+     "perRun": [
+      -65,
+      -135,
+      225
+     ],
+     "rule": "quarantined"
+    },
+    "metric.RecalcStyleCount": {
+     "base": 173,
+     "class": "stable",
+     "hi": 173,
+     "lo": 173,
+     "perRun": [
+      173,
+      173,
+      173
+     ],
+     "rule": "stable"
+    },
+    "metric.Resources": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "n0.cssom": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.events": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.sheetNode": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "raster.invalidatedLayers": {
+     "base": 118,
+     "class": "stable",
+     "hi": 118,
+     "lo": 118,
+     "perRun": [
+      118,
+      118,
+      118
+     ],
+     "rule": "stable"
+    },
+    "raster.invalidationAreaPx": {
+     "base": 1339542,
+     "class": "quarantined",
+     "hi": 1339542,
+     "lo": 1339542,
+     "perRun": [
+      1339542,
+      1339542,
+      1339542
+     ],
+     "rule": "quarantined"
+    },
+    "raster.invalidationRects": {
+     "base": 628,
+     "class": "stable",
+     "hi": 628,
+     "lo": 628,
+     "perRun": [
+      628,
+      628,
+      628
+     ],
+     "rule": "stable"
+    },
+    "trace.Animation.begin": {
+     "base": 23,
+     "class": "deterministic",
+     "hi": 23,
+     "lo": 23,
+     "perRun": [
+      23,
+      23,
+      23
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.compositeFailedBits": {
+     "base": 180256,
+     "class": "deterministic",
+     "hi": 180256,
+     "lo": 180256,
+     "perRun": [
+      180256,
+      180256,
+      180256
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.instant": {
+     "base": 30,
+     "class": "deterministic",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Commit": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "trace.CullRectUpdate": {
+     "base": 69,
+     "class": "stable",
+     "hi": 69,
+     "lo": 69,
+     "perRun": [
+      69,
+      69,
+      69
+     ],
+     "rule": "stable"
+    },
+    "trace.DecodeImage": {
+     "base": 3,
+     "class": "deterministic",
+     "hi": 3,
+     "lo": 3,
+     "perRun": [
+      3,
+      3,
+      3
+     ],
+     "rule": "deterministic"
+    },
+    "trace.DisplayItemListRaster": {
+     "base": 55,
+     "class": "stable",
+     "hi": 55,
+     "lo": 55,
+     "perRun": [
+      55,
+      55,
+      55
+     ],
+     "rule": "stable"
+    },
+    "trace.EvaluateScript": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "trace.EventDispatch": {
+     "base": 108,
+     "class": "stable",
+     "hi": 108,
+     "lo": 108,
+     "perRun": [
+      108,
+      108,
+      108
+     ],
+     "rule": "stable"
+    },
+    "trace.FireAnimationFrame": {
+     "base": 224,
+     "class": "stable",
+     "hi": 224,
+     "lo": 224,
+     "perRun": [
+      224,
+      224,
+      224
+     ],
+     "rule": "stable"
+    },
+    "trace.FunctionCall": {
+     "base": 487,
+     "class": "stable",
+     "hi": 487,
+     "lo": 487,
+     "perRun": [
+      487,
+      487,
+      487
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest": {
+     "base": 130,
+     "class": "stable",
+     "hi": 130,
+     "lo": 130,
+     "perRun": [
+      130,
+      130,
+      130
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest.overlayAdDetector": {
+     "base": 13,
+     "class": "quarantined",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "quarantined"
+    },
+    "trace.ImageDecodeTask": {
+     "base": 8,
+     "class": "stable",
+     "hi": 8,
+     "lo": 8,
+     "perRun": [
+      8,
+      8,
+      8
+     ],
+     "rule": "stable"
+    },
+    "trace.IntersectionObserverCompute": {
+     "base": 102,
+     "class": "deterministic",
+     "hi": 102,
+     "lo": 102,
+     "perRun": [
+      102,
+      102,
+      102
+     ],
+     "rule": "deterministic"
+    },
+    "trace.InvalidateLayout": {
+     "base": 34,
+     "class": "stable",
+     "hi": 34,
+     "lo": 34,
+     "perRun": [
+      34,
+      34,
+      34
+     ],
+     "rule": "stable"
+    },
+    "trace.Layer.created": {
+     "base": 17,
+     "class": "deterministic",
+     "hi": 17,
+     "lo": 17,
+     "perRun": [
+      17,
+      17,
+      17
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layer.deleted": {
+     "base": 15,
+     "class": "quarantined",
+     "hi": 18,
+     "lo": 0,
+     "perRun": [
+      15,
+      18,
+      0
+     ],
+     "rule": "quarantined"
+    },
+    "trace.Layerize": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout": {
+     "base": 34,
+     "class": "stable",
+     "hi": 34,
+     "lo": 34,
+     "perRun": [
+      34,
+      34,
+      34
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.dirtyObjects": {
+     "base": 486,
+     "class": "stable",
+     "hi": 486,
+     "lo": 486,
+     "perRun": [
+      486,
+      486,
+      486
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.partial": {
+     "base": 31,
+     "class": "deterministic",
+     "hi": 31,
+     "lo": 31,
+     "perRun": [
+      31,
+      31,
+      31
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout.totalObjects": {
+     "base": 4401,
+     "class": "stable",
+     "hi": 4401,
+     "lo": 4401,
+     "perRun": [
+      4401,
+      4401,
+      4401
+     ],
+     "rule": "stable"
+    },
+    "trace.MajorGC": {
+     "base": 1,
+     "class": "quarantined",
+     "hi": 1,
+     "lo": 0,
+     "perRun": [
+      1,
+      1,
+      0
+     ],
+     "rule": "quarantined"
+    },
+    "trace.MinorGC": {
+     "base": 1,
+     "class": "quarantined",
+     "hi": 1,
+     "lo": 0,
+     "perRun": [
+      0,
+      1,
+      1
+     ],
+     "rule": "quarantined"
+    },
+    "trace.N1.fontUpdateInvalidation": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.scheduleInvalidationsForRuleSets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.svgImageDocument": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.updateActiveStyleSheets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Paint": {
+     "base": 188,
+     "class": "stable",
+     "hi": 188,
+     "lo": 188,
+     "perRun": [
+      188,
+      188,
+      188
+     ],
+     "rule": "stable"
+    },
+    "trace.PaintImage": {
+     "base": 21,
+     "class": "stable",
+     "hi": 21,
+     "lo": 21,
+     "perRun": [
+      21,
+      21,
+      21
+     ],
+     "rule": "stable"
+    },
+    "trace.PrePaint": {
+     "base": 199,
+     "class": "stable",
+     "hi": 199,
+     "lo": 199,
+     "perRun": [
+      199,
+      199,
+      199
+     ],
+     "rule": "stable"
+    },
+    "trace.RasterTask": {
+     "base": 55,
+     "class": "stable",
+     "hi": 55,
+     "lo": 55,
+     "perRun": [
+      55,
+      55,
+      55
+     ],
+     "rule": "stable"
+    },
+    "trace.RequestAnimationFrame": {
+     "base": 224,
+     "class": "stable",
+     "hi": 224,
+     "lo": 224,
+     "perRun": [
+      224,
+      224,
+      224
+     ],
+     "rule": "stable"
+    },
+    "trace.ResizeObserverNotify": {
+     "base": 69,
+     "class": "stable",
+     "hi": 69,
+     "lo": 69,
+     "perRun": [
+      69,
+      69,
+      69
+     ],
+     "rule": "stable"
+    },
+    "trace.ScheduleStyleRecalculation": {
+     "base": 172,
+     "class": "stable",
+     "hi": 172,
+     "lo": 172,
+     "perRun": [
+      172,
+      172,
+      172
+     ],
+     "rule": "stable"
+    },
+    "trace.ScrollLayer": {
+     "base": 48,
+     "class": "stable",
+     "hi": 48,
+     "lo": 48,
+     "perRun": [
+      48,
+      48,
+      48
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayer": {
+     "base": 2173,
+     "class": "quarantined",
+     "hi": 2173,
+     "lo": 2173,
+     "perRun": [
+      2173,
+      2173,
+      2173
+     ],
+     "rule": "quarantined"
+    },
+    "trace.UpdateLayoutTree": {
+     "base": 173,
+     "class": "stable",
+     "hi": 173,
+     "lo": 173,
+     "perRun": [
+      173,
+      173,
+      173
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayoutTree.elementCount": {
+     "base": 3720,
+     "class": "quarantined",
+     "hi": 3720,
+     "lo": 3719,
+     "perRun": [
+      3720,
+      3719,
+      3720
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Activate": {
+     "base": 25,
+     "class": "quarantined",
+     "hi": 25,
+     "lo": 24,
+     "perRun": [
+      25,
+      24,
+      25
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Commit": {
+     "base": 25,
+     "class": "quarantined",
+     "hi": 25,
+     "lo": 24,
+     "perRun": [
+      25,
+      24,
+      25
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Draw": {
+     "base": 51,
+     "class": "deterministic",
+     "hi": 51,
+     "lo": 51,
+     "perRun": [
+      51,
+      51,
+      51
+     ],
+     "rule": "deterministic"
+    },
+    "trace.cc.SynchronizeTrees": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    }
+   }
+  },
+  {
+   "firstFrame": 436,
+   "frames": 50,
+   "id": "y04000",
+   "lastFrame": 485,
+   "scrolledPx": 500,
+   "types": {
+    "census.activeTileAreaPx": {
+     "base": 413495296,
+     "class": "stable",
+     "hi": 413495296,
+     "lo": 413495296,
+     "perRun": [
+      413495296,
+      413495296,
+      413495296
+     ],
+     "rule": "stable"
+    },
+    "census.activeTiles": {
+     "base": 6470,
+     "class": "stable",
+     "hi": 6470,
+     "lo": 6470,
+     "perRun": [
+      6470,
+      6470,
+      6470
+     ],
+     "rule": "stable"
+    },
+    "census.drawingAreaPx": {
+     "base": 561329804,
+     "class": "stable",
+     "hi": 561329804,
+     "lo": 561329804,
+     "perRun": [
+      561329804,
+      561329804,
+      561329804
+     ],
+     "rule": "stable"
+    },
+    "census.drawingLayers": {
+     "base": 2912,
+     "class": "stable",
+     "hi": 2912,
+     "lo": 2912,
+     "perRun": [
+      2912,
+      2912,
+      2912
+     ],
+     "rule": "stable"
+    },
+    "census.layers": {
+     "base": 3194,
+     "class": "stable",
+     "hi": 3194,
+     "lo": 3194,
+     "perRun": [
+      3194,
+      3194,
+      3194
+     ],
+     "rule": "stable"
+    },
+    "census.snapshots": {
+     "base": 47,
+     "class": "deterministic",
+     "hi": 47,
+     "lo": 47,
+     "perRun": [
+      47,
+      47,
+      47
+     ],
+     "rule": "deterministic"
+    },
+    "census.solidTiles": {
+     "base": 2773,
+     "class": "deterministic",
+     "hi": 2773,
+     "lo": 2773,
+     "perRun": [
+      2773,
+      2773,
+      2773
+     ],
+     "rule": "deterministic"
+    },
+    "census.tiles": {
+     "base": 7290,
+     "class": "stable",
+     "hi": 7290,
+     "lo": 7290,
+     "perRun": [
+      7290,
+      7290,
+      7290
+     ],
+     "rule": "stable"
+    },
+    "census.tilings": {
+     "base": 2003,
+     "class": "stable",
+     "hi": 2003,
+     "lo": 2003,
+     "perRun": [
+      2003,
+      2003,
+      2003
+     ],
+     "rule": "stable"
+    },
+    "hasDamage": {
+     "base": 47,
+     "class": "deterministic",
+     "hi": 47,
+     "lo": 47,
+     "perRun": [
+      47,
+      47,
+      47
+     ],
+     "rule": "deterministic"
+    },
+    "metric.Documents": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.Frames": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.JSEventListeners": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "metric.LayoutCount": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.LayoutObjects": {
+     "base": 0,
+     "class": "quarantined",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "quarantined"
+    },
+    "metric.Nodes": {
+     "base": 200,
+     "class": "quarantined",
+     "hi": 200,
+     "lo": 200,
+     "perRun": [
+      200,
+      200,
+      200
+     ],
+     "rule": "quarantined"
+    },
+    "metric.RecalcStyleCount": {
+     "base": 146,
+     "class": "stable",
+     "hi": 148,
+     "lo": 146,
+     "perRun": [
+      146,
+      148,
+      146
+     ],
+     "rule": "stable"
+    },
+    "metric.Resources": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "n0.cssom": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.events": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.sheetNode": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "raster.invalidatedLayers": {
+     "base": 101,
+     "class": "stable",
+     "hi": 101,
+     "lo": 101,
+     "perRun": [
+      101,
+      101,
+      101
+     ],
+     "rule": "stable"
+    },
+    "raster.invalidationAreaPx": {
+     "base": 1127117,
+     "class": "quarantined",
+     "hi": 1127117,
+     "lo": 1127117,
+     "perRun": [
+      1127117,
+      1127117,
+      1127117
+     ],
+     "rule": "quarantined"
+    },
+    "raster.invalidationRects": {
+     "base": 571,
+     "class": "stable",
+     "hi": 571,
+     "lo": 571,
+     "perRun": [
+      571,
+      571,
+      571
+     ],
+     "rule": "stable"
+    },
+    "trace.Animation.begin": {
+     "base": 5,
+     "class": "deterministic",
+     "hi": 5,
+     "lo": 5,
+     "perRun": [
+      5,
+      5,
+      5
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.instant": {
+     "base": 14,
+     "class": "deterministic",
+     "hi": 14,
+     "lo": 14,
+     "perRun": [
+      14,
+      14,
+      14
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Commit": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.CullRectUpdate": {
+     "base": 58,
+     "class": "stable",
+     "hi": 58,
+     "lo": 58,
+     "perRun": [
+      58,
+      58,
+      58
+     ],
+     "rule": "stable"
+    },
+    "trace.DisplayItemListRaster": {
+     "base": 28,
+     "class": "stable",
+     "hi": 28,
+     "lo": 28,
+     "perRun": [
+      28,
+      28,
+      28
+     ],
+     "rule": "stable"
+    },
+    "trace.EvaluateScript": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.EventDispatch": {
+     "base": 94,
+     "class": "stable",
+     "hi": 96,
+     "lo": 94,
+     "perRun": [
+      94,
+      96,
+      94
+     ],
+     "rule": "stable"
+    },
+    "trace.FireAnimationFrame": {
+     "base": 175,
+     "class": "stable",
+     "hi": 178,
+     "lo": 175,
+     "perRun": [
+      175,
+      178,
+      175
+     ],
+     "rule": "stable"
+    },
+    "trace.FunctionCall": {
+     "base": 382,
+     "class": "stable",
+     "hi": 388,
+     "lo": 382,
+     "perRun": [
+      382,
+      388,
+      382
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest": {
+     "base": 94,
+     "class": "stable",
+     "hi": 96,
+     "lo": 94,
+     "perRun": [
+      94,
+      96,
+      94
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest.overlayAdDetector": {
+     "base": 13,
+     "class": "quarantined",
+     "hi": 13,
+     "lo": 12,
+     "perRun": [
+      12,
+      13,
+      13
+     ],
+     "rule": "quarantined"
+    },
+    "trace.ImageDecodeTask": {
+     "base": 6,
+     "class": "stable",
+     "hi": 6,
+     "lo": 6,
+     "perRun": [
+      6,
+      6,
+      6
+     ],
+     "rule": "stable"
+    },
+    "trace.IntersectionObserverCompute": {
+     "base": 100,
+     "class": "deterministic",
+     "hi": 100,
+     "lo": 100,
+     "perRun": [
+      100,
+      100,
+      100
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layer.created": {
+     "base": 6,
+     "class": "deterministic",
+     "hi": 6,
+     "lo": 6,
+     "perRun": [
+      6,
+      6,
+      6
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layerize": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.MinorGC": {
+     "base": 1,
+     "class": "quarantined",
+     "hi": 1,
+     "lo": 0,
+     "perRun": [
+      1,
+      1,
+      0
+     ],
+     "rule": "quarantined"
+    },
+    "trace.N1.fontUpdateInvalidation": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.scheduleInvalidationsForRuleSets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.svgImageDocument": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.updateActiveStyleSheets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Paint": {
+     "base": 173,
+     "class": "stable",
+     "hi": 174,
+     "lo": 173,
+     "perRun": [
+      173,
+      174,
+      173
+     ],
+     "rule": "stable"
+    },
+    "trace.PaintImage": {
+     "base": 19,
+     "class": "stable",
+     "hi": 19,
+     "lo": 19,
+     "perRun": [
+      19,
+      19,
+      19
+     ],
+     "rule": "stable"
+    },
+    "trace.PrePaint": {
+     "base": 152,
+     "class": "stable",
+     "hi": 154,
+     "lo": 152,
+     "perRun": [
+      152,
+      154,
+      152
+     ],
+     "rule": "stable"
+    },
+    "trace.RasterTask": {
+     "base": 28,
+     "class": "stable",
+     "hi": 28,
+     "lo": 28,
+     "perRun": [
+      28,
+      28,
+      28
+     ],
+     "rule": "stable"
+    },
+    "trace.RequestAnimationFrame": {
+     "base": 175,
+     "class": "stable",
+     "hi": 178,
+     "lo": 175,
+     "perRun": [
+      175,
+      178,
+      175
+     ],
+     "rule": "stable"
+    },
+    "trace.ResizeObserverNotify": {
+     "base": 58,
+     "class": "stable",
+     "hi": 58,
+     "lo": 58,
+     "perRun": [
+      58,
+      58,
+      58
+     ],
+     "rule": "stable"
+    },
+    "trace.ScheduleStyleRecalculation": {
+     "base": 146,
+     "class": "stable",
+     "hi": 148,
+     "lo": 146,
+     "perRun": [
+      146,
+      148,
+      146
+     ],
+     "rule": "stable"
+    },
+    "trace.ScrollLayer": {
+     "base": 47,
+     "class": "stable",
+     "hi": 48,
+     "lo": 47,
+     "perRun": [
+      47,
+      48,
+      47
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayer": {
+     "base": 2395,
+     "class": "quarantined",
+     "hi": 2440,
+     "lo": 2395,
+     "perRun": [
+      2395,
+      2440,
+      2395
+     ],
+     "rule": "quarantined"
+    },
+    "trace.UpdateLayoutTree": {
+     "base": 146,
+     "class": "stable",
+     "hi": 148,
+     "lo": 146,
+     "perRun": [
+      146,
+      148,
+      146
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayoutTree.elementCount": {
+     "base": 2545,
+     "class": "quarantined",
+     "hi": 2578,
+     "lo": 2543,
+     "perRun": [
+      2545,
+      2578,
+      2543
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Activate": {
+     "base": 13,
+     "class": "quarantined",
+     "hi": 14,
+     "lo": 13,
+     "perRun": [
+      14,
+      13,
+      13
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Commit": {
+     "base": 13,
+     "class": "quarantined",
+     "hi": 14,
+     "lo": 13,
+     "perRun": [
+      14,
+      13,
+      13
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Draw": {
+     "base": 50,
+     "class": "deterministic",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "deterministic"
+    },
+    "trace.cc.SynchronizeTrees": {
+     "base": 4,
+     "class": "stable",
+     "hi": 4,
+     "lo": 4,
+     "perRun": [
+      4,
+      4,
+      4
+     ],
+     "rule": "stable"
+    }
+   }
+  },
+  {
+   "firstFrame": 486,
+   "frames": 13,
+   "id": "y04500",
+   "lastFrame": 498,
+   "scrolledPx": 129,
+   "types": {
+    "census.activeTileAreaPx": {
+     "base": 112390144,
+     "class": "stable",
+     "hi": 112390144,
+     "lo": 112390144,
+     "perRun": [
+      112390144,
+      112390144,
+      112390144
+     ],
+     "rule": "stable"
+    },
+    "census.activeTiles": {
+     "base": 1862,
+     "class": "stable",
+     "hi": 1862,
+     "lo": 1862,
+     "perRun": [
+      1862,
+      1862,
+      1862
+     ],
+     "rule": "stable"
+    },
+    "census.drawingAreaPx": {
+     "base": 153974138,
+     "class": "stable",
+     "hi": 153974138,
+     "lo": 153974138,
+     "perRun": [
+      153974138,
+      153974138,
+      153974138
+     ],
+     "rule": "stable"
+    },
+    "census.drawingLayers": {
+     "base": 810,
+     "class": "stable",
+     "hi": 810,
+     "lo": 810,
+     "perRun": [
+      810,
+      810,
+      810
+     ],
+     "rule": "stable"
+    },
+    "census.layers": {
+     "base": 888,
+     "class": "stable",
+     "hi": 888,
+     "lo": 888,
+     "perRun": [
+      888,
+      888,
+      888
+     ],
+     "rule": "stable"
+    },
+    "census.snapshots": {
+     "base": 13,
+     "class": "deterministic",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "deterministic"
+    },
+    "census.solidTiles": {
+     "base": 767,
+     "class": "deterministic",
+     "hi": 767,
+     "lo": 767,
+     "perRun": [
+      767,
+      767,
+      767
+     ],
+     "rule": "deterministic"
+    },
+    "census.tiles": {
+     "base": 2053,
+     "class": "stable",
+     "hi": 2053,
+     "lo": 2053,
+     "perRun": [
+      2053,
+      2053,
+      2053
+     ],
+     "rule": "stable"
+    },
+    "census.tilings": {
+     "base": 591,
+     "class": "stable",
+     "hi": 591,
+     "lo": 591,
+     "perRun": [
+      591,
+      591,
+      591
+     ],
+     "rule": "stable"
+    },
+    "hasDamage": {
+     "base": 13,
+     "class": "deterministic",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "deterministic"
+    },
+    "metric.Documents": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.Frames": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.JSEventListeners": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "metric.LayoutCount": {
+     "base": 1,
+     "class": "stable",
+     "hi": 1,
+     "lo": 1,
+     "perRun": [
+      1,
+      1,
+      1
+     ],
+     "rule": "stable"
+    },
+    "metric.LayoutObjects": {
+     "base": 0,
+     "class": "quarantined",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "quarantined"
+    },
+    "metric.Nodes": {
+     "base": 66,
+     "class": "quarantined",
+     "hi": 66,
+     "lo": 66,
+     "perRun": [
+      66,
+      66,
+      66
+     ],
+     "rule": "quarantined"
+    },
+    "metric.RecalcStyleCount": {
+     "base": 43,
+     "class": "stable",
+     "hi": 43,
+     "lo": 43,
+     "perRun": [
+      43,
+      43,
+      43
+     ],
+     "rule": "stable"
+    },
+    "metric.Resources": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "n0.cssom": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.events": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.sheetNode": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "raster.invalidatedLayers": {
+     "base": 49,
+     "class": "stable",
+     "hi": 49,
+     "lo": 49,
+     "perRun": [
+      49,
+      49,
+      49
+     ],
+     "rule": "stable"
+    },
+    "raster.invalidationAreaPx": {
+     "base": 550129,
+     "class": "quarantined",
+     "hi": 550129,
+     "lo": 550129,
+     "perRun": [
+      550129,
+      550129,
+      550129
+     ],
+     "rule": "quarantined"
+    },
+    "raster.invalidationRects": {
+     "base": 179,
+     "class": "stable",
+     "hi": 179,
+     "lo": 179,
+     "perRun": [
+      179,
+      179,
+      179
+     ],
+     "rule": "stable"
+    },
+    "trace.Animation.begin": {
+     "base": 4,
+     "class": "deterministic",
+     "hi": 4,
+     "lo": 4,
+     "perRun": [
+      4,
+      4,
+      4
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.instant": {
+     "base": 6,
+     "class": "deterministic",
+     "hi": 6,
+     "lo": 6,
+     "perRun": [
+      6,
+      6,
+      6
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Commit": {
+     "base": 13,
+     "class": "deterministic",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "deterministic"
+    },
+    "trace.CullRectUpdate": {
+     "base": 13,
+     "class": "stable",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "stable"
+    },
+    "trace.DecodeImage": {
+     "base": 2,
+     "class": "deterministic",
+     "hi": 2,
+     "lo": 2,
+     "perRun": [
+      2,
+      2,
+      2
+     ],
+     "rule": "deterministic"
+    },
+    "trace.DisplayItemListRaster": {
+     "base": 28,
+     "class": "stable",
+     "hi": 28,
+     "lo": 28,
+     "perRun": [
+      28,
+      28,
+      28
+     ],
+     "rule": "stable"
+    },
+    "trace.EvaluateScript": {
+     "base": 13,
+     "class": "deterministic",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "deterministic"
+    },
+    "trace.EventDispatch": {
+     "base": 34,
+     "class": "stable",
+     "hi": 34,
+     "lo": 34,
+     "perRun": [
+      34,
+      34,
+      34
+     ],
+     "rule": "stable"
+    },
+    "trace.FireAnimationFrame": {
+     "base": 66,
+     "class": "stable",
+     "hi": 66,
+     "lo": 66,
+     "perRun": [
+      66,
+      66,
+      66
+     ],
+     "rule": "stable"
+    },
+    "trace.FunctionCall": {
+     "base": 137,
+     "class": "stable",
+     "hi": 137,
+     "lo": 137,
+     "perRun": [
+      137,
+      137,
+      137
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest": {
+     "base": 27,
+     "class": "stable",
+     "hi": 27,
+     "lo": 27,
+     "perRun": [
+      27,
+      27,
+      27
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest.overlayAdDetector": {
+     "base": 3,
+     "class": "quarantined",
+     "hi": 4,
+     "lo": 3,
+     "perRun": [
+      4,
+      3,
+      3
+     ],
+     "rule": "quarantined"
+    },
+    "trace.ImageDecodeTask": {
+     "base": 3,
+     "class": "stable",
+     "hi": 3,
+     "lo": 3,
+     "perRun": [
+      3,
+      3,
+      3
+     ],
+     "rule": "stable"
+    },
+    "trace.IntersectionObserverCompute": {
+     "base": 26,
+     "class": "deterministic",
+     "hi": 26,
+     "lo": 26,
+     "perRun": [
+      26,
+      26,
+      26
+     ],
+     "rule": "deterministic"
+    },
+    "trace.InvalidateLayout": {
+     "base": 1,
+     "class": "stable",
+     "hi": 1,
+     "lo": 1,
+     "perRun": [
+      1,
+      1,
+      1
+     ],
+     "rule": "stable"
+    },
+    "trace.Layer.created": {
+     "base": 4,
+     "class": "deterministic",
+     "hi": 4,
+     "lo": 4,
+     "perRun": [
+      4,
+      4,
+      4
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layerize": {
+     "base": 13,
+     "class": "deterministic",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout": {
+     "base": 1,
+     "class": "stable",
+     "hi": 1,
+     "lo": 1,
+     "perRun": [
+      1,
+      1,
+      1
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.dirtyObjects": {
+     "base": 8,
+     "class": "stable",
+     "hi": 8,
+     "lo": 8,
+     "perRun": [
+      8,
+      8,
+      8
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.partial": {
+     "base": 1,
+     "class": "deterministic",
+     "hi": 1,
+     "lo": 1,
+     "perRun": [
+      1,
+      1,
+      1
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout.totalObjects": {
+     "base": 50,
+     "class": "stable",
+     "hi": 50,
+     "lo": 50,
+     "perRun": [
+      50,
+      50,
+      50
+     ],
+     "rule": "stable"
+    },
+    "trace.MinorGC": {
+     "base": 0,
+     "class": "quarantined",
+     "hi": 1,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      1
+     ],
+     "rule": "quarantined"
+    },
+    "trace.N1.fontUpdateInvalidation": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.scheduleInvalidationsForRuleSets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.svgImageDocument": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.updateActiveStyleSheets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Paint": {
+     "base": 42,
+     "class": "stable",
+     "hi": 42,
+     "lo": 42,
+     "perRun": [
+      42,
+      42,
+      42
+     ],
+     "rule": "stable"
+    },
+    "trace.PaintImage": {
+     "base": 4,
+     "class": "stable",
+     "hi": 4,
+     "lo": 4,
+     "perRun": [
+      4,
+      4,
+      4
+     ],
+     "rule": "stable"
+    },
+    "trace.ParseHTML": {
+     "base": 2,
+     "class": "deterministic",
+     "hi": 2,
+     "lo": 2,
+     "perRun": [
+      2,
+      2,
+      2
+     ],
+     "rule": "deterministic"
+    },
+    "trace.PrePaint": {
+     "base": 40,
+     "class": "stable",
+     "hi": 40,
+     "lo": 40,
+     "perRun": [
+      40,
+      40,
+      40
+     ],
+     "rule": "stable"
+    },
+    "trace.RasterTask": {
+     "base": 28,
+     "class": "stable",
+     "hi": 28,
+     "lo": 28,
+     "perRun": [
+      28,
+      28,
+      28
+     ],
+     "rule": "stable"
+    },
+    "trace.RequestAnimationFrame": {
+     "base": 67,
+     "class": "stable",
+     "hi": 67,
+     "lo": 67,
+     "perRun": [
+      67,
+      67,
+      67
+     ],
+     "rule": "stable"
+    },
+    "trace.ResizeObserverNotify": {
+     "base": 13,
+     "class": "stable",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "stable"
+    },
+    "trace.ScheduleStyleRecalculation": {
+     "base": 43,
+     "class": "stable",
+     "hi": 43,
+     "lo": 43,
+     "perRun": [
+      43,
+      43,
+      43
+     ],
+     "rule": "stable"
+    },
+    "trace.ScrollLayer": {
+     "base": 13,
+     "class": "stable",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayer": {
+     "base": 672,
+     "class": "quarantined",
+     "hi": 672,
+     "lo": 672,
+     "perRun": [
+      672,
+      672,
+      672
+     ],
+     "rule": "quarantined"
+    },
+    "trace.UpdateLayoutTree": {
+     "base": 43,
+     "class": "stable",
+     "hi": 43,
+     "lo": 43,
+     "perRun": [
+      43,
+      43,
+      43
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayoutTree.elementCount": {
+     "base": 683,
+     "class": "quarantined",
+     "hi": 683,
+     "lo": 683,
+     "perRun": [
+      683,
+      683,
+      683
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Activate": {
+     "base": 10,
+     "class": "quarantined",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Commit": {
+     "base": 10,
+     "class": "quarantined",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Draw": {
+     "base": 13,
+     "class": "deterministic",
+     "hi": 13,
+     "lo": 13,
+     "perRun": [
+      13,
+      13,
+      13
+     ],
+     "rule": "deterministic"
+    },
+    "trace.cc.SynchronizeTrees": {
+     "base": 6,
+     "class": "stable",
+     "hi": 6,
+     "lo": 6,
+     "perRun": [
+      6,
+      6,
+      6
+     ],
+     "rule": "stable"
+    }
+   }
+  },
+  {
+   "firstFrame": 501,
+   "frames": 30,
+   "id": "tail",
+   "lastFrame": 530,
+   "scrolledPx": 0,
+   "types": {
+    "census.activeTileAreaPx": {
+     "base": 240979968,
+     "class": "stable",
+     "hi": 240996352,
+     "lo": 240979968,
+     "perRun": [
+      240979968,
+      240996352,
+      240979968
+     ],
+     "rule": "stable"
+    },
+    "census.activeTiles": {
+     "base": 3666,
+     "class": "stable",
+     "hi": 3668,
+     "lo": 3666,
+     "perRun": [
+      3666,
+      3668,
+      3666
+     ],
+     "rule": "stable"
+    },
+    "census.drawingAreaPx": {
+     "base": 377096553,
+     "class": "stable",
+     "hi": 377097305,
+     "lo": 377096553,
+     "perRun": [
+      377096553,
+      377097305,
+      377096553
+     ],
+     "rule": "stable"
+    },
+    "census.drawingLayers": {
+     "base": 1760,
+     "class": "stable",
+     "hi": 1762,
+     "lo": 1760,
+     "perRun": [
+      1760,
+      1762,
+      1760
+     ],
+     "rule": "stable"
+    },
+    "census.layers": {
+     "base": 1940,
+     "class": "stable",
+     "hi": 1942,
+     "lo": 1940,
+     "perRun": [
+      1940,
+      1942,
+      1940
+     ],
+     "rule": "stable"
+    },
+    "census.snapshots": {
+     "base": 30,
+     "class": "deterministic",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "deterministic"
+    },
+    "census.solidTiles": {
+     "base": 1658,
+     "class": "deterministic",
+     "hi": 1658,
+     "lo": 1658,
+     "perRun": [
+      1658,
+      1658,
+      1658
+     ],
+     "rule": "deterministic"
+    },
+    "census.tiles": {
+     "base": 5449,
+     "class": "stable",
+     "hi": 5451,
+     "lo": 5449,
+     "perRun": [
+      5449,
+      5451,
+      5449
+     ],
+     "rule": "stable"
+    },
+    "census.tilings": {
+     "base": 1434,
+     "class": "stable",
+     "hi": 1436,
+     "lo": 1434,
+     "perRun": [
+      1434,
+      1436,
+      1434
+     ],
+     "rule": "stable"
+    },
+    "hasDamage": {
+     "base": 30,
+     "class": "deterministic",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "deterministic"
+    },
+    "metric.Documents": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.Frames": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "metric.JSEventListeners": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "metric.LayoutCount": {
+     "base": 30,
+     "class": "stable",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "stable"
+    },
+    "metric.LayoutObjects": {
+     "base": 0,
+     "class": "quarantined",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "quarantined"
+    },
+    "metric.Nodes": {
+     "base": -4,
+     "class": "quarantined",
+     "hi": 120,
+     "lo": -4,
+     "perRun": [
+      -4,
+      -4,
+      120
+     ],
+     "rule": "quarantined"
+    },
+    "metric.RecalcStyleCount": {
+     "base": 30,
+     "class": "stable",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "stable"
+    },
+    "metric.Resources": {
+     "base": 0,
+     "class": "stable",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "stable"
+    },
+    "n0.cssom": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.events": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "n0.sheetNode": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "raster.invalidatedLayers": {
+     "base": 280,
+     "class": "stable",
+     "hi": 280,
+     "lo": 280,
+     "perRun": [
+      280,
+      280,
+      280
+     ],
+     "rule": "stable"
+    },
+    "raster.invalidationAreaPx": {
+     "base": 33555344,
+     "class": "quarantined",
+     "hi": 33555344,
+     "lo": 33555344,
+     "perRun": [
+      33555344,
+      33555344,
+      33555344
+     ],
+     "rule": "quarantined"
+    },
+    "raster.invalidationRects": {
+     "base": 665,
+     "class": "stable",
+     "hi": 665,
+     "lo": 665,
+     "perRun": [
+      665,
+      665,
+      665
+     ],
+     "rule": "stable"
+    },
+    "trace.Animation.begin": {
+     "base": 4,
+     "class": "deterministic",
+     "hi": 4,
+     "lo": 4,
+     "perRun": [
+      4,
+      4,
+      4
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.compositeFailedBits": {
+     "base": 24576,
+     "class": "deterministic",
+     "hi": 24576,
+     "lo": 24576,
+     "perRun": [
+      24576,
+      24576,
+      24576
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Animation.instant": {
+     "base": 7,
+     "class": "deterministic",
+     "hi": 7,
+     "lo": 7,
+     "perRun": [
+      7,
+      7,
+      7
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Commit": {
+     "base": 30,
+     "class": "deterministic",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "deterministic"
+    },
+    "trace.CullRectUpdate": {
+     "base": 56,
+     "class": "stable",
+     "hi": 56,
+     "lo": 56,
+     "perRun": [
+      56,
+      56,
+      56
+     ],
+     "rule": "stable"
+    },
+    "trace.DecodeImage": {
+     "base": 6,
+     "class": "deterministic",
+     "hi": 6,
+     "lo": 6,
+     "perRun": [
+      6,
+      6,
+      6
+     ],
+     "rule": "deterministic"
+    },
+    "trace.DisplayItemListRaster": {
+     "base": 656,
+     "class": "stable",
+     "hi": 656,
+     "lo": 656,
+     "perRun": [
+      656,
+      656,
+      656
+     ],
+     "rule": "stable"
+    },
+    "trace.EvaluateScript": {
+     "base": 30,
+     "class": "deterministic",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "deterministic"
+    },
+    "trace.EventDispatch": {
+     "base": 5,
+     "class": "stable",
+     "hi": 5,
+     "lo": 5,
+     "perRun": [
+      5,
+      5,
+      5
+     ],
+     "rule": "stable"
+    },
+    "trace.FireAnimationFrame": {
+     "base": 47,
+     "class": "stable",
+     "hi": 47,
+     "lo": 47,
+     "perRun": [
+      47,
+      47,
+      47
+     ],
+     "rule": "stable"
+    },
+    "trace.FunctionCall": {
+     "base": 95,
+     "class": "stable",
+     "hi": 95,
+     "lo": 95,
+     "perRun": [
+      95,
+      95,
+      95
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest": {
+     "base": 30,
+     "class": "stable",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "stable"
+    },
+    "trace.HitTest.overlayAdDetector": {
+     "base": 4,
+     "class": "quarantined",
+     "hi": 4,
+     "lo": 3,
+     "perRun": [
+      4,
+      3,
+      4
+     ],
+     "rule": "quarantined"
+    },
+    "trace.ImageDecodeTask": {
+     "base": 367,
+     "class": "stable",
+     "hi": 367,
+     "lo": 367,
+     "perRun": [
+      367,
+      367,
+      367
+     ],
+     "rule": "stable"
+    },
+    "trace.IntersectionObserverCompute": {
+     "base": 60,
+     "class": "deterministic",
+     "hi": 60,
+     "lo": 60,
+     "perRun": [
+      60,
+      60,
+      60
+     ],
+     "rule": "deterministic"
+    },
+    "trace.InvalidateLayout": {
+     "base": 30,
+     "class": "stable",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "stable"
+    },
+    "trace.Layer.created": {
+     "base": 8,
+     "class": "deterministic",
+     "hi": 8,
+     "lo": 8,
+     "perRun": [
+      8,
+      8,
+      8
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layer.deleted": {
+     "base": 10,
+     "class": "quarantined",
+     "hi": 10,
+     "lo": 0,
+     "perRun": [
+      10,
+      10,
+      0
+     ],
+     "rule": "quarantined"
+    },
+    "trace.Layerize": {
+     "base": 30,
+     "class": "deterministic",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout": {
+     "base": 30,
+     "class": "stable",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.dirtyObjects": {
+     "base": 1010,
+     "class": "stable",
+     "hi": 1010,
+     "lo": 1010,
+     "perRun": [
+      1010,
+      1010,
+      1010
+     ],
+     "rule": "stable"
+    },
+    "trace.Layout.partial": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Layout.totalObjects": {
+     "base": 21540,
+     "class": "stable",
+     "hi": 21540,
+     "lo": 21540,
+     "perRun": [
+      21540,
+      21540,
+      21540
+     ],
+     "rule": "stable"
+    },
+    "trace.MajorGC": {
+     "base": 1,
+     "class": "quarantined",
+     "hi": 1,
+     "lo": 0,
+     "perRun": [
+      1,
+      1,
+      0
+     ],
+     "rule": "quarantined"
+    },
+    "trace.N1.fontUpdateInvalidation": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.scheduleInvalidationsForRuleSets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.svgImageDocument": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.N1.updateActiveStyleSheets": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "trace.Paint": {
+     "base": 247,
+     "class": "stable",
+     "hi": 247,
+     "lo": 247,
+     "perRun": [
+      247,
+      247,
+      247
+     ],
+     "rule": "stable"
+    },
+    "trace.PaintImage": {
+     "base": 591,
+     "class": "stable",
+     "hi": 591,
+     "lo": 591,
+     "perRun": [
+      591,
+      591,
+      591
+     ],
+     "rule": "stable"
+    },
+    "trace.PrePaint": {
+     "base": 86,
+     "class": "stable",
+     "hi": 86,
+     "lo": 86,
+     "perRun": [
+      86,
+      86,
+      86
+     ],
+     "rule": "stable"
+    },
+    "trace.RasterTask": {
+     "base": 656,
+     "class": "stable",
+     "hi": 656,
+     "lo": 656,
+     "perRun": [
+      656,
+      656,
+      656
+     ],
+     "rule": "stable"
+    },
+    "trace.RequestAnimationFrame": {
+     "base": 45,
+     "class": "stable",
+     "hi": 45,
+     "lo": 45,
+     "perRun": [
+      45,
+      45,
+      45
+     ],
+     "rule": "stable"
+    },
+    "trace.ResizeObserverNotify": {
+     "base": 56,
+     "class": "stable",
+     "hi": 56,
+     "lo": 56,
+     "perRun": [
+      56,
+      56,
+      56
+     ],
+     "rule": "stable"
+    },
+    "trace.ScheduleStyleRecalculation": {
+     "base": 30,
+     "class": "stable",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayer": {
+     "base": 955,
+     "class": "quarantined",
+     "hi": 957,
+     "lo": 955,
+     "perRun": [
+      955,
+      957,
+      955
+     ],
+     "rule": "quarantined"
+    },
+    "trace.UpdateLayoutTree": {
+     "base": 30,
+     "class": "stable",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "stable"
+    },
+    "trace.UpdateLayoutTree.elementCount": {
+     "base": 4329,
+     "class": "quarantined",
+     "hi": 4329,
+     "lo": 4328,
+     "perRun": [
+      4328,
+      4329,
+      4329
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Activate": {
+     "base": 30,
+     "class": "quarantined",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Commit": {
+     "base": 30,
+     "class": "quarantined",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "quarantined"
+    },
+    "trace.cc.Draw": {
+     "base": 30,
+     "class": "deterministic",
+     "hi": 30,
+     "lo": 30,
+     "perRun": [
+      30,
+      30,
+      30
+     ],
+     "rule": "deterministic"
+    },
+    "trace.cc.SynchronizeTrees": {
+     "base": 32,
+     "class": "stable",
+     "hi": 32,
+     "lo": 32,
+     "perRun": [
+      32,
+      32,
+      32
+     ],
+     "rule": "stable"
+    }
+   }
+  }
+ ]
+}
