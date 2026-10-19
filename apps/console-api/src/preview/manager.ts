@@ -18,7 +18,11 @@ export type Entry = {
   phase: Phase; pid: number | null; pstart: string | null; tree: string;
   /** the last proxied request (ms); the time serving began until one comes (Lean `Owner.Live.seen`) */
   seen: number;
+  /** the prerendered search the compare view opens at (a Builds row); "" = the default page */
+  search?: string;
 };
+/** A Builds row as `console.builds` decided it: the preview slot, what it shows and the search. */
+export type BuildAt = { slot: string; target: { kind: string; ref: string | null; sha: string }; search: string };
 export type Failed = { id: string; task: string; error: string; at: number };
 /** What the route saw of a request (Lean `Fw.Console.Preview.Proof`); Lean maps it to an actor. */
 export type Proof = { secret: boolean; cookie: boolean; origin: boolean };
@@ -171,16 +175,18 @@ export class PreviewManager {
       ref: (r.ref as string | null) ?? null, sha: (r.sha as string | null) ?? null };
   }
 
-  start(task: string, proof: Proof): Promise<StartReply> {
+  /** Start a preview. With `at` (a Builds row decided by Lean `console.builds`) the target is the row's commit and the compare
+   *  view opens at its search; without, the task's target comes from `console.previewTarget`. */
+  start(task: string, proof: Proof, at?: BuildAt): Promise<StartReply> {
     return this.serial(async () => {
-      const t = await this.decision(task);
+      const t: Decision = at ? { head: null, headSrc: null, kind: at.target.kind, ref: at.target.ref, sha: at.target.sha } : await this.decision(task);
       const now = this.hooks.now();
       const id = `${task}-${now.toString(36)}${(this.seq++).toString(36)}`;
       const r = await this.core.ops("console.previewAdmit", { ...proof, preview: id, task, now, diskMb: this.hooks.diskMb(), hasTarget: t.kind !== "none", live: this.live(),
         ...(this.portBase === undefined ? {} : { portBase: this.portBase }) });
       if (r.ok !== true) return { ok: false as const, reason: String(r.reason ?? "refused") };
       const e: Entry = { id, task, target: { kind: t.kind, ref: t.ref, sha: t.sha! }, rp: r.rp as number, op: r.op as number, started: now,
-        deadline: r.deadline as number, phase: "building", pid: null, pstart: null, tree: join(this.dir, "preview", id, "tree"), seen: now };
+        deadline: r.deadline as number, phase: "building", pid: null, pstart: null, tree: join(this.dir, "preview", id, "tree"), seen: now, search: at?.search ?? "" };
       this.entries.push(e); this.persist(); this.note({ ev: "start", id, task, target: e.target, rp: e.rp, op: e.op });
       this.runs.set(id, this.go(e));
       return { ok: true as const, id, entry: { ...e } };

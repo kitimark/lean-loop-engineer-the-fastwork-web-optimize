@@ -1,0 +1,217 @@
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterEach, describe, expect, it } from "vitest";
+import { createApp } from "../src/app.ts";
+import { selectCore } from "../src/core/index.ts";
+import { Store } from "../src/store.ts";
+import { CapStore } from "../src/cap/cap.ts";
+import { PreviewManager, defaultHooks, type Hooks } from "../src/preview/manager.ts";
+import { OwnerAuth } from "../src/preview/owner.ts";
+import { buildRows, readFlags, readPresets, rowAt } from "../src/preview/builds.ts";
+import { choose, picker } from "../src/preview/picker.ts";
+import { handler } from "../src/preview/serve-child.ts";
+
+/** Its own port range: preview.test.ts uses 47300-47339. */
+const TEST_BASE = 47340;
+const GOLDEN = join(dirname(fileURLToPath(import.meta.url)), "../../../packages/contracts/golden/console");
+const golden = (op: string) => readFileSync(join(GOLDEN, `${op}.jsonl`), "utf8").trim().split("\n")
+  .map((l) => JSON.parse(l) as { name: string; request: Record<string, unknown>; response: Record<string, unknown> });
+const pickerOf = (h: string) => h.slice(h.indexOf("<select id=s>"), h.indexOf("</select>"));
+const tmp = (p: string) => mkdtempSync(join(tmpdir(), p));
+const sh = (cwd: string, ...a: string[]) => execFileSync("git", a, { cwd, stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+
+let stores: Store[] = [];
+let mgrs: PreviewManager[] = [];
+let servers: Server[] = [];
+afterEach(async () => {
+  for (const m of mgrs) await m.shutdown().catch(() => undefined);
+  mgrs = [];
+  stores.forEach((s) => s.close()); stores = [];
+  servers.forEach((s) => s.close()); servers = [];
+});
+
+describe("picker: the TS stand-in equals the Lean golden (console.buildsPicker)", () => {
+  const cases = golden("console.buildsPicker").filter((c) => c.response.error === undefined);
+  it("has cases", () => expect(cases.length).toBeGreaterThan(5));
+  for (const c of cases) {
+    it(c.name, () => {
+      const keys = (c.request.keys as string[] | undefined) ?? [];
+      expect({ searches: picker(keys), current: choose(keys, (c.request.current as string | undefined) ?? "") }).toEqual(c.response);
+    });
+  }
+});
+
+describe("compare page picker", () => {
+  const compare = async (configs: unknown, search: string) => {
+    const root = tmp("fw-cmp-");
+    writeFileSync(join(root, "configs.json"), JSON.stringify(configs));
+    const srv = createServer(handler({ root, prerendered: true, compare: { rp: 1, op: 2, prefix: "/preview/p1" } }));
+    servers.push(srv);
+    const port = await new Promise<number>((r) => srv.listen(0, "127.0.0.1", () => r((srv.address() as AddressInfo).port)));
+    const t = await (await fetch(`http://127.0.0.1:${port}/__fw/compare${search}`)).text();
+    rmSync(root, { recursive: true, force: true });
+    return t;
+  };
+  const configs = { bySearch: { "": "a", "?preset=original": "a", "?fw=hero:x,y:z": "b", "?fw=a\"b": "c", "?other=1": "d" }, byHash: {} };
+
+  it("lists exactly the prerendered default, preset and flag searches, and opens the requested one", async () => {
+    const html = await compare(configs, "?fw=hero:x,y:z");
+    expect(pickerOf(html).match(/<option value="([^"]*)"/g)).toEqual(['<option value=""', '<option value="?preset=original"', '<option value="?fw=hero:x,y:z"']);
+    expect(html).toContain('<option value="?fw=hero:x,y:z" selected>');
+    expect(html).toContain('<iframe id=b src="/preview/p1/r/?fw=hero:x,y:z">');
+    expect(html).toContain('<iframe id=a src="/preview/p1/o/">'); // the original has no search
+  });
+  it("a search that is not prerendered, or not well formed, opens the default and is never written into the page", async () => {
+    for (const bad of ["?fw=zzz", "?preset=%22%3E%3Cscript%3E", "?fw=a%22b"]) {
+      const html = await compare(configs, bad);
+      expect(html).toContain('<iframe id=b src="/preview/p1/r/">');
+      expect(html).not.toContain("<script>alert");
+      expect(html).not.toContain('a"b');
+    }
+  });
+  it("a build with one prerendered page has no picker", async () => {
+    expect(await compare({ bySearch: { "": "a" }, byHash: {} }, "")).not.toContain("<select id=s>");
+  });
+});
+
+/** main with two landed tasks (a port and a fix), one landed twice, and an unlanded one; a tiny site registry */
+function repo() {
+  const root = tmp("fw-builds-repo-");
+  sh(root, "init", "-q", "-b", "main");
+  sh(root, "config", "user.email", ["t", "example.test"].join("\x40")); sh(root, "config", "user.name", "t");
+  mkdirSync(join(root, "docs/team"), { recursive: true });
+  mkdirSync(join(root, "snapshot/site"), { recursive: true });
+  const part = (id: string, variants: Record<string, { kind: string }>, requires: Record<string, string[]> = {}) => {
+    mkdirSync(join(root, "apps/site/src/parts", id), { recursive: true });
+    writeFileSync(join(root, "apps/site/src/parts", id, "part.json"), JSON.stringify({ id, variants, requires, conflicts: {} }));
+  };
+  part("hero", { faithful: { kind: "faithful" }, strip: { kind: "optimized" } });
+  part("nav", { faithful: { kind: "faithful" }, skip: { kind: "optimized" } }, { "nav:skip": ["hero:strip"] });
+  mkdirSync(join(root, "apps/site/src/registry/presets"), { recursive: true });
+  writeFileSync(join(root, "apps/site/src/registry/presets/original.json"), JSON.stringify({ name: "original", fw: {} }));
+  writeFileSync(join(root, "apps/site/src/registry/presets/v2-proved.json"), JSON.stringify({ extends: "original", name: "v2-proved", fw: { nav: "skip" } }));
+  writeFileSync(join(root, "docs/team/work-graph.json"), JSON.stringify({ tasks: [
+    { id: "port-hero", title: "hero port" }, { id: "fix-nav", title: "nav fix" }, { id: "port-later", title: "later" }, { id: "proof-x", title: "proof" }] }));
+  sh(root, "add", "-A"); sh(root, "commit", "-qm", "base");
+  const land = (msg: string, time: number) => {
+    writeFileSync(join(root, `f${time}.txt`), "1"); sh(root, "add", "-A");
+    execFileSync("git", ["commit", "-qm", msg], { cwd: root, env: { ...process.env, GIT_COMMITTER_DATE: `@${time} +0000`, GIT_AUTHOR_DATE: `@${time} +0000` } });
+    return sh(root, "rev-parse", "HEAD");
+  };
+  const a = land("land hero\n\nTask: port-hero", 1000);
+  const b = land("land nav\n\nTask: fix-nav", 2000);
+  const c = land("land proof\n\nTask: proof-x", 3000);
+  return { root, a, b, c };
+}
+
+describe("buildRows (Lean console.builds over the gathered facts)", () => {
+  it("port rows: landed port and fix tasks, newest first, each at its land commit; optimize rows: presets then every variant", async () => {
+    const { root, a, b } = repo();
+    const core = selectCore();
+    try {
+      const r = await buildRows(root, core);
+      expect(r.ports.map((p) => [p.task, p.sha, p.landedAt, p.title, p.group])).toEqual([["fix-nav", b, 2000, "nav fix", "fix"], ["port-hero", a, 1000, "hero port", "port"]]);
+      for (const p of r.ports) expect(p.target).toEqual({ kind: "main", ref: "main", sha: p.sha });
+      expect(r.optimize.map((o) => [o.id, o.search, o.status])).toEqual([
+        ["preset:original", "?preset=original", "preset"], ["preset:v2-proved", "?preset=v2-proved", "the v2-proved preset"],
+        ["flag:hero:faithful", "?fw=hero:faithful", "baseline"], ["flag:hero:strip", "?fw=hero:strip", "not in v2-proved"],
+        ["flag:nav:faithful", "?fw=nav:faithful", "baseline"], ["flag:nav:skip", "?fw=nav:skip,hero:strip", "v2-proved"]]);
+      for (const o of r.optimize) { expect(o.target.sha).toBe(r.mainSha); expect(r.searches).toContain(o.search); }
+      expect(r.searches[0]).toBe("");
+      expect(readFlags(root).length).toBe(4);
+      expect(readPresets(root).map((p) => p.name)).toEqual(["original", "v2-proved"]);
+      expect(rowAt(r, "port:port-hero")).toEqual({ slot: "port-hero", target: { kind: "main", ref: "main", sha: a }, search: "" });
+      expect(rowAt(r, "flag:nav:skip")?.search).toBe("?fw=nav:skip,hero:strip");
+      expect(rowAt(r, "port:port-later")).toBeNull();
+      expect(rowAt(r, "port:proof-x")).toBeNull();
+    } finally { core.close(); rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it("the real site registry: every row's search is prerendered, hero.countdown:strip is out (C3), the v2-proved preset is a row", async () => {
+    const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+    const core = selectCore();
+    try {
+      const r = await buildRows(root, core);
+      expect(r.optimize.length).toBe(readPresets(root).length + readFlags(root).length);
+      for (const o of r.optimize) expect(r.searches).toContain(o.search);
+      expect(r.optimize.find((o) => o.id === "preset:v2-proved")?.status).toBe("the v2-proved preset");
+      const c3 = r.optimize.find((o) => o.id === "flag:hero.countdown:strip")!;
+      expect(c3.status).toBe("out of v2-proved (C3)");
+      expect(c3.note).toContain("C3");
+      expect(r.optimize.filter((o) => o.status === "v2-proved").length).toBeGreaterThan(5);
+    } finally { core.close(); }
+  });
+});
+
+describe("Builds routes and the manager", () => {
+  async function setup() {
+    const { root, a } = repo();
+    const dir = join(root, ".fw-console");
+    const store = await Store.open(dir, selectCore()); stores.push(store);
+    new CapStore(dir).ensureSecret();
+    const real = defaultHooks(root, dir);
+    const hooks: Hooks = {
+      ...real,
+      async build(e) {
+        mkdirSync(join(e.tree, "apps/site/dist/aot"), { recursive: true });
+        mkdirSync(join(e.tree, "snapshot/site"), { recursive: true });
+        writeFileSync(join(e.tree, "apps/site/dist/aot/index.html"), `<h1>rewrite ${e.target.sha}</h1>`);
+        writeFileSync(join(e.tree, "apps/site/dist/aot/configs.json"), JSON.stringify({ bySearch: { "": "d", "?preset=original": "d", "?fw=nav:skip,hero:strip": "h" }, byHash: {} }));
+        writeFileSync(join(e.tree, "snapshot/site/index.html"), "<h1>original</h1>");
+      },
+      removeTree(e) { rmSync(join(dir, "preview", e.id), { recursive: true, force: true }); },
+    };
+    const pm = new PreviewManager(root, dir, store.core, hooks, { portBase: TEST_BASE }); mgrs.push(pm);
+    const owner = new OwnerAuth(["http://127.0.0.1:5173"]); owner.setPorts(4000, 4001);
+    const app = createApp(store, undefined, undefined, pm, owner);
+    const H = "127.0.0.1:4000"; const O = `http://${H}`;
+    const link = await app.request(`/owner?t=${owner.token()}`);
+    const authorization = `Bearer ${link.headers.get("location")!.slice("/#owner=".length)}`;
+    const post = (body: unknown, h: Record<string, string> = { authorization, origin: O }) =>
+      app.request("/api/previews", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", host: H, ...h } });
+    return { app, pm, post, root, a, H, authorization };
+  }
+
+  it("GET /api/builds lists the rows; a port row's Preview builds main at its land commit; a flag row opens at its search", async () => {
+    const { app, pm, post, a } = await setup();
+    const j = await (await app.request("/api/builds")).json() as any;
+    expect(j.ok).toBe(true);
+    expect(j.ports.map((p: any) => p.id)).toEqual(["port:fix-nav", "port:port-hero"]);
+    const r1 = await post({ build: "port:port-hero" });
+    expect(r1.status).toBe(202);
+    const { id: id1 } = await r1.json() as { id: string };
+    await pm.settled(id1);
+    const e1 = pm.list().previews.find((p) => p.id === id1)!;
+    expect(e1.task).toBe("port-hero");
+    expect(e1.target).toEqual({ kind: "main", ref: "main", sha: a });
+    expect(e1.search).toBe("");
+    const r2 = await post({ build: "flag:nav:skip" });
+    expect(r2.status).toBe(202);
+    const { id: id2 } = await r2.json() as { id: string };
+    await pm.settled(id2);
+    const e2 = pm.list().previews.find((p) => p.id === id2)!;
+    expect(e2.search).toBe("?fw=nav:skip,hero:strip");
+    expect(e2.target.sha).toBe(j.mainSha);
+    expect(e2.phase).toBe("serving");
+    // the compare view of the running build lists the build's own searches and opens at the row's
+    const html = await (await fetch(`http://127.0.0.1:${e2.rp}/__fw/compare${e2.search}`)).text();
+    expect(html).toContain('<option value="?fw=nav:skip,hero:strip" selected>');
+    expect(pickerOf(html).match(/<option value="/g)?.length).toBe(3);
+  });
+
+  it("refusals: an unknown row is 404, a body that names a sha or search is not a request, a non-owner is 403", async () => {
+    const { post, pm } = await setup();
+    expect((await post({ build: "port:port-later" })).status).toBe(404); // not landed
+    expect((await post({ build: "flag:nav:nope" })).status).toBe(404);
+    expect((await post({ build: "port:port-hero", sha: "abc", search: "?fw=x" })).status).toBe(202); // extra keys are ignored: the row decides
+    expect((await post({ build: "port:fix-nav" }, {})).status).toBe(403);
+    expect((await post({ sha: "abc" })).status).toBe(400);
+    expect(pm.list().previews.length).toBe(1);
+    expect(pm.list().previews[0]!.search).toBe("");
+  });
+});
