@@ -9,7 +9,8 @@ topics: [gate, chromium, commission, content-visibility, settle]
 
 # Commission margin-inline readings: what round 1 measured
 
-Status of every claim below: INFERRED until the diagnostic run 39324419271 is read (section "Round 2" is added then).
+Status of every claim in the sections up to "Round 2 plan": MEASURED as stated, with the cause line INFERRED. Round 2 (below) confirms or
+corrects them.
 
 ## Answer
 
@@ -59,9 +60,68 @@ come from `gh run view --json jobs`.
 - Timing: the stale reading has no time axis in the artifact (one reading per stop); it is the first read after the
   page-ready wait of the sweep.
 
-## Round 2 plan
+## Round 2: the diagnostic (run 39333030506, chromium 156.0.8078.4, parts=commission)
 
-1. Run 39324419271 (ci/cmr-diag, chromium, parts=commission) loads fresh pages 2x2x12x2 times and prints `DIAGCV` lines
-   (snapshots ready, settled, again, wig+1, wigback). A `0px` at ready/settled that is fresh after the wiggle confirms the
-   hypothesis; otherwise it is reopened.
-2. The fix is a general settle rule in Lean (`lean/Fw/Gate/Settle.lean`), not a tolerance and not a per-item selector.
+Run 39324419271 (diag v1) hung: the frozen page clock never advanced for a resize without `holdTo`, the job hit its 60 min cap.
+Diag v2 (branch ci/cmr-diag2) loads 2 widths (1440, 1512) x 12 loads x 2 arms = 96 loads per arm with the sweep's own load,
+ready, settle and collect calls, writes one `DIAGCV` line per load, then resizes by one CSS pixel and back (MEASURED, 192 loads,
+0 errors; the logs are the run's three shard logs).
+
+| arm | stale `0px` at the sweep's own collect | of | the same loads after the 1 px wiggle |
+| --- | --- | --- | --- |
+| original | 21 | 96 | fresh (96/96 loads) |
+| rewrite | 1 | 96 | fresh (96/96 loads) |
+
+- The stale value persists across repeated forced reads inside one load: in the 9 stale loads that snapshot before the collect,
+  `ready`, `settled`, `again` (a second style read) and `afterCollect` all read `0px` (MEASURED). A rect read between them does
+  not fix it: the rect is the correct one and the margin derived from the geometry (left of the box minus left of its parent minus
+  the parent padding) is the steady 96/132 px while the style read says `0px` (MEASURED).
+- After the resize to width+1 every one of the 22 stale loads reads the steady value, and again after the resize back
+  (`wig+1`, `wigback`, MEASURED). Hypothesis (b) of round 1 holds: the stale `0px` is a used auto margin read before a committed
+  layout pass has included the box, it is not the rule or the rect.
+- The staleness is a property of the page, not of the gate order: it appears in both snapshot variants (collect first, snapshot
+  first), at both widths, and the original shows it far more often than the rewrite (21 against 1).
+
+### Why Blink returns 0 there (CONFIRMED read path, INFERRED trigger)
+
+Source at `.cache/upstream/chromium@f842f52` (f842f52ef39fd97b449eb27cff414bf05a98ddce) and the same sha fetched for the
+generated property file:
+
+- `getComputedStyle` of a margin whose specified value is not fixed (`auto`) is a layout-dependent read. It returns
+  `box->MarginOutsets().left` (`third_party/blink/renderer/core/css/properties/longhands/longhands_custom.cc:6936-6941@f842f52`,
+  `MarginLeft::CSSValueFromComputedStyleInternal`; the logical inline start/end go through the same box accessors).
+- `LayoutBox::MarginOutsets()` returns the first physical fragment's `Margins()` and a zero strut when the box has no
+  fragment (`third_party/blink/renderer/core/layout/layout_box.cc:1059-1067@f842f52`); `PhysicalBoxFragment::Margins()` is the
+  rare field `kMargins` or a zero strut when the field was never written (`.../physical_box_fragment.h:274-279@f842f52`).
+- The field is written by the container's layout, not by the box's own: `BoxFragmentBuilder::AddResult` calls
+  `SetMargins(...)` on the child fragment when it adds the child (`.../box_fragment_builder.cc:219-224@f842f52`), and
+  `BlockNode::UpdateMarginPaddingInfoIfNeeded` sets the style-resolved margins for the paths that skip `AddResult`
+  (`.../block_node.cc:1526-1540@f842f52`, its own comment: "This margin data may be overwritten by BoxFragmentBuilder::AddResult()").
+  So a used auto margin is layout output of the parent's pass; it is not computed from style at read time.
+- The commission section is a `content-visibility:auto` subtree that is skipped while off screen. A forced style and layout
+  update (the `getComputedStyle` path, `doc.UpdateStyleAndLayoutForNode`,
+  `.../css/css_computed_style_declaration.cc:327@f842f52`) lays out a locked subtree only as far as the lock allows; INFERRED
+  trigger: the box then has a fragment whose `kMargins` was never written by a container pass that knew the final available
+  width, so the read returns the zero strut. The mechanism of the missing write is not shown by the diag; the effect and the
+  cure (a viewport resize, which invalidates and re-lays out the document) are MEASURED.
+
+## The fix (rule in Lean, then code)
+
+Rule (`lean/Fw/Gate/Settle.lean`, section "a layout-output value is read only after a committed layout pass"): a read of a
+layout-output value (a used auto margin) is kept only when a committed layout pass preceded it (`committed viewed resizes`:
+the view path, or at least one resize of the arm). Otherwise the wait is `unsettled` (`commitOutcome`), never a pass or a fail.
+A fresh load that the gate reads without the view bring is opened one CSS pixel wider (`nudge`, checked not to cross a
+breakpoint edge, `crosses_iff`) and resized to the read width, so it behaves as every later stop of a sweep does.
+
+- `layoutCell_fail_of_steady_diff`: committed reads, both settled, steady values differ: `fail`, whatever the stale values are
+  (equal stale values cannot hide a real original/rewrite difference).
+- `layoutCell_uncommitted_never_pass`, `layoutCell_uncommitted_unsettled`: an uncommitted read in either arm is never a pass and
+  never a fail, also when both arms are stale and equal (run 39314718340 passed `pain-1440` by that agreement before).
+- `layoutCell_pass_sound`: a pass needs both reads committed, equal steady values, both arms settled.
+- `layoutCell_committed`: with every read committed the cell is the plain settle cell on the steady values (the rule is inert).
+- `commitHolds_webkit_default`: WebKit is not changed (it does not bring parts either; no stale used margin was seen there).
+  Accepted limit: the rule is applied where the engine brings parts (Chromium), by the `viewFor` flag.
+- Scope in the gate: sweep stop 0 (the first read after a load) and the fresh load after each sweep (the hysteresis pair; its
+  orig counts 9 against 5 in runs 39313815482 and 39314718340 were the same stale margin, four keys) in Chromium. The probes
+  in Chromium are on the view path already (`viewed`).
+
