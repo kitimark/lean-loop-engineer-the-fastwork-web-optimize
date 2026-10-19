@@ -13,6 +13,8 @@ export interface SpoolEvent {
   agent_id: string | null; agent_type: string | null; hook_event_name: string;
   tool_name: string | null; tool_use_id: string | null; duration_ms: number | null;
   is_error: boolean | null; verb: string | null; ts: number;
+  /** the Claude session whose hook wrote the line (absent in old lines) */
+  session_pid?: number | null;
 }
 export interface Tokens { in: number; out: number; cacheRead: number; cacheWrite: number }
 /** Agent kinds on the wire (Fw.Obs.Health.Kind; the lead is not an agent row here, it is `Snapshot.lead`). */
@@ -33,6 +35,8 @@ export interface AgentSnap {
   errTail: number; inflight: { tool: string; verb: string | null; since: number } | null;
   lastTool: string | null; lastToolAt: number | null; idleAt: number | null; workflowDone: boolean; transcriptOnly: boolean;
   ctxTokens: number | null; tokens: Tokens;
+  /** the pid of the Claude session whose hooks wrote the agent's spool (null: none recorded); Lean `deadSession` */
+  sessionPid?: number | null;
 }
 /** The lead session's facts (spool/main.jsonl): its last tool event and its last Notification. */
 export interface LeadSnap { lastToolAt: number | null; noteAt: number | null }
@@ -44,7 +48,7 @@ export interface SystemSnap {
   load1: number; memPressure: "normal" | "warn" | "critical"; diskFreeGB: number;
   simLock: { holder: string | null; since: number | null };
   docker: { id: string; name: string; startedAt: number }[]; worktrees: number; consolePids: number[];
-  ci: { id?: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt?: number | null }[];
+  ci: { id?: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt?: number | null; headSha?: string }[];
   /** floor of the 1-min load average (fwcore compares it with loadMax) */
   loadFloor?: number;
   /** process trees this Claude session started through its Bash tool: root shell pid, the first non-shell program's
@@ -57,6 +61,8 @@ export interface SystemSnap {
   /** the running code (console-api, its fwcore child, the fwcore binary on disk): per input group whether the range
    *  base..main touches it (fwcore raises svc.stale), or why the base is unknown (svc.unknown); see watch-svc.ts */
   svcs?: Svc[];
+  /** every pid of the process table read this time (absent when `ps` failed: no agent is judged by it); Lean `deadSession` */
+  alivePids?: number[];
   /** collectors that failed this time and whose value was carried forward from the previous check
    *  ("ci", "docker", "procs", "plan") */
   stale: string[];
@@ -86,6 +92,7 @@ export const DEFAULT_PARAMS = {
   diskMinGB: 20, agentCap: 10, simLockMaxMin: 30, worktreesMax: 20, wfQuietMin: 30,
   goneAfterMin: 120, ciSlowMin: 20, toolSlowMin: 15, procMaxMin: 20, loadMax: 150,
 };
+// ciSlowBy (per-workflow ci.slow limits) is not sent: fwcore's default applies (Fw.Obs.Health.Params.ciSlowBy)
 
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 const str = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
@@ -109,16 +116,20 @@ export interface SpoolSummary {
   lastTool: string | null; lastToolAt: number | null;
   /** the newest TeammateIdle (only teammates fire it) */
   idleAt: number | null;
+  /** the session pid of the newest line that has one */
+  sessionPid?: number | null;
 }
 export function summarizeSpool(events: SpoolEvent[]): SpoolSummary {
-  const s: SpoolSummary = { agentType: null, startedAt: null, lastAt: null, stoppedAt: null, tools: 0, errors: 0, errTail: 0, lastTool: null, lastToolAt: null, idleAt: null };
-  let lastActive = -1;
+  let lastStart = -1;
+  const s: SpoolSummary = { agentType: null, startedAt: null, lastAt: null, stoppedAt: null, tools: 0, errors: 0, errTail: 0, lastTool: null, lastToolAt: null, idleAt: null, sessionPid: null };
+  let pidAt = -1;
   for (const e of events) {
+    if (typeof e.session_pid === "number" && e.ts >= pidAt) { pidAt = e.ts; s.sessionPid = e.session_pid; }
     s.agentType ||= str(e.agent_type);
     if (s.startedAt === null || e.ts < s.startedAt) s.startedAt = e.ts;
     if (s.lastAt === null || e.ts > s.lastAt) s.lastAt = e.ts;
     const h = e.hook_event_name;
-    if (h === "SubagentStart") lastActive = Math.max(lastActive, e.ts);
+    if (h === "SubagentStart") lastStart = Math.max(lastStart, e.ts);
     if (h === "SubagentStop") s.stoppedAt = Math.max(s.stoppedAt ?? 0, e.ts);
     if (h === "TeammateIdle") s.idleAt = Math.max(s.idleAt ?? 0, e.ts);
     if (h === "PostToolUse" || h === "PostToolUseFailure") {
@@ -126,12 +137,12 @@ export function summarizeSpool(events: SpoolEvent[]): SpoolSummary {
       const bad = h === "PostToolUseFailure" || e.is_error === true;
       if (bad) s.errors++;
       s.errTail = bad ? s.errTail + 1 : 0;
-      lastActive = Math.max(lastActive, e.ts);
       if (s.lastToolAt === null || e.ts >= s.lastToolAt) { s.lastToolAt = e.ts; s.lastTool = str(e.tool_name); }
     }
   }
-  // a Start or a tool call after the last Stop means it was resumed
-  if (s.stoppedAt !== null && lastActive > s.stoppedAt) s.stoppedAt = null;
+  // resumed iff a SubagentStart is newer than the newest Stop; a tool call is not a resume (Lean `Fw.Ops.Obs.stoppedAtOf`,
+  // golden: packages/contracts/golden/ops/ops.obs.jsonl, the `resume` cases)
+  if (s.stoppedAt !== null && lastStart > s.stoppedAt) s.stoppedAt = null;
   // a teammate fires SubagentStop at the end of each turn and then TeammateIdle: that is a pause, not an exit
   // (fwcore then sees idleAt newer than lastToolAt: parked)
   if (s.stoppedAt !== null && s.idleAt !== null && s.idleAt >= s.stoppedAt) s.stoppedAt = null;
@@ -573,6 +584,7 @@ export function collectAgents(p: Paths, now: number, owners?: Map<string, string
       lastTool: sp ? sp.lastTool : tr?.lastTool ?? null, lastToolAt: sp ? sp.lastToolAt : tr?.lastToolAt ?? null,
       idleAt: sp?.idleAt ?? null,
       workflowDone: kind === "workflow" && !!tf && workflowFinished(tf, wfCache), transcriptOnly: !sp,
+      sessionPid: sp?.sessionPid ?? null,
       ctxTokens: tr?.ctxTokens ?? null, tokens: tr?.tokens ?? { in: 0, out: 0, cacheRead: 0, cacheWrite: 0 },
     });
   }
@@ -648,6 +660,7 @@ export function parseCi(out: string | null): SystemSnap["ci"] {
       conclusion: str(r.conclusion), startedAt: Date.parse(String(r.createdAt)) || 0,
       // a completed run's last update is its end (gh has no endedAt field)
       endedAt: r.status === "completed" ? Date.parse(String(r.updatedAt)) || null : null,
+      headSha: typeof r.headSha === "string" ? r.headSha : "", // the set of a run: fwcore groups by (workflow, branch, headSha)
     }));
   } catch { return []; }
 }
@@ -800,7 +813,7 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     exec("sysctl", ["-n", "kern.memorystatus_vm_pressure_level"], 2000),
     exec("git", ["worktree", "list", "--porcelain"], 3000, p.root),
     exec("docker", ["ps", "--format", "{{.ID}}\t{{.Names}}\t{{.CreatedAt}}"], 3000),
-    exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt"], 10000, p.root),
+    exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt,headSha"], 10000, p.root),
     exec("ps", ["-A", "-o", "pid=,ppid=,etime=,comm="], 3000),
     exec("env", PS_START, 3000),
   ]);
@@ -838,6 +851,7 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     load1: Math.round(loadavg()[0]! * 100) / 100, loadFloor: Math.floor(loadavg()[0]!), memPressure: parseMemLevel(text(mem)),
     diskFreeGB: disk, simLock: collectSimLock(p.root), docker, worktrees: parseWorktreeCount(text(wt)),
     consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], keep, svcs, stale,
+    ...(ps === null || rows.length === 0 ? {} : { alivePids: rows.map((r) => r.pid) }),
   };
 }
 
@@ -878,9 +892,9 @@ export async function collectSnapshot(p: Paths, now = Date.now(), params: Record
 
 // ---- timing samples (timing-alert): the spans of .fw-console/timings.jsonl as the samples of `obs.slow` ----
 /** A `Fw.Obs.Timing.Sample` on the wire. */
-export interface TimingSample { tool: string; step: string; durMs: number; host: "local" | "ci"; load: number }
+export interface TimingSample { tool: string; step: string; durMs: number; host: "local" | "ci"; load: number; runKind?: string }
 /** Spans in time order -> samples (the last `cap` ones: a bound on the input size, not a threshold; the verdict is Lean's).
- *  Lines that do not parse or lack a field are skipped. `load` is the floor of the 1-min load average. */
+ *  Lines that do not parse or lack a field are skipped. `load` is the floor of the 1-min load average; an optional span `kind` (the dispatch input digest) is the run kind of the history. */
 export function parseSamples(text: string, cap = 3000): TimingSample[] {
   const rows: { at: number; s: TimingSample }[] = [];
   for (const line of text.split("\n")) {
@@ -888,7 +902,7 @@ export function parseSamples(text: string, cap = 3000): TimingSample[] {
     try {
       const o = JSON.parse(line);
       if (typeof o.tool !== "string" || typeof o.step !== "string" || !Number.isFinite(o.durMs) || o.durMs < 0 || (o.host !== "local" && o.host !== "ci")) continue;
-      rows.push({ at: Number.isFinite(o.startMs) ? o.startMs : 0, s: { tool: o.tool, step: o.step, durMs: Math.round(o.durMs), host: o.host, load: Number.isFinite(o.load) ? Math.floor(Math.max(0, o.load)) : 0 } });
+      rows.push({ at: Number.isFinite(o.startMs) ? o.startMs : 0, s: { tool: o.tool, step: o.step, durMs: Math.round(o.durMs), host: o.host, load: Number.isFinite(o.load) ? Math.floor(Math.max(0, o.load)) : 0, ...(typeof o.kind === "string" && o.kind !== "" ? { runKind: o.kind } : {}) } });
     } catch { /* partial line */ }
   }
   return rows.sort((a, b) => a.at - b.at).slice(-cap).map((r) => r.s);
