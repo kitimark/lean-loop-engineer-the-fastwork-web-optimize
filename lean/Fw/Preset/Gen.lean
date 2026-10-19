@@ -15,7 +15,9 @@ of a part wins). A row is named by its (part, candidate) text; $k_n$ below is th
 and $25$ the letter names which of the rows with that $n$). The mapping is read from the variants' code and the rows'
 text (INFERRED); a flag absent here never enters the arm (`unlinked_not_mem`).
 
-$$\Lambda = [(\mathrm{engine.scroll{:}batched}, [k_1]),\ (\mathrm{nav.hitTest{:}elements\text{-}skip}, [k_4]),\ (\mathrm{nav.hitTest{:}hit\text{-}skip}, [k_3]),\ (\mathrm{hero.countdown{:}strip}, [k_7]),\ (\mathrm{morph.countdown{:}strip}, [k_7, k_{13}]),\ (\mathrm{morph.countdown{:}hidden\text{-}pause}, [k_{8h}, k_{25m}]),\ (\mathrm{morph.columns{:}hidden\text{-}pause}, [k_{25h}]),\ (\mathrm{engine.scene{:}hidden\text{-}pause}, [k_{25h}]),\ (\mathrm{morph.mount{:}shift}, [k_{12}]),\ (\mathrm{morph.tween{:}waapi}, [k_9])]$$
+$$\Lambda = [(\mathrm{engine.scroll{:}batched}, [k_1]),\ (\mathrm{nav.hitTest{:}elements\text{-}skip}, [k_4]),\ (\mathrm{nav.hitTest{:}hit\text{-}skip}, [k_3]),\ (\mathrm{hero.countdown{:}strip}, [k_7]),\ (\mathrm{morph.countdown{:}strip}, [k_7, k_{13}]),\ (\mathrm{morph.countdown{:}hidden\text{-}pause}, [k_{8h}, k_{25m}]),\ (\mathrm{morph.columns{:}hidden\text{-}pause}, [k_{25h}]),\ (\mathrm{engine.scene{:}hidden\text{-}pause}, [k_{25h}]),\ (\mathrm{morph.mount{:}shift}, [k_{12}]),\ (\mathrm{morph.tween{:}waapi}, [k_9]),\ (\mathrm{pain.notes{:}visible}, [k_{21}]),\ (\mathrm{people.card{:}mq}, [k_{16}])]$$
+
+`hero.accent{:}steps` (n = 15) is registered but deliberately absent: its ledger verdict is a trade on Chromium and no win on WebKit, so it is a curated exclusion (INFERRED); a follow-up makes the generator require an engine-win field.
 
 Each flag points at the ledger rows that must all be proved for it to enter. -/
 def links : List (Flag × List Key) :=
@@ -35,6 +37,10 @@ def links : List (Flag × List Key) :=
     "hidden pause of compositor marquees (morph.columns at m <= 0.08, scene off-screen), HiddenPause.lean")
   let k25m : Key := ("engine.scene",
     "morph.countdown hidden: keep the spring integrating, skip the 16 face writes per digit (HiddenPause skipWrites)")
+  let k21 : Key := ("pain.notes",
+    "arm the 3 s rotation interval only while visible (armed = inView and not narrow and not covered)")
+  let k16 : Key := ("people.card",
+    "MQ-gated shrink (KD#3): skip the --future-shrink write and the rAF re-request in the c860 band")
   [(⟨"engine.scroll", "batched"⟩, [k1]),
    (⟨"nav.hitTest", "elements-skip"⟩, [k4]),
    (⟨"nav.hitTest", "hit-skip"⟩, [k3]),
@@ -44,7 +50,9 @@ def links : List (Flag × List Key) :=
    (⟨"morph.columns", "hidden-pause"⟩, [k25h]),
    (⟨"engine.scene", "hidden-pause"⟩, [k25h]),
    (⟨"morph.mount", "shift"⟩, [k12]),
-   (⟨"morph.tween", "waapi"⟩, [k9])]
+   (⟨"morph.tween", "waapi"⟩, [k9]),
+   (⟨"pain.notes", "visible"⟩, [k21]),
+   (⟨"people.card", "mq"⟩, [k16])]
 
 /-- Parse `part:variant`: exactly one colon, both sides non-empty.
 

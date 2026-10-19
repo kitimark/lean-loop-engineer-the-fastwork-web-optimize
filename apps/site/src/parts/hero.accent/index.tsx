@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { getClock } from '../../engine/clock';
 import { startAccentChain } from './driver';
+import { createBoil, type BoilTarget } from './boil';
 import { artOf, BASE_ART, standInPath } from './data';
 import { BASE_WIDTH, widthOf, type AccentState } from './logic';
 import { matchList } from './media';
@@ -33,11 +34,30 @@ export function HeroAccent({ variant }: HeroAccentProps) {
     const paint = em.querySelector<HTMLElement>('[data-paint]')!;
     const svgs = [...em.querySelectorAll<SVGSVGElement>('svg')];
     const clock = getClock();
+    // Variant `steps` (Lean HeroAccentOpt): the boil's CSS animations give way to a chain of zero-duration steps that
+    // starts at the same instant (the CSS animation's start at mount, the idle class change later).
+    const boil = variant === 'steps' ? createBoil(svgs as unknown as BoilTarget[]) : null;
+    const now = () => Number(document.timeline.currentTime ?? 0);
+    let idleSince = 0;
+    let idle = true;
+    if (boil) {
+      const cssStart = svgs[0]?.getAnimations?.()[0]?.startTime;
+      idleSince = cssStart == null ? now() : Number(cssStart);
+      em.setAttribute('data-fw-boil', 'steps');
+      boil.begin(Math.max(0, now() - idleSince));
+    }
     const chain = startAccentChain({
       clock,
       hooks: {
         onState(s) {
           em.className = `${css.accent} ${stateClass(s)}`;
+          if (boil) {
+            idle = s === 'idle';
+            if (idle) {
+              idleSince = now();
+              boil.begin(0);
+            } else boil.end();
+          }
         },
         onCursor(c) {
           const w = widthOf({ c });
@@ -56,13 +76,18 @@ export function HeroAccent({ variant }: HeroAccentProps) {
         },
       },
     });
-    const io = new IntersectionObserver(([entry]) => chain.setVisible(!!entry?.isIntersecting), { rootMargin: '100% 0px' });
+    const io = new IntersectionObserver(([entry]) => {
+      chain.setVisible(!!entry?.isIntersecting);
+      if (boil && idle && entry?.isIntersecting) boil.begin(Math.max(0, now() - idleSince));
+    }, { rootMargin: '100% 0px' });
     io.observe(em);
     return () => {
+      boil?.end();
+      em.removeAttribute('data-fw-boil');
       chain.stop();
       io.disconnect();
     };
-  }, []);
+  }, [variant]);
 
   const [vw, vh] = BASE_ART.viewBox;
   const inset = BASE_ART.inset;
