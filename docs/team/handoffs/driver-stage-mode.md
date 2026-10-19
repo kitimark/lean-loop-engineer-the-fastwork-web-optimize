@@ -39,3 +39,15 @@ stubs people=2936 pain=2796 commission=988 platform=1864 columns=932 (stubPx at 
 Before the fix: viewport gate read the pinned 1280x800 -> refused (the pilot failure). Unverified until dispatch: hero width at 430, `quiet`, and anything the classes job does with a part page.
 
 Read first: lean/Fw/Site/StageMode.lean header, packages/measure-chromium/src/stage-mode.mjs, the diff of run.mjs.
+
+## Result: run 39194916578 (ci/driver-stage-mode @ 5c5ed307, only=hero, target rewrite, swipe-v1, 1 run)
+- plan, fwcore, image, site, counts (rewrite, r1) passed; counts.json produced (artifact chromium-counts-rewrite-r1): search
+  `?only=hero&stage=vw:430,vh:932`, mode client-render, hydrated, `__fwStage.env` [0,430,932], 1085 frames, docH 11380, observed viewport 430x932,
+  scrollRead scrollTop, maxScroll 10448. MEASURED (CI).
+- Observation, not diagnosed: the last recorded scrollTop is 9888, below maxScroll 10448 (the plan reaches 10448 by construction). Either the
+  document is shorter after load than at the geometry read, or the clamp is lower; read frames[].scrollY vs docHeightPx over the run before
+  reading zone sums of this page.
+- classify FAILED, not from the driver: with `runs=1` actions/download-artifact (pattern `chromium-counts-*`, one match) extracts into `runs/` without
+  the artifact subdirectory, so the glob `chromium-counts-rewrite-*/counts.json` matches nothing (ENOENT). Dispatch with runs >= 2 or fix the download step.
+- Unverified: determinism across runs (1 run), classes of a part page against the whole-page frozen classes (premise declared-rows-unverified).
+- Verified locally: Lean build, check.sh exit 0, measure-chromium tests 55/55, ci-paths 32/32, apps/runner 1029/1029 (tsc + vitest).
