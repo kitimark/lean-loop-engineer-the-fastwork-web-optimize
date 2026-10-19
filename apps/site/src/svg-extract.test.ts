@@ -56,7 +56,10 @@ describe('svg-extract', () => {
   });
 
   it('extracts the wordmark, every visible accent word and each moved artwork', () => {
-    expect(gen.wordmark.paths.length).toBeGreaterThan(0);
+    const wm = gen.art['nav.wordmark'];
+    expect(wm.svg.viewBox).toBe('0 0 181 46');
+    expect(wm.group).toEqual({});
+    expect(wm.kids.map((k) => k.tag)).toEqual(Array(9).fill('path'));
     expect(gen.accent.base).toHaveLength(3);
     expect(gen.accent.words).toHaveLength(6);
     for (const w of gen.accent.words) expect(w.paths).toHaveLength(3);

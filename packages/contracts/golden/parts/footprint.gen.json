@@ -671,7 +671,7 @@
 {"part":"nav","file":"nav/index.tsx","line":119,"op":"listen","name":"media-change","owner":"","ctx":"effect"},
 {"part":"nav","file":"nav/index.tsx","line":120,"op":"listen","name":"media-change","owner":"","ctx":"effect"},
 {"part":"nav","file":"nav/index.tsx","line":126,"op":"attrRead","name":"*","owner":"nav","ctx":"observer:MutationObserver"},
-{"part":"nav","file":"nav/index.tsx","line":151,"op":"setAttr","name":"tabindex","owner":"nav","ctx":"props"},
+{"part":"nav","file":"nav/index.tsx","line":147,"op":"setAttr","name":"tabindex","owner":"nav","ctx":"props"},
 {"part":"nav","file":"nav/media.ts","line":16,"op":"media","name":"?","owner":"","ctx":"effect"},
 {"part":"nav","file":"nav/nav.module.css","line":14,"op":"cssVar","name":"--morph","owner":"","ctx":"style"},
 {"part":"nav","file":"nav/nav.module.css","line":18,"op":"cssVar","name":"--hero-pill-w","owner":"","ctx":"style"},
