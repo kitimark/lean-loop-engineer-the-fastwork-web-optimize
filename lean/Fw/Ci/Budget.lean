@@ -8,8 +8,8 @@ go now; `observe` folds the response headers back in. All times are integer seco
 
 The ledger has two shares per window, so one-off calls (downloads, logs) can never starve the poller: ticks get
 $B - R$ per hour and $B_1 - R_1$ per minute, one-offs $R$ and $R_1$. A response that cost more requests than charged
-(`gh run list` without `--workflow` costs $2 + D$) is booked as a *correction* entry; corrections count against the
-share, so later calls wait until the window has room again.
+is booked as a *correction* entry; corrections count against the share, so later calls wait until the window has room
+again. Only the REST `core` bucket's headers update the remaining count (`x-ratelimit-resource: core`).
 
 Proved here:
 - (a) `window_bound`: in every reachable state and for every time $t$, the charged requests of each share in the
@@ -27,6 +27,13 @@ Proved here:
   the reset; `per_agent_interval`, `oldRate_linear`: the old scheme ($N$ pollers each on its own) grows linearly in
   $N$ and needs $P \ge W c N / B$.
 - (e) `clock_monotone`: `now` never goes back.
+- (f) `listed_within`, `listed_within_Pmin`: while the poller asks on time and the guards have room, a run completed
+  after the last tick is listed by the next tick, at most $P$ (with the gaps below $P_{\min}$: $P_{\min}$) after it
+  completed, and a waiter reading every `slice` seconds sees it within `slice` more.
+- (g) `budget_all_entries`: every ledger entry (charges and corrections) in a window plus the uncharged requests stays
+  within GitHub's 5000 per hour per user account, given that corrections plus uncharged requests fit `margin`.
+- (h) `bucket_core_only`, `remaining_no_rise`: headers of other buckets leave the remaining count alone, and within one
+  reset window it never rises.
 -/
 namespace Fw.Ci.Budget
 
@@ -34,7 +41,7 @@ namespace Fw.Ci.Budget
 
 /-- The budget's constants (generated to `packages/contracts/golden/ci-budget/limits.json`; TS reads them there).
 
-$$\mathrm{Limits} = (W, B, R, W_1, B_1, R_1, F, P_{\min}, b_0, b_{\max}, m, c_{\text{list}}) \in \mathbb{N}^{12}, \quad \text{defaults } (3600, 3000, 1200, 60, 60, 40, 500, 30, 60, 3600, 6, 2)$$
+$$\mathrm{Limits} = (W, B, R, W_1, B_1, R_1, F, P_{\min}, b_0, b_{\max}, m, c_{\text{list}}) \in \mathbb{N}^{12}, \quad \text{defaults } (3600, 3000, 1200, 60, 60, 40, 500, 10, 60, 3600, 6, 2)$$
 -/
 structure Limits where
   /-- window length, s -/
@@ -52,24 +59,25 @@ structure Limits where
   /-- header floor: no call while `remaining ≤ F` before the reset -/
   F : Nat := 500
   /-- minimum tick interval, s -/
-  Pmin : Nat := 30
+  Pmin : Nat := 10
   /-- first backoff after a bare 403/429, s -/
   back0 : Nat := 60
   /-- longest backoff, s -/
   backMax : Nat := 3600
   /-- bare failures in a row before the poller stops -/
   maxFails : Nat := 6
-  /-- requests per page of one tick (`gh run list --workflow`: 2) -/
+  /-- requests per page of one tick: the poller's `gh run list` without `--workflow`, measured at 2 (82 ticks, no
+  tick correction, 2026-10-19) -/
   listCost : Nat := 2
 deriving Repr, DecidableEq
 
 /-- The default limits.
 
-$$\mathit{defaults} = (3600, 3000, 1200, 60, 60, 40, 500, 30, 60, 3600, 6, 2)$$
+$$\mathit{defaults} = (3600, 3000, 1200, 60, 60, 40, 500, 10, 60, 3600, 6, 2)$$
 -/
 def defaults : Limits := {}
 
-#guard defaults.B = 3000 && defaults.R = 1200 && defaults.F = 500 && defaults.Pmin = 30 && defaults.B1 = 60
+#guard defaults.B = 3000 && defaults.R = 1200 && defaults.F = 500 && defaults.Pmin = 10 && defaults.B1 = 60
 
 /-- The two kinds of charged call: a poller tick, or a one-off call (dispatch, view, log, download, probe).
 
@@ -239,9 +247,10 @@ theorem wsum_charges (W t : Nat) (l : List Entry) :
 
 /-! ## Headers -/
 
-/-- The rate-limit facts of one response, as read from its header lines.
+/-- The rate-limit facts of a response, as read from its header lines; `resource` names the bucket that `remaining`
+and `reset` count (`core` for the REST API).
 
-$$\mathrm{Headers} = (\mathit{status}, \mathit{remaining}, \mathit{reset}, \mathit{retryAfter}, \mathit{etag}) \in \mathbb{N} \times \mathbb{N}_\bot^3 \times \mathrm{String}_\bot$$
+$$\mathrm{Headers} = (\mathit{status}, \mathit{remaining}, \mathit{reset}, \mathit{retryAfter}, \mathit{etag}, \mathit{resource}) \in \mathbb{N} \times \mathbb{N}_\bot^3 \times \mathrm{String}_\bot^2$$
 -/
 structure Headers where
   status : Nat := 0
@@ -249,6 +258,7 @@ structure Headers where
   reset : Option Nat := none
   retryAfter : Option Nat := none
   etag : Option String := none
+  resource : Option String := none
 deriving Repr, DecidableEq
 
 /-- A line with the debug prefix `< ` (httpretty's response marker) and the surrounding blanks removed.
@@ -283,22 +293,25 @@ def headerOf (s : String) : Option (String × String) :=
     some (name.trimAscii.toString.toLower, (":".intercalate rest).trimAscii.toString)
   | _ => none
 
-/-- Fold one line into the headers read so far; a later line overrides an earlier one.
+/-- Fold one line into the headers read so far; a later line overrides an earlier one, and a status line starts a
+new response, so `remaining`, `reset` and `resource` always come from one response.
 
-$$\operatorname{readLine}(h, s) = \begin{cases} h[\mathit{status} := n] & \operatorname{statusOf}(s) = n \\ h[\mathit{remaining} := v] & \operatorname{headerOf}(s) = (\texttt{x-ratelimit-remaining}, v),\ v \in \mathbb{N} \\ h[\mathit{reset} := v] & \operatorname{headerOf}(s) = (\texttt{x-ratelimit-reset}, v),\ v \in \mathbb{N} \\ h[\mathit{retryAfter} := v] & \operatorname{headerOf}(s) = (\texttt{retry-after}, v),\ v \in \mathbb{N} \\ h[\mathit{etag} := v] & \operatorname{headerOf}(s) = (\texttt{etag}, v) \\ h & \text{otherwise} \end{cases}$$
+$$\operatorname{readLine}(h, s) = \begin{cases} h[\mathit{status} := n,\ \mathit{remaining} := \bot,\ \mathit{reset} := \bot,\ \mathit{resource} := \bot] & \operatorname{statusOf}(s) = n \\ h[\mathit{remaining} := v] & \operatorname{headerOf}(s) = (\texttt{x-ratelimit-remaining}, v),\ v \in \mathbb{N} \\ h[\mathit{reset} := v] & \operatorname{headerOf}(s) = (\texttt{x-ratelimit-reset}, v),\ v \in \mathbb{N} \\ h[\mathit{retryAfter} := v] & \operatorname{headerOf}(s) = (\texttt{retry-after}, v),\ v \in \mathbb{N} \\ h[\mathit{etag} := v] & \operatorname{headerOf}(s) = (\texttt{etag}, v) \\ h[\mathit{resource} := v] & \operatorname{headerOf}(s) = (\texttt{x-ratelimit-resource}, v) \\ h & \text{otherwise} \end{cases}$$
 -/
 def readLine (h : Headers) (s : String) : Headers :=
   match statusOf s with
-  | some n => { h with status := n }
+  | some n => { h with status := n, remaining := none, reset := none, resource := none }
   | none =>
     match headerOf s with
     | some ("x-ratelimit-remaining", v) => match v.toNat? with | some n => { h with remaining := some n } | none => h
     | some ("x-ratelimit-reset", v) => match v.toNat? with | some n => { h with reset := some n } | none => h
     | some ("retry-after", v) => match v.toNat? with | some n => { h with retryAfter := some n } | none => h
     | some ("etag", v) => { h with etag := some v }
+    | some ("x-ratelimit-resource", v) => { h with resource := some v }
     | _ => h
 
-/-- The headers of a trace (the last value of each field wins) and the number of responses in it (status lines).
+/-- The headers of a trace and the number of responses in it (status lines): `status`, `retryAfter` and `etag` are
+the last values in the trace; `remaining`, `reset` and `resource` are those of the last response.
 
 $$\operatorname{parse}(\mathit{ls}) = \big(\operatorname{foldl}(\operatorname{readLine}, \mathbf{0}, \mathit{ls}),\ \lvert[\,s \in \mathit{ls} \mid \operatorname{statusOf}(s) \ne \bot\,]\rvert\big)$$
 -/
@@ -312,6 +325,9 @@ def parse (ls : List String) : Headers × Nat :=
 #guard parse ["< HTTP/2.0 200 OK", "< X-Ratelimit-Remaining: 10", "< HTTP/2.0 403 Forbidden", "< Retry-After: 60",
   "< X-Ratelimit-Remaining: 9"] = ({ status := 403, remaining := some 9, retryAfter := some 60 }, 2)
 #guard parse ["* Request at 2026", "> GET /repos HTTP/1.1", "< X-Ratelimit-Remaining: x"] = ({}, 0)
+#guard parse ["< HTTP/2.0 200 OK", "< X-Ratelimit-Remaining: 4913", "< X-Ratelimit-Reset: 900",
+  "< X-Ratelimit-Resource: core", "< HTTP/2.0 200 OK", "< X-Ratelimit-Remaining: 4999", "< X-Ratelimit-Resource: graphql"] =
+  ({ status := 200, remaining := some 4999, resource := some "graphql" }, 2)
 #guard parse [] = ({}, 0)
 
 /-! ## State -/
@@ -384,26 +400,47 @@ def backoff (L : Limits) (k : Nat) : Nat := min L.backMax (L.back0 * 2 ^ k)
 
 #guard (List.range 8).map (backoff defaults) = [60, 120, 240, 480, 960, 1920, 3600, 3600]
 
-/-- The tick interval: the minimum interval, the interval that fits both tick shares, and, when the headers are known
-and the reset is ahead, the interval that spreads the headroom above the floor until the reset.
+/-- The gap between ticks that fits the hourly tick share.
 
-$$P(L, s) = \max\!\Big(P_{\min},\ \Big\lceil \frac{W}{\max(1, \lfloor (B \mathbin{\dot-} R)/c \rfloor)} \Big\rceil,\ \Big\lceil \frac{W_1}{\max(1, \lfloor (B_1 \mathbin{\dot-} R_1)/c \rfloor)} \Big\rceil,\ p_3\Big), \quad c = \operatorname{tickCost}(L, s),\ x / 0 = 0,$$
-$$p_3 = \begin{cases} \Big\lceil \dfrac{T - s.\mathit{now}}{\max(1, \lfloor (r \mathbin{\dot-} F)/c \rfloor)} \Big\rceil & s.\mathit{rem} = r,\ s.\mathit{reset} = T,\ s.\mathit{now} < T \\ 0 & \text{otherwise} \end{cases}$$
+$$\operatorname{hourGap}(L, s) = \Big\lceil \frac{W}{\max(1, \lfloor (B \mathbin{\dot-} R)/c \rfloor)} \Big\rceil, \quad c = \operatorname{tickCost}(L, s),\ x / 0 = 0$$
+-/
+def hourGap (L : Limits) (s : State) : Nat := ceilDiv L.W (max 1 (share L .tick / tickCost L s))
+
+/-- The gap between ticks that fits the per-minute tick share.
+
+$$\operatorname{minuteGap}(L, s) = \Big\lceil \frac{W_1}{\max(1, \lfloor (B_1 \mathbin{\dot-} R_1)/c \rfloor)} \Big\rceil, \quad c = \operatorname{tickCost}(L, s),\ x / 0 = 0$$
+-/
+def minuteGap (L : Limits) (s : State) : Nat := ceilDiv L.W1 (max 1 (share1 L .tick / tickCost L s))
+
+/-- The gap that spreads the headroom above the floor until the reset, when the headers are known and the reset is
+ahead; 0 otherwise.
+
+$$\operatorname{spread}(L, s) = \begin{cases} \Big\lceil \dfrac{T - s.\mathit{now}}{\max(1, \lfloor (r \mathbin{\dot-} F)/c \rfloor)} \Big\rceil & s.\mathit{rem} = r,\ s.\mathit{reset} = T,\ s.\mathit{now} < T \\ 0 & \text{otherwise} \end{cases}, \quad c = \operatorname{tickCost}(L, s),\ x / 0 = 0$$
+-/
+def spread (L : Limits) (s : State) : Nat :=
+  match s.remaining, s.reset with
+  | some r, some T => if s.now < T then ceilDiv (T - s.now) (max 1 ((r - L.F) / tickCost L s)) else 0
+  | _, _ => 0
+
+/-- The tick interval: the minimum interval, the gaps that fit both tick shares, and the gap that spreads the
+headroom until the reset.
+
+$$P(L, s) = \max\big(P_{\min},\ \operatorname{hourGap}(L, s),\ \operatorname{minuteGap}(L, s),\ \operatorname{spread}(L, s)\big)$$
 -/
 def interval (L : Limits) (s : State) : Nat :=
-  let c := tickCost L s
-  let p2 := ceilDiv L.W (max 1 (share L .tick / c))
-  let p2' := ceilDiv L.W1 (max 1 (share1 L .tick / c))
-  let p3 := match s.remaining, s.reset with
-    | some r, some T => if s.now < T then ceilDiv (T - s.now) (max 1 ((r - L.F) / c)) else 0
-    | _, _ => 0
-  max L.Pmin (max p2 (max p2' p3))
+  max L.Pmin (max (hourGap L s) (max (minuteGap L s) (spread L s)))
 
-#guard interval defaults (init 0) = 30
--- 600 left above the floor for 3600 s at cost 2: 300 ticks, one per 12 s, so the minimum 30 s governs
-#guard interval defaults { now := 0, remaining := some 1100, reset := some 3600 } = 30
+#guard interval defaults (init 0) = 10
+#guard hourGap defaults (init 0) = 4 && minuteGap defaults (init 0) = 6 && spread defaults (init 0) = 0
+-- 600 left above the floor for 3600 s at cost 2: 300 ticks, one per 12 s
+#guard interval defaults { now := 0, remaining := some 1100, reset := some 3600 } = 12
 -- 20 left above the floor for 3600 s: 10 ticks, one per 360 s
 #guard interval defaults { now := 0, remaining := some 520, reset := some 3600 } = 360
+-- a full list (100 rows) needs 2 pages: a tick costs 4, the minute share then spaces ticks 12 s apart
+#guard tickCost defaults { init 0 with pages := 2 } = 4
+#guard interval defaults { init 0 with pages := 2 } = 12
+#guard ceilDiv 3600 defaults.Pmin * tickCost defaults { init 0 with pages := 2 } ≤ share defaults .tick
+#guard ceilDiv 3600 (interval defaults { init 0 with pages := 2 }) * tickCost defaults { init 0 with pages := 2 } = 1200
 
 /-- Why a call waits or stops.
 
@@ -530,10 +567,35 @@ def retryFrom (L : Limits) (s : State) (h : Headers) : Nat :=
     s.now + backoff L s.fails else 0
   max ua (max uz ub)
 
-/-- Fold a response into the state: book a correction when the call took more responses than it was charged;
-keep each header field that is present; never lower `retryUntil`; count refusals in a row.
+/-- The remaining count and reset kept after a response: a response of the REST `core` bucket that carries both
+replaces them, except that within the same reset window the remaining count never rises (the smaller one is kept);
+any other response (another bucket such as `graphql`, no `x-ratelimit-resource`, or a missing field) keeps them.
 
-$$\begin{aligned} \operatorname{observe}(L, s, h, a) = s[\ & \ell := \ell \mathbin{+\!\!+} [(s.\mathit{now}, a \mathbin{\dot-} c, k, \bot) \mid c < a],\ \mathit{pending} := \bot, \\ & \mathit{rem} := h.\mathit{rem} \mathbin{?} s.\mathit{rem},\ \mathit{reset} := h.\mathit{reset} \mathbin{?} s.\mathit{reset},\ \mathit{etag} := h.\mathit{etag} \mathbin{?} s.\mathit{etag}, \\ & \mathit{retryUntil} := \max(s.\mathit{retryUntil}, \operatorname{retryFrom}(L, s, h)),\ \mathit{fails} := f\,], \\ (k, c) ={} & \begin{cases} p & s.\mathit{pending} = p \\ (\mathrm{oneoff}, 0) & s.\mathit{pending} = \bot \end{cases}, \qquad x \mathbin{?} y = \begin{cases} x & x \ne \bot \\ y & x = \bot \end{cases}, \\ f ={} & \begin{cases} s.\mathit{fails} + 1 & \operatorname{refused}(h.\mathit{status}) \\ 0 & \text{else if } 200 \le h.\mathit{status} < 400 \\ s.\mathit{fails} & \text{otherwise} \end{cases} \end{aligned}$$
+$$\operatorname{bucket}(s, h) = \begin{cases} (\min(r, r_0), T) & h.\mathit{resource} = \texttt{core} \land h.\mathit{rem} = r \land h.\mathit{reset} = T \land s.\mathit{reset} = T \land s.\mathit{rem} = r_0 \\ (r, T) & \text{else if } h.\mathit{resource} = \texttt{core} \land h.\mathit{rem} = r \land h.\mathit{reset} = T \\ (s.\mathit{rem}, s.\mathit{reset}) & \text{otherwise} \end{cases}$$
+-/
+def bucket (s : State) (h : Headers) : Option Nat × Option Nat :=
+  if h.resource = some "core" then
+    match h.remaining, h.reset with
+    | some r, some T =>
+      if s.reset = some T then (some (match s.remaining with | some r0 => min r r0 | none => r), some T)
+      else (some r, some T)
+    | _, _ => (s.remaining, s.reset)
+  else (s.remaining, s.reset)
+
+#guard bucket { init 0 with remaining := some 4841, reset := some 900 }
+  { remaining := some 4913, reset := some 900, resource := some "core" } = (some 4841, some 900)
+#guard bucket { init 0 with remaining := some 4841, reset := some 900 }
+  { remaining := some 4990, reset := some 4500, resource := some "core" } = (some 4990, some 4500)
+#guard bucket { init 0 with remaining := some 4841, reset := some 900 }
+  { remaining := some 4999, reset := some 4500, resource := some "graphql" } = (some 4841, some 900)
+#guard bucket (init 0) { remaining := some 4999, reset := some 4500 } = (none, none)
+#guard bucket (init 0) { remaining := some 4999, resource := some "core" } = (none, none)
+
+/-- Fold a response into the state: book a correction when the call took more responses than it was charged;
+take the remaining count and reset from `bucket`; keep the etag when present; never lower `retryUntil`; count
+refusals in a row.
+
+$$\begin{aligned} \operatorname{observe}(L, s, h, a) = s[\ & \ell := \ell \mathbin{+\!\!+} [(s.\mathit{now}, a \mathbin{\dot-} c, k, \bot) \mid c < a],\ \mathit{pending} := \bot, \\ & (\mathit{rem}, \mathit{reset}) := \operatorname{bucket}(s, h),\ \mathit{etag} := h.\mathit{etag} \mathbin{?} s.\mathit{etag}, \\ & \mathit{retryUntil} := \max(s.\mathit{retryUntil}, \operatorname{retryFrom}(L, s, h)),\ \mathit{fails} := f\,], \\ (k, c) ={} & \begin{cases} p & s.\mathit{pending} = p \\ (\mathrm{oneoff}, 0) & s.\mathit{pending} = \bot \end{cases}, \qquad x \mathbin{?} y = \begin{cases} x & x \ne \bot \\ y & x = \bot \end{cases}, \\ f ={} & \begin{cases} s.\mathit{fails} + 1 & \operatorname{refused}(h.\mathit{status}) \\ 0 & \text{else if } 200 \le h.\mathit{status} < 400 \\ s.\mathit{fails} & \text{otherwise} \end{cases} \end{aligned}$$
 -/
 def observe (L : Limits) (s : State) (h : Headers) (actual : Nat) : State :=
   let p := s.pending.getD (.oneoff, 0)
@@ -541,7 +603,7 @@ def observe (L : Limits) (s : State) (h : Headers) (actual : Nat) : State :=
   let fails := if refused h.status then s.fails + 1
     else if 200 ≤ h.status ∧ h.status < 400 then 0 else s.fails
   { s with ledger, pending := none,
-           remaining := h.remaining <|> s.remaining, reset := h.reset <|> s.reset, etag := h.etag <|> s.etag,
+           remaining := (bucket s h).1, reset := (bucket s h).2, etag := h.etag <|> s.etag,
            retryUntil := max s.retryUntil (retryFrom L s h), fails }
 
 /-- The events that change the state without a call: the clock, a waiter registering or leaving a run, the pages a
@@ -586,18 +648,21 @@ private def stopOf : Decision → Option Reason | .stop r => some r | _ => none
 -- a fresh state: a one-off goes; nothing watched, so the poller is idle
 #guard isIssue (reserve defaults (init 100) 3)
 #guard stopOf (next defaults (init 100)) = some .idle
--- one watched run: the first tick goes, and the next waits 30 s
+-- one watched run: the first tick goes, and the next waits 10 s
 #guard isIssue (next defaults (step defaults (init 100) (.register 7 90)))
 #guard (match next defaults (step defaults (init 100) (.register 7 90)) with
-  | .issue _ _ s' => waitOf (next defaults s') = some (130, .interval) | _ => false)
+  | .issue _ _ s' => waitOf (next defaults s') = some (110, .interval) | _ => false)
 -- retry-after 60 at t = 100 blocks until 160
 #guard waitOf (reserve defaults (observe defaults (init 100) { status := 403, retryAfter := some 60 } 1) 1) =
   some (160, .retryAfter)
 -- remaining 0 with the reset at 900: the floor blocks until then
 #guard waitOf (reserve defaults (observe defaults (init 100) { status := 403, remaining := some 0, reset := some 900 } 1) 1) =
   some (900, .retryAfter)
-#guard waitOf (reserve defaults (observe defaults (init 100) { status := 200, remaining := some 500, reset := some 900 } 1) 1) =
-  some (900, .floor)
+#guard waitOf (reserve defaults (observe defaults (init 100)
+  { status := 200, remaining := some 500, reset := some 900, resource := some "core" } 1) 1) = some (900, .floor)
+-- the same headers of another bucket leave the remaining count alone
+#guard isIssue (reserve defaults (observe defaults (init 100)
+  { status := 200, remaining := some 500, reset := some 900, resource := some "graphql" } 1) 1)
 -- a bare 429 backs off 60 s; six in a row stop the poller
 #guard waitOf (reserve defaults (observe defaults (init 100) { status := 429 } 1) 1) = some (160, .retryAfter)
 #guard stopOf (reserve defaults { init 100 with fails := 6 } 1) = some .failures
@@ -1290,8 +1355,7 @@ theorem interval_sound (L : Limits) (s : State) (P : Nat) (hP : interval L s ≤
       xs.length * tickCost L s ≤ share1 L .tick) ∧
     (∀ r T, s.remaining = some r → s.reset = some T → s.now < T → tickCost L s ≤ r - L.F →
       ∀ xs, spaced P xs = true → (∀ z ∈ xs, s.now ≤ z ∧ z < T) → xs.length * tickCost L s ≤ r - L.F) := by
-  unfold interval at hP
-  simp only at hP
+  unfold interval hourGap minuteGap spread at hP
   refine ⟨fun hc xs t hs hw => ?_, fun hc xs t hs hw => ?_, fun r T hr hT hlt hc xs hs hw => ?_⟩
   · have := spaced_count P L.W t xs hP0 hs hw
     have hfit := ceilDiv_fit L.W (share L .tick) (tickCost L s) P hc0 hc hP0 (by omega)
@@ -1315,7 +1379,7 @@ def oldRate (L : Limits) (N c P : Nat) : Nat := N * (c * ceilDiv L.W P)
 #guard oldRate defaults 12 2 30 = 2880      -- 12 agents, `gh run view` every 30 s
 #guard oldRate defaults 1 4 3 = 4800        -- one `gh run watch` at 3 s with one job
 #guard oldRate defaults 12 2 30 + oldRate defaults 1 4 3 > 5000   -- the 10-18 incident
-#guard ceilDiv defaults.W 30 * defaults.listCost = 240               -- the shared poller at 30 s, for any N
+#guard ceilDiv defaults.W defaults.Pmin * defaults.listCost = 720  -- the shared poller at P_min = 10 s, for any N
 
 /-- (d′) The old scheme grows linearly in the number of agents.
 
@@ -1337,5 +1401,290 @@ theorem per_agent_interval (L : Limits) (N c P : Nat) (hP : 0 < P) (h : oldRate 
     simp only [Nat.mul_comm, Nat.mul_left_comm]
   have h4 : N * (c * ceilDiv L.W P) * P ≤ L.B * P := Nat.mul_le_mul_right _ h
   omega
+
+/-! ## (f) Latency: when a finished run is listed and seen -/
+
+/-- The waiter's re-read period in seconds (`SLICE` in `packages/gh-budget/src/wait.ts`, which a test checks
+against `limits.json`).
+
+$$\mathit{slice} = 2$$
+-/
+def slice : Nat := 2
+
+/-- The first read at or after time $y$ of a waiter that reads the runs-status file at $r_0, r_0 + q, r_0 + 2q,
+\dots$ (and $r_0$ itself when $y \le r_0$).
+
+$$\operatorname{firstRead}(r_0, q, y) = r_0 + \operatorname{ceilDiv}(y \mathbin{\dot-} r_0, q) \cdot q$$
+-/
+def firstRead (r0 q y : Nat) : Nat := r0 + ceilDiv (y - r0) q * q
+
+#guard firstRead 100 2 105 = 106 && firstRead 100 2 106 = 106 && firstRead 100 2 100 = 100
+
+/-- A waiter that started reading by $y$ reads at $y$ or less than one period after it.
+
+$$\forall r_0, q, y:\quad 0 < q \land r_0 \le y \Rightarrow y \le \operatorname{firstRead}(r_0, q, y) < y + q$$
+-/
+theorem firstRead_bound (r0 q y : Nat) (hq : 0 < q) (hy : r0 ≤ y) :
+    y ≤ firstRead r0 q y ∧ firstRead r0 q y < y + q := by
+  unfold firstRead
+  have h1 := le_ceilDiv_mul (y - r0) q hq
+  have h2 : ceilDiv (y - r0) q * q ≤ y - r0 + q - 1 := by
+    unfold ceilDiv; exact Nat.div_mul_le_self _ _
+  omega
+
+/-- The clock moving forward does not lengthen the interval: the share gaps depend only on the pages, and the spread
+gap shrinks as the reset comes closer.
+
+$$\forall L, s, t:\quad P(L, \operatorname{step}(L, s, \mathrm{clock}(t))) \le P(L, s)$$
+-/
+theorem interval_clock (L : Limits) (s : State) (t : Nat) : interval L (step L s (.clock t)) ≤ interval L s := by
+  have hsp : spread L (step L s (.clock t)) ≤ spread L s := by
+    unfold spread
+    simp only [step, tickCost]
+    split
+    · rename_i r T _ _
+      by_cases hlt : max s.now t < T
+      · have hlt' : s.now < T := by omega
+        simp only [hlt, hlt', ↓reduceIte]
+        unfold ceilDiv
+        exact Nat.div_le_div_right (by omega)
+      · simp only [hlt, ↓reduceIte]
+        exact Nat.zero_le _
+    · exact Nat.zero_le _
+  have hh : hourGap L (step L s (.clock t)) = hourGap L s := rfl
+  have hm : minuteGap L (step L s (.clock t)) = minuteGap L s := rfl
+  unfold interval
+  rw [hh, hm]
+  omega
+
+/-- Headroom stays when the clock moves forward.
+
+$$\forall L, s, t:\quad \operatorname{headroom}(L, s) \Rightarrow \operatorname{headroom}(L, \operatorname{step}(L, s, \mathrm{clock}(t)))$$
+-/
+theorem headroom_clock (L : Limits) (s : State) (t : Nat) (h : headroom L s = true) :
+    headroom L (step L s (.clock t)) = true := by
+  unfold headroom at h ⊢
+  simp only [step]
+  rcases hr : s.remaining with _ | r
+  · rfl
+  · rw [hr] at h
+    rcases hT : s.reset with _ | T
+    · rw [hT] at h; simpa using h
+    · rw [hT] at h
+      simp only [Bool.or_eq_true, decide_eq_true_eq] at h ⊢
+      rcases h with h | h
+      · exact Or.inl h
+      · exact Or.inr (decide_eq_true (by omega))
+
+/-- (f) Liveness with latency. Let the last tick be at $t_0$ and $x = t_0 + P(L, s)$ the next scheduled tick. If the
+poller holds the lock and asks on time ($s.\mathit{now} \le x$), nothing but the clock happens before $x$, and the
+guards have room at $x$ (fewer than $m$ failures, a run watched, no `retry-after` past $x$, headroom, and room for one
+tick in both tick windows ending at $x$), then the poller ticks at $x$: at once when $s.\mathit{now} = x$, else after
+waiting for the interval until $x$. The tick covers every watched run, so a run that completed at any $f$ with
+$t_0 \le f \le x$ is listed at most $P(L, s)$ after it completed.
+
+$$\begin{aligned} \forall L, s, t_0:\quad & s.\mathit{fails} < L.m \land s.\mathit{watched} \ne [\,] \land s.\mathit{lastTick} = t_0 \land s.\mathit{now} \le x \land s.\mathit{retryUntil} \le x \land \operatorname{headroom}(L, s) \\ & \land\ \Sigma_W(\operatorname{ofKind}(\mathrm{tick}), s.\ell, x) + c \le \operatorname{share}(L, \mathrm{tick}) \land \Sigma_{W_1}(\operatorname{ofKind}(\mathrm{tick}), s.\ell, x) + c \le \operatorname{share}_1(L, \mathrm{tick}) \\ \Rightarrow\ & \exists s':\ \big((s.\mathit{now} = x \land \operatorname{next}(L, s) = \mathrm{issue}(\mathrm{tick}, c, s')) \\ & \qquad \lor (\operatorname{next}(L, s) = \mathrm{wait}(x, \mathrm{interval}) \land \operatorname{next}(L, \operatorname{step}(L, s, \mathrm{clock}(x))) = \mathrm{issue}(\mathrm{tick}, c, s'))\big) \\ & \land\ s'.\mathit{lastTick} = x \land (\forall w \in s'.\mathit{watched}:\ w.\mathit{lastCovered} = x) \land \forall f:\ t_0 \le f \le x \Rightarrow f \le x \le f + P(L, s) \\ & \text{where } x = t_0 + P(L, s),\ c = \operatorname{tickCost}(L, s) \end{aligned}$$
+-/
+theorem listed_within (L : Limits) (s : State) (t0 : Nat)
+    (hf : s.fails < L.maxFails) (hw : s.watched ≠ []) (hlast : s.lastTick = some t0)
+    (hon : s.now ≤ t0 + interval L s) (hr : s.retryUntil ≤ t0 + interval L s) (hh : headroom L s = true)
+    (ha : wsum L.W (t0 + interval L s) (ofKind .tick) s.ledger + tickCost L s ≤ share L .tick)
+    (ha1 : wsum L.W1 (t0 + interval L s) (ofKind .tick) s.ledger + tickCost L s ≤ share1 L .tick) :
+    ∃ s', ((s.now = t0 + interval L s ∧ next L s = .issue .tick (tickCost L s) s') ∨
+        (next L s = .wait (t0 + interval L s) .interval ∧
+          next L (step L s (.clock (t0 + interval L s))) = .issue .tick (tickCost L s) s')) ∧
+      s'.lastTick = some (t0 + interval L s) ∧ (∀ w ∈ s'.watched, w.lastCovered = some (t0 + interval L s)) ∧
+      ∀ f, t0 ≤ f → f ≤ t0 + interval L s → f ≤ t0 + interval L s ∧ t0 + interval L s ≤ f + interval L s := by
+  have hfa : ∀ f, t0 ≤ f → f ≤ t0 + interval L s → f ≤ t0 + interval L s ∧ t0 + interval L s ≤ f + interval L s :=
+    fun f h1 h2 => ⟨h2, by omega⟩
+  by_cases hx : s.now = t0 + interval L s
+  · obtain ⟨s', hn, hl, hc⟩ := poll_live L s hf hw (fun t ht => by rw [hlast] at ht; cases ht; omega)
+      (by omega) hh (by omega) (by omega) (by rw [← hx] at ha; exact ha) (by rw [← hx] at ha1; exact ha1)
+    exact ⟨s', Or.inl ⟨hx, hn⟩, by rw [hl, hx], fun w hw' => by rw [hc w hw', hx], hfa⟩
+  · have hlt : s.now < t0 + interval L s := by omega
+    have hwait : next L s = .wait (t0 + interval L s) .interval := by
+      have n1 : ¬ L.maxFails ≤ s.fails := by omega
+      unfold next
+      simp only [n1, hw, hlast, hlt, ↓reduceIte]
+    let s1 := step L s (.clock (t0 + interval L s))
+    have hn1 : s1.now = t0 + interval L s := by simp only [s1, step]; omega
+    have hc1 : tickCost L s1 = tickCost L s := rfl
+    have hl1 : s1.lastTick = some t0 := hlast
+    have hi1 : interval L s1 ≤ interval L s := interval_clock L s (t0 + interval L s)
+    have hW : wsum L.W (t0 + interval L s) (ofKind .tick) s1.ledger ≤
+        wsum L.W (t0 + interval L s) (ofKind .tick) s.ledger := wsum_filter_le _ _ _ _ _
+    have hW1 : wsum L.W1 (t0 + interval L s) (ofKind .tick) s1.ledger ≤
+        wsum L.W1 (t0 + interval L s) (ofKind .tick) s.ledger := wsum_filter_le _ _ _ _ _
+    obtain ⟨s', hn, hl, hc⟩ := poll_live L s1 hf hw
+      (fun t ht => by rw [hl1] at ht; cases ht; omega) (by simp only [s1, step]; omega)
+      (headroom_clock L s _ hh) (by omega) (by omega)
+      (by rw [hn1, hc1]; omega) (by rw [hn1, hc1]; omega)
+    rw [hc1] at hn
+    exact ⟨s', Or.inr ⟨hwait, hn⟩, by rw [hl, hn1], fun w hw' => by rw [hc w hw', hn1], hfa⟩
+
+/-- When the three gaps are at most $P_{\min}$, the interval is $P_{\min}$.
+
+$$\forall L, s:\quad \operatorname{hourGap}(L, s) \le P_{\min} \land \operatorname{minuteGap}(L, s) \le P_{\min} \land \operatorname{spread}(L, s) \le P_{\min} \Rightarrow P(L, s) = P_{\min}$$
+-/
+theorem interval_eq_Pmin (L : Limits) (s : State) (h1 : hourGap L s ≤ L.Pmin) (h2 : minuteGap L s ≤ L.Pmin)
+    (h3 : spread L s ≤ L.Pmin) : interval L s = L.Pmin := by
+  unfold interval; omega
+
+/-- (f) The latency at $P_{\min}$. Under the hypotheses of `listed_within` with every gap at most $P_{\min}$ (the hour
+and minute shares fit a tick every $P_{\min}$, and the headroom above the floor lasts until the reset at that pace),
+the poller ticks at $x = t_0 + P_{\min}$ and covers every watched run. A run that completed at any $f$ with
+$t_0 \le f \le x$ is listed at most $P_{\min}$ after it completed; once the list is written $d$ seconds after the tick
+(the duration of the `gh` call), a waiter that has been reading every `slice` seconds since $r_0 \le x + d$ reads it
+before $f + P_{\min} + d + \mathit{slice}$.
+
+$$\begin{aligned} \forall L, s, t_0:\quad & s.\mathit{fails} < L.m \land s.\mathit{watched} \ne [\,] \land s.\mathit{lastTick} = t_0 \land \operatorname{hourGap}(L, s) \le P_{\min} \land \operatorname{minuteGap}(L, s) \le P_{\min} \land \operatorname{spread}(L, s) \le P_{\min} \\ & \land\ s.\mathit{now} \le x \land s.\mathit{retryUntil} \le x \land \operatorname{headroom}(L, s) \\ & \land\ \Sigma_W(\operatorname{ofKind}(\mathrm{tick}), s.\ell, x) + c \le \operatorname{share}(L, \mathrm{tick}) \land \Sigma_{W_1}(\operatorname{ofKind}(\mathrm{tick}), s.\ell, x) + c \le \operatorname{share}_1(L, \mathrm{tick}) \\ \Rightarrow\ & \exists s':\ \big((s.\mathit{now} = x \land \operatorname{next}(L, s) = \mathrm{issue}(\mathrm{tick}, c, s')) \\ & \qquad \lor (\operatorname{next}(L, s) = \mathrm{wait}(x, \mathrm{interval}) \land \operatorname{next}(L, \operatorname{step}(L, s, \mathrm{clock}(x))) = \mathrm{issue}(\mathrm{tick}, c, s'))\big) \\ & \land\ s'.\mathit{lastTick} = x \land (\forall w \in s'.\mathit{watched}:\ w.\mathit{lastCovered} = x) \\ & \land\ \forall f, d, r_0:\ t_0 \le f \le x \land r_0 \le x + d \Rightarrow f \le x \le f + P_{\min} \land x + d \le \operatorname{firstRead}(r_0, \mathit{slice}, x + d) < f + P_{\min} + d + \mathit{slice} \\ & \text{where } x = t_0 + P_{\min},\ c = \operatorname{tickCost}(L, s) \end{aligned}$$
+-/
+theorem listed_within_Pmin (L : Limits) (s : State) (t0 : Nat)
+    (hf : s.fails < L.maxFails) (hw : s.watched ≠ []) (hlast : s.lastTick = some t0)
+    (hg1 : hourGap L s ≤ L.Pmin) (hg2 : minuteGap L s ≤ L.Pmin) (hg3 : spread L s ≤ L.Pmin)
+    (hon : s.now ≤ t0 + L.Pmin) (hr : s.retryUntil ≤ t0 + L.Pmin) (hh : headroom L s = true)
+    (ha : wsum L.W (t0 + L.Pmin) (ofKind .tick) s.ledger + tickCost L s ≤ share L .tick)
+    (ha1 : wsum L.W1 (t0 + L.Pmin) (ofKind .tick) s.ledger + tickCost L s ≤ share1 L .tick) :
+    ∃ s', ((s.now = t0 + L.Pmin ∧ next L s = .issue .tick (tickCost L s) s') ∨
+        (next L s = .wait (t0 + L.Pmin) .interval ∧
+          next L (step L s (.clock (t0 + L.Pmin))) = .issue .tick (tickCost L s) s')) ∧
+      s'.lastTick = some (t0 + L.Pmin) ∧ (∀ w ∈ s'.watched, w.lastCovered = some (t0 + L.Pmin)) ∧
+      ∀ f d r0, t0 ≤ f → f ≤ t0 + L.Pmin → r0 ≤ t0 + L.Pmin + d →
+        f ≤ t0 + L.Pmin ∧ t0 + L.Pmin ≤ f + L.Pmin ∧ t0 + L.Pmin + d ≤ firstRead r0 slice (t0 + L.Pmin + d) ∧
+        firstRead r0 slice (t0 + L.Pmin + d) < f + L.Pmin + d + slice := by
+  have hP := interval_eq_Pmin L s hg1 hg2 hg3
+  rw [← hP] at hon hr ha ha1
+  obtain ⟨s', hcase, hl, hc, -⟩ := listed_within L s t0 hf hw hlast hon hr hh ha ha1
+  rw [hP] at hcase hl hc
+  refine ⟨s', hcase, hl, hc, fun f d r0 h1 h2 h3 => ?_⟩
+  have hb := firstRead_bound r0 slice (t0 + L.Pmin + d) (by decide) h3
+  refine ⟨h2, by omega, hb.1, by omega⟩
+
+/-- With the default limits and one page, the share gaps are below $P_{\min}$; only `spread` can lengthen the
+interval, and only when the headroom above the floor runs short before the reset. -/
+example : hourGap defaults (init 0) ≤ defaults.Pmin ∧ minuteGap defaults (init 0) ≤ defaults.Pmin := by decide
+
+/-! ## (g) The budget against GitHub's limit -/
+
+/-- GitHub's primary REST limit: requests per hour per user account, shared by all of that user's tokens
+(docs.github.com, rate limits for the REST API).
+
+$$\mathit{ghLimit} = 5000$$
+-/
+def ghLimit : Nat := 5000
+
+/-- What the ledger's cap leaves of GitHub's limit, for corrections and for callers that skip the ledger.
+
+$$\mathit{margin} = \mathit{ghLimit} \mathbin{\dot-} \mathit{defaults}.B = 2000$$
+-/
+def margin : Nat := ghLimit - defaults.B
+
+#guard margin = 2000 && defaults.B + margin = ghLimit
+
+/-- A correction entry (a response that cost more than charged).
+
+$$\operatorname{isCorrection}(e) \iff \lnot e.\mathit{charged}$$
+-/
+def isCorrection (e : Entry) : Bool := !e.charged
+
+/-- Every entry of a window is a charge or a correction.
+
+$$\forall W, t, \ell:\quad \Sigma_W(\top, \ell, t) = \Sigma_W(\operatorname{isCharge}, \ell, t) + \Sigma_W(\operatorname{isCorrection}, \ell, t)$$
+-/
+theorem wsum_all (W t : Nat) (l : List Entry) :
+    wsum W t (fun _ => true) l = wsum W t isCharge l + wsum W t isCorrection l := by
+  induction l with
+  | nil => simp [wsum]
+  | cons e es ih =>
+    rcases e with ⟨time, cost, kind, charged⟩
+    simp only [wsum, ih, isCharge, isCorrection]
+    cases charged <;> simp <;> omega
+
+/-- (g) The budget over every ledger entry. In every reachable state with $R \le B$ and $B + \mathit{margin} \le
+\mathit{ghLimit}$, for every time $t$ and every count $u$ of requests made in the window $(t - W, t]$ by callers that
+skip the ledger: if the corrections in that window plus $u$ fit the margin, then all ledger entries in the window
+(charges and corrections) plus $u$ stay within GitHub's 5000 per hour. The margin is an assumption about the
+corrections and the uncharged callers, not a result.
+
+$$\forall L, t_0, s, t, u:\quad s \in \operatorname{Reach}(L, \operatorname{init}(t_0)) \land L.R \le L.B \land L.B + \mathit{margin} \le \mathit{ghLimit} \land \Sigma_W(\operatorname{isCorrection}, s.\ell, t) + u \le \mathit{margin} \Rightarrow \Sigma_W(\top, s.\ell, t) + u \le \mathit{ghLimit}$$
+-/
+theorem budget_all_entries (L : Limits) (t0 : Nat) (s : State) (hr : Reach L (init t0) s) (hR : L.R ≤ L.B)
+    (hM : L.B + margin ≤ ghLimit) (t u : Nat) (hu : wsum L.W t isCorrection s.ledger + u ≤ margin) :
+    wsum L.W t (fun _ => true) s.ledger + u ≤ ghLimit := by
+  have a := (window_bound L t0 s hr .tick t).1
+  have b := (window_bound L t0 s hr .oneoff t).1
+  simp only [share] at a b
+  rw [wsum_all, wsum_charges]
+  omega
+
+/-! ## (h) One bucket: the remaining count -/
+
+/-- Headers of any other bucket than `core` (or without `x-ratelimit-resource`) leave the remaining count and the
+reset as they were.
+
+$$\forall L, s, h, a:\quad h.\mathit{resource} \ne \texttt{core} \Rightarrow \operatorname{observe}(L, s, h, a).\mathit{rem} = s.\mathit{rem} \land \operatorname{observe}(L, s, h, a).\mathit{reset} = s.\mathit{reset}$$
+-/
+theorem bucket_core_only (L : Limits) (s : State) (h : Headers) (a : Nat) (hc : h.resource ≠ some "core") :
+    (observe L s h a).remaining = s.remaining ∧ (observe L s h a).reset = s.reset := by
+  simp [observe, bucket, hc]
+
+/-- An issued charge leaves the remaining count and the reset as they were.
+
+$$\forall L, s, k, c, k', c', s':\quad \operatorname{charge}(L, s, k, c) = \mathrm{issue}(k', c', s') \Rightarrow s'.\mathit{rem} = s.\mathit{rem} \land s'.\mathit{reset} = s.\mathit{reset}$$
+-/
+theorem charge_bucket (L : Limits) (s : State) (k : Kind) (c : Nat) (k' : Kind) (c' : Nat) (s' : State)
+    (h : charge L s k c = .issue k' c' s') : s'.remaining = s.remaining ∧ s'.reset = s.reset := by
+  unfold charge at h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  cases h
+  exact ⟨rfl, rfl⟩
+
+/-- (h) Within one reset window the remaining count never rises: from a state with remaining $r$ and reset $T$, every
+event that leaves the reset at $T$ leaves a remaining count of at most $r$, and an issued charge and a tick's cover
+change neither.
+
+$$\begin{aligned} \forall L, s, T, r:\quad s.\mathit{reset} = T \land s.\mathit{rem} = r \Rightarrow\ & (\forall e:\ \operatorname{step}(L, s, e).\mathit{reset} = T \Rightarrow \exists r' \le r:\ \operatorname{step}(L, s, e).\mathit{rem} = r') \\ & \land (\forall k, c, k', c', s':\ \operatorname{charge}(L, s, k, c) = \mathrm{issue}(k', c', s') \Rightarrow s'.\mathit{rem} = r \land s'.\mathit{reset} = T) \\ & \land \operatorname{cover}(s).\mathit{rem} = r \land \operatorname{cover}(s).\mathit{reset} = T \end{aligned}$$
+-/
+theorem remaining_no_rise (L : Limits) (s : State) (T r : Nat) (hT : s.reset = some T) (hr : s.remaining = some r) :
+    (∀ e, (step L s e).reset = some T → ∃ r', r' ≤ r ∧ (step L s e).remaining = some r') ∧
+    (∀ k c k' c' s', charge L s k c = .issue k' c' s' → s'.remaining = some r ∧ s'.reset = some T) ∧
+    (cover s).remaining = some r ∧ (cover s).reset = some T := by
+  refine ⟨fun e he => ?_, fun k c k' c' s' hc => ?_, by simp [cover, hr], by simp [cover, hT]⟩
+  · cases e with
+    | response h a =>
+      simp only [step, observe, bucket] at he ⊢
+      by_cases hc : h.resource = some "core"
+      · simp only [hc, ↓reduceIte] at he ⊢
+        split at he
+        · rename_i r1 T1 _ _
+          by_cases hTT : s.reset = some T1
+          · simp only [hTT, ↓reduceIte, hr] at he ⊢
+            exact ⟨min r1 r, Nat.min_le_right _ _, rfl⟩
+          · simp only [hTT, ↓reduceIte, Option.some.injEq] at he
+            subst he; exact absurd hT hTT
+        · exact ⟨r, Nat.le_refl _, hr⟩
+      · simp only [hc, ↓reduceIte]
+        exact ⟨r, Nat.le_refl _, hr⟩
+    | clock t => exact ⟨r, Nat.le_refl _, hr⟩
+    | register rid c =>
+      simp only [step]; split
+      · exact ⟨r, Nat.le_refl _, hr⟩
+      · exact ⟨r, Nat.le_refl _, hr⟩
+    | unregister rid => exact ⟨r, Nat.le_refl _, hr⟩
+    | pages n => exact ⟨r, Nat.le_refl _, hr⟩
+    | resume => exact ⟨r, Nat.le_refl _, hr⟩
+  · have := charge_bucket L s k c k' c' s' hc
+    rw [this.1, this.2, hr, hT]; exact ⟨rfl, rfl⟩
 
 end Fw.Ci.Budget
