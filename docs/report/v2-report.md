@@ -910,10 +910,15 @@ Each line names what is missing, what the result lacks without it, and its task 
 **Results after C3, still open at this draft.**
 
 - F6 composition check (`compose-check`): no F6 verdict, so per-flag attribution in §4.5 and §4.6 stays INFERRED. Slot in §4.5.
-- People layout against the original (`people-layout-shift`): element boxes and layout shifts per width and engine are not compared.
-
-> **SLOT people-layout-shift** (filled by the lead before 11:15; else it stays here as not done). Per width and
-> engine: the boxes and shifts that differ, each with its cause, with run ids.
+- People layout against the original (`people-layout-shift`, landed `9ff2ef77`, research/notes/2026/10-19-people-layout-shift.md):
+  done, two items stay open. MEASURED on CI (runs 39279857839 before the fix; 39288152363, 39288315945, 39288339116
+  after; both engines; widths 1920, 1440, 1280, 861, 401): the section's top, height and the document height are equal
+  in every frame; layout-shift sums are equal between the arms. One real difference, fixed: above 1030 px the
+  original's empty `<source>` inside `<picture>` is a flex item, so its 12 px gap (14.64 px on screen) sits above the
+  cover; the port lacked it (`.coverBlock::before`), and after the fix no non-motion box differs by more than 0.5 px at
+  load. Open: the port's 'o' opens 1 to 2 scroll samples later in Chromium (23 of 32 pairs, a measured bias) and closes
+  about one sample later in WebKit (cause INFERRED: React state commit against the original's class toggle); and no
+  original-against-original baseline exists for the motion keys.
 
 - The 9-flag swipe-touch-v1 arm differs by one recalc between shards at frame 498 (856 or 857, run 39292323514, §4.6); the cause is not examined.
 - The WebKit phone-rotation cell (matchMedia =Lean, 2 readings, stops 1 and 3) cannot be compared, so every WebKit gate verdict is "incomplete" (an accepted limit; `gate-webkit-red` not landed).
