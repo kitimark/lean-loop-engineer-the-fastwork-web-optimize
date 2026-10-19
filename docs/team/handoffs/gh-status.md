@@ -19,7 +19,8 @@ State: branch worktree-wf_237ada1b-128-1, GitHub platform status in `fw watch` a
 - Runner (1135), console-api (420), console-web (11) full test scripts; `scripts/ci-paths.test.mjs` (40).
 - Headless Chrome on a scratch console (port 47311, stopped): GitHub card shows three badges, the incident with
   ages, the link. Screenshot in the session scratchpad (health-gh.png).
-- Fixtures: `apps/runner/test/fixtures/gh-status/` (operational, degraded 2026-10-19); fetch failure is in tests.
+- Fixtures: `apps/runner/test/fixtures/gh-status/` (operational; degraded = githubstatus.com/incidents/8tzbpcnl75jp captured 2026-10-19 ~16:30 UTC, trimmed to 4 components); fetch failure is in tests.
+- Follow-ups (review): theorem states the "since" text exactly (ciSlowAlert_incident); since-time carries the date; `fw next` also fetches githubstatus (accepted, ≤ 10 s); runCore cases fail instead of skip on CI without fwcore; split systemOf_systemJson (maxHeartbeats 4000000).
 
 ## Open
 - There is no `ci.queued` code in Lean; queued runs are `ci.slow` ("queued for N min"), which carries the incident.
