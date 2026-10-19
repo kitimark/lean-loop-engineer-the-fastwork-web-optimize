@@ -6275,7 +6275,9 @@
     "lean/Fw/Console/LandSpeed.lean",
     "lean/scripts/check.sh",
     "packages/contracts/golden/ci/triggers.jsonl",
-    "packages/contracts/golden/console/land-speed.jsonl"
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "lean/Fw.lean",
+    "lean/Fw/Site/Head.lean"
    ]
   },
   {
