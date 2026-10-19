@@ -108,7 +108,8 @@ is never a single.
 ## Next
 
 One coherent set on one commit makes v2-proved comparable: a base, the v2-proved arm, and one whole-page arm per flag
-(10 flags, `fw` input of `chromium-counts.yml`, profile swipe-v1), each with the same base run. Not dispatched:
+(`fw` input of `chromium-counts.yml`, profile swipe-v1), each with the same base run. The v2-proved set on main now
+has 9 flags (`hero.countdown:strip` left it, `lean/scripts/check.sh` "v2-proved"), so the set is 11 runs. Not dispatched:
 GitHub Actions was degraded and the accepted limits allow listing the missing arms.
 
 Files: `results/compose-check/plan.json` (run ids), `results/compose-check/<name>.json` (fwcore replies),
