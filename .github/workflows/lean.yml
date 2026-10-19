@@ -87,6 +87,11 @@ jobs:
       - name: lean/scripts/check.sh
         run: sh lean/scripts/check.sh
 
+      # Start cost per spawned fwcore call (task fwcore-lazy-tables): 50 calls with one cheap wire request each.
+      - name: fwcore start timing
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        run: sh lean/scripts/start-timing.sh lean/.lake/build/bin/fwcore 50 | tee fwcore-start.json
+
       - name: Runner facts
         run: sh .github/scripts/runner-info.sh lean-runner.json
 
@@ -100,5 +105,6 @@ jobs:
             lean/.lake/build/bin/fwcore
             fwcore.sha256
             lean-runner.json
+            fwcore-start.json
           if-no-files-found: error
           retention-days: 14
