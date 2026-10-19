@@ -4,6 +4,7 @@ import { parts } from '../registry';
 import { parseOnly } from '../registry/only';
 import { pinEnv, type EnvTarget } from './fixedEnv';
 import { hostOf, hostsOf } from './hosts';
+import { planStage } from './plan';
 import { applyInputs, declaredInputs, type ContractRow } from './inputs';
 
 const rows = contracts.parts as ContractRow[];
@@ -23,17 +24,20 @@ describe('fixed env', () => {
 });
 
 describe('declared inputs', () => {
-  it('sets only inputs whose owner is not staged', () => {
-    const i = declaredInputs(['hero.orbit'], rows);
-    expect(i.writes.map((w) => `${w.kind}:${w.name}/${w.owner}`)).toContain('cssVar:--exit-opacity/hero.exit');
-    const both = declaredInputs(['hero.orbit', 'hero.exit'], rows);
-    expect(both.writes.some((w) => w.owner === 'hero.exit')).toBe(false);
+  it('sets only inputs whose owner is not mounted', () => {
+    const w = (ms: string[]) => declaredInputs(ms, rows).writes.map((x) => `${x.kind}:${x.name}/${x.owner}`);
+    expect(w(['hero.orbit'])).toContain('cssVar:--exit-opacity/hero.exit');
+    expect(w(['hero.orbit', 'hero.exit'])).not.toContain('cssVar:--exit-opacity/hero.exit');
   });
   it('lists unset inputs instead of inventing a value', () => {
     expect(declaredInputs(['hero.orbit'], rows).unset).toContain('className:data-splash/hero.exit');
   });
-  it('asks a neighbour stub for rect inputs of unstaged owners', () => {
-    expect(declaredInputs(['nav.hitTest'], rows).neighbours).toEqual(['hero.exit', 'nav']);
+  it('reports inputs owned by page-level parts or the scene as unset', () => {
+    expect(declaredInputs(['nav'], rows).unset).toContain('morphPhase');
+    expect(declaredInputs(['platform.sweep'], rows).unset).toContain('scenePaused');
+  });
+  it('asks a neighbour stub for rect inputs of unmounted owners', () => {
+    expect(declaredInputs(['nav', 'nav.hitTest'], rows).neighbours).toEqual(['hero.exit', 'people.deck']);
   });
   it('applies writes through a finder and counts missing owners', () => {
     const calls: string[] = [];
@@ -46,7 +50,7 @@ describe('declared inputs', () => {
       (o) => (o === 'a' ? el : null),
     );
     expect(calls).toEqual(['--x=1']);
-    expect(missing).toEqual(['cssVar:--y/b']);
+    expect(missing).toEqual(['cssVar:--y/b=2']);
   });
 });
 
@@ -71,5 +75,20 @@ describe('hosts', () => {
   });
   it('page-level targets are refused', () => {
     for (const r of contracts.parts) if (r.pageLevel) expect(parseOnly(`?only=${r.id}`)).toEqual({ kind: 'err', code: 'pageLevel' });
+  });
+});
+
+describe('plan', () => {
+  it('a sub-part stage mounts its whole host and says so', () => {
+    const p = planStage({ members: ['hero.accent'], env: { y: 0, vw: 1280, vh: 800 } });
+    expect(p.mounted).toContain('hero.exit');
+    expect(p.hosts).toEqual(['hero']);
+    expect(p.scrollEngine).toBe('faithful');
+  });
+  it('never mounts a page-level part', () => {
+    for (const r of contracts.parts) if (r.pageLevel) for (const g of ['g1', 'g2', 'g3', 'g4', 'g5']) {
+      const o = parseOnly(`?only=${g}`);
+      if (o.kind === 'ok') expect(planStage(o.stage).mounted).not.toContain(r.id);
+    }
   });
 });

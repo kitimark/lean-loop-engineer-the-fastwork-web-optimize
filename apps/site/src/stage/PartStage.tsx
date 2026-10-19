@@ -1,5 +1,5 @@
-import { useLayoutEffect, useMemo, type ReactNode } from 'react';
-import contracts from '../../../../packages/contracts/golden/parts/contracts.gen.json';
+import { useEffect, useLayoutEffect, useMemo, type ReactNode } from 'react';
+import { setHydrated } from '../fw';
 import { Commission } from '../parts/commission';
 import { Hero } from '../parts/hero';
 import { MorphColumns } from '../parts/morph.columns';
@@ -17,16 +17,20 @@ import { Platform } from '../parts/platform';
 import type { FwConfig } from '../registry/types';
 import { parts } from '../registry';
 import type { StageSpec } from '../registry/only';
-import { pinEnv } from './fixedEnv';
-import { hostOf, hostsOf, SECTION_ANCHOR, SECTIONS, stubHeight, type Host } from './hosts';
-import { applyInputs, declaredInputs, type ContractRow } from './inputs';
+import type { Pinned } from './fixedEnv';
+import { hostOf, SECTION_ANCHOR, SECTIONS, type Host } from './hosts';
+import { applyInputs } from './inputs';
+import { planStage } from './plan';
 
-const rows = contracts.parts as ContractRow[];
 const anchorOf = new Map(parts.map((p) => [p.id, p.anchors[0] ?? p.id]));
 
 export interface StageReport {
   target: string;
   members: string[];
+  /** every part id under the rendered hosts (a sub-part stage mounts its whole host) */
+  mounted: string[];
+  /** the shared scroll engine variant (fixed per stage; `?fw=engine.scroll=` is not applied) */
+  scrollEngine: string;
   env: StageSpec['env'];
   premise: string;
   /** the real viewport differs from the pinned vw/vh */
@@ -104,47 +108,56 @@ const SECTION_HOST: Record<(typeof SECTIONS)[number], Host> = {
 
 /**
  * Mounts one part, or one contract group, in a fixed scroll environment (y, vw, vh from the stage, the real MotionClock).
+ * The environment is pinned by the caller before the first render (`pinEnv` in entry-client), so mount-time reads see it.
  * Hosts of staged parts render for real; every other page section is a fixed-height stub in page order, so geometry and
- * a neighbour box exist. Inputs of staged parts that other parts own are set once from the Lean contract rows. Every
- * result carries the contract premise (`declared-rows-unverified`) in `data-fw-premise` and `window.__fwStage`.
- * Page-level parts are refused before this renders (`parseOnly`). No React state, no per-frame value.
+ * a neighbour box exist. Inputs that mounted parts read from unmounted owners are set once from the Lean contract rows.
+ * Which hosts, stubs and writes follow `planStage` (a port of Lean `Stage.plan`). Every result carries the contract
+ * premise (`declared-rows-unverified`) in `data-fw-premise` and `window.__fwStage`. Page-level parts are refused before
+ * this renders (`parseOnly`). No React state, no per-frame value.
+ * Accepted limits: stub heights are `stubPx` approximations; the engine.scroll variant is fixed (`scrollEngine`); the panel
+ * mounts at once, where the page mounts it after MorphMount's onMount.
  */
-export function PartStage({ stage, config }: { stage: StageSpec; config: FwConfig }) {
-  const { hosts, inputs } = useMemo(() => ({ hosts: hostsOf(stage.members), inputs: declaredInputs(stage.members, rows) }), [stage.members]);
-  const stubbed = SECTIONS.filter((s) => !hosts.includes(SECTION_HOST[s]));
+export function PartStage({ stage, config, pinned }: { stage: StageSpec; config: FwConfig; pinned: Pinned }) {
+  const plan = useMemo(() => planStage(stage), [stage]);
+  const { hosts } = plan;
+  const stubPxOf = new Map(plan.stubs.map((s) => [s.section, s.px]));
+  const stubbed = SECTIONS.filter((s) => stubPxOf.has(s));
+
+  useEffect(() => setHydrated(), []);
 
   useLayoutEffect(() => {
-    const pinned = pinEnv(window, stage.env);
     window.scrollTo(0, stage.env.y);
     const find = (owner: string) => document.querySelector<HTMLElement>(`[data-fw="${anchorOf.get(owner) ?? owner}"]`);
-    const missing = applyInputs(inputs.writes, find);
+    const missing = applyInputs(plan.writes, find);
     window.__fwStage = {
       target: stage.target,
       members: stage.members,
+      mounted: plan.mounted,
+      scrollEngine: plan.scrollEngine,
       env: stage.env,
       premise: stage.premise,
       viewportMismatch: pinned.mismatch,
-      unset: inputs.unset,
+      unset: plan.unset,
       missing,
     };
     return () => {
       pinned.restore();
       delete window.__fwStage;
     };
-  }, [stage, inputs]);
+  }, [stage, plan, pinned]);
 
-  const owners = [...new Set([...inputs.neighbours, ...inputs.writes.map((w) => w.owner)])];
+  const owners = [...new Set([...plan.neighbours, ...plan.writes.map((w) => w.owner)])];
   const stubFor = (host: Host) => owners.filter((o) => hostOf(o) === host && !hosts.includes(host));
 
   return (
-    <div data-fw-stage={stage.target} data-fw-premise={stage.premise}>
+    <div data-fw-stage={stage.target} data-fw-premise={stage.premise} data-fw-scroll-engine={plan.scrollEngine}>
       {SECTIONS.map((s) =>
-        hosts.includes(SECTION_HOST[s]) ? (
+        !stubbed.includes(s) ? (
           <div key={s} data-fw-stage-host={s}>
             {renderHost(SECTION_HOST[s], config)}
           </div>
         ) : (
-          <div key={s} data-fw={SECTION_ANCHOR[s]} data-fw-stub="" style={{ height: stubHeight(s, stage.env.vh), position: 'relative' }}>
+          <div key={s} data-fw={SECTION_ANCHOR[s]} data-fw-stub="" style={{ height: stubPxOf.get(s), position: 'relative' }}>
             {stubFor(SECTION_HOST[s])
               .filter((o) => (anchorOf.get(o) ?? o) !== SECTION_ANCHOR[s])
               .map((o) => (
@@ -154,7 +167,7 @@ export function PartStage({ stage, config }: { stage: StageSpec; config: FwConfi
         ),
       )}
       {hosts
-        .filter((h) => !SECTIONS.some((s) => SECTION_HOST[s] === h))
+        .filter((h) => !SECTIONS.some((s) => s === h))
         .map((h) => (
           <div key={h} data-fw-stage-host={h}>
             {renderHost(h, config)}

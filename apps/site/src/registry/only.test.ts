@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { planStage } from '../stage/plan';
+import { writeWire } from '../stage/inputs';
 import { parseOnly, STAGE_PREMISE } from './only';
 
 interface Vector {
   query: string;
-  result: { kind: string; code?: string; target?: string; members?: string[]; y?: number; vw?: number; vh?: number; premise?: string };
+  result: { kind: string; code?: string; target?: string; members?: string[]; y?: number; vw?: number; vh?: number; premise?: string; hosts?: string[]; mounted?: string[]; stubs?: string[]; writes?: string[]; neighbours?: string[]; unset?: string[]; scrollEngine?: string };
 }
 
 const golden: Vector[] = readFileSync(new URL('../../../../packages/contracts/golden/parts/stage.jsonl', import.meta.url), 'utf8')
@@ -24,6 +26,14 @@ describe('?only= against the Lean golden (Fw.Site.Stage)', () => {
         expect(r.stage.members).toEqual(v.result.members);
         expect(r.stage.env).toEqual({ y: v.result.y, vw: v.result.vw, vh: v.result.vh });
         expect(r.stage.premise).toBe(v.result.premise);
+        const p = planStage(r.stage);
+        expect(p.hosts).toEqual(v.result.hosts);
+        expect(p.mounted).toEqual(v.result.mounted);
+        expect(p.stubs.map((s) => `${s.section}=${s.px}`)).toEqual(v.result.stubs);
+        expect(p.writes.map(writeWire)).toEqual(v.result.writes);
+        expect(p.neighbours).toEqual(v.result.neighbours);
+        expect(p.unset).toEqual(v.result.unset);
+        expect(p.scrollEngine).toBe(v.result.scrollEngine);
       }
     });
   }

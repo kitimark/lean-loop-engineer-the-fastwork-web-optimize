@@ -2,8 +2,8 @@ import contracts from '../../../../packages/contracts/golden/parts/contracts.gen
 
 /**
  * `?only=<target>&stage=y:N,vh:N,vw:N`. Port of Lean `Fw.Site.Stage.parse` (lean/Fw/Site/Stage.lean); checked against
- * `packages/contracts/golden/parts/stage.jsonl`. No decision logic of its own: the part list, page-level flags and
- * group members come from the Lean-generated `contracts.gen.json`.
+ * `packages/contracts/golden/parts/stage.jsonl`. A hand port (parse, parseEnv, pairs, resolve) checked only by the
+ * golden vectors; the part list, page-level flags and group members come from the Lean-generated `contracts.gen.json`.
  */
 export type StageErr = 'unknownTarget' | 'pageLevel' | 'emptyGroup' | 'duplicate' | 'badStage';
 export interface StageEnv {

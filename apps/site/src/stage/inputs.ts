@@ -1,9 +1,12 @@
 /**
- * Declared inputs of a stage, read from the Lean contract rows (`contracts.gen.json`, premise `declared-rows-unverified`).
- * A `cssVar:--x/owner` or `className:n/owner` input whose owner is not staged is set once on the owner's anchor element
- * to a rest value; an owner that is staged writes its own output. `rect:` inputs need the owner's box to exist: those
- * owners get a fixed-size neighbour stub. Nothing here runs per frame.
+ * Port of Lean `Fw.Site.Stage.effect` and `rest`, checked against `stage.jsonl`. Declared inputs come from the Lean
+ * contract rows (`contracts.gen.json`, premise `declared-rows-unverified`). The inputs of every mounted part are
+ * classified: an environment signal is provided by the stage; a `rect:` of an unmounted owner needs a neighbour stub; a
+ * `cssVar` or `className` of an unmounted owner is written once at its rest value; anything else (`morphPhase`,
+ * `scenePaused`, an input without a rest value) is reported in `unset`, never invented. Nothing here runs per frame.
  */
+import { hostOf } from './hosts';
+
 export interface ContractRow {
   id: string;
   inputs: string[];
@@ -18,56 +21,68 @@ export interface InputWrite {
 
 export interface StageInputs {
   writes: InputWrite[];
-  /** owners of a `rect:` input that are not staged */
+  /** owners of a `rect:` input that are not mounted (they get a fixed-size box) */
   neighbours: string[];
-  /** inputs with no rest value in `REST`: reported, never invented */
+  /** inputs the stage cannot provide: reported, never invented */
   unset: string[];
 }
 
-/** Rest value of a custom property or attribute at page top; `null` for a class means absent. */
+/** Lean `rest`: rest value of a custom property or attribute at page top. */
 export const REST: Readonly<Record<string, string>> = {
   '--exit-opacity': '1',
   '--morph': '0',
   '--morph-fade': '0',
 };
+const rest = (name: string): string | undefined => (Object.prototype.hasOwnProperty.call(REST, name) ? REST[name] : undefined);
 
-const SIGNAL = /^(cssVar|className):(.+)\/([^/]+)$/;
+const ENV_SIGNALS = new Set(['scrollY', 'vw', 'vh', 'clock', 'pointer']);
 
-export function declaredInputs(members: readonly string[], rows: readonly ContractRow[]): StageInputs {
-  const staged = new Set(members);
-  const writes: InputWrite[] = [];
-  const neighbours = new Set<string>();
-  const unset = new Set<string>();
-  for (const row of rows) {
-    if (!staged.has(row.id)) continue;
-    for (const sig of row.inputs) {
-      if (sig.startsWith('rect:')) {
-        const owner = sig.slice(5);
-        if (!staged.has(owner)) neighbours.add(owner);
-        continue;
-      }
-      const m = SIGNAL.exec(sig);
-      if (!m || staged.has(m[3]!)) continue;
-      const [, type, name, owner] = m as unknown as [string, string, string, string];
-      if (type === 'cssVar') {
-        const v = REST[name];
-        if (v === undefined) unset.add(sig);
-        else writes.push({ kind: 'cssVar', owner, name, value: v });
-      } else if (name.startsWith('data-')) {
-        const v = REST[name];
-        if (v === undefined) unset.add(sig);
-        else writes.push({ kind: 'attr', owner, name, value: v });
-      } else {
-        writes.push({ kind: 'class', owner, name, value: null }); // absent at rest
-      }
-    }
+export type Effect =
+  | { kind: 'none' }
+  | { kind: 'write'; write: InputWrite }
+  | { kind: 'neighbour'; owner: string }
+  | { kind: 'unset'; signal: string };
+
+const NONE: Effect = { kind: 'none' };
+
+/** Lean `effect`. */
+export function effect(mounted: ReadonlySet<string>, s: string): Effect {
+  const unset: Effect = { kind: 'unset', signal: s };
+  if (ENV_SIGNALS.has(s)) return NONE;
+  if (s === 'morphPhase' || s === 'scenePaused') return unset;
+  if (s.startsWith('rect:')) {
+    const o = s.slice(5);
+    return mounted.has(o) ? NONE : hostOf(o) !== null ? { kind: 'neighbour', owner: o } : unset;
   }
-  const key = (w: InputWrite) => `${w.kind}:${w.name}/${w.owner}`;
+  const isVar = s.startsWith('cssVar:');
+  if (!isVar && !s.startsWith('className:')) return unset;
+  const parts = s.slice(isVar ? 7 : 10).split('/');
+  if (parts.length !== 2) return unset;
+  const [name, owner] = parts as [string, string];
+  if (mounted.has(owner)) return NONE;
+  if (hostOf(owner) === null) return unset;
+  if (isVar || name.startsWith('data-')) {
+    const v = rest(name);
+    return v === undefined ? unset : { kind: 'write', write: { kind: isVar ? 'cssVar' : 'attr', owner, name, value: v } };
+  }
+  return { kind: 'write', write: { kind: 'class', owner, name, value: null } };
+}
+
+export const writeWire = (w: InputWrite): string => `${w.kind}:${w.name}/${w.owner}${w.value === null ? '' : `=${w.value}`}`;
+
+const dedup = <T>(xs: T[], key: (x: T) => string): T[] => {
   const seen = new Set<string>();
+  return xs.filter((x) => (seen.has(key(x)) ? false : (seen.add(key(x)), true)));
+};
+
+/** Effects of every declared input of every mounted part, deduplicated in order of first appearance. */
+export function declaredInputs(mounted: readonly string[], rows: readonly ContractRow[]): StageInputs {
+  const set = new Set(mounted);
+  const effects = rows.filter((r) => set.has(r.id)).flatMap((r) => r.inputs.map((s) => effect(set, s)));
   return {
-    writes: writes.filter((w) => (seen.has(key(w)) ? false : (seen.add(key(w)), true))),
-    neighbours: [...neighbours].sort(),
-    unset: [...unset].sort(),
+    writes: dedup(effects.flatMap((e) => (e.kind === 'write' ? [e.write] : [])), writeWire),
+    neighbours: dedup(effects.flatMap((e) => (e.kind === 'neighbour' ? [e.owner] : [])), (x) => x),
+    unset: dedup(effects.flatMap((e) => (e.kind === 'unset' ? [e.signal] : [])), (x) => x),
   };
 }
 
@@ -77,7 +92,7 @@ export function applyInputs(writes: readonly InputWrite[], find: (owner: string)
   for (const w of writes) {
     const el = find(w.owner);
     if (!el) {
-      missing.push(`${w.kind}:${w.name}/${w.owner}`);
+      missing.push(writeWire(w));
       continue;
     }
     if (w.kind === 'cssVar') el.style.setProperty(w.name, w.value ?? '');
