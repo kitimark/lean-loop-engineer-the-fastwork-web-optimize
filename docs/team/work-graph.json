@@ -5443,7 +5443,8 @@
     "results/faithful/**",
     "lean/Fw/Faithful/Measured.lean",
     "lean/Fw/Gate/Exit.lean",
-    "packages/contracts/golden/**"
+    "packages/contracts/golden/**",
+    "packages/gate-breakpoints/test/exit.test.mjs"
    ]
   },
   {
@@ -5558,7 +5559,15 @@
     "counts-only",
     "contract-rows-from-code",
     "gate-preset-input",
-    "preset-gate-triage"
+    "preset-gate-triage",
+    "svg-extract",
+    "deck-panels-lean",
+    "people-o-glyph",
+    "morph-panel-content",
+    "doc-head-locale",
+    "asset-icons-gaps",
+    "gate-variant-roles",
+    "nav-anchor-hosted"
    ],
    "owner": "lead",
    "writes": []
@@ -5673,7 +5682,7 @@
     "ci"
    ],
    "id": "svg-extract",
-   "title": "Fastwork inline SVG path data (accent words, wordmark) read from snapshot/site/index.html at build time into gitignored *.gen.json with a prebuild/pretest step; never committed (rule: path data is Fastwork material)",
+   "title": "Fastwork inline SVG path data (accent words, wordmark) read from snapshot/site/index.html at build time into gitignored *.gen.json with a prebuild/pretest step; never committed (rule: path data is Fastwork material); r1 (port audit): also every remaining inline SVG artwork (platform shield logo and pin/star, drawer and signup marks, commission underline and 0% mark, langMenu globe, hero/morph calendar dots) and every committed snapshot path string moves to build-time extraction; build.mjs runs the extraction itself (preview builds skip npm prebuild)",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
@@ -5686,7 +5695,13 @@
     "apps/site/scripts/svg-extract.mjs",
     "apps/site/package.json",
     ".gitignore",
-    "docs/team/handoffs/svg-extract.md"
+    "docs/team/handoffs/svg-extract.md",
+    "apps/site/src/parts/**",
+    "apps/site/scripts/**",
+    "apps/site/assets.manifest.json",
+    "apps/site/src/svg.gen.d.ts",
+    "apps/runner/src/land.ts",
+    "research/notes/2026/10-19-port-completeness.md"
    ]
   },
   {
@@ -5694,12 +5709,11 @@
     "ci"
    ],
    "id": "snapshot-paths-cleanup",
-   "title": "After C3: inline snapshot SVG paths already on main (hero bell/calendar, overlays.drawer, commission chevron, morph.panel) move to svg-extract output; then a test fails on any tracked snapshot-verbatim path string",
+   "title": "Closes with svg-extract r1 (moved before C3 by the port audit: snapshot path data was committed in parts); the guard test fails on any tracked snapshot path substring",
    "stream": "parts",
    "milestone": "M5",
    "deps": [
-    "svg-extract",
-    "integrate-wave-2"
+    "svg-extract"
    ],
    "owner": "part-builder",
    "writes": []
@@ -5765,7 +5779,14 @@
     "integrate-wave-1"
    ],
    "owner": "part-builder",
-   "writes": []
+   "writes": [
+    "apps/site/src/parts/people.deck/**",
+    "apps/site/src/parts/people/**",
+    "lean/Fw/Parts/**",
+    "lean/Fw.lean",
+    "packages/contracts/golden/**",
+    "apps/site/assets.manifest.json"
+   ]
   },
   {
    "devices": [
@@ -5779,7 +5800,14 @@
     "integrate-wave-1"
    ],
    "owner": "part-builder",
-   "writes": []
+   "writes": [
+    "apps/site/src/parts/people.o/**",
+    "apps/site/src/parts/people.deck/panel.tsx",
+    "apps/site/src/parts/people.deck/*.css",
+    "apps/site/assets.manifest.json",
+    "lean/Fw/Parts/**",
+    "docs/team/handoffs/people-o-glyph.md"
+   ]
   },
   {
    "devices": [
@@ -6107,7 +6135,9 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
     "lean/Fw/Site/StageMode.lean",
-    "research/notes/2026/10-19-driver-stage-mode.md"
+    "research/notes/2026/10-19-driver-stage-mode.md",
+    "lean/scripts/check.sh",
+    "lean/scripts/StageModeGolden.lean"
    ]
   },
   {
@@ -6127,7 +6157,8 @@
     "research/notes/2026/10-19-preset-gate-triage.md",
     "results/**",
     "docs/team/handoffs/preset-gate-triage.md"
-   ]
+   ],
+   "evidence": "3c5c0a2"
   },
   {
    "devices": [
@@ -6153,6 +6184,136 @@
     "research/notes/2026/10-19-alert-rules.md",
     "docs/team/handoffs/alert-rules-fix.md",
     "lean/Fw/Ops/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-panel-content",
+   "title": "Port audit: morph.panel (end-of-page panel in the nav) still renders placeholder title, CTA, RSVP link and footer lines with #morph-panel links; port the original text and links from the snapshot content (calendar icon from svg-extract)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "svg-extract"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.panel/**",
+    "docs/team/handoffs/morph-panel-content.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "doc-head-locale",
+   "title": "Port audit: document head (title, meta description, og/twitter, canonical, hreflang, icons, manifest) and the body-end nav.site-locale-links are missing; port them (assets via the manifest)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/index.html",
+    "apps/site/src/entry-*.tsx",
+    "apps/site/scripts/build.mjs",
+    "apps/site/assets.manifest.json",
+    "apps/site/src/parts/nav/**",
+    "docs/team/handoffs/doc-head-locale.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "asset-icons-gaps",
+   "title": "Port audit: why-bring drawer benefit icons and divider render a 1x1 GIF, and the platform 'Legal consult' fallback image is missing; add the snapshot files to assets.manifest.json and render them",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "svg-extract"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/assets.manifest.json",
+    "apps/site/src/parts/overlays.drawer/**",
+    "apps/site/src/parts/platform/**",
+    "docs/team/handoffs/asset-icons-gaps.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-variant-roles",
+   "title": "Preset triage row 1 (lead decision): hero.countdown:strip is same-visual (strip_visSame) but fails the face role count 64 vs 0; add a per-(part, variant) role map to Fw.Gate.Items (strip role count = digit count, face count not judged under strip) with a theorem that every other item's verdict is unchanged (like partItems_skip_invariant); if it is not landed by 16:00, strip is unlinked from Λ for wave 2",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/Items.lean",
+    "lean/Fw/Gate/Coverage.lean",
+    "lean/Fw/Wire/Gate.lean",
+    "packages/gate-breakpoints/src/**",
+    "packages/gate-breakpoints/test/**",
+    "packages/contracts/golden/gate/**",
+    "docs/team/handoffs/gate-variant-roles.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "nav-anchor-hosted",
+   "title": "Preset triage row 2: the nav bar/actions anchors also match the hosted morph.panel (nav > div, nav > div > div), so morph.mount:shift fails a count that is a gate-spec defect; anchors exclude [data-fw=morph-panel] (anchors.json is data read by Fw.Gate.Items; Lean row or golden if the selector rule is a decision), then one shift-arm gate",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gate-breakpoints/src/anchors.json",
+    "packages/gate-breakpoints/test/**",
+    "packages/contracts/golden/gate/**",
+    "docs/team/handoffs/nav-anchor-hosted.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "model-golden-rows",
+   "title": "model-bug-fixes follow-up: HiddenPause.lean / MorphTweenOpt.lean generators still emit 2 MODEL-BUG rows (engine.scene UpdateLayoutTree <=o 1851 vs 1850; waapi compositeFailedBits <o); use sceneReturn_style's forced pass and =o on swipe-v1 (or seek before removeAttribute in engine.scene), regenerate goldens, EngineGoldens green",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "model-bug-fixes"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HiddenPause.lean",
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "apps/site/src/parts/engine.scene/**",
+    "packages/contracts/golden/**",
+    "docs/team/handoffs/model-golden-rows.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "faithful-control-holdout",
+   "title": "model-bug-fixes follow-up: after the refreeze the faithful control runs are in the class table's freeze set (in-sample); one fresh original-arm counts run per profile not in the freeze set, regenerate the faithful verdict and Fw.Faithful.Measured",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "model-bug-fixes"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "results/faithful/**",
+    "lean/Fw/Faithful/Measured.lean",
+    "docs/team/handoffs/faithful-control-holdout.md"
    ]
   }
  ],
