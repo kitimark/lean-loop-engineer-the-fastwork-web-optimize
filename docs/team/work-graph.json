@@ -6287,7 +6287,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "lean/Fw/Parts/FootprintData.lean"
-   ]
+   ],
+   "evidence": "cfd4e18"
   },
   {
    "devices": [

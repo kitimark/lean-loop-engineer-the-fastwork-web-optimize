@@ -348,6 +348,26 @@
   {
    "url": "/selling/icons/pin.svg",
    "src": "snapshot/site/selling/icons/pin.svg"
+  },
+  {
+   "url": "/selling/commission/why-bring/divider.svg",
+   "src": "snapshot/site/selling/commission/why-bring/divider.svg"
+  },
+  {
+   "url": "/selling/commission/why-bring/reputation.svg",
+   "src": "snapshot/site/selling/commission/why-bring/reputation.svg"
+  },
+  {
+   "url": "/selling/commission/why-bring/payment.svg",
+   "src": "snapshot/site/selling/commission/why-bring/payment.svg"
+  },
+  {
+   "url": "/selling/commission/why-bring/folder.svg",
+   "src": "snapshot/site/selling/commission/why-bring/folder.svg"
+  },
+  {
+   "url": "/samples/docs/lawyer/lawyer-consult-cover.png",
+   "src": "snapshot/site/samples/docs/lawyer/lawyer-consult-cover.png"
   }
  ],
  "bundled": [

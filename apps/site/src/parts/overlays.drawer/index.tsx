@@ -14,8 +14,8 @@ export interface OverlayDrawerProps {
   onGetStarted?: () => void;
 }
 
-/** 1x1 transparent GIF: stands in for the icon and divider images (assets are not restated). */
-const PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+const ICONS = ['/selling/commission/why-bring/reputation.svg', '/selling/commission/why-bring/payment.svg', '/selling/commission/why-bring/folder.svg'] as const;
+const DIVIDER = '/selling/commission/why-bring/divider.svg';
 
 const BENEFITS: ReadonlyArray<readonly [string, string]> = [
   ['Build your reputation', 'Turn every client project into reviews and credibility that help you win the next one.'],
@@ -112,7 +112,7 @@ export function OverlayDrawer({ variant, onGetStarted }: OverlayDrawerProps) {
           </div>
           <ul className={css.list}>
             {BENEFITS.map(([title, body], i) => (
-              <ListItem key={title} first={i === 0} title={title} body={body} />
+              <ListItem key={title} first={i === 0} icon={ICONS[i] ?? ICONS[0]} title={title} body={body} />
             ))}
           </ul>
           <div className={css.footer}>
@@ -133,16 +133,16 @@ export function OverlayDrawer({ variant, onGetStarted }: OverlayDrawerProps) {
   );
 }
 
-function ListItem({ first, title, body }: { first: boolean; title: string; body: string }) {
+function ListItem({ first, icon, title, body }: { first: boolean; icon: string; title: string; body: string }) {
   return (
     <>
       {first ? null : (
         <li className={css.divider} aria-hidden="true">
-          <img src={PIXEL} alt="" loading="lazy" decoding="async" />
+          <img loading="lazy" decoding="async" src={DIVIDER} alt="" />
         </li>
       )}
       <li className={css.item}>
-        <img src={PIXEL} alt="" width={24} height={24} loading="lazy" decoding="async" />
+        <img loading="lazy" decoding="async" src={icon} alt="" width={24} height={24} />
         <div>
           <strong>{title}</strong>
           <p>{body}</p>
