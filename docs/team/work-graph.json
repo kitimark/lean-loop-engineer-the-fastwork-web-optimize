@@ -8188,7 +8188,8 @@
     "research/notes/2026/10-20-circleci-pilot.md",
     "docs/team/handoffs/circleci-pilot.md",
     "scripts/scrub-allow.json"
-   ]
+   ],
+   "evidence": "0a43520"
   },
   {
    "devices": [
