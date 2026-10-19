@@ -1,7 +1,6 @@
 import Lean.Data.Json
 import Fw.Console.Land
 import Fw.Ops.PathCheck
-import Fw.Spec.ConeMiss
 /-!
 # Why the `fw land` speed-ups keep the land verdict
 
@@ -11,8 +10,6 @@ equal to the slow one, and the empirical premises it relies on.
 * **(a) Result cache.** A check that reads only its declared inputs can be replayed from a key hit
   (`cache_sound`, `cachedRun_eq`, `integrity_push`); a skipped check (`checksFor` selects none of its declared inputs)
   keeps its verdict (`skip_sound`). Collision-freeness of the digest is an explicit premise (`NoCollision`).
-* **(b) Per-module lint.** With Merkle keys over the import DAG, the incremental lint equals the whole-repo lint
-  when a module's lint depends only on its import cone (`lint_modular`, `mkey_sound`, `mkey_congr`).
 * **(c) Pre-lock checking.** Checking `merge(main₀, tip)` before the lock and fast-forwarding under the lock decides
   exactly what today's protocol decides iff `HEAD = main₀` at commit time (`pre_eq_old`, `pre_moved`,
   `preLand_eq_old`), and the commit it makes is the one `Fw.Console.Land.land_commit_exact` describes
@@ -89,14 +86,6 @@ theorem lookup_mem {α β} [BEq α] [LawfulBEq α] :
     · have : (k == a) = false := by simpa using hk
       simp [List.lookup, this] at h
       exact List.mem_cons_of_mem _ (lookup_mem S k r h)
-
-/-- Pointwise equal bodies give equal flat maps.
-$$\forall f, g, l:\ (\forall x \in l:\ f(x) = g(x)) \Rightarrow \mathrm{flatMap}(f, l) = \mathrm{flatMap}(g, l)$$ -/
-theorem flatMap_congr' {α β} (f g : α → List β) : ∀ l : List α, (∀ x ∈ l, f x = g x) → l.flatMap f = l.flatMap g
-  | [], _ => rfl
-  | x :: l, h => by
-    simp only [List.flatMap_cons]
-    rw [h x (by simp), flatMap_congr' f g l (fun y hy => h y (by simp [hy]))]
 
 /-- A store: a list of (digest, result) entries, newest first. $$S \in (\mathbb{N} \times R)^{*}$$ -/
 abbrev Store (R : Type) := List (Nat × R)
@@ -375,131 +364,6 @@ def scanDecls : List Decl := withScan (sampleDecls ++ [⟨"site", ["apps/site/**
 #guard selectChecks scanDecls ["apps/site/src/x.ts"] == ["site", "reads-scan"]
 #guard selectChecks scanDecls ["docs/team/handoffs/x.md"] == []
 #guard selectChecks scanDecls ["packages/contracts/golden/obs/timing.jsonl"] == ["check.sh", "contracts", "reads-scan"]
-
-/-! ## (b) Cone skip: per-module lint with Merkle keys over the import DAG -/
-
-/-- A module name. $$\mathrm{Mod} = \mathrm{String}$$ -/
-abbrev Mod := String
-
-/-- The import graph: modules, their imports, and a rank that strictly drops along an import (acyclic).
-$$G = (\mathit{mods},\ \mathit{imp} : \mathrm{Mod} \to \mathrm{Mod}^{*},\ \mathit{rk} : \mathrm{Mod} \to \mathbb{N}),\quad \forall m, \forall i \in \mathit{imp}(m):\ \mathit{rk}(i) < \mathit{rk}(m)$$ -/
-structure Graph where
-  mods : List Mod
-  imp : Mod → List Mod
-  rk : Mod → Nat
-  acyclic : ∀ m, ∀ i ∈ imp m, rk i < rk m
-
-/-- `x` is in the import cone of `m` (reflexive-transitive imports).
-$$x \in \operatorname{cone}(m) \iff x = m \lor \exists i \in \mathit{imp}(m):\ x \in \operatorname{cone}(i)$$ -/
-inductive InCone (G : Graph) (x : Mod) : Mod → Prop
-  | refl : InCone G x x
-  | step {m i : Mod} : i ∈ G.imp m → InCone G x i → InCone G x m
-
-/-- `InCone` is the import reachability `Fw.Spec.ConeMiss.Reach` of the graph's import map, so the expected-miss
-computation `Fw.Spec.ConeMiss.dependents` lists exactly the modules whose cone contains the edited one.
-$$\forall G, x, m:\ x \in \operatorname{cone}_G(m) \iff \mathrm{Reach}_{\mathit{imp}_G}(x, m)$$ -/
-theorem inCone_iff_reach (G : Graph) (x m : Mod) : InCone G x m ↔ Fw.Spec.ConeMiss.Reach G.imp x m := by
-  constructor
-  · intro h
-    induction h with
-    | refl => exact .refl
-    | step hi _ ih => exact .step hi ih
-  · intro h
-    induction h with
-    | refl => exact .refl
-    | step hi _ ih => exact .step hi ih
-
-/-- The Merkle key of a module: a hash of its name, its source blob, the tool blob and its imports' keys (Lake's
-`depHash` has this shape; the lint program and toolchain enter as the extra blob `t`).
-$$K(\sigma, m) = H\big(m,\ \sigma(m),\ t,\ [K(\sigma, i) : i \in \mathit{imp}(m)]\big)$$ -/
-def mkey (G : Graph) (H : Mod → Blob → Blob → List Nat → Nat) (t : Blob) (src : Mod → Blob) (m : Mod) : Nat :=
-  H m (src m) t ((G.imp m).attach.map (fun ⟨i, _⟩ => mkey G H t src i))
-termination_by G.rk m
-decreasing_by exact G.acyclic m _ (by assumption)
-
-/-- **Assumption `land.noCollision` (A2).** The module hash has no collision (four-argument injectivity).
-$$\mathrm{inj}(H) \iff \forall m, b, t, \vec k, m', b', t', \vec k':\ H(m, b, t, \vec k) = H(m', b', t', \vec k') \Rightarrow (m, b, t, \vec k) = (m', b', t', \vec k')$$ -/
-def HInj (H : Mod → Blob → Blob → List Nat → Nat) : Prop :=
-  ∀ m b t k m' b' t' k', H m b t k = H m' b' t' k' → m = m' ∧ b = b' ∧ t = t' ∧ k = k'
-
-/-- Equal Merkle keys mean every module of the cone has the same source.
-$$\forall G, H, t, \sigma, \sigma', x, m:\ \mathrm{inj}(H) \land x \in \operatorname{cone}(m) \land K(\sigma, m) = K(\sigma', m) \Rightarrow \sigma(x) = \sigma'(x)$$ -/
-theorem mkey_sound (G : Graph) (H : Mod → Blob → Blob → List Nat → Nat) (hH : HInj H) (t : Blob)
-    (src src' : Mod → Blob) (x m : Mod) (hx : InCone G x m) (h : mkey G H t src m = mkey G H t src' m) :
-    src x = src' x := by
-  induction hx with
-  | refl => rw [mkey, mkey] at h; exact (hH _ _ _ _ _ _ _ _ h).2.1
-  | @step m i hi _ ih =>
-    apply ih
-    rw [mkey, mkey] at h
-    have hl := (hH _ _ _ _ _ _ _ _ h).2.2.2
-    have := List.map_inj_left.mp (by simpa [List.map_attach_eq_pmap] using hl) i hi
-    simpa using this
-
-/-- **Cone skip (the converse, no hash premise).** Sources that agree on the cone give the same key: a change outside
-the cone of `m` never invalidates `m`'s stored result.
-$$\forall G, H, t, \sigma, \sigma', m:\ (\forall x \in \operatorname{cone}(m):\ \sigma(x) = \sigma'(x)) \Rightarrow K(\sigma, m) = K(\sigma', m)$$ -/
-theorem mkey_congr (G : Graph) (H : Mod → Blob → Blob → List Nat → Nat) (t : Blob) (src src' : Mod → Blob) :
-    ∀ m, (∀ x, InCone G x m → src x = src' x) → mkey G H t src m = mkey G H t src' m := by
-  intro m
-  induction m using (measure G.rk).wf.induction with
-  | _ m ih =>
-    intro hc
-    rw [mkey, mkey, hc m .refl]
-    congr 1
-    apply List.map_congr_left
-    intro ⟨i, hi⟩ _
-    exact ih i (G.acyclic m i hi) (fun x hx => hc x (.step hi hx))
-
-/-- **Empirical premise `land.coneLocal` (E2).** A module's lint lines are a function of the sources of its import
-cone (and the tool blob). Fails if a module outside the cone adds `attribute [instance]`, an unexpander, notation or
-`add_decl_doc` to a declaration of `m`, or if the lint uses evaluation-order state.
-$$\mathrm{CL}(\ell) \iff \forall m, \sigma, \sigma':\ (\forall x \in \operatorname{cone}(m):\ \sigma(x)=\sigma'(x)) \Rightarrow \ell(m, \sigma) = \ell(m, \sigma')$$ -/
-def ConeLocal (G : Graph) (lint : Mod → (Mod → Blob) → List String) : Prop :=
-  ∀ m src src', (∀ x, InCone G x m → src x = src' x) → lint m src = lint m src'
-
-/-- The whole-repo lint: the concatenation of the module lints in module order (premise `land.lintOrder` (E3): the
-real lint sorts by a total key (module, line, name), so this order is its order).
-$$\mathrm{whole}(\sigma) = \mathop{+\!\!+}_{m \in \mathit{mods}} \ell(m, \sigma)$$ -/
-def lintAll (G : Graph) (lint : Mod → (Mod → Blob) → List String) (src : Mod → Blob) : List String :=
-  G.mods.flatMap (fun m => lint m src)
-
-/-- The lint passes iff every module's lint is empty: the verdict is a conjunction over modules.
-$$\forall G, \ell, \sigma:\ \mathrm{whole}(\sigma) = [\,] \iff \forall m \in \mathit{mods}:\ \ell(m, \sigma) = [\,]$$ -/
-theorem lintAll_nil_iff (G : Graph) (lint : Mod → (Mod → Blob) → List String) (src : Mod → Blob) :
-    lintAll G lint src = [] ↔ ∀ m ∈ G.mods, lint m src = [] := by
-  simp [lintAll, List.flatMap_eq_nil_iff]
-
-/-- Module store integrity: every entry is a real module lint under its Merkle key.
-$$\mathrm{Int}(S) \iff \forall (k, r) \in S\ \exists m, \sigma_0:\ k = K(\sigma_0, m) \land r = \ell(m, \sigma_0)$$ -/
-def ModIntegrity (G : Graph) (H : Mod → Blob → Blob → List Nat → Nat) (t : Blob)
-    (lint : Mod → (Mod → Blob) → List String) (S : List (Nat × List String)) : Prop :=
-  ∀ e ∈ S, ∃ m src0, e.1 = mkey G H t src0 m ∧ e.2 = lint m src0
-
-/-- The incremental lint: each module replays its first stored lines on a key hit, else runs.
-$$\mathrm{inc}_S(\sigma) = \mathop{+\!\!+}_{m \in \mathit{mods}} \begin{cases} r & \operatorname{lookup}_S(K(\sigma, m)) = \mathrm{some}(r) \\ \ell(m,\sigma) & \operatorname{lookup}_S(K(\sigma, m)) = \mathrm{none}\end{cases}$$ -/
-def lintInc (G : Graph) (H : Mod → Blob → Blob → List Nat → Nat) (t : Blob)
-    (lint : Mod → (Mod → Blob) → List String) (S : List (Nat × List String)) (src : Mod → Blob) : List String :=
-  G.mods.flatMap (fun m => match S.lookup (mkey G H t src m) with | some r => r | none => lint m src)
-
-/-- **lint_modular.** With cone locality, no hash collision and an intact store, the incremental lint is exactly the
-whole-repo lint (same lines, same order, so the same verdict).
-$$\forall G, H, t, \ell, S, \sigma:\ \mathrm{CL}(\ell) \land \mathrm{inj}(H) \land \mathrm{Int}(S) \Rightarrow \mathrm{inc}_S(\sigma) = \mathrm{whole}(\sigma)$$ -/
-theorem lint_modular (G : Graph) (H : Mod → Blob → Blob → List Nat → Nat) (hH : HInj H) (t : Blob)
-    (lint : Mod → (Mod → Blob) → List String) (hcl : ConeLocal G lint) (S : List (Nat × List String))
-    (hS : ModIntegrity G H t lint S) (src : Mod → Blob) : lintInc G H t lint S src = lintAll G lint src := by
-  unfold lintInc lintAll
-  apply flatMap_congr'
-  intro m _
-  split
-  · rename_i r hr
-    obtain ⟨m0, src0, hk, hr0⟩ := hS _ (lookup_mem _ _ _ hr)
-    simp only at hk hr0
-    rw [hr0]
-    have hm : m0 = m := by rw [mkey, mkey] at hk; exact (hH _ _ _ _ _ _ _ _ hk).1.symm
-    subst hm
-    exact hcl m0 src0 src (fun x hx => mkey_sound G H hH t src0 src x m0 hx hk.symm)
-  · rfl
 
 /-! ## (c) Pre-lock checking: check merge(main₀, tip) outside the lock, commit it only if main is still main₀ -/
 
@@ -884,20 +748,16 @@ structure PremiseRow where
   theorems : List String
   test : String
 
-/-- The empirical premises and assumptions of this module, with the test that covers each (9 rows, distinct ids).
-$$\mathrm{premises} = [p_1, \dots, p_9],\quad p_k = (\mathit{id}_k, \mathit{statement}_k, \mathit{theorems}_k, \mathit{test}_k)$$ -/
+/-- The empirical premises and assumptions of this module, with the test that covers each (7 rows, distinct ids).
+$$\mathrm{premises} = [p_1, \dots, p_7],\quad p_k = (\mathit{id}_k, \mathit{statement}_k, \mathit{theorems}_k, \mathit{test}_k)$$ -/
 def premises : List PremiseRow := [
   ⟨"land.readsOnly", "a check reads only its declared inputs (E1)",
     ["cache_sound", "cachedRun_eq", "skip_sound", "seq_eq_all", "evidence_irrelevant"],
     "apps/runner/test/land-inputs.test.ts: a change to an undeclared input (packages/contracts/golden/obs/timing.jsonl) selects check.sh; any change in a check's declared reads selects the reads-scan check (scan_selected); CI strace reads ⊆ declared reads"⟩,
   ⟨"land.readsWithin", "a check reads only paths in the scope of its declared globs (E1 for globs)",
     ["skip_sound"], "apps/runner/test/land-inputs.test.ts: checksFor equals selectChecks on golden landSpeed.select"⟩,
-  ⟨"land.noCollision", "sha256 of the canonical key encoding has no collision (A1, A2; assumption, not tested)",
-    ["cache_sound", "cachedRun_eq", "mkey_sound", "lint_modular"], "none (cryptographic assumption)"⟩,
-  ⟨"land.coneLocal", "a module's lint depends only on its import cone (E2)",
-    ["lint_modular"], "lean/scripts/check-partial.sh grep gate (no cross-module attribute/add_decl_doc/app_unexpander/notation/macro_rules) + CI differential incremental vs full mathview"⟩,
-  ⟨"land.lintOrder", "the mathview lint sorts by a total key (module, line, name) (E3)",
-    ["lint_modular"], "CI differential incremental vs full mathview, byte-identical modulo heartbeats"⟩,
+  ⟨"land.noCollision", "sha256 of the canonical key encoding has no collision (A1; assumption, not tested)",
+    ["cache_sound", "cachedRun_eq"], "none (cryptographic assumption)"⟩,
   ⟨"land.nonInterfere", "no stage-2 job writes a path another job reads; stage 2 calls .lake/build/bin/* directly (E4)",
     ["seq_eq_all", "verdict_jobs_pass_iff"], "CI strace -f -e trace=openat per stage-2 job: writes disjoint from other jobs' reads"⟩,
   ⟨"land.checkDeterministic", "re-running the checks on the same tree gives the same verdict",
@@ -907,7 +767,7 @@ def premises : List PremiseRow := [
   ⟨"land.checkedWorktreeExact", "the land worktree holds exactly commit C (checkout --detach C; clean -fdx -e .lake -e node_modules)",
     ["pre_commit_checked"], "apps/runner/test: an untracked imported .lean file in the land worktree is cleaned or refused"⟩]
 
-#guard premises.length == 9
+#guard premises.length == 7
 #guard (premises.map (·.id)).eraseDups.length == premises.length
 
 /-! ## Golden vectors (`packages/contracts/golden/console/land-speed.jsonl`) -/
@@ -998,7 +858,7 @@ def cases : List Json :=
     cacheCase "miss: run the check" [(7, true)] 8,
     cacheCase "empty store: miss" [] 0] ++ premises.map premiseCase
 
-#guard cases.length == 36
+#guard cases.length == 34
 
 /-- The golden file text: one compressed JSON line per case.
 $$\mathrm{goldenText} = \operatorname{concat}[\, \operatorname{compress}(c) \mathbin{+\!\!+} \text{"\textbackslash n"} \,]_{c \in \mathrm{cases}}$$ -/

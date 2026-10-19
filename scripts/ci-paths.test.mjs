@@ -60,7 +60,7 @@ test('Lake cache jobs are read from the workflows: one writer, every setup-lean 
   const by = (k) => rows.find((r) => `${r.file}/${r.job}` === k);
   assert.deepEqual(rows.filter((r) => r.saves).map((r) => `${r.file}/${r.job}`), ['lean.yml/lean']);
   const lean = readFileSync(join(root, WF, 'lean.yml'), 'utf8').split('\n');
-  assert.deepEqual(setupLeanJobs(lean), [{ job: 'lean', save: 'true' }, { job: 'mathview-differential', save: 'false' }]);
+  assert.deepEqual(setupLeanJobs(lean), [{ job: 'lean', save: 'true' }]);
   // `lake build` = the lakefile defaults; `lake test` runs `fwcore fwtest`, a default target (task lean-bin-slim)
   assert.deepEqual(by('lean.yml/lean').targets, readLakefile(root).defaults);
   // a site build reaches `lake exe breakgen` through pnpm -> package.json -> scripts/check-breakpoints.mjs (spawnSync)
