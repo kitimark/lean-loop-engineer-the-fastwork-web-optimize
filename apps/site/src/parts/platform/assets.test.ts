@@ -13,8 +13,9 @@ const subs = { entries: true, glint: true, marquee: true };
 describe('platform assets', () => {
   const profile = renderToStaticMarkup(createElement(Profile, { subs }));
   const ask = renderToStaticMarkup(createElement(Ask, { subs }));
-  it('the profile renders the pin as an img', () => {
-    expect(imgSrcs(profile)).toContain('/selling/icons/pin.svg');
+  it('the profile draws the pin as an inline svg, not an img', () => {
+    expect(imgSrcs(profile)).not.toContain('/selling/icons/pin.svg');
+    expect(profile).toMatch(/<svg[^>]*viewBox="0 0 24 24"/);
   });
   it('the ask results render the lawyer png', () => {
     expect(imgSrcs(ask)).toContain('/samples/docs/lawyer/lawyer-consult-cover.png');

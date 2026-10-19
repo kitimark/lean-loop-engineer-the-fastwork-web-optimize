@@ -163,11 +163,11 @@
     line-height: 16px;
     display: flex;
   }
-  .loc img {
+  .loc svg {
     flex: none;
     width: 10px;
-    height: 13px;
-    display: block;
+    height: 12px;
+    font-size: 12px;
   }
   .masonry {
     opacity: 0.75;
