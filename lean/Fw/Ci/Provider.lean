@@ -63,6 +63,79 @@ inductive Conclusion where
   | notRun
 deriving DecidableEq, Repr
 
+/-- A CircleCI job or workflow status as a conclusion: only `success` passes; a job that was cancelled or never ran reached no verdict. -/
+def ofCircleStatus (s : String) : Conclusion :=
+  if s == "success" then .pass
+  else if ["failed", "infrastructure_fail", "timedout", "error", "failing", "unauthorized"].contains s then .fail
+  else .notRun
+
+/-- A GitHub job conclusion as a conclusion: only `success` passes; cancelled, skipped and not yet known reached no verdict. -/
+def ofGithubConclusion (s : String) : Conclusion :=
+  if s == "success" then .pass
+  else if ["failure", "timed_out", "startup_failure", "action_required"].contains s then .fail
+  else .notRun
+
+/-- The workflow status is final. -/
+def circleTerminal (s : String) : Bool :=
+  ["success", "failed", "error", "canceled", "not_run", "unauthorized", "infrastructure_fail", "timedout", "terminated-unknown"].contains s
+
+/-- The exit code of a wait over final workflow statuses: 0 all passed, 1 one failed, 4 none failed but not all passed (cancelled, not run). -/
+def endCode (sts : List String) : Nat :=
+  if sts.all (· == "success") then 0
+  else if sts.any (fun s => ["failed", "error", "infrastructure_fail", "timedout", "unauthorized"].contains s) then 1
+  else 4
+
+/-- What one poll of `wait` reads: the workflow statuses and the seconds waited against the two limits. -/
+structure WaitInput where
+  statuses : List String
+  waitedS : Nat
+  noWorkflowS : Nat
+  timeoutS : Nat
+deriving DecidableEq, Repr
+
+/-- The exit code of a wait at one poll, none while it goes on: final workflows decide, no workflow after the grace time is 4, a timeout is 3. -/
+def waitStep (i : WaitInput) : Option Nat :=
+  if i.statuses.isEmpty then
+    (if i.noWorkflowS ≤ i.waitedS then some 4 else if i.timeoutS ≤ i.waitedS then some 3 else none)
+  else if i.statuses.all circleTerminal then some (endCode i.statuses)
+  else if i.timeoutS ≤ i.waitedS then some 3 else none
+
+/-- How a GitHub job name is matched to a pilot job: the whole name, or a matrix name that starts with `pre` and ends with `, <vm>)`. -/
+inductive GhName where
+  | exact (name : String)
+  | matrix (pre vm : String)
+deriving DecidableEq, Repr
+
+/-- The name closing a matrix job name of the VM `vm`. -/
+def vmSuffix (vm : String) : String := ", " ++ vm ++ ")"
+
+/-- A GitHub job name fits a rule; a matrix rule needs prefix and suffix not to overlap. -/
+def ghMatches : GhName → String → Bool
+  | .exact n, s => n == s
+  | .matrix p vm, s => p.toList.isPrefixOf s.toList && (vmSuffix vm).toList.isSuffixOf s.toList
+      && decide (p.length + (vmSuffix vm).length ≤ s.length)
+
+/-- One pilot job: the lane, how its GitHub twin is named, its CircleCI name, and whether its verdict is the premise digest. -/
+structure JobRow where
+  lane : String
+  gh : GhName
+  circleci : String
+  digest : Bool
+deriving DecidableEq, Repr
+
+/-- The GitHub job of the pilot lane against its CircleCI twin. The engine jobs end `exit 0` on both sides, so their verdict is the digest of the premise results. -/
+def jobMap : List JobRow := [
+  ⟨"premise-tests", .exact "engine (chromium)", "engine-chromium", true⟩,
+  ⟨"premise-tests", .exact "engine (playwright-webkit)", "engine-playwright-webkit", true⟩,
+  ⟨"premise-tests", .exact "verdict", "verdict", false⟩,
+  ⟨"webkit-sim", .matrix "sim (original," "v1", "webkit-sim", false⟩]
+
+/-- The pilot job a GitHub job name belongs to. -/
+def jobOfGithub (name : String) : Option JobRow := jobMap.find? (ghMatches ·.gh name)
+
+/-- The pilot job (by CircleCI name) is judged by its premise digest. -/
+def digestJob (job : String) : Bool := jobMap.any fun r => r.circleci == job && r.digest
+
 /-- One job of one provider on one commit; the durations are milliseconds, the digest is the canonical result lines of the job. -/
 structure Run where
   provider : Provider
@@ -79,18 +152,26 @@ deriving DecidableEq, Repr
 def verdictEq (g c : Run) : Bool :=
   g.conclusion == c.conclusion && (match g.digest, c.digest with | some a, some b => a == b | _, _ => true)
 
+/-- The two runs of a digest job carry the same digest. -/
+def verdictDigest (g c : Run) : Bool := g.digest.isSome && g.digest == c.digest
+
+/-- The verdict of a pair: the digest for a digest job (its conclusion is `pass` on both sides by construction), else the conclusion. -/
+def verdict (g c : Run) : Bool := if digestJob g.job then verdictDigest g c else verdictEq g c
+
 /-- Why two runs are not a pair. -/
 inductive Mismatch where
   | providers
   | job
   | sha
+  | digest
 deriving DecidableEq, Repr
 
-/-- The first reason two runs are not a GitHub/CircleCI pair of the same job on the same commit. -/
+/-- The first reason two runs are not a GitHub/CircleCI pair of the same job on the same commit; a job judged by its digest needs both digests. -/
 def pairCheck (g c : Run) : Option Mismatch :=
   if g.provider != .github || c.provider != .circleci then some .providers
   else if g.job != c.job then some .job
   else if g.sha != c.sha then some .sha
+  else if digestJob g.job && (g.digest.isNone || c.digest.isNone) then some .digest
   else none
 
 /-- What the pilot records for one pair. -/
@@ -106,11 +187,11 @@ deriving DecidableEq, Repr
 def ratioPermille (g c : Run) : Option Nat :=
   if g.durMs = 0 then none else some (c.durMs * 1000 / g.durMs)
 
-/-- Compare a pair: a verdict that differs is a finding, with the duration ratio, both queue times and the CircleCI credits. -/
+/-- Compare a pair: a verdict (`verdict`) that differs is a finding, with the duration ratio, both queue times and the CircleCI credits. -/
 def compare (g c : Run) : Except Mismatch Comparison :=
   match pairCheck g c with
   | some m => .error m
-  | none => .ok { finding := !verdictEq g c, ratioPermille := ratioPermille g c,
+  | none => .ok { finding := !verdict g c, ratioPermille := ratioPermille g c,
                   queueGithubMs := g.queueMs, queueCircleMs := c.queueMs, credits := credits c.cls c.durMs }
 
 /-- The job-length cap of the Free plan, ms. -/
@@ -167,13 +248,6 @@ def affordable (i : RouteInput) : Bool :=
 /-- Where a lane runs: CircleCI only for an allowlisted lane on an affordable free class, and a macOS lane only while GitHub Actions is degraded. -/
 def route (i : RouteInput) : Provider :=
   if i.allow.contains i.lane && affordable i && (i.platform != .macos || i.ghDegraded) then .circleci else .github
-
-/-- The GitHub job of the pilot lane against its CircleCI twin: (lane, GitHub job, CircleCI job). -/
-def jobMap : List (String × String × String) := [
-  ("premise-tests", "engine (chromium)", "engine-chromium"),
-  ("premise-tests", "engine (playwright-webkit)", "engine-playwright-webkit"),
-  ("premise-tests", "verdict", "verdict"),
-  ("webkit-sim", "sim (original)", "webkit-sim")]
 
 /-! ## Rate table -/
 
@@ -275,11 +349,19 @@ theorem pairCheck_sha (g c : Run) (hg : g.provider = .github) (hc : c.provider =
     (h : g.sha ≠ c.sha) : pairCheck g c = some .sha := by
   simp [pairCheck, hg, hc, hj, h]
 
+theorem pairCheck_digest (g c : Run) (hg : g.provider = .github) (hc : c.provider = .circleci) (hj : g.job = c.job)
+    (hs : g.sha = c.sha) (hd : digestJob g.job = true) (h : g.digest = none ∨ c.digest = none) :
+    pairCheck g c = some .digest := by
+  rw [hj] at hd
+  rcases h with h | h <;> simp [pairCheck, hg, hc, hj, hs, hd, h]
+
 theorem pairCheck_none_iff (g c : Run) : pairCheck g c = none ↔
-    g.provider = .github ∧ c.provider = .circleci ∧ g.job = c.job ∧ g.sha = c.sha := by
+    g.provider = .github ∧ c.provider = .circleci ∧ g.job = c.job ∧ g.sha = c.sha ∧
+      (digestJob g.job = true → g.digest.isSome = true ∧ c.digest.isSome = true) := by
   unfold pairCheck
   by_cases h1 : g.provider = .github <;> by_cases h2 : c.provider = .circleci <;>
-    by_cases h3 : g.job = c.job <;> by_cases h4 : g.sha = c.sha <;> simp [h1, h2, h3, h4]
+    by_cases h3 : g.job = c.job <;> by_cases h4 : g.sha = c.sha <;> by_cases h5 : digestJob g.job = true <;>
+    cases hg : g.digest <;> cases hc : c.digest <;> simp [h1, h2, h3, h4, h5]
 
 theorem compare_ok_iff (g c : Run) : (∃ k, compare g c = .ok k) ↔ pairCheck g c = none := by
   unfold compare
@@ -289,7 +371,7 @@ theorem compare_error (g c : Run) (m : Mismatch) (h : pairCheck g c = some m) : 
   simp [compare, h]
 
 theorem finding_iff (g c : Run) (k : Comparison) (h : compare g c = .ok k) :
-    k.finding = true ↔ verdictEq g c = false := by
+    k.finding = true ↔ verdict g c = false := by
   unfold compare at h
   cases hp : pairCheck g c <;> simp [hp] at h
   subst h
@@ -509,11 +591,193 @@ theorem route_mono_credits (i : RouteInput) (n : Nat) (h : route i = .circleci) 
   rw [route_iff]
   exact ⟨h'.1, affordable_mono i n h'.2.1 hn, h'.2.2⟩
 
+/-! ## Statuses and the wait rule -/
+
+theorem ofCircleStatus_pass_iff (s : String) : ofCircleStatus s = .pass ↔ s = "success" := by
+  unfold ofCircleStatus
+  split
+  · simp_all
+  · split <;> simp_all
+
+theorem ofGithubConclusion_pass_iff (s : String) : ofGithubConclusion s = .pass ↔ s = "success" := by
+  unfold ofGithubConclusion
+  split
+  · simp_all
+  · split <;> simp_all
+
+theorem circle_canceled_not_pass : ofCircleStatus "canceled" = .notRun := by decide
+
+theorem circle_not_run_not_pass : ofCircleStatus "not_run" = .notRun := by decide
+
+theorem circle_queued_not_pass : ofCircleStatus "queued" = .notRun := by decide
+
+theorem circle_running_not_pass : ofCircleStatus "running" = .notRun := by decide
+
+theorem circle_failed_fails : ofCircleStatus "failed" = .fail := by decide
+
+theorem circle_infra_fails : ofCircleStatus "infrastructure_fail" = .fail := by decide
+
+theorem circle_timedout_fails : ofCircleStatus "timedout" = .fail := by decide
+
+theorem github_cancelled_not_pass : ofGithubConclusion "cancelled" = .notRun := by decide
+
+theorem github_skipped_not_pass : ofGithubConclusion "skipped" = .notRun := by decide
+
+theorem github_unknown_not_pass : ofGithubConclusion "" = .notRun := by decide
+
+theorem github_failure_fails : ofGithubConclusion "failure" = .fail := by decide
+
+theorem github_timed_out_fails : ofGithubConclusion "timed_out" = .fail := by decide
+
+theorem terminal_success : circleTerminal "success" = true := by decide
+
+theorem running_not_terminal : circleTerminal "running" = false := by decide
+
+theorem on_hold_not_terminal : circleTerminal "on_hold" = false := by decide
+
+theorem endCode_zero_iff (sts : List String) : endCode sts = 0 ↔ sts.all (· == "success") = true := by
+  unfold endCode
+  by_cases h : sts.all (· == "success") = true <;> simp [h]
+  split <;> simp
+
+theorem endCode_canceled (sts : List String) (h : "canceled" ∈ sts) : endCode sts ≠ 0 := by
+  rw [Ne, endCode_zero_iff]
+  intro hall
+  have := List.all_eq_true.mp hall "canceled" h
+  simp at this
+
+theorem endCode_failed (sts : List String) (h : "failed" ∈ sts) : endCode sts = 1 := by
+  have hn : sts.all (· == "success") = false := by
+    cases hc : sts.all (· == "success")
+    · rfl
+    · have := List.all_eq_true.mp hc "failed" h
+      simp at this
+  have hy : sts.any (fun s => ["failed", "error", "infrastructure_fail", "timedout", "unauthorized"].contains s) = true :=
+    List.any_eq_true.mpr ⟨"failed", h, by decide⟩
+  unfold endCode
+  simp only [hn, hy]
+  simp
+
+theorem waitStep_pass (i : WaitInput) (hne : i.statuses ≠ []) (h : i.statuses.all (· == "success") = true) :
+    waitStep i = some 0 := by
+  have ht : i.statuses.all circleTerminal = true := by
+    rw [List.all_eq_true] at h ⊢
+    intro s hs
+    have := h s hs
+    simp at this
+    subst this
+    exact terminal_success
+  cases hs : i.statuses with
+  | nil => exact absurd hs hne
+  | cons x t =>
+    rw [hs] at ht h
+    simp [waitStep, hs, ht, endCode, h]
+
+theorem waitStep_canceled_not_pass (i : WaitInput) (h : "canceled" ∈ i.statuses) : waitStep i ≠ some 0 := by
+  have hne := endCode_canceled i.statuses h
+  unfold waitStep
+  cases hs : i.statuses with
+  | nil => rw [hs] at h; simp at h
+  | cons x t =>
+    rw [hs] at hne
+    simp only [List.isEmpty_cons, Bool.false_eq_true, ↓reduceIte]
+    split
+    · simpa using hne
+    · split <;> simp
+
+theorem waitStep_failed (i : WaitInput) (h : "failed" ∈ i.statuses) (ht : i.statuses.all circleTerminal = true) :
+    waitStep i = some 1 := by
+  have := endCode_failed i.statuses h
+  cases hs : i.statuses with
+  | nil => rw [hs] at h; simp at h
+  | cons x t =>
+    rw [hs] at ht this
+    simp only [waitStep, hs, List.isEmpty_cons, Bool.false_eq_true, ↓reduceIte, ht, this]
+
+theorem waitStep_none_grace (i : WaitInput) (h : i.noWorkflowS ≤ i.waitedS) (he : i.statuses = []) :
+    waitStep i = some 4 := by
+  simp [waitStep, he, h]
+
+theorem waitStep_timeout (i : WaitInput) (h : i.timeoutS ≤ i.waitedS) (hg : i.statuses = [] → i.waitedS < i.noWorkflowS)
+    (hr : i.statuses.all circleTerminal = false) : waitStep i = some 3 := by
+  cases hs : i.statuses with
+  | nil =>
+    have := hg hs
+    simp [waitStep, hs, h, Nat.not_le.mpr this]
+  | cons x t =>
+    rw [hs] at hr
+    simp only [waitStep, hs, List.isEmpty_cons, Bool.false_eq_true, ↓reduceIte, hr, h]
+
+theorem waitStep_goes_on (i : WaitInput) (h1 : i.waitedS < i.timeoutS) (h2 : i.statuses = [] → i.waitedS < i.noWorkflowS)
+    (h3 : i.statuses.all circleTerminal = false) : waitStep i = none := by
+  cases hs : i.statuses with
+  | nil =>
+    have := h2 hs
+    simp [waitStep, hs, Nat.not_le.mpr this, Nat.not_le.mpr h1]
+  | cons x t =>
+    rw [hs] at h3
+    simp only [waitStep, hs, List.isEmpty_cons, Bool.false_eq_true, ↓reduceIte, h3, Nat.not_le.mpr h1]
+
 /-! ## Job map -/
 
-theorem jobMap_github_nodup : (jobMap.map (fun x => (x.1, x.2.1))).Nodup := by decide
+theorem jobMap_github_nodup : (jobMap.map (fun x => (x.lane, x.gh))).Nodup := by decide
 
-theorem jobMap_circle_nodup : (jobMap.map (fun x => (x.1, x.2.2))).Nodup := by decide
+theorem jobMap_gh_nodup : (jobMap.map (·.gh)).Nodup := by decide
+
+theorem jobMap_circle_nodup : (jobMap.map (·.circleci)).Nodup := by decide
+
+theorem exact_matches_iff (n s : String) : ghMatches (.exact n) s = true ↔ n = s := by
+  simp [ghMatches]
+
+/-- The real name of the sim matrix job of the original arm on the first VM (run 39123621097): `sim (original, 430, 1, <sha>, v1)`. -/
+theorem sim_v1_row : jobOfGithub "sim (original, 430, 1, 40a8d4c1deadbeef, v1)" = some ⟨"webkit-sim", .matrix "sim (original," "v1", "webkit-sim", false⟩ := by
+  decide
+
+theorem sim_other_vm_no_row : jobOfGithub "sim (original, 430, 1, 40a8d4c1deadbeef, v2)" = none := by decide
+
+theorem sim_rewrite_no_row : jobOfGithub "sim (rewrite, 430, 1, 40a8d4c1deadbeef, v1)" = none := by decide
+
+theorem sim_overlap_no_row : jobOfGithub "sim (original, v1)" = none := by decide
+
+theorem engine_chromium_row : (jobOfGithub "engine (chromium)").map (·.circleci) = some "engine-chromium" := by decide
+
+theorem engine_name_is_whole : jobOfGithub "engine (chromium) again" = none := by decide
+
+theorem verdict_row : (jobOfGithub "verdict").map (·.circleci) = some "verdict" := by decide
+
+/-- No GitHub job name belongs to two rows: two rows of the map never match one name. -/
+theorem jobMap_disjoint : ∀ r ∈ jobMap, ∀ r' ∈ jobMap, r ≠ r' → ∀ n, ghMatches r.gh n = true → ghMatches r'.gh n = false := by
+  intro r hr r' hr' hne n hm
+  simp only [jobMap, List.mem_cons, List.not_mem_nil, or_false] at hr hr'
+  rcases hr with rfl | rfl | rfl | rfl <;> rcases hr' with rfl | rfl | rfl | rfl <;>
+    first
+    | exact absurd rfl hne
+    | (simp only [ghMatches, beq_iff_eq] at hm; subst hm; decide)
+    | (simp only [ghMatches, beq_eq_false_iff_ne, ne_eq]; rintro rfl; revert hm; decide)
+
+theorem digest_jobs : digestJob "engine-chromium" = true ∧ digestJob "engine-playwright-webkit" = true ∧
+    digestJob "verdict" = false ∧ digestJob "webkit-sim" = false := by decide
+
+/-! ## Digest verdict -/
+
+theorem verdict_digest_ignores_conclusion (g c : Run) (h : digestJob g.job = true) (a : String)
+    (hg : g.digest = some a) (hc : c.digest = some a) : verdict g c = true := by
+  simp [verdict, h, verdictDigest, hg, hc]
+
+theorem verdict_digest_differs (g c : Run) (h : digestJob g.job = true) (a b : String)
+    (hg : g.digest = some a) (hc : c.digest = some b) (hab : a ≠ b) : verdict g c = false := by
+  simp [verdict, h, verdictDigest, hg, hc, hab]
+
+theorem verdict_conclusion_job (g c : Run) (h : digestJob g.job = false) : verdict g c = verdictEq g c := by
+  simp [verdict, h]
+
+theorem verdict_digest_none (g c : Run) (h : digestJob g.job = true) (hg : g.digest = none) : verdict g c = false := by
+  simp [verdict, h, verdictDigest, hg]
+
+theorem digest_missing_not_comparable (g c : Run) (hg : g.provider = .github) (hc : c.provider = .circleci)
+    (hj : g.job = c.job) (hs : g.sha = c.sha) (hd : digestJob g.job = true) (h : g.digest = none ∨ c.digest = none) :
+    compare g c = .error .digest := by
+  rw [compare_error g c _ (pairCheck_digest g c hg hc hj hs hd h)]
 
 /-! ## Examples -/
 
@@ -524,6 +788,13 @@ theorem jobMap_circle_nodup : (jobMap.map (fun x => (x.1, x.2.2))).Nodup := by d
 #guard stops ⟨3600000, 0, 0⟩ == [.cap]
 #guard stops ⟨3599999, 600000, 1000⟩ == []
 #guard stops ⟨3600000, 600001, 1001⟩ == [.cap, .queue, .storage]
+#guard ofCircleStatus "success" == .pass
+#guard ofCircleStatus "canceled" == .notRun
+#guard ofGithubConclusion "cancelled" == .notRun
+#guard waitStep ⟨["success", "running"], 0, 300, 3600⟩ == none
+#guard waitStep ⟨["success", "failed"], 0, 300, 3600⟩ == some 1
+#guard waitStep ⟨[], 300, 300, 3600⟩ == some 4
+#guard (jobOfGithub "sim (original, 430, 1, 40a8d4c1, v1)").map (·.circleci) == some "webkit-sim"
 #guard route ⟨"premise-tests", .linuxArm, "arm.medium.gen2", ["premise-tests"], false, 600000, 100⟩ == .circleci
 #guard route ⟨"premise-tests", .linuxArm, "arm.medium.gen2", [], false, 600000, 100⟩ == .github
 #guard route ⟨"webkit-sim", .macos, "m4pro.medium", ["webkit-sim"], false, 600000, 30000⟩ == .github

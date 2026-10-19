@@ -24,6 +24,7 @@ def mismatchName : Mismatch → String
   | .providers => "providers"
   | .job => "job"
   | .sha => "sha"
+  | .digest => "digest"
 
 def stopName : Stop → String
   | .cap => "cap"
@@ -67,6 +68,10 @@ def rateJson (r : Rate) : Json :=
   Json.mkObj [("class", .str r.cls), ("platform", .str (platformName r.platform)), ("pool", .str (poolName r.pool)),
     ("creditsPerMin", toJson r.creditsPerMin), ("free", .bool r.free), ("source", .str r.source)]
 
+def ghNameJson : GhName → Json
+  | .exact n => Json.mkObj [("exact", .str n)]
+  | .matrix p vm => Json.mkObj [("prefix", .str p), ("vm", .str vm), ("suffix", .str (vmSuffix vm))]
+
 def tables : List String := [
   line "rates" "the price list the pilot meets" (Json.mkObj [])
     (Json.mkObj [("rates", .arr (rates.map rateJson).toArray),
@@ -74,8 +79,8 @@ def tables : List String := [
   line "constants" "the stop-rule limits" (Json.mkObj [])
     (Json.mkObj [("capMs", toJson capMs), ("queueMaxMs", toJson queueMaxMs), ("storageMaxMilli", toJson storageMaxMilli)]),
   line "jobMap" "GitHub job against CircleCI job" (Json.mkObj [])
-    (Json.mkObj [("jobs", .arr (jobMap.map fun (l, g, c) =>
-      Json.mkObj [("lane", .str l), ("github", .str g), ("circleci", .str c)]).toArray)])]
+    (Json.mkObj [("jobs", .arr (jobMap.map fun r =>
+      Json.mkObj [("lane", .str r.lane), ("github", ghNameJson r.gh), ("circleci", .str r.circleci), ("digest", .bool r.digest)]).toArray)])]
 
 def creditCases : List (String × String × Nat) := [
   ("one minute of arm.medium.gen2 costs its rate", "arm.medium.gen2", 60000),
@@ -95,29 +100,38 @@ def storageCases : List (String × Nat × Nat) := [
 def mk (provider : Provider) (job sha : String) (c : Conclusion) (d : Option String) (cls : String) (q t : Nat) : Run :=
   ⟨provider, job, sha, c, d, cls, q, t⟩
 
-def gh (job : String := "engine (chromium)") (sha : String := "abc1234") (c : Conclusion := .pass)
+def gh (job : String := "engine-chromium") (sha : String := "abc1234") (c : Conclusion := .pass)
     (d : Option String := some "d1") (q : Nat := 4000) (t : Nat := 100000) : Run :=
   mk .github job sha c d "ubuntu-24.04-arm" q t
 
-def cc (job : String := "engine (chromium)") (sha : String := "abc1234") (c : Conclusion := .pass)
+def cc (job : String := "engine-chromium") (sha : String := "abc1234") (c : Conclusion := .pass)
     (d : Option String := some "d1") (cls : String := "arm.medium.gen2") (q : Nat := 9000) (t : Nat := 150000) : Run :=
   mk .circleci job sha c d cls q t
 
 def compareCases : List (String × Run × Run) := [
-  ("equal verdicts: no finding, ratio 1500, credits of 2.5 minutes", gh, cc),
+  ("equal digests: no finding, ratio 1500, credits of 2.5 minutes", gh, cc),
   ("same duration: ratio exactly 1000", gh (t := 100000), cc (t := 100000)),
   ("CircleCI faster: ratio below 1000", gh (t := 100000), cc (t := 40000)),
   ("ratio rounds down", gh (t := 3), cc (t := 4)),
   ("GitHub took no time: no ratio", gh (t := 0), cc),
-  ("conclusion differs: a finding", gh, cc (c := .fail)),
-  ("pass against not-run: a finding", gh, cc (c := .notRun)),
-  ("both fail with the same digest: no finding", gh (c := .fail), cc (c := .fail)),
-  ("digest differs: a finding", gh, cc (d := some "d2")),
-  ("one side has no digest: digests are not compared", gh (d := none), cc (d := some "d2")),
-  ("both without digest: conclusions decide", gh (d := none), cc (d := none)),
+  ("digest job: conclusions differ, digests equal: no finding (the step conclusion is not the verdict)", gh, cc (c := .fail)),
+  ("digest job: pass against not-run with equal digests: no finding", gh, cc (c := .notRun)),
+  ("digest job: digest differs: a finding", gh, cc (d := some "d2")),
+  ("digest job: digest differs although both pass: a finding", gh (c := .pass), cc (c := .pass) (d := some "d3")),
+  ("digest job: GitHub digest missing: not a pair", gh (d := none), cc (d := some "d2")),
+  ("digest job: CircleCI digest missing: not a pair", gh, cc (d := none)),
+  ("digest job: both digests missing: not a pair", gh (d := none), cc (d := none)),
+  ("second engine job is judged by its digest too", gh (job := "engine-playwright-webkit"), cc (job := "engine-playwright-webkit") (d := some "d9")),
+  ("sha is checked before the digest", gh (d := none), cc (sha := "def5678")),
+  ("verdict job: equal conclusions, no digests: no finding", gh (job := "verdict") (d := none), cc (job := "verdict") (d := none)),
+  ("verdict job: conclusion differs: a finding", gh (job := "verdict") (d := none), cc (job := "verdict") (c := .fail) (d := none)),
+  ("verdict job: pass against not-run: a finding", gh (job := "verdict") (d := none), cc (job := "verdict") (c := .notRun) (d := none)),
+  ("verdict job: both fail: no finding", gh (job := "verdict") (c := .fail) (d := none), cc (job := "verdict") (c := .fail) (d := none)),
+  ("verdict job: both digests present and different: a finding", gh (job := "verdict"), cc (job := "verdict") (d := some "d2")),
+  ("verdict job: one side has no digest: digests are not compared", gh (job := "verdict") (d := none), cc (job := "verdict") (d := some "d2")),
   ("unknown CircleCI class: no credits", gh, cc (cls := "arm.small")),
-  ("m4pro.medium: credits at 200 a minute", gh (job := "sim (original)") (t := 1200000),
-    cc (job := "sim (original)") (cls := "m4pro.medium") (t := 600000)),
+  ("m4pro.medium: credits at 200 a minute", gh (job := "webkit-sim") (d := none) (t := 1200000),
+    cc (job := "webkit-sim") (d := none) (cls := "m4pro.medium") (t := 600000)),
   ("queue times are carried over", gh (q := 0), cc (q := 700000)),
   ("different job: not a pair", gh, cc (job := "verdict")),
   ("different commit: not a pair", gh, cc (sha := "def5678")),
@@ -164,6 +178,41 @@ def routeCases : List (String × RouteInput) := [
   ("a class outside the price list: GitHub",
     ⟨"premise-tests", .linuxArm, "arm.small", ["premise-tests"], false, 600000, 400000⟩)]
 
+def circleStatuses : List String := ["success", "failed", "infrastructure_fail", "timedout", "error", "failing", "unauthorized",
+  "canceled", "not_run", "queued", "running", "on_hold", "terminated-unknown", ""]
+
+def githubConclusions : List String := ["success", "failure", "timed_out", "startup_failure", "action_required", "cancelled",
+  "skipped", "neutral", "stale", ""]
+
+def waitCases : List (String × WaitInput) := [
+  ("every workflow passed", ⟨["success"], 10, 300, 3600⟩),
+  ("two workflows passed", ⟨["success", "success"], 10, 300, 3600⟩),
+  ("one failed, one passed: exit 1", ⟨["success", "failed"], 10, 300, 3600⟩),
+  ("an infrastructure failure is exit 1", ⟨["infrastructure_fail"], 10, 300, 3600⟩),
+  ("a timed-out workflow is exit 1", ⟨["timedout"], 10, 300, 3600⟩),
+  ("an unauthorized workflow is exit 1", ⟨["unauthorized"], 10, 300, 3600⟩),
+  ("a cancelled workflow is not a pass: exit 4", ⟨["canceled"], 10, 300, 3600⟩),
+  ("passed and cancelled is exit 4", ⟨["success", "canceled"], 10, 300, 3600⟩),
+  ("a workflow that did not run is exit 4", ⟨["not_run"], 10, 300, 3600⟩),
+  ("failed beats cancelled", ⟨["canceled", "failed"], 10, 300, 3600⟩),
+  ("a running workflow goes on", ⟨["running"], 10, 300, 3600⟩),
+  ("passed and still running goes on", ⟨["success", "running"], 10, 300, 3600⟩),
+  ("a workflow on hold goes on", ⟨["on_hold"], 10, 300, 3600⟩),
+  ("failing (not yet final) goes on", ⟨["failing"], 10, 300, 3600⟩),
+  ("no workflow yet, inside the grace time: goes on", ⟨[], 299, 300, 3600⟩),
+  ("no workflow at the grace time: exit 4", ⟨[], 300, 300, 3600⟩),
+  ("no workflow at the timeout: grace is checked first, exit 4", ⟨[], 3600, 300, 3600⟩),
+  ("no workflow, timeout before grace: exit 3", ⟨[], 200, 300, 200⟩),
+  ("a running workflow at the timeout: exit 3", ⟨["running"], 3600, 300, 3600⟩),
+  ("a running workflow one second before the timeout goes on", ⟨["running"], 3599, 300, 3600⟩),
+  ("final workflows decide even past the timeout", ⟨["success"], 4000, 300, 3600⟩)]
+
+def ghJobNames : List String := [
+  "engine (chromium)", "engine (playwright-webkit)", "verdict", "engine (chromium) again", "engine", "",
+  "sim (original, 430, 1, 40a8d4c1deadbeef, v1)", "sim (original, 390, 2, 40a8d4c1deadbeef, v1)",
+  "sim (original, 430, 1, 40a8d4c1deadbeef, v2)", "sim (rewrite, 430, 1, 40a8d4c1deadbeef, v1)",
+  "sim (original, v1)", "sim (original,, v1)", "sim (original, 430, 1, 40a8d4c1deadbeef, v1) extra", "plan", "guard"]
+
 def text : String :=
   String.join (tables
     ++ creditCases.map (fun (n, c, d) =>
@@ -172,6 +221,18 @@ def text : String :=
     ++ storageCases.map (fun (n, b, d) =>
       line "storage" n (Json.mkObj [("bytes", toJson b), ("days", toJson d)])
         (Json.mkObj [("milli", toJson (storageMilli b d))]))
+    ++ circleStatuses.map (fun st =>
+      line "circleStatus" st (Json.mkObj [("status", .str st)]) (Json.mkObj [("conclusion", .str (conclusionName (ofCircleStatus st)))]))
+    ++ githubConclusions.map (fun st =>
+      line "githubConclusion" st (Json.mkObj [("conclusion", .str st)]) (Json.mkObj [("result", .str (conclusionName (ofGithubConclusion st)))]))
+    ++ waitCases.map (fun (n, i) =>
+      line "wait" n (Json.mkObj [("statuses", .arr (i.statuses.map Json.str).toArray), ("waitedS", toJson i.waitedS),
+        ("noWorkflowS", toJson i.noWorkflowS), ("timeoutS", toJson i.timeoutS)])
+        (Json.mkObj [("exit", optNat (waitStep i))]))
+    ++ ghJobNames.map (fun n =>
+      line "ghJob" n (Json.mkObj [("name", .str n)])
+        (Json.mkObj [("circleci", optStr ((jobOfGithub n).map (·.circleci))), ("lane", optStr ((jobOfGithub n).map (·.lane))),
+          ("digest", ((jobOfGithub n).map fun (r : JobRow) => Json.bool r.digest).getD Json.null)]))
     ++ compareCases.map (fun (n, g, c) =>
       line "compare" n (Json.mkObj [("github", runJson g), ("circleci", runJson c)]) (comparisonJson (compare g c)))
     ++ stopCases.map (fun (n, i) =>
