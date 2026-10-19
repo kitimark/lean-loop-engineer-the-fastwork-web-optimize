@@ -7,7 +7,7 @@ import Fw.Ci.Golden
 Every `packages/contracts/golden/ci-budget/fixtures/*.jsonl` is replayed second by second through the decisions of
 `Fw.Ci.Budget` (`reserve`, `next`, `observe`) against a simulated GitHub: one bucket of 5000 requests per hour,
 resetting on the hour from the start, that answers each call with one `HTTP/2.0 200` block per request (with
-`X-Ratelimit-Remaining` and `X-Ratelimit-Reset`), or a 403 with remaining 0 when the bucket is empty.
+`X-Ratelimit-Remaining`, `X-Ratelimit-Reset` and `X-Ratelimit-Resource: core`), or a 403 with remaining 0 when the bucket is empty.
 
 Fixture format (JSON lines). Line 1: `{"scenario":{name, waiters N, start, seconds, oneoffEvery (0: none),
 oneoffCost, burst?, burstAt?, sweep? [N…], expect? {ticksPerHourMax?, oldExceeds?, counts? [{from, until, kind
@@ -98,10 +98,12 @@ def Server.answer (f : Fixture) (v : Server) (t c : Nat) : List String × Server
   let v := v.roll f t
   let reset := f.start + 3600 * (v.hour + 1)
   if 5000 < v.used + c then
-    (["HTTP/2.0 403 Forbidden", "X-Ratelimit-Remaining: 0", s!"X-Ratelimit-Reset: {reset}"], v, true)
+    (["HTTP/2.0 403 Forbidden", "X-Ratelimit-Remaining: 0", s!"X-Ratelimit-Reset: {reset}",
+      "X-Ratelimit-Resource: core"], v, true)
   else
     let ls := (List.range c).flatMap fun i =>
-      ["HTTP/2.0 200 OK", s!"X-Ratelimit-Remaining: {5000 - (v.used + i + 1)}", s!"X-Ratelimit-Reset: {reset}"]
+      ["HTTP/2.0 200 OK", s!"X-Ratelimit-Remaining: {5000 - (v.used + i + 1)}", s!"X-Ratelimit-Reset: {reset}",
+        "X-Ratelimit-Resource: core"]
     (ls, { v with used := v.used + c }, false)
 
 /-- The replay state. -/
@@ -224,8 +226,8 @@ def check (L : Limits) (f : Fixture) (m : Sim) : Array String := Id.run do
 def replay (root : System.FilePath) : IO Nat := do
   let L := defaults
   let mut failed := 0
-  if !(L.B == 3000 && L.B - L.R == 1800 && L.R == 1200 && L.F == 500 && L.Pmin == 30 && L.B1 == 60) then
-    IO.println "ci-budget replay: limits differ from the task (B 3000 = 1800 + 1200, F 500, P_min 30, 60/min)"
+  if !(L.B == 3000 && L.B - L.R == 1800 && L.R == 1200 && L.F == 500 && L.Pmin == 10 && L.B1 == 60) then
+    IO.println "ci-budget replay: limits differ from the task (B 3000 = 1800 + 1200, F 500, P_min 10, 60/min)"
     failed := failed + 1
   let d := Fw.Wire.Ci.Golden.dir root / "fixtures"
   let entries ← d.readDir

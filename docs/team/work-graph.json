@@ -6804,8 +6804,11 @@
     "apps/runner/src/timing-ci.ts",
     "apps/runner/test/run-budget.test.ts",
     "research/notes/2026/10-18-gh-rate-budget.md",
-    "docs/team/handoffs/ci-wait-lean.md"
-   ]
+    "docs/team/handoffs/ci-wait-lean.md",
+    "lean/Fw/Ci/Golden.lean",
+    "lean/FwTest/CiBudget.lean"
+   ],
+   "evidence": "ecc0a2f"
   },
   {
    "devices": [
@@ -6885,7 +6888,9 @@
     "apps/runner/test/**",
     "packages/contracts/golden/ops/**",
     "docs/team/handoffs/latex-lint-relax.md"
-   ]
+   ],
+   "stream": "ops",
+   "evidence": "69bff1f"
   },
   {
    "devices": [
@@ -6904,6 +6909,49 @@
     "apps/runner/test/**",
     "packages/contracts/golden/ops/**",
     "docs/team/handoffs/comment-sicko-spawn.md"
+   ],
+   "stream": "ops"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-fwcore-key",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "fw land selects the 8 FWCORE_USERS suites only when the fwcore binary digest differs from main0's (two-phase, digest from binary bytes; premise: a comment-only Lean edit keeps the digest, measured first; else closed as a finding)",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandSpeed*.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land*.test.ts",
+    "packages/contracts/golden/**",
+    "scripts/fwcore-build.sh",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-fwcore-key.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lint-axioms",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "Land and check.sh run a Lean axiom check (sorryAx, non-standard axioms) instead of the mathview export; mathview exe kept for on-demand artifact math",
+   "deps": [
+    "latex-lint-relax"
+   ],
+   "writes": [
+    "lean/scripts/**",
+    "lean/Fw/Console/LandDry*.lean",
+    "lean/MathView.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/land*.test.ts",
+    "packages/contracts/golden/**",
+    ".github/workflows/lean.yml",
+    "docs/team/handoffs/lint-axioms.md"
    ]
   }
  ],

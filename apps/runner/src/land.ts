@@ -13,6 +13,8 @@ import { begin, span } from "./timing.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { checkFailKind, failedStages, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
+import { ghCost } from "./run.ts";
+import { chargedOnce, realEnv, type Env } from "@fw/gh-budget";
 
 export type Http = {
   get(path: string): Promise<{ status: number; body: any }>;
@@ -272,13 +274,17 @@ export function checksFor(root: string, changed: string[]): string[][] {
   return checksWithReads(root, changed).map((c) => c.argv);
 }
 
-/** One `gh run list` call, advisory only. */
-export function ciLines(ref: string): string[] {
+/** One `gh run list` call through the gh-budget ledger (`ci.budget.reserve` at `ghCost`), advisory only: a budget wait or
+ *  stop skips the call and says so. */
+export function ciLines(ref: string, cwd: string = process.cwd(), env?: Env): string[] {
+  const args = ["run", "list", "--branch", ref, "--limit", "5", "--json", "name,conclusion,status,headSha"];
   try {
-    const raw = execFileSync("gh", ["run", "list", "--branch", ref, "--limit", "5", "--json", "name,conclusion,status,headSha"],
-      { encoding: "utf8", timeout: 20_000, stdio: ["ignore", "pipe", "pipe"] });
-    const rs = JSON.parse(raw) as { name: string; conclusion: string; status: string; headSha: string }[];
-    return rs.length ? rs.map((r) => `${r.name} ${r.headSha.slice(0, 7)} ${r.conclusion || r.status}`) : ["no runs"];
+    const e = env ?? realEnv(cwd);
+    const r = chargedOnce(e, (state, now) => e.core({ op: "ci.budget.reserve", now, state, cost: ghCost(args) }), () => args, 20_000);
+    if (!r.ran) return [`budget ${r.decision} (${r.reason})`];
+    if (r.code !== 0) return ["unavailable"];
+    const rs = JSON.parse(r.stdout) as { name: string; conclusion: string; status: string; headSha: string }[];
+    return rs.length ? rs.map((x) => `${x.name} ${x.headSha.slice(0, 7)} ${x.conclusion || x.status}`) : ["no runs"];
   } catch { return ["unavailable"]; }
 }
 
@@ -797,7 +803,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
 
   // 5. advisory CI of the task's ci/* ref: never blocks
   if (o.ci !== false && o.task) {
-    try { lines.push(`ci (advisory) ci/${o.task}: ${(o.ci ?? ciLines)(`ci/${o.task}`).join("; ")}`); } catch { lines.push(`ci (advisory) ci/${o.task}: unavailable`); }
+    try { lines.push(`ci (advisory) ci/${o.task}: ${(o.ci ?? ((ref: string) => ciLines(ref, o.cwd)))(`ci/${o.task}`).join("; ")}`); } catch { lines.push(`ci (advisory) ci/${o.task}: unavailable`); }
   }
 
   // 6. safe cleanup: `branch -d` only; the worktree only when clean and not locked (local, no console needed)
