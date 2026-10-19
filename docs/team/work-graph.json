@@ -5445,7 +5445,8 @@
     "lean/Fw/Gate/Exit.lean",
     "packages/contracts/golden/**",
     "packages/gate-breakpoints/test/exit.test.mjs"
-   ]
+   ],
+   "evidence": "c12088e"
   },
   {
    "devices": [
@@ -5701,7 +5702,11 @@
     "apps/site/assets.manifest.json",
     "apps/site/src/svg.gen.d.ts",
     "apps/runner/src/land.ts",
-    "research/notes/2026/10-19-port-completeness.md"
+    "research/notes/2026/10-19-port-completeness.md",
+    "apps/site/src/GenSvg.tsx",
+    "apps/site/src/svg-extract.test.ts",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ]
   },
   {
@@ -5772,11 +5777,12 @@
     "ci"
    ],
    "id": "deck-panels-lean",
-   "title": "Follow-up (wave-1 r1 review): people.deck Services/Reviews/About panels: Lean-first panel spec, then content",
+   "title": "Follow-up (wave-1 r1 review): people.deck Services/Reviews/About panels: Lean-first panel spec, then content; port plan: next round also extracts the people.deck mute icon (panel.tsx:118) and rail star (:156) via svg-extract, after people-o-glyph lands (shared panel.tsx)",
    "stream": "parts",
    "milestone": "M5",
    "deps": [
-    "integrate-wave-1"
+    "integrate-wave-1",
+    "people-o-glyph"
    ],
    "owner": "part-builder",
    "writes": [
@@ -5785,7 +5791,9 @@
     "lean/Fw/Parts/**",
     "lean/Fw.lean",
     "packages/contracts/golden/**",
-    "apps/site/assets.manifest.json"
+    "apps/site/assets.manifest.json",
+    "docs/team/handoffs/deck-panels-lean.md",
+    "apps/site/src/GenSvg.tsx"
    ]
   },
   {
@@ -5807,7 +5815,8 @@
     "apps/site/assets.manifest.json",
     "lean/Fw/Parts/**",
     "docs/team/handoffs/people-o-glyph.md"
-   ]
+   ],
+   "evidence": "ba20a4d"
   },
   {
    "devices": [
@@ -5818,10 +5827,15 @@
    "stream": "parts",
    "milestone": "M5",
    "deps": [
-    "integrate-wave-1"
+    "integrate-wave-1",
+    "deck-panels-lean",
+    "dead-selectors"
    ],
    "owner": "part-builder",
-   "writes": []
+   "writes": [
+    "apps/site/src/parts/pain/*.css",
+    "docs/team/handoffs/people-pain-deferral.md"
+   ]
   },
   {
    "devices": [
@@ -5872,7 +5886,12 @@
     "integrate-wave-1"
    ],
    "owner": "part-builder",
-   "writes": []
+   "writes": [
+    "apps/site/src/parts/pain/**",
+    "apps/site/src/parts/pain.notes/**",
+    "apps/site/src/parts/nav.hitTest/**",
+    "docs/team/handoffs/dead-selectors.md"
+   ]
   },
   {
    "devices": [
@@ -6138,7 +6157,8 @@
     "research/notes/2026/10-19-driver-stage-mode.md",
     "lean/scripts/check.sh",
     "lean/scripts/StageModeGolden.lean"
-   ]
+   ],
+   "evidence": "ce7b4c9"
   },
   {
    "devices": [
@@ -6157,7 +6177,8 @@
     "research/notes/2026/10-19-preset-gate-triage.md",
     "results/**",
     "docs/team/handoffs/preset-gate-triage.md"
-   ]
+   ],
+   "evidence": "3c5c0a2"
   },
   {
    "devices": [
@@ -6207,10 +6228,12 @@
     "local"
    ],
    "id": "doc-head-locale",
-   "title": "Port audit: document head (title, meta description, og/twitter, canonical, hreflang, icons, manifest) and the body-end nav.site-locale-links are missing; port them (assets via the manifest)",
+   "title": "Port audit: document head (title, meta description, og/twitter, canonical, hreflang, icons, manifest) and the body-end nav.site-locale-links are missing; port them (assets via the manifest); port plan: also html dir=ltr data-theme=light (B6) and the hero.countdown aria-label (orig text), after svg-extract (shared build.mjs)",
    "stream": "parts",
    "milestone": "M2",
-   "deps": [],
+   "deps": [
+    "svg-extract"
+   ],
    "owner": "part-builder",
    "writes": [
     "apps/site/index.html",
@@ -6218,7 +6241,8 @@
     "apps/site/scripts/build.mjs",
     "apps/site/assets.manifest.json",
     "apps/site/src/parts/nav/**",
-    "docs/team/handoffs/doc-head-locale.md"
+    "docs/team/handoffs/doc-head-locale.md",
+    "apps/site/src/parts/hero.countdown/index.tsx"
    ]
   },
   {
@@ -6226,7 +6250,7 @@
     "local"
    ],
    "id": "asset-icons-gaps",
-   "title": "Port audit: why-bring drawer benefit icons and divider render a 1x1 GIF, and the platform 'Legal consult' fallback image is missing; add the snapshot files to assets.manifest.json and render them",
+   "title": "Port audit: why-bring drawer benefit icons and divider render a 1x1 GIF, and the platform 'Legal consult' fallback image is missing; add the snapshot files to assets.manifest.json and render them; port plan: also the platform is-drawn grain overlay; AVIF <picture> deferred to avif-picture after C3",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
@@ -6313,6 +6337,230 @@
     "results/faithful/**",
     "lean/Fw/Faithful/Measured.lean",
     "docs/team/handoffs/faithful-control-holdout.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "port-completeness-gate",
+   "title": "Port plan L7: decide 'fully ported' in Lean: Fw.Port.{Text,Attrs,Svg,Sections} (normalised text digest per section with an orig<->rewrite root map, attribute multiset up to the manifest rename map, svg skeleton digest, asset subset) + new Fw.Site.Assets; per-check exclusion lists with reasons, no pooled threshold; scripts/port/digest.mjs reads the snapshot at run time and stores hashes/skeletons only; checks 3+4 on a fresh dist/aot prerender first, then 1+2, then interaction states",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Port/**",
+    "lean/Fw/Site/Assets.lean",
+    "lean/Fw.lean",
+    "scripts/port/**",
+    "packages/contracts/golden/port/**",
+    "apps/site/test/port-*.test.mjs",
+    "docs/team/handoffs/port-completeness-gate.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "behaviour-small",
+   "title": "Port plan L8: B1 countdown re-reads time on visibilitychange (Lean event 'refresh now'), B3 signup name/email rules as the original (Lean emailOk, name rule, golden), B5 .sb-button :active/:disabled states",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "svg-extract"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/hero.countdown/driver.ts",
+    "apps/site/src/parts/overlays.signup/logic.ts",
+    "apps/site/src/parts/overlays.signup/*.css",
+    "lean/Fw/Parts/OverlaySignup.lean",
+    "lean/Fw/Parts/HeroCountdown*.lean",
+    "packages/contracts/golden/parts/overlays.signup.jsonl",
+    "packages/contracts/golden/parts/hero.countdown.jsonl",
+    "docs/team/handoffs/behaviour-small.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "selenium-ids",
+   "title": "Port plan B4: the 14 data-selenium ids the original carries (nav, hero, hero.cue, waitlist in overlays.signup, why-bring in overlays.drawer) as a Lean-generated id table",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "svg-extract",
+    "asset-icons-gaps",
+    "doc-head-locale"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/nav/index.tsx",
+    "apps/site/src/parts/hero/index.tsx",
+    "apps/site/src/parts/hero.cue/index.tsx",
+    "apps/site/src/parts/overlays.signup/index.tsx",
+    "apps/site/src/parts/overlays.drawer/index.tsx",
+    "apps/site/src/selenium.ts",
+    "lean/Fw/Site/Selenium.lean",
+    "docs/team/handoffs/selenium-ids.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "avif-picture",
+   "title": "Port plan: AVIF <picture> sources for hero.deck, morph.columns, platform thumbs (6 files) and morph.columns lazy loading as the original; changes counts, so after C3",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "speed-after-c3",
+    "asset-icons-gaps"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/hero.deck/**",
+    "apps/site/src/parts/morph.columns/**",
+    "apps/site/src/parts/platform/**",
+    "apps/site/assets.manifest.json",
+    "docs/team/handoffs/avif-picture.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "countdown-hidden-pause",
+   "title": "Optimize O2: hero.countdown hidden-pause; hidden predicate is exitOpacity = 0 or track offscreen (the pointerOff sentinel premise was refuted: copy paints at 4% alpha); new HeroCountdownHidden.lean, TS gate in hero.countdown, own ledger key, one gate run",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroCountdownHidden.lean",
+    "lean/Fw.lean",
+    "apps/site/src/parts/hero.countdown/**",
+    "packages/contracts/golden/parts/hero.countdown.jsonl",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/countdown-hidden-pause.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "platform-scene-faithful",
+   "title": "Finding (O1 premise refuted): the original registers the platform section with deferred rendering and scene pause (descendant animations paused offscreen); the port's faithful arm leaves it out. Restate it in the faithful arm as people.card does (watchActive, data-fw-scene active/paused, paused CSS rule); Lean premise that resume keeps every platform animation's phase (one-shot entries with fill both, loops 90 s/4 s/1 s)",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "svg-extract",
+    "asset-icons-gaps"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/platform/index.tsx",
+    "apps/site/src/parts/platform/*.css",
+    "lean/Fw/Parts/PlatformScene.lean",
+    "lean/Fw.lean",
+    "docs/team/handoffs/platform-scene-faithful.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "orbit-read-first",
+   "title": "Optimize O3 (after C3): hero.orbit read clientWidth before the first write; check found the premise open: the cards' --entered main-thread animation may dirty style before the rAF callback (keyframe_effect.cc SetNeedsAnimationStyleRecalc), ledger n22 says read-first can add a pass; Lean decides under both orders, refetch element.cc/Element.cpp into the sparse clones first; needs a load zone",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "speed-after-c3"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroOrbit.lean",
+    "apps/site/src/parts/hero.orbit/**",
+    "docs/team/handoffs/orbit-read-first.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "entries-due-ticks",
+   "title": "Optimize O4 (after C3): platform.entries rAF only at due ticks (askView constant between changes); clock.at(due) is an additive engine/clock.ts API the lead lands alone first",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "speed-after-c3",
+    "platform-scene-faithful"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "lean/Fw/Parts/PlatformEntries.lean",
+    "apps/site/src/engine/clock.ts",
+    "apps/site/src/parts/platform.entries/**",
+    "apps/site/src/parts/platform.glint/driver.ts",
+    "packages/contracts/golden/parts/platform.entries.jsonl",
+    "docs/team/handoffs/entries-due-ticks.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "exit-scoped-var",
+   "title": "Optimize O5 (after C3): hero.exit writes a non-inherited registered var on the readers only (units ~230 -> ~14 per scrolled frame); Chromium cite computed_style.cc:468-480, WebKit StyleTreeResolver.cpp:307-311; judged by elementCount only if the lead admits the quarantined counter, else proved-unmeasured",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "speed-after-c3"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroExitOpt.lean",
+    "apps/site/src/parts/hero.exit/**",
+    "apps/site/src/parts/hero/*.css",
+    "docs/team/handoffs/exit-scoped-var.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "carousel-hidden-pause",
+   "title": "Optimize O6 (after C3): people.carousel pause while the card is hidden but active, resume at stateAt(t1 - t0)",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "speed-after-c3",
+    "deck-panels-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "lean/Fw/Parts/PeopleCarousel.lean",
+    "apps/site/src/parts/people.carousel/**",
+    "docs/team/handoffs/carousel-hidden-pause.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "negative-lemmas",
+   "title": "Negative findings before the 10-20 11:15 text freeze: one Lean why-lemma each for commission.typing fill-no-layout (passes_absorb), hero.orbit splash-native (no fixed keyframe set), platform.stageBg artboard-layer (port lacks 4 will-change layers: census finding)",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/Negative.lean",
+    "lean/Fw.lean",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/negative-lemmas.md"
    ]
   }
  ],

@@ -12,13 +12,13 @@
  },
  "classTable": {
   "file": "packages/measure-chromium/classes.frozen.json",
-  "sha256": "29e1635e1de2dceeaea41622bd79b3b4ce710b139e9291bec88d5e4b416b8fa2",
+  "sha256": "bfe908167305afb4879d931dc5737ba074545508b6d58e9ab8682c2d76bfc9bb",
   "profile": "swipe-v1",
   "image": "sha256:8f0e17f50db9e3ae59f06d12d8b2fd483ba39582999a8469fab4fd8432cff2b0",
   "workflowRuns": [
-   "39049264131",
-   "39049466889",
-   "39049469621"
+   "39184638066",
+   "39186469962",
+   "39186477379"
   ]
  },
  "target": "original",
@@ -32,9 +32,9 @@
   "r3"
  ],
  "tally": {
-  "deterministic": 32,
+  "deterministic": 33,
   "quarantined": 10,
-  "stable": 28,
+  "stable": 27,
   "unlisted": 0
  },
  "totals": {
@@ -388,7 +388,7 @@
   },
   "trace.DecodeImage": {
    "base": 27,
-   "class": "stable",
+   "class": "deterministic",
    "hi": 27,
    "lo": 27,
    "perRun": [
@@ -396,7 +396,7 @@
     27,
     27
    ],
-   "rule": "stable"
+   "rule": "deterministic"
   },
   "trace.DisplayItemListRaster": {
    "base": 929,
@@ -2719,7 +2719,7 @@
     },
     "trace.DecodeImage": {
      "base": 13,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 13,
      "lo": 13,
      "perRun": [
@@ -2727,7 +2727,7 @@
       13,
       13
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 188,
@@ -4309,7 +4309,7 @@
     },
     "trace.DecodeImage": {
      "base": 3,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 3,
      "lo": 3,
      "perRun": [
@@ -4317,7 +4317,7 @@
       3,
       3
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 76,
@@ -5146,7 +5146,7 @@
     },
     "trace.DecodeImage": {
      "base": 1,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 1,
      "lo": 1,
      "perRun": [
@@ -5154,7 +5154,7 @@
       1,
       1
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 40,
@@ -5947,7 +5947,7 @@
     },
     "trace.DecodeImage": {
      "base": 2,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 2,
      "lo": 2,
      "perRun": [
@@ -5955,7 +5955,7 @@
       2,
       2
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 6,
@@ -6772,7 +6772,7 @@
     },
     "trace.DecodeImage": {
      "base": 5,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 5,
      "lo": 5,
      "perRun": [
@@ -6780,7 +6780,7 @@
       5,
       5
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 61,
@@ -7585,7 +7585,7 @@
     },
     "trace.DecodeImage": {
      "base": 3,
-     "class": "stable",
+     "class": "deterministic",
      "hi": 3,
      "lo": 3,
      "perRun": [
@@ -7593,7 +7593,7 @@
       3,
       3
      ],
-     "rule": "stable"
+     "rule": "deterministic"
     },
     "trace.DisplayItemListRaster": {
      "base": 63,

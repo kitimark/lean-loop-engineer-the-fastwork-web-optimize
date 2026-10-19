@@ -22,7 +22,7 @@ const HIDE_MS = 140;
  * people.o (`faithful`): the "o" of "people". When the heading is 35 % in view the ring draws six faces after 1.3 s and opens
  * 120 ms later; hovering or focusing a face (wider than 860 px, once open) shows a seller card next to it. All state changes
  * at event or timer times; the card position is written to the element's style, not through React state. Faces are
- * neutral fills (the photos are not shipped); the "o" glyph is a ring.
+ * neutral fills (the photos are not shipped); the "o" glyph is the snapshot's o.svg, served by URL.
  */
 export function PeopleO({ variant, standalone = false, onGetStarted }: PeopleOProps) {
   const [flags, setFlags] = useState<OFlags>({ stack: false, expanded: false });
@@ -115,9 +115,7 @@ export function PeopleO({ variant, standalone = false, onGetStarted }: PeopleOPr
         data-o-stack={flags.stack ? 'true' : 'false'}
       >
         <span className={css.stage}>
-          <span className={css.vector} aria-hidden="true">
-            <span className={css.ring} />
-          </span>{' '}
+          <img loading="lazy" decoding="async" className={css.vector} src="/selling/people-wordmark/o.svg" alt="" width={26} height={26} draggable={false} aria-hidden="true" />{' '}
           <span className={css.stack}>
             {sellers.map((p, i) => (
               <button
