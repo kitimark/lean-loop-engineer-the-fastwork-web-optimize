@@ -1,2 +1,2 @@
 {"scenario":{"expect":{"counts":[{"from":1792282201,"kind":"any","max":0,"min":0,"until":1792283400},{"from":1792283400,"kind":"tick","max":1,"min":1,"until":1792283401}]},"name":"remaining-zero","oneoffCost":1,"oneoffEvery":45,"seconds":3600,"start":1792281600,"waiters":3}}
-{"at":1792282200,"lines":["HTTP/2.0 403 Forbidden","X-Ratelimit-Remaining: 0","X-Ratelimit-Reset: 1792283400"]}
+{"at":1792282200,"lines":["HTTP/2.0 403 Forbidden","X-Ratelimit-Remaining: 0","X-Ratelimit-Reset: 1792283400","X-Ratelimit-Resource: core"]}

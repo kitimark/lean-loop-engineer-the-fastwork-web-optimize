@@ -33,7 +33,7 @@ tick every watched run is covered), `{decision:"wait", until, reason, state}` or
 reason ∈ `failures idle tooBig retryAfter floor hour minute interval`. State: `{now, ledger:[{time, cost,
 kind, charged}], remaining, reset, retryUntil, fails, etag, watched:[{runId, createdAt, lastCovered}], lastTick,
 pending:{kind, cost}|null, pages}` (`remaining reset etag lastTick lastCovered` may be null; every field but `now` is
-optional on input). Headers: `{status, remaining, reset, retryAfter, etag}` (null when absent). `lines` are the
+optional on input). Headers: `{status, remaining, reset, retryAfter, etag, resource}` (null when absent). `lines` are the
 response header lines of `gh api --include` (or `curl -i`), one per element, `< ` prefixes allowed; `actual` (default:
 the number of status lines, i.e. responses) is the number of requests the call really made. Event: `{register:{runId,
 createdAt}}`, `{unregister:runId}`, `{pages:n}` or `{resume:true}`.
@@ -128,13 +128,13 @@ def stateOf (j : Json) : Except String State := do
 /-- Headers as JSON. -/
 def headersJson (h : Headers) : Json :=
   Json.mkObj [("status", jn h.status), ("remaining", ojn h.remaining), ("reset", ojn h.reset),
-    ("retryAfter", ojn h.retryAfter), ("etag", ostr h.etag)]
+    ("retryAfter", ojn h.retryAfter), ("etag", ostr h.etag), ("resource", ostr h.resource)]
 
-/-- The limits as JSON, with the two shares of each window. -/
+/-- The limits as JSON, with the two shares of each window and the waiter's re-read period `slice`. -/
 def limitsJson (L : Limits) : Json :=
   Json.mkObj [("W", jn L.W), ("B", jn L.B), ("R", jn L.R), ("W1", jn L.W1), ("B1", jn L.B1), ("R1", jn L.R1),
     ("F", jn L.F), ("Pmin", jn L.Pmin), ("back0", jn L.back0), ("backMax", jn L.backMax),
-    ("maxFails", jn L.maxFails), ("listCost", jn L.listCost),
+    ("maxFails", jn L.maxFails), ("listCost", jn L.listCost), ("slice", jn slice),
     ("shares", Json.mkObj [("tick", Json.mkObj [("hour", jn (share L .tick)), ("minute", jn (share1 L .tick))]),
                            ("oneoff", Json.mkObj [("hour", jn (share L .oneoff)), ("minute", jn (share1 L .oneoff))])])]
 
@@ -358,14 +358,19 @@ def sample : State where
   "{\"decision\":\"stop\",\"reason\":\"idle\",\"state\":{\"etag\":null,\"fails\":0,\"lastTick\":null,\"ledger\":[],\"now\":100,\"pages\":1,\"pending\":null,\"remaining\":null,\"reset\":null,\"retryUntil\":0,\"watched\":[]}}"
 -- one watched run: tick, list since its creation
 #guard runField "ci.budget.next" "{\"now\":100,\"state\":{\"now\":90,\"watched\":[{\"runId\":5,\"createdAt\":80}]}}" "createdSince" == "80"
-#guard runField "ci.budget.next" "{\"now\":100,\"state\":{\"now\":90,\"watched\":[{\"runId\":5,\"createdAt\":80}],\"lastTick\":90}}" "until" == "120"
+#guard runField "ci.budget.next" "{\"now\":95,\"state\":{\"now\":90,\"watched\":[{\"runId\":5,\"createdAt\":80}],\"lastTick\":90}}" "until" == "100"
 -- a retry-after holds every call
 #guard runField "ci.budget.reserve" "{\"now\":100,\"state\":{\"now\":90,\"retryUntil\":160},\"cost\":1}" "reason" == "\"retryAfter\""
 -- observe a refusal with retry-after
 #guard runField "ci.budget.observe" "{\"now\":100,\"lines\":[\"HTTP/2.0 403 Forbidden\",\"Retry-After: 60\"]}" "headers" ==
-  "{\"etag\":null,\"remaining\":null,\"reset\":null,\"retryAfter\":60,\"status\":403}"
+  "{\"etag\":null,\"remaining\":null,\"reset\":null,\"resource\":null,\"retryAfter\":60,\"status\":403}"
 #guard runField "ci.budget.observe" "{\"now\":100,\"lines\":[\"HTTP/2.0 403 Forbidden\",\"Retry-After: 60\"]}" "state" |>.startsWith
   "{\"etag\":null,\"fails\":1,"
+-- only the core bucket sets the remaining count
+#guard runField "ci.budget.observe" "{\"now\":100,\"lines\":[\"HTTP/2.0 200 OK\",\"X-Ratelimit-Remaining: 4000\",\"X-Ratelimit-Reset: 3600\",\"X-Ratelimit-Resource: graphql\"]}" "state" |>.endsWith
+  "\"remaining\":null,\"reset\":null,\"retryUntil\":0,\"watched\":[]}"
+#guard runField "ci.budget.observe" "{\"now\":100,\"lines\":[\"HTTP/2.0 200 OK\",\"X-Ratelimit-Remaining: 4000\",\"X-Ratelimit-Reset: 3600\",\"X-Ratelimit-Resource: core\"]}" "state" |>.endsWith
+  "\"remaining\":4000,\"reset\":3600,\"retryUntil\":0,\"watched\":[]}"
 -- events
 #guard runField "ci.budget.step" "{\"now\":100,\"event\":{\"register\":{\"runId\":5,\"createdAt\":80}}}" "state" |>.endsWith
   "\"watched\":[{\"createdAt\":80,\"lastCovered\":null,\"runId\":5}]}"
@@ -373,8 +378,8 @@ def sample : State where
   "error: field event: expected exactly one of register, unregister, pages, resume"
 #guard run "ci.budget.reserve" "{\"now\":100,\"cost\":1.5}" == "error: field cost: expected a non-negative integer"
 #guard runField "ci.budget.limits" "{}" "limits" ==
-  "{\"B\":3000,\"B1\":60,\"F\":500,\"Pmin\":30,\"R\":1200,\"R1\":40,\"W\":3600,\"W1\":60,\"back0\":60,\"backMax\":3600,\"listCost\":2,\"maxFails\":6,\"shares\":{\"oneoff\":{\"hour\":1200,\"minute\":40},\"tick\":{\"hour\":1800,\"minute\":20}}}"
-#guard runField "ci.budget.status" "{\"now\":100}" "interval" == "30"
+  "{\"B\":3000,\"B1\":60,\"F\":500,\"Pmin\":10,\"R\":1200,\"R1\":40,\"W\":3600,\"W1\":60,\"back0\":60,\"backMax\":3600,\"listCost\":2,\"maxFails\":6,\"shares\":{\"oneoff\":{\"hour\":1200,\"minute\":40},\"tick\":{\"hour\":1800,\"minute\":20}},\"slice\":2}"
+#guard runField "ci.budget.status" "{\"now\":100}" "interval" == "10"
 -- a run whose guard was skipped at its if: is not run (code 4), with the reason
 #guard run "ci.verdict" "{\"runs\":[{\"guard\":\"skipped\",\"jobs\":[\"skipped\"]}]}" ==
   "{\"code\":4,\"runs\":[{\"code\":4,\"reason\":\"unwanted: guard if: the head commit does not ask for this lane\",\"verdict\":\"not-run\"}],\"verdict\":\"not-run\"}"

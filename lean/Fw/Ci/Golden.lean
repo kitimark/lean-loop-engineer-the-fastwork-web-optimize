@@ -58,11 +58,15 @@ def cases : List (String × String × Json) := [
   ("next: after 6 failures in a row stops", "ci.budget.next",
     lit "{\"now\":1100,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":950}],\"fails\":6}}"),
   ("observe: 200 with rate headers", "ci.budget.observe",
-    lit "{\"now\":1000,\"state\":{\"now\":1000,\"pending\":{\"kind\":\"oneoff\",\"cost\":1},\"ledger\":[{\"time\":1000,\"cost\":1,\"kind\":\"oneoff\",\"charged\":true}]},\"lines\":[\"HTTP/2.0 200 OK\",\"X-Ratelimit-Remaining: 4321\",\"X-Ratelimit-Reset: 4600\",\"Etag: W/x\"]}"),
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"pending\":{\"kind\":\"oneoff\",\"cost\":1},\"ledger\":[{\"time\":1000,\"cost\":1,\"kind\":\"oneoff\",\"charged\":true}]},\"lines\":[\"HTTP/2.0 200 OK\",\"X-Ratelimit-Remaining: 4321\",\"X-Ratelimit-Reset: 4600\",\"X-Ratelimit-Resource: core\",\"Etag: W/x\"]}"),
+  ("observe: rate headers of the graphql bucket leave the remaining count", "ci.budget.observe",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"remaining\":3000,\"reset\":4600},\"lines\":[\"HTTP/2.0 200 OK\",\"X-Ratelimit-Remaining: 4999\",\"X-Ratelimit-Reset: 4700\",\"X-Ratelimit-Resource: graphql\"]}"),
+  ("observe: a second core response in the same window cannot raise the remaining count", "ci.budget.observe",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"remaining\":3000,\"reset\":4600},\"lines\":[\"HTTP/2.0 200 OK\",\"X-Ratelimit-Remaining: 3100\",\"X-Ratelimit-Reset: 4600\",\"X-Ratelimit-Resource: core\"]}"),
   ("observe: 403 with retry-after", "ci.budget.observe",
     lit "{\"now\":1000,\"state\":{\"now\":1000},\"lines\":[\"HTTP/2.0 403 Forbidden\",\"Retry-After: 60\"]}"),
   ("observe: 403 with remaining 0 waits for the reset", "ci.budget.observe",
-    lit "{\"now\":1000,\"state\":{\"now\":1000},\"lines\":[\"HTTP/2.0 403 Forbidden\",\"X-Ratelimit-Remaining: 0\",\"X-Ratelimit-Reset: 2800\"]}"),
+    lit "{\"now\":1000,\"state\":{\"now\":1000},\"lines\":[\"HTTP/2.0 403 Forbidden\",\"X-Ratelimit-Remaining: 0\",\"X-Ratelimit-Reset: 2800\",\"X-Ratelimit-Resource: core\"]}"),
   ("observe: bare 429 backs off 60 s", "ci.budget.observe",
     lit "{\"now\":1000,\"state\":{\"now\":1000},\"lines\":[\"HTTP/2.0 429 Too Many Requests\"]}"),
   ("observe: a call that took 3 responses for a charge of 2 books a correction of 1", "ci.budget.observe",
@@ -102,11 +106,11 @@ def override (a : Nat) (ls : List String) : Json :=
 /-- The fixtures: (file stem, lines). -/
 def fixtures : List (String × List Json) := [
   ("incident-10-18", [scenario "incident-10-18" 12 7200 120
-    [("expect", Json.mkObj [("ticksPerHourMax", toJson (240 : Nat)), ("oldExceeds", toJson (5000 : Nat)),
-      ("counts", .arr #[count 0 3600 "tick" 120 120])])]]),
+    [("expect", Json.mkObj [("ticksPerHourMax", toJson (720 : Nat)), ("oldExceeds", toJson (5000 : Nat)),
+      ("counts", .arr #[count 0 3600 "tick" 360 360])])]]),
   ("remaining-zero", [scenario "remaining-zero" 3 3600 45
     [("expect", Json.mkObj [("counts", .arr #[count 601 1800 "any" 0 0, count 1800 1801 "tick" 1 1])])],
-    override 600 ["HTTP/2.0 403 Forbidden", "X-Ratelimit-Remaining: 0", s!"X-Ratelimit-Reset: {t0 + 1800}"]]),
+    override 600 ["HTTP/2.0 403 Forbidden", "X-Ratelimit-Remaining: 0", s!"X-Ratelimit-Reset: {t0 + 1800}", "X-Ratelimit-Resource: core"]]),
   ("retry-after", [scenario "retry-after" 3 1800 45
     [("expect", Json.mkObj [("counts", .arr #[count 301 420 "any" 0 0, count 420 421 "tick" 1 1])])],
     override 300 ["HTTP/2.0 403 Forbidden", "Retry-After: 120"]]),
@@ -120,7 +124,7 @@ def fixtures : List (String × List Json) := [
   ("burst-50", [scenario "burst-50" 50 600 0
     [("burst", toJson (50 : Nat)), ("burstAt", toJson (t0 + 5)),
      ("expect", Json.mkObj [("counts", .arr #[count 5 65 "oneoff" 40 40, count 65 66 "oneoff" 10 10,
-       count 0 600 "tick" 20 20])])]])]
+       count 0 600 "tick" 60 60])])]])]
 
 /-! ## Files -/
 
@@ -157,7 +161,7 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
   IO.println s!"ci-budget golden: {files.length} files, {cases.length} wire cases, {stale} stale"
   return stale
 
-#guard cases.length = 29
+#guard cases.length = 31
 #guard fixtures.length = 7
 
 end Fw.Wire.Ci.Golden
