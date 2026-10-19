@@ -118,7 +118,7 @@ import Fw.Ci.Cancel  -- ci-own-trigger: no concurrency group is shared on ci/**,
 import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged engine verdicts
 import Fw.Spec.AxReach  -- mathview-axreach: shared-memo axiom reachability, exact on cycles
 import Fw.Spec.ConeMiss  -- mathview-ci-fix: expected module-cache misses after an edit (dependents)
-import Fw.Console.LandSpeed  -- land-speed-lean: result cache, lint_modular, pre-lock land, check verdict
+import Fw.Console.LandSpeed  -- land-speed-lean: result cache, pre-lock land, check verdict
 import Fw.Console.Preview  -- task-preview: preview target, admission, ports, expiry
 import Fw.Console.PreviewCache  -- preview-speed: cache policy of preview files
 import Fw.Console.PreviewFacts  -- task-preview: GENERATED facts of the 25 tasks (apps/console-api/scripts/gen-preview-facts.ts)

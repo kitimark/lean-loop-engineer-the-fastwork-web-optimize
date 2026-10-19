@@ -1,35 +1,34 @@
 #!/usr/bin/env node
-// math-pending.mjs: the math-view entries a math-review round still has to back-translate, split into batches.
+// math-pending.mjs: the declarations whose artifact math still has to be checked, split into batches.
 //   node scripts/math-pending.mjs [--batches 4] [--out <dir>] [--json <mathview export>]
-// Replaces scraping the "pending / stale" list from docs/plan/loop-plan.html by hand (task math-final).
+// TS stand-in (no Lean golden); the Lean model of a signoff is Fw.Ops.LeanFirst `Signoff.matches` (decl, stmtHash).
 //
-// Input 1, the export: `lake exe mathview` JSON (name, kind, module, line, stmtHash, mathHash, ...). Taken from
-//   --json <file>, else from lean/.lake/mathview-cache/<key>.json, else from the main checkout's cache (a worktree
-//   without lean/.lake), else by running lean/scripts/mathview-cached.sh --build. <key> is the cache key that
-//   mathview-cached.sh computes (SHA-256 over the Lean sources), so a cached export is the export of exactly
-//   these sources.
-// Input 2, the records: every research/notes/*/*-math-review-*.md table row
-//   | `Fw.X.y` | agree|disagree | <stmtHash> | <mathHash> | note |
-//   Precedence as in docs/plan/tools/build-math-view.mjs: the highest frontmatter `round:` wins, within a record the
-//   last row; records without `round:` rank below every numbered round (by file name); two records with one round fail.
+// Input 1, the export: `lake exe mathview` JSON (name, kind, module, line, stmtHash, ...), from --json <file>, else
+//   from a fresh `lake exe mathview --out <tmp>` run in lean/.
+// Input 2, the records: every research/notes/**/*-math-review-*.md and *-math-artifact-*.md table row whose first
+//   cell is a backticked `Fw.*` name and whose next two cells hold a verdict (agree|disagree) and a stmtHash, in either
+//   order: review rows `| decl | verdict | stmtHash | ... |`, artifact rows `| decl | stmtHash | agree | link |`
+//   (docs/team/tools/math-artifact.md). Precedence: review records without `round:` (by file name), then numbered
+//   review rounds (two records with one round fail), then artifact records (by file name, which starts with the
+//   date); within a record the last row wins.
 // Decision (per current entry e, latest row r):
-//   signed           r.verdict = agree, r.stmtHash = e.stmtHash and r.mathHash = e.mathHash (both present)
+//   signed           r.verdict = agree and r.stmtHash = e.stmtHash
 //   new              no row
-//   stale            r.verdict = agree, a hash differs (signed earlier, changed since)
-//   unhashed         r.verdict = agree, the row lacks a hash (cannot be shown equal; old row format)
-//   disagree         r.verdict = disagree, hashes equal (fix not landed yet)
-//   disagree-changed r.verdict = disagree, a hash differs (fix landed, needs re-review)
-//   pending = every entry that is not signed (stale is the subset `stale`); the script asserts
-//   pending ∪ signed = all, pending ∩ signed = ∅ and that the batches partition pending.
+//   stale            r.verdict = agree, r.stmtHash differs (signed earlier, changed since)
+//   unhashed         r.verdict = agree, the row lacks a stmtHash
+//   disagree         r.verdict = disagree, r.stmtHash equal or missing (fix not landed yet)
+//   disagree-changed r.verdict = disagree, r.stmtHash differs (fix landed, needs re-review)
+//   pending = every entry that is not signed; the script asserts pending ∪ signed = all, pending ∩ signed = ∅ and
+//   that the batches partition pending.
 // Batching: group pending by module; a module with more than ceil(|pending| / N) entries is cut into chunks of that
 //   size (in source-line order); chunks go largest first to the batch with the fewest entries (ties: module name,
 //   then lowest batch). So a module stays in one batch unless it alone exceeds a fair share.
-// Output: <out>/batch-<A..>.tsv, one line per entry `module<TAB>name<TAB>kind<TAB>stmtHash<TAB>mathHash` (sorted by
-//   module, then line; no header), and <out>/summary.json (HEAD, export key, totals, counts per module, batches,
-//   status per pending entry). Default --out: ./math-pending
+// Output: <out>/batch-<A..>.tsv, one line per entry `module<TAB>name<TAB>kind<TAB>stmtHash` (sorted by module, then
+//   line; no header), and <out>/summary.json (HEAD, export source, totals, counts per module, batches, status per
+//   pending entry). Default --out: ./math-pending
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -37,12 +36,12 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // ---- pure part (tested by scripts/test-math-pending.mjs) ----
 
-/** Review rows from records [{file, text}] -> Map name -> {verdict, stmtHash, mathHash, file, round}. */
+/** Rows from records [{file, text}] -> Map name -> {verdict, stmtHash, file, round}. */
 export function parseRecords(records) {
   const recs = records.map(({ file, text }) => {
     const front = /^---\n([\s\S]*?)\n---\n/.exec(text);
     const round = front && /^round:\s*(\d+)\s*$/m.exec(front[1]);
-    return { file, text, round: round ? Number(round[1]) : null };
+    return { file, text, artifact: /-math-artifact-[^/]*$/.test(file), round: round ? Number(round[1]) : null };
   });
   const seen = new Map();
   for (const r of recs) {
@@ -50,7 +49,8 @@ export function parseRecords(records) {
     if (seen.has(r.round)) throw new Error(`records ${seen.get(r.round)} and ${r.file} both have round: ${r.round}`);
     seen.set(r.round, r.file);
   }
-  recs.sort((a, b) => (a.round ?? -1) - (b.round ?? -1) || (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
+  const rank = (r) => (r.artifact ? Infinity : r.round ?? -1);
+  recs.sort((a, b) => (rank(a) === rank(b) ? 0 : rank(a) < rank(b) ? -1 : 1) || (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
   const digits = (c) => { const h = (c || '').replace(/`/g, ''); return /^\d+$/.test(h) ? h : null; };
   const out = new Map();
   for (const { file, text, round } of recs) {
@@ -58,11 +58,11 @@ export function parseRecords(records) {
       const cells = line.split('|').map((c) => c.trim()).slice(1, -1);
       if (cells.length < 2) continue;
       const name = /^`(Fw\.[^`]+)`$/.exec(cells[0]);
-      const verdict = /^\**(agree|disagree)\**$/i.exec(cells[1]);
-      if (!name || !verdict) continue;
-      const stmtHash = digits(cells[2]);
-      const mathHash = stmtHash ? digits(cells[3]) : null;
-      out.set(name[1], { verdict: verdict[1].toLowerCase(), stmtHash, mathHash, file, round });
+      const verdictOf = (c) => /^\**(agree|disagree)\**$/i.exec(c ?? '');
+      const at = verdictOf(cells[1]) ? 1 : verdictOf(cells[2]) ? 2 : 0;
+      if (!name || !at) continue;
+      const stmtHash = digits(cells[at === 1 ? 2 : 1]);
+      out.set(name[1], { verdict: verdictOf(cells[at])[1].toLowerCase(), stmtHash, file, round });
     }
   }
   return out;
@@ -71,10 +71,8 @@ export function parseRecords(records) {
 /** Status of one export entry given its latest row (or undefined). */
 export function statusOf(e, r) {
   if (!r) return 'new';
-  const has = r.stmtHash !== null && r.mathHash !== null;
-  const same = has && r.stmtHash === String(e.stmtHash) && r.mathHash === String(e.mathHash);
-  const changed = (r.stmtHash !== null && r.stmtHash !== String(e.stmtHash))
-    || (r.mathHash !== null && r.mathHash !== String(e.mathHash));
+  const same = r.stmtHash !== null && r.stmtHash === String(e.stmtHash);
+  const changed = r.stmtHash !== null && r.stmtHash !== String(e.stmtHash);
   if (r.verdict === 'agree') return same ? 'signed' : changed ? 'stale' : 'unhashed';
   return changed ? 'disagree-changed' : 'disagree';
 }
@@ -119,39 +117,20 @@ export function decide(entries, rows, n) {
 }
 
 export const batchId = (i) => (i < 26 ? String.fromCharCode(65 + i) : `Z${i - 25}`);
-export const tsvLine = (e) => [e.module, e.name, e.kind, e.stmtHash, e.mathHash].join('\t');
+export const tsvLine = (e) => [e.module, e.name, e.kind, e.stmtHash].join('\t');
 
 // ---- I/O ----
 
-/** The mathview-cached.sh key: sha256 of `shasum -a 256` lines over the fixed files and Fw/**.lean, first 16 hex. */
-function cacheKey(leanDir) {
-  const fixed = ['lean-toolchain', 'lake-manifest.json', 'lakefile.toml', 'Fw.lean', 'MathView.lean', 'MathViewMain.lean'];
-  const walk = (d) => readdirSync(join(leanDir, d), { withFileTypes: true })
-    .flatMap((x) => (x.isDirectory() ? walk(`${d}/${x.name}`) : x.name.endsWith('.lean') ? [`${d}/${x.name}`] : []));
-  const fw = walk('Fw').sort((a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b)));
-  const lines = [...fixed, ...fw].map((f) => `${createHash('sha256').update(readFileSync(join(leanDir, f))).digest('hex')}  ${f}\n`);
-  return createHash('sha256').update(lines.join('')).digest('hex').slice(0, 16);
-}
-
 function loadExport(jsonArg) {
   if (jsonArg) return { source: relative(root, resolve(jsonArg)) || jsonArg, entries: JSON.parse(readFileSync(jsonArg, 'utf8')) };
-  const leanDir = join(root, 'lean');
-  const key = cacheKey(leanDir);
-  const main = (() => {
-    try {
-      const common = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd: root, encoding: 'utf8' }).trim();
-      return dirname(common);
-    } catch { return null; }
-  })();
-  for (const base of [leanDir, main && join(main, 'lean')].filter(Boolean)) {
-    const f = join(base, '.lake/mathview-cache', `${key}.json`);
-    if (existsSync(f) && existsSync(f.replace(/\.json$/, '.lint'))) {
-      return { source: `mathview-cache ${key}${base === leanDir ? '' : ' (main checkout)'}`, key, entries: JSON.parse(readFileSync(f, 'utf8')) };
-    }
+  const dir = mkdtempSync(join(tmpdir(), 'math-pending-'));
+  try {
+    const f = join(dir, 'export.json');
+    execFileSync('lake', ['exe', 'mathview', '--out', f], { cwd: join(root, 'lean'), stdio: ['ignore', 'inherit', 'inherit'] });
+    return { source: 'lake exe mathview', entries: JSON.parse(readFileSync(f, 'utf8')) };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
-  const path = execFileSync('sh', [join(leanDir, 'scripts/mathview-cached.sh'), '--build'],
-    { cwd: leanDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim();
-  return { source: `mathview-cache ${key} (built)`, key, entries: JSON.parse(readFileSync(join(leanDir, path), 'utf8')) };
 }
 
 function readRecords() {
@@ -159,7 +138,7 @@ function readRecords() {
   const files = [];
   for (const year of existsSync(notes) ? readdirSync(notes).sort() : []) {
     try {
-      for (const f of readdirSync(join(notes, year)).sort()) if (/-math-review-.*\.md$/.test(f)) files.push(join(notes, year, f));
+      for (const f of readdirSync(join(notes, year)).sort()) if (/-math-(review|artifact)-.*\.md$/.test(f)) files.push(join(notes, year, f));
     } catch { /* not a folder */ }
   }
   return files.map((f) => ({ file: relative(root, f), text: readFileSync(f, 'utf8') }));
@@ -169,7 +148,7 @@ function main(argv) {
   const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
   const n = Number(opt('--batches', '4'));
   const out = resolve(opt('--out', 'math-pending'));
-  const { source, key, entries } = loadExport(opt('--json', null));
+  const { source, entries } = loadExport(opt('--json', null));
   const records = readRecords();
   const rows = parseRecords(records);
   const { status, signed, pending, batches } = decide(entries, rows, n);
@@ -192,7 +171,7 @@ function main(argv) {
   const summary = {
     head: git(['rev-parse', 'HEAD']),
     dirty: Boolean(git(['status', '--porcelain', '--', 'lean', 'research/notes'])),
-    export: source, exportKey: key ?? null, records: records.map((r) => r.file), batchesRequested: n,
+    export: source, records: records.map((r) => r.file), batchesRequested: n,
     totals, signed: signed.length,
     modules: Object.fromEntries(Object.entries(modules).sort(([a], [b]) => (a < b ? -1 : 1))),
     batches: bs,

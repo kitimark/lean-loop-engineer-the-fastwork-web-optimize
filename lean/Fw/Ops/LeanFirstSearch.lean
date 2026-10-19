@@ -85,10 +85,10 @@ instance : EnumAll Stage where
   all := [.shadow, .newTasks, .allNew, .ratchet]
   complete x := by cases x <;> simp
 
-/-- Signoff rows from their fields. $$\mathrm{enum}(n) = \operatorname{map}(\mathrm{mk}, \mathrm{enum}_{\mathrm{String}^3 \times \mathrm{Role} \times \mathbb B}(n))$$ -/
+/-- Signoff rows from their fields: two strings, a role and a flag. -/
 instance : Enum Signoff :=
-  Enum.ofSurj (β := String × String × String × Role × Bool) (fun ⟨a, b, c, r, x⟩ => ⟨a, b, c, r, x⟩)
-    (fun s => (s.decl, s.stmtHash, s.docHash, s.role, s.agree)) (fun _ => rfl)
+  Enum.ofSurj (β := String × String × Role × Bool) (fun ⟨a, b, r, x⟩ => ⟨a, b, r, x⟩)
+    (fun s => (s.decl, s.stmtHash, s.role, s.agree)) (fun _ => rfl)
 
 /-- Kill rows from their fields. $$\mathrm{enum}(n) = \operatorname{map}(\mathrm{mk}, \mathrm{enum}_{\mathrm{String}^2}(n))$$ -/
 instance : Enum KillRow :=
@@ -111,10 +111,9 @@ instance : Enum Present :=
 
 /-! ## The fault grid -/
 
-/-- The clean property of the grid.
-$$P_0 = \{\mathit{name}{=}\texttt{P},\ \mathit{stmt}{=}\texttt{hP},\ \mathit{doc}{=}\texttt{dP},\ \mathit{assumes}{=}[\,],\ \mathit{searchAt}{=}\texttt{c1},\ \mathit{proofAt}{=}\texttt{c2}\}$$ -/
+/-- The clean property of the grid: `P` at statement hash `hP`, no premises, search at `c1`, proof at `c2`. -/
 def baseProp : PropFact :=
-  { name := "P", stmtHash := "hP", docHash := "dP", assumes := [], searchAt := some "c1", proofAt := some "c2" }
+  { name := "P", stmtHash := "hP", assumes := [], searchAt := some "c1", proofAt := some "c2" }
 
 /-- The clean proof of `P` in the grid, of the implementation `impl`, which the wire reaches.
 $$T_0 = \{\mathit{name}{=}\texttt{P\_impl},\ \mathit{hash}{=}\texttt{hT},\ \mathit{kind}{=}\mathrm{general},\ \mathit{proves}{=}\texttt{P},\ \mathit{implArg}{=}\texttt{impl},\ \mathit{rw}{=}\mathrm{true},\ \mathit{axiomsOk},\ \mathit{usedBy}{=}[\,],\ \mathit{reach}{=}[\texttt{impl}],\ \mathit{assumes}{=}[\,]\}$$ -/
@@ -146,21 +145,21 @@ def changedThmFact : ThmFact := { lemmaThm with name := "Old", hash := "hO2", us
 and killed, its proof killed, one marked branch, a three-row registry (measured, untested, refuted), one baseline
 theorem, search before proof, equal legacy counts, every source present, exemptions read at main `m`. It passes at
 every stage.
-$$\begin{aligned} F_0 = \{&\mathit{leanFirst}{=}\top,\ \mathit{writes}{=}[\texttt{lean/Fw/Ops/X.lean}, \texttt{docs/x.md}],\ \mathit{props}{=}[P_0],\ \mathit{thms}{=}[T_0, K_0],\ \mathit{kills}{=}[(\texttt{P\_impl},\texttt{hT}),(\texttt{P},\texttt{hP})], \\ &\mathit{signoffs}{=}[(\texttt{P},\texttt{hP},\texttt{dP},\mathrm{math},\top),(\texttt{P},\texttt{hP},\texttt{dP},\mathrm{adversary},\top)],\ \mathit{branches}{=}[(\texttt{apps/x/src/a.ts},3,\mathrm{op})], \\ &\mathit{registry}{=}[(\texttt{pm},\mathrm{measured},[\texttt{cM}]),(\texttt{pu},\mathrm{untested},[\texttt{cU}]),(\texttt{pr},\mathrm{refuted},[\texttt{cR}])],\ \mathit{baseline}{=}[(\texttt{Old},\texttt{hO})],\ \mathit{ancestry}{=}[(\texttt{c1},\texttt{c2})], \\ &\mathit{legacyMain}{=}\mathit{legacyHead}{=}2,\ \mathit{present}{=}(\top,\top,\top),\ \mathit{mainAt}{=}\texttt{m},\ \mathit{exemptAt}{=}\mathrm{some}(\texttt{m})\} \end{aligned}$$ -/
+$$\begin{aligned} F_0 = \{&\mathit{leanFirst}{=}\top,\ \mathit{writes}{=}[\texttt{lean/Fw/Ops/X.lean}, \texttt{docs/x.md}],\ \mathit{props}{=}[P_0],\ \mathit{thms}{=}[T_0, K_0],\ \mathit{kills}{=}[(\texttt{P\_impl},\texttt{hT}),(\texttt{P},\texttt{hP})], \\ &\mathit{signoffs}{=}[(\texttt{P},\texttt{hP},\mathrm{math},\top),(\texttt{P},\texttt{hP},\mathrm{adversary},\top)],\ \mathit{branches}{=}[(\texttt{apps/x/src/a.ts},3,\mathrm{op})], \\ &\mathit{registry}{=}[(\texttt{pm},\mathrm{measured},[\texttt{cM}]),(\texttt{pu},\mathrm{untested},[\texttt{cU}]),(\texttt{pr},\mathrm{refuted},[\texttt{cR}])],\ \mathit{baseline}{=}[(\texttt{Old},\texttt{hO})],\ \mathit{ancestry}{=}[(\texttt{c1},\texttt{c2})], \\ &\mathit{legacyMain}{=}\mathit{legacyHead}{=}2,\ \mathit{present}{=}(\top,\top,\top),\ \mathit{mainAt}{=}\texttt{m},\ \mathit{exemptAt}{=}\mathrm{some}(\texttt{m})\} \end{aligned}$$ -/
 def base : Facts :=
   { leanFirst := true, writes := ["lean/Fw/Ops/X.lean", "docs/x.md"], props := [baseProp],
     thms := [baseThm, killThm],
     kills := [⟨"P_impl", "hT"⟩, ⟨"P", "hP"⟩],
-    signoffs := [⟨"P", "hP", "dP", .math, true⟩, ⟨"P", "hP", "dP", .adversary, true⟩],
+    signoffs := [⟨"P", "hP", .math, true⟩, ⟨"P", "hP", .adversary, true⟩],
     branches := [⟨"apps/x/src/a.ts", 3, .op⟩],
     registry := [⟨"pm", .measured, ["cM"]⟩, ⟨"pu", .untested, ["cU"]⟩, ⟨"pr", .refuted, ["cR"]⟩],
     baseline := [("Old", "hO")], ancestry := [("c1", "c2")], legacyMain := 2, legacyHead := 2,
     present := ⟨true, true, true⟩, mainAt := "m", exemptAt := some "m" }
 
 /-- One edit of the clean facts.
-$$\begin{aligned} \mathrm{Fault} = \{&\mathrm{noProps}, \mathrm{noDecision}, \mathrm{unproved}, \mathrm{badAxioms}, \mathrm{stub}, \mathrm{noImpl}, \mathrm{unsignedMath}, \mathrm{unsignedAdv}, \mathrm{disagreeAdv}, \mathrm{staleDoc}, \\ &\mathrm{unkilledProp}, \mathrm{noKill}, \mathrm{lemma}, \mathrm{lemmaProves}, \mathrm{dataProof}, \mathrm{oldThm}, \mathrm{changedOld}, \mathrm{unmarked}, \mathrm{glueBad}, \mathrm{glueOk}, \\ &\mathrm{hidden}, \mathrm{assumedOk}, \mathrm{unregistered}, \mathrm{refuted}, \mathrm{untestedHidden}, \mathrm{untestedShared}, \mathrm{searchOrder}, \mathrm{searchMissing}, \\ &\mathrm{ratchet}, \mathrm{ratchetDown}, \mathrm{missingMathview}, \mathrm{missingKills}, \mathrm{missingLint}, \mathrm{notLeanFirst}, \mathrm{newlineName}, \mathrm{dupSignoff}, \\ &\mathrm{reachUnknown}, \mathrm{exemptBranch}, \mathrm{dirGlob}, \mathrm{docsGlob}\},\quad |\mathrm{Fault}| = 40 \end{aligned}$$ -/
+$$\begin{aligned} \mathrm{Fault} = \{&\mathrm{noProps}, \mathrm{noDecision}, \mathrm{unproved}, \mathrm{badAxioms}, \mathrm{stub}, \mathrm{noImpl}, \mathrm{unsignedMath}, \mathrm{unsignedAdv}, \mathrm{disagreeAdv}, \mathrm{staleStmt}, \\ &\mathrm{unkilledProp}, \mathrm{noKill}, \mathrm{lemma}, \mathrm{lemmaProves}, \mathrm{dataProof}, \mathrm{oldThm}, \mathrm{changedOld}, \mathrm{unmarked}, \mathrm{glueBad}, \mathrm{glueOk}, \\ &\mathrm{hidden}, \mathrm{assumedOk}, \mathrm{unregistered}, \mathrm{refuted}, \mathrm{untestedHidden}, \mathrm{untestedShared}, \mathrm{searchOrder}, \mathrm{searchMissing}, \\ &\mathrm{ratchet}, \mathrm{ratchetDown}, \mathrm{missingMathview}, \mathrm{missingKills}, \mathrm{missingLint}, \mathrm{notLeanFirst}, \mathrm{newlineName}, \mathrm{dupSignoff}, \\ &\mathrm{reachUnknown}, \mathrm{exemptBranch}, \mathrm{dirGlob}, \mathrm{docsGlob}\},\quad |\mathrm{Fault}| = 40 \end{aligned}$$ -/
 inductive Fault where
-  | noProps | noDecision | unproved | badAxioms | stub | noImpl | unsignedMath | unsignedAdv | disagreeAdv | staleDoc
+  | noProps | noDecision | unproved | badAxioms | stub | noImpl | unsignedMath | unsignedAdv | disagreeAdv | staleStmt
   | unkilledProp | noKill | lemma | lemmaProves | dataProof | oldThm | changedOld | unmarked | glueBad | glueOk
   | hidden | assumedOk | unregistered | refuted | untestedHidden | untestedShared | searchOrder | searchMissing
   | ratchet | ratchetDown | missingMathview | missingKills | missingLint | notLeanFirst | newlineName | dupSignoff
@@ -170,7 +169,7 @@ deriving DecidableEq, Repr
 /-- Every fault, in declaration order.
 $$\mathrm{Fault.all} = [\mathrm{noProps}, \mathrm{noDecision}, \ldots, \mathrm{docsGlob}],\quad |\mathrm{Fault.all}| = 40$$ -/
 def Fault.all : List Fault :=
-  [.noProps, .noDecision, .unproved, .badAxioms, .stub, .noImpl, .unsignedMath, .unsignedAdv, .disagreeAdv, .staleDoc,
+  [.noProps, .noDecision, .unproved, .badAxioms, .stub, .noImpl, .unsignedMath, .unsignedAdv, .disagreeAdv, .staleStmt,
    .unkilledProp, .noKill, .lemma, .lemmaProves, .dataProof, .oldThm, .changedOld, .unmarked, .glueBad, .glueOk,
    .hidden, .assumedOk, .unregistered, .refuted, .untestedHidden, .untestedShared, .searchOrder, .searchMissing,
    .ratchet, .ratchetDown, .missingMathview, .missingKills, .missingLint, .notLeanFirst, .newlineName, .dupSignoff,
@@ -201,8 +200,8 @@ $$\begin{aligned}
 \operatorname{apply}(F, \mathrm{noImpl}) &= M(t \mapsto t[\mathit{implArg} := \mathrm{none}]) \\
 \operatorname{apply}(F, \mathrm{unsignedMath}) &= F[\mathit{signoffs} := [s \in \mathit{signoffs}_F \mid s.\mathit{role} \ne \mathrm{math}]] \\
 \operatorname{apply}(F, \mathrm{unsignedAdv}) &= F[\mathit{signoffs} := [s \in \mathit{signoffs}_F \mid s.\mathit{role} \ne \mathrm{adversary}]] \\
-\operatorname{apply}(F, \mathrm{disagreeAdv}) &= F[\mathit{signoffs} := \mathit{signoffs}_F \mathbin{+\!\!+} [(\texttt{P}, \texttt{hP}, \texttt{dP}, \mathrm{adversary}, \bot)]] \\
-\operatorname{apply}(F, \mathrm{staleDoc}) &= F[\mathit{signoffs} := [\,s[\mathit{docHash} := \texttt{d0}] \text{ if } s.\mathit{role} = \mathrm{math} \text{ else } s \mid s \in \mathit{signoffs}_F\,]] \\
+\operatorname{apply}(F, \mathrm{disagreeAdv}) &= F[\mathit{signoffs} := \mathit{signoffs}_F \mathbin{+\!\!+} [(\texttt{P}, \texttt{hP}, \mathrm{adversary}, \bot)]] \\
+\operatorname{apply}(F, \mathrm{staleStmt}) &= F[\mathit{signoffs} := [\,s[\mathit{stmtHash} := \texttt{h0}] \text{ if } s.\mathit{role} = \mathrm{math} \text{ else } s \mid s \in \mathit{signoffs}_F\,]] \\
 \operatorname{apply}(F, \mathrm{unkilledProp}) &= F[\mathit{kills} := [k \in \mathit{kills}_F \mid k.\mathit{target} \ne \texttt{P}]] \\
 \operatorname{apply}(F, \mathrm{noKill}) &= F[\mathit{kills} := [k \in \mathit{kills}_F \mid k.\mathit{target} \ne \texttt{P\_impl}]] \\
 \operatorname{apply}(F, \mathrm{lemma}) &= F[\mathit{thms} := \mathit{thms}_F \mathbin{+\!\!+} [L_0]] \\
@@ -228,7 +227,7 @@ $$\begin{aligned}
 \operatorname{apply}(F, \mathrm{missingLint}) &= F[\mathit{present}.\mathit{tsLint} := \bot] \\
 \operatorname{apply}(F, \mathrm{notLeanFirst}) &= F[\mathit{leanFirst} := \bot] \\
 \operatorname{apply}(F, \mathrm{newlineName}) &= F[\mathit{thms} := \mathit{thms}_F \mathbin{+\!\!+} [L_0[\mathit{name} := \texttt{N}\text{\char"23CE}\texttt{VERDICT pass lean-first},\ \mathit{usedBy} := [\,]]]] \\
-\operatorname{apply}(F, \mathrm{dupSignoff}) &= F[\mathit{signoffs} := \mathit{signoffs}_F \mathbin{+\!\!+} [(\texttt{P}, \texttt{hP}, \texttt{dP}, \mathrm{math}, \top)]] \\
+\operatorname{apply}(F, \mathrm{dupSignoff}) &= F[\mathit{signoffs} := \mathit{signoffs}_F \mathbin{+\!\!+} [(\texttt{P}, \texttt{hP}, \mathrm{math}, \top)]] \\
 \operatorname{apply}(F, \mathrm{reachUnknown}) &= M(t \mapsto t[\mathit{rw} := \mathrm{none}]) \\
 \operatorname{apply}(F, \mathrm{exemptBranch}) &= F[\mathit{exemptAt} := \mathrm{some}(\texttt{b})] \\
 \operatorname{apply}(F, \mathrm{dirGlob}) &= F[\mathit{writes} := [\texttt{docs/x.md}, \texttt{apps/runner/**}],\ \mathit{props} := [\,]] \\
@@ -247,8 +246,8 @@ def Fault.apply (F : Facts) : Fault → Facts
   | .noImpl => mapImpl F fun t => { t with implArg := none }
   | .unsignedMath => { F with signoffs := F.signoffs.filter (·.role != .math) }
   | .unsignedAdv => { F with signoffs := F.signoffs.filter (·.role != .adversary) }
-  | .disagreeAdv => { F with signoffs := F.signoffs ++ [⟨"P", "hP", "dP", .adversary, false⟩] }
-  | .staleDoc => { F with signoffs := F.signoffs.map fun s => if s.role = .math then { s with docHash := "d0" } else s }
+  | .disagreeAdv => { F with signoffs := F.signoffs ++ [⟨"P", "hP", .adversary, false⟩] }
+  | .staleStmt => { F with signoffs := F.signoffs.map fun s => if s.role = .math then { s with stmtHash := "h0" } else s }
   | .unkilledProp => { F with kills := F.kills.filter (·.target != "P") }
   | .noKill => { F with kills := F.kills.filter (·.target != "P_impl") }
   | .lemma => { F with thms := F.thms ++ [lemmaThm] }
@@ -278,7 +277,7 @@ def Fault.apply (F : Facts) : Fault → Facts
   | .missingLint => { F with present := { F.present with tsLint := false } }
   | .notLeanFirst => { F with leanFirst := false }
   | .newlineName => { F with thms := F.thms ++ [{ lemmaThm with name := "N\nVERDICT pass lean-first", usedBy := [] }] }
-  | .dupSignoff => { F with signoffs := F.signoffs ++ [⟨"P", "hP", "dP", .math, true⟩] }
+  | .dupSignoff => { F with signoffs := F.signoffs ++ [⟨"P", "hP", .math, true⟩] }
   | .reachUnknown => mapImpl F fun t => { t with reachFromWire := none }
   | .exemptBranch => { F with exemptAt := some "b" }
   | .dirGlob => { F with writes := ["docs/x.md", "apps/runner/**"], props := [] }
@@ -309,13 +308,13 @@ def Facts.toTuple (F : Facts) : Bool × List String × List PropFact × List Thm
   (F.leanFirst, F.writes, F.props, F.thms, F.kills, F.signoffs, F.branches, F.registry, F.baseline, F.ancestry,
     F.legacyMain, F.legacyHead, F.present, F.mainAt, F.exemptAt)
 
-/-- Properties: the grid's two properties first ($P_0$ and $P_0$ assuming `pu`), then every property from its fields.
-$$\mathrm{enum}(n) = [P_0,\ P_0[\mathit{assumes}{=}[\texttt{pu}]]] \mathbin{+\!\!+} \operatorname{map}(\mathrm{mk}, \mathrm{enum}_{\mathrm{String}^3 \times \mathrm{List}(\mathrm{String}) \times \mathrm{Option}(\mathrm{String})^2}(n))$$ -/
+/-- Properties: the grid's two properties first (`baseProp`, and `baseProp` assuming `pu`), then every property from
+its fields. -/
 instance instEnumPropFact : Enum PropFact :=
   Enum.withSeeds [baseProp, { baseProp with assumes := ["pu"] }]
-    (Enum.ofSurj (β := String × String × String × List String × Option String × Option String)
-      (fun ⟨a, b, c, e, f, g⟩ => ⟨a, b, c, e, f, g⟩)
-      (fun P => (P.name, P.stmtHash, P.docHash, P.assumes, P.searchAt, P.proofAt)) (fun _ => rfl))
+    (Enum.ofSurj (β := String × String × List String × Option String × Option String)
+      (fun ⟨a, b, e, f, g⟩ => ⟨a, b, e, f, g⟩)
+      (fun P => (P.name, P.stmtHash, P.assumes, P.searchAt, P.proofAt)) (fun _ => rfl))
 
 /-- Theorems: the grid's eight theorems first, then every theorem from its fields.
 $$\mathrm{enum}(n) = [T_0, K_0, L_0, L_0[\mathit{proves}{=}\texttt{P}], T_0[\mathit{kind}{=}\mathrm{data}], T_0[\mathit{assumes}{=}[\texttt{pu}]], O, O'] \mathbin{+\!\!+} \operatorname{map}(\mathrm{mk}, \mathrm{enum}_{\mathrm{String}^2 \times \mathrm{ThmKind} \times \mathrm{Option}(\mathrm{String})^2 \times \mathrm{Option}(\mathbb B) \times \mathbb B \times \mathrm{List}(\mathrm{String})^3}(n))$$ -/
@@ -336,12 +335,12 @@ instance instEnumFacts : Enum Facts :=
 /-- **`Enum Evidence`**: seven seeds first, then every evidence value from its fields. The seeds, as (kills,
 signoffs, marks, sources): nothing; a disagreeing math signoff; an agreeing adversary signoff; both kills; the proof
 kill; two marks; every source.
-$$\mathrm{enum}(n) = [e_1, \ldots, e_7] \mathbin{+\!\!+} \operatorname{map}(\mathrm{mk}, \mathrm{enum}_{\mathrm{List}(\mathrm{KillRow}) \times \mathrm{List}(\mathrm{Signoff}) \times \mathrm{List}(\mathrm{Mark}) \times \mathbb B^3}(n)),\quad \begin{aligned} e_1 &= ([\,], [\,], [\,], \bot^3) & e_2 &= ([\,], [(\texttt{P}, \texttt{hP}, \texttt{dP}, \mathrm{math}, \bot)], [\,], \bot^3) \\ e_3 &= ([\,], [(\texttt{P}, \texttt{hP}, \texttt{dP}, \mathrm{adversary}, \top)], [\,], \bot^3) & e_4 &= ([(\texttt{P}, \texttt{hP}), (\texttt{P\_impl}, \texttt{hT})], [\,], [\,], \bot^3) \\ e_5 &= ([(\texttt{P\_impl}, \texttt{hT})], [\,], [\,], \bot^3) & e_6 &= ([\,], [\,], [\mathrm{op}, \mathrm{twin}], \bot^3) \\ e_7 &= ([\,], [\,], [\,], \top^3) \end{aligned}$$ -/
+$$\mathrm{enum}(n) = [e_1, \ldots, e_7] \mathbin{+\!\!+} \operatorname{map}(\mathrm{mk}, \mathrm{enum}_{\mathrm{List}(\mathrm{KillRow}) \times \mathrm{List}(\mathrm{Signoff}) \times \mathrm{List}(\mathrm{Mark}) \times \mathbb B^3}(n)),\quad \begin{aligned} e_1 &= ([\,], [\,], [\,], \bot^3) & e_2 &= ([\,], [(\texttt{P}, \texttt{hP}, \mathrm{math}, \bot)], [\,], \bot^3) \\ e_3 &= ([\,], [(\texttt{P}, \texttt{hP}, \mathrm{adversary}, \top)], [\,], \bot^3) & e_4 &= ([(\texttt{P}, \texttt{hP}), (\texttt{P\_impl}, \texttt{hT})], [\,], [\,], \bot^3) \\ e_5 &= ([(\texttt{P\_impl}, \texttt{hT})], [\,], [\,], \bot^3) & e_6 &= ([\,], [\,], [\mathrm{op}, \mathrm{twin}], \bot^3) \\ e_7 &= ([\,], [\,], [\,], \top^3) \end{aligned}$$ -/
 instance instEnumEvidence : Enum Evidence :=
   Enum.withSeeds
     [⟨[], [], [], ⟨false, false, false⟩⟩,
-     ⟨[], [⟨"P", "hP", "dP", .math, false⟩], [], ⟨false, false, false⟩⟩,
-     ⟨[], [⟨"P", "hP", "dP", .adversary, true⟩], [], ⟨false, false, false⟩⟩,
+     ⟨[], [⟨"P", "hP", .math, false⟩], [], ⟨false, false, false⟩⟩,
+     ⟨[], [⟨"P", "hP", .adversary, true⟩], [], ⟨false, false, false⟩⟩,
      ⟨[⟨"P", "hP"⟩, ⟨"P_impl", "hT"⟩], [], [], ⟨false, false, false⟩⟩,
      ⟨[⟨"P_impl", "hT"⟩], [], [], ⟨false, false, false⟩⟩,
      ⟨[], [], [.op, .twin], ⟨false, false, false⟩⟩,
