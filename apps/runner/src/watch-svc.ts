@@ -56,13 +56,13 @@ export function readApiBase(p: Paths, alive?: (pid: number) => boolean): string 
 }
 
 /** The fwcore throws the live console-api's drain caught since it started (its sweep-errors.json, written by
- *  apps/console-api/src/spool/drain.ts): 0 when it wrote none; the file of an earlier process (another pid) is ignored.
+ *  apps/console-api/src/spool/drain.ts): 0 when it wrote none; the file of an earlier process (another pid) or of a pid that is not alive is ignored.
  *  fwcore raises `svc.sweepError` for any count above 0 (Lean `Fw.Obs.sweep_error_alerts`). */
 export function readSweepErrors(p: Paths): number {
   try {
     const api = JSON.parse(readFileSync(join(p.consoleDir, "api.json"), "utf8")) as Record<string, unknown>;
     const j = JSON.parse(readFileSync(join(p.consoleDir, "sweep-errors.json"), "utf8")) as Record<string, unknown>;
-    return j.pid === api.pid && typeof j.count === "number" && Number.isSafeInteger(j.count) && j.count > 0 ? j.count : 0;
+    return j.pid === api.pid && typeof j.pid === "number" && isAlive(j.pid) && typeof j.count === "number" && Number.isSafeInteger(j.count) && j.count > 0 ? j.count : 0;
   } catch { return 0; }
 }
 

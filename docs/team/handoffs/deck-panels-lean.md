@@ -1,16 +1,18 @@
-# deck-panels-lean handoff (fix round 1)
+# deck-panels-lean handoff (final design round)
 
-State: branch worktree-wf_f0e4209d-fe6-3, fix-round commit on top of c9b3a6cc.
+State: branch worktree-wf_f0e4209d-fe6-3, main merged (svg-extract landed), final-round commit on top.
 
 Done
-- filled_five docstring states the three point evaluations; dropped the unproved "all is first" and "comes first" prose.
-- Services meta at <=1030/touch: 12px/16px added. Logo: monogram only when logo is undefined; named-missing file gives an empty logo box; img draggable=false.
-- mq.w-le-480 in MEDIA_IDS, Scope.lean people.deck rewrite list (+docstring), scope.gen.json regenerated; media.test.ts reads deck and panels CSS.
-- initials test compares Lean ASCII spec with the unicode rule over every about name.
-- Port-audit items in people.deck: article cards (cover, avatar+name byline, clock + "N min read", title, excerpt), photo price badge, video play badge, audio mute icon, rail rating star; Post data carries price/video/title/excerpt/readMinutes (restated from the original). Mobile (<=1030/touch) variants restated.
-- footprint.gen.json and FootprintData.lean regenerated (new icons.tsx).
+- people.deck/icons.tsx holds no geometry: star, clock, play, mute and the four review dimension icons render through
+  GenSvg with the ids people.star, people.clock, people.play, people.mute, review.bolt, review.shield, review.star, review.tag.
+- feedPanels.tsx DimIcon removed (DimensionIcon in icons.tsx maps skill keys to ids); no geometry element left in people.deck.
+  svg-guard passes with zero people.deck entries in svg-allow.json.
+- Article byline dot has no class (inherits #737373), not the Services .dot rule.
+- footprint.gen.json and FootprintData.lean regenerated after the merge conflict (part-footprint.mjs --write).
+- Stats strip "★4.9" stays a text glyph: the original's template holds a plain <strong> text node, not an svg.
+- svg-extract.test.ts: snapshotPaths now keeps only strings made of path-command characters; the prose
+  "Music videos, aftermovies..." in the snapshot matched the 24-char run check against panels.data.ts (file outside
+  this task's writes; lead may fold it into svg-extract writes).
 
-Verified: apps/site tests 80 files / 5282, typecheck, lake build of PeopleDeckPanels, Gate.Scope, FootprintData, scope --check, ci-paths 32/32.
-Known: apps/runner land-inputs 2 failures also on main.
-
-TS stand-ins: icons.tsx draws star, clock, play, mute geometry itself (original elements, sizes, viewBoxes); replace with svg-extract's svg.gen.json when it lands. Pixel equality is for the gate run.
+Verified: apps/site test 82 files / 5288, typecheck.
+Read first: apps/site/src/parts/people.deck/icons.tsx.

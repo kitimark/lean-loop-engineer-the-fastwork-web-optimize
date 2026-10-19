@@ -40,7 +40,22 @@ describe("spool", () => {
     expect(s).toMatchObject({ tools: 3, errors: 2, errTail: 2, startedAt: T0, lastAt: T0 + 3000, stoppedAt: null, lastTool: "Bash", lastToolAt: T0 + 3000, idleAt: null });
     expect(summarizeSpool(parseSpool([ev("a", "SubagentStart", 1), ev("a", "SubagentStop", 5)].join("\n"))).stoppedAt).toBe(5);
     expect(summarizeSpool(parseSpool([ev("a", "SubagentStart", 1), ev("a", "SubagentStop", 5), ev("a", "SubagentStart", 9)].join("\n"))).stoppedAt).toBeNull();
-    expect(summarizeSpool(parseSpool([ev("a", "SubagentStop", 5), ev("a", "PostToolUse", 9)].join("\n"))).stoppedAt).toBeNull();
+    expect(summarizeSpool(parseSpool([ev("a", "SubagentStop", 5), ev("a", "PostToolUse", 9)].join("\n"))).stoppedAt).toBe(5);
+  });
+  it("carries the session pid of the newest line that has one", () => {
+    const s = summarizeSpool(parseSpool([ev("a", "SubagentStart", 1, { session_pid: 11 }), ev("a", "PostToolUse", 5, { session_pid: 12 }), ev("a", "PostToolUse", 9)].join("\n")));
+    expect(s.sessionPid).toBe(12);
+    expect(summarizeSpool(parseSpool(ev("a", "PostToolUse", 9))).sessionPid).toBeNull();
+  });
+  it("follows the Lean golden of the resume predicate (Fw.Ops.Obs.stoppedAtOf): only a SubagentStart after the stop resumes", () => {
+    const rows = readFileSync(join(here, "../../../packages/contracts/golden/ops/ops.obs.jsonl"), "utf8").trim().split("\n")
+      .map((l) => JSON.parse(l) as { name: string; request: { resume?: { hooks: { event: string; ts: number }[] }[] }; response: { resume?: (number | null)[] } })
+      .filter((c) => c.request.resume);
+    expect(rows.length).toBeGreaterThanOrEqual(9);
+    for (const c of rows) {
+      const got = c.request.resume!.map((r) => summarizeSpool(parseSpool(r.hooks.map((h) => ev("a", h.event, h.ts)).join("\n"))).stoppedAt);
+      expect({ name: c.name, got }).toEqual({ name: c.name, got: c.response.resume });
+    }
   });
   it("last tool and TeammateIdle; a teammate's Stop then Idle is a turn end, not an exit", () => {
     const t = summarizeSpool(parseSpool([
@@ -163,6 +178,13 @@ describe("system carry-forward", () => {
     const miss = await collectSystem(p, { at: 1000, system: prevSys() }, 2000, exec("missing"));
     expect(miss).toMatchObject({ stale: [], ci: [], docker: [] });
   });
+  it("the process table's pids are the alive pids (Lean deadSession); an unread table gives none, so no agent is judged by it", async () => {
+    const ps = "  1     0 05:00 /sbin/launchd\n  77     1 01:00 claude\n";
+    const ok = await collectSystem(p, { at: 1000, system: prevSys() }, 2000, async (cmd, args) => (cmd === "ps" && args[1] === "-o" && args[2]?.startsWith("pid=") ? ps : cmd === "gh" || cmd === "docker" ? "" : ""));
+    expect(ok.alivePids).toEqual([1, 77]);
+    const none = await collectSystem(p, { at: 1000, system: prevSys() }, 2000, async (cmd) => (cmd === "ps" ? null : ""));
+    expect(none.alivePids).toBeUndefined();
+  });
   it("keep comes from the decision over the lstart rows; a failed decision keeps the previous value, marked stale", async () => {
     const lstart = "  42 Sun Oct 18 09:58:17 2026 node apps/runner/src/fw.ts watch --interval 300 --stream\n";
     const ex: Runner = async (cmd) => (cmd === "env" ? lstart : cmd === "gh" || cmd === "docker" ? { missing: true } : "");
@@ -183,7 +205,7 @@ describe("system parsers", () => {
     expect(parseDocker("abc\tweb\t2026-10-17 10:00:00 +0700 +07\n")).toEqual([{ id: "abc", name: "web", startedAt: Date.parse("2026-10-17T10:00:00+07:00") }]);
     expect(parseDocker(null)).toEqual([]);
     expect(parseCi('[{"workflowName":"ci","headBranch":"b","status":"completed","conclusion":"failure","createdAt":"2026-10-17T10:00:00Z"}]'))
-      .toEqual([{ workflow: "ci", branch: "b", status: "completed", conclusion: "failure", startedAt: T0, endedAt: null }]);
+      .toEqual([{ workflow: "ci", branch: "b", status: "completed", conclusion: "failure", startedAt: T0, endedAt: null, headSha: "" }]);
     expect(parseCi('[{"workflowName":"ci","headBranch":"b","status":"completed","conclusion":"success","createdAt":"2026-10-17T10:00:00Z","updatedAt":"2026-10-17T10:25:00Z"},'
       + '{"workflowName":"ci","headBranch":"c","status":"in_progress","conclusion":"","createdAt":"2026-10-17T10:00:00Z","updatedAt":"2026-10-17T10:05:00Z"}]').map((r) => r.endedAt))
       .toEqual([T0 + 25 * 60000, null]);

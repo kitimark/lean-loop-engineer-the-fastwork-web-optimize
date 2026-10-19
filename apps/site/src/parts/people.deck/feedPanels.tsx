@@ -4,7 +4,7 @@ import type { Profile, Service } from '../people/data';
 import type { PanelData, ReviewItem } from '../people/panels.data';
 import css from './panels.module.css';
 import * as L from './panels.logic';
-import { StarIcon } from './icons';
+import { DimensionIcon, StarIcon } from './icons';
 
 const VERDICT_TEXT: Record<L.Verdict, string> = { excellent: 'Excellent', veryGood: 'Very good', good: 'Good', fair: 'Fair', poor: 'Poor' };
 const DIMENSIONS = [
@@ -81,7 +81,7 @@ function Summary({ r }: { r: PanelData['reviews'] }) {
           <div key={k} className={css.dimension}>
             <dt>
               <span className={css.icon} aria-hidden="true">
-                <DimIcon kind={k} />
+                <DimensionIcon kind={k} />
               </span>
               {` ${label}`}
             </dt>
@@ -90,28 +90,6 @@ function Summary({ r }: { r: PanelData['reviews'] }) {
         ))}
       </dl>
     </div>
-  );
-}
-
-function DimIcon({ kind }: { kind: (typeof DIMENSIONS)[number][0] }) {
-  return (
-    <svg viewBox="0 0 24 24">
-      {kind === 'responseSpeed' ? (
-        <polygon points="13,3 5,13.5 11,13.5 10,21 18,10.5 12,10.5" />
-      ) : kind === 'serviceQuality' ? (
-        <>
-          <circle cx="12" cy="12" r="8.5" />
-          <polyline points="8,12.5 11,15.5 16,9" />
-        </>
-      ) : kind === 'skill' ? (
-        <polygon points="12,3.5 14.6,9 20.5,9.7 16.1,13.7 17.3,19.5 12,16.6 6.7,19.5 7.9,13.7 3.5,9.7 9.4,9" />
-      ) : (
-        <>
-          <polygon points="3.5,5.5 12.5,3.5 20.5,11.5 11.5,20.5 3.5,12.5" />
-          <circle cx="8" cy="8" r="1.25" />
-        </>
-      )}
-    </svg>
   );
 }
 

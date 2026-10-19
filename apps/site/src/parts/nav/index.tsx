@@ -7,6 +7,7 @@ import { createNavDriver, type NavEnv } from './driver';
 import { CLASS_OF, type Sticky } from './logic';
 import { matchList } from './media';
 import css from './nav.module.css';
+import svg from '../../svg.gen.json';
 
 /** Where the nav's own scroll callback sits on the engine: before nav.hitTest (100), as the original reads the sticky item first. */
 export const NAV_ORDER = 99;
@@ -54,7 +55,7 @@ function measureSticky(stickySelector: string, sectionSelector: string): Sticky 
  * belongs to nav.hitTest. No React state: nothing here re-renders. The geometry as functions of `--morph` is CSS and is
  * specified in lean/Fw/Parts/Nav.lean; the decisions are logic.ts (golden vectors).
  *
- * Deltas (named): the logo glyph is a placeholder shape in the original's 122 x 31 box (until svg-extract); the morph panel is the `children`, hosted
+ * Deltas (named): the logo glyph is read from svg.gen.json; the morph panel is the `children`, hosted
  * here as in the original (title, columns, CTAs and footer are morph.panel's); no `.hero-track`/profile
  * elements exist in the page yet beyond the hero.exit track, which stands in for the former.
  */
@@ -139,9 +140,10 @@ export function Nav({
     <header ref={header} className={`${css.nav} is-hero-pill`} aria-label="Primary navigation" data-fw="nav">
       <div className={css.bar}>
         <a className={css.logo} href="/" aria-label="Fastwork home">
-          <svg width="122px" viewBox="0 0 181 46" fill="currentColor" aria-hidden="true" focusable="false">
-            <rect x="0" y="9" width="28" height="28" rx="7" />
-            <rect x="40" y="14" width="141" height="18" rx="9" />
+          <svg width={svg.wordmark.width} viewBox={svg.wordmark.viewBox} fill="currentColor" aria-hidden="true" focusable="false">
+            {svg.wordmark.paths.map((d, i) => (
+              <path key={i} d={d} />
+            ))}
           </svg>
         </a>
         <div className={css.actions}>

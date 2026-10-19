@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { fwArgv, tokens, lex, cmdWords, cmdHash, identity, decideCap } from "../hooks/cap.mjs";
 import { capMac, sha256 } from "../hooks/lib.mjs";
-import { notification, verbOf } from "../hooks/emit.mjs";
+import { claudePid, notification, record, sessionPidCached, verbOf } from "../hooks/emit.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const hook = (n: string) => join(here, "../hooks", n);
@@ -40,7 +40,7 @@ describe("emit.mjs", () => {
     expect(r.stderr).toBe("");
     const txt = readFileSync(join(d, "spool", "a1b2.jsonl"), "utf8");
     const rec = JSON.parse(txt);
-    expect(Object.keys(rec).sort()).toEqual(["agent_id", "agent_type", "duration_ms", "hook_event_name", "is_error", "tool_name", "tool_use_id", "ts", "verb"]);
+    expect(Object.keys(rec).filter((k) => k !== "session_pid").sort()).toEqual(["agent_id", "agent_type", "duration_ms", "hook_event_name", "is_error", "tool_name", "tool_use_id", "ts", "verb"]);
     expect(rec).toMatchObject({ agent_id: "a1b2", hook_event_name: "PostToolUse", duration_ms: 123, is_error: false, verb: "cat" });
   });
   it("privacy: output has no /Users/, no username, no @", () => {
@@ -108,7 +108,7 @@ describe("emit.mjs", () => {
     const bareMs: number[] = [], hookMs: number[] = [];
     for (let i = 0; i < 15; i++) {
       bareMs.push(time(() => spawnSync("node", ["-e", ""])));
-      hookMs.push(time(() => run("emit.mjs", JSON.stringify(dirty), d)));
+      hookMs.push(time(() => run("emit.mjs", JSON.stringify({ ...dirty, session_id: "s-timing" }), d)));
     }
     const bare = Math.min(...bareMs), lo = Math.min(...hookMs);
     console.log(`emit.mjs latency ms: min ${lo.toFixed(0)}; bare node min ${bare.toFixed(0)}; ratio ${(lo / bare).toFixed(2)}`);
@@ -262,5 +262,41 @@ describe("emit.mjs: unseen spawns and background_tasks", () => {
     const t = readFileSync(join(d, "spool", "q.jsonl"), "utf8");
     expect(JSON.parse(t).background_tasks).toBe(2);
     expect(t).not.toContain("hidden-detail");
+  });
+});
+
+describe("session pid", () => {
+  const table: Record<number, { ppid: number; comm: string }> = {
+    10: { ppid: 9, comm: "/bin/sh" }, 9: { ppid: 8, comm: "/usr/local/bin/claude" }, 8: { ppid: 1, comm: "zsh" },
+    20: { ppid: 19, comm: "node" }, 19: { ppid: 1, comm: "launchd" },
+  };
+  const ps = (pid: number) => table[pid] ?? null;
+  it("is the nearest claude ancestor; none when there is none or the table cannot be read", () => {
+    expect(claudePid(10, ps)).toBe(9);
+    expect(claudePid(9, ps)).toBe(9);
+    expect(claudePid(20, ps)).toBeNull();
+    expect(claudePid(77, ps)).toBeNull();
+  });
+  it("is looked up once per session, then read from the cache while the pid is alive", () => {
+    const d = tmp();
+    let calls = 0;
+    const find = () => { calls++; return process.pid; };
+    expect(sessionPidCached({ session_id: "s1" }, d, find)).toBe(process.pid);
+    expect(sessionPidCached({ session_id: "s1" }, d, find)).toBe(process.pid);
+    expect(calls).toBe(1);
+    writeFileSync(join(d, "session-pid-s1"), "2147483000");
+    expect(sessionPidCached({ session_id: "s1" }, d, find)).toBe(process.pid);
+    expect(calls).toBe(2);
+    expect(sessionPidCached({}, d, find)).toBe(process.pid);
+    expect(calls).toBe(3);
+    let none = 0;
+    const nobody = () => { none++; return null; };
+    expect(sessionPidCached({ session_id: "s2" }, d, nobody)).toBeNull();
+    expect(sessionPidCached({ session_id: "s2" }, d, nobody)).toBeNull();
+    expect(none).toBe(1);
+  });
+  it("is written to the record only when known", () => {
+    expect(record({ hook_event_name: "PostToolUse" }, 5, 9)).toMatchObject({ session_pid: 9 });
+    expect("session_pid" in record({ hook_event_name: "PostToolUse" }, 5)!).toBe(false);
   });
 });

@@ -336,6 +336,18 @@
   {
    "url": "/selling/work/work-f.jpg",
    "src": "snapshot/site/selling/work/work-f.jpg"
+  },
+  {
+   "url": "/selling/people-wordmark/o.svg",
+   "src": "snapshot/site/selling/people-wordmark/o.svg"
+  },
+  {
+   "url": "/selling/icons/claim.svg",
+   "src": "snapshot/site/selling/icons/claim.svg"
+  },
+  {
+   "url": "/selling/icons/pin.svg",
+   "src": "snapshot/site/selling/icons/pin.svg"
   }
  ],
  "bundled": [

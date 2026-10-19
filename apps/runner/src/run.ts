@@ -10,6 +10,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSyn
 import { dirname, join, relative } from "node:path";
 import { ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
 import { UsageError } from "./lib.ts";
+import { recordRunKind } from "./timing.ts";
 
 export type RunArgs = {
   target: string; preset: string; fw: string[]; engines: string[]; profile?: string; runs?: number; dry: boolean;
@@ -213,6 +214,8 @@ export type RunDeps = {
   now: () => number;
   /** The display name of a workflow file, when it can be read locally (used when the workflow has no earlier run). */
   workflowName?: (file: string) => string | undefined;
+  /** Remember the inputs of a run this command dispatched (the timing kind of its spans, timing.ts `recordRunKind`). */
+  recordKind?: (runId: number, inputs: PlanJob["inputs"]) => void;
   capS?: number;
 };
 
@@ -241,6 +244,7 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
       const name = before?.workflowName || d.workflowName?.(j.workflow);
       const w = await waitDecided(d.wait, { kind: "branch", branch: ref, ...(name ? { workflow: name } : {}), sha, since: before ? epoch(before.createdAt) + 1 : at - 60 }, d.now, d.capS);
       runId = decided(j.engine, w);
+      d.recordKind?.(Number(runId), j.inputs);
     } else {
       runId = decided(j.engine, await waitDecided(d.wait, { kind: "run", runId: Number(runId) }, d.now, d.capS));
     }
@@ -290,6 +294,7 @@ export async function runCli(argv: string[], cwd: string, env: Record<string, st
   return runMain(args, {
     call: fwcoreCall(cwd), gh: genv ? chargedGh(genv) : unused, wait: genv ? (t, timeoutS) => waitFor(genv, t, { timeoutS }) : unused,
     now: genv ? genv.now : () => Math.floor(Date.now() / 1000),
+    recordKind: (id, inputs) => { recordRunKind(id, inputs, cwd); },
     workflowName: (f) => { try { return /^name:\s*["']?([^"'\n#]+?)["']?\s*(?:#.*)?$/m.exec(readFileSync(join(cwd, ".github", "workflows", f), "utf8"))?.[1]; } catch { return undefined; } },
     store: storeDir(consoleDir), sha: vcs("rev-parse", "HEAD"), branch: vcs("rev-parse", "--abbrev-ref", "HEAD"),
     tmp: join(consoleDir, "tmp"), log: (l) => console.log(l),

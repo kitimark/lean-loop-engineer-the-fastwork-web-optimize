@@ -97,6 +97,7 @@ require("readline").createInterface({ input: process.stdin }).on("line", (l) => 
     const incidents: Incident[] = [];
     core = selectCore(fake("() => null"), undefined, (i) => incidents.push(i), DEADLINE_MS);
     await core.open(() => []);
+    core.loadForTest(() => 0); // not loaded: restart at the first deadline (Fw.Obs.Backoff)
     const t0 = Date.now();
     await expect(core.apply(open)).rejects.toThrow(new RegExp(`timed out after ${DEADLINE_MS} ms`));
     expect(Date.now() - t0).toBeGreaterThanOrEqual(DEADLINE_MS - 50); // the deadline was waited for, not skipped
@@ -107,11 +108,23 @@ require("readline").createInterface({ input: process.stdin }).on("line", (l) => 
     const log = [JSON.stringify({ ...open, seq: 1 })];
     core = selectCore(process.env, undefined, () => undefined, CALL_MS);
     await core.open(() => log);
+    core.loadForTest(() => 0);
     core.stopForTest(); // frozen child never answers
     core.callTimeoutForTest(DEADLINE_MS);
     await expect(core.board(10, 1)).rejects.toThrow(/timed out/);
     core.callTimeoutForTest(CALL_MS);
     expect((await core.board(10, 1)).cards[0]).toMatchObject({ id: "A" });
     expect(core.replays).toBe(2);
+  });
+  it("under load a call that misses its deadline waits (1+extra) deadlines before the restart (Fw.Obs.Backoff)", async () => {
+    const incidents: Incident[] = [];
+    core = selectCore(fake("() => null"), undefined, (i) => incidents.push(i), DEADLINE_MS);
+    await core.open(() => []);
+    core.loadForTest(() => 115);
+    const t0 = Date.now();
+    await expect(core.apply(open)).rejects.toThrow(new RegExp(`timed out after ${3 * DEADLINE_MS} ms`));
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(3 * DEADLINE_MS - 50);
+    expect(core.restarts).toBe(1);
+    expect(incidents.filter((i) => i.kind === "timeout").length).toBe(2);
   });
 });

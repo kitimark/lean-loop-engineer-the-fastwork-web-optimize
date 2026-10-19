@@ -12,6 +12,10 @@ export const HOST_ORDER: readonly Host[] = ['hero', 'people', 'pain', 'commissio
 export const SECTIONS = ['hero', 'people', 'pain', 'commission', 'platform', 'columns'] as const;
 export type Section = (typeof SECTIONS)[number];
 
+/** Sections inside the page's `<main>` in `data-fw="page-root"` (App.tsx); columns is the nav panel's backdrop, outside it. TS stand-in, not in Lean. */
+export const MAIN_SECTIONS: readonly Section[] = ['hero', 'people', 'pain', 'commission', 'platform'];
+export const COLUMNS_SECTIONS: readonly Section[] = ['columns'];
+
 /** Stub heights in hundredths of the stage `vh` (Lean `stubX100`). Approximate by design; the exact boxes are gen-shells'. */
 export const STUB_X100: Readonly<Record<Section, number>> = { hero: 100, people: 315, pain: 300, commission: 106, platform: 200, columns: 100 };
 
