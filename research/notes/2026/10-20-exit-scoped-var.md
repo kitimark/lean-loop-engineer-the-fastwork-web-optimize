@@ -1,9 +1,8 @@
 # hero.exit:scoped: restyle only the readers of the exit properties
 
-The exit driver writes `--exit-opacity` on the hero stage every scroll frame. Both properties are unregistered custom
-properties and so inherited. Each write restyles the whole stage subtree (275 elements in the prerendered DOM).
-MEASURED before this task: about 94 elements per frame over frames 10-103. Only 16 elements read the properties: the
-copy block, the cue and the 14 cards (10 orbit, 4 deck).
+The exit driver writes `--exit-opacity` on the hero stage every scroll frame. Both exit properties are unregistered
+custom properties and so inherited. Only 16 elements read them: the copy block, the cue and the 14 cards (10 orbit,
+4 deck).
 
 ## Change (design 2 of the R1 record)
 
@@ -14,31 +13,67 @@ copy block, the cue and the 14 cards (10 orbit, 4 deck).
   readers: orbit, stage, stage3d, card, deck, copy and cue.
 - The driver, the stage defaults (opacity 1, the scatter `calc`, reduced motion 0) and the REST plan are unchanged.
 
-## Why it is cheaper (CONFIRMED, source)
+## Restyle model (CONFIRMED, source)
 
-- **Chromium.** A non-inherited diff on an element whose child uses `inherit` on a non-inherited property is
-  `kInherited` (computed_style.cc:466-468@f842f52). The flag is set by style_builder.cc:114-117@f842f52.
-  `kInherited` recalcs every child (element.cc:5618-5619@f842f52); otherwise `kNonInherited` stops
-  (computed_style.cc:504@f842f52).
-- **WebKit.** A custom property is inherited unless it is registered with `inherits: false`
-  (StyleBuilder.cpp:103-106@862f17d). A `NonInherited` change resolves only the children with explicit inheritance
-  (StyleTreeResolver.cpp:310-311,1207-1210@862f17d).
+`Fw.Engine.Restyle` counts style resolutions per write on a tree whose nodes carry flags: `v` declares or references
+a custom property, `s` is outside the Chromium clone path, `h` is `display: none`, `i` has the exit `inherit` rule,
+`x` has another explicit `inherit`, `r` reads an exit property.
+
+Chromium, unregistered (inherited) property:
+- The written node resolves. Its diff is `kInherited` because variables changed
+  (third_party/blink/renderer/core/style/computed_style.cc:470-475@f842f52), so every child is recalculated
+  (third_party/blink/renderer/core/dom/element.cc:5618-5619@f842f52).
+- A child without its own variables and outside the slow set gets a clone of its old style with the new inherited
+  values (element.cc:5698-5702 and `PropagateInheritedProperties` element.cc:5554-5597@f842f52; the clone copies
+  inherited variables, computed_style.cc:3146-3149@f842f52). It is not resolved, and its children follow the same rule.
+- The slow set is what `PropagateInheritedProperties` refuses: pending recalc, animations or transitions, SVG custom
+  style callbacks, variable references or declarations, links, applied text decorations.
+- A `display: none` element resolves but stores no style, so its children are not visited
+  (element.cc:5713,5734-5735@f842f52).
+
+Chromium, registered with `inherits: false`: a non-inherited diff is `kInherited` only if a child declares `inherit`
+for a non-inherited property (computed_style.cc:466-468@f842f52, set in
+third_party/blink/renderer/core/css/resolver/style_builder.cc:114-117@f842f52); otherwise `kNonInherited` stops
+(computed_style.cc:504@f842f52).
+
+WebKit: inherited custom property changes resolve every child
+(Source/WebCore/style/StyleTreeResolver.cpp:307-308@862f17d). There is no fast path for custom properties
+(Source/WebCore/style/computed/StyleComputedStyle.cpp:212@862f17d, a FIXME). Registered non-inherited changes resolve
+only children with explicit inheritance (StyleTreeResolver.cpp:310-311,1207-1209@862f17d; the flag is set in
+Source/WebCore/style/StyleBuilder.cpp:576-577@862f17d). `display: none` stops the descent
+(StyleTreeResolver.cpp:1387-1388@862f17d).
 
 ## Proved (Lean, `Fw.Engine.Restyle` and section Scoped of `Fw.Parts.HeroExitOpt`)
 
 | theorem | statement |
 |---|---|
-| `scoped_le` | registered: Chromium units ≤ 1 + chain children over the tree |
-| `wk_le_cr_units` | WebKit units ≤ Chromium units on a well-formed summary |
-| `cr_units`, `wk_units`, `faithful_units` | hero summary: 21 and 21 scoped, 275 faithful in both engines |
-| `consumer_eq`, `consumer_eq_scoped` | every reader sits on an all-`inherit` path, so it gets the stage value |
+| `crClone_of_vars`, `crClone_of_slow`, `crClone_of_hidden`, `crClone_fast` | one theorem per branch of the clone rule |
+| `crFull_le_wkFull`, `crScoped_le_wkFull`, `wkScoped_le_crScoped` | Chromium ≤ WebKit unscoped; scoped WebKit ≤ scoped Chromium |
+| `cr_units` | Chromium per write: narrow 99 faithful, 9 scoped; wide 172 and 17 |
+| `wk_units` | WebKit per write: narrow 123 faithful, 9 scoped; wide 215 and 17 |
+| `narrow_delta` | narrow Chromium faithful − scoped = 90 |
+| `readers_exact`, `readers_in_tree`, `chain_covers` | the `r` nodes are exactly the reader list, each on an all-`i` path |
+| `consumer_eq`, `consumer_eq_scoped` | every reader gets the stage value |
 | `defaults` | before the first write the readers get opacity 1, registered or not (SSR, pre-hydration) |
-| `reduced_scatter`, `scatter_eq` | under reduced motion the readers get scatter 0; otherwise the scoped scatter equals the faithful one |
+| `reduced_scatter`, `scatter_eq` | reduced motion gives scatter 0; otherwise the scoped scatter equals the faithful one |
 | `Fw.Site.Stage.exit_owner_never_written` | no `?only=` stage plan writes a rest value on hero.exit |
 
-Golden: `packages/contracts/golden/parts/hero.exit.scoped.json` holds the reader list, the inherit rules, the tree, the
-per-frame write set and the zone bound (94 frames: Chromium ≤ 1974, faithful 25850). `scoped.test.ts` checks the
-readers and the rules against the CSS, and the tree against the SSR DOM.
+Narrow is ≤ 600 px (orbit hidden), wide is above (deck hidden).
+
+Golden: `packages/contracts/golden/parts/hero.exit.scoped.json` holds:
+- the reader list, the inherit rules and the stage defaults;
+- both flagged trees and the units per tree and engine;
+- the per-frame write set and the zone totals (94 frames, narrow Chromium 9306 faithful, 846 scoped).
+
+`apps/site/src/parts/hero.exit/scoped.test.ts` derives the flags from the CSS. It runs the cascade (layers, media,
+specificity, inline style) over the SSR DOM at 15 widths and checks:
+- that the result equals one of the two Lean trees;
+- that its own recurrences give the golden units;
+- that the reading nodes are the reader list;
+- that the scope rules are the golden inherit rules, with no other scope or exit declaration;
+- the stage defaults against the `.hero` rule and the reduced-motion rule.
+
+Reader coverage and allowlist identity come from this test, not from a Lean hypothesis.
 
 ## Measured
 
@@ -54,14 +89,28 @@ The counter is `UpdateLayoutTree.elementCount` summed over frames 10-103:
 | swipe-v1 | 39314368756 | 13145 (r1-r3) | 39314340270 | 4730 (r1-r3) | -8415 (-64%) | 136 → 45 |
 | swipe-touch-v1 | 39314380116 | 12035-12036 | 39314355168 | 4328 (r1-r3) | -7707 (-64%) | 136 → 45 |
 
+Per frame (swipe, both arms):
+- Frames 0-9 are equal in both arms.
+- Frame 10 is 122 in both arms.
+- Frames 13-23: 136 → 46 (Δ 90).
+- Frames 27 on: 136 → 45 (Δ 91).
+
+Model against measurement (phone width, narrow tree):
+
+| quantity | value | status |
+|---|---|---|
+| Δ per frame | model 90, measured 90-91 | PROVED vs MEASURED |
+| scoped frame: exit writer | 9 | PROVED (model) |
+| scoped frame: other writers | 45 − 9 = 36 | MEASURED difference |
+| faithful frame | model 99 + 36 = 135, measured 136 | PROVED + MEASURED |
+
+The per-writer split assumes that the other writers' share is the same in both arms. The harness has no per-pass
+trace dump, so that share is not measured on its own.
+
 Other counters:
 - Whole-run elementCount drops by the same amount: swipe 44128-44182 → 35776-35790, touch 48526-48528 →
   40109-40133.
 - `UpdateLayoutTree` passes (391 swipe, 365 touch) and zone `Layout.dirtyObjects` stay the same within 2.
-- The R1 upper bound (about 7.0k, INFERRED) is exceeded. The faithful cost was about 91 elements per frame above the
-  scoped cost, not the 94 minus 17-19 that R1 assumed.
-- The scoped median of 45 is above the Lean bound of 21. The bound covers only the exit write, and other writers in
-  the same frames account for the rest (INFERRED).
 
 Breakpoint gate:
 - Run 39314391342 (`fw=hero.exit:scoped`) passes every hero.exit cell in Chromium and WebKit.
@@ -71,12 +120,13 @@ Breakpoint gate:
 - Both cells fail the same way on `ci/countdown-one-chain` (run 39313815482), so they come from main, not from this
   flag.
 
-The final commit renders the attribute as a plain JSX attribute instead of a spread, so the footprint extractor keeps
-exact owners. The rendered DOM is the same (`scoped.test.ts`).
-
 ## Limits
 
 - `UpdateLayoutTree.elementCount` is a quarantined counter. On the admitted counters the win is proved-unmeasured
   unless the lead admits the zone-restricted count.
-- The WebKit win is source-only (Lean `wk_units`); no WebKit lane counts restyled elements.
+- The WebKit win is source-only (`wk_units`); no WebKit lane counts restyled elements.
+- The flags come from the SSR DOM and its CSS. Runtime state is not modelled:
+  - a running animation sets `s` at run time;
+  - the test's specificity is an approximation of the cascade.
+- The split between exit and other writers is inferred (see above).
 - A future reader outside the chain classes would see the guaranteed-invalid value. `scoped.test.ts` fails on it.

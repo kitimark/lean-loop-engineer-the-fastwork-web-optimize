@@ -5,7 +5,7 @@ import Lean.Data.Json
 namespace Fw.Engine.Restyle
 
 /-- Per-element cascade facts: `vars` custom property declared or referenced, `slow` refused by Chromium
-`Element::PropagateInheritedProperties` (third_party/blink/renderer/core/dom/element.cc:5554-5596@f842f52), `hidden`
+`Element::PropagateInheritedProperties` (third_party/blink/renderer/core/dom/element.cc:5554-5597@f842f52), `hidden`
 no box, `inh` `inherit` for both written properties, `explicit` `inherit` for another non-inherited property, `reads`
 reads a written property. -/
 structure Flags where
@@ -19,8 +19,8 @@ deriving Repr, DecidableEq, Inhabited
 
 /-- Golden letters of the set flags, in the order `v s h i x r`. -/
 def Flags.letters (f : Flags) : String :=
-  String.join ([(f.vars, "v"), (f.slow, "s"), (f.hidden, "h"), (f.inh, "i"), (f.explicit, "x"), (f.reads, "r")].filterMap
-    fun (b, l) => if b then some l else none)
+  String.join <| [(f.vars, "v"), (f.slow, "s"), (f.hidden, "h"), (f.inh, "i"), (f.explicit, "x"), (f.reads, "r")]
+    |>.filterMap fun (b, l) => if b then some l else none
 
 #guard ({ vars := true, inh := true } : Flags).letters == "vi"
 #guard ({} : Flags).letters == ""
@@ -35,16 +35,18 @@ def name : Node → String | mk n .. => n
 def flags : Node → Flags | mk _ f _ => f
 
 mutual
-/-- Chromium `ResolveStyle` calls for a node whose inherited variables changed and whose style is resolved in full:
-`display: none` resolves no child (element.cc:5713-5717@f842f52); a node with variables turns the change into
+/-- Chromium `ResolveStyle` calls for a node whose inherited variables changed and whose style is resolved in full.
+`display: none` stores no style, so no child is resolved
+(third_party/blink/renderer/core/dom/element.cc:5713,5734-5735@f842f52). A node with variables turns the change into
 `kInherited` (third_party/blink/renderer/core/style/computed_style.cc:470-475@f842f52), which resolves every child
-(element.cc:5618-5619@f842f52); otherwise `kIndependentInherited` (computed_style.cc:476-478@f842f52) lets each child
-take the clone path (element.cc:5621-5622,5698-5702@f842f52). -/
+(element.cc:5618-5619@f842f52); otherwise `kIndependentInherited` (computed_style.cc:476-478@f842f52) sends each child
+down the clone path, which copies the inherited variables (element.cc:5621-5622,5698-5702@f842f52;
+computed_style.cc:3146-3149@f842f52). -/
 def crFull : Node → Nat
   | mk _ f ks => 1 + (if f.hidden then 0 else if f.vars then crFullL ks else crCloneL ks)
 /-- Chromium `ResolveStyle` calls for a node reached by `kIndependentInherit`: the clone is not counted, and a node
 with variables, animation or transition data, links, decorations, SVG callbacks or no stored style is resolved in
-full (element.cc:5554-5596@f842f52). -/
+full (third_party/blink/renderer/core/dom/element.cc:5554-5597@f842f52). -/
 def crClone : Node → Nat
   | mk _ f ks => (if f.vars || f.slow || f.hidden then 1 else 0) +
       (if f.hidden then 0 else if f.vars then crFullL ks else crCloneL ks)
@@ -58,8 +60,8 @@ end
 
 mutual
 /-- WebKit resolutions for a node whose inherited custom properties changed: `Change::Inherited` resolves every child
-(Source/WebCore/style/StyleTreeResolver.cpp:307-308@862f17d), custom properties have no
-fast path (Source/WebCore/style/computed/StyleComputedStyle.cpp:212@862f17d), and `display: none` stops the descent
+(Source/WebCore/style/StyleTreeResolver.cpp:307-308@862f17d), custom properties have no fast path
+(Source/WebCore/style/computed/StyleComputedStyle.cpp:212@862f17d), and `display: none` stops the descent
 (StyleTreeResolver.cpp:1387-1388@862f17d). -/
 def wkFull : Node → Nat
   | mk _ f ks => 1 + (if f.hidden then 0 else wkFullL ks)
@@ -68,14 +70,15 @@ def wkFullL : List Node → Nat
   | k :: ks => wkFull k + wkFullL ks
 end
 
-/-- Chromium `ChildHasExplicitInheritance` (third_party/blink/renderer/core/css/resolver/style_builder.cc:114-117@f842f52):
-some child declares `inherit` for a non-inherited property. -/
+/-- Chromium `ChildHasExplicitInheritance`: some child declares `inherit` for a non-inherited property
+(third_party/blink/renderer/core/css/resolver/style_builder.cc:114-117@f842f52). -/
 def explicitKid (ks : List Node) : Bool := ks.any fun k => k.flags.inh || k.flags.explicit
 
 mutual
 /-- Chromium resolutions for a node whose registered non-inherited values changed: with an explicitly inheriting
-child the non-inherited diff becomes `kInherited` (computed_style.cc:466-468@f842f52) and every child is resolved, a
-child whose values follow by `inherit` recursing; otherwise `kNonInherited` stops (computed_style.cc:504@f842f52). -/
+child the non-inherited diff becomes `kInherited` and every child is resolved, a child whose values follow by
+`inherit` recursing; otherwise `kNonInherited` stops
+(third_party/blink/renderer/core/style/computed_style.cc:466-468,504@f842f52). -/
 def crScoped : Node → Nat
   | mk _ f ks => 1 + (if !f.hidden && explicitKid ks then crScopedL ks else 0)
 def crScopedL : List Node → Nat
@@ -85,7 +88,8 @@ end
 
 mutual
 /-- WebKit resolutions for the same change: `Change::NonInherited` resolves only children with explicitly inherited
-properties (StyleTreeResolver.cpp:310-311,1207-1209@862f17d; Source/WebCore/style/StyleBuilder.cpp:576-577@862f17d). -/
+properties (Source/WebCore/style/StyleTreeResolver.cpp:310-311,1207-1209@862f17d;
+Source/WebCore/style/StyleBuilder.cpp:576-577@862f17d). -/
 def wkScoped : Node → Nat
   | mk _ f ks => 1 + (if f.hidden then 0 else wkScopedL ks)
 def wkScopedL : List Node → Nat
@@ -150,7 +154,8 @@ theorem crClone_fast (n : String) (f : Flags) (ks : List Node) (hv : f.vars = fa
     (hh : f.hidden = false) : crClone (mk n f ks) = crCloneL ks := by
   simp [crClone, hv, hs, hh]
 
-theorem explicitKid_of_inh (ks : List Node) (k : Node) (hk : k ∈ ks) (h : k.flags.inh = true) : explicitKid ks = true :=
+theorem explicitKid_of_inh (ks : List Node) (k : Node) (hk : k ∈ ks) (h : k.flags.inh = true) :
+    explicitKid ks = true :=
   List.any_eq_true.2 ⟨k, hk, by simp [h]⟩
 
 theorem explicitKid_of_explicit (ks : List Node) (k : Node) (hk : k ∈ ks) (h : k.flags.explicit = true) :
