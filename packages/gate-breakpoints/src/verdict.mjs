@@ -59,9 +59,10 @@ const partsReq = (rawParts, parts) => Object.fromEntries(parts.filter((p) => raw
 const mapReq = (m) => (m ? Object.entries(m) : null);
 
 /** The shared context of a request: anchors.json as is, the covered part ids (in order), the run's recorded
- *  properties, the device-width edge pairs [n, n+1], and the engine port (`chromium`, `webkit-apple`,
- *  `webkit-glib`; absent: no reach claim). */
-export const context = ({ anchors, parts, props, deviceEdges, port }) => ({ anchors, parts, props, deviceEdges, port: port ?? null });
+ *  properties, the device-width edge pairs [n, n+1], the engine port (`chromium`, `webkit-apple`,
+ *  `webkit-glib`; absent: no reach claim) and the variant each part rendered on the rewrite arm (run header `variants`;
+ *  Lean selects the part's variant role from it, Fw.Gate.variantRole; absent: none). */
+export const context = ({ anchors, parts, props, deviceEdges, port, variants }) => ({ anchors, parts, props, deviceEdges, port: port ?? null, variants: variants ?? null });
 
 /** A `gate.state` request: states are {requested, orig, rewrite, expect?, expectNeutral?} with raw arms. */
 export const stateRequest = (ctx, states) => ({
@@ -81,8 +82,8 @@ export const staleRequest = (ctx, pairs) => ({
 
 /** Display values of a part item (orig a, rewrite b), read from the raw data; no decision is made here. Boxes are
  *  shown relative to the reference item exactly as Lean compares them (Fw.Gate.relRect), in floating point. */
-function shown(roleSpecs, oPart, rPart, it) {
-  const o = oPart?.[it.role], r = rPart?.[it.role];
+function shown(roleSpecs, oPart, rPart, it, w) {
+  const o = oPart?.[w?.role === it.role ? w.countOf : it.role], r = rPart?.[it.role];
   if (it.cls === 'count') return { a: o ? o.count : null, b: r ? r.count : null };
   if (it.cls === 'box') {
     const rs = roleSpecs.find((x) => x.role === it.role);
@@ -104,12 +105,14 @@ const scrollWidthOf = (arm) => (arm.raw ?? arm).viewport?.scrollWidth ?? null;
  *  compared, reach, verdict, fails, infoDiffs}. `reach`: null or the reason the port cannot reach the state;
  *  `verdict`: Lean's rollup of every row, part rows included. `fails`: per part, the failing count/box/style items; `infoDiffs`: per part, the
  *  properties only the original declares whose values differ (never in a verdict). */
-export function readState(anchors, state, ev) {
+export function readState(anchors, state, ev, variants = null) {
   const o = (state.orig.raw ?? state.orig).parts, r = (state.rewrite.raw ?? state.rewrite).parts;
   const fails = {}, infoDiffs = {};
   for (const [pid, p] of ev.parts) {
     const roles = anchors.parts[pid].roles;
-    fails[pid] = p.fails.map((it) => ({ ...it, ...(it.key === PAGE_ROOT_KEY ? { a: scrollWidthOf(state.orig), b: scrollWidthOf(state.rewrite) } : shown(roles, o?.[pid], r?.[pid], it)) }));
+    // the variant role in force (Lean selected it the same way): its original count is shown from the counted role
+    const w = (anchors.parts[pid].variantRoles ?? []).find((x) => x.variant === variants?.[pid]);
+    fails[pid] = p.fails.map((it) => ({ ...it, ...(it.key === PAGE_ROOT_KEY ? { a: scrollWidthOf(state.orig), b: scrollWidthOf(state.rewrite) } : shown(roles, o?.[pid], r?.[pid], it, w)) }));
     infoDiffs[pid] = p.infoDiffs.map((it) => ({ ...it, ...shown(roles, o?.[pid], r?.[pid], it) }));
   }
   return {
@@ -125,7 +128,7 @@ export function readState(anchors, state, ev) {
 /** Evaluate states and sweep hysteresis pairs in one fwcore run: {states: [readState ...], stale: [{compared, differ}]}. */
 export function evaluate(ctx, states, stalePairs = []) {
   const [s, t] = call([stateRequest(ctx, states), staleRequest(ctx, stalePairs)]);
-  return { states: s.states.map((ev, i) => readState(ctx.anchors, states[i], ev)), stale: t.stale };
+  return { states: s.states.map((ev, i) => readState(ctx.anchors, states[i], ev, ctx.variants)), stale: t.stale };
 }
 
 /** Table cells (Lean `Fw.Gate.tally`, `Fw.Gate.blockCell`): cells are {verdicts, block}; a block cell with no

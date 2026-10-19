@@ -507,6 +507,8 @@ def claims : List Claim :=
     styleGolden "commission.typing" "progress" "width",
     styleGolden "commission.typing" "scale" "--visual-scale",
     styleGolden "hero.countdown" "digit" "transform",
+    -- the variant role of `strip` (`Fw.Gate.partItems_variant_role`): one strip per digit, the digit count from `digitPlaces`
+    ⟨"hero.countdown", .is "strip", some .count, .is "count", .any, partGolden "hero.countdown"⟩,
     styleGolden "hero.exit" "hero" "--exit-opacity",
     styleGolden "hero.exit" "hero" "pointer-events",
     styleGolden "hero.orbit" "card" "--orbit-enter-x",

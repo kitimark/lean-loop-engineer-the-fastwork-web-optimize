@@ -3,6 +3,7 @@ import Typography from '@mui/material/Typography';
 import { useEffect, useRef, type MutableRefObject, type ReactNode } from 'react';
 import { GenSvg, art } from '../../GenSvg';
 import { createPanelWriter } from './driver';
+import { PANEL } from './content';
 import css from './morph.module.css';
 
 export type PanelWriter = ReturnType<typeof createPanelWriter>;
@@ -25,7 +26,7 @@ export interface MorphPanelProps {
 
 /**
  * morph.panel: the expanded end-of-page panel, faithful: backdrop, veil, centre (title, countdown slot, call-to-action
- * stack), footer. Placeholder content only. The panel is absolutely positioned and fills its host, which carries
+ * stack), footer. Text and links are the original's English copy (content.ts). The panel is absolutely positioned and fills its host, which carries
  * `--morph` (the nav in the original). Rendered as a child of the nav, which hosts it. Mounting it
  * lazily is morph.mount's job, tweening `--morph` morph.tween's, the columns and the countdown their parts'.
  */
@@ -64,11 +65,11 @@ export function MorphPanel({ variant, impl = 'mui', initialMorph = 0, writerRef,
         <div className={css.center} data-fw-role="center">
           {mui ? (
             <Typography variant="body1" component="p" className={css.title} data-fw-role="title">
-              Placeholder panel title
+              {PANEL.title}
             </Typography>
           ) : (
             <p className={css.title} data-fw-role="title">
-              Placeholder panel title
+              {PANEL.title}
             </p>
           )}
           <div className={css.countdown} data-fw-role="countdown">
@@ -76,28 +77,37 @@ export function MorphPanel({ variant, impl = 'mui', initialMorph = 0, writerRef,
           </div>
           <div className={css.ctaStack} data-fw-role="cta-stack">
             {mui ? (
-              <ButtonBase ref={ctaRef} className={css.cta} focusRipple={false} tabIndex={-1} data-fw-role="cta" onClick={onAction}>
+              <ButtonBase ref={ctaRef} className={css.cta} focusRipple={false} tabIndex={-1} data-fw-role="cta" data-selenium="start-selling.header.button.other-role" onClick={onAction}>
                 <BellIcon />
-                Action
+                {PANEL.cta}
               </ButtonBase>
             ) : (
-              <button ref={ctaRef} type="button" className={css.cta} tabIndex={-1} data-fw-role="cta" onClick={onAction}>
+              <button ref={ctaRef} type="button" className={css.cta} tabIndex={-1} data-fw-role="cta" data-selenium="start-selling.header.button.other-role" onClick={onAction}>
                 <BellIcon />
-                Action
+                {PANEL.cta}
               </button>
             )}
-            <a href="#morph-panel" className={css.rsvp} data-fw-role="link">
+            <a
+              href={PANEL.rsvpHref}
+              target="_blank"
+              rel="noopener"
+              className={css.rsvp}
+              data-fw-role="link"
+              data-selenium="start-selling.header.link.demo-day"
+            >
               <CalendarIcon />
-              Link
+              {PANEL.rsvp}
             </a>
           </div>
         </div>
         <footer className={css.footer} data-fw-role="footer">
-          <p>Placeholder line</p>
+          <p>{PANEL.operated}</p>
           <div className={css.footerEnd} data-fw-role="footer-end">
-            <p>Placeholder line</p>
+            <p>{PANEL.copyright}</p>
             <span className={css.grad} data-fw-role="grad" aria-hidden="true" />
-            <a href="#morph-panel">Placeholder link</a>
+            <a href={PANEL.privacyHref} data-selenium="start-selling.header.link.privacy">
+              {PANEL.privacy}
+            </a>
           </div>
         </footer>
       </div>
