@@ -281,9 +281,10 @@ async function controlLoad(browser, rig, engine, arm, url, prepare) {
   const errors = []; const failed = [];
   try {
     const page = await ctx.newPage();
+    const target = await prepare(page, ctx);
+    // listen only from here: leaving the grant landing page mid-load would cancel its images and fonts (the browser's doing)
     page.on("pageerror", (e) => { if (!noise.test(String(e))) errors.push(String(e)); }); // the analytics beacon is no module error
     page.on("requestfailed", (r) => failed.push(`${r.method()} ${new URL(r.url()).pathname} ${r.failure()?.errorText ?? ""}`));
-    const target = await prepare(page, ctx);
     await page.goto(target ?? url, { waitUntil: "load" });
     await settle(page.mainFrame());
     await page.waitForTimeout(500);
@@ -310,6 +311,7 @@ async function controls(browser, rig, engine) {
     try {
       out.push(await controlLoad(browser, rig, engine, "arm-only", null, async (page) => {
         await page.goto(await rig.grantUrl(rig.hosts.loopback.origin, "o"), { waitUntil: "load" });
+        await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
         return `${rig.hosts.loopback.arm.o}/`;
       }));
     } finally { rig.useTap(true); }
