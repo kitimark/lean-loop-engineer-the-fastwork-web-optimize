@@ -146,7 +146,7 @@ export function Nav({
             ))}
           </svg>
         </a>
-        <div className={css.actions}>
+        <div className={css.actions} data-fw="nav-actions">
           <LangMenu variant="faithful" locale={locale} onSelect={onSelectLocale} onOpenChange={onOpenChange} />
           <button className={`${css.btn} ${css.earn}`} type="button" tabIndex={-1} aria-hidden="true" data-fw="nav-earn" onClick={onJoin}>
             Join waitlist

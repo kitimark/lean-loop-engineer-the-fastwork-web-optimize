@@ -5,7 +5,7 @@ import { registerScroll } from "../../engine/scroll";
 import { dragNoteLabel, NOTE_TEXT } from "./data";
 import { createNotesDriver } from "./driver";
 import type { Note } from "./logic";
-import { SCENE_MARGIN } from "./logic";
+import { CARD_SELECTOR, NOTE_SELECTOR, PAIN_COPY_SELECTOR, PAIN_SELECTOR, SCENE_MARGIN } from "./logic";
 import { matchList } from "./media";
 import { createScene } from "./scene";
 import css from "./notes.module.css";
@@ -37,7 +37,7 @@ export interface PainNotesProps {
  */
 export function PainNotes({
   variant,
-  cardSelector = '[data-fw="commission-card"], .commission-card',
+  cardSelector = CARD_SELECTOR,
 }: PainNotesProps) {
   const [view, setView] = useState<View>(EMPTY);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -68,15 +68,15 @@ export function PainNotes({
         off();
       };
     };
-    const section = stage.closest<HTMLElement>('[data-fw="pain"]');
+    const section = stage.closest<HTMLElement>(PAIN_SELECTOR);
     const card = () => document.querySelector<HTMLElement>(cardSelector);
     const driver = createNotesDriver(
       {
         stageRect: () => stage.getBoundingClientRect(),
         copyRect: () =>
           stage
-            .closest('[data-fw="pain"]')
-            ?.querySelector('[data-fw="pain-copy"]')
+            .closest(PAIN_SELECTOR)
+            ?.querySelector(PAIN_COPY_SELECTOR)
             ?.getBoundingClientRect() ?? null,
         cardTop: () => card()?.getBoundingClientRect().top ?? null,
         innerHeight: () => window.innerHeight,
@@ -88,7 +88,7 @@ export function PainNotes({
         frame,
         commit: setView,
         writeNote: (id, left, top, z) => {
-          const el = stage.querySelector<HTMLElement>(`[data-fw-note="${id}"]`);
+          const el = stage.querySelector<HTMLElement>(NOTE_SELECTOR(id));
           if (!el) return;
           el.style.left = `${left}%`;
           el.style.top = `${top}%`;

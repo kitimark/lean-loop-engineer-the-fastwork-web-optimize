@@ -15,10 +15,17 @@ export function hitPoint(rect: Rect): { x: number; y: number } {
   return { x: rect.left + rect.width / 2, y: rect.top + Math.min(rect.height, 64) / 2 };
 }
 
-/** `closest()` selectors, restated from the original. Excluded wins over included; shrinking is checked last. */
-export const EXCLUDE_SELECTOR = '.commission-card, .start-selling-future-card, .hero';
-export const INCLUDE_SELECTOR = '.pain, .start-selling-platform-card, .start-selling-platform';
-export const SHRINKING_SELECTOR = '.commission.shrinking';
+/**
+ * `closest()` selectors on identity hooks (the original's `.commission-card`, `.start-selling-future-card` = people-card,
+ * `.hero`; `.pain`; the platform card sits inside the platform section; `.commission.shrinking` = the attribute the
+ * commission driver toggles beside the class). The original's `.hero` is the hero stage, so EXCLUDE uses the stage hook
+ * (`hero-exit`, the hero track). Excluded wins over included; shrinking is checked last.
+ */
+export const EXCLUDE_SELECTOR = '[data-fw="commission-card"], [data-fw="people-card"], [data-fw="hero-exit"]';
+export const PAIN_SELECTOR = '[data-fw="pain"]';
+export const INCLUDE_SELECTOR = `${PAIN_SELECTOR}, [data-fw="platform"]`;
+export const SHRINKING_SELECTOR = '[data-fw-shrinking]';
+export const NAV_SELECTOR = '[data-fw="nav"]';
 
 /** j(): is the hit element over a dark section. The flags are the `el.closest(...)` results for the three selectors. */
 export function classifyHit(f: { hasElement: boolean; inExclude: boolean; inInclude: boolean; inShrinking: boolean }): boolean {
@@ -76,14 +83,11 @@ export function skipHitTest(morph: number): boolean {
   return morph > MORPH_DARK_ABOVE;
 }
 
-/** Selectors of the nav boxes that set `pointer-events` themselves (CSS 11442, 10557, 10519, 11498). */
-export const ALLOW_SELECTOR = [
-  '.start-selling-top-nav-actions',
-  '.start-selling-morph.is-expanded .start-selling-morph-panel',
-  '.start-selling-top-nav.is-expanded .start-selling-morph-panel',
-  '.start-selling-morph.is-active:not(.is-expanded) .start-selling-morph-pill',
-  '.start-selling-top-nav:not(.is-hero-pill, .is-morphing) .start-selling-top-nav-btn.is-earn',
-].join(', ');
+/** Selectors of the nav boxes that set `pointer-events` themselves (original CSS 11442, 10557, 10519, 11498), on our hooks. */
+export const ALLOW_SELECTOR =
+  '[data-fw="nav-actions"], [data-expanded], [data-fw="nav"]:not(.is-hero-pill, .is-morphing) [data-fw="nav-earn"]';
+
+/** The original's `.start-selling-morph-pill` and `.start-selling-morph` alternatives have no counterpart: the original renders no such element (CSS only, 2.gBuqKVzi.css:10496, 10518); only the top-nav `.is-expanded` panel rule was live. */
 
 /** Write on change only. */
 export function changed(prev: boolean, next: boolean): boolean {
