@@ -15,6 +15,21 @@
 3. **land-guard** only refuses commits during the ff instant (or during a fallback land's open merge).
 4. `prelock: false` (option) = the old protocol only. The card fast-forward path (no `--task`) is unchanged.
 
+## The remote tier waits on the land lane (task land-wait)
+
+Step 1's checks split by `console.landTier`: the local tier runs in the land worktree as before; the remote tier (the heavy suites)
+does not run on this Mac. `fw land` pushes `ci/land-<task>-<sha7>` (a `[ci:land]` marker commit on C; a new name per C, so never a
+force push), waits with `fw ci wait` (no CPU: one sleeping child per slice) and asks `console.landRemote` (Lean
+`Fw.Console.LandRemote`, golden `land-remote.jsonl`) for the verdict over the local result and the normalized lane runs.
+- A lane run counts only for the sha and the `laneDigest` (tier + remote check ids) it printed: its job step is named
+  `lane: sha=.. digest=..` (land.yml); a pass for another sha or suite list is ignored. Any provider's fail refuses.
+- Fallback is explicit, never silent: provider unavailable -> try the next allowed provider, else the remote tier runs on this Mac
+  and the log says `remote: running the remote tier on this Mac instead (<reason>)`. Cancelled or timed out: same.
+- A failing local tier ends the wait and refuses. Spans: `remote push`, `remote queue`, `remote lane`, `local tier`.
+- `remote: false` (option) and an injected `checks` run everything here. The fallback protocol (locked) stays all-local.
+- Providers: GitHub is complete; the CircleCI adapter is a stub (`unavailable`), a follow-up after circleci-pilot lands.
+TS stand-ins: `normalizeGithub`, `awaitRemote`, `runTiered` (glue around the Lean verdict; tests in `land-remote.test.ts`).
+
 TS stand-in, marked for Lean replacement: `prelockAction` (no fwcore op yet); checked against the `landSpeed.prelock` golden.
 First-in-first-out landing: `land-queue.md`.
 

@@ -55,7 +55,7 @@ export const stateOfWaitExit = (code: number): RunState =>
 export function normalizeGithub(code: number, view: GhRunView | null, ctx: { marker: string; want: Want }): LaneRun {
   const state = stateOfWaitExit(code);
   const run = (sha: string, laneDigest: string): LaneRun => ({ provider: "github", sha, laneId: LANE_ID, laneDigest, state });
-  if (!view) return state === "fail" ? run(ctx.want.sha, ctx.want.laneDigest) : run("", "");
+  if (!view) return state === "pass" ? run("", "") : run(ctx.want.sha, ctx.want.laneDigest);
   const bind = view.headSha === ctx.marker ? laneBind(view) : null;
   if (bind) return run(bind.sha, bind.digest);
   if (state === "fail" && view.headSha === ctx.marker) return run(ctx.want.sha, ctx.want.laneDigest);
