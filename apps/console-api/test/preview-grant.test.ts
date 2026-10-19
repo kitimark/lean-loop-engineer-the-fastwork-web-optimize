@@ -110,12 +110,26 @@ describe("inspect grant", () => {
     const u = await r.urlOf({});
     const viaLan = await r.pv.request(u.pathname + u.search, { headers: { host: LANHOST } }, LAN);
     expect(viaLan.status).toBe(403);
-    const again = await r.pv.request(u.pathname + u.search, { headers: { host: "127.0.0.1:4001" }, redirect: "manual" }, LOOP);
-    expect(again.status).toBe(200); // the refused LAN try did not use the token up
+    const burnt = await r.pv.request(u.pathname + u.search, { headers: { host: "127.0.0.1:4001" } }, LOOP);
+    expect(burnt.status).toBe(403); // a refused token stays consumed (claimed before the Lean call): ask for a new link
+    const u2 = await r.urlOf({});
+    const again = await r.pv.request(u2.pathname + u2.search, { headers: { host: "127.0.0.1:4001" }, redirect: "manual" }, LOOP);
+    expect(again.status).toBe(200);
     const ck = (again.headers.get("set-cookie") ?? "").split(";")[0]!;
     expect((await r.pv.request("/preview/p1/o/", { headers: { host: LANHOST, cookie: ck } }, LAN)).status).toBe(200);
     expect((await r.pv.request("/preview/p1/o/", { headers: { host: "evil.example", cookie: ck } }, LAN)).status).toBe(421);
     expect((await r.pv.request("/__grant?t=x", { headers: { host: "evil.example" } }, LAN)).status).toBe(421);
+  });
+
+  it("concurrent double redeem of one token: exactly one success, one 403 used", async () => {
+    const r = await rig(false);
+    const u = await r.urlOf({ id: "p1" });
+    const tokPath = "/__grant?t=" + u.searchParams.get("t")!;
+    const res = await Promise.all([r.pv.request(tokPath, { headers: { host: "127.0.0.1:4001" }, redirect: "manual" }, LOOP), r.pv.request(tokPath, { headers: { host: "127.0.0.1:4001" }, redirect: "manual" }, LOOP)]);
+    expect(res.map((x) => x.status).sort()).toEqual([302, 403]);
+    const bad = res.find((x) => x.status === 403)!;
+    expect(await bad.text()).toMatch(/used/);
+    expect(r.audit.filter((a) => a.ev === "grant.redeem")).toHaveLength(1);
   });
 
   it("audit lines name the grant, never a token or a cookie value", async () => {

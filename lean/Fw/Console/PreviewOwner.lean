@@ -520,48 +520,32 @@ theorem preview_wrong_host (previewCookie : Bool) : allowPreview true previewCoo
 
 /-! ## 2b'. Inspect grants: a loopback-only, one-time, preview-only way in for agents -/
 
-/-- How long a grant link can be redeemed (ms).
-
-$$\mathit{grantTokenTtl} = 600000 = 10\ \text{min}$$ -/
+/-- How long a grant link can be redeemed (ms). -/
 def grantTokenTtl : Nat := 600000
 
-/-- How long the cookie a redeemed grant sets is valid (ms).
-
-$$\mathit{grantCookieTtl} = 3600000 = 60\ \text{min}$$ -/
+/-- How long the cookie a redeemed grant sets is valid (ms). -/
 def grantCookieTtl : Nat := 3600000
 
-/-- Whether a grant may be issued: only for a request from the loopback address.
-
-$$\operatorname{issue}(\ell) = \neg\ell$$ -/
+/-- Whether a grant may be issued: only for a request from the loopback address. -/
 def issueAllowed (lan : Bool) : Bool := !lan
 
-/-- **A grant is never issued to a LAN request.**
-
-$$\operatorname{issue}(\ell) \Rightarrow \neg\ell$$ -/
+/-- **A grant is never issued to a LAN request.** -/
 theorem issue_requires_loopback (lan : Bool) (h : issueAllowed lan = true) : lan = false := by
   cases lan <;> simp_all [issueAllowed]
 
-/-- A loopback request may issue.
-
-$$\operatorname{issue}(\mathrm{false}) = \mathrm{true}$$ -/
+/-- A loopback request may issue. -/
 theorem issue_from_loopback : issueAllowed false = true := rfl
 
-/-- The outcome of presenting a grant token.
-
-$$r \in \{\mathrm{ok}, \mathrm{lan}, \mathrm{unknown}, \mathrm{used}, \mathrm{expired}\}$$ -/
+/-- The outcome of presenting a grant token. -/
 inductive Redeem where
   | ok | lan | unknown | used | expired
 deriving Repr, DecidableEq
 
-/-- Its wire name.
-
-$$\mathrm{name}(r) = \text{the lower-case name of } r$$ -/
+/-- Its wire name. -/
 def Redeem.name : Redeem → String
   | .ok => "ok" | .lan => "lan" | .unknown => "unknown" | .used => "used" | .expired => "expired"
 
-/-- A token is redeemed once, within its time, by a loopback request that names a token this console issued.
-
-$$\operatorname{redeem}(\ell, k, u, t_0, t) = \begin{cases}\mathrm{lan} & \ell\\ \mathrm{unknown} & \neg k\\ \mathrm{used} & u\\ \mathrm{expired} & t_0 + 600000 \le t\\ \mathrm{ok} & \text{else}\end{cases}$$ -/
+/-- A token is redeemed once, within its time, by a loopback request that names a token this console issued. -/
 def redeem (lan known used : Bool) (issuedAt now : Nat) : Redeem :=
   if lan then .lan
   else if !known then .unknown
@@ -569,112 +553,80 @@ def redeem (lan known used : Bool) (issuedAt now : Nat) : Redeem :=
   else if issuedAt + grantTokenTtl ≤ now then .expired
   else .ok
 
-/-- **Redeeming works exactly for a loopback request, a known token, not used before, inside its ten minutes.**
-
-$$\operatorname{redeem}(\ell, k, u, t_0, t) = \mathrm{ok} \iff \neg\ell \wedge k \wedge \neg u \wedge t < t_0 + 600000$$ -/
+/-- **Redeeming works exactly for a loopback request, a known token, not used before, inside its ten minutes.** -/
 theorem redeem_ok_iff (lan known used : Bool) (a now : Nat) :
     redeem lan known used a now = .ok ↔ lan = false ∧ known = true ∧ used = false ∧ now < a + grantTokenTtl := by
   unfold redeem
   cases lan <;> cases known <;> cases used <;> simp [Nat.not_le]
 
-/-- A LAN request never redeems.
-
-$$\operatorname{redeem}(\mathrm{true}, k, u, t_0, t) = \mathrm{lan}$$ -/
+/-- A LAN request never redeems. -/
 theorem redeem_lan (known used : Bool) (a now : Nat) : redeem true known used a now = .lan := by
   simp [redeem]
 
-/-- A token this console did not issue never redeems.
-
-$$\operatorname{redeem}(\mathrm{false}, \mathrm{false}, u, t_0, t) = \mathrm{unknown}$$ -/
+/-- A token this console did not issue never redeems. -/
 theorem redeem_unknown (used : Bool) (a now : Nat) : redeem false false used a now = .unknown := by
   simp [redeem]
 
-/-- **Single use**: a token already redeemed never redeems again.
-
-$$\operatorname{redeem}(\mathrm{false}, \mathrm{true}, \mathrm{true}, t_0, t) = \mathrm{used}$$ -/
+/-- **Single use**: a token already redeemed never redeems again. -/
 theorem redeem_used (a now : Nat) : redeem false true true a now = .used := by
   simp [redeem]
 
-/-- **Expiry**: an unused known token redeems no more after ten minutes.
-
-$$t_0 + 600000 \le t \Rightarrow \operatorname{redeem}(\mathrm{false}, \mathrm{true}, \mathrm{false}, t_0, t) = \mathrm{expired}$$ -/
+/-- **Expiry**: an unused known token redeems no more after ten minutes. -/
 theorem redeem_expired (a now : Nat) (h : a + grantTokenTtl ≤ now) : redeem false true false a now = .expired := by
   simp [redeem, h]
 
 /-- Whether the preview port serves a request on the strength of a grant cookie. `known`: the cookie names a grant this
 console opened; `started`: when; `via`: the path is a root-absolute one read as below a preview by its Referer. Only a
-preview path or a Referer-routed shell path is served, never `/api`, `/owner` or the login page.
-
-$$\operatorname{allowGrant} = \neg(\ell \wedge \neg h) \wedge k \wedge t < t_0 + 3600000 \wedge (c = \mathrm{preview} \vee (v \wedge c = \mathrm{shell}))$$ -/
+preview path or a Referer-routed shell path is served, never `/api`, `/owner` or the login page. -/
 def allowGrant (lan hostOk known : Bool) (started now : Nat) (via : Bool) (c : Cls) : Bool :=
   (!lan || hostOk) && known && decide (now < started + grantCookieTtl) &&
     (match c with | .preview => true | .shell => via | .login => false | .other => false)
 
-/-- **A grant cookie is a known one.**
-
-$$\operatorname{allowGrant} \Rightarrow k$$ -/
+/-- **A grant cookie is a known one.** -/
 theorem grant_requires_known (lan hostOk known : Bool) (s now : Nat) (via : Bool) (c : Cls)
     (h : allowGrant lan hostOk known s now via c = true) : known = true := by
   cases known <;> simp_all [allowGrant]
 
-/-- **A grant cookie expires after sixty minutes.**
-
-$$t_0 + 3600000 \le t \Rightarrow \neg\operatorname{allowGrant}$$ -/
+/-- **A grant cookie expires after sixty minutes.** -/
 theorem grant_expires (lan hostOk known : Bool) (s now : Nat) (via : Bool) (c : Cls)
     (h : s + grantCookieTtl ≤ now) : allowGrant lan hostOk known s now via c = false := by
   simp [allowGrant, Nat.not_lt.mpr h]
 
-/-- A grant never opens `/api` or `/owner`.
-
-$$c = \mathrm{other} \Rightarrow \neg\operatorname{allowGrant}$$ -/
+/-- A grant never opens `/api` or `/owner`. -/
 theorem grant_never_other (lan hostOk known : Bool) (s now : Nat) (via : Bool) :
     allowGrant lan hostOk known s now via .other = false := by
   simp [allowGrant]
 
-/-- A grant never opens the login page.
-
-$$c = \mathrm{login} \Rightarrow \neg\operatorname{allowGrant}$$ -/
+/-- A grant never opens the login page. -/
 theorem grant_never_login (lan hostOk known : Bool) (s now : Nat) (via : Bool) :
     allowGrant lan hostOk known s now via .login = false := by
   simp [allowGrant]
 
-/-- A grant opens a shell path (`/_app/x.js`) only when the Referer put it below a preview.
-
-$$\operatorname{allowGrant}(\ldots, v, \mathrm{shell}) \Rightarrow v$$ -/
+/-- A grant opens a shell path (`/_app/x.js`) only when the Referer put it below a preview. -/
 theorem grant_shell_needs_via (lan hostOk known : Bool) (s now : Nat) (via : Bool)
     (h : allowGrant lan hostOk known s now via .shell = true) : via = true := by
   cases via <;> simp_all [allowGrant]
 
-/-- A LAN request with a foreign Host is refused whatever it carries.
-
-$$\operatorname{allowGrant}(\mathrm{true}, \mathrm{false}, \ldots) = \mathrm{false}$$ -/
+/-- A LAN request with a foreign Host is refused whatever it carries. -/
 theorem grant_wrong_host (known : Bool) (s now : Nat) (via : Bool) (c : Cls) :
     allowGrant true false known s now via c = false := by
   simp [allowGrant]
 
-/-- A live grant opens a preview path.
-
-$$k \wedge t < t_0 + 3600000 \Rightarrow \operatorname{allowGrant}(\ell, \mathrm{true}, k, t_0, t, v, \mathrm{preview})$$ -/
+/-- A live grant opens a preview path. -/
 theorem grant_opens_preview (lan : Bool) (s now : Nat) (via : Bool) (h : now < s + grantCookieTtl) :
     allowGrant lan true true s now via .preview = true := by
   simp [allowGrant, h]
 
-/-- Whether the preview port serves a request: a preview-access cookie of an owner session, or a live grant.
-
-$$\operatorname{serve} = \operatorname{allowPreview}(\ell, k_s, h) \vee \operatorname{allowGrant}(\ell, h, k_g, t_0, t, v, c)$$ -/
+/-- Whether the preview port serves a request: a preview-access cookie of an owner session, or a live grant. -/
 def servePreview (lan session hostOk known : Bool) (started now : Nat) (via : Bool) (c : Cls) : Bool :=
   allowPreview lan session hostOk || allowGrant lan hostOk known started now via c
 
-/-- **Without a session cookie, the preview port serves only what a grant opens**: never `/api`, `/owner` or the login page.
-
-$$\neg k_s \wedge \operatorname{serve} \Rightarrow c \in \{\mathrm{preview}, \mathrm{shell}\}$$ -/
+/-- **Without a session cookie, the preview port serves only what a grant opens**: never `/api`, `/owner` or the login page. -/
 theorem serve_grant_only_preview (lan hostOk known : Bool) (s now : Nat) (via : Bool) (c : Cls)
     (h : servePreview lan false hostOk known s now via c = true) : c = .preview ∨ c = .shell := by
   cases c <;> simp_all [servePreview, allowPreview, allowGrant]
 
-/-- With no grant and no session cookie nothing is served.
-
-$$\neg k_s \wedge \neg k_g \Rightarrow \neg\operatorname{serve}$$ -/
+/-- With no grant and no session cookie nothing is served. -/
 theorem serve_needs_credential (lan hostOk : Bool) (s now : Nat) (via : Bool) (c : Cls) :
     servePreview lan false hostOk false s now via c = false := by
   simp [servePreview, allowPreview, allowGrant]

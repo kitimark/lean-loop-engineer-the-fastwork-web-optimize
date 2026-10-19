@@ -9,6 +9,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { Core } from "../core/index.ts";
 
 export const GRANT_COOKIE = "fw_grant";
+const COOKIE_MS = 3_600_000; // mirrors Lean grantCookieTtl (pruning only; Lean decides admission)
 const sha = (s: string): string => createHash("sha256").update(s).digest("hex");
 
 type Tok = { id: string; issuedAt: number; used: boolean; next: string | null };
@@ -29,6 +30,7 @@ export class Grants {
     const r = await this.core.ops("console.previewGrant", { kind: "issue", lan });
     if (r.allow !== true) { this.audit({ ev: "grant.refused", kind: "issue" }); return { ok: false }; }
     const now = this.clock();
+    this.pruneCookies();
     for (const [k, t] of this.tokens) if (t.issuedAt + Number(r.ttlMs) <= now) this.tokens.delete(k); // expired ones are forgotten
     const token = randomBytes(32).toString("base64url");
     const id = randomBytes(4).toString("hex");
@@ -42,13 +44,21 @@ export class Grants {
     const key = token ? sha(token) : "";
     const t = this.tokens.get(key);
     const now = this.clock();
-    const r = await this.core.ops("console.previewGrant", { kind: "redeem", lan, known: t !== undefined, used: t?.used ?? false, issuedAt: t?.issuedAt ?? 0, now });
+    // Claim before any await: a second redeem of the same token, even a concurrent one, then reads used=true. A refused token stays consumed.
+    const wasUsed = t?.used ?? false;
+    if (t) t.used = true;
+    const r = await this.core.ops("console.previewGrant", { kind: "redeem", lan, known: t !== undefined, used: wasUsed, issuedAt: t?.issuedAt ?? 0, now });
     if (r.allow !== true || !t) { this.audit({ ev: "grant.refused", kind: "redeem", verdict: r.verdict, ...(t ? { grant: t.id } : {}) }); return { ok: false, verdict: String(r.verdict) }; }
-    t.used = true;
     const cookie = randomBytes(32).toString("base64url");
     this.cookies.set(sha(cookie), { id: t.id, started: now, uses: 0 });
     this.audit({ ev: "grant.redeem", grant: t.id });
     return { ok: true, cookie, maxAgeSec: Math.floor(Number(r.cookieMs) / 1000), next: t.next };
+  }
+
+  /** Forget cookies past their sixty minutes (Lean `grantCookieTtl`); Lean still judges the age of any it sees. */
+  private pruneCookies(): void {
+    const now = this.clock();
+    for (const [k, c] of this.cookies) if (c.started + COOKIE_MS <= now) this.cookies.delete(k);
   }
 
   now(): number { return this.clock(); }
@@ -59,6 +69,7 @@ export class Grants {
 
   /** What the Cookie header says about a grant: `known` (this console opened it) and when. Lean judges the age. */
   lookup(header: string | undefined): { known: boolean; started: number; id: string | null } {
+    this.pruneCookies();
     const v = cookieValue(header, GRANT_COOKIE);
     const c = v ? this.cookies.get(sha(v)) : undefined;
     return c ? { known: true, started: c.started, id: c.id } : { known: false, started: 0, id: null };

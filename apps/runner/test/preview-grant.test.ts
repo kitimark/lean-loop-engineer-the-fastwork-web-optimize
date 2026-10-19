@@ -19,6 +19,7 @@ describe("fw preview grant", () => {
   it("bad usage", async () => {
     await expect(previewCli(["nope"], "http://x")).rejects.toThrow(/usage/);
     await expect(previewCli(["grant", "--arm", "z"], "http://x")).rejects.toThrow(/usage/);
+    await expect(previewCli(["grant", "--arm", "o"], "http://x")).rejects.toThrow(/usage/);
     await expect(previewCli(["grant", "a", "b"], "http://x")).rejects.toThrow(/usage/);
   });
 });

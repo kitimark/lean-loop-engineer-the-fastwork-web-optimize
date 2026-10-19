@@ -10,7 +10,12 @@ State: branch worktree-wf_472752b6-0dc-1, see the last commit. Parts A and B don
   `proxy.ts` (TS stand-in, path suffix). Note: `research/notes/2026/10-20-preview-original-gate.md`.
 
 Verified: console-api, runner tests (with typecheck); Chromium and WebKit, phone UA, loopback and LAN host, original arm.
-Open:
+Round 2: token claimed before the Lean call (concurrent redeem test; a refused token stays consumed, also a LAN try), expired
+cookies pruned, uses logged first then every 50th, `--arm` needs an id, engine citations in the note, `$$` lines dropped.
+Open items (lead adds the graph rows):
+- Lean `scriptMove(path, secFetchDest)` replacing the TS `isScriptPath`, golden also covering `Sec-Fetch-Dest: serviceworker`/`worker` (serve in place).
+- A `grant.*` event type in `events.jsonl` (reducer change) instead of `.fw-console/preview/log.jsonl`.
+- Re-run the probe through the real 8788 port with a grant after the console restarts on this branch (8788 ran main 84d779cf, no `/__grant`).
 - The user's phone check of `/preview/<id>/o/` is the final confirmation.
 - Audit lines go to `.fw-console/preview/log.jsonl`, not `events.jsonl` (new event type = reducer change); decide if wanted.
 - The browser probe is scratch, not committed; add one under scripts/ if a standing check is wanted.

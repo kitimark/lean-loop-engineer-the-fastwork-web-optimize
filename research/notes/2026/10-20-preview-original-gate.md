@@ -1,6 +1,6 @@
 # Why the original arm failed on the phone (preview-inspect)
 
-Status: cause CONFIRMED by reproduction in Chromium; the fix verified in Chromium and Playwright WebKit. The user's own
+Status: cause CONFIRMED by engine source and by reproduction in Chromium; the fix verified in Chromium and Playwright WebKit. The user's own
 phone check is the final confirmation (lead relays it).
 
 ## Symptom
@@ -16,16 +16,27 @@ The proxy then served `/_app/immutable/entry/start.*.js` in place (200, read bel
 "Failed to fetch dynamically imported module": no hydration. Over `127.0.0.1` (a secure context) the header was sent, which is
 why every loopback check passed.
 
+Engine source (CONFIRMED): Chromium `services/network/sec_header_helpers.cc:292`@f842f52 returns before setting fetch metadata
+when `!IsUrlPotentiallyTrustworthy(target_url)`. WebKit `Source/WebCore/loader/cache/CachedResourceLoader.cpp:702-708`@862f17d
+(`updateRequestFetchMetadataHeaders`) returns when `!requestOrigin->isPotentiallyTrustworthy()`, before it sets Sec-Fetch-Dest
+(line 717). Shas are the pins in `refs/upstream/sources.lock.yaml`; I read both files at those shas.
+
 Repro (Chromium, iPhone UA, 390x844, LAN host, valid session cookie, before the fix): 404 on `/_app/immutable/chunks/*.js`
 with Referer `/_app/immutable/entry/start.*.js`.
 
 ## Fix
 `apps/console-api/src/preview/proxy.ts`: a Referer-routed path ending `.js` or `.mjs` (`isScriptPath`) is always redirected, whatever
 `Sec-Fetch-Dest` says. This is a TS stand-in (a path-suffix test, no Lean decision; the admission rules it sits behind are Lean).
+Limit: the suffix rule also redirects a Referer-routed `navigator.serviceWorker.register('/sw.js')` fetch, and browsers reject a
+redirected service-worker script. The fastwork snapshot only calls `getRegistration`, so nothing breaks today. The fix is a Lean
+`scriptMove(path, secFetchDest)` that serves `Sec-Fetch-Dest: serviceworker`/`worker` in place (follow-up, see the handoff).
 Regression test: `apps/console-api/test/lan-owner.test.ts` (302 for `/x.js` with a preview Referer and no `Sec-Fetch-Dest`; the old
 assertion expected 200 and encoded the bug).
 
 ## Runs after the fix
+Ran against the branch worktree at commit af75c332 (console-api on this branch), using the builder's own preview server on a free
+port, not 8788. The console serving 8788 at the time (main 84d779cf, started before the grant routes) has no `/__grant`, so a grant
+probe through 8788 is impossible until the console is restarted on this branch (the lead's post-land step).
 Probe: iPhone UA, 390x844, external hosts blocked, original arm `/preview/pvi/o/` from the preview server over the snapshot,
 admitted by an inspect grant (redeemed on loopback, cookie carried to the LAN host).
 
