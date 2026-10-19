@@ -18,7 +18,7 @@ const REMOTE = ["apps/runner", "apps/console-api", "packages/gate-breakpoints", 
 describe("fwcore reproduces the land-tier golden", () => {
   it("has tier and lane cases", () => {
     expect(golden.filter((c) => c.request.op === "console.landTier").length).toBeGreaterThan(10);
-    expect(golden.filter((c) => c.request.op === "console.landLane").length).toBe(6);
+    expect(golden.filter((c) => c.request.op === "console.landLane").length).toBe(9);
   });
   for (const c of golden) it(c.name, () => expect(core(c.request)).toEqual(c.response));
 });
@@ -57,7 +57,11 @@ describe("skippedCount", () => {
     expect(skippedCount(" Tests  3 passed | 2 skipped (5)\n")).toBe(2);
     expect(skippedCount("# tests 4\n# pass 3\n# skipped 1\n")).toBe(1);
     expect(skippedCount("# skipped 0\n Tests  9 passed (9)\n")).toBe(0);
-    expect(skippedCount("nothing")).toBe(0);
+    expect(skippedCount(" Tests  3 passed | 2 skipped | 1 todo (6)\n")).toBe(3);
+    expect(skippedCount("# tests 4\n# todo 2\n# skipped 1\n")).toBe(3);
+    expect(skippedCount("ℹ tests 4\nℹ skipped 0\nℹ todo 1\n")).toBe(1);
+    expect(skippedCount("nothing")).toBeNull();
+    expect(skippedCount("# skipped 0")).toBeNull();
   });
   const fx = (n: string) => readFileSync(join(dirname(fileURLToPath(import.meta.url)), "fixtures", n), "utf8");
   it("reads the real captured outputs", () => {
@@ -84,12 +88,14 @@ describe("runTier", () => {
     const exit = await runTier([mk(id)], root, core, run(code, out), (s) => lines.push(s));
     return { exit, verdict: lines.find((l) => l.startsWith("VERDICT")) };
   };
-  it("pass", async () => expect(await go("apps/runner", 0, "# skipped 0")).toEqual({ exit: 0, verdict: "VERDICT pass apps/runner" }));
+  it("pass", async () => expect(await go("apps/runner", 0, "# tests 1\n# skipped 0")).toEqual({ exit: 0, verdict: "VERDICT pass apps/runner" }));
   it("failing exit", async () => expect(await go("apps/runner", 1, "")).toEqual({ exit: 1, verdict: "VERDICT fail apps/runner" }));
   it("a skipped test of an fwcore user fails the lane", async () =>
-    expect(await go("packages/gate-breakpoints", 0, "# skipped 1")).toEqual({ exit: 1, verdict: "VERDICT skipped packages/gate-breakpoints" }));
+    expect(await go("packages/gate-breakpoints", 0, "# tests 2\n# skipped 1")).toEqual({ exit: 1, verdict: "VERDICT skipped packages/gate-breakpoints" }));
+  it("an unrecognised summary is not a pass", async () =>
+    expect(await go("apps/runner", 0, "nothing")).toEqual({ exit: 1, verdict: "VERDICT unknown apps/runner" }));
   it("a skipped test of a suite that does not run fwcore passes", async () =>
-    expect(await go("packages/engine-check", 0, "# skipped 1")).toEqual({ exit: 0, verdict: "VERDICT pass packages/engine-check" }));
+    expect(await go("packages/engine-check", 0, "# tests 2\n# skipped 1")).toEqual({ exit: 0, verdict: "VERDICT pass packages/engine-check" }));
 });
 
 describe("fw checks", () => {
@@ -108,7 +114,7 @@ describe("fw checks", () => {
   it("runs the remote tier only and prints one VERDICT per check", async () => {
     const lines: string[] = [];
     const ran: string[][] = [];
-    const run: Runner = async (argv) => (ran.push(argv), { code: 0, out: "" });
+    const run: Runner = async (argv) => (ran.push(argv), { code: 0, out: "# tests 1\n# skipped 0" });
     const code = await checksCli(["--affected", "--base", "x", "--tier", "remote"], root, { core, run, changed: ["apps/runner/src/checks.ts"], log: (s) => lines.push(s) });
     expect(code).toBe(0);
     expect(lines.filter((l) => l.startsWith("VERDICT")).sort()).toEqual(["VERDICT pass apps/runner", "VERDICT pass packages/engine-check"]);

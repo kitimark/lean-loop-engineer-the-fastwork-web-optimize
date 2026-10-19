@@ -97,55 +97,67 @@ def cases : List Json :=
 
 /-- What the land lane says about one check. -/
 inductive Lane where
-  | pass | fail | skipped
+  | pass | fail | skipped | unknown
 deriving DecidableEq, Repr
 
 /-- The word after `VERDICT` in the lane output. -/
 def Lane.name : Lane → String
-  | .pass => "pass" | .fail => "fail" | .skipped => "skipped"
+  | .pass => "pass" | .fail => "fail" | .skipped => "skipped" | .unknown => "unknown"
 
-/-- The lane verdict of a check: a failing exit fails; a passing fwcore user that skipped a test is `skipped`, which fails the lane. -/
-def laneVerdict (exitOk coreUser : Bool) (skipped : Nat) : Lane :=
-  if !exitOk then .fail else if coreUser && decide (0 < skipped) then .skipped else .pass
+/-- The lane verdict of a check: a failing exit fails; a passing run whose summary was not recognised (`none`) is `unknown`;
+a passing fwcore user that skipped a test (or left a todo, counted with skips) is `skipped`. Only `pass` passes. -/
+def laneVerdict (exitOk coreUser : Bool) (skipped : Option Nat) : Lane :=
+  if !exitOk then .fail else
+    match skipped with
+    | none => .unknown
+    | some n => if coreUser && decide (0 < n) then .skipped else .pass
 
 /-- A lane passes only on `pass`. -/
 def Lane.ok : Lane → Bool
   | .pass => true | _ => false
 
 /-- A failing exit fails the check, whatever was skipped. -/
-theorem laneVerdict_exit_fail (c : Bool) (n : Nat) : laneVerdict false c n = .fail := by
+theorem laneVerdict_exit_fail (c : Bool) (n : Option Nat) : laneVerdict false c n = .fail := by
   simp [laneVerdict]
 
+/-- A summary the parser did not recognise is not a pass, for every suite. -/
+theorem laneVerdict_unknown (c : Bool) : (laneVerdict true c none).ok = false := by
+  simp [laneVerdict, Lane.ok]
+
 /-- A skipped test of an fwcore user fails the lane even when the exit was 0. -/
-theorem laneVerdict_core_skip (n : Nat) (h : 0 < n) : (laneVerdict true true n).ok = false := by
+theorem laneVerdict_core_skip (n : Nat) (h : 0 < n) : (laneVerdict true true (some n)).ok = false := by
   simp [laneVerdict, Lane.ok, h]
 
 /-- A suite that does not run fwcore may skip tests. -/
-theorem laneVerdict_other_skip (n : Nat) : laneVerdict true false n = .pass := by
+theorem laneVerdict_other_skip (n : Nat) : laneVerdict true false (some n) = .pass := by
   simp [laneVerdict]
 
 /-- No skip, exit 0: pass. -/
-theorem laneVerdict_clean (c : Bool) : laneVerdict true c 0 = .pass := by
+theorem laneVerdict_clean (c : Bool) : laneVerdict true c (some 0) = .pass := by
   simp [laneVerdict]
 
-/-- The lane passes iff the exit is 0 and no fwcore user skipped. -/
-theorem laneVerdict_ok_iff (e c : Bool) (n : Nat) :
-    (laneVerdict e c n).ok = true ↔ e = true ∧ ¬ (c = true ∧ 0 < n) := by
-  cases e <;> cases c <;> by_cases h : 0 < n <;> simp [laneVerdict, Lane.ok, h]
+/-- The lane passes iff the exit is 0, the summary was recognised, and no fwcore user skipped. -/
+theorem laneVerdict_ok_iff (e c : Bool) (s : Option Nat) :
+    (laneVerdict e c s).ok = true ↔ e = true ∧ ∃ n, s = some n ∧ ¬ (c = true ∧ 0 < n) := by
+  cases e <;> cases c <;> rcases s with _ | n <;> simp [laneVerdict, Lane.ok] <;>
+    by_cases h : 0 < n <;> simp [h] <;> omega
 
-#guard !(laneVerdict true true 2).ok
-#guard (laneVerdict true false 2).ok
+#guard !(laneVerdict true true (some 2)).ok
+#guard (laneVerdict true false (some 2)).ok
+#guard !(laneVerdict true false none).ok
 
 /-- One lane golden line. -/
-def laneLine (name : String) (e c : Bool) (n : Nat) : Json :=
-  Json.mkObj [("name", .str name), ("request", Json.mkObj [("op", .str "console.landLane"), ("exitOk", .bool e), ("coreUser", .bool c), ("skipped", .num n)]),
+def laneLine (name : String) (e c : Bool) (n : Option Nat) : Json :=
+  Json.mkObj [("name", .str name), ("request", Json.mkObj [("op", .str "console.landLane"), ("exitOk", .bool e), ("coreUser", .bool c), ("skipped", match n with | some k => .num k | none => .null)]),
     ("response", Json.mkObj [("verdict", .str (laneVerdict e c n).name), ("ok", .bool (laneVerdict e c n).ok)])]
 
 /-- The lane cases: every branch of `laneVerdict`. -/
 def laneCases : List Json :=
-  [laneLine "exit failed" false true 0, laneLine "exit failed, others skipped" false false 3,
-   laneLine "fwcore user skipped a test" true true 1, laneLine "other suite skipped a test" true false 1,
-   laneLine "clean fwcore user" true true 0, laneLine "clean other suite" true false 0]
+  [laneLine "exit failed" false true (some 0), laneLine "exit failed, others skipped" false false (some 3),
+   laneLine "exit failed, summary unknown" false true none,
+   laneLine "fwcore user skipped a test" true true (some 1), laneLine "other suite skipped a test" true false (some 1),
+   laneLine "clean fwcore user" true true (some 0), laneLine "clean other suite" true false (some 0),
+   laneLine "summary not recognised, fwcore user" true true none, laneLine "summary not recognised, other suite" true false none]
 
 /-- The golden file text. -/
 def goldenText : String := String.join ((cases ++ laneCases).map fun c => c.compress ++ "\n")

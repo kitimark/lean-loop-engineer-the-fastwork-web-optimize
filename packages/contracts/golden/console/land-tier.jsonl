@@ -20,7 +20,10 @@
 {"name":"selection order is kept","request":{"ids":["packages/gh-budget","install","apps/runner","check.sh"],"op":"console.landTier"},"response":{"local":["install","check.sh"],"remote":["packages/gh-budget","apps/runner"]}}
 {"name":"exit failed","request":{"coreUser":true,"exitOk":false,"op":"console.landLane","skipped":0},"response":{"ok":false,"verdict":"fail"}}
 {"name":"exit failed, others skipped","request":{"coreUser":false,"exitOk":false,"op":"console.landLane","skipped":3},"response":{"ok":false,"verdict":"fail"}}
+{"name":"exit failed, summary unknown","request":{"coreUser":true,"exitOk":false,"op":"console.landLane","skipped":null},"response":{"ok":false,"verdict":"fail"}}
 {"name":"fwcore user skipped a test","request":{"coreUser":true,"exitOk":true,"op":"console.landLane","skipped":1},"response":{"ok":false,"verdict":"skipped"}}
 {"name":"other suite skipped a test","request":{"coreUser":false,"exitOk":true,"op":"console.landLane","skipped":1},"response":{"ok":true,"verdict":"pass"}}
 {"name":"clean fwcore user","request":{"coreUser":true,"exitOk":true,"op":"console.landLane","skipped":0},"response":{"ok":true,"verdict":"pass"}}
 {"name":"clean other suite","request":{"coreUser":false,"exitOk":true,"op":"console.landLane","skipped":0},"response":{"ok":true,"verdict":"pass"}}
+{"name":"summary not recognised, fwcore user","request":{"coreUser":true,"exitOk":true,"op":"console.landLane","skipped":null},"response":{"ok":false,"verdict":"unknown"}}
+{"name":"summary not recognised, other suite","request":{"coreUser":false,"exitOk":true,"op":"console.landLane","skipped":null},"response":{"ok":false,"verdict":"unknown"}}

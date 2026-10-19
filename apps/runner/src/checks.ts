@@ -48,11 +48,16 @@ export function planFor(root: string, changed: string[], core: FwCall): Plan {
 export const changedBetween = (root: string, base: string): string[] =>
   execFileSync("git", ["diff", "--name-only", base, "HEAD"], { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 }).split("\n").filter(Boolean);
 
-/** Tests a runner output reports as skipped: vitest `Tests  3 passed | 2 skipped`, node:test TAP `# skipped 2` and spec `ℹ skipped 2`. */
-export function skippedCount(raw: string): number {
+/** Skipped plus todo tests of a runner output, or null when no summary line is recognised (null is not a pass).
+ *  Recognised: vitest `Tests  3 passed | 2 skipped | 1 todo`, node:test TAP `# tests N`, `# skipped N`, `# todo N`, and spec `ℹ tests N`, `ℹ skipped N`, `ℹ todo N`. */
+export function skippedCount(raw: string): number | null {
   const out = raw.replace(/\u001b\[[0-9;]*m/g, "");
-  const node = [...out.matchAll(/^\s*(?:#|ℹ) skipped (\d+)\s*$/gm)].reduce((n, m) => n + Number(m[1]), 0);
-  const vitest = [...out.matchAll(/^\s*Tests\s.*?\b(\d+) skipped\b/gm)].reduce((n, m) => n + Number(m[1]), 0);
+  const sum = (re: RegExp) => [...out.matchAll(re)].reduce((n, m) => n + Number(m[1]), 0);
+  const vitestLines = [...out.matchAll(/^\s*Tests\s.*$/gm)];
+  const nodeSummary = /^\s*(?:#|ℹ) tests \d+\s*$/m.test(out);
+  if (vitestLines.length === 0 && !nodeSummary) return null;
+  const node = sum(/^\s*(?:#|ℹ) (?:skipped|todo) (\d+)\s*$/gm);
+  const vitest = vitestLines.reduce((n, l) => n + [...l[0].matchAll(/\b(\d+) (?:skipped|todo)\b/g)].reduce((k, m) => k + Number(m[1]), 0), 0);
   return node + vitest;
 }
 
@@ -82,7 +87,7 @@ export async function runTier(checks: Check[], root: string, core: FwCall, run: 
     log(r.out.trimEnd());
     if (ci) log("::endgroup::");
     log(`VERDICT ${v.verdict} ${c.id}`);
-    log(`TIMING ${c.id} ${Math.round((Date.now() - t0) / 1000)}s skipped=${skipped}`);
+    log(`TIMING ${c.id} ${Math.round((Date.now() - t0) / 1000)}s skipped=${skipped ?? "unknown"}`);
     if (!v.ok) bad++;
   }
   return bad === 0 ? 0 : 1;

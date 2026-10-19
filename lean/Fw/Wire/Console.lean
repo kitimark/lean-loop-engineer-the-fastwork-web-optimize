@@ -39,7 +39,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
 | `console.landTier` | `ids` [check ids] | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept) |
-| `console.landLane` | `exitOk`, `coreUser`, `skipped` (tests the output reports skipped) | `verdict` (`pass`/`fail`/`skipped`), `ok` (`Fw.Console.LandTier.laneVerdict`) |
+| `console.landLane` | `exitOk`, `coreUser`, `skipped` (skipped plus todo tests the summary reports; `null` when no summary was recognised) | `verdict` (`pass`/`fail`/`skipped`/`unknown`), `ok` (`Fw.Console.LandTier.laneVerdict`) |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?, evidenceOnMain?}] (`evidenceOnMain`: the glue's `git merge-base --is-ancestor <evidence> main`; missing = true), `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
 -/
@@ -213,7 +213,9 @@ open Fw.Console.LandTier in
 def opLandLane (req : Json) : Except String Reply := do
   let e ← asBool "exitOk" (← field req "exitOk")
   let c ← asBool "coreUser" (← field req "coreUser")
-  let n ← nat req "skipped"
+  let n ← match opt req "skipped" with
+    | none | some .null => pure none
+    | some _ => some <$> nat req "skipped"
   let v := laneVerdict e c n
   pure [("verdict", .str v.name), ("ok", .bool v.ok)]
 

@@ -56,7 +56,7 @@ describe(".github/scripts/land-base.sh", () => {
     expect(out(d, "main")).toBe(m);
     expect(out(d, "base")).toBe(m);
   });
-  it("an empty marker tip is skipped for the base, not for main", () => {
+  it("an empty marker tip is skipped for both main and base", () => {
     const d = repo();
     const m = git(d, "rev-parse", "HEAD");
     writeFileSync(join(d, "a"), "2");
@@ -64,7 +64,7 @@ describe(".github/scripts/land-base.sh", () => {
     const w = git(d, "rev-parse", "HEAD");
     git(d, "commit", "-q", "--allow-empty", "-m", "[ci:land]");
     git(d, "commit", "-q", "--allow-empty", "-m", "[ci:land] again");
-    expect(out(d, "main")).toBe(git(d, "rev-parse", "HEAD~1"));
+    expect(out(d, "main")).toBe(m);
     expect(w).toBe(git(d, "rev-parse", "HEAD~2"));
     expect(out(d, "base")).toBe(m);
   });
