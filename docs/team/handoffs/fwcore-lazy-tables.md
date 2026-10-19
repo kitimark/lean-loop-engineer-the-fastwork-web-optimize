@@ -27,5 +27,4 @@
   by `Fw.Spec.MathFacts`, `Fw.Spec.Reach`, `MathView`), are unmeasured: follow-up, drop `import Lean` from fwcore.
 - IO initializers (`initialize`, `@[init]`) are not `_init_` lines; the lint does not see them (none exist today).
 
-## Read first
-`lean/Fw/Lint/InitCost.lean`, `lean/Fw/Lint/InitCostScan.lean`, `lean/scripts/check.sh` (init cost jobs), the note.
+Read first: `lean/Fw/Lint/InitCost.lean`, `lean/Fw/Lint/InitCostScan.lean`, `lean/scripts/check.sh` (init cost jobs), the note.
