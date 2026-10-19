@@ -5,7 +5,7 @@ title: "v2 loop-engineering experiment: design and plan (for user review)"
 status: review
 created: 2026-10-17
 updated: 2026-10-19
-revision: 11 (Lego parts: units compose and passes do not (Fw.Engine.Compose, §4.8); the part contract with coupled groups CG1-CG5 (Fw.Parts.Contract, §6.8); waves 1 and 2 to C3 with the CI and speed reviews (§10.7); state at 16207afb; rev 10 was a8c05f4)
+revision: 11.1 (round 2 of `plan-rev11`: §4.8 rows restate the Lean hypotheses and conclusions; §10.7 cuts that rest on the open bridge are dropped under premise; passes-type savings model-only. Rev 11: Lego parts: units compose and passes do not (Fw.Engine.Compose, §4.8); the part contract with coupled groups CG1-CG5 (Fw.Parts.Contract, §6.8); waves 1 and 2 to C3 with the CI and speed reviews (§10.7); state at 16207afb; rev 10 was a8c05f4)
 authors: [agent:plan-architect]
 topics: [plan, architecture, measurement, lean, parts, agent-teams, styling]
 links:
@@ -100,7 +100,7 @@ generated page (§5.3).
   and WebKit (§4.7). CI counts check the models (F0-F6); the phone is an optional spot check; no cost model (Q37).
 - **Parts as Lego (rev 11).** Unit savings of independent parts add up on the page; pass savings are part-local
   unless §4.8's condition holds. The contract (§6.8) says which parts are independent; one combined run per profile
-  replaces one run per flag, and the gate stays whole-page because the original is one page.
+  replaces one run per units-type flag, and the gate stays whole-page because the original is one page.
 - **MUI everywhere, styles compiled ahead of time** (2026-10-17): Emotion styles rendered at build time into one
   static CSS file (§6.5); a neutrality gate (§6.7) checks MUI adds no sheet mutations, DOM writes or commits.
 - **Chromium counts validate the Chromium model; WebKit is validated on the Simulator lane where it ran, else
@@ -450,7 +450,8 @@ tolerance.
 
 **F3/F4 so far (`model-checks`, 268d8124; MEASURED):** 4 predictions refuted, each a model or harness bug for
 `model-bug-fixes`: morph.tween waapi FireAnimationFrame 1,748 = 1,748 (swipe-v1 never pushes the morph); scene
-hidden-pause UpdateLayoutTree 1,851 > 1,850 (INFERRED to be the `passes_not_compositional` shape, §4.8); morph.mount
+hidden-pause UpdateLayoutTree 1,851 > 1,850 (INFERRED: a model or harness bug for `model-bug-fixes`; not explained by
+§4.8, since `passes_not_compositional` predicts equal passes, not an increase); morph.mount
 LayoutCount one frame late; nav.hitTest FunctionCall frames differ (stale frozen class).
 
 **What the phone is now.** An optional spot check of what neither proof nor CI covers: UIKit's `setContentOffset`
@@ -460,31 +461,36 @@ graph, it is never evidence, and it is never a gate (§10.3).
 ### 4.8 Composition (rev 11): units add up, passes do not
 
 The Lego plan builds and proves each part alone, then needs the page. `Fw.Engine.Compose` (a8678ca0, task
-`compose-lean`) says what carries over when two parts' frames are put side by side (`FrameIn.append`, `++`). All rows
-CONFIRMED by the Lean file; line numbers at a8678ca0.
+`compose-lean`) says what carries over when two parts' frames are put side by side (`FrameIn.append`, `++`). Each row
+restates the Lean hypotheses (If) and conclusion (Then); every theorem is proved (CONFIRMED, lines at a8678ca0). Using a
+row for the site is CONFIRMED only when the plan discharges every hypothesis; the last column names what stays open.
 
-| Result | Says | Consequence |
-|---|---|---|
-| `frameWork_append_units`, `_hits` | work units and hit tests per stage are additive | unit savings add up |
-| `frame_le_append_units` | per-part ≼ on units and hits gives page ≼ on units and hits | F6 checks units only |
-| `someLt_append_units` | part 1 strictly lower on a stage's units **and part 2 no larger on units in every stage** gives a strictly lower page | the extra premise is part of the claim |
-| `passes_not_compositional` (+ `_chromium`, `_webkit`) | a pass one part triggers can be absorbed by another part's pass in the same frame | a pass saving is part-local |
-| `frame_le_append_passes_fails` (194) | for any change that dirties style there are parts with $v_1 \preceq o_1$, $v_2 \preceq o_2$ and $v_1 \mathbin{+\!\!+} v_2 \not\preceq o_1 \mathbin{+\!\!+} o_2$ | per-part ≼ does **not** give page ≼ |
-| `unionLe_append`, `frame_le_append`, `frame_lt_append` | per-part `unionLe` (stage-set union check, `Core.lean:425`) gives page ≼, strict if part 1 is strictly lower | the page condition |
-| `frame_le_append_cover` | per-part covers (a sub-multiset of the original's changes, no more callbacks, forced passes, hits or compositor animations) give page ≼ | the other page condition |
-| `lego_swap_sound`, `_units`, `_visible` | swapping one part's variant changes only what that part's frame and scene read, given `ReadsOnly Indep` | the Lego swap, under an abstract `Indep` |
-| `visible_scene_append`, `Q_append`, `visible_append_of_boxes_eq` (Visual.lean:866-888) | parts stacked vertically (`stackScene`) show the same page if each part shows the same scene at **exactly** equal heights | PL1's ½ px does not compose |
+| Result | If | Then | For the plan |
+|---|---|---|---|
+| `frameWork_append_units`, `_hits` (217, 227) | nothing (any two frames, any engine) | page units per stage and page hit tests are the sums of the parts' | unit savings add up |
+| `frame_le_append_units` (234) | per-part ≼ (the full order, passes included) | page ≤ on every stage's units and on hits (not page ≼) | F6 checks units only |
+| `someLt_append_units` (249) | part 1 strictly lower on some stage's units, part 2 no larger on units in every stage | page strictly lower on some stage's units | the second premise is part of the claim |
+| `passes_not_compositional` (137, + `_chromium`, `_webkit`) | a change dirties stage $s$ | there are parts $f_1, g_1, f_2$: $g_1$ skips $s$, $g_1 \prec f_1$ with fewer $s$ passes, $f_2$ touches $s$, and $g_1 \mathbin{+\!\!+} f_2$ runs exactly as many $s$ passes as $f_1 \mathbin{+\!\!+} f_2$ | a pass saving can vanish on the page (equal, never more); reported part-local |
+| `frame_le_append_passes_fails` (194) | a change dirties style | there are parts with $v_1 \preceq o_1$, $v_2 \preceq o_2$ and $v_1 \mathbin{+\!\!+} v_2 \not\preceq o_1 \mathbin{+\!\!+} o_2$ | per-part ≼ does **not** give page ≼ |
+| `unionLe_append`, `frame_le_append`, `frame_lt_append` (264, 283, 293) | per-part `unionLe` (stage-set union check, `Core.lean:425`) | page `unionLe` and page ≼; page ≺ if, in addition, part 1 is strictly lower on some stage's units or on hit tests | the page condition |
+| `frame_le_append_cover` (326) | each part covered (a sub-multiset of its original's changes, no more callbacks, forced passes, hits or compositor animations) | page ≼ | the other page condition |
+| `lego_swap_sound` (371) | every part's frame and arm satisfy `ReadsOnly Indep`, and part $p$ is `Indep` of every other part | swapping $p$'s variant leaves every other part's frame, frame work (any engine) and arm unchanged | INFERRED for the site: `Indep` is abstract (limit 3) |
+| `lego_swap_units`, `_visible` (411, 449) | `_units`: frames `ReadsOnly Indep`, $p$ `Indep` of every other part, $p < n$; `_visible`: arms `ReadsOnly Indep`, the same `Indep`, $p$'s height exactly equal and its visible scene equal at every offset | page units move by exactly $p$'s change, per stage; the visible stacked page of parts $0..n-1$ is unchanged from every offset | same premise; stacked parts only |
+| `visible_scene_append`, `Q_append`, `visible_append_of_boxes_eq` (Visual.lean:866, 873, 888) | same part count; part by part exactly equal heights and equal visible scenes at every offset | equal visible stacked page (`stackScene`) from every offset | PL1's ½ px is not covered (INFERRED); nav and overlays are outside `stackScene` |
 
 **Which way the plan goes.** The Lego note's `frame_le_append` over ≼ alone is false (`frame_le_append_passes_fails`);
 the plan uses the true forms: the combined-run condition is per-part **`unionLe` or cover**, not per-part ≼. A
 passes-type win (hidden-pause, scene pausing, panel blur → none) is claimed for the page only when no other part
-touches that stage in the same frame; otherwise it is reported as part-local.
+touches that stage in the same frame; otherwise it is reported as part-local. A combined run cannot attribute a pass
+saving to one part, so a passes-type saving is **model-only (proof, no count check)** unless its own per-flag run
+lands before C3 (§10.7).
 
 **Limits, stated in the report.** (1) The visual premise is "every visible y equal"; the gate's finite probes do not
 discharge a ∀y, only the per-part band theorems do. (2) Fixed and overlay parts (nav, drawer, signup) are outside the
 vertical `stackScene` model; their visual composition is the gate's evidence, not a theorem. (3) `Indep` is abstract
-until a bridge proof `Independent P Q → Indep` ties it to §6.8 (open item, not yet a work-graph task). (4) Results are per frame; run-level
-(per-frame list) composition is not stated.
+until a bridge proof `Independent P Q → Indep` ties it to §6.8; the lead adds it as a work-graph task (owner
+`lean-prover`, after `contract-rows-from-code`); until it lands every cut resting on `lego_swap_*` is dropped under
+this premise, never CONFIRMED (§10.7). (4) Results are per frame; run-level (per-frame list) composition is not stated.
 
 ## 5. Lean strategy
 
@@ -1039,7 +1045,7 @@ and 11 changed what counts as evidence:
 |---|---|---|---|
 | **C1 WebKit go/no-go** | **T+12h = 2026-10-18 11:15** | **GO** only if two consecutive `webkit-sim` runs on `ci/webkit-green` completed with their determinism step in ≤ 45 min each (healthy job 33-43 min, CONFIRMED `handoffs/ci-webkit.md`). Also: the cross-run Chromium zone baseline exists (`measure.zoneBaseline` + `refreeze`); `shells` and the morph ports started; Q34-Q37 answered or their defaults applied. **Outcome: GO** (lead, 2026-10-18; `webkit-green` f03e94b: runs 39048376821 in 19 min and 39050061299 in 24 min, MEASURED); `webkit-quiet`, `step-align` and `zone-baselines-webkit` run as parallel lanes | **NO-GO** (not taken): `webkit-quiet`, `zone-baselines-webkit` and `step-align` move to MX; WebKit truth is the phone only; no further agent time on the Simulator lane |
 | **C2 Region faithful + engine models** | **T+24h = 2026-10-18 23:15** | M1 closed; M2: shells landed (done) and the 9 parts `faithful` through the gate, `faithful-checks` green on zones y04000/y04500/tail in Chromium, PL5 bands reported; section ports running (§10.5). **Rev 10:** `engine-core-lean`, `engine-chromium-lean`, `engine-webkit-lean` landed, `engine-ci-check` green on F0-F2 (fixture-rest), `morph-tween-curve` landed; the proof wave started. **Outcome (MEASURED, trailers): met except the faithful check.** Engine models and all 10 proof tasks landed; `integrate-ports-4` passed the gate at 23:28 (Chromium 0 bad, 57 excused); `faithful-checks` found the rewrite had no page-root `overflow-x` clip, fixed by `page-root-clip` (3600b283) and re-run as `faithful-checks-rerun` in wave 1 | a part past its 3 h time box lands `faithful-with-delta` with the delta named; an engine table row without a cite stays INFERRED and is listed |
-| **C3 Decision** | **T+48h = 2026-10-19 23:15** | M5: the **proof ledger closed** (every `proof-*` and `variant-*` task landed or cut, §10.6); **rev 11:** two whole-page gates passed, one per wave (§10.7); combined counts per profile on the wave-2 base with F3/F4 per part zone, 0 mismatches or each filed as a model bug; `v2-proved` named (extended by the six TS flags only if `proved-flags-ts` lands in wave 2); passes-type wins reclassified as part-local where §4.8 requires; F6 reported as a pilot or as "statement landed, run after C3". Phone session 2 is optional | a proof task still open is cut and its optimization goes to the report as "modelled, not proved"; a falsified prediction that cannot be fixed by C3 drops that flag from `v2-proved` |
+| **C3 Decision** | **T+48h = 2026-10-19 23:15** | M5: the **proof ledger closed** (every `proof-*` and `variant-*` task landed or cut, §10.6); **rev 11:** two whole-page gates passed, one per wave (§10.7); combined counts per profile on the wave-2 base with F3/F4 per part zone, 0 mismatches or each filed as a model bug; `v2-proved` named (extended by the six TS flags only if `proved-flags-ts` lands in wave 2); passes-type wins reported as part-local and model-only (proof, no count check) unless their per-flag run lands before C3; F6 reported as a pilot or as "statement landed, run after C3". Phone session 2 is optional | a proof task still open is cut and its optimization goes to the report as "modelled, not proved"; a falsified prediction that cannot be fixed by C3 drops that flag from `v2-proved` |
 | **C4 Report** | **T+62h = 2026-10-20 13:15** | M6: report published; math view 0 disagree, 0 stale (`math-final` by T+52h); `fw usage` totals per milestone; per part the theorem pair, its premises H1-H3 and RG status, and the F0-F5 result | nothing: the deadline is yours; what is not in the text at T+60h is listed as "not done" |
 
 **Gates, retargeted.** M0 closes with `mutant-ids-stable` (non-blocking after C1). **M1** = Chromium zone baselines
@@ -1103,11 +1109,18 @@ constant glass, FLIP, st6, typing chunks, PR-040/041.
 
 ### 10.7 Lego lanes and the C3 slice (rev 11)
 
-**The idea** (`10-19-lego-parts-plan.md`, CONFIRMED by §4.8 and §6.8 where Lean decides it). A part cannot be
-measured alone against the original, because the original is one page; the gate and the faithful check stay
-whole-page. What Lean removes is repetition: one **combined** counts run per profile replaces one whole-page run per
-flag, sibling parts are not re-gated after one part changes (`scope_sound`, `lego_swap_sound`), and untouched parts are
-not visually re-checked (`visible_append_of_boxes_eq`, at exactly equal PL1 boxes). Content lanes change no
+**The idea** (`10-19-lego-parts-plan.md`). A part cannot be measured alone against the original, because the
+original is one page; the gate and the faithful check stay whole-page. Lean removes repetition only where §4.8's
+hypotheses hold. One **combined** counts run per profile replaces one whole-page run per units-type flag: units add up
+with no hypothesis (`frameWork_append_units`), and F3/F4 check the model. Passes do not add up, so a passes-type flag
+(hidden-pause, scene pausing, panel blur) keeps a **model-only (proof, no count check)** pass saving; one per-flag
+counts run each is scheduled before C3 (tonight, 23:15) if CI minutes allow, and a run that lands replaces that label.
+Sibling gate re-runs and visual re-checks of untouched parts are **dropped under premise** (INFERRED): they rest on
+`lego_swap_sound` and `lego_swap_visible` under the abstract `Indep` (bridge open, §4.8 limit 3), on rows carrying
+`declared-rows-unverified`, and for the visual cut on exactly equal heights (not PL1's ½ px) of stacked parts only,
+never nav or overlays. `scope_sound` (`Scope.lean:710`) does not back them: it needs $u \in$ `pilotParts` (33 part
+uses, lines 319-470) and says only that a scoped run keeps that part's own verdict, nothing about siblings. Until the
+bridge lands, the two whole-page gates are the evidence for siblings and untouched parts. Content lanes change no
 mechanism and need no theorem. Every part carries a contract row and a units-or-passes tag for its win.
 
 | Wave | Lanes (one worktree each) | Ends with |
@@ -1119,8 +1132,9 @@ mechanism and need no theorem. Every part carries a contract row and a units-or-
 **Still measured to C3:** 2 whole-page gates; the faithful re-run (after `page-root-clip` and after wave-1 content,
 which moves images); combined counts per profile plus a CG2 run plus page-level flags; the base refreeze after
 content (PaintImage, DecodeImage); F3/F4 on every proved flag (proofs are about the model, and 4 refutations show the
-model needs checking). **No longer measured:** per-flag whole-page counts runs, sibling gate re-runs, visual re-checks
-of untouched parts, phone sessions before the report.
+model needs checking); per-flag runs for passes-type flags if CI minutes allow. **No longer measured:** per-flag
+whole-page counts runs for units-type flags, phone sessions before the report. **Dropped under premise** (the two
+whole-page gates are the evidence): sibling gate re-runs, visual re-checks of untouched parts.
 
 **CI (`10-19-lego-ci-review.md`, with its adversarial check).** No workflow change for the whole-page lanes: every
 wave-1 and wave-2 lane is a plain dispatch of a workflow that exists. **`counts-only` is rescoped** to one optional
@@ -1184,7 +1198,7 @@ goes and why.
 | R33 | CI capacity: WebKit Simulator runs take 10-38 min and fail under host load 401-836 on the free `xcode-27` runner (MEASURED `10-17-sim-speed.md`); 5 concurrent macOS jobs shared by `xcode-27` and `macos-26` and filled by our own jobs (MEASURED, 56fe6c9); paid runners are out | high / medium | `paths:` filters, stale-run cancel (6723de2) and `ci-paths-guard`; the C1 go/no-go (§10.2) caps the agent time the lane may cost; WebKit truth from the phone; one short local debug run allowed (§4.1) |
 | **R34** | **The 3-day deadline is missed**: a part overruns its box, a phone session is not held, or the write-up starts late | medium / high | checkpoints with named fallbacks (§10.2); a task past its checkpoint is cut, not extended; writing starts at T+48h and the text freezes at T+60h; a missed item is listed as not done, never hidden |
 | **R36** | **The engine model is wrong** (a mis-read engine line, a rule that changed between the pin and the shipped browser, a WebKit premise that only the Simulator could test) so a proved "less work" is false in the real engine | medium / high | every table row cites its line at the pin; F0-F5 falsify the model on CI and a mismatch is a model bug (§4.7); H1-H3 and open RG items are named per theorem in the report; WebKit is labelled model-only unless F5 ran; no tolerance is ever widened to make a prediction fit |
-| **R38** | **A pass saving is claimed for the page** but another part's pass in the same frame absorbs it | high for passes-type wins / medium | §4.8: the page claim needs per-part `unionLe` or cover, never per-part ≼ (`frame_le_append_passes_fails`); passes-type wins are tagged and reported as part-local unless no other part touches the stage |
+| **R38** | **A pass saving is claimed for the page** but another part's pass in the same frame absorbs it | high for passes-type wins / medium | §4.8: the page claim needs per-part `unionLe` or cover, never per-part ≼ (`frame_le_append_passes_fails`); passes-type wins are tagged and reported as part-local unless no other part touches the stage, and their saving is model-only (proof, no count check) unless a per-flag run lands before C3 |
 | **R39** | **The contract rows are wrong** (an undeclared read or write puts two coupled parts in different groups) | medium / medium | premise `declared-rows-unverified` carried by every result that uses the table until `contract-rows-from-code` generates the rows from TS and CSS; whole-page gates and combined runs still catch a coupling the rows miss |
 | **R40** | **A part page measures under the wrong frozen classes** (it borrows the whole-page profile's classes) | medium / low | state the premise per part-page result or freeze part-page classes (`counts-only`); part pages are evidence for the method, never the gate of record |
 
@@ -1294,6 +1308,20 @@ SPK-q; SPK-n (device link) moot without phone sessions. **Out of scope for v2:**
 ## Appendix C. (folded into Q17, §12.2, in revision 9)
 
 ## Appendix D. Review log
+
+### Revision 11.1 (round 2 of `plan-rev11`; review of ce0df27d refused)
+
+Inputs: the round-1 review (2 high, 4 medium, 2 low), the Fable per-lane advice and the lead's decisions (the lead's
+file wins). Rule applied: a sentence citing a theorem restates its hypotheses and conclusion; CONFIRMED only where the
+plan discharges every hypothesis, otherwise INFERRED with the open premise named.
+
+| Change | Where |
+|---|---|
+| Table rewritten as If / Then from the Lean signatures: `frame_le_append_units` needs full ≼ and gives ≤ on units and hits, not ≼; `frame_lt_append` needs part 1 strictly lower on some stage's units or hits; `lego_swap_sound` needs $p$ `Indep` of every other part and keeps their frame, frame work and arm; `_units`, `_visible` own row; Visual cites 866, 873, 888; "½ px does not compose" now "not covered (INFERRED)" | §4.8 |
+| Bridge `Independent → Indep`: the lead adds the task (owner `lean-prover`, after `contract-rows-from-code`); cuts resting on it are dropped under premise until it lands | §4.8 limit (3), §10.7 |
+| Sibling gate re-runs and visual re-checks of untouched parts: from "no longer measured" to "dropped under premise", the two whole-page gates as evidence; `scope_sound` no longer cited for siblings (it needs $u \in$ `pilotParts` and gives that part's own verdict only) | §10.7 |
+| Passes-type savings: model-only (proof, no count check); per-flag runs before C3 tonight if CI minutes allow (the reviewer's correction to Fable's "after the freeze") | §0, §4.8, §10.7, C3 row, R38 |
+| Hidden-pause 1,851 > 1,850: a model or harness bug for `model-bug-fixes`, not the `passes_not_compositional` shape (that theorem gives equal passes, never an increase) | §4.7 |
 
 ### Revision 11 (Lego parts; state at 16207afb; rev 10 was a8c05f4)
 
