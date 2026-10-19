@@ -2,7 +2,8 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getClock } from '../../engine/clock';
-import { createCountdownDriver, startFaithful, type DigitHandle } from './driver';
+import { createCountdownDriver, startFaithful, type DigitHandle, type Writable } from './driver';
+import { gatedInstance, installHiddenGate } from './hidden';
 import { digitPlaces, remainingSeconds, unitsFromSeconds } from './logic';
 import { matchList } from './media';
 import css from './hero.module.css';
@@ -53,9 +54,12 @@ function Digits({ n, strip }: { n: number; strip: boolean }) {
 /**
  * hero.countdown. Server and first client render show the original's hidden placeholders ("0", "00"); after mount the
  * digit shape is set once (a discrete flip) and from then on only the driver writes transforms on the clock.
+ * Variant `hidden-pause` (hero instance only): the face writes go through `installHiddenGate` (Lean
+ * `Fw.Parts.HeroCountdownHidden`).
  */
 export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = 'hero-countdown' }: HeroCountdownProps) {
   const strip = variant === 'strip';
+  const hiddenPause = gatedInstance(variant, fwId);
   const rootRef = useRef<HTMLDivElement>(null);
   const [shape, setShape] = useState<number[] | null>(null);
 
@@ -67,6 +71,8 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
     const root = rootRef.current;
     if (!root || !shape) return;
     const nodes = [...root.querySelectorAll<HTMLElement>('[data-digit]')];
+    const gate = hiddenPause ? installHiddenGate(root) : null;
+    const face = (el: HTMLElement): Writable => (gate ? gate.wrap(el) : el);
     const handles: DigitHandle[] = [];
     let k = 0;
     shape.forEach((n, unit) => {
@@ -74,7 +80,7 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
         const el = nodes[k]!;
         const parts = strip
           ? [el.querySelector<HTMLElement>('[data-strip]')!]
-          : [...el.querySelectorAll<HTMLElement>('[data-face]')];
+          : [...el.querySelectorAll<HTMLElement>('[data-face]')].map(face);
         handles.push({ unit, place: Number(el.dataset.place), nodes: parts });
       }
     });
@@ -109,8 +115,9 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
     return () => {
       unsub();
       ro.disconnect();
+      gate?.stop();
     };
-  }, [shape, strip]);
+  }, [shape, strip, hiddenPause]);
 
   const Root = (impl === 'mui' ? MuiRoot : PlainRoot) as typeof PlainRoot;
   const Label = impl === 'mui' ? MuiLabel : PlainLabel;

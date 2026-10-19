@@ -6287,7 +6287,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "lean/Fw/Parts/FootprintData.lean"
-   ]
+   ],
+   "evidence": "cfd4e18"
   },
   {
    "devices": [
@@ -6308,7 +6309,8 @@
     "packages/contracts/golden/gate/**",
     "docs/team/handoffs/gate-variant-roles.md",
     "lean/Fw/Wire/GateGolden.lean"
-   ]
+   ],
+   "evidence": "58db42d"
   },
   {
    "devices": [
@@ -6478,7 +6480,8 @@
     "lean/Fw/Parts/FootprintData.lean",
     "lean/scripts/CountdownHiddenGolden.lean",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
-   ]
+   ],
+   "evidence": "8e862ca"
   },
   {
    "devices": [
