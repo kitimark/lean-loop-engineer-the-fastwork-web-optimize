@@ -1,5 +1,6 @@
 // node src/cli.mjs run    --engine chromium|playwright-webkit --out DIR [--probes id,id,...] [--parts a,b,...] [--concurrency 2]
 // node src/cli.mjs fonts  --engine chromium|playwright-webkit --out DIR [--probes id,id,...] [--concurrency 2]   (port check 5; exit 1 on a failing probe)
+// node src/cli.mjs fonts-compare --in A.fonts.json,B.fonts.json   (the counts of runs of one head side by side)
 // node src/cli.mjs report --in DIR[,DIR...] [--out BASE]    (prints the markdown table; BASE.md and BASE.json when --out)
 // Default probes: the breakpoint set in probes.default.json (ids of the gate's Lean matrix, apps/site/src/breakpoints.gen.json).
 import { readFileSync } from 'node:fs';
@@ -26,6 +27,9 @@ if (cmd === 'run') {
   const { results } = await runFonts({ engineName, outDir: resolve(arg('out', 'out/fonts')), probeIds, concurrency: Number(arg('concurrency', '2')) });
   process.stdout.write(fontsTable(engineName, results));
   process.exit(results.every((r) => r.pass) ? 0 : 1);
+} else if (cmd === 'fonts-compare') {
+  const { fontsCompare } = await import('./fonts.mjs');
+  process.stdout.write(fontsCompare(arg('in', '').split(',').filter(Boolean).map((f) => resolve(f))));
 } else if (cmd === 'report') {
   const { report } = await import('./report.mjs');
   const dirs = arg('in', 'out/run').split(',').map((d) => resolve(d));

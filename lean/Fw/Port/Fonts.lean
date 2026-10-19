@@ -164,6 +164,206 @@ theorem units_blank (E : List Excl) (L : List Leaf) (u : Leaf) (hu : u ∈ units
   obtain ⟨l, _, rfl⟩ := hu
   simp_all
 
+/-- Two lists with equal elements in no place: an element unmatched on one side is not unmatched on the other.
+$$x \in \operatorname{unmatched}(a, b) \Rightarrow x \notin \operatorname{unmatched}(b, a)$$ -/
+theorem unmatched_disjoint {α : Type} [BEq α] [LawfulBEq α] (a b : List α) (x : α)
+    (h : x ∈ unmatched a b) : x ∉ unmatched b a := by
+  intro h'
+  have h1 := count_unmatched a b x
+  have h2 := count_unmatched b a x
+  have p1 : 0 < (unmatched a b).count x := List.count_pos_iff.mpr h
+  have p2 : 0 < (unmatched b a).count x := List.count_pos_iff.mpr h'
+  omega
+
+/-- Pair each element of `ms` with the first not yet used element of `es` it relates to; the pairs, the unpaired of `ms` and the
+unpaired of `es`.
+$$\operatorname{pairOff}(p, m :: M, E) = \begin{cases} ((m, e) :: P, U_M, U_E) & e = \operatorname{find}(p\ m, E),\ (P, U_M, U_E) = \operatorname{pairOff}(p, M, E \setminus \{e\}) \\ (P, m :: U_M, U_E) & \text{no such } e \end{cases}$$ -/
+def pairOff {α : Type} [BEq α] (p : α → α → Bool) : List α → List α → List (α × α) × List α × List α
+  | [], es => ([], [], es)
+  | m :: ms, es =>
+    match es.find? (p m) with
+    | some e =>
+      let r := pairOff p ms (es.erase e)
+      ((m, e) :: r.1, r.2.1, r.2.2)
+    | none =>
+      let r := pairOff p ms es
+      (r.1, m :: r.2.1, r.2.2)
+
+/-- Every pair is related.
+$$(m, e) \in P \Rightarrow p(m, e)$$ -/
+theorem pairOff_rel {α : Type} [BEq α] [LawfulBEq α] (p : α → α → Bool) (ms es : List α) (m e : α)
+    (h : (m, e) ∈ (pairOff p ms es).1) : p m e = true := by
+  induction ms generalizing es with
+  | nil => simp [pairOff] at h
+  | cons a ms ih =>
+    simp only [pairOff] at h
+    split at h
+    · rename_i e' he'
+      simp only [List.mem_cons, Prod.mk.injEq] at h
+      rcases h with ⟨rfl, rfl⟩ | h
+      · exact List.find?_some he'
+      · exact ih _ h
+    · exact ih _ h
+
+/-- Everything that comes out of the pairing was in an input: pairs and unpaired of `ms` come from `ms`, pairs and unpaired of `es`
+from `es`.
+$$(m, e) \in P \Rightarrow m \in M \land e \in E,\qquad u \in U_M \Rightarrow u \in M,\qquad u \in U_E \Rightarrow u \in E$$ -/
+theorem pairOff_mem {α : Type} [BEq α] [LawfulBEq α] (p : α → α → Bool) (ms es : List α) :
+    (∀ m e, (m, e) ∈ (pairOff p ms es).1 → m ∈ ms ∧ e ∈ es) ∧ (∀ u, u ∈ (pairOff p ms es).2.1 → u ∈ ms) ∧
+      (∀ u, u ∈ (pairOff p ms es).2.2 → u ∈ es) := by
+  induction ms generalizing es with
+  | nil => simp [pairOff]
+  | cons a ms ih =>
+    simp only [pairOff]
+    split
+    · rename_i e' he'
+      have hm := List.mem_of_find?_eq_some he'
+      obtain ⟨i1, i2, i3⟩ := ih (es.erase e')
+      refine ⟨fun m e h => ?_, fun u hu => ?_, fun u hu => ?_⟩
+      · simp only [List.mem_cons, Prod.mk.injEq] at h
+        rcases h with ⟨rfl, rfl⟩ | h
+        · exact ⟨by simp, hm⟩
+        · have := i1 m e h
+          exact ⟨List.mem_cons_of_mem _ this.1, List.mem_of_mem_erase this.2⟩
+      · exact List.mem_cons_of_mem _ (i2 u hu)
+      · exact List.mem_of_mem_erase (i3 u hu)
+    · obtain ⟨i1, i2, i3⟩ := ih es
+      refine ⟨fun m e h => ?_, fun u hu => ?_, fun u hu => ?_⟩
+      · have := i1 m e h
+        exact ⟨List.mem_cons_of_mem _ this.1, this.2⟩
+      · simp only [List.mem_cons] at hu
+        rcases hu with rfl | hu
+        · simp
+        · exact List.mem_cons_of_mem _ (i2 u hu)
+      · exact i3 u hu
+
+/-- Pairing neither loses nor invents an element: each side is its pairs plus its unpaired.
+$$|P| + |U_M| = |M| \land |P| + |U_E| = |E|$$ -/
+theorem pairOff_length {α : Type} [BEq α] [LawfulBEq α] (p : α → α → Bool) (ms es : List α) :
+    (pairOff p ms es).1.length + (pairOff p ms es).2.1.length = ms.length ∧
+      (pairOff p ms es).1.length + (pairOff p ms es).2.2.length = es.length := by
+  induction ms generalizing es with
+  | nil => simp [pairOff]
+  | cons a ms ih =>
+    simp only [pairOff]
+    split
+    · rename_i e' he'
+      have hm := List.mem_of_find?_eq_some he'
+      have hl := List.length_erase_of_mem hm
+      have hpos : 0 < es.length := List.length_pos_of_mem hm
+      have := ih (es.erase e')
+      simp only [List.length_cons]
+      omega
+    · have := ih es
+      simp only [List.length_cons]
+      omega
+
+/-- Same section and same text: the leaf is in both arms and only its font can differ. -/
+def sameKey (m e : Leaf) : Bool := m.sec == e.sec && m.text == e.text
+
+/-- Same text and same font: the leaf is in both arms and only its owning section can differ. -/
+def sameFont (m e : Leaf) : Bool :=
+  m.text == e.text && m.family == e.family && m.weight == e.weight && m.style == e.style
+
+/-- The leaf difference of one viewport told apart: font changes, ownership moves, and the leaves of one arm only.
+$$S = (\text{changes},\ \text{moves},\ \text{lost},\ \text{added})$$ -/
+structure Split where
+  changes : List (Leaf × Leaf)
+  moves : List (Leaf × Leaf)
+  lost : List Leaf
+  added : List Leaf
+deriving Repr, DecidableEq
+
+/-- Pair the lost and the added leaves by (section, text) for the font changes, then the rest by (text, font) for the ownership moves.
+$$S(E, O, R) = (P_1,\ P_2,\ U_2^{M},\ U_2^{E}),\quad (P_1, U_1^M, U_1^E) = \operatorname{pairOff}(\mathrm{key}, V.\mathrm{missing}, V.\mathrm{extra}),\ (P_2, U_2^M, U_2^E) = \operatorname{pairOff}(\mathrm{font}, U_1^M, U_1^E)$$ -/
+def split (E : List Excl) (O R : Arm) : Split :=
+  let v := check E O R
+  let a := pairOff sameKey v.missing v.extra
+  let b := pairOff sameFont a.2.1 a.2.2
+  ⟨a.1, b.1, b.2.1, b.2.2⟩
+
+/-- Facts of `split` about the lost and added leaves: they come from the check and are never equal to each other. -/
+theorem split_sources (E : List Excl) (O R : Arm) :
+    (∀ m e, (m, e) ∈ (split E O R).changes → m ∈ (check E O R).missing ∧ e ∈ (check E O R).extra) ∧
+    (∀ m e, (m, e) ∈ (split E O R).moves → m ∈ (check E O R).missing ∧ e ∈ (check E O R).extra) := by
+  obtain ⟨a1, a2, a3⟩ := pairOff_mem sameKey (check E O R).missing (check E O R).extra
+  obtain ⟨b1, b2, b3⟩ := pairOff_mem sameFont (pairOff sameKey (check E O R).missing (check E O R).extra).2.1
+    (pairOff sameKey (check E O R).missing (check E O R).extra).2.2
+  exact ⟨fun m e h => a1 m e h, fun m e h => ⟨a2 m (b1 m e h).1, a3 e (b1 m e h).2⟩⟩
+
+/-- A font change keeps the section and the text and changes the font.
+$$(m, e) \in \text{changes} \Rightarrow m.s = e.s \land m.t = e.t \land (m.\phi, m.w, m.\sigma) \ne (e.\phi, e.w, e.\sigma)$$ -/
+theorem change_font_differs (E : List Excl) (O R : Arm) (m e : Leaf) (h : (m, e) ∈ (split E O R).changes) :
+    m.sec = e.sec ∧ m.text = e.text ∧ (m.family ≠ e.family ∨ m.weight ≠ e.weight ∨ m.style ≠ e.style) := by
+  have hk : sameKey m e = true := pairOff_rel sameKey _ _ m e h
+  have hs := (split_sources E O R).1 m e h
+  have hne : m ≠ e := by
+    rintro rfl
+    exact unmatched_disjoint _ _ m hs.1 hs.2
+  simp only [sameKey, Bool.and_eq_true, beq_iff_eq] at hk
+  obtain ⟨hk1, hk2⟩ := hk
+  refine ⟨hk1, hk2, Classical.byContradiction fun hc => ?_⟩
+  simp only [not_or, ne_eq, Decidable.not_not] at hc
+  apply hne
+  cases m; cases e
+  simp_all
+
+/-- An ownership move keeps the text and the font and changes the section.
+$$(m, e) \in \text{moves} \Rightarrow m.t = e.t \land (m.\phi, m.w, m.\sigma) = (e.\phi, e.w, e.\sigma) \land m.s \ne e.s$$ -/
+theorem move_sec_differs (E : List Excl) (O R : Arm) (m e : Leaf) (h : (m, e) ∈ (split E O R).moves) :
+    m.text = e.text ∧ m.family = e.family ∧ m.weight = e.weight ∧ m.style = e.style ∧ m.sec ≠ e.sec := by
+  have hk : sameFont m e = true := pairOff_rel sameFont _ _ m e h
+  have hs := (split_sources E O R).2 m e h
+  have hne : m ≠ e := by
+    rintro rfl
+    exact unmatched_disjoint _ _ m hs.1 hs.2
+  simp only [sameFont, Bool.and_eq_true, beq_iff_eq] at hk
+  obtain ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩ := hk
+  refine ⟨h1, h2, h3, h4, ?_⟩
+  intro hc
+  apply hne
+  cases m; cases e
+  simp_all
+
+/-- Nothing is dropped from the lost leaves: they are the changes, the moves and the unpaired lost leaves.
+$$|V.\mathrm{missing}| = |\text{changes}| + |\text{moves}| + |\text{lost}|$$ -/
+theorem split_missing_length (E : List Excl) (O R : Arm) :
+    (check E O R).missing.length = (split E O R).changes.length + (split E O R).moves.length + (split E O R).lost.length := by
+  have h1 := (pairOff_length sameKey (check E O R).missing (check E O R).extra).1
+  have h2 := (pairOff_length sameFont (pairOff sameKey (check E O R).missing (check E O R).extra).2.1
+    (pairOff sameKey (check E O R).missing (check E O R).extra).2.2).1
+  simp only [split]
+  omega
+
+/-- Nothing is dropped from the added leaves: they are the changes, the moves and the unpaired added leaves.
+$$|V.\mathrm{extra}| = |\text{changes}| + |\text{moves}| + |\text{added}|$$ -/
+theorem split_extra_length (E : List Excl) (O R : Arm) :
+    (check E O R).extra.length = (split E O R).changes.length + (split E O R).moves.length + (split E O R).added.length := by
+  have h1 := (pairOff_length sameKey (check E O R).missing (check E O R).extra).2
+  have h2 := (pairOff_length sameFont (pairOff sameKey (check E O R).missing (check E O R).extra).2.1
+    (pairOff sameKey (check E O R).missing (check E O R).extra).2.2).2
+  simp only [split]
+  omega
+
+/-- The leaf part of the check is clean exactly when the split is empty.
+$$(V.\mathrm{missing} = [\,] \land V.\mathrm{extra} = [\,]) \iff \text{changes} = \text{moves} = \text{lost} = \text{added} = [\,]$$ -/
+theorem split_empty_iff (E : List Excl) (O R : Arm) :
+    ((check E O R).missing = [] ∧ (check E O R).extra = []) ↔
+      ((split E O R).changes = [] ∧ (split E O R).moves = [] ∧ (split E O R).lost = [] ∧ (split E O R).added = []) := by
+  have h1 := split_missing_length E O R
+  have h2 := split_extra_length E O R
+  constructor
+  · rintro ⟨a, b⟩
+    rw [a] at h1
+    rw [b] at h2
+    simp only [List.length_nil] at h1 h2
+    refine ⟨List.length_eq_zero_iff.mp (by omega), List.length_eq_zero_iff.mp (by omega), List.length_eq_zero_iff.mp (by omega),
+      List.length_eq_zero_iff.mp (by omega)⟩
+  · rintro ⟨a, b, c, d⟩
+    rw [a, b, c] at h1
+    rw [a, b, d] at h2
+    exact ⟨List.length_eq_zero_iff.mp h1, List.length_eq_zero_iff.mp h2⟩
+
 /-- The fonts exclusions: the family the original declares but no rule applies.
 $$E_{\mathrm{fonts}} = [(\mathrm{fonts}, \texttt{page}, \texttt{Fastwork}, \rho)]$$ -/
 def exclusions : List Excl := [
@@ -190,5 +390,8 @@ def refArm : Arm :=
 #guard !pass excl refArm ⟨refArm.leaves, []⟩
 #guard pass excl refArm ⟨refArm.leaves, refArm.faces ++ [⟨"Fastwork", "700", "normal", "loaded"⟩]⟩
 #guard !pass excl refArm ⟨refArm.leaves, refArm.faces ++ [⟨"Google Sans", "400 700", "italic", "loaded"⟩]⟩
+
+#guard (split excl refArm ⟨[⟨"pain.notes", "Hello world", "Arial", "400", "normal"⟩, ⟨"hero.countdown", "01", "Google Sans", "700", "normal"⟩], refArm.faces⟩).changes.length == 1
+#guard (split excl refArm ⟨[⟨"hero.countdown", "01", "Google Sans", "700", "normal"⟩, ⟨"page", "Hello world", "Google Sans", "400", "normal"⟩], refArm.faces⟩).moves.length == 1
 
 end Fw.Port.Fonts

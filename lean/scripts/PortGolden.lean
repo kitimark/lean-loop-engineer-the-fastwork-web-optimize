@@ -202,15 +202,41 @@ def fCases : List (String × Arm) := [
   ("the excluded family loads", ⟨fOrig.leaves, fOrig.faces ++ [⟨"Fastwork", "700", "normal", "loaded"⟩]⟩),
   ("a face that is only declared", ⟨fOrig.leaves, fOrig.faces ++ [⟨"Roboto", "400", "normal", "unloaded"⟩, ⟨"Roboto", "400", "normal", "error"⟩]⟩)]
 
-/-- `fonts.jsonl`: one line per case, the original arm fixed. -/
+/-- The leaves of the pairing cases: a button, the `o` of the heading, a deck item and an item that occurs twice. -/
+def lBtn : Leaf := ⟨"hero", "Join waitlist", "Google Sans", "500", "normal"⟩
+def lO : Leaf := ⟨"people.o", "o", "Google Sans", "500", "normal"⟩
+def lDeck : Leaf := ⟨"people.deck", "Sound Composer", "Google Sans", "500", "normal"⟩
+def lItem : Leaf := ⟨"page", "Item", "Google Sans", "400", "normal"⟩
+
+/-- The original arm of the pairing cases. -/
+def fOrig2 : Arm := ⟨[lBtn, lO, lDeck, lItem, lItem], fOrig.faces⟩
+
+/-- The pairing cases, each with its own original arm. -/
+def pCases : List (String × Arm × Arm) := [
+  ("a button draws Arial", fOrig2, ⟨[{ lBtn with family := "Arial" }, lO, lDeck, lItem, lItem], fOrig.faces⟩),
+  ("the o is owned by people.card", fOrig2, ⟨[lBtn, { lO with sec := "people.card" }, lDeck, lItem, lItem], fOrig.faces⟩),
+  ("a text differs", fOrig2, ⟨[{ lBtn with text := "Join the waitlist" }, lO, lDeck, lItem, lItem], fOrig.faces⟩),
+  ("a change, a move, a lost and an added leaf", fOrig2, ⟨[{ lBtn with family := "Arial" }, { lO with sec := "people.card" },
+    lItem, { lItem with text := "Other" }], fOrig.faces⟩),
+  ("one of two equal leaves changes", fOrig2, ⟨[lBtn, lO, lDeck, lItem, { lItem with family := "system-ui" }], fOrig.faces⟩),
+  ("a leaf changes font and moves", fOrig2, ⟨[lBtn, lO, { lDeck with sec := "people.card", family := "Arial" }, lItem, lItem], fOrig.faces⟩)]
+
+/-- The case lines of the golden file: the arms, the units, the check and its split. -/
+def fontsLine (n : String) (O R : Arm) : String :=
+  let v := check excl O R
+  let sp : Split := split excl O R
+  let pairJ := fun (x : Leaf × Leaf) => Json.arr #[leafJ x.1, leafJ x.2]
+  (Json.mkObj [("name", .str n), ("excl", exclsJ excl), ("orig", armJ O), ("rewrite", armJ R),
+    ("units", .arr ((units excl R.leaves).map leafJ).toArray), ("loaded", .arr ((loaded excl R.faces).map tripleJ).toArray),
+    ("missing", .arr (v.missing.map leafJ).toArray), ("extra", .arr (v.extra.map leafJ).toArray),
+    ("missingFaces", .arr (v.missingFaces.map tripleJ).toArray), ("extraFaces", .arr (v.extraFaces.map tripleJ).toArray),
+    ("changes", .arr (sp.changes.map pairJ).toArray), ("moves", .arr (sp.moves.map pairJ).toArray),
+    ("lost", .arr (sp.lost.map leafJ).toArray), ("added", .arr (sp.added.map leafJ).toArray),
+    ("pass", .bool (pass excl O R))]).compress ++ "\n"
+
+/-- `fonts.jsonl`: one line per case. -/
 def fontsText : String :=
-  String.join (fCases.map fun (n, R) =>
-    let v := check excl fOrig R
-    (Json.mkObj [("name", .str n), ("excl", exclsJ excl), ("orig", armJ fOrig), ("rewrite", armJ R),
-      ("units", .arr ((units excl R.leaves).map leafJ).toArray), ("loaded", .arr ((loaded excl R.faces).map tripleJ).toArray),
-      ("missing", .arr (v.missing.map leafJ).toArray), ("extra", .arr (v.extra.map leafJ).toArray),
-      ("missingFaces", .arr (v.missingFaces.map tripleJ).toArray), ("extraFaces", .arr (v.extraFaces.map tripleJ).toArray),
-      ("pass", .bool (pass excl fOrig R))]).compress ++ "\n")
+  String.join (fCases.map fun (n, R) => fontsLine n fOrig R) ++ String.join (pCases.map fun (n, O, R) => fontsLine n O R)
 
 end Fonts
 
