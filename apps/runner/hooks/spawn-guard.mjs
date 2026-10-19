@@ -44,7 +44,7 @@ export function fwcorePath(dir) {
 }
 
 /** Ask Lean. Returns the reply object, or null when fwcore is missing, slow or answers an error. */
-export function ask(bin, req, timeout = 3000) {
+export function ask(bin, req, timeout = Number(process.env.FW_HOOK_ASK_TIMEOUT_MS) || 3000) {
   if (!bin || !existsSync(bin)) return null;
   const r = spawnSync(bin, [], { input: JSON.stringify({ id: 1, ...req }) + "\n", encoding: "utf8", timeout });
   try {
