@@ -7949,6 +7949,83 @@
     "results/countdown-hidden-arm/**",
     "docs/team/handoffs/countdown-hidden-arm.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-inspect",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Original preview arm on the phone (plain-HTTP LAN sends no Sec-Fetch-Dest, so Referer-routed scripts missed the 302): redirect Referer-routed .js/.mjs; plus fw preview grant, a loopback-only, single-use, preview-only access link for agents (Lean console.previewGrant + ownerGate)",
+   "deps": [],
+   "writes": [
+    "apps/console-api/src/app.ts",
+    "apps/console-api/src/main.ts",
+    "apps/console-api/src/preview/**",
+    "apps/console-api/test/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/preview.ts",
+    "apps/runner/test/preview-grant.test.ts",
+    "docs/team/handoffs/preview-inspect.md",
+    "docs/team/tools/preview-grant.md",
+    "lean/Fw/Console/PreviewOwner.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "research/notes/2026/10-20-preview-original-gate.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-script-move",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Follow-up of preview-inspect: Lean scriptMove(path, secFetchDest) replaces the TS isScriptPath stand-in; golden covers script, empty (plain-HTTP LAN), serviceworker and worker (serve in place)",
+   "deps": [
+    "preview-inspect"
+   ],
+   "writes": [
+    "lean/Fw/Console/PreviewOwner.lean",
+    "lean/Fw/Wire/Console.lean",
+    "apps/console-api/src/preview/proxy.ts",
+    "apps/console-api/test/**",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/preview-script-move.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "console-daemon",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "User 2026-10-20: console runs in the background with no Terminal window; fw console start|stop|restart|status|logs [-f]; owner access without a tty sink an agent can read; Lean lifecycle rules (start refused when a verified console runs, stop only the health-verified pid, link sink); post-land routine uses it",
+   "deps": [
+    "preview-inspect"
+   ],
+   "writes": [
+    "apps/console-api/src/main.ts",
+    "apps/console-api/src/daemon*.ts",
+    "apps/console-api/src/owner-link.ts",
+    "apps/console-api/src/preview/link.ts",
+    "apps/console-api/package.json",
+    "apps/console-api/test/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/console*.ts",
+    "apps/runner/test/console*.test.ts",
+    "lean/Fw/Console/Daemon*.lean",
+    "lean/Fw/Console/PreviewOwner.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/**",
+    "docs/team/tools/console.md",
+    "docs/team/handoffs/console-daemon.md"
+   ]
   }
  ],
  "deadline": {
