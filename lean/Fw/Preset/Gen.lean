@@ -13,14 +13,13 @@ open Lean Fw.Preset
 /-- **The link table**: each flag and the ledger rows that carry its proof, in priority order (the first qualifying flag
 of a part wins). A row is named by its (part, candidate) text; $k_n$ below is the row of ledger entry $n$ (for $n = 8$
 and $25$ the letter names which of the rows with that $n$). The mapping is read from the variants' code and the rows'
-text (INFERRED); a flag absent here never enters the arm (`unlinked_not_mem`).
+text (INFERRED); a flag absent here never enters the arm (`unlinked_not_mem`), and a curated flag is dropped from it
+before the arm is decided (`links`).
 
-$$\Lambda = [(\mathrm{engine.scroll{:}batched}, [k_1]),\ (\mathrm{nav.hitTest{:}elements\text{-}skip}, [k_4]),\ (\mathrm{nav.hitTest{:}hit\text{-}skip}, [k_3]),\ (\mathrm{hero.countdown{:}strip}, [k_7]),\ (\mathrm{morph.countdown{:}strip}, [k_7, k_{13}]),\ (\mathrm{morph.countdown{:}hidden\text{-}pause}, [k_{8h}, k_{25m}]),\ (\mathrm{morph.columns{:}hidden\text{-}pause}, [k_{25h}]),\ (\mathrm{engine.scene{:}hidden\text{-}pause}, [k_{25h}]),\ (\mathrm{morph.mount{:}shift}, [k_{12}]),\ (\mathrm{morph.tween{:}waapi}, [k_9]),\ (\mathrm{pain.notes{:}visible}, [k_{21}]),\ (\mathrm{people.card{:}mq}, [k_{16}])]$$
-
-`hero.accent{:}steps` (n = 15) is registered but deliberately absent: its ledger verdict is a trade on Chromium and no win on WebKit, so it is a curated exclusion (INFERRED); a follow-up makes the generator require an engine-win field.
+$$\Lambda_0 = [(\mathrm{engine.scroll{:}batched}, [k_1]),\ (\mathrm{nav.hitTest{:}elements\text{-}skip}, [k_4]),\ (\mathrm{nav.hitTest{:}hit\text{-}skip}, [k_3]),\ (\mathrm{hero.countdown{:}strip}, [k_7]),\ (\mathrm{morph.countdown{:}strip}, [k_7, k_{13}]),\ (\mathrm{morph.countdown{:}hidden\text{-}pause}, [k_{8h}, k_{25m}]),\ (\mathrm{morph.columns{:}hidden\text{-}pause}, [k_{25h}]),\ (\mathrm{engine.scene{:}hidden\text{-}pause}, [k_{25h}]),\ (\mathrm{morph.mount{:}shift}, [k_{12}]),\ (\mathrm{morph.tween{:}waapi}, [k_9]),\ (\mathrm{pain.notes{:}visible}, [k_{21}]),\ (\mathrm{people.card{:}mq}, [k_{16}])]$$
 
 Each flag points at the ledger rows that must all be proved for it to enter. -/
-def links : List (Flag × List Key) :=
+def linkTable : List (Flag × List Key) :=
   let k1 : Key := ("engine.scroll", "batched (all reads, then all returned writes, one pass per frame)")
   let k3 : Key := ("nav.hitTest", "hit-skip (skip the probe while morph > 0.2)")
   let k4 : Key := ("nav.hitTest", "elements-skip (elementsFromPoint with an allow-list, no pointer-events write)")
@@ -53,6 +52,72 @@ def links : List (Flag × List Key) :=
    (⟨"morph.tween", "waapi"⟩, [k9]),
    (⟨"pain.notes", "visible"⟩, [k21]),
    (⟨"people.card", "mq"⟩, [k16])]
+
+/-- **The curated exclusions**: flags kept out of the arm whatever the ledger says, each with its reason. `hero.accent`
+has no link; the two strips share the row $k_7$ and leave by the C3 decision (`research/notes/2026/10-19-c3-decision.md`).
+
+$$\Xi = [(\mathrm{hero.accent{:}steps}, \rho_{15}),\ (\mathrm{hero.countdown{:}strip}, \rho_{C3}),\ (\mathrm{morph.countdown{:}strip}, \rho_{C3}')]$$ -/
+def curated : List (Flag × String) :=
+  [(⟨"hero.accent", "steps"⟩,
+    "ledger n = 15: a trade on Chromium and no win on WebKit (INFERRED); a follow-up makes the generator require an \
+      engine-win field"),
+   (⟨"hero.countdown", "strip"⟩,
+    "C3 decision (research/notes/2026/10-19-c3-decision.md): modelled, not proved. Its only prediction (census.layers \
+      below the original) is unchecked, and the strip arm MEASURED more pipeline work (UpdateLayoutTree.elementCount \
+      11264 -> 22445, runs 39257533380, 39259074927)"),
+   (⟨"morph.countdown", "strip"⟩,
+    "C3 decision (research/notes/2026/10-19-c3-decision.md): requires hero.countdown:strip and rests on its row k7, \
+      both out of the arm")]
+
+/-- The reason a flag is curated out, `none` when it is not.
+
+$$\operatorname{reasonOf}(f) = \begin{cases} \rho & (f, \rho) \text{ is the first pair of } \Xi \text{ with flag } f \\ \bot & \text{no pair of } \Xi \text{ has flag } f \end{cases}$$ -/
+def reasonOf (f : Flag) : Option String := (curated.find? (·.1 == f)).map (·.2)
+
+/-- **The links the arm is decided from**: the link table without the curated flags.
+
+$$\Lambda = [\,(f, \kappa) \in \Lambda_0 \mid \operatorname{reasonOf}(f) = \bot\,]$$ -/
+def links : List (Flag × List Key) := linkTable.filter fun l => (reasonOf l.1).isNone
+
+/-- Dropping the curated flags changes no other link and removes every curated one.
+
+$$\forall f:\ \operatorname{linkOf}(\Lambda, f) = \begin{cases} \operatorname{linkOf}(\Lambda_0, f) & \operatorname{reasonOf}(f) = \bot \\ \bot & \operatorname{reasonOf}(f) \ne \bot \end{cases}$$
+
+The exclusion touches only the flags it names. -/
+theorem linkOf_links (f : Flag) :
+    linkOf links f = if (reasonOf f).isNone then linkOf linkTable f else none := by
+  unfold links linkOf
+  generalize linkTable = l
+  induction l with
+  | nil => split <;> rfl
+  | cons a t ih =>
+    rw [List.filter_cons]
+    by_cases h : a.1 = f
+    · subst h
+      by_cases hr : (reasonOf a.1).isNone = true
+      · simp only [hr, ite_true, List.find?_cons, beq_self_eq_true, Option.map_some]
+      · simp only [hr, ih, Bool.false_eq_true, ite_false]
+    · have hb : (a.1 == f) = false := by simpa using h
+      by_cases hr : (reasonOf a.1).isNone = true
+      · simp only [hr, ite_true, List.find?_cons, hb, ih]
+      · simp only [hr, ih, Bool.false_eq_true, ite_false, List.find?_cons, hb]
+
+/-- A flag that is not curated keeps its link-table link.
+
+$$\forall f:\ \operatorname{reasonOf}(f) = \bot \Rightarrow \operatorname{linkOf}(\Lambda, f) = \operatorname{linkOf}(\Lambda_0, f)$$
+
+Every other flag is decided from the ledger exactly as before. -/
+theorem linkOf_links_of_none {f : Flag} (h : reasonOf f = none) : linkOf links f = linkOf linkTable f := by
+  simp [linkOf_links, h]
+
+/-- **A curated flag never enters the arm**, whatever the registry and the ledger say.
+
+$$\forall R, L, f:\ \operatorname{reasonOf}(f) \ne \bot \Rightarrow f \notin \operatorname{preset}(R, \Lambda, L)$$
+
+A proved ledger row cannot bring an excluded flag back. -/
+theorem curated_not_mem {reg : List Reg} {ledger : List Row} {f : Flag} (h : reasonOf f ≠ none) :
+    f ∉ preset reg links ledger :=
+  unlinked_not_mem (by simp [linkOf_links, h])
 
 /-- Parse `part:variant`: exactly one colon, both sides non-empty.
 
@@ -172,23 +237,31 @@ $$\operatorname{rowJson}(r) = \{\mathrm{status}: r.\mathrm{status},\ \mathrm{fRe
 def rowJson (r : Row) : Json :=
   Json.mkObj [("status", .str r.status), ("fResult", match r.fResult with | some x => .str (fresWord x) | none => .null)]
 
-/-- The flags with a decision row: the linked flags in link order, then the registered `optimized` flags without a
-link, sorted by key.
+/-- The verdict of a decision row: `excluded` with its reason for a curated flag, else the ledger verdict.
 
-$$\operatorname{decided}(R) = [\,f \mid (f, \kappa) \in \Lambda\,] \mathbin{+\!\!+} \operatorname{sort}_{\operatorname{key}}[\,r.\mathrm{flag} \mid r \in R,\ r.\mathrm{kind} = \mathrm{optimized},\ \operatorname{linkOf}(\Lambda, r.\mathrm{flag}) = \bot\,]$$ -/
+$$\operatorname{verdictJson}(L, f) = \begin{cases} \{\mathrm{verdict}: \texttt{excluded},\ \mathrm{reason}: \rho\} & \operatorname{reasonOf}(f) = \rho \\ \operatorname{whyJson}(\operatorname{why}(\Lambda, L, f)) & \operatorname{reasonOf}(f) = \bot \end{cases}$$ -/
+def verdictJson (ledger : List Row) (f : Flag) : Json :=
+  match reasonOf f with
+  | some r => Json.mkObj [("verdict", "excluded"), ("reason", .str r)]
+  | none => whyJson (why links ledger f)
+
+/-- The flags with a decision row: the link-table flags in link order, then the registered `optimized` flags without a
+link-table link, sorted by key.
+
+$$\operatorname{decided}(R) = [\,f \mid (f, \kappa) \in \Lambda_0\,] \mathbin{+\!\!+} \operatorname{sort}_{\operatorname{key}}[\,r.\mathrm{flag} \mid r \in R,\ r.\mathrm{kind} = \mathrm{optimized},\ \operatorname{linkOf}(\Lambda_0, r.\mathrm{flag}) = \bot\,]$$ -/
 def decided (reg : List Reg) : List Flag :=
-  links.map (·.1) ++
-    ((reg.filter fun r => r.kind == .optimized && (linkOf links r.flag).isNone).map (·.flag)).mergeSort
+  linkTable.map (·.1) ++
+    ((reg.filter fun r => r.kind == .optimized && (linkOf linkTable r.flag).isNone).map (·.flag)).mergeSort
       (fun a b => a.key ≤ b.key)
 
 /-- One decision row: the flag, whether it is registered `optimized`, its verdict, membership, the flag that shadows
 it, and the ledger inputs it read (the rows of each linked key and the rows naming the flag).
 
-$$\operatorname{decision}(R, L, f) = \{\mathrm{flag}: \operatorname{key}(f), \mathrm{registered}: \operatorname{isOpt}(R, f), \mathrm{why}: \operatorname{whyJson}(\operatorname{why}(\Lambda, L, f)), \mathrm{member}: f \in \operatorname{preset}(R, \Lambda, L), \mathrm{shadowedBy}, \mathrm{rows}, \mathrm{flagRows}\}$$
+$$\operatorname{decision}(R, L, f) = \{\mathrm{flag}: \operatorname{key}(f), \mathrm{registered}: \operatorname{isOpt}(R, f), \mathrm{why}: \operatorname{verdictJson}(L, f), \mathrm{member}: f \in \operatorname{preset}(R, \Lambda, L), \mathrm{shadowedBy}, \mathrm{rows}, \mathrm{flagRows}\}$$
 
 $$\mathrm{shadowedBy} = \begin{cases} \operatorname{key}(g) & \operatorname{ok}(R, \Lambda, L, f) \land f \notin \operatorname{preset}(R, \Lambda, L) \land \operatorname{firstOk}(\operatorname{ok}(R, \Lambda, L), [\,h \mid (h, \kappa) \in \Lambda\,], f.\mathrm{part}) = g \\ \mathrm{null} & \text{otherwise} \end{cases}$$
 
-$$\mathrm{rows} = [\,\{\mathrm{part}: k_1,\ \mathrm{candidate}: k_2,\ \mathrm{found}: [\operatorname{rowJson}(r) \mid r \in \operatorname{rowsOf}(L, k)]\} \mid k \in \operatorname{linkOf}(\Lambda, f) \text{, or } [] \text{ when } \operatorname{linkOf}(\Lambda, f) = \bot\,],\quad \mathrm{flagRows} = [\,\operatorname{rowJson}(r) \mid r \in L,\ r.\mathrm{flag} = \operatorname{key}(f)\,]$$ -/
+$$\mathrm{rows} = [\,\{\mathrm{part}: k_1,\ \mathrm{candidate}: k_2,\ \mathrm{found}: [\operatorname{rowJson}(r) \mid r \in \operatorname{rowsOf}(L, k)]\} \mid k \in \operatorname{linkOf}(\Lambda_0, f) \text{, or } [] \text{ when } \operatorname{linkOf}(\Lambda_0, f) = \bot\,],\quad \mathrm{flagRows} = [\,\operatorname{rowJson}(r) \mid r \in L,\ r.\mathrm{flag} = \operatorname{key}(f)\,]$$ -/
 def decision (reg : List Reg) (ledger : List Row) (f : Flag) : Json :=
   let p := preset reg links ledger
   let fs := links.map (·.1)
@@ -197,9 +270,9 @@ def decision (reg : List Reg) (ledger : List Row) (f : Flag) : Json :=
       | some g => .str g.key
       | none => .null
     else .null
-  let rows := ((linkOf links f).getD []).map fun k =>
+  let rows := ((linkOf linkTable f).getD []).map fun k =>
     Json.mkObj [("part", .str k.1), ("candidate", .str k.2), ("found", .arr ((rowsOf ledger k).map rowJson).toArray)]
-  Json.mkObj [("flag", .str f.key), ("registered", .bool (isOpt reg f)), ("why", whyJson (why links ledger f)),
+  Json.mkObj [("flag", .str f.key), ("registered", .bool (isOpt reg f)), ("why", verdictJson ledger f),
     ("member", .bool (p.contains f)), ("shadowedBy", shadow), ("rows", .arr rows.toArray),
     ("flagRows", .arr ((ledger.filter (·.flag == some f.key)).map rowJson).toArray)]
 
@@ -294,6 +367,16 @@ def run (args : List String) : IO Unit := do
     ("conflicts", Json.mkObj [])])).toOption.map fun rs => rs.map fun r => (r.flag.key, r.requires.map (·.key)))
   == some [("m:faithful", []), ("m:s", ["h:s"])]
 #guard presetText [⟨"b", "x"⟩, ⟨"a", "y"⟩] == "{\"extends\":\"original\",\"fw\":{\"a\":\"y\",\"b\":\"x\"},\"name\":\"v2-proved\"}\n"
+#guard (reasonOf ⟨"hero.countdown", "strip"⟩).isSome
+#guard (reasonOf ⟨"morph.countdown", "strip"⟩).isSome
+#guard (reasonOf ⟨"hero.accent", "steps"⟩).isSome
+#guard (reasonOf ⟨"morph.countdown", "hidden-pause"⟩).isNone
+#guard (reasonOf ⟨"hero.countdown", "hidden-pause"⟩).isNone
+#guard links.map (·.1.key) == ["engine.scroll:batched", "nav.hitTest:elements-skip", "nav.hitTest:hit-skip",
+  "morph.countdown:hidden-pause", "morph.columns:hidden-pause", "engine.scene:hidden-pause", "morph.mount:shift",
+  "morph.tween:waapi", "pain.notes:visible", "people.card:mq"]
+#guard ((verdictJson [] ⟨"hero.countdown", "strip"⟩).getObjValAs? String "verdict").toOption == some "excluded"
+#guard ((verdictJson [] ⟨"morph.countdown", "hidden-pause"⟩).getObjValAs? String "verdict").toOption == some "row-count"
 #guard presetText [] == "{\"extends\":\"original\",\"fw\":{},\"name\":\"v2-proved\"}\n"
 
 end Fw.Preset.Gen
