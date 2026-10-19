@@ -11,9 +11,10 @@ State: branch `worktree-wf_ebd5ee90-ef5-1`. CI ran on `ci/port-completeness-gate
   (advisory) until the gap lanes land, so remove it once checks 3+4 pass. Trigger row G11 adds `scripts/port/**` and
   `golden/port/**`. land.ts site reads add port goldens, `scripts/port/**` and `anchors.json`.
 
-Flagged on main (debug dist, confirm with the CI artifact `port-report`):
-- assets missing: why-bring icons (4), lawyer-consult-cover.png, direct/compact client arrows, fastwork-Bold.ttf.
-- svg missing: nav wordmark (`<g>` wrapper dropped), people.deck mute icon and 3 rating stars. svg extra: the rewrite's nav wordmark.
+Flagged on main (MEASURED, CI run 39217249207, artifact `port-report`): assets 3 of 111 missing:
+`/fonts/fastwork-Bold.ttf`, `commission/direct-client-arrow.svg`, `compact-your-client-arrow.svg`. Svg check, 31 orig
+vs 30 rewrite: 2 missing (nav wordmark, which loses its `<g>`, 10 vs 9 elements; a platform.entries 24x24 icon) and 1
+extra (the rewrite's nav wordmark). The gate step failed (advisory); goldens and head tests passed.
 
 Design:
 - Check 3 decides per URL. Original URLs are crawled from snapshot index.html plus reachable js/css, skipping `/__vendor/`.
