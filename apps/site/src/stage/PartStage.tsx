@@ -18,7 +18,7 @@ import type { FwConfig } from '../registry/types';
 import { parts } from '../registry';
 import type { StageSpec } from '../registry/only';
 import type { Pinned } from './fixedEnv';
-import { COLUMNS_SECTIONS, hostOf, MAIN_SECTIONS, SECTION_ANCHOR, SECTIONS, type Host } from './hosts';
+import { COLUMNS_SECTIONS, HOST_FRAME, hostOf, MAIN_SECTIONS, SECTION_ANCHOR, SECTIONS, type Host } from './hosts';
 import { applyInputs } from './inputs';
 import { planStage } from './plan';
 
@@ -175,7 +175,7 @@ export function PartStage({ stage, config, pinned }: { stage: StageSpec; config:
       {hosts
         .filter((h) => !SECTIONS.some((s) => s === h))
         .map((h) => (
-          <div key={h} data-fw-stage-host={h}>
+          <div key={h} data-fw-stage-host={h} style={HOST_FRAME[h]}>
             {renderHost(h, config)}
           </div>
         ))}

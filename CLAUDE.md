@@ -58,8 +58,8 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference.
   in Lean before it is coded. Then it runs in Lean (`fwcore`), or Lean generates it (constants, CSS media strings,
   JSON), or the TS/React code is checked against Lean-generated golden vectors. Only I/O, rendering and glue stay
   unproved, and they hold no decision logic. A TS stand-in is temporary and listed in your report.
-- **Lean math:** every theorem's docstring carries its statement as LaTeX math; the user reviews the math, not the
-  Lean. Comment rules: `.claude/skills/no-comments/SKILL.md`.
+- **Lean math:** the math a user reads is written from the Lean statements into the artifact that shows it, and
+  math-reviewer checks it there. Comment rules: `.claude/agents/comment-sicko.md`.
 - **Processes:** kill only PIDs your own run started, never by app or pattern name; use separate browser profile dirs
   and clean up child process groups you spawned.
 - **Context:** never print > ~150 lines (filter, or write to a scratch file and read excerpts); grep before reading;

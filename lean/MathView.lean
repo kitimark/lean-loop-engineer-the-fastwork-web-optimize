@@ -184,7 +184,7 @@ structure Entry where
   kind      : String
   module    : String
   doc       : Option String
-  english   : String          -- the docstring text before its first `$$`
+  english   : String          -- the whole docstring, trimmed (empty without one)
   math      : List String     -- `$$…$$` blocks in the docstring
   signature : String
   autoTex   : String
@@ -253,11 +253,11 @@ def mathBlocks (doc : String) : List String :=
   | _ :: rest => (rest.zipIdx.filter (·.2 % 2 == 0)).map (·.1.trimAscii.toString)
   | [] => []
 
-/-- The English part of a docstring: everything before the first `$$`, trimmed. -/
-def english (doc : String) : String :=
-  match doc.splitOn "$$" with
-  | e :: _ => e.trimAscii.toString
-  | [] => ""
+/-- The English part of a docstring: the whole docstring, trimmed. -/
+def english (doc : String) : String := doc.trimAscii.toString
+
+#guard english "  One sentence.\n" == "One sentence."
+#guard english "" == ""
 
 def kindOf : ConstantInfo → String
   | .thmInfo _ => "theorem" | .defnInfo _ => "def" | .inductInfo _ => "inductive"
@@ -407,17 +407,26 @@ def entries (want : Name → Bool := fun _ => true) : MetaM (Array Entry) := do
 /-- The axioms a finished proof may use. -/
 def standardAxioms : List String := ["propext", "Classical.choice", "Quot.sound"]
 
-/-- Lint failures of one entry: a failed export, no docstring math or English, `sorryAx`, or a non-standard
-axiom. -/
+/-- Lint failures of one entry: a failed export, a dependence on `sorryAx`, or a non-standard axiom. -/
 def lintEntry (e : Entry) : List String :=
   (match e.error with
     | some msg => [s!"{e.name} ({e.module}:{e.line}): export failed: {msg}"]
     | none => []) ++
-  (if e.math.isEmpty then [s!"{e.name} ({e.module}:{e.line}): no $$ math in its docstring"] else []) ++
-  (if e.english.isEmpty then [s!"{e.name} ({e.module}:{e.line}): no English sentence before the math"] else []) ++
   (if !e.sorryFree && e.error.isNone then [s!"{e.name} ({e.module}:{e.line}): depends on sorryAx (unfinished proof)"] else []) ++
   ((e.axioms.filter (fun a => a != "sorryAx" && !standardAxioms.contains a)).map
     fun a => s!"{e.name} ({e.module}:{e.line}): non-standard axiom {a}")
+
+def lintProbe (doc : Option String) (axs : List String) : Entry :=
+  { name := "Fw.Probe.t", kind := "theorem", module := "Fw.Probe", doc, english := (doc.map english).getD "",
+    math := (doc.map mathBlocks).getD [], signature := "", autoTex := "", stmtHash := "",
+    mathHash := s!"{mathHash doc}", axioms := axs, sorryFree := !axs.contains "sorryAx", line := 1, heartbeats := 0 }
+
+#guard lintEntry (lintProbe none ["propext"]) == []
+#guard lintEntry (lintProbe (some "A plain sentence.") ["propext", "Quot.sound"]) == []
+#guard (lintProbe (some "  A plain sentence.\n") []).english == "A plain sentence."
+#guard lintEntry (lintProbe none ["sorryAx"]) == ["Fw.Probe.t (Fw.Probe:1): depends on sorryAx (unfinished proof)"]
+#guard lintEntry (lintProbe (some "A plain sentence.") ["Fw.ax"]) == ["Fw.Probe.t (Fw.Probe:1): non-standard axiom Fw.ax"]
+#guard (lintEntry { lintProbe none [] with error := some "boom" }).length == 1
 
 /-! ## Quantifier lint (heuristic, warning only): a theorem's explicit binders must be bound in its `$$` math -/
 
