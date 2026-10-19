@@ -8174,6 +8174,866 @@
     "docs/team/handoffs/preview-e2e.md",
     "pnpm-lock.yaml"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fwcore-lazy-tables",
+   "owner": "lean-prover",
+   "stream": "lean",
+   "title": "Lean migration wave 0 (S): Make the 4 eager test tables Unit -> _; lint new large top-level constants in fwcore imports; CI re-measure of spawn CPU-s is the acceptance",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/PainNotesGolden.lean",
+    "lean/Fw/Parts/Contract.lean",
+    "lean/Fw/Wire/ShardGolden.lean",
+    "lean/Fw/Parts/Golden.lean",
+    "lean/scripts/ShardGolden.lean",
+    "lean/Fw/Lint/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "parts-golden-fresh",
+   "owner": "lean-prover",
+   "stream": "site",
+   "title": "Lean migration wave 0 (S): fwcore partsgolden --check job in check.sh",
+   "deps": [
+    "fwcore-lazy-tables"
+   ],
+   "writes": [
+    "lean/Fw/Parts/Golden.lean",
+    "lean/scripts/check.sh"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-gen-compiled",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "title": "Lean migration wave 0 (S): freezegen and settlegen as sweepsgen subcommands like sweepsgen scope",
+   "deps": [],
+   "writes": [
+    "packages/gate-breakpoints/scripts/freezegen.mjs",
+    "packages/gate-breakpoints/scripts/settlegen.mjs",
+    "lean/SweepsgenMain.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fwcore-serve-runner",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Lean migration wave 0 (M): Shared fwcore serve child for runner async paths and the vitest setup; only if the CI re-measure after fwcore-lazy-tables still shows spawn cost",
+   "deps": [
+    "fwcore-lazy-tables"
+   ],
+   "writes": [
+    "apps/runner/src/run.ts",
+    "apps/runner/src/fwcore-serve.ts",
+    "apps/runner/test/setup*.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fwcore-client-shared",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Lean migration wave 0 (M): One fwcore client for gate, measure-chromium, measure-webkit, gh-budget, difftest; same condition",
+   "deps": [
+    "fwcore-lazy-tables"
+   ],
+   "writes": [
+    "packages/difftest/src/fwcore.mjs",
+    "packages/gate-breakpoints/src/verdict.mjs",
+    "packages/measure-chromium/src/fwcore.mjs",
+    "packages/measure-webkit/src/handoff.mjs",
+    "packages/gh-budget/src/core.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dead-twins-delete",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Lean migration wave 0 (S): Delete shells/model.ts with gen-shells and check:shells, and gate-shards.mjs with its Trigger.lean entry and golden row",
+   "deps": [],
+   "writes": [
+    "apps/site/src/shells/**",
+    "apps/site/scripts/gen-shells.mjs",
+    "apps/site/package.json",
+    ".github/scripts/gate-shards.mjs",
+    ".github/README.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-verdict-op",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Lean migration wave 1 (S): Op over LandVerdict and LandDry; land-verdict.ts calls it; tests become wire replay",
+   "deps": [
+    "land-queue-verdict"
+   ],
+   "writes": [
+    "lean/Fw/Console/LandVerdict.lean",
+    "lean/Fw/Console/LandDry.lean",
+    "lean/Fw/Wire/Console.lean",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/land-verdict.test.ts",
+    "apps/runner/test/land-dry.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "build-review-stages",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Lean migration wave 1 (S): Lean op from work-graph writes to workflow stages (isolation, math review, salvage) passed as args",
+   "deps": [
+    "workflow-salvage-wire"
+   ],
+   "writes": [
+    "lean/Fw/Plan/Workflow*.lean",
+    "lean/Fw/Wire/Plan.lean",
+    ".claude/workflows/build-review.js"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-exit-op",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "title": "Lean migration wave 1 (S): gate.exit op over Fw.Gate.Exit; delete the cli.mjs twin",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Wire/Gate.lean",
+    "packages/gate-breakpoints/src/cli.mjs",
+    "packages/gate-breakpoints/test/exit.test.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ledger-merge-op",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Lean migration wave 1 (S): merge-ledger.mjs calls an ops.ledgerMerge op; missing fwcore leaves a normal conflict",
+   "deps": [
+    "manifest-merge"
+   ],
+   "writes": [
+    "lean/Fw/Ops/Wire.lean",
+    "scripts/merge-ledger.mjs",
+    "apps/runner/test/ledger-merge.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "emit-record-golden",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Lean migration wave 1 (S): Lean ObsRecord cases pin emit.mjs record(); unseenSpawn as an fwcore op",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/Obs*.lean",
+    "packages/contracts/golden/ops/obs-record.jsonl",
+    "apps/runner/hooks/emit.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-select-op",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Lean migration wave 1 (M): Batched LandSpeed op (select, select2, prelock, checkDeps); Lean emits the read tables",
+   "deps": [
+    "land-verdict-op",
+    "quietsteps-op"
+   ],
+   "writes": [
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw/Wire/Console.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-prelock.test.ts",
+    "apps/runner/test/land-scope.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "build-base-op",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 1 (S): obs.chooseBase op; golden from the #guards replaces the hand table",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Obs/Stale.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "apps/console-api/src/core/build-base.ts",
+    "apps/console-api/test/build-base.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "next-classify-op",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Lean migration wave 1 (M): Raw command lines into obs.next and obs.signals; the Wait lexer classifies; delete the regexes",
+   "deps": [
+    "build-base-op"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Obs/Signals.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "apps/runner/src/next.ts",
+    "apps/runner/src/watch-collect.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "quietsteps-op",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Lean migration wave 1 (S): Tests call the wired measure.quietSteps op; then delete the quietsteps.mjs twin",
+   "deps": [],
+   "writes": [
+    "packages/measure-webkit/src/quietsteps.mjs",
+    "packages/measure-webkit/README.md",
+    "packages/difftest/test/measure-webkit.test.mjs",
+    "packages/measure-webkit/test/fwcore.test.mjs",
+    "apps/runner/src/land.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-cap-ops",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 1 (S): app.ts and cap.ts call ops.actor and ops.door",
+   "deps": [],
+   "writes": [
+    "apps/console-api/src/cap/cap.ts",
+    "apps/console-api/src/app.ts",
+    "apps/console-api/test/cap.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "engine-premise-op",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Lean migration wave 1 (M): ops.enginePremise; engine-premises.yml gets the fwcore artifact",
+   "deps": [
+    "ledger-merge-op"
+   ],
+   "writes": [
+    "lean/Fw/Ops/Wire.lean",
+    "packages/measure-chromium/src/premise-verdict.mjs",
+    ".github/workflows/engine-premises.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wktr-ops",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Lean migration wave 1 (S): measure.wktrVariance op; wktr premise and summarize call fwcore; WKTR_EXPECTED generated",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Measure/Wire.lean",
+    "packages/measure-wktr/fixtures/variance.mjs",
+    "packages/measure-wktr/fixtures/premise.mjs",
+    "packages/measure-wktr/fixtures/summarize.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "web-plan-columns",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): column : TState -> Lane -> Column with an exhaustiveness theorem; TS groups by it",
+   "deps": [
+    "build-review-stages"
+   ],
+   "writes": [
+    "lean/Fw/Plan/Core.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "packages/contracts/src/index.ts",
+    "apps/console-web/src/Plan.tsx",
+    "apps/console-web/test/device-lane.test.tsx",
+    "apps/console-web/test/plan-cut.test.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-workflow-op",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (M): plan.workflow op plus the time rule spawn_at <= stop_at",
+   "deps": [
+    "web-plan-columns"
+   ],
+   "writes": [
+    "lean/Fw/Plan/Workflow.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "apps/console-api/src/spool/workflow.ts",
+    "apps/console-api/test/workflow-claim.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-reconcile-op",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (M): console.reconcile over refs, ahead counts and trailers returns card.build and card.landed commands",
+   "deps": [
+    "land-select-op"
+   ],
+   "writes": [
+    "lean/Fw/Console/Reconcile.lean",
+    "lean/Fw/Wire/Console.lean",
+    "apps/console-api/src/reconcile/reconciler.ts",
+    "apps/console-api/src/reconcile/naming.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-done-infer",
+   "owner": "lean-prover",
+   "stream": "console",
+   "title": "Lean migration wave 2 (M): task.done inference (step 3b) in Lean: done only with evidence on main; idempotent keys",
+   "deps": [
+    "api-reconcile-op"
+   ],
+   "writes": [
+    "lean/Fw/Console/Reconcile.lean",
+    "apps/console-api/src/reconcile/reconciler.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "web-step-offers",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): offered(step, actor) with offered implies accepted; fix or remove PostForm",
+   "deps": [
+    "api-reconcile-op",
+    "web-plan-columns"
+   ],
+   "writes": [
+    "lean/Fw/Console.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/src/index.ts",
+    "apps/console-web/src/App.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "web-detail-tables",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): Lean emits refusal and target text plus hasDetail per task",
+   "deps": [
+    "api-workflow-op"
+   ],
+   "writes": [
+    "lean/Fw/Console/Preview.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "apps/console-web/src/TaskDetail.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "web-health-rows",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): Code.row with decide-proved coverage of the 24 codes, emitted by obs.health",
+   "deps": [
+    "next-classify-op"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Health.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/health.jsonl",
+    "apps/console-web/src/Health.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-isours-op",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): Signal decision over ps facts; a pid whose start time changed is never signalled",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/PreviewSignal.lean",
+    "apps/console-api/src/preview/manager.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-store-replay",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): Lean decides replay repair: only the last line may drop",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/StoreReplay.lean",
+    "apps/console-api/src/store.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-owner-raw",
+   "owner": "lean-prover",
+   "stream": "console",
+   "title": "Lean migration wave 2 (M): ownerGate, ownerAction and the grant checks classify raw Host, Origin and remote address",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/PreviewOwner.lean",
+    "apps/console-api/src/preview/owner.ts",
+    "apps/console-api/src/preview/lan.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "web-plan-layers",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (M): layers in Plan.Graph with dep_left; plan view emits layer and row",
+   "deps": [
+    "web-detail-tables"
+   ],
+   "writes": [
+    "lean/Fw/Plan/Graph.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "apps/console-web/src/Plan.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-preview-facts-raw",
+   "owner": "lean-prover",
+   "stream": "console",
+   "title": "Lean migration wave 2 (L): Lean derives noCode, behind, ownWork and candidates from raw git facts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/PreviewFacts.lean",
+    "apps/console-api/src/preview/facts.ts",
+    "apps/console-api/scripts/gen-preview-facts.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "web-builds-action",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): rowAction in console.builds",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/Builds.lean",
+    "apps/console-web/src/Builds.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "site-hand-expect-golden",
+   "owner": "lean-prover",
+   "stream": "site",
+   "title": "Lean migration wave 3 (S): Golden rows for HeroAccentOpt bounds and chain, PainNotesOpt armed and resumeAt, HiddenPause constants; delete the hand copies",
+   "deps": [
+    "fwcore-lazy-tables"
+   ],
+   "writes": [
+    "lean/Fw/Parts/HeroAccent*.lean",
+    "lean/Fw/Parts/PainNotes*.lean",
+    "lean/Fw/Parts/HiddenPause*.lean",
+    "apps/site/src/parts/hero.accent/*.test.ts",
+    "apps/site/src/parts/pain.notes/*.test.ts",
+    "apps/site/src/parts/engine.scene/*.test.ts",
+    "packages/contracts/golden/parts/hero.accent.jsonl",
+    "packages/contracts/golden/parts/pain.notes.jsonl",
+    "packages/contracts/golden/parts/engine.scene.jsonl"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "site-flags-lean",
+   "owner": "lean-prover",
+   "stream": "site",
+   "title": "Lean migration wave 3 (M): Fw.Site.Flags over the real registry (presets, @impl, requires, conflicts); golden; prerender list generated",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Site/Flags.lean",
+    "packages/contracts/golden/site/flags.jsonl",
+    "apps/site/src/registry/resolve.test.ts",
+    "apps/site/src/entry-server.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "engine-clock-lean",
+   "owner": "lean-prover",
+   "stream": "site",
+   "title": "Lean migration wave 3 (S): Fw.Parts.EngineClock and the missing engine.clock.jsonl",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/EngineClock.lean",
+    "packages/contracts/golden/parts/engine.clock.jsonl"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "site-media-ids-gen",
+   "owner": "lean-prover",
+   "stream": "site",
+   "title": "Lean migration wave 3 (S): Scope.lean emits per-part media id lists; media.ts imports them",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Gate/Scope.lean",
+    "apps/site/src/parts/*/media.ts",
+    "packages/gate-breakpoints/test/scope.test.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "site-test-speed",
+   "owner": "console-builder",
+   "stream": "site",
+   "title": "Lean migration wave 3 (S): svg-extract scan via git grep, footprint test only on parts changes, vitest isolate false",
+   "deps": [],
+   "writes": [
+    "apps/site/vitest.config.ts",
+    "apps/site/src/svg-extract.test.ts",
+    "apps/site/src/footprint.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "parts-golden-rows",
+   "owner": "lean-prover",
+   "stream": "site",
+   "title": "Lean migration wave 3 (M): Rows for every exported function with a theorem",
+   "deps": [
+    "parts-golden-fresh",
+    "site-hand-expect-golden",
+    "engine-clock-lean"
+   ],
+   "writes": [
+    "lean/Fw/Parts/Golden.lean",
+    "packages/contracts/golden/parts/*.jsonl"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "counts-plan-op",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (S): measure.countsPlan like simPlan; the plan job needs fwcore",
+   "deps": [
+    "wktr-ops"
+   ],
+   "writes": [
+    "lean/Fw/Measure/SimPlan.lean",
+    "lean/Fw/Measure/Wire.lean",
+    ".github/workflows/chromium-counts.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gh-wait-op",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (M): ci.wait.evaluate: run selection, grace, missing lanes",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ci/Verdict.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "packages/gh-budget/src/wait.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wave2-attribution-lean",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Lean migration wave 4 (M): engine-check attribution rule in Lean (MEASURED iff the non-faithful set equals the pair)",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Engine/Attribution.lean",
+    "packages/engine-check/src/wave2.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-summary-mask",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "title": "Lean migration wave 4 (M): Mask and not-rendered demotion inside gate.state",
+   "deps": [
+    "gate-exit-op"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Settle.lean",
+    "lean/Fw/Wire/Gate.lean",
+    "packages/gate-breakpoints/src/summary.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-jobs-op",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (S): gate.jobs (scope narrowing plus the probe deal, cover-once theorem) and gate.merge ops",
+   "deps": [
+    "gate-summary-mask"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Shard.lean",
+    "lean/Fw/Gate/Merge.lean",
+    "lean/Fw/Wire/Gate.lean",
+    ".github/scripts/gate-jobs.mjs",
+    ".github/scripts/merge-gate.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "plan-sync-op",
+   "owner": "lean-prover",
+   "stream": "plan",
+   "title": "Lean migration wave 4 (M): plan.sync op for topoSort and syncCommands",
+   "deps": [
+    "web-plan-layers"
+   ],
+   "writes": [
+    "lean/Fw/Plan/Core.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "packages/contracts/src/plan-sync.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-checks-op",
+   "owner": "lean-prover",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (M): ci-paths workflow checks (unguarded, dispatchOnly, status-if) as one op",
+   "deps": [
+    "dead-twins-delete",
+    "gh-wait-op"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-text-gen",
+   "owner": "lean-prover",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (M): Guard, tip, concurrency and push text emitted by Lean; ci-paths only splices",
+   "deps": [
+    "ci-checks-op"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "scripts/ci-paths.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "vd-verdict-op",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Lean migration wave 4 (S): visual-diff verdict and calm in fwcore; reuse the gate settle rule; tolerances generated",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Gate/Pixel.lean",
+    "packages/visual-diff/src/verdict.mjs",
+    "packages/visual-diff/src/settle-adapter.mjs",
+    "packages/visual-diff/src/run.mjs",
+    "packages/visual-diff/tolerances.json"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-arm-set-valid",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (M): Lean rule: all n arms present, all from one attempt; called before classify in 5 merge jobs",
+   "deps": [
+    "counts-plan-op"
+   ],
+   "writes": [
+    "lean/Fw/Measure/ArmSet.lean",
+    ".github/workflows/webkit-sim.yml",
+    ".github/workflows/chromium-counts.yml",
+    ".github/workflows/wktr.yml",
+    ".github/workflows/wktr-fixtures.yml",
+    ".github/workflows/breakpoint-gate.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lane-inputs-gen",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (M): Lean lane-input table as dispatch choices and defaults",
+   "deps": [
+    "ci-text-gen",
+    "ci-arm-set-valid",
+    "engine-premise-op"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Inputs.lean",
+    "scripts/ci-paths.mjs",
+    ".github/workflows/*.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "setup-lean-key-gen",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (S): Lake key globs from Trigger.fwcoreFiles, checked by ci-paths",
+   "deps": [
+    "lane-inputs-gen"
+   ],
+   "writes": [
+    ".github/actions/setup-lean/action.yml",
+    "scripts/ci-paths.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-fwcore-once",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (M): One fwcore build per commit reused by artifact in 8 workflows",
+   "deps": [
+    "lane-inputs-gen"
+   ],
+   "writes": [
+    ".github/workflows/*.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lfg-twin-freshness",
+   "owner": "lean-prover",
+   "stream": "lean",
+   "title": "Lean migration wave 5 (S): Lean-first gate input: a TS twin without a freshness job counts as a violation",
+   "deps": [
+    "lfg-enforce-all"
+   ],
+   "writes": [
+    "lean/Fw/Ops/LeanFirst*.lean"
+   ]
   }
  ],
  "deadline": {
