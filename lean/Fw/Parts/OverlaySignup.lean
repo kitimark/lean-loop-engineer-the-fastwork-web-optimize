@@ -304,6 +304,22 @@ def valid (name email : List Char) : Bool := !(trim name).isEmpty && emailOk (tr
 theorem blank_name_invalid (n m : List Char) (h : trim n = []) : valid n m = false := by
   simp [valid, h]
 
+/-- A bad email is never valid, whatever the name. $$\lnot\operatorname{email}(\operatorname{trim}(m)) \Rightarrow \lnot\operatorname{valid}(n, m)$$ -/
+theorem bad_email_invalid (n m : List Char) (h : emailOk (trim m) = false) : valid n m = false := by
+  simp [valid, h]
+
+/-- The name rule is only non-blankness: the snapshot's `iD` (JS 3910-3912) has no emoji or length test (the emoji
+pattern at JS 8010 belongs to the bundled validator library, which the sign-up form does not call; the form only
+sets `maxlength` 100 and 254 on the inputs).
+
+$$\operatorname{trim}(n) \ne \varepsilon \land \operatorname{email}(\operatorname{trim}(m)) \Rightarrow \operatorname{valid}(n, m)$$ -/
+theorem valid_of_parts (n m : List Char) (hn : (trim n).isEmpty = false) (hm : emailOk (trim m) = true) :
+    valid n m = true := by
+  simp [valid, hn, hm]
+
+#guard valid "😀".toList "a\x40example.com".toList
+#guard valid "👩‍💻".toList "a\x40example.com".toList
+
 /-! ## Submit -/
 
 /-- Form flags: a request is running, it succeeded, the last attempt failed.

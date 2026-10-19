@@ -134,7 +134,8 @@ def signupLines : List String :=
   (([("Ann", "a\x40example.com"), ("", "a\x40example.com"), ("  ", "a\x40example.com"), ("Ann", "a@b"), ("Ann", "a\x40.co"), ("Ann", "a\x40b."),
      ("Ann", "a b\x40example.com"), ("Ann", "a\x40\x40example.com"), (" Ann ", " a\x40b.c.d "), ("Ann", "\x40example.com"), ("Ann", "a\x40b.c"),
      ("Ann", "a\x40b..c"), ("Ann", ""), ("Ann", "a\x40b.c\x40d"), ("Ann", "a \x40example.com"), ("　", "a\x40example.com"),
-     ("Ann", "ปก\x40example.com"), ("Ann", "a\x40example.com ")] : List (String × String)).map fun (n, e) =>
+     ("Ann", "ปก\x40example.com"), ("Ann", "a\x40example.com "),
+     ("😀", "a\x40example.com"), ("👩‍💻", "a\x40example.com"), ("1", "a\x40example.com"), ("\n", "a\x40example.com")] : List (String × String)).map fun (n, e) =>
     line "valid" [("name", .str n), ("email", .str e)] (.bool (valid n.toList e.toList))) ++
   (let forms : List Form := [Form.init, ⟨true, false, false⟩, ⟨false, true, false⟩, ⟨false, false, true⟩]
    forms.flatMap fun f => [false, true].flatMap fun v => [false, true].map fun h =>
