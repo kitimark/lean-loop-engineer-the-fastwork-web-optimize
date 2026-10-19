@@ -64,6 +64,12 @@
 {"answers":false,"key":"rewrite+?fw=engine.scene:hidden-pause,nav.hitTest:hit-skip","search":"?fw=engine.scene:hidden-pause,nav.hitTest:hit-skip","target":"rewrite","variant":"rewrite+?fw=hero.countdown:strip,morph.countdown:strip"}
 {"answers":false,"key":"rewrite+?fw=engine.scene:hidden-pause,nav.hitTest:hit-skip","search":"?fw=engine.scene:hidden-pause,nav.hitTest:hit-skip","target":"rewrite","variant":"hidden-pause"}
 {"answers":false,"key":"rewrite+?fw=engine.scene:hidden-pause,nav.hitTest:hit-skip","search":"?fw=engine.scene:hidden-pause,nav.hitTest:hit-skip","target":"rewrite","variant":"original"}
+{"answers":false,"key":"rewrite+?only=hero","search":"?only=hero","target":"rewrite","variant":"rewrite"}
+{"answers":false,"key":"rewrite+?only=hero","search":"?only=hero","target":"rewrite","variant":"rewrite+?fw=morph.tween:waapi"}
+{"answers":false,"key":"rewrite+?only=hero","search":"?only=hero","target":"rewrite","variant":"rewrite+?fw=nav.hitTest:hit-skip"}
+{"answers":false,"key":"rewrite+?only=hero","search":"?only=hero","target":"rewrite","variant":"rewrite+?fw=hero.countdown:strip,morph.countdown:strip"}
+{"answers":false,"key":"rewrite+?only=hero","search":"?only=hero","target":"rewrite","variant":"hidden-pause"}
+{"answers":false,"key":"rewrite+?only=hero","search":"?only=hero","target":"rewrite","variant":"original"}
 {"answers":false,"key":"original","search":"","target":"original","variant":"rewrite"}
 {"answers":false,"key":"original","search":"","target":"original","variant":"rewrite+?fw=morph.tween:waapi"}
 {"answers":false,"key":"original","search":"","target":"original","variant":"rewrite+?fw=nav.hitTest:hit-skip"}

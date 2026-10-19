@@ -5518,7 +5518,8 @@
     "packages/engine-check/golden/keys.jsonl",
     "packages/engine-check/test/keys.test.mjs",
     "research/notes/2026/10-19-counts-only-finding.md"
-   ]
+   ],
+   "evidence": "050864f"
   },
   {
    "devices": [
