@@ -3,6 +3,7 @@ import Fw.Engine.Chromium
 import Fw.Engine.WebKit
 import Lean.Data.Json
 import Fw.Parts.EndFlags
+import Fw.Engine.Restyle
 
 /-!
 # hero.exit, variant `hero-exit-threaded`: scroll-driven consumers (design note §4.2, row HE)
@@ -1215,5 +1216,124 @@ theorem wk_tradeE (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.thr
   exact wk_trade μ hμ m hm l N lo hlo
 
 end EndPass
+
+/-! ## Variant `scoped`: `--exit-opacity` and `--exit-scatter` registered non-inherited, passed down an `inherit` chain -/
+
+section Scoped
+
+open Fw.Engine.Restyle Fw.Engine.Restyle.Node
+
+/-- The written element, as `part/class`. -/
+def stageName : String := "hero.exit/hero"
+
+/-- Classes whose rules read `--exit-opacity` or `--exit-scatter`, as `part/class`. -/
+def readers : List String := ["hero/copy", "hero.cue/cue", "hero.orbit/card"]
+
+/-- Classes with a `[data-exit-scope]` rule declaring `inherit` for both properties, as `part/class`. -/
+def inheritRules : List String :=
+  ["hero.orbit/orbit", "hero.orbit/stage", "hero.orbit/stage3d", "hero.orbit/card", "hero.deck/deck", "hero/copy",
+   "hero.cue/cue"]
+
+def card : Node := mk "hero.orbit/card" 1 0 14 []
+
+/-- The rendered hero stage summarised against `inheritRules`. -/
+def heroTree : Node :=
+  mk stageName 0 0 0
+    [mk "hero.orbit/orbit" 0 0 0 [mk "hero.orbit/stage" 0 0 0 [mk "hero.orbit/stage3d" 0 0 0 (List.replicate 10 card)]],
+     mk "hero.deck/deck" 0 0 0 (List.replicate 4 card),
+     mk "hero/copy" 3 0 53 [],
+     mk "hero.cue/cue" 1 0 5 []]
+
+def heroPaths : List (String × List Bool) := paths inheritRules.contains [] heroTree
+
+theorem hero_wf : heroTree.wf = true := by decide
+
+theorem chain_is_rules : ∀ o ∈ heroPaths, o.2.all id = true := by decide
+
+theorem readers_in_tree : ∀ r ∈ readers, heroPaths.any (·.1 == r) = true := by decide
+
+theorem consumer_eq_scoped (v : Option String) : ∀ o ∈ heroPaths, readers.contains o.1 = true →
+    valueAt .registered v o.2 = valueAt .inherited v o.2 :=
+  fun o ho _ => consumer_eq v o.2 (chain_is_rules o ho)
+
+/-- The stage's `--exit-opacity`: the driver's inline write, else the CSS default. -/
+def stageOpacity (written : Option String) : String := written.getD "1"
+
+/-- The stage's `--exit-scatter`; reduced motion overrides it with `0`. -/
+def stageScatter (reduced : Bool) (opacity : String) : String :=
+  if reduced then "0" else "calc(1 - " ++ opacity ++ ")"
+
+#guard stageOpacity none == "1" && stageOpacity (some "0.25") == "0.25"
+#guard stageScatter true "0.25" == "0" && stageScatter false "0.25" == "calc(1 - 0.25)"
+
+theorem defaults (reg : Reg) : ∀ o ∈ heroPaths, readers.contains o.1 = true →
+    valueAt reg (some (stageOpacity none)) o.2 = some "1" := by
+  intro o ho _
+  cases reg <;> simp [valueAt, stageOpacity, chain_is_rules o ho]
+
+theorem reduced_scatter (reg : Reg) (opacity : String) : ∀ o ∈ heroPaths, readers.contains o.1 = true →
+    valueAt reg (some (stageScatter true opacity)) o.2 = some "0" := by
+  intro o ho _
+  cases reg <;> simp [valueAt, stageScatter, chain_is_rules o ho]
+
+theorem scatter_eq (reduced : Bool) (opacity : String) : ∀ o ∈ heroPaths, readers.contains o.1 = true →
+    valueAt .registered (some (stageScatter reduced opacity)) o.2 =
+      valueAt .inherited (some (stageScatter reduced opacity)) o.2 :=
+  fun o ho _ => consumer_eq _ o.2 (chain_is_rules o ho)
+
+theorem cr_units : crUnits .registered heroTree = 21 := by decide
+theorem wk_units : wkUnits .registered heroTree = 21 := by decide
+theorem faithful_units : crUnits .inherited heroTree = 275 ∧ wkUnits .inherited heroTree = 275 := by decide
+
+theorem scoped_hero : crUnits .registered heroTree ≤ 1 + heroTree.flaggedKids ∧ heroTree.flaggedKids = 20 :=
+  ⟨scoped_le heroTree, by decide⟩
+
+theorem scoped_lt_faithful : crUnits .registered heroTree < crUnits .inherited heroTree ∧
+    wkUnits .registered heroTree < wkUnits .inherited heroTree := by decide
+
+/-- Elements and properties the driver writes per zone frame, in both variants. -/
+def frameWrites : List (String × String) := [(stageName, "--exit-opacity")]
+
+def zoneFirst : Nat := 10
+def zoneLast : Nat := 103
+def zoneFrames : Nat := zoneLast + 1 - zoneFirst
+
+#guard zoneFrames == 94
+
+/-- Contents of `packages/contracts/golden/parts/hero.exit.scoped.json`. -/
+def scopedJson : Lean.Json :=
+  let prop (n : String) : Lean.Json :=
+    Lean.Json.mkObj [("name", Lean.toJson n), ("syntax", Lean.toJson "*"), ("inherits", Lean.toJson false)]
+  Lean.Json.mkObj [
+    ("variant", Lean.toJson "scoped"),
+    ("scopeAttr", Lean.toJson "data-exit-scope"),
+    ("register", Lean.Json.arr #[prop "--exit-opacity", prop "--exit-scatter"]),
+    ("readers", Lean.toJson readers),
+    ("inheritRules", Lean.toJson inheritRules),
+    ("tree", heroTree.json),
+    ("frameWrites", Lean.Json.arr (frameWrites.map fun (e, p) =>
+      Lean.Json.mkObj [("element", Lean.toJson e), ("property", Lean.toJson p)]).toArray),
+    ("units", Lean.Json.mkObj [("chromium", Lean.toJson (crUnits .registered heroTree)),
+      ("webkit", Lean.toJson (wkUnits .registered heroTree)), ("faithful", Lean.toJson (crUnits .inherited heroTree))]),
+    ("zone", Lean.Json.mkObj [("first", Lean.toJson zoneFirst), ("last", Lean.toJson zoneLast),
+      ("frames", Lean.toJson zoneFrames), ("chromiumBound", Lean.toJson (zoneFrames * crUnits .registered heroTree)),
+      ("faithfulBound", Lean.toJson (zoneFrames * crUnits .inherited heroTree))])]
+
+def scopedText : String := scopedJson.pretty ++ "\n"
+
+/-- Print the golden, or with `--check <file>` compare it; exit 1 on a difference. -/
+def runScoped (args : List String) : IO UInt32 := do
+  match args with
+  | ["--check", path] =>
+    if (← IO.FS.readFile path) == scopedText then
+      IO.eprintln s!"exit scoped golden: {path} is up to date"
+      return 0
+    IO.eprintln s!"exit scoped golden: {path} differs from the generated text"
+    return 1
+  | _ =>
+    IO.print scopedText
+    return 0
+
+end Scoped
 
 end Fw.Parts.HeroExitOpt

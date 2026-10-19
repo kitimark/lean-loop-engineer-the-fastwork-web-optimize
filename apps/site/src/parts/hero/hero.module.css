@@ -9,6 +9,10 @@
 }
 
 @layer parts {
+  [data-exit-scope] .copy {
+    --exit-opacity: inherit;
+    --exit-scatter: inherit;
+  }
   .copy {
     --copy-in: 0;
     z-index: 3;

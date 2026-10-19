@@ -6,7 +6,8 @@
   "impls": ["plain"],
   "muiStates": [],
   "variants": {
-    "faithful": { "kind": "faithful", "tier": "T1", "layerBudget": 24 }
+    "faithful": { "kind": "faithful", "tier": "T1", "layerBudget": 24 },
+    "scoped": { "kind": "optimized", "tier": "T0", "layerBudget": 24, "provenance": { "lean": "Fw.Parts.HeroExitOpt", "ledger": "O5 exit-scoped-var", "limit": "the win is in UpdateLayoutTree.elementCount, a quarantined counter; WebKit is source-only (Lean wk_units)" } }
   },
   "requires": {},
   "conflicts": {}
