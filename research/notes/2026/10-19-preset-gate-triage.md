@@ -21,7 +21,7 @@ Orig/rewrite order in the gate tables is original first. The 4 `commission` hyst
 ### 1. hero.countdown `face` count 64 vs 0, 14/14 columns: cause `hero.countdown:strip`
 - Attribution MEASURED: the strip arm alone reproduces it (39197258964), the shift arm does not (39197247960).
 - Mechanism CONFIRMED: apps/site/src/parts/hero.countdown/index.tsx:32-34 renders one `[data-strip]` node per digit in strip; the ten
-  `[data-face]` nodes exist only in the else branch (index.tsx:41-45). The anchor `face` selects `[data-face]` (packages/gate-breakpoints/src/anchors.json:218-228,
+  `[data-face]` nodes exist only in the else branch (index.tsx:41-45). The anchor `face` selects `[data-face]` (packages/gate-breakpoints/src/anchors.json:219-231,
   dims [], skipSets layoutDerived, skipProps transform), so the role is judged on its count alone.
 - Visual or DOM-structural: DOM-structural only. Nothing else in the part fails (every other hero.countdown item passes in the strip arm), and
   Lean proves the picture is the same: `Fw.Parts.HeroCountdownOpt.strip_visSame` (lean/Fw/Parts/HeroCountdownOpt.lean:288; class E for every
@@ -37,9 +37,9 @@ Orig/rewrite order in the gate tables is original first. The 4 `commission` hyst
 
 ### 2. nav `actions` 1 vs 4 and `bar` 1 vs 2, 14/14 columns: cause `morph.mount:shift`
 - Attribution MEASURED: the shift arm alone reproduces it (39197247960); the strip arm passes nav.
-- Mechanism CONFIRMED: `shift` mounts the morph panel at a still moment (apps/site/src/parts/morph.mount/index.tsx:107-125, `warmStill` after 150 ms, logic.ts:84-88);
+- Mechanism CONFIRMED: `shift` mounts the morph panel at a still moment (apps/site/src/parts/morph.mount/index.tsx:107-125, `warmStill` after 150 ms, logic.ts:85-87);
   the gate loads at the top and waits, so the panel is mounted at probe time (the faithful arm mounts it only at an intersect or push, so it is absent). The nav hosts the
-  panel as its last child (apps/site/src/parts/nav/index.tsx:154 `{children}`; panel root `<div data-fw="morph-panel">`, morph.panel/index.tsx:50-56, with children `backdrop`,
+  panel as its last child (apps/site/src/parts/nav/index.tsx:154 `{children}`; panel root `<div data-fw="morph-panel">`, morph.panel/index.tsx:51-56, with children `backdrop`,
   `veil`, `center` at :59-63). The rewrite selectors are structural: `bar` is `[data-fw="nav"] > div` (anchors.json:836-838) and `actions` is `[data-fw="nav"] > div > div` (:872-874).
   So bar = bar div + panel root = 2, actions = actions div + 3 panel children = 4. The numbers match the measured 2 and 4 (INFERRED from the count arithmetic; the elements were not listed).
 - Visual or DOM-structural: DOM-structural; the nav's own boxes and styles pass. The visual claim is `Fw.Parts.MorphMountOpt.visSame_mount` (lean/Fw/Parts/MorphMountOpt.lean:187),
@@ -54,8 +54,8 @@ Orig/rewrite order in the gate tables is original first. The 4 `commission` hyst
 ### 3. platform `--morph-fade` "1" vs "calc(1 - min(1, 0 / 0.55))", 10/14 columns: cause `morph.tween:waapi`, already fixed
 - Attribution: the single-flag waapi arm was not dispatched (not needed). MEASURED by before/after: the row fails in 39189945037 (sha 8a6b34ba) and passes 14/14 in 39197237678 (0f0e95a7)
   with the same preset; `git diff 8a6b34ba 0f0e95a7 -- apps/site` changes only morph.tween (index.tsx, waapi.logic.ts, waapi.golden.test.ts). Neither the strip nor the shift arm fails platform.
-- Mechanism CONFIRMED: `preparePlatform` writes `FADE_CSS` (waapi.logic.ts:47, morph.tween/index.tsx:111-113) as an inline custom property; unregistered it computes to the substituted text, the original's
-  driver writes a number (driver.ts:56). Fix: `--morph-fade` registered as `<number>`, inherits, initial 1 (waapi.logic.ts:30-36, commits f1dd18a5, efa737cf; Lean `origInheritsOf` / MT-R).
+- Mechanism CONFIRMED: `preparePlatform` writes `FADE_CSS` (waapi.logic.ts:47, morph.tween/index.tsx:110-113) as an inline custom property; unregistered it computes to the substituted text, the original's
+  driver writes a number (driver.ts:56). Fix: `--morph-fade` registered as `<number>`, inherits, initial 1 (waapi.logic.ts:34-39, commits f1dd18a5, efa737cf; Lean `origInheritsOf` / MT-R).
 - Visual or structural: neither; a serialization of the computed custom property. The computed value is a number again.
 - Recommendation: keep `morph.tween:waapi` in Λ; nothing left to prove for this row.
 
