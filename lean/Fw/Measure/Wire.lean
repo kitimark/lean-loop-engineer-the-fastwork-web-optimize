@@ -42,7 +42,7 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.spkq` | a counts file: `frames` [{counts}], optional `meta.n0` {enabled, load, preroll, after {total}} | `verdict` (`pass`, `fail`, `missing`), `required`, `n1Gated`, `n1Excluded`, `unrecorded`, `nonzeroN0`, `nonzeroN1` (frame indices), `preroll`?, `after`? |
 | `measure.arms` | `a`, `r` (class tables {type: {class, k, t, tBound?}} of the original and the rewrite) | `types` {type: {a, r (class or `absent`), class (cross-arm), role, reason?}}, `gates`, `roles` |
 | `measure.engineCheck` | `rows`, `classes`, `observed` (see `Fw.Wire.Measure.EngineCheck`) | `verdicts` [row + `verdict`, `reason`, `class`, `runs`, `totals`], `tally` |
-| `measure.compose` | `classes` {type: {class, k, t}}, `combined` and `singles` [comparison]; comparison = {id, baseId, base, arm}, each side [{variants {part: variant}, zones}] | `combined`, `singles` [{id, baseId, flags, clean}], `rows` [{stage, type, zone (`run`: whole run), kind, class, margin, combined {run, delta}, parts [{flag, run, delta}], sum, residual, verdict, why?, missing?, named?}], `tally`; an error when the combined comparison is not clean |
+| `measure.compose` | `classes` {type: {class, k, t}}, `combined` and `singles` [comparison]; comparison = {id, baseId, base, arm}, each side [{variants {part: variant}, zones}] | `combined`, `singles` [{id, baseId, baseFlags, flags, clean}], `rows` [{stage, type, zone (`run`: whole run), kind, class, margin, combined {run, delta}, parts [{flag, run, delta}], sum, residual, verdict, informative, beyond (flags whose single delta exceeds the margin), why?, missing?, named?}], `tally` (with `informative` {composes, coupled}); an error when the combined comparison is not clean or adds fewer than 2 flags |
 | `measure.zoneBaseline` | `runs` (≥ 3, distinct `id`s) [{id, frames \| zones}] (frames as for `measure.zoneSums`, or that op's `zones`), `zoneHeightPx` (≥ 1, needed when a run gives `frames`), `classes` (the frozen table {type: {class, k, t, tBound?}}) | `runs` (ids), `zones` [{id, frames, scrolledPx, firstFrame, lastFrame, types {type: cell}}], `totals` {type: cell}, `detDrift` [{zone, type}], `detDriftTotals` [type], `tally`; cell = {class (or `unlisted`), rule (`unlisted` reads `quarantined`), perRun, lo, hi, base} |
 | `measure.retry` | `error` (a simctl failure text), `attempt` (≥ 1, attempts made so far), `max` (limit, naturals) | `class` (`transient`, `permanent`), `retry`, `delayMs` (the wait before the next attempt, 0 when not retrying) |
 | `measure.retryPlan` | `errors` (strings: the error of attempt 1, 2, …; the attempt after the last works), `max` | `classes`, `delays` (ms, one per retry), `retries`, `outcome` (`succeeded`, `exhausted`, `permanent`) |
@@ -785,28 +785,34 @@ def composeRowJson (r : Compose.Row) : Json :=
     ("class", composeClassJson c.cls), ("margin", toJson c.margin),
     ("combined", Json.mkObj [("run", .str c.combined.id), ("delta", toJson c.combined.delta)]),
     ("parts", .arr (c.parts.toArray.map part)), ("sum", toJson c.sum), ("residual", toJson c.residual),
-    ("verdict", .str name)] ++ extra)
+    ("verdict", .str name), ("informative", .bool c.informative), ("beyond", strArr c.beyond)] ++ extra)
 
 /-- `measure.compose`: `{classes, combined, singles}` → `{combined, singles, rows, tally}` (`Fw.Measure.Compose.table`);
-an error when a field does not decode or the combined comparison is not clean. -/
+an error when a field does not decode or `Fw.Measure.Compose.refusal` refuses the combined comparison. -/
 def opCompose (req : Json) : Except String Reply := do
   let tb ← match ← field req "classes" with
     | .obj kvs => kvs.toArray.toList.mapM fun ⟨ty, v⟩ => do pure (ty, ← classOf v)
     | _ => throw "field classes: expected an object"
   let c ← composeRunsOf (← field req "combined")
   let singles ← (← arr req "singles").toList.mapM composeRunsOf
-  if !c.clean then
+  match Compose.refusal c with
+  | some .unclean =>
     throw s!"combined {c.id}: not clean (both sides need runs of one zone shape and one flag set, and the arm keeps every base flag)"
+  | some (.fewFlags n) => throw s!"combined {c.id}: adds {n} flags, a composition needs at least 2"
+  | none => pure ()
   let rows := Compose.table tb c singles
   let names := rows.map fun r => match Compose.verdict r.cell with
     | .composes => "composes" | .coupled _ => "coupled" | .notComparable _ => "notComparable" | .reported => "reported"
   let cnt (k : String) : Json := toJson (names.filter (· == k)).length
+  let inf (k : String) : Json :=
+    toJson ((names.zip rows).filter fun (n, r) => n == k && r.cell.informative).length
   let runsJ (r : Compose.Runs) : Json := Json.mkObj [("id", .str r.id), ("baseId", .str r.baseId),
-    ("flags", strArr r.flags), ("clean", .bool r.clean)]
+    ("baseFlags", strArr r.baseFlags), ("flags", strArr r.flags), ("clean", .bool r.clean)]
   pure [("combined", runsJ c), ("singles", .arr (singles.toArray.map runsJ)),
         ("rows", .arr (rows.toArray.map composeRowJson)),
         ("tally", Json.mkObj [("composes", cnt "composes"), ("coupled", cnt "coupled"),
-          ("notComparable", cnt "notComparable"), ("reported", cnt "reported")])]
+          ("notComparable", cnt "notComparable"), ("reported", cnt "reported"),
+          ("informative", Json.mkObj [("composes", inf "composes"), ("coupled", inf "coupled")])])]
 
 /-- The `measure.*` ops. -/
 def ops : List String :=

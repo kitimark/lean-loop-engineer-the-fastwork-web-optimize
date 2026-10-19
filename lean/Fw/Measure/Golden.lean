@@ -165,14 +165,16 @@ def crun (vs : List (String × String)) (z0 z1 : List (String × Int)) : Json :=
   Json.mkObj [("variants", Json.mkObj (vs.map fun (k, v) => (k, .str v))),
     ("zones", .arr #[czone "y00000" 0 z0, czone "y00500" 1 z1])]
 
-/-- Two faithful base runs; `fire` is the first run's `trace.FireAnimationFrame` in zone `y00000`. -/
-def cbase (fire : Int) : Json :=
+/-- Two base runs with variants `vs`; `fire` is the first run's `trace.FireAnimationFrame` in zone `y00000`. -/
+def cbaseV (vs : List (String × String)) (fire : Int) : Json :=
   let z1 : List (String × Int) := [("trace.Layout.dirtyObjects", 10), ("census.layers", 5), ("trace.Layout", 4)]
-  let vs := [("a", "faithful"), ("b", "faithful")]
   .arr #[crun vs [("trace.Layout.dirtyObjects", 10), ("census.layers", 5), ("trace.Layout", 4),
             ("trace.FireAnimationFrame", fire)] z1,
          crun vs [("trace.Layout.dirtyObjects", 10), ("census.layers", 5), ("trace.Layout", 4),
             ("trace.FireAnimationFrame", 4)] z1]
+
+/-- Two faithful base runs. -/
+def cbase (fire : Int) : Json := cbaseV [("a", "faithful"), ("b", "faithful")] fire
 
 /-- Two equal arm runs with the given variants and sums. -/
 def carm (vs : List (String × String)) (d0 d1 layers0 layout : Int) : Json :=
@@ -489,7 +491,15 @@ def cases : List (String × List (String × Json)) := [
      ("a single on another base and an unclean single leave flag b missing",
        composeReq (ccmp "C" "B" (cbase 4) comb) [ccmp "A" "B" (cbase 4) sa, ccmp "Bs" "B2" (cbase 4) sb,
          ccmp "Bu" "B" (cbase 4) (.arr #[crun [("b", "y")] [] [], crun [("a", "x"), ("b", "y")] [] []])]),
-     ("a combined comparison without arm runs is refused", composeReq (ccmp "C" "B" (cbase 4) (.arr #[])) [])])]
+     ("a combined comparison without arm runs is refused", composeReq (ccmp "C" "B" (cbase 4) (.arr #[])) []),
+     ("a combined adding one flag is refused, also with itself listed as its single",
+       composeReq (ccmp "A" "B" (cbase 3) sa) [ccmp "A" "B" (cbase 3) sa]),
+     ("a base with a shell part names it in baseFlags; the arms add only a and b",
+       let sh := ("c", "shell")
+       composeReq (ccmp "C" "B" (cbaseV [("a", "faithful"), ("b", "faithful"), sh] 3)
+           (carm [("a", "x"), ("b", "y"), sh] 5 4 9 2))
+         [ccmp "A" "B" (cbaseV [("a", "faithful"), ("b", "faithful"), sh] 3) (carm [("a", "x"), ("b", "faithful"), sh] 7 9 6 3),
+          ccmp "Bs" "B" (cbaseV [("a", "faithful"), ("b", "faithful"), sh] 3) (carm [("a", "faithful"), ("b", "y"), sh] 8 10 7 3)])])]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json

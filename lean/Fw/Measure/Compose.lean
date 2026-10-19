@@ -1,7 +1,7 @@
 import Fw.Measure.ZoneBaseline
 import Fw.Engine.Chromium
-/-! F6 composition check: per (stage, count type, zone) a combined arm's delta against the sum of its
-single-flag deltas, within the class margin; unit types are judged, pass types are reported. -/
+/-! F6 composition check: per (stage, count type, zone) a combined arm's delta against the sum of its single-flag deltas
+within the class margin. Flag independence (`Fw.Engine.Compose.lego_swap_units`) is not checked by the verdict. -/
 namespace Fw.Measure.Compose
 open Fw.Measure Fw.Measure.EngineCheck Fw.Engine
 
@@ -11,7 +11,7 @@ inductive Kind where
   | passes
 deriving Repr, DecidableEq
 
-/-- The count types judged as units; every other type is a pass type. -/
+/-- The unit count types; `FireAnimationFrame` is one event per uncancelled callback (frame_request_callback_collection.cc:114@f842f52). -/
 def unitTypes : List String :=
   ["trace.FireAnimationFrame", "trace.FunctionCall", "trace.Layout.dirtyObjects",
    "raster.invalidationAreaPx", "raster.invalidationRects", "census.layers"]
@@ -67,9 +67,35 @@ def Runs.clean (r : Runs) : Bool :=
   r.base.all (·.flags == r.baseFlags) && r.arm.all (·.flags == r.armFlags) &&
   r.baseFlags.all (· ∈ r.armFlags)
 
-/-- The single-flag comparison for `f`: same base runs, same zone shape, arm adds exactly `f`. -/
+/-- The single-flag comparison for `f`: another run id, same base runs and zone shape, arm adds exactly `f`. -/
 def armFor (c : Runs) (singles : List Runs) (f : String) : Option Runs :=
-  singles.find? fun s => s.clean && s.flags == [f] && s.baseId == c.baseId && s.shape == c.shape
+  singles.find? fun s => s.id != c.id && s.clean && s.flags == [f] && s.baseId == c.baseId && s.shape == c.shape
+
+/-- Why a combined comparison is refused. -/
+inductive Refusal where
+  | unclean
+  | fewFlags (n : Nat)
+deriving Repr, DecidableEq
+
+/-- The refusal of a combined comparison: not clean, or fewer than 2 added flags. -/
+def refusal (c : Runs) : Option Refusal :=
+  if !c.clean then some .unclean
+  else if c.flags.length < 2 then some (.fewFlags c.flags.length)
+  else none
+
+/-- A combined comparison is accepted exactly when it is clean and adds at least 2 flags. -/
+theorem refusal_eq_none_iff (c : Runs) : refusal c = none ↔ c.clean = true ∧ 2 ≤ c.flags.length := by
+  unfold refusal
+  cases h : c.clean <;> by_cases hl : c.flags.length < 2 <;> simp_all <;> omega
+
+/-- An unclean combined comparison is refused as unclean. -/
+theorem refusal_unclean {c : Runs} (h : c.clean = false) : refusal c = some .unclean := by
+  simp [refusal, h]
+
+/-- A clean combined comparison adding fewer than 2 flags is refused with its flag count. -/
+theorem refusal_fewFlags {c : Runs} (h : c.clean = true) (hl : c.flags.length < 2) :
+    refusal c = some (.fewFlags c.flags.length) := by
+  simp [refusal, h, hl]
 
 /-- A cell's value in one run: zone `Z`, or the whole-run total for `none`. -/
 def valAt (zs : List Zone) (z : Option String) (ty : String) : Int :=
@@ -160,6 +186,15 @@ def verdict (c : Cell) : Verdict :=
   match pre c with
   | some v => v
   | none => if c.residual.natAbs ≤ c.margin then .composes else .coupled c.acting
+
+/-- The combined delta, then each found single-flag delta. -/
+def Cell.deltas (c : Cell) : List Int := c.combined.delta :: c.found.map (·.2.delta)
+
+/-- Some delta of the cell exceeds the margin; otherwise the cell is vacuous and no coupling could show in it. -/
+def Cell.informative (c : Cell) : Bool := c.deltas.any fun d => c.margin < d.natAbs
+
+/-- The flags whose single-flag delta exceeds the margin. -/
+def Cell.beyond (c : Cell) : List String := (c.found.filter fun (_, p) => c.margin < p.delta.natAbs).map (·.1)
 
 /-- The cell conditions under which the margin test decides. -/
 def Comparable (c : Cell) : Prop :=
@@ -290,6 +325,29 @@ theorem composes_exact {c : Cell} (he : exact c.cls = true) (h : verdict c = .co
   simp [Cell.margin, slack_exact he] at hr
   exact hr
 
+/-- A cell is informative exactly when some delta exceeds the margin. -/
+theorem informative_iff (c : Cell) : c.informative = true ↔ ∃ d ∈ c.deltas, c.margin < d.natAbs := by
+  simp [Cell.informative]
+
+/-- A cell is informative exactly when its combined delta or some single-flag delta exceeds the margin. -/
+theorem informative_iff_beyond (c : Cell) :
+    c.informative = true ↔ c.margin < c.combined.delta.natAbs ∨ c.beyond ≠ [] := by
+  simp [Cell.informative, Cell.deltas, Cell.beyond, List.filter_eq_nil_iff]
+
+/-- A cell whose deltas are all zero is vacuous. -/
+theorem vacuous_of_zero {c : Cell} (h : ∀ d ∈ c.deltas, d = 0) : c.informative = false := by
+  cases hi : c.informative
+  · rfl
+  · obtain ⟨d, hd, hlt⟩ := (informative_iff c).mp hi
+    rw [h d hd] at hlt
+    simp at hlt
+
+/-- On a frame-exact class a cell is informative exactly when some delta is nonzero. -/
+theorem informative_exact_iff {c : Cell} (he : exact c.cls = true) :
+    c.informative = true ↔ ∃ d ∈ c.deltas, d ≠ 0 := by
+  rw [informative_iff]
+  simp [Cell.margin, slack_exact he]
+
 /-! ## Soundness of a coupled verdict -/
 
 /-- Two delta lists of one length, each entry within `m` of its partner. -/
@@ -364,13 +422,19 @@ structure Row where
 def table (tb : List (String × Class)) (c : Runs) (singles : List Runs) : List Row :=
   cells.flatMap fun (s, ty) => (zonesOf c).map fun z => { stage := s, type := ty, zone := z, cell := cellAt tb c singles z ty }
 
-/-- A matched single-flag arm has the same base run id and zone shape and adds exactly that flag. -/
+/-- A matched single-flag arm is another run id with the same base run id and zone shape, and adds exactly that flag. -/
 theorem armFor_spec {c s : Runs} {singles : List Runs} {f : String} (h : armFor c singles f = some s) :
-    s ∈ singles ∧ s.clean = true ∧ s.flags = [f] ∧ s.baseId = c.baseId ∧ s.shape = c.shape := by
+    s ∈ singles ∧ s.id ≠ c.id ∧ s.clean = true ∧ s.flags = [f] ∧ s.baseId = c.baseId ∧ s.shape = c.shape := by
   have hm := List.mem_of_find?_eq_some h
   have hp := List.find?_some h
-  simp only [Bool.and_eq_true, beq_iff_eq] at hp
-  exact ⟨hm, hp.1.1.1, hp.1.1.2, hp.1.2, hp.2⟩
+  simp only [Bool.and_eq_true, beq_iff_eq, bne_iff_ne, ne_eq] at hp
+  exact ⟨hm, hp.1.1.1.1, hp.1.1.1.2, hp.1.1.2, hp.1.2, hp.2⟩
+
+/-- The combined comparison never matches itself as a single-flag arm. -/
+theorem armFor_ne_self (c : Runs) (singles : List Runs) (f : String) : (armFor c (c :: singles) f).map (·.id) ≠ some c.id := by
+  intro h
+  obtain ⟨s, hs, he⟩ := Option.map_eq_some_iff.mp h
+  exact (armFor_spec hs).2.1 he
 
 /-- A cell's missing flags are the combined flags with no matched single-flag arm. -/
 theorem cellAt_missing (tb : List (String × Class)) (c : Runs) (singles : List Runs) (z : Option String) (ty : String) :
@@ -399,5 +463,13 @@ private def tb0 : List (String × Class) := [("trace.Layout.dirtyObjects", .dete
   "trace.Layout.dirtyObjects")) == .composes
 #guard (verdict (cellAt tb0 comb [sA] (some "y0") "trace.Layout.dirtyObjects")) == .notComparable (.missing ["b"])
 #guard classIn tb0 "trace.Paint" == .quarantined
+#guard refusal comb == none && refusal sA == some (.fewFlags 1) && refusal sB == some .unclean
+#guard (armFor sA [sA] "a").isNone && (armFor sA [{ sA with id := "A2" }] "a").map (·.id) == some "A2"
+#guard (cellAt tb0 comb [sA, { sA with id := "B2", arm := [run1 ["s", "b"] 7] }] (some "y0") "trace.Layout.dirtyObjects").informative
+#guard !(cellAt tb0 { comb with arm := [run1 ["s", "a", "b"] 10] } [{ sA with arm := [run1 ["s", "a"] 10] },
+  { sA with id := "B2", arm := [run1 ["s", "b"] 10] }] (some "y0") "trace.Layout.dirtyObjects").informative
+#guard !(cellOf .units (.stable 2 3) true (pr [50] [42]) [("a", some (pr [50] [45]))]).informative
+#guard (cellOf .units (.stable 2 3) true (pr [50] [30]) [("a", some (pr [50] [45]))]).informative
+#guard (cellOf .units (.stable 2 3) true (pr [50] [30]) [("a", some (pr [50] [45])), ("b", some (pr [50] [20]))]).beyond == ["b"]
 
 end Fw.Measure.Compose

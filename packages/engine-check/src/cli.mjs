@@ -55,7 +55,7 @@ async function composeMain(argv) {
     writeFileSync(join(a.out, `${cmp.name}.json`), JSON.stringify(reply, null, 1) + '\n');
     md.push(render(cmp.title ?? cmp.name, reply));
     const t = reply.tally;
-    console.log(`${cmp.name}: ${t.composes} composes, ${t.coupled} coupled, ${t.notComparable} not comparable, ${t.reported} reported`);
+    console.log(`${cmp.name}: ${t.composes} composes (${t.informative.composes} informative), ${t.coupled} coupled (${t.informative.coupled} informative), ${t.notComparable} not comparable, ${t.reported} reported`);
   }
   writeFileSync(join(a.out, 'table.md'), md.join('\n'));
   return 0;

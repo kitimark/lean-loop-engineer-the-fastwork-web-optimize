@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { classTable, render, request, rowLine } from '../src/compose.mjs';
+import { classTable, loadRun, render, request, rowLine } from '../src/compose.mjs';
 import { fwcoreCall } from '../../../apps/runner/src/run.ts';
 
 const golden = readFileSync(new URL('../../contracts/golden/measure/measure.compose.jsonl', import.meta.url), 'utf8')
@@ -14,10 +14,19 @@ const golden = readFileSync(new URL('../../contracts/golden/measure/measure.comp
   .map(({ request: { op, ...request }, response }) => ({ request, reply: response }));
 const ok = golden.filter((g) => g.reply.error === undefined);
 
-test('the golden covers every verdict branch and one refused combined', () => {
+test('the golden covers every verdict branch, both evidence marks and both refusals', () => {
   const seen = new Set(ok.flatMap((g) => g.reply.rows.map((r) => r.verdict === 'not-comparable' ? r.why : r.verdict)));
   assert.deepEqual([...seen].sort(), ['composes', 'coupled', 'drift', 'missing', 'no-zone-margin', 'quarantined', 'reported']);
-  assert.equal(golden.length - ok.length, 1);
+  assert.deepEqual([...new Set(ok.flatMap((g) => g.reply.rows.map((r) => r.informative)))].sort(), [false, true]);
+  assert.deepEqual(golden.filter((g) => g.reply.error !== undefined).map((g) => g.reply.error.split(': ')[1].split(' ')[0]).sort(), ['adds', 'not']);
+  assert.ok(ok.some((g) => g.reply.combined.baseFlags.length > 0));
+});
+
+test('loadRun refuses a counts file without variants', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'compose-'));
+  writeFileSync(join(dir, 'counts.json'), JSON.stringify({ meta: {}, frames: [] }));
+  writeFileSync(join(dir, 'zones.json'), JSON.stringify({ zones: [] }));
+  assert.throws(() => loadRun(dir), /no meta.rewrite.config.variants/);
 });
 
 test('fwcore reproduces every golden reply', () => {

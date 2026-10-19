@@ -3,11 +3,13 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-/** One counts run dir as `{variants, zones}` (counts.json meta and zones.json). */
+/** One counts run dir as `{variants, zones}` (counts.json meta and zones.json); a run without variants throws. */
 export function loadRun(dir) {
   const counts = JSON.parse(readFileSync(join(dir, 'counts.json'), 'utf8'));
   const zones = JSON.parse(readFileSync(join(dir, 'zones.json'), 'utf8')).zones;
-  return { variants: counts.meta?.rewrite?.config?.variants ?? {}, zones };
+  const variants = counts.meta?.rewrite?.config?.variants;
+  if (!variants) throw new Error(`${dir}: counts.json has no meta.rewrite.config.variants`);
+  return { variants, zones };
 }
 
 /** The run dirs of one CI run and arm: `<runs>/<id>/chromium-counts-<arm>-r<n>`, in name order. */
@@ -44,21 +46,23 @@ const why = (r) => r.why === 'missing' ? `missing ${r.missing.join(', ')}` : r.w
 const cls = (c) => c.class === 'stable' ? `stable(${c.k},${c.t})` : c.class;
 const part = (p) => p.run === null ? `${p.flag}: none` : `${p.flag}: ${p.delta} (${p.run})`;
 
+const evidence = (r) => !r.informative ? 'vacuous' : r.beyond.length ? `informative (beyond margin: ${r.beyond.join(', ')})` : 'informative (combined only)';
+
 /** One markdown table line of a reply row. */
 export function rowLine(r) {
   const verdict = r.verdict === 'coupled' ? `coupled (${r.named.join(', ') || 'no single acts'})`
     : r.verdict === 'not-comparable' ? `not comparable: ${why(r)}` : r.verdict;
-  return `| ${r.stage} | ${r.type} | ${r.zone} | ${cls(r.class)} | ${r.combined.delta} (${r.combined.run}) | ${r.parts.map(part).join('; ')} | ${r.residual} | ${r.margin} | ${verdict} |`;
+  return `| ${r.stage} | ${r.type} | ${r.zone} | ${cls(r.class)} | ${r.combined.delta} (${r.combined.run}) | ${r.parts.map(part).join('; ')} | ${r.residual} | ${r.margin} | ${verdict} | ${evidence(r)} |`;
 }
 
 /** The markdown table of a reply; `reported` pass rows only for the whole run. */
 export function render(name, reply) {
-  const head = ['| stage | type | zone | class | combined Δ (run) | single Δ (run) | residual | margin | verdict |',
-    '|---|---|---|---|---|---|---|---|---|'];
+  const head = ['| stage | type | zone | class | combined Δ (run) | single Δ (run) | residual | margin | verdict | evidence |',
+    '|---|---|---|---|---|---|---|---|---|---|'];
   const rows = reply.rows.filter((r) => r.verdict !== 'reported' || r.zone === 'run');
   const t = reply.tally;
   return [`### ${name}`, '',
-    `combined ${reply.combined.id} (base ${reply.combined.baseId}), flags ${reply.combined.flags.join(', ')}`,
-    `tally: ${t.composes} composes, ${t.coupled} coupled, ${t.notComparable} not comparable, ${t.reported} reported`, '',
+    `combined ${reply.combined.id} (base ${reply.combined.baseId}), base flags ${reply.combined.baseFlags.join(', ') || 'none (all faithful)'}, added flags ${reply.combined.flags.join(', ')}`,
+    `tally: ${t.composes} composes (${t.informative.composes} informative), ${t.coupled} coupled (${t.informative.coupled} informative), ${t.notComparable} not comparable, ${t.reported} reported`, '',
     ...head, ...rows.map(rowLine), ''].join('\n');
 }

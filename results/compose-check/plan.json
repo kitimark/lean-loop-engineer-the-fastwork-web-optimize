@@ -4,17 +4,26 @@
  "arm": "rewrite",
  "comparisons": [
   {
-   "name": "hidden-pause-triple",
-   "title": "hidden-pause triple, build 698b7755 (model-checks)",
-   "combined": { "run": "39131249517", "base": "39130874266" }
+   "name": "v2-proved",
+   "title": "v2-proved preset against all faithful, coherent set ci/f6-set at main 575e3087",
+   "combined": { "run": "39295484486", "base": "39295469515" }
   },
   {
-   "name": "v2-proved",
-   "title": "v2-proved preset, build c6912998 (C3)",
-   "combined": { "run": "39253172750", "base": "39253166643" }
+   "name": "hidden-pause-triple",
+   "title": "hidden-pause triple against a base with people/pain/commission shell, build 698b7755 (model-checks)",
+   "combined": { "run": "39131249517", "base": "39130874266" }
   }
  ],
  "singles": [
+  { "run": "39295496884", "base": "39295469515" },
+  { "run": "39295510008", "base": "39295469515" },
+  { "run": "39295522426", "base": "39295469515" },
+  { "run": "39295535901", "base": "39295469515" },
+  { "run": "39295548653", "base": "39295469515" },
+  { "run": "39295561652", "base": "39295469515" },
+  { "run": "39295574051", "base": "39295469515" },
+  { "run": "39295586565", "base": "39295469515" },
+  { "run": "39295598591", "base": "39295469515" },
   { "run": "39131146372", "base": "39130874266" },
   { "run": "39131168588", "base": "39130874266" },
   { "run": "39131207849", "base": "39130874266" },
