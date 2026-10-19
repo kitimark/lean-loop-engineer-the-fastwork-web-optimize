@@ -115,7 +115,7 @@ export function PeopleO({ variant, standalone = false, onGetStarted }: PeopleOPr
         data-o-stack={flags.stack ? 'true' : 'false'}
       >
         <span className={css.stage}>
-          <img className={css.vector} src="/selling/people-wordmark/o.svg" alt="" width={26} height={26} draggable={false} aria-hidden="true" />{' '}
+          <img loading="lazy" decoding="async" className={css.vector} src="/selling/people-wordmark/o.svg" alt="" width={26} height={26} draggable={false} aria-hidden="true" />{' '}
           <span className={css.stack}>
             {sellers.map((p, i) => (
               <button
