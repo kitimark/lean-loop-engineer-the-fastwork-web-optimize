@@ -24,7 +24,7 @@ function snapshotPaths(): Set<string> {
     for (const m of text.matchAll(/`([Mm][-\d\s.,A-Za-z]{23,})`/g)) out.add(m[1]!);
     for (const m of text.matchAll(/"([Mm][-\d.,]+[-\d\s.,A-Za-z]{22,})"/g)) out.add(m[1]!);
   }
-  return out;
+  return new Set([...out].filter((p) => /^[MmLlHhVvCcSsQqTtAaZz\d\s.,+-]+$/.test(p)));
 }
 
 const IDENTITY: Record<string, { viewBox: string; kids: string[] }> = {

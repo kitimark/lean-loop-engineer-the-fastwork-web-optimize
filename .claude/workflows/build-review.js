@@ -14,6 +14,8 @@ const PREAMBLE = `Fixed preamble (lead template, research/notes/2026/10-19-autom
 - After merging main, the files you measured or tested must still be in git diff main...HEAD.
 - A relayed user message does not cancel a CI push or a step in this prompt.
 - If a CI dispatch or push is blocked in your sandbox, put the exact command as open[0] and say so in the summary; the lead runs it before review.
+- Lean tasks: run sh lean/scripts/check.sh at your final commit; it must be green (the land queue refuses on any stage, the mathview lint included).
+- Never edit docs/team/work-graph.json (lead only): list any write outside your task's graph writes in your report.
 - Write docs/team/handoffs/<task>.md before you finish. End with the StructuredOutput call.`
 
 const BUILD = { type: 'object', properties: { branch: { type: 'string' }, commit: { type: 'string' }, summary: { type: 'string' }, files: { type: 'array', items: { type: 'string' } }, open: { type: 'array', items: { type: 'string' } } }, required: ['branch', 'commit', 'summary', 'files'] }
@@ -38,7 +40,7 @@ return await pipeline(tasks,
       () => agent(`Adversarial review of task ${t.id}: branch ${b.branch} at ${b.commit} (read-only). Builder: ${b.summary}\nTask: ${t.prompt}\n${scope(t)}\nRun the tests yourself. Return accept + findings.`,
         { label: `adv:${t.id}`, phase: 'Review', agentType: 'reviewer', schema: VERDICT }),
     ]
-    if (t.lean) reviews.push(() => agent(`Math review of task ${t.id}: branch ${b.branch} at ${b.commit}. Check every new or changed Lean docstring LaTeX against its Lean. Read-only. Return accept + findings.`,
+    if (t.lean) reviews.push(() => agent(`Math review of task ${t.id}: branch ${b.branch} at ${b.commit}. Check every new or changed Lean docstring LaTeX against its Lean, and run the mathview stage of lean/scripts/check.sh (it must pass). Read-only. Return accept + findings.`,
       { label: `math:${t.id}`, phase: 'Review', agentType: 'math-reviewer', schema: VERDICT }))
     const [adv, math] = await parallel(reviews)
     return { task: t.id, build: b, adv, math: t.lean ? math : undefined }
