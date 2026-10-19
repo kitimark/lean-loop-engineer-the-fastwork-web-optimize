@@ -12,7 +12,7 @@ every status and verdict comes from `Fw.Gate`. Numbers are read as exact decimal
 
 | op | request | reply |
 |---|---|---|
-| `gate.state` | `anchors` (anchors.json as is), `parts` [id] (covered, in order), `props` (run header), `deviceEdges` [[n, n+1]], `port`? (`chromium`, `webkit-apple`, `webkit-glib`; absent or `null`: no reach claim), `states` [State] | `states` [Eval] |
+| `gate.state` | `anchors` (anchors.json as is), `parts` [id] (covered, in order), `props` (run header), `deviceEdges` [[n, n+1]], `port`? (`chromium`, `webkit-apple`, `webkit-glib`; absent or `null`: no reach claim), `variants`? {id: variant} (the rewrite page's `data-fw-variant` per part; absent: none), `states` [State] | `states` [Eval] |
 | `gate.stale` | `anchors`, `parts`, `props`, `pairs` [{`after`, `fresh`}] (raw `parts` objects) | `stale` [{`compared`, `differ`}] |
 | `gate.tally` | `cells` [{`verdicts` [verdict], `block` bool}] | `cells` [{`verdict`, `failing`, `total`, `unreachable`}] (`not-run` for an empty block) |
 | `gate.reach` | `port`, `envs` [requested] | `reasons` [reason or `null`] (`Fw.Gate.reqReason`) |
@@ -40,7 +40,10 @@ is `null` or a reason; `verdict` is the rollup of all `rows`, part rows included
 truth.neutral.lean`. A truth value absent on an arm is left out of the reply (`a?`, `b?`).
 
 `anchors` must be well-formed (`Fw.Gate.wellFormed`: every skip and role has a reason, every named
-skip set exists), and every covered id must be a part of it; otherwise the op is an error.
+skip set exists), and every covered id must be a part of it; otherwise the op is an error. In `gate.state` a part's
+`variantRoles` must be well formed (`Fw.Gate.variantWellFormed`), and the entry its declared variant selects
+(`Fw.Gate.variantRole`) is applied to the part spec and both arms (`Fw.Gate.partItems_variant`); `gate.stale` judges the
+plain roles.
 Guards: `#guard`s at the end; golden vectors: `Fw.Wire.GateGolden`.
 -/
 namespace Fw.Wire.Gate
@@ -175,6 +178,33 @@ def ctxOf (req : Json) : Except String Ctx := do
     | [] => throw "deviceEdges: empty pair"
   pure ⟨a, ps, props, edges, ← optPort req⟩
 
+/-- One variant role of a part (`anchors.parts[id].variantRoles[]`). -/
+def variantRoleOf (j : Json) : Except String VariantRole := do
+  pure ⟨← str j "variant", ← str j "replaces", ← str j "role", ← str j "countOf", ← str j "why"⟩
+
+/-- The variant role each covered part's declared variant selects; an ill-formed variant role is refused. -/
+def variantSelOf (req : Json) (specs : List PartSpec) : Except String (List (String × Option VariantRole)) := do
+  let parts ← field (← field req "anchors") "parts"
+  let declared := opt req "variants"
+  specs.mapM fun sp => do
+    let ws ← match opt parts sp.id with
+      | none => pure []
+      | some p => (← arrD p "variantRoles").mapM variantRoleOf
+    unless ws.all (variantWellFormed sp) do
+      throw s!"anchors: part {sp.id}: a variant role without a variant or a reason, an unknown replaced or counted role, or a new role name in use"
+    let v ← match declared.bind (opt · sp.id) with
+      | none => pure none
+      | some s => do pure (some (← asStr "variants" s))
+    pure (sp.id, variantRole ws v)
+
+/-- The context with each part spec under its selected variant role. -/
+def ctxVariants (sel : List (String × Option VariantRole)) (c : Ctx) : Ctx :=
+  { c with parts := c.parts.map fun sp => variantSpecOpt (sel.lookup sp.id).join sp }
+
+/-- One arm with each part under its selected variant role (`f`: `variantOrigOpt` or `variantRewriteOpt`). -/
+def armVariants (f : Option VariantRole → PartRaw → PartRaw) (sel : List (String × Option VariantRole)) (a : Arm) : Arm :=
+  { a with parts := a.parts.map fun e => (e.1, f (sel.lookup e.1).join e.2) }
+
 /-- A box. -/
 def rectOf (j : Json) : Except String Rect := do
   pure ⟨← rat j "x", ← rat j "y", ← rat j "w", ← rat j "h"⟩
@@ -298,11 +328,15 @@ def tallyJson : Option Tally → Json
 
 /-- `gate.state`: evaluate every state, with the page-root anchor (`Fw.Gate.PageRoot`) from the arms' `viewport.scrollWidth`. -/
 def opState (req : Json) : Except String Reply := do
-  let c ← ctxOf req
+  let c0 ← ctxOf req
+  let sel ← variantSelOf req c0.parts
+  let c := ctxVariants sel c0
   let out ← (← arr req "states").toList.mapM fun s => do
     let so ← armScrollWidth (← field s "orig")
     let sr ← armScrollWidth (← field s "rewrite")
-    pure (evalJson (Fw.Gate.PageRoot.evalStateRoot c (← stateOf s) so sr))
+    let st ← stateOf s
+    let st := { st with orig := armVariants variantOrigOpt sel st.orig, rewrite := armVariants variantRewriteOpt sel st.rewrite }
+    pure (evalJson (Fw.Gate.PageRoot.evalStateRoot c st so sr))
   pure [("states", .arr out.toArray)]
 
 /-- `gate.stale`: sweep hysteresis counts. -/

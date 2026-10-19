@@ -82,6 +82,29 @@ def probeReq (p : Fw.Site.Breakpoints.Probe) : Json :=
 def matrixReach (port : String) : Json :=
   Json.mkObj [("port", .str port), ("envs", .arr (Fw.Site.Breakpoints.matrix.map probeReq).toArray)]
 
+/-- Anchors with one part `c` whose variant `strip` replaces role `face` by role `strip`, counted against `digit`
+(`newRole`: the new role's name). -/
+def variantAnchors (newRole : String := "strip") : String :=
+  "{\"style\":{\"skipPrefixes\":[],\"skipSets\":{}},\"parts\":{\"c\":{\"roles\":[" ++
+  "{\"role\":\"digit\",\"boxRel\":null,\"dims\":[],\"skipSets\":[],\"skipProps\":[],\"why\":\"digits\"}," ++
+  "{\"role\":\"face\",\"boxRel\":null,\"dims\":[],\"skipSets\":[],\"skipProps\":[],\"why\":\"faces\"}]," ++
+  "\"variantRoles\":[{\"variant\":\"strip\",\"replaces\":\"face\",\"role\":\"" ++ newRole ++
+  "\",\"countOf\":\"digit\",\"why\":\"one strip per digit\"}]}}}"
+
+/-- A bare arm with the parts JSON `parts`. -/
+def bareArm (parts : String) : String :=
+  "{\"viewport\":{},\"observed\":{},\"truth\":[],\"truthLegacy\":[],\"neutral\":[],\"parts\":" ++ parts ++ "}"
+
+/-- A `gate.state` request on part `c`: the original has 2 digits and 20 faces, the rewrite 2 digits, no face and
+`strips` strips; `variants`: the JSON of the optional `variants` field, empty for none. -/
+def variantReq (strips : Nat) (variants : String) (newRole : String := "strip") : Json :=
+  let o := bareArm "{\"c\":{\"digit\":{\"count\":2,\"items\":[]},\"face\":{\"count\":20,\"items\":[]}}}"
+  let r := bareArm ("{\"c\":{\"digit\":{\"count\":2,\"items\":[]},\"face\":{\"count\":0,\"items\":[]},\"strip\":{\"count\":" ++
+    toString strips ++ ",\"items\":[{\"rect\":null,\"style\":{\"transform\":\"none\"}}]}}}")
+  lit ("{\"anchors\":" ++ variantAnchors newRole ++ ",\"parts\":[\"c\"],\"deviceEdges\":[]" ++
+    (if variants.isEmpty then "" else ",\"variants\":" ++ variants) ++ ",\"states\":[{\"requested\":" ++ requested ++
+    ",\"orig\":" ++ o ++ ",\"rewrite\":" ++ r ++ ",\"expect\":null,\"expectNeutral\":null}]}")
+
 /-- The literal cases: (name, op, request without op). -/
 def literalCases : List (String × String × Json) := [
   ("cell: no applicable item is not comparable", "gate.cell", lit "{\"statuses\":[\"na\",\"na\"]}"),
@@ -126,7 +149,16 @@ def literalCases : List (String × String × Json) := [
   ("reach: every matrix probe on WebKit (Apple): the fractional and cross probes are unreachable", "gate.reach",
    matrixReach "webkit-apple"),
   ("reach: every matrix probe on WebKit (GLib): the fractional and cross probes are unreachable", "gate.reach",
-   matrixReach "webkit-glib")]
+   matrixReach "webkit-glib"),
+  ("state, variant strip: the faces are not judged; 2 strips against the original's 2 digits pass", "gate.state",
+   variantReq 2 "{\"c\":\"strip\"}"),
+  ("state, variant strip: 3 strips against the original's 2 digits fail on the strip count", "gate.state",
+   variantReq 3 "{\"c\":\"strip\"}"),
+  ("state, variant faithful (no variant role): the face count 20 against 0 fails", "gate.state",
+   variantReq 2 "{\"c\":\"faithful\"}"),
+  ("state, no variants field: the plain roles are judged", "gate.state", variantReq 2 ""),
+  ("state: a variant role whose new role name is already a role is refused", "gate.state",
+   variantReq 2 "{\"c\":\"strip\"}" (newRole := "digit"))]
 
 /-- The text of `literal.jsonl`. -/
 def literalText : String :=

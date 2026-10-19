@@ -134,7 +134,7 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     // The engine port names the cells the engine cannot reach (Lean Fw.Gate.Reach); runs made before the header carried it
     // have a port only for Chromium (WebKit's would be a guess: Apple or GLib).
     const port = run.header.port ?? (engine === 'chromium' ? 'chromium' : null);
-    const ctx = context({ anchors, parts: PARTS, props: run.header.props, deviceEdges, port });
+    const ctx = context({ anchors, parts: PARTS, props: run.header.props, deviceEdges, port, variants: run.header.variants });
     const maskedOf = [];
     const stateOf = (requested, orig, rewrite, expect, expectNeutral) => {
       const m = maskNotRendered({ requested, orig, rewrite, expect, expectNeutral });

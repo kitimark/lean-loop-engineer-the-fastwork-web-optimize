@@ -6242,7 +6242,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "lean/Fw/Parts/FootprintData.lean"
-   ]
+   ],
+   "evidence": "aef3d40"
   },
   {
    "devices": [
@@ -6282,7 +6283,10 @@
     "apps/site/assets.manifest.json",
     "apps/site/src/parts/overlays.drawer/**",
     "apps/site/src/parts/platform/**",
-    "docs/team/handoffs/asset-icons-gaps.md"
+    "docs/team/handoffs/asset-icons-gaps.md",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "lean/Fw/Parts/FootprintData.lean"
    ]
   },
   {
@@ -6304,7 +6308,8 @@
     "packages/contracts/golden/gate/**",
     "docs/team/handoffs/gate-variant-roles.md",
     "lean/Fw/Wire/GateGolden.lean"
-   ]
+   ],
+   "evidence": "58db42d"
   },
   {
    "devices": [
@@ -6472,8 +6477,10 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "lean/Fw/Parts/FootprintData.lean",
-    "lean/scripts/CountdownHiddenGolden.lean"
-   ]
+    "lean/scripts/CountdownHiddenGolden.lean",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
+   ],
+   "evidence": "8e862ca"
   },
   {
    "devices": [

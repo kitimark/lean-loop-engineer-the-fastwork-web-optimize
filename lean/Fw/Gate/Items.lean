@@ -22,6 +22,12 @@ exactly when one compared item is not equal (`partVerdict_fail_iff`); a style it
 never skipped (`partItems_style_not_skipped`); changing a skipped property on either arm changes no
 status (`partItems_skip_invariant`, `partVerdict_setStyle`); the order of the roles does not change
 the verdict (`partVerdict_perm`).
+
+A part may declare variant roles (`variantRoles`): under a rewrite variant that changes its element structure on purpose,
+one role is replaced by a rewrite-only role judged by its count against the original's count of a named role. Proved:
+every other item is unchanged (`partItems_variant`, `partItems_variant_others`), the replaced role is not judged and the
+new one is judged by count alone (`partItems_variant_role`, `variantCount_equal_iff`, `variantCount_missing`), and a part
+with no variant role is judged as before (`partItems_variant_none`).
 -/
 namespace Fw.Gate
 
@@ -731,6 +737,353 @@ def wellFormed (a : Anchors) (ps : List PartSpec) : Bool :=
     !rs.why.isEmpty && rs.skipSets.all (fun n => a.skipSets.any (·.name == n)) &&
     rs.boxRel.all fun b => p.roles.any (·.role == b.role)
 
+/-! ## Variant roles -/
+
+/-- A role that a rewrite variant puts in place of another one, with the reason (`anchors.json` `variantRoles`).
+
+$$w = (v,\ \rho_{\mathrm{rep}},\ \rho_{\mathrm{new}},\ \rho_{\mathrm{of}},\ \mathit{why}) \in \mathrm{String}^{5}$$
+
+Under variant $v$ the role $\rho_{\mathrm{rep}}$ is not judged, and the rewrite-only role $\rho_{\mathrm{new}}$ is judged by
+its count alone, against the original's count of role $\rho_{\mathrm{of}}$. -/
+structure VariantRole where
+  variant : String
+  replaces : String
+  role : String
+  countOf : String
+  why : String
+  deriving Repr, Inhabited, DecidableEq
+
+/-- The variant role a part's declared variant selects: the first entry with that variant name.
+
+$$\operatorname{sel}(W, v) = \begin{cases} \bot & v = \bot \\ \text{the first } w \in W \text{ (in list order) with } w.v = v & v \ne \bot \text{ and one exists} \\ \bot & \text{otherwise} \end{cases}$$
+
+A part whose variant has no entry (`faithful`, an undeclared variant, or none read) is judged by its plain roles. -/
+def variantRole (ws : List VariantRole) (v : Option String) : Option VariantRole :=
+  v.bind fun v => ws.find? (·.variant == v)
+
+/-- The count-only role spec of a variant role: no box, no skips.
+
+$$\operatorname{countRole}(w) = (w.\rho_{\mathrm{new}},\ \bot,\ [\,],\ [\,],\ [\,],\ [\,],\ w.\mathit{why})$$
+
+The new role's only item is its count. -/
+def countRole (w : VariantRole) : RoleSpec := ⟨w.role, none, [], [], [], [], w.why⟩
+
+/-- The part spec under a variant role: the replaced role removed, the count-only role appended.
+
+$$\operatorname{vSpec}(w, P) = (P.\mathit{id},\ [\,\sigma \in P.\mathrm{roles} \mid \sigma.\mathrm{role} \ne w.\rho_{\mathrm{rep}}\,] \mathbin{+\!\!+} [\operatorname{countRole}(w)])$$
+
+Which roles a part judges under the variant. -/
+def variantSpec (w : VariantRole) (spec : PartSpec) : PartSpec :=
+  ⟨spec.id, spec.roles.filter (·.role != w.replaces) ++ [countRole w]⟩
+
+/-- Put a count with no items under key `k` (or remove `k` when there is no count).
+
+$$\operatorname{setCount}(k, c, P) = \begin{cases} (k, (n, [\,])) :: [\,e \in P \mid e.1 \ne k\,] & c = n \in \mathbb N \\ [\,e \in P \mid e.1 \ne k\,] & c = \bot \end{cases}$$
+
+Every other key keeps its entries. -/
+def setCount (k : String) (c : Option Nat) (pr : PartRaw) : PartRaw :=
+  (match c with | some n => [(k, (⟨n, []⟩ : RoleRaw))] | none => []) ++ pr.filter (·.1 != k)
+
+/-- The original arm under a variant role: the new role carries the original's count of $\rho_{\mathrm{of}}$.
+
+$$\operatorname{vOrig}(w, P) = \operatorname{setCount}(w.\rho_{\mathrm{new}},\ c,\ P),\quad c = \begin{cases} P[w.\rho_{\mathrm{of}}].n & P[w.\rho_{\mathrm{of}}] \ne \bot \\ \bot & \text{otherwise} \end{cases},\quad P[k] = \text{the first entry of } P \text{ with key } k$$
+
+The original has no element of the new role; its reference count is that of the role it stands for. -/
+def variantOrig (w : VariantRole) (pr : PartRaw) : PartRaw :=
+  setCount w.role ((pr.lookup w.countOf).map (·.count)) pr
+
+/-- The rewrite arm under a variant role: the new role keeps its count and drops its elements.
+
+$$\operatorname{vRew}(w, P) = \operatorname{setCount}(w.\rho_{\mathrm{new}},\ c,\ P),\quad c = \begin{cases} P[w.\rho_{\mathrm{new}}].n & P[w.\rho_{\mathrm{new}}] \ne \bot \\ \bot & \text{otherwise} \end{cases}$$
+
+Only the count of the new role is judged. -/
+def variantRewrite (w : VariantRole) (pr : PartRaw) : PartRaw :=
+  setCount w.role ((pr.lookup w.role).map (·.count)) pr
+
+/-- The status of a variant role: the original's count of $\rho_{\mathrm{of}}$ against the rewrite's count of
+$\rho_{\mathrm{new}}$.
+
+$$\operatorname{vCount}(w, o, r) = \begin{cases} \operatorname{countStatus}(o[w.\rho_{\mathrm{of}}].n,\ r[w.\rho_{\mathrm{new}}].n) & o[w.\rho_{\mathrm{of}}] \ne \bot \wedge r[w.\rho_{\mathrm{new}}] \ne \bot \\ \mathrm{missing} & \text{otherwise} \end{cases}$$
+
+where $x[k]$ is the first entry with key $k$ of the part $x$, $\bot$ if there is none or $x = \bot$. The one item the new
+role adds. -/
+def variantCount (w : VariantRole) (o r : Option PartRaw) : Status :=
+  match o.bind (·.lookup w.countOf), r.bind (·.lookup w.role) with
+  | some x, some y => countStatus x.count y.count
+  | _, _ => .missing
+
+/-- The part spec under an optional variant role.
+
+$$\operatorname{vSpec}_\bot(\bot, P) = P, \qquad \operatorname{vSpec}_\bot(w, P) = \operatorname{vSpec}(w, P)$$
+
+No variant role leaves the spec as is. -/
+def variantSpecOpt : Option VariantRole → PartSpec → PartSpec
+  | none, spec => spec
+  | some w, spec => variantSpec w spec
+
+/-- The original arm under an optional variant role.
+
+$$\operatorname{vOrig}_\bot(\bot, P) = P, \qquad \operatorname{vOrig}_\bot(w, P) = \operatorname{vOrig}(w, P)$$
+
+No variant role leaves the arm as is. -/
+def variantOrigOpt : Option VariantRole → PartRaw → PartRaw
+  | none, pr => pr
+  | some w, pr => variantOrig w pr
+
+/-- The rewrite arm under an optional variant role.
+
+$$\operatorname{vRew}_\bot(\bot, P) = P, \qquad \operatorname{vRew}_\bot(w, P) = \operatorname{vRew}(w, P)$$
+
+No variant role leaves the arm as is. -/
+def variantRewriteOpt : Option VariantRole → PartRaw → PartRaw
+  | none, pr => pr
+  | some w, pr => variantRewrite w pr
+
+/-- A variant role is well formed for a part: it has a variant name and a reason, the replaced role and the counted role
+are roles of the part, and the new role is neither a role of the part nor a box reference of one.
+
+$$\operatorname{wfV}(P, w) \iff w.v \ne \varepsilon \wedge w.\mathit{why} \ne \varepsilon \wedge (\exists \sigma \in P.\mathrm{roles},\ \sigma.\mathrm{role} = w.\rho_{\mathrm{rep}}) \wedge (\exists \sigma \in P.\mathrm{roles},\ \sigma.\mathrm{role} = w.\rho_{\mathrm{of}}) \wedge \forall \sigma \in P.\mathrm{roles},\ \sigma.\mathrm{role} \ne w.\rho_{\mathrm{new}} \wedge \forall b,\ \sigma.b = b \implies b.\mathrm{role} \ne w.\rho_{\mathrm{new}}$$
+
+A variant role names what it replaces and what it counts, and adds a fresh name. -/
+def variantWellFormed (spec : PartSpec) (w : VariantRole) : Bool :=
+  !w.variant.isEmpty && !w.why.isEmpty && spec.roles.any (·.role == w.replaces) &&
+    spec.roles.any (·.role == w.countOf) &&
+    spec.roles.all fun rs => rs.role != w.role && rs.boxRel.all (·.role != w.role)
+
+/-- The new role's name is fresh in the part: no role and no box reference uses it.
+
+$$\operatorname{fresh}(w, P) \iff \forall \sigma \in P.\mathrm{roles},\ \sigma.\mathrm{role} \ne w.\rho_{\mathrm{new}} \wedge \forall b,\ \sigma.b = b \implies b.\mathrm{role} \ne w.\rho_{\mathrm{new}}$$
+
+The premise of the variant theorems. -/
+def Fresh (w : VariantRole) (spec : PartSpec) : Prop :=
+  ∀ rs ∈ spec.roles, rs.role ≠ w.role ∧ ∀ b, rs.boxRel = some b → b.role ≠ w.role
+
+/-- A well-formed variant role has a fresh name.
+
+$$\forall P, w,\quad \operatorname{wfV}(P, w) \implies \operatorname{fresh}(w, P)$$
+
+The decoder's check gives the theorems' premise. -/
+theorem fresh_of_wellFormed (spec : PartSpec) (w : VariantRole) (h : variantWellFormed spec w = true) :
+    Fresh w spec := by
+  simp only [variantWellFormed, Bool.and_eq_true, List.all_eq_true] at h
+  intro rs hrs
+  have h1 := h.2 rs hrs
+  simp only [bne_iff_ne, ne_eq, Option.all_eq_true] at h1
+  refine ⟨h1.1, fun b hb => ?_⟩
+  have := h1.2 b hb
+  simpa using this
+
+/-- Removing the entries of one key leaves every other key's first entry.
+
+$$\forall k, j, P,\quad j \ne k \implies [\,e \in P \mid e.1 \ne k\,][j] = P[j]$$
+
+A generic form of `lookup_filter_ne`. -/
+theorem lookup_filter_ne_raw {β : Type} (k j : String) (h : j ≠ k) (pr : List (String × β)) :
+    (pr.filter (·.1 != k)).lookup j = pr.lookup j := by
+  induction pr with
+  | nil => rfl
+  | cons e es ih =>
+    obtain ⟨k', v⟩ := e
+    by_cases hk : k' = k
+    · subst hk
+      have : (j == k') = false := by simpa using h
+      simp [List.lookup_cons, this, ih]
+    · have hk' : (k' != k) = true := by simpa using hk
+      simp only [List.filter_cons, hk', ite_true, List.lookup_cons, ih]
+
+/-- A key looked up after `setCount`.
+
+$$\forall k, c, P, j,\quad \operatorname{setCount}(k, c, P)[j] = \begin{cases} (n, [\,]) & j = k \wedge c = n \\ \bot & j = k \wedge c = \bot \\ P[j] & j \ne k \end{cases}$$
+
+Only key $k$ changes. -/
+theorem lookup_setCount (k : String) (c : Option Nat) (pr : PartRaw) (j : String) :
+    (setCount k c pr).lookup j = if j = k then c.map (fun n => (⟨n, []⟩ : RoleRaw)) else pr.lookup j := by
+  by_cases hj : j = k
+  · subst hj
+    have hnil : (pr.filter (·.1 != j)).lookup j = none := by
+      induction pr with
+      | nil => rfl
+      | cons e es ih =>
+        obtain ⟨k', v⟩ := e
+        by_cases hk : k' = j
+        · subst hk; simpa [List.filter_cons] using ih
+        · have hk' : (k' != j) = true := by simpa using hk
+          have hb : (j == k') = false := by simpa using Ne.symm hk
+          simp only [List.filter_cons, hk', ite_true, List.lookup_cons, hb, ih]
+    cases c <;> simp [setCount, hnil]
+  · have hb : (j == k) = false := by simpa using hj
+    cases c <;> simp [setCount, List.lookup_cons, hb, hj, lookup_filter_ne_raw k j hj]
+
+/-- Every item of a role carries that role's name.
+
+$$\forall A, \rho, \mathit{props}, q_o, q_r, o, r,\ \forall it \in \operatorname{roleItems}(A, \rho, \mathit{props}, q_o, q_r, o, r),\quad it.\rho = \rho.\mathrm{role}$$
+
+The role of an item names the spec it came from. -/
+theorem roleItems_role {a : Anchors} {rs : RoleSpec} {props : Option RoleProps} {refO refR : Option Rect}
+    {o r : Option RoleRaw} {it : PItem} (h : it ∈ roleItems a rs props refO refR o r) : it.role = rs.role :=
+  (mem_roleItems h).1
+
+/-- A filtered role list's items are the filtered items, when each kept role yields the same items.
+
+$$\forall l, q, F, F', p,\quad \bigl(\forall x \in l,\ (q(x) \implies F'(x) = [\,it \in F(x) \mid p(it)\,]) \wedge (\neg q(x) \implies [\,it \in F(x) \mid p(it)\,] = [\,])\bigr) \implies \textstyle\bigoplus_{x \in [y \in l \mid q(y)]} F'(x) = [\,it \in \bigoplus_{x \in l} F(x) \mid p(it)\,]$$
+
+A helper for the variant theorem. -/
+theorem flatMap_filter_eq {α β : Type} (l : List α) (q : α → Bool) (F F' : α → List β) (p : β → Bool)
+    (h : ∀ x ∈ l, (q x = true → F' x = (F x).filter p) ∧ (q x = false → (F x).filter p = [])) :
+    (l.filter q).flatMap F' = (l.flatMap F).filter p := by
+  induction l with
+  | nil => rfl
+  | cons x xs ih =>
+    have ih' := ih (fun y hy => h y (List.mem_cons_of_mem _ hy))
+    have hx := h x (List.mem_cons_self ..)
+    cases hq : q x
+    · simp [hq, List.flatMap_cons, List.filter_append, hx.2 hq, ih']
+    · simp [hq, List.flatMap_cons, List.filter_append, hx.1 hq, ih']
+
+/-- **Under a variant role the part's items are its plain items without the replaced role, then one count item.**
+
+$$\forall A, w, P, o, r, \Pi,\quad \operatorname{fresh}(w, P) \implies \operatorname{partItems}(A, \operatorname{vSpec}(w, P), \operatorname{vOrig}(w, \cdot)(o), \operatorname{vRew}(w, \cdot)(r), \Pi) = [\,it \in \operatorname{partItems}(A, P, o, r, \Pi) \mid it.\rho \ne w.\rho_{\mathrm{rep}}\,] \mathbin{+\!\!+} [\,(\mathrm{count}, w.\rho_{\mathrm{new}}, -1, \texttt{count}, \operatorname{vCount}(w, o, r), \mathrm{false})\,]$$
+
+where $o, r \in \mathrm{PartRaw}_\bot$ and the arm maps are applied through the option ($\bot \mapsto \bot$). Every other item,
+its order, key and status included, is the one the plain spec gives. -/
+theorem partItems_variant (a : Anchors) (w : VariantRole) (spec : PartSpec) (o r : Option PartRaw)
+    (props : PartProps) (hf : Fresh w spec) :
+    partItems a (variantSpec w spec) (o.map (variantOrig w)) (r.map (variantRewrite w)) props =
+      (partItems a spec o r props).filter (·.role != w.replaces) ++
+        [⟨.count, w.role, -1, "count", variantCount w o r, false⟩] := by
+  have hlo : ∀ k, k ≠ w.role → (o.map (variantOrig w)).bind (·.lookup k) = o.bind (·.lookup k) := by
+    intro k hk; cases o <;> simp [variantOrig, lookup_setCount, hk]
+  have hlr : ∀ k, k ≠ w.role → (r.map (variantRewrite w)).bind (·.lookup k) = r.bind (·.lookup k) := by
+    intro k hk; cases r <;> simp [variantRewrite, lookup_setCount, hk]
+  have href : ∀ (pr : Option PartRaw) (g : PartRaw → PartRaw), (∀ k, k ≠ w.role →
+      (pr.map g).bind (·.lookup k) = pr.bind (·.lookup k)) →
+      ∀ b : Option BoxRel, (∀ x, b = some x → x.role ≠ w.role) → refRect (pr.map g) b = refRect pr b := by
+    intro pr g hg b hb
+    cases b with
+    | none => rfl
+    | some b =>
+      simp only [refRect, Option.bind_some]
+      rw [hg b.role (hb b rfl)]
+  simp only [partItems, variantSpec, List.flatMap_append, List.flatMap_cons, List.flatMap_nil, List.append_nil]
+  congr 1
+  · apply flatMap_filter_eq
+    intro rs hrs
+    have hfr := hf rs hrs
+    refine ⟨fun hq => ?_, fun hq => ?_⟩
+    · rw [href o _ hlo rs.boxRel hfr.2, href r _ hlr rs.boxRel hfr.2, hlo rs.role hfr.1, hlr rs.role hfr.1]
+      symm
+      rw [List.filter_eq_self]
+      intro it hit
+      rw [roleItems_role hit]
+      exact hq
+    · rw [List.filter_eq_nil_iff]
+      intro it hit
+      rw [roleItems_role hit]
+      simp only [bne_eq_false_iff_eq] at hq
+      simp [hq]
+  · have ho : (o.map (variantOrig w)).bind (·.lookup w.role) =
+        (o.bind (·.lookup w.countOf)).map fun x => (⟨x.count, []⟩ : RoleRaw) := by
+      cases o with
+      | none => rfl
+      | some pr =>
+        simp only [Option.map_some, Option.bind_some, variantOrig, lookup_setCount, ite_true]
+        cases pr.lookup w.countOf <;> rfl
+    have hr : (r.map (variantRewrite w)).bind (·.lookup w.role) =
+        (r.bind (·.lookup w.role)).map fun x => (⟨x.count, []⟩ : RoleRaw) := by
+      cases r with
+      | none => rfl
+      | some pr =>
+        simp only [Option.map_some, Option.bind_some, variantRewrite, lookup_setCount, ite_true]
+        cases pr.lookup w.role <;> rfl
+    simp only [countRole, refRect, ho, hr, variantCount]
+    cases o.bind (·.lookup w.countOf) <;> cases r.bind (·.lookup w.role) <;> rfl
+
+/-- **Every other item of a part is unchanged by a variant role.**
+
+$$\forall A, w, P, o, r, \Pi,\quad \operatorname{fresh}(w, P) \implies [\,it \in \mathcal I_w \mid it.\rho \ne w.\rho_{\mathrm{rep}} \wedge it.\rho \ne w.\rho_{\mathrm{new}}\,] = [\,it \in \mathcal I \mid it.\rho \ne w.\rho_{\mathrm{rep}} \wedge it.\rho \ne w.\rho_{\mathrm{new}}\,]$$
+
+$$\text{with}\quad \mathcal I_w = \operatorname{partItems}(A, \operatorname{vSpec}(w, P), \operatorname{vOrig}(w, \cdot)(o), \operatorname{vRew}(w, \cdot)(r), \Pi),\quad \mathcal I = \operatorname{partItems}(A, P, o, r, \Pi)$$
+
+The items of every role other than the replaced and the new one, with their statuses, are the same list. -/
+theorem partItems_variant_others (a : Anchors) (w : VariantRole) (spec : PartSpec) (o r : Option PartRaw)
+    (props : PartProps) (hf : Fresh w spec) :
+    (partItems a (variantSpec w spec) (o.map (variantOrig w)) (r.map (variantRewrite w)) props).filter
+        (fun it => it.role != w.replaces && it.role != w.role) =
+      (partItems a spec o r props).filter (fun it => it.role != w.replaces && it.role != w.role) := by
+  rw [partItems_variant a w spec o r props hf, List.filter_append, List.filter_filter]
+  simp only [List.filter_cons, List.filter_nil, bne_self_eq_false, Bool.and_false, Bool.false_eq_true,
+    ite_false, List.append_nil]
+  congr 1
+  funext it
+  cases it.role != w.replaces <;> simp
+
+/-- **Under a variant role the replaced role is not judged and the new role is judged by its count against the
+counted role.**
+
+$$\forall A, w, P, o, r, \Pi,\quad \operatorname{fresh}(w, P) \wedge w.\rho_{\mathrm{rep}} \ne w.\rho_{\mathrm{new}} \implies [\,it \in \mathcal I_w \mid it.\rho = w.\rho_{\mathrm{rep}}\,] = [\,] \wedge [\,it \in \mathcal I_w \mid it.\rho = w.\rho_{\mathrm{new}}\,] = [\,(\mathrm{count}, w.\rho_{\mathrm{new}}, -1, \texttt{count}, \operatorname{vCount}(w, o, r), \mathrm{false})\,]$$
+
+$$\text{with}\quad \mathcal I_w = \operatorname{partItems}(A, \operatorname{vSpec}(w, P), \operatorname{vOrig}(w, \cdot)(o), \operatorname{vRew}(w, \cdot)(r), \Pi)$$
+
+For `hero.countdown` under `strip` ($\rho_{\mathrm{rep}} = $ `face`,
+$\rho_{\mathrm{new}} = $ `strip`, $\rho_{\mathrm{of}} = $ `digit`) the faces are not judged and the strips are judged by
+count against the original's digits. -/
+theorem partItems_variant_role (a : Anchors) (w : VariantRole) (spec : PartSpec) (o r : Option PartRaw)
+    (props : PartProps) (hf : Fresh w spec) (hne : w.replaces ≠ w.role) :
+    (partItems a (variantSpec w spec) (o.map (variantOrig w)) (r.map (variantRewrite w)) props).filter
+        (·.role == w.replaces) = [] ∧
+      (partItems a (variantSpec w spec) (o.map (variantOrig w)) (r.map (variantRewrite w)) props).filter
+        (·.role == w.role) = [⟨.count, w.role, -1, "count", variantCount w o r, false⟩] := by
+  rw [partItems_variant a w spec o r props hf, List.filter_append, List.filter_append, List.filter_filter,
+    List.filter_filter]
+  have hn : (w.role == w.replaces) = false := by simpa using Ne.symm hne
+  constructor
+  · rw [List.append_eq_nil_iff]
+    refine ⟨List.filter_eq_nil_iff.mpr fun it _ => by cases h : it.role == w.replaces <;> simp_all, ?_⟩
+    simp [hn]
+  · have hnone : (partItems a spec o r props).filter (fun it => it.role == w.role && it.role != w.replaces) = [] := by
+      rw [List.filter_eq_nil_iff]
+      intro it hit
+      simp only [partItems, List.mem_flatMap] at hit
+      obtain ⟨rs, hrs, hit⟩ := hit
+      rw [roleItems_role hit]
+      simp [(hf rs hrs).1]
+    simp only [hnone, List.nil_append, List.filter_cons, beq_self_eq_true, ite_true, List.filter_nil]
+
+/-- A variant role's count is equal exactly when both counts exist, agree and are positive.
+
+$$\forall w, o, r,\quad \operatorname{vCount}(w, o, r) = \mathrm{equal} \iff \exists x, y,\ o[w.\rho_{\mathrm{of}}] = x \wedge r[w.\rho_{\mathrm{new}}] = y \wedge x.n = y.n \wedge y.n \ne 0$$
+
+The new role passes only when the rewrite has as many as the original's counted role, and some. -/
+theorem variantCount_equal_iff (w : VariantRole) (o r : Option PartRaw) :
+    variantCount w o r = .equal ↔ ∃ x y, o.bind (·.lookup w.countOf) = some x ∧
+      r.bind (·.lookup w.role) = some y ∧ x.count = y.count ∧ y.count ≠ 0 := by
+  unfold variantCount
+  cases o.bind (·.lookup w.countOf) <;> cases r.bind (·.lookup w.role) <;> simp [countStatus]
+  · split <;> rename_i h
+    · simp only [reduceCtorEq, false_iff, not_and]; omega
+    · split <;> simp_all
+
+/-- A variant role with a count absent on either arm is missing.
+
+$$\forall w, o, r,\quad o[w.\rho_{\mathrm{of}}] = \bot \vee r[w.\rho_{\mathrm{new}}] = \bot \implies \operatorname{vCount}(w, o, r) = \mathrm{missing}$$
+
+An absent count never passes. -/
+theorem variantCount_missing (w : VariantRole) (o r : Option PartRaw)
+    (h : o.bind (·.lookup w.countOf) = none ∨ r.bind (·.lookup w.role) = none) :
+    variantCount w o r = .missing := by
+  unfold variantCount
+  rcases h with h | h <;> rw [h] <;> split <;> simp_all
+
+/-- No variant role leaves the part's items as they are.
+
+$$\forall A, P, o, r, \Pi,\quad \operatorname{partItems}(A, \operatorname{vSpec}_\bot(\bot, P), \operatorname{vOrig}_\bot(\bot, \cdot)(o), \operatorname{vRew}_\bot(\bot, \cdot)(r), \Pi) = \operatorname{partItems}(A, P, o, r, \Pi)$$
+
+Every part without a declared variant role is judged as before. -/
+theorem partItems_variant_none (a : Anchors) (spec : PartSpec) (o r : Option PartRaw) (props : PartProps) :
+    partItems a (variantSpecOpt none spec) (o.map (variantOrigOpt none)) (r.map (variantRewriteOpt none)) props =
+      partItems a spec o r props := by
+  cases o <;> cases r <;> rfl
+
 /-! ## Examples -/
 
 private def exA : Anchors :=
@@ -777,5 +1130,28 @@ private def exItemI (color : String) (inl : List String) : Item := ⟨none, [("c
   (exArm 2 [exItemI "blue" [], exItemI "blue" []]) exPropsI == .fail
 #guard partVerdict exA exSpecI (exArm 2 [exItemI "red" ["color"], exItemI "red" []])
   (exArm 2 [exItemI "blue" [], exItemI "red" []]) exPropsI == .pass
+
+private def exW : VariantRole := ⟨"strip", "face", "strip", "digit", "x"⟩
+private def exSpecV : PartSpec :=
+  ⟨"c", [⟨"digit", none, [], [], [], [], "x"⟩, ⟨"face", none, [], [], ["transform"], [], "x"⟩]⟩
+private def exPropsV : PartProps := [("face", ⟨["opacity"], []⟩), ("strip", ⟨["transform"], []⟩)]
+private def exItemV (op : String) : Item := ⟨none, [("opacity", op), ("transform", "none")], []⟩
+private def exOrigV : Option PartRaw := some [("digit", ⟨2, []⟩), ("face", ⟨20, List.replicate 2 (exItemV "1")⟩)]
+private def exRewV (strips : Nat) : Option PartRaw :=
+  some [("digit", ⟨2, []⟩), ("face", ⟨0, []⟩), ("strip", ⟨strips, List.replicate strips (exItemV "0")⟩)]
+private def variantVerdict (w : Option VariantRole) (o r : Option PartRaw) : Verdict :=
+  partVerdict exA (variantSpecOpt w exSpecV) (o.map (variantOrigOpt w)) (r.map (variantRewriteOpt w)) exPropsV
+
+#guard variantRole [exW] (some "strip") == some exW
+#guard variantRole [exW] (some "faithful") == none && variantRole [exW] none == none && variantRole [] (some "strip") == none
+#guard variantWellFormed exSpecV exW
+#guard !variantWellFormed exSpecV { exW with replaces := "nope" } && !variantWellFormed exSpecV { exW with countOf := "nope" } &&
+  !variantWellFormed exSpecV { exW with role := "digit" } && !variantWellFormed exSpecV { exW with why := "" }
+#guard variantVerdict none exOrigV (exRewV 2) == .fail
+#guard variantVerdict (some exW) exOrigV (exRewV 2) == .pass
+#guard variantVerdict (some exW) exOrigV (exRewV 3) == .fail
+#guard variantVerdict (some exW) exOrigV (some [("digit", ⟨2, []⟩)]) == .fail
+#guard (partItems exA (variantSpec exW exSpecV) (exOrigV.map (variantOrig exW)) ((exRewV 2).map (variantRewrite exW))
+  exPropsV).map (fun it => (it.role, it.key, it.status)) == [("digit", "count", .equal), ("strip", "count", .equal)]
 
 end Fw.Gate
