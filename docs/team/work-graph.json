@@ -6427,6 +6427,141 @@
     "apps/site/assets.manifest.json",
     "docs/team/handoffs/avif-picture.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "countdown-hidden-pause",
+   "title": "Optimize O2: hero.countdown hidden-pause; hidden predicate is exitOpacity = 0 or track offscreen (the pointerOff sentinel premise was refuted: copy paints at 4% alpha); new HeroCountdownHidden.lean, TS gate in hero.countdown, own ledger key, one gate run",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroCountdownHidden.lean",
+    "lean/Fw.lean",
+    "apps/site/src/parts/hero.countdown/**",
+    "packages/contracts/golden/parts/hero.countdown.jsonl",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/countdown-hidden-pause.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "platform-scene-faithful",
+   "title": "Finding (O1 premise refuted): the original registers the platform section with deferred rendering and scene pause (descendant animations paused offscreen); the port's faithful arm leaves it out. Restate it in the faithful arm as people.card does (watchActive, data-fw-scene active/paused, paused CSS rule); Lean premise that resume keeps every platform animation's phase (one-shot entries with fill both, loops 90 s/4 s/1 s)",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "svg-extract",
+    "asset-icons-gaps"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/platform/index.tsx",
+    "apps/site/src/parts/platform/*.css",
+    "lean/Fw/Parts/PlatformScene.lean",
+    "lean/Fw.lean",
+    "docs/team/handoffs/platform-scene-faithful.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "orbit-read-first",
+   "title": "Optimize O3 (after C3): hero.orbit read clientWidth before the first write; check found the premise open: the cards' --entered main-thread animation may dirty style before the rAF callback (keyframe_effect.cc SetNeedsAnimationStyleRecalc), ledger n22 says read-first can add a pass; Lean decides under both orders, refetch element.cc/Element.cpp into the sparse clones first; needs a load zone",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "speed-after-c3"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroOrbit.lean",
+    "apps/site/src/parts/hero.orbit/**",
+    "docs/team/handoffs/orbit-read-first.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "entries-due-ticks",
+   "title": "Optimize O4 (after C3): platform.entries rAF only at due ticks (askView constant between changes); clock.at(due) is an additive engine/clock.ts API the lead lands alone first",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "speed-after-c3",
+    "platform-scene-faithful"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "lean/Fw/Parts/PlatformEntries.lean",
+    "apps/site/src/engine/clock.ts",
+    "apps/site/src/parts/platform.entries/**",
+    "apps/site/src/parts/platform.glint/driver.ts",
+    "packages/contracts/golden/parts/platform.entries.jsonl",
+    "docs/team/handoffs/entries-due-ticks.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "exit-scoped-var",
+   "title": "Optimize O5 (after C3): hero.exit writes a non-inherited registered var on the readers only (units ~230 -> ~14 per scrolled frame); Chromium cite computed_style.cc:468-480, WebKit StyleTreeResolver.cpp:307-311; judged by elementCount only if the lead admits the quarantined counter, else proved-unmeasured",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "speed-after-c3"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroExitOpt.lean",
+    "apps/site/src/parts/hero.exit/**",
+    "apps/site/src/parts/hero/*.css",
+    "docs/team/handoffs/exit-scoped-var.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "carousel-hidden-pause",
+   "title": "Optimize O6 (after C3): people.carousel pause while the card is hidden but active, resume at stateAt(t1 - t0)",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "speed-after-c3",
+    "deck-panels-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "lean/Fw/Parts/PeopleCarousel.lean",
+    "apps/site/src/parts/people.carousel/**",
+    "docs/team/handoffs/carousel-hidden-pause.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "negative-lemmas",
+   "title": "Negative findings before the 10-20 11:15 text freeze: one Lean why-lemma each for commission.typing fill-no-layout (passes_absorb), hero.orbit splash-native (no fixed keyframe set), platform.stageBg artboard-layer (port lacks 4 will-change layers: census finding)",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/Negative.lean",
+    "lean/Fw.lean",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/negative-lemmas.md"
+   ]
   }
  ],
  "deadline": {
