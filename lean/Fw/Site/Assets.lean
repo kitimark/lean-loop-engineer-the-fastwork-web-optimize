@@ -5,7 +5,8 @@ the URL `apps/site/assets.manifest.json` gives it, or is excluded with a reason.
 `exts` (images, fonts, media, the web manifest; code is not an asset) that names a file of its arm. The reference sets
 are read at run time by `scripts/port/digest.mjs` (the snapshot page and its scripts and styles; the prerendered
 `dist/aot` page and its bundles); this module decides each URL on its own (`verdict`) and is checked against
-`packages/contracts/golden/port/assets.jsonl`. -/
+`packages/contracts/golden/port/assets.jsonl`. The site passes as the rename map first one row per original asset
+whose bytes a referenced rewrite asset has (the bundler's hashed copies), then the manifest rows. -/
 
 namespace Fw.Site.Assets
 
