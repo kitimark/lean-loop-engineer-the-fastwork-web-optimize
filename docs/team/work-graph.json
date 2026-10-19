@@ -9114,7 +9114,8 @@
     "docs/team/tools/disk-cleanup.md",
     "research/notes/2026/10-20-cache-relations.md",
     "docs/team/handoffs/lake-gc-refs.md"
-   ]
+   ],
+   "evidence": "096f7fc"
   },
   {
    "devices": [

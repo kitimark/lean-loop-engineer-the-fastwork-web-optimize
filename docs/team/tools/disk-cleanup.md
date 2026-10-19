@@ -18,13 +18,16 @@ through hardlinks and APFS clones, so removing a tree can free far less than its
 ## Steps
 
 1. **Lake artifact cache (largest win: 37.5 GB on 2026-10-18).** `pnpm -s fw lake-gc` lists the artifacts no
-   checkout links to (link count 1) that are older than 2 h, so files a running build just wrote stay, and prints
-   the delete command ([lake-gc.md](lake-gc.md); the list is decided and proved in `lean/Fw/Ops/LakeGc.lean`):
+   checkout links or names in its traces and no live Lake build may still write or link
+   ([lake-gc.md](lake-gc.md); the list is decided and proved in `lean/Fw/Ops/LakeGc.lean`). Run it when no
+   `lake build` is running: a running build keeps every entry in Lake's outputs map. Delete exactly that list with:
    ```
-   pnpm fw lake-gc --list | grep '/\.lake/' | xargs rm -f --   # the filter drops pnpm's banner lines
+   pnpm -s fw lake-gc --delete
    ```
    Safe: Lake treats a missing artifact as a cache miss and rebuilds
-   (`Lake/Build/Common.lean:521-535`, `getArtifactsUsingCache?`, toolchain v4.35.0, CONFIRMED). The auto-mode
+   (`Lake/Build/Common.lean:524-534`, `getArtifactsUsingCache?`, toolchain v4.35.0, CONFIRMED), except for a build
+   that starts during the run (resolved at Common.lean:585, linked at :652): run it only when `fw lake-gc` shows
+   `writers: none`, and rerun a build that failed meanwhile. The auto-mode
    classifier blocks this as irreversible: the user runs it or approves it. Never uninstall the pinned toolchain
    (`lean/lean-toolchain`).
 2. **Finished worktrees.** For each worktree whose workflow is not running: `git worktree remove
