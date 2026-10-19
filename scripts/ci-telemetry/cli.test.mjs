@@ -74,6 +74,7 @@ test("pickJob and githubJobFacts: own runner, skipped steps and telemetry steps 
 test("runnerClass", () => {
   const m = { os: "linux", arch: "arm64", cores: 4 };
   assert.equal(runnerClass({ ImageOS: "ubuntu24", RUNNER_ARCH: "ARM64" }, m), "ubuntu24-arm64-4c");
+  assert.equal(runnerClass({ ImageOS: "ubuntu24-arm64", RUNNER_ARCH: "ARM64" }, m), "ubuntu24-arm64-4c");
   assert.equal(runnerClass({}, m), "linux-arm64-4c");
   assert.equal(runnerClass({ FW_RUNNER_CLASS: "x" }, m), "x");
 });

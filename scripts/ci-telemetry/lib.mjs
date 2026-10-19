@@ -81,7 +81,8 @@ export function machineFacts(exec) {
 /** Runner class: ImageOS-RUNNER_ARCH-<cores>c on GitHub; os-arch-<cores>c elsewhere; FW_RUNNER_CLASS overrides. */
 export function runnerClass(env, m) {
   if (env.FW_RUNNER_CLASS) return env.FW_RUNNER_CLASS;
-  const base = env.ImageOS ? `${env.ImageOS}-${(env.RUNNER_ARCH ?? m.arch).toLowerCase()}` : `${m.os}-${m.arch}`;
+  const arch = (env.RUNNER_ARCH ?? m.arch).toLowerCase();
+  const base = env.ImageOS ? (env.ImageOS.toLowerCase().endsWith(arch) ? env.ImageOS : `${env.ImageOS}-${arch}`) : `${m.os}-${m.arch}`; // ImageOS may already carry the arch (ubuntu24-arm64)
   return `${base}-${m.cores}c`;
 }
 
@@ -137,7 +138,7 @@ export function pickJob(reply, runnerName) {
 }
 
 /** A GitHub job -> { createdMs, startedMs, steps }. Skipped steps and the telemetry steps themselves are dropped. */
-export function githubJobFacts(job, nowMs, skip = /^Telemetry/) {
+export function githubJobFacts(job, nowMs, skip = /telemetry/i) {
   const steps = [];
   for (const s of job.steps ?? []) {
     const a = ms(s.started_at);

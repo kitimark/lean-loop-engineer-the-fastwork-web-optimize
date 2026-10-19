@@ -49,7 +49,7 @@ does this for `check.sh`). Every command but `step` exits 0 on any internal erro
 
 - Sampler: Linux reads `/proc/stat` and `/proc/meminfo`; macOS `vm_stat` (memory) and `os.cpus()` (CPU), machine name
   from `sysctl`. Load is `os.loadavg()`, disk is `statfs` of the telemetry directory. At most 360 probes are kept.
-- Runner class: `ImageOS-RUNNER_ARCH-<cores>c` on GitHub (for example `ubuntu24-arm64-4c`), `<os>-<arch>-<cores>c`
+- Runner class: `ImageOS-RUNNER_ARCH-<cores>c` on GitHub (arch not repeated when ImageOS ends with it) (for example `ubuntu24-arm64-4c`), `<os>-<arch>-<cores>c`
   elsewhere, `FW_RUNNER_CLASS` overrides.
 - GitHub: `finish` makes one best-effort call to the jobs API (`GITHUB_TOKEN`, 15 s cap) and takes this job's step
   list (all steps, `uses:` steps included) and the true queue time (`created_at` to `started_at`). If the call fails the
