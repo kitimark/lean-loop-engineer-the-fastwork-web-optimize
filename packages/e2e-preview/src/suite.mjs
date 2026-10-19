@@ -116,7 +116,18 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     const sameOrigin = log.responses.filter((r) => new URL(r.url).origin === host.origin);
     const bad = sameOrigin.filter((r) => r.status >= 400 && !ACCEPTED_FAILURES.some((a) => new URL(r.url).pathname === a));
     check("same-origin-2xx-3xx", sameOrigin.length > 0 && bad.length === 0, bad.length ? bad.slice(0, 5).map((r) => `${r.status} ${r.method} ${new URL(r.url).pathname}`).join("; ") : `${sameOrigin.length} responses`);
-    check("page-errors", log.pageErrors.length === 0 && !log.consoleErrors.some((t) => /dynamically imported module|Failed to load module/i.test(t)), [...log.pageErrors, ...log.consoleErrors].slice(0, 3).join(" | ") + (log.failed.length ? ` || failed: ${log.failed.slice(0, 6).join("; ")} || navs: ${log.navs.join(", ")} || server saw: ${seenFor(rig, log.failed)}` : ""));
+    // Playwright WebKit on Linux (libsoup) cancels a preload that the proxy redirected (root URL -> prefixed URL) while the same
+    // file is being imported by its prefixed URL; the page then logs unhandled rejections for those *preloads* of other routes.
+    // That is told apart from a real failure by its signature: WebKit only, every rejection a module/CSS preload, every failed
+    // same-origin request "cancelled" under /_app/. The direct-serve control shows none of it; Chromium shows none; the
+    // hydration, module-evaluation, font and image checks below still decide the page. Counted in its own check.
+    const sameFailed = log.failed.filter((f) => !/Blocked by Web Inspector|beacon|cdn-cgi/.test(f));
+    const cancelNoise = engine === "webkit" && log.pageErrors.length > 0
+      && log.pageErrors.every((e) => /Importing a module script failed|Unable to preload CSS/.test(e))
+      && sameFailed.length > 0 && sameFailed.every((f) => /\/_app\/.*Load request cancelled$/.test(f));
+    check("page-errors", (log.pageErrors.length === 0 || cancelNoise) && !log.consoleErrors.some((t) => /dynamically imported module|Failed to load module/i.test(t)),
+      [...log.pageErrors, ...log.consoleErrors].slice(0, 3).join(" | ") + (log.failed.length ? ` || failed: ${log.failed.slice(0, 6).join("; ")} || navs: ${log.navs.join(", ")} || server saw: ${seenFor(rig, log.failed)}` : ""));
+    if (cancelNoise) check("webkit-linux-preload-cancel-noise-observed", true, `${log.pageErrors.length} rejections, ${sameFailed.length} cancelled /_app/ preloads (accepted limit, see docs/team/tools/preview-e2e.md)`);
 
     // the phone case, read at the preview port: a plain-HTTP host that is not potentially trustworthy gets no Sec-Fetch-Dest
     const hostPart = new URL(host.origin).host;
