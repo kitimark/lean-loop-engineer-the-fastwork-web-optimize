@@ -437,4 +437,384 @@ theorem lego_swap_passes_flow {V P M : Type} (ps : List PartSpec) (frame : Nat �
     (lego_swap_sound (Flow ps) frame (fun _ _ => ⟨0, fun _ => []⟩) E p x sel hf (fun _ _ _ _ => rfl)
       (flow_of_isolated hi) j hj).1) h
 
+
+/-! ## Deciding reachability -/
+
+/-- Decision procedure for `Edge`.
+
+$$\operatorname{edge}(ps,i,j) \iff i \ne j \land \begin{cases} \lnot\operatorname{quiet}(ps[i], ps[j]) & i < |ps| \land
+j < |ps| \\ \bot & \text{otherwise} \end{cases}$$
+
+False on every index out of range. -/
+def edgeB (ps : List PartSpec) (i j : Nat) : Bool :=
+  i != j && match ps[i]?, ps[j]? with
+    | some P, some Q => !quiet P Q
+    | _, _ => false
+
+/-- `edgeB` decides `Edge`.
+
+$$\forall ps,\ \forall i, j \in \mathbb{N}:\ \operatorname{edge}(ps,i,j) \iff \operatorname{Edge}_{ps}(i,j)$$
+
+Both read the parts at `i` and `j`. -/
+theorem edgeB_iff (ps : List PartSpec) (i j : Nat) : edgeB ps i j = true ↔ Edge ps i j := by
+  unfold edgeB Edge
+  cases hi : ps[i]? <;> cases hj : ps[j]? <;> simp
+
+/-- An edge joins two positions in range.
+
+$$\forall ps,\ \forall i, j \in \mathbb{N}:\ \operatorname{Edge}_{ps}(i,j) \Rightarrow i < |ps| \land j < |ps|$$
+
+Both ends hold a part. -/
+theorem Edge.lt {ps : List PartSpec} {i j : Nat} (e : Edge ps i j) : i < ps.length ∧ j < ps.length := by
+  obtain ⟨_, P, Q, hP, hQ, _⟩ := e
+  exact ⟨(List.getElem?_eq_some_iff.mp hP).1, (List.getElem?_eq_some_iff.mp hQ).1⟩
+
+/-- Adjacency lists of `ps`: for each position in range, the positions it has an edge to, ascending.
+
+$$\operatorname{adj}(ps) = \bigl[[\,j \in [0, |ps|) \mid \operatorname{edge}(ps,i,j)\,] \bigm| i \in [0, |ps|)\bigr]$$
+
+Position $i$'s list is entry $i$. -/
+def adj (ps : List PartSpec) : List (List Nat) :=
+  (List.range ps.length).map fun i => (List.range ps.length).filter (edgeB ps i)
+
+/-- Entry `i` of `adj ps` (empty past the end) lists exactly the edges out of `i`.
+
+$$\forall ps,\ \forall i, j \in \mathbb{N}:\ j \in \operatorname{adj}(ps)[i]^{[\,]} \iff \operatorname{Edge}_{ps}(i,j)$$
+
+$xs[i]^{[\,]}$ is entry $i$ of $xs$, or $[\,]$ when $i \ge |xs|$. -/
+theorem mem_adj (ps : List PartSpec) (i j : Nat) : j ∈ (adj ps).getD i [] ↔ Edge ps i j := by
+  rw [← edgeB_iff]
+  unfold adj
+  rw [List.getD_eq_getElem?_getD, List.getElem?_map]
+  by_cases hi : i < ps.length
+  · rw [List.getElem?_range hi]
+    simp only [Option.map_some, Option.getD_some, List.mem_filter, List.mem_range, and_iff_right_iff_imp]
+    exact fun h => ((edgeB_iff ps i j).mp h).lt.2
+  · rw [List.getElem?_eq_none (by simpa using hi)]
+    simp only [Option.map_none, Option.getD_none, List.not_mem_nil, false_iff]
+    exact fun h => hi ((edgeB_iff ps i j).mp h).lt.1
+
+/-- One breadth step over adjacency lists `A`: `S`, then each position below `|A|` not in `S` that an edge from `S`
+reaches, ascending.
+
+$$\operatorname{grow}_A(S) = S \mathbin{+\!\!+} [\,j \in [0, |A|) \mid j \notin S \land \exists i \in S:\ j \in
+A[i]^{[\,]}\,]$$
+
+`S` stays a prefix. -/
+def grow (A : List (List Nat)) (S : List Nat) : List Nat :=
+  S ++ (List.range A.length).filter fun j => !S.contains j && S.any fun i => (A.getD i []).contains j
+
+/-- Positions found from `p` in `k` breadth steps.
+
+$$\operatorname{reach}_A(p, k) = \operatorname{grow}_A^{\,k}([p])$$
+
+`k = 0` gives `[p]`. -/
+def reachList (A : List (List Nat)) (p k : Nat) : List Nat := Nat.repeat (grow A) k [p]
+
+/-- `S` is closed under the edges of `A`.
+
+$$\operatorname{closed}_A(S) \iff \forall i \in S,\ \forall j \in A[i]^{[\,]}:\ j \in S$$
+
+A closed set holding `p` holds everything `p` reaches. -/
+def closed (A : List (List Nat)) (S : List Nat) : Bool := S.all fun i => (A.getD i []).all S.contains
+
+/-- The start is found.
+
+$$\forall A,\ \forall p, k \in \mathbb{N}:\ p \in \operatorname{reach}_A(p,k)$$
+
+`grow` keeps its argument as a prefix. -/
+theorem start_mem_reachList (A : List (List Nat)) (p : Nat) : ∀ k, p ∈ reachList A p k
+  | 0 => by simp [reachList, Nat.repeat]
+  | k + 1 => by
+    simp only [reachList, Nat.repeat, grow, List.mem_append]
+    exact .inl (start_mem_reachList A p k)
+
+/-- Every position found from `p` is reached from `p`, when `A` lists the edges of `ps`.
+
+$$\forall ps,\ \forall A:\ \bigl(\forall i, j \in \mathbb{N}:\ j \in A[i]^{[\,]} \iff \operatorname{Edge}_{ps}(i,j)\bigr)
+\Rightarrow \forall p, k, q \in \mathbb{N}:\ q \in \operatorname{reach}_A(p,k) \Rightarrow \operatorname{Reach}_{ps}(p,q)$$
+
+Soundness of the breadth search. -/
+theorem reach_of_mem_reachList {ps : List PartSpec} {A : List (List Nat)}
+    (hA : ∀ i j, j ∈ A.getD i [] ↔ Edge ps i j) (p : Nat) : ∀ k q, q ∈ reachList A p k → Reach ps p q
+  | 0, q, h => by
+    simp only [reachList, Nat.repeat, List.mem_singleton] at h
+    subst h; exact .refl _
+  | k + 1, q, h => by
+    simp only [reachList, Nat.repeat, grow, List.mem_append, List.mem_filter, Bool.and_eq_true, List.any_eq_true,
+      List.contains_iff_mem] at h
+    rcases h with h | ⟨_, _, i, hi, hq⟩
+    · exact reach_of_mem_reachList hA p k q h
+    · exact (reach_of_mem_reachList hA p k i hi).tail ((hA i q).mp hq)
+
+/-- A closed set holding `i` holds every position `i` reaches, when `A` lists the edges of `ps`.
+
+$$\forall ps,\ \forall A,\ \forall S:\ \bigl(\forall i, j:\ j \in A[i]^{[\,]} \iff \operatorname{Edge}_{ps}(i,j)\bigr)
+\land \operatorname{closed}_A(S) \Rightarrow \forall i, k \in \mathbb{N}:\ \operatorname{Reach}_{ps}(i,k) \land i \in S
+\Rightarrow k \in S$$
+
+Completeness of the breadth search once it stops growing. -/
+theorem mem_of_reach {ps : List PartSpec} {A : List (List Nat)} {S : List Nat}
+    (hA : ∀ i j, j ∈ A.getD i [] ↔ Edge ps i j) (hc : closed A S = true) {i k : Nat} (h : Reach ps i k)
+    (hi : i ∈ S) : k ∈ S := by
+  unfold closed at hc
+  rw [List.all_eq_true] at hc
+  induction h with
+  | refl => exact hi
+  | @step a b _ e _ ih =>
+    exact ih (List.contains_iff_mem.mp (List.all_eq_true.mp (hc a hi) b ((hA a b).mpr e)))
+
+/-! ## The code rows -/
+
+/-- The adjacency lists of `codeParts`, position $i$ the $i$-th contract row.
+
+$$\mathrm{adj}_{\mathrm{code}} = [[1,3,13,15,16,17,22,28], [\,], \dots, [\,]]$$
+
+Literal of `adj codeParts` (`adj_code`). -/
+def codeAdj : List (List Nat) :=
+  [[1, 3, 13, 15, 16, 17, 22, 28], [],
+   [0, 1, 4, 6, 7, 8, 9, 10, 11, 14, 15, 16, 18, 20, 21, 22, 24, 26, 27, 28, 29, 30, 31, 32, 33],
+   [0, 9, 13, 15, 16, 17, 22, 24, 26, 27, 28], [5],
+   [0, 1, 4, 6, 7, 8, 9, 10, 11, 14, 16, 18, 20, 21, 22, 24, 26, 27, 28], [12], [], [], [3, 4, 7, 8, 10], [4, 7, 8, 9],
+   [0, 1, 2, 4, 6, 7, 8, 9, 10, 14, 16, 18, 20, 21, 22, 24, 26, 27, 28], [6],
+   [0, 1, 2, 3, 5, 6, 7, 9, 10, 11, 12, 15, 16, 17, 20, 22, 24, 25, 26, 27, 28, 29, 30, 33], [],
+   [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 33],
+   [0, 3, 13, 15, 17, 28], [0, 3, 13, 15, 16, 18, 28], [], [], [], [22, 24], [0, 3, 21, 24], [], [3, 21, 22], [],
+   [0, 1, 2, 3, 5, 6, 7, 9, 10, 11, 12, 13, 15, 16, 17, 20, 22, 24, 25, 27, 28, 29, 30, 33], [3, 24],
+   [0, 2, 3, 13, 15, 16, 17, 29], [], [], [], [], []]
+
+/-- `codeAdj` is the adjacency of the code rows.
+
+$$\operatorname{adj}(\mathrm{parts}_{\mathrm{code}}) = \mathrm{adj}_{\mathrm{code}}$$
+
+Decided on the 34 × 34 pairs. -/
+theorem adj_code : adj codeParts = codeAdj := by decide
+
+/-- `codeAdj` lists exactly the edges of the code rows.
+
+$$\forall i, j \in \mathbb{N}:\ j \in \mathrm{adj}_{\mathrm{code}}[i]^{[\,]} \iff
+\operatorname{Edge}_{\mathrm{parts}_{\mathrm{code}}}(i,j)$$
+
+`mem_adj` rewritten by `adj_code`. -/
+theorem mem_codeAdj (i j : Nat) : j ∈ codeAdj.getD i [] ↔ Edge codeParts i j := by
+  rw [← adj_code]; exact mem_adj codeParts i j
+
+/-- Six breadth steps close every search over the code rows.
+
+$$\forall p < 34:\ \operatorname{closed}_{\mathrm{adj}_{\mathrm{code}}}(\operatorname{reach}_{\mathrm{adj}_{\mathrm{code}}}(p,
+6))$$
+
+The longest shortest path has five edges. -/
+theorem closed_code : (List.range 34).all (fun p => closed codeAdj (reachList codeAdj p 6)) = true := by decide
+
+/-- Reachability on the code rows is the six-step search.
+
+$$\forall p, q \in \mathbb{N}:\ p < 34 \Rightarrow \bigl(\operatorname{Reach}_{\mathrm{parts}_{\mathrm{code}}}(p,q)
+\iff q \in \operatorname{reach}_{\mathrm{adj}_{\mathrm{code}}}(p, 6)\bigr)$$
+
+Sound by `reach_of_mem_reachList`, complete by `closed_code`. -/
+theorem reach_code_iff {p : Nat} (hp : p < 34) (q : Nat) :
+    Reach codeParts p q ↔ q ∈ reachList codeAdj p 6 := by
+  refine ⟨fun h => mem_of_reach mem_codeAdj ?_ h (start_mem_reachList codeAdj p 6),
+    reach_of_mem_reachList mem_codeAdj p 6 q⟩
+  exact List.all_eq_true.mp closed_code p (List.mem_range.mpr hp)
+
+/-- **The isolated code rows.** Exactly 14 positions of `codeParts` are quiet towards every other position.
+
+$$[\,p \in [0, 34) \mid \operatorname{isolated}(\mathrm{parts}_{\mathrm{code}}, p)\,] =
+[1, 7, 8, 14, 18, 19, 20, 23, 25, 29, 30, 31, 32, 33] \ \land\ [\mathrm{parts}_{\mathrm{code}}[p].\mathrm{id} \mid p
+\in \text{that list}] = [\texttt{commission.typing}, \texttt{hero.cue}, \texttt{hero.deck}, \texttt{morph.panel},
+\texttt{nav.langMenu}, \texttt{overlays.drawer}, \texttt{overlays.signup}, \texttt{people}, \texttt{people.carousel},
+\texttt{platform.entries}, \texttt{platform.glint}, \texttt{platform.marquee}, \texttt{platform.stageBg},
+\texttt{platform.sweep}]$$
+
+These are the parts `lego_swap_sound_flow` applies to. -/
+theorem isolated_code :
+    (List.range 34).filter (isolated codeParts) = [1, 7, 8, 14, 18, 19, 20, 23, 25, 29, 30, 31, 32, 33] ∧
+      ([1, 7, 8, 14, 18, 19, 20, 23, 25, 29, 30, 31, 32, 33].filterMap fun i => codeParts[i]?.map (·.id)) =
+        ["commission.typing", "hero.cue", "hero.deck", "morph.panel", "nav.langMenu", "overlays.drawer",
+          "overlays.signup", "people", "people.carousel", "platform.entries", "platform.glint", "platform.marquee",
+          "platform.stageBg", "platform.sweep"] := by decide
+
+/-- `Independent` at two positions of `ps`.
+
+$$\operatorname{PairIndep}_{ps}(i,k) \iff \exists P, Q:\ ps[i] = P \land ps[k] = Q \land \operatorname{Independent}(P,Q)$$
+
+False when either index is out of range. -/
+def PairIndep (ps : List PartSpec) (i k : Nat) : Prop :=
+  ∃ P Q, ps[i]? = some P ∧ ps[k]? = some Q ∧ Independent P Q
+
+/-- Decision procedure for `PairIndep`.
+
+$$\operatorname{indepAt}(ps,i,k) \iff \begin{cases} \operatorname{independent}(ps[i], ps[k]) & i < |ps| \land k < |ps|
+\\ \bot & \text{otherwise} \end{cases}$$
+
+Reads the parts at `i` and `k`. -/
+def indepAt (ps : List PartSpec) (i k : Nat) : Bool :=
+  match ps[i]?, ps[k]? with
+  | some P, some Q => independent P Q
+  | _, _ => false
+
+/-- `indepAt` decides `PairIndep`.
+
+$$\forall ps,\ \forall i, k \in \mathbb{N}:\ \operatorname{indepAt}(ps,i,k) \iff \operatorname{PairIndep}_{ps}(i,k)$$
+
+Both read the parts at `i` and `k`. -/
+theorem indepAt_iff (ps : List PartSpec) (i k : Nat) : indepAt ps i k = true ↔ PairIndep ps i k := by
+  unfold indepAt PairIndep Independent
+  cases hi : ps[i]? <;> cases hk : ps[k]? <;> simp
+
+/-- Exactly two code rows are `Independent` of every other row.
+
+$$[\,p \in [0, 34) \mid \forall q < 34:\ q = p \lor \operatorname{indepAt}(\mathrm{parts}_{\mathrm{code}}, p, q)\,] =
+[19, 23]$$
+
+overlays.drawer and people; the two-way premise of `flow_of_independent` covers only them. -/
+theorem independent_all_code :
+    (List.range 34).filter (fun p => (List.range 34).all fun q => q == p || indepAt codeParts p q) = [19, 23] := by
+  decide
+
+/-! ## Where the literal bridge fails -/
+
+/-- **Self-independence breaks the literal `Indep`.** If the part at `j` is `Independent` of itself, the observable
+"own variant" is `FlowSound` but does not read only the non-`PairIndep` positions.
+
+$$\forall ps,\ \forall j \in \mathbb{N},\ \forall P:\ ps[j] = P \land \operatorname{Independent}(P,P) \Rightarrow
+\operatorname{FlowSound}_{ps}(\mathit{own}) \land \lnot\operatorname{ReadsOnly}(\operatorname{PairIndep}_{ps},
+\mathit{own}),\quad \mathit{own}(k,\sigma) = \sigma(k),\ \sigma : \mathbb{N} \to \mathbb{B}$$
+
+`PairIndep` as `Indep` would make part `j` blind to its own variant. -/
+theorem selfIndep_not_readsOnly (ps : List PartSpec) (j : Nat) (P : PartSpec) (hP : ps[j]? = some P)
+    (hPP : Independent P P) :
+    FlowSound ps (fun k (sel : Nat → Bool) => sel k) ∧ ¬ ReadsOnly (PairIndep ps) (fun k (sel : Nat → Bool) => sel k) := by
+  refine ⟨(flowSound_iff ps _).mpr fun k sel sel' h => h k (.refl k), fun h => ?_⟩
+  have := h j (fun _ => false) (fun i => decide (i = j)) fun i hi => by
+    by_cases hij : i = j
+    · subst hij; exact absurd ⟨P, P, hP, hP, hPP⟩ hi
+    · simp [hij]
+  simp at this
+
+/-- Seven code rows are `Independent` of themselves.
+
+$$[P.\mathrm{id} \mid P \in \mathrm{parts}_{\mathrm{code}},\ \operatorname{independent}(P,P)] =
+[\texttt{engine.scroll}, \texttt{hero.cue}, \texttt{hero.deck}, \texttt{pain}, \texttt{people},
+\texttt{platform.marquee}, \texttt{platform.stageBg}]$$
+
+So `Indep` must exclude $i = j$. -/
+theorem selfIndep_code :
+    (codeParts.filter fun P => independent P P).map (·.id) =
+      ["engine.scroll", "hero.cue", "hero.deck", "pain", "people", "platform.marquee", "platform.stageBg"] := by
+  decide
+
+/-- **Chains break the literal `Indep`.** If `p` reaches `q ≠ p` and the parts at `p` and `q` are `Independent`, the
+observable "`q` shows `p`'s variant" is `FlowSound` but does not read only the positions not `PairIndep` of it.
+
+$$\forall ps,\ \forall p, q \in \mathbb{N}:\ p \ne q \land \operatorname{Reach}_{ps}(p,q) \land
+\operatorname{PairIndep}_{ps}(p,q) \Rightarrow \operatorname{FlowSound}_{ps}(\mathit{obs}) \land
+\lnot\operatorname{ReadsOnly}\bigl((i,k) \mapsto i \ne k \land \operatorname{PairIndep}_{ps}(i,k),\ \mathit{obs}\bigr),
+\quad \mathit{obs}(k,\sigma) = \begin{cases} \sigma(p) & k = q \\ \mathrm{false} & k \ne q \end{cases},\ \sigma :
+\mathbb{N} \to \mathbb{B}$$
+
+Pairwise `Independent` does not stop influence along a path. -/
+theorem chain_not_readsOnly (ps : List PartSpec) (p q : Nat) (hpq : p ≠ q) (hr : Reach ps p q)
+    (hi : PairIndep ps p q) :
+    FlowSound ps (fun k (sel : Nat → Bool) => if k = q then sel p else false) ∧
+      ¬ ReadsOnly (fun i k => i ≠ k ∧ PairIndep ps i k)
+        (fun k (sel : Nat → Bool) => if k = q then sel p else false) := by
+  refine ⟨(flowSound_iff ps _).mpr fun k sel sel' h => ?_, fun h => ?_⟩
+  · by_cases hk : k = q
+    · subst hk; simp [h p hr]
+    · simp [hk]
+  · have := h q (fun _ => false) (fun i => decide (i = p)) fun i hni => by
+      by_cases hip : i = p
+      · subst hip; exact absurd ⟨hpq, hi⟩ hni
+      · simp [hip]
+    simp at this
+
+/-- Pairs where the literal bridge `PairIndep → Flow` fails: from each position `p` below `|ps|`, every position found
+in `k` steps that is not `p` and is `Independent` of `p`, ascending.
+
+$$\operatorname{chains}(ps, A, k) = [\,(p,q) \mid p \in [0, |ps|),\ q \in \operatorname{reach}_A(p,k),\ q \ne p \land
+\operatorname{indepAt}(ps,p,q)\,]$$
+
+Pairs in the order of the comprehension. -/
+def chainPairs (ps : List PartSpec) (A : List (List Nat)) (k : Nat) : List (Nat × Nat) :=
+  (List.range ps.length).flatMap fun p => ((reachList A p k).filter fun q => q != p && indepAt ps p q).map (p, ·)
+
+/-- **The literal bridge fails on exactly the listed pairs.** On the code rows, two distinct positions that are
+`Independent` yet not `Flow`-independent are exactly the pairs of `chainPairs`.
+
+$$\forall p, q \in \mathbb{N}:\ (p,q) \in \operatorname{chains}(\mathrm{parts}_{\mathrm{code}}, \mathrm{adj}_{\mathrm{code}},
+6) \iff p \ne q \land \operatorname{PairIndep}_{\mathrm{parts}_{\mathrm{code}}}(p,q) \land
+\lnot\operatorname{Flow}_{\mathrm{parts}_{\mathrm{code}}}(p,q)$$
+
+Every other `Independent` pair is `Flow`-independent. -/
+theorem chainPairs_code_iff (p q : Nat) :
+    (p, q) ∈ chainPairs codeParts codeAdj 6 ↔ p ≠ q ∧ PairIndep codeParts p q ∧ ¬ Flow codeParts p q := by
+  have hlen : codeParts.length = 34 := by decide
+  unfold chainPairs Flow
+  simp only [List.mem_flatMap, List.mem_range, List.mem_map, List.mem_filter, Bool.and_eq_true, bne_iff_ne, ne_eq,
+    Prod.mk.injEq, Classical.not_not, hlen]
+  constructor
+  · rintro ⟨p', hp', q', ⟨hq', hne, hind⟩, rfl, rfl⟩
+    exact ⟨fun h => hne h.symm, (indepAt_iff _ _ _).mp hind, (reach_code_iff hp' q').mpr hq'⟩
+  · rintro ⟨hne, hind, hr⟩
+    obtain ⟨P, _, hP, _, _⟩ := id hind
+    have hp : p < 34 := hlen ▸ (List.getElem?_eq_some_iff.mp hP).1
+    exact ⟨p, hp, q, ⟨(reach_code_iff hp q).mp hr, fun h => hne h.symm, (indepAt_iff _ _ _).mpr hind⟩, rfl, rfl⟩
+
+/-- There are 299 such pairs.
+
+$$\bigl|\operatorname{chains}(\mathrm{parts}_{\mathrm{code}}, \mathrm{adj}_{\mathrm{code}}, 6)\bigr| = 299$$
+
+Each is an ordered pair of code positions. -/
+theorem chainPairs_code_length : (chainPairs codeParts codeAdj 6).length = 299 := by decide +kernel
+
+
+/-- The 299 pairs grouped by source: entry $p$ lists, in search order, every $q$ with $(p,q)$ in the failing pairs.
+
+$$\bigl[[\,q \mid (p', q) \in \operatorname{chains}(\mathrm{parts}_{\mathrm{code}}, \mathrm{adj}_{\mathrm{code}}, 6),\
+p' = p\,] \bigm| p \in [0, 34)\bigr] = [[4, 6, \dots, 32], [\,], \dots, [\,]]$$
+
+Sources with an empty entry (1, 6, 7, 8, 12, 14, 18, 19, 20, 23, 25, 29 to 33) satisfy the literal bridge. -/
+theorem chainTargets_code :
+    (List.range 34).map (fun p => ((chainPairs codeParts codeAdj 6).filter (·.1 == p)).map (·.2)) =
+      [[4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 24, 25, 27, 29, 30, 33, 31, 32], [], [3, 5, 12, 17, 25],
+       [1, 2, 4, 5, 6, 7, 8, 10, 11, 12, 14, 18, 20, 21, 25, 29, 30, 33, 31, 32],
+       [0, 1, 6, 7, 8, 14, 16, 18, 20, 21, 22, 24, 26, 27, 28, 3, 12, 13, 17, 25, 29, 30, 33, 31, 32],
+       [2, 3, 12, 17, 25, 29, 30, 33, 31, 32], [], [], [],
+       [0, 16, 17, 22, 24, 27, 28, 1, 6, 12, 14, 18, 20, 21, 25, 29, 30, 33, 31, 32],
+       [3, 0, 1, 6, 14, 16, 17, 18, 20, 21, 22, 24, 27, 28, 12, 25, 29, 30, 33, 31, 32],
+       [3, 12, 17, 25, 29, 30, 31, 32, 33], [], [4, 8, 14, 18, 21, 31, 32], [], [31, 32],
+       [1, 4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 22, 24, 25, 27, 29, 30, 33, 31, 32],
+       [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 20, 21, 22, 24, 25, 27, 29, 30, 33, 31, 32], [], [], [],
+       [0, 3, 1, 9, 13, 16, 17, 26, 27, 28, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32],
+       [1, 9, 16, 17, 27, 28, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32], [],
+       [0, 9, 16, 17, 28, 1, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32], [],
+       [4, 8, 14, 18, 21, 31, 32],
+       [0, 9, 16, 17, 21, 22, 28, 1, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32],
+       [1, 4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 22, 24, 25, 27, 30, 31, 32, 33], [], [], [], [], []] := by
+  decide +kernel
+
+#guard match codeParts[19]?, codeParts[0]? with | some P, some Q => quiet P Q | _, _ => false
+#guard match codeParts[0]?, codeParts[3]? with | some P, some Q => !quiet P Q | _, _ => false
+#guard isolated codeParts 19
+#guard !isolated codeParts 0
+#guard isolated codeParts 40
+#guard edgeB codeParts 0 3
+#guard !edgeB codeParts 0 0
+#guard !edgeB codeParts 1 0
+#guard !edgeB codeParts 0 40
+#guard indepAt codeParts 0 9
+#guard !indepAt codeParts 0 3
+#guard !indepAt codeParts 0 40
+#guard closed codeAdj (reachList codeAdj 6 6)
+#guard !closed codeAdj [0]
+#guard closed codeAdj []
+#guard reachList codeAdj 6 0 = [6]
+#guard reachList codeAdj 6 1 = [6, 12]
+#guard grow codeAdj [1] = [1]
+#guard (0, 9) ∈ chainPairs codeParts codeAdj 6
+#guard !((0, 3) ∈ chainPairs codeParts codeAdj 6)
+
 end Fw.Parts.Bridge
