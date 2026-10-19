@@ -7860,6 +7860,32 @@
     "research/notes/2026/10-20-ci-telemetry*.md",
     "docs/team/handoffs/ci-telemetry.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "runner-standins-fwcore",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Replace the runner's TS stand-ins with fwcore ops and delete the TS copies: land-queue (Fw.Console.LandQueue step/pending/next/retryAfter/runnerLive, with land-order-overlap and land-queue-verdict), coverage lint (Fw.Gate.Coverage), premise checks (Fw.Ops.Premise); batched calls on hot paths; goldens stay the contract",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/src/coverage.ts",
+    "apps/runner/src/premises.ts",
+    "apps/runner/src/lib.ts",
+    "apps/runner/test/**",
+    "lean/Fw/Console/LandQueue*.lean",
+    "lean/Fw/Gate/Coverage*.lean",
+    "lean/Fw/Ops/Premise*.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw/Wire/**",
+    "lean/FwCore*.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/**",
+    "docs/team/handoffs/runner-standins-fwcore.md"
+   ]
   }
  ],
  "deadline": {
