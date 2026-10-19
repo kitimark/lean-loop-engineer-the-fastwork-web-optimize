@@ -5912,7 +5912,8 @@
     "lean/Fw/Parts/FootprintRows.lean",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "packages/contracts/golden/parts/footprint.gen.json"
-   ]
+   ],
+   "evidence": "38a7454"
   },
   {
    "devices": [

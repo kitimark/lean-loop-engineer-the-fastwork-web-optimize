@@ -106,7 +106,7 @@ export function PeopleDeck({ variant }: { variant: string }) {
   const cls = (...c: Array<string | false | undefined>) => c.filter(Boolean).join(' ');
   return (
     <section ref={showcase} id="profile-showcase" className={css.profile} aria-label="Fastwork profile showcase" data-fw="people-deck" data-fw-variant={variant}>
-      <div ref={sticky} className={css.sticky}>
+      <div ref={sticky} className={css.sticky} data-fw="people-sticky">
         <div ref={chrome} className={cls(css.chrome, railIn && css.isRailIn)}>
           <div
             ref={tabs}
