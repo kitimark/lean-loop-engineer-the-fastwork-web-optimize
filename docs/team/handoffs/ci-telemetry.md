@@ -14,7 +14,7 @@ collector, docs, first measured note are done. Read first: `docs/team/tools/ci-t
 
 ## Round 2 (fixes of the 6 review findings)
 - Step keys: `keysFrom` in Lean gives a repeated step name `#1`, `#2`; `keysFrom_nodup`, `spans_steps_nodup`, golden case, #guards.
-- CPU model: `parseCpuModel` (cpuinfo, then `lscpu`, then implementer/part) with a node test; confirmed on a new CI record.
+- CPU model: `parseCpuModel` (cpuinfo, then `lscpu`, then implementer/part) with a node test; the CI record 39324688269 shows the implementer/part value (taken before the lscpu ordering fix); the lscpu path awaits the next record.
 - Exit backfill: `backfillExits` in the collector, always from `gh run view --json jobs`, vitest case of run 39314718340.
 - Note: job counts 6, provenance of the old-producer gate and lean tables stated. Gate/lean tables stay old-producer.
 

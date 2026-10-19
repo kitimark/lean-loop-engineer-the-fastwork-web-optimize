@@ -82,8 +82,7 @@ export function machineFacts(exec) {
   let cpu = cpus[0]?.model ?? "unknown";
   if (process.platform === "linux") {
     const info = read("/proc/cpuinfo") ?? "";
-    const named = parseCpuModel(info, "");
-    cpu = named ?? parseCpuModel(info, exec ? exec("lscpu", []) : null) ?? cpu;
+    cpu = parseCpuModel(info, exec ? exec("lscpu", []) : null) ?? cpu;
   } else if (process.platform === "darwin" && exec) {
     const b = exec("sysctl", ["-n", "machdep.cpu.brand_string"]);
     if (b) cpu = b.trim();

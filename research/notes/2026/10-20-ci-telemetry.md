@@ -81,8 +81,8 @@ Not a candidate yet: `lean/scripts/check.sh` (13 s, the longest checks about 11 
   longer repeats the arch. Records of the first three runs carry the old class, so the new runs start a new baseline.
 
 - Round 2 check, premise-tests run 39324688269 (dispatch, head 1bacb6b0, both jobs passed): `machine.cpu` is
-  `arm 0x41 part 0xd49` (the arm64 runners have no cpuinfo model name; so `lscpu` gave no usable "Model name" and
-  the implementer and part fallback ran; INFERRED), and the last step before finish (upload-artifact) now has exit 0 where the first
+  `arm 0x41 part 0xd49` (MEASURED: the implementer and part fallback; that run predates the fix that consults
+  `lscpu` before the fallback, so the `lscpu` path is not yet seen on a CI record), and the last step before finish (upload-artifact) now has exit 0 where the first
   records had none. MEASURED, collected with `fw ci telemetry github 39324688269`.
 
 ## Findings about the method
