@@ -1540,6 +1540,20 @@ theorem predProfile_noPush (m : Mode) (h : pushes m = false) (s : Stage) :
 #guard Stage.all.map (predProfile .touch) == Stage.all.map predStage
 #guard compPred .touch == "<o" && compPred .scroll == "=o"
 
+/-! ## Start read on the frame grid (touch arm finding) -/
+
+/-- A start read that equals the push time once and lags it once fits no constant offset, so R5's `start_eq` fails. -/
+theorem start_eq_refuted (sr : Rat → Rat) (n₁ n₂ : Rat) (h₁ : sr n₁ = n₁) (h₂ : sr n₂ < n₂) :
+    ¬ ∃ c : Rat, ∀ n, sr n = n + c := by
+  rintro ⟨c, hc⟩
+  rw [hc] at h₁ h₂
+  grind
+
+/-- A start that leads the push by less than one frame puts the variant's elapsed time strictly between the original's at the same frame and at the next. -/
+theorem lead_within_frame (n δ R p : Rat) (hδ : 0 < δ) (hp : δ < p) :
+    R - n < R - (n - δ) ∧ R - (n - δ) < (R + p) - n := by
+  constructor <;> grind
+
 /-! ## Golden prediction rows (engine-check schema) -/
 
 /-- One engine-check prediction row (`apps/runner/src/engine-check.ts`), with an explicit base arm.
