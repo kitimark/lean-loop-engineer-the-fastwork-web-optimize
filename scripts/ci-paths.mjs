@@ -23,6 +23,11 @@
 //   - the first steps of every non-guard job re-check the branch tip (`tip re-check`, then `stale: ...` fails the job
 //     when a newer push moved the tip; Lean `stale_never_works`), and every step whose `if:` uses a status function
 //     carries the conjunct `steps.stale.outcome == 'skipped'` (Lean `workConj`).
+// Task ci-main-triggers: only rows with a Lean seeder list `main`; in such a workflow every job but the guard and the
+// seeders has the `if:` form Lean `carriesNotMain` accepts (--write gives it Lean `withNotMain`), so a main push runs only
+// the seeders. The keys under `on:` are the row's Lean `onKeys` (push, workflow_dispatch; schedule only with a cron), and
+// `on.schedule` equals the row's crons (none: a schedule is a main run). The jobs that save a cache, read
+// from the workflows and their local actions, equal Lean `cacheWriters`.
 // --check also fails when the Lean macOS flag of a lane differs from its workflow (a job on `macos-*` / `xcode-*` whose
 // `if:` is not dispatch-only), and when a job's `if:` uses a status function without a conjunct that is false when the
 // guard skipped.
@@ -185,6 +190,71 @@ export function lakeJobs(root) {
   return rows;
 }
 
+/** The `- ` items between lines `from` and `to`, each as its lines. */
+function stepItems(lines, from, to) {
+  const out = [];
+  for (let i = from; i < to; i++) {
+    const m = /^(\s*)- /.exec(lines[i]);
+    if (!m) continue;
+    let e = i + 1;
+    while (e < to && (isBlank(lines[e]) || indentOf(lines[e]) > m[1].length)) e++;
+    out.push(lines.slice(i, e));
+    i = e - 1;
+  }
+  return out;
+}
+
+/** The value of the first `key:` line of a step, unquoted, without a trailing comment. */
+function stepField(step, key) {
+  const re = new RegExp(`^\\s*(?:-\\s+)?${key}:\\s*(.*?)\\s*(?:#.*)?$`);
+  for (const l of step) {
+    const m = re.exec(l);
+    if (m) return m[1].replace(/^'(.*)'$/, '$1');
+  }
+  return null;
+}
+
+const SAVES_CACHE = /^actions\/cache(?:\/save)?@/;
+
+/** Every job that saves a cache, as `file/job/cache` (Lean `cacheWriters`): an `actions/cache` (or `/save`) step of the
+ *  job, or of a local action it uses unless that step's `if:` asks for an input `== 'true'` the job does not pass. The
+ *  cache is the last segment of the step's `path:`. */
+export function cacheWriters(root) {
+  const dir = join(root, WF_DIR);
+  const out = new Set();
+  const cacheOf = (step) => (stepField(step, 'path') ?? '').split('/').pop();
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.yml')).sort()) {
+    const lines = readFileSync(join(dir, file), 'utf8').split('\n');
+    for (const j of readJobs(lines)) {
+      for (const step of stepItems(lines, j.at + 1, j.end)) {
+        const uses = stepField(step, 'uses') ?? '';
+        if (SAVES_CACHE.test(uses)) out.add(`${file}/${j.name}/${cacheOf(step)}`);
+        const a = /^\.\/(\.github\/actions\/[\w.-]+)$/.exec(uses);
+        const p = a && join(root, a[1], 'action.yml');
+        if (!p || !existsSync(p)) continue;
+        const al = readFileSync(p, 'utf8').split('\n');
+        for (const s of stepItems(al, 0, al.length)) {
+          if (!SAVES_CACHE.test(stepField(s, 'uses') ?? '')) continue;
+          const cond = /inputs\.([\w-]+) == 'true'/.exec(stepField(s, 'if') ?? '');
+          if (cond && stepField(step, cond[1]) !== 'true') continue;
+          out.add(`${file}/${j.name}/${cacheOf(s)}`);
+        }
+      }
+    }
+  }
+  return [...out].sort();
+}
+
+/** Problems when the cache writers of the workflows differ from Lean `cacheWriters`. */
+export function cacheWriterProblems(root, table) {
+  const lean = (table.cacheWriters ?? []).map((w) => `${w.file}/${w.job}/${w.cache}`).sort();
+  const got = cacheWriters(root);
+  const add = got.filter((x) => !lean.includes(x));
+  const gone = lean.filter((x) => !got.includes(x));
+  return [...add.map((x) => `cache writer ${x} is not in Lean Fw.Ci.Trigger.cacheWriters (add it, then cd lean && lake test -- --write-ci-trigger-golden)`),
+    ...gone.map((x) => `cache writer ${x} of Lean Fw.Ci.Trigger.cacheWriters saves no such cache in the workflows`)];
+}
+
 /** Modules under lean/ reachable from a root module by `import` (every import whose file exists). */
 function modulesOf(root, rootModule) {
   const seen = new Set();
@@ -271,6 +341,45 @@ export function renderPush(branches) {
 const indentOf = (l) => l.length - l.trimStart().length;
 const isBlank = (l) => l.trim() === '' || l.trim().startsWith('#');
 
+/** [start, end) line range of the `  <key>:` block under the top-level `on:`; empty, at the end of `on:`, when absent. */
+export function onKeyRange(lines, key) {
+  const on = lines.findIndex((l) => l === 'on:');
+  if (on < 0) throw new Error('no top-level `on:`');
+  let i = on + 1;
+  let last = on + 1;
+  for (; i < lines.length; i++) {
+    if (!isBlank(lines[i]) && indentOf(lines[i]) === 0) break;
+    if (lines[i] === `  ${key}:`) break;
+    if (!isBlank(lines[i])) last = i + 1;
+  }
+  if (i >= lines.length || lines[i] !== `  ${key}:`) return [last, last];
+  let end = i + 1;
+  while (end < lines.length && (isBlank(lines[end]) || indentOf(lines[end]) > 2)) end++;
+  while (end > i + 1 && isBlank(lines[end - 1])) end--;
+  return [i, end];
+}
+
+const ON_KEY = /^ {2}(['"]?)([\w-]+)\1\s*:/;
+
+/** The keys under the top-level `on:`, as { key, text }; key null for a line at indent 2 that is no key, or at indent 1. */
+export function onKeys(lines) {
+  const on = lines.findIndex((l) => l === 'on:');
+  if (on < 0) throw new Error('no top-level `on:`');
+  const keys = [];
+  let seen = false;
+  for (let i = on + 1; i < lines.length; i++) {
+    if (isBlank(lines[i])) continue;
+    const d = indentOf(lines[i]);
+    if (d === 0) break;
+    if (d === 2 || d === 1 || !seen) {
+      const m = d === 2 ? ON_KEY.exec(lines[i]) : null;
+      keys.push({ key: m ? m[2] : null, text: lines[i] });
+      seen = true;
+    }
+  }
+  return keys;
+}
+
 /** [start, end) line range of the `  push:` block under the top-level `on:`. */
 export function pushRange(lines) {
   const on = lines.findIndex((l) => l === 'on:');
@@ -330,15 +439,19 @@ export function unguarded(jobs) {
   return jobs.filter((j) => j.name !== 'guard' && !reaches(j)).map((j) => j.name);
 }
 
-/** The comment above the guard job. */
-export const GUARD_COMMENT = [
-  '  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless',
-  '  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if',
-  "  # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole",
-  '  # branch is an input. A main push runs when its own diff passes the coarse paths; dispatches, schedules always run.',
-  '  # Fails open.',
-  '  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.',
-];
+/** The comment above the guard job of a row: the main sentence only where the row lists `main`. */
+export function guardComment(row) {
+  return [
+    '  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless',
+    '  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if',
+    "  # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole",
+    ...(row?.branches?.includes('main')
+      ? ['  # branch is an input. A main push runs when its own diff passes the coarse paths, and then only the cache seeders',
+        '  # (Lean Fw.Ci.Trigger.seeders); dispatches always run. Fails open.']
+      : ['  # branch is an input. A main push starts no run; dispatches always run. Fails open.']),
+    '  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.',
+  ];
+}
 
 /** The guard's decision steps (Lean `Fw.Ci.Verdict.decisionStep`): `fw ci wait` reads which one ran from the jobs. */
 export function decisionSteps(lane) {
@@ -410,9 +523,9 @@ export function unsafeStatusIf(ifText) {
 export const guardIf = (lane) => `    if: ${lane.if}`;
 
 /** The text of the guard job for a workflow file and its lane. */
-export function guardJob(file, lane) {
+export function guardJob(file, lane, row = null) {
   return [
-    ...GUARD_COMMENT,
+    ...guardComment(row),
     '  guard:',
     ...(lane && lane.if ? [guardIf(lane)] : []),
     '    runs-on: ubuntu-24.04-arm',
@@ -437,8 +550,46 @@ export function guardJob(file, lane) {
   ];
 }
 
-/** Everything wrong with one workflow's text, and the fixed text. */
-export function reconcile(file, text, row, lane = null) {
+/** Lean `withNotMain`: the `if:` of a non-seeder job with condition `orig` (null: the job had no `if:`). */
+export function notMainIf(orig, conj) {
+  return orig === null ? `\${{ (${conj}) }}` : `\${{ (${orig}) && (${conj}) }}`;
+}
+
+/** Lean `inner 1 false`: from depth 1 outside a string, the parentheses of `m` never close the outer group and end at
+ *  depth 1 outside a string. */
+function innerGroup(m) {
+  let d = 1;
+  let q = false;
+  for (const ch of m) {
+    if (q) { if (ch === "'") q = false; continue; }
+    if (ch === "'") q = true;
+    else if (ch === '(') d++;
+    else if (ch === ')') { if (d <= 1) return false; d--; }
+  }
+  return d === 1 && !q;
+}
+
+/** Lean `carriesNotMain`: `text` is `${{ (conj) }}`, or `${{ (m) && (conj) }}` with `m` closing only at its end. */
+export function carriesNotMain(text, conj) {
+  if (text === notMainIf(null, conj)) return true;
+  const pre = '${{ (';
+  const post = `) && (${conj}) }}`;
+  if (!text.startsWith(pre) || !text.endsWith(post) || text.length < pre.length + post.length) return false;
+  return innerGroup(text.slice(pre.length, text.length - post.length));
+}
+
+/** A job `if:` text with the Lean form that skips a main push; a text Lean `carriesNotMain` accepts is unchanged. */
+export function withNotMain(ifText, conj) {
+  const t = ifText.trim();
+  if (carriesNotMain(t, conj)) return t;
+  if (t === '') return notMainIf(null, conj);
+  const m = /^\$\{\{\s*(.*?)\s*\}\}$/.exec(t);
+  return notMainIf(m ? m[1] : t, conj);
+}
+
+/** Everything wrong with one workflow's text, and the fixed text. `main` (Lean `seeders`, `notMainPush`): the jobs of
+ *  this file a `main` push runs besides the guard, and the conjunct every other job carries when the row lists `main`. */
+export function reconcile(file, text, row, lane = null, main = null) {
   const problems = [];
   let lines = text.split('\n');
   // 1. on.push: the branches, no paths (a docs-only tip push must still create the run whose guard decides)
@@ -451,16 +602,16 @@ export function reconcile(file, text, row, lane = null) {
   if (!jobs.some((j) => j.name === 'guard')) {
     problems.push(`${file}: no \`guard\` job`);
     const at = lines.indexOf('jobs:');
-    lines = [...lines.slice(0, at + 1), ...guardJob(file, lane), ...lines.slice(at + 1)];
+    lines = [...lines.slice(0, at + 1), ...guardJob(file, lane, row), ...lines.slice(at + 1)];
     jobs = readJobs(lines);
   }
   let g = jobs.find((j) => j.name === 'guard');
   // the comment above the guard
   let c = g.at;
   while (c > 0 && /^ {2}#/.test(lines[c - 1])) c--;
-  if (lines.slice(c, g.at).join('\n') !== GUARD_COMMENT.join('\n')) {
+  if (lines.slice(c, g.at).join('\n') !== guardComment(row).join('\n')) {
     problems.push(`${file}: the comment above the guard job differs`);
-    lines = [...lines.slice(0, c), ...GUARD_COMMENT, ...lines.slice(g.at)];
+    lines = [...lines.slice(0, c), ...guardComment(row), ...lines.slice(g.at)];
     jobs = readJobs(lines);
     g = jobs.find((j) => j.name === 'guard');
   }
@@ -590,6 +741,40 @@ export function reconcile(file, text, row, lane = null) {
   for (const j of jobs7) {
     if (j.name !== 'guard' && unsafeStatusIf(j.ifText)) problems.push(`${file}: job ${j.name}: its \`if:\` uses a status function without a needs success or guard run conjunct, so it would run (and enter its group) after the guard skipped (edit by hand)`);
   }
+  // 8. a row that lists `main`: a main push runs the guard and the seeders only (Lean Fw.Ci.Trigger.mainRuns_iff), so
+  // every other job carries the `notMainPush` conjunct and no seeder does
+  if (main && row.branches.includes('main')) {
+    for (const name of readJobs(lines).map((j) => j.name).filter((n) => n !== 'guard')) {
+      const j = readJobs(lines).find((x) => x.name === name);
+      const k = lines.findIndex((l, i) => i > j.at && i < j.end && /^ {4}if:/.test(l));
+      const carries = carriesNotMain(j.ifText.trim(), main.conj);
+      if (main.jobs.includes(name)) {
+        if (j.ifText.includes(main.conj)) problems.push(`${file}: job ${name} is a seeder (Lean Fw.Ci.Trigger.seeders) but its \`if:\` skips a main push (edit by hand)`);
+        continue;
+      }
+      if (carries) continue;
+      problems.push(`${file}: job ${name} would run on a main push but is no seeder (Lean Fw.Ci.Trigger.seeders); its \`if:\` is not \`\${{ (<condition>) && (${main.conj}) }}\` (Lean carriesNotMain)`);
+      if (k >= 0) lines[k] = `    if: ${withNotMain(j.ifText, main.conj)}`;
+      else lines.splice(j.at + 1, 0, `    if: ${notMainIf(null, main.conj)}`);
+    }
+  }
+  // 9. on.schedule: the row's crons (Lean `no_crons`: none, since a schedule runs on main)
+  {
+    const want = (row.crons ?? []).length ? ['  schedule:', ...row.crons.map((c) => `    - cron: '${c}'`)] : [];
+    const [a, b] = onKeyRange(lines, 'schedule');
+    if (lines.slice(a, b).join('\n') !== want.join('\n')) {
+      problems.push(`${file}: on.schedule differs from the Lean row's crons (Lean Fw.Ci.Trigger.no_crons)`);
+      lines = [...lines.slice(0, a), ...want, ...lines.slice(b)];
+    }
+  }
+  // 10. on: holds only the Lean row's keys (Lean Fw.Ci.Trigger.onKeys_iff)
+  if (!Array.isArray(row.onKeys)) problems.push(`${file}: the Lean row has no onKeys (lake test -- --write-ci-trigger-golden)`);
+  else {
+    for (const { key, text } of onKeys(lines)) {
+      if (key === null) problems.push(`${file}: \`${text.trim()}\` under \`on:\` is no key at indent 2 (edit by hand)`);
+      else if (!row.onKeys.includes(key)) problems.push(`${file}: on.${key} is not an allowed trigger [${row.onKeys.join(', ')}] (Lean Fw.Ci.Trigger.onKeys_iff; edit by hand)`);
+    }
+  }
   return { problems, text: lines.join('\n') };
 }
 
@@ -631,7 +816,7 @@ export function run(root, write) {
   const S = coarseMap(table);
   const dir = join(root, WF_DIR);
   const files = readdirSync(dir).filter((f) => f.endsWith('.yml')).sort();
-  const problems = [...coneProblems(root, table), ...leanInputProblems(root, table)];
+  const problems = [...coneProblems(root, table), ...leanInputProblems(root, table), ...cacheWriterProblems(root, table)];
   let wrote = 0;
   const rows = new Map(table.workflows.map((w) => [w.file, w]));
   try { problems.push(...(lakeGenProblems(root, write) ?? [])); } catch (e) { problems.push(`${LAKE_GEN}: ${e.message}`); }
@@ -645,7 +830,9 @@ export function run(root, write) {
     for (const p of paths) if (!portableGlob(p)) problems.push(`${f}: glob ${p} is not read the same by GitHub and by Lean PathCheck`);
     const text = readFileSync(join(dir, f), 'utf8');
     let r;
-    try { r = reconcile(f, text, row, lane ?? null); } catch (e) { problems.push(`${f}: ${e.message}`); continue; }
+    if (row.branches.includes('main') && !table.notMainPush) problems.push(`${f}: lists main but the Lean golden has no notMainPush (lake test -- --write-ci-trigger-golden)`);
+    const main = table.notMainPush ? { jobs: (table.seeders ?? []).filter((s) => s.file === f).map((s) => s.job), conj: table.notMainPush } : null;
+    try { r = reconcile(f, text, row, lane ?? null, main); } catch (e) { problems.push(`${f}: ${e.message}`); continue; }
     problems.push(...r.problems);
     if (write && r.text !== text) { writeFileSync(join(dir, f), r.text); wrote++; }
   }

@@ -7249,7 +7249,8 @@
     "docs/team/tools/difftest.md",
     ".claude/agents/measure-engineer.md",
     "apps/runner/src/fw.ts"
-   ]
+   ],
+   "evidence": "f07f396"
   },
   {
    "devices": [

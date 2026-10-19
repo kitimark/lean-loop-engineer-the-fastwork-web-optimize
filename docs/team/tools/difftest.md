@@ -19,7 +19,7 @@ this samples thousands.
 
 ## CI: `.github/workflows/difftest.yml`
 `fwcore` job builds the binary (artifact); `fixed` (seed 20261018, 2000 runs per op, blocks); `rotating` (seed = run
-id, 20000 runs, `continue-on-error`, seed in the job summary, candidates uploaded as an artifact). Also nightly and on dispatch.
+id, 20000 runs, `continue-on-error`, seed in the job summary, candidates uploaded as an artifact). Also on dispatch; no schedule (a schedule runs on main).
 
 ## Covered (TS -> Lean op)
 | TS | op |
