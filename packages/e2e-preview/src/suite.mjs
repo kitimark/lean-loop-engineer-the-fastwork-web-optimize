@@ -96,9 +96,9 @@ const newLog = () => ({ external: [], responses: [], requests: [], pageErrors: [
 const resetLog = (log) => { for (const k of Object.keys(log)) log[k].length = 0; };
 
 /** 0 unhandled rejections, 0 cancelled (or otherwise failed) same-origin requests, no module-load error on the console. */
-function noiseChecks(check, log, own) {
+function noiseChecks(check, log, own, requireResponses = true) {
   const sameFailed = log.failed.filter((f) => f.own && !noise.test(f.line)).map((f) => f.line);
-  const cancelled = sameFailed.filter((l) => /Load request cancelled$/.test(l));
+  const cancelled = sameFailed.filter((l) => /cancel/i.test(l));
   check("rejections-0", log.pageErrors.length === 0, log.pageErrors.slice(0, 3).join(" | ") || "none");
   check("cancelled-same-origin-0", cancelled.length === 0 && sameFailed.length === 0,
     sameFailed.length ? `${cancelled.length} cancelled of ${sameFailed.length} failed: ${sameFailed.slice(0, 6).join("; ")} || navs: ${log.navs.join(", ")}` : "none");
@@ -107,7 +107,7 @@ function noiseChecks(check, log, own) {
   const hops = sameOrigin.filter((r) => r.status >= 300 && r.status < 400 && r.status !== 304);
   check("no-redirect-on-any-request", hops.length === 0 && sameOrigin.every((r) => !r.redirected), hops.length ? hops.slice(0, 4).map((r) => `${r.status} ${new URL(r.url).pathname}`).join("; ") : `${sameOrigin.length} responses`);
   const bad = sameOrigin.filter((r) => r.status >= 400 && !ACCEPTED_FAILURES.some((a) => new URL(r.url).pathname === a));
-  check("same-origin-2xx", sameOrigin.length > 0 && bad.length === 0, bad.length ? bad.slice(0, 5).map((r) => `${r.status} ${r.method} ${new URL(r.url).pathname}`).join("; ") : `${sameOrigin.length} responses`);
+  check("same-origin-2xx", (!requireResponses || sameOrigin.length > 0) && bad.length === 0, bad.length ? bad.slice(0, 5).map((r) => `${r.status} ${r.method} ${new URL(r.url).pathname}`).join("; ") : `${sameOrigin.length} responses`);
 }
 
 async function runTarget(browser, rig, engine, host, target, opts) {
@@ -127,10 +127,11 @@ async function runTarget(browser, rig, engine, host, target, opts) {
 
     // access: the grant link is redeemed on the preview port of this very host (cookie scoped to the host, not to a port), as the
     // phone's browser would; its page-level hop lands on the arm's own origin
+    rig.seen.length = 0;
     const link = await rig.grantUrl(host.origin, target.arm);
     const g = await page.goto(link, { waitUntil: "load" });
     check("grant-redeemed", g && g.status() === 200 && page.url() === `${host.arm[target.arm]}/`, `${g?.status()} ${page.url()}`);
-    rig.seen.length = 0; resetLog(log);
+    resetLog(log); // rig.seen keeps the grant load: the arm requests of both loads are read below
 
     const doc = await page.goto(documentUrl(host, target), { waitUntil: "load" });
     check("document-200", doc && doc.status() === 200 && /text\/html/.test(doc.headers()["content-type"] ?? ""), `${doc?.status()} ${doc?.headers()["content-type"]}`);
@@ -232,7 +233,7 @@ async function clientNavigation(browser, rig, engine, host, arm) {
       check("target-node-module-evaluated-once", page2.length === 1 && rep.duplicates.length === 0 && after.evals.length >= before.evals.length, `${page2.length} evaluations of the page node; ${before.evals.length} -> ${after.evals.length} evaluations in all`);
       check("start-not-repeated", after.starts === 1, `start() ran ${after.starts} times (tap counter)`);
     }
-    noiseChecks(check, log, own);
+    noiseChecks(check, log, own, arm === "r"); // the original's home link needs no request at all
   } catch (e) {
     check("run", false, String(e?.message ?? e).split("\n").slice(0, 4).join(" / "));
   } finally { await ctx.close().catch(() => undefined); }
@@ -283,7 +284,8 @@ async function controlLoad(browser, rig, engine, arm, url, prepare) {
     await page.goto(target ?? url, { waitUntil: "load" });
     await settle(page.mainFrame());
     await page.waitForTimeout(500);
-    const cancelled = failed.filter((f) => /Load request cancelled$/.test(f)).length;
+    const own = failed.filter((f) => !noise.test(f));
+    const cancelled = own.filter((f) => /cancel/i.test(f)).length;
     return { arm, ok: true, rejections: errors.length, cancelled, detail: `${errors.length} rejections, ${cancelled} cancelled, ${failed.length} failed: ${[...errors.map((e) => e.slice(0, 80)), ...failed].slice(0, 3).join(" | ")}` };
   } catch (e) {
     return { arm, ok: false, rejections: -1, cancelled: -1, detail: String(e?.message ?? e).split("\n")[0] };

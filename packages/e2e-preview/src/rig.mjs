@@ -67,11 +67,16 @@ function startHostProxy() {
     let u;
     try { u = new URL(req.url); } catch { res.writeHead(400); return res.end("absolute URI expected"); }
     if (u.hostname !== PLAIN_HOST) { res.writeHead(502); return res.end(`proxy maps ${PLAIN_HOST} only`); }
-    const up = httpRequest({ host: "127.0.0.1", port: Number(u.port || 80), path: u.pathname + u.search, method: req.method, headers: req.headers }, (r) => {
-      res.writeHead(r.statusCode ?? 502, r.headers);
+    // hop-by-hop headers belong to one connection and are not forwarded; one upstream connection per request, torn down with the client's
+    const hop = ["connection", "keep-alive", "proxy-connection", "transfer-encoding", "upgrade", "te", "trailer"];
+    const strip = (h) => Object.fromEntries(Object.entries(h).filter(([k]) => !hop.includes(k.toLowerCase())));
+    const up = httpRequest({ host: "127.0.0.1", port: Number(u.port || 80), path: u.pathname + u.search, method: req.method, headers: strip(req.headers), agent: false }, (r) => {
+      res.writeHead(r.statusCode ?? 502, strip(r.headers));
       r.pipe(res);
+      r.on("error", () => res.destroy());
     });
-    up.on("error", () => { res.writeHead(502); res.end("upstream down"); });
+    up.on("error", () => { if (res.headersSent) return res.destroy(); res.writeHead(502); res.end("upstream down"); });
+    res.on("close", () => { if (!res.writableFinished) up.destroy(); });
     req.pipe(up);
   });
   srv.on("connect", (_req, sock) => sock.destroy()); // no CONNECT: the suite is plain HTTP
