@@ -10,6 +10,14 @@
  * `Math.random()`, and the candidate shuffle draws without replacement instead of a random-comparator sort.
  */
 
+/** The commission card the notes avoid (the original's `.commission-card`): the hook on our card. */
+export const PAIN_SELECTOR = '[data-fw="pain"]';
+export const PAIN_COPY_SELECTOR = '[data-fw="pain-copy"]';
+/** Client-written hook on each note (index.tsx renders it); the footprint reports the templated query as `templated-selector`. */
+export const NOTE_SELECTOR = (id: string | number): string => `[data-fw-note="${id}"]`;
+export const CARD_SELECTOR = '[data-fw="commission-card"]';
+
+
 export const NOTE_SIZE = 240;
 export const MAX_EXTRAS = 12;
 export const INTERVAL_MS = 3000;

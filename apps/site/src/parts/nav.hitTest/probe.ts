@@ -33,6 +33,10 @@ export function defaultEnv(): ProbeEnv {
 /** Selector of the hero track on our site (the original's `.hero-track`). */
 export const HERO_TRACK_SELECTOR = '[data-fw="hero-exit"]';
 
+/** The profile showcase's pinned bar (`.start-selling-profile-sticky`): the first child of the showcase section. */
+export const PROFILE_STICKY_SELECTOR = '[data-fw="people-sticky"]';
+export const PROFILE_SECTION_SELECTOR = '#profile-showcase, [data-fw="people-deck"]';
+
 function classify(el: Element | null): boolean {
   return classifyHit({
     hasElement: el !== null,
@@ -44,11 +48,11 @@ function classify(el: Element | null): boolean {
 
 /** ee() (12968-12980): is the profile showcase's sticky bar pinned. Style reads, then two rects. */
 export function readProfileSticky(env: ProbeEnv): boolean {
-  const e = env.doc.querySelector('.start-selling-profile-sticky');
+  const e = env.doc.querySelector(PROFILE_STICKY_SELECTOR);
   if (!e) return false;
   const t = env.win.getComputedStyle(e);
   if (t.position !== 'sticky') return false;
-  const n = e.closest('#profile-showcase, .start-selling-profile');
+  const n = e.closest(PROFILE_SECTION_SELECTOR);
   if (!n) return false;
   const top = Number.parseFloat(t.top);
   const i = e.getBoundingClientRect();

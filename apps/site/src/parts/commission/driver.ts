@@ -14,6 +14,7 @@ export interface StyleEl {
   style: { setProperty(name: string, value: string): void; height: string };
   classList: { toggle(cls: string, on: boolean): void };
   setAttribute(name: string, value: string): void;
+  toggleAttribute(name: string, force: boolean): boolean;
   getAttribute(name: string): string | null;
 }
 
@@ -132,6 +133,7 @@ export function mountCommission({ els, classes, engine, clock, env }: Deps): () 
     els.section.style.setProperty('--commission-shrink', String(Math.max(f.n, f.r)));
     els.section.classList.toggle(classes.entering, f.entering);
     els.section.classList.toggle(classes.shrinking, f.shrinking);
+    els.section.toggleAttribute('data-fw-shrinking', f.shrinking);
     els.runway.style.height = f.runway === null ? '' : `${f.runway}px`;
     measureWrap();
     if (f.more) request();

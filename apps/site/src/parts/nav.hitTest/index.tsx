@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { registerScroll } from '../../engine/scroll';
-import { changed, isOnDark, NAV_HIT_ORDER } from './logic';
+import { changed, isOnDark, NAV_HIT_ORDER, NAV_SELECTOR } from './logic';
 import { navFrame, type NavVariant } from './probe';
 
 /** Class the nav carries over a dark section (same name as the original's). */
@@ -26,7 +26,7 @@ function readMorph(nav: HTMLElement): number {
  * The callback runs its reads and writes inside itself, in the original's order (read, write, read, write, read), so
  * the faithful engine variant keeps the original's forced style passes; only the class toggle is returned as a writer.
  */
-export function NavHitTest({ variant, navSelector = '[data-fw="nav"]' }: { variant: string; impl?: 'mui' | 'plain'; navSelector?: string }) {
+export function NavHitTest({ variant, navSelector = NAV_SELECTOR }: { variant: string; impl?: 'mui' | 'plain'; navSelector?: string }) {
   useEffect(() => {
     const nav = document.querySelector<HTMLElement>(navSelector);
     if (!nav) return;
