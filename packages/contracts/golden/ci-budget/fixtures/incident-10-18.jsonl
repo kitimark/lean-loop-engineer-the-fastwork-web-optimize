@@ -1,1 +1,1 @@
-{"scenario":{"expect":{"counts":[{"from":1792281600,"kind":"tick","max":120,"min":120,"until":1792285200}],"oldExceeds":5000,"ticksPerHourMax":240},"name":"incident-10-18","oneoffCost":1,"oneoffEvery":120,"seconds":7200,"start":1792281600,"waiters":12}}
+{"scenario":{"expect":{"counts":[{"from":1792281600,"kind":"tick","max":360,"min":360,"until":1792285200}],"oldExceeds":5000,"ticksPerHourMax":720},"name":"incident-10-18","oneoffCost":1,"oneoffEvery":120,"seconds":7200,"start":1792281600,"waiters":12}}

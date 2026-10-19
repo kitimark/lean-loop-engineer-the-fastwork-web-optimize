@@ -52,9 +52,9 @@ bucket of the token used by this session's shell and its ~12 background agents r
 - **Defaults** (Lean-generated constants):
   - B = 3000 of 5000 per hour, split as 1800 for poll ticks and R = 1200 for one-off calls.
   - Floor F = 500.
-  - P_min = 30 s.
+  - P_min = 10 s (30 s until 2026-10-19, task ci-wait-lean).
   - 60 requests per 60 s, well under the 900-point secondary limit.
-  - At P = 30 s the shared poller uses at most **240 requests/h for any N**. Today's load was ≥ 5,000/h.
+  - At P = 10 s the shared poller uses at most **720 requests/h for any N** with one page (240 at 30 s; 1200 with two pages, where P = 12 s). Today's load was ≥ 5,000/h.
 - **Reading headers without `gh api`.**
   - **A (works today):** run `gh run list` with `GH_DEBUG=api` and parse `x-ratelimit-*` and `retry-after` from
     stderr. Authorization is redacted by default (CONFIRMED, §2).
@@ -214,7 +214,7 @@ def step    (L : Limits) : State → Event → State         -- clock (now := ma
 - **fwcore runs it.** New wire ops: `ci.budget.reserve`, `ci.budget.observe` (raw filtered header lines in, so header
   parsing is Lean too), `ci.budget.next` and `ci.budget.status`. They live in `lean/Fw/Ci/Wire.lean` and are
   registered in `lean/Fw/Wire.lean` with one dispatch line.
-- Ticks are ≥ 30 s apart, so one `spawnSync` of fwcore per decision, as `fwcoreCall` does (`run.ts:73-81@a8c05f4`),
+- Ticks are ≥ P_min = 10 s apart, so one `spawnSync` of fwcore per decision, as `fwcoreCall` does (`run.ts:73-81@a8c05f4`),
   is cheap.
 - **Lean generates** `limits.json` and the wire golden vectors (`packages/contracts/golden/ci-budget/wire-*.txt`), the
   same pattern as `Fw/Wire/SchedGolden.lean`.

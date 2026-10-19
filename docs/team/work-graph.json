@@ -6807,7 +6807,8 @@
     "docs/team/handoffs/ci-wait-lean.md",
     "lean/Fw/Ci/Golden.lean",
     "lean/FwTest/CiBudget.lean"
-   ]
+   ],
+   "evidence": "ecc0a2f"
   },
   {
    "devices": [

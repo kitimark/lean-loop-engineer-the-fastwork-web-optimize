@@ -1,12 +1,14 @@
 // `fw run`, `fw ci` and `fw watch` make every gh call through the shared request budget (packages/gh-budget): the fake gh
 // of that package counts the calls on a simulated clock. Decisions are fwcore's; these tests check the wiring:
 // the number of gh calls does not depend on the number of waiters, and no call is made while the budget says wait or stop.
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { waitFor } from "@fw/gh-budget";
-import { drive, fastCore, mkWorld, type Call, type World } from "../../../packages/gh-budget/test/util.ts";
+import { drive, fastCore, goldenDir, mkWorld, type Call, type World } from "../../../packages/gh-budget/test/util.ts";
+import { loadState } from "../../../packages/gh-budget/src/state.ts";
+import { ciLines } from "../src/land.ts";
 import { chargedGh, fwcoreCall, parseRunArgs, runMain, type FwCall, type Gh, type RunDeps } from "../src/run.ts";
 import { chargedRunner, type Runner } from "../src/watch-collect.ts";
 
@@ -86,7 +88,8 @@ describe.skipIf(!hasCore)("fw run through the request budget", { timeout: 120_00
     expect(calls.map((c) => c.args.slice(0, 2).join(" ")).slice(0, 2)).toEqual(["run list", "workflow run"]);
     expect(calls.find((c) => c.args.includes("headSha"))!.args[2]).toBe("51");
     const ticks = calls.filter((c) => c.args[1] === "list").length - 1; // minus the one before the dispatch
-    expect(ticks).toBeLessThanOrEqual(Math.ceil(250 / 30) + 1);
+    const { Pmin } = JSON.parse(readFileSync(join(goldenDir, "limits.json"), "utf8")) as { Pmin: number };
+    expect(ticks).toBeLessThanOrEqual(Math.ceil(250 / Pmin) + 1);
     console.log(`# gh calls: dispatch ${calls.length} ${JSON.stringify(count(calls))}`);
   });
 
@@ -142,5 +145,16 @@ describe("chargedRunner", () => {
   it("a missing budget (no fwcore) is a failed gh call, not a crash", async () => {
     const r = chargedRunner(async () => "x", () => { throw new Error("fwcore not built"); });
     expect(await r("gh", ["run", "list"], 1000)).toBeNull();
+  });
+});
+
+describe.skipIf(!hasCore)("land's advisory CI line", () => {
+  it("books its run list at 3 requests and makes one gh call", () => {
+    const w = mkWorld(T0, { fastGh: true });
+    w.config({ start: T0, listCost: 2, runs: [{ databaseId: 111, createdAt: T0, completeAt: T0 + 300, conclusion: "success", headSha: SHA, headBranch: "ci/t" }] });
+    expect(ciLines("ci/t", w.root, w.env).length).toBeGreaterThan(0);
+    expect(w.calls().map((c) => c.args.slice(0, 2).join(" "))).toEqual(["run list"]);
+    const st = loadState(w.stateDir) as { ledger: { cost: number; charged: boolean }[] };
+    expect(st.ledger.filter((e) => e.charged).map((e) => e.cost)).toEqual([3]);
   });
 });
