@@ -11,6 +11,7 @@ import { HOLD_LOAD_MS, MAIN_OFF_MS, ORIG_GRACE_MS, POST_RESIZE_MS, READY_TO_MS, 
 import { GATE_POLICY, fold, idlePolicy, view, viewFor, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { makeViewBarrier, skippedParts, viewStage } from './view.mjs';
+import { DIAG_INIT, diagEvents, diagSnap } from './diag-cv.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
 const collectWith = async (s, arg) => { const raw = await s.evaluate(collectInPage, arg); if (arg.props) attachAlignFacts(raw, await s.evaluate(collectAlignFacts, { parts: arg.parts, props: arg.props })); return raw; };
@@ -63,6 +64,7 @@ export const portOf = (engineName, platform = process.platform) =>
  * (what the verdict rule is asked about) and the mapped one as `realized`. Null (the default) adds no `realized` and no `raw.gap`.
  */
 export async function runEngine({ engineName, outDir, concurrency = 4, probeFilter = null, sweepFilter = null, partFilter = null, gaps = null }) {
+  const DIAG_CV = process.env.FW_GATE_DIAG_CV === '1' || (Array.isArray(partFilter) && partFilter.join() === 'commission' && process.env.FW_GATE_DIAG_CV !== '0'); // TEMPORARY diag, removed with the fix
   const { gen, sha256: genSha } = loadGen();
   const anchors = loadAnchors();
   // Part selection (glue): only the chosen parts' elements are collected, so only their raw facts and property lists are
@@ -92,7 +94,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     }))]));
 
   async function load(env, site) {
-    return engine.open(env, { origin: servers[site].origin, path: site === 'rewrite' ? '/' + variantPage.search : '/', init: frozen ? PIN_SRC + '\n' + KIT_SRC : PIN_SRC, frozen });
+    return engine.open(env, { origin: servers[site].origin, path: site === 'rewrite' ? '/' + variantPage.search : '/', init: (frozen ? PIN_SRC + '\n' + KIT_SRC : PIN_SRC) + (DIAG_CV ? '\n' + DIAG_INIT : ''), frozen });
   }
   // anchors.json `prepare` (per part and arm) is the one route for page states that exist only after an action, all run by
   // page.mjs prepareInPage. A part with a prepare step is collected AFTER the rest, so every other part is read in the state a
@@ -318,6 +320,51 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       if (bad) throw bad.reason;
       return rs.map((r) => r.value);
     });
+  }
+
+
+  if (DIAG_CV) {
+    // Both arms load together as a sweep's first stop does; variant C reads nothing before the sweep's own collect, variant S snapshots first.
+    const N = Number(process.env.FW_DIAG_LOADS || 16);
+    const sel = (site, role) => partsArg[site].commission.find((r) => r.role === role).selector;
+    const withTimeout = (p, ms, label) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('diag timeout ' + label)), ms))]);
+    for (const width of [1440, 1512]) {
+      const env = { ...refEnv, width, deviceWidth: width };
+      const next = { ...env, width: width + 1, deviceWidth: width + 1 };
+      for (let k = 0; k < N; k++) {
+        const variant = k % 2 === 0 ? 'C' : 'S';
+        await Promise.all(SITES.map(async (site) => {
+          const t0 = Date.now();
+          const s = await load(env, site);
+          const out = { engine: engineName, site, width, k, variant, snaps: [] };
+          try {
+            await withTimeout((async () => {
+              const SEL = { section: sel(site, 'section'), inner: sel(site, 'inner'), rows: sel(site, 'rows') };
+              const snap = async (tag) => out.snaps.push(await s.evaluate(diagSnap, { ...SEL, tag }));
+              await parkEarly(s, env);
+              const rec = newRec();
+              await evalReady(s, site, rec);
+              if (variant === 'S') await snap('ready');
+              await settleArm(s, site, env);
+              if (variant === 'S') { await snap('settled'); await snap('again'); }
+              const raw = await evalCollect(s, site, env, collectProps, null, false, frozen ? { base: stopBase(0, readingCount(false)), rec } : null, null, null);
+              const c = raw.parts.commission;
+              out.collect = { inner: c.inner.items[0].style['margin-inline-start'], rows: c.rows.items[0].style['margin-inline-start'], rect: c.inner.items[0].rect };
+              await snap('afterCollect');
+              await resizeTo(s, next, 1, false, rec);
+              await snap('wig+1');
+              await resizeTo(s, env, 2, false, rec);
+              await snap('wigback');
+              out.ev = await s.evaluate(diagEvents);
+            })(), 90000, `${site} ${width} ${k}`);
+          } catch (e) { out.error = String(e.message || e); }
+          finally { await s.close().catch(() => {}); }
+          out.ms = Date.now() - t0;
+          log('DIAGCV ' + JSON.stringify(out));
+        }));
+      }
+    }
+    process.exit(0);
   }
 
   // Phase 1: the matrix.
