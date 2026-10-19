@@ -43,7 +43,12 @@ on:
         default: 'measured'
       fw:
         description: >-
-          Flag set of the rewrite arm, e.g. morph.tween:waapi (becomes ?fw=...; the build prerenders every single-variant page). Empty = the default config.
+          Flag set of the rewrite arm, e.g. morph.tween:waapi (becomes ?fw=...; the build prerenders every single-variant page). Allowed characters: [A-Za-z0-9.:,-_@]. Empty = the default config.
+        type: string
+        default: ''
+      preset:
+        description: >-
+          Preset of the rewrite arm, e.g. v2-proved (becomes ?preset=...; the build prerenders every preset). Exclusive with fw. Empty = none.
         type: string
         default: ''
       parts:
@@ -110,6 +115,7 @@ jobs:
       matrix: ${{ steps.p.outputs.matrix }}
       engines: ${{ steps.p.outputs.engines }}
       parts: ${{ steps.p.outputs.parts }}
+      search: ${{ steps.p.outputs.search }}
     steps:
       - name: 'tip re-check'
         id: tip
@@ -140,8 +146,12 @@ jobs:
           FREE: ${{ inputs.free || '8' }}
           TIMES: ${{ inputs.times || 'measured' }}
           PARTS: ${{ inputs.parts || '' }}
+          FW: ${{ inputs.fw || '' }}
+          PRESET: ${{ inputs.preset || '' }}
         run: |
           set -euo pipefail
+          node --test .github/scripts/gate-search.test.mjs  # the search decision equals Fw.Gate.Search
+          search=$(node .github/scripts/gate-search.mjs --fw "$FW" --preset "$PRESET")
           node --test .github/scripts/gate-jobs.test.mjs  # the times default equals the Lean plan default (merge-drift guard)
           case "$RUNS" in 1|2|3) ;; *) echo "runs must be 1, 2 or 3" >&2; exit 1 ;; esac
           case "$FREE" in 4|8|12|20) ;; *) echo "free must be 4, 8, 12 or 20" >&2; exit 1 ;; esac
@@ -160,6 +170,7 @@ jobs:
           {
             echo "engines=$engines"
             echo "parts=$PARTS"
+            echo "search=$search"
             echo "matrix=$matrix"
           } >> "$GITHUB_OUTPUT"
           echo "$engines"
@@ -225,7 +236,7 @@ jobs:
           ENGINE: ${{ matrix.engine }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
-          FW_SEARCH: ${{ inputs.fw && format('?fw={0}', inputs.fw) || '' }}
+          FW_SEARCH: ${{ needs.site.outputs.search }}
           SMOKE: ${{ github.workspace }}/.github/scripts/gate-smoke.mjs
         working-directory: packages/gate-breakpoints
         timeout-minutes: 5
@@ -238,7 +249,7 @@ jobs:
           PARTS: ${{ needs.site.outputs.parts }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
-          FW_SEARCH: ${{ inputs.fw && format('?fw={0}', inputs.fw) || '' }}
+          FW_SEARCH: ${{ needs.site.outputs.search }}
         working-directory: packages/gate-breakpoints
         run: |
           parts_args=()
