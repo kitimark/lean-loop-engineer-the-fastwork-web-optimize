@@ -1,7 +1,7 @@
 // wave2.mjs: the staging, the whole-run totals and the labels it adds around fwcore's verdicts.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bandCells, confounds, deltaRow, f6, median, pageDeltas, stageAs, totalsOf } from '../src/wave2.mjs';
+import { bandCells, confounds, deltaRow, f6, median, nonFaithful, pageDeltas, pairsOf, stageAs, totalsOf } from '../src/wave2.mjs';
 import { variantKeys } from '../../../apps/runner/src/engine-check.ts';
 
 const file = (frames, runLevel = {}) => ({ profile: { id: 'swipe-v1' }, meta: { target: 'rewrite', search: '?only=g2&stage=vw:430,vh:932' }, frames: frames.map((counts) => ({ counts })), runLevel });
@@ -28,11 +28,44 @@ test('pageDeltas covers a type present in one arm only', () => {
   assert.equal(d.z.delta, 2);
 });
 
+const withFlags = (flags, frames = [{ a: 1 }]) => {
+  const f = file(frames);
+  f.meta.rewrite = { config: { variants: { 'hero.countdown': 'faithful', 'morph.columns': 'faithful', 'engine.scene': 'faithful', 'pain.notes': 'faithful', ...flags } } };
+  return f;
+};
+const V = 'rewrite+?fw=pain.notes:visible';
+
+test('pairsOf: a fw variant names its pairs, a bare variant takes the page part', () => {
+  assert.deepEqual(pairsOf('rewrite+?fw=hero.countdown:strip,morph.countdown:strip', 'x'), ['hero.countdown:strip', 'morph.countdown:strip']);
+  assert.deepEqual(pairsOf('hidden-pause', 'morph.columns'), ['morph.columns:hidden-pause']);
+});
+
 test('stageAs: base answers rewrite, every arm file answers each declared variant, nothing else', () => {
-  const staged = stageAs([{ path: 'b1', counts: file([{ a: 1 }]) }], [{ path: 'a1', counts: file([{ a: 2 }]) }], ['v1', 'v2']);
-  assert.deepEqual(staged.map((s) => [s.source, s.variant]), [['b1', 'rewrite'], ['a1', 'v1'], ['a1', 'v2']]);
+  const r = stageAs([{ path: 'b1', counts: withFlags({}) }], [{ path: 'a1', counts: withFlags({ 'pain.notes': 'visible' }) }], [V], 'pain.notes');
+  const staged = r.files;
+  assert.deepEqual(staged.map((s) => [s.source, s.variant]), [['b1', 'rewrite'], ['a1', V]]);
   for (const s of staged) assert.deepEqual(variantKeys(s.counts), [s.variant]);
-  assert.equal(new Set(staged.map((s) => s.name)).size, 3);
+  assert.equal(new Set(staged.map((s) => s.name)).size, 2);
+  assert.deepEqual(r.pairs, ['pain.notes:visible']);
+});
+
+test('stageAs: a bare row variant is expanded with the page part; a single-flag arm is MEASURED', () => {
+  const arm = [{ path: 'a1', counts: withFlags({ 'morph.columns': 'hidden-pause' }) }];
+  const r = stageAs([{ path: 'b1', counts: withFlags({}) }], arm, ['hidden-pause'], 'morph.columns');
+  assert.deepEqual(r.pairs, ['morph.columns:hidden-pause']);
+  assert.equal(r.attribution, 'MEASURED');
+  assert.throws(() => stageAs([{ path: 'b1', counts: withFlags({}) }], arm, ['hidden-pause'], 'engine.scene'), /did not run engine\.scene:hidden-pause/);
+});
+
+test('stageAs: a preset arm that holds the row pairs plus other flags stages as INFERRED; a missing pair refuses', () => {
+  const base = [{ path: 'b1', counts: withFlags({}) }];
+  const preset = [{ path: 'a1', counts: withFlags({ 'pain.notes': 'visible', 'engine.scene': 'hidden-pause', 'hero.countdown': 'strip' }) }];
+  assert.equal(stageAs(base, preset, [V], 'pain.notes').attribution, 'INFERRED');
+  assert.deepEqual(stageAs(base, preset, [V], 'pain.notes').armFlags, ['engine.scene:hidden-pause', 'hero.countdown:strip', 'pain.notes:visible']);
+  const strip = 'rewrite+?fw=hero.countdown:strip,morph.countdown:strip';
+  assert.throws(() => stageAs(base, preset, [strip], 'hero.countdown'), /did not run morph\.countdown:strip/);
+  assert.equal(stageAs(base, [{ path: 'a', counts: withFlags({ 'hero.countdown': 'strip', 'morph.countdown': 'strip' }) }], [strip], 'hero.countdown').attribution, 'MEASURED');
+  assert.deepEqual(nonFaithful(withFlags({ 'pain.notes': 'visible' })), ['pain.notes:visible']);
 });
 
 test('confounds names other active variants that predict a change on the same type', () => {

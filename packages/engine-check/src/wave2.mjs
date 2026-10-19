@@ -1,6 +1,7 @@
 // Wave-2 analysis glue: part-page and whole-page counts runs read under an EXPLICIT plan (results/integrate-wave-2/plan.json).
 // Every verdict is fwcore's (`fw engine-check`, Lean Fw.Measure.EngineCheck); this file stages files, copies numbers and
-// labels confounds. TS stand-ins (no Lean twin yet): `totalsOf`, `median`, `deltaRow`, `confounds`, `stageAs`.
+// labels confounds. TS stand-ins (no Lean twin yet): `totalsOf`, `median`, `deltaRow`, `confounds`, `stageAs` (the identity guard and the
+// attribution tag: decision logic, Lean twin pending), `pairsOf`, `nonFaithful`.
 //
 //   node wave2.mjs check --plan plan.json --dl <dir of gh-downloaded runs> --out <dir>   engine-check per page of the plan
 //   node wave2.mjs zonecmp --dir results/integrate-wave-2/zones --profile p --out <dir>    v2-proved zone baseline against the base one
@@ -54,19 +55,52 @@ export function pageDeltas(baseFiles, armFiles) {
 }
 
 /**
+ * The `part:variant` pairs a row variant names. `rewrite+?fw=a:b,c:d` names `a:b` and `c:d`; a bare variant (`hidden-pause`) is
+ * expanded with the page's `part`. @param {string} variant @param {string} part
+ */
+export function pairsOf(variant, part) {
+  const m = /^rewrite\+\?fw=(.+)$/.exec(variant);
+  return m ? m[1].split(',') : [`${part}:${variant}`];
+}
+
+/** The `part:variant` pairs of a counts file's rewrite config whose variant is not `faithful`. @param {any} counts */
+export function nonFaithful(counts) {
+  const v = counts.meta?.rewrite?.config?.variants;
+  if (!v) throw new Error('counts file has no meta.rewrite.config.variants');
+  return Object.entries(v).filter(([, x]) => x !== 'faithful').map(([k, x]) => `${k}:${x}`).sort();
+}
+
+/**
  * Stage the files of one page: base files answer `rewrite`, arm files answer each variant of `armVariants`. Each copy carries
  * meta.variant, so `variantKeys` (apps/runner/src/engine-check.ts) returns that one key and never the bare target.
- * @param {{path: string, counts: any}[]} baseFiles @param {{path: string, counts: any}[]} armFiles @param {string[]} armVariants
+ * Identity, not inference (TS stand-in `stageAs`): the page's pairs (`pairsOf` over `armVariants` and `part`) must all be in the
+ * rewrite config of every arm file, else it throws and nothing is staged. `attribution` is written here: MEASURED when every arm
+ * file's non-faithful set equals the pair set and every base file has none (a single-flag arm), INFERRED otherwise (a preset arm: PLAN 10.7 open bridge).
+ * @param {{path: string, counts: any}[]} baseFiles @param {{path: string, counts: any}[]} armFiles @param {string[]} armVariants @param {string} part
+ * @returns {{files: {name: string, source: string, variant: string, counts: any}[], pairs: string[], armFlags: string[], attribution: 'MEASURED' | 'INFERRED'}}
  */
-export function stageAs(baseFiles, armFiles, armVariants) {
+export function stageAs(baseFiles, armFiles, armVariants, part) {
+  const pairs = [...new Set(armVariants.flatMap((v) => pairsOf(v, part)))].sort();
+  const armSets = armFiles.map((f) => nonFaithful(f.counts));
+  for (const [i, set] of armSets.entries()) {
+    const missing = pairs.filter((p) => !set.includes(p));
+    if (missing.length) throw new Error(`stageAs ${part}: arm file ${armFiles[i].path} did not run ${missing.join(', ')} (it ran: ${set.join(', ') || 'nothing'}); not staged`);
+  }
+  const key = (xs) => xs.join(' ');
+  const single = armSets.every((s) => key(s) === key(pairs)) && baseFiles.every((f) => nonFaithful(f.counts).length === 0);
   const copy = (role, i, { path, counts }, v) => ({
     name: `${role}-${String(i).padStart(2, '0')}-${v.replace(/[^A-Za-z0-9.:@,_=+-]/g, '_')}`,
     source: path, variant: v, counts: { ...counts, meta: { ...counts.meta, variant: v } },
   });
-  return [
-    ...baseFiles.map((f, i) => copy('base', i, f, 'rewrite')),
-    ...armFiles.flatMap((f, i) => armVariants.map((v) => copy('arm', i, f, v))),
-  ];
+  return {
+    files: [
+      ...baseFiles.map((f, i) => copy('base', i, f, 'rewrite')),
+      ...armFiles.flatMap((f, i) => armVariants.map((v) => copy('arm', i, f, v))),
+    ],
+    pairs,
+    armFlags: [...new Set(armSets.flat())].sort(),
+    attribution: single ? 'MEASURED' : 'INFERRED',
+  };
 }
 
 /**
@@ -190,7 +224,11 @@ function main(argv) {
       continue;
     }
     const rows = allRows.filter((r) => (pg.rowVariants ?? []).includes(r.variant) && r.scenario === pg.scenario);
-    const staged = stageAs(baseFiles, armFiles, pg.rowVariants ?? []);
+    if (!pg.part) throw new Error(`${name}: the plan page has no "part"`);
+    const searches = [...new Set(armFiles.map((f) => f.counts.meta.search))];
+    if (searches.length !== 1) throw new Error(`${name}: arm shards disagree on meta.search: ${searches.join(' | ')}`);
+    const { files: staged, pairs, armFlags, attribution } = stageAs(baseFiles, armFiles, pg.rowVariants ?? [], pg.part);
+    const baseSearch = [...new Set(baseFiles.map((f) => f.counts.meta.search))].join(' | ');
     rmSync(dir, { recursive: true, force: true });
     for (const s of staged) { mkdirSync(join(dir, s.name), { recursive: true }); writeFileSync(join(dir, s.name, 'counts.json'), JSON.stringify(s.counts)); }
     writeFileSync(join(dir, 'rows.jsonl'), rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
@@ -199,10 +237,10 @@ function main(argv) {
     const reply = JSON.parse(r.stdout);
     const active = [...new Set(rows.map((x) => x.variant))];
     const verdicts = reply.verdicts.map((v) => ({ ...v, confounds: confounds({ variant: v.variant, countType: v.countType }, rows, active) }));
-    writeFileSync(join(dir, 'result.json'), JSON.stringify({ ...reply, verdicts }, null, 1));
-    summary[name] = reply.tally;
+    writeFileSync(join(dir, 'result.json'), JSON.stringify({ ...reply, verdicts, page: { part: pg.part, base: pg.base, arm: pg.arm, baseSearch, search: searches[0], pairs, armFlags, attribution } }, null, 1));
+    summary[name] = { ...reply.tally, attribution, search: searches[0] };
     bug += reply.tally.modelBug;
-    console.log(`${name}: ${reply.tally.pass} pass, ${reply.tally.modelBug} model-bug, ${reply.tally.unusable} unusable (${reply.verdicts.length} rows, ${staged.length} staged files)`);
+    console.log(`${name} [${attribution}, ${searches[0]}]: ${reply.tally.pass} pass, ${reply.tally.modelBug} model-bug, ${reply.tally.unusable} unusable (${reply.verdicts.length} rows, ${staged.length} staged files)`);
     for (const v of verdicts) if (v.verdict !== 'pass') console.log(`  ${v.verdict.toUpperCase()} ${v.variant} ${v.stage} ${v.countType} ${v.prediction} [${v.class.variant}] sums ${v.totals.variant.join('/')} vs ${v.totals.base.join('/')}${v.confounds.length ? ` (CONFOUND: ${v.confounds.join('; ')})` : ''} ${v.reason}`);
   }
   if (cmd === 'check') writeFileSync(join(a.out, 'summary.json'), JSON.stringify(summary, null, 1));
