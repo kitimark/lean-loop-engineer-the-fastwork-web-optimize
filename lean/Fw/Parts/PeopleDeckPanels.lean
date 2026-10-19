@@ -66,7 +66,7 @@ $$[\text{all}] \mathbin{+\!\!+} [\,s.\mathrm{id} \mid s \in S,\ s.\mathrm{review
 def filterIds (ss : List Svc) : List String :=
   "all" :: (ss.filter (fun s => 0 < s.reviewCount)).map Svc.id
 
-/-- The filter ids number one plus the services with reviews, and `all` is first.
+/-- The filter ids number one plus the services with reviews.
 $$|\mathrm{filterIds}(S)| = 1 + |\{s \in S : s.\mathrm{reviewCount} > 0\}|$$ -/
 theorem filterIds_length (ss : List Svc) : (filterIds ss).length = 1 + (ss.filter (fun s => 0 < s.reviewCount)).length := by
   unfold filterIds
@@ -160,8 +160,8 @@ theorem filled_prefix (x : Rat) (i j : Nat) (hij : i ≤ j) (h : filled x j = tr
   simp only [filled, decide_eq_true_eq] at *
   omega
 
-/-- A score of 4.5 or more fills all five stars on the 5-point scale: $x \ge \tfrac92 \wedge x \le 5 \Rightarrow
-\forall i < 5,\ \mathrm{filled}(x, i)$ is false only past $\operatorname{rnd}(x) = 5$; checked at the endpoints. -/
+/-- Three point checks of the five-star row: a score of 5 and a score of 4.5 fill the fifth star, a score just under 4.5 does
+not. $$\mathrm{filled}(5,4) \wedge \mathrm{filled}(\tfrac92,4) \wedge \lnot\,\mathrm{filled}(\tfrac92-\tfrac1{100},4)$$ -/
 theorem filled_five : filled 5 4 = true ∧ filled (9 / 2) 4 = true ∧ filled (9 / 2 - 1 / 100) 4 = false := by
   decide +kernel
 
@@ -207,7 +207,7 @@ def sections (a : AboutLens) : List String :=
     (if 0 < a.certificates then ["certificates"] else []) ++ (if 0 < a.languages then ["languages"] else []) ++
     (if 0 < a.awards then ["awards"] else [])
 
-/-- Experience comes first and skills are always present. $$\text{experience} \in \mathrm{sections}(a) \wedge \text{skills} \in
+/-- Experience and skills are always present. $$\text{experience} \in \mathrm{sections}(a) \wedge \text{skills} \in
 \mathrm{sections}(a)$$ -/
 theorem sections_core (a : AboutLens) : "experience" ∈ sections a ∧ "skills" ∈ sections a := by
   simp [sections]

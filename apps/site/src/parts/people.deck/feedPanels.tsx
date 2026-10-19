@@ -4,6 +4,7 @@ import type { Profile, Service } from '../people/data';
 import type { PanelData, ReviewItem } from '../people/panels.data';
 import css from './panels.module.css';
 import * as L from './panels.logic';
+import { StarIcon } from './icons';
 
 const VERDICT_TEXT: Record<L.Verdict, string> = { excellent: 'Excellent', veryGood: 'Very good', good: 'Good', fair: 'Fair', poor: 'Poor' };
 const DIMENSIONS = [
@@ -15,9 +16,7 @@ const DIMENSIONS = [
 
 const sel = (key: string) => `start-selling.profile-showcase.${key}`;
 
-function Star({ size, color }: { size: number; color?: string }) {
-  return <span className={css.star} aria-hidden="true" style={{ width: size, height: size, color }} />;
-}
+const Star = StarIcon;
 
 function ServiceMeta({ s }: { s: Service }) {
   const [amount, ...unit] = s.price.split('/');
@@ -222,14 +221,16 @@ export function ReviewsPanel({ p, data }: { p: Profile; data: PanelData }) {
 }
 
 function Logo({ p, logo, name }: { p: Profile; logo: string | undefined; name: string }) {
+  if (logo === undefined)
+    return (
+      <span className={`${css.logo} ${css.isMonogram}`} aria-hidden="true">
+        {L.initials({ name })}
+      </span>
+    );
   const src = fileOf(p, logo);
-  return src ? (
+  return (
     <span className={css.logo} aria-hidden="true">
-      <img src={src} alt="" loading="lazy" decoding="async" />
-    </span>
-  ) : (
-    <span className={`${css.logo} ${css.isMonogram}`} aria-hidden="true">
-      {L.initials({ name })}
+      {src ? <img src={src} alt="" loading="lazy" decoding="async" draggable={false} /> : null}
     </span>
   );
 }

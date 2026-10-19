@@ -18,11 +18,22 @@ goldenConformance('people.deck.panels', {
 });
 
 describe('people.deck panels content', () => {
-  it('every monogram name starts with an ASCII letter (the Lean spec covers ASCII)', () => {
+  it('every about name has the same monogram under the Lean ASCII spec and the unicode rule of the original', () => {
+    const uni = (n: string) =>
+      n
+        .split(/\s+/)
+        .filter((w) => /^[\p{L}\p{N}]/u.test(w))
+        .slice(0, 2)
+        .map((w) => w[0]!.toUpperCase())
+        .join('');
+    const names: string[] = [];
     for (const p of Object.values(PANELS)) {
-      for (const e of p.about.experience) if (!e.logo) expect(L.initials({ name: e.company })).not.toBe('');
-      for (const e of p.about.education) if (!e.logo) expect(L.initials({ name: e.school })).not.toBe('');
-      for (const e of p.about.certificates) if (!e.logo) expect(L.initials({ name: e.issuer })).not.toBe('');
+      for (const e of p.about.experience) names.push(e.company);
+      for (const e of p.about.education) names.push(e.school);
+      for (const e of p.about.certificates) names.push(e.issuer);
+    }
+    for (const n of names) {
+      expect(L.initials({ name: n }), n).toBe(uni(n));
     }
   });
   it('dates read like the original (English)', () => {
