@@ -97,3 +97,32 @@ export function viewCell(bo, br, fo, go, fr, gr, a, b) {
   const o = view(bo, fo, go), r = view(br, fr, gr);
   return cell(!o.skipped, !r.skipped, a, b, o.val === r.val);
 }
+
+/** Fw.Gate.Settle.readLayout: the value a read returns of a layout-output value `{ stale, steady }`: the steady one after a committed layout pass. */
+export const readLayout = (c, m) => (c ? m.steady : m.stale);
+
+/**
+ * Fw.Gate.Settle.committed: whether a read follows a committed layout pass that includes the box. `viewed`: the reading is on the view
+ * path (the part was brought into view first); `resizes`: the resizes the arm lived through before the read (a nudged load counts one).
+ */
+export const committed = (viewed, resizes) => viewed || resizes > 0;
+
+/** Fw.Gate.Settle.commitNeeded: whether a run commits a layout pass before a read; it follows the bring flag (`viewFor`). */
+export const commitNeeded = viewFor;
+
+/** Fw.Gate.Settle.commitHolds: a read keeps its layout-output values when the run needs no commit or the read is committed. */
+export const commitHolds = (needs, viewed, resizes) => !needs || committed(viewed, resizes);
+
+/** Fw.Gate.Settle.commitOutcome: an uncommitted reading's wait is 'unsettled', a committed one keeps its outcome. */
+export const commitOutcome = (c, o) => (c ? o : 'unsettled');
+
+/** Fw.Gate.Settle.layoutCell: the cell of a layout-output probe from both arms' commit flags, `{ stale, steady }` values and waits. */
+export function layoutCell(co, cr, mo, mr, a, b) {
+  return report(commitOutcome(co, a), commitOutcome(cr, b), readLayout(co, mo) === readLayout(cr, mr));
+}
+
+/** Fw.Gate.Settle.nudge: the width a fresh load is opened at before the arm resizes to the width it is read at. */
+export const nudge = (w) => w + 1;
+
+/** Fw.Gate.Settle.crosses: whether the nudge from `w` crosses a breakpoint edge, `pairs` = [[lo, hi], ...]. */
+export const crosses = (pairs, w) => pairs.some(([lo, hi]) => w <= lo && hi <= nudge(w));
