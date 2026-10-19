@@ -1,8 +1,7 @@
 # Handoff: countdown-one-chain (discovery R7, hero half)
 
 ## State
-- CI ref `ci/countdown-one-chain`. The code is at 75b08603; the note, results and handoff are in the next commit.
-- `sh lean/scripts/check.sh` is green.
+CI ref `ci/countdown-one-chain`; code at 75b08603, then the note, results and handoff; `lean/scripts/check.sh` green.
 
 ## Verified
 - `lean/Fw/Parts/HeroCountdownOneChain.lean` proves:
@@ -21,8 +20,7 @@
   - Scoped run 39318057726: 0 failing readings. It is "refused" only because out-of-scope cells count as not-run.
 
 ## Open
-1. Footprint regeneration (morph-layers owns it). `footprint.test.ts` "is fresh" fails until then: `driver.ts` gained
-   lines.
+1. Footprint regeneration (morph-layers owns it); `footprint.test.ts` "is fresh" fails until then.
 2. The morph.countdown half, after morph-layers.
 3. Frame 499: find which subscriber reads layout (needs a trace with stacks); decide whether the group runs last in the
    shared frame.
