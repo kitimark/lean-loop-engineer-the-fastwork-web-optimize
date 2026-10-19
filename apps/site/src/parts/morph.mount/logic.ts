@@ -88,5 +88,15 @@ export function warmStill(isActive: boolean, msSinceMotion: number): boolean {
 }
 
 export function isShift(variant: string): boolean {
-  return variant === 'shift';
+  return variant === 'shift' || variant === 'shift-dormant';
+}
+
+/** Variant `shift-dormant` (Lean: lean/Fw/Parts/MorphMountDormant.lean): `shift`, with the columns' marquee off while dormant. */
+export function isDormantVariant(variant: string): boolean {
+  return variant === 'shift-dormant';
+}
+
+/** Lean `MorphMountDormant.dormant`: mounted by the variant and not yet by the original's trigger. */
+export function dormant(mountedV: boolean, mountedO: boolean): boolean {
+  return mountedV && !mountedO;
 }

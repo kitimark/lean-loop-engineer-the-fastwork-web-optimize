@@ -45,6 +45,7 @@ import Fw.Parts.PlatformGolden
 import Fw.Parts.MorphTweenOpt
 import Fw.Parts.HiddenPause
 import Fw.Parts.MorphMountOpt
+import Fw.Parts.MorphMountDormant
 import Fw.Parts.HeroExitOpt
 import Fw.Parts.PainNotes
 import Fw.Parts.PainNotesGolden
