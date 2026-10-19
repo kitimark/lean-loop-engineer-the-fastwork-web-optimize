@@ -10,7 +10,7 @@ A second runner for two GitHub lanes, run side by side with their GitHub twins s
 | The steps, each timed in the `timings.jsonl` span format | `.circleci/job.sh`, `.circleci/node-install.sh` |
 | Trigger, wait, fetch, compare, route, dry run | `scripts/circleci.mjs` (`pnpm fw ci circleci <sub>`, `pnpm fw ci wait --provider circleci`) |
 | Lean verdicts replayed in JS | `scripts/circleci.test.mjs` (`node --test scripts/circleci.test.mjs`) |
-| Recorded-shape API fixtures (synthetic until the first real run) | `scripts/circleci-fixtures/*.json` |
+| API fixtures: real recordings (`premise-tests`, `premise-tests-large`, `webkit-sim`; token, simulator UDID not present) plus the synthetic `webkit-sim-queued` | `scripts/circleci-fixtures/*.json` |
 
 Both workflows run only when the pipeline parameter `lane` names them and the branch starts with `ci/`. A plain push to `ci/*` makes a pipeline with no workflow and spends no credit. Every job uploads the result files of its GitHub twin (`premises-<engine>/`, `premises-verdict.txt`; `runner.json`, `tools.txt`, `v1-session-1.*`) plus `timings.json` (spans: checkout, node, pnpm, cache restore, deps install, system libraries, browser install, test; the glue adds `queue`, `upload (after the last step)`, `job`). The only cache is the pnpm store; no Lake cache is saved.
 
@@ -45,3 +45,8 @@ Status for this repository: steps 1 to 5 are done (project set up, definition id
 - Routing: a lane goes to CircleCI only if it is allowlisted, on a free class of its own platform, the estimate fits the credits left, and (macOS only) GitHub Actions is degraded. The default allowlist is empty.
 - Artifact downloads and list calls use the same path as every other call (429 and Retry-After handled) and follow `next_page_token`; a list that does not end fails loudly.
 
+## Confirmed by the first run, and still open
+
+CONFIRMED by recordings (one pipeline per class, `research/notes/2026/10-20-circleci-pilot.md`): `pipeline/run` with `definition_id` and a `lane` parameter; `arm.medium.gen2`, `arm.large.gen2` and the Xcode 27.0 image with the iOS 27.0 runtime on `m4pro.medium`; the job API reports the class as `arm-medium-gen2` (Lean `classOfApi` maps it); artifact paths are absolute upload paths (`tmp/fw/artifacts/...`).
+
+Still open: the sim compare uses the first matching GitHub sim job only; the ledger counts the pnpm cache at every save (an upper bound); a 10-run series needs the cache-save accounting; a push of `[ci:premise-tests]` is skipped as "unchanged" when no lane input differs from main, so the GitHub twin of a pilot pair is started with `gh workflow run <lane>.yml --ref ci/<task>`; `fw ci wait --branch` right after a dispatch can return the older skipped run, so re-run it once the dispatch run exists.
