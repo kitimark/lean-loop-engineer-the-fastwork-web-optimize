@@ -1,0 +1,279 @@
+{
+ "tally": {
+  "modelBug": 2,
+  "pass": 3,
+  "unusable": 3
+ },
+ "verdicts": [
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.FunctionCall",
+   "engine": "chromium",
+   "prediction": "≤o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "script",
+   "totals": {
+    "base": [
+     3589,
+     3590,
+     3590
+    ],
+    "variant": [
+     3590,
+     3590,
+     3590
+    ]
+   },
+   "variant": "rewrite+?fw=people.card:mq",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "deterministic",
+    "variant": "deterministic"
+   },
+   "countType": "trace.UpdateLayoutTree",
+   "engine": "chromium",
+   "prediction": "≤o",
+   "reason": "refuted for every run within the class: the model is wrong",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "style",
+   "totals": {
+    "base": [
+     895,
+     895,
+     895
+    ],
+    "variant": [
+     834,
+     834,
+     834
+    ]
+   },
+   "variant": "rewrite+?fw=people.card:mq",
+   "verdict": "model-bug",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.Layout",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "layout",
+   "totals": {
+    "base": [
+     203,
+     203,
+     203
+    ],
+    "variant": [
+     203,
+     203,
+     203
+    ]
+   },
+   "variant": "rewrite+?fw=people.card:mq",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "quarantined",
+    "variant": "quarantined"
+   },
+   "countType": "trace.Layout.dirtyObjects",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "quarantined type: never used",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "layout",
+   "totals": {
+    "base": [
+     4633,
+     4633,
+     4633
+    ],
+    "variant": [
+     4633,
+     4633,
+     4633
+    ]
+   },
+   "variant": "rewrite+?fw=people.card:mq",
+   "verdict": "unusable",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "stable(k=4, t=0)",
+    "variant": "stable(k=4, t=0)"
+   },
+   "countType": "metric.LayoutCount",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "layout",
+   "totals": {
+    "base": [
+     198,
+     198,
+     198
+    ],
+    "variant": [
+     198,
+     198,
+     198
+    ]
+   },
+   "variant": "rewrite+?fw=people.card:mq",
+   "verdict": "pass",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "stable(k=2, t=0)",
+    "variant": "stable(k=2, t=0)"
+   },
+   "countType": "trace.PrePaint",
+   "engine": "chromium",
+   "prediction": "≤o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "props",
+   "totals": {
+    "base": [
+     1422,
+     1422,
+     1422
+    ],
+    "variant": [
+     1422,
+     1422,
+     1422
+    ]
+   },
+   "variant": "rewrite+?fw=people.card:mq",
+   "verdict": "pass",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "stable(k=4, t=0)",
+    "variant": "stable(k=4, t=0)"
+   },
+   "countType": "raster.invalidationAreaPx",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "certified for every run within the class",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "paint",
+   "totals": {
+    "base": [
+     96887306,
+     96887306,
+     96887306
+    ],
+    "variant": [
+     96887306,
+     96887306,
+     96887306
+    ]
+   },
+   "variant": "rewrite+?fw=people.card:mq",
+   "verdict": "pass",
+   "confounds": []
+  },
+  {
+   "base": "rewrite",
+   "class": {
+    "base": "deterministic",
+    "variant": "deterministic"
+   },
+   "countType": "trace.cc.Commit",
+   "engine": "chromium",
+   "prediction": "=o",
+   "reason": "refuted for every run within the class: the model is wrong",
+   "runs": {
+    "base": 3,
+    "variant": 3
+   },
+   "scenario": "swipe-v1",
+   "stage": "commit",
+   "totals": {
+    "base": [
+     713,
+     713,
+     713
+    ],
+    "variant": [
+     713,
+     713,
+     713
+    ]
+   },
+   "variant": "rewrite+?fw=people.card:mq",
+   "verdict": "model-bug",
+   "confounds": []
+  }
+ ],
+ "page": {
+  "part": "people.card",
+  "base": "39253313203",
+  "arm": "39257496442",
+  "baseSearch": "?only=g1&stage=vw:430,vh:932",
+  "search": "?fw=people.card:mq&only=g1&stage=vw:430,vh:932",
+  "pairs": [
+   "people.card:mq"
+  ],
+  "armFlags": [
+   "people.card:mq"
+  ],
+  "attribution": "MEASURED"
+ }
+}
