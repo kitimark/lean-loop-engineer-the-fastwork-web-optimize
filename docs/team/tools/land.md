@@ -25,6 +25,14 @@ force push), waits with `fw ci wait` (no CPU: one sleeping child per slice) and 
   `lane: sha=.. digest=..` (land.yml); a pass for another sha or suite list is ignored. Any provider's fail refuses.
 - Fallback is explicit, never silent: provider unavailable -> try the next allowed provider, else the remote tier runs on this Mac
   and the log says `remote: running the remote tier on this Mac instead (<reason>)`. Cancelled or timed out: same.
+- **A completed failed lane run always refuses (incident 2026-10-20, task preview-e2e).** After the waiter returns, with any exit
+  code, the adapter reads the run's own record (`gh run view`; the run id comes from the waiter output or `gh run list --branch
+  <ci/land-..> --commit <marker>`). Lean `laneState` (`console.landLaneState`) makes the state `fail` when the run completed with
+  conclusion `failure`, whatever the exit code; the waiter's exit decides only for runs without such a record. Theorems
+  `verdict_completed_failure_refuses`, `verdict_no_local_after_failure`; golden per waiter exit 0..5 in `land-remote.jsonl`. A bound
+  fail is never followed by `remote: running the remote tier on this Mac instead`.
+- Every remote line (`remote: ...`, including `remote: verdict <kind> reason=<reason>` and the fallback line) goes to the land log
+  file `.fw-console/land-logs/<task>-<sha7>.log` and to stderr, whether or not the land passes.
 - `fw ci wait` exit 3 means a run still going only when its output says `timed out after`; a stopped poller or a refused gh call
   is `unavailable` (no retry on a refusal). A `running` poll that returns before its slice is slept out, so waiting costs no CPU.
 - Before the push, `scripts/scrub.mjs --range origin/main <C>` scans the lines the push adds (home paths, LAN IPs, emails, ...);
@@ -35,7 +43,7 @@ force push), waits with `fw ci wait` (no CPU: one sleeping child per slice) and 
 - A failing local tier ends the wait and refuses. Spans: `remote push`, `remote queue`, `remote lane`, `local tier`.
 - `remote: false` (option) and an injected `checks` run everything here. The fallback protocol (locked) stays all-local.
 - Providers: GitHub is complete; the CircleCI adapter is a stub (`unavailable`), a follow-up after circleci-pilot lands.
-TS stand-ins: `normalizeGithub`, `awaitRemote`, `runTiered` (glue around the Lean verdict; tests in `land-remote.test.ts`).
+TS stand-ins: `normalizeGithub` (the state is Lean's `laneState`), `awaitRemote`, `runTiered` (glue around the Lean verdict; tests in `land-remote.test.ts`).
 
 TS stand-in, marked for Lean replacement: `prelockAction` (no fwcore op yet); checked against the `landSpeed.prelock` golden.
 First-in-first-out landing: `land-queue.md`.

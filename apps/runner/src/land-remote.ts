@@ -46,16 +46,17 @@ export function laneBind(view: GhRunView): { sha: string; digest: string } | nul
   return null;
 }
 
-/** `fw ci wait` exit code -> run state (0 pass, 1 fail, 3 the slice ran out with the run still going, 4 not run, else gh unavailable).
- *  Exit 3 also comes back at once when the poller is stopped or the gh budget refuses a call (gh-budget wait.ts); only the output
- *  `timed out after` means a run still going, any other exit 3 is `unavailable` (no tight poll loop, no retry on a refusal). */
-export const stateOfWaitExit = (code: number, out = ""): RunState =>
-  code === 0 ? "pass" : code === 1 ? "fail" : code === 3 ? (/timed out after/.test(out) ? "running" : "unavailable") : code === 4 ? "cancelled" : "unavailable";
+/** fwcore `console.landLaneState` (Lean `Fw.Console.LandRemote.laneState`): the state of a lane run from the `fw ci wait` exit code (0 pass,
+ *  1 fail, 3 the slice ran out with the run still going, 4 not run, else gh unavailable; exit 3 is `running` only when the output says
+ *  `timed out after`) and the run's own status and conclusion. A run that completed with conclusion failure is `fail` whatever the exit
+ *  code was: the waiter can say 2, 3 or 4 about a failed run (a refused or failed gh call for its jobs, a skipped guard). */
+export function laneStateOf(call: FwCall, code: number, out = "", view: GhRunView | null = null): RunState {
+  return (call({ op: "console.landLaneState", exit: code, timedOut: /timed out after/.test(out), status: view?.status ?? "", conclusion: view?.conclusion ?? "" }) as { state: RunState }).state;
+}
 
 /** Normalize one GitHub land run. A pass counts only for the sha and digest the lane printed; a lane that failed before it printed
  *  them is attributed to what was asked for (a failure refuses, the safe side), a pass without a binding binds to nothing. */
-export function normalizeGithub(code: number, view: GhRunView | null, ctx: { marker: string; want: Want }, out = ""): LaneRun {
-  const state = stateOfWaitExit(code, out);
+export function normalizeGithub(state: RunState, view: GhRunView | null, ctx: { marker: string; want: Want }): LaneRun {
   const run = (sha: string, laneDigest: string): LaneRun => ({ provider: "github", sha, laneId: LANE_ID, laneDigest, state });
   if (!view) return state === "pass" ? run("", "") : run(ctx.want.sha, ctx.want.laneDigest);
   const bind = view.headSha === ctx.marker ? laneBind(view) : null;
@@ -86,6 +87,8 @@ export interface Adapter {
 
 export type GithubDeps = {
   git: (args: string[]) => string;
+  /** fwcore, for the lane state (`console.landLaneState`). */
+  call: FwCall;
   /** Personal-data scan of the lines the push adds to origin (scripts/scrub.mjs --range): the text of the hits, or null when clean. */
   scan?: (mergeSha: string) => string | null;
   /** `pnpm -s fw ci wait ...`: exit code and output; ends early (code 3) when the signal aborts. */
@@ -111,14 +114,22 @@ export function githubAdapter(d: GithubDeps): Adapter {
     },
     async poll(h, c, sliceS, signal) {
       const w = await d.wait(["-s", "fw", "ci", "wait", "--branch", h.branch, "--workflow", LANE_ID, "--sha", h.marker, "--timeout", String(sliceS)], signal);
-      if (signal?.aborted) return { run: normalizeGithub(3, null, { marker: h.marker, want: c.want }, "timed out after abort"), times: null };
-      const code = w.code;
-      const id = /\brun (\d+) /.exec(w.out)?.[1];
+      const norm = { marker: h.marker, want: c.want };
+      if (signal?.aborted) return { run: normalizeGithub(laneStateOf(d.call, 3, "timed out after abort"), null, norm), times: null };
+      // Whatever the waiter returned, read the run's own record unless it is plainly still going: the conclusion decides (Lean laneState).
+      const going = w.code === 3 && /timed out after/.test(w.out);
       let view: GhRunView | null = null;
-      if (id && (code === 0 || code === 1)) {
-        try { view = JSON.parse(await d.gh(["run", "view", id, "--json", RUN_VIEW_FIELDS])) as GhRunView; } catch { view = null; }
+      if (!going) {
+        try {
+          let id = /\brun (\d+)\b/.exec(w.out)?.[1];
+          if (!id) { // exit 2/3/4 can come without a run id in the output: find the run of the marker commit on the lane branch
+            const rows = JSON.parse(await d.gh(["run", "list", "--branch", h.branch, "--commit", h.marker, "--json", "databaseId", "--limit", "1"])) as { databaseId: number }[];
+            id = rows[0] ? String(rows[0].databaseId) : undefined;
+          }
+          if (id) view = JSON.parse(await d.gh(["run", "view", id, "--json", RUN_VIEW_FIELDS])) as GhRunView;
+        } catch { view = null; }
       }
-      return { run: normalizeGithub(code, view, { marker: h.marker, want: c.want }, w.out), times: view ? runTimes(view) : null };
+      return { run: normalizeGithub(laneStateOf(d.call, w.code, w.out, view), view, norm), times: view ? runTimes(view) : null };
     },
   };
 }
