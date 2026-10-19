@@ -197,7 +197,7 @@ theorem runnerLive_stale (held : String) (probe : Option String) (h : probe ≠ 
 $$\operatorname{reason}(m) = m \ \text{if}\ m \ne \varepsilon,\ \text{else}\ \text{"no message"}$$ -/
 def reasonOf (msg : String) : String := if msg.isEmpty then "no message" else msg
 
-/-- **A refusal always carries a reason.** For the kind `unknown` (an attempt that threw) and for every other kind the reason is non-empty.
+/-- The reason text itself is never empty, whatever the message.
 $$\forall m:\ \operatorname{reason}(m) \ne \varepsilon$$ -/
 theorem reasonOf_nonempty (msg : String) : (reasonOf msg).isEmpty = false := by
   unfold reasonOf
@@ -211,6 +211,19 @@ theorem reasonOf_keeps (msg : String) (h : msg.isEmpty = false) : reasonOf msg =
 /-- The line printed to stderr before the `VERDICT` line.
 $$\operatorname{refused}(m) = \text{"REFUSED: "} + \operatorname{reason}(m)$$ -/
 def refusedLine (msg : String) : String := "REFUSED: " ++ reasonOf msg
+
+/-- The reason the queue records for a result of kind `k` with an optional reason `r` from the attempt: a success keeps what it has,
+a refusal always gets one (a missing or empty reason becomes the fixed text).
+$$\operatorname{rr}(k, r) = r.\mathrm{map}(\operatorname{reason})\ \text{if}\ k\ \text{ok},\ \text{else}\ \mathrm{some}(\operatorname{reason}(r.\mathrm{getD}\ \varepsilon))$$ -/
+def refusalReason (k : Kind) (r : Option String) : Option String :=
+  if k.ok then r.map reasonOf else some (reasonOf (r.getD ""))
+
+/-- **A refusal always carries a non-empty reason**, for every refusal kind and every reason the attempt gave or did not give.
+$$\lnot\,\mathrm{ok}(k) \Rightarrow \exists s \ne \varepsilon:\ \operatorname{rr}(k, r) = \mathrm{some}(s)$$ -/
+theorem refusal_has_reason (k : Kind) (r : Option String) (h : k.ok = false) :
+    ∃ s, refusalReason k r = some s ∧ s.isEmpty = false := by
+  refine ⟨reasonOf (r.getD ""), ?_, reasonOf_nonempty _⟩
+  simp [refusalReason, h]
 
 /-- The named reason of the preflight refusal.
 $$\mathrm{fwcoreStaleReason} = \text{"fwcore-stale: run sh scripts/fwcore-build.sh"}$$ -/
@@ -318,6 +331,12 @@ $$\operatorname{reasonCase}(n, m) = \operatorname{line}(n, \{m\}, \{\operatornam
 def reasonCase (name : String) (msg : String) : Json :=
   line s!"reason: {name}" [("op", "landQueue.reason"), ("message", msg)] [("reason", reasonOf msg), ("line", refusedLine msg)]
 
+/-- A `landQueue.refusalReason` case: the recorded reason of a kind with an optional reason.
+$$\operatorname{rrCase}(k, r) = \operatorname{line}(\ldots, \{k, r\}, \{\operatorname{rr}(k, r)\})$$ -/
+def rrCase (k : Kind) (tag : String) (r : Option String) : Json :=
+  line s!"refusal reason {k.name} {tag}" [("op", "landQueue.refusalReason"), ("kind", k.name), ("reason", match r with | some p => Json.str p | none => Json.null)]
+    [("reason", match refusalReason k r with | some p => Json.str p | none => Json.null)]
+
 /-- A `landQueue.fwcoreStale` case.
 $$\operatorname{staleCase}(n, r, s, v) = \operatorname{line}(n, \{r, s, v\}, \{\operatorname{stale}(r, s, v)\})$$ -/
 def staleCase (name : String) (recorded : Option String) (same moved : Bool) : Json :=
@@ -328,8 +347,7 @@ def staleCase (name : String) (recorded : Option String) (same moved : Bool) : J
 $$\ell_0 = [\mathrm{enq}(a), \mathrm{enq}(b), \mathrm{enq}(c)]$$ -/
 def sample : List Ev := [.enq ⟨"a", "wa"⟩, .enq ⟨"b", "wb"⟩, .enq ⟨"c", "wc"⟩]
 
-/-- Every golden case: 6 pending, 4 queued, 11 retry (every kind, one at the bound), 4 live, 2 reason, 4 fwcore stale.
-$$\mathrm{cases} = \mathrm{pend}_{1..6} \mathbin{+\!\!+} \mathrm{queued}_{1..4} \mathbin{+\!\!+} \mathrm{retry}_{1..11} \mathbin{+\!\!+} \mathrm{live}_{1..4}$$ -/
+/-- Every golden case: 6 pending, 4 queued, 14 retry (every kind, some at the bound), 4 live, 2 reason, 39 refusal reason (every kind with no reason, an empty one and a given one), 4 fwcore stale. -/
 def cases : List Json :=
   [pendCase "empty" [],
    pendCase "three enqueued, first in first out" sample,
@@ -348,13 +366,15 @@ def cases : List Json :=
    liveCase "no such process" "Sat Oct 18 10:00:00 2026" none,
    liveCase "empty start time, no process" "" none] ++
   [reasonCase "thrown message kept" "unknown op console.landDigest",
-   reasonCase "empty message gets a fixed reason" "",
+   reasonCase "empty message gets a fixed reason" ""] ++
+  (Kind.all.flatMap fun k => [rrCase k "none" none, rrCase k "empty" (some ""), rrCase k "given" (some "m")]) ++
+  [
    staleCase "no record" none false false,
    staleCase "record is main's head" (some "abc") true false,
    staleCase "other commit, lean moved" (some "abc") false true,
    staleCase "other commit, lean unchanged" (some "abc") false false]
 
-#guard cases.length == 34
+#guard cases.length == 73
 
 /-- The golden file text: one compressed JSON line per case.
 $$\mathrm{goldenText} = \operatorname{concat}[\, \operatorname{compress}(c) \mathbin{+\!\!+} \text{"\textbackslash n"} \,]_{c \in \mathrm{cases}}$$ -/

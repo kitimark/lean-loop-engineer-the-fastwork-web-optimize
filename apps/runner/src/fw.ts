@@ -106,7 +106,7 @@ try {
       // FW_LAND_CHECKS='[["cmd","arg"]]' replaces the default checks (used by the e2e script on a temp repo)
       checks: process.env.FW_LAND_CHECKS ? JSON.parse(process.env.FW_LAND_CHECKS) : undefined });
     if (queue || qstatus) {
-      const { runQueue, enqueue, readLog, pending, results } = await import("./land-queue.ts");
+      const { runQueue, landAttemptResult, enqueue, readLog, pending, results } = await import("./land-queue.ts");
       const { worktreeOf } = await import("./land.ts");
       const mainDir = worktreeOf(process.cwd(), "main");
       if (!mainDir) throw new Error("no main checkout found");
@@ -123,9 +123,7 @@ try {
           attempt: async (e) => {
             const res = await land(e.branch, landOpts(e.task, e.allow));
             for (const l of res.lines) console.error(l);
-            const kind = res.kind ?? (res.ok ? "done" : "unknown");
-            const why = res.lines.filter((l) => l.startsWith("REFUSED: ")).pop()?.slice("REFUSED: ".length);
-            return !res.ok && why !== undefined ? { kind, reason: why } : kind;
+            return landAttemptResult(res);
           } });
         for (const r of run.results) console.log(verdictLine(r.kind, r.task));
         const own = run.results.find((r) => r.task === t);

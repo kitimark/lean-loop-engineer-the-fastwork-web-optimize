@@ -11,8 +11,8 @@ import { Reconciler } from "../../console-api/src/reconcile/reconciler.ts";
 import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
 import { land, type Http } from "../src/land.ts";
-import { enqueue, parseLog, pending, queued, queuedBranches, queueFile, readLog, results, retryAfter, runQueue, runnerFile, runnerLive, takeRunner, type Ev } from "../src/land-queue.ts";
-import { fwcoreStale, KINDS, reasonOf, refusedLine, type Kind } from "../src/land-verdict.ts";
+import { enqueue, landAttemptResult, landLogOf, parseLog, pending, queued, queuedBranches, queueFile, readLog, results, retryAfter, runQueue, runnerFile, runnerLive, takeRunner, type Ev } from "../src/land-queue.ts";
+import { fwcoreStale, KINDS, reasonOf, refusalReason, refusedLine, type Kind } from "../src/land-verdict.ts";
 
 const golden = join(dirname(new URL(import.meta.url).pathname), "../../../packages/contracts/golden/console/land-queue.jsonl");
 type G = { name: string; request: Record<string, unknown> & { op: string }; response: Record<string, unknown> };
@@ -30,6 +30,7 @@ describe("land queue vs Lean golden", () => {
     else if (q.op === "landQueue.retry") expect(g.response).toEqual({ retry: retryAfter(q.kind as Kind, q.tries as number, q.max as number) });
     else if (q.op === "landQueue.live") expect(g.response).toEqual({ live: runnerLive(q.held as string, q.probe as string | null) });
     else if (q.op === "landQueue.reason") expect(g.response).toEqual({ reason: reasonOf(q.message as string), line: refusedLine(q.message as string) });
+    else if (q.op === "landQueue.refusalReason") expect(g.response).toEqual({ reason: refusalReason(q.kind as Kind, (q.reason as string | null) ?? undefined) ?? null });
     else if (q.op === "landQueue.fwcoreStale") expect(g.response).toEqual({ stale: fwcoreStale(q.recorded as string | null, q.same as boolean, q.moved as boolean) });
     else throw new Error(`unknown op ${q.op}`);
   });
@@ -132,6 +133,24 @@ describe("runQueue", () => {
     expect(err).toEqual(["REFUSED: no message"]);
     expect(r.results.map((x) => x.reason)).toEqual(["no message", "out of scope"]);
   });
+  it("an empty reason from the attempt becomes 'no message' in the line, the result and the log", async () => {
+    const dir = tmp();
+    entry(dir, "a");
+    const err: string[] = [];
+    const r = await runQueue({ consoleDir: dir, err: (l) => err.push(l), attempt: async () => ({ kind: "unknown", reason: "" }) });
+    expect(err).toEqual(["REFUSED: no message"]);
+    expect(r.results[0]!.reason).toBe("no message");
+    expect(readFileSync(queueFile(dir), "utf8")).toContain('"reason":"no message"');
+  });
+  it("landLogOf matches the exact task name: task a never takes the log of task a-b", () => {
+    const dir = tmp();
+    mkdirSync(join(dir, "land-logs"), { recursive: true });
+    writeFileSync(join(dir, "land-logs", "a-b-abc1234.log"), "x\n");
+    expect(landLogOf(dir, "a")).toBe(join(dir, "land-logs", "a-queue.log"));
+    expect(landLogOf(dir, "a-b")).toBe(join(dir, "land-logs", "a-b-abc1234.log"));
+    writeFileSync(join(dir, "land-logs", "a-def5678.log"), "x\n");
+    expect(landLogOf(dir, "a")).toBe(join(dir, "land-logs", "a-def5678.log"));
+  });
   it("does not run while a live runner holds the lock; the entry stays pending", async () => {
     const dir = tmp();
     entry(dir, "a");
@@ -191,5 +210,18 @@ describe("three fixture branches through the real land", () => {
     expect(added.filter((f) => /^src\/t\d\.ts$/.test(f))).toEqual(["src/t1.ts", "src/t2.ts", "src/t3.ts"]);
     expect(pending(readLog(consoleDir))).toEqual([]);
     process.stderr.write(`land-queue overhead: total ${total} ms, in land ${landMs} ms, overhead ${total - landMs} ms for 3 lands (${((total - landMs) / 3).toFixed(1)} ms per land)\n`);
+  });
+});
+
+describe("landAttemptResult", () => {
+  it("a refused land gives its kind and the reason of its last REFUSED line", () =>
+    expect(landAttemptResult({ ok: false, kind: "scope", lines: ["REFUSED: first", "x", "REFUSED: out of scope"] })).toEqual({ kind: "scope", reason: "out of scope" }));
+  it("a refused land without a REFUSED line gives just its kind (unknown when it has none)", () => {
+    expect(landAttemptResult({ ok: false, kind: "checks", lines: ["check output"] })).toBe("checks");
+    expect(landAttemptResult({ ok: false, lines: [] })).toBe("unknown");
+  });
+  it("an ok land gives done, or its own kind", () => {
+    expect(landAttemptResult({ ok: true, lines: ["REFUSED: stale note"] })).toBe("done");
+    expect(landAttemptResult({ ok: true, kind: "empty", lines: [] })).toBe("empty");
   });
 });

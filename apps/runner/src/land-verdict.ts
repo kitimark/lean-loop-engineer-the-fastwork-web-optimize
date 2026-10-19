@@ -100,6 +100,9 @@ export function failedStages(out: string): string[] {
 // Checked against the golden ops `landQueue.reason` and `landQueue.fwcoreStale` (test/land-queue.test.ts).
 /** Lean `reasonOf`: the message of a refusal, or a fixed text when it is empty (`reasonOf_nonempty`). */
 export const reasonOf = (msg: string): string => (msg === "" ? "no message" : msg);
+/** Lean `refusalReason`: the reason the queue records for a result of kind `k` with the attempt's optional reason. A refusal always has one
+ *  (`refusal_has_reason`); a success keeps what it has. */
+export const refusalReason = (k: Kind, r: string | undefined): string | undefined => (isOk(k) ? (r === undefined ? undefined : reasonOf(r)) : reasonOf(r ?? ""));
 /** Lean `refusedLine`: the stderr line printed before the `VERDICT` line. */
 export const refusedLine = (msg: string): string => `REFUSED: ${reasonOf(msg)}`;
 /** Lean `fwcoreStaleReason`. */
