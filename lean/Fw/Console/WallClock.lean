@@ -25,7 +25,7 @@ namespace Fw.Console.WallClock
 open Lean
 
 /-- The syntactic site of a literal: an assertion upper bound, a timeout option, a hard-coded deadline argument, an
-elapsed-time comparison, a sleep delay, or anything else.
+elapsed-time comparison, a loop cap, a sleep delay, or anything else.
 $$\mathrm{Site} = \{\mathrm{assertLt}, \mathrm{timeoutOpt}, \mathrm{deadlineArg}, \mathrm{elapsedCmp}, \mathrm{loopCap}, \mathrm{sleep}, \mathrm{other}\}$$ -/
 inductive Site | assertLt | timeoutOpt | deadlineArg | elapsedCmp | loopCap | sleep | other
   deriving DecidableEq, Repr
@@ -85,7 +85,7 @@ def case (name : String) (s : Site) (n : Nat) (r : String) : Json :=
     ("request", Json.mkObj [("op", "wallclock.verdict"), ("site", s.name), ("ms", toJson n), ("reason", .str r)]),
     ("response", Json.mkObj [("refuse", .bool (refuse s n r)), ("bound", .bool (isBound s n))])]
 
-/-- The cases. $$\mathrm{cases} = [\operatorname{case}(s, n, r)]_{(s, n, r)}$$ -/
+/-- The cases: the 20 fixed tuples listed below. $$\mathrm{cases} = [\operatorname{case}(m, s, n, r)]_{(m, s, n, r)}$$ -/
 def cases : List Json :=
   [case "assert bound, no reason" .assertLt 5000 "", case "assert bound, blank reason" .assertLt 5000 "  ",
    case "assert bound, reason" .assertLt 5000 "ratio of two timed runs",
