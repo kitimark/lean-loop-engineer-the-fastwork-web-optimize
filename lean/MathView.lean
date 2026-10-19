@@ -5,10 +5,10 @@ import Fw.Spec.AxReach
 
 Export every `Fw.*` declaration as a math-view entry.
 
-Per declaration: kind, module, docstring, the `$$…$$` blocks found in it, the pretty-printed
-signature, a *deep* statement hash (signature + bodies of every `Fw.*` definition it reaches),
-a docstring hash (the whole docstring, whitespace-normalised, so a review goes stale when its math or English changes),
-the axioms it depends on (an unfinished proof shows as `sorryAx`), and a mechanical LaTeX rendering of the type.
+Per declaration: kind, module, docstring, the pretty-printed signature, a *deep* statement hash (signature + bodies
+of every `Fw.*` definition it reaches), the axioms it depends on (an unfinished proof shows as `sorryAx`), and a
+mechanical LaTeX rendering of the type. The export serves math written on demand into artifacts
+(docs/team/tools/math-artifact.md); `Filter` selects declarations or one module.
 -/
 namespace MathView
 open Lean Meta
@@ -148,35 +148,6 @@ def stmtHash (env : Environment) (ci : ConstantInfo) : UInt64 :=
     | some ci' => mixHash h (mixHash (hash c) (hash ci'.type))
     | none => h
 
-/-! ## Docstring hash: the reviewed text (English, `$$` blocks, notes), whitespace-normalised -/
-
-/-- The docstring with every run of whitespace collapsed to one space and the ends trimmed, so re-indenting or
-re-wrapping a docstring does not change it.
-
-$$\mathrm{normDoc}(d) = w_1 \,\texttt{" "}\, w_2 \,\texttt{" "} \cdots \texttt{" "}\, w_k$$
-
-where $w_1, \dots, w_k$ are the maximal runs of non-whitespace characters of $d$, in order. -/
-def normDoc (doc : String) : String :=
-  let (words, cur) := doc.toList.foldl (init := (([] : List String), "")) fun (ws, w) c =>
-    if c.isWhitespace then (if w.isEmpty then (ws, w) else (w :: ws, "")) else (ws, w.push c)
-  " ".intercalate (if cur.isEmpty then words else cur :: words).reverse
-
-/-- The docstring hash: Lean's `String` hash (MurmurHash64A, deterministic across runs) of the normalised
-docstring, or `0` when there is none.
-
-$$\mathrm{mathHash}(\bot) = 0, \qquad \mathrm{mathHash}(d) = \mathrm{hash}(\mathrm{normDoc}(d))$$
-
-A review row carrying this hash goes stale when any word of the docstring's English, `$$` math or notes changes. -/
-def mathHash : Option String → UInt64
-  | none => 0
-  | some doc => hash (normDoc doc)
-
-#guard normDoc "  a\n   b\t c  " == "a b c"
-#guard normDoc "" == ""
-#guard mathHash (some "x  $$a$$\n  y") == mathHash (some "x $$a$$ y")
-#guard mathHash (some "x $$a$$") != mathHash (some "x $$b$$")
-#guard mathHash none == 0
-
 /-! ## Entries -/
 
 structure Entry where
@@ -184,18 +155,14 @@ structure Entry where
   kind      : String
   module    : String
   doc       : Option String
-  english   : String          -- the whole docstring, trimmed (empty without one)
-  math      : List String     -- `$$…$$` blocks in the docstring
   signature : String
   autoTex   : String
   stmtHash  : String
-  mathHash  : String          -- hash of the whitespace-normalised docstring (`mathHash`)
   axioms    : List String
   sorryFree : Bool
   line      : Nat
   heartbeats : Nat            -- heartbeats this entry cost (each entry has its own budget)
   error     : Option String := none  -- the export of this entry failed (lint failure)
-  binders   : List String := []  -- names of a theorem's explicit, non-proof binders (for the quantifier lint)
 deriving ToJson, FromJson
 
 /-- The export order, a total key (module, line, name); names are unique in an environment, so no two entries tie
@@ -219,7 +186,7 @@ theorem string_lt_or_gt (a b : String) (h : a ≠ b) : a < b ∨ b < a := by
     · exact absurd (String.le_antisymm (String.not_lt.mp h2) (String.not_lt.mp h1)) h
 
 /-- **The sort key is total.** Two entries with different names are ordered one way or the other, so sorting the
-export by `before` has no ties (premise E3 of `Fw.Console.LandSpeed.lintAll`).
+export by `before` has no ties.
 
 $$\forall a, b:\quad a.\mathit{name} \ne b.\mathit{name} \Rightarrow \operatorname{before}(a, b) \lor \operatorname{before}(b, a)$$ -/
 theorem Entry.before_total (a b : Entry) (h : a.name ≠ b.name) : a.before b = true ∨ b.before a = true := by
@@ -248,17 +215,6 @@ theorem Entry.before_asymm (a b : Entry) (h : a.before b = true) : b.before a = 
   · exact ⟨fun e => String.lt_irrefl _ (hm ▸ e), .inr ⟨Nat.lt_asymm h, .inl (fun e => Nat.lt_irrefl _ (e ▸ h))⟩⟩
   · exact ⟨fun e => String.lt_irrefl _ (hm ▸ e), .inr ⟨fun e => Nat.lt_irrefl _ (hl ▸ e), .inr (String.lt_asymm h)⟩⟩
 
-def mathBlocks (doc : String) : List String :=
-  match doc.splitOn "$$" with
-  | _ :: rest => (rest.zipIdx.filter (·.2 % 2 == 0)).map (·.1.trimAscii.toString)
-  | [] => []
-
-/-- The English part of a docstring: the whole docstring, trimmed. -/
-def english (doc : String) : String := doc.trimAscii.toString
-
-#guard english "  One sentence.\n" == "One sentence."
-#guard english "" == ""
-
 def kindOf : ConstantInfo → String
   | .thmInfo _ => "theorem" | .defnInfo _ => "def" | .inductInfo _ => "inductive"
   | .ctorInfo _ => "ctor" | .axiomInfo _ => "axiom" | .opaqueInfo _ => "opaque" | _ => "other"
@@ -273,8 +229,7 @@ gets a fresh budget, so the export's total cost grows with the number of declara
 global limit. -/
 def declBudget : Nat := 200000
 
-/-- Heartbeat budget of one `autoTex` rendering, in thousands; past it `autoTex` is `"?"` (not a lint failure:
-the reviewed statement is the docstring math). -/
+/-- Heartbeat budget of one `autoTex` rendering, in thousands; past it `autoTex` is `"?"` (not a lint failure). -/
 def texBudget : Nat := 50000
 
 /-- Run `x` with a fresh heartbeat budget of `k` thousand heartbeats, catching every exception, including the
@@ -286,17 +241,6 @@ def bounded {α} (k : Nat) (x : MetaM α) : MetaM (Except String α) :=
 
 /-- The heartbeats spent since `start`, in thousands. -/
 def spentSince (start : Nat) : CoreM Nat := do return ((← IO.getNumHeartbeats) - start) / 1000
-
-/-- Names of the explicit and implicit binders of a theorem's type that are data (not proofs, not types, not compiler-named). -/
-def dataBinders (ci : ConstantInfo) : MetaM (List String) :=
-  forallTelescope ci.type fun xs _ => do
-    let mut out := []
-    for x in xs do
-      let d ← x.fvarId!.getDecl
-      if d.binderInfo.isInstImplicit || d.userName.hasMacroScopes || d.userName.isInaccessibleUserName then continue
-      if (← isProp d.type) || (← whnf d.type).isSort then continue
-      out := out ++ [d.userName.toString]
-    return out
 
 /-! ## Axioms: one memo shared by all entries (spec and proofs: `Fw.Spec.AxReach`)
 
@@ -336,6 +280,103 @@ def axIsAx (kenv : Kernel.Environment) (c : Name) : Bool :=
   | some (.axiomInfo _) => true
   | _ => false
 
+/-! ## Filter: the declarations one export keeps (`--decl`, `--module`) -/
+
+/-- The declarations an export keeps: the names in `decls`, or every name when `decls` is empty, inside `module`, or
+inside every module when it is unset. -/
+structure Filter where
+  decls : List String := []
+  module : Option String := none
+deriving Repr
+
+/-- Whether `f` keeps the declaration named `decl` of the module `mod`. -/
+def Filter.keeps (f : Filter) (mod decl : String) : Bool :=
+  (f.decls.isEmpty || f.decls.contains decl) && f.module.all (· == mod)
+
+/-- `f` keeps a declaration iff the name list is empty or holds its name, and the module is unset or is its module. -/
+theorem Filter.keeps_iff (f : Filter) (mod decl : String) :
+    f.keeps mod decl = true ↔ (f.decls = [] ∨ decl ∈ f.decls) ∧ (f.module = none ∨ f.module = some mod) := by
+  cases f with
+  | mk ds m =>
+    cases m <;> simp [Filter.keeps, List.isEmpty_iff]
+
+/-- The default filter keeps every declaration of every module. -/
+theorem Filter.keeps_default (mod decl : String) : ({} : Filter).keeps mod decl = true := rfl
+
+/-- A listed name in the selected module is kept. -/
+theorem Filter.keeps_listed (ds : List String) (mod decl : String) (h : decl ∈ ds) :
+    ({ decls := ds, module := some mod } : Filter).keeps mod decl = true :=
+  (Filter.keeps_iff _ _ _).2 ⟨.inr h, .inr rfl⟩
+
+/-- A name missing from a non-empty name list is dropped, whatever the module. -/
+theorem Filter.keeps_unlisted (f : Filter) (mod decl : String) (hne : f.decls ≠ []) (h : decl ∉ f.decls) :
+    f.keeps mod decl = false := by
+  cases hk : f.keeps mod decl
+  · rfl
+  · rcases ((Filter.keeps_iff f mod decl).1 hk).1 with e | e
+    · exact absurd e hne
+    · exact absurd e h
+
+/-- A declaration of a module other than the selected one is dropped, whatever the name list. -/
+theorem Filter.keeps_other_module (f : Filter) (m mod decl : String) (hm : f.module = some m) (hne : m ≠ mod) :
+    f.keeps mod decl = false := by
+  cases hk : f.keeps mod decl
+  · rfl
+  · rcases ((Filter.keeps_iff f mod decl).1 hk).2 with e | e
+    · rw [hm] at e; exact absurd e (by simp)
+    · rw [hm] at e; exact absurd (Option.some.inj e) hne
+
+#guard ({} : Filter).keeps "Fw.A" "Fw.A.t"
+#guard ({ decls := ["Fw.A.t"] } : Filter).keeps "Fw.A" "Fw.A.t"
+#guard !({ decls := ["Fw.A.t"] } : Filter).keeps "Fw.A" "Fw.A.u"
+#guard ({ module := some "Fw.A" } : Filter).keeps "Fw.A" "Fw.A.u"
+#guard !({ module := some "Fw.A" } : Filter).keeps "Fw.B" "Fw.B.u"
+#guard !({ decls := ["Fw.A.t"], module := some "Fw.B" } : Filter).keeps "Fw.A" "Fw.A.t"
+
+/-- The value after the first `flag` that has a following argument, if any. -/
+def optArg (flag : String) : List String → Option String
+  | f :: v :: rest => if f == flag then some v else optArg flag (v :: rest)
+  | _ => none
+
+#guard optArg "--out" ["--lint", "--out", "x.json"] == some "x.json"
+#guard optArg "--out" ["--lint", "--out"] == none
+#guard optArg "--out" [] == none
+#guard optArg "--module" ["--module", "a", "--module", "b"] == some "a"
+#guard optArg "--out" ["--out", "--out", "y"] == some "--out"
+
+/-- The names given after each `--decl`, up to the next argument that starts with `--`, in order. -/
+def declArgs (args : List String) : List String :=
+  (args.foldl (init := (false, ([] : List String))) fun (on, acc) a =>
+    if a == "--decl" then (true, acc)
+    else if a.startsWith "--" then (false, acc)
+    else if on then (on, acc ++ [a]) else (on, acc)).2
+
+#guard declArgs [] == []
+#guard declArgs ["--decl", "A", "B", "--out", "f", "--decl", "C"] == ["A", "B", "C"]
+#guard declArgs ["--out", "f", "A"] == []
+#guard declArgs ["--decl", "--module", "M"] == []
+
+/-- The filter of a command line: `--decl <name>...` and `--module <M>`. -/
+def Filter.ofArgs (args : List String) : Filter :=
+  { decls := declArgs args, module := optArg "--module" args }
+
+#guard (Filter.ofArgs []).keeps "Fw.A" "Fw.A.t"
+#guard (Filter.ofArgs ["--decl", "Fw.A.t", "--module", "Fw.A"]).keeps "Fw.A" "Fw.A.t"
+#guard !(Filter.ofArgs ["--module", "Fw.A"]).keeps "Fw.B" "Fw.B.t"
+
+/-- The names of `f.decls` that no exported entry carries, in order. -/
+def Filter.missing (f : Filter) (names : List String) : List String :=
+  f.decls.filter (!names.contains ·)
+
+/-- A name is reported missing iff it was asked for and no entry carries it. -/
+theorem Filter.mem_missing (f : Filter) (names : List String) (d : String) :
+    d ∈ f.missing names ↔ d ∈ f.decls ∧ d ∉ names := by
+  simp [Filter.missing]
+
+#guard ({ decls := ["A", "B"] } : Filter).missing ["A"] == ["B"]
+#guard ({ decls := ["A"] } : Filter).missing ["A"] == []
+#guard ({} : Filter).missing [] == []
+
 /-- The export of one declaration (`none` when it is not a math-view entry); `axs` are its axioms, sorted. -/
 def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc : Option String)
     (axs : Array Name) : MetaM (Option Entry) := do
@@ -354,18 +395,14 @@ def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc
       latex (eqnTy?.getD ci.type)) with
     | .ok t => pure t
     | .error _ => pure "?"
-  let binders ← match ci with
-    | .thmInfo _ => dataBinders ci
-    | _ => pure []
   return some {
-    name := n.toString, kind := kindOf ci, module := mod.toString, doc,
-    english := (doc.map english).getD "", math := (doc.map mathBlocks).getD [], signature := sig, autoTex := auto,
-    stmtHash := s!"{stmtHash env ci}", mathHash := s!"{mathHash doc}", axioms := axs.toList.map toString,
-    sorryFree := !axs.contains ``sorryAx, line, binders, heartbeats := ← spentSince start }
+    name := n.toString, kind := kindOf ci, module := mod.toString, doc, signature := sig, autoTex := auto,
+    stmtHash := s!"{stmtHash env ci}", axioms := axs.toList.map toString,
+    sorryFree := !axs.contains ``sorryAx, line, heartbeats := ← spentSince start }
 
-/-- The math-view entries of the declarations of the modules `want` selects (every module by default), sorted by
-`Entry.before`. The module cache (`MathViewMain`) passes the modules whose key missed. -/
-def entries (want : Name → Bool := fun _ => true) : MetaM (Array Entry) := do
+/-- The math-view entries of the declarations that `f` keeps (every declaration by default), sorted by
+`Entry.before`. -/
+def entries (f : Filter := {}) : MetaM (Array Entry) := do
   let env ← getEnv
   let mut out := #[]
   -- the kernel view `collectAxioms` reads (Lean/Util/CollectAxioms.lean:56,151 @ v4.35.0)
@@ -378,10 +415,10 @@ def entries (want : Name → Bool := fun _ => true) : MetaM (Array Entry) := do
     if skip env n ci then continue
     let some modIdx := env.getModuleIdxFor? n | continue
     let mod := env.header.moduleNames[modIdx.toNat]!
-    if !want mod then continue
+    if !f.keeps mod.toString n.toString then continue
     -- the declaring module's own docstring only: `findDocString?` also appends `recommended_spelling` and tactic-doc
     -- extensions found in *every* imported module (Lean/Parser/Term/Doc.lean:60-68, Parser/Tactic/Doc.lean:250-258
-    -- @ v4.35.0), which would make an entry depend on modules outside its import cone (mathview-module-cache)
+    -- @ v4.35.0), so the doc of an entry would depend on modules that merely mention it
     let doc ← findSimpleDocString? env n
     if n.isInternal || (n.toString.splitOn ".match_").length > 1 then continue
     -- derived-instance helpers (`instReprWork.repr`, `instToJsonCmd.toJson`, ...)
@@ -398,9 +435,8 @@ def entries (want : Name → Bool := fun _ => true) : MetaM (Array Entry) := do
     | .error msg =>
       let line := ((← findDeclarationRanges? n).map (·.range.pos.line)).getD 0
       out := out.push {
-        name := n.toString, kind := kindOf ci, module := mod.toString, doc,
-        english := (doc.map english).getD "", math := (doc.map mathBlocks).getD [], signature := "",
-        autoTex := "?", stmtHash := "", mathHash := s!"{mathHash doc}", axioms := [], sorryFree := false, line, heartbeats := declBudget,
+        name := n.toString, kind := kindOf ci, module := mod.toString, doc, signature := "",
+        autoTex := "?", stmtHash := "", axioms := [], sorryFree := false, line, heartbeats := declBudget,
         error := some msg }
   return out.qsort Entry.before
 
@@ -417,171 +453,13 @@ def lintEntry (e : Entry) : List String :=
     fun a => s!"{e.name} ({e.module}:{e.line}): non-standard axiom {a}")
 
 def lintProbe (doc : Option String) (axs : List String) : Entry :=
-  { name := "Fw.Probe.t", kind := "theorem", module := "Fw.Probe", doc, english := (doc.map english).getD "",
-    math := (doc.map mathBlocks).getD [], signature := "", autoTex := "", stmtHash := "",
-    mathHash := s!"{mathHash doc}", axioms := axs, sorryFree := !axs.contains "sorryAx", line := 1, heartbeats := 0 }
+  { name := "Fw.Probe.t", kind := "theorem", module := "Fw.Probe", doc, signature := "", autoTex := "",
+    stmtHash := "", axioms := axs, sorryFree := !axs.contains "sorryAx", line := 1, heartbeats := 0 }
 
 #guard lintEntry (lintProbe none ["propext"]) == []
 #guard lintEntry (lintProbe (some "A plain sentence.") ["propext", "Quot.sound"]) == []
-#guard (lintProbe (some "  A plain sentence.\n") []).english == "A plain sentence."
 #guard lintEntry (lintProbe none ["sorryAx"]) == ["Fw.Probe.t (Fw.Probe:1): depends on sorryAx (unfinished proof)"]
 #guard lintEntry (lintProbe (some "A plain sentence.") ["Fw.ax"]) == ["Fw.Probe.t (Fw.Probe:1): non-standard axiom Fw.ax"]
 #guard (lintEntry { lintProbe none [] with error := some "boom" }).length == 1
-
-/-! ## Quantifier lint (heuristic, warning only): a theorem's explicit binders must be bound in its `$$` math -/
-
-/-- The LaTeX spelling of a Lean binder name: subscripts, primes and trailing digits dropped (`y₀`, `g'`, `x1` all
-become the stem), Greek letters mapped to their commands. `none` when the name has no recognisable stem. -/
-def binderStem (n : String) : Option String :=
-  let cs := n.toList.filter fun c => !(c == '\'' || ('₀' ≤ c && c ≤ '₉'))
-  let cs := (cs.reverse.dropWhile Char.isDigit).reverse
-  match String.ofList cs with
-  | "" => none
-  | "ℓ" => some "\\ell" | "σ" => some "\\sigma" | "κ" => some "\\kappa" | "λ" => some "\\lambda"
-  | "α" => some "\\alpha" | "β" => some "\\beta" | "γ" => some "\\gamma" | "δ" => some "\\delta"
-  | "ε" => some "\\varepsilon" | "τ" => some "\\tau" | "μ" => some "\\mu" | "φ" => some "\\varphi"
-  | "π" => some "\\pi" | "ρ" => some "\\rho" | "ω" => some "\\omega" | "θ" => some "\\theta"
-  | "Σ" => some "\\Sigma"
-  | s => if s.all Char.isAlphanum then some s else none
-
-/-- Does `stem` occur in `hay` as a whole token (not inside a longer word or LaTeX command; a following `_`, `'`,
-`^` is a subscript, prime or power of the same variable)? -/
-def hasToken (hay stem : String) : Bool :=
-  let h := hay.toList.toArray
-  let t := stem.toList.toArray
-  let isCmd := t[0]? == some '\\'
-  Id.run do
-    for i in [:h.size] do
-      if i + t.size > h.size then break
-      if (List.range t.size).all (fun j => h[i + j]! == t[j]!) then
-        let before := if i == 0 then ' ' else h[i - 1]!
-        let after := if i + t.size < h.size then h[i + t.size]! else ' '
-        let okBefore := !(before.isAlphanum || before == '\\')
-        let okAfter := !after.isAlphanum
-        if (isCmd || okBefore) && okAfter then return true
-    return false
-
-/-- The text before position `i` of `cs` that can belong to one binder list: walk back over letters, commas,
-spaces, braces, parentheses, primes and subscripts, then keep only what follows the last connective. -/
-def binderListBefore (cs : Array Char) (i : Nat) : String :=
-  let ok (c : Char) := c.isAlphanum || c == ',' || c == ' ' || c == '_' || c == '\'' || c == '{' || c == '}' ||
-    c == '\\' || c == '(' || c == ')' || c == '.'
-  let rec go : Nat → Nat
-    | 0 => 0
-    | k + 1 => if ok cs[k]! then go k else k + 1
-  let from_ := go i
-  let s := String.ofList ((cs.extract from_ i).toList)
-  let cut := ["\\land", "\\lor", "\\Rightarrow", "\\iff", "\\Leftrightarrow"]
-  cut.foldl (fun s c => match s.splitOn c with | [] => s | ps => ps.getLast!) s
-
-/-- Every substring of `math` where a variable can be introduced: after a `\forall` / `\exists` up to the next
-colon, and the binder list before each `\in`, `\notin`, `\subseteq` or `:`. -/
-def binderZones (math : String) : List String :=
-  let cs := math.toList.toArray
-  let startsAt (i : Nat) (p : String) := (p.toList.toArray.size > 0) && i + p.length ≤ cs.size &&
-    (List.range p.length).all (fun j => cs[i + j]! == p.toList.toArray[j]!)
-  Id.run do
-    let mut zs : List String := []
-    for i in [:cs.size] do
-      for q in ["\\forall", "\\exists"] do
-        if startsAt i q then
-          let rest := String.ofList (cs.extract (i + q.length) cs.size).toList
-          zs := (rest.splitOn ":" |>.headD "") :: zs
-      for q in ["\\in", "\\notin", "\\subseteq", ":"] do
-        if startsAt i q && !(q == "\\in" && startsAt i "\\infty") then zs := binderListBefore cs i :: zs
-    return zs
-
-/-- Quantifier warnings of one theorem entry: an explicit data binder whose name occurs in no binder position of
-any `$$` block (so the math leaves it free). With `lenient`, a binder also passes when only its initial letter (either
-case) is quantified, as for `fs` written `F` or `rows` written `R` in the math. Heuristic: it can miss a binder used
-in a looser position, and flag a binder the math names differently (`lenient` also accepts `s` written `\sigma`,
-`l` written `\ell`, `k` written `\kappa`; `a` written `x` is still flagged). -/
-def warnEntry (lenient : Bool) (e : Entry) : List String :=
-  if e.kind != "theorem" || e.error.isSome then [] else
-  let zones := e.math.flatMap binderZones
-  e.binders.filterMap fun b =>
-    match binderStem b with
-    | none => none
-    | some stem =>
-      let initials : List String :=
-        if lenient && !stem.startsWith "\\" then
-          let c := stem.front
-          [c.toString, c.toUpper.toString, c.toLower.toString] ++
-            (if c == 's' then ["\\sigma"] else if c == 'l' then ["\\ell"] else if c == 'k' then ["\\kappa"] else [])
-        else []
-      if (stem :: initials).any (fun st => zones.any (hasToken · st)) then none
-      else some s!"{e.name} ({e.module}:{e.line}): binder `{b}` is not quantified in the $$ math"
-
-/-! ## Module cache keys (task mathview-module-cache; model: `Fw.Console.LandSpeed.mkey`, `lint_modular`)
-
-$K(m) = H(m, \mathrm{blob}(m), t, [K(i)]_{i \in \mathrm{imp}(m)})$. The blob is the module's `.olean`, the file the
-export actually reads (so a stale build can never be stored under a fresh source's key); $t$ hashes the tool
-(MathView*.lean, Fw/Spec/AxReach.lean, lean-toolchain, lake-manifest.json, lakefile.toml). A toolchain import
-(`Init`, `Lean`, …) enters by name: the toolchain pin in $t$ covers its content. -/
-
-/-- A 64-bit value as exactly 16 lowercase hex digits.
-
-$$\forall x \in [0, 2^{64}):\quad \operatorname{hex}(x) = \texttt{0}^{\,16 \,\dot{-}\, |d(x)|} \mathbin{+\!\!+} d(x)$$
-
-where $d(x)$ is the base-16 digit string of $x$ (lowercase, no leading zeros, $d(0) = \texttt{0}$), so
-$|d(x)| \le 16$ and the result has 16 characters. -/
-def hex64 (x : UInt64) : String :=
-  let d := String.ofList (Nat.toDigits 16 x.toNat)
-  String.ofList (List.replicate (16 - d.length) '0') ++ d
-
-#guard hex64 0 == "0000000000000000"
-#guard hex64 255 == "00000000000000ff"
-#guard hex64 0xffffffffffffffff == "ffffffffffffffff"
-
-/-- The identity of a blob: its 64-bit hash (Lean's `ByteArray` hash) and its byte length.
-
-$$\forall b:\quad \operatorname{blobId}(b) = \operatorname{hex}(\mathrm{hash}(b)) \mathbin{+\!\!+} \texttt{-} \mathbin{+\!\!+} \operatorname{dec}(|b|)$$
-
-where $|b|$ is the number of bytes and $\operatorname{dec}$ its decimal digits. -/
-def blobId (b : ByteArray) : String := hex64 (hash b) ++ "-" ++ toString b.size
-
-#guard blobId (ByteArray.mk #[1, 2]) != blobId (ByteArray.mk #[2, 1])
-#guard (blobId ByteArray.empty).endsWith "-0"
-
-/-- The canonical text a module key hashes: a version tag, the module name, its blob id, the tool hash and the keys
-of its imports in import order, separated by `|` and `,` (neither occurs in a module name, a blob id or a key).
-
-$$\forall m, b, t,\ \forall n \in \mathbb{N},\ \forall k_1, \dots, k_n:\quad \operatorname{keyText}(m, b, t, [k_1, \dots, k_n]) = \texttt{mathview-mod-v1|}\, m \,\texttt{|}\, b \,\texttt{|}\, t \,\texttt{|}\, \operatorname{join}_{\texttt{,}}(k_1, \dots, k_n)$$
-
-where $\operatorname{join}_{\texttt{,}}$ puts one `,` between neighbours: it is $k_1$ when $n = 1$ and empty when
-$n = 0$ (nothing after the last `|`). -/
-def keyText (m b t : String) (imps : List String) : String :=
-  "mathview-mod-v1|" ++ m ++ "|" ++ b ++ "|" ++ t ++ "|" ++ ",".intercalate imps
-
-#guard keyText "Fw.A" "b" "t" [] == "mathview-mod-v1|Fw.A|b|t|"
-#guard keyText "Fw.A" "b" "t" ["k1", "k2"] == "mathview-mod-v1|Fw.A|b|t|k1,k2"
-
-/-- The module key, used as $K(m) = \operatorname{modKey}(m, b, t, [K(i) \text{ for each import } i])$: two 64-bit string hashes of the key text with different one-letter prefixes, as 32 hex
-digits (the hash $H$ of `Fw.Console.LandSpeed.mkey`; its injectivity is the assumption `HInj`).
-
-$$\forall m, b, t, \vec k:\quad \operatorname{modKey}(m, b, t, \vec k) = \operatorname{hex}(\mathrm{hash}(\texttt{a} \mathbin{+\!\!+} s)) \mathbin{+\!\!+} \operatorname{hex}(\mathrm{hash}(\texttt{b} \mathbin{+\!\!+} s)),\quad s = \operatorname{keyText}(m, b, t, \vec k)$$
-
-Up to a hash collision, the key changes when the module, its blob, the tool or any import key changes. -/
-def modKey (m b t : String) (imps : List String) : String :=
-  let s := keyText m b t imps
-  hex64 (hash ("a" ++ s)) ++ hex64 (hash ("b" ++ s))
-
-#guard (modKey "Fw.A" "b" "t" []).length == 32
-#guard modKey "Fw.A" "b" "t" ["k"] == modKey "Fw.A" "b" "t" ["k"]
-#guard modKey "Fw.A" "b" "t" ["k"] != modKey "Fw.A" "b2" "t" ["k"]
-#guard modKey "Fw.A" "b" "t" ["k"] != modKey "Fw.A" "b" "t2" ["k"]
-#guard modKey "Fw.A" "b" "t" ["k"] != modKey "Fw.A" "b" "t" ["k2"]
-#guard modKey "Fw.A" "b" "t" ["k"] != modKey "Fw.B" "b" "t" ["k"]
-
-/-- May a module's fresh entries be stored? Only when no entry's export failed: a failure can be a heartbeat
-timeout, and heartbeats depend on the Meta caches the run shares across modules, so a failure is not a function of
-the key.
-
-$$\forall E:\quad \operatorname{storable}(E) \iff \forall e \in E:\ e.\mathit{error} = \bot$$
-
-where $\bot$ is `none`; true for the empty array ($|E| = 0$). -/
-def storable (es : Array Entry) : Bool := es.all (·.error.isNone)
-
-#guard storable #[]
 
 end MathView
