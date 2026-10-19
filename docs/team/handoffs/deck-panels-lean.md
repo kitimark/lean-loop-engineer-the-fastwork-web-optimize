@@ -16,3 +16,8 @@ Done
 
 Verified: apps/site test 82 files / 5288, typecheck.
 Read first: apps/site/src/parts/people.deck/icons.tsx.
+
+Land blocker fix (2026-10-19): mathview lint failed on 5 docstrings in lean/Fw/Parts/PeopleDeckPanels.lean without $$
+math (Svc, Verdict, Verdict.rank, Verdict.name, AboutLens). Each now has a $$ block (product type, constructor set,
+rank and name tables). No code or proof change. `sh lean/scripts/check.sh` green (1:15). The module still has binder
+quantifier warnings (filterIds_head, shown_all, verdict_mono, ...): follow-up, not failing.

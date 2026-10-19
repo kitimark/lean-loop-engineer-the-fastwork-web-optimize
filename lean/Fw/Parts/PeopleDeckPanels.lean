@@ -55,7 +55,8 @@ theorem tabOf_other (s : String) (h : s ∉ tabIds) : tabOf s = .about := by
 
 /-! ## Review filters -/
 
-/-- A service as the filters see it: id and review count. -/
+/-- A service as the filters see it: id and review count.
+$$\mathrm{Svc} = \mathrm{String} \times \mathbb{N},\quad s = (s.\mathrm{id},\ s.\mathrm{reviewCount})$$ -/
 structure Svc where
   id : String
   reviewCount : Nat
@@ -125,7 +126,8 @@ theorem more_pos_iff (total : Nat) (l : List String) : 0 < more total l ↔ min 
 
 /-! ## Score -/
 
-/-- The verdict words (JS 6475-6477). -/
+/-- The verdict words (JS 6475-6477).
+$$V = \{\text{excellent}, \text{veryGood}, \text{good}, \text{fair}, \text{poor}\}$$ -/
 inductive Verdict where
   | excellent | veryGood | good | fair | poor
   deriving DecidableEq, Repr
@@ -135,11 +137,13 @@ $x \ge 3.5$, fair for $x \ge 2.5$, else poor. -/
 def verdict (x : Rat) : Verdict :=
   if 9 / 2 ≤ x then .excellent else if 4 ≤ x then .veryGood else if 7 / 2 ≤ x then .good else if 5 / 2 ≤ x then .fair else .poor
 
-/-- Rank of a verdict, higher is better. -/
+/-- Rank of a verdict, higher is better.
+$$\operatorname{rank}(\text{excellent}) = 4,\ \operatorname{rank}(\text{veryGood}) = 3,\ \operatorname{rank}(\text{good}) = 2,\ \operatorname{rank}(\text{fair}) = 1,\ \operatorname{rank}(\text{poor}) = 0$$ -/
 def Verdict.rank : Verdict → Nat
   | .excellent => 4 | .veryGood => 3 | .good => 2 | .fair => 1 | .poor => 0
 
-/-- The wire name of a verdict. -/
+/-- The wire name of a verdict: the string spelling of its constructor.
+$$\operatorname{name}(\text{excellent}) = \texttt{"excellent"},\ \operatorname{name}(\text{veryGood}) = \texttt{"veryGood"},\ \operatorname{name}(\text{good}) = \texttt{"good"},\ \operatorname{name}(\text{fair}) = \texttt{"fair"},\ \operatorname{name}(\text{poor}) = \texttt{"poor"}$$ -/
 def Verdict.name : Verdict → String
   | .excellent => "excellent" | .veryGood => "veryGood" | .good => "good" | .fair => "fair" | .poor => "poor"
 
@@ -192,7 +196,8 @@ theorem flip_flip (b : Bool) : flip (flip b) = b := by
 
 /-! ## About sections -/
 
-/-- Section lengths of an about block: education, certificates, languages, awards (the optional ones). -/
+/-- Section lengths of an about block: education, certificates, languages, awards (the optional ones).
+$$\mathrm{AboutLens} = \mathbb{N}^4,\quad a = (a.\mathrm{education},\ a.\mathrm{certificates},\ a.\mathrm{languages},\ a.\mathrm{awards})$$ -/
 structure AboutLens where
   education : Nat
   certificates : Nat
