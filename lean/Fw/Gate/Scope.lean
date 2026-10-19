@@ -8,9 +8,9 @@ part. It is derived from the media conditions the part's CSS and JS read (the in
 parts, the rewrite's `MEDIA_IDS`, and non-catalogue width facts such as `css.floor-320`).
 
 **Hypothesis H** (what makes a smaller run sound; it is an assumption about the pages, not proved here): for a fixed
-engine port, the part's verdict at a fresh load with environment $e$ is $\mathrm{hv}([\kappa(e)])$ and at stop $i$ of
-a live-resize sweep it is $\mathrm{hv}(\mathrm{collapse}(\kappa(s_0), \dots, \kappa(s_i)))$, where $\kappa(e)$ is the
-truth vector of the scope conditions at $e$, `collapse` drops consecutive repeats, and $\mathrm{hv}$ never returns
+engine port, the part's verdict at a fresh load with environment `e` is `hv([κ(e)])` and at stop `i` of
+a live-resize sweep it is `hv(collapse(κ(s_0), ..., κ(s_i)))`, where `κ(e)` is the
+truth vector of the scope conditions at `e`, `collapse` drops consecutive repeats, and `hv` never returns
 `unreachable`; a load is unreachable only for the port's proved reason (`envReason`). H fails when the part's
 CSS or JS reads a condition outside its scope, when the rewrite's media text differs from Lean's (the breakpoint lint
 and `media.test.ts` guard that), or when a continuous value (a `clamp()` in `vw`) differs between the arms only at
@@ -29,8 +29,6 @@ open Fw.Site.Breakpoints
 
 /-- Drop consecutive repeats (a key history where only changes count).
 
-$$\forall a, b \in \kappa,\ \forall t \in \kappa^*,\quad \operatorname{collapse}([\,]) = [\,],\quad \operatorname{collapse}([a]) = [a],\quad \operatorname{collapse}(a :: b :: t) = \begin{cases} \operatorname{collapse}(b :: t) & a = b \\ a :: \operatorname{collapse}(b :: t) & a \ne b \end{cases}$$
-
 A resize that keeps every scope condition's value adds nothing to the history. -/
 def collapse {κ : Type} [DecidableEq κ] : List κ → List κ
   | [] => []
@@ -42,8 +40,6 @@ def collapse {κ : Type} [DecidableEq κ] : List κ → List κ
 #guard collapse [true, true] = [true]
 
 /-- A nonempty constant history collapses to one entry.
-
-$$\forall k \in \kappa,\ \forall l \in \kappa^*,\quad l \ne [\,] \wedge (\forall x \in l,\ x = k) \implies \operatorname{collapse}(l) = [k]$$
 
 A sweep along which the key never changes has the history of a single fresh load. -/
 theorem collapse_const {κ : Type} [DecidableEq κ] (k : κ) :
@@ -60,8 +56,6 @@ theorem collapse_const {κ : Type} [DecidableEq κ] (k : κ) :
 /-- A live-resize sweep: an id, a description, and its stops (the page loads at the first stop and is only
 resized after that).
 
-$$w = (\mathit{id}, \mathit{blurb}, (s_0, \dots, s_{n-1})) \in \Sigma^* \times \Sigma^* \times \mathrm{Env}^*$$
-
 One sweep of `spec.mjs`. -/
 structure Sweep where
   /-- sweep id, e.g. `phone-rotation` -/
@@ -71,10 +65,8 @@ structure Sweep where
   /-- the environments in order -/
   stops : List Env
 
-/-- The part's verdicts at the stops of one sweep under hypothesis H: stop $i$ gets the verdict of the collapsed
-key history of stops $0..i$.
-
-$$\forall \kappa, \mathrm{hv},\ \forall n \ge 0,\ \forall (s_0, \dots, s_{n-1}),\quad \operatorname{stops}_{\kappa,\mathrm{hv}}(s_0, \dots, s_{n-1}) = \big(\mathrm{hv}(\operatorname{collapse}(\kappa(s_0), \dots, \kappa(s_i)))\big)_{0 \le i < n} \quad (= (\,) \text{ for } n = 0)$$
+/-- The part's verdicts at the stops of one sweep under hypothesis H: stop `i` gets the verdict of the collapsed
+key history of stops `0..i`.
 
 What a sweep contributes to the part's row. -/
 def stopVerdicts {κ : Type} [DecidableEq κ] (key : Env → κ) (hv : List κ → Verdict) (stops : List Env) :
@@ -86,8 +78,6 @@ def stopVerdicts {κ : Type} [DecidableEq κ] (key : Env → κ) (hv : List κ �
    deskEnv (.ofNat 600) (.ofNat 900) (.ofNat 1) .noPreference] = [.pass, .pass, .fail]
 
 /-- Along a sweep whose key is constant, every stop gets the verdict of a fresh load.
-
-$$\forall \kappa, \mathrm{hv}, s, k,\quad (\forall e \in s,\ \kappa(e) = k) \implies \forall v \in \operatorname{stops}_{\kappa,\mathrm{hv}}(s),\ v = \mathrm{hv}([k])$$
 
 A sweep that never crosses a scope edge adds no new verdict. -/
 theorem stopVerdicts_const {κ : Type} [DecidableEq κ] (key : Env → κ) (hv : List κ → Verdict)
@@ -110,8 +100,6 @@ theorem stopVerdicts_const {κ : Type} [DecidableEq κ] (key : Env → κ) (hv :
 /-- The part's verdict at a fresh load under hypothesis H: the port's reason when it cannot reach the
 environment, else the verdict of the one-entry history.
 
-$$\forall \rho, \kappa, \mathrm{hv}, e,\quad \operatorname{load}_{\rho,\kappa,\mathrm{hv}}(e) = \begin{cases} \mathrm{unreachable}(r) & \rho(e) = \mathrm{some}(r) \\ \mathrm{hv}([\kappa(e)]) & \rho(e) = \bot \end{cases}$$
-
 One matrix probe's cell in the part's row. -/
 def keyedVerdict {κ : Type} (reach : Env → Option Reason) (key : Env → κ) (hv : List κ → Verdict) (e : Env) :
     Verdict :=
@@ -127,19 +115,15 @@ def keyedVerdict {κ : Type} (reach : Env → Option Reason) (key : Env → κ) 
 /-- The part's verdict over a run: the rollup of its verdicts at the run's loads and at every stop of the run's
 sweeps.
 
-$$\forall \rho, \kappa, \mathrm{hv}, S, K,\quad V_{\rho,\kappa,\mathrm{hv}}(S, K) = \operatorname{rollup}\big([\operatorname{load}_{\rho,\kappa,\mathrm{hv}}(e(p)) \mid p \in S] \mathbin{+\!\!+} [v \mid w \in K,\ v \in \operatorname{stops}_{\kappa,\mathrm{hv}}(w)]\big)$$
-
 The part's row of the gate, rolled up into one verdict. -/
 def scopedVerdict {κ : Type} [DecidableEq κ] (reach : Env → Option Reason) (key : Env → κ)
     (hv : List κ → Verdict) (S : List Probe) (K : List Sweep) : Verdict :=
   rollup (S.map (fun p => keyedVerdict reach key hv p.env) ++ K.flatMap fun w => stopVerdicts key hv w.stops)
 
-/-- **Scoped runs keep the verdict (generic).** Let the run's loads $S \subseteq M$ and sweeps $K \subseteq W$. If
-every reachable load of $M$ has a reachable load in $S$ with the same key, every sweep of $W$ left out of $K$ has a
-constant key that a reachable load of $S$ shows, some load of $M$ is reachable, and $\mathrm{hv}$ never says
-unreachable, then the part's verdict over $(S, K)$ equals its verdict over $(M, W)$.
-
-$$\begin{aligned} &\forall \rho, \kappa, \mathrm{hv}, S, M, K, W,\quad (\forall h,\ \neg\operatorname{isU}(\mathrm{hv}(h))) \wedge S \subseteq M \wedge K \subseteq W \\ &\wedge (\forall p \in M,\ \rho(e(p)) = \bot \Rightarrow \exists q \in S,\ \rho(e(q)) = \bot \wedge \kappa(e(q)) = \kappa(e(p))) \\ &\wedge (\forall w \in W,\ w \notin K \Rightarrow \exists q \in S,\ \rho(e(q)) = \bot \wedge \forall x \in w,\ \kappa(x) = \kappa(e(q))) \\ &\wedge (\exists p \in M,\ \rho(e(p)) = \bot) \implies V_{\rho,\kappa,\mathrm{hv}}(S, K) = V_{\rho,\kappa,\mathrm{hv}}(M, W) \end{aligned}$$
+/-- **Scoped runs keep the verdict (generic).** Let the run's loads `S ⊆ M` and sweeps `K ⊆ W`. If
+every reachable load of `M` has a reachable load in `S` with the same key, every sweep of `W` left out of `K` has a
+constant key that a reachable load of `S` shows, some load of `M` is reachable, and `hv` never says
+unreachable, then the part's verdict over `(S, K)` equals its verdict over `(M, W)`.
 
 Only the set of reachable verdicts matters, and a scoped run produces the same set. -/
 theorem scoped_verdict_eq {κ : Type} [DecidableEq κ] (reach : Env → Option Reason) (key : Env → κ)
@@ -208,8 +192,6 @@ theorem scoped_verdict_eq {κ : Type} [DecidableEq κ] (reach : Env → Option R
 
 /-- A width fact of a part that is not one of the 30 catalogue conditions (e.g. the root's `min-width: 320px`).
 
-$$x = (\mathit{id}, \mathit{why}, q) \in \Sigma^* \times \Sigma^* \times \mathrm{MQ}$$
-
 An extra edge the part's CSS has. -/
 structure ExtraCond where
   /-- inventory id, e.g. `css.floor-320` -/
@@ -221,8 +203,6 @@ structure ExtraCond where
 
 /-- A knee of a continuous value (a `clamp()` in `vw`): the width where it stops being constant.
 
-$$k = (\mathit{expr}, n) \in \Sigma^* \times \mathbb N$$
-
 The key splits at each knee, so each piece of the clamp gets a load. -/
 structure Knee where
   /-- the inventory's expression, e.g. `hero h1 font clamp 40px / 4.5vw / 64px` -/
@@ -233,8 +213,6 @@ structure Knee where
 /-- What a pilot part reads: its owner parts in the inventory, the catalogue conditions the original uses (the
 inventory's conditions of the owners) and the rewrite uses (`MEDIA_IDS` of its `media.ts`), extra width facts,
 knees of continuous values, and the inventory entries left out of the key with the reason.
-
-$$u = (\mathit{id}, O, C_{\mathrm{orig}}, C_{\mathrm{rw}}, X, \mathit{Kn}, D)$$
 
 The declaration a part's scope is computed from. -/
 structure PartUse where
@@ -255,8 +233,6 @@ structure PartUse where
 
 /-- The query of a catalogue id, if the id exists.
 
-$$\forall s \in \Sigma^*,\quad \operatorname{cond}(s) = \begin{cases} q_i & \text{the first } i < 30 \text{ with } \mathrm{id}(c_i) = s \\ \bot & \text{no such } i \end{cases}$$
-
 Looks a condition up by its inventory id. -/
 def lookupCond (s : String) : Option MQ := (catalogue.find? (·.id == s)).map (·.query)
 
@@ -265,42 +241,30 @@ def lookupCond (s : String) : Option MQ := (catalogue.find? (·.id == s)).map (�
 
 /-- The part's catalogue ids: the original's then the rewrite's, first occurrence kept.
 
-$$\forall u,\quad C(u) = \operatorname{dedup}_{\text{first}}(C_{\mathrm{orig}}(u) \mathbin{+\!\!+} C_{\mathrm{rw}}(u))$$
-
 Every condition either arm reads. -/
 def PartUse.conds (u : PartUse) : List String := (u.orig ++ u.rewrite).foldl MQ.pushNew []
 
 /-- The queries whose edges the scope must observe: the catalogue conditions, then the extra width facts.
-
-$$\forall u,\quad Q_E(u) = [\,q \mid s \in C(u),\ \operatorname{cond}(s) = q\,] \mathbin{+\!\!+} [\,q(x) \mid x \in X(u)\,]$$
 
 The part's media edges. -/
 def PartUse.edgeQueries (u : PartUse) : List MQ := u.conds.filterMap lookupCond ++ u.extra.map (·.query)
 
 /-- The band query of a knee: `(width<=Npx)`.
 
-$$\forall k,\quad \forall e,\ e \models \operatorname{band}(k) \iff \mathrm{width}(e) \le n(k)$$
-
 Which side of the knee a load is on. -/
 def kneeQuery (k : Knee) : MQ := ⟨[[.widthLe k.px]]⟩
 
 /-- All queries of the key: the edge queries, then the knee bands.
-
-$$\forall u,\quad Q(u) = Q_E(u) \mathbin{+\!\!+} [\,\operatorname{band}(k) \mid k \in \mathit{Kn}(u)\,]$$
 
 What the part's verdict may depend on under hypothesis H. -/
 def PartUse.queries (u : PartUse) : List MQ := u.edgeQueries ++ u.knees.map kneeQuery
 
 /-- **The key** of a part at an environment: the truth vector of its queries.
 
-$$\forall u, e,\quad \kappa_u(e) = (\llbracket q \rrbracket_e)_{q \in Q(u)} \in \mathbb B^{|Q(u)|}$$
-
 Two loads with the same key look the same to the part's media conditions. -/
 def PartUse.key (u : PartUse) (e : Env) : List Bool := u.queries.map (·.eval e)
 
 /-- `css.floor-320`: the root's `min-width: 320px` as the query `(width>=320px)`.
-
-$$\forall e,\quad e \models \mathtt{floor320} \iff \mathrm{width}(e) \ge 320$$
 
 Below 320 px the page stops shrinking. -/
 def floor320 : ExtraCond :=
@@ -311,8 +275,6 @@ def floor320 : ExtraCond :=
 breakpoints.json`: conditions and continuous entries of the owners; rewrite: `apps/site/src/parts/*/media.ts`).
 Per part: owners, original and rewrite catalogue ids, extra width facts, knees as (expression, px) and dismissed
 ids (each with its reason, listed in the source).
-
-$$\begin{aligned} &\text{per part: } O \text{ owners},\ C_{\mathrm{orig}}, C_{\mathrm{rw}} \text{ original and rewrite catalogue ids},\ X \text{ extra width facts},\ \mathit{Kn} \text{ knees as (expression, px)},\ D \text{ dismissed ids;} \\ \mathrm{pilot} = [\ &(\texttt{engine.scroll},\ O = [\texttt{engine.scroll}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}],\ C_{\mathrm{rw}} = [\,],\ X = [\texttt{css.floor-320}],\ \mathit{Kn} = [\,]), \\ &(\texttt{nav.hitTest},\ O = [\texttt{nav.hitTest}],\ C_{\mathrm{orig}} = [\,],\ C_{\mathrm{rw}} = [\,],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{hero.countdown},\ O = [\texttt{hero.countdown}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-400}, \texttt{mq.c1000-nodw}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{morph.countdown},\ O = [\texttt{morph.countdown}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-400}, \texttt{mq.c1000-nodw}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{hero.exit},\ O = [\texttt{hero.exit}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-600}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{morph.mount},\ O = [\texttt{morph.mount}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\,],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{morph.columns},\ O = [\texttt{morph.columns}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-640}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{morph.tween},\ O = [\texttt{morph.tween}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-640}, \texttt{mq.c860}],\ C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{morph.panel},\ O = [\texttt{morph.panel}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-600}, \texttt{mq.w-le-640}, \texttt{mq.w-le-720}, \texttt{mq.w-le-1000}, \texttt{mq.c860}],\ C_{\mathrm{rw}} = [\texttt{mq.w-le-1000}, \texttt{mq.w-le-720}, \texttt{mq.rm-reduce}, \texttt{mq.w-le-640}, \texttt{mq.w-le-600}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{nav},\ O = [\texttt{nav}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.rm-nopref}, \texttt{mq.w-le-600}, \texttt{mq.w-gt-600}, \texttt{mq.w-le-640}, \texttt{mq.w-gt-640}, \texttt{mq.c860}],\ C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.rm-nopref}, \texttt{mq.w-le-600}, \texttt{mq.w-gt-600}, \texttt{mq.w-le-640}, \texttt{mq.w-gt-640}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{nav.langMenu},\ O = [\texttt{nav.langMenu}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-640}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{commission},\ O = [\texttt{commission}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-640}, \texttt{mq.w-641-1000}, \texttt{mq.w-ge-1001-nopref}, \texttt{mq.c860}, \texttt{mq.c1000}],\ C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-640}, \texttt{mq.w-641-1000}, \texttt{mq.w-ge-1001-nopref}, \texttt{mq.c1000}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{commission.typing},\ O = [\texttt{commission.typing}, \texttt{commission}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-640}, \texttt{mq.w-641-1000}, \texttt{mq.w-ge-1001-nopref}, \texttt{mq.c860}, \texttt{mq.c1000}],\ C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.c1000}],\ X = [\,],\ \mathit{Kn} = [(e_f, 385), (e_f, 755)]), \\ &(\texttt{overlays.drawer},\ O = [\texttt{overlays.drawer}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.rm-nopref}, \texttt{mq.w-le-640}, \texttt{mq.w-le-860}],\ C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-860}, \texttt{mq.w-le-640}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{overlays.signup},\ O = [\texttt{overlays.signup}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-600}, \texttt{mq.w-le-860}],\ C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-600}],\ X = [\,],\ \mathit{Kn} = [(e_w, 408)]), \\ &(\texttt{hero},\ O = [\texttt{hero}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-600}],\ C_{\mathrm{rw}} = [\texttt{mq.w-le-600}, \texttt{mq.rm-reduce}],\ X = [\,],\ \mathit{Kn} = [(e_h, 889), (e_h, 1422), (e_g, 875), (e_g, 1500)]), \\ &(\texttt{hero.cue},\ O = [\texttt{hero.cue}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-600}, \texttt{mq.w-gt-600}],\ C_{\mathrm{rw}} = [\texttt{mq.w-gt-600}, \texttt{mq.w-le-600}, \texttt{mq.rm-reduce}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{hero.orbit},\ O = [\texttt{hero.orbit}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-600}, \texttt{mq.w-601-1279}, \texttt{mq.w-601-1511}],\ X = [\,],\ \mathit{Kn} = [(e_o, 1280)]), \\ &(\texttt{hero.deck},\ O = [\texttt{hero.deck}, \texttt{hero.orbit}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-600}, \texttt{mq.w-601-1279}, \texttt{mq.w-601-1511}],\ C_{\mathrm{rw}} = [\texttt{mq.w-le-600}, \texttt{mq.rm-reduce}],\ X = [\,],\ \mathit{Kn} = [(e_o, 1280)]), \\ &(\texttt{hero.accent},\ O = [\texttt{hero.accent}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-600}],\ C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{people.card},\ O = [\texttt{people.card}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-640}, \texttt{mq.w-le-860}, \texttt{mq.c860}],\ X = [\,],\ \mathit{Kn} = [(e_t, 900), (e_t, 1200)]), \\ &(\texttt{people.o},\ O = [\texttt{people.o}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-860}],\ X = [\,],\ \mathit{Kn} = [(e_s, 344)]), \\ &(\texttt{people.deck},\ O = [\texttt{people.deck}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-480}, \texttt{mq.w-le-640}, \texttt{mq.w-ge-861}, \texttt{mq.w-ge-861-nopref}, \texttt{mq.w-le-1200}, \texttt{mq.c860}, \texttt{mq.c1030}],\ C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-480}, \texttt{mq.w-le-640}, \texttt{mq.w-ge-861}, \texttt{mq.w-ge-861-nopref}, \texttt{mq.w-le-1200}, \texttt{mq.c860}, \texttt{mq.c1030}],\ X = [\,],\ \mathit{Kn} = [(e_p, 823), (e_p, 900)]), \\ &(\texttt{people.carousel},\ O = [\texttt{people.carousel}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-461}, \texttt{mq.w-le-860}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{pain},\ O = [\texttt{pain}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.rm-nopref}, \texttt{mq.w-le-860}],\ C_{\mathrm{rw}} = [\texttt{mq.rm-nopref}, \texttt{mq.w-le-860}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{pain.notes},\ O = [\texttt{pain.notes}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-860}, \texttt{mq.c860}],\ X = [\,],\ \mathit{Kn} = [(e_a, 462), (e_a, 769), (e_b, 636), (e_b, 909)]), \\ &(\texttt{platform},\ O = [\texttt{platform}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.rm-nopref}, \texttt{mq.w-le-640}, \texttt{mq.w-le-720}, \texttt{mq.w-le-860}, \texttt{mq.w-ge-861}, \texttt{mq.w-861-1000}, \texttt{mq.w-le-960}, \texttt{mq.w-le-1000}, \texttt{mq.w-ge-1001}, \texttt{mq.w-le-1100}, \texttt{mq.c860}],\ C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.rm-nopref}, \texttt{mq.w-ge-1001}, \texttt{mq.w-861-1000}, \texttt{mq.w-ge-861}, \texttt{mq.w-le-960}, \texttt{mq.w-le-1000}, \texttt{mq.w-le-720}, \texttt{mq.c860}, \texttt{mq.w-le-640}],\ X = [\,],\ \mathit{Kn} = [(e_t, 900), (e_t, 1200), (e_u, 400), (e_u, 500)]), \\ &(\texttt{platform.sweep},\ O = [\texttt{platform.sweep}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-nopref}, \texttt{mq.w-ge-861}, \texttt{mq.w-le-1000}, \texttt{mq.c860}],\ C_{\mathrm{rw}} = [\texttt{mq.rm-nopref}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{platform.stageBg},\ O = [\texttt{platform.stageBg}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-640}, \texttt{mq.w-le-960}, \texttt{mq.c860}],\ C_{\mathrm{rw}} = [\texttt{mq.c860}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{platform.glint},\ O = [\texttt{platform.glint}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{platform.entries},\ O = [\texttt{platform.entries}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{platform.marquee},\ O = [\texttt{platform.marquee}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{engine.scene},\ O = [\texttt{engine.scene}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\,],\ X = [\,],\ \mathit{Kn} = [\,])\ ], \\ e_h = {} &\text{``hero h1 font clamp 40px / 4.5vw / 64px''},\quad e_g = \text{``hero title gap clamp 14 / 1.6vw / 24''},\quad e_o = \text{``orbit edge push max(0, (1280 - 100vw) x 0.35)''},\quad e_f = \text{``commission fee visual min(0.8, parent / 432)''},\quad e_w = \text{``waitlist dialog min(360, 100vw - 48)''},\quad e_t = \text{``future / platform / mission title clamp 36 / 4vw / 48''},\quad e_s = \text{``seller preview min(320, innerWidth - 24)''},\quad e_p = \text{``profile shell height clamp 743 / 100vh-80 / 820''},\quad e_u = \text{``platform title clamp 32 / 8vw / 40 (inside width<=640)''},\quad e_a = \text{``pain note padding clamp 12 / 2.6vw / 20''},\quad e_b = \text{``pain note text clamp 14 / 2.2vw / 20''}, \\ &\text{and the dismissed ids (each with its reason, listed in the source): } D(\texttt{engine.scroll}) = [\texttt{html.viewport-meta}, \texttt{js.preload-hover}, \texttt{js.firefox-ua}], \\ &D(\texttt{nav.hitTest}) = [\texttt{js.nav-on-dark}],\ D(\texttt{hero.countdown}) = D(\texttt{morph.countdown}) = [\texttt{js.countdown-cell}],\ D(\texttt{hero.exit}) = D(\texttt{hero.cue}) = D(\texttt{hero.accent}) = [\,],\ D(\texttt{hero}) = [\texttt{css.hover-ungated}],\ D(\texttt{hero.orbit}) = D(\texttt{hero.deck}) = [\texttt{js.hero-splash-stage-1280}], \\ &D(\texttt{morph.mount}) = D(\texttt{morph.tween}) = [\texttt{js.morph-arm}],\ D(\texttt{nav}) = [\texttt{css.hover-ungated}, \texttt{js.profile-sticky-computed}, \texttt{js.nav-on-dark}], \\ &D(\texttt{commission}) = [\texttt{js.commission-bands}],\ D(\texttt{commission.typing}) = [\texttt{js.commission-bands}, \texttt{js.commission-visual-scale}], \\ &D(\texttt{overlays.drawer}) = [\texttt{css.safe-area}, \texttt{css.hover-ungated}],\ D(\texttt{overlays.signup}) = [\texttt{css.safe-area}, \texttt{js.dialog-direction}, \texttt{js.waitlist-dialog-size}], \\ &D(\texttt{people.card}) = [\texttt{js.future-shrink-band}],\ D(\texttt{people.o}) = [\texttt{css.hover-ungated}, \texttt{js.people-o-preview}, \texttt{js.people-o-reveal-io}],\ D(\texttt{people.deck}) = [\texttt{js.profile-sticky-computed}],\ D(\texttt{people.carousel}) = D(\texttt{pain}) = [\,],\ D(\texttt{pain.notes}) = [\texttt{js.pain-container-1100}],\ D(\texttt{platform}) = [\texttt{css.hover-ungated}],\ D(\texttt{platform.sweep}) = D(\texttt{platform.stageBg}) = D(\texttt{platform.glint}) = D(\texttt{platform.entries}) = D(\texttt{platform.marquee}) = [\,], \\ &D(\texttt{morph.columns}) = D(\texttt{morph.panel}) = D(\texttt{nav.langMenu}) = [\,],\ D(\texttt{engine.scene}) = [\texttt{js.scene-activation}] \end{aligned}$$
 
 The scope declarations of the pilot, in this order: owners, original and rewrite catalogue ids, extra width facts,
 knees and dismissed inventory entries per part. -/
@@ -471,8 +433,6 @@ def pilotParts : List PartUse := [
 
 /-- Every catalogue id a pilot part names exists in the catalogue.
 
-$$\forall u \in \mathrm{pilot},\ \forall s \in C(u),\quad \operatorname{cond}(s) \ne \bot$$
-
 No declared condition is silently dropped from the key. -/
 theorem pilot_conds_known : pilotParts.all (fun u => u.conds.all fun s => (lookupCond s).isSome) = true := by
   decide +kernel
@@ -481,15 +441,11 @@ theorem pilot_conds_known : pilotParts.all (fun u => u.conds.all fun s => (looku
 
 /-- The engine ports the scope must serve.
 
-$$\mathcal P = [\mathrm{chromium}, \mathrm{webkitApple}, \mathrm{webkitGLib}]$$
-
 Every port the gate can run on. -/
 def ports : List Port := [.chromium, .webkitApple, .webkitGLib]
 
 /-- The first observing pair of an edge in matrix order (as `observesFlip` searches), as a two-element list, or
 nothing.
-
-$$\forall q, a, n,\quad \operatorname{pair}(q, a, n) = \begin{cases} [p, p'] & (p, p') \text{ the first pair in matrix order with } a(p) = n,\ a(p') = n{+}1,\ \mathrm{blk}(p) = \mathrm{blk}(p'),\ p \sim p',\ \llbracket q \rrbracket_p \ne \llbracket q \rrbracket_{p'} \\ [\,] & \text{no such pair} \end{cases}$$
 
 The two loads that show the flip of `q` at edge `n`. -/
 def edgePair (q : MQ) (tag : Axis) (n : Nat) : List Probe :=
@@ -503,15 +459,11 @@ def edgePair (q : MQ) (tag : Axis) (n : Nat) : List Probe :=
 
 /-- The seed loads: the observing pair of every edge of every edge query.
 
-$$\forall u,\quad \operatorname{seeds}(u) = [\,p \mid q \in Q_E(u),\ (a, n) \in E(q),\ p \in \operatorname{pair}(q, a, n)\,]$$
-
 Edges are always tested on both sides. -/
 def seeds (u : PartUse) : List Probe :=
   u.edgeQueries.flatMap fun q => q.taggedEdges.flatMap fun (tag, n) => edgePair q tag n
 
 /-- A load is still needed when some port reaches it and no kept load that port reaches has its key.
-
-$$\forall \kappa, T, p,\quad \operatorname{need}_\kappa(T, p) \iff \exists \pi \in \mathcal P,\ \rho_\pi(e(p)) = \bot \wedge \neg \exists t \in T,\ \rho_\pi(e(t)) = \bot \wedge \kappa(e(t)) = \kappa(e(p))$$
 
 Greedy cover test. -/
 def needed (key : Env → List Bool) (kept : List Probe) (p : Probe) : Bool :=
@@ -519,8 +471,6 @@ def needed (key : Env → List Bool) (kept : List Probe) (p : Probe) : Bool :=
     !(kept.any fun t => (envReason π t.env).isNone && key t.env == key p.env)
 
 /-- Greedy cover: walk the candidates in order and keep each one still needed.
-
-$$\forall \kappa, T,\quad \operatorname{greedy}_\kappa(T, [\,]) = T,\qquad \forall p, c,\quad \operatorname{greedy}_\kappa(T, p :: c) = \operatorname{greedy}_\kappa\big(\text{if } \operatorname{need}_\kappa(T, p) \text{ then } T \mathbin{+\!\!+} [p] \text{ else } T,\ c\big)$$
 
 One load per (port, key) class, in matrix order. -/
 def greedy (key : Env → List Bool) : List Probe → List Probe → List Probe
@@ -530,16 +480,12 @@ def greedy (key : Env → List Bool) : List Probe → List Probe → List Probe
 /-- **The scope of a part**: the matrix loads whose id is among the seeds or the greedy cover (started from the
 seeds, run over the matrix in order), in matrix order.
 
-$$\forall u,\quad S(u) = [\,p \in M \mid \exists t \in \operatorname{greedy}_{\kappa_u}(\operatorname{seeds}(u), M),\ \mathrm{id}(t) = \mathrm{id}(p)\,]$$
-
 The loads `--parts` runs for this part. -/
 def scopeProbes (u : PartUse) : List Probe :=
   let chosen := greedy u.key (seeds u) matrix
   matrix.filter fun p => chosen.any (·.id == p.id)
 
 /-- The scope is part of the matrix.
-
-$$\forall u,\ \forall p \in S(u),\quad p \in M$$
 
 A scoped run never runs a load the full run lacks. -/
 theorem scopeProbes_sub (u : PartUse) : ∀ p ∈ scopeProbes u, p ∈ matrix := fun _ hp =>
@@ -549,21 +495,15 @@ theorem scopeProbes_sub (u : PartUse) : ∀ p ∈ scopeProbes u, p ∈ matrix :=
 
 /-- A desktop sweep stop (`DESK` of `spec.mjs`): height 900, DPR 1, hover, fine, no preference, light.
 
-$$\forall n,\quad \operatorname{deskStop}(n) = \operatorname{desk}(n, 900, 1, \text{no-preference})$$
-
 One stop of the desktop sweeps. -/
 def deskStop (n : Nat) : Env := deskEnv (.ofNat n) (.ofNat 900) (.ofNat 1) .noPreference
 
 /-- A touch sweep stop (`TOUCH` of `spec.mjs`): height 900, DPR 2, no hover, coarse, no preference, light.
 
-$$\forall n,\quad \operatorname{touchStop}(n) = \operatorname{touch}(n, 900, 2, \text{no-preference})$$
-
 One stop of the tablet sweep. -/
 def touchStop (n : Nat) : Env := touchEnv (.ofNat n) (.ofNat 900) (.ofNat 2) .noPreference
 
 /-- A phone stop (`PHONE` of `spec.mjs`): screen 430 x 932, DPR 3, no hover, coarse, no preference, light.
-
-$$\forall n, m,\quad \operatorname{phoneStop}(n, m) = (w{=}n, h{=}m, d_w{=}430, d_h{=}932, r{=}3, \text{none}, \text{coarse}, \text{no-preference}, \text{light})$$
 
 One stop of the rotation sweep. -/
 def phoneStop (n m : Nat) : Env :=
@@ -572,8 +512,6 @@ def phoneStop (n m : Nat) : Env :=
 
 /-- The desktop sweep widths, high to low: both sides of every width edge pair, at least 320.
 
-$$D = \operatorname{reverse}\big([\,m \mid n \in \mathrm{widthEdgePairs},\ m \in [n,\ n{+}1],\ m \ge 320\,]\big) = (1512, 1511, 1280, \dots, 401, 400, 320)$$
-
 The stops of the long desktop sweep on its way down. -/
 def deskSweepWidths : List Nat := ((widthEdgePairs.flatMap fun n => [n, n + 1]).filter (320 ≤ ·)).reverse
 
@@ -581,8 +519,6 @@ def deskSweepWidths : List Nat := ((widthEdgePairs.flatMap fun n => [n, n + 1]).
 #guard deskSweepWidths.head? = some 1512 ∧ deskSweepWidths.getLast? = some 320
 
 /-- The four live-resize sweeps of `spec.mjs`, in its order.
-
-$$\begin{aligned} W = [\ &\texttt{desktop-1512-320-1512}: \operatorname{deskStop}(D \mathbin{+\!\!+} \operatorname{tail}(\operatorname{reverse} D)), \\ &\texttt{phone-rotation}: \operatorname{phoneStop}((430,932),(932,430),(430,932),(932,430),(430,932)), \\ &\texttt{touch-1024-1201}: \operatorname{touchStop}(1024, 1201, 1024, 1201, 1024), \\ &\texttt{pain-1440-600-1440}: \operatorname{deskStop}(1440, 600, 1440, 600, 1440)\ ] \end{aligned}$$
 
 The sweeps the full gate runs. -/
 def sweeps : List Sweep := [
@@ -596,8 +532,6 @@ def sweeps : List Sweep := [
 
 /-- Every sweep stop is reachable on every port (whole widths, primary input pairs, whole device px).
 
-$$\forall \pi \in \mathcal P,\ \forall w \in W,\ \forall e \in w,\quad \rho_\pi(e) = \bot$$
-
 A sweep never has an unreachable stop, so its verdicts come from the page alone. -/
 theorem sweeps_reachable :
     (ports.all fun π => sweeps.all fun w => w.stops.all fun e => (envReason π e).isNone) = true := by
@@ -606,8 +540,6 @@ theorem sweeps_reachable :
 /-- Whether two environments have the same Lean vector key (what `expectFor` of `spec.mjs` looks up: width, device width, hover,
 pointer, reduced motion and scheme; height and DPR do not matter, `MQ.eval_indep_height_dpr`).
 
-$$\operatorname{sameVec}(a, b) \iff a.w = b.w \wedge a.d_w = b.d_w \wedge a.\eta = b.\eta \wedge a.\pi = b.\pi \wedge a.\mu = b.\mu \wedge a.\sigma = b.\sigma$$
-
 Two loads with the same key have the same expected truth. -/
 def _root_.Fw.Site.Breakpoints.Env.sameVector (a b : Env) : Bool :=
   a.width == b.width && a.deviceWidth == b.deviceWidth && a.hover == b.hover && a.pointer == b.pointer &&
@@ -615,9 +547,7 @@ def _root_.Fw.Site.Breakpoints.Env.sameVector (a b : Env) : Bool :=
 
 /-- **The 1024 stops of the tablet sweep have no Lean vector, so their Lean rows are not comparable by construction.**
 
-$$\Bigl(\forall p \in M,\ \neg\operatorname{sameVec}(p.\mathit{env}, \operatorname{touchStop}(1024))\Bigr) \wedge \bigl\{\, i \mid s_i = \operatorname{touchStop}(1024) \,\bigr\} = \{0, 2, 4\} \wedge \bigl(\forall o, r, \mathit{ach}, \forall it \in \operatorname{truthItems}(o, r, \bot, \bot, \mathit{ach}),\ it.\mathrm{cls} \in \{\mathrm{lean}, \mathrm{neutral.lean}\} \implies it.\mathrm{status} = \mathrm{na}\bigr)$$
-
-Here $M$ is the list of matrix probes and $(s_0, \dots, s_4)$ are the stops of `touch-1024-1201`. No matrix probe has the environment of
+Here `M` is the list of matrix probes and `(s_0, ..., s_4)` are the stops of `touch-1024-1201`. No matrix probe has the environment of
 stops 0, 2 and 4 (width 1024 is not a width edge pair), so the lookup finds no vector and every check against Lean's value at those
 stops is `na` (`truthItems_lean_na_no_vector`). This is the premise of the exemptions `chromium-touch-1024-no-vector` and
 `webkit-touch-1024-no-vector`: each excuses those readings of the row `matchMedia =Lean` and no others. -/
@@ -631,8 +561,6 @@ theorem touch1024_lean_na :
 
 /-- Whether the part's key changes along a sweep.
 
-$$\forall u, w,\quad \operatorname{moves}_u(w) \iff \exists i \ge 1,\ \kappa_u(s_i) \ne \kappa_u(s_0) \quad (w = (s_0, s_1, \dots);\ \text{false for no stops})$$
-
 A sweep the part must run. -/
 def keyMoves (u : PartUse) (w : Sweep) : Bool :=
   match w.stops with
@@ -641,16 +569,12 @@ def keyMoves (u : PartUse) (w : Sweep) : Bool :=
 
 /-- **The sweep scope**: the sweeps along which the part's key changes.
 
-$$\forall u,\quad K(u) = [\,w \in W \mid \operatorname{moves}_u(w)\,]$$
-
 A sweep with a constant key is a fresh load repeated, which the scoped loads already show. -/
 def scopeSweeps (u : PartUse) : List Sweep := sweeps.filter (keyMoves u)
 
 /-! ### Facts about the four pilot scopes (checked by the kernel) -/
 
 /-- Every reachable class is in the scope, on every port.
-
-$$\forall u \in \mathrm{pilot},\ \forall \pi \in \mathcal P,\ \forall p \in M,\quad \rho_\pi(e(p)) = \bot \implies \exists q \in S(u),\ \rho_\pi(e(q)) = \bot \wedge \kappa_u(e(q)) = \kappa_u(e(p))$$
 
 The scope shows every key the full matrix shows, on the same port. -/
 theorem scope_covers :
@@ -660,8 +584,6 @@ theorem scope_covers :
   decide +kernel
 
 /-- Every sweep left out has a constant key that a reachable scoped load shows, on every port.
-
-$$\forall u \in \mathrm{pilot},\ \forall \pi \in \mathcal P,\ \forall w \in W,\quad \neg\operatorname{moves}_u(w) \implies \exists q \in S(u),\ \rho_\pi(e(q)) = \bot \wedge \forall x \in w,\ \kappa_u(x) = \kappa_u(e(q))$$
 
 Dropping a flat sweep loses no verdict. -/
 theorem scope_sweeps_covered :
@@ -674,8 +596,6 @@ theorem scope_sweeps_covered :
 the scope holds two loads of one block that agree on every discrete feature, sit at `N` and `N+1` on the edge's
 axis, and give the query different values.
 
-$$\forall u \in \mathrm{pilot},\ \forall q \in Q_E(u),\ \forall (a, N) \in E(q),\ \exists p, p' \in S(u),\quad a(p) = N \wedge a(p') = N{+}1 \wedge \mathrm{blk}(p) = \mathrm{blk}(p') \wedge p \sim p' \wedge \llbracket q \rrbracket_p \ne \llbracket q \rrbracket_{p'}$$
-
 An off-by-one edge in the rewrite would still show up in a scoped run. -/
 theorem scope_observes_edges :
     (pilotParts.all fun u => u.edgeQueries.all fun q => q.taggedEdges.all fun (tag, n) =>
@@ -686,25 +606,19 @@ theorem scope_observes_edges :
 
 /-- Every port reaches some matrix load.
 
-$$\forall \pi \in \mathcal P,\ \exists p \in M,\quad \rho_\pi(e(p)) = \bot$$
-
 No port sees an all-unreachable matrix. -/
 theorem matrix_some_reachable : (ports.all fun π => matrix.any fun p => (envReason π p.env).isNone) = true := by
   decide +kernel
 
 /-- Every port is in `ports`.
 
-$$\forall \pi,\quad \pi \in \mathcal P$$
-
 The list of ports is complete. -/
 theorem mem_ports (π : Port) : π ∈ ports := by cases π <;> simp [ports]
 
-/-- **Scoped runs keep each pilot part's verdict.** For a pilot part $u$, any port, any verdict function
-$\mathrm{hv}$ of key histories that never says unreachable (hypothesis H), and any run whose loads $S_r$ lie between
-the scope and the matrix and whose sweeps $K_r$ lie between the sweep scope and all sweeps, the part's verdict over
+/-- **Scoped runs keep each pilot part's verdict.** For a pilot part `u`, any port, any verdict function
+`hv` of key histories that never says unreachable (hypothesis H), and any run whose loads `S_r` lie between
+the scope and the matrix and whose sweeps `K_r` lie between the sweep scope and all sweeps, the part's verdict over
 the run equals its verdict over the full matrix and all sweeps.
-
-$$\begin{aligned} &\forall u \in \mathrm{pilot},\ \forall \pi \in \mathcal P,\ \forall \mathrm{hv} : (\mathbb B^*)^* \to \mathcal V,\ \forall S_r \in \mathrm{Probe}^*,\ \forall K_r \in \mathrm{Sweep}^*, \\ &\quad (\forall h,\ \neg\operatorname{isU}(\mathrm{hv}(h))) \wedge S(u) \subseteq S_r \subseteq M \wedge K(u) \subseteq K_r \subseteq W \implies V_{\rho_\pi,\kappa_u,\mathrm{hv}}(S_r, K_r) = V_{\rho_\pi,\kappa_u,\mathrm{hv}}(M, W) \end{aligned}$$
 
 Running only the part's scope, alone or together with other parts' scopes, gives the full matrix's verdict. -/
 theorem scope_sound (u : PartUse) (hu : u ∈ pilotParts) (π : Port) (hv : List (List Bool) → Verdict)
@@ -740,8 +654,6 @@ theorem scope_sound (u : PartUse) (hu : u ∈ pilotParts) (π : Port) (hv : List
 
 /-- With every pilot part's scope run together, each part keeps its verdict (the union run of `--parts` with
 several parts).
-
-$$\forall u \in \mathrm{pilot},\ \forall \pi \in \mathcal P,\ \forall \mathrm{hv},\quad (\forall h,\ \neg\operatorname{isU}(\mathrm{hv}(h))) \implies V_{\rho_\pi,\kappa_u,\mathrm{hv}}(S_\cup, K_\cup) = V_{\rho_\pi,\kappa_u,\mathrm{hv}}(M, W),\quad S_\cup = [\,p \in M \mid \exists u' \in \mathrm{pilot},\ p \in S(u')\,],\ K_\cup = [\,w \in W \mid \exists u' \in \mathrm{pilot},\ w \in K(u')\,]$$
 
 The union of scopes is a valid run for each part in it. -/
 theorem scope_union_sound (u : PartUse) (hu : u ∈ pilotParts) (π : Port) (hv : List (List Bool) → Verdict)

@@ -19,13 +19,13 @@ Each second: the clock event; at the start, `N` runs registered as `N` waiters; 
 s and `burst` of them at `burstAt`, tried in order through `reserve` (a wait holds the queue until its time); then the
 poller's `next`. Checks, independent of the decisions:
 - every hour and every minute window holds at most the share of each kind (1800/1200 and 20/40) and at most
-  $B = 3000$ / $B_1 = 60$ in all;
+  `B = 3000` / `B_1 = 60` in all;
 - no call goes before a `retry-after` ends, before the reset after a refusal with remaining 0 or after remaining
   ≤ 500, nor within 60 s of a bare 403/429; the server never refuses for an empty bucket;
-- liveness: when every `next` between two ticks waited only for the interval, the gap is at most the largest $P$
-  seen in it, every wait is in the future and an interval wait is at most $P$ ahead, and each tick covers every
+- liveness: when every `next` between two ticks waited only for the interval, the gap is at most the largest `P`
+  seen in it, every wait is in the future and an interval wait is at most `P` ahead, and each tick covers every
   watched run;
-- the expectations of the fixture, and for `sweep` the same issued calls for every $N$.
+- the expectations of the fixture, and for `sweep` the same issued calls for every `N`.
 -/
 namespace FwTest.CiBudget
 open Lean Fw.Ci.Budget

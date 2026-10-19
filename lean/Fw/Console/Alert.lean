@@ -26,25 +26,16 @@ stand-in `alertFor`):
 
 namespace Fw.Console.Alert
 
-/-- The kind of an alert.
-
-$$\mathrm{Kind} = \{\mathrm{permission}, \mathrm{needsInput}, \mathrm{stopFailure}\}$$
--/
+/-- The kind of an alert. -/
 inductive Kind where
   | permission | needsInput | stopFailure
 deriving Repr, DecidableEq
 
-/-- The wire name of a kind.
-
-$$\operatorname{name}(k) = \texttt{"permission"}, \texttt{"needsInput"}, \texttt{"stopFailure"} \text{ for } k = \mathrm{permission}, \mathrm{needsInput}, \mathrm{stopFailure}$$
--/
+/-- The wire name of a kind. -/
 def Kind.name : Kind → String
   | .permission => "permission" | .needsInput => "needsInput" | .stopFailure => "stopFailure"
 
-/-- The hook facts the rule reads (`agentId = none` is the lead).
-
-$$e = (\mathit{event}, \mathit{agent}_\bot, \mathit{type}_\bot, \mathit{tool}_\bot, \mathit{ntype}_\bot, \mathit{ts}) \in \mathrm{String} \times \mathrm{String}_\bot \times \mathrm{String}_\bot \times \mathrm{String}_\bot \times \mathrm{String}_\bot \times \mathbb{N}$$
--/
+/-- The hook facts the rule reads (`agentId = none` is the lead). -/
 structure Ev where
   event : String
   agentId : Option String := none
@@ -54,20 +45,14 @@ structure Ev where
   ts : Nat := 0
 deriving Repr, DecidableEq
 
-/-- A tool call in flight (`agentId = none` is the lead).
-
-$$f = (\mathit{agent}_\bot, \mathit{type}_\bot, \mathit{tool}_\bot)$$
--/
+/-- A tool call in flight (`agentId = none` is the lead). -/
 structure Flight where
   agentId : Option String := none
   agentType : Option String := none
   tool : Option String := none
 deriving Repr, DecidableEq
 
-/-- The kind of alert an event opens, if any.
-
-$$\operatorname{kindOf}(e) = \begin{cases} \mathrm{stopFailure} & e.\mathit{event} = \texttt{StopFailure} \\ \mathrm{permission} & e.\mathit{event} = \texttt{Notification} \land e.\mathit{ntype} = \texttt{permission\_prompt} \\ \mathrm{needsInput} & e.\mathit{event} = \texttt{Notification} \land (e.\mathit{ntype} = \bot \lor e.\mathit{ntype} = \texttt{agent\_needs\_input}) \\ \bot & \text{otherwise} \end{cases}$$
--/
+/-- The kind of alert an event opens, if any. -/
 def kindOf (e : Ev) : Option Kind :=
   if e.event == "StopFailure" then some .stopFailure
   else if e.event == "Notification" then
@@ -78,17 +63,12 @@ def kindOf (e : Ev) : Option Kind :=
     | some _ => none
   else none
 
-/-- Events that end an agent's wait: its next tool result or answer.
-
-$$\operatorname{closer}(\mathit{ev}) \iff \mathit{ev} \in \{\texttt{PostToolUse}, \texttt{PostToolUseFailure}, \texttt{SubagentStop}, \texttt{Stop}\}$$
--/
+/-- Events that end an agent's wait: its next tool result or answer. -/
 def closer (ev : String) : Bool :=
   ev == "PostToolUse" || ev == "PostToolUseFailure" || ev == "SubagentStop" || ev == "Stop"
 
 /-- Who a `Notification` without `agent_id` belongs to: the single agent with a tool in flight,
 and only when the lead has no tool in flight other than the `Agent` call waiting for it.
-
-$$\operatorname{attrib}(\mathit{fs}) = \begin{cases} \bot & \exists f \in \mathit{fs}:\ f.\mathit{agent} = \bot \land f.\mathit{tool} \ne \texttt{Agent} \\ f_1 & \text{else if } F_a = f_1 :: R \text{ and } \forall g \in R:\ g.\mathit{agent} = f_1.\mathit{agent} \\ \bot & \text{otherwise} \end{cases},\quad \text{where } F_a = [\, f \in \mathit{fs} \mid f.\mathit{agent} \ne \bot \,] \text{ is the list of agent flights in the order of } \mathit{fs} \text{ (cases are tried first match first)}$$
 -/
 def attrib (fs : List Flight) : Option Flight :=
   if fs.any (fun f => f.agentId.isNone && f.tool != some "Agent") then none
@@ -96,10 +76,7 @@ def attrib (fs : List Flight) : Option Flight :=
     | [] => none
     | f :: rest => if rest.all (fun g => g.agentId == f.agentId) then some f else none
 
-/-- An attributed Notification names an agent and no other candidate exists.
-
-$$\forall \mathit{fs}, f:\ \operatorname{attrib}(\mathit{fs}) = f \Rightarrow f \in \mathit{fs} \land f.\mathit{agent} \ne \bot \land (\forall g \in \mathit{fs}:\ g.\mathit{agent} \ne \bot \Rightarrow g.\mathit{agent} = f.\mathit{agent}) \land (\forall g \in \mathit{fs}:\ g.\mathit{agent} = \bot \Rightarrow g.\mathit{tool} = \texttt{Agent})$$
--/
+/-- An attributed Notification names an agent and no other candidate exists. -/
 theorem attrib_sound {fs : List Flight} {f : Flight} (h : attrib fs = some f) :
     f ∈ fs ∧ f.agentId.isSome = true ∧ (∀ g ∈ fs, g.agentId.isSome = true → g.agentId = f.agentId)
       ∧ (∀ g ∈ fs, g.agentId = none → g.tool = some "Agent") := by
@@ -133,8 +110,6 @@ theorem attrib_sound {fs : List Flight} {f : Flight} (h : attrib fs = some f) :
 
 /-- With no agent in flight a Notification without `agent_id` is never attributed (the lead's
 own prompt is no alert).
-
-$$\forall \mathit{fs}:\ \left(\forall g \in \mathit{fs}:\ g.\mathit{agent} = \bot\right) \Rightarrow \operatorname{attrib}(\mathit{fs}) = \bot$$
 -/
 theorem attrib_lead_only {fs : List Flight} (h : ∀ g ∈ fs, g.agentId = none) :
     attrib fs = none := by
@@ -148,43 +123,26 @@ theorem attrib_lead_only {fs : List Flight} (h : ∀ g ∈ fs, g.agentId = none)
 
 /-- A character allowed in an agent slug: ASCII letters, ASCII digits, `_` (never `-`, the id separator); any other
 character, including a non-ASCII letter such as `é`, becomes `_`.
-
-$$\operatorname{slugChar}(c) = \begin{cases} c & c \in \{\texttt{A}..\texttt{Z}, \texttt{a}..\texttt{z}, \texttt{0}..\texttt{9}, \texttt{\_}\} \\ \texttt{\_} & \text{otherwise} \end{cases}$$
 -/
 def slugChar (c : Char) : Char := if c.isAlphanum || c == '_' then c else '_'
 
-/-- The slug of an agent id: `main` for the lead, else the first 40 characters made safe.
-
-$$\operatorname{slug}(\bot) = \texttt{main};\quad \operatorname{slug}(a) = \operatorname{map}(\operatorname{slugChar}, \operatorname{take}(40, a)) \text{ (and } \texttt{\_} \text{ if } a \text{ is empty)}$$
--/
+/-- The slug of an agent id: `main` for the lead, else the first 40 characters made safe. -/
 def slug : Option String → String
   | none => "main"
   | some a => if a.isEmpty then "_" else String.ofList ((a.toList.take 40).map slugChar)
 
-/-- The step id of an alert of `agent` raised at hook time `t`.
-
-$$\operatorname{stepId}(a, t) = \texttt{alert-} \cdot \operatorname{slug}(a) \cdot \texttt{-} \cdot t$$
--/
+/-- The step id of an alert of `agent` raised at hook time `t`. -/
 def stepId (a : Option String) (t : Nat) : String := "alert-" ++ slug a ++ "-" ++ toString t
 
-/-- The characters up to the first `-` and those after it; a list without `-` is all left part.
-
-$$\operatorname{cut}(\ell \cdot \texttt{-} \cdot r) = (\ell, r) \text{ for } \ell \text{ without } \texttt{-};\quad \operatorname{cut}(\ell) = (\ell, [\,]) \text{ for } \ell \text{ without } \texttt{-}$$
--/
+/-- The characters up to the first `-` and those after it; a list without `-` is all left part. -/
 def cut : List Char → List Char × List Char
   | [] => ([], [])
   | c :: cs => if c == '-' then ([], cs) else let r := cut cs; (c :: r.1, r.2)
 
-/-- The number a list of decimal digit characters spells (most significant first).
-
-$$\operatorname{decode}([d_1,\dots,d_k]) = \sum_i d_i \cdot 10^{k-i}$$
--/
+/-- The number a list of decimal digit characters spells (most significant first). -/
 def decode (l : List Char) : Nat := l.foldl (fun a c => a * 10 + (c.toNat - 48)) 0
 
-/-- The slug and time inside an alert step id (`none` for any other id).
-
-$$\operatorname{parse}(\texttt{alert-} \cdot s \cdot \texttt{-} \cdot t) = (s, t) \text{ for } s \text{ without } \texttt{-} \text{ and } t \text{ decimal; } \operatorname{parse}(\mathit{id}) = \bot \text{ otherwise}$$
--/
+/-- The slug and time inside an alert step id (`none` for any other id). -/
 def parse (id : String) : Option (String × Nat) :=
   match id.toList with
   | 'a' :: 'l' :: 'e' :: 'r' :: 't' :: '-' :: rest =>
@@ -192,16 +150,10 @@ def parse (id : String) : Option (String × Nat) :=
     if r.2 != [] && r.2.all Char.isDigit then some (String.ofList r.1, decode r.2) else none
   | _ => none
 
-/-- A decimal digit character reads back as its value.
-
-$$\forall k < 10:\quad \operatorname{ord}(\operatorname{digit}(k)) - 48 = k$$
--/
+/-- A decimal digit character reads back as its value. -/
 theorem digit_val : ∀ k, k < 10 → (Nat.digitChar k).toNat - 48 = k := by decide
 
-/-- Decoding the decimal digits of $n$ gives $n$.
-
-$$\forall n:\quad \operatorname{decode}(\operatorname{toDigits}_{10}(n)) = n$$
--/
+/-- Decoding the decimal digits of `n` gives `n`. -/
 theorem decode_toDigits (n : Nat) : decode (Nat.toDigits 10 n) = n := by
   induction n using Nat.strongRecOn with
   | _ n ih =>
@@ -216,10 +168,7 @@ theorem decode_toDigits (n : Nat) : decode (Nat.toDigits 10 n) = n := by
       rw [h1, hd]
       omega
 
-/-- Cutting after a dash-free prefix returns the prefix and the rest.
-
-$$\forall \ell, r:\ (\forall c \in \ell:\ c \ne \texttt{-}) \Rightarrow \operatorname{cut}(\ell \cdot \texttt{-} \cdot r) = (\ell, r)$$
--/
+/-- Cutting after a dash-free prefix returns the prefix and the rest. -/
 theorem cut_append {l : List Char} (h : ∀ c ∈ l, c ≠ '-') (r : List Char) :
     cut (l ++ '-' :: r) = (l, r) := by
   induction l with
@@ -229,10 +178,7 @@ theorem cut_append {l : List Char} (h : ∀ c ∈ l, c ≠ '-') (r : List Char) 
     have := ih (fun x hx => h x (by simp [hx]))
     simp [cut, hc, this]
 
-/-- A slug never contains the separator `-`.
-
-$$\forall a, \forall c \in \operatorname{slug}(a):\quad c \ne \texttt{-}$$
--/
+/-- A slug never contains the separator `-`. -/
 theorem slug_no_dash (a : Option String) : ∀ c ∈ (slug a).toList, c ≠ '-' := by
   intro c hc
   cases a with
@@ -250,10 +196,7 @@ theorem slug_no_dash (a : Option String) : ∀ c ∈ (slug a).toList, c ≠ '-' 
         simp at h
       · decide
 
-/-- The id of an alert reads back as its agent slug and time.
-
-$$\forall a, t:\quad \operatorname{parse}(\operatorname{stepId}(a, t)) = (\operatorname{slug}(a), t)$$
--/
+/-- The id of an alert reads back as its agent slug and time. -/
 theorem parse_stepId (a : Option String) (t : Nat) : parse (stepId a t) = some (slug a, t) := by
   have h1 := cut_append (slug_no_dash a) (Nat.toDigits 10 t)
   have hd : (Nat.toDigits 10 t).all Char.isDigit = true := by
@@ -268,10 +211,7 @@ theorem parse_stepId (a : Option String) (t : Nat) : parse (stepId a t) = some (
 
 /-! ## The decision -/
 
-/-- An alert step to post.
-
-$$\mathrm{Alert} = (\mathit{step}, \mathit{key}, \mathit{title}, \mathit{kind}, \mathit{agent})$$
--/
+/-- An alert step to post. -/
 structure Alert where
   step : String
   key : String
@@ -280,10 +220,7 @@ structure Alert where
   agent : String
 deriving Repr, DecidableEq
 
-/-- What the drain does for one event: post at most one alert step, cancel some open ones.
-
-$$\mathrm{Out} = (\mathit{post}_\bot : \mathrm{Alert}_\bot,\ \mathit{close} : [\mathrm{String}])$$
--/
+/-- What the drain does for one event: post at most one alert step, cancel some open ones. -/
 structure Out where
   post : Option Alert := none
   close : List String := []
@@ -291,10 +228,7 @@ deriving Repr, DecidableEq
 
 private def clip (n : Nat) (s : String) : String := String.ofList (s.toList.take n)
 
-/-- The title of an alert: names the agent (its type), the kind and the tool.
-
-$$\operatorname{title}(k, \mathit{who}, \mathit{tool}) = \begin{cases} \text{“Agent } w \text{ asks permission to use } u \text{: answer its prompt in the Claude Code terminal, then press Done”} & k = \mathrm{permission} \\ \text{“Agent } w \text{ needs your input: answer it in the Claude Code terminal, then press Done”} & k = \mathrm{needsInput} \\ \text{“Agent } w \text{ stopped on an API failure; the lead restarts it from its handoff”} & k = \mathrm{stopFailure} \end{cases},\quad \text{where } w = \operatorname{clip}_{60}(\mathit{who}),\ u = \begin{cases} \operatorname{clip}_{40}(\mathit{tool}) & \mathit{tool} \ne \bot \\ \operatorname{clip}_{40}(\text{“a tool”}) & \mathit{tool} = \bot \end{cases},\ \operatorname{clip}_n(s) = \text{the first } n \text{ characters of } s \text{ (all of } s \text{ if it is shorter)}$$
--/
+/-- The title of an alert: names the agent (its type), the kind and the tool. -/
 def title (k : Kind) (who : String) (tool : Option String) : String :=
   let w := clip 60 who
   match k with
@@ -304,8 +238,6 @@ def title (k : Kind) (who : String) (tool : Option String) : String :=
 
 /-- The agent an event opens an alert for: its own `agent_id` (`StopFailure` of the lead is the
 lead's); a `Notification` without one only when attributable. Returns (agent id, agent type, tool).
-
-$$\operatorname{subject}(e, \mathit{fs}) = \begin{cases} (e.\mathit{agent}, e.\mathit{type}, e.\mathit{tool}) & e.\mathit{agent} \ne \bot \lor e.\mathit{event} = \texttt{StopFailure} \\ (f.\mathit{agent}, f.\mathit{type}, e.\mathit{tool}) & e.\mathit{agent} = \bot \land e.\mathit{event} \ne \texttt{StopFailure} \land \operatorname{attrib}(\mathit{fs}) = f \\ \bot & \text{otherwise} \end{cases}$$
 -/
 def subject (e : Ev) (fs : List Flight) : Option (Option String × Option String × Option String) :=
   if e.agentId.isSome || e.event == "StopFailure" then some (e.agentId, e.agentType, e.tool)
@@ -313,16 +245,11 @@ def subject (e : Ev) (fs : List Flight) : Option (Option String × Option String
     | some f => some (f.agentId, f.agentType, e.tool)
     | none => none
 
-/-- The agent slug an open alert step belongs to (`none` for a step that is no alert).
-
-$$\operatorname{owner}(\mathit{id}) = s \text{ if } \operatorname{parse}(\mathit{id}) = (s, \cdot);\ \bot \text{ otherwise}$$
--/
+/-- The agent slug an open alert step belongs to (`none` for a step that is no alert). -/
 def owner (id : String) : Option String := (parse id).map (·.1)
 
 /-- Does event `e` close the open alert step `id`: same agent, a closing event, strictly later
 than the alert.
-
-$$\operatorname{closes}(e, \mathit{id}) \iff \operatorname{closer}(e.\mathit{event}) \land \exists t:\ \operatorname{parse}(\mathit{id}) = (\operatorname{slug}(e.\mathit{agent}), t) \land t < e.\mathit{ts}$$
 -/
 def closes (e : Ev) (id : String) : Bool :=
   closer e.event && match parse id with
@@ -331,9 +258,6 @@ def closes (e : Ev) (id : String) : Bool :=
 
 /-- The decision for one event, given the tool calls in flight and the ids of the alert steps
 still open on the board.
-
-$$\operatorname{act}(e, \mathit{fs}, \mathit{opn}) = (\mathit{post}, \mathit{close}),\quad \mathit{close} = [\, \mathit{id} \in \mathit{opn} \mid \operatorname{closes}(e, \mathit{id}) \,]$$
-$$\mathit{post} = \begin{cases} (s, \texttt{alert:} \cdot s, \operatorname{title}(k, \tau, \mathit{tool}), k, \operatorname{slug}(a)) & \operatorname{kindOf}(e) = k \land \operatorname{subject}(e, \mathit{fs}) = (a, \mathit{ty}, \mathit{tool}) \land \neg \exists \mathit{id} \in \mathit{opn}:\ \operatorname{owner}(\mathit{id}) = \operatorname{slug}(a) \\ \bot & \text{otherwise} \end{cases},\quad \text{where } s = \operatorname{stepId}(a, e.\mathit{ts}),\ \tau = \begin{cases} \mathit{ty} & \mathit{ty} \ne \bot \\ \texttt{main} & \mathit{ty} = \bot \end{cases}$$
 -/
 def act (e : Ev) (fs : List Flight) (opn : List String) : Out :=
   let close := opn.filter (closes e)
@@ -346,16 +270,10 @@ def act (e : Ev) (fs : List Flight) (opn : List String) : Out :=
         close }
   | _, _ => { close }
 
-/-- The key of the command that cancels alert step `id` (one per step, so a repeat is a duplicate).
-
-$$\operatorname{closeKey}(\mathit{id}) = \texttt{alert-close:} \cdot \mathit{id}$$
--/
+/-- The key of the command that cancels alert step `id` (one per step, so a repeat is a duplicate). -/
 def closeKey (id : String) : String := "alert-close:" ++ id
 
-/-- Only a `StopFailure` or a `Notification` ever opens an alert.
-
-$$\forall e, \mathit{fs}, \mathit{opn}:\ \operatorname{act}(e, \mathit{fs}, \mathit{opn}).\mathit{post} \ne \bot \Rightarrow e.\mathit{event} \in \{\texttt{StopFailure}, \texttt{Notification}\}$$
--/
+/-- Only a `StopFailure` or a `Notification` ever opens an alert. -/
 theorem post_event {e : Ev} {fs : List Flight} {opn : List String}
     (h : (act e fs opn).post ≠ none) : e.event = "StopFailure" ∨ e.event = "Notification" := by
   unfold act at h
@@ -367,10 +285,7 @@ theorem post_event {e : Ev} {fs : List Flight} {opn : List String}
       have : kindOf e = none := by simp [kindOf, hs, hn]
       simp [this] at h
 
-/-- The lead's own Notification (no `agent_id`, nothing but the lead in flight) opens no alert.
-
-$$\forall e, \mathit{fs}, \mathit{opn}:\ e.\mathit{event} = \texttt{Notification} \land e.\mathit{agent} = \bot \land (\forall g \in \mathit{fs}:\ g.\mathit{agent} = \bot) \Rightarrow \operatorname{act}(e, \mathit{fs}, \mathit{opn}).\mathit{post} = \bot$$
--/
+/-- The lead's own Notification (no `agent_id`, nothing but the lead in flight) opens no alert. -/
 theorem lead_notification_silent {e : Ev} {fs : List Flight} {opn : List String}
     (he : e.event = "Notification") (ha : e.agentId = none) (hf : ∀ g ∈ fs, g.agentId = none) :
     (act e fs opn).post = none := by
@@ -382,8 +297,6 @@ theorem lead_notification_silent {e : Ev} {fs : List Flight} {opn : List String}
 
 /-- A posted alert names the agent the event is about: its step id is the id of that agent at the
 event time, and its key is derived from the step id.
-
-$$\forall e, \mathit{fs}, \mathit{opn}, a:\ \operatorname{act}(e, \mathit{fs}, \mathit{opn}).\mathit{post} = a \Rightarrow \exists x:\ \operatorname{subject}(e, \mathit{fs}) = x \land a.\mathit{step} = \operatorname{stepId}(x.\mathit{agent}, e.\mathit{ts}) \land a.\mathit{agent} = \operatorname{slug}(x.\mathit{agent}) \land a.\mathit{key} = \texttt{alert:} \cdot a.\mathit{step} \land \operatorname{kindOf}(e) = a.\mathit{kind}$$
 -/
 theorem post_names_agent {e : Ev} {fs : List Flight} {opn : List String} {a : Alert}
     (h : (act e fs opn).post = some a) :
@@ -404,10 +317,7 @@ theorem post_names_agent {e : Ev} {fs : List Flight} {opn : List String} {a : Al
         subst h
         exact ⟨(a0, ty, tool), rfl, rfl, rfl, rfl, rfl⟩
 
-/-- No second alert is posted for an agent that already has one open.
-
-$$\forall e, \mathit{fs}, \mathit{opn}, x:\ \left(\exists \mathit{id} \in \mathit{opn}:\ \operatorname{owner}(\mathit{id}) = \operatorname{slug}(x.\mathit{agent})\right) \land \operatorname{subject}(e, \mathit{fs}) = x \Rightarrow \operatorname{act}(e, \mathit{fs}, \mathit{opn}).\mathit{post} = \bot$$
--/
+/-- No second alert is posted for an agent that already has one open. -/
 theorem no_second_alert {e : Ev} {fs : List Flight} {opn : List String} {x}
     (hx : subject e fs = some x) (ho : ∃ id ∈ opn, owner id = some (slug x.1)) :
     (act e fs opn).post = none := by
@@ -423,10 +333,7 @@ theorem no_second_alert {e : Ev} {fs : List Flight} {opn : List String} {x}
       exact ⟨id, hid, by simpa using hown⟩
     simp [this]
 
-/-- Everything closed is an open alert of the agent of the event, closed by a closing event.
-
-$$\forall e, \mathit{fs}, \mathit{opn}, s:\ s \in \operatorname{act}(e, \mathit{fs}, \mathit{opn}).\mathit{close} \Rightarrow s \in \mathit{opn} \land \operatorname{owner}(s) = \operatorname{slug}(e.\mathit{agent}) \land \operatorname{closer}(e.\mathit{event})$$
--/
+/-- Everything closed is an open alert of the agent of the event, closed by a closing event. -/
 theorem close_sound {e : Ev} {fs : List Flight} {opn : List String} {s : String}
     (h : s ∈ (act e fs opn).close) :
     s ∈ opn ∧ owner s = some (slug e.agentId) ∧ closer e.event = true := by
@@ -449,8 +356,6 @@ theorem close_sound {e : Ev} {fs : List Flight} {opn : List String} {s : String}
 
 /-- A closing event of an agent closes its earlier alert: the alert raised at `t < ts` for the
 same agent is among those cancelled.
-
-$$\forall e, \mathit{fs}, \mathit{opn}, t:\ \operatorname{closer}(e.\mathit{event}) \land t < e.\mathit{ts} \land \operatorname{stepId}(e.\mathit{agent}, t) \in \mathit{opn} \Rightarrow \operatorname{stepId}(e.\mathit{agent}, t) \in \operatorname{act}(e, \mathit{fs}, \mathit{opn}).\mathit{close}$$
 -/
 theorem close_complete {e : Ev} {fs : List Flight} {opn : List String} {t : Nat}
     (hc : closer e.event = true) (ht : t < e.ts) (hm : stepId e.agentId t ∈ opn) :
@@ -468,10 +373,7 @@ theorem close_complete {e : Ev} {fs : List Flight} {opn : List String} {t : Nat}
   unfold act
   simp [hno, hf]
 
-/-- A closing event never opens an alert (a step never closes the alert it just opened).
-
-$$\forall e, \mathit{fs}, \mathit{opn}:\ \operatorname{closer}(e.\mathit{event}) \Rightarrow \operatorname{act}(e, \mathit{fs}, \mathit{opn}).\mathit{post} = \bot$$
--/
+/-- A closing event never opens an alert (a step never closes the alert it just opened). -/
 theorem closer_no_post {e : Ev} {fs : List Flight} {opn : List String} (hc : closer e.event = true) :
     (act e fs opn).post = none := by
   cases hp : (act e fs opn).post with

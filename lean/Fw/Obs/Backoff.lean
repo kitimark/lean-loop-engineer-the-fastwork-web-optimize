@@ -15,54 +15,38 @@ killed only when the stretched deadline has passed. At low load the rule is toda
 
 namespace Fw.Obs.Backoff
 
-/-- The thresholds of the rule: $(L, e) \in \mathbb N \times \mathbb N$, with defaults $L = 50$, $e = 2$.
-
-$$p = (L, e) = (\mathit{loadHigh}, \mathit{extra})$$
--/
+/-- The thresholds of the rule: `(L, e) ∈ ℕ × ℕ`, with defaults `L = 50`, `e = 2`. -/
 structure Params where
   loadHigh : Nat := 50
   extra    : Nat := 2
 deriving DecidableEq, Repr
 
-/-- What the caller does at a deadline: kill the child and restart it (replaying the log), or keep waiting `ms` more.
-
-$$d \in \{\mathsf{restart}\} \cup \{\mathsf{wait}(m) \mid m \in \mathbb N\}$$
--/
+/-- What the caller does at a deadline: kill the child and restart it (replaying the log), or keep waiting `ms` more. -/
 inductive Decision where
   | restart
   | wait (ms : Nat)
 deriving DecidableEq, Repr
 
-/-- The total time a call of base deadline $b$ may wait at load $\lambda$: $b$ when the machine is not loaded,
-$(1 + e)\,b$ when it is.
-
-$$T_p(\lambda, b) = \begin{cases} (1 + e)\,b & \lambda \ge L \\ b & \text{else} \end{cases}$$
+/-- The total time a call of base deadline `b` may wait at load `λ`: `b` when the machine is not loaded,
+`(1 + e) b` when it is.
 -/
 def totalMs (p : Params) (load base : Nat) : Nat :=
   if p.loadHigh ≤ load then (1 + p.extra) * base else base
 
 /-- The decision at a deadline that fired after `waited` ms: wait for the rest of the total when `waited` is short of it,
 else restart.
-
-$$\operatorname{onTimeout}_p(\lambda, b, w) = \begin{cases} \mathsf{wait}(T_p(\lambda, b) - w) & w < T_p(\lambda, b) \\ \mathsf{restart} & \text{else} \end{cases}$$
 -/
 def onTimeout (p : Params) (load base waited : Nat) : Decision :=
   if waited < totalMs p load base then .wait (totalMs p load base - waited) else .restart
 
-/-- The total wait is never below the base deadline.
-
-$$\forall p, \lambda, b:\quad b \le T_p(\lambda, b)$$
--/
+/-- The total wait is never below the base deadline. -/
 theorem base_le_total (p : Params) (load base : Nat) : base ≤ totalMs p load base := by
   unfold totalMs
   split
   · exact Nat.le_mul_of_pos_left base (by omega)
   · exact Nat.le_refl _
 
-/-- A heavier load never shortens the total wait.
-
-$$\forall p, b, \lambda \le \lambda':\quad T_p(\lambda, b) \le T_p(\lambda', b)$$
--/
+/-- A heavier load never shortens the total wait. -/
 theorem total_mono (p : Params) (base : Nat) {l1 l2 : Nat} (h : l1 ≤ l2) :
     totalMs p l1 base ≤ totalMs p l2 base := by
   unfold totalMs
@@ -76,8 +60,6 @@ theorem total_mono (p : Params) (base : Nat) {l1 l2 : Nat} (h : l1 ≤ l2) :
 
 /-- **Not loaded: today's rule.** Below `loadHigh` the child is restarted at the first deadline (the call has waited its
 base deadline).
-
-$$\forall \lambda < L,\ b \le w:\quad \operatorname{onTimeout}_p(\lambda, b, w) = \mathsf{restart}$$
 -/
 theorem restart_when_not_loaded (p : Params) (load base waited : Nat) (hl : load < p.loadHigh)
     (hw : base ≤ waited) : onTimeout p load base waited = .restart := by
@@ -86,26 +68,18 @@ theorem restart_when_not_loaded (p : Params) (load base waited : Nat) (hl : load
 
 /-- **Loaded: wait, do not kill.** At `loadHigh` or above, a call that has waited less than the stretched total gets the
 rest of it.
-
-$$\forall \lambda \ge L,\ w < (1 + e)\,b:\quad \operatorname{onTimeout}_p(\lambda, b, w) = \mathsf{wait}((1 + e)\,b - w)$$
 -/
 theorem wait_when_loaded (p : Params) (load base waited : Nat) (hl : p.loadHigh ≤ load)
     (hw : waited < (1 + p.extra) * base) :
     onTimeout p load base waited = .wait ((1 + p.extra) * base - waited) := by
   simp [onTimeout, totalMs, hl, hw]
 
-/-- **A hung child is still killed.** Once the call has waited the total, the decision is restart, at any load.
-
-$$\forall \lambda:\quad T_p(\lambda, b) \le w \Rightarrow \operatorname{onTimeout}_p(\lambda, b, w) = \mathsf{restart}$$
--/
+/-- **A hung child is still killed.** Once the call has waited the total, the decision is restart, at any load. -/
 theorem restart_after_total (p : Params) (load base waited : Nat) (h : totalMs p load base ≤ waited) :
     onTimeout p load base waited = .restart := by
   simp [onTimeout, Nat.not_lt.2 h]
 
-/-- **Never killed before its base deadline.** A call that has waited less than its base deadline is not restarted.
-
-$$\forall \lambda:\quad w < b \Rightarrow \operatorname{onTimeout}_p(\lambda, b, w) \ne \mathsf{restart}$$
--/
+/-- **Never killed before its base deadline.** A call that has waited less than its base deadline is not restarted. -/
 theorem no_restart_early (p : Params) (load base waited : Nat) (h : waited < base) :
     onTimeout p load base waited ≠ .restart := by
   have := base_le_total p load base
@@ -113,8 +87,6 @@ theorem no_restart_early (p : Params) (load base waited : Nat) (h : waited < bas
 
 /-- **A wait ends in a restart.** When the decision is to wait `m` ms, firing again after those `m` ms (same load)
 restarts: at most one wait per call.
-
-$$\operatorname{onTimeout}_p(\lambda, b, w) = \mathsf{wait}(m) \Rightarrow \operatorname{onTimeout}_p(\lambda, b, w + m) = \mathsf{restart}$$
 -/
 theorem wait_then_restart (p : Params) (load base waited m : Nat) (h : onTimeout p load base waited = .wait m) :
     onTimeout p load base (waited + m) = .restart := by
@@ -126,10 +98,7 @@ theorem wait_then_restart (p : Params) (load base waited m : Nat) (h : onTimeout
     omega
   · cases h
 
-/-- **A wait is positive.** The ms to wait are never 0 (no immediate re-fire loop).
-
-$$\operatorname{onTimeout}_p(\lambda, b, w) = \mathsf{wait}(m) \Rightarrow 0 < m$$
--/
+/-- **A wait is positive.** The ms to wait are never 0 (no immediate re-fire loop). -/
 theorem wait_pos (p : Params) (load base waited m : Nat) (h : onTimeout p load base waited = .wait m) : 0 < m := by
   unfold onTimeout at h
   split at h

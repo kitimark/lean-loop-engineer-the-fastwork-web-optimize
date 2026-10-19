@@ -10,22 +10,18 @@ here.
 namespace Fw.Spec.LandDrySig
 open Fw.Console.LandDry
 
-/-- What a dry run hands to the process: its stdout lines and its exit code.
-$$\mathrm{Out} = \mathrm{List}(\mathrm{String}) \times \mathbb N$$ -/
+/-- What a dry run hands to the process: its stdout lines and its exit code. -/
 structure Out where
   lines : List String
   exit : Nat
 
-/-- The signature of a dry-run implementation: the stage outcomes and the task name in, the output out.
-$$\mathrm{DryImpl} = \mathrm{Outcome} \to \mathrm{String} \to \mathrm{Out}$$ -/
+/-- The signature of a dry-run implementation: the stage outcomes and the task name in, the output out. -/
 abbrev DryImpl := Outcome → String → Out
 
-/-- Is a line a verdict line? It starts with `VERDICT ` (with the space).
-$$\operatorname{isV}(\ell) \iff \ell \text{ starts with } \texttt{VERDICT }$$ -/
+/-- Is a line a verdict line? It starts with `VERDICT ` (with the space). -/
 def isVerdict (l : String) : Bool := l.startsWith "VERDICT "
 
-/-- The number of verdict lines in a list of lines.
-$$\operatorname{nV}(L) = |[\ell \in L : \operatorname{isV}(\ell)]|$$ -/
+/-- The number of verdict lines in a list of lines. -/
 def verdictCount (ls : List String) : Nat := (ls.filter isVerdict).length
 
 #guard isVerdict "VERDICT dry x"

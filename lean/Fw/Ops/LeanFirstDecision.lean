@@ -10,12 +10,10 @@ glob. `isDecisionWrite_iff` proves the two agree on every glob, which makes `Dec
 -/
 namespace Fw.Ops.LeanFirst
 
-/-- A glob with every `*` replaced by `z`: a path the glob covers literally.
-$$\operatorname{fillZ}(w) = \operatorname{map}(c \mapsto \text{if } c = \texttt{*} \text{ then } \texttt{z} \text{ else } c,\ w)$$ -/
+/-- A glob with every `*` replaced by `z`: a path the glob covers literally. -/
 def fillZ (w : List Char) : List Char := w.map fun c => if c = '*' then 'z' else c
 
-/-- A glob covers its `z`-filled form followed by `/` and anything.
-$$\forall w\, t,\ \operatorname{Cov}(w, \operatorname{fillZ}(w) \mathbin{+\!\!+} \texttt{/} :: t)$$ -/
+/-- A glob covers its `z`-filled form followed by `/` and anything. -/
 theorem covers_fillZ (w t : List Char) : GlobCovers w (fillZ w ++ '/' :: t) := by
   induction w with
   | nil => exact .under t
@@ -29,9 +27,8 @@ theorem covers_fillZ (w t : List Char) : GlobCovers w (fillZ w ++ '/' :: t) := b
       rw [this]
       exact .lit c hc ih
 
-/-- If the `z`-filled glob, then `/`, starts with the segment $d$ (no `/`, `z` or `*`) and `/`, the glob is $d$ or
-starts with $d$ and `/`.
-$$\forall d\, w\, t\, r,\ (\forall e \in d,\ e \notin \{\texttt{/}, \texttt{z}, \texttt{*}\}) \land \operatorname{fillZ}(w) \mathbin{+\!\!+} \texttt{/} :: t = d \mathbin{+\!\!+} \texttt{/} :: r \Rightarrow w = d \lor \exists r',\ w = d \mathbin{+\!\!+} \texttt{/} :: r'$$ -/
+/-- If the `z`-filled glob, then `/`, starts with the segment `d` (no `/`, `z` or `*`) and `/`, the glob is `d` or
+starts with `d` and `/`. -/
 theorem fillZ_seg (d : List Char) (hd : ∀ e ∈ d, e ≠ '/' ∧ e ≠ 'z' ∧ e ≠ '*') :
     ∀ w t r, fillZ w ++ '/' :: t = d ++ '/' :: r → w = d ∨ ∃ r', w = d ++ '/' :: r' := by
   induction d with
@@ -60,9 +57,8 @@ theorem fillZ_seg (d : List Char) (hd : ∀ e ∈ d, e ≠ '/' ∧ e ≠ 'z' ∧
         · exact .inl rfl
         · exact .inr ⟨r', rfl⟩
 
-/-- A glob that is a segment $d$ (no `*` or `/`) followed by nothing or by `/` covers only paths that are $d$ followed
-by nothing or by `/`.
-$$\forall g\, p,\ \operatorname{Cov}(g, p) \Rightarrow \forall d\, r,\ g = d \mathbin{+\!\!+} r \land (\forall e \in d,\ e \notin \{\texttt{*}, \texttt{/}\}) \land (r = [\,] \lor \exists r',\ r = \texttt{/} :: r') \Rightarrow \exists p',\ p = d \mathbin{+\!\!+} p' \land (p' = [\,] \lor \exists q,\ p' = \texttt{/} :: q)$$ -/
+/-- A glob that is a segment `d` (no `*` or `/`) followed by nothing or by `/` covers only paths that are `d` followed
+by nothing or by `/`. -/
 theorem covers_seg {g p : List Char} (h : GlobCovers g p) :
     ∀ d r, g = d ++ r → (∀ e ∈ d, e ≠ '*' ∧ e ≠ '/') → (r = [] ∨ ∃ r', r = '/' :: r') →
       ∃ p', p = d ++ p' ∧ (p' = [] ∨ ∃ q, p' = '/' :: q) := by
@@ -120,8 +116,7 @@ theorem covers_seg {g p : List Char} (h : GlobCovers g p) :
     | nil => simp at hg; subst hg; simp at hr
     | cons e d => simp at hg; exact absurd hg.1.symm (hd e (by simp)).1
 
-/-- The gate's test is an allowed root or a root and `/` as a prefix, and nothing else.
-$$\forall w,\ \operatorname{dec}(w) = \mathrm{false} \iff \exists d \in [\texttt{docs}, \texttt{research}],\ \operatorname{Seg}_1(w, d)$$ -/
+/-- The gate's test is an allowed root or a root and `/` as a prefix, and nothing else. -/
 theorem isDecisionWrite_false (w : String) :
     isDecisionWrite w = false ↔ ∃ d ∈ ["docs".toList, "research".toList], FirstSeg w.toList d := by
   have hp : ∀ d : List Char, ((d ++ ['/']).isPrefixOf w.toList = true) ↔ ∃ r, w.toList = d ++ '/' :: r := by
@@ -136,7 +131,6 @@ theorem isDecisionWrite_false (w : String) :
 
 /-- **The gate's decision test is the allowlist rule**: `isDecisionWrite` holds exactly when the glob may cover a path
 that is not allowlisted.
-$$\forall w,\ \operatorname{dec}(w) = \mathrm{true} \iff \operatorname{DecW}(w)$$
 The gate's prefix test and the spec's allowlist over covered paths agree on every glob. -/
 theorem isDecisionWrite_iff (w : String) : isDecisionWrite w = true ↔ DecisionWrite w := by
   have hroots : ∀ d ∈ ["docs".toList, "research".toList], ∀ e ∈ d, e ≠ '/' ∧ e ≠ 'z' ∧ e ≠ '*' := by decide

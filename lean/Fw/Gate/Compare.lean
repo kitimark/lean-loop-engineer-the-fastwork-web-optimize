@@ -7,10 +7,10 @@ Port of `styleValueEq`, `boxEq`, `countStatus`, `styleStatus` and `boxStatus` fr
 
 * A computed-style value is compared as a string first; failing that, every number in it is
   replaced by a hole (`#`) and the two skeletons must be equal, with the same count of numbers and
-  each pair within $10^{-3}$ (PL2). The numbers are the matches of the JS regex
+  each pair within `10^(-3)` (PL2). The numbers are the matches of the JS regex
   `-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?` (flags `gi`), scanned left to right (`scan`); their values are
   exact decimals (`Dec.val`), so the tolerance is exact, where the JS code compared doubles.
-* A box dimension (CSS px) is equal within $\tfrac12$ (PL1), exactly.
+* A box dimension (CSS px) is equal within `1/2` (PL1), exactly.
 * An element count is `missing` when both arms have none.
 
 A value that is absent on either arm (`none`) is never equal: its status is `missing`.
@@ -21,8 +21,6 @@ namespace Fw.Gate
 
 /-- A number token: sign, decimal mantissa and power of ten, as JS `Number` reads the matched text.
 
-$$\operatorname{val}(n, m, e) = (-1)^{n} \cdot m \cdot 10^{e} \in \mathbb Q, \qquad n \in \mathbb B,\ m \in \mathbb N,\ e \in \mathbb Z$$
-
 The exact value of one number found in a style value. -/
 structure Dec where
   neg : Bool
@@ -32,23 +30,17 @@ structure Dec where
 
 /-- Exact powers of ten with an integer exponent.
 
-$$\operatorname{pow10}(e) = 10^{e} \in \mathbb Q \quad (e \in \mathbb Z)$$
-
 Ten to an integer power, as a fraction. -/
 def pow10 (e : Int) : Rat :=
   if 0 ≤ e then ((10 ^ e.toNat : Nat) : Rat) else 1 / ((10 ^ (-e).toNat : Nat) : Rat)
 
 /-- The exact value of a number token.
 
-$$\operatorname{val}(n, m, e) = (-1)^{n} \cdot m \cdot 10^{e}$$
-
 What the token's text denotes. -/
 def Dec.val (d : Dec) : Rat :=
   (if d.neg then -(d.mant : Rat) else (d.mant : Rat)) * pow10 d.exp
 
 /-- Split off the longest prefix of ASCII digits (`\d` without the `u` flag is `[0-9]`).
-
-$$\operatorname{takeDigits}(cs) = (p, r), \quad cs = p \mathbin{+\!\!+} r,\ p \in [0\text{-}9]^*,\ r = [\,] \vee \operatorname{head}(r) \notin [0\text{-}9]$$
 
 The greedy `\d*` of the regex. -/
 def takeDigits : List Char → List Char × List Char
@@ -57,16 +49,11 @@ def takeDigits : List Char → List Char × List Char
 
 /-- The natural number written by a list of decimal digits.
 
-$$\operatorname{digitsVal}(c_1 \dots c_k) = \sum_{i=1}^{k} (\operatorname{code}(c_i) \mathbin{\dot-} \operatorname{code}(\texttt{0})) \cdot 10^{k-i}$$
-
-with truncated subtraction $\dot-$ on character codes, for any characters; for decimal digits this is the digit value.
 Digits to their value. -/
 def digitsVal (ds : List Char) : Nat :=
   ds.foldl (fun n c => 10 * n + (c.toNat - '0'.toNat)) 0
 
 /-- The optional sign of an exponent: whether it is `-`, and the rest.
-
-$$\operatorname{signSplit}(cs) = \begin{cases} (1, r) & cs = \texttt{-}\,r \\ (0, r) & cs = \texttt{+}\,r \\ (0, cs) & \text{otherwise} \end{cases}$$
 
 The `[+-]?` of the exponent. -/
 def signSplit : List Char → Bool × List Char
@@ -76,15 +63,11 @@ def signSplit : List Char → Bool × List Char
 
 /-- The sign never lengthens the input.
 
-$$\forall cs,\quad |\operatorname{signSplit}(cs).r| \le |cs|$$
-
 Reading a sign never moves backwards. -/
 theorem signSplit_len (cs : List Char) : (signSplit cs).2.length ≤ cs.length := by
   unfold signSplit; split <;> simp
 
 /-- The optional exponent `(?:e[+-]?\d+)` (the `i` flag also allows `E`): its value and the rest.
-
-$$\operatorname{expPart}(cs) = \begin{cases} ((-1)^{\sigma} \cdot \operatorname{digitsVal}(d),\ r) & cs = c :: cs',\ c \in \{\texttt{e}, \texttt{E}\},\ (\sigma, u) = \operatorname{signSplit}(cs'),\ (d, r) = \operatorname{takeDigits}(u),\ d \ne [\,] \\ \bot & \text{otherwise} \end{cases}$$
 
 (the sign is optional and the digit run is maximal). An exponent is taken only when at least one digit follows the `e` and its sign. -/
 def expPart : List Char → Option (Int × List Char)
@@ -99,8 +82,6 @@ def expPart : List Char → Option (Int × List Char)
 
 /-- `takeDigits` splits its input.
 
-$$\forall cs,\quad |\operatorname{takeDigits}(cs).p| + |\operatorname{takeDigits}(cs).r| = |cs|$$
-
 The digits and the rest together are the input. -/
 theorem takeDigits_len (cs : List Char) :
     (takeDigits cs).1.length + (takeDigits cs).2.length = cs.length := by
@@ -111,8 +92,6 @@ theorem takeDigits_len (cs : List Char) :
     split <;> simp_all <;> omega
 
 /-- An exponent consumes at least its `e`.
-
-$$\forall cs,\ x,\ r,\quad \operatorname{expPart}(cs) = (x, r) \implies |r| < |cs|$$
 
 Reading an exponent always moves forward. -/
 theorem expPart_lt {cs : List Char} {x : Int} {r : List Char} (h : expPart cs = some (x, r)) :
@@ -135,8 +114,6 @@ theorem expPart_lt {cs : List Char} {x : Int} {r : List Char} (h : expPart cs = 
 
 /-- Attach the optional exponent to a mantissa read so far.
 
-$$\operatorname{withExp}(m, e, r) = \begin{cases} (m, e + x, r') & \operatorname{expPart}(r) = (x, r') \\ (m, e, r) & \text{otherwise} \end{cases}$$
-
 The exponent group is greedy but optional. -/
 def withExp (p : Nat × Int × List Char) : Nat × Int × List Char :=
   match expPart p.2.2 with
@@ -145,8 +122,6 @@ def withExp (p : Nat × Int × List Char) : Nat × Int × List Char :=
 
 /-- An unsigned number `(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?` at the start of the input: mantissa,
 power of ten and the rest of the input.
-
-$$\operatorname{unsigned}(cs) = \begin{cases} \operatorname{withExp}(\operatorname{digitsVal}(d_1 \mathbin{+\!\!+} d_2), -|d_2|, r) & r_1 = \texttt{.} :: r_2,\ (d_2, r) = \operatorname{takeDigits}(r_2),\ d_1 \mathbin{+\!\!+} d_2 \ne [\,] \\ \bot & r_1 = \texttt{.} :: r_2,\ d_1 = [\,],\ (d_2, r) = \operatorname{takeDigits}(r_2),\ d_2 = [\,] \\ \operatorname{withExp}(\operatorname{digitsVal}(d_1), 0, r_1) & \operatorname{head}(r_1) \ne \texttt{.}\ (\text{or } r_1 = [\,]),\ d_1 \ne [\,] \\ \bot & \text{otherwise} \end{cases},\quad \text{where } (d_1, r_1) = \operatorname{takeDigits}(cs)\ \text{(both digit runs are maximal)}$$
 
 Digits with an optional dot and fraction, or a dot with at least one digit. -/
 def unsignedNum (cs : List Char) : Option (Nat × Int × List Char) :=
@@ -163,17 +138,13 @@ def unsignedNum (cs : List Char) : Option (Nat × Int × List Char) :=
 
 /-- A number `-?(...)` at the start of the input. A `-` not followed by a number starts none.
 
-$$\operatorname{numAt}(cs) = \begin{cases} ((1, m, e), r) & cs = \texttt{-} :: cs',\ \operatorname{unsigned}(cs') = (m, e, r) \\ ((0, m, e), r) & cs \ne \texttt{-} :: cs' \text{ for every } cs',\ \operatorname{unsigned}(cs) = (m, e, r) \\ \bot & \text{otherwise} \end{cases}$$
-
-(the cases do not overlap; $cs = [\,]$ falls in the second or third). The regex's optional minus sign. -/
+(the cases do not overlap; `cs = []` falls in the second or third). The regex's optional minus sign. -/
 def numAt (cs : List Char) : Option (Dec × List Char) :=
   match cs with
   | '-' :: r => (unsignedNum r).map fun p => (⟨true, p.1, p.2.1⟩, p.2.2)
   | _ => (unsignedNum cs).map fun p => (⟨false, p.1, p.2.1⟩, p.2.2)
 
 /-- The rest after an optional exponent is no longer than before.
-
-$$\forall p = (m, e, r) \in \mathbb N \times \mathbb Z \times \mathrm{Char}^{*},\quad |\operatorname{withExp}(p).r| \le |r|$$
 
 Attaching an exponent never moves backwards. -/
 theorem withExp_len (p : Nat × Int × List Char) : (withExp p).2.2.length ≤ p.2.2.length := by
@@ -186,8 +157,6 @@ theorem withExp_len (p : Nat × Int × List Char) : (withExp p).2.2.length ≤ p
   · exact Nat.le_refl _
 
 /-- Every number token consumes at least one character.
-
-$$\forall cs,\ d,\ r,\quad \operatorname{numAt}(cs) = (d, r) \implies |r| < |cs|$$
 
 So the left-to-right scan terminates. -/
 theorem numAt_lt {cs : List Char} {d : Dec} {r : List Char} (h : numAt cs = some (d, r)) :
@@ -239,8 +208,6 @@ theorem numAt_lt {cs : List Char} {d : Dec} {r : List Char} (h : numAt cs = some
 /-- Left-to-right scan of a value: the skeleton (each number replaced by `#`) and the numbers, as
 `String.replace(NUM, '#')` and `String.match(NUM)` do.
 
-$$\operatorname{scan}(cs) = \begin{cases} ([\,], [\,]) & cs = [\,] \\ (\texttt{\#} :: s, d :: ns) & \operatorname{numAt}(cs) = (d, r),\ \operatorname{scan}(r) = (s, ns) \\ (c :: s, ns) & \operatorname{numAt}(cs) = \bot,\ cs = c :: cs',\ \operatorname{scan}(cs') = (s, ns) \end{cases}$$
-
 Numbers are found where they start, longest first; other characters are kept. -/
 def scan (cs : List Char) : List Char × List Dec :=
   match _h : numAt cs with
@@ -259,29 +226,21 @@ decreasing_by
 
 /-- Within a tolerance, both ways.
 
-$$\operatorname{near}_t(x, y) \iff x - y \le t \wedge y - x \le t \iff |x - y| \le t$$
-
 Two numbers at most `t` apart. -/
 def near (t x y : Rat) : Bool := decide (x - y ≤ t) && decide (y - x ≤ t)
 
 /-- The tolerance for numbers inside a computed-style value (PL2).
-
-$$t_{\mathrm{style}} = 10^{-3}$$
 
 Style numbers may differ by a thousandth. -/
 def tolStyle : Rat := 1 / 1000
 
 /-- The tolerance for box dimensions in CSS px (PL1).
 
-$$t_{\mathrm{box}} = \tfrac12$$
-
 Boxes may differ by half a CSS pixel. -/
 def tolBox : Rat := 1 / 2
 
 /-- Computed-style values are equal: the same string, or the same skeleton with as many numbers,
-each pair within $10^{-3}$. Absent on either side is never equal.
-
-$$\operatorname{styleEq}(a, b) \iff a, b \ne \bot \wedge \Bigl(a = b \ \vee\ \bigl(\operatorname{skel}(a) = \operatorname{skel}(b) \wedge |\operatorname{nums}(a)| = |\operatorname{nums}(b)| \wedge \forall i < |\operatorname{nums}(a)|,\ |\operatorname{val}(\operatorname{nums}(a)_i) - \operatorname{val}(\operatorname{nums}(b)_i)| \le 10^{-3}\bigr)\Bigr),\quad \text{where } (\operatorname{skel}(s), \operatorname{nums}(s)) = \operatorname{scan}(\operatorname{chars}(s)) \text{ for a present string } s$$
+each pair within `10^(-3)`. Absent on either side is never equal.
 
 Style values agree as text, up to a thousandth in each number. -/
 def styleValueEq : Option String → Option String → Bool
@@ -295,8 +254,6 @@ def styleValueEq : Option String → Option String → Bool
 
 /-- Status of a compared computed-style value: `missing` if absent on either arm.
 
-$$\operatorname{styleStatus}(a, b) = \begin{cases} \mathrm{missing} & a = \bot \vee b = \bot \\ \mathrm{equal} & \operatorname{styleEq}(a, b) \\ \mathrm{differ} & \text{otherwise} \end{cases}$$
-
 A style item is equal, differs, or is missing on one side. -/
 def styleStatus (a b : Option String) : Status :=
   match a, b with
@@ -304,8 +261,6 @@ def styleStatus (a b : Option String) : Status :=
   | _, _ => .missing
 
 /-- Status of a compared box dimension: `equal` within half a CSS px.
-
-$$\operatorname{boxStatus}(a, b) = \begin{cases} \mathrm{missing} & a = \bot \vee b = \bot \\ \mathrm{equal} & |a - b| \le \tfrac12 \\ \mathrm{differ} & \text{otherwise} \end{cases}$$
 
 A box item is equal within half a pixel. -/
 def boxStatus (a b : Option Rat) : Status :=
@@ -315,8 +270,6 @@ def boxStatus (a b : Option Rat) : Status :=
 
 /-- Status of an element count: both zero means the anchor is absent from both arms.
 
-$$\operatorname{countStatus}(a, b) = \begin{cases} \mathrm{missing} & a = 0 \wedge b = 0 \\ \mathrm{equal} & a = b \ne 0 \\ \mathrm{differ} & a \ne b \end{cases} \qquad (a, b \in \mathbb N)$$
-
 Counts must be equal and positive. -/
 def countStatus (a b : Nat) : Status :=
   if a = 0 ∧ b = 0 then .missing else if a = b then .equal else .differ
@@ -324,8 +277,6 @@ def countStatus (a b : Nat) : Status :=
 /-! ## Properties -/
 
 /-- Boolean equality is symmetric for a lawful `==`.
-
-$$\forall \alpha \text{ with a lawful } {==},\ \forall a, b \in \alpha,\quad (a == b) = (b == a)$$
 
 A lawful `==` is true exactly on equal values. Equality tests do not care about order. -/
 theorem beq_swap {α : Type} [BEq α] [LawfulBEq α] (a b : α) : (a == b) = (b == a) := by
@@ -337,15 +288,11 @@ theorem beq_swap {α : Type} [BEq α] [LawfulBEq α] (a b : α) : (a == b) = (b 
 
 /-- `near` is symmetric.
 
-$$\forall t, x, y \in \mathbb Q,\quad \operatorname{near}_t(x, y) = \operatorname{near}_t(y, x)$$
-
 Closeness does not depend on which arm is first. -/
 theorem near_comm (t x y : Rat) : near t x y = near t y x := by
   unfold near; rw [Bool.and_comm]
 
 /-- Style equality is symmetric.
-
-$$\forall a, b \in \mathrm{String}_\bot,\quad \operatorname{styleEq}(a, b) = \operatorname{styleEq}(b, a)$$
 
 Swapping the original and the rewrite never changes a style comparison. -/
 theorem styleValueEq_comm (a b : Option String) : styleValueEq a b = styleValueEq b a := by
@@ -365,15 +312,11 @@ theorem styleValueEq_comm (a b : Option String) : styleValueEq a b = styleValueE
 
 /-- A present value equals itself.
 
-$$\forall s \in \mathrm{String},\quad \operatorname{styleEq}(s, s)$$
-
 Identical computed values always pass. -/
 theorem styleValueEq_refl (s : String) : styleValueEq (some s) (some s) = true := by
   simp [styleValueEq]
 
 /-- Absent is never equal.
-
-$$\forall b \in \mathrm{String}_\bot,\quad \neg\operatorname{styleEq}(\bot, b) \wedge \neg\operatorname{styleEq}(b, \bot)$$
 
 A property missing on one arm never counts as equal. -/
 theorem styleValueEq_none (b : Option String) :
@@ -381,8 +324,6 @@ theorem styleValueEq_none (b : Option String) :
   cases b <;> simp [styleValueEq]
 
 /-- A box dimension is equal exactly when both are present and at most half a pixel apart.
-
-$$\forall a, b \in \mathbb Q_\bot,\quad \operatorname{boxStatus}(a, b) = \mathrm{equal} \iff \exists x, y \in \mathbb Q,\ a = x \wedge b = y \wedge x - y \le \tfrac12 \wedge y - x \le \tfrac12$$
 
 PL1: boxes agree within half a CSS pixel. -/
 theorem boxStatus_equal_iff (a b : Option Rat) :
@@ -402,8 +343,6 @@ theorem boxStatus_equal_iff (a b : Option Rat) :
     simp [boxStatus, near, tolBox, h1, h2]
 
 /-- The three comparisons are symmetric.
-
-$$\forall a, b \in \mathrm{String}_\bot,\ x, y \in \mathbb Q_\bot,\ m, n \in \mathbb N,\quad \operatorname{styleStatus}(a, b) = \operatorname{styleStatus}(b, a) \wedge \operatorname{boxStatus}(x, y) = \operatorname{boxStatus}(y, x) \wedge \operatorname{countStatus}(m, n) = \operatorname{countStatus}(n, m)$$
 
 Neither arm is privileged. -/
 theorem status_comm (a b : Option String) (x y : Option Rat) (m n : Nat) :
@@ -425,8 +364,6 @@ theorem status_comm (a b : Option String) (x y : Option Rat) (m n : Nat) :
       · simp [h, Ne.symm h]
 
 /-- No comparison is ever `na`: every compared item takes part in its verdict.
-
-$$\forall a, b, x, y, m, n,\quad \operatorname{styleStatus}(a, b) \ne \mathrm{na} \wedge \operatorname{boxStatus}(x, y) \ne \mathrm{na} \wedge \operatorname{countStatus}(m, n) \ne \mathrm{na}$$
 
 Only information items and unachieved Lean checks are left out of a verdict. -/
 theorem status_ne_na (a b : Option String) (x y : Option Rat) (m n : Nat) :

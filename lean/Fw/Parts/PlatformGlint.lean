@@ -4,13 +4,13 @@ import Fw.Parts.PlatformSweep
 
 Restated (not copied) from `snapshot/site-pretty/_app/immutable/nodes/2.DyWL8TcE.js`, read independently of the TS part:
 
-* 12166-12172: `keyTimes` $0;0.2;0.4;0.6;0.8;1$ and the `values` of `x1` and `x2` per side;
+* 12166-12172: `keyTimes` `0;0.2;0.4;0.6;0.8;1` and the `values` of `x1` and `x2` per side;
 * 12150-12154 (the template of the `<animate>` pair): `dur 5s`, `repeatCount indefinite`, `begin indefinite`;
-* 12186-12212: the visibility state: an observer with thresholds $0, 0.35, 0.6$ marks the stage visible at ratio
-  $\ge 0.35$; a change of visibility or of `prefers-reduced-motion` clears the play flag and the timer, and sets a
+* 12186-12212: the visibility state: an observer with thresholds `0, 0.35, 0.6` marks the stage visible at ratio
+  `≥ 0.35`; a change of visibility or of `prefers-reduced-motion` clears the play flag and the timer, and sets a
   1000 ms timer only when visible and not reduced; the timer sets the play flag and then calls `beginElement()` on every
   `<animate>` (the animation clock restarts there);
-* 12269-12275: initial `x1`/`x2` attributes (left $-200, -80$; right $200, 320$).
+* 12269-12275: initial `x1`/`x2` attributes (left `-200, -80`; right `200, 320`).
 
 SMIL `calcMode` is `linear` (the default), so values are interpolated between key times. All values `Rat`.
 -/
@@ -19,22 +19,20 @@ open Fw.Parts.PlatformSweep (frac frac_mem frac_add_one)
 
 /-! ## The animation -/
 
-/-- Length of one SMIL cycle in ms (`dur="5s"`). $$D = 5000$$ -/
+/-- Length of one SMIL cycle in ms (`dur="5s"`). -/
 def dur : Rat := 5000
 
-/-- Delay between becoming visible and the first `beginElement` (JS `1e3`). $$\Delta = 1000$$ ms. -/
+/-- Delay between becoming visible and the first `beginElement` (JS `1e3`). Ms. -/
 def startDelay : Rat := 1000
 
-/-- Visibility ratio at which the stage counts as visible (JS 0.35). $$\rho = 0.35 = \tfrac{7}{20}$$ -/
+/-- Visibility ratio at which the stage counts as visible (JS 0.35). -/
 def minRatio : Rat := 7 / 20
 
-/-- Linear mix. $$\operatorname{lerp}(a, b, w) = a + (b - a)\,w$$ -/
+/-- Linear mix. -/
 def lerp (a b w : Rat) : Rat := a + (b - a) * w
 
-/-- Linear interpolation over six equally spaced key times $0, \tfrac15, \dots, 1$ (`keyTimes="0;0.2;...;1"`); total on
-$\mathbb{Q}$: below $\tfrac15$ (also $u < 0$) the first segment, from $\tfrac45$ on (also $u > 1$) the last.
-
-$$\forall a_0, \dots, a_5, u \in \mathbb{Q}:\quad \operatorname{interp}(a_0, \dots, a_5; u) = \operatorname{lerp}\big(a_k, a_{k+1}, 5u - k\big),\quad k = \min(4, \max(0, \lfloor 5u \rfloor))$$ -/
+/-- Linear interpolation over six equally spaced key times `0, 1/5, ..., 1` (`keyTimes="0;0.2;...;1"`); total on
+`ℚ`: below `1/5` (also `u < 0`) the first segment, from `4/5` on (also `u > 1`) the last. -/
 def interp (a0 a1 a2 a3 a4 a5 : Rat) (u : Rat) : Rat :=
   if u < 1 / 5 then lerp a0 a1 (5 * u)
   else if u < 2 / 5 then lerp a1 a2 (5 * u - 1)
@@ -42,35 +40,27 @@ def interp (a0 a1 a2 a3 a4 a5 : Rat) (u : Rat) : Rat :=
   else if u < 4 / 5 then lerp a3 a4 (5 * u - 3)
   else lerp a4 a5 (5 * u - 4)
 
-/-- Which dash. $$\mathit{side} \in \{\text{left}, \text{right}\}$$ -/
+/-- Which dash. -/
 inductive Side | left | right
 deriving Repr, DecidableEq
 
-/-- `x1` at cycle fraction $u$.
-
-$$\forall u \in \mathbb{Q}:\quad x_1(\mathrm{left}, u) = \operatorname{interp}(-200, 200, 200, 200, -200, -200; u),\quad x_1(\mathrm{right}, u) = \operatorname{interp}(-200, -200, 200, -200, -200, -200; u)$$ -/
+/-- `x1` at cycle fraction `u`. -/
 def x1At : Side → Rat → Rat
   | .left, u => interp (-200) 200 200 200 (-200) (-200) u
   | .right, u => interp (-200) (-200) 200 (-200) (-200) (-200) u
 
-/-- `x2` at cycle fraction $u$.
-
-$$\forall u \in \mathbb{Q}:\quad x_2(\mathrm{left}, u) = \operatorname{interp}(-80, 320, 320, 320, -80, -80; u),\quad x_2(\mathrm{right}, u) = \operatorname{interp}(-80, -80, 320, -80, -80, -80; u)$$ -/
+/-- `x2` at cycle fraction `u`. -/
 def x2At : Side → Rat → Rat
   | .left, u => interp (-80) 320 320 320 (-80) (-80) u
   | .right, u => interp (-80) (-80) 320 (-80) (-80) (-80) u
 
-/-- Cycle fraction after $e$ ms of animation. $$u(e) = \operatorname{frac}(e / 5000)$$ -/
+/-- Cycle fraction after `e` ms of animation. -/
 def cycle (e : Rat) : Rat := frac (e / dur)
 
-/-- The gradient end points (x1, x2) of a side $e$ ms after the animation began.
-
-$$g(\mathit{side}, e) = (x_1(\mathit{side}, u(e)),\ x_2(\mathit{side}, u(e)))$$ -/
+/-- The gradient end points (x1, x2) of a side `e` ms after the animation began. -/
 def sample (s : Side) (e : Rat) : Rat × Rat := (x1At s (cycle e), x2At s (cycle e))
 
-/-- The attributes before the first `beginElement`. Left $(-200, -80)$, right $(200, 320)$.
-
-$$\mathit{rest}(\text{left}) = (-200, -80),\quad \mathit{rest}(\text{right}) = (200, 320)$$ -/
+/-- The attributes before the first `beginElement`. Left `(-200, -80)`, right `(200, 320)`. -/
 def rest : Side → Rat × Rat
   | .left => (-200, -80)
   | .right => (200, 320)
@@ -81,7 +71,7 @@ def rest : Side → Rat × Rat
 #guard sample .right 2000 == (200, 320)
 #guard sample .right 5000 == (-200, -80)
 
-/-- The interpolation of six values stays between their min and max. $$\forall u \in [0,1):\ \min a_k \le f(u) \le \max a_k$$ Here for the glint ranges. -/
+/-- The interpolation of six values stays between their min and max. Here for the glint ranges. -/
 theorem interp_between (a0 a1 a2 a3 a4 a5 lo hi u : Rat) (h0 : 0 ≤ u) (h1 : u < 1)
     (l0 : lo ≤ a0) (l1 : lo ≤ a1) (l2 : lo ≤ a2) (l3 : lo ≤ a3) (l4 : lo ≤ a4) (l5 : lo ≤ a5)
     (g0 : a0 ≤ hi) (g1 : a1 ≤ hi) (g2 : a2 ≤ hi) (g3 : a3 ≤ hi) (g4 : a4 ≤ hi) (g5 : a5 ≤ hi) :
@@ -107,10 +97,10 @@ theorem interp_between (a0 a1 a2 a3 a4 a5 lo hi u : Rat) (h0 : 0 ≤ u) (h1 : u 
   · exact seg _ _ _ l3 l4 g3 g4 (by grind) (by grind)
   · exact seg _ _ _ l4 l5 g4 g5 (by grind) (by grind)
 
-/-- The cycle fraction is in $[0, 1)$. $$0 \le u(e) < 1$$ -/
+/-- The cycle fraction is in `[0, 1)`. -/
 theorem cycle_mem (e : Rat) : 0 ≤ cycle e ∧ cycle e < 1 := frac_mem _
 
-/-- The glint is 5 s periodic. $$\operatorname{sample}(s, e + 5000) = \operatorname{sample}(s, e)$$ -/
+/-- The glint is 5 s periodic. -/
 theorem sample_periodic (s : Side) (e : Rat) : sample s (e + dur) = sample s e := by
   have : cycle (e + dur) = cycle e := by
     unfold cycle
@@ -118,7 +108,7 @@ theorem sample_periodic (s : Side) (e : Rat) : sample s (e + dur) = sample s e :
     rw [h, frac_add_one]
   unfold sample; rw [this]
 
-/-- Both end points stay inside $[-200, 320]$. $$\forall e:\ -200 \le x_1, x_2 \le 320$$ The highlight never leaves the dash's gradient range. -/
+/-- Both end points stay inside `[-200, 320]`. The highlight never leaves the dash's gradient range. -/
 theorem sample_range (s : Side) (e : Rat) :
     -200 ≤ (sample s e).1 ∧ (sample s e).1 ≤ 320 ∧ -200 ≤ (sample s e).2 ∧ (sample s e).2 ≤ 320 := by
   have hc := cycle_mem e
@@ -131,9 +121,7 @@ theorem sample_range (s : Side) (e : Rat) :
 
 /-! ## The play state -/
 
-/-- State of the stage: visible, reduced motion, playing, the pending timer's due time, and when the animation began.
-
-$$s = (h, g, v, \tau, t_0)$$ -/
+/-- State of the stage: visible, reduced motion, playing, the pending timer's due time, and when the animation began. -/
 structure St where
   h : Bool
   g : Bool
@@ -142,18 +130,14 @@ structure St where
   t0 : Option Rat
 deriving Repr, DecidableEq
 
-/-- State at mount, before the observer reports: hidden, reduced motion read, nothing playing. $$s_0 = (\bot, g, \bot, \emptyset, \emptyset)$$ -/
+/-- State at mount, before the observer reports: hidden, reduced motion read, nothing playing. -/
 def init (reduced : Bool) : St := ⟨false, reduced, false, none, none⟩
 
-/-- Clear the play flag and the timer; arm a new 1000 ms timer only when visible and not reduced (JS `i`, 12197-12199).
-
-$$\operatorname{reset}(s, n) = s\{v := \bot,\ t_0 := \emptyset,\ \tau := (n + 1000 \text{ if } h \land \lnot g \text{ else } \emptyset)\}$$ -/
+/-- Clear the play flag and the timer; arm a new 1000 ms timer only when visible and not reduced (JS `i`, 12197-12199). -/
 def reset (s : St) (now : Rat) : St :=
   { s with v := false, t0 := none, timer := if s.h && !s.g then some (now + startDelay) else none }
 
-/-- Events the stage receives.
-
-$$e \in \{\mathit{ratio}(r),\ \mathit{reduced}(b),\ \mathit{fire}\}$$ -/
+/-- Events the stage receives. -/
 inductive Ev
   /-- The observer's ratio crossed a threshold; carries the ratio. -/
   | ratio (r : Rat)
@@ -163,11 +147,7 @@ inductive Ev
   | fire
 deriving Repr
 
-/-- Next state (JS 12186-12212).
-
-$$\delta(s, \mathit{ratio}(r), n) = \begin{cases} s & (r \ge 0.35) = h \\ \operatorname{reset}(s\{h := r \ge 0.35\}, n) & \text{otherwise} \end{cases}$$
-$$\delta(s, \mathit{reduced}(b), n) = \operatorname{reset}(s\{g := b\}, n)$$
-$$\delta(s, \mathit{fire}, n) = \begin{cases} s\{v := \top,\ \tau := \emptyset,\ t_0 := n\} & \tau = \operatorname{some}(d),\ d \le n \\ s & \text{otherwise} \end{cases}$$ -/
+/-- Next state (JS 12186-12212). -/
 def step (s : St) (now : Rat) : Ev → St
   | .ratio r =>
     let b := decide (minRatio ≤ r)
@@ -178,19 +158,15 @@ def step (s : St) (now : Rat) : Ev → St
     | some d => if d ≤ now then { s with v := true, timer := none, t0 := some now } else s
     | none => s
 
-/-- The invariant: playing or about to play only while visible and not reduced.
-
-$$I(s) = \big(v \Rightarrow h \land \lnot g\big) \land \big(\tau \ne \emptyset \Rightarrow h \land \lnot g\big)$$ -/
+/-- The invariant: playing or about to play only while visible and not reduced. -/
 def Inv (s : St) : Prop :=
   (s.v = true → s.h = true ∧ s.g = false) ∧ (s.timer.isSome = true → s.h = true ∧ s.g = false)
 
-/-- The start state satisfies the invariant. $$I(s_0)$$ -/
+/-- The start state satisfies the invariant. -/
 theorem inv_init (r : Bool) : Inv (init r) := by
   unfold Inv init; simp
 
 /-- Every step keeps the invariant.
-
-$$I(s) \Rightarrow I(\delta(s, e, n))$$
 
 So the glint plays only while the stage is visible and the visitor accepts motion. -/
 theorem inv_step (s : St) (now : Rat) (e : Ev) (hs : Inv s) : Inv (step s now e) := by
@@ -219,31 +195,27 @@ theorem inv_step (s : St) (now : Rat) (e : Ev) (hs : Inv s) : Inv (step s now e)
       · unfold Inv
         exact ⟨hv, ht⟩
 
-/-- Reduced motion never plays. $$I(s) \land g \Rightarrow \lnot v$$ -/
+/-- Reduced motion never plays. -/
 theorem reduced_never_plays (s : St) (hs : Inv s) (hg : s.g = true) : s.v = false := by
   obtain ⟨hv, _⟩ := hs
   cases h : s.v
   · rfl
   · have := hv h; grind
 
-/-- Becoming visible (not reduced) arms the timer at $n + 1000$, and nothing plays yet.
-
-$$\lnot h \land \lnot g \land r \ge 0.35 \Rightarrow \tau' = \operatorname{some}(n + 1000) \land \lnot v'$$ -/
+/-- Becoming visible (not reduced) arms the timer at `n + 1000`, and nothing plays yet. -/
 theorem visible_arms (s : St) (now r : Rat) (hh : s.h = false) (hg : s.g = false) (hr : minRatio ≤ r) :
     (step s now (.ratio r)).timer = some (now + startDelay) ∧ (step s now (.ratio r)).v = false := by
   unfold step reset
   have : decide (minRatio ≤ r) = true := by simpa using hr
   simp [this, hh, hg]
 
-/-- The timer fires only after its due time. $$\tau = \operatorname{some}(d) \land n \ge d \Rightarrow v' \land t_0' = \operatorname{some}(n)$$ -/
+/-- The timer fires only after its due time. -/
 theorem fire_plays (s : St) (now d : Rat) (hT : s.timer = some d) (hd : d ≤ now) :
     (step s now .fire).v = true ∧ (step s now .fire).t0 = some now := by
   unfold step
   simp [hT, hd]
 
-/-- The gradient end points to draw at time $n$: the sample once began, else the rest attributes.
-
-$$\operatorname{view}(s, \mathit{side}, n) = \begin{cases} \operatorname{sample}(\mathit{side}, n - t_0) & t_0 \ne \emptyset \\ \mathit{rest}(\mathit{side}) & \text{otherwise} \end{cases}$$ -/
+/-- The gradient end points to draw at time `n`: the sample once began, else the rest attributes. -/
 def view (s : St) (side : Side) (now : Rat) : Rat × Rat :=
   match s.t0 with
   | some a => sample side (now - a)
@@ -252,13 +224,11 @@ def view (s : St) (side : Side) (now : Rat) : Rat × Rat :=
 /-! ## The glint is a translation (ledger n=24)
 
 Both end points move by the same amount at every key time, so their distance is always 120. A linear gradient is a
-function of $(x - x_1)/(x_2 - x_1)$, hence every animated gradient is the rest gradient of the left dash shifted by
-$x_1 + 200$. That is why a transform on a fixed gradient can replace the attribute animation without changing a
+function of `(x - x_1)/(x_2 - x_1)`, hence every animated gradient is the rest gradient of the left dash shifted by
+`x_1 + 200`. That is why a transform on a fixed gradient can replace the attribute animation without changing a
 pixel (exact arithmetic; pixel snapping is not modelled). -/
 
-/-- The colour of a linear gradient with end points $x_1, x_2$ at position $x$, for a colour ramp $c$.
-
-$$\operatorname{grad}(c, x_1, x_2, x) = c\Big(\frac{x - x_1}{x_2 - x_1}\Big)$$
+/-- The colour of a linear gradient with end points `x_1, x_2` at position `x`, for a colour ramp `c`.
 
 How an SVG linear gradient maps a point to a ramp position. -/
 def gradAt {α : Type} (c : Rat → α) (x1 x2 x : Rat) : α := c ((x - x1) / (x2 - x1))
@@ -266,9 +236,7 @@ def gradAt {α : Type} (c : Rat → α) (x1 x2 x : Rat) : α := c ((x - x1) / (x
 #guard gradAt id (-200) (-80) (-140) == 1 / 2
 
 /-- **glint_translate.** At every cycle fraction the end points are 120 apart, and the gradient is the left dash's
-rest gradient shifted by $x_1 + 200$.
-
-$$\forall s,\ \forall u \in \mathbb{Q}:\ x_2(s, u) - x_1(s, u) = 120 \land \forall \text{types } \alpha,\ \forall c : \mathbb{Q} \to \alpha,\ \forall x \in \mathbb{Q}:\ \operatorname{grad}\big(c, x_1(s, u), x_2(s, u), x\big) = \operatorname{grad}\big(c, -200, -80, x - (x_1(s, u) + 200)\big)$$
+rest gradient shifted by `x_1 + 200`.
 
 The attribute animation only slides one fixed gradient. -/
 theorem glint_translate (s : Side) (u : Rat) :
