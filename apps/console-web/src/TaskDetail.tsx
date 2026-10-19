@@ -21,7 +21,8 @@ export const wantsDetail = (id: string) => id.startsWith("port-") || id.startsWi
 const J = { "content-type": "application/json" };
 /** What a refusal means to the owner; `notOwner` is the missing owner token or Origin (open the console's owner link). */
 export const refusedText = (reason: string) =>
-  reason === "notOwner" ? "refused: this browser is not signed in as owner; log in as owner (the login page, or the owner link the console printed in its terminal)" : `refused: ${reason}`;
+  reason === "notOwner" ? "refused: this browser is not signed in as owner; log in as owner (the login page, or the owner link the console printed in its terminal)" :
+  reason === "taskBusy" ? "refused: a preview of this row is already running; use its links, or stop it first" : `refused: ${reason}`;
 /** Preview links point at the preview port (console port + 1): another origin than the console, so preview JavaScript cannot
  *  act as the owner. `base` is `<protocol>//<host>:<previewPort>`, built from the page's own host (so it works from the phone). */
 export const previewBase = (port: number | null | undefined, loc?: { protocol: string; hostname: string }) =>

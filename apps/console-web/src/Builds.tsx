@@ -42,6 +42,13 @@ export function BuildsView() {
     if (!j.ok) setMsg(refusedText(String(j.reason)));
     await load();
   }
+  async function rebuild(pid: string, row: string) {
+    setMsg(null);
+    const r = await apiFetch(`/api/previews/${pid}/stop`, { method: "POST", headers: J, body: "{}" });
+    const j = await r.json();
+    if (!j.ok) { setMsg(refusedText(String(j.reason))); await load(); return; }
+    await start(row);
+  }
   if (!d) return <p className="text-muted-foreground">{msg ?? "Loading builds..."}</p>;
   const base = previewBase(d.previewPort);
   // A Builds slot (land-<task>, opt-<kind>-<name>) belongs to one row, so the slot and search find its preview; a
@@ -63,6 +70,14 @@ export function BuildsView() {
     const f = d.failed.filter((x) => x.task === slot).at(-1);
     return f ? <span className="text-destructive" title={f.error}>failed</span> : null;
   };
+  // The manager runs one preview per slot (a second start is refused as taskBusy). A row whose slot holds a preview of
+  // its own commit needs no button; one at an older commit offers a rebuild: stop it, then start the row again.
+  const action = (row: string, slot: string, sha: string) => {
+    const p = d.previews.find((x) => x.task === slot);
+    if (p && p.target?.sha === sha) return null;
+    if (p) return <Button size="sm" variant="outline" disabled={!d.canPreview} onClick={() => void rebuild(p.id, row)}>Rebuild at {sha.slice(0, 7)}</Button>;
+    return <Button size="sm" variant="outline" disabled={!d.canPreview} onClick={() => void start(row)}>Preview</Button>;
+  };
   return (
     <div className="space-y-6" data-testid="builds">
       {msg ? <p className="text-xs text-destructive">{msg}</p> : null}
@@ -78,7 +93,7 @@ export function BuildsView() {
                 <TableCell className="text-xs">{when(p.landedAt)}</TableCell>
                 <TableCell className="max-w-md whitespace-normal break-words text-xs">{p.title}</TableCell>
                 <TableCell className="space-x-2 text-xs">
-                  <Button size="sm" variant="outline" disabled={!d.canPreview} onClick={() => void start(p.id)}>Preview</Button>{state(p.slot, "", p.sha)}
+                  {action(p.id, p.slot, p.sha)}{state(p.slot, "", p.sha)}
                 </TableCell>
               </TableRow>
             ))}
@@ -97,7 +112,7 @@ export function BuildsView() {
                 <TableCell className="text-xs">{o.status}</TableCell>
                 <TableCell className="max-w-md whitespace-normal break-words text-xs">{o.note ?? ""}</TableCell>
                 <TableCell className="space-x-2 text-xs">
-                  <Button size="sm" variant="outline" disabled={!d.canPreview} onClick={() => void start(o.id)}>Preview</Button>{state(o.slot, o.search, d.mainSha)}
+                  {action(o.id, o.slot, d.mainSha)}{state(o.slot, o.search, d.mainSha)}
                 </TableCell>
               </TableRow>
             ))}
