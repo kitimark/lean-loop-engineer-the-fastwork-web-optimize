@@ -6858,7 +6858,8 @@
     "skills-reframe",
     "latex-lint-relax",
     "latex-generators",
-    "latex-mathview-b2"
+    "latex-mathview-b2",
+    "latex-strip-c"
    ],
    "owner": "lead",
    "writes": [
@@ -7080,7 +7081,7 @@
    "id": "land-wait",
    "owner": "console-builder",
    "stream": "ops",
-   "title": "fw land pushes ci/land-<task> and waits on the land lane through fw ci wait; only the local tier runs on this Mac; pass = both",
+   "title": "fw land runs only the Lean-decided local tier on this Mac and takes the remote tier from CI through a provider-neutral verdict (Fw.Console.LandRemote: run record {provider, sha, laneDigest, state}; pass needs a remote pass bound to the merge sha and expected digest; any fail for that sha wins across providers; explicit Lean fallback when a provider is unavailable); GitHub adapter now, CircleCI adapter stub",
    "deps": [
     "land-lane",
     "land-fwcore-key"
@@ -7091,7 +7092,15 @@
     "lean/Fw/Console/LandDry*.lean",
     "apps/runner/test/land*.test.ts",
     "packages/contracts/golden/**",
-    "docs/team/handoffs/land-wait.md"
+    "docs/team/handoffs/land-wait.md",
+    "lean/Fw/Console/LandRemote*.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/test/land-remote*.test.ts",
+    ".github/workflows/land.yml",
+    "packages/contracts/golden/console/**",
+    "docs/team/tools/**"
    ]
   },
   {
@@ -8026,6 +8035,88 @@
     "packages/contracts/golden/console/**",
     "docs/team/tools/console.md",
     "docs/team/handoffs/console-daemon.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-strip-c",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "lean-latex-removal step C: a deterministic, idempotent strip (scripts/latex-strip.mjs with --check) removes $$ math blocks from Lean docstrings, keeping prose; a docstring left empty is removed; applied to every lean/**/*.lean except files owned by open tasks (swept again after they land); lake build + check.sh green; statements unchanged",
+   "deps": [],
+   "writes": [
+    "scripts/latex-strip.mjs",
+    "scripts/latex-strip.test.mjs",
+    "lean/Fw/**/*.lean",
+    "lean/*.lean",
+    "lean/scripts/*.lean",
+    "docs/team/handoffs/latex-strip-c.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-lane-circleci",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "title": "CircleCI land job running the same fw checks --tier remote entry as land.yml and emitting laneDigest; the CircleCI adapter in land-remote.ts (pipeline/run with definition id, sha from GET /pipeline/{id}); live proof on one ci/land-* probe",
+   "deps": [
+    "land-wait",
+    "circleci-pilot"
+   ],
+   "writes": [
+    ".circleci/**",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/test/land-remote*.test.ts",
+    "scripts/circleci.mjs",
+    "scripts/circleci.test.mjs",
+    "docs/team/handoffs/land-lane-circleci.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-status",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Console CircleCI health card next to gh-status (status page API, Lean verdict like gh-status), exported as a router input",
+   "deps": [],
+   "writes": [
+    "apps/console-api/src/health.ts",
+    "apps/console-api/src/ops/**",
+    "apps/console-api/test/**",
+    "apps/console-web/src/**",
+    "lean/Fw/Obs/CiStatus*.lean",
+    "packages/contracts/golden/obs/**",
+    "docs/team/handoffs/circleci-status.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-route",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "One Lean router for every CI lane across GitHub Actions and CircleCI: inputs health (gh-status, circleci-status), free quota left, measured queue p50/p95 per provider and class, per-provider lane allowlist; outputs an ordered provider list (failover) and an optional hedge start when the first queue exceeds T; feeds fw ci push and LandRemote",
+   "deps": [
+    "land-lane-circleci",
+    "circleci-status"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Route*.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**",
+    "scripts/ci-push.mjs",
+    "scripts/ci-push.test.mjs",
+    "apps/runner/src/land-remote.ts",
+    "packages/contracts/golden/ci/**",
+    "docs/team/tools/**",
+    "docs/team/handoffs/ci-route.md"
    ]
   }
  ],
