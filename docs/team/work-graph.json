@@ -6637,7 +6637,8 @@
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
     ".github/workflows/lean.yml"
-   ]
+   ],
+   "evidence": "3f4bf3c"
   },
   {
    "devices": [
