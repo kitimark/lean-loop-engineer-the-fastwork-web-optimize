@@ -105,6 +105,7 @@ import Fw.Engine.Keys  -- model-checks: faithful run keys; a +search run never a
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
 import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
 import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
+import Fw.Obs.GhStatus -- gh-status: GitHub Actions degraded flag and incident naming
 import Fw.Obs.Stale  -- console-stale: a service whose inputs changed on main after it started is stale
 import Fw.Obs.Signals -- obs-signals: agent state from transcript signals (obs.signals)
 import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
@@ -121,6 +122,7 @@ import Fw.Spec.ConeMiss  -- mathview-ci-fix: expected module-cache misses after 
 import Fw.Console.LandSpeed  -- land-speed-lean: result cache, pre-lock land, check verdict
 import Fw.Console.Preview  -- task-preview: preview target, admission, ports, expiry
 import Fw.Console.PreviewCache  -- preview-speed: cache policy of preview files
+import Fw.Console.Builds  -- console-builds-tab: Builds tab rows, targets, picker searches
 import Fw.Console.PreviewFacts  -- task-preview: GENERATED facts of the 25 tasks (apps/console-api/scripts/gen-preview-facts.ts)
 import Fw.Console.PreviewTable -- task-preview: the 25-task target table, checked
 import Fw.Console.LandVerdict  -- land-dry: VERDICT kinds, exit codes, retry rule

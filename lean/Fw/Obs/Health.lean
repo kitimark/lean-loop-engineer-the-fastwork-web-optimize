@@ -1,4 +1,5 @@
 import Fw.Obs.Stale
+import Fw.Obs.GhStatus
 /-!
 # Team health: per-agent state and alert rules over one observation snapshot
 
@@ -274,6 +275,7 @@ structure System where
   keep        : List Nat := []
   svcs        : List Svc := []
   alivePids   : Option (List Nat) := none
+  gh          : Gh := {}
 deriving DecidableEq, Repr
 
 /-- One observation: the time it was taken (ms), the agents, the lead session's facts, the system facts, the time of
@@ -494,21 +496,21 @@ theorem stalled_facts (p : Params) (t : Nat) (A : List Agent) (a : Agent) (h : s
 
 /-- The alert codes, listed in the order of their wire names.
 
-$$\mathcal C = \{\texttt{agent.ctxHigh}, \texttt{agent.ctxWarn}, \texttt{agent.errStreak}, \texttt{agent.gone}, \texttt{agent.stalled}, \texttt{agent.toolHang}, \texttt{agent.toolSlow}, \texttt{ci.failed}, \texttt{ci.finished}, \texttt{ci.slow}, \texttt{docker.orphan}, \texttt{proc.long}, \texttt{sim.lockLong}, \texttt{sim.lockOrphan}, \texttt{svc.stale}, \texttt{svc.sweepError}, \texttt{svc.unknown}, \texttt{sys.diskLow}, \texttt{sys.loadHigh}, \texttt{sys.memCritical}, \texttt{team.overCap}, \texttt{team.permissionWait}, \texttt{worktrees.many}\}$$
+$$\mathcal C = \{\texttt{agent.ctxHigh}, \texttt{agent.ctxWarn}, \texttt{agent.errStreak}, \texttt{agent.gone}, \texttt{agent.stalled}, \texttt{agent.toolHang}, \texttt{agent.toolSlow}, \texttt{ci.failed}, \texttt{ci.finished}, \texttt{ci.slow}, \texttt{docker.orphan}, \texttt{proc.long}, \texttt{sim.lockLong}, \texttt{sim.lockOrphan}, \texttt{svc.stale}, \texttt{svc.sweepError}, \texttt{svc.unknown}, \texttt{sys.diskLow}, \texttt{sys.ghDegraded}, \texttt{sys.loadHigh}, \texttt{sys.memCritical}, \texttt{team.overCap}, \texttt{team.permissionWait}, \texttt{worktrees.many}\}$$
 -/
 inductive Code where
   | ctxHigh | ctxWarn | errStreak | gone | stalled | toolHang | toolSlow
-  | ciFailed | ciFinished | ciSlow | dockerOrphan | procLong | simLockLong | simLockOrphan | svcStale | svcSweepError | svcUnknown | diskLow | loadHigh
+  | ciFailed | ciFinished | ciSlow | dockerOrphan | procLong | simLockLong | simLockOrphan | svcStale | svcSweepError | svcUnknown | diskLow | ghDegraded | loadHigh
   | memCritical | overCap | permissionWait | worktreesMany
 deriving DecidableEq, Repr
 
 /-- Every code, in rank order.
 
-$$\mathcal C = (c_0, \ldots, c_{22})$$
+$$\mathcal C = (c_0, \ldots, c_{23})$$
 -/
 def Code.all : List Code :=
   [.ctxHigh, .ctxWarn, .errStreak, .gone, .stalled, .toolHang, .toolSlow,
-   .ciFailed, .ciFinished, .ciSlow, .dockerOrphan, .procLong, .simLockLong, .simLockOrphan, .svcStale, .svcSweepError, .svcUnknown, .diskLow, .loadHigh,
+   .ciFailed, .ciFinished, .ciSlow, .dockerOrphan, .procLong, .simLockLong, .simLockOrphan, .svcStale, .svcSweepError, .svcUnknown, .diskLow, .ghDegraded, .loadHigh,
    .memCritical, .overCap, .permissionWait, .worktreesMany]
 
 /-- The wire name of a code.
@@ -520,7 +522,7 @@ def Code.name : Code → String
   | .gone => "agent.gone" | .stalled => "agent.stalled" | .toolHang => "agent.toolHang"
   | .toolSlow => "agent.toolSlow" | .ciFailed => "ci.failed" | .ciFinished => "ci.finished" | .ciSlow => "ci.slow"
   | .dockerOrphan => "docker.orphan" | .procLong => "proc.long" | .simLockLong => "sim.lockLong"
-  | .simLockOrphan => "sim.lockOrphan" | .svcStale => "svc.stale" | .svcSweepError => "svc.sweepError" | .svcUnknown => "svc.unknown" | .diskLow => "sys.diskLow" | .loadHigh => "sys.loadHigh"
+  | .simLockOrphan => "sim.lockOrphan" | .svcStale => "svc.stale" | .svcSweepError => "svc.sweepError" | .svcUnknown => "svc.unknown" | .diskLow => "sys.diskLow" | .ghDegraded => "sys.ghDegraded" | .loadHigh => "sys.loadHigh"
   | .memCritical => "sys.memCritical" | .overCap => "team.overCap" | .permissionWait => "team.permissionWait"
   | .worktreesMany => "worktrees.many"
 
@@ -531,8 +533,8 @@ $$\operatorname{rank}(c_i) = i$$
 def Code.rank : Code → Nat
   | .ctxHigh => 0 | .ctxWarn => 1 | .errStreak => 2 | .gone => 3 | .stalled => 4 | .toolHang => 5 | .toolSlow => 6
   | .ciFailed => 7 | .ciFinished => 8 | .ciSlow => 9 | .dockerOrphan => 10 | .procLong => 11 | .simLockLong => 12
-  | .simLockOrphan => 13 | .svcStale => 14 | .svcSweepError => 15 | .svcUnknown => 16 | .diskLow => 17 | .loadHigh => 18
-  | .memCritical => 19 | .overCap => 20 | .permissionWait => 21 | .worktreesMany => 22
+  | .simLockOrphan => 13 | .svcStale => 14 | .svcSweepError => 15 | .svcUnknown => 16 | .diskLow => 17 | .ghDegraded => 18 | .loadHigh => 19
+  | .memCritical => 20 | .overCap => 21 | .permissionWait => 22 | .worktreesMany => 23
 
 /-- Whether a code is about one agent (`agent.*`).
 
@@ -549,7 +551,7 @@ theorem Code.rank_inj (c c' : Code) (h : c.rank = c'.rank) : c = c' := by
 
 /-- Rank order is the order of the wire names: the names in rank order are strictly increasing strings.
 
-$$\operatorname{name}(c_0) < \operatorname{name}(c_1) < \cdots < \operatorname{name}(c_{22}) \quad\text{(lexicographic)}$$
+$$\operatorname{name}(c_0) < \operatorname{name}(c_1) < \cdots < \operatorname{name}(c_{23}) \quad\text{(lexicographic)}$$
 -/
 theorem Code.names_sorted : (Code.all.map Code.name).Pairwise (· < ·) := by decide
 
@@ -1354,13 +1356,70 @@ theorem ciSetFailed_raised (o : Obs) (r : CiRun) (hr : r ∈ o.system.ci)
     List.mem_filter.2 ⟨(mem_dedupFirst _ _).2 (List.mem_map.2 ⟨r, hr, rfl⟩), by simp [hf, hl]⟩
   exact ⟨_, List.mem_map.2 ⟨ciKey r, hk, rfl⟩, rfl, rfl⟩
 
+/-- A `ci.slow` alert while an Actions incident is open names it; outside one it is the plain detail.
+
+$$\operatorname{ciSlowAlert}(o, r) = (\texttt{ci.slow}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“}\mathit{status}(r)\text{ for }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(r))\text{ min”} \mathbin{+\!\!+} \operatorname{suffix}(\gamma), \operatorname{critR}(K, r))$$
+-/
+def ciSlowAlert (o : Obs) (r : CiRun) : Alert :=
+  ⟨.ciSlow, s!"{r.workflow}@{r.branch}",
+    s!"{r.status} for {mins (o.now - r.startedAt)} min" ++ o.system.gh.suffix, critCi o.critical r⟩
+
 /-- `ci.slow`: a run waiting or running for more than the workflow's limit $s_p(\mathit{wf}(r))$ minutes.
 
 $$\operatorname{sCiSlow}(p, o) = [\,(\texttt{ci.slow}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“}\mathit{status}(r)\text{ for }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(r))\text{ min”}, \operatorname{critR}(K, r)) \mid r \leftarrow R,\ \operatorname{ciSlow}(p, t, r)\,],\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sCiSlow (p : Params) (o : Obs) : List Alert :=
-  (o.system.ci.filter (ciSlowB p o.now)).map fun r =>
-    ⟨.ciSlow, s!"{r.workflow}@{r.branch}", s!"{r.status} for {mins (o.now - r.startedAt)} min", critCi o.critical r⟩
+  (o.system.ci.filter (ciSlowB p o.now)).map (ciSlowAlert o)
+
+/-- `sys.ghDegraded`: Actions is flagged (not operational, or unknown after a flagged pass).
+
+$$\operatorname{sGh}(o) = \operatorname{when}(\operatorname{degraded}(\gamma),\ (\texttt{sys.ghDegraded}, \texttt{github}, \operatorname{detail}(\gamma), \bot)),\quad \gamma = \text{the GitHub reading of } \Sigma$$
+-/
+def sGh (o : Obs) : List Alert :=
+  when o.system.gh.degradedB ⟨.ghDegraded, "github", o.system.gh.detail, false⟩
+
+/-- The alert flag opens while Actions is not operational.
+
+$$a \ne \mathrm{operational} \wedge a \ne \mathrm{unknown} \Rightarrow \operatorname{sGh}(o) \ne [\,]$$
+-/
+theorem sGh_opens (o : Obs) (h1 : o.system.gh.actions ≠ .operational) (h2 : o.system.gh.actions ≠ .unknown) :
+    sGh o = [⟨.ghDegraded, "github", o.system.gh.detail, false⟩] := by
+  have : o.system.gh.degradedB = true := ghOpenB_degraded _ _ h1 h2
+  simp [sGh, when, this]
+
+/-- The alert closes when Actions is operational again, whatever the previous pass said.
+
+$$a = \mathrm{operational} \Rightarrow \operatorname{sGh}(o) = [\,]$$
+-/
+theorem sGh_closes (o : Obs) (h : o.system.gh.actions = .operational) : sGh o = [] := by
+  have : o.system.gh.degradedB = false := by simp [Gh.degradedB, h, ghOpenB]
+  simp [sGh, when, this]
+
+/-- A failed fetch keeps the alert as the previous pass left it.
+
+$$a = \mathrm{unknown} \Rightarrow (\operatorname{sGh}(o) \ne [\,] \iff \mathit{prev})$$
+-/
+theorem sGh_unknown (o : Obs) (h : o.system.gh.actions = .unknown) :
+    sGh o ≠ [] ↔ o.system.gh.prevDegraded = true := by
+  have : o.system.gh.degradedB = o.system.gh.prevDegraded := by simp [Gh.degradedB, h, ghOpenB]
+  cases hp : o.system.gh.prevDegraded <;> simp [sGh, when, this, hp]
+
+/-- Outside an open Actions incident a `ci.slow` alert is unchanged.
+
+$$\operatorname{inc}(\gamma) = \bot \Rightarrow \operatorname{detail}(\operatorname{ciSlowAlert}(o, r)) = \text{“}\mathit{status}(r)\text{ for }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(r))\text{ min”}$$
+-/
+theorem ciSlowAlert_plain (o : Obs) (r : CiRun) (h : o.system.gh.incident = none) :
+    (ciSlowAlert o r).detail = s!"{r.status} for {mins (o.now - r.startedAt)} min" := by
+  simp [ciSlowAlert, Gh.suffix_none _ h]
+
+/-- During an open Actions incident a `ci.slow` alert names it.
+
+$$\operatorname{inc}(\gamma) = i \Rightarrow \exists a, b.\ \operatorname{detail}(\operatorname{ciSlowAlert}(o, r)) = a \mathbin{+\!\!+} \mathit{name}(i) \mathbin{+\!\!+} b$$
+-/
+theorem ciSlowAlert_names (o : Obs) (r : CiRun) (i : GhIncident) (h : o.system.gh.incident = some i) :
+    ∃ a b, (ciSlowAlert o r).detail = a ++ i.name ++ b := by
+  obtain ⟨a, b, hs⟩ := Gh.suffix_names _ i h
+  exact ⟨s!"{r.status} for {mins (o.now - r.startedAt)} min" ++ a, b, by simp [ciSlowAlert, hs, String.append_assoc]⟩
 
 /-- `ci.finished`: a run flagged slow by the previous check has finished (once): its conclusion and duration.
 
@@ -1466,11 +1525,11 @@ def sPerm (o : Obs) : List Alert :=
 
 /-- The team and system alerts: the pieces in code order.
 
-$$\operatorname{sysAlerts}(p, o) = \operatorname{sCiFailed}(o) \mathbin{+\!\!+} \operatorname{sCiFin}(p, o) \mathbin{+\!\!+} \operatorname{sCiSlow}(p, o) \mathbin{+\!\!+} \operatorname{sDocker}(p, o) \mathbin{+\!\!+} \operatorname{sProc}(p, o) \mathbin{+\!\!+} \operatorname{sLockLong}(p, o) \mathbin{+\!\!+} \operatorname{sOrphan}(p, o) \mathbin{+\!\!+} \operatorname{sStale}(o) \mathbin{+\!\!+} \operatorname{sSweep}(o) \mathbin{+\!\!+} \operatorname{sUnknown}(o) \mathbin{+\!\!+} \operatorname{sDisk}(p, o) \mathbin{+\!\!+} \operatorname{sLoad}(p, o) \mathbin{+\!\!+} \operatorname{sMem}(o) \mathbin{+\!\!+} \operatorname{sOver}(p, o) \mathbin{+\!\!+} \operatorname{sPerm}(o) \mathbin{+\!\!+} \operatorname{sWt}(p, o)$$
+$$\operatorname{sysAlerts}(p, o) = \operatorname{sCiFailed}(o) \mathbin{+\!\!+} \operatorname{sCiFin}(p, o) \mathbin{+\!\!+} \operatorname{sCiSlow}(p, o) \mathbin{+\!\!+} \operatorname{sDocker}(p, o) \mathbin{+\!\!+} \operatorname{sProc}(p, o) \mathbin{+\!\!+} \operatorname{sLockLong}(p, o) \mathbin{+\!\!+} \operatorname{sOrphan}(p, o) \mathbin{+\!\!+} \operatorname{sStale}(o) \mathbin{+\!\!+} \operatorname{sSweep}(o) \mathbin{+\!\!+} \operatorname{sUnknown}(o) \mathbin{+\!\!+} \operatorname{sDisk}(p, o) \mathbin{+\!\!+} \operatorname{sGh}(o) \mathbin{+\!\!+} \operatorname{sLoad}(p, o) \mathbin{+\!\!+} \operatorname{sMem}(o) \mathbin{+\!\!+} \operatorname{sOver}(p, o) \mathbin{+\!\!+} \operatorname{sPerm}(o) \mathbin{+\!\!+} \operatorname{sWt}(p, o)$$
 -/
 def sysAlerts (p : Params) (o : Obs) : List Alert :=
   sCiFailed o ++ sCiFin p o ++ sCiSlow p o ++ sDocker p o ++ sProc p o ++ sLockLong p o ++ sOrphan p o ++
-    sStale o ++ sSweep o ++ sUnknown o ++ sDisk p o ++ sLoad p o ++ sMem o ++ sOver p o ++ sPerm o ++ sWt p o
+    sStale o ++ sSweep o ++ sUnknown o ++ sDisk p o ++ sGh o ++ sLoad p o ++ sMem o ++ sOver p o ++ sPerm o ++ sWt p o
 
 /-- Every raised alert, unsorted: each agent's alerts, then the team and system alerts.
 
@@ -1628,7 +1687,7 @@ theorem crit_first (p : Params) (o : Obs) :
 
 /-- The team and system alerts of one code: the piece of `sysAlerts` for that code (none for an `agent.*` code).
 
-$$\operatorname{piece}(p, o, c) = \begin{cases} \operatorname{sCiFailed}(o) & c = \texttt{ci.failed} \\ \operatorname{sCiFin}(p, o) & c = \texttt{ci.finished} \\ \operatorname{sCiSlow}(p, o) & c = \texttt{ci.slow} \\ \operatorname{sDocker}(p, o) & c = \texttt{docker.orphan} \\ \operatorname{sProc}(p, o) & c = \texttt{proc.long} \\ \operatorname{sLockLong}(p, o) & c = \texttt{sim.lockLong} \\ \operatorname{sOrphan}(p, o) & c = \texttt{sim.lockOrphan} \\ \operatorname{sStale}(o) & c = \texttt{svc.stale} \\ \operatorname{sSweep}(o) & c = \texttt{svc.sweepError} \\ \operatorname{sUnknown}(o) & c = \texttt{svc.unknown} \\ \operatorname{sDisk}(p, o) & c = \texttt{sys.diskLow} \\ \operatorname{sLoad}(p, o) & c = \texttt{sys.loadHigh} \\ \operatorname{sMem}(o) & c = \texttt{sys.memCritical} \\ \operatorname{sOver}(p, o) & c = \texttt{team.overCap} \\ \operatorname{sPerm}(o) & c = \texttt{team.permissionWait} \\ \operatorname{sWt}(p, o) & c = \texttt{worktrees.many} \\ [] & \operatorname{isAgent}(c) \end{cases}$$
+$$\operatorname{piece}(p, o, c) = \begin{cases} \operatorname{sCiFailed}(o) & c = \texttt{ci.failed} \\ \operatorname{sCiFin}(p, o) & c = \texttt{ci.finished} \\ \operatorname{sCiSlow}(p, o) & c = \texttt{ci.slow} \\ \operatorname{sDocker}(p, o) & c = \texttt{docker.orphan} \\ \operatorname{sProc}(p, o) & c = \texttt{proc.long} \\ \operatorname{sLockLong}(p, o) & c = \texttt{sim.lockLong} \\ \operatorname{sOrphan}(p, o) & c = \texttt{sim.lockOrphan} \\ \operatorname{sStale}(o) & c = \texttt{svc.stale} \\ \operatorname{sSweep}(o) & c = \texttt{svc.sweepError} \\ \operatorname{sUnknown}(o) & c = \texttt{svc.unknown} \\ \operatorname{sDisk}(p, o) & c = \texttt{sys.diskLow} \\ \operatorname{sGh}(o) & c = \texttt{sys.ghDegraded} \\ \operatorname{sLoad}(p, o) & c = \texttt{sys.loadHigh} \\ \operatorname{sMem}(o) & c = \texttt{sys.memCritical} \\ \operatorname{sOver}(p, o) & c = \texttt{team.overCap} \\ \operatorname{sPerm}(o) & c = \texttt{team.permissionWait} \\ \operatorname{sWt}(p, o) & c = \texttt{worktrees.many} \\ [] & \operatorname{isAgent}(c) \end{cases}$$
 -/
 def sysPiece (p : Params) (o : Obs) : Code → List Alert
   | .ciFailed => sCiFailed o
@@ -1642,6 +1701,7 @@ def sysPiece (p : Params) (o : Obs) : Code → List Alert
   | .svcSweepError => sSweep o
   | .svcUnknown => sUnknown o
   | .diskLow => sDisk p o
+  | .ghDegraded => sGh o
   | .loadHigh => sLoad p o
   | .memCritical => sMem o
   | .overCap => sOver p o
@@ -1651,7 +1711,7 @@ def sysPiece (p : Params) (o : Obs) : Code → List Alert
 
 /-- `sysAlerts` is the concatenation of the pieces in rank order.
 
-$$\forall p, o:\quad \operatorname{sysAlerts}(p, o) = \operatorname{piece}(p, o, c_0) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{piece}(p, o, c_{22})$$
+$$\forall p, o:\quad \operatorname{sysAlerts}(p, o) = \operatorname{piece}(p, o, c_0) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{piece}(p, o, c_{23})$$
 -/
 theorem sysAlerts_eq (p : Params) (o : Obs) : sysAlerts p o = Code.all.flatMap (sysPiece p o) := by
   simp [sysAlerts, Code.all, sysPiece, List.flatMap_cons, List.append_assoc]
@@ -1661,7 +1721,7 @@ theorem sysAlerts_eq (p : Params) (o : Obs) : sysAlerts p o = Code.all.flatMap (
 $$\forall p, o, c, x:\quad x \in \operatorname{piece}(p, o, c) \Rightarrow \mathit{code}(x) = c$$
 -/
 theorem piece_code (p : Params) (o : Obs) (c : Code) (x : Alert) (h : x ∈ sysPiece p o c) : x.code = c := by
-  cases c <;> simp only [sysPiece, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sLockLong, sOrphan, sStale, sSweep, sUnknown, sDisk, sLoad,
+  cases c <;> simp only [sysPiece, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sLockLong, sOrphan, sStale, sSweep, sUnknown, sDisk, sGh, sLoad,
     sMem, sOver, sPerm, sWt, List.not_mem_nil] at h
   all_goals first
     | (obtain ⟨s, _, e⟩ := List.mem_filterMap.1 h
@@ -1808,8 +1868,7 @@ $$\forall p, o, r:\quad r \in R \wedge \operatorname{ciSlow}(p, t, r) \Rightarro
 -/
 theorem ciSlow_raised (p : Params) (o : Obs) (r : CiRun) (hr : r ∈ o.system.ci) (h : ciSlowB p o.now r = true) :
     ∃ x ∈ (health p o).alerts, x.code = .ciSlow ∧ x.subject = s!"{r.workflow}@{r.branch}" := by
-  have hy : (⟨.ciSlow, s!"{r.workflow}@{r.branch}", s!"{r.status} for {mins (o.now - r.startedAt)} min",
-      critCi o.critical r⟩ : Alert) ∈ sCiSlow p o :=
+  have hy : ciSlowAlert o r ∈ sCiSlow p o :=
     List.mem_map.2 ⟨r, List.mem_filter.2 ⟨hr, h⟩, rfl⟩
   exact ⟨_, (mem_alerts p o _).2 (List.mem_append.2 (.inr ((mem_sys p o _).2 hy))), rfl, rfl⟩
 
@@ -2217,6 +2276,7 @@ theorem sysPiece_mono (p q : Params) (o : Obs) (hpq : Looser p q) (c : Code) (x 
   · exact h
   · exact h
   · exact when_sub _ (fun hb => by simp only [decide_eq_true_eq] at hb ⊢; omega) x h
+  · exact h
   · exact when_sub _ (fun hb => by simp only [decide_eq_true_eq] at hb ⊢; omega) x h
   · exact h
   · simp only [sysPiece, sOver] at h ⊢
@@ -2282,8 +2342,9 @@ theorem sysAlerts_perm (p : Params) (o : Obs) (l : List Agent) (hl : l.Perm o.ag
       unfold ownerLiveB; cases r.agent <;> simp only [hl.any_eq]
     simp only [procLongB, hw]
   have ha : procAlert { o with agents := l } = procAlert o := rfl
-  simp only [sysAlerts, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sLockLong, sOrphan, sStale, sSweep, sUnknown, sDisk, sLoad, sMem, sOver,
-    sPerm, sWt, hn, hk, hh, ho, hd, hq, ha]
+  have hc : ciSlowAlert { o with agents := l } = ciSlowAlert o := rfl
+  simp only [sysAlerts, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sLockLong, sOrphan, sStale, sSweep, sUnknown, sDisk, sGh, sLoad, sMem, sOver,
+    sPerm, sWt, hn, hk, hh, ho, hd, hq, ha, hc]
 
 /-- The report's alerts, system codes and counts do not depend on the order of the agents (the rows follow it).
 

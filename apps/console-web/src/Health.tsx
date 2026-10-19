@@ -17,7 +17,13 @@ export type HealthView = {
   system: { diskFreeGB: number; memPressure: string; simLock: { holder: string | null; since: number | null };
     docker: { name: string; startedAt: number }[]; worktrees: number;
     ci: { workflow: string; branch: string; status: string; conclusion: string | null }[]; stale: string[] };
+  gh: GhView | null;
 };
+export type GhView = {
+  actions: string; pages: string; webhooks: string; degraded: boolean; alert: string | null;
+  incidents: { name: string; status: string; impact: string; createdAt: number; updatedAt: number; body: string; actions: boolean }[];
+};
+export const GH_STATUS_URL = "https://www.githubstatus.com";
 
 const STATES = ["stalled", "active", "idle", "parked", "gone", "done"] as const; // display grouping only
 
@@ -42,6 +48,46 @@ function useHealth(): { health: HealthView | null | undefined; error: boolean } 
 
 const stateVariant = (s: string) => (s === "stalled" ? "destructive" : s === "active" ? "default" : "secondary") as
   "destructive" | "default" | "secondary";
+
+const compVariant = (s: string) => (s === "operational" ? "secondary" : s === "unknown" ? "outline" : "destructive") as
+  "secondary" | "outline" | "destructive";
+
+// Rendering only: whether Actions is flagged is `gh.degraded` (fwcore, alert sys.ghDegraded).
+export function GhCard({ gh, now }: { gh: GhView; now: number }) {
+  return (
+    <Card data-testid="gh-status">
+      <CardHeader>
+        <CardTitle className="flex flex-wrap items-center gap-2">
+          GitHub {gh.degraded && <Badge variant="destructive">sys.ghDegraded</Badge>}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Table>
+          <TableBody>
+            {([["Actions", gh.actions], ["Pages", gh.pages], ["Webhooks", gh.webhooks]] as const).map(([name, st]) => (
+              <TableRow key={name}>
+                <TableCell className="font-medium">{name}</TableCell>
+                <TableCell><Badge variant={compVariant(st)}>{st}</Badge></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {gh.alert && <p className="text-sm text-muted-foreground">{gh.alert}</p>}
+        {gh.incidents.length === 0 && <p className="text-sm text-muted-foreground">No open incident on these components.</p>}
+        {gh.incidents.map((i) => (
+          <div key={`${i.name}-${i.createdAt}`} className="space-y-1 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="destructive">{i.impact || "incident"}</Badge><span className="font-medium">{i.name}</span>
+              <span className="text-muted-foreground">{i.status}, opened {age(now - i.createdAt)} ago, last update {age(now - i.updatedAt)} ago</span>
+            </div>
+            {i.body && <p className="text-muted-foreground">{i.body}</p>}
+          </div>
+        ))}
+        <a className="text-sm underline" href={GH_STATUS_URL} target="_blank" rel="noreferrer">githubstatus.com</a>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function HealthView({ now }: { now: number }) {
   const { health, error } = useHealth();
@@ -111,6 +157,7 @@ export function HealthView({ now }: { now: number }) {
           </Table>
         </CardContent>
       </Card>
+      {health.gh && <GhCard gh={health.gh} now={health.now} />}
       <Card>
         <CardHeader>
           <CardTitle className="flex flex-wrap gap-2">

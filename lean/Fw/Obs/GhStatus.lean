@@ -1,0 +1,172 @@
+/-!
+# GitHub platform status: when Actions is down, say so
+
+`fw watch` reads the public githubstatus summary once per pass. This module decides from it. Nothing here reads a clock.
+-/
+
+namespace Fw.Obs
+
+/-- The state of one GitHub component; `unknown` is a failed or unreadable fetch.
+
+$$\mathcal G = \{\mathrm{operational}, \mathrm{degraded\_performance}, \mathrm{partial\_outage}, \mathrm{major\_outage}, \mathrm{under\_maintenance}, \mathrm{unknown}\}$$
+-/
+inductive GhComp where
+  | operational | degradedPerf | partialOutage | majorOutage | maintenance | unknown
+deriving DecidableEq, Repr
+
+/-- The wire name of a state.
+
+$$\operatorname{name}(g) \in \mathcal G$$
+-/
+def GhComp.name : GhComp → String
+  | .operational => "operational" | .degradedPerf => "degraded_performance" | .partialOutage => "partial_outage"
+  | .majorOutage => "major_outage" | .maintenance => "under_maintenance" | .unknown => "unknown"
+
+/-- The state of a wire name; a name outside the five statuses is `unknown`.
+
+$$\operatorname{of}(n) = g \iff \operatorname{name}(g) = n \ (n \ne \text{“unknown”}),\quad \text{else } \mathrm{unknown}$$
+-/
+def GhComp.ofName : String → GhComp
+  | "operational" => .operational | "degraded_performance" => .degradedPerf | "partial_outage" => .partialOutage
+  | "major_outage" => .majorOutage | "under_maintenance" => .maintenance | _ => .unknown
+
+/-- The name decodes to its state.
+
+$$\forall g:\quad \operatorname{of}(\operatorname{name}(g)) = g$$
+-/
+theorem GhComp.ofName_name (g : GhComp) : GhComp.ofName g.name = g := by
+  cases g <;> rfl
+
+/-- An open GitHub incident: name, status, impact, creation time and time of its newest update (ms), the first 200
+characters of that update, and whether it touches the Actions component.
+
+$$i = (\mathit{name}, \mathit{status}, \mathit{impact}, c, u, \mathit{body}, \mathit{act}) \in \mathrm{String}^3 \times \mathbb N^2 \times \mathrm{String} \times \mathbb B$$
+-/
+structure GhIncident where
+  name      : String
+  status    : String := ""
+  impact    : String := ""
+  createdAt : Nat := 0
+  updatedAt : Nat := 0
+  body      : String := ""
+  actions   : Bool := false
+deriving DecidableEq, Repr
+
+/-- What the collector read: the Actions, Pages and Webhooks states, whether the previous pass left Actions flagged,
+and the open incidents.
+
+$$\gamma = (a, p, w, \mathit{prev}, I) \in \mathcal G^3 \times \mathbb B \times \mathrm{Incident}^*$$
+-/
+structure Gh where
+  actions      : GhComp := .unknown
+  pages        : GhComp := .unknown
+  webhooks     : GhComp := .unknown
+  prevDegraded : Bool := false
+  incidents    : List GhIncident := []
+deriving DecidableEq, Repr
+
+/-- Whether Actions is flagged: degraded when it is not operational, clear when operational, and the previous
+decision when the fetch failed.
+
+$$\operatorname{open}(\mathit{prev}, a) = \begin{cases} \mathit{prev} & a = \mathrm{unknown} \\ \bot & a = \mathrm{operational} \\ \top & \text{otherwise} \end{cases}$$
+-/
+def ghOpenB (prev : Bool) : GhComp → Bool
+  | .unknown => prev
+  | .operational => false
+  | _ => true
+
+/-- A degraded Actions component opens the flag (each of the four non-operational states).
+
+$$a \in \{\mathrm{degraded\_performance}, \mathrm{partial\_outage}, \mathrm{major\_outage}, \mathrm{under\_maintenance}\} \Rightarrow \operatorname{open}(\mathit{prev}, a) = \top$$
+-/
+theorem ghOpenB_degraded (prev : Bool) (a : GhComp) (h1 : a ≠ .operational) (h2 : a ≠ .unknown) :
+    ghOpenB prev a = true := by
+  cases a <;> simp_all [ghOpenB]
+
+/-- An operational Actions component closes the flag, whatever the previous decision was.
+
+$$\forall \mathit{prev}:\quad \operatorname{open}(\mathit{prev}, \mathrm{operational}) = \bot$$
+-/
+theorem ghOpenB_operational (prev : Bool) : ghOpenB prev .operational = false := rfl
+
+/-- A failed fetch keeps the previous decision.
+
+$$\forall \mathit{prev}:\quad \operatorname{open}(\mathit{prev}, \mathrm{unknown}) = \mathit{prev}$$
+-/
+theorem ghOpenB_unknown (prev : Bool) : ghOpenB prev .unknown = prev := rfl
+
+/-- Actions is flagged in this reading.
+
+$$\operatorname{degraded}(\gamma) = \operatorname{open}(\mathit{prev}(\gamma), a(\gamma))$$
+-/
+def Gh.degradedB (g : Gh) : Bool := ghOpenB g.prevDegraded g.actions
+
+/-- The open Actions incident the alerts name: the first incident that touches Actions, only while Actions is flagged.
+
+$$\operatorname{inc}(\gamma) = \begin{cases} \text{first } i \in I \text{ with } \mathit{act}(i) & \operatorname{degraded}(\gamma) \\ \bot & \text{otherwise} \end{cases}$$
+-/
+def Gh.incident (g : Gh) : Option GhIncident :=
+  if g.degradedB then g.incidents.find? (·.actions) else none
+
+/-- Without a flagged Actions there is no incident to name.
+
+$$\neg\operatorname{degraded}(\gamma) \Rightarrow \operatorname{inc}(\gamma) = \bot$$
+-/
+theorem Gh.incident_closed (g : Gh) (h : g.degradedB = false) : g.incident = none := by
+  simp [Gh.incident, h]
+
+/-- A named incident touches Actions and lies in the list.
+
+$$\operatorname{inc}(\gamma) = i \Rightarrow i \in I \wedge \mathit{act}(i)$$
+-/
+theorem Gh.incident_mem (g : Gh) (i : GhIncident) (h : g.incident = some i) : i ∈ g.incidents ∧ i.actions = true := by
+  unfold Gh.incident at h
+  split at h
+  · exact ⟨List.mem_of_find?_eq_some h, by simpa using List.find?_some h⟩
+  · cases h
+
+/-- A number below 100 as two digits. -/
+def pad2 (n : Nat) : String := if n < 10 then "0" ++ toString n else toString n
+
+/-- The UTC clock time `HH:MM` of a time in ms since the epoch.
+
+$$\operatorname{hhmm}(t) = (\lfloor t/60000 \rfloor \bmod 1440)\text{ as }\mathit{HH}\text{:}\mathit{MM}$$
+-/
+def hhmm (t : Nat) : String :=
+  let m := t / 60000 % 1440
+  pad2 (m / 60) ++ ":" ++ pad2 (m % 60)
+
+/-- The text a `ci.slow` detail gets while an Actions incident is open: its name and start time (empty outside one).
+
+$$\operatorname{suffix}(\gamma) = \begin{cases} \text{“ (GitHub incident ”}\,\mathit{name}(i)\,\text{“ since ”}\operatorname{hhmm}(c(i))\,\text{“ UTC)”} & \operatorname{inc}(\gamma) = i \\ \varepsilon & \operatorname{inc}(\gamma) = \bot \end{cases}$$
+-/
+def Gh.suffix (g : Gh) : String :=
+  match g.incident with
+  | none => ""
+  | some i => " (GitHub incident \"" ++ i.name ++ "\" since " ++ hhmm i.createdAt ++ " UTC)"
+
+/-- Outside an open incident the suffix is empty.
+
+$$\operatorname{inc}(\gamma) = \bot \Rightarrow \operatorname{suffix}(\gamma) = \varepsilon$$
+-/
+theorem Gh.suffix_none (g : Gh) (h : g.incident = none) : g.suffix = "" := by
+  simp [Gh.suffix, h]
+
+/-- During an open incident the suffix contains its name.
+
+$$\operatorname{inc}(\gamma) = i \Rightarrow \exists a, b.\ \operatorname{suffix}(\gamma) = a \mathbin{+\!\!+} \mathit{name}(i) \mathbin{+\!\!+} b$$
+-/
+theorem Gh.suffix_names (g : Gh) (i : GhIncident) (h : g.incident = some i) :
+    ∃ a b, g.suffix = a ++ i.name ++ b := by
+  refine ⟨" (GitHub incident \"", "\" since " ++ hhmm i.createdAt ++ " UTC)", ?_⟩
+  simp [Gh.suffix, h, String.append_assoc]
+
+/-- The detail of the `sys.ghDegraded` alert: the Actions state and, when one is open, the incident.
+
+$$\operatorname{detail}(\gamma) = \text{“Actions ”}\,\operatorname{name}(a)\ [\,\text{“: ”}\,\mathit{name}(i)\,]$$
+-/
+def Gh.detail (g : Gh) : String :=
+  "Actions " ++ g.actions.name ++
+    (match g.incident with | none => "" | some i => ": " ++ i.name)
+
+end Fw.Obs
