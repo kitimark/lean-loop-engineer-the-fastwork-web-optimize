@@ -1,181 +1,327 @@
 {
-  "note": "Synthetic: shaped after the CircleCI API v2 and gh run view --json; replace by a real recording after the first pilot run.",
-  "slug": "circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002",
-  "pipelineId": "pipe-1",
-  "sha": "abc1234def5678abc1234def5678abc1234def56",
-  "now": "2026-10-20T09:05:00.000Z",
-  "api": {
-    "routes": {
-      "GET /pipeline/pipe-1/workflow": {
-        "items": [
-          {
-            "id": "wf-1",
-            "name": "premise-tests",
-            "status": "success",
-            "created_at": "2026-10-20T09:00:00.000Z",
-            "stopped_at": "2026-10-20T09:04:00.000Z"
-          }
-        ]
-      },
-      "GET /workflow/wf-1/job": {
-        "items": [
-          {
-            "id": "j1",
-            "name": "engine-chromium",
-            "job_number": 1,
-            "status": "success",
-            "started_at": "2026-10-20T09:00:11.000Z",
-            "stopped_at": "2026-10-20T09:02:41.000Z",
-            "type": "build"
-          },
-          {
-            "id": "j2",
-            "name": "engine-playwright-webkit",
-            "job_number": 2,
-            "status": "success",
-            "started_at": "2026-10-20T09:00:10.000Z",
-            "stopped_at": "2026-10-20T09:03:10.000Z",
-            "type": "build"
-          },
-          {
-            "id": "j3",
-            "name": "verdict",
-            "job_number": 3,
-            "status": "success",
-            "started_at": "2026-10-20T09:03:15.000Z",
-            "stopped_at": "2026-10-20T09:04:00.000Z",
-            "type": "build"
-          }
-        ]
-      },
-      "GET /project/circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/job/1": {
-        "name": "engine-chromium",
-        "number": 1,
-        "status": "success",
-        "executor": {
-          "resource_class": "arm.medium.gen2",
-          "type": "machine"
-        },
-        "queued_at": "2026-10-20T09:00:02.000Z",
-        "created_at": "2026-10-20T09:00:01.000Z",
-        "started_at": "2026-10-20T09:00:11.000Z",
-        "stopped_at": "2026-10-20T09:02:41.000Z",
-        "duration": 150000,
-        "pipeline": {}
-      },
-      "GET /project/circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/job/2": {
-        "name": "engine-playwright-webkit",
-        "number": 2,
-        "status": "success",
-        "executor": {
-          "resource_class": "arm.medium.gen2",
-          "type": "machine"
-        },
-        "queued_at": "2026-10-20T09:00:02.000Z",
-        "created_at": "2026-10-20T09:00:01.000Z",
-        "started_at": "2026-10-20T09:00:10.000Z",
-        "stopped_at": "2026-10-20T09:03:10.000Z",
-        "duration": 180000,
-        "pipeline": {}
-      },
-      "GET /project/circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/job/3": {
-        "name": "verdict",
-        "number": 3,
-        "status": "success",
-        "executor": {
-          "resource_class": "arm.medium.gen2",
-          "type": "machine"
-        },
-        "queued_at": "2026-10-20T09:03:10.000Z",
-        "created_at": "2026-10-20T09:03:09.000Z",
-        "started_at": "2026-10-20T09:03:15.000Z",
-        "stopped_at": "2026-10-20T09:04:00.000Z",
-        "duration": 45000,
-        "pipeline": {}
-      },
-      "GET /project/circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/1/artifacts": {
-        "items": [
-          {
-            "path": "timings.json",
-            "url": "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000001/artifacts/0/timings.json"
-          },
-          {
-            "path": "premises-chromium/chromium.json",
-            "url": "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000001/artifacts/0/premises-chromium/chromium.json"
-          }
-        ]
-      },
-      "GET /project/circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/2/artifacts": {
-        "items": [
-          {
-            "path": "timings.json",
-            "url": "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000002/artifacts/0/timings.json"
-          },
-          {
-            "path": "premises-playwright-webkit/webkit.json",
-            "url": "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000002/artifacts/0/premises-playwright-webkit/webkit.json"
-          }
-        ]
-      },
-      "GET /project/circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/3/artifacts": {
-        "items": [
-          {
-            "path": "timings.json",
-            "url": "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000003/artifacts/0/timings.json"
-          },
-          {
-            "path": "premises-verdict.txt",
-            "url": "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000003/artifacts/0/premises-verdict.txt"
-          }
-        ]
-      },
-      "GET /pipeline/pipe-1": {
-        "id": "pipe-1",
-        "project_slug": "circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002",
-        "number": 1,
-        "state": "created",
-        "vcs": {
-          "branch": "ci/x",
-          "revision": "abc1234def5678abc1234def5678abc1234def56"
-        }
-      }
+ "note": "Recorded: the API responses of CircleCI pipeline 15 (premise-tests on arm.medium.gen2, API v2, 2026-10-19) and gh run view of the GitHub twin (workflow_dispatch run, same commit). Only identity strings were replaced (organisation, repository, user, avatar); no token is sent in a response.",
+ "slug": "gh/example-org/example-repo",
+ "pipelineId": "c23e8bd1-26a6-40c2-88e3-a340dc2550cd",
+ "sha": "9145de1d8afc378a2b260530f3cb01745325cc7d",
+ "now": "2026-10-19T19:57:42.998Z",
+ "api": {
+  "routes": {
+   "GET /pipeline/c23e8bd1-26a6-40c2-88e3-a340dc2550cd": {
+    "id": "c23e8bd1-26a6-40c2-88e3-a340dc2550cd",
+    "errors": [],
+    "project_slug": "gh/example-org/example-repo",
+    "updated_at": "2026-10-19T19:55:38.233Z",
+    "number": 15,
+    "state": "created",
+    "created_at": "2026-10-19T19:55:38.078Z",
+    "warnings": [],
+    "trigger": {
+     "received_at": "2026-10-19T19:55:37.554Z",
+     "type": "api",
+     "actor": {
+      "login": "example-user",
+      "avatar_url": "https://avatars.githubusercontent.com/u/0?v=4"
+     }
     },
-    "files": {
-      "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000001/artifacts/0/timings.json": "{\"schema\":\"fw.circleci-timings/1\",\"job\":\"engine-chromium\",\"class\":\"arm.medium.gen2\",\"sha\":\"abc1234def5678abc1234def5678abc1234def56\",\"digest\":\"3845c050bc708264fc58e48c235e65e0cc0b3776cdacbebe00e029c075cf7730\",\"spans\":[{\"tool\":\"circleci/engine-chromium\",\"step\":\"checkout\",\"startMs\":1792486811000,\"durMs\":4000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"node\",\"startMs\":1792486815000,\"durMs\":9000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"pnpm\",\"startMs\":1792486824000,\"durMs\":3000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"cache restore\",\"startMs\":1792486827000,\"durMs\":6000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"deps install\",\"startMs\":1792486833000,\"durMs\":14000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"system libraries\",\"startMs\":1792486847000,\"durMs\":30000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"browser install\",\"startMs\":1792486877000,\"durMs\":25000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-chromium\",\"step\":\"test\",\"startMs\":1792486902000,\"durMs\":40000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"}],\"bytes\":{\"cache\":412000000,\"workspace\":52000}}",
-      "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000001/artifacts/0/premises-chromium/chromium.json": "{\"schema\":1,\"engine\":\"x\",\"results\":[{\"testId\":\"prem.a\",\"ok\":true},{\"testId\":\"prem.b\",\"ok\":true},{\"testId\":\"prem.c\",\"ok\":true}]}",
-      "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000002/artifacts/0/timings.json": "{\"schema\":\"fw.circleci-timings/1\",\"job\":\"engine-playwright-webkit\",\"class\":\"arm.medium.gen2\",\"sha\":\"abc1234def5678abc1234def5678abc1234def56\",\"digest\":\"3845c050bc708264fc58e48c235e65e0cc0b3776cdacbebe00e029c075cf7730\",\"spans\":[{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"checkout\",\"startMs\":1792486810000,\"durMs\":4000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"node\",\"startMs\":1792486814000,\"durMs\":9000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"pnpm\",\"startMs\":1792486823000,\"durMs\":3000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"cache restore\",\"startMs\":1792486826000,\"durMs\":6000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"deps install\",\"startMs\":1792486832000,\"durMs\":14000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"system libraries\",\"startMs\":1792486846000,\"durMs\":40000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"browser install\",\"startMs\":1792486886000,\"durMs\":50000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"test\",\"startMs\":1792486936000,\"durMs\":45000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"}],\"bytes\":{\"cache\":412000000,\"workspace\":52000}}",
-      "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000002/artifacts/0/premises-playwright-webkit/webkit.json": "{\"schema\":1,\"engine\":\"x\",\"results\":[{\"testId\":\"prem.a\",\"ok\":true},{\"testId\":\"prem.b\",\"ok\":true},{\"testId\":\"prem.c\",\"ok\":true}]}",
-      "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000003/artifacts/0/timings.json": "{\"schema\":\"fw.circleci-timings/1\",\"job\":\"verdict\",\"class\":\"arm.medium.gen2\",\"sha\":\"abc1234def5678abc1234def5678abc1234def56\",\"digest\":null,\"spans\":[{\"tool\":\"circleci/verdict\",\"step\":\"checkout\",\"startMs\":1792486995000,\"durMs\":4000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/verdict\",\"step\":\"node\",\"startMs\":1792486999000,\"durMs\":9000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/verdict\",\"step\":\"pnpm\",\"startMs\":1792487008000,\"durMs\":3000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/verdict\",\"step\":\"cache restore\",\"startMs\":1792487011000,\"durMs\":6000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/verdict\",\"step\":\"deps install\",\"startMs\":1792487017000,\"durMs\":12000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"},{\"tool\":\"circleci/verdict\",\"step\":\"fw premises\",\"startMs\":1792487029000,\"durMs\":9000,\"exit\":0,\"commit\":\"abc1234\",\"load\":0.5,\"host\":\"ci\"}],\"bytes\":{\"cache\":0,\"workspace\":0}}",
-      "https://output.circle-artifacts.com/output/job/00000000-0000-0000-0000-000000000003/artifacts/0/premises-verdict.txt": "premises: ok\n"
+    "vcs": {
+     "origin_repository_url": "https://github.com/example-org/example-repo",
+     "target_repository_url": "https://github.com/example-org/example-repo",
+     "review_url": "",
+     "revision": "9145de1d8afc378a2b260530f3cb01745325cc7d",
+     "review_id": "",
+     "provider_name": "GitHub",
+     "commit": {
+      "body": "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NdKQu52CiBooHPytd4fR2z",
+      "subject": "circleci-pilot r2: fix 9 findings (sim job name, sha from pipeline, digest verdict, storage ledger, pagination, fw.ts mode, class names INFERRED) [ci:premise-tests]"
+     },
+     "branch": "ci/circleci-pilot"
     }
-  },
-  "github": {
-    "workflowName": "premise-tests",
-    "headSha": "abc1234def5678abc1234def5678abc1234def56",
-    "createdAt": "2026-10-20T09:00:00.000Z",
-    "digests": {
-      "engine (chromium)": "3845c050bc708264fc58e48c235e65e0cc0b3776cdacbebe00e029c075cf7730",
-      "engine (playwright-webkit)": "3845c050bc708264fc58e48c235e65e0cc0b3776cdacbebe00e029c075cf7730"
-    },
-    "jobs": [
-      {
-        "name": "engine (chromium)",
-        "conclusion": "success",
-        "startedAt": "2026-10-20T09:00:04.000Z",
-        "completedAt": "2026-10-20T09:01:44.000Z"
-      },
-      {
-        "name": "engine (playwright-webkit)",
-        "conclusion": "success",
-        "startedAt": "2026-10-20T09:00:05.000Z",
-        "completedAt": "2026-10-20T09:02:05.000Z"
-      },
-      {
-        "name": "verdict",
-        "conclusion": "success",
-        "startedAt": "2026-10-20T09:02:10.000Z",
-        "completedAt": "2026-10-20T09:02:40.000Z"
-      }
+   },
+   "GET /pipeline/c23e8bd1-26a6-40c2-88e3-a340dc2550cd/workflow": {
+    "next_page_token": null,
+    "items": [
+     {
+      "pipeline_id": "c23e8bd1-26a6-40c2-88e3-a340dc2550cd",
+      "id": "084b6e4e-f867-4e46-ae03-ecbd4e5a3134",
+      "name": "premise-tests",
+      "project_slug": "gh/example-org/example-repo",
+      "status": "success",
+      "started_by": "f2fac220-824b-4cf0-9e4b-5849548fe075",
+      "pipeline_number": 15,
+      "created_at": "2026-10-19T19:55:38.267Z",
+      "stopped_at": "2026-10-19T19:57:42.998Z"
+     }
     ]
+   },
+   "GET /workflow/084b6e4e-f867-4e46-ae03-ecbd4e5a3134/job": {
+    "items": [
+     {
+      "job_number": 10,
+      "stopped_at": "2026-10-19T19:56:58.153Z",
+      "started_at": "2026-10-19T19:56:19.051Z",
+      "name": "engine-chromium",
+      "project_slug": "gh/example-org/example-repo",
+      "type": "build",
+      "status": "success",
+      "id": "1cb4cc2a-93c5-4a53-b405-51205b978bcf",
+      "dependencies": []
+     },
+     {
+      "job_number": 11,
+      "stopped_at": "2026-10-19T19:56:44.674Z",
+      "started_at": "2026-10-19T19:55:52.713Z",
+      "name": "engine-playwright-webkit",
+      "project_slug": "gh/example-org/example-repo",
+      "type": "build",
+      "status": "success",
+      "id": "e4edf9fd-1988-4836-86f0-4c72b7b61fdc",
+      "dependencies": []
+     },
+     {
+      "job_number": 12,
+      "stopped_at": "2026-10-19T19:57:42.998Z",
+      "started_at": "2026-10-19T19:57:32.544Z",
+      "name": "verdict",
+      "project_slug": "gh/example-org/example-repo",
+      "type": "build",
+      "requires": {
+       "1cb4cc2a-93c5-4a53-b405-51205b978bcf": [
+        "success"
+       ],
+       "e4edf9fd-1988-4836-86f0-4c72b7b61fdc": [
+        "success"
+       ]
+      },
+      "status": "success",
+      "id": "6d72227f-4aa6-4350-9a62-e4fd5dcd11e3",
+      "dependencies": [
+       "1cb4cc2a-93c5-4a53-b405-51205b978bcf",
+       "e4edf9fd-1988-4836-86f0-4c72b7b61fdc"
+      ]
+     }
+    ]
+   },
+   "GET /project/gh/example-org/example-repo/job/10": {
+    "created_at": "2026-10-19T19:55:38.655Z",
+    "duration": 38791,
+    "executor": {
+     "resource_class": "arm-medium-gen2",
+     "type": "linux"
+    },
+    "messages": [],
+    "queued_at": "2026-10-19T19:55:38.792Z",
+    "started_at": "2026-10-19T19:56:19.051Z",
+    "status": "success",
+    "stopped_at": "2026-10-19T19:56:57.842Z",
+    "parallel_runs": [
+     {
+      "index": 0,
+      "status": "success"
+     }
+    ],
+    "contexts": [],
+    "latest_workflow": {
+     "id": "084b6e4e-f867-4e46-ae03-ecbd4e5a3134",
+     "name": "premise-tests"
+    },
+    "name": "engine-chromium",
+    "number": 10,
+    "organization": {
+     "name": "example-org"
+    },
+    "parallelism": 1,
+    "pipeline": {
+     "id": "c23e8bd1-26a6-40c2-88e3-a340dc2550cd"
+    },
+    "project": {
+     "external_url": "https://github.com/example-org/example-repo",
+     "id": "9fc0058d-e322-476c-9cea-5dd7e165146e",
+     "name": "example-repo",
+     "slug": "gh/example-org/example-repo"
+    },
+    "web_url": "https://circleci.com/gh/example-org/example-repo/10"
+   },
+   "GET /project/gh/example-org/example-repo/10/artifacts": {
+    "next_page_token": null,
+    "items": [
+     {
+      "path": "tmp/fw/artifacts/spans.jsonl",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/1cb4cc2a-93c5-4a53-b405-51205b978bcf/artifacts/0/tmp/fw/artifacts/spans.jsonl"
+     },
+     {
+      "path": "tmp/fw/artifacts/timings.json",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/1cb4cc2a-93c5-4a53-b405-51205b978bcf/artifacts/0/tmp/fw/artifacts/timings.json"
+     },
+     {
+      "path": "tmp/fw/artifacts/premises-chromium/chromium.json",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/1cb4cc2a-93c5-4a53-b405-51205b978bcf/artifacts/0/tmp/fw/artifacts/premises-chromium/chromium.json"
+     }
+    ]
+   },
+   "GET /project/gh/example-org/example-repo/job/11": {
+    "created_at": "2026-10-19T19:55:38.646Z",
+    "duration": 51645,
+    "executor": {
+     "resource_class": "arm-medium-gen2",
+     "type": "linux"
+    },
+    "messages": [],
+    "queued_at": "2026-10-19T19:55:38.784Z",
+    "started_at": "2026-10-19T19:55:52.713Z",
+    "status": "success",
+    "stopped_at": "2026-10-19T19:56:44.358Z",
+    "parallel_runs": [
+     {
+      "index": 0,
+      "status": "success"
+     }
+    ],
+    "contexts": [],
+    "latest_workflow": {
+     "id": "084b6e4e-f867-4e46-ae03-ecbd4e5a3134",
+     "name": "premise-tests"
+    },
+    "name": "engine-playwright-webkit",
+    "number": 11,
+    "organization": {
+     "name": "example-org"
+    },
+    "parallelism": 1,
+    "pipeline": {
+     "id": "c23e8bd1-26a6-40c2-88e3-a340dc2550cd"
+    },
+    "project": {
+     "external_url": "https://github.com/example-org/example-repo",
+     "id": "9fc0058d-e322-476c-9cea-5dd7e165146e",
+     "name": "example-repo",
+     "slug": "gh/example-org/example-repo"
+    },
+    "web_url": "https://circleci.com/gh/example-org/example-repo/11"
+   },
+   "GET /project/gh/example-org/example-repo/11/artifacts": {
+    "next_page_token": null,
+    "items": [
+     {
+      "path": "tmp/fw/artifacts/spans.jsonl",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/e4edf9fd-1988-4836-86f0-4c72b7b61fdc/artifacts/0/tmp/fw/artifacts/spans.jsonl"
+     },
+     {
+      "path": "tmp/fw/artifacts/timings.json",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/e4edf9fd-1988-4836-86f0-4c72b7b61fdc/artifacts/0/tmp/fw/artifacts/timings.json"
+     },
+     {
+      "path": "tmp/fw/artifacts/premises-playwright-webkit/webkit.json",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/e4edf9fd-1988-4836-86f0-4c72b7b61fdc/artifacts/0/tmp/fw/artifacts/premises-playwright-webkit/webkit.json"
+     }
+    ]
+   },
+   "GET /project/gh/example-org/example-repo/job/12": {
+    "created_at": "2026-10-19T19:56:58.493Z",
+    "duration": 10149,
+    "executor": {
+     "resource_class": "arm-medium-gen2",
+     "type": "linux"
+    },
+    "messages": [],
+    "queued_at": "2026-10-19T19:56:58.676Z",
+    "started_at": "2026-10-19T19:57:32.544Z",
+    "status": "success",
+    "stopped_at": "2026-10-19T19:57:42.693Z",
+    "parallel_runs": [
+     {
+      "index": 0,
+      "status": "success"
+     }
+    ],
+    "contexts": [],
+    "latest_workflow": {
+     "id": "084b6e4e-f867-4e46-ae03-ecbd4e5a3134",
+     "name": "premise-tests"
+    },
+    "name": "verdict",
+    "number": 12,
+    "organization": {
+     "name": "example-org"
+    },
+    "parallelism": 1,
+    "pipeline": {
+     "id": "c23e8bd1-26a6-40c2-88e3-a340dc2550cd"
+    },
+    "project": {
+     "external_url": "https://github.com/example-org/example-repo",
+     "id": "9fc0058d-e322-476c-9cea-5dd7e165146e",
+     "name": "example-repo",
+     "slug": "gh/example-org/example-repo"
+    },
+    "web_url": "https://circleci.com/gh/example-org/example-repo/12"
+   },
+   "GET /project/gh/example-org/example-repo/12/artifacts": {
+    "next_page_token": null,
+    "items": [
+     {
+      "path": "tmp/fw/artifacts/premises-verdict.txt",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/6d72227f-4aa6-4350-9a62-e4fd5dcd11e3/artifacts/0/tmp/fw/artifacts/premises-verdict.txt"
+     },
+     {
+      "path": "tmp/fw/artifacts/spans.jsonl",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/6d72227f-4aa6-4350-9a62-e4fd5dcd11e3/artifacts/0/tmp/fw/artifacts/spans.jsonl"
+     },
+     {
+      "path": "tmp/fw/artifacts/timings.json",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/6d72227f-4aa6-4350-9a62-e4fd5dcd11e3/artifacts/0/tmp/fw/artifacts/timings.json"
+     }
+    ]
+   }
+  },
+  "files": {
+   "https://output.circle-artifacts.com/output/job/1cb4cc2a-93c5-4a53-b405-51205b978bcf/artifacts/0/tmp/fw/artifacts/spans.jsonl": "{\"tool\":\"circleci/engine-chromium\",\"step\":\"checkout\",\"startMs\":1792439779248,\"durMs\":3601,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.24,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-chromium\",\"step\":\"node\",\"startMs\":1792439783077,\"durMs\":1495,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.24,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-chromium\",\"step\":\"pnpm\",\"startMs\":1792439784573,\"durMs\":696,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.24,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-chromium\",\"step\":\"cache restore\",\"startMs\":1792439785511,\"durMs\":714,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.30,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-chromium\",\"step\":\"deps install\",\"startMs\":1792439786454,\"durMs\":417,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.30,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-chromium\",\"step\":\"system libraries\",\"startMs\":1792439787231,\"durMs\":22190,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.30,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-chromium\",\"step\":\"browser install\",\"startMs\":1792439809422,\"durMs\":2512,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.30,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-chromium\",\"step\":\"test\",\"startMs\":1792439812171,\"durMs\":4931,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.68,\"host\":\"ci\"}\n",
+   "https://output.circle-artifacts.com/output/job/1cb4cc2a-93c5-4a53-b405-51205b978bcf/artifacts/0/tmp/fw/artifacts/timings.json": "{\n  \"schema\": \"fw.circleci-timings/1\",\n  \"job\": \"engine-chromium\",\n  \"class\": \"arm.medium.gen2\",\n  \"sha\": \"9145de1d8afc378a2b260530f3cb01745325cc7d\",\n  \"digest\": \"8f39749964bf8ab0221ddcf75750c281bcf12363cc5ac1c87062acc2bc2f1f52\",\n  \"bytes\": {\n    \"cache\": 53637120,\n    \"workspace\": 24576\n  },\n  \"spans\": [\n    {\n      \"tool\": \"circleci/engine-chromium\",\n      \"step\": \"checkout\",\n      \"startMs\": 1792439779248,\n      \"durMs\": 3601,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.24,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-chromium\",\n      \"step\": \"node\",\n      \"startMs\": 1792439783077,\n      \"durMs\": 1495,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.24,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-chromium\",\n      \"step\": \"pnpm\",\n      \"startMs\": 1792439784573,\n      \"durMs\": 696,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.24,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-chromium\",\n      \"step\": \"cache restore\",\n      \"startMs\": 1792439785511,\n      \"durMs\": 714,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.3,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-chromium\",\n      \"step\": \"deps install\",\n      \"startMs\": 1792439786454,\n      \"durMs\": 417,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.3,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-chromium\",\n      \"step\": \"system libraries\",\n      \"startMs\": 1792439787231,\n      \"durMs\": 22190,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.3,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-chromium\",\n      \"step\": \"browser install\",\n      \"startMs\": 1792439809422,\n      \"durMs\": 2512,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.3,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-chromium\",\n      \"step\": \"test\",\n      \"startMs\": 1792439812171,\n      \"durMs\": 4931,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.68,\n      \"host\": \"ci\"\n    }\n  ]\n}\n",
+   "https://output.circle-artifacts.com/output/job/1cb4cc2a-93c5-4a53-b405-51205b978bcf/artifacts/0/tmp/fw/artifacts/premises-chromium/chromium.json": "{\n  \"schema\": 1,\n  \"engine\": \"chromium\",\n  \"browser\": \"156.0.8078.4\",\n  \"playwrightCore\": \"1.64.1\",\n  \"tests\": [\n    {\n      \"id\": \"prem.anim.list\",\n      \"premise\": \"anim.list\"\n    },\n    {\n      \"id\": \"prem.cv.auto-margin\",\n      \"premise\": \"cv.auto-margin\"\n    },\n    {\n      \"id\": \"prem.cv.read-forces-lock\",\n      \"premise\": \"cv.read-forces-lock\"\n    },\n    {\n      \"id\": \"prem.cv.skip-flag\",\n      \"premise\": \"cv.skip-flag\"\n    },\n    {\n      \"id\": \"prem.cv.fresh-after-resize\",\n      \"premise\": \"cv.fresh-after-resize\"\n    },\n    {\n      \"id\": \"prem.frame.raf-order\",\n      \"premise\": \"frame.raf-order\"\n    },\n    {\n      \"id\": \"prem.frame.ro-same-frame\",\n      \"premise\": \"frame.ro-same-frame\"\n    },\n    {\n      \"id\": \"prem.resize.lag\",\n      \"premise\": \"resize.lag\"\n    },\n    {\n      \"id\": \"prem.clock.raf-timeline\",\n      \"premise\": \"clock.raf-timeline\"\n    },\n    {\n      \"id\": \"prem.css.number-linear\",\n      \"premise\": \"css.number-linear\"\n    },\n    {\n      \"id\": \"prem.css.inherits-false\",\n      \"premise\": \"css.inherits-false\"\n    },\n    {\n      \"id\": \"prem.dom.token-toggle-noop\",\n      \"premise\": \"dom.token-toggle-noop\"\n    },\n    {\n      \"id\": \"prem.dom.inline-same-value\",\n      \"premise\": \"dom.inline-same-value\"\n    },\n    {\n      \"id\": \"prem.read.forced-update\",\n      \"premise\": \"read.forced-update\"\n    },\n    {\n      \"id\": \"prem.hit.pointer-events\",\n      \"premise\": \"hit.pointer-events\"\n    },\n    {\n      \"id\": \"prem.layout.unit-truncation\",\n      \"premise\": \"layout.unit-truncation\"\n    },\n    {\n      \"id\": \"prem.io.async-delivery\",\n      \"premise\": \"io.async-delivery\"\n    },\n    {\n      \"id\": \"prem.grid.normal-aspect-ratio-no-stretch\",\n      \"premise\": \"grid.normal-aspect-ratio-no-stretch\"\n    },\n    {\n      \"id\": \"prem.grid.stretch-fill-equals-start\",\n      \"premise\": \"grid.stretch-fill-equals-start\"\n    }\n  ],\n  \"results\": [\n    {\n      \"testId\": \"prem.anim.list\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"during\": [\n          {\n            \"kind\": \"transition\",\n            \"target\": \"tr\",\n            \"name\": \"width\"\n          },\n          {\n            \"kind\": \"transition\",\n            \"target\": \"quick\",\n            \"name\": \"width\"\n          },\n          {\n            \"kind\": \"animation\",\n            \"target\": \"css\",\n            \"name\": \"grow\"\n          }\n        ],\n        \"after\": [\n          {\n            \"kind\": \"transition\",\n            \"target\": \"tr\",\n            \"name\": \"width\"\n          },\n          {\n            \"kind\": \"animation\",\n            \"target\": \"css\",\n            \"name\": \"grow\"\n          }\n        ],\n        \"lerpMoved\": true,\n        \"msToDuring\": 27\n      },\n      \"ms\": 1579\n    },\n    {\n      \"testId\": \"prem.cv.auto-margin\",\n      \"engine\": \"chromium\",\n      \"ok\": false,\n      \"observed\": {\n        \"skipped\": {\n          \"margin\": \"150px\",\n          \"width\": \"100px\",\n          \"wasSkipped\": true,\n          \"state\": {\n            \"events\": [\n              true\n            ],\n            \"scrollY\": 0,\n            \"innerHeight\": 600,\n            \"top\": 4000\n          }\n        },\n        \"shown\": \"150px\"\n      },\n      \"error\": \"skipped subtree reports unresolved auto margin, got 150px\\n\\n'150px' !== 'auto'\\n\",\n      \"ms\": 76\n    },\n    {\n      \"testId\": \"prem.cv.read-forces-lock\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"skippedBefore\": true,\n        \"margin\": \"150px\",\n        \"width\": \"100px\",\n        \"displayNoneMargin\": \"auto\",\n        \"state\": {\n          \"events\": [\n            true\n          ],\n          \"scrollY\": 0,\n          \"innerHeight\": 600,\n          \"top\": 4000\n        }\n      },\n      \"ms\": 38\n    },\n    {\n      \"testId\": \"prem.cv.skip-flag\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"state\": {\n          \"events\": [\n            true\n          ],\n          \"scrollY\": 0,\n          \"innerHeight\": 600,\n          \"top\": 4018\n        },\n        \"skipped\": {\n          \"m\": {\n            \"visible\": true,\n            \"visibleAuto\": false\n          },\n          \"plain\": {\n            \"visible\": true,\n            \"visibleAuto\": true\n          },\n          \"events\": [\n            true\n          ]\n        },\n        \"shown\": {\n          \"m\": {\n            \"visible\": true,\n            \"visibleAuto\": true\n          },\n          \"plain\": {\n            \"visible\": true,\n            \"visibleAuto\": true\n          },\n          \"events\": [\n            true,\n            false\n          ]\n        }\n      },\n      \"ms\": 60\n    },\n    {\n      \"testId\": \"prem.cv.fresh-after-resize\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"state\": {\n          \"events\": [\n            true\n          ],\n          \"scrollY\": 0,\n          \"innerHeight\": 600,\n          \"top\": 4000\n        },\n        \"lateSkipped\": true,\n        \"lateBefore\": {\n          \"style\": \"380px\",\n          \"geometry\": -20,\n          \"width\": 0,\n          \"innerWidth\": 1100\n        },\n        \"out\": {\n          \"m\": {\n            \"style\": \"380px\",\n            \"geometry\": 380,\n            \"width\": 300,\n            \"innerWidth\": 1100\n          },\n          \"lm\": {\n            \"style\": \"380px\",\n            \"geometry\": 380,\n            \"width\": 300,\n            \"innerWidth\": 1100\n          }\n        },\n        \"want\": 380\n      },\n      \"ms\": 227\n    },\n    {\n      \"testId\": \"prem.frame.raf-order\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"log\": [\n          \"raf1\",\n          \"raf2\",\n          \"ro:50\"\n        ]\n      },\n      \"ms\": 212\n    },\n    {\n      \"testId\": \"prem.frame.ro-same-frame\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"log\": [\n          \"raf-n\",\n          \"ro:50\",\n          \"raf-n+1\"\n        ]\n      },\n      \"ms\": 213\n    },\n    {\n      \"testId\": \"prem.resize.lag\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"firstNewViewportFrame\": 3,\n        \"firstFullyAgreeingFrame\": 4,\n        \"lag\": 1,\n        \"K\": 2\n      },\n      \"ms\": 231\n    },\n    {\n      \"testId\": \"prem.clock.raf-timeline\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"worst\": 0,\n        \"sample\": {\n          \"t\": 10.9,\n          \"tl\": 10.9,\n          \"now\": 11.200000000011642\n        }\n      },\n      \"ms\": 197\n    },\n    {\n      \"testId\": \"prem.css.number-linear\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"values\": [\n          2.5,\n          5,\n          7.5\n        ]\n      },\n      \"ms\": 29\n    },\n    {\n      \"testId\": \"prem.css.inherits-false\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"parentNo\": \"5\",\n        \"childNo\": \"0\",\n        \"childYes\": \"5\"\n      },\n      \"ms\": 10\n    },\n    {\n      \"testId\": \"prem.dom.token-toggle-noop\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"counts\": [\n          0,\n          0,\n          1,\n          0,\n          1\n        ]\n      },\n      \"ms\": 12\n    },\n    {\n      \"testId\": \"prem.dom.inline-same-value\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"counts\": [\n          1,\n          0,\n          0,\n          1,\n          1,\n          0\n        ]\n      },\n      \"ms\": 11\n    },\n    {\n      \"testId\": \"prem.read.forced-update\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"rect\": 70,\n        \"computed\": \"33px\",\n        \"offset\": 44,\n        \"before\": \"top\",\n        \"off\": \"under\",\n        \"on\": \"top\"\n      },\n      \"ms\": 11\n    },\n    {\n      \"testId\": \"prem.hit.pointer-events\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"top\": \"under\",\n        \"hole\": \"hole\",\n        \"stackNone\": [\n          \"under\"\n        ],\n        \"stackHole\": [\n          \"hole\",\n          \"under\"\n        ]\n      },\n      \"ms\": 11\n    },\n    {\n      \"testId\": \"prem.layout.unit-truncation\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"got\": [\n          10,\n          10.015625,\n          100.984375,\n          33.328125\n        ],\n        \"want\": [\n          10,\n          10.015625,\n          100.984375,\n          33.328125\n        ]\n      },\n      \"ms\": 11\n    },\n    {\n      \"testId\": \"prem.io.async-delivery\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"syncDelivery\": false,\n        \"deliveredAt\": 1,\n        \"K\": 3\n      },\n      \"ms\": 164\n    },\n    {\n      \"testId\": \"prem.grid.normal-aspect-ratio-no-stretch\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"normalWithRatio\": \"fill\",\n        \"fresh\": [\n          {\n            \"w\": 375,\n            \"h\": 300\n          },\n          {\n            \"w\": 320,\n            \"h\": 256\n          },\n          {\n            \"w\": 375,\n            \"h\": 300\n          },\n          {\n            \"w\": 320,\n            \"h\": 300\n          }\n        ],\n        \"narrow\": [\n          {\n            \"w\": 375,\n            \"h\": 300\n          },\n          {\n            \"w\": 280,\n            \"h\": 224\n          },\n          {\n            \"w\": 375,\n            \"h\": 300\n          },\n          {\n            \"w\": 280,\n            \"h\": 300\n          }\n        ],\n        \"after\": [\n          {\n            \"w\": 375,\n            \"h\": 300\n          },\n          {\n            \"w\": 320,\n            \"h\": 256\n          },\n          {\n            \"w\": 375,\n            \"h\": 300\n          },\n          {\n            \"w\": 320,\n            \"h\": 300\n          }\n        ],\n        \"ratioH\": 256\n      },\n      \"ms\": 113\n    },\n    {\n      \"testId\": \"prem.grid.stretch-fill-equals-start\",\n      \"engine\": \"chromium\",\n      \"ok\": true,\n      \"observed\": {\n        \"fresh\": {\n          \"a\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"b\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"c\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          }\n        },\n        \"after\": {\n          \"a\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"b\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"c\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"fills\": true,\n          \"equiv\": true\n        }\n      },\n      \"ms\": 115\n    }\n  ]\n}\n",
+   "https://output.circle-artifacts.com/output/job/e4edf9fd-1988-4836-86f0-4c72b7b61fdc/artifacts/0/tmp/fw/artifacts/spans.jsonl": "{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"checkout\",\"startMs\":1792439753031,\"durMs\":3310,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.25,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"node\",\"startMs\":1792439756570,\"durMs\":1504,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.25,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"pnpm\",\"startMs\":1792439758075,\"durMs\":655,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.25,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"cache restore\",\"startMs\":1792439758976,\"durMs\":418,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.31,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"deps install\",\"startMs\":1792439759622,\"durMs\":683,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.31,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"system libraries\",\"startMs\":1792439761083,\"durMs\":32788,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.31,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"browser install\",\"startMs\":1792439793871,\"durMs\":2841,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.31,\"host\":\"ci\"}\n{\"tool\":\"circleci/engine-playwright-webkit\",\"step\":\"test\",\"startMs\":1792439796975,\"durMs\":6655,\"exit\":0,\"commit\":\"9145de1\",\"load\":0.80,\"host\":\"ci\"}\n",
+   "https://output.circle-artifacts.com/output/job/e4edf9fd-1988-4836-86f0-4c72b7b61fdc/artifacts/0/tmp/fw/artifacts/timings.json": "{\n  \"schema\": \"fw.circleci-timings/1\",\n  \"job\": \"engine-playwright-webkit\",\n  \"class\": \"arm.medium.gen2\",\n  \"sha\": \"9145de1d8afc378a2b260530f3cb01745325cc7d\",\n  \"digest\": \"8f39749964bf8ab0221ddcf75750c281bcf12363cc5ac1c87062acc2bc2f1f52\",\n  \"bytes\": {\n    \"cache\": 53637120,\n    \"workspace\": 24576\n  },\n  \"spans\": [\n    {\n      \"tool\": \"circleci/engine-playwright-webkit\",\n      \"step\": \"checkout\",\n      \"startMs\": 1792439753031,\n      \"durMs\": 3310,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.25,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-playwright-webkit\",\n      \"step\": \"node\",\n      \"startMs\": 1792439756570,\n      \"durMs\": 1504,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.25,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-playwright-webkit\",\n      \"step\": \"pnpm\",\n      \"startMs\": 1792439758075,\n      \"durMs\": 655,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.25,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-playwright-webkit\",\n      \"step\": \"cache restore\",\n      \"startMs\": 1792439758976,\n      \"durMs\": 418,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.31,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-playwright-webkit\",\n      \"step\": \"deps install\",\n      \"startMs\": 1792439759622,\n      \"durMs\": 683,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.31,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-playwright-webkit\",\n      \"step\": \"system libraries\",\n      \"startMs\": 1792439761083,\n      \"durMs\": 32788,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.31,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-playwright-webkit\",\n      \"step\": \"browser install\",\n      \"startMs\": 1792439793871,\n      \"durMs\": 2841,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.31,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/engine-playwright-webkit\",\n      \"step\": \"test\",\n      \"startMs\": 1792439796975,\n      \"durMs\": 6655,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 0.8,\n      \"host\": \"ci\"\n    }\n  ]\n}\n",
+   "https://output.circle-artifacts.com/output/job/e4edf9fd-1988-4836-86f0-4c72b7b61fdc/artifacts/0/tmp/fw/artifacts/premises-playwright-webkit/webkit.json": "{\n  \"schema\": 1,\n  \"engine\": \"webkit\",\n  \"browser\": \"27.2\",\n  \"playwrightCore\": \"1.64.1\",\n  \"tests\": [\n    {\n      \"id\": \"prem.anim.list\",\n      \"premise\": \"anim.list\"\n    },\n    {\n      \"id\": \"prem.cv.auto-margin\",\n      \"premise\": \"cv.auto-margin\"\n    },\n    {\n      \"id\": \"prem.cv.read-forces-lock\",\n      \"premise\": \"cv.read-forces-lock\"\n    },\n    {\n      \"id\": \"prem.cv.skip-flag\",\n      \"premise\": \"cv.skip-flag\"\n    },\n    {\n      \"id\": \"prem.cv.fresh-after-resize\",\n      \"premise\": \"cv.fresh-after-resize\"\n    },\n    {\n      \"id\": \"prem.frame.raf-order\",\n      \"premise\": \"frame.raf-order\"\n    },\n    {\n      \"id\": \"prem.frame.ro-same-frame\",\n      \"premise\": \"frame.ro-same-frame\"\n    },\n    {\n      \"id\": \"prem.resize.lag\",\n      \"premise\": \"resize.lag\"\n    },\n    {\n      \"id\": \"prem.clock.raf-timeline\",\n      \"premise\": \"clock.raf-timeline\"\n    },\n    {\n      \"id\": \"prem.css.number-linear\",\n      \"premise\": \"css.number-linear\"\n    },\n    {\n      \"id\": \"prem.css.inherits-false\",\n      \"premise\": \"css.inherits-false\"\n    },\n    {\n      \"id\": \"prem.dom.token-toggle-noop\",\n      \"premise\": \"dom.token-toggle-noop\"\n    },\n    {\n      \"id\": \"prem.dom.inline-same-value\",\n      \"premise\": \"dom.inline-same-value\"\n    },\n    {\n      \"id\": \"prem.read.forced-update\",\n      \"premise\": \"read.forced-update\"\n    },\n    {\n      \"id\": \"prem.hit.pointer-events\",\n      \"premise\": \"hit.pointer-events\"\n    },\n    {\n      \"id\": \"prem.layout.unit-truncation\",\n      \"premise\": \"layout.unit-truncation\"\n    },\n    {\n      \"id\": \"prem.io.async-delivery\",\n      \"premise\": \"io.async-delivery\"\n    },\n    {\n      \"id\": \"prem.grid.normal-aspect-ratio-no-stretch\",\n      \"premise\": \"grid.normal-aspect-ratio-no-stretch\"\n    },\n    {\n      \"id\": \"prem.grid.stretch-fill-equals-start\",\n      \"premise\": \"grid.stretch-fill-equals-start\"\n    }\n  ],\n  \"results\": [\n    {\n      \"testId\": \"prem.anim.list\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"during\": [\n          {\n            \"kind\": \"transition\",\n            \"target\": \"tr\",\n            \"name\": \"width\"\n          },\n          {\n            \"kind\": \"transition\",\n            \"target\": \"quick\",\n            \"name\": \"width\"\n          },\n          {\n            \"kind\": \"animation\",\n            \"target\": \"css\",\n            \"name\": \"grow\"\n          }\n        ],\n        \"after\": [\n          {\n            \"kind\": \"transition\",\n            \"target\": \"tr\",\n            \"name\": \"width\"\n          },\n          {\n            \"kind\": \"animation\",\n            \"target\": \"css\",\n            \"name\": \"grow\"\n          }\n        ],\n        \"lerpMoved\": true,\n        \"msToDuring\": 182\n      },\n      \"ms\": 1723\n    },\n    {\n      \"testId\": \"prem.cv.auto-margin\",\n      \"engine\": \"webkit\",\n      \"ok\": false,\n      \"observed\": {\n        \"skipped\": {\n          \"margin\": \"150px\",\n          \"width\": \"100px\",\n          \"wasSkipped\": true,\n          \"state\": {\n            \"events\": [\n              true\n            ],\n            \"scrollY\": 0,\n            \"innerHeight\": 600,\n            \"top\": 4000\n          }\n        },\n        \"shown\": \"150px\"\n      },\n      \"error\": \"skipped subtree reports unresolved auto margin, got 150px\\n\\n'150px' !== 'auto'\\n\",\n      \"ms\": 62\n    },\n    {\n      \"testId\": \"prem.cv.read-forces-lock\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"skippedBefore\": true,\n        \"margin\": \"150px\",\n        \"width\": \"100px\",\n        \"displayNoneMargin\": \"auto\",\n        \"state\": {\n          \"events\": [\n            true\n          ],\n          \"scrollY\": 0,\n          \"innerHeight\": 600,\n          \"top\": 4000\n        }\n      },\n      \"ms\": 40\n    },\n    {\n      \"testId\": \"prem.cv.skip-flag\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"state\": {\n          \"events\": [\n            true\n          ],\n          \"scrollY\": 0,\n          \"innerHeight\": 600,\n          \"top\": 4019\n        },\n        \"skipped\": {\n          \"m\": {\n            \"visible\": true,\n            \"visibleAuto\": false\n          },\n          \"plain\": {\n            \"visible\": true,\n            \"visibleAuto\": true\n          },\n          \"events\": [\n            true\n          ]\n        },\n        \"shown\": {\n          \"m\": {\n            \"visible\": true,\n            \"visibleAuto\": true\n          },\n          \"plain\": {\n            \"visible\": true,\n            \"visibleAuto\": true\n          },\n          \"events\": [\n            true,\n            false\n          ]\n        }\n      },\n      \"ms\": 119\n    },\n    {\n      \"testId\": \"prem.cv.fresh-after-resize\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"state\": {\n          \"events\": [\n            true\n          ],\n          \"scrollY\": 0,\n          \"innerHeight\": 600,\n          \"top\": 4000\n        },\n        \"lateSkipped\": true,\n        \"lateBefore\": {\n          \"style\": \"380px\",\n          \"geometry\": 380,\n          \"width\": 300,\n          \"innerWidth\": 1100\n        },\n        \"out\": {\n          \"m\": {\n            \"style\": \"380px\",\n            \"geometry\": 380,\n            \"width\": 300,\n            \"innerWidth\": 1100\n          },\n          \"lm\": {\n            \"style\": \"380px\",\n            \"geometry\": 380,\n            \"width\": 300,\n            \"innerWidth\": 1100\n          }\n        },\n        \"want\": 380\n      },\n      \"ms\": 222\n    },\n    {\n      \"testId\": \"prem.frame.raf-order\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"log\": [\n          \"raf1\",\n          \"raf2\",\n          \"ro:50\"\n        ]\n      },\n      \"ms\": 227\n    },\n    {\n      \"testId\": \"prem.frame.ro-same-frame\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"log\": [\n          \"raf-n\",\n          \"ro:50\",\n          \"raf-n+1\"\n        ]\n      },\n      \"ms\": 228\n    },\n    {\n      \"testId\": \"prem.resize.lag\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"firstNewViewportFrame\": 3,\n        \"firstFullyAgreeingFrame\": 4,\n        \"lag\": 1,\n        \"K\": 2\n      },\n      \"ms\": 237\n    },\n    {\n      \"testId\": \"prem.clock.raf-timeline\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"worst\": 0,\n        \"sample\": {\n          \"t\": 12,\n          \"tl\": 12,\n          \"now\": 12\n        }\n      },\n      \"ms\": 208\n    },\n    {\n      \"testId\": \"prem.css.number-linear\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"values\": [\n          2.5,\n          5,\n          7.5\n        ]\n      },\n      \"ms\": 45\n    },\n    {\n      \"testId\": \"prem.css.inherits-false\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"parentNo\": \"5\",\n        \"childNo\": \"0\",\n        \"childYes\": \"5\"\n      },\n      \"ms\": 12\n    },\n    {\n      \"testId\": \"prem.dom.token-toggle-noop\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"counts\": [\n          0,\n          0,\n          1,\n          0,\n          1\n        ]\n      },\n      \"ms\": 11\n    },\n    {\n      \"testId\": \"prem.dom.inline-same-value\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"counts\": [\n          1,\n          0,\n          0,\n          1,\n          1,\n          0\n        ]\n      },\n      \"ms\": 10\n    },\n    {\n      \"testId\": \"prem.read.forced-update\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"rect\": 70,\n        \"computed\": \"33px\",\n        \"offset\": 44,\n        \"before\": \"top\",\n        \"off\": \"under\",\n        \"on\": \"top\"\n      },\n      \"ms\": 12\n    },\n    {\n      \"testId\": \"prem.hit.pointer-events\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"top\": \"under\",\n        \"hole\": \"hole\",\n        \"stackNone\": [\n          \"under\"\n        ],\n        \"stackHole\": [\n          \"hole\",\n          \"under\"\n        ]\n      },\n      \"ms\": 11\n    },\n    {\n      \"testId\": \"prem.layout.unit-truncation\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"got\": [\n          10,\n          10.015625,\n          100.984375,\n          33.328125\n        ],\n        \"want\": [\n          10,\n          10.015625,\n          100.984375,\n          33.328125\n        ]\n      },\n      \"ms\": 11\n    },\n    {\n      \"testId\": \"prem.io.async-delivery\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"syncDelivery\": false,\n        \"deliveredAt\": 1,\n        \"K\": 3\n      },\n      \"ms\": 161\n    },\n    {\n      \"testId\": \"prem.grid.normal-aspect-ratio-no-stretch\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"normalWithRatio\": \"content\",\n        \"fresh\": [\n          {\n            \"w\": 320,\n            \"h\": 256\n          },\n          {\n            \"w\": 320,\n            \"h\": 256\n          },\n          {\n            \"w\": 320,\n            \"h\": 300\n          },\n          {\n            \"w\": 320,\n            \"h\": 300\n          }\n        ],\n        \"narrow\": [\n          {\n            \"w\": 280,\n            \"h\": 224\n          },\n          {\n            \"w\": 280,\n            \"h\": 224\n          },\n          {\n            \"w\": 280,\n            \"h\": 300\n          },\n          {\n            \"w\": 280,\n            \"h\": 300\n          }\n        ],\n        \"after\": [\n          {\n            \"w\": 320,\n            \"h\": 256\n          },\n          {\n            \"w\": 320,\n            \"h\": 256\n          },\n          {\n            \"w\": 320,\n            \"h\": 300\n          },\n          {\n            \"w\": 320,\n            \"h\": 300\n          }\n        ],\n        \"ratioH\": 256\n      },\n      \"ms\": 94\n    },\n    {\n      \"testId\": \"prem.grid.stretch-fill-equals-start\",\n      \"engine\": \"webkit\",\n      \"ok\": true,\n      \"observed\": {\n        \"fresh\": {\n          \"a\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"b\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"c\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          }\n        },\n        \"after\": {\n          \"a\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"b\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"c\": {\n            \"rows\": \"384px 52.1875px\",\n            \"h\": 384,\n            \"top\": 0\n          },\n          \"fills\": true,\n          \"equiv\": true\n        }\n      },\n      \"ms\": 96\n    }\n  ]\n}\n",
+   "https://output.circle-artifacts.com/output/job/6d72227f-4aa6-4350-9a62-e4fd5dcd11e3/artifacts/0/tmp/fw/artifacts/premises-verdict.txt": "\n> fastwork-loop-v2@ fw /home/circleci/project\n> node apps/runner/src/fw.ts premises --results /tmp/fw/ws/premise-results\n\npremises: 32 registered (13 lane), 32 with a test, 18 page premises hold on chromium + webkit\nacknowledged findings (2, Fw.Ops.Premise.acks; not failing):\n  ACK premise cv.auto-margin on chromium: skipped subtree reports unresolved auto margin, got 150px [premise.cv.auto-margin]\n    theorems that assume it, not proved for this engine: planned:gate-settle, planned:fix-commission\n  ACK premise cv.auto-margin on webkit: skipped subtree reports unresolved auto margin, got 150px [premise.cv.auto-margin]\n    theorems that assume it, not proved for this engine: planned:gate-settle, planned:fix-commission\npremises: ok\n",
+   "https://output.circle-artifacts.com/output/job/6d72227f-4aa6-4350-9a62-e4fd5dcd11e3/artifacts/0/tmp/fw/artifacts/spans.jsonl": "{\"tool\":\"circleci/verdict\",\"step\":\"checkout\",\"startMs\":1792439852877,\"durMs\":4021,\"exit\":0,\"commit\":\"9145de1\",\"load\":1.35,\"host\":\"ci\"}\n{\"tool\":\"circleci/verdict\",\"step\":\"node\",\"startMs\":1792439857115,\"durMs\":1249,\"exit\":0,\"commit\":\"9145de1\",\"load\":1.35,\"host\":\"ci\"}\n{\"tool\":\"circleci/verdict\",\"step\":\"pnpm\",\"startMs\":1792439858365,\"durMs\":631,\"exit\":0,\"commit\":\"9145de1\",\"load\":1.35,\"host\":\"ci\"}\n{\"tool\":\"circleci/verdict\",\"step\":\"cache restore\",\"startMs\":1792439859229,\"durMs\":783,\"exit\":0,\"commit\":\"9145de1\",\"load\":1.24,\"host\":\"ci\"}\n{\"tool\":\"circleci/verdict\",\"step\":\"deps install\",\"startMs\":1792439860246,\"durMs\":1029,\"exit\":0,\"commit\":\"9145de1\",\"load\":1.24,\"host\":\"ci\"}\n{\"commit\":\"9145de1\",\"load\":1.24,\"host\":\"ci\",\"tool\":\"fw\",\"step\":\"premises\",\"startMs\":1792439862079,\"durMs\":47,\"exit\":0}\n{\"tool\":\"circleci/verdict\",\"step\":\"fw premises\",\"startMs\":1792439861736,\"durMs\":407,\"exit\":0,\"commit\":\"9145de1\",\"load\":1.24,\"host\":\"ci\"}\n",
+   "https://output.circle-artifacts.com/output/job/6d72227f-4aa6-4350-9a62-e4fd5dcd11e3/artifacts/0/tmp/fw/artifacts/timings.json": "{\n  \"schema\": \"fw.circleci-timings/1\",\n  \"job\": \"verdict\",\n  \"class\": \"arm.medium.gen2\",\n  \"sha\": \"9145de1d8afc378a2b260530f3cb01745325cc7d\",\n  \"digest\": null,\n  \"bytes\": {\n    \"cache\": 0,\n    \"workspace\": 0\n  },\n  \"spans\": [\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"checkout\",\n      \"startMs\": 1792439852877,\n      \"durMs\": 4021,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.35,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"node\",\n      \"startMs\": 1792439857115,\n      \"durMs\": 1249,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.35,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"pnpm\",\n      \"startMs\": 1792439858365,\n      \"durMs\": 631,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.35,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"cache restore\",\n      \"startMs\": 1792439859229,\n      \"durMs\": 783,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.24,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"deps install\",\n      \"startMs\": 1792439860246,\n      \"durMs\": 1029,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.24,\n      \"host\": \"ci\"\n    },\n    {\n      \"commit\": \"9145de1\",\n      \"load\": 1.24,\n      \"host\": \"ci\",\n      \"tool\": \"fw\",\n      \"step\": \"premises\",\n      \"startMs\": 1792439862079,\n      \"durMs\": 47,\n      \"exit\": 0\n    },\n    {\n      \"tool\": \"circleci/verdict\",\n      \"step\": \"fw premises\",\n      \"startMs\": 1792439861736,\n      \"durMs\": 407,\n      \"exit\": 0,\n      \"commit\": \"9145de1\",\n      \"load\": 1.24,\n      \"host\": \"ci\"\n    }\n  ]\n}\n"
   }
+ },
+ "github": {
+  "databaseId": 39315828784,
+  "workflowName": "premise-tests",
+  "headSha": "9145de1d8afc378a2b260530f3cb01745325cc7d",
+  "createdAt": "2026-10-19T20:01:32Z",
+  "digests": {
+   "engine (playwright-webkit)": "8f39749964bf8ab0221ddcf75750c281bcf12363cc5ac1c87062acc2bc2f1f52",
+   "engine (chromium)": "8f39749964bf8ab0221ddcf75750c281bcf12363cc5ac1c87062acc2bc2f1f52"
+  },
+  "jobs": [
+   {
+    "name": "engine (playwright-webkit)",
+    "conclusion": "success",
+    "startedAt": "2026-10-19T20:03:23Z",
+    "completedAt": "2026-10-19T20:04:18Z"
+   },
+   {
+    "name": "engine (chromium)",
+    "conclusion": "success",
+    "startedAt": "2026-10-19T20:03:47Z",
+    "completedAt": "2026-10-19T20:04:26Z"
+   },
+   {
+    "name": "verdict",
+    "conclusion": "success",
+    "startedAt": "2026-10-19T20:12:41Z",
+    "completedAt": "2026-10-19T20:12:52Z"
+   }
+  ]
+ }
 }

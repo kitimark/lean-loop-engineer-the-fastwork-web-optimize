@@ -61,6 +61,9 @@ export const jobOfGithub = (g, name) => g.jobMap.find((r) => ghMatches(r.github,
 /** Lean `digestJob`: the pilot job (CircleCI name) is judged by its premise digest. */
 export const digestJob = (g, job) => g.jobMap.some((r) => r.circleci === job && r.digest);
 
+/** Lean `classOfApi`: the API writes `arm-medium-gen2`, the config and the price list `arm.medium.gen2`. */
+export const classOfApi = (name) => String(name).replaceAll('-', '.');
+
 /** Lean `ofCircleStatus`. */
 export function ofCircleStatus(status) {
   if (status === 'success') return 'pass';
@@ -266,7 +269,7 @@ const TERMINAL = new Set(['success', 'failed', 'error', 'canceled', 'not_run', '
 /** Lean `Run` of a finished CircleCI job (detail of GET /project/{slug}/job/{n}); queue = queued_at (else created_at) to started_at. */
 export function circleRun(detail, { sha, digest = null }) {
   const started = ms(detail.started_at), stopped = ms(detail.stopped_at), queuedAt = ms(detail.queued_at) ?? ms(detail.created_at);
-  return { provider: 'circleci', job: detail.name, sha, conclusion: ofCircleStatus(detail.status), digest, class: detail.executor?.resource_class ?? '',
+  return { provider: 'circleci', job: detail.name, sha, conclusion: ofCircleStatus(detail.status), digest, class: classOfApi(detail.executor?.resource_class ?? ''),
     queueMs: started != null && queuedAt != null ? Math.max(0, started - queuedAt) : 0,
     durMs: Number.isFinite(detail.duration) ? detail.duration : started != null && stopped != null ? stopped - started : 0 };
 }
@@ -388,10 +391,12 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
       const d = await call(ctx, 'GET', urls.job(slug, j.job_number));
       const dir = join(out, j.name);
       mkdirSync(dir, { recursive: true });
+      let timingsPath = join(dir, 'timings.json'); // CircleCI keeps the absolute upload path (tmp/fw/artifacts/...) in the artifact path
       for (const a of await listAll(ctx, urls.artifacts(slug, j.job_number))) {
         const rel = String(a.path).replace(/^\/+/, '');
         if (rel.split('/').includes('..') || rel === '') throw new Error(`artifact path ${a.path} leaves the output directory`);
         const dest = join(dir, ...rel.split('/'));
+        if (rel.split('/').pop() === 'timings.json') timingsPath = dest;
         if (!(dest + sep).startsWith(dir + sep)) throw new Error(`artifact path ${a.path} leaves the output directory`);
         const buf = await callBytes(ctx, a.url);
         mkdirSync(dirname(dest), { recursive: true });
@@ -401,7 +406,7 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
       runs.push(circleRun(d, { sha, digest: digestJob(g, j.name) ? premiseDigest(dir) : null }));
       const started = ms(d.started_at), stopped = ms(d.stopped_at), queuedAt = ms(d.queued_at) ?? ms(d.created_at);
       let own = [], saved = {};
-      try { const t = JSON.parse(readFileSync(join(dir, 'timings.json'), 'utf8')); own = t.spans ?? []; saved = t.bytes ?? {}; } catch { /* no timings.json: the job died before finish */ }
+      try { const t = JSON.parse(readFileSync(timingsPath, 'utf8')); own = t.spans ?? []; saved = t.bytes ?? {}; } catch { /* no timings.json: the job died before finish */ }
       bytes.cache += Number(saved.cache) || 0;
       bytes.workspace += Number(saved.workspace) || 0;
       const lastEnd = own.reduce((m, s) => Math.max(m, s.startMs + s.durMs), started ?? 0);
@@ -441,7 +446,7 @@ export function comparePairs(g, ghRuns, ccRuns) {
 export function renderComparison(rows) {
   const f = (r) => r.unpaired ? `${r.job}: only one side ran (missing: ${r.unpaired})`
     : !r.comparable ? `${r.job}: not a pair (${r.reason === 'digest' ? 'digest missing on a side' : r.reason})`
-    : `${r.job}${r.githubJob && r.githubJob !== r.job ? ` (github: ${r.githubJob})` : ''}: ${r.finding ? 'FINDING verdicts differ' : 'verdicts equal'}; duration ${r.ratioPermille == null ? 'n/a' : `${(r.ratioPermille / 1000).toFixed(2)}x GitHub`}; queue github ${Math.round(r.queueGithubMs / 1000)}s, circleci ${Math.round(r.queueCircleMs / 1000)}s; credits ${r.credits ?? 'n/a (class not in the price list)'}`;
+    : `${r.job}${r.githubJob && r.githubJob !== r.job ? ` (github: ${r.githubJob})` : ''}: ${r.finding ? 'FINDING verdicts differ' : 'verdicts equal'}; duration ${r.ratioPermille == null ? 'n/a' : `${(r.ratioPermille / 1000).toFixed(2)}x GitHub`}; queue github ${Math.round(r.queueGithubMs / 1000)}s (run start to job start), circleci ${Math.round(r.queueCircleMs / 1000)}s; credits ${r.credits ?? 'n/a (class not in the price list)'}`;
   return rows.map(f).join('\n');
 }
 

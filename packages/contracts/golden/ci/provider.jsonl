@@ -36,6 +36,13 @@
 {"name":"neutral","op":"githubConclusion","request":{"conclusion":"neutral"},"response":{"result":"not-run"}}
 {"name":"stale","op":"githubConclusion","request":{"conclusion":"stale"},"response":{"result":"not-run"}}
 {"name":"","op":"githubConclusion","request":{"conclusion":""},"response":{"result":"not-run"}}
+{"name":"arm-medium-gen2","op":"classOfApi","request":{"name":"arm-medium-gen2"},"response":{"class":"arm.medium.gen2"}}
+{"name":"arm-large-gen2","op":"classOfApi","request":{"name":"arm-large-gen2"},"response":{"class":"arm.large.gen2"}}
+{"name":"arm-medium","op":"classOfApi","request":{"name":"arm-medium"},"response":{"class":"arm.medium"}}
+{"name":"arm-large","op":"classOfApi","request":{"name":"arm-large"},"response":{"class":"arm.large"}}
+{"name":"m4pro-medium","op":"classOfApi","request":{"name":"m4pro-medium"},"response":{"class":"m4pro.medium"}}
+{"name":"arm.medium.gen2","op":"classOfApi","request":{"name":"arm.medium.gen2"},"response":{"class":"arm.medium.gen2"}}
+{"name":"","op":"classOfApi","request":{"name":""},"response":{"class":""}}
 {"name":"every workflow passed","op":"wait","request":{"noWorkflowS":300,"statuses":["success"],"timeoutS":3600,"waitedS":10},"response":{"exit":0}}
 {"name":"two workflows passed","op":"wait","request":{"noWorkflowS":300,"statuses":["success","success"],"timeoutS":3600,"waitedS":10},"response":{"exit":0}}
 {"name":"one failed, one passed: exit 1","op":"wait","request":{"noWorkflowS":300,"statuses":["success","failed"],"timeoutS":3600,"waitedS":10},"response":{"exit":1}}

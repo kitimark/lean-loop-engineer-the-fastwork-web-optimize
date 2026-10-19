@@ -181,6 +181,9 @@ def routeCases : List (String × RouteInput) := [
 def circleStatuses : List String := ["success", "failed", "infrastructure_fail", "timedout", "error", "failing", "unauthorized",
   "canceled", "not_run", "queued", "running", "on_hold", "terminated-unknown", ""]
 
+/-- Names of a job's resource class as the API reports them (the first four MEASURED on real jobs' `executor.resource_class`), and as the config writes them. -/
+def apiClasses : List String := ["arm-medium-gen2", "arm-large-gen2", "arm-medium", "arm-large", "m4pro-medium", "arm.medium.gen2", ""]
+
 def githubConclusions : List String := ["success", "failure", "timed_out", "startup_failure", "action_required", "cancelled",
   "skipped", "neutral", "stale", ""]
 
@@ -225,6 +228,8 @@ def text : String :=
       line "circleStatus" st (Json.mkObj [("status", .str st)]) (Json.mkObj [("conclusion", .str (conclusionName (ofCircleStatus st)))]))
     ++ githubConclusions.map (fun st =>
       line "githubConclusion" st (Json.mkObj [("conclusion", .str st)]) (Json.mkObj [("result", .str (conclusionName (ofGithubConclusion st)))]))
+    ++ apiClasses.map (fun a =>
+      line "classOfApi" a (Json.mkObj [("name", .str a)]) (Json.mkObj [("class", .str (classOfApi a))]))
     ++ waitCases.map (fun (n, i) =>
       line "wait" n (Json.mkObj [("statuses", .arr (i.statuses.map Json.str).toArray), ("waitedS", toJson i.waitedS),
         ("noWorkflowS", toJson i.noWorkflowS), ("timeoutS", toJson i.timeoutS)])

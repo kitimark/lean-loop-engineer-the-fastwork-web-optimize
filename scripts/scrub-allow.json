@@ -1,1 +1,4 @@
-[]
+[
+  {"rule": "home-path", "path": "scripts/circleci-fixtures/premise-tests.json", "reason": "recorded CircleCI build output: the working directory of the job VM, not a person's home"},
+  {"rule": "home-path", "path": "scripts/circleci-fixtures/premise-tests-large.json", "reason": "recorded CircleCI build output: the working directory of the job VM, not a person's home"}
+]

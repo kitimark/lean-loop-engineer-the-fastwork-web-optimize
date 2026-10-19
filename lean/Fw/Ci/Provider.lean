@@ -44,6 +44,17 @@ def rates : List Rate := [
 /-- The rate row of a class name. -/
 def rateOf (c : String) : Option Rate := rates.find? (·.cls == c)
 
+/-- The class name as the config writes it, from the name the job API reports (`executor.resource_class`): the API writes dashes (`arm-medium-gen2`, MEASURED on a real job), the config and the price list write dots. -/
+def classOfApi (s : String) : String := String.ofList (s.toList.map fun c => if c == '-' then '.' else c)
+
+/-- The API name of every class the pilot runs maps to a price-list row. -/
+theorem api_names_priced :
+    (["arm-medium-gen2", "arm-large-gen2", "arm-medium", "arm-large"].map fun a => (rateOf (classOfApi a)).isSome) =
+      [true, true, true, true] := by decide
+
+/-- A name that is already a config name stays. -/
+theorem class_of_api_config_name : classOfApi "arm.medium.gen2" = "arm.medium.gen2" := by decide
+
 /-- The free pool of a pool kind, in credits a month. -/
 def poolCredits : Pool → Nat
   | .oss => 400000

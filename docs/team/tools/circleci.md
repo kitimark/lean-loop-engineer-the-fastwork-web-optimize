@@ -29,20 +29,19 @@ Status for this repository: steps 1 to 5 are done (project set up, definition id
 ## Commands
 
 - Preview, no network and no token: `pnpm fw ci circleci dry-run` prints the exact requests (token `<redacted>`) and replays wait, fetch and compare over the fixtures. `... trigger --lane premise-tests --branch ci/x --dry` prints one trigger request.
-- Run a pair: push the branch (`pnpm fw ci push --branch ci/<task> --lanes premise-tests`), then `pnpm fw ci circleci trigger --lane premise-tests --branch ci/<task> --class arm.medium.gen2` and `pnpm fw ci wait --provider circleci --branch ci/<task> --out <dir>` (polls every 120 s or more, waits Retry-After on 429, writes `<dir>/run.json` and the artifacts). The GitHub twin: `pnpm fw ci wait --branch ci/<task>`, then `gh run view <id> --json workflowName,headSha,createdAt,jobs > gh-run.json` once.
-- Compare: `pnpm fw ci circleci compare --github gh-run.json --circleci <dir>/run.json`. Exit 0 no finding, 1 a verdict differs (a finding), 2 the two sides are not a pair. For the engine jobs add `"digestDirs": {"engine (chromium)": "<dir of the GitHub premises-chromium artifact>"}` to `gh-run.json`; `pnpm fw ci circleci digest <dir>` prints a digest.
+- Run a pair: push the branch with a head commit message containing `[ci:premise-tests]` (`git branch -f ci/<task> HEAD`, then `git push origin ci/<task>`), then `pnpm fw ci circleci trigger --lane premise-tests --branch ci/<task> --class arm.medium.gen2` and `pnpm fw ci wait --provider circleci --pipeline <id> --out <dir>` (polls every 120 s or more, waits Retry-After on 429, writes `<dir>/run.json` and the artifacts). `wait --branch` skips pipelines with no `lane` parameter or no workflow (a push-made `webhook` pipeline). The GitHub twin: `pnpm fw ci wait --branch ci/<task>`, then `gh run view <id> --json databaseId,workflowName,headSha,createdAt,jobs > gh-run.json` once.
+- Compare: `pnpm fw ci circleci compare --github gh-run.json --circleci <dir>/run.json`. Exit 0 no finding, 1 a verdict differs (a finding), 2 the two sides are not a pair. `compare` downloads the GitHub `premises-<engine>` artifacts itself (`gh run download`) and digests them. `pnpm fw ci circleci digest <dir>` prints a digest.
 - Routing rule (not wired to any lane yet): `pnpm fw ci circleci route --lane L --platform linux-arm|macos --class C --est-ms N --credits-left N [--allow a,b] [--gh-degraded]` prints `github` or `circleci`.
 
-## Rules the code applies (Lean `Fw.Ci.Provider`)
+## Rules the code applies (Lean `Fw.Ci.Provider`, replayed from the golden)
 
-- Pair verdict: equal conclusions and, when both sides have a digest, equal digests; otherwise a finding. A pair is the same job on the same commit, GitHub against CircleCI.
-- Credits are minutes times the class rate, rounded up (`arm.medium.gen2` 6, `arm.large.gen2` 12, `m4pro.medium` 200 a minute; the rate table carries its source).
-- The pilot stops when a job reaches 1 h, a job waits more than 10 min in the queue, or storage passes 1 GB-month. `wait` then cancels the workflow and exits 5.
+- Commit: the sha of a CircleCI run is `vcs.revision` of `GET /pipeline/{id}` (a job has none).
+- Job names: the premise jobs match by exact GitHub name (`engine (chromium)`, `engine (playwright-webkit)`, `verdict`); `webkit-sim` matches a GitHub matrix name with the prefix `sim (original,` and the suffix `, v1)` (the real name is `sim (original, 430, 1, <sha>, v1)`). Only the first matching GitHub sim job is compared; the other breakpoints are not (accepted limit).
+- Pair verdict: for `engine-chromium` and `engine-playwright-webkit` the verdict is the premise digest, not the step conclusion (the test step exits 0 even when a premise fails, so both conclusions are `pass`). A missing digest on either side is not a pair (exit 2). Other jobs: equal conclusions, and equal digests when both sides have one.
+- Status maps: CircleCI status to conclusion (`success` pass, `failed` and the like fail, `canceled` cancelled) and GitHub conclusion to the same set, in Lean with goldens.
+- Wait exit codes (Lean `waitStep`): 0 pass, 1 a job failed, 3 timeout, 4 no workflow or cancelled, 5 stop rule.
+- Credits are minutes times the class rate, rounded up (`arm.medium.gen2` 6, `arm.large.gen2` 12, `m4pro.medium` 200 a minute). INFERRED: the `arm.*.gen2` names; `arm.medium` and `arm.large` are the documented fallback and are accepted by the config enums. Free classes only.
+- Stop rule: a job reaches 1 h, a job waits more than 10 min in the queue, or storage passes 1 GB-month. Storage is counted from a ledger (`.local/circleci-ledger.json`, gitignored) of the cache, workspace and artifact bytes of every run fetched, each held 30 days (an upper bound). `fetch` and `wait` exit 5 and `wait` cancels the workflow.
 - Routing: a lane goes to CircleCI only if it is allowlisted, on a free class of its own platform, the estimate fits the credits left, and (macOS only) GitHub Actions is degraded. The default allowlist is empty.
+- Artifact downloads and list calls use the same path as every other call (429 and Retry-After handled) and follow `next_page_token`; a list that does not end fails loudly.
 
-## Not verified yet (INFERRED until the first real run)
-
-- The Xcode image name (`xcode` parameter, default `27.0.0`) and whether it carries iOS runtime build 24A434; `check-simulator.sh` fails the job fast when it does not, which is then the finding.
-- The `pipeline/run` body, the `queued_at` and `created_at` fields of a job (queue is `queued_at` to `started_at`, so waiting for `requires` is not counted), and the `arm.*.gen2` classes being available to the organisation. The fixtures are synthetic, shaped after the API v2 reference; replace them with a recorded run.
-- `.circleci/job.sh` and `node-install.sh` are checked for syntax only (`sh -n`); they have not run on a Linux or macOS CircleCI image.
-- The GitHub-only guard job and the tip re-check are not ported: the API trigger names the branch, and the pilot is started by hand.

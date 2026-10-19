@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
+import { classOfApi, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
 
 const g = loadGolden();
 const here = dirname(fileURLToPath(import.meta.url));
@@ -16,7 +16,7 @@ const rowsOf = (op) => g.byOp[op] ?? [];
 const toRun = (r) => ({ ...r, class: r.class });
 
 test('the golden has every op the glue replays, and no more', () => {
-  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['circleStatus', 'compare', 'constants', 'credits', 'ghJob', 'githubConclusion', 'jobMap', 'rates', 'route', 'stop', 'storage', 'wait']);
+  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['circleStatus', 'classOfApi', 'compare', 'constants', 'credits', 'ghJob', 'githubConclusion', 'jobMap', 'rates', 'route', 'stop', 'storage', 'wait']);
   assert.ok(g.rows.length >= 120);
 });
 
@@ -41,6 +41,11 @@ test('stop: every golden row', () => {
     assert.deepEqual(got, r.response.reasons, r.name);
     assert.equal(got.length > 0, r.response.stop, r.name);
   }
+});
+
+test('classOfApi: every golden row (the API writes dashes, the price list dots)', () => {
+  assert.ok(rowsOf('classOfApi').length >= 6);
+  for (const r of rowsOf('classOfApi')) assert.equal(classOfApi(r.request.name), r.response.class, r.name);
 });
 
 test('circleStatus and githubConclusion: every golden row; only success passes', () => {
@@ -134,6 +139,10 @@ test('the token is read from the Keychain with the service name in argv, never p
 
 const ctxOf = (fx, extra = {}) => { const sleeps = []; return { sleeps, ctx: { golden: g, fetchFn: fixtureFetch(fx.api), getToken: () => 'fixture-token', sleep: async (s) => sleeps.push(s), now: () => Date.parse(fx.now), log: () => {}, ...extra } }; };
 
+const wfRoute = (fx) => `GET /pipeline/${fx.pipelineId}/workflow`;
+const wfIdOf = (fx) => fx.api.routes[wfRoute(fx)].items[0].id;
+const jobNo = (fx, name) => fx.api.routes[`GET /workflow/${wfIdOf(fx)}/job`].items.find((j) => j.name === name).job_number;
+
 test('wait: a finished pipeline of the fixture ends at once with exit 0', async () => {
   const fx = loadFixture('premise-tests');
   const { ctx } = ctxOf(fx);
@@ -144,10 +153,10 @@ test('wait: polls no faster than 120 s whatever interval is asked', async () => 
   const fx = loadFixture('premise-tests');
   let polls = 0;
   const routes = { ...fx.api.routes };
-  const wf = routes['GET /pipeline/pipe-1/workflow'];
+  const wf = routes[wfRoute(fx)];
   const base = fixtureFetch({ ...fx.api, routes });
   const fetchFn = async (url, init) => {
-    if (String(url).endsWith('/pipeline/pipe-1/workflow') && ++polls === 1) return { status: 200, ok: true, headers: { get: () => null }, text: async () => JSON.stringify({ items: [{ ...wf.items[0], status: 'running' }] }) };
+    if (String(url).endsWith(`/pipeline/${fx.pipelineId}/workflow`) && ++polls === 1) return { status: 200, ok: true, headers: { get: () => null }, text: async () => JSON.stringify({ items: [{ ...wf.items[0], status: 'running' }] }) };
     return base(url, init);
   };
   const { ctx, sleeps } = ctxOf(fx, { fetchFn });
@@ -178,7 +187,7 @@ test('wait: a queue over 10 minutes stops the pilot and cancels the workflow', a
 test('wait: a failed workflow is exit 1', async () => {
   const fx = loadFixture('premise-tests');
   const api = JSON.parse(JSON.stringify(fx.api));
-  api.routes['GET /pipeline/pipe-1/workflow'].items[0].status = 'failed';
+  api.routes[wfRoute(fx)].items[0].status = 'failed';
   const { ctx } = ctxOf(fx, { fetchFn: fixtureFetch(api) });
   assert.equal((await waitPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId })).code, 1);
 });
@@ -192,18 +201,40 @@ test('fetch + compare over the premise-tests fixture: equal verdicts, no finding
   assert.match(doc.sha, /^[0-9a-f]{40}$/);
   for (const r of doc.runs) assert.equal(r.sha, fx.sha);
   assert.deepEqual(doc.runs.map((r) => r.job), ['engine-chromium', 'engine-playwright-webkit', 'verdict']);
-  assert.deepEqual(doc.runs.map((r) => r.durMs), [150000, 180000, 45000]);
-  assert.deepEqual(doc.runs.map((r) => r.queueMs), [9000, 8000, 5000]);
+  assert.deepEqual(doc.runs.map((r) => r.durMs), [38791, 51645, 10149]);
+  assert.deepEqual(doc.runs.map((r) => r.queueMs), [40259, 13929, 33868]);
   const gh = githubRuns(g, fx.github, fx.github.digests);
   const cmp = comparePairs(g, gh, doc.runs);
   assert.equal(cmp.code, 0);
-  assert.deepEqual(cmp.rows.map((r) => r.credits), [15, 18, 5]);
-  assert.match(renderComparison(cmp.rows), /engine-chromium \(github: engine \(chromium\)\): verdicts equal; duration 1\.50x GitHub/);
+  assert.deepEqual(cmp.rows.map((r) => r.credits), [4, 6, 2]);
+  assert.match(renderComparison(cmp.rows), /engine-chromium \(github: engine \(chromium\)\): verdicts equal; duration 0\.99x GitHub/);
   const steps = new Set(doc.spans.filter((s) => s.tool === 'circleci/engine-chromium').map((s) => s.step));
   for (const s of ['queue', 'checkout', 'node', 'pnpm', 'cache restore', 'deps install', 'test', 'upload (after the last step)', 'job']) assert.ok(steps.has(s), s);
-  for (const s of doc.spans) assert.deepEqual(Object.keys(s), ['tool', 'step', 'startMs', 'durMs', 'exit', 'commit', 'load', 'host']);
+  // the verdict job's own `fw premises` span (tool fw) joins the file with its keys in another order
+  for (const s of doc.spans) assert.deepEqual(Object.keys(s).sort(), ['commit', 'durMs', 'exit', 'host', 'load', 'startMs', 'step', 'tool']);
   assert.equal(JSON.parse(readFileSync(join(out, 'run.json'), 'utf8')).schema, 'fw.circleci-run/1');
   assert.equal(doc.storage.stops.length, 0);
+});
+
+test('the recorded arm.large.gen2 pipeline: same digests, credits at 12 a minute, class name mapped from the API form', async () => {
+  const fx = loadFixture('premise-tests-large');
+  const { ctx } = ctxOf(fx);
+  const doc = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: mkdtempSync(join(tmpdir(), 'fwcc-')) });
+  assert.deepEqual(doc.runs.map((r) => r.class), ['arm.large.gen2', 'arm.large.gen2', 'arm.large.gen2']);
+  assert.deepEqual(doc.runs.map((r) => r.durMs), [36475, 52637, 9882]);
+  const cmp = comparePairs(g, githubRuns(g, fx.github, fx.github.digests), doc.runs);
+  assert.equal(cmp.code, 0);
+  assert.deepEqual(cmp.rows.map((r) => r.credits), [8, 11, 2]);
+  assert.equal(fx.sha, loadFixture('premise-tests').sha, 'both pipelines ran the commit of the one GitHub twin');
+});
+
+test('the recorded fixtures carry no token, e-mail, home path or account name', () => {
+  for (const n of ['premise-tests', 'premise-tests-large']) {
+    const text = readFileSync(join(ROOT, 'scripts', 'circleci-fixtures', `${n}.json`), 'utf8');
+    assert.ok(!/\/Users\/|kitimark|markmark/.test(text), n);
+    assert.deepEqual([...new Set(text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/g) ?? [])], ['noreply@anthropic.com'], n);
+    assert.ok(!/Circle-Token|"token"/i.test(text), n);
+  }
 });
 
 test('a digest that differs is a finding (exit 1); a missing side is not a pair (exit 2)', async () => {
@@ -221,7 +252,7 @@ test('a digest that differs is a finding (exit 1); a missing side is not a pair 
 test('fetch refuses an artifact path that leaves the output directory', async () => {
   const fx = loadFixture('premise-tests');
   const api = JSON.parse(JSON.stringify(fx.api));
-  api.routes[`GET /project/${fx.slug}/1/artifacts`].items[0].path = '../../evil.json';
+  api.routes[`GET /project/${fx.slug}/${jobNo(fx, 'engine-chromium')}/artifacts`].items[0].path = '../../evil.json';
   const { ctx } = ctxOf(fx, { fetchFn: fixtureFetch(api) });
   await assert.rejects(fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: mkdtempSync(join(tmpdir(), 'fwcc-')) }), /leaves the output directory/);
 });
@@ -233,7 +264,7 @@ test('dry run: prints the requests with the token redacted, and the fixture comp
   assert.match(text, /POST https:\/\/circleci\.com\/api\/v2\/project\/<project-slug>\/pipeline\/run/);
   assert.match(text, /Circle-Token: <redacted>/);
   assert.ok(!text.includes('fixture-token'));
-  assert.match(text, /webkit-sim \(github: sim \(original, 430, 1, abc1234d, v1\)\): verdicts equal; duration 0\.50x GitHub; queue github 60s, circleci 85s; credits 2000/);
+  assert.match(text, /webkit-sim \(github: sim \(original, 430, 1, abc1234d, v1\)\): verdicts equal; duration 0\.50x GitHub; queue github 60s \(run start to job start\), circleci 85s; credits 2000/);
   assert.equal(r.cmp.code, 0);
 });
 
@@ -295,7 +326,7 @@ test('githubDigests downloads premises-<engine> of the run once and digests it; 
   const download = (id, art, dir) => { calls.push([id, art]); mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, 'c.json'), JSON.stringify({ results: [{ testId: 't1', ok: true }] })); };
   const run = { ...fx.github, databaseId: 77 };
   const d = githubDigests(g, run, base, download);
-  assert.deepEqual(calls, [[77, 'premises-chromium'], [77, 'premises-playwright-webkit']]);
+  assert.deepEqual(calls.map((c) => c.join(' ')).sort(), ['77 premises-chromium', '77 premises-playwright-webkit']);
   assert.equal(d['engine (chromium)'], premiseDigest(join(base, 'premises-chromium')));
   assert.ok(!('verdict' in d));
   githubDigests(g, run, base, download);
@@ -330,10 +361,10 @@ test('pagination: next_page_token is followed on every list and a token past the
 test('fetch reads every page of the job list and the artifact list', async () => {
   const fx = loadFixture('premise-tests');
   const base = fixtureFetch(fx.api);
-  const jobs = fx.api.routes['GET /workflow/wf-1/job'].items;
+  const jobs = fx.api.routes[`GET /workflow/${wfIdOf(fx)}/job`].items;
   const fetchFn = async (url, init) => {
     const u = new URL(String(url));
-    if (u.pathname.endsWith('/workflow/wf-1/job')) {
+    if (u.pathname.endsWith(`/workflow/${wfIdOf(fx)}/job`)) {
       const page = u.searchParams.get('page-token');
       const body = page ? { items: jobs.slice(1), next_page_token: null } : { items: jobs.slice(0, 1), next_page_token: 'p2' };
       return { status: 200, ok: true, headers: { get: () => null }, text: async () => JSON.stringify(body) };
@@ -392,10 +423,10 @@ test('storage: the ledger adds cache, workspace and artifact bytes over all pilo
   const doc2 = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: join(dir, 'o2') });
   assert.deepEqual(doc2.storage.stops, ['storage']);
   const calls = [];
-  const base = fixtureFetch({ ...fx.api, routes: { ...fx.api.routes, 'POST /workflow/wf-1/cancel': {} } });
+  const base = fixtureFetch({ ...fx.api, routes: { ...fx.api.routes, [`POST /workflow/${wfIdOf(fx)}/cancel`]: {} } });
   const w = await waitPipeline({ ...ctx, fetchFn: async (u, i) => { calls.push(`${i?.method ?? 'GET'} ${String(u).replace(API, '')}`); return base(u, i); } }, { slug: fx.slug, pipelineId: fx.pipelineId });
   assert.equal(w.code, 5);
-  assert.ok(calls.includes('POST /workflow/wf-1/cancel'));
+  assert.ok(calls.includes(`POST /workflow/${wfIdOf(fx)}/cancel`));
   const logs = [];
   const root = dir;
   mkdirSync(join(root, '.local'), { recursive: true });
@@ -406,7 +437,7 @@ test('storage: the ledger adds cache, workspace and artifact bytes over all pilo
 test('wait: a cancelled workflow is not a pass (exit 4, Lean waitStep)', async () => {
   const fx = loadFixture('premise-tests');
   const api = JSON.parse(JSON.stringify(fx.api));
-  api.routes['GET /pipeline/pipe-1/workflow'].items[0].status = 'canceled';
+  api.routes[wfRoute(fx)].items[0].status = 'canceled';
   const { ctx } = ctxOf(fx, { fetchFn: fixtureFetch(api) });
   assert.equal((await waitPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId })).code, 4);
 });
