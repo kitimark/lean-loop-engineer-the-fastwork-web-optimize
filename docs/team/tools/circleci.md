@@ -14,13 +14,17 @@ A second runner for two GitHub lanes, run side by side with their GitHub twins s
 
 Both workflows run only when the pipeline parameter `lane` names them and the branch starts with `ci/`. A plain push to `ci/*` makes a pipeline with no workflow and spends no credit. Every job uploads the result files of its GitHub twin (`premises-<engine>/`, `premises-verdict.txt`; `runner.json`, `tools.txt`, `v1-session-1.*`) plus `timings.json` (spans: checkout, node, pnpm, cache restore, deps install, system libraries, browser install, test; the glue adds `queue`, `upload (after the last step)`, `job`). The only cache is the pnpm store; no Lake cache is saved.
 
-## Your setup (once, about 15 minutes)
+## Your setup (once, about 15 minutes; a fresh setup follows the same steps)
 
-1. Sign in at circleci.com with GitHub and pick the Free plan. The repository is public, so the open-source pool (400,000 credits a month for Linux) applies.
-2. Set up the project: Projects, Set Up Project, install the CircleCI GitHub App on this repository only. A GitHub App on a personal repository may be refused; if it is, stop and tell the lead (the pilot does not need a workaround).
-3. In the project's settings, open Project Setup, create or open the pipeline (config source: this repository, `.circleci/config.yml`) and copy two values: the project slug (it reads like `circleci/<uuid>/<uuid>` for a GitHub App project) and the pipeline definition ID. For `webkit-sim`, check that macOS jobs are enabled for the organisation.
-4. Make a personal API token (User Settings, Personal API Tokens) and keep it in the Keychain without putting it on a command line: `security add-generic-password -s fw-circleci-token -a "$USER" -w` (it prompts for the token). Nothing else reads or stores it.
-5. Write `.local/circleci.json` (gitignored): `{"slug": "<project slug>", "definitionId": "<pipeline definition id>"}`. The environment variables `FW_CIRCLECI_SLUG` and `FW_CIRCLECI_DEFINITION_ID` override it.
+Status for this repository: steps 1 to 5 are done (project set up, definition id and slug in `.local/circleci.json`, token in the Keychain). Steps 6 and 7 are the checks to repeat on a fresh setup.
+
+1. Sign in at circleci.com with GitHub and pick the Free plan. The repository is public: in Organization Settings, Plan, turn on "Free and Open Source" so the open-source pool (400,000 credits a month for Linux) applies.
+2. Set up the project: Projects, Set Up Project, install the CircleCI GitHub App on this repository only. A GitHub App on a personal repository may be refused; if it is, stop and tell the lead.
+3. In Project Setup, create the pipeline (config source: this repository, `.circleci/config.yml`) and copy two values: the project slug (`circleci/<uuid>/<uuid>` for a GitHub App project) and the pipeline definition ID. For `webkit-sim`, check that macOS jobs are enabled for the organisation.
+4. Delete the default "All pushes" trigger of the pipeline. A push then makes no CircleCI pipeline; every pipeline comes from `pipeline/run` with `lane`. (If it stays, a push makes a `webhook` pipeline with no workflow; `wait --branch` skips those, but they still show in the dashboard.)
+5. Make a personal API token (User Settings, Personal API Tokens) with a short expiry (a week covers a pilot) and keep it in the Keychain without putting it on a command line: `security add-generic-password -s fw-circleci-token -a fw -w` (it prompts for the token). Nothing else reads or stores it; it is sent to circleci.com and circle-artifacts.com only.
+6. Write `.local/circleci.json` (gitignored): `{"slug": "<project slug>", "definitionId": "<pipeline definition id>"}`. The environment variables `FW_CIRCLECI_SLUG` and `FW_CIRCLECI_DEFINITION_ID` override it.
+7. Check with `pnpm fw ci circleci dry-run` (no network) and one `trigger` of `premise-tests`.
 
 ## Commands
 

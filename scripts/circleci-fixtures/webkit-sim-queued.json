@@ -41,14 +41,20 @@
         "started_at": null,
         "stopped_at": null,
         "duration": null,
-        "pipeline": {
-          "vcs": {
-            "revision": "abc1234def5678abc1234def5678abc1234def56"
-          }
-        }
+        "pipeline": {}
       },
       "POST /workflow/wf-3/cancel": {
         "message": "Accepted."
+      },
+      "GET /pipeline/pipe-3": {
+        "id": "pipe-3",
+        "project_slug": "circleci/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002",
+        "number": 1,
+        "state": "created",
+        "vcs": {
+          "branch": "ci/x",
+          "revision": "abc1234def5678abc1234def5678abc1234def56"
+        }
       }
     },
     "files": {}

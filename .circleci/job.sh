@@ -125,8 +125,14 @@ sim_delete() {
 finish() {  # timings.json beside the result files; the spans are kept even when the helper cannot run
   cp "$FW_TIMINGS_FILE" "$fw/artifacts/spans.jsonl" 2>/dev/null || true
   if command -v node >/dev/null 2>&1; then
+    # bytes this job saved to the CircleCI cache and workspace (the engine jobs only; the stop rule counts them, scripts/circleci.mjs)
+    cache=0; ws=0
+    if [ -n "${FW_CI_ENGINE:-}" ]; then
+      cache=$(( $(du -sk "$HOME/.local/share/pnpm/store" 2>/dev/null | cut -f1) * 1024 )) || cache=0
+      ws=$(( $(du -sk "$fw/ws" 2>/dev/null | cut -f1) * 1024 )) || ws=0
+    fi
     node scripts/circleci.mjs timings --spans "$FW_TIMINGS_FILE" --out "$fw/artifacts/timings.json" --job "${FW_CI_JOB:-unknown}" \
-      --class "${FW_CI_CLASS:-unknown}" --sha "${CIRCLE_SHA1:-}" ${FW_CI_ENGINE:+--digest-from "$fw/artifacts/premises-$FW_CI_ENGINE"} || true
+      --class "${FW_CI_CLASS:-unknown}" --sha "${CIRCLE_SHA1:-}" --cache-bytes "$cache" --workspace-bytes "$ws" ${FW_CI_ENGINE:+--digest-from "$fw/artifacts/premises-$FW_CI_ENGINE"} || true
   fi
 }
 

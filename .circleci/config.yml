@@ -24,9 +24,9 @@ parameters:
     type: string
     default: ""
   resource_class:
-    description: Class of the Linux Arm jobs (Free plan, OSS pool).
+    description: Class of the Linux Arm jobs (Free plan, OSS pool). The gen2 names are INFERRED; arm.medium and arm.large are the fallback if they are refused.
     type: enum
-    enum: [arm.medium.gen2, arm.large.gen2]
+    enum: [arm.medium.gen2, arm.large.gen2, arm.medium, arm.large]
     default: arm.medium.gen2
   xcode:
     description: Xcode image of the webkit-sim job (the image that carries the pinned iOS 27.0 runtime, build 24A434).
@@ -66,7 +66,7 @@ jobs:
         enum: [chromium, playwright-webkit]
       rc:
         type: enum
-        enum: [arm.medium.gen2, arm.large.gen2]
+        enum: [arm.medium.gen2, arm.large.gen2, arm.medium, arm.large]
     machine:
       image: ubuntu-2404:current
     resource_class: << parameters.rc >>
@@ -114,7 +114,7 @@ jobs:
     parameters:
       rc:
         type: enum
-        enum: [arm.medium.gen2, arm.large.gen2]
+        enum: [arm.medium.gen2, arm.large.gen2, arm.medium, arm.large]
     machine:
       image: ubuntu-2404:current
     resource_class: << parameters.rc >>

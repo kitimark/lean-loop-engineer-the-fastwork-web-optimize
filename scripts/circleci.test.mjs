@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { API, MIN_POLL_S, ROOT, call, circleConclusion, comparePairs, compare, credits, dryRun, fetchPipeline, fixtureFetch, githubConclusion, githubRuns, loadFixture, loadGolden, main, premiseDigest, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline } from './circleci.mjs';
+import { API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
 
 const g = loadGolden();
 const here = dirname(fileURLToPath(import.meta.url));
@@ -16,8 +16,8 @@ const rowsOf = (op) => g.byOp[op] ?? [];
 const toRun = (r) => ({ ...r, class: r.class });
 
 test('the golden has every op the glue replays, and no more', () => {
-  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['compare', 'constants', 'credits', 'jobMap', 'rates', 'route', 'stop', 'storage']);
-  assert.ok(g.rows.length >= 50);
+  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['circleStatus', 'compare', 'constants', 'credits', 'ghJob', 'githubConclusion', 'jobMap', 'rates', 'route', 'stop', 'storage', 'wait']);
+  assert.ok(g.rows.length >= 120);
 });
 
 test('credits: every golden row', () => {
@@ -41,6 +41,29 @@ test('stop: every golden row', () => {
     assert.deepEqual(got, r.response.reasons, r.name);
     assert.equal(got.length > 0, r.response.stop, r.name);
   }
+});
+
+test('circleStatus and githubConclusion: every golden row; only success passes', () => {
+  assert.ok(rowsOf('circleStatus').length >= 10 && rowsOf('githubConclusion').length >= 8);
+  for (const r of rowsOf('circleStatus')) assert.equal(ofCircleStatus(r.request.status), r.response.conclusion, r.name);
+  for (const r of rowsOf('githubConclusion')) assert.equal(ofGithubConclusion(r.request.conclusion || null), r.response.result, r.name);
+  assert.equal(ofGithubConclusion(undefined), 'not-run');
+});
+
+test('wait: every golden row (the exit code rule)', () => {
+  for (const r of rowsOf('wait')) assert.equal(waitStep(r.request), r.response.exit, r.name);
+});
+
+test('ghJob: every golden row; the GitHub name rule is prefix + vm for the sim matrix, the whole name otherwise', () => {
+  for (const r of rowsOf('ghJob')) {
+    const row = jobOfGithub(g, r.request.name);
+    assert.equal(row?.circleci ?? null, r.response.circleci, r.name);
+    assert.equal(row?.lane ?? null, r.response.lane, r.name);
+    assert.equal(row ? digestJob(g, row.circleci) : null, r.response.digest, r.name);
+  }
+  const names = g.jobMap.map((r) => r.circleci);
+  assert.equal(new Set(names).size, names.length);
+  assert.deepEqual(g.jobMap.find((r) => r.circleci === 'webkit-sim').github, { prefix: 'sim (original,', vm: 'v1', suffix: ', v1)' });
 });
 
 test('route: every golden row', () => {
@@ -164,7 +187,10 @@ test('fetch + compare over the premise-tests fixture: equal verdicts, no finding
   const fx = loadFixture('premise-tests');
   const { ctx } = ctxOf(fx);
   const out = mkdtempSync(join(tmpdir(), 'fwcc-'));
-  const doc = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out, sha: fx.sha });
+  const doc = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out });
+  assert.equal(doc.sha, fx.sha);
+  assert.match(doc.sha, /^[0-9a-f]{40}$/);
+  for (const r of doc.runs) assert.equal(r.sha, fx.sha);
   assert.deepEqual(doc.runs.map((r) => r.job), ['engine-chromium', 'engine-playwright-webkit', 'verdict']);
   assert.deepEqual(doc.runs.map((r) => r.durMs), [150000, 180000, 45000]);
   assert.deepEqual(doc.runs.map((r) => r.queueMs), [9000, 8000, 5000]);
@@ -172,7 +198,7 @@ test('fetch + compare over the premise-tests fixture: equal verdicts, no finding
   const cmp = comparePairs(g, gh, doc.runs);
   assert.equal(cmp.code, 0);
   assert.deepEqual(cmp.rows.map((r) => r.credits), [15, 18, 5]);
-  assert.match(renderComparison(cmp.rows), /engine-chromium: verdicts equal; duration 1\.50x GitHub/);
+  assert.match(renderComparison(cmp.rows), /engine-chromium \(github: engine \(chromium\)\): verdicts equal; duration 1\.50x GitHub/);
   const steps = new Set(doc.spans.filter((s) => s.tool === 'circleci/engine-chromium').map((s) => s.step));
   for (const s of ['queue', 'checkout', 'node', 'pnpm', 'cache restore', 'deps install', 'test', 'upload (after the last step)', 'job']) assert.ok(steps.has(s), s);
   for (const s of doc.spans) assert.deepEqual(Object.keys(s), ['tool', 'step', 'startMs', 'durMs', 'exit', 'commit', 'load', 'host']);
@@ -183,11 +209,11 @@ test('fetch + compare over the premise-tests fixture: equal verdicts, no finding
 test('a digest that differs is a finding (exit 1); a missing side is not a pair (exit 2)', async () => {
   const fx = loadFixture('premise-tests');
   const { ctx } = ctxOf(fx);
-  const doc = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: mkdtempSync(join(tmpdir(), 'fwcc-')), sha: fx.sha });
+  const doc = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: mkdtempSync(join(tmpdir(), 'fwcc-')) });
   const bad = githubRuns(g, fx.github, { ...fx.github.digests, 'engine (chromium)': 'deadbeef' });
   const cmp = comparePairs(g, bad, doc.runs);
   assert.equal(cmp.code, 1);
-  assert.match(renderComparison(cmp.rows), /engine-chromium: FINDING verdicts differ/);
+  assert.match(renderComparison(cmp.rows), /engine-chromium \(github: engine \(chromium\)\): FINDING verdicts differ/);
   assert.equal(comparePairs(g, githubRuns(g, { ...fx.github, headSha: 'other' }, fx.github.digests), doc.runs).code, 2);
   assert.equal(comparePairs(g, githubRuns(g, { ...fx.github, jobs: fx.github.jobs.slice(1) }, fx.github.digests), doc.runs).code, 2);
 });
@@ -207,13 +233,8 @@ test('dry run: prints the requests with the token redacted, and the fixture comp
   assert.match(text, /POST https:\/\/circleci\.com\/api\/v2\/project\/<project-slug>\/pipeline\/run/);
   assert.match(text, /Circle-Token: <redacted>/);
   assert.ok(!text.includes('fixture-token'));
-  assert.match(text, /webkit-sim: verdicts equal; duration 0\.50x GitHub; queue github 60s, circleci 85s; credits 2000/);
+  assert.match(text, /webkit-sim \(github: sim \(original, 430, 1, abc1234d, v1\)\): verdicts equal; duration 0\.50x GitHub; queue github 60s, circleci 85s; credits 2000/);
   assert.equal(r.cmp.code, 0);
-});
-
-test('the GitHub and CircleCI statuses map to the Lean conclusions', () => {
-  assert.deepEqual(['success', 'failed', 'infrastructure_fail', 'timedout', 'canceled', 'not_run', 'queued'].map(circleConclusion), ['pass', 'fail', 'fail', 'fail', 'not-run', 'not-run', 'not-run']);
-  assert.deepEqual(['success', 'failure', 'timed_out', 'cancelled', 'skipped', null].map(githubConclusion), ['pass', 'fail', 'fail', 'not-run', 'not-run', 'not-run']);
 });
 
 test('premiseDigest: order of tests and of files does not matter, a changed verdict does', () => {
@@ -253,4 +274,144 @@ test('cli: a trigger without a project slug is a usage error (64), a dry trigger
 test('urls are built from the pieces, no token', () => {
   assert.equal(urls.job('s', 4), `${API}/project/s/job/4`);
   assert.equal(urls.pipelines('s', 'ci/x y'), `${API}/project/s/pipeline?branch=ci%2Fx%20y`);
+});
+
+test('a digest job without a digest on a side is not a pair (exit 2), and the digest decides over the step conclusion', async () => {
+  const fx = loadFixture('premise-tests');
+  const { ctx } = ctxOf(fx);
+  const doc = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: mkdtempSync(join(tmpdir(), 'fwcc-')) });
+  const none = comparePairs(g, githubRuns(g, fx.github, {}), doc.runs);
+  assert.equal(none.code, 2);
+  assert.match(renderComparison(none.rows), /engine-chromium: not a pair \(digest missing on a side\)/);
+  assert.equal(none.rows.find((r) => r.job === 'verdict').comparable, true);
+  const failed = githubRuns(g, { ...fx.github, jobs: fx.github.jobs.map((j) => (j.name === 'engine (chromium)' ? { ...j, conclusion: 'failure' } : j)) }, fx.github.digests);
+  assert.equal(comparePairs(g, failed, doc.runs).code, 0, 'equal digests are no finding although the GitHub step conclusion differs');
+});
+
+test('githubDigests downloads premises-<engine> of the run once and digests it; a failed download leaves the digest missing', () => {
+  const fx = loadFixture('premise-tests');
+  const base = mkdtempSync(join(tmpdir(), 'fwgd-'));
+  const calls = [];
+  const download = (id, art, dir) => { calls.push([id, art]); mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, 'c.json'), JSON.stringify({ results: [{ testId: 't1', ok: true }] })); };
+  const run = { ...fx.github, databaseId: 77 };
+  const d = githubDigests(g, run, base, download);
+  assert.deepEqual(calls, [[77, 'premises-chromium'], [77, 'premises-playwright-webkit']]);
+  assert.equal(d['engine (chromium)'], premiseDigest(join(base, 'premises-chromium')));
+  assert.ok(!('verdict' in d));
+  githubDigests(g, run, base, download);
+  assert.equal(calls.length, 2, 'a second call reuses the directory');
+  const bad = githubDigests(g, run, mkdtempSync(join(tmpdir(), 'fwgd-')), () => { throw new Error('no artifact'); });
+  assert.equal(bad['engine (chromium)'], null);
+  assert.equal(premisesArtifact('engine (playwright-webkit)'), 'premises-playwright-webkit');
+  assert.equal(premisesArtifact('verdict'), null);
+});
+
+test('the sim matrix job of a real GitHub run pairs by prefix and VM', () => {
+  const run = { headSha: 'a'.repeat(40), createdAt: '2026-10-20T00:00:00Z', jobs: [
+    { name: 'plan', conclusion: 'success' },
+    { name: 'sim (rewrite, 430, 1, 40a8d4c1deadbeef, v1)', conclusion: 'success', startedAt: '2026-10-20T00:01:00Z', completedAt: '2026-10-20T00:02:00Z' },
+    { name: 'sim (original, 430, 1, 40a8d4c1deadbeef, v2)', conclusion: 'success', startedAt: '2026-10-20T00:01:00Z', completedAt: '2026-10-20T00:02:00Z' },
+    { name: 'sim (original, 430, 1, 40a8d4c1deadbeef, v1)', conclusion: 'success', startedAt: '2026-10-20T00:01:00Z', completedAt: '2026-10-20T00:03:00Z' },
+    { name: 'sim (original, 390, 2, 40a8d4c1deadbeef, v1)', conclusion: 'failure', startedAt: '2026-10-20T00:01:00Z', completedAt: '2026-10-20T00:03:00Z' }] };
+  const rs = githubRuns(g, run);
+  assert.deepEqual(rs.map((r) => [r.job, r.githubJob, r.durMs]), [['webkit-sim', 'sim (original, 430, 1, 40a8d4c1deadbeef, v1)', 120000]]);
+});
+
+test('pagination: next_page_token is followed on every list and a token past the page limit fails loudly', async () => {
+  const pages = { '': { items: [1], next_page_token: 'a' }, a: { items: [2], next_page_token: 'b' }, b: { items: [3], next_page_token: null } };
+  const urlsSeen = [];
+  const fetchFn = async (url) => { urlsSeen.push(url); const t = new URL(url).searchParams.get('page-token') ?? ''; return { status: 200, ok: true, headers: { get: () => null }, text: async () => JSON.stringify(pages[t]) }; };
+  const ctx = { fetchFn, getToken: () => 't', sleep: async () => {} };
+  assert.deepEqual(await listAll(ctx, `${API}/x?branch=b`), [1, 2, 3]);
+  assert.deepEqual(urlsSeen.map((u) => new URL(u).searchParams.get('page-token')), [null, 'a', 'b']);
+  await assert.rejects(listAll(ctx, `${API}/x`, { maxPages: 2 }), /next_page_token still set after 2 pages/);
+});
+
+test('fetch reads every page of the job list and the artifact list', async () => {
+  const fx = loadFixture('premise-tests');
+  const base = fixtureFetch(fx.api);
+  const jobs = fx.api.routes['GET /workflow/wf-1/job'].items;
+  const fetchFn = async (url, init) => {
+    const u = new URL(String(url));
+    if (u.pathname.endsWith('/workflow/wf-1/job')) {
+      const page = u.searchParams.get('page-token');
+      const body = page ? { items: jobs.slice(1), next_page_token: null } : { items: jobs.slice(0, 1), next_page_token: 'p2' };
+      return { status: 200, ok: true, headers: { get: () => null }, text: async () => JSON.stringify(body) };
+    }
+    return base(url, init);
+  };
+  const { ctx } = ctxOf(fx, { fetchFn });
+  const doc = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: mkdtempSync(join(tmpdir(), 'fwcc-')) });
+  assert.equal(doc.runs.length, 3);
+});
+
+test('an artifact download goes through the same path: a 429 waits Retry-After, the token goes to CircleCI hosts only', async () => {
+  const seen = [];
+  const sleeps = [];
+  let n = 0;
+  const fetchFn = async (url, init) => {
+    seen.push({ url, init });
+    n++;
+    return n === 1 ? { status: 429, ok: false, headers: { get: (k) => (k.toLowerCase() === 'retry-after' ? '9' : null) }, text: async () => 'slow' }
+      : { status: 200, ok: true, headers: { get: () => null }, arrayBuffer: async () => Buffer.from('abc'), text: async () => 'abc' };
+  };
+  const ctx = { fetchFn, getToken: () => 'SECRET', sleep: async (x) => sleeps.push(x) };
+  assert.equal((await callBytes(ctx, 'https://output.circle-artifacts.com/x/y.json?sig=1')).toString(), 'abc');
+  assert.deepEqual(sleeps, [9]);
+  assert.equal(seen[1].init.headers['Circle-Token'], 'SECRET');
+  seen.length = 0;
+  await callBytes(ctx, 'https://example.org/z.bin');
+  assert.ok(!('Circle-Token' in seen[0].init.headers));
+  await assert.rejects(callBytes({ fetchFn: async () => ({ status: 500, ok: false, headers: { get: () => null }, text: async () => 'boom' }), getToken: () => 'SECRET', sleep: async () => {} }, 'https://output.circle-artifacts.com/a?sig=SECRETQ'), (e) => !e.message.includes('sig=') && !e.message.includes('SECRET'));
+});
+
+test('parseLoose accepts raw control characters inside strings and nothing else', () => {
+  assert.deepEqual(parseLoose('{"a": "x\ny\tz", "b": [1,\n2]}'), { a: 'x\ny\tz', b: [1, 2] });
+  assert.deepEqual(parseLoose('{"a": "q\\"w\ne"}'), { a: 'q"w\ne' });
+  assert.throws(() => parseLoose('{"a": '));
+});
+
+test('wait --branch skips pipelines a push created (webhook), which hold no workflow', () => {
+  assert.equal(isPilotPipeline({ trigger: { type: 'webhook' } }), false);
+  assert.equal(isPilotPipeline({ trigger: { type: 'api' } }), true);
+});
+
+test('storage: the ledger adds cache, workspace and artifact bytes over all pilot pipelines; over 1 GB-month is exit 5 from fetch and wait', async () => {
+  const fx = loadFixture('premise-tests');
+  const dir = mkdtempSync(join(tmpdir(), 'fwled-'));
+  const ledgerPath = join(dir, 'ledger.json');
+  const { ctx } = ctxOf(fx, { ledgerPath });
+  const doc = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: join(dir, 'o') });
+  const b = readLedger(ledgerPath).pipelines[fx.pipelineId];
+  assert.equal(b.artifacts, doc.storage.artifacts);
+  assert.ok(b.cache > 0 && b.workspace > 0, 'the engine jobs report what they saved');
+  assert.equal(doc.storage.ledgerBytes, b.artifacts + b.cache + b.workspace);
+  assert.equal(doc.storage.milli, storageMilli(doc.storage.ledgerBytes, 30));
+  // an earlier pilot pipeline of 1.2 GB: the next fetch stops, and so does a wait before any job runs
+  writeFileSync(ledgerPath, JSON.stringify({ pipelines: { old: { artifacts: 0, cache: 1200000000, workspace: 0 } } }));
+  const doc2 = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: join(dir, 'o2') });
+  assert.deepEqual(doc2.storage.stops, ['storage']);
+  const calls = [];
+  const base = fixtureFetch({ ...fx.api, routes: { ...fx.api.routes, 'POST /workflow/wf-1/cancel': {} } });
+  const w = await waitPipeline({ ...ctx, fetchFn: async (u, i) => { calls.push(`${i?.method ?? 'GET'} ${String(u).replace(API, '')}`); return base(u, i); } }, { slug: fx.slug, pipelineId: fx.pipelineId });
+  assert.equal(w.code, 5);
+  assert.ok(calls.includes('POST /workflow/wf-1/cancel'));
+  const logs = [];
+  const root = dir;
+  mkdirSync(join(root, '.local'), { recursive: true });
+  writeFileSync(join(root, '.local', 'circleci-ledger.json'), JSON.stringify({ pipelines: { old: { artifacts: 0, cache: 1200000000, workspace: 0 } } }));
+  assert.equal(await main(['fetch', '--pipeline', fx.pipelineId, '--out', join(dir, 'o3')], { root, env: { FW_CIRCLECI_SLUG: fx.slug }, ctx: { fetchFn: fixtureFetch(fx.api), getToken: () => 't', sleep: async () => {} }, log: (l) => logs.push(l) }), 5);
+});
+
+test('wait: a cancelled workflow is not a pass (exit 4, Lean waitStep)', async () => {
+  const fx = loadFixture('premise-tests');
+  const api = JSON.parse(JSON.stringify(fx.api));
+  api.routes['GET /pipeline/pipe-1/workflow'].items[0].status = 'canceled';
+  const { ctx } = ctxOf(fx, { fetchFn: fixtureFetch(api) });
+  assert.equal((await waitPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId })).code, 4);
+});
+
+test('timings.json carries the bytes a job saved', () => {
+  const d = timingsDoc({ spansText: '', job: 'j', cls: 'c', sha: 's', digest: null, cacheBytes: 5, workspaceBytes: 7 });
+  assert.deepEqual(d.bytes, { cache: 5, workspace: 7 });
 });

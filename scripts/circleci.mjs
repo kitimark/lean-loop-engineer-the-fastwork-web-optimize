@@ -8,16 +8,17 @@
 //   fw ci circleci trigger --lane premise-tests|webkit-sim --branch ci/<name> [--class C] [--xcode V] [--dry]
 //   fw ci circleci wait (--pipeline ID | --branch ci/<name> [--since EPOCH]) [--timeout S] [--interval S] [--out DIR]
 //   fw ci circleci fetch --pipeline ID --out DIR
-//   fw ci circleci compare --github gh-run.json --circleci DIR/run.json [--json]
+//   fw ci circleci compare --github gh-run.json --circleci DIR/run.json [--json]   (downloads the GitHub premises-<engine> artifacts)
 //   fw ci circleci route --lane L --platform linux-arm|macos --class C --est-ms N --credits-left N [--allow a,b] [--gh-degraded]
 //   fw ci circleci digest DIR
 //   fw ci circleci dry-run [--lane L] [--branch ci/x] [--fixture NAME]
 //   (also: fw ci wait --provider circleci ...; node scripts/circleci.mjs timings ... is the in-job step of .circleci/job.sh)
 //
 // The token is read from the macOS Keychain (service fw-circleci-token) inside each request: it is never printed, never in an
-// argument list, never in a file; a dry run prints `<redacted>`. Exit codes of wait: 0 every workflow passed, 1 one failed,
-// 3 timeout, 4 no workflow ran, 5 the pilot stop rule fired (the workflow is cancelled), 64 usage. compare: 0 no finding,
-// 1 a finding (a verdict differs), 2 a pair that is not a pair.
+// argument list, never in a file; a dry run prints `<redacted>`. Exit codes of wait (Lean `waitStep`): 0 every workflow passed,
+// 1 one failed, 3 timeout, 4 no workflow ran or one was cancelled, 5 the pilot stop rule fired (the workflow is cancelled; also
+// fetch), 64 usage. compare: 0 no finding, 1 a finding (a verdict differs), 2 a pair that is not a pair (job, commit or a
+// missing digest).
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -33,7 +34,8 @@ export const KEYCHAIN_SERVICE = 'fw-circleci-token';
 /** CircleCI answers 429 with a Retry-After; a poll is never faster than this (gh-hygiene: polls >= 120 s). */
 export const MIN_POLL_S = 120;
 export const LANES = ['premise-tests', 'webkit-sim'];
-export const CLASSES = ['arm.medium.gen2', 'arm.large.gen2'];
+/** Free Arm classes the trigger accepts: the Gen 2 names (INFERRED until an API run accepts them) and the Gen 1 fallback. */
+export const CLASSES = ['arm.medium.gen2', 'arm.large.gen2', 'arm.medium', 'arm.large'];
 
 export class Usage extends Error {}
 
@@ -45,6 +47,40 @@ export function loadGolden(path = GOLDEN) {
   const byOp = {};
   for (const r of rows) (byOp[r.op] ??= []).push(r);
   return { rows, byOp, rates: byOp.rates[0].response, constants: byOp.constants[0].response, jobMap: byOp.jobMap[0].response.jobs };
+}
+
+/** Lean `Fw.Ci.Provider.ghMatches`: a GitHub job name fits an `exact` rule, or a matrix rule (prefix, `, <vm>)` suffix, no overlap). */
+export function ghMatches(rule, name) {
+  if (rule.exact !== undefined) return rule.exact === name;
+  return name.startsWith(rule.prefix) && name.endsWith(rule.suffix) && [...rule.prefix].length + [...rule.suffix].length <= [...name].length;
+}
+
+/** Lean `jobOfGithub`: the first job-map row a GitHub job name belongs to, or undefined. */
+export const jobOfGithub = (g, name) => g.jobMap.find((r) => ghMatches(r.github, name));
+
+/** Lean `digestJob`: the pilot job (CircleCI name) is judged by its premise digest. */
+export const digestJob = (g, job) => g.jobMap.some((r) => r.circleci === job && r.digest);
+
+/** Lean `ofCircleStatus`. */
+export function ofCircleStatus(status) {
+  if (status === 'success') return 'pass';
+  return ['failed', 'infrastructure_fail', 'timedout', 'error', 'failing', 'unauthorized'].includes(status) ? 'fail' : 'not-run';
+}
+
+/** Lean `ofGithubConclusion` (a missing conclusion is the empty string). */
+export function ofGithubConclusion(c) {
+  if (c === 'success') return 'pass';
+  return ['failure', 'timed_out', 'startup_failure', 'action_required'].includes(c ?? '') ? 'fail' : 'not-run';
+}
+
+/** Lean `circleTerminal`. */
+export const circleTerminal = (s) => ['success', 'failed', 'error', 'canceled', 'not_run', 'unauthorized', 'infrastructure_fail', 'timedout', 'terminated-unknown'].includes(s);
+
+/** Lean `waitStep`: the exit code of a wait at one poll, or null while it goes on. */
+export function waitStep({ statuses, waitedS, noWorkflowS, timeoutS }) {
+  if (statuses.length === 0) return noWorkflowS <= waitedS ? 4 : timeoutS <= waitedS ? 3 : null;
+  if (statuses.every(circleTerminal)) return statuses.every((x) => x === 'success') ? 0 : statuses.some((x) => ['failed', 'error', 'infrastructure_fail', 'timedout', 'unauthorized'].includes(x)) ? 1 : 4;
+  return timeoutS <= waitedS ? 3 : null;
 }
 
 // --------------------------------------------------------------------- the Lean decisions (checked against the golden rows)
@@ -60,15 +96,19 @@ export function storageMilli(bytes, days) {
   return Number((BigInt(bytes) * BigInt(days) * 1000n + 30n * 1000000000n - 1n) / (30n * 1000000000n));
 }
 
-/** Lean `verdictEq`. */
+/** Lean `verdictEq`: equal conclusions and, when both sides carry a digest, equal digests. */
 export const verdictEq = (a, b) => a.conclusion === b.conclusion && (a.digest == null || b.digest == null || a.digest === b.digest);
+
+/** Lean `verdict`: a digest job is judged by its digest alone (its step conclusion is `pass` on both sides), else `verdictEq`. */
+export const verdict = (g, a, b) => (digestJob(g, a.job) ? a.digest != null && a.digest === b.digest : verdictEq(a, b));
 
 /** Lean `compare`: { comparable: false, reason } or { comparable: true, finding, ratioPermille, queueGithubMs, queueCircleMs, credits }. */
 export function compare(g, gh, cc) {
   if (gh.provider !== 'github' || cc.provider !== 'circleci') return { comparable: false, reason: 'providers' };
   if (gh.job !== cc.job) return { comparable: false, reason: 'job' };
   if (gh.sha !== cc.sha) return { comparable: false, reason: 'sha' };
-  return { comparable: true, finding: !verdictEq(gh, cc), ratioPermille: gh.durMs === 0 ? null : Math.floor((cc.durMs * 1000) / gh.durMs),
+  if (digestJob(g, gh.job) && (gh.digest == null || cc.digest == null)) return { comparable: false, reason: 'digest' };
+  return { comparable: true, finding: !verdict(g, gh, cc), ratioPermille: gh.durMs === 0 ? null : Math.floor((cc.durMs * 1000) / gh.durMs),
     queueGithubMs: gh.queueMs, queueCircleMs: cc.queueMs, credits: credits(g, cc.class, cc.durMs) };
 }
 
@@ -86,20 +126,6 @@ export function route(g, i) {
 }
 
 // ----------------------------------------------------------------------------------------------------- statuses and digests
-
-/** A CircleCI job/workflow status as a Lean `Conclusion`. */
-export function circleConclusion(status) {
-  if (status === 'success') return 'pass';
-  if (['failed', 'infrastructure_fail', 'timedout', 'error', 'failing'].includes(status)) return 'fail';
-  return 'not-run';
-}
-
-/** A GitHub job conclusion as a Lean `Conclusion` (cancelled and skipped did not reach a verdict). */
-export function githubConclusion(c) {
-  if (c === 'success') return 'pass';
-  if (['failure', 'timed_out', 'startup_failure', 'action_required'].includes(c)) return 'fail';
-  return 'not-run';
-}
 
 /** The digest of the premise result files in a directory (recursive): sha256 over the sorted `testId:ok` lines of every
  *  `results` array. The same function on the GitHub artifact and on the CircleCI artifact; null when no result file is found. */
@@ -123,10 +149,10 @@ const span = (job, step, startMs, durMs, commit = '') => ({ tool: `circleci/${jo
 
 // --------------------------------------------------------------------------------------------------------- in-job timings
 
-/** `timings.json` of a job: its spans (the span.sh lines) with the job, class, commit and digest. */
-export function timingsDoc({ spansText, job, cls, sha, digest }) {
+/** `timings.json` of a job: its spans (the span.sh lines) with the job, class, commit, digest and the bytes the job saved (cache, workspace). */
+export function timingsDoc({ spansText, job, cls, sha, digest, cacheBytes = 0, workspaceBytes = 0 }) {
   const spans = spansText.split('\n').filter(Boolean).flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } });
-  return { schema: 'fw.circleci-timings/1', job, class: cls, sha, digest: digest ?? null, spans };
+  return { schema: 'fw.circleci-timings/1', job, class: cls, sha, digest: digest ?? null, bytes: { cache: cacheBytes, workspace: workspaceBytes }, spans };
 }
 
 // ------------------------------------------------------------------------------------------------------------------ HTTP
@@ -142,20 +168,61 @@ export function keychainToken() {
 
 export const redact = (text, token) => (token ? String(text).split(token).join('<redacted>') : String(text));
 
-/** One API call: the token is fetched by `getToken` inside the call; a 429 waits Retry-After seconds (at most `retries` times). */
-export async function call({ fetchFn = fetch, getToken = keychainToken, sleep = (s) => new Promise((r) => setTimeout(r, s * 1000)), retries = 3 }, method, url, body) {
+/** JSON.parse that accepts raw control characters inside strings (pipeline objects carry commit bodies with raw newlines). */
+export function parseLoose(text) {
+  try { return JSON.parse(text); } catch { /* escape raw control characters inside strings and parse again */ }
+  let out = '', inStr = false, esc = false;
+  for (const ch of text) {
+    if (inStr && !esc && ch < ' ') { out += `\\u${ch.charCodeAt(0).toString(16).padStart(4, '0')}`; continue; }
+    out += ch;
+    if (esc) esc = false;
+    else if (inStr && ch === '\\') esc = true;
+    else if (ch === '"') inStr = !inStr;
+  }
+  return JSON.parse(out);
+}
+
+const isCircleHost = (url) => /(^|\.)circleci\.com$|(^|\.)circle-artifacts\.com$/.test(new URL(url).hostname);
+const shown = (url) => { const u = new URL(url); return url.startsWith(API) ? url.slice(API.length) : `${u.host}${u.pathname}`; };
+
+/** The one request path of every call (JSON and artifact bytes): the token is fetched by `getToken` inside each attempt and sent to
+ *  CircleCI hosts only; a 429 waits Retry-After seconds (at most `retries` times); an error message never holds the token or a query. */
+export async function request({ fetchFn = fetch, getToken = keychainToken, sleep = (s) => new Promise((r) => setTimeout(r, s * 1000)), retries = 3 }, method, url, { body, accept = 'application/json' } = {}) {
   for (let attempt = 0; ; attempt++) {
-    const token = getToken();
-    const res = await fetchFn(url, { method, headers: { 'Circle-Token': token, Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
+    const token = isCircleHost(url) ? getToken() : '';
+    const res = await fetchFn(url, { method, headers: { ...(token ? { 'Circle-Token': token } : {}), Accept: accept, ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
     if (res.status === 429 && attempt < retries) {
       const raw = res.headers?.get?.('retry-after');
       const ra = raw == null || raw === '' ? NaN : Number(raw);
       await sleep(Math.max(Number.isFinite(ra) ? ra : 60, 1));
       continue;
     }
-    if (!res.ok) throw new Error(redact(`${method} ${url.replace(API, '')}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`, token));
-    const text = await res.text();
-    return text ? JSON.parse(text) : {};
+    if (!res.ok) throw new Error(redact(`${method} ${shown(url)}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`, token));
+    return res;
+  }
+}
+
+/** One JSON API call (through `request`). */
+export async function call(ctx, method, url, body) {
+  const text = await (await request(ctx, method, url, { body })).text();
+  return text ? parseLoose(text) : {};
+}
+
+/** The bytes of one artifact (through `request`: the same 429 handling). */
+export async function callBytes(ctx, url) {
+  return Buffer.from(await (await request(ctx, 'GET', url, { accept: '*/*' })).arrayBuffer());
+}
+
+/** Every item of a list endpoint: follows `next_page_token`, and fails loudly when `maxPages` pages were not enough. */
+export async function listAll(ctx, url, { maxPages = 10 } = {}) {
+  const items = [];
+  let token = null;
+  for (let page = 1; ; page++) {
+    const r = await call(ctx, 'GET', token ? `${url}${url.includes('?') ? '&' : '?'}page-token=${encodeURIComponent(token)}` : url);
+    items.push(...(r.items ?? []));
+    token = r.next_page_token ?? null;
+    if (!token) return items;
+    if (page >= maxPages) throw new Error(`${shown(url)}: next_page_token still set after ${maxPages} pages`);
   }
 }
 
@@ -172,6 +239,7 @@ export function triggerRequest({ slug, definitionId, branch, lane, cls, xcode })
 }
 
 export const urls = {
+  pipeline: (pipelineId) => `${API}/pipeline/${pipelineId}`,
   workflows: (pipelineId) => `${API}/pipeline/${pipelineId}/workflow`,
   jobs: (workflowId) => `${API}/workflow/${workflowId}/job`,
   job: (slug, n) => `${API}/project/${slug}/job/${n}`,
@@ -190,42 +258,83 @@ export function loadConfig(root = ROOT, env = process.env) {
 
 // ------------------------------------------------------------------------------------------------------------ run reading
 
+/** A pipeline the pilot started through the API (a push to ci/* makes a `webhook` pipeline with no workflow). */
+export const isPilotPipeline = (p) => p?.trigger?.type !== 'webhook';
+
 const TERMINAL = new Set(['success', 'failed', 'error', 'canceled', 'not_run', 'unauthorized', 'infrastructure_fail', 'timedout', 'terminated-unknown']);
 
 /** Lean `Run` of a finished CircleCI job (detail of GET /project/{slug}/job/{n}); queue = queued_at (else created_at) to started_at. */
 export function circleRun(detail, { sha, digest = null }) {
   const started = ms(detail.started_at), stopped = ms(detail.stopped_at), queuedAt = ms(detail.queued_at) ?? ms(detail.created_at);
-  return { provider: 'circleci', job: detail.name, sha, conclusion: circleConclusion(detail.status), digest, class: detail.executor?.resource_class ?? '',
+  return { provider: 'circleci', job: detail.name, sha, conclusion: ofCircleStatus(detail.status), digest, class: detail.executor?.resource_class ?? '',
     queueMs: started != null && queuedAt != null ? Math.max(0, started - queuedAt) : 0,
     durMs: Number.isFinite(detail.duration) ? detail.duration : started != null && stopped != null ? stopped - started : 0 };
 }
 
-/** Lean `Run`s of a GitHub run as `gh run view <id> --json workflowName,headSha,createdAt,jobs` prints it, for the jobs of the
- *  job map; `digests` maps a GitHub job name to the premiseDigest of its artifact. Queue = run createdAt to job startedAt. */
+/** Lean `Run`s of a GitHub run as `gh run view <id> --json databaseId,workflowName,headSha,createdAt,jobs` prints it, for the jobs the
+ *  job map names (Lean `jobOfGithub`: a whole name, or a matrix name by prefix and VM); the first GitHub job of a row is the twin.
+ *  `digests` maps a GitHub job name to the premiseDigest of its artifact. Queue = run createdAt to job startedAt. */
 export function githubRuns(g, run, digests = {}) {
   const out = [];
-  for (const m of g.jobMap) {
-    const j = (run.jobs ?? []).find((x) => x.name === m.github);
-    if (!j) continue;
+  for (const j of run.jobs ?? []) {
+    const m = jobOfGithub(g, j.name);
+    if (!m || out.some((r) => r.job === m.circleci)) continue;
     const s = ms(j.startedAt), e = ms(j.completedAt), c = ms(run.createdAt);
-    out.push({ provider: 'github', job: m.circleci, lane: m.lane, sha: run.headSha ?? '', conclusion: githubConclusion(j.conclusion), digest: digests[j.name] ?? null,
+    out.push({ provider: 'github', job: m.circleci, lane: m.lane, githubJob: j.name, sha: run.headSha ?? '', conclusion: ofGithubConclusion(j.conclusion), digest: digests[j.name] ?? null,
       class: '', queueMs: s != null && c != null ? Math.max(0, s - c) : 0, durMs: s != null && e != null ? Math.max(0, e - s) : 0 });
   }
   return out;
 }
 
+/** The GitHub artifact name that holds the premise results of a digest job (`engine (chromium)` -> `premises-chromium`), or null. */
+export const premisesArtifact = (name) => { const m = /^engine \((.+)\)$/.exec(name); return m ? `premises-${m[1]}` : null; };
+
+/** The digest of every digest job's GitHub artifact: downloads `premises-<engine>` of the run into `base` (unless it is there). */
+export function githubDigests(g, run, base, download = ghDownload) {
+  const digests = {};
+  for (const j of run.jobs ?? []) {
+    const m = jobOfGithub(g, j.name), art = premisesArtifact(j.name);
+    if (!m?.digest || !art) continue;
+    const dir = join(base, art);
+    if (!existsSync(dir) && run.databaseId != null) { try { download(run.databaseId, art, dir); } catch { /* no artifact: the digest stays missing */ } }
+    digests[j.name] = premiseDigest(dir);
+  }
+  return digests;
+}
+
+/** `gh run download <id> -n <artifact> -D <dir>`. */
+export function ghDownload(runId, artifact, dir) {
+  execFileSync('gh', ['run', 'download', String(runId), '-n', artifact, '-D', dir], { stdio: ['ignore', 'pipe', 'pipe'] });
+}
+
+// ----------------------------------------------------------------------------------------------------------- storage ledger
+
+/** The pilot's storage ledger (.local/circleci-ledger.json): { pipelines: { <id>: { artifacts, cache, workspace } } } in bytes. */
+export function readLedger(path) {
+  try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return { pipelines: {} }; }
+}
+
+export const ledgerBytes = (ledger, exceptId = '') => Object.entries(ledger.pipelines ?? {}).filter(([id]) => id !== exceptId).reduce((n, [, b]) => n + (b.artifacts ?? 0) + (b.cache ?? 0) + (b.workspace ?? 0), 0);
+
+/** Retention assumed for every stored byte: 30 days (an upper bound: caches and workspaces expire sooner). */
+export const RETENTION_DAYS = 30;
+
+/** Thousandths of a GB-month stored by every pilot pipeline of the ledger except `exceptId` (0 without a ledger path). */
+export const storageSoFar = (ctx, exceptId = '') => (ctx.ledgerPath ? storageMilli(ledgerBytes(readLedger(ctx.ledgerPath), exceptId), RETENTION_DAYS) : 0);
+
 // ----------------------------------------------------------------------------------------------------------- the pilot
 
 const sleepReal = (s) => new Promise((r) => setTimeout(r, s * 1000));
 
-/** The pilot stop rule over the jobs seen at one poll. Returns the Lean reasons per job. */
-export async function pollOnce(ctx, { slug, pipelineId, sha, now }) {
+/** The pilot stop rule over the jobs seen at one poll. Returns the Lean reasons per job; the storage input is the ledger of the
+ *  earlier pilot pipelines. */
+export async function pollOnce(ctx, { slug, pipelineId, now }) {
   const g = ctx.golden;
-  const wfs = (await call(ctx, 'GET', urls.workflows(pipelineId))).items ?? [];
+  const stored = storageSoFar(ctx, pipelineId);
+  const wfs = await listAll(ctx, urls.workflows(pipelineId));
   const jobs = [];
   for (const wf of wfs) {
-    const items = (await call(ctx, 'GET', urls.jobs(wf.id))).items ?? [];
-    for (const j of items) {
+    for (const j of await listAll(ctx, urls.jobs(wf.id))) {
       let queueMs = 0, durMs = 0;
       if (j.job_number != null && (j.status === 'queued' || j.status === 'running')) {
         const d = await call(ctx, 'GET', urls.job(slug, j.job_number));
@@ -233,13 +342,14 @@ export async function pollOnce(ctx, { slug, pipelineId, sha, now }) {
         queueMs = q == null ? 0 : (s ?? now) - q;
         durMs = s == null ? 0 : (ms(d.stopped_at) ?? now) - s;
       }
-      jobs.push({ workflow: wf, name: j.name, status: j.status, number: j.job_number, stops: stops(g, { durMs, queueMs, storageMilli: 0 }) });
+      jobs.push({ workflow: wf, name: j.name, status: j.status, number: j.job_number, stops: stops(g, { durMs, queueMs, storageMilli: stored }) });
     }
   }
-  return { workflows: wfs, jobs, sha };
+  return { workflows: wfs, jobs };
 }
 
-/** Wait for a pipeline: polls every `intervalS` (at least MIN_POLL_S), stops the pilot when the stop rule fires. Exit codes in the header. */
+/** Wait for a pipeline: polls every `intervalS` (at least MIN_POLL_S), stops the pilot when the stop rule fires (exit 5), else the
+ *  exit code is Lean `waitStep` over the workflow statuses. Exit codes in the header. */
 export async function waitPipeline(ctx, { slug, pipelineId, timeoutS = 3600, intervalS = MIN_POLL_S, noWorkflowS = 300 }) {
   const log = ctx.log ?? console.log;
   const step = Math.max(intervalS, ctx.minPollS ?? MIN_POLL_S);
@@ -255,61 +365,66 @@ export async function waitPipeline(ctx, { slug, pipelineId, timeoutS = 3600, int
       }
     }
     log(`poll: ${p.workflows.length} workflow(s), jobs ${p.jobs.map((j) => `${j.name}=${j.status}`).join(' ') || 'none yet'}`);
-    if (p.workflows.length && p.workflows.every((w) => TERMINAL.has(w.status))) {
-      const st = p.workflows.map((w) => w.status);
-      return { code: st.every((s) => s === 'success') ? 0 : st.some((s) => ['failed', 'error', 'infrastructure_fail', 'timedout', 'unauthorized'].includes(s)) ? 1 : 4, ...p };
-    }
-    const waited = (now - t0) / 1000;
-    if (!p.workflows.length && waited >= noWorkflowS) return { code: 4, ...p };
-    if (waited >= timeoutS) return { code: 3, ...p };
+    const code = waitStep({ statuses: p.workflows.map((w) => w.status), waitedS: Math.floor((now - t0) / 1000), noWorkflowS, timeoutS });
+    if (code != null) return { code, ...p };
     await ctx.sleep(step);
   }
 }
 
 /** Download the artifacts of every finished job of the pipeline into `out/<job>/...` and write `out/run.json`
- *  ({schema, pipelineId, sha, runs: [Lean Run], spans, storage}). The artifact path is checked: no `..`, no absolute path. */
-export async function fetchPipeline(ctx, { slug, pipelineId, out, sha = '' }) {
+ *  ({schema, pipelineId, sha, runs: [Lean Run], spans, storage}). The commit is `vcs.revision` of GET /pipeline/{id}. The artifact path is
+ *  checked: no `..`, no absolute path. Storage = artifact bytes + the cache and workspace bytes each job reports in timings.json,
+ *  added to the ledger (`ctx.ledgerPath`) of all pilot pipelines. */
+export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
   const g = ctx.golden;
   mkdirSync(out, { recursive: true });
+  const sha = (await call(ctx, 'GET', urls.pipeline(pipelineId))).vcs?.revision ?? '';
+  if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error(`pipeline ${pipelineId} has no vcs.revision`);
   const runs = [], spans = [];
-  let bytes = 0;
-  const wfs = (await call(ctx, 'GET', urls.workflows(pipelineId))).items ?? [];
-  for (const wf of wfs) {
-    for (const j of (await call(ctx, 'GET', urls.jobs(wf.id))).items ?? []) {
+  const bytes = { artifacts: 0, cache: 0, workspace: 0 };
+  for (const wf of await listAll(ctx, urls.workflows(pipelineId))) {
+    for (const j of await listAll(ctx, urls.jobs(wf.id))) {
       if (j.job_number == null || !TERMINAL.has(j.status)) continue;
       const d = await call(ctx, 'GET', urls.job(slug, j.job_number));
       const dir = join(out, j.name);
       mkdirSync(dir, { recursive: true });
-      for (const a of (await call(ctx, 'GET', urls.artifacts(slug, j.job_number))).items ?? []) {
+      for (const a of await listAll(ctx, urls.artifacts(slug, j.job_number))) {
         const rel = String(a.path).replace(/^\/+/, '');
         if (rel.split('/').includes('..') || rel === '') throw new Error(`artifact path ${a.path} leaves the output directory`);
         const dest = join(dir, ...rel.split('/'));
         if (!(dest + sep).startsWith(dir + sep)) throw new Error(`artifact path ${a.path} leaves the output directory`);
-        const res = await ctx.fetchFn(a.url, { headers: /(^|\.)circleci\.com$|(^|\.)circle-artifacts\.com$/.test(new URL(a.url).hostname) ? { 'Circle-Token': ctx.getToken() } : {} });
-        if (!res.ok) throw new Error(`artifact ${rel} of ${j.name}: HTTP ${res.status}`);
-        const buf = Buffer.from(await res.arrayBuffer());
+        const buf = await callBytes(ctx, a.url);
         mkdirSync(dirname(dest), { recursive: true });
         writeFileSync(dest, buf);
-        bytes += buf.length;
+        bytes.artifacts += buf.length;
       }
-      const jobSha = sha || d.pipeline?.vcs?.revision || '';
-      const run = circleRun(d, { sha: jobSha, digest: LANES_WITH_DIGEST.includes(j.name) ? premiseDigest(dir) : null });
-      runs.push(run);
+      runs.push(circleRun(d, { sha, digest: digestJob(g, j.name) ? premiseDigest(dir) : null }));
       const started = ms(d.started_at), stopped = ms(d.stopped_at), queuedAt = ms(d.queued_at) ?? ms(d.created_at);
-      let own = [];
-      try { own = JSON.parse(readFileSync(join(dir, 'timings.json'), 'utf8')).spans ?? []; } catch { /* no timings.json: the job died before finish */ }
+      let own = [], saved = {};
+      try { const t = JSON.parse(readFileSync(join(dir, 'timings.json'), 'utf8')); own = t.spans ?? []; saved = t.bytes ?? {}; } catch { /* no timings.json: the job died before finish */ }
+      bytes.cache += Number(saved.cache) || 0;
+      bytes.workspace += Number(saved.workspace) || 0;
       const lastEnd = own.reduce((m, s) => Math.max(m, s.startMs + s.durMs), started ?? 0);
-      if (queuedAt != null && started != null) spans.push(span(j.name, 'queue', queuedAt, started - queuedAt, jobSha.slice(0, 7)));
+      if (queuedAt != null && started != null) spans.push(span(j.name, 'queue', queuedAt, started - queuedAt, sha.slice(0, 7)));
       spans.push(...own);
-      if (stopped != null) spans.push(span(j.name, 'upload (after the last step)', lastEnd, stopped - lastEnd, jobSha.slice(0, 7)));
-      if (started != null && stopped != null) spans.push(span(j.name, 'job', started, stopped - started, jobSha.slice(0, 7)));
+      if (stopped != null) spans.push(span(j.name, 'upload (after the last step)', lastEnd, stopped - lastEnd, sha.slice(0, 7)));
+      if (started != null && stopped != null) spans.push(span(j.name, 'job', started, stopped - started, sha.slice(0, 7)));
     }
   }
-  const doc = { schema: 'fw.circleci-run/1', pipelineId, sha: sha || (runs[0]?.sha ?? ''), runs, spans, storage: { bytes, days: 30, milli: storageMilli(bytes, 30), stops: stops(g, { durMs: 0, queueMs: 0, storageMilli: storageMilli(bytes, 30) }) } };
+  const total = bytes.artifacts + bytes.cache + bytes.workspace;
+  let ledger = { pipelines: {} };
+  if (ctx.ledgerPath) {
+    ledger = readLedger(ctx.ledgerPath);
+    ledger.pipelines = { ...ledger.pipelines, [pipelineId]: bytes };
+    mkdirSync(dirname(ctx.ledgerPath), { recursive: true });
+    writeFileSync(ctx.ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
+  }
+  const all = ctx.ledgerPath ? ledgerBytes(ledger) : total;
+  const milli = storageMilli(all, RETENTION_DAYS);
+  const doc = { schema: 'fw.circleci-run/1', pipelineId, sha, runs, spans, storage: { ...bytes, bytes: total, ledgerBytes: all, days: RETENTION_DAYS, milli, stops: stops(g, { durMs: 0, queueMs: 0, storageMilli: milli }) } };
   writeFileSync(join(out, 'run.json'), `${JSON.stringify(doc, null, 2)}\n`);
   return doc;
 }
-const LANES_WITH_DIGEST = ['engine-chromium', 'engine-playwright-webkit'];
 
 /** Pair the runs by job and compare them with the Lean verdict: lines for print, and the exit code. */
 export function comparePairs(g, ghRuns, ccRuns) {
@@ -317,7 +432,7 @@ export function comparePairs(g, ghRuns, ccRuns) {
   for (const m of g.jobMap) {
     const gh = ghRuns.find((r) => r.job === m.circleci), cc = ccRuns.find((r) => r.job === m.circleci);
     if (!gh || !cc) { if (gh || cc) rows.push({ job: m.circleci, unpaired: gh ? 'circleci' : 'github' }); continue; }
-    rows.push({ job: m.circleci, ...compare(g, gh, cc) });
+    rows.push({ job: m.circleci, githubJob: gh.githubJob, ...compare(g, gh, cc) });
   }
   const code = rows.some((r) => r.comparable === false || r.unpaired) ? 2 : rows.some((r) => r.finding) ? 1 : 0;
   return { rows, code };
@@ -325,8 +440,8 @@ export function comparePairs(g, ghRuns, ccRuns) {
 
 export function renderComparison(rows) {
   const f = (r) => r.unpaired ? `${r.job}: only one side ran (missing: ${r.unpaired})`
-    : !r.comparable ? `${r.job}: not a pair (${r.reason})`
-    : `${r.job}: ${r.finding ? 'FINDING verdicts differ' : 'verdicts equal'}; duration ${r.ratioPermille == null ? 'n/a' : `${(r.ratioPermille / 1000).toFixed(2)}x GitHub`}; queue github ${Math.round(r.queueGithubMs / 1000)}s, circleci ${Math.round(r.queueCircleMs / 1000)}s; credits ${r.credits ?? 'n/a (class not in the price list)'}`;
+    : !r.comparable ? `${r.job}: not a pair (${r.reason === 'digest' ? 'digest missing on a side' : r.reason})`
+    : `${r.job}${r.githubJob && r.githubJob !== r.job ? ` (github: ${r.githubJob})` : ''}: ${r.finding ? 'FINDING verdicts differ' : 'verdicts equal'}; duration ${r.ratioPermille == null ? 'n/a' : `${(r.ratioPermille / 1000).toFixed(2)}x GitHub`}; queue github ${Math.round(r.queueGithubMs / 1000)}s, circleci ${Math.round(r.queueCircleMs / 1000)}s; credits ${r.credits ?? 'n/a (class not in the price list)'}`;
   return rows.map(f).join('\n');
 }
 
@@ -356,7 +471,7 @@ export async function dryRun({ golden, lane, branch, cls = CLASSES[0], xcode = '
   log(`${req.method} ${req.url}`);
   for (const [k, v] of Object.entries(req.headers)) log(`  ${k}: ${v}`);
   log(`  ${JSON.stringify(req.body)}`);
-  for (const [name, url] of [['pipeline workflows', urls.workflows('<pipeline-id>')], ['workflow jobs', urls.jobs('<workflow-id>')], ['job detail', urls.job(slug, '<job-number>')], ['job artifacts', urls.artifacts(slug, '<job-number>')], ['cancel on stop', urls.cancel('<workflow-id>')]]) {
+  for (const [name, url] of [['pipeline workflows', urls.workflows('<pipeline-id>')], ['workflow jobs', urls.jobs('<workflow-id>')], ['pipeline (commit)', urls.pipeline('<pipeline-id>')], ['job detail', urls.job(slug, '<job-number>')], ['job artifacts', urls.artifacts(slug, '<job-number>')], ['cancel on stop', urls.cancel('<workflow-id>')]]) {
     log(`${name === 'cancel on stop' ? 'POST' : 'GET'} ${url}   (${name}; header Circle-Token: <redacted>)`);
   }
   const fx = loadFixture(fixture);
@@ -365,11 +480,11 @@ export async function dryRun({ golden, lane, branch, cls = CLASSES[0], xcode = '
   log(`fixture ${fixture}: wait exit ${w.code}`);
   if (w.code !== 0) return { wait: w };
   const out = tmp ?? mkdtempSync(join(tmpdir(), 'fwcircleci-'));
-  const doc = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out, sha: fx.sha });
+  const doc = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out });
   const gh = githubRuns(golden, fx.github, fx.github.digests ?? {});
   const cmp = comparePairs(golden, gh, doc.runs);
   log(renderComparison(cmp.rows));
-  log(`storage: ${doc.storage.bytes} bytes, ${doc.storage.milli} thousandths of a GB-month${doc.storage.stops.length ? `; STOP ${doc.storage.stops.join(',')}` : ''}`);
+  log(`storage: ${doc.storage.bytes} bytes (artifacts ${doc.storage.artifacts}, cache ${doc.storage.cache}, workspace ${doc.storage.workspace}), ${doc.storage.milli} thousandths of a GB-month${doc.storage.stops.length ? `; STOP ${doc.storage.stops.join(',')}` : ''}`);
   return { wait: w, doc, cmp };
 }
 
@@ -401,8 +516,8 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
   const golden = ctx0.golden ?? loadGolden();
   try {
     if (sub === 'timings') {
-      const o = flags(rest, { spans: 'v', out: 'v', job: 'v', class: 'v', sha: 'v', 'digest-from': 'v' });
-      const doc = timingsDoc({ spansText: readFileSync(o.spans, 'utf8'), job: o.job, cls: o.class, sha: o.sha ?? '', digest: o['digest-from'] ? premiseDigest(o['digest-from']) : null });
+      const o = flags(rest, { spans: 'v', out: 'v', job: 'v', class: 'v', sha: 'v', 'digest-from': 'v', 'cache-bytes': 'v', 'workspace-bytes': 'v' });
+      const doc = timingsDoc({ spansText: readFileSync(o.spans, 'utf8'), job: o.job, cls: o.class, sha: o.sha ?? '', digest: o['digest-from'] ? premiseDigest(o['digest-from']) : null, cacheBytes: Number(o['cache-bytes']) || 0, workspaceBytes: Number(o['workspace-bytes']) || 0 });
       writeFileSync(o.out, `${JSON.stringify(doc, null, 2)}\n`);
       return 0;
     }
@@ -417,8 +532,10 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
       const o = flags(rest, { github: 'v', circleci: 'v', json: 'bool' });
       if (!o.github || !o.circleci) throw new Usage(USAGE);
       const gh = JSON.parse(readFileSync(o.github, 'utf8'));
-      const digests = Object.fromEntries(Object.entries(gh.digestDirs ?? {}).map(([k, d]) => [k, premiseDigest(resolve(dirname(o.github), d))]));
-      const cmp = comparePairs(golden, githubRuns(golden, gh, { ...(gh.digests ?? {}), ...digests }), JSON.parse(readFileSync(o.circleci, 'utf8')).runs);
+      const base = join(dirname(resolve(o.github)), 'gh-artifacts');
+      const given = Object.fromEntries(Object.entries(gh.digestDirs ?? {}).map(([k, d]) => [k, premiseDigest(resolve(dirname(o.github), d))]));
+      const digests = { ...githubDigests(golden, gh, base, ctx0.ghDownload ?? ghDownload), ...(gh.digests ?? {}), ...given };
+      const cmp = comparePairs(golden, githubRuns(golden, gh, digests), JSON.parse(readFileSync(o.circleci, 'utf8')).runs);
       log(o.json ? JSON.stringify(cmp) : renderComparison(cmp.rows));
       return cmp.code;
     }
@@ -432,7 +549,7 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
     }
     const cfg = loadConfig(root, env);
     const need = (what) => { if (!cfg[what]) throw new Usage(`${what === 'slug' ? 'project slug' : 'pipeline definition id'} not set: FW_CIRCLECI_${what === 'slug' ? 'SLUG' : 'DEFINITION_ID'} or .local/circleci.json (docs/team/tools/circleci.md, step 5)`); return cfg[what]; };
-    const ctx = { golden, fetchFn: fetch, getToken: keychainToken, sleep: sleepReal, now: Date.now, log, ...ctx0 };
+    const ctx = { golden, fetchFn: fetch, getToken: keychainToken, sleep: sleepReal, now: Date.now, log, ledgerPath: join(root, '.local', 'circleci-ledger.json'), ...ctx0 };
     if (sub === 'trigger') {
       const o = flags(rest, { lane: 'v', branch: 'v', class: 'v', xcode: 'v', dry: 'bool' });
       if (!LANES.includes(o.lane) || !/^ci\/[A-Za-z0-9._/-]+$/.test(o.branch ?? '')) throw new Usage(USAGE);
@@ -450,23 +567,28 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
       let pipelineId = o.pipeline;
       if (!pipelineId) {
         if (!o.branch) throw new Usage('give --pipeline ID or --branch ci/<name>');
-        const list = (await call(ctx, 'GET', urls.pipelines(slug, o.branch))).items ?? [];
+        const list = await listAll(ctx, urls.pipelines(slug, o.branch), { maxPages: 5 });
         const since = o.since ? Number(o.since) * 1000 : 0;
-        const p = list.find((x) => (ms(x.created_at) ?? 0) >= since);
-        if (!p) { log(`circleci: no pipeline for ${o.branch}${since ? ' since the given time' : ''}`); return 4; }
+        const p = list.find((x) => isPilotPipeline(x) && (ms(x.created_at) ?? 0) >= since);
+        if (!p) { log(`circleci: no pilot pipeline (started through the API) for ${o.branch}${since ? ' since the given time' : ''}`); return 4; }
         pipelineId = p.id;
       }
       if (sub === 'fetch') {
         if (!o.out) throw new Usage('fetch needs --out DIR');
         const doc = await fetchPipeline(ctx, { slug, pipelineId, out: resolve(o.out) });
-        log(`circleci: fetched ${doc.runs.length} job(s) to ${o.out}/run.json`);
+        log(`circleci: fetched ${doc.runs.length} job(s) to ${o.out}/run.json; storage ${doc.storage.milli} thousandths of a GB-month`);
+        if (doc.storage.stops.length) { log(`STOP storage (Lean Fw.Ci.Provider.stops): the pilot ledger passed the limit`); return 5; }
         return 0;
       }
       const interval = Number(o.interval ?? MIN_POLL_S);
       if (!(interval >= MIN_POLL_S)) throw new Usage(`--interval must be at least ${MIN_POLL_S} s`);
       const w = await waitPipeline(ctx, { slug, pipelineId, timeoutS: Number(o.timeout ?? 3600), intervalS: interval });
       log(`circleci: pipeline ${pipelineId} ended with exit ${w.code} (0 pass, 1 fail, 3 timeout, 4 not run, 5 stop rule)`);
-      if (o.out && w.code !== 3) { const doc = await fetchPipeline(ctx, { slug, pipelineId, out: resolve(o.out) }); log(`circleci: ${doc.runs.length} job(s) in ${o.out}/run.json`); }
+      if (o.out && w.code !== 3 && w.code !== 5) {
+        const doc = await fetchPipeline(ctx, { slug, pipelineId, out: resolve(o.out) });
+        log(`circleci: ${doc.runs.length} job(s) in ${o.out}/run.json; storage ${doc.storage.milli} thousandths of a GB-month`);
+        if (doc.storage.stops.length) { log('STOP storage (Lean Fw.Ci.Provider.stops): the pilot ledger passed the limit'); return 5; }
+      }
       return w.code;
     }
     throw new Usage(USAGE);

@@ -32,7 +32,7 @@ structure Rate where
   source : String
 deriving DecidableEq, Repr
 
-/-- The price list the pilot meets (CONFIRMED rates, `research/notes/2026/10-20-circleci-free-tier.md`, capacity table). -/
+/-- The price list the pilot meets: rates CONFIRMED (`research/notes/2026/10-20-circleci-free-tier.md`, capacity table); the class names `arm.*.gen2` INFERRED until an API run accepts them, `arm.medium` and `arm.large` are the fallback. -/
 def rates : List Rate := [
   ⟨"arm.medium", .linuxArm, .oss, 10, true, "https://circleci.com/pricing/price-list/"⟩,
   ⟨"arm.large", .linuxArm, .oss, 20, true, "https://circleci.com/pricing/price-list/"⟩,
