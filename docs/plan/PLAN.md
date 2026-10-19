@@ -1115,9 +1115,9 @@ constant glass, FLIP, st6, typing chunks, PR-040/041.
 **The idea** (`10-19-lego-parts-plan.md`). A part cannot be measured alone against the original, because the
 original is one page; the gate and the faithful check stay whole-page. Lean removes repetition only where §4.8's
 hypotheses hold. One **combined** counts run per profile replaces one whole-page run per units-type flag (INFERRED
-under the open bridge, §4.8 limit 3). If nothing, then page units per stage are the sum of the parts' frames in that
-same run (`frameWork_append_units`, Compose.lean:217). Reading one part's own-flag saving out of the combined run also
-needs its frame unchanged by the other flags: if `ReadsOnly Indep frame` and $p$ is `Indep` of every other part, then
+under the open bridge, §4.8 limit 3). If nothing, then page units per stage are the sum of the parts' units in that
+same run (two parts per `frameWork_append_units`, Compose.lean:217; n parts by induction over `pageOf`). Reading one part's own-flag saving out of the combined run also
+needs its frame unchanged by the other flags: if `ReadsOnly Indep frame`, $p$ is `Indep` of every other part and $p < n$, then
 swapping $p$'s variant moves page units by exactly $p$'s own frame delta (`lego_swap_units`, 411); `Indep` is abstract
 (bridge open) and the rows carry `declared-rows-unverified`, so per-flag attribution is INFERRED until the bridge
 lands. F3/F4 check the combined prediction per part zone; F6 checks additivity after C3. Passes do not add up, so a passes-type flag
@@ -1126,7 +1126,7 @@ counts run each is scheduled before C3 (tonight, 23:15) if CI minutes allow, and
 Sibling gate re-runs and visual re-checks of untouched parts are **dropped under premise** (INFERRED): they rest on
 `lego_swap_sound` and `lego_swap_visible` under the abstract `Indep` (bridge open, §4.8 limit 3), on rows carrying
 `declared-rows-unverified`, and for the visual cut on exactly equal band heights of stacked parts only (box ½ px
-composes under $Q$, `visible_append_of_boxes_Q`), never nav or overlays. `scope_sound` (`Scope.lean:710`) does not back them: it needs $u \in$ `pilotParts` (33 part
+composes under $Q$ by `lego_swap_sound`, `Q_refl` and `visible_append_of_boxes_Q`; `lego_swap_visible` itself needs equal scenes), never nav or overlays. `scope_sound` (`Scope.lean:710`) does not back them: it needs $u \in$ `pilotParts` (33 part
 uses, lines 319-470) and says only that a scoped run keeps that part's own verdict, nothing about siblings. Until the
 bridge lands, the two whole-page gates are the evidence for siblings and untouched parts. Content lanes change no
 mechanism and need no theorem. Every part carries a contract row and a units-or-passes tag for its win.
