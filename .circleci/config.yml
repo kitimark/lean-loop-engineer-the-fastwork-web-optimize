@@ -1,0 +1,16 @@
+version: 2.1
+# Bootstrap so CircleCI can create the project from this repo; the task circleci-pilot replaces the jobs. Workflows run
+# only on ci/* branches, so a push to main starts no workflow and spends no credits.
+jobs:
+  probe:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - checkout
+      - run: uname -a && nproc
+workflows:
+  probe:
+    when:
+      matches: { pattern: "^ci/.*$", value: << pipeline.git.branch >> }
+    jobs: [probe]
