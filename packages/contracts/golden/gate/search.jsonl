@@ -1,0 +1,12 @@
+{"fw":"","ok":true,"preset":"","search":""}
+{"fw":"morph.tween:waapi","ok":true,"preset":"","search":"?fw=morph.tween:waapi"}
+{"fw":"","ok":true,"preset":"v2-proved","search":"?preset=v2-proved"}
+{"fw":"","ok":true,"preset":"original","search":"?preset=original"}
+{"fw":"","ok":true,"preset":"strip-demo","search":"?preset=strip-demo"}
+{"fw":"morph.tween:waapi","ok":false,"preset":"v2-proved","refusal":"bothSet"}
+{"fw":"","ok":false,"preset":"V2 proved","refusal":"badPreset"}
+{"fw":"","ok":false,"preset":"v2_proved","refusal":"badPreset"}
+{"fw":"morph.tween waapi","ok":false,"preset":"","refusal":"badFw"}
+{"fw":"preset:v2-proved","ok":true,"preset":"","search":"?fw=preset:v2-proved"}
+{"fw":"a=b","ok":false,"preset":"","refusal":"badFw"}
+{"fw":"","ok":false,"preset":"v2-proved\n?x","refusal":"badPreset"}
