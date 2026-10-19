@@ -7935,7 +7935,8 @@
     "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
     "research/notes/2026/10-20-waapi-touch-arm.md",
     "results/waapi-touch-arm/**",
-    "docs/team/handoffs/waapi-touch-arm.md"
+    "docs/team/handoffs/waapi-touch-arm.md",
+    "packages/contracts/golden/parts/morph-tween-waapi.swipe-v1.jsonl"
    ]
   },
   {
@@ -7956,7 +7957,8 @@
     "lean/Fw/Parts/HeroCountdownHidden.lean",
     "research/notes/2026/10-20-countdown-hidden-arm.md",
     "results/countdown-hidden-arm/**",
-    "docs/team/handoffs/countdown-hidden-arm.md"
+    "docs/team/handoffs/countdown-hidden-arm.md",
+    "research/findings/ledger.json"
    ]
   },
   {
@@ -9035,6 +9037,27 @@
    ],
    "writes": [
     "lean/Fw/Ops/LeanFirst*.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "commission-margin-recur",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "title": "The commission margin-inline gate readings fail intermittently after fix-commission-margin (c4b57a2), flag-independent (runs 39313815482, 39314391342, 39314718340 fail; 39312308450, 39282664077 pass); explain from CI artifacts and fix at the cause (site or Lean gate rule, no tolerance widening); >= 3 consecutive full-gate passes on a no-flag branch; blocks the gate verdicts of exit-scoped-var, morph-layers, countdown-one-chain",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/commission/**",
+    "packages/gate-breakpoints/src/**",
+    "packages/gate-breakpoints/test/**",
+    "lean/Fw/Gate/**",
+    "lean/Fw/Wire/Gate.lean",
+    "packages/contracts/golden/gate/**",
+    "research/notes/2026/10-20-commission-margin-recur.md",
+    "results/commission-margin-recur/**",
+    "docs/team/handoffs/commission-margin-recur.md"
    ]
   }
  ],
