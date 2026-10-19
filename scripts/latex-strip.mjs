@@ -1,10 +1,11 @@
 // latex-strip.mjs: removes LaTeX math from the doc comments (`/-- -/`, `/-! -/`) of Lean files.
-//   node scripts/latex-strip.mjs <file.lean>...          rewrite each file in place
-//   node scripts/latex-strip.mjs --check <file.lean>...  exit 1 when a file still holds `$$`
-// In a doc comment, a `$$...$$` block goes; an inline `$...$` becomes a code span when it is one name, number or
-// string, and goes otherwise. Code spans and fences keep their `$`. Leftovers are tidied (a dangling `i.e.` or `:`, a
-// blank-line run, a space before punctuation), and a doc comment with no prose left is deleted. Code, strings, chars
-// and plain comments are copied unchanged. A second run changes nothing.
+//   node scripts/latex-strip.mjs <file.lean>...          rewrite each file in place (a `-- GENERATED` file is skipped)
+//   node scripts/latex-strip.mjs --check <file.lean>...  exit 1 when a doc comment still holds `$$`
+// In a doc comment, a `$$...$$` block goes, and so does a following `where`/`with`/`so` clause that holds math. An
+// inline `$...$` becomes a code span in Unicode plain text (`k ≥ 1`), and goes when it has no plain form. Code spans
+// and fences keep their `$`. Leftovers are tidied (a dangling `i.e.` or `:` becomes a period, a blank-line run, a
+// space before punctuation), and a doc comment with no prose left is deleted. Code, strings, chars and plain comments
+// are copied unchanged. A second run changes nothing.
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const isIdent = (c) => c !== undefined && /[\p{L}\p{N}_'!?.₀-ₜ]/u.test(c);
@@ -113,8 +114,8 @@ const symbols = {
 const blackboard = { N: 'ℕ', Z: 'ℤ', Q: 'ℚ', R: 'ℝ', B: '𝔹' };
 const wrappers = 'mathit|mathrm|texttt|operatorname|text|textsf|mathsf|mathtt|mathbf|textit|textrm|textbf|mathcal|mathbin|mathrel|mathop|mbox|boldsymbol|emph';
 
-// Inline math as plain text for a code span (Unicode symbols, no LaTeX), or null when it uses a construct with no
-// one-line plain form (fractions, sums, environments, accents).
+// Inline math as plain text for a code span (Unicode symbols, no LaTeX), or null when a LaTeX command or an unbalanced
+// brace is left after conversion (environments, accents, unknown commands).
 export function plainInline(tex) {
   let t = tex.replace(/\\([{}])/g, (m, b) => (b === '{' ? '\u0002' : '\u0003'));
   t = t.replace(/\\mathbb(?:\{([NZQRB])\}|\s+([NZQRB])(?![A-Za-z]))/g, (m, a, b) => blackboard[a ?? b]).replace(/\\dot-/g, '∸');
