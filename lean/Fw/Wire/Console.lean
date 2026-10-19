@@ -40,7 +40,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.previewLink` | `hasTty`, `now`? (ms), `last`? (ms of the last link) | `sink` (`tty` or null: print no link), `allowed` [sinks] (`linkSink`: only `tty`), `reissue`? (with `now`: may a new link be issued, `mayReissue`: one per minute) |
 | `console.ownerLogin` | `enabled` (the console has an owner passphrase), `correct` (the constant-time compare matched), `now` (ms), `fails`? [ms] and `lockUntil`? (the client address's record; missing = fresh), `gFails`? [ms] and `gLockUntil`? (the global record across all addresses; missing = fresh) | `verdict` (`disabled`/`locked`/`wrong`/`ok`), `fails`, `lockUntil` (the new address record), `gFails`, `gLockUntil` (the new global record), `retryAt` (the end of the longest active lock, else null), `maxTries`, `window`, `lock`, `globMax`, `globWindow`, `globLock` (`Fw.Console.Preview.Owner.attempt`) |
 | `console.ownerGate` | `lan` (non-loopback or unknown remote address), `session` (console port: a valid owner bearer token in the Authorization header, never a cookie; preview port: a valid preview-access cookie), `hostOk` (Host names this port), `path`, `port`? (`console` default, or `preview`; the preview port also reads `grant` (the cookie names an inspect grant), `grantStarted`, `now` (ms)) | `allow`, `by` (`session`/`grant`/`none`), `class` (`login`/`preview`/`other`/`shell`) (`Fw.Console.Preview.Owner.allow` for the console port, `allowPreview` for the preview port; `classify`) |
-| `console.previewArm` | `lan`, `session` (valid preview-access cookie), `hostOk` (Host names this arm's port), `grant`, `grantStarted`, `now`, `port` (the local port the request arrived on), `path`, `live` [{id, task, rp, op, started}] | `allow`, `by` (`session`/`grant`/`none`), `act` (`proxy`/`refuse`), `id`, `arm` (`r`/`o`), `backend` (private port), `path` (unchanged) (`Fw.Console.Preview.Arm.armServe`, `route`) |
+| `console.previewArm` | `lan`, `session` (valid preview-access cookie), `hostOk` (Host names this arm's port), `grant`, `grantStarted`, `now`, `port` (the local port the request arrived on), `path`, `live` [{id, task, rp, op, started}] | `allow`, `by` (`session`/`grant`/`none`), `act` (`proxy`/`refuse`), `preview` (the preview id; `id` is the protocol's own), `arm` (`r`/`o`), `backend` (private port), `path` (unchanged) (`Fw.Console.Preview.Arm.armServe`, `route`) |
 | `console.previewGrant` | `kind` (`issue`: may a grant be issued, from `lan`; `redeem`: a grant token is presented, with `known`, `used`, `issuedAt`, `now` (ms)), `lan` | `allow`, `verdict` (redeem: `ok`/`lan`/`unknown`/`used`/`expired`), `ttlMs` (issue), `cookieMs` (`Fw.Console.Preview.Owner.issueAllowed`, `redeem`) |
 | `console.ownerAction` | `kind` (`owner`: an owner action, needs the bearer token and an Origin; `command`: any other non-GET route, an Origin if present; `login`: an Origin, no token), `bearer` (a valid owner token in the Authorization header), `origin`? ({host, port} or null: none sent), `host`? (the origin of the Host header when it names this console, else null), `extra` [{host, port}] (configured web origins), `previewPort`? (null = unset: nothing is trusted) | `allow`, `trusted` (the computed trusted origins, none on the preview port) (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`) |
 | `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
@@ -454,7 +454,7 @@ def opOwnerGate (req : Json) : Except String Reply := do
 open Fw.Console.Preview.Arm in
 /-- `console.previewArm` (`Fw.Console.Preview.Arm.armServe`, `route`): one request on an arm origin. `port` is the local
 port it arrived on, `live` the table, `path` the request path and query. `allow` is the gate (`armServe`), `by` what let it
-in, `act` is `proxy` (with `id`, `arm`, `backend` and the unchanged `path`) or `refuse` (no arm listens on `port`). -/
+in, `act` is `proxy` (with `preview`, `arm`, `backend` and the unchanged `path`) or `refuse` (no arm listens on `port`). -/
 def opPreviewArm (req : Json) : Except String Reply := do
   let s ← liveOf req
   let lan ← asBool "lan" (← field req "lan")
@@ -473,8 +473,8 @@ def opPreviewArm (req : Json) : Except String Reply := do
   let by_ := if !ok then "none" else if Fw.Console.Preview.Owner.allowPreview lan session hostOk then "session" else "grant"
   let path ← str req "path"
   let act := match route s (← nat req "port") path with
-    | .proxy i a b p => [("act", Json.str "proxy"), ("id", .str i), ("arm", .str a.name), ("backend", .num b), ("path", .str p)]
-    | .refuse => [("act", Json.str "refuse"), ("id", .null), ("arm", .null), ("backend", .null), ("path", .null)]
+    | .proxy i a b p => [("act", Json.str "proxy"), ("preview", .str i), ("arm", .str a.name), ("backend", .num b), ("path", .str p)]
+    | .refuse => [("act", Json.str "refuse"), ("preview", .null), ("arm", .null), ("backend", .null), ("path", .null)]
   pure ([("allow", Json.bool ok), ("by", .str by_)] ++ act)
 
 open Fw.Console.Preview.Owner in
