@@ -66,6 +66,15 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  /* The original's form-control base rule (assets/0.ChGpbVhU.css): controls take colour and font from their parent.
+     In the reset layer, so any part style overrides it. */
+  button,
+  input,
+  select,
+  textarea {
+    color: inherit;
+    font: inherit;
+  }
 }
 
 /* The page root restates the original's page-root rule (assets/2.gBuqKVzi.css:1, `.start-selling`: min-width 320px,
