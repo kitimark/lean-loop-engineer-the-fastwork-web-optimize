@@ -84,3 +84,23 @@ export function mountedOf(hosts: readonly Host[], ids: readonly string[]): strin
 
 /** Stub height in CSS pixels, rounded half up (Lean `stubPx`), integer arithmetic. */
 export const stubPx = (section: Section, vh: number): number => Math.floor((STUB_X100[section] * vh + 50) / 100);
+
+/** The frame style of a host the page seats in a fixed, clipping box (see HOST_FRAME). */
+export interface HostFrame {
+  position: 'fixed';
+  inset: 0;
+  overflow: 'hidden';
+  pointerEvents: 'none';
+}
+
+/**
+ * The frame the stage gives a host that the page seats inside a fixed, clipping box. The morph panel's backdrop is
+ * `inset: 0 -3%` and bleeds past its host; in the page the nav hosts it (`.start-selling-top-nav`: `position: fixed`,
+ * `overflow: hidden`, restated in nav.module.css), so the bleed neither scrolls nor widens the page. A stage with a plain
+ * div as host let it add 3 % of the width of horizontal scroll (13 px at 430 px). The frame takes the viewport box, where the
+ * page's nav takes `--panel-w` by `--panel-h`; it takes no pointer events, as the panel itself takes none until expanded.
+ * TS stand-in, not in Lean.
+ */
+export const HOST_FRAME: Readonly<Partial<Record<Host, HostFrame>>> = {
+  panel: { position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none' },
+};
