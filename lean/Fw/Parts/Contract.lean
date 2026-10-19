@@ -1,4 +1,6 @@
 import Fw.Parts.EngineScroll
+import Fw.Parts.FootprintData
+import Fw.Parts.FootprintRows
 
 /-! Part contract table: one `PartSpec` row per part id under `apps/site/src/parts`, the independence premises I1-I4
 (plan section B; I5 recorded, not proved), the groups, and the measurement profiles each part runs under.
@@ -797,6 +799,388 @@ def Signal.wire : Signal → String
 def accessWire : Access → String
   | .readStyle => "RS" | .readLayout => "RL" | .writeStyle => "WS" | .writeLayout => "WL"
 
+/-- A contract signal as the footprint spells it: `scenePaused` is `data-fw-hidden` on the platform, `morphPhase`
+`data-fw-morph` on the nav.
+
+$$\operatorname{fw}(\mathrm{scenePaused}) = \texttt{className:data-fw-hidden/platform},\
+\operatorname{fw}(\mathrm{morphPhase}) = \texttt{className:data-fw-morph/nav},\ \operatorname{fw}(\sigma) =
+\operatorname{wire}(\sigma) \text{ otherwise}$$
+
+The two named signals are attributes the code writes. -/
+def Signal.fw : Signal → String
+  | .scenePaused => "className:data-fw-hidden/platform"
+  | .morphPhase => "className:data-fw-morph/nav"
+  | s => s.wire
+
+/-- Extracted accesses of part `id`. $$\operatorname{code}(p) = [a \in \mathrm{accesses} \mid a.\mathrm{part} = p]$$
+Empty for an id with no code. -/
+def code (id : String) : List Footprint.Access := FootprintData.accesses.filter (·.part == id)
+
+/-- Environment and box wires: a read of these is an input whoever writes them.
+$$\operatorname{env}(w) \iff w \in [\texttt{vw}, \texttt{vh}, \texttt{scrollY}, \texttt{clock}, \texttt{pointer}] \lor
+\texttt{rect:} \sqsubseteq w$$ Every other wire is an input only when another part writes it. -/
+def envWire (w : String) : Bool := ["vw", "vh", "scrollY", "clock", "pointer"].contains w || w.startsWith "rect:"
+
+/-- Wires the parts other than `id` write at frame or event time, first occurrence kept.
+$$W_{\ne p} = \operatorname{dedup}[w \mid a \in \mathrm{accesses},\ a.\mathrm{part} \ne p,\ \phi(a.\mathrm{ctx}) \in
+\{\mathrm{frame}, \mathrm{event}\},\ w \in \operatorname{writes}(a)]$$
+Mount, hover, resize and cleanup writes set no cross-part signal. -/
+def othersWrite (id : String) : List String :=
+  ((FootprintData.accesses.filter fun a =>
+    a.part != id && (Footprint.phase a.ctx == .frame || Footprint.phase a.ctx == .event)).flatMap
+      Footprint.writes).eraseDups
+
+/-- Wires the parts other than `id` read, first occurrence kept.
+$$R_{\ne p} = \operatorname{dedup}[r \mid a \in \mathrm{accesses},\ a.\mathrm{part} \ne p,\ r \in \operatorname{reads}(a)]$$
+`reads` already drops cleanup. -/
+def othersRead (id : String) : List String :=
+  ((FootprintData.accesses.filter (·.part != id)).flatMap Footprint.reads).eraseDups
+
+/-- Code inputs of part `id`: its environment and box reads, and each wire another part writes that one of its reads
+names.
+
+$$\operatorname{in}_{\mathrm{code}}(p) = \operatorname{dedup}\big[x \mid r \in \operatorname{dedup}(\operatorname{reads}
+(\operatorname{code}(p))),\ x \in (\text{if } \operatorname{env}(r) \text{ then } [r] \text{ else }
+[w \in W_{\ne p} \mid \operatorname{same}(r, w)])\big]$$
+
+A read of the part's own classes or variables is not an input. -/
+def codeInputs (id : String) : List String :=
+  let ws := othersWrite id
+  (((code id).flatMap Footprint.reads).eraseDups.flatMap fun r =>
+    if envWire r then [r] else ws.filter (Footprint.same r ·)).eraseDups
+
+/-- Cross-part writes of part `id` in phase `ph`: its writes there that are `scrollY` or that another part reads.
+
+$$\operatorname{out}_{\mathrm{code}}(p, \phi_0) = [w \in \operatorname{dedup}[w \mid a \in \operatorname{code}(p),\
+\phi(a.\mathrm{ctx}) = \phi_0,\ w \in \operatorname{writes}(a)] \mid w = \texttt{scrollY} \lor \exists r \in R_{\ne p}:
+\operatorname{same}(r, w)]$$
+
+`scrollY` moves every box, so it counts without a named reader. -/
+def crossWrites (id : String) (ph : Footprint.Phase) : List String :=
+  let rs := othersRead id
+  ((((code id).filter (Footprint.phase ·.ctx == ph)).flatMap Footprint.writes).eraseDups).filter fun w =>
+    w == "scrollY" || rs.any (Footprint.same · w)
+
+/-- Owners of the elements part `id` writes at frame time, when the owner is a part id.
+
+$$T_{\mathrm{code}}(p) = \operatorname{dedup}[a.\mathrm{owner} \mid a \in \operatorname{code}(p),\ \phi(a.\mathrm{ctx})
+= \mathrm{frame},\ \operatorname{isWrite}(a.\mathrm{op}),\ a.\mathrm{op} \ne \mathrm{scroll},\ a.\mathrm{owner} \in
+\mathrm{ids}]$$
+
+`document`, `?` and parent owners are left out. -/
+def codeTargets (id : String) : List String :=
+  (((code id).filter fun a => Footprint.phase a.ctx == .frame && a.op.isWrite && a.op != .scroll &&
+    parts.any (·.id == a.owner)).map (·.owner)).eraseDups
+
+/-- Scroll-list orders part `id` registers with. $$O_{\mathrm{code}}(p) = \operatorname{dedup}[n \mid a \in
+\operatorname{code}(p),\ a.\mathrm{op} = \mathrm{register},\ n = \operatorname{toNat}(a.\mathrm{name})]$$
+A non-numeric name is left out. -/
+def codeOrder (id : String) : List Nat :=
+  (((code id).filter (·.op == .register)).filterMap (·.name.toNat?)).eraseDups
+
+/-- Code-side wires missing from a row list, and row wires the code never touches.
+
+$$\operatorname{gap}(C, R, A) = ([c \in C \mid \nexists r \in R: \operatorname{same}(c, r)],\ [r \in R \mid \nexists a
+\in A: \operatorname{same}(a, r)])$$
+
+$C$ the code's cross-part wires, $R$ the row's, $A$ every wire the code reads or writes on that side. -/
+def gap (c r a : List String) : List String × List String :=
+  (c.filter fun x => !r.any (Footprint.same x ·), r.filter fun y => !a.any (Footprint.same · y))
+
+/-- One part's diff as a JSON line: inputs, outputs, `onEvent` and targets as missing-from-row and
+not-in-code lists, and the row order against the code orders.
+
+$$\operatorname{diff}(P) = \{\mathrm{id},\ \mathrm{in}: \operatorname{gap}(\operatorname{in}_{\mathrm{code}},
+\operatorname{fw}(\mathrm{in}_P), \operatorname{reads}),\ \mathrm{out}: \operatorname{gap}(\operatorname{out}_{\mathrm{code}}
+(\mathrm{frame}), \operatorname{fw}(\mathrm{out}_P), \operatorname{writes}),\ \mathrm{ev}: \operatorname{gap}
+(\operatorname{out}_{\mathrm{code}}(\mathrm{event}), \operatorname{fw}(\mathrm{ev}_P), \operatorname{writes}),\ T:
+\operatorname{gap}(T_{\mathrm{code}}, T_P, T_{\mathrm{code}}),\ o: (o_P, O_{\mathrm{code}})\}$$
+
+`reads` and `writes` range over all of the part's accesses, any phase. -/
+def diffJson (P : PartSpec) : String :=
+  let rs := ((code P.id).flatMap Footprint.reads).eraseDups
+  let ws := ((code P.id).flatMap Footprint.writes).eraseDups
+  let ct := codeTargets P.id
+  let pair (g : List String × List String) : String :=
+    "{\"missing\":" ++ jarr (g.1.map jstr) ++ ",\"extra\":" ++ jarr (g.2.map jstr) ++ "}"
+  "{\"id\":" ++ jstr P.id ++
+    ",\"inputs\":" ++ pair (gap (codeInputs P.id) (P.inputs.map Signal.fw) rs) ++
+    ",\"outputs\":" ++ pair (gap (crossWrites P.id .frame) (P.outputs.map Signal.fw) ws) ++
+    ",\"onEvent\":" ++ pair (gap (crossWrites P.id .event) (P.onEvent.map Signal.fw) ws) ++
+    ",\"targets\":" ++ pair (gap ct P.targets ct) ++
+    ",\"order\":{\"row\":" ++ (match P.order with | some o => toString o | none => "null") ++
+    ",\"code\":" ++ jarr ((codeOrder P.id).map toString) ++ "}}"
+
+/-- A (kind, name) wire pair as a contract signal, first matching case.
+
+$$\operatorname{sig}(k, n) = \begin{cases} \sigma & k \in \{\texttt{scrollY}, \texttt{vw}, \texttt{vh}, \texttt{clock},
+\texttt{pointer}\},\ \sigma \text{ the signal of that name} \\
+\mathrm{scenePaused} & (k, n) = (\texttt{className}, \texttt{data-fw-hidden/platform}) \\
+\mathrm{morphPhase} & (k, n) = (\texttt{className}, \texttt{data-fw-morph/nav}) \\
+\mathrm{cssVar}(n) & k = \texttt{cssVar} \\ \mathrm{rect}(n) & k = \texttt{rect} \\
+\mathrm{className}(n) & \text{otherwise} \end{cases}$$
+
+The inverse of `Signal.fw` on the wires the footprint produces; an unknown kind becomes a class name. -/
+def Signal.ofWire : String × String → Signal
+  | ("scrollY", _) => .scrollY | ("vw", _) => .vw | ("vh", _) => .vh | ("clock", _) => .clock
+  | ("pointer", _) => .pointer
+  | ("className", "data-fw-hidden/platform") => .scenePaused
+  | ("className", "data-fw-morph/nav") => .morphPhase
+  | ("cssVar", n) => .cssVar n | ("rect", n) => .rect n
+  | (_, n) => .className n
+
+/-- The code row of part `id`, each wire split into a (kind, name) pair.
+
+$$r(p) = \big(p,\ \operatorname{kind}^*(\operatorname{in}_{\mathrm{code}}(p)),\ \operatorname{kind}^*(\operatorname{out}_{\mathrm{code}}
+(p, \mathrm{frame})),\ \operatorname{kind}^*(\operatorname{out}_{\mathrm{code}}(p, \mathrm{event})),\ T_{\mathrm{code}}(p),\
+O_{\mathrm{code}}(p)\big)$$
+
+`kind*` maps `splitKind` over a list. -/
+def codeRowOf (id : String) : Footprint.Row :=
+  ⟨id, (codeInputs id).map Footprint.splitKind, (crossWrites id .frame).map Footprint.splitKind,
+    (crossWrites id .event).map Footprint.splitKind, codeTargets id, codeOrder id⟩
+
+/-- Append the items of `ys` that `xs` lacks, first occurrence kept.
+$$xs \uplus ys = xs \mathbin{+\!\!+} \operatorname{dedup}[y \in ys \mid y \notin xs]$$ `xs` is kept as it is. -/
+def addNew {α : Type} [BEq α] (xs ys : List α) : List α := xs ++ (ys.filter (!xs.contains ·)).eraseDups
+
+/-- Row `P` widened by the first code row in `rs` with its id: its inputs, outputs, `onEvent` and targets gain each
+code item they lack; every other field stays declared.
+
+$$\operatorname{wide}_{rs}(P) = \begin{cases} P[\mathrm{in} := \mathrm{in}_P \uplus \operatorname{sig}^*(r.\mathrm{in}),\
+\mathrm{out} := \mathrm{out}_P \uplus \operatorname{sig}^*(r.\mathrm{out}),\ \mathrm{ev} := \mathrm{ev}_P \uplus
+\operatorname{sig}^*(r.\mathrm{ev}),\ T := T_P \uplus r.T] & r \text{ the first } r \in rs \text{ with } r.\mathrm{id} =
+P.\mathrm{id} \\ P & \text{no } r \in rs \text{ has } r.\mathrm{id} = P.\mathrm{id} \end{cases}$$
+
+Widening only adds signals and targets. -/
+def widen (rs : List Footprint.Row) (P : PartSpec) : PartSpec :=
+  match rs.find? (·.id == P.id) with
+  | none => P
+  | some r =>
+    { P with inputs := addNew P.inputs (r.inputs.map Signal.ofWire),
+             outputs := addNew P.outputs (r.outputs.map Signal.ofWire),
+             onEvent := addNew P.onEvent (r.onEvent.map Signal.ofWire),
+             targets := addNew P.targets r.targets }
+
+/-- `P'` widens `P`: same id, moves and scroll-list fields, and every input, output and target of `P` is one of `P'`.
+
+$$P' \sqsupseteq P \iff P'.\mathrm{id} = P.\mathrm{id} \land M_{P'} = M_P \land o_{P'} = o_P \land A_{P'} = A_P \land
+s_{P'} = s_P \land \mathrm{in}_P \subseteq \mathrm{in}_{P'} \land \mathrm{out}_P \subseteq \mathrm{out}_{P'} \land T_P
+\subseteq T_{P'}$$
+
+$\subseteq$ is list membership; `onEvent`, groups and `layoutLocal` are unconstrained. -/
+structure Widens (P' P : PartSpec) : Prop where
+  id : P'.id = P.id
+  moves : P'.moves = P.moves
+  order : P'.order = P.order
+  listAccess : P'.listAccess = P.listAccess
+  schedules : P'.schedules = P.schedules
+  inputs : ∀ s ∈ P.inputs, s ∈ P'.inputs
+  outputs : ∀ s ∈ P.outputs, s ∈ P'.outputs
+  targets : ∀ t ∈ P.targets, t ∈ P'.targets
+
+/-- Widening by code rows widens. $$\forall rs,\ \forall P:\ \operatorname{wide}_{rs}(P) \sqsupseteq P$$
+`addNew` keeps the declared list as a prefix. -/
+theorem widen_widens (rs : List Footprint.Row) (P : PartSpec) : Widens (widen rs P) P := by
+  unfold widen
+  split
+  · exact ⟨rfl, rfl, rfl, rfl, rfl, fun _ h => h, fun _ h => h, fun _ h => h⟩
+  · exact ⟨rfl, rfl, rfl, rfl, rfl, fun _ h => List.mem_append_left _ h, fun _ h => List.mem_append_left _ h,
+      fun _ h => List.mem_append_left _ h⟩
+
+/-- Independence survives narrowing: parts independent after widening were independent before.
+
+$$\forall P, Q, P', Q':\ P' \sqsupseteq P \to Q' \sqsupseteq Q \to \operatorname{Independent}(P', Q') \to
+\operatorname{Independent}(P, Q)$$
+
+More inputs, outputs or targets can only add a conflict. -/
+theorem independent_antitone {P Q P' Q' : PartSpec} (hP : Widens P' P) (hQ : Widens Q' Q)
+    (h : Independent P' Q') : Independent P Q := by
+  simp only [Independent, independent, i1, i2, i3, i4, effOut, Bool.and_eq_true, Bool.not_eq_true',
+    List.any_eq_false, List.contains_iff_mem, List.mem_cons, List.mem_append, List.mem_map] at h ⊢
+  rw [hP.id, hQ.id, hP.moves, hQ.moves, hP.order, hQ.order, hP.listAccess, hQ.listAccess, hP.schedules,
+    hQ.schedules] at h
+  obtain ⟨⟨⟨⟨h1a, h1b⟩, h2⟩, h3a, h3b⟩, h4⟩ := h
+  refine ⟨⟨⟨⟨fun t ht hm => h1a t (hP.targets t ht) ?_, fun t ht hm => h1b t (hQ.targets t ht) ?_⟩, h2⟩,
+    fun o ho hi => h3a o (ho.imp (hP.outputs o) id) ?_, fun o ho hi => h3b o (ho.imp (hQ.outputs o) id) ?_⟩, h4⟩
+  · exact hm.imp id (hQ.targets t)
+  · exact hm.imp id (hP.targets t)
+  · obtain ⟨i, hi, ha⟩ := List.any_eq_true.mp hi
+    exact List.any_eq_true.mpr ⟨i, hQ.inputs i hi, ha⟩
+  · obtain ⟨i, hi, ha⟩ := List.any_eq_true.mp hi
+    exact List.any_eq_true.mpr ⟨i, hP.inputs i hi, ha⟩
+
+/-- The table widened by the generated code rows.
+$$\mathrm{parts}_{\mathrm{code}} = [\operatorname{wide}_{\mathrm{rows}}(P) \mid P \in \mathrm{parts}]$$
+Same ids, order, groups and scroll-list fields as `parts`. -/
+def codeParts : List PartSpec := parts.map (widen FootprintRows.rows)
+
+/-- For each part of `ps`, the other parts of `ps` it is not independent of.
+$$\operatorname{adj}(ps) = [(P.\mathrm{id}, [Q.\mathrm{id} \mid Q \in ps,\ Q.\mathrm{id} \ne P.\mathrm{id},\
+\lnot\operatorname{independent}(P,Q)]) \mid P \in ps]$$
+Ids in `ps` order. -/
+def adjacency (ps : List PartSpec) : List (String × List String) :=
+  ps.map fun P => (P.id, (ps.filter fun Q => Q.id != P.id && !independent P Q).map (·.id))
+
+/-- Coupling components of the parts of `ps` that are not page-level, in `ps` order of their first member.
+
+$$\begin{aligned} N &= [P \in ps \mid \lnot\operatorname{page}(P)],\quad \operatorname{step}(s) = [Q.\mathrm{id} \mid Q \in N,\
+Q.\mathrm{id} \in s \lor \exists m \in s:\ Q.\mathrm{id} \in \operatorname{adj}(N)(m)] \\ \operatorname{comp}(ps) &=
+\operatorname{foldl}\big(\lambda\,C\,P.\ \text{if } \exists c \in C:\ P.\mathrm{id} \in c \text{ then } C \text{ else }
+C \mathbin{+\!\!+} [\operatorname{step}^{|N|}([P.\mathrm{id}])],\ [\,],\ N\big) \end{aligned}$$
+
+$\operatorname{adj}(N)(m)$ is the list paired with the first entry for $m$, `[]` when there is none. -/
+def components (ps : List PartSpec) : List (List String) :=
+  let ns := ps.filter (!pageLevel ·)
+  let adj := adjacency ns
+  let step (s : List String) : List String :=
+    (ns.filter fun Q => s.contains Q.id || s.any fun m => ((adj.lookup m).getD []).contains Q.id).map (·.id)
+  ns.foldl (fun acc P => if acc.any (·.contains P.id) then acc else acc ++ [Nat.repeat step ns.length [P.id]]) []
+
+/-- Text of `lean/Fw/Parts/FootprintRows.lean`: the code row of every contract row and the components of the table
+widened by them.
+$$\operatorname{rowsFile} = \operatorname{lean}\big([r(P.\mathrm{id}) \mid P \in \mathrm{parts}],\
+\operatorname{comp}([\operatorname{wide}_{R}(P) \mid P \in \mathrm{parts}])\big),\quad R = [r(P.\mathrm{id}) \mid P \in
+\mathrm{parts}]$$
+One row and one group per line, newline-terminated. -/
+def rowsText : String :=
+  let rs := parts.map (codeRowOf ·.id)
+  let wl (ws : List (String × String)) : String :=
+    "[" ++ ", ".intercalate (ws.map fun w => "(" ++ jstr w.1 ++ ", " ++ jstr w.2 ++ ")") ++ "]"
+  let sl (xs : List String) : String := "[" ++ ", ".intercalate (xs.map jstr) ++ "]"
+  let row (r : Footprint.Row) : String :=
+    "  ⟨" ++ jstr r.id ++ ", " ++ wl r.inputs ++ ", " ++ wl r.outputs ++ ", " ++ wl r.onEvent ++ ", " ++
+      sl r.targets ++ ", [" ++ ", ".intercalate (r.order.map toString) ++ "]⟩"
+  "import Fw.Parts.Footprint\n\n" ++
+  "/-! Generated by `lake env lean --run scripts/ContractsGolden.lean --rows` from `Fw.Parts.FootprintData`; do not\n" ++
+  "edit. `Fw.Parts.Contract.run --check` regenerates it and compares the bytes. -/\n\n" ++
+  "namespace Fw.Parts.FootprintRows\nopen Fw.Parts.Footprint\n\n" ++
+  "/-- Code rows, one per contract row in table order (`Fw.Parts.Contract.codeRowOf`).\n" ++
+  "$$\\mathrm{rows} = [r(P.\\mathrm{id}) \\mid P \\in \\mathrm{parts}]$$\n" ++
+  "Each wire is split at its first `:` into a (kind, name) pair. -/\n" ++
+  "def rows : List Row := [\n" ++ ",\n".intercalate (rs.map row) ++ "]\n\n" ++
+  "/-- Groups re-decided on the table widened by `rows` (`Fw.Parts.Contract.components`).\n" ++
+  "$$\\mathrm{groups} = \\operatorname{comp}(\\mathrm{parts}_{\\mathrm{code}})$$\n" ++
+  "Page-level parts are in no group; `code_groups_partition` decides that different groups are independent. -/\n" ++
+  "def groups : List (List String) := [\n" ++ ",\n".intercalate (((components (parts.map (widen rs))).map fun g =>
+    "  " ++ sl g)) ++ "]\n\nend Fw.Parts.FootprintRows\n"
+
+/-- Group key on the widened table: the first member of the first generated group holding the part, else its id.
+$$\kappa_{\mathrm{code}}(P) = \begin{cases} \operatorname{head}(g) & g \text{ the first } g \in \mathrm{groups} \text{
+with } P.\mathrm{id} \in g \\ P.\mathrm{id} & \text{no group holds } P.\mathrm{id} \end{cases}$$
+A page-level part keys as itself. -/
+def codeKey (P : PartSpec) : String :=
+  ((FootprintRows.groups.find? (·.contains P.id)).bind (·.head?)).getD P.id
+
+/-- The generated rows are the contract rows' ids in table order, and each code order list is the row's order.
+
+$$[r.\mathrm{id} \mid r \in \mathrm{rows}] = [P.\mathrm{id} \mid P \in \mathrm{parts}] \ \land\ \forall P \in
+\mathrm{parts},\ \forall r \in \mathrm{rows}:\ r.\mathrm{id} = P.\mathrm{id} \to r.O = (o_P = \bot\ ?\ [\,] :
+[o_P])$$
+
+Every row has a code row; no part registers at an order other than its declared one. -/
+theorem rows_ids_order : FootprintRows.rows.map (·.id) = parts.map (·.id) ∧
+    ∀ P ∈ parts, ∀ r ∈ FootprintRows.rows, r.id = P.id → r.order = P.order.toList := by
+  decide
+
+/-- Parts in different re-decided groups are independent on the widened table.
+
+$$\forall P \in \mathrm{parts}_{\mathrm{code}},\ \forall Q \in \mathrm{parts}_{\mathrm{code}}:\ \lnot\operatorname{page}(P)
+\to \lnot\operatorname{page}(Q) \to \kappa_{\mathrm{code}}(P) \ne \kappa_{\mathrm{code}}(Q) \to
+\operatorname{Independent}(P,Q)$$
+
+The groups are a lower bound on coupling: they hold against the declared rows and every input, output and target
+the extractor resolved, and three reads couple nothing. A box read of an unresolved element (`rect:?`) matches no box
+write; it is in the rows of commission, nav, nav.hitTest and overlays.signup (and of people.deck, which is page-level).
+Read conservatively, it couples those four with hero.accent (which moves hero) and so merges the six hero parts with
+them; `code_groups_rect_open` shows the groups here already hold all of them together. A hit test
+(`elementFromPoint`) and a computed-style read (`getComputedStyle`) read no wire at all. -/
+theorem code_groups_partition :
+    ∀ P ∈ codeParts, ∀ Q ∈ codeParts, ¬ pageLevel P → ¬ pageLevel Q → codeKey P ≠ codeKey Q → Independent P Q := by
+  decide
+
+/-- `affects`, with a box read of an unresolved element (`rect:?`) changed by every box write.
+$$\operatorname{affects}^{?}(o,i) \iff \operatorname{affects}(o,i) \lor \bigl((\exists m:\ o = \mathrm{rect}(m)) \land
+i = \mathrm{rect}(\texttt{?})\bigr)$$
+The conservative reading of an unresolved box read. -/
+def affectsOpen (o i : Signal) : Bool :=
+  affects o i || (match o, i with | .rect _, .rect "?" => true | _, _ => false)
+
+/-- I3 under `affectsOpen`.
+$$\mathrm{I3}^{?}(P,Q) \iff \bigl(\forall o \in \operatorname{effOut}(P),\ \forall i \in \mathrm{in}_Q:\
+\lnot\operatorname{affects}^{?}(o,i)\bigr) \land \bigl(\forall o \in \operatorname{effOut}(Q),\ \forall i \in
+\mathrm{in}_P:\ \lnot\operatorname{affects}^{?}(o,i)\bigr)$$
+I1, I2 and I4 do not read signals. -/
+def i3Open (P Q : PartSpec) : Bool :=
+  !((effOut P).any fun o => Q.inputs.any (affectsOpen o)) && !((effOut Q).any fun o => P.inputs.any (affectsOpen o))
+
+/-- The re-decided groups survive the conservative reading of `rect:?`: parts in different groups have no signal flow
+even when every box write reaches every unresolved box read.
+
+$$\forall P \in \mathrm{parts}_{\mathrm{code}},\ \forall Q \in \mathrm{parts}_{\mathrm{code}}:\ \lnot\operatorname{page}(P)
+\to \lnot\operatorname{page}(Q) \to \kappa_{\mathrm{code}}(P) \ne \kappa_{\mathrm{code}}(Q) \to
+\mathrm{I3}^{?}(P,Q)$$
+
+So the `rect:?` limit hides no merge in these groups; hit tests and computed-style reads stay unmodelled. -/
+theorem code_groups_rect_open :
+    ∀ P ∈ codeParts, ∀ Q ∈ codeParts, ¬ pageLevel P → ¬ pageLevel Q → codeKey P ≠ codeKey Q → i3Open P Q = true := by
+  decide
+
+/-- The re-decided groups separate the declared rows too.
+
+$$\forall P \in \mathrm{parts},\ \forall Q \in \mathrm{parts}:\ \lnot\operatorname{page}(\operatorname{wide}_{\mathrm{rows}}
+(P)) \to \lnot\operatorname{page}(\operatorname{wide}_{\mathrm{rows}}(Q)) \to \kappa_{\mathrm{code}}(P) \ne
+\kappa_{\mathrm{code}}(Q) \to \operatorname{Independent}(P,Q)$$
+
+Follows from `code_groups_partition` and `independent_antitone`. -/
+theorem code_groups_declared :
+    ∀ P ∈ parts, ∀ Q ∈ parts, ¬ pageLevel (widen FootprintRows.rows P) → ¬ pageLevel (widen FootprintRows.rows Q) →
+      codeKey P ≠ codeKey Q → Independent P Q := by
+  intro P hP Q hQ hp hq hk
+  have hk' : codeKey (widen FootprintRows.rows P) ≠ codeKey (widen FootprintRows.rows Q) := by
+    unfold codeKey at hk ⊢
+    rw [(widen_widens _ P).id, (widen_widens _ Q).id]
+    exact hk
+  exact independent_antitone (widen_widens _ P) (widen_widens _ Q)
+    (code_groups_partition _ (List.mem_map_of_mem hP) _ (List.mem_map_of_mem hQ) hp hq hk')
+
+/-- Every extracted access whose name or owner is `?` has a finding at its site, so an unresolved access never
+enters the table unrecorded.
+
+$$\forall a \in \mathrm{accesses}:\ \operatorname{open}(a) \to \operatorname{flagged}(\mathrm{findings}, a)$$
+
+The extractor emits a finding (such as `dynamic-name` or `unresolved-target`) wherever it writes a `?`. -/
+theorem flagged_total :
+    ∀ a ∈ FootprintData.accesses, a.isOpen = true → Footprint.flagged FootprintData.findings a = true := by
+  decide +kernel
+
+/-- The page-level parts of the widened table: the scheduler and every part with a page scroll write outside mount,
+resize, hover, event and cleanup callbacks.
+
+$$[P.\mathrm{id} \mid P \in \mathrm{parts}_{\mathrm{code}},\ \operatorname{page}(P)] = [\texttt{engine.scroll},
+\texttt{morph.mount}, \texttt{morph.tween}, \texttt{people.deck}]$$
+
+morph.mount repins the page in its scroll-list callback (morph.mount/index.tsx:103-106), which its row omits; people.deck
+is here because its env `scrollTo` (people.deck/index.tsx:55) is a callback the extractor cannot trace to its only
+caller, the tab click (people.deck/driver.ts:204-216). -/
+theorem code_pageLevel :
+    (codeParts.filter pageLevel).map (·.id) = ["engine.scroll", "morph.mount", "morph.tween", "people.deck"] := by
+  decide
+
+/-- Text of `packages/contracts/golden/parts/footprint-diff.gen.json`: one diff line per row, the extractor's finding
+count, the groups re-decided on the widened table and its page-level parts.
+
+$$\operatorname{diffs} = \{\mathrm{parts}: [\operatorname{diff}(P) \mid P \in \mathrm{parts}],\ \mathrm{findings}:
+|\mathrm{findings}|,\ \mathrm{codeGroups}: \mathrm{groups},\ \mathrm{codePageLevel}: [P.\mathrm{id} \mid P \in
+\mathrm{parts}_{\mathrm{code}},\ \operatorname{page}(P)]\}$$
+
+One row and one group per line, newline-terminated. -/
+def diffText : String :=
+  "{\"parts\":[\n" ++ ",\n".intercalate (parts.map diffJson) ++ "\n],\n\"findings\":" ++
+    toString FootprintData.findings.length ++ ",\n\"codeGroups\":[\n" ++
+    ",\n".intercalate (FootprintRows.groups.map fun g => jarr (g.map jstr)) ++ "\n],\n\"codePageLevel\":" ++
+    jarr ((codeParts.filter pageLevel).map (jstr ∘ (·.id))) ++ "}\n"
+
 /-- One contract row as a JSON object on one line, with its group key and profiles.
 
 $$\operatorname{row}(P) = \{\mathrm{id}, g, g_{\mathrm{plan}}, \kappa(P), o, \mathrm{in}, \mathrm{out}, \mathrm{ev}, T, M, A, \ell, s, \operatorname{page}(P), S(P)\}$$
@@ -860,18 +1244,36 @@ def checkFile (path text : String) : IO Bool := do
   IO.eprintln s!"contracts golden: {path} differs from the generated bytes"
   return false
 
-/-- Command-line driver (`lean/scripts/ContractsGolden.lean`): `--contracts` or `--scenarios` prints that golden;
-`--check <contracts> <scenarios>` exits 0 when both files hold exactly the generated bytes and every used profile has
-`profiles/<id>.json` next to the scenarios file, 1 otherwise.
+/-- Text of `packages/contracts/golden/parts/footprint.gen.json` from the generated data.
+$$\operatorname{footprint} = \operatorname{golden}(\mathrm{ids}, \mathrm{accesses}, \mathrm{findings})$$
+Byte-equal to the extractor's output when the data module is fresh. -/
+def footprintText : String :=
+  Footprint.golden FootprintData.partIds FootprintData.accesses FootprintData.findings
 
-$$\operatorname{run}(\texttt{--check}\ c\ s) = 0 \iff \operatorname{same}(c, \operatorname{contracts}) \land \operatorname{same}(s, \operatorname{scenarios}) \land \forall P \in \mathrm{parts},\ \forall p \in S(P):\ \operatorname{exists}(\operatorname{dir}(s)/\texttt{profiles}/p\texttt{.json})$$
+/-- Command-line driver (`lean/scripts/ContractsGolden.lean`): `--contracts`, `--scenarios`, `--diff` or `--rows`
+prints that golden; `--check <contracts> <scenarios>` exits 0 when both files, `footprint.gen.json` and
+`footprint-diff.gen.json` next to the contracts file and `Fw/Parts/FootprintRows.lean` under the working directory
+hold exactly the generated bytes and every used profile has `profiles/<id>.json` next to the scenarios file, 1
+otherwise.
+
+$$\operatorname{run}(\texttt{--check}\ c\ s) = 0 \iff \operatorname{same}(c, \operatorname{contracts}) \land
+\operatorname{same}(s, \operatorname{scenarios}) \land \operatorname{same}(\operatorname{dir}(c)/\texttt{footprint.gen.json},
+\operatorname{footprint}) \land \operatorname{same}(\operatorname{dir}(c)/\texttt{footprint-diff.gen.json},
+\operatorname{diffs}) \land \operatorname{same}(\texttt{Fw/Parts/FootprintRows.lean}, \operatorname{rowsFile}) \land
+\forall P \in \mathrm{parts},\ \forall p \in S(P):\ \operatorname{exists}(\operatorname{dir}(s)/\texttt{profiles}/p\texttt{.json})$$
 
 Any other argument list prints usage and returns 2; a missing golden file is an uncaught IO error. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | ["--contracts"] => IO.print contractsText; return 0
   | ["--scenarios"] => IO.print scenariosText; return 0
+  | ["--diff"] => IO.print diffText; return 0
+  | ["--rows"] => IO.print rowsText; return 0
   | ["--check", c, s] =>
+    let cdir := (System.FilePath.mk c).parent.getD "."
+    let okR ← checkFile "Fw/Parts/FootprintRows.lean" rowsText
+    let okF ← checkFile (cdir / "footprint.gen.json").toString footprintText
+    let okD ← checkFile (cdir / "footprint-diff.gen.json").toString diffText
     let okC ← checkFile c contractsText
     let okS ← checkFile s scenariosText
     let dir := (System.FilePath.mk s).parent.getD "." / "profiles"
@@ -880,9 +1282,9 @@ def run (args : List String) : IO UInt32 := do
       unless ← (dir / (p ++ ".json")).pathExists do
         IO.eprintln s!"contracts golden: profile {p} has no file in {dir}"
         okP := false
-    return if okC && okS && okP then 0 else 1
+    return if okR && okF && okD && okC && okS && okP then 0 else 1
   | _ =>
-    IO.eprintln "usage: ContractsGolden (--contracts | --scenarios | --check <contracts.gen.json> <scenarios.gen.json>)"
+    IO.eprintln "usage: ContractsGolden (--contracts | --scenarios | --diff | --rows | --check <contracts.gen.json> <scenarios.gen.json>)"
     return 2
 
 #guard independent heroCountdown morphTween
@@ -906,6 +1308,17 @@ def run (args : List String) : IO UInt32 := do
 #guard scenariosFor overlaysSignup == ["fixture-rest"]
 #guard members .g4 == ["engine.scroll"]
 #guard !independent peopleO peopleCard
+#guard Signal.ofWire ("className", "data-fw-hidden/platform") == .scenePaused && Signal.ofWire ("vw", "") == .vw
+#guard Signal.ofWire ("rect", "pain") == .rect "pain" && Signal.ofWire ("className", "x/nav") == .className "x/nav"
+#guard FootprintRows.rows.all fun r =>
+  (r.inputs ++ r.outputs ++ r.onEvent).all fun w => (Signal.ofWire w).fw == Footprint.joinKind w
+#guard addNew [1, 2] [2, 3, 3] == [1, 2, 3] && addNew ([] : List Nat) [] == []
+#guard components [heroExit, heroOrbit, morphTween] == [["hero.exit", "hero.orbit"]]
+#guard components [heroExit, nav] == [["hero.exit"], ["nav"]]
+#guard (widen [] people).inputs == people.inputs && (widen FootprintRows.rows peopleO).outputs.length ≥ 1
+#guard codeKey people == "people" && codeKey painNotes == "commission" && codeKey morphTween == "morph.tween"
 #guard independent peopleCarousel peopleO
+#guard affectsOpen (.rect "hero") (.rect "?") && !affects (.rect "hero") (.rect "?") && !affectsOpen .vw (.rect "?")
+#guard affectsOpen .scrollY (.rect "?") && !affectsOpen (.rect "hero") (.rect "pain")
 
 end Fw.Parts.Contract

@@ -1,3 +1,4 @@
+import { armed as gateOpen, resumeAt } from './armed';
 import {
   addExtra,
   avoidBox,
@@ -45,6 +46,8 @@ export interface NotesEnv {
   c860(): boolean;
   /** A real `setInterval` on the engine clock; returns the cancel function. */
   interval(ms: number, cb: () => void): () => void;
+  /** Milliseconds on one monotonic clock (`performance.now()`); read only by variant `visible`. */
+  now?(): number;
   /** One engine-clock frame, once (the original's `requestAnimationFrame(ce)`); returns the cancel function. */
   frame(cb: () => void): () => void;
   /** The model changed in membership or at rest (layout, add, clear, drag start/end): render it. Not per pointer move. */
@@ -59,7 +62,8 @@ export interface NotesEnv {
  * in logic.ts (Lean `PainNotes`); randomness is the seeded stream (the only delta from the original). The pointer and
  * key moves write the element style directly through `env.writeNote`; React state changes only at membership changes.
  */
-export function createNotesDriver(env: NotesEnv, seed: number) {
+export function createNotesDriver(env: NotesEnv, seed: number, opts: { armWhenVisible?: boolean } = {}) {
+  const gated = opts.armWhenVisible === true;
   const rng = createRng(seed);
   let base: Note[] = [];
   let extras: Note[] = [];
@@ -68,6 +72,9 @@ export function createNotesDriver(env: NotesEnv, seed: number) {
   let visibleNow = false;
   let j = 0;
   let cancelInterval: (() => void) | null = null;
+  let cancelWait: (() => void) | null = null;
+  /** When the original's interval would have been armed (the section came into view): the tick grid's origin. */
+  let t0 = 0;
   let cancelFrame: (() => void) | null = null;
 
   const view = () => env.commit({ base, extras, dragging });
@@ -118,12 +125,51 @@ export function createNotesDriver(env: NotesEnv, seed: number) {
     view();
   };
 
-  const arm = () => {
-    cancelInterval ??= env.interval(INTERVAL_MS, onTick);
+  const covered = () => {
+    const top = env.cardTop();
+    return top !== null && top < env.innerHeight() * 0.995;
   };
-  const disarm = () => {
+  const stopTimers = () => {
+    cancelWait?.();
+    cancelWait = null;
     cancelInterval?.();
     cancelInterval = null;
+  };
+  const now = () => Math.ceil(env.now?.() ?? 0);
+  /**
+   * Variant `visible` (Lean `armed`, `resumeAt`): the interval exists only while the gate is open. Every tick is a
+   * one-shot aimed at the original's absolute grid (t0 + 3000k) and re-armed after it fires, so a late timer never
+   * shifts later ticks (a free-running period after a re-arm would carry the lateness: `naive_rearm_shifts`).
+   */
+  const sync = () => {
+    if (!gateOpen({ inView: visibleNow, narrow: env.narrow(), covered: covered() })) {
+      stopTimers();
+      return;
+    }
+    if (cancelWait) return;
+    const at = now();
+    aim(resumeAt(t0, at) - at);
+  };
+  const aim = (delay: number) => {
+    cancelWait = env.interval(Math.max(0, delay), () => {
+      cancelWait?.();
+      cancelWait = null;
+      onTick();
+      if (!gated || cancelWait) return;
+      const at = now();
+      if (gateOpen({ inView: visibleNow, narrow: env.narrow(), covered: covered() })) aim(resumeAt(t0, at + 1) - at);
+    });
+  };
+  const arm = () => {
+    if (gated) sync();
+    else cancelInterval ??= env.interval(INTERVAL_MS, onTick);
+  };
+  const disarm = () => {
+    if (gated) stopTimers();
+    else {
+      cancelInterval?.();
+      cancelInterval = null;
+    }
   };
 
   const all = () => [...base, ...extras];
@@ -144,7 +190,9 @@ export function createNotesDriver(env: NotesEnv, seed: number) {
     },
     /** IntersectionObserver entry for the notes block (JS 4698-4701). */
     intersect(intersecting: boolean, ratio: number) {
+      const was = visibleNow;
       visibleNow = visible({ intersecting, ratio });
+      if (visibleNow && !was) t0 = now();
       if (visibleNow) arm();
       else {
         disarm();
@@ -159,6 +207,11 @@ export function createNotesDriver(env: NotesEnv, seed: number) {
         extras = [];
         view();
       }
+      if (gated) sync();
+    },
+    /** The gate may have changed (the `(width<=860px)` list flipped): variant `visible` re-evaluates. */
+    sync() {
+      if (gated) sync();
     },
     tick: onTick,
     /** JS 4647 `W`. Returns whether the event was taken (the caller then prevents default and stops propagation). */
@@ -210,9 +263,9 @@ export function createNotesDriver(env: NotesEnv, seed: number) {
     },
     dispose() {
       cancelFrame?.();
-      disarm();
+      stopTimers();
     },
     /** Test access. */
-    model: () => ({ base, extras, dragging, visible: visibleNow, armed: cancelInterval !== null }),
+    model: () => ({ base, extras, dragging, visible: visibleNow, armed: cancelInterval !== null || cancelWait !== null }),
   };
 }

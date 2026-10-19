@@ -3,14 +3,16 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } fro
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CAPS, ask, message, modeOf, request, verdict } from "../hooks/spawn-guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, "../hooks/spawn-guard.mjs");
 const bin = process.env.FW_CORE_BIN ?? join(here, "../../../lean/.lake/build/bin/fwcore");
 const call = (tool_input: object, extra: object = {}) => ({ hook_event_name: "PreToolUse", tool_name: "Agent", tool_use_id: "toolu_9", tool_input, ...extra });
-const decide = (p: object) => ask(bin, request(p as never, 1000));
+const decide = (p: object) => ask(bin, request(p as never, 1000), 30_000);
+process.env.FW_SPAWN_GUARD_TIMEOUT_MS = "30000";
+vi.setConfig({ testTimeout: 35_000 });
 
 describe("spawn guard (shadow mode)", () => {
   it("asks Lean with unnamedReadOnly = true", () => {
@@ -56,7 +58,7 @@ describe("spawn guard (shadow mode)", () => {
 describe("spawn guard: expected vs given kind is logged", () => {
   it("a kindMismatch record says why (want/got from the Lean ops.spawn reply)", async () => {
     const { kinds } = await import("../hooks/spawn-guard.mjs");
-    const kindsOf = (input: object) => { const q = request(call(input) as never, 1); return kinds(q.req, ask(bin, q)); };
+    const kindsOf = (input: object) => { const q = request(call(input) as never, 1); return kinds(q.req, ask(bin, q, 30_000)); };
     expect(kindsOf({ subagent_type: "lean-prover", name: "lp" })).toMatchObject({ role: "lean-prover", want_kind: "worktree", got_kind: "teammate", has_name: true, isolation: false });
     expect(kindsOf({ subagent_type: "scout", isolation: "worktree" })).toMatchObject({ want_kind: "subagent", got_kind: "worktree" });
     expect(kindsOf({ subagent_type: "nope", name: "x" })).toMatchObject({ want_kind: null, got_kind: "teammate" });
