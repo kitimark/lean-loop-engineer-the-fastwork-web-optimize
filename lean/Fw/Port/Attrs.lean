@@ -15,9 +15,10 @@ open Fw.Port.Sections Fw.Site.Assets
 $$N = \{\texttt{href}, \texttt{src}, \texttt{srcset}, \texttt{alt}, \texttt{lang}, \texttt{hreflang}, \texttt{rel}, \texttt{property}, \texttt{name}, \texttt{content}\}$$ -/
 def names : List String := ["href", "src", "srcset", "alt", "lang", "hreflang", "rel", "property", "name", "content"]
 
-/-- A `srcset` with each candidate's URL renamed: candidates split at commas, each normalised, its first word renamed,
-the rest kept, joined with `", "`.
-$$\operatorname{srcset}(F, v) = \operatorname{join}_{\texttt{", "}}\bigl([\operatorname{rename}(F, u) \mathbin{+\!\!+} \delta \mid u\,\delta \in \operatorname{split}_{\texttt{,}}(v)]\bigr)$$ -/
+/-- A `srcset` with each candidate's URL renamed: the value split at commas, each piece normalised (`Fw.Port.Text.norm`),
+empty pieces dropped, the first word of each piece renamed and the other words kept, the pieces joined with `", "`
+(an empty value gives the empty string).
+$$\operatorname{srcset}(F, v) = \operatorname{join}_{\texttt{", "}}\bigl([\operatorname{join}_{\texttt{" "}}(\operatorname{rename}(F, u) :: \delta) \mid c \in \operatorname{split}_{\texttt{","}}(v),\ \operatorname{norm}(c) \ne \texttt{""},\ \operatorname{split}_{\texttt{" "}}(\operatorname{norm}(c)) = u :: \delta]\bigr)$$ -/
 def renameSrcset (F : List File) (v : String) : String :=
   ", ".intercalate <| ((v.splitOn ",").map Fw.Port.Text.norm |>.filter (· != "")).map fun c =>
     match c.splitOn " " with

@@ -92,7 +92,7 @@ theorem owner_page (A : List (List String)) (h : ∀ m ∈ A, m = []) : owner A 
     exact ih (fun x hx => h x (by simp [hx]))
 
 /-- The owner is the first id of the innermost matching ancestor.
-$$\forall A, B, i, m':\ (\forall m \in B,\ m = [\,]) \Rightarrow \operatorname{owner}(B \mathbin{+\!\!+} (i :: m') :: A) = i$$ -/
+$$\forall B, A, i, m':\ (\forall m \in B,\ m = [\,]) \Rightarrow \operatorname{owner}(B \mathbin{+\!\!+} (i :: m') :: A) = i$$ -/
 theorem owner_innermost (B A : List (List String)) (i : String) (m' : List String) (h : ∀ m ∈ B, m = []) :
     owner (B ++ (i :: m') :: A) = i := by
   induction B with
