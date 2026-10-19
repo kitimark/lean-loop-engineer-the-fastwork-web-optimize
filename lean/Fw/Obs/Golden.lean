@@ -336,10 +336,10 @@ def literal : List (String × Json) := [
   ("refused: a fractional loadFloor (floor it)", lit "{\"now\":0,\"system\":{\"diskFreeGB\":50,\"loadFloor\":2.5}}")]
 
 /-- Every case as (name, request body). -/
-def cases : List (String × Json) := typed.map (fun c => (c.name, reqJson c.p c.o)) ++ literal
+def cases (_ : Unit := ()) : List (String × Json) := typed.map (fun c => (c.name, reqJson c.p c.o)) ++ literal
 
 /-- Coverage gaps of the typed cases: states and alert codes no case produces (empty when complete). -/
-def gaps : List String :=
+def gaps (_ : Unit := ()) : List String :=
   let reps := typed.map fun c => health c.p c.o
   let states := reps.flatMap fun r => r.agents.map (·.state)
   let codes := reps.flatMap fun r => r.alerts.map (·.code)
@@ -349,7 +349,7 @@ def gaps : List String :=
 #guard gaps == []
 
 /-- The text of the golden file. -/
-def fileText : String :=
+def fileText (_ : Unit := ()) : String :=
   String.join (cases.map fun (name, req) =>
     (Json.mkObj [("name", .str name), ("request", withOp "obs.health" req),
       ("response", respond "obs.health" req)]).compress ++ "\n")

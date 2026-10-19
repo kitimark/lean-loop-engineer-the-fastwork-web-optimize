@@ -8225,7 +8225,8 @@
     ".github/workflows/lean.yml",
     "research/notes/2026/10-20-fwcore-startup.md",
     "docs/team/handoffs/fwcore-lazy-tables.md"
-   ]
+   ],
+   "evidence": "43a66a4"
   },
   {
    "devices": [

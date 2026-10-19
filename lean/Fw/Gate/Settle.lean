@@ -971,7 +971,7 @@ def quietCases : List (String × Nat × List Int × List Int) :=
     ("people.deck scale mid lerp", 100, [977000], [979000]) ]
 
 /-- One golden line per case, in the order of the nine case lists: observation, wait, quiet, rendered, cell, view, fold, report, viewFor. -/
-def goldenLines : List String :=
+def goldenLines (_ : Unit := ()) : List String :=
   obsCases.map (fun (n, o) =>
     (Json.mkObj [("kind", "settled"), ("name", toJson n), ("policy", policyJson gatePolicy), ("obs", obsJson o),
       ("settled", toJson (settled gatePolicy o))]).compress)
@@ -1005,7 +1005,7 @@ def goldenLines : List String :=
       ("view", toJson (viewFor s e))]).compress)
 
 /-- The exact bytes of `packages/contracts/golden/gate/settle.jsonl`: the lines, each newline-terminated. -/
-def goldenText : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
+def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
 /-- The value after the first occurrence of `flag` that has a successor in an argument list. -/
 def argAfter : List String → String → Option String

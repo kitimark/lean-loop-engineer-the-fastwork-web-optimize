@@ -808,7 +808,7 @@ def ifCheckLine (t : String) : Json :=
   Json.mkObj [("kind", "ifCheck"), ("text", .str t), ("carries", .bool (carriesNotMain t))]
 
 /-- The text of the golden file. $$\text{one JSON object per line: the table, the cases, the if forms and checks}$$ -/
-def goldenText : String :=
+def goldenText (_ : Unit := ()) : String :=
   String.join ((tableLine :: cases.map caseLine ++ ifOrigs.map ifFormLine ++ ifTexts.map ifCheckLine).map
     fun j => j.compress ++ "\n")
 

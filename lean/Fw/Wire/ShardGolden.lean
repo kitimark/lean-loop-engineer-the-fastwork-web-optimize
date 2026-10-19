@@ -78,7 +78,7 @@ def line (C : Costs) (m r : Nat) : Json :=
 def freeRunners : List Nat := [4, 8, 12, 20]
 
 /-- The golden lines: the cost table, then one line per $m \in \{4, 8, 12, 20\}$ and $r \in \{1, 2, 3\}$. -/
-def cases : List Json :=
+def cases (_ : Unit := ()) : List Json :=
   let C := Fw.Gate.ShardCosts.measured
   (Json.mkObj [("name", Json.str "costs"), ("source", Json.str Fw.Gate.ShardCosts.source),
       ("chromium", tableJson C.chromium), ("playwright-webkit", tableJson C.webkit)]) ::
