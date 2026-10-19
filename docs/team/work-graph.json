@@ -9899,6 +9899,21 @@
     "refs/upstream/sources.lock.yaml",
     ".github/workflows/lean.yml"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scrub-session-paths",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "scripts/scrub.mjs also refuses Claude session paths (/private/tmp/claude-<uid>/-Users-<name>-..., any '-Users-<name>-' form) and the local account name read at run time; a review found the account name in a pushed note (10-17-sim-speed-review.md:104, fixed) that the /(Users|home)/<name>/ rule missed",
+   "deps": [],
+   "writes": [
+    "scripts/scrub.mjs",
+    "scripts/scrub.test.mjs",
+    "docs/team/handoffs/scrub-session-paths.md"
+   ]
   }
  ],
  "deadline": {
