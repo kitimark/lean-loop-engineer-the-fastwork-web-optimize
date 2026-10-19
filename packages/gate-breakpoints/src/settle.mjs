@@ -97,3 +97,31 @@ export function viewCell(bo, br, fo, go, fr, gr, a, b) {
   const o = view(bo, fo, go), r = view(br, fr, gr);
   return cell(!o.skipped, !r.skipped, a, b, o.val === r.val);
 }
+
+/**
+ * Fw.Gate.Settle.layoutOutputKeys: the keys whose computed value is layout output. getComputedStyle of an `auto` margin reads the
+ * box's first fragment (Blink LayoutBox::MarginOutsets), written by the container's layout; a box in a skipped subtree that no
+ * layout pass included reads the zero strut `0px`, whatever the steady value (research/notes/2026/10-20-commission-margin-recur.md).
+ */
+export const LAYOUT_OUTPUT_KEYS = Object.freeze([
+  'margin', 'margin-block', 'margin-inline', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+  'margin-block-start', 'margin-block-end', 'margin-inline-start', 'margin-inline-end',
+]);
+
+/** Fw.Gate.Settle.layoutOutputKey. */
+export const layoutOutputKey = (k) => LAYOUT_OUTPUT_KEYS.includes(k);
+
+/** Fw.Gate.Settle.keyMasked: either arm's node was read in a skipped subtree and the key is layout output. */
+export const keyMasked = (so, sr, k) => (so || sr) && layoutOutputKey(k);
+
+/** Fw.Gate.Settle.keyPair: the original's value on both sides where the pair is masked, the two values as read otherwise. */
+export const keyPair = (so, sr, k, a, b) => (keyMasked(so, sr, k) ? [a, a] : [a, b]);
+
+/** Fw.Gate.Settle.keyCell: the cell of one key of one node of a live sweep, from both arms' waits and the two values. */
+export function keyCell(so, sr, k, a, b, wa, wb) {
+  const [x, y] = keyPair(so, sr, k, a, b);
+  return cell(true, true, wa, wb, x === y);
+}
+
+/** Fw.Gate.Settle.flagSweeps: whether the live sweeps flag the skipped nodes they read (only read, nothing is scrolled). */
+export const flagSweeps = viewFor;

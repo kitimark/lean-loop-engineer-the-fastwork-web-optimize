@@ -71,3 +71,21 @@
 {"engine":"playwright-webkit","kind":"viewFor","name":"webkit, other switch value","switch":"yes","view":false}
 {"engine":"firefox","kind":"viewFor","name":"unknown engine, no switch","switch":null,"view":false}
 {"engine":"firefox","kind":"viewFor","name":"unknown engine forced on","switch":"1","view":true}
+{"a":"132px","b":"132px","cell":"pass","key":"margin-left","kind":"keymask","masked":false,"name":"rendered, equal margins","seenA":"132px","seenB":"132px","skippedO":false,"skippedR":false}
+{"a":"0px","b":"8px","cell":"fail","key":"margin-left","kind":"keymask","masked":false,"name":"rendered, different margins","seenA":"0px","seenB":"8px","skippedO":false,"skippedR":false}
+{"a":"0px","b":"8px","cell":"pass","key":"margin-left","kind":"keymask","masked":true,"name":"commission rows: original skipped, stale zero against steady value","seenA":"0px","seenB":"0px","skippedO":true,"skippedR":false}
+{"a":"8px","b":"0px","cell":"pass","key":"margin-right","kind":"keymask","masked":true,"name":"rewrite skipped, stale zero against steady value","seenA":"8px","seenB":"8px","skippedO":false,"skippedR":true}
+{"a":"0px","b":"132px","cell":"pass","key":"margin-inline-start","kind":"keymask","masked":true,"name":"both skipped, different margins","seenA":"0px","seenB":"0px","skippedO":true,"skippedR":true}
+{"a":"100px","b":"120px","cell":"fail","key":"width","kind":"keymask","masked":false,"name":"skipped, the width is still compared","seenA":"100px","seenB":"120px","skippedO":true,"skippedR":true}
+{"a":"rgb(0, 0, 0)","b":"rgb(1, 1, 1)","cell":"fail","key":"color","kind":"keymask","masked":false,"name":"skipped, a colour difference is still compared","seenA":"rgb(0, 0, 0)","seenB":"rgb(1, 1, 1)","skippedO":true,"skippedR":false}
+{"a":"4px","b":"8px","cell":"fail","key":"padding-left","kind":"keymask","masked":false,"name":"skipped, a padding difference is still compared","seenA":"4px","seenB":"8px","skippedO":false,"skippedR":true}
+{"a":"8px","b":"8px","cell":"pass","key":"margin-top","kind":"keymask","masked":true,"name":"skipped, equal margins","seenA":"8px","seenB":"8px","skippedO":true,"skippedR":true}
+{"a":"0px","b":"96px","cell":"pass","key":"margin-inline","kind":"keymask","masked":true,"name":"commission inner: the margin-inline shorthand, original skipped","seenA":"0px","seenB":"0px","skippedO":true,"skippedR":false}
+{"engine":"chromium","flag":true,"kind":"flagSweeps","name":"chromium, no switch","switch":null}
+{"engine":"playwright-webkit","flag":false,"kind":"flagSweeps","name":"webkit, no switch","switch":null}
+{"engine":"playwright-webkit","flag":true,"kind":"flagSweeps","name":"webkit forced on","switch":"1"}
+{"engine":"chromium","flag":false,"kind":"flagSweeps","name":"chromium forced off","switch":"0"}
+{"engine":"chromium","flag":true,"kind":"flagSweeps","name":"chromium, empty switch","switch":""}
+{"engine":"playwright-webkit","flag":false,"kind":"flagSweeps","name":"webkit, other switch value","switch":"yes"}
+{"engine":"firefox","flag":false,"kind":"flagSweeps","name":"unknown engine, no switch","switch":null}
+{"engine":"firefox","flag":true,"kind":"flagSweeps","name":"unknown engine forced on","switch":"1"}

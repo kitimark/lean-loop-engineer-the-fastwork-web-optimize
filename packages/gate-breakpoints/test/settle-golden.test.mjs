@@ -4,9 +4,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { GATE_POLICY, cell, fold, idlePolicy, nextStable, quiet, rendered, report, settled, spent, view, viewCell, viewFor, waitTrace } from '../src/settle.mjs';
+import { GATE_POLICY, cell, flagSweeps, fold, idlePolicy, keyCell, keyMasked, keyPair, layoutOutputKey, nextStable, quiet, rendered, report, settled, spent, view, viewCell, viewFor, waitTrace } from '../src/settle.mjs';
 import { settleInPage } from '../src/page.mjs';
-import { maskNotRendered } from '../src/summary.mjs';
+import { maskKeys, maskNotRendered } from '../src/summary.mjs';
 import { PKG } from '../src/serve.mjs';
 import { SETTLE_GOLDEN, settlegen } from '../scripts/settlegen.mjs';
 
@@ -133,4 +133,51 @@ test('rendered and cell: a node in a skipped subtree is notRendered, never pass 
     assert.equal(cell(false, true, 'settled@1', 'settled@1', e), 'notRendered');
     assert.equal(cell(true, false, 'unsettled', 'settled@1', e), 'notRendered');
   }
+});
+
+test('keymask: every golden pair of a layout-output key of a flagged node is masked, every other is as read (golden)', () => {
+  assert.ok(of('keymask').length >= 9);
+  for (const l of of('keymask')) {
+    assert.equal(keyMasked(l.skippedO, l.skippedR, l.key), l.masked, l.name);
+    assert.deepEqual(keyPair(l.skippedO, l.skippedR, l.key, l.a, l.b), [l.seenA, l.seenB], l.name);
+    assert.equal(keyCell(l.skippedO, l.skippedR, l.key, l.a, l.b, 'settled@1', 'settled@2'), l.cell, l.name);
+    // Lean keyPair_differs_iff: the pair a comparison sees differs exactly when the values differ and the pair is not masked
+    assert.equal(l.seenA !== l.seenB, l.a !== l.b && !l.masked, l.name);
+  }
+  assert.equal(layoutOutputKey('margin-inline'), true);
+  assert.equal(layoutOutputKey('width'), false);
+});
+
+test('flagSweeps: every golden switch and engine gives the Lean flag (the same as the bring flag)', () => {
+  assert.ok(of('flagSweeps').length >= 8);
+  for (const l of of('flagSweeps')) {
+    assert.equal(flagSweeps(l.switch ?? undefined, l.engine), l.flag, l.name);
+    assert.equal(l.flag, of('viewFor').find((v) => v.name === l.name).view, l.name);
+  }
+});
+
+test('maskKeys: a flagged node loses only its margin keys, in either arm; a real difference of any other key stays', () => {
+  const it = (style, skipped, rect = { x: 0, y: 0, w: 10, h: 10 }) => ({ rect, style, ...(skipped ? { skipped: true } : {}) });
+  const arm = (items) => ({ settle: {}, raw: { parts: { commission: { rows: { count: items.length, declared: [], items } } } } });
+  const items = (st) => st.raw.parts.commission.rows.items;
+  // the commission rows of run 39333030506: the original reads the zero strut while its subtree is skipped
+  const state = {
+    orig: arm([it({ 'margin-inline': '0px', 'margin-top': '0px', width: '100px', color: 'red' }, true), it({ 'margin-inline': '0px' }, false)]),
+    rewrite: arm([it({ 'margin-inline': '8px', 'margin-top': '8px', width: '120px', color: 'red' }, false), it({ 'margin-inline': '8px' }, false)]),
+  };
+  const { state: out, masked } = maskKeys(state);
+  assert.deepEqual(masked, [{ part: 'commission', role: 'rows', idx: 0, orig: true, rewrite: false, keys: ['margin-inline', 'margin-top'] }]);
+  const [o, r] = [items(out.orig), items(out.rewrite)];
+  assert.equal(o[0].style['margin-inline'], r[0].style['margin-inline'], 'masked key: same value both sides');
+  assert.equal(o[0].style['margin-top'], r[0].style['margin-top']);
+  assert.notEqual(o[0].style.width, r[0].style.width, 'a real width difference of the flagged node is kept');
+  assert.deepEqual(o[0].rect, r[0].rect);
+  assert.equal(o[0].skipped, undefined);
+  assert.notEqual(o[1].style['margin-inline'], r[1].style['margin-inline'], 'a rendered node is left alone, its margin difference stays');
+  assert.equal(maskKeys({ orig: arm([it({ 'margin-top': '1px' }, false)]), rewrite: arm([it({ 'margin-top': '2px' }, false)]) }).masked.length, 0);
+  const rect = maskKeys({ orig: arm([it({ 'margin-top': '1px' }, true, { x: 0, y: 0, w: 1, h: 1 })]), rewrite: arm([it({ 'margin-top': '2px' }, false, { x: 0, y: 0, w: 2, h: 1 })]) });
+  assert.notDeepEqual(items(rect.state.orig)[0].rect, items(rect.state.rewrite)[0].rect, 'the rect of a flagged node stays compared');
+  // a bare pair (the hysteresis pair: no .raw wrapper)
+  const bare = maskKeys({ orig: state.orig.raw, rewrite: state.rewrite.raw });
+  assert.equal(bare.masked.length, 1);
 });

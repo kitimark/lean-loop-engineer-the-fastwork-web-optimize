@@ -8,7 +8,7 @@ import { attachAlignFacts, collectAlignFacts } from './align-equiv.mjs';
 import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
 import { KIT_SRC, PIN_SRC, bringInPage, collectInPage, freezeInPage, prepareInPage, scrollTopInPage, settleInPage, waitReady, waitResize } from './page.mjs';
 import { HOLD_LOAD_MS, MAIN_OFF_MS, ORIG_GRACE_MS, POST_RESIZE_MS, READY_TO_MS, SLOT_MS, STEP_MS, checkAt, instant, lateWait, mountRank, newRec, observeAt, ovRank, stopBase, viewRank } from './freeze.mjs';
-import { GATE_POLICY, fold, idlePolicy, view, viewFor, waitTrace } from './settle.mjs';
+import { GATE_POLICY, flagSweeps, fold, idlePolicy, view, viewFor, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { makeViewBarrier, skippedParts, viewStage } from './view.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
@@ -80,6 +80,11 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const servers = { orig: await startServer(snapshotRoot()), rewrite: await startServer(dist, variantPage.rewrite) };
   const engine = await (gaps ? gaps.launcher : LAUNCHERS[engineName])();
   const VIEW_ON = !gaps && viewFor(VIEW_ENV, engineName);
+  // Lean Fw.Gate.Settle.flagSweeps: the live sweeps and the fresh load that ends them flag the nodes they read in a skipped subtree, and
+  // nothing else (no scroll, no second reading), so the sweep keeps its page state; summary.mjs maskKeys then leaves the used margins of
+  // a flagged node out of the comparison (Lean keyMasked). A flagged node's used auto margin is the zero strut, in the original and the
+  // rewrite alike, and a viewport change does not cure it (research/notes/2026/10-20-commission-margin-recur.md).
+  const MASK_ON = !gaps && flagSweeps(VIEW_ENV, engineName);
   const cond = gen.conditions.map((c) => ({ tsId: c.tsId, css: c.css, legacyCss: c.legacyCss }));
   const neutral = gen.neutral.map((n) => ({ tsId: n.tsId, css: n.css }));
   const partsArg = Object.fromEntries(['orig', 'rewrite'].map((site) => [site, Object.fromEntries(
@@ -179,13 +184,14 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   // `ctx` = { base, rec } (frozen only): the stop base and the sample's record of readings that missed their instant. Order of the
   // readings and their ranks (Lean Fw.Gate.Freeze): the main parts 0, overlay j = 1 + j, the mount parts together = nOverlay + 1, a
   // part brought into view = nOverlay + 2 + its index among the plain parts.
-  async function evalCollect(s, site, env, props, settleRoots, view = false, ctx = null, viewSync = null, page = null) {
+  async function evalCollect(s, site, env, props, settleRoots, view = false, ctx = null, viewSync = null, page = null, flagOnly = false) {
+    const flag = view || flagOnly;
     const at = (rank, label) => (ctx ? observeAt(s, instant(ctx.base, rank), freezeInPage, ctx.rec, label) : true);
     const pick = (ids) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => ids.includes(pid)));
     const withMain = page !== 'mounted';
     const withMount = page !== 'plain';
     if (withMain) await at(0, 'main');
-    const raw = await collectWith(s, collectArg(site, env, props, pick(withMain ? plainIds : []), view));
+    const raw = await collectWith(s, collectArg(site, env, props, pick(withMain ? plainIds : []), flag));
     for (const [j, pid] of (withMain ? ovIds : []).entries()) {
       const steps = overlayOf[site][pid] || [];
       if (steps.length > 0) {
@@ -194,7 +200,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
         if (settleRoots) (raw.overlaySettle ||= []).push(await settleRoots(partsArg[site][pid].map((r) => r.selector), env));
       }
       await at(ovRank(j), `overlay ${pid}`);
-      const one = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, view));
+      const one = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, flag));
       raw.parts = { ...raw.parts, ...one.parts };
       if (steps.length > 0) await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
     }
@@ -206,7 +212,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
         if (settleRoots) (raw.overlaySettle ||= []).push(idleWait(ready.idle, site, env));
       }
       await at(mountRank(ovIds.length), 'mount');
-      const late = await collectWith(s, collectArg(site, env, props, pick(mtIds), view));
+      const late = await collectWith(s, collectArg(site, env, props, pick(mtIds), flag));
       raw.parts = { ...raw.parts, ...late.parts };
     }
     if (props && view) await bringSkipped(s, site, env, props, raw, settleRoots, at, viewSync);
@@ -291,7 +297,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     Object.entries(roles).map(([role, v]) => [role, [...v.restated, ...v.originOnly]]))]));
 
   // `viewSync` (only a pair sample, samplePair) makes the view set the union over both arms; the pair retries as one, an arm never alone.
-  async function sample(env, site, view = VIEW_ON, viewSync = null) {
+  async function sample(env, site, view = VIEW_ON, viewSync = null, flagOnly = false) {
     const retry = viewSync ? (label, fn) => fn() : withRetry;
     return retry(`${site} ${env.width}x${env.height}`, async () => {
       const s = await load(env, site);
@@ -300,7 +306,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
         const rec = newRec();
         const settle = await evalReady(s, site, rec);
         const settleWait = await settleArm(s, site, env);
-        const raw = await evalCollect(s, site, env, collectProps, (roots, e) => settleArm(s, site, e, roots), view, frozen ? { base: stopBase(0, readingCount(view)), rec } : null, viewSync);
+        const raw = await evalCollect(s, site, env, collectProps, (roots, e) => settleArm(s, site, e, roots), view, frozen ? { base: stopBase(0, readingCount(view)), rec } : null, viewSync, null, flagOnly);
         raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
         if (gaps) raw.gap = await s.evaluate(gaps.collect, gaps.collectArg);
         return { settle, raw };
@@ -372,7 +378,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
             log(`  resize ${engineName} ${site} ${sw.stops[i].width}x${sw.stops[i].height}: ${Date.now() - t1} ms`);
           }
           const settleWait = await settleArm(s, site, sw.stops[i]);
-          const raw = await evalCollect(s, site, sw.stops[i], collectProps, (roots, e) => settleArm(s, site, e, roots), false, frozen ? { base: stopBase(i, readingCount(false)), rec } : null, null, page);
+          const raw = await evalCollect(s, site, sw.stops[i], collectProps, (roots, e) => settleArm(s, site, e, roots), false, frozen ? { base: stopBase(i, readingCount(false)), rec } : null, null, page, MASK_ON);
           raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
           stops.push(raw);
         }
@@ -396,7 +402,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       return (await armStops(site, 'plain')).map((a, i) => joinStop(a, mounted[i]));
     }));
     const last = sw.stops[sw.stops.length - 1];
-    const fresh = await Promise.all(SITES.map((site) => sample(last, site, false)));
+    const fresh = await Promise.all(SITES.map((site) => sample(last, site, false, null, MASK_ON)));
     sweepRecords.push({ id: sw.id, blurb: sw.blurb, stops: sw.stops, orig: perSite[0], rewrite: perSite[1], freshFinal: { orig: fresh[0], rewrite: fresh[1] } });
     log(`  ${engineName}: sweep ${sw.id} done (${sw.stops.length} stops, ${Date.now() - tSweep} ms)`);
   }
