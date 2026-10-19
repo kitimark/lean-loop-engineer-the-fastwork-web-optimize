@@ -49,6 +49,7 @@ run_group() {
   job "breakgen check lean" $bin/breakgen --check Fw/Site/breakpoints.gen.json
   job "breakgen check site" sh -c "$bin/breakgen --check ../apps/site/src/breakpoints.gen.json || echo 'check: WARNING apps/site/src/breakpoints.gen.json is not the Lean output yet'"
   # the gate generators, split out of breakgen (task site-build-cache; the same bytes: Fw.Site.GenRoute.split_agrees)
+  job "headgen check" lake env lean --run HeadgenMain.lean --check ../apps/site/src/head.gen.json  # the document head table (Fw.Site.Head)
   job "sweepsgen sweeps lean" $bin/fwcore sweepsgen --sweeps --check Fw/Site/sweeps.gen.json
   job "sweepsgen sweeps site" $bin/fwcore sweepsgen --sweeps --check ../apps/site/src/sweeps.gen.json
   job "sweepsgen sweeps golden" $bin/fwcore sweepsgen --sweeps-golden --check ../packages/contracts/golden/gate/sweeps.jsonl

@@ -7,7 +7,7 @@ import { createNavDriver, type NavEnv } from './driver';
 import { CLASS_OF, type Sticky } from './logic';
 import { matchList } from './media';
 import css from './nav.module.css';
-import svg from '../../svg.gen.json'; import head from '../../head.gen.json';
+import svg from '../../svg.gen.json';
 
 /** Where the nav's own scroll callback sits on the engine: before nav.hitTest (100), as the original reads the sticky item first. */
 export const NAV_ORDER = 99;
@@ -137,14 +137,6 @@ export function Nav({
   const onOpenChange = useCallback((open: boolean) => driver.current?.setLocaleOpen(open), []);
 
   return (
-    <>
-    <nav className={css.localeLinks} aria-label="Language">
-      {head.locales.map((l) => (
-        <a key={l.code} href={l.href} hrefLang={l.code} lang={l.code}>
-          {l.label}
-        </a>
-      ))}
-    </nav>
     <header ref={header} className={`${css.nav} is-hero-pill`} aria-label="Primary navigation" data-fw="nav">
       <div className={css.bar}>
         <a className={css.logo} href="/" aria-label="Fastwork home">
@@ -163,6 +155,5 @@ export function Nav({
       </div>
       {children}
     </header>
-    </>
   );
 }

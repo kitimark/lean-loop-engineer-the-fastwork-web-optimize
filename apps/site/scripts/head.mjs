@@ -9,6 +9,13 @@ export const renderEntry = (e) => {
   return e.tag === 'title' ? `<title>${esc(e.text)}</title>` : `<${e.tag}${attrs}>`;
 };
 export const renderHead = (gen) => gen.entries.map(renderEntry).join('');
+const SR_ONLY =
+  'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0';
+/** The language links: the last element of the body, outside the app mount point, as in the original. */
+export const renderLocaleLinks = (gen) =>
+  `<nav class="site-locale-links" aria-label="Language" style="${SR_ONLY}">` +
+  gen.locales.map((l) => `<a href="${esc(l.href)}" hreflang="${esc(l.code)}" lang="${esc(l.code)}">${esc(l.label)}</a>`).join('') +
+  '</nav>';
 export const htmlAttrs = (gen) => Object.entries(gen.html).map(([k, v]) => `${k}="${esc(v)}"`).join(' ');
 
 /** Every meta, link and title element of the document's `<head>`, as {tag, attrs (sorted pairs), text}. */

@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'vite';
 import { extractSvg } from './svg-extract.mjs';
-import { htmlAttrs, renderHead } from './head.mjs';
+import { htmlAttrs, renderHead, renderLocaleLinks } from './head.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argEngine = process.argv.indexOf('--engine');
@@ -122,6 +122,7 @@ const pageHtml = (pg) =>
     .replace('<!--fw-head-->', () => head)
     .replace('<!--fw-config-->', pg.configHash)
     .replace('<!--fw-root-->', () => pg.homeHtml)
+    .replace('<!--fw-locale-links-->', () => renderLocaleLinks(headGen))
     .replace('<!--fw-scripts-->', () => scripts);
 const html = pageHtml(pre.pages[0]);
 await writeFile(path.join(outDir, 'index.html'), html);

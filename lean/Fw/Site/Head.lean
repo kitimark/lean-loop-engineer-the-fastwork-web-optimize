@@ -115,7 +115,7 @@ theorem canonical_in_head (a : Alt) : canonicalEntry ∈ headFor a := by
 
 /-- The canonical URL, up to the trailing slash, is the URL of an alternate.
 
-$$ \exists a \in \mathrm{alternates}:\ \mathrm{canonical} + \texttt{"/"} = \mathrm{url}(a) $$ -/
+$$ \exists a \in \mathrm{alternates}:\ \mathrm{canonical} \mathbin{+\!\!+} \texttt{"/"} = \mathrm{url}(a) $$ -/
 theorem canonical_is_alternate : ∃ a ∈ alternates, canonicalUrl ++ "/" = a.url :=
   ⟨defaultAlt, by simp [alternates], rfl⟩
 

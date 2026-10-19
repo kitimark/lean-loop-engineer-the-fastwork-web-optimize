@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain ESM helper without types
-import { htmlAttrs, normEntry, parseHead, parseHtmlAttrs, renderHead } from '../scripts/head.mjs';
+import { htmlAttrs, normEntry, parseHead, parseHtmlAttrs, renderHead, renderLocaleLinks } from '../scripts/head.mjs';
 import gen from './head.gen.json';
 
 const at = (p: string) => fileURLToPath(new URL(p, import.meta.url));
@@ -26,14 +26,27 @@ describe('document head', () => {
     expect((parseHead(page) as Entry[]).map(key)).toEqual(declared.map(key));
   });
 
-  it('the built dist/aot head equals the declared entries, when a build exists', () => {
-    const built = at('../dist/aot/index.html');
-    if (!existsSync(built)) return;
+  const built = at('../dist/aot/index.html');
+  const hasBuild = existsSync(built);
+  it.skipIf(!hasBuild)('the built dist/aot head equals the declared entries', () => {
     const html = readFileSync(built, 'utf8');
     const declaredKeys = new Set(declared.map(key));
     const got = (parseHead(html) as Entry[]).map(key).filter((k) => declaredKeys.has(k));
     expect(got).toEqual(declared.map(key));
     expect(parseHtmlAttrs(html)).toEqual(gen.html);
+  });
+
+  it.skipIf(!hasBuild)('the built dist/aot has the language links last in body, after #root', () => {
+    const html = readFileSync(built, 'utf8');
+    const nav = renderLocaleLinks(gen);
+    const rootAt = html.indexOf('<div id="root"');
+    const navAt = html.indexOf('<nav class="site-locale-links"');
+    expect(rootAt).toBeGreaterThan(-1);
+    expect(html.split('site-locale-links').length - 1).toBe(1);
+    expect(html).toContain(nav);
+    expect(navAt).toBeGreaterThan(rootAt);
+    expect(html.slice(rootAt, navAt)).toMatch(/<\/div>\s*$/);
+    expect(html.slice(navAt + nav.length)).not.toMatch(/<(nav|header|main|div|section)\b/);
   });
 
   it('html attributes equal the snapshot', () => {
