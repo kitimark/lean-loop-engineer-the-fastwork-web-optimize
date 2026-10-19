@@ -155,6 +155,46 @@ def simPlanReq (target vms sessions preset fw experiment : String) : Json :=
   Json.mkObj [("target", .str target), ("vms", .str vms), ("sessions", .str sessions), ("preset", .str preset),
     ("fw", .str fw), ("experiment", .str experiment), ("sha", .str "0123456789abcdef0123456789abcdef01234567")]
 
+/-- A one-frame zone record of a `measure.compose` run. -/
+def czone (id : String) (i : Nat) (sums : List (String × Int)) : Json :=
+  Json.mkObj [("id", .str id), ("frames", toJson (1 : Nat)), ("scrolledPx", toJson (0 : Int)),
+    ("firstFrame", toJson i), ("lastFrame", toJson i), ("sums", Json.mkObj (sums.map fun (k, v) => (k, toJson v)))]
+
+/-- A `measure.compose` run: its variants and two zones. -/
+def crun (vs : List (String × String)) (z0 z1 : List (String × Int)) : Json :=
+  Json.mkObj [("variants", Json.mkObj (vs.map fun (k, v) => (k, .str v))),
+    ("zones", .arr #[czone "y00000" 0 z0, czone "y00500" 1 z1])]
+
+/-- Two faithful base runs; `fire` is the first run's `trace.FireAnimationFrame` in zone `y00000`. -/
+def cbase (fire : Int) : Json :=
+  let z1 : List (String × Int) := [("trace.Layout.dirtyObjects", 10), ("census.layers", 5), ("trace.Layout", 4)]
+  let vs := [("a", "faithful"), ("b", "faithful")]
+  .arr #[crun vs [("trace.Layout.dirtyObjects", 10), ("census.layers", 5), ("trace.Layout", 4),
+            ("trace.FireAnimationFrame", fire)] z1,
+         crun vs [("trace.Layout.dirtyObjects", 10), ("census.layers", 5), ("trace.Layout", 4),
+            ("trace.FireAnimationFrame", 4)] z1]
+
+/-- Two equal arm runs with the given variants and sums. -/
+def carm (vs : List (String × String)) (d0 d1 layers0 layout : Int) : Json :=
+  let r := crun vs [("trace.Layout.dirtyObjects", d0), ("census.layers", layers0), ("trace.Layout", layout),
+      ("trace.FireAnimationFrame", 4)]
+    [("trace.Layout.dirtyObjects", d1), ("census.layers", 5), ("trace.Layout", layout)]
+  .arr #[r, r]
+
+/-- A `measure.compose` comparison. -/
+def ccmp (id baseId : String) (base arm : Json) : Json :=
+  Json.mkObj [("id", .str id), ("baseId", .str baseId), ("base", base), ("arm", arm)]
+
+/-- The class table of the `measure.compose` cases. -/
+def cclasses : Json := Json.mkObj [
+  ("trace.Layout.dirtyObjects", cls "deterministic" 0 0), ("trace.FireAnimationFrame", cls "deterministic" 0 0),
+  ("census.layers", cls "stable" 2 3), ("trace.Layout", cls "deterministic" 0 0),
+  ("trace.FunctionCall", cls "quarantined" 0 0)]
+
+/-- A `measure.compose` request. -/
+def composeReq (comb : Json) (singles : List Json) : Json :=
+  Json.mkObj [("classes", cclasses), ("combined", comb), ("singles", .arr singles.toArray)]
+
 /-- The cases, per op file: (file stem, [(name, request without op)]). -/
 def cases : List (String × List (String × Json)) := [
   ("measure.zoneSums", [
@@ -439,7 +479,17 @@ def cases : List (String × List (String × Json)) := [
     ("a part twice is refused", simPlanReq "both" "1" "1" "original" "a.b:c,a.b:d" "determinism"),
     ("parts out of order are refused", simPlanReq "both" "1" "1" "original" "nav.hitTest:hit-skip,hero.countdown:strip" "determinism"),
     ("an unknown target, four VMs and zero sessions are all listed", simPlanReq "neither" "4" "0" "original" "" "determinism"),
-    ("a leading zero is not a count", simPlanReq "both" "01" "1" "original" "" "determinism")])]
+    ("a leading zero is not a count", simPlanReq "both" "01" "1" "original" "" "determinism")]),
+  ("measure.compose",
+    let comb := carm [("a", "x"), ("b", "y")] 5 4 9 2
+    let sa := carm [("a", "x"), ("b", "faithful")] 7 9 6 3
+    let sb := carm [("a", "faithful"), ("b", "y")] 8 10 7 3
+    [("every verdict: composes, coupled, quarantined, no zone margin, drift, reported",
+       composeReq (ccmp "C" "B" (cbase 3) comb) [ccmp "A" "B" (cbase 3) sa, ccmp "Bs" "B" (cbase 3) sb]),
+     ("a single on another base and an unclean single leave flag b missing",
+       composeReq (ccmp "C" "B" (cbase 4) comb) [ccmp "A" "B" (cbase 4) sa, ccmp "Bs" "B2" (cbase 4) sb,
+         ccmp "Bu" "B" (cbase 4) (.arr #[crun [("b", "y")] [] [], crun [("a", "x"), ("b", "y")] [] []])]),
+     ("a combined comparison without arm runs is refused", composeReq (ccmp "C" "B" (cbase 4) (.arr #[])) [])])]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json

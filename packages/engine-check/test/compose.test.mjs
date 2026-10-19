@@ -1,4 +1,4 @@
-// compose.mjs against the Lean golden vectors of measure.compose (lean/scripts/ComposeGolden.lean, Fw.Measure.Compose).
+// compose.mjs against the Lean golden vectors of measure.compose (packages/contracts/golden/measure, Fw.Measure.Golden).
 // Needs lean/.lake/build/bin/fwcore (cd lean && lake build fwcore).
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -9,7 +9,9 @@ import { fileURLToPath } from 'node:url';
 import { classTable, render, request, rowLine } from '../src/compose.mjs';
 import { fwcoreCall } from '../../../apps/runner/src/run.ts';
 
-const golden = readFileSync(new URL('../golden/compose.jsonl', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+const golden = readFileSync(new URL('../../contracts/golden/measure/measure.compose.jsonl', import.meta.url), 'utf8')
+  .split('\n').filter(Boolean).map((l) => JSON.parse(l))
+  .map(({ request: { op, ...request }, response }) => ({ request, reply: response }));
 const ok = golden.filter((g) => g.reply.error === undefined);
 
 test('the golden covers every verdict branch and one refused combined', () => {

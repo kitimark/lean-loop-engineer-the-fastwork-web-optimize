@@ -7,8 +7,9 @@ Verified:
   (`verdict_composes_iff`, `verdict_coupled_iff`, `verdict_reported_iff`, `verdict_missing`, `missing_not_composes`,
   `missing_not_coupled`, `verdict_quarantined`, `verdict_noZoneMargin`, `verdict_drift`), plus `coupled_cell_sound`,
   `composes_exact`, `armFor_spec`, `cellAt_missing`. `#guard` on every decision function.
-- Op `measure.compose` in `lean/Fw/Measure/Wire.lean`; golden `packages/engine-check/golden/compose.jsonl` from
-  `lean/scripts/ComposeGolden.lean` (check.sh job "compose golden check").
+- Op `measure.compose` in `lean/Fw/Measure/Wire.lean`; golden `packages/contracts/golden/measure/measure.compose.jsonl`
+  from the `measure.compose` cases of `lean/Fw/Measure/Golden.lean` (`scripts/MeasureGolden.lean`, `--check`).
+- `packages/engine-check` is in `FWCORE_USERS` and declares `packages/contracts/golden/measure/**` (land.ts).
 - `packages/engine-check/src/compose.mjs` and `cli.mjs --compose`: glue only. `test/compose.test.mjs` replays the
   golden through fwcore and rebuilds a golden request from run dirs.
 - Result (`research/notes/2026/10-20-compose-check.md`): the hidden-pause triple composes on 5 of 5 judged cells.
