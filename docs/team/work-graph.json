@@ -7819,7 +7819,8 @@
     "apps/runner/package.json",
     "apps/runner/test/bin-mode.test.ts",
     "docs/team/handoffs/runner-bin-mode.md"
-   ]
+   ],
+   "evidence": "d5c4c07"
   },
   {
    "devices": [
@@ -9359,7 +9360,9 @@
     "apps/runner/test/land-digest.test.ts",
     "lean/Fw/Console/LandQueue.lean",
     "packages/contracts/golden/console/land-queue.jsonl",
-    "lean/scripts/*Golden.lean"
+    "lean/scripts/*Golden.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land.test.ts"
    ]
   },
   {
@@ -9926,7 +9929,8 @@
     "scripts/scrub.test.mjs",
     "docs/team/handoffs/scrub-session-paths.md",
     "docs/team/tools/land.md"
-   ]
+   ],
+   "evidence": "f1f9d08"
   },
   {
    "devices": [
