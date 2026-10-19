@@ -79,3 +79,33 @@ describe("GET /api/health", () => {
     expect(r.body.alerts.map((a: { critical: boolean }) => a.critical)).toEqual([true, false]); // absent -> false
   });
 });
+
+describe("GitHub status (gh-status)", () => {
+  const inc = { name: "Degraded availability for GitHub Actions, GitHub Pages and Webhooks", status: "investigating", impact: "critical",
+    createdAt: 1_792_424_965_828, updatedAt: 1_792_427_429_646, body: "We are seeing recovery.", actions: true };
+  const withGh = (gh: object | undefined, codes: string[], alerts: object[] = []) => {
+    const l = JSON.parse(line(1_792_430_000_000));
+    l.input.system.gh = gh;
+    l.output.system.alerts = codes;
+    l.output.alerts = alerts;
+    return JSON.stringify(l);
+  };
+  it("passes the collected reading through and takes the flag from fwcore's alert", async () => {
+    const alert = { code: "sys.ghDegraded", subject: "github", detail: `Actions degraded_performance: ${inc.name}` };
+    const r = await get((d) => writeFileSync(join(d, "health.jsonl"),
+      withGh({ actions: "degraded_performance", pages: "degraded_performance", webhooks: "operational", incidents: [inc] }, ["sys.ghDegraded"], [alert]) + "\n"));
+    expect(r.body.gh).toEqual({ actions: "degraded_performance", pages: "degraded_performance", webhooks: "operational",
+      incidents: [inc], degraded: true, alert: alert.detail });
+  });
+  it("an operational reading is not degraded; an unknown reading with no alert stays unflagged", async () => {
+    const ok = await get((d) => writeFileSync(join(d, "health.jsonl"),
+      withGh({ actions: "operational", pages: "operational", webhooks: "operational", incidents: [] }, []) + "\n"));
+    expect(ok.body.gh).toMatchObject({ actions: "operational", degraded: false, alert: null, incidents: [] });
+    const unk = await get((d) => writeFileSync(join(d, "health.jsonl"), withGh({ actions: "unknown" }, []) + "\n"));
+    expect(unk.body.gh).toMatchObject({ actions: "unknown", pages: "unknown", degraded: false });
+  });
+  it("a line without a reading (written before gh-status) has gh null", async () => {
+    const r = await get((d) => writeFileSync(join(d, "health.jsonl"), line(1000) + "\n"));
+    expect(r.body.gh).toBeNull();
+  });
+});

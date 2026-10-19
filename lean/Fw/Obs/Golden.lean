@@ -55,6 +55,13 @@ def trio : List Agent :=
 def run0 (w b st : String) (c : Option String) (t : Nat) (e : Option Nat := none) (sha : String := "") : CiRun :=
   { workflow := w, branch := b, status := st, conclusion := c, startedAt := t, endedAt := e, headSha := sha }
 
+/-- The open Actions incident of 2026-10-19 (opened 15:49 UTC, impact critical). -/
+def ghInc : Fw.Obs.GhIncident :=
+  { name := "Degraded availability for GitHub Actions, GitHub Pages and Webhooks", status := "investigating",
+    impact := "critical", createdAt := 1792424965828, updatedAt := 1792427429646,
+    body := "We’re seeing recovery following mitigation and are continuing to monitor. Customers may still experience delays in GitHub Actions workflow status updates, GitHub Pages deployments, and check and workf",
+    actions := true }
+
 /-- A typed case: name, thresholds, observation. -/
 structure Typed where
   name : String
@@ -232,6 +239,24 @@ def typed : List Typed := [
   { name := "ciSlowMin 20: in progress exactly 20 min is not slow, queued 20 min 0.001 s is ci.slow",
     o := { now := t0, system := { okSys with ci := [run0 "lean" "ci/x" "in_progress" none (ago 20),
                                                     run0 "site" "ci/y" "queued" none (ago 20 - 1)] } } },
+  { name := "gh-status: Actions degraded_performance with an open Actions incident raises sys.ghDegraded, and the queued ci.slow run names the incident",
+    o := { now := t0, system := { okSys with ci := [run0 "lean" "ci/x" "queued" none (ago 30)],
+                                              gh := { actions := .degradedPerf, pages := .degradedPerf, webhooks := .degradedPerf,
+                                                      incidents := [ghInc] } } } },
+  { name := "gh-status: Actions operational closes the flag even when the previous pass flagged it; the slow run is unchanged",
+    o := { now := t0, system := { okSys with ci := [run0 "lean" "ci/x" "queued" none (ago 30)],
+                                              gh := { actions := .operational, prevDegraded := true, incidents := [ghInc] } } } },
+  { name := "gh-status: fetch failure (unknown) after a flagged pass keeps sys.ghDegraded and the incident",
+    o := { now := t0, system := { okSys with ci := [run0 "lean" "ci/x" "in_progress" none (ago 30)],
+                                              gh := { prevDegraded := true, incidents := [ghInc] } } } },
+  { name := "gh-status: fetch failure (unknown) after a clear pass raises nothing",
+    o := { now := t0, system := { okSys with ci := [run0 "lean" "ci/x" "in_progress" none (ago 30)], gh := {} } } },
+  { name := "gh-status: partial_outage and major_outage flag Actions; an incident that does not touch Actions is not named",
+    o := { now := t0, system := { okSys with ci := [run0 "lean" "ci/x" "queued" none (ago 30)],
+                                              gh := { actions := .partialOutage, webhooks := .majorOutage,
+                                                      incidents := [{ ghInc with name := "Webhooks delayed", actions := false }] } } } },
+  { name := "gh-status: under_maintenance flags Actions",
+    o := { now := t0, system := { okSys with gh := { actions := .maintenance, pages := .operational } } } },
   { name := "ci.finished: the run the previous check saw running 23 min ended since (success after 25 min); runs ended before that check or not yet slow then report nothing",
     o := { now := t0, prevAt := some (ago 2),
            system := { okSys with ci := [run0 "lean" "ci/x" "completed" (some "success") (ago 25) (some t0),
