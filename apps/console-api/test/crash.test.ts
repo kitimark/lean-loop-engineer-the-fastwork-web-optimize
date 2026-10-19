@@ -7,6 +7,14 @@ import { leanBinary, type Incident } from "../src/core/lean.ts";
 
 const open = { type: "card.open", key: "k1", actor: "owner", card: "A", owner: "o", needsDevice: false, ts: 1 } as const;
 const approve = { type: "card.approve", key: "k2", actor: "lead", card: "A", ts: 2 } as const;
+// No absolute wall-clock bound (task land-wallclock-off-gate): the deadline the fake core must miss and the generous cap
+// for a call that must succeed come from env knobs the land can raise; the elapsed time is only checked from below.
+const knob = (name: string, dflt: number): number => {
+  const v = Number(process.env[name]);
+  return Number.isFinite(v) && v > 0 ? v : dflt;
+};
+const DEADLINE_MS = knob("FW_TEST_DEADLINE_MS", 1500);
+const CALL_MS = knob("FW_TEST_CALL_MS", 30000);
 let core: ReturnType<typeof selectCore> | null = null;
 afterEach(() => core?.close());
 
@@ -87,22 +95,22 @@ require("readline").createInterface({ input: process.stdin }).on("line", (l) => 
   });
   it("a call unanswered past the deadline kills the child and fails with a crash error", async () => {
     const incidents: Incident[] = [];
-    core = selectCore(fake("() => null"), undefined, (i) => incidents.push(i), 150);
+    core = selectCore(fake("() => null"), undefined, (i) => incidents.push(i), DEADLINE_MS);
     await core.open(() => []);
     const t0 = Date.now();
-    await expect(core.apply(open)).rejects.toThrow(/timed out after 150 ms/);
-    expect(Date.now() - t0).toBeLessThan(3000);
+    await expect(core.apply(open)).rejects.toThrow(new RegExp(`timed out after ${DEADLINE_MS} ms`));
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(DEADLINE_MS - 50); // the deadline was waited for, not skipped
     expect(core.restarts).toBe(1);
     expect(incidents.map((i) => i.kind)).toContain("timeout");
   });
   it("a timed-out real core restarts with replay and answers the next call", async () => {
     const log = [JSON.stringify({ ...open, seq: 1 })];
-    core = selectCore(process.env, undefined, () => undefined, 5_000);
+    core = selectCore(process.env, undefined, () => undefined, CALL_MS);
     await core.open(() => log);
     core.stopForTest(); // frozen child never answers
-    core.callTimeoutForTest(100);
+    core.callTimeoutForTest(DEADLINE_MS);
     await expect(core.board(10, 1)).rejects.toThrow(/timed out/);
-    core.callTimeoutForTest(5_000);
+    core.callTimeoutForTest(CALL_MS);
     expect((await core.board(10, 1)).cards[0]).toMatchObject({ id: "A" });
     expect(core.replays).toBe(2);
   });

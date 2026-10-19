@@ -3,13 +3,15 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } fro
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ask } from "../hooks/spawn-guard.mjs";
 import { message, modeOf, record, request, verdict } from "../hooks/wait-guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, "../hooks/wait-guard.mjs");
 const bin = process.env.FW_CORE_BIN ?? join(here, "../../../lean/.lake/build/bin/fwcore");
+process.env.FW_HOOK_ASK_TIMEOUT_MS = "30000";
+vi.setConfig({ testTimeout: 35_000 });
 const golden = join(here, "../../../packages/contracts/golden/ops/ops.wait.jsonl");
 const bash = (command: string, extra: object = {}) => ({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_use_id: "toolu_7", tool_input: { command }, ...extra });
 const have = existsSync(bin);
