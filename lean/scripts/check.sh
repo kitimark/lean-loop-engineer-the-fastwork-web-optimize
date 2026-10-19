@@ -87,11 +87,12 @@ run_group() {
       then echo "props-lint: the findings are exactly scripts/props-lint-cases/Adv.expected.txt (the project itself has none)"
       else echo "props-lint: findings differ from scripts/props-lint-cases/Adv.expected.txt (< expected, > found); output:"; cat "$1/out"; exit 1; fi; }' _ "$tmp/plc"
   # init-cost lint (Fw.Lint.InitCost): no constant fwcore evaluates at start allocates more than the bound; the cases
-  # scripts/init-cost-cases/Adv.lean must yield exactly Adv.expected.txt
+  # scripts/init-cost-cases/Adv.lean and NoC.lean (built with no C file) must yield exactly Adv.expected.txt
   job "init cost lint" lake env lean scripts/InitCostLint.lean
-  job "init cost lint cases" sh -c 'mkdir -p "$1" && cp scripts/init-cost-cases/Adv.lean "$1/" &&
+  job "init cost lint cases" sh -c 'mkdir -p "$1" && cp scripts/init-cost-cases/Adv.lean scripts/init-cost-cases/NoC.lean "$1/" &&
+    lake env lean -R "$1" -o "$1/NoC.olean" "$1/NoC.lean" &&
     lake env lean -R "$1" -o "$1/Adv.olean" -c "$1/Adv.c" "$1/Adv.lean" &&
-    { printf "import Fw.Lint.InitCostScan\nimport Adv\nset_option maxHeartbeats 0 in\nrun_cmd Fw.Lint.InitCostScan.scan [\`Adv] [\".\"]\n" > "$1/AdvLint.lean"
+    { printf "import Fw.Lint.InitCostScan\nimport Adv\nimport NoC\nset_option maxHeartbeats 0 in\nrun_cmd Fw.Lint.InitCostScan.scan [\`Adv, \`NoC] [\".\"]\n" > "$1/AdvLint.lean"
       lake env sh -c "cd \"\$1\" && LEAN_PATH=\"\$1:\$LEAN_PATH\" lean AdvLint.lean" _ "$1" > "$1/out" 2>&1
       if sed -n "s/^init-cost: \([a-z]*\) \([^:]*\):.*/\1 \2/p" "$1/out" | LC_ALL=C sort | diff scripts/init-cost-cases/Adv.expected.txt -
       then echo "init-cost: the findings are exactly scripts/init-cost-cases/Adv.expected.txt"

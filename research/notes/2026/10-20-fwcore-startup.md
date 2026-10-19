@@ -26,7 +26,8 @@ topics: [lean, fwcore, runner, performance, lint]
   | after (42205e01) | 40.4 | 40.4 | 39324877968 |
 
   MEASURED: 50 calls each by `lean/scripts/start-timing.sh`, artifact `fwcore-linux-arm64` file `fwcore-start.json`,
-  same runner image (20261012.149.1). Each call now costs 1/20 of the CPU it did, and saves 0.77 s.
+  same runner image (20261012.149.1). Each call now costs 1/20 of the CPU it did, and saves 0.77 s. Since this
+  round the script fails unless all 51 replies equal the expected answer; the two runs above predate that check.
 - Every generator and golden output is byte-identical. Every `--check` in `lean/scripts/check.sh` is green, and a
   before/after dump of `partsgolden`, ContractsGolden, ShardGolden, the wire replay, `--ops` and `sweepsgen` is
   identical. The only lines that differ are the timing lines `fwcore fwtest` prints. MEASURED.
@@ -63,22 +64,31 @@ seed list is now read inside `enum`.
 - Identity: the constants that start evaluates are the `X = _init_X();` lines of `.lake/build/ir/**/*.c` for the
   modules `Main` reaches. Each stem maps to a constant by `Lean.getSymbolStem` over the module's IR declarations. A
   stem with no constant is a finding unless it is a boxed scalar (`___boxed__const__`).
+- Fails closed: a reached module whose `.olean` lies outside the toolchain's library (`getLibDir (← findSysroot)`,
+  compared by path components in `underDir`) and that has no C file is a finding (`noc`).
 - Cost: in an elaborated file (`lake env lean scripts/InitCostLint.lean`), each constant is evaluated in start order.
   Its cost is the difference in `IO.getNumHeartbeats`, which counts small allocations per thread. The count is
   deterministic, unlike time. The probe returns the value, so the compiler cannot move the evaluation past the second
   heartbeat read.
-- Verdict: `findings` is empty exactly when each unmapped stem is a boxed scalar and each cost is at most `bound`
-  (10,000) (`findings_nil_iff`; branch theorems `rowFinding_within`, `rowFinding_over`, `stemFinding_boxed`,
-  `stemFinding_unmapped`).
-- Test: `scripts/init-cost-cases/Adv.lean` is compiled to C in a temp directory. The findings must equal
-  `Adv.expected.txt`: an eager 20,000-row table, and an eager constant that forces a lazy 30,000-row table. A small
-  constant, a constant that reuses the eager table, and two lazy functions must pass.
+- Verdict: `findings` is empty exactly when no project module lacks a C file, each unmapped stem is a boxed scalar
+  and each cost is at most `bound` (10,000) (`findings_nil_iff`; branch theorems `findings_noC`, `rowFinding_within`,
+  `rowFinding_over`, `stemFinding_boxed`, `stemFinding_unmapped`).
+- Test: `scripts/init-cost-cases/Adv.lean` is compiled to C in a temp directory and `NoC.lean` is built with no C
+  file; the scan has both as roots. The findings must equal `Adv.expected.txt`: the module `NoC`, an eager 20,000-row
+  table, and an eager constant that forces a lazy 30,000-row table. A small constant, a constant that reuses the eager table, and
+  two lazy functions must pass.
 - Cost of the gate: 33 s wall for the lint and 15 s for the cases, at load 166 on this Mac, inside the parallel group.
 
 ## Local debug run (not a result)
 At load 130-166 on this Mac, 5 calls each: 941 ms CPU per call with the old binary, 44 ms with the new one.
 
 ## Limits and follow-ups
+- The lint covers project modules only: 267 of the 2,641 modules `Main` reaches (MEASURED after the merge with main
+  at `596968a6`). The 2,374 toolchain modules are unmeasured, the whole of `Lean` among them, which fwcore reaches
+  through `import Lean` in `Fw.Spec.MathFacts`, `Fw.Spec.Reach` and `MathView`. Open follow-up: drop `import Lean`
+  from fwcore's closure.
+- The lint reads only `X = _init_X();` lines. IO initializers (`initialize`, `@[init]`) run through another C form,
+  so it does not see them. No project module declares one today (`git grep`).
 - The runner suite's total fwcore CPU was not measured. An estimate is the number of spawns times the per-call
   saving. A persistent `fwcore serve` for the runner is task fwcore-serve-runner.
 - Constants just under the bound remain eager, for example `Fw.Wire.Plan.Golden.wfText` (9,970). Lowering `bound`

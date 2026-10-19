@@ -39,6 +39,13 @@ def isBoxedConst (stem : String) : Bool := (stem.splitOn boxedConstMark).length 
 #guard !isBoxedConst "lp_fwcore_Fw_P_lines"
 #guard !isBoxedConst "lp_fwcore_Fw_P_lines___closed__144"
 
+/-- Whether `file` lies under the directory `dir`, compared by path components. -/
+def underDir (dir file : System.FilePath) : Bool := dir.components.isPrefixOf file.components
+
+#guard underDir "/t/lib/lean" "/t/lib/lean/Init/Core.olean"
+#guard !underDir "/t/lib/lean" "/t/lib/lean2/Init/Core.olean"
+#guard !underDir "/t/lib/lean" "/w/lean/.lake/build/lib/lean/Fw/A.olean"
+
 structure Row where
   name : String
   cost : Nat
@@ -47,11 +54,13 @@ deriving DecidableEq, Repr
 inductive Finding where
   | over (name : String) (cost : Nat)
   | unmapped (stem : String)
+  | noC (module : String)
 deriving DecidableEq, Repr
 
 def Finding.line : Finding → String
   | .over n c => s!"init-cost: over {n}: {c} allocations at start, bound {bound}"
   | .unmapped s => s!"init-cost: unmapped {s}: evaluated at start, no constant to measure"
+  | .noC m => s!"init-cost: noc {m}: a project module with no C file, so its start-time constants are unmeasured"
 
 def rowFinding (b : Nat) (r : Row) : Option Finding :=
   if r.cost ≤ b then none else some (.over r.name r.cost)
@@ -59,14 +68,17 @@ def rowFinding (b : Nat) (r : Row) : Option Finding :=
 def stemFinding (s : String) : Option Finding :=
   if isBoxedConst s then none else some (.unmapped s)
 
-/-- Each unmapped start-time symbol that is not a boxed scalar, then each constant over `b`, in start order. -/
-def findings (b : Nat) (rows : List Row) (unmapped : List String) : List Finding :=
-  unmapped.filterMap stemFinding ++ rows.filterMap (rowFinding b)
+/-- Each project module with no C file, each unmapped start-time symbol that is not a boxed scalar, then each
+constant over `b`, in start order. -/
+def findings (b : Nat) (rows : List Row) (unmapped noC : List String) : List Finding :=
+  noC.map .noC ++ unmapped.filterMap stemFinding ++ rows.filterMap (rowFinding b)
 
-#guard findings 10 [⟨"a", 3⟩, ⟨"b", 10⟩] [] == []
-#guard findings 10 [⟨"a", 3⟩, ⟨"b", 11⟩] [] == [.over "b" 11]
-#guard findings 10 [] ["x___boxed__const__1"] == []
-#guard findings 10 [⟨"a", 30⟩] ["x"] == [.unmapped "x", .over "a" 30]
+#guard findings 10 [⟨"a", 3⟩, ⟨"b", 10⟩] [] [] == []
+#guard findings 10 [⟨"a", 3⟩, ⟨"b", 11⟩] [] [] == [.over "b" 11]
+#guard findings 10 [] ["x___boxed__const__1"] [] == []
+#guard findings 10 [⟨"a", 30⟩] ["x"] [] == [.unmapped "x", .over "a" 30]
+#guard findings 10 [⟨"a", 3⟩] [] ["M"] == [.noC "M"]
+#guard findings 10 [⟨"a", 30⟩] ["x"] ["M"] == [.noC "M", .unmapped "x", .over "a" 30]
 
 theorem rowFinding_within {b : Nat} {r : Row} (h : r.cost ≤ b) : rowFinding b r = none := by
   simp [rowFinding, h]
@@ -80,18 +92,23 @@ theorem stemFinding_boxed {s : String} (h : isBoxedConst s = true) : stemFinding
 theorem stemFinding_unmapped {s : String} (h : isBoxedConst s = false) : stemFinding s = some (.unmapped s) := by
   simp [stemFinding, h]
 
-theorem findings_nil_iff (b : Nat) (rows : List Row) (unmapped : List String) :
-    findings b rows unmapped = [] ↔ (∀ s ∈ unmapped, isBoxedConst s = true) ∧ ∀ r ∈ rows, r.cost ≤ b := by
-  simp only [findings, List.append_eq_nil_iff, List.filterMap_eq_nil_iff]
+theorem findings_noC {b : Nat} {rows : List Row} {unmapped noC : List String} {m : String} (h : m ∈ noC) :
+    .noC m ∈ findings b rows unmapped noC := by
+  simp [findings, h]
+
+theorem findings_nil_iff (b : Nat) (rows : List Row) (unmapped noC : List String) :
+    findings b rows unmapped noC = [] ↔
+      noC = [] ∧ (∀ s ∈ unmapped, isBoxedConst s = true) ∧ ∀ r ∈ rows, r.cost ≤ b := by
+  simp only [findings, List.append_eq_nil_iff, List.map_eq_nil_iff, List.filterMap_eq_nil_iff]
   constructor
-  · rintro ⟨hu, hr⟩
-    refine ⟨fun s hs => ?_, fun r hr' => ?_⟩
+  · rintro ⟨⟨hn, hu⟩, hr⟩
+    refine ⟨hn, fun s hs => ?_, fun r hr' => ?_⟩
     · have := hu s hs
       cases hb : isBoxedConst s <;> simp_all [stemFinding]
     · have := hr r hr'
       by_cases hc : r.cost ≤ b <;> simp_all [rowFinding]
-  · rintro ⟨hu, hr⟩
-    exact ⟨fun s hs => stemFinding_boxed (hu s hs), fun r hr' => rowFinding_within (hr r hr')⟩
+  · rintro ⟨hn, hu, hr⟩
+    exact ⟨⟨hn, fun s hs => stemFinding_boxed (hu s hs)⟩, fun r hr' => rowFinding_within (hr r hr')⟩
 
 /-- `n` rows, their total, and the five dearest, as one summary line. -/
 def summary (rows : List Row) (boxed : Nat) : String :=
@@ -102,11 +119,11 @@ def summary (rows : List Row) (boxed : Nat) : String :=
 #guard summary [⟨"a", 3⟩, ⟨"b", 7⟩] 1 == "init-cost: 2 start-time constants (1 boxed scalars), 10 allocations, dearest: b 7, a 3"
 
 /-- Measures each constant in start order, prints the findings and the summary, and fails on any finding. -/
-def report (unmapped : List String) (probes : List (String × BaseIO Nat)) : IO Unit := do
+def report (noC unmapped : List String) (probes : List (String × BaseIO Nat)) : IO Unit := do
   let mut rows : Array Row := #[]
   for (n, p) in probes do
     rows := rows.push ⟨n, ← p⟩
-  let fs := findings bound rows.toList unmapped
+  let fs := findings bound rows.toList unmapped noC
   for f in fs do IO.println f.line
   IO.println (summary rows.toList (unmapped.filter isBoxedConst).length)
   unless fs.isEmpty do

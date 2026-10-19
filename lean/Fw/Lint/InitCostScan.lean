@@ -36,14 +36,19 @@ def cFile? (dirs : List System.FilePath) (m : Name) : IO (Option System.FilePath
     if ← (d / rel).pathExists then return some (d / rel)
   return none
 
-/-- The start-time constants of `mods` (C files in `dirs`) in start order, the symbols with no constant, the C count. -/
+/-- The start-time constants of `mods` (C files in `dirs`) in start order, the symbols with no constant, the modules
+outside the toolchain's library with no C file, and the C count. -/
 def startConsts (env : Environment) (mods : Array (Nat × Name)) (dirs : List System.FilePath) :
-    IO (Array Name × Array String × Nat) := do
+    IO (Array Name × Array String × Array String × Nat) := do
+  let lib ← getLibDir (← findSysroot)
   let mut names := #[]
   let mut unmapped := #[]
+  let mut noC := #[]
   let mut nmods := 0
   for (i, m) in mods do
-    let some c ← cFile? dirs m | continue
+    let some c ← cFile? dirs m | do
+      unless Fw.Lint.InitCost.underDir lib (← findOLean m) do noC := noC.push m.toString
+      continue
     nmods := nmods + 1
     let mut stems : Std.HashMap String Name := {}
     for d in IR.declMapExt.getModuleEntries env i do
@@ -54,7 +59,7 @@ def startConsts (env : Environment) (mods : Array (Nat × Name)) (dirs : List Sy
         match stems[s]? with
         | some f => names := names.push f
         | none => unmapped := unmapped.push s
-  return (names, unmapped, nmods)
+  return (names, unmapped, noC, nmods)
 
 /-- Adds `initCostGet{i} := fun n => (c, n)` and returns the probe `allocs initCostGet{i}`, which evaluates `c`. -/
 def addProbe (i : Nat) (c : Name) : TermElabM Expr := do
@@ -70,10 +75,11 @@ def addProbe (i : Nat) (c : Name) : TermElabM Expr := do
   addAndCompile (.defnDecl (mkDefinitionValEx get [] (← mkArrow natTy pairTy) body .opaque .safe [get]))
   return mkApp2 (mkConst ``Fw.Lint.InitCost.allocs) ty (mkConst get)
 
-/-- Measures every start-time constant of the modules `roots` reach that have a C file in `irDirs`, and reports. -/
+/-- Measures every start-time constant of the modules `roots` reach that have a C file in `irDirs`, and reports; a
+reached module outside the toolchain's library with no C file is a finding. -/
 def scan (roots : List Name) (irDirs : List System.FilePath) : CommandElabM Unit := do
   let env ← getEnv
-  let (names, unmapped, nmods) ← (startConsts env (closure env roots) irDirs : IO _)
+  let (names, unmapped, noC, nmods) ← (startConsts env (closure env roots) irDirs : IO _)
   if nmods == 0 then throwError "init-cost: no C file of {roots} in {irDirs}"
   liftTermElabM do
     let strTy := mkConst ``String
@@ -87,7 +93,9 @@ def scan (roots : List Name) (irDirs : List System.FilePath) : CommandElabM Unit
       (← mkListLit rowTy rows.toList) .opaque .safe [`initCostRows]))
     addAndCompile (.defnDecl (mkDefinitionValEx `initCostUnmapped [] (mkApp (mkConst ``List [.zero]) strTy)
       (← mkListLit strTy (unmapped.toList.map mkStrLit)) .opaque .safe [`initCostUnmapped]))
+    addAndCompile (.defnDecl (mkDefinitionValEx `initCostNoC [] (mkApp (mkConst ``List [.zero]) strTy)
+      (← mkListLit strTy (noC.toList.map mkStrLit)) .opaque .safe [`initCostNoC]))
   logInfo m!"init-cost: {names.size} constants in {nmods} modules with C files"
-  elabCommand (← `(#eval Fw.Lint.InitCost.report $(mkIdent `initCostUnmapped) $(mkIdent `initCostRows)))
+  elabCommand (← `(#eval Fw.Lint.InitCost.report $(mkIdent `initCostNoC) $(mkIdent `initCostUnmapped) $(mkIdent `initCostRows)))
 
 end Fw.Lint.InitCostScan
