@@ -8,7 +8,7 @@ Status: MEASURED on GitHub CI at main 4283c5a1 (branch `ci/integrate-wave-1`, al
 | what | run | result |
 |---|---|---|
 | gate, default arm, both engines | 39184687325 | Chromium pass, WebKit incomplete (below) |
-| gate, v2-proved arm | 39185920522 | not run: every job died at start (below) |
+| gate, v2-proved arm | 39185920522 | not run: every job failed in the Run the job step (below) |
 | counts swipe-v1, target both | 39184638066, 39186469962, 39186477379 | 3 workflow runs x (3 original + 3 rewrite shards), separate VMs |
 | counts swipe-touch-v1, target both | 39184646781, 39186485136, 39187013275 | same |
 
@@ -23,9 +23,9 @@ profile for the class table plus one run's 3 shards per arm for the per-zone bas
 | Chromium | pass | 7056 | 7049 | 7 | 0 | identical | 0 |
 | WebKit (Playwright, Linux) | incomplete | 7056 | 6763 | 291 | 2 | identical | 0 |
 
-- Main's last gate (39142015714): Chromium pass, 6992 pass, 64 excused, 0 bad; WebKit incomplete, 291 excused, 2 bad. No new failing cell on either engine.
+- The last gate of an ancestor of main (675babdb, `ci/integrate-ports-4`; run 39142015714): Chromium pass, 6992 pass, 64 excused, 0 bad; WebKit incomplete, 291 excused, 2 bad. No new failing cell on either engine.
 - Chromium excused went 64 to 7. The 57 excused commission/commission.typing/pain live-resize readings (`Fw.Gate.Exit` `commissionResizeStops`) now all read
-  pass (57 of 57 in each of commission, commission.typing, pain on the desktop-1512-320-1512 sweep; 5 of 5 on the other three sweeps). The remaining 7 are
+  pass. Log breakdown of the 57: commission 45 (desktop-1512-320-1512) + 2 (touch-1024-1201) + 3 (pain-1440-600-1440 sweep), and commission.typing 7 (desktop). The remaining 7 are
   matchMedia =Lean not-comparable (4 fractional, 3 touch-1024). FINDING: the four `commissionResizeStops`/`resizeExemption` entries are now unused; their own
   note says to drop them when the port is faithful under live resize (lead, Lean change in `Fw.Gate.Exit`, not done here).
 - WebKit bad cells: `matchMedia =Lean | sweep:phone-rotation | phone-rotation#1` and `#3`, not-comparable; the same two cells as main's gate (pre-existing). Excused 291:
@@ -36,7 +36,7 @@ profile for the class table plus one run's 3 shards per arm for the per-zone bas
 
 The workflow turns the `fw` input into `FW_SEARCH=?fw=<input>`. The site build prerenders `?preset=v2-proved` and one `?fw=` key per single flag, but no `?fw=` key for the
 eight-flag set, and `?fw=preset:v2-proved` does not resolve (preset-v2-proved handoff). I passed the eight flags of `apps/site/src/registry/presets/v2-proved.json`
-comma separated; all 7 gate jobs stopped in the smoke step with `FW_SEARCH "?fw=engine.scene:hidden-pause,..." is not prerendered` (`serve.mjs:47`), after 1 min, 0 readings.
+comma separated; all 7 gate jobs failed in the Run the job step (the smoke step passed without checking FW_SEARCH) with `FW_SEARCH "?fw=engine.scene:hidden-pause,..." is not prerendered` (`serve.mjs:47`), after 1 min, 0 readings.
 Not retried: the input cannot name the preset. Fix is a workflow change (outside this task's writes and not main's commit): a `preset` input that sets `FW_SEARCH=?preset=<name>`
 (one line in the two `FW_SEARCH` env entries), or a prerendered `?fw=` key of the eight flags. Until then the combined arm is gated only flag by flag (the single-flag keys exist).
 
@@ -78,6 +78,7 @@ The rewrite R now shows real pictures; the original A is unchanged. Whole-run ba
   `metric.Nodes`, `metric.LayoutObjects`, `metric.JSEventListeners`, `trace.UpdateLayoutTree.elementCount` (touch also `raster.invalidated*`). 18 and 19 types are new to the table
   (`trace.PaintImage` stable, `trace.ImageDecodeTask` stable, `trace.DecodeImage` deterministic, `trace.Layout*` quarantined or stable, `trace.ParseHTML` deterministic).
   This is the "rewrite less deterministic than A" of the faithful rerun, now with a class: the page animation and event work of R varies per VM (INFERRED, not diagnosed).
+- `allTrajectoriesEqual` is false for swipe-touch-v1 original (pre-existing; `freeze.mjs` reports it, does not refuse).
 - Under the proposed table the new R baselines have detDrift 0 and 0 unlisted (in-sample: the baseline shards are 3 of the 9 the table was frozen from).
 - The proposed table is `results/refreeze-wave-1/classes.proposed.json` (byte-for-byte `freeze.mjs` output, not yet `packages/measure-chromium/classes.frozen.json`, outside this task's writes).
   Per-zone baselines under it: `results/refreeze-wave-1/<profile>/rewrite.{zones,baseline}.json`. Adopting it makes the model-bug-fixes rows re-judge against the new R classes (wave 2).
@@ -95,15 +96,17 @@ A is the frozen original baseline, R and the control A' are run 1 of each profil
 | swipe-touch-v1 | y04500 | 13, 129 / 13, 129 | 14 of 41 (15) | FAIL |
 | swipe-touch-v1 | tail | 30, 0 / 30, 0 | 10 of 41 (15) | FAIL |
 
+The R baselines used here carry detDrift 44/72 and 18/19 unlisted types under the frozen table; every zone FAIL holds in all 3 shards except the swipe-v1 tail rAF cell (50, 51, 50 vs 51).
+
 Control A'/A passes all zones on both profiles (0 failing cells). The refusal path (`NO DATA`, `not comparable`) did not trigger. No zone is a named refusal; all six are Lean FAIL.
 
 - Unchanged causes (cells, A vs R, swipe-v1 y04000): layout work only R does (`metric.LayoutCount` 0 vs 24, `trace.Layout` 0 vs 24, `Layout.totalObjects` 0 vs 1340, `RecalcStyleCount` 152 vs 175),
   fewer animation-frame callbacks (`trace.RequestAnimationFrame` 204 vs 154; 175 vs 131 on touch), the census family, `raster.invalidationRects` 571 vs 197.
-- Newly failing: `raster.invalidatedLayers` (swipe-v1 all three zones, touch y04000) and `raster.invalidationAreaPx` (swipe-v1 y04000, 1.13e6 vs 1.24e6): the added pictures change raster
-  invalidation (INFERRED). New image cells: `trace.PaintImage` y04000 both profiles A 19 vs R 11 (fail).
+- Newly failing: `raster.invalidatedLayers` (swipe-v1 all three zones, touch y04000), `raster.invalidationAreaPx` (swipe-v1 y04000, 1.13e6 vs 1.24e6) and `census.tilings`
+  (swipe-touch-v1 tail, A 1436 vs R 1676): the added pictures change raster invalidation (INFERRED). `trace.PaintImage` y04000 still fails on both profiles (R 8 to 11, A 19).
 - No longer failing: `trace.Layout.totalObjects` in swipe-v1 y04500 (50 vs 48 inside the band) and touch y04500; `trace.CullRectUpdate` in y04000.
 - Touch tail improved most (15 to 10 off-band cells): the image cells now match, `PaintImage` 591 vs 583, `DecodeImage` 6 vs 6, `ImageDecodeTask` 367 vs 367 (last time R decoded none there).
-  What remains there: `Layout.totalObjects` 21540 vs 46620 and `census.tilings`.
+  Of the failing cells from before only `Layout.totalObjects` 21540 vs 46620 remains there; `census.tilings` is newly failing (above).
 - Not gating: unbanded types (EventDispatch, FunctionCall, ResizeObserverNotify, HitTest on touch), and cells whose type the frozen A table has but R emits differently are scored by A's table only.
 - Sensitivity not run: the verdict uses the frozen A table; the refreezed A table (above) would only tighten touch.
 
@@ -113,8 +116,8 @@ Control A'/A passes all zones on both profiles (0 failing cells). The refusal pa
 |---|---|---|
 | R class table (52/51 types) was stale; R is quarantined on rAF/FireAnimationFrame/EventDispatch/FunctionCall and 8 to 13 more types | hero (rAF and countdown work), morph.* (INFERRED, not attributed: Chromium counts have no per-part dimension) | refreeze table above |
 | v2-proved arm cannot be gated through `breakpoint-gate.yml` | gate workflow, preset registry | run 39185920522 |
-| gate Exit entries for commission live resize are unused | commission, commission.typing, pain (port faithful now) | run 39184687325, 57 of 57 pass each |
-| `raster.invalidatedLayers`/`invalidationAreaPx` newly off band after pictures | people / selling avatars and hero pictures (INFERRED from the content lanes) | verdict files |
+| gate Exit entries for commission live resize are unused | commission, commission.typing (port faithful now) | run 39184687325 log: commission 45 + 2 + 3 (pain-1440-600-1440 sweep), commission.typing 7; all 57 pass |
+| `raster.invalidatedLayers`/`invalidationAreaPx` (and `census.tilings` in the touch tail) newly off band after pictures | people / selling avatars and hero pictures (INFERRED from the content lanes) | verdict files |
 | no new failing gate cell on either engine | none | run 39184687325 |
 
 ## Files
@@ -125,4 +128,4 @@ regenerate with `faithful.mjs lean`, outside this task's writes), and the faithf
 
 ## Limits
 
-Chromium counts only for the refreeze (WebKit counts lane not run); one gate per arm; gate has no per-part dimension for counts; R judged by the median of 3 shards; counts are work, not milliseconds.
+Chromium counts only for the refreeze (WebKit counts lane not run); one gate per arm; gate has no per-part dimension for counts; R judged by the median of 3 shards; counts are work, not milliseconds. swipe-v1 A was measured on image ebefaf34 (run 39048702153); R and the control on 8f0e17f5; `comparable` does not check the image; the control A'=A suggests no effect.
