@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { GATE_POLICY, cell, fold, idlePolicy, nextStable, quiet, rendered, report, settled, spent, view, viewCell, viewFor, waitTrace } from '../src/settle.mjs';
+import { GATE_POLICY, cell, commitHolds, commitNeeded, crosses, fold, layoutCell, nudge, idlePolicy, nextStable, quiet, rendered, report, settled, spent, view, viewCell, viewFor, waitTrace } from '../src/settle.mjs';
 import { settleInPage } from '../src/page.mjs';
 import { maskNotRendered } from '../src/summary.mjs';
 import { PKG } from '../src/serve.mjs';
@@ -133,4 +133,27 @@ test('rendered and cell: a node in a skipped subtree is notRendered, never pass 
     assert.equal(cell(false, true, 'settled@1', 'settled@1', e), 'notRendered');
     assert.equal(cell(true, false, 'unsettled', 'settled@1', e), 'notRendered');
   }
+});
+
+test('commitHolds: every golden read (Fw.Gate.Settle.commitHolds)', () => {
+  assert.ok(of('committed').length >= 5);
+  for (const l of of('committed')) assert.equal(commitHolds(l.needs, l.viewed, l.resizes), l.holds, l.name);
+});
+
+test('layoutCell: every golden layout-output probe, stale values never decide (Fw.Gate.Settle.layoutCell)', () => {
+  assert.ok(of('layout').length >= 6);
+  for (const l of of('layout')) assert.equal(layoutCell(l.committedO, l.committedR, l.o, l.r, l.a, l.b), l.cell, l.name);
+});
+
+test('nudge and crosses: every golden width against its edge pairs', () => {
+  assert.ok(of('nudge').length >= 5);
+  for (const l of of('nudge')) {
+    assert.equal(nudge(l.width), l.nudge, l.name);
+    assert.equal(crosses(l.pairs, l.width), l.crosses, l.name);
+  }
+});
+
+test('commitNeeded follows the bring flag: Chromium needs a commit, WebKit does not (Fw.Gate.Settle.commitHolds_webkit_default)', () => {
+  assert.equal(commitNeeded(undefined, 'chromium'), true);
+  assert.equal(commitNeeded(undefined, 'playwright-webkit'), false);
 });

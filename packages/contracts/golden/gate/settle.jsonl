@@ -71,3 +71,20 @@
 {"engine":"playwright-webkit","kind":"viewFor","name":"webkit, other switch value","switch":"yes","view":false}
 {"engine":"firefox","kind":"viewFor","name":"unknown engine, no switch","switch":null,"view":false}
 {"engine":"firefox","kind":"viewFor","name":"unknown engine forced on","switch":"1","view":true}
+{"holds":false,"kind":"committed","name":"fresh load, plain read","needs":true,"resizes":0,"viewed":false}
+{"holds":true,"kind":"committed","name":"one resize before","needs":true,"resizes":1,"viewed":false}
+{"holds":true,"kind":"committed","name":"sweep stop 3","needs":true,"resizes":3,"viewed":false}
+{"holds":true,"kind":"committed","name":"view path, no resize","needs":true,"resizes":0,"viewed":true}
+{"holds":true,"kind":"committed","name":"view path, resized","needs":true,"resizes":2,"viewed":true}
+{"holds":true,"kind":"committed","name":"no commit needed, fresh load","needs":false,"resizes":0,"viewed":false}
+{"a":"settled@2","b":"settled@2","cell":"unsettled","committedO":false,"committedR":true,"kind":"layout","name":"commission: orig reads stale 0 at a fresh load, rewrite fresh","o":{"stale":0,"steady":96},"r":{"stale":96,"steady":96}}
+{"a":"settled@2","b":"settled@2","cell":"unsettled","committedO":false,"committedR":false,"kind":"layout","name":"both arms stale and equal, neither committed","o":{"stale":0,"steady":96},"r":{"stale":0,"steady":96}}
+{"a":"settled@2","b":"settled@2","cell":"pass","committedO":true,"committedR":true,"kind":"layout","name":"both committed, steady equal","o":{"stale":0,"steady":96},"r":{"stale":0,"steady":96}}
+{"a":"settled@2","b":"settled@2","cell":"fail","committedO":true,"committedR":true,"kind":"layout","name":"both committed, steady differ, stale equal","o":{"stale":0,"steady":96},"r":{"stale":0,"steady":8}}
+{"a":"settled@2","b":"unsettled","cell":"unsettled","committedO":true,"committedR":true,"kind":"layout","name":"both committed, one arm unsettled","o":{"stale":0,"steady":96},"r":{"stale":0,"steady":96}}
+{"a":"settled@2","b":"settled@2","cell":"unsettled","committedO":true,"committedR":false,"kind":"layout","name":"rewrite uncommitted only","o":{"stale":0,"steady":96},"r":{"stale":0,"steady":96}}
+{"crosses":false,"kind":"nudge","name":"interior of a regime","nudge":1441,"pairs":[[600,601],[1200,1201]],"width":1440}
+{"crosses":true,"kind":"nudge","name":"the lower member of a pair","nudge":1201,"pairs":[[600,601],[1200,1201]],"width":1200}
+{"crosses":false,"kind":"nudge","name":"the upper member of a pair","nudge":1202,"pairs":[[600,601],[1200,1201]],"width":1201}
+{"crosses":false,"kind":"nudge","name":"no edges","nudge":431,"pairs":[],"width":430}
+{"crosses":false,"kind":"nudge","name":"narrow, below all edges","nudge":431,"pairs":[[600,601]],"width":430}
