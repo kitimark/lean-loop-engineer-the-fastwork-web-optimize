@@ -151,3 +151,31 @@ describe("fw card", () => {
     expect(() => cardCommand(["bogus"], {})).toThrow();
   });
 });
+
+describe("the fwcore build precedes every local fwcore user (Lean LandTier.core_user_has_build)", () => {
+  const ids = ["install", "check.sh", "packages/measure-webkit", "reads-scan"];
+  const planFor = async (built: boolean) => {
+    const { runTiered } = await import("../src/land-remote.ts");
+    const { fwcoreCall } = await import("../src/run.ts");
+    const { checkDeps } = await import("../src/land.ts");
+    const ran: string[][][] = [];
+    await runTiered({
+      call: fwcoreCall(join(import.meta.dirname, "..", "..", "..")), checks: ids.map((id) => ({ id, argv: id === "check.sh" ? ["sh", "lean/scripts/check.sh"] : id === "install" ? ["pnpm", "install"] : id === "reads-scan" ? ["true"] : ["pnpm", "--filter", `./${id}`, "test"] })),
+      laneIds: [], task: "t", mergeSha: "a".repeat(40), adapters: {}, allow: [], built,
+      runLocal: async (argv) => { ran.push(argv); return { bad: null, kind: "checks" }; }, log: () => {}, span: () => {},
+    });
+    return { argv: ran[0]!, deps: checkDeps(ran[0]!) };
+  };
+  it("remote mode, a golden-only change (measure-webkit local, no Lean change): the build runs before measure-webkit", async () => {
+    const { argv, deps } = await planFor(false);
+    const b = argv.findIndex((a) => a[0] === "sh" && a[1] === "scripts/fwcore-build.sh");
+    const w = argv.findIndex((a) => a[2] === "./packages/measure-webkit");
+    expect(b).toBeGreaterThanOrEqual(0);
+    expect(w).toBeGreaterThan(-1);
+    expect(deps[w]).toContain(b);
+  });
+  it("a build that ran in phase 1 is not planned again", async () => {
+    const { argv } = await planFor(true);
+    expect(argv.some((a) => a[1] === "scripts/fwcore-build.sh")).toBe(false);
+  });
+});
