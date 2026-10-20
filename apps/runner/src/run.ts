@@ -137,7 +137,9 @@ export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, m
 // Every gh call goes through `ghCharged` (packages/gh-budget): fwcore's `ci.budget.reserve` decides whether it runs, and a
 // wait or stop means gh is not started. Waiting for a run is `waitFor` (the same engine as `fw ci wait`): the shared poller
 // makes the list calls, however many waiters there are.
-export type Gh = (args: string[]) => Promise<string>;
+/** Bounds of one gh call: `deadline` (epoch second) ends a budget wait, an aborted `signal` stops the call before it starts. */
+export type GhOpts = { deadline?: number; signal?: AbortSignal };
+export type Gh = (args: string[], o?: GhOpts) => Promise<string>;
 
 /** Requests one gh command costs (research/notes/2026/10-18-gh-rate-budget.md §1; the budget arithmetic itself is fwcore's).
  *  A download is booked at an upper bound: 1 listing plus the artifacts of one run. */
@@ -152,9 +154,10 @@ export function ghCost(args: string[]): number {
 
 /** A `Gh` that books each call with the budget and sleeps while fwcore says wait. A stop or a gh failure throws. */
 export function chargedGh(env: Env): Gh {
-  return async (args) => {
+  return async (args, o) => {
     const what = args.slice(0, 3).join(" ");
-    const res = await ghCharged(env, args, { cost: ghCost(args), block: true });
+    if (o?.signal?.aborted) throw new Error(`gh ${what} not made: aborted`);
+    const res = await ghCharged(env, args, { cost: ghCost(args), block: true, ...(o?.deadline !== undefined ? { deadline: o.deadline } : {}) });
     if (!res.ran) throw new Error(`gh ${what} not made: the request budget says ${res.decision} (${res.reason}); see \`fw ci budget\``);
     if (res.code !== 0) throw new Error(`gh ${what} failed: ${res.error ?? "unknown"}`);
     return res.stdout;

@@ -96,6 +96,7 @@ import Fw.Wire.Gate
 import Fw.Wire.GateDeclared
 import Fw.Engine
 import Fw.Engine.Compose  -- compose-lean: units compose over parts, passes do not; Lego swap
+import Fw.Engine.Restyle
 import Fw.Parts.Bridge  -- indep-bridge: Independent rows to Flow-Indep, Lego swaps on isolated rows, S3 passes
 import Fw.Guidance.Basic
 import Fw.Guidance.Motion
@@ -118,6 +119,7 @@ import Fw.Ci.Trigger  -- ci-trigger-lean: which workflows a push starts
 import Fw.Ci.Intent  -- ci-own-trigger: a ci/* push starts only the lanes its head commit asks for
 import Fw.Ci.Verdict  -- ci-own-trigger: a run passes only if its guard ran and some heavy job ran and all passed
 import Fw.Ci.Cancel  -- ci-own-trigger: no concurrency group is shared on ci/**, so nothing cancels a ci/** run
+import Fw.Ci.Provider  -- circleci-pilot: pair verdict, credits, stop rule and routing rule of the CircleCI pilot
 import Fw.Ci.Telemetry  -- ci-telemetry: the CI job telemetry record and its slow verdicts (ci.telemetry)
 import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged engine verdicts
 import Fw.Spec.AxReach  -- mathview-axreach: shared-memo axiom reachability, exact on cycles
@@ -125,6 +127,7 @@ import Fw.Spec.ConeMiss  -- mathview-ci-fix: expected module-cache misses after 
 import Fw.Console.LandSpeed  -- land-speed-lean: result cache, pre-lock land, check verdict
 import Fw.Console.Preview  -- task-preview: preview target, admission, ports, expiry
 import Fw.Console.PreviewCache  -- preview-speed: cache policy of preview files
+import Fw.Console.PreviewArm  -- preview-proxy-direct: one origin per preview arm, route and gate
 import Fw.Console.Daemon  -- console-daemon: verified console, start/stop/restart plan, log admission, rotation
 import Fw.Console.Builds  -- console-builds-tab: Builds tab rows, targets, picker searches
 import Fw.Console.PreviewFacts  -- task-preview: GENERATED facts of the 25 tasks (apps/console-api/scripts/gen-preview-facts.ts)
@@ -133,6 +136,7 @@ import Fw.Console.LandVerdict  -- land-dry: VERDICT kinds, exit codes, retry rul
 import Fw.Console.LandDry  -- land-dry: dry land stages and hand-back rule
 import Fw.Console.WallClock  -- land-wallclock-off-gate: which literal ms bounds in land-selected tests the lint refuses
 import Fw.Console.LandQueue  -- land-queue: FIFO land queue, bounded retry, runner identity
+import Fw.Console.LandLegs  -- land-lane-speed: the land lane's parallel legs (console.landLeg, console.landLegs)
 import Fw.Console.LandTier  -- land-lane: which checks run on the CI land lane (console.landTier)
 import Fw.Console.LandRemote  -- land-wait: provider-neutral remote land verdict (console.landRemote)
 import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request coalescing
@@ -177,3 +181,4 @@ import Fw.Port.Attrs  -- port-completeness-gate: check 2, attribute multiset
 import Fw.Site.Assets  -- port-completeness-gate: check 3, asset subset
 import Fw.Port.Svg  -- port-completeness-gate: check 4, svg skeleton
 import Fw.Port.Fonts  -- port-fonts-check: check 5, fonts per leaf and loaded faces
+import Fw.Parts.NavOofRoot  -- nav-oof-root-finding: no boundary scopes the relayout of a dirty fixed box whose containing block is the view (negative finding)

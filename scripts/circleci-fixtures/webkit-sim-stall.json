@@ -1,0 +1,165 @@
+{
+ "note": "Recorded: the API responses of CircleCI pipeline 36 (webkit-sim on m4pro.medium, 2026-10-19, commit 430fecdf) and gh run view of its GitHub twin (workflow_dispatch run of webkit-sim, same commit). The CircleCI determinism session stalled (no output for 743 s, the watchdog limit is 720 s) and the job failed; the GitHub twin passed. The artifact v1-session-1.log is left out of the files section; nothing reads it.",
+ "slug": "gh/example-org/example-repo",
+ "pipelineId": "3e244d38-119f-4ee3-894f-250149571962",
+ "sha": "430fecdf354b956d8863f34a6b3c86945bf0b233",
+ "now": "2026-10-19T22:15:05.594Z",
+ "api": {
+  "routes": {
+   "GET /pipeline/3e244d38-119f-4ee3-894f-250149571962": {
+    "id": "3e244d38-119f-4ee3-894f-250149571962",
+    "errors": [],
+    "project_slug": "gh/example-org/example-repo",
+    "updated_at": "2026-10-19T21:23:46.788Z",
+    "number": 36,
+    "state": "created",
+    "created_at": "2026-10-19T21:23:46.551Z",
+    "warnings": [],
+    "trigger": {
+     "received_at": "2026-10-19T21:23:45.931Z",
+     "type": "api",
+     "actor": {
+      "login": "example-user",
+      "avatar_url": "https://avatars.githubusercontent.com/u/0?v=4"
+     }
+    },
+    "vcs": {
+     "origin_repository_url": "https://github.com/example-org/example-repo",
+     "target_repository_url": "https://github.com/example-org/example-repo",
+     "review_url": "",
+     "revision": "430fecdf354b956d8863f34a6b3c86945bf0b233",
+     "review_id": "",
+     "provider_name": "GitHub",
+     "commit": {
+      "body": "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01NdKQu52CiBooHPytd4fR2z",
+      "subject": "circleci-pilot r3: sim-run takes node's exit status (output to files, no pipe through tee) + regression test"
+     },
+     "branch": "ci/circleci-pilot"
+    }
+   },
+   "GET /pipeline/3e244d38-119f-4ee3-894f-250149571962/workflow": {
+    "next_page_token": null,
+    "items": [
+     {
+      "pipeline_id": "3e244d38-119f-4ee3-894f-250149571962",
+      "id": "5affa41c-f098-4411-817b-1768e12d99ee",
+      "name": "webkit-sim",
+      "project_slug": "gh/example-org/example-repo",
+      "status": "failed",
+      "started_by": "f2fac220-824b-4cf0-9e4b-5849548fe075",
+      "pipeline_number": 36,
+      "created_at": "2026-10-19T21:23:46.818Z",
+      "stopped_at": "2026-10-19T21:38:33.395Z"
+     }
+    ]
+   },
+   "GET /workflow/5affa41c-f098-4411-817b-1768e12d99ee/job": {
+    "items": [
+     {
+      "job_number": 34,
+      "stopped_at": "2026-10-19T21:38:33.395Z",
+      "started_at": "2026-10-19T21:24:46.517Z",
+      "name": "webkit-sim",
+      "project_slug": "gh/example-org/example-repo",
+      "type": "build",
+      "status": "failed",
+      "id": "a4240bb0-78dc-4bf0-a176-b0c3c2c47f07",
+      "dependencies": []
+     }
+    ]
+   },
+   "GET /project/gh/example-org/example-repo/job/34": {
+    "created_at": "2026-10-19T21:23:47.191Z",
+    "duration": 826521,
+    "executor": {
+     "resource_class": "m4pro-medium",
+     "type": "macos"
+    },
+    "messages": [],
+    "queued_at": "2026-10-19T21:23:47.322Z",
+    "started_at": "2026-10-19T21:24:46.517Z",
+    "status": "failed",
+    "stopped_at": "2026-10-19T21:38:33.038Z",
+    "parallel_runs": [
+     {
+      "index": 0,
+      "status": "failed"
+     }
+    ],
+    "contexts": [],
+    "latest_workflow": {
+     "id": "5affa41c-f098-4411-817b-1768e12d99ee",
+     "name": "webkit-sim"
+    },
+    "name": "webkit-sim",
+    "number": 34,
+    "organization": {
+     "name": "example-org"
+    },
+    "parallelism": 1,
+    "pipeline": {
+     "id": "3e244d38-119f-4ee3-894f-250149571962"
+    },
+    "project": {
+     "external_url": "https://github.com/example-org/example-repo",
+     "id": "9fc0058d-e322-476c-9cea-5dd7e165146e",
+     "name": "example-repo",
+     "slug": "gh/example-org/example-repo"
+    },
+    "web_url": "https://circleci.com/gh/example-org/example-repo/34"
+   },
+   "GET /project/gh/example-org/example-repo/34/artifacts": {
+    "next_page_token": null,
+    "items": [
+     {
+      "path": "tmp/fw/artifacts/runner.json",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/a4240bb0-78dc-4bf0-a176-b0c3c2c47f07/artifacts/0/tmp/fw/artifacts/runner.json"
+     },
+     {
+      "path": "tmp/fw/artifacts/spans.jsonl",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/a4240bb0-78dc-4bf0-a176-b0c3c2c47f07/artifacts/0/tmp/fw/artifacts/spans.jsonl"
+     },
+     {
+      "path": "tmp/fw/artifacts/timings.json",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/a4240bb0-78dc-4bf0-a176-b0c3c2c47f07/artifacts/0/tmp/fw/artifacts/timings.json"
+     },
+     {
+      "path": "tmp/fw/artifacts/tools.txt",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/a4240bb0-78dc-4bf0-a176-b0c3c2c47f07/artifacts/0/tmp/fw/artifacts/tools.txt"
+     },
+     {
+      "path": "tmp/fw/artifacts/v1-host.txt",
+      "node_index": 0,
+      "url": "https://output.circle-artifacts.com/output/job/a4240bb0-78dc-4bf0-a176-b0c3c2c47f07/artifacts/0/tmp/fw/artifacts/v1-host.txt"
+     }
+    ]
+   }
+  },
+  "files": {
+   "https://output.circle-artifacts.com/output/job/a4240bb0-78dc-4bf0-a176-b0c3c2c47f07/artifacts/0/tmp/fw/artifacts/runner.json": "{\n \"schema\": \"fw.ci-runner/1\",\n \"workflow\": \"local\",\n \"job\": \"local\",\n \"runId\": \"0\",\n \"runAttempt\": \"0\",\n \"sha\": \"none\",\n \"ref\": \"none\",\n \"runnerOS\": \"Darwin\",\n \"runnerArch\": \"arm64\",\n \"imageOS\": \"unknown\",\n \"imageVersion\": \"unknown\",\n \"kernel\": \"25.6.0\",\n \"cpus\": 6,\n \"dockerNcpu\": null,\n \"node\": \"v24.21.0\"\n}\n",
+   "https://output.circle-artifacts.com/output/job/a4240bb0-78dc-4bf0-a176-b0c3c2c47f07/artifacts/0/tmp/fw/artifacts/spans.jsonl": "{\"tool\":\"circleci/webkit-sim\",\"step\":\"checkout\",\"startMs\":1792445087066,\"durMs\":7423,\"exit\":0,\"commit\":\"430fecd\",\"load\":17.05,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"node\",\"startMs\":1792445094870,\"durMs\":115,\"exit\":0,\"commit\":\"430fecd\",\"load\":17.05,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"pnpm\",\"startMs\":1792445094987,\"durMs\":1042,\"exit\":0,\"commit\":\"430fecd\",\"load\":17.05,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"runtime, snapshot, proxy\",\"startMs\":1792445096464,\"durMs\":13412,\"exit\":0,\"commit\":\"430fecd\",\"load\":17.05,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"deps install\",\"startMs\":1792445110292,\"durMs\":571,\"exit\":0,\"commit\":\"430fecd\",\"load\":13.72,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"simulator boot\",\"startMs\":1792445111266,\"durMs\":29367,\"exit\":0,\"commit\":\"430fecd\",\"load\":13.72,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"determinism session\",\"startMs\":1792445159635,\"durMs\":751169,\"exit\":130,\"commit\":\"430fecd\",\"load\":128.10,\"host\":\"ci\"}\n{\"tool\":\"circleci/webkit-sim\",\"step\":\"simulator delete\",\"startMs\":1792445911349,\"durMs\":565,\"exit\":0,\"commit\":\"430fecd\",\"load\":2.42,\"host\":\"ci\"}\n",
+   "https://output.circle-artifacts.com/output/job/a4240bb0-78dc-4bf0-a176-b0c3c2c47f07/artifacts/0/tmp/fw/artifacts/timings.json": "{\n  \"schema\": \"fw.circleci-timings/1\",\n  \"job\": \"webkit-sim\",\n  \"class\": \"m4pro.medium\",\n  \"sha\": \"430fecdf354b956d8863f34a6b3c86945bf0b233\",\n  \"digest\": null,\n  \"bytes\": {\n    \"cache\": 0,\n    \"workspace\": 0\n  },\n  \"spans\": [\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"checkout\",\n      \"startMs\": 1792445087066,\n      \"durMs\": 7423,\n      \"exit\": 0,\n      \"commit\": \"430fecd\",\n      \"load\": 17.05,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"node\",\n      \"startMs\": 1792445094870,\n      \"durMs\": 115,\n      \"exit\": 0,\n      \"commit\": \"430fecd\",\n      \"load\": 17.05,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"pnpm\",\n      \"startMs\": 1792445094987,\n      \"durMs\": 1042,\n      \"exit\": 0,\n      \"commit\": \"430fecd\",\n      \"load\": 17.05,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"runtime, snapshot, proxy\",\n      \"startMs\": 1792445096464,\n      \"durMs\": 13412,\n      \"exit\": 0,\n      \"commit\": \"430fecd\",\n      \"load\": 17.05,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"deps install\",\n      \"startMs\": 1792445110292,\n      \"durMs\": 571,\n      \"exit\": 0,\n      \"commit\": \"430fecd\",\n      \"load\": 13.72,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"simulator boot\",\n      \"startMs\": 1792445111266,\n      \"durMs\": 29367,\n      \"exit\": 0,\n      \"commit\": \"430fecd\",\n      \"load\": 13.72,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"determinism session\",\n      \"startMs\": 1792445159635,\n      \"durMs\": 751169,\n      \"exit\": 130,\n      \"commit\": \"430fecd\",\n      \"load\": 128.1,\n      \"host\": \"ci\"\n    },\n    {\n      \"tool\": \"circleci/webkit-sim\",\n      \"step\": \"simulator delete\",\n      \"startMs\": 1792445911349,\n      \"durMs\": 565,\n      \"exit\": 0,\n      \"commit\": \"430fecd\",\n      \"load\": 2.42,\n      \"host\": \"ci\"\n    }\n  ]\n}\n",
+   "https://output.circle-artifacts.com/output/job/a4240bb0-78dc-4bf0-a176-b0c3c2c47f07/artifacts/0/tmp/fw/artifacts/tools.txt": "ProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83\nXcode 27.0\nBuild version 27A266a\n== Runtimes ==\niOS 26.5 (26.5 - 23F73) - com.apple.CoreSimulator.SimRuntime.iOS-26-5\niOS 27.0 (27.0 - 24A434) - com.apple.CoreSimulator.SimRuntime.iOS-27-0\ntvOS 26.5 (26.5 - 23L470) - com.apple.CoreSimulator.SimRuntime.tvOS-26-5\ntvOS 27.0 (27.0 - 24J360) - com.apple.CoreSimulator.SimRuntime.tvOS-27-0\nwatchOS 26.5 (26.5 - 23T570) - com.apple.CoreSimulator.SimRuntime.watchOS-26-5\nwatchOS 27.0 (27.0 - 24R362) - com.apple.CoreSimulator.SimRuntime.watchOS-27-0\nvisionOS 26.5 (26.5 - 23O470) - com.apple.CoreSimulator.SimRuntime.xrOS-26-5\nvisionOS 27.0 (27.0 - 24M362) - com.apple.CoreSimulator.SimRuntime.xrOS-27-0\nios-webkit-debug-proxy 1.9.2_2\n",
+   "https://output.circle-artifacts.com/output/job/a4240bb0-78dc-4bf0-a176-b0c3c2c47f07/artifacts/0/tmp/fw/artifacts/v1-host.txt": "21:38  up 15 mins, 1 user, load averages: 2.42 12.27 18.13\n== Devices ==\n-- iOS 26.5 --\n-- iOS 27.0 --\n    fw-iphone-27 (00000000-0000-0000-0000-000000000000) (Booted) \n-- tvOS 26.5 --\n-- tvOS 27.0 --\n-- watchOS 26.5 --\n-- watchOS 27.0 --\n-- visionOS 26.5 --\n-- visionOS 27.0 --\n 7198  48.6 129344 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.JuUJhE/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/diagnosticd\n 7200  18.4  19984 /usr/libexec/diagnosticd\n 7169  15.7 183872 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.JuUJhE/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/backboardd\n 7863  15.4 429008 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.JuUJhE/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/ExtensionKit/Extensions/WebContentExtension.appex/com.apple.WebKit.WebContent\n 7866  13.4 202192 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.JuUJhE/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/ExtensionKit/Extensions/GPUExtension.appex/com.apple.WebKit.GPU\n 7202  11.9  79504 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.JuUJhE/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/ApplePushService.framework/apsd\n 7142  11.0  77088 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Resources/SimRenderingServices.simdeviceio/Contents/XPCServices/SimMetalHost.xpc/Contents/MacOS/SimMetalHost\n 3975   7.3  26544 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Resources/bin/simdiskimaged\n 7139   6.5  56400 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Resources/SimRenderingServices.simdeviceio/Contents/XPCServices/SimRenderServer.xpc/Contents/MacOS/SimRenderServer\n 7827   4.7 544224 /var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.JuUJhE/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/Applications/MobileSafari.app/MobileSafari\n 7143   2.8  64224 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Resources/SimRenderingServices.simdeviceio/Contents/XPCServices/SimMetalHost.xpc/Contents/MacOS/SimMetalHost\n 3974   2.0  45344 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/XPCServices/com.apple.CoreSimulator.CoreSimulatorService.xpc/Contents/MacOS/com.apple.CoreSimulator.CoreSimulatorService\n 7149   1.8  77136 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.JuUJhE/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/logd\n 7860   1.2  72688 /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.JuUJhE/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/usr/libexec/trustd\n 3999   1.0  33264 /usr/libexec/diskimagesiod\n"
+  }
+ },
+ "github": {
+  "databaseId": 39327151744,
+  "workflowName": "webkit-sim",
+  "headSha": "430fecdf354b956d8863f34a6b3c86945bf0b233",
+  "createdAt": "2026-10-19T21:23:48Z",
+  "digests": {},
+  "jobs": [
+   {
+    "name": "sim (original, 430, 1, 430fecdf354b956d8863f34a6b3c86945bf0b233, v1)",
+    "conclusion": "success",
+    "startedAt": "2026-10-19T21:29:55Z",
+    "completedAt": "2026-10-19T21:49:19Z"
+   }
+  ]
+ }
+}

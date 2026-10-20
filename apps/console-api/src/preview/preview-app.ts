@@ -3,7 +3,8 @@
 // `preview_origin_ne_console`). It accepts only the preview-access cookie (`fw_preview`, issued to an owner session, grants
 // viewing only: Lean `cookie_never_owner`), judged by Lean `console.ownerGate` with `port: "preview"`
 // (`allowPreview`, `preview_requires_cookie`). It forwards no console cookie to a preview server (proxy.ts sends none, and
-// drops `Set-Cookie` from the answer). It serves nothing but `/preview/<id>/...`. Owner actions live on the console
+// drops `Set-Cookie` from the answer). It serves nothing but `/preview/<id>/compare` and the entry redirects to the arms'
+// own origins (proxy.ts, arm-app.ts: each arm has its own port). Owner actions live on the console
 // origin only and refuse an `Origin` of this port.
 import { Hono } from "hono";
 import type { Context } from "hono";
@@ -12,7 +13,7 @@ import type { PreviewManager } from "./manager.ts";
 import { OwnerAuth } from "./owner.ts";
 import { isLoopback } from "./lan.ts";
 import { remoteOf } from "./gate.ts";
-import { mountPreviewProxy, viaReferer } from "./proxy.ts";
+import { mountPreviewProxy } from "./proxy.ts";
 import { Grants } from "./grants.ts";
 
 export function createPreviewApp(core: Core, owner: OwnerAuth, pm: PreviewManager, opts: { lan: boolean; grants?: Grants }) {
@@ -39,11 +40,9 @@ export function createPreviewApp(core: Core, owner: OwnerAuth, pm: PreviewManage
     const lan = opts.lan && !isLoopback(remoteOf(c)); // outside LAN mode this port listens on loopback only
     const hostOk = owner.previewHostOk(c.req.header("host"));
     const g = grants.lookup(c.req.header("cookie"));
-    const via = viaReferer(c.req.path, c.req.header("referer"), c.req.header("host"));
-    const viaOk = via !== null && pm.serving(/^\/preview\/([^/]+)/.exec(via)![1]!) !== null;
     const r = await core.ops("console.ownerGate", {
       lan, session: owner.previewOk(c.req.header("cookie")), hostOk, path: c.req.path, port: "preview",
-      grant: g.known, grantStarted: g.started, now: grants.now(), via: viaOk,
+      grant: g.known, grantStarted: g.started, now: grants.now(),
     });
     if (r.allow === true) { c.header("Cache-Control", "no-store"); if (r.by === "grant" && g.id) grants.used(g.id, c.req.path); return next(); }
     c.header("Cache-Control", "no-store");

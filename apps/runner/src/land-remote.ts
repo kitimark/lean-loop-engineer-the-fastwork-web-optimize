@@ -4,6 +4,7 @@
 // No decision is made here: git, process and gh calls, JSON reading and timing spans only. The GitHub adapter is complete; the
 // CircleCI adapter is a stub (follow-up after circleci-pilot lands scripts/circleci.mjs).
 import { spawn } from "node:child_process";
+import { paths, readJson, readStatus, type RunFacts } from "@fw/gh-budget";
 import type { FwCall, Gh } from "./run.ts";
 
 export type Provider = "github" | "circleci";
@@ -34,8 +35,8 @@ export function remoteDigest(call: FwCall, ids: string[]): string {
 // ---- GitHub: `gh run view --json ...` of the land run, normalized ------------------------------------------------------
 export type GhStep = { name: string; conclusion?: string | null };
 export type GhJob = { name: string; conclusion?: string | null; steps?: GhStep[] };
-export type GhRunView = { headSha: string; conclusion: string | null; status?: string; createdAt?: string; startedAt?: string; updatedAt?: string; jobs?: GhJob[] };
-export const RUN_VIEW_FIELDS = "headSha,conclusion,status,createdAt,startedAt,updatedAt,jobs";
+export type GhRunView = { workflowName?: string; headSha: string; conclusion: string | null; status?: string; createdAt?: string; startedAt?: string; updatedAt?: string; jobs?: GhJob[] };
+export const RUN_VIEW_FIELDS = "workflowName,headSha,conclusion,status,createdAt,startedAt,updatedAt,jobs";
 
 /** The sha and digest the lane bound itself to, from its `lane:` step name; null when no job reached that step. */
 export function laneBind(view: GhRunView): { sha: string; digest: string } | null {
@@ -46,16 +47,26 @@ export function laneBind(view: GhRunView): { sha: string; digest: string } | nul
   return null;
 }
 
-/** `fw ci wait` exit code -> run state (0 pass, 1 fail, 3 the slice ran out with the run still going, 4 not run, else gh unavailable).
- *  Exit 3 also comes back at once when the poller is stopped or the gh budget refuses a call (gh-budget wait.ts); only the output
- *  `timed out after` means a run still going, any other exit 3 is `unavailable` (no tight poll loop, no retry on a refusal). */
-export const stateOfWaitExit = (code: number, out = ""): RunState =>
-  code === 0 ? "pass" : code === 1 ? "fail" : code === 3 ? (/timed out after/.test(out) ? "running" : "unavailable") : code === 4 ? "cancelled" : "unavailable";
+/** fwcore `console.landLaneState` (Lean `Fw.Console.LandRemote.laneState`): the state of a lane run from the `fw ci wait` exit code (0 pass,
+ *  1 fail, 3 the slice ran out with the run still going, 4 not run, else gh unavailable; exit 3 is `running` only when the output says
+ *  `timed out after`) and the run's own status and conclusion. A run that completed with conclusion failure is `fail` whatever the exit
+ *  code was: the waiter can say 2, 3 or 4 about a failed run (a refused or failed gh call for its jobs, a skipped guard). */
+export function laneStateOf(call: FwCall, code: number, out = "", view: GhRunView | null = null): RunState {
+  const state = (call({ op: "console.landLaneState", exit: code, timedOut: /timed out after/.test(out), status: view?.status ?? "", conclusion: view?.conclusion ?? "" }) as { state: RunState }).state;
+  return state === "pass" && !legsPass(call, view) ? "fail" : state;
+}
+
+/** The verdict over the land lane's parallel legs (Lean `Fw.Console.LandLegs.legsOk`, op `console.landLegs`): every job of the run but the
+ *  guard passed. A record without per-job conclusions (the cached facts) has nothing to say and does not veto. */
+export function legsPass(call: FwCall, view: GhRunView | null): boolean {
+  const legs = (view?.jobs ?? []).filter((j) => j.name !== "guard" && j.name !== "lane");
+  if (legs.length === 0 || legs.some((j) => typeof j.conclusion !== "string")) return true;
+  return (call({ op: "console.landLegs", results: legs.map((j) => j.conclusion === "success") }) as { ok: boolean }).ok;
+}
 
 /** Normalize one GitHub land run. A pass counts only for the sha and digest the lane printed; a lane that failed before it printed
  *  them is attributed to what was asked for (a failure refuses, the safe side), a pass without a binding binds to nothing. */
-export function normalizeGithub(code: number, view: GhRunView | null, ctx: { marker: string; want: Want }, out = ""): LaneRun {
-  const state = stateOfWaitExit(code, out);
+export function normalizeGithub(state: RunState, view: GhRunView | null, ctx: { marker: string; want: Want }): LaneRun {
   const run = (sha: string, laneDigest: string): LaneRun => ({ provider: "github", sha, laneId: LANE_ID, laneDigest, state });
   if (!view) return state === "pass" ? run("", "") : run(ctx.want.sha, ctx.want.laneDigest);
   const bind = view.headSha === ctx.marker ? laneBind(view) : null;
@@ -75,7 +86,7 @@ export function runTimes(view: GhRunView): { startMs: number; queueMs: number; l
 // ---- adapters ------------------------------------------------------------------------------------------------------
 export type Handle = { provider: Provider; branch: string; marker: string };
 export type StartCtx = { task: string; mergeSha: string; want: Want };
-export type Polled = { run: LaneRun; times?: { startMs: number; queueMs: number; laneMs: number } | null };
+export type Polled = { run: LaneRun; times?: { startMs: number; queueMs: number; laneMs: number } | null; /** why the land run record was not read (the waiter outcome stands) */ note?: string };
 export interface Adapter {
   provider: Provider;
   /** Push the merge commit and start the lane; throws when the provider cannot be reached. */
@@ -86,12 +97,28 @@ export interface Adapter {
 
 export type GithubDeps = {
   git: (args: string[]) => string;
+  /** fwcore, for the lane state (`console.landLaneState`). */
+  call: FwCall;
   /** Personal-data scan of the lines the push adds to origin (scripts/scrub.mjs --range): the text of the hits, or null when clean. */
   scan?: (mergeSha: string) => string | null;
   /** `pnpm -s fw ci wait ...`: exit code and output; ends early (code 3) when the signal aborts. */
   wait: (args: string[], signal?: AbortSignal) => Promise<{ code: number; out: string }>;
   gh: Gh;
+  /** The waiter's cached facts (gh-budget runs-status file and meta/<id>.jobs.json; they cost no budget) for the land run of this handle. */
+  now?: () => number;
+  cache?: (h: Handle, id?: string) => GhRunView | null;
 };
+
+/** The land run of a handle from the waiter's cached files: the newest completed row of the lane workflow on the lane branch and marker
+ *  commit, with the steps of its cached jobs when the waiter wrote them. Null when the poller has no such row. */
+export function cachedLaneView(dir: string, h: Handle, id?: string): GhRunView | null {
+  const rows = (readStatus(dir)?.rows ?? []).filter((r) => r.workflowName === LANE_ID && r.headBranch === h.branch && r.headSha === h.marker && r.status === "completed" && (!id || String(r.databaseId) === id));
+  const r = rows.sort((a, b) => b.databaseId - a.databaseId)[0];
+  if (!r) return null;
+  const f = readJson<RunFacts>(paths(dir).jobs(r.databaseId));
+  const jobs: GhJob[] = f ? [{ name: "guard", steps: f.steps }, { name: "lane", steps: f.heavySteps ?? [] }] : [];
+  return { workflowName: r.workflowName, headSha: r.headSha, conclusion: r.conclusion, status: r.status, createdAt: r.createdAt, jobs };
+}
 
 /** The branch a merge commit is pushed to: unique per commit, so a re-land never needs a force push. */
 export const landBranch = (task: string, mergeSha: string): string => `ci/land-${task.replace(/[^A-Za-z0-9._-]/g, "_")}-${mergeSha.slice(0, 7)}`;
@@ -111,14 +138,35 @@ export function githubAdapter(d: GithubDeps): Adapter {
     },
     async poll(h, c, sliceS, signal) {
       const w = await d.wait(["-s", "fw", "ci", "wait", "--branch", h.branch, "--workflow", LANE_ID, "--sha", h.marker, "--timeout", String(sliceS)], signal);
-      if (signal?.aborted) return { run: normalizeGithub(3, null, { marker: h.marker, want: c.want }, "timed out after abort"), times: null };
-      const code = w.code;
-      const id = /\brun (\d+) /.exec(w.out)?.[1];
+      const norm = { marker: h.marker, want: c.want };
+      if (signal?.aborted) return { run: normalizeGithub(laneStateOf(d.call, 3, "timed out after abort"), null, norm), times: null };
+      // Whatever the waiter returned, read the run's own record unless it is plainly still going: the conclusion decides (Lean laneState).
+      const going = w.code === 3 && /timed out after/.test(w.out);
       let view: GhRunView | null = null;
-      if (id && (code === 0 || code === 1)) {
-        try { view = JSON.parse(await d.gh(["run", "view", id, "--json", RUN_VIEW_FIELDS])) as GhRunView; } catch { view = null; }
+      let note: string | undefined;
+      if (!going) {
+        let id = /\brun (\d+)\b/.exec(w.out)?.[1];
+        // Cached facts first (no budget): a completed failed record, or a record whose jobs show the bind, is enough.
+        const hit = d.cache?.(h, id) ?? null;
+        if (hit && (hit.conclusion === "failure" || laneBind(hit))) view = hit;
+        else {
+          const o = { deadline: Math.ceil((d.now?.() ?? Date.now()) / 1000 + sliceS), ...(signal ? { signal } : {}) };
+          try {
+            if (!id) { // exit 2/3/4 can come without a run id in the output: find the land run of the marker commit on the lane branch (never another workflow's)
+              const rows = JSON.parse(await d.gh(["run", "list", "--workflow", LANE_ID, "--branch", h.branch, "--commit", h.marker, "--json", "databaseId", "--limit", "1"], o)) as { databaseId: number }[];
+              id = rows[0] ? String(rows[0].databaseId) : undefined;
+            }
+            if (id) {
+              const v = JSON.parse(await d.gh(["run", "view", id, "--json", RUN_VIEW_FIELDS], o)) as GhRunView;
+              view = v.workflowName === LANE_ID ? v : null; // only the land workflow's own run decides
+            }
+          } catch (e) {
+            view = hit; // budget or gh refused: the cached record (if any) stands; with none the waiter's outcome stands, logged
+            note = `land run record not read (${e instanceof Error ? e.message : String(e)})`;
+          }
+        }
       }
-      return { run: normalizeGithub(code, view, { marker: h.marker, want: c.want }, w.out), times: view ? runTimes(view) : null };
+      return { run: normalizeGithub(laneStateOf(d.call, w.code, w.out, view), view, norm), times: view ? runTimes(view) : null, ...(note ? { note } : {}) };
     },
   };
 }
@@ -215,6 +263,7 @@ export async function awaitRemote(i: AwaitInput): Promise<AwaitOutcome> {
         const p = await a.poll(h, i.ctx, slice, ac.signal);
         if (p.run.state === "running" && !ac.signal.aborted) await sleepOut(slice * 1000 - (now() - t1), ac.signal);
         runs.set(r.provider, p.run);
+        if (p.note) i.log(`remote: ${r.provider}: ${p.note}`);
         if (p.times && p.run.state !== "running") {
           i.span("remote queue", p.times.startMs, p.times.queueMs, 0);
           i.span("remote lane", p.times.startMs + p.times.queueMs, p.times.laneMs, p.run.state === "pass" ? 0 : 1);

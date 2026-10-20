@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Lake artifact cache report (task lean-bin-slim), the same as `pnpm -s fw lake-gc` without the fw runner:
-//   node scripts/lake-gc.mjs [--list | --json] [--check] [--age-floor <s>] [--root <cache>/artifacts]
+// Lake artifact cache report (tasks lean-bin-slim, lake-gc-refs), the same as `pnpm -s fw lake-gc` without the fw runner:
+//   node scripts/lake-gc.mjs [--list | --json | --delete] [--check] [--age-floor <s>] [--root <cache>/artifacts]
 // Facts are gathered by apps/runner/src/lake-gc.ts; the list and the budget verdict are Lean (`fwcore` ops.lakeGc,
-// lean/Fw/Ops/LakeGc.lean). It never deletes. Docs: docs/team/tools/lake-gc.md.
+// lean/Fw/Ops/LakeGc.lean). --delete removes exactly that list (user-approved). Docs: docs/team/tools/lake-gc.md.
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
