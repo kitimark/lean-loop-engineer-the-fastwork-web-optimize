@@ -10276,7 +10276,8 @@
     "lean/Fw/Ci/Wire.lean",
     "packages/contracts/golden/ci-budget/**",
     "docs/team/tools/fw-ci.md"
-   ]
+   ],
+   "evidence": "05f2524"
   },
   {
    "devices": [

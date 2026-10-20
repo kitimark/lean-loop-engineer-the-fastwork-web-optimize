@@ -82,6 +82,24 @@ def cases : List (String × String × Json) := [
     lit "{\"now\":1000,\"state\":{\"now\":1000,\"fails\":6},\"event\":{\"resume\":true}}"),
   ("step: two events in one request is an error", "ci.budget.step",
     lit "{\"now\":1000,\"event\":{\"pages\":2,\"resume\":true}}"),
+  ("step: a branch sentinel id registers", "ci.budget.step",
+    lit "{\"now\":1000,\"event\":{\"register\":{\"runId\":1000000000838323,\"createdAt\":950}}}"),
+  ("step: an id that is no run id and no sentinel is refused", "ci.budget.step",
+    lit "{\"now\":1000,\"event\":{\"register\":{\"runId\":5000000000000000,\"createdAt\":950}}}"),
+  ("step: a list without the run counts a miss, the third drops it as unseen", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":950,\"misses\":2},{\"runId\":8,\"createdAt\":960}]},\"event\":{\"listed\":{\"rows\":[{\"runId\":8,\"createdAt\":960}],\"count\":1,\"pagesRead\":1,\"createdSince\":950}}}"),
+  ("step: a full list drops the run it cannot cover as uncovered, keeps a sentinel", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":900},{\"runId\":1000000000000001,\"createdAt\":900},{\"runId\":9,\"createdAt\":990}]},\"event\":{\"listed\":{\"rows\":[{\"runId\":10,\"createdAt\":980},{\"runId\":9,\"createdAt\":990}],\"count\":200,\"pagesRead\":2,\"createdSince\":900}}}"),
+  ("step: a list of 200 rows from 3 pages is not cut, so the run it lacks counts a miss", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":900}]},\"event\":{\"listed\":{\"rows\":[{\"runId\":10,\"createdAt\":980}],\"count\":200,\"pagesRead\":3,\"createdSince\":900}}}"),
+  ("step: a list of exactly 100 rows from 1 page is cut, so a run older than its oldest row is dropped as uncovered", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":950}]},\"event\":{\"listed\":{\"rows\":[{\"runId\":10,\"createdAt\":980}],\"count\":100,\"pagesRead\":1,\"createdSince\":900}}}"),
+  ("step: a run created before the list window (registered after the tick began) is not judged", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":900}]},\"event\":{\"listed\":{\"rows\":[{\"runId\":10,\"createdAt\":980}],\"count\":100,\"pagesRead\":1,\"createdSince\":950}}}"),
+  ("step: ack removes the logged incidents", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"incidents\":[{\"runId\":7,\"time\":900,\"why\":\"unseen\"},{\"runId\":8,\"time\":990,\"why\":\"uncovered\"}]},\"event\":{\"ack\":1}}"),
+  ("next: a stale stored pages of 11 is capped at 10, the tick costs the per-minute tick share 20", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"pages\":11,\"watched\":[{\"runId\":7,\"createdAt\":950}]}}"),
   ("status: window sums, interval and guards", "ci.budget.status",
     lit "{\"now\":1000,\"state\":{\"now\":1000,\"ledger\":[{\"time\":980,\"cost\":2,\"kind\":\"tick\",\"charged\":true},{\"time\":980,\"cost\":1,\"kind\":\"tick\",\"charged\":false},{\"time\":100,\"cost\":1,\"kind\":\"oneoff\",\"charged\":true}],\"watched\":[{\"runId\":7,\"createdAt\":950}]}}"),
   ("limits", "ci.budget.limits", lit "{}")]
@@ -161,7 +179,7 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
   IO.println s!"ci-budget golden: {files.length} files, {cases.length} wire cases, {stale} stale"
   return stale
 
-#guard cases.length = 31
+#guard cases.length = 40
 #guard fixtures.length = 7
 
 end Fw.Wire.Ci.Golden
