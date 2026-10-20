@@ -161,7 +161,7 @@ export function premiseDigest(dir) {
   return lines.length ? createHash('sha256').update(`${lines.sort().join('\n')}\n`).digest('hex') : null;
 }
 
-const ms = (iso) => { const t = Date.parse(iso ?? ''); return Number.isFinite(t) ? t : null; };
+export const ms = (iso) => { const t = Date.parse(iso ?? ''); return Number.isFinite(t) ? t : null; };
 const span = (job, step, startMs, durMs, commit = '') => ({ tool: `circleci/${job}`, step, startMs, durMs: Math.max(0, durMs), exit: 0, commit, load: 0, host: 'ci' });
 
 // --------------------------------------------------------------------------------------------------------- in-job timings
