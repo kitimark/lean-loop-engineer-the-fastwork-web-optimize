@@ -1,15 +1,15 @@
 ---
 id: 2026-10-17-v2-report
 kind: note
-title: "v2 report: a measurable, provable loop for the fastwork.com scroll experiment (draft 3, after C3)"
-status: draft
+title: "v2 report: a measurable, provable loop for the fastwork.com scroll experiment (final, draft 3 text frozen 11:15 +0700)"
+status: final
 created: 2026-10-17
 updated: 2026-10-20
 authors: [agent:researcher-report-draft, agent:researcher-report-draft-2, agent:researcher-report-draft-3]
 topics: [report, write-up, lean, measurement, ci, agent-teams, cost, composition]
 ---
 
-# v2 report (draft 3)
+# v2 report (final)
 
 **State of this draft.** Draft 3 was written at `dcd3e13d` (2026-10-19 23:31 +0700), after checkpoint C3 (decided
 22:55 +0700, [C3]). It adds the C3 result per flag (§4.2), independence and composition (§4.5), runs per flag before
@@ -19,6 +19,16 @@ dated additions. The two open result blocks of draft 2 are closed: the faithful 
 table is §4.2. Three named slots were open at this draft and were filled after it (`people-layout-shift` landed `9ff2ef77`, `gh-status` landed `f39818c8`, `compose-check` landed `ac087e08`): `people-layout-shift` (§7),
 `gh-status` (§6.5) and `compose-check` (§4.5). The text freezes 2026-10-20 11:15 +0700 and the experiment ends
 13:15 +0700. CONFIRMED [P11:1043, 1052]
+
+**Final (2026-10-20 13:15 +0700).** The text below is draft 3 as frozen at 11:15 +0700; it is the report. Work that
+landed on `main` between the freeze and the end is outside it and listed here only, each with its note or handoff:
+the breakpoint gate is green on `main` (WebKit screen size set with the viewport, `Fw.Gate.WebkitScreen`; three green
+runs 39368032874, 39369683085, 39370632229, MEASURED, `0e0233f9`); the optimization lane `mount-scroll-tap`
+(`76249c2b`) changed `morph.mount` under its `shift` flag, which v2-proved already ships, and `countdown-one-chain`
+(`dc392640`) landed as a flag whose preset inclusion is not decided;
+`land-fwcore-once` closed as a negative finding (one shared fwcore build made lands slower, `Fw.Ops.WallTime`,
+`6d175439`); tooling: `ci-wait-lag` (`e6b5a637`), fwcore replay and query made linear with equality proofs
+(`54e26907`, `a3ac6de1`), and the land queue rebuilds fwcore after a Lean land (`c5ff0f65`). CONFIRMED by those commits.
 
 **Status words.** MEASURED: a number from a run or a count in this repo, with its commit, run id or file. CONFIRMED:
 a cited source, doc or record says so. INFERRED: a judgement or expectation not yet checked.
