@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { band, EASING, markerDelay, MARKER_THETAS, TIMING } from './waapi.logic';
+import { DURATION_MS, ease } from './logic';
+import { band, baseDelay, EASING, markerDelay, MARKER_THETAS, TIMING } from './waapi.logic';
 import { waapiRun } from './waapi.fake.testutil';
 
 describe('morph.tween:waapi driver', () => {
@@ -85,6 +86,24 @@ describe('morph.tween:waapi driver', () => {
     const n = w.hints.length;
     w.frameAt(d + 34);
     expect(w.hints).toHaveLength(n);
+  });
+
+  it('a close writes the base --morph at its push, on each frame of its window and at its end; an open writes none (Lean baseW, tail_zero_of_base_still)', () => {
+    const w = waapiRun();
+    w.setTimeline(0);
+    w.wheel(100);
+    for (let T = 17; T <= 697; T += 17) w.frameAt(T);
+    expect(w.bases).toEqual([]);
+    w.setTimeline(1000);
+    expect(w.wheel(-100)).toBe(true);
+    const frames: number[] = [];
+    for (let T = 1017; T <= 1714; T += 17) (w.frameAt(T), frames.push(T));
+    const inWindow = frames.filter((T) => T >= 1000 + baseDelay(1, 0) && T < 1000 + DURATION_MS);
+    const end = frames.find((T) => T >= 1000 + DURATION_MS)!;
+    expect(inWindow.length).toBeGreaterThan(5);
+    expect(w.bases.map((b) => b.t)).toEqual([1000, ...inWindow, end]);
+    expect([w.bases[0]!.value, w.bases.at(-1)!.value]).toEqual([0, 0]);
+    for (const b of w.bases.slice(1, -1)) expect(b.value).toBeCloseTo(1 - ease({ x: (b.t! - 1000) / DURATION_MS }), 12);
   });
 
   it('a retarget cancels the markers and the frame callback of the old push', () => {

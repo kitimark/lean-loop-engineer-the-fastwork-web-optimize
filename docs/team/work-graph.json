@@ -11722,7 +11722,8 @@
     "packages/contracts/golden/parts/morph-tween*.jsonl",
     "research/findings/ledger.json",
     "docs/team/handoffs/waapi-nav-width-tail.md"
-   ]
+   ],
+   "evidence": "94ff7f5"
   },
   {
    "devices": [
