@@ -4,7 +4,7 @@
 //
 // TS STAND-IN, marked for Lean replacement: `verdictOf`, `fresh` and `usable` copy Fw.Obs.CiStatus (lean/Fw/Obs/CiStatus.lean)
 // and are checked against its golden packages/contracts/golden/obs/ci-status.jsonl by test/ci-status.test.ts. The fetch,
-// the parse and the cache are glue and hold no decision. The Lean module is not an fwcore op yet (Fw/Wire is outside this task).
+// the parse and the cache are glue and hold no decision. The Lean module is not an fwcore op yet (not wired as an fwcore op in this task; follow-up: obs.ciStatus op).
 
 export const CIRCLECI_STATUS_URL = "https://status.circleci.com/api/v2/summary.json";
 export const CIRCLECI_STATUS_PAGE = "https://status.circleci.com";

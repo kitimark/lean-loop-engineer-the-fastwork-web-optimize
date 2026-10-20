@@ -6,7 +6,8 @@ open Lean (Json toJson)
 
 The console reads the public CircleCI status page (`https://status.circleci.com/api/v2/summary.json`, an Atlassian
 Statuspage: `GET /api/v2/summary.json` returns "a status indicator, component statuses, unresolved incidents"; a
-component is "one of operational, degraded_performance, partial_outage, or major_outage" plus `under_maintenance`;
+component is "one of operational, degraded_performance, partial_outage, or major_outage" plus `under_maintenance` (Atlassian Statuspage component status; INFERRED for this page, also used by
+`Fw.Obs.GhStatus.GhComp`);
 https://status.circleci.com/api, read 2026-10-21; no token). The page sends `cache-control: max-age=10` and documents
 no rate limit; the poller reads it at most once per `pollMs`. This module decides from one reading, like
 `Fw.Obs.GhStatus` does for GitHub. Nothing here reads a clock: the caller passes `now`.
@@ -238,7 +239,7 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
     return 0
   let cur ← try IO.FS.readFile p catch _ => pure ""
   if cur != goldenText then
-    IO.println s!"ci-status golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
+    IO.println s!"ci-status golden: {p} is stale (regenerate: cd lean && lake env lean --run Fw/Obs/CiStatusGolden.lean)"
     return 1
   IO.println s!"ci-status golden: {cases.length} cases, 0 failures"
   return 0
@@ -248,6 +249,10 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
 #guard (cases.map fun (_, r) => r.armUsable) == [true, true, false, false, false, false, false, false, false, true,
   false, false, true, true]
 #guard (cases.map fun (_, r) => r.macUsable) == [true, false, true, true, false, false, true, true, true, true,
+  false, false, true, true]
+#guard (cases.map fun (_, r) => r.mac.name) == ["healthy", "degraded", "healthy", "healthy", "degraded", "degraded",
+  "healthy", "healthy", "healthy", "healthy", "unknown", "healthy", "healthy", "healthy"]
+#guard (cases.map fun (_, r) => fresh r.readAt r.now) == [true, true, true, true, true, true, true, true, true, true,
   false, false, true, true]
 
 end Fw.Obs.CiStatus
