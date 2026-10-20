@@ -13,16 +13,10 @@ namespace Fw.Engine
 
 /-! ## Frames of several parts -/
 
-/-- The frame of no part: no callbacks, no forced passes, no hit tests, no changes, no compositor animations.
-
-$$\varnothing = (0, 0, 0, 0, [\,], 0)$$
--/
+/-- The frame of no part: no callbacks, no forced passes, no hit tests, no changes, no compositor animations. -/
 def FrameIn.empty {P : Type} : FrameIn P := ⟨0, 0, 0, 0, [], 0⟩
 
-/-- Two parts in one frame: counts add, change lists concatenate.
-
-$$f_1 \mathbin{+\!\!+} f_2 = \big(f_1.\mathrm{script} + f_2.\mathrm{script},\ f_1.\mathrm{fStyle} + f_2.\mathrm{fStyle},\ f_1.\mathrm{fLayout} + f_2.\mathrm{fLayout},\ f_1.\mathrm{hits} + f_2.\mathrm{hits},\ f_1.\mathrm{changes} \mathbin{+\!\!+} f_2.\mathrm{changes},\ f_1.\mathrm{compAnims} + f_2.\mathrm{compAnims}\big)$$
--/
+/-- Two parts in one frame: counts add, change lists concatenate. -/
 def FrameIn.append {P : Type} (f g : FrameIn P) : FrameIn P where
   script       := f.script + g.script
   forcedStyle  := f.forcedStyle + g.forcedStyle
@@ -33,78 +27,48 @@ def FrameIn.append {P : Type} (f g : FrameIn P) : FrameIn P where
 
 instance {P : Type} : Append (FrameIn P) := ⟨FrameIn.append⟩
 
-/-- The changes of two parts are the concatenation of their changes.
-
-$$\forall f, g \in \mathrm{FrameIn}(P):\ (f \mathbin{+\!\!+} g).\mathrm{changes} = f.\mathrm{changes} \mathbin{+\!\!+} g.\mathrm{changes}$$
--/
+/-- The changes of two parts are the concatenation of their changes. -/
 @[simp] theorem FrameIn.append_changes {P : Type} (f g : FrameIn P) :
     (f ++ g).changes = f.changes ++ g.changes := rfl
 
-/-- The callbacks of two parts add.
-
-$$\forall f, g \in \mathrm{FrameIn}(P):\ (f \mathbin{+\!\!+} g).\mathrm{script} = f.\mathrm{script} + g.\mathrm{script}$$
--/
+/-- The callbacks of two parts add. -/
 @[simp] theorem FrameIn.append_script {P : Type} (f g : FrameIn P) : (f ++ g).script = f.script + g.script := rfl
 
-/-- The forced style passes of two parts add.
-
-$$\forall f, g \in \mathrm{FrameIn}(P):\ (f \mathbin{+\!\!+} g).\mathrm{fStyle} = f.\mathrm{fStyle} + g.\mathrm{fStyle}$$
--/
+/-- The forced style passes of two parts add. -/
 @[simp] theorem FrameIn.append_forcedStyle {P : Type} (f g : FrameIn P) :
     (f ++ g).forcedStyle = f.forcedStyle + g.forcedStyle := rfl
 
-/-- The forced layout passes of two parts add.
-
-$$\forall f, g \in \mathrm{FrameIn}(P):\ (f \mathbin{+\!\!+} g).\mathrm{fLayout} = f.\mathrm{fLayout} + g.\mathrm{fLayout}$$
--/
+/-- The forced layout passes of two parts add. -/
 @[simp] theorem FrameIn.append_forcedLayout {P : Type} (f g : FrameIn P) :
     (f ++ g).forcedLayout = f.forcedLayout + g.forcedLayout := rfl
 
-/-- The hit tests of two parts add.
-
-$$\forall f, g \in \mathrm{FrameIn}(P):\ (f \mathbin{+\!\!+} g).\mathrm{hits} = f.\mathrm{hits} + g.\mathrm{hits}$$
--/
+/-- The hit tests of two parts add. -/
 @[simp] theorem FrameIn.append_hits {P : Type} (f g : FrameIn P) : (f ++ g).hits = f.hits + g.hits := rfl
 
-/-- The compositor animations of two parts add.
-
-$$\forall f, g \in \mathrm{FrameIn}(P):\ (f \mathbin{+\!\!+} g).\mathrm{compAnims} = f.\mathrm{compAnims} + g.\mathrm{compAnims}$$
--/
+/-- The compositor animations of two parts add. -/
 @[simp] theorem FrameIn.append_compAnims {P : Type} (f g : FrameIn P) :
     (f ++ g).compAnims = f.compAnims + g.compAnims := rfl
 
-/-- Two parts update the frame when one of them does.
-
-$$\forall f, g \in \mathrm{FrameIn}(P):\ \operatorname{updates}(f \mathbin{+\!\!+} g) \iff \operatorname{updates}(f) \lor \operatorname{updates}(g)$$
--/
+/-- Two parts update the frame when one of them does. -/
 theorem FrameIn.updates_append {P : Type} (f g : FrameIn P) : (f ++ g).updates = (f.updates || g.updates) := by
   unfold FrameIn.updates
   show (!(f.changes ++ g.changes).isEmpty || decide (0 < f.script + g.script)) = _
   by_cases ha : 0 < f.script <;> by_cases hb : 0 < g.script <;>
     cases f.changes <;> cases g.changes <;> simp [ha, hb] <;> omega
 
-/-- The forced passes of two parts add, stage by stage.
-
-$$\forall f, g \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\ \operatorname{forced}(f \mathbin{+\!\!+} g, s) = \operatorname{forced}(f, s) + \operatorname{forced}(g, s)$$
--/
+/-- The forced passes of two parts add, stage by stage. -/
 theorem forcedPasses_append {P : Type} (f g : FrameIn P) (s : Stage) :
     forcedPasses (f ++ g) s = forcedPasses f s + forcedPasses g s := by
   cases s <;> rfl
 
-/-- **Touched stages of two parts** are the union of each part's touched stages.
-
-$$\forall E,\ \forall f_1, f_2 \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\ s \in \operatorname{touched}_E(f_1 \mathbin{+\!\!+} f_2) \iff s \in \operatorname{touched}_E(f_1) \lor s \in \operatorname{touched}_E(f_2)$$
--/
+/-- **Touched stages of two parts** are the union of each part's touched stages. -/
 theorem touched_append {P M : Type} (E : Engine P M) (f₁ f₂ : FrameIn P) (s : Stage) :
     s ∈ touched E (f₁ ++ f₂) ↔ s ∈ touched E f₁ ∨ s ∈ touched E f₂ := by
   simp only [touched, List.mem_append, FrameIn.append_changes, List.flatMap_append, FrameIn.append_compAnims,
     FrameIn.append_script, FrameIn.updates_append]
   grind
 
-/-- The passes of stage `s` for two parts: one if either part touches `s`, plus both parts' forced passes.
-
-$$\forall E,\ \forall f_1, f_2 \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_E(f_1 \mathbin{+\!\!+} f_2).\mathrm{passes}(s) = [s \in \operatorname{touched}_E(f_1) \lor s \in \operatorname{touched}_E(f_2)] + \operatorname{forced}(f_1, s) + \operatorname{forced}(f_2, s)$$
--/
+/-- The passes of stage `s` for two parts: one if either part touches `s`, plus both parts' forced passes. -/
 theorem passes_append {P M : Type} (E : Engine P M) (f₁ f₂ : FrameIn P) (s : Stage) :
     (frameWork E (f₁ ++ f₂)).passes s =
       (if s ∈ touched E f₁ ∨ s ∈ touched E f₂ then 1 else 0) + forcedPasses f₁ s + forcedPasses f₂ s := by
@@ -117,8 +81,6 @@ theorem passes_append {P M : Type} (E : Engine P M) (f₁ f₂ : FrameIn P) (s :
 
 /-- **A dropped pass is absorbed.** When another part touches stage `s` in the frame, replacing part `f₁` by `g₁`
 with the same forced passes on `s` leaves the page's passes of `s` unchanged, whether or not `g₁` touches `s`.
-
-$$\forall E,\ \forall f_1, g_1, f_2 \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\ s \in \operatorname{touched}_E(f_2) \land \operatorname{forced}(g_1, s) = \operatorname{forced}(f_1, s) \Rightarrow \operatorname{frameWork}_E(g_1 \mathbin{+\!\!+} f_2).\mathrm{passes}(s) = \operatorname{frameWork}_E(f_1 \mathbin{+\!\!+} f_2).\mathrm{passes}(s)$$
 -/
 theorem passes_absorb_part {P M : Type} (E : Engine P M) (f₁ g₁ f₂ : FrameIn P) (s : Stage)
     (h₂ : s ∈ touched E f₂) (hf : forcedPasses g₁ s = forcedPasses f₁ s) :
@@ -130,8 +92,6 @@ theorem passes_absorb_part {P M : Type} (E : Engine P M) (f₁ g₁ f₂ : Frame
 parts `f₁`, `g₁`, `f₂` such that `f₁` touches `s` and `g₁` does not, `g₁` alone runs strictly fewer `s` passes and
 strictly less work than `f₁`, `f₂` touches `s`, and the page with `g₁` runs exactly as many `s` passes as the page
 with `f₁`.
-
-$$\forall E,\ \forall c \in \mathrm{Change}(P),\ \forall s \in \mathrm{Stage}:\ s \in E.\mathrm{stagesOf}(c) \Rightarrow \exists f_1, g_1, f_2 \in \mathrm{FrameIn}(P):\ s \notin \operatorname{touched}_E(g_1) \land s \in \operatorname{touched}_E(f_1) \land s \in \operatorname{touched}_E(f_2) \land \operatorname{frameWork}_E(g_1).\mathrm{passes}(s) < \operatorname{frameWork}_E(f_1).\mathrm{passes}(s) \land \operatorname{frameWork}_E(g_1) \prec \operatorname{frameWork}_E(f_1) \land \operatorname{frameWork}_E(g_1 \mathbin{+\!\!+} f_2).\mathrm{passes}(s) = \operatorname{frameWork}_E(f_1 \mathbin{+\!\!+} f_2).\mathrm{passes}(s)$$
 
 A part that drops a stage pass saves nothing on the page while another part touches that stage in the frame. -/
 theorem passes_not_compositional {P M : Type} (E : Engine P M) (c : Change P) (s : Stage)
@@ -157,8 +117,6 @@ theorem passes_not_compositional {P M : Type} (E : Engine P M) (c : Change P) (s
 open Chromium in
 /-- **Chromium instance.** A `height` change on a box without a layer dirties `layout` in the lane mode, so a dropped
 layout pass can be absorbed by another part's layout pass.
-
-$$\exists f_1, g_1, f_2 \in \mathrm{FrameIn}(\mathrm{CrProp}):\ \mathrm{layout} \notin \operatorname{touched}_{\mathrm{cr}}(g_1) \land \mathrm{layout} \in \operatorname{touched}_{\mathrm{cr}}(f_1) \land \mathrm{layout} \in \operatorname{touched}_{\mathrm{cr}}(f_2) \land \operatorname{frameWork}_{\mathrm{cr}}(g_1).\mathrm{passes}(\mathrm{layout}) < \operatorname{frameWork}_{\mathrm{cr}}(f_1).\mathrm{passes}(\mathrm{layout}) \land \operatorname{frameWork}_{\mathrm{cr}}(g_1) \prec \operatorname{frameWork}_{\mathrm{cr}}(f_1) \land \operatorname{frameWork}_{\mathrm{cr}}(g_1 \mathbin{+\!\!+} f_2).\mathrm{passes}(\mathrm{layout}) = \operatorname{frameWork}_{\mathrm{cr}}(f_1 \mathbin{+\!\!+} f_2).\mathrm{passes}(\mathrm{layout})$$
 -/
 theorem passes_not_compositional_chromium :
     ∃ f₁ g₁ f₂ : FrameIn CrProp, Stage.layout ∉ touched chromium g₁ ∧
@@ -172,8 +130,6 @@ theorem passes_not_compositional_chromium :
 open WebKit in
 /-- **WebKit instance.** A `size` change on a box without a layer dirties `layout`, so a dropped layout pass can be
 absorbed by another part's layout pass.
-
-$$\exists f_1, g_1, f_2 \in \mathrm{FrameIn}(\mathrm{WkProp}):\ \mathrm{layout} \notin \operatorname{touched}_{\mathrm{wk}}(g_1) \land \mathrm{layout} \in \operatorname{touched}_{\mathrm{wk}}(f_1) \land \mathrm{layout} \in \operatorname{touched}_{\mathrm{wk}}(f_2) \land \operatorname{frameWork}_{\mathrm{wk}}(g_1).\mathrm{passes}(\mathrm{layout}) < \operatorname{frameWork}_{\mathrm{wk}}(f_1).\mathrm{passes}(\mathrm{layout}) \land \operatorname{frameWork}_{\mathrm{wk}}(g_1) \prec \operatorname{frameWork}_{\mathrm{wk}}(f_1) \land \operatorname{frameWork}_{\mathrm{wk}}(g_1 \mathbin{+\!\!+} f_2).\mathrm{passes}(\mathrm{layout}) = \operatorname{frameWork}_{\mathrm{wk}}(f_1 \mathbin{+\!\!+} f_2).\mathrm{passes}(\mathrm{layout})$$
 -/
 theorem passes_not_compositional_webkit :
     ∃ f₁ g₁ f₂ : FrameIn WkProp, Stage.layout ∉ touched webkit g₁ ∧
@@ -185,12 +141,10 @@ theorem passes_not_compositional_webkit :
   passes_not_compositional webkit ⟨0, .size, .none⟩ .layout (by decide)
 
 /-- **Per-part dominance does not give page dominance on passes.** Under every engine with a change `c` that dirties
-`style`, there are parts with $v_1 \preceq o_1$ and $v_2 \preceq o_2$ whose page frames are not ordered: $v_1$ trades
-a touched `style` pass for a forced one, and the forced pass is not absorbed by $v_2$'s `style` pass.
+`style`, there are parts with `v_1 ≼ o_1` and `v_2 ≼ o_2` whose page frames are not ordered: `v_1` trades
+a touched `style` pass for a forced one, and the forced pass is not absorbed by `v_2`'s `style` pass.
 
-$$\forall E,\ \forall c \in \mathrm{Change}(P):\ \mathrm{style} \in E.\mathrm{stagesOf}(c) \Rightarrow \exists v_1, o_1, v_2, o_2 \in \mathrm{FrameIn}(P):\ \operatorname{frameWork}_E(v_1) \preceq \operatorname{frameWork}_E(o_1) \land \operatorname{frameWork}_E(v_2) \preceq \operatorname{frameWork}_E(o_2) \land \neg\big(\operatorname{frameWork}_E(v_1 \mathbin{+\!\!+} v_2) \preceq \operatorname{frameWork}_E(o_1 \mathbin{+\!\!+} o_2)\big)$$
-
-The plan's `frame_le_append` stated over $\preceq$ alone is false for passes. -/
+The plan's `frame_le_append` stated over `≼` alone is false for passes. -/
 theorem frame_le_append_passes_fails {P M : Type} (E : Engine P M) (c : Change P) (hc : .style ∈ E.stagesOf c) :
     ∃ v₁ o₁ v₂ o₂ : FrameIn P, (frameWork E v₁).le (frameWork E o₁) ∧ (frameWork E v₂).le (frameWork E o₂) ∧
       ¬ (frameWork E (v₁ ++ v₂)).le (frameWork E (o₁ ++ o₂)) := by
@@ -210,27 +164,18 @@ theorem frame_le_append_passes_fails {P M : Type} (E : Engine P M) (c : Change P
 
 /-! ## Units and hit tests compose -/
 
-/-- **Units add over parts.**
-
-$$\forall E,\ \forall f_1, f_2 \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_E(f_1 \mathbin{+\!\!+} f_2).\mathrm{units}(s) = \operatorname{frameWork}_E(f_1).\mathrm{units}(s) + \operatorname{frameWork}_E(f_2).\mathrm{units}(s)$$
--/
+/-- **Units add over parts.** -/
 theorem frameWork_append_units {P M : Type} (E : Engine P M) (f₁ f₂ : FrameIn P) (s : Stage) :
     (frameWork E (f₁ ++ f₂)).units s = (frameWork E f₁).units s + (frameWork E f₂).units s := by
   simp only [frameWork, stageUnits, FrameIn.append_changes, List.countP_append, FrameIn.append_compAnims,
     FrameIn.append_script]
   split <;> split <;> omega
 
-/-- **Hit tests add over parts.**
-
-$$\forall E,\ \forall f_1, f_2 \in \mathrm{FrameIn}(P):\ \operatorname{frameWork}_E(f_1 \mathbin{+\!\!+} f_2).\mathrm{hits} = \operatorname{frameWork}_E(f_1).\mathrm{hits} + \operatorname{frameWork}_E(f_2).\mathrm{hits}$$
--/
+/-- **Hit tests add over parts.** -/
 theorem frameWork_append_hits {P M : Type} (E : Engine P M) (f₁ f₂ : FrameIn P) :
     (frameWork E (f₁ ++ f₂)).hits = (frameWork E f₁).hits + (frameWork E f₂).hits := rfl
 
-/-- **Per-part dominance gives page dominance on units and hit tests.**
-
-$$\forall E,\ \forall v_1, o_1, v_2, o_2 \in \mathrm{FrameIn}(P):\ \operatorname{frameWork}_E(v_1) \preceq \operatorname{frameWork}_E(o_1) \land \operatorname{frameWork}_E(v_2) \preceq \operatorname{frameWork}_E(o_2) \Rightarrow \Big(\forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_E(v_1 \mathbin{+\!\!+} v_2).\mathrm{units}(s) \le \operatorname{frameWork}_E(o_1 \mathbin{+\!\!+} o_2).\mathrm{units}(s)\Big) \land \operatorname{frameWork}_E(v_1 \mathbin{+\!\!+} v_2).\mathrm{hits} \le \operatorname{frameWork}_E(o_1 \mathbin{+\!\!+} o_2).\mathrm{hits}$$
--/
+/-- **Per-part dominance gives page dominance on units and hit tests.** -/
 theorem frame_le_append_units {P M : Type} (E : Engine P M) {v₁ o₁ v₂ o₂ : FrameIn P}
     (h₁ : (frameWork E v₁).le (frameWork E o₁)) (h₂ : (frameWork E v₂).le (frameWork E o₂)) :
     (∀ s, (frameWork E (v₁ ++ v₂)).units s ≤ (frameWork E (o₁ ++ o₂)).units s) ∧
@@ -243,8 +188,6 @@ theorem frame_le_append_units {P M : Type} (E : Engine P M) {v₁ o₁ v₂ o₂
 
 /-- **Strictness survives through units.** A part strictly smaller on the units of some stage, next to a part no
 larger on units, gives a page strictly smaller on the units of that stage.
-
-$$\forall E,\ \forall v_1, o_1, v_2, o_2 \in \mathrm{FrameIn}(P):\ \Big(\forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_E(v_2).\mathrm{units}(s) \le \operatorname{frameWork}_E(o_2).\mathrm{units}(s)\Big) \land \Big(\exists s \in \mathrm{Stage}:\ \operatorname{frameWork}_E(v_1).\mathrm{units}(s) < \operatorname{frameWork}_E(o_1).\mathrm{units}(s)\Big) \Rightarrow \exists s \in \mathrm{Stage}:\ \operatorname{frameWork}_E(v_1 \mathbin{+\!\!+} v_2).\mathrm{units}(s) < \operatorname{frameWork}_E(o_1 \mathbin{+\!\!+} o_2).\mathrm{units}(s)$$
 -/
 theorem someLt_append_units {P M : Type} (E : Engine P M) {v₁ o₁ v₂ o₂ : FrameIn P}
     (h₂ : ∀ s, (frameWork E v₂).units s ≤ (frameWork E o₂).units s)
@@ -257,10 +200,7 @@ theorem someLt_append_units {P M : Type} (E : Engine P M) {v₁ o₁ v₂ o₂ :
 
 /-! ## Page dominance from the stage-set form -/
 
-/-- **The union check composes.** If each part passes `unionLe` against its original, the page does.
-
-$$\forall E,\ \forall v_1, o_1, v_2, o_2 \in \mathrm{FrameIn}(P):\ \operatorname{unionLe}_E(v_1, o_1) = \mathrm{true} \land \operatorname{unionLe}_E(v_2, o_2) = \mathrm{true} \Rightarrow \operatorname{unionLe}_E(v_1 \mathbin{+\!\!+} v_2,\ o_1 \mathbin{+\!\!+} o_2) = \mathrm{true}$$
--/
+/-- **The union check composes.** If each part passes `unionLe` against its original, the page does. -/
 theorem unionLe_append {P M : Type} (E : Engine P M) {v₁ o₁ v₂ o₂ : FrameIn P}
     (h₁ : unionLe E v₁ o₁ = true) (h₂ : unionLe E v₂ o₂ = true) :
     unionLe E (v₁ ++ v₂) (o₁ ++ o₂) = true := by
@@ -276,10 +216,7 @@ theorem unionLe_append {P M : Type} (E : Engine P M) {v₁ o₁ v₂ o₂ : Fram
   rw [touched_append, touched_append]
   by_cases a : s ∈ touched E v₁ <;> by_cases b : s ∈ touched E v₂ <;> simp_all
 
-/-- **Page dominance from per-part union checks.**
-
-$$\forall E,\ \forall v_1, o_1, v_2, o_2 \in \mathrm{FrameIn}(P):\ \operatorname{unionLe}_E(v_1, o_1) = \mathrm{true} \land \operatorname{unionLe}_E(v_2, o_2) = \mathrm{true} \Rightarrow \operatorname{frameWork}_E(v_1 \mathbin{+\!\!+} v_2) \preceq \operatorname{frameWork}_E(o_1 \mathbin{+\!\!+} o_2)$$
--/
+/-- **Page dominance from per-part union checks.** -/
 theorem frame_le_append {P M : Type} (E : Engine P M) {v₁ o₁ v₂ o₂ : FrameIn P}
     (h₁ : unionLe E v₁ o₁ = true) (h₂ : unionLe E v₂ o₂ = true) :
     (frameWork E (v₁ ++ v₂)).le (frameWork E (o₁ ++ o₂)) :=
@@ -287,8 +224,6 @@ theorem frame_le_append {P M : Type} (E : Engine P M) {v₁ o₁ v₂ o₂ : Fra
 
 /-- **Strict page dominance from per-part union checks.** With both union checks and part 1 strictly smaller on the
 units of some stage or on hit tests, the page is strictly smaller.
-
-$$\forall E,\ \forall v_1, o_1, v_2, o_2 \in \mathrm{FrameIn}(P):\ \operatorname{unionLe}_E(v_1, o_1) = \mathrm{true} \land \operatorname{unionLe}_E(v_2, o_2) = \mathrm{true} \land \Big(\big(\exists s \in \mathrm{Stage}:\ \operatorname{frameWork}_E(v_1).\mathrm{units}(s) < \operatorname{frameWork}_E(o_1).\mathrm{units}(s)\big) \lor v_1.\mathrm{hits} < o_1.\mathrm{hits}\Big) \Rightarrow \operatorname{frameWork}_E(v_1 \mathbin{+\!\!+} v_2) \prec \operatorname{frameWork}_E(o_1 \mathbin{+\!\!+} o_2)$$
 -/
 theorem frame_lt_append {P M : Type} (E : Engine P M) {v₁ o₁ v₂ o₂ : FrameIn P}
     (h₁ : unionLe E v₁ o₁ = true) (h₂ : unionLe E v₂ o₂ = true)
@@ -303,10 +238,7 @@ theorem frame_lt_append {P M : Type} (E : Engine P M) {v₁ o₁ v₂ o₂ : Fra
     simp only [frameWork_append_hits]
     have := hle₂.2; simp only [frameWork] at this ⊢; omega
 
-/-- Pairwise covers concatenate.
-
-$$\forall E,\ \forall L_1, M_1, L_2, M_2 \in \mathrm{Change}(P)^{*}:\ \operatorname{cover}_E(L_1, M_1) = \mathrm{true} \land \operatorname{cover}_E(L_2, M_2) = \mathrm{true} \Rightarrow \operatorname{cover}_E(L_1 \mathbin{+\!\!+} L_2,\ M_1 \mathbin{+\!\!+} M_2) = \mathrm{true}$$
--/
+/-- Pairwise covers concatenate. -/
 theorem coverB_append {P M : Type} (E : Engine P M) :
     ∀ {l₁ m₁ l₂ m₂ : List (Change P)}, coverB E l₁ m₁ = true → coverB E l₂ m₂ = true →
       coverB E (l₁ ++ l₂) (m₁ ++ m₂) = true
@@ -320,8 +252,6 @@ theorem coverB_append {P M : Type} (E : Engine P M) :
 /-- **Page dominance from per-part covers.** Each variant part covered by a sub-multiset of its original part's
 changes, with no more callbacks, forced passes, hit tests or compositor animations, gives page dominance; the page
 cover is the concatenation, partitioned by part.
-
-$$\forall E,\ \forall v_1, o_1, v_2, o_2 \in \mathrm{FrameIn}(P),\ \forall m_1, r_1, m_2, r_2 \in \mathrm{Change}(P)^{*}:\ \bigwedge_{k \in \{1, 2\}} \Big((m_k \mathbin{+\!\!+} r_k) \sim o_k.\mathrm{changes} \land \operatorname{cover}_E(v_k.\mathrm{changes}, m_k) = \mathrm{true} \land v_k.\mathrm{script} \le o_k.\mathrm{script} \land v_k.\mathrm{fStyle} \le o_k.\mathrm{fStyle} \land v_k.\mathrm{fLayout} \le o_k.\mathrm{fLayout} \land v_k.\mathrm{hits} \le o_k.\mathrm{hits} \land v_k.\mathrm{compAnims} \le o_k.\mathrm{compAnims}\Big) \Rightarrow \operatorname{frameWork}_E(v_1 \mathbin{+\!\!+} v_2) \preceq \operatorname{frameWork}_E(o_1 \mathbin{+\!\!+} o_2)$$
 -/
 theorem frame_le_append_cover {P M : Type} (E : Engine P M) {v₁ o₁ v₂ o₂ : FrameIn P}
     (m₁ r₁ m₂ r₂ : List (Change P))
@@ -348,16 +278,11 @@ theorem frame_le_append_cover {P M : Type} (E : Engine P M) {v₁ o₁ v₂ o₂
 
 /-! ## Lego: swapping one part's variant -/
 
-/-- Part `p`'s variant set to `x`, every other part's variant kept.
-
-$$\operatorname{swap}(\sigma, p, x)(i) = \begin{cases} x & i = p \\ \sigma(i) & \text{otherwise} \end{cases}$$
--/
+/-- Part `p`'s variant set to `x`, every other part's variant kept. -/
 def swapSel {V : Type} (sel : Nat → V) (p : Nat) (x : V) : Nat → V := fun i => if i = p then x else sel i
 
 /-- An observable per part (frame, arm) reads only the variants of the parts it is not independent of: two variant
 choices that agree on every part `i` with `¬ Indep i j` give part `j` the same observable.
-
-$$\operatorname{ReadsOnly}(\mathit{Indep}, \mathit{obs}) \iff \forall j \in \mathbb{N},\ \forall \sigma, \sigma' : \mathbb{N} \to V:\ \big(\forall i \in \mathbb{N}:\ \neg\mathit{Indep}(i, j) \Rightarrow \sigma(i) = \sigma'(i)\big) \Rightarrow \mathit{obs}(j, \sigma) = \mathit{obs}(j, \sigma')$$
 -/
 def ReadsOnly {V α : Type} (Indep : Nat → Nat → Prop) (obs : Nat → (Nat → V) → α) : Prop :=
   ∀ j (sel sel' : Nat → V), (∀ i, ¬ Indep i j → sel i = sel' i) → obs j sel = obs j sel'
@@ -365,8 +290,6 @@ def ReadsOnly {V α : Type} (Indep : Nat → Nat → Prop) (obs : Nat → (Nat �
 /-- **Lego swap is sound.** If every part's frame and arm read only the variants of parts they are not independent
 of, and part `p` is independent of every other part, then swapping `p`'s variant leaves every other part's frame,
 frame work under every engine, and arm unchanged.
-
-$$\forall \mathit{Indep},\ \forall \mathit{frame} : \mathbb{N} \to (\mathbb{N} \to V) \to \mathrm{FrameIn}(P),\ \forall \mathit{arm} : \mathbb{N} \to (\mathbb{N} \to V) \to \mathrm{PartArm},\ \forall E,\ \forall p \in \mathbb{N},\ \forall x \in V,\ \forall \sigma : \mathbb{N} \to V:\ \operatorname{ReadsOnly}(\mathit{Indep}, \mathit{frame}) \land \operatorname{ReadsOnly}(\mathit{Indep}, \mathit{arm}) \land \big(\forall q \in \mathbb{N}:\ q \ne p \Rightarrow \mathit{Indep}(p, q)\big) \Rightarrow \forall q \in \mathbb{N}:\ q \ne p \Rightarrow \mathit{frame}(q, \operatorname{swap}(\sigma, p, x)) = \mathit{frame}(q, \sigma) \land \operatorname{frameWork}_E(\mathit{frame}(q, \operatorname{swap}(\sigma, p, x))) = \operatorname{frameWork}_E(\mathit{frame}(q, \sigma)) \land \mathit{arm}(q, \operatorname{swap}(\sigma, p, x)) = \mathit{arm}(q, \sigma)$$
 -/
 theorem lego_swap_sound {V P M : Type} (Indep : Nat → Nat → Prop) (frame : Nat → (Nat → V) → FrameIn P)
     (arm : Nat → (Nat → V) → PartArm) (E : Engine P M) (p : Nat) (x : V) (sel : Nat → V)
@@ -384,18 +307,12 @@ theorem lego_swap_sound {V P M : Type} (Indep : Nat → Nat → Prop) (frame : N
   have h1 := hf q _ _ hagree
   exact ⟨h1, by rw [h1], ha q _ _ hagree⟩
 
-/-- The page frame of parts `0, …, n-1`: the parts' frames appended in order.
-
-$$\operatorname{page}(0, F) = \varnothing,\qquad \operatorname{page}(n + 1, F) = \operatorname{page}(n, F) \mathbin{+\!\!+} F(n)$$
--/
+/-- The page frame of parts `0, …, n-1`: the parts' frames appended in order. -/
 def pageOf {P : Type} : Nat → (Nat → FrameIn P) → FrameIn P
   | 0, _ => FrameIn.empty
   | n + 1, F => pageOf n F ++ F n
 
-/-- Page frames of part functions that agree below `n` are equal.
-
-$$\forall n \in \mathbb{N},\ \forall F, G : \mathbb{N} \to \mathrm{FrameIn}(P):\ \big(\forall j < n:\ F(j) = G(j)\big) \Rightarrow \operatorname{page}(n, F) = \operatorname{page}(n, G)$$
--/
+/-- Page frames of part functions that agree below `n` are equal. -/
 theorem pageOf_congr {P : Type} : ∀ (n : Nat) {F G : Nat → FrameIn P}, (∀ j, j < n → F j = G j) →
     pageOf n F = pageOf n G
   | 0, _, _, _ => rfl
@@ -404,8 +321,6 @@ theorem pageOf_congr {P : Type} : ∀ (n : Nat) {F G : Nat → FrameIn P}, (∀ 
 
 /-- **Swap accounting on units.** Under the hypotheses of `lego_swap_sound`, for a part `p < n` the page's units
 after the swap plus `p`'s units before equal the page's units before plus `p`'s units after, at every stage.
-
-$$\forall \mathit{Indep},\ \forall \mathit{frame},\ \forall E,\ \forall n, p \in \mathbb{N},\ \forall x \in V,\ \forall \sigma,\ \forall s \in \mathrm{Stage}:\ \operatorname{ReadsOnly}(\mathit{Indep}, \mathit{frame}) \land \big(\forall q:\ q \ne p \Rightarrow \mathit{Indep}(p, q)\big) \land p < n \Rightarrow \operatorname{frameWork}_E(\operatorname{page}(n, j \mapsto \mathit{frame}(j, \sigma'))).\mathrm{units}(s) + \operatorname{frameWork}_E(\mathit{frame}(p, \sigma)).\mathrm{units}(s) = \operatorname{frameWork}_E(\operatorname{page}(n, j \mapsto \mathit{frame}(j, \sigma))).\mathrm{units}(s) + \operatorname{frameWork}_E(\mathit{frame}(p, \sigma')).\mathrm{units}(s),\quad \sigma' = \operatorname{swap}(\sigma, p, x)$$
 
 A swap of an independent part moves the page's units by exactly that part's change. -/
 theorem lego_swap_units {V P M : Type} (Indep : Nat → Nat → Prop) (frame : Nat → (Nat → V) → FrameIn P)
@@ -426,10 +341,7 @@ theorem lego_swap_units {V P M : Type} (Indep : Nat → Nat → Prop) (frame : N
         (fun j hj => hq j (by omega))]
       omega
 
-/-- A pair in the zip of two maps of one list is the pair of images of one element.
-
-$$\forall f, g : \alpha \to \beta,\ \forall L \in \alpha^{*},\ \forall q \in \operatorname{zip}(\operatorname{map}(f, L), \operatorname{map}(g, L)):\ \exists a \in L:\ q = (f(a), g(a))$$
--/
+/-- A pair in the zip of two maps of one list is the pair of images of one element. -/
 theorem mem_zip_map_self {α β : Type} (f g : α → β) :
     ∀ (l : List α) (q : β × β), q ∈ (l.map f).zip (l.map g) → ∃ a ∈ l, q = (f a, g a)
   | [], _, h => by simp at h
@@ -443,8 +355,6 @@ theorem mem_zip_map_self {α β : Type} (f g : α → β) :
 /-- **Swap keeps the visible page** when the swapped part passes its own gate. Under the hypotheses of
 `lego_swap_sound`, if part `p`'s arm keeps its band height and its visible scene at every offset, the visible page
 scene of parts `0, …, n-1` is unchanged, from every start offset.
-
-$$\forall \mathit{Indep},\ \forall \mathit{arm},\ \forall \mathit{vp},\ \forall n, p \in \mathbb{N},\ \forall x \in V,\ \forall \sigma,\ \forall y \in \mathbb{Q}:\ \operatorname{ReadsOnly}(\mathit{Indep}, \mathit{arm}) \land \big(\forall q:\ q \ne p \Rightarrow \mathit{Indep}(p, q)\big) \land \mathit{arm}(p, \sigma').\mathrm{height} = \mathit{arm}(p, \sigma).\mathrm{height} \land \big(\forall y' \in \mathbb{Q}:\ \operatorname{visible}_{\mathit{vp}}(\mathit{arm}(p, \sigma').\mathrm{scene}(y')) = \operatorname{visible}_{\mathit{vp}}(\mathit{arm}(p, \sigma).\mathrm{scene}(y'))\big) \Rightarrow \operatorname{visible}_{\mathit{vp}}\big(\operatorname{stackScene}(y, [\mathit{arm}(j, \sigma')]_{j < n})\big) = \operatorname{visible}_{\mathit{vp}}\big(\operatorname{stackScene}(y, [\mathit{arm}(j, \sigma)]_{j < n})\big),\quad \sigma' = \operatorname{swap}(\sigma, p, x)$$
 -/
 theorem lego_swap_visible {V : Type} (Indep : Nat → Nat → Prop) (arm : Nat → (Nat → V) → PartArm) (vp : Rect)
     (n p : Nat) (x : V) (sel : Nat → V) (y : Rat)

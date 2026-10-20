@@ -23,10 +23,7 @@ cd lean && lake env lean --run scripts/GateSpeedGolden.lean --check   # fail if 
 namespace Fw.Wire.GateSpeed.Golden
 open Lean Fw.Gate.Schedule
 
-/-- The shared pool of the free plan: 20 concurrent jobs for the whole account.
-
-$$m = 20$$
--/
+/-- The shared pool of the free plan: 20 concurrent jobs for the whole account. -/
 def poolM : Nat := 20
 
 def engName : Eng → String
@@ -53,7 +50,7 @@ def epJson (p : EngParams) : Json :=
       ("touch", (p.touch : Json)), ("pain", (p.pain : Json))])]
 
 /-- The jobs of a plan with the engine-local slot of each (probe job `i` takes the probes whose matrix index is
-$\equiv i \pmod k$; the extra sweep job has slot `k` and no probes). -/
+`≡ i mod k`; the extra sweep job has slot `k` and no probes). -/
 def jobsJson (P : Params) (pl : Plan) : Json :=
   let one (e : Eng) (c : Cfg) : List Json :=
     (jobsOf e probesPerEngine c.k c.md).zipIdx.map fun (j, i) =>
@@ -69,8 +66,8 @@ def freeRunners : List Nat := [4, 8, 12, 20]
 def preMs : Nat := noteFixed.plan + noteFixed.site
 def postMs : Nat := noteFixed.mergeSetup + noteFixed.fwcore + 2 * noteFixed.summary
 
-/-- One summary of a plan under `P`, `m` free runners, `r` runs: the jobs, $\sum d$, $\max d$, the Graham numerator, the
-simulated makespan of $r$ copies of the job list, and the wall time `wall` with its two bounds (`wall_lower`,
+/-- One summary of a plan under `P`, `m` free runners, `r` runs: the jobs, `Σ d`, `max d`, the Graham numerator, the
+simulated makespan of `r` copies of the job list, and the wall time `wall` with its two bounds (`wall_lower`,
 `wall_upper`). -/
 def planJson (P : Params) (m r : Nat) (pl : Plan) : Json :=
   let ds := durs P pl
