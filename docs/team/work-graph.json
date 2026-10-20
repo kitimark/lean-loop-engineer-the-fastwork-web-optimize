@@ -10686,6 +10686,23 @@
     "docs/team/tools/fw-watch.md",
     "docs/team/handoffs/alert-steps-plain.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-strip-c2",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "latex-strip-c"
+   ],
+   "title": "User 2026-10-20 asked whether all LaTeX is gone from Lean: no, latex-strip-c excluded 40 files owned by then-open tasks (about 1000 doc $$ blocks left) and its open item 'run the tool after each excluded task lands' never ran. Sweep the 38 excluded files not touched by an open branch (Ci/Trigger and Wire/Store wait for trajectory-probe) with scripts/latex-strip.mjs; lake build + lean/scripts/check.sh green; MathView stmtHash set unchanged; --check 0 on the swept files",
+   "writes": [
+    "lean/Fw/**/*.lean",
+    "lean/FwTest/**",
+    "docs/team/handoffs/latex-strip-c2.md"
+   ]
   }
  ],
  "deadline": {
