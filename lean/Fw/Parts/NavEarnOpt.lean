@@ -377,26 +377,26 @@ def rowAt (v : Nav.Vp) (a b : Rat) (n : String) (k : Nat) : Option Row :=
 #guard (rowAt ⟨1440, 900⟩ 1 0 "maxW" 37).all fun r => r.faithful < 5 && r.arm > 174
 
 /-- The golden lines `packages/contracts/golden/parts/nav-earn.jsonl`. -/
-def lines : List String :=
+def lines (_ : Unit := ()) : List String :=
   ([false, true].flatMap fun f => [false, true].map fun mo =>
       line "transitionsOn" [("flag", .bool f), ("morphing", .bool mo)] (.bool (transitionsOn f mo))) ++
   [trJson "max-width" maxWTr, trJson "padding-inline" padTr, trJson "opacity" opacityTr] ++
   viewports.flatMap (fun (vn, v) => pushes.flatMap fun (pn, a, b) => countLines vn v pn a b) ++
   viewports.flatMap (fun (vn, v) => pushes.flatMap fun (pn, a, b) => frameLines vn v pn a b)
 
-def goldenText : String := String.join (lines.map (· ++ "\n"))
+def goldenText (_ : Unit := ()) : String := String.join ((lines ()).map (· ++ "\n"))
 
 /-- Print the golden text, or with `--check <file>` compare it; exit 1 on a difference. -/
 def gen (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
-    if (← IO.FS.readFile path) == goldenText then
-      IO.eprintln s!"nav-earn golden: {path} is up to date ({lines.length} lines)"
+    if (← IO.FS.readFile path) == goldenText () then
+      IO.eprintln s!"nav-earn golden: {path} is up to date ({(lines ()).length} lines)"
       return 0
     IO.eprintln s!"nav-earn golden: {path} differs from the generated text"
     return 1
   | _ =>
-    IO.print goldenText
+    IO.print (goldenText ())
     return 0
 
 end Fw.Parts.NavEarnOpt
