@@ -142,7 +142,9 @@ Limits of the in-flight rule, for that fraction of samples:
 - `since` sees only nav class changes; a transition started by something else is read as at rest.
 - `startLag` = 200 ms is a measured bound on the 140 ms overrun, not a proved one.
 - No core sample in any pass of the original: the unit falls back to the m-window of the original's samples. A pass
-  with no core sample does not fall back on its own: when another pass has one, the envelope decides.
+  with no core sample does not fall back on its own: when another pass has one, the envelope decides (kept by
+  `judgeScoped_stuck_hold`, section Envelope scope).
+- Same-phase core: a hold sample's core holds no reading of its epoch taken in the push before the hold.
 - Envelope band: geometry, unit and alpha are judged against the band of every pass's readings, so a value between two
   passes' readings passes though no pass read it; r, g, b must match one core reading of one pass.
 - A start outside every pass: a rewrite whose transition starts from a value no pass of the original started from (a
@@ -321,9 +323,68 @@ than the old rule in some cells: new failures on Linux WebKit 1280 (39453764374)
 (39449092483) and Chromium 1280 earn.max-width close@0 (39457767229). A rewrite pass with no counterpart in the
 original is now judged against the envelope of the original's passes; the old 'no counterpart' coverage fail is gone
 (golden cases 'in flight, other pass' pass to fail:apart, 'in flight, other pass, no counterpart' fail:coverage to
-pass). Open, INFERRED: `close-hold@0` failures (39466179818 mac 640, 39472217441 mac 390) are hold samples judged by
-windowOf/settledRef, which neither new rule touches; the Chromium earn.max-width close@0 change in 39457767229 is not
-explained yet. Follow-up task trajectory-envelope-scope.
+pass; renamed in the next section). The scope is decided, and every changed cell explained, in the next section.
+
+### Envelope scope (task trajectory-envelope-scope)
+
+Decision: the envelope keeps its scope (every in-flight sample of the epoch, no own-pass fallback while another pass
+has a core sample). The rejected alternative is Lean `judgeScoped`: the envelope only while `atStart` (the sample is
+within `startLag` of the first sample of its epoch in the original's own pass), else `judgeOwn` with its m-window
+fallback (`judgeScoped_start`, `judgeScoped_later`). Against the threat model:
+
+- `judgeScoped_stuck_hold`: a box stuck at its start value 400 ms into a hold transition, in a pass the original lacks,
+  passes `judgeScoped` (the hold's m-window pools every sample of the hold) and fails the envelope. A pooled stuck
+  value must fail, so the fallback cannot come back.
+- `judgeScoped_other_curve`: a pass that keeps another pass's start red 500 ms into the transition passes the envelope
+  and fails `judgeScoped`. Start jitter need not fail, also after the start.
+- `judgeUnit_sound`: a component more than the tolerance beyond every reading of the original's whole path never
+  passes, in every branch (in flight, the fallback, at rest; a colour's channel or alpha), when the window holds samples
+  of the path (`windowAt_sub`).
+- `judgeUnit_mutations`: pure red and pure green over two passes, the reversed curve at buckets 2 and 7 over two passes
+  and in one, the stale class, the stuck value pooled over passes, and the stuck hold above all fail.
+
+Re-reduced (MEASURED, the six runs above, 16 artifacts, scratch downloads): the shipped reducer changes no unit against
+main. Content failures summed over the 16 artifacts (morph; `new` = candidate content `new`):
+
+| rule | faithful arm fails | candidate fails | candidate `new` |
+|---|---|---|---|
+| before close-start (own pass, old windows) | 441 | 476 | 71 |
+| main = this task (envelope) | 386 | 405 | 52 |
+| `judgeScoped` | 406 | 421 | 52 |
+| envelope, core of any phase (follow-up) | 381 | 392 | 46 |
+
+`judgeScoped` re-fails 20 faithful-arm units and clears no candidate `new`. Of the 117 units close-start changed, 29
+come from `windowAt` and 88 from the envelope; 18 end `new`. 58 of the 88 clear a failure in one arm or both (to `ok`
+or `cleared`): the reading lies inside another pass's transition. One fails the faithful arm (39457767229 Linux WebKit
+1280 actions.gap close@0, `ok` to `cleared`): its pass 1 reads 0.04 px 163 ms into the close; the original's pass 1 read
+that epoch only in the hold, so it has no same-phase core and only pass 0 (1.35 px at 170 ms) judges the sample. In each of the 14 envelope `both` to `new` units the
+candidate's `fail:apart` stays and the faithful arm's failing samples lie inside the envelope (2 more come from
+`windowAt`: 39457767229 Linux WebKit 640 nav.backdrop-filter.num and earn.filter.num close@0). Chromium 39457767229
+1280 earn.max-width close@0: the faithful arm's passes start the close at 12.87, 11.23 and 9.98 px (the own-pass rule
+failed passes 1 and 2, start jitter); the candidate's pass 0 reads 7.36 px 6 ms in, beyond every pass. The Linux WebKit
+close@0 units of 39453764374 and 39449092483 (nav.rect, nav.transform.shift, actions.gap, earn.max-width) are the same
+kind of `both` to `new`.
+
+`close-hold@0` cells are in-flight samples judged by the envelope, not by `windowOf`/`settledRef`:
+
+- 39453764374 Linux WebKit 390 (7 groups `ok`/`new` to `both`), 1280 nav.transform.shift (`cleared` to `new`) and
+  39449092483 Linux WebKit 640 earn.max-width (`cleared` to `both`): the sample's own pass has no core sample of its
+  epoch, so the old rule fell back to the hold's m-window, which pools the start and the settled end. Other passes'
+  readings of the epoch at that time may be in the push (phase 2), and the core is same-phase, so the envelope holds
+  few samples. At 1280 the candidate reads -492.07 px 210 ms in, settled, where the original's pass 2 still reads
+  -596.72 at 119 ms and -495.34 at 537 ms.
+- 39466179818 macOS WebKit 640 nav.background-color (`new` in both): the candidate's pass 3 reads 251.3 491 ms in;
+  every same-phase core reading within 200 ms is 253.66 or more (tolerance 2). Pass 0 read 252.6 at 310 ms in the push;
+  a core of any phase passes it.
+- 39472217441 macOS WebKit 390 nav.background-color (A/A, `new` in both): the candidate's pass 4 reads
+  `[242.0, 242.3, 243.0]` 412 ms in; every reading of the original within 200 ms, any phase, is 249.97 or more. The pass
+  lags beyond the slack; every rule above fails it.
+- 39449092483 Linux WebKit 1280 earn.max-width (`unmeasured` to `both`), 39457767229 Linux WebKit 641 nav.bg (`new`)
+  and 1280 nav.rect (`both` to `new`): the candidate's first failure in the bucket went from `apart` to `coverage`,
+  a sample with no counterpart that failed before too; the earlier sample now passes the envelope.
+
+Limit and follow-up: `isCore` keeps the sample's phase, so readings of the same epoch taken in the push before a hold
+are no core for a hold sample (row 4 of the table, MEASURED, not adopted here).
 
 ## Admission
 
