@@ -13,9 +13,8 @@ name: gate-gaps
 #   images-*        Task image-audit, asked for by `[images]` / `[images-only]` in the commit message or the `images` input:
 #                   images-audit (every image of the hero, morph and people regions per Lean width and DPR, three reps per
 #                   engine and arm; the drawn arm only with `[images-arm]`), images-pages and images-verify (`[images-arm]`
-#                   only: visual diff of the lag parts, baseline against the drawn-size arm; each copy against its source; their
-#                   steps run only when the copies are in the served dist apps/site/dist/aot/images-drawn, which no commit
-#                   holds and no Linux job builds yet: task image-arm-v2),
+#                   only: visual diff of the lag parts, baseline against the drawn-size arm; each copy against its source; with
+#                   `[images-arm]` they fail until task image-arm-v2 builds the copies on CI),
 #                   images-summary (ranked tables). Counts and bytes only.
 # Counts and verdicts only: nothing measured here is phone time.
 on:
@@ -271,12 +270,6 @@ jobs:
           - { engine: playwright-webkit, arm: rewrite, rep: r3 }
           - { engine: chromium, arm: original, rep: r1 }
           - { engine: playwright-webkit, arm: original, rep: r1 }
-          - { engine: chromium, arm: drawn, rep: r1 }
-          - { engine: chromium, arm: drawn, rep: r2 }
-          - { engine: chromium, arm: drawn, rep: r3 }
-          - { engine: playwright-webkit, arm: drawn, rep: r1 }
-          - { engine: playwright-webkit, arm: drawn, rep: r2 }
-          - { engine: playwright-webkit, arm: drawn, rep: r3 }
     steps:
       - name: 'tip re-check'
         id: tip
@@ -316,7 +309,6 @@ jobs:
           echo "CHROME_PATH=$chrome" >> "$GITHUB_ENV"
           "$chrome" --version
       - name: 'Audit: ${{ matrix.engine }} / ${{ matrix.arm }} / ${{ matrix.rep }} (the Lean widths at DPR 2, the headline widths at DPR 1 and 3)'
-        if: ${{ matrix.arm != 'drawn' || (contains(github.event.head_commit.message, '[images-arm]') && hashFiles('apps/site/dist/aot/images-drawn/**') != '') }}
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
@@ -380,15 +372,15 @@ jobs:
           test -x "$chrome"
           echo "CHROME_PATH=$chrome" >> "$GITHUB_ENV"
           "$chrome" --version
+      - name: 'Require the drawn copies (built by task image-arm-v2; none on CI yet)'
+        run: test -n "$(ls -A apps/site/dist/aot/images-drawn 2>/dev/null)" || { echo 'no drawn copies in apps/site/dist/aot/images-drawn (task image-arm-v2)'; exit 1; }
       - name: 'The table against its files and the sources'
-        if: ${{ hashFiles('apps/site/dist/aot/images-drawn/**') != '' }}
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
         working-directory: packages/gate-breakpoints
         run: node src/images/cli.mjs arm check --out ../../apps/site/dist/aot/images-drawn
       - name: 'Pages: ${{ matrix.engine }} / ${{ matrix.rep }} (baseline against the arm, visual diff of the lag parts)'
-        if: ${{ hashFiles('apps/site/dist/aot/images-drawn/**') != '' }}
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
@@ -457,15 +449,15 @@ jobs:
           test -x "$chrome"
           echo "CHROME_PATH=$chrome" >> "$GITHUB_ENV"
           "$chrome" --version
+      - name: 'Require the drawn copies (built by task image-arm-v2; none on CI yet)'
+        run: test -n "$(ls -A apps/site/dist/aot/images-drawn 2>/dev/null)" || { echo 'no drawn copies in apps/site/dist/aot/images-drawn (task image-arm-v2)'; exit 1; }
       - name: 'The table against its files and the sources'
-        if: ${{ hashFiles('apps/site/dist/aot/images-drawn/**') != '' }}
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
         working-directory: packages/gate-breakpoints
         run: node src/images/cli.mjs arm check --out ../../apps/site/dist/aot/images-drawn
       - name: 'Verify: ${{ matrix.engine }} / ${{ matrix.rep }} (each copy against its source at DPR 2 and 3)'
-        if: ${{ hashFiles('apps/site/dist/aot/images-drawn/**') != '' }}
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot

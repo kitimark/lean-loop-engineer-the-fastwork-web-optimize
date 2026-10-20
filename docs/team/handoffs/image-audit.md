@@ -6,7 +6,7 @@ Read first: `research/notes/2026/10-20-image-audit.md` (Outcome, tables, "The dr
 - Lean: `lean/Fw/Engine/WebKitImage.lean`, 40 theorems (`grep -c '^theorem'`). Two INFERRED premises, both named in the module doc:
   P-resample (does CoreGraphics resample each repaint; the iOS `kCGImageCachingTemporary` comment points toward cached) and
   P-repaint (the opacity/transform/backdrop/nothing rows of `repaints` are 0; only the composited-filter row cites R3).
-- Drawn-size arm CLOSED as a MEASURED negative finding (note + `research/findings/ledger.json` note row on the dprSized entry):
+- Drawn-size arm CLOSED as a MEASURED negative finding (note + `research/findings/ledger.json` mechanism row on the dprSized entry):
   per-copy verify 158/268 WebKit, 154/268 Chromium; people parts flip in 3-10 of 21 WebKit cells; hero unsettled; the morph 0 ppm
   pass covers only architect-1096.png (1 of 21 morph images, 4 of 7 probes). next: task image-arm-v2 (not this task).
 - No image file outside snapshot/ is in main..HEAD (`git log --diff-filter=A --name-only main..HEAD`, checked). The 102 copies are
@@ -25,5 +25,5 @@ Read first: `research/notes/2026/10-20-image-audit.md` (Outcome, tables, "The dr
 ## Writes outside the task's graph writes
 `.github/workflows/gate-gaps.yml`, `apps/runner/src/land.ts` (PACKAGE_EXTRA_READS), `lean/Fw.lean`, tests
 `packages/gate-breakpoints/test/images.test.mjs` (unchanged this round), `packages/measure-webkit/test/images-switch.test.mjs`,
-`research/findings/ledger.json` (one note row). The graph still lists `apps/site/public/images-drawn/**` as a write; nothing uses it now.
+`research/findings/ledger.json` (one mechanism row on the dprSized entry). The graph still lists `apps/site/public/images-drawn/**` as a write; nothing uses it now.
 TS stand-ins (no Lean golden): `reduce.mjs`, `table.mjs` (ranking, waste ratio), the ladder rows in `arm-build.mjs`.

@@ -36,9 +36,10 @@ decoded in full; D4 says an asynchronous decode of a large image can be smaller)
 below 1, T transform, Ta an animated transform, M mask; the column holds those seen on an ancestor at 1512@2 or 430@3.
 
 **Round-2 run.** Run `39490129830` (gate-gaps, `[images-only]`, branch `ci/image-audit-r2` at the squashed commit: the old `ci/image-audit`
-rejects a non-fast-forward push) ran the images jobs after the setup-pnpm-before-snapshot-check reorder: guard, site, 8 audit jobs per
-engine (original, rewrite and drawn arms; the drawn jobs skip their audit step because no copies are in the served dist), images-summary:
+rejects a non-fast-forward push) ran the images jobs after the setup-pnpm-before-snapshot-check reorder: guard, site, 7 audit jobs per
+engine (original r1, rewrite r1-r3, drawn r1-r3; 14 in all; the drawn jobs skip their audit step because no copies are in the served dist), images-summary:
 all success, images-pages and images-verify skipped (no `[images-arm]`). It verifies the workflow, not the tables above.
+The drawn audit rows were removed from gate-gaps.yml (their copies are not built on CI); images-pages and images-verify fail with [images-arm] until task image-arm-v2 builds the copies.
 
 **Region A, hero cards leaving (playwright-webkit, site as shipped, run 39481653302)**: 21 files (21 drawn in some cell), 1.78 MiB on disk, 46.63 MiB decoded (natural pixels x 4)
 
@@ -179,10 +180,10 @@ WebKit and 154 of 268 on Chromium**, with a median 1600 to 5200 ppm and a 90th p
 copies, from pre-morph audits; run 39470558091) failed 338 and 266 of 480 per-copy tests (one number per engine), and its morph on
 touch-1031 and touch-601 on WebKit gave 14239, 17519, 9506 and 16891 ppm with delta 114 to 139; desktop gave at most 331 ppm.
 
-**Negative finding (MEASURED), closing the premise.** A resized copy is not pixel-identical in WebKit or Chromium, and no
-oversample fixes it: the browser's downscale of a large source in one stage differs from two stages (the sips kernel, then the
+**Negative finding (MEASURED), closing the premise.** A resized copy is not pixel-identical in WebKit or Chromium, and
+neither oversample tried (1x, 2x) passes: the browser's downscale of a large source in one stage differs from two stages (the sips kernel, then the
 browser's). A copy drawn at 72 px from a 144 px copy is visibly blurrier than a 480 px source drawn at 72 px. The difference grows
-with the source/drawn ratio; at oversample 2 the verify was worse than at 1x (the copy is drawn down by a factor 2 or 3 instead of 1).
+with the source/drawn ratio; neither 1x (run 39470558091: 338/480 WebKit, 266/480 Chromium fail) nor 2x oversample (158/268, 154/268) passes; the copy sets differ, so the two are not ranked.
 The per-copy verify therefore cannot pass for a copy that is far smaller than its source, whatever the page does; the page-level
 check passes only where the browser draws the copy at or near its device size (`architect-1096.png`). Mechanism: INFERRED from the
 pixel diffs, since the resampling filters are in WebKit's closed CoreGraphics and Skia's source was not diffed here.
