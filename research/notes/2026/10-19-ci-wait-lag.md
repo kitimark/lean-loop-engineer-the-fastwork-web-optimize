@@ -136,3 +136,10 @@ Rules (lean/Fw/Ci/Attempt.lean, op `ci.attempt`, golden cases in wire.jsonl):
 - `settled`: a jobs view on a different attempt than the row is `stale`, not a verdict; the waiter raises a floor, re-registers its watch (the poller dropped it on the old finish) and waits.
 - `current`: a row below the floor is not decisive. `fresh` (30 s): a finished row older than that (poller file read before this wait began, or meta cache) is read again.
 Accepted limit: a rerun waited within 30 s of the last read of a finished row can still see the old attempt (the window dedupes waiters that start together; 20 processes needed more than 10 s here).
+
+### Round 3 fixes (review of round 2)
+- `jobsOf` writes `meta/<id>.jobs.json` only after the view settles the row, so the jobs of a still-running attempt 2 never become the verdict of the finished attempt. Test: "rerun: the jobs of a running attempt seen as stale are not cached ..." (fails on the old order, passes now).
+- The wait kind (`done`/`late`/`grace`) and the critical run (latest finish, first on a tie) are Lean `Fw.Ci.Lag.kind` and `Fw.Ci.Lag.crit` (theorems per branch, `crit_spec`), golden `ci-budget/lag-kind.jsonl`, replayed in wait.test.ts by the TS stand-ins `waitKind` and `critIndex`.
+- Lean docstrings in Lag, Attempt and the new opAttempt text hold prose only (no `$$`).
+- Accepted limit: a lanes or branch wait on a commit whose runs all finished, answered from a poller file older than 30 s and older than the wait's registration, now waits for the next tick. That wait is recorded `how = late` or `done` and its `list` piece includes the extra tick wait; it inflates `list` in `fw timings --lag` until a separate `how` is added (follow-up).
+- Accepted limit stays: a rerun within 30 s of the last read of a finished row can still show the old attempt.

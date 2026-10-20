@@ -158,8 +158,9 @@ async function jobsOf(env: Env, row: Row, deadline: number, pr: Probe): Promise<
     if (res.code !== 0) return { fail: { code: 2, lines: [`wait: gh run view ${runId} --json jobs failed: ${res.error ?? "unknown"}`] } };
     const v = JSON.parse(res.stdout) as { jobs?: Job[]; attempt?: number };
     const rec: JobsRec = { ...(v.attempt === undefined ? {} : { attempt: v.attempt }), facts: factsOf(v.jobs ?? []) };
-    writeAtomic(file, JSON.stringify(rec));
+    // cache only a view that settles the row: a view of a newer, still running attempt must not become the verdict later
     if (v.attempt !== undefined && !attemptOf(env, { row: row.attempt ?? null, view: v.attempt }, "settled")) return { stale: { runId, attempt: v.attempt } };
+    writeAtomic(file, JSON.stringify(rec));
     return { facts: rec.facts };
   } finally {
     l.release();
@@ -273,18 +274,32 @@ async function createdOf(env: Env, runId: number, deadline: number): Promise<{ r
   }
 }
 
+/** The kind of a deciding wait. TS stand-in replaying golden ci-budget/lag-kind.jsonl (Lean `Fw.Ci.Lag.kind`). */
+export function waitKind(lanesMissing: boolean, tickMs: number | undefined, regMs: number): "done" | "late" | "grace" {
+  if (lanesMissing) return "grace";
+  return tickMs !== undefined && tickMs < regMs ? "late" : "done";
+}
+
+/** Index of the latest finish, the first on a tie, null for none. TS stand-in replaying golden ci-budget/lag-kind.jsonl (Lean `Fw.Ci.Lag.crit`). */
+export function critIndex(upds: number[]): number | null {
+  let best: number | null = null;
+  upds.forEach((u, i) => { if (best === null || u > upds[best]!) best = i; });
+  return best;
+}
+
 /** The phases of the run whose finish decided the wait: the latest `updatedAt` among the decisive rows is the critical one. */
 function noteDecided(pr: Probe, rows: Row[], st: Status | null, prev: Status | null, readMs: number, holder: boolean, required: string[] | null): void {
   const ph = pr.ph;
   ph.runIds = rows.map((r) => r.databaseId);
   ph.holder = holder;
   ph.readMs = readMs;
-  const stamped = rows.filter((r) => r.updatedAt && Number.isFinite(Date.parse(r.updatedAt))).sort((a, b) => Date.parse(b.updatedAt!) - Date.parse(a.updatedAt!));
-  const crit = stamped[0];
+  const stamped = rows.filter((r) => r.updatedAt && Number.isFinite(Date.parse(r.updatedAt)));
+  const ci = critIndex(stamped.map((r) => Date.parse(r.updatedAt!)));
+  const crit = ci === null ? undefined : stamped[ci];
   if (crit) ph.updMs = Date.parse(crit.updatedAt!);
   if (st?.tickAt !== undefined) ph.tickMs = st.tickAt * 1000;
   const lanesMissing = required !== null && !required.every((n) => rows.some((r) => r.workflowName === n && r.status === "completed"));
-  ph.how = lanesMissing ? "grace" : ph.tickMs !== undefined && ph.tickMs < ph.regMs ? "late" : "done";
+  ph.how = waitKind(lanesMissing, ph.tickMs, ph.regMs);
   const before = crit ? prev?.rows.find((r) => r.databaseId === crit.databaseId) : undefined;
   if (before && before.status !== "completed" && prev?.tickAt !== undefined) ph.prevTickMs = prev.tickAt * 1000;
 }

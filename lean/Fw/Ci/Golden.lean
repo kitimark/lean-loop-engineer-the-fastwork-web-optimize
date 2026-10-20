@@ -10,6 +10,8 @@ Files under `packages/contracts/golden/ci-budget/`, generated from Lean, never b
 - `wire.jsonl`: one line per case, `{"name", "request", "response"}` (`request` carries its `op`; `response` is what
   `fwcore` replies, without the `id`);
 - `lag.jsonl`: the partition of a wait's lag (`Fw.Ci.Lag.parts`), one line per case `{name, marks, prev?, parts, gap?, stale?}`;
+- `lag-kind.jsonl`: the kind of a wait (`Fw.Ci.Lag.kind`, lines `{name, op:"kind", lanesMissing, tick?, reg, kind}`) and its critical run
+  (`Fw.Ci.Lag.crit`, lines `{name, op:"crit", upds, crit?}`);
 - `fixtures/<name>.jsonl`: synthesized header traces for the replay test `FwTest.CiBudget` (format there). A recorded
   trace (`fixtures/recorded-*.jsonl`, same format) is replayed the same way once one exists.
 
@@ -199,6 +201,31 @@ def lagText : String :=
       | some q => [("prev", toJson q), ("gap", toJson (Fw.Ci.Lag.gap m.tick q)), ("stale", toJson (Fw.Ci.Lag.stale q m.upd))]
     (Json.mkObj ([("name", .str name), ("marks", marks), ("parts", parts)] ++ extra)).compress ++ "\n")
 
+/-- The kind cases of `lag-kind.jsonl`: (name, lanes missing, tick, registration). -/
+def kindCases : List (String × Bool × Option Int × Int) := [
+  ("a lane without a finished run: grace", true, some 9000, 5000),
+  ("a lane missing and no tick: grace", true, none, 5000),
+  ("a tick before the registration: late", false, some 4000, 5000),
+  ("a tick at the registration: done", false, some 5000, 5000),
+  ("a tick after the registration: done", false, some 9000, 5000),
+  ("no tick seen: done", false, none, 5000)]
+
+/-- The critical-run cases: (name, finish times). -/
+def critCases : List (String × List Int) := [
+  ("no rows", []), ("one row", [7]), ("the latest finish wins", [3, 9, 4]), ("a tie: the first", [9, 9, 2]), ("the last is latest", [1, 2, 3])]
+
+def kindName : Fw.Ci.Lag.Kind -> String
+  | .done => "done" | .late => "late" | .grace => "grace"
+
+/-- The text of `lag-kind.jsonl`. -/
+def lagKindText : String :=
+  String.join (kindCases.map fun (name, lm, t, reg) =>
+    (Json.mkObj ([("name", .str name), ("op", .str "kind"), ("lanesMissing", .bool lm), ("reg", toJson reg),
+      ("kind", .str (kindName (Fw.Ci.Lag.kind lm t reg)))] ++ (match t with | none => [] | some x => [("tick", toJson x)]))).compress ++ "\n") ++
+  String.join (critCases.map fun (name, us) =>
+    (Json.mkObj ([("name", .str name), ("op", .str "crit"), ("upds", toJson us)] ++
+      (match Fw.Ci.Lag.crit us with | none => [] | some i => [("crit", toJson i)]))).compress ++ "\n")
+
 /-! ## Files -/
 
 /-- The text of `wire.jsonl`. -/
@@ -211,7 +238,8 @@ def limitsText : String := (Fw.Wire.Ci.limitsJson Fw.Ci.Budget.defaults).compres
 
 /-- Every file: (path relative to the golden directory, text). -/
 def files (_ : Unit := ()) : List (System.FilePath × String) :=
-  [(("limits.json" : System.FilePath), limitsText), (("wire.jsonl" : System.FilePath), wireText), (("lag.jsonl" : System.FilePath), lagText)] ++
+  [(("limits.json" : System.FilePath), limitsText), (("wire.jsonl" : System.FilePath), wireText), (("lag.jsonl" : System.FilePath), lagText),
+    (("lag-kind.jsonl" : System.FilePath), lagKindText)] ++
   fixtures.map fun (stem, ls) =>
     ((("fixtures" : System.FilePath) / s!"{stem}.jsonl"), String.join (ls.map fun (j : Json) => j.compress ++ "\n"))
 

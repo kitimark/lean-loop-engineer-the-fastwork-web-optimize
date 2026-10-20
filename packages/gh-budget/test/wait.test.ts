@@ -4,9 +4,10 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 import test, { describe, it } from "node:test";
-import { waitFor } from "../src/wait.ts";
+import { readFileSync } from "node:fs";
+import { critIndex, waitFor, waitKind } from "../src/wait.ts";
 import { messageOf, parseWait } from "../src/cli.ts";
-import { drive, mkWorld, repoRoot } from "./util.ts";
+import { drive, goldenDir, mkWorld, repoRoot } from "./util.ts";
 
 const T0 = 1_800_000_000;
 const run = (databaseId: number, extra: Record<string, unknown> = {}) => ({ databaseId, createdAt: T0, completeAt: T0 + 100, conclusion: "success", ...extra });
@@ -197,6 +198,29 @@ test("rerun: jobs cached at attempt 1 are not reused once the row is attempt 2",
   const [second] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 42 }, { timeoutS: 300 })]);
   assert.equal(second!.code, 0, second!.lines.join("\n"));
   assert.equal(w.calls().filter((c) => c.args.includes("jobs,attempt")).length, 2, "attempt 2 is read again");
+});
+
+test("rerun: the jobs of a running attempt seen as stale are not cached as the verdict of the finished attempt", async () => {
+  const w = mkWorld(T0, { fastGh: true });
+  w.config({ start: T0, listCost: 2, runs: [run(44, { conclusion: "failure", attempt: 1, viewAttempt: 2 })] });
+  const [first] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 44 }, { timeoutS: 300 })]);
+  assert.equal(first!.code, 3, first!.lines.join("\n"));
+  w.config({ start: T0, listCost: 2, runs: [run(44, { conclusion: "success", attempt: 2 })] });
+  await drive(w.sim, [w.env.sleepUntil(w.env.now() + 120)]);
+  const [second] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 44 }, { timeoutS: 300 })]);
+  assert.equal(second!.code, 0, second!.lines.join("\n"));
+  assert.equal(w.calls().filter((c) => c.args.includes("jobs,attempt")).length, 2, "attempt 2 is read by a second jobs view");
+});
+
+// task ci-wait-lag: the kind of a wait and its critical run replay the Lean golden (Fw.Ci.Lag.kind, Fw.Ci.Lag.crit)
+test("waitKind and critIndex replay golden ci-budget/lag-kind.jsonl", () => {
+  const f = join(goldenDir, "lag-kind.jsonl");
+  const cases = readFileSync(f, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as Record<string, unknown>);
+  assert.ok(cases.length >= 10);
+  for (const c of cases) {
+    if (c.op === "kind") assert.equal(waitKind(c.lanesMissing as boolean, c.tick as number | undefined, c.reg as number), c.kind, String(c.name));
+    else assert.equal(critIndex(c.upds as number[]), c.crit ?? null, String(c.name));
+  }
 });
 
 // task ci-wait-lag: the phases of a wait are recorded in order and cost no gh call

@@ -350,8 +350,8 @@ def opRequired (req : Json) : Except String Reply := do
 
 /-- `ci.attempt`: which attempt of a run a recorded fact answers for (`Fw.Ci.Attempt`). Request `{recorded?, live?}`:
 reply `{reuse}`; request `{view, row?}`: reply `{settled}`; request `{floor, row?}`: reply `{current}`; request `{read, now}` (seconds): reply `{fresh}`. An attempt is a
-natural number, absent or `null` when unknown.
-$$\operatorname{attempt}(q) = \begin{cases} \operatorname{reuse}(q.a, q.b) & q \text{ has } \mathit{recorded}/\mathit{live} \\ \operatorname{settled}(q.r, q.v) & q \text{ has } \mathit{view} \\ \operatorname{current}(q.f, q.r) & q \text{ has } \mathit{floor} \\ \operatorname{fresh}(q.\mathit{read}, q.\mathit{now}) & \text{otherwise} \end{cases}$$ -/
+natural number, absent or `null` when unknown. The cases are tried in this order: `view` gives settled, `read` gives
+fresh, `floor` gives current, otherwise reuse. -/
 def opAttempt (req : Json) : Except String Reply := do
   let n? (k : String) : Except String (Option Nat) := do
     match opt req k with

@@ -49,8 +49,8 @@ export async function backfill(args: string[], cwd: string, gh: Gh = chargedGh(c
 }
 
 // ---- wait lag (task ci-wait-lag): the phases of a `fw ci wait` span and how the lag splits ---------------------------
-// Glue only: it records and subtracts, it decides nothing. TS stand-in (no Lean): the split is a telescoping difference of
-// the recorded times, checked by apps/runner/test/timing-lag.test.ts; whether a lag is "too long" stays Lean's (timing-lean).
+// The split is Lean `Fw.Ci.Lag.parts`; lagParts replays golden ci-budget/lag.jsonl (apps/runner/test/timing-lag.test.ts).
+// TS stand-ins: lagView, waitSpanExtra (formatting). Whether a lag is "too long" stays Lean's (timing-lean).
 
 /** The `runIds` and `phases` fields of the `fw ci wait` span: the wait's phases plus the span writer's ingest window. */
 export function waitSpanExtra(p: WaitPhases | null, ingestStartMs: number, ingestEndMs: number): Pick<Span, "runIds" | "phases"> {
