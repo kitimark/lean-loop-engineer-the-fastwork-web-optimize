@@ -26,29 +26,21 @@ namespace Fw.Engine
 
 /-- Add one main-thread change to a frame.
 
-$$f \oplus c = f \text{ with } \mathrm{changes} := c :: f.\mathrm{changes}$$
-
 The frame with one more property change. -/
 def FrameIn.addChange {P : Type} (f : FrameIn P) (c : Change P) : FrameIn P := { f with changes := c :: f.changes }
 
 /-- Add one running compositor animation to a frame.
-
-$$f \oplus \mathrm{anim} = f \text{ with } \mathrm{compAnims} := f.\mathrm{compAnims} + 1$$
 
 The frame with one more compositor animation. -/
 def FrameIn.addAnim {P : Type} (f : FrameIn P) : FrameIn P := { f with compAnims := f.compAnims + 1 }
 
 /-- A frame that updates keeps updating after a change is added, and a frame with a change always updates.
 
-$$\forall f \in \mathrm{FrameIn}(P),\ \forall c \in \mathrm{Change}(P):\ \operatorname{updates}(f \oplus c) = \mathrm{true}$$
-
 Adding a change always makes a rendering update. -/
 theorem updates_addChange {P : Type} (f : FrameIn P) (c : Change P) : (f.addChange c).updates = true := by
   simp [FrameIn.addChange, FrameIn.updates]
 
 /-- The stages touched after adding a change to an updating frame: the old ones plus the change's.
-
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall c \in \mathrm{Change}(P),\ \forall s \in \mathrm{Stage}:\ \operatorname{updates}(f) = \mathrm{true} \Rightarrow \big(s \in \operatorname{touched}_E(f \oplus c) \iff s \in E.\mathrm{stagesOf}(c) \lor s \in \operatorname{touched}_E(f)\big)$$
 
 A change on an updating frame adds only its own stages. -/
 theorem mem_touched_addChange {P M : Type} (E : Engine P M) (f : FrameIn P) (c : Change P) (s : Stage)
@@ -65,8 +57,6 @@ theorem mem_touched_addChange {P M : Type} (E : Engine P M) (f : FrameIn P) (c :
   grind
 
 /-- The stages touched after adding a compositor animation: the old ones plus `compStages`.
-
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\ s \in \operatorname{touched}_E(f \oplus \mathrm{anim}) \iff s \in E.\mathrm{compStages} \lor s \in \operatorname{touched}_E(f)$$
 
 An animation adds only the compositor stages. -/
 theorem mem_touched_addAnim {P M : Type} (E : Engine P M) (f : FrameIn P) (s : Stage) :
@@ -85,8 +75,6 @@ theorem mem_touched_addAnim {P M : Type} (E : Engine P M) (f : FrameIn P) (s : S
 
 /-- **Pass absorption.** On an updating frame, adding a change adds a pass on stage `s` exactly when the change dirties
 `s` and the frame did not touch `s` yet; its units grow by one on every stage the change dirties.
-
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall c \in \mathrm{Change}(P),\ \forall s \in \mathrm{Stage}:\ \operatorname{updates}(f) = \mathrm{true} \Rightarrow \operatorname{frameWork}_E(f \oplus c).\mathrm{passes}(s) = \operatorname{frameWork}_E(f).\mathrm{passes}(s) + [s \in E.\mathrm{stagesOf}(c) \land s \notin \operatorname{touched}_E(f)] \land \operatorname{units}_E(f \oplus c, s) = \operatorname{units}_E(f, s) + [s \in E.\mathrm{stagesOf}(c)]$$
 
 A change whose stages already run that frame costs units, not passes. -/
 theorem passes_absorb {P M : Type} (E : Engine P M) (f : FrameIn P) (c : Change P) (s : Stage)
@@ -114,8 +102,6 @@ theorem passes_absorb {P M : Type} (E : Engine P M) (f : FrameIn P) (c : Change 
 /-- **Absorption as stated in the ledger (n=8, 11).** If the added change's stages are among the stages the frame's
 other changes dirty, and the frame has a change, every pass count is unchanged.
 
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall c \in \mathrm{Change}(P):\ E.\mathrm{stagesOf}(c) \subseteq \bigcup_{c' \in f.\mathrm{changes}} E.\mathrm{stagesOf}(c') \land f.\mathrm{changes} \ne [\,] \Rightarrow \forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_E(f \oplus c).\mathrm{passes}(s) = \operatorname{frameWork}_E(f).\mathrm{passes}(s)$$
-
 A change riding on a dominant change saves nothing when dropped. -/
 theorem passes_absorb_changes {P M : Type} (E : Engine P M) (f : FrameIn P) (c : Change P)
     (hsub : ∀ s ∈ E.stagesOf c, s ∈ f.changes.flatMap E.stagesOf) (hne : f.changes ≠ []) :
@@ -136,8 +122,6 @@ touches leaves every pass count equal, provided the remaining frame still update
 ledger's form fails: a change with no stages, removed from a frame where it is the only change and no callback runs,
 drops the `base` stages (WebKit `commit`), as `absorb_needs_updates` shows.
 
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall c \in \mathrm{Change}(P):\ \operatorname{updates}(f) = \mathrm{true} \land E.\mathrm{stagesOf}(c) \subseteq \operatorname{touched}_E(f) \Rightarrow \forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_E(f \oplus c).\mathrm{passes}(s) = \operatorname{frameWork}_E(f).\mathrm{passes}(s)$$
-
 Dropping an absorbed change saves no pass. -/
 theorem passes_remove_absorbed {P M : Type} (E : Engine P M) (f : FrameIn P) (c : Change P)
     (hu : f.updates = true) (hsub : ∀ s ∈ E.stagesOf c, s ∈ touched E f) :
@@ -149,15 +133,11 @@ theorem passes_remove_absorbed {P M : Type} (E : Engine P M) (f : FrameIn P) (c 
 
 /-- A one-engine witness: `commit` in `base`, no stages for the change.
 
-$$E_{\mathrm{w}} = (\mathrm{mode} = (),\ \mathrm{stagesOf} = (c \mapsto [\,]),\ \mathrm{compStages} = [\mathrm{comp}],\ \mathrm{base} = [\mathrm{commit}])$$
-
 A WebKit-like engine where every update pays `commit`. -/
 def absorbWitnessE : Engine Unit Unit := ⟨(), fun _ => [], [.comp], [.commit]⟩
 
 /-- **The removal form needs `updates`.** With an empty frame and a stage-less change, removing the change drops the
 `commit` pass although the change's stage set is empty (so trivially covered).
-
-$$\operatorname{frameWork}_{E_{\mathrm{w}}}(\varnothing \oplus c).\mathrm{passes}(\mathrm{commit}) = 1 \ne 0 = \operatorname{frameWork}_{E_{\mathrm{w}}}(\varnothing).\mathrm{passes}(\mathrm{commit}),\quad \varnothing = (0,0,0,0,[\,],0),\ c = (0, (), \mathrm{none})$$
 
 The rendering update itself costs passes. -/
 theorem absorb_needs_updates :
@@ -169,8 +149,6 @@ theorem absorb_needs_updates :
 
 /-- **Off the compositor stages, the move never costs more.** Replacing a main-thread change `c` by a compositor
 animation does not raise passes or units on any stage outside `compStages`.
-
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall c \in \mathrm{Change}(P),\ \forall s \in \mathrm{Stage}:\ s \notin E.\mathrm{compStages} \Rightarrow \operatorname{frameWork}_E(f \oplus \mathrm{anim}).\mathrm{passes}(s) \le \operatorname{frameWork}_E(f \oplus c).\mathrm{passes}(s) \land \operatorname{units}_E(f \oplus \mathrm{anim}, s) \le \operatorname{units}_E(f \oplus c, s)$$
 
 The saving lives outside the compositor stages. -/
 theorem comp_move_le_off {P M : Type} (E : Engine P M) (f : FrameIn P) (c : Change P) (s : Stage)
@@ -202,8 +180,6 @@ theorem comp_move_le_off {P M : Type} (E : Engine P M) (f : FrameIn P) (c : Chan
 /-- **On the compositor stages, the move never saves a pass.** Every `compStages` stage runs in the animated frame,
 so its pass count is at least the main-thread variant's.
 
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall c \in \mathrm{Change}(P),\ \forall s \in E.\mathrm{compStages}:\ \operatorname{frameWork}_E(f \oplus \mathrm{anim}).\mathrm{passes}(s) \ge \operatorname{frameWork}_E(f \oplus c).\mathrm{passes}(s)$$
-
 In the Chromium lane, where `compStages` holds `style`, the per-frame style pass never drops. -/
 theorem comp_move_ge_on {P M : Type} (E : Engine P M) (f : FrameIn P) (c : Change P) (s : Stage)
     (hs : s ∈ E.compStages) :
@@ -216,8 +192,6 @@ theorem comp_move_ge_on {P M : Type} (E : Engine P M) (f : FrameIn P) (c : Chang
 
 /-- **The move adds a compositor unit.** When `comp` is a compositor stage and the main-thread change does not dirty
 `comp`, the animated frame has one more `comp` unit, so it is never framewise `≤` the main-thread frame.
-
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall c \in \mathrm{Change}(P):\ \mathrm{comp} \in E.\mathrm{compStages} \land \mathrm{comp} \notin E.\mathrm{stagesOf}(c) \Rightarrow \operatorname{units}_E(f \oplus \mathrm{anim}, \mathrm{comp}) = \operatorname{units}_E(f \oplus c, \mathrm{comp}) + 1 \land \lnot\big(\operatorname{frameWork}_E(f \oplus \mathrm{anim}) \preceq \operatorname{frameWork}_E(f \oplus c)\big)$$
 
 A compositor move is a trade of stages, never a framewise win, unless the original already paid `comp`. -/
 theorem comp_move_not_le {P M : Type} (E : Engine P M) (f : FrameIn P) (c : Change P)
@@ -236,8 +210,6 @@ theorem comp_move_not_le {P M : Type} (E : Engine P M) (f : FrameIn P) (c : Chan
 /-- **Resident growth rules out "dominates".** Whatever the screen says, a variant with more composited layers never
 gets the claim "dominates"; at best (per-frame dominance) it is a "trade".
 
-$$\forall x,\ \forall r_v, r_o \in \mathrm{Resident}:\ r_o.\mathrm{layers} < r_v.\mathrm{layers} \Rightarrow \operatorname{claim}(x, r_v, r_o) \ne \mathrm{dominates}$$
-
 New layers make a compositor move a trade at best. -/
 theorem claim_ne_dominates_of_layers (x : Except String Screen.Result) (rv ro : Resident)
     (h : ro.layers < rv.layers) : claim x rv ro ≠ .dominates := by
@@ -248,8 +220,6 @@ theorem claim_ne_dominates_of_layers (x : Except String Screen.Result) (rv ro : 
 /-- **The inverse move (n=15).** A variant that touches a stage the original never touches, with no fewer forced passes
 there, is never framewise `≤` the original. Replacing a compositor animation by main-thread steps adds `commit`
 (Chromium: `commit ∉ compStages`, `commit ∈ stagesOf` of every main-thread change), so the step frames are worse.
-
-$$\forall E,\ \forall v, o \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\ s \in \operatorname{touched}_E(v) \land s \notin \operatorname{touched}_E(o) \land \operatorname{forced}(o, s) \le \operatorname{forced}(v, s) \Rightarrow \operatorname{frameWork}_E(o).\mathrm{passes}(s) < \operatorname{frameWork}_E(v).\mathrm{passes}(s) \land \lnot\big(\operatorname{frameWork}_E(v) \preceq \operatorname{frameWork}_E(o)\big)$$
 
 A new stage is a new pass. -/
 theorem new_stage_not_le {P M : Type} (E : Engine P M) (v o : FrameIn P) (s : Stage)
@@ -263,8 +233,6 @@ theorem new_stage_not_le {P M : Type} (E : Engine P M) (v o : FrameIn P) (s : St
 
 /-- **Pausing touches only the compositor stages.** Removing one running compositor animation leaves passes and units
 of every stage outside `compStages` unchanged.
-
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\ s \notin E.\mathrm{compStages} \Rightarrow \operatorname{frameWork}_E(f \oplus \mathrm{anim}).\mathrm{passes}(s) = \operatorname{frameWork}_E(f).\mathrm{passes}(s) \land \operatorname{units}_E(f \oplus \mathrm{anim}, s) = \operatorname{units}_E(f, s)$$
 
 What a pause saves is confined to `compStages`. -/
 theorem pause_off_comp {P M : Type} (E : Engine P M) (f : FrameIn P) (s : Stage) (hs : s ∉ E.compStages) :
@@ -284,8 +252,6 @@ theorem pause_off_comp {P M : Type} (E : Engine P M) (f : FrameIn P) (s : Stage)
 WebKit), pausing it changes nothing on any other stage. In the Chromium lane (`everyBeginFrameIsMainFrame`,
 `compStages = [comp, style, props]`) the style and props savings are a ride-along artifact of the lane.
 
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P):\ (\forall s \in E.\mathrm{compStages}:\ s = \mathrm{comp}) \Rightarrow \forall s \ne \mathrm{comp}:\ \operatorname{frameWork}_E(f \oplus \mathrm{anim}).\mathrm{passes}(s) = \operatorname{frameWork}_E(f).\mathrm{passes}(s) \land \operatorname{units}_E(f \oplus \mathrm{anim}, s) = \operatorname{units}_E(f, s)$$
-
 Pausing a compositor animation frees only the compositor. -/
 theorem pause_no_main {P M : Type} (E : Engine P M) (f : FrameIn P) (hE : ∀ s ∈ E.compStages, s = .comp)
     (s : Stage) (hs : s ≠ .comp) :
@@ -297,8 +263,6 @@ theorem pause_no_main {P M : Type} (E : Engine P M) (f : FrameIn P) (hE : ∀ s 
 
 /-- **Same inputs, same work.** Two frames with the same scalar fields whose changes dirty the same stage lists, in
 order, have the same work, whatever else (element, property, layer state) differs.
-
-$$\forall E,\ \forall v, o \in \mathrm{FrameIn}(P):\ (v.\mathrm{script}, v.\mathrm{forcedStyle}, v.\mathrm{forcedLayout}, v.\mathrm{hits}, v.\mathrm{compAnims}) = (o.\mathrm{script}, o.\mathrm{forcedStyle}, o.\mathrm{forcedLayout}, o.\mathrm{hits}, o.\mathrm{compAnims}) \land \operatorname{map}(E.\mathrm{stagesOf}, v.\mathrm{changes}) = \operatorname{map}(E.\mathrm{stagesOf}, o.\mathrm{changes}) \Rightarrow \operatorname{frameWork}_E(v) = \operatorname{frameWork}_E(o)$$
 
 Pass and unit counters cannot see what does not change a stage list. -/
 theorem work_eq_of_stages {P M : Type} (E : Engine P M) (v o : FrameIn P)
@@ -338,8 +302,6 @@ theorem work_eq_of_stages {P M : Type} (E : Engine P M) (v o : FrameIn P)
 
 /-- **Equal changes give equal work (n=14).** Frames with the same fields have the same work under every engine.
 
-$$\forall E,\ \forall v, o \in \mathrm{FrameIn}(P):\ (v.\mathrm{script}, v.\mathrm{forcedStyle}, v.\mathrm{forcedLayout}, v.\mathrm{hits}, v.\mathrm{changes}, v.\mathrm{compAnims}) = (o.\mathrm{script}, o.\mathrm{forcedStyle}, o.\mathrm{forcedLayout}, o.\mathrm{hits}, o.\mathrm{changes}, o.\mathrm{compAnims}) \Rightarrow \operatorname{frameWork}_E(v) = \operatorname{frameWork}_E(o)$$
-
 Intrinsic image resolution, not being a frame input, cannot change the counts. -/
 theorem work_eq_of_same_changes {P M : Type} (E : Engine P M) (v o : FrameIn P)
     (h1 : v.script = o.script) (h2 : v.forcedStyle = o.forcedStyle) (h3 : v.forcedLayout = o.forcedLayout)
@@ -349,8 +311,6 @@ theorem work_eq_of_same_changes {P M : Type} (E : Engine P M) (v o : FrameIn P)
 
 /-- A run screened against itself is "equal".
 
-$$\forall R \in \mathrm{Run}:\ \operatorname{screen}(R, R) = \mathrm{ok}(\mathrm{equal})$$
-
 Identical counts give the "equal" verdict. -/
 theorem screen_self (r : Screen.Run) : Screen.screen r r = .ok .equal := by
   simp [Screen.screen, Screen.shapeEq]
@@ -358,8 +318,6 @@ theorem screen_self (r : Screen.Run) : Screen.screen r r = .ok .equal := by
 /-- **Pass counters cannot see a resident-only change.** If the variant's frames have the same work as the
 original's, the claim is "noClaim" whatever the resident states, so a layer promotion without per-frame effect can
 neither win nor trade.
-
-$$\forall V, O \in \mathrm{Work}^{*},\ \forall r_v, r_o \in \mathrm{Resident}:\ \operatorname{toRun}(V) = \operatorname{toRun}(O) \Rightarrow \operatorname{claim}(\operatorname{screen}(\operatorname{toRun}(O), \operatorname{toRun}(V)), r_v, r_o) = \mathrm{noClaim}$$
 
 A change confined to `Resident` makes no claim. -/
 theorem resident_only_noClaim (vs os : List Work) (rv ro : Resident) (h : toRun vs = toRun os) :
@@ -369,8 +327,6 @@ theorem resident_only_noClaim (vs os : List Work) (rv ro : Resident) (h : toRun 
 /-! ## L2: shifts move work (n=12, 17, 21) -/
 
 /-- Componentwise `≤` with equal sums forces equality, for two summands.
-
-$$\forall a, b, c, d \in \mathrm{Work}:\ a \preceq c \land b \preceq d \land (a + b) \equiv (c + d) \Rightarrow a \equiv c \land b \equiv d$$
 
 Nothing can be both moved down and kept in the sum. -/
 theorem eqv_of_le_add {a b c d : Work} (hac : a.le c) (hbd : b.le d) (h : (Work.add a b).eqv (Work.add c d)) :
@@ -384,8 +340,6 @@ theorem eqv_of_le_add {a b c d : Work} (hac : a.le c) (hbd : b.le d) (h : (Work.
   · have := hac.2; have := hbd.2; omega
 
 /-- Framewise `≤` gives `≤` on the totals.
-
-$$\forall V, O \in \mathrm{Work}^{*}:\ \operatorname{leAll}(V, O) = \mathrm{true} \Rightarrow \Sigma V \preceq \Sigma O$$
 
 Summing preserves the order. -/
 theorem total_le_of_leAll : ∀ {vs os : List Work}, leAll vs os = true → (total vs).le (total os)
@@ -404,8 +358,6 @@ theorem total_le_of_leAll : ∀ {vs os : List Work}, leAll vs os = true → (tot
 
 /-- **A shift never removes work.** If every frame of the variant is `≤` its original frame and the totals are
 equivalent, every frame is equivalent: an equal-total change that is not framewise equal is never framewise `≤`.
-
-$$\forall V, O \in \mathrm{Work}^{*}:\ \operatorname{leAll}(V, O) = \mathrm{true} \land \Sigma V \equiv \Sigma O \Rightarrow \forall p \in \operatorname{zip}(V, O):\ p_1 \equiv p_2$$
 
 Moving work between frames cannot be a framewise win. -/
 theorem shift_framewise_eqv : ∀ {vs os : List Work}, leAll vs os = true → (total vs).eqv (total os) →
@@ -428,8 +380,6 @@ theorem shift_framewise_eqv : ∀ {vs os : List Work}, leAll vs os = true → (t
 /-- **A shift is never a framewise win.** With equivalent totals, `leAll` and `someLt` cannot both hold: the screen's
 "dominates" needs a strictly smaller frame, which an equal total forbids.
 
-$$\forall V, O \in \mathrm{Work}^{*}:\ \Sigma V \equiv \Sigma O \Rightarrow \lnot\big(\operatorname{leAll}(V, O) = \mathrm{true} \land \operatorname{someLt}(V, O) = \mathrm{true}\big)$$
-
 Equal totals mean the work moved, not shrank. -/
 theorem shift_not_dominates {vs os : List Work} (ht : (total vs).eqv (total os)) :
     ¬ (leAll vs os = true ∧ someLt vs os = true) := by
@@ -448,8 +398,6 @@ theorem shift_not_dominates {vs os : List Work} (ht : (total vs).eqv (total os))
 
 /-- **Removing a reader saves at most one pass, never adds one.** Corollary of `flagTotal_remove_check`: the saving is
 one exactly when the flag is dirty at the read and the next non-neutral access is a write.
-
-$$\forall d \in \mathbb{B},\ \forall p, q \in \mathrm{FlagOp}^{*}:\ \operatorname{fT}(d, p \mathbin{+\!\!+} q) \le \operatorname{fT}(d, p \mathbin{+\!\!+} \mathrm{check} :: q) \le \operatorname{fT}(d, p \mathbin{+\!\!+} q) + 1 \ \land\ \big(\operatorname{fT}(d, p \mathbin{+\!\!+} \mathrm{check} :: q) = \operatorname{fT}(d, p \mathbin{+\!\!+} q) + 1 \iff \operatorname{fE}(d, p) = \top \land \operatorname{first}(q) = \mathrm{dirty}\big)$$
 
 A read costs a pass only when it splits a write batch. -/
 theorem reader_removal (d : Bool) (p q : List FlagOp) :
