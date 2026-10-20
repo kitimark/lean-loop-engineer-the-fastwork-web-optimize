@@ -525,10 +525,10 @@ test('preview-e2e.yml: a change inside its read set selects it, a change outside
 const capTable = loadCaps(root);
 const capRows = readFileSync(join(root, 'packages/contracts/golden/ci/pool-caps.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 
-test('pool caps: each listed macOS job has timeout-minutes equal to its Lean cap; webkit-sim is excluded', () => {
+test('pool caps: each listed macOS job has timeout-minutes equal to its Lean cap; webkit-sim and trajectory-probe are excluded', () => {
   assert.deepEqual([...capTable.caps], [['wktr.yml wktr', 16], ['wktr-fixtures.yml fixtures', 21], ['sim-speed.yml probe', 17],
     ['engine-premises.yml webkit', 8], ['gate-gaps.yml collect-macos', 26]]);
-  assert.deepEqual([...capTable.excluded], ['webkit-sim.yml']);
+  assert.deepEqual([...capTable.excluded], ['webkit-sim.yml', 'trajectory-probe.yml']);
   for (const [key, cap] of capTable.caps) {
     const [file, job] = key.split(' ');
     const lines = readFileSync(join(root, WF, file), 'utf8').split('\n');
