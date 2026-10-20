@@ -137,7 +137,7 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
       return await Promise.race([fn(ctx), deadP]);
     } catch (e) {
       if (e instanceof InspectorDeadError) throw e;
-      // the run failed for another reason: one more probe says whether the inspector was dead (exit 4) or not (the error stands)
+      // the run failed for another reason: one more probe; a dead inspector is found by the same rule (a relaunch, or exit 4 when it gives up), and a probe that does not give up lets this error stand (exit 1)
       log(`the run failed (${e.message}); probing the inspector once more`);
       await guard.check('end of run');
       throw e;

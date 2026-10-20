@@ -160,6 +160,11 @@ def inspectorReq (relaunched : Bool) (fails : Nat) (socket proxy page : Bool) : 
   Json.mkObj [("relaunched", .bool relaunched), ("fails", toJson fails), ("socket", .bool socket), ("proxy", .bool proxy),
     ("page", .bool page)]
 
+/-- A `measure.inspector` request that also names the outcome of the relaunch. -/
+def inspectorRelaunchReq (relaunchOk : Bool) : Json :=
+  Json.mkObj [("relaunched", .bool true), ("fails", toJson (0 : Nat)), ("socket", .bool true), ("proxy", .bool true),
+    ("page", .bool true), ("relaunchOk", .bool relaunchOk)]
+
 /-- A one-frame zone record of a `measure.compose` run. -/
 def czone (id : String) (i : Nat) (sums : List (String × Int)) : Json :=
   Json.mkObj [("id", .str id), ("frames", toJson (1 : Nat)), ("scrolledPx", toJson (0 : Int)),
@@ -500,7 +505,9 @@ def cases (_ : Unit := ()) : List (String × List (String × Json)) := [
     ("no socket after the relaunch: give up", inspectorReq true 0 false true true),
     ("second failed probe in a row after the relaunch (page tab missing): give up", inspectorReq true 1 true true false),
     ("first failed probe after the relaunch: proceed", inspectorReq true 0 true false false),
-    ("healthy after the relaunch: proceed", inspectorReq true 1 true true true)]),
+    ("healthy after the relaunch: proceed", inspectorReq true 1 true true true),
+    ("the relaunch worked: go on", inspectorRelaunchReq true),
+    ("the relaunch failed: give up", inspectorRelaunchReq false)]),
   ("measure.simBounds", [("the time constants of the dead-inspector path", Json.mkObj [])]),
   ("measure.compose",
     let comb := carm [("a", "x"), ("b", "y")] 5 4 9 2

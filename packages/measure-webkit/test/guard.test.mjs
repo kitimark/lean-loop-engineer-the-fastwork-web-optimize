@@ -3,7 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGuard, runSteps, within } from '../src/guard.mjs';
-import { InspectorDeadError, DEAD_EXIT } from '../src/inspector.mjs';
+import { createServer } from 'node:http';
+import { InspectorDeadError, DEAD_EXIT, inspectorAfterRelaunch } from '../src/inspector.mjs';
+import { probeInspector, SIM_ID } from '../src/sim.mjs';
 
 const UP = { socket: true, proxy: true, page: true };
 const NO_PROXY = { socket: true, proxy: false, page: false };      // ECONNREFUSED, 0 devices or a timeout
@@ -103,4 +105,21 @@ test('runSteps runs in order and stops at the first step over its bound', async 
   await assert.rejects(runSteps([{ name: 'slow', ms: 10, run: () => new Promise(() => {}) }, { name: 'never', ms: 10, run: () => order.push('never') }]), /slow took longer than 0 s/);
   assert.ok(!order.includes('never'));
   await assert.rejects(within(5, 'x', new Promise(() => {})), /x took longer/);
+});
+
+test('the give-up after a failed relaunch is the stand-in of Lean afterRelaunch', () => {
+  assert.equal(inspectorAfterRelaunch(false), 'giveUp');
+  assert.equal(inspectorAfterRelaunch(true), 'proceed');
+});
+
+test('the probe counts a listed tab without a webSocketDebuggerUrl as no page', async () => {
+  const serve = (body) => new Promise((res) => { const s = createServer((_, r) => { r.setHeader('content-type', 'application/json'); r.end(JSON.stringify(body)); }); s.listen(0, '127.0.0.1', () => res(s)); });
+  const list = await serve([{ deviceId: SIM_ID }]);
+  const bare = await serve([{ url: 'http://127.0.0.1:1/p' }]);
+  const full = await serve([{ url: 'http://127.0.0.1:1/p', webSocketDebuggerUrl: 'ws://x' }]);
+  try {
+    const ask = (tabs) => probeInspector({ urlPrefix: 'http://127.0.0.1:1/', p: { list: list.address().port, tabs: tabs.address().port }, timeoutMs: 2000, sockets: () => ['s'] });
+    assert.deepEqual(await ask(bare), { socket: true, proxy: true, page: false });
+    assert.deepEqual(await ask(full), { socket: true, proxy: true, page: true });
+  } finally { for (const s of [list, bare, full]) s.close(); }
 });

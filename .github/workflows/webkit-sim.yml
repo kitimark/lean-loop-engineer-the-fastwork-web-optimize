@@ -251,7 +251,7 @@ jobs:
     concurrency:
       group: ci-lane:webkit-sim:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:sim:${{ strategy.job-index }}
     runs-on: xcode-27
-    # Lean's bound (Fw.Measure.SimBound via the plan): the measuring step's bound plus 10 min for the log, shutdown and upload steps
+    # Lean's bound (Fw.Measure.SimBound.jobMin via the plan): setup, the measuring step's bound and the tail; the setup allowance is checked against Fw.Measure.SimBound.Seen
     timeout-minutes: ${{ fromJSON(needs.plan.outputs.job_min) }}
     strategy:
       fail-fast: false
@@ -338,7 +338,7 @@ jobs:
           node scripts/ci-telemetry/cli.mjs sim-boot-ms $(( ($(date +%s) - boot_from) * 1000 )) || true
 
       - name: Determinism sessions
-        timeout-minutes: ${{ fromJSON(needs.plan.outputs.step_min) }}   # sessions x 35 min (Lean: Fw.Measure.SimBound); quiet 50
+        timeout-minutes: ${{ fromJSON(needs.plan.outputs.step_min) }}   # Lean: Fw.Measure.SimBound.stepMin, via the plan
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           SESSIONS: ${{ inputs.sessions || '1' }}
@@ -356,7 +356,7 @@ jobs:
           # may retry twice after a reconnect. Local runs use neither (defaults 1 and 2).
           FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
-          # stall watchdog: 6 min of silence (the longest healthy silence was 259 s); Lean's constant, via the plan
+          # stall watchdog: Lean's Fw.Measure.SimBound.stallMs via the plan; it is main's limit, checked against the silences in Fw.Measure.SimBound.Seen
           FW_WK_STALL_MS: ${{ needs.plan.outputs.stall_ms }}
           # fail-fast proof: the fault input, or the commit token of a ci/* push (a push carries no inputs); empty = no fault
           FW_WK_FAULT: ${{ inputs.fault || (contains(github.event.head_commit.message, '[fault:kill-safari]') && 'kill-safari') || (contains(github.event.head_commit.message, '[fault:kill-proxy]') && 'kill-proxy') || '' }}

@@ -49,8 +49,8 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.retryPlan` | `errors` (strings: the error of attempt 1, 2, …; the attempt after the last works), `max` | `classes`, `delays` (ms, one per retry), `retries`, `outcome` (`succeeded`, `exhausted`, `permanent`) |
 | `measure.viewport` | `profile`, `observed` ({w, h} naturals, CSS px) | `faithful` (`Fw.Measure.Viewport.viewportFaithful`: the page reports exactly the profile viewport), `widthDiffers`, `heightDiffers` |
 | `measure.simPlan` | `target` (`original`, `rewrite`, `both`), `vms`, `sessions` (decimal strings), `preset`, `fw` (`part:variant,...`, may be empty), `experiment` (`determinism`, `quiet`), `sha` (40 hex) | `problems` (empty = accepted), `search` (the query the rewrite is served with), `matrix` [{vm, arm, idx, sha, bp, search}] (empty when refused), `original`, `rewrite`, `both` (whether the matrix has those arms), `stepTimeoutMin`, `jobTimeoutMin`, `stallMs` (`Fw.Measure.SimBound`) |
-| `measure.inspector` | `relaunched` (bool: Safari was already relaunched), `fails` (naturals: failed probes in a row before this one), `socket`, `proxy`, `page` (bools: what this probe saw) | `ok` (the probe found all three), `fails` (the count after it), `dead`, `action` (`proceed`, `relaunch`, `giveUp`), `exitCode` |
-| `measure.simBounds` | (none) | the time constants of the dead-inspector path in ms (`tickMs`, `probeMs`, `failLimit`, `detectMs`, `terminateMs`, `launchMs`, `socketMs`, `proxyMs`, `tabMs`, `askMs`, `connectMs`, `relaunchMs`, `exitMs`, `stallMs`, `deadEndMs`) and `deadExit`, `setupMin`, `tailMin` (`Fw.Measure.SimBound`) |
+| `measure.inspector` | `relaunched` (bool: Safari was already relaunched), `fails` (naturals: failed probes in a row before this one), `socket`, `proxy`, `page` (bools: what this probe saw) | `ok` (the probe found all three), `fails` (the count after it), `dead`, `action` (`proceed`, `relaunch`, `giveUp`), `exitCode`, and `afterRelaunch` (`proceed` for a working relaunch, `giveUp` for a failed one) when the request has the optional `relaunchOk` (bool: whether the relaunch worked) |
+| `measure.simBounds` | (none) | the time constants of the dead-inspector path in ms (`tickMs`, `probeMs`, `failLimit`, `detectMs`, `terminateMs`, `launchMs`, `socketMs`, `proxyMs`, `tabMs`, `askMs`, `connectMs`, `stopMs`, `lsofMs`, `proxyStartMs`, `repairMs`, `relaunchMs`, `exitMs`, `stallMs`, `deadEndMs`) and `deadExit`, `setupMin`, `tailMin` (`Fw.Measure.SimBound`) |
 | `measure.snapshotCounts` | `snapshot` (`args.snapshot` of `LayerTreeHostImpl:snapshot`; a non-object is empty) | `counts` {census.\*, raster.\*} |
 -/
 namespace Fw.Wire.Measure
@@ -765,8 +765,12 @@ def opInspector (req : Json) : Except String Reply := do
   let f ← nat req "fails"
   let p : Fw.Measure.SimBound.Probe := { socket := ← bool req "socket", proxy := ← bool req "proxy", page := ← bool req "page" }
   let n := Fw.Measure.SimBound.nextFails f p
-  pure [("ok", .bool p.ok), ("fails", toJson n), ("dead", .bool (Fw.Measure.SimBound.dead p.socket n)),
-        ("action", .str (Fw.Measure.SimBound.act rl p.socket n).name), ("exitCode", toJson Fw.Measure.SimBound.deadExit)]
+  let after ← match opt req "relaunchOk" with
+    | none => pure []
+    | some (.bool b) => pure [("afterRelaunch", .str (Fw.Measure.SimBound.afterRelaunch b).name)]
+    | some _ => throw "field relaunchOk: expected a boolean"
+  pure ([("ok", .bool p.ok), ("fails", toJson n), ("dead", .bool (Fw.Measure.SimBound.dead p.socket n)),
+        ("action", .str (Fw.Measure.SimBound.act rl p.socket n).name), ("exitCode", toJson Fw.Measure.SimBound.deadExit)] ++ after)
 
 /-- `measure.simBounds`: the time constants the session follows (`Fw.Measure.SimBound`). -/
 def opSimBounds (_req : Json) : Except String Reply :=
@@ -774,6 +778,7 @@ def opSimBounds (_req : Json) : Except String Reply :=
   pure [("tickMs", toJson tickMs), ("probeMs", toJson probeMs), ("failLimit", toJson failLimit), ("detectMs", toJson detectMs),
         ("terminateMs", toJson terminateMs), ("launchMs", toJson launchMs), ("socketMs", toJson socketMs),
         ("proxyMs", toJson proxyMs), ("tabMs", toJson tabMs), ("askMs", toJson askMs), ("connectMs", toJson connectMs),
+        ("stopMs", toJson stopMs), ("lsofMs", toJson lsofMs), ("proxyStartMs", toJson proxyStartMs), ("repairMs", toJson repairMs),
         ("relaunchMs", toJson relaunchMs), ("exitMs", toJson exitMs), ("stallMs", toJson stallMs), ("deadEndMs", toJson deadEndMs),
         ("deadExit", toJson deadExit), ("setupMin", toJson setupMin), ("tailMin", toJson tailMin)]
 

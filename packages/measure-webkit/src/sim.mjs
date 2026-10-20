@@ -217,7 +217,7 @@ export const listTabs = (p = ports(), { timeoutMs = T(4000) } = {}) => getJson(p
 export async function probeInspector({ urlPrefix, p = ports(), timeoutMs = 25000, sockets = () => findSockets({ timeoutMs: 5000 }) }) {
   const [proxy, page] = await Promise.all([
     proxyCheck(p, { timeoutMs }).then(() => true, () => false),
-    listTabs(p, { timeoutMs }).then((t) => Array.isArray(t) && t.some((x) => String(x?.url).startsWith(urlPrefix)), () => false),
+    listTabs(p, { timeoutMs }).then((t) => Array.isArray(t) && t.some((x) => x?.webSocketDebuggerUrl && String(x.url).startsWith(urlPrefix)), () => false),
   ]);
   if (proxy && page) return { socket: true, proxy, page };
   let socket = true; // lsof failed: not evidence of a dead inspector

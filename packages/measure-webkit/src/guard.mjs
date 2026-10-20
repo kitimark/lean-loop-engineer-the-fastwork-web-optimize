@@ -3,7 +3,7 @@
 // in a row (or a gone socket) make the inspector dead: Safari is relaunched once, and a second death ends the run with exit
 // code 4. Every wait here is the Lean bound and is not scaled by FW_WK_TIMEOUT_SCALE, so the bound that Lean proves is the
 // bound that runs.
-import { BOUNDS, inspectorReply, InspectorDeadError } from './inspector.mjs';
+import { BOUNDS, inspectorReply, inspectorAfterRelaunch, InspectorDeadError } from './inspector.mjs';
 
 /** `p` rejected with an error after `ms`; the timer never outlives `p`. */
 export function within(ms, what, p) {
@@ -45,9 +45,11 @@ export function createGuard({ probe, relaunch, repair = null, log = () => {}, on
     if (r.action === 'relaunch') {
       log(`relaunching Safari once: the inspector is dead (${describe(p)})`);
       relaunched = true; fails = 0;
-      try { await within(relaunchMs, 'the relaunch', relaunch()); } catch (e) {
-        log(`giving up: relaunching Safari failed: ${e.message}; exit code ${r.exitCode}`);
-        throw new InspectorDeadError(`the inspector is dead and relaunching Safari failed: ${e.message}`);
+      let worked = true, failure;
+      try { await within(relaunchMs, 'the relaunch', relaunch()); } catch (e) { worked = false; failure = e; }
+      if (inspectorAfterRelaunch(worked) === 'giveUp') {
+        log(`giving up: relaunching Safari failed: ${failure.message}; exit code ${r.exitCode}`);
+        throw new InspectorDeadError(`the inspector is dead and relaunching Safari failed: ${failure.message}`);
       }
       log('Safari relaunched; the inspector answers');
       return { ok: true, relaunched: true };
