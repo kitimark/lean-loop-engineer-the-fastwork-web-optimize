@@ -170,6 +170,15 @@ test('envelope: a start another pass of the original had passes, and fails again
   assert.equal(judgeOwn(g.kind, durFn(g.dur), g.seg, g.win, g.r), 'fail:apart');
 });
 
+test('envelope scope: past the start the own-pass rule passes a stuck hold and fails another pass\'s curve, the envelope the reverse (Lean judgeScoped_stuck_hold, judgeScoped_other_curve)', () => {
+  const g = (name) => golden.find((x) => x.op === 'unit' && x.name === name);
+  const stuck = g('envelope, stuck in a hold of a pass the original lacks'), curve = g("envelope, another pass's curve past the start");
+  assert.equal(judgeUnit(stuck.kind, durFn(stuck.dur), stuck.seg, stuck.win, stuck.r), 'fail:apart');
+  assert.equal(judgeOwn(stuck.kind, durFn(stuck.dur), stuck.seg, stuck.win, stuck.r), 'pass');
+  assert.equal(judgeUnit(curve.kind, durFn(curve.dur), curve.seg, curve.win, curve.r), 'pass');
+  assert.equal(judgeOwn(curve.kind, durFn(curve.dur), curve.seg, curve.win, curve.r), 'fail:apart');
+});
+
 test('envelope: with one pass the judge is the own-pass rule (Lean judgeUnit_agree)', () => {
   const one = golden.filter((x) => x.op === 'unit' && (x.r.rep ?? 0) === 0 && x.seg.every((s) => (s.rep ?? 0) === 0));
   assert.ok(one.length >= 5);
