@@ -11240,7 +11240,8 @@
     "packages/gate-breakpoints/src/trajectory/**",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-admission.md"
-   ]
+   ],
+   "evidence": "780063e"
   },
   {
    "devices": [
@@ -11269,7 +11270,7 @@
    "owner": "console-builder",
    "stream": "ops",
    "deps": [],
-   "title": "Mistake class (6 times on 2026-10-20, notes did not stop it): the lead's Bash call `cd <main>/.claude/worktrees/<wt> && ...` moves the session cwd into a worktree. Extend Fw.Ops.Wait (the wait-guard decision, PreToolUse Bash, apps/runner/hooks/wait-guard.mjs) with a cwd rule: refuse a command whose top level (outside a subshell) changes directory into .claude/worktrees/ when the hook payload's cwd is the main checkout; allowed forms (subshell, git -C) pass; theorems + golden rows (ops.wait.jsonl); this rule enforces (deny with the reason 'use (cd $W && ...) or git -C') while the other wait-guard rules keep their mode. No settings.json change",
+   "title": "CLOSED as a finding (2026-10-20): the premise 'the harness keeps the cwd' was a setting; CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR=1 (commit e9ee2a58, MEASURED: the next Bash call is back at the project root). Rounds 1-2 (a Lean shell-text scanner) refused twice; branch worktree-wf_e6df42ab-006-1 parked, not landed. Original: Mistake class (6 times on 2026-10-20, notes did not stop it): the lead's Bash call `cd <main>/.claude/worktrees/<wt> && ...` moves the session cwd into a worktree. Extend Fw.Ops.Wait (the wait-guard decision, PreToolUse Bash, apps/runner/hooks/wait-guard.mjs) with a cwd rule: refuse a command whose top level (outside a subshell) changes directory into .claude/worktrees/ when the hook payload's cwd is the main checkout; allowed forms (subshell, git -C) pass; theorems + golden rows (ops.wait.jsonl); this rule enforces (deny with the reason 'use (cd $W && ...) or git -C') while the other wait-guard rules keep their mode. No settings.json change",
    "writes": [
     "lean/Fw/Ops/Wait.lean",
     "packages/contracts/golden/ops/ops.wait.jsonl",
@@ -11290,11 +11291,13 @@
    "owner": "console-builder",
    "stream": "ci",
    "deps": [],
-   "title": "Pin node-version in .github/actions/setup-pnpm/action.yml to one exact Node 24 release >= 24.22.0 (drain-wake-flake MEASURED: Node 24.21.0 on Linux swallows the stat error of a recursive fs.watch on a missing path, recursive_watch.js:236-241@v24.21.0; CI legs ran 24.21.0 and 24.22.0 in one run). One canonical version source (e.g. .node-version read by the action and by local tooling), a check that every workflow takes it, and the trigger rows (Fw.Ci.Trigger) updated so the change runs the lanes that use Node",
+   "title": "Pin Node 24.22.0 on CI (drain-wake-flake MEASURED: Node 24.21.0 on Linux swallows the stat error of a recursive fs.watch on a missing path, recursive_watch.js:236-241@v24.21.0): one canonical .node-version read by actions/setup-node node-version-file in the setup-pnpm action and every workflow, drift check in ci-paths, trigger rows",
    "writes": [
     ".github/actions/setup-pnpm/action.yml",
+    ".github/workflows/*.yml",
     ".node-version",
     "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ops/CheckMap.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
     "scripts/ci-paths.mjs",
     "scripts/ci-paths.test.mjs",
@@ -11316,6 +11319,121 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/handoffs/timing-land-branch.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "readsonly-scan-disk",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "land.readsOnly static check (apps/runner/test/land-inputs.test.ts:131) skips a referenced path unless it exists on disk, so it passes on CI (no build outputs) and fails on the Mac: packages/measure-webkit scripts site-lane.sh/stamped-lane.sh read apps/site/dist/aot, gate-breakpoints 1 path, all undeclared. Decide referenced paths from the text (tracked files plus declared build-output globs from Lean), not existsSync; declare the build-output reads; the check gives the same answer on CI and locally",
+   "writes": [
+    "apps/runner/test/land-inputs.test.ts",
+    "apps/runner/src/checks.ts",
+    "lean/Fw/Console/LandInputs.lean",
+    "packages/contracts/golden/console/land-inputs*.jsonl",
+    "docs/team/handoffs/readsonly-scan-disk.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lean-mem-profile",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [],
+   "title": "User 2026-10-20 saw a 2.2 GB lean process (a module compile during a build). Measure peak RSS per module on CI: one full lake build with a LEAN wrapper that records /usr/bin/time maxrss per module (and wall), ranked table in a note; then reduce the top modules (split heavy decide/#guard/data modules, move big tables to generated data read at runtime, cheaper proofs) with before/after peak RSS and build time per module; total build peak memory under the LakeSlot bound stated in Lean",
+   "writes": [
+    "lean/Fw/**/*.lean",
+    "lean/scripts/lean-maxrss.sh",
+    ".github/workflows/lean.yml",
+    "research/notes/2026/10-2*-lean-mem-profile.md",
+    "docs/team/handoffs/lean-mem-profile.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-lag-source",
+   "owner": "researcher",
+   "stream": "research",
+   "deps": [],
+   "title": "User 2026-10-20: visible lag in Safari (WebKit) on Mac and iPhone in two regions: hero cards moving out (hero.exit drives opacity, translate and blur(scatter*18px) on 16 readers incl. hero.orbit/hero.deck cards, per frame from a JS-written custom property) and the end of page (morph.tween layout of top/width/height, morph.panel animated backdrop-filter glass, morph.mount +9 drawing layers, morph.countdown will-change faces, morph.columns 1282 px PNGs in ~138 px columns). Read WebKit at the pin (862f17d) and the WebKit/Safari feature posts: for each property and driver (JS var per frame vs CSS/WAAPI animation vs scroll timeline) the path through style, layout, paint, compositing (GraphicsLayerCA, PlatformCAFilters, CABackdropLayer, RemoteLayerTree commit on iOS and macOS), when a filter or backdrop-filter is done by CoreAnimation vs repainted in software, what invalidates backing stores, which animations WebKit runs threaded. Output: a cited table per region (stage, cost driver, CONFIRMED/INFERRED), the predicted dominant cost, candidate changes with their predicted effect, and the WebKit cost terms Fw.Engine.WebKit lacks today",
+   "writes": [
+    "research/notes/2026/10-2*-webkit-lag-source.md",
+    "docs/team/handoffs/webkit-lag-source.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-lag-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "webkit-lag-source",
+    "webkit-sim-failfast",
+    "image-audit"
+   ],
+   "title": "Measure the two Safari lag regions (hero cards moving out; end of page) on the WebKit Simulator lane on CI: per scroll step style/layout/paint/composite counts, paint area, layer-tree commits and the layers with filter/backdrop-filter and their painted area, original vs faithful; localize the top steps to parts through the footprint; add the counters webkit-lag-source names as missing, reduced in Lean (Fw.Measure.WebKit zones) with goldens; output a ranked attribution per region that the candidate fixes are judged against",
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "packages/measure-webkit/test/lag*.test.mjs",
+    "lean/Fw/Measure/WebKitLag.lean",
+    "packages/contracts/golden/measure/webkit-lag*.jsonl",
+    "research/notes/2026/10-2*-webkit-lag-probe.md",
+    "docs/team/handoffs/webkit-lag-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "image-audit",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User 2026-10-20 suspects unoptimized images in the Safari lag (hero cards moving out, end of page). Only morph.columns was judged (ledger row 14, model-only no-win; its 'WebKit decodes at drawn size' is INFERRED). (1) Audit on CI (Chromium and WebKit lanes): every image in the hero and end-of-page regions at each breakpoint and DPR: natural vs drawn size, format, bytes, decoded memory, ranked by waste; (2) WebKit source at the pin: decode policy (sync/async, iOS subsampling), whether a scaled draw is cached or re-sampled on each repaint, filter/blur interaction, decoded-image memory; CONFIRMED/INFERRED per claim; (3) build an images-at-drawn-size arm (flag or build variant, look identical within the PL tolerance) for webkit-lag-probe to A/B; Lean: an image cost term (natural pixels x repaints) proposal for Fw.Engine.WebKit",
+   "writes": [
+    "packages/measure-webkit/src/images/**",
+    "packages/gate-breakpoints/src/images/**",
+    "apps/site/src/flags/images/**",
+    "apps/site/public/images-drawn/**",
+    "lean/Fw/Engine/WebKitImage.lean",
+    "research/notes/2026/10-2*-image-audit.md",
+    "docs/team/handoffs/image-audit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "node-pin-local",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [
+    "node-pin"
+   ],
+   "title": "Pin Node 24.22.0 on this Mac too (user 2026-10-20): .nvmrc equal to .node-version (check whether the installed nvm reads .node-version; cite), pnpm useNodeVersion if the pinned pnpm supports it (cite docs) so pnpm runs scripts on the pinned Node, engines.node exact with engine-strict, a runtime guard in the fw entry and console-api main that refuses to start when process.version differs from .node-version; review follow-ups of node-pin: unpinned `node` in guard jobs and lean.yml (no setup-node), quoted/flow-map setup-node forms, a workflow without a Lean row, the drift rule moved into Lean (Fw.Ci.Trigger) with golden vectors",
+   "writes": [
+    ".nvmrc",
+    ".npmrc",
+    "pnpm-workspace.yaml",
+    "package.json",
+    "apps/runner/src/fw.ts",
+    "apps/console-api/src/main.ts",
+    ".github/workflows/*.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "docs/team/handoffs/node-pin-local.md"
    ]
   }
  ],
