@@ -9580,8 +9580,12 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
-    ".github/workflows/lean.yml"
-   ]
+    ".github/workflows/lean.yml",
+    "apps/site/src/parts/pain.notes/index.tsx",
+    "apps/site/src/parts/pain.notes/logic.test.ts",
+    "packages/contracts/golden/parts/pain.notes.jsonl"
+   ],
+   "evidence": "95a4dfd"
   },
   {
    "devices": [
@@ -10127,6 +10131,27 @@
     "docs/team/tools/land.md",
     "docs/team/tools/preview-e2e.md",
     "docs/team/handoffs/land-legs-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "notes-idem-preset",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Preset: pain.notes:visible-idem in place of visible (notes-scroll-idem: FunctionCall -733 swipe -16.6%, -720 touch -11.4%, same element values proved; webkit-sim green, FunctionCall quarantined there) after a green full gate run (commission-margin-recur closes the known flake); plus review lows: ReactFiberCommitWork.js:2302-2312 citation, per-frame -3 claim vs 733 total, Layout/UpdateLayoutTree in runs.json, identify the 3 FunctionCalls per skipped commit",
+   "deps": [
+    "notes-scroll-idem",
+    "commission-margin-recur"
+   ],
+   "writes": [
+    "lean/Fw/Preset/**",
+    "packages/contracts/golden/preset/**",
+    "lean/Fw/Parts/PainNotesOpt.lean",
+    "research/notes/2026/10-20-notes-scroll-idem.md",
+    "results/notes-scroll-idem/**",
+    "docs/team/handoffs/notes-idem-preset.md"
    ]
   }
  ],
