@@ -11275,7 +11275,8 @@
     "lean/Fw/Gate/Trajectory.lean",
     "packages/contracts/golden/gate/trajectory.jsonl",
     "packages/gate-breakpoints/test/trajectory.test.mjs"
-   ]
+   ],
+   "evidence": "6f8837a"
   },
   {
    "devices": [
