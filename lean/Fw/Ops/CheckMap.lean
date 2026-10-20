@@ -86,7 +86,7 @@ def byExt : String → Option Kind
   | "jpg" | "jpeg" | "png" | "avif" | "webp" | "gif" | "svg" | "ico" | "woff" | "woff2" | "ttf" | "otf" | "gz"
   | "br" => some .asset
   | "md" | "txt" => some .prose
-  | "css" | "html" | "patch" | "tsv" | "toml" | "conf" | "gitignore" | "node-version" | "gitattributes" | "dockerignore" => some .text
+  | "css" | "html" | "patch" | "tsv" | "toml" | "conf" | "gitignore" | "node-version" | "nvmrc" | "npmrc" | "gitattributes" | "dockerignore" => some .text
   | _ => none
 
 /-- The kind of an extensionless basename.
