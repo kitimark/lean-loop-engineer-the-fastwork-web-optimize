@@ -14,35 +14,60 @@ Status words: CONFIRMED (source cited), MEASURED (CI run id cited), INFERRED.
 
 ## Answer
 
-- `morph.tween:waapi-scoped` recalcs 113 fewer elements per tween frame than `waapi` on swipe-touch-v1 in Chromium.
-  That is 3745 fewer per run (−6.8 %), and it holds in all 3 runs (MEASURED). swipe-v1 has no tween, so all three arms
-  are equal there.
+- `morph.tween:waapi-scoped` recalcs fewer elements than `waapi` on swipe-touch-v1 in Chromium: −108 per frame in
+  frames 500-508 and −114 per frame in frames 509-530 (means of 3 runs, MEASURED). Those two phases give 3476 of the
+  3745 fewer elements per run (−6.8 %). Frames 498-499 give another 268: `waapi` has 352 + 320 there (477 + 320 in
+  run 2) and the scoped arm 239 + 207. The other frames differ by 2. swipe-v1 has no tween, so all three arms are
+  equal there.
 - The variant registers `--platform-morph` (`<number>`, inherits false, initial 0) and animates it on the platform
   section instead of the inherited `--morph`. `--morph-fade` is now inherits false and reads `var(--platform-morph)`.
   Lean proves the fade value is equal at every history (`fade_eq`). The gate's platform row passes in both engines.
 - The original premise is refuted. MorphTweenOpt said the extra `--morph` on the section "adds no element". In fact the
   original stops restyling the section subtree once the fade clamps (m ≥ 0.55), while `waapi` keeps changing an
   inherited value there until the tween ends. Lean records this as `waapi_section_finding`.
+- The open item from `10-20-nav-oof-root-finding.md` (frames 517-530: 32 layout objects and 318 elements per frame
+  with no rAF) is confirmed for the elements and refuted for the layout objects (MEASURED, frames 518-530, 3 runs per
+  arm). These frames have no `FireAnimationFrame` in `waapi` and the scoped arm, and one in faithful. Their
+  `UpdateLayoutTree.elementCount` is 318 in `waapi`, 203-204 in the scoped arm and 85-86 in faithful, so the 318 is
+  the WAAPI tween's style work. `trace.Layout.dirtyObjects` is 32 per frame in all three arms (`totalObjects` 1594,
+  `metric.LayoutObjects` 0), so the 32 layout objects do not come from the WAAPI tween. Scoping leaves them unchanged.
 - A residual stays open. In frames 509-530 the scoped arm still recalcs 117-118 more elements per frame than faithful.
-  The nav subtree has only 24 elements, so the nav alone cannot explain it (INFERRED). This is the morph-nav-scope
-  follow-up.
+  With the panel mounted, the live nav subtree has 104 elements (the header included). So nav + panel can explain at
+  most 104 of them and never all, and at least about 13 elements per late frame come from outside the nav (INFERRED,
+  see Census). This is the morph-nav-scope follow-up.
 
 ## Census (step 0, INFERRED)
 
-The source is the prerendered page of site-dist run 39292323514, config 9dee133d165da417 (`?fw=morph.tween:waapi`).
-"Model" counts elements a full inherited recalc would touch, from parsing the page's CSS: an element is touched if it
-has a `var()` reference, a custom-property declaration, an animation or a transition, or if its parent was touched
-through inheritance.
+The prerendered rows come from the page of site-dist run 39292323514, config 9dee133d165da417
+(`?fw=morph.tween:waapi`). The same counts come out of config a2b80cf241434062 (`?fw=morph.tween:waapi-scoped`) in
+site-dist run 39337815445. "Model" counts elements a full inherited recalc would touch, from parsing the page's CSS:
+an element is touched if it has a `var()` reference, a custom-property declaration, an animation or a transition, or
+if its parent was touched through inheritance.
+
+The prerendered page has no morph panel. `App.tsx:55-65` mounts `MorphPanel` inside `<Nav>` once `MorphMount` calls
+`onMount`, which is before the tween frames. The panel brings its content, the countdown and five `MorphColumns`
+tracks of images. The live row renders `<Nav>` with `MorphPanel`, `MorphColumns` and `MorphCountdown` and the same
+props as `App.tsx:55-65`, under config a2b80cf241434062. It uses Vite SSR of the branch sources and maps the
+CSS-module class names onto the CSS of site-dist run 39337815445. The classification rules are the same as for the
+other rows. The same render without the panel reproduces the prerendered nav row exactly.
 
 | subtree | descendants | children | var() or decl | anim or transition | model |
 |---|---|---|---|---|---|
 | platform `section` | 339 | 1 | 64 | 46 | 143 |
-| nav `header` | 24 | 1 | 4 | 16 | 20 (+1 pseudo) |
+| nav `header`, prerendered | 24 | 1 | 4 | 16 | 20 (+1 pseudo) |
+| nav + hosted panel, live | 103 | 2 | 26 | 35 | 71 (+1 pseudo) |
 
 The counters show what the model can explain. Per frame, `waapi` minus faithful is +117 in frames 500-508 and +231
 in frames 509-530. Faithful early minus faithful late is 114. The scoped arm saves 108-114. So the platform share is
-about 114 elements, below the model's 143, and the model overestimates. The second half of +231 (about 117) is not
-platform and does not fit in the 24-element nav.
+about 114 elements, below the model's 143, and the model overestimates.
+
+The other half of +231 is about 117 elements per late frame. It is not in the platform. Frames 509-530 run one
+`UpdateLayoutTree` each in every arm and run. If `elementCount` counts an element at most once per pass, the live nav
+can supply at most 104 elements (103 descendants and the header) plus its pseudo-elements, and the model puts its
+reach at 72. Faithful also restyles some of the nav each frame, which lowers the nav's share further. So nav + panel
+can explain at most 104 of the residual, never all of it, and at least about 13 elements per late frame sit outside
+the nav. This is INFERRED: it rests on the once-per-pass reading of `elementCount` and on the panel adding no elements
+after mount that SSR does not render.
 
 ## Measurements
 
@@ -85,9 +110,16 @@ Gates and lanes:
   - Attempt 1: `Runtime.evaluate` timed out after 120 s, then the Safari tab was unreachable.
   - Attempt 2: `Runtime.evaluate`, `Timeline.stop` and `LayerTree.reasonsForCompositingLayer` timed out, then
     ECONNREFUSED.
-  - The control run 39347940719 (`fw=morph.tween:waapi`) passed, but it hit the same kind of timeout twice and
-    recovered. Its scroll passes show style 662 and 651. So the lane is flaky with inspector timeouts. Whether the
-    scoped arm makes them worse is open (INFERRED: lane flake, 1 control run).
+  - Control run 39347638740 (`fw=morph.tween:waapi`) is a dispatch failure: it was sent without `target=rewrite`, and
+    the plan job refused it ("target original takes no preset or flags").
+  - Control run 39347940719 (`fw=morph.tween:waapi`, target rewrite) passed, but it hit the same kind of timeout twice
+    and recovered. Its scroll passes show style 662 and 651. So the lane has inspector timeouts on the comparison arm
+    too. Whether the scoped arm makes them worse is open (INFERRED, 1 control run).
+  - Re-dispatch (round 2): not run. A `ci/**` push run of webkit-sim takes no inputs (target original, no `fw`), so
+    `pnpm fw ci push` cannot start this arm, and raw dispatch is outside this task's sandbox. The lead runs
+    `gh workflow run webkit-sim.yml --ref ci/tween-platform-scope -f target=rewrite -f fw=morph.tween:waapi-scoped`
+    (the inputs of 39337860689). Its run id and verdict go here. If it fails again on the same inspector timeouts,
+    the lead decides on it with 39337860689, 39347638740 and 39347940719.
   - The lane's profile is a scroll with no tween push, so a passing run would not show the saving either. The WebKit
     saving stays INFERRED from WebKit's own inherited-change rule (StyleChange.cpp:36-45@862f17d).
 
@@ -105,7 +137,9 @@ axioms only.
 - `fade_eq`: for every history `h`, the evaluated fade of `--platform-morph` equals `fade` of the original's `m`. The
   proof goes through `view_eq` and `fade_css` on numbers, not by string `rfl`.
 - `waapi_section_finding`: after the fade clamps (`fadeEnd ≤ m, m'`, `m ≠ m'`), the original's `--morph-fade` frame
-  recalcs nothing below the section, while `waapi`'s inherited `--morph` recalcs every reader below it.
+  recalcs nothing below the section, while `waapi`'s inherited `--morph` recalcs every descendant in `ds`. `ds` models
+  the elements the engine recalcs on an inherited change (`var()` references, animations; INFERRED model). The
+  measured platform share is about 114 of the section's 339 descendants.
 - `orig_below_le_waapi` and `scoped_below_nil`: below the section, the original's recalcs are a sublist of `waapi`'s,
   and the scoped arm recalcs nothing below the section.
 - `Fw.Ops.Premise` css.inherits-false now cites `waapi_vis` and `registrationsScoped_see`.
@@ -136,4 +170,5 @@ Chromium source (CONFIRMED, f842f52):
 - The rule is general: give each animated custom property the narrowest scope that its readers need. A property that
   only its own element reads must be registered `inherits: false`. Lean states this as `needsInherit`.
 - Next is morph-nav-scope: find the 117-118 elements per late frame that the scoped arm still recalcs above faithful.
-  The census rules out the nav subtree alone.
+  The live nav with its hosted panel holds at most 104 of them, so the search covers nav + panel and at least about 13
+  elements outside it (INFERRED).

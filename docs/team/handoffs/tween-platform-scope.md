@@ -1,30 +1,30 @@
 # Handoff: tween-platform-scope
 
-**State.** Branch `worktree-wf_c156a96a-23d-1`: Lean 8e92404b, TS 50dbdd6e, then the note, results and this file.
-CI branch `ci/tween-platform-scope` is at 50dbdd6e.
+**State.** Branch `worktree-wf_c156a96a-23d-1`, round 2 on top of af5a4b6d with main merged. Flag code is unchanged
+since 50dbdd6e; `ci/tween-platform-scope` is at 50dbdd6e. Base gate branch `ci/tween-platform-scope-base` is the
+merge-base c62aae1c plus a marker comment.
 
 **Verified.**
-- `lean/Fw/Parts/MorphTweenOpt.lean`, "MT-R, the scoped arm": `registrationsScoped_rule`, `registrationsScoped_see`,
-  `scoped_scope_le`, `platform_morph_local`, `fade_eq`, `waapi_section_finding`, `orig_below_le_waapi`,
-  `scoped_below_nil`. Standard axioms only; `sh lean/scripts/check.sh` green.
-- Regenerated: morph-tween-waapi.jsonl (34 rows), ops/premise.jsonl, preset decisions, footprint.
-- Chromium, touch, 3 runs per arm: scoped is −113 elements per tween frame vs waapi, −3745 per run (MEASURED).
-- Gates 39337856330 and 39340504860: the platform row passes in both engines. The only fails are commission
-  margin-inline flake cells.
+- `lean/Fw/Parts/MorphTweenOpt.lean`, "MT-R, the scoped arm": 8 theorems, standard axioms only, `check.sh` green.
+- Chromium, touch, 3 runs per arm (MEASURED): −108 per frame (500-508), −114 per frame (509-530), −3745 per run;
+  frames 498-499 give 268 of it.
+- Frames 518-530: 318 elements per frame in `waapi` with no rAF is the WAAPI tween (scoped 203-204, faithful 85-86).
+  `trace.Layout.dirtyObjects` is 32 in all three arms, so the 32 layout objects are not the tween's.
+- Census row "nav + hosted panel, live": 103 descendants, model 71 (+1 pseudo), via Vite SSR of Nav + MorphPanel.
+- Gate: the flag runs 39337856330 and 39340504860 and the base run are compared in the note's "Gates and lanes".
 
 **Open.**
-- webkit-sim 39337860689 failed on both attempts with inspector timeouts. The control waapi run 39347940719 passed
-  after 2 timeouts. Re-dispatch with `-f target=rewrite -f fw=morph.tween:waapi-scoped`. The WebKit saving is INFERRED.
-- Residual: late frames still recalc 117-118 elements per frame above faithful, more than the 24-element nav alone.
-  This is the morph-nav-scope follow-up.
-- Preset inclusion is the lead's decision. math-view.html is frozen and was not regenerated. inputs.ts is unchanged,
-  because no contract reads `--platform-morph`.
+- webkit-sim with `fw=morph.tween:waapi-scoped` was not re-dispatched: a push run takes no inputs. The lead runs
+  `gh workflow run webkit-sim.yml --ref ci/tween-platform-scope -f target=rewrite -f fw=morph.tween:waapi-scoped`.
+  Prior runs: 39337860689 (scoped, failed on inspector timeouts), 39347638740 (control, refused without
+  `target=rewrite`), 39347940719 (control, passed after 2 timeouts).
+- Residual: 117-118 elements per late frame above faithful. The live nav + panel holds at most 104 of them, so at
+  least about 13 sit outside the nav (INFERRED). This is the morph-nav-scope follow-up.
+- Preset inclusion is the lead's decision. The WebKit saving stays INFERRED.
 
 **Conventions.**
-- `waapi` is the frozen comparison arm. The scoped data is `registrationsScoped` and `readersScoped`. Its golden rows
-  carry `"arm":"waapi-scoped"`.
-- After editing part.json, regenerate the preset decisions. After editing index.tsx or the driver, run
-  part-footprint.mjs --write.
+- `waapi` is the frozen comparison arm; scoped data is `registrationsScoped` and `readersScoped`.
+- After editing part.json, regenerate the preset decisions with `Fw.Preset.Gen.run`.
 
 **Read first.** `research/notes/2026/10-20-tween-platform-scope.md`,
 `results/tween-platform-scope/chromium-counts.json`.
