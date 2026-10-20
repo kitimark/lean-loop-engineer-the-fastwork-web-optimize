@@ -97,6 +97,17 @@ export const GateReply = z.object({
 });
 export type GateReply = z.infer<typeof GateReply>;
 
+// ---- store.trajectory (trajectory-probe.yml dispatch) -----------------------------------------------------------------
+export const TrajectoryRequest = z.object({
+  op: z.literal("store.trajectory"),
+  engines: z.string().optional(),
+  preset: z.string().optional(),
+  fw: z.array(FlagStr).optional(),
+  widths: z.string().optional(), // comma list of 390, 640, 641, 1280; empty = all four
+});
+export type TrajectoryRequest = z.infer<typeof TrajectoryRequest>;
+export const TrajectoryReply = GateReply;
+
 // ---- store.manifest / store.objectPath -----------------------------------------------------------------------------
 export const ManifestRequest = z.object({ op: z.literal("store.manifest"), manifest: z.unknown() });
 export const ManifestReply = z.object({

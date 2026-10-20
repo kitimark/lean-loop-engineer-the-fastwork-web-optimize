@@ -7,6 +7,7 @@ FW="node $HERE/apps/runner/src/fw.ts"
 T=$(mktemp -d)
 G="git -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false"
 trap 'kill $API 2>/dev/null || true; rm -rf "$T"' EXIT
+trap 'exit 130' INT; trap 'exit 143' TERM; trap 'exit 129' HUP
 mkdir "$T/main" && cd "$T/main"
 $G init -q -b main && echo x > README && $G add -- README && $G commit -q -m init
 $G worktree add -q -b card/A "$T/wt-A" main

@@ -19,7 +19,7 @@ import { ObsLine, type Command, type ObsRecord, type ObsSummaryRow } from "@fw/c
 import type { Core } from "../core/index.ts";
 import type { Store } from "../store.ts";
 import { NameIndex } from "../health.ts";
-import { scanWorkflows, workflowDirs } from "./workflow.ts";
+import { scanWorkflows, workflowDirs, WfMemo } from "./workflow.ts";
 
 /** One drain's counts. `invalid`: lines Lean rejected (logged with the reason); `unknown`: occurrences of fields Lean
  *  does not know on new accepted lines; `issues`: issue occurrences (rejections, soft-field notes, unknown fields,
@@ -110,6 +110,8 @@ export class Drain {
 
   private wfDirs: () => string[];
   private wfSent = new Set<string>();
+  /** journal lines and settled runs between sweeps (apps/console-api/src/spool/journal-cache.ts) */
+  readonly wfMemo = new WfMemo();
   /** agent id -> name, from health.jsonl (read once, then only what was appended) */
   private names: NameIndex;
   /** agent id -> its stop epoch (Lean `epochNext`: the time of the last stop this drain sent, reset by a newer start; the heartbeat key's epoch; empty after a restart) */
@@ -230,13 +232,14 @@ export class Drain {
       if (dirs.length === 0) return;
       const ids = (await this.store.board()).plan.tasks.map((t) => t.id);
       for (const d of dirs) {
-        for (const e of scanWorkflows(d, ids)) {
+        for (const e of scanWorkflows(d, ids, this.wfMemo)) {
           if (this.wfSent.has(e.key)) continue;
           const reply = await this.store.submit(e.type === "agent.label"
             ? { type: e.type, key: e.key, actor: "hook", agent: e.agent, name: e.name }
             : { type: e.type, key: e.key, actor: "hook", agent: e.agent, at: "at" in e ? e.at : null });
           if (reply.ok) this.wfSent.add(e.key);
         }
+        this.wfMemo.markSent(d, this.wfSent);
       }
     } catch (e) { this.caught("workflow", e, res); }
   }

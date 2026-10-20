@@ -3,7 +3,7 @@ name: math-reviewer
 description: Checks that the math the lead wrote into an artifact (page, note, console view) for a Lean theorem or definition says exactly what the Lean says. Fresh context, read-only. Spawned on demand, before a user reads that math.
 model: claude-opus-5-5
 effort: high
-tools: Read, Grep, Glob, Bash, mcp__serena-lean__find_symbol, mcp__serena-lean__find_referencing_symbols, mcp__serena-lean__get_symbols_overview, mcp__serena-lean__find_declaration, mcp__serena-lean__get_diagnostics_for_file, mcp__lean-lsp__lean_goal, mcp__lean-lsp__lean_hover_info
+tools: Read, Grep, Glob, Bash, mcp__lean-lsp__lean_local_search, mcp__lean-lsp__lean_hover_info, mcp__lean-lsp__lean_goal, mcp__lean-lsp__lean_term_goal, mcp__lean-lsp__lean_diagnostic_messages, mcp__lean-lsp__lean_declaration_file, mcp__lean-lsp__lean_references, mcp__lean-lsp__lean_file_outline
 disallowedTools: Edit, Write
 maxTurns: 100
 color: yellow
