@@ -76,7 +76,10 @@ A stored run's outcome (Lean `outcome`, `lean/Fw/Gate/Trajectory.lean`), in orde
 cannot decide the path (Linux WebKit on morph), no verdict (widths) when a lane width is missing, fail when a node property
 has content `new` units at 2 or more widths, no verdict (coverage) when it has coverage `new` units at 2 or more widths, else
 pass. In the default-vs-default run 39409003529 (Chromium) the content `new` units of each node property sat at one width,
-and so did its coverage `new` units (MEASURED), so one width alone does not fail a run.
+and so did its coverage `new` units (MEASURED in that one A/A run; that one width alone never fails a correct flag is INFERRED from
+it). Pending candidates are dispatched as `--fw <flags>`, never as `--preset v2-proved` (an empty preset walks the default
+config). Limits: a stored pass is not re-checked when the flag's part changes later (`Stored.sha` is not read yet); approach
+flicker (steps a*) counts as content today, so it can falsify a flag (safe side).
 
 A cell (flag, engine family, path): a failing run of the flag alone fails it; else a passing run of the flag alone passes
 it; else a failing shared run (a preset) leaves it pending, because it does not say which flag regressed; else a passing

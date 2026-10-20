@@ -16,7 +16,8 @@ Verified:
 Open:
 - `probe-apple` walks hero only and runs only for `hero.exit` searches, so no flag can get a WebKit morph cell. A
   workflow change (lead) must let it walk `--paths hero,morph` for any dispatched search; then dispatch
-  `pnpm -s fw run --trajectory --ref ci/<branch> --preset v2-proved --engines playwright-webkit`, record, regenerate.
+  `pnpm -s fw run --trajectory --ref ci/<branch> --fw engine.scene:hidden-pause,engine.scroll:batched,morph.columns:hidden-pause,morph.countdown:hidden-pause,morph.mount:shift,nav.hitTest:elements-skip,pain.notes:visible,people.card:mq --engines playwright-webkit`
+  (pending candidates go as --fw: the empty preset walks the default config), record, regenerate.
 - A pass of a shared run (a preset) passes each flag in it; a subset of that preset is not re-walked.
 
 Conventions: record from `lean/` (command in `docs/team/tools/trajectory-probe.md`, Admission); a `?preset=` search needs
