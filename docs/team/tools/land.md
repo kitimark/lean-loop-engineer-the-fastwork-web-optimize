@@ -89,7 +89,7 @@ Every `fw land` prints a last line `VERDICT <kind> <task>` and exits with a code
 |---|---|---|
 | done, dry, queued, empty | 0 | landed, dry land passes, queued, the branch has no commit of its own (nothing to land) |
 | busy 10, dirty 11 | 10, 11 | retryable: the lock or the main checkout is in the way |
-| scope 12, reads 13, conflict 14, checks 15, stale 16, lint 17 | 12-17 | fix the branch (lint: a fast lint failed; stale: or, when the REFUSED line starts with `fwcore-stale:`, run `sh scripts/fwcore-build.sh` in the main checkout, the branch is fine) |
+| scope 12, reads 13, conflict 14, checks 15, stale 16, lint 17, rebuild 18 | 12-18 | fix the branch (lint: a fast lint failed; stale: or, when the REFUSED line starts with `fwcore-stale:`, run `sh scripts/fwcore-build.sh` in the main checkout, the branch is fine; rebuild: the queue's fwcore rebuild after the previous land failed, run `sh scripts/fwcore-build.sh` in the main checkout and re-queue, the branch is fine) |
 | unknown | 2 | anything else |
 
 Scripts read the word after `VERDICT` or the exit code, never prose. A dry run (also one that throws or is refused before any stage) prints
@@ -113,3 +113,9 @@ Cost: see the handoff note `docs/team/handoffs/land-dry-full.md`. TS stand-in `a
 - Preflight (real lands only, not `--dry`, not with `FW_LAND_CHECKS`): before any check, `fwcorePreflight` compares the commit in the main checkout's `lean/.lake/build/bin/fwcore.commit` (counted only when the binary's sha256 is the recorded one) with `main`. No record, or a record of another commit with a change under `lean/` or to `scripts/fwcore-build.sh` since, refuses at once with kind `stale` and the reason `fwcore-stale: run sh scripts/fwcore-build.sh`. Lean: `fwcoreStale` with one theorem per branch (`fwcoreStale_noRecord`, `fwcoreStale_moved`, `fwcoreFresh_same`, `fwcoreFresh_unmoved`); golden op `landQueue.fwcoreStale`. A tree without `scripts/fwcore-build.sh` is skipped. Cause of the 2026-10-20 incident: a stale binary failed mid-run with `unknown op console.landDigest`.
 
 Finding (task land-fwcore-once, closed): a prep job that builds fwcore once for the four legs cut runner time 43% but made a lean land 76 s slower (477 s to 553 s, runs 39369049545 and 39370530353), because the legs' builds already ran in parallel; not shipped. Why: `Fw.Ops.WallTime.wallPrep_ge`; note `research/notes/2026/10-20-land-fwcore-once.md`.
+
+## The queue rebuilds fwcore after a land that changed it (task land-queue-fwcore-rebuild)
+- Incident 2026-10-20: after `land-fwcore-once` landed a `lean/` change, the three entries queued behind it were each refused `fwcore-stale`; a manual `sh scripts/fwcore-build.sh` between them let all land.
+- Now `fw land --queue`, after an entry ends `done`, takes the paths merged by that land (diff of main before and after). If one is under `lean/` or is `scripts/fwcore-build.sh`, the runner runs `sh scripts/fwcore-build.sh` in the main checkout (span `fw land` / `fwcore rebuild (queue)`) before the next dequeue. Its duration adds to the queue wall time.
+- Rebuild fails: the next entry is recorded with kind `rebuild` (exit 18, reason `fwcore-rebuild-failed: ...`), never `stale`; the queue stops and later entries stay pending.
+- Lean: `Fw.Console.LandQueue.afterLand` with one theorem per branch (`afterLand_noRebuild`, `afterLand_noLeanChange`, `afterLand_notDone`, `afterLand_rebuilt`, `afterLand_rebuilt_fresh`, `afterLand_stop`, `stopKind_rebuild`); golden op `landQueue.afterLand`; TS `afterLand` in `apps/runner/src/land-verdict.ts` is checked against it; the glue is the `head`/`diff`/`rebuild` options of `runQueue`.

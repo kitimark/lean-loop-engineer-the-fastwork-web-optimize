@@ -254,6 +254,99 @@ $$r \ne \bot \wedge \lnot v \Rightarrow \lnot\operatorname{stale}$$ -/
 theorem fwcoreFresh_unmoved (c : String) (same : Bool) : fwcoreStale (some c) same false = false := by
   simp [fwcoreStale]
 
+/-! ## The queue rebuilds fwcore after a land that changed its sources (task land-queue-fwcore-rebuild)
+
+Incident 2026-10-20: `land-fwcore-once` landed a change under `lean/`; the three entries queued behind it were each refused
+`fwcore-stale` and only landed after a manual `sh scripts/fwcore-build.sh`. The step between two queue entries: after a `done` land
+whose merged diff touches a path fwcore is built from (`lean/` or the build script), the queue rebuilds fwcore before the next
+dequeue. If the rebuild fails the next entry gets the kind `rebuild` (never `stale`: its branch is fine) and the queue stops. -/
+
+/-- Is a path one fwcore is built from? Lean `lean/**` or the build script (TS `FWCORE_BUILD_READS`).
+$$\operatorname{core}(p) = (\text{"lean/"} \preceq p) \vee (p = \text{"scripts/fwcore-build.sh"})$$ -/
+def coreSource (p : String) : Bool := p.startsWith "lean/" || p == "scripts/fwcore-build.sh"
+
+/-- Does a merged diff touch a path fwcore is built from?
+$$\operatorname{touches}(P) = \exists p \in P.\ \operatorname{core}(p)$$ -/
+def touchesCore (paths : List String) : Bool := paths.any coreSource
+
+/-- Must the queue rebuild fwcore after a land of kind `k` whose merged diff is `paths`? Only a finished land that touched a core path.
+$$\operatorname{rebuild}(k, P) = (k = \mathrm{done}) \wedge \operatorname{touches}(P)$$ -/
+def needsRebuild (k : Kind) (paths : List String) : Bool := k == .done && touchesCore paths
+
+/-- What the queue does between two entries: carry on (with fwcore rebuilt or not), or stop.
+$$\mathrm{After} = \mathrm{proceed}(\mathit{rebuilt}) \mid \mathrm{stop}$$ -/
+inductive After where
+  | proceed (rebuilt : Bool)
+  | stop
+deriving DecidableEq, Repr
+
+/-- The step after a land: `ok` is the result of the rebuild and is read only when a rebuild is needed.
+$$\operatorname{after}(k, P, \mathit{ok}) = \begin{cases} \mathrm{proceed}(\mathrm{false}) & \lnot\operatorname{rebuild}(k,P) \\ \mathrm{proceed}(\mathrm{true}) & \operatorname{rebuild}(k,P) \wedge \mathit{ok} \\ \mathrm{stop} & \operatorname{rebuild}(k,P) \wedge \lnot\mathit{ok}\end{cases}$$ -/
+def afterLand (k : Kind) (paths : List String) (ok : Bool) : After :=
+  if needsRebuild k paths then (if ok then .proceed true else .stop) else .proceed false
+
+/-- The kind the next entry gets when the queue stops: `rebuild`; otherwise the entry is landed on its own merits.
+$$\operatorname{next}(\mathrm{stop}) = \mathrm{rebuild}\qquad \operatorname{next}(\mathrm{proceed}(\_)) = \bot$$ -/
+def stopKind : After → Option Kind
+  | .stop => some .rebuild
+  | .proceed _ => none
+
+/-- The reason recorded with the `rebuild` verdict.
+$$\mathrm{rebuildReason} = \text{"fwcore-rebuild-failed: sh scripts/fwcore-build.sh failed after a land that changed lean/"}$$ -/
+def rebuildReason : String := "fwcore-rebuild-failed: sh scripts/fwcore-build.sh failed after a land that changed lean/"
+
+/-- Branch one: no rebuild is needed, so the queue carries on whatever the rebuild result says.
+$$\lnot\operatorname{rebuild}(k,P) \Rightarrow \operatorname{after}(k,P,\mathit{ok}) = \mathrm{proceed}(\mathrm{false})$$ -/
+theorem afterLand_noRebuild (k : Kind) (paths : List String) (ok : Bool) (h : needsRebuild k paths = false) :
+    afterLand k paths ok = .proceed false := by
+  simp [afterLand, h]
+
+/-- Branch one, by the diff: a finished land with no core path in its diff does not rebuild.
+$$\operatorname{touches}(P) = \mathrm{false} \Rightarrow \operatorname{after}(\mathrm{done}, P, \mathit{ok}) = \mathrm{proceed}(\mathrm{false})$$ -/
+theorem afterLand_noLeanChange (paths : List String) (ok : Bool) (h : touchesCore paths = false) :
+    afterLand .done paths ok = .proceed false := by
+  apply afterLand_noRebuild
+  simp [needsRebuild, h]
+
+/-- Branch one, by the kind: a land that did not finish never rebuilds.
+$$k \ne \mathrm{done} \Rightarrow \operatorname{after}(k,P,\mathit{ok}) = \mathrm{proceed}(\mathrm{false})$$ -/
+theorem afterLand_notDone (k : Kind) (paths : List String) (ok : Bool) (h : k ≠ .done) :
+    afterLand k paths ok = .proceed false := by
+  apply afterLand_noRebuild
+  cases k <;> simp_all [needsRebuild]
+
+/-- Branch two: a finished land that touched a core path and a rebuild that worked: the queue carries on with fwcore rebuilt.
+$$\operatorname{touches}(P) \Rightarrow \operatorname{after}(\mathrm{done},P,\mathrm{true}) = \mathrm{proceed}(\mathrm{true})$$ -/
+theorem afterLand_rebuilt (paths : List String) (h : touchesCore paths = true) :
+    afterLand .done paths true = .proceed true := by
+  simp [afterLand, needsRebuild, h]
+
+/-- Branch two, the point: the rebuild records main's head, so the preflight of the next entry finds fwcore fresh, whatever moved.
+$$\operatorname{after}(k,P,\mathit{ok}) = \mathrm{proceed}(\mathrm{true}) \Rightarrow \lnot\operatorname{stale}(\mathrm{some}\ c, \mathrm{true}, v)$$ -/
+theorem afterLand_rebuilt_fresh (k : Kind) (paths : List String) (ok : Bool) (c : String) (moved : Bool)
+    (_h : afterLand k paths ok = .proceed true) : fwcoreStale (some c) true moved = false :=
+  fwcoreFresh_same c moved
+
+/-- Branch three: a finished land that touched a core path and a failed rebuild: the queue stops.
+$$\operatorname{touches}(P) \Rightarrow \operatorname{after}(\mathrm{done},P,\mathrm{false}) = \mathrm{stop}$$ -/
+theorem afterLand_stop (paths : List String) (h : touchesCore paths = true) :
+    afterLand .done paths false = .stop := by
+  simp [afterLand, needsRebuild, h]
+
+/-- Branch three, the verdict: the stopped entry gets `rebuild`, a refusal that is neither `stale` nor retried.
+$$\operatorname{next}(\mathrm{stop}) = \mathrm{rebuild}\wedge \mathrm{rebuild}\ne\mathrm{stale}\wedge \lnot\mathrm{ok}(\mathrm{rebuild}) \wedge \lnot\mathrm{retryable}(\mathrm{rebuild})$$ -/
+theorem stopKind_rebuild : stopKind .stop = some .rebuild ∧ Kind.rebuild ≠ Kind.stale ∧ Kind.rebuild.ok = false ∧ Kind.rebuild.retryable = false := by
+  refine ⟨rfl, by decide, rfl, rfl⟩
+
+/-- Only a stop gives the next entry a verdict: a queue that carries on lands it on its own merits.
+$$\operatorname{next}(a) \ne \bot \iff a = \mathrm{stop}$$ -/
+theorem stopKind_iff (a : After) : (stopKind a).isSome = true ↔ a = .stop := by
+  cases a <;> simp [stopKind]
+
+/-- The reason of the stopped entry is not empty.
+$$\operatorname{reason}(\mathrm{rebuildReason}) \ne \varepsilon$$ -/
+theorem rebuildReason_nonempty : rebuildReason.isEmpty = false := by decide
+
 /-- A premise row: id, statement, the theorems that assume it, and the test that asserts it.
 $$p = (\mathit{id},\ \mathit{statement},\ \mathit{theorems},\ \mathit{test})$$ -/
 structure PremiseRow where
@@ -343,11 +436,21 @@ def staleCase (name : String) (recorded : Option String) (same moved : Bool) : J
   line s!"fwcore stale: {name}" [("op", "landQueue.fwcoreStale"), ("recorded", match recorded with | some p => Json.str p | none => Json.null),
     ("same", .bool same), ("moved", .bool moved)] [("stale", .bool (fwcoreStale recorded same moved))]
 
+/-- A `landQueue.afterLand` case.
+$$\operatorname{afterCase}(n, k, P, \mathit{ok}) = \operatorname{line}(n, \{k,P,\mathit{ok}\}, \{\operatorname{rebuild}, \operatorname{action}, \operatorname{next}\})$$ -/
+def afterCase (name : String) (k : Kind) (paths : List String) (ok : Bool) : Json :=
+  let a := afterLand k paths ok
+  line s!"after land: {name}" [("op", "landQueue.afterLand"), ("kind", k.name), ("paths", Json.arr (paths.map Json.str).toArray), ("rebuildOk", .bool ok)]
+    [("rebuild", .bool (needsRebuild k paths)), ("action", match a with | .stop => "stop" | .proceed _ => "proceed"),
+     ("rebuilt", .bool (a == .proceed true)),
+     ("nextKind", match stopKind a with | some n => Json.str n.name | none => Json.null),
+     ("reason", match stopKind a with | some _ => Json.str rebuildReason | none => Json.null)]
+
 /-- The sample log of the golden cases: three tasks enqueued, one twice with another branch.
 $$\ell_0 = [\mathrm{enq}(a), \mathrm{enq}(b), \mathrm{enq}(c)]$$ -/
 def sample : List Ev := [.enq ⟨"a", "wa"⟩, .enq ⟨"b", "wb"⟩, .enq ⟨"c", "wc"⟩]
 
-/-- Every golden case: 6 pending, 4 queued, 14 retry (every kind, some at the bound), 4 live, 2 reason, 39 refusal reason (every kind with no reason, an empty one and a given one), 4 fwcore stale. -/
+/-- Every golden case: 6 pending, 4 queued, 14 retry (every kind, some at the bound), 4 live, 2 reason, 39 refusal reason (every kind with no reason, an empty one and a given one), 4 fwcore stale, 9 after land. -/
 def cases : List Json :=
   [pendCase "empty" [],
    pendCase "three enqueued, first in first out" sample,
@@ -372,9 +475,18 @@ def cases : List Json :=
    staleCase "no record" none false false,
    staleCase "record is main's head" (some "abc") true false,
    staleCase "other commit, lean moved" (some "abc") false true,
-   staleCase "other commit, lean unchanged" (some "abc") false false]
+   staleCase "other commit, lean unchanged" (some "abc") false false,
+   afterCase "no lean change, no rebuild" .done ["apps/site/src/a.ts", "docs/x.md"] true,
+   afterCase "no lean change, a rebuild result is not read" .done ["docs/x.md"] false,
+   afterCase "lean change, rebuild ok" .done ["lean/Fw/A.lean", "docs/x.md"] true,
+   afterCase "build script change, rebuild ok" .done ["scripts/fwcore-build.sh"] true,
+   afterCase "lean change, rebuild fails" .done ["lean/Fw/A.lean"] false,
+   afterCase "empty diff" .done [] true,
+   afterCase "lean-like name outside lean/" .done ["apps/lean/x.ts", "leanx/y"] false,
+   afterCase "refused land with a lean path" .checks ["lean/Fw/A.lean"] false,
+   afterCase "empty land with a lean path" .empty ["lean/Fw/A.lean"] true]
 
-#guard cases.length == 73
+#guard cases.length == 86
 
 /-- The golden file text: one compressed JSON line per case.
 $$\mathrm{goldenText} = \operatorname{concat}[\, \operatorname{compress}(c) \mathbin{+\!\!+} \text{"\textbackslash n"} \,]_{c \in \mathrm{cases}}$$ -/
