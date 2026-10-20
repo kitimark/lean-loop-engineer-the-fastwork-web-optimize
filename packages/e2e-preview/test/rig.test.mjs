@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { PREVIEW_ID, startRig } from "../src/rig.mjs";
-import { documentUrl, evalReport, PATHS } from "../src/suite.mjs";
+import { documentUrl, ENTRY_SEARCH, evalReport, PATHS } from "../src/suite.mjs";
 
 describe("evalReport", () => {
   it("a module evaluated once per file is clean", () => {
@@ -21,12 +21,18 @@ describe("evalReport", () => {
 });
 
 describe("the suite covers the task arm, the original arm and the side-by-side page", () => {
-  it("paths", () => assert.deepEqual(PATHS.map((p) => p.id), ["r", "o", "compare"]));
+  it("paths", () => assert.deepEqual(PATHS.map((p) => p.id), ["r", "o", "compare", "entry-r", "entry-o"]));
   it("an arm's document is its own origin; the side-by-side page is on the preview port", () => {
     const host = { origin: "http://h:10", arm: { r: "http://h:11", o: "http://h:12" } };
     assert.equal(documentUrl(host, PATHS[0]), "http://h:11/");
     assert.equal(documentUrl(host, PATHS[1]), "http://h:12/");
     assert.equal(documentUrl(host, PATHS[2]), `http://h:10/preview/${PREVIEW_ID}/compare`);
+  });
+  it("the entry targets open the Builds link shape on the preview port, with a search", () => {
+    const host = { origin: "http://h:10", arm: { r: "http://h:11", o: "http://h:12" } };
+    assert.equal(documentUrl(host, PATHS[3]), `http://h:10/preview/${PREVIEW_ID}/r/${ENTRY_SEARCH}`);
+    assert.equal(documentUrl(host, PATHS[4]), `http://h:10/preview/${PREVIEW_ID}/o/${ENTRY_SEARCH}`);
+    assert.match(ENTRY_SEARCH, /^\?.+=/);
   });
 });
 
@@ -52,9 +58,11 @@ describe("rig over plain HTTP", () => {
     assert.equal(red.headers.get("location"), `/preview/${PREVIEW_ID}/o/`);
     const get = (base, path, headers = {}) => fetch(`${base}${path}`, { redirect: "manual", headers: { cookie, ...headers } });
     // the entry path is a page-level hop to the arm's origin (with the query), not a proxy
-    const hop = await get(h.origin, `/preview/${PREVIEW_ID}/o/?x=1`);
-    assert.equal(hop.status, 302);
-    assert.equal(hop.headers.get("location"), `${h.arm.o}/?x=1`);
+    for (const arm of ["o", "r"]) {
+      const hop = await get(h.origin, `/preview/${PREVIEW_ID}/${arm}/${ENTRY_SEARCH}`);
+      assert.equal(hop.status, 302);
+      assert.equal(hop.headers.get("location"), `${h.arm[arm]}/${ENTRY_SEARCH}`);
+    }
     for (const arm of ["o", "r"]) {
       const doc = await get(h.arm[arm], "/");
       assert.equal(doc.status, 200, arm);
@@ -92,7 +100,11 @@ describe("two rig runs in one process never collide on ports (the land lane runs
     try {
       const all = [...used(second), ...used(third)];
       assert.equal(new Set(all).size, all.length, "ports of two live rigs overlap");
-      for (const r of [second, third]) assert.ok(r.ports.rp + 1000 <= 65535 && r.ports.op + 1000 <= 65535, "private arm port above the Lean bound");
+      for (const r of [second, third]) {
+        assert.ok(r.backendOff > 0, "backendOff comes from Lean");
+        assert.equal(r.ports.brp, r.ports.rp + r.backendOff);
+        assert.ok(r.ports.rp + r.backendOff <= 65535 && r.ports.op + r.backendOff <= 65535, "private arm port above the Lean bound");
+      }
     } finally { await second.close(); await third.close(); }
     for (const p of used(second).concat(used(third))) assert.equal(await bindable(p), true, `port ${p} still listening after close`);
   });
