@@ -64,13 +64,6 @@ jobs:
     if: ${{ needs.guard.outputs.run == 'true' }}
     concurrency:
       group: ci-lane:land:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:land:${{ strategy.job-index }}
-    # One job per leg (Lean Fw.Console.LandLegs, lean/land-legs.txt): the suites legs split the remote checks, the engine legs run the
-    # preview browser suite on their engine. Every leg builds fwcore and selects the same checks, so the wall time is the slowest leg.
-    # fail-fast is off: every leg reports. The run passes iff every leg passed (Lean legsOk; the adapter re-checks it, land-remote.ts).
-    strategy:
-      fail-fast: false
-      matrix:
-        leg: [suites-a, suites-b, chromium, playwright-webkit]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     steps:
@@ -153,18 +146,17 @@ jobs:
         shell: bash
         env:
           BASE: ${{ github.event.inputs.base }}
-          LEG: ${{ matrix.leg }}
         run: |
           set -u
           base="${BASE:-}"
           if [ -z "$base" ]; then base=$(sh .github/scripts/land-base.sh base); fi
           echo "sha=$(sh .github/scripts/land-base.sh rev)" >> "$GITHUB_OUTPUT"
           set +e
-          pnpm fw checks --affected --base "$base" --tier remote --leg "$LEG" 2>&1 | tee "$RUNNER_TEMP/land.log"
+          pnpm fw checks --affected --base "$base" --tier remote 2>&1 | tee "$RUNNER_TEMP/land.log"
           rc=${PIPESTATUS[0]}
           set -e
           echo "digest=$(sed -n 's/^LANE digest=//p' "$RUNNER_TEMP/land.log" | head -n1)" >> "$GITHUB_OUTPUT"
-          echo "engine=$(sed -n 's/^LANE leg=.* engine=\([a-z]*\) .*/\1/p' "$RUNNER_TEMP/land.log" | head -n1)" >> "$GITHUB_OUTPUT"
+          echo "browser=$(sed -n 's/^LANE browser=//p' "$RUNNER_TEMP/land.log" | head -n1)" >> "$GITHUB_OUTPUT"
           grep -E '^(VERDICT|TIMING|checks:|LANE)' "$RUNNER_TEMP/land.log" >> "$GITHUB_STEP_SUMMARY" || true
           exit "$rc"
 
@@ -175,22 +167,29 @@ jobs:
           DIGEST: ${{ steps.suites.outputs.digest }}
         run: echo "LANE sha=$SHA digest=$DIGEST"
 
-      # The preview browser suite (packages/e2e-preview, docs/team/tools/preview-e2e.md) runs in the engine legs, and in them only when the
-      # selection holds the e2e-preview check (`LANE leg=<engine> engine=true`, Lean Fw.Console.LandLegs.engineRuns): the browser is
-      # installed for no other land. Chrome Headless Shell in the chromium leg, Playwright WebKit in the playwright-webkit leg,
-      # at the same time as the suites legs.
+      # The preview browser suite (packages/e2e-preview, docs/team/tools/preview-e2e.md) runs here iff the selection holds the
+      # e2e-preview check (`LANE browser=true`, Lean Fw.Console.LandTier.browserRuns), so a land that touches the preview proxy
+      # or the suite's other inputs checks real browsers: Chrome Headless Shell and Playwright WebKit, one after the other.
       - uses: ./.github/actions/gate-engine
-        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && steps.suites.outputs.engine == 'true' }}
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && steps.suites.outputs.browser == 'true' }}
         with:
-          engine: ${{ matrix.leg }}
-      - name: 'browser suite: ${{ matrix.leg }}'
-        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && steps.suites.outputs.engine == 'true' }}
-        run: node src/run.mjs --engine ${{ matrix.leg }} --out out
+          engine: chromium
+      - name: 'browser suite: chromium'
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && steps.suites.outputs.browser == 'true' }}
+        run: node src/run.mjs --engine chromium --out out
+        working-directory: packages/e2e-preview
+      - uses: ./.github/actions/gate-engine
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && steps.suites.outputs.browser == 'true' }}
+        with:
+          engine: playwright-webkit
+      - name: 'browser suite: playwright-webkit'
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && steps.suites.outputs.browser == 'true' }}
+        run: node src/run.mjs --engine playwright-webkit --out out
         working-directory: packages/e2e-preview
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && steps.suites.outputs.engine == 'true' }}
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && steps.suites.outputs.browser == 'true' }}
         with:
-          name: land-preview-e2e-${{ matrix.leg }}
+          name: land-preview-e2e
           path: packages/e2e-preview/out/*.json
           if-no-files-found: warn
           retention-days: 14
