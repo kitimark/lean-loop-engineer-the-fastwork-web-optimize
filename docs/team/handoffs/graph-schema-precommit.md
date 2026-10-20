@@ -1,5 +1,5 @@
 # graph-schema-precommit handoff
-State: branch worktree-wf_529e3a24-f84-2. The pre-commit checkmap now validates docs/team/work-graph.json against the runner's schema.
+State: branch worktree-wf_529e3a24-f84-2 at a4dc4a79 (handoff fix is the tip). The pre-commit checkmap now validates docs/team/work-graph.json against the runner's schema.
 - scripts/checkmap.mjs `file json`: for docs/team/work-graph.json it also calls checkGraph (imported from apps/runner/src/plan-check.ts).
 - apps/runner/src/plan-check.ts: runs syncCommands (the contract Command.parse) one task at a time, deps stubbed, so each
   refusal prints `docs/team/work-graph.json task <id>: <field>: <message>`; then the whole graph (cycles, unknown deps).
