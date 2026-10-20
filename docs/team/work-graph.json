@@ -11057,7 +11057,8 @@
     "packages/contracts/golden/measure/measure.simBounds.jsonl",
     "packages/contracts/golden/measure/measure.simPlan.jsonl",
     "research/notes/2026/10-20-macos-pool-v2.md"
-   ]
+   ],
+   "evidence": "6c9d13e"
   },
   {
    "devices": [

@@ -242,4 +242,4 @@ async function main() {
 // Fail fast: a stall (no output for 90 s x FW_WK_TIMEOUT_SCALE, FW_WK_STALL_MS overrides) or a process that outlives its command
 // ends with a message saying why, instead of sitting until the CI step timeout (watchdog.mjs).
 const guard = watch();
-main().catch((e) => { console.error(`error: ${e.message}`); process.exitCode = 1; }).finally(() => guard.done(process.exitCode ?? 0));
+main().catch((e) => { console.error(`error: ${e.message}`); process.exitCode = e.exitCode ?? 1; }).finally(() => guard.done(process.exitCode ?? 0));
