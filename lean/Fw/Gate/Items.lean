@@ -1,4 +1,5 @@
 import Fw.Gate.Compare
+import Fw.Gate.MarginRule
 /-!
 # The items of one part (port of `partItems` in `packages/gate-breakpoints/src/verdict.mjs`)
 
@@ -91,12 +92,14 @@ structure Rect where
 /-- One element of a role: its box (when the role has dimensions) and its computed style.
 
 `ι` (`inline`) lists the properties the element's own `style` attribute sets; the runner records it only for the
-properties a role names in `skipIfInline`.
+properties a role names in `skipIfInline`. `layoutDep` lists the margin longhands (`marginKeys`) whose Typed OM value
+is not a px length (auto or a percentage); the runner records it for the compared margin longhands only.
 -/
 structure Item where
   rect : Option Rect
   style : List (String × String)
   inline : List String
+  layoutDep : List String := []
   deriving Repr, Inhabited
 
 /-- One role on one arm: the element count and the elements collected. -/
@@ -134,6 +137,8 @@ structure PItem where
   key : String
   status : Status
   differs : Bool
+  byRect : Bool := false
+  styleSt : Status := .na
   deriving DecidableEq, Repr, Inhabited
 
 /-! ## Which properties are compared -/
@@ -225,14 +230,33 @@ The inline rule only removes. -/
 theorem cmpAt_subset (rs : RoleSpec) (cmp : List String) (io : Item) (p : String)
     (h : p ∈ cmpAt rs cmp io) : p ∈ cmp := (List.mem_filter.mp h).1
 
+/-- Whether the margin rule decides the style item of `p` by the rect: `p` is a margin longhand, both arms are non-fixed, the node has a rect cell.
+
+`boxes` are the statuses of the node's box items at this index. -/
+def decidedByRect (boxes : List Status) (io ir : Item) (p : String) : Bool :=
+  marginKeys.contains p && byRect (io.layoutDep.contains p) (ir.layoutDep.contains p) (rectCell boxes)
+
+/-- The status of the style item of one property: the style comparison, except a margin longhand takes the margin rule.
+
+See `Fw.Gate.marginStatus`. -/
+def styleItemStatus (boxes : List Status) (io ir : Item) (p : String) : Status :=
+  if decidedByRect boxes io ir p then rectCell boxes else styleStatus (io.style.lookup p) (ir.style.lookup p)
+
+/-- The style item of one property at one index.
+
+It records whether the rect decided it (`byRect`) and what the style comparison said (`styleSt`). -/
+def styleItem (rs : RoleSpec) (boxes : List Status) (i : Nat) (io ir : Item) (p : String) : PItem :=
+  ⟨.style, rs.role, i, p, styleItemStatus boxes io ir p, false, decidedByRect boxes io ir p,
+    styleStatus (io.style.lookup p) (ir.style.lookup p)⟩
+
 /-- The items at one index of a role: boxes, compared styles, then information.
 
 One element pair yields its box, style and information items. -/
 def itemAt (rs : RoleSpec) (cmp info : List String) (refO refR : Option Rect) (i : Nat)
     (io ir : Item) : List PItem :=
-  rs.dims.map (fun d => ⟨.box, rs.role, i, d, boxStatus (boxDim io refO d) (boxDim ir refR d), false⟩) ++
-  (cmpAt rs cmp io).map (fun p => ⟨.style, rs.role, i, p, styleStatus (io.style.lookup p) (ir.style.lookup p), false⟩) ++
-  info.map (fun p => ⟨.info, rs.role, i, p, .na, !styleValueEq (io.style.lookup p) (ir.style.lookup p)⟩)
+  rs.dims.map (fun d => ⟨.box, rs.role, i, d, boxStatus (boxDim io refO d) (boxDim ir refR d), false, false, .na⟩) ++
+  (cmpAt rs cmp io).map (styleItem rs (rs.dims.map fun d => boxStatus (boxDim io refO d) (boxDim ir refR d)) i io ir) ++
+  info.map (fun p => ⟨.info, rs.role, i, p, .na, !styleValueEq (io.style.lookup p) (ir.style.lookup p), false, .na⟩)
 
 /-- Pair two item lists by index, up to the shorter length.
 
@@ -254,10 +278,10 @@ A role is compared element by element once both arms have it. -/
 def roleItems (a : Anchors) (rs : RoleSpec) (props : Option RoleProps) (refO refR : Option Rect) :
     Option RoleRaw → Option RoleRaw → List PItem
   | some o, some r =>
-    ⟨.count, rs.role, -1, "count", countStatus o.count r.count, false⟩ ::
+    ⟨.count, rs.role, -1, "count", countStatus o.count r.count, false, false, .na⟩ ::
       pairs (itemAt rs (comparedProps a rs ((props.map (·.restated)).getD []))
         (infoProps a ((props.map (·.originOnly)).getD [])) refO refR) 0 o.items r.items
-  | _, _ => [⟨.count, rs.role, -1, "count", .missing, false⟩]
+  | _, _ => [⟨.count, rs.role, -1, "count", .missing, false, false, .na⟩]
 
 /-- All items of one part: the roles' items in declared order.
 
@@ -293,6 +317,70 @@ theorem mem_pairs {f : Nat → Item → Item → List PItem} {i : Nat} {xs ys : 
       · exact ⟨i, x, y, h⟩
       · exact ih h
 
+/-- The status of a style item is the style status, or the rect cell, which is never `na` when the rule decides.
+
+The rule adds no outcome kind. -/
+theorem styleItemStatus_cases (boxes : List Status) (io ir : Item) (p : String) :
+    styleItemStatus boxes io ir p = styleStatus (io.style.lookup p) (ir.style.lookup p) ∨
+      (decidedByRect boxes io ir p = true ∧ styleItemStatus boxes io ir p = rectCell boxes ∧
+        styleItemStatus boxes io ir p ≠ .na) := by
+  unfold styleItemStatus
+  by_cases h : decidedByRect boxes io ir p = true
+  · right
+    have hr : rectCell boxes ≠ .na := by
+      simp only [decidedByRect, byRect, Bool.and_eq_true, bne_iff_ne, ne_eq] at h
+      exact h.2.2
+    simp [h, hr]
+  · left
+    simp [h]
+
+/-- Identity, original arm fixed: the style item has the style status.
+
+The original's margin is a px length (or not a margin longhand with the flag), so today's comparison stands. -/
+theorem styleItemStatus_fixed_o (boxes : List Status) (io ir : Item) (p : String) (h : io.layoutDep.contains p = false) :
+    styleItemStatus boxes io ir p = styleStatus (io.style.lookup p) (ir.style.lookup p) := by
+  unfold styleItemStatus decidedByRect byRect
+  rw [h]
+  simp
+
+/-- Identity, rewrite arm fixed: the style item has the style status.
+
+The rewrite's margin is a px length, so today's comparison stands. -/
+theorem styleItemStatus_fixed_r (boxes : List Status) (io ir : Item) (p : String) (h : ir.layoutDep.contains p = false) :
+    styleItemStatus boxes io ir p = styleStatus (io.style.lookup p) (ir.style.lookup p) := by
+  unfold styleItemStatus decidedByRect byRect
+  rw [h]
+  simp
+
+/-- Identity: a property that is not a margin longhand keeps the style status.
+
+The rule reaches the four margin longhands only. -/
+theorem styleItemStatus_not_margin (boxes : List Status) (io ir : Item) (p : String) (h : p ∉ marginKeys) :
+    styleItemStatus boxes io ir p = styleStatus (io.style.lookup p) (ir.style.lookup p) := by
+  have : marginKeys.contains p = false := by simpa using h
+  unfold styleItemStatus decidedByRect
+  rw [this]
+  simp
+
+/-- No hidden visual difference: a decided style item fails exactly when the node's box items fail.
+
+Where both arms are non-fixed, the margin cell and the rect cell agree. -/
+theorem styleItemStatus_decided_fail_iff (boxes : List Status) (io ir : Item) (p : String)
+    (hd : decidedByRect boxes io ir p = true) :
+    cellVerdict [styleItemStatus boxes io ir p] = .fail ↔ cellVerdict boxes = .fail := by
+  have hr : rectCell boxes ≠ .na := by
+    simp only [decidedByRect, byRect, Bool.and_eq_true, bne_iff_ne, ne_eq] at hd
+    exact hd.2.2
+  have hnc : cellVerdict boxes ≠ .nc := by
+    intro hnc
+    apply hr
+    simp [rectCell, hnc, toStatus]
+  have := marginStatus_fail_iff boxes (styleStatus (io.style.lookup p) (ir.style.lookup p)) hnc
+  have hm : styleItemStatus boxes io ir p = marginStatus true true (styleStatus (io.style.lookup p) (ir.style.lookup p)) (rectCell boxes) := by
+    simp [styleItemStatus, hd, marginStatus_rect _ _ hr]
+  rw [hm]
+  exact this
+
 /-- Every item of a role, and how its status is made.
 
 (an absent `props` reads as empty lists). Each item kind gets its status from its own comparison. -/
@@ -303,7 +391,7 @@ theorem mem_roleItems {a : Anchors} {rs : RoleSpec} {props : Option RoleProps}
     ((it.cls = .count ∧ ∃ m n, it.status = countStatus m n ∨ it.status = .missing) ∨
      (it.cls = .box ∧ ∃ x y, it.status = boxStatus x y) ∨
      (it.cls = .style ∧ it.key ∈ comparedProps a rs ((props.map (·.restated)).getD []) ∧
-        ∃ x y, it.status = styleStatus x y) ∨
+        ((∃ x y, it.status = styleStatus x y) ∨ it.status ≠ .na)) ∨
      (it.cls = .info ∧ it.key ∈ infoProps a ((props.map (·.originOnly)).getD []) ∧
         it.status = .na)) := by
   unfold roleItems at h
@@ -315,7 +403,10 @@ theorem mem_roleItems {a : Anchors} {rs : RoleSpec} {props : Option RoleProps}
       simp only [itemAt, List.mem_append, List.mem_map] at hj
       rcases hj with (⟨d, -, rfl⟩ | ⟨p, hp, rfl⟩) | ⟨p, hp, rfl⟩
       · exact ⟨rfl, .inr (.inl ⟨rfl, _, _, rfl⟩)⟩
-      · exact ⟨rfl, .inr (.inr (.inl ⟨rfl, cmpAt_subset _ _ _ _ hp, _, _, rfl⟩))⟩
+      · refine ⟨rfl, .inr (.inr (.inl ⟨rfl, cmpAt_subset _ _ _ _ hp, ?_⟩))⟩
+        rcases styleItemStatus_cases (rs.dims.map fun d => boxStatus (boxDim x refO d) (boxDim y refR d)) x y p with h4 | ⟨-, -, h4⟩
+        · exact .inl ⟨_, _, h4⟩
+        · exact .inr h4
       · exact ⟨rfl, .inr (.inr (.inr ⟨rfl, hp, rfl⟩))⟩
   · simp only [List.mem_singleton] at h
     subst h
@@ -332,11 +423,12 @@ theorem partItems_na_iff (a : Anchors) (spec : PartSpec) (o r : Option PartRaw) 
   obtain ⟨rs, -, h⟩ := h
   have hn := status_ne_na
   obtain ⟨-, h⟩ := mem_roleItems h
-  rcases h with ⟨hc, m, n, hs | hs⟩ | ⟨hc, x, y, hs⟩ | ⟨hc, -, x, y, hs⟩ | ⟨hc, -, hs⟩
+  rcases h with ⟨hc, m, n, hs | hs⟩ | ⟨hc, x, y, hs⟩ | ⟨hc, -, ⟨x, y, hs⟩ | hs⟩ | ⟨hc, -, hs⟩
   · rw [hc, hs]; exact ⟨fun e => absurd e (hn none none none none m n).2.2, fun e => (nomatch e)⟩
   · rw [hc, hs]; exact ⟨fun e => (nomatch e), fun e => (nomatch e)⟩
   · rw [hc, hs]; exact ⟨fun e => absurd e (hn none none x y 0 0).2.1, fun e => (nomatch e)⟩
   · rw [hc, hs]; exact ⟨fun e => absurd e (hn x y none none 0 0).1, fun e => (nomatch e)⟩
+  · rw [hc]; exact ⟨fun e => absurd e hs, fun e => (nomatch e)⟩
   · rw [hc, hs]; exact ⟨fun _ => rfl, fun _ => rfl⟩
 
 /-- A part passes exactly when it compared something and every compared item is equal.
@@ -399,6 +491,15 @@ theorem partItems_style_not_skipped (a : Anchors) (spec : PartSpec) (o r : Optio
     exact hk.2
   · simp only [infoProps, List.mem_filter, Bool.not_eq_eq_eq_not, Bool.not_true] at hk
     exact hk.2
+
+/-- Never pass over a failing rect: a part with a failing box item fails, whatever the margin rule decided.
+
+The rule rewrites style items only; a box item stays in the part with its own status. -/
+theorem partVerdict_fail_of_box (a : Anchors) (spec : PartSpec) (o r : Option PartRaw) (props : PartProps)
+    (it : PItem) (hit : it ∈ partItems a spec o r props) (hc : it.cls = .box) (hs : it.status ≠ .equal) :
+    partVerdict a spec o r props = .fail := by
+  rw [partVerdict_fail_iff]
+  exact ⟨it, hit, by simp [hc], hs⟩
 
 /-! ## Skipped properties never change a status -/
 
@@ -509,20 +610,24 @@ theorem pairs_congr (f : Nat → Item → Item → List PItem) (h₁ h₂ : Item
 Information properties never touch a status. -/
 theorem itemAt_congr (rs : RoleSpec) (cmp info : List String) (refO refR : Option Rect) (i : Nat)
     (x x' y y' : Item) (hx : x.rect = x'.rect) (hxi : x.inline = x'.inline) (hy : y.rect = y'.rect)
+    (hxl : x.layoutDep = x'.layoutDep) (hyl : y.layoutDep = y'.layoutDep)
     (hs : ∀ q ∈ cmp, x.style.lookup q = x'.style.lookup q ∧ y.style.lookup q = y'.style.lookup q) :
     (itemAt rs cmp info refO refR i x y).map (·.status) =
       (itemAt rs cmp info refO refR i x' y').map (·.status) := by
   have hc : cmpAt rs cmp x = cmpAt rs cmp x' := by simp only [cmpAt, hxi]
+  have hb : ∀ d, boxStatus (boxDim x refO d) (boxDim y refR d) = boxStatus (boxDim x' refO d) (boxDim y' refR d) := by
+    intro d
+    simp [boxDim, hx, hy]
+  have hB : rs.dims.map (fun d => boxStatus (boxDim x refO d) (boxDim y refR d)) =
+      rs.dims.map (fun d => boxStatus (boxDim x' refO d) (boxDim y' refR d)) :=
+    List.map_congr_left fun d _ => hb d
   simp only [itemAt, List.map_append, List.map_map, hc]
   congr 1
   congr 1
   · apply List.map_congr_left
-    intro d _
-    simp [boxDim, hx, hy]
-  · apply List.map_congr_left
     intro q hq
     have hq' := hs q (cmpAt_subset _ _ _ _ hq)
-    simp [hq'.1, hq'.2]
+    simp [styleItem, styleItemStatus, decidedByRect, hB, hxl, hyl, hq'.1, hq'.2]
 
 /-- `flatMap` only looks at the elements of its list.
 
@@ -542,6 +647,7 @@ theorem partItems_skip_invariant (a : Anchors) (spec : PartSpec) (o r : Option P
     (props : PartProps) (ρ p : String) (g₁ g₂ : Item → Item)
     (hg₁ : ∀ x, AgreeOff p (g₁ x) x) (hg₂ : ∀ x, AgreeOff p (g₂ x) x)
     (hi₁ : ∀ x, (g₁ x).inline = x.inline)
+    (hl₁ : ∀ x, (g₁ x).layoutDep = x.layoutDep) (hl₂ : ∀ x, (g₂ x).layoutDep = x.layoutDep)
     (hskip : ∀ rs ∈ spec.roles, rs.role = ρ → isSkipped p (skipNames a rs) (prefixes a) = true) :
     (partItems a spec (o.map (mapRole ρ g₁)) (r.map (mapRole ρ g₂)) props).map (·.status) =
       (partItems a spec o r props).map (·.status) := by
@@ -575,6 +681,8 @@ theorem partItems_skip_invariant (a : Anchors) (spec : PartSpec) (o r : Option P
           · exact (hg₁ x).1
           · exact hi₁ x
           · exact (hg₂ y).1
+          · exact hl₁ x
+          · exact hl₂ y
           · intro q hq
             have hqp : q ≠ p := by
               intro e
@@ -595,7 +703,7 @@ theorem partVerdict_setStyle (a : Anchors) (spec : PartSpec) (o r : Option PartR
       partVerdict a spec o r props := by
   unfold partVerdict
   rw [partItems_skip_invariant a spec o r props ρ p _ _ (setStyle_agree p v) (setStyle_agree p w)
-    (fun _ => rfl) hskip]
+    (fun _ => rfl) (fun _ => rfl) (fun _ => rfl) hskip]
 
 /-- The order in which a part lists its roles does not change its verdict.
 
@@ -794,7 +902,7 @@ theorem partItems_variant (a : Anchors) (w : VariantRole) (spec : PartSpec) (o r
     (props : PartProps) (hf : Fresh w spec) :
     partItems a (variantSpec w spec) (o.map (variantOrig w)) (r.map (variantRewrite w)) props =
       (partItems a spec o r props).filter (·.role != w.replaces) ++
-        [⟨.count, w.role, -1, "count", variantCount w o r, false⟩] := by
+        [⟨.count, w.role, -1, "count", variantCount w o r, false, false, .na⟩] := by
   have hlo : ∀ k, k ≠ w.role → (o.map (variantOrig w)).bind (·.lookup k) = o.bind (·.lookup k) := by
     intro k hk; cases o <;> simp [variantOrig, lookup_setCount, hk]
   have hlr : ∀ k, k ≠ w.role → (r.map (variantRewrite w)).bind (·.lookup k) = r.bind (·.lookup k) := by
@@ -868,7 +976,7 @@ theorem partItems_variant_role (a : Anchors) (w : VariantRole) (spec : PartSpec)
     (partItems a (variantSpec w spec) (o.map (variantOrig w)) (r.map (variantRewrite w)) props).filter
         (·.role == w.replaces) = [] ∧
       (partItems a (variantSpec w spec) (o.map (variantOrig w)) (r.map (variantRewrite w)) props).filter
-        (·.role == w.role) = [⟨.count, w.role, -1, "count", variantCount w o r, false⟩] := by
+        (·.role == w.role) = [⟨.count, w.role, -1, "count", variantCount w o r, false, false, .na⟩] := by
   rw [partItems_variant a w spec o r props hf, List.filter_append, List.filter_append, List.filter_filter,
     List.filter_filter]
   have hn : (w.role == w.replaces) = false := by simpa using Ne.symm hne
@@ -923,7 +1031,7 @@ private def exSpec : PartSpec :=
 private def exProps : PartProps :=
   [("root", ⟨["color", "width", "transform", "animation-name", "top"], ["font-size", "animation"]⟩)]
 private def exItem (x : Rat) (color top fs : String) : Item :=
-  ⟨some ⟨x, 0, 10, 10⟩, [("color", color), ("top", top), ("font-size", fs), ("width", "1px")], []⟩
+  ⟨some ⟨x, 0, 10, 10⟩, [("color", color), ("top", top), ("font-size", fs), ("width", "1px")], [], []⟩
 private def exArm (n : Nat) (its : List Item) : Option PartRaw := some [("root", ⟨n, its⟩)]
 
 #guard comparedProps exA exSpec.roles[0]! ["color", "width", "transform", "animation-name", "top"] ==
@@ -948,7 +1056,7 @@ private def exArm (n : Nat) (its : List Item) : Option PartRaw := some [("root",
 
 private def exSpecI : PartSpec := ⟨"p", [⟨"root", none, [], [], [], ["color"], "x"⟩]⟩
 private def exPropsI : PartProps := [("root", ⟨["color"], []⟩)]
-private def exItemI (color : String) (inl : List String) : Item := ⟨none, [("color", color)], inl⟩
+private def exItemI (color : String) (inl : List String) : Item := ⟨none, [("color", color)], inl, []⟩
 -- an inline-skipped property: compared where the original sets nothing inline
 #guard partVerdict exA exSpecI (exArm 1 [exItemI "red" []]) (exArm 1 [exItemI "blue" []]) exPropsI == .fail
 -- skipped where the original sets it inline: the pair has no other item, so the cell is a pass through the count alone
@@ -965,7 +1073,7 @@ private def exW : VariantRole := ⟨"strip", "face", "strip", "digit", "x"⟩
 private def exSpecV : PartSpec :=
   ⟨"c", [⟨"digit", none, [], [], [], [], "x"⟩, ⟨"face", none, [], [], ["transform"], [], "x"⟩]⟩
 private def exPropsV : PartProps := [("face", ⟨["opacity"], []⟩), ("strip", ⟨["transform"], []⟩)]
-private def exItemV (op : String) : Item := ⟨none, [("opacity", op), ("transform", "none")], []⟩
+private def exItemV (op : String) : Item := ⟨none, [("opacity", op), ("transform", "none")], [], []⟩
 private def exOrigV : Option PartRaw := some [("digit", ⟨2, []⟩), ("face", ⟨20, List.replicate 2 (exItemV "1")⟩)]
 private def exRewV (strips : Nat) : Option PartRaw :=
   some [("digit", ⟨2, []⟩), ("face", ⟨0, []⟩), ("strip", ⟨strips, List.replicate strips (exItemV "0")⟩)]

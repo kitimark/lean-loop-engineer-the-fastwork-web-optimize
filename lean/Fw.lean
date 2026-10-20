@@ -84,6 +84,7 @@ import Fw.Store.Layout
 import Fw.Store.Reduce
 import Fw.Wire.Store
 import Fw.Gate.Rule
+import Fw.Gate.MarginRule
 import Fw.Gate.Compare
 import Fw.Gate.Items
 import Fw.Gate.State

@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { call, cellVerdicts, context, evaluate, reach, styleEq, tallies } from '../src/verdict.mjs';
+import { rectDecided } from '../src/summary.mjs';
 
 const GOLDEN = join(resolve(dirname(fileURLToPath(import.meta.url)), '../../..'), 'packages/contracts/golden/gate');
 const lines = (f) => readFileSync(join(GOLDEN, f), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -170,4 +171,32 @@ test('page-root anchor: each arm scrollWidth <= the viewport the engines give (t
   assert.equal(frac({ scrollWidth: 601 }, { scrollWidth: 601 }).rows['engine.scroll'], 'pass');
   assert.equal(frac({ scrollWidth: 601 }, { scrollWidth: 602 }).verdict, 'fail');
   assert.equal(frac({ scrollWidth: 602 }, { scrollWidth: 602 }).compared['engine.scroll'], 1);
+});
+
+test('margin rule: readState carries the rect-decided cells with both style values, and rectDecided counts them', () => {
+  const literal = lines('literal.jsonl');
+  const run = (name) => {
+    const q = literal.find((c) => c.name === name).request;
+    const ctx = context({ anchors: q.anchors, parts: q.parts, props: q.props, deviceEdges: q.deviceEdges, port: null, variants: null });
+    return evaluate(ctx, q.states).states[0];
+  };
+  const strut = run('margin rule: original non-fixed, rewrite non-fixed, styles differ, rect equal');
+  const ofNode = (ev) => ev.fails.m.filter((it) => it.role === 'node');
+  assert.deepEqual(ofNode(strut), []);
+  assert.equal(strut.fails.m.filter((it) => it.role === 'bare').length, 1);
+  assert.deepEqual(strut.byRect.m.map(({ cls, role, idx, key, status, styleStatus, a, b }) => ({ cls, role, idx, key, status, styleStatus, a, b })),
+    [{ cls: 'style', role: 'node', idx: 0, key: 'margin-inline-start', status: 'equal', styleStatus: 'differ', a: '96px', b: '0px' }]);
+  const acc = { cells: 0, styleDiffer: [] };
+  rectDecided(acc, 'probe-x', strut, ['m'], []);
+  assert.equal(acc.cells, 1);
+  assert.deepEqual(acc.styleDiffer, [{ at: 'probe-x', node: 'm/node[0]', key: 'margin-inline-start', orig: '96px', rewrite: '0px', styleStatus: 'differ', rect: 'equal' }]);
+  const masked = { cells: 0, styleDiffer: [] };
+  rectDecided(masked, 'probe-x', strut, ['m'], [{ part: 'm', role: 'node', idx: 0 }]);
+  assert.deepEqual(masked, { cells: 0, styleDiffer: [] });
+  const fixed = run('margin rule: original fixed, rewrite non-fixed, styles differ, rect equal');
+  assert.deepEqual(fixed.byRect.m, []);
+  assert.equal(ofNode(fixed).length, 1);
+  const rectFail = run('margin rule: original non-fixed, rewrite non-fixed, styles equal, rect differs');
+  assert.ok(ofNode(rectFail).some((it) => it.key === 'margin-inline-start' && it.status === 'differ'));
+  assert.equal(rectFail.rows.m, 'fail');
 });
