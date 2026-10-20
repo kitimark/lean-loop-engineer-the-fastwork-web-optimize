@@ -1,4 +1,4 @@
-// Task ci-push-render-guard: the pre-push hook (scripts/hooks/pre-push -> src/ci-push.ts) refuses a `ci/*` push whose
+// Task ci-push-render-guard: the pre-push hook (scripts/hooks/pre-push -> src/ci-push.ts) refuses a push of any ref but main whose
 // origin/main..HEAD adds media outside snapshot/ (Lean console.landRenderGuard), also after a later removal; main pushes pass.
 import "./land-timeout.ts";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -34,6 +34,21 @@ describe("ci push render guard", () => {
     expect(r.status).not.toBe(0);
     expect(r.stderr).toContain("results/x.png (image)");
     expect(remoteHas("refs/heads/ci/x")).toBe(false);
+  });
+
+  it("refuses a tag and a non-ci branch whose range adds a render", () => {
+    const { fx, push, remoteHas } = setup();
+    fx.commit(fx.root, "results/t.png", "\x89PNG\r\n");
+    fx.git(fx.root, "tag", "v1");
+    const t = push("v1");
+    expect(t.status).not.toBe(0);
+    expect(t.stderr).toContain("results/t.png (image)");
+    expect(remoteHas("refs/tags/v1")).toBe(false);
+    fx.git(fx.root, "branch", "feature/y");
+    const b = push("feature/y");
+    expect(b.status).not.toBe(0);
+    expect(b.stderr).toContain("REFUSED: ci push render guard:");
+    expect(remoteHas("refs/heads/feature/y")).toBe(false);
   });
 
   it("pushes a clean ci branch and a snapshot/ render", () => {

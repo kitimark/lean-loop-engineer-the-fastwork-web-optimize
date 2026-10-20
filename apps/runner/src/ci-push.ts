@@ -1,10 +1,10 @@
-// Task ci-push-render-guard: the git pre-push hook (scripts/hooks/pre-push) runs this before a `ci/*` branch leaves the machine.
+// Task ci-push-render-guard: the git pre-push hook (scripts/hooks/pre-push) runs this before any ref but main leaves the machine.
 // It asks the same Lean decision as `fw land` (fwcore `console.landRenderGuard`, via land.ts `renderGuard`) over
 // `origin/main..<pushed sha>` and refuses a push whose range adds a media path outside snapshot/. Reads only local refs (no network).
-// Pushes of any other ref (main, tags, deletions) are not decided here.
+// Pushes to refs/heads/main and deletions are not decided here.
 import { renderGuard } from "./land.ts";
 
-export const CI_REF = /^refs\/heads\/ci\//;
+export const MAIN_REF = "refs/heads/main";
 export const BASE = "origin/main";
 const ZERO = /^0+$/;
 
@@ -13,11 +13,11 @@ export function ciPushRefusals(stdin: string, cwd: string, base: string = BASE):
   const out: string[] = [];
   for (const line of stdin.split("\n")) {
     const [, sha, remote] = line.trim().split(/\s+/);
-    if (!sha || !remote || !CI_REF.test(remote) || ZERO.test(sha)) continue;
+    if (!sha || !remote || remote === MAIN_REF || ZERO.test(sha)) continue;
     const rg = renderGuard(cwd, base, sha);
     if ("error" in rg) { out.push(`REFUSED: ci push render guard: ${rg.error}`); continue; }
     if (rg.hits.length)
-      out.push(`REFUSED: ci push render guard: ${base}..${remote.slice("refs/heads/".length)} (${sha.slice(0, 7)}) writes media outside snapshot/, and a later removal leaves the blob in history:${rg.hits.map((h) => `\n  ${h.path} (${h.media}) in ${h.commit}`).join("")}\nmove the other changes to a new branch from ${base} without these commits, or add the path with its reason to Fw.Land.RenderGuard.allowlist`);
+      out.push(`REFUSED: ci push render guard: ${base}..${remote.replace(/^refs\/(heads\/)?/, "")} (${sha.slice(0, 7)}) writes media outside snapshot/, and a later removal leaves the blob in history:${rg.hits.map((h) => `\n  ${h.path} (${h.media}) in ${h.commit}`).join("")}\nmove the other changes to a new branch from ${base} without these commits, or add the path with its reason to Fw.Land.RenderGuard.allowlist`);
   }
   return out;
 }
