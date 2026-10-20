@@ -255,8 +255,8 @@ structure Rule where
 
 /-- The rules of `apps/site/src/parts/nav/nav.module.css` that set a transition, in source order.
 
-`trajectory.test.mjs` parses the CSS file and requires this list exactly. The two rules at line 295 are the two selectors
-of one rule. -/
+`trajectory.test.mjs` parses the CSS file and requires this list exactly. The rules at lines 294 and 295 are the two
+selectors of one rule, each at its own line. -/
 def rules : List Rule := [
   ⟨6, "nav", [], [], none, false, 1, some [("opacity", 280, 0), ("transform", 320, 0), ("visibility", 0, 320)], none⟩,
   ⟨41, "nav", [], ["is-morphing"], none, false, 2,
@@ -277,7 +277,7 @@ def rules : List Rule := [
     some [("max-width", 680, 0), ("opacity", 200, 0), ("padding-inline", 680, 0)], none⟩,
   ⟨287, "nav", [], ["is-morphing"], none, true, 2,
     some [("background", 320, 0), ("opacity", 280, 0), ("transform", 320, 0), ("visibility", 0, 320)], none⟩,
-  ⟨295, "nav", ["is-morphing"], [], none, true, 2, some [], none⟩,
+  ⟨294, "nav", ["is-morphing"], [], none, true, 2, some [], none⟩,
   ⟨295, "earn", [], [], none, true, 2, some [], none⟩]
 
 /-- The CSS properties whose transitions move a property the probe reads; `[]` when no transition moves it.

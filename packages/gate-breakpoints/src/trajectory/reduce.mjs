@@ -108,7 +108,7 @@ export const RULES = [
   { line: 167, node: 'earn', on: [], off: [], minW: null, reduce: false, spec: 2, set: [['max-width', 680, 0], ['opacity', 320, 120], ['padding-inline', 680, 0]], delay: null },
   { line: 189, node: 'earn', on: ['is-hero-pill'], off: [], minW: null, reduce: false, spec: 4, set: [['max-width', 680, 0], ['opacity', 200, 0], ['padding-inline', 680, 0]], delay: null },
   { line: 287, node: 'nav', on: [], off: ['is-morphing'], minW: null, reduce: true, spec: 2, set: [['background', 320, 0], ['opacity', 280, 0], ['transform', 320, 0], ['visibility', 0, 320]], delay: null },
-  { line: 295, node: 'nav', on: ['is-morphing'], off: [], minW: null, reduce: true, spec: 2, set: [], delay: null },
+  { line: 294, node: 'nav', on: ['is-morphing'], off: [], minW: null, reduce: true, spec: 2, set: [], delay: null },
   { line: 295, node: 'earn', on: [], off: [], minW: null, reduce: true, spec: 2, set: [], delay: null },
 ];
 
