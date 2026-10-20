@@ -4,6 +4,8 @@ import Fw.Engine.WebKit
 import Fw.Engine.Visual
 import Fw.Parts.EndFlags
 import Fw.Engine.Lessons
+import Fw.Parts.Nav
+import Fw.Parts.MorphPanel
 /-!
 # morph.panel: `blur(0)` → `none` at rest, and an own layer during the fade (MP)
 
@@ -934,5 +936,237 @@ theorem wk_rest_leE {r : Rat} (hr : r ≤ 0) (x : RestIn WebKit.WkProp) (e : Sta
   unfold wkRestWE; rw [filterV_rest hr, filterO_rest hr]; exact le_bump _ _
 
 end EndPass
+
+/-! ## C1 `final-size`: the panel subtree laid out once at the end size, centred in the nav and clipped by it
+
+Refuted on the visual: `hidden_E` and `end_E` hold, `desk_not_Q` and `phone_not_Q` break VisSame on the frames between. -/
+
+namespace FinalSize
+
+open Fw.Engine
+open Fw.Parts.Nav (Vp navWidth navHeight navTop panelW panelH pillW pillH phone)
+open Fw.Parts.MorphPanel (panelOpacity panelProgress panelScale panelBlurPx)
+
+/-- The two arms: the panel subtree laid out at the nav's size every frame, or once at the end size. -/
+inductive Arm where
+  | orig
+  | final
+deriving DecidableEq, Repr
+
+/-- The size the panel subtree is laid out at: the nav box (`inset: 0`) in `orig`, `--panel-w` × `--panel-h` in `final`. -/
+def size (a : Arm) (v : Vp) (m : Rat) : Rat × Rat :=
+  match a with
+  | .orig => (navWidth v false m, navHeight v m)
+  | .final => (panelW v, panelH v)
+
+/-- A layout of the panel subtree from its size `(w, h)`: each box's id, border box centred on the panel, own opacity. -/
+abbrev Layout := Rat → Rat → List (BoxId × Rect × Rat)
+
+/-- The viewport rectangle. -/
+def vpRect (v : Vp) : Rect := ⟨0, 0, v.w, v.h⟩
+
+/-- **One box of the panel subtree on screen** at morph `m`: scaled by the panel's `scale()` about the nav centre, faded
+by the panel's opacity and blur, clipped by the nav's padding box. None of this depends on the arm. -/
+def place (v : Vp) (m : Rat) (e : BoxId × Rect × Rat) : BoxId × BoxVis :=
+  let s := panelScale m
+  let W := navWidth v false m
+  let H := navHeight v m
+  (e.1, ⟨e.2.1, e.2.1, [], ⟨s, 0, 0, s, v.w / 2, navTop v m + H / 2⟩, panelOpacity m * e.2.2,
+    some (.rect ⟨-(W / s) / 2, -(H / s) / 2, W / s, H / s⟩), [⟨"blur", [panelBlurPx m]⟩], 0⟩)
+
+/-- **The scene of the panel subtree** in arm `a` at morph `m`: the layout at the arm's size, each box placed by `place`. -/
+def scene (L : Layout) (v : Vp) (a : Arm) (m : Rat) : Scene :=
+  (L (size a v m).1 (size a v m).2).map (place v m)
+
+/-- Both arms lay out at the same size once the morph is 1. -/
+theorem size_end (v : Vp) : size .orig v 1 = size .final v 1 := by
+  simp only [size, navWidth, navHeight]; grind
+
+/-- **End frame, E**: at `m = 1` the two scenes are equal, for every layout. -/
+theorem end_E (L : Layout) (v : Vp) : scene L v .orig 1 = scene L v .final 1 := by
+  unfold scene; rw [size_end]
+
+/-- A scene whose every box has opacity at most 0 shows nothing. -/
+theorem visible_alpha_zero (vp : Rect) (s : Scene) (h : ∀ e ∈ s, e.2.alpha ≤ 0) : visible vp s = [] := by
+  unfold visible
+  rw [List.filter_eq_nil_iff]
+  intro e he
+  simp [BoxVis.drop, h e he]
+
+/-- **Hidden frames, E**: while `m ≤ 0.08` the panel's opacity is 0, so neither arm shows a box of the subtree. -/
+theorem hidden_E (L : Layout) (v : Vp) (a : Arm) {m : Rat} (hm : m ≤ 2 / 25) :
+    visible (vpRect v) (scene L v a m) = [] := by
+  apply visible_alpha_zero
+  intro e he
+  simp only [scene, List.mem_map] at he
+  obtain ⟨x, -, rfl⟩ := he
+  simp [place, panelOpacity, Fw.Parts.MorphPanel.panelProgress_zero m hm]
+
+/-- The arms' layout sizes differ by `(1 - m)` times the morph's whole growth. -/
+theorem size_gap (v : Vp) (m : Rat) :
+    (size .final v m).1 - (size .orig v m).1 = (1 - m) * (panelW v - pillW v) ∧
+      (size .final v m).2 - (size .orig v m).2 = (1 - m) * (panelH v - pillH v) := by
+  simp only [size, navWidth, navHeight]; constructor <;> grind
+
+/-- The bounding box of a centred rectangle under a positive scale about the origin and a translation. -/
+theorem bbox_centred (s e f w h : Rat) (hs : 0 < s) (hw : 0 < w) (hh : 0 < h) :
+    Affine.bbox ⟨s, 0, 0, s, e, f⟩ ⟨-w / 2, -h / 2, w, h⟩ = ⟨e - s * w / 2, f - s * h / 2, s * w, s * h⟩ := by
+  have hsw : 0 < s * w := Rat.mul_pos hs hw
+  have hsh : 0 < s * h := Rat.mul_pos hs hh
+  simp only [Affine.bbox, Affine.apply, Rect.mk.injEq]
+  refine ⟨?_, ?_, ?_, ?_⟩ <;> grind
+
+/-- `--col-offset` of the five columns, as a fraction of the column's own height (morph.columns `data.ts`). -/
+def colOffsets : List Rat := [-3 / 10, -33 / 100, -19 / 100, -33 / 100, -11 / 100]
+
+/-- Columns shown: 3 at `width ≤ 640px`, else 5 (morph.columns `:nth-child(n + 4) { display: none }`). -/
+def ncols (v : Vp) : Nat := if phone v.w then 3 else 5
+
+/-- The backdrop's gap: 8px at `width ≤ 640px`, else 12px. -/
+def colGap (v : Vp) : Rat := if phone v.w then 8 else 12
+
+/-- A column's width: the backdrop (`inset: 0 -3%`, so 1.06 × the panel) less the gaps, shared by `flex: 1 1 0`. -/
+def colW (v : Vp) (w : Rat) : Rat := ((53 / 50) * w - ((ncols v : Rat) - 1) * colGap v) / ncols v
+
+/-- The footer's height: 68px (`height: 68px`; at `width ≤ 640px` its one visible row, 20px, plus 24px padding twice). -/
+def footerH : Rat := 68
+
+/-- The veil at panel size `(w, h)`. -/
+def veil (w h : Rat) : BoxId × Rect × Rat := ("veil", Rect.mk (-w / 2) (-h / 2) w h, 1)
+
+/-- The columns of the backdrop at panel size `(w, h)`. -/
+def cols (v : Vp) (w h : Rat) : List (BoxId × Rect × Rat) :=
+  (colOffsets.take (ncols v)).zipIdx.map fun (o, i) =>
+    (s!"col{i}", Rect.mk (-(53 / 100) * w + i * (colW v w + colGap v)) (-h / 2 + o * h) (colW v w) h, 2 / 5)
+
+/-- The footer at panel size `(w, h)`. -/
+def footer (w h : Rat) : BoxId × Rect × Rat := ("footer", Rect.mk (-w / 2) (h / 2 - footerH) w footerH, 1)
+
+/-- **The panel subtree's size-dependent boxes** in paint order: the veil (`inset: 0`), the columns (`flex: 1 1 0`,
+translated by `--col-offset` of their own height), the footer (`bottom: 0`). Coordinates are centred on the panel. -/
+def subtree (v : Vp) : Layout := fun w h => veil w h :: (cols v w h ++ [footer w h])
+
+/-- **Footer shift**: the `final` arm draws the footer `(1 - m)` half the height growth lower, below the nav's clip. -/
+theorem footer_shift (v : Vp) (m : Rat) :
+    (footer (size .final v m).1 (size .final v m).2).2.1.y - (footer (size .orig v m).1 (size .orig v m).2).2.1.y =
+      (1 - m) * (panelH v - pillH v) / 2 := by
+  have := (size_gap v m).2
+  simp only [footer]; grind
+
+/-- **Frames between, not Q**: while the panel is visible and the arms' heights differ by more than ½ px, the veil,
+first in paint order, is kept in both arms and its box height differs beyond PL1. -/
+theorem not_Q (v : Vp) (m : Rat) (hα : 0 < panelOpacity m) (hs : 0 < panelScale m) (hW : 0 < navWidth v false m)
+    (hH : 0 < navHeight v m) (hWf : 0 < panelW v) (hHf : 0 < panelH v) (hcx : 0 < v.w)
+    (hcy0 : 0 < navTop v m + navHeight v m / 2) (hcy1 : navTop v m + navHeight v m / 2 < v.h)
+    (hgap : 1 / 2 < (1 - m) * (panelH v - pillH v)) :
+    ¬ Q (visible (vpRect v) (scene (subtree v) v .orig m)) (visible (vpRect v) (scene (subtree v) v .final m)) := by
+  have kept : ∀ a : Arm, 0 < (size a v m).1 → 0 < (size a v m).2 →
+      visible (vpRect v) (scene (subtree v) v a m) =
+        place v m (veil (size a v m).1 (size a v m).2) ::
+          visible (vpRect v) ((cols v (size a v m).1 (size a v m).2 ++
+            [footer (size a v m).1 (size a v m).2]).map (place v m)) := by
+    intro a hw hh
+    have hsw := Rat.mul_pos hs hw
+    have hsh := Rat.mul_pos hs hh
+    have hWs : 0 < navWidth v false m / panelScale m := by
+      rw [Rat.div_def]; exact Rat.mul_pos hW (Rat.inv_pos.mpr hs)
+    have hHs : 0 < navHeight v m / panelScale m := by
+      rw [Rat.div_def]; exact Rat.mul_pos hH (Rat.inv_pos.mpr hs)
+    simp only [scene, subtree, List.map_cons, visible, List.filter_cons]
+    rw [ite_eq_left]
+    simp only [place, veil, BoxVis.drop, bbox_centred _ _ _ _ _ hs hw hh, Rect.meets, vpRect, List.lookup]
+    have h1 : ¬ panelOpacity m * 1 ≤ 0 := by grind
+    simp; grind
+  have hfar : Fw.Gate.near Fw.Gate.tolBox (size .orig v m).2 (size .final v m).2 = false := by
+    have := (size_gap v m).2
+    simp only [Fw.Gate.near, Fw.Gate.tolBox, Bool.and_eq_false_iff]
+    grind
+  intro hq
+  unfold Q at hq
+  rw [kept .orig hW hH, kept .final hWf hHf] at hq
+  simp [sceneQ, boxQ, nearRect, place, veil, hfar] at hq
+
+/-- The desktop viewport of the lag note, 1440 × 900. -/
+def desk : Vp := ⟨1440, 900⟩
+
+/-- The phone viewport of the lag note, 390 × 844. -/
+def phoneVp : Vp := ⟨390, 844⟩
+
+/-- The nav sizes at 1440 × 900. -/
+theorem desk_vals : pillW desk = 984 ∧ pillH desk = 64 ∧ panelW desk = 1398 ∧ panelH desk = 820 ∧
+    phone desk.w = false := by decide +kernel
+
+/-- The nav sizes at 390 × 844. -/
+theorem phone_vals : pillW phoneVp = 358 ∧ pillH phoneVp = 52 ∧ panelW phoneVp = 366 ∧ panelH phoneVp = 820 ∧
+    phone phoneVp.w = true := by decide +kernel
+
+/-- The panel is visible exactly past `m = 0.08`. -/
+theorem opacity_pos {m : Rat} (h : 2 / 25 < m) : 0 < panelOpacity m := by
+  simp only [panelOpacity, panelProgress, Fw.Parts.MorphPanel.clamp01]; grind
+
+/-- **Desktop, not Q**: every morph value in `(0.08, 1 - 1/1512)` breaks VisSame at 1440 × 900. -/
+theorem desk_not_Q {m : Rat} (h0 : 2 / 25 < m) (h1 : m < 1 - 1 / 1512) :
+    ¬ Q (visible (vpRect desk) (scene (subtree desk) desk .orig m))
+      (visible (vpRect desk) (scene (subtree desk) desk .final m)) := by
+  obtain ⟨hpw, hph, hw, hh, hp⟩ := desk_vals
+  apply not_Q desk m (opacity_pos h0)
+  all_goals (try simp only [panelScale, navWidth, navHeight, navTop, hpw, hph, hw, hh, hp])
+  all_goals (try simp only [desk])
+  all_goals grind
+
+/-- **Phone, not Q**: every morph value in `(0.08, 1 - 1/1536)` breaks VisSame at 390 × 844. -/
+theorem phone_not_Q {m : Rat} (h0 : 2 / 25 < m) (h1 : m < 1 - 1 / 1536) :
+    ¬ Q (visible (vpRect phoneVp) (scene (subtree phoneVp) phoneVp .orig m))
+      (visible (vpRect phoneVp) (scene (subtree phoneVp) phoneVp .final m)) := by
+  obtain ⟨hpw, hph, hw, hh, hp⟩ := phone_vals
+  apply not_Q phoneVp m (opacity_pos h0)
+  all_goals (try simp only [panelScale, navWidth, navHeight, navTop, hpw, hph, hw, hh, hp])
+  all_goals (try simp only [phoneVp])
+  all_goals grind
+
+/-- The morph value of tween frame `k` at 60 Hz after a push from `f` to `t`. -/
+def frameM (f t : Rat) (k : Nat) : Rat := (Fw.Parts.MorphTween.tween f t ((k : Rat) * (50 / 3))).value
+
+/-- **The verdict of one frame**: `E` when the visible scenes are equal, `Q` within the gate's tolerances, else `differs`. -/
+def verdict (v : Vp) (m : Rat) : String :=
+  let o := visible (vpRect v) (scene (subtree v) v .orig m)
+  let f := visible (vpRect v) (scene (subtree v) v .final m)
+  if o == f then "E" else if sceneQ o f then "Q" else "differs"
+
+/-- The frames `0 … 41` of one push with the verdict `differs`. -/
+def differing (v : Vp) (f t : Rat) : List Nat := (List.range 42).filter fun k => verdict v (frameM f t k) == "differs"
+
+/-- The 42 frames of one push from `f` to `t`. -/
+def frames (f t : Rat) : List Rat := (List.range 42).map (frameM f t)
+
+/-- **Panel subtree layouts in one run**: the frame pairs whose layout size changes, each a relayout of panel and columns. -/
+def relayouts (a : Arm) (v : Vp) (ms : List Rat) : Nat :=
+  ((ms.zip ms.tail).filter fun p => size a v p.1 != size a v p.2).length
+
+/-- **Work bound**: the `final` arm lays out the panel subtree in no frame of any run. -/
+theorem relayouts_final (v : Vp) (ms : List Rat) : relayouts .final v ms = 0 := by
+  simp [relayouts, size]
+
+/-- The `orig` arm lays out the panel subtree again on every frame whose morph value changes. -/
+theorem relayouts_orig_pos (v : Vp) {m n : Rat} (hmn : m ≠ n) (hH : pillH v ≠ panelH v) :
+    relayouts .orig v [m, n] = 1 := by
+  have : navHeight v m ≠ navHeight v n := by
+    simp only [navHeight]; intro h; apply hmn
+    have h2 : (panelH v - pillH v) * (m - n) = 0 := by grind
+    rcases Rat.mul_eq_zero.mp h2 with h3 | h3 <;> grind
+  simp [relayouts, size, this]
+
+#guard relayouts .orig desk (frames 0 1) = 41
+#guard relayouts .orig phoneVp (frames 0 1) = 41
+#guard relayouts .final desk (frames 0 1) = 0
+#guard (List.range 42).map (fun k => verdict desk (frameM 0 1 k)) =
+  ["E", "E"] ++ List.replicate 36 "differs" ++ ["Q", "Q", "Q", "E"]
+#guard differing desk 0 1 = (List.range 36).map (· + 2)
+#guard differing phoneVp 0 1 = (List.range 36).map (· + 2)
+#guard differing desk 1 0 = (List.range 23).map (· + 1)
+#guard differing phoneVp 1 0 = (List.range 23).map (· + 1)
+#guard verdict desk 0 = "E" && verdict desk 1 = "E" && verdict desk (1 / 2) = "differs"
+
+end FinalSize
 
 end Fw.Parts.MorphPanelOpt
