@@ -66,6 +66,7 @@ import Fw.Measure.WebKit
 import Fw.Measure.Retry
 import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
+import Fw.Measure.SimBound
 import Fw.Measure.Compose
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard
@@ -113,6 +114,7 @@ import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
 import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
 import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
 import Fw.Obs.GhStatus -- gh-status: GitHub Actions degraded flag and incident naming
+import Fw.Obs.CiStatus -- circleci-status: CircleCI Linux Arm / macOS health verdict and router input
 import Fw.Obs.Stale  -- console-stale: a service whose inputs changed on main after it started is stale
 import Fw.Obs.Signals -- obs-signals: agent state from transcript signals (obs.signals)
 import Fw.Obs.Fold  -- watch-incremental: transcript summaries as a fold, resume from saved state

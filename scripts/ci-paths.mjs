@@ -589,6 +589,9 @@ export function guardJob(file, lane, row = null) {
     '          fetch-depth: 0',
     '          filter: blob:none',
     '          persist-credentials: false',
+    '      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0',
+    '        with:',
+    `          node-version-file: ${NODE_FILE}`,
     '      - id: g',
     '        env:',
     '          EVENT_NAME: ${{ github.event_name }}',
@@ -859,45 +862,172 @@ export function leanInputProblems(root, table) {
   return out;
 }
 
-// ---- Node pin (task node-pin) ----------------------------------------------------------------------------------------
+// ---- Node pin (tasks node-pin, node-pin-local) -----------------------------------------------------------------------
 // One canonical Node version: the repo-root `.node-version` (exact x.y.z, at least NODE_MIN). Every `actions/setup-node`
-// step takes it through `node-version-file: .node-version` and no workflow or action sets `node-version:`; every workflow
-// that sets up Node (directly or through the setup-pnpm action) lists `.node-version` among its inputs in the Lean table,
-// so a change of the pin starts the lanes that use Node.
-// TS stand-in: no Lean golden yet for the rule (the trigger rows themselves are Lean).
+// step takes it through `node-version-file: .node-version`, no workflow or action sets `node-version:`, a job that runs
+// node/pnpm/npm/npx has such a step (or the setup-pnpm action), and every workflow that runs Node has a Lean row that lists
+// `.node-version`, so a change of the pin starts the lanes that use Node. The pin is repeated in `.nvmrc`, `engines.node`
+// and pnpm's `useNodeVersion` (pnpm-workspace.yaml); each copy must equal it.
+// The decisions (pinValueProblems, jobProblems, rowProblems, copyProblems) are Lean (Fw.Ci.Trigger, section "The Node pin
+// rule"); the functions below are their TS twins, checked against the golden `pin*` lines in ci-paths.test.mjs. The YAML
+// reader (jobFacts) and the `.npmrc` engine-strict line are glue with no Lean twin (TS stand-in).
 export const NODE_FILE = '.node-version';
 export const NODE_MIN = [24, 22, 0];
 
-/** Problems of the Node pin: file shape, drift in workflows and actions, and Lean rows that miss the file. */
+/** Twin of Lean `pinValueProblems`. */
+export function pinValueProblems(pin) {
+  if (pin === null || pin === undefined) return ['noFile'];
+  const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(pin);
+  if (!m) return ['notExact'];
+  const v = m.slice(1).map(Number);
+  for (let k = 0; k < 3; k++) if (v[k] !== NODE_MIN[k]) return v[k] > NODE_MIN[k] ? [] : ['tooOld'];
+  return [];
+}
+
+/** Twin of Lean `jobProblems`. */
+export function jobProblems(j) {
+  const out = [];
+  if (j.versionKey) out.push('versionKey');
+  if (j.setups.some((s) => s !== NODE_FILE)) out.push('otherFile');
+  if (j.runsNode && j.setups.length === 0 && !j.pnpmAction) out.push('unpinnedNode');
+  if (j.nodeBeforeSetup) out.push('nodeBeforeSetup');
+  return out;
+}
+
+/** The one trim of a pin file's content: ASCII space, tab, CR, LF only, as Lean `trimAscii` (Init/Data/Char/Basic.lean:97-98@v4.35.0). Not `String.trim`, which also strips U+FEFF, U+00A0, \f and \v. */
+export const trimPin = (s) => s.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '');
+
+/** Twin of Lean `nodePinRefusal`: the refusal line when the running Node is not the pin, else null. */
+export function nodePinRefusal(running, pinned) {
+  if (pinned === null || pinned === undefined) return null;
+  const want = trimPin(pinned);
+  const seen = running.startsWith('v') ? running.slice(1) : running;
+  if (seen === want) return null;
+  return `refusing to start: running Node ${seen} but ${NODE_FILE} pins ${want}; run \`nvm install && nvm use\` (or start through \`pnpm\`, which uses the pinned Node) and retry`;
+}
+
+/** Twin of Lean `rowProblems`. */
+export function rowProblems(usesNode, row) {
+  if (!usesNode) return [];
+  if (row === null || row === undefined) return ['noRow'];
+  return row.includes(NODE_FILE) ? [] : ['rowLacksPin'];
+}
+
+/** Twin of Lean `copyProblems`: copies is [[name, value|null]]. */
+export function copyProblems(pin, copies) {
+  return copies.filter(([, v]) => (v ?? null) !== (pin ?? null)).map(([n]) => `differs:${n}`);
+}
+
+const SETUP_NODE = /\buses['"]?\s*:\s*['"]?actions\/setup-node@/;
+const SETUP_PNPM = /\buses['"]?\s*:\s*['"]?\.\/\.github\/actions\/setup-pnpm['"]?\s*(?:[,}]|$)/;
+const VERSION_KEY = /(^|[\s{,-])['"]?node-version['"]?\s*:/;
+const FILE_KEY = /(^|[\s{,-])['"]?node-version-file['"]?\s*:\s*['"]?([^'"\s,}]*)/;
+const NODE_CMD = /(^|[;&|(`]\s*|\$\(\s*|\bthen\s+|\bdo\s+|\bxargs\s+|\bexec\s+)(node|pnpm|npm|npx)(\s|$)/;
+
+/** The lines of the step that holds line `i` (block or flow-map form): from its `- ` item line to the next item. */
+function stepLines(lines, i) {
+  let a = i;
+  if (!/^\s*-\s/.test(lines[i])) { // `uses` is not the first key: walk up to the `- ` item line
+    const k = indentOf(lines[i]);
+    for (let n = i - 1; n >= 0; n--) if (!isBlank(lines[n]) && indentOf(lines[n]) < k) { a = n; break; }
+  }
+  const sk = indentOf(lines[a]);
+  let b = a + 1;
+  while (b < lines.length && (isBlank(lines[b]) || indentOf(lines[b]) > sk || (indentOf(lines[b]) === sk && !/^\s*-\s/.test(lines[b])))) b++;
+  return lines.slice(a, b);
+}
+
+/** What the scanner reads off the lines of one job (or of a whole composite action): the facts of Lean `PinJob`.
+ *  Reads the block form and the quoted and flow-map forms (`- { uses: 'actions/setup-node@x', with: { node-version-file: .node-version } }`). */
+export function jobFacts(lines, nodeActions = []) {
+  const f = { setups: [], versionKey: false, pnpmAction: false, runsNode: false, nodeBeforeSetup: false };
+  let runIndent = -1;
+  let firstSetup = -1; // line of the first setup-node / setup-pnpm step
+  let firstNode = -1; // line of the first step that runs Node (a run: line or a node action other than telemetry)
+  lines.forEach((l, i) => {
+    if (isBlank(l)) return;
+    const code = l.replace(/\s+#.*$/, '');
+    if (VERSION_KEY.test(code.replace(/node-version-file/g, 'x'))) f.versionKey = true;
+    if (SETUP_NODE.test(code)) {
+      const m = stepLines(lines, i).map((x) => FILE_KEY.exec(x)).find(Boolean);
+      f.setups.push(m ? m[2] : '');
+    }
+    if (SETUP_PNPM.test(code)) f.pnpmAction = true;
+    if ((SETUP_NODE.test(code) || SETUP_PNPM.test(code)) && firstSetup < 0) firstSetup = i;
+    if (nodeActions.some((a) => code.includes(`./.github/actions/${a}`))) { // a composite action that runs node
+      f.runsNode = true;
+      if (firstNode < 0) firstNode = i; // no exemption (Lean PinJob)
+    }
+    let run = null;
+    if (runIndent >= 0) {
+      if (indentOf(l) > runIndent) run = code.trim();
+      else runIndent = -1;
+    }
+    if (run === null) {
+      const m = /^\s*(?:-\s+)?['"]?run['"]?\s*:\s*(.*)$/.exec(code);
+      if (m) {
+        if (/^[|>][-+]?\d*$/.test(m[1].trim())) runIndent = indentOf(l.replace(/^(\s*)-\s+/, '$1  '));
+        else run = m[1].trim().replace(/^['"]/, '');
+      }
+    }
+    if (run !== null && NODE_CMD.test(run)) { f.runsNode = true; if (firstNode < 0) firstNode = i; }
+  });
+  f.nodeBeforeSetup = firstNode >= 0 && firstSetup >= 0 && firstNode < firstSetup;
+  return f;
+}
+
+/** Problems of the Node pin: file shape, the copies of the pin, drift in workflows and actions, and Lean rows that miss the file. */
 export function nodePinProblems(root, table) {
   const out = [];
-  const pin = existsSync(join(root, NODE_FILE)) ? readFileSync(join(root, NODE_FILE), 'utf8').trim() : null;
-  const m = pin === null ? null : /^(\d+)\.(\d+)\.(\d+)$/.exec(pin);
-  if (!m) out.push(`${NODE_FILE}: must hold one exact version x.y.z (got ${pin === null ? 'no file' : JSON.stringify(pin)})`);
-  else if (!(m.slice(1).map(Number).reduce((ge, n, i, a) => (ge !== 0 ? ge : n - NODE_MIN[i]), 0) >= 0)) out.push(`${NODE_FILE}: ${pin} is older than ${NODE_MIN.join('.')}`);
+  const read = (rel) => (existsSync(join(root, rel)) ? readFileSync(join(root, rel), 'utf8') : null);
+  const raw = read(NODE_FILE);
+  const pin = raw === null ? null : trimPin(raw);
+  for (const c of pinValueProblems(pin)) {
+    out.push(`${NODE_FILE}: ${c === 'tooOld' ? `${pin} is older than ${NODE_MIN.join('.')}` : `must hold one exact version x.y.z (got ${pin === null ? 'no file' : JSON.stringify(pin)})`}`);
+  }
+  const pkg = read('package.json');
+  const ws = read('pnpm-workspace.yaml');
+  const nvmrc = read('.nvmrc');
+  const copies = [
+    ['.nvmrc', nvmrc === null ? null : trimPin(nvmrc)],
+    ['package.json engines.node', pkg === null ? null : (JSON.parse(pkg).engines?.node ?? null)],
+    ['pnpm-workspace.yaml useNodeVersion', ws === null ? null : (/^useNodeVersion:\s*['"]?([^'"\s#]+)/m.exec(ws)?.[1] ?? null)],
+  ];
+  for (const p of copyProblems(pin, copies)) out.push(`${p.replace('differs:', '')}: must equal ${NODE_FILE} (${pin})`);
+  const npmrc = read('.npmrc');
+  if (npmrc === null || !/^engine-strict\s*=\s*true\s*$/m.test(npmrc)) out.push('.npmrc: must set engine-strict=true');
   const files = [];
   for (const f of readdirSync(join(root, WF_DIR)).filter((n) => n.endsWith('.yml'))) files.push({ rel: `${WF_DIR}/${f}`, wf: f });
   const actDir = join(root, '.github/actions');
   if (existsSync(actDir)) for (const d of readdirSync(actDir)) if (existsSync(join(actDir, d, 'action.yml'))) files.push({ rel: `.github/actions/${d}/action.yml`, wf: null });
   const rows = new Map(table.workflows.map((w) => [w.file, w]));
+  const text = {
+    versionKey: `sets node-version; use node-version-file: ${NODE_FILE}`,
+    otherFile: `a setup-node step whose node-version-file is not ${NODE_FILE}`,
+    nodeBeforeSetup: 'a step runs node before the job sets up the pinned Node (move actions/setup-node or the setup-pnpm action directly after actions/checkout)',
+    unpinnedNode: `runs node/pnpm/npm/npx with no setup-node step (add actions/setup-node with node-version-file: ${NODE_FILE}, or the setup-pnpm action)`,
+  };
+  // composite actions that run node without setting it up: the job that uses one needs the pin, the action itself is judged through its callers
+  const nodeActions = files.filter((x) => !x.wf).filter((x) => { const f = jobFacts(readFileSync(join(root, x.rel), 'utf8').split('\n')); return f.runsNode && !f.setups.length; }).map((x) => x.rel.split('/')[2]);
   for (const { rel, wf } of files) {
     const lines = readFileSync(join(root, rel), 'utf8').split('\n');
+    let units;
+    if (wf) {
+      let jobs = [];
+      try { jobs = readJobs(lines); } catch { out.push(`${rel}: jobs unreadable by the pin scanner`); }
+      units = jobs.map((j) => ({ name: j.name, lines: lines.slice(j.at, j.end), at: j.at }));
+    } else units = [{ name: 'action', lines, at: 0 }];
     let usesNode = false;
-    lines.forEach((l, i) => {
-      if (/^\s*-?\s*node-version\s*:/.test(l)) out.push(`${rel}:${i + 1}: sets node-version; use node-version-file: ${NODE_FILE}`);
-      if (/^\s*-?\s*node-version-file\s*:/.test(l) && !new RegExp(`^\\s*-?\\s*node-version-file:\\s*${NODE_FILE.replace('.', '\\.')}\\s*$`).test(l)) out.push(`${rel}:${i + 1}: node-version-file is not ${NODE_FILE}`);
-      if (/uses:\s*actions\/setup-node@/.test(l)) {
-        usesNode = true;
-        const k = indentOf(l);
-        let ok = false;
-        for (let n = i + 1; n < lines.length && (isBlank(lines[n]) || indentOf(lines[n]) > k); n++) if (new RegExp(`^\\s*node-version-file:\\s*${NODE_FILE.replace('.', '\\.')}\\s*$`).test(lines[n])) ok = true;
-        if (!ok) out.push(`${rel}:${i + 1}: actions/setup-node without node-version-file: ${NODE_FILE}`);
+    for (const u of units) {
+      const facts = jobFacts(u.lines, nodeActions);
+      if (!wf && !facts.setups.length) facts.runsNode = false;
+      if (facts.setups.length || facts.pnpmAction || facts.runsNode) usesNode = true;
+      for (const c of jobProblems(facts)) out.push(`${rel}:${u.at + 1}: job ${u.name}: ${text[c]}`);
+    }
+    if (wf) {
+      for (const c of rowProblems(usesNode, rows.has(wf) ? rows.get(wf).inputs : null)) {
+        out.push(c === 'noRow' ? `${wf}: runs Node but has no row in the Lean table (lean/Fw/Ci/Trigger.lean \`table\`)` : `${wf}: runs Node but its Lean row (lean/Fw/Ci/Trigger.lean \`table\`) lacks "${NODE_FILE}"`);
       }
-      if (/uses:\s*\.\/\.github\/actions\/setup-pnpm\s*$/.test(l)) usesNode = true;
-    });
-    if (wf && usesNode) {
-      const row = rows.get(wf);
-      if (row && !row.inputs.includes(NODE_FILE)) out.push(`${wf}: sets up Node but its Lean row (lean/Fw/Ci/Trigger.lean \`table\`) lacks "${NODE_FILE}"`);
     }
   }
   return out;

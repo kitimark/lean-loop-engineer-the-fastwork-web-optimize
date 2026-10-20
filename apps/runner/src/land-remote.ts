@@ -295,6 +295,8 @@ export function spawnWait(cwd: string): GithubDeps["wait"] {
 }
 
 // ---- the tiered land checks --------------------------------------------------------------------------------------------
+/** The fwcore build step of the local plan (Lean `LandTier.Step.build`). */
+export const BUILD_ARGV = ["sh", "scripts/fwcore-build.sh"];
 export type Local = (argv: string[][]) => Promise<{ bad: string | null; kind: string }>;
 export type TierPlan = {
   call: FwCall;
@@ -312,16 +314,20 @@ export type TierPlan = {
   waitsLeft?: number;
   sliceS?: number;
   deadlineS?: number;
+  /** a fwcore build already ran in the merge tree (phase 1) */
+  built?: boolean;
 };
 
 /** Run the Lean local tier here while the remote tier runs on the land lane; combine the two with `console.landRemote`.
  *  Returns the failure text (null: land may proceed) and its kind. Without a remote check nothing is pushed. */
 export async function runTiered(p: TierPlan): Promise<{ bad: string | null; kind: string }> {
-  const split = p.call({ op: "console.landTier", ids: p.checks.map((c) => c.id) }) as { local: string[]; remote: string[] };
+  const split = p.call({ op: "console.landTier", ids: p.checks.map((c) => c.id), built: p.built ?? false }) as { local: string[]; remote: string[]; build: boolean };
   const argvOf = (ids: string[]) => p.checks.filter((c) => ids.includes(c.id)).map((c) => c.argv);
+  // Lean `LandTier.localPlan`: the fwcore build first when a local check runs the binary and no build ran yet (`core_user_has_build`)
+  const localArgv = () => (split.build ? [BUILD_ARGV, ...argvOf(split.local)] : argvOf(split.local));
   const t0 = Date.now();
   const localP = (async () => {
-    const r = await p.runLocal(argvOf(split.local));
+    const r = await p.runLocal(localArgv());
     p.span("local tier", t0, Date.now() - t0, r.bad === null ? 0 : 1);
     return r;
   })();

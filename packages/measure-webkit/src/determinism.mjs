@@ -27,6 +27,7 @@ export async function onePass(ctx, { states, clock, settleMs, holdMs, paintWindo
   // one retry from a fresh load: a Simulator evaluate occasionally stalls right after a heavy reload (seen once in 6 passes)
   let scroll;
   for (let attempt = 1; ; attempt++) {
+    await ctx.check?.(); // a dead inspector ends the run (exit 4) instead of being retried
     try { await loadFresh(c, { clock, settleMs, timers: mode.includes('hold') ? 'hold' : 'live' }); scroll = await scrollRun(c, { step, framesPerStep, mode }); break; } catch (e) {
       if (attempt >= attempts()) throw e;
       log(`  scroll attempt ${attempt} failed (${e.message}); reconnecting and retrying from a fresh load`);
@@ -53,6 +54,7 @@ export async function onePass(ctx, { states, clock, settleMs, holdMs, paintWindo
  */
 export async function onePassRetrying(ctx, opts) {
   for (let attempt = 1; ; attempt++) {
+    await ctx.check?.();
     try { return await onePass(ctx, opts); } catch (e) {
       if (attempt >= attempts()) throw e;
       opts.log(`  pass attempt ${attempt} failed (${e.message}); reconnecting and repeating the pass from a fresh load`);

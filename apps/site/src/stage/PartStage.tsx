@@ -128,7 +128,7 @@ export function PartStage({ stage, config, pinned }: { stage: StageSpec; config:
   useEffect(() => setHydrated(), []);
 
   useLayoutEffect(() => {
-    window.scrollTo(0, stage.env.y);
+    window.scrollTo({ top: stage.env.y, left: 0, behavior: 'instant' }); // the page rule is smooth; the stage is at its y at once
     const find = (owner: string) => document.querySelector<HTMLElement>(`[data-fw="${anchorOf.get(owner) ?? owner}"]`);
     const missing = applyInputs(plan.writes, find);
     window.__fwStage = {

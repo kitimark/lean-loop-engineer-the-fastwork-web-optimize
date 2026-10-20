@@ -17,10 +17,11 @@ export async function pollUntil(check, { timeoutMs, intervalMs = 250, clock = re
 /**
  * Wait until the proxy lists a tab for the page. Safari drops the first `openurl` (10 of 10 first sessions on the CI
  * runner), so while no tab is listed `ask()` is sent again every `askEveryMs`; it stops asking once a tab is listed
- * (a second `openurl` after the tab exists could open a second tab). The caller has already asked once.
+ * (a second `openurl` after the tab exists could open a second tab). The caller has already asked once; at most `maxAsks`
+ * extra asks are sent.
  * @returns {Promise<{tabs:object[], asks:number}>} asks = extra asks sent
  */
-export async function ensureTab({ list, ask, askEveryMs = 6000, timeoutMs, intervalMs = 500, clock = realClock, log = () => {} }) {
+export async function ensureTab({ list, ask, askEveryMs = 6000, maxAsks = Infinity, timeoutMs, intervalMs = 500, clock = realClock, log = () => {} }) {
   const t0 = clock.now();
   let lastAsk = t0, asks = 0, last = 'no tab listed';
   for (;;) {
@@ -31,7 +32,7 @@ export async function ensureTab({ list, ask, askEveryMs = 6000, timeoutMs, inter
     } catch (e) { last = e.cause?.code || e.message; }
     const now = clock.now();
     if (now - t0 >= timeoutMs) throw new Error(`no Safari tab listed in ${Math.round(timeoutMs / 1000)} s (${last}; ${asks} extra openurl)`);
-    if (now - lastAsk >= askEveryMs) {
+    if (asks < maxAsks && now - lastAsk >= askEveryMs) {
       asks++;
       log(`  no tab after ${Math.round((now - t0) / 1000)} s: sending openurl again (extra ask ${asks})`);
       try { ask(); } catch (e) { log(`  openurl failed: ${e.message}`); }

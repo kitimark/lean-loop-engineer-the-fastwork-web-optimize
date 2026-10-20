@@ -25,6 +25,14 @@ export type GhView = {
 };
 export const GH_STATUS_URL = "https://www.githubstatus.com";
 
+// Rendering only: the CircleCI verdicts and `usable` are Lean Fw.Obs.CiStatus (console-api `GET /api/ci-status`).
+export type CiView = {
+  readAt: number | null; now: number; fresh: boolean; error: string | null; url: string;
+  states: Record<"docker" | "machine" | "pipelines" | "api" | "macos", string>;
+  arm: { verdict: string; usable: boolean }; macos: { verdict: string; usable: boolean };
+  incidents: { name: string; status: string; impact: string; createdAt: number; updatedAt: number; components: string[] }[];
+};
+
 const STATES = ["stalled", "active", "idle", "parked", "gone", "done"] as const; // display grouping only
 
 function useHealth(): { health: HealthView | null | undefined; error: boolean } {
@@ -89,8 +97,69 @@ export function GhCard({ gh, now }: { gh: GhView; now: number }) {
   );
 }
 
+const verdictVariant = (v: string) => (v === "healthy" ? "secondary" : v === "unknown" ? "outline" : "destructive") as
+  "secondary" | "outline" | "destructive";
+
+export function CiCard({ ci }: { ci: CiView }) {
+  const lanes = [["Linux Arm", ci.arm], ["macOS", ci.macos]] as const;
+  const comps = [["Docker Jobs", ci.states.docker], ["Machine Jobs", ci.states.machine], ["Pipelines & Workflows", ci.states.pipelines],
+    ["CircleCI API", ci.states.api], ["macOS Jobs", ci.states.macos]] as const;
+  return (
+    <Card data-testid="circleci-status">
+      <CardHeader>
+        <CardTitle className="flex flex-wrap items-center gap-2">
+          CircleCI {lanes.map(([n, l]) => <Badge key={n} variant={verdictVariant(l.verdict)}>{n} {l.verdict}{l.usable ? ", usable" : ""}</Badge>)}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Table>
+          <TableBody>
+            {comps.map(([name, st]) => (
+              <TableRow key={name}>
+                <TableCell className="font-medium">{name}</TableCell>
+                <TableCell><Badge variant={compVariant(st)}>{st}</Badge></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <p className="text-sm text-muted-foreground">
+          {ci.readAt === null ? "Not read yet." : `Read ${age(ci.now - ci.readAt)} ago${ci.fresh ? "" : " (stale)"}.`}
+          {ci.error && ` Last read failed: ${ci.error}.`}
+        </p>
+        {ci.incidents.length === 0 && <p className="text-sm text-muted-foreground">No open incident on these components.</p>}
+        {ci.incidents.map((i) => (
+          <div key={`${i.name}-${i.createdAt}`} className="flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant="destructive">{i.impact || "incident"}</Badge><span className="font-medium">{i.name}</span>
+            <span className="text-muted-foreground">{i.status}, {i.components.join(", ")}, opened {age(ci.now - i.createdAt)} ago</span>
+          </div>
+        ))}
+        <a className="text-sm underline" href={ci.url} target="_blank" rel="noreferrer">status.circleci.com</a>
+      </CardContent>
+    </Card>
+  );
+}
+
+function useCiStatus(): CiView | null {
+  const [ci, setCi] = useState<CiView | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const r = await apiFetch("/api/ci-status");
+        const j = (await r.json()) as CiView;
+        if (alive) setCi(j);
+      } catch { /* the card stays as it was */ }
+    };
+    void load();
+    const id = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+  return ci;
+}
+
 export function HealthView({ now }: { now: number }) {
   const { health, error } = useHealth();
+  const ci = useCiStatus();
   if (health === undefined) return <p className="text-muted-foreground">{error ? "Cannot reach console-api." : "Loading..."}</p>;
   if (health === null) return <p className="text-muted-foreground">No health check yet. Run <code>pnpm fw watch</code>.</p>;
   const rows = [...health.agents].sort((a, b) => STATES.indexOf(a.state as typeof STATES[number]) - STATES.indexOf(b.state as typeof STATES[number]));
@@ -158,6 +227,7 @@ export function HealthView({ now }: { now: number }) {
         </CardContent>
       </Card>
       {health.gh && <GhCard gh={health.gh} now={health.now} />}
+      {ci && <CiCard ci={ci} />}
       <Card>
         <CardHeader>
           <CardTitle className="flex flex-wrap gap-2">

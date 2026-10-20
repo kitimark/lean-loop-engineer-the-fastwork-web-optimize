@@ -25,6 +25,13 @@ function readMorph(nav: HTMLElement): number {
  *
  * The callback runs its reads and writes inside itself, in the original's order (read, write, read, write, read), so
  * the faithful engine variant keeps the original's forced style passes; only the class toggle is returned as a writer.
+ *
+ * The class is also re-derived when the morph value changes. In the original `is-on-dark` is a Svelte class directive
+ * over `g() || x() > .2`, so it follows the morph signal as well as the hit test (N2:13228); a push (wheel or touch at
+ * the end of the page) moves the morph with no scroll frame, and a class written only in the scroll callback stayed
+ * stale (divergence B of faithful-hero-baseline: at 390 the original is dark from morph 0.2 on, the port never was). The
+ * re-derivation reuses the last hit answer and runs no hit test: the original's `g` is not re-probed on a morph change either.
+ * The MutationObserver write runs in a microtask, outside the registerScroll read/write order above.
  */
 export function NavHitTest({ variant, navSelector = NAV_SELECTOR }: { variant: string; impl?: 'mui' | 'plain'; navSelector?: string }) {
   useEffect(() => {
@@ -33,7 +40,15 @@ export function NavHitTest({ variant, navSelector = NAV_SELECTOR }: { variant: s
     const v = parseVariant(variant);
     let hit = false; // last known hit answer (stale while skipped)
     let current = nav.classList.contains(ON_DARK_CLASS);
-    return registerScroll('nav.hitTest', NAV_HIT_ORDER, () => {
+    // The morph signal of the original's class directive: the nav part's tween writes `data-fw-morph` once per frame.
+    const mo = new MutationObserver(() => {
+      const next = isOnDark(hit, readMorph(nav));
+      if (!changed(current, next)) return;
+      current = next;
+      nav.classList.toggle(ON_DARK_CLASS, next);
+    });
+    mo.observe(nav, { attributes: true, attributeFilter: ['data-fw-morph'] });
+    const offScroll = registerScroll('nav.hitTest', NAV_HIT_ORDER, () => {
       const morph = readMorph(nav);
       const r = navFrame(v, nav, morph);
       if (r.hit !== null) hit = r.hit;
@@ -44,6 +59,10 @@ export function NavHitTest({ variant, navSelector = NAV_SELECTOR }: { variant: s
         nav.classList.toggle(ON_DARK_CLASS, next);
       };
     });
+    return () => {
+      offScroll();
+      mo.disconnect();
+    };
   }, [variant, navSelector]);
   return null;
 }
