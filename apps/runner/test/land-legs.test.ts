@@ -19,6 +19,7 @@ describe("fwcore reproduces the land-legs golden", () => {
   it("has a case per leg and selection, and the verdict cases", () => {
     expect(golden.filter((c) => c.request.op === "console.landLeg").length).toBe(legNames.length * 6);
     expect(golden.filter((c) => c.request.op === "console.landLegs").length).toBe(6);
+    expect(golden.filter((c) => c.request.op === "console.landLegsVeto").length).toBe(7);
   });
   for (const c of golden) it(c.name, () => expect(core(c.request)).toEqual(c.response));
 });

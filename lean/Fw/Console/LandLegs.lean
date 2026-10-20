@@ -12,10 +12,11 @@ Measured (research/notes/2026/10-20-land-lane-speed.md): the serial remote suite
 What this module decides, each with its own theorems:
 - which suites leg owns which remote check (`pickFor`): a partition of `remoteIds`, so no check is dropped or run twice;
 - whether an engine leg runs (`engineRuns`): exactly when the selection holds the browser check (`browserRuns`);
-- the verdict over all legs (`legsOk`): every leg passes, and a lane with no leg never passes.
+- the verdict over all legs (`legsOk`): every leg passes, and a lane with no leg never passes;
+- whether the legs' record vetoes a run GitHub called a success (`legsVeto`): a record without per-job conclusions says nothing, else `legsOk` decides.
 
 Golden `packages/contracts/golden/console/land-legs.jsonl` and `lean/land-legs.txt` (the matrix); ops `console.landLeg` and
-`console.landLegs` (`Fw.Wire.Console`).
+`console.landLegs` and `console.landLegsVeto` (`Fw.Wire.Console`).
 -/
 namespace Fw.Console.LandLegs
 open Lean Fw.Console.LandTier
@@ -153,7 +154,42 @@ theorem legsOk_iff (rs : List Bool) : legsOk rs = true ↔ rs ≠ [] ∧ ∀ r �
   | nil => simp [legsOk]
   | cons a t => simp [legsOk, List.all_eq_true]
 
+/-- Does the legs' record veto a run GitHub called a success? `none` is a record without per-job conclusions (the poller's cached facts,
+a job without a conclusion) and `some []` one that lists no leg: both say nothing, so they do not veto.
+Otherwise the run is vetoed exactly when `legsOk` refuses the legs. -/
+def legsVeto : Option (List Bool) → Bool
+  | none | some [] => false
+  | some rs => !legsOk rs
+
+/-- No per-job conclusions: no veto. -/
+theorem legsVeto_none : legsVeto none = false := rfl
+
+/-- A record that lists no leg: no veto. -/
+theorem legsVeto_empty : legsVeto (some []) = false := rfl
+
+/-- One failed leg vetoes the run, whatever the others did. -/
+theorem legsVeto_fail (rs : List Bool) (h : false ∈ rs) : legsVeto (some rs) = true := by
+  cases rs with
+  | nil => simp at h
+  | cons a t => simp [legsVeto, legsOk_fail_wins _ h]
+
+/-- Every leg passing, with at least one leg: no veto. -/
+theorem legsVeto_all_pass (rs : List Bool) (ne : rs ≠ []) (h : ∀ r ∈ rs, r = true) : legsVeto (some rs) = false := by
+  cases rs with
+  | nil => exact absurd rfl ne
+  | cons a t => simp [legsVeto, legsOk_all_pass _ ne h]
+
+/-- With at least one leg, the veto is exactly the refusal of `legsOk`. -/
+theorem legsVeto_iff (rs : List Bool) (ne : rs ≠ []) : legsVeto (some rs) = !legsOk rs := by
+  cases rs with
+  | nil => exact absurd rfl ne
+  | cons a t => rfl
+
 #guard legsOk [true, true, true, true]
+#guard !legsVeto none
+#guard !legsVeto (some [])
+#guard legsVeto (some [true, false])
+#guard !legsVeto (some [true, true])
 #guard !legsOk [true, false, true, true]
 #guard !legsOk []
 
@@ -171,6 +207,13 @@ def okLine (name : String) (rs : List Bool) : Json :=
     ("request", Json.mkObj [("op", .str "console.landLegs"), ("results", .arr (rs.map Json.bool).toArray)]),
     ("response", Json.mkObj [("ok", .bool (legsOk rs))])]
 
+/-- One golden line of `console.landLegsVeto`; `none` is a record without per-job conclusions (`null` on the wire). -/
+def vetoLine (name : String) (rs : Option (List Bool)) : Json :=
+  Json.mkObj [("name", .str name),
+    ("request", Json.mkObj [("op", .str "console.landLegsVeto"),
+      ("results", match rs with | none => Json.null | some l => .arr (l.map Json.bool).toArray)]),
+    ("response", Json.mkObj [("veto", .bool (legsVeto rs))])]
+
 /-- The selections of the golden: all remote ids with and without the browser check, the local gates, and nothing. -/
 def goldenSelections : List (String × List String) :=
   [("all remote", remoteIds), ("without browser", remoteIds.filter (· != browserId)),
@@ -182,7 +225,10 @@ def goldenSelections : List (String × List String) :=
 def cases : List Json :=
   (goldenSelections.flatMap fun (n, ids) => legs.map fun l => legLine s!"{l.name} of {n}" l ids) ++
   [okLine "all pass" [true, true, true, true], okLine "one fails" [true, false, true, true], okLine "the last fails" [true, true, true, false],
-   okLine "all fail" [false, false], okLine "one leg passes" [true], okLine "no legs" []]
+   okLine "all fail" [false, false], okLine "one leg passes" [true], okLine "no legs" [],
+   vetoLine "no per-job conclusions: no veto" none, vetoLine "a record with no leg: no veto" (some []), vetoLine "all legs passed: no veto" (some [true, true, true, true]),
+   vetoLine "one leg failed: veto" (some [true, false, true, true]), vetoLine "the last leg failed: veto" (some [true, true, true, false]),
+   vetoLine "one leg, passed" (some [true]), vetoLine "one leg, not passed" (some [false])]
 
 /-- The golden text: one compact line per case. -/
 def goldenText : String := String.join (cases.map fun c => c.compress ++ "\n")

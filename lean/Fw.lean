@@ -137,7 +137,7 @@ import Fw.Console.LandVerdict  -- land-dry: VERDICT kinds, exit codes, retry rul
 import Fw.Console.LandDry  -- land-dry: dry land stages and hand-back rule
 import Fw.Console.WallClock  -- land-wallclock-off-gate: which literal ms bounds in land-selected tests the lint refuses
 import Fw.Console.LandQueue  -- land-queue: FIFO land queue, bounded retry, runner identity
-import Fw.Console.LandLegs  -- land-lane-speed: the land lane's parallel legs (console.landLeg, console.landLegs)
+import Fw.Console.LandLegs  -- land-lane-speed: the land lane's parallel legs (console.landLeg, console.landLegs, console.landLegsVeto)
 import Fw.Console.LandTier  -- land-lane: which checks run on the CI land lane (console.landTier)
 import Fw.Console.LandRemote  -- land-wait: provider-neutral remote land verdict (console.landRemote)
 import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request coalescing

@@ -15,6 +15,7 @@ no partial operations. Flags are strings `"part:variant"`; digests are lowercase
 | op | request | reply |
 |---|---|---|
 | `store.plan` | `target` (`original` or `rewrite`), `preset`? (default `original`), `fw`? [`part:variant`], `engines` [name], `profile`? (default `swipe-v1`), `runs`? (default 3), `sha`, `images`? {engine: image}, `digests`? {engine: sha256 of the job key}, `present`? [digest] (objects/runs already in the store) | `problems` [string], `fw` (sorted), `jobs` [{engine, workflow, inputs {name: value}, key [[name, value]], image, blocked (string or null), digest?, cache?, manifest?}] |
+| `store.gate` | `engines`? (`both`, `chromium` or `playwright-webkit`; default `both`), `preset`? (default empty = none), `fw`? [`part:variant`] | `problems` [string], `fw` (sorted), `job` (`null` when there are problems) {workflow, inputs {name: value}, blocked (string or null)} |
 | `store.manifest` | `manifest` {engine, target, preset, fw [`part:variant`], profile, gitSha, image, runId, entries [{name, digest, bytes}]} | `valid`, `problems`, `key` [[name, value]] (when the engine and the target are known), `paths` [object path per entry] (when valid) |
 | `store.objectPath` | `digest` (64 hex) | `path` |
 | `store.ciRun` | `run` {runId, workflowName, status, conclusion (null = empty), headSha, jobs [{name, conclusion (null = empty)}]}, `artifacts`? [{name, profile, image, search? (default empty), target?}] (the downloaded shard artifacts with their `counts.json` / `image-id.txt` facts; absent = the check before the download), `classes`? [dir under chromium-classes] (default empty) | `accept`, `refusals` [string], `targets` [{target, classes, shards [{artifact, dir}], meta? {engine, target, preset, fw, profile, gitSha, image, runId}, key? [[name, value]]}] (empty when refused; `meta`, `key` after the download) |
@@ -96,6 +97,30 @@ def opPlan (req : Json) : Except String Reply := do
   pure [("problems", .arr ((reqProblems q).toArray.map .str)),
         ("fw", .arr (q.fw.toArray.map fun p => .str (flagStr p))),
         ("jobs", .arr (jobs.toArray.map fun j => jobJson present ((digests.find? (·.1 == j.engine.name)).map (·.2)) j))]
+
+/-- Decode a gate request. -/
+def gateRequestOf (req : Json) : Except String GateRequest := do
+  let engines ← match opt req "engines" with
+    | none => pure "both"
+    | some j => asStr "engines" j
+  let preset ← match opt req "preset" with
+    | none => pure ""
+    | some j => asStr "preset" j
+  let fw ← match opt req "fw" with
+    | none => pure []
+    | some j => (← Fw.Wire.Ops.asArr "fw" j).toList.mapM fun x => do pure (parseFlag (← asStr "fw" x))
+  pure { engines := engines, preset := preset, fw := sortFlags fw }
+
+/-- `store.gate`: the dispatch of the breakpoint-gate workflow. -/
+def opGate (req : Json) : Except String Reply := do
+  let g ← gateRequestOf req
+  let ps := gateProblems g
+  let job : Json := if ps.isEmpty then
+      Json.mkObj [("workflow", .str Lane.breakpointGate.file),
+        ("inputs", objOf (gateDispatchInputs g |>.map fun p => (p.1, Json.str p.2))),
+        ("blocked", match gateBlocked g with | none => .null | some b => .str b)]
+    else .null
+  pure [("problems", .arr (ps.toArray.map .str)), ("fw", .arr (g.fw.toArray.map fun p => .str (flagStr p))), ("job", job)]
 
 /-- Decode a manifest. -/
 def manifestOf (j : Json) : Except String Manifest := do
@@ -199,12 +224,13 @@ def opCiRun (req : Json) : Except String Reply := do
         ("targets", .arr (res.targets.toArray.map (ciTargetJson r)))]
 
 /-- The `store.*` ops. -/
-def ops : List String := ["store.plan", "store.manifest", "store.objectPath", "store.reduce", "store.ciRun"]
+def ops : List String := ["store.plan", "store.gate", "store.manifest", "store.objectPath", "store.reduce", "store.ciRun"]
 
 /-- Dispatch a `store.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "store.plan" => some (opPlan req)
+  | "store.gate" => some (opGate req)
   | "store.manifest" => some (opManifest req)
   | "store.objectPath" => some (opObjectPath req)
   | "store.reduce" => some (opReduce req)
