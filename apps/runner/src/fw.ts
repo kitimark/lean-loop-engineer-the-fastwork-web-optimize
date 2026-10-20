@@ -32,6 +32,10 @@ try {
     process.exitCode = engineCheckCli(rest, process.cwd());
   } else if (group === "run") {
     process.exitCode = await runCli(rest, process.cwd());
+  } else if (group === "ci" && (rest[0] === "circleci" || (rest[0] === "wait" && rest[rest.indexOf("--provider") + 1] === "circleci"))) {
+    // circleci-pilot: the second reader of `fw ci wait` and the pilot commands (scripts/circleci.mjs; the decisions are Lean Fw.Ci.Provider)
+    const script = new URL("../../../scripts/circleci.mjs", import.meta.url).pathname;
+    process.exitCode = spawnSync(process.execPath, [script, ...(rest[0] === "circleci" ? rest.slice(1) : rest)], { cwd: process.cwd(), stdio: "inherit" }).status ?? 1;
   } else if (group === "ci" && (rest[0] === "wait" || rest[0] === "budget")) {
     const seen: string[] = []; const log = console.log;
     if (rest[0] === "wait") console.log = (...a: unknown[]) => { seen.push(String(a[0])); log(...a); }; // timing-spans: run ids that finished
@@ -102,7 +106,7 @@ try {
       // FW_LAND_CHECKS='[["cmd","arg"]]' replaces the default checks (used by the e2e script on a temp repo)
       checks: process.env.FW_LAND_CHECKS ? JSON.parse(process.env.FW_LAND_CHECKS) : undefined });
     if (queue || qstatus) {
-      const { runQueue, enqueue, readLog, pending, results } = await import("./land-queue.ts");
+      const { runQueue, landAttemptResult, enqueue, readLog, pending, results } = await import("./land-queue.ts");
       const { worktreeOf } = await import("./land.ts");
       const mainDir = worktreeOf(process.cwd(), "main");
       if (!mainDir) throw new Error("no main checkout found");
@@ -119,7 +123,7 @@ try {
           attempt: async (e) => {
             const res = await land(e.branch, landOpts(e.task, e.allow));
             for (const l of res.lines) console.error(l);
-            return res.kind ?? (res.ok ? "done" : "unknown");
+            return landAttemptResult(res);
           } });
         for (const r of run.results) console.log(verdictLine(r.kind, r.task));
         const own = run.results.find((r) => r.task === t);

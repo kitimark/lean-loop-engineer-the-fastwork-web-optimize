@@ -117,6 +117,20 @@ def verdict (localOk needed : Bool) (allow : List Provider) (w : Want) (waitsLef
   if hasPending rel then .wait .pending else
   fallback allow waitsLeft rel
 
+/-- The state `fw ci wait` reports by its exit code: 0 pass, 1 fail, 3 the slice ran out with the run still going (`timedOut`: its
+output said `timed out after`; any other exit 3 is a stopped poller or a refused gh call), 4 not run, else gh unavailable. -/
+def waitState (code : Nat) (timedOut : Bool) : RunState :=
+  match code with
+  | 0 => .pass | 1 => .fail | 3 => if timedOut then .running else .unavailable | 4 => .cancelled | _ => .unavailable
+
+/-- A run that completed with conclusion `failure` (a view without a `status` field counts as completed). -/
+def completedFailure (status conclusion : String) : Bool := conclusion == "failure" && (status == "completed" || status == "")
+
+/-- The state of a lane run: the run's own conclusion decides when the run completed with a failure, whatever the waiter returned;
+otherwise the waiter's outcome stands. Identity (the run's record) over inference (an exit code). -/
+def laneState (code : Nat) (timedOut : Bool) (status conclusion : String) : RunState :=
+  if completedFailure status conclusion then .fail else waitState code timedOut
+
 /-- The reason word on the `VERDICT` line. -/
 def Verdict.reason : Verdict → String
   | .accept => "remote-pass"
@@ -429,6 +443,35 @@ theorem verdict_degraded_named (a : List Provider) (w : Want) (k : Nat) (rs : Li
       subst this
       exact Or.inr (Or.inr ⟨_, verdict_run_local a w rs hf hp hq hall⟩)
 
+/-- A completed run with conclusion failure is `fail`, for every waiter exit and output. -/
+theorem laneState_completed_failure (code : Nat) (t : Bool) (status conclusion : String) (h : completedFailure status conclusion = true) :
+    laneState code t status conclusion = .fail := by
+  simp [laneState, h]
+
+/-- Without a completed failure the waiter's outcome stands. -/
+theorem laneState_waiter (code : Nat) (t : Bool) (status conclusion : String) (h : completedFailure status conclusion = false) :
+    laneState code t status conclusion = waitState code t := by
+  simp [laneState, h]
+
+/-- The run record a lane run yields, bound to the sha and digest it printed. -/
+def laneRun (p : Provider) (sha laneId digest : String) (code : Nat) (t : Bool) (status conclusion : String) : Run :=
+  { provider := p, sha := sha, laneId := laneId, laneDigest := digest, state := laneState code t status conclusion }
+
+/-- A completed bound failed lane run refuses the land, whatever exit code the waiter returned and whatever the other runs say. -/
+theorem verdict_completed_failure_refuses (a : List Provider) (w : Want) (k : Nat) (rs : List Run) (p : Provider)
+    (code : Nat) (t : Bool) (status conclusion : String) (hc : completedFailure status conclusion = true)
+    (hm : laneRun p w.sha w.laneId w.laneDigest code t status conclusion ∈ rs) :
+    verdict true true a w k rs = .refuse .remoteFail :=
+  verdict_fail a w k rs ⟨_, hm, by simp [Want.binds, laneRun], laneState_completed_failure code t status conclusion hc⟩
+
+/-- A fallback to the local tier is impossible while a completed bound failed run is among the runs. -/
+theorem verdict_no_local_after_failure (a : List Provider) (w : Want) (k : Nat) (rs : List Run) (p : Provider)
+    (code : Nat) (t : Bool) (status conclusion : String) (hc : completedFailure status conclusion = true)
+    (hm : laneRun p w.sha w.laneId w.laneDigest code t status conclusion ∈ rs) (y : LocalWhy) :
+    verdict true true a w k rs ≠ .runLocal y := by
+  rw [verdict_completed_failure_refuses a w k rs p code t status conclusion hc hm]
+  intro h; cases h
+
 #guard laneDigest .onCi ["apps/runner", "packages/gh-budget"] == "remote:apps/runner,packages/gh-budget"
 #guard laneDigest .onCi [] == "remote:"
 #guard LandTier.remoteIds.all (fun i => !i.contains ',')
@@ -500,9 +543,30 @@ def cases : List Json :=
    line "unavailable beats timeout in the reason" true true both gw 0 [run .github .timeout, run .circleci .unavailable],
    line "cancelled run of another sha leaves no reason" true true gh gw 0 [run .github .cancelled "bbbb222"]]
 
+/-- One lane-state golden line. -/
+def stateLine (name : String) (code : Nat) (t : Bool) (status conclusion : String) : Json :=
+  Json.mkObj [("name", .str name),
+    ("request", Json.mkObj [("op", .str "console.landLaneState"), ("exit", .num code), ("timedOut", .bool t),
+      ("status", .str status), ("conclusion", .str conclusion)]),
+    ("response", Json.mkObj [("state", .str (laneState code t status conclusion).name)])]
+
+/-- The lane-state golden cases: each waiter exit next to a completed failure, and next to a pass and a run going. -/
+def stateCases : List Json :=
+  [0, 1, 2, 3, 4, 5].map (fun c => stateLine s!"completed failure, waiter exit {c}: fail" c false "completed" "failure") ++
+  [stateLine "completed failure, exit 3 timed out: fail" 3 true "completed" "failure",
+   stateLine "completed failure, no status field: fail" 0 false "" "failure",
+   stateLine "pass, exit 0" 0 false "completed" "success",
+   stateLine "fail by the waiter, no view" 1 false "" "",
+   stateLine "exit 3 timed out, run going" 3 true "in_progress" "",
+   stateLine "exit 3 without timed out: unavailable" 3 false "" "",
+   stateLine "exit 4: cancelled" 4 false "completed" "success",
+   stateLine "exit 2: unavailable" 2 false "" "",
+   stateLine "cancelled conclusion keeps the waiter outcome" 4 false "completed" "cancelled",
+   stateLine "failure conclusion on a run still going is no completed failure" 3 true "in_progress" "failure"]
+
 /-- The golden file text. -/
 def goldenText : String :=
-  String.join ((cases ++ [digestLine "two suites" ["apps/runner", "packages/gh-budget"], digestLine "no suites" [],
+  String.join ((cases ++ stateCases ++ [digestLine "two suites" ["apps/runner", "packages/gh-budget"], digestLine "no suites" [],
     digestLine "order is kept" ["packages/gh-budget", "apps/runner"]]).map fun c => c.compress ++ "\n")
 
 /-- The golden file, relative to `lean/`. -/

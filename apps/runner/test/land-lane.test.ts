@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
-const REMOTE = ["apps/runner", "apps/console-api", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/engine-check"];
+const REMOTE = ["apps/runner", "apps/console-api", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/engine-check", "packages/e2e-preview"];
 
 describe("land-filter.txt (written by Lean, read by land.yml)", () => {
   const file = readFileSync(join(root, "lean/land-filter.txt"), "utf8");

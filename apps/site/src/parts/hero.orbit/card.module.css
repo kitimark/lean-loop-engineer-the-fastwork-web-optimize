@@ -7,6 +7,10 @@
 }
 
 @layer parts {
+  [data-exit-scope] .card {
+    --exit-opacity: inherit;
+    --exit-scatter: inherit;
+  }
   .card {
     --orbit-rot: 0deg;
     --orbit-u: calc(100cqw / 302);

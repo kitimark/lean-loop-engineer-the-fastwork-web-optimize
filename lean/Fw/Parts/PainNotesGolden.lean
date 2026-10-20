@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Parts.PainNotes
+import Fw.Parts.PainNotesOpt
 /-!
 # Golden vectors for pain.notes
 
@@ -74,6 +75,13 @@ def session (stageW stageH : Rat) (seed : UInt32) (copyTop copyH stageTop : Rat)
     | _ => acc
   base ++ ((List.range n).foldl step ([], 0, seed)).1
 
+/-- Traces of golden words (`Fw.Parts.PainNotesOpt.Idem.evOf`) for the `visible-idem` commit counts. -/
+def scrollTraces (_ : Unit := ()) : List (List String) :=
+  [["cover", "cover", "cover"], ["add", "cover", "cover", "open", "cover"], ["key", "cover", "cover"],
+   ["open", "open"], ["layout", "cover", "key", "key", "cover", "layout", "cover"],
+   ["add", "add", "cover", "add", "cover", "cover", "key", "open", "cover", "cover"],
+   ["cover", "cover", "cover", "cover", "cover", "cover", "cover", "cover", "cover", "cover"]]
+
 /-- The golden lines. Vectors the TS logic must reproduce. -/
 def lines (_ : Unit := ()) : List String :=
   (xs.flatMap fun x => [(0, 100), (10, 90), (0, -3)].map fun (lo, hi) =>
@@ -141,7 +149,11 @@ def lines (_ : Unit := ()) : List String :=
     (1099, 800, 5, 100, 100, 0, 14), (900, 800, 4294967295, 20, 100, 0, 6), (1440, 900, 99, 100, 100, 0, 0)] : List (Rat × Rat × UInt32 × Rat × Rat × Rat × Nat)).map fun (w, h, seed, ct, ch, st, n) =>
     line "session" [("stageW", rin w), ("stageH", rin h), ("seed", seedJ seed), ("copyTop", rin ct), ("copyH", rin ch),
         ("stageTop", rin st), ("ticks", .num ⟨n, 0⟩)]
-      (Json.arr ((session w h seed ct ch st n).map noteOut).toArray))
+      (Json.arr ((session w h seed ct ch st n).map noteOut).toArray)) ++
+  (scrollTraces.map fun ws =>
+    let (co, cv) := Fw.Parts.PainNotesOpt.Idem.goldenCommits ws
+    line "scrollCommits" [("events", Json.arr (ws.map Json.str).toArray)]
+      (Json.mkObj [("original", .num ⟨co, 0⟩), ("idem", .num ⟨cv, 0⟩)]))
 
 #guard lines.length > 0
 

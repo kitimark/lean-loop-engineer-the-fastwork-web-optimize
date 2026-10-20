@@ -81,3 +81,7 @@ is no default branch). With `--branch` and no run id: the latest run of the work
     `steps.stale.outcome == 'skipped'` (`stale_never_works`). An older push may so use a runner for a minute; it never
     reports a pass (`stale_never_pass`).
   - You should not need `gh run cancel`. If a run you did not ask for does work, report it (a guard bug).
+
+## Second reader: CircleCI (pilot)
+
+`pnpm fw ci wait --provider circleci (--pipeline ID | --branch ci/<task>) [--out DIR]` waits on a CircleCI pipeline (polls every 120 s or more, honours Retry-After) and exits 0 pass, 1 fail, 3 timeout, 4 not run, 5 pilot stop rule. It makes no GitHub call. Setup and the other commands: `docs/team/tools/circleci.md`.

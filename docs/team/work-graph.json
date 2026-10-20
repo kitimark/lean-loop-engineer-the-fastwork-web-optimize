@@ -6625,8 +6625,20 @@
     "apps/site/src/stage/**",
     "lean/Fw/Site/Stage*.lean",
     "packages/contracts/golden/**",
-    "research/notes/2026/10-20-exit-scoped-var*.md"
-   ]
+    "research/notes/2026/10-20-exit-scoped-var*.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ],
+   "evidence": "3f4bf3c"
   },
   {
    "devices": [
@@ -7807,7 +7819,8 @@
     "apps/runner/package.json",
     "apps/runner/test/bin-mode.test.ts",
     "docs/team/handoffs/runner-bin-mode.md"
-   ]
+   ],
+   "evidence": "d5c4c07"
   },
   {
    "devices": [
@@ -8174,8 +8187,10 @@
     "docs/team/tools/circleci.md",
     "docs/team/tools/fw-ci.md",
     "research/notes/2026/10-20-circleci-pilot.md",
-    "docs/team/handoffs/circleci-pilot.md"
-   ]
+    "docs/team/handoffs/circleci-pilot.md",
+    "scripts/scrub-allow.json"
+   ],
+   "evidence": "0a43520"
   },
   {
    "devices": [
@@ -8202,8 +8217,13 @@
     ".github/workflows/land.yml",
     "docs/team/tools/preview-e2e.md",
     "docs/team/handoffs/preview-e2e.md",
-    "pnpm-lock.yaml"
-   ]
+    "pnpm-lock.yaml",
+    ".github/workflows/preview-e2e.yml",
+    "apps/runner/src/checks.ts",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean"
+   ],
+   "evidence": "0481d65"
   },
   {
    "devices": [
@@ -9226,7 +9246,18 @@
     "packages/engine-check/golden/**",
     "lean/Fw/Engine/Keys.lean",
     "research/notes/2026/10-20-morph-layers.md",
-    "docs/team/handoffs/morph-preset-dormant.md"
+    "docs/team/handoffs/morph-preset-dormant.md",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9324,8 +9355,16 @@
     "apps/runner/src/fw.ts",
     "apps/runner/test/land-queue*.test.ts",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/land-queue-why.md"
-   ]
+    "docs/team/handoffs/land-queue-why.md",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/land-digest.test.ts",
+    "lean/Fw/Console/LandQueue.lean",
+    "packages/contracts/golden/console/land-queue.jsonl",
+    "lean/scripts/*Golden.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land.test.ts"
+   ],
+   "evidence": "cea4b28"
   },
   {
    "devices": [
@@ -9348,7 +9387,19 @@
     "lean/Fw/Parts/MorphTweenOpt.lean",
     "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
     "research/notes/2026/10-20-tween-platform-scope.md",
-    "results/tween-platform-scope/**"
+    "results/tween-platform-scope/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9368,7 +9419,19 @@
     "lean/Fw/Parts/MorphMountOpt.lean",
     "packages/contracts/golden/parts/morph-mount-tap.jsonl",
     "research/notes/2026/10-20-mount-scroll-tap.md",
-    "results/mount-scroll-tap/**"
+    "results/mount-scroll-tap/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9388,7 +9451,19 @@
     "lean/BreakgenMain.lean",
     "lean/Fw/Site/BreakpointGen.lean",
     "research/notes/2026/10-20-breakpoints-named-import.md",
-    "results/breakpoints-named-import/**"
+    "results/breakpoints-named-import/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9409,7 +9484,19 @@
     "lean/Fw/Parts/PlatformEntries.lean",
     "packages/contracts/golden/parts/platform-entries-fill.jsonl",
     "research/notes/2026/10-20-fill-release-platform.md",
-    "results/fill-release-platform/**"
+    "results/fill-release-platform/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9430,7 +9517,19 @@
     "lean/Fw/Parts/ReactRootOpt.lean",
     "packages/contracts/golden/parts/react-root-quiet.jsonl",
     "research/notes/2026/10-20-react-root-quiet-events.md",
-    "results/react-root-quiet-events/**"
+    "results/react-root-quiet-events/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9469,8 +9568,24 @@
     "lean/Fw/Parts/PainNotesGolden.lean",
     "lean/Fw/Parts/PainNotesOpt.lean",
     "research/notes/2026/10-20-notes-scroll-idem.md",
-    "results/notes-scroll-idem/**"
-   ]
+    "results/notes-scroll-idem/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml",
+    "apps/site/src/parts/pain.notes/index.tsx",
+    "apps/site/src/parts/pain.notes/logic.test.ts",
+    "packages/contracts/golden/parts/pain.notes.jsonl"
+   ],
+   "evidence": "95a4dfd"
   },
   {
    "devices": [
@@ -9489,7 +9604,19 @@
     "lean/Fw/Site/SheetPrune.lean",
     "packages/contracts/golden/site/sheet-prune.jsonl",
     "research/notes/2026/10-20-mui-css-site-only.md",
-    "results/mui-css-site-only/**"
+    "results/mui-css-site-only/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9509,7 +9636,19 @@
     "lean/Fw/Parts/MorphIdleNone.lean",
     "packages/contracts/golden/parts/morph-idle-none.jsonl",
     "research/notes/2026/10-20-morph-idle-none.md",
-    "results/morph-idle-none/**"
+    "results/morph-idle-none/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9529,7 +9668,19 @@
     "lean/Fw/Parts/HeroScenePause.lean",
     "packages/contracts/golden/parts/hero-scene-pause.jsonl",
     "research/notes/2026/10-20-hero-pause-rule.md",
-    "results/hero-pause-rule/**"
+    "results/hero-pause-rule/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9595,7 +9746,19 @@
     "lean/Fw/Parts/CommissionTypingFill.lean",
     "packages/contracts/golden/parts/typing-avatar-fill.jsonl",
     "research/notes/2026/10-20-typing-avatar-fill.md",
-    "results/typing-avatar-fill/**"
+    "results/typing-avatar-fill/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9616,7 +9779,19 @@
     "lean/Fw/Parts/HeroContainOpt.lean",
     "packages/contracts/golden/parts/hero-contain.jsonl",
     "research/notes/2026/10-20-hero-relayout-boundary.md",
-    "results/hero-relayout-boundary/**"
+    "results/hero-relayout-boundary/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9639,7 +9814,19 @@
     "lean/Fw/Parts/MorphTweenOpt.lean",
     "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
     "research/notes/2026/10-20-morph-nav-scope.md",
-    "results/morph-nav-scope/**"
+    "results/morph-nav-scope/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9658,7 +9845,19 @@
     "docs/team/handoffs/one-sheet.md",
     "lean/Fw/Site/SheetPrune.lean",
     "research/notes/2026/10-20-one-sheet.md",
-    "results/one-sheet/**"
+    "results/one-sheet/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9678,7 +9877,19 @@
     "docs/team/handoffs/root-touch-events.md",
     "lean/Fw/Parts/ReactRootOpt.lean",
     "research/notes/2026/10-20-root-touch-events.md",
-    "results/root-touch-events/**"
+    "results/root-touch-events/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
    ]
   },
   {
@@ -9694,7 +9905,254 @@
     "docs/team/handoffs/nav-oof-root-finding.md",
     "lean/Fw/Parts/NavOofRoot.lean",
     "research/notes/2026/10-20-nav-oof-root-finding.md",
-    "results/nav-oof-root-finding/**"
+    "results/nav-oof-root-finding/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ],
+   "evidence": "1e82ca4"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scrub-session-paths",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "scripts/scrub.mjs also refuses Claude session paths (/private/tmp/claude-<uid>/-Users-<name>-..., any '-Users-<name>-' form) and the local account name read at run time; a review found the account name in a pushed note (10-17-sim-speed-review.md:104, fixed) that the /(Users|home)/<name>/ rule missed",
+   "deps": [],
+   "writes": [
+    "scripts/scrub.mjs",
+    "scripts/scrub.test.mjs",
+    "docs/team/handoffs/scrub-session-paths.md",
+    "docs/team/tools/land.md"
+   ],
+   "evidence": "f1f9d08"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-proxy-direct",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Preview without the root-path 302: preview-e2e's controls show the console proxy's Referer-routed 302 for root-absolute /_app/ imports makes WebKit (the phone's engine) fail real module imports (proxy-only arm; raw and tap-only clean). Decide in Lean a design with no redirect (e.g. each preview arm on its own origin/port so root paths resolve natively; identity over Referer inference), keep the owner gate and grants per origin, assert zero rejections in both engines, add a WebKit client-side navigation check; rename the suite check to webkit-proxy-preload-cancel-observed until removed, strict attribution check, review doc/comment fixes",
+   "deps": [
+    "preview-e2e"
+   ],
+   "writes": [
+    "apps/console-api/src/preview/**",
+    "apps/console-api/src/app.ts",
+    "apps/console-api/test/preview*.test.ts",
+    "lean/Fw/Console/Preview*.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/console/**",
+    "packages/e2e-preview/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/console*.ts",
+    "apps/runner/test/preview-e2e-selection.test.ts",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/tools/console.md",
+    "research/notes/2026/10-20-preview-proxy-direct.md",
+    "docs/team/handoffs/preview-proxy-direct.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "apps/console-api/src/main.ts",
+    "apps/console-api/test/arm-rig.ts",
+    "apps/console-api/test/builds.test.ts",
+    "apps/console-api/test/lan-owner.test.ts",
+    "docs/team/tools/preview-grant.md",
+    "lean/Fw/Ops/Golden.lean"
+   ],
+   "evidence": "caf56d6"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scrub-session-paths-r2",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "scrub review follow-ups: encoded-home trailing and glued forms, rules on file paths, override only under FW_SCRUB_TEST, GENERIC exported, scrub tests run on CI",
+   "deps": [
+    "scrub-session-paths"
+   ],
+   "writes": [
+    "scripts/scrub.mjs",
+    "scripts/scrub.test.mjs",
+    "scripts/test-scrub.mjs",
+    ".github/workflows/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/scrub-session-paths-r2.md",
+    "apps/runner/test/scrub.test.ts",
+    "apps/runner/src/land.ts",
+    "lean/scripts/*Golden.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean"
+   ],
+   "evidence": "86d84f3"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-fail-wins",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "Land gate: a lane run that completed with conclusion failure for the wanted sha+digest is always fail (refuse), whatever exit code fw ci wait returned; the remote verdict and its reason are printed in the VERDICT output and the land log. Incident: preview-e2e landed 2026-10-19T23:08Z after run 39338755874 failed (fallback to local, suites passed here)",
+   "deps": [
+    "land-wait"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-remote.test.ts",
+    "lean/Fw/Console/LandRemote.lean",
+    "packages/contracts/golden/console/land-remote.jsonl",
+    "lean/scripts/*Golden.lean",
+    "packages/gh-budget/src/wait.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-remote-fail-wins.md",
+    "apps/runner/src/run.ts",
+    "packages/gh-budget/src/index.ts",
+    "lean/Fw/Wire/Console.lean"
+   ],
+   "evidence": "e6277c6"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-followups",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "land-remote-fail-wins review lows: a test of cachedLaneView on real runs-status/jobs.json shapes; abort seen during a budget sleep in chargedGh; poll deadline capped by the overall awaitRemote deadline; a note when the filtered list is empty or the view is another workflow; exact deadline/signal assertions",
+   "deps": [
+    "land-remote-fail-wins"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/run.ts",
+    "apps/runner/test/land-remote.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-remote-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-lane-speed",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "Land wall time after land-wait: measure where a land spends time (local tier, remote push, queue, land.yml setup incl. gate-engine/playwright install, fwcore build, suites per package) from obs spans and run timings of today's lands; cut it without moving work back to this Mac (cache what is rebuilt, install browsers only when the browser lane is selected, run suites as parallel jobs, overlap local and remote tiers); Lean decides any new selection rule; before/after MEASURED on CI",
+   "deps": [
+    "land-remote-fail-wins"
+   ],
+   "writes": [
+    ".github/workflows/land.yml",
+    ".github/actions/**",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/checks.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Console/LandTier.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean",
+    "lean/scripts/*Golden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/console/**",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/tools/land.md",
+    "research/notes/2026/10-20-land-lane-speed.md",
+    "docs/team/handoffs/land-lane-speed.md",
+    "lean/Fw/Console/LandLegs.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw.lean",
+    "lean/land-legs.txt",
+    "apps/runner/test/preview-e2e-selection.test.ts",
+    "docs/team/tools/preview-e2e.md"
+   ],
+   "evidence": "970c618"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-e2e-entry",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "preview-proxy-direct review: check the real entry path (grant landing and the Builds link /preview/<id>/r|o/ -> arm origin) for 0 rejections/cancels and modules once; LAN lane noise checks; client-nav-o asserts a same-document navigation; rename signature.test.mjs; rig reads backendOff from Lean; admit refuses portBase past 65536 (noPorts); control loads block external URLs; delete unused cache-policy variants",
+   "deps": [
+    "preview-proxy-direct"
+   ],
+   "writes": [
+    "packages/e2e-preview/**",
+    "lean/Fw/Console/Preview*.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "apps/console-api/src/preview/**",
+    "apps/console-api/test/**",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/handoffs/preview-e2e-entry.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-legs-followups",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "land-lane-speed review: Lean legsVeto for records without per-job conclusions (legsPass only replays it), drop dead lane filter; stale preview-e2e/checks.ts docs for LANE leg= and per-leg artifacts; webkit leg cache seeded from main (-40..50 s critical path); lane end read from the poller's cached facts; setup-lean/fwcore restore (one-writer cache rules)",
+   "deps": [
+    "land-lane-speed"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/checks.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Console/LandLegs.lean",
+    "lean/scripts/LandLegsGolden.lean",
+    "packages/contracts/golden/console/land-legs.jsonl",
+    ".github/workflows/land.yml",
+    ".github/actions/**",
+    "docs/team/tools/land.md",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/handoffs/land-legs-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "notes-idem-preset",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Preset: pain.notes:visible-idem in place of visible (notes-scroll-idem: FunctionCall -733 swipe -16.6%, -720 touch -11.4%, same element values proved; webkit-sim green, FunctionCall quarantined there) after a green full gate run (commission-margin-recur closes the known flake); plus review lows: ReactFiberCommitWork.js:2302-2312 citation, per-frame -3 claim vs 733 total, Layout/UpdateLayoutTree in runs.json, identify the 3 FunctionCalls per skipped commit",
+   "deps": [
+    "notes-scroll-idem",
+    "commission-margin-recur"
+   ],
+   "writes": [
+    "lean/Fw/Preset/**",
+    "packages/contracts/golden/preset/**",
+    "lean/Fw/Parts/PainNotesOpt.lean",
+    "research/notes/2026/10-20-notes-scroll-idem.md",
+    "results/notes-scroll-idem/**",
+    "docs/team/handoffs/notes-idem-preset.md"
    ]
   }
  ],

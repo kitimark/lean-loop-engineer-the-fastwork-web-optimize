@@ -16,6 +16,8 @@ sources:
       - third_party/blink/renderer/core/paint
       - third_party/blink/renderer/core/animation
       - third_party/blink/renderer/core/css/resolver
+      - third_party/blink/renderer/core/dom
+      - third_party/blink/renderer/core/style
       - cc/trees
       - cc/scheduler
       - components/viz/service/display
@@ -35,6 +37,7 @@ sources:
       - Source/WebCore/platform/graphics/ca
       - Source/WebCore/animation
       - Source/WebCore/css
+      - Source/WebCore/style
       - Source/WebKit/WebProcess/WebPage/RemoteLayerTree
 
   - id: lean4
