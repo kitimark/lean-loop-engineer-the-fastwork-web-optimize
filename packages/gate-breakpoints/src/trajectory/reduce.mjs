@@ -119,7 +119,9 @@ export const cssOf = (node, prop) => ({
   'actions|gap': ['gap', 'column-gap'], 'earn|opacity': ['opacity'], 'earn|max-width': ['max-width'],
 })[`${node}|${prop}`] ?? [];
 
-/** Lean `driver`: the class under which JS drives the morph frame by frame. */
+/** Lean `driver`: the class under which JS drives the morph frame by frame. Under it the judge treats every sample as
+ * at rest; rules 6 and 167 still run transitions driven by `--morph` (nav transform/opacity, earn max-width/opacity/padding),
+ * which are judged strictly against the m-window. */
 export const DRIVER = 'is-morphing';
 
 /** Lean `applies`. */

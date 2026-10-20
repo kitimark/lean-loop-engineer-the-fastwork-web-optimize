@@ -298,7 +298,9 @@ def cssOf (node prop : String) : List String :=
   | "earn", "max-width" => ["max-width"]
   | _, _ => []
 
-/-- The nav class under which the site's script sets the morph's styles on every frame. -/
+/-- The nav class under which the site's script sets the morph's styles on every frame. Under it the judge treats every
+sample as at rest; rules 6 and 167 still run transitions driven by `--morph` (nav transform/opacity, earn
+max-width/opacity/padding), which are judged strictly against the m-window. -/
 def driver : String := "is-morphing"
 
 /-- Rule `r` applies to `node` at viewport `width` with the nav classes `cls` on. -/
@@ -325,7 +327,8 @@ def transitionsOf (node : String) (width : Nat) (cls : List String) : List (Stri
   | none => base
 
 /-- **The transition of a probe property under a class set**, in ms: the longest delay plus duration of the transitions
-in force on its CSS properties. `none` when the morph's script drives the nav (`driver`) or no transition runs. -/
+in force on its CSS properties. `none` when no transition runs, and under `driver` (a strict at-rest convention: the
+CSS does still run `--morph`-driven transitions there). -/
 def durOf (node prop : String) (width : Nat) (cls : List String) : Option Nat :=
   if cls.contains driver then none
   else

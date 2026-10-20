@@ -94,12 +94,14 @@ The judge (Lean `judgeUnit`, TS twin `judgeUnit` in `reduce.mjs`) decides each u
 - `rules`: every rule of `apps/site/src/parts/nav/nav.module.css` that sets `transition` or `transition-delay`, one per
   selector, keyed by node, the nav classes it needs on and off, its media condition and its line. `trajectory.test.mjs`
   parses the CSS file and requires this list exactly. `durOf node prop width cls` is the longest delay plus duration of
-  the property under the last applying rule (specificity, then line); none while `is-morphing` is on (JS drives the frame
-  then; the CSS has no transition under that class).
+  the property under the last applying rule (specificity, then line); under `is-morphing` the judge treats every sample
+  as at rest; rules 6 and 167 still run transitions driven by `--morph` (nav transform/opacity, earn
+  max-width/opacity/padding), which are judged strictly against the m-window.
 - `inFlight d s`: the sample's own class set selects a transition `t` and `since < t + startLag`, `startLag` = 200 ms.
 - A rewrite sample in flight is judged against the original's samples of the same transition only: the same rep, phase
   and epoch (a run of samples with no class change), within 200 ms of its `since` (`isCore`), plus the epoch's sample
-  before them and one after. A colour must match one core reading on r, g, b, and the band on alpha. No core sample: the
+  before them and one after. A colour must match one core reading on r, g, b (rgb readings only; see Limits for WebKit
+  in flight) and the band on alpha. No core sample: the
   m-window as before.
 - A rewrite sample at rest is judged against the original's settled end value: the window sample if at rest, else the
   last sample of its epoch if that one is at rest, else coverage.
@@ -133,6 +135,11 @@ Limits of the in-flight rule, for that fraction of samples:
 - The kit reads a WebKit mid-transition colour as oklab `[L×1000, a, b, α]` and a settled one as rgb. A colour read in
   oklab on one arm and rgb on the other fails `apart`; that is the kit-colour-space task (owner of `kit.mjs`), not widened
   here.
+- Until the kit normalises colour space (task kit-colour-space), WebKit in-flight colour channels are unchecked (oklab L
+  in 0..1000 lies inside the rgb tolerance 2000); only alpha is judged; after normalisation
+  `judgeUnit_colour_chan_outside` applies.
+- `--morph`-driven transitions under `is-morphing` are judged at rest. MEASURED residual: raw 39457063232, 641
+  `earn.max-width` close@0, one width (content `new` 1; main gave 2). Follow-up: `morph-driven-transitions`.
 
 Re-recorded with this judge (stored runs 39442517769, 39453181962, 39455284967, all `?preset=` runs of 8 flags):
 
@@ -146,8 +153,8 @@ Per flag (engine.scene:hidden-pause, engine.scroll:batched, morph.columns:hidden
 morph.mount:shift, nav.hitTest:elements-skip, pain.notes:visible, people.card:mq): Chromium hero and morph pass, WebKit
 hero passes, WebKit morph is pending (a failing shared run names no flag). All stay `pending: trajectory`; `v2-proved` is
 empty. The 39453181962 mac morph fail: `nav.background-color` content `new` at 640 and 1280 close@0, both arms in oklab, so
-not the colour space. The transition starts from the value at the frame `is-morphing` is removed; in rep 4 the rewrite
-removed it at a different morph value (start L 0.905, alpha 0.296 against the original's 0.993, 0.263). Its 641 a8/a11 and 1280 a7 units are the
+not the colour space. MEASURED: candidate rep 4 starts at alpha 0.296, outside the original's start range across reps
+0.261 to 0.281; whether a flag causes it is unknown (INFERRED timing), so it stays pending until a flag-alone run. Its 641 a8/a11 and 1280 a7 units are the
 colour-space case. The 39455284967 mac morph colour units (641 a7, a11) are colour space at one width and do not decide it.
 
 ## Admission

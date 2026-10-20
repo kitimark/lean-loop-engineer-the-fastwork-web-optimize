@@ -85,6 +85,7 @@ function rulesOfCss(css) {
       if (top.prelude.startsWith('@')) continue;
       if (stack.some((b) => b.prelude.startsWith('@keyframes'))) continue;
       const decls = Object.fromEntries(body.split(';').map((d) => d.trim()).filter((d) => d.includes(':')).map((d) => [d.slice(0, d.indexOf(':')).trim(), d.slice(d.indexOf(':') + 1).trim()]));
+      assert.ok(!Object.keys(decls).some((k) => k.startsWith('transition-') && k !== 'transition-delay'), 'unmodelled transition longhand');
       if (!('transition' in decls) && !('transition-delay' in decls)) continue;
       const media = stack.map((b) => b.prelude).filter((p) => p.startsWith('@media'));
       let minW = null;
