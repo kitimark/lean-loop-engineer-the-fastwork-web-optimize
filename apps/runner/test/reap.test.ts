@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { classify, isMcp, parseLsof, parsePs, reapCli, reapLines, ReapUsage, type Facts } from "../src/reap.ts";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { classify, COULD_NOT_LIST, insideLive, isMcp, parseLsof, parsePs, reapCli, reapLines, ReapUsage, recordedConsoles, type Facts } from "../src/reap.ts";
 import { fwcoreCall } from "../src/run.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -30,12 +32,12 @@ describe("gathering glue", () => {
     const ps = parsePs("  12   1  12 Tue Oct 20 02:59:44 2026 /bin/node a b\nnot a row\n");
     expect(ps).toHaveLength(1);
     expect(ps[0]).toMatchObject({ pid: 12, ppid: 1, pgid: 12, args: "/bin/node a b" });
-    expect([...parseLsof("p12\nfcwd\ni77\nn/x\np13\nfcwd\nn/y\n")]).toEqual([[12, 77]]);
+    expect([...parseLsof("p12\nfcwd\ni77\nn/x\np13\nfcwd\nn/y\n")]).toEqual([[12, { ino: 77, path: "/x" }]]);
   });
 });
 
 describe("fw reap --list and the land report", () => {
-  const facts: Facts = { rows: [{ pid: 500, ppid: 400, pgid: 500, start: 9, cwd: 11, kind: "lspServe" }], live: [1], mcps: [400] };
+  const facts: Facts = { rows: [{ pid: 500, ppid: 400, pgid: 500, start: 9, cwd: 11, kind: "lspServe" }], live: [1], mcps: [{ pid: 400, cwd: 1 }], keep: [] };
   const call = fwcoreCall(root);
   it("prints Lean's list and signals nothing", () => {
     const out: string[] = [];
@@ -46,6 +48,36 @@ describe("fw reap --list and the land report", () => {
   it("the land report names the same rows, and nothing when none", () => {
     expect(reapLines(root, call, () => facts)[1]).toContain("500 group lspServe");
     expect(reapLines(root, call, () => ({ ...facts, live: [11] }))).toEqual([]);
-    expect(reapLines(root, call, () => null)).toEqual([]);
+    expect(reapLines(root, call, () => null)).toEqual([COULD_NOT_LIST]);
+    expect(reapLines(root, call, () => { throw new Error("x"); })).toEqual([COULD_NOT_LIST]);
+  });
+  it("a recorded console with a dead cwd and parent 1 is not listed", () => {
+    const f: Facts = { rows: [{ pid: 600, ppid: 1, pgid: 600, start: 100, cwd: 12, kind: "console" }], live: [1], mcps: [], keep: [{ pid: 600, at: 101 }] };
+    expect(reapLines(root, call, () => f)).toEqual([]);
+    expect(reapLines(root, call, () => ({ ...f, keep: [] }))[1]).toContain("600 group console");
+  });
+  it("another repo's lean-lsp-mcp does not make its lake serve a leftover", () => {
+    const f: Facts = { rows: [{ pid: 500, ppid: 400, pgid: 500, start: 9, cwd: 11, kind: "lspServe" }], live: [1], mcps: [{ pid: 400, cwd: 77 }], keep: [] };
+    expect(reapLines(root, call, () => f)).toEqual([]);
+  });
+});
+
+describe("live checkout identity and the recorded console", () => {
+  const d = mkdtempSync(join(tmpdir(), "reap-"));
+  it("a nested directory inside a checkout is live only when stat gives lsof's inode", async () => {
+    const { statSync } = await import("node:fs");
+    mkdirSync(join(d, "wt", "a", "b"), { recursive: true });
+    const ino = statSync(join(d, "wt", "a", "b")).ino;
+    expect(insideLive({ ino, path: join(d, "wt", "a", "b") }, [join(d, "wt")])).toBe(true);
+    expect(insideLive({ ino: ino + 1, path: join(d, "wt", "a", "b") }, [join(d, "wt")])).toBe(false);
+    expect(insideLive({ ino, path: join(d, "wt-other") }, [join(d, "wt")])).toBe(false);
+    expect(insideLive({ ino, path: join(d, "gone") }, [join(d, "wt")])).toBe(false);
+  });
+  it("reads pid and start second from api.json, none when absent", () => {
+    mkdirSync(join(d, "c"), { recursive: true });
+    writeFileSync(join(d, "c", "api.json"), JSON.stringify({ port: 1, pid: 600, startedAt: 101_500 }));
+    expect(recordedConsoles(root, { FW_CONSOLE_DIR: join(d, "c") })).toContainEqual({ pid: 600, at: 101 });
+    expect(recordedConsoles(root, { FW_CONSOLE_DIR: join(d, "none") }).every((k) => k.pid !== 600)).toBe(true);
+    rmSync(d, { recursive: true, force: true });
   });
 });

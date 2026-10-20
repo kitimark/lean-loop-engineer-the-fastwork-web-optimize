@@ -11,27 +11,45 @@ def row (pid ppid pgid start : Nat) (cwd : Option Nat) (kind : String) : Json :=
   Json.mkObj [("pid", toJson pid), ("ppid", toJson ppid), ("pgid", toJson pgid), ("start", toJson start),
     ("cwd", match cwd with | some n => toJson n | none => .null), ("kind", .str kind)]
 
-/-- A request. -/
-def req (rows : List Json) (live : List Nat) (mcp : Option Nat) : Json :=
-  Json.mkObj [("rows", .arr rows.toArray), ("live", toJson live), ("mcps", match mcp with | some n => toJson [n] | none => toJson ([] : List Nat))]
+/-- A lean-lsp-mcp process as JSON. -/
+def mcpJ (pid : Nat) (cwd : Option Nat) : Json :=
+  Json.mkObj [("pid", toJson pid), ("cwd", match cwd with | some n => toJson n | none => .null)]
+
+/-- A request: rows, live inodes, the mcp processes, the recorded console `(pid, record second)`. -/
+def req (rows : List Json) (live : List Nat) (mcps : List Json) (keep : List (Nat × Nat) := []) : Json :=
+  Json.mkObj [("rows", .arr rows.toArray), ("live", toJson live), ("mcps", .arr mcps.toArray),
+    ("keep", .arr (keep.map fun (p, a) => Json.mkObj [("pid", toJson p), ("at", toJson a)]).toArray)]
 
 /-- The cases, `(name, request)`. -/
 def reapCases : List (String × Json) := [
-  ("a lake serve under the mcp whose cwd inode is in no live checkout is selected as a group leader",
-    req [row 500 400 500 9 (some 11) "lspServe"] [1, 2] (some 400)),
+  ("a lake serve under a repo mcp whose cwd inode is in no live checkout is selected as a group leader",
+    req [row 500 400 500 9 (some 11) "lspServe"] [1, 2] [mcpJ 400 (some 1)]),
   ("a lake serve in a live checkout (a reused path has a new inode, the old one is dead) is kept",
-    req [row 500 400 500 9 (some 1) "lspServe", row 501 400 501 9 (some 11) "lspServe"] [1, 2] (some 400)),
+    req [row 500 400 500 9 (some 1) "lspServe", row 501 400 501 9 (some 11) "lspServe"] [1, 2] [mcpJ 400 (some 2)]),
+  ("a lake serve in a nested Lean project of a live checkout (its inode is in live) is kept",
+    req [row 500 400 500 9 (some 3) "lspServe"] [1, 3] [mcpJ 400 (some 1)]),
+  ("a lake serve under another repo's mcp (mcp cwd in no live checkout) is kept",
+    req [row 500 400 500 9 (some 11) "lspServe"] [1] [mcpJ 400 (some 77)]),
+  ("a lake serve under an mcp with an unreadable cwd is kept",
+    req [row 500 400 500 9 (some 11) "lspServe"] [1] [mcpJ 400 none]),
   ("a row whose pgid differs from its pid is selected without a group signal",
-    req [row 500 400 77 9 (some 11) "lspServe"] [1] (some 400)),
-  ("a lake serve of another parent is kept", req [row 500 123 500 9 (some 11) "lspServe"] [1] (some 400)),
-  ("no mcp pid: no lake serve is selected", req [row 500 400 500 9 (some 11) "lspServe"] [1] none),
+    req [row 500 400 77 9 (some 11) "lspServe"] [1] [mcpJ 400 (some 1)]),
+  ("a lake serve of another parent is kept", req [row 500 123 500 9 (some 11) "lspServe"] [1] [mcpJ 400 (some 1)]),
+  ("no mcp: no lake serve is selected", req [row 500 400 500 9 (some 11) "lspServe"] [1] []),
   ("an orphan console of a removed worktree is selected; a console with a live parent is kept",
-    req [row 600 1 600 9 (some 12) "console", row 601 55 601 9 (some 12) "console"] [1] none),
-  ("the main console (cwd inode live) is kept", req [row 600 1 600 9 (some 1) "console"] [1] none),
-  ("an unreadable cwd is kept", req [row 600 1 600 9 none "console", row 500 400 500 9 none "lspServe"] [1] (some 400)),
-  ("an unnamed kind is kept", req [row 700 1 700 9 (some 12) "other", row 701 1 701 9 (some 12) "chrome"] [1] (some 1)),
-  ("pid 1 is never selected", req [row 1 1 1 9 (some 12) "console"] [] none),
-  ("no rows", req [] [] none)]
+    req [row 600 1 600 9 (some 12) "console", row 601 55 601 9 (some 12) "console"] [1] []),
+  ("the main console (cwd inode live) is kept", req [row 600 1 600 9 (some 1) "console"] [1] []),
+  ("the recorded console started from a worktree (dead cwd, ppid 1, pid and record second match) is kept",
+    req [row 600 1 600 100 (some 12) "console"] [1] [] [(600, 101)]),
+  ("a pid reused after the record (it started more than 60 s later) is not the recorded console",
+    req [row 600 1 600 500 (some 12) "console"] [1] [] [(600, 101)]),
+  ("a recorded pid with another pid in the table does not keep an unrelated console",
+    req [row 601 1 601 100 (some 12) "console"] [1] [] [(600, 101)]),
+  ("an unreadable cwd is kept",
+    req [row 600 1 600 9 none "console", row 500 400 500 9 none "lspServe"] [1] [mcpJ 400 (some 1)]),
+  ("an unnamed kind is kept", req [row 700 1 700 9 (some 12) "other", row 701 1 701 9 (some 12) "chrome"] [1] [mcpJ 1 (some 1)]),
+  ("pid 1 is never selected", req [row 1 1 1 9 (some 12) "console"] [] []),
+  ("no rows", req [] [] [])]
 
 /-- The golden text. -/
 def text : String :=
