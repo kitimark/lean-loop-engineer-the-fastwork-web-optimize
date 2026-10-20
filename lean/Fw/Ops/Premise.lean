@@ -6,9 +6,9 @@ Lean proves "premises `⇒` conclusion". A premise about a real browser (Chromiu
 it is false the proof silently stops applying (that is how the base engine model overcounted, and how the gate
 sampled unsettled pages). This module is the registry of those premises and the two pure checks around it.
 
-* `registry`: per premise its id, statement (LaTeX), the theorems that assume it, the engines it must hold on, and the
-  id of the browser test that asserts it: a `page` test (`packages/premise-tests`, run on CI on both engines) or, for
-  a premise a page cannot observe, a `lane` (its test id is the CI workflow file that asserts it).
+* `registry`: per premise its id, statement (Unicode plain text), the theorems that assume it, the engines it must hold
+  on, and the id of the browser test that asserts it: a `page` test (`packages/premise-tests`, run on CI on both
+  engines) or, for a premise a page cannot observe, a `lane` (its test id is the CI workflow file that asserts it).
 * `premiseLint`: the premises without a test (a lane premise: whose workflow file does not exist), and the tests that
   name an unknown premise (`premiseLint_sound`, `untested_of_lane_missing`).
 * `flagged`: given the page-test CI results, the page premises whose test failed (or is missing) on an engine they
@@ -263,9 +263,8 @@ private def both : List Engine := [.chromium, .webkit]
 -- prints this verdict as row `<engine>.<stage>` and the `extra` step set in its own rows (`Fw.Ops.EnginePremise.Group`).
 private def laneRule (id stage counters model : String) (e : Engine) (ths : List String) : Premise where
   id := id
-  statement := r"\forall f \text{ unforced (one change or none, no forced read) in the table step set (golden step rows with group table: a case of the property table or its idle frame; the lane judges the extra step set in rows of its own)}:\ " ++ counters ++
-    r" \text{ run in } f \iff \mathrm{" ++ stage ++ r"} \in \operatorname{touched}_{" ++ model ++
-    r"}(f)\ \text{ (not observed: } \mathrm{units}, \text{ forced passes, the order against the base arm)}"
+  statement := "∀ f unforced (one change or none, no forced read) in the table step set (golden step rows with group table: a case of the property table or its idle frame; the lane judges the extra step set in rows of its own): " ++ counters ++ " run in f ↔ " ++ stage ++ " ∈ touched(" ++ model ++
+    ", f) (not observed: units, forced passes, the order against the base arm)"
   theorems := ths
   engines := [e]
   testId := ".github/workflows/engine-premises.yml"
@@ -293,141 +292,141 @@ The two `content-visibility` view premises of fix-commission-margin (`p_30`, `p_
 -/
 def registry : List Premise := [
   { id := "anim.list"
-    statement := r"\forall s:\ \{a \mid a \text{ is a running CSS animation or transition on } s\} \subseteq \texttt{getAnimations}(s) \ \land\ \texttt{getAnimations}(s) \cap \{\text{rAF lerps}\} = \varnothing"
+    statement := "∀ s: {a | a is a running CSS animation or transition on s} ⊆ getAnimations(s) ∧ getAnimations(s) ∩ {rAF lerps} = ∅"
     theorems := ["planned:gate-settle"]
     engines := both
     testId := "prem.anim.list" },
   { id := "cv.auto-margin"
-    statement := r"\forall n:\ n \in \text{subtree skipped by } \texttt{content-visibility:auto} \Rightarrow \texttt{getComputedStyle}(n).\mathrm{margin} = \texttt{auto} \text{ (unresolved, not px)}"
+    statement := "∀ n: n ∈ subtree skipped by content-visibility:auto → getComputedStyle(n).margin = auto (unresolved, not px)"
     theorems := ["planned:gate-settle", "planned:fix-commission"]
     engines := both
     testId := "prem.cv.auto-margin" },
   { id := "cv.read-forces-lock"
-    statement := r"\forall n:\ n \in \text{subtree skipped by } \texttt{content-visibility:auto} \Rightarrow \texttt{getComputedStyle}(n).\mathrm{margin} \text{ is the used px value (the read forces the lock open); only a } \texttt{display:none} \text{ subtree reports } \texttt{auto}"
+    statement := "∀ n: n ∈ subtree skipped by content-visibility:auto → getComputedStyle(n).margin is the used px value (the read forces the lock open); only a display:none subtree reports auto"
     theorems := ["planned:gate-settle", "planned:fix-commission"]
     engines := both
     testId := "prem.cv.read-forces-lock" },
   { id := "frame.raf-order"
-    statement := r"\forall f:\ \text{all rAF callbacks of frame } f \text{ run before the style and layout of } f,\ \text{so a write in rAF is seen by the frame's own layout-time observers}"
+    statement := "∀ f: all rAF callbacks of frame f run before the style and layout of f, so a write in rAF is seen by the frame's own layout-time observers"
     theorems := ["Fw.Engine.frameWorkE", "Fw.Engine.frameWork_overcount", "planned:fix-commission"]
     engines := both
     testId := "prem.frame.raf-order" },
   { id := "frame.ro-same-frame"
-    statement := r"\forall f:\ \text{a ResizeObserver callback for a size changed in } f \text{ runs in } f,\ \text{after layout and before the next rAF}"
+    statement := "∀ f: a ResizeObserver callback for a size changed in f runs in f, after layout and before the next rAF"
     theorems := ["Fw.Engine.flagTotal_remove_check", "Fw.Engine.reader_removal"]
     engines := both
     testId := "prem.frame.ro-same-frame" },
   { id := "resize.lag"
-    statement := r"\forall w:\ \text{after the viewport becomes } w \text{ the layout (media queries, } \texttt{vw}\text{ lengths) reflects } w \text{ within } k = 2 \text{ rAF frames}"
+    statement := "∀ w: after the viewport becomes w the layout (media queries, vw lengths) reflects w within k = 2 rAF frames"
     theorems := ["planned:gate-settle"]
     engines := both
     testId := "prem.resize.lag" },
   { id := "clock.raf-timeline"
-    statement := r"\forall \text{rAF callback}(t):\ t = \texttt{document.timeline.currentTime} \ \ (c = 0)"
+    statement := "∀ rAF callback(t): t = document.timeline.currentTime (c = 0)"
     theorems := ["Fw.Parts.MorphTweenOpt.WaapiPremises", "Fw.Parts.MorphTweenOpt.waapi_eq_tween"]
     engines := both
     testId := "prem.clock.raf-timeline" },
   { id := "css.number-linear"
-    statement := r"\text{a registered } \texttt{<number>} \text{ property animated from } a \text{ to } b \text{ with linear timing has value } a + (b-a)\,p \text{ at progress } p"
+    statement := "a registered <number> property animated from a to b with linear timing has value a + (b − a)·p at progress p"
     theorems := ["Fw.Parts.MorphTweenOpt.waapi_eq_tween", "Fw.Parts.MorphTweenOpt.waapi_frame_eq"]
     engines := both
     testId := "prem.css.number-linear" },
   { id := "css.inherits-false"
-    statement := r"\text{a property registered with } \mathrm{inherits}=\bot \text{ and set on } e \text{ reads its initial value on every child } d \ne e"
+    statement := "a property registered with inherits = false and set on e reads its initial value on every child d ≠ e"
     theorems := ["Fw.Parts.MorphTweenOpt.waapi_vis", "Fw.Parts.MorphTweenOpt.registrationsScoped_see"]
     engines := both
     testId := "prem.css.inherits-false" },
   { id := "dom.token-toggle-noop"
-    statement := r"\texttt{classList.toggle}(c, b) \text{ with } c \in \texttt{classList} \iff b \text{ changes nothing (no attribute mutation)}"
+    statement := "classList.toggle(c, b) with (c ∈ classList ↔ b) changes nothing (no attribute mutation)"
     theorems := ["Fw.Parts.NavHitTest.changed_write", "Fw.Parts.NavHitTestOpt.writeOnChange_le"]
     engines := both
     testId := "prem.dom.token-toggle-noop" },
   { id := "dom.inline-same-value"
-    statement := r"\texttt{style.setProperty}(k, v) \text{ with the inline value of } k \text{ already } v \text{ changes nothing (no attribute mutation)}"
+    statement := "style.setProperty(k, v) with the inline value of k already v changes nothing (no attribute mutation)"
     theorems := ["Fw.Parts.NavHitTest.changed_write", "Fw.Parts.NavHitTestOpt.writeOnChange_le"]
     engines := both
     testId := "prem.dom.inline-same-value" },
   { id := "read.forced-update"
-    statement := r"\texttt{getBoundingClientRect},\ \texttt{getComputedStyle},\ \texttt{elementFromPoint} \text{ return the state after all earlier writes (forced style/layout, R4)}"
+    statement := "getBoundingClientRect, getComputedStyle, elementFromPoint return the state after all earlier writes (forced style/layout, R4)"
     theorems := ["Fw.Engine.frameWorkE", "Fw.Engine.reader_removal", "Fw.Parts.EngineScroll.forced_mono"]
     engines := both
     testId := "prem.read.forced-update" },
   { id := "hit.pointer-events"
-    statement := r"\texttt{elementFromPoint}(x,y) \text{ skips every box with } \texttt{pointer-events:none} \text{ (AL: the allow-list equals the boxes that re-enable it)}"
+    statement := "elementFromPoint(x, y) skips every box with pointer-events:none (AL: the allow-list equals the boxes that re-enable it)"
     theorems := ["Fw.Parts.NavHitTest.allowHit_eq_faithful", "Fw.Parts.NavHitTestOpt.elementsSkip_visSame"]
     engines := both
     testId := "prem.hit.pointer-events" },
   { id := "layout.unit-truncation"
-    statement := r"\text{a CSS length } x \text{ lays out as } \lfloor 64x \rfloor / 64 \text{ px (LayoutUnit, 6 fractional bits, truncation)}"
+    statement := "a CSS length x lays out as ⌊64x⌋ / 64 px (LayoutUnit, 6 fractional bits, truncation)"
     theorems := ["Fw.Parts.PeopleDeck.snap_faithful", "Fw.Parts.PeopleDeck.cr_snap_same"]
     engines := both
     testId := "prem.layout.unit-truncation" },
   { id := "io.async-delivery"
-    statement := r"\text{an IntersectionObserver callback is never delivered inside the rAF callback that observes, and arrives within } k = 3 \text{ frames}"
+    statement := "an IntersectionObserver callback is never delivered inside the rAF callback that observes, and arrives within k = 3 frames"
     theorems := ["Fw.Parts.HeroExitOpt.sentinel_iff_pointerOff"]
     engines := both
     testId := "prem.io.async-delivery" },
   { id := "grid.normal-aspect-ratio-no-stretch"
-    statement := r"\text{on a fresh load, in a 300 px grid row: a non-replaced item with a preferred aspect ratio, a definite width and } \texttt{height:auto} \text{ (no min/max) gets its ratio height under } \texttt{align-self:start} \text{ and fills the row under } \texttt{stretch}\text{; a non-replaced block item without an aspect ratio fills the row under } \texttt{normal} \text{ (the } \operatorname{mode} \text{ table). Under } \texttt{normal} \text{ the ratio item is engine-dependent (observed only), hence } \operatorname{mode} = \mathrm{other}"
+    statement := "on a fresh load, in a 300 px grid row: a non-replaced item with a preferred aspect ratio, a definite width and height:auto (no min/max) gets its ratio height under align-self:start and fills the row under stretch; a non-replaced block item without an aspect ratio fills the row under normal (the mode table). Under normal the ratio item is engine-dependent (observed only), hence mode = other"
     theorems := ["Fw.Gate.AlignEquiv.equivSpec_sound", "Fw.Gate.AlignEquiv.modeOf_normal_ratio"]
     engines := both
     testId := "prem.grid.normal-aspect-ratio-no-stretch" },
   { id := "grid.stretch-fill-equals-start"
-    statement := r"\text{on a fresh load, for every arm } s \text{ and its used layout } L,\ \operatorname{agrees}(s, L) \text{: the content size respects min/max, the resolved } \texttt{grid-template-rows} \text{ and } \texttt{row-gap} \text{ are the used track sizes and gap, the item's row is one of them, and its measured offset and outer size are its placed box; tested on single-column grids where the } \texttt{start}\text{-aligned item fills its row and } \texttt{stretch} \text{ gives the same box}"
+    statement := "on a fresh load, for every arm s and its used layout L, agrees(s, L): the content size respects min/max, the resolved grid-template-rows and row-gap are the used track sizes and gap, the item's row is one of them, and its measured offset and outer size are its placed box; tested on single-column grids where the start-aligned item fills its row and stretch gives the same box"
     theorems := ["Fw.Gate.AlignEquiv.equivSpec_sound"]
     engines := both
     testId := "prem.grid.stretch-fill-equals-start" },
-  laneRule "cr.script" "script" r"\texttt{FireAnimationFrame}, \texttt{FunctionCall}" r"W_{\mathrm{cr}}" .chromium
+  laneRule "cr.script" "script" "FireAnimationFrame, FunctionCall" "W_cr" .chromium
     ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound"],
-  laneRule "cr.style" "style" r"\texttt{UpdateLayoutTree}" r"W_{\mathrm{cr}}" .chromium
+  laneRule "cr.style" "style" "UpdateLayoutTree" "W_cr" .chromium
     ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound"],
-  laneRule "cr.commit" "commit" r"\texttt{cc.Commit}" r"W_{\mathrm{cr}}" .chromium
+  laneRule "cr.commit" "commit" "cc.Commit" "W_cr" .chromium
     ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound"],
-  laneRule "wk.style" "style" r"\texttt{styleRecalcs}" r"W_{\mathrm{wk}}" .webkit
+  laneRule "wk.style" "style" "styleRecalcs" "W_wk" .webkit
     ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound"],
-  laneRule "wk.commit" "commit" r"\texttt{renderingUpdates}" r"W_{\mathrm{wk}}" .webkit
+  laneRule "wk.commit" "commit" "renderingUpdates" "W_wk" .webkit
     ["Fw.Engine.WebKit.base_commit", "Fw.Engine.WebKit.scroll_commit"],
-  laneRule "cr.layout" "layout" r"\texttt{Layout}" r"W_{\mathrm{cr}}" .chromium
+  laneRule "cr.layout" "layout" "Layout" "W_cr" .chromium
     ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound", "Fw.Ops.EnginePremise.cr_recorded_holds"],
   { id := "cr.props"
-    statement := r"\forall f \text{ unforced (one change or none, no forced read) in the table step set (golden step rows with group table: a case of the property table or its idle frame; the lane judges the extra step set in rows of its own)}:\ \texttt{PrePaint} \text{ runs in } f \iff \mathrm{props} \in \operatorname{touched}_{W_{\mathrm{cr}}}(f) \lor 0 < f.\mathrm{hits}\ \text{ (every frame with a rendering update touches } \mathrm{props}\text{, and each hit test pays one PrePaint, } \operatorname{crWorkH}\text{; not observed: } \mathrm{units}, \text{ the number of passes)}"
+    statement := "∀ f unforced (one change or none, no forced read) in the table step set (golden step rows with group table: a case of the property table or its idle frame; the lane judges the extra step set in rows of its own): PrePaint runs in f ↔ props ∈ touched(W_cr, f) ∨ 0 < f.hits (every frame with a rendering update touches props, and each hit test pays one PrePaint, crWorkH; not observed: units, the number of passes)"
     theorems := ["Fw.Engine.touched_of_cover", "Fw.Engine.Chromium.crWorkH_props_ge_hits",
       "Fw.Ops.EnginePremise.cr_recorded_holds"]
     engines := [.chromium]
     testId := ".github/workflows/engine-premises.yml"
     kind := .lane },
-  laneRule "cr.paint" "paint" r"\texttt{Paint}" r"W_{\mathrm{cr}}" .chromium
+  laneRule "cr.paint" "paint" "Paint" "W_cr" .chromium
     ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound", "Fw.Ops.EnginePremise.cr_recorded_holds"],
-  laneRule "cr.raster" "raster" r"\texttt{RasterTask}" r"W_{\mathrm{cr}}" .chromium
+  laneRule "cr.raster" "raster" "RasterTask" "W_cr" .chromium
     ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound", "Fw.Ops.EnginePremise.cr_recorded_holds"],
   { id := "cr.hits"
-    statement := r"\forall f \text{ unforced (one change or none, no forced read) in the table step set (golden step rows with group table: a case of the property table or its idle frame; the lane judges the extra step set in rows of its own)}:\ \texttt{HitTest} \text{ runs in } f \iff 0 < \operatorname{crWorkH}(\mathrm{lane}, f).\mathrm{hits} = f.\mathrm{hits} + [\mathrm{layout} \in \operatorname{touched}_{W_{\mathrm{cr}}}(f)]\ \text{ (not observed: the number of hit tests)}"
+    statement := "∀ f unforced (one change or none, no forced read) in the table step set (golden step rows with group table: a case of the property table or its idle frame; the lane judges the extra step set in rows of its own): HitTest runs in f ↔ 0 < crWorkH(lane, f).hits = f.hits + (1 if layout ∈ touched(W_cr, f), else 0) (not observed: the number of hit tests)"
     theorems := ["Fw.Engine.Chromium.crWorkH_hits", "Fw.Ops.EnginePremise.cr_recorded_holds"]
     engines := [.chromium]
     testId := ".github/workflows/engine-premises.yml"
     kind := .lane },
-  laneRule "wk.layout" "layout" r"\texttt{layoutUpdates}" r"W_{\mathrm{wk}}" .webkit
+  laneRule "wk.layout" "layout" "layoutUpdates" "W_wk" .webkit
     ["Fw.Engine.touched_of_cover", "Fw.Engine.WebKit.mem_wkStages", "Fw.Ops.EnginePremise.wk_recorded_holds"],
-  laneRule "wk.props" "props" r"\texttt{compositingUpdates}" r"W_{\mathrm{wk}}" .webkit
+  laneRule "wk.props" "props" "compositingUpdates" "W_wk" .webkit
     ["Fw.Engine.touched_of_cover", "Fw.Engine.WebKit.mem_wkStages", "Fw.Ops.EnginePremise.wk_recorded_holds"],
   { id := "cv.skip-flag"
-    statement := r"\forall n:\ n \text{ is in a subtree the engine has skipped (} \texttt{content-visibility:auto} \text{, off screen)} \iff \texttt{checkVisibility}() \wedge \neg\,\texttt{checkVisibility}(\{\mathrm{contentVisibilityAuto}\})\text{; after } \texttt{scrollIntoView} \text{ and two frames the node is no longer skipped}"
+    statement := "∀ n: n is in a subtree the engine has skipped (content-visibility:auto, off screen) ↔ checkVisibility() ∧ ¬checkVisibility({contentVisibilityAuto}); after scrollIntoView and two frames the node is no longer skipped"
     theorems := ["Fw.Gate.Settle.viewCell_notRendered_iff", "Fw.Gate.Settle.skipped_after_view_only_if_brought"]
     engines := both
     testId := "prem.cv.skip-flag" },
   { id := "cv.fresh-after-resize"
-    statement := r"\forall n \text{ with } \texttt{margin-inline:auto} \text{ and } \texttt{max-width}=m:\ \text{after a viewport resize while } n \text{ is skipped, once } n \text{ is brought into view and three frames pass, } \texttt{getComputedStyle}(n).\mathrm{margin\text{-}left} \text{ equals the geometry-derived margin } (\text{container width} - m)/2"
+    statement := "∀ n with margin-inline:auto and max-width = m: after a viewport resize while n is skipped, once n is brought into view and three frames pass, getComputedStyle(n).margin-left equals the geometry-derived margin (container width − m)/2"
     theorems := ["Fw.Gate.Settle.view_bring", "Fw.Gate.Settle.viewCell_fail_of_rendered_diff"]
     engines := both
     testId := "prem.cv.fresh-after-resize" },
   { id := "wktr_scroll_timeline_restyle"
-    statement := r"\text{WKTR, one rendering update per scroll step: } \Delta\texttt{styleRecalcCount} = (\mu_{\mathrm{control}}, \mu_{\mathrm{timeline}}, \mu_{\mathrm{timeAccel}}) = (0, 1, 0) \text{ for a static control, a transform animation on } \texttt{scroll()} \text{ and an accelerated time-based transform animation}"
+    statement := "WKTR, one rendering update per scroll step: Δ styleRecalcCount = (μ_control, μ_timeline, μ_timeAccel) = (0, 1, 0) for a static control, a transform animation on scroll() and an accelerated time-based transform animation"
     theorems := ["Fw.Engine.WebKit.style_rate_model", "Fw.Engine.WebKit.style_rate_old_refuted"]
     engines := [.webkit]
     testId := ".github/workflows/wktr-fixtures.yml"
     kind := .lane },
   { id := "cv.margin-typed-om"
-    statement := r"\forall k \in \{\texttt{margin-left}, \texttt{margin-right}, \texttt{margin-inline-start}, \texttt{margin-inline-end}\}:\ \texttt{n.computedStyleMap().get}(k) \text{ is the computed value (} \texttt{CSSKeywordValue auto} \text{ for an auto margin, a percent } \texttt{CSSUnitValue} \text{ for a percentage, a px } \texttt{CSSUnitValue} \text{ for a fixed length) in each of three cases: (a) } n \text{ is in normal flow; (b) } n \text{ is in a subtree skipped by } \texttt{content-visibility:auto} \text{, which is still skipped after the read; (c) } n \text{ is under an ancestor with } \texttt{transform: scale(0.916667)}"
+    statement := "∀ k ∈ {margin-left, margin-right, margin-inline-start, margin-inline-end}: n.computedStyleMap().get(k) is the computed value (CSSKeywordValue auto for an auto margin, a percent CSSUnitValue for a percentage, a px CSSUnitValue for a fixed length) in each of three cases: (a) n is in normal flow; (b) n is in a subtree skipped by content-visibility:auto, which is still skipped after the read; (c) n is under an ancestor with transform: scale(0.916667)"
     theorems := ["Fw.Gate.marginStatus_fixed", "Fw.Gate.marginStatus_fail_iff", "Fw.Gate.marginStatus_never_pass_over_failing_rect"]
     engines := both
     testId := "prem.cv.margin-typed-om" }
@@ -487,9 +486,8 @@ structure Untested where
 -- An untested stage rule of an engine model, from the stage, the counters and the model's name.
 private def stageRule (id stage counters model : String) (e : Engine) : Untested where
   id := id
-  statement := r"\forall f:\ \text{the per-frame counts of } " ++ counters ++
-    r" \text{ are ordered like the model's } \mathrm{" ++ stage ++ r"} \text{ work } " ++ model ++
-    r"(f).\mathrm{" ++ stage ++ r"} \text{ (zero iff zero, and } \le / < \text{ against the base arm)}"
+  statement := "∀ f: the per-frame counts of " ++ counters ++ " are ordered like the model's " ++ stage ++ " work " ++
+    model ++ "(f)." ++ stage ++ " (zero iff zero, and ≤ / < against the base arm)"
   engines := [e]
 
 /-- **The untested engine premises**: per engine, the stage rules of its Lean model that no lane measures, and for
@@ -500,15 +498,15 @@ refuted, `refutedPremises`, after the model fix; the five left cannot be measure
 The engine claims the goldens still assume without a measurement. -/
 -- Measuring one means a CI lane that asserts it, then moving it into `registry` as a lane premise.
 def untestedPremises : List Untested := [
-  stageRule "cr.comp" "comp" r"\texttt{census.layers}, \texttt{compositeFailedBits}" r"W_{\mathrm{cr}}" .chromium,
+  stageRule "cr.comp" "comp" "census.layers, compositeFailedBits" "W_cr" .chromium,
   { id := "cr.signature"
-    statement := r"\forall (k, \ell):\ \text{a change of property } k \text{ at placement } \ell \text{ runs exactly the stages of its signature level in } \texttt{chromium.jsonl}"
+    statement := "∀ (k, ℓ): a change of property k at placement ℓ runs exactly the stages of its signature level in chromium.jsonl"
     engines := [.chromium] },
   { id := "cr.mode"
-    statement := r"\text{the lane (headless, BeginFrameControl) and real Chrome differ only as the mode rows of } \texttt{chromium.jsonl} \text{ say (threaded animations, main frame per BeginFrame, compositor stages)}"
+    statement := "the lane (headless, BeginFrameControl) and real Chrome differ only as the mode rows of chromium.jsonl say (threaded animations, main frame per BeginFrame, compositor stages)"
     engines := [.chromium] },
-  stageRule "wk.script" "script" r"\texttt{FireAnimationFrame}" r"W_{\mathrm{wk}}" .webkit,
-  stageRule "wk.paint" "paint" r"\texttt{Paint}" r"W_{\mathrm{wk}}" .webkit
+  stageRule "wk.script" "script" "FireAnimationFrame" "W_wk" .webkit,
+  stageRule "wk.paint" "paint" "Paint" "W_wk" .webkit
 ]
 
 /-- **The refutations of run 39088367495, all fixed.** Per stage rule that the `engine-premises.yml` lane measured

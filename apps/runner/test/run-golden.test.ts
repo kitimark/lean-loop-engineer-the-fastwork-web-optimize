@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { GateReply, GateRequest, ManifestReply, ManifestRequest, ObjectPathReply, ObjectPathRequest, PlanReply, PlanRequest, ReduceReply, ReduceRequest, StoreError } from "@fw/contracts";
+import { GateReply, GateRequest, ManifestReply, ManifestRequest, ObjectPathReply, ObjectPathRequest, PlanReply, PlanRequest, ReduceReply, ReduceRequest, StoreError, TrajectoryReply, TrajectoryRequest } from "@fw/contracts";
 
 // Every golden vector is generated from Lean (lean/Fw/Store/Golden.lean); the zod schemas must accept each one.
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "contracts", "golden", "store");
@@ -12,6 +12,7 @@ const load = (stem: string) =>
 const files = [
   ["plan", PlanRequest, PlanReply],
   ["gate", GateRequest, GateReply],
+  ["trajectory", TrajectoryRequest, TrajectoryReply],
   ["manifest", ManifestRequest, ManifestReply],
   ["objectPath", ObjectPathRequest, ObjectPathReply],
   ["reduce", ReduceRequest, ReduceReply],

@@ -82,6 +82,7 @@ import Fw.Ops.Wire
 import Fw.Ops.Salvage  -- workflow-salvage: a builder exit without a result (decide, golden text)
 import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
+import Fw.Sched.LakeSlot  -- lake-build-slots: slot pools and the thread bound of scripts/lake-slot.sh
 import Fw.Wire.Sched
 import Fw.Store.Layout
 import Fw.Store.Reduce
@@ -115,6 +116,7 @@ import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
 import Fw.Obs.GhStatus -- gh-status: GitHub Actions degraded flag and incident naming
 import Fw.Obs.Stale  -- console-stale: a service whose inputs changed on main after it started is stale
 import Fw.Obs.Signals -- obs-signals: agent state from transcript signals (obs.signals)
+import Fw.Obs.Fold  -- watch-incremental: transcript summaries as a fold, resume from saved state
 import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
 import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
 import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
@@ -148,6 +150,7 @@ import Fw.Console.LandLegs  -- land-lane-speed: the land lane's parallel legs (c
 import Fw.Console.LandTier  -- land-lane: which checks run on the CI land lane (console.landTier)
 import Fw.Console.LandRemote  -- land-wait: provider-neutral remote land verdict (console.landRemote)
 import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request coalescing
+import Fw.Console.JournalFold  -- console-idle-cpu: journal cache, settled runs, safety tick
 import Fw.Console.LandPool -- land-pool-fair: fair-share floor under poolSize, wired into land.ts by console.landPool and console.landRetry
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
 import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)
@@ -158,6 +161,7 @@ import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split
 import Fw.Gate.Shard  -- gate-shard-balance: LPT shard plan over measured unit costs
 import Fw.Gate.ShardObs  -- gate-shard-balance: observed jobs of a CI run, reduced to the cost table (ShardCosts)
 import Fw.Gate.Search  -- gate-preset-input: the search string of the gate rewrite arm from its fw and preset inputs
+import Fw.Gate.Trajectory  -- trajectory-probe: per-unit verdict of the rewrite against the original along a scroll path
 import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict

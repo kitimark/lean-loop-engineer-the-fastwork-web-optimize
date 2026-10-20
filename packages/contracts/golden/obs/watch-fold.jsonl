@@ -1,0 +1,19 @@
+{"consumed":0,"kind":"cut","lines":0,"name":"empty file","tail":0,"text":""}
+{"consumed":8,"kind":"cut","lines":1,"name":"one whole line","tail":0,"text":"{\"a\":1}\n"}
+{"consumed":4,"kind":"cut","lines":2,"name":"two whole lines","tail":0,"text":"a\nb\n"}
+{"consumed":4,"kind":"cut","lines":3,"name":"a torn last line","tail":5,"text":"a\nb\n{\"c\":"}
+{"consumed":0,"kind":"cut","lines":1,"name":"no newline at all","tail":7,"text":"{\"a\":1}"}
+{"consumed":1,"kind":"cut","lines":0,"name":"only a newline","tail":0,"text":"\n"}
+{"consumed":5,"kind":"cut","lines":1,"name":"blank lines are not lines","tail":0,"text":"\n\na\n\n"}
+{"consumed":4,"kind":"cut","lines":2,"name":"a torn line after blanks","tail":1,"text":"a\n\n\nb"}
+{"consumed":5,"kind":"cut","lines":2,"name":"a multi-byte character counts in bytes","tail":1,"text":"\"é\"\nx"}
+{"consumed":5,"kind":"cut","lines":1,"name":"a multi-byte character in a whole line","tail":0,"text":"\"é\"\n"}
+{"anchorSame":true,"entry":{"code":"c1","ino":7,"offset":100,"schema":1},"expect":{"mode":"resume","offset":100},"kind":"decide","name":"grown: resume at the saved offset","now":{"code":"c1","ino":7,"schema":1,"size":150}}
+{"anchorSame":true,"entry":{"code":"c1","ino":7,"offset":100,"schema":1},"expect":{"mode":"resume","offset":100},"kind":"decide","name":"unchanged size: resume, nothing to read","now":{"code":"c1","ino":7,"schema":1,"size":100}}
+{"anchorSame":true,"entry":{"code":"c1","ino":7,"offset":100,"schema":1},"expect":{"mode":"full"},"kind":"decide","name":"one byte short of the offset: full","now":{"code":"c1","ino":7,"schema":1,"size":99}}
+{"anchorSame":true,"entry":{"code":"c1","ino":7,"offset":0,"schema":1},"expect":{"mode":"resume","offset":0},"kind":"decide","name":"empty saved state on a new file: resume at 0","now":{"code":"c1","ino":7,"schema":1,"size":0}}
+{"anchorSame":true,"entry":{"code":"c1","ino":7,"offset":100,"schema":1},"expect":{"mode":"full"},"kind":"decide","name":"other schema: full","now":{"code":"c1","ino":7,"schema":2,"size":150}}
+{"anchorSame":true,"entry":{"code":"c1","ino":7,"offset":100,"schema":1},"expect":{"mode":"full"},"kind":"decide","name":"other code hash: full","now":{"code":"c2","ino":7,"schema":1,"size":150}}
+{"anchorSame":true,"entry":{"code":"c1","ino":7,"offset":100,"schema":1},"expect":{"mode":"full"},"kind":"decide","name":"other inode: full","now":{"code":"c1","ino":8,"schema":1,"size":150}}
+{"anchorSame":false,"entry":{"code":"c1","ino":7,"offset":100,"schema":1},"expect":{"mode":"full"},"kind":"decide","name":"bytes before the offset differ: full","now":{"code":"c1","ino":7,"schema":1,"size":150}}
+{"anchorSame":true,"entry":{"code":"c1","ino":7,"offset":100,"schema":1},"expect":{"mode":"full"},"kind":"decide","name":"shrunk and other inode: full","now":{"code":"c1","ino":9,"schema":1,"size":10}}

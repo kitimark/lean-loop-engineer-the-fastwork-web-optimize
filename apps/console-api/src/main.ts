@@ -6,6 +6,7 @@ import { createApp } from "./app.ts";
 import { selectCore } from "./core/index.ts";
 import { Store, consoleDir } from "./store.ts";
 import { Reconciler } from "./reconcile/reconciler.ts";
+import { startDrainWatch } from "./spool/drain-watch.ts";
 import { execFileSync } from "node:child_process";
 import { buildBase } from "./core/build-base.ts";
 import { PreviewManager } from "./preview/manager.ts";
@@ -59,7 +60,7 @@ core.onSpawn = (binPath) => {
 };
 const store = await Store.open(dir, core);
 const reconciler = new Reconciler(store, root);
-reconciler.start();
+reconciler.startWatching();
 const previews = new PreviewManager(dirname(dir), dir, core);
 await previews.reapRecorded().catch((e) => console.error("preview reap failed:", e)); // previews a crashed run left behind
 setInterval(() => { void previews.tick().catch((e) => console.error("preview tick failed:", e)); }, 30_000).unref();
@@ -89,7 +90,8 @@ const previewApp = createPreviewApp(core, owner, previews, { lan: lanAddr !== nu
 const armApp = createArmApp(core, owner, previews, { lan: lanAddr !== null, lanAddr, grants, returns });
 previews.useArms(new ArmServers(armApp.fetch, lanAddr));
 
-setInterval(() => { void app.drain.run().catch((e) => console.error("spool drain failed:", e)); }, 2000).unref();
+// the spool drain runs on file events (spool, health index, session workflow dirs) and on a 10 s safety tick (spool/drain-watch.ts)
+const drainWatch = startDrainWatch(dir, () => app.drain.run(), (e) => console.error("spool drain failed:", e));
 
 // port 0 = the OS picks a free port (override with PORT); printed and written to api.json
 // The previews are served on their own port (console port + 1, else any free one), bound like the console: another origin.
@@ -130,6 +132,7 @@ const server = serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 0), ho
 
 const stop = async () => {
   reconciler.stop();
+  drainWatch.stop();
   await previews.shutdown().catch(() => undefined); // only the process groups in its own table
   rmSync(join(dir, "api.json"), { force: true });
   store.close();

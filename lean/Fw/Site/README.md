@@ -14,7 +14,7 @@ Lean states every media condition, proves its edges, its overlaps and the gaps, 
 | `BreakpointGen` | `genJson` (the document), `checkInventory` (field-by-field check against `breakpoints.json`), `run` (CLI driver), `opBreakpointsGen` (the same as an fwcore op body) |
 | `breakpoints.gen.json` | generated; do not edit |
 
-## Main results (all proved; `lake exe mathview --lint` passes; standard axioms only)
+## Main results (all proved; `sh lean/scripts/axiom-check.sh` passes: no sorry, standard axioms only)
 
 | Claim | Theorem |
 |---|---|

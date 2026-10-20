@@ -4,6 +4,7 @@ import Fw.Store.Reduce
 import Fw.Store.Ci
 import Fw.Measure.Wire
 import Fw.Ops.Wire
+import Fw.Gate.Trajectory
 /-!
 # JSON codecs and ops of `Fw.Store` (`store.*`)
 
@@ -16,6 +17,7 @@ no partial operations. Flags are strings `"part:variant"`; digests are lowercase
 |---|---|---|
 | `store.plan` | `target` (`original` or `rewrite`), `preset`? (default `original`), `fw`? [`part:variant`], `engines` [name], `profile`? (default `swipe-v1`), `runs`? (default 3), `sha`, `images`? {engine: image}, `digests`? {engine: sha256 of the job key}, `present`? [digest] (objects/runs already in the store) | `problems` [string], `fw` (sorted), `jobs` [{engine, workflow, inputs {name: value}, key [[name, value]], image, blocked (string or null), digest?, cache?, manifest?}] |
 | `store.gate` | `engines`? (`both`, `chromium` or `playwright-webkit`; default `both`), `preset`? (default empty = none), `fw`? [`part:variant`] | `problems` [string], `fw` (sorted), `job` (`null` when there are problems) {workflow, inputs {name: value}, blocked (string or null)} |
+| `store.trajectory` | the `store.gate` fields and `widths`? (comma list of 390, 640, 641, 1280 without repeats; default empty = all four) | as `store.gate`, for `trajectory-probe.yml` (a refused widths list is a problem) |
 | `store.manifest` | `manifest` {engine, target, preset, fw [`part:variant`], profile, gitSha, image, runId, entries [{name, digest, bytes}]} | `valid`, `problems`, `key` [[name, value]] (when the engine and the target are known), `paths` [object path per entry] (when valid) |
 | `store.objectPath` | `digest` (64 hex) | `path` |
 | `store.ciRun` | `run` {runId, workflowName, status, conclusion (null = empty), headSha, jobs [{name, conclusion (null = empty)}]}, `artifacts`? [{name, profile, image, search? (default empty), target?}] (the downloaded shard artifacts with their `counts.json` / `image-id.txt` facts; absent = the check before the download), `classes`? [dir under chromium-classes] (default empty) | `accept`, `refusals` [string], `targets` [{target, classes, shards [{artifact, dir}], meta? {engine, target, preset, fw, profile, gitSha, image, runId}, key? [[name, value]]}] (empty when refused; `meta`, `key` after the download) |
@@ -30,10 +32,7 @@ open Fw.Measure
 /-- The fields of a reply. -/
 abbrev Reply := List (String × Json)
 
-/-- A flag `"part:variant"`; anything else becomes `("", s)`, which the id check then refuses.
-
-$$\operatorname{flag}(s) = \begin{cases} (a, b) & s = a\texttt{:}b,\ \text{no other colon} \\ (\varepsilon, s) & \text{otherwise} \end{cases}$$
--/
+/-- A flag `"part:variant"` with exactly one colon; anything else becomes `("", s)`, which the id check then refuses. -/
 def parseFlag (s : String) : String × String :=
   match s.splitOn ":" with
   | [a, b] => (a, b)
@@ -119,6 +118,22 @@ def opGate (req : Json) : Except String Reply := do
       Json.mkObj [("workflow", .str Lane.breakpointGate.file),
         ("inputs", objOf (gateDispatchInputs g |>.map fun p => (p.1, Json.str p.2))),
         ("blocked", match gateBlocked g with | none => .null | some b => .str b)]
+    else .null
+  pure [("problems", .arr (ps.toArray.map .str)), ("fw", .arr (g.fw.toArray.map fun p => .str (flagStr p))), ("job", job)]
+
+/-- `store.trajectory`: the dispatch of the trajectory-probe workflow. -/
+def opTrajectory (req : Json) : Except String Reply := do
+  let g ← gateRequestOf req
+  let widths ← match opt req "widths" with
+    | none => pure ""
+    | some j => asStr "widths" j
+  let ps := gateProblems g ++ (match Fw.Gate.Trajectory.pickWidths widths with
+    | .refused => ["widths: not a comma list of 390, 640, 641, 1280 without repeats"]
+    | .list _ => [])
+  let job : Json := if ps.isEmpty then
+      Json.mkObj [("workflow", .str Lane.trajectory.file),
+        ("inputs", objOf ((trajectoryDispatchInputs g widths).map fun p => (p.1, Json.str p.2))),
+        ("blocked", match trajectoryBlocked g with | none => .null | some b => .str b)]
     else .null
   pure [("problems", .arr (ps.toArray.map .str)), ("fw", .arr (g.fw.toArray.map fun p => .str (flagStr p))), ("job", job)]
 
@@ -224,13 +239,14 @@ def opCiRun (req : Json) : Except String Reply := do
         ("targets", .arr (res.targets.toArray.map (ciTargetJson r)))]
 
 /-- The `store.*` ops. -/
-def ops : List String := ["store.plan", "store.gate", "store.manifest", "store.objectPath", "store.reduce", "store.ciRun"]
+def ops : List String := ["store.plan", "store.gate", "store.trajectory", "store.manifest", "store.objectPath", "store.reduce", "store.ciRun"]
 
 /-- Dispatch a `store.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "store.plan" => some (opPlan req)
   | "store.gate" => some (opGate req)
+  | "store.trajectory" => some (opTrajectory req)
   | "store.manifest" => some (opManifest req)
   | "store.objectPath" => some (opObjectPath req)
   | "store.reduce" => some (opReduce req)

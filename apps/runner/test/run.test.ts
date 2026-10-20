@@ -184,6 +184,39 @@ describe("breakpoint-gate lane", () => {
   });
 });
 
+describe("trajectory-probe lane", () => {
+  it("parses --trajectory and --widths, refuses count-lane flags and a lone --widths", () => {
+    expect(parseRunArgs(["--trajectory", "--engines", "chromium", "--widths", "390,641"])).toMatchObject({ trajectory: true, engines: ["chromium"], widths: "390,641" });
+    expect(() => parseRunArgs(["--trajectory", "--target", "rewrite"])).toThrow(/no --target/);
+    expect(() => parseRunArgs(["--trajectory", "--gate"])).toThrow(/separate lanes/);
+    expect(() => parseRunArgs(["--gate", "--widths", "390"])).toThrow(/belongs to --trajectory/);
+  });
+  describe.skipIf(!hasCore)("against fwcore", () => {
+    const call: FwCall = hasCore ? fwcoreCall(process.cwd()) : () => ({});
+    const mk = () => mkdtempSync(join(tmpdir(), "fw-run-"));
+    it("--dry prints the four inputs; no gh", async () => {
+      const logs: string[] = [];
+      const gh: Gh = async () => { throw new Error("no gh"); };
+      expect(await runMain(parseRunArgs(["--trajectory", "--fw", "morph.tween:waapi", "--widths", "390", "--dry"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).toBe(0);
+      expect(logs.join("\n")).toMatch(/trajectory-probe\.yml\s+inputs engines=both fw=morph\.tween:waapi preset= widths=390/);
+    });
+    it("a width outside the allowlist is a problem, nothing dispatched", async () => {
+      const logs: string[] = [];
+      const gh: Gh = async () => { throw new Error("no gh"); };
+      expect(await runMain(parseRunArgs(["--trajectory", "--widths", "800"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).toBe(2);
+      expect(logs.join("\n")).toMatch(/problem: widths/);
+    });
+    it("dispatches with -f on the ref and reports the run id", async () => {
+      const logs: string[] = [];
+      const calls: string[][] = [];
+      const gh: Gh = async (a) => { calls.push(a); if (a[0] === "run" && a[1] === "list") return "[]"; if (a[0] === "run" && a[1] === "view") return JSON.stringify({ headSha: SHA }); return ""; };
+      expect(await runMain(parseRunArgs(["--trajectory", "--engines", "chromium", "--preset", "v2-proved", "--ref", "ci/t"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).toBe(0);
+      expect(calls.find((c) => c[0] === "workflow")?.slice(0, 5)).toEqual(["workflow", "run", "trajectory-probe.yml", "--ref", "ci/t"]);
+      expect(logs.join("\n")).toMatch(/trajectory: run 55 succeeded/);
+    });
+  });
+});
+
 // Dispatch args per lane, replayed from the Lean-generated goldens (packages/contracts/golden/store): every input a job
 // would send is declared by its workflow file (an independent TS parse of the same file the Lean check reads).
 describe("goldens: dispatch args per lane", () => {
@@ -200,9 +233,9 @@ describe("goldens: dispatch args per lane", () => {
     }
     return out;
   };
-  const jobs = [...gold("plan").flatMap((c) => c.response.jobs ?? []), ...gold("gate").flatMap((c) => (c.response.job ? [c.response.job] : []))];
-  it("all three workflows appear in the goldens", () => {
-    expect(new Set(jobs.map((j) => j.workflow))).toEqual(new Set(["chromium-counts.yml", "webkit-sim.yml", "breakpoint-gate.yml"]));
+  const jobs = [...gold("plan").flatMap((c) => c.response.jobs ?? []), ...gold("gate").flatMap((c) => (c.response.job ? [c.response.job] : [])), ...gold("trajectory").flatMap((c) => (c.response.job ? [c.response.job] : []))];
+  it("all four workflows appear in the goldens", () => {
+    expect(new Set(jobs.map((j) => j.workflow))).toEqual(new Set(["chromium-counts.yml", "webkit-sim.yml", "breakpoint-gate.yml", "trajectory-probe.yml"]));
   });
   it("every sent input is declared by the workflow file", () => {
     for (const j of jobs) for (const k of Object.keys(j.inputs)) expect(declared(j.workflow), `${j.workflow} ${k}`).toContain(k);
