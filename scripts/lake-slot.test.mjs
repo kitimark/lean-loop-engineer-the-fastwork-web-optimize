@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -91,6 +91,33 @@ test("concurrent builds: the second gets slot 1 with the capped pool, a third wa
     b.release(); c.release();
     assert.equal(await b.done, 0);
     assert.equal(await c.done, 0);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("without LAKE_SLOT_DIR the slot files live under the git common dir, from the main checkout and from a worktree", () => {
+  const d = mkdtempSync(join(tmpdir(), "lake-slot-git-"));
+  try {
+    const git = (cwd, ...a) => assert.equal(spawnSync("git", a, { cwd, encoding: "utf8" }).status, 0);
+    const main = join(d, "main");
+    const lay = (r) => {
+      mkdirSync(join(r, "scripts"), { recursive: true });
+      mkdirSync(join(r, "packages/contracts/golden/sched"), { recursive: true });
+      copyFileSync(wrapper, join(r, "scripts/lake-slot.sh"));
+      writeFileSync(join(r, "packages/contracts/golden/sched/lake-slot.gen.sh"), genText);
+    };
+    mkdirSync(main);
+    git(main, "init", "-q");
+    git(main, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x");
+    git(main, "worktree", "add", "-q", join(d, "wt"));
+    lay(main); lay(join(d, "wt"));
+    const { LAKE_SLOT_DIR: _, LAKE_SLOT: __, ...env } = process.env;
+    for (const r of [main, join(d, "wt")]) {
+      const p = spawnSync("sh", [join(r, "scripts/lake-slot.sh"), "sh", "-c", probe], { cwd: d, env, encoding: "utf8" });
+      assert.equal(p.status, 0, p.stderr);
+      assert.match(p.stdout, /^0 /);
+    }
+    assert.equal(existsSync(join(main, ".git/lake-slot/0")), true);
+    assert.equal(existsSync(join(d, "wt/.git/lake-slot")), false);
   } finally { rmSync(d, { recursive: true, force: true }); }
 });
 

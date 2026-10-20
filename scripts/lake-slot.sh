@@ -8,28 +8,32 @@
 # LAKE_SLOT is set for the command; a nested call (check.sh -> fwcore-build.sh) runs inside the caller's slot.
 set -eu
 [ -n "${LAKE_SLOT:-}" ] && exec "$@"
-root=$(cd "$(dirname "$0")/.." && pwd)
+case $0 in */*) root=${0%/*}/.. ;; *) root=.. ;; esac
 . "$root/packages/contracts/golden/sched/lake-slot.gen.sh"
 dir=${LAKE_SLOT_DIR:-}
 if [ -z "$dir" ]; then
-  common=$(git -C "$root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || exec "$@"
+  if [ -d "$root/.git" ]; then common=$root/.git
+  elif [ -f "$root/.git" ] && read -r _ gd < "$root/.git" && case $gd in /*) ;; *) gd=$root/$gd ;; esac &&
+    [ -f "$gd/commondir" ] && read -r cd < "$gd/commondir"; then
+    case $cd in /*) common=$cd ;; *) common=$gd/$cd ;; esac
+  else
+    common=$(git -C "$root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || exec "$@"
+  fi
   dir=$common/lake-slot
 fi
 if command -v lockf >/dev/null 2>&1; then locker=lockf
 elif command -v flock >/dev/null 2>&1; then locker=flock
 else echo "lake-slot: no lockf or flock on PATH; running without a slot" >&2; exec "$@"; fi
-mkdir -p "$dir"
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/lake-slot.XXXXXX")
-trap 'rm -rf "$tmp"' EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+[ -d "$dir" ] || mkdir -p "$dir"
+ran75=$dir/.ran75.$$
 
-# try <slot> <pool> <seconds> <cmd...>: run the command holding the slot's lock; returns 75 with no marker when busy
+# try <slot> <pool> <seconds> <cmd...>: run the command holding the slot's lock; a busy slot exits 75, and a command
+# that exits 75 itself leaves the file $ran75 behind, so the two are told apart
 try() {
   _i=$1 _p=$2 _s=$3; shift 3
-  if [ "$_p" = full ]; then set -- env LAKE_SLOT="$_i" "$@"
-  else set -- env LAKE_SLOT="$_i" LEAN_NUM_THREADS="$_p" "$@"; fi
-  set -- sh -c ': > "$1"; [ "$2" = 0 ] || echo "lake-slot: slot $2, pool $3" >&2; shift 3; exec "$@"' _ "$tmp/held" "$_i" "$_p" "$@"
+  set -- sh -c 'f=$1; export LAKE_SLOT="$2"
+    if [ "$3" != full ]; then export LEAN_NUM_THREADS="$3"; echo "lake-slot: slot $2, pool $3" >&2; fi
+    shift 3; "$@" && exit 0 || rc=$?; [ "$rc" != 75 ] || : > "$f"; exit "$rc"' _ "$ran75" "$_i" "$_p" "$@"
   if [ "$locker" = lockf ]; then lockf -k -s -t "$_s" "$dir/$_i" "$@"
   elif [ "$_s" = 0 ]; then flock -n -E 75 "$dir/$_i" "$@"
   else flock -w "$_s" -E 75 "$dir/$_i" "$@"; fi
@@ -39,12 +43,9 @@ secs=0
 while :; do
   i=0
   for pool in $LAKE_SLOT_POOLS; do
-    if try "$i" "$pool" "$secs" "$@"; then rc=0; else rc=$?; fi
-    if [ -e "$tmp/held" ]; then exit "$rc"; fi
-    if [ "$rc" != 75 ]; then
-      echo "lake-slot: $locker failed on $dir/$i (exit $rc); running without a slot" >&2
-      if "$@"; then exit 0; else exit $?; fi
-    fi
+    if try "$i" "$pool" "$secs" "$@"; then exit 0; else rc=$?; fi
+    [ "$rc" = 75 ] || exit "$rc"
+    if [ -e "$ran75" ]; then rm -f "$ran75"; exit 75; fi
     i=$((i + 1))
   done
   if [ "$secs" = 0 ]; then echo "lake-slot: all $i slots busy; waiting for one" >&2; fi
