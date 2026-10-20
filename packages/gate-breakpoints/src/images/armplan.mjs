@@ -91,15 +91,16 @@ export function imgOf(it) {
   const box = it.box ?? [0, 0];
   const pic = it.img ?? [0, 0];
   const sized = !(typeof it.fit === 'string' && (it.fit === 'none' || it.fit === 'scale-down' || /(^|\s)auto(\s|$)/.test(it.fit)));
-  const plain = sized && milli(pic[0]) === milli(box[0]) && milli(pic[1]) === milli(box[1]);
-  const rw = it.rw ?? box[0];
-  const rh = it.rh ?? box[1];
+  const rwMax = it.rwMax ?? it.rw ?? box[0];
+  const rhMax = it.rhMax ?? it.rh ?? box[1];
+  const still = milli(it.rwMin ?? rwMax) === milli(rwMax) && milli(it.rhMin ?? rhMax) === milli(rhMax);
+  const plain = sized && still && milli(pic[0]) === milli(box[0]) && milli(pic[1]) === milli(box[1]);
   return {
     kind,
     natW: it.nat[0],
     natH: it.nat[1],
-    w: milli(kind === 'img' ? rw : pic[0]),
-    h: milli(kind === 'img' ? rh : pic[1]),
+    w: milli(kind === 'img' ? rwMax : pic[0]),
+    h: milli(kind === 'img' ? rhMax : pic[1]),
     plain,
     scaleMin: milli(Math.min(it.visMin ?? it.vis ?? 1, it.vis ?? 1)),
     scaleMax: milli(Math.max(it.visMax ?? it.vis ?? 1, it.vis ?? 1)),

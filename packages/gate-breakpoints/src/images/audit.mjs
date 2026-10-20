@@ -53,6 +53,10 @@ export function mergeStops(stops) {
         if (!m.everInView) { m.everInView = true; m.firstInView = si; Object.assign(m, { box: it.box, img: it.img, none: it.none, nat: it.nat, top: it.top }); }
         m.visMin = Math.min(m.visMin, it.vis);
         m.visMax = Math.max(m.visMax, it.vis);
+        if (it.rw !== undefined) {
+          m.rwMin = Math.min(m.rwMin ?? it.rw, it.rw); m.rwMax = Math.max(m.rwMax ?? it.rw, it.rw);
+          m.rhMin = Math.min(m.rhMin ?? it.rh, it.rh); m.rhMax = Math.max(m.rhMax ?? it.rh, it.rh);
+        }
         const seen = new Set(m.effects.map((e) => `${e.at}|${e.up}|${e.e}`));
         for (const e of it.effects) if (!seen.has(`${e.at}|${e.up}|${e.e}`)) m.effects.push({ ...e, stops: [] });
         for (const e of it.effects) m.effects.find((x) => x.at === e.at && x.up === e.up && x.e === e.e).stops.push(si);
@@ -82,12 +86,14 @@ export async function runAudit({ engine, arm, widths, dprs, out, pool = 2, drawn
   const cells = {};
   // the grid, plus explicit cells `extra` ([width, dpr]): layout does not depend on DPR, so the grid runs at one DPR and the
   // headline widths add the others
-  const todo = [...widths.flatMap((w) => dprs.map((d) => ({ w, d }))), ...extra.map(([w, d]) => ({ w, d }))];
+  // `extra` entries are [width, dpr] or { key, w, d, env } (a probe's own environment, as the visual diff opens it)
+  const todo = [...widths.flatMap((w) => dprs.map((d) => ({ w, d }))), ...extra.map((x) => (Array.isArray(x) ? { w: x[0], d: x[1] } : x))];
+  const keyOf = (t) => t.key ?? `w${t.w}@${t.d}`;
   const seen = new Set();
-  for (let i = todo.length - 1; i >= 0; i--) { const k = `${todo[i].w}@${todo[i].d}`; if (seen.has(k)) todo.splice(i, 1); else seen.add(k); }
+  for (let i = todo.length - 1; i >= 0; i--) { const k = keyOf(todo[i]); if (seen.has(k)) todo.splice(i, 1); else seen.add(k); }
   const t0 = Date.now();
-  const one = async ({ w, d }) => {
-    const env = envFor(w, d);
+  const one = async ({ w, d, env: own0, key }) => {
+    const env = own0 ?? envFor(w, d);
     // a drawn arm answers /selling/x with the resized copy of its cell; every other path is the plain site
     let srv = server;
     let own = null;
@@ -115,7 +121,7 @@ export async function runAudit({ engine, arm, widths, dprs, out, pool = 2, drawn
       await session.evaluate(morphEnd);
       const rm = await session.evaluate(collectImages);
       stops.push({ y: end.y, morph: 1, ...rm });
-      cells[`w${w}@${d}`] = {
+      cells[key ?? `w${w}@${d}`] = {
         width: w, dpr: d, height: env.height, docHeight: end.h, stops: stops.map((s) => ({ y: s.y, dpr: s.dpr, vw: s.vw, vh: s.vh, morph: s.morph ?? 0 })),
         items: mergeStops(stops),
       };
@@ -129,7 +135,7 @@ export async function runAudit({ engine, arm, widths, dprs, out, pool = 2, drawn
     while (next < todo.length) {
       const t = todo[next++];
       const s = Date.now();
-      try { await one(t); log(`${engine} ${arm} w${t.w}@${t.d} ok ${Date.now() - s} ms`); } catch (e) { log(`${engine} ${arm} w${t.w}@${t.d} FAILED ${e.message}`); cells[`w${t.w}@${t.d}`] = { width: t.w, dpr: t.d, error: String(e.message) }; }
+      try { await one(t); log(`${engine} ${arm} ${keyOf(t)} ok ${Date.now() - s} ms`); } catch (e) { log(`${engine} ${arm} ${keyOf(t)} FAILED ${e.message}`); cells[keyOf(t)] = { width: t.w, dpr: t.d, error: String(e.message) }; }
     }
   };
   await Promise.all(Array.from({ length: pool }, worker));
