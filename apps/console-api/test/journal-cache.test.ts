@@ -14,6 +14,7 @@ import { commitEnd, JournalCache, nextTick, plan, skipRun } from "../src/spool/j
 import { parseJournal, scanWorkflows, WfMemo, workflowWatchTargets } from "../src/spool/workflow.ts";
 import { Store } from "../src/store.ts";
 import { Trigger } from "../src/trigger.ts";
+import { Watches } from "../src/watch.ts";
 import { makeRepo } from "./reconcile-fixture.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -149,6 +150,24 @@ describe("settled runs", () => {
     expect([rec.accept("journal.jsonl"), rec.accept("agent-a1.jsonl"), rec.accept("agent-a1.meta.json"), rec.accept("wf_1.json")]).toEqual([true, false, true, true]);
     const none = workflowWatchTargets("/x y", {}, "/nonexistent-home");
     expect(none.map((x) => x.recursive)).toEqual([false]);
+  });
+});
+
+describe("Watches", () => {
+  it("a missing path is not counted as opened (Node 24.21.0 Linux accepts a recursive watch of it and never fires); it opens once it exists", async () => {
+    const d = mkdtempSync(join(tmpdir(), "fw-wm-"));
+    const missing = join(d, "a", "b");
+    let events = 0;
+    const w = new Watches(() => [{ path: missing, recursive: true, accept: () => true }], () => { events++; });
+    stops.push(() => w.close());
+    expect(w.sync()).toBe(0);
+    expect(w.size).toBe(0);
+    mkdirSync(join(missing, "c"), { recursive: true });
+    expect(w.sync()).toBe(1);
+    expect(w.sync()).toBe(0); // already open
+    await sleep(100);
+    writeFileSync(join(missing, "c", "j.jsonl"), "{}\n");
+    await until(() => events > 0, 2000);
   });
 });
 

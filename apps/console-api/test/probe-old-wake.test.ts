@@ -1,6 +1,6 @@
 // TEMPORARY PROBE (task drain-wake-flake round 2): the old wake test of 05d720ae, unchanged in its waits (3 s `until`), with
 // instrumentation. It appends one JSON line per run to $DWF_LOG: pokes, passes, per-pass length, event-loop lag, which wait failed.
-import { appendFileSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, watch, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { monitorEventLoopDelay } from "node:perf_hooks";
@@ -66,5 +66,22 @@ describe("probe: old wake test", () => {
       await until(() => w.trigger.passes > p1, "journal append");
       log("ok");
     } catch (e) { log("miss"); throw e; }
+  });
+});
+
+describe("probe: raw recursive watch on a missing path", () => {
+  it("records whether fs.watch throws and whether a later file under the path gives an event", async () => {
+    const d = mkdtempSync(join(tmpdir(), "fw-raw-"));
+    const missing = join(d, "a", "b");
+    let threw: string | null = null, events = 0;
+    let w: ReturnType<typeof watch> | null = null;
+    try { w = watch(missing, { recursive: true, persistent: false }, () => { events++; }); } catch (e) { threw = (e as { code?: string }).code ?? String(e); }
+    mkdirSync(join(missing, "c"), { recursive: true });
+    await sleep(200);
+    writeFileSync(join(missing, "c", "j.jsonl"), "{}\n");
+    await sleep(500);
+    w?.close();
+    const row = { kind: "raw", node: process.version, platform: process.platform, threw, eventsAfterCreate: events };
+    if (process.env.DWF_LOG) appendFileSync(process.env.DWF_LOG, JSON.stringify(row) + "\n"); else console.log("DWF-ROW " + JSON.stringify(row));
   });
 });
