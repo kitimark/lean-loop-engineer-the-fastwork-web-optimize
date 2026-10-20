@@ -10298,6 +10298,28 @@
     "research/notes/2026/10-2*-land-remote-unavailable.md",
     "docs/team/handoffs/land-remote-unavailable.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fw-run-inputs",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Agents cannot dispatch measurement runs with inputs (two optimization refusals on 2026-10-20): Fw.Store.Layout workflowInputs .webkit lists only vms, sessions, fresh_boot (webkit-sim.yml has preset/fw since c5bbc918, target since 5eecc358) and dispatchInputs .webkit = []; profile has no webkit input; fw run has no breakpoint-gate lane and no base --ref. Unit: Lean tables match the workflow files (generated or checked against .github/workflows/*.yml), fw run dispatches chromium-counts, webkit-sim and breakpoint-gate with preset/fw/profile/target/ref, blocked theorems per lane, goldens; the allow rule Bash(pnpm fw run *) handed to the user as a ! command (store-target's handoff left webkit BLOCKED for ci-webkit)",
+   "writes": [
+    "lean/Fw/Store/**",
+    "lean/Fw/Wire/**",
+    "packages/contracts/golden/store/**",
+    "apps/runner/src/run.ts",
+    "apps/runner/test/run*.ts",
+    "docs/team/tools/fw-run.md",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "research/notes/2026/10-2*-fw-run-inputs.md",
+    "docs/team/handoffs/fw-run-inputs.md"
+   ]
   }
  ],
  "deadline": {
