@@ -227,6 +227,17 @@
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 9007199254740991
+              },
+              "audience": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "lead"
+                ]
+              },
+              "body": {
+                "type": "string",
+                "maxLength": 2000
               }
             },
             "required": [
@@ -238,7 +249,9 @@
               "status",
               "answer",
               "postedAt",
-              "lastAt"
+              "lastAt",
+              "audience",
+              "body"
             ],
             "additionalProperties": false
           }
@@ -799,6 +812,17 @@
                   "type": "null"
                 }
               ]
+            },
+            "audience": {
+              "type": "string",
+              "enum": [
+                "user",
+                "lead"
+              ]
+            },
+            "body": {
+              "type": "string",
+              "maxLength": 2000
             }
           },
           "required": [
@@ -941,6 +965,18 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 120
+            },
+            "note": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
