@@ -16,9 +16,9 @@ included. Lean: `Fw.Parts.NavOofRoot.Tree.oof_view_full`. `contain: layout` or `
 #root, or a filter on body or #root, moves the nav's containing block to that element (Chromium
 third_party/blink/renderer/core/layout/layout_object.cc:2013-2021,2049-2061@f842f52; WebKit
 Source/WebCore/rendering/RenderElementStyleInlines.h:55-79,89-93@862f17d), which re-anchors the fixed nav. That is a
-visual change, outside this finding: the nav would be positioned against #root instead of the viewport. That candidate
-is ruled out by the visual change, not by the theorem; Lean `nav_contained_root` shows its pass is partial. No site
-change.
+visual change (INFERRED: the document scrolls, so a nav positioned against html, body or #root scrolls with it), outside
+this finding. That candidate is ruled out by the visual change, not by the theorem; in the model where each boundary is
+also a fixed container, Lean `nav_contained_root` shows its pass is partial. No site change.
 
 ## Measurements (MEASURED)
 
