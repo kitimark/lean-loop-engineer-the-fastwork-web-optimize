@@ -1,6 +1,7 @@
 import Fw.Spec.Screen
 import Fw.Spec.Cost
 import Fw.Measure.Tolerance
+-- probe land-fwcore-once (lean-changing land shape)
 /-!
 # The shared core of the engine model (PLAN §4.7, design note 2026-10-18 §1.1 and §3.1)
 
