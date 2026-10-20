@@ -10501,7 +10501,11 @@
     "packages/contracts/golden/console/**",
     "apps/runner/src/land*.ts",
     "apps/runner/test/**",
-    "docs/team/handoffs/land-queue-fwcore-rebuild.md"
+    "docs/team/handoffs/land-queue-fwcore-rebuild.md",
+    "lean/Fw/Console/LandVerdict.lean",
+    "lean/Fw/Console/LandDry.lean",
+    "apps/runner/src/fw.ts",
+    "docs/team/tools/land.md"
    ]
   }
  ],
