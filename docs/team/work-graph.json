@@ -10585,7 +10585,14 @@
     "docs/team/tools/fw-run.md",
     "results/trajectory-probe/**",
     "research/notes/2026/10-2*-trajectory-probe.md",
-    "docs/team/handoffs/trajectory-probe.md"
+    "docs/team/handoffs/trajectory-probe.md",
+    "packages/gate-breakpoints/src/trajectory/**",
+    "packages/gate-breakpoints/test/trajectory*.mjs",
+    "packages/gate-breakpoints/src/page.mjs",
+    "packages/gate-breakpoints/src/engines.mjs",
+    "packages/gate-breakpoints/package.json",
+    "packages/contracts/golden/gate/trajectory*.jsonl",
+    "apps/runner/src/land.ts"
    ]
   },
   {
