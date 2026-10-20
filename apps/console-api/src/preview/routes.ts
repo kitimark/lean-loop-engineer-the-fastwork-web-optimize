@@ -19,6 +19,7 @@ import type { Grants } from "./grants.ts";
 import { isLoopback } from "./lan.ts";
 import { remoteOf } from "./gate.ts";
 import { gitIn } from "./facts.ts";
+import { mountCompose } from "./compose.ts";
 
 const TaskId = z.string().regex(/^[a-z0-9][a-z0-9-]{0,80}$/);
 const StartReq = z.object({ task: TaskId });
@@ -79,6 +80,8 @@ export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: Previe
       canPreview: owner.bearerOk(c.req.header("authorization")), previewPort: owner.previewPort, // this browser sent a live owner token (Lean decides the rest per request)
     });
   });
+
+  mountCompose(app, store.core, pm.root, (auth) => ({ canPreview: owner.bearerOk(auth), previewPort: owner.previewPort })); // the Compose tab: variants, classes, explanations and the decision (Lean `console.compose`)
 
   app.get("/api/previews", (c) => c.json({ ok: true, ...pm.list(), previewPort: owner.previewPort }));
 
