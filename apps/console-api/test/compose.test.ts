@@ -94,7 +94,7 @@ describe("GET /api/compose over the real registry and ledger", () => {
     expect(r.decision).toMatchObject({ ok: true, link: "" });
   });
 
-  it("the explicit ledger pairs attach, and no variant says the proof is incomplete without the rows saying so", async () => {
+  it("rows attach by their flags, and no variant says the proof is incomplete without the rows saying so", async () => {
     const r = await composeReply(ROOT, core, []) as any;
     const v = (part: string, name: string) => r.parts.find((p: any) => p.id === part).variants.find((x: any) => x.name === name);
     expect(v("morph.columns", "hidden-pause").class).not.toBe("unrated");
@@ -102,6 +102,8 @@ describe("GET /api/compose over the real registry and ledger", () => {
     expect(v("morph.countdown", "hidden-pause").rows.length).toBeGreaterThanOrEqual(1);
     for (const p of r.parts) for (const x of p.variants) expect(x.why).not.toContain("not complete");
     expect(r.parts.flatMap((p: any) => p.variants).filter((x: any) => x.class === "unrated").map((x: any) => x.name)).toEqual([]);
+    for (const p of r.parts) for (const x of p.variants) for (const i of x.rows) expect(ledger.findings[i]!.flags).toContain(`${p.id}:${x.name}`);
+    expect(ledger.findings.every((x) => Array.isArray(x.flags))).toBe(true);
   });
 
   it("a refuted variant is classed refuted, cites its ledger row, and a pick of it is refused", async () => {
@@ -197,8 +199,8 @@ describe("Compose routes, and the open path with a composed search", () => {
     writeFileSync(join(root, "apps/site/src/registry/presets/v2-proved.json"), JSON.stringify({ extends: "original", name: "v2-proved", fw: { nav: "skip", hero: "strip" } }));
     mkdirSync(join(root, "research/findings"), { recursive: true });
     writeFileSync(join(root, "research/findings/ledger.json"), JSON.stringify({ findings: [
-      { part: "hero", candidate: "hero `strip`", status: "measured", visual: "same", lesson: "run 24123456789 shows it" },
-      { part: "nav", candidate: "nav `skip`", status: "refuted", flag: "nav:skip", leanFor: ["a"], leanAgainst: ["b"] }], notes: [] }));
+      { part: "hero", candidate: "hero `strip`", status: "measured", flags: ["hero:strip"], visual: "same", lesson: "run 24123456789 shows it" },
+      { part: "nav", candidate: "nav `skip`", status: "refuted", flags: ["nav:skip"], flag: "nav:skip", leanFor: ["a"], leanAgainst: ["b"] }], notes: [] }));
     sh(root, "add", "-A"); sh(root, "commit", "-qm", "base");
     return root;
   }
