@@ -8121,11 +8121,13 @@
    "id": "land-lane-circleci",
    "owner": "measure-engineer",
    "stream": "ops",
-   "title": "CircleCI land job running the same fw checks --tier remote entry as land.yml and emitting laneDigest; the CircleCI adapter in land-remote.ts (pipeline/run with definition id, sha from GET /pipeline/{id}); live proof on one ci/land-* probe",
+   "title": "CircleCI land job running the same fw checks --tier remote entry as land.yml and emitting laneDigest; the CircleCI adapter in land-remote.ts (pipeline/run with definition id, sha from GET /pipeline/{id}); live proof on one ci/land-* probe. User 2026-10-21: use CircleCI for the Linux/Arm jobs to raise concurrency (30 per Arm class on top of GitHub's 20). Routing is overflow, decided in Lean (Fw.Ci.Provider route): a Linux land leg goes to CircleCI when GitHub's running+queued jobs for this repo leave no free slot or GitHub is degraded, and CircleCI is healthy (circleci-status) with credits and storage under the stop rules; the leg's verdict counts the same from either provider (laneDigest equal on a paired run). Measure: land lane wall time and queue wait with and without overflow under a busy GitHub pool",
    "deps": [
     "land-wait",
     "circleci-pilot",
-    "circleci-cache-accounting"
+    "circleci-cache-accounting",
+    "circleci-status",
+    "land-check-remote"
    ],
    "writes": [
     ".circleci/**",
@@ -11029,7 +11031,8 @@
     ".github/workflows/sim-speed.yml",
     ".github/workflows/gate-gaps.yml",
     "docs/team/handoffs/pool-caps.md"
-   ]
+   ],
+   "evidence": "a75d81d"
   },
   {
    "devices": [
@@ -11044,8 +11047,18 @@
     "packages/measure-webkit/src/**",
     "packages/measure-webkit/test/**",
     ".github/workflows/webkit-sim.yml",
-    "docs/team/handoffs/webkit-sim-failfast.md"
-   ]
+    "docs/team/handoffs/webkit-sim-failfast.md",
+    "lean/Fw.lean",
+    "lean/Fw/Measure/Golden.lean",
+    "lean/Fw/Measure/SimBound.lean",
+    "lean/Fw/Measure/Wire.lean",
+    "lean/Fw/Store/Layout.lean",
+    "packages/contracts/golden/measure/measure.inspector.jsonl",
+    "packages/contracts/golden/measure/measure.simBounds.jsonl",
+    "packages/contracts/golden/measure/measure.simPlan.jsonl",
+    "research/notes/2026/10-20-macos-pool-v2.md"
+   ],
+   "evidence": "6c9d13e"
   },
   {
    "devices": [
@@ -11108,8 +11121,10 @@
     "lean/Fw/Console/ReconcileSched.lean",
     "lean/Fw/Console/JournalFold.lean",
     "packages/contracts/golden/console/**",
-    "docs/team/handoffs/drain-wake-flake.md"
-   ]
+    "docs/team/handoffs/drain-wake-flake.md",
+    "apps/console-api/src/watch.ts"
+   ],
+   "evidence": "05591d8"
   },
   {
    "devices": [
@@ -11128,8 +11143,10 @@
     "scripts/lake-slot.sh",
     "scripts/lake-slot.test.mjs",
     "lean/Fw/Sched/LakeSlot.lean",
-    "docs/team/handoffs/check-stage2-bound.md"
-   ]
+    "docs/team/handoffs/check-stage2-bound.md",
+    "packages/contracts/golden/sched/lake-slot.gen.sh"
+   ],
+   "evidence": "77eb42c"
   },
   {
    "devices": [
@@ -11158,7 +11175,9 @@
     "apps/runner/src/checks.ts",
     "apps/runner/test/land*.ts",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/land-check-remote.md"
+    "docs/team/handoffs/land-check-remote.md",
+    "apps/runner/test/checks.test.ts",
+    "apps/runner/src/land-tier*.ts"
    ]
   },
   {
@@ -11179,7 +11198,8 @@
     "packages/contracts/golden/console/land-queue.jsonl",
     "docs/team/tools/land-queue.md",
     "docs/team/handoffs/land-queue-unreachable.md"
-   ]
+   ],
+   "evidence": "05f6a3f"
   },
   {
    "devices": [
@@ -11196,7 +11216,13 @@
     "apps/site/src/parts/hero.exit/**",
     "packages/contracts/golden/parts/hero.exit.scoped.json",
     "research/notes/2026/10-2*-exit-scoped-inline.md",
-    "docs/team/handoffs/exit-scoped-inline.md"
+    "docs/team/handoffs/exit-scoped-inline.md",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "research/findings/ledger.json"
    ]
   },
   {
@@ -11214,8 +11240,18 @@
     "apps/site/src/parts/hero.deck/**",
     "apps/site/src/parts/nav/**",
     "research/notes/2026/10-2*-faithful-hero-baseline.md",
-    "docs/team/handoffs/faithful-hero-baseline.md"
-   ]
+    "docs/team/handoffs/faithful-hero-baseline.md",
+    "apps/site/src/parts/nav.hitTest/**",
+    "apps/site/src/styles/reset.css",
+    "apps/site/src/stage/PartStage.tsx",
+    "apps/site/src/scroll-behavior.test.ts",
+    "apps/site/scripts/census.mjs",
+    "packages/e2e-preview/src/suite.mjs",
+    "packages/gate-breakpoints/src/trajectory/kit.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
+   ],
+   "evidence": "4181485"
   },
   {
    "devices": [
@@ -11237,6 +11273,301 @@
     "packages/gate-breakpoints/src/trajectory/**",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-admission.md"
+   ],
+   "evidence": "780063e"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-probe-speed",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "trajectory-probe follow-ups (handoff open items 1, 3, 4): parallel widths in the probe (matrix legs), the macOS hero+morph paths on the Apple job, reps 5 against one-empty-bucket A/A reds; then a Lean cap for trajectory-probe.yml probe-apple from the measured p90 of successes (Fw.Ci.Pool.Caps rows, remove it from excluded; ci-paths --check green). Measure wall time per cell before/after on CI",
+   "writes": [
+    ".github/workflows/trajectory-probe.yml",
+    "packages/gate-breakpoints/src/trajectory/**",
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "packages/contracts/golden/ci/pool-caps.jsonl",
+    "scripts/ci-paths.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-probe-speed.md",
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "packages/gate-breakpoints/test/trajectory.test.mjs"
+   ],
+   "evidence": "6f8837a"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cd-guard",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "CLOSED as a finding (2026-10-20): the premise 'the harness keeps the cwd' was a setting; CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR=1 (commit e9ee2a58, MEASURED: the next Bash call is back at the project root). Rounds 1-2 (a Lean shell-text scanner) refused twice; branch worktree-wf_e6df42ab-006-1 parked, not landed. Original: Mistake class (6 times on 2026-10-20, notes did not stop it): the lead's Bash call `cd <main>/.claude/worktrees/<wt> && ...` moves the session cwd into a worktree. Extend Fw.Ops.Wait (the wait-guard decision, PreToolUse Bash, apps/runner/hooks/wait-guard.mjs) with a cwd rule: refuse a command whose top level (outside a subshell) changes directory into .claude/worktrees/ when the hook payload's cwd is the main checkout; allowed forms (subshell, git -C) pass; theorems + golden rows (ops.wait.jsonl); this rule enforces (deny with the reason 'use (cd $W && ...) or git -C') while the other wait-guard rules keep their mode. No settings.json change",
+   "writes": [
+    "lean/Fw/Ops/Wait.lean",
+    "packages/contracts/golden/ops/ops.wait.jsonl",
+    "apps/runner/hooks/wait-guard.mjs",
+    "apps/runner/test/wait-guard*.ts",
+    "docs/team/tools/wait-guard.md",
+    "docs/team/handoffs/cd-guard.md",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "apps/runner/hooks/wait-guard.d.mts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "node-pin",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [],
+   "title": "Pin Node 24.22.0 on CI (drain-wake-flake MEASURED: Node 24.21.0 on Linux swallows the stat error of a recursive fs.watch on a missing path, recursive_watch.js:236-241@v24.21.0): one canonical .node-version read by actions/setup-node node-version-file in the setup-pnpm action and every workflow, drift check in ci-paths, trigger rows",
+   "writes": [
+    ".github/actions/setup-pnpm/action.yml",
+    ".github/workflows/*.yml",
+    ".node-version",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ops/CheckMap.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "docs/team/handoffs/node-pin.md"
+   ],
+   "evidence": "3275bc7"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-land-branch",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "fw watch timing.slow false alarms: Fw.Obs.Timing samples every run of the land workflow, including a builder's repro branch (ci/land-drain-wake-flake looped full suites), so real land legs (suites-b 6 min, webkit 7-8 min) were flagged slow. Lean: the land-lane timing series keeps only runs whose branch has the land shape ci/land-<task>-<sha7> (predicate + theorem + golden rows); other runs of the workflow go to their own series",
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/**",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/watch*.ts",
+    "docs/team/handoffs/timing-land-branch.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "readsonly-scan-disk",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "land.readsOnly static check (apps/runner/test/land-inputs.test.ts:131) skips a referenced path unless it exists on disk, so it passes on CI (no build outputs) and fails on the Mac: packages/measure-webkit scripts site-lane.sh/stamped-lane.sh read apps/site/dist/aot, gate-breakpoints 1 path, all undeclared. Decide referenced paths from the text (tracked files plus declared build-output globs from Lean), not existsSync; declare the build-output reads; the check gives the same answer on CI and locally",
+   "writes": [
+    "apps/runner/test/land-inputs.test.ts",
+    "apps/runner/src/checks.ts",
+    "lean/Fw/Console/LandInputs.lean",
+    "packages/contracts/golden/console/land-inputs*.jsonl",
+    "docs/team/handoffs/readsonly-scan-disk.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lean-mem-profile",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [],
+   "title": "User 2026-10-20 saw a 2.2 GB lean process (a module compile during a build). Measure peak RSS per module on CI: one full lake build with a LEAN wrapper that records /usr/bin/time maxrss per module (and wall), ranked table in a note; then reduce the top modules (split heavy decide/#guard/data modules, move big tables to generated data read at runtime, cheaper proofs) with before/after peak RSS and build time per module; total build peak memory under the LakeSlot bound stated in Lean",
+   "writes": [
+    "lean/Fw/**/*.lean",
+    "lean/scripts/lean-maxrss.sh",
+    ".github/workflows/lean.yml",
+    "research/notes/2026/10-2*-lean-mem-profile.md",
+    "docs/team/handoffs/lean-mem-profile.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-lag-source",
+   "owner": "researcher",
+   "stream": "research",
+   "deps": [],
+   "title": "User 2026-10-20: visible lag in Safari (WebKit) on Mac and iPhone in two regions: hero cards moving out (hero.exit drives opacity, translate and blur(scatter*18px) on 16 readers incl. hero.orbit/hero.deck cards, per frame from a JS-written custom property) and the end of page (morph.tween layout of top/width/height, morph.panel animated backdrop-filter glass, morph.mount +9 drawing layers, morph.countdown will-change faces, morph.columns 1282 px PNGs in ~138 px columns). Read WebKit at the pin (862f17d) and the WebKit/Safari feature posts: for each property and driver (JS var per frame vs CSS/WAAPI animation vs scroll timeline) the path through style, layout, paint, compositing (GraphicsLayerCA, PlatformCAFilters, CABackdropLayer, RemoteLayerTree commit on iOS and macOS), when a filter or backdrop-filter is done by CoreAnimation vs repainted in software, what invalidates backing stores, which animations WebKit runs threaded. Output: a cited table per region (stage, cost driver, CONFIRMED/INFERRED), the predicted dominant cost, candidate changes with their predicted effect, and the WebKit cost terms Fw.Engine.WebKit lacks today",
+   "writes": [
+    "research/notes/2026/10-2*-webkit-lag-source.md",
+    "docs/team/handoffs/webkit-lag-source.md"
+   ],
+   "evidence": "1f94f73"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-lag-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "webkit-lag-source",
+    "webkit-sim-failfast",
+    "image-audit"
+   ],
+   "title": "Measure the two Safari lag regions (hero cards moving out; end of page) on the WebKit Simulator lane on CI: per scroll step style/layout/paint/composite counts, paint area, layer-tree commits and the layers with filter/backdrop-filter and their painted area, original vs faithful; localize the top steps to parts through the footprint; add the counters webkit-lag-source names as missing, reduced in Lean (Fw.Measure.WebKit zones) with goldens; output a ranked attribution per region that the candidate fixes are judged against",
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "packages/measure-webkit/test/lag*.test.mjs",
+    "lean/Fw/Measure/WebKitLag.lean",
+    "packages/contracts/golden/measure/webkit-lag*.jsonl",
+    "research/notes/2026/10-2*-webkit-lag-probe.md",
+    "docs/team/handoffs/webkit-lag-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "image-audit",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User 2026-10-20 suspects unoptimized images in the Safari lag (hero cards moving out, end of page). Only morph.columns was judged (ledger row 14, model-only no-win; its 'WebKit decodes at drawn size' is INFERRED). (1) Audit on CI (Chromium and WebKit lanes): every image in the hero and end-of-page regions at each breakpoint and DPR: natural vs drawn size, format, bytes, decoded memory, ranked by waste; (2) WebKit source at the pin: decode policy (sync/async, iOS subsampling), whether a scaled draw is cached or re-sampled on each repaint, filter/blur interaction, decoded-image memory; CONFIRMED/INFERRED per claim; (3) build an images-at-drawn-size arm (flag or build variant, look identical within the PL tolerance) for webkit-lag-probe to A/B; Lean: an image cost term (natural pixels x repaints) proposal for Fw.Engine.WebKit",
+   "writes": [
+    "packages/measure-webkit/src/images/**",
+    "packages/gate-breakpoints/src/images/**",
+    "apps/site/src/flags/images/**",
+    "apps/site/public/images-drawn/**",
+    "lean/Fw/Engine/WebKitImage.lean",
+    "research/notes/2026/10-2*-image-audit.md",
+    "docs/team/handoffs/image-audit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "node-pin-local",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [
+    "node-pin"
+   ],
+   "title": "Pin Node 24.22.0 on this Mac too (user 2026-10-20): .nvmrc equal to .node-version (check whether the installed nvm reads .node-version; cite), pnpm useNodeVersion if the pinned pnpm supports it (cite docs) so pnpm runs scripts on the pinned Node, engines.node exact with engine-strict, a runtime guard in the fw entry and console-api main that refuses to start when process.version differs from .node-version; review follow-ups of node-pin: unpinned `node` in guard jobs and lean.yml (no setup-node), quoted/flow-map setup-node forms, a workflow without a Lean row, the drift rule moved into Lean (Fw.Ci.Trigger) with golden vectors",
+   "writes": [
+    ".nvmrc",
+    ".npmrc",
+    "pnpm-workspace.yaml",
+    "package.json",
+    "apps/runner/src/fw.ts",
+    "apps/console-api/src/main.ts",
+    ".github/workflows/*.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "docs/team/handoffs/node-pin-local.md",
+    "apps/runner/src/node-guard.ts",
+    "apps/console-api/src/node-guard.ts",
+    "apps/runner/test/node-guard.test.ts",
+    "apps/console-api/test/node-guard.test.ts",
+    "lean/Fw/Ops/CheckMap.lean",
+    ".github/actions/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-transition-retarget",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "webkit-lag-source"
+   ],
+   "title": "Region B candidate (research/notes/2026/10-20-webkit-lag-source.md, per-transition row): nav .btn.earn has CSS transitions on max-width, padding-inline and opacity (nav.module.css:167-185, no .is-morphing override); each frame's --morph change restarts them (Styleable.cpp:742-758 cancel then restart), so the button's layout runs about 0.68 s past the scroll and the running opacity transition may composite it (RenderLayerCompositor.cpp:3842-3853). Lean first: an arm with no transition on those properties while morphing, prove VisSame (same end state each frame up to the PL tolerance) and the work bound; flag it (nav.earn:no-transition); prove on CI with the trajectory probe on both engines and webkit-lag-probe's region B counters when available; record in the findings ledger win or not",
+   "writes": [
+    "lean/Fw/Parts/NavEarn*.lean",
+    "apps/site/src/parts/nav/**",
+    "packages/contracts/golden/parts/nav-earn*.jsonl",
+    "docs/team/handoffs/earn-transition-retarget.md",
+    "lean/scripts/NavEarn*.lean",
+    "research/notes/2026/10-2*-earn-transition-retarget.md",
+    "research/findings/ledger.json"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-transition-window",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "trajectory-probe-speed"
+   ],
+   "title": "Blocker: v2-proved is empty. The trajectory probe judges CSS properties sampled while a transition is in flight, at uncontrolled times, so an arm against itself shows units: macOS WebKit morph nav.background-color at 641/1280 approach steps a3/a7/a8/a11 failed both runs for all 8 candidates (39453181962, 39455284967; the original shows the same values); Chromium earn max-width/opacity at close@0/close-hold@0 (faithful-hero-baseline runs 39453764374, 39457063232; A/A 39409003529). Lean first in Fw.Gate.Trajectory: a property known to be transitioning at a step (from the part's declared transitions or from the sampled curve) is judged as a window (value within the span both arms cross, or a clock-aligned read), with theorems that (a) an arm equal to the original always passes such a step and (b) a value outside the window, or a settled step that differs, still fails. Goldens; the TS reducer is checked against them. Re-record the 8 candidates from the stored runs (no new dispatch unless needed) and regenerate v2-proved; list the result per flag",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Preset/V2Proved.lean",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/src/trajectory/cli.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-transition-window.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "panel-final-size",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "webkit-lag-source"
+   ],
+   "title": "Region B candidate C1 (research/notes/2026/10-20-webkit-lag-source.md): lay the morph panel, backdrop and columns out once at the final panel size, centered in the nav and clipped by it (overflow: hidden already there); only the nav box changes size. Predicted: removes the track and panel resize repaints (about 13 Mpx per frame on a 2x Mac; tracks are tiled on iPhone so the area there is an upper bound). Lean first in MorphPanelOpt: prove VisSame (clip of the final-size layout equals the resized layout at each frame within the PL tolerance; state any difference) and the work bound (no layout of panel/columns per frame); flag morph.panel:final-size; prove on CI with the trajectory probe both engines (2 runs + A/A) and Chromium counts; WebKit paint area from webkit-lag-probe when it exists; findings ledger row win or not",
+   "writes": [
+    "lean/Fw/Parts/MorphPanelOpt.lean",
+    "lean/scripts/MorphPanel*.lean",
+    "apps/site/src/parts/morph.panel/**",
+    "apps/site/src/parts/morph.columns/**",
+    "packages/contracts/golden/parts/morph-panel*.jsonl",
+    "research/notes/2026/10-2*-panel-final-size.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/panel-final-size.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-scroll-lock",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "webkit-lag-source",
+    "waapi-threshold-attr"
+   ],
+   "title": "Region B candidate C4 (research/notes/2026/10-20-webkit-lag-source.md): lock scroll during the morph (overflow: hidden on the scroller, or touch-action: none on the armed region for touch) instead of a scrollTo pin every frame (morph.tween driver). Predicted: no pin fight on iPhone and none on Mac trackpad gestures. Lean first in MorphTweenOpt: the scroll position seen by the morph is the same pinned value each frame (VisSame), fewer forced scrolls; flag morph.tween:scroll-lock; trajectory probe both engines (2 runs + A/A); findings ledger row. Waits for waapi-threshold-attr (same files)",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "apps/site/src/parts/morph.tween/**",
+    "packages/contracts/golden/parts/morph-tween-scroll-lock*.jsonl",
+    "research/notes/2026/10-2*-morph-scroll-lock.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/morph-scroll-lock.md"
    ]
   }
  ],

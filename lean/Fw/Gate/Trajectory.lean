@@ -1045,6 +1045,393 @@ theorem pickWidths_junk : pickWidths "390,wide" = .refused := by decide
 /-- Widths: an empty entry is refused. -/
 theorem pickWidths_gap : pickWidths "390,,640" = .refused := by decide
 
+-- Stored runs: the cells of preset admission -------------------------------------------------------------------------
+
+/-- The engine of a stored run: Chromium, Playwright WebKit on Linux, or Playwright WebKit on macOS (job `probe-apple`). -/
+inductive Engine where
+  | chromium
+  | linuxWebkit
+  | macWebkit
+  deriving DecidableEq, Repr
+
+/-- The engine families a preset member must pass in. -/
+inductive Family where
+  | chromium
+  | webkit
+  deriving DecidableEq, Repr
+
+/-- The family of an engine. -/
+def Engine.family : Engine → Family
+  | .chromium => .chromium
+  | .linuxWebkit => .webkit
+  | .macWebkit => .webkit
+
+/-- A scroll path of the probe. -/
+inductive Walk where
+  | hero
+  | morph
+  deriving DecidableEq, Repr
+
+/-- Whether the engine can decide the path: Linux WebKit's 150 ms frames fail morph push coverage by construction. -/
+def covers : Engine → Walk → Bool
+  | .linuxWebkit, .morph => false
+  | _, _ => true
+
+/-- The paths the probe walks for an engine: those it can decide. -/
+def walks (e : Engine) : List Walk := [Walk.hero, .morph].filter (covers e)
+
+/-- A path is walked exactly when the engine decides it. -/
+theorem mem_walks_iff (e : Engine) (w : Walk) : w ∈ walks e ↔ covers e w = true := by
+  cases e <;> cases w <;> simp [walks, covers]
+
+/-- Chromium walks both paths. -/
+theorem walks_chromium : walks .chromium = [.hero, .morph] := by decide
+
+/-- Linux WebKit walks the hero path only: its morph pushes cannot be decided. -/
+theorem walks_linux_webkit : walks .linuxWebkit = [.hero] := by decide
+
+/-- macOS WebKit walks both paths, so it gives the morph cell Linux WebKit cannot. -/
+theorem walks_mac_webkit : walks .macWebkit = [.hero, .morph] := by decide
+
+/-- The width legs of an engine's job, run in parallel: one width per Linux leg; the macOS job has two legs because its
+slots are shared. -/
+def legTable : Engine → List (List Nat)
+  | .macWebkit => [[390, 641], [640, 1280]]
+  | _ => [[390], [640], [641], [1280]]
+
+/-- The legs of a run over the picked widths: each table leg cut to the picked widths, empty legs dropped. -/
+def legs (e : Engine) (ws : List Nat) : List (List Nat) :=
+  ((legTable e).map (·.filter ws.contains)).filter fun l => !l.isEmpty
+
+/-- The legs of every engine deal the allowed widths out: each width in one leg. -/
+theorem legTable_perm (e : Engine) : (legTable e).flatten.Perm allowedWidths := by
+  cases e <;> decide
+
+/-- All widths picked: the legs are the table. -/
+theorem legs_default (e : Engine) : legs e allowedWidths = legTable e := by
+  cases e <;> decide
+
+/-- No leg is empty (an empty leg would be a job with nothing to walk). -/
+theorem legs_ne_nil (e : Engine) (ws : List Nat) : ∀ l ∈ legs e ws, l ≠ [] := by
+  intro l hl
+  simp only [legs, List.mem_filter, Bool.not_eq_true'] at hl
+  intro h; subst h; simp at hl
+
+/-- The legs, flattened, are the picked widths of the table. -/
+theorem legs_flatten (e : Engine) (ws : List Nat) :
+    (legs e ws).flatten = (legTable e).flatten.filter ws.contains := by
+  rw [List.filter_flatten]
+  unfold legs
+  rw [List.flatten_filter_not_isEmpty]
+
+/-- A width is in some leg exactly when it was picked and is allowed. -/
+theorem legs_mem (e : Engine) (ws : List Nat) (w : Nat) :
+    w ∈ (legs e ws).flatten ↔ w ∈ ws ∧ w ∈ allowedWidths := by
+  rw [legs_flatten, List.mem_filter, (legTable_perm e).mem_iff]
+  simp [and_comm]
+
+/-- No width is in two legs: no cell is walked twice. -/
+theorem legs_nodup (e : Engine) (ws : List Nat) : (legs e ws).flatten.Nodup := by
+  rw [legs_flatten]
+  exact ((legTable_perm e).nodup_iff.2 (by decide)).filter _
+
+/-- The engines a dispatch runs for its `engines` input: macOS WebKit runs with every WebKit; other inputs are refused. -/
+def enginesOf : String → Option (List Engine)
+  | "both" => some [.chromium, .linuxWebkit, .macWebkit]
+  | "chromium" => some [.chromium]
+  | "playwright-webkit" => some [.linuxWebkit, .macWebkit]
+  | _ => none
+
+/-- Linux WebKit and macOS WebKit run together: the Apple witness runs for any search, not only a `hero.exit` one. -/
+theorem enginesOf_webkit_pair (s : String) (es : List Engine) (h : enginesOf s = some es) :
+    Engine.linuxWebkit ∈ es ↔ Engine.macWebkit ∈ es := by
+  unfold enginesOf at h
+  split at h <;> simp at h <;> subst h <;> simp
+
+/-- One leg of a dispatch: the engine, the widths it walks and the paths. -/
+structure Leg where
+  engine : Engine
+  widths : List Nat
+  walks : List Walk
+  deriving DecidableEq, Repr
+
+/-- The legs of a dispatch from its `engines` and `widths` inputs; none when either is refused. -/
+def plan (enginesIn widthsIn : String) : Option (List Leg) :=
+  match enginesOf enginesIn, pickWidths widthsIn with
+  | some es, .list ws => some (es.flatMap fun e => (legs e ws).map fun l => ⟨e, l, walks e⟩)
+  | _, _ => none
+
+/-- Every leg walks the paths its engine decides, no more and no fewer. -/
+theorem plan_walks (a b : String) (ls : List Leg) (h : plan a b = some ls) : ∀ l ∈ ls, l.walks = walks l.engine := by
+  unfold plan at h
+  split at h
+  · simp only [Option.some.injEq] at h
+    subst h
+    intro l hl
+    simp only [List.mem_flatMap, List.mem_map] at hl
+    obtain ⟨e, _, x, _, rfl⟩ := hl
+    rfl
+  · simp at h
+
+/-- A macOS leg walks the morph path, whatever the search. -/
+theorem plan_mac_morph (a b : String) (ls : List Leg) (h : plan a b = some ls) :
+    ∀ l ∈ ls, l.engine = .macWebkit → Walk.morph ∈ l.walks := by
+  intro l hl he
+  rw [plan_walks a b ls h l hl, he]
+  decide
+
+/-- A WebKit dispatch over all widths has macOS legs: the widths of 390 and 641, and of 640 and 1280. -/
+theorem plan_webkit_apple : ((plan "playwright-webkit" "").getD []).filter (·.engine == .macWebkit) =
+    [⟨.macWebkit, [390, 641], [.hero, .morph]⟩, ⟨.macWebkit, [640, 1280], [.hero, .morph]⟩] := by decide
+
+/-- A Chromium dispatch has no macOS leg. -/
+theorem plan_chromium_no_apple : ((plan "chromium" "").getD []).filter (·.engine == .macWebkit) = [] := by decide
+
+/-- A node property with `new` units in a run: the widths of its content and of its coverage `new` units. -/
+structure Group where
+  node : String
+  prop : String
+  content : List Nat
+  coverage : List Nat
+  deriving DecidableEq, Repr
+
+/-- The stored result of one engine of one run on one path, with the flag set of the run's search. -/
+structure Stored where
+  run : String
+  sha : String
+  search : String
+  flags : List String
+  engine : Engine
+  walk : Walk
+  widths : List Nat
+  groups : List Group
+  deriving DecidableEq, Repr
+
+/-- Why a stored cell has no verdict. -/
+inductive Unjudged where
+  | coverage
+  | widths
+  deriving DecidableEq, Repr
+
+/-- The verdict of a stored cell. -/
+inductive Outcome where
+  | pass
+  | fail
+  | unjudged (why : Unjudged)
+  deriving DecidableEq, Repr
+
+/-- A group repeats when its `new` units fall at two or more widths. -/
+def repeats (ws : List Nat) : Bool := decide (2 ≤ ws.eraseDups.length)
+
+/-- **The verdict of a stored run**: none if undecidable or short of a width, fail on a content repeat, none on a coverage one. -/
+def outcome (s : Stored) : Outcome :=
+  if !covers s.engine s.walk then .unjudged .coverage
+  else if !allowedWidths.all s.widths.contains then .unjudged .widths
+  else if s.groups.any (repeats ·.content) then .fail
+  else if s.groups.any (repeats ·.coverage) then .unjudged .coverage
+  else .pass
+
+/-- An engine that cannot decide the path gives no verdict. -/
+theorem outcome_uncovered (s : Stored) (h : covers s.engine s.walk = false) : outcome s = .unjudged .coverage := by
+  simp [outcome, h]
+
+/-- A run that missed a lane width gives no verdict. -/
+theorem outcome_widths (s : Stored) (hc : covers s.engine s.walk = true) (w : Nat) (hw : w ∈ allowedWidths)
+    (hm : w ∉ s.widths) : outcome s = .unjudged .widths := by
+  have : allowedWidths.all s.widths.contains = false := by
+    rw [List.all_eq_false]
+    exact ⟨w, hw, by simpa using hm⟩
+  simp [outcome, hc, this]
+
+/-- The verdict of a stored cell as four tests in order: covered, all widths, a content repeat, a coverage repeat. -/
+theorem outcome_cases (s : Stored) :
+    outcome s = (if covers s.engine s.walk = false then .unjudged .coverage
+      else if allowedWidths.all s.widths.contains = false then .unjudged .widths
+      else if s.groups.any (repeats ·.content) = true then .fail
+      else if s.groups.any (repeats ·.coverage) = true then .unjudged .coverage else .pass) := by
+  unfold outcome
+  generalize covers s.engine s.walk = a
+  generalize allowedWidths.all s.widths.contains = b
+  generalize s.groups.any (repeats ·.content) = c
+  generalize s.groups.any (repeats ·.coverage) = d
+  cases a <;> cases b <;> cases c <;> cases d <;> simp
+
+/-- A covered run of all lane widths fails exactly when some group repeats on content. -/
+theorem outcome_fail_iff (s : Stored) :
+    outcome s = .fail ↔ covers s.engine s.walk = true ∧ allowedWidths.all s.widths.contains = true ∧
+      ∃ g ∈ s.groups, repeats g.content = true := by
+  have e : (∃ g ∈ s.groups, repeats g.content = true) ↔ s.groups.any (repeats ·.content) = true := by simp
+  rw [e, outcome_cases]
+  generalize covers s.engine s.walk = a
+  generalize allowedWidths.all s.widths.contains = b
+  generalize s.groups.any (repeats ·.content) = c
+  generalize s.groups.any (repeats ·.coverage) = d
+  cases a <;> cases b <;> cases c <;> cases d <;> simp
+
+/-- Coverage `new` units repeated across widths, with no content repeat, give no verdict, never a pass. -/
+theorem outcome_coverage_repeat (s : Stored) (hc : covers s.engine s.walk = true)
+    (hw : allowedWidths.all s.widths.contains = true) (hn : ∀ g ∈ s.groups, repeats g.content = false)
+    (g : Group) (hg : g ∈ s.groups) (hr : repeats g.coverage = true) :
+    outcome s = .unjudged .coverage := by
+  have h1 : s.groups.any (repeats ·.content) = false := by
+    rw [List.any_eq_false]; intro x hx; simp [hn x hx]
+  have h2 : s.groups.any (repeats ·.coverage) = true := List.any_eq_true.2 ⟨g, hg, hr⟩
+  rw [outcome_cases]
+  simp [hc, hw, h1, h2]
+
+/-- **A pass, characterised**: a decidable path, every lane width walked, and no group repeating on either side. -/
+theorem outcome_pass_iff (s : Stored) :
+    outcome s = .pass ↔ covers s.engine s.walk = true ∧ (∀ w ∈ allowedWidths, w ∈ s.widths) ∧
+      ∀ g ∈ s.groups, repeats g.content = false ∧ repeats g.coverage = false := by
+  have hw : (∀ w ∈ allowedWidths, w ∈ s.widths) ↔ allowedWidths.all s.widths.contains = true := by simp
+  have hg : (∀ g ∈ s.groups, repeats g.content = false ∧ repeats g.coverage = false) ↔
+      s.groups.any (repeats ·.content) = false ∧ s.groups.any (repeats ·.coverage) = false := by
+    simp only [List.any_eq_false, Bool.not_eq_true]
+    exact ⟨fun h => ⟨fun x hx => (h x hx).1, fun x hx => (h x hx).2⟩, fun h x hx => ⟨h.1 x hx, h.2 x hx⟩⟩
+  rw [hw, hg, outcome_cases]
+  generalize covers s.engine s.walk = a
+  generalize allowedWidths.all s.widths.contains = b
+  generalize s.groups.any (repeats ·.content) = c
+  generalize s.groups.any (repeats ·.coverage) = d
+  cases a <;> cases b <;> cases c <;> cases d <;> simp
+
+/-- A pass comes only from an engine that decides the path. -/
+theorem outcome_pass_covers (s : Stored) (h : outcome s = .pass) : covers s.engine s.walk = true :=
+  ((outcome_pass_iff s).1 h).1
+
+/-- A unit of `units-<engine>.json` as the recorder reads it; `coverage` is verdict `fail:coverage`, `isNew` is rel `new`. -/
+structure UnitRow where
+  width : Nat
+  walk : String
+  node : String
+  prop : String
+  coverage : Bool
+  isNew : Bool
+  deriving DecidableEq, Repr
+
+/-- Append a width unless it is present. -/
+def addWidth (w : Nat) (ws : List Nat) : List Nat := if ws.contains w then ws else ws ++ [w]
+
+/-- The widths list a unit lands in: coverage or content. -/
+def Group.side (g : Group) (cov : Bool) : List Nat := if cov then g.coverage else g.content
+
+/-- The group is the unit's node property. -/
+def Group.same (g : Group) (u : UnitRow) : Bool := g.node == u.node && g.prop == u.prop
+
+/-- The group with the unit's width added to the unit's side. -/
+def Group.put (g : Group) (u : UnitRow) : Group :=
+  if u.coverage then { g with coverage := addWidth u.width g.coverage } else { g with content := addWidth u.width g.content }
+
+/-- Add one `new` unit to its group, opening the group at the end when it is the first unit of its node property. -/
+def addUnit (gs : List Group) (u : UnitRow) : List Group :=
+  if gs.any (·.same u) then gs.map fun g => if g.same u then g.put u else g
+  else gs ++ [Group.put ⟨u.node, u.prop, [], []⟩ u]
+
+/-- The groups of a path: the `new` units on it, grouped by node property in first-seen order. -/
+def groupsOf (walk : String) (us : List UnitRow) : List Group :=
+  (us.filter fun u => u.isNew && u.walk == walk).foldl addUnit []
+
+/-- The widths a path was walked at, in first-seen order. -/
+def widthsOf (walk : String) (us : List UnitRow) : List Nat :=
+  (us.filter (·.walk == walk)).foldl (fun ws u => addWidth u.width ws) []
+
+/-- A width is in `addWidth w ws` exactly when it is `w` or in `ws`. -/
+theorem mem_addWidth (x w : Nat) (ws : List Nat) : x ∈ addWidth w ws ↔ x = w ∨ x ∈ ws := by
+  unfold addWidth
+  by_cases h : ws.contains w = true
+  · simp only [h, ite_true]
+    constructor
+    · exact Or.inr
+    · rintro (rfl | hx)
+      · simpa using h
+      · exact hx
+  · simp only [Bool.not_eq_true] at h
+    simp only [h, Bool.false_eq_true, ite_false, List.mem_append, List.mem_singleton]
+    exact Or.comm
+
+/-- Putting a unit keeps the node and property. -/
+theorem put_key (g : Group) (u : UnitRow) : (g.put u).node = g.node ∧ (g.put u).prop = g.prop := by
+  unfold Group.put; split <;> exact ⟨rfl, rfl⟩
+
+/-- Putting a unit keeps every width of either side. -/
+theorem side_put (g : Group) (u : UnitRow) (cov : Bool) (x : Nat) (h : x ∈ g.side cov) : x ∈ (g.put u).side cov := by
+  unfold Group.put Group.side at *
+  cases hu : u.coverage <;> cases cov <;> simp_all [mem_addWidth]
+
+/-- Putting a unit adds its width to its side. -/
+theorem side_put_self (g : Group) (u : UnitRow) : u.width ∈ (g.put u).side u.coverage := by
+  unfold Group.put Group.side
+  cases hu : u.coverage <;> simp [mem_addWidth]
+
+/-- The unit `v` is held by some group of `gs`: one of its node property whose side of `v` has `v`'s width. -/
+def Holds (gs : List Group) (v : UnitRow) : Prop :=
+  ∃ g ∈ gs, g.node = v.node ∧ g.prop = v.prop ∧ v.width ∈ g.side v.coverage
+
+/-- Adding a unit keeps every unit already held. -/
+theorem holds_addUnit_old (gs : List Group) (u v : UnitRow) (h : Holds gs v) : Holds (addUnit gs u) v := by
+  obtain ⟨g, hg, hn, hp, hw⟩ := h
+  unfold addUnit
+  by_cases ha : gs.any (·.same u) = true
+  · simp only [ha, ↓reduceIte]
+    by_cases hs : g.same u = true
+    · refine ⟨g.put u, List.mem_map.2 ⟨g, hg, by simp [hs]⟩, ?_⟩
+      exact ⟨(put_key g u).1.trans hn, (put_key g u).2.trans hp, side_put g u _ _ hw⟩
+    · exact ⟨g, List.mem_map.2 ⟨g, hg, by simp [hs]⟩, hn, hp, hw⟩
+  · simp only [ha]
+    exact ⟨g, List.mem_append_left _ hg, hn, hp, hw⟩
+
+/-- Adding a unit holds it. -/
+theorem holds_addUnit_new (gs : List Group) (u : UnitRow) : Holds (addUnit gs u) u := by
+  unfold addUnit
+  by_cases ha : gs.any (·.same u) = true
+  · simp only [ha, ↓reduceIte]
+    obtain ⟨g, hg, hs⟩ := List.any_eq_true.1 ha
+    have hk : g.node = u.node ∧ g.prop = u.prop := by simpa [Group.same] using hs
+    refine ⟨g.put u, List.mem_map.2 ⟨g, hg, by simp [hs]⟩, ?_⟩
+    exact ⟨(put_key g u).1.trans hk.1, (put_key g u).2.trans hk.2, side_put_self g u⟩
+  · simp only [ha]
+    refine ⟨_, List.mem_append_right _ (List.mem_singleton.2 rfl), ?_⟩
+    exact ⟨(put_key _ u).1, (put_key _ u).2, side_put_self _ u⟩
+
+/-- Folding units in holds every unit held before and every unit folded. -/
+theorem holds_foldl (us : List UnitRow) (gs : List Group) (v : UnitRow) (h : Holds gs v ∨ v ∈ us) :
+    Holds (us.foldl addUnit gs) v := by
+  induction us generalizing gs with
+  | nil =>
+    rcases h with h | h
+    · exact h
+    · cases h
+  | cons u t ih =>
+    apply ih
+    rcases h with h | h
+    · exact Or.inl (holds_addUnit_old gs u v h)
+    · rcases List.mem_cons.1 h with rfl | h
+      · exact Or.inl (holds_addUnit_new gs v)
+      · exact Or.inr h
+
+/-- **The recorder drops no `new` unit**: each is held by its node property's group, at its width, on its side. -/
+theorem groupsOf_complete (walk : String) (us : List UnitRow) (u : UnitRow) (hu : u ∈ us) (hn : u.isNew = true)
+    (hw : u.walk = walk) : Holds (groupsOf walk us) u :=
+  holds_foldl _ [] u (Or.inr (List.mem_filter.2 ⟨hu, by simp [hn, hw]⟩))
+
+private def urow (w : Nat) (node : String) (cov isNew : Bool) : UnitRow := ⟨w, "morph", node, "p", cov, isNew⟩
+private def stored (gs : List Group) : Stored := ⟨"1", "s", "?fw=a:b", ["a:b"], .chromium, .morph, allowedWidths, gs⟩
+
+#guard repeats [390, 390, 390] == false
+#guard repeats [390, 1280]
+#guard groupsOf "morph" [urow 390 "nav" false true, urow 641 "nav" true true, urow 641 "nav" false true,
+  urow 1280 "logo" false false, ⟨390, "hero", "nav", "p", false, true⟩] == [⟨"nav", "p", [390, 641], [641]⟩]
+#guard widthsOf "morph" [urow 390 "nav" false true, urow 390 "nav" false false, urow 1280 "logo" false false] == [390, 1280]
+#guard outcome (stored []) == .pass
+#guard outcome (stored [⟨"nav", "p", [1280], [390]⟩]) == .pass
+#guard outcome (stored [⟨"nav", "p", [390, 640, 641, 1280], []⟩]) == .fail
+#guard outcome (stored [⟨"nav", "p", [], [390, 641]⟩]) == .unjudged .coverage
+#guard outcome (stored [⟨"nav", "p", [390, 641], [390, 641]⟩]) == .fail
+#guard outcome { stored [] with widths := [390, 640, 641] } == .unjudged .widths
+#guard outcome { stored [] with engine := .linuxWebkit } == .unjudged .coverage
+#guard outcome { stored [] with engine := .linuxWebkit, walk := .hero } == .pass
+#guard outcome { stored [] with engine := .macWebkit } == .pass
+
 -- Golden ------------------------------------------------------------------------------------------------------------
 
 /-- The name of a kind in the golden file. -/
@@ -1102,6 +1489,7 @@ inductive Case where
   | runOf (name : String) (arms : List ArmRead)
   | path (name : String) (k : Kind) (orig rew : List (String × Samp))
   | picks (name : String) (input : String)
+  | planOf (name : String) (engines widths : String)
 
 /-- The golden cases of the window judgement (`judgeIn` per kind and per branch). Two constants, not one, so that each stays
 under the start-cost bound (`Fw.Lint.InitCost.bound`). -/
@@ -1211,13 +1599,35 @@ def casesRest : List Case := [
   .runOf "run one bad" [⟨.orig, none, none, none⟩, ⟨.rewrite, some "ab12", some "cd34", some "client-render"⟩],
   .runOf "run empty" []]
 
+/-- The golden cases of the dispatch plan (engines, legs, paths): every engines input, a subset and refusals. -/
+def casesPlan : List Case := [
+  .planOf "both, all widths" "both" "", .planOf "webkit, all widths" "playwright-webkit" "",
+  .planOf "chromium, all widths" "chromium" "", .planOf "webkit, one width" "playwright-webkit" "640",
+  .planOf "both, a subset" "both" "1280,390", .planOf "unknown engines" "safari" "", .planOf "refused widths" "both" "390,500"]
+
 /-- The golden cases: every branch above, per kind where the kind matters. -/
-def cases : List Case := casesJudge ++ casesRest
+def cases : List Case := casesJudge ++ casesRest ++ casesPlan
 
 /-- A widths pick as JSON. -/
 def Widths.json : Widths → Json
   | .list ws => Json.mkObj [("ok", Json.bool true), ("widths", Json.arr (ws.map fun w => toJson w).toArray)]
   | .refused => Json.mkObj [("ok", Json.bool false)]
+
+/-- The word of an engine in the plan golden. -/
+def Engine.word : Engine → String
+  | .chromium => "chromium"
+  | .linuxWebkit => "linux-webkit"
+  | .macWebkit => "mac-webkit"
+
+/-- The word of a path in the plan golden. -/
+def Walk.word : Walk → String
+  | .hero => "hero"
+  | .morph => "morph"
+
+/-- A leg as JSON. -/
+def Leg.json (l : Leg) : Json :=
+  Json.mkObj [("engine", l.engine.word), ("widths", Json.arr (l.widths.map fun w => toJson w).toArray),
+    ("walks", Json.arr (l.walks.map fun w => Json.str w.word).toArray)]
 
 /-- One golden line. -/
 def Case.line : Case → Json
@@ -1250,6 +1660,9 @@ def Case.line : Case → Json
   | .runOf n arms =>
     Json.mkObj [("op", "run"), ("name", n), ("arms", Json.arr (arms.map ArmRead.json).toArray), ("verdict", (runCheck arms).name)]
   | .picks n i => Json.mkObj [("op", "widths"), ("name", n), ("input", i), ("pick", (pickWidths i).json)]
+  | .planOf n e w =>
+    Json.mkObj [("op", "plan"), ("name", n), ("engines", e), ("widths", w),
+      ("legs", match plan e w with | none => Json.null | some ls => Json.arr (ls.map Leg.json).toArray)]
 
 /-- Where the golden lives, relative to `lean/`. -/
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"

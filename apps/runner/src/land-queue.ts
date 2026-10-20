@@ -60,6 +60,41 @@ export function results(log: Ev[]): { task: string; kind: Kind }[] {
 
 /** Lean `retryAfter`: only busy and dirty, and fewer than `max` attempts so far. */
 export const retryAfter = (k: Kind, tries: number, max: number): boolean => retryable(k) && tries < max;
+/** The console could not be reached (connection refused or reset: it is not listening). Thrown by `httpFor` (land.ts), read by the queue as the Lean `Att.unreachable`. */
+export class ConsoleUnreachable extends Error {
+  readonly url: string;
+  constructor(url: string, cause?: unknown) { super(`console-api unreachable at ${url}: ${cause instanceof Error ? cause.message : String(cause)}`); this.name = "ConsoleUnreachable"; this.url = url; }
+}
+
+// Lean `healthDelay` / `healthPolls` / `pollTime` / `healthBoundMs` (golden `landQueue.healthSchedule`).
+export const healthDelay = (i: number): number => Math.min(4000, 250 * 2 ** i);
+export const HEALTH_POLLS = 20;
+export const pollTime = (i: number): number => { let t = 0; for (let j = 0; j < i; j++) t += healthDelay(j); return t; };
+export const HEALTH_BOUND_MS = pollTime(HEALTH_POLLS - 1);
+/** Lean `healthReached`: does some poll of the schedule find a console that is back at `back` (null: never)? */
+export const healthReached = (back: number | null): boolean => back !== null && Array.from({ length: HEALTH_POLLS }, (_, i) => i).some((i) => back <= pollTime(i));
+/** Lean `consoleUnreachableReason`. */
+export const CONSOLE_UNREACHABLE_REASON = "console-unreachable: console-api did not answer /api/health within the bounded wait (pnpm fw console status)";
+export type Att = { landed: Kind } | "unreachable";
+export type Next = "retry" | { final: Kind; reason?: string };
+/** Lean `attemptNext`: retry a landed busy/dirty or a console that is back within the bound (attempts remaining); else final.
+ *  An unreachable console that stays down is the refusal `busy` + `console-unreachable`, never `unknown`. */
+export function attemptNext(a: Att, tries: number, max: number, back: number | null): Next {
+  if (a === "unreachable") return healthReached(back) && tries < max ? "retry" : { final: "busy", reason: CONSOLE_UNREACHABLE_REASON };
+  return retryAfter(a.landed, tries, max) ? "retry" : { final: a.landed };
+}
+/** Lean `healthWaitAfter`: the queue waits for the console after the rebuild it ran (a land of kind done that changed a core source). */
+export const healthWaitAfter = (k: Kind, paths: string[]): boolean => needsRebuild(k, paths);
+
+/** The bounded health wait (Lean `healthReached`): poll `probe` at the Lean schedule; true as soon as it answers, false after the last poll. */
+export async function waitHealth(probe: () => Promise<boolean>, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))): Promise<boolean> {
+  for (let i = 0; i < HEALTH_POLLS; i++) {
+    if (await probe().catch(() => false)) return true;
+    if (i < HEALTH_POLLS - 1) await sleep(healthDelay(i));
+  }
+  return false;
+}
+
 /** Lean `runnerLive`: the recorded start time is the start time of the process now at the pid. */
 export const runnerLive = (held: string, probe: string | null): boolean => probe === held;
 
@@ -114,6 +149,10 @@ export type QueueOptions = {
   diff?: (from: string) => string[];
   /** `sh scripts/fwcore-build.sh` in the main checkout, timed as a span; true when it succeeded */
   rebuild?: () => Promise<boolean>;
+  /** one GET /api/health of the console: true when it answers; with it an unreachable console is retried after a bounded wait (Lean `attemptNext`) */
+  health?: () => Promise<boolean>;
+  /** sleep of the health wait (tests pass a fake clock) */
+  sleep?: (ms: number) => Promise<void>;
 };
 export type QueueResult = { task: string; kind: Kind; tries: number; ms: number; reason?: string };
 
@@ -155,14 +194,27 @@ export async function runQueue(o: QueueOptions): Promise<{ ran: boolean; results
         const before = o.head && o.diff && o.rebuild ? o.head() : null;
         let kind: Kind;
         let reason: string | undefined;
+        let gone = false; // the console never came back: the entry is refused and the queue stops (the rest stays pending)
         let shown = false; // a refusal the attempt already explained on stderr (`fw land` prints its REFUSED lines)
         for (;;) {
           reason = undefined;
           shown = false;
+          let unreachable = false;
           try {
             const r = await o.attempt(e);
             if (typeof r === "string") kind = r; else { kind = r.kind; reason = r.reason; shown = r.reason !== undefined && r.reason !== ""; }
-          } catch (x) { kind = "unknown"; reason = x instanceof Error ? x.message : String(x); }
+          } catch (x) {
+            kind = "unknown"; reason = x instanceof Error ? x.message : String(x);
+            unreachable = x instanceof ConsoleUnreachable && o.health !== undefined;
+          }
+          if (unreachable) {
+            // Lean `attemptNext .unreachable`: wait for the console (bounded), then retry or refuse as console-unreachable (never unknown)
+            const back = (await waitHealth(o.health!, o.sleep)) ? 0 : null;
+            const n = attemptNext("unreachable", tries, max, back);
+            if (n === "retry") { tries++; continue; }
+            kind = "busy"; reason = typeof n === "object" ? n.reason : CONSOLE_UNREACHABLE_REASON; shown = false; gone = true;
+            break;
+          }
           reason = refusalReason(kind, reason);
           if (!retryAfter(kind, tries, max)) break;
           await new Promise((r) => setTimeout(r, o.retryMs ?? 3000));
@@ -174,6 +226,7 @@ export async function runQueue(o: QueueOptions): Promise<{ ran: boolean; results
         }
         appendFileSync(queueFile(o.consoleDir), JSON.stringify({ ev: "res", task: e.task, kind, tries, ms: Date.now() - t0, at: Date.now(), ...(reason !== undefined ? { reason } : {}) }) + "\n");
         done.push({ task: e.task, kind, tries, ms: Date.now() - t0, ...(reason !== undefined ? { reason } : {}) });
+        if (gone) return { ran, results: done };
         if (before !== null && kind === "done") {
           // Lean `afterLand`: a land that changed a fwcore source rebuilds fwcore before the next dequeue; a failed rebuild stops the queue
           let paths: string[];
@@ -181,7 +234,19 @@ export async function runQueue(o: QueueOptions): Promise<{ ran: boolean; results
           if (!needsRebuild(kind, paths)) continue;
           const ok = await o.rebuild!().catch(() => false);
           const nk = stopKind(afterLand(kind, paths, () => ok));
-          if (nk === null) continue;
+          if (nk === null) {
+            // Lean `healthWaitAfter`: the console is often restarted after the rebuild; wait (bounded) before the next entry
+            if (o.health && healthWaitAfter(kind, paths) && !(await waitHealth(o.health, o.sleep))) {
+              const nx2 = pending(readLog(o.consoleDir))[0];
+              (o.err ?? ((l) => console.error(l)))(refusedLine(CONSOLE_UNREACHABLE_REASON));
+              if (nx2) {
+                appendFileSync(queueFile(o.consoleDir), JSON.stringify({ ev: "res", task: nx2.task, kind: "busy", tries: 0, ms: 0, at: Date.now(), reason: CONSOLE_UNREACHABLE_REASON }) + "\n");
+                done.push({ task: nx2.task, kind: "busy", tries: 0, ms: 0, reason: CONSOLE_UNREACHABLE_REASON });
+              }
+              return { ran, results: done };
+            }
+            continue;
+          }
           const nx = pending(readLog(o.consoleDir))[0];
           const why = refusalReason(nk, REBUILD_REASON)!;
           (o.err ?? ((l) => console.error(l)))(refusedLine(why));

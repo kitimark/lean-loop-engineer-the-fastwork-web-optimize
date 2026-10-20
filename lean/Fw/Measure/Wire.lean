@@ -12,6 +12,7 @@ import Fw.Measure.EngineCheck
 import Fw.Measure.Retry
 import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
+import Fw.Measure.SimBound
 import Fw.Measure.Compose
 /-!
 # JSON codecs and ops of the measurement lanes (`measure.*`)
@@ -47,7 +48,9 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.retry` | `error` (a simctl failure text), `attempt` (≥ 1, attempts made so far), `max` (limit, naturals) | `class` (`transient`, `permanent`), `retry`, `delayMs` (the wait before the next attempt, 0 when not retrying) |
 | `measure.retryPlan` | `errors` (strings: the error of attempt 1, 2, …; the attempt after the last works), `max` | `classes`, `delays` (ms, one per retry), `retries`, `outcome` (`succeeded`, `exhausted`, `permanent`) |
 | `measure.viewport` | `profile`, `observed` ({w, h} naturals, CSS px) | `faithful` (`Fw.Measure.Viewport.viewportFaithful`: the page reports exactly the profile viewport), `widthDiffers`, `heightDiffers` |
-| `measure.simPlan` | `target` (`original`, `rewrite`, `both`), `vms`, `sessions` (decimal strings), `preset`, `fw` (`part:variant,...`, may be empty), `experiment` (`determinism`, `quiet`), `sha` (40 hex) | `problems` (empty = accepted), `search` (the query the rewrite is served with), `matrix` [{vm, arm, idx, sha, bp, search}] (empty when refused), `original`, `rewrite`, `both` (whether the matrix has those arms) |
+| `measure.simPlan` | `target` (`original`, `rewrite`, `both`), `vms`, `sessions` (decimal strings), `preset`, `fw` (`part:variant,...`, may be empty), `experiment` (`determinism`, `quiet`), `sha` (40 hex) | `problems` (empty = accepted), `search` (the query the rewrite is served with), `matrix` [{vm, arm, idx, sha, bp, search}] (empty when refused), `original`, `rewrite`, `both` (whether the matrix has those arms), `stepTimeoutMin`, `jobTimeoutMin`, `stallMs` (`Fw.Measure.SimBound`) |
+| `measure.inspector` | `relaunched` (bool: Safari was already relaunched), `fails` (naturals: failed probes in a row before this one), `socket`, `proxy`, `page` (bools: what this probe saw) | `ok` (the probe found all three), `fails` (the count after it), `dead`, `action` (`proceed`, `relaunch`, `giveUp`), `exitCode`, and `afterRelaunch` (`proceed` for a working relaunch, `giveUp` for a failed one) when the request has the optional `relaunchOk` (bool: whether the relaunch worked) |
+| `measure.simBounds` | (none) | the time constants of the dead-inspector path in ms (`tickMs`, `probeMs`, `failLimit`, `detectMs`, `terminateMs`, `launchMs`, `socketMs`, `proxyMs`, `tabMs`, `askMs`, `connectMs`, `stopMs`, `lsofMs`, `proxyStartMs`, `repairMs`, `relaunchMs`, `exitMs`, `stallMs`, `deadEndMs`) and `deadExit`, `setupMin`, `tailMin` (`Fw.Measure.SimBound`) |
 | `measure.snapshotCounts` | `snapshot` (`args.snapshot` of `LayerTreeHostImpl:snapshot`; a non-object is empty) | `counts` {census.\*, raster.\*} |
 -/
 namespace Fw.Wire.Measure
@@ -101,6 +104,12 @@ def nat (j : Json) (k : String) : Except String Nat := do asNat k (← field j k
 
 /-- A required array field. -/
 def arr (j : Json) (k : String) : Except String (Array Json) := do asArr k (← field j k)
+
+/-- A required Boolean field. -/
+def bool (j : Json) (k : String) : Except String Bool := do
+  match ← field j k with
+  | .bool b => pure b
+  | _ => throw s!"field {k}: expected a boolean"
 
 /-- A required string field. -/
 def str (j : Json) (k : String) : Except String String := do asStr k (← field j k)
@@ -744,7 +753,34 @@ def opSimPlan (req : Json) : Except String Reply := do
   pure [("problems", .arr (p.problems.toArray.map Json.str)), ("search", .str p.search),
         ("matrix", .arr (p.matrix.toArray.map cell)),
         ("original", .bool (has (·.arm == .original))), ("rewrite", .bool (has (·.arm == .rewrite))),
-        ("both", .bool (has (·.arm == .original) && has (·.arm == .rewrite)))]
+        ("both", .bool (has (·.arm == .original) && has (·.arm == .rewrite))),
+        ("stepTimeoutMin", toJson (Fw.Measure.SimBound.stepMin r.experiment (Fw.Measure.SimBound.sessionsOf r.sessions))),
+        ("jobTimeoutMin", toJson (Fw.Measure.SimBound.jobMin r.experiment (Fw.Measure.SimBound.sessionsOf r.sessions))),
+        ("stallMs", toJson Fw.Measure.SimBound.stallMs)]
+
+/-- `measure.inspector`: one probe and the failure count before it → the count after it and the action (rule:
+`Fw.Measure.SimBound`). -/
+def opInspector (req : Json) : Except String Reply := do
+  let rl ← bool req "relaunched"
+  let f ← nat req "fails"
+  let p : Fw.Measure.SimBound.Probe := { socket := ← bool req "socket", proxy := ← bool req "proxy", page := ← bool req "page" }
+  let n := Fw.Measure.SimBound.nextFails f p
+  let after ← match opt req "relaunchOk" with
+    | none => pure []
+    | some (.bool b) => pure [("afterRelaunch", .str (Fw.Measure.SimBound.afterRelaunch b).name)]
+    | some _ => throw "field relaunchOk: expected a boolean"
+  pure ([("ok", .bool p.ok), ("fails", toJson n), ("dead", .bool (Fw.Measure.SimBound.dead p.socket n)),
+        ("action", .str (Fw.Measure.SimBound.act rl p.socket n).name), ("exitCode", toJson Fw.Measure.SimBound.deadExit)] ++ after)
+
+/-- `measure.simBounds`: the time constants the session follows (`Fw.Measure.SimBound`). -/
+def opSimBounds (_req : Json) : Except String Reply :=
+  open Fw.Measure.SimBound in
+  pure [("tickMs", toJson tickMs), ("probeMs", toJson probeMs), ("failLimit", toJson failLimit), ("detectMs", toJson detectMs),
+        ("terminateMs", toJson terminateMs), ("launchMs", toJson launchMs), ("socketMs", toJson socketMs),
+        ("proxyMs", toJson proxyMs), ("tabMs", toJson tabMs), ("askMs", toJson askMs), ("connectMs", toJson connectMs),
+        ("stopMs", toJson stopMs), ("lsofMs", toJson lsofMs), ("proxyStartMs", toJson proxyStartMs), ("repairMs", toJson repairMs),
+        ("relaunchMs", toJson relaunchMs), ("exitMs", toJson exitMs), ("stallMs", toJson stallMs), ("deadEndMs", toJson deadEndMs),
+        ("deadExit", toJson deadExit), ("setupMin", toJson setupMin), ("tailMin", toJson tailMin)]
 
 /-! ## F6 composition check (Fw.Measure.Compose) -/
 
@@ -819,7 +855,7 @@ def ops : List String :=
   ["measure.zoneSums", "measure.classify", "measure.noMoreWork", "measure.webkit.tally",
    "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.webkit.align", "measure.webkit.pairRows", "measure.symDiff", "measure.summarize",
    "measure.selfCheck", "measure.snapshotCounts", "measure.freeze", "measure.splits", "measure.n0Windows",
-   "measure.spkq", "measure.arms", "measure.zoneBaseline", "measure.quietSteps", "measure.engineCheck", "measure.retry", "measure.retryPlan", "measure.simPlan", "measure.compose"]
+   "measure.spkq", "measure.arms", "measure.zoneBaseline", "measure.quietSteps", "measure.engineCheck", "measure.retry", "measure.retryPlan", "measure.simPlan", "measure.inspector", "measure.simBounds", "measure.compose"]
 
 /-- Dispatch a `measure.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -847,6 +883,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "measure.retryPlan" => some (opRetryPlan req)
   | "measure.viewport" => some (opViewport req)
   | "measure.simPlan" => some (opSimPlan req)
+  | "measure.inspector" => some (opInspector req)
+  | "measure.simBounds" => some (opSimBounds req)
   | "measure.engineCheck" => some (Fw.Wire.Measure.EngineCheck.op req)
   | "measure.compose" => some (opCompose req)
   | _ => none
