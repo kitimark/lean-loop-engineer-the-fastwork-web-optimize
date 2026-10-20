@@ -1,6 +1,7 @@
 # Handoff: preview-proxy-direct
 
-Branch `worktree-wf_f702f7d5-89d-1`; CI branch `ci/preview-proxy-direct` (run ids: see below once filled by the lead).
+Branch `worktree-wf_f702f7d5-89d-1`; CI branch `ci/preview-proxy-direct`: preview-e2e run 39344950785 (head a2f5b592) green, chromium and playwright-webkit jobs both.
+Earlier red runs were test artifacts, fixed in the suite: leaving the grant landing page mid-hydration cancelled its imports.
 
 ## State
 - Lean: `lean/Fw/Console/PreviewArm.lean` (route, armServe, no-leak, same-gate), `PreviewOwner.lean` (`via` removed),
@@ -16,7 +17,7 @@ Branch `worktree-wf_f702f7d5-89d-1`; CI branch `ci/preview-proxy-direct` (run id
 
 ## Verified
 console-api tests, e2e-preview unit tests, Lean check; local Chromium and mac WebKit debug runs (not results).
-Local mac WebKit flaked rarely (different check each run); Linux CI decides.
+The local mac WebKit flakes had the same cause (fixed); CI decides.
 
 ## Open
 - CI results for chromium and playwright-webkit; user phone check.

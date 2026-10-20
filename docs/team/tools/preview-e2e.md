@@ -66,7 +66,8 @@ old per-origin one (`console.previewArm`, goldens in `packages/contracts/golden/
 
 - Playwright WebKit stands in for iOS Safari; the user's phone check is the final confirmation. iOS Safari is not in the suite.
 - WebKit on macOS may stall on the LAN-address page load (local network permission); use `--no-lan` there. CI has no such prompt.
-  Local macOS WebKit also showed a rare lazy-image cancel on a compare-page frame while scrolling; CI (Linux) is the arbiter.
+- The suite waits for the grant landing page to finish hydrating before it navigates away (and the control loads listen only
+  afterwards): leaving a page mid-import makes the browser cancel that import, which is not a server fault.
 - `PreviewManager` is a stub; the preview server process is real.
 - TS stand-ins: none new for decisions. The arm app and listeners (`arm-app.ts`, `arm-servers.ts`) are I/O glue over Lean's
   `console.previewArm`.

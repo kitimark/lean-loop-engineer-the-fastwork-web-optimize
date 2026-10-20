@@ -27,8 +27,9 @@ Each preview arm has its own public port, so a root-absolute path means the same
 
 ## Checks
 e2e asserts, per engine, host and target: 0 rejections, 0 cancelled same-origin requests, start() once, client-side
-navigation, strict control attribution. Local macOS WebKit showed rare flakes (a lazy image cancel in a compare frame while
-scrolling; once a module import) that differ per run; the Linux CI run is the arbiter (limit noted in the tool doc).
+navigation, strict control attribution. MEASURED: preview-e2e run 39344950785 (head a2f5b592) is green on chromium and
+playwright-webkit. Two earlier red runs were a test artifact: the grant landing page was still hydrating when the suite
+navigated away, and the browser cancelled that page's module, image and font loads. The suite now settles it first.
 
 ## Follow-up
 - `cache-policy.ts` variants may be unused by the proxy now; check and delete.
