@@ -24,5 +24,5 @@ Evidence (one pair, free runners vary; "lane wall time did not grow" is the only
   0.08 (no checks), 46.8; median about 52. check.sh inside them: 26.3-92.9 s. The Mac still pays "fwcore build (phase 1)" (0.6-25.5 s, outside the span)
   on Lean changes, plus a build step for a golden-only change that selects a local fwcore user. After figure (tier minus check.sh) is INFERRED until a real land.
 
-Dry lane run on the new head: see the report (run id).
+Dry lane run on head f49a0a5c (branch ci/land-check-remote-2): run 39464250113, land success (pass).
 Read first: lean/Fw/Console/LandTier.lean (localPlan), lean/Fw/Console/LandLegs.lean.
