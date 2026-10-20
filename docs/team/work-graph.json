@@ -6855,7 +6855,15 @@
     "apps/runner/src/timing-ci.ts",
     "apps/runner/hooks/wait-guard.mjs",
     "research/notes/2026/10-19-ci-wait-lag.md",
-    "docs/team/handoffs/ci-wait-lag.md"
+    "docs/team/handoffs/ci-wait-lag.md",
+    "apps/runner/src/timing.ts",
+    "lean/Fw/Ci/Attempt.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "lean/Fw/Ci/Lag.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "lean/Fw.lean",
+    "packages/gh-budget/**",
+    "packages/contracts/golden/ci-budget/**"
    ]
   },
   {
