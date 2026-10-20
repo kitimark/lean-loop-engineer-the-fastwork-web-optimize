@@ -25,22 +25,19 @@ replaced while pending) only when a later entry exists.
 namespace Fw.Ci.Cancel
 open Fw.Ci.Intent
 
-/-- The entry at position $k$ may be cancelled: some run entered the group after it.
-$$\forall E, k:\ \operatorname{canc}(E, k) \iff k + 1 < |E|$$ -/
+/-- The entry at position `k` may be cancelled: some run entered the group after it. -/
 def MayCancel {α} (es : List α) (k : Nat) : Prop := k + 1 < es.length
 
 instance {α} (es : List α) (k : Nat) : Decidable (MayCancel es k) :=
   inferInstanceAs (Decidable (k + 1 < es.length))
 
-/-- The evaluated value in the middle of a group: a ref or a run id.
-$$v \in \{\operatorname{ref}(r)\} \cup \{\operatorname{run}(n)\}$$ -/
+/-- The evaluated value in the middle of a group: a ref or a run id. -/
 inductive GVal where
   | ref (r : String)
   | run (id : Nat)
   deriving DecidableEq, Repr
 
-/-- A run as the group sees it: its id, event name and ref.
-$$\rho = (\mathit{id},\ e,\ r)$$ -/
+/-- A run as the group sees it: its id, event name and ref. -/
 structure Run where
   id : Nat
   event : String
@@ -48,18 +45,15 @@ structure Run where
   deriving DecidableEq, Repr
 
 /-- The value of `github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref ||
-github.run_id`: the ref on a push off `ci/**`, else the run id.
-$$\forall \rho:\ \operatorname{val}(\rho) = \begin{cases} \operatorname{ref}(\rho.r) & \rho.e = \texttt{push} \land \lnot(\texttt{refs/heads/ci/} \sqsubseteq_{\mathrm{pre}} \rho.r) \\ \operatorname{run}(\rho.\mathit{id}) & \text{otherwise} \end{cases}$$ -/
+github.run_id`: the ref on a push off `ci/**`, else the run id. -/
 def groupVal (r : Run) : GVal :=
   if r.event == "push" && !r.ref.startsWith "refs/heads/ci/" then .ref r.ref else .run r.id
 
-/-- The group of the job `j`, leg $x$, of lane $n$ for run $\rho$.
-$$\forall n, j, x, \rho:\ \operatorname{grp}(n, j, x, \rho) = (n,\ \operatorname{val}(\rho),\ j,\ x)$$ -/
+/-- The group of the job `j`, leg `x`, of lane `n` for run `ρ`. -/
 def groupOf (lane job : String) (leg : Nat) (r : Run) : String × GVal × String × Nat := (lane, groupVal r, job, leg)
 
-/-- **A `ci/**` run shares its group with no other run.** If run $\rho$ is a `ci/**` push and $\sigma$ has another id,
-their groups differ (any lane, job and leg).
-$$\forall n, j, x, \rho, \sigma:\ \operatorname{isCi}(\rho.e, \rho.r) \land \rho.\mathit{id} \ne \sigma.\mathit{id} \Rightarrow \operatorname{grp}(n, j, x, \rho) \ne \operatorname{grp}(n, j, x, \sigma)$$ -/
+/-- **A `ci/**` run shares its group with no other run.** If run `ρ` is a `ci/**` push and `σ` has another id,
+their groups differ (any lane, job and leg). -/
 theorem ci_group_alone (lane job : String) (leg : Nat) (r s : Run) (hci : isCi r.event r.ref = true)
     (hid : r.id ≠ s.id) : groupOf lane job leg r ≠ groupOf lane job leg s := by
   have hr : groupVal r = .run r.id := by
@@ -74,8 +68,7 @@ theorem ci_group_alone (lane job : String) (leg : Nat) (r s : Run) (hci : isCi r
   · exact hid (GVal.run.inj h)
 
 /-- **Nothing cancels a `ci/**` run.** In a group history of distinct runs that holds a `ci/**` run, that run is the
-only entry, so no entry may be cancelled or replaced.
-$$\forall n, j, x, g, E, \rho \in E:\ \operatorname{nodup}([\sigma.\mathit{id} : \sigma \in E]) \land (\forall \sigma \in E:\ \operatorname{grp}(n, j, x, \sigma) = g) \land \operatorname{isCi}(\rho.e, \rho.r) \Rightarrow |E| = 1 \land \forall k:\ \lnot\operatorname{canc}(E, k)$$ -/
+only entry, so no entry may be cancelled or replaced. -/
 theorem ci_never_cancelled (lane job : String) (leg : Nat) (g : String × GVal × String × Nat) (es : List Run)
     (hnd : (es.map (·.id)).Nodup) (hg : ∀ s ∈ es, groupOf lane job leg s = g) (r : Run) (hr : r ∈ es)
     (hci : isCi r.event r.ref = true) : es.length = 1 ∧ ∀ k, ¬MayCancel es k := by
@@ -103,13 +96,11 @@ theorem ci_never_cancelled (lane job : String) (leg : Nat) (g : String × GVal �
 
 /-! ## The round-1 rule, for contrast -/
 
-/-- Workflow level: every run whose paths matched (created) enters the group, started or not.
-$$\forall c, E:\ \operatorname{adm}_{\mathrm{wf}}(c, E) \iff \forall r \in E:\ c(r)$$ -/
+/-- Workflow level: every run whose paths matched (created) enters the group, started or not. -/
 def WfAdmissible (created : Nat → Bool) (es : List Nat) : Prop := ∀ r ∈ es, created r = true
 
 /-- **The workflow-level rule can lose a requested lane.** Two created runs, the first started, the second not: the
-history is admissible, the first may be cancelled, and no entry that started survives.
-$$\exists c, s, E:\ \operatorname{adm}_{\mathrm{wf}}(c, E) \land (\exists r \in E:\ s(r)) \land \forall k < |E|:\ s(E_k) \Rightarrow \operatorname{canc}(E, k)$$ -/
+history is admissible, the first may be cancelled, and no entry that started survives. -/
 theorem wf_level_loses : ∃ (created started : Nat → Bool) (es : List Nat), WfAdmissible created es ∧
     (∃ r ∈ es, started r = true) ∧ ∀ k, ∀ hk : k < es.length, started es[k] = true → MayCancel es k := by
   refine ⟨fun _ => true, fun r => r == 0, [0, 1], fun _ _ => rfl, ⟨0, by simp, rfl⟩, ?_⟩

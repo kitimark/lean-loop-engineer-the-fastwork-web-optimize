@@ -34,8 +34,6 @@ open Fw.Engine
 /-- A plain (non-custom) CSS property as the Chromium table tells them apart. `filter b`: `b` says the filter list
 holds a filter that moves pixels (blur or drop-shadow). `transformToggle`: `transform` going between none and some
 with a stacking-state flip. `transform` alone is a some-to-some value change.
-
-$$\mathrm{CrKey} = \{\mathrm{transform}, \mathrm{transformToggle}, \mathrm{translate}, \mathrm{scale}, \mathrm{rotate}, \mathrm{opacity}, \mathrm{backdropFilter}, \mathrm{bgPosition}, \mathrm{bgImage}, \mathrm{bgColor}, \mathrm{color}, \mathrm{clipPath}, \mathrm{strokeDashoffset}, \mathrm{visibility}, \mathrm{zIndex}, \mathrm{top}, \mathrm{left}, \mathrm{width}, \mathrm{height}, \mathrm{margin}, \mathrm{padding}\} \cup \{\mathrm{filter}(b) \mid b \in \mathbb{B}\}$$
 -/
 inductive CrKey where
   | transform | transformToggle | translate | scale | rotate | opacity
@@ -46,10 +44,7 @@ inductive CrKey where
   | width | height | margin | padding
 deriving Repr, DecidableEq, Inhabited
 
-/-- Every plain property once (both `filter` variants), in the order the golden signature rows list them.
-
-$$\mathrm{CrKey.all} = [\mathrm{transform}, \mathrm{transformToggle}, \mathrm{translate}, \mathrm{scale}, \mathrm{rotate}, \mathrm{opacity}, \mathrm{filter}(\mathrm{false}), \mathrm{filter}(\mathrm{true}), \mathrm{backdropFilter}, \mathrm{bgPosition}, \mathrm{bgImage}, \mathrm{bgColor}, \mathrm{color}, \mathrm{clipPath}, \mathrm{strokeDashoffset}, \mathrm{visibility}, \mathrm{zIndex}, \mathrm{top}, \mathrm{left}, \mathrm{width}, \mathrm{height}, \mathrm{margin}, \mathrm{padding}]$$
--/
+/-- Every plain property once (both `filter` variants), in the order the golden signature rows list them. -/
 def CrKey.all : List CrKey :=
   [.transform, .transformToggle, .translate, .scale, .rotate, .opacity, .filter false, .filter true,
     .backdropFilter, .backgroundPosition, .backgroundImage, .backgroundColor, .color, .clipPath, .strokeDashoffset,
@@ -57,8 +52,6 @@ def CrKey.all : List CrKey :=
 
 /-- The CSS spelling of a plain property, as the golden rows print it (`filter(blur)` for a pixel-moving filter,
 `transform(none<->some)` for the toggle).
-
-$$\operatorname{name}(k) = \text{the CSS property name of } k \text{ (e.g. } \operatorname{name}(\mathrm{bgColor}) = \texttt{"background-color"}\text{)},\ \operatorname{name}(\mathrm{filter}(\mathrm{true})) = \texttt{"filter(blur)"},\ \operatorname{name}(\mathrm{filter}(\mathrm{false})) = \texttt{"filter"},\ \operatorname{name}(\mathrm{transformToggle}) = \texttt{"transform(none<->some)"}$$
 -/
 def CrKey.name : CrKey → String
   | .transform => "transform" | .transformToggle => "transform(none<->some)" | .translate => "translate"
@@ -73,8 +66,6 @@ def CrKey.name : CrKey → String
 /-- One property change on Chromium: a plain property, a custom property `--x` (its id and the plain properties
 that read it through `var()`), or a scroll-offset change of the scroller (`repaint` says the cull rect moved enough
 to repaint, see `scrollPaints`).
-
-$$\mathrm{CrProp} = \{\mathrm{css}(k) \mid k \in \mathrm{CrKey}\} \cup \{\mathrm{custom}(i, R) \mid i \in \mathbb{N},\ R \in \mathrm{CrKey}^{*}\} \cup \{\mathrm{scroll}(r) \mid r \in \mathbb{B}\}$$
 -/
 inductive CrProp where
   | css (k : CrKey)
@@ -88,8 +79,6 @@ paint-property update, a re-raster of shared chunks, a repaint, a layout that on
 39088367495 the levels are not a chain: `layoutMove` and `raster` each run a stage the other does not, so the order is
 stage inclusion (`CrLevel` `≤`).
 
-$$\mathrm{CrLevel} = \{\mathrm{none}, \mathrm{styleOnly}, \mathrm{direct}, \mathrm{ppFull}, \mathrm{raster}, \mathrm{paint}, \mathrm{layoutMove}, \mathrm{layoutPos}, \mathrm{layoutFull}\}$$
-
 The nine invalidation levels a Chromium property change can have.
 -/
 inductive CrLevel where
@@ -98,8 +87,6 @@ deriving Repr, DecidableEq, Inhabited
 
 /-- Every level once, in declaration order.
 
-$$\mathrm{CrLevel.all} = [\mathrm{none}, \mathrm{styleOnly}, \mathrm{direct}, \mathrm{ppFull}, \mathrm{raster}, \mathrm{paint}, \mathrm{layoutMove}, \mathrm{layoutPos}, \mathrm{layoutFull}]$$
-
 The list of all levels.
 -/
 def CrLevel.all : List CrLevel :=
@@ -107,8 +94,6 @@ def CrLevel.all : List CrLevel :=
 
 /-- The position of a level in `CrLevel.all`. It is written to the signature golden; since `layoutMove` it is no
 longer the level order (which is stage inclusion).
-
-$$\operatorname{rank}(\mathrm{none}) = 0,\ \operatorname{rank}(\mathrm{styleOnly}) = 1,\ \operatorname{rank}(\mathrm{direct}) = 2,\ \operatorname{rank}(\mathrm{ppFull}) = 3,\ \operatorname{rank}(\mathrm{raster}) = 4,\ \operatorname{rank}(\mathrm{paint}) = 5,\ \operatorname{rank}(\mathrm{layoutMove}) = 6,\ \operatorname{rank}(\mathrm{layoutPos}) = 7,\ \operatorname{rank}(\mathrm{layoutFull}) = 8$$
 
 The index of a level in the list of all levels.
 -/
@@ -135,8 +120,6 @@ def CrLevel.rank : CrLevel → Nat
   CONFIRMED (paint MEASURED, run 39088367495).
 * `layoutFull`: the same stages; width/height/padding, and margin or a transform toggle that flips the stacking state
   on a box without its own layer (`computed_style.cc:779-784, 986-988`). CONFIRMED.
-
-$$\begin{aligned} \operatorname{stages}(\mathrm{none}) &= [\,] & \operatorname{stages}(\mathrm{styleOnly}) &= [\mathrm{style}] \\ \operatorname{stages}(\mathrm{direct}) &= [\mathrm{style}, \mathrm{props}, \mathrm{commit}] & \operatorname{stages}(\mathrm{ppFull}) &= [\mathrm{style}, \mathrm{props}, \mathrm{commit}] \\ \operatorname{stages}(\mathrm{raster}) &= [\mathrm{style}, \mathrm{props}, \mathrm{raster}, \mathrm{commit}] & \operatorname{stages}(\mathrm{paint}) &= [\mathrm{style}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}] \\ \operatorname{stages}(\mathrm{layoutMove}) &= [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{commit}] & \operatorname{stages}(\mathrm{layoutPos}) &= [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}] \\ \operatorname{stages}(\mathrm{layoutFull}) &= [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}] \end{aligned}$$
 -/
 def CrLevel.stages : CrLevel → List Stage
   | .none => []
@@ -149,11 +132,9 @@ def CrLevel.stages : CrLevel → List Stage
   | .layoutPos => [.style, .layout, .props, .paint, .raster, .commit]
   | .layoutFull => [.style, .layout, .props, .paint, .raster, .commit]
 
-/-- **The level order is stage inclusion**: $a \le b$ iff every stage of $a$ is a stage of $b$ (a preorder; `direct`
+/-- **The level order is stage inclusion**: `a ≤ b` iff every stage of `a` is a stage of `b` (a preorder; `direct`
 and `ppFull`, `layoutPos` and `layoutFull` have equal stages). Before CI run 39088367495 it was the rank order of a
 chain; `layoutMove` and `raster` are incomparable.
-
-$$a \le b \iff \forall s \in \operatorname{stages}(a):\ s \in \operatorname{stages}(b)$$
 -/
 instance : LE CrLevel := ⟨fun a b => ∀ s ∈ a.stages, s ∈ b.stages⟩
 
@@ -161,8 +142,6 @@ instance (a b : CrLevel) : Decidable (a ≤ b) := inferInstanceAs (Decidable (�
 
 /-- **The join of two levels**: the second if the first is below it, else the first if the second is below it, else
 the top level `layoutFull` (two incomparable levels, e.g. `layoutMove` and `raster`, join to the full pipeline).
-
-$$\max(a, b) = \begin{cases} b & a \le b \\ a & a \not\le b \land b \le a \\ \mathrm{layoutFull} & \text{otherwise} \end{cases}$$
 
 The second level if it is above the first, else the first if it is above the second, else the top level. For
 comparable levels the join's stages are the union of both (`Fw.Ops.EnginePremise.max_stages_of_comparable`), which
@@ -183,8 +162,6 @@ Corrected by CI run 39088367495 (MEASURED, 3 of 3 passes; mechanisms INFERRED): 
 the stacking state, which `will-change` already fixed, and a new scale or blur radius changes the raster scale or the
 filter's input), and `top`/`left`/`margin` only move the layer (`layoutMove`, was `layoutPos`/`layoutFull`).
 
-$$\operatorname{lvl}(k, l) = \begin{cases} \mathrm{direct} & k \in \{\mathrm{transform}, \mathrm{opacity}\},\ l = \mathrm{own} \\ \mathrm{ppFull} & k \in \{\mathrm{translate}, \mathrm{rotate}, \mathrm{filter}(\mathrm{false})\},\ l = \mathrm{own} \\ \mathrm{raster} & k \in \{\mathrm{scale}, \mathrm{filter}(\mathrm{true}), \mathrm{transformToggle}\},\ l = \mathrm{own} \\ \mathrm{raster} & k \in \{\mathrm{transform}, \mathrm{opacity}, \mathrm{translate}, \mathrm{scale}, \mathrm{rotate}, \mathrm{filter}(\mathrm{false}), \mathrm{filter}(\mathrm{true})\},\ l \ne \mathrm{own} \\ \mathrm{ppFull} & k = \mathrm{backdropFilter} \\ \mathrm{paint} & k \in \{\mathrm{bgPosition}, \mathrm{bgImage}, \mathrm{bgColor}, \mathrm{color}, \mathrm{clipPath}, \mathrm{strokeDashoffset}, \mathrm{visibility}, \mathrm{zIndex}\} \\ \mathrm{layoutMove} & k \in \{\mathrm{top}, \mathrm{left}, \mathrm{margin}\},\ l = \mathrm{own} \\ \mathrm{layoutPos} & k \in \{\mathrm{top}, \mathrm{left}\},\ l \ne \mathrm{own} \\ \mathrm{layoutFull} & k \in \{\mathrm{transformToggle}, \mathrm{margin}\},\ l \ne \mathrm{own} \\ \mathrm{layoutFull} & k \in \{\mathrm{width}, \mathrm{height}, \mathrm{padding}\} \end{cases}$$
-
 The invalidation level of a plain property change on a box with the given layer state.
 -/
 def keyLevel : CrKey → LayerState → CrLevel
@@ -204,9 +181,8 @@ def keyLevel : CrKey → LayerState → CrLevel
 readers' levels, at least `styleOnly` (the write restyles the element; design note §1.2 "max over its readers"); a
 scroll-offset change has no style level (its stages come from `CrProp.extra`).
 
-$$\operatorname{lvl}(\mathrm{css}(k), l) = \operatorname{lvl}(k, l),\qquad \operatorname{lvl}(\mathrm{custom}(i, R), l) = \operatorname{foldl}\big(\max, \mathrm{styleOnly}, [\,\operatorname{lvl}(k, l) \mid k \in R\,]\big)\ (= \mathrm{styleOnly} \text{ for } R = [\,]),\qquad \operatorname{lvl}(\mathrm{scroll}(r), l) = \mathrm{none}$$
-(the maximum is the join `CrLevel.max`, folded left over $R$ in list order; two incomparable levels join to
-$\mathrm{layoutFull}$).
+(the maximum is the join `CrLevel.max`, folded left over `R` in list order; two incomparable levels join to
+`layoutFull`).
 
 The level of a plain, custom or scroll property change.
 -/
@@ -218,32 +194,22 @@ def crLevel : CrProp → LayerState → CrLevel
 /-- **Scroll rule** (note C §4). One scrolled frame is one BeginMainFrame with the scroll-translation update (props)
 and a commit (`cc/input/input_handler.cc:425-429`, `B/core/paint/paint_layer_scrollable_area.cc:428-462`); paint and
 raster only when the cull rect has moved enough (`B/platform/graphics/paint/cull_rect.cc:48-69,425-430`). CONFIRMED.
-
-$$\operatorname{scrollStages}(r) = [\mathrm{props}, \mathrm{commit}] \mathbin{+\!\!+} \begin{cases} [\mathrm{paint}, \mathrm{raster}] & r \\ [\,] & \lnot r \end{cases}$$
 -/
 def scrollStages (repaint : Bool) : List Stage :=
   [.props, .commit] ++ (if repaint then [.paint, .raster] else [])
 
-/-- The stages a change adds beyond its level: the scroll stages for a scroll-offset change, none otherwise.
-
-$$\operatorname{extra}(\mathrm{scroll}(r)) = \operatorname{scrollStages}(r),\qquad \operatorname{extra}(\mathrm{css}(k)) = \operatorname{extra}(\mathrm{custom}(i, R)) = [\,]$$
--/
+/-- The stages a change adds beyond its level: the scroll stages for a scroll-offset change, none otherwise. -/
 def CrProp.extra : CrProp → List Stage
   | .scroll r => scrollStages r
   | _ => []
 
-/-- **`stagesOf` of the Chromium engine**: the level's stages, then the extra scroll stages.
-
-$$\operatorname{stagesOf}_{\mathrm{cr}}(c) = \operatorname{stages}(\operatorname{lvl}(c.\mathrm{prop}, c.\mathrm{layer})) \mathbin{+\!\!+} \operatorname{extra}(c.\mathrm{prop})$$
--/
+/-- **`stagesOf` of the Chromium engine**: the level's stages, then the extra scroll stages. -/
 def crStagesOf (c : Change CrProp) : List Stage := (crLevel c.prop c.layer).stages ++ c.prop.extra
 
 /-! ## Modes and the engine -/
 
 /-- Chromium's run mode: threaded (compositor) animation on or off, and whether every BeginFrame is also a
 BeginMainFrame (so a running compositor animation still gets a main-thread style ride-along each frame).
-
-$$\mathrm{CrMode} = \underbrace{\mathbb{B}}_{\mathrm{threadedAnim}} \times \underbrace{\mathbb{B}}_{\mathrm{everyBeginFrameIsMainFrame}}$$
 -/
 structure CrMode where
   threadedAnim : Bool
@@ -253,23 +219,17 @@ deriving Repr, DecidableEq
 /-- The CI lane: threaded animation kept (`--disable-threaded-animation` not passed,
 `packages/measure-chromium/src/run.mjs:41`, CONFIRMED, correction C-1), every BeginFrame a main frame (MEASURED
 UpdateLayoutTree 120 in 120 frames for a compositor animation, README:146-148; INFERRED as a rule, gap R1).
-
-$$\mathrm{lane} = (\mathrm{true}, \mathrm{true})$$
 -/
 def lane : CrMode := ⟨true, true⟩
 
 /-- Real Chrome: threaded animation, and the main thread sleeps while only compositor animations run
 (`B/core/animation/document_timeline.cc:111-135`, CONFIRMED).
-
-$$\mathrm{realChrome} = (\mathrm{true}, \mathrm{false})$$
 -/
 def realChrome : CrMode := ⟨true, false⟩
 
 /-- The stages one running compositor animation costs per frame: the compositor tick, plus in a mode where every
 BeginFrame is a main frame the ride-along style recalc and property update of the target (MEASURED style 120 per
 120 frames, Paint/Layout/cc.Commit 0, README:146-148; props INFERRED from `B/core/animation/keyframe_effect.cc:739-742`).
-
-$$\operatorname{compStages}(m) = [\mathrm{comp}] \mathbin{+\!\!+} \begin{cases} [\mathrm{style}, \mathrm{props}] & m.\mathrm{everyBeginFrameIsMainFrame} \\ [\,] & \text{otherwise} \end{cases}$$
 -/
 def crCompStages (m : CrMode) : List Stage :=
   [.comp] ++ (if m.everyBeginFrameIsMainFrame then [.style, .props] else [])
@@ -283,8 +243,6 @@ so `commit` comes from the changes. The base rule is MEASURED for rAF callbacks 
 lane's `shimTimer` step runs its callback through the virtual clock shim inside the driver's evaluate, not as a
 Chromium timer task: `Fw.Ops.EnginePremise.Act`).
 
-$$\operatorname{chromiumAt}(m) = \big(m,\ \operatorname{stagesOf}_{\mathrm{cr}},\ \operatorname{compStages}(m),\ [\mathrm{props}]\big)$$
-
 The Chromium engine whose updating frames always pay one PrePaint.
 -/
 def chromiumAt (m : CrMode) : Engine CrProp CrMode where
@@ -293,10 +251,7 @@ def chromiumAt (m : CrMode) : Engine CrProp CrMode where
   compStages := crCompStages m
   base := [.props]
 
-/-- **The Chromium engine of the CI lane.**
-
-$$\mathrm{chromium} = \operatorname{chromiumAt}(\mathrm{lane})$$
--/
+/-- **The Chromium engine of the CI lane.** -/
 def chromium : Engine CrProp CrMode := chromiumAt lane
 
 /-! ## Level order theorems -/
@@ -304,15 +259,11 @@ def chromium : Engine CrProp CrMode := chromiumAt lane
 /-- **Level monotonicity.** A lower or equal level dirties a subset of the stages (since the order became stage
 inclusion, this is its definition).
 
-$$\forall a, b \in \mathrm{CrLevel}:\ a \le b \Rightarrow \forall s \in \operatorname{stages}(a):\ s \in \operatorname{stages}(b)$$
-
 A level below another runs only stages the other runs.
 -/
 theorem crStages_mono {a b : CrLevel} (h : a ≤ b) : ∀ s ∈ a.stages, s ∈ b.stages := h
 
 /-- The level order is reflexive.
-
-$$\forall a \in \mathrm{CrLevel}:\ a \le a$$
 
 Every level is below itself.
 -/
@@ -320,16 +271,12 @@ theorem CrLevel.le_refl (a : CrLevel) : a ≤ a := fun _ h => h
 
 /-- **`layoutFull` is the top level.**
 
-$$\forall a \in \mathrm{CrLevel}:\ a \le \mathrm{layoutFull}$$
-
 Every level runs only stages a full layout runs.
 -/
 theorem CrLevel.le_layoutFull (a : CrLevel) : a ≤ .layoutFull := by
   cases a <;> decide
 
 /-- `max` is an upper bound of its left argument.
-
-$$\forall a, b \in \mathrm{CrLevel}:\ a \le \max(a, b)$$
 
 The join is above its first argument.
 -/
@@ -343,8 +290,6 @@ theorem CrLevel.le_max_left (a b : CrLevel) : a ≤ a.max b := by
 
 /-- `max` is an upper bound of its right argument.
 
-$$\forall a, b \in \mathrm{CrLevel}:\ b \le \max(a, b)$$
-
 The join is above its second argument.
 -/
 theorem CrLevel.le_max_right (a b : CrLevel) : b ≤ a.max b := by
@@ -357,8 +302,6 @@ theorem CrLevel.le_max_right (a b : CrLevel) : b ≤ a.max b := by
 
 /-- The level order is transitive.
 
-$$\forall a, b, c \in \mathrm{CrLevel}:\ a \le b \land b \le c \Rightarrow a \le c$$
-
 Stage inclusion composes.
 -/
 theorem CrLevel.le_trans {a b c : CrLevel} (h1 : a ≤ b) (h2 : b ≤ c) : a ≤ c :=
@@ -367,17 +310,12 @@ theorem CrLevel.le_trans {a b c : CrLevel} (h1 : a ≤ b) (h2 : b ≤ c) : a ≤
 /-- **The levels are not a chain** (CI run 39088367495): `layoutMove` and `raster` are incomparable, each runs a stage
 the other does not (layout, raster).
 
-$$\mathrm{layoutMove} \not\le \mathrm{raster} \land \mathrm{raster} \not\le \mathrm{layoutMove}$$
-
 A layer move and a re-raster cannot be ranked against each other.
 -/
 theorem layoutMove_raster_incomparable : ¬ CrLevel.layoutMove ≤ .raster ∧ ¬ CrLevel.raster ≤ .layoutMove := by
   decide
 
-/-- A left fold of `max` stays above its start and above every folded element.
-
-$$\forall x \in \mathrm{CrLevel},\ \forall L \in \mathrm{CrLevel}^{*}:\ x \le \operatorname{foldl}(\max, x, L) \land \forall y \in L:\ y \le \operatorname{foldl}(\max, x, L)$$
--/
+/-- A left fold of `max` stays above its start and above every folded element. -/
 theorem foldl_max_ge : ∀ (x : CrLevel) (L : List CrLevel),
     x ≤ L.foldl CrLevel.max x ∧ ∀ y ∈ L, y ≤ L.foldl CrLevel.max x
   | x, [] => ⟨CrLevel.le_refl _, fun _ h => nomatch h⟩
@@ -390,8 +328,6 @@ theorem foldl_max_ge : ∀ (x : CrLevel) (L : List CrLevel),
 
 /-- **A custom property costs at least each reader.** Every plain property reading `--x` has a level at most the
 custom property's level, so its stages are among the custom property's stages.
-
-$$\forall i \in \mathbb{N},\ \forall R \in \mathrm{CrKey}^{*},\ \forall l \in \mathrm{LayerState},\ \forall k \in R:\ \operatorname{lvl}(k, l) \le \operatorname{lvl}(\mathrm{custom}(i, R), l) \land \operatorname{stages}(\operatorname{lvl}(k, l)) \subseteq \operatorname{stages}(\operatorname{lvl}(\mathrm{custom}(i, R), l))$$
 -/
 theorem custom_ge_reader (i : Nat) (rs : List CrKey) (l : LayerState) :
     ∀ k ∈ rs, keyLevel k l ≤ crLevel (.custom i rs) l ∧
@@ -405,10 +341,7 @@ theorem custom_ge_reader (i : Nat) (rs : List CrKey) (l : LayerState) :
     exact (foldl_max_ge _ _).2 _ (List.mem_map.mpr ⟨k, hk, rfl⟩)
   exact ⟨hle, crStages_mono hle⟩
 
-/-- A custom property write always restyles: its level is at least `styleOnly`.
-
-$$\forall i \in \mathbb{N},\ \forall R \in \mathrm{CrKey}^{*},\ \forall l \in \mathrm{LayerState}:\ \mathrm{styleOnly} \le \operatorname{lvl}(\mathrm{custom}(i, R), l)$$
--/
+/-- A custom property write always restyles: its level is at least `styleOnly`. -/
 theorem custom_ge_styleOnly (i : Nat) (rs : List CrKey) (l : LayerState) :
     CrLevel.styleOnly ≤ crLevel (.custom i rs) l := by
   have hfold : rs.foldl (fun acc k => acc.max (keyLevel k l)) .styleOnly =
@@ -421,8 +354,6 @@ theorem custom_ge_styleOnly (i : Nat) (rs : List CrKey) (l : LayerState) :
 
 /-- The pairwise level check: equal lengths, and each change of the first list is not a scroll change and has a level
 at most its partner's.
-
-$$\operatorname{levelCover}(L, M) = \mathrm{true} \iff |L| = |M| \ \land\ \forall i < |L|:\ \operatorname{extra}(L_i.\mathrm{prop}) = [\,] \land \operatorname{lvl}(L_i.\mathrm{prop}, L_i.\mathrm{layer}) \le \operatorname{lvl}(M_i.\mathrm{prop}, M_i.\mathrm{layer})$$
 -/
 def levelCover : List (Change CrProp) → List (Change CrProp) → Bool
   | [], [] => true
@@ -432,8 +363,6 @@ def levelCover : List (Change CrProp) → List (Change CrProp) → Bool
 
 /-- **Level order gives a stage cover** on Chromium, in every mode: the core hypothesis of `frame_le_of_cover` holds
 whenever the levels are pairwise `≤` (the step design note §3.1 names `crStages_mono`).
-
-$$\forall m \in \mathrm{CrMode},\ \forall L, M \in \mathrm{Change}(\mathrm{CrProp})^{*}:\ \operatorname{levelCover}(L, M) = \mathrm{true} \Rightarrow \operatorname{cover}_{\operatorname{chromiumAt}(m)}(L, M) = \mathrm{true}$$
 -/
 theorem levelCover_coverB (m : CrMode) :
     ∀ {l l' : List (Change CrProp)}, levelCover l l' = true → coverB (chromiumAt m) l l' = true
@@ -452,8 +381,6 @@ theorem levelCover_coverB (m : CrMode) :
 
 /-- The timeline an animation runs on: the document timeline, or a scroll timeline whose source scroller is or is
 not user-scrollable.
-
-$$\mathrm{CrTimeline} = \{\mathrm{document}\} \cup \{\mathrm{scroll}(u) \mid u \in \mathbb{B}\}$$
 -/
 inductive CrTimeline where
   | document
@@ -463,8 +390,6 @@ deriving Repr, DecidableEq
 /-- A running animation: target element, animated properties, target layer state, whether the target has a valid
 compositing state (layout object, not fragmented, a direct compositing reason, no `will-change: contents`), and its
 timeline.
-
-$$\mathrm{CrAnim} = \underbrace{\mathbb{N}}_{\mathrm{elem}} \times \underbrace{\mathrm{CrProp}^{*}}_{\mathrm{props}} \times \underbrace{\mathrm{LayerState}}_{\mathrm{layer}} \times \underbrace{\mathbb{B}}_{\mathrm{validTarget}} \times \underbrace{\mathrm{CrTimeline}}_{\mathrm{timeline}}$$
 -/
 structure CrAnim where
   elem : Nat
@@ -478,8 +403,6 @@ deriving Repr
 CONFIRMED): transform (either kind of change), translate, scale, rotate, opacity, filter, backdrop-filter. The
 paint-worklet entries background-color and clip-path are left out (module doc, open gap); custom properties and
 scroll offsets are not compositable.
-
-$$\operatorname{elig}(p) \iff p \in \{\mathrm{css}(k) \mid k \in \{\mathrm{transform}, \mathrm{transformToggle}, \mathrm{translate}, \mathrm{scale}, \mathrm{rotate}, \mathrm{opacity}, \mathrm{backdropFilter}\} \cup \{\mathrm{filter}(b) \mid b \in \mathbb{B}\}\}$$
 -/
 def CrProp.eligible : CrProp → Bool
   | .css .transform | .css .transformToggle | .css .translate | .css .scale | .css .rotate | .css .opacity
@@ -488,8 +411,6 @@ def CrProp.eligible : CrProp → Bool
 
 /-- A filter that moves pixels (blur or drop-shadow); backdrop-filter is exempt
 (`compositor_animations.cc:405-417`, CONFIRMED).
-
-$$\operatorname{movesPx}(p) \iff p = \mathrm{css}(\mathrm{filter}(\mathrm{true}))$$
 -/
 def CrProp.movesPixels : CrProp → Bool
   | .css (.filter b) => b
@@ -503,8 +424,6 @@ increasing order:
 * bit 13 `kUnsupportedCSSProperty`: a property outside the compositable set (`:173, :426-440`);
 * bit 16 `kTimelineSourceHasInvalidCompositingState`: a scroll timeline whose source is not user-scrollable
   (`B/core/animation/animation.cc:2561-2566`).
-
-$$\operatorname{bits}(m, a) = [0 \mid \lnot m.\mathrm{threadedAnim}] \mathbin{+\!\!+} [5 \mid \lnot a.\mathrm{validTarget}] \mathbin{+\!\!+} [12 \mid \exists p \in a.\mathrm{props}:\ \operatorname{movesPx}(p)] \mathbin{+\!\!+} [13 \mid \exists p \in a.\mathrm{props}:\ \lnot\operatorname{elig}(p)] \mathbin{+\!\!+} [16 \mid a.\mathrm{timeline} = \mathrm{scroll}(\mathrm{false})]\quad\text{where } [n \mid \varphi] = [n] \text{ if } \varphi \text{, else } [\,]$$
 -/
 def failBits (m : CrMode) (a : CrAnim) : List Nat :=
   (if m.threadedAnim then [] else [0]) ++ (if a.validTarget then [] else [5]) ++
@@ -513,16 +432,12 @@ def failBits (m : CrMode) (a : CrAnim) : List Nat :=
 
 /-- **Chromium's thread rule.** An animation runs on the compositor iff all its properties are compositable and no
 modelled failure bit is set; otherwise the main thread services it every frame (`animation.cc:3376-3400`, CONFIRMED).
-
-$$\operatorname{crThread}(m, a) = \begin{cases} \mathrm{comp} & (\forall p \in a.\mathrm{props}:\ \operatorname{elig}(p)) \land \operatorname{bits}(m, a) = [\,] \\ \mathrm{main} & \text{otherwise} \end{cases}$$
 -/
 def crThread (m : CrMode) (a : CrAnim) : Thread :=
   if a.props.all CrProp.eligible && (failBits m a).isEmpty then .comp else .main
 
 /-- **The thread rule, spelled out.** Compositor iff every property is compositable, threaded animation is on, the
 target is valid, no filter moves pixels, and the timeline is not a scroll timeline on a non-user-scrollable source.
-
-$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim}:\ \operatorname{crThread}(m, a) = \mathrm{comp} \iff (\forall p \in a.\mathrm{props}:\ \operatorname{elig}(p)) \land m.\mathrm{threadedAnim} \land a.\mathrm{validTarget} \land (\forall p \in a.\mathrm{props}:\ \lnot\operatorname{movesPx}(p)) \land a.\mathrm{timeline} \ne \mathrm{scroll}(\mathrm{false})$$
 -/
 theorem crThread_comp_iff (m : CrMode) (a : CrAnim) :
     crThread m a = .comp ↔ (∀ p ∈ a.props, p.eligible = true) ∧ m.threadedAnim = true ∧ a.validTarget = true ∧
@@ -535,8 +450,6 @@ theorem crThread_comp_iff (m : CrMode) (a : CrAnim) :
 
 /-- **No bit 0 in the lane, nor in real Chrome** (falsification test F0): both modes keep threaded animation, so no
 animation's failure bits contain bit 0.
-
-$$\forall a \in \mathrm{CrAnim}:\ 0 \notin \operatorname{bits}(\mathrm{lane}, a) \land 0 \notin \operatorname{bits}(\mathrm{realChrome}, a)$$
 -/
 theorem failBits_lane_no0 (a : CrAnim) : 0 ∉ failBits lane a ∧ 0 ∉ failBits realChrome a := by
   constructor <;>
@@ -545,16 +458,11 @@ theorem failBits_lane_no0 (a : CrAnim) : 0 ∉ failBits lane a ∧ 0 ∉ failBit
 
 /-! ## Frames -/
 
-/-- The main-thread changes an animation makes in one frame: one change per animated property, on its target.
-
-$$\operatorname{changes}(a) = [\,(a.\mathrm{elem}, p, a.\mathrm{layer}) \mid p \in a.\mathrm{props}\,]$$
--/
+/-- The main-thread changes an animation makes in one frame: one change per animated property, on its target. -/
 def CrAnim.changes (a : CrAnim) : List (Change CrProp) := a.props.map fun p => ⟨a.elem, p, a.layer⟩
 
 /-- **One frame of running animations** in mode `m`: the main-thread animations contribute their changes, the
 compositor animations count as `compAnims`; no script, forced passes or hit tests.
-
-$$\operatorname{animFrame}(m, A) = \Big(0, 0, 0, 0,\ \mathop{+\!\!+}_{a \in A,\ \operatorname{crThread}(m, a) = \mathrm{main}} \operatorname{changes}(a),\ \big|[\,a \in A \mid \operatorname{crThread}(m, a) = \mathrm{comp}\,]\big|\Big)$$
 -/
 def animFrame (m : CrMode) (as : List CrAnim) : FrameIn CrProp where
   script := 0
@@ -564,10 +472,7 @@ def animFrame (m : CrMode) (as : List CrAnim) : FrameIn CrProp where
   changes := (as.filter fun a => decide (crThread m a = .main)).flatMap CrAnim.changes
   compAnims := (as.filter fun a => decide (crThread m a = .comp)).length
 
-/-- A frame of script that writes styles: `n` callbacks and the written changes, nothing else.
-
-$$\operatorname{jsWrite}(n, C) = (n, 0, 0, 0, C, 0)$$
--/
+/-- A frame of script that writes styles: `n` callbacks and the written changes, nothing else. -/
 def jsWrite (n : Nat) (cs : List (Change CrProp)) : FrameIn CrProp :=
   { script := n, forcedStyle := 0, forcedLayout := 0, hits := 0, changes := cs, compAnims := 0 }
 
@@ -575,8 +480,6 @@ def jsWrite (n : Nat) (cs : List (Change CrProp)) : FrameIn CrProp :=
 
 /-- **A compositor animation does no main-thread layout, paint, raster or commit.** If every running animation is on
 the compositor, the frame's layout, paint, raster and commit stages have no passes and no units, in every mode.
-
-$$\forall m \in \mathrm{CrMode},\ \forall A \in \mathrm{CrAnim}^{*}:\ (\forall a \in A:\ \operatorname{crThread}(m, a) = \mathrm{comp}) \Rightarrow \forall s \in \{\mathrm{layout}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}\}:\ W.\mathrm{passes}(s) = 0 \land W.\mathrm{units}(s) = 0\quad\text{where } W = \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(\operatorname{animFrame}(m, A))$$
 -/
 theorem compAnim_no_layout_paint (m : CrMode) (as : List CrAnim) (h : ∀ a ∈ as, crThread m a = .comp) :
     ∀ s ∈ [Stage.layout, .paint, .raster, .commit],
@@ -598,8 +501,6 @@ theorem compAnim_no_layout_paint (m : CrMode) (as : List CrAnim) (h : ∀ a ∈ 
 
 /-- A `transform` animation on a valid target with the document timeline runs on the compositor whenever threaded
 animation is on.
-
-$$\forall m \in \mathrm{CrMode},\ \forall e \in \mathbb{N},\ \forall l \in \mathrm{LayerState}:\ m.\mathrm{threadedAnim} \Rightarrow \operatorname{crThread}\big(m, (e, [\mathrm{css}(\mathrm{transform})], l, \mathrm{true}, \mathrm{document})\big) = \mathrm{comp}$$
 -/
 theorem transformAnim_comp (m : CrMode) (e : Nat) (l : LayerState) (h : m.threadedAnim = true) :
     crThread m ⟨e, [.css .transform], l, true, .document⟩ = .comp := by
@@ -607,8 +508,6 @@ theorem transformAnim_comp (m : CrMode) (e : Nat) (l : LayerState) (h : m.thread
 
 /-- **Worked theorem 2: a compositor transform animation has no layout and no paint stage on the main thread**, in
 the lane and in real Chrome.
-
-$$\forall m \in \{\mathrm{lane}, \mathrm{realChrome}\},\ \forall e \in \mathbb{N},\ \forall l \in \mathrm{LayerState}:\ W.\mathrm{passes}(\mathrm{layout}) = 0 \land W.\mathrm{passes}(\mathrm{paint}) = 0\quad\text{where } W = \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{animFrame}(m, [(e, [\mathrm{css}(\mathrm{transform})], l, \mathrm{true}, \mathrm{document})])\big)$$
 -/
 theorem compTransform_no_layout_paint (m : CrMode) (hm : m = lane ∨ m = realChrome) (e : Nat) (l : LayerState) :
     (frameWork (chromiumAt m) (animFrame m [⟨e, [.css .transform], l, true, .document⟩])).passes .layout = 0 ∧
@@ -623,8 +522,6 @@ theorem compTransform_no_layout_paint (m : CrMode) (hm : m = lane ∨ m = realCh
 `frame_le_of_cover`: same callbacks, the transform change (`direct`) is covered by the top/left change (`layoutPos`; `layoutMove` on its own layer since CI run 39088367495, which still
 contains style, props and commit),
 in every mode and for any target and layer state of the top/left write.
-
-$$\forall m \in \mathrm{CrMode},\ \forall n, e, e' \in \mathbb{N},\ \forall l \in \mathrm{LayerState},\ \forall k \in \{\mathrm{top}, \mathrm{left}\}:\ \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{jsWrite}(n, [(e, \mathrm{css}(\mathrm{transform}), \mathrm{own})])\big) \preceq \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{jsWrite}(n, [(e', \mathrm{css}(k), l)])\big)$$
 -/
 theorem jsTransform_le_topLeft (m : CrMode) (n e e' : Nat) (l : LayerState) (k : CrKey)
     (hk : k = .top ∨ k = .left) :
@@ -635,10 +532,7 @@ theorem jsTransform_le_topLeft (m : CrMode) (n e e' : Nat) (l : LayerState) (k :
   apply levelCover_coverB
   rcases hk with rfl | rfl <;> cases l <;> rfl
 
-/-- **The top/left write is strictly more work**: the transform write has no layout pass, the top/left write has one.
-
-$$\forall m \in \mathrm{CrMode},\ \forall n, e, e' \in \mathbb{N},\ \forall l \in \mathrm{LayerState},\ \forall k \in \{\mathrm{top}, \mathrm{left}\}:\ \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{jsWrite}(n, [(e, \mathrm{css}(\mathrm{transform}), \mathrm{own})])\big) \prec \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{jsWrite}(n, [(e', \mathrm{css}(k), l)])\big)$$
--/
+/-- **The top/left write is strictly more work**: the transform write has no layout pass, the top/left write has one. -/
 theorem jsTransform_lt_topLeft (m : CrMode) (n e e' : Nat) (l : LayerState) (k : CrKey)
     (hk : k = .top ∨ k = .left) :
     (frameWork (chromiumAt m) (jsWrite n [⟨e, .css .transform, .own⟩])).lt
@@ -650,24 +544,18 @@ theorem jsTransform_lt_topLeft (m : CrMode) (n e e' : Nat) (l : LayerState) (k :
 
 /-! ## Scroll -/
 
-/-- The cull-rect repaint period of a scroll at `d` px per frame: $\lceil 512/d \rceil$ frames for $d > 0$ and $0$ for $d = 0$ (changed-enough
+/-- The cull-rect repaint period of a scroll at `d` px per frame: `⌈ 512/d ⌉` frames for `d > 0` and `0` for `d = 0` (changed-enough
 distance 512 px at expansion ratio 1, `cull_rect.cc:48-69`, `B/../common/features.cc:627-652`; ratio 1 INFERRED).
-
-$$\operatorname{period}(d) = \left\lfloor \frac{512 + d - 1}{d} \right\rfloor \quad (\text{Lean } \mathbb{N} \text{ division: } \operatorname{period}(0) = 0)$$
 -/
 def cullPeriod (d : Nat) : Nat := (512 + d - 1) / d
 
 /-- Whether frame `k` (counted from the last cull-rect update at frame 0) of a scroll at `d` px per frame repaints:
 the cull rect is recomputed every `cullPeriod d` frames, never at frame 0, never when `d = 0`.
-
-$$\operatorname{scrollPaints}(d, k) \iff 0 < k \land k \bmod \operatorname{period}(d) = 0 \qquad (k \bmod 0 = k \text{ in Lean, so } d = 0 \text{ never repaints})$$
 -/
 def scrollPaints (d k : Nat) : Bool := decide (0 < k) && k % cullPeriod d == 0
 
 /-- **Paint only after 512 px.** A scroll frame that repaints has moved the scroller at least 512 px since the last
 cull-rect update.
-
-$$\forall d, k \in \mathbb{N}:\ \operatorname{scrollPaints}(d, k) \Rightarrow 512 \le k \cdot d$$
 -/
 theorem scrollPaints_moved (d k : Nat) (h : scrollPaints d k = true) : 512 ≤ k * d := by
   simp only [scrollPaints, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq] at h
@@ -690,16 +578,11 @@ theorem scrollPaints_moved (d k : Nat) (h : scrollPaints d k = true) : 512 ≤ k
       _ ≤ (cullPeriod d * q) * d := Nat.mul_le_mul_right d (Nat.le_mul_of_pos_right _ hq1)
       _ = k * d := by rw [← hq]
 
-/-- The scroll change of frame `k` of a scroll at `d` px per frame on scroller `e`.
-
-$$\operatorname{scrollChange}(e, d, k) = \big(e, \mathrm{scroll}(\operatorname{scrollPaints}(d, k)), \mathrm{own}\big)$$
--/
+/-- The scroll change of frame `k` of a scroll at `d` px per frame on scroller `e`. -/
 def scrollChange (e d k : Nat) : Change CrProp := ⟨e, .scroll (scrollPaints d k), .own⟩
 
 /-- **One BeginMainFrame per scrolled frame, without style or layout.** Every scroll frame runs props and commit,
 never style or layout, and runs paint exactly when the cull rect is due (`scrollPaints`).
-
-$$\forall e, d, k \in \mathbb{N}:\ \{\mathrm{props}, \mathrm{commit}\} \subseteq S \land \mathrm{style} \notin S \land \mathrm{layout} \notin S \land (\mathrm{paint} \in S \iff \operatorname{scrollPaints}(d, k))\quad\text{where } S = \operatorname{stagesOf}_{\mathrm{cr}}(\operatorname{scrollChange}(e, d, k))$$
 -/
 theorem scroll_stages (e d k : Nat) :
     .props ∈ crStagesOf (scrollChange e d k) ∧ .commit ∈ crStagesOf (scrollChange e d k) ∧
@@ -748,17 +631,12 @@ theorem scroll_stages (e d k : Nat) :
 
 /-- The prediction alphabet of a golden stage row: the variant's count is zero, equal to the reference's, strictly
 below it, at most it, or unconstrained.
-
-$$\mathrm{Pred} = \{=\!0,\ =\!o,\ <\!o,\ \le\!o,\ \mathrm{any}\}$$
 -/
 inductive Pred where
   | zero | eqO | ltO | leO | any
 deriving Repr, DecidableEq
 
-/-- The JSON spelling of a prediction.
-
-$$\operatorname{str}(=\!0) = \texttt{"=0"},\ \operatorname{str}(=\!o) = \texttt{"=o"},\ \operatorname{str}(<\!o) = \texttt{"<o"},\ \operatorname{str}(\le\!o) = \texttt{"\char"2264o"},\ \operatorname{str}(\mathrm{any}) = \texttt{"any"}$$
--/
+/-- The JSON spelling of a prediction. -/
 def Pred.str : Pred → String
   | .zero => "=0" | .eqO => "=o" | .ltO => "<o" | .leO => "≤o" | .any => "any"
 
@@ -767,7 +645,6 @@ def Pred.str : Pred → String
 `=o`: the model counts one pass per frame, while a BeginMainFrame can run more lifecycle updates (MEASURED
 UpdateLayoutTree 162 in 120 frames for the main-thread fixture, README:148).
 
-$$\operatorname{pred}(s, v, o) = \begin{cases} \mathrm{any} & s = \mathrm{props} \\ <\!o & v < o \\ =\!0 & v = 0 \land o = 0 \\ \le\!o & v = o \ne 0 \\ \mathrm{any} & v > o \end{cases}$$
 (first matching case)
 -/
 def predOf (s : Stage) (v o : Nat) : Pred :=
@@ -775,8 +652,6 @@ def predOf (s : Stage) (v o : Nat) : Pred :=
 
 /-- The lane count types that observe each stage (design note §3.2); the consumer drops the types `classes.frozen.json`
 quarantines.
-
-$$\begin{aligned} \operatorname{counts}(\mathrm{script}) &= [\texttt{trace.FireAnimationFrame}, \texttt{trace.FunctionCall}] & \operatorname{counts}(\mathrm{style}) &= [\texttt{trace.UpdateLayoutTree}] \\ \operatorname{counts}(\mathrm{layout}) &= [\texttt{trace.Layout}, \texttt{trace.Layout.dirtyObjects}] & \operatorname{counts}(\mathrm{props}) &= [\texttt{trace.PrePaint}] \\ \operatorname{counts}(\mathrm{paint}) &= [\texttt{trace.Paint}, \texttt{raster.invalidationAreaPx}, \texttt{raster.invalidationRects}] & \operatorname{counts}(\mathrm{raster}) &= [\texttt{raster.invalidationAreaPx}, \texttt{raster.invalidationRects}] \\ \operatorname{counts}(\mathrm{commit}) &= [\texttt{trace.cc.Commit}] & \operatorname{counts}(\mathrm{comp}) &= [\texttt{census.layers}] \end{aligned}$$
 -/
 def stageCounts : Stage → List String
   | .script => ["trace.FireAnimationFrame", "trace.FunctionCall"]
@@ -788,56 +663,38 @@ def stageCounts : Stage → List String
   | .commit => ["trace.cc.Commit"]
   | .comp => ["census.layers"]
 
-/-- The JSON name of a stage.
-
-$$\operatorname{name}(s) = \text{the constructor name of } s,\ \text{e.g. } \operatorname{name}(\mathrm{props}) = \texttt{"props"}$$
--/
+/-- The JSON name of a stage. -/
 def stageName : Stage → String
   | .script => "script" | .style => "style" | .layout => "layout" | .props => "props" | .paint => "paint"
   | .raster => "raster" | .commit => "commit" | .comp => "comp"
 
-/-- The JSON name of a level.
-
-$$\operatorname{name}(\ell) = \text{the constructor name of } \ell,\ \text{e.g. } \operatorname{name}(\mathrm{layoutPos}) = \texttt{"layoutPos"}$$
--/
+/-- The JSON name of a level. -/
 def levelName : CrLevel → String
   | .none => "none" | .styleOnly => "styleOnly" | .direct => "direct" | .ppFull => "ppFull" | .raster => "raster"
   | .paint => "paint" | .layoutMove => "layoutMove" | .layoutPos => "layoutPos" | .layoutFull => "layoutFull"
 
-/-- The JSON name of a layer state.
-
-$$\operatorname{name}(\mathrm{none}) = \texttt{"none"},\ \operatorname{name}(\mathrm{layer}) = \texttt{"layer"},\ \operatorname{name}(\mathrm{own}) = \texttt{"own"}$$
--/
+/-- The JSON name of a layer state. -/
 def layerName : LayerState → String
   | .none => "none" | .layer => "layer" | .own => "own"
 
-/-- The lane fixture with nothing animating (reference of F1).
-
-$$\mathrm{rest} = [\,]$$
--/
+/-- The lane fixture with nothing animating (reference of F1). -/
 def fxRest : List CrAnim := []
 
 /-- `packages/measure-chromium/fixtures/anim-compositor`: a `transform` animation on a `will-change: transform` box and
 an `opacity` animation (its own layer through the active-animation compositing reason,
 `B/core/paint/compositing/compositing_reason_finder.cc:563-600`, CONFIRMED in note C).
-
-$$\mathrm{animComp} = [(0, [\mathrm{css}(\mathrm{transform})], \mathrm{own}, \mathrm{true}, \mathrm{document}),\ (1, [\mathrm{css}(\mathrm{opacity})], \mathrm{own}, \mathrm{true}, \mathrm{document})]$$
 -/
 def fxAnimComp : List CrAnim :=
   [⟨0, [.css .transform], .own, true, .document⟩, ⟨1, [.css .opacity], .own, true, .document⟩]
 
 /-- `packages/measure-chromium/fixtures/anim-layout`: a `width` animation and a `background-color` animation, both on
 plain boxes.
-
-$$\mathrm{animLayout} = [(0, [\mathrm{css}(\mathrm{width})], \mathrm{none}, \mathrm{true}, \mathrm{document}),\ (1, [\mathrm{css}(\mathrm{bgColor})], \mathrm{none}, \mathrm{true}, \mathrm{document})]$$
 -/
 def fxAnimLayout : List CrAnim :=
   [⟨0, [.css .width], .none, true, .document⟩, ⟨1, [.css .backgroundColor], .none, true, .document⟩]
 
 /-- One golden stage row: test id, scenario and reference names and animations, lane mode, one stage, with the
 model's passes and units per frame for both and the prediction.
-
-$$\operatorname{row}(t, x, A_x, y, A_y, s) = \{\mathrm{test}{:}\,t,\ \mathrm{scenario}{:}\,x,\ \mathrm{ref}{:}\,y,\ \mathrm{stage}{:}\,s,\ v{:}\,W_x.\mathrm{passes}(s),\ o{:}\,W_y.\mathrm{passes}(s),\ \mathrm{pred}{:}\,\operatorname{pred}(s, v, o), \ldots\}\quad\text{where } W_z = \operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{animFrame}(\mathrm{lane}, A_z))$$
 -/
 def stageRow (test x : String) (ax : List CrAnim) (y : String) (ay : List CrAnim) (s : Stage) : Lean.Json :=
   let wv := frameWork chromium (animFrame lane ax)
@@ -848,16 +705,11 @@ def stageRow (test x : String) (ax : List CrAnim) (y : String) (ay : List CrAnim
     ("vUnits", Lean.toJson (wv.units s)), ("oUnits", Lean.toJson (wo.units s)),
     ("pred", .str (predOf s (wv.passes s) (wo.passes s)).str)]
 
-/-- The number of animations whose failure bits contain bit `b` in the lane.
-
-$$\operatorname{bitCount}(b, A) = \big|[\,a \in A \mid b \in \operatorname{bits}(\mathrm{lane}, a)\,]\big|$$
--/
+/-- The number of animations whose failure bits contain bit `b` in the lane. -/
 def bitCount (b : Nat) (as : List CrAnim) : Nat := (as.filter fun a => decide (b ∈ failBits lane a)).length
 
 /-- One golden F0 row: the number of the scenario's animations with bit 0 set in the lane (always 0,
 `failBits_lane_no0`).
-
-$$\begin{aligned} \forall x, A:\quad \operatorname{f0}(x, A) = \{&\mathrm{kind}{:}\,\texttt{stage},\ \mathrm{test}{:}\,\texttt{F0},\ \mathrm{scenario}{:}\,x,\ \mathrm{ref}{:}\,\texttt{rest},\ \mathrm{mode}{:}\,\texttt{lane},\ \mathrm{stage}{:}\,\texttt{comp}, \\ &\mathrm{counts}{:}\,[\texttt{trace.Animation.compositeFailedBits.bit0}],\ v{:}\,\operatorname{bitCount}(0, A),\ o{:}\,\operatorname{bitCount}(0, \mathrm{fxRest}), \\ &\mathrm{vUnits}{:}\,0,\ \mathrm{oUnits}{:}\,0,\ \mathrm{pred}{:}\,(\texttt{=0} \text{ if } \operatorname{bitCount}(0, A) = 0 \text{ else } \texttt{any})\} \end{aligned}$$
 -/
 def f0Row (x : String) (ax : List CrAnim) : Lean.Json :=
   Lean.Json.mkObj [("kind", "stage"), ("test", "F0"), ("scenario", .str x), ("ref", "rest"), ("mode", "lane"),
@@ -867,8 +719,6 @@ def f0Row (x : String) (ax : List CrAnim) : Lean.Json :=
 
 /-- One signature row per level: its rank, its stages, and every (plain property, layer state) pair `keyLevel` maps
 to it.
-
-$$\operatorname{sig}(\ell) = \{\mathrm{level}{:}\,\ell,\ \mathrm{rank}{:}\,\operatorname{rank}(\ell),\ \mathrm{stages}{:}\,\operatorname{stages}(\ell),\ \mathrm{members}{:}\,[\,\operatorname{name}(k) \mathbin{+\!\!+} \texttt{"@"} \mathbin{+\!\!+} \operatorname{name}(l) \mid k \in \mathrm{CrKey.all},\ l \in [\mathrm{none}, \mathrm{layer}, \mathrm{own}],\ \operatorname{lvl}(k, l) = \ell\,]\}$$
 -/
 def signatureRow (lv : CrLevel) : Lean.Json :=
   let members := CrKey.all.flatMap fun k =>
@@ -876,10 +726,7 @@ def signatureRow (lv : CrLevel) : Lean.Json :=
   Lean.Json.mkObj [("kind", "signature"), ("level", .str (levelName lv)), ("rank", Lean.toJson lv.rank),
     ("stages", Lean.toJson (lv.stages.map stageName)), ("members", Lean.toJson members)]
 
-/-- One mode row: the mode's flags and the stages one compositor animation costs per frame.
-
-$$\operatorname{modeRow}(x, m) = \{\mathrm{mode}{:}\,x,\ \mathrm{threadedAnim}{:}\,m.\mathrm{threadedAnim},\ \mathrm{everyBeginFrameIsMainFrame}{:}\,m.\mathrm{everyBeginFrameIsMainFrame},\ \mathrm{compStages}{:}\,\operatorname{compStages}(m)\}$$
--/
+/-- One mode row: the mode's flags and the stages one compositor animation costs per frame. -/
 def modeRow (x : String) (m : CrMode) : Lean.Json :=
   Lean.Json.mkObj [("kind", "mode"), ("mode", .str x), ("threadedAnim", Lean.toJson m.threadedAnim),
     ("everyBeginFrameIsMainFrame", Lean.toJson m.everyBeginFrameIsMainFrame),
@@ -888,8 +735,6 @@ def modeRow (x : String) (m : CrMode) : Lean.Json :=
 /-- **All golden rows**, in order: one signature row per level, one row per mode, the F0 rows (bit 0 per fixture),
 then per stage the F1 rows (compositor fixture against rest) and the F2 rows (compositor fixture against the
 main-thread fixture).
-
-$$\mathrm{rows} = [\operatorname{sig}(\ell) \mid \ell \in \mathrm{CrLevel.all}] \mathbin{+\!\!+} [\operatorname{modeRow}(\mathrm{lane}), \operatorname{modeRow}(\mathrm{realChrome})] \mathbin{+\!\!+} [\operatorname{f0}(\mathrm{rest}, \mathrm{rest}), \operatorname{f0}(\mathrm{animComp}, \mathrm{animComp}), \operatorname{f0}(\mathrm{animLayout}, \mathrm{animLayout})] \mathbin{+\!\!+} [\operatorname{row}(\mathrm{F1}, \mathrm{animComp}, \mathrm{rest}, s) \mid s \in \mathrm{Stage.all}] \mathbin{+\!\!+} [\operatorname{row}(\mathrm{F2}, \mathrm{animComp}, \mathrm{animLayout}, s) \mid s \in \mathrm{Stage.all}]$$
 -/
 def goldenRows : List Lean.Json :=
   CrLevel.all.map signatureRow ++ [modeRow "lane" lane, modeRow "realChrome" realChrome] ++
@@ -897,22 +742,14 @@ def goldenRows : List Lean.Json :=
     Stage.all.map (stageRow "F1" "anim-compositor" fxAnimComp "rest" fxRest) ++
     Stage.all.map (stageRow "F2" "anim-compositor" fxAnimComp "anim-layout" fxAnimLayout)
 
-/-- The text of `chromium.jsonl`: one compressed JSON object per line.
-
-$$\mathrm{goldenText} = \mathop{+\!\!+}_{r \in \mathrm{rows}} (\operatorname{compress}(r) \mathbin{+\!\!+} \texttt{"\textbackslash n"})$$
--/
+/-- The text of `chromium.jsonl`: one compressed JSON object per line. -/
 def goldenText : String := String.join (goldenRows.map fun r => r.compress ++ "\n")
 
-/-- The golden file, relative to `lean/`.
-
-$$\mathrm{goldenPath} = \texttt{../packages/contracts/golden/engine/chromium.jsonl}$$
--/
+/-- The golden file, relative to `lean/`. -/
 def goldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "engine" / "chromium.jsonl"
 
 /-- Write the golden file (`write`) or compare it; returns 1 when the file is stale, else 0. Run from `lean/` as
 `lake env lean --run <script>` with a script whose `main` calls `Fw.Engine.Chromium.goldenRun "." (write)`.
-
-$$\operatorname{goldenRun}(r, \mathrm{true}) = 0 \text{ after writing } \mathrm{goldenText} \text{ to } r / \mathrm{goldenPath},\qquad \operatorname{goldenRun}(r, \mathrm{false}) = [\operatorname{read}(r / \mathrm{goldenPath}) \ne \mathrm{goldenText}] \text{ (a missing or unreadable file reads as the empty string)}$$
 -/
 def goldenRun (root : System.FilePath) (write : Bool) : IO Nat := do
   let p := root / goldenPath
@@ -955,8 +792,6 @@ CONFIRMED). That the hit test lands in the same frame is MEASURED: each of the 1
 `trace.HitTest` in 3 of 3 passes, and no step without a layout did except the `elementFromPoint` step. A forced layout (`forcedLayout`) is not
 counted: the run measured only frame layouts.
 
-$$\operatorname{hover}(m, f) = \begin{cases} 1 & \mathrm{layout} \in \operatorname{touched}_{\operatorname{chromiumAt}(m)}(f) \\ 0 & \text{otherwise} \end{cases}$$
-
 One hover hit test in a frame whose lifecycle runs layout, none otherwise.
 -/
 def crHover (m : CrMode) (f : FrameIn CrProp) : Nat :=
@@ -973,8 +808,6 @@ Since CI run 39088367495 the hit count also has the **hover hit test** (`crHover
 layout pays one more hit test. Its PrePaint is not added: the hover path may enter at `HitTestNoLifecycleUpdate`
 (`B/core/layout/layout_view.cc:160-164`), and the pinned sparse clone lacks `event_handler.cc` to tell.
 
-$$\operatorname{crWorkH}(m, f) = \Big(s \mapsto \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f).\mathrm{passes}(s) + [s = \mathrm{props}]\cdot f.\mathrm{hits},\ \ \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f).\mathrm{units},\ \ f.\mathrm{hits} + \operatorname{hover}(m, f)\Big)$$
-
 Chromium's frame work in which every hit test also pays one PrePaint pass and a layout frame pays a hover hit test. -/
 def crWorkH (m : CrMode) (f : FrameIn CrProp) : Work where
   passes s := (frameWork (chromiumAt m) f).passes s + (if s = .props then f.hits else 0)
@@ -983,23 +816,17 @@ def crWorkH (m : CrMode) (f : FrameIn CrProp) : Work where
 
 /-- **PrePaint passes are at least the hit tests.**
 
-$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}):\ f.\mathrm{hits} \le \operatorname{crWorkH}(m, f).\mathrm{passes}(\mathrm{props})$$
-
 Every hit test in a frame shows up as a PrePaint pass. -/
 theorem crWorkH_props_ge_hits (m : CrMode) (f : FrameIn CrProp) : f.hits ≤ (crWorkH m f).passes .props := by
   simp [crWorkH]
 
 /-- **The old frame work is a lower bound.**
 
-$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}):\ \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f) \preceq \operatorname{crWorkH}(m, f)$$
-
 Adding the PrePaint pass of each hit test and the hover hit test only raises the work. -/
 theorem crWorkH_ge (m : CrMode) (f : FrameIn CrProp) : (frameWork (chromiumAt m) f).le (crWorkH m f) :=
   ⟨fun _ => ⟨Nat.le_add_right _ _, Nat.le_refl _⟩, Nat.le_add_right _ _⟩
 
 /-- **A layout frame pays one hover hit test**, a frame without layout none.
-
-$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}):\ \operatorname{crWorkH}(m, f).\mathrm{hits} = f.\mathrm{hits} + [\mathrm{layout} \in \operatorname{touched}_{\operatorname{chromiumAt}(m)}(f)]$$
 
 The hit count is the page's hit tests plus one when the frame lays out.
 -/
@@ -1008,16 +835,12 @@ theorem crWorkH_hits (m : CrMode) (f : FrameIn CrProp) :
 
 /-- **No hit test, no change.**
 
-$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}):\ f.\mathrm{hits} = 0 \Rightarrow \forall s \in \mathrm{Stage}:\ \operatorname{crWorkH}(m, f).\mathrm{passes}(s) = \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f).\mathrm{passes}(s)$$
-
 Without hit tests the corrected and the old pass counts agree. -/
 theorem crWorkH_no_hits (m : CrMode) (f : FrameIn CrProp) (h : f.hits = 0) (s : Stage) :
     (crWorkH m f).passes s = (frameWork (chromiumAt m) f).passes s := by
   simp [crWorkH, h]
 
 /-- **Skipping one hit test removes exactly one PrePaint pass** (the hit-skip variant of `nav.hitTest`).
-
-$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}):\ \operatorname{crWorkH}(m, f[\mathrm{hits} := f.\mathrm{hits} + 1]).\mathrm{passes}(\mathrm{props}) = \operatorname{crWorkH}(m, f).\mathrm{passes}(\mathrm{props}) + 1$$
 
 A frame that skips one probe runs one PrePaint fewer, whatever else it does. -/
 theorem hitSkip_props (m : CrMode) (f : FrameIn CrProp) :
@@ -1033,9 +856,7 @@ theorem hitSkip_props (m : CrMode) (f : FrameIn CrProp) :
 
 /-! ### Hit-test units: single point vs list (ledger n=4, first statement) -/
 
-/-- The kind of a hit test: a single point (`elementFromPoint`) or a list-based one (`elementsFromPoint`).
-
-$$\mathrm{HitKind} = \{\mathrm{single}, \mathrm{list}\}$$ -/
+/-- The kind of a hit test: a single point (`elementFromPoint`) or a list-based one (`elementsFromPoint`). -/
 inductive HitKind where
   | single | list
 deriving Repr, DecidableEq
@@ -1043,8 +864,6 @@ deriving Repr, DecidableEq
 /-- **Which hit tests the cache may serve.** `HitTestCache::LookupCachedResult` and `AddCachedResult` return early for
 list-based (and rect-based) requests (`B/core/layout/hit_test_cache.cc:54-56`, `B/core/layout/hit_test_request.h:146-152`
 `AvoidCache`). CONFIRMED.
-
-$$\operatorname{cacheable}(\mathrm{single}) = \mathrm{true},\qquad \operatorname{cacheable}(\mathrm{list}) = \mathrm{false}$$
 
 Only a single-point hit test can be answered from the hit-test cache. -/
 def HitKind.cacheable : HitKind → Bool
@@ -1056,8 +875,6 @@ at depth `d`. A cached single-point test visits none; an uncached one stops at t
 never cached and keeps going past every hit (`HitTestResult::AddNodeToListBasedTestResult` returns "continue" for a
 penetrating list, `B/core/layout/hit_test_result.cc:565-586`), so it visits all `n`. CONFIRMED.
 
-$$\operatorname{hitUnits}(k, c, d, n) = \begin{cases} 0 & k = \mathrm{single} \land c \\ \min(d + 1, n) & k = \mathrm{single} \land \lnot c \\ n & k = \mathrm{list} \end{cases}$$
-
 The boxes one hit test walks: none on a cache hit, up to the first hit for a single point, all for a list. -/
 def hitUnits (k : HitKind) (cacheHit : Bool) (d n : Nat) : Nat :=
   match k with
@@ -1066,8 +883,6 @@ def hitUnits (k : HitKind) (cacheHit : Bool) (d n : Nat) : Nat :=
 
 /-- **A single-point test never visits more than a list-based one.**
 
-$$\forall c, c' \in \mathbb{B},\ \forall d, n \in \mathbb{N}:\ \operatorname{hitUnits}(\mathrm{single}, c, d, n) \le \operatorname{hitUnits}(\mathrm{list}, c', d, n)$$
-
 Whatever the cache does, the list-based test walks at least as many boxes. -/
 theorem single_le_list (c c' : Bool) (d n : Nat) : hitUnits .single c d n ≤ hitUnits .list c' d n := by
   cases c <;> simp [hitUnits]; omega
@@ -1075,15 +890,11 @@ theorem single_le_list (c c' : Bool) (d n : Nat) : hitUnits .single c d n ≤ hi
 /-- **When the list costs strictly more.** Uncached, the list-based test walks strictly more boxes iff the first hit
 lies before the last candidate.
 
-$$\forall d, n \in \mathbb{N}:\ \operatorname{hitUnits}(\mathrm{single}, \mathrm{false}, d, n) < \operatorname{hitUnits}(\mathrm{list}, \mathrm{false}, d, n) \iff d + 1 < n$$
-
 The trade is strict exactly when boxes lie behind the first hit. -/
 theorem single_lt_list_iff (d n : Nat) : hitUnits .single false d n < hitUnits .list false d n ↔ d + 1 < n := by
   simp [hitUnits]; omega
 
 /-- **A list-based test ignores the cache.**
-
-$$\forall c \in \mathbb{B},\ \forall d, n \in \mathbb{N}:\ \operatorname{cacheable}(\mathrm{list}) = \mathrm{false} \land \operatorname{hitUnits}(\mathrm{list}, c, d, n) = n$$
 
 The list-based answer is never served from the cache and always walks every candidate. -/
 theorem list_uncached (c : Bool) (d n : Nat) : HitKind.cacheable .list = false ∧ hitUnits .list c d n = n :=
@@ -1096,16 +907,12 @@ theorem list_uncached (c : Bool) (d n : Nat) : HitKind.cacheable .list = false �
 
 /-- Duplicate-free copy of a list, keeping the last occurrence of each value.
 
-$$\operatorname{nub}([\,]) = [\,],\qquad \operatorname{nub}(x :: L) = \begin{cases} \operatorname{nub}(L) & x \in L \\ x :: \operatorname{nub}(L) & x \notin L \end{cases}$$
-
 The list with repeated values removed. -/
 def nub {α : Type} [DecidableEq α] : List α → List α
   | [] => []
   | x :: l => if x ∈ l then nub l else x :: nub l
 
 /-- `nub` keeps exactly the members.
-
-$$\forall L \in \alpha^{*},\ \forall y \in \alpha:\ y \in \operatorname{nub}(L) \iff y \in L$$
 
 Removing duplicates loses no value. -/
 theorem mem_nub {α : Type} [DecidableEq α] (l : List α) (y : α) : y ∈ nub l ↔ y ∈ l := by
@@ -1123,8 +930,6 @@ theorem mem_nub {α : Type} [DecidableEq α] (l : List α) (y : α) : y ∈ nub 
 
 /-- `nub` never lengthens.
 
-$$\forall L \in \alpha^{*}:\ |\operatorname{nub}(L)| \le |L|$$
-
 Dropping duplicates gives at most as many values. -/
 theorem nub_length_le {α : Type} [DecidableEq α] (l : List α) : (nub l).length ≤ l.length := by
   induction l with
@@ -1133,8 +938,6 @@ theorem nub_length_le {α : Type} [DecidableEq α] (l : List α) : (nub l).lengt
     by_cases hx : x ∈ l <;> simp [nub, hx] <;> omega
 
 /-- `nub` of a non-empty list is non-empty.
-
-$$\forall L \in \alpha^{*}:\ L \ne [\,] \Rightarrow 1 \le |\operatorname{nub}(L)|$$
 
 A non-empty list keeps at least one value. -/
 theorem nub_length_pos {α : Type} [DecidableEq α] (l : List α) (h : l ≠ []) : 1 ≤ (nub l).length := by
@@ -1148,8 +951,6 @@ theorem nub_length_pos {α : Type} [DecidableEq α] (l : List α) (h : l ≠ [])
 
 /-- `nub` of a duplicate-free list is the list.
 
-$$\forall L \in \alpha^{*}:\ \operatorname{nodup}(L) \Rightarrow \operatorname{nub}(L) = L$$
-
 A list with no repeated value is left as it is. -/
 theorem nub_eq_of_nodup {α : Type} [DecidableEq α] (l : List α) (h : l.Nodup) : nub l = l := by
   induction l with
@@ -1159,8 +960,6 @@ theorem nub_eq_of_nodup {α : Type} [DecidableEq α] (l : List α) (h : l.Nodup)
     simp [nub, h.1, ih h.2]
 
 /-- `nub` of a non-empty list of one repeated value is that value once.
-
-$$\forall L \in \alpha^{*},\ \forall y \in \alpha:\ L \ne [\,] \land (\forall x \in L:\ x = y) \Rightarrow \operatorname{nub}(L) = [y]$$
 
 A list that repeats one value collapses to it. -/
 theorem nub_eq_single {α : Type} [DecidableEq α] (l : List α) (y : α) (hne : l ≠ []) (h : ∀ x ∈ l, x = y) :
@@ -1184,15 +983,11 @@ theorem nub_eq_single {α : Type} [DecidableEq α] (l : List α) (y : α) (hne :
 into `SetNeedsRepaint` on the box's **painting layer** (`B/core/paint/pre_paint_tree_walk.cc:285-302`). So the
 repaint units are the distinct painting layers among the boxes that inherit the value, not the boxes. CONFIRMED.
 
-$$\operatorname{pePaintUnits}(L, I) = \big|\operatorname{nub}([\,L(b) \mid b \in I\,])\big|$$
-
 One repaint per painting layer reached by the inherited value. -/
 def pePaintUnits (layerOf : Nat → Nat) (inh : List Nat) : Nat := (nub (inh.map layerOf)).length
 
 /-- **Bounds of the fan-out.** At least one layer repaints when some box inherits the value, and never more than one
 per inheriting box.
-
-$$\forall L : \mathbb{N} \to \mathbb{N},\ \forall I \in \mathbb{N}^{*}:\ \operatorname{pePaintUnits}(L, I) \le |I| \ \land\ \big(I \ne [\,] \Rightarrow 1 \le \operatorname{pePaintUnits}(L, I)\big)$$
 
 The old row's "one unit per inheriting box" is only an upper bound. -/
 theorem pePaintUnits_bounds (layerOf : Nat → Nat) (inh : List Nat) :
@@ -1205,16 +1000,12 @@ theorem pePaintUnits_bounds (layerOf : Nat → Nat) (inh : List Nat) :
 
 /-- **One layer per box: the old count holds.**
 
-$$\forall L : \mathbb{N} \to \mathbb{N},\ \forall I \in \mathbb{N}^{*}:\ \operatorname{nodup}([\,L(b) \mid b \in I\,]) \Rightarrow \operatorname{pePaintUnits}(L, I) = |I|$$
-
 When every inheriting box paints into its own layer, each costs one repaint. -/
 theorem pePaintUnits_distinct (layerOf : Nat → Nat) (inh : List Nat) (h : (inh.map layerOf).Nodup) :
     pePaintUnits layerOf inh = inh.length := by
   simp [pePaintUnits, nub_eq_of_nodup _ h]
 
 /-- **One shared layer: one repaint.**
-
-$$\forall L : \mathbb{N} \to \mathbb{N},\ \forall I \in \mathbb{N}^{*},\ \forall \ell \in \mathbb{N}:\ I \ne [\,] \land (\forall b \in I:\ L(b) = \ell) \Rightarrow \operatorname{pePaintUnits}(L, I) = 1$$
 
 Boxes that share one painting layer cost one repaint together. -/
 theorem pePaintUnits_shared (layerOf : Nat → Nat) (inh : List Nat) (L : Nat) (hne : inh ≠ [])
@@ -1237,15 +1028,11 @@ layout and a paint invalidation (`computed_style.cc:779-784`). It does not flip 
 stacking context (a transform, a running opacity animation, `will-change`, a z-index on a positioned box, ...); then
 the change is the plain opacity row. CONFIRMED.
 
-$$\operatorname{lvl}_{\times 1}(o, l) = \begin{cases} \operatorname{lvl}(\mathrm{opacity}, l) & o \\ \mathrm{layoutFull} & \lnot o \end{cases}$$
-
 Crossing 1 relays out the box unless it is a stacking context for another reason. -/
 def opacityCross1Level (otherSC : Bool) (l : LayerState) : CrLevel :=
   if otherSC then keyLevel .opacity l else .layoutFull
 
 /-- **A stacking-context flip lays out.**
-
-$$\forall l \in \mathrm{LayerState}:\ \mathrm{layout} \in \operatorname{stages}(\operatorname{lvl}_{\times 1}(\mathrm{false}, l))$$
 
 Without another stacking-context reason, crossing 1 costs a layout. -/
 theorem opacityCross1_layout (l : LayerState) : Stage.layout ∈ (opacityCross1Level false l).stages := by
@@ -1253,15 +1040,11 @@ theorem opacityCross1_layout (l : LayerState) : Stage.layout ∈ (opacityCross1L
 
 /-- **No flip, no new row.**
 
-$$\forall l \in \mathrm{LayerState}:\ \operatorname{lvl}_{\times 1}(\mathrm{true}, l) = \operatorname{lvl}(\mathrm{opacity}, l)$$
-
 A box that stays a stacking context pays the plain opacity row. -/
 theorem opacityCross1_otherSC (l : LayerState) : opacityCross1Level true l = keyLevel .opacity l := rfl
 
 /-- **Resting at 0.999 never lays out** (the `people.carousel` rest at opacity 0.999): an opacity change that stays
 below 1 is the plain opacity row, which is at most the crossing row and has no layout.
-
-$$\forall o \in \mathbb{B},\ \forall l \in \mathrm{LayerState}:\ \operatorname{lvl}(\mathrm{opacity}, l) \le \operatorname{lvl}_{\times 1}(o, l) \ \land\ \mathrm{layout} \notin \operatorname{stages}(\operatorname{lvl}(\mathrm{opacity}, l))$$
 
 Staying below 1 costs no more than crossing it, and never a layout. -/
 theorem rest999_le (o : Bool) (l : LayerState) :
@@ -1276,8 +1059,6 @@ theorem rest999_le (o : Bool) (l : LayerState) :
 /-- **Chromium properties with the why-engines rows.** `base p` is a row of the table above; `opacityCross1 o` an
 opacity change across 1 (`o`: another stacking-context reason); `pointerEvents` an inherited `pointer-events` write;
 `svgPaintServerAttr` a geometry attribute (`x1`, `x2`, `y1`, `y2`) of an SVG gradient.
-
-$$\mathrm{CrPropX} = \{\mathrm{base}(p) \mid p \in \mathrm{CrProp}\} \cup \{\mathrm{opacityCross1}(o) \mid o \in \mathbb{B}\} \cup \{\mathrm{pointerEvents}, \mathrm{svgPaintServerAttr}\}$$
 
 The Chromium property type extended by the rows this section proves. -/
 inductive CrPropX where
@@ -1296,8 +1077,6 @@ which removes the resource's cached data and marks every client for **paint** in
 (`B/core/layout/svg/layout_svg_resource_container.cc:337-342`,
 `B/core/layout/svg/layout_svg_resource_gradient.cc:81-86`). CONFIRMED except the noted commit.
 
-$$\operatorname{stagesOf}^{X}_{\mathrm{cr}}(e, x, l) = \begin{cases} \operatorname{stagesOf}_{\mathrm{cr}}(e, p, l) & x = \mathrm{base}(p) \\ \operatorname{stages}(\operatorname{lvl}_{\times 1}(o, l)) & x = \mathrm{opacityCross1}(o) \\ [\mathrm{style}, \mathrm{props}, \mathrm{paint}, \mathrm{commit}] & x = \mathrm{pointerEvents} \\ [\mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}] & x = \mathrm{svgPaintServerAttr} \end{cases}$$
-
 The stages each extended Chromium change dirties. -/
 def crStagesOfX (c : Change CrPropX) : List Stage :=
   match c.prop with
@@ -1308,8 +1087,6 @@ def crStagesOfX (c : Change CrPropX) : List Stage :=
 
 /-- **The extended Chromium engine in mode `m`**: `chromiumAt m` with the extended rows.
 
-$$\operatorname{chromiumX}(m) = \big(m,\ \operatorname{stagesOf}^{X}_{\mathrm{cr}},\ \operatorname{compStages}(m),\ [\mathrm{props}]\big)$$
-
 The Chromium engine over the extended property type (base `props` like `chromiumAt` since CI run 39088367495). -/
 def chromiumX (m : CrMode) : Engine CrPropX CrMode where
   mode := m
@@ -1319,14 +1096,10 @@ def chromiumX (m : CrMode) : Engine CrPropX CrMode where
 
 /-- A table change as an extended change.
 
-$$\operatorname{lift}(e, p, l) = (e, \mathrm{base}(p), l)$$
-
 Wraps an old Chromium change in the extended type. -/
 def liftCr (c : Change CrProp) : Change CrPropX := ⟨c.elem, .base c.prop, c.layer⟩
 
 /-- A frame of table changes as an extended frame.
-
-$$\operatorname{liftF}(f) = f[\mathrm{changes} := [\,\operatorname{lift}(c) \mid c \in f.\mathrm{changes}\,]]$$
 
 Wraps every change of an old Chromium frame. -/
 def liftCrFrame (f : FrameIn CrProp) : FrameIn CrPropX :=
@@ -1334,9 +1107,6 @@ def liftCrFrame (f : FrameIn CrProp) : FrameIn CrPropX :=
 
 /-- **The extension keeps the old table.** A lifted frame has the same passes, units and hit tests under the
 extended engine.
-
-$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}),\ \forall s \in \mathrm{Stage}:\ W^{X}.\mathrm{passes}(s) = W.\mathrm{passes}(s) \land W^{X}.\mathrm{units}(s) = W.\mathrm{units}(s) \land W^{X}.\mathrm{hits} = W.\mathrm{hits}$$
-$$\text{where } W^{X} = \operatorname{frameWork}_{\operatorname{chromiumX}(m)}(\operatorname{liftF}(f)),\ W = \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f)$$
 
 Every theorem about the old Chromium rows carries over to the extended engine. -/
 theorem chromiumX_lift (m : CrMode) (f : FrameIn CrProp) (s : Stage) :
@@ -1364,9 +1134,6 @@ theorem chromiumX_lift (m : CrMode) (f : FrameIn CrProp) (s : Stage) :
 /-- **An SVG gradient attribute repaints without layout** (ledger n=24): one change of `x1`/`x2`/`y1`/`y2` in a
 frame with nothing else costs no layout and no style pass, one paint pass.
 
-$$\forall m \in \mathrm{CrMode},\ \forall e \in \mathbb{N},\ \forall l \in \mathrm{LayerState}:\ W.\mathrm{passes}(\mathrm{layout}) = 0 \land W.\mathrm{passes}(\mathrm{style}) = 0 \land W.\mathrm{passes}(\mathrm{paint}) = 1$$
-$$\text{where } W = \operatorname{frameWork}_{\operatorname{chromiumX}(m)}\big((0, 0, 0, 0, [(e, \mathrm{svgPaintServerAttr}, l)], 0)\big)$$
-
 In Chromium a SMIL gradient attribute step is a repaint only. -/
 theorem svgAttr_paint_only (m : CrMode) (e : Nat) (l : LayerState) :
     (frameWork (chromiumX m) ⟨0, 0, 0, 0, [⟨e, .svgPaintServerAttr, l⟩], 0⟩).passes .layout = 0 ∧
@@ -1386,15 +1153,11 @@ is set when the animation cannot change any pixel (`compositor_animations.cc:285
 whether the animation can change pixels. CONFIRMED for the bit; whether an effective opacity of 0 on the target sets
 it is the open premise of ledger n=25 (CI fixture R6).
 
-$$\operatorname{bits}^{V}(m, a, v) = \operatorname{bits}(m, a) \mathbin{+\!\!+} [17 \mid \lnot v]$$
-
 The modelled failure bits plus the no-visible-change bit. -/
 def failBitsV (m : CrMode) (a : CrAnim) (vis : Bool) : List Nat :=
   failBits m a ++ (if vis then [] else [17])
 
-/-- Where a running animation is serviced: on the compositor, on the main thread every frame, or nowhere.
-
-$$\mathrm{CrRun} = \{\mathrm{comp}, \mathrm{main}, \mathrm{idle}\}$$ -/
+/-- Where a running animation is serviced: on the compositor, on the main thread every frame, or nowhere. -/
 inductive CrRun where
   | comp | main | idle
 deriving Repr, DecidableEq
@@ -1403,15 +1166,11 @@ deriving Repr, DecidableEq
 `kAnimationHasNoVisibleChange` (`B/core/animation/animation.cc:860-865`), and such an animation is not ticked on the
 main thread (`:3389-3393`) nor started on the compositor: it idles. Otherwise the old rule applies. CONFIRMED.
 
-$$\operatorname{run}(m, a, v) = \begin{cases} \mathrm{idle} & \operatorname{bits}^{V}(m, a, v) = [17] \\ \mathrm{comp} & \operatorname{bits}^{V}(m, a, v) \ne [17] \land \operatorname{crThread}(m, a) = \mathrm{comp} \\ \mathrm{main} & \text{otherwise} \end{cases}$$
-
 An animation that can change no pixel and has no other failure is neither ticked nor composited. -/
 def crRunV (m : CrMode) (a : CrAnim) (vis : Bool) : CrRun :=
   if failBitsV m a vis = [17] then .idle else if crThread m a = .comp then .comp else .main
 
 /-- **Bit 17 is not among the modelled bits.**
-
-$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim}:\ 17 \notin \operatorname{bits}(m, a)$$
 
 The old bit list never contains the no-visible-change bit. -/
 theorem failBits_no17 (m : CrMode) (a : CrAnim) : 17 ∉ failBits m a := by
@@ -1419,8 +1178,6 @@ theorem failBits_no17 (m : CrMode) (a : CrAnim) : 17 ∉ failBits m a := by
   split <;> split <;> split <;> split <;> split <;> simp
 
 /-- **A visible animation keeps the old rule.**
-
-$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim}:\ \operatorname{run}(m, a, \mathrm{true}) = \begin{cases} \mathrm{comp} & \operatorname{crThread}(m, a) = \mathrm{comp} \\ \mathrm{main} & \text{otherwise} \end{cases}$$
 
 For an animation that changes pixels, the bit-17 rule is `crThread`. -/
 theorem crRunV_visible (m : CrMode) (a : CrAnim) :
@@ -1432,8 +1189,6 @@ theorem crRunV_visible (m : CrMode) (a : CrAnim) :
   simp [crRunV, h]
 
 /-- **When an invisible animation idles.**
-
-$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim}:\ \operatorname{run}(m, a, \mathrm{false}) = \mathrm{idle} \iff \operatorname{bits}(m, a) = [\,]$$
 
 An animation with no visible change idles exactly when nothing else stops it from compositing. -/
 theorem crRunV_idle_iff (m : CrMode) (a : CrAnim) : crRunV m a false = .idle ↔ failBits m a = [] := by
@@ -1456,8 +1211,6 @@ theorem crRunV_idle_iff (m : CrMode) (a : CrAnim) : crRunV m a false = .idle ↔
 
 /-- **One frame of animations with visibility flags**: like `animFrame`, but an idle animation contributes nothing.
 
-$$\operatorname{animFrame}^{V}(m, A) = \Big(0, 0, 0, 0,\ \mathop{+\!\!+}_{(a, v) \in A,\ \operatorname{run}(m, a, v) = \mathrm{main}} \operatorname{changes}(a),\ \big|[\,(a, v) \in A \mid \operatorname{run}(m, a, v) = \mathrm{comp}\,]\big|\Big)$$
-
 The frame of running animations once idle ones are dropped. -/
 def animFrameV (m : CrMode) (as : List (CrAnim × Bool)) : FrameIn CrProp where
   script := 0
@@ -1468,8 +1221,6 @@ def animFrameV (m : CrMode) (as : List (CrAnim × Bool)) : FrameIn CrProp where
   compAnims := (as.filter fun x => decide (crRunV m x.1 x.2 = .comp)).length
 
 /-- **All visible: the old frame.**
-
-$$\forall m \in \mathrm{CrMode},\ \forall A \in \mathrm{CrAnim}^{*}:\ \operatorname{animFrame}^{V}(m, [\,(a, \mathrm{true}) \mid a \in A\,]) = \operatorname{animFrame}(m, A)$$
 
 With every animation visible, the bit-17 frame is the old frame. -/
 theorem animFrameV_visible (m : CrMode) (as : List CrAnim) :
@@ -1494,8 +1245,6 @@ theorem animFrameV_visible (m : CrMode) (as : List CrAnim) :
 /-- **An idle animation drops out of the frame**, so pausing it saves nothing (ledger n=25: the hidden pause of an
 animation that already idles is free).
 
-$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim},\ \forall v \in \mathbb{B},\ \forall A \in (\mathrm{CrAnim} \times \mathbb{B})^{*}:\ \operatorname{run}(m, a, v) = \mathrm{idle} \Rightarrow \operatorname{animFrame}^{V}(m, (a, v) :: A) = \operatorname{animFrame}^{V}(m, A)$$
-
 Removing an idle animation leaves the frame, hence its work, unchanged. -/
 theorem idle_drops (m : CrMode) (a : CrAnim) (v : Bool) (as : List (CrAnim × Bool)) (h : crRunV m a v = .idle) :
     animFrameV m ((a, v) :: as) = animFrameV m as := by
@@ -1510,16 +1259,12 @@ theorem idle_drops (m : CrMode) (a : CrAnim) (v : Bool) (as : List (CrAnim × Bo
 
 /-- The largest value of `f` over a list, 0 for the empty list.
 
-$$\operatorname{maxOf}(f, [\,]) = 0,\qquad \operatorname{maxOf}(f, x :: L) = \max(f(x), \operatorname{maxOf}(f, L))$$
-
 The maximum of a measure over a list. -/
 def maxOf {β : Type} (f : β → Nat) : List β → Nat
   | [] => 0
   | x :: l => max (f x) (maxOf f l)
 
 /-- `maxOf` is monotone in the measure.
-
-$$\forall f, g : \beta \to \mathbb{N},\ \forall L \in \beta^{*}:\ (\forall x \in L:\ f(x) \le g(x)) \Rightarrow \operatorname{maxOf}(f, L) \le \operatorname{maxOf}(g, L)$$
 
 A pointwise smaller measure has a smaller maximum. -/
 theorem maxOf_le {β : Type} (f g : β → Nat) (l : List β) (h : ∀ x ∈ l, f x ≤ g x) : maxOf f l ≤ maxOf g l := by
@@ -1533,8 +1278,6 @@ theorem maxOf_le {β : Type} (f g : β → Nat) (l : List β) (h : ∀ x ∈ l, 
 
 /-- `maxOf` bounds every member.
 
-$$\forall f : \beta \to \mathbb{N},\ \forall L \in \beta^{*},\ \forall x \in L:\ f(x) \le \operatorname{maxOf}(f, L)$$
-
 No member exceeds the maximum. -/
 theorem le_maxOf {β : Type} (f : β → Nat) (l : List β) (x : β) (hx : x ∈ l) : f x ≤ maxOf f l := by
   induction l with
@@ -1546,8 +1289,6 @@ theorem le_maxOf {β : Type} (f : β → Nat) (l : List β) (x : β) (hx : x ∈
     · have := ih h; omega
 
 /-- `maxOf` of a mapped list.
-
-$$\forall f : \gamma \to \mathbb{N},\ \forall h : \beta \to \gamma,\ \forall L \in \beta^{*}:\ \operatorname{maxOf}(f, [\,h(x) \mid x \in L\,]) = \operatorname{maxOf}(f \circ h, L)$$
 
 Measuring after a map is measuring the composite. -/
 theorem maxOf_map {β γ : Type} (f : γ → Nat) (h : β → γ) (l : List β) :
@@ -1564,15 +1305,11 @@ subtree is resumed during layout (`BlockNode::Layout` calls `UpdateStyleAndLayou
 rounds of style recalc are 1 plus the most layout-dirty containers on one chain; they run inside the one layout pass.
 CONFIRMED (the re-attach case is folded into `layoutDirty`).
 
-$$\operatorname{crRounds}(\mathcal{C}) = 1 + \operatorname{maxOf}\big(\mathit{ch} \mapsto |[\,(i, d) \in \mathit{ch} \mid d\,]|,\ \mathcal{C}\big)$$
-
 Chromium recalculates style once more per layout-dirty container nesting level. -/
 def crRounds (chains : List (List (Nat × Bool))) : Nat :=
   1 + maxOf (fun ch => (ch.filter fun x => x.2).length) chains
 
 /-- **Rounds are bounded by nesting depth.**
-
-$$\forall \mathcal{C} \in ((\mathbb{N} \times \mathbb{B})^{*})^{*}:\ \operatorname{crRounds}(\mathcal{C}) \le 1 + \operatorname{maxOf}(|\cdot|, \mathcal{C})$$
 
 Only layout-dirty containers add a round, so the count is at most one more than the deepest chain. -/
 theorem crRounds_le_depth (chains : List (List (Nat × Bool))) :
@@ -1582,8 +1319,6 @@ theorem crRounds_le_depth (chains : List (List (Nat × Bool))) :
   simp only [crRounds]; omega
 
 /-- **Removing a container never adds a round** (Chromium).
-
-$$\forall \mathcal{C},\ \forall c \in \mathbb{N}:\ \operatorname{crRounds}\big([\,[\,(i, d) \in \mathit{ch} \mid i \ne c\,] \mid \mathit{ch} \in \mathcal{C}\,]\big) \le \operatorname{crRounds}(\mathcal{C})$$
 
 Dropping `container-type` from one element can only lower Chromium's style rounds. -/
 theorem crRounds_remove (chains : List (List (Nat × Bool))) (c : Nat) :
@@ -1612,9 +1347,7 @@ open Fw.Measure
 `ProxyImpl::ScheduledActionSendBeginMainFrame` posts `ProxyMain::BeginMainFrame` to the main-thread task runner
 (`cc/trees/proxy_impl.cc:848-851`@f842f52, CONFIRMED), so a script task (timer, idle or observer callback) runs before or
 after it by arrival order, and the harness books its work in the frame on either side. Moving `m` units from frame
-`|p|` to frame `|p| + 1`:
-
-$$\forall p, q \in \mathbb{Z}^{*},\ \forall a, b, m \in \mathbb{Z}:\ \operatorname{cross}(p, a, b, m, q) = p \mathbin{+\!\!+} [a - m,\ b + m] \mathbin{+\!\!+} q$$
+`|p|` to frame `|p| + 1`.
 
 The series in which `m` units of frame `|p|` were booked one frame later. -/
 def crossFrame (p : Series) (a b m : Int) (q : Series) : Series := p ++ [a - m, b + m] ++ q
@@ -1623,8 +1356,6 @@ def crossFrame (p : Series) (a b m : Int) (q : Series) : Series := p ++ [a - m, 
 #guard crossFrame [] 13 5 8 [] == [5, 13]
 
 /-- **A crossing keeps the run total.**
-
-$$\forall p, q \in \mathbb{Z}^{*},\ \forall a, b, m \in \mathbb{Z}:\ \Sigma\,\operatorname{cross}(p, a, b, m, q) = \Sigma\,(p \mathbin{+\!\!+} [a, b] \mathbin{+\!\!+} q)$$
 
 Booking work one frame later moves it between frames and changes no total. -/
 theorem crossFrame_total (p q : Series) (a b m : Int) :
@@ -1635,16 +1366,12 @@ theorem crossFrame_total (p q : Series) (a b m : Int) :
 /-- **Totals certify `=o` on a class with frame slack and no total slack.** For `stable(k + 1, 0)` the claim is about
 totals (`Claim`), and equal observed totals pass.
 
-$$\forall k \in \mathbb{N},\ \forall b, v \in \mathbb{Z}^{*}:\ \Sigma v = \Sigma b \Rightarrow \operatorname{verdict}(=o,\ \mathrm{stable}(k + 1, 0),\ b,\ v) = \mathrm{pass}$$
-
 A class that lets frames move but not totals judges `=o` by the totals. -/
 theorem eqO_totals_pass (k : Nat) (b v : Series) (h : Measure.total v = Measure.total b) :
     EngineCheck.verdict .eqO (.stable (k + 1) 0) b v = .pass := by
   simp [EngineCheck.verdict, EngineCheck.passes, EngineCheck.exact, EngineCheck.slack, h]
 
 /-- **A deterministic class refutes `=o` at the first differing frame.**
-
-$$\forall b, v \in \mathbb{Z}^{*}:\ \operatorname{diff}(v, b) \ne 0 \Rightarrow \operatorname{verdict}(=o,\ \mathrm{det},\ b,\ v) = \mathrm{bug}$$
 
 Under a frame-exact class a single moved unit is a model bug. -/
 theorem eqO_det_bug (b v : Series) (h : diffFrames v b ≠ 0) :
@@ -1653,15 +1380,11 @@ theorem eqO_det_bug (b v : Series) (h : diffFrames v b ≠ 0) :
 
 /-- **Two base runs that differ in a frame refute the deterministic class.**
 
-$$\forall b_1, b_2 \in \mathbb{Z}^{*}:\ \operatorname{diff}(b_1, b_2) \ne 0 \Rightarrow \lnot\operatorname{Within}(\mathrm{det}, b_1, b_2)$$
-
 A class that the base runs themselves break is stale, and a bug verdict judged in it is a class finding. -/
 theorem det_stale (b₁ b₂ : Series) (h : diffFrames b₁ b₂ ≠ 0) : ¬ Within .deterministic b₁ b₂ := h
 
 /-- **A comparison judged with a quarantined variant class is unusable.** `judgeClass` joins the two arms' classes,
 and a quarantined class joins to quarantined with every class.
-
-$$\forall p \in \mathrm{Pred} \setminus \{=0, \mathrm{any}\},\ \forall c_b \in \mathrm{Class},\ \forall b, v \in \mathbb{Z}^{*}:\ \operatorname{verdict}(p,\ \operatorname{cls}(p, \mathrm{quar}, c_b),\ b,\ v) = \mathrm{unusable}(\mathrm{quarantined})$$
 
 Nothing is concluded from a count type the class table quarantines. -/
 theorem judge_quarantined (p : EngineCheck.Pred) (hz : p ≠ .zero) (ha : p ≠ .any) (cB : Class) (b v : Series) :
@@ -1674,8 +1397,6 @@ MEASURED: every differing frame pairs with its neighbour at an equal pair sum (e
 old `det` class was stale (`det_stale`) and the moves are frame-boundary crossings (`crossFrame_total`). The adopted
 table quarantines `trace.FunctionCall` on the swipe-v1 rewrite arm (k = 57, t = 1), so the row is unusable, not a bug.
 
-$$\forall b, v \in \mathbb{Z}^{*}:\ \operatorname{verdict}(=o,\ \operatorname{cls}(=o, \mathrm{quar}, \mathrm{quar}),\ b,\ v) = \mathrm{unusable}(\mathrm{quarantined})$$
-
 The FunctionCall row says nothing on the current classes; its frames move with task order, not with the flag. -/
 theorem navHit_functionCall_rejudged (b v : Series) :
     EngineCheck.verdict .eqO (EngineCheck.judgeClass .eqO .quarantined .quarantined) b v = .unusable .quarantined :=
@@ -1686,8 +1407,6 @@ equal; one variant run books the layout of frame 525 at frame 524 (`[0, 1]` agai
 shift arm mounts from an idle callback after a 150 ms timer (`apps/site/src/parts/morph.mount/index.tsx`), a task whose
 place against `BeginMainFrame` is arrival order (`crossFrame`). The adopted class of the rewrite arm is
 `stable(4, 0)`, so the row is judged by totals and passes.
-
-$$\forall p, q \in \mathbb{Z}^{*},\ \forall a, b, m \in \mathbb{Z}:\ \operatorname{verdict}\big(=o,\ \operatorname{cls}(=o, \mathrm{stable}(4, 0), \mathrm{stable}(4, 0)),\ p \mathbin{+\!\!+} [a, b] \mathbin{+\!\!+} q,\ \operatorname{cross}(p, a, b, m, q)\big) = \mathrm{pass}$$
 
 A layout booked one frame early passes `=o` on the refrozen class. -/
 theorem mount_layoutCount_rejudged (p q : Series) (a b m : Int) :
@@ -1706,8 +1425,6 @@ emits one `UpdateLayoutTree` trace event (`document.cc:2815`); all CONFIRMED @f8
 forces one style pass in the callback task; "seek, then remove" finds the subtree clean and forces none (INFERRED: no
 other write is pending in that task).
 
-$$\forall f \in \mathrm{FrameIn}(\mathrm{CrProp}),\ \forall c,\ \forall \sigma \in \mathbb{B}:\ \operatorname{ret}(f, c, \sigma) = f\big[\mathrm{changes} := c :: f.\mathrm{changes},\ \mathrm{forcedStyle} := f.\mathrm{forcedStyle} + [\lnot\sigma]\big]$$
-
 The page frame `f` plus the return's write, and a forced style pass unless the seek runs first (`σ`). -/
 def sceneReturn (f : FrameIn CrProp) (c : Change CrProp) (seekFirst : Bool) : FrameIn CrProp :=
   { f with changes := c :: f.changes, forcedStyle := f.forcedStyle + (if seekFirst then 0 else 1) }
@@ -1719,8 +1436,6 @@ runs, totals 1851 against 1850; the all-arms run 39131249517 gives the same 1851
 (`Fw.Engine.Compose`): the return's write joins the frame's style pass and is absorbed, but a forced pass is not a frame
 pass and adds; the theorem holds for every rest-of-page frame `f`, so the columns and countdown arms (no forced pass)
 leave the +1 unchanged.
-
-$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}),\ \forall c,\ \forall \sigma \in \mathbb{B}:\ \mathrm{style} \in \operatorname{touched}_{\operatorname{chromiumAt}(m)}(f) \Rightarrow \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(\operatorname{ret}(f, c, \sigma)).\mathrm{passes}(\mathrm{style}) = \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f).\mathrm{passes}(\mathrm{style}) + [\lnot\sigma]$$
 
 The scene arm's `≤o` is false by one pass per return as written, and true once the seek runs before the removal. -/
 theorem sceneReturn_style (m : CrMode) (f : FrameIn CrProp) (c : Change CrProp) (sf : Bool)
@@ -1750,8 +1465,6 @@ original's tween is running. `FrameRequestCallbackCollection::ExecuteFrameCallba
 (`B/core/dom/frame_request_callback_collection.cc:95-116`@f842f52, CONFIRMED), and the original tween requests a frame
 only between a push and its end (`Fw.Parts.MorphTweenOpt.stepO`); the `waapi` arm requests none.
 
-$$\forall F \in (\mathbb{N} \times \mathbb{B})^{*},\ \forall w \in \mathbb{B}:\ \operatorname{raf}(F, w) = [\,o + [w \land t] \mid (o, t) \in F\,]$$
-
 The callbacks fired per frame: the page's own, plus one for the tween in the arm that runs it (`w`). -/
 def rafSeries (fs : List (Nat × Bool)) (tween : Bool) : List Nat :=
   fs.map fun x => x.1 + if tween && x.2 then 1 else 0
@@ -1764,8 +1477,6 @@ row is `=o` on swipe-v1; `<o` needs a profile that pushes. MEASURED (run 3913114
 The same cause gives the reverse row `trace.Animation.compositeFailedBits <o` (rewrite against waapi): no WAAPI
 animation of `--morph` (registered, `inherits: true`) starts without a push, 167936 = 167936; the adopted table makes it
 deterministic, so it surfaces as a bug under the new classes, and the old FireAnimationFrame row is now quarantined.
-
-$$\forall F \in (\mathbb{N} \times \mathbb{B})^{*}:\ \operatorname{raf}(F, \bot) = \operatorname{raf}(F, \top) \iff \forall (o, t) \in F:\ t = \bot$$
 
 On a run without a push the waapi arm saves no animation frame. -/
 theorem waapi_raf_eq_iff (fs : List (Nat × Bool)) :
