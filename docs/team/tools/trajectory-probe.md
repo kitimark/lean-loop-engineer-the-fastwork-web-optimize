@@ -353,12 +353,12 @@ main. Content failures summed over the 16 artifacts (morph; `new` = candidate co
 | `judgeScoped` | 406 | 421 | 52 |
 | envelope, core of any phase (follow-up) | 381 | 392 | 46 |
 
-`judgeScoped` re-fails 20 faithful-arm units and clears no candidate `new`. Of the 117 units close-start changed, 29
+`judgeScoped` re-fails 20 faithful-arm units and changes which candidate units are new (5 cleared, 5 added, net 0 over the 16 artifacts). Of the 117 units close-start changed, 29
 come from `windowAt` and 88 from the envelope; 18 end `new`. 58 of the 88 clear a failure in one arm or both (to `ok`
 or `cleared`): the reading lies inside another pass's transition. One fails the faithful arm (39457767229 Linux WebKit
 1280 actions.gap close@0, `ok` to `cleared`): its pass 1 reads 0.04 px 163 ms into the close; the original's pass 1 read
-that epoch only in the hold, so it has no same-phase core and only pass 0 (1.35 px at 170 ms) judges the sample. In each of the 14 envelope `both` to `new` units the
-candidate's `fail:apart` stays and the faithful arm's failing samples lie inside the envelope (2 more come from
+that epoch only in the hold, so it has no same-phase core and only pass 0 (1.35 px at 170 ms) judges the sample. In 13 of the 14 envelope `both` to `new` units the
+candidate's `fail:apart` stays (the 14th, 39457767229 Linux WebKit 1280 nav.rect close-hold@0, is below) and the faithful arm's failing samples lie inside the envelope (2 more come from
 `windowAt`: 39457767229 Linux WebKit 640 nav.backdrop-filter.num and earn.filter.num close@0). Chromium 39457767229
 1280 earn.max-width close@0: the faithful arm's passes start the close at 12.87, 11.23 and 9.98 px (the own-pass rule
 failed passes 1 and 2, start jitter); the candidate's pass 0 reads 7.36 px 6 ms in, beyond every pass. The Linux WebKit
@@ -382,9 +382,12 @@ kind of `both` to `new`.
 - 39449092483 Linux WebKit 1280 earn.max-width (`unmeasured` to `both`), 39457767229 Linux WebKit 641 nav.bg (`new`)
   and 1280 nav.rect (`both` to `new`): the candidate's first failure in the bucket went from `apart` to `coverage`,
   a sample with no counterpart that failed before too; the earlier sample now passes the envelope.
+- 39453764374 Linux WebKit 1280 nav.background-color close-hold@0: unmeasured to both: the faithful arm's in-flight sample now has an envelope and fails apart instead of coverage.
 
 Limit and follow-up: `isCore` keeps the sample's phase, so readings of the same epoch taken in the push before a hold
 are no core for a hold sample (row 4 of the table, MEASURED, not adopted here).
+
+Limit: judgeUnit_sound bounds a reading against the range of the whole original path (every phase, epoch and class set) and needs every reading in it to have the same shape (n elements, numeric); one absent or string reading makes it vacuous for that path.
 
 ## Admission
 

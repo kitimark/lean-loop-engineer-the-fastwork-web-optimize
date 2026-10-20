@@ -14,7 +14,7 @@ Verified:
 - Golden: 2 flipped cases renamed ('in flight, a pass the original lacks, beyond pass 0' / '... inside pass 0'),
   3 new `casesClose` cases; 220 lines, `--check` up to date. TS test replays them; scope test against `judgeOwn`.
 - gate-breakpoints tests 425/425, contracts tests, `scripts/ci-paths.test.mjs`, runner land-inputs, `lean/scripts/check.sh`.
-- Six runs re-reduced (16 artifacts): 0 units change against main. Counts table and every close-start cell explained
+- Six runs re-reduced (16 artifacts): 0 units change against main. Counts table and every close-start cell explained (one close-hold cell added after review)
   in `docs/team/tools/trajectory-probe.md`, section "Envelope scope".
 
 Findings (MEASURED, scratch only): `judgeScoped` re-fails 20 faithful-arm units, same 52 candidate `new`. A core of any
