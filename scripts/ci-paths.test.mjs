@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { decide, loadIntent, matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
-import { capProblems, coarseMap, coneOf, coneProblems, loadCaps, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
+import { capProblems, coarseMap, coneOf, coneProblems, loadCaps, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded, nodePinProblems } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -573,4 +573,35 @@ test('lint: a macOS job without a Lean cap, a cap on a Linux job and a cap on a 
   assert.ok(capProblems('gate-gaps.yml', renamed, capTable).problems.some((p) => /Lean cap for job collect-macos, but the workflow has no such job/.test(p)));
   const sim = readFileSync(join(root, WF, 'webkit-sim.yml'), 'utf8');
   assert.deepEqual(capProblems('webkit-sim.yml', sim, capTable).problems, []);
+});
+
+test('node pin: the repo pins one exact Node >= 24.22.0 and every Node lane lists it (task node-pin)', () => {
+  assert.deepEqual(nodePinProblems(root, table), []);
+  assert.match(readFileSync(join(root, '.node-version'), 'utf8').trim(), /^24\.(2[2-9]|[3-9]\d)\.\d+$/);
+});
+
+test('node pin lint: floating version, wrong file, old pin and a row without the file each fail', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ci-paths-node-'));
+  const put = (rel, text) => { mkdirSync(dirname(join(dir, rel)), { recursive: true }); writeFileSync(join(dir, rel), text); };
+  const wf = (w) => `jobs:\n  a:\n    steps:\n      - uses: actions/setup-node@abc # v7\n        with:\n          ${w}\n`;
+  const t = (inputs) => ({ sets: {}, workflows: [{ file: 'x.yml', inputs }] });
+  const ACT = WF.replace('workflows', 'actions');
+  try {
+    put('.node-version', '24.22.0\n');
+    put(`${WF}/x.yml`, wf('node-version-file: .node-version'));
+    assert.deepEqual(nodePinProblems(dir, t(['.node-version'])), []);
+    assert.equal(nodePinProblems(dir, t(['apps/**'])).length, 1, 'row without the file');
+    put(`${WF}/x.yml`, wf("node-version: '24'"));
+    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /sets node-version/.test(p)), 'floating');
+    put(`${WF}/x.yml`, wf('node-version-file: package.json'));
+    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /is not \.node-version/.test(p)), 'other file');
+    put(`${WF}/x.yml`, wf('node-version-file: .node-version'));
+    put(`${ACT}/y/action.yml`, 'runs:\n  steps:\n    - uses: actions/setup-node@abc\n      with:\n        node-version: 24.22.0\n');
+    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /actions\/y/.test(p)), 'action drift');
+    rmSync(join(dir, ACT), { recursive: true });
+    put('.node-version', '24.21.0\n');
+    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /older than/.test(p)), 'old');
+    put('.node-version', '24\n');
+    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /exact version/.test(p)), 'floating file');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
