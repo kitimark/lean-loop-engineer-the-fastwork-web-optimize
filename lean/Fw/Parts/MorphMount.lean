@@ -19,15 +19,13 @@ namespace Fw.Parts.MorphMount
 
 /-! ## Arming geometry -/
 
-/-- The platform's viewport rect. $$r = (h, b) \in \mathbb{Q}^2$$ Height and bottom edge of `.start-selling-platform`. -/
+/-- The platform's viewport rect. Height and bottom edge of `.start-selling-platform`. -/
 structure Rect where
   height : Rat
   bottom : Rat
 deriving Repr, BEq, DecidableEq
 
 /-- `O` (JS 13040-13047): the platform fills at least 45 % of the viewport and its bottom is within 8 px of it.
-
-$$\operatorname{armed}(h, b, v) \iff h \ge \tfrac{45}{100}\,v \ \land\ b \le v + 8$$
 
 Whether a forward push may start the morph. -/
 def armed (r : Rect) (vh : Rat) : Bool := decide (r.height ≥ vh * 45 / 100) && decide (r.bottom ≤ vh + 8)
@@ -37,17 +35,13 @@ def armed (r : Rect) (vh : Rat) : Bool := decide (r.height ≥ vh * 45 / 100) &&
 #guard armed ⟨900, 1008⟩ 1000 == true
 #guard armed ⟨900, 1009⟩ 1000 == false
 
-/-- A taller platform stays armed.
-
-$$h \le h' \land \operatorname{armed}(h, b, v) \Rightarrow \operatorname{armed}(h', b, v)$$ -/
+/-- A taller platform stays armed. -/
 theorem armed_mono_height (h h' b vh : Rat) (hh : h ≤ h') (a : armed ⟨h, b⟩ vh = true) :
     armed ⟨h', b⟩ vh = true := by
   simp only [armed, Bool.and_eq_true, decide_eq_true_eq] at a ⊢
   exact ⟨by grind, a.2⟩
 
-/-- A platform that has scrolled further up (smaller bottom) stays armed.
-
-$$b' \le b \land \operatorname{armed}(h, b, v) \Rightarrow \operatorname{armed}(h, b', v)$$ -/
+/-- A platform that has scrolled further up (smaller bottom) stays armed. -/
 theorem armed_mono_bottom (h b b' vh : Rat) (hb : b' ≤ b) (a : armed ⟨h, b⟩ vh = true) :
     armed ⟨h, b'⟩ vh = true := by
   simp only [armed, Bool.and_eq_true, decide_eq_true_eq] at a ⊢
@@ -56,8 +50,6 @@ theorem armed_mono_bottom (h b b' vh : Rat) (hb : b' ≤ b) (a : armed ⟨h, b�
 /-! ## Taking a push -/
 
 /-- `C` (JS 12911): the morph is active.
-
-$$\operatorname{active}(w, m) \iff w > \tfrac{1}{1000} \lor m > \tfrac{1}{1000}$$
 
 `w` is the tween target, `m` the current value. -/
 def active (target value : Rat) : Bool := decide (target > 1 / 1000) || decide (value > 1 / 1000)
@@ -69,96 +61,67 @@ def active (target value : Rat) : Bool := decide (target > 1 / 1000) || decide (
 
 /-- `k` (JS 13048): may this push be taken (and its default prevented).
 
-$$\operatorname{takes}(a, d, g) = a \lor (d > 0 \land g)$$
-
 `a` active, `d` the push delta, `g` the arming geometry. -/
 def takes (act : Bool) (delta : Rat) (geom : Bool) : Bool := act || (decide (delta > 0) && geom)
 
-/-- Once active, every push is taken, whatever its direction or the geometry.
-
-$$\operatorname{takes}(\top, d, g) = \top$$ -/
+/-- Once active, every push is taken, whatever its direction or the geometry. -/
 theorem takes_active (d : Rat) (g : Bool) : takes true d g = true := by simp [takes]
 
-/-- When idle, a backward or zero push is never taken.
-
-$$d \le 0 \Rightarrow \operatorname{takes}(\bot, d, g) = \bot$$ -/
+/-- When idle, a backward or zero push is never taken. -/
 theorem takes_idle_back (d : Rat) (g : Bool) (h : d ≤ 0) : takes false d g = false := by
   simp [takes]; grind
 
-/-- When idle, a forward push is taken exactly when the geometry arms it.
-
-$$d > 0 \Rightarrow \operatorname{takes}(\bot, d, g) = g$$ -/
+/-- When idle, a forward push is taken exactly when the geometry arms it. -/
 theorem takes_idle_fwd (d : Rat) (g : Bool) (h : 0 < d) : takes false d g = g := by
   simp [takes]; grind
 
 /-- Touch delta (JS 13054 `M`): previous y minus current y.
 
-$$\operatorname{touchDelta}(y_0, y_1) = y_0 - y_1$$
-
 A finger moving up (y shrinks) is a positive, forward push. -/
 def touchDelta (prev cur : Rat) : Rat := prev - cur
 
-/-- A finger moving up is a forward push.
-
-$$y_1 < y_0 \Rightarrow \operatorname{touchDelta}(y_0, y_1) > 0$$ -/
+/-- A finger moving up is a forward push. -/
 theorem touchDelta_up (a b : Rat) (h : b < a) : 0 < touchDelta a b := by
   simp [touchDelta]; grind
 
-/-- Viewport height (JS 13043): the visual viewport's when it exists, else `innerHeight`.
-
-$$\operatorname{vh}(v, i) = v \text{ if } v \ne \bot,\ \text{else } i$$ -/
+/-- Viewport height (JS 13043): the visual viewport's when it exists, else `innerHeight`. -/
 def viewportHeight (visual : Option Rat) (inner : Rat) : Rat := visual.getD inner
 
 /-! ## Listeners and mount -/
 
-/-- `I` (JS 13072): the capture listeners are wanted while the observer says near, or the morph is active.
-
-$$\operatorname{wanted}(n, a) = n \lor a$$ -/
+/-- `I` (JS 13072): the capture listeners are wanted while the observer says near, or the morph is active. -/
 def wanted (near act : Bool) : Bool := near || act
 
-/-- What `N` / `P` do (JS 13059-13071). $$\mathrm{attach} \mid \mathrm{detach} \mid \mathrm{none}$$ -/
+/-- What `N` / `P` do (JS 13059-13071). -/
 inductive Action where
   | attach | detach | none
 deriving Repr, BEq, DecidableEq
 
-/-- The listener action given whether they are attached and whether they are wanted (the `d` guard).
-
-$$\operatorname{act}(d, w) = \begin{cases} \mathrm{attach} & \lnot d \land w \\ \mathrm{detach} & d \land \lnot w \\ \mathrm{none} & \text{otherwise} \end{cases}$$ -/
+/-- The listener action given whether they are attached and whether they are wanted (the `d` guard). -/
 def action (attached want : Bool) : Action :=
   if want && !attached then .attach else if !want && attached then .detach else .none
 
-/-- Attached state after the action, given the current attached state `d`.
-$$\operatorname{after}_d(\mathrm{attach}) = \top,\ \operatorname{after}_d(\mathrm{detach}) = \bot,\ \operatorname{after}_d(\mathrm{none}) = d$$ -/
+/-- Attached state after the action, given the current attached state `d`. -/
 def Action.after (d : Bool) : Action → Bool
   | .attach => true | .detach => false | .none => d
 
-/-- After the action the listeners are attached exactly when wanted.
-
-$$\operatorname{after}_d(\operatorname{act}(d, w)) = w$$ -/
+/-- After the action the listeners are attached exactly when wanted. -/
 theorem action_after (d w : Bool) : (action d w).after d = w := by
   cases d <;> cases w <;> rfl
 
-/-- Re-evaluating with the same wish does nothing (the guard makes `N` and `P` idempotent).
-
-$$\operatorname{act}(w, w) = \mathrm{none}$$ -/
+/-- Re-evaluating with the same wish does nothing (the guard makes `N` and `P` idempotent). -/
 theorem action_idem (w : Bool) : action w w = .none := by cases w <;> rfl
 
-/-- The panel is mounted from the first intersecting entry or the first accepted push, and never unmounted.
-
-$$\operatorname{mount}(m, i, p) = m \lor i \lor p$$ -/
+/-- The panel is mounted from the first intersecting entry or the first accepted push, and never unmounted. -/
 def mountNext (mounted intersecting pushed : Bool) : Bool := mounted || intersecting || pushed
 
-/-- Mounting is monotone.
-
-$$m = \top \Rightarrow \operatorname{mount}(m, i, p) = \top$$ -/
+/-- Mounting is monotone. -/
 theorem mountNext_mono (i p : Bool) : mountNext true i p = true := by simp [mountNext]
 
-/-- `L` (JS 13073-13075): while active, a scroll position other than the pin is sent back.
-
-$$\operatorname{repin}(a, y, p) = a \land y \ne p$$ -/
+/-- `L` (JS 13073-13075): while active, a scroll position other than the pin is sent back. -/
 def repin (act : Bool) (y pin : Rat) : Bool := act && decide (y ≠ pin)
 
-/-- Idle never repins. $$\operatorname{repin}(\bot, y, p) = \bot$$ -/
+/-- Idle never repins. -/
 theorem repin_idle (y p : Rat) : repin false y p = false := by simp [repin]
 
 end Fw.Parts.MorphMount
