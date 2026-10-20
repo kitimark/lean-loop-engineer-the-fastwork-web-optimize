@@ -27,5 +27,4 @@ Branch `worktree-wf_e1d953e4-5eb-2`. State: done, nothing pushed to `ci/*`, no C
 - The recovery of old tuples is a heuristic (limits in the `colourFromV1` comment). A new probe run stores sRGB tuples through the
   new kit, so no recovery is needed there.
 
-## Read first
-`docs/team/tools/trajectory-probe.md` (Limits), `lean/Fw/Gate/Colour.lean` header.
+Read first: `docs/team/tools/trajectory-probe.md` (Limits), `lean/Fw/Gate/Colour.lean` header.
