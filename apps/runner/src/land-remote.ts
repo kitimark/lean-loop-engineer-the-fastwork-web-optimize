@@ -58,7 +58,7 @@ export function laneStateOf(call: FwCall, code: number, out = "", view: GhRunVie
 
 /** Does the run pass the verdict over the land lane's parallel legs? Lean decides (`Fw.Console.LandLegs.legsVeto`, op `console.landLegsVeto`);
  *  this only hands it the conclusions of the jobs but the guard, or `null` when the record has none (a job without a
- *  conclusion: the poller's cached facts, a job still running), which Lean says does not veto. A job list that is empty is also no veto. */
+ *  conclusion: the poller's cached facts), which Lean says does not veto. A job list that is empty is also no veto. */
 export function legsPass(call: FwCall, view: GhRunView | null): boolean {
   const legs = (view?.jobs ?? []).filter((j) => j.name !== "guard");
   const results = legs.every((j) => typeof j.conclusion === "string") ? legs.map((j) => j.conclusion === "success") : null;

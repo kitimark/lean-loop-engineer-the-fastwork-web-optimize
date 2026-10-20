@@ -155,7 +155,7 @@ theorem legsOk_iff (rs : List Bool) : legsOk rs = true ↔ rs ≠ [] ∧ ∀ r �
   | cons a t => simp [legsOk, List.all_eq_true]
 
 /-- Does the legs' record veto a run GitHub called a success? `none` is a record without per-job conclusions (the poller's cached facts,
-a job still running, a job without a conclusion) and `some []` one that lists no leg: both say nothing, so they do not veto.
+a job without a conclusion) and `some []` one that lists no leg: both say nothing, so they do not veto.
 Otherwise the run is vetoed exactly when `legsOk` refuses the legs. -/
 def legsVeto : Option (List Bool) → Bool
   | none | some [] => false

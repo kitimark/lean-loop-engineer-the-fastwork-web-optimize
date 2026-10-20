@@ -151,7 +151,7 @@ test('cache golden: a declared change changes the key, an undeclared one does no
 
 test('cache golden: the replayed trace hits only on a world seen before, with the fresh result', () => {
   const tr = cacheG.filter((c) => c.role === 'trace');
-  assert.deepEqual(tr.map((t) => t.hit), [false, true, false, true, true]); // run 4: the runner image is not a declared input, so a bumped image is a hit
+  assert.deepEqual(tr.map((t) => t.hit), [false, true, false, true, true, false]); // run 4: the runner image is not a declared input, so a bumped image is a hit
   for (const t of tr) assert.equal(t.result, t.fresh, t.name);
 });
 

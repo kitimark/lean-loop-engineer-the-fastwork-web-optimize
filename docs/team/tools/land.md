@@ -66,9 +66,10 @@ then does only its part, so the wall time of the lane is the slowest leg:
   `legsVeto_iff`), so a `success` run with a leg that did not pass is `fail`. `legsPass` in `land-remote.ts` only builds that input and replays
   the answer. Golden `land-legs.jsonl`; TS only replays it (`apps/runner/test/land-legs.test.ts`, which also holds the matrix in land.yml equal to `land-legs.txt`).
 - WebKit leg cache: the gate-engine action restores the apt `.deb` files and the Playwright browser directory; a `ci/*` run reads only its own
-  branch's and `main`'s caches, and the keys name the runner image version, so after an image bump `main`'s seed is stale and every land misses
-  (MEASURED, run ids in the handoff `docs/team/handoffs/land-legs-followups.md`). Re-seed with
-  `gh workflow run premise-tests.yml --ref main` (the `engine` job saves both caches on `main`; no cron by `Fw.Ci.Trigger.no_crons`).
+  branch's and `main`'s caches. The keys are the Playwright version, the Ubuntu release, the architecture and the engine; the runner image
+  version is not in them, so the two image versions the fleet runs share one key. `main` seeds them through the premise-tests `engine` job on each
+  `main` push (no cron by `Fw.Ci.Trigger.no_crons`). Re-seed by hand (`gh workflow run premise-tests.yml --ref main`) only after a Playwright bump.
+  Measurements: `docs/team/handoffs/land-legs-followups.md`.
 - Cost: one runner per leg (free runners; four per land, the engine legs idle after setup when no browser suite is selected). Numbers and
   the phases that remain: `research/notes/2026/10-20-land-lane-speed.md`. Not changed: the local tier already starts with the push.
 
