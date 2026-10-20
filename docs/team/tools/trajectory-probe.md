@@ -132,12 +132,43 @@ Limits of the in-flight rule, for that fraction of samples:
 - `since` sees only nav class changes; a transition started by something else is read as at rest.
 - `startLag` = 200 ms is a measured bound on the 140 ms overrun, not a proved one.
 - No core sample in the original: the unit falls back to the m-window of the original's samples.
-- The kit reads a WebKit mid-transition colour as oklab `[L×1000, a, b, α]` and a settled one as rgb. A colour read in
-  oklab on one arm and rgb on the other fails `apart`; that is the kit-colour-space task (owner of `kit.mjs`), not widened
-  here.
-- Until the kit normalises colour space (task kit-colour-space), WebKit in-flight colour channels are unchecked (oklab L
-  in 0..1000 lies inside the rgb tolerance 2000); only alpha is judged; after normalisation
-  `judgeUnit_colour_chan_outside` applies.
+- Colour space (task kit-colour-space): the kit reads every colour (`rgb`, `rgba`, `hsl`, `color(srgb ..)`, `oklab`, `oklch`,
+  `lab`, `lch`; engines print a mid-transition colour as `oklab(..)`/`color(srgb ..)`) as sRGB `[r, g, b, α]` × 1000 on the
+  0 to 255 scale, so `judgeUnit_colour_chan_outside` judges real channels. Lean `Fw.Gate.Colour` states the error budget
+  (`chanErr` 500: an integer rgb channel is 0.5 level off; `alphaErr` 1000: 8 bit rounding plus a 2 decimal print) and proves
+  `budget_inside_tol`, twice the budget at most the judge's `tol .colour` = 2000, so the tolerance is unchanged. Golden
+  `golden/gate/trajectory-colour.jsonl`, test `kit-colour.test.mjs`. MEASURED worst error: 8 thousandths of a level on
+  channels (6 digit print over a 16^3 grid of the cube), 765 on alpha. Accepted limits: a clipped out-of-gamut colour is
+  read unclamped, `lab`/`lch` use CSS Color 4's D50 to D65 Bradford and are unchecked against a device, relative colour
+  syntax and `calc()` stay strings.
+- The stored raw files (runs 39453181962, 39471466367, 39457063232) hold the old numeric tuples, not the colour string,
+  so the re-reduction reads the old `oklab` shape back (`colourFromV1`: lightness 0..1000, a and b within 500; the
+  stored runs hold only near-white greys of this shape) and leaves every other tuple as stored. Error: the 0.001
+  rounding of the old tuple, up to 0.5 level, plus the budget above. Re-reduced with the same `reduce.mjs`, units
+  `apart` of `nav.background-color` and `logo.color` (`*` = new against the base arm; steps `aN` are approach, `open@b`
+  and `close@b` push buckets):
+
+| run, engine | width | `nav.background-color` before | after | `logo.color` before | after |
+|---|---|---|---|---|---|
+| 39453181962 mac | 390 | - | close@0 | 16 units, a0 open@7..10 close@1..10 | same 16 |
+| | 640 | close@0* | close@0 close-hold@0* | - | - |
+| | 641 | a3 a8* a11* | a3 close@0 | - | - |
+| | 1280 | a7* close@0* | close@0 close-hold@0* | - | - |
+| 39471466367 mac waapi | 390 | close@0* close-hold@0 | close@0 close-hold@0 | a0 | a0 |
+| | 640, 641 | close@0* close-hold@0* | close@0 | - | - |
+| | 1280 | close@0 close-hold@0* | close@0 | - | - |
+| 39457063232 chromium | 390, 640, 641 | - | - | - | - |
+| | 1280 | - | close@0* | - | - |
+
+  The A/A is the base arm against the original: a unit without `*` fails in both. All 16 mac `logo.color` units at 390
+  fail in the base arm too and are unchanged (not a colour-space unit). The approach units a7, a8, a11 (new before) were
+  colour space and are gone. `close@0` and `close-hold@0` remain: both arms are now in sRGB and the candidate's
+  reading differs by 7 to 8 channel levels from the original's, outside 2 (MEASURED: Chromium 1280 candidate rep 1
+  holds `[243.7, 243.9, 244.7]` for 218 ms from the class change while the original reads `[251.0, 251.0, 251.0]`;
+  mac 1280 original ramps 244.7 to 255 over 700 ms where a base rep starts at 252.3). INFERRED: where the colour
+  starts depends on the interrupted earlier transition, a timing case, not the colour space. New (`*`) after
+  normalisation: mac 640 and 1280 close-hold@0, Chromium 1280 close@0; the waapi run has none.
+  Coverage fails are not colour units and did not change.
 - `--morph`-driven transitions under `is-morphing` are judged at rest. MEASURED residual: raw 39457063232, 641
   `earn.max-width` close@0, one width (content `new` 1; main gave 2). Follow-up: `morph-driven-transitions`.
 

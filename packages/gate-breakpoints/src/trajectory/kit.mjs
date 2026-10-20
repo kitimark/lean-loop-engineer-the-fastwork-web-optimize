@@ -6,6 +6,32 @@
 // stale style of the WebKit hero bug (hero-bug note), so the probe never takes one. requestAnimationFrame stays native.
 //
 // A value is `null` (the node's element is missing), an array of integers (a measured number x 1000, rounded) or a string.
+//
+// A colour is `[r, g, b, a]` x 1000 in sRGB (channels and alpha on the 0..255 scale) whatever space the engine printed it in.
+let offlineColour = null;
+/**
+ * Offline only (never in the page): the stored raw files of the runs before the kit converted spaces (39453181962,
+ * 39471466367, 39457063232) hold the old reading, not the string. The old kit wrote `rgb`/`rgba`/`color(srgb ..)` as sRGB x 1000
+ * and anything else with its numbers as they were (`oklab(0.989 0 0 / 0.1)` as `[989, 0, 0, 25500]`, alpha already x 255).
+ * A tuple whose first number is 0..1000 and whose second and third are within +-500 is read as an old `oklab` (lightness
+ * 0..1, a and b within +-0.5: the range of the sRGB gamut) and converted; any other tuple already is sRGB x 1000.
+ * Accepted limits: an `rgb` reading with all channels 0 or 1 (a colour 1 of 255 levels from black) is read as oklab; a stored
+ * `lab`, `lch` or `oklch` reading is not recognised (the stored runs hold none: every tuple of this shape has a = b = 0, L
+ * near 1). The oklab numbers were rounded to thousandths when stored, at most 0.5 channel level of error (Lean `chanErr`).
+ */
+export function colourFromV1(v) {
+  if (!Array.isArray(v) || v.length !== 4) return v;
+  if (!(v[0] >= 0 && v[0] <= 1000 && Math.abs(v[1]) <= 500 && Math.abs(v[2]) <= 500)) return v;
+  if (offlineColour === null) {
+    const g = globalThis;
+    const had = Object.getOwnPropertyDescriptor(g, 'window');
+    g.window = {};
+    try { installKit(); offlineColour = g.window.__traj.colour; } finally { if (had) Object.defineProperty(g, 'window', had); else delete g.window; }
+  }
+  const out = offlineColour(`oklab(${v[0] / 1000} ${v[1] / 1000} ${v[2] / 1000} / ${v[3] / 255000})`);
+  return Array.isArray(out) ? out : v;
+}
+
 export function installKit() {
   const Q = 1000;
   const q = (x) => Math.round(x * Q);

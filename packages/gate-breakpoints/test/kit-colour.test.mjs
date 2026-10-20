@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { installKit } from '../src/trajectory/kit.mjs';
+import { colourFromV1, installKit } from '../src/trajectory/kit.mjs';
 import { TOL, judgeVal } from '../src/trajectory/reduce.mjs';
 
 const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/trajectory-colour.jsonl', import.meta.url)), 'utf8')
@@ -108,6 +108,18 @@ test('alpha: the engines round it to 8 bit and print 2 or 3 decimals, within the
   }
   t.diagnostic(`worst alpha error ${worst}`);
   assert.ok(worst <= bounds.alphaErr,`worst alpha error ${worst}`);
+});
+
+test('colourFromV1: an old oklab tuple becomes the reading the new kit gives, an sRGB tuple stays', () => {
+  // old kit: oklab(0.989 0 0 / 0.10344) -> [989, 0, 0, 26378]
+  const now = colour('oklab(0.989 0 0 / 0.10344)');
+  colourFromV1([989, 0, 0, 26378]).forEach((x, i) => assert.ok(Math.abs(x - now[i]) <= 140, `${i}: ${x} vs ${now[i]}`));
+  assert.deepEqual(colourFromV1([255000, 255000, 255000, 26000]), [255000, 255000, 255000, 26000]);
+  assert.deepEqual(colourFromV1([172435, 174534, 177683, 37911]), [172435, 174534, 177683, 37911]);
+  assert.deepEqual(colourFromV1([0, 0, 0, 0]), [0, 0, 0, 0]);
+  assert.equal(colourFromV1('rgb(0, 0, 0)'), 'rgb(0, 0, 0)');
+  assert.equal(colourFromV1(null), null);
+  assert.equal(typeof globalThis.window, 'undefined');
 });
 
 test('the judge: one colour read in oklab and in rgb is a pass, a different colour still fails', () => {
