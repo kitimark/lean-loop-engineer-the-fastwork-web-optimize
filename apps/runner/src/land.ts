@@ -60,6 +60,8 @@ export type LandOptions = {
   attribution?: string[];
   /** run after a successful landing, in the main checkout (plan sync); its lines are printed; it throws when it failed */
   after?: (mainDir: string) => Promise<string[]>;
+  /** leftover-process lines (Lean `ops.lspReap`) added to the report after a worktree removal; never signals */
+  reap?: (mainDir: string) => Promise<string[]>;
   /** console-api base URL, only used to print the commands for steps that failed after the commit */
   base?: string;
   /** pause between the two attempts of a post-commit step (ms); default 700 */
@@ -937,7 +939,10 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       } else if (here === resolve(wt.dir) || here.startsWith(resolve(wt.dir) + "/")) {
         removed = false; lines.push(`worktree ${wt.dir} left: it is the current directory`);
       } else if (!tryGit(mainDir, ["worktree", "remove", wt.dir])) { removed = false; lines.push(`worktree ${wt.dir} left: git refused to remove it`); }
-      else lines.push(`worktree ${wt.dir} removed`);
+      else {
+        lines.push(`worktree ${wt.dir} removed`);
+        if (o.reap) { try { lines.push(...(await o.reap(mainDir))); } catch { /* the list is advisory */ } }
+      }
     }
     if (removed) lines.push(tryGit(mainDir, ["branch", "-d", branch]) ? `branch ${branch} deleted` : `branch ${branch} kept (branch -d refused)`);
     else lines.push(`branch ${branch} kept`);
