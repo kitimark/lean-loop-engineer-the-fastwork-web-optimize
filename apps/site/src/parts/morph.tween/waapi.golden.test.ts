@@ -257,24 +257,26 @@ describe('morph.tween:waapi attribute writes vs morph-tween-waapi.attr.jsonl (Le
 
   // script runs (finish and marker events, frame callbacks) against the faithful driver's one rAF callback per frame
   const runs: Record<string, [number, number]> = { open: [7, 42], reverse: [13, 64] };
-  for (const name of ['open', 'reverse']) {
-    it(`${name}: after every frame the written attribute is in the band of the original's value; the old driver's is not`, () => {
-      const w = waapiRun();
-      let stale = 0;
-      let frames = 0;
-      for (const e of evs.filter((r) => r.case === name)) {
-        if (e.ev === 'push') {
-          w.setTimeline(e.t);
-          expect(w.wheel(e.goal === 1 ? 100 : -100)).toBe(true);
-          continue;
+  for (const arm of ['waapi', 'waapi-scoped'] as const) {
+    for (const name of ['open', 'reverse']) {
+      it(`${arm} ${name}: after every frame the written attribute is in the band of the original's value; the old driver's is not`, () => {
+        const w = waapiRun({ arm });
+        let stale = 0;
+        let frames = 0;
+        for (const e of evs.filter((r) => r.case === name)) {
+          if (e.ev === 'push') {
+            w.setTimeline(e.t);
+            expect(w.wheel(e.goal === 1 ? 100 : -100)).toBe(true);
+            continue;
+          }
+          w.frameAt(e.t);
+          frames++;
+          expect(band(w.hints.at(-1)!), `${name} t=${e.t}`).toEqual(e.band);
+          if (JSON.stringify(e.old) !== JSON.stringify(e.band)) stale++;
         }
-        w.frameAt(e.t);
-        frames++;
-        expect(band(w.hints.at(-1)!), `${name} t=${e.t}`).toEqual(e.band);
-        if (JSON.stringify(e.old) !== JSON.stringify(e.band)) stale++;
-      }
-      expect(stale).toBeGreaterThan(0);
-      expect([w.scriptRuns(), frames]).toEqual(runs[name]);
-    });
+        expect(stale).toBeGreaterThan(0);
+        expect([w.scriptRuns(), frames]).toEqual(runs[name]);
+      });
+    }
   }
 });

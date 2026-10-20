@@ -963,7 +963,10 @@ deriving Repr, DecidableEq
 /-- Rest, attribute 0. -/
 def initA : ASt := ⟨initV, 0⟩
 
-/-- The variant's step: a push writes its start value, a frame writes its value iff `wr` says so. -/
+/-- The variant's step: a push writes its start value, a frame writes its value iff `wr` says so. Premise, not proved:
+a frame's marker finish events (update animations and send events: `B/core/page/page_animator.cc:292-311`@f842f52,
+WebKit `animation/AnimationTimelinesController.cpp:217-232`@862f17d) and frame callbacks (`page_animator.cc:335`,
+WebKit `page/Page.cpp:2330`) run before that frame's style and layout (WebKit `Page.cpp:2337`). -/
 def stepAttr (P : WaapiPremises) (wr : VSt → Rat → Bool) (x : ASt) : Ev → ASt
   | .push g rm n =>
     ⟨stepV P x.w (.push g rm n), if x.w.target = g ∧ x.w.aim = g then x.attr else if rm then g else x.w.cur⟩
@@ -1233,7 +1236,7 @@ def attrJsonl (_ : Unit) : String :=
 #guard markerThetas == [1 / 1000, 1 / 5, 2 / 5, 11 / 20, 23 / 25, 7 / 20]
 #guard (markerRows ()).length == 108
 
-/-- **The visual theorem (class E-s).** With sound marker delays, the variant's scene, readers of the attribute included, equals the original's on every admissible frame. -/
+/-- **The visual theorem (class E-s).** With sound marker delays, the variant's scene, readers of the attribute included, equals the original's on every admissible frame; it holds for both arms, which share `fixW` and `attrReaders`. -/
 theorem waapi_vis (P : WaapiPremises) (dl : Rat → Rat → Rat → Rat) (hd : DlSound dl)
     (vp : Fw.Site.Breakpoints.Env → Rect) (c : Fw.Site.Breakpoints.Env → Hist → AttrCtx)
     (S : Fw.Site.Breakpoints.Env → View → AttrScene → Scene) :
@@ -1769,6 +1772,7 @@ theorem fade_eq (P : WaapiPremises) (h : Hist) :
 #guard !regInheritsS "--morph-fade" && regInheritsS "--morph" && !regInheritsS "--platform-morph"
 #guard readersScoped.all fun r => (registrationsScoped.find? (·.name == r.prop)).isSome
 #guard fadeScopedEval 0 == 1 && fadeScopedEval (11 / 40) == 1 / 2 && fadeScopedEval (3 / 5) == 0
+#guard (readers ++ readersScoped).all (·.prop.startsWith "--")
 #guard frameBelow true (fade (3 / 5)) (fade (7 / 10)) [0, 1, 2] == [] && frameBelow true (3 / 5) (7 / 10) [0, 1, 2] == [1, 2]
 #guard frameBelow false (3 / 5) (7 / 10) [0, 1, 2] == []
 

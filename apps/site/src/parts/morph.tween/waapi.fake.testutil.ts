@@ -1,6 +1,7 @@
 import { createTweenDriver, type TweenEnv } from './driver';
 import { DURATION_MS, ease } from './logic';
 import { createWaapiDriver, type AnimLike, type WaapiEnv } from './waapi.driver';
+import type { WaapiArm } from './waapi.logic';
 
 type Fn = (e: never) => void;
 export interface Call {
@@ -22,7 +23,7 @@ export interface FakeMarker extends AnimLike {
 
 /** Test doubles for the `waapi` driver: fake elements whose `animate` records its calls, a settable timeline, listeners,
  * markers and frame callbacks; `frameAt(T)` runs one frame at timeline time `T` (finish events, then frame callbacks). */
-export function waapiRun(over: Partial<{ reduced: boolean }> = {}) {
+export function waapiRun(over: Partial<{ reduced: boolean; arm: WaapiArm }> = {}) {
   const calls: Call[] = [];
   const listeners = new Map<string, Fn>();
   const settled: { value: number; props: unknown }[] = [];
@@ -65,7 +66,7 @@ export function waapiRun(over: Partial<{ reduced: boolean }> = {}) {
       return () => void frameCbs.delete(cb);
     },
   };
-  const d = createWaapiDriver(env);
+  const d = createWaapiDriver(env, over.arm ?? 'waapi');
   d.setNear(true);
   const wheel = (deltaY: number) => {
     let prevented = false;
