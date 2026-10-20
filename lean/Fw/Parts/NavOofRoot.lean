@@ -133,6 +133,82 @@ theorem flow_boundary_subtree (t : Tree) (boundary : Nat → Bool) (x c : Nat) (
     t.pass boundary x = .subtree c := by
   simp [pass, t.flow_root boundary x c h hc, t.climb_stop boundary c hb, hv]
 
+/-- The first ancestor of `a`, from its container upward, for which `holds` is true, or the top of the chain. -/
+def nearest (t : Tree) (holds : Nat → Bool) (a : Nat) : Nat :=
+  match t.container a, t.container_lt a with
+  | none, _ => a
+  | some p, hp =>
+    have : p < a := hp p rfl
+    if holds p then p else t.nearest holds p
+termination_by a
+
+theorem nearest_top (t : Tree) (holds : Nat → Bool) (a : Nat) (h : t.container a = none) :
+    t.nearest holds a = a := by
+  rw [nearest]; split <;> simp_all
+
+theorem nearest_hit (t : Tree) (holds : Nat → Bool) (a p : Nat) (h : t.container a = some p)
+    (hp : holds p = true) : t.nearest holds a = p := by
+  rw [nearest]; split <;> simp_all
+
+theorem nearest_step (t : Tree) (holds : Nat → Bool) (a p : Nat) (h : t.container a = some p)
+    (hp : holds p = false) : t.nearest holds a = t.nearest holds p := by
+  rw [nearest]; split <;> simp_all
+
+theorem nearest_le (t : Tree) (holds : Nat → Bool) (a : Nat) : t.nearest holds a ≤ a := by
+  induction a using Nat.strongRecOn with
+  | ind a ih =>
+    cases h : t.container a with
+    | none => rw [t.nearest_top holds a h]; exact Nat.le_refl a
+    | some p =>
+      have hp := t.container_lt a p h
+      cases hh : holds p
+      · rw [t.nearest_step holds a p h hh]; exact Nat.le_trans (ih p hp) (Nat.le_of_lt hp)
+      · rw [t.nearest_hit holds a p h hh]; exact Nat.le_of_lt hp
+
+theorem nearest_lt (t : Tree) (holds : Nat → Bool) (a p : Nat) (h : t.container a = some p) :
+    t.nearest holds a < a := by
+  cases hh : holds p
+  · rw [t.nearest_step holds a p h hh]
+    exact Nat.lt_of_le_of_lt (t.nearest_le holds p) (t.container_lt a p h)
+  · rw [t.nearest_hit holds a p h hh]; exact t.container_lt a p h
+
+/-- The same tree with each out-of-flow object's containing block recomputed as its nearest `fixedContainer`. -/
+def fixedCb (t : Tree) (fixedContainer : Nat → Bool) : Tree where
+  container := t.container
+  containingBlock a :=
+    if t.oof a then (t.container a).map (fun _ => t.nearest fixedContainer a) else t.containingBlock a
+  oof := t.oof
+  container_lt := t.container_lt
+  containingBlock_lt a p h := by
+    split at h
+    · cases hc : t.container a with
+      | none => simp [hc] at h
+      | some q => simp [hc] at h; exact h ▸ t.nearest_lt fixedContainer a q hc
+    · exact t.containingBlock_lt a p h
+
+theorem fixedCb_oof (t : Tree) (fc : Nat → Bool) (a q : Nat) (h : t.oof a = true) (hc : t.container a = some q) :
+    (t.fixedCb fc).containingBlock a = some (t.nearest fc a) := by
+  simp [fixedCb, h, hc]
+
+theorem fixedCb_flow (t : Tree) (fc : Nat → Bool) (a : Nat) (h : t.oof a = false) :
+    (t.fixedCb fc).containingBlock a = t.containingBlock a := by
+  simp [fixedCb, h]
+
+/-- A partial pass from a dirty out-of-flow `x` means its containing block is no longer the view. -/
+theorem fixedCb_partial_moved (t : Tree) (fc boundary : Nat → Bool) (x q r : Nat) (h : t.oof x = true)
+    (hc : t.container x = some q) (hp : (t.fixedCb fc).pass boundary x = .subtree r) :
+    t.nearest fc x ≠ view := by
+  intro hv
+  have hcb : (t.fixedCb fc).containingBlock x = some view := hv ▸ t.fixedCb_oof fc x q h hc
+  rw [(t.fixedCb fc).oof_view_full x h hcb boundary] at hp
+  exact Pass.noConfusion hp
+
+theorem fixedCb_boundary_root (t : Tree) (fc boundary : Nat → Bool) (x q : Nat) (h : t.oof x = true)
+    (hc : t.container x = some q) (hb : boundary (t.nearest fc x) = true) (hv : t.nearest fc x ≠ view) :
+    (t.fixedCb fc).pass boundary x = .subtree (t.nearest fc x) := by
+  simp [pass, (t.fixedCb fc).oof_root_indep boundary x _ h (t.fixedCb_oof fc x q h hc),
+    (t.fixedCb fc).climb_stop boundary _ hb, hv]
+
 end Tree
 
 /-- The nav's chain: 1 html, 2 body, 3 the React root, 4 the fixed nav, 5 its bar, 6 page-root, 7 main. -/
@@ -156,6 +232,24 @@ def nav : Nat := 4
 theorem nav_pass_full : ∀ boundary, (navTree ()).pass boundary nav = .full :=
   (navTree ()).oof_view_full nav rfl rfl
 
+/-- The nav tree when every relayout boundary is also a fixed containing block, as layout and paint containment are. -/
+def navContained (boundary : Nat → Bool) : Tree := (navTree ()).fixedCb boundary
+
+theorem nav_contained_partial_moved (boundary : Nat → Bool) (r : Nat)
+    (h : (navContained boundary).pass boundary nav = .subtree r) :
+    (navContained boundary).containingBlock nav ≠ some view := by
+  unfold navContained
+  rw [(navTree ()).fixedCb_oof boundary nav 3 rfl rfl]
+  intro hv
+  exact (navTree ()).fixedCb_partial_moved boundary boundary nav 3 r rfl rfl h (Option.some.inj hv)
+
+theorem nav_contained_root (boundary : Nat → Bool) (h : boundary 3 = true) :
+    (navContained boundary).pass boundary nav = .subtree 3 := by
+  unfold navContained
+  have hn : (navTree ()).nearest boundary nav = 3 := (navTree ()).nearest_hit boundary nav 3 rfl h
+  have := (navTree ()).fixedCb_boundary_root boundary boundary nav 3 rfl rfl (hn ▸ h) (by rw [hn]; decide)
+  rwa [hn] at this
+
 #guard (navTree ()).next nav == some view
 #guard (navTree ()).next 5 == some nav
 #guard (navTree ()).next view == none
@@ -168,5 +262,13 @@ theorem nav_pass_full : ∀ boundary, (navTree ()).pass boundary nav = .full :=
 #guard (navTree ()).pass (· == 6) 7 == .subtree 6
 #guard (navTree ()).pass (fun _ => false) 7 == .full
 #guard (navTree ()).climb (· == 3) 7 == 3
+#guard (navContained (· == 3)).containingBlock nav == some 3
+#guard (navContained (· == 3)).pass (· == 3) nav == .subtree 3
+#guard (navContained (· == 1)).pass (· == 1) nav == .subtree 1
+#guard (navContained (· == nav)).containingBlock nav == some view
+#guard (navContained (· == nav)).pass (· == nav) nav == .full
+#guard (navContained (fun _ => false)).pass (fun _ => false) nav == .full
+#guard (navContained (· == 6)).pass (· == 6) nav == .full
+#guard (navContained (· == 6)).pass (· == 6) 7 == .subtree 6
 
 end Fw.Parts.NavOofRoot
