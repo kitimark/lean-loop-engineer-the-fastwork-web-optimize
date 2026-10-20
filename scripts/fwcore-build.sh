@@ -18,6 +18,7 @@
 #   that sha256 (Lake did not relink) is kept as it is. MEASURED 2026-10-19 on macOS: stripping a stripped binary again
 #   changes its bytes once (sha256 8a4fd2d6ff6f, then 495249a32f9b), so without this the binary of one tree would depend
 #   on how often the script ran, and `fw land` compares binaries by sha256 (task land-fwcore-key).
+# - `lake build` runs under a machine-wide build slot (scripts/lake-slot.sh).
 # Run it in the checkout whose binary runs: sh scripts/fwcore-build.sh
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -35,7 +36,7 @@ state_check() {
 }
 state_check
 sha256_of() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
-(cd lean && lake build)
+(cd lean && sh ../scripts/lake-slot.sh lake build)
 if [ -f "$bin.stripped" ] && [ "$(cat "$bin.stripped")" = "$(sha256_of "$bin")" ]; then
   :
 elif command -v strip >/dev/null 2>&1 && strip -o "$bin.strip" "$bin" 2>/dev/null; then

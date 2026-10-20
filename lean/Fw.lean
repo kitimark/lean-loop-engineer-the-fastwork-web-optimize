@@ -81,6 +81,7 @@ import Fw.Ops.Wire
 import Fw.Ops.Salvage  -- workflow-salvage: a builder exit without a result (decide, golden text)
 import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
+import Fw.Sched.LakeSlot  -- lake-build-slots: slot pools and the thread bound of scripts/lake-slot.sh
 import Fw.Wire.Sched
 import Fw.Store.Layout
 import Fw.Store.Reduce
