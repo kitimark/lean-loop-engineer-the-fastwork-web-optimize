@@ -217,7 +217,7 @@ def itemOf (j : Json) : Except String Item := do
   let style ← match opt j "style" with
     | none => pure []
     | some s => (← entriesOf "style" s).mapM fun (p, v) => do pure (p, ← asStr p v)
-  pure ⟨rect, style, ← strsD j "inline"⟩
+  pure ⟨rect, style, ← strsD j "inline", ← strsD j "layoutDep"⟩
 
 /-- One arm's raw part: roles that are absent or `null` are left out. -/
 def partRawOf (j : Json) : Except String PartRaw := do
@@ -291,8 +291,9 @@ def titemJson (e : StateOut) (t : TItem) : Json :=
 
 /-- One part item. -/
 def pitemJson (it : PItem) : Json :=
-  Json.mkObj [("cls", .str (clsName it.cls)), ("role", .str it.role), ("idx", toJson it.idx),
-    ("key", .str it.key), ("status", .str (statusName it.status))]
+  Json.mkObj ([("cls", .str (clsName it.cls)), ("role", .str it.role), ("idx", toJson it.idx),
+    ("key", .str it.key), ("status", .str (statusName it.status))] ++
+    (if it.byRect then [("byRect", .bool true), ("styleStatus", .str (statusName it.styleSt))] else []))
 
 /-- A list of strings. -/
 def strsJson (l : List String) : Json := .arr (l.map Json.str).toArray
@@ -309,9 +310,10 @@ def evalJson (e : StateOut) : Json :=
     ("achieved", .bool e.achieved),
     ("truth", .arr (e.truth.map (titemJson e)).toArray),
     ("truthCounts", truthCounts e.truth),
-    ("parts", .arr (e.parts.map fun p => Json.arr #[.str p.1, Json.mkObj [
+    ("parts", .arr (e.parts.map fun p => Json.arr #[.str p.1, Json.mkObj ([
       ("fails", .arr ((p.2.filter fun it => e.itemFails it.status).map pitemJson).toArray),
-      ("infoDiffs", .arr ((p.2.filter fun it => it.cls == .info && it.differs).map pitemJson).toArray)]]).toArray),
+      ("infoDiffs", .arr ((p.2.filter fun it => it.cls == .info && it.differs).map pitemJson).toArray)] ++
+      (if p.2.any (·.byRect) then [("byRect", .arr ((p.2.filter (·.byRect)).map pitemJson).toArray)] else []))]).toArray),
     ("rows", .arr (e.rows.map fun r => Json.arr #[.str r.1, .str (verdictName r.2)]).toArray),
     ("compared", .arr (e.compared.map fun c => Json.arr #[.str c.1, toJson c.2]).toArray),
     ("reach", match e.reach with | none => .null | some r => .str (reasonName r)),

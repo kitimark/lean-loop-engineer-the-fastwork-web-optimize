@@ -361,7 +361,7 @@ frames; task engine-model-fix-2) is judged separately: in run 39124427211 its ro
 `chromium.extra.raster` fail on `top` with `scale` and every other row holds (`Fw.Ops.EnginePremise.cr_extra_verdicts`,
 `wk_extra_holds`).
 
-The two `content-visibility` view premises of fix-commission-margin ($p_{30}$, $p_{31}$: `cv.skip-flag`, `cv.fresh-after-resize`) are page tests. So is the Typed OM margin premise $p_{33}$ (`cv.margin-typed-om`, task cmr-margin-typed-om).
+The two `content-visibility` view premises of fix-commission-margin ($p_{30}$, $p_{31}$: `cv.skip-flag`, `cv.fresh-after-resize`) are page tests. So is the Typed OM margin premise $p_{33}$ (`cv.margin-typed-om`, task cmr-margin-typed-om). The margin rule of the breakpoint gate (task cmr-margin-rect-rule, `Fw.Gate.marginStatus`) reads that premise: it decides an auto or percent margin by the node's rect only when both arms report such a value.
 
 $$\operatorname{registry} = [p_1, \dots, p_{33}]$$
 $$\begin{aligned}
@@ -511,8 +511,8 @@ def registry : List Premise := [
     testId := ".github/workflows/wktr-fixtures.yml"
     kind := .lane },
   { id := "cv.margin-typed-om"
-    statement := r"\forall n,\ k \in \{\texttt{margin-left}, \texttt{margin-right}, \texttt{margin-inline-start}, \texttt{margin-inline-end}\}:\ \texttt{n.computedStyleMap().get}(k) \text{ is the computed value: } \texttt{CSSKeywordValue auto} \text{ for an auto margin, a percent } \texttt{CSSUnitValue} \text{ for a percentage, a px } \texttt{CSSUnitValue} \text{ for a fixed length; in normal flow, in a subtree skipped by } \texttt{content-visibility:auto} \text{ and under an ancestor with } \texttt{transform: scale(0.916667)}"
-    theorems := ["planned:cmr-margin-rect-rule"]
+    statement := r"\forall k \in \{\texttt{margin-left}, \texttt{margin-right}, \texttt{margin-inline-start}, \texttt{margin-inline-end}\}:\ \texttt{n.computedStyleMap().get}(k) \text{ is the computed value (} \texttt{CSSKeywordValue auto} \text{ for an auto margin, a percent } \texttt{CSSUnitValue} \text{ for a percentage, a px } \texttt{CSSUnitValue} \text{ for a fixed length) in each of three cases: (a) } n \text{ is in normal flow; (b) } n \text{ is in a subtree skipped by } \texttt{content-visibility:auto} \text{, which is still skipped after the read; (c) } n \text{ is under an ancestor with } \texttt{transform: scale(0.916667)}"
+    theorems := ["Fw.Gate.marginStatus_fixed", "Fw.Gate.marginStatus_fail_iff", "Fw.Gate.marginStatus_never_pass_over_failing_rect"]
     engines := both
     testId := "prem.cv.margin-typed-om" }
 ]

@@ -202,6 +202,7 @@ export const TESTS = [
       for (const [name, c] of Object.entries(o.cells)) {
         const [, kind, key] = name.split('|');
         if (c.skippedBefore !== c.wantSkipped) bad.push(`${name}: expected skipped=${c.wantSkipped} before the read, saw ${c.skippedBefore}`);
+        else if (c.skippedAfter !== c.wantSkipped) bad.push(`${name}: expected skipped=${c.wantSkipped} after the read, saw ${c.skippedAfter}`);
         else if (JSON.stringify(c.value) !== JSON.stringify(want(kind, key))) bad.push(`${name}: read ${JSON.stringify(c.value)}, want ${JSON.stringify(want(kind, key))}`);
       }
       try {

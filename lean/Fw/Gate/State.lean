@@ -592,7 +592,7 @@ private def exT2 : TruthRaw := ⟨[("a", some true), ("b", some true)], [("a", s
   { (default : StateIn) with requested := { exReq with hover := "hover", pointer := "coarse" } }).verdict ==
   .unreachable .primaryPair
 #guard (evalState default { (default : StateIn) with requested := exReq }).verdict == .nc
-#guard isCompared ⟨.box, "r", 0, "x", .differ, false⟩ && !isCompared ⟨.info, "r", 0, "x", .na, true⟩
+#guard isCompared ⟨.box, "r", 0, "x", .differ, false, false, .na⟩ && !isCompared ⟨.info, "r", 0, "x", .na, true, false, .na⟩
 #guard failsS .missing && failsS .differ && !failsS .equal && !failsS .na
 #guard ({ (default : StateOut) with reach := none }).itemFails .differ
 #guard !({ (default : StateOut) with reach := some .wholeWidth }).itemFails .differ

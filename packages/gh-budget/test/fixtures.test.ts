@@ -10,7 +10,7 @@ import test from "node:test";
 import { ghCharged } from "../src/charged.ts";
 import { pollOnce } from "../src/poller.ts";
 import { stepEvent } from "../src/state.ts";
-import { SLICE } from "../src/wait.ts";
+import { addWaiter, SLICE } from "../src/wait.ts";
 import { goldenDir, mkWorld, type Call } from "./util.ts";
 
 type Fx = {
@@ -41,7 +41,7 @@ async function replay(fx: Fx, N: number) {
   const env = w.env;
   const issued: Issued[] = [];
   const problems: string[] = [];
-  for (let r = 0; r < N; r++) stepEvent(env, { register: { runId: r + 1, createdAt: sc.start } });
+  for (let r = 0; r < N; r++) addWaiter(env, r + 1, sc.start); // a marker of this live process per watch, as a waiter writes it
 
   const every = sc.oneoffEvery ?? 0;
   const pending: { ready: number; cost: number }[] = [];
