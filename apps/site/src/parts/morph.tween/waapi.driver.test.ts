@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EASING, TIMING } from './waapi.logic';
+import { band, EASING, markerDelay, MARKER_THETAS, TIMING } from './waapi.logic';
 import { waapiRun } from './waapi.fake.testutil';
 
 describe('morph.tween:waapi driver', () => {
@@ -62,5 +62,43 @@ describe('morph.tween:waapi driver', () => {
     const w = waapiRun();
     expect(w.wheel(-100)).toBe(false);
     expect(w.calls).toHaveLength(0);
+  });
+
+  it('a push starts one marker per threshold ahead, all at the push start time', () => {
+    const w = waapiRun();
+    w.setTimeline(0);
+    w.wheel(100);
+    expect(w.markers.map((m) => m.duration)).toEqual(MARKER_THETAS.map((th) => markerDelay(0, 1, th)));
+    expect(w.markers.every((m) => m.startTime === 0)).toBe(true);
+  });
+
+  it('a marker that finishes before the crossing writes each frame until the value is past its threshold', () => {
+    const w = waapiRun();
+    w.setTimeline(0);
+    w.wheel(100);
+    const d = markerDelay(0, 1, 1 / 5);
+    w.frameAt(d);
+    expect(w.clockSubscribes()).toBe(1);
+    expect(w.hints.at(-1)!).toBeLessThanOrEqual(1 / 5);
+    w.frameAt(d + 17);
+    expect(w.hints.at(-1)!).toBeGreaterThan(1 / 5);
+    const n = w.hints.length;
+    w.frameAt(d + 34);
+    expect(w.hints).toHaveLength(n);
+  });
+
+  it('a retarget cancels the markers and the frame callback of the old push', () => {
+    const w = waapiRun();
+    w.setTimeline(0);
+    w.wheel(100);
+    const old = [...w.markers];
+    w.frameAt(markerDelay(0, 1, 1 / 5));
+    w.setTimeline(60);
+    w.wheel(-100);
+    expect(old.every((m) => m.cancelled)).toBe(true);
+    const n = w.hints.length;
+    w.frameAt(61);
+    expect(w.hints).toHaveLength(n);
+    expect(band(w.hints.at(-1)!)).toEqual(band(w.d.state().value));
   });
 });

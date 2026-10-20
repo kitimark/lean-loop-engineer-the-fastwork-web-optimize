@@ -124,6 +124,28 @@ def parseKind : String → Except String Kind
   | "proposal" => .ok .proposal
   | s => .error s!"unknown kind {s}"
 
+/-- Parse a `part.json` `visClass` (allowlist, the PLAN §4.7 class names). -/
+def parseVisClass : String → Except String VisClass
+  | "E" => .ok .e
+  | "E-s" => .ok .eS
+  | "Q" => .ok .q
+  | "L" => .ok .l
+  | s => .error s!"unknown visClass {s}"
+
+/-- The `part.json` word of a look class. -/
+def visClassWord : VisClass → String
+  | .e => "E"
+  | .eS => "E-s"
+  | .q => "Q"
+  | .l => "L"
+
+/-- The `part.json` word of a kind. -/
+def kindWord : Kind → String
+  | .faithful => "faithful"
+  | .optimized => "optimized"
+  | .ablation => "ablation"
+  | .proposal => "proposal"
+
 /-- Parse a ledger `fResult`, the `fw engine-check` verdict words (allowlist). -/
 def parseFRes : String → Except String FRes
   | "pass" => .ok .pass
@@ -167,10 +189,11 @@ accepts. -/
 def parseFlags (j : Json) : Except String (List Flag) := do
   (← j.getArr?).toList.mapM fun x => do parseFlag (← x.getStr?)
 
-/-- Parse one `part.json` into its registered variants in key order, each with its `requires` and `conflicts` lists.
-A `requires` or `conflicts` field that is absent or not an object, or that lacks the variant's entry, counts as
-empty. A missing or non-string `id`, a missing or non-object `variants`, a missing or unknown `kind`, or an entry that
-is not a list `parseFlags` accepts is an error. -/
+/-- Parse one `part.json` into its registered variants in key order, each with its `requires` and `conflicts` lists and
+its `visClass`. A `requires` or `conflicts` field that is absent or not an object, or that lacks the variant's entry,
+counts as empty; an absent `visClass` is `none`. A missing or non-string `id`, a missing or non-object `variants`, a
+missing or unknown `kind`, an unknown `visClass`, an `optimized` variant of class `L` (PLAN §6.2: a look change is a
+`proposal`), or an entry that is not a list `parseFlags` accepts is an error. -/
 def parsePart (j : Json) : Except String (List Reg) := do
   let id ← j.getObjValAs? String "id"
   let vs ← (← j.getObjVal? "variants").getObj?
@@ -180,8 +203,12 @@ def parsePart (j : Json) : Except String (List Reg) := do
     | .error _ => .ok []
   vs.toList.mapM fun (v, d) => do
     let f : Flag := ⟨id, v⟩
-    return { flag := f, kind := ← parseKind (← d.getObjValAs? String "kind"),
-             requires := ← rel "requires" f.key, conflicts := ← rel "conflicts" f.key }
+    let kind ← parseKind (← d.getObjValAs? String "kind")
+    let vc ← match ← optStr d "visClass" with
+      | none => pure none
+      | some w => some <$> parseVisClass w
+    if kind == .optimized && vc == some .l then throw s!"{f.key}: an optimized variant cannot be a look change (L)"
+    return { flag := f, kind, requires := ← rel "requires" f.key, conflicts := ← rel "conflicts" f.key, visClass := vc }
 
 /-- The preset file: `{"extends":"original","fw":{part: variant},"name":"v2-proved"}` on one line. -/
 def presetText (p : List Flag) : String :=
@@ -214,6 +241,52 @@ def decided (reg : List Reg) : List Flag :=
   linkTable.map (·.1) ++
     ((reg.filter fun r => r.kind == .optimized && (linkOf linkTable r.flag).isNone).map (·.flag)).mergeSort
       (fun a b => a.key ≤ b.key)
+
+/-- **The user's decisions on look changes**: each look-change flag with the date and the words of the decision. A
+decision is recorded here only from the user's own message; a look change without a row is undecided. -/
+def lookDecisions : List (Flag × String × String) :=
+  [(⟨"nav", "earn-no-transition"⟩, "2026-10-21", "accepted, pending user visual review")]
+
+/-- The look-change candidates: the registered flags of class `L`, sorted by key. -/
+def lookCandidates (reg : List Reg) : List Flag :=
+  ((reg.filter fun r => r.visClass == some .l).map (·.flag)).mergeSort fun a b => a.key ≤ b.key
+
+/-- Every look-change candidate is a look change.
+
+A flag on the candidate list is registered with class `L`. -/
+theorem isLook_of_mem_lookCandidates {reg : List Reg} {f : Flag} (h : f ∈ lookCandidates reg) : isLook reg f = true := by
+  unfold lookCandidates at h
+  obtain ⟨r, hr, rfl⟩ := List.mem_map.1 ((List.mem_mergeSort).1 h)
+  simp only [List.mem_filter] at hr
+  simp only [isLook, List.any_eq_true, Bool.and_eq_true, beq_iff_eq]
+  exact ⟨r, hr.1, rfl, by simpa using hr.2⟩
+
+/-- **No look-change candidate is in `v2-proved`**, whatever the ledger and the stored runs say.
+
+The candidate list and the arm are disjoint. -/
+theorem lookCandidates_not_mem {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag}
+    (h : f ∈ lookCandidates reg) : f ∉ preset reg links ledger st :=
+  look_not_mem (isLook_of_mem_lookCandidates h)
+
+/-- The decision rows that name no look-change candidate (a stale row of `lookDecisions`). -/
+def staleDecisions (reg : List Reg) : List Flag :=
+  (lookDecisions.map (·.1)).filter fun f => !(lookCandidates reg).contains f
+
+/-- One line of the look-change file: the flag, its kind and class, whether it is in the arm, and the user's decision
+(`null` when undecided). -/
+def lookJson (reg : List Reg) (p : List Flag) (f : Flag) : Json :=
+  let kind : Json := match reg.find? (·.flag == f) with
+    | some r => .str (kindWord r.kind)
+    | none => .null
+  let dec : Json := match lookDecisions.find? (·.1 == f) with
+    | some (_, d, w) => Json.mkObj [("date", .str d), ("decision", .str w)]
+    | none => .null
+  Json.mkObj [("flag", .str f.key), ("kind", kind), ("visClass", .str (visClassWord .l)),
+    ("member", .bool (p.contains f)), ("userDecision", dec)]
+
+/-- The look-change file: one compact JSON line per candidate. -/
+def lookText (reg : List Reg) (p : List Flag) : String :=
+  String.join ((lookCandidates reg).map fun f => (lookJson reg p f).compress ++ "\n")
 
 /-- The word of an engine in the stored-run file. -/
 def engineWord : Engine → String
@@ -331,6 +404,9 @@ def goldenPreset : System.FilePath := ".." / "packages" / "contracts" / "golden"
 /-- The golden decision rows, from `lean/`. -/
 def goldenDecisions : System.FilePath :=
   ".." / "packages" / "contracts" / "golden" / "preset" / "v2-proved.decisions.jsonl"
+/-- The look-change candidates with the user's decisions, from `lean/`. -/
+def goldenLook : System.FilePath :=
+  ".." / "packages" / "contracts" / "golden" / "preset" / "look-change.candidates.jsonl"
 /-- The site preset, from `lean/`. -/
 def sitePreset : System.FilePath := ".." / "apps" / "site" / "src" / "registry" / "presets" / "v2-proved.json"
 /-- The stored trajectory runs, from `lean/`; only `record` writes it. -/
@@ -356,17 +432,21 @@ def readRegistry : IO (List Reg) := do
       out := out ++ (← IO.ofExcept ((parsePart (← readJson pj)).mapError fun e => s!"{pj}: {e}"))
   return out
 
-/-- Write the three files, or with `--check` throw when any differs from the Lean output and print a message when none
-does; a ledger or part that does not parse, or a preset that is not closed, throws before anything is written. Each case
-assumes the cases above it do not apply; a file that cannot be read reads as the empty string `ε`. Here
-`P = generate(R, Λ, L, S)` and `outs = [(goldenPreset, presetText(P)), (sitePreset, presetText(P)), (goldenDecisions, decisionsText(R, L, S))]`, with `S` the stored trajectory runs. -/
+/-- Write the four files, or with `--check` throw when any differs from the Lean output and print a message when none
+does; a ledger or part that does not parse, a preset that is not closed, or a `lookDecisions` row that names no
+look-change candidate, throws before anything is written. Each case assumes the cases above it do not apply; a file
+that cannot be read reads as the empty string `ε`. Here `P = generate(R, Λ, L, S)` and
+`outs = [(goldenPreset, presetText(P)), (sitePreset, presetText(P)), (goldenDecisions, decisionsText(R, L, S)), (goldenLook, lookText(R, P))]`,
+with `S` the stored trajectory runs. -/
 def run (args : List String) : IO Unit := do
   let ledger ← IO.ofExcept ((parseLedger (← readJson ledgerPath)).mapError fun e => s!"{ledgerPath}: {e}")
   let reg ← readRegistry
   let st ← readStored
   let p ← IO.ofExcept (generate reg links ledger st)
+  unless (staleDecisions reg).isEmpty do
+    throw (IO.userError s!"look decisions name no look-change candidate: {(staleDecisions reg).map (·.key)}")
   let outs := [(goldenPreset, presetText p), (sitePreset, presetText p),
-    (goldenDecisions, decisionsText reg ledger st)]
+    (goldenDecisions, decisionsText reg ledger st), (goldenLook, lookText reg p)]
   if args.contains "--check" then
     let mut stale : List String := []
     for (path, text) in outs do
@@ -484,6 +564,30 @@ def record (args : List String) : IO Unit := do
 #guard ((verdictJson [] ⟨"hero.countdown", "strip"⟩).getObjValAs? String "verdict").toOption == some "excluded"
 #guard ((verdictJson [] ⟨"morph.countdown", "hidden-pause"⟩).getObjValAs? String "verdict").toOption == some "row-count"
 #guard presetText [] == "{\"extends\":\"original\",\"fw\":{},\"name\":\"v2-proved\"}\n"
+#guard (parseVisClass "L").toOption == some .l
+#guard (parseVisClass "E-s").toOption == some .eS
+#guard (parseVisClass "l").toOption.isNone
+#guard ((parsePart (Json.mkObj [("id", "m"), ("variants", Json.mkObj [("s", Json.mkObj [("kind", "proposal"),
+    ("visClass", "L")])])])).toOption.map fun rs => rs.map (·.visClass)) == some [some .l]
+#guard ((parsePart (Json.mkObj [("id", "m"), ("variants", Json.mkObj [("s", Json.mkObj [("kind", "optimized")])])])).toOption.map
+    fun rs => rs.map (·.visClass)) == some [none]
+#guard (parsePart (Json.mkObj [("id", "m"), ("variants", Json.mkObj [("s", Json.mkObj [("kind", "optimized"),
+    ("visClass", "L")])])])).toOption.isNone
+#guard (parsePart (Json.mkObj [("id", "m"), ("variants", Json.mkObj [("s", Json.mkObj [("kind", "proposal"),
+    ("visClass", "X")])])])).toOption.isNone
+#guard lookCandidates [{ flag := ⟨"n", "b"⟩, kind := .proposal, requires := [], conflicts := [], visClass := some .l },
+    { flag := ⟨"n", "a"⟩, kind := .proposal, requires := [], conflicts := [], visClass := some .l },
+    { flag := ⟨"n", "c"⟩, kind := .optimized, requires := [], conflicts := [], visClass := some .q }] ==
+  [⟨"n", "a"⟩, ⟨"n", "b"⟩]
+/-- A registered look change: the earn flag as `part.json` registers it. -/
+private def earnReg : Reg :=
+  { flag := ⟨"nav", "earn-no-transition"⟩, kind := .proposal, requires := [], conflicts := [], visClass := some .l }
+
+#guard staleDecisions [] == [⟨"nav", "earn-no-transition"⟩]
+#guard staleDecisions [earnReg] == []
+#guard lookText [earnReg] [] ==
+  "{\"flag\":\"nav:earn-no-transition\",\"kind\":\"proposal\",\"member\":false,\"userDecision\":{\"date\":\"2026-10-21\",\"decision\":\"accepted, pending user visual review\"},\"visClass\":\"L\"}\n"
+#guard ((lookJson [] [] ⟨"x", "y"⟩).getObjVal? "userDecision").toOption == some .null
 
 private def stEx : Stored :=
   ⟨"7", "s", "?fw=a:x", ["a:x"], .macWebkit, .morph, [390, 641], [⟨"nav", "opacity", [390], [641]⟩]⟩

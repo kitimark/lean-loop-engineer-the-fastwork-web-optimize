@@ -21,6 +21,7 @@ import Fw.Parts.EngineScroll
 import Fw.Parts.Contract
 import Fw.Parts.NavHitTest
 import Fw.Parts.NavHitTestOpt
+import Fw.Parts.NavEarnOpt
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroCountdownOneChain
@@ -153,6 +154,7 @@ import Fw.Console.LandRemote  -- land-wait: provider-neutral remote land verdict
 import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request coalescing
 import Fw.Console.JournalFold  -- console-idle-cpu: journal cache, settled runs, safety tick
 import Fw.Console.LandPool -- land-pool-fair: fair-share floor under poolSize, wired into land.ts by console.landPool and console.landRetry
+import Fw.Land.RenderGuard  -- land-render-guard: refuse a land whose history writes a media file outside snapshot/ (console.landRenderGuard)
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
 import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)
 import Fw.Ops.LakeCache  -- site-build-cache: one Lake cache writer (cache_complete, rebuild_mono, table_complete)
