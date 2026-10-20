@@ -1,6 +1,7 @@
 # Handoff: preview-e2e-entry
 
-Branch `worktree-wf_b6f1e1ef-717-2`. Follows the reviews of preview-proxy-direct (rounds 1 and 2). CI run ids: see the lead's report.
+Branch `worktree-wf_b6f1e1ef-717-2`. Follows the reviews of preview-proxy-direct (rounds 1 and 2). CI: preview-e2e run 39354139723 (head b1540c25, chromium and playwright-webkit green), lean run 39354139768 green.
+Run 39353226003 (head 2b51a40d) had WebKit red on arm-only control loads (a landing-page image cancelled mid-load); fixed by waiting for it.
 
 ## State
 - Suite (`packages/e2e-preview/src/suite.mjs`): `<host>/<target>/landing/*` noise checks after the grant landing is idle; targets
