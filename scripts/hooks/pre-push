@@ -1,0 +1,11 @@
+#!/bin/sh
+# pre-push: a push of refs/heads/ci/* is refused when a commit in origin/main..<pushed sha> adds an image/font/video/audio path
+# outside snapshot/ (Lean console.landRenderGuard, the decision `fw land` makes; apps/runner/src/ci-push.ts). Local refs only, no
+# network. Other pushes (main: the lead's own scan covers it) pass untouched. Enabled by scripts/wt-prep.sh via core.hooksPath.
+here=$(cd "$(dirname "$0")" && pwd) || exit 1
+input=$(cat)
+case "$input" in
+  *" refs/heads/ci/"*) ;;
+  *) exit 0 ;;
+esac
+printf '%s\n' "$input" | node "$here/../../apps/runner/src/ci-push.ts"
