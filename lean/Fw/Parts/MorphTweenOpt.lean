@@ -2177,14 +2177,16 @@ def baseB (f t : Rat) : Bool := decide (t < f) && markerB f t activeCut
 /-- The base window's delay in ms: `G` before the `activeCut` marker's, at least 0 (`baseDelay`). -/
 def baseDelay (dl : Rat → Rat → Rat → Rat) (G f t : Rat) : Rat := max 0 (dl f t activeCut - G)
 
-/-- The window writes the base `--morph` on frame `T`: from its delay until the animation ends. -/
+/-- The window writes the base `--morph` on frame `T`: from its delay until the animation ends. The writes after the
+flip keep the original's per-frame width retargets (WebKit `Styleable.cpp:705-756`@862f17d; Chromium
+`css_animations.cc:2703-2716,2861-2882`@f842f52). -/
 def baseW (dl : Rat → Rat → Rat → Rat) (G : Rat) (w : VSt) (T : Rat) : Bool :=
   match w.anim with
   | none => false
   | some a => baseB a.f a.t && decide (a.st + baseDelay dl G a.f a.t ≤ T) && decide (T < a.st + duration)
 
 /-- **The window covers the frame before the flip.** With sound delays, a frame at most `G` before a frame `R` at which
-the close has reached `activeCut` is in the window. -/
+the close has reached `activeCut` is in the window. A sufficient hit condition; `hit_iff_mP` is the exact one. -/
 theorem base_hits (P : WaapiPremises) (dl : Rat → Rat → Rat → Rat) (hd : DlSound dl) (G : Rat) (w : VSt) (a : Anim)
     (hw : w.anim = some a) (hb : baseB a.f a.t = true) (T R : Rat) (hR : reach a.f a.t activeCut (valA P a R))
     (hst : a.st < R) (h0 : a.st ≤ T) (hT : R - G ≤ T) (hend : T < a.st + duration) : baseW dl G w T = true := by
@@ -2195,8 +2197,9 @@ theorem base_hits (P : WaapiPremises) (dl : Rat → Rat → Rat → Rat) (hd : D
   simp only [hw, hb, Bool.true_and, Bool.and_eq_true, decide_eq_true_eq]
   exact ⟨by grind, hend⟩
 
-/-- **On a hit the tail is the original's.** The window writes each frame's value as the base, and that value is the
-original's on the frame (`waapi_frame_eq`), so the width transition starts from the same base to the same value. -/
+/-- **On a hit the tail is the original's.** The last link of the hit chain: `hit_iff_mP` or `base_hits`, then the
+driver test "a close writes the base --morph ..." (base written = frame value), then this equality of the frame values
+(`waapi_frame_eq`). -/
 theorem tail_eq_of_base (P : WaapiPremises) (v : Nav.Vp) (hp : Bool) (es es' : List Ev) (T R l l' : Rat)
     (h : monoB l (es ++ [.tick T]) = true) (h' : monoB l' (es' ++ [.tick R]) = true) :
     tailPx v hp (valV P (runV P initV es) (P.tl T)) (valV P (runV P initV es') (P.tl R)) =
@@ -2213,6 +2216,51 @@ theorem tail_miss_le (v : Nav.Vp) (hp : Bool) (m : Rat) (hD : Nav.pillW v ≤ Na
   have := Rat.mul_le_mul_of_nonneg_left h1 hD'
   have := Rat.mul_nonneg hD' h0
   constructor <;> grind
+
+/-- **The exact hit rule.** On a close from `1`, frame `T` of the animation is in the window iff the original's value
+there is at most its value at the window's delay. -/
+theorem hit_iff_mP (dl : Rat → Rat → Rat → Rat) (G : Rat) (w : VSt) (a : Anim) (hw : w.anim = some a) (hf : a.f = 1)
+    (ht : a.t = 0) (hb : baseB 1 0 = true) (hbd : baseDelay dl G 1 0 ≤ duration) (T : Rat) (h0 : a.st ≤ T)
+    (hend : T < a.st + duration) :
+    baseW dl G w T = true ↔ closeAt (T - a.st) ≤ closeAt (baseDelay dl G 1 0) := by
+  have hbd0 : 0 ≤ baseDelay dl G 1 0 := by unfold baseDelay; rw [Rat.max_def]; split <;> grind
+  unfold baseW
+  simp only [hw, hf, ht, hb, Bool.true_and, Bool.and_eq_true, decide_eq_true_eq]
+  constructor
+  · intro ⟨h1, _⟩
+    rcases (show baseDelay dl G 1 0 < T - a.st ∨ baseDelay dl G 1 0 = T - a.st by grind) with hl | he
+    · exact Rat.le_of_lt (closeAt_strict _ _ hbd0 hl (by unfold duration at *; grind))
+    · rw [he]; exact Rat.le_refl
+  · intro h
+    refine ⟨?_, hend⟩
+    rcases (show T - a.st < baseDelay dl G 1 0 ∨ baseDelay dl G 1 0 ≤ T - a.st by grind) with hl | hg
+    · have := closeAt_strict _ _ (by grind) hl hbd; grind
+    · grind
+
+/-- **A miss costs at least the window's edge.** If the frame before the flip is before the window, the original's
+tail exceeds the waapi arm's (from the reset base `0` to any `c ≥ 0`) by at least
+`(panelW - pillW) · (closeAt baseDelay - activeCut)`. -/
+theorem miss_look_ge (v : Nav.Vp) (hp : Bool) (dl : Rat → Rat → Rat → Rat) (G st P R c : Rat)
+    (hD : Nav.pillW v ≤ Nav.panelW v) (hbd : baseDelay dl G 1 0 ≤ duration) (h0 : st ≤ P)
+    (hP : P < st + baseDelay dl G 1 0) (hR : st + crossMs ≤ R) (hc : 0 ≤ c) :
+    (Nav.panelW v - Nav.pillW v) * (closeAt (baseDelay dl G 1 0) - activeCut) ≤
+      tailPx v hp (closeAt (P - st)) (closeAt (R - st)) - tailPx v hp 0 c := by
+  rw [tailPx_eq, tailPx_eq]
+  have h1 := closeAt_strict (P - st) (baseDelay dl G 1 0) (by grind) (by grind) hbd
+  have h2 := closeAt_after (R - st) (by grind)
+  have hD' : 0 ≤ Nav.panelW v - Nav.pillW v := by grind
+  have := Rat.mul_le_mul_of_nonneg_left
+    (show closeAt (baseDelay dl G 1 0) - activeCut ≤ closeAt (P - st) - closeAt (R - st) - (0 - c) by grind) hD'
+  grind
+
+/-- The look-difference floor of a miss at viewport `v`: `(panelW - pillW) · (closeAt baseDelay - activeCut)`. -/
+def missFloor (v : Nav.Vp) : Rat :=
+  (Nav.panelW v - Nav.pillW v) * (closeAt (baseDelay (dlLo delayDepth) tailWindow 1 0) - activeCut)
+
+#guard baseDelay (dlLo delayDepth) tailWindow 1 0 ≤ duration
+#guard let c := closeAt (baseDelay (dlLo delayDepth) tailWindow 1 0); 1507 / 100000 < c && c < 1509 / 100000
+#guard 360 / 100 < missFloor ⟨1280, 800⟩ && missFloor ⟨1280, 800⟩ < 361 / 100
+#guard 11 / 100 < missFloor ⟨390, 844⟩ && missFloor ⟨390, 844⟩ < 12 / 100
 
 /-! ### Cost: script frames of the window against the saving -/
 
@@ -2269,7 +2317,9 @@ inductive TailArm where
   | lookChange
 deriving DecidableEq, Repr
 
-/-- Model the tail iff the window's extra script frames stay below the frames the fixed driver saves. -/
+/-- Model the tail iff the window's extra script frames stay below the frames the fixed driver saves. Lexicographic: the
+look difference of `lookChange` is positive on every grid (`tail_orig_pos`), so it outranks script frames while a saving
+remains. -/
 def tailArm (c : Cost) : TailArm := if c.tail - c.fix < c.orig - c.fix then .model else .lookChange
 
 theorem tailArm_model (c : Cost) (h : c.tail - c.fix < c.orig - c.fix) : tailArm c = .model := by
@@ -2285,8 +2335,9 @@ def displayGaps : List Rat := [50 / 3, 25 / 3]
 def tailDecision (G : Rat) : TailArm :=
   if displayGaps.all fun g => tailArm (closeCost G g) == .model then .model else .lookChange
 
-/-- The frame gaps of the cost rows: 60 Hz, 120 Hz, and the flip-frame gaps measured on CI (Chromium about 22 ms,
-macOS WebKit 45 to 100 ms, Linux WebKit 300 ms and more). -/
+/-- The frame gaps of the cost rows: 60 Hz, 120 Hz, and CI flip-frame gaps (Chromium about 22 ms, macOS WebKit 45 to
+100 ms). The 300 ms row stands for the Linux WebKit flip gaps of 417-562 ms in runs 39412301221, 39457063232 and
+39457767229 (an older probe); no probe walks the morph there now (`walks_linux_webkit`), so it is not decisive. -/
 def costGaps : List Rat := [50 / 3, 25 / 3, 22, 45, 100, 300]
 
 /-- The arm's wire name. -/
