@@ -2,17 +2,19 @@
 // equal Lean `Fw.Console.JournalFold` / `ReconcileSched` on their golden vectors, and the watchers lose no event.
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { monitorEventLoopDelay } from "node:perf_hooks";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { selectCore } from "../src/core/index.ts";
 import { Reconciler } from "../src/reconcile/reconciler.ts";
 import { Drain } from "../src/spool/drain.ts";
-import { startDrainWatch } from "../src/spool/drain-watch.ts";
+import { DRAIN_SETTLE_MS, startDrainWatch, wakeDoneBound, wakeStartBound } from "../src/spool/drain-watch.ts";
 import { commitEnd, JournalCache, nextTick, plan, skipRun } from "../src/spool/journal-cache.ts";
 import { parseJournal, scanWorkflows, WfMemo, workflowWatchTargets } from "../src/spool/workflow.ts";
 import { Store } from "../src/store.ts";
 import { Trigger } from "../src/trigger.ts";
+import { Watches } from "../src/watch.ts";
 import { makeRepo } from "./reconcile-fixture.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -151,6 +153,24 @@ describe("settled runs", () => {
   });
 });
 
+describe("Watches", () => {
+  it("a missing path is not counted as opened (Node 24.21.0 Linux accepts a recursive watch of it and never fires); it opens once it exists", async () => {
+    const d = mkdtempSync(join(tmpdir(), "fw-wm-"));
+    const missing = join(d, "a", "b");
+    let events = 0;
+    const w = new Watches(() => [{ path: missing, recursive: true, accept: () => true }], () => { events++; });
+    stops.push(() => w.close());
+    expect(w.sync()).toBe(0);
+    expect(w.size).toBe(0);
+    mkdirSync(join(missing, "c"), { recursive: true });
+    expect(w.sync()).toBe(1);
+    expect(w.sync()).toBe(0); // already open
+    await sleep(100);
+    writeFileSync(join(missing, "c", "j.jsonl"), "{}\n");
+    await until(() => events > 0, 2000);
+  });
+});
+
 describe("Trigger", () => {
   it("coalesces pokes into one pass and runs a pass after a request that arrives during one", async () => {
     let passes = 0, release!: () => void;
@@ -218,25 +238,135 @@ describe("drain on file events", () => {
     await until(() => store.seq >= 1, 3000);
   });
 
-  // Quarantined on Linux CI (4 land refusals on 2026-10-20); task drain-wake-flake replaces this test.
-  it.skipIf(process.platform === "linux" && !!process.env.CI)("a journal append and a new session dir wake the drain", async () => {
+  // Wake bound (Lean `ReconcileSched.poke_wake_le`, `tick_wake_le`; assumptions and deadlines in golden `wake-params.jsonl`): the
+  // pass that answers an append or a new session dir is the first one that starts after it, and it starts by the event time plus
+  // `wakeStartBound(period, PASS_MAX_MS)`, the period being the settle window (a file event) or the safety tick (an event the
+  // kernel dropped). The deadline adds `WAKE_MARGIN_MS` for timer rounding and event-loop lag. There is no other allowance: a pass
+  // over `PASS_MAX_MS` (the assumption of the bound) and a loop stall over `WAKE_MARGIN_MS` fail the test at once, each with the
+  // trail (pokes, passes with their start, length and pokes, loop lag, the wait that failed, Node version) that names the cause.
+  const param = (name: string): number => {
+    const row = paramRows.find((r) => r.name === name);
+    if (!row) throw new Error(`wake-params.jsonl has no row ${name}`);
+    return row.value;
+  };
+  const paramRows = readFileSync(join(root, "packages/contracts/golden/console/wake-params.jsonl"), "utf8").trim().split("\n")
+    .map((l) => JSON.parse(l) as { name: string; value: number; kind: string });
+  const wakeRows = readFileSync(join(root, "packages/contracts/golden/console/wake-bound.jsonl"), "utf8").trim().split("\n")
+    .map((l) => JSON.parse(l) as { settle: number; pass: number; start: number; done: number });
+  const POLL_MS = 5;
+
+  it("the TS wake bounds and test parameters equal the Lean golden rows", () => {
+    expect(wakeRows.length).toBeGreaterThan(3);
+    for (const r of wakeRows) {
+      expect(wakeStartBound(r.settle, r.pass)).toBe(r.start);
+      expect(wakeDoneBound(r.settle, r.pass)).toBe(r.done);
+    }
+    expect(param("settle_ms")).toBe(DRAIN_SETTLE_MS);
+    expect(param("event_deadline_ms")).toBe(wakeStartBound(DRAIN_SETTLE_MS, param("pass_max_ms")) + param("wake_margin_ms"));
+    expect(param("rescue_deadline_ms")).toBe(wakeStartBound(param("rescue_tick_ms"), param("pass_max_ms")) + param("wake_margin_ms"));
+  });
+
+  type Pass = { start: number; end: number | null; pokes: number };
+
+  /** One run of the scenario: a journal line is appended (event path: after a new session dir) and the first pass that starts after
+   *  it must start by `deadline` and, once done, have put the line's agent on its task. `watcher: false` leaves the workflow dirs
+   *  unwatched, so only the tick can answer. Resolves with the trail text; rejects with it when a bound fails. */
+  async function wakeScenario(o: { tick: number; watcher: boolean; newDir: boolean; deadline: number }): Promise<string> {
     const { dir, store } = await fresh();
+    const maxPass = param("pass_max_ms"), margin = param("wake_margin_ms");
     const wf = join(dir, "sess", "workflows");
+    const run = "wf_e37180a7-497";
+    const rd = join(dir, "sess", "subagents", "workflows", run);
     mkdirSync(join(wf, "scripts"), { recursive: true });
+    if (!o.newDir) mkdirSync(rd, { recursive: true });
+    const submitted = await store.submit({ type: "task.define", key: "d:fix-nav", actor: "lead", task: "fix-nav", title: "T", stream: "s",
+      milestone: null, deps: [], owner: "o", writes: [], devices: [], needs: [], evidence: null } as never);
+    expect(submitted.ok).toBe(true);
+    const agentOf = async () => (await store.board()).plan.tasks.find((t) => t.id === "fix-nav")?.agent ?? null;
+    const lag = monitorEventLoopDelay({ resolution: 10 });
+    lag.enable();
+    stops.push(() => lag.disable());
+    const passes: Pass[] = [];
+    const ref: { w?: ReturnType<typeof startDrainWatch> } = {};
     const d = new Drain(store, () => [wf]);
-    const w = startDrainWatch(dir, () => d.run(), () => undefined, 60_000, () => workflowWatchTargets(dir, { FW_WORKFLOWS_DIR: wf }));
+    const w = startDrainWatch(dir, async () => {
+      const p: Pass = { start: performance.now(), end: null, pokes: ref.w?.trigger.pokes ?? 0 };
+      passes.push(p);
+      try { return await d.run(); } finally { p.end = performance.now(); }
+    }, () => undefined, o.tick, () => o.watcher ? workflowWatchTargets(dir, { FW_WORKFLOWS_DIR: wf }) : []);
+    ref.w = w;
     stops.push(w.stop);
-    await until(() => w.trigger.passes >= 1);
-    expect(w.watches.size).toBeGreaterThanOrEqual(3);
-    const rd = join(dir, "sess", "subagents", "workflows", "wf_e37180a7-497");
+    const t0 = performance.now();
+    const ms = (x: number) => (x - t0).toFixed(0);
+    const trail = (what: string, cause: string): string => [
+      `${what}: ${cause}`,
+      `node ${process.version}; tick ${o.tick}, deadline ${o.deadline}, PASS_MAX_MS ${maxPass}, margin ${margin}, watches ${w.watches.size}, pokes ${w.trigger.pokes}, passes ${w.trigger.passes}`,
+      `loop lag ms: max ${(lag.max / 1e6).toFixed(0)}, mean ${(lag.mean / 1e6).toFixed(0)}, p99 ${(lag.percentile(99) / 1e6).toFixed(0)}`,
+      ...passes.map((p, i) => `  pass ${i}: start ${ms(p.start)}, length ${p.end === null ? "running" : (p.end - p.start).toFixed(0)}, pokes at start ${p.pokes}`),
+    ].join("\n");
+    const waitPassEnd = async (i: number, what: string) => {
+      for (;;) {
+        const p = passes[i]!;
+        if (p.end !== null) return;
+        if (performance.now() - p.start > maxPass) throw new Error(trail(what, `pass ${i} still running after PASS_MAX_MS (long pass)`));
+        await sleep(POLL_MS);
+      }
+    };
+    /** Wait for the first pass numbered `from` or later; return its index. */
+    const answer = async (what: string, from: number, writeAt: number, pokesAtWrite: number, mustPoke: boolean): Promise<number> => {
+      lag.reset();
+      while (passes.length <= from) {
+        const running = passes[from - 1];
+        if (running && running.end === null && performance.now() - running.start > maxPass)
+          throw new Error(trail(what, `pass ${from - 1} runs over PASS_MAX_MS (long pass)`));
+        if (performance.now() - writeAt > o.deadline) {
+          const slow = passes.some((p) => p.end !== null && p.end - p.start > maxPass);
+          throw new Error(trail(what, `no pass started within ${o.deadline} ms of the write (${slow ? "long pass" : lag.max / 1e6 > margin ? "starved loop"
+            : w.trigger.pokes === pokesAtWrite ? "lost event: no poke" : "poke without a pass"})`));
+        }
+        await sleep(POLL_MS);
+      }
+      const p = passes[from]!;
+      const late = p.start - writeAt;
+      if (late > o.deadline) throw new Error(trail(what, `pass ${from} started ${late.toFixed(0)} ms after the write, over the deadline ${o.deadline}`));
+      if (mustPoke && p.pokes <= pokesAtWrite) throw new Error(trail(what, `pass ${from} started with no poke after the write (pokes ${p.pokes}, were ${pokesAtWrite})`));
+      if (lag.max / 1e6 > margin) throw new Error(trail(what, `event loop stalled ${(lag.max / 1e6).toFixed(0)} ms, over the margin ${margin} (starved loop)`));
+      return from;
+    };
+    await until(() => passes.length >= 1 && passes[0]!.end !== null);
     await sleep(100);
-    const p0 = w.trigger.passes;
-    mkdirSync(rd, { recursive: true }); // subagents/ did not exist at start: found through the session dir watch
-    await until(() => w.trigger.passes > p0);
-    const p1 = w.trigger.passes;
-    await sleep(100);
-    writeFileSync(join(rd, "journal.jsonl"), "{}\n");
-    await until(() => w.trigger.passes > p1);
+    if (o.newDir) {
+      if (o.watcher) expect(w.watches.size).toBeGreaterThanOrEqual(3);
+      const from = passes.length, writeAt = performance.now(), pokes = w.trigger.pokes;
+      mkdirSync(rd, { recursive: true }); // subagents/ did not exist at start: found through the session dir watch
+      const i = await answer("new session dir", from, writeAt, pokes, o.watcher);
+      await waitPassEnd(i, "new session dir");
+      await sleep(100);
+    }
+    const from = passes.length, pokes = w.trigger.pokes;
+    const writeAt = performance.now(); // taken at the write itself: only a pass that starts later answers it
+    writeFileSync(join(rd, "journal.jsonl"), JSON.stringify({ type: "started", agentId: "a1", label: "fix:fix-nav" }) + "\n");
+    const i = await answer("journal append", from, writeAt, pokes, o.watcher);
+    await waitPassEnd(i, "journal append");
+    const got = await agentOf();
+    if (got === null) throw new Error(trail("journal append", `pass ${i} ended but its output lacks the appended journal line (task fix-nav has no agent)`));
+    return trail("journal append", `woke ${passes[i]!.start - writeAt > 0 ? (passes[i]!.start - writeAt).toFixed(0) : 0} ms after the write`);
+  }
+
+  it("event path: an append and a new session dir wake the drain by the proved event bound, the watcher poking before the pass", { repeats: 9 }, async () => {
+    // a 60 s tick cannot answer within the deadline, so only the file events can
+    const out = await wakeScenario({ tick: 60_000, watcher: true, newDir: true, deadline: param("event_deadline_ms") });
+    expect(out).toContain("woke");
+  });
+
+  it("event path: the same scenario fails when the watcher is disabled", async () => {
+    await expect(wakeScenario({ tick: 60_000, watcher: false, newDir: true, deadline: param("event_deadline_ms") }))
+      .rejects.toThrow(/new session dir: no pass started within 2550 ms of the write \(lost event: no poke\)/);
+  });
+
+  it("tick rescue: with every event dropped the safety tick wakes the drain by the proved tick bound", { repeats: 9 }, async () => {
+    const out = await wakeScenario({ tick: param("rescue_tick_ms"), watcher: false, newDir: false, deadline: param("rescue_deadline_ms") });
+    expect(out).toContain("woke");
   });
 });
 

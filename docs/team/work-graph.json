@@ -11109,7 +11109,8 @@
     "lean/Fw/Console/JournalFold.lean",
     "packages/contracts/golden/console/**",
     "docs/team/handoffs/drain-wake-flake.md"
-   ]
+   ],
+   "evidence": "05591d8"
   },
   {
    "devices": [
