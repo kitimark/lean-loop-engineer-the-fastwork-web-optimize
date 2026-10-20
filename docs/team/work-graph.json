@@ -6116,7 +6116,8 @@
     "packages/contracts/golden/parts/morph.tween.jsonl",
     "research/findings/ledger.json",
     "docs/team/handoffs/waapi-threshold-attr.md"
-   ]
+   ],
+   "evidence": "9c114d7"
   },
   {
    "devices": [
@@ -11509,30 +11510,24 @@
     "research/findings/ledger.json",
     ".github/workflows/trajectory-probe.yml",
     "apps/runner/src/land.ts",
-    "apps/site/src/parts/nav/earn.golden.test.ts",
-    "apps/site/src/parts/nav/index.tsx",
-    "apps/site/src/parts/nav/logic.ts",
-    "apps/site/src/parts/nav/look-change.test.ts",
-    "apps/site/src/parts/nav/nav.module.css",
-    "apps/site/src/parts/nav/part.json",
     "apps/site/src/registry/types.ts",
     "lean/Fw.lean",
     "lean/Fw/Ci/Trigger.lean",
     "lean/Fw/Parts/FootprintData.lean",
-    "lean/Fw/Parts/NavEarnOpt.lean",
     "lean/Fw/Preset/Gen.lean",
     "lean/Fw/Preset/V2Proved.lean",
-    "lean/scripts/NavEarnGolden.lean",
     "lean/scripts/check.sh",
     "packages/contracts/golden/ci/triggers.jsonl",
     "packages/contracts/golden/parts/footprint.gen.json",
-    "packages/contracts/golden/parts/nav-earn.jsonl",
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "packages/gate-breakpoints/src/engines.mjs",
     "packages/gate-breakpoints/src/trajectory/frames.mjs",
-    "research/notes/2026/10-20-earn-transition-retarget.md",
-    "results/earn-look-review/index.json"
-   ]
+    "results/earn-look-review/index.json",
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl"
+   ],
+   "evidence": "7458a5f"
   },
   {
    "devices": [
@@ -11797,7 +11792,126 @@
     "lean/Fw/Land/RenderGuard*.lean",
     "packages/contracts/golden/land/render-guard*.jsonl",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/land-render-guard.md"
+    "docs/team/handoffs/land-render-guard.md",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "user-review-queue",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [
+    "lego-composer",
+    "earn-transition-retarget"
+   ],
+   "title": "User 2026-10-21 (earn button): \"Keep it, and mark it for ask me to review later in the console. I'll review later\". Lean Fw.Console.Review: pending user reviews derived from Fw.Preset.Gen.lookDecisions (kept look changes whose visual review is pending) become user-audience board items (audience rule as Fw.Console.Alert); an item stays open until the user records keep or reject. console-web 'Your reviews' panel with a nav badge, phone usable: what changed, the review material state (Chromium strips ready, WebKit pending: task earn-look-review-webkit), Keep / Reject buttons posting a user.review event through console-api (single writer); Compose shows the variant as 'look change, review pending'. The private review page URL is never committed: console-api reads it from .local/reviews.json (gitignored), else shows the CI run id and artifact name. Ledger row 39 userDecision: kept 2026-10-21, review deferred to the console",
+   "writes": [
+    "lean/Fw/Console/Review*.lean",
+    "lean/Fw/Wire/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/review*.jsonl",
+    "apps/console-api/src/**",
+    "apps/console-api/test/review*.test.ts",
+    "apps/console-web/src/**",
+    "apps/console-web/test/review*.test.tsx",
+    "research/findings/ledger.json",
+    "docs/team/tools/review.md",
+    "docs/team/handoffs/user-review-queue.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "compose-superseded-rows",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [
+    "admit-hero-exit-scoped"
+   ],
+   "title": "Lead live check of Compose 2026-10-21: /api/compose classes hero.exit:scoped refuted and refuses it, because ledger row hero.exit.scoped.falsified (status refuted) wins over row hero.exit.scoped.inline (proved), which fixed it. Identity over inference: ledger rows get supersededBy: <row id>; Lean Compose classOf ignores a superseded row for refutation (theorem + golden: a superseded refuted row never refutes; the superseding row's class applies)",
+   "writes": [
+    "research/findings/ledger.json",
+    "lean/Fw/Console/Compose.lean",
+    "packages/contracts/golden/console/console.compose.jsonl",
+    "docs/team/tools/compose.md",
+    "docs/team/handoffs/compose-superseded-rows.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-push-render-guard",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "land-render-guard"
+   ],
+   "title": "land-render-guard review follow-up: agents push ci/<task> branches to the public origin before any land; run the fwcore op console.landRenderGuard over origin/main..HEAD before `git push origin ci/<name>` (the fw ci push path or a repo pre-push hook) so a render never reaches origin through a ci/* branch; temp-repo test",
+   "writes": [
+    "apps/runner/src/**",
+    "apps/runner/test/ci-push*.test.ts",
+    "scripts/hooks/**",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/ci-push-render-guard.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-sha-pin",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "land-render-guard"
+   ],
+   "title": "land-render-guard review follow-up: land.ts behind check (~:538) and scope diff (~:571) still read the branch by name; use the pinned sha (merge-base --is-ancestor main sha; git diff --name-only main...sha) so every check judges the tip that is merged; temp-repo test; land.md accepted limits name the trailing-dot and non-ASCII-space extension cases",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-sha*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-sha-pin.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-phase1-slow",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "fw watch timing.slow fw/land and fw land/fwcore build (phase 1), 2026-10-21 lands r141-r142: every Lean-changing land builds fwcore locally in phase 1 before the remote lane, which builds it again per leg; under agent load the local build is slow. land-fwcore-once (remote side) was a negative finding. Investigate whether the phase-1 local build is needed when every check of the plan is remote (Lean-decide needsBuild from the remote plan, Fw.Console.LandTier); before/after MEASURED with span times on a Lean-changing land",
+   "writes": [
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Console/LandTier.lean",
+    "packages/contracts/golden/console/**",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-phase1-slow.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-inputs-dist",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "apps/runner/test/land-inputs.test.ts fails locally (2 tests) when the gitignored apps/site/dist/aot build exists: packages/gate-breakpoints/src/serve.mjs:36 and measure-webkit site-lane.sh / stamped-lane.sh read it, and land.ts PACKAGE_EXTRA_READS does not declare it. Declare it, or have the test exclude gitignored build outputs by an explicit list; no env or platform skip",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-inputs.test.ts",
+    "docs/team/handoffs/land-inputs-dist.md"
    ]
   }
  ],
