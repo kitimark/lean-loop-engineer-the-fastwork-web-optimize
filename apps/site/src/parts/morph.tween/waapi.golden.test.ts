@@ -7,12 +7,15 @@
 // - packages/contracts/golden/parts/morph.tween.jsonl: Lean `ease` samples. The effect's cubic-bezier (parsed from the
 //   variant's EASING string) must give them (MT1 `bezier_eq_ease`), and every flag keyframe must flip on the same
 //   sample as the original's strict test, except at the exact tie (MT4 `flags_same_frame`).
+// - packages/contracts/golden/parts/morph-tween-waapi.attr.jsonl (`attrJsonl`): the readers of `data-fw-morph`, the
+//   marker rows (TS delay at most Lean `dlLo`, so sound, and within 2 ms of it) and two replayed histories; the driver's
+//   written attribute must be in the band of the original's value after every frame (Lean `attr_band`).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { decodeRat } from '../../engine/golden.testutil';
 import { ease } from './logic';
 import { faithfulSubscribes, waapiRun } from './waapi.fake.testutil';
-import { EASING, FADE_CSS, fadeCss, flagOffset, navKeyframes, PROP_DARK, PROP_EXPANDED, PROP_FADE, PROP_MORPH, PROP_PLATFORM, platformKeyframes, REGISTRATIONS, REGISTRATIONS_SCOPED, settledProps, THETA_DARK, THETA_EXPANDED, THETA_POINTER, type Registration } from './waapi.logic';
+import { ATTR_READERS, band, EASING, FADE_CSS, hasMarker, MARKER_THETAS, markerDelay, fadeCss, flagOffset, navKeyframes, PROP_DARK, PROP_EXPANDED, PROP_FADE, PROP_MORPH, PROP_PLATFORM, platformKeyframes, REGISTRATIONS, REGISTRATIONS_SCOPED, settledProps, THETA_DARK, THETA_EXPANDED, THETA_POINTER, type Registration } from './waapi.logic';
 
 const golden = (name: string) =>
   readFileSync(new URL(`../../../../../packages/contracts/golden/parts/${name}.jsonl`, import.meta.url), 'utf8')
@@ -228,4 +231,52 @@ describe('morph.tween:waapi easing and flag keyframes vs the Lean ease samples',
     // flat animation: offset 0 (Lean x / 0 = 0), constant flag
     expect(flagOffset({ theta: 0.2, from: 1, to: 1 })).toBe(0);
   });
+});
+
+describe('morph.tween:waapi attribute writes vs morph-tween-waapi.attr.jsonl (Lean attr_band, waapi_vis)', () => {
+  const attr = golden('morph-tween-waapi.attr');
+  const readers = attr.filter((r) => r.kind === 'attrReader');
+  const markerRows = attr.filter((r) => r.kind === 'marker') as { from: number; to: number; theta: number; marker: boolean; delay: number | null }[];
+  const evs = attr.filter((r) => r.kind === 'attrEv') as { case: string; ev: string; t: number; goal?: number; band?: boolean[]; old?: boolean[] }[];
+
+  it('ATTR_READERS equal the Lean attrReaders, in order', () => {
+    expect(readers.map(({ sel, cmp, theta }) => ({ sel, cmp, theta }))).toEqual([...ATTR_READERS]);
+    expect(new Set(MARKER_THETAS)).toEqual(new Set(readers.map((r) => r.theta)));
+  });
+
+  it('a push gets a marker iff Lean markerB, with a delay at most Lean dlLo and within 2 ms of it', () => {
+    expect(markerRows).toHaveLength(108);
+    for (const r of markerRows) {
+      expect(hasMarker(r.from, r.to, r.theta), JSON.stringify(r)).toBe(r.marker);
+      if (!r.marker) continue;
+      const d = markerDelay(r.from, r.to, r.theta);
+      expect(d, JSON.stringify(r)).toBeLessThanOrEqual(r.delay!);
+      expect(d, JSON.stringify(r)).toBeGreaterThanOrEqual(r.delay! - 2);
+    }
+  });
+
+  // script runs (finish and marker events, frame callbacks) against the faithful driver's one rAF callback per frame
+  const runs: Record<string, [number, number]> = { open: [7, 42], reverse: [13, 64] };
+  for (const arm of ['waapi', 'waapi-scoped'] as const) {
+    for (const name of ['open', 'reverse']) {
+      it(`${arm} ${name}: after every frame the written attribute is in the band of the original's value; the old driver's is not`, () => {
+        const w = waapiRun({ arm });
+        let stale = 0;
+        let frames = 0;
+        for (const e of evs.filter((r) => r.case === name)) {
+          if (e.ev === 'push') {
+            w.setTimeline(e.t);
+            expect(w.wheel(e.goal === 1 ? 100 : -100)).toBe(true);
+            continue;
+          }
+          w.frameAt(e.t);
+          frames++;
+          expect(band(w.hints.at(-1)!), `${name} t=${e.t}`).toEqual(e.band);
+          if (JSON.stringify(e.old) !== JSON.stringify(e.band)) stale++;
+        }
+        expect(stale).toBeGreaterThan(0);
+        expect([w.scriptRuns(), frames]).toEqual(runs[name]);
+      });
+    }
+  }
 });
