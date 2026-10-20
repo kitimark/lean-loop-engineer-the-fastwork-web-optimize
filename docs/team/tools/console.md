@@ -56,5 +56,7 @@ no new Terminal window. Read the result with `pnpm fw console status` and `pnpm 
   A machine is loaded when the floor of its 1-min load average is at least `os.cpus().length`; a loaded call waits
   3 base deadlines before the kill, an unloaded one is killed at the first. TS stand-in: `backoffDecision` in
   `apps/console-api/src/core/lean.ts`, checked against the golden by `test/backoff.test.ts`.
+- `console.query` runs `Fw.Plan.fastView` (hash indexes, proved equal to `view`): 22 ms on the real log, 229 ms at 4x
+  (was 0.63 s and 33 s; local debug run; `research/notes/2026/10-20-fwcore-query-speed.md`).
 - `FW_CORE_CALL_MS` is no longer needed as a mitigation.
 

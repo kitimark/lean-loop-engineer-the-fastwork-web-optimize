@@ -1,5 +1,6 @@
 import Std.Data.HashMap
 import Fw.Plan.Core
+import Fw.Plan.FastBound
 /-!
 # A fast board plan: the critical path from hash indexes
 
@@ -162,21 +163,78 @@ theorem fastCriticalPath_eq (ts : List Task) : fastCriticalPath ts = criticalPat
   intro x _
   rw [lookH_mkMap]
 
+/-! ## Parallel-safe groups with the glob segments split once -/
+
+/-- A row with the segments of its write globs, split once (`conflict` splits them again for every pair). -/
+structure Item where
+  t  : Task
+  ws : List (List String)
+
+/-- The item of a row. -/
+def Item.of (t : Task) : Item := ⟨t, t.writes.map segs⟩
+
+/-- `wconf` on split globs. -/
+def wconfS (xs ys : List (List String)) : Bool := xs.any fun p => ys.any fun q => globOv p q
+
+/-- `conflict` on items. -/
+def conflictS (x y : Item) : Bool := wconfS x.ws y.ws || dconf x.t y.t
+
+theorem conflictS_of (x y : Task) : conflictS (Item.of x) (Item.of y) = conflict x y := by
+  simp [conflictS, conflict, wconfS, wconf, Item.of, List.any_map, Function.comp_def]
+
+/-- `fits` on items. -/
+def fitsS (g : List Item) (t : Item) : Bool := g.all fun x => !conflictS x t && !conflictS t x
+
+/-- `place` on items. -/
+def placeS : List (List Item) → Item → List (List Item)
+  | [], t => [[t]]
+  | g :: gs, t => if fitsS g t then (g ++ [t]) :: gs else g :: placeS gs t
+
+theorem fitsS_of (g : List Task) (t : Task) : fitsS (g.map Item.of) (Item.of t) = fits g t := by
+  simp [fitsS, fits, List.all_map, Function.comp_def, conflictS_of]
+
+theorem placeS_of : ∀ (gs : List (List Task)) (t : Task),
+    placeS (gs.map (List.map Item.of)) (Item.of t) = (place gs t).map (List.map Item.of)
+  | [], t => by simp [placeS, place]
+  | g :: gs, t => by
+    simp only [List.map_cons, placeS, place, fitsS_of]
+    by_cases h : fits g t = true
+    · simp [h]
+    · simp [h, placeS_of gs t]
+
+theorem foldl_placeS : ∀ (L : List Task) (gs : List (List Task)),
+    (L.map Item.of).foldl placeS (gs.map (List.map Item.of)) = (L.foldl place gs).map (List.map Item.of)
+  | [], gs => by simp
+  | t :: L, gs => by
+    simp only [List.map_cons, List.foldl_cons, placeS_of]
+    exact foldl_placeS L (place gs t)
+
+/-- The parallel-safe groups (ids) from items. -/
+def groupsF (b : List Task) : List (List String) :=
+  (((readyIn b .agent).map Item.of).foldl placeS []).map fun g => g.map fun i => i.t.id
+
+/-- **The fast groups are the groups.** -/
+theorem groupsF_eq (b : List Task) : groupsF b = (groups b).map ids := by
+  have h := foldl_placeS (readyIn b .agent) []
+  simp only [List.map_nil] at h
+  simp only [groupsF, h, groups, List.map_map, Function.comp_def, Item.of]
+  rfl
+
 /-! ## The fast board plan -/
 
 /-- `viewWith` with the critical path from the indexes. -/
 def fastViewWith (s : State) (b : List Task) : View :=
   { tasks := b.map (taskView s b), milestones := s.milestones.map (msView s.tasks),
-    criticalPath := fastCriticalPath (kept s.tasks), parallelSafe := (groups b).map ids }
+    criticalPath := fastCriticalPath (kept s.tasks), parallelSafe := groupsF b }
 
 theorem fastViewWith_eq (s : State) (b : List Task) : fastViewWith s b = viewWith s b := by
-  simp only [fastViewWith, viewWith, fastCriticalPath_eq]
+  simp only [fastViewWith, viewWith, fastCriticalPath_eq, groupsF_eq]
 
 /-- The board plan at time `now` under quiet limit `q`, from the fast parts. -/
-def fastView (q now : Nat) (s : State) : View := fastViewWith s (bound q now s)
+def fastView (q now : Nat) (s : State) : View := fastViewWith s (boundF q now s)
 
 /-- **The fast board plan is the board plan.** -/
 theorem fastView_eq (q now : Nat) (s : State) : fastView q now s = view q now s :=
-  fastViewWith_eq s _
+  by rw [fastView, boundF_eq]; exact fastViewWith_eq s _
 
 end Fw.Plan
