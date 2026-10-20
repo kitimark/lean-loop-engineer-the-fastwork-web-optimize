@@ -20,7 +20,7 @@ Open
 - The A/A run fails the same cell on the same node property (bg at 390, 1280; earn.max-width at 390, 1280). `tcell` takes
   a flag-alone fail first (`tcell_own_fail`), so no new run can pass the cell while 39466179818 is stored. Settling it
   needs a lead decision on an A/A-relative rule for the mac morph cell (not done: the judge is not widened here).
-- Same failure class as preset run 39453181962: close@0 where `is-morphing` is removed (trajectory-transition-window).
+- INFERRED: Same failure class as preset run 39453181962: close@0 where `is-morphing` is removed (trajectory-transition-window) (the 641 a7 and a8 reads are approach reads, not close@0).
 - `docs/team/tools/trajectory-probe.md` has no row for these runs (outside this task's writes).
 
 Conventions: the Bash hook refuses compound shell and `git -C`; put loops in scratch scripts. The ledger is checked
