@@ -1,28 +1,28 @@
-# Handoff: morph-scroll-lock (C4)
+# Handoff: morph-scroll-lock (C4), round 2
 
-**State.** Branch `worktree-wf_22f9acfd-29a-1`, pushed as `ci/morph-scroll-lock`. Read first:
-`research/notes/2026/10-21-morph-scroll-lock.md` (verdict, engine paths, CI runs, ledger row for the lead).
+**State.** Branch `worktree-wf_22f9acfd-29a-1` (merge of main 01bb2a9a, code b4b8b377, note 5ee20980, final: this commit),
+pushed as `ci/morph-scroll-lock` at b4b8b37. Read first: `research/notes/2026/10-21-morph-scroll-lock.md` (verdict, design,
+per-lane engagement, reproduction of the outcome lines, ledger row for the lead).
 
 **Verified.**
-- Lean MT-L in `lean/Fw/Parts/MorphTweenOpt.lean` (end of file): `runL_s`, `runL_locked`, `classic_writes`, `seen_eq`,
-  `forced_le`, `forced_lt`, `shown_lock`, `ungated_eq`, `still_eq`, `work_le`, `work_still`, `work_ungated`, `gutter_same`,
-  `gutter_shift`, `gutter_stable`, `lock_vis`. `sh lean/scripts/check.sh` green.
-- Golden `packages/contracts/golden/parts/morph-tween-scroll-lock.jsonl` = `lockJsonl` (`#guard ... include_str`); TS
-  `apps/site/src/parts/morph.tween/scroll-lock.golden.test.ts` replays it through the driver and `pin()`.
-- Site tests and typecheck, `scripts/ci-paths.test.mjs`, runner `land-inputs` test green.
-
-- CI at e01287a: flag runs 39496271199, 39498373119 and A/A run 39500347224. There is no unit beyond the A/A floor outside close@0,
-  and mac morph is "no verdict: coverage" (table in the note).
+- Lean MT-L (`lean/Fw/Parts/MorphTweenOpt.lean`, end of file): one read per activation (`readsAt`, `stepR`, `runR_eq`,
+  `reads_iff`), hover gate (`lockAllowed`, `engage`, `engage_on|touch|classic|off_writes`), two counters (`forced_*`,
+  `style_passes`, `rootWrites_classic`); `work_le` removed. `sh lean/scripts/check.sh` green.
+- Golden `morph-tween-scroll-lock.jsonl`: lock rows carry `read`; engage rows. The TS test counts `overlay()` calls per
+  event (1 at the activating push, 0 per tick) and checks the read comes before the first style write.
+- Site test and typecheck, `scripts/ci-paths.test.mjs`, runner `land-inputs` green.
+- CI at b4b8b37: flag 39505188144 (`?fw=morph.tween:scroll-lock`), A/A 39505203727 (`''`), searches checked. Mac morph
+  fails in both (close@0 repeats); nothing repeats beyond the A/A floor outside close@0 and approach steps.
 
 **Open.**
-- Ledger row: not applied (another task held `research/findings/ledger.json`); the JSON is in the note.
-- iPhone premise refuted (UIKit pan in flight not stopped, INFERRED from `WKWebViewIOS.mm:1100-1104`@862f17d).
-- The probe cannot show C4's gain: it pushes with one prevented wheel and never has a gesture in flight. A probe step with a
-  trackpad gesture latched before the armed band is the follow-up that would measure it.
-- Overlay or classic scrollbar on the macOS runner unknown; on classic the arm is the original.
+- Ledger row not applied; the JSON is in the note.
+- The probe cannot show the scrollTo saving (`still_eq`); a trackpad-gesture probe step that records engagement is the follow-up.
+- macOS runner scrollbar kind unknown; the net of 2 root style passes per morph against the saved scrollTo calls is INFERRED.
+- `fw run --trajectory` took the skipped push run 39505172794 as its dispatch and exited; dispatches were 39505188144
+  (flag) and 39505203727 (A/A).
 
 **Conventions.**
-- The arm is `visClass: "L"`, kind `proposal` (look change in a gesture in flight). `look-change.candidates.jsonl` was
-  regenerated with `Fw.Preset.Gen.run`, and the footprint files with `apps/site/scripts/part-footprint.mjs --write`.
-- To regenerate the golden: a scratch `main` that writes `Fw.Parts.MorphTweenOpt.lockJsonl`, run with
-  `lake env lean --run` from `lean/`.
+- Arm is `visClass: "L"`, kind `proposal`. Generated files: footprint (`part-footprint.mjs --write`),
+  `look-change.candidates.jsonl` (`Fw.Preset.Gen.run`).
+- Golden regen: drop the `include_str` `#guard` line, build, write `lockJsonl` from a scratch `main`
+  (`lake env lean --run` in `lean/`), restore the line, rebuild.

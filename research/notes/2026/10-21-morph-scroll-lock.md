@@ -27,12 +27,10 @@ back, and the overlay scrollbar hides while the morph runs. It is registered as 
 
 ## The faithful pin (what C4 replaces)
 
-`apps/site/src/parts/morph.tween/driver.ts`: `pin()` runs on every scroll frame (`registerScroll`, order 110) and calls
-`scrollTo({top: pinned, behavior: 'instant'})` while `isActive()` and `scrollY ≠ pinned`. `isActive` is `target > 0.001 ||
-value > 0.001`, so it holds for the whole time the morph is open, not only for the 680 ms tween. New input during the morph
-never scrolls: the wheel and touchmove listeners (capture, non-passive) prevent every taken push, and every delta is taken
-while active. The fight comes only from a gesture already latched to async scrolling before the morph became active
-(lag-source note §Input).
+`driver.ts`: `pin()` runs on every scroll frame (`registerScroll`, order 110) and calls `scrollTo({top: pinned, behavior:
+'instant'})` while `isActive()` (`target > 0.001 || value > 0.001`, the whole time the morph is open) and `scrollY ≠ pinned`.
+The wheel and touchmove listeners prevent every push taken while active, so the fight comes only from a gesture latched to
+async scrolling before the morph became active (lag-source note §Input).
 
 ## Engine paths (CONFIRMED by source)
 
@@ -66,26 +64,21 @@ the step that makes it inactive (and at dispose). It engages only where Lean `en
 and the root scrollbar is an overlay one.
 
 - **Hover gate.** `index.tsx` installs `env.lock` only when `lockAllowed(matchMedia('(hover: none)').matches)`, read once
-  at mount (`mq.hover-none`). On `(hover: none)` the driver has no lock and is the original: no read, no write
-  (`engage_touch`, `engage_off_writes`). Touch-only Android is excluded with iOS: whether its pan in flight is gated is not
-  checked (INFERRED gated by `ScrollTree::ScrollBy`), so the arm gives up a possible gain there.
+  at mount (`mq.hover-none`); without it the driver is the original (`engage_touch`, `engage_off_writes`). Touch-only
+  Android is excluded with iOS, although `ScrollTree::ScrollBy` likely gates its pan (INFERRED): a possible gain given up.
 - **One read per activation.** The driver reads `overlay()` (`innerWidth − documentElement.clientWidth ≤ 0`) only at the
-  step that takes the morph from inactive to active (Lean `readsAt`), before any style write of that step, stores it, and
-  `syncLock` uses the stored value (Lean `stepR`; `runR_eq`: the same tween and lock as `runL` with the kind fixed). Ticks
-  never read. Round 1 read it on every tick while the lock was off, right after the tick's style writes, which forces a
-  style and layout pass per frame on a classic scrollbar (Blink `Element::clientWidth`, `element.cc:2622-2633`@f842f52;
-  WebKit `Element::clientWidth`, `Element.cpp:1632-1635`@862f17d). The activating push reaches `push_` only through
-  `takenFor`, which calls `isArmed()` (`getBoundingClientRect`) on an inactive morph with no style write before the read, so
-  the read finds layout clean (INFERRED).
+  step that activates the morph (Lean `readsAt`), before that step's style writes, and `syncLock` uses the stored value
+  (`stepR`, `runR_eq`). Ticks never read. Round 1 read it on every tick while unlocked, after the tick's style writes;
+  `clientWidth` forces style and layout on a classic scrollbar (Blink `element.cc:2622-2633`@f842f52, WebKit
+  `Element.cpp:1632-1635`@862f17d). The activating push comes through `takenFor`, whose `isArmed()`
+  (`getBoundingClientRect`) has just flushed layout with no style write since, so the read finds layout clean (INFERRED).
 - **Classic scrollbars.** The arm reads once per activation and writes nothing (`classic_writes`, `rootWrites_classic`).
-- The pin stays as a backstop. TS: `scroll-lock.logic.ts` (`overlayOf`, `lockOn`, `lockWrite`, `readsAt`, `lockAllowed`,
-  `engage`), `driver.ts` (`env.lock`, `readOverlay`, `syncLock`), `index.tsx`.
+- The pin stays as a backstop. TS: `scroll-lock.logic.ts`, `driver.ts` (`readOverlay`, `syncLock`), `index.tsx`.
 
-Golden test `scroll-lock.golden.test.ts`: the overlay and engage rows; 4 replayed histories through the driver, checking
-per event the activity, the root write and the number of `overlay()` calls (row field `read`: 1 at the activating push, 0
-on every tick, in `open-close` and `open-close-classic` too); the activating push reads before its first style write; 4
-spans through `pin()`, checking the `scrollTo` calls and that the stub's `scrollY` is `p` afterwards. The span rows check
-`pin()` only: whether the engine drops a delta is the model input `Gest.gated`, fed to the stub as the shown position.
+Golden test `scroll-lock.golden.test.ts`: overlay and engage rows; 4 histories through the driver, checking per event the
+activity, the root write and the `overlay()` call count (row `read`: 1 at the activating push, 0 per tick, `open-close` and
+`open-close-classic` included), and that the read precedes the first style write; 4 spans through `pin()` (`scrollTo`
+calls, stub `scrollY` = `p` after). Whether the engine drops a delta is the model input `Gest.gated`, fed to the stub.
 
 ## Lean (MT-L)
 
@@ -100,15 +93,12 @@ spans through `pin()`, checking the `scrollTo` calls and that the stub's `scroll
     input). `shown_lock`: under a committed lock a gated frame shows `p`.
   - Root style passes (`stylePasses`, `rootWrites`): `style_passes`, `stylePasses true = stylePasses false + 2` per morph;
     the arm never saves one. `rootWrites` is 2 in each overlay golden history and 0 on classic (`rootWrites_classic`).
-  - Round 1's `work_le` added the two counters as equal units; no engine source gives a per-unit cost, so it is removed.
-    Whether 2 root style passes cost less than the saved `scrollTo` calls is INFERRED and unmeasured.
-- `gutter_same`: the gutter (layout width) is the original's for every input and scrollbar kind; `gutter_shift`,
-  `gutter_stable` as in Engine paths.
-- `lock_vis`: `VisSame E` for a scene built from the tween, the seen position and the gutter, with the arm engaged by
-  `engage` on the environment's hover and scrollbar kind.
+  - Round 1's `work_le` added the two as equal units with no cited per-unit cost; it is removed. The net is INFERRED.
+- `gutter_same`: the layout width is the original's for every input and scrollbar kind. `lock_vis`: `VisSame E` for a
+  scene of the tween, the seen position and the gutter, with the arm engaged by `engage` on the hover and scrollbar kind.
 
-Model limits: `Gest.gated` and the commit frame `k` are inputs restated from the engine paths above, not derived; the shown
-position of the original during a fight (`shown ≠ p`) is why the arm is class L, and `lock_vis` covers the main-thread view only.
+Model limits: `Gest.gated` and the commit frame `k` are inputs restated from the engine paths, not derived; `lock_vis`
+covers the main-thread view only, and the original's shown position in a fight (`shown ≠ p`) makes the arm class L.
 
 ## Known limits
 
@@ -116,8 +106,6 @@ position of the original during a fight (`shown ≠ p`) is why the arm is class 
 - The drawer writes `body.style.overflow` (`overlays.drawer/index.tsx:78-81`); a drawer opened during the morph makes the body
   its own scroll container. No sticky element is on screen at the page end (INFERRED).
 - `(hover: none)` is read once at mount; a device whose primary input changes later keeps the first decision.
-- Where it engages, the arm costs 2 root style passes per morph (`style_passes`) and saves `scrollTo` calls only during a
-  gated gesture in flight.
 
 ## CI (trajectory probe)
 
@@ -126,12 +114,16 @@ Whether the lock engaged is not recorded by the probe; per lane it follows from 
 
 | lane | scrollbar kind | 390, 640 | 641, 1280 |
 |---|---|---|---|
-| Chromium (Chrome Headless Shell, Linux) | none drawn: Playwright adds `--hide-scrollbars` in headless mode (playwright-core 1.64.1 `coreBundle.js:44762`), which sets `hide_scrollbars` (`web_contents_impl.cc:4169-4170`@f842f52) and removes the root scrollbars (`paint_layer_scrollable_area.cc:1765-1772`@f842f52), so `overlayOf` is true (INFERRED) | round 1 engaged; round 2 not installed (INFERRED) | engaged in both rounds (INFERRED) |
+| Chromium (headless, Linux) | none drawn, so `overlayOf` is true (INFERRED, below) | round 1 engaged; round 2 not installed (INFERRED) | engaged in both rounds (INFERRED) |
 | Linux WebKit | not read | the lane walks hero only (`walks_linux_webkit`), no push, so the lock never engages (INFERRED) | same |
 | macOS WebKit (macos-26) | unknown: not recorded | round 1 engaged iff overlay (unknown); round 2 not installed (`hasTouch`, INFERRED) | engaged iff overlay (unknown) |
 
-Lean outcome lines (`Fw.Gate.Trajectory.outcome`). Reproduce them read-only from `lean/` after `gh run download <id> -D <dir>`
-(the A/A has search `''`, which `storedOf` rejects, so `Stored` is built directly with flags `[]`; nothing is written):
+Chromium lane: Playwright adds `--hide-scrollbars` in headless mode (playwright-core 1.64.1 `coreBundle.js:44762`), which
+sets `hide_scrollbars` (`web_contents_impl.cc:4169-4170`@f842f52), and the root then creates no scrollbars
+(`paint_layer_scrollable_area.cc:1765-1772`@f842f52). On a classic macOS runner round 1 also read `clientWidth` per tick.
+
+Lean outcome lines (`Fw.Gate.Trajectory.outcome`): after `gh run download <id> -D <dir>`, save this as `<file>.lean` and
+run `lake env lean <file>.lean` in `lean/` (read-only; the A/A's search `''` fails `storedOf`, so `Stored` is built here):
 
 ```lean
 import Fw.Preset.Gen
@@ -149,15 +141,32 @@ def outcomes (dirs : List String) : IO Unit := do
 #eval outcomes ["<dir>/trajectory-chromium", "<dir>/trajectory-playwright-webkit", "<dir>/trajectory-apple"]
 ```
 
-Saved as `<file>.lean`, run `lake env lean <file>.lean`. Round 1's runs are re-reduced with the current judge (envelope,
-task trajectory-close-start) by copying each `raw-<engine>.json` to an empty directory per artifact and running
-`node src/trajectory/cli.mjs summary --out <that dir>` in `packages/gate-breakpoints`.
+Round 1's runs are re-reduced with the current judge (envelope): copy each `raw-<engine>.json` to an empty directory
+per artifact, run `node src/trajectory/cli.mjs summary --out <that dir>` in `packages/gate-breakpoints`.
 
-ROUND2_CI
+Outcome lines (MEASURED; every artifact's `search` checked: flag runs `?fw=morph.tween:scroll-lock`, A/A runs `''`):
+
+| run | sha | arm | chromium hero, morph | linux-webkit hero | mac-webkit hero | mac-webkit morph |
+|---|---|---|---|---|---|---|
+| 39496271199, 39498373119 | e01287a | flag | pass, pass | pass | pass | no verdict: coverage |
+| 39500347224 | e01287a | A/A | pass, pass | pass | pass | no verdict: coverage (fail under the round-1 judge) |
+| 39505188144 | b4b8b37 | flag | pass, pass | pass | pass | fail |
+| 39505203727 | b4b8b37 | A/A | pass, pass | pass | pass | fail |
+
+New content units in round 2 (`rel: new`, not coverage):
+
+- A/A: mac 390 `earn.max-width` and `nav.background-color` at close@0, 641 `earn.max-width` at close@0. Its fail is the
+  repeat of `earn.max-width` at close@0 across 390 and 641: the floor of the original against itself.
+- Flag: Chromium 1280 `nav.background-color` at close@0 and close-hold@0, `nav.rect` at close@0. Mac 390
+  `nav.background-color` and 640 `earn.max-width` at close@0, 641 `earn.max-width` at open@10, 1280 `nav.background-color`
+  at a0-a2 and close@0, `logo.color` and `nav.cls.is-on-dark` at a0. Its fail is the repeats of `nav.background-color`
+  (390, 1280) and `earn.max-width` (640, 641).
+- At 390 and 640 the arm is not installed; approach steps precede the first activation, where the arm writes nothing.
+  close@0 and approach reads are the in-flight class of `docs/team/tools/trajectory-probe.md` (Transitions in flight).
+  Outside them two units remain, each at one width in one run (Chromium 1280 `nav.background-color` at close-hold@0, mac
+  641 `earn.max-width` at open@10); neither repeats.
 
 ## Ledger row (for the lead)
-
-`n` is left for the lead to assign.
 
 ```json
 {
@@ -177,7 +186,7 @@ ROUND2_CI
     "Fw.Parts.MorphTweenOpt.ungated_eq", "Fw.Parts.MorphTweenOpt.forced_ungated", "Fw.Parts.MorphTweenOpt.still_eq", "Fw.Parts.MorphTweenOpt.forced_still", "Fw.Parts.MorphTweenOpt.style_passes", "Fw.Parts.MorphTweenOpt.gutter_shift"
   ],
   "missingWhy": [
-    "the gain needs a gesture in flight; the trajectory probe pushes with one prevented wheel, so it cannot show it (still_eq, forced_still). MEASURED: see the CI section; no run shows a unit beyond the A/A floor outside close@0",
+    "the gain needs a gesture in flight; the trajectory probe pushes with one prevented wheel, so it cannot show it (still_eq, forced_still). MEASURED: no unit repeats beyond the A/A floor outside close@0 and approach steps in either round; at b4b8b37 mac morph fails in both the flag run and the A/A on close@0 repeats",
     "the work is two counters with no cited per-unit engine cost: scrollTo calls saved (forced_lt) against 2 root style passes added per morph (style_passes); the net cost is INFERRED and unmeasured",
     "iPhone: refuted (ungated_eq, forced_ungated); the arm is not installed on (hover: none) (engage_touch), which also excludes touch-only Android, where the gain is unchecked",
     "Gest.gated and the commit frame k are model inputs restated from the engine paths, not derived",
@@ -187,6 +196,6 @@ ROUND2_CI
   "v1Evidence": "none",
   "lesson": "overflow: hidden on the root stops only the scrolls that the async scroller gates. On iPhone a pan that UIKit already recognized does not stop, so a scroll lock helps only where the engine checks scrollability per event. A lock also changes the look and, on classic scrollbars, the layout width.",
   "next": "Out of v2-proved (look change, class L). A probe step with a trackpad gesture latched before the armed band (Mac, Chromium) would measure the scrollTo saving and should record whether the lock engaged. The user's visual review decides whether the look change is acceptable.",
-  "evidence": "EVIDENCE_TBD"
+  "evidence": "trajectory-probe runs 39496271199, 39498373119 (flag) and 39500347224 (A/A) at e01287a; 39505188144 (flag) and 39505203727 (A/A) at b4b8b37; ci/morph-scroll-lock, both engines; note research/notes/2026/10-21-morph-scroll-lock.md"
 }
 ```
