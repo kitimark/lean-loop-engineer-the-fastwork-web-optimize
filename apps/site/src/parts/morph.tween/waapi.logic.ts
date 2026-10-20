@@ -18,6 +18,10 @@ export const PROP_MORPH = '--morph';
 export const PROP_FADE = '--morph-fade';
 export const PROP_DARK = '--fw-morph-dark';
 export const PROP_EXPANDED = '--fw-morph-expanded';
+/** `waapi-scoped`: the platform's own non-inherited copy of the tween value. */
+export const PROP_PLATFORM = '--platform-morph';
+
+export type WaapiArm = 'waapi' | 'waapi-scoped';
 
 export interface Registration {
   name: string;
@@ -37,6 +41,18 @@ export const REGISTRATIONS: readonly Registration[] = [
   { name: PROP_DARK, syntax: '<number>', inherits: false, initialValue: '0' },
   { name: PROP_EXPANDED, syntax: '<number>', inherits: false, initialValue: '0' },
 ];
+/** Lean `registrationsScoped`: a property inherits iff a strict descendant reads it (`registrationsScoped_rule`). */
+export const REGISTRATIONS_SCOPED: readonly Registration[] = [
+  { name: PROP_MORPH, syntax: '<number>', inherits: true, initialValue: '0' },
+  { name: PROP_FADE, syntax: '<number>', inherits: false, initialValue: '1' },
+  { name: PROP_DARK, syntax: '<number>', inherits: false, initialValue: '0' },
+  { name: PROP_EXPANDED, syntax: '<number>', inherits: false, initialValue: '0' },
+  { name: PROP_PLATFORM, syntax: '<number>', inherits: false, initialValue: '0' },
+];
+
+/** The property the platform animation carries per arm. */
+export const PLATFORM_PROP: Readonly<Record<WaapiArm, string>> = { waapi: PROP_MORPH, 'waapi-scoped': PROP_PLATFORM };
+export const registrationsOf = (arm: WaapiArm): readonly Registration[] => (arm === 'waapi' ? REGISTRATIONS : REGISTRATIONS_SCOPED);
 
 /** Thresholds of the flags (Lean `thresholds`: 1/5, 23/25, 209/400). The original's tests are strict `>`. */
 export const THETA_DARK = 1 / 5;
@@ -45,6 +61,8 @@ export const THETA_EXPANDED = 23 / 25;
 export const THETA_POINTER = 209 / 400;
 /** `--morph-fade` as a CSS expression of `--morph` (Lean `fade_css`). */
 export const FADE_CSS = `calc(1 - min(1, var(${PROP_MORPH}) / ${FADE_END}))`;
+/** The fade expression per arm (Lean `fade_css`, `fade_eq`). */
+export const fadeCss = (arm: WaapiArm): string => `calc(1 - min(1, var(${PLATFORM_PROP[arm]}) / ${FADE_END}))`;
 
 /** `kfOffset` clamped: where the value crosses `theta` on an animation from `from` to `to`; 0 for a flat one (`x / 0 = 0`). */
 export function flagOffset({ theta, from, to }: { theta: number; from: number; to: number }): number {
@@ -85,12 +103,13 @@ export function navKeyframes({ from, to }: { from: number; to: number }): Kf[] {
   ]);
 }
 
-/** Keyframes of the platform animation: `--morph` (the fade is `FADE_CSS` of it) and the pointer cut, discrete. */
-export function platformKeyframes({ from, to }: { from: number; to: number }): Kf[] {
+/** Keyframes of the platform animation: the arm's platform property (the fade is `fadeCss` of it) and the pointer cut. */
+export function platformKeyframes({ from, to }: { from: number; to: number }, arm: WaapiArm = 'waapi'): Kf[] {
+  const prop = PLATFORM_PROP[arm];
   return bySort([
-    { offset: 0, props: { [PROP_MORPH]: String(from) } },
+    { offset: 0, props: { [prop]: String(from) } },
     ...flagKfs('pointerEvents', THETA_POINTER, from, to, 'auto', 'none'),
-    { offset: 1, props: { [PROP_MORPH]: String(to) } },
+    { offset: 1, props: { [prop]: String(to) } },
   ]);
 }
 
@@ -98,10 +117,13 @@ export function platformKeyframes({ from, to }: { from: number; to: number }): K
 export const toWaapi = (kfs: Kf[]): Record<string, string | number>[] => kfs.map((k) => ({ offset: k.offset, ...k.props }));
 
 /** The inline values for a settled morph value (reduced-motion jump; the same flags as the animation's end). */
-export function settledProps(m: number): { nav: Record<string, string>; platform: Record<string, string>; pointerEvents: string } {
+export function settledProps(
+  m: number,
+  arm: WaapiArm = 'waapi',
+): { nav: Record<string, string>; platform: Record<string, string>; pointerEvents: string } {
   return {
     nav: { [PROP_MORPH]: String(m), [PROP_DARK]: m > THETA_DARK ? '1' : '0', [PROP_EXPANDED]: m > THETA_EXPANDED ? '1' : '0' },
-    platform: { [PROP_MORPH]: String(m) },
+    platform: { [PLATFORM_PROP[arm]]: String(m) },
     pointerEvents: m > THETA_POINTER ? 'none' : '',
   };
 }

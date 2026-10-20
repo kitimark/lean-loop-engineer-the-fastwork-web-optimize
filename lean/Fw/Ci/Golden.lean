@@ -1,5 +1,6 @@
 import Fw.Wire
 import Fw.Ops.Golden
+import Fw.Ci.Lag
 /-!
 # Golden vectors and replay fixtures of the GitHub request budget (`ci.budget.*`)
 
@@ -8,6 +9,9 @@ Files under `packages/contracts/golden/ci-budget/`, generated from Lean, never b
   `ci.budget.limits` and never restates them);
 - `wire.jsonl`: one line per case, `{"name", "request", "response"}` (`request` carries its `op`; `response` is what
   `fwcore` replies, without the `id`);
+- `lag.jsonl`: the partition of a wait's lag (`Fw.Ci.Lag.parts`), one line per case `{name, marks, prev?, parts, gap?, stale?}`;
+- `lag-kind.jsonl`: the kind of a wait (`Fw.Ci.Lag.kind`, lines `{name, op:"kind", lanesMissing, tick?, reg, kind}`) and its critical run
+  (`Fw.Ci.Lag.crit`, lines `{name, op:"crit", upds, crit?}`);
 - `fixtures/<name>.jsonl`: synthesized header traces for the replay test `FwTest.CiBudget` (format there). A recorded
   trace (`fixtures/recorded-*.jsonl`, same format) is replayed the same way once one exists.
 
@@ -120,6 +124,21 @@ def cases : List (String × String × Json) := [
     lit "{\"now\":1000,\"state\":{\"now\":1000,\"ledger\":[{\"time\":980,\"cost\":2,\"kind\":\"tick\",\"charged\":true},{\"time\":980,\"cost\":1,\"kind\":\"tick\",\"charged\":false},{\"time\":100,\"cost\":1,\"kind\":\"oneoff\",\"charged\":true}],\"watched\":[{\"runId\":7,\"createdAt\":950}]}}"),
   ("limits", "ci.budget.limits", lit "{}")]
 
+/-- The wire cases of `ci.attempt` (task `ci-wait-lag`), a list of their own so that the start-time allocations of
+`cases` stay under the init-cost bound. -/
+def attemptCases : List (String × String × Json) := [
+  ("attempt reuse: the same attempt", "ci.attempt", lit "{\"recorded\":2,\"live\":2}"),
+  ("attempt reuse: a rerun made attempt 2, the cache is attempt 1", "ci.attempt", lit "{\"recorded\":1,\"live\":2}"),
+  ("attempt reuse: a cache with no attempt", "ci.attempt", lit "{\"live\":2}"),
+  ("attempt settled: a row of attempt 1, the view shows attempt 2", "ci.attempt", lit "{\"row\":1,\"view\":2}"),
+  ("attempt settled: a row of attempt 2, the view shows attempt 2", "ci.attempt", lit "{\"row\":2,\"view\":2}"),
+  ("attempt settled: a row with no attempt", "ci.attempt", lit "{\"view\":2}"),
+  ("attempt current: attempt 1 is below the floor 2", "ci.attempt", lit "{\"floor\":2,\"row\":1}"),
+  ("attempt current: attempt 2 meets the floor 2", "ci.attempt", lit "{\"floor\":2,\"row\":2}"),
+  ("attempt current: no attempt under floor 0", "ci.attempt", lit "{\"floor\":0}"),
+  ("attempt fresh: a finished row read 30 s ago is shared", "ci.attempt", lit "{\"read\":100,\"now\":130}"),
+  ("attempt fresh: read 31 s ago, the run is read again", "ci.attempt", lit "{\"read\":100,\"now\":131}")]
+
 /-! ## Replay fixtures (format: `FwTest.CiBudget`) -/
 
 /-- A scenario line. -/
@@ -160,11 +179,58 @@ def fixtures : List (String × List Json) := [
      ("expect", Json.mkObj [("counts", .arr #[count 5 65 "oneoff" 40 40, count 65 66 "oneoff" 10 10,
        count 0 600 "tick" 60 60])])]])]
 
+/-! ## Lag partition (`Fw.Ci.Lag`) -/
+
+/-- The cases of `lag.jsonl`: (name, marks, previous tick). -/
+def lagCases : List (String × Fw.Ci.Lag.Marks × Option Int) := [
+  ("in order, previous tick before the finish", ⟨1000, 3000, 3100, 5000, 5010, 5020, 5030, 5230, 5300⟩, some 900),
+  ("previous tick after the finish: the list was stale", ⟨1000, 9000, 9100, 9500, 9510, 9520, 9530, 9630, 9700⟩, some 4000),
+  ("no previous tick seen", ⟨2000, 2500, 2550, 3000, 3005, 3010, 3020, 3050, 3100⟩, none),
+  ("marks out of order (clock skew): the pieces still add up", ⟨5000, 4000, 4500, 4400, 4600, 4700, 4800, 4850, 4900⟩, some 6000)]
+
+/-- The text of `lag.jsonl`. -/
+def lagText : String :=
+  String.join (lagCases.map fun (name, m, prev) =>
+    let p := Fw.Ci.Lag.parts m
+    let marks := Json.mkObj [("upd", toJson m.upd), ("tick", toJson m.tick), ("read", toJson m.read), ("viewEnd", toJson m.viewEnd),
+      ("done", toJson m.done), ("ret", toJson m.ret), ("i0", toJson m.i0), ("i1", toJson m.i1), ("end", toJson m.stop)]
+    let parts := Json.mkObj [("list", toJson p.list), ("pickup", toJson p.pickup), ("view", toJson p.view), ("verdict", toJson p.verdict),
+      ("cleanup", toJson p.cleanup), ("ingest", toJson p.ingest), ("exit", toJson p.exit), ("total", toJson p.total)]
+    let extra := match prev with
+      | none => []
+      | some q => [("prev", toJson q), ("gap", toJson (Fw.Ci.Lag.gap m.tick q)), ("stale", toJson (Fw.Ci.Lag.stale q m.upd))]
+    (Json.mkObj ([("name", .str name), ("marks", marks), ("parts", parts)] ++ extra)).compress ++ "\n")
+
+/-- The kind cases of `lag-kind.jsonl`: (name, lanes missing, tick, registration). -/
+def kindCases : List (String × Bool × Option Int × Int) := [
+  ("a lane without a finished run: grace", true, some 9000, 5000),
+  ("a lane missing and no tick: grace", true, none, 5000),
+  ("a tick before the registration: late", false, some 4000, 5000),
+  ("a tick at the registration: done", false, some 5000, 5000),
+  ("a tick after the registration: done", false, some 9000, 5000),
+  ("no tick seen: done", false, none, 5000)]
+
+/-- The critical-run cases: (name, finish times). -/
+def critCases : List (String × List Int) := [
+  ("no rows", []), ("one row", [7]), ("the latest finish wins", [3, 9, 4]), ("a tie: the first", [9, 9, 2]), ("the last is latest", [1, 2, 3])]
+
+def kindName : Fw.Ci.Lag.Kind -> String
+  | .done => "done" | .late => "late" | .grace => "grace"
+
+/-- The text of `lag-kind.jsonl`. -/
+def lagKindText : String :=
+  String.join (kindCases.map fun (name, lm, t, reg) =>
+    (Json.mkObj ([("name", .str name), ("op", .str "kind"), ("lanesMissing", .bool lm), ("reg", toJson reg),
+      ("kind", .str (kindName (Fw.Ci.Lag.kind lm t reg)))] ++ (match t with | none => [] | some x => [("tick", toJson x)]))).compress ++ "\n") ++
+  String.join (critCases.map fun (name, us) =>
+    (Json.mkObj ([("name", .str name), ("op", .str "crit"), ("upds", toJson us)] ++
+      (match Fw.Ci.Lag.crit us with | none => [] | some i => [("crit", toJson i)]))).compress ++ "\n")
+
 /-! ## Files -/
 
 /-- The text of `wire.jsonl`. -/
 def wireText (_ : Unit := ()) : String :=
-  String.join (cases.map fun (name, op, req) =>
+  String.join ((cases ++ attemptCases).map fun (name, op, req) =>
     (Json.mkObj [("name", .str name), ("request", withOp op req), ("response", respond op req)]).compress ++ "\n")
 
 /-- The text of `limits.json`. -/
@@ -172,7 +238,8 @@ def limitsText : String := (Fw.Wire.Ci.limitsJson Fw.Ci.Budget.defaults).compres
 
 /-- Every file: (path relative to the golden directory, text). -/
 def files (_ : Unit := ()) : List (System.FilePath × String) :=
-  [(("limits.json" : System.FilePath), limitsText), (("wire.jsonl" : System.FilePath), wireText)] ++
+  [(("limits.json" : System.FilePath), limitsText), (("wire.jsonl" : System.FilePath), wireText), (("lag.jsonl" : System.FilePath), lagText),
+    (("lag-kind.jsonl" : System.FilePath), lagKindText)] ++
   fixtures.map fun (stem, ls) =>
     ((("fixtures" : System.FilePath) / s!"{stem}.jsonl"), String.join (ls.map fun (j : Json) => j.compress ++ "\n"))
 
@@ -192,7 +259,7 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
       if cur != text then
         IO.println s!"ci-budget golden: {f} is stale (regenerate: cd lean && lake test -- --write-ci-budget-golden)"
         stale := stale + 1
-  IO.println s!"ci-budget golden: {files.length} files, {cases.length} wire cases, {stale} stale"
+  IO.println s!"ci-budget golden: {files.length} files, {cases.length + attemptCases.length} wire cases, {stale} stale"
   return stale
 
 #guard cases.length = 48

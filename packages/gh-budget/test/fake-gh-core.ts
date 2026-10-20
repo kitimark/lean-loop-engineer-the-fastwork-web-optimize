@@ -15,7 +15,9 @@ type Cfg = {
   start?: number; listCost?: number;
   drains?: { at: number; remaining: number }[];
   overrides?: { at: number; lines: string[] }[];
-  runs?: { databaseId: number; createdAt: number; completeAt: number; conclusion?: string; headBranch?: string; workflowName?: string; headSha?: string; jobs?: FakeJob[] }[];
+  runs?: { databaseId: number; createdAt: number; completeAt: number; conclusion?: string; headBranch?: string; workflowName?: string; headSha?: string; jobs?: FakeJob[];
+    /** The attempt the list rows show, and the attempt the jobs view shows (a rerun: the list lags the view). Default 1, as GitHub shows. */
+    attempt?: number; viewAttempt?: number }[];
 };
 /** A job of `gh run view --json jobs`. Default jobs of a run: a guard that decided `run`, then one `work` job with the
  *  run's conclusion. */
@@ -80,7 +82,7 @@ export function fakeGh(dir: string, args: string[], costEnv: string | undefined,
   const row = (r: NonNullable<Cfg["runs"]>[number]) => {
     const done = t >= r.completeAt;
     return { databaseId: r.databaseId, status: done ? "completed" : "in_progress", conclusion: done ? r.conclusion : null,
-      headBranch: r.headBranch ?? "ci/x", workflowName: r.workflowName ?? "chromium-counts", headSha: r.headSha ?? "abc", createdAt: iso(r.createdAt) };
+      headBranch: r.headBranch ?? "ci/x", workflowName: r.workflowName ?? "chromium-counts", headSha: r.headSha ?? "abc", createdAt: iso(r.createdAt), updatedAt: iso(done ? r.completeAt : r.createdAt), attempt: r.attempt ?? 1 };
   };
   const runs = cfg.runs ?? [];
   if (isList) {
@@ -93,12 +95,12 @@ export function fakeGh(dir: string, args: string[], costEnv: string | undefined,
   if (isView) {
     const r = runs.find((x) => String(x.databaseId) === args[2]);
     if (!r) return { status: 1, stdout: "", stderr: err + "HTTP 404: Not Found (https://api.github.com/x)\n" };
-    if (args.includes("jobs")) {
+    if (args.some((a) => a.split(",").includes("jobs"))) {
       const jobs = r.jobs ?? [
         { name: "guard", conclusion: "success", steps: [{ name: "decision: run", conclusion: "success" }, { name: "decision: skip: ", conclusion: "skipped" }] },
         { name: "work", conclusion: r.conclusion ?? "success" },
       ];
-      return { status: 0, stdout: JSON.stringify({ jobs }) + "\n", stderr: err };
+      return { status: 0, stdout: JSON.stringify({ jobs, attempt: r.viewAttempt ?? r.attempt ?? 1 }) + "\n", stderr: err };
     }
     return { status: 0, stdout: JSON.stringify(row(r)) + "\n", stderr: err };
   }
