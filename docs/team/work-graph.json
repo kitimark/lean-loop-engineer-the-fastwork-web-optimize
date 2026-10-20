@@ -10106,8 +10106,10 @@
     "apps/console-api/src/preview/**",
     "apps/console-api/test/**",
     "docs/team/tools/preview-e2e.md",
-    "docs/team/handoffs/preview-e2e-entry.md"
-   ]
+    "docs/team/handoffs/preview-e2e-entry.md",
+    "lean/Fw/Ops/Golden.lean"
+   ],
+   "evidence": "00dac2d"
   },
   {
    "devices": [
@@ -10238,6 +10240,52 @@
    "writes": [
     "research/notes/2026/10-2*-cmr-strut-asym.md",
     "docs/team/handoffs/cmr-strut-asym.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gh-budget-watch-expiry",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "The shared CI poller stopped (tooBig) at 08:40 on 2026-10-20 and no fw ci wait worked from 08:14: a watched run id 1000000000838323 (not a GitHub run id; registered ~04:02, no waiter file) never completed, held the list window open 4.5 h, a tick needed 11 pages > the minute share 20 and the poller stopped for good. Find who registered it; Lean rule (Fw.Ci.Budget): a watched run unseen in the list after it is covered, or older than the longest workflow timeout, is dropped with an incident; a tick never needs more pages than the share (narrow the window, never stop the poller over one stale watch); theorems + goldens; run-id validation at registration. Second fault (08:43): state.pages (11) is only rewritten after a successful tick, so every later tick is charged 11 pages and stops tooBig again (deadlock; the lead reset pages to 1)",
+   "writes": [
+    "packages/gh-budget/**",
+    "lean/Fw/Ci/Budget.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "lean/Fw/Wire/**",
+    "packages/contracts/golden/ci/**",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "docs/team/tools/ci-*.md",
+    "research/notes/2026/10-20-gh-budget-watch-expiry.md",
+    "docs/team/handoffs/gh-budget-watch-expiry.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-unavailable",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "gh-budget-watch-expiry"
+   ],
+   "title": "preview-e2e-entry landed at 08:44 on 2026-10-20 with verdict local reason=remote-unavailable-run-locally because the poller had stopped (tooBig): the remote tier ran on this Mac, against 'a local run is never a result'. Lean Fw.Console.LandRemote: a stopped poller (or no waiter answer) is not 'unavailable' but 'wait': the land holds and retries after fw ci budget --resume, or refuses with a reason; local fallback only for a lane CI cannot run (named in the graph); theorem + golden; the landed commit's CI land run 39355006357 is checked after the fact",
+   "writes": [
+    "lean/Fw/Console/LandRemote.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/land*.ts",
+    "docs/team/tools/land.md",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "research/notes/2026/10-2*-land-remote-unavailable.md",
+    "docs/team/handoffs/land-remote-unavailable.md"
    ]
   }
  ],

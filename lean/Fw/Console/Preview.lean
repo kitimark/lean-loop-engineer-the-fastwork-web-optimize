@@ -48,6 +48,13 @@ def portLo : Nat := 47100
 /-- The number of ports in the range. -/
 def portN : Nat := 40
 
+/-- How far an arm's private backend port lies above its public port (`Arm.backendOf` in `PreviewArm`). At least the
+width of the range, so a backend port is never a public port. -/
+def backendOff : Nat := 1000
+
+/-- The highest port number plus one: ports are below it. -/
+def portSpace : Nat := 65536
+
 /-! ## Target commit -/
 
 /-- An integration ref the glue found: its name, its tip, and whether it contains a given commit
@@ -429,6 +436,7 @@ def admit (lo : Nat) (s : List Pv) (r : Req) : Except Refusal (List Pv) :=
   else if K ≤ s.length then .error .tooMany
   else if r.diskMb < diskFloor then .error .lowDisk
   else if !r.hasTarget then .error .noTarget
+  else if portSpace < lo + portN + backendOff then .error .noPorts
   else match freePorts lo s with
     | a :: b :: _ => .ok ({ id := r.id, task := r.task, rp := a, op := b, started := r.now } :: s)
     | _ => .error .noPorts
@@ -445,6 +453,47 @@ theorem agent_never_admitted (lo : Nat) (s : List Pv) (r : Req) (p : Proof) (ha 
     (hp : ¬ (p.secret = false ∧ p.cookie = true ∧ p.origin = true)) : admit lo s r = .error .notOwner := by
   have hne : r.actor ≠ .user := fun h => hp ((proof_user_iff p).mp (ha ▸ h))
   simp [admit, mayStart, hne]
+
+/-- **A range whose backend ports would leave the port space admits nothing.** If every other rule passes, a base with
+`lo + portN + backendOff > 65536` is refused `noPorts`, whatever the table. -/
+theorem admit_refuses_high_base (lo : Nat) (s : List Pv) (r : Req) (hm : mayStart r.actor = true)
+    (hb : s.any (fun p => p.task == r.task || p.id == r.id) = false) (hk : ¬ K ≤ s.length) (hd : ¬ r.diskMb < diskFloor)
+    (ht : r.hasTarget = true) (h : portSpace < lo + portN + backendOff) : admit lo s r = .error .noPorts := by
+  simp [admit, hm, hb, hk, hd, ht, h]
+
+/-- **An admitted preview's backend ports are ports.** Stated against `admit`'s output: the new head has its public
+and its backend port below 65536, for every base and table. -/
+theorem admit_backend_in_space (lo : Nat) (s s' : List Pv) (r : Req) (h : admit lo s r = .ok s') :
+    ∃ p t, s' = p :: t ∧ p.rp + backendOff < portSpace ∧ p.op + backendOff < portSpace := by
+  unfold admit at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  split at h
+  · simp at h
+  rename_i hsp
+  split at h
+  · rename_i a b rest hf
+    simp only [Except.ok.injEq] at h
+    subst h
+    have hmem : ∀ q ∈ freePorts lo s, lo ≤ q ∧ q < lo + portN := by
+      intro q hq
+      unfold freePorts at hq
+      simp only [List.mem_filter, List.mem_range'_1, decide_eq_true_eq] at hq
+      exact hq.1
+    rw [hf] at hmem
+    have ha := hmem a (by simp)
+    have hb := hmem b (by simp)
+    simp only [Nat.not_lt] at hsp
+    exact ⟨_, _, rfl, by simp only []; omega, by simp only []; omega⟩
+  · simp at h
 
 /-- **Only the user is admitted.** -/
 theorem admit_user (lo : Nat) (s s' : List Pv) (r : Req) (h : admit lo s r = .ok s') : r.actor = .user := by
@@ -518,6 +567,8 @@ theorem inv_admit {lo : Nat} {s s' : List Pv} (r : Req) (hi : Inv lo s) (h : adm
   split at h
   · simp at h
   rename_i h3
+  split at h
+  · simp at h
   split at h
   · simp at h
   split at h
