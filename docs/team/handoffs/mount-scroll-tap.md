@@ -27,5 +27,4 @@ Open: measurements. Every run needs workflow inputs and a ci/* push only runs th
 
 Registry writes (lead resolves at land): lean/scripts/check.sh, lean/Fw/Ci/Trigger.lean (lean.yml paths),
 packages/contracts/golden/ci/triggers.jsonl, lean/Fw/Parts/FootprintData.lean, footprint.gen.json, pnpm-lock.yaml.
-
 Read first: `research/notes/2026/10-20-mount-scroll-tap.md`.
