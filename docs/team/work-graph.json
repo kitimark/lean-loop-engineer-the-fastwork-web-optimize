@@ -10632,6 +10632,21 @@
     "docs/team/tools/preview-grant.md",
     "docs/team/handoffs/preview-login-return.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "engine-release-notes",
+   "owner": "researcher",
+   "stream": "research",
+   "deps": [],
+   "title": "User 2026-10-20 asked whether we gathered engine reference docs like https://webkit.org/blog/17333/webkit-features-in-safari-26-0/ - only 26.4 and 27.0 posts were cited at kickoff. Index WebKit/Safari feature posts and Apple release notes 26.0-27.x and Chrome release notes for the matching versions; map each item touching our flags' features (WAAPI, scroll-driven animations, @property registered custom properties, content-visibility, container queries, contain, backdrop-filter, will-change, style invalidation/caching) to the flag and Lean premise it touches (confirms / contradicts / new risk); search WebKit Bugzilla and the Chromium tracker for the two 2026-10-20 mechanisms (stale style with non-inherited registered properties passed by inherit; WAAPI-animated custom properties vs JS-read state).",
+   "writes": [
+    "research/notes/2026/10-2*-engine-release-notes.md",
+    "refs/upstream/PINS.md",
+    "docs/team/handoffs/engine-release-notes.md"
+   ]
   }
  ],
  "deadline": {
