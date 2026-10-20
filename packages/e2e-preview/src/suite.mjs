@@ -336,6 +336,9 @@ async function controls(browser, rig, engine, opts = {}) {
       out.push(await controlLoad(browser, rig, engine, "arm-only", null, async (page) => {
         await page.goto(await rig.grantUrl(rig.hosts.loopback.origin, "o"), { waitUntil: "load" });
         await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+        // every image the landing page started has finished (loaded or failed): none is left in flight to be cancelled by the next load
+        await page.evaluate(() => Promise.all([...document.images].filter((i) => !i.complete).map((i) => new Promise((r) => { i.onload = i.onerror = r; setTimeout(r, 5000); })))).catch(() => undefined);
+        await page.waitForTimeout(300); // as runTarget: the landing page is the same URL as the control load, leaving it mid-image cancels that image
         return `${rig.hosts.loopback.arm.o}/`;
       }, opts));
     } finally { rig.useTap(true); }
