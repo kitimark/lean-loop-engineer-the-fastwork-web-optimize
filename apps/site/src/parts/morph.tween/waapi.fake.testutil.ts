@@ -1,4 +1,5 @@
 import { createTweenDriver, type TweenEnv } from './driver';
+import { DURATION_MS, ease } from './logic';
 import { createWaapiDriver, type AnimLike, type WaapiEnv } from './waapi.driver';
 
 type Fn = (e: never) => void;
@@ -10,10 +11,17 @@ export interface Call {
 }
 export interface FakeAnim extends AnimLike {
   cancelled: boolean;
+  fired: boolean;
   progress: number | null;
 }
+export interface FakeMarker extends AnimLike {
+  cancelled: boolean;
+  duration: number;
+  fired: boolean;
+}
 
-/** Test doubles for the `waapi` driver: fake elements whose `animate` records its calls, a settable timeline, listeners. */
+/** Test doubles for the `waapi` driver: fake elements whose `animate` records its calls, a settable timeline, listeners,
+ * markers and frame callbacks; `frameAt(T)` runs one frame at timeline time `T` (finish events, then frame callbacks). */
 export function waapiRun(over: Partial<{ reduced: boolean }> = {}) {
   const calls: Call[] = [];
   const listeners = new Map<string, Fn>();
@@ -21,10 +29,13 @@ export function waapiRun(over: Partial<{ reduced: boolean }> = {}) {
   const hints: number[] = [];
   let timeline: number | null = 1234.5;
   let clockSubscribes = 0;
+  let scriptRuns = 0;
+  const markers: FakeMarker[] = [];
+  const frameCbs = new Set<() => void>();
   const mk = (target: 'nav' | 'platform') => ({
     getBoundingClientRect: () => ({ height: 500, bottom: 800 }),
     animate(keyframes: Record<string, string | number>[], options: unknown) {
-      const a: FakeAnim = { startTime: null, onfinish: null, cancelled: false, progress: 0, cancel() { a.cancelled = true; }, effect: { getComputedTiming: () => ({ progress: a.progress }) } };
+      const a: FakeAnim = { startTime: null, onfinish: null, cancelled: false, fired: false, progress: 0, cancel() { a.cancelled = true; }, effect: { getComputedTiming: () => ({ progress: a.progress }) } };
       calls.push({ target, keyframes, options, anim: a });
       return a;
     },
@@ -43,6 +54,16 @@ export function waapiRun(over: Partial<{ reduced: boolean }> = {}) {
     removeListener: (t) => void listeners.delete(t),
     settle: (value, props) => void settled.push({ value, props }),
     hint: (v) => void hints.push(v),
+    marker: (duration) => {
+      const m: FakeMarker = { startTime: null, onfinish: null, cancelled: false, duration, fired: false, cancel() { m.cancelled = true; }, effect: null };
+      markers.push(m);
+      return m;
+    },
+    everyFrame: (cb) => {
+      clockSubscribes++;
+      frameCbs.add(cb);
+      return () => void frameCbs.delete(cb);
+    },
   };
   const d = createWaapiDriver(env);
   d.setNear(true);
@@ -56,6 +77,20 @@ export function waapiRun(over: Partial<{ reduced: boolean }> = {}) {
     setTimeline: (t: number | null) => (timeline = t),
     clockSubscribes: () => clockSubscribes,
     finish: () => calls.filter((c) => !c.anim.cancelled).forEach((c) => c.anim.onfinish?.()),
+    markers,
+    scriptRuns: () => scriptRuns,
+    frameAt: (T: number) => {
+      timeline = T;
+      const live = calls.filter((c) => !c.anim.cancelled);
+      for (const c of live) c.anim.progress = ease({ x: (T - (c.anim.startTime ?? T)) / DURATION_MS });
+      const done = live.filter((c) => !c.anim.fired && T >= (c.anim.startTime ?? T) + DURATION_MS);
+      for (const c of done) c.anim.fired = true;
+      const due = markers.filter((m) => !m.cancelled && !m.fired && T >= (m.startTime ?? T) + m.duration);
+      for (const m of due) m.fired = true;
+      for (const c of done) if (c.anim.onfinish) (scriptRuns++, c.anim.onfinish());
+      for (const m of due) if (m.onfinish) (scriptRuns++, m.onfinish());
+      for (const cb of [...frameCbs]) (scriptRuns++, cb());
+    },
   };
 }
 

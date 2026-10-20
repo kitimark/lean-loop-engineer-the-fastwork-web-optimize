@@ -3,7 +3,7 @@ import { getClock } from '../../engine/clock';
 import { registerScroll } from '../../engine/scroll';
 import { createTweenDriver, type TweenEnv } from './driver';
 import { matchList } from './media';
-import { createWaapiDriver, type AnimTarget, type WaapiEnv } from './waapi.driver';
+import { createWaapiDriver, type AnimLike, type AnimTarget, type WaapiEnv } from './waapi.driver';
 import { fadeCss, registrationsOf, type WaapiArm } from './waapi.logic';
 
 /** Where the scroll pin sits on the engine: after the nav's hit test (order 100), as the original's pin callback follows it. */
@@ -97,6 +97,12 @@ function waapiEnv(base: TweenEnv, platform: () => HTMLElement | null, navSelecto
       const n = nav();
       if (n) n.dataset.fwMorph = String(value);
     },
+    marker: (durationMs) => {
+      const a = new Animation(new KeyframeEffect(null, null, { duration: durationMs }), document.timeline);
+      a.play();
+      return a as unknown as AnimLike;
+    },
+    everyFrame: (cb) => base.clock.subscribe(() => cb()),
     settle: (value, props) => {
       const n = nav();
       if (n) {
