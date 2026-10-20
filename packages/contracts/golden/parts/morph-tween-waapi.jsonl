@@ -20,3 +20,15 @@
 {"depth":1,"prop":"--morph","sel":"panel"}
 {"depth":0,"prop":"--morph","sel":"section"}
 {"depth":0,"prop":"--morph-fade","sel":"section"}
+{"arm":"waapi-scoped","inherits":true,"initialValue":"0","name":"--morph","syntax":"<number>"}
+{"arm":"waapi-scoped","inherits":false,"initialValue":"1","name":"--morph-fade","syntax":"<number>"}
+{"arm":"waapi-scoped","inherits":false,"initialValue":"0","name":"--fw-morph-dark","syntax":"<number>"}
+{"arm":"waapi-scoped","inherits":false,"initialValue":"0","name":"--fw-morph-expanded","syntax":"<number>"}
+{"arm":"waapi-scoped","inherits":false,"initialValue":"0","name":"--platform-morph","syntax":"<number>"}
+{"arm":"waapi-scoped","depth":0,"prop":"--morph","sel":"nav"}
+{"arm":"waapi-scoped","depth":2,"prop":"--morph","sel":"logo"}
+{"arm":"waapi-scoped","depth":2,"prop":"--morph","sel":"actions"}
+{"arm":"waapi-scoped","depth":3,"prop":"--morph","sel":"earn"}
+{"arm":"waapi-scoped","depth":1,"prop":"--morph","sel":"panel"}
+{"arm":"waapi-scoped","depth":0,"prop":"--platform-morph","sel":"section"}
+{"arm":"waapi-scoped","depth":0,"prop":"--morph-fade","sel":"section"}
