@@ -1,0 +1,75 @@
+{"dpr":1,"integral":false,"kind":"snap","left":0,"right":1500,"size":2}
+{"dpr":1,"integral":false,"kind":"snap","left":500,"right":2000,"size":1}
+{"dpr":2,"integral":true,"kind":"snap","left":0,"right":30000,"size":60}
+{"dpr":2,"integral":true,"kind":"snap","left":7300,"right":37300,"size":60}
+{"dpr":3,"integral":false,"kind":"snap","left":0,"right":500,"size":2}
+{"dpr":3,"integral":false,"kind":"snap","left":333,"right":833,"size":1}
+{"dpr":3,"integral":false,"kind":"snap","left":17100,"right":17600,"size":2}
+{"dpr":2,"integral":true,"kind":"snap","left":123,"right":30123,"size":60}
+{"dpr":1,"exact":[30,30],"fit":[30,30],"img":{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"avatar 30x30","need":30,"why":"ok"}
+{"dpr":2,"exact":[60,60],"fit":[60,60],"img":{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"avatar 30x30","need":60,"why":"ok"}
+{"dpr":3,"exact":[90,90],"fit":[90,90],"img":{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"avatar 30x30","need":90,"why":"ok"}
+{"dpr":1,"exact":[30,30],"fit":[30,30],"img":{"h":30000,"kind":"img","natH":60,"natW":60,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"avatar 30x30 from a file as large as the copy","need":30,"why":"ok"}
+{"dpr":2,"exact":null,"fit":null,"img":{"h":30000,"kind":"img","natH":60,"natW":60,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"avatar 30x30 from a file as large as the copy","need":60,"why":"noSaving"}
+{"dpr":3,"exact":null,"fit":null,"img":{"h":30000,"kind":"img","natH":60,"natW":60,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"avatar 30x30 from a file as large as the copy","need":90,"why":"noSaving"}
+{"dpr":1,"exact":null,"fit":null,"img":{"h":30000,"kind":"img","natH":20,"natW":20,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"avatar upscaled","need":30,"why":"noSaving"}
+{"dpr":2,"exact":null,"fit":null,"img":{"h":30000,"kind":"img","natH":20,"natW":20,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"avatar upscaled","need":60,"why":"noSaving"}
+{"dpr":3,"exact":null,"fit":null,"img":{"h":30000,"kind":"img","natH":20,"natW":20,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"avatar upscaled","need":90,"why":"noSaving"}
+{"dpr":1,"exact":null,"fit":[30,23],"img":{"h":30000,"kind":"img","natH":300,"natW":400,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":29600},"kind":"reach","name":"fractional width","need":30,"why":"fractional"}
+{"dpr":2,"exact":null,"fit":[60,45],"img":{"h":30000,"kind":"img","natH":300,"natW":400,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":29600},"kind":"reach","name":"fractional width","need":60,"why":"fractional"}
+{"dpr":3,"exact":null,"fit":[89,67],"img":{"h":30000,"kind":"img","natH":300,"natW":400,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":29600},"kind":"reach","name":"fractional width","need":89,"why":"fractional"}
+{"dpr":1,"exact":null,"fit":[1,1],"img":{"h":500,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":500},"kind":"reach","name":"half a pixel at dpr 3","need":1,"why":"fractional"}
+{"dpr":2,"exact":[1,1],"fit":[1,1],"img":{"h":500,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":500},"kind":"reach","name":"half a pixel at dpr 3","need":1,"why":"ok"}
+{"dpr":3,"exact":null,"fit":[2,2],"img":{"h":500,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":500},"kind":"reach","name":"half a pixel at dpr 3","need":2,"why":"fractional"}
+{"dpr":1,"exact":[320,213],"fit":[320,213],"img":{"h":213000,"kind":"img","natH":800,"natW":1200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":320000},"kind":"reach","name":"wide whole device size","need":320,"why":"ok"}
+{"dpr":2,"exact":[640,426],"fit":[640,427],"img":{"h":213000,"kind":"img","natH":800,"natW":1200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":320000},"kind":"reach","name":"wide whole device size","need":640,"why":"ok"}
+{"dpr":3,"exact":[960,639],"fit":[960,640],"img":{"h":213000,"kind":"img","natH":800,"natW":1200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":320000},"kind":"reach","name":"wide whole device size","need":960,"why":"ok"}
+{"dpr":1,"exact":null,"fit":[30,30],"img":{"h":30000,"kind":"bg","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"css image","need":30,"why":"notImg"}
+{"dpr":2,"exact":null,"fit":[60,60],"img":{"h":30000,"kind":"bg","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"css image","need":60,"why":"notImg"}
+{"dpr":3,"exact":null,"fit":[90,90],"img":{"h":30000,"kind":"bg","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"css image","need":90,"why":"notImg"}
+{"dpr":1,"exact":null,"fit":[30,30],"img":{"h":30000,"kind":"img","natH":400,"natW":400,"plain":false,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"cover crop","need":30,"why":"cropped"}
+{"dpr":2,"exact":null,"fit":[60,60],"img":{"h":30000,"kind":"img","natH":400,"natW":400,"plain":false,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"cover crop","need":60,"why":"cropped"}
+{"dpr":3,"exact":null,"fit":[90,90],"img":{"h":30000,"kind":"img","natH":400,"natW":400,"plain":false,"scaleMax":1000,"scaleMin":1000,"w":30000},"kind":"reach","name":"cover crop","need":90,"why":"cropped"}
+{"dpr":1,"exact":null,"fit":[119,119],"img":{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1190,"scaleMin":350,"w":100000},"kind":"reach","name":"card scaled down","need":119,"why":"scaled"}
+{"dpr":2,"exact":null,"fit":[238,238],"img":{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1190,"scaleMin":350,"w":100000},"kind":"reach","name":"card scaled down","need":238,"why":"scaled"}
+{"dpr":3,"exact":null,"fit":[357,357],"img":{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1190,"scaleMin":350,"w":100000},"kind":"reach","name":"card scaled down","need":357,"why":"scaled"}
+{"dpr":1,"exact":null,"fit":[150,150],"img":{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1500,"scaleMin":1000,"w":100000},"kind":"reach","name":"card scaled up only","need":150,"why":"scaled"}
+{"dpr":2,"exact":null,"fit":[300,300],"img":{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1500,"scaleMin":1000,"w":100000},"kind":"reach","name":"card scaled up only","need":300,"why":"scaled"}
+{"dpr":3,"exact":null,"fit":null,"img":{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1500,"scaleMin":1000,"w":100000},"kind":"reach","name":"card scaled up only","need":450,"why":"scaled"}
+{"dpr":1,"exact":null,"fit":null,"img":{"h":30000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":0},"kind":"reach","name":"zero width","need":0,"why":"noSaving"}
+{"dpr":2,"exact":null,"fit":null,"img":{"h":30000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":0},"kind":"reach","name":"zero width","need":0,"why":"noSaving"}
+{"dpr":3,"exact":null,"fit":null,"img":{"h":30000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":0},"kind":"reach","name":"zero width","need":0,"why":"noSaving"}
+{"dpr":1,"exact":[30,30],"exactSaving":156400,"fit":[30,30],"imgs":[{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000}],"kind":"file","name":"one avatar"}
+{"dpr":2,"exact":[60,60],"exactSaving":145600,"fit":[60,60],"imgs":[{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000}],"kind":"file","name":"one avatar"}
+{"dpr":3,"exact":[90,90],"exactSaving":127600,"fit":[90,90],"imgs":[{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000}],"kind":"file","name":"one avatar"}
+{"dpr":1,"exact":[30,30],"exactSaving":156400,"fit":[30,30],"imgs":[{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000}],"kind":"file","name":"two avatars of one file, same size"}
+{"dpr":2,"exact":[60,60],"exactSaving":145600,"fit":[60,60],"imgs":[{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000}],"kind":"file","name":"two avatars of one file, same size"}
+{"dpr":3,"exact":[90,90],"exactSaving":127600,"fit":[90,90],"imgs":[{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000}],"kind":"file","name":"two avatars of one file, same size"}
+{"dpr":1,"exact":null,"exactSaving":0,"fit":[40,40],"imgs":[{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},{"h":40000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":40000}],"kind":"file","name":"two sizes of one file"}
+{"dpr":2,"exact":null,"exactSaving":0,"fit":[80,80],"imgs":[{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},{"h":40000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":40000}],"kind":"file","name":"two sizes of one file"}
+{"dpr":3,"exact":null,"exactSaving":0,"fit":[120,120],"imgs":[{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},{"h":40000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":40000}],"kind":"file","name":"two sizes of one file"}
+{"dpr":1,"exact":null,"exactSaving":0,"fit":[42,42],"imgs":[{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1400,"scaleMin":1000,"w":30000}],"kind":"file","name":"one avatar and one scaled"}
+{"dpr":2,"exact":null,"exactSaving":0,"fit":[84,84],"imgs":[{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1400,"scaleMin":1000,"w":30000}],"kind":"file","name":"one avatar and one scaled"}
+{"dpr":3,"exact":null,"exactSaving":0,"fit":[126,126],"imgs":[{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":30000},{"h":30000,"kind":"img","natH":200,"natW":200,"plain":true,"scaleMax":1400,"scaleMin":1000,"w":30000}],"kind":"file","name":"one avatar and one scaled"}
+{"dpr":1,"exact":null,"exactSaving":0,"fit":[119,119],"imgs":[{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1190,"scaleMin":1000,"w":100000}],"kind":"file","name":"a scaled card"}
+{"dpr":2,"exact":null,"exactSaving":0,"fit":[238,238],"imgs":[{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1190,"scaleMin":1000,"w":100000}],"kind":"file","name":"a scaled card"}
+{"dpr":3,"exact":null,"exactSaving":0,"fit":[357,357],"imgs":[{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1190,"scaleMin":1000,"w":100000}],"kind":"file","name":"a scaled card"}
+{"dpr":1,"exact":null,"exactSaving":0,"fit":[119,119],"imgs":[{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1190,"scaleMin":1000,"w":100000},{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":100000}],"kind":"file","name":"a scaled card seen twice"}
+{"dpr":2,"exact":null,"exactSaving":0,"fit":[238,238],"imgs":[{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1190,"scaleMin":1000,"w":100000},{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":100000}],"kind":"file","name":"a scaled card seen twice"}
+{"dpr":3,"exact":null,"exactSaving":0,"fit":[357,357],"imgs":[{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1190,"scaleMin":1000,"w":100000},{"h":100000,"kind":"img","natH":400,"natW":400,"plain":true,"scaleMax":1000,"scaleMin":1000,"w":100000}],"kind":"file","name":"a scaled card seen twice"}
+{"cells":[],"decision":"undecided","kind":"part","name":"no cells"}
+{"cells":[["pass","pass"],["pass","pass"],["pass","pass"]],"decision":"admissible","kind":"part","name":"all pass"}
+{"cells":[["fail","pass"],["pass","pass"]],"decision":"admissible","kind":"part","name":"baseline fails, copies pass"}
+{"cells":[["pass","pass"],["pass","fail"],["pass","pass"]],"decision":"lookChange","kind":"part","name":"one fail where the baseline passes"}
+{"cells":[["fail","fail"],["pass","pass"]],"decision":"shippedFails","kind":"part","name":"a fail where the baseline fails"}
+{"cells":[["unsettled","fail"],["pass","pass"]],"decision":"shippedFails","kind":"part","name":"a fail where the baseline is unsettled"}
+{"cells":[["fail","fail"],["pass","fail"]],"decision":"lookChange","kind":"part","name":"a fail with and without baseline pass"}
+{"cells":[["unsettled","unsettled"],["pass","pass"]],"decision":"undecided","kind":"part","name":"unsettled"}
+{"cells":[["pass","error"],["pass","pass"]],"decision":"undecided","kind":"part","name":"an error cell"}
+{"cells":[["pass","invalid"],["pass","nc"]],"decision":"undecided","kind":"part","name":"invalid and nc"}
+{"cells":[["pass","fail"],["pass","unsettled"]],"decision":"lookChange","kind":"part","name":"fail and unsettled"}
+{"cells":[["pass","pass"]],"decision":"admissible","kind":"part","name":"one cell passes"}
+{"copy":[60,60],"decoded":160000,"kind":"saving","nat":[200,200],"saving":145600}
+{"copy":[640,866],"decoded":5796000,"kind":"saving","nat":[1035,1400],"saving":3579040}
+{"copy":[400,400],"decoded":640000,"kind":"saving","nat":[400,400],"saving":0}
+{"copy":[101,100],"decoded":40000,"kind":"saving","nat":[100,100],"saving":0}

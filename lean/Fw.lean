@@ -69,6 +69,7 @@ import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
 import Fw.Measure.SimBound
 import Fw.Measure.Compose
+import Fw.Measure.ImageArm  -- image-arm-v2: 1:1 reach of a drawn-size copy, the per-part decision, decoded saving
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard
 import Fw.Ops.Wait
