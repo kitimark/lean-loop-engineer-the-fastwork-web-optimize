@@ -471,6 +471,12 @@ No geometry is touched. -/
 theorem canonItem_rect (e : Bool) (x y : Item) : (canonItem e x y).rect = y.rect := by
   unfold canonItem; split <;> rfl
 
+/-- Canonicalising keeps the margin facts.
+
+No `layoutDep` entry is touched. -/
+theorem canonItem_layoutDep (e : Bool) (x y : Item) : (canonItem e x y).layoutDep = y.layoutDep := by
+  unfold canonItem; split <;> rfl
+
 /-- Canonicalising keeps every other property.
 
 Only `align-self` can change. -/
@@ -491,7 +497,7 @@ theorem canonItem_align_equal (x y : Item) (v : String) (hv : x.style.lookup "al
 
 Everything the rule leaves as it was. -/
 def hideKey (p : String) (it : PItem) : PItem :=
-  if it.cls ≠ .box ∧ it.key = p then { it with status := .na, differs := false } else it
+  if it.cls ≠ .box ∧ it.key = p then { it with status := .na, differs := false, byRect := false, styleSt := .na } else it
 
 /-- Geometry is still compared: canonicalising changes no box item and no item of another property; only the
 `align-self` style and information items may change.
@@ -510,8 +516,11 @@ theorem geometry_still_compared (rs : RoleSpec) (cmp info : List String) (refO r
   · apply List.map_congr_left
     intro q _
     by_cases hq : q = "align-self"
-    · subst hq; simp [hideKey]
-    · simp [hideKey, canonItem_lookup_ne e io ir q hq]
+    · subst hq; simp [hideKey, styleItem]
+    · have hb : (rs.dims.map fun d => boxStatus (boxDim io refO d) (boxDim (canonItem e io ir) refR d)) =
+          rs.dims.map fun d => boxStatus (boxDim io refO d) (boxDim ir refR d) :=
+        List.map_congr_left fun d _ => by simp [boxDim, canonItem_rect]
+      simp [hideKey, styleItem, styleItemStatus, decidedByRect, hb, canonItem_layoutDep, canonItem_lookup_ne e io ir q hq]
   · apply List.map_congr_left
     intro q _
     by_cases hq : q = "align-self"
