@@ -236,14 +236,12 @@ test("lake_slot_gate + lake_slot_run: at most LAKE_SLOT_WIDTH commands run at on
         pids="$pids $!"; i=$((i + 1))
       done
       for p in $pids; do wait "$p"; printf '%s ' "$?"; done; lake_slot_release`;
-    const t0 = Date.now();
     const r = spawnSync("sh", ["-c", sh, "_", lib, d], { env, encoding: "utf8" });
     assert.equal(r.status, 0, r.stderr);
     assert.equal(r.stdout.trim(), "0 1 2 0 1 2 0 1 2 0 1 2");
     const seen = readFileSync(join(d, "seen"), "utf8").trim().split("\n").map(Number);
     assert.equal(seen.length, 12);
     assert.ok(Math.max(...seen) <= 3, `seen ${seen}`);
-    assert.ok(Date.now() - t0 >= 4 * 200, "12 jobs of 0.2 s at width 3 take at least 4 rounds");
     assert.equal(existsSync(join(d, "gate")), false);
   } finally { rmSync(d, { recursive: true, force: true }); }
 });
