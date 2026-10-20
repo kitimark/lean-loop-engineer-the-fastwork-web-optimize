@@ -11226,7 +11226,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "bb474cf"
   },
   {
    "devices": [

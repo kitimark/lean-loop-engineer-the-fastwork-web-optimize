@@ -4,6 +4,7 @@ import Fw.Engine.WebKit
 import Lean.Data.Json
 import Fw.Parts.EndFlags
 import Fw.Engine.Restyle
+import Fw.Engine.Visual
 
 /-!
 # hero.exit, variant `hero-exit-threaded`: scroll-driven consumers (design note §4.2, row HE)
@@ -1130,8 +1131,200 @@ theorem scoped_lt_faithful (narrow : Bool) : crScoped (heroTree narrow) < crFull
 
 theorem narrow_delta : crFull (heroTree true) - crScoped (heroTree true) = 90 := by decide +kernel
 
-/-- Elements and properties the driver writes per zone frame, in both variants. -/
-def frameWrites : List (String × String) := [(stageName, "--exit-opacity")]
+/-- How a reader gets the exit values: `inherited` (faithful, unregistered), `chain` (registered, the `inherit` rules
+only) or `inline` (the chain plus the driver's CSSOM write on the reader). -/
+inductive Delivery where
+  | inherited
+  | chain
+  | inline
+deriving Repr, DecidableEq
+
+def Delivery.reg : Delivery → Reg
+  | .inherited => .inherited
+  | _ => .registered
+
+/-- The driver's per-frame writes on each reader for the stage write `opacity`; the scatter is the stage's
+`stageScatter`. -/
+def readerWrites (reduced : Bool) (opacity : String) : List (String × String) :=
+  [("--exit-opacity", opacity), ("--exit-scatter", stageScatter reduced opacity)]
+
+#guard readerWrites false "0.5" == [("--exit-opacity", "0.5"), ("--exit-scatter", "calc(1 - 0.5)")]
+#guard readerWrites true "1" == [("--exit-opacity", "1"), ("--exit-scatter", "0")]
+
+/-- A reader's own `(--exit-opacity, --exit-scatter)` after the stage write `w`, before any engine cache. -/
+def ownVal (d : Delivery) (reduced : Bool) (path : List Bool) (w : String) : Option String × Option String :=
+  match d with
+  | .inline => ((readerWrites reduced w).lookup "--exit-opacity", (readerWrites reduced w).lookup "--exit-scatter")
+  | d => (valueAt d.reg (some (stageOpacity (some w))) path,
+      valueAt d.reg (some (stageScatter reduced (stageOpacity (some w)))) path)
+
+/-- A WebKit matched-declarations cache entry for a reader: the parent's inherited custom properties it was built
+under (`none` when the exit values are not among them) and the value its other properties were computed from. -/
+structure WkEntry (α : Type) where
+  key : Option α
+  built : α
+deriving DecidableEq
+
+/-- One WebKit resolution of a reader whose own value is `v`: `(own value, value its var() properties show)` and the
+cache after. Lookup key: matched declarations and the parent's inherited custom properties
+(Source/WebCore/style/MatchedDeclarationsCache.cpp:123-163@862f17d). A hit copies the non-inherited properties and
+re-applies only `inherit` declarations (Source/WebCore/style/StyleResolver.cpp:693-728@862f17d,
+Source/WebCore/style/PropertyCascade.cpp:332-333@862f17d), so the own value is fresh and the var() properties are the
+cached ones. A CSSOM inline style is mutable, so the reader's declarations are not cacheable and the hash is 0
+(Source/WebCore/dom/StyledElement.cpp:93-105@862f17d, Source/WebCore/style/ElementRuleCollector.cpp:968-971,994-996@862f17d,
+MatchedDeclarationsCache.cpp:125-126@862f17d). The `.inline` branch takes these lines as given, not derived: `wkRun_inline`
+and `inline_visSame` hold under it. -/
+def wkResolve {α : Type} [DecidableEq α] (d : Delivery) (cache : List (WkEntry α)) (v : α) :
+    (α × α) × List (WkEntry α) :=
+  if d = .inline then ((v, v), cache)
+  else
+    let key : Option α := if d = .inherited then some v else none
+    match cache.find? (fun e => decide (e.key = key)) with
+    | some e => ((v, e.built), cache)
+    | none => ((v, v), cache ++ [⟨key, v⟩])
+
+def wkRun {α : Type} [DecidableEq α] (d : Delivery) : List (WkEntry α) → List α → List (α × α)
+  | _, [] => []
+  | c, v :: vs => (wkResolve d c v).1 :: wkRun d (wkResolve d c v).2 vs
+
+theorem wkRun_inline {α : Type} [DecidableEq α] (c : List (WkEntry α)) (vs : List α) :
+    wkRun .inline c vs = vs.map fun v => (v, v) := by
+  induction vs generalizing c with
+  | nil => rfl
+  | cons v vs ih => simp [wkRun, wkResolve, ih]
+
+theorem wkRun_inherited {α : Type} [DecidableEq α] (c : List (WkEntry α)) (hc : ∀ e ∈ c, e.key = some e.built)
+    (vs : List α) : wkRun .inherited c vs = vs.map fun v => (v, v) := by
+  induction vs generalizing c with
+  | nil => rfl
+  | cons v vs ih =>
+    simp only [wkRun, wkResolve, reduceCtorEq, ite_false, ite_true, List.map_cons]
+    split
+    · next e he =>
+      have hk := List.find?_some he
+      have hm := List.mem_of_find?_eq_some he
+      have hb : e.built = v := by have := hc e hm; simp_all
+      simp [hb, ih c hc]
+    · next =>
+      have hc' : ∀ e ∈ c ++ [⟨some v, v⟩], e.key = some e.built := by
+        intro e he
+        rcases List.mem_append.1 he with h | h
+        · exact hc e h
+        · simp at h; subst h; rfl
+      simp [ih _ hc']
+
+/-- The chain on WebKit: after the first frame every frame hits the entry built at frame 0, so the var() properties
+stay at the first value while the own value follows the stage. -/
+theorem wkRun_chain_frozen {α : Type} [DecidableEq α] (v : α) (vs : List α) :
+    wkRun .chain [] (v :: vs) = (v, v) :: vs.map fun u => (u, v) := by
+  have h : ∀ us : List α, wkRun .chain [⟨none, v⟩] us = us.map fun u => (u, v) := by
+    intro us
+    induction us with
+    | nil => rfl
+    | cons u us ih => simp [wkRun, wkResolve, ih]
+  simp [wkRun, wkResolve, h]
+
+/-- The values a reader's var() properties are computed from at each driver write of `ws`: WebKit through its
+matched-declarations cache, Chromium as resolved. -/
+def shown (webkit : Bool) (d : Delivery) (reduced : Bool) (path : List Bool) (ws : List String) :
+    List (Option String × Option String) :=
+  if webkit then (wkRun d [] (ws.map (ownVal d reduced path))).map (·.2) else ws.map (ownVal d reduced path)
+
+theorem ownVal_inline_eq (reduced : Bool) (path : List Bool) (w : String) :
+    ownVal .inline reduced path w = ownVal .inherited reduced path w := by
+  simp [ownVal, readerWrites, Delivery.reg, valueAt, stageOpacity, List.lookup]
+
+theorem shown_inline_eq (webkit reduced : Bool) (path : List Bool) (ws : List String) :
+    shown webkit .inline reduced path ws = shown webkit .inherited reduced path ws := by
+  have e : ws.map (ownVal .inline reduced path) = ws.map (ownVal .inherited reduced path) :=
+    List.map_congr_left fun w _ => ownVal_inline_eq reduced path w
+  cases webkit
+  · simp [shown, e]
+  · simp only [shown, ite_true, e, wkRun_inline, wkRun_inherited [] (by simp), List.map_map]
+
+/-- Path of the hero copy below the stage. -/
+def copyPath : List Bool := [true]
+
+#guard (heroPaths true).any (fun o => o.1 == "hero/copy" && o.2.2 == copyPath)
+
+/-- Bug A: on WebKit the chain shows the copy the first write while the faithful copy follows the stage. -/
+theorem chain_stale_webkit :
+    shown true .chain false copyPath ["1", "0.5"] = [(some "1", some "calc(1 - 1)"), (some "1", some "calc(1 - 1)")] ∧
+    shown true .inherited false copyPath ["1", "0.5"] =
+      [(some "1", some "calc(1 - 1)"), (some "0.5", some "calc(1 - 0.5)")] := by
+  decide +kernel
+
+theorem chain_eq_chromium (reduced : Bool) (path : List Bool) (h : path.all id = true) (ws : List String) :
+    shown false .chain reduced path ws = shown false .inherited reduced path ws := by
+  simp [shown, ownVal, Delivery.reg, valueAt, h]
+
+/-- The readers' shown values at frame `t` of the writes `ws`, for an environment `(webkit, narrow, reduced, ws)`. -/
+def readerInputs (d : Delivery) (env : Bool × Bool × Bool × List String) (t : Nat) :
+    List (String × Option String × Option String) :=
+  ((heroPaths env.2.1).filter (·.2.1)).map fun o =>
+    (o.1, (shown env.1 d env.2.2.1 o.2.2 env.2.2.2).getD t (none, none))
+
+/-- Every scene drawn from the readers' shown values is the same for `inline` and faithful, on both engines, at
+every frame of every write sequence, given the `.inline` branch of `wkResolve`. -/
+theorem inline_visSame (draw : List (String × Option String × Option String) → Fw.Engine.Scene)
+    (vp : Bool × Bool × Bool × List String → Fw.Engine.Rect) :
+    Fw.Engine.VisSame Fw.Engine.E vp (fun env t => draw (readerInputs .inherited env t))
+      (fun env t => draw (readerInputs .inline env t)) :=
+  Fw.Engine.visSame_of_eq vp fun env t => by simp only [readerInputs, shown_inline_eq]
+
+mutual
+/-- Readers an inline write marks dirty that the Chromium scoped walk does not resolve (`reached`: the walk resolves
+this node); a write below a node with no box marks nothing
+(third_party/blink/renderer/core/dom/node.cc:1474-1479,1659-1660@f842f52). -/
+def crFresh (reached : Bool) : Node → Nat
+  | mk _ f ks => (if f.reads && !reached then 1 else 0) +
+      (if f.hidden then 0 else crFreshL (reached && f.inh && explicitKid ks) ks)
+def crFreshL (pass : Bool) : List Node → Nat
+  | [] => 0
+  | k :: ks => crFresh pass k + crFreshL pass ks
+end
+
+mutual
+/-- The same for the WebKit scoped walk; a write below a node with no box is not resolved
+(Source/WebCore/style/StyleTreeResolver.cpp:1386-1387@862f17d). -/
+def wkFresh (reached : Bool) : Node → Nat
+  | mk _ f ks => (if f.reads && !reached then 1 else 0) +
+      (if f.hidden then 0 else wkFreshL (reached && f.inh) ks)
+def wkFreshL (pass : Bool) : List Node → Nat
+  | [] => 0
+  | k :: ks => wkFresh (pass && (k.flags.inh || k.flags.explicit)) k + wkFreshL pass ks
+end
+
+/-- Resolutions per frame for `inline`: the scoped walk from the stage plus the fresh readers. -/
+def crInline : Node → Nat
+  | n@(mk _ f ks) => crScoped n + (if f.hidden then 0 else crFreshL (explicitKid ks) ks)
+def wkInline : Node → Nat
+  | n@(mk _ f ks) => wkScoped n + (if f.hidden then 0 else wkFreshL true ks)
+
+/-- Elements the `inline` driver writes per frame: the stage and every reader. -/
+def inlineTouched (narrow : Bool) : Nat := 1 + ((heroPaths narrow).filter (·.2.1)).length
+
+theorem inline_touched (narrow : Bool) : inlineTouched narrow = 17 := by cases narrow <;> decide +kernel
+
+theorem inline_units (narrow : Bool) : crInline (heroTree narrow) = crScoped (heroTree narrow) ∧
+    wkInline (heroTree narrow) = wkScoped (heroTree narrow) := by
+  cases narrow <;> decide +kernel
+
+theorem inline_lt_faithful (narrow : Bool) : crInline (heroTree narrow) < crFull (heroTree narrow) ∧
+    wkInline (heroTree narrow) < wkFull (heroTree narrow) := by
+  rw [(inline_units narrow).1, (inline_units narrow).2]
+  exact scoped_lt_faithful narrow
+
+theorem inline_narrow_delta : crFull (heroTree true) - crInline (heroTree true) = 90 := by
+  rw [(inline_units true).1]; exact narrow_delta
+
+/-- Elements and properties the scoped driver writes per zone frame. -/
+def frameWrites : List (String × String) :=
+  (stageName, "--exit-opacity") :: readers.flatMap fun r => [(r, "--exit-opacity"), (r, "--exit-scatter")]
+
+/-- Golden `readerWrites` inputs: `(reduced, opacity)`. -/
+def readerWriteCases : List (Bool × String) :=
+  [(false, "1"), (false, "0.5"), (false, "0"), (false, "0.0429"), (true, "1")]
 
 def zoneFirst : Nat := 10
 def zoneLast : Nat := 103
@@ -1150,6 +1343,9 @@ def scopedJson (_ : Unit := ()) : Lean.Json :=
     Lean.Json.mkObj [("chromiumFaithful", Lean.toJson (crFull (heroTree narrow))),
       ("webkitFaithful", Lean.toJson (wkFull (heroTree narrow))), ("chromiumScoped", Lean.toJson (crScoped (heroTree narrow))),
       ("webkitScoped", Lean.toJson (wkScoped (heroTree narrow)))]
+  let inl (narrow : Bool) : Lean.Json :=
+    Lean.Json.mkObj [("touched", Lean.toJson (inlineTouched narrow)),
+      ("chromium", Lean.toJson (crInline (heroTree narrow))), ("webkit", Lean.toJson (wkInline (heroTree narrow)))]
   Lean.Json.mkObj [
     ("variant", Lean.toJson "scoped"),
     ("scopeAttr", Lean.toJson "data-exit-scope"),
@@ -1161,6 +1357,10 @@ def scopedJson (_ : Unit := ()) : Lean.Json :=
       ("reducedScatter", Lean.toJson (stageScatter true "var(--exit-opacity)"))]),
     ("trees", Lean.Json.mkObj [("narrow", (heroTree true).json), ("wide", (heroTree false).json)]),
     ("units", Lean.Json.mkObj [("narrow", units true), ("wide", units false)]),
+    ("inline", Lean.Json.mkObj [("narrow", inl true), ("wide", inl false)]),
+    ("readerWrites", Lean.Json.arr (readerWriteCases.map fun (r, o) =>
+      Lean.Json.mkObj [("reduced", Lean.toJson r), ("opacity", Lean.toJson o),
+        ("writes", Lean.Json.arr ((readerWrites r o).map fun (p, x) => Lean.Json.arr #[Lean.toJson p, Lean.toJson x]).toArray)]).toArray),
     ("frameWrites", Lean.Json.arr (frameWrites.map fun (e, p) =>
       Lean.Json.mkObj [("element", Lean.toJson e), ("property", Lean.toJson p)]).toArray),
     ("zone", Lean.Json.mkObj [("first", Lean.toJson zoneFirst), ("last", Lean.toJson zoneLast),
