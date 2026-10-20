@@ -1,0 +1,62 @@
+{"kind":"unit","name":"empty window","op":"against","r":{"els":[[1000]],"m":null,"quiet":true},"verdict":"skip:noSample","win":[]}
+{"kind":"discrete","name":"absent both","op":"against","r":{"els":[null],"m":null,"quiet":true},"verdict":"pass","win":[{"els":[null],"m":null,"quiet":true}]}
+{"kind":"unit","name":"absent rewrite","op":"against","r":{"els":[null],"m":null,"quiet":true},"verdict":"fail:missing","win":[{"els":[[1000]],"m":null,"quiet":true}]}
+{"kind":"unit","name":"absent orig","op":"against","r":{"els":[[1000]],"m":null,"quiet":true},"verdict":"fail:missing","win":[{"els":[null],"m":null,"quiet":true}]}
+{"kind":"discrete","name":"str equal","op":"against","r":{"els":["on"],"m":null,"quiet":true},"verdict":"pass","win":[{"els":["on"],"m":null,"quiet":true}]}
+{"kind":"discrete","name":"str differs","op":"against","r":{"els":["off"],"m":null,"quiet":true},"verdict":"fail:differs","win":[{"els":["on"],"m":null,"quiet":true}]}
+{"kind":"unit","name":"str differs unit","op":"against","r":{"els":["none"],"m":null,"quiet":true},"verdict":"fail:differs","win":[{"els":["blur(#px)"],"m":null,"quiet":true}]}
+{"kind":"unit","name":"type","op":"against","r":{"els":[[1000]],"m":null,"quiet":true},"verdict":"fail:type","win":[{"els":["on"],"m":null,"quiet":true}]}
+{"kind":"geometry","name":"shape","op":"against","r":{"els":[[1000]],"m":null,"quiet":true},"verdict":"fail:shape","win":[{"els":[[1000,0]],"m":null,"quiet":true}]}
+{"kind":"discrete","name":"discrete num equal","op":"against","r":{"els":[[5000]],"m":null,"quiet":true},"verdict":"pass","win":[{"els":[[5000]],"m":null,"quiet":true}]}
+{"kind":"discrete","name":"discrete num differs","op":"against","r":{"els":[[5001]],"m":null,"quiet":true},"verdict":"fail:differs","win":[{"els":[[5000]],"m":null,"quiet":true}]}
+{"kind":"geometry","name":"geometry edge","op":"against","r":{"els":[[6000]],"m":null,"quiet":true},"verdict":"pass","win":[{"els":[[5000]],"m":null,"quiet":true}]}
+{"kind":"geometry","name":"geometry over","op":"against","r":{"els":[[6001]],"m":null,"quiet":true},"verdict":"fail:apart","win":[{"els":[[5000]],"m":null,"quiet":true}]}
+{"kind":"geometry","name":"geometry under","op":"against","r":{"els":[[4000]],"m":null,"quiet":true},"verdict":"pass","win":[{"els":[[5000]],"m":null,"quiet":true}]}
+{"kind":"unit","name":"unit edge","op":"against","r":{"els":[[760]],"m":null,"quiet":true},"verdict":"pass","win":[{"els":[[750]],"m":null,"quiet":true}]}
+{"kind":"unit","name":"unit over","op":"against","r":{"els":[[761]],"m":null,"quiet":true},"verdict":"fail:apart","win":[{"els":[[750]],"m":null,"quiet":true}]}
+{"kind":"unit","name":"bug A copy opacity","op":"against","r":{"els":[[1000]],"m":null,"quiet":true},"verdict":"fail:apart","win":[{"els":[[750]],"m":null,"quiet":true}]}
+{"kind":"colour","name":"colour edge","op":"against","r":{"els":[[253000,255000,255000,255000]],"m":null,"quiet":true},"verdict":"pass","win":[{"els":[[255000,255000,255000,255000]],"m":null,"quiet":true}]}
+{"kind":"colour","name":"colour over","op":"against","r":{"els":[[252999,255000,255000,255000]],"m":null,"quiet":true},"verdict":"fail:apart","win":[{"els":[[255000,255000,255000,255000]],"m":null,"quiet":true}]}
+{"kind":"colour","name":"bug C logo colour","op":"against","r":{"els":[[43000,49000,59000,255000]],"m":null,"quiet":true},"verdict":"fail:apart","win":[{"els":[[255000,255000,255000,255000]],"m":null,"quiet":true}]}
+{"kind":"colour","name":"colour transient","op":"against","r":{"els":[[0]],"m":null,"quiet":false},"verdict":"skip:transient","win":[{"els":[[255000]],"m":null,"quiet":true}]}
+{"kind":"colour","name":"colour window not quiet","op":"against","r":{"els":[[0]],"m":null,"quiet":true},"verdict":"fail:apart","win":[{"els":[[255000]],"m":null,"quiet":false}]}
+{"kind":"colour","name":"colour window not quiet pass","op":"against","r":{"els":[[255000]],"m":null,"quiet":true},"verdict":"pass","win":[{"els":[[255000]],"m":null,"quiet":false}]}
+{"kind":"unit","name":"unit ignores quiet","op":"against","r":{"els":[[0]],"m":null,"quiet":false},"verdict":"fail:apart","win":[{"els":[[1000]],"m":null,"quiet":true}]}
+{"kind":"discrete","name":"window discrete","op":"against","r":{"els":["on"],"m":null,"quiet":true},"verdict":"pass","win":[{"els":["off"],"m":null,"quiet":true},{"els":["on"],"m":null,"quiet":true}]}
+{"kind":"geometry","name":"window band inside","op":"against","r":{"els":[[4000]],"m":null,"quiet":true},"verdict":"pass","win":[{"els":[[0]],"m":null,"quiet":true},{"els":[[10000]],"m":null,"quiet":true}]}
+{"kind":"geometry","name":"window band outside","op":"against","r":{"els":[[11001]],"m":null,"quiet":true},"verdict":"fail:apart","win":[{"els":[[0]],"m":null,"quiet":true},{"els":[[10000]],"m":null,"quiet":true}]}
+{"kind":"unit","name":"count","op":"against","r":{"els":[[1000],[1000]],"m":null,"quiet":true},"verdict":"fail:count","win":[{"els":[[1000]],"m":null,"quiet":true}]}
+{"kind":"unit","name":"one element bad","op":"against","r":{"els":[[1000],[900]],"m":null,"quiet":true},"verdict":"fail:apart","win":[{"els":[[1000],[500]],"m":null,"quiet":true}]}
+{"kind":"unit","name":"no elements","op":"against","r":{"els":[],"m":null,"quiet":true},"verdict":"skip:noSample","win":[{"els":[],"m":null,"quiet":true}]}
+{"idx":[0,1,2,3],"m":4000,"ms":[0,2000,4000,6000],"name":"interior hit","op":"window"}
+{"idx":[0,1,2,3],"m":3000,"ms":[0,2000,4000,6000],"name":"between","op":"window"}
+{"idx":[0,1,2],"m":7000,"ms":[10000,8000,6000],"name":"falling","op":"window"}
+{"idx":[0,1],"m":9000,"ms":[0,2000],"name":"outside","op":"window"}
+{"idx":[0,1],"m":0,"ms":[4000,6000],"name":"outside low","op":"window"}
+{"idx":[0,1,2],"m":10000,"ms":[10000,10000,10000],"name":"hold","op":"window"}
+{"idx":[0],"m":3000,"ms":[3000],"name":"one sample","op":"window"}
+{"idx":[],"m":3000,"ms":[],"name":"empty","op":"window"}
+{"bucket":0,"m":0,"name":"zero","op":"bucket"}
+{"bucket":0,"m":499,"name":"below half","op":"bucket"}
+{"bucket":1,"m":500,"name":"half","op":"bucket"}
+{"bucket":1,"m":1000,"name":"one","op":"bucket"}
+{"bucket":10,"m":10000,"name":"end","op":"bucket"}
+{"bucket":10,"m":12000,"name":"beyond","op":"bucket"}
+{"bucket":0,"m":-300,"name":"negative","op":"bucket"}
+{"bucket":11,"m":null,"name":"none","op":"bucket"}
+{"kind":"discrete","name":"threshold slack","op":"byM","orig":[{"els":["off"],"m":9000,"quiet":true},{"els":["on"],"m":9300,"quiet":true}],"rew":[{"els":["on"],"m":9200,"quiet":true}],"verdicts":["skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","pass","skip:noSample","skip:noSample"]}
+{"kind":"discrete","name":"stale class","op":"byM","orig":[{"els":["off"],"m":8000,"quiet":true},{"els":["off"],"m":8500,"quiet":true},{"els":["off"],"m":9000,"quiet":true},{"els":["on"],"m":9300,"quiet":true},{"els":["on"],"m":9400,"quiet":true},{"els":["on"],"m":9500,"quiet":true},{"els":["on"],"m":9600,"quiet":true},{"els":["on"],"m":9700,"quiet":true},{"els":["on"],"m":9900,"quiet":true}],"rew":[{"els":["off"],"m":9500,"quiet":true}],"verdicts":["skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","fail:differs","skip:noSample"]}
+{"kind":"geometry","name":"ramp ok","op":"byM","orig":[{"els":[[0]],"m":0,"quiet":true},{"els":[[5000]],"m":5000,"quiet":true},{"els":[[10000]],"m":10000,"quiet":true}],"rew":[{"els":[[2000]],"m":2000,"quiet":true},{"els":[[7000]],"m":7000,"quiet":true}],"verdicts":["skip:noSample","skip:noSample","pass","skip:noSample","skip:noSample","skip:noSample","skip:noSample","pass","skip:noSample","skip:noSample","skip:noSample","skip:noSample"]}
+{"kind":"geometry","name":"ramp stuck","op":"byM","orig":[{"els":[[0]],"m":0,"quiet":true},{"els":[[5000]],"m":5000,"quiet":true},{"els":[[10000]],"m":10000,"quiet":true}],"rew":[{"els":[[0]],"m":2000,"quiet":true},{"els":[[0]],"m":7000,"quiet":true}],"verdicts":["skip:noSample","skip:noSample","pass","skip:noSample","skip:noSample","skip:noSample","skip:noSample","pass","skip:noSample","skip:noSample","skip:noSample","skip:noSample"]}
+{"kind":"colour","name":"hold colour","op":"byM","orig":[{"els":[[43000]],"m":10000,"quiet":false},{"els":[[255000]],"m":10000,"quiet":true}],"rew":[{"els":[[43000]],"m":10000,"quiet":false},{"els":[[43000]],"m":10000,"quiet":true}],"verdicts":["skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","pass","skip:noSample"]}
+{"kind":"discrete","name":"no morph value","op":"byM","orig":[{"els":["on"],"m":null,"quiet":true}],"rew":[{"els":["on"],"m":null,"quiet":true}],"verdicts":["skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","skip:noSample","pass"]}
+{"kind":"unit","name":"missing step","op":"byStep","orig":[{"s":{"els":[[750]],"m":null,"quiet":true},"step":"s25"}],"rew":[],"verdicts":[{"step":"s25","verdict":"skip:noSample"}]}
+{"kind":"unit","name":"pair","op":"byStep","orig":[{"s":{"els":[[750]],"m":null,"quiet":true},"step":"s25"},{"s":{"els":[[500]],"m":null,"quiet":true},"step":"s50"}],"rew":[{"s":{"els":[[1000]],"m":null,"quiet":true},"step":"s25"},{"s":{"els":[[500]],"m":null,"quiet":true},"step":"s50"}],"verdicts":[{"step":"s25","verdict":"fail:apart"},{"step":"s50","verdict":"pass"}]}
+{"input":"","name":"default","op":"widths","pick":{"ok":true,"widths":[390,640,641,1280]}}
+{"input":"1280,390","name":"subset","op":"widths","pick":{"ok":true,"widths":[1280,390]}}
+{"input":"390,500","name":"unknown","op":"widths","pick":{"ok":false}}
+{"input":"390,390","name":"repeat","op":"widths","pick":{"ok":false}}
+{"input":"390,wide","name":"junk","op":"widths","pick":{"ok":false}}
+{"input":"390,,640","name":"gap","op":"widths","pick":{"ok":false}}
+{"input":"390,640,641,1280","name":"all","op":"widths","pick":{"ok":true,"widths":[390,640,641,1280]}}
+{"input":"390, 640","name":"space","op":"widths","pick":{"ok":false}}
