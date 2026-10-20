@@ -92,7 +92,7 @@ export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: Previe
    *  a search string, never a commit or a path. A search is checked first (charset, then the site's rules) and is only ever a client-side
    *  query on a preview path. Start and stop keep the owner gate of `pm.start`/`pm.stop`; a serving preview is only linked, as in
    *  `GET /api/previews`. Replies: `open` (path and url to use now) or `pending` (a build of this commit runs: poll `GET /api/previews`
-   *  for the id, then ask again). Idempotent: asking again never starts a second build of the same commit. */
+   *  for the id, then ask again). Asking again never starts a second build in the same slot (two slots at one commit can race; follow-up). */
   app.post("/api/builds/open", async (c) => {
     c.header("Cache-Control", "no-store");
     const bad = jsonOnly(c); if (bad) return c.json({ ok: false, reason: bad }, 403);

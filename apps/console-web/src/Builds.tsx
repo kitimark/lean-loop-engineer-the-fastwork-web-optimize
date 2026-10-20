@@ -52,8 +52,9 @@ export function BuildsView() {
     const w = window.open("about:blank", "_blank");
     if (w) w.opener = null;
     const fail = (m: string) => { w?.close(); setMsg(m); };
+    const until = Date.now() + 10 * 60_000; // one deadline for the whole open: 10 min covers a cold build
     try {
-      for (let i = 0; i < 200; i++) {
+      while (Date.now() < until) {
         const r = await apiFetch("/api/builds/open", { method: "POST", headers: J, body: JSON.stringify({ ...body, arm }) });
         const j = await r.json();
         if (!j.ok) {
@@ -70,7 +71,7 @@ export function BuildsView() {
         }
         // pending: a build of this commit runs; wait until it serves (or is gone), then ask again
         const id = String(j.preview);
-        for (let k = 0; k < 200; k++) {
+        while (Date.now() < until) {
           await sleep(2000);
           const l = await (await apiFetch("/api/previews")).json();
           const p = (l.previews ?? []).find((x: Pv) => x.id === id);
