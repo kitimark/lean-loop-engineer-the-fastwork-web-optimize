@@ -9098,7 +9098,7 @@
    "id": "commission-margin-recur",
    "owner": "measure-engineer",
    "stream": "gate",
-   "title": "The commission margin-inline gate readings fail intermittently after fix-commission-margin (c4b57a2), flag-independent (runs 39313815482, 39314391342, 39314718340 fail; 39312308450, 39282664077 pass); explain from CI artifacts and fix at the cause (site or Lean gate rule, no tolerance widening); >= 3 consecutive full-gate passes on a no-flag branch; blocks the gate verdicts of exit-scoped-var, morph-layers, countdown-one-chain",
+   "title": "The commission margin-inline gate readings fail intermittently after fix-commission-margin (c4b57a2), flag-independent (runs 39313815482, 39314391342, 39314718340 fail; 39312308450, 39282664077 pass); explain from CI artifacts and fix at the cause (site or Lean gate rule, no tolerance widening); >= 3 consecutive full-gate passes on a no-flag branch; blocks the gate verdicts of exit-scoped-var, morph-layers, countdown-one-chain | r2 refused (key mask = tolerance widening; premise b refuted); Fable wf_b900665c-187: close as a finding (note + handoff only), redesign split into cmr-margin-typed-om -> cmr-margin-rect-rule, asymmetry in cmr-strut-asym",
    "deps": [],
    "writes": [
     "apps/site/src/parts/commission/**",
@@ -10164,7 +10164,8 @@
    "stream": "gate",
    "title": "Main's breakpoint gate passes: none of the last 100 breakpoint-gate runs succeeded (known cells: commission margin-inline at sweep stop 0 on Chromium, WebKit sweep:phone-rotation matchMedia not-comparable). Decide in Lean which not-comparable cells are excused (identity: the cell, engine and reason, allowlisted with a theorem that an excused cell never hides a fail) or fix the cell; commission waits on commission-margin-recur; a green gate run on main with run id; tasks then require 'green' instead of 'same not-ok set as base'",
    "deps": [
-    "commission-margin-recur"
+    "commission-margin-recur",
+    "cmr-margin-rect-rule"
    ],
    "writes": [
     "lean/Fw/Gate/**",
@@ -10177,6 +10178,66 @@
     "docs/team/handoffs/gate-green-baseline.md",
     "lean/Fw.lean",
     "lean/scripts/check.sh"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cmr-margin-typed-om",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [],
+   "title": "Premise for the commission margin redesign: Typed OM computedStyleMap().get(margin-*) gives the computed value (keyword auto, a percentage, or px for a fixed length) in Chromium and WebKit on CI, also for a node in a content-visibility:auto skipped subtree and under a scaled ancestor; one premise page + Lean premise entry + golden; unit = the verdict per engine x case (pass or refuted, run ids), no gate change",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "packages/premise-tests/**",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "scripts/circleci-fixtures/premise-tests*.json",
+    "lean/scripts/*Golden.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-20-cmr-margin-typed-om.md",
+    "docs/team/handoffs/cmr-margin-typed-om.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cmr-margin-rect-rule",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [
+    "cmr-margin-typed-om",
+    "commission-margin-recur"
+   ],
+   "title": "Final design round for the commission margin flake: a margin longhand that is non-fixed in both arms (Blink IsLayoutDependent, read by Typed OM per cmr-margin-typed-om) takes the node's rect verdict (identity; not masked, not counted as pass); Lean rule + theorem (cell = rectCell for that unit, = style compare otherwise) + golden; TS twin replayed; >= 3 consecutive no-flag full-gate runs at one commit with commission pass in both engines",
+   "writes": [
+    "packages/gate-breakpoints/src/**",
+    "packages/gate-breakpoints/test/**",
+    "lean/Fw/Gate/**",
+    "lean/Fw.lean",
+    "lean/scripts/*Golden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/gate/**",
+    "research/notes/2026/10-21-cmr-margin-rect-rule.md",
+    "docs/team/handoffs/cmr-margin-rect-rule.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cmr-strut-asym",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [
+    "cmr-margin-rect-rule"
+   ],
+   "title": "Investigation (no gate change): why the original reads the stale 0px strut 21/96 loads against the rewrite's 1/96 and why commission rows survives a resize; candidates: when data-*-render lands relative to the first layout, the intrinsic-block-size measure; Blink source cited; result is a finding or a real structural difference",
+   "writes": [
+    "research/notes/2026/10-2*-cmr-strut-asym.md",
+    "docs/team/handoffs/cmr-strut-asym.md"
    ]
   }
  ],
