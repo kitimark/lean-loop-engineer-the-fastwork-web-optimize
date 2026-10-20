@@ -27,7 +27,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { Core } from "../core/index.ts";
 
 export const PREVIEW_COOKIE = "fw_preview";
-const LOOPBACK_HOST = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/;
+export const LOOPBACK_HOST = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/;
 export const SESSION_MS = 8 * 3600_000;
 
 export type Org = { host: string; port: number };

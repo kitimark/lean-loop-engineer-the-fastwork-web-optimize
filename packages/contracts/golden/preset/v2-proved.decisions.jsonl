@@ -12,4 +12,6 @@
 {"flag":"people.card:mq","flagRows":[],"member":true,"registered":true,"rows":[{"candidate":"MQ-gated shrink (KD#3): skip the --future-shrink write and the rAF re-request in the c860 band","found":[{"fResult":null,"status":"proved"}],"part":"people.card"}],"shadowedBy":null,"why":{"verdict":"proved"}}
 {"flag":"hero.accent:steps","flagRows":[],"member":false,"registered":true,"rows":[],"shadowedBy":null,"why":{"reason":"ledger n = 15: a trade on Chromium and no win on WebKit (INFERRED); a follow-up makes the generator require an engine-win field","verdict":"excluded"}}
 {"flag":"hero.countdown:hidden-pause","flagRows":[],"member":false,"registered":true,"rows":[],"shadowedBy":null,"why":{"verdict":"no-link"}}
+{"flag":"hero.exit:scoped","flagRows":[],"member":false,"registered":true,"rows":[],"shadowedBy":null,"why":{"verdict":"no-link"}}
 {"flag":"morph.mount:shift-dormant","flagRows":[],"member":false,"registered":true,"rows":[],"shadowedBy":null,"why":{"verdict":"no-link"}}
+{"flag":"pain.notes:visible-idem","flagRows":[],"member":false,"registered":true,"rows":[],"shadowedBy":null,"why":{"verdict":"no-link"}}

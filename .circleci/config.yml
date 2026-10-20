@@ -1,16 +1,211 @@
 version: 2.1
-# Bootstrap so CircleCI can create the project from this repo; the task circleci-pilot replaces the jobs. Workflows run
-# only on ci/* branches, so a push to main starts no workflow and spends no credits.
-jobs:
-  probe:
-    docker:
-      - image: cimg/base:current
-    resource_class: small
+
+# CircleCI pilot (task circleci-pilot; docs/team/tools/circleci.md). A second runner for two GitHub lanes, run side by side so
+# the pair verdicts, durations, queue times and credits can be compared (Lean lean/Fw/Ci/Provider.lean, golden
+# packages/contracts/golden/ci/provider.jsonl; glue scripts/circleci.mjs). Counts and verdicts only: nothing measured here
+# is phone time.
+#
+# It starts only when scripts/circleci.mjs (or `pnpm fw ci circleci trigger`) asks for it through the API with the pipeline
+# parameter `lane`. A plain push to ci/* creates a pipeline whose `lane` is empty, so no workflow below matches and no credit
+# is spent. Both workflows are also guarded on the branch name (ci/ prefix).
+#
+# Every job writes the result files of its GitHub twin (artifacts) plus timings.json: per-step spans in the
+# .fw-console/timings.jsonl format ({tool, step, startMs, durMs, exit, commit, load, host}) wrapped with the job, class and
+# commit. The queue span (created to started) is added by scripts/circleci.mjs from the API, not by the job.
+# No Lake cache is saved: this pilot builds no Lean. The only cache is the pnpm store of the premise jobs, keyed by
+# pnpm-lock.yaml (a few tens of MB, and a save of an existing key is skipped).
+#
+# Not ported on purpose: the GitHub guard job (changed-inputs) and the "tip re-check" steps: the API trigger names the
+# branch and the pilot is started by hand, one pair at a time.
+
+parameters:
+  lane:
+    description: Which lane to run, empty for none. premise-tests or webkit-sim.
+    type: string
+    default: ""
+  resource_class:
+    description: Class of the Linux Arm jobs (Free plan, OSS pool). The gen2 names are CONFIRMED (accepted by pipelines 15 and 16); arm.medium and arm.large are the fallback if they are refused.
+    type: enum
+    enum: [arm.medium.gen2, arm.large.gen2, arm.medium, arm.large]
+    default: arm.medium.gen2
+  xcode:
+    description: Xcode image of the webkit-sim job (the image that carries the pinned iOS 27.0 runtime, build 24A434).
+    type: string
+    default: "27.0.0"
+
+commands:
+  mark:
+    description: Remember the time now as the start of a step that CircleCI itself runs (checkout, cache restore).
     steps:
+      - run:
+          name: mark time
+          command: mkdir -p /tmp/fw && { date +%s%N 2>/dev/null | grep -v N || echo "$(( $(date +%s) * 1000 ))000000"; } > /tmp/fw/mark
+  since:
+    description: Record a span from the last mark to now.
+    parameters:
+      step: {type: string}
+    steps:
+      - run:
+          name: span << parameters.step >>
+          command: sh .circleci/job.sh since "<< parameters.step >>"
+  finish:
+    description: Write timings.json and the artifacts directory, also after a failure.
+    steps:
+      - run:
+          name: timings.json
+          when: always
+          command: sh .circleci/job.sh finish
+      - store_artifacts:
+          path: /tmp/fw/artifacts
+
+jobs:
+  engine:
+    parameters:
+      engine:
+        type: enum
+        enum: [chromium, playwright-webkit]
+      rc:
+        type: enum
+        enum: [arm.medium.gen2, arm.large.gen2, arm.medium, arm.large]
+    machine:
+      image: ubuntu-2404:current
+    resource_class: << parameters.rc >>
+    environment:
+      FW_CI_JOB: engine-<< parameters.engine >>
+      FW_CI_CLASS: << parameters.rc >>
+      FW_CI_ENGINE: << parameters.engine >>
+      # Same pinned browser as .github/workflows/premise-tests.yml.
+      HS_VERSION: 156.0.8078.4
+      HS_SHA256: 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
+    steps:
+      - mark
       - checkout
-      - run: uname -a && nproc
+      - since:
+          step: checkout
+      - run:
+          name: toolchain (node 24, pnpm)
+          command: sh .circleci/job.sh toolchain
+      - mark
+      - restore_cache:
+          keys:
+            - pnpm-store-v1-{{ checksum "pnpm-lock.yaml" }}
+      - since:
+          step: cache restore
+      - run:
+          name: deps install
+          command: sh .circleci/job.sh install "@fw/gate-breakpoints @fw/premise-tests"
+      - save_cache:
+          key: pnpm-store-v1-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - ~/.local/share/pnpm/store
+      - run:
+          name: browser and system libraries
+          command: sh .circleci/job.sh browser
+      - run:
+          name: premise tests
+          command: sh .circleci/job.sh test
+      - persist_to_workspace:
+          root: /tmp/fw/ws
+          paths:
+            - premise-results
+      - finish
+
+  verdict:
+    parameters:
+      rc:
+        type: enum
+        enum: [arm.medium.gen2, arm.large.gen2, arm.medium, arm.large]
+    machine:
+      image: ubuntu-2404:current
+    resource_class: << parameters.rc >>
+    environment:
+      FW_CI_JOB: verdict
+      FW_CI_CLASS: << parameters.rc >>
+    steps:
+      - mark
+      - checkout
+      - since:
+          step: checkout
+      - run:
+          name: toolchain (node 24, pnpm)
+          command: sh .circleci/job.sh toolchain
+      - mark
+      - restore_cache:
+          keys:
+            - pnpm-store-v1-{{ checksum "pnpm-lock.yaml" }}
+      - since:
+          step: cache restore
+      - run:
+          name: deps install
+          command: sh .circleci/job.sh install "@fw/runner..."
+      - attach_workspace:
+          at: /tmp/fw/ws
+      - run:
+          name: premises against the Lean registry
+          command: sh .circleci/job.sh verdict
+      - finish
+
+  webkit-sim:
+    parameters:
+      xcode:
+        type: string
+    macos:
+      xcode: << parameters.xcode >>
+    resource_class: m4pro.medium
+    environment:
+      FW_CI_JOB: webkit-sim
+      FW_CI_CLASS: m4pro.medium
+      FW_IOS_VERSION: "27.0"
+      FW_IOS_BUILD: 24A434
+      FW_SIM_NAME: fw-iphone-27
+      # The same waits and retries as the GitHub xcode-27 job (counts do not depend on waits).
+      FW_WK_TIMEOUT_SCALE: "8"
+      FW_WK_ATTEMPTS: "3"
+    steps:
+      - mark
+      - checkout
+      - since:
+          step: checkout
+      - run:
+          name: toolchain (node 24, pnpm)
+          command: sh .circleci/job.sh toolchain
+      - run:
+          name: pinned runtime, device, snapshot check, ios_webkit_debug_proxy
+          command: sh .circleci/job.sh sim-prepare
+      - run:
+          name: deps install
+          command: sh .circleci/job.sh install "@fw/measure-webkit..."
+      - run:
+          name: boot the Simulator
+          command: sh .circleci/job.sh sim-boot
+      - run:
+          name: determinism session (original arm, 1 session)
+          command: sh .circleci/job.sh sim-run
+          no_output_timeout: 50m
+      - run:
+          name: delete the Simulator
+          when: always
+          command: sh .circleci/job.sh sim-delete
+      - finish
+
 workflows:
-  probe:
-    when:
-      matches: { pattern: "^ci/.*$", value: << pipeline.git.branch >> }
-    jobs: [probe]
+  premise-tests:
+    when: pipeline.parameters.lane == "premise-tests" and pipeline.git.branch starts-with "ci/"
+    jobs:
+      - engine:
+          name: engine-chromium
+          engine: chromium
+          rc: << pipeline.parameters.resource_class >>
+      - engine:
+          name: engine-playwright-webkit
+          engine: playwright-webkit
+          rc: << pipeline.parameters.resource_class >>
+      - verdict:
+          rc: << pipeline.parameters.resource_class >>
+          requires: [engine-chromium, engine-playwright-webkit]
+
+  webkit-sim:
+    when: pipeline.parameters.lane == "webkit-sim" and pipeline.git.branch starts-with "ci/"
+    jobs:
+      - webkit-sim:
+          xcode: << pipeline.parameters.xcode >>

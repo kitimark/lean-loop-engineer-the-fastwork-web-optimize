@@ -101,7 +101,7 @@ I checked the note (`research/notes/2026/10-17-sim-speed.md` at 4b54e32) against
     - The `close()` wait of up to `T(3000)` = 24 s (`wip.mjs:86`) is not cited.
     - Fix: mark it INFERRED and cite `wip.mjs:86`.
 
-Scratch logs: `/private/tmp/claude-501/-Users-markmark-source-fastwork-com-web-optimize-lean/7b8c7c6d-7a95-4f3a-b051-47bf2935948b/scratchpad/logs/`
+Scratch logs: `logs/` in the session scratchpad (local only)
 
 Sources:
 - [GitHub Actions runner pricing](https://docs.github.com/en/enterprise-server@3.17/billing/reference/actions-runner-pricing)
