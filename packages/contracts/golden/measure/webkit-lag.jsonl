@@ -23,6 +23,7 @@
 {"kind":"rank","maxY":9000,"nCalm":3,"nRegion":2,"names":["Layout","Paint","Composite"],"ranked":[["Paint",16],["Layout",12],["Composite",0]],"region":"B","rows":[[3,9,1],[3,7,1],[1,1,1],[1,2,1],[1,2,1],[1,3,1],[2,5,1],[4,5,1]],"vh":775,"ys":[0,100,800,2500,3000,4000,8500,9000]}
 {"kind":"rank","maxY":9000,"nCalm":3,"nRegion":3,"names":["Layout","Paint","Composite"],"ranked":[["Layout",0],["Paint",0],["Composite",0]],"region":"calm","rows":[[3,9,1],[3,7,1],[1,1,1],[1,2,1],[1,2,1],[1,3,1],[2,5,1],[4,5,1]],"vh":775,"ys":[0,100,800,2500,3000,4000,8500,9000]}
 {"kind":"rank","maxY":9000,"nCalm":3,"nRegion":1,"names":["Layout","Paint","Composite"],"ranked":[["Layout",0],["Composite",0],["Paint",-4]],"region":"other","rows":[[3,9,1],[3,7,1],[1,1,1],[1,2,1],[1,2,1],[1,3,1],[2,5,1],[4,5,1]],"vh":775,"ys":[0,100,800,2500,3000,4000,8500,9000]}
+{"baseline":[[1,1,1],[1,2,1]],"kind":"rankWindows","names":["Layout","Paint","Composite"],"ranked":[["Paint",45],["Layout",18],["Composite",6]],"window":[[5,9,2],[4,9,2],[3,9,2]]}
 {"area":0,"areaRadius":0,"count":0,"items":[],"kind":"filter","viewport":[0,0,1290,2325]}
 {"area":935250,"areaRadius":15738000,"count":2,"items":[{"radius":24,"rect":[0,0,1290,400]},{"radius":8,"rect":[0,2000,1290,3000]},{"radius":30,"rect":[0,3000,100,3100]}],"kind":"filter","viewport":[0,0,1290,2325]}
 {"area":10000,"areaRadius":0,"count":1,"items":[{"radius":0,"rect":[-100,-100,100,100]}],"kind":"filter","viewport":[0,0,1290,2325]}

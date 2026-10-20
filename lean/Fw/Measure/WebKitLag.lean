@@ -302,18 +302,27 @@ theorem rankDesc_sorted (items : List (String × Int)) :
     (by intro a b c h1 h2; simp at *; omega) (by intro a b; simp; omega) items
   simpa [rankDesc] using this
 
-/-- The counters of a region ranked by excess over the calm baseline (columns named `names`). -/
-def rankRegion (vh maxY : Int) (ys : List Int) (rows : List (List Int)) (names : List String) (r : Region) :
-    List (String × Int) :=
-  let wr := windowOf vh maxY ys rows r
-  let wc := windowOf vh maxY ys rows .calm
+/-- The counters ranked by excess of one window of step rows over another (columns named `names`). -/
+def rankWindows (wr wc : List (List Int)) (names : List String) : List (String × Int) :=
   rankDesc ((names.zip (List.range names.length)).map fun p =>
     (p.1, excess wr.length wc.length (colSum wr p.2) (colSum wc p.2)))
+
+/-- The counters of a region ranked by excess over the calm baseline. -/
+def rankRegion (vh maxY : Int) (ys : List Int) (rows : List (List Int)) (names : List String) (r : Region) :
+    List (String × Int) :=
+  rankWindows (windowOf vh maxY ys rows r) (windowOf vh maxY ys rows .calm) names
+
+/-- A ranking holds every named counter once. -/
+theorem rankWindows_length (wr wc : List (List Int)) (names : List String) :
+    (rankWindows wr wc names).length = names.length := by
+  unfold rankWindows
+  rw [(rankDesc_perm _).length_eq]
+  simp
 
 /-- A region ranking holds every named counter once. -/
 theorem rankRegion_length (vh maxY : Int) (ys : List Int) (rows : List (List Int)) (names : List String) (r : Region) :
     (rankRegion vh maxY ys rows names r).length = names.length := by
-  unfold rankRegion
+  unfold rankRegion rankWindows
   rw [(rankDesc_perm _).length_eq]
   simp
 
@@ -368,6 +377,9 @@ private def goldenLines : List String :=
       ("rows", toJson rankRows), ("names", toJson ["Layout", "Paint", "Composite"]),
       ("nRegion", (windowOf 775 9000 rankYs rankRows r).length), ("nCalm", (windowOf 775 9000 rankYs rankRows .calm).length),
       ("ranked", lj (rankRegion 775 9000 rankYs rankRows ["Layout", "Paint", "Composite"] r))]).compress) ++
+  [(Json.mkObj [("kind", "rankWindows"), ("names", toJson ["Layout", "Paint", "Composite"]),
+      ("window", toJson [[5, 9, 2], [4, 9, 2], [3, 9, 2]]), ("baseline", toJson [[1, 1, 1], [1, 2, 1]]),
+      ("ranked", lj (rankWindows [[5, 9, 2], [4, 9, 2], [3, 9, 2]] [[1, 1, 1], [1, 2, 1]] ["Layout", "Paint", "Composite"]))]).compress] ++
   (filterCases.map fun (vp, items) =>
     let (n, a, ar) := filterTotals vp items
     (Json.mkObj [("kind", "filter"), ("viewport", rj vp),

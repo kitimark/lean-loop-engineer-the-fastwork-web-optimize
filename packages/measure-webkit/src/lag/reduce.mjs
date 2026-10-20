@@ -56,9 +56,11 @@ const colSum = (rows, j) => rows.reduce((s, r) => s + (r[j] ?? 0), 0);
 export const windowOf = (vh, maxY, ys, rows, region) => rows.filter((_, i) => regionOf(vh, maxY, ys[i]) === region);
 export const excess = (nR, nC, sR, sC) => sR * nC - sC * nR;
 
-/** Counters ranked by excess over the calm baseline, highest first, ties in column order (a stable sort). */
-export function rankRegion(vh, maxY, ys, rows, names, region) {
-  const wr = windowOf(vh, maxY, ys, rows, region), wc = windowOf(vh, maxY, ys, rows, 'calm');
+/** Counters ranked by excess of one window of step rows over another, highest first, ties in column order. */
+export function rankWindows(wr, wc, names) {
   const items = names.map((n, j) => [n, excess(wr.length, wc.length, colSum(wr, j), colSum(wc, j))]);
   return items.map((e, i) => [e, i]).sort((a, b) => b[0][1] - a[0][1] || a[1] - b[1]).map(([e]) => e);
 }
+
+export const rankRegion = (vh, maxY, ys, rows, names, region) =>
+  rankWindows(windowOf(vh, maxY, ys, rows, region), windowOf(vh, maxY, ys, rows, 'calm'), names);

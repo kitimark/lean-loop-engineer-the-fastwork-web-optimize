@@ -4,14 +4,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { owner, regionOf, regionLedger, stepArea, stepCount, rollup, rankRegion, filterTotals } from '../src/lag/reduce.mjs';
+import { owner, regionOf, regionLedger, stepArea, stepCount, rollup, rankRegion, rankWindows, filterTotals } from '../src/lag/reduce.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const lines = readFileSync(join(here, '../../contracts/golden/measure/webkit-lag.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('every golden kind has lines', () => {
-  for (const k of ['owner', 'region', 'ledger', 'rank', 'filter']) assert.ok(of(k).length > 0, k);
+  for (const k of ['owner', 'region', 'ledger', 'rank', 'rankWindows', 'filter']) assert.ok(of(k).length > 0, k);
 });
 
 test('owner: the smallest covering box', () => {
@@ -36,6 +36,10 @@ test('counter ranking by excess over the baseline', () => {
   for (const g of of('rank')) {
     assert.deepEqual(rankRegion(g.vh, g.maxY, g.ys, g.rows, g.names, g.region), g.ranked, g.region);
   }
+});
+
+test('counter ranking of two windows', () => {
+  for (const g of of('rankWindows')) assert.deepEqual(rankWindows(g.window, g.baseline, g.names), g.ranked);
 });
 
 test('filter layers: visible count, area, area times radius', () => {
