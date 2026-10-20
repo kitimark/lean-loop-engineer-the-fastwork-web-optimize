@@ -75,18 +75,22 @@ export function tablesMd(results) {
     }
   }
   L.push('');
-  // why files have no exact copy, counted over the first result of each engine
-  const first = engines.map((e) => results.find((r) => r.engine === e)).filter(Boolean);
-  L.push('### Why a file has no exact copy (files per probe, first run of each engine)', '', '| engine | probe | ok | notImg | cropped | scaled | fractional | noSaving | disagree | other |', '|---|---|---|---|---|---|---|---|---|---|');
-  for (const r of first) {
+  // why files have no exact copy: each (engine, probe) is counted once, from the first result file that has it
+  const seen = new Set();
+  const per = [];
+  for (const r of results) {
     for (const probe of r.probes) {
+      const k = `${r.engine}|${probe}`;
       const fs = r.files.filter((f) => f.probe === probe);
-      if (fs.length === 0) continue;
-      const n = (w) => fs.filter((f) => f.why === w).length;
-      const known = ['ok', 'notImg', 'cropped', 'scaled', 'fractional', 'noSaving', 'disagree'];
-      L.push(`| ${r.engine} | ${probe} | ${known.map(n).join(' | ')} | ${fs.filter((f) => !known.includes(f.why)).length} |`);
+      if (seen.has(k) || fs.length === 0) continue;
+      seen.add(k);
+      const dp = r.rows.find((x) => x.probe === probe);
+      per.push({ engine: r.engine, probe, label: dp ? `${dp.width}@${dp.dpr}` : '', fs });
     }
   }
+  const kinds = [...new Set(per.flatMap((x) => x.fs.map((f) => f.why)))].sort((a, b) => (a === 'ok' ? -1 : b === 'ok' ? 1 : a.localeCompare(b)));
+  L.push('### Why a file has no exact copy (files per engine and probe)', '', `| engine | probe | width@dpr | ${kinds.join(' | ')} |`, `|---|---|---|${kinds.map(() => '---|').join('')}`);
+  for (const x of per.sort((a, b) => a.engine.localeCompare(b.engine) || a.probe.localeCompare(b.probe))) L.push(`| ${x.engine} | ${x.probe} | ${x.label} | ${kinds.map((w) => x.fs.filter((f) => f.why === w).length).join(' | ')} |`);
   L.push('');
   return L.join('\n');
 }

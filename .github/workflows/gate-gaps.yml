@@ -336,7 +336,7 @@ jobs:
       matrix:
         engine: [chromium, playwright-webkit]
         rep: [r1, r2, r3]
-        shard: [1, 2]
+        shard: [1, 2, 3]
     steps:
       - name: 'tip re-check'
         id: tip
@@ -380,12 +380,12 @@ jobs:
           set -euo pipefail
           if ! command -v magick >/dev/null 2>&1 && ! command -v convert >/dev/null 2>&1; then sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick; fi
           (magick -version 2>/dev/null || convert -version) | head -1
-      - name: 'Arm: ${{ matrix.engine }} / ${{ matrix.rep }} / shard ${{ matrix.shard }} of 2 (base, exact and fit copies, visual diff of the lag parts)'
+      - name: 'Arm: ${{ matrix.engine }} / ${{ matrix.rep }} / shard ${{ matrix.shard }} of 3 (base, exact and fit copies, visual diff of the lag parts)'
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
         working-directory: packages/gate-breakpoints
-        run: node src/images/cli.mjs arm run --engine ${{ matrix.engine }} --out out/images-arm --shard ${{ matrix.shard }}/2 --tag ${{ matrix.rep }}-s${{ matrix.shard }} --deadline-min 48
+        run: node src/images/cli.mjs arm run --engine ${{ matrix.engine }} --out out/images-arm --shard ${{ matrix.shard }}/3 --tag ${{ matrix.rep }}-s${{ matrix.shard }} --deadline-min 48
         continue-on-error: true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
