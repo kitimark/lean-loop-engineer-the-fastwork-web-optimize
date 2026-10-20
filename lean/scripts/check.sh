@@ -84,6 +84,7 @@ run_group() {
   job "land-tier golden check" lake env lean --run scripts/LandTierGolden.lean --check  # golden/console/land-tier.jsonl + lean/land-filter.txt (Fw.Console.LandTier)
   job "land-remote golden check" lake env lean --run scripts/LandRemoteGolden.lean --check  # golden/console/land-remote.jsonl (Fw.Console.LandRemote)
   job "reconcile-sched golden check" lake env lean --run scripts/ReconcileSchedGolden.lean --check  # golden/console/reconcile-sched.jsonl
+  job "journal-cache golden check" lake env lean --run scripts/JournalCacheGolden.lean --check  # golden/console/journal-cache.jsonl
   job "provider golden check" lake env lean --run scripts/ProviderGolden.lean --check  # golden/ci/provider.jsonl (Fw.Ci.Provider)
   job "faithful golden check" lake env lean --run scripts/FaithfulGolden.lean --check  # golden/faithful/faithful.{verdict,comparable}.jsonl (Fw.Faithful)
   # props lint (one registry in Fw.Spec.Incidents, rows match the ledger, properties do not name the impl), run once over
