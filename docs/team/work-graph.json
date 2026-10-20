@@ -10379,6 +10379,33 @@
     "research/notes/2026/10-2*-gate-auto-margin-x.md",
     "docs/team/handoffs/gate-auto-margin-x.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-fwcore-once",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "A land that changes lean/ builds fwcore in each of the 4 land legs (206 s each in 39360937987 vs ~20 s on a cache hit); every lean land pays it 4x on runners and in land latency. Build fwcore once in a prep job (one writer) and hand it to the legs as an artifact or a cache key written once; the leg plan stays Lean-decided (Fw.Console.LandLegs); before/after MEASURED on a lean-changing land with run ids",
+   "writes": [
+    ".github/workflows/land.yml",
+    ".github/actions/**",
+    ".github/scripts/**",
+    "lean/Fw/Console/LandLegs.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw/Wire/GateSpeedGolden.lean",
+    "packages/contracts/golden/console/**",
+    "packages/contracts/golden/ops/cache.jsonl",
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/land*.ts",
+    "docs/team/tools/land.md",
+    "docs/team/tools/gate-speed.md",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2*-land-fwcore-once.md",
+    "docs/team/handoffs/land-fwcore-once.md"
+   ]
   }
  ],
  "deadline": {
