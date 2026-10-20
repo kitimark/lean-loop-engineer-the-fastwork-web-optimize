@@ -401,17 +401,43 @@ def defaultImage : Engine → String
 def imageOf (q : Request) (e : Engine) : String :=
   ((q.images.find? (fun p => p.1 == e.name)).map (·.2)).getD (defaultImage e)
 
-/-- The CI workflow file that measures an engine. -/
-def workflowOf : Engine → String
-  | .chromium => "chromium-counts.yml"
-  | .webkit => "webkit-sim.yml"
+/-- The measurement lanes a dispatch can start: the two count workflows (one per engine) and the breakpoint gate. -/
+inductive Lane where
+  | chromiumCounts
+  | webkitSim
+  | breakpointGate
+  deriving DecidableEq
 
-/-- The `workflow_dispatch` inputs a workflow declares (as of its file in `.github/workflows/`; chromium-counts.yml
-gained `target`, `preset`, `fw` and `image_run` with the rewrite lane).
+/-- The lanes, in the order of the check script. -/
+def Lane.all : List Lane := [.chromiumCounts, .webkitSim, .breakpointGate]
+
+/-- The workflow file of a lane in `.github/workflows/`. -/
+def Lane.file : Lane → String
+  | .chromiumCounts => "chromium-counts.yml"
+  | .webkitSim => "webkit-sim.yml"
+  | .breakpointGate => "breakpoint-gate.yml"
+
+/-- The `workflow_dispatch` inputs a lane's workflow declares, in file order. This is the one canonical table: the check
+`scripts/LaneInputs.lean --check` (a stage of `lean/scripts/check.sh`) parses the three files and fails when a list differs.
 -/
-def workflowInputs : Engine → List String
-  | .chromium => ["profile", "runs", "target", "preset", "fw", "image_run"]
-  | .webkit => ["vms", "sessions", "fresh_boot"]
+def Lane.inputs : Lane → List String
+  | .chromiumCounts => ["profile", "runs", "target", "preset", "fw", "only", "image_run"]
+  | .webkitSim => ["vms", "sessions", "fresh_boot", "experiment", "arms", "reps", "target", "preset", "fw"]
+  | .breakpointGate => ["engines", "runs", "free", "times", "fw", "preset", "parts"]
+
+/-- The lane that measures an engine's counts. -/
+def Lane.ofEngine : Engine → Lane
+  | .chromium => .chromiumCounts
+  | .webkit => .webkitSim
+
+/-- The CI workflow file that measures an engine. -/
+def workflowOf (e : Engine) : String := (Lane.ofEngine e).file
+
+/-- The `workflow_dispatch` inputs the workflow of an engine declares (`Lane.inputs`). -/
+def workflowInputs (e : Engine) : List String := (Lane.ofEngine e).inputs
+
+#guard workflowOf .webkit == "webkit-sim.yml"
+#guard workflowOf .chromium == "chromium-counts.yml"
 
 /-- The `fw` dispatch input: the flags as `part:variant`, joined by commas (empty for no flag). -/
 def fwInput (fw : List (String × String)) : String :=
@@ -431,13 +457,15 @@ def needs (q : Request) : List String :=
 
 /-- The dispatch inputs: the engine's own, from the request. Chromium takes the profile, the run count (in decimal),
 the target (always sent, so the workflow never falls back to its default `both`), the preset and the flags
-(`image_run` keeps its default); WebKit takes none of the request (its experiment is fixed).
+(`image_run` keeps its default); WebKit takes the target, the preset and the flags (webkit-sim has no profile input, so a
+profile other than the default is blocked; the run count is not an input either: its VM and session counts stay at the
+workflow defaults).
 -/
 def dispatchInputs (e : Engine) (q : Request) : List (String × String) :=
   match e with
   | .chromium => [("profile", q.profile), ("runs", toString q.runs), ("target", q.target), ("preset", q.preset),
                   ("fw", fwInput q.fw)]
-  | .webkit => []
+  | .webkit => [("target", q.target), ("preset", q.preset), ("fw", fwInput q.fw)]
 
 /-- **Chromium is told the target:** its dispatch inputs carry the request's target, never the workflow default. -/
 theorem dispatch_target (q : Request) : ("target", q.target) ∈ dispatchInputs .chromium q := by
@@ -460,7 +488,7 @@ theorem blocked_chromium (q : Request) : blocked .chromium q = none := by
   apply List.find?_eq_none.mpr
   intro x hx
   simp only [List.mem_append] at hx
-  rcases hx with ((hx | hx) | hx) | hx <;> split at hx <;> simp_all [workflowInputs]
+  rcases hx with ((hx | hx) | hx) | hx <;> split at hx <;> simp_all [workflowInputs, Lane.ofEngine, Lane.inputs]
 
 /-- **A chromium job sends what the request needs:** every needed field is a key of its dispatch inputs. -/
 theorem needs_dispatched (q : Request) (x : String) (hx : x ∈ needs q) :
@@ -468,6 +496,59 @@ theorem needs_dispatched (q : Request) (x : String) (hx : x ∈ needs q) :
   unfold needs at hx
   simp only [List.mem_append] at hx
   rcases hx with ((hx | hx) | hx) | hx <;> split at hx <;> simp_all [dispatchInputs]
+
+/-- **A job is blocked exactly when some needed input is missing from its lane's table.** One statement for both count
+lanes (`blocked e q = none` iff every needed input is declared by the workflow).
+-/
+theorem blocked_eq_none_iff (e : Engine) (q : Request) :
+    blocked e q = none ↔ ∀ x ∈ needs q, x ∈ workflowInputs e := by
+  constructor
+  · exact blocked_none_sound
+  · intro h
+    apply List.find?_eq_none.mpr
+    intro x hx
+    simpa using h x hx
+
+/-- **The other branch:** a job names a reason only when it is a needed input the workflow lacks. -/
+theorem blocked_some_sound (e : Engine) (q : Request) (r : String) :
+    blocked e q = some r → r ∈ needs q ∧ r ∉ workflowInputs e := by
+  intro h
+  have h1 := List.find?_some h
+  have hm := List.mem_of_find?_eq_some h
+  simp at h1
+  exact ⟨hm, h1⟩
+
+/-- **WebKit is blocked only by the profile:** webkit-sim declares `target`, `preset` and `fw` but no `profile`, so a job
+is blocked iff the request's profile is not the default.
+-/
+theorem blocked_webkit_iff (q : Request) : blocked .webkit q = none ↔ q.profile = defaultProfile := by
+  rw [blocked_eq_none_iff]
+  unfold needs
+  constructor
+  · intro h
+    by_cases hp : q.profile = defaultProfile
+    · exact hp
+    · have := h "profile" (by simp [hp])
+      simp [workflowInputs, Lane.ofEngine, Lane.inputs] at this
+  · intro h x hx
+    simp only [List.mem_append] at hx
+    rcases hx with ((hx | hx) | hx) | hx <;> split at hx <;> simp_all [workflowInputs, Lane.ofEngine, Lane.inputs]
+
+/-- **A webkit job sends what the request needs, apart from the profile:** every needed field except `profile` is a key
+of its dispatch inputs.
+-/
+theorem needs_dispatched_webkit (q : Request) (x : String) (hx : x ∈ needs q) (hp : x ≠ "profile") :
+    ∃ v, (x, v) ∈ dispatchInputs .webkit q := by
+  unfold needs at hx
+  simp only [List.mem_append] at hx
+  rcases hx with ((hx | hx) | hx) | hx <;> split at hx <;> simp_all [dispatchInputs]
+
+/-- **Every dispatch input is declared:** a key of `dispatchInputs e q` is an input of the engine's workflow, so
+`gh workflow run -f` is never given a name the workflow lacks.
+-/
+theorem dispatch_keys_declared (e : Engine) (q : Request) : ∀ p ∈ dispatchInputs e q, p.1 ∈ workflowInputs e := by
+  intro p hp
+  cases e <;> simp [dispatchInputs, workflowInputs, Lane.ofEngine, Lane.inputs] at hp ⊢ <;> rcases hp with rfl | rfl | rfl | rfl | rfl <;> simp
 
 /-- One job of a plan. -/
 structure Job where
@@ -597,6 +678,88 @@ theorem plan_key_target_ne {q q' : Request} (h : reqProblems q = []) (h' : reqPr
   rw [← Target.name_ofName hq, ← Target.name_ofName hq']
   exact congrArg Target.name htt
 
+/-! ## The breakpoint gate lane
+
+`breakpoint-gate.yml` compares the original snapshot with the rewrite; it takes no target and no profile. Its dispatch
+inputs here are the engines, the rewrite's preset and flags (`parts`, `runs`, `free` and `times` keep their workflow
+defaults).
+-/
+
+/-- The `engines` values of `breakpoint-gate.yml`. -/
+def gateEngines : List String := ["both", "chromium", "playwright-webkit"]
+
+/-- A gate request: the engines option, the rewrite arm's preset (empty = none) and flags. -/
+structure GateRequest where
+  engines : String
+  preset : String
+  fw : List (String × String)
+
+/-- The gate request that equals the workflow defaults. -/
+def GateRequest.default : GateRequest := { engines := "both", preset := "", fw := [] }
+
+/-- Request-level problems of a gate request (empty = well formed). The workflow takes preset and fw exclusively. -/
+def gateProblems (g : GateRequest) : List String :=
+  (if g.engines ∈ gateEngines then [] else ["engines: not both, chromium or playwright-webkit"]) ++
+  (if g.preset.isEmpty || isId g.preset then [] else ["preset: not an id"]) ++
+  (if g.fw.all (fun p => isPart p.1 && isId p.2) then [] else ["fw: part and variant must be ids"]) ++
+  (if flagsOk g.fw then [] else ["fw: a part appears twice"]) ++
+  (if g.preset.isEmpty || g.fw.isEmpty then [] else ["preset: exclusive with fw"])
+
+/-- The gate request fields that differ from the workflow defaults, so the workflow must accept them as inputs. -/
+def gateNeeds (g : GateRequest) : List String :=
+  (if g.engines == "both" then [] else ["engines"]) ++
+  (if g.preset.isEmpty then [] else ["preset"]) ++
+  (if g.fw.isEmpty then [] else ["fw"])
+
+/-- The dispatch inputs of the gate: always the three, so the workflow never falls back silently. -/
+def gateDispatchInputs (g : GateRequest) : List (String × String) :=
+  [("engines", g.engines), ("preset", g.preset), ("fw", fwInput g.fw)]
+
+/-- Why the gate cannot run: the first needed field its workflow has no input for. -/
+def gateBlocked (g : GateRequest) : Option String :=
+  (gateNeeds g).find? (fun x => !(Lane.breakpointGate.inputs).contains x)
+
+/-- **The gate is blocked exactly when some needed input is missing from its table.** -/
+theorem gateBlocked_eq_none_iff (g : GateRequest) :
+    gateBlocked g = none ↔ ∀ x ∈ gateNeeds g, x ∈ Lane.breakpointGate.inputs := by
+  constructor
+  · intro h x hx
+    have := (List.find?_eq_none.mp h) x hx
+    simpa using this
+  · intro h
+    apply List.find?_eq_none.mpr
+    intro x hx
+    simpa using h x hx
+
+/-- **The gate workflow can express every gate request:** it is never blocked. -/
+theorem gateBlocked_none (g : GateRequest) : gateBlocked g = none := by
+  rw [gateBlocked_eq_none_iff]
+  intro x hx
+  unfold gateNeeds at hx
+  simp only [List.mem_append] at hx
+  rcases hx with (hx | hx) | hx <;> split at hx <;> simp_all [Lane.inputs]
+
+/-- **The gate sends what the request needs:** every needed field is a key of its dispatch inputs. -/
+theorem gate_needs_dispatched (g : GateRequest) (x : String) (hx : x ∈ gateNeeds g) :
+    ∃ v, (x, v) ∈ gateDispatchInputs g := by
+  unfold gateNeeds at hx
+  simp only [List.mem_append] at hx
+  rcases hx with (hx | hx) | hx <;> split at hx <;> simp_all [gateDispatchInputs]
+
+/-- **Every gate dispatch input is declared by the workflow.** -/
+theorem gate_keys_declared (g : GateRequest) : ∀ p ∈ gateDispatchInputs g, p.1 ∈ Lane.breakpointGate.inputs := by
+  intro p hp
+  simp [gateDispatchInputs] at hp
+  rcases hp with rfl | rfl | rfl <;> simp [Lane.inputs]
+
+#guard gateProblems GateRequest.default == []
+#guard gateProblems { GateRequest.default with engines := "webkit" } == ["engines: not both, chromium or playwright-webkit"]
+#guard gateProblems { GateRequest.default with preset := "v2-proved", fw := [("a", "b")] } == ["preset: exclusive with fw"]
+#guard gateDispatchInputs GateRequest.default == [("engines", "both"), ("preset", ""), ("fw", "")]
+#guard gateDispatchInputs { engines := "chromium", preset := "", fw := [("morph.tween", "waapi")] }
+  == [("engines", "chromium"), ("preset", ""), ("fw", "morph.tween:waapi")]
+#guard gateBlocked { engines := "chromium", preset := "v2-proved", fw := [] } == none
+
 /-- The manifest path of a run, relative to the store root, from the hex digest of its key. -/
 def manifestPath (d : String) : String := "runs/" ++ d ++ "/manifest.json"
 
@@ -632,18 +795,19 @@ def exRw : Request := { exReq with target := "rewrite", preset := "strip-demo", 
 #guard imageOf { exReq with images := [("webkit", "sha256:0000000000000000000000000000000000000000000000000000000000000000")] } .webkit
   == "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 #guard (plan exReq).map (·.engine) == [.chromium, .webkit]
-#guard (plan exRw).map (·.blocked) == [none, some "target"]
+#guard (plan exRw).map (·.blocked) == [none, none]
 #guard ((plan exReq).map (·.key)).all (·.contains ("target", "original"))
 #guard ((plan { exReq with target := "rewrite" }).map (·.key)).all (·.contains ("target", "rewrite"))
 #guard (plan exReq).map (·.key) != (plan { exReq with target := "rewrite" }).map (·.key)
-#guard blocked .webkit { exRw with target := "original" } == some "preset"
+#guard blocked .webkit { exRw with target := "original" } == none
 #guard blocked .webkit { exReq with profile := "swipe-wheel-v1" } == some "profile"
 #guard blocked .chromium { exReq with profile := "swipe-wheel-v1" } == none
 #guard blocked .chromium exRw == none
-#guard blocked .webkit exRw == some "target"
+#guard blocked .webkit exRw == none
 #guard dispatchInputs .chromium exRw
   == [("profile", "swipe-v1"), ("runs", "3"), ("target", "rewrite"), ("preset", "strip-demo"), ("fw", "hero.countdown:strip")]
-#guard dispatchInputs .webkit exRw == []
+#guard dispatchInputs .webkit exRw == [("target", "rewrite"), ("preset", "strip-demo"), ("fw", "hero.countdown:strip")]
+#guard dispatchInputs .webkit exReq == [("target", "original"), ("preset", "original"), ("fw", "")]
 #guard cacheOf (some "a") ["a"] == "hit"
 #guard cacheOf (some "b") ["a"] == "miss"
 #guard cacheOf none ["a"] == "unknown"
