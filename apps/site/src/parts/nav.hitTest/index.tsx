@@ -29,8 +29,9 @@ function readMorph(nav: HTMLElement): number {
  * The class is also re-derived when the morph value changes. In the original `is-on-dark` is a Svelte class directive
  * over `g() || x() > .2`, so it follows the morph signal as well as the hit test (N2:13228); a push (wheel or touch at
  * the end of the page) moves the morph with no scroll frame, and a class written only in the scroll callback stayed
- * stale (bug C of the trajectory probe: at 390 the original is dark from morph 0.2 on, the port never was). The
+ * stale (divergence B of faithful-hero-baseline: at 390 the original is dark from morph 0.2 on, the port never was). The
  * re-derivation reuses the last hit answer and runs no hit test: the original's `g` is not re-probed on a morph change either.
+ * The MutationObserver write runs in a microtask, outside the registerScroll read/write order above.
  */
 export function NavHitTest({ variant, navSelector = NAV_SELECTOR }: { variant: string; impl?: 'mui' | 'plain'; navSelector?: string }) {
   useEffect(() => {
