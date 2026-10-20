@@ -6855,8 +6855,17 @@
     "apps/runner/src/timing-ci.ts",
     "apps/runner/hooks/wait-guard.mjs",
     "research/notes/2026/10-19-ci-wait-lag.md",
-    "docs/team/handoffs/ci-wait-lag.md"
-   ]
+    "docs/team/handoffs/ci-wait-lag.md",
+    "apps/runner/src/timing.ts",
+    "lean/Fw/Ci/Attempt.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "lean/Fw/Ci/Lag.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "lean/Fw.lean",
+    "packages/gh-budget/**",
+    "packages/contracts/golden/ci-budget/**"
+   ],
+   "evidence": "ba8363a"
   },
   {
    "devices": [
@@ -9434,8 +9443,12 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
-    ".github/workflows/lean.yml"
-   ]
+    ".github/workflows/lean.yml",
+    "apps/site/package.json",
+    "pnpm-lock.yaml",
+    "apps/site/src/parts/morph.mount/**"
+   ],
+   "evidence": "665b7c4"
   },
   {
    "devices": [
@@ -10388,7 +10401,7 @@
    "owner": "console-builder",
    "stream": "tooling",
    "deps": [],
-   "title": "A land that changes lean/ builds fwcore in each of the 4 land legs (206 s each in 39360937987 vs ~20 s on a cache hit); every lean land pays it 4x on runners and in land latency. Build fwcore once in a prep job (one writer) and hand it to the legs as an artifact or a cache key written once; the leg plan stays Lean-decided (Fw.Console.LandLegs); before/after MEASURED on a lean-changing land with run ids",
+   "title": "A land that changes lean/ builds fwcore in each of the 4 land legs (206 s each in 39360937987 vs ~20 s on a cache hit); every lean land pays it 4x on runners and in land latency. Build fwcore once in a prep job (one writer) and hand it to the legs as an artifact or a cache key written once; the leg plan stays Lean-decided (Fw.Console.LandLegs); before/after MEASURED on a lean-changing land with run ids | closed as a negative finding: the 4 leg builds ran in parallel (1x latency); a prep job made lean lands +76 s (477 -> 553 s); Lean Fw.Ops.WallTime",
    "writes": [
     ".github/workflows/land.yml",
     ".github/actions/**",
@@ -10404,7 +10417,31 @@
     "docs/team/tools/gate-speed.md",
     "lean/scripts/check.sh",
     "research/notes/2026/10-2*-land-fwcore-once.md",
-    "docs/team/handoffs/land-fwcore-once.md"
+    "docs/team/handoffs/land-fwcore-once.md",
+    "lean/Fw/Ops/WallTime.lean",
+    "lean/Fw.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fwcore-replay-speed",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Console fwcore restart loop (2026-10-20 08:38-08:40 and 11:10-11:30, 196 timeouts; user saw 'decision core failed: fwcore crashed (call N timed out after 10000 ms)'): a fresh fwcore replays the whole event log (14421 events, 14.2 s wall / 10.2 s CPU MEASURED on this Mac), calls queued behind the replay hit the 10 s call timeout, the child is poisoned and restarted, and the replay starts again. Also backoffDecision only waits at load >= 50 (8 cores; load was 10-15). Unit: (1) replay cost linear and small (profile the console.replay reducer, Lean; theorem or golden that replay = fold of step; MEASURED before/after on the real log size and at 4x it), or a Lean-proved snapshot + tail replay; (2) calls wait for replayDone before their timer starts (glue, tested); (3) the backoff rule in Lean, relative to the core count, with a golden replayed by lean.ts; the mitigation FW_CORE_CALL_MS=60000 used by the lead is removed once (1)-(2) hold",
+   "writes": [
+    "lean/Fw/Console/**",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "apps/console-api/src/core/**",
+    "apps/console-api/test/**",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "docs/team/tools/console.md",
+    "research/notes/2026/10-2*-fwcore-replay-speed.md",
+    "docs/team/handoffs/fwcore-replay-speed.md"
    ]
   }
  ],

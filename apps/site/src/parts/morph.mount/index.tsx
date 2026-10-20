@@ -49,6 +49,7 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
       const next = mountNextWarm(mounted, intersecting, pushed, warm);
       if (next && !mounted) {
         mounted = true;
+        if (shift) window.removeEventListener('scroll', onScrollMotion);
         onMount?.();
       }
       if (!woken && mountNext(woken, intersecting, pushed)) {
