@@ -10154,6 +10154,30 @@
     "results/notes-scroll-idem/**",
     "docs/team/handoffs/notes-idem-preset.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-green-baseline",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "title": "Main's breakpoint gate passes: none of the last 100 breakpoint-gate runs succeeded (known cells: commission margin-inline at sweep stop 0 on Chromium, WebKit sweep:phone-rotation matchMedia not-comparable). Decide in Lean which not-comparable cells are excused (identity: the cell, engine and reason, allowlisted with a theorem that an excused cell never hides a fail) or fix the cell; commission waits on commission-margin-recur; a green gate run on main with run id; tasks then require 'green' instead of 'same not-ok set as base'",
+   "deps": [
+    "commission-margin-recur"
+   ],
+   "writes": [
+    "lean/Fw/Gate/**",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/gate/**",
+    "packages/gate-breakpoints/**",
+    ".github/workflows/breakpoint-gate.yml",
+    "research/notes/2026/10-20-gate-green-baseline.md",
+    "docs/team/tools/gate*.md",
+    "docs/team/handoffs/gate-green-baseline.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh"
+   ]
   }
  ],
  "deadline": {
