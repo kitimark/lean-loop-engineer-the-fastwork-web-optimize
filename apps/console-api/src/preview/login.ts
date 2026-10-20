@@ -79,14 +79,14 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 /** The localStorage key of the owner token (console origin only; the web reads it for the Authorization header). */
 export const TOKEN_KEY = "fw_owner_token";
 
-const loginScript = `const f=document.querySelector("form"),m=document.getElementById("m");f.addEventListener("submit",async(e)=>{e.preventDefault();m.textContent="";try{const r=await fetch("/owner/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({passphrase:f.passphrase.value})});const j=await r.json().catch(()=>({}));f.passphrase.value="";if(r.ok&&j.token){localStorage.setItem("${TOKEN_KEY}",j.token);location.replace("/");return}m.textContent=j.reason||"login failed"}catch{m.textContent="login failed: no answer"}})`;
+const loginScript = `const f=document.querySelector("form"),m=document.getElementById("m");f.addEventListener("submit",async(e)=>{e.preventDefault();m.textContent="";try{const r=await fetch("/owner/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({passphrase:f.passphrase.value,r:f.dataset.r||undefined})});const j=await r.json().catch(()=>({}));f.passphrase.value="";if(r.ok&&j.token){localStorage.setItem("${TOKEN_KEY}",j.token);location.replace(j.next||"/");return}m.textContent=j.reason||"login failed"}catch{m.textContent="login failed: no answer"}})`;
 
 /** The login page: self-contained (inline style and one inline script, no other asset), so the LAN gate has nothing else to
  *  open. The script posts the passphrase as JSON, keeps the returned owner token in localStorage of this origin and goes to
  *  the console. Without script nothing can log in (the token must reach localStorage). */
-export function loginPage(o: { enabled: boolean; message?: string }): string {
+export function loginPage(o: { enabled: boolean; message?: string; ret?: string }): string {
   const body = o.enabled
-    ? `<form method="post" action="/owner/login" onsubmit="return false"><label>Owner passphrase<br><input type="password" name="passphrase" autocomplete="current-password" autofocus required></label><button type="submit">Log in</button></form><p class="m" id="m" role="alert"></p><script>${loginScript}</script>`
+    ? `<form method="post" action="/owner/login" onsubmit="return false"${o.ret ? ` data-r="${esc(o.ret)}"` : ""}><label>Owner passphrase<br><input type="password" name="passphrase" autocomplete="current-password" autofocus required></label><button type="submit">Log in</button></form><p class="m" id="m" role="alert"></p><script>${loginScript}</script>`
     : `<p>Owner login is disabled: this console found no owner passphrase in the keychain.</p><p>On the console's Mac, run once (it prompts for the passphrase, no echo):</p><pre>${esc(KEYCHAIN_HINT)}</pre><p>Then restart the console.</p>`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>fw console login</title><style>body{font:16px system-ui;margin:2rem auto;max-width:24rem;padding:0 1rem}input,button{font:inherit;padding:.5rem;margin-top:.5rem}input{width:100%;box-sizing:border-box}pre{background:#eee;padding:.5rem;overflow:auto}.m{color:#a00}</style></head><body><h1>fw console</h1>${o.message ? `<p class="m" role="alert">${esc(o.message)}</p>` : ""}${body}</body></html>`;
 }

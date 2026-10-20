@@ -61,6 +61,7 @@ export class OwnerAuth {
   /** The console port and the preview port (set once both listen). With them, a loopback Host must name the right port. */
   setPorts(consolePort: number, previewPort: number): void { this.ports = { console: consolePort, preview: previewPort }; }
   get previewPort(): number | null { return this.ports?.preview ?? null; }
+  get consolePort(): number | null { return this.ports?.console ?? null; }
 
   /** LAN mode: the `host:port` strings this console (and its preview port) answers to besides loopback (set at start, never persisted). */
   setLanHosts(hosts: string[], previewHosts: string[] = []): void { this.lanHosts = hosts; this.lanPreviewHosts = previewHosts; }
@@ -70,6 +71,11 @@ export class OwnerAuth {
   }
   /** The LAN address previews are served on, when LAN mode is on (read from the configured preview host, `addr:port`); else null. */
   get lanPreviewAddr(): string | null { const h = this.lanPreviewHosts[0]; return h ? h.slice(0, h.lastIndexOf(":")) : null; }
+  /** The host names (no port) this console answers to: the loopback names, plus the LAN address in LAN mode. Passed to Lean. */
+  get hostNames(): string[] {
+    const lan = this.lanHosts.map((h) => h.slice(0, h.lastIndexOf(":")));
+    return ["127.0.0.1", "localhost", "[::1]", ...lan];
+  }
   /** The Host header names this console: a loopback name on the console port or a configured LAN host. */
   hostOk(host: string | undefined): boolean { return !!host && (this.loopbackOk(host, this.ports?.console) || this.lanHosts.includes(host)); }
   /** The Host header names the preview port. */

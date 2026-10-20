@@ -8,6 +8,7 @@ import Fw.Console.Alert
 import Fw.Console.Preview
 import Fw.Console.PreviewOwner
 import Fw.Console.PreviewArm
+import Fw.Console.PreviewReturn
 import Fw.Console.PreviewCache
 import Fw.Console.Builds
 import Fw.Console.BuildsOpen
@@ -43,6 +44,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.ownerLogin` | `enabled` (the console has an owner passphrase), `correct` (the constant-time compare matched), `now` (ms), `fails`? [ms] and `lockUntil`? (the client address's record; missing = fresh), `gFails`? [ms] and `gLockUntil`? (the global record across all addresses; missing = fresh) | `verdict` (`disabled`/`locked`/`wrong`/`ok`), `fails`, `lockUntil` (the new address record), `gFails`, `gLockUntil` (the new global record), `retryAt` (the end of the longest active lock, else null), `maxTries`, `window`, `lock`, `globMax`, `globWindow`, `globLock` (`Fw.Console.Preview.Owner.attempt`) |
 | `console.ownerGate` | `lan` (non-loopback or unknown remote address), `session` (console port: a valid owner bearer token in the Authorization header, never a cookie; preview port: a valid preview-access cookie), `hostOk` (Host names this port), `path`, `port`? (`console` default, or `preview`; the preview port also reads `grant` (the cookie names an inspect grant), `grantStarted`, `now` (ms)) | `allow`, `by` (`session`/`grant`/`none`), `class` (`login`/`preview`/`other`/`shell`) (`Fw.Console.Preview.Owner.allow` for the console port, `allowPreview` for the preview port; `classify`) |
 | `console.previewArm` | `lan`, `session` (valid preview-access cookie), `hostOk` (Host names this arm's port), `grant`, `grantStarted`, `now`, `port` (the local port the request arrived on), `path`, `live` [{id, task, rp, op, started}] | `allow`, `by` (`session`/`grant`/`none`), `act` (`proxy`/`refuse`), `preview` (the preview id; `id` is the protocol's own), `arm` (`r`/`o`), `backend` (private port), `path` (unchanged) (`Fw.Console.Preview.Arm.armServe`, `route`) |
+| `console.loginReturn` | `kind` (`redirect`: a refused request on a preview origin, with `method`, `html`, `hosts` (the console's host names), `heldCount`, `host` (name without port), `nonce`, `port` (the local port), `path` (path and query); `land`: after a login, with `hosts`, `now` and `held`? {port, path, issuedAt}), `consolePort`, `previewPort`?, `live` | redirect: `act` (`login`/`deny`), `keep` (hold the link under the nonce), `location`; land: `to` (`target`/`builds`/`home`), `next`; both `ttlMs`, `cap` (`Fw.Console.Preview.Return.redirect`, `landing`) |
 | `console.previewGrant` | `kind` (`issue`: may a grant be issued, from `lan`; `redeem`: a grant token is presented, with `known`, `used`, `issuedAt`, `now` (ms)), `lan` | `allow`, `verdict` (redeem: `ok`/`lan`/`unknown`/`used`/`expired`), `ttlMs` (issue), `cookieMs` (`Fw.Console.Preview.Owner.issueAllowed`, `redeem`) |
 | `console.ownerAction` | `kind` (`owner`: an owner action, needs the bearer token and an Origin; `command`: any other non-GET route, an Origin if present; `login`: an Origin, no token), `bearer` (a valid owner token in the Authorization header), `origin`? ({host, port} or null: none sent), `host`? (the origin of the Host header when it names this console, else null), `extra` [{host, port}] (configured web origins), `previewPort`? (null = unset: nothing is trusted) | `allow`, `trusted` (the computed trusted origins, none on the preview port) (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`) |
 | `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
@@ -516,6 +518,36 @@ def opPreviewArm (req : Json) : Except String Reply := do
     | .refuse => [("act", Json.str "refuse"), ("preview", .null), ("arm", .null), ("backend", .null), ("path", .null)]
   pure ([("allow", Json.bool ok), ("by", .str by_)] ++ act)
 
+open Fw.Console.Preview.Return in
+/-- `console.loginReturn` (`Fw.Console.Preview.Return.redirect`, `landing`): `kind` `redirect` is a refused request on a
+preview origin (`act` `login` or `deny`, `keep`, the login `location`); `kind` `land` is the destination after a login
+(`to` `target`/`builds`/`home`, `next`). -/
+def opLoginReturn (req : Json) : Except String Reply := do
+  let s ← liveOf req
+  let cp ← nat req "consolePort"
+  let pp : Option Nat ← match opt req "previewPort" with
+    | none | some .null => pure none
+    | some _ => do pure (some (← nat req "previewPort"))
+  let host ← str req "host"
+  let hosts ← (← arr req "hosts").toList.mapM (asStr "hosts")
+  let consts := [("ttlMs", Json.num ttl), ("cap", .num cap)]
+  match ← str req "kind" with
+  | "redirect" =>
+    let nonce ← str req "nonce"
+    let t : Target := { port := ← nat req "port", pathq := ← str req "path" }
+    let get := (← str req "method") == "GET"
+    match redirect get (← asBool "html" (← field req "html")) hosts (← nat req "heldCount") host nonce s cp pp t with
+    | .deny => pure ([("act", Json.str "deny"), ("keep", .bool false), ("location", .null)] ++ consts)
+    | .login k => pure ([("act", Json.str "login"), ("keep", .bool k), ("location", .str (loginUrl host cp nonce k))] ++ consts)
+  | "land" =>
+    let held : Option (Target × Nat) ← match opt req "held" with
+      | none | some .null => pure none
+      | some j => do pure (some ({ port := ← nat j "port", pathq := ← str j "path" }, ← nat j "issuedAt"))
+    let l := landing hosts s cp pp host (← nat req "now") held
+    let to := match l with | .target _ => "target" | .builds => "builds" | .home => "home"
+    pure ([("to", Json.str to), ("next", .str l.next)] ++ consts)
+  | _ => throw "field kind: expected redirect or land"
+
 open Fw.Console.Preview.Owner in
 /-- `console.previewGrant` (`Fw.Console.Preview.Owner.issueAllowed`, `redeem`): may a grant be issued (`kind` issue, from
 `lan`), and what happens when a grant token is presented (`kind` redeem). -/
@@ -725,7 +757,7 @@ def opDaemon (req : Json) : Except String Reply := do
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
   "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLeg", "console.landLegs", "console.landLegsVeto", "console.landLane", "console.landRemote", "console.landLaneState", "console.landDigest", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
-  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.previewArm", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.buildsSearch", "console.buildsOpen", "console.daemon"]
+  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.previewArm", "console.loginReturn", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.buildsSearch", "console.buildsOpen", "console.daemon"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -762,6 +794,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.previewGrant" => some (opPreviewGrant req)
   | "console.ownerAction" => some (opOwnerAction req)
   | "console.previewArm" => some (opPreviewArm req)
+  | "console.loginReturn" => some (opLoginReturn req)
   | "console.lanStart" => some (opLanStart req)
   | "console.previewSweep" => some (opPreviewSweep req)
   | "console.previewCache" => some (opPreviewCache req)
