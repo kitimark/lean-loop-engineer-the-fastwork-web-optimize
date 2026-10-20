@@ -11,6 +11,9 @@
   `apps/site/src/parts/morph.tween/scroll-lock.golden.test.ts` replays it through the driver and `pin()`.
 - Site tests and typecheck, `scripts/ci-paths.test.mjs`, runner `land-inputs` test green.
 
+- CI at e01287a: flag runs 39496271199, 39498373119 and A/A run 39500347224. There is no unit beyond the A/A floor outside close@0,
+  and mac morph is "no verdict: coverage" (table in the note).
+
 **Open.**
 - Ledger row: not applied (another task held `research/findings/ledger.json`); the JSON is in the note.
 - iPhone premise refuted (UIKit pan in flight not stopped, INFERRED from `WKWebViewIOS.mm:1100-1104`@862f17d).

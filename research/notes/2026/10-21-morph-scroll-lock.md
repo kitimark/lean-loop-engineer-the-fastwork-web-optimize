@@ -93,8 +93,77 @@ position of the original during a fight (`shown ≠ p`) is why the arm is class 
 
 ## CI (trajectory probe)
 
-CI_RESULTS
+Ref `ci/morph-scroll-lock` at e01287a, `--engines both`, reps 5. Lean `outcome` lines (`Fw.Gate.Trajectory.outcome` over
+`Fw.Preset.Gen.storedOf`, read from a scratch script without writing the stored file; MEASURED):
+
+| run | arm | chromium hero | chromium morph | linux-webkit hero | mac-webkit hero | mac-webkit morph |
+|---|---|---|---|---|---|---|
+| 39496271199 | `--fw morph.tween:scroll-lock` | pass | pass | pass | pass | no verdict: coverage |
+| 39498373119 | `--fw morph.tween:scroll-lock` | pass | pass | pass | pass | no verdict: coverage |
+| 39500347224 | A/A (default config) | pass | pass | pass | pass | fail |
+
+`new` units against the faithful arm (Linux WebKit has no morph path; hero has no `new` unit in any run):
+
+| run | chromium morph content | chromium morph coverage | mac morph content | mac morph coverage (units per width) |
+|---|---|---|---|---|
+| 39496271199 (flag) | 1, close@0 | 0 | 3, all close@0 | 390: 168, 640: 42, 641: 126, 1280: 126 |
+| 39498373119 (flag) | 1, close@0 | 0 | 2, all close@0 | 390: 84, 640: 42, 641: 42, 1280: 42 |
+| 39500347224 (A/A) | 0 | 640: 42 | 4: 3 at close@0, 1 at 390 open@9 (`logo.color`) | 390: 84, 641: 42, 1280: 84 |
+
+- **Close@0 units (the known judge gap, task trajectory-close-start): reported, not counted.** Flag run 1: Chromium 640
+  `earn.max-width`; mac 390 `earn.opacity` and `earn.max-width`, 640 `nav.background-color`. Flag run 2: Chromium 640
+  `earn.max-width`; mac 640 `nav.background-color`, 1280 `earn.max-width`. A/A: mac 390, 641 and 1280 `earn.max-width`. The A/A
+  `fail` comes from these units only. Without them its mac morph cell is also "no verdict: coverage".
+- **Beyond the A/A floor: none.** No content `new` unit outside close@0 in either flag run. Coverage `new` units (empty sample
+  buckets) sit on mac morph at 3 or 4 widths in every run, A/A included. Flag run 1 has more of them at 390, 641 and 1280.
+  Run 2 is at the A/A level. The difference is INFERRED to be runner timing, not the flag.
+- **As predicted, the probe cannot show the lock's gain.** It opens the morph with one wheel event, which the listener
+  prevents (`still_eq`, `work_still`). No gesture is in flight to stop, so both arms see the same frames. Measuring C4 needs a
+  probe step with a trackpad gesture latched before the armed band. Which scrollbar kind the macOS runner has, and so whether
+  the arm locked there at all, was not recorded.
 
 ## Ledger row (for the lead)
 
-LEDGER_ROW
+`n` is left for the lead to assign.
+
+```json
+{
+  "id": "morph.tween.scrollLock",
+  "part": "morph.tween",
+  "candidate": "morph.tween:scroll-lock (C4): hold the root at overflow: hidden while the morph is active, on overlay scrollbars only, instead of relying on the scrollTo pin alone",
+  "status": "look-change",
+  "flag": "morph.tween:scroll-lock",
+  "chromium": "premise-holds",
+  "webkit": "premise-holds on Mac (trackpad gesture in flight); premise-false on iPhone (pan in flight not stopped)",
+  "visual": "look change (L) during a gated gesture in flight: the page no longer jumps one delta before the pin returns it, and the overlay scrollbar hides while the morph runs; the main-thread position and the layout width are the original's (lock_vis, gutter_same)",
+  "mechanism": "CONFIRMED (source): root overflow hidden sets both scrollbar modes AlwaysOff (LocalFrameView.cpp:642-668@862f17d), so canHaveScrollbars() is false (ScrollingTreeScrollingNode.h:131@862f17d). On Mac canHandleWheelEvent then returns false (ScrollingTreeScrollingNode.cpp:233-236@862f17d), which stops a latched gesture and its momentum. On Chromium ScrollTree::ScrollBy zeroes a delta on an axis that is not user-scrollable (cc/trees/property_tree.cc:2471-2480@f842f52). On iPhone WKWebViewIOS.mm:1100-1104@862f17d clears allowedTouchTypes but keeps scrollEnabled, so a recognized pan and its deceleration continue (UIKit part INFERRED). Classic scrollbars: the lock would shift the layout by the scrollbar width without scrollbar-gutter: stable (layout_box.cc:1474-1494@f842f52, LocalFrameView.cpp:7322-7333@862f17d), so the arm locks only on overlay scrollbars.",
+  "leanFor": [
+    "Fw.Parts.MorphTweenOpt.lock_vis",
+    "Fw.Parts.MorphTweenOpt.seen_eq",
+    "Fw.Parts.MorphTweenOpt.forced_le",
+    "Fw.Parts.MorphTweenOpt.forced_lt",
+    "Fw.Parts.MorphTweenOpt.shown_lock",
+    "Fw.Parts.MorphTweenOpt.gutter_same",
+    "Fw.Parts.MorphTweenOpt.runL_s",
+    "Fw.Parts.MorphTweenOpt.runL_locked",
+    "Fw.Parts.MorphTweenOpt.classic_writes",
+    "Fw.Parts.MorphTweenOpt.work_le"
+  ],
+  "leanAgainst": [
+    "Fw.Parts.MorphTweenOpt.ungated_eq",
+    "Fw.Parts.MorphTweenOpt.work_ungated",
+    "Fw.Parts.MorphTweenOpt.work_still",
+    "Fw.Parts.MorphTweenOpt.gutter_shift"
+  ],
+  "missingWhy": [
+    "the gain needs a gesture in flight; the trajectory probe pushes with one prevented wheel, so it cannot show it (still_eq). MEASURED: no unit beyond the A/A floor outside close@0 in runs 39496271199 and 39498373119 against A/A 39500347224. Mac morph is no verdict: coverage in all three runs once close@0 is excluded",
+    "iPhone: refuted (ungated_eq: the arm is the original plus 2 root writes)",
+    "Gest.gated and the commit frame k are model inputs restated from the engine paths, not derived"
+  ],
+  "premises": [],
+  "v1Evidence": "none",
+  "lesson": "overflow: hidden on the root stops only the scrolls that the async scroller gates. On iPhone a pan that UIKit already recognized does not stop, so a scroll lock helps only where the engine checks scrollability per event. A lock also changes the look and, on classic scrollbars, the layout width.",
+  "next": "Out of v2-proved (look change, class L). A probe step with a trackpad gesture latched before the armed band (Mac, Chromium) would measure the scrollTo saving. The user's visual review decides whether the look change is acceptable.",
+  "evidence": "trajectory-probe runs 39496271199 and 39498373119 (flag), 39500347224 (A/A), ci/morph-scroll-lock at e01287a, both engines; note research/notes/2026/10-21-morph-scroll-lock.md"
+}
+```
