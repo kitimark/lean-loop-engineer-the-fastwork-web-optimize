@@ -77,10 +77,12 @@ incremental lake (20 dc, 300) + 1 vitest (20, 1500) + 1 Docker run (20, 1500) + 
 [scratchpad load.jsonl, 88 samples, MEASURED]. Mean concurrent tool calls were only 0.24 x 8 cores over the window
 (MEASURED [M§2, M§3]).
 
-Caps exported by default in every agent environment (CONFIRMED levers [C§1, C§5]): `LEAN_NUM_THREADS=2`,
-`VITEST_MAX_WORKERS=2`; Docker runs with `--cpus 2 -m 1500m` [C§4]; one Simulator lock; at most one clean Lean build
-at a time (the `cleanBuild` token). Lake has no `-j` flag, so the env var is the only lever (CONFIRMED
-lean4@eb6cafb src/runtime/object.cpp:1106-1113 [C§1]).
+Caps (CONFIRMED levers [C§1, C§5]): `.claude/settings.json` exports neither `LEAN_NUM_THREADS` nor `VITEST_MAX_WORKERS`
+(CONFIRMED, resource audit 2026-10-20). Instead, `scripts/lake-slot.sh` gives the
+scripted Lake builds (fwcore-build, check.sh, the land axiom lint) machine-wide slots. Slot 0 keeps the full pool and the
+`cleanBuild` token; slot 1 runs with `LEAN_NUM_THREADS=4`; further builds wait. The bound of 12 lean threads is proved
+in `Fw.Sched.LakeSlot` (task lake-build-slots). Docker runs with `--cpus 2 -m 1500m` [C§4]; one Simulator lock. Lake has
+no `-j` flag, so the env var is the only lever (CONFIRMED lean4@eb6cafb src/runtime/object.cpp:1106-1113 [C§1]).
 
 ## 3. Admission rule (Lean first): `Fw.Ops.Admit`
 

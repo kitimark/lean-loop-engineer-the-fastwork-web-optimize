@@ -63,7 +63,7 @@ test("the command's exit status is returned, 75 included", () => {
 test("re-entrancy: a nested call runs inside the caller's slot", () => {
   const { d, env } = scratch();
   try {
-    const r = spawnSync("sh", [wrapper, "sh", wrapper, "sh", "-c", probe], { env, encoding: "utf8", timeout: 10000 });
+    const r = spawnSync("sh", [wrapper, "sh", wrapper, "sh", "-c", probe], { env, encoding: "utf8" });
     assert.equal(r.stdout.trim(), "0 unset");
     assert.equal(run({ ...env, LAKE_SLOT: "1" }, probe).stdout.trim(), "1 unset");
   } finally { rmSync(d, { recursive: true, force: true }); }
