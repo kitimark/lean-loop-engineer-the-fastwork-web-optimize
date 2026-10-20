@@ -6,7 +6,7 @@ import { chargedCall } from "./charged.ts";
 import { readMarkers } from "./waiters.ts";
 import { loadState, locked, paths, readStatus, stepEvent, stepUnlocked, writeStatus, type Row } from "./state.ts";
 
-export const LIST_FIELDS = "status,conclusion,databaseId,headBranch,workflowName,headSha,createdAt";
+export const LIST_FIELDS = "status,conclusion,databaseId,headBranch,workflowName,headSha,createdAt,updatedAt,attempt";
 /** gh rows per page (a page is what `pages` in the budget state counts). */
 const PAGE = 100;
 
