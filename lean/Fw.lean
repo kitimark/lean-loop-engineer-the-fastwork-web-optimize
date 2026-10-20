@@ -189,3 +189,4 @@ import Fw.Site.Assets  -- port-completeness-gate: check 3, asset subset
 import Fw.Port.Svg  -- port-completeness-gate: check 4, svg skeleton
 import Fw.Port.Fonts  -- port-fonts-check: check 5, fonts per leaf and loaded faces
 import Fw.Parts.NavOofRoot  -- nav-oof-root-finding: no boundary scopes the relayout of a dirty fixed box whose containing block is the view (negative finding)
+import Fw.Ci.Pool  -- pool-caps: per-lane macOS job time caps from measured p90 walls
