@@ -23,12 +23,23 @@ inductive Kind where
   | proposal
 deriving DecidableEq, Repr
 
-/-- One registered variant with its `requires` and `conflicts` lists. -/
+/-- How a variant's look relates to the faithful one (`part.json` `visClass`, PLAN §4.7 classes): `e` exact, `eS` exact
+at every sample, `q` within the gate's tolerances, `l` a look change. -/
+inductive VisClass where
+  | e
+  | eS
+  | q
+  | l
+deriving DecidableEq, Repr
+
+/-- One registered variant with its `requires` and `conflicts` lists and its look class (`none` when `part.json` names
+none). -/
 structure Reg where
   flag : Flag
   kind : Kind
   requires : List Flag
   conflicts : List Flag
+  visClass : Option VisClass := none
 deriving Repr
 
 /-- The combined `fw engine-check` verdict a ledger row records for its flag (`fResult`). -/
@@ -138,9 +149,13 @@ def trajWhy (st : List Stored) (f : Flag) : TWhy :=
   else if (cells st f).all (· == .pass) then .pass
   else .pending
 
-/-- A flag qualifies for the arm: registered as `optimized`, proved, and passing its trajectory cells. -/
+/-- Whether some registered entry of the flag is a look change (`visClass` `l`). -/
+def isLook (reg : List Reg) (f : Flag) : Bool :=
+  reg.any fun r => r.flag == f && r.visClass == some .l
+
+/-- A flag qualifies for the arm: registered as `optimized`, proved, passing its trajectory cells, and no look change. -/
 def ok (reg : List Reg) (links : List (Flag × List Key)) (ledger : List Row) (st : List Stored) (f : Flag) : Bool :=
-  isOpt reg f && why links ledger f == .proved && trajWhy st f == .pass
+  isOpt reg f && why links ledger f == .proved && trajWhy st f == .pass && !isLook reg f
 
 /-- The first flag of a list that satisfies `q` and belongs to part `p`. -/
 def firstOk (q : Flag → Bool) (l : List Flag) (p : String) : Option Flag :=
@@ -297,7 +312,7 @@ theorem preset_registered {reg : List Reg} {links : List (Flag × List Key)} {le
     (h : f ∈ preset reg links ledger st) : ∃ r ∈ reg, r.flag = f ∧ r.kind = .optimized := by
   have hq := pick_ok h
   simp only [ok, isOpt, Bool.and_eq_true, List.any_eq_true, beq_iff_eq] at hq
-  obtain ⟨⟨⟨r, hr, hf, hk⟩, _⟩, _⟩ := hq
+  obtain ⟨⟨⟨⟨r, hr, hf, hk⟩, _⟩, _⟩, _⟩ := hq
   exact ⟨r, hr, hf, hk⟩
 
 /-- Every member of the preset is proved.
@@ -307,7 +322,7 @@ theorem preset_proved {reg : List Reg} {links : List (Flag × List Key)} {ledger
     (h : f ∈ preset reg links ledger st) : why links ledger f = .proved := by
   have hq := pick_ok h
   simp only [ok, Bool.and_eq_true, beq_iff_eq] at hq
-  exact hq.1.2
+  exact hq.1.1.2
 
 /-- **A falsified flag never enters**: if some ledger row names the flag and reports `model-bug`, the flag is not in
 the preset.
@@ -476,7 +491,7 @@ theorem preset_trajectory {reg : List Reg} {links : List (Flag × List Key)} {le
     {f : Flag} (h : f ∈ preset reg links ledger st) : trajWhy st f = .pass := by
   have hq := pick_ok h
   simp only [ok, Bool.and_eq_true, beq_iff_eq] at hq
-  exact hq.2
+  exact hq.1.2
 
 /-- **No member without stored passing runs**: each member has, in each engine family and on each path, a stored run of
 a flag set holding it whose outcome is pass. -/
@@ -512,14 +527,24 @@ theorem trajectory_pending_not_mem {reg : List Reg} {links : List (Flag × List 
   rw [preset_trajectory hm] at h
   cases h
 
+/-- **A look change never enters the arm**: a flag registered with `visClass` `l` is not in `v2-proved`, whatever its
+kind, the ledger and the stored runs say.
+
+`v2-proved` holds no variant whose look differs from the faithful one by its own registration. -/
+theorem look_not_mem {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {st : List Stored} {f : Flag}
+    (h : isLook reg f = true) : f ∉ preset reg links ledger st := by
+  intro hm
+  have hq := pick_ok hm
+  simp [ok, h] at hq
+
 /-! ## Examples -/
 
 private def fa : Flag := ⟨"a", "x"⟩
 private def fa2 : Flag := ⟨"a", "y"⟩
 private def fb : Flag := ⟨"b", "x"⟩
 private def regEx : List Reg :=
-  [⟨⟨"a", "faithful"⟩, .faithful, [], []⟩, ⟨fa, .optimized, [], []⟩, ⟨fa2, .optimized, [], []⟩,
-   ⟨fb, .optimized, [fa], []⟩]
+  [⟨⟨"a", "faithful"⟩, .faithful, [], [], none⟩, ⟨fa, .optimized, [], [], none⟩, ⟨fa2, .optimized, [], [], none⟩,
+   ⟨fb, .optimized, [fa], [], none⟩]
 private def rowP (c : String) : Row := ⟨"a", c, "proved", none, none⟩
 private def run (ks : List String) (e : Fw.Gate.Trajectory.Engine) (w : Walk) (gs : List Fw.Gate.Trajectory.Group) :
     Stored := ⟨"1", "s", "?preset=x", ks, e, w, Fw.Gate.Trajectory.allowedWidths, gs⟩
@@ -565,5 +590,11 @@ private def bad : List Fw.Gate.Trajectory.Group := [⟨"nav", "opacity", [390, 6
 #guard trajWhy (four ["a:x"]).tail fa == .pending
 #guard preset regEx [(fa, [("a", "c")]), (fb, [("a", "c")])] [rowP "c"] (four ["b:x"]) == [fb]
 #guard preset regEx [(fa, [("a", "c")]), (fa2, [("a", "c")])] [rowP "c"] (four ["a:x", "a:y"]).tail == []
+#guard isLook [{ flag := fa, kind := .proposal, requires := [], conflicts := [], visClass := some .l }] fa
+#guard !isLook regEx fa
+#guard preset ({ flag := fa, kind := .optimized, requires := [], conflicts := [], visClass := some .l } :: regEx)
+  [(fa, [("a", "c")]), (fb, [("a", "c")])] [rowP "c"] stEx == [fb]
+#guard preset ({ flag := fa, kind := .optimized, requires := [], conflicts := [], visClass := some .q } :: regEx)
+  [(fa, [("a", "c")]), (fb, [("a", "c")])] [rowP "c"] stEx == [fa, fb]
 
 end Fw.Preset

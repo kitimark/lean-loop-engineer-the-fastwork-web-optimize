@@ -5,7 +5,7 @@ import { clamp01, DURATION_MS, FADE_END } from './logic';
  * that replaces the per-frame JS lerp. Spec and proofs: lean/Fw/Parts/MorphTweenOpt.lean (MT1 `bezier_eq_ease`, MT3
  * `waapi_eq_tween`, MT4 `flags_same_frame`: a flag is a discrete keyframe quadruple `[0: a, c: a, c: b, 1: b]` at the
  * eased progress `c = clamp01((theta - f) / (t - f))`, and both engines give `b` iff the progress is `>= c`). Golden
- * vectors: packages/contracts/golden/parts/morph-tween-waapi.jsonl (waapi.golden.test.ts).
+ * vectors: packages/contracts/golden/parts/morph-tween-waapi.jsonl and morph-tween-waapi.attr.jsonl (waapi.golden.test.ts).
  */
 
 /** The curve of the effect: in exact arithmetic `1 - (1 - x)^3` (Lean `bezier_eq_ease`, control points 1/3, 1, 2/3, 1). */
@@ -126,4 +126,43 @@ export function settledProps(
     platform: { [PLATFORM_PROP[arm]]: String(m) },
     pointerEvents: m > THETA_POINTER ? 'none' : '',
   };
+}
+
+/** A reader of `data-fw-morph` (Lean `attrReaders`): what it writes, its strict comparison and its threshold. */
+export interface AttrReader {
+  sel: string;
+  cmp: 'gt' | 'lt';
+  theta: number;
+}
+export const ATTR_READERS: readonly AttrReader[] = [
+  { sel: 'nav.is-morphing', cmp: 'gt', theta: 1 / 1000 },
+  { sel: 'nav.is-on-dark', cmp: 'gt', theta: 1 / 5 },
+  { sel: 'nav.earn.tabindex', cmp: 'gt', theta: 2 / 5 },
+  { sel: 'nav.earn.aria-hidden', cmp: 'gt', theta: 11 / 20 },
+  { sel: 'nav.is-expanded', cmp: 'gt', theta: 23 / 25 },
+  { sel: 'panel.data-start-selling-scene', cmp: 'gt', theta: 1 / 1000 },
+  { sel: 'panel.aria-hidden', cmp: 'lt', theta: 7 / 20 },
+  { sel: 'panel.cta.tabindex', cmp: 'lt', theta: 11 / 20 },
+  { sel: 'panel.data-expanded', cmp: 'gt', theta: 23 / 25 },
+];
+/** One marker per distinct threshold (Lean `markerThetas`). */
+export const MARKER_THETAS: readonly number[] = [...new Set(ATTR_READERS.map((r) => r.theta))];
+
+/** The readers' answers for the attribute value `m` (Lean `band`). */
+export const band = (m: number): boolean[] => ATTR_READERS.map((r) => (r.cmp === 'gt' ? r.theta < m : m < r.theta));
+/** `m` lies strictly past `theta` going from `from` to `to` (Lean `pastS`). */
+export const pastS = (from: number, to: number, theta: number, m: number): boolean =>
+  (from < to && theta < m) || (to < from && m < theta);
+/** `m` has reached `theta` going from `from` to `to` (Lean `reach`). */
+export const reach = (from: number, to: number, theta: number, m: number): boolean =>
+  (from < to && theta <= m) || (to < from && m <= theta);
+/** A push gets a marker for `theta` iff `theta` is not passed at `from` and reached at `to` (Lean `markerB`). */
+export const hasMarker = (from: number, to: number, theta: number): boolean =>
+  !pastS(from, to, theta, from) && reach(from, to, theta, to);
+
+/** The marker's delay in ms: 1 ms before the push reaches `theta`, at least 0 (golden: at most Lean `dlLo`, so `DlSound`). */
+export function markerDelay(from: number, to: number, theta: number): number {
+  if (reach(from, to, theta, from)) return 0;
+  const c = (theta - from) / (to - from);
+  return Math.max(0, DURATION_MS * (1 - Math.cbrt(1 - c)) - 1);
 }

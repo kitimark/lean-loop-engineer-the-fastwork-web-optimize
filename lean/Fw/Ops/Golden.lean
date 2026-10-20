@@ -9,7 +9,8 @@ where `request` carries its `op` and `response` is what `fwcore` replies (withou
 The same format, from `extra`: `golden/plan/plan.trailers.jsonl` (reconciler `git.ts`) and
 `golden/console/console.{landReadiness,actor}.jsonl` (console-api's own actors), `golden/lint/lint.context.jsonl`
 (`scripts/context-lint.mjs`). From `named` (file stem not the op): `golden/ops/lean-first.jsonl` (`ops.leanFirst`,
-the lean-first land gate over the single faults of the grid of `Fw.Ops.LeanFirstSearch`, at the deployed stage).
+the lean-first land gate over the single faults of the grid of `Fw.Ops.LeanFirstSearch`, at the deployed stage),
+`golden/land/render-guard.jsonl` (`console.landRenderGuard`).
 Generated from Lean, never by hand:
 
 ```
@@ -902,9 +903,37 @@ def leanFirstCases (_ : Unit := ()) : List (String × Json) :=
      lit "{\"signoffs\":[{\"decl\":\"P\",\"stmtHash\":\"h\",\"role\":\"lead\",\"agree\":true}]}"),
    ("registry row without a status is refused", lit "{\"registry\":[{\"id\":\"p\"}]}")]
 
+/-- A `console.landRenderGuard` request over log tokens. -/
+def rgReq (ts : List String) : Json := Json.mkObj [("tokens", .arr (ts.toArray.map Json.str))]
+
+/-- The `console.landRenderGuard` cases. -/
+def renderGuardCases (_ : Unit := ()) : List (String × Json) := [
+  ("no commit: nothing refused", rgReq [""]),
+  ("source and docs only: passes", rgReq ["commit c1", "\nA", "apps/site/src/a.ts", "M", "docs/team/tools/land.md", ""]),
+  ("a render added then removed in a later commit: still refused (history-wide)",
+    rgReq ["commit c2", "\nD", "results/hero.png", "commit c1", "\nA", "results/hero.png", "A", "results/run.json", ""]),
+  ("media under snapshot/: passes", rgReq ["commit c1", "\nA", "snapshot/fastwork.co/a.jpg", "A", "snapshot/fastwork.co/f.woff2", ""]),
+  ("a lookalike snapshots/ directory: refused", rgReq ["commit c1", "\nA", "snapshots/a.png", ""]),
+  ("snapshot/ nested below another directory: refused", rgReq ["commit c1", "\nA", "results/snapshot/a.png", ""]),
+  ("upper-case extension: refused", rgReq ["commit c1", "\nA", "results/A.JPG", ""]),
+  ("a trailing space after the extension: refused", rgReq ["commit c1", "\nA", "results/hero.png ", ""]),
+  ("font, video and audio: each refused", rgReq ["commit c1", "\nA", "a/f.ttf", "A", "b/v.mp4", "A", "c/s.wav", ""]),
+  ("a modified media path: refused", rgReq ["commit c1", "\nM", "results/a.webp", ""]),
+  ("a type change to a media path: refused", rgReq ["commit c1", "\nT", "results/a.svg", ""]),
+  ("an unknown status letter: refused", rgReq ["commit c1", "\nX", "results/a.gif", ""]),
+  ("a removal alone: passes", rgReq ["commit c1", "\nD", "results/a.png", ""]),
+  ("a merge's first-parent diff with a render: refused", rgReq ["commit m1", "\nA", "src/a.ts", "A", "results/b.avif", "commit c1", "\nA", "src/a.ts", ""]),
+  ("an empty commit between two: the later path keeps its own commit", rgReq ["commit c3", "commit c2", "\nA", "results/a.png", ""]),
+  ("a path that reads like a header is a path", rgReq ["commit c1", "\nA", "commit x.png", ""]),
+  ("a path with a tab and a space: refused", rgReq ["commit c1", "\nA", "results/a b\tc.png", ""]),
+  ("a compressed render x.png.gz: passes (extension only)", rgReq ["commit c1", "\nA", "results/x.png.gz", ""]),
+  ("a directory with a dot and a file without one: passes", rgReq ["commit c1", "\nA", "a.png/Makefile", ""]),
+  ("missing tokens: refused", Json.mkObj [])]
+
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
 def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [
-  ("ops", "lean-first", "ops.leanFirst", leanFirstCases)]
+  ("ops", "lean-first", "ops.leanFirst", leanFirstCases),
+  ("land", "render-guard", "console.landRenderGuard", renderGuardCases)]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json

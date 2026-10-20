@@ -198,6 +198,9 @@
   .nav:global(.is-expanded) .btn.earn {
     pointer-events: none;
   }
+  .nav:global(.is-earn-still) .btn.earn {
+    transition: none;
+  }
   .btn.earn::after {
     mix-blend-mode: screen;
     pointer-events: none;
