@@ -258,7 +258,6 @@ describe('morph.tween:waapi attribute writes vs morph-tween-waapi.attr.jsonl (Le
     }
   });
 
-  // frames with script (finish and marker events, frame callbacks; Lean `cost`, base window included)
   const tail = golden('morph-tween-waapi.tail');
   const frameRows = tail.filter((r) => r.kind === 'scriptFrames') as { case: string; frames: number; tail: number }[];
   for (const arm of ['waapi', 'waapi-scoped'] as const) {
