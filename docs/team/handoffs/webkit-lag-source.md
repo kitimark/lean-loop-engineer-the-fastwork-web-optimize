@@ -1,6 +1,6 @@
 # Handoff: webkit-lag-source (round 3, final design round)
 
-**State:** the note `research/notes/2026/10-20-webkit-lag-source.md` (status review) has fix items 1-8 of the round-3 design applied inside its existing sections. Branch worktree-wf_7a7ac477-cb3-1, at this file's commit; main is merged.
+**State:** the note `research/notes/2026/10-20-webkit-lag-source.md` (status review) has fix items 1-8 of the round-3 design applied inside its existing sections. Branch worktree-wf_7a7ac477-cb3-1, at 44634c01 plus the lead's source edits; main is merged.
 
 **Verified:**
 - Column images (MEASURED, `sips` on the `snapshot/site/selling/` files that morph.columns/data.ts:14-18 names): 5 role PNGs are 1282 × 1282 or 1282 × 1281, and the other 16 are 341-960 × 270-1042. Decoded (Σ w·h·4): 61.66 MB desktop (21), 30.07 MB phone (13 painted; the 8 in hidden columns load eager, not painted).
