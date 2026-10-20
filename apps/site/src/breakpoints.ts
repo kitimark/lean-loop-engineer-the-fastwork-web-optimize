@@ -1,4 +1,5 @@
-import gen from './breakpoints.gen.json';
+// Named import: the bundler keeps only `conditions` and drops matrix, edgePairs and backingTheorems.
+import { conditions as genConditions } from './breakpoints.gen.json';
 
 /**
  * The only place media conditions are read (no hand-written media strings elsewhere in src/).
@@ -10,20 +11,11 @@ export interface GenCondition {
   readonly tsId: string;
   readonly css: string;
 }
-export interface GenNeutral {
-  readonly tsId: string;
-  readonly css: string;
-}
-
-const file: { conditions: readonly GenCondition[]; neutral: readonly GenNeutral[] } = gen;
-const conditions = new Map(file.conditions.map((c) => [c.id, c.css]));
+const list: readonly GenCondition[] = genConditions;
+const conditions = new Map(list.map((c) => [c.id, c.css]));
 
 export function mediaCondition(id: string): string {
   const c = conditions.get(id);
   if (c === undefined) throw new Error(`unknown breakpoint condition "${id}"`);
   return c;
-}
-
-export function neutralConditions(): readonly string[] {
-  return file.neutral.map((n) => n.css);
 }
