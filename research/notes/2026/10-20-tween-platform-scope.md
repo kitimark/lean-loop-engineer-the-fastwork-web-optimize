@@ -26,6 +26,8 @@ Status words: CONFIRMED (source cited), MEASURED (CI run id cited), INFERRED.
   Lean proves the fade value is equal at every history (`fade_eq`). The gate's platform row passes in both engines.
   The not-ok cells of both flag gate runs (39337856330, 39340504860) lie inside the base's measured not-ok set:
   39355333307 at the merge-base c62aae1c plus 39314718340 at 1791b7ec, an ancestor of c62aae1c (MEASURED).
+  webkit-sim run 39357698535 with the flag passes (MEASURED); its scroll profile has no tween push, so the WebKit
+  saving stays INFERRED.
 - The original premise is refuted. MorphTweenOpt said the extra `--morph` on the section "adds no element". In fact the
   original stops restyling the section subtree once the fade clamps (m ≥ 0.55), while `waapi` keeps changing an
   inherited value there until the tween ends. Lean records this as `waapi_section_finding`.
@@ -147,13 +149,21 @@ Gates and lanes:
     the plan job refused it ("target original takes no preset or flags").
   - Control run 39347940719 (`fw=morph.tween:waapi`, target rewrite) passed, but it hit the same kind of timeout twice
     and recovered. Its scroll passes show style 662 and 651. So the lane has inspector timeouts on the comparison arm
-    too. Whether the scoped arm makes them worse is open (INFERRED, 1 control run).
-  - Re-dispatch (round 2): not run. A `ci/**` push run of webkit-sim takes no inputs (target original, no `fw`), so
-    `pnpm fw ci push` cannot start this arm, and raw dispatch is outside this task's sandbox. The lead runs
-    `gh workflow run webkit-sim.yml --ref ci/tween-platform-scope -f target=rewrite -f fw=morph.tween:waapi-scoped`
-    (the inputs of 39337860689). Its run id and verdict go here. If it fails again on the same inspector timeouts,
-    the lead decides on it with 39337860689, 39347638740 and 39347940719.
-  - The lane's profile is a scroll with no tween push, so a passing run would not show the saving either. The WebKit
+    too. The round-3 runs below decide the scoped arm's verdict.
+  - Scoped re-run 39357698535 (round 3, dispatched by the lead: `fw=morph.tween:waapi-scoped`, target rewrite, at
+    50dbdd6e): success (MEASURED). Its two scroll passes show style 667 and 646 (layout 618 and 601). Each pass hit one
+    `Runtime.evaluate` timeout of 120 s in its scroll step and recovered from a fresh load, the same kind of recovery
+    as control 39347940719 (`fw=morph.tween:waapi`, style 662 and 651).
+  - Control re-run 39358530780 (`target=rewrite`, no `fw`, same ref, same window): success (MEASURED). Scroll style
+    667 and 647 (layout 606 and 607); one `Runtime.evaluate` timeout in the warm-up, recovered. The scoped arm's 667
+    and 646 match it within 1, as expected for a scroll profile with no tween push. Both arms of the round-3 pair hit
+    and survived the same inspector timeout. So the timeouts that failed 39337860689 are a lane behaviour that both
+    arms show (INFERRED: the scoped arm has failed 1 run and passed 1, the control has passed 2).
+  - Why the lead dispatched both: `fw run` prints BLOCKED for webkit with these inputs. `workflowInputs .webkit` lists
+    only `vms`, `sessions`, `fresh_boot` (lean/Fw/Store/Layout.lean:414), so `blocked` (:447-448) names `target`; and
+    `dispatchInputs .webkit` is `[]` (:440), so even a fixed table would send no inputs. A `ci/**` push run of
+    webkit-sim takes no inputs (target original, no `fw`), so `pnpm fw ci push` cannot start this arm either.
+  - The lane's profile is a scroll with no tween push, so the passing run does not show the saving. The WebKit
     saving stays INFERRED from WebKit's own inherited-change rule (StyleChange.cpp:36-45@862f17d).
 
 ## Proofs
@@ -203,6 +213,6 @@ Chromium source (CONFIRMED, f842f52):
 - The rule is general: give each animated custom property the narrowest scope that its readers need. A property that
   only its own element reads must be registered `inherits: false`. Lean states this as `needsInherit`.
 - Next is morph-nav-scope: find the 117-118 elements per late frame that the scoped arm still recalcs above faithful.
-  The live nav with its hosted panel holds at most 104 + p of them (p its pseudo-elements, 1 in the SSR model), so the
-  search covers nav + panel and at least 117 − 104 − p, about 12, elements outside it (INFERRED). The 32 layout objects
-  per late frame, the same in every arm, are also this task's to explain.
+  The live nav with its hosted panel holds at most 104 + p of them (p its pseudo-elements, 1 in the SSR model), so
+  the search covers nav + panel and at least 117 − 104 − p, about 12, elements outside it (INFERRED). The 32 layout
+  objects per late frame, the same in every arm, are also this task's to explain.
