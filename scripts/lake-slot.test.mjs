@@ -1,4 +1,6 @@
 // node --test scripts/lake-slot.test.mjs (task lake-build-slots): scripts/lake-slot.sh on a scratch slot directory.
+// Plain JS on purpose: lean.yml runs it on Linux (the flock branch) with the runner's stock node; apps/runner's
+// test/ci-triggers.test.ts runs it on a land.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -6,7 +8,6 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync,
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { LINT_ARGV } from "../apps/runner/src/land-verdict.ts";
 
 const top = join(dirname(fileURLToPath(import.meta.url)), "..");
 const wrapper = join(top, "scripts/lake-slot.sh");
@@ -20,8 +21,8 @@ const probe = 'echo "$LAKE_SLOT ${LEAN_NUM_THREADS-unset}"';
 
 const scratch = () => {
   const d = mkdtempSync(join(tmpdir(), "lake-slot-test-"));
-  const { LEAN_NUM_THREADS: _, LAKE_SLOT: __, ...rest } = process.env;
-  return { d, env: { ...rest, LAKE_SLOT_DIR: join(d, "slots") } };
+  const { LEAN_NUM_THREADS: _, LAKE_SLOT: __, FW_TIMINGS_FILE: ___, ...rest } = process.env;
+  return { d, env: { ...rest, LAKE_SLOT_DIR: join(d, "slots"), FW_TIMINGS_FILE: join(d, "timings.jsonl") } };
 };
 const run = (env, cmd) => spawnSync("sh", [wrapper, "sh", "-c", cmd], { env, encoding: "utf8" });
 const until = async (p, ms = 10000) => {
@@ -81,6 +82,7 @@ test("concurrent builds: the second gets slot 1 with the capped pool, a third wa
     const b = hold(env, d, "b");
     await until(() => b.out() !== null);
     assert.equal(b.out(), `1 ${pools[1]}`);
+    assert.equal(existsSync(join(d, "timings.jsonl")), false);
     const c = hold(env, d, "c");
     await new Promise((r) => setTimeout(r, 1500));
     assert.equal(c.out(), null);
@@ -91,6 +93,9 @@ test("concurrent builds: the second gets slot 1 with the capped pool, a third wa
     b.release(); c.release();
     assert.equal(await b.done, 0);
     assert.equal(await c.done, 0);
+    const spans = readFileSync(join(d, "timings.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    assert.deepEqual(spans.map((x) => [x.tool, x.step, x.exit]), [["lake-slot", "wait", 0]]);
+    assert.ok(spans[0].durMs >= 1000, `waited ${spans[0].durMs} ms`);
   } finally { rmSync(d, { recursive: true, force: true }); }
 });
 
@@ -121,8 +126,20 @@ test("without LAKE_SLOT_DIR the slot files live under the git common dir, from t
   } finally { rmSync(d, { recursive: true, force: true }); }
 });
 
-test("the call sites build through the wrapper", () => {
-  assert.match(readFileSync(join(top, "scripts/fwcore-build.sh"), "utf8"), /lake-slot\.sh lake build/);
-  assert.match(readFileSync(join(top, "lean/scripts/check.sh"), "utf8"), /lake-slot\.sh sh \.\.\/scripts\/fwcore-build\.sh/);
-  assert.match(LINT_ARGV.axioms.join(" "), /lake-slot\.sh lake build/);
+test("sourced with LAKE_SLOT_LIB=1, lake_slot <root> <cmd> takes a slot in the caller's shell", () => {
+  const { d, env } = scratch();
+  try {
+    const r = spawnSync("sh", ["-c", `set -eu; LAKE_SLOT_LIB=1 . "$1"; (lake_slot "$2" sh -c '${probe}'); echo after`, "_", wrapper, top], { env, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(r.stdout.trim().split("\n"), ["0 unset", "after"]);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("the call sites build through the wrapper: fwcore-build.sh (and with it check.sh) and the land axiom lint", () => {
+  assert.match(readFileSync(join(top, "scripts/fwcore-build.sh"), "utf8"), /\(cd lean && lake_slot "\$root" lake build\)/);
+  assert.match(readFileSync(join(top, "lean/scripts/check.sh"), "utf8"), /span lean\/check "lake build" sh \.\.\/scripts\/fwcore-build\.sh/);
+  const plans = readFileSync(join(top, "packages/contracts/golden/console/land-dry.jsonl"), "utf8").trim().split("\n")
+    .map((l) => JSON.parse(l)).filter((r) => r.request.op === "landDry.lintPlan" && r.request.hasAxioms && r.request.changed.some((p) => p.startsWith("lean/")));
+  assert.ok(plans.length > 0);
+  for (const r of plans) assert.match(r.response.argv.at(-1).join(" "), /lake-slot\.sh lake build/);
 });

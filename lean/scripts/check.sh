@@ -27,7 +27,7 @@ serial() {  # serial <step> <cmd...>: a failing serial stage is recorded and the
 serial "grep gates" scripts/check-partial.sh
 serial "import check" node scripts/check-imports.mjs  # every Fw module is imported by a root, none twice in Fw.lean (the union merge can repeat a line)
 # the parallel stages read the products of lake build, so a failed build ends the run here
-if ! span lean/check "lake build" sh ../scripts/lake-slot.sh sh ../scripts/fwcore-build.sh; then
+if ! span lean/check "lake build" sh ../scripts/fwcore-build.sh; then
   fails="$fails
   - lake build"
   echo "check: FAILED: $fails"

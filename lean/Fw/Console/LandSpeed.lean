@@ -334,7 +334,9 @@ def scanDecls : List Decl := withScan (sampleDecls ++ [⟨"site", ["apps/site/**
 /-- The path that stands for the stripped fwcore binary in a check's declared reads. -/
 def fwcoreBin : String := "lean/.lake/build/bin/fwcore"
 
-/-- The tracked paths the fwcore build reads. -/
+/-- The tracked paths the bytes of the fwcore binary depend on. The build slot `scripts/fwcore-build.sh` runs Lake under
+(`scripts/lake-slot.sh` and the files it sources) is left out: it decides when Lake starts and with which
+`LEAN_NUM_THREADS`, which premise `land.binaryOfLean` takes not to change the bytes. -/
 def fwcoreBuildReads : List String := ["lean/**", "scripts/fwcore-build.sh"]
 
 /-- Two binary digests (`none`: unknown) that do not show one binary. -/
@@ -855,7 +857,7 @@ def premises : List PremiseRow := [
     ["pre_eq_old", "preLand_eq_old"], "replay test over the last 30 land merges (30/30 measured)"⟩,
   ⟨"land.checkedWorktreeExact", "the land worktree holds exactly commit C (checkout --detach C; clean -fdx -e .lake -e node_modules)",
     ["pre_commit_checked"], "apps/runner/test: an untracked imported .lean file in the land worktree is cleaned or refused"⟩,
-  ⟨"land.binaryOfLean", "on one machine scripts/fwcore-build.sh is a function `build` of the state that reads only lean/** and scripts/fwcore-build.sh (BinaryOfBuildReads build, satisfiable: binaryOfBuildReads_satisfiable), the binary the land checks is `build` of its tree, and sha256 of its bytes has no collision",
+  ⟨"land.binaryOfLean", "on one machine scripts/fwcore-build.sh is a function `build` of the state that reads only lean/** and scripts/fwcore-build.sh (BinaryOfBuildReads build, satisfiable: binaryOfBuildReads_satisfiable); the build slot it runs lake under (scripts/lake-slot.sh, packages/contracts/golden/sched/lake-slot.gen.sh, and scripts/span.sh after a wait) sets only when lake starts and its LEAN_NUM_THREADS, and these do not change the bytes (INFERRED, not measured); the binary the land checks is `build` of its tree, and sha256 of its bytes has no collision",
     ["fwcore_digest_skip", "fwcore_nobuild_skip"], "MEASURED 2026-10-19 (task land-fwcore-key): a docstring-only edit of lean/Fw/Console/LandQueue.lean (linked into fwcore), rebuilt with scripts/fwcore-build.sh, left the sha256 of the binary at 8a4fd2d6ff6f, as did a rerun and the rebuild after the revert; fwcore-build.sh strips once per link because on macOS a second strip changes the bytes (8a4fd2d6ff6f to 495249a32f9b); the land hashes real builds, so a toolchain change only selects more"⟩]
 
 #guard premises.length == 8

@@ -2,7 +2,9 @@ import Fw.Sched.Admit
 
 /-!
 # Machine-wide Lake build slots (task `lake-build-slots`): the thread pool of each slot `scripts/lake-slot.sh` hands out
-Slot 0 keeps Lean's full pool and holds the `cleanBuild` token; slot 1 gets half the dev Mac's pool; further builds wait.
+A build takes the first free slot (`pick`): slot 0 keeps Lean's full pool and the full-pool token, slot 1 gets half the
+dev Mac's pool, and a build that finds every slot busy waits. The pool counts Lake job-pool threads, one per concurrent
+lean process; the threads inside each lean process are not counted.
 -/
 namespace Fw.Sched.LakeSlot
 
@@ -31,7 +33,8 @@ def threads (n : Nat) : Pool → Nat
   | .full => n
   | .cap t => t
 
-/-- The `cleanBuild` tokens a pool holds: the full pool holds the one token. -/
+/-- The full-pool tokens a pool holds: the full pool holds the one token, so at most one build runs with the full pool.
+Admit counts the token in its `cleanBuild` resource. -/
 def token : Pool → Nat
   | .full => 1
   | .cap _ => 0
@@ -39,12 +42,16 @@ def token : Pool → Nat
 /-- Total pool threads when every slot is held. -/
 def bound (n : Nat) : Nat := ((List.range S).map fun i => threads n (poolAt i)).sum
 
-/-- The Admit budget of the Lake builds: `bound n` threads (in tenths of a core) and one `cleanBuild` token. -/
+/-- The Admit budget of the Lake builds: `bound n` threads (in tenths of a core) and the one full-pool token. -/
 def budget (n : Nat) : Vec := { cores := 10 * bound n, cleanBuild := 1 }
 
 /-- The build holding slot `i` as an Admit item: its pool threads (in tenths of a core) and its token. -/
 def item (n i : Nat) : Item :=
   { id := s!"lake-slot-{i}", seq := i, demand := { cores := 10 * threads n (poolAt i), cleanBuild := token (poolAt i) } }
+
+/-- The slot a build takes while the slots in `held` are busy: the first free one in the order the wrapper tries the
+slot files, or `none` when every slot is busy and the build waits. -/
+def pick (held : List Nat) : Option Nat := (List.range S).find? (· ∉ held)
 
 /-- The pool as the generated shell file spells it. -/
 def render : Pool → String
@@ -141,7 +148,7 @@ theorem further_waits (n : Nat) (x : Item) (hx : 0 < x.demand.cores) :
   simp only [Vec.get] at this
   omega
 
-/-- While slot 0 runs, Admit queues a second full-pool build (the one `cleanBuild` token is taken). -/
+/-- While slot 0 runs, Admit queues a second build that asks for the full-pool token. -/
 theorem second_full_waits (n : Nat) (x : Item) (hx : 0 < x.demand.cleanBuild) :
     admit (budget n) { run := [item n 0] } x ≠ .admit := by
   intro h
@@ -151,6 +158,30 @@ theorem second_full_waits (n : Nat) (x : Item) (hx : 0 < x.demand.cleanBuild) :
   simp [used, item, budget, Vec.get, poolAt, pools, token] at this
   omega
 
+/-- A picked slot is a slot file that no running build holds. -/
+theorem pick_free {held : List Nat} {i : Nat} (h : pick held = some i) : i < S ∧ i ∉ held := by
+  unfold pick at h
+  exact ⟨List.mem_range.1 (List.mem_of_find?_eq_some h), by simpa using List.find?_some h⟩
+
+/-- No pick: every slot is held, so the build waits. -/
+theorem pick_none {held : List Nat} (h : pick held = none) : ∀ i < S, i ∈ held := by
+  intro i hi
+  unfold pick at h
+  simpa using List.find?_eq_none.1 h i (List.mem_range.2 hi)
+
+/-- A solo build gets slot 0, the full pool. -/
+theorem pick_solo : pick [] = some 0 := rfl
+
+/-- Builds that each took the slot `pick` chose hold distinct slots, so they stay within `bound n` threads. -/
+theorem pick_within_bound (n : Nat) {held : List Nat} {i : Nat} (hn : held.Nodup) (hr : ∀ j ∈ held, j < S)
+    (h : pick held = some i) : ((i :: held).map fun j => threads n (poolAt j)).sum ≤ bound n := by
+  have ⟨hi, hni⟩ := pick_free h
+  refine held_threads_le n (List.nodup_cons.2 ⟨hni, hn⟩) fun j hj => ?_
+  rcases List.mem_cons.1 hj with rfl | hj
+  · exact hi
+  · exact hr j hj
+
+#guard pick [] == some 0 && pick [0] == some 1 && pick [1] == some 0 && pick [0, 1] == none && pick [1, 0] == none
 #guard threads 8 .full == 8 && threads 8 (.cap 4) == 4
 #guard token .full == 1 && token (.cap 4) == 0
 #guard poolAt 0 == .full && poolAt 1 == .cap 4 && poolAt 2 == .cap 0
