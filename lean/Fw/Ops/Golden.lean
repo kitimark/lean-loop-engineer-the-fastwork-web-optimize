@@ -930,10 +930,47 @@ def renderGuardCases (_ : Unit := ()) : List (String × Json) := [
   ("a directory with a dot and a file without one: passes", rgReq ["commit c1", "\nA", "a.png/Makefile", ""]),
   ("missing tokens: refused", Json.mkObj [])]
 
+/-- A `console.review` request: the decision rows, the board steps and an optional answer, from JSON texts. -/
+def rv (looks steps : String) (answer : String := "null") : Json :=
+  Json.mkObj [("looks", lit looks), ("steps", lit steps), ("answer", lit answer)]
+
+/-- The `console.review` cases. -/
+def reviewCases (_ : Unit := ()) : List (String × Json) :=
+  let mat := "{\"chromium\":{\"state\":\"ready\",\"run\":\"1\",\"artifact\":\"frames-chromium\",\"expires\":\"2026-11-19\"},\"webkit\":{\"state\":\"pending\",\"task\":\"t\"}}"
+  let row (f d dec rev : String) := s!"\{\"flag\":\"{f}\",\"date\":\"{d}\",\"decision\":\"{dec}\",\"review\":\"{rev}\"}"
+  let pend := s!"[\{\"flag\":\"nav:earn-no-transition\",\"date\":\"2026-10-21\",\"decision\":\"kept\",\"review\":\"pending\",\"material\":{mat}}]"
+  let two := s!"[{row "nav:earn-no-transition" "2026-10-21" "kept" "pending"},{row "hero:x" "2026-10-22" "kept" "done"},{row "nav:earn-no-transition" "2026-10-23" "accepted" "pending"}]"
+  let st (id : String) (ans : String) (o : String) := s!"\{\"id\":\"{id}\",\"answer\":{ans},\"open\":{o}}"
+  let e := "nav:earn-no-transition"
+  let w (word : String) := s!"\{\"flag\":\"{e}\",\"word\":\"{word}\"}"
+  [("a pending look decision with no step yet: one open item, the step is to be posted", rv pend "[]"),
+   ("the step is on the board, waiting: open, not posted again", rv pend s!"[{st "review-nav:earn-no-transition" "null" "true"}]"),
+   ("started then done, or cancelled (the step is closed with no answer): the item is open and a new step review-...#1 is to be posted", rv pend s!"[{st "review-nav:earn-no-transition" "null" "false"}]"),
+   ("a step closed with no answer: keep is refused until the new step is posted", rv pend s!"[{st "review-nav:earn-no-transition" "null" "false"}]" (w "keep")),
+   ("the new step is open after a cancelled one: keep is accepted on it", rv pend s!"[{st "review-nav:earn-no-transition" "null" "false"},{st "review-nav:earn-no-transition#1" "null" "true"}]" (w "keep")),
+   ("two steps closed with no answer: the next id is #2", rv pend s!"[{st "review-nav:earn-no-transition" "null" "false"},{st "review-nav:earn-no-transition#1" "null" "false"}]"),
+   ("answered keep: closed as keep", rv pend s!"[{st "review-nav:earn-no-transition" "\"keep\"" "false"}]"),
+   ("answered reject: closed as reject", rv pend s!"[{st "review-nav:earn-no-transition" "\"reject\"" "false"}]"),
+   ("answered reject on the second step: closed as reject", rv pend s!"[{st "review-nav:earn-no-transition" "null" "false"},{st "review-nav:earn-no-transition#1" "\"reject\"" "false"}]"),
+   ("an answer that is no verdict word does not close the item; a new step is to be posted", rv pend s!"[{st "review-nav:earn-no-transition" "\"maybe\"" "false"}]"),
+   ("a step of another flag closes nothing", rv pend s!"[{st "review-hero:x" "\"keep\"" "false"}]"),
+   ("a decided look change is no item; a repeated pending row gives one item", rv two "[]"),
+   ("no pending decision: no item, nothing open", rv s!"[{row "nav:a" "d" "kept" "done"}]" "[]"),
+   ("keep on an open step is accepted", rv pend s!"[{st "review-nav:earn-no-transition" "null" "true"}]" (w "keep")),
+   ("reject on an open step is accepted", rv pend s!"[{st "review-nav:earn-no-transition" "null" "true"}]" (w "reject")),
+   ("keep without a step on the board is refused (the step is posted first)", rv pend "[]" (w "keep")),
+   ("a decided item is not answered again", rv pend s!"[{st "review-nav:earn-no-transition" "\"keep\"" "false"}]" (w "reject")),
+   ("a flag without a pending decision is refused", rv pend "[]" "{\"flag\":\"nav:other\",\"word\":\"keep\"}"),
+   ("a word that is not keep or reject is refused", rv pend s!"[{st "review-nav:earn-no-transition" "null" "true"}]" (w "yes")),
+   ("a bad flag key is refused", rv pend "[]" "{\"flag\":\"nocolon\",\"word\":\"keep\"}"),
+   ("a decision word that is unknown is refused", rv "[{\"flag\":\"nav:a\",\"date\":\"d\",\"decision\":\"yes\",\"review\":\"pending\"}]" "[]"),
+   ("without looks the rows are Fw.Preset.Gen.lookDecisions", Json.mkObj [("steps", lit "[]")])]
+
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
 def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [
   ("ops", "lean-first", "ops.leanFirst", leanFirstCases),
-  ("land", "render-guard", "console.landRenderGuard", renderGuardCases)]
+  ("land", "render-guard", "console.landRenderGuard", renderGuardCases),
+  ("console", "review", "console.review", reviewCases)]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json
