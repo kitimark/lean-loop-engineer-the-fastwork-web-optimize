@@ -10890,6 +10890,47 @@
     "docs/team/tools/disk-cleanup.md",
     "docs/team/handoffs/test-tmp-cleanup.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "reap-stop",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "orphan-guard",
+    "latex-teardown"
+   ],
+   "title": "User 2026-10-20 allowed automatic reaping of Lean-selected leftovers: fw reap (run after each land's worktree removal and on the fw watch tick) stops the processes ops.lspReap selects (our tool kinds tied to a removed worktree; identity = pid + start time, re-checked right before the signal; process group only when pgid == pid); never by name or pattern, never a live checkout's process. CLAUDE.md Processes rule amended to state this positively; theorem: a stopped pid is one Lean selected and still has the selected start time",
+   "writes": [
+    "lean/Fw/Ops/LspReap.lean",
+    "apps/runner/src/reap.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "packages/contracts/golden/ops/**",
+    "CLAUDE.md",
+    "docs/team/handoffs/reap-stop.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "serena-trim",
+   "owner": "plan-editor",
+   "stream": "tooling",
+   "deps": [
+    "latex-teardown"
+   ],
+   "title": "User 2026-10-20: drop serena-lean (lean-lsp covers Lean lookups and follows the caller's worktree), keep serena configured but off by default (user turned both off in settings.local.json; /mcp turns serena on). Remove serena-lean from .mcp.json and from agent tool lists, and point Lean lookups at lean-lsp tools; docs/team/serena.md says serena is on demand; settings.json allow entries for serena-lean go via a user command",
+   "writes": [
+    ".mcp.json",
+    ".claude/agents/**",
+    "docs/team/serena.md",
+    "docs/team/handoffs/serena-trim.md"
+   ]
   }
  ],
  "deadline": {
