@@ -8,16 +8,19 @@ import { spawnSync } from "node:child_process";
 import { ghCharged, realEnv, waitFor, type Env, type Target, type Waited } from "@fw/gh-budget";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
+import { GateReply, ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
 import { UsageError } from "./lib.ts";
 import { recordRunKind } from "./timing.ts";
 
 export type RunArgs = {
   target: string; preset: string; fw: string[]; engines: string[]; profile?: string; runs?: number; dry: boolean;
   ref?: string; sha?: string; images: Record<string, string>; fromRun: Record<string, string>;
+  /** `--gate`: dispatch breakpoint-gate.yml instead of the count workflows; `--engines` then takes one gate value. */
+  gate?: boolean; presetGiven?: boolean;
 };
 
 export const RUN_USAGE = "usage: fw run --target original|rewrite [--preset <name>] [--fw part:variant,...] --engines chromium,webkit\n" +
+  "       fw run --gate [--engines both|chromium|playwright-webkit] [--preset <name> | --fw part:variant,...] [--ref <branch>]\n" +
   "              [--profile <id>] [--runs 2..10]\n" +
   "              [--ref <pushed branch>] [--sha <git sha>] [--image engine=sha256:...] [--from-run engine=<run id>] [--dry]";
 
@@ -42,7 +45,8 @@ export function parseRunArgs(argv: string[]): RunArgs {
     const f = argv[i]!;
     if (f === "--dry") a.dry = true;
     else if (f === "--target") a.target = val(i++, f);
-    else if (f === "--preset") a.preset = val(i++, f);
+    else if (f === "--gate") a.gate = true;
+    else if (f === "--preset") { a.preset = val(i++, f); a.presetGiven = true; }
     else if (f === "--fw") a.fw.push(...val(i++, f).split(",").filter(Boolean));
     else if (f === "--engines") a.engines = val(i++, f).split(",").filter(Boolean);
     else if (f === "--profile") a.profile = val(i++, f);
@@ -52,6 +56,11 @@ export function parseRunArgs(argv: string[]): RunArgs {
     else if (f === "--image") { const [k, v] = kv(val(i++, f), f); a.images[k] = v; }
     else if (f === "--from-run") { const [k, v] = kv(val(i++, f), f); a.fromRun[k] = v; }
     else throw new UsageError(`unknown flag ${f}\n${RUN_USAGE}`);
+  }
+  if (a.gate) {
+    if (a.engines.length > 1) throw new UsageError(`--gate takes one --engines value (both, chromium or playwright-webkit)\n${RUN_USAGE}`);
+    if (a.target || a.profile || a.runs !== undefined) throw new UsageError(`--gate takes no --target, --profile or --runs (breakpoint-gate has none)\n${RUN_USAGE}`);
+    return a;
   }
   if (a.engines.length === 0) throw new UsageError(`--engines is required\n${RUN_USAGE}`);
   if (!a.target) throw new UsageError(`--target is required (original = the snapshot, rewrite = apps/site)\n${RUN_USAGE}`);
@@ -183,7 +192,7 @@ export async function waitDecided(wait: WaitFn, t: Target, now: () => number, ca
 }
 
 /** `gh workflow run` arguments of a job. */
-export const dispatchArgs = (job: PlanJob, ref: string): string[] =>
+export const dispatchArgs = (job: Pick<PlanJob, "workflow" | "inputs">, ref: string): string[] =>
   ["workflow", "run", job.workflow, "--ref", ref, ...Object.entries(job.inputs).flatMap(([k, v]) => ["-f", `${k}=${v}`])];
 
 // ---- the plan ----------------------------------------------------------------------------------------------------------------------
@@ -217,6 +226,8 @@ export type RunDeps = {
   now: () => number;
   /** The display name of a workflow file, when it can be read locally (used when the workflow has no earlier run). */
   workflowName?: (file: string) => string | undefined;
+  /** The commit of a pushed branch (`--ref`), so a base ref is measured and keyed under its own sha; absent = the checkout's. */
+  refSha?: (ref: string) => string | undefined;
   /** Remember the inputs of a run this command dispatched (the timing kind of its spans, timing.ts `recordRunKind`). */
   recordKind?: (runId: number, inputs: PlanJob["inputs"]) => void;
   capS?: number;
@@ -227,7 +238,8 @@ const runLine = /^run (\d+) /;
 
 /** The whole command. Returns the exit code: 0 ok, 2 refused (problems, blocked job). */
 export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
-  const sha = args.sha ?? d.sha;
+  const sha = refShaOf(args, d);
+  if (args.gate) return runGate(args, d, sha);
   const planned = planRun(d.call, args, sha, d.store);
   for (const l of renderPlan(planned, args.dry)) d.log(l);
   if (planned.reply.problems.length) return 2;
@@ -259,6 +271,53 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
     const r = ingest(d.call, d.store, dir, j, { target: args.target, preset: args.preset, fw: planned.reply.fw, profile: args.profile ?? "swipe-v1", gitSha: sha, runId });
     d.log(`${j.engine}: run ${runId} filed, ${r.manifest.entries.length} artifacts (${r.objects} new, ${r.reused} already stored) -> ${relative(d.store, r.path)}`);
   }
+  return 0;
+}
+
+/** The sha a run is measured at: `--sha`, else the tip of `--ref` (when the caller can resolve it), else the checkout's. */
+function refShaOf(args: RunArgs, d: RunDeps): string {
+  if (args.sha) return args.sha;
+  if (args.ref && d.refSha) {
+    const r = d.refSha(args.ref);
+    if (!r) throw new UsageError(`cannot resolve --ref ${args.ref} to a commit (not fetched?); pass --sha <40 hex>`);
+    return r;
+  }
+  return d.sha;
+}
+
+/** The dispatch of the breakpoint gate: fwcore (`store.gate`) decides the inputs and whether the workflow can express them. */
+export function planGate(call: FwCall, args: RunArgs): GateReply {
+  return GateReply.parse(call({ op: "store.gate", ...(args.engines[0] ? { engines: args.engines[0] } : {}),
+    ...(args.presetGiven ? { preset: args.preset } : {}), ...(args.fw.length ? { fw: args.fw } : {}) }));
+}
+
+/** `fw run --gate`: dispatch breakpoint-gate.yml on the ref and wait for the run. The gate files nothing in the store;
+ *  its tables are artifacts of the run (`gh run download <id>`). Exit 0 ok, 2 refused. */
+async function runGate(args: RunArgs, d: RunDeps, sha: string): Promise<number> {
+  const reply = planGate(d.call, args);
+  const job = reply.job;
+  d.log(`fw run${args.dry ? " (dry)" : ""}: gate, sha ${sha.slice(0, 7)}`);
+  for (const pr of reply.problems) d.log(`  problem: ${pr}`);
+  if (!job) return 2;
+  d.log(`  gate     ${job.workflow}  inputs ${Object.entries(job.inputs).map(([k, v]) => `${k}=${v}`).join(" ")}` + (job.blocked ? `  BLOCKED: ${job.workflow} has no input "${job.blocked}" yet` : ""));
+  if (args.dry) return 0;
+  if (job.blocked) { d.log(`refused: gate (${job.blocked}) cannot express this request; add the input to the workflow first`); return 2; }
+  const ref = args.ref ?? d.branch;
+  let runId = args.fromRun["gate"];
+  if (!runId) {
+    const before = await latestRun(d.gh, job.workflow, ref);
+    const at = d.now();
+    await d.gh(dispatchArgs({ workflow: job.workflow, inputs: job.inputs }, ref));
+    d.log(`gate: dispatched ${job.workflow} on ${ref}; waiting for the run`);
+    const name = before?.workflowName || d.workflowName?.(job.workflow);
+    const w = await waitDecided(d.wait, { kind: "branch", branch: ref, ...(name ? { workflow: name } : {}), sha, since: before ? epoch(before.createdAt) + 1 : at - 60 }, d.now, d.capS);
+    runId = decided("gate", w);
+  } else {
+    runId = decided("gate", await waitDecided(d.wait, { kind: "run", runId: Number(runId) }, d.now, d.capS));
+  }
+  const head = (JSON.parse(await d.gh(["run", "view", runId, "--json", "headSha"])) as { headSha: string }).headSha;
+  if (head !== sha) throw new UsageError(`gate: run ${runId} measured ${head.slice(0, 7)}, not ${sha.slice(0, 7)}`);
+  d.log(`gate: run ${runId} succeeded at ${sha.slice(0, 7)} (tables: gh run download ${runId})`);
   return 0;
 }
 
@@ -298,6 +357,7 @@ export async function runCli(argv: string[], cwd: string, env: Record<string, st
     call: fwcoreCall(cwd), gh: genv ? chargedGh(genv) : unused, wait: genv ? (t, timeoutS) => waitFor(genv, t, { timeoutS }) : unused,
     now: genv ? genv.now : () => Math.floor(Date.now() / 1000),
     recordKind: (id, inputs) => { recordRunKind(id, inputs, cwd); },
+    refSha: (r) => vcs("rev-parse", "--verify", "--quiet", `refs/remotes/origin/${r}^{commit}`) || vcs("rev-parse", "--verify", "--quiet", `refs/heads/${r}^{commit}`) || undefined,
     workflowName: (f) => { try { return /^name:\s*["']?([^"'\n#]+?)["']?\s*(?:#.*)?$/m.exec(readFileSync(join(cwd, ".github", "workflows", f), "utf8"))?.[1]; } catch { return undefined; } },
     store: storeDir(consoleDir), sha: vcs("rev-parse", "HEAD"), branch: vcs("rev-parse", "--abbrev-ref", "HEAD"),
     tmp: join(consoleDir, "tmp"), log: (l) => console.log(l),
