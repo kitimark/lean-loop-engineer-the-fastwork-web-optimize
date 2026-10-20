@@ -699,17 +699,293 @@ theorem alertTitle_le (cs : List (String × Nat)) : utf16Len (alertTitle cs) ≤
   split <;> split <;> simp only [List.map_append, List.sum_append, hh, ht, hhs, hts, List.map_cons, List.map_nil,
     List.sum_cons, List.sum_nil, he] <;> omega
 
+/-! ## Plain spool alerts and their automatic resolution (task `alert-steps-plain`)
+
+A spool problem is the lead's to fix, never the owner's, so the spool alert step is posted for the `lead`
+(`Fw.Console.Alert.Plain`): a plain title, then what happened, the impact and the action. The issue names
+with counts go to the `Details` line only. A later sweep re-checks the condition and closes the step by itself
+(`resolveSpool`), with a note.
+-/
+
+/-- What sort of problem an issue name is.
+
+Which part of the reader a person looks at.
+-/
+inductive IssueClass where
+  | unknownField | rejected | sweep | other
+deriving Repr, DecidableEq
+
+/-- The end of the issue name of an unknown field (`<field>:unknown`). -/
+def unknownSuffix : String := ":unknown"
+
+/-- The class of an issue name: `<field>:unknown`, `rejected:<why>`, `sweep:<op>`, anything else.
+
+Tell the four sorts of issue apart by their names.
+-/
+def classOf (x : String) : IssueClass :=
+  if x.endsWith unknownSuffix then .unknownField
+  else if x.startsWith "rejected:" then .rejected
+  else if isSweep x then .sweep else .other
+
+/-- The classes present in an issue list, in a fixed order (unknown field, rejected, sweep, other). -/
+def classes (cs : List (String × Nat)) : List IssueClass :=
+  [IssueClass.unknownField, .rejected, .sweep, .other].filter fun c => cs.any fun (x, _) => classOf x == c
+
+/-- What happened, in one plain sentence per class. -/
+def classWhat : IssueClass → String
+  | .unknownField => "The log reader met a field it does not know."
+  | .rejected => "The log reader rejected some lines."
+  | .sweep => "A background check inside the console failed."
+  | .other => "The log reader could not use a value in some lines."
+
+/-- The impact, in one plain sentence per class. -/
+def classImpact : IssueClass → String
+  | .unknownField => "Nothing is lost: the lines were still read; only the new field is not used by any rule yet."
+  | .rejected => "Those lines were dropped, so the facts in them are missing from the board."
+  | .sweep => "The console keeps running; the failed pass is tried again at the next sweep."
+  | .other => "The lines were still read; the unusable value was ignored."
+
+/-- The action for the lead, one sentence per class (the fix location). -/
+def classAction : IssueClass → String
+  | .unknownField => "Add the field to Fw.Ops.Obs.specs (lean/Fw/Ops/Obs.lean)."
+  | .rejected => "Read the reason in the details, then fix the sender (.claude/hooks/emit.mjs) or the record spec Fw.Ops.Obs.specs."
+  | .sweep => "Read the console-api log for the error and fix the failing step."
+  | .other => "Compare the note in the details with Fw.Ops.Obs.specs."
+
+/-- The plain title of the spool alert: one title per single class, a general one for a mix. -/
+def spoolTitle (cs : List (String × Nat)) : String :=
+  match classes cs with
+  | [.unknownField] => "The log reader saw a field it does not know"
+  | [.rejected] => "The log reader rejected some lines"
+  | [.sweep] => "A console background check failed"
+  | _ => "The log reader found problems in some lines"
+
+/-- The most UTF-16 units of the issue list in the details line. -/
+def detailsCap : Nat := 600
+
+/-- The details line: the issue list `x₁ xn₁, …`, cut at `detailsCap` units with an ellipsis. -/
+def detailsOf (cs : List (String × Nat)) : String :=
+  let names := alertNames cs
+  let kept := takeU16 detailsCap names
+  String.ofList (kept ++ (if kept.length < names.length then ['…'] else []))
+
+/-- **The plain spool alert**: for the lead, a plain title, and a body with what happened, the impact, the action
+(the fix location) and the details. -/
+def spoolPlain (cs : List (String × Nat)) : Fw.Console.Alert.Plain :=
+  { title := spoolTitle cs, audience := .lead,
+    body := Fw.Console.Alert.bodyLines .lead
+      (" ".intercalate ((classes cs).map classWhat)) (" ".intercalate ((classes cs).map classImpact))
+      (" ".intercalate ((classes cs).map classAction) ++
+        " This step closes by itself when a later sweep no longer shows these problems.")
+      (detailsOf cs) }
+
+/-- **The spool alert is the lead's**: whatever the issues, its audience is the lead, never the owner. -/
+theorem spoolPlain_lead (cs : List (String × Nat)) : (spoolPlain cs).audience = .lead := rfl
+
+/-- The title of the spool alert fits the contract's 200 units for every issue list. -/
+theorem spoolTitle_le (cs : List (String × Nat)) : utf16Len (spoolTitle cs) ≤ 200 := by
+  unfold spoolTitle
+  split <;> decide
+
+/-- The issue keys named by an item list `k₁ x₂, k₂ x₁`: empty unless every item reads as `<key> x<digits>`. -/
+def parseNames (s : String) : List String :=
+  let item (it : String) : Option String :=
+    match (it.splitOn " x").reverse with
+    | n :: k :: rest =>
+      if n.isEmpty || !n.all Char.isDigit then none else some (" x".intercalate (k :: rest).reverse)
+    | _ => none
+  match (s.splitOn ", ").mapM item with
+  | some ks => ks
+  | none => []
+
+/-- The issue keys an open spool alert step stands for: those of its `Details` line (none when the line was cut
+with an ellipsis, so a cut list never closes by itself), or, for a step posted before details existed, those of
+its title `Spool lines need a look: …; fix …` or `Drain threw in fwcore: …; see …`.
+-/
+def spoolKeys (title body : String) : List String :=
+  match (body.splitOn "\n").find? (·.startsWith "Details: ") with
+  | some d => if d.contains '…' then [] else parseNames (d.drop 9).toString
+  | none =>
+    if title.contains '…' then []
+    else if title.startsWith alertHead && title.endsWith alertTail then
+      parseNames ((title.drop alertHead.length).dropEnd alertTail.length).toString
+    else if title.startsWith sweepHead && title.endsWith sweepTail then
+      parseNames ((title.drop sweepHead.length).dropEnd sweepTail.length).toString
+    else []
+
+/-- One sweep window: how many spool lines it read and the issue names it raised. -/
+structure Window where
+  lines : Nat
+  issues : List String
+deriving Repr
+
+/-- The field an `<field>:unknown` issue names. -/
+def fieldOfKey (k : String) : String := (k.dropEnd unknownSuffix.length).toString
+
+/-- **Is one issue key clean in this window?** It must not occur in the window, and then either (unknown field) the
+field is known to the spec now, or (any other issue) the window read at least one line, so the reader did run.
+
+Re-check the cause, not the silence: a fixed spec closes an unknown field; a quiet window closes nothing for it.
+-/
+def keyClean (w : Window) (k : String) : Bool :=
+  !(w.issues.contains k) && (if classOf k == .unknownField then known (fieldOfKey k) else decide (0 < w.lines))
+
+/-- A step resolves when it names at least one key and every key is clean. -/
+def stepResolves (w : Window) (ks : List String) : Bool := !ks.isEmpty && ks.all (keyClean w)
+
+/-- **Resolved only when the re-check is clean for every key**, and the step names a key. -/
+theorem stepResolves_iff (w : Window) (ks : List String) :
+    stepResolves w ks = true ↔ ks ≠ [] ∧ ∀ k ∈ ks, keyClean w k = true := by
+  unfold stepResolves
+  simp
+
+/-- **A step with no readable key never closes** (a cut or foreign list stays open for a person). -/
+theorem no_keys_never_closes (w : Window) : stepResolves w [] = false := rfl
+
+/-- **A still-failing key never closes**: if one key of the step occurs in the window, the step stays open. -/
+theorem failing_never_closes (w : Window) {ks : List String} {k : String} (hk : k ∈ ks) (hi : k ∈ w.issues) :
+    stepResolves w ks = false := by
+  cases h : stepResolves w ks
+  · rfl
+  · exfalso
+    have := ((stepResolves_iff w ks).mp h).2 k hk
+    simp [keyClean, hi] at this
+
+/-- **An unknown field closes only when the spec knows it now.** -/
+theorem unknown_closes_only_when_known (w : Window) {k : String} (hc : classOf k = .unknownField)
+    (h : keyClean w k = true) : known (fieldOfKey k) = true := by
+  simp [keyClean, hc] at h
+  exact h.2
+
+/-- **Any other issue closes only after a window that read a line**: a window with no line closes none. -/
+theorem other_closes_only_after_lines (w : Window) {k : String} (hc : classOf k ≠ .unknownField)
+    (h : keyClean w k = true) : 0 < w.lines := by
+  simp [keyClean, hc] at h
+  exact h.2
+
+/-- An open step to re-check: its id, title, body and audience. -/
+structure OpenStep where
+  id : String
+  title : String
+  body : String
+  audience : Fw.Console.Audience
+
+/-- A step to close by itself: its id, the key of its `step.done` command and the note. -/
+structure Resolution where
+  step : String
+  key : String
+  note : String
+deriving Repr, DecidableEq
+
+/-- The key of the `step.done` command that resolves step `id` (one per step, so a repeat is a duplicate). -/
+def resolveKey (id : String) : String := "alert-resolve:" ++ id
+
+/-- A day count since 1970-01-01 as a (year, month, day) in the proleptic Gregorian calendar (the civil-from-days
+algorithm, valid for every day count).
+
+Which calendar date a day number is.
+-/
+def civil (z0 : Nat) : Nat × Nat × Nat :=
+  let z := z0 + 719468
+  let era := z / 146097
+  let doe := z % 146097
+  let yoe := (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365
+  let doy := doe - (365 * yoe + yoe / 4 - yoe / 100)
+  let mp := (5 * doy + 2) / 153
+  let d := doy - (153 * mp + 2) / 5 + 1
+  let m := if mp < 10 then mp + 3 else mp - 9
+  let y := yoe + era * 400
+  (if m ≤ 2 then y + 1 else y, m, d)
+
+/-- A number padded to two digits. -/
+def pad2 (n : Nat) : String := if n < 10 then s!"0{n}" else toString n
+
+/-- A time in milliseconds since the epoch as `YYYY-MM-DDTHH:MM:SSZ` (UTC). -/
+def isoUtc (ms : Nat) : String :=
+  let s := ms / 1000
+  let (y, m, d) := civil (s / 86400)
+  s!"{y}-{pad2 m}-{pad2 d}T{pad2 (s % 86400 / 3600)}:{pad2 (s % 3600 / 60)}:{pad2 (s % 60)}Z"
+
+/-- Why one key is clean, in plain words. -/
+def keyReason (w : Window) (k : String) : String :=
+  if classOf k == .unknownField then s!"{fieldOfKey k} is now a known field"
+  else s!"{k} did not occur in the latest sweep of {w.lines} lines"
+
+/-- The note of an automatic resolution: `resolved automatically at <time>: <reason>`, cut to the 200 units of an
+answer.
+-/
+def resolveNote (now : Nat) (w : Window) (ks : List String) : String :=
+  String.ofList (takeU16 200 (s!"resolved automatically at {isoUtc now}: {"; ".intercalate (ks.map (keyReason w))}").toList)
+
+/-- The note fits the contract's 200 units. -/
+theorem resolveNote_le (now : Nat) (w : Window) (ks : List String) : utf16Len (resolveNote now w ks) ≤ 200 := by
+  rw [utf16Len_eq]
+  unfold resolveNote
+  simp only [String.toList_ofList]
+  exact takeU16_le 200 _
+
+/-- **The spool steps to close by themselves**: each open step for the lead owned by the spool whose keys all re-check
+clean in the window, with a `step.done` key and a note.
+
+Close a spool alert when a re-check proves its cause gone.
+-/
+def resolveSpool (now : Nat) (w : Window) (steps : List OpenStep) : List Resolution :=
+  steps.filterMap fun s =>
+    if s.audience == .lead && Fw.Console.Alert.owner s.id == some spoolOwner then
+      let ks := spoolKeys s.title s.body
+      if stepResolves w ks then some ⟨s.id, resolveKey s.id, resolveNote now w ks⟩ else none
+    else none
+
+/-- **A resolution is sound**: it names an open lead step of the spool whose every key is clean in the window. -/
+theorem resolveSpool_sound {now : Nat} {w : Window} {steps : List OpenStep} {r : Resolution}
+    (h : r ∈ resolveSpool now w steps) :
+    ∃ s ∈ steps, s.audience = .lead ∧ Fw.Console.Alert.owner s.id = some spoolOwner ∧ r.step = s.id ∧
+      stepResolves w (spoolKeys s.title s.body) = true := by
+  obtain ⟨s, hs, hr⟩ := List.mem_filterMap.mp h
+  refine ⟨s, hs, ?_⟩
+  by_cases hc : (s.audience == .lead && Fw.Console.Alert.owner s.id == some spoolOwner) = true
+  · simp only [hc, ↓reduceIte] at hr
+    by_cases hk : stepResolves w (spoolKeys s.title s.body) = true
+    · simp only [hk, ↓reduceIte] at hr
+      cases hr
+      simp only [Bool.and_eq_true, beq_iff_eq] at hc
+      exact ⟨hc.1, hc.2, rfl, hk⟩
+    · simp [hk] at hr
+  · simp [hc] at hr
+
+/-- **A step for the owner is never closed by the script**: no resolution names a step whose audience is the user
+(a decision only the owner can make).
+-/
+theorem user_step_never_resolved (now : Nat) (w : Window) (steps : List OpenStep)
+    (h : ∀ s ∈ steps, s.audience = .user) : resolveSpool now w steps = [] := by
+  apply List.eq_nil_iff_forall_not_mem.mpr
+  intro r hr
+  obtain ⟨s, hs, hl, _⟩ := resolveSpool_sound hr
+  have := h s hs
+  rw [hl] at this
+  cases this
+
+/-- **A still-failing key keeps its step open**: a resolved step has no key that occurs in the window. -/
+theorem resolved_has_no_failing_key {now : Nat} {w : Window} {steps : List OpenStep} {r : Resolution}
+    (h : r ∈ resolveSpool now w steps) :
+    ∃ s ∈ steps, r.step = s.id ∧ ∀ k ∈ spoolKeys s.title s.body, k ∉ w.issues := by
+  obtain ⟨s, hs, _, _, hid, hk⟩ := resolveSpool_sound h
+  refine ⟨s, hs, hid, fun k hk' hi => ?_⟩
+  have := failing_never_closes w hk' hi
+  rw [hk] at this
+  cases this
+
 /-- **The spool alert**: none when there is no issue or a spool alert is still open; otherwise a step
-`alert-spool-<now>` titled with each issue and its count (`alertTitle`).
+`alert-spool-<now>` for the lead, with a plain title, a body (`spoolPlain`) and the issues with their counts in the details.
 
 Raise one alert for all spool problems, unless one is already open.
 -/
 def fieldAlert (now : Nat) (opn : List String) (cs : List (String × Nat)) :
-    Option (String × String × String) :=
+    Option (String × String × Fw.Console.Alert.Plain) :=
   if cs.isEmpty || opn.any (fun id => Fw.Console.Alert.owner id == some spoolOwner) then none
   else
     let id := Fw.Console.Alert.stepId (some spoolOwner) now
-    some (id, "alert:" ++ id, alertTitle cs)
+    some (id, "alert:" ++ id, spoolPlain cs)
 
 /-- A spool alert is raised exactly when there is an issue and no spool alert is open.
 
@@ -1158,5 +1434,56 @@ private def realStop : List (String × Val) :=
 #guard labelOf "i" (String.ofList (List.replicate 115 'n')) = none
 #guard admit (realStop.map fun p => if p.1 == "agent_id" then (p.1, .str (String.ofList (List.replicate 121 'i'))) else p) =
   .reject (.invalid "agent_id")
+
+-- plain spool alert (task alert-steps-plain): for the lead, plain title, identifiers only in the details
+#guard (spoolPlain [("session_pid:unknown", 1)]).audience == .lead
+#guard (spoolPlain [("session_pid:unknown", 1)]).title == "The log reader saw a field it does not know"
+#guard (spoolPlain [("session_pid:unknown", 1)]).body ==
+  "What happened: The log reader met a field it does not know.\n" ++
+  "Impact: Nothing is lost: the lines were still read; only the new field is not used by any rule yet.\n" ++
+  "Action (lead): Add the field to Fw.Ops.Obs.specs (lean/Fw/Ops/Obs.lean). This step closes by itself when a later sweep no longer shows these problems.\n" ++
+  "Details: session_pid:unknown x1"
+#guard (spoolPlain [("rejected:json", 2)]).title == "The log reader rejected some lines"
+#guard (spoolPlain [("sweep:lifeOf", 3)]).title == "A console background check failed"
+#guard (spoolPlain [("sweep:lifeOf", 3), ("rejected:json", 1)]).title == "The log reader found problems in some lines"
+#guard classes [("sweep:lifeOf", 3), ("rejected:json", 1), ("a:unknown", 1), ("lifeOf:error", 1)] == [.unknownField, .rejected, .sweep, .other]
+-- the longest body (all four classes, a cut details line) stays inside the 2000 units
+#guard utf16Len (spoolPlain (("lifeOf:error", 1) :: ("sweep:drain", 1) :: ("rejected:json", 1) ::
+  (List.range 80).map fun i => (s!"field{i}:unknown", i + 1))).body ≤ 2000
+#guard (detailsOf ((List.range 80).map fun i => (s!"field{i}:unknown", i + 1))).contains '…'
+-- the keys of a step: from the details line of a new step, from the title of a step posted before details existed
+#guard spoolKeys "t" (spoolPlain [("session_pid:unknown", 1), ("rejected:json", 2)]).body == ["session_pid:unknown", "rejected:json"]
+#guard spoolKeys "Spool lines need a look: session_pid:unknown x1; fix emit.mjs or Fw.Ops.Obs.specs, then press Done" "" == ["session_pid:unknown"]
+#guard spoolKeys "Spool lines need a look: sweep:lifeOf x3, rejected:json x1; fix emit.mjs or Fw.Ops.Obs.specs, then press Done" ""
+  == ["sweep:lifeOf", "rejected:json"]
+#guard spoolKeys "Drain threw in fwcore: sweep:lifeOf x3; see console-api log, then press Done" "" == ["sweep:lifeOf"]
+-- a cut or foreign list names no key: it never closes by itself
+#guard spoolKeys "t" (spoolPlain ((List.range 80).map fun i => (s!"field{i}:unknown", i + 1))).body == []
+#guard spoolKeys "Pick a number" "" == []
+#guard spoolKeys "t" "Details: not a list" == []
+-- the re-check
+private def stale : OpenStep := ⟨"alert-spool-1792389046068",
+  "Spool lines need a look: session_pid:unknown x1; fix emit.mjs or Fw.Ops.Obs.specs, then press Done", "", .lead⟩
+#guard keyClean ⟨0, []⟩ "session_pid:unknown"
+#guard !keyClean ⟨5, []⟩ "no_such_field:unknown"
+#guard !keyClean ⟨5, ["session_pid:unknown"]⟩ "session_pid:unknown"
+#guard !keyClean ⟨0, []⟩ "rejected:json"
+#guard keyClean ⟨1, []⟩ "rejected:json"
+#guard !keyClean ⟨7, ["rejected:json"]⟩ "rejected:json"
+#guard resolveSpool 1792500000000 ⟨0, []⟩ [stale] ==
+  [⟨"alert-spool-1792389046068", "alert-resolve:alert-spool-1792389046068",
+    "resolved automatically at 2026-10-20T12:40:00Z: session_pid is now a known field"⟩]
+-- a still-failing key, an unknown field the spec does not know, a user step and a step of another owner stay open
+#guard resolveSpool 5 ⟨3, ["session_pid:unknown"]⟩ [stale] == []
+#guard resolveSpool 5 ⟨3, []⟩ [{ stale with title := "Spool lines need a look: no_such_field:unknown x1; fix emit.mjs or Fw.Ops.Obs.specs, then press Done" }] == []
+#guard resolveSpool 5 ⟨3, []⟩ [{ stale with audience := .user }] == []
+#guard resolveSpool 5 ⟨3, []⟩ [{ stale with id := "alert-a1-9" }] == []
+#guard resolveSpool 5 ⟨0, []⟩ [{ stale with title := "Spool lines need a look: rejected:json x1; fix emit.mjs or Fw.Ops.Obs.specs, then press Done" }] == []
+#guard (resolveSpool 5000 ⟨2, []⟩ [{ stale with title := "Spool lines need a look: rejected:json x1; fix emit.mjs or Fw.Ops.Obs.specs, then press Done" }]).map (·.note)
+  == ["resolved automatically at 1970-01-01T00:00:05Z: rejected:json did not occur in the latest sweep of 2 lines"]
+#guard isoUtc 0 == "1970-01-01T00:00:00Z"
+#guard isoUtc 1792389046068 == "2026-10-19T05:50:46Z"
+#guard isoUtc 951782400000 == "2000-02-29T00:00:00Z"
+#guard isoUtc 4102444799000 == "2099-12-31T23:59:59Z"
 
 end Fw.Ops.Obs
