@@ -11178,7 +11178,8 @@
     "docs/team/handoffs/land-check-remote.md",
     "apps/runner/test/checks.test.ts",
     "apps/runner/src/land-tier*.ts"
-   ]
+   ],
+   "evidence": "47f37e0"
   },
   {
    "devices": [
@@ -11479,7 +11480,8 @@
     "apps/console-api/test/node-guard.test.ts",
     "lean/Fw/Ops/CheckMap.lean",
     ".github/actions/**"
-   ]
+   ],
+   "evidence": "65e79e7"
   },
   {
    "devices": [

@@ -54,11 +54,11 @@ imports it, so it decodes the card fields it needs itself).
 | `console.compose` | `registry` {parts [{id, slot, impls, variants [{name, kind, limit?}], requires, conflicts}], presets}, `ledger` [{part, candidate, status, flag?}], `picks`? [{part, variant}] | `regions`, `parts` (variants with class, why, ledger rows, refusal), `presets` (each with its decision), `decision` for `picks` (`link` only when allowed), `rules` (`Fw.Console.Compose.table`, `decide`; see `Fw.Wire.Compose`) |
 | `console.daemon` | `kind`: `start` (`recorded`? pid in api.json, `answered`? pid the health request reported, `alive`? whether the recorded pid exists), `stop` (same), `restart` (same), `rotate` (`size`, `limit`? default 5 MiB) | start: `allow`, `verified` (pid or null), `reason` (`ok`/`running`/`unverifiedAlive`); stop: `target` (the only pid to signal, or null), `reason` (`ok`/`notRunning`); restart: `steps` [{step: `stop`+`pid` / `start`}]; rotate: `rotate`, `limit`, `warn` (size above 50 MiB), `warnLimit` (`Fw.Console.Daemon.startAllowed`, `stopTarget`, `restartPlan`, `rotate`, `logWarns`) |
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
-| `console.landTier` | `ids` [check ids] | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept), `browser` (`browserRuns`: the selection holds the e2e-preview check) |
+| `console.landTier` | `ids` [check ids], `built`? (a fwcore build already ran, default false) | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept), `browser` (`browserRuns`: the selection holds the e2e-preview check), `build` (`needsBuild`: the local plan starts with the fwcore build) |
 | `console.landLeg` | `leg` (a land leg name), `ids` [selected check ids] | `ids` [the remote checks that leg runs, `Fw.Console.LandLegs.pickFor`], `engine` (`engineRuns`) |
 | `console.landLegs` | `results` [bool, one per leg] | `ok` (`Fw.Console.LandLegs.legsOk`: every leg passed, at least one leg) |
 | `console.landLegsVeto` | `results` [bool, one per non-guard job] or `null` (no per-job conclusions) | `veto` (`Fw.Console.LandLegs.legsVeto`: a `success` run with a leg that did not pass is refused; `null` or no leg says nothing) |
-| `console.landLane` | `exitOk`, `coreUser`, `skipped` (skipped plus todo tests the summary reports; `null` when no summary was recognised) | `verdict` (`pass`/`fail`/`skipped`/`unknown`), `ok` (`Fw.Console.LandTier.laneVerdict`) |
+| `console.landLane` | `exitOk`, `coreUser`, `skipped` (skipped plus todo tests the summary reports; `null` when no summary was recognised), `check`? (the check id; a summaryless id counts `skipped` as 0) | `verdict` (`pass`/`fail`/`skipped`/`unknown`), `ok` (`Fw.Console.LandTier.laneVerdict`), `skipped` (`effectiveSkipped`, the count used) |
 | `console.landRemote` | `localOk`, `needed`, `allow` [`github`/`circleci`, preference order], `want` {sha, laneId, laneDigest}, `waitsLeft`, `runs` [{provider, sha, laneId, laneDigest, state (`queued`/`running`/`pass`/`fail`/`cancelled`/`timeout`/`unavailable`)}] | `kind` (`accept`/`refuse`/`wait`/`try`/`local`), `reason` (the word on the VERDICT line), `ok`, `provider` (the one to try, else null) (`Fw.Console.LandRemote.verdict`) |
 | `console.landLaneState` | `exit` (`fw ci wait` exit code), `timedOut`? (its output said `timed out after`), `status`? and `conclusion`? (the run's own, from `gh run view`; empty when no view) | `state` (`Fw.Console.LandRemote.laneState`: a completed run with conclusion failure is `fail` whatever the exit; else the waiter's outcome) |
 | `console.landDigest` | `ids` [remote check ids] | `digest` (`Fw.Console.LandRemote.laneDigest`, tier remote) |
@@ -232,7 +232,11 @@ open Fw.Console.LandTier in
 def opLandTier (req : Json) : Except String Reply := do
   let ids ← strsD req "ids"
   let js (l : List String) : Json := .arr (l.toArray.map Json.str)
-  pure [("local", js (pick .onMac ids)), ("remote", js (pick .onCi ids)), ("browser", .bool (browserRuns ids))]
+  let built ← match opt req "built" with
+    | none | some .null => pure false
+    | some j => asBool "built" j
+  pure [("local", js (pick .onMac ids)), ("remote", js (pick .onCi ids)), ("browser", .bool (browserRuns ids)),
+    ("build", .bool (needsBuild built (pick .onMac ids)))]
 
 open Fw.Console.LandLegs in
 /-- `console.landLeg`: the remote checks one land leg runs and whether its browser engine runs (`Fw.Console.LandLegs`). -/
@@ -266,8 +270,12 @@ def opLandLane (req : Json) : Except String Reply := do
   let n ← match opt req "skipped" with
     | none | some .null => pure none
     | some _ => some <$> nat req "skipped"
-  let v := laneVerdict e c n
-  pure [("verdict", .str v.name), ("ok", .bool v.ok)]
+  let id ← match opt req "check" with
+    | none | some .null => pure ""
+    | some j => asStr "check" j
+  let k := effectiveSkipped id n
+  let v := laneVerdict e c k
+  pure [("verdict", .str v.name), ("ok", .bool v.ok), ("skipped", match k with | some m => .num m | none => .null)]
 
 open Fw.Console.LandRemote in
 /-- `console.landRemote`: the combined land verdict over the local tier and the normalized lane runs (`Fw.Console.LandRemote.verdict`). -/
