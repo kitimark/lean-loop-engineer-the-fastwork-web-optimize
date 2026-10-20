@@ -34,3 +34,19 @@ describe("Steps (task alert-steps-plain)", () => {
     expect(html([step("alert-spool-1", { audience: "lead" })])).toContain("Nothing needs you.");
   });
 });
+
+describe("review steps (task user-review-queue)", () => {
+  for (const [name, o] of [["waiting", {}], ["started", { status: "started" }], ["a choice", { kind: "choice", options: ["keep", "reject"] }],
+    ["a started choice", { kind: "choice", status: "started", options: ["keep", "reject"] }]] as const) {
+    it(`${name}: no Start, Done or answer button, a link to Your reviews`, () => {
+      const out = html([step("review-nav:earn-no-transition", { kind: "choice", options: ["keep", "reject"], ...o })]);
+      for (const b of [">Start<", ">Done<", ">keep<", ">reject<"]) expect(out).not.toContain(b);
+      expect(out).toContain('href="?tab=reviews"');
+      expect(out).toContain("title review-nav:earn-no-transition");
+    });
+  }
+  it("a re-posted review step (#1) is the same; another step still has its buttons", () => {
+    expect(html([step("review-nav:e#1", { kind: "choice", options: ["keep", "reject"] })])).not.toContain(">keep<");
+    expect(html([step("alert-x-1", { kind: "choice", options: ["a", "b"] })])).toContain(">a<");
+  });
+});

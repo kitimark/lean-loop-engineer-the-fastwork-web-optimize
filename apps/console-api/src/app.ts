@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { extname, join, normalize } from "node:path";
+import { dirname, extname, join, normalize } from "node:path";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { Command } from "@fw/contracts";
@@ -17,6 +17,7 @@ import { OwnerAuth } from "./preview/owner.ts";
 import { mountOwnerGate } from "./preview/gate.ts";
 import type { ReturnStore } from "./preview/return.ts";
 import { LoginGuard } from "./preview/login.ts";
+import { mountReviews } from "./review/routes.ts";
 
 /** Owner login and LAN mode (console-lan-owner): the login guard and whether LAN requests are possible at all. */
 export interface GateOptions { login: LoginGuard; lan: boolean; grants?: Grants; returns?: ReturnStore }
@@ -30,7 +31,7 @@ const MIME: Record<string, string> = {
  *  api.json also holds the build commit of the fwcore child (`coreCommit`, or `coreUnknown`). */
 export interface ServiceInfo { commit: string | null; startedAt: number }
 
-export function createApp(store: Store, webDist?: string, reconciler?: Reconciler, previews?: PreviewManager, owner: OwnerAuth = new OwnerAuth(), service?: ServiceInfo, gate?: GateOptions) {
+export function createApp(store: Store, webDist?: string, reconciler?: Reconciler, previews?: PreviewManager, owner: OwnerAuth = new OwnerAuth(), service?: ServiceInfo, gate?: GateOptions, reviewRoot: string = dirname(store.dir)) {
   const app = new Hono();
   // a failed core call (fwcore crash, bad reply) fails the request; the core restarts itself
   app.onError((e, c) => c.json({ ok: false, reason: `decision core failed: ${e.message}` }, 500));
@@ -78,6 +79,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   });
 
   mountOps(app, store);
+  mountReviews(app, store, reviewRoot); // Your reviews: Lean console.review items; Keep / Reject is the user's step.answer
   if (reconciler) mountReconcile(app, store, reconciler);
   const { drain, caps } = mountAgentRoutes(app, store); // capability-gated agent door + spool drain
   if (previews) mountPreview(app, store, caps, previews, owner, gate?.grants ? { grants: gate.grants, lan: gate.lan } : undefined); // task detail panel + owner-only preview (task-preview)

@@ -22,7 +22,7 @@ Open, Open compare and Copy link (Copy link is a separate step: it copies the li
 | Class | Meaning | Link |
 |---|---|---|
 | original | the faithful variant (kind `faithful`) | allowed |
-| refuted | a ledger row for this variant has status `refuted` | refused, reason names the finding |
+| refuted | a live ledger row for this variant has status `refuted` (a superseded row is not live) | refused, reason names the finding |
 | proved | in the `v2-proved` preset, same look | allowed |
 | look-change | the part's `provenance.limit` starts with `look change` | allowed |
 | ledger-proved | one or more rows speak of it and every one has status `proved`; the gate has not admitted it to `v2-proved` ("proved in the ledger, not yet admitted to v2-proved by the gate") | allowed |
@@ -42,6 +42,28 @@ row 41 (`engine.scene`, "hidden pause of compositor marquees (morph.columns ...)
 row 43 (`engine.scene`, "morph.countdown hidden: keep the spring integrating ..."). Checked against the real registry and
 ledger: `morph.columns:hidden-pause` was the only unrated variant, and now is `measured` (row 19 is `partly-proved`).
 
+## Superseded rows
+
+A ledger row may carry `supersededBy: <row id>`: the `id` of the later row that fixed or replaced it. Identity, not
+inference: Compose reads only that field. A superseded row counts for no class and never refutes (`classOf` is `classBy`
+over the live rows); the row it names joins the variant's rows by its `id` (`varRows`), whether or not its text matches
+the variant, and the card still lists the superseded row with its own words. Compose ignores a superseded row only when
+its `supersededBy` chain, followed through at most as many rows as the ledger has, reaches a live row (one with no
+`supersededBy`). A dangling id, a self-reference, a cycle, two rows with the same `id`, or a `supersededBy` that is not a
+string makes `console.compose` fail with the reason (`supersedeErrors`); it is never ignored.
+
+Rows marked (task compose-superseded-rows):
+
+| Row | supersededBy | Reason |
+|---|---|---|
+| `hero.exit.scoped.falsified` (refuted) | `hero.exit.scoped.inline` | the inline reader writes fixed the stale WebKit style cache this row found (its `next`: fResult model-bug cleared) |
+| `hero.exit.scoped` (partly-proved) | `hero.exit.scoped.inline` | it records the register-only code that row `hero.exit.scoped.falsified` refuted; the flag's code and proof are now the inline row's, the row the preset link table names for `hero.exit:scoped` |
+
+With these, `hero.exit:scoped` shows `ledger-proved` ("proved in the ledger, not yet admitted to v2-proved by the gate"), not
+`refuted`. Without the mark on row `hero.exit.scoped` (partly-proved) the live rows would be that row and the inline row,
+and the class would be `measured`. It is still not in `v2-proved`: the mac-webkit morph cell fails (task
+trajectory-close-start).
+
 Presets: an entry `variant@impl` whose impl is not the site default (`mui`) refuses the preset button (the composer has no
 impl pick, so its link would open the default impl). `implReasons` decides; the golden has a `plain-impl` preset.
 
@@ -52,7 +74,7 @@ refuted pick, or a `requires` or `conflicts` violation of the site registry (`Bu
 ## Proved
 
 `decide_link`, `refused_no_link`, `link_iff` (a link exists exactly when no reason does), `link_resolves` (an allowed link
-validates `.ok`), `link_no_refuted`, `link_known_picks`, `classOf_*` (each class and its precedence, `ledgerProved` included), `implReasons_nil_of_no_impl`, `entries_inj` and
+validates `.ok`), `link_no_refuted`, `link_known_picks`, `classOf_*` (each class and its precedence, `ledgerProved` included), `classOf_superseded_never_refutes` and `classOf_superseded_cons` (a superseded row changes no class), `classOf_no_superseded` and `varRows_no_superseded` (with no `supersededBy` the classes and rows are the old ones), `supersedeErrors_nil_iff` (no error exactly when every superseded row's chain reaches a live row and no two rows share an `id`), `supersedeErrors_nil_reaches` (with no error every superseded row reaches a live row among its successors), `supersedeErrors_cycle` and `supersedeErrors_self` (a cycle or a self-reference is an error), `varRows_reaches_live` (with no error a superseded row of a variant brings a live row into the variant's rows), `partOut_superseding` (with no error the card lists `varRows`, its class is `classOf` of the live rows among them, and each superseded row of the variant brings one of those live rows to the card), `implReasons_nil_of_no_impl`, `entries_inj` and
 `search_entries_inj` (two combinations with the same entries pick the same variant of every part), `ordered_nodup`.
 
 ## Stale replies

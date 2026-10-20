@@ -15,6 +15,7 @@ export type ComposeRegistry = {
 export type LedgerRow = {
   part: string; candidate: string; status: string; flag?: string | null; chromium?: string; webkit?: string; visual?: string; mechanism?: string;
   leanFor?: string[]; leanAgainst?: string[]; missingWhy?: string[]; premises?: string[]; v1Evidence?: string; lesson?: string; next?: string; id?: string; evidence?: string;
+  supersededBy?: string;
 };
 export type LedgerNote = { entry: string; task: string; field: string; text: string };
 export type ComposePick = { part: string; variant: string };
@@ -81,13 +82,17 @@ export type ComposeReply = Record<string, unknown> & {
   decision: { ok: boolean; link: string | null; reasons: string[]; notes: string[] };
 };
 
-/** Ask Lean `console.compose` over the registry, the ledger rows and the picks; attach the ledger text to the rows it names. */
+/** Ask Lean `console.compose` over the registry, the ledger rows (with `id` and `supersededBy` as written) and the picks; attach the
+ *  ledger text to the rows it names. */
 export async function composeReply(root: string, core: Pick<Core, "ops">, picks: ComposePick[]): Promise<Record<string, unknown>> {
   const registry = readComposeRegistry(root);
   const ledger = readLedger(root);
   const r = (await core.ops("console.compose", {
     registry, picks,
-    ledger: ledger.findings.map((x) => ({ part: x.part, candidate: x.candidate, status: x.status, ...(x.flag ? { flag: x.flag } : {}) })),
+    ledger: ledger.findings.map((x) => ({
+      part: x.part, candidate: x.candidate, status: x.status, ...(x.flag ? { flag: x.flag } : {}),
+      ...(x.id !== undefined ? { id: x.id } : {}), ...(x.supersededBy !== undefined ? { supersededBy: x.supersededBy } : {}),
+    })),
   })) as unknown as ComposeReply;
   const want = new Set<number>();
   for (const p of r.parts) { p.other.forEach((i) => want.add(i)); for (const v of p.variants) v.rows.forEach((i) => want.add(i)); }

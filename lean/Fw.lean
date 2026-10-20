@@ -111,6 +111,7 @@ import Fw.Guidance.Tasks
 import Fw.Guidance.Style
 import Fw.Guidance.Stability
 import Fw.Engine.Keys  -- model-checks: faithful run keys; a +search run never answers for the base
+import Fw.Engine.WebKitImage  -- image-audit: decode policy and the natural-pixels-times-repaints cost term
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
 import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
 import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
@@ -153,6 +154,7 @@ import Fw.Console.LandTier  -- land-lane: which checks run on the CI land lane (
 import Fw.Console.LandRemote  -- land-wait: provider-neutral remote land verdict (console.landRemote)
 import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request coalescing
 import Fw.Console.JournalFold  -- console-idle-cpu: journal cache, settled runs, safety tick
+import Fw.Console.Review  -- user-review-queue: pending look-change reviews as user steps
 import Fw.Console.LandPool -- land-pool-fair: fair-share floor under poolSize, wired into land.ts by console.landPool and console.landRetry
 import Fw.Land.RenderGuard  -- land-render-guard: refuse a land whose history writes a media file outside snapshot/ (console.landRenderGuard)
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)

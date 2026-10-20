@@ -11453,7 +11453,8 @@
     "lean/Fw/Engine/WebKitImage.lean",
     "research/notes/2026/10-2*-image-audit.md",
     "docs/team/handoffs/image-audit.md"
-   ]
+   ],
+   "evidence": "39bc979"
   },
   {
    "devices": [
@@ -11826,7 +11827,8 @@
     "research/findings/ledger.json",
     "docs/team/tools/review.md",
     "docs/team/handoffs/user-review-queue.md"
-   ]
+   ],
+   "evidence": "d9fc3a5"
   },
   {
    "devices": [
@@ -11845,7 +11847,8 @@
     "packages/contracts/golden/console/console.compose.jsonl",
     "docs/team/tools/compose.md",
     "docs/team/handoffs/compose-superseded-rows.md"
-   ]
+   ],
+   "evidence": "69fabee"
   },
   {
    "devices": [
@@ -11864,7 +11867,8 @@
     "scripts/hooks/**",
     "docs/team/tools/land.md",
     "docs/team/handoffs/ci-push-render-guard.md"
-   ]
+   ],
+   "evidence": "3e8a87e"
   },
   {
    "devices": [
@@ -11916,7 +11920,8 @@
     "apps/runner/src/land.ts",
     "apps/runner/test/land-inputs.test.ts",
     "docs/team/handoffs/land-inputs-dist.md"
-   ]
+   ],
+   "evidence": "2f58437"
   },
   {
    "devices": [
@@ -11953,7 +11958,8 @@
     "apps/runner/src/plan*.ts",
     "apps/runner/test/plan*.test.ts",
     "docs/team/handoffs/graph-schema-precommit.md"
-   ]
+   ],
+   "evidence": "c9b3b3f"
   },
   {
    "devices": [
@@ -11971,6 +11977,86 @@
     "packages/measure-webkit/src/images/**",
     "research/notes/2026/10-2*-image-arm-v2.md",
     "docs/team/handoffs/image-arm-v2.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "graph-check-lean",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "graph-schema-precommit"
+   ],
+   "title": "graph-schema-precommit review follow-ups: the checkmap's work-graph routing becomes a Lean CheckMap rule kind (lean/Fw/Ops/CheckMap.lean emits the graph check; golden line; drop the TS path literal in scripts/checkmap.mjs); --staged reads the index blob (git show :path) not the working tree; plan-check names duplicate task ids and non-object task entries; plan-check.test removes its temp dirs",
+   "writes": [
+    "lean/Fw/Ops/CheckMap.lean",
+    "packages/contracts/golden/ops/checkmap*.jsonl",
+    "scripts/checkmap*",
+    "apps/runner/src/plan-check.ts",
+    "apps/runner/test/plan-check.test.ts",
+    "docs/team/handoffs/graph-check-lean.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-lean-followups",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [
+    "user-review-queue"
+   ],
+   "title": "user-review-queue review follow-ups: theorem freshId_unused (the re-posted review step id is never on the board; pigeonhole over stepIdN); a step's open state comes from Lean StepStatus.isOpen through Fw.Wire.Review (drop the TS re-implementation in routes.ts ask()); review steps are marked from Lean ids, not the review- id prefix in App.tsx",
+   "writes": [
+    "lean/Fw/Console/Review*.lean",
+    "lean/Fw/Wire/Review.lean",
+    "packages/contracts/golden/console/review*.jsonl",
+    "apps/console-api/src/review/**",
+    "apps/console-api/test/review*.test.ts",
+    "apps/console-web/src/App.tsx",
+    "apps/console-web/test/steps-audience.test.tsx",
+    "docs/team/tools/review.md",
+    "docs/team/handoffs/review-lean-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-push-ref-lean",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "ci-push-render-guard"
+   ],
+   "title": "ci-push-render-guard review follow-up: the pre-push ref filter (skip refs/heads/main, skip deletions) is a Lean decision with a golden vector over (remote ref, local sha) cases instead of unproved TS in apps/runner/src/ci-push.ts",
+   "writes": [
+    "lean/Fw/Land/RenderGuard.lean",
+    "packages/contracts/golden/land/render-guard*.jsonl",
+    "apps/runner/src/ci-push.ts",
+    "apps/runner/test/ci-push*.test.ts",
+    "docs/team/handoffs/ci-push-ref-lean.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "run-cite-check",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [],
+   "title": "Mistake 2026-10-21 (waapi-nav-width-tail r1): run 39457767229 was cited as morph.tween:waapi evidence in a graph title, a builder note and a ledger draft, but every arm of it carried ?fw=hero.exit:faithful. Identity over inference: a check that maps a cited CI run id to the flags its trajectory/count artifacts actually carried (read from the artifact's search per arm, cached under .cache) and refuses a note, handoff or ledger row that cites a run for a flag it did not carry; Lean decides the match, TS only downloads",
+   "writes": [
+    "lean/Fw/Gate/RunCite.lean",
+    "packages/contracts/golden/gate/run-cite*.jsonl",
+    "scripts/run-cite*.mjs",
+    "scripts/run-cite*.test.mjs",
+    "docs/team/tools/run-cite.md",
+    "docs/team/handoffs/run-cite-check.md"
    ]
   }
  ],

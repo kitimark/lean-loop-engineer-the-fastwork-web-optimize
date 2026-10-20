@@ -5,7 +5,7 @@ import Fw.Console.Compose
 
 | op | request | reply |
 |---|---|---|
-| `console.compose` | `registry` {parts [{id, slot, impls, variants [{name, kind, limit?}] (head = default), requires {key: [keys]}, conflicts {key: [keys]}}], presets [{name, extends?, fw {part: variant or variant@impl}}]}, `ledger` [{part, candidate, status, flag?}], `picks`? [{part, variant}] | `regions` (page order), `parts` [{id, slot, group, pageLevel, variants [{name, kind, isDefault, class, why, rows (ledger indices), refusal}], other (ledger indices)}], `presets` [{name, picks, ok, link, reasons, notes}], `decision` {ok, link, reasons, notes} for `picks`, `rules` (the class names with their one-line reasons) (`Fw.Console.Compose.table`, `decide`) |
+| `console.compose` | `registry` {parts [{id, slot, impls, variants [{name, kind, limit?}] (head = default), requires {key: [keys]}, conflicts {key: [keys]}}], presets [{name, extends?, fw {part: variant or variant@impl}}]}, `ledger` [{part, candidate, status, flag?, id?, supersededBy?}] (an error unless each `supersededBy` chain reaches a row with none and each `id` is unique), `picks`? [{part, variant}] | `regions` (page order), `parts` [{id, slot, group, pageLevel, variants [{name, kind, isDefault, class, why, rows (ledger indices), refusal}], other (ledger indices)}], `presets` [{name, picks, ok, link, reasons, notes}], `decision` {ok, link, reasons, notes} for `picks`, `rules` (the class names with their one-line reasons) (`Fw.Console.Compose.table`, `decide`) |
 -/
 namespace Fw.Wire.Compose
 open Lean Fw.Wire.Ops Fw.Console.Compose Fw.Console.BuildsOpen
@@ -23,7 +23,14 @@ def pairs (k : String) : Json → Except String (List (String × String))
   | .obj kvs => kvs.toList.mapM fun kv => do pure (kv.1, ← asStr k kv.2)
   | _ => throw s!"field {k}: expected an object"
 
-/-- The parts, presets and ledger rows of a request. -/
+/-- An optional string field: absent is `none`, a value other than a string is an error. -/
+def strOpt (j : Json) (k : String) : Except String (Option String) :=
+  match opt j k with
+  | none => pure none
+  | some (.str s) => pure (some s)
+  | some _ => throw s!"field {k}: expected a string"
+
+/-- The parts, presets and ledger rows of a request; an error for each `supersedeErrors` entry. -/
 def facts (req : Json) : Except String (List PartInfo × List PresetFact × List LRow) := do
   let r ← field req "registry"
   let parts ← (← arrD r "parts").mapM fun p => do
@@ -39,8 +46,11 @@ def facts (req : Json) : Except String (List PartInfo × List PresetFact × List
             fw := ← (match opt p "fw" with | none => pure [] | some v => pairs "fw" v) } : PresetFact)
   let rows ← (← arrD req "ledger").mapM fun l => do
     pure ({ part := ← str l "part", candidate := ← str l "candidate", status := ← str l "status",
-            flag := (match opt l "flag" with | some (.str f) => some f | _ => none) } : LRow)
-  pure (parts, presets, rows)
+            flag := (match opt l "flag" with | some (.str f) => some f | _ => none),
+            id := ← strOpt l "id", supersededBy := ← strOpt l "supersededBy" } : LRow)
+  match supersedeErrors rows with
+  | [] => pure (parts, presets, rows)
+  | es => throw ("; ".intercalate es)
 
 /-- The decision as JSON. -/
 def decisionJson (d : Decision) : Json :=
