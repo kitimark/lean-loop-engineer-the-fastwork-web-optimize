@@ -5,8 +5,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serveTree } from './serve.mjs';
-import { bootDevice, launchSafari, openUrl, shutdownDevice, startProxy, proxyCheck, findDevice, findSockets, listTabs, sleep } from './sim.mjs';
-import { inspectorAction, InspectorDeadError } from './inspector.mjs';
+import { bootDevice, terminateSafari, startSafari, waitSocket, openUrl, shutdownDevice, startProxy, proxyCheck, probeInspector, findDevice, listTabs, sleep } from './sim.mjs';
+import { BOUNDS } from './inspector.mjs';
+import { createGuard, runSteps } from './guard.mjs';
+import { armFault, faultPlan } from './fault.mjs';
 import { openTab } from './wip.mjs';
 import { T, attempts } from './timeouts.mjs';
 import { ensureTab } from './poll.mjs';
@@ -49,9 +51,11 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
   } else root = snapshotRoot();
   const server = await serveTree(root, { vendors, mounts: { '/__fixtures': FIXTURES }, rewrite });
   log(`serving ${site ? 'the prerendered build ' + site.dir : 'the snapshot'} read-only at ${server.url}`);
-  let device = null, proxy = null, client = null, cleaned = false, relaunched = false, refusals = 0;
+  let device = null, proxy = null, client = null, cleaned = false, guard = null, fault = null;
   const cleanup = async () => {
     if (cleaned) return; cleaned = true;
+    guard?.stop();
+    fault?.stop();
     try { await client?.close(); } catch { /* ignore */ }
     try { await proxy?.stop(); } catch (e) { log(`proxy stop: ${e.message}`); }
     if (device && !keep) { try { shutdownDevice(device.udid, { log }); } catch (e) { log(`shutdown: ${e.message}`); } }
@@ -82,35 +86,53 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
     const ctx = {
       c: client, url: server.url + startPath.slice(1), base: server.url.replace(/\/$/, ''), root, device: { name: device.name }, log,
       setClient: (c2) => { client = c2; ctx.c = c2; },
-      // The proxy can die under host load (seen on a runner: ECONNREFUSED after a 1006 close): start it again, Safari still runs.
-      // When the inspector socket is gone or the proxy was refused twice in a row (Lean: Fw.Measure.SimBound), Safari is
-      // relaunched once; a second death ends the run with exit code 4 instead of waiting out every attempt.
-      ensureProxy: async () => {
-        let socket = true;
-        try { socket = findSockets().length > 0; } catch { /* lsof failed: not evidence of a dead inspector */ }
-        if (socket && proxy?.alive()) {
-          try { await proxyCheck(); refusals = 0; return; } catch (e) { if (/ECONNREFUSED/.test(e.message)) refusals++; }
-        } else if (socket) refusals++;
-        const action = inspectorAction(relaunched, socket, refusals);
-        if (action === 'giveUp') throw new InspectorDeadError(`the inspector is dead again after Safari was relaunched (${socket ? `proxy refused ${refusals} times` : 'no inspector socket'}); giving up`);
-        try { await proxy?.stop(); } catch { /* already gone */ }
-        proxy = null;
-        if (action === 'relaunch') {
-          log(`the inspector is dead (${socket ? `proxy refused ${refusals} times` : 'no inspector socket'}); relaunching Safari once`);
-          relaunched = true; refusals = 0;
-          try {
-            await launchSafari(device.udid, { log });
-            openUrl(device.udid, tabUrl);
-            proxy = await startProxy({ log });
-            await ensureTab({ list: listPageTabs, ask: () => openUrl(device.udid, tabUrl), timeoutMs: T(30000), log });
-          } catch (e) { throw new InspectorDeadError(`the inspector is dead and relaunching Safari failed: ${e.message}`); }
-          return;
-        }
-        log('the inspector proxy is gone or not answering; starting it again');
-        proxy = await startProxy({ log });
-      },
     };
-    return await fn(ctx);
+    // A dead inspector (Lean: Fw.Measure.SimBound): probed at the start of every attempt (ctx.check) and on every tick of the
+    // stall watchdog. Two failed probes in a row, or a gone socket: Safari is relaunched once; a second death ends the run
+    // with exit code 4. The relaunch steps run within the Lean bounds (BOUNDS), unscaled.
+    let deadReject = null;
+    const deadP = new Promise((_, rej) => { deadReject = rej; });
+    deadP.catch(() => {});
+    const phones = proxy.phones;
+    const restartProxy = async () => {
+      log('the inspector proxy is gone or not answering; starting it again');
+      try { await proxy?.stop(); } catch { /* already gone */ }
+      proxy = null;
+      proxy = await startProxy({ log, timeoutMs: BOUNDS.proxyMs - 5000, phones: phones, lsofMs: 5000 });
+    };
+    const relaunch = async () => {
+      try { client?.close().catch(() => {}); } catch { /* the page is gone with Safari */ } // not awaited: its close waits for a dead socket
+      await runSteps([
+        { name: 'terminate Safari', ms: BOUNDS.terminateMs, run: () => terminateSafari(device.udid, { timeoutMs: BOUNDS.terminateMs }) },
+        { name: 'launch Safari', ms: BOUNDS.launchMs, run: () => startSafari(device.udid, { log, timeoutMs: BOUNDS.launchMs, max: 1 }) },
+        { name: 'wait for the inspector socket', ms: BOUNDS.socketMs, run: () => waitSocket({ timeoutMs: BOUNDS.socketMs }) },
+        { name: 'start the proxy', ms: BOUNDS.proxyMs, run: async () => {
+          try { await proxy?.stop(); } catch { /* already gone */ }
+          proxy = null;
+          proxy = await startProxy({ log, timeoutMs: BOUNDS.proxyMs - 5000, phones, lsofMs: 5000 });
+        } },
+        // no openurl first: Safari restores its tab, and a second one would make `openTab` see two; one ask if none is listed
+        { name: 'wait for the Safari tab', ms: BOUNDS.tabMs + BOUNDS.askMs, run: () => ensureTab({
+          list: listPageTabs, ask: () => openUrl(device.udid, tabUrl, { timeoutMs: BOUNDS.askMs, max: 1 }), maxAsks: 1, timeoutMs: BOUNDS.tabMs, log }) },
+        { name: 'connect to the tab', ms: BOUNDS.connectMs, run: async () => { ctx.setClient(await openTab(server.url, { waitMs: BOUNDS.connectMs, log })); } },
+      ], { log });
+    };
+    guard = createGuard({
+      probe: () => probeInspector({ urlPrefix: server.url }), relaunch, repair: restartProxy, log, onDead: (e) => deadReject(e),
+    });
+    // The proxy can die under host load (seen on a runner: ECONNREFUSED after a 1006 close): a single failed probe starts it again.
+    ctx.check = () => guard.check('attempt').then(() => {});
+    ctx.ensureProxy = () => guard.check('reconnect', { repair: true }).then(() => {});
+    guard.start();
+    const plan = faultPlan();
+    if (plan) {
+      fault = armFault(plan, {
+        log,
+        kill: plan.kind === 'kill-safari' ? () => terminateSafari(device.udid, { timeoutMs: 20000 }) : () => proxy?.kill(),
+      });
+      log(`fault ${plan.kind} armed: the first kill comes ${plan.afterMs / 1000} s from now`);
+    }
+    return await Promise.race([fn(ctx), deadP]);
   } finally {
     await cleanup();
   }

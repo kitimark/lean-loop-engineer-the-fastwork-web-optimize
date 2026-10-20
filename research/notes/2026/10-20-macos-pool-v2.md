@@ -76,7 +76,7 @@ Forward base rate: 28 started jobs in 2.9 days, so about 10 jobs/day. Window sav
 | 1 | already on main: the intent guard (cb11bf12) and no main-push runs (14a17b94) | A, C, F on unwanted branches | 375 | holds |
 | 2 | already on main: the exit watchdog (9e5641cd) ends a finished process 20 s after its result | C | ~150 (5 x ~28 idle min; 1 MEASURED) | holds |
 | 3 | fail fast on a dead inspector. When a reconnect finds no inspector socket, or ECONNREFUSED twice, relaunch Safari and re-open the URL once (handoff ci-webkit.md item 6). If that fails, exit non-zero at once, without spending the remaining 120 s evaluate and 480 s tab waits per attempt | B | ~100-140 (INFERRED: 4 jobs ran 26-66 min; a fail-fast stop lands within ~10 min of the first death) | ~25-35 min per event, ~1 event per 3 days (INFERRED) |
-| 4 | lower the stall watchdog from 12 min (90 s x scale 8) to 6 min (FW_WK_STALL_MS=360000 in the workflow). The longest silence in 4 logs was 239 s (warm-up timeouts included) | B, unknown hangs | ~6 per stall event | small |
+| 4 | lower the stall watchdog from 12 min (90 s x scale 8) to 6 min (FW_WK_STALL_MS=360000 in the workflow). The longest silence in 5 logs was 259 s (warm-up timeouts included; run 39435518921) | B, unknown hangs | ~6 per stall event | small |
 | 5 | step `timeout-minutes` from the session count, ~30 min per session (`timeout-minutes` accepts expressions), instead of a fixed 50. 55 of 56 green jobs had a determinism step <= 31.1 min (max 39.3, likely a 2-session dispatch: INFERRED) | any future hang that #2/#4 miss | 15-20 per hang | backstop only |
 | 6 | skip the post-failure steps for cancelled jobs: `Keep logs` + `Shut down` + upload take 1-2 min | F | ~12 x 1.5 = 18 | small |
 

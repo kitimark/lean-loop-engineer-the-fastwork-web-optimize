@@ -47,6 +47,11 @@ on:
         description: Flags of the rewrite arm as part:variant,part:variant (parts increasing, each once; the store request field fw). Served as ?fw=...; the original arm never gets them. Needs target rewrite or both
         type: string
         default: ''
+      fault:
+        description: Fault injection for the fail-fast proof, off by default. kill-safari or kill-proxy starts killing Safari or the inspector proxy 120 s into the session and keeps killing; the run must end with exit 4 within the Lean bound (Fw.Measure.SimBound). A ci/* push sets it with a commit token (fault:kill-safari or fault:kill-proxy in square brackets)
+        type: choice
+        options: ['', kill-safari, kill-proxy]
+        default: ''
 
 permissions:
   contents: read
@@ -351,8 +356,10 @@ jobs:
           # may retry twice after a reconnect. Local runs use neither (defaults 1 and 2).
           FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
-          # stall watchdog: 6 min of silence (the longest healthy silence was 239 s); Lean's constant, via the plan
+          # stall watchdog: 6 min of silence (the longest healthy silence was 259 s); Lean's constant, via the plan
           FW_WK_STALL_MS: ${{ needs.plan.outputs.stall_ms }}
+          # fail-fast proof: the fault input, or the commit token of a ci/* push (a push carries no inputs); empty = no fault
+          FW_WK_FAULT: ${{ inputs.fault || (contains(github.event.head_commit.message, '[fault:kill-safari]') && 'kill-safari') || (contains(github.event.head_commit.message, '[fault:kill-proxy]') && 'kill-proxy') || '' }}
         working-directory: packages/measure-webkit
         run: |
           set -euo pipefail

@@ -156,8 +156,9 @@ def simPlanReq (target vms sessions preset fw experiment : String) : Json :=
     ("fw", .str fw), ("experiment", .str experiment), ("sha", .str "0123456789abcdef0123456789abcdef01234567")]
 
 /-- A `measure.inspector` request. -/
-def inspectorReq (relaunched socket : Bool) (refusals : Nat) : Json :=
-  Json.mkObj [("relaunched", .bool relaunched), ("socket", .bool socket), ("refusals", toJson refusals)]
+def inspectorReq (relaunched : Bool) (fails : Nat) (socket proxy page : Bool) : Json :=
+  Json.mkObj [("relaunched", .bool relaunched), ("fails", toJson fails), ("socket", .bool socket), ("proxy", .bool proxy),
+    ("page", .bool page)]
 
 /-- A one-frame zone record of a `measure.compose` run. -/
 def czone (id : String) (i : Nat) (sums : List (String × Int)) : Json :=
@@ -490,13 +491,17 @@ def cases (_ : Unit := ()) : List (String × List (String × Json)) := [
     ("four sessions: step 140 min", simPlanReq "original" "1" "4" "original" "" "determinism"),
     ("quiet keeps the fixed 50 min step whatever the sessions", simPlanReq "original" "1" "3" "original" "" "quiet")]),
   ("measure.inspector", [
-    ("socket present, proxy answers: proceed", inspectorReq false true 0),
-    ("one refusal: the proxy is started again", inspectorReq false true 1),
-    ("no socket, no relaunch yet: relaunch Safari", inspectorReq false false 0),
-    ("refused twice, no relaunch yet: relaunch Safari", inspectorReq false true 2),
-    ("no socket after the relaunch: give up", inspectorReq true false 0),
-    ("refused twice after the relaunch: give up", inspectorReq true true 3),
-    ("healthy after the relaunch: proceed", inspectorReq true true 0)]),
+    ("all three alive: proceed, count reset", inspectorReq false 1 true true true),
+    ("first failed probe (proxy refused or silent): proceed, count 1", inspectorReq false 0 true false true),
+    ("first failed probe (Safari gone, page tab missing): proceed, count 1", inspectorReq false 0 true true false),
+    ("second failed probe in a row (proxy): relaunch Safari", inspectorReq false 1 true false true),
+    ("second failed probe in a row (page tab missing): relaunch Safari", inspectorReq false 1 true true false),
+    ("no socket on the first probe: relaunch Safari", inspectorReq false 0 false true true),
+    ("no socket after the relaunch: give up", inspectorReq true 0 false true true),
+    ("second failed probe in a row after the relaunch (page tab missing): give up", inspectorReq true 1 true true false),
+    ("first failed probe after the relaunch: proceed", inspectorReq true 0 true false false),
+    ("healthy after the relaunch: proceed", inspectorReq true 1 true true true)]),
+  ("measure.simBounds", [("the time constants of the dead-inspector path", Json.mkObj [])]),
   ("measure.compose",
     let comb := carm [("a", "x"), ("b", "y")] 5 4 9 2
     let sa := carm [("a", "x"), ("b", "faithful")] 7 9 6 3

@@ -70,8 +70,8 @@ export function findDevice(name = DEVICE_NAME) {
 export const bootedDevices = () => listDevices().filter((d) => d.state === 'Booted');
 
 /** Webinspectord socket paths of the booted Simulators. */
-export function findSockets() {
-  const r = run('lsof', ['-aUc', 'launchd_sim', '-Fn'], { timeoutMs: 30000 });
+export function findSockets({ timeoutMs = 30000 } = {}) {
+  const r = run('lsof', ['-aUc', 'launchd_sim', '-Fn'], { timeoutMs });
   if (r.error) throw new Error(`lsof: ${r.error.code || r.error.message}`);
   return [...new Set(r.stdout.split('\n').filter((l) => l.startsWith('n') && l.endsWith('com.apple.webinspectord_sim.socket')).map((l) => l.slice(1)))];
 }
@@ -97,22 +97,35 @@ export async function bootDevice({ log = () => {} } = {}) {
   return { udid: d.udid, name: d.name, wasBooted };
 }
 
-/** Terminate Safari, launch it again and wait for the Simulator's web inspector socket. Throws when none appears. */
-export async function launchSafari(udid, { log = () => {} } = {}) {
-  // Safari restores the last session's tabs; terminate first so the run starts from the same state.
-  simctl(['terminate', udid, SAFARI]);
-  // under heavy host load a launch can time out; the device stays booted, so the policy asks again (transient errors only)
-  const l = simctlRetry(['launch', udid, SAFARI], { timeoutMs: T(90000) }, { log });
+/** Terminate Safari (it restores the last session's tabs, so a run starts from the same state). Never throws. */
+export const terminateSafari = (udid, { timeoutMs = 120000 } = {}) => simctl(['terminate', udid, SAFARI], { timeoutMs });
+
+/** Launch Safari. Under heavy host load a launch can time out; the device stays booted, so the default policy asks again. */
+export function startSafari(udid, { log = () => {}, timeoutMs = T(90000), max = 3 } = {}) {
+  const l = simctlRetry(['launch', udid, SAFARI], { timeoutMs }, { log, max });
   if (l.status !== 0) throw new Error(`simctl launch Safari failed: ${tail(l)}`);
-  for (let i = 0; i < T(60); i++) {
-    if (findSockets().length) return;
-    await sleep(500);
-  }
-  throw new Error(`Safari runs, but no web inspector socket appeared in ${Math.round(T(60) / 2)} s`);
 }
 
-export const openUrl = (udid, url) => {
-  const r = simctlRetry(['openurl', udid, url], { timeoutMs: T(120000) }, { max: 2 }); // blocked 77 s once on a loaded runner
+/** Wait for the Simulator's web inspector socket; throws when none appears in `timeoutMs`. */
+export async function waitSocket({ timeoutMs = T(30000) } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const left = deadline - Date.now();
+    if (findSockets({ timeoutMs: Math.max(1000, Math.min(5000, left)) }).length) return;
+    if (left <= 0) throw new Error(`Safari runs, but no web inspector socket appeared in ${Math.round(timeoutMs / 1000)} s`);
+    await sleep(500);
+  }
+}
+
+/** Terminate Safari, launch it again and wait for the Simulator's web inspector socket. Throws when none appears. */
+export async function launchSafari(udid, { log = () => {} } = {}) {
+  terminateSafari(udid);
+  startSafari(udid, { log });
+  await waitSocket();
+}
+
+export const openUrl = (udid, url, { timeoutMs = T(120000), max = 2 } = {}) => {
+  const r = simctlRetry(['openurl', udid, url], { timeoutMs }, { max }); // blocked 77 s once on a loaded runner
   if (r.status !== 0) throw new Error(`simctl openurl failed: ${tail(r)}`);
 };
 
@@ -146,24 +159,28 @@ export function phoneIds({ exec = run, tries = 3 } = {}) {
 /** Text of the proxy config: list port, every phone ignored, then the Simulator on the tabs port. */
 export const iwdpConfigText = (ids, { list, tabs }) => [`null:${list}`, ...[...new Set(ids)].map((u) => `${u}:-1`), `:${tabs}`].join('\n') + '\n';
 
-const getJson = async (port, path = '/json') => (await fetch(`http://127.0.0.1:${port}${path}`, { signal: AbortSignal.timeout(T(4000)) })).json();
+const getJson = async (port, path = '/json', timeoutMs = T(4000)) => (await fetch(`http://127.0.0.1:${port}${path}`, { signal: AbortSignal.timeout(timeoutMs) })).json();
 
 /** The proxy lists exactly the device SIMULATOR on the list port. */
-export async function proxyCheck(p = ports()) {
+export async function proxyCheck(p = ports(), { timeoutMs = T(4000) } = {}) {
   let j;
-  try { j = await getJson(p.list); } catch (e) { throw new Error(`proxy not reachable on :${p.list} (${e.cause?.code || e.message})`); }
+  try { j = await getJson(p.list, '/json', timeoutMs); } catch (e) { throw new Error(`proxy not reachable on :${p.list} (${e.cause?.code || e.message})`); }
   const ids = Array.isArray(j) ? j.map((d) => d?.deviceId) : [];
   if (ids.length !== 1 || ids[0] !== SIM_ID) throw new Error(`proxy lists ${ids.length} device(s), not exactly the Simulator`);
 }
 
-/** Start ios_webkit_debug_proxy against the Simulator. Returns { stop, ports, log }. */
-export async function startProxy({ log = () => {}, timeoutMs = T(20000) } = {}) {
+/**
+ * Start ios_webkit_debug_proxy against the Simulator. Returns { stop, kill, ports, phones, output, alive }.
+ * `phones`: the attached iPhones' ids when already known (a restart skips the idevice_id calls).
+ */
+export async function startProxy({ log = () => {}, timeoutMs = T(20000), phones = null, lsofMs = 30000 } = {}) {
   const p = ports();
-  const sockets = findSockets();
+  const sockets = findSockets({ timeoutMs: lsofMs });
   if (sockets.length !== 1) throw new Error(`expected one Simulator inspector socket, found ${sockets.length}`);
   const dir = mkdtempSync(join(tmpdir(), 'fw-wk-iwdp-'));
   const cfg = join(dir, 'iwdp.cfg');
-  writeFileSync(cfg, iwdpConfigText(phoneIds(), p), { mode: 0o600 });
+  const ids = phones ?? phoneIds();
+  writeFileSync(cfg, iwdpConfigText(ids, p), { mode: 0o600 });
   const child = spawn('ios_webkit_debug_proxy', ['-c', cfg, '-s', `unix:${sockets[0]}`, '-F'], { stdio: ['ignore', 'pipe', 'pipe'] });
   let out = '';
   for (const s of [child.stdout, child.stderr]) s.on('data', (d) => { out = (out + d).slice(-4000); });
@@ -181,7 +198,7 @@ export async function startProxy({ log = () => {}, timeoutMs = T(20000) } = {}) 
       await proxyCheck(p);
       await getJson(p.tabs);
       log(`proxy up: ${SIM_ID} on :${p.list}, tabs on :${p.tabs}`);
-      return { stop, ports: p, output: () => out, alive: () => !exited };
+      return { stop, kill: () => { if (!exited) child.kill('SIGKILL'); }, ports: p, phones: ids, output: () => out, alive: () => !exited };
     } catch (e) { if (/non-simulator|not exactly/.test(e.message)) { await stop(); throw e; } }
   }
   await stop();
@@ -189,4 +206,21 @@ export async function startProxy({ log = () => {}, timeoutMs = T(20000) } = {}) 
 }
 
 /** Tab list from the proxy (webSocketDebuggerUrl, url, title, appId). */
-export const listTabs = (p = ports()) => getJson(p.tabs);
+export const listTabs = (p = ports(), { timeoutMs = T(4000) } = {}) => getJson(p.tabs, '/json', timeoutMs);
+
+/**
+ * One liveness probe (Lean: `Probe`): does the proxy list exactly the Simulator, is a tab of the page listed, is the inspector
+ * socket there. Each HTTP call ends within `timeoutMs`; the socket is looked up (lsof, 5 s) only when the proxy or the tab
+ * failed, since a proxy that lists the Simulator and its tab has the socket. Never throws.
+ * @returns {Promise<{socket:boolean, proxy:boolean, page:boolean}>}
+ */
+export async function probeInspector({ urlPrefix, p = ports(), timeoutMs = 25000, sockets = () => findSockets({ timeoutMs: 5000 }) }) {
+  const [proxy, page] = await Promise.all([
+    proxyCheck(p, { timeoutMs }).then(() => true, () => false),
+    listTabs(p, { timeoutMs }).then((t) => Array.isArray(t) && t.some((x) => String(x?.url).startsWith(urlPrefix)), () => false),
+  ]);
+  if (proxy && page) return { socket: true, proxy, page };
+  let socket = true; // lsof failed: not evidence of a dead inspector
+  try { socket = sockets().length > 0; } catch { /* keep true */ }
+  return { socket, proxy, page };
+}

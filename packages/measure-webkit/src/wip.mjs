@@ -119,11 +119,14 @@ export async function openTab(urlPrefix, { waitMs = T(30000), p = ports(), log =
 
 /**
  * Drop the context's client and connect again. The old socket is closed and its close is awaited (so the proxy has
- * released the tab's inspector slot), then `openTab` polls until the tab is listed and answers: no fixed pause.
+ * released the tab's inspector slot), then `openTab` polls until the tab is listed and answers: no fixed pause. When
+ * `ensureProxy` relaunched Safari it has already connected a new client, which is kept.
  */
 export async function reconnect(ctx, { log = () => {}, waitMs = T(60000), openTabFn = openTab } = {}) {
-  try { await ctx.c.close(); } catch { /* closed */ }
+  const old = ctx.c;
+  try { await old.close(); } catch { /* closed */ }
   await ctx.ensureProxy?.();
+  if (ctx.c !== old) return; // Safari was relaunched: the relaunch connected to its one tab already
   ctx.setClient(await openTabFn(ctx.url, { waitMs, log }));
 }
 
