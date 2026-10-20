@@ -8,27 +8,27 @@ import Fw.Parts.EndFlags
 
 The WAAPI variant of morph.tween runs the tween as a CSS animation with the timing function
 `cubic-bezier(1/3, 1, 2/3, 1)`. This module proves that this curve *is* the original's ease
-$1-(1-s)^3$ (MT1), and bounds what the engines' numeric solver can change (MT2).
+`1-(1-s)^3` (MT1), and bounds what the engines' numeric solver can change (MT2).
 Design: `research/notes/2026/10-18-engine-proof-design.md` §0 and §4.1.
 
 Engine model, restated (not copied) from the pinned sources:
 
 * Chromium `ui/gfx/geometry/cubic_bezier.cc:50-56`@f842f52 and WebKit
   `Source/WebCore/platform/graphics/UnitBezier.h:45-51`@862f17d build the coefficients
-  $c = 3p_1$, $b = 3(p_2-p_1) - c$, $a = 1 - c - b$ for each axis and evaluate
-  $((a t + b) t + c) t$ (Horner; `cubic_bezier.h:23-37`@f842f52, `UnitBezier.h:94-108`@862f17d).
-* Both solve $X(t) = x$ by spline guess, at most 4 Newton steps with exit $|X(t)-x| < \min(10^{-7}, \varepsilon)$,
-  then bisection with exit $|X(t)-x| < \varepsilon$ (`cubic_bezier.cc:181-237`@f842f52,
-  `UnitBezier.h:111-160`@862f17d), and return $Y(t)$.
+  `c = 3p_1`, `b = 3(p_2-p_1) - c`, `a = 1 - c - b` for each axis and evaluate
+  `((a t + b) t + c) t` (Horner; `cubic_bezier.h:23-37`@f842f52, `UnitBezier.h:94-108`@862f17d).
+* Both solve `X(t) = x` by spline guess, at most 4 Newton steps with exit `|X(t)-x| < min(10^(-7), ε)`,
+  then bisection with exit `|X(t)-x| < ε` (`cubic_bezier.cc:181-237`@f842f52,
+  `UnitBezier.h:111-160`@862f17d), and return `Y(t)`.
 
 All values `Rat`; no `Float`. The IEEE double side (does `3.0*(1/3)` round to 1.0?) is checked by the
 golden test `apps/site/src/parts/morph.tween/curve.golden.test.ts` (gap R8).
 
 MT3 (`waapi_eq_tween`): with linear interpolation (R3), the exact curve (MT1) and a timeline whose clock is the
 rAF clock plus one constant `c` (R5; the start time is read from `document.timeline.currentTime`), the WAAPI value at
-every frame equals `MorphTween.tween` in $\mathbb{Q}$, over every push sequence. MT4 (`flags_same_frame`): the four
+every frame equals `MorphTween.tween` in `ℚ`, over every push sequence. MT4 (`flags_same_frame`): the four
 flags, as discrete keyframes at the eased-progress offset, flip on the same frame as the original's strict
-`>` tests, except at an exact tie $p = c$ (R3b: the engines flip at $p \ge c$). Visual (`waapi_vis`): the scene is
+`>` tests, except at an exact tie `p = c` (R3b: the engines flip at `p ≥ c`). Visual (`waapi_vis`): the scene is
 `VisSame E` for every env. MT-W (`waapi_work_le`): per tween frame the variant drops the script stage and keeps
 every other stage, in both engine tables (a custom property animates on the main thread in both). MT-R
 (`registrations_see`, `morph_scope_eq`): `--morph` and `--morph-fade` are registered inherited, so every reader below
@@ -45,31 +45,25 @@ open Fw.Parts.MorphTween
 
 /-! ## The cubic Bézier, two forms -/
 
-/-- One coordinate of a cubic Bézier from 0 to 1 with inner control coordinates $a, b$ (Bernstein form).
-
-$$\operatorname{bez}(a, b, s) = 3a\,s \cdot (1-s)^2 + 3b\,s^2 \cdot (1-s) + s^3$$
+/-- One coordinate of a cubic Bézier from 0 to 1 with inner control coordinates `a, b` (Bernstein form).
 
 The textbook curve with end points 0 and 1. -/
 def bez (a b s : Rat) : Rat := 3 * a * s * (1 - s) * (1 - s) + 3 * b * s * s * (1 - s) + s * s * s
 
 /-- Polynomial coefficients of one axis, as both engines store them.
 
-$$(c, b, a) \in \mathbb{Q}^3 \ \text{stands for}\ t \mapsto a t^3 + b t^2 + c t$$
-
 The three numbers an engine keeps per axis. -/
 structure Coeffs where
-  /-- coefficient of $t^1$ -/
+  /-- coefficient of `t^1` -/
   c : Rat
-  /-- coefficient of $t^2$ -/
+  /-- coefficient of `t^2` -/
   b : Rat
-  /-- coefficient of $t^3$ -/
+  /-- coefficient of `t^3` -/
   a : Rat
   deriving DecidableEq, Repr
 
 /-- The engines' coefficients of one axis from its inner control coordinates
 (`cubic_bezier.cc:50-56`@f842f52, `UnitBezier.h:45-51`@862f17d).
-
-$$\operatorname{coeffs}(p_1, p_2) = (c, b, a), \quad c = 3p_1,\quad b = 3(p_2 - p_1) - c,\quad a = 1 - c - b$$
 
 How Chromium and WebKit set up a curve axis. -/
 def coeffs (p1 p2 : Rat) : Coeffs :=
@@ -79,14 +73,10 @@ def coeffs (p1 p2 : Rat) : Coeffs :=
 
 /-- The engines' evaluation of one axis (Horner's rule; `cubic_bezier.h:23-37`@f842f52, `UnitBezier.h:94-108`@862f17d).
 
-$$\operatorname{horner}((c, b, a), t) = ((a t + b) t + c)\, t$$
-
 How the engines sample a curve axis. -/
 def horner (k : Coeffs) (t : Rat) : Rat := ((k.a * t + k.b) * t + k.c) * t
 
 /-- The engines' Horner form is the Bézier curve.
-
-$$\forall p_1, p_2, t \in \mathbb{Q}:\quad \operatorname{horner}(\operatorname{coeffs}(p_1, p_2), t) = \operatorname{bez}(p_1, p_2, t)$$
 
 The engine's polynomial and the textbook curve agree everywhere. -/
 theorem horner_eq_bez (p1 p2 t : Rat) : horner (coeffs p1 p2) t = bez p1 p2 t := by
@@ -95,19 +85,19 @@ theorem horner_eq_bez (p1 p2 t : Rat) : horner (coeffs p1 p2) t = bez p1 p2 t :=
 
 /-! ## The control points of the variant -/
 
-/-- First control point, x. $$p_{1x} = \tfrac13$$ One third. -/
+/-- First control point, x. One third. -/
 def p1x : Rat := 1 / 3
-/-- First control point, y. $$p_{1y} = 1$$ One. -/
+/-- First control point, y. One. -/
 def p1y : Rat := 1
-/-- Second control point, x. $$p_{2x} = \tfrac23$$ Two thirds. -/
+/-- Second control point, x. Two thirds. -/
 def p2x : Rat := 2 / 3
-/-- Second control point, y. $$p_{2y} = 1$$ One. -/
+/-- Second control point, y. One. -/
 def p2y : Rat := 1
 
-/-- The variant's timing curve, x axis. $$X(s) = \operatorname{bez}(\tfrac13, \tfrac23, s)$$ Time component of `cubic-bezier(1/3,1,2/3,1)`. -/
+/-- The variant's timing curve, x axis. Time component of `cubic-bezier(1/3,1,2/3,1)`. -/
 def curveX (s : Rat) : Rat := bez p1x p2x s
 
-/-- The variant's timing curve, y axis. $$Y(s) = \operatorname{bez}(1, 1, s)$$ Progress component of `cubic-bezier(1/3,1,2/3,1)`. -/
+/-- The variant's timing curve, y axis. Progress component of `cubic-bezier(1/3,1,2/3,1)`. -/
 def curveY (s : Rat) : Rat := bez p1y p2y s
 
 #guard curveX (1 / 2) == 1 / 2
@@ -116,18 +106,14 @@ def curveY (s : Rat) : Rat := bez p1y p2y s
 #guard coeffs p1x p2x == ⟨1, 0, 0⟩
 #guard coeffs p1y p2y == ⟨3, -3, 1⟩
 
-/-- The x coefficients are exactly $(1, 0, 0)$, so the engines' x axis is the identity.
-
-$$\operatorname{coeffs}(\tfrac13, \tfrac23) = (c_x, b_x, a_x) = (1, 0, 0)$$
+/-- The x coefficients are exactly `(1, 0, 0)`, so the engines' x axis is the identity.
 
 The exact-arithmetic side of the fp premise R8. -/
 theorem coeffs_x : coeffs p1x p2x = ⟨1, 0, 0⟩ := by
   simp only [coeffs, p1x, p2x, Coeffs.mk.injEq]
   exact ⟨by grind, by grind, by grind⟩
 
-/-- The y coefficients are $(3, -3, 1)$, so the engines evaluate $((t-3)t+3)t$.
-
-$$\operatorname{coeffs}(1, 1) = (c_y, b_y, a_y) = (3, -3, 1)$$
+/-- The y coefficients are `(3, -3, 1)`, so the engines evaluate `((t-3)t+3)t`.
 
 The progress polynomial the engines run. -/
 theorem coeffs_y : coeffs p1y p2y = ⟨3, -3, 1⟩ := by
@@ -136,20 +122,16 @@ theorem coeffs_y : coeffs p1y p2y = ⟨3, -3, 1⟩ := by
 
 /-! ## MT1: the curve is the ease -/
 
-/-- **MT1.** The control points $P_1 = (\tfrac13, 1)$, $P_2 = (\tfrac23, 1)$ give $X(s) = s$ and
-$Y(s) = 1-(1-s)^3$ for every rational $s$ (not only in $[0,1]$).
+/-- **MT1.** The control points `P_1 = (1/3, 1)`, `P_2 = (2/3, 1)` give `X(s) = s` and
+`Y(s) = 1-(1-s)^3` for every rational `s` (not only in `[0,1]`).
 
-$$\forall s \in \mathbb{Q}:\quad X(s) = s \ \wedge\ Y(s) = 3s \cdot (1-s)^2 + 3s^2 \cdot (1-s) + s^3 = 1 - (1-s)^3$$
-
-Over the rationals the curve is the polynomial $1-(1-s)^3$ with time as its own parameter; it equals the original's clamped ease on $[0,1]$ (`curveY_eq_ease`). -/
+Over the rationals the curve is the polynomial `1-(1-s)^3` with time as its own parameter; it equals the original's clamped ease on `[0,1]` (`curveY_eq_ease`). -/
 theorem bezier_eq_ease (s : Rat) :
     curveX s = s ∧ curveY s = 1 - (1 - s) * (1 - s) * (1 - s) := by
   simp only [curveX, curveY, bez, p1x, p2x, p1y, p2y]
   constructor <;> grind
 
 /-- **MT1, tied to `MorphTween.ease`.** On the unit interval the curve's y equals the original's ease.
-
-$$\forall s \in \mathbb{Q},\ 0 \le s \le 1:\quad Y(s) = \operatorname{ease}(s)$$
 
 On every progress the animation can reach, the WAAPI curve is the original's ease. -/
 theorem curveY_eq_ease (s : Rat) (h0 : 0 ≤ s) (h1 : s ≤ 1) : curveY s = ease s := by
@@ -158,10 +140,8 @@ theorem curveY_eq_ease (s : Rat) (h0 : 0 ≤ s) (h1 : s ≤ 1) : curveY s = ease
   unfold ease
   rw [hc]
 
-/-- **MT1 at a solver answer.** If the solver returns $t$ with $X(t) = x$ exactly and $0 \le x \le 1$, the engine
+/-- **MT1 at a solver answer.** If the solver returns `t` with `X(t) = x` exactly and `0 ≤ x ≤ 1`, the engine
 value is the ease.
-
-$$\forall t, x \in \mathbb{Q}:\quad X(t) = x \ \wedge\ 0 \le x \le 1 \implies Y(t) = \operatorname{ease}(x)$$
 
 An exact solve gives the original's value exactly. -/
 theorem solver_exact_zero (t x : Rat) (h : curveX t = x) (hx0 : 0 ≤ x) (hx1 : x ≤ 1) :
@@ -170,23 +150,19 @@ theorem solver_exact_zero (t x : Rat) (h : curveX t = x) (hx0 : 0 ≤ x) (hx1 : 
   subst ht
   exact curveY_eq_ease t hx0 hx1
 
-/-! ## MT2: the solver's tolerance costs at most $3\varepsilon$ -/
+/-! ## MT2: the solver's tolerance costs at most `3ε` -/
 
 /-- The y difference factors through the t difference.
 
-$$\forall t, x \in \mathbb{Q}:\quad Y(t) - Y(x) = (t - x)\,\bigl((1-t)^2 + (1-t)(1-x) + (1-x)^2\bigr)$$
-
-The bracket is a mean slope, bounded by 3 when $t, x \in [0,1]$ (`slope_mem`). -/
+The bracket is a mean slope, bounded by 3 when `t, x ∈ [0,1]` (`slope_mem`). -/
 theorem curveY_sub (t x : Rat) :
     curveY t - curveY x = (t - x) * ((1 - t) * (1 - t) + (1 - t) * (1 - x) + (1 - x) * (1 - x)) := by
   rw [(bezier_eq_ease t).2, (bezier_eq_ease x).2]
   grind
 
-/-- For $u, v \in [0,1]$, the mean slope $u^2 + uv + v^2$ lies in $[0, 3]$.
+/-- For `u, v ∈ [0,1]`, the mean slope `u^2 + uv + v^2` lies in `[0, 3]`.
 
-$$\forall u, v \in \mathbb{Q},\ 0 \le u \le 1,\ 0 \le v \le 1:\quad 0 \le u^2 + uv + v^2 \le 3$$
-
-The mean slope of $1-(1-s)^3$ between two points of the unit interval is between 0 and 3. -/
+The mean slope of `1-(1-s)^3` between two points of the unit interval is between 0 and 3. -/
 theorem slope_mem (u v : Rat) (hu0 : 0 ≤ u) (hu1 : u ≤ 1) (hv0 : 0 ≤ v) (hv1 : v ≤ 1) :
     0 ≤ u * u + u * v + v * v ∧ u * u + u * v + v * v ≤ 3 := by
   have huu : u * u ≤ u * 1 := Rat.mul_le_mul_of_nonneg_left hu1 hu0
@@ -197,10 +173,8 @@ theorem slope_mem (u v : Rat) (hu0 : 0 ≤ u) (hu1 : u ≤ 1) (hv0 : 0 ≤ v) (h
   have h3 : 0 ≤ v * v := Rat.mul_nonneg hv0 hv0
   grind
 
-/-- **MT2.** If the solver stops at $t \in [0,1]$ with $|X(t) - x| < \varepsilon$ for $x \in [0,1]$, the engine value
-$Y(t)$ is within $3\varepsilon$ of the original's ease (the bound $|Y'| \le 3$ on $[0,1]$).
-
-$$\forall t, x, \varepsilon \in \mathbb{Q}:\quad 0 \le t \le 1 \ \wedge\ 0 \le x \le 1 \ \wedge\ -\varepsilon < X(t) - x < \varepsilon \implies -3\varepsilon \le Y(t) - \operatorname{ease}(x) \le 3\varepsilon$$
+/-- **MT2.** If the solver stops at `t ∈ [0,1]` with `|X(t) - x| < ε` for `x ∈ [0,1]`, the engine value
+`Y(t)` is within `3ε` of the original's ease (the bound `|Y'| ≤ 3` on `[0,1]`).
 
 The solver's stopping tolerance moves the eased value by at most three times that tolerance. -/
 theorem solver_exact (t x ε : Rat) (ht0 : 0 ≤ t) (ht1 : t ≤ 1) (hx0 : 0 ≤ x) (hx1 : x ≤ 1)
@@ -227,29 +201,21 @@ open Fw.Engine
 
 /-- WebKit's interpolation of two numbers (R3, `AnimationUtilities.h:98-108`@862f17d).
 
-$$\forall a, b, p \in \mathbb{Q}:\quad \operatorname{interp}_{\mathrm{wk}}(a, b, p) = a + (b - a)\,p$$
-
 The start plus the eased share of the distance. -/
 def interpWk (a b p : Rat) : Rat := a + (b - a) * p
 
 /-- Blink's interpolation of two numbers (R3, `interpolable_value.cc:105-115`@f842f52).
 
-$$\forall a, b, p \in \mathbb{Q}:\quad \operatorname{interp}_{\mathrm{bl}}(a, b, p) = (1 - p)\,a + p\,b$$
-
 The weighted mean of the two ends. -/
 def interpBlink (a b p : Rat) : Rat := (1 - p) * a + p * b
 
-/-- In $\mathbb{Q}$ Blink's form equals WebKit's (in doubles they may differ in the last bit; that side is gap R8).
-
-$$\forall a, b, p \in \mathbb{Q}:\quad (1 - p)\,a + p\,b = a + (b - a)\,p$$
+/-- In `ℚ` Blink's form equals WebKit's (in doubles they may differ in the last bit; that side is gap R8).
 
 Both engines interpolate a registered number linearly. -/
 theorem interpBlink_eq_wk (a b p : Rat) : interpBlink a b p = interpWk a b p := by
   unfold interpBlink interpWk; grind
 
-/-- An unregistered custom property interpolates discretely: it flips at progress $\tfrac12$ (R3).
-
-$$\forall a, b, p \in \mathbb{Q}:\quad \operatorname{interp}_{\mathrm{disc}}(a, b, p) = \begin{cases} a & p < \tfrac12 \\ b & \text{otherwise} \end{cases}$$
+/-- An unregistered custom property interpolates discretely: it flips at progress `1/2` (R3).
 
 Without `@property` the morph would jump half way. -/
 def interpDiscrete (a b p : Rat) : Rat := if p < 1 / 2 then a else b
@@ -257,8 +223,6 @@ def interpDiscrete (a b p : Rat) : Rat := if p < 1 / 2 then a else b
 #guard interpDiscrete 0 1 (1 / 4) == 0 && interpWk 0 1 (1 / 4) == 1 / 4 && interpBlink 0 1 (1 / 4) == 1 / 4
 
 /-- The discrete form is not linear, so the premise `interp_lin` needs the `@property` registration.
-
-$$\operatorname{interp}_{\mathrm{disc}}(0, 1, \tfrac14) = 0 \ne \tfrac14 = \operatorname{interp}_{\mathrm{wk}}(0, 1, \tfrac14)$$
 
 An unregistered `--morph` breaks MT3. -/
 theorem discrete_not_linear : interpDiscrete 0 1 (1 / 4) ≠ interpWk 0 1 (1 / 4) := by
@@ -269,47 +233,41 @@ of a moment minus its rAF/`performance.now()` time. It is 0 in both engines (R5 
 `document_timeline.cc:150-157`, WebKit `DocumentTimeline.cpp:58-60`) and one constant per run under the lane's clock
 shim, which fakes `performance.now()` but not `document.timeline`.
 
-$$\mathcal{P} = (c, \iota, \tau, \mathrm{tl}, \mathrm{sr}) \text{ with } \forall a, b, p \in \mathbb{Q}:\ \iota(a, b, p) = a + (b - a)\,p;\quad \forall x \in \mathbb{Q},\ 0 \le x \le 1:\ \tau(x) = Y(x);\quad \forall R \in \mathbb{Q}:\ \mathrm{tl}(R) = R + c;\quad \forall n \in \mathbb{Q}:\ \mathrm{sr}(n) = n + c$$
-
 Linear interpolation, the exact curve, and one clock offset shared by frames and start reads. -/
 structure WaapiPremises where
-  /-- the timeline offset $c$ -/
+  /-- the timeline offset `c` -/
   c : Rat
-  /-- the engine's number interpolation $\iota(a, b, p)$ -/
+  /-- the engine's number interpolation `ι(a, b, p)` -/
   interp : Rat → Rat → Rat → Rat
   /-- R3, registered `<number>`: linear (`interpBlink_eq_wk`) -/
   interp_lin : ∀ a b p, interp a b p = a + (b - a) * p
-  /-- the effect's timing function $\tau$ -/
+  /-- the effect's timing function `τ` -/
   timing : Rat → Rat
-  /-- MT1 with an exact solve: $\tau = Y$ on $[0,1]$ (the solver error is MT2, the double side R8) -/
+  /-- MT1 with an exact solve: `τ = Y` on `[0,1]` (the solver error is MT2, the double side R8) -/
   timing_eq : ∀ x, 0 ≤ x → x ≤ 1 → timing x = curveY x
-  /-- the timeline time of the frame whose rAF timestamp is $R$ -/
+  /-- the timeline time of the frame whose rAF timestamp is `R` -/
   tl : Rat → Rat
-  /-- R5: frames see the timeline at their rAF time plus $c$ -/
+  /-- R5: frames see the timeline at their rAF time plus `c` -/
   tl_eq : ∀ R, tl R = R + c
-  /-- the start time the variant reads from `document.timeline.currentTime` at a push whose `performance.now()` is $n$ -/
+  /-- the start time the variant reads from `document.timeline.currentTime` at a push whose `performance.now()` is `n` -/
   startRead : Rat → Rat
-  /-- R5 in the lead's form: the read is the push time plus the same $c$ -/
+  /-- R5 in the lead's form: the read is the push time plus the same `c` -/
   start_eq : ∀ n, startRead n = n + c
 
-/-- The premises hold for WebKit's form with any offset $c$ (so they are consistent).
-
-$$\forall c \in \mathbb{Q}:\quad \mathcal{P}_{\mathrm{wk}}(c) = (c, \operatorname{interp}_{\mathrm{wk}}, Y, R \mapsto R + c, n \mapsto n + c)$$
+/-- The premises hold for WebKit's form with any offset `c` (so they are consistent).
 
 One model of the premises. -/
 def premisesWk (c : Rat) : WaapiPremises :=
   ⟨c, interpWk, fun _ _ _ => rfl, curveY, fun _ _ _ => rfl, (· + c), fun _ => rfl, (· + c), fun _ => rfl⟩
 
-/-- The premises hold for Blink's form with any offset $c$.
-
-$$\forall c \in \mathbb{Q}:\quad \mathcal{P}_{\mathrm{bl}}(c) = (c, \operatorname{interp}_{\mathrm{bl}}, Y, R \mapsto R + c, n \mapsto n + c)$$
+/-- The premises hold for Blink's form with any offset `c`.
 
 The other model of the premises. -/
 def premisesBlink (c : Rat) : WaapiPremises :=
   ⟨c, interpBlink, interpBlink_eq_wk, curveY, fun _ _ _ => rfl, (· + c), fun _ => rfl, (· + c), fun _ => rfl⟩
 
-/-- One WAAPI animation of `--morph`: from, to, start time on the timeline. $$(f, t, \sigma) \in \mathbb{Q}^3$$
-Keyframes $f \to t$ over 680 ms from timeline time $\sigma$. -/
+/-- One WAAPI animation of `--morph`: from, to, start time on the timeline.
+Keyframes `f → t` over 680 ms from timeline time `σ`. -/
 structure Anim where
   /-- the from keyframe -/
   f : Rat
@@ -319,31 +277,25 @@ structure Anim where
   st : Rat
 deriving Repr, DecidableEq
 
-/-- Iteration progress at timeline time $T$ with `fill: 'both'`: 0 before the start, 1 after the end.
-
-$$\forall \sigma, T \in \mathbb{Q}:\quad \operatorname{prog}(\sigma, T) = \operatorname{clamp}_{[0,1]}\!\big((T - \sigma)/680\big)$$
+/-- Iteration progress at timeline time `T` with `fill: 'both'`: 0 before the start, 1 after the end.
 
 The share of the 680 ms elapsed, held at the ends. -/
 def progress (st T : Rat) : Rat := clamp01 ((T - st) / duration)
 
-/-- The animated value at timeline time $T$: interpolate the keyframes at the eased progress.
-
-$$\forall \mathcal{P},\ \forall a \in \mathrm{Anim},\ \forall T \in \mathbb{Q}:\quad \operatorname{val}_{\mathcal{P}}(a, T) = \iota\big(a.f,\ a.t,\ \tau(\operatorname{prog}(a.\sigma, T))\big)$$
+/-- The animated value at timeline time `T`: interpolate the keyframes at the eased progress.
 
 What the engine writes into `--morph` on that frame. -/
 def valA (P : WaapiPremises) (a : Anim) (T : Rat) : Rat := P.interp a.f a.t (P.timing (progress a.st T))
 
-/-- Clamping twice is clamping once. $$\forall x \in \mathbb{Q}:\ \operatorname{clamp}_{[0,1]}(\operatorname{clamp}_{[0,1]}(x)) = \operatorname{clamp}_{[0,1]}(x)$$
+/-- Clamping twice is clamping once.
 The clamp is idempotent. -/
 theorem clamp01_idem (x : Rat) : clamp01 (clamp01 x) = clamp01 x := by unfold clamp01; grind
 
-/-- The ease clamps its argument itself. $$\forall x \in \mathbb{Q}:\ \operatorname{ease}(\operatorname{clamp}_{[0,1]}(x)) = \operatorname{ease}(x)$$
+/-- The ease clamps its argument itself.
 Pre-clamping changes nothing. -/
 theorem ease_clamp (x : Rat) : ease (clamp01 x) = ease x := by unfold ease; rw [clamp01_idem]
 
-/-- The tween's value in closed form: the done branch is the same formula at $\operatorname{ease} = 1$.
-
-$$\forall f, t, e \in \mathbb{Q}:\quad \operatorname{tween}(f, t, e).v = f + (t - f)\,\operatorname{ease}(e / 680)$$
+/-- The tween's value in closed form: the done branch is the same formula at `ease = 1`.
 
 One formula for the whole tween. -/
 theorem tween_value_eq (f t e : Rat) : (tween f t e).value = f + (t - f) * ease (e / duration) := by
@@ -355,11 +307,9 @@ theorem tween_value_eq (f t e : Rat) : (tween f t e).value = f + (t - f) * ease 
     rw [← ease_clamp, h1]; unfold ease clamp01; grind
   · simp only [ease_clamp]
 
-/-- The eased progress of an animation started by a push at $n$, seen by the frame at $R$, is the original's ease.
+/-- The eased progress of an animation started by a push at `n`, seen by the frame at `R`, is the original's ease.
 
-$$\forall \mathcal{P},\ \forall n, R \in \mathbb{Q}:\quad \tau\big(\operatorname{prog}(\mathrm{sr}(n), \mathrm{tl}(R))\big) = \operatorname{ease}\big((R - n)/680\big)$$
-
-The offset $c$ cancels and the curve is the ease. -/
+The offset `c` cancels and the curve is the ease. -/
 theorem timing_progress (P : WaapiPremises) (n R : Rat) :
     P.timing (progress (P.startRead n) (P.tl R)) = ease ((R - n) / duration) := by
   unfold progress
@@ -369,10 +319,8 @@ theorem timing_progress (P : WaapiPremises) (n R : Rat) :
   have hm := clamp01_mem ((R - n) / duration)
   rw [P.timing_eq _ hm.1 hm.2, curveY_eq_ease _ hm.1 hm.2, ease_clamp]
 
-/-- **The value function, one frame.** An animation from $f$ to $t$ started by a push at $n$ shows, on the frame at
-$R$, exactly the original's tween value.
-
-$$\forall \mathcal{P},\ \forall f, t, n, R \in \mathbb{Q}:\quad \operatorname{val}_{\mathcal{P}}\big((f, t, \mathrm{sr}(n)), \mathrm{tl}(R)\big) = \operatorname{tween}(f, t, R - n).v$$
+/-- **The value function, one frame.** An animation from `f` to `t` started by a push at `n` shows, on the frame at
+`R`, exactly the original's tween value.
 
 Same push, same frame, same number. -/
 theorem valA_eq (P : WaapiPremises) (f t n R : Rat) :
@@ -380,8 +328,8 @@ theorem valA_eq (P : WaapiPremises) (f t n R : Rat) :
   unfold valA
   rw [timing_progress, P.interp_lin, tween_value_eq]
 
-/-- An input event: a taken push toward $g$ (reduced motion `rm`, `performance.now()` $n$), or an animation frame
-with rAF timestamp $R$. $$\mathrm{Ev} = \{\mathrm{push}(g, \mathit{rm}, n) \mid g, n \in \mathbb{Q},\ \mathit{rm} \in \mathbb{B}\} \cup \{\mathrm{tick}(R) \mid R \in \mathbb{Q}\}$$
+/-- An input event: a taken push toward `g` (reduced motion `rm`, `performance.now()` `n`), or an animation frame
+with rAF timestamp `R`.
 What happens to the morph over time. -/
 inductive Ev where
   | push (g : Rat) (rm : Bool) (n : Rat)
@@ -390,37 +338,35 @@ deriving Repr, DecidableEq
 
 /-- The original's step: a push is `MorphTween.push`; a frame runs the tween iff a frame was requested.
 
-$$\operatorname{step}_o(s, \mathrm{push}(g, \mathit{rm}, n)) = \operatorname{push}(s, g, \mathit{rm}, n),\qquad \operatorname{step}_o(s, \mathrm{tick}(R)) = \begin{cases} \operatorname{frame}(s, R) & s.n \\ s & \text{otherwise} \end{cases}$$
-
 The rAF loop of the original. -/
 def stepO (s : St) : Ev → St
   | .push g rm n => push s g rm n
   | .tick R => if s.pending then frame s R else s
 
-/-- The original's state after a list of events. $$\forall s, \forall E \in \mathrm{Ev}^{*}:\ \operatorname{run}_o(s, E) = \operatorname{foldl}(\operatorname{step}_o, s, E)$$
+/-- The original's state after a list of events.
 Replay the events. -/
 def runO (s : St) (es : List Ev) : St := es.foldl stepO s
 
 /-- The variant's script state: target, aim, the running animation (none after a reduced-motion jump), the base value
-without an animation, and the value the last frame showed. $$w = (w.\mathrm{tg}, w.\mathrm{aim}, w.\mathrm{an}, w.\mathrm{base}, w.\mathrm{cur}) \in \mathbb{Q}^2 \times \mathrm{Option}(\mathrm{Anim}) \times \mathbb{Q}^2$$
+without an animation, and the value the last frame showed.
 No per-frame script. -/
 structure VSt where
-  /-- the target $w.\mathrm{tg}$ -/
+  /-- the target `w.tg` -/
   target : Rat
-  /-- where the running animation aims, $w.\mathrm{aim}$ -/
+  /-- where the running animation aims, `w.aim` -/
   aim : Rat
-  /-- the running animation $w.\mathrm{an}$ -/
+  /-- the running animation `w.an` -/
   anim : Option Anim
-  /-- the value without an animation $w.\mathrm{base}$ -/
+  /-- the value without an animation `w.base` -/
   base : Rat
-  /-- the value the last frame showed $w.\mathrm{cur}$ -/
+  /-- the value the last frame showed `w.cur` -/
   cur : Rat
 deriving Repr, DecidableEq
 
-/-- The variant at rest. $$w_0 = (0, 0, \bot, 0, 0)$$ Before any push. -/
+/-- The variant at rest. Before any push. -/
 def initV : VSt := ⟨0, 0, none, 0, 0⟩
 
-/-- The variant's `--morph` at timeline time $T$. $$\forall \mathcal{P}, w, T:\ \operatorname{val}_{\mathcal{P}}(w, T) = \begin{cases} w.\mathrm{base} & w.\mathrm{an} = \bot \\ \operatorname{val}_{\mathcal{P}}(a, T) & w.\mathrm{an} = a \end{cases}$$
+/-- The variant's `--morph` at timeline time `T`.
 The animation's value, or the base without one. -/
 def valV (P : WaapiPremises) (w : VSt) (T : Rat) : Rat :=
   match w.anim with
@@ -428,10 +374,8 @@ def valV (P : WaapiPremises) (w : VSt) (T : Rat) : Rat :=
   | some a => valA P a T
 
 /-- The variant's step. A push to the current target and aim is a no-op; a reduced-motion push drops the animation
-and sets the value; any other push starts a new animation from the last frame's value to $g$, its start read from
+and sets the value; any other push starts a new animation from the last frame's value to `g`, its start read from
 the timeline. A frame only records what the engine shows (no script runs).
-
-$$\operatorname{step}_v(w, \mathrm{push}(g, \mathit{rm}, n)) = \begin{cases} w & w.\mathrm{tg} = g \land w.\mathrm{aim} = g \\ w\{\mathrm{tg}, \mathrm{aim}, \mathrm{base}, \mathrm{cur} := g;\ \mathrm{an} := \bot\} & \text{else if } \mathit{rm} \\ w\{\mathrm{tg}, \mathrm{aim} := g;\ \mathrm{an} := (w.\mathrm{cur}, g, \mathrm{sr}(n))\} & \text{otherwise} \end{cases},\qquad \operatorname{step}_v(w, \mathrm{tick}(R)) = w\{\mathrm{cur} := \operatorname{val}_{\mathcal{P}}(w, \mathrm{tl}(R))\}$$
 
 The TS variant's push handler, and the engine's frame. -/
 def stepV (P : WaapiPremises) (w : VSt) : Ev → VSt
@@ -441,23 +385,19 @@ def stepV (P : WaapiPremises) (w : VSt) : Ev → VSt
     else { w with target := g, aim := g, anim := some ⟨w.cur, g, P.startRead n⟩ }
   | .tick R => { w with cur := valV P w (P.tl R) }
 
-/-- The variant's state after a list of events. $$\forall \mathcal{P}, w, E:\ \operatorname{run}_v(w, E) = \operatorname{foldl}(\operatorname{step}_v, w, E)$$
+/-- The variant's state after a list of events.
 Replay the events. -/
 def runV (P : WaapiPremises) (w : VSt) (es : List Ev) : VSt := es.foldl (stepV P) w
 
-/-- Frame times never go back: every frame time is at least $\ell$ and at least the previous frame time.
+/-- Frame times never go back: every frame time is at least `ℓ` and at least the previous frame time.
 
-$$\operatorname{mono}(\ell, [\,]) = \top,\quad \operatorname{mono}(\ell, \mathrm{push}(\ldots) :: E) = \operatorname{mono}(\ell, E),\quad \operatorname{mono}(\ell, \mathrm{tick}(R) :: E) = (\ell \le R) \land \operatorname{mono}(R, E)$$
-
-rAF timestamps are nondecreasing; push times are free. -/
+RAF timestamps are nondecreasing; push times are free. -/
 def monoB : Rat → List Ev → Bool
   | _, [] => true
   | l, .push _ _ _ :: es => monoB l es
   | l, .tick R :: es => decide (l ≤ R) && monoB R es
 
-/-- The simulation invariant between the original $s$ and the variant $w$, with $\ell$ the last frame time.
-
-$$\forall \mathcal{P},\ \forall \ell \in \mathbb{Q},\ \forall s \in \mathrm{St},\ \forall w \in \mathrm{VSt}:\quad \operatorname{Inv}_{\mathcal{P}}(\ell, s, w) \iff w.\mathrm{tg} = s.w \land w.\mathrm{aim} = s.a \land w.\mathrm{cur} = s.r \land \big(s.n \Rightarrow w.\mathrm{an} = (s.i, s.a, \mathrm{sr}(s.o))\big) \land \Big(\lnot s.n \Rightarrow (w.\mathrm{an} = \bot \land w.\mathrm{base} = s.r) \lor \exists f \in \mathbb{Q}:\ w.\mathrm{an} = (f, s.a, \mathrm{sr}(s.o)) \land s.r = s.a \land s.o + 680 \le \ell\Big)$$
+/-- The simulation invariant between the original `s` and the variant `w`, with `ℓ` the last frame time.
 
 A running tween is the running animation; a finished one has filled forwards to its target. -/
 def Inv (P : WaapiPremises) (l : Rat) (s : St) (w : VSt) : Prop :=
@@ -466,14 +406,12 @@ def Inv (P : WaapiPremises) (l : Rat) (s : St) (w : VSt) : Prop :=
     (s.pending = false → (w.anim = none ∧ w.base = s.value) ∨
       ∃ f, w.anim = some ⟨f, s.t, P.startRead s.start⟩ ∧ s.value = s.t ∧ s.start + duration ≤ l)
 
-/-- Both start related. $$\forall \mathcal{P},\ \forall \ell \in \mathbb{Q}:\ \operatorname{Inv}_{\mathcal{P}}(\ell, s_0, w_0)$$
+/-- Both start related.
 Rest matches rest. -/
 theorem inv_init (P : WaapiPremises) (l : Rat) : Inv P l rest initV := by
   unfold Inv rest initV; simp
 
 /-- A push keeps the invariant.
-
-$$\forall \mathcal{P},\ \forall \ell, s, w, g, \mathit{rm}, n:\quad \operatorname{Inv}_{\mathcal{P}}(\ell, s, w) \Rightarrow \operatorname{Inv}_{\mathcal{P}}\big(\ell,\ \operatorname{step}_o(s, \mathrm{push}(g, \mathit{rm}, n)),\ \operatorname{step}_v(w, \mathrm{push}(g, \mathit{rm}, n))\big)$$
 
 The new animation starts where the original's tween starts. -/
 theorem inv_push (P : WaapiPremises) (l : Rat) (s : St) (w : VSt) (g : Rat) (rm : Bool) (n : Rat)
@@ -492,9 +430,7 @@ theorem inv_push (P : WaapiPremises) (l : Rat) (s : St) (w : VSt) (g : Rat) (rm 
     · simp only [ite_true]
       refine ⟨rfl, rfl, rfl, fun h => by simp at h, fun _ => Or.inl ⟨rfl, rfl⟩⟩
 
-/-- A frame at $R \ge \ell$ keeps the invariant, with $R$ the new last frame time.
-
-$$\forall \mathcal{P},\ \forall \ell, R, s, w:\quad \operatorname{Inv}_{\mathcal{P}}(\ell, s, w) \land \ell \le R \Rightarrow \operatorname{Inv}_{\mathcal{P}}\big(R,\ \operatorname{step}_o(s, \mathrm{tick}(R)),\ \operatorname{step}_v(w, \mathrm{tick}(R))\big)$$
+/-- A frame at `R ≥ ℓ` keeps the invariant, with `R` the new last frame time.
 
 Each frame shows the same value. -/
 theorem inv_tick (P : WaapiPremises) (l R : Rat) (s : St) (w : VSt) (h : Inv P l s w) (hl : l ≤ R) :
@@ -526,8 +462,6 @@ theorem inv_tick (P : WaapiPremises) (l R : Rat) (s : St) (w : VSt) (h : Inv P l
 
 /-- The invariant along any run whose frame times never go back, with the rest of the history still monotone.
 
-$$\forall \mathcal{P},\ \forall E, \ell, s, w, E':\quad \operatorname{Inv}_{\mathcal{P}}(\ell, s, w) \land \operatorname{mono}(\ell, E \mathbin{+\!\!+} E') \Rightarrow \exists \ell' \in \mathbb{Q}:\ \operatorname{Inv}_{\mathcal{P}}\big(\ell', \operatorname{run}_o(s, E), \operatorname{run}_v(w, E)\big) \land \operatorname{mono}(\ell', E')$$
-
 Induction over the events. -/
 theorem inv_run (P : WaapiPremises) :
     ∀ (es : List Ev) (l : Rat) (s : St) (w : VSt) (es' : List Ev), Inv P l s w → monoB l (es ++ es') = true →
@@ -541,10 +475,8 @@ theorem inv_run (P : WaapiPremises) :
     exact inv_run P es R _ _ es' (inv_tick P l R s w h hm.1) hm.2
 
 /-- **MT3 `waapi_eq_tween`.** Over every push sequence and every frame time (frames nondecreasing from any bound
-$\ell$), the value the variant's animation shows equals the original tween's value, exactly in $\mathbb{Q}$, under the
-premises $\mathcal{P}$ (linear interpolation, exact curve, timeline = rAF clock + $c$ for frames and start reads).
-
-$$\forall \mathcal{P},\ \forall E \in \mathrm{Ev}^{*},\ \forall \ell \in \mathbb{Q}:\quad \operatorname{mono}(\ell, E) \Rightarrow \operatorname{run}_v(w_0, E).\mathrm{cur} = \operatorname{run}_o(s_0, E).r$$
+`ℓ`), the value the variant's animation shows equals the original tween's value, exactly in `ℚ`, under the
+premises `P` (linear interpolation, exact curve, timeline = rAF clock + `c` for frames and start reads).
 
 The WAAPI animation and the rAF tween agree on every frame. -/
 theorem waapi_eq_tween (P : WaapiPremises) (es : List Ev) (l : Rat) (hm : monoB l es = true) :
@@ -552,11 +484,9 @@ theorem waapi_eq_tween (P : WaapiPremises) (es : List Ev) (l : Rat) (hm : monoB 
   obtain ⟨_, h, _⟩ := inv_run P es l rest initV [] (inv_init P l) (by simpa using hm)
   exact h.2.2.1
 
-/-- MT3 at a frame: the value the engine computes for the frame at $R$ after the events $E$.
+/-- MT3 at a frame: the value the engine computes for the frame at `R` after the events `E`.
 
-$$\forall \mathcal{P},\ \forall E, R, \ell:\quad \operatorname{mono}(\ell, E \mathbin{+\!\!+} [\mathrm{tick}(R)]) \Rightarrow \operatorname{val}_{\mathcal{P}}\big(\operatorname{run}_v(w_0, E), \mathrm{tl}(R)\big) = \operatorname{run}_o(s_0, E \mathbin{+\!\!+} [\mathrm{tick}(R)]).r$$
-
-The frame at $R$ shows the original's number. -/
+The frame at `R` shows the original's number. -/
 theorem waapi_frame_eq (P : WaapiPremises) (es : List Ev) (R l : Rat) (hm : monoB l (es ++ [.tick R]) = true) :
     valV P (runV P initV es) (P.tl R) = (runO rest (es ++ [.tick R])).value := by
   have := waapi_eq_tween P (es ++ [.tick R]) l hm
@@ -569,39 +499,29 @@ theorem waapi_frame_eq (P : WaapiPremises) (es : List Ev) (R l : Rat) (hm : mono
 
 /-! ## MT4: the flags flip on the same frame, except at an exact tie -/
 
-/-- A discrete keyframe pair `[0: a, c: a, c: b, 1: b]` at eased progress $p$: both engines give $b$ iff $p \ge c$
+/-- A discrete keyframe pair `[0: a, c: a, c: b, 1: b]` at eased progress `p`: both engines give `b` iff `p ≥ c`
 (R3b, inclusive; Blink `keyframe_effect.cc:719,724`, WebKit the same).
-
-$$\forall c, p \in \mathbb{Q},\ \forall a, b \in \mathbb{B}:\quad \operatorname{flip}(c, a, b, p) = \begin{cases} a & p < c \\ b & \text{otherwise} \end{cases}$$
 
 Before the offset the first value, from the offset on the second. -/
 def flipAt (c : Rat) (a b : Bool) (p : Rat) : Bool := if p < c then a else b
 
-/-- The eased progress at which the linear value $f + (t - f)\,p$ reaches $\theta$ (in $\mathbb{Q}$, $x / 0 = 0$).
-
-$$\forall \theta, f, t \in \mathbb{Q}:\quad \kappa(\theta, f, t) = \frac{\theta - f}{t - f}$$
+/-- The eased progress at which the linear value `f + (t - f) p` reaches `θ` (in `ℚ`, `x / 0 = 0`).
 
 Where the morph crosses the flag's threshold. -/
 def kfOffset (θ f t : Rat) : Rat := (θ - f) / (t - f)
 
-/-- The variant's flag for threshold $\theta$ on an animation from $f$ to $t$: a discrete keyframe at offset
-$\operatorname{clamp}_{[0,1]}(\kappa)$ from the start's flag to the end's flag.
+/-- The variant's flag for threshold `θ` on an animation from `f` to `t`: a discrete keyframe at offset
+`clamp_([0,1])(κ)` from the start's flag to the end's flag.
 
-$$\forall \theta, f, t, p \in \mathbb{Q}:\quad \operatorname{flag}_v(\theta, f, t, p) = \operatorname{flip}\big(\operatorname{clamp}_{[0,1]}(\kappa(\theta, f, t)),\ [f > \theta],\ [t > \theta],\ p\big)$$
-
-The flag the engine applies at eased progress $p$. -/
+The flag the engine applies at eased progress `p`. -/
 def flagV (θ f t p : Rat) : Bool := flipAt (clamp01 (kfOffset θ f t)) (decide (f > θ)) (decide (t > θ)) p
 
-/-- The original's flag at eased progress $p$: the strict test on the tween's value.
-
-$$\forall \theta, f, t, p \in \mathbb{Q}:\quad \operatorname{flag}_o(\theta, f, t, p) = [\,f + (t - f)\,p > \theta\,]$$
+/-- The original's flag at eased progress `p`: the strict test on the tween's value.
 
 What the rAF loop computes. -/
 def flagO (θ f t p : Rat) : Bool := decide (f + (t - f) * p > θ)
 
-/-- Rising: the value passes $\theta$ exactly when the progress passes the offset.
-
-$$\forall \theta, f, t, x \in \mathbb{Q}:\quad f < t \Rightarrow \big(f + (t - f)\,x > \theta \iff \kappa(\theta, f, t) < x\big)$$
+/-- Rising: the value passes `θ` exactly when the progress passes the offset.
 
 Above the threshold iff past the offset. -/
 theorem up_iff (θ f t x : Rat) (hd : f < t) : f + (t - f) * x > θ ↔ kfOffset θ f t < x := by
@@ -609,9 +529,7 @@ theorem up_iff (θ f t x : Rat) (hd : f < t) : f + (t - f) * x > θ ↔ kfOffset
   rw [Rat.div_lt_iff (by grind)]
   grind
 
-/-- Falling: the value is above $\theta$ exactly before the offset.
-
-$$\forall \theta, f, t, x \in \mathbb{Q}:\quad t < f \Rightarrow \big(f + (t - f)\,x > \theta \iff x < \kappa(\theta, f, t)\big)$$
+/-- Falling: the value is above `θ` exactly before the offset.
 
 Above the threshold iff not yet at the offset. -/
 theorem down_iff (θ f t x : Rat) (hd : t < f) : f + (t - f) * x > θ ↔ x < kfOffset θ f t := by
@@ -620,12 +538,10 @@ theorem down_iff (θ f t x : Rat) (hd : t < f) : f + (t - f) * x > θ ↔ x < kf
   rw [this, Rat.lt_div_iff (by grind)]
   grind
 
-/-- A flat animation has offset 0. $$\forall \theta, f \in \mathbb{Q}:\ \kappa(\theta, f, f) = 0$$ Division by zero is 0 in $\mathbb{Q}$. -/
+/-- A flat animation has offset 0. Division by zero is 0 in `ℚ`. -/
 theorem kfOffset_flat (θ f : Rat) : kfOffset θ f f = 0 := by unfold kfOffset; grind
 
-/-- Rising through $\theta$, the offset lies in $[0, 1)$, so the clamp keeps it.
-
-$$\forall \theta, f, t \in \mathbb{Q}:\quad f \le \theta < t \Rightarrow 0 \le \kappa(\theta, f, t) < 1 \land \operatorname{clamp}_{[0,1]}(\kappa(\theta, f, t)) = \kappa(\theta, f, t)$$
+/-- Rising through `θ`, the offset lies in `[0, 1)`, so the clamp keeps it.
 
 A crossing inside the animation. -/
 theorem kfOffset_mem (θ f t : Rat) (hf : f ≤ θ) (ht : θ < t) :
@@ -636,9 +552,7 @@ theorem kfOffset_mem (θ f t : Rat) (hf : f ≤ θ) (ht : θ < t) :
   refine ⟨by grind, by grind, ?_⟩
   unfold clamp01; grind
 
-/-- **Below the tie** (rising through $\theta$, progress before the offset): both flags are off.
-
-$$\forall \theta, f, t, p \in \mathbb{Q}:\quad f \le \theta < t \land p < \kappa(\theta, f, t) \Rightarrow \operatorname{flag}_v(\theta, f, t, p) = \bot \land \operatorname{flag}_o(\theta, f, t, p) = \bot$$
+/-- **Below the tie** (rising through `θ`, progress before the offset): both flags are off.
 
 Strictly before the crossing nobody has flipped. -/
 theorem flag_below_tie (θ f t p : Rat) (hf : f ≤ θ) (ht : θ < t) (hp : p < kfOffset θ f t) :
@@ -649,10 +563,8 @@ theorem flag_below_tie (θ f t p : Rat) (hf : f ≤ θ) (ht : θ < t) (hp : p < 
   rw [hk.2.2]
   refine ⟨by simp [hp]; grind, by simp; grind⟩
 
-/-- **The tie** (rising through $\theta$, progress exactly at the offset): the variant has flipped (R3b, $p \ge c$),
-the original has not (the value equals $\theta$ and the test is strict $>$).
-
-$$\forall \theta, f, t, p \in \mathbb{Q}:\quad f \le \theta < t \land p = \kappa(\theta, f, t) \Rightarrow \operatorname{flag}_v(\theta, f, t, p) = \top \land \operatorname{flag}_o(\theta, f, t, p) = \bot$$
+/-- **The tie** (rising through `θ`, progress exactly at the offset): the variant has flipped (R3b, `p ≥ c`),
+the original has not (the value equals `θ` and the test is strict `>`).
 
 The one frame where they differ. -/
 theorem flag_tie (θ f t p : Rat) (hf : f ≤ θ) (ht : θ < t) (hp : p = kfOffset θ f t) :
@@ -663,9 +575,7 @@ theorem flag_tie (θ f t p : Rat) (hf : f ≤ θ) (ht : θ < t) (hp : p = kfOffs
   rw [hk.2.2]
   refine ⟨by simp; grind, by simp; grind⟩
 
-/-- **Above the tie** (rising through $\theta$, progress past the offset): both flags are on.
-
-$$\forall \theta, f, t, p \in \mathbb{Q}:\quad f \le \theta < t \land \kappa(\theta, f, t) < p \Rightarrow \operatorname{flag}_v(\theta, f, t, p) = \top \land \operatorname{flag}_o(\theta, f, t, p) = \top$$
+/-- **Above the tie** (rising through `θ`, progress past the offset): both flags are on.
 
 Strictly after the crossing both have flipped. -/
 theorem flag_above_tie (θ f t p : Rat) (hf : f ≤ θ) (ht : θ < t) (hp : kfOffset θ f t < p) :
@@ -676,11 +586,9 @@ theorem flag_above_tie (θ f t p : Rat) (hf : f ≤ θ) (ht : θ < t) (hp : kfOf
   rw [hk.2.2]
   refine ⟨by simp; grind, by simp; grind⟩
 
-/-- **MT4 `flags_same_frame`.** For eased progress $p \in [0,1]$ the variant's discrete-keyframe flag equals the
-original's strict test, except at an exact tie: rising through $\theta$ ($f \le \theta < t$) with $p = \kappa$.
-Falling and flat animations have no tie (at $p = \kappa$ falling, the value is $\theta$ and both are off).
-
-$$\forall \theta, f, t, p \in \mathbb{Q}:\quad 0 \le p \le 1 \land \lnot\big(f \le \theta \land \theta < t \land p = \kappa(\theta, f, t)\big) \Rightarrow \operatorname{flag}_v(\theta, f, t, p) = \operatorname{flag}_o(\theta, f, t, p)$$
+/-- **MT4 `flags_same_frame`.** For eased progress `p ∈ [0,1]` the variant's discrete-keyframe flag equals the
+original's strict test, except at an exact tie: rising through `θ` (`f ≤ θ < t`) with `p = κ`.
+Falling and flat animations have no tie (at `p = κ` falling, the value is `θ` and both are off).
 
 Same flag on every frame but the exact crossing frame of a rising flag. -/
 theorem flags_same_frame (θ f t p : Rat) (hp0 : 0 ≤ p) (hp1 : p ≤ 1)
@@ -733,8 +641,6 @@ theorem flags_same_frame (θ f t p : Rat) (hp0 : 0 ≤ p) (hp1 : p ≤ 1)
 
 /-- At the end of an animation the variant's flag is the target's flag.
 
-$$\forall \theta, f, t \in \mathbb{Q}:\quad \operatorname{flag}_v(\theta, f, t, 1) = [\,t > \theta\,]$$
-
 A finished animation fills forwards to the end keyframe. -/
 theorem flagV_one (θ f t : Rat) : flagV θ f t 1 = decide (t > θ) := by
   unfold flagV flipAt
@@ -743,8 +649,6 @@ theorem flagV_one (θ f t : Rat) : flagV θ f t 1 = decide (t > θ) := by
   simp only [h, ite_false]
 
 /-- The threshold test on the ease, without the clamp (for frames of a running tween).
-
-$$\forall \theta, x \in \mathbb{Q}:\quad 0 \le x \le 1 \Rightarrow \big(\operatorname{ease}(x) > \theta \iff (1 - x)^3 < 1 - \theta\big)$$
 
 A flag on the eased progress is a bound on the cube. -/
 theorem ease_gt_iff (θ x : Rat) (h0 : 0 ≤ x) (h1 : x ≤ 1) :
@@ -760,18 +664,14 @@ theorem ease_gt_iff (θ x : Rat) (h0 : 0 ≤ x) (h1 : x ≤ 1) :
 
 /-! ### The four flags of morph.tween -/
 
-/-- The thresholds the original tests the morph value against, strictly: on-dark ($m > \tfrac15$, `NavHitTest.isOnDark`),
-expanded ($m > \tfrac{23}{25}$), pointer-none ($\operatorname{fade}(m) < \tfrac1{20} \iff m > \tfrac{209}{400}$) and
-active ($m > \tfrac1{1000}$).
-
-$$\Theta = [\tfrac15,\ \tfrac{23}{25},\ \tfrac{209}{400},\ \tfrac1{1000}]$$
+/-- The thresholds the original tests the morph value against, strictly: on-dark (`m > 1/5`, `NavHitTest.isOnDark`),
+expanded (`m > 23/25`), pointer-none (`fade(m) < 1/20 ⇔ m > 209/400`) and
+active (`m > 1/1000`).
 
 One discrete keyframe track per threshold. -/
 def thresholds : List Rat := [1 / 5, 23 / 25, 209 / 400, activeCut]
 
 /-- Pointer-none is a strict threshold flag.
-
-$$\forall m \in \mathbb{Q}:\quad \operatorname{pointerNone}(m) = [\,m > \tfrac{209}{400}\,]$$
 
 The fade test is a value test. -/
 theorem pointerNone_eq (m : Rat) : pointerNone m = decide (m > 209 / 400) := by
@@ -780,18 +680,14 @@ theorem pointerNone_eq (m : Rat) : pointerNone m = decide (m > 209 / 400) := by
 
 /-- The fade the variant computes in CSS, `calc(1 - min(1, var(--morph) / 0.55))`, is the original's fade.
 
-$$\forall m \in \mathbb{Q}:\quad \operatorname{fade}(m) = 1 - \min\!\big(1,\ m / 0.55\big)$$
-
 No script needed for the fade. -/
 theorem fade_css (m : Rat) : fade m = 1 - min 1 (m / (55 / 100)) := by
   unfold fade fadeEnd
   have : (55 / 100 : Rat) = 11 / 20 := by grind
   rw [this]
 
-/-- The variant's flag for threshold $\theta$ at timeline time $T$: the reduced-motion base value's flag without an
+/-- The variant's flag for threshold `θ` at timeline time `T`: the reduced-motion base value's flag without an
 animation, else the discrete keyframe at the animation's eased progress.
-
-$$\forall \mathcal{P}, w, \theta, T:\quad \operatorname{flag}_{\mathcal{P}}(w, \theta, T) = \begin{cases} [\,w.\mathrm{base} > \theta\,] & w.\mathrm{an} = \bot \\ \operatorname{flag}_v\big(\theta, a.f, a.t, \tau(\operatorname{prog}(a.\sigma, T))\big) & w.\mathrm{an} = a \end{cases}$$
 
 What the engine shows for one flag. -/
 def flagW (P : WaapiPremises) (w : VSt) (θ T : Rat) : Bool :=
@@ -799,19 +695,15 @@ def flagW (P : WaapiPremises) (w : VSt) (θ T : Rat) : Bool :=
   | none => decide (w.base > θ)
   | some a => flagV θ a.f a.t (P.timing (progress a.st T))
 
-/-- A tie at the frame $R$ for threshold $\theta$, read off the original's state $s$ before that frame: a running
-tween rising through $\theta$ whose eased progress at $R$ is exactly the offset.
-
-$$\forall s, \theta, R:\quad \operatorname{tie}(s, \theta, R) \iff s.n \land s.i \le \theta < s.a \land \operatorname{ease}\big((R - s.o)/680\big) = \kappa(\theta, s.i, s.a)$$
+/-- A tie at the frame `R` for threshold `θ`, read off the original's state `s` before that frame: a running
+tween rising through `θ` whose eased progress at `R` is exactly the offset.
 
 The only frames where a flag may differ. -/
 def tieB (s : St) (θ R : Rat) : Bool :=
   s.pending && decide (s.f ≤ θ) && decide (θ < s.t) && decide (ease ((R - s.start) / duration) = kfOffset θ s.f s.t)
 
-/-- **MT4 over a run.** On the frame at $R$ after the events $E$ (frames nondecreasing), when that frame is no tie
-for $\theta$, the variant's flag equals the original's strict test on its value.
-
-$$\forall \mathcal{P},\ \forall E, \ell, R, \theta:\quad \operatorname{mono}(\ell, E \mathbin{+\!\!+} [\mathrm{tick}(R)]) \land \lnot\operatorname{tie}(\operatorname{run}_o(s_0, E), \theta, R) \Rightarrow \operatorname{flag}_{\mathcal{P}}\big(\operatorname{run}_v(w_0, E), \theta, \mathrm{tl}(R)\big) = \big[\operatorname{run}_o(s_0, E \mathbin{+\!\!+} [\mathrm{tick}(R)]).r > \theta\big]$$
+/-- **MT4 over a run.** On the frame at `R` after the events `E` (frames nondecreasing), when that frame is no tie
+for `θ`, the variant's flag equals the original's strict test on its value.
 
 Same flags on every frame but a tie. -/
 theorem flags_same_run (P : WaapiPremises) (es : List Ev) (l R θ : Rat) (hm : monoB l (es ++ [.tick R]) = true)
@@ -849,9 +741,7 @@ theorem flags_same_run (P : WaapiPremises) (es : List Ev) (l R θ : Rat) (hm : m
 
 /-! ### The visual theorem -/
 
-/-- What the morph's scene depends on: the value, the target, and the flags over $\Theta$.
-
-$$\mathrm{View} = \mathbb{Q} \times \mathbb{Q} \times \mathbb{B}^{*}$$
+/-- What the morph's scene depends on: the value, the target, and the flags over `Θ`.
 
 The part's whole visible state. -/
 structure View where
@@ -859,32 +749,26 @@ structure View where
   m : Rat
   /-- the target (the active flag reads it) -/
   target : Rat
-  /-- one flag per threshold in $\Theta$ -/
+  /-- one flag per threshold in `Θ` -/
   flags : List Bool
 deriving Repr, DecidableEq
 
-/-- The original's view at the frame $R$ after the events $E$.
-
-$$\forall E, R:\quad \operatorname{view}_o(E, R) = \big(s.r,\ s.w,\ [\,[s.r > \theta]\,]_{\theta \in \Theta}\big)\ \text{where}\ s = \operatorname{run}_o(s_0, E \mathbin{+\!\!+} [\mathrm{tick}(R)])$$
+/-- The original's view at the frame `R` after the events `E`.
 
 Value, target and strict flags after the frame. -/
 def viewO (es : List Ev) (R : Rat) : View :=
   let s := runO rest (es ++ [.tick R])
   ⟨s.value, s.target, thresholds.map fun θ => decide (s.value > θ)⟩
 
-/-- The variant's view at the frame $R$ after the events $E$: the engine's animated value and discrete flags.
-
-$$\forall \mathcal{P}, E, R:\quad \operatorname{view}_{\mathcal{P}}(E, R) = \big(\operatorname{val}_{\mathcal{P}}(w, \mathrm{tl}(R)),\ w.\mathrm{tg},\ [\,\operatorname{flag}_{\mathcal{P}}(w, \theta, \mathrm{tl}(R))\,]_{\theta \in \Theta}\big)\ \text{where}\ w = \operatorname{run}_v(w_0, E)$$
+/-- The variant's view at the frame `R` after the events `E`: the engine's animated value and discrete flags.
 
 What the engine shows on that frame. -/
 def viewV (P : WaapiPremises) (es : List Ev) (R : Rat) : View :=
   let w := runV P initV es
   ⟨valV P w (P.tl R), w.target, thresholds.map fun θ => flagW P w θ (P.tl R)⟩
 
-/-- The admissible frames: events $E$, a frame at $R$ and a bound $\ell$ with frames nondecreasing from $\ell$ and no
-tie at $R$ for any threshold.
-
-$$\mathrm{Hist} = \big\{(E, R, \ell) \in \mathrm{Ev}^{*} \times \mathbb{Q}^2 \ \big|\ \operatorname{mono}(\ell, E \mathbin{+\!\!+} [\mathrm{tick}(R)]) \land \forall \theta \in \Theta:\ \lnot\operatorname{tie}(\operatorname{run}_o(s_0, E), \theta, R)\big\}$$
+/-- The admissible frames: events `E`, a frame at `R` and a bound `ℓ` with frames nondecreasing from `ℓ` and no
+tie at `R` for any threshold.
 
 Every frame of every tie-free history. -/
 def Hist : Type :=
@@ -892,8 +776,6 @@ def Hist : Type :=
     thresholds.all (fun θ => !tieB (runO rest x.1) θ x.2.1) = true}
 
 /-- The views agree on every admissible frame.
-
-$$\forall \mathcal{P},\ \forall h = (E, R, \ell) \in \mathrm{Hist}:\quad \operatorname{view}_{\mathcal{P}}(E, R) = \operatorname{view}_o(E, R)$$
 
 Same value, target and flags. -/
 theorem view_eq (P : WaapiPremises) (h : Hist) : viewV P h.1.1 h.1.2.1 = viewO h.1.1 h.1.2.1 := by
@@ -915,8 +797,6 @@ theorem view_eq (P : WaapiPremises) (h : Hist) : viewV P h.1.1 h.1.2.1 = viewO h
 (so every width band, both engines' layouts alike), the variant's scene equals the original's on every admissible
 frame.
 
-$$\forall \mathcal{P},\ \forall \mathit{vp} : \mathrm{Env} \to \mathrm{Rect},\ \forall S : \mathrm{Env} \times \mathrm{View} \to \mathrm{Scene}:\quad \operatorname{VisSame}_{\mathrm{E}}\Big(\mathit{vp},\ (\mathit{env}, (E, R, \ell)) \mapsto S(\mathit{env}, \operatorname{view}_o(E, R)),\ (\mathit{env}, (E, R, \ell)) \mapsto S(\mathit{env}, \operatorname{view}_{\mathcal{P}}(E, R))\Big)$$
-
 The WAAPI variant looks exactly like the original. -/
 theorem waapi_vis (P : WaapiPremises) (vp : Fw.Site.Breakpoints.Env → Rect)
     (S : Fw.Site.Breakpoints.Env → View → Scene) :
@@ -929,21 +809,17 @@ theorem waapi_vis (P : WaapiPremises) (vp : Fw.Site.Breakpoints.Env → Rect)
 
 /-! ## MT-W: the variant drops the script stage and keeps every other stage -/
 
-/-- The work relation of MT-W between a variant frame's work $v$ and the original's $o$ with $k$ callbacks: $v \prec o$,
-every stage but script equal, script $0$ against one pass of $k$ units.
-
-$$\forall v, o \in \mathrm{Work},\ \forall k \in \mathbb{N}:\quad \operatorname{drop}(v, o, k) \iff v \prec o \land \big(\forall s \ne \mathrm{script}:\ v.\mathrm{passes}(s) = o.\mathrm{passes}(s) \land v.\mathrm{units}(s) = o.\mathrm{units}(s)\big) \land v.\mathrm{passes}(\mathrm{script}) = 0 \land v.\mathrm{units}(\mathrm{script}) = 0 \land o.\mathrm{passes}(\mathrm{script}) = 1 \land o.\mathrm{units}(\mathrm{script}) = k$$
+/-- The work relation of MT-W between a variant frame's work `v` and the original's `o` with `k` callbacks: `v ≺ o`,
+every stage but script equal, script `0` against one pass of `k` units.
 
 Script strictly less, style, layout, paint and commit equal. -/
 def dropsScript (v o : Work) (k : Nat) : Prop :=
   v.lt o ∧ (∀ s, s ≠ Stage.script → v.passes s = o.passes s ∧ v.units s = o.units s) ∧
     v.passes .script = 0 ∧ v.units .script = 0 ∧ o.passes .script = 1 ∧ o.units .script = k
 
-/-- **MT-W, any engine.** If no change, no compositor stage and no base stage is `script`, a frame of $k > 0$
-callbacks writing the nonempty changes $C$ (with $n$ compositor animations) and the same frame without script stand
-in the relation $\operatorname{drop}$.
-
-$$\forall \mathcal{E},\ \forall C \in \mathrm{Change}^{*},\ \forall k, n \in \mathbb{N}:\quad 0 < k \land C \ne [\,] \land (\forall c \in C:\ \mathrm{script} \notin \mathcal{E}.\mathrm{stagesOf}(c)) \land \mathrm{script} \notin \mathcal{E}.\mathrm{compStages} \land \mathrm{script} \notin \mathcal{E}.\mathrm{base} \Rightarrow \operatorname{drop}\big(\operatorname{frameWork}_{\mathcal{E}}(0, 0, 0, 0, C, n),\ \operatorname{frameWork}_{\mathcal{E}}(k, 0, 0, 0, C, n),\ k\big)$$
+/-- **MT-W, any engine.** If no change, no compositor stage and no base stage is `script`, a frame of `k > 0`
+callbacks writing the nonempty changes `C` (with `n` compositor animations) and the same frame without script stand
+in the relation `drop`.
 
 Moving the writes from script to the engine removes exactly the script stage. -/
 theorem script_drop {P M : Type} (eng : Engine P M) (cs : List (Change P)) (k n : Nat) (hk : 0 < k) (hcs : cs ≠ [])
@@ -992,8 +868,6 @@ theorem script_drop {P M : Type} (eng : Engine P M) (cs : List (Change P)) (k n 
 /-- Chromium: an animation with a custom property runs on the main thread, and the trace reports failure bit 13
 (`kUnsupportedCSSProperty`).
 
-$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim}:\quad (\exists i, \mathit{rs}:\ \mathrm{custom}(i, \mathit{rs}) \in a.\mathrm{props}) \Rightarrow \operatorname{crThread}(m, a) = \mathrm{main} \land 13 \in \operatorname{bits}(m, a)$$
-
 `--morph` cannot run on the compositor. -/
 theorem cr_custom_main (m : Chromium.CrMode) (a : Chromium.CrAnim)
     (h : ∃ i rs, Chromium.CrProp.custom i rs ∈ a.props) :
@@ -1007,8 +881,6 @@ theorem cr_custom_main (m : Chromium.CrMode) (a : Chromium.CrAnim)
 
 /-- No Chromium change touches the script stage.
 
-$$\forall c \in \mathrm{Change}(\mathrm{CrProp}):\quad \mathrm{script} \notin \operatorname{stagesOf}_{\mathrm{cr}}(c)$$
-
 Style writes never run script. -/
 theorem cr_no_script (c : Change Chromium.CrProp) : Stage.script ∉ Chromium.crStagesOf c := by
   unfold Chromium.crStagesOf
@@ -1020,10 +892,8 @@ theorem cr_no_script (c : Change Chromium.CrProp) : Stage.script ∉ Chromium.cr
     | _ => simp [Chromium.CrProp.extra]
   simp only [List.mem_append, not_or]; exact ⟨hL, hX⟩
 
-/-- **MT-W, Chromium (lane).** Main-thread animations $A$ of custom properties, against $k > 0$ callbacks writing the
+/-- **MT-W, Chromium (lane).** Main-thread animations `A` of custom properties, against `k > 0` callbacks writing the
 same changes inline: script drops, every other stage stays.
-
-$$\forall A \in \mathrm{CrAnim}^{*},\ \forall k \in \mathbb{N}:\quad 0 < k \land \mathop{+\!\!+}_{a \in A} \operatorname{changes}(a) \ne [\,] \land \big(\forall a \in A:\ \exists i, \mathit{rs}:\ \mathrm{custom}(i, \mathit{rs}) \in a.\mathrm{props}\big) \Rightarrow \operatorname{drop}\big(\operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{animFrame}(\mathrm{lane}, A)),\ \operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{jsWrite}(k, \mathop{+\!\!+}_{a \in A} \operatorname{changes}(a))),\ k\big)$$
 
 In Chromium the WAAPI frame is the rAF frame minus its script. -/
 theorem waapi_work_le_chromium (as : List Chromium.CrAnim) (k : Nat) (hk : 0 < k)
@@ -1043,15 +913,11 @@ theorem waapi_work_le_chromium (as : List Chromium.CrAnim) (k : Nat) (hk : 0 < k
 
 /-- No WebKit diff level touches the script stage.
 
-$$\forall d \in \mathrm{Diff}:\quad \mathrm{script} \notin \operatorname{stages}(d)$$
-
 Style writes never run script. -/
 theorem wk_no_script (d : WebKit.Diff) : Stage.script ∉ WebKit.diffStages d := by cases d <;> decide
 
 /-- **MT-W, WebKit (Safari).** An animation with a custom property runs on the main thread (`custom_main`); its frame
-writes the changes $C$, against $k > 0$ callbacks writing $C$ inline: script drops, every other stage stays.
-
-$$\forall a \in \mathrm{WkAnim},\ \forall C \in \mathrm{Change}(\mathrm{WkProp})^{*},\ \forall k \in \mathbb{N}:\quad 0 < k \land C \ne [\,] \land \mathrm{custom} \in a.\mathrm{props} \Rightarrow \operatorname{drop}\big(\operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{animFrame}(\mathrm{safari}, a, C)),\ \operatorname{frameWork}_{\mathrm{webkit}}(k, 0, 0, 0, C, 0),\ k\big)$$
+writes the changes `C`, against `k > 0` callbacks writing `C` inline: script drops, every other stage stays.
 
 In WebKit the WAAPI frame is the rAF frame minus its script. -/
 theorem waapi_work_le_webkit (a : WebKit.WkAnim) (cs : List (Change WebKit.WkProp)) (k : Nat) (hk : 0 < k)
@@ -1067,9 +933,6 @@ theorem waapi_work_le_webkit (a : WebKit.WkAnim) (cs : List (Change WebKit.WkPro
 /-- **MT-W `waapi_work_le`**: both engine instances at once (the custom-property rule puts the animation on the main
 thread in both, so the WAAPI frame is the rAF frame without its script).
 
-$$\forall A, a, C, k:\quad 0 < k \land C_A \ne [\,] \land \big(\forall a' \in A:\ \exists i, \mathit{rs}:\ \mathrm{custom}(i, \mathit{rs}) \in a'.\mathrm{props}\big) \land C \ne [\,] \land \mathrm{custom} \in a.\mathrm{props} \Rightarrow \operatorname{drop}\big(W^{\mathrm{cr}}_v, W^{\mathrm{cr}}_o, k\big) \land \operatorname{drop}\big(W^{\mathrm{wk}}_v, W^{\mathrm{wk}}_o, k\big)$$
-$$\text{where}\ C_A = \mathop{+\!\!+}_{a' \in A} \operatorname{changes}(a'),\ W^{\mathrm{cr}}_v = \operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{animFrame}(\mathrm{lane}, A)),\ W^{\mathrm{cr}}_o = \operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{jsWrite}(k, C_A)),\ W^{\mathrm{wk}}_v = \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{animFrame}(\mathrm{safari}, a, C)),\ W^{\mathrm{wk}}_o = \operatorname{frameWork}_{\mathrm{webkit}}(k, 0, 0, 0, C, 0)$$
-
 Script strictly less, style, layout, paint and commit equal, in both engines. -/
 theorem waapi_work_le (as : List Chromium.CrAnim) (a : WebKit.WkAnim) (cs : List (Change WebKit.WkProp)) (k : Nat)
     (hk : 0 < k) (hne : as.flatMap Chromium.CrAnim.changes ≠ [])
@@ -1081,9 +944,7 @@ theorem waapi_work_le (as : List Chromium.CrAnim) (a : WebKit.WkAnim) (cs : List
         (frameWork WebKit.webkit ⟨k, 0, 0, 0, cs, 0⟩) k :=
   ⟨waapi_work_le_chromium as k hk hne hcu, waapi_work_le_webkit a cs k hk hcs hc⟩
 
-/-- Over a tween of $N > 0$ frames the screen says the variant dominates.
-
-$$\forall v, o \in \mathrm{Work},\ \forall k, N \in \mathbb{N}:\quad \operatorname{drop}(v, o, k) \land 0 < N \Rightarrow \operatorname{screen}\big(\operatorname{toRun}([o]^N),\ \operatorname{toRun}([v]^N)\big) = \operatorname{ok}(\mathrm{dominates})$$
+/-- Over a tween of `N > 0` frames the screen says the variant dominates.
 
 Every frame cheaper on script, none dearer. -/
 theorem drop_run_dominates (v o : Work) (k N : Nat) (h : dropsScript v o k) (hN : 0 < N) :
@@ -1098,15 +959,13 @@ theorem drop_run_dominates (v o : Work) (k N : Nat) (h : dropsScript v o k) (hN 
   exact run_dominates (hle N) hlt
 
 /-- One concrete Chromium `--morph` animation (a custom property read by `opacity` on a non-composited box), for the
-guards. $$a_{\mathrm{cr}} = (0, [\mathrm{custom}(0, [\mathrm{opacity}])], \mathrm{none}, \top, \mathrm{document})$$ An instance. -/
+guards. An instance. -/
 def crMorph : Chromium.CrAnim := { elem := 0, props := [.custom 0 [.opacity]], layer := .none }
 
-/-- One concrete WebKit `--morph` animation. $$a_{\mathrm{wk}} = \operatorname{clean}([\mathrm{custom}], \mathrm{time})$$ An instance. -/
+/-- One concrete WebKit `--morph` animation. An instance. -/
 def wkMorph : WebKit.WkAnim := .clean [.custom] .time
 
-/-- The per-stage prediction of a variant's work $v$ against the original's $o$, first match.
-
-$$\forall v, o, s:\quad \operatorname{pred}(v, o, s) = \begin{cases} \texttt{=o} & v.\mathrm{passes}(s) = o.\mathrm{passes}(s) \land v.\mathrm{units}(s) = o.\mathrm{units}(s) \\ \texttt{<o} & \text{else if } v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \land v.\mathrm{units}(s) \le o.\mathrm{units}(s) \\ \texttt{any} & \text{otherwise} \end{cases}$$
+/-- The per-stage prediction of a variant's work `v` against the original's `o`, first match.
 
 Equal, below, or unknown. -/
 def predW (v o : Work) (s : Stage) : String :=
@@ -1114,13 +973,11 @@ def predW (v o : Work) (s : Stage) : String :=
   else if v.passes s ≤ o.passes s ∧ v.units s ≤ o.units s then "<o"
   else "any"
 
-/-- The prediction MT-W gives each stage. $$\forall s:\ \operatorname{pred}_{\mathrm{MT}}(s) = \begin{cases} \texttt{<o} & s = \mathrm{script} \\ \texttt{=o} & \text{otherwise} \end{cases}$$
+/-- The prediction MT-W gives each stage.
 Script below, the rest equal. -/
 def predStage (s : Stage) : String := if s = .script then "<o" else "=o"
 
 /-- The golden predictions follow from MT-W for every instance.
-
-$$\forall v, o, k, s:\quad \operatorname{drop}(v, o, k) \Rightarrow \operatorname{pred}(v, o, s) = \operatorname{pred}_{\mathrm{MT}}(s)$$
 
 The rows are what the theorem says. -/
 theorem pred_sound (v o : Work) (k : Nat) (h : dropsScript v o k) (s : Stage) : predW v o s = predStage s := by
@@ -1151,20 +1008,16 @@ style recalc to the children (Chromium `style/computed_style.cc:472-478`@f842f52
 `kIndependentInherited`; WebKit `style/StyleChange.cpp:42-43` with `StyleComputedStyle.cpp:296`@862f17d,
 `Change::Inherited`). The original writes `--morph` and `--morph-fade` unregistered, so inherited. -/
 
-/-- The value an element at depth $d$ below the animated element $e$ computes for a property whose value on $e$ is $a$
-and whose initial value is $i$, when no element below $e$ on the path to it declares the property: $e$ itself has
-$a$; a child inherits its parent's value if the property is inherited, else takes $i$.
+/-- The value an element at depth `d` below the animated element `e` computes for a property whose value on `e` is `a`
+and whose initial value is `i`, when no element below `e` on the path to it declares the property: `e` itself has
+`a`; a child inherits its parent's value if the property is inherited, else takes `i`.
 
-$$\forall h \in \mathbb{B},\ \forall a, i \in \mathbb{Q}:\quad \operatorname{seen}(h, a, i, 0) = a,\qquad \forall d \in \mathbb{N}:\ \operatorname{seen}(h, a, i, d + 1) = \begin{cases} \operatorname{seen}(h, a, i, d) & h \\ i & \lnot h \end{cases}$$
-
-What a reader $d$ levels down sees. -/
+What a reader `d` levels down sees. -/
 def seenAt (inh : Bool) (a i : Rat) : Nat → Rat
   | 0 => a
   | d + 1 => if inh then seenAt inh a i d else i
 
 /-- An inherited property reaches every depth.
-
-$$\forall a, i \in \mathbb{Q},\ \forall d \in \mathbb{N}:\quad \operatorname{seen}(\top, a, i, d) = a$$
 
 Inheritance carries the animated value down. -/
 theorem seenAt_true (a i : Rat) (d : Nat) : seenAt true a i d = a := by
@@ -1174,16 +1027,12 @@ theorem seenAt_true (a i : Rat) (d : Nat) : seenAt true a i d = a := by
 
 /-- A non-inherited property is the initial value on every strict descendant.
 
-$$\forall a, i \in \mathbb{Q},\ \forall d \in \mathbb{N}:\quad \operatorname{seen}(\bot, a, i, d + 1) = i$$
-
 Without inheritance a child never sees the animation. -/
 theorem seenAt_false_succ (a i : Rat) (d : Nat) : seenAt false a i (d + 1) = i := rfl
 
 /-- A reader of an animated property: a CSS rule that substitutes `var(prop)` on an element (CSS-module class `sel`)
 at depth `depth` below the element the variant animates. The depths are entered by hand and not checked against the
 DOM.
-
-$$\mathrm{Reader} = \mathrm{String} \times \mathrm{String} \times \mathbb{N} \ni (\mathit{prop}, \mathit{sel}, \mathit{depth})$$
 
 One place that reads the value. -/
 structure Reader where
@@ -1201,23 +1050,17 @@ inline `--morph-fade`, `fade_css`). The nav animates `--morph`: the `header.nav`
 its own `--morph`, reads it in its inline `--morph-fade`, and reads `--morph-fade` itself (`platform.module.css`).
 No CSS reads the two flags.
 
-$$\mathrm{readers} = [(\texttt{--morph}, \texttt{nav}, 0), (\texttt{--morph}, \texttt{logo}, 2), (\texttt{--morph}, \texttt{actions}, 2), (\texttt{--morph}, \texttt{earn}, 3), (\texttt{--morph}, \texttt{panel}, 1), (\texttt{--morph}, \texttt{section}, 0), (\texttt{--morph-fade}, \texttt{section}, 0)]$$
-
 Where the animated properties are read. -/
 def readers : List Reader :=
   [⟨"--morph", "nav", 0⟩, ⟨"--morph", "logo", 2⟩, ⟨"--morph", "actions", 2⟩, ⟨"--morph", "earn", 3⟩,
    ⟨"--morph", "panel", 1⟩, ⟨"--morph", "section", 0⟩, ⟨"--morph-fade", "section", 0⟩]
 
-/-- The reader depths of the property $p$, in list order (empty for a property nothing reads).
+/-- The reader depths of the property `p`, in list order (empty for a property nothing reads).
 
-$$\forall p:\quad \operatorname{depths}(p) = [\,r.\mathit{depth} \mid r \leftarrow \mathrm{readers},\ r.\mathit{prop} = p\,]$$
-
-How deep each reader of $p$ sits. -/
+How deep each reader of `p` sits. -/
 def readersOf (p : String) : List Nat := (readers.filter (·.prop == p)).map (·.depth)
 
 /-- A property needs `inherits` iff one of its readers is a strict descendant (false for no readers).
-
-$$\forall D \in \mathbb{N}^{*}:\quad \operatorname{need}(D) \iff \exists d \in D:\ 0 < d$$
 
 The registration rule. -/
 def needsInherit (ds : List Nat) : Bool := ds.any (0 < ·)
@@ -1226,8 +1069,6 @@ def needsInherit (ds : List Nat) : Bool := ds.any (0 < ·)
 #guard !needsInherit [] && !needsInherit [0, 0] && needsInherit [0, 1]
 
 /-- Every reader sees every animated value iff the property is inherited or no reader is a strict descendant.
-
-$$\forall h \in \mathbb{B},\ \forall i \in \mathbb{Q},\ \forall D \in \mathbb{N}^{*}:\quad \big(\forall a \in \mathbb{Q},\ \forall d \in D:\ \operatorname{seen}(h, a, i, d) = a\big) \iff \big(h \lor \lnot\operatorname{need}(D)\big)$$
 
 `inherits` is needed exactly when a descendant reads. -/
 theorem sees_iff (inh : Bool) (i : Rat) (ds : List Nat) :
@@ -1253,8 +1094,6 @@ theorem sees_iff (inh : Bool) (i : Rat) (ds : List Nat) :
 
 /-- A `CSS.registerProperty` descriptor.
 
-$$\mathrm{Registration} = \mathrm{String} \times \mathrm{String} \times \mathbb{B} \times \mathrm{String} \ni (\mathit{name}, \mathit{syntax}, \mathit{inherits}, \mathit{initialValue})$$
-
 One registration call. -/
 structure Registration where
   /-- the custom property -/
@@ -1267,11 +1106,9 @@ structure Registration where
   initialValue : String
 deriving Repr, DecidableEq
 
-/-- Whether the original has the property $p$ as an inherited custom property: `--morph` and `--morph-fade` are
+/-- Whether the original has the property `p` as an inherited custom property: `--morph` and `--morph-fade` are
 written there unregistered, so inherited (Chromium `custom_property.cc:22-23`@f842f52, WebKit
 `StyleBuilder.cpp:103-106`@862f17d); the flags are classes there, and any other name is absent.
-
-$$\forall p:\quad h_o(p) \iff p \in \{\texttt{--morph}, \texttt{--morph-fade}\}$$
 
 The original's inheritance bit per property. -/
 def origInheritsOf (p : String) : Bool := p == "--morph" || p == "--morph-fade"
@@ -1281,8 +1118,6 @@ def origInheritsOf (p : String) : Bool := p == "--morph" || p == "--morph-fade"
 is a number, `1` at rest, as the original's), the two flags not inherited (nothing reads them below the nav). All
 `<number>`; initial value `0`, `--morph-fade` `1` (its value at rest).
 
-$$\mathrm{regs} = [(\texttt{--morph}, \texttt{<number>}, \top, \texttt{0}), (\texttt{--morph-fade}, \texttt{<number>}, \top, \texttt{1}), (\texttt{--fw-morph-dark}, \texttt{<number>}, \bot, \texttt{0}), (\texttt{--fw-morph-expanded}, \texttt{<number>}, \bot, \texttt{0})]$$
-
 What `index.tsx` passes to `CSS.registerProperty`. -/
 def registrations : List Registration :=
   [⟨"--morph", "<number>", true, "0"⟩, ⟨"--morph-fade", "<number>", true, "1"⟩,
@@ -1291,8 +1126,6 @@ def registrations : List Registration :=
 /-- Each registration inherits exactly when a reader sits below the element that sets it or the original's property
 inherits.
 
-$$\forall r \in \mathrm{regs}:\quad r.\mathit{inherits} = \big(\operatorname{need}(\operatorname{depths}(r.\mathit{name})) \lor h_o(r.\mathit{name})\big)$$
-
 No property inherits without a reason, none lacks it with one. -/
 theorem registrations_rule :
     ∀ r ∈ registrations, r.inherits = (needsInherit (readersOf r.name) || origInheritsOf r.name) := by decide
@@ -1300,8 +1133,6 @@ theorem registrations_rule :
 /-- **MT-R, visual.** Under the variant's registrations every reader of every registered property sees the animated
 value, whatever the value and the initial value; so the view of `waapi_vis` is what each reader renders, the hosted
 panel included.
-
-$$\forall r \in \mathrm{regs},\ \forall a, i \in \mathbb{Q},\ \forall d \in \operatorname{depths}(r.\mathit{name}):\quad \operatorname{seen}(r.\mathit{inherits}, a, i, d) = a$$
 
 Every reader sees the animation. -/
 theorem registrations_see :
@@ -1314,24 +1145,18 @@ theorem registrations_see :
 /-- **MT-R, the finding.** Registered with `inherits` false, `--morph` leaves the hosted panel (depth 1) at its
 initial value while the nav animates any other value.
 
-$$\forall a, i \in \mathbb{Q}:\quad a \ne i \Rightarrow (\texttt{--morph}, \texttt{panel}, 1) \in \mathrm{readers} \land \operatorname{seen}(\bot, a, i, 1) \ne a$$
-
 `inherits: false` makes the panel blind. -/
 theorem panel_blind_without_inherit (a i : Rat) (h : a ≠ i) :
     (⟨"--morph", "panel", 1⟩ : Reader) ∈ readers ∧ seenAt false a i 1 ≠ a :=
   ⟨by decide, fun e => h (by rw [seenAt_false_succ] at e; exact e.symm)⟩
 
-/-- The variant's inheritance bit of the property $p$: that of its registration, $\bot$ if it has none.
-
-$$\forall p:\quad h_v(p) = \begin{cases} g.\mathit{inherits} & g \text{ the first } r \in \mathrm{regs} \text{ with } r.\mathit{name} = p \\ \bot & \text{no such } r \end{cases}$$
+/-- The variant's inheritance bit of the property `p`: that of its registration, `⊥` if it has none.
 
 The variant's inheritance bit per property. -/
 def regInherits (p : String) : Bool := ((registrations.find? (·.name == p)).map (·.inherits)).getD false
 
-/-- Whether an element at depth $d$ recomputes its style when the animated value changes: the animated element
+/-- Whether an element at depth `d` recomputes its style when the animated value changes: the animated element
 always, a descendant iff the property is inherited (the inherited-data change of the section note).
-
-$$\forall h \in \mathbb{B},\ \forall d \in \mathbb{N}:\quad \operatorname{recalc}(h, d) \iff d = 0 \lor h$$
 
 Which elements a value change invalidates. -/
 def recalcs (inh : Bool) (d : Nat) : Bool := d == 0 || inh
@@ -1339,14 +1164,11 @@ def recalcs (inh : Bool) (d : Nat) : Bool := d == 0 || inh
 /-- **MT-R, work.** For every property the original has as an inherited custom property (`--morph`, `--morph-fade`),
 the variant's registration inherits too, so its per-frame style changes cover exactly the original's elements in
 every subtree and every element sees the same value as in the original: `waapi_work_le` applies with one change list
-$C$ for both arms. With `inherits` false the variant would change fewer elements than the original on any subtree
+`C` for both arms. With `inherits` false the variant would change fewer elements than the original on any subtree
 with a strict descendant: a smaller style count bought by a wrong picture. The waapi arm also animates `--morph` on the
 platform section, where the original writes only `--morph-fade`. The original's `--morph-fade` stops changing once
 the fade clamps at 0.55, while `--morph` changes to the end of the tween, so there the extra property adds the
 section's subtree to the recalc set (`waapi_section_finding`, measured in the `tween-platform-scope` note).
-
-$$\Big(\forall p,\ \forall D \in \mathbb{N}^{*},\ \forall a, i \in \mathbb{Q},\ \forall d \in \mathbb{N}:\quad h_o(p) \Rightarrow \operatorname{filter}(\operatorname{recalc}(h_v(p)), D) = \operatorname{filter}(\operatorname{recalc}(h_o(p)), D) \land \operatorname{seen}(h_v(p), a, i, d) = \operatorname{seen}(h_o(p), a, i, d)\Big)$$
-$$\land\ \Big(\forall D \in \mathbb{N}^{*}:\quad \operatorname{need}(D) \Rightarrow \operatorname{filter}(\operatorname{recalc}(\bot), D) \ne \operatorname{filter}(\operatorname{recalc}(\top), D)\Big)$$
 
 Same invalidation as the original; the work claim keeps its premise. -/
 theorem morph_scope_eq :
@@ -1373,16 +1195,12 @@ theorem morph_scope_eq :
 
 /-- One registration as compact JSON (keys sorted by `Json.mkObj`).
 
-$$\forall r:\ \operatorname{json}(r) = \{\texttt{inherits}, \texttt{initialValue}, \texttt{name}, \texttt{syntax}\} \text{ of } r$$
-
 The wire form. -/
 def Registration.json (r : Registration) : String :=
   (Lean.Json.mkObj [("name", .str r.name), ("syntax", .str r.syntaxStr), ("inherits", .bool r.inherits),
     ("initialValue", .str r.initialValue)]).compress
 
 /-- One reader as compact JSON (keys sorted by `Json.mkObj`).
-
-$$\forall r:\ \operatorname{json}(r) = \{\texttt{depth}, \texttt{prop}, \texttt{sel}\} \text{ of } r$$
 
 The wire form. -/
 def Reader.json (r : Reader) : String :=
@@ -1691,8 +1509,6 @@ theorem lead_within_frame (n δ R p : Rat) (hδ : 0 < δ) (hp : δ < p) :
 
 /-- One engine-check prediction row (`apps/runner/src/engine-check.ts`), with an explicit base arm.
 
-$$\mathrm{PredRow} = \mathrm{String}^{7} \ni (\mathit{engine}, \mathit{scenario}, \mathit{variant}, \mathit{stage}, \mathit{prediction}, \mathit{countType}, \mathit{base})$$
-
 A line of the golden file. -/
 structure PredRow where
   /-- engine id -/
@@ -1711,14 +1527,10 @@ structure PredRow where
   base : String
 deriving Repr, DecidableEq
 
-/-- The variant arm: the rewrite with the flag `morph.tween:waapi`. $$\mathit{arm}_v = \texttt{rewrite+?fw=morph.tween:waapi}$$ The arm name. -/
+/-- The variant arm: the rewrite with the flag `morph.tween:waapi`. The arm name. -/
 def armV : String := "rewrite+?fw=morph.tween:waapi"
 
 /-- The counted stages per engine and their count types (Chromium trace names, WebKit Simulator names).
-
-$$\operatorname{counts}(\texttt{chromium}) = [(\mathrm{script}, \texttt{trace.FireAnimationFrame}), (\mathrm{style}, \texttt{trace.UpdateLayoutTree}), (\mathrm{layout}, \texttt{trace.Layout}), (\mathrm{paint}, \texttt{trace.Paint}), (\mathrm{commit}, \texttt{trace.cc.Commit})]$$
-$$\operatorname{counts}(\texttt{webkit}) = [(\mathrm{script}, \texttt{FireAnimationFrame}), (\mathrm{style}, \texttt{RecalculateStyles}), (\mathrm{layout}, \texttt{Layout}), (\mathrm{paint}, \texttt{Paint}), (\mathrm{commit}, \texttt{Composite})]$$
-$$\operatorname{counts}(x) = [\,] \text{ for any other } x$$
 
 Which count measures which stage. -/
 def countsOf : String → List (Stage × String)
@@ -1745,8 +1557,6 @@ theorem swipeRows_eqO : ∀ r ∈ swipeRows, r.prediction = "=o" := by decide
 
 /-- One row as compact JSON (keys sorted by `Json.mkObj`).
 
-$$\forall r:\ \operatorname{json}(r) = \{\texttt{base}, \texttt{countType}, \texttt{engine}, \texttt{prediction}, \texttt{scenario}, \texttt{stage}, \texttt{variant}\} \text{ of } r$$
-
 The wire form. -/
 def PredRow.json (r : PredRow) : String :=
   (Lean.Json.mkObj [("engine", .str r.engine), ("scenario", .str r.scenario), ("variant", .str r.variant),
@@ -1754,8 +1564,6 @@ def PredRow.json (r : PredRow) : String :=
     ("base", .str r.base)]).compress
 
 /-- The contents of `packages/contracts/golden/parts/morph-tween-waapi.jsonl`.
-
-$$\mathrm{goldenJsonl} = \mathop{\Vert}_{r \in \mathrm{rows}} \big(\operatorname{json}(r) \mathbin{+\!\!+} \texttt{\textbackslash n}\big) \mathbin{\Vert} \mathop{\Vert}_{g \in \mathrm{regs}} \big(\operatorname{json}(g) \mathbin{+\!\!+} \texttt{\textbackslash n}\big) \mathbin{\Vert} \mathop{\Vert}_{q \in \mathrm{readers}} \big(\operatorname{json}(q) \mathbin{+\!\!+} \texttt{\textbackslash n}\big) \mathbin{\Vert} \mathrm{scoped}$$
 
 The golden file: the eleven predictions, then the four registrations, then the seven readers, then the `waapi-scoped` arm's five registrations and seven readers with `arm`. -/
 def goldenJsonl : String :=
@@ -1787,9 +1595,6 @@ open Fw.Parts.EndFlags
 
 /-- **MT-W under `frameWorkE`.** For end flags dirty on every touched stage, the WAAPI frame still drops the script
 and keeps every other stage equal, in both engines.
-
-$$\forall A, a, C, k,\ \forall e_1, e_2, e_3, e_4:\ \text{hyp.\ of } \texttt{waapi\_work\_le} \land \big(\forall i,\ \forall s \in \operatorname{touched}(F_i):\ e_i(s) = \top\big) \Rightarrow \operatorname{drop}\big(W^{e_1}(F_1), W^{e_2}(F_2), k\big) \land \operatorname{drop}\big(W^{e_3}(F_3), W^{e_4}(F_4), k\big)$$
-$$\text{where}\ F_1 = \operatorname{animFrame}_{\mathrm{cr}}(\mathrm{lane}, A),\ F_2 = \operatorname{jsWrite}(k, C_A),\ F_3 = \operatorname{animFrame}_{\mathrm{wk}}(\mathrm{safari}, a, C),\ F_4 = (k, 0, 0, 0, C, 0)$$
 
 The frame-end pass changes nothing on frames without reads. -/
 theorem waapi_work_leE (as : List Chromium.CrAnim) (a : WebKit.WkAnim) (cs : List (Change WebKit.WkProp)) (k : Nat)

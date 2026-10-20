@@ -35,3 +35,9 @@ Entries in the older `startedAt` format are dropped; declare them again.
 The lead's Monitor command (`node apps/runner/src/fw.ts watch --interval 300 --stream`, the node process of the
 command above) is exempt without a declaration. The allowed command is a constant in Lean (`monitorShapes`) and cannot
 be widened at run time.
+
+## Console alert steps
+
+The watch's own alerts above are a separate list from the console's alert steps. A console alert step (posted by the spool drain,
+text in `docs/team/tools/console.md`) is for the owner only when Lean says so; lead-fixable ones carry audience `lead` and close
+by themselves with a note "resolved automatically at ...". Do not hand-press Done on them.

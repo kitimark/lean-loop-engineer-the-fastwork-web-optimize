@@ -85,10 +85,7 @@ def slowByJson (e : String × Nat) : Json := Json.mkObj [("workflow", .str e.1),
 def slowByOf (j : Json) : Except String (String × Nat) := do
   pure (← Fw.Wire.Ops.str j "workflow", ← nat j "min")
 
-/-- Per-workflow limits round-trip.
-
-$$\forall e:\quad \operatorname{slowByOf}(\operatorname{slowByJson}(e)) = \mathrm{ok}(e)$$
--/
+/-- Per-workflow limits round-trip. -/
 theorem slowByOf_slowByJson (e : String × Nat) : slowByOf (slowByJson e) = .ok e := by
   obtain ⟨w, m⟩ := e
   rfl
@@ -323,9 +320,6 @@ def reqOf (j : Json) : Except String (Params × Obs) := do
 
 /-- Looking a key up in an object built from a list with pairwise distinct keys gives that key's value.
 
-$$\forall \ell, k, v:\quad \bigl(\operatorname{keys}(\ell)\ \text{pairwise distinct} \land (k, v) \in \ell\bigr)
-  \implies \operatorname{getObjVal?}(\operatorname{mkObj}(\ell), k) = \mathrm{ok}(v)$$
-
 Every field of an object written with distinct keys reads back as the value written.
 -/
 theorem getObjVal_mkObj {l : List (String × Json)} {k : String} {v : Json}
@@ -342,8 +336,6 @@ local macro "mem_lit" : tactic => `(tactic| repeat first | exact List.Mem.head _
 
 /-- The thresholds' keys are pairwise distinct.
 
-$$\forall p:\quad \operatorname{keys}(\operatorname{paramsFields}(p))\ \text{pairwise distinct}$$
-
 No two threshold fields share a key.
 -/
 theorem paramsFields_keys (p : Params) : ((paramsFields p).map Prod.fst).Pairwise (· ≠ ·) := by
@@ -351,8 +343,6 @@ theorem paramsFields_keys (p : Params) : ((paramsFields p).map Prod.fst).Pairwis
   decide +kernel
 
 /-- Thresholds round-trip.
-
-$$\forall p:\quad \operatorname{paramsOf}(\operatorname{paramsJson}(p)) = \mathrm{ok}(p)$$
 
 Decoding the JSON written for the thresholds gives the same thresholds back.
 -/
@@ -374,8 +364,6 @@ theorem paramsOf_paramsJson (p : Params) : paramsOf (paramsJson p) = .ok p := by
 
 /-- An agent's keys are pairwise distinct.
 
-$$\forall a:\quad \operatorname{keys}(\operatorname{agentFields}(a))\ \text{pairwise distinct}$$
-
 No two agent fields share a key.
 -/
 theorem agentFields_keys (a : Agent) : ((agentFields a).map Prod.fst).Pairwise (· ≠ ·) := by
@@ -383,8 +371,6 @@ theorem agentFields_keys (a : Agent) : ((agentFields a).map Prod.fst).Pairwise (
   decide +kernel
 
 /-- Agents round-trip.
-
-$$\forall a:\quad \operatorname{agentOf}(\operatorname{agentJson}(a)) = \mathrm{ok}(a)$$
 
 Decoding the JSON written for an agent gives the same agent back.
 -/
@@ -433,32 +419,22 @@ theorem agentOf_agentJson (a : Agent) : agentOf (agentJson a) = .ok a := by
 
 /-- The lead session's facts round-trip.
 
-$$\forall \ell:\quad \operatorname{leadOf}(\operatorname{leadJson}(\ell)) = \mathrm{ok}(\ell)$$
-
 Decoding the JSON written for the lead's facts gives the same facts back.
 -/
 theorem leadOf_leadJson (l : Lead) : leadOf (leadJson l) = .ok l := by
   obtain ⟨t, n⟩ := l
   cases t <;> cases n <;> rfl
 
-/-- Containers round-trip.
-
-$$\forall c:\quad \operatorname{containerOf}(\operatorname{containerJson}(c)) = \mathrm{ok}(c)$$
--/
+/-- Containers round-trip. -/
 theorem containerOf_containerJson (c : Container) : containerOf (containerJson c) = .ok c := by
   cases c; rfl
 
-/-- CI runs round-trip.
-
-$$\forall r:\quad \operatorname{ciOf}(\operatorname{ciJson}(r)) = \mathrm{ok}(r)$$
--/
+/-- CI runs round-trip. -/
 theorem ciOf_ciJson (r : CiRun) : ciOf (ciJson r) = .ok r := by
   obtain ⟨w, b, s, c, t, e, h⟩ := r
   cases c <;> cases e <;> rfl
 
 /-- Process trees round-trip.
-
-$$\forall q:\quad \operatorname{procOf}(\operatorname{procJson}(q)) = \mathrm{ok}(q)$$
 
 Decoding the JSON written for a process tree gives the same tree back.
 -/
@@ -469,17 +445,11 @@ theorem procOf_procJson (q : Proc) : procOf (procJson q) = .ok q := by
   simp only [procOf, hp, ha, Array.toList_map, ok_bind, mapM_rt toJson (asNat "pids") (fun _ => rfl)]
   rfl
 
-/-- Service input groups round-trip.
-
-$$\forall i:\quad \operatorname{svcInputOf}(\operatorname{svcInputJson}(i)) = \mathrm{ok}(i)$$
--/
+/-- Service input groups round-trip. -/
 theorem svcInputOf_svcInputJson (i : SvcInput) : svcInputOf (svcInputJson i) = .ok i := by
   cases i; rfl
 
-/-- Services round-trip.
-
-$$\forall v:\quad \operatorname{svcOf}(\operatorname{svcJson}(v)) = \mathrm{ok}(v)$$
--/
+/-- Services round-trip. -/
 theorem svcOf_svcJson (v : Svc) : svcOf (svcJson v) = .ok v := by
   obtain ⟨name, ins, un, se⟩ := v
   have hi := arrD_arr (svcJson ⟨name, ins, un, se⟩) "inputs" _ rfl
@@ -488,17 +458,11 @@ theorem svcOf_svcJson (v : Svc) : svcOf (svcJson v) = .ok v := by
   simp only [svcOf, hi, hu, he, Array.toList_map, ok_bind, mapM_rt svcInputJson svcInputOf svcInputOf_svcInputJson]
   rfl
 
-/-- GitHub incidents round-trip.
-
-$$\forall i:\quad \operatorname{ghIncidentOf}(\operatorname{ghIncidentJson}(i)) = \mathrm{ok}(i)$$
--/
+/-- GitHub incidents round-trip. -/
 theorem ghIncidentOf_ghIncidentJson (i : Fw.Obs.GhIncident) : ghIncidentOf (ghIncidentJson i) = .ok i := by
   cases i; rfl
 
-/-- The GitHub reading round-trips.
-
-$$\forall g:\quad \operatorname{ghOf}(\operatorname{ghJson}(g)) = \mathrm{ok}(g)$$
--/
+/-- The GitHub reading round-trips. -/
 theorem ghOf_ghJson (g : Fw.Obs.Gh) : ghOf (ghJson g) = .ok g := by
   obtain ⟨a, pg, w, pv, inc⟩ := g
   have hi := arrD_arr (ghJson ⟨a, pg, w, pv, inc⟩) "incidents" _ rfl
@@ -511,10 +475,7 @@ theorem ghOf_ghJson (g : Fw.Obs.Gh) : ghOf (ghJson g) = .ok g := by
   rfl
 
 set_option maxHeartbeats 4000000 in
-/-- System facts round-trip.
-
-$$\forall s:\quad \operatorname{systemOf}(\operatorname{systemJson}(s)) = \mathrm{ok}(s)$$
--/
+/-- System facts round-trip. -/
 theorem systemOf_systemJson (s : System) : systemOf (systemJson s) = .ok s := by
   obtain ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh⟩ := s
   have hd := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc, kp, svs, al, gh⟩) "docker" _ rfl
@@ -548,10 +509,7 @@ theorem systemOf_systemJson (s : System) : systemOf (systemJson s) = .ok s := by
   simp only [asStr, ok_bind, hml, hsl]
   rfl
 
-/-- Requests round-trip.
-
-$$\forall p, o:\quad \operatorname{reqOf}(\operatorname{reqJson}(p, o)) = \mathrm{ok}(p, o)$$
--/
+/-- Requests round-trip. -/
 theorem reqOf_reqJson (p : Params) (o : Obs) : reqOf (reqJson p o) = .ok (p, o) := by
   obtain ⟨now, agents, lead, sys, prev, crit⟩ := o
   have ha := arrD_arr (reqJson p ⟨now, agents, lead, sys, prev, crit⟩) "agents" _ rfl
@@ -595,10 +553,7 @@ def opHealth (req : Json) : Except String Reply := do
   let (p, o) ← reqOf req
   pure (reportFields (health p (settle o)))
 
-/-- The reply to an encoded request is the encoded report.
-
-$$\forall p, o:\quad \operatorname{opHealth}(\operatorname{reqJson}(p, o)) = \mathrm{ok}(\operatorname{fields}(\operatorname{health}(p, \operatorname{settle}(o))))$$
--/
+/-- The reply to an encoded request is the encoded report. -/
 theorem opHealth_reqJson (p : Params) (o : Obs) :
     opHealth (reqJson p o) = .ok (reportFields (health p (settle o))) := by
   simp only [opHealth, reqOf_reqJson, ok_bind]

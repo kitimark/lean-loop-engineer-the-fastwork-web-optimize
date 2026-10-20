@@ -12,6 +12,10 @@ const Text = z.string().min(1).max(200);
 export const StepKind = z.enum(["action", "yes_no", "choice", "text"]);
 export type StepKind = z.infer<typeof StepKind>;
 
+/** Whom a step is for (Lean `Fw.Console.Audience`): `user` is the console's owner; `lead` is the lead agent. */
+export const Audience = z.enum(["user", "lead"]);
+export type Audience = z.infer<typeof Audience>;
+
 export const RunKind = z.enum(["screen", "gate", "run", "device"]);
 export type RunKind = z.infer<typeof RunKind>;
 
@@ -36,10 +40,15 @@ export const Command = z.discriminatedUnion("type", [
     title: Text,
     kind: StepKind,
     options: z.array(Text).max(12).nullable(),
+    /** whom the step is for; missing = `lead` for a spool alert id (`alert-spool-*`), else `user` (Lean `Alert.legacyAudience`) */
+    audience: Audience.optional(),
+    /** plain text under the title: what happened, impact, action, details (Lean `Fw.Console.Alert.Plain`). Missing = "" */
+    body: z.string().max(2000).optional(),
   }),
   cmd("step.start", { step: Id }),
   cmd("step.answer", { step: Id, answer: Text }),
-  cmd("step.done", { step: Id }),
+  /** `note`: why the script closed it (shown as the step's answer), e.g. "resolved automatically at <time>: <reason>" */
+  cmd("step.done", { step: Id, note: Text.nullable().optional() }),
   cmd("step.cancel", { step: Id }),
   cmd("run.start", { run: Id, card: Id, kind: RunKind }),
   cmd("run.finish", { run: Id, ok: z.boolean() }),
@@ -129,6 +138,8 @@ export const Step = z.object({
   answer: Text.nullable(),
   postedAt: z.number().int().nonnegative(),
   lastAt: z.number().int().nonnegative(),
+  audience: Audience,
+  body: z.string().max(2000),
 });
 export type Step = z.infer<typeof Step>;
 

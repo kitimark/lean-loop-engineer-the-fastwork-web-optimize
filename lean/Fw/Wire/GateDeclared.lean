@@ -21,25 +21,19 @@ open Fw.Wire.Ops (field opt asNat arr)
 
 /-- Set (or add) the `declared` field of one role record; anything but an object is left as it is.
 
-$$\operatorname{setD}_d(\{\dots\}) = \{\dots, \mathtt{declared}: d\}, \qquad \operatorname{setD}_d(j) = j \ \text{otherwise}$$
-
 The one field the decoders ignore. -/
 def setDeclared (d : Json) : Json → Json
   | .obj kvs => .obj (kvs.insert "declared" d)
   | j => j
 
-/-- Set `declared` on every role of one part record, to $d(\mathit{role})$; anything but an object is left as it is.
-
-$$\operatorname{setP}_d(\{r_1: j_1, \dots\}) = \{r_1: \operatorname{setD}_{d(r_1)}(j_1), \dots\}, \qquad \operatorname{setP}_d(j) = j \ \text{otherwise}$$
+/-- Set `declared` on every role of one part record, to `d(role)`; anything but an object is left as it is.
 
 What a run that changes the `declared` scan writes for one part. -/
 def setPartDeclared (dOf : String → Json) : Json → Json
   | .obj kvs => .obj (kvs.map fun role rj => setDeclared (dOf role) rj)
   | j => j
 
-/-- Set `declared` on every role of every part of a `parts` record, to $d(\mathit{part}, \mathit{role})$.
-
-$$\operatorname{setPs}_d(\{p_1: j_1, \dots\}) = \{p_1: \operatorname{setP}_{d(p_1, \cdot)}(j_1), \dots\}, \qquad \operatorname{setPs}_d(j) = j \ \text{otherwise}$$
+/-- Set `declared` on every role of every part of a `parts` record, to `d(part, role)`.
 
 One arm's `parts` with another `declared` everywhere. -/
 def setPartsDeclared (dOf : String → String → Json) : Json → Json
@@ -48,16 +42,12 @@ def setPartsDeclared (dOf : String → String → Json) : Json → Json
 
 /-- Every role value of a part record that is an object is a well-formed map.
 
-$$\operatorname{wf}_P(j) \iff \forall (r, v) \in j,\ \forall m,\ v = \mathrm{obj}(m) \implies \operatorname{WF}(m) \qquad (\top \text{ if } j \text{ is no object})$$
-
 The premise of the lookup lemmas. -/
 def RolesWF : Json → Prop
   | .obj kvs => ∀ p ∈ kvs.toList, ∀ m, p.2 = .obj m → m.WF
   | _ => True
 
 /-- Every part value of a `parts` record satisfies `RolesWF`.
-
-$$\operatorname{wf}_{Ps}(j) \iff \forall (p, v) \in j,\ \operatorname{wf}_P(v) \qquad (\top \text{ if } j \text{ is no object})$$
 
 The premise for a whole arm. -/
 def PartsWF : Json → Prop
@@ -66,16 +56,12 @@ def PartsWF : Json → Prop
 
 /-- Binding a success runs the continuation on its value.
 
-$$\forall a, f,\quad (\mathrm{ok}(a) \gg\!= f) = f(a)$$
-
 Helper (definitional). -/
 theorem except_ok_bind {ε α β : Type} (a : α) (f : α → Except ε β) : (Except.ok a >>= f) = f a := rfl
 
 /-- Setting `declared` keeps every other field of a well-formed role record.
 
-$$\forall d, j, k,\quad (\forall m,\ j = \mathrm{obj}(m) \implies \operatorname{WF}(m)) \wedge k \ne \mathtt{declared} \implies \operatorname{get}(\operatorname{setD}_d(j), k) = \operatorname{get}(j, k)$$
-
-Here $\operatorname{get}$ is `Json.getObjVal?` (an error for a missing key or a non-object). -/
+Here `get` is `Json.getObjVal?` (an error for a missing key or a non-object). -/
 theorem getObjVal?_setDeclared (d j : Json) (k : String) (hwf : ∀ m, j = .obj m → m.WF)
     (hk : k ≠ "declared") : (setDeclared d j).getObjVal? k = j.getObjVal? k := by
   cases j with
@@ -87,8 +73,6 @@ theorem getObjVal?_setDeclared (d j : Json) (k : String) (hwf : ∀ m, j = .obj 
 
 /-- One role, decoded: the function `partRawOf` maps over the role entries.
 
-$$\operatorname{role}(r, v) = \begin{cases} \mathrm{ok}(\mathrm{none}) & v = \mathrm{null} \\ \mathrm{some}(r, (\operatorname{count}(v), \operatorname{items}(v))) & \text{otherwise (or the first error)} \end{cases}$$
-
 Restates the body of `partRawOf`. -/
 def roleOf : String × Json → Except String (Option (String × RoleRaw)) := fun (role, rj) =>
   match rj with
@@ -98,14 +82,10 @@ def roleOf : String × Json → Except String (Option (String × RoleRaw)) := fu
 
 /-- `partRawOf` is `roleOf` over the entries.
 
-$$\forall j,\quad \operatorname{partRaw}(j) = \operatorname{entries}(j) \gg\!= \operatorname{filterMapM}(\operatorname{role})$$
-
 Unfolds the decoder. -/
 theorem partRawOf_eq (j : Json) : partRawOf j = (entriesOf "part" j >>= fun es => es.filterMapM roleOf) := rfl
 
 /-- Decoding one role ignores `declared` (for a well-formed role object).
-
-$$\forall d, r, v,\quad (\forall m,\ v = \mathrm{obj}(m) \implies \operatorname{WF}(m)) \implies \operatorname{role}(r, \operatorname{setD}_d(v)) = \operatorname{role}(r, v)$$
 
 Only `count` and `items` are read. -/
 theorem roleOf_setDeclared (d : Json) (role : String) (rj : Json) (hwf : ∀ m, rj = .obj m → m.WF) :
@@ -120,8 +100,6 @@ theorem roleOf_setDeclared (d : Json) (role : String) (rj : Json) (hwf : ∀ m, 
 
 /-- Mapping first and filter-mapping is filter-mapping with an equal function.
 
-$$\forall F, g, l,\quad (\forall x \in l,\ F(g(x)) = F(x)) \implies \operatorname{filterMapM}(F, g(l)) = \operatorname{filterMapM}(F, l)$$
-
 Helper (in `Except String`). -/
 theorem filterMapM_map_congr {α β : Type} (F : α → Except String (Option β)) (g : α → α) :
     ∀ (l : List α), (∀ x ∈ l, F (g x) = F x) → (l.map g).filterMapM F = l.filterMapM F
@@ -132,8 +110,6 @@ theorem filterMapM_map_congr {α β : Type} (F : α → Except String (Option β
 
 /-- **`partRawOf` ignores `declared`.** For a part record whose role objects are well formed, setting `declared` on
 every role to any values leaves the decoded part (or the decoding error) unchanged.
-
-$$\forall d, j,\quad \operatorname{wf}_P(j) \implies \operatorname{partRaw}(\operatorname{setP}_d(j)) = \operatorname{partRaw}(j)$$
 
 The decoder reads only `count` and `items` (`lean/Fw/Wire/Gate.lean:190-196`). -/
 theorem partRawOf_setPartDeclared (dOf : String → Json) (j : Json) (hwf : RolesWF j) :
@@ -148,8 +124,6 @@ theorem partRawOf_setPartDeclared (dOf : String → Json) (j : Json) (hwf : Role
 
 /-- **`partsOf` ignores `declared`.** For an arm's `parts` record whose role objects are well formed, setting
 `declared` on every role of every part leaves the decoded parts (or the decoding error) unchanged.
-
-$$\forall d, j,\quad \operatorname{wf}_{Ps}(j) \implies \operatorname{parts}(\operatorname{setPs}_d(j)) = \operatorname{parts}(j)$$
 
 Every part goes through `partRawOf_setPartDeclared`. -/
 theorem partsOf_setPartsDeclared (dOf : String → String → Json) (j : Json) (hwf : PartsWF j) :
@@ -171,8 +145,6 @@ theorem partsOf_setPartsDeclared (dOf : String → String → Json) (j : Json) (
 /-- **`gate.stale` ignores `declared`.** For one pair of `opStale`, the hysteresis counts decoded from the `after`
 and `fresh` parts are the same whether or not `declared` was changed in either.
 
-$$\forall c, d, d', A, F,\quad \operatorname{wf}_{Ps}(A) \wedge \operatorname{wf}_{Ps}(F) \implies \big(\operatorname{parts}(\operatorname{setPs}_d(A)), \operatorname{parts}(\operatorname{setPs}_{d'}(F))\big) \overset{\operatorname{stale}_c}{\mapsto} = \big(\operatorname{parts}(A), \operatorname{parts}(F)\big) \overset{\operatorname{stale}_c}{\mapsto}$$
-
 That is, the do-block of `opStale` gives the same counts (or the same error) for both inputs. -/
 theorem stale_setPartsDeclared (c : Ctx) (dA dF : String → String → Json) (A F : Json) (hA : PartsWF A)
     (hF : PartsWF F) :
@@ -182,8 +154,6 @@ theorem stale_setPartsDeclared (c : Ctx) (dA dF : String → String → Json) (A
 
 /-- **`armOf` (and so `gate.state`) ignores `declared`.** Two arm records that are the same well-formed map except
 for their `parts`, where one has `declared` changed, decode to the same arm (or the same error).
-
-$$\forall d, m, P,\quad \operatorname{WF}(m) \wedge \operatorname{wf}_{Ps}(P) \implies \operatorname{arm}(m[\mathtt{parts} := \operatorname{setPs}_d(P)]) = \operatorname{arm}(m[\mathtt{parts} := P])$$
 
 `stateOf` reads the arms only through `armOf`, so each state of `gate.state` is evaluated the same. -/
 theorem armOf_setPartsDeclared (dOf : String → String → Json) (m : Std.TreeMap.Raw String Json) (P : Json)

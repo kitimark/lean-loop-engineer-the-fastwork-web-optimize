@@ -266,15 +266,15 @@ def fcheck (v : Srv) (e : Event) : Option String :=
   if !may e.actor e.body.type then some s!"actor {e.actor.name} may not cause {e.body.type.name}" else
   match e.body with
   | .cardOpen id _ _ => if v.cards.has id then some "card exists" else none
-  | .stepPost id card _ kind opts =>
+  | .stepPost id card _ kind opts _ _ =>
     if v.steps.has id then some "step exists"
     else if (match card with | some c => !(v.cards.has c) | none => false) then some "no such card"
     else if kind = .choice && (opts.getD []).length < 2 then some "choice step needs at least 2 options"
     else none
-  | .stepStart id | .stepAnswer id _ | .stepDone id | .stepCancel id =>
+  | .stepStart id | .stepAnswer id _ | .stepDone id _ | .stepCancel id =>
     match v.steps.get? id with
     | none => some "no such step"
-    | some st => stepRefusal st e.body
+    | some st => stepRefusal st e.actor e.body
   | .runStart r card _ =>
     if !(v.cards.has card) then some "no such card"
     else if v.runs.has r then some "run exists" else none
@@ -303,12 +303,13 @@ def faccept (v : Srv) (e : Event) : Srv :=
   match e.body with
   | .cardOpen id owner dev =>
     ⟨seen, keys, cards.push Card.id { id, owner, needsDevice := dev, lastAt := t }, steps, runs, plan⟩
-  | .stepPost id card title kind opts =>
-    ⟨seen, keys, cards, steps.push Step.id { id, card, title, kind, options := opts, postedAt := t, lastAt := t }, runs, plan⟩
+  | .stepPost id card title kind opts audience body =>
+    ⟨seen, keys, cards, steps.push Step.id { id, card, title, kind, options := opts, postedAt := t, lastAt := t, audience, body }, runs, plan⟩
   | .stepStart id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .started }), runs, plan⟩
   | .stepAnswer id a =>
     ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .answered, answer := some a }), runs, plan⟩
-  | .stepDone id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .done }), runs, plan⟩
+  | .stepDone id note =>
+    ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .done, answer := note.orElse fun _ => x.answer }), runs, plan⟩
   | .stepCancel id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .cancelled }), runs, plan⟩
   | .runStart r card kind =>
     ⟨seen, keys, cards.modify card (touch t), steps, runs.push Run.id { id := r, card, kind, startedAt := t }, plan⟩
@@ -396,7 +397,7 @@ theorem faccept_indexed {v : Srv} (h : Indexed v) (e : Event) (hn : fcheck v e =
       · split at hn
         · cases hn
         · exact ⟨hk, Tbl.push_ok hc (Bool.eq_false_iff.mpr ‹¬ v.cards.has id = true›), hs, hr, hp⟩
-    | stepPost id card title kind opts =>
+    | stepPost id card title kind opts audience body =>
       simp only [fcheck] at hn
       split at hn
       · cases hn
@@ -419,7 +420,7 @@ theorem faccept_indexed {v : Srv} (h : Indexed v) (e : Event) (hn : fcheck v e =
       · exact ⟨hk, hc, hs, hr, hp⟩
     | stepStart id => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr, hp⟩
     | stepAnswer id a => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr, hp⟩
-    | stepDone id => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr, hp⟩
+    | stepDone id note => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr, hp⟩
     | stepCancel id => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr, hp⟩
     | plan c =>
       simp only [fcheck] at hn
@@ -487,7 +488,7 @@ card of that run.
 def touched (s : State) (e : Event) : Delta :=
   match e.body with
   | .cardOpen id _ _ => ⟨(s.cards.find? (·.id == id)).toList, [], []⟩
-  | .stepPost id _ _ _ _ | .stepStart id | .stepAnswer id _ | .stepDone id | .stepCancel id =>
+  | .stepPost id .. | .stepStart id | .stepAnswer id _ | .stepDone id _ | .stepCancel id =>
     ⟨[], (s.steps.find? (·.id == id)).toList, []⟩
   | .runStart r c _ => ⟨(s.cards.find? (·.id == c)).toList, [], (s.runs.find? (·.id == r)).toList⟩
   | .runFinish r _ =>
@@ -502,7 +503,7 @@ def touched (s : State) (e : Event) : Delta :=
 def ftouched (v : Srv) (e : Event) : Delta :=
   match e.body with
   | .cardOpen id _ _ => ⟨(v.cards.get? id).toList, [], []⟩
-  | .stepPost id _ _ _ _ | .stepStart id | .stepAnswer id _ | .stepDone id | .stepCancel id =>
+  | .stepPost id .. | .stepStart id | .stepAnswer id _ | .stepDone id _ | .stepCancel id =>
     ⟨[], (v.steps.get? id).toList, []⟩
   | .runStart r c _ => ⟨(v.cards.get? c).toList, [], (v.runs.get? r).toList⟩
   | .runFinish r _ =>
@@ -940,11 +941,11 @@ def eventJson (e : Event) : Json :=
     | .cardSwipe c s b => [("card", .str c), ("sha", .str s), ("better", .bool b)]
     | .cardLandRequest c s => [("card", .str c), ("sha", .str s)]
     | .cardLanded c s => [("card", .str c), ("sha", .str s)]
-    | .stepPost s c t k os => [("step", .str s), ("card", ostr c), ("title", .str t),
-        ("kind", .str (stepKindName k)), ("options", optStrs os)]
+    | .stepPost s c t k os a b => [("step", .str s), ("card", ostr c), ("title", .str t),
+        ("kind", .str (stepKindName k)), ("options", optStrs os), ("audience", .str a.name), ("body", .str b)]
     | .stepStart s => [("step", .str s)]
     | .stepAnswer s a => [("step", .str s), ("answer", .str a)]
-    | .stepDone s => [("step", .str s)]
+    | .stepDone s n => [("step", .str s), ("note", ostr n)]
     | .stepCancel s => [("step", .str s)]
     | .runStart r c k => [("run", .str r), ("card", .str c), ("kind", .str (runKindName k))]
     | .runFinish r ok => [("run", .str r), ("ok", .bool ok)]

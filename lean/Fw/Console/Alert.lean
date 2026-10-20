@@ -15,8 +15,11 @@ stand-in `alertFor`):
   calls in flight (a `PreToolUse` seen, no `PostToolUse` yet) must hold exactly one agent and no
   tool call of the lead other than the `Agent` call that waits for it. Otherwise it is not
   attributable and there is no alert.
-* **What it says.** The title names the agent (its type), the kind and, for a permission
-  prompt, the tool.
+* **What it says.** A short plain title, and a body with what happened (the agent type and, for a
+  permission prompt, the tool), the impact and the action for the audience (`Plain`).
+* **Whom it is for.** `user` only when the action needs the owner: a permission prompt or a question
+  in the terminal, and a stop of the lead's own session. An API stop of a helper is `lead`'s to
+  restart, so it is not shown under YOU.
 * **When it closes.** The agent's next `PostToolUse`, `PostToolUseFailure`, `SubagentStop` or
   `Stop` that is later than the alert closes every open alert step of that agent.
 * **Idempotent.** The step id is a function of agent and time, the command keys of the step
@@ -211,6 +214,16 @@ theorem parse_stepId (a : Option String) (t : Nat) : parse (stepId a t) = some (
 
 /-! ## The decision -/
 
+/-- A plain-language alert: a short title with no internal identifiers, the audience that must act, and a body
+of lines `What happened`, `Impact`, the action (`What you do` for the user, `Action (lead)` for the lead) and
+`Details` (identifiers belong in the details only).
+-/
+structure Plain where
+  title : String
+  audience : Audience
+  body : String
+deriving Repr, DecidableEq
+
 /-- An alert step to post. -/
 structure Alert where
   step : String
@@ -218,6 +231,8 @@ structure Alert where
   title : String
   kind : Kind
   agent : String
+  audience : Audience
+  body : String
 deriving Repr, DecidableEq
 
 /-- What the drain does for one event: post at most one alert step, cancel some open ones. -/
@@ -228,13 +243,71 @@ deriving Repr, DecidableEq
 
 private def clip (n : Nat) (s : String) : String := String.ofList (s.toList.take n)
 
-/-- The title of an alert: names the agent (its type), the kind and the tool. -/
-def title (k : Kind) (who : String) (tool : Option String) : String :=
-  let w := clip 60 who
+/-- The body lines of a plain alert: what happened, impact, the action for the audience, details. -/
+def bodyLines (aud : Audience) (what impact action details : String) : String :=
+  "\n".intercalate
+    ["What happened: " ++ what, "Impact: " ++ impact,
+     (match aud with | .user => "What you do: " | .lead => "Action (lead): ") ++ action, "Details: " ++ details]
+
+/-- Whom an alert of kind `k` of agent slug `agent` is for: the owner for a permission prompt, a question and a
+stop of the lead's own session (`main`); the lead for a stop of any helper.
+-/
+def audienceOf (k : Kind) (agent : String) : Audience :=
   match k with
-  | .permission => s!"Agent {w} asks permission to use {clip 40 (tool.getD "a tool")}: answer its prompt in the Claude Code terminal, then press Done"
-  | .needsInput => s!"Agent {w} needs your input: answer it in the Claude Code terminal, then press Done"
-  | .stopFailure => s!"Agent {w} stopped on an API failure; the lead restarts it from its handoff"
+  | .permission | .needsInput => .user
+  | .stopFailure => if agent == "main" then .user else .lead
+
+/-- The plain text of an alert: the agent (its type) and the tool appear in the body only. -/
+def plain (k : Kind) (agent : String) (who : String) (tool : Option String) : Plain :=
+  let w := clip 60 who
+  let t := clip 40 (tool.getD "a tool")
+  let aud := audienceOf k agent
+  match k with
+  | .permission =>
+    { title := "A helper needs your permission", audience := aud,
+      body := bodyLines aud s!"The helper \"{w}\" asked to use {t} and is paused until it gets an answer."
+        "Nothing is lost. It continues as soon as you answer."
+        "Open the Claude Code terminal and answer its prompt (allow or deny). This step closes by itself when the helper continues."
+        s!"agent {w}; tool {t}; hook Notification permission_prompt" }
+  | .needsInput =>
+    { title := "A helper is waiting for your answer", audience := aud,
+      body := bodyLines aud s!"The helper \"{w}\" asked a question and is paused until it gets an answer."
+        "Nothing is lost. It continues as soon as you answer."
+        "Open the Claude Code terminal and answer its question. This step closes by itself when the helper continues."
+        s!"agent {w}; hook Notification agent_needs_input" }
+  | .stopFailure =>
+    if agent == "main" then
+      { title := "The lead session stopped on an API error", audience := aud,
+        body := bodyLines aud "The main Claude Code session stopped because the model API failed."
+          "Nothing is lost. The session does nothing until it is resumed."
+          "In the Claude Code terminal, send any message (for example \"continue\"). This step closes by itself when the session runs again."
+          "agent main; hook StopFailure" }
+    else
+      { title := "A helper stopped on an API error", audience := aud,
+        body := bodyLines aud s!"The helper \"{w}\" stopped because the model API failed."
+          "Its committed work and handoff note are kept. It does nothing until it is restarted."
+          "Restart it from its handoff note. This step closes by itself when the helper runs again."
+          s!"agent {w}; hook StopFailure" }
+
+/-- **Audience is decided by the kind**: the plain text of an alert is for exactly the audience `audienceOf` names. -/
+theorem plain_audience (k : Kind) (agent who : String) (tool : Option String) :
+    (plain k agent who tool).audience = audienceOf k agent := by
+  unfold plain
+  cases k <;> simp only [] <;> (try split) <;> rfl
+
+/-- **A helper's API stop is the lead's**: it is not shown to the owner. -/
+theorem helper_stop_lead (agent : String) (h : (agent == "main") = false) :
+    audienceOf .stopFailure agent = .lead := by
+  simp [audienceOf, h]
+
+/-- **A prompt or a question needs the owner**: it is for the user, whichever agent asked. -/
+theorem prompt_user (agent : String) :
+    audienceOf .permission agent = .user ∧ audienceOf .needsInput agent = .user := ⟨rfl, rfl⟩
+
+/-- The audience of a step id posted before steps carried one: the spool alert (`alert-spool-<t>`, a problem of the
+spool reader) is the lead's; any other id is the owner's.
+-/
+def legacyAudience (id : String) : Audience := if (parse id).map (·.1) == some "spool" then .lead else .user
 
 /-- The agent an event opens an alert for: its own `agent_id` (`StopFailure` of the lead is the
 lead's); a `Notification` without one only when attributable. Returns (agent id, agent type, tool).
@@ -266,7 +339,9 @@ def act (e : Ev) (fs : List Flight) (opn : List String) : Out :=
     if opn.any (fun id => owner id == some (slug a)) then { close }
     else
       let id := stepId a e.ts
-      { post := some { step := id, key := "alert:" ++ id, title := title k (ty.getD "main") tool, kind := k, agent := slug a },
+      let p := plain k (slug a) (ty.getD "main") tool
+      { post := some { step := id, key := "alert:" ++ id, title := p.title, kind := k, agent := slug a,
+                       audience := p.audience, body := p.body },
         close }
   | _, _ => { close }
 
@@ -399,8 +474,29 @@ private def n1 : Ev := { event := "Notification", agentId := some "a1", agentTyp
 #guard parse "alert-a1-10" == some ("a1", 10)
 #guard parse "alert-hash0123456789" == none
 #guard parse "step-1" == none
-#guard (act n1 [] []).post.map (·.title) ==
-  some "Agent builder asks permission to use Bash: answer its prompt in the Claude Code terminal, then press Done"
+#guard (act n1 [] []).post.map (·.title) == some "A helper needs your permission"
+#guard (act n1 [] []).post.map (·.audience) == some .user
+#guard (act n1 [] []).post.map (·.body) == some
+  ("What happened: The helper \"builder\" asked to use Bash and is paused until it gets an answer.\n" ++
+   "Impact: Nothing is lost. It continues as soon as you answer.\n" ++
+   "What you do: Open the Claude Code terminal and answer its prompt (allow or deny). This step closes by itself when the helper continues.\n" ++
+   "Details: agent builder; tool Bash; hook Notification permission_prompt")
+#guard (act { n1 with ntype := some "agent_needs_input" } [] []).post.map (·.audience) == some .user
+-- a helper's API stop is the lead's; the lead session's own stop is the owner's
+#guard (act { event := "StopFailure", agentId := some "a1", agentType := some "builder", ts := 4 } [] []).post.map (·.audience)
+  == some .lead
+#guard (act { event := "StopFailure", agentId := some "a1", agentType := some "builder", ts := 4 } [] []).post.map (·.body) == some
+  ("What happened: The helper \"builder\" stopped because the model API failed.\n" ++
+   "Impact: Its committed work and handoff note are kept. It does nothing until it is restarted.\n" ++
+   "Action (lead): Restart it from its handoff note. This step closes by itself when the helper runs again.\n" ++
+   "Details: agent builder; hook StopFailure")
+#guard (act { event := "StopFailure", ts := 4 } [] []).post.map (·.audience) == some .user
+#guard (act { event := "StopFailure", ts := 4 } [] []).post.map (·.title) == some "The lead session stopped on an API error"
+-- a step posted before steps carried an audience: the spool alert is the lead's, anything else the owner's
+#guard legacyAudience "alert-spool-1792389046068" == .lead
+#guard legacyAudience "alert-a1-10" == .user
+#guard legacyAudience "alert-main-7" == .user
+#guard legacyAudience "web-1234abcd" == .user
 #guard (act n1 [] []).post.map (·.step) == some "alert-a1-10"
 #guard (act n1 [] ["alert-a1-3"]).post == none
 #guard (act n1 [] ["alert-a2-3"]).post.isSome
@@ -415,7 +511,7 @@ private def n1 : Ev := { event := "Notification", agentId := some "a1", agentTyp
 -- the lead's waiting Agent call is no evidence against the single agent
 #guard (act { n1 with agentId := none, agentType := none } [{ agentId := some "a1", tool := some "Bash" }, { tool := some "Agent" }] []).post.isSome
 #guard (act { event := "StopFailure", agentId := some "a1", agentType := some "builder", ts := 4 } [] []).post.map (·.title)
-  == some "Agent builder stopped on an API failure; the lead restarts it from its handoff"
+  == some "A helper stopped on an API error"
 #guard (act { event := "StopFailure", ts := 4 } [] []).post.map (·.step) == some "alert-main-4"
 -- closing: same agent, later, closing event; other agents and older/equal ts stay open
 #guard (act { event := "PostToolUse", agentId := some "a1", ts := 11 } [] ["alert-a1-10", "alert-a2-10", "alert-a1-11", "old-id"]).close

@@ -6880,7 +6880,11 @@
     "latex-lint-relax",
     "latex-generators",
     "latex-mathview-b2",
-    "latex-strip-c"
+    "latex-strip-c",
+    "latex-strip-c2",
+    "latex-teardown",
+    "latex-plan-text",
+    "latex-close"
    ],
    "owner": "lead",
    "writes": [
@@ -10657,6 +10661,333 @@
     "docs/team/handoffs/engine-release-notes.md"
    ],
    "evidence": "8aa8243"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "alert-steps-plain",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20: the console step 'Spool lines need a look: session_pid:unknown x1; fix emit.mjs or Fw.Ops.Obs.specs, then press Done' was unclear (what must I do?) and stayed open a day after its cause was fixed. Every script-posted alert step: (1) audience decided in Lean: only actions only the user can do go to YOU, phrased as one concrete action in plain words; agent/lead-fixable causes go to the lead; (2) plain text: what happened, impact, whether it resolved; (3) auto-resolve decided in Lean: when a later check finds the cause gone, the step closes with a 'resolved automatically' note; theorem per branch, goldens; close the stale alert-spool-1792389046068 through the new rule.",
+   "writes": [
+    "lean/Fw/Ops/Obs.lean",
+    "lean/Fw/Ops/**",
+    "lean/Fw/Console/**",
+    "lean/Fw/Console.lean",
+    "lean/Fw/Wire.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/**",
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "apps/console-web/src/**",
+    "apps/console-web/test/**",
+    "apps/runner/src/**",
+    "apps/runner/test/**",
+    "docs/team/tools/console.md",
+    "docs/team/tools/fw-watch.md",
+    "docs/team/handoffs/alert-steps-plain.md",
+    "lean/Fw/Serve.lean",
+    "packages/contracts/schema/**",
+    "packages/contracts/src/index.ts"
+   ],
+   "evidence": "693a162"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-strip-c2",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "latex-strip-c"
+   ],
+   "title": "User 2026-10-20 asked whether all LaTeX is gone from Lean: no, latex-strip-c excluded 40 files owned by then-open tasks (about 1000 doc $$ blocks left) and its open item 'run the tool after each excluded task lands' never ran. Sweep the 38 excluded files not touched by an open branch (Ci/Trigger and Wire/Store wait for trajectory-probe) with scripts/latex-strip.mjs; lake build + lean/scripts/check.sh green; MathView stmtHash set unchanged; --check 0 on the swept files",
+   "writes": [
+    "lean/Fw/**/*.lean",
+    "lean/FwTest/**",
+    "docs/team/handoffs/latex-strip-c2.md"
+   ],
+   "evidence": "95a97e6"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-teardown",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "latex-mathview-b2",
+    "skills-reframe"
+   ],
+   "title": "User 2026-10-20: continue the LaTeX removal until every LaTeX mention in related docs and skills is torn down. Live instructions and tooling (CLAUDE.md, .claude/agents, .claude/skills, .claude/workflows, docs/team/tools, docs/team/token-policy.md, docs/team/parallel-plan.md, lean/README.md, lean/MathView*.lean help and comments, lean/scripts, scripts help text, .serena configs) no longer mention LaTeX or $$ as something Lean files hold, need or must avoid; artifact math (math-artifact.md, KaTeX pages, math-reviewer) is described positively; historical records (handoffs, incidents, research, report, improvements, rev deltas) and unrelated $$ (shell PIDs, CSS, JS) stay",
+   "writes": [
+    "CLAUDE.md",
+    ".claude/agents/**",
+    ".claude/skills/**",
+    ".claude/workflows/**",
+    "docs/team/tools/**",
+    "docs/team/token-policy.md",
+    "docs/team/parallel-plan.md",
+    "lean/README.md",
+    "lean/MathView.lean",
+    "lean/MathViewMain.lean",
+    "lean/scripts/**",
+    "scripts/math-pending.mjs",
+    "scripts/test-wt-prep.sh",
+    "docs/plan/tools/check-lean-lessons.mjs",
+    ".serena/project.yml",
+    "lean/.serena/project.yml",
+    "lean/lakefile.toml",
+    "packages/contracts/golden/**",
+    "docs/team/handoffs/latex-teardown.md"
+   ],
+   "evidence": "9e3651d"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-plan-text",
+   "owner": "plan-editor",
+   "stream": "ops",
+   "deps": [
+    "latex-mathview-b2"
+   ],
+   "title": "lean-latex-removal: PLAN.md and the docs/plan pages (loop-plan.html, math-to-lean.html, math-view.html) describe the current design, Lean source with specs, proofs and code and math written on demand into artifacts, with no LaTeX-in-Lean steps (mathview lint stage, math-review per Lean round, $$ docstrings); a retired page is marked retired or removed per the plan's own page rules",
+   "writes": [
+    "docs/plan/PLAN.md",
+    "docs/plan/loop-plan.html",
+    "docs/plan/math-to-lean.html",
+    "docs/plan/math-view.html",
+    "docs/plan/tools/**",
+    "docs/team/handoffs/latex-plan-text.md"
+   ],
+   "evidence": "598c76a"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-close",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "latex-strip-c2",
+    "latex-teardown",
+    "latex-plan-text",
+    "trajectory-probe"
+   ],
+   "title": "lean-latex-removal last step: sweep lean/Fw/Ci/Trigger.lean and lean/Fw/Wire/Store.lean after trajectory-probe lands; repo-wide --check 0 on every lean/**/*.lean; retire the migration scaffolding (scripts/latex-strip.mjs and its tests, any hook or check that only existed for the migration); write docs/team/handoffs/lean-latex-removal.md that closes the parent task; also: Premise.statement strings (LaTeX in code: decide artifact data vs Unicode), MathView.lean:16 \\mathrm note (Step D), CheckMap.lean retired build-math-view.mjs sample path, Fw/Site/README mathview --lint wording",
+   "writes": [
+    "lean/Fw/**/*.lean",
+    "lean/FwTest/**",
+    "scripts/latex-strip.mjs",
+    "scripts/latex-strip.test.mjs",
+    "package.json",
+    "lean/scripts/**",
+    "docs/team/handoffs/latex-close.md",
+    "docs/team/handoffs/lean-latex-removal.md",
+    "lean/Fw/Ops/Premise.lean",
+    "lean/MathView.lean",
+    "lean/MathViewMain.lean",
+    "lean/Fw/Ops/CheckMap.lean",
+    "lean/Fw/Site/README.md",
+    "packages/contracts/golden/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "console-idle-cpu",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20: Lean, node and related processes take a lot of memory and CPU; use less with the same or better speed. Audit: research/notes/2026/10-20-resource-audit.md (scratch resource-audit/check.md). console-api idle CPU ~9 % of a core -> < 1 %: cache each workflow journal by (size, mtime) (129 of 175 ms per 2 s drain), then fs.watch-triggered drain with a full stat sweep and a <= 10 s safety tick; reconciler driven by refs/heads, packed-refs and store.subscribe with a safety tick. Lean: ReconcileSched lemma (every append drained by a later pass; a missed event drained within one safety period) and the incremental journal fold equals the full fold; TS cache checked by golden vectors. Same or lower event latency, measured before/after",
+   "writes": [
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "lean/Fw/Console/**",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/console-idle-cpu.md",
+    "lean/Fw.lean",
+    "lean/scripts/JournalCacheGolden.lean",
+    "lean/scripts/check.sh"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-build-slots",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20: Lean, node and related processes take a lot of memory and CPU; use less with the same or better speed. Audit: research/notes/2026/10-20-resource-audit.md (scratch resource-audit/check.md). machine-wide Lean build slots: lockf slot files, the first holder keeps the full pool, a second concurrent build gets a reduced LEAN_NUM_THREADS so lean children stay <= a Lean-proved bound instead of 8 per build; S, T and the bound from Fw.Sched.Admit (cores, cleanBuild); re-entrancy guard (check.sh calls fwcore-build.sh); route fwcore-build.sh, the land lint and lake build calls in our scripts through it; before/after from timings.jsonl spans per overlap count (solo build no slower)",
+   "writes": [
+    "scripts/lake-slot.sh",
+    "scripts/lake-slot.test.mjs",
+    "scripts/fwcore-build.sh",
+    "lean/scripts/check.sh",
+    "lean/Fw/Sched/**",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/**",
+    "packages/contracts/golden/sched/**",
+    "docs/team/parallel-plan.md",
+    "docs/team/handoffs/lake-build-slots.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Console/LandDry.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/console/land-dry.jsonl",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "orphan-guard",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20: Lean, node and related processes take a lot of memory and CPU; use less with the same or better speed. Audit: research/notes/2026/10-20-resource-audit.md (scratch resource-audit/check.md). stop leaks at the source: puppeteer launches use pipe:true so Chrome exits with its parent (census.mjs, shell-measure.mjs, gaps/engines.mjs); e2e-land trap on INT/TERM/HUP; task-preview recipe uses fw console start; at worktree removal (land.ts) and in `fw reap --list`, Lean ops.lspReap lists lean-lsp lake serve trees whose cwd inode matches no live checkout (pid+start identity, pgid==pid) and orphan processes started from removed worktrees; list/alert only until the user amends the kill rule. Theorems: never selects a live checkout's process; only selects processes of the named kinds",
+   "writes": [
+    "packages/measure-chromium/src/**",
+    "packages/gate-breakpoints/src/gaps/**",
+    "scripts/e2e-land.sh",
+    "docs/team/tools/task-preview.md",
+    "lean/Fw/Ops/LspReap.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/reap.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "packages/contracts/golden/ops/**",
+    "docs/team/handoffs/orphan-guard.md",
+    "apps/runner/src/lib.ts",
+    "apps/runner/test/e2e-land.sh",
+    "apps/site/scripts/census.mjs",
+    "apps/site/scripts/shell-measure.mjs",
+    "docs/team/handoffs/task-preview.md",
+    "lean/Fw/Ops/Reap.lean",
+    "lean/Fw/Wire.lean",
+    "lean/scripts/ReapGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ops/lspreap.jsonl"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "watch-incremental",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20: Lean, node and related processes take a lot of memory and CPU; use less with the same or better speed. Audit: research/notes/2026/10-20-resource-audit.md (scratch resource-audit/check.md). fw watch 300-400 MB peak and 10.7 s CPU cold passes: (size, mtime) cache of parsed spool files and an on-disk incremental transcript cache keyed by schema version and fw code hash with full-read fallback (size < offset or inode changed); Lean: signalsOf/summarizeTranscript as folds with the append lemma; same alerts as the full read (golden)",
+   "writes": [
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/watch*",
+    "lean/Fw/Obs/**",
+    "packages/contracts/golden/obs/**",
+    "docs/team/handoffs/watch-incremental.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "test-tmp-cleanup",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "console-idle-cpu"
+   ],
+   "title": "User 2026-10-20: Lean, node and related processes take a lot of memory and CPU; use less with the same or better speed. Audit: research/notes/2026/10-20-resource-audit.md (scratch resource-audit/check.md). tests and tools left 182k temp dirs (143 GB logical; ghb-core fwcore clones 124 GB): every mkdtemp in tests is removed in afterEach/afterAll; gh-budget fastCore reuses one private fwcore copy per build digest; fw lake-gc lists stale temp dirs of our prefixes (Lean Fw.Ops.LakeGc decides: our prefix, top level, untouched > 2 h)",
+   "writes": [
+    "apps/**/test/**",
+    "packages/**/test/**",
+    "scripts/*.test.mjs",
+    "apps/runner/src/lake-gc.ts",
+    "lean/Fw/Ops/LakeGc.lean",
+    "packages/contracts/golden/ops/lakegc*.jsonl",
+    "docs/team/tools/disk-cleanup.md",
+    "docs/team/handoffs/test-tmp-cleanup.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "reap-stop",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "orphan-guard",
+    "latex-teardown"
+   ],
+   "title": "User 2026-10-20 allowed automatic reaping of Lean-selected leftovers: fw reap (run after each land's worktree removal and on the fw watch tick) stops the processes ops.lspReap selects (our tool kinds tied to a removed worktree; identity = pid + start time, re-checked right before the signal; process group only when pgid == pid); never by name or pattern, never a live checkout's process. CLAUDE.md Processes rule amended to state this positively; theorem: a stopped pid is one Lean selected and still has the selected start time",
+   "writes": [
+    "lean/Fw/Ops/LspReap.lean",
+    "apps/runner/src/reap.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "packages/contracts/golden/ops/**",
+    "CLAUDE.md",
+    "docs/team/handoffs/reap-stop.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "serena-trim",
+   "owner": "plan-editor",
+   "stream": "tooling",
+   "deps": [
+    "latex-teardown"
+   ],
+   "title": "User 2026-10-20: drop serena-lean (lean-lsp covers Lean lookups and follows the caller's worktree), keep serena configured but off by default (user turned both off in settings.local.json; /mcp turns serena on). Remove serena-lean from .mcp.json and from agent tool lists, and point Lean lookups at lean-lsp tools; docs/team/serena.md says serena is on demand; settings.json allow entries for serena-lean go via a user command",
+   "writes": [
+    ".mcp.json",
+    ".claude/agents/**",
+    "docs/team/serena.md",
+    "docs/team/handoffs/serena-trim.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "alert-resolve-keys",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "alert-steps-plain"
+   ],
+   "title": "alert-steps-plain review follow-ups: after a resolve delete only the resolved step's keys (Lean Resolution.keys = spoolKeys of the step, emitted in the ops.obs resolve reply) so a held unrelated alert is still posted; keyClean for non-unknown-field keys also requires no sweep:admit in the window (theorem admit_failure_closes_no_other, golden row); handoff <= 30 lines; fw watch alert while an audience:lead step is open",
+   "writes": [
+    "lean/Fw/Ops/Obs.lean",
+    "packages/contracts/golden/ops/**",
+    "apps/console-api/src/spool/**",
+    "apps/console-api/test/**",
+    "apps/runner/src/watch*.ts",
+    "lean/Fw/Obs/**",
+    "docs/team/handoffs/alert-steps-plain.md",
+    "docs/team/handoffs/alert-resolve-keys.md"
+   ]
   }
  ],
  "deadline": {
