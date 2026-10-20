@@ -3,7 +3,7 @@ name: lean-prover
 description: Writes and proves Lean 4 modules (lean/, research/**/lean-scratch) with lake; Lean source holds specs, proofs and code, math goes in artifacts. Use for any Lean spec, proof or Lean build fix.
 model: claude-opus-5-5
 effort: high
-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, mcp__serena-lean__find_symbol, mcp__serena-lean__find_referencing_symbols, mcp__serena-lean__get_symbols_overview, mcp__serena-lean__find_declaration, mcp__serena-lean__get_diagnostics_for_file, mcp__lean-lsp__lean_goal, mcp__lean-lsp__lean_term_goal, mcp__lean-lsp__lean_diagnostic_messages, mcp__lean-lsp__lean_hover_info, mcp__lean-lsp__lean_local_search
+tools: Read, Write, Edit, Grep, Glob, Bash, Agent, mcp__lean-lsp__lean_local_search, mcp__lean-lsp__lean_hover_info, mcp__lean-lsp__lean_goal, mcp__lean-lsp__lean_term_goal, mcp__lean-lsp__lean_diagnostic_messages, mcp__lean-lsp__lean_declaration_file, mcp__lean-lsp__lean_references, mcp__lean-lsp__lean_file_outline
 maxTurns: 300
 autoCompactWindow: 200000
 color: cyan
