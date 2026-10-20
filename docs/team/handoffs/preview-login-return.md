@@ -1,6 +1,6 @@
 # preview-login-return handoff
 
-State: branch `worktree-wf_30371784-468-1`; the report names the final commit.
+State: branch `worktree-wf_30371784-468-1` at 66c51e34 (round 2, accepted).
 
 Built
 - Lean `lean/Fw/Console/PreviewReturn.lean`: `accepts` (allowlist: live arm port, or live `/preview/<id>/` on the preview port, never the
@@ -12,7 +12,7 @@ Built
 - console-web `App.tsx` `landingOf` (`/?tab=builds&note=stopped`).
 - Docs: `docs/team/tools/console.md` ("Login return link").
 
-Verified: console-api `pnpm test` (506 tests, `test/login-return.test.ts` 10), console-web tests, Lean check.
+Verified: console-api `pnpm test` 507/507 (`test/login-return.test.ts` 11), console-web tests, Lean check.
 
 Open items
 - TS stand-ins: none for decisions. The nonce map, hostName split and the HTTP glue are I/O.
@@ -25,3 +25,4 @@ Read first: `lean/Fw/Console/PreviewReturn.lean`, then `apps/console-api/src/pre
 Round 2: `redirect`/`landing` take `hosts` (console host names from `OwnerAuth.hostNames`); `redirect` also takes `get` and `heldCount`
 (HEAD/non-GET deny, full store `.login false`); theorems `redirect_not_get`, `redirect_foreign_host`, `redirect_full`,
 `landing_foreign_host`; `landing_sound`/`landing_url_shape` conclude `host ∈ hosts`. TS uses `location` unchanged; its map eviction is housekeeping.
+- Follow-up: `return.ts` TTL_MS copies Lean `ttl` as a literal and eviction runs before the Lean call; take it from Lean (generated constant or a golden-pinned test).
