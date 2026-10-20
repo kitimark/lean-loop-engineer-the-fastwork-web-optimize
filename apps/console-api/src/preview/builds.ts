@@ -48,6 +48,35 @@ export function readPresets(root: string): Preset[] {
   return [...raw.keys()].map((name) => ({ name, fw: resolve(name, []) }));
 }
 
+/** The registry facts `console.buildsSearch` reads: parts (variants in file order, impls, rules) and the presets as files give them. */
+export type Registry = {
+  parts: { id: string; variants: string[]; impls: string[]; requires: Record<string, string[]>; conflicts: Record<string, string[]> }[];
+  presets: { name: string; extends?: string; fw: Record<string, string> }[];
+};
+
+/** Read `part.json` and the preset files (I/O only). The validity rules are Lean `Fw.Console.BuildsOpen.validate`. */
+export function readRegistry(root: string): Registry {
+  const parts: Registry["parts"] = [];
+  const pdir = join(root, "apps/site/src/parts");
+  if (existsSync(pdir)) {
+    for (const d of readdirSync(pdir).sort()) {
+      const f = join(pdir, d, "part.json");
+      if (!existsSync(f)) continue;
+      const p = JSON.parse(readFileSync(f, "utf8")) as { id: string; variants?: Record<string, unknown>; impls?: string[]; requires?: Record<string, string[]>; conflicts?: Record<string, string[]> };
+      parts.push({ id: p.id, variants: Object.keys(p.variants ?? {}), impls: p.impls ?? [], requires: p.requires ?? {}, conflicts: p.conflicts ?? {} });
+    }
+  }
+  const presets: Registry["presets"] = [];
+  const rdir = join(root, "apps/site/src/registry/presets");
+  if (existsSync(rdir)) {
+    for (const n of readdirSync(rdir).filter((x) => x.endsWith(".json")).sort()) {
+      const p = JSON.parse(readFileSync(join(rdir, n), "utf8")) as { name?: string; extends?: string; fw?: Record<string, string> };
+      presets.push({ name: p.name ?? n.slice(0, -5), ...(p.extends ? { extends: p.extends } : {}), fw: p.fw ?? {} });
+    }
+  }
+  return { parts, presets };
+}
+
 export type WorkTask = { id: string; title: string; evidence?: string };
 
 export function workGraphTasks(root: string): WorkTask[] {

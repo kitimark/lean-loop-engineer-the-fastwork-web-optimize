@@ -10,6 +10,7 @@ import Fw.Console.PreviewOwner
 import Fw.Console.PreviewArm
 import Fw.Console.PreviewCache
 import Fw.Console.Builds
+import Fw.Console.BuildsOpen
 import Fw.Console.Daemon
 import Fw.Console.LandLegs
 import Fw.Plan.Trailer
@@ -45,6 +46,8 @@ imports it, so it decodes the card fields it needs itself).
 | `console.previewGrant` | `kind` (`issue`: may a grant be issued, from `lan`; `redeem`: a grant token is presented, with `known`, `used`, `issuedAt`, `now` (ms)), `lan` | `allow`, `verdict` (redeem: `ok`/`lan`/`unknown`/`used`/`expired`), `ttlMs` (issue), `cookieMs` (`Fw.Console.Preview.Owner.issueAllowed`, `redeem`) |
 | `console.ownerAction` | `kind` (`owner`: an owner action, needs the bearer token and an Origin; `command`: any other non-GET route, an Origin if present; `login`: an Origin, no token), `bearer` (a valid owner token in the Authorization header), `origin`? ({host, port} or null: none sent), `host`? (the origin of the Host header when it names this console, else null), `extra` [{host, port}] (configured web origins), `previewPort`? (null = unset: nothing is trusted) | `allow`, `trusted` (the computed trusted origins, none on the preview port) (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`) |
 | `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
+| `console.buildsSearch` | `registry` {parts [{id, variants [names, head = default], impls, requires {key: [keys]}, conflicts {key: [keys]}}], presets [{name, extends?, fw {part: variant or variant@impl}}]}, `search` | `ok`, `canonical` (when ok), `reasons` (when refused: the site `resolve` errors, or the length or charset reason) (`Fw.Console.BuildsOpen.validate`) |
+| `console.buildsOpen` | `mode` (`row`: `slot`, `sha`, `search` of a Builds row; `search`: `main`, `search`, `registry` as above), `arm`? (`r` or `compare`), `previews` [{id, slot, sha, serving}], `lan`?, `lanAddr`?, `port`? | `ok`, `reasons`, `canonical`, `act` (`reuse`/`wait`/`rebuild`/`start`), `preview` (the id acted on or null), `slot`, `sha`, `path` and `url` (with `reuse` only; `url` is the link to copy: LAN address when LAN is on, else loopback) (`Fw.Console.BuildsOpen.openSearch`, `openRow`, `path`, `fullUrl`) |
 | `console.daemon` | `kind`: `start` (`recorded`? pid in api.json, `answered`? pid the health request reported, `alive`? whether the recorded pid exists), `stop` (same), `restart` (same), `rotate` (`size`, `limit`? default 5 MiB) | start: `allow`, `verified` (pid or null), `reason` (`ok`/`running`/`unverifiedAlive`); stop: `target` (the only pid to signal, or null), `reason` (`ok`/`notRunning`); restart: `steps` [{step: `stop`+`pid` / `start`}]; rotate: `rotate`, `limit`, `warn` (size above 50 MiB), `warnLimit` (`Fw.Console.Daemon.startAllowed`, `stopTarget`, `restartPlan`, `rotate`, `logWarns`) |
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
 | `console.landTier` | `ids` [check ids] | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept), `browser` (`browserRuns`: the selection holds the e2e-preview check) |
@@ -625,6 +628,68 @@ def opBuildsPicker (req : Json) : Except String Reply := do
   let cur ← strD req "current" ""
   pure [("searches", Json.arr ((picker keys).map Json.str).toArray), ("current", Json.str (choose keys cur))]
 
+open Fw.Console.BuildsOpen in
+/-- An object of string lists as pairs. -/
+def strListPairs (k : String) : Json → Except String (List (String × List String))
+  | .obj kvs => kvs.toList.mapM fun kv => do
+      match kv.2 with
+      | .arr a => pure (kv.1, ← a.toList.mapM (asStr k))
+      | _ => throw s!"field {k}: expected an array of strings"
+  | _ => throw s!"field {k}: expected an object"
+
+open Fw.Console.BuildsOpen in
+/-- The registry facts of `console.buildsSearch` and `console.buildsOpen`. -/
+def registryOf (j : Json) : Except String (List PartFact × List PresetFact) := do
+  let r ← field j "registry"
+  let parts ← (← arrD r "parts").mapM fun p => do
+    pure ({ id := ← str p "id", variants := ← (← arrD p "variants").mapM (asStr "variants"),
+            impls := ← (← arrD p "impls").mapM (asStr "impls"),
+            requires := ← (match opt p "requires" with | none => pure [] | some v => strListPairs "requires" v),
+            conflicts := ← (match opt p "conflicts" with | none => pure [] | some v => strListPairs "conflicts" v) } : PartFact)
+  let presets ← (← arrD r "presets").mapM fun p => do
+    pure ({ name := ← str p "name",
+            base := (match opt p "extends" with | some (.str b) => some b | _ => none),
+            fw := ← (match opt p "fw" with | none => pure [] | some v => strPairs "fw" v) } : PresetFact)
+  pure (parts, presets)
+
+open Fw.Console.BuildsOpen in
+/-- `console.buildsSearch` (`Fw.Console.BuildsOpen.validate`). -/
+def opBuildsSearch (req : Json) : Except String Reply := do
+  let (parts, presets) ← registryOf req
+  match validate parts presets (← str req "search") with
+  | .ok c => pure [("ok", .bool true), ("canonical", .str c), ("reasons", Json.arr #[])]
+  | .refused rs => pure [("ok", .bool false), ("canonical", Json.null), ("reasons", Json.arr (rs.map Json.str).toArray)]
+
+open Fw.Console.BuildsOpen in
+/-- `console.buildsOpen` (`Fw.Console.BuildsOpen.openSearch`, `openRow`, `path`, `fullUrl`). -/
+def opBuildsOpen (req : Json) : Except String Reply := do
+  let pvs ← (← arrD req "previews").mapM fun p => do
+    pure ({ id := ← str p "id", slot := ← str p "slot", sha := ← str p "sha", serving := ← boolD p "serving" false } : PvFact)
+  let arm ← match ← strD req "arm" "r" with
+    | "r" => pure Arm.rewrite
+    | "compare" => pure Arm.compare
+    | _ => throw "field arm: expected r or compare"
+  let o ← match ← str req "mode" with
+    | "row" => pure (openRow pvs (← str req "slot") (← str req "sha") (← strD req "search" ""))
+    | "search" =>
+      let (parts, presets) ← registryOf req
+      pure (openSearch parts presets pvs (← str req "main") (← str req "search"))
+    | _ => throw "field mode: expected row or search"
+  match o with
+  | .refused rs => pure [("ok", .bool false), ("reasons", Json.arr (rs.map Json.str).toArray), ("canonical", Json.null),
+      ("act", Json.null), ("preview", Json.null), ("slot", Json.null), ("sha", Json.null), ("path", Json.null), ("url", Json.null)]
+  | .go act c slot sha =>
+    let lan ← boolD req "lan" false
+    let lanAddr : Option String := match opt req "lanAddr" with | some (.str a) => some a | _ => none
+    let port ← match opt req "port" with | none => pure 0 | some _ => nat req "port"
+    let (name, id) : String × Option String := match act with
+      | .reuse i => ("reuse", some i) | .wait i => ("wait", some i) | .rebuild i => ("rebuild", some i) | .start => ("start", none)
+    let (pth, url) : Json × Json := match act with
+      | .reuse i => let p := path i arm c; (.str p, .str (fullUrl lan lanAddr port p))
+      | _ => (Json.null, Json.null)
+    pure [("ok", .bool true), ("reasons", Json.arr #[]), ("canonical", .str c), ("act", .str name),
+      ("preview", match id with | some i => .str i | none => Json.null), ("slot", .str slot), ("sha", .str sha), ("path", pth), ("url", url)]
+
 open Fw.Console.Daemon in
 /-- `console.daemon` (`Fw.Console.Daemon`): what `fw console start|stop|restart` may do, when the log is rotated and when status warns about its size. -/
 def opDaemon (req : Json) : Except String Reply := do
@@ -660,7 +725,7 @@ def opDaemon (req : Json) : Except String Reply := do
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
   "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLeg", "console.landLegs", "console.landLegsVeto", "console.landLane", "console.landRemote", "console.landLaneState", "console.landDigest", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
-  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.previewArm", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.daemon"]
+  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.previewArm", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.buildsSearch", "console.buildsOpen", "console.daemon"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -702,6 +767,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.previewCache" => some (opPreviewCache req)
   | "console.builds" => some (opBuilds req)
   | "console.buildsPicker" => some (opBuildsPicker req)
+  | "console.buildsSearch" => some (opBuildsSearch req)
+  | "console.buildsOpen" => some (opBuildsOpen req)
   | "console.daemon" => some (opDaemon req)
   | _ => none
 
