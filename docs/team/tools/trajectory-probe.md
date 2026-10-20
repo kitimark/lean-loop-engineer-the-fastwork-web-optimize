@@ -8,7 +8,7 @@ native `requestAnimationFrame`, reads `getComputedStyle` (no screenshot, no anim
 Code: `packages/gate-breakpoints/src/trajectory/` (`run.mjs` walk, `kit.mjs` in-page reads, `registry.mjs` what is read,
 `reduce.mjs` the TS twin of the Lean verdicts, `cli.mjs`). Lean: `lean/Fw/Gate/Trajectory.lean`, golden
 `packages/contracts/golden/gate/trajectory.jsonl` (regenerate: `cd lean && lake env lean --run scripts/TrajectoryGolden.lean`).
-Workflow: `.github/workflows/trajectory-probe.yml`. The probe is not a gate stage and no preset reads it (follow-up).
+Workflow: `.github/workflows/trajectory-probe.yml`. The probe is the admission gate of `v2-proved` (see Admission below).
 
 ## Run it
 
@@ -60,6 +60,33 @@ all lanes). It runs only when the dispatch's search contains `hero.exit` (the wi
 spend one of the shared macOS slots on a path it cannot change; a preset that holds `hero.exit` is dispatched as `--fw`) and
 includes `playwright-webkit`. Its verdict is
 the separate artifact `trajectory-apple`; it is the closest engine CI has to Safari, still not Safari.
+
+## Admission
+
+No flag enters `v2-proved` without a stored pass in Chromium and in WebKit on both paths (Lean `member_needs_trajectory`,
+`lean/Fw/Preset/V2Proved.lean`). The stored runs live in `packages/contracts/golden/preset/v2-proved.trajectory.jsonl`, one
+line per (run, engine, path); only the recorder writes it. After a run, from `lean/`:
+
+    gh run download <id> -D <new empty dir>
+    git show <sha>:apps/site/src/registry/presets/v2-proved.json > <scratch>/preset.json   # only for a ?preset= search
+    printf 'import Fw.Preset.Gen\n#eval Fw.Preset.Gen.record ["<id>", "<sha>", "<scratch>/preset.json or -", "<dir>/trajectory-chromium", "<dir>/trajectory-playwright-webkit"]\n' | lake env lean --stdin
+    printf 'import Fw.Preset.Gen\n#eval Fw.Preset.Gen.run []\n' | lake env lean --stdin
+
+A stored run's outcome (Lean `outcome`, `lean/Fw/Gate/Trajectory.lean`), in order: no verdict (coverage) when the engine
+cannot decide the path (Linux WebKit on morph), no verdict (widths) when a lane width is missing, fail when a node property
+has content `new` units at 2 or more widths, no verdict (coverage) when it has coverage `new` units at 2 or more widths, else
+pass. In the default-vs-default run 39409003529 (Chromium) the content `new` units of each node property sat at one width,
+and so did its coverage `new` units (MEASURED in that one A/A run; that one width alone never fails a correct flag is INFERRED from
+it). Pending candidates are dispatched as `--fw <flags>`, never as `--preset v2-proved` (an empty preset walks the default
+config). Limits: a stored pass is not re-checked when the flag's part changes later (`Stored.sha` is not read yet); approach
+flicker (steps a*) counts as content today, so it can falsify a flag (safe side).
+
+A cell (flag, engine family, path): a failing run of the flag alone fails it; else a passing run of the flag alone passes
+it; else a failing shared run (a preset) leaves it pending, because it does not say which flag regressed; else a passing
+shared run passes it; else it is pending. A flag is `falsified: trajectory` when a cell fails, admitted when all four cells
+pass, else `pending: trajectory`. The decision rows (`v2-proved.decisions.jsonl`, field `trajectory`) show each cell and the
+runs it read. The WebKit morph cell needs `mac-webkit` (`member_needs_mac_morph`), and `probe-apple` walks only the hero path,
+so until it walks morph every flag stays pending.
 
 ## Limits
 

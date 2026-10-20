@@ -11240,7 +11240,8 @@
     "packages/gate-breakpoints/src/trajectory/**",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-admission.md"
-   ]
+   ],
+   "evidence": "780063e"
   },
   {
    "devices": [
