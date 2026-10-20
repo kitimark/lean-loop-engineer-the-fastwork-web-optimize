@@ -10071,7 +10071,13 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "docs/team/tools/land.md",
     "research/notes/2026/10-20-land-lane-speed.md",
-    "docs/team/handoffs/land-lane-speed.md"
+    "docs/team/handoffs/land-lane-speed.md",
+    "lean/Fw/Console/LandLegs.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw.lean",
+    "lean/land-legs.txt",
+    "apps/runner/test/preview-e2e-selection.test.ts",
+    "docs/team/tools/preview-e2e.md"
    ]
   },
   {
@@ -10094,6 +10100,31 @@
     "apps/console-api/test/**",
     "docs/team/tools/preview-e2e.md",
     "docs/team/handoffs/preview-e2e-entry.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-legs-followups",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "land-lane-speed review: Lean legsVeto for records without per-job conclusions (legsPass only replays it), drop dead lane filter; stale preview-e2e/checks.ts docs for LANE leg= and per-leg artifacts; webkit leg cache seeded from main (-40..50 s critical path); lane end read from the poller's cached facts; setup-lean/fwcore restore (one-writer cache rules)",
+   "deps": [
+    "land-lane-speed"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/checks.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Console/LandLegs.lean",
+    "lean/scripts/LandLegsGolden.lean",
+    "packages/contracts/golden/console/land-legs.jsonl",
+    ".github/workflows/land.yml",
+    ".github/actions/**",
+    "docs/team/tools/land.md",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/handoffs/land-legs-followups.md"
    ]
   }
  ],
