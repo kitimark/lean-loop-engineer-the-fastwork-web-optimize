@@ -1,8 +1,7 @@
 # Handoff: lake-build-slots
 
-**State:** branch `worktree-wf_6c3ae4fd-86e-2`, round 2. Code commit d3d2598b (bench spans, CI run 39423547036), then
-one commit with the lock-tool test and this handoff (CI run on it below). `sh lean/scripts/check.sh` green at the final commit; apps/runner `pnpm test`
-1437/1437; `scripts/ci-paths.test.mjs` 41/41; `scripts/lake-slot.test.mjs` 9/9.
+**State:** branch `worktree-wf_6c3ae4fd-86e-2`, round 2, code commit d3d2598b, then the lock-tool test and this handoff.
+At the final commit: check.sh green, apps/runner tests, ci-paths 41/41, lake-slot tests 9/9, lean.yml run in the report.
 
 **What exists:**
 - `lean/Fw/Sched/LakeSlot.lean`: pools `[full, cap 4]`, `pick` (first free slot), `bound n = n + 4` (12 here).
@@ -10,8 +9,7 @@ one commit with the lock-tool test and this handoff (CI run on it below). `sh le
   `further_waits`, `second_full_waits` (full-pool token), `solo_full`, `bound_eq`, `bound_hw`. Generates `golden/sched/lake-slot.gen.sh`.
 - `scripts/lake-slot.sh`: opens fd 9 on `<git common dir>/lake-slot/<i>`, locks it with `lockf`/`flock` in fd mode, then
   execs the command (no inner sh, exit status is the command's). Sourced form `LAKE_SLOT_LIB=1 . lake-slot.sh; (lake_slot <root> cmd)`.
-  A build that waited writes the span `lake-slot/wait`.
-- Call sites (all sourced): `scripts/fwcore-build.sh` (so check.sh and the land queue) and the land axiom lint (`Fw.Console.LandDry.Lint.argv`).
+  A build that waited writes the span `lake-slot/wait`. Call sites (all sourced): `scripts/fwcore-build.sh` (so check.sh and the land queue) and the land axiom lint (`Fw.Console.LandDry.Lint.argv`).
 - CI: lean.yml runs `node --test scripts/lake-slot.test.mjs` on Linux; apps/runner `test/ci-triggers.test.ts` runs it on a land.
 - Premise `land.binaryOfLean` names the wrapper files as not changing the binary bytes (INFERRED).
 
