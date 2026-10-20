@@ -25,8 +25,7 @@ namespace Fw.Ci.Trigger
 open Lean Fw.Ops.PathCheck
 open Fw.Console.LandSpeed (selected selected_of_mem skip_sound ReadsWithin St)
 
-/-- A workflow's push trigger: its file, the branches it watches and its declared input globs.
-$$w = (\mathit{file},\ B,\ G \in \mathrm{Glob}^{*})$$ -/
+/-- A workflow's push trigger: its file, the branches it watches and its declared input globs. -/
 structure Wf where
   file : String
   branches : List String
@@ -34,34 +33,28 @@ structure Wf where
   crons : List String
 deriving Repr, DecidableEq
 
-/-- Replace every `@set` glob by the set's contents (an unknown set stays as it is, matching no path).
-$$\operatorname{expand}(S, G) = \bigl[\, h : g \in G,\ h \in (S(g)\ \text{if } g \text{ starts with } @,\ \text{else } [g]) \,\bigr]$$ -/
+/-- Replace every `@set` glob by the set's contents (an unknown set stays as it is, matching no path). -/
 def expand (S : String → List String) (gs : List String) : List String :=
   gs.flatMap fun g => if g.startsWith "@" then S g else [g]
 
 /-- The push's own change: the files of its diff whose new content differs from `main`'s.
-Here $m(x)$ says the new content of $x$ is not `main`'s.
-$$\operatorname{eff}(D, m) = [\, x \in D : m(x) \,]$$ -/
+`differs x` says the new content of `x` is not `main`'s. -/
 def effective (diff : List String) (differs : String → Bool) : List String := diff.filter differs
 
-/-- Does the push start the workflow? Some effective change is in the scope of its expanded inputs.
-$$\operatorname{starts}(w, S, X) \iff \exists x \in X:\ \mathrm{in}(\mathrm{parse}(\operatorname{expand}(S, w.G)), x)$$ -/
+/-- Does the push start the workflow? Some effective change is in the scope of its expanded inputs. -/
 def Wf.starts (S : String → List String) (w : Wf) (eff : List String) : Bool :=
   selected (expand S w.inputs) eff
 
-/-- The workflows a push starts, in table order.
-$$\operatorname{started}(W, S, D, m) = [\, w.\mathit{file} : w \in W,\ \operatorname{starts}(w, S, \operatorname{eff}(D, m)) \,]$$ -/
+/-- The workflows a push starts, in table order. -/
 def startedBy (S : String → List String) (ws : List Wf) (diff : List String) (differs : String → Bool) : List String :=
   (ws.filter fun w => w.starts S (effective diff differs)).map (·.file)
 
-/-- The effective change is part of the diff.
-$$\forall D, m, x:\ x \in \operatorname{eff}(D, m) \Rightarrow x \in D$$ -/
+/-- The effective change is part of the diff. -/
 theorem effective_sub (diff : List String) (differs : String → Bool) (x : String) (h : x ∈ effective diff differs) :
     x ∈ diff := (List.mem_filter.mp h).1
 
 /-- **Starts iff an input changed.** A workflow starts exactly when a path of the diff that differs from `main` is in
-the scope of its expanded inputs.
-$$\forall S, w, D, m:\ \operatorname{starts}(w, S, \operatorname{eff}(D, m)) \iff \exists x \in D:\ m(x) \land \mathrm{in}(\mathrm{parse}(\operatorname{expand}(S, w.G)), x)$$ -/
+the scope of its expanded inputs. -/
 theorem starts_iff (S : String → List String) (w : Wf) (diff : List String) (differs : String → Bool) :
     w.starts S (effective diff differs) = true ↔
       ∃ x ∈ diff, differs x = true ∧ inScope (parseScope (expand S w.inputs)) x = true := by
@@ -73,8 +66,7 @@ theorem starts_iff (S : String → List String) (w : Wf) (diff : List String) (d
     exact ⟨x, ⟨hx, hd⟩, hi⟩
 
 /-- **Soundness: a change outside every declared input starts nothing.** If no effective change of the push is in the
-scope of any workflow's expanded inputs, the push starts no workflow.
-$$\forall S, W, D, m:\ (\forall w \in W,\ \forall x \in D:\ m(x) \Rightarrow \lnot\mathrm{in}(\mathrm{parse}(\operatorname{expand}(S, w.G)), x)) \Rightarrow \operatorname{started}(W, S, D, m) = [\,]$$ -/
+scope of any workflow's expanded inputs, the push starts no workflow. -/
 theorem none_started (S : String → List String) (ws : List Wf) (diff : List String) (differs : String → Bool)
     (h : ∀ w ∈ ws, ∀ x ∈ diff, differs x = true → inScope (parseScope (expand S w.inputs)) x = false) :
     startedBy S ws diff differs = [] := by
@@ -88,8 +80,7 @@ theorem none_started (S : String → List String) (ws : List Wf) (diff : List St
   rw [this]; rfl
 
 /-- **Completeness: the workflows started are exactly the ones with a changed input.** The file of `w` is in the started
-list iff some workflow of that file has an effective change in its inputs.
-$$\forall S, W, D, m, f:\ f \in \operatorname{started}(W, S, D, m) \iff \exists w \in W:\ w.\mathit{file} = f \land \exists x \in D:\ m(x) \land \mathrm{in}(\mathrm{parse}(\operatorname{expand}(S, w.G)), x)$$ -/
+list iff some workflow of that file has an effective change in its inputs. -/
 theorem mem_startedBy (S : String → List String) (ws : List Wf) (diff : List String) (differs : String → Bool) (f : String) :
     f ∈ startedBy S ws diff differs ↔
       ∃ w ∈ ws, w.file = f ∧ ∃ x ∈ diff, differs x = true ∧ inScope (parseScope (expand S w.inputs)) x = true := by
@@ -101,16 +92,14 @@ theorem mem_startedBy (S : String → List String) (ws : List Wf) (diff : List S
     exact ⟨w, ⟨hw, (starts_iff S w diff differs).mpr hx⟩, hf⟩
 
 /-- **A merge of `main` starts nothing.** If every path of the diff already has `main`'s content (a push that only
-merges `main`), no workflow starts, whatever the inputs.
-$$\forall S, W, D, m:\ (\forall x \in D:\ \lnot m(x)) \Rightarrow \operatorname{started}(W, S, D, m) = [\,]$$ -/
+merges `main`), no workflow starts, whatever the inputs. -/
 theorem merge_starts_nothing (S : String → List String) (ws : List Wf) (diff : List String) (differs : String → Bool)
     (h : ∀ x ∈ diff, differs x = false) : startedBy S ws diff differs = [] :=
   none_started S ws diff differs fun _ _ x hx hd => by rw [h x hx] at hd; exact Bool.noConfusion hd
 
 /-- **The coarse GitHub filter never drops a needed start.** GitHub's `on.push.paths` filter runs on the whole diff
 `before..after`; if the workflow starts (an effective input changed) the filter passes, so the generated `paths` list
-together with the guard decides exactly `starts`.
-$$\forall S, w, D, m:\ \operatorname{starts}(w, S, \operatorname{eff}(D, m)) \Rightarrow \operatorname{sel}(\operatorname{expand}(S, w.G), D)$$ -/
+together with the guard decides exactly `starts`. -/
 theorem filter_passes (S : String → List String) (w : Wf) (diff : List String) (differs : String → Bool)
     (h : w.starts S (effective diff differs) = true) : selected (expand S w.inputs) diff = true := by
   obtain ⟨x, hx, _, hi⟩ := (starts_iff S w diff differs).mp h
@@ -118,8 +107,7 @@ theorem filter_passes (S : String → List String) (w : Wf) (diff : List String)
 
 /-- **A skipped run replays.** If the workflow's result depends only on its expanded inputs and the push does not start
 it, its result on the new state equals its result on any state that agrees with it outside the effective change (the
-state the branch was last verified in, with `main`'s content).
-$$\mathrm{RW}(\mathit{run}, \operatorname{expand}(S, w.G)) \land \lnot\operatorname{starts}(w, S, X) \land (\forall p \notin X:\ \sigma(p) = \sigma'(p)) \Rightarrow \mathit{run}(\sigma) = \mathit{run}(\sigma')$$ -/
+state the branch was last verified in, with `main`'s content). -/
 theorem skipped_replays {R} (S : String → List String) (w : Wf) (eff : List String) (run : St → R)
     (hrw : ReadsWithin run (expand S w.inputs)) (hs : w.starts S eff = false) (σ σ' : St)
     (hd : ∀ p, p ∉ eff → σ p = σ' p) : run σ = run σ' :=
@@ -127,32 +115,28 @@ theorem skipped_replays {R} (S : String → List String) (w : Wf) (eff : List St
 
 /-! ## The table -/
 
-/-- The path of a workflow file. $$\operatorname{own}(f) = \texttt{.github/workflows/}f$$ -/
+/-- The path of a workflow file. -/
 def own (f : String) : String := s!".github/workflows/{f}"
 
-/-- Branches of a `ci/*` lane that also runs on `main`. $$B = [\texttt{ci/**},\ \texttt{main}]$$ -/
+/-- Branches of a `ci/*` lane that also runs on `main`. -/
 def ciMain : List String := ["ci/**", "main"]
 
 /-- Branches of a `ci/*` lane that does not run on `main`. -/
 def ciAll : List String := ["ci/**"]
 
-/-- The files `lake build fwcore` reads besides the import cone of `Main`: the build files. `@fwcore.cone` is the cone.
-$$F_{\mathrm{core}} = [\texttt{lean/Main.lean},\ \texttt{lean/lakefile.toml},\ \texttt{lean/lake-manifest.json},\ \texttt{lean/lean-toolchain},\ @\mathrm{cone}(\mathrm{Main})]$$ -/
+/-- The files `lake build fwcore` reads besides the import cone of `Main`: the build files. `@fwcore.cone` is the cone. -/
 def fwcoreFiles : List String :=
   ["lean/Main.lean", "lean/lakefile.toml", "lean/lake-manifest.json", "lean/lean-toolchain", "@cone:Main"]
 
-/-- The files `breakgen` (run by the site build) reads: the build files and the import cone of `BreakgenMain`.
-$$F_{\mathrm{gen}} = [\texttt{lean/BreakgenMain.lean},\ \texttt{lean/lakefile.toml},\ \texttt{lean/lake-manifest.json},\ \texttt{lean/lean-toolchain},\ @\mathrm{cone}(\mathrm{BreakgenMain})]$$ -/
+/-- The files `breakgen` (run by the site build) reads: the build files and the import cone of `BreakgenMain`. -/
 def breakgenFiles : List String :=
   ["lean/BreakgenMain.lean", "lean/lakefile.toml", "lean/lake-manifest.json", "lean/lean-toolchain", "@cone:BreakgenMain"]
 
 /-- The named sets. `@cone:<Root>` is the transitive `import` (and `include_str`) closure of the root module inside
-`lean/`, computed from the checkout by `scripts/ci-paths.mjs`.
-$$S(@\mathrm{fwcore}) = F_{\mathrm{core}},\quad S(@\mathrm{breakgen}) = F_{\mathrm{gen}}$$ -/
+`lean/`, computed from the checkout by `scripts/ci-paths.mjs`. -/
 def sets : List (String × List String) := [("@fwcore", fwcoreFiles), ("@breakgen", breakgenFiles)]
 
 /-- The set map with the given cones (`cone root` is the file list of the import cone of `root`).
-$$S_{\mathrm{cone}}(g) = \begin{cases} \operatorname{flatMap}\big(h \mapsto \mathrm{cone}(R) \text{ if } h = \texttt{@cone:}R \text{ else } [h],\ xs\big) & (g, xs) \text{ is the first pair of } \mathrm{sets} \text{ with key } g \\ [g] & \text{no pair of } \mathrm{sets} \text{ has key } g \end{cases}$$
 
 A plain glob maps to itself; a named set expands its cone markers. -/
 def setMap (cone : String → List String) (g : String) : List String :=
@@ -161,75 +145,6 @@ def setMap (cone : String → List String) (g : String) : List String :=
   | none => [g]
 
 /-- The workflow table: the single place where a push trigger is decided.
-$$\begin{aligned}
-W &= [w_1, \dots, w_{14}],\quad B = \mathrm{ciAll} \\
-w_{1} &= (\texttt{breakpoint-gate.yml}, B, G_{1}) \\
-G_{1} &= [\texttt{packages/gate-breakpoints/**}, \texttt{apps/site/**}, \texttt{@}\mathrm{fwcore}, \texttt{@}\mathrm{breakgen}, \\
-&\quad \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \texttt{package.json}, \texttt{pnpm-lock.yaml}, \\
-&\quad \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/gate-shards.mjs}, \texttt{.github/scripts/gate-jobs.mjs}, \texttt{.github/scripts/cache-key.mjs}, \\
-&\quad \texttt{packages/contracts/golden/gate/schedule.jsonl}, \texttt{packages/contracts/golden/ops/cache.jsonl}, \texttt{.github/scripts/gate-smoke.mjs}, \texttt{.github/scripts/merge-gate.mjs}, \\
-&\quad \texttt{.github/scripts/gate-search.mjs}, \texttt{.github/scripts/gate-search.test.mjs}, \texttt{packages/contracts/golden/gate/search.jsonl}, \\
-&\quad \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \\
-&\quad \texttt{.github/actions/gate-engine/**}, \operatorname{own}(\texttt{breakpoint-gate.yml})] \\
-w_{2} &= (\texttt{chromium-counts.yml}, B, G_{2}) \\
-G_{2} &= [\texttt{packages/measure-chromium/**}, \texttt{apps/site/**}, \texttt{@}\mathrm{fwcore}, \texttt{@}\mathrm{breakgen}, \\
-&\quad \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \texttt{package.json}, \texttt{pnpm-lock.yaml}, \\
-&\quad \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/runner-info.sh}, \texttt{.github/scripts/changed-inputs.mjs}, \\
-&\quad \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \operatorname{own}(\texttt{chromium-counts.yml})] \\
-w_{3} &= (\texttt{difftest.yml}, B, G_{3}) \\
-G_{3} &= [\texttt{packages/difftest/**}, \texttt{packages/measure-webkit/src/**}, \texttt{packages/measure-chromium/src/**}, \texttt{apps/runner/hooks/cap.mjs}, \\
-&\quad \texttt{apps/console-api/src/cap/**}, \texttt{@}\mathrm{fwcore}, \texttt{pnpm-lock.yaml}, \texttt{.github/scripts/changed-inputs.mjs}, \\
-&\quad \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \operatorname{own}(\texttt{difftest.yml})] \\
-w_{4} &= (\texttt{engine-premises.yml}, [\texttt{ci/**}], G_{4}) \\
-G_{4} &= [\texttt{packages/measure-chromium/**}, \texttt{packages/measure-wktr/**}, \texttt{packages/contracts/golden/ops/engine-premises.jsonl}, \texttt{.github/scripts/runner-info.sh}, \\
-&\quad \texttt{.github/scripts/changed-inputs.mjs}, \operatorname{own}(\texttt{engine-premises.yml})] \\
-w_{5} &= (\texttt{gate-gaps.yml}, B, G_{5}) \\
-G_{5} &= [\texttt{packages/gate-breakpoints/**}, \texttt{apps/site/**}, \texttt{@}\mathrm{fwcore}, \texttt{@}\mathrm{breakgen}, \\
-&\quad \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \texttt{package.json}, \texttt{pnpm-lock.yaml}, \\
-&\quad \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/check-simulator.sh}, \texttt{.github/scripts/changed-inputs.mjs}, \\
-&\quad \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \operatorname{own}(\texttt{gate-gaps.yml})] \\
-w_{6} &= (\texttt{lean.yml}, \mathrm{ciMain}, G_{6}) \\
-G_{6} &= [\texttt{lean/**}, \texttt{apps/site/src/breakpoints.gen.json}, \texttt{apps/site/src/sweeps.gen.json}, \texttt{apps/site/src/head.gen.json}, \texttt{scripts/span.sh}, \\
-&\quad \texttt{scripts/fwcore-build.sh}, \texttt{packages/contracts/golden/gate/sweeps.jsonl}, \texttt{packages/contracts/golden/gate/exit.jsonl}, \texttt{packages/contracts/golden/gate/webkit-screen.jsonl}, \texttt{packages/contracts/golden/gate/search.jsonl}, \\
-&\quad \texttt{packages/gate-breakpoints/src/scope.gen.json}, \texttt{packages/contracts/golden/parts/contracts.gen.json}, \texttt{packages/contracts/golden/parts/stage.jsonl}, \texttt{packages/contracts/golden/parts/stage-mode.jsonl}, \\
-&\quad \texttt{packages/measure-chromium/scenarios.gen.json}, \texttt{packages/contracts/golden/parts/morph.mount.dormant.jsonl}, \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \\
-&\quad \texttt{.github/scripts/runner-info.sh}, \operatorname{own}(\texttt{lean.yml})] \\
-w_{7} &= (\texttt{mutants.yml}, B, G_{7}) \\
-G_{7} &= [\texttt{lean/Fw/Console.lean}, \texttt{lean/Fw/Serve.lean}, \texttt{lean/Fw/Ops/Meter.lean}, \texttt{lean/Fw/Ops/PathCheck.lean}, \\
-&\quad \texttt{lean/Fw/Ops/SpawnGuard.lean}, \texttt{lean/Fw/Ops/Usage.lean}, \texttt{lean/Fw/Ops/Wire.lean}, \texttt{lean/Fw/Spec/DeviceQueue.lean}, \\
-&\quad \texttt{lean/Fw/Wire.lean}, \texttt{lean/FwTest/Mutants/**}, \texttt{lean/scripts/mutants.sh}, \texttt{.github/scripts/changed-inputs.mjs}, \\
-&\quad \texttt{.github/actions/setup-lean/**}, \operatorname{own}(\texttt{mutants.yml})] \\
-w_{8} &= (\texttt{premise-tests.yml}, B, G_{8}) \\
-G_{8} &= [\texttt{packages/premise-tests/**}, \texttt{packages/contracts/golden/ops/premise.jsonl}, \texttt{lean/Fw/Ops/Premise.lean}, \texttt{apps/runner/src/premises.ts}, \\
-&\quad \texttt{package.json}, \texttt{pnpm-lock.yaml}, \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/changed-inputs.mjs}, \\
-&\quad \texttt{.github/actions/setup-pnpm/**}, \texttt{.github/actions/gate-engine/**}, \texttt{.github/scripts/cache-key.mjs}, \\
-&\quad \texttt{packages/contracts/golden/ops/cache.jsonl}, \operatorname{own}(\texttt{premise-tests.yml})] \\
-w_{9} &= (\texttt{sim-speed.yml}, [\texttt{ci/sim-speed}], G_{9}) \\
-G_{9} &= [\texttt{packages/measure-webkit/**}, \texttt{.github/scripts/sim-speed-*}, \texttt{.github/scripts/check-simulator.sh}, \texttt{.github/scripts/runner-info.sh}, \\
-&\quad \texttt{.github/scripts/changed-inputs.mjs}, \operatorname{own}(\texttt{sim-speed.yml})] \\
-w_{10} &= (\texttt{snapshot-extract.yml}, B, G_{10}) \\
-G_{10} &= [\texttt{packages/snapshot-extract/**}, \texttt{packages/gate-breakpoints/**}, \texttt{apps/site/**}, \texttt{snapshot/**}, \\
-&\quad \texttt{snapshot.lock.json}, \texttt{package.json}, \texttt{pnpm-lock.yaml}, \texttt{pnpm-workspace.yaml}, \\
-&\quad \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \\
-&\quad \texttt{.github/actions/gate-engine/**}, \operatorname{own}(\texttt{snapshot-extract.yml})] \\
-w_{11} &= (\texttt{visual-diff.yml}, B, G_{11}) \\
-G_{11} &= [\texttt{packages/visual-diff/**}, \texttt{packages/gate-breakpoints/src/**}, \texttt{packages/gate-breakpoints/package.json}, \texttt{packages/contracts/golden/gate/**}, \\
-&\quad \texttt{packages/contracts/golden/port/**}, \texttt{scripts/port/**}, \texttt{apps/site/**}, \texttt{@}\mathrm{breakgen}, \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \\
-&\quad \texttt{package.json}, \texttt{pnpm-lock.yaml}, \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/verify-snapshot.mjs}, \\
-&\quad \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \texttt{.github/actions/gate-engine/**}, \\
-&\quad \operatorname{own}(\texttt{visual-diff.yml})] \\
-w_{12} &= (\texttt{webkit-sim.yml}, B, G_{12}) \\
-G_{12} &= [\texttt{packages/measure-webkit/**}, \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \texttt{.github/scripts/check-simulator.sh}, \\
-&\quad \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/runner-info.sh}, \texttt{.github/scripts/changed-inputs.mjs}, \operatorname{own}(\texttt{webkit-sim.yml})] \\
-w_{13} &= (\texttt{wktr-fixtures.yml}, [\texttt{ci/**}], G_{13}) \\
-G_{13} &= [\texttt{packages/measure-wktr/**}, \texttt{packages/measure-chromium/src/classify.mjs}, \texttt{packages/measure-chromium/src/fwcore.mjs}, \texttt{@}\mathrm{fwcore}, \\
-&\quad \texttt{packages/contracts/golden/measure/wktr.fixtures.jsonl}, \texttt{.github/scripts/runner-info.sh}, \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \\
-&\quad \operatorname{own}(\texttt{wktr-fixtures.yml})] \\
-w_{14} &= (\texttt{wktr.yml}, [\texttt{ci/**}], G_{14}) \\
-G_{14} &= [\texttt{packages/measure-wktr/**}, \texttt{packages/measure-chromium/src/classify.mjs}, \texttt{packages/measure-chromium/src/fwcore.mjs}, \texttt{@}\mathrm{fwcore}, \\
-&\quad \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/runner-info.sh}, \\
-&\quad \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \operatorname{own}(\texttt{wktr.yml})]
-\end{aligned}$$
 
 Each row is (workflow file, branches, input globs); `lean/**` is replaced by the binary's own inputs where the
 workflow only builds `fwcore` or `breakgen`, while `lean.yml` and the lean checks keep `lean/**`. -/
@@ -328,15 +243,13 @@ def table : List Wf := [
 
 #guard (table.map (·.file)).eraseDups.length == table.length
 
-/-- A small stand-in for the cones, for the replay cases (the real cones come from the checkout).
-$$\mathrm{cone}(r) = \begin{cases} [\texttt{lean/Fw/Wire.lean},\ \texttt{lean/Fw/Ops/Wire.lean}] & r = \texttt{Main} \\ [\texttt{lean/Fw/Site/Breakpoints.lean}] & r = \texttt{BreakgenMain} \\ [\,] & \text{otherwise} \end{cases}$$ -/
+/-- A small stand-in for the cones, for the replay cases (the real cones come from the checkout). -/
 def sampleCone : String → List String
   | "Main" => ["lean/Fw/Wire.lean", "lean/Fw/Ops/Wire.lean"]
   | "BreakgenMain" => ["lean/Fw/Site/Breakpoints.lean"]
   | _ => []
 
-/-- Files started by a push (names only) under the sample cones.
-$$\operatorname{run}(D, M) = \operatorname{started}(W, S_{\mathrm{sample}}, D, \lambda x.\ x \notin M)$$ -/
+/-- Files started by a push (names only) under the sample cones. -/
 def run (diff merged : List String) : List String :=
   startedBy (setMap sampleCone) table diff (fun x => !merged.contains x)
 
@@ -607,32 +520,26 @@ cone from the checkout at run time and decides `starts` exactly (`starts_iff`). 
 never drops a path the precise inputs hold, as long as the cones stay inside `coneGlobs` (`ConeWithin`, checked by
 `scripts/ci-paths.mjs`); `paths_stable_under_new_module` shows a new module under `lean/Fw` keeps that. -/
 
-/-- The fixed globs that stand in for every import cone in `on.push.paths`.
-$$C = [\texttt{lean/Fw/**},\ \texttt{lean/*.lean}]$$ -/
+/-- The fixed globs that stand in for every import cone in `on.push.paths`. -/
 def coneGlobs : List String := ["lean/Fw/**", "lean/*.lean"]
 
-/-- A path is literal: none of its segments holds a `*`.
-$$\forall f:\ \operatorname{lit}(f) \iff \forall s \in \mathrm{segs}(f):\ \texttt{*} \notin s$$ -/
+/-- A path is literal: none of its segments holds a `*`. -/
 def Literal (f : String) : Prop := ∀ s ∈ segs f, '*' ∉ s.toList
 
-/-- The cones stay inside the coarse globs: every file of every cone is literal and in the scope of $C$.
-$$\forall c:\ \operatorname{within}(c) \iff \forall r,\ \forall f \in c(r):\ \operatorname{lit}(f) \land \mathrm{in}(\mathrm{parse}(C), f)$$ -/
+/-- The cones stay inside the coarse globs: every file of every cone is literal and in the scope of `coneGlobs`. -/
 def ConeWithin (cone : String → List String) : Prop :=
   ∀ r, ∀ f ∈ cone r, Literal f ∧ inScope (parseScope coneGlobs) f = true
 
-/-- The workflow's generated `on.push.paths`: its inputs with every cone replaced by $C$. It takes no cone, so no
-change of the import graph can change it.
-$$\forall w:\ \operatorname{push}(w) = \operatorname{expand}(S_C, w.G),\qquad S_C = \operatorname{setMap}(\lambda r.\ C)$$ -/
+/-- The workflow's generated `on.push.paths`: its inputs with every cone replaced by `coneGlobs`. It takes no cone, so no
+change of the import graph can change it. -/
 def pushPaths (w : Wf) : List String := expand (setMap fun _ => coneGlobs) w.inputs
 
-/-- Add one file to the cone of one root (a new module that the root now imports).
-$$\forall c, r_0, f, r:\ \operatorname{add}(c, r_0, f)(r) = \begin{cases} f :: c(r) & r = r_0 \\ c(r) & r \ne r_0 \end{cases}$$ -/
+/-- Add one file to the cone of one root (a new module that the root now imports). -/
 def addModule (cone : String → List String) (root f : String) : String → List String :=
   fun r => if r = root then f :: cone r else cone r
 
 /-- An expanded input under one cone map is an expanded input under the other map, unless it is a cone file of a root
-whose whole cone the other map expands.
-$$\forall c, c', G, g:\ g \in \operatorname{expand}(\operatorname{setMap}(c), G) \Rightarrow g \in \operatorname{expand}(\operatorname{setMap}(c'), G) \lor \exists r:\ g \in c(r) \land c'(r) \subseteq \operatorname{expand}(\operatorname{setMap}(c'), G)$$ -/
+whose whole cone the other map expands. -/
 theorem mem_expand_setMap (c c' : String → List String) (gs : List String) (g : String)
     (h : g ∈ expand (setMap c) gs) :
     g ∈ expand (setMap c') gs ∨ ∃ r, g ∈ c r ∧ ∀ y ∈ c' r, y ∈ expand (setMap c') gs := by
@@ -667,8 +574,7 @@ theorem mem_expand_setMap (c c' : String → List String) (gs : List String) (g 
     left
     exact ⟨i, hi, by rw [ite_eq_right ha]; exact hg⟩
 
-/-- A literal glob matches only its own path and the paths below it.
-$$\forall f, p:\ \operatorname{lit}(f) \land \mathrm{mp}(\mathrm{segs}(f), p) \Rightarrow \exists u:\ p = \mathrm{segs}(f) \mathbin{+\!\!+} u$$ -/
+/-- A literal glob matches only its own path and the paths below it. -/
 theorem literal_prefix (f : String) (p : List String) (hl : Literal f) (h : matchesPath (segs f) p = true) :
     ∃ u, p = segs f ++ u := by
   simp only [matchesPath, List.any_eq_true, List.mem_range] at h
@@ -678,9 +584,8 @@ theorem literal_prefix (f : String) (p : List String) (hl : Literal f) (h : matc
   have he := (globMatch_lit _ _ hlit).mp hm
   exact ⟨p.drop (k + 1), by rw [he, List.take_append_drop]⟩
 
-/-- **The coarse filter is sound.** If the cones stay inside $C$, every path in the scope of the precise inputs (cones
-expanded from the checkout) is in the scope of the generated push paths.
-$$\forall c, G, x:\ \operatorname{within}(c) \land \mathrm{in}(\mathrm{parse}(\operatorname{expand}(\operatorname{setMap}(c), G)), x) \Rightarrow \mathrm{in}(\mathrm{parse}(\operatorname{expand}(S_C, G)), x)$$ -/
+/-- **The coarse filter is sound.** If the cones stay inside `coneGlobs`, every path in the scope of the precise
+inputs (cones expanded from the checkout) is in the scope of the generated push paths. -/
 theorem coarse_sound (c : String → List String) (hc : ConeWithin c) (gs : List String) (x : String)
     (h : inScope (parseScope (expand (setMap c) gs)) x = true) :
     inScope (parseScope (expand (setMap fun _ => coneGlobs) gs)) x = true := by
@@ -709,9 +614,8 @@ theorem coarse_sound (c : String → List String) (hc : ConeWithin c) (gs : List
       simp only [coneGlobs, List.mem_cons, List.not_mem_nil, or_false] at hr
       rcases hr with rfl | rfl <;> exact absurd hb (by simp)
 
-/-- **The generated push filter never drops a needed start.** If the cones stay inside $C$ and the guard's precise
-decision starts the workflow, GitHub's static `paths` filter passes the push's diff.
-$$\forall c, w, D, m:\ \operatorname{within}(c) \land \operatorname{starts}(w, \operatorname{setMap}(c), \operatorname{eff}(D, m)) \Rightarrow \operatorname{sel}(\operatorname{push}(w), D)$$ -/
+/-- **The generated push filter never drops a needed start.** If the cones stay inside `coneGlobs` and the guard's
+precise decision starts the workflow, GitHub's static `paths` filter passes the push's diff. -/
 theorem push_filter_passes (c : String → List String) (hc : ConeWithin c) (w : Wf) (diff : List String)
     (differs : String → Bool) (h : w.starts (setMap c) (effective diff differs) = true) :
     selected (pushPaths w) diff = true := by
@@ -719,9 +623,8 @@ theorem push_filter_passes (c : String → List String) (hc : ConeWithin c) (w :
   exact selected_of_mem _ _ x hx (coarse_sound c hc w.inputs x hi)
 
 /-- **A new module under `lean/Fw` changes no workflow file.** The push paths take no cone, so they are the same
-before and after; and if the new file is literal and inside $C$, the grown cones still stay inside $C$, so the same
-push paths still pass every push the guard starts.
-$$\forall c, r_0, f:\ \bigl(\operatorname{within}(c) \land \operatorname{lit}(f) \land \mathrm{in}(\mathrm{parse}(C), f)\bigr) \Rightarrow \Bigl(\operatorname{within}(\operatorname{add}(c, r_0, f)) \land \forall w, D, m:\ \bigl(\operatorname{starts}(w, \operatorname{setMap}(\operatorname{add}(c, r_0, f)), \operatorname{eff}(D, m)) \Rightarrow \operatorname{sel}(\operatorname{push}(w), D)\bigr)\Bigr)$$ -/
+before and after; and if the new file is literal and inside `coneGlobs`, the grown cones still stay inside
+`coneGlobs`, so the same push paths still pass every push the guard starts. -/
 theorem paths_stable_under_new_module (c : String → List String) (root f : String) (hc : ConeWithin c)
     (hl : Literal f) (hf : inScope (parseScope coneGlobs) f = true) :
     ConeWithin (addModule c root f) ∧ ∀ (w : Wf) (diff : List String) (differs : String → Bool),
@@ -736,8 +639,7 @@ theorem paths_stable_under_new_module (c : String → List String) (root f : Str
     · exact hc r y hy
   exact ⟨hc', fun w diff differs h => push_filter_passes _ hc' w diff differs h⟩
 
-/-- The workflows whose generated push filter passes a diff (GitHub's static step, before the guard).
-$$\forall D:\ \operatorname{filtered}(D) = [\, w.\mathit{file} : w \in W,\ \operatorname{sel}(\operatorname{push}(w), D) \,]$$ -/
+/-- The workflows whose generated push filter passes a diff (GitHub's static step, before the guard). -/
 def filtered (diff : List String) : List String :=
   (table.filter fun w => selected (pushPaths w) diff).map (·.file)
 
@@ -753,11 +655,10 @@ def filtered (diff : List String) : List String :=
 
 /-! ## Golden (`packages/contracts/golden/ci/triggers.jsonl`) -/
 
-/-- A JSON array of strings. $$\operatorname{strs}(xs) = [\, \mathrm{str}(x) : x \in xs \,]$$ -/
+/-- A JSON array of strings. -/
 def strs (xs : List String) : Json := .arr (xs.map Json.str).toArray
 
-/-- The table line: workflows with branches and symbolic inputs, and the named sets.
-$$\operatorname{tableLine} = \{\texttt{kind}: \texttt{table},\ \texttt{workflows}: [\,\{\texttt{file}: w.\mathit{file},\ \texttt{branches}: w.B,\ \texttt{inputs}: w.G\} : w \in W\,],\ \texttt{sets}: \mathrm{sets},\ \texttt{coneGlobs}: C\}$$ -/
+/-- The table line: workflows with branches and symbolic inputs, and the named sets. -/
 def tableLine : Json :=
   Json.mkObj [("kind", "table"),
     ("workflows", .arr (table.map fun w => Json.mkObj [("file", .str w.file), ("branches", strs w.branches),
@@ -768,29 +669,8 @@ def tableLine : Json :=
     ("cacheWriters", .arr (cacheWriters.map fun (f, j, c) =>
       Json.mkObj [("file", .str f), ("job", .str j), ("cache", .str c)]).toArray)]
 
-/-- The replay cases: a push (its diff, the paths that already equal `main`); the workflows it starts under the
-sample cones are added by `caseLine`.
-$$\begin{aligned}
-\mathrm{cases} = [\, &(\text{docs only}, [\texttt{docs/team/handoffs/x.md}], [\,]), \\
-&(\text{lean test file}, [\texttt{lean/FwTest/Lease.lean}], [\,]), \\
-&(\text{lean script}, [\texttt{lean/scripts/check.sh}], [\,]), \\
-&(\text{a part module outside the fwcore cone}, [\texttt{lean/Fw/Parts/HeroExit.lean}], [\,]), \\
-&(\text{a module in the fwcore cone}, [\texttt{lean/Fw/Wire.lean}], [\,]), \\
-&(\text{a new module under lean/Fw, not yet imported}, [\texttt{lean/Fw/New.lean}], [\,]), \\
-&(\text{the breakgen cone}, [\texttt{lean/Fw/Site/Breakpoints.lean}], [\,]), \\
-&(\text{lake manifest}, [\texttt{lean/lake-manifest.json}], [\,]), \\
-&(\text{wktr package}, [\texttt{packages/measure-wktr/src/a.mjs}], [\,]), \\
-&(\text{site source}, [\texttt{apps/site/src/a.tsx}], [\,]), \\
-&(\text{the guard script}, [\texttt{.github/scripts/changed-inputs.mjs}], [\,]), \\
-&(\text{a merge of main only}, X, X), \\
-&(\text{a merge of main plus one own file}, [\texttt{lean/Fw/Wire.lean}, \texttt{packages/measure-wktr/src/a.mjs}], [\texttt{lean/Fw/Wire.lean}]), \\
-&(\text{the workflow file itself}, [\texttt{.github/workflows/wktr.yml}], [\,]), \\
-&(\text{a wktr fixture page}, [\texttt{packages/measure-wktr/fixtures/control/index.html}], [\,]), \\
-&(\text{nothing changed}, [\,], [\,])\,] \\
-X = [\, &\texttt{lean/Fw/Wire.lean}, \texttt{apps/site/src/a.tsx}, \texttt{packages/measure-wktr/src/a.mjs}\,]
-\end{aligned}$$
-
-Each case is (name $n$, diff $D$, merged paths $M$). -/
+/-- The replay cases: each is (name, diff, the paths that already equal `main`); the workflows it starts under the
+sample cones are added by `caseLine`. -/
 def cases : List (String × List String × List String) := [
   ("docs only", ["docs/team/handoffs/x.md"], []),
   ("lean test file", ["lean/FwTest/Lease.lean"], []),
@@ -811,8 +691,7 @@ def cases : List (String × List String × List String) := [
   ("nothing changed", [], [])]
 
 /-- One replay line: the diff, the merged paths, the sample cones, the started workflows and the workflows whose
-static push filter passes the diff.
-$$\operatorname{caseLine}(n, D, M) = \{\texttt{kind}: \texttt{case},\ \texttt{name}: n,\ \texttt{diff}: D,\ \texttt{merged}: M,\ \texttt{cones}: \{\texttt{Main}: \mathrm{cone}(\mathrm{Main}),\ \texttt{BreakgenMain}: \mathrm{cone}(\mathrm{BreakgenMain})\},\ \texttt{started}: \operatorname{run}(D, M),\ \texttt{filtered}: \operatorname{filtered}(D)\}$$ -/
+static push filter passes the diff. -/
 def caseLine (c : String × List String × List String) : Json :=
   Json.mkObj [("kind", "case"), ("name", .str c.1), ("diff", strs c.2.1), ("merged", strs c.2.2),
     ("cones", Json.mkObj [("Main", strs (sampleCone "Main")), ("BreakgenMain", strs (sampleCone "BreakgenMain"))]),
@@ -827,13 +706,13 @@ def ifFormLine (o : Option String) : Json :=
 def ifCheckLine (t : String) : Json :=
   Json.mkObj [("kind", "ifCheck"), ("text", .str t), ("carries", .bool (carriesNotMain t))]
 
-/-- The text of the golden file. $$\text{one JSON object per line: the table, the cases, the if forms and checks}$$ -/
+/-- The text of the golden file: one JSON object per line for the table, the cases, the `if:` forms and the `if:`
+checks. -/
 def goldenText (_ : Unit := ()) : String :=
   String.join ((tableLine :: cases.map caseLine ++ ifOrigs.map ifFormLine ++ ifTexts.map ifCheckLine).map
     fun j => j.compress ++ "\n")
 
-/-- Compare (or write) the golden file; returns the number of stale files.
-$$\operatorname{runGolden}(\mathit{write}) = 0\ \text{if the file equals goldenText (or was written), else } 1$$ -/
+/-- Compare (or write) the golden file; returns the number of stale files. -/
 def runGolden (root : System.FilePath) (write : Bool) : IO Nat := do
   let p := root / ".." / "packages" / "contracts" / "golden" / "ci" / "triggers.jsonl"
   if write then
