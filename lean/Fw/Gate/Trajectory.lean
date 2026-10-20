@@ -478,6 +478,20 @@ def judgeOwn (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win 
     Verdict :=
   judgeWith k d seg (flightWindow seg r) (isCore r) win r
 
+/-- The first sample of `r`'s epoch in the original's path `seg`. -/
+def startOf (seg : List Samp) (r : Samp) : Option Samp := seg.find? (inEpoch r)
+
+/-- Rewrite sample `r` is read within `startLag` of the first sample of its epoch in the original's pass. -/
+def atStart (seg : List Samp) (r : Samp) : Bool :=
+  match (startOf seg r).bind (·.since), r.since with
+  | some a, some b => decide (((a : Int) - b).natAbs ≤ startLag)
+  | _, _ => false
+
+/-- The rejected scope of the envelope: `judgeUnit` at the start of a transition, `judgeOwn` after it. -/
+def judgeScoped (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp)) (r : Samp) :
+    Verdict :=
+  if atStart seg r then judgeUnit k d seg win r else judgeOwn k d seg win r
+
 #guard (rules.filter (applies · "nav" 1280 ["is-hero-pill"])).map (·.line) == [6, 41, 73, 78]
 #guard (rules.filter (applies · "nav" 390 ["is-hero-pill"])).map (·.line) == [6, 41, 73]
 #guard (rules.filter (applies · "earn" 1280 [])).map (·.line) == [167]
@@ -546,6 +560,17 @@ def judgeOwn (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win 
 #guard judgeWith .unit (fun _ => some 700) [] [⟨none, some 0, [.num [1]], 0, [], 0, 0⟩] (fun _ => true) none
     ⟨none, some 0, [.num [1]], 0, [], 0, 0⟩ == .pass &&
   judgeWith .unit (fun _ => some 700) [] [] (fun _ => true) none ⟨none, some 0, [.num [1]], 0, [], 0, 0⟩ == .fail .coverage
+#guard startOf [⟨none, some 900, [], 0, [], 0, 0⟩, ⟨none, some 40, [], 0, [], 0, 1⟩, ⟨none, some 90, [], 0, [], 0, 1⟩]
+    ⟨none, some 300, [], 0, [], 0, 1⟩ == some ⟨none, some 40, [], 0, [], 0, 1⟩ &&
+  startOf [⟨none, some 40, [], 1, [], 0, 1⟩] ⟨none, some 300, [], 0, [], 0, 1⟩ == none
+#guard atStart [⟨none, some 40, [], 0, [], 0, 1⟩] ⟨none, some 240, [], 0, [], 0, 1⟩ &&
+  !atStart [⟨none, some 40, [], 0, [], 0, 1⟩] ⟨none, some 241, [], 0, [], 0, 1⟩ &&
+  !atStart [⟨none, some 40, [], 1, [], 0, 1⟩] ⟨none, some 40, [], 0, [], 0, 1⟩ &&
+  !atStart [⟨none, none, [], 0, [], 0, 1⟩] ⟨none, some 40, [], 0, [], 0, 1⟩
+#guard judgeScoped .unit (fun _ => some 700) [⟨none, some 0, [.num [1000]], 0, [], 0, 1⟩,
+    ⟨none, some 0, [.num [6000]], 1, [], 0, 1⟩] none ⟨none, some 100, [.num [6000]], 0, [], 0, 1⟩ == .pass &&
+  judgeScoped .unit (fun _ => some 700) [⟨none, some 0, [.num [1000]], 0, [], 0, 1⟩, ⟨none, some 300, [.num [1000]], 0, [], 0, 1⟩,
+    ⟨none, some 300, [.num [6000]], 1, [], 0, 1⟩] none ⟨none, some 300, [.num [6000]], 0, [], 0, 1⟩ == .fail .apart
 
 /-- The unit a morph value falls in: tenths of the morph, 0 to 10, and 11 for no morph value. -/
 def bucket (m : Option Int) : Nat :=
@@ -2102,6 +2127,16 @@ theorem judgeUnit_settled (k : Kind) (d : List String → Option Nat) (seg w : L
       if (w.filterMap (settledRef d seg)).isEmpty then .fail .coverage
       else judgeEls k ((w.filterMap (settledRef d seg)).map (·.els)) r.els := by
   simp [judgeUnit, judgeWith, hfl]
+
+/-- Branch at the start of the transition: `judgeScoped` is `judgeUnit`. -/
+theorem judgeScoped_start (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
+    (r : Samp) (h : atStart seg r = true) : judgeScoped k d seg win r = judgeUnit k d seg win r := by
+  simp [judgeScoped, h]
+
+/-- Branch after the start of the transition: `judgeScoped` is `judgeOwn`. -/
+theorem judgeScoped_later (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
+    (r : Samp) (h : atStart seg r = false) : judgeScoped k d seg win r = judgeOwn k d seg win r := by
+  simp [judgeScoped, h]
 /-- The transition of the nav's background at 1280 px, by class set. -/
 def bgDur : List String → Option Nat := durOf "nav" "background-color" 1280
 
@@ -2375,6 +2410,120 @@ theorem judgeUnit_colour_alpha_outside (d : List String → Option Nat) (seg : L
       rw [getD_map_absent _ rfl, hys] at hz
       cases hz
       rw [hdrop]; exact h _ (List.mem_map_of_mem hs) ys hys
+
+/-- `Outside` a window is `Outside` every part of it. -/
+theorem Outside.sub {t : Int} {i j n len : Nat} {x : Int} {win win' : List (List Val)}
+    (h : Outside t i j n len x win) (hs : ∀ w ∈ win', w ∈ win) : Outside t i j n len x win' := by
+  refine ⟨fun w hw => h.1 w (hs w hw), ?_⟩
+  rcases h.2 with h2 | h2
+  · exact Or.inl fun w hw => h2 w (hs w hw)
+  · exact Or.inr fun w hw => h2 w (hs w hw)
+
+/-- `Outside` the readings of `seg` is `Outside` the readings of any samples of `seg`. -/
+theorem Outside.samps {t : Int} {i j n len : Nat} {x : Int} {seg : List Samp}
+    (h : Outside t i j n len x (seg.map (·.els))) (L : List Samp) (hL : ∀ s ∈ L, s ∈ seg) :
+    Outside t i j n len x (L.map (·.els)) :=
+  h.sub fun w hw => by
+    obtain ⟨s, hs, rfl⟩ := List.mem_map.mp hw
+    exact List.mem_map_of_mem (hL s hs)
+
+/-- A component `Outside` the window never passes; an empty window is a skip. -/
+theorem judgeEls_outside_not_pass (k : Kind) (win : List (List Val)) (r : List Val) (i j : Nat) (xs : List Int)
+    (hi : i < r.length) (hr : r.getD i .absent = .num xs) (hj : j < xs.length)
+    (ho : Outside (tol k) i j r.length xs.length (xs.getD j 0) win) : judgeEls k win r ≠ .pass := by
+  cases win with
+  | nil => simp [judgeEls]
+  | cons w ws =>
+    have := judgeEls_outside k (w :: ws) r i j xs hi hr hj (by simp) ho
+    intro h; rw [h] at this; simp [isFail] at this
+
+/-- A core sample of `r`'s pass is in the window of `r`'s transition. -/
+theorem mem_flightWindow_core (seg : List Samp) (r o : Samp) (ho : o ∈ seg) (hrep : o.rep = r.rep)
+    (hc : isCore r o = true) : o ∈ flightWindow seg r := by
+  have hp : o ∈ passOf seg r.rep := by simp [passOf, ho, hrep]
+  obtain ⟨i, hi, hpi⟩ := List.mem_iff_getElem.mp hp
+  have hcore : i ∈ (List.range (passOf seg r.rep).length).filter
+      (fun i => ((passOf seg r.rep)[i]?.map (isCore r)).getD false) := by
+    simp [hi, hpi, hc]
+  have hep : inEpoch r o = true := by simp only [isCore, Bool.and_eq_true] at hc; exact hc.1.1
+  unfold flightWindow
+  simp only
+  split
+  · rename_i he
+    exact absurd hcore (by rw [List.isEmpty_iff.mp he]; simp)
+  · simp only [List.mem_filterMap, List.mem_range]
+    refine ⟨i, hi, ?_⟩
+    simp only [List.getElem?_eq_getElem hi, hpi, Option.bind_some]
+    split
+    · rfl
+    · rename_i hn
+      refine absurd ?_ hn
+      rw [Bool.or_eq_true]; right
+      simp only [hep, Bool.true_and, Bool.and_eq_true, List.any_eq_true, decide_eq_true_eq]
+      exact ⟨⟨i, hcore, Nat.le_refl _⟩, ⟨i, hcore, Nat.le_succ _⟩⟩
+
+/-- A non-empty transition window has a core sample. -/
+theorem flightWindow_core (seg : List Samp) (r : Samp) (hne : flightWindow seg r ≠ []) :
+    ∃ o ∈ flightWindow seg r, isCore r o = true := by
+  unfold flightWindow at hne
+  simp only at hne
+  split at hne
+  · exact absurd rfl hne
+  · rename_i hce
+    obtain ⟨c, hcl, hcc⟩ : ∃ x, x < (passOf seg r.rep).length ∧
+        (Option.map (isCore r) (passOf seg r.rep)[x]?).getD false = true := by simpa using hce
+    rw [List.getElem?_eq_getElem hcl] at hcc
+    simp only [Option.map_some, Option.getD_some] at hcc
+    have hm := List.getElem_mem hcl
+    simp only [passOf, List.mem_filter, beq_iff_eq] at hm
+    exact ⟨_, mem_flightWindow_core seg r _ hm.1 hm.2 hcc, hcc⟩
+
+/-- A non-empty envelope has a core sample in its own pass. -/
+theorem envelope_core (seg : List Samp) (r : Samp) (hne : envelope seg r ≠ []) :
+    ∃ o ∈ envelope seg r, isCoreIn r o = true := by
+  obtain ⟨x, hx⟩ := List.exists_mem_of_ne_nil _ hne
+  have hx' := (mem_envelope seg r x).1 hx
+  obtain ⟨o, ho, hc⟩ := flightWindow_core seg _ (List.ne_nil_of_mem hx')
+  have hrep : o.rep = x.rep := (flightWindow_sub seg _ o ho).2
+  refine ⟨o, (mem_envelope seg r o).2 (by rw [hrep]; exact ho), ?_⟩
+  unfold isCoreIn; rw [hrep]; exact hc
+
+/-- **Soundness.** A component more than the tolerance beyond every reading of the original's whole path `seg` never
+passes, when the window `win` holds samples of `seg` (as `windowAt` does, `windowAt_sub`); for a colour, a channel or
+the alpha. -/
+theorem judgeUnit_sound (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
+    (r : Samp) (i j : Nat) (xs : List Int) (hk : k = .colour → j ≤ 3) (hw : ∀ w, win = some w → ∀ x ∈ w, x ∈ seg)
+    (hi : i < r.els.length) (hr : r.els.getD i .absent = .num xs) (hj : j < xs.length)
+    (ho : Outside (tol k) i j r.els.length xs.length (xs.getD j 0) (seg.map (·.els))) :
+    judgeUnit k d seg win r ≠ .pass := by
+  have hnp : ∀ v, isFail v = true → v ≠ .pass := by intro v h e; subst e; simp [isFail] at h
+  cases hfl : inFlight d r
+  · cases win with
+    | none => rw [judgeUnit_settled_uncovered k d seg r hfl]; simp
+    | some w =>
+      by_cases he : w.filterMap (settledRef d seg) = []
+      · rw [judgeUnit_settled k d seg w r hfl]; simp [he]
+      · refine hnp _ (judgeUnit_settled_outside k d seg w r i j xs hfl he hi hr hj (ho.samps _ ?_))
+        intro s hs
+        obtain ⟨w0, hw0, he0⟩ := List.mem_filterMap.mp hs
+        rcases settledRef_mem d seg w0 s he0 with rfl | ⟨h, _⟩
+        · exact hw w rfl _ hw0
+        · exact h
+  · by_cases he : envelope seg r = []
+    · cases win with
+      | none => rw [judgeUnit_flight_uncovered k d seg r hfl he]; simp
+      | some w =>
+        rw [judgeUnit_flight_fallback k d seg w r hfl he]
+        exact judgeEls_outside_not_pass k _ r.els i j xs hi hr hj (ho.samps w (hw w rfl))
+    · by_cases hc : k = .colour
+      · subst hc
+        rcases Nat.lt_or_eq_of_le (hk rfl) with hj3 | hj3
+        · exact hnp _ (judgeUnit_colour_chan_outside d seg win r i j xs hfl (envelope_core seg r he) hi hr hj3 hj
+            (ho.samps _ fun s hs => envelope_sub seg r s (List.mem_filter.mp hs).1))
+        · subst hj3
+          exact hnp _ (judgeUnit_colour_alpha_outside d seg win r i xs hfl he hi hr hj
+            (ho.samps _ (envelope_sub seg r)))
+      · exact hnp _ (judgeUnit_flight_outside k d seg win r i j xs hc hfl he hi hr hj (ho.samps _ (envelope_sub seg r)))
 
 /-- The lane fails when one unit fails, and only then. -/
 theorem laneFails_iff (vs : List Verdict) : laneFails vs = true ↔ ∃ v ∈ vs, isFail v = true := by
@@ -3264,6 +3413,50 @@ theorem byM_reversed_two_passes :
     (byM .push 0 .geometry (durFn boxDur) (boxRamp2 false) (boxRamp2 true)).getD 2 (2, .pass) = (2, .fail .apart) := by
   decide
 
+/-- `boxSeg` read in a hold, at morph value 0. -/
+def boxHold : List Samp := boxSeg.map fun s => { s with ph := 1, m := some 0 }
+
+/-- A rewrite sample of pass 1, a pass `boxHold` lacks, still at the start box 400 ms into the transition. -/
+def stuckHold : Samp := sc 1 1 [] (some 0) 400 0 [.num [0, 0, 400000, 64000]]
+
+/-- **Scope rejected: a stuck value.** Past the start `judgeScoped` falls back to the hold's pooled window and passes a
+box stuck at its start value; the envelope fails it. -/
+theorem judgeScoped_stuck_hold :
+    judgeScoped .geometry (durFn boxDur) boxHold (windowAt .hold (durFn boxDur) boxHold boxHold stuckHold) stuckHold =
+      .pass ∧
+    judgeUnit .geometry (durFn boxDur) boxHold (windowAt .hold (durFn boxDur) boxHold boxHold stuckHold) stuckHold =
+      .fail .apart := by
+  decide
+
+/-- A rewrite sample of pass 0 on the curve of `bgSeg2`'s pass 1, 500 ms into the transition. -/
+def otherCurve : Samp := sc 0 0 [] none 500 1 [.num [5000, 0, 0, 30000]]
+
+/-- **Scope rejected: start jitter.** A pass that keeps another pass's start red passes the envelope and fails
+`judgeScoped`, which judges it against its own pass past the start. -/
+theorem judgeScoped_other_curve :
+    judgeUnit .colour (durFn bgDurOf) bgSeg2 none otherCurve = .pass ∧
+      judgeScoped .colour (durFn bgDurOf) bgSeg2 none otherCurve = .fail .apart := by
+  decide
+
+/-- **The mutations fail under the envelope**: pure red and pure green in flight over two passes, the reversed curve at
+the start and late in the transition over two passes and in one, a stale class, a stuck value pooled over passes in a
+push and stuck in a hold. -/
+theorem judgeUnit_mutations :
+    judgeUnit .colour (durFn bgDurOf) bgSeg2 none (sc 0 0 [] none 300 1 [.num [255000, 0, 0, 50000]]) = .fail .apart ∧
+    judgeUnit .colour (durFn bgDurOf) bgSeg2 none (sc 0 0 [] none 300 1 [.num [0, 255000, 0, 50000]]) = .fail .apart ∧
+    (byM .push 0 .geometry (durFn boxDur) (boxRamp2 false) (boxRamp2 true)).getD 2 (2, .pass) = (2, .fail .apart) ∧
+    (byM .push 0 .geometry (durFn boxDur) (boxRamp2 false) (boxRamp2 true)).getD 7 (7, .pass) = (7, .fail .apart) ∧
+    (byM .push 0 .geometry rectDur (rectRamp false) (rectRamp true)).getD 2 (2, .pass) = (2, .fail .apart) ∧
+    (byM .push 0 .discrete atRest [sm 8000 [.str "off"], sm 8500 [.str "off"], sm 9000 [.str "off"], sm 9300 [.str "on"],
+        sm 9400 [.str "on"], sm 9500 [.str "on"], sm 9600 [.str "on"], sm 9700 [.str "on"], sm 9900 [.str "on"]]
+      [sm 9500 [.str "off"]]).getD 10 (10, .skip .noSample) = (10, .fail .differs) ∧
+    (byM .push 0 .discrete atRest (ramp 0 ++ ramp 1 ++ ramp 2) [smr 0 5000 [.num [0]]]).getD 5 (5, .pass) =
+      (5, .fail .differs) ∧
+    judgeUnit .geometry (durFn boxDur) boxHold (windowAt .hold (durFn boxDur) boxHold boxHold stuckHold) stuckHold =
+      .fail .apart :=
+  ⟨judgeUnit_red_two_passes, by decide, byM_reversed_two_passes, by decide, byM_reversed_in_flight, byM_stale_class,
+    byM_pooled_stuck, judgeScoped_stuck_hold.2⟩
+
 /-- A push of a class from 1.0 to `last`, reading `on` until the last sample, which reads `v`. -/
 def endPush (last : Int) (v : String) : List Samp :=
   ((List.range 10).map fun (i : Nat) => sm (10000 - 1000 * i) [.str "on"]) ++ [sm last [.str v]]
@@ -3314,9 +3507,10 @@ def casesFlight : List Case :=
   .unit "in flight, inside" .geometry boxDur boxSeg none (sc 0 0 [] none 300 0 [.num [0, 0, 560000, 64000]]),
   .unit "in flight, outside" .geometry boxDur boxSeg none (sc 0 0 [] none 300 0 [.num [0, 0, 760000, 64000]]),
   .unit "in flight, reversed value" .geometry boxDur boxSeg none (sc 0 0 [] none 100 0 [.num [0, 0, 750000, 64000]]),
-  .unit "in flight, other pass" .geometry boxDur boxSeg (some [sc 1 0 [] none 300 0 [.num [0, 0, 760000, 64000]]])
+  .unit "in flight, a pass the original lacks, beyond pass 0" .geometry boxDur boxSeg
+    (some [sc 1 0 [] none 300 0 [.num [0, 0, 760000, 64000]]])
     (sc 1 0 [] none 300 0 [.num [0, 0, 760000, 64000]]),
-  .unit "in flight, other pass, no counterpart" .geometry boxDur boxSeg none
+  .unit "in flight, a pass the original lacks, inside pass 0" .geometry boxDur boxSeg none
     (sc 1 0 [] none 300 0 [.num [0, 0, 550000, 64000]]),
   .unit "in flight, other phase" .geometry boxDur boxSeg (some [sc 0 2 [] none 300 0 [.num [0, 0, 760000, 64000]]])
     (sc 0 2 [] none 300 0 [.num [0, 0, 550000, 64000]]),
@@ -3366,6 +3560,10 @@ def casesClose : List Case := [
   .unit "envelope, pure red" .colour bgDurOf bgSeg2 none (sc 0 0 [] none 300 1 [.num [255000, 0, 0, 50000]]),
   .unit "envelope, alpha beyond every pass" .colour bgDurOf bgSeg2 none
     (sc 0 0 [] none 300 1 [.num [5000, 0, 0, 200000]]),
+  .unit "envelope, pure green" .colour bgDurOf bgSeg2 none (sc 0 0 [] none 300 1 [.num [0, 255000, 0, 50000]]),
+  .unit "envelope, another pass's curve past the start" .colour bgDurOf bgSeg2 none otherCurve,
+  .unit "envelope, stuck in a hold of a pass the original lacks" .geometry boxDur boxHold
+    (windowAt .hold (durFn boxDur) boxHold boxHold stuckHold) stuckHold,
   .phase "reversed curve in flight, two passes" .push 0 .geometry boxDur (boxRamp2 false) (boxRamp2 true),
   .phase "settled push end, hold head" .push 0 .discrete none (endPush 140 "on" ++ endHold) (endPush 0 "off" ++ endHold),
   .phase "settled push end, stuck class" .push 0 .discrete none (endPush 140 "on" ++ endHold)
