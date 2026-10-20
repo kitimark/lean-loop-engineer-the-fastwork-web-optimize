@@ -14,6 +14,7 @@ import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, runTiere
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
+import { ConsoleUnreachable } from "./land-queue.ts";
 import { chargedGh, fwcoreCall, ghCost } from "./run.ts";
 import { chargedOnce, realEnv, type Env } from "@fw/gh-budget";
 
@@ -26,13 +27,19 @@ export type Http = {
 export const loopback = (base: string) => base.replace(/^(https?:\/\/)localhost(?=[:/]|$)/, "$1127.0.0.1");
 /** Own deadline per request, shorter than undici's 300 s headers timeout; the land step's retry takes it from there. */
 export const HTTP_DEADLINE_MS = 90_000;
-export const httpFor = (base0: string): Http => { const base = loopback(base0); let secret: string | undefined; return {
-  get: async (p) => { const r = await fetch(base + p, { signal: AbortSignal.timeout(HTTP_DEADLINE_MS) }); return { status: r.status, body: await r.json() }; },
-  post: async (p, b) => {
-    const r = await fetch(base + p, { method: "POST", headers: { "content-type": "application/json", "x-fw-secret": (secret ??= consoleSecret()) }, body: JSON.stringify(b), signal: AbortSignal.timeout(HTTP_DEADLINE_MS) });
-    return { status: r.status, body: await r.json() };
-  },
-}; };
+export const httpFor = (base0: string): Http => { const base = loopback(base0); let secret: string | undefined;
+  // a refused or reset connection (undici: TypeError "fetch failed") is a console that is not listening: ConsoleUnreachable, which the queue retries after a bounded health wait
+  const dial = async (p: string, init: RequestInit): Promise<Response> => {
+    try { return await fetch(base + p, { ...init, signal: AbortSignal.timeout(HTTP_DEADLINE_MS) }); }
+    catch (e) { throw e instanceof TypeError ? new ConsoleUnreachable(base, (e as { cause?: unknown }).cause ?? e) : e; }
+  };
+  return {
+    get: async (p) => { const r = await dial(p, {}); return { status: r.status, body: await r.json() }; },
+    post: async (p, b) => {
+      const r = await dial(p, { method: "POST", headers: { "content-type": "application/json", "x-fw-secret": (secret ??= consoleSecret()) }, body: JSON.stringify(b) });
+      return { status: r.status, body: await r.json() };
+    },
+  }; };
 
 export type LandOptions = {
   http: Http;
