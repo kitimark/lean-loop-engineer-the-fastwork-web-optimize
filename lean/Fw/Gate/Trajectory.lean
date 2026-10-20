@@ -1045,6 +1045,289 @@ theorem pickWidths_junk : pickWidths "390,wide" = .refused := by decide
 /-- Widths: an empty entry is refused. -/
 theorem pickWidths_gap : pickWidths "390,,640" = .refused := by decide
 
+-- Stored runs: the cells of preset admission -------------------------------------------------------------------------
+
+/-- The engine of a stored run: Chromium, Playwright WebKit on Linux, or Playwright WebKit on macOS (job `probe-apple`). -/
+inductive Engine where
+  | chromium
+  | linuxWebkit
+  | macWebkit
+  deriving DecidableEq, Repr
+
+/-- The engine families a preset member must pass in. -/
+inductive Family where
+  | chromium
+  | webkit
+  deriving DecidableEq, Repr
+
+/-- The family of an engine. -/
+def Engine.family : Engine → Family
+  | .chromium => .chromium
+  | .linuxWebkit => .webkit
+  | .macWebkit => .webkit
+
+/-- A scroll path of the probe. -/
+inductive Walk where
+  | hero
+  | morph
+  deriving DecidableEq, Repr
+
+/-- Whether a run of the engine can decide the path. Linux WebKit cannot decide the morph path: its faithful arm fails push
+coverage there by construction. -/
+def covers : Engine → Walk → Bool
+  | .linuxWebkit, .morph => false
+  | _, _ => true
+
+/-- One node property of a path with `new` units in a run: the widths of its content `new` units and of its coverage
+`new` units. -/
+structure Group where
+  node : String
+  prop : String
+  content : List Nat
+  coverage : List Nat
+  deriving DecidableEq, Repr
+
+/-- The stored result of one engine of one run on one path, with the flag set of the run's search. -/
+structure Stored where
+  run : String
+  sha : String
+  search : String
+  flags : List String
+  engine : Engine
+  walk : Walk
+  widths : List Nat
+  groups : List Group
+  deriving DecidableEq, Repr
+
+/-- Why a stored cell has no verdict. -/
+inductive Unjudged where
+  | coverage
+  | widths
+  deriving DecidableEq, Repr
+
+/-- The verdict of a stored cell. -/
+inductive Outcome where
+  | pass
+  | fail
+  | unjudged (why : Unjudged)
+  deriving DecidableEq, Repr
+
+/-- A group repeats when its `new` units fall at two or more widths. -/
+def repeats (ws : List Nat) : Bool := decide (2 ≤ ws.eraseDups.length)
+
+/-- **The verdict of a stored cell**: none when the engine cannot decide the path or a lane width is missing, fail when a
+group repeats on content, none when a group repeats on coverage, else pass. -/
+def outcome (s : Stored) : Outcome :=
+  if !covers s.engine s.walk then .unjudged .coverage
+  else if !allowedWidths.all s.widths.contains then .unjudged .widths
+  else if s.groups.any (repeats ·.content) then .fail
+  else if s.groups.any (repeats ·.coverage) then .unjudged .coverage
+  else .pass
+
+/-- An engine that cannot decide the path gives no verdict. -/
+theorem outcome_uncovered (s : Stored) (h : covers s.engine s.walk = false) : outcome s = .unjudged .coverage := by
+  simp [outcome, h]
+
+/-- A run that missed a lane width gives no verdict. -/
+theorem outcome_widths (s : Stored) (hc : covers s.engine s.walk = true) (w : Nat) (hw : w ∈ allowedWidths)
+    (hm : w ∉ s.widths) : outcome s = .unjudged .widths := by
+  have : allowedWidths.all s.widths.contains = false := by
+    rw [List.all_eq_false]
+    exact ⟨w, hw, by simpa using hm⟩
+  simp [outcome, hc, this]
+
+/-- The verdict of a stored cell as four tests in order: covered, all widths, a content repeat, a coverage repeat. -/
+theorem outcome_cases (s : Stored) :
+    outcome s = (if covers s.engine s.walk = false then .unjudged .coverage
+      else if allowedWidths.all s.widths.contains = false then .unjudged .widths
+      else if s.groups.any (repeats ·.content) = true then .fail
+      else if s.groups.any (repeats ·.coverage) = true then .unjudged .coverage else .pass) := by
+  unfold outcome
+  generalize covers s.engine s.walk = a
+  generalize allowedWidths.all s.widths.contains = b
+  generalize s.groups.any (repeats ·.content) = c
+  generalize s.groups.any (repeats ·.coverage) = d
+  cases a <;> cases b <;> cases c <;> cases d <;> simp
+
+/-- A covered run of all lane widths fails exactly when some group repeats on content. -/
+theorem outcome_fail_iff (s : Stored) :
+    outcome s = .fail ↔ covers s.engine s.walk = true ∧ allowedWidths.all s.widths.contains = true ∧
+      ∃ g ∈ s.groups, repeats g.content = true := by
+  have e : (∃ g ∈ s.groups, repeats g.content = true) ↔ s.groups.any (repeats ·.content) = true := by simp
+  rw [e, outcome_cases]
+  generalize covers s.engine s.walk = a
+  generalize allowedWidths.all s.widths.contains = b
+  generalize s.groups.any (repeats ·.content) = c
+  generalize s.groups.any (repeats ·.coverage) = d
+  cases a <;> cases b <;> cases c <;> cases d <;> simp
+
+/-- Coverage `new` units repeated across widths, with no content repeat, give no verdict, never a pass. -/
+theorem outcome_coverage_repeat (s : Stored) (hc : covers s.engine s.walk = true)
+    (hw : allowedWidths.all s.widths.contains = true) (hn : ∀ g ∈ s.groups, repeats g.content = false)
+    (g : Group) (hg : g ∈ s.groups) (hr : repeats g.coverage = true) :
+    outcome s = .unjudged .coverage := by
+  have h1 : s.groups.any (repeats ·.content) = false := by
+    rw [List.any_eq_false]; intro x hx; simp [hn x hx]
+  have h2 : s.groups.any (repeats ·.coverage) = true := List.any_eq_true.2 ⟨g, hg, hr⟩
+  rw [outcome_cases]
+  simp [hc, hw, h1, h2]
+
+/-- **A pass, characterised**: the engine decides the path, every lane width was walked, and no group repeats on content
+or on coverage. -/
+theorem outcome_pass_iff (s : Stored) :
+    outcome s = .pass ↔ covers s.engine s.walk = true ∧ (∀ w ∈ allowedWidths, w ∈ s.widths) ∧
+      ∀ g ∈ s.groups, repeats g.content = false ∧ repeats g.coverage = false := by
+  have hw : (∀ w ∈ allowedWidths, w ∈ s.widths) ↔ allowedWidths.all s.widths.contains = true := by simp
+  have hg : (∀ g ∈ s.groups, repeats g.content = false ∧ repeats g.coverage = false) ↔
+      s.groups.any (repeats ·.content) = false ∧ s.groups.any (repeats ·.coverage) = false := by
+    simp only [List.any_eq_false, Bool.not_eq_true]
+    exact ⟨fun h => ⟨fun x hx => (h x hx).1, fun x hx => (h x hx).2⟩, fun h x hx => ⟨h.1 x hx, h.2 x hx⟩⟩
+  rw [hw, hg, outcome_cases]
+  generalize covers s.engine s.walk = a
+  generalize allowedWidths.all s.widths.contains = b
+  generalize s.groups.any (repeats ·.content) = c
+  generalize s.groups.any (repeats ·.coverage) = d
+  cases a <;> cases b <;> cases c <;> cases d <;> simp
+
+/-- A pass comes only from an engine that decides the path. -/
+theorem outcome_pass_covers (s : Stored) (h : outcome s = .pass) : covers s.engine s.walk = true :=
+  ((outcome_pass_iff s).1 h).1
+
+/-- One unit as the recorder reads it from `units-<engine>.json`: its width, path, node, property, whether its verdict is
+`fail:coverage`, and whether its relation to the faithful arm is `new`. -/
+structure UnitRow where
+  width : Nat
+  walk : String
+  node : String
+  prop : String
+  coverage : Bool
+  isNew : Bool
+  deriving DecidableEq, Repr
+
+/-- Append a width unless it is present. -/
+def addWidth (w : Nat) (ws : List Nat) : List Nat := if ws.contains w then ws else ws ++ [w]
+
+/-- The widths list a unit lands in: coverage or content. -/
+def Group.side (g : Group) (cov : Bool) : List Nat := if cov then g.coverage else g.content
+
+/-- The group is the unit's node property. -/
+def Group.same (g : Group) (u : UnitRow) : Bool := g.node == u.node && g.prop == u.prop
+
+/-- The group with the unit's width added to the unit's side. -/
+def Group.put (g : Group) (u : UnitRow) : Group :=
+  if u.coverage then { g with coverage := addWidth u.width g.coverage } else { g with content := addWidth u.width g.content }
+
+/-- Add one `new` unit to its group, opening the group at the end when it is the first unit of its node property. -/
+def addUnit (gs : List Group) (u : UnitRow) : List Group :=
+  if gs.any (·.same u) then gs.map fun g => if g.same u then g.put u else g
+  else gs ++ [Group.put ⟨u.node, u.prop, [], []⟩ u]
+
+/-- The groups of a path: the `new` units on it, grouped by node property in first-seen order. -/
+def groupsOf (walk : String) (us : List UnitRow) : List Group :=
+  (us.filter fun u => u.isNew && u.walk == walk).foldl addUnit []
+
+/-- The widths a path was walked at, in first-seen order. -/
+def widthsOf (walk : String) (us : List UnitRow) : List Nat :=
+  (us.filter (·.walk == walk)).foldl (fun ws u => addWidth u.width ws) []
+
+/-- A width is in `addWidth w ws` exactly when it is `w` or in `ws`. -/
+theorem mem_addWidth (x w : Nat) (ws : List Nat) : x ∈ addWidth w ws ↔ x = w ∨ x ∈ ws := by
+  unfold addWidth
+  by_cases h : ws.contains w = true
+  · simp only [h, ite_true]
+    constructor
+    · exact Or.inr
+    · rintro (rfl | hx)
+      · simpa using h
+      · exact hx
+  · simp only [Bool.not_eq_true] at h
+    simp only [h, Bool.false_eq_true, ite_false, List.mem_append, List.mem_singleton]
+    exact Or.comm
+
+/-- Putting a unit keeps the node and property. -/
+theorem put_key (g : Group) (u : UnitRow) : (g.put u).node = g.node ∧ (g.put u).prop = g.prop := by
+  unfold Group.put; split <;> exact ⟨rfl, rfl⟩
+
+/-- Putting a unit keeps every width of either side. -/
+theorem side_put (g : Group) (u : UnitRow) (cov : Bool) (x : Nat) (h : x ∈ g.side cov) : x ∈ (g.put u).side cov := by
+  unfold Group.put Group.side at *
+  cases hu : u.coverage <;> cases cov <;> simp_all [mem_addWidth]
+
+/-- Putting a unit adds its width to its side. -/
+theorem side_put_self (g : Group) (u : UnitRow) : u.width ∈ (g.put u).side u.coverage := by
+  unfold Group.put Group.side
+  cases hu : u.coverage <;> simp [mem_addWidth]
+
+/-- The unit `v` is held by some group of `gs`: one of its node property whose side of `v` has `v`'s width. -/
+def Holds (gs : List Group) (v : UnitRow) : Prop :=
+  ∃ g ∈ gs, g.node = v.node ∧ g.prop = v.prop ∧ v.width ∈ g.side v.coverage
+
+/-- Adding a unit keeps every unit already held. -/
+theorem holds_addUnit_old (gs : List Group) (u v : UnitRow) (h : Holds gs v) : Holds (addUnit gs u) v := by
+  obtain ⟨g, hg, hn, hp, hw⟩ := h
+  unfold addUnit
+  by_cases ha : gs.any (·.same u) = true
+  · simp only [ha, ↓reduceIte]
+    by_cases hs : g.same u = true
+    · refine ⟨g.put u, List.mem_map.2 ⟨g, hg, by simp [hs]⟩, ?_⟩
+      exact ⟨(put_key g u).1.trans hn, (put_key g u).2.trans hp, side_put g u _ _ hw⟩
+    · exact ⟨g, List.mem_map.2 ⟨g, hg, by simp [hs]⟩, hn, hp, hw⟩
+  · simp only [ha]
+    exact ⟨g, List.mem_append_left _ hg, hn, hp, hw⟩
+
+/-- Adding a unit holds it. -/
+theorem holds_addUnit_new (gs : List Group) (u : UnitRow) : Holds (addUnit gs u) u := by
+  unfold addUnit
+  by_cases ha : gs.any (·.same u) = true
+  · simp only [ha, ↓reduceIte]
+    obtain ⟨g, hg, hs⟩ := List.any_eq_true.1 ha
+    have hk : g.node = u.node ∧ g.prop = u.prop := by simpa [Group.same] using hs
+    refine ⟨g.put u, List.mem_map.2 ⟨g, hg, by simp [hs]⟩, ?_⟩
+    exact ⟨(put_key g u).1.trans hk.1, (put_key g u).2.trans hk.2, side_put_self g u⟩
+  · simp only [ha]
+    refine ⟨_, List.mem_append_right _ (List.mem_singleton.2 rfl), ?_⟩
+    exact ⟨(put_key _ u).1, (put_key _ u).2, side_put_self _ u⟩
+
+/-- Folding units in holds every unit held before and every unit folded. -/
+theorem holds_foldl (us : List UnitRow) (gs : List Group) (v : UnitRow) (h : Holds gs v ∨ v ∈ us) :
+    Holds (us.foldl addUnit gs) v := by
+  induction us generalizing gs with
+  | nil =>
+    rcases h with h | h
+    · exact h
+    · cases h
+  | cons u t ih =>
+    apply ih
+    rcases h with h | h
+    · exact Or.inl (holds_addUnit_old gs u v h)
+    · rcases List.mem_cons.1 h with rfl | h
+      · exact Or.inl (holds_addUnit_new gs v)
+      · exact Or.inr h
+
+/-- **The recorder drops no `new` unit**: every `new` unit of the path is in a group of its node property, at its width,
+on its side (content or coverage). -/
+theorem groupsOf_complete (walk : String) (us : List UnitRow) (u : UnitRow) (hu : u ∈ us) (hn : u.isNew = true)
+    (hw : u.walk = walk) : Holds (groupsOf walk us) u :=
+  holds_foldl _ [] u (Or.inr (List.mem_filter.2 ⟨hu, by simp [hn, hw]⟩))
+
+private def urow (w : Nat) (node : String) (cov isNew : Bool) : UnitRow := ⟨w, "morph", node, "p", cov, isNew⟩
+private def stored (gs : List Group) : Stored := ⟨"1", "s", "?fw=a:b", ["a:b"], .chromium, .morph, allowedWidths, gs⟩
+
+#guard repeats [390, 390, 390] == false
+#guard repeats [390, 1280]
+#guard groupsOf "morph" [urow 390 "nav" false true, urow 641 "nav" true true, urow 641 "nav" false true,
+  urow 1280 "logo" false false, ⟨390, "hero", "nav", "p", false, true⟩] == [⟨"nav", "p", [390, 641], [641]⟩]
+#guard widthsOf "morph" [urow 390 "nav" false true, urow 390 "nav" false false, urow 1280 "logo" false false] == [390, 1280]
+#guard outcome (stored []) == .pass
+#guard outcome (stored [⟨"nav", "p", [1280], [390]⟩]) == .pass
+#guard outcome (stored [⟨"nav", "p", [390, 640, 641, 1280], []⟩]) == .fail
+#guard outcome (stored [⟨"nav", "p", [], [390, 641]⟩]) == .unjudged .coverage
+#guard outcome (stored [⟨"nav", "p", [390, 641], [390, 641]⟩]) == .fail
+#guard outcome { stored [] with widths := [390, 640, 641] } == .unjudged .widths
+#guard outcome { stored [] with engine := .linuxWebkit } == .unjudged .coverage
+#guard outcome { stored [] with engine := .linuxWebkit, walk := .hero } == .pass
+#guard outcome { stored [] with engine := .macWebkit } == .pass
+
 -- Golden ------------------------------------------------------------------------------------------------------------
 
 /-- The name of a kind in the golden file. -/

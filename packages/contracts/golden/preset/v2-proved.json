@@ -1,1 +1,1 @@
-{"extends":"original","fw":{"engine.scene":"hidden-pause","engine.scroll":"batched","morph.columns":"hidden-pause","morph.countdown":"hidden-pause","morph.mount":"shift","nav.hitTest":"elements-skip","pain.notes":"visible","people.card":"mq"},"name":"v2-proved"}
+{"extends":"original","fw":{},"name":"v2-proved"}

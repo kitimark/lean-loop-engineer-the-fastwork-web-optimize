@@ -9,6 +9,7 @@ Reads `research/findings/ledger.json` and `apps/site/src/parts/*/part.json`, dec
 -/
 namespace Fw.Preset.Gen
 open Lean Fw.Preset
+open Fw.Gate.Trajectory (Stored Engine Walk Family Group Outcome Unjudged UnitRow outcome groupsOf widthsOf)
 
 /-- **The link table**: each flag and the ledger rows that carry its proof, in priority order (the first qualifying flag
 of a part wins). A row is named by its (part, candidate) text; `k_n` below is the row of ledger entry `n` (for `n = 8`
@@ -101,8 +102,8 @@ theorem linkOf_links_of_none {f : Flag} (h : reasonOf f = none) : linkOf links f
 /-- **A curated flag never enters the arm**, whatever the registry and the ledger say.
 
 A proved ledger row cannot bring an excluded flag back. -/
-theorem curated_not_mem {reg : List Reg} {ledger : List Row} {f : Flag} (h : reasonOf f ≠ none) :
-    f ∉ preset reg links ledger :=
+theorem curated_not_mem {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag} (h : reasonOf f ≠ none) :
+    f ∉ preset reg links ledger st :=
   unlinked_not_mem (by simp [linkOf_links, h])
 
 /-- Parse `part:variant`: exactly one colon, both sides non-empty. -/
@@ -210,25 +211,112 @@ def decided (reg : List Reg) : List Flag :=
     ((reg.filter fun r => r.kind == .optimized && (linkOf linkTable r.flag).isNone).map (·.flag)).mergeSort
       (fun a b => a.key ≤ b.key)
 
-/-- One decision row: the flag, whether it is registered `optimized`, its verdict, membership, the flag that shadows
-it, and the ledger inputs it read (the rows of each linked key and the rows naming the flag). -/
-def decision (reg : List Reg) (ledger : List Row) (f : Flag) : Json :=
-  let p := preset reg links ledger
+/-- The word of an engine in the stored-run file. -/
+def engineWord : Engine → String
+  | .chromium => "chromium"
+  | .linuxWebkit => "linux-webkit"
+  | .macWebkit => "mac-webkit"
+
+/-- Parse an engine word (allowlist). -/
+def parseEngine : String → Except String Engine
+  | "chromium" => .ok .chromium
+  | "linux-webkit" => .ok .linuxWebkit
+  | "mac-webkit" => .ok .macWebkit
+  | s => .error s!"unknown engine {s}"
+
+/-- The word of a path. -/
+def walkWord : Walk → String
+  | .hero => "hero"
+  | .morph => "morph"
+
+/-- Parse a path word (allowlist). -/
+def parseWalk : String → Except String Walk
+  | "hero" => .ok .hero
+  | "morph" => .ok .morph
+  | s => .error s!"unknown path {s}"
+
+/-- The word of an engine family. -/
+def familyWord : Family → String
+  | .chromium => "chromium"
+  | .webkit => "webkit"
+
+/-- The word of a stored run's outcome. -/
+def outcomeWord : Outcome → String
+  | .pass => "pass"
+  | .fail => "fail"
+  | .unjudged .coverage => "no verdict: coverage"
+  | .unjudged .widths => "no verdict: widths"
+
+/-- The word of a trajectory cell. -/
+def tcellWord : TCell → String
+  | .pass => "pass"
+  | .fail => "fail"
+  | .pending => "pending"
+
+/-- The reason word of a trajectory verdict. -/
+def twhyWord : TWhy → String
+  | .pass => "pass"
+  | .pending => "pending: trajectory"
+  | .falsified => "falsified: trajectory"
+
+/-- One line of the stored-run file. -/
+def storedJson (s : Stored) : Json :=
+  Json.mkObj [("run", .str s.run), ("sha", .str s.sha), ("search", .str s.search), ("flags", toJson s.flags),
+    ("engine", .str (engineWord s.engine)), ("path", .str (walkWord s.walk)), ("widths", toJson s.widths),
+    ("groups", .arr (s.groups.map fun g => Json.mkObj [("node", .str g.node), ("prop", .str g.prop),
+      ("content", toJson g.content), ("coverage", toJson g.coverage)]).toArray)]
+
+/-- Parse one line of the stored-run file; every field is required. -/
+def parseStored (j : Json) : Except String Stored := do
+  let gs ← (← j.getObjVal? "groups").getArr?
+  let groups ← gs.toList.mapM fun g => do
+    return ⟨← g.getObjValAs? String "node", ← g.getObjValAs? String "prop", ← g.getObjValAs? (List Nat) "content",
+      ← g.getObjValAs? (List Nat) "coverage"⟩
+  return { run := ← j.getObjValAs? String "run", sha := ← j.getObjValAs? String "sha",
+           search := ← j.getObjValAs? String "search", flags := ← j.getObjValAs? (List String) "flags",
+           engine := ← parseEngine (← j.getObjValAs? String "engine"),
+           walk := ← parseWalk (← j.getObjValAs? String "path"), widths := ← j.getObjValAs? (List Nat) "widths",
+           groups }
+
+/-- Parse the stored-run file: one `parseStored` line per non-empty line. -/
+def parseStoredText (t : String) : Except String (List Stored) :=
+  ((t.splitOn "\n").filter (!·.isEmpty)).mapM fun l => do parseStored (← Json.parse l)
+
+/-- The stored-run file: one compact line per run, sorted by run id, engine and path. -/
+def storedText (st : List Stored) : String :=
+  let key (s : Stored) := s.run ++ " " ++ engineWord s.engine ++ " " ++ walkWord s.walk
+  String.join ((st.mergeSort fun a b => key a ≤ key b).map fun s => (storedJson s).compress ++ "\n")
+
+/-- The trajectory field of a decision row: the verdict, and per cell its verdict and the stored runs it read. -/
+def trajJson (st : List Stored) (f : Flag) : Json :=
+  let cell (fam : Family) (w : Walk) : Json :=
+    Json.mkObj [("family", .str (familyWord fam)), ("path", .str (walkWord w)), ("cell", .str (tcellWord (tcell st f fam w))),
+      ("runs", .arr ((runsFor st f fam w).map fun s => Json.mkObj [("run", .str s.run),
+        ("engine", .str (engineWord s.engine)), ("alone", .bool (s.flags == [f.key])),
+        ("outcome", .str (outcomeWord (outcome s)))]).toArray)]
+  Json.mkObj [("verdict", .str (twhyWord (trajWhy st f))),
+    ("cells", .arr (families.flatMap fun fam => walks.map (cell fam)).toArray)]
+
+/-- One decision row: the flag, whether it is registered `optimized`, its ledger verdict, its trajectory verdict,
+membership, the flag that shadows it, and the ledger inputs it read (the rows of each linked key and the rows naming the
+flag). -/
+def decision (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) : Json :=
+  let p := preset reg links ledger st
   let fs := links.map (·.1)
-  let shadow : Json := if ok reg links ledger f && !p.contains f then
-      match firstOk (ok reg links ledger) fs f.part with
+  let shadow : Json := if ok reg links ledger st f && !p.contains f then
+      match firstOk (ok reg links ledger st) fs f.part with
       | some g => .str g.key
       | none => .null
     else .null
   let rows := ((linkOf linkTable f).getD []).map fun k =>
     Json.mkObj [("part", .str k.1), ("candidate", .str k.2), ("found", .arr ((rowsOf ledger k).map rowJson).toArray)]
   Json.mkObj [("flag", .str f.key), ("registered", .bool (isOpt reg f)), ("why", verdictJson ledger f),
-    ("member", .bool (p.contains f)), ("shadowedBy", shadow), ("rows", .arr rows.toArray),
-    ("flagRows", .arr ((ledger.filter (·.flag == some f.key)).map rowJson).toArray)]
+    ("trajectory", trajJson st f), ("member", .bool (p.contains f)), ("shadowedBy", shadow),
+    ("rows", .arr rows.toArray), ("flagRows", .arr ((ledger.filter (·.flag == some f.key)).map rowJson).toArray)]
 
 /-- The decision file: one compact JSON line per decided flag. -/
-def decisionsText (reg : List Reg) (ledger : List Row) : String :=
-  String.join ((decided reg).map fun f => (decision reg ledger f).compress ++ "\n")
+def decisionsText (reg : List Reg) (ledger : List Row) (st : List Stored) : String :=
+  String.join ((decided reg).map fun f => (decision reg ledger st f).compress ++ "\n")
 
 /-- The ledger path, from `lean/`. -/
 def ledgerPath : System.FilePath := ".." / "research" / "findings" / "ledger.json"
@@ -241,6 +329,13 @@ def goldenDecisions : System.FilePath :=
   ".." / "packages" / "contracts" / "golden" / "preset" / "v2-proved.decisions.jsonl"
 /-- The site preset, from `lean/`. -/
 def sitePreset : System.FilePath := ".." / "apps" / "site" / "src" / "registry" / "presets" / "v2-proved.json"
+/-- The stored trajectory runs, from `lean/`; only `record` writes it. -/
+def storedPath : System.FilePath :=
+  ".." / "packages" / "contracts" / "golden" / "preset" / "v2-proved.trajectory.jsonl"
+
+/-- Read the stored trajectory runs; a missing file or a bad line throws. -/
+def readStored : IO (List Stored) := do
+  IO.ofExcept ((parseStoredText (← IO.FS.readFile storedPath)).mapError fun e => s!"{storedPath}: {e}")
 
 /-- Read and parse a JSON file; a parse error names the path. -/
 def readJson (p : System.FilePath) : IO Json := do
@@ -260,12 +355,14 @@ def readRegistry : IO (List Reg) := do
 /-- Write the three files, or with `--check` throw when any differs from the Lean output and print a message when none
 does; a ledger or part that does not parse, or a preset that is not closed, throws before anything is written. Each case
 assumes the cases above it do not apply; a file that cannot be read reads as the empty string `ε`. Here
-`P = generate(R, Λ, L)` and `outs = [(goldenPreset, presetText(P)), (sitePreset, presetText(P)), (goldenDecisions, decisionsText(R, L))]`. -/
+`P = generate(R, Λ, L, S)` and `outs = [(goldenPreset, presetText(P)), (sitePreset, presetText(P)), (goldenDecisions, decisionsText(R, L, S))]`, with `S` the stored trajectory runs. -/
 def run (args : List String) : IO Unit := do
   let ledger ← IO.ofExcept ((parseLedger (← readJson ledgerPath)).mapError fun e => s!"{ledgerPath}: {e}")
   let reg ← readRegistry
-  let p ← IO.ofExcept (generate reg links ledger)
-  let outs := [(goldenPreset, presetText p), (sitePreset, presetText p), (goldenDecisions, decisionsText reg ledger)]
+  let st ← readStored
+  let p ← IO.ofExcept (generate reg links ledger st)
+  let outs := [(goldenPreset, presetText p), (sitePreset, presetText p),
+    (goldenDecisions, decisionsText reg ledger st)]
   if args.contains "--check" then
     let mut stale : List String := []
     for (path, text) in outs do
@@ -279,6 +376,82 @@ def run (args : List String) : IO Unit := do
       IO.FS.createDirAll (path.parent.getD ".")
       IO.FS.writeFile path text
     IO.println s!"v2-proved: written, {p.length} flags: {p.map (·.key)}"
+
+/-- The engine of a `trajectory-probe.yml` artifact directory (allowlist). -/
+def engineOfArtifact : String → Except String Engine
+  | "trajectory-chromium" => .ok .chromium
+  | "trajectory-playwright-webkit" => .ok .linuxWebkit
+  | "trajectory-apple" => .ok .macWebkit
+  | s => .error s!"unknown trajectory artifact {s}"
+
+/-- The units file name inside an artifact directory of the engine. -/
+def unitsName : Engine → String
+  | .chromium => "units-chromium.json"
+  | _ => "units-playwright-webkit.json"
+
+/-- The flags of a probe search: `?fw=` with comma-separated `part:variant` keys, or `?preset=` with the given preset's
+keys (allowlist; an empty flag set is an error). -/
+def flagsOfSearch (search : String) (presetKeys : Option (List String)) : Except String (List String) := do
+  let ks ← if search.startsWith "?fw=" then
+      ((search.drop 4).toString.splitOn ",").mapM fun k => do pure (← parseFlag k).key
+    else if search.startsWith "?preset=" && !(search.drop 8).toString.contains '&' then
+      match presetKeys with
+      | some ks => pure ks
+      | none => throw s!"search {search} needs the preset file of the run's commit"
+    else throw s!"search {search} is neither ?fw= nor ?preset="
+  if ks.isEmpty then throw s!"search {search} names no flag" else pure ks
+
+/-- The keys of a preset file that extends `original`, sorted. -/
+def presetKeys (j : Json) : Except String (List String) := do
+  unless (← j.getObjValAs? String "extends") == "original" do throw "preset does not extend original"
+  let fw ← (← j.getObjVal? "fw").getObj?
+  let ks ← fw.toList.mapM fun ((p, v) : String × Json) => do pure (p ++ ":" ++ (← v.getStr?))
+  pure (ks.mergeSort (· ≤ ·))
+
+/-- One unit of a units file: `width`, `path`, `node`, `prop`, and whether `verdict` is `fail:coverage` and `rel` is
+`new`. -/
+def parseUnit (j : Json) : Except String UnitRow := do
+  return { width := ← j.getObjValAs? Nat "width", walk := ← j.getObjValAs? String "path",
+           node := ← j.getObjValAs? String "node", prop := ← j.getObjValAs? String "prop",
+           coverage := (← j.getObjValAs? String "verdict") == "fail:coverage",
+           isNew := (← j.getObjValAs? String "rel") == "new" }
+
+/-- The stored runs of one units file: one per path it walked; a refused run is an error. -/
+def storedOf (run sha : String) (e : Engine) (presetKeys : Option (List String)) (j : Json) :
+    Except String (List Stored) := do
+  if ← j.getObjValAs? Bool "refused" then throw s!"run {run} {engineWord e} was refused"
+  let search ← j.getObjValAs? String "search"
+  let flags ← flagsOfSearch search presetKeys
+  let us ← (← (← j.getObjVal? "units").getArr?).toList.mapM parseUnit
+  return [Walk.hero, .morph].filterMap fun w =>
+    if us.any (·.walk == walkWord w) then
+      some { run, sha, search, flags, engine := e, walk := w, widths := widthsOf (walkWord w) us,
+             groups := groupsOf (walkWord w) us }
+    else none
+
+/-- Replace the stored runs of the same run, engine and path by the new ones. -/
+def merge (old new : List Stored) : List Stored :=
+  old.filter (fun s => !new.any fun n => n.run == s.run && n.engine == s.engine && n.walk == s.walk) ++ new
+
+/-- Record a CI run: `record [run, sha, presetFile or "-", artifactDir...]` adds the paths of each artifact's units file
+to the stored-run file and prints each outcome; run `run []` after it. -/
+def record (args : List String) : IO Unit := do
+  let (run, sha, pf, dirs) ← match args with
+    | r :: s :: p :: d :: ds => pure (r, s, p, d :: ds)
+    | _ => throw (IO.userError "usage: record [run, sha, presetFile or -, artifactDir...]")
+  unless !run.isEmpty && run.all Char.isDigit do throw (IO.userError s!"bad run id {run}")
+  unless sha.length == 40 && sha.all fun c => c.isDigit || ('a' ≤ c && c ≤ 'f') do
+    throw (IO.userError s!"bad sha {sha}")
+  let keys ← if pf == "-" then pure none else some <$> IO.ofExcept (presetKeys (← readJson pf))
+  let mut new : List Stored := []
+  for d in dirs do
+    let dir : System.FilePath := d
+    let e ← IO.ofExcept (engineOfArtifact (dir.fileName.getD ""))
+    let j ← readJson (dir / unitsName e)
+    new := new ++ (← IO.ofExcept ((storedOf run sha e keys j).mapError fun m => s!"{dir}: {m}"))
+  IO.FS.writeFile storedPath (storedText (merge (← readStored) new))
+  for s in new do
+    IO.println s!"record: run {s.run} {engineWord s.engine} {walkWord s.walk}: {outcomeWord (outcome s)}"
 
 #guard (parseFlag "nav.hitTest:hit-skip").toOption == some ⟨"nav.hitTest", "hit-skip"⟩
 #guard (parseFlag "nav.hitTest").toOption.isNone
@@ -310,5 +483,40 @@ def run (args : List String) : IO Unit := do
 #guard ((verdictJson [] ⟨"hero.countdown", "strip"⟩).getObjValAs? String "verdict").toOption == some "excluded"
 #guard ((verdictJson [] ⟨"morph.countdown", "hidden-pause"⟩).getObjValAs? String "verdict").toOption == some "row-count"
 #guard presetText [] == "{\"extends\":\"original\",\"fw\":{},\"name\":\"v2-proved\"}\n"
+
+private def stEx : Stored :=
+  ⟨"7", "s", "?fw=a:x", ["a:x"], .macWebkit, .morph, [390, 641], [⟨"nav", "opacity", [390], [641]⟩]⟩
+private def stBad : Stored :=
+  { stEx with engine := .chromium, widths := Fw.Gate.Trajectory.allowedWidths,
+              groups := [⟨"nav", "opacity", [390, 641], []⟩] }
+private def unitJ (w : Nat) (p v r : String) : Json :=
+  Json.mkObj [("width", w), ("path", .str p), ("node", "nav"), ("prop", "opacity"), ("verdict", .str v), ("rel", .str r)]
+private def unitsJ (refused : Bool) (search : String) : Json :=
+  Json.mkObj [("refused", .bool refused), ("search", .str search), ("units", .arr #[unitJ 390 "morph" "pass" "new",
+    unitJ 641 "morph" "fail:coverage" "new", unitJ 641 "morph" "pass" "ok", unitJ 390 "hero" "pass" "ok"])]
+
+#guard (parseStoredText (storedText [stEx, { stEx with run := "6" }])).toOption == some [{ stEx with run := "6" }, stEx]
+#guard (parseStoredText "{\"run\":\"1\"}\n").toOption.isNone
+#guard (parseEngine "apple").toOption.isNone
+#guard (parseWalk "exit").toOption.isNone
+#guard (engineOfArtifact "trajectory-apple").toOption == some .macWebkit
+#guard (engineOfArtifact "telemetry-site").toOption.isNone
+#guard (flagsOfSearch "?fw=a:x,b:y" none).toOption == some ["a:x", "b:y"]
+#guard (flagsOfSearch "?fw=a" none).toOption.isNone
+#guard (flagsOfSearch "" none).toOption.isNone
+#guard (flagsOfSearch "?preset=v2-proved" none).toOption.isNone
+#guard (flagsOfSearch "?preset=v2-proved" (some ["a:x"])).toOption == some ["a:x"]
+#guard (flagsOfSearch "?preset=v2-proved" (some [])).toOption.isNone
+#guard (flagsOfSearch "?preset=v2-proved&fw=b:y" (some ["a:x"])).toOption.isNone
+#guard (presetKeys (Json.mkObj [("extends", "original"), ("fw", Json.mkObj [("b", "y"), ("a", "x")])])).toOption ==
+  some ["a:x", "b:y"]
+#guard (presetKeys (Json.mkObj [("extends", "v2-proved"), ("fw", Json.mkObj [])])).toOption.isNone
+#guard (storedOf "7" "s" .chromium none (unitsJ true "?fw=a:x")).toOption.isNone
+#guard ((storedOf "7" "s" .chromium none (unitsJ false "?fw=a:x")).toOption.map fun l => l.map fun s =>
+  (walkWord s.walk, s.widths, s.groups)) ==
+  some [("hero", [390], []), ("morph", [390, 641], [⟨"nav", "opacity", [390], [641]⟩])]
+#guard (merge [stEx, { stEx with walk := .hero }] [{ stEx with groups := [] }]).map (·.groups.length) == [1, 0]
+#guard ((trajJson [stEx] ⟨"a", "x"⟩).getObjValAs? String "verdict").toOption == some "pending: trajectory"
+#guard ((trajJson [stBad] ⟨"a", "x"⟩).getObjValAs? String "verdict").toOption == some "falsified: trajectory"
 
 end Fw.Preset.Gen
