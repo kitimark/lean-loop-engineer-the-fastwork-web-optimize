@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { previewBase, refusedText } from "./TaskDetail";
 import { copyText } from "./buildsOpen";
-import { openSearch, pickQuery, type Picks } from "./composeOpen";
+import { answersNow, copyKnown, newestWins, openSearch, pickQuery, type Picks } from "./composeOpen";
 
 // Rendering only. The classes, the why-lines, the allowed combinations and the generated search are Lean `console.compose` (console-api
 // `GET /api/compose`); the explanations are the findings ledger's own words, attached by row index. Opening goes through the Builds open path.
@@ -22,7 +22,7 @@ export type CData = {
 };
 
 const BADGE: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  original: "outline", proved: "default", "look-change": "secondary", measured: "secondary", refuted: "destructive", unrated: "outline",
+  original: "outline", proved: "default", "look-change": "secondary", "ledger-proved": "secondary", measured: "secondary", refuted: "destructive", unrated: "outline",
 };
 
 /** Parts grouped by page region, in the order Lean returned them (page order). */
@@ -104,51 +104,67 @@ export function PartCard({ part, chosen, rows, rules, onPick }: { part: CPart; c
 }
 
 export function ComposeView() {
-  const [d, setD] = useState<CData | null>(null);
+  // `ans` is the reply and the query it answers. A reply of an older request is dropped, and the page treats a reply for another
+  // query as stale (actions off) until the current one arrives.
+  const [ans, setAns] = useState<{ d: CData; q: string } | null>(null);
   const [picks, setPicks] = useState<Picks>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [reasons, setReasons] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [opened, setOpened] = useState<string | null>(null);
+  const [opened, setOpened] = useState<{ url: string; q: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyMsg, setCopyMsg] = useState<string | null>(null);
+  const guard = useRef(newestWins());
   const q = pickQuery(picks);
   const load = useCallback(async () => {
-    try { setD(await (await apiFetch(`/api/compose${q}`)).json()); } catch (e) { setMsg((e as Error).message); }
+    const ticket = guard.current.next();
+    try {
+      const d = (await (await apiFetch(`/api/compose${q}`)).json()) as CData;
+      if (guard.current.isLatest(ticket)) setAns({ d, q });
+    } catch (e) { if (guard.current.isLatest(ticket)) setMsg((e as Error).message); }
   }, [q]);
   useEffect(() => { void load(); }, [load]);
+  const fresh = !!ans && answersNow(ans.q, q);
 
-  async function open(arm: "r" | "compare", andCopy = false) {
-    if (!d?.decision.ok || d.decision.link === null) return;
-    setMsg(null); setReasons([]); setBusy(true); setCopied(false);
-    const w = andCopy ? null : window.open("about:blank", "_blank");
+  async function open(arm: "r" | "compare") {
+    if (!ans || !fresh || !ans.d.decision.ok || ans.d.decision.link === null) return;
+    const d = ans.d, asked = q;
+    setMsg(null); setReasons([]); setBusy(true); setCopied(false); setCopyMsg(null);
+    const w = window.open("about:blank", "_blank");
     if (w) w.opener = null;
     try {
-      const r = await openSearch(d.decision.link, arm, {
+      const r = await openSearch(d.decision.link!, arm, {
         fetch: apiFetch, previewBase: previewBase(d.previewPort), refused: refusedText,
-        onOpen: (href) => { if (w) w.location.href = href; else if (!andCopy) setMsg(`Pop-up blocked: open ${href}`); },
+        onOpen: (href) => { if (w) w.location.href = href; else setMsg(`Pop-up blocked: open ${href}`); },
       });
       if (!r.ok) { w?.close(); setMsg(r.message); setReasons(r.reasons); return; }
-      setOpened(r.url);
-      if (andCopy) setCopied(await copyText(r.url));
+      setOpened({ url: r.url, q: asked });
     } catch (e) { w?.close(); setMsg((e as Error).message); } finally { setBusy(false); }
   }
+  // A separate step: it copies the link that is already known, straight from the tap (as the Builds tab does).
+  function copy() {
+    if (!opened || opened.q !== q) return;
+    void copyKnown(opened.url, copyText).then((r) => { setCopied(r.copied); setCopyMsg(r.message); });
+  }
 
-  if (!d) return <p className="text-muted-foreground">{msg ?? "Loading parts..."}</p>;
-  return <ComposePanel d={d} picks={picks} setPicks={setPicks} busy={busy} msg={msg} reasons={reasons} opened={opened} copied={copied} onOpen={(arm, andCopy) => void open(arm, andCopy)} />;
+  if (!ans) return <p className="text-muted-foreground">{msg ?? "Loading parts..."}</p>;
+  return <ComposePanel d={ans.d} stale={!fresh} picks={picks} setPicks={setPicks} busy={busy} msg={msg} reasons={reasons}
+    opened={opened && opened.q === q ? opened.url : null} copied={copied} copyMsg={copyMsg} onOpen={(arm) => void open(arm)} onCopy={copy} />;
 }
 
 export type PanelProps = {
-  d: CData; picks: Picks; setPicks: (f: Picks | ((cur: Picks) => Picks)) => void; busy: boolean; msg: string | null; reasons: string[];
-  opened: string | null; copied: boolean; onOpen: (arm: "r" | "compare", andCopy?: boolean) => void;
+  d: CData; stale?: boolean; picks: Picks; setPicks: (f: Picks | ((cur: Picks) => Picks)) => void; busy: boolean; msg: string | null; reasons: string[];
+  opened: string | null; copied: boolean; copyMsg?: string | null; onOpen: (arm: "r" | "compare") => void; onCopy?: () => void;
 };
 
 /** The page: presets, cards by region, and the bar with the generated search, the reasons and the Open actions. */
-export function ComposePanel({ d, picks, setPicks, busy, msg, reasons, opened, copied, onOpen }: PanelProps) {
+export function ComposePanel({ d, stale = false, picks, setPicks, busy, msg, reasons, opened, copied, copyMsg = null, onOpen, onCopy }: PanelProps) {
   const dflt = (p: CPart) => p.variants.find((v) => v.isDefault)?.name ?? "faithful";
   const set = (p: CPart, v: string) => setPicks((cur) => { const n = { ...cur }; if (v === dflt(p)) delete n[p.id]; else n[p.id] = v; return n; });
   const preset = (c: CPreset) => setPicks(Object.fromEntries(c.picks.filter((x) => { const p = d.parts.find((y) => y.id === x.part); return p && dflt(p) !== x.variant; }).map((x) => [x.part, x.variant])));
   const link = d.decision.link;
-  const can = !!d.canPreview && d.decision.ok && !busy;
+  const can = !!d.canPreview && d.decision.ok && !busy && !stale;
+  const canCopy = !!opened && !stale && !!d.canPreview;
   return (
     <div className="min-w-0 space-y-4 pb-48" data-testid="compose">
       <section className="space-y-2">
@@ -171,18 +187,19 @@ export function ComposePanel({ d, picks, setPicks, busy, msg, reasons, opened, c
       ))}
       <section className="fixed inset-x-0 bottom-0 z-10 border-t bg-background p-3" data-testid="compose-bar">
         <div className="mx-auto max-h-[40vh] max-w-5xl space-y-2 overflow-y-auto">
-          <p className="break-all font-mono text-xs" data-testid="generated-search">{link === null ? "(refused)" : link === "" ? "(default page: no ?fw= entries)" : link}</p>
-          {d.decision.reasons.length > 0 ? <ul className="list-disc pl-5 text-xs text-destructive" role="alert">{d.decision.reasons.map((r) => <li key={r} className="break-words">{r}</li>)}</ul> : null}
-          {d.decision.notes.map((n) => <p key={n} className="break-words text-xs text-muted-foreground">{n}</p>)}
+          <p className="break-all font-mono text-xs" data-testid="generated-search">{stale ? "updating…" : link === null ? "(refused)" : link === "" ? "(default page: no ?fw= entries)" : link}</p>
+          {!stale && d.decision.reasons.length > 0 ? <ul className="list-disc pl-5 text-xs text-destructive" role="alert">{d.decision.reasons.map((r) => <li key={r} className="break-words">{r}</li>)}</ul> : null}
+          {!stale && d.decision.notes.map((n) => <p key={n} className="break-words text-xs text-muted-foreground">{n}</p>)}
           {reasons.length > 0 ? <ul className="list-disc pl-5 text-xs text-destructive" role="alert">{reasons.map((r) => <li key={r}>{r}</li>)}</ul> : null}
           {msg ? <p className="break-words text-xs text-destructive">{msg}</p> : null}
           <div className="flex flex-wrap gap-2">
             <Button size="sm" disabled={!can} onClick={() => onOpen("r")}>{busy ? "Opening..." : "Open"}</Button>
             <Button size="sm" variant="outline" disabled={!can} onClick={() => onOpen("compare")}>Open compare</Button>
-            <Button size="sm" variant="outline" disabled={!can} onClick={() => onOpen("r", true)}>{copied ? "Copied" : "Copy link"}</Button>
+            <Button size="sm" variant="outline" disabled={!canCopy} title={opened ? "" : "Open the combination first"} onClick={() => onCopy?.()}>{copied ? "Copied" : "Copy link"}</Button>
           </div>
           {!d.canPreview ? <p className="text-xs text-muted-foreground">Sign in as owner to open previews.</p> : null}
-          {opened ? <p className="break-all text-xs">Opened: <a className="underline" href={opened} target="_blank" rel="noreferrer">{opened}</a></p> : null}
+          {copyMsg ? <p className="break-words text-xs text-destructive" role="alert">{copyMsg}</p> : null}
+          {opened ? <p className="break-all text-xs">Opened: <a className="select-all underline" href={opened} target="_blank" rel="noreferrer">{opened}</a></p> : null}
         </div>
       </section>
     </div>

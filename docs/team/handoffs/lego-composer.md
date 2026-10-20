@@ -23,3 +23,14 @@ Open items:
 
 Read first: `docs/team/tools/compose.md`, then `lean/Fw/Console/Compose.lean`, `apps/console-api/test/compose.test.ts`.
 Conventions: never hand-edit the golden; regenerate with `cd lean && lake build Fw.Ops.Golden && lake env lean --run scripts/OpsGolden.lean`.
+
+## Round 2 (fixes for the round 1 findings)
+
+- Stale decision: `Compose.tsx` tags each reply with its query, `newestWins` drops older replies, `answersNow` marks stale; the bar says "updating…" and Open, Open compare, Copy link are off.
+- Copy link is its own step on the known opened link (`copyKnown`); failure shows "Copy failed: long-press the link below", link is `select-all`.
+- New class `ledger-proved` (`classOf_ledgerProved`); `measured` says "not in v2-proved yet (the gate has not admitted it)".
+- `explicitKeys` extras for morph.columns:hidden-pause (rows 19, 41) and morph.countdown:hidden-pause (row 43); explicit rule needs no part name. Only unrated variant was morph.columns:hidden-pause. `matchRow` rules listed in compose.md.
+- `implReasons`: a preset entry with a non-default impl (default `mui`) is refused in the preset list; goldens `cmp2` cases.
+- Verified at the final commit: lean/scripts/check.sh green, console-api 609 pass, console-web tsc + 38 pass, ci-paths pass, runner land-inputs 55 pass.
+- Rebuild `lake build fwcore` after Lean edits or the api golden tests fail on a stale binary.
+- TS stand-ins unchanged; the web test is static render plus pure helpers (no DOM library in the repo). No real-iPhone run.

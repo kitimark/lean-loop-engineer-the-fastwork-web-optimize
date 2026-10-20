@@ -94,6 +94,16 @@ describe("GET /api/compose over the real registry and ledger", () => {
     expect(r.decision).toMatchObject({ ok: true, link: "" });
   });
 
+  it("the explicit ledger pairs attach, and no variant says the proof is incomplete without the rows saying so", async () => {
+    const r = await composeReply(ROOT, core, []) as any;
+    const v = (part: string, name: string) => r.parts.find((p: any) => p.id === part).variants.find((x: any) => x.name === name);
+    expect(v("morph.columns", "hidden-pause").class).not.toBe("unrated");
+    expect(v("morph.columns", "hidden-pause").rows.length).toBeGreaterThanOrEqual(2);
+    expect(v("morph.countdown", "hidden-pause").rows.length).toBeGreaterThanOrEqual(1);
+    for (const p of r.parts) for (const x of p.variants) expect(x.why).not.toContain("not complete");
+    expect(r.parts.flatMap((p: any) => p.variants).filter((x: any) => x.class === "unrated").map((x: any) => x.name)).toEqual([]);
+  });
+
   it("a refuted variant is classed refuted, cites its ledger row, and a pick of it is refused", async () => {
     const r = await composeReply(ROOT, core, [{ part: "morph.tween", variant: "waapi" }]) as any;
     const tween = r.parts.find((p: any) => p.id === "morph.tween");

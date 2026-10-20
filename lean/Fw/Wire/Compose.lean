@@ -63,7 +63,8 @@ def presetJson (parts : List PartInfo) (rows : List LRow) (presets : List Preset
   let r := presetEntries presets p.name [] [] (presets.length + 2)
   let picks := r.1.map fun e => (e.1, (e.2.splitOn "@").headD "")
   let d := decide parts rows presets picks
-  let d := if r.2.isEmpty then d else { link := none, reasons := r.2, notes := [] }
+  let ir := implReasons presets p.name
+  let d := if r.2.isEmpty && ir.isEmpty then d else { link := none, reasons := r.2 ++ ir, notes := [] }
   Json.mkObj [("name", .str p.name), ("picks", Json.arr (picks.map fun e => Json.mkObj [("part", .str e.1), ("variant", .str e.2)]).toArray),
     ("ok", .bool d.link.isSome), ("link", match d.link with | some l => .str l | none => .null),
     ("reasons", Json.arr (d.reasons.map Json.str).toArray), ("notes", Json.arr (d.notes.map Json.str).toArray)]
@@ -72,7 +73,7 @@ def presetJson (parts : List PartInfo) (rows : List LRow) (presets : List Preset
 def opCompose (req : Json) : Except String Reply := do
   let (parts, presets, rows) ← facts req
   let picks ← (← arrD req "picks").mapM fun e => do pure ((← str e "part"), (← str e "variant"))
-  let classes := [Cls.original, .proved, .lookChange, .measured, .refuted, .unrated]
+  let classes := [Cls.original, .proved, .lookChange, .ledgerProved, .measured, .refuted, .unrated]
   pure [("regions", Json.arr (regions.map Json.str).toArray),
     ("parts", Json.arr ((table parts rows presets).map partJson).toArray),
     ("presets", Json.arr (presets.map (presetJson parts rows presets)).toArray),

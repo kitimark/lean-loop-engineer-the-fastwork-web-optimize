@@ -55,6 +55,17 @@ def cmpReg : Json := lit "{\"parts\":[{\"id\":\"morph.tween\",\"slot\":\"morph\"
 def cmpLedger : String :=
   "[{\"part\":\"engine.scroll\",\"candidate\":\"engine.scroll `batched`\",\"status\":\"measured\",\"flag\":\"engine.scroll:batched\"},{\"part\":\"pain.notes\",\"candidate\":\"pain.notes `visible`\",\"status\":\"measured\",\"flag\":\"pain.notes:visible\"},{\"part\":\"morph.tween\",\"candidate\":\"morph.tween `waapi`\",\"status\":\"refuted\",\"flag\":\"morph.tween:waapi\"},{\"part\":\"hero.countdown\",\"candidate\":\"hero.countdown `strip`\",\"status\":\"measured\"},{\"part\":\"hero.countdown\",\"candidate\":\"hero.countdown `one-chain`\",\"status\":\"measured\"},{\"part\":\"nav.hitTest\",\"candidate\":\"nav.hitTest, another idea\",\"status\":\"open\"}]"
 
+/-- A second registry and ledger for the `console.compose` classes: the explicit ledger pairs, `ledger-proved`, and `@impl` presets. -/
+def cmpReg2 : Json := lit "{\"parts\":[{\"id\":\"morph.columns\",\"slot\":\"morph\",\"impls\":[\"mui\",\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"hidden-pause\",\"kind\":\"optimized\"}]},{\"id\":\"morph.countdown\",\"slot\":\"morph\",\"impls\":[\"mui\",\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"hidden-pause\",\"kind\":\"optimized\"}]},{\"id\":\"engine.scroll\",\"slot\":\"engine\",\"impls\":[\"mui\",\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"batched\",\"kind\":\"optimized\"}]},{\"id\":\"pain.notes\",\"slot\":\"pain\",\"impls\":[\"mui\",\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"visible\",\"kind\":\"optimized\"}]}],\"presets\":[{\"name\":\"original\",\"fw\":{}},{\"name\":\"mui-impl\",\"extends\":\"original\",\"fw\":{\"engine.scroll\":\"batched@mui\"}},{\"name\":\"plain-impl\",\"extends\":\"original\",\"fw\":{\"engine.scroll\":\"batched@plain\"}}]}"
+
+/-- The ledger rows of the second registry (the text of ledger rows 19, 41 and 43 for the explicit pairs). -/
+def cmpLedger2 : String :=
+  "[{\"part\":\"morph.columns\",\"candidate\":\"columns as a still picture while the menu is closed (g0.0h keep-phase = hidden-pause of the marquee)\",\"status\":\"partly-proved\"},{\"part\":\"engine.scene\",\"candidate\":\"hidden pause of compositor marquees (morph.columns at m <= 0.08, scene off-screen), HiddenPause.lean\",\"status\":\"proved\"},{\"part\":\"engine.scene\",\"candidate\":\"morph.countdown hidden: keep the spring integrating, skip the 16 face writes per digit (HiddenPause skipWrites)\",\"status\":\"proved\"},{\"part\":\"engine.scroll\",\"candidate\":\"engine.scroll `batched`\",\"status\":\"proved\"},{\"part\":\"pain.notes\",\"candidate\":\"pain.notes `visible`\",\"status\":\"proved\"},{\"part\":\"pain.notes\",\"candidate\":\"pain.notes `visible`, second measurement\",\"status\":\"measured\"}]"
+
+/-- A `console.compose` request over the second registry. -/
+def cmp2 (picks : String) : Json :=
+  lit s!"\{\"registry\":{cmpReg2.compress},\"picks\":{picks},\"ledger\":{cmpLedger2}}"
+
 /-- A `console.compose` request over the registry above with the given picks (a JSON array text) and ledger. -/
 def cmp (picks : String) (ledger : String := cmpLedger) : Json :=
   lit s!"\{\"registry\":{cmpReg.compress},\"picks\":{picks},\"ledger\":{ledger}}"
@@ -690,6 +701,8 @@ def extra (_ : Unit := ()) : List (String × String × List (String × Json)) :=
     ("the last pick of a part wins", cmp "[{\"part\":\"hero.countdown\",\"variant\":\"one-chain\"},{\"part\":\"hero.countdown\",\"variant\":\"strip\"}]"),
     ("no ledger rows: every non-default variant is unrated", cmp "[]" "[]"),
     ("a malformed ledger row is refused", cmp "[]" "[{\"part\":\"a\"}]"),
+    ("a variant whose rows are all proved is ledger-proved; a mix of proved and measured is measured", cmp2 "[]"),
+    ("rows named by explicit pairs attach to morph.columns:hidden-pause and morph.countdown:hidden-pause; presets with a non-default impl are refused", cmp2 "[{\"part\":\"morph.columns\",\"variant\":\"hidden-pause\"}]"),
     ("a missing registry is refused", lit "{\"picks\":[],\"ledger\":[]}")]),
   ("console", "console.buildsPicker", [
     ("keys of a build: default first, then presets, then flags, each in key order", lit "{\"keys\":[\"?fw=hero.countdown:strip\",\"?preset=v2-proved\",\"\",\"?fw=a:b,c:d\",\"?preset=original\"],\"current\":\"?fw=a:b,c:d\"}"),

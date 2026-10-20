@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ComposePanel, ComposeView, Explain, PartCard, byRegion, type CData, type CRow } from "../src/Compose";
 import { landingOf } from "../src/App";
-import { openSearch, pickQuery } from "../src/composeOpen";
+import { COPY_FAILED, answersNow, copyKnown, newestWins, openSearch, pickQuery } from "../src/composeOpen";
 
 const row = (o: Partial<CRow> = {}): CRow => ({
   index: 0, candidate: "morph.tween `waapi`", status: "refuted", chromium: "10 ms slower", webkit: "same", visual: "identical", mechanism: "one WAAPI animation",
@@ -41,6 +41,13 @@ describe("Compose page render", () => {
     expect(html).toContain(">v2-proved<");
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*title="refuted"[^>]*>bad</);
   });
+  it("a ledger-proved variant has its own badge and why-line", () => {
+    const d = data({ rules: { "ledger-proved": "proved in the ledger, not yet admitted to v2-proved by the gate" } });
+    d.parts[0]!.variants[1] = { ...d.parts[0]!.variants[1]!, class: "ledger-proved" };
+    const card = renderToStaticMarkup(<PartCard part={d.parts[0]!} chosen="strip" rows={d.rows} rules={d.rules} onPick={() => undefined} />);
+    expect(card).toContain("ledger-proved");
+    expect(card).toContain("proved in the ledger, not yet admitted to v2-proved by the gate");
+  });
   it("shows the generated search and the Open, Open compare and Copy link actions", () => {
     const html = panel(data({ decision: { ok: true, link: "?fw=hero.countdown:strip", reasons: [], notes: ["a note"] } }));
     expect(html).toContain("?fw=hero.countdown:strip");
@@ -78,6 +85,56 @@ describe("Compose page render", () => {
     expect(landingOf("?tab=compose")).toEqual({ tab: "compose", note: null });
     expect(landingOf("?tab=builds").tab).toBe("builds");
     expect(renderToStaticMarkup(<ComposeView />)).toContain("Loading parts");
+  });
+});
+
+describe("a decision that answers an older pick", () => {
+  const live = data({ decision: { ok: true, link: "?fw=hero.countdown:strip", reasons: [], notes: ["a note"] } });
+  it("while stale: Open, Open compare and Copy link are disabled, the page says updating and shows no old link, reasons or notes", () => {
+    const html = panel(live, { stale: true, opened: "http://h/preview/p1" });
+    expect(html).toContain("updating…");
+    expect(html).not.toContain("?fw=hero.countdown:strip");
+    expect(html).not.toContain("a note");
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Open</);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Open compare</);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Copy link</);
+  });
+  it("when the decision is current the Open actions are enabled", () => {
+    const html = panel(live, { stale: false });
+    expect(html).not.toContain("updating…");
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Open</);
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Open compare</);
+  });
+  it("a reply answers the picks only when it was fetched for the current query", () => {
+    expect(answersNow("?pick=a:b", "?pick=a:b")).toBe(true);
+    expect(answersNow("", "?pick=a:b")).toBe(false);
+    expect(answersNow(null, "")).toBe(false);
+  });
+  it("the newest request wins: a late reply of an older one is dropped", () => {
+    const g = newestWins();
+    const first = g.next(), second = g.next();
+    expect(g.isLatest(first)).toBe(false);
+    expect(g.isLatest(second)).toBe(true);
+  });
+});
+
+describe("Copy link", () => {
+  it("is disabled until a link is opened, and then copies that link", () => {
+    expect(panel(data(), { opened: null })).toMatch(/<button[^>]*disabled=""[^>]*>Copy link</);
+    expect(panel(data(), { opened: "http://h/preview/p1" })).not.toMatch(/<button[^>]*disabled=""[^>]*>Copy link</);
+  });
+  it("copies the known link at once, and says how to get it when the copy fails", async () => {
+    const seen: string[] = [];
+    const ok = await copyKnown("http://h/p", (t) => { seen.push(t); return Promise.resolve(true); });
+    expect(ok).toEqual({ copied: true, message: null });
+    expect(seen).toEqual(["http://h/p"]);
+    expect(await copyKnown("http://h/p", () => Promise.resolve(false))).toEqual({ copied: false, message: "Copy failed: long-press the link below" });
+  });
+  it("shows the failure message and the link as selectable text", () => {
+    const html = panel(data(), { opened: "http://h/preview/p1", copyMsg: COPY_FAILED });
+    expect(html).toContain("Copy failed: long-press the link below");
+    expect(html).toContain('class="select-all underline"');
+    expect(html.indexOf("Copy failed")).toBeLessThan(html.indexOf("http://h/preview/p1</a>"));
   });
 });
 

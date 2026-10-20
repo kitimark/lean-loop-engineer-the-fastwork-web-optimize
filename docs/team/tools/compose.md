@@ -4,7 +4,7 @@ The console's Compose tab (next to Builds) lists every part of the page, grouped
 is a card with its variants. A variant shows a class badge and a one-line reason; an expandable explanation quotes the
 findings ledger (mechanism, visual, chromium, webkit, Lean for and against, lesson, run ids cited). Presets (Default,
 v2-proved, strip-demo) fill the picks in one click. The bar at the bottom shows the generated search and the actions
-Open, Open compare and Copy link. It works on a phone (390 px, over the LAN console) and opens through the owner gate.
+Open, Open compare and Copy link (Copy link is a separate step: it copies the link of the last Open, from your tap). It works on a phone (390 px, over the LAN console) and opens through the owner gate.
 
 ## Who decides what
 
@@ -25,19 +25,43 @@ Open, Open compare and Copy link. It works on a phone (390 px, over the LAN cons
 | refuted | a ledger row for this variant has status `refuted` | refused, reason names the finding |
 | proved | in the `v2-proved` preset, same look | allowed |
 | look-change | the part's `provenance.limit` starts with `look change` | allowed |
-| measured | a ledger row with a verdict, not admitted | allowed |
+| ledger-proved | one or more rows speak of it and every one has status `proved`; the gate has not admitted it to `v2-proved` ("proved in the ledger, not yet admitted to v2-proved by the gate") | allowed |
+| measured | a row with a verdict, not all `proved`, not admitted ("not in v2-proved yet (the gate has not admitted it)") | allowed |
 | unrated | no ledger row speaks of it | allowed |
 
-A ledger row speaks of a variant when its `flag` is `part:variant`, or its candidate quotes the variant in backticks and
-names the part (`matchRow`). A refused combination has no link. A combination is refused for an unknown part or variant, a
+A ledger row speaks of a variant (`matchRow`) when: its `flag` is `part:variant` (a row with a flag speaks of nothing else);
+or, with no flag, one of four rules holds. Rules 1 to 3 need the row's `part` text to name the part (the text before its first
+`(`, or a parenthesis that opens with `+`): (1) the candidate has the word `part:variant`, (2) the candidate starts with the
+variant name, (3) the candidate puts the variant in backticks. Rule 4 needs no part name: the row's exact `part` and
+`candidate` text is a pair `explicitKeys` names for the variant (the preset link table, plus the extras below).
+
+Extra pairs in `explicitKeys` (the ledger has no `flag` field on them yet; giving rows one is a follow-up for the ledger
+owner): `hero.countdown:hidden-pause` gets the `hero.countdown / morph.countdown` hidden-skip row;
+`morph.columns:hidden-pause` gets row 19 (`morph.columns`, "columns as a still picture while the menu is closed ...") and
+row 41 (`engine.scene`, "hidden pause of compositor marquees (morph.columns ...)"); `morph.countdown:hidden-pause` gets
+row 43 (`engine.scene`, "morph.countdown hidden: keep the spring integrating ..."). Checked against the real registry and
+ledger: `morph.columns:hidden-pause` was the only unrated variant, and now is `measured` (row 19 is `partly-proved`).
+
+Presets: an entry `variant@impl` whose impl is not the site default (`mui`) refuses the preset button (the composer has no
+impl pick, so its link would open the default impl). `implReasons` decides; the golden has a `plain-impl` preset.
+
+A refused combination has no link. A combination is refused for an unknown part or variant, a
 refuted pick, or a `requires` or `conflicts` violation of the site registry (`BuildsOpen.validate`, the proved mirror of
 `apps/site/src/registry/resolve.ts`). Coupled groups and page-level parts only add notes.
 
 ## Proved
 
 `decide_link`, `refused_no_link`, `link_iff` (a link exists exactly when no reason does), `link_resolves` (an allowed link
-validates `.ok`), `link_no_refuted`, `link_known_picks`, `classOf_*` (each class and its precedence), `entries_inj` and
+validates `.ok`), `link_no_refuted`, `link_known_picks`, `classOf_*` (each class and its precedence, `ledgerProved` included), `implReasons_nil_of_no_impl`, `entries_inj` and
 `search_entries_inj` (two combinations with the same entries pick the same variant of every part), `ordered_nodup`.
+
+## Stale replies
+
+The page tags each `/api/compose` reply with the query it answers (`ans.q`), drops replies of older requests (`newestWins`),
+and while the shown reply is not for the current picks it says "updating…", hides the old link, and disables Open, Open
+compare and Copy link (`answersNow`). Copy failure shows "Copy failed: long-press the link below" with the link as
+selectable text. Tests: `apps/console-web/test/compose.test.tsx` (static render and the pure helpers; the repo has no DOM
+test library).
 
 ## Accepted limits
 

@@ -9,7 +9,8 @@ facts the I/O glue reads (`part.json`, the presets, the findings ledger's identi
 
 * `classOf`: the class of a variant. `original` (the faithful default), `refuted` (a ledger row that matches it is refuted),
   `proved` (a member of the `v2-proved` preset: equal look, proved), `lookChange` (the part file records a look change, accepted
-  pending review), `measured` (a ledger row matches, but it is not admitted), `unrated` (no ledger row measured it).
+  pending review), `ledgerProved` (every matching ledger row is `proved`, but the gate has not admitted the variant to `v2-proved`), `measured` (a ledger
+  row matches, but it is not admitted and not every row is `proved`), `unrated` (no ledger row measured it).
 * `rowsFor`: which ledger rows speak of a variant. The ledger is the one source of the explanations; this says which rows.
 * `entries` and `search`: the canonical search of a combination, in page order, default variants left out.
 * `decide`: whether a combination gets a link. It is refused with reasons when a pick names no registered variant, picks a
@@ -88,27 +89,36 @@ def rowParts (s : String) : List String :=
   | [] => []
   | h :: rest => tokens h ++ (rest.filter (fun r => (r.dropWhile (· == ' ')).startsWith "+")).flatMap tokens
 
-/-- The ledger rows that carry a variant's proof, from the preset generator's link table, and the one extra row that speaks of
-`hero.countdown:hidden-pause` (the row of its `morph.countdown` twin). -/
+/-- The ledger rows that carry a variant's proof, from the preset generator's link table, and the extra rows the ledger has no `flag`
+for yet: the row of the `morph.countdown` twin of `hero.countdown:hidden-pause`, the two rows of `morph.columns:hidden-pause`
+(its own, and the `engine.scene` one), and the `engine.scene` row of `morph.countdown:hidden-pause`. -/
 def explicitKeys (part variant : String) : List (String × String) :=
   ((Fw.Preset.Gen.linkTable.filter (fun l => l.1.part == part && l.1.variant == variant)).flatMap (·.2)) ++
   (if part == "hero.countdown" && variant == "hidden-pause" then
     [("hero.countdown / morph.countdown", "hidden-skip: skip face writes while the clock is not visible; the spring keeps integrating")]
+   else []) ++
+  (if part == "morph.columns" && variant == "hidden-pause" then
+    [("morph.columns", "columns as a still picture while the menu is closed (g0.0h keep-phase = hidden-pause of the marquee)"),
+     ("engine.scene", "hidden pause of compositor marquees (morph.columns at m <= 0.08, scene off-screen), HiddenPause.lean")]
+   else []) ++
+  (if part == "morph.countdown" && variant == "hidden-pause" then
+    [("engine.scene", "morph.countdown hidden: keep the spring integrating, skip the 16 face writes per digit (HiddenPause skipWrites)")]
    else [])
 
 /-- A candidate text puts the variant in backticks. -/
 def quoted (cand variant : String) : Bool := (cand.splitOn ("`" ++ variant ++ "`")).length > 1
 
 /-- Whether a ledger row speaks of variant `v` of part `p`. A row with a `flag` speaks of exactly that flag. Any other row speaks of
-it when the row names the part and the candidate text either has `part:variant` as a word, starts with the variant name, puts the
-variant in backticks, or is a row the link table (or its one extra) names for the variant. -/
+it by one of four rules. Rules 1 to 3 need the row's `part` text to name the part: (1) the candidate has `part:variant` as a word,
+(2) the candidate starts with the variant name, (3) the candidate puts the variant in backticks. Rule 4 needs no part name: the
+row is one the link table (or `explicitKeys`' extras) names for the variant, by its exact `part` and `candidate` text. -/
 def matchRow (p : PartInfo) (v : String) (r : LRow) : Bool :=
   match r.flag with
   | some f => f == p.id ++ ":" ++ v
   | none =>
-    (rowParts r.part).contains p.id &&
-      ((tokens r.candidate).contains (p.id ++ ":" ++ v) || (tokens r.candidate).head? == some v ||
-        quoted r.candidate v || (explicitKeys p.id v).contains (r.part, r.candidate))
+    ((rowParts r.part).contains p.id &&
+      ((tokens r.candidate).contains (p.id ++ ":" ++ v) || (tokens r.candidate).head? == some v || quoted r.candidate v)) ||
+    (explicitKeys p.id v).contains (r.part, r.candidate)
 
 /-- The indices of the ledger rows that speak of variant `v` of part `p`, in ledger order. -/
 def rowsFor (rows : List LRow) (p : PartInfo) (v : String) : List Nat :=
@@ -122,20 +132,21 @@ def otherRows (rows : List LRow) (p : PartInfo) : List Nat :=
 
 /-- The class of a variant. -/
 inductive Cls where
-  | original | proved | lookChange | measured | refuted | unrated
+  | original | proved | lookChange | ledgerProved | measured | refuted | unrated
 deriving Repr, DecidableEq
 
 /-- The wire name of a class. -/
 def Cls.name : Cls → String
   | .original => "original" | .proved => "proved" | .lookChange => "look-change"
-  | .measured => "measured" | .refuted => "refuted" | .unrated => "unrated"
+  | .ledgerProved => "ledger-proved" | .measured => "measured" | .refuted => "refuted" | .unrated => "unrated"
 
 /-- The one-line reason a class shows on the card. -/
 def Cls.why : Cls → String
   | .original => "the faithful page: the original look and behaviour"
   | .proved => "same look as the original, proved, and part of v2-proved"
   | .lookChange => "the look changes; accepted, pending your review"
-  | .measured => "measured, not admitted: the proof or the measurement is not complete"
+  | .ledgerProved => "proved in the ledger, not yet admitted to v2-proved by the gate"
+  | .measured => "not in v2-proved yet (the gate has not admitted it)"
   | .refuted => "refused: a finding refuted it"
   | .unrated => "no finding has measured it yet"
 
@@ -149,6 +160,7 @@ def classOf (v : VariantFact) (inProved : Bool) (rows : List LRow) : Cls :=
   else if rows.any (·.status == "refuted") then .refuted
   else if inProved then .proved
   else if lookChange v.limit then .lookChange
+  else if !rows.isEmpty && rows.all (·.status == "proved") then .ledgerProved
   else if rows.any (·.status != "not-tried") then .measured
   else .unrated
 
@@ -167,19 +179,60 @@ theorem classOf_lookChange (v rows) (hk : v.kind ≠ "faithful") (h : rows.any (
     (hl : lookChange v.limit = true) : classOf v false rows = .lookChange := by
   simp [classOf, hk, h, hl]
 
+theorem classOf_ledgerProved (v rows) (hk : v.kind ≠ "faithful") (h : rows.any (·.status == "refuted") = false)
+    (hl : lookChange v.limit = false) (hne : rows.isEmpty = false) (hp : rows.all (·.status == "proved") = true) :
+    classOf v false rows = .ledgerProved := by
+  simp [classOf, hk, h, hl, hne, hp]
+
 theorem classOf_measured (v rows) (hk : v.kind ≠ "faithful") (h : rows.any (·.status == "refuted") = false)
-    (hl : lookChange v.limit = false) (hm : rows.any (·.status != "not-tried") = true) :
+    (hl : lookChange v.limit = false) (hnp : (!rows.isEmpty && rows.all (·.status == "proved")) = false) (hm : rows.any (·.status != "not-tried") = true) :
     classOf v false rows = .measured := by
-  simp [classOf, hk, h, hl, hm]
+  simp [classOf, hk, h, hl, hnp, hm]
 
 theorem classOf_unrated (v rows) (hk : v.kind ≠ "faithful") (h : rows.any (·.status == "refuted") = false)
     (hl : lookChange v.limit = false) (hm : rows.any (·.status != "not-tried") = false) :
     classOf v false rows = .unrated := by
   simp [classOf, hk, h, hl, hm]
+  intro hne
+  obtain ⟨x, hx⟩ := List.exists_mem_of_ne_nil rows hne
+  refine ⟨x, hx, ?_⟩
+  have hall := List.all_eq_true.1 (by simpa using hm : rows.all (fun x => !(x.status != "not-tried")) = true) x hx
+  intro hp
+  simp [hp] at hall
 
 /-- The (part, variant) pairs of the `v2-proved` preset, `@impl` dropped; empty when the preset is not registered. -/
 def provedFlags (presets : List PresetFact) : List (String × String) :=
   (presetEntries presets "v2-proved" [] [] (presets.length + 2)).1.map fun e => (e.1, (e.2.splitOn "@").headD "")
+
+/-- The impl the site gives a part when no `@impl` is named (`DEFAULT_IMPL` in `apps/site/src/registry/resolve.ts`). -/
+def defaultImpl : String := "mui"
+
+/-- The reasons a preset cannot be a one-click combination: an entry `variant@impl` with an impl other than the default. The
+composer has no impl pick, so its link would open the default impl, not the preset's. -/
+def implReasons (presets : List PresetFact) (name : String) : List String :=
+  (presetEntries presets name [] [] (presets.length + 2)).1.filterMap fun e =>
+    match e.2.splitOn "@" with
+    | [_, i] => if i == defaultImpl then none
+      else some s!"preset \"{name}\" picks {e.1}:{e.2}, a non-default impl; the composer has no impl pick, so the link would open the default impl"
+    | _ => none
+
+/-- A preset with no `@impl` entry has no impl reason. -/
+theorem implReasons_nil_of_no_impl (presets name)
+    (h : ∀ e ∈ (presetEntries presets name [] [] (presets.length + 2)).1, (e.2.splitOn "@").length ≠ 2) :
+    implReasons presets name = [] := by
+  unfold implReasons
+  rw [List.filterMap_eq_nil_iff]
+  intro e he
+  have := h e he
+  cases hs : e.2.splitOn "@" with
+  | nil => rfl
+  | cons a t =>
+    cases t with
+    | nil => rfl
+    | cons b u =>
+      cases u with
+      | nil => rw [hs] at this; exact absurd rfl this
+      | cons c w => rfl
 
 /-- One variant of the table. -/
 structure VarOut where
@@ -485,7 +538,8 @@ def parts : List PartInfo :=
 
 def rows : List LRow :=
   [{ part := "p.late", candidate := "p.late `fast`", status := "measured", flag := none },
-   { part := "p.late", candidate := "p.late `bad`", status := "refuted", flag := some "p.late:bad" }]
+   { part := "p.late", candidate := "p.late `bad`", status := "refuted", flag := some "p.late:bad" },
+   { part := "p.early", candidate := "p.early `fast`", status := "proved", flag := none }]
 
 #guard (ordered parts).map (·.id) == ["p.early", "p.late"]
 #guard (decide parts rows [] []).link == some ""
@@ -498,7 +552,14 @@ def rows : List LRow :=
 #guard (decide parts rows [] [("p.late", "nope")]).link == none
 #guard (decide parts rows [] [("p.late", "fast"), ("p.late", "faithful")]).link == some ""
 #guard ((table parts rows []).map fun p => (p.id, p.variants.map (·.cls.name))) ==
-  [("p.early", ["original", "unrated", "look-change"]), ("p.late", ["original", "measured", "refuted"])]
+  [("p.early", ["original", "ledger-proved", "look-change"]), ("p.late", ["original", "measured", "refuted"])]
+
+/-- Presets: one with a default impl, one with a non-default impl. -/
+def presets : List PresetFact :=
+  [{ name := "ok", base := none, fw := [("p.late", "fast@mui")] }, { name := "alt", base := none, fw := [("p.late", "fast@plain")] }]
+
+#guard implReasons presets "ok" == []
+#guard (implReasons presets "alt").length == 1
 
 end Fixture
 

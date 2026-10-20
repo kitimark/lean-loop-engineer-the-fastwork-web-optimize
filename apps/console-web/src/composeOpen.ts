@@ -48,3 +48,24 @@ export async function openSearch(search: string, arm: "r" | "compare", h: Hooks)
   }
   return { ok: false, reasons: [], message: "Timed out waiting for the build." };
 }
+
+/** Newest-wins guard for replies: `next()` hands out a ticket before a request; `isLatest(ticket)` is true only for the newest ticket,
+ *  so a late reply of an older request is dropped. */
+export function newestWins() {
+  let n = 0;
+  return { next: () => ++n, isLatest: (ticket: number) => ticket === n };
+}
+
+/** A decision shown on the page answers the picks only when the query it was fetched for is the current query. */
+export function answersNow(answeredQuery: string | null, currentQuery: string): boolean {
+  return answeredQuery !== null && answeredQuery === currentQuery;
+}
+
+export const COPY_FAILED = "Copy failed: long-press the link below";
+
+/** Copy an already-known link. It calls `copy` before any await, so a phone browser still sees the tap that started it. Returns the
+ *  message to show when the copy failed (plain-http LAN pages have no clipboard API and Safari may refuse the fallback). */
+export async function copyKnown(url: string, copy: (text: string) => Promise<boolean>): Promise<{ copied: boolean; message: string | null }> {
+  const ok = await copy(url);
+  return { copied: ok, message: ok ? null : COPY_FAILED };
+}
