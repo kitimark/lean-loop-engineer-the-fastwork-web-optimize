@@ -36,8 +36,8 @@ is no default branch). With `--branch` and no run id: the latest run of the work
     stopped (call it again), 2 gh could not find the run, 64 usage. Run it in the background; do not loop.
 - `pnpm fw ci budget [--json|--resume|--probe]` shows the request budget (0 requests; `--probe` is one charged call).
   - Watches expire (Lean `Fw.Ci.Budget`, section (i); note `research/notes/2026/10-20-gh-budget-watch-expiry.md`). fwcore drops a
-    watch with an incident when it is older than 7200 s (`expire`), or, for a real run id, when `missMax` = 3 covering lists lack
-    it (`unseen`), or when a full list cannot reach its creation time (`uncovered`). A tick reads at most `pageCap` = 10 pages (cost
+    watch with an incident when it was registered more than 10800 s ago (`expire`; the age counts from the registration, not the commit time, and covers the 95 min mutants chain), or, for a real run id, when `missMax` = 3 covering lists lack
+    it (`unseen`), or when a full list cannot reach its creation time (`uncovered`); Lean decides from the row count and pages read whether a list was cut. A tick reads at most `pageCap` = 10 pages (cost
     20, the per-minute tick share), so the poller never stops `tooBig` (`tick_no_tooBig`). Dropped watches are appended to
     `.git/fw-gh-budget/incidents.jsonl` (`{runId,time,why}`) and shown by `fw ci budget` until logged. A waiter whose watch was
     dropped keeps waiting for its own timeout; run it again. Registration refuses an id that is neither a run id (below 10^13)

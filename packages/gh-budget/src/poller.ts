@@ -68,9 +68,12 @@ async function pollTick(env: Env): Promise<Poll> {
   const st = loadState(env.dir);
   const watched = (st?.watched as { runId: number }[] | undefined) ?? [];
   for (const w of watched) if (rows.some((r) => r.databaseId === w.runId && r.status === "completed")) stepEvent(env, { unregister: w.runId });
-  // fwcore decides which watches this list covers: it keeps or drops each (`listed`); a full list was cut at the page limit
-  const read = Number(res.reply.pages ?? 1);
-  stepEvent(env, { listed: { rows: rows.map((r) => ({ runId: r.databaseId, createdAt: Math.floor(Date.parse(r.createdAt) / 1000) })), full: rows.length >= PAGE * read } });
+  // fwcore decides which watches this list covers and whether it was cut at the page limit (`listed`, `isFull`): the glue
+  // sends the row count, the pages it asked for and the window start the tick used
+  stepEvent(env, { listed: {
+    rows: rows.map((r) => ({ runId: r.databaseId, createdAt: Math.floor(Date.parse(r.createdAt) / 1000) })),
+    count: rows.length, pagesRead: Number(res.reply.pages ?? 1), ...(since == null ? {} : { createdSince: since }),
+  } });
   const pages = Math.floor(rows.length / PAGE) + 1;
   if (pages !== Number(st?.pages ?? 1)) stepEvent(env, { pages });
   return { wakeAt: now, ticked: true };

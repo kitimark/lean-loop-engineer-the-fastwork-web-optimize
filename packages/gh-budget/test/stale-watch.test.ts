@@ -2,7 +2,7 @@
 // branch watch is dropped with an incident, a tick never reads more pages than the tick share allows, and the poller
 // does not stop `tooBig`. Every state lives in a temp directory (mkWorld); the real .git/fw-gh-budget is never touched.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { pollOnce } from "../src/poller.ts";
 import { loadState, paths, readStatus, stepEvent } from "../src/state.ts";
@@ -15,34 +15,55 @@ const incidents = (dir: string) => {
 };
 const watched = (dir: string) => ((loadState(dir)?.watched as { runId: number }[] | undefined) ?? []).map((w) => w.runId);
 
-test("a sentinel watch older than the longest workflow timeout is dropped with an incident, no tick, no stop", () => {
+test("a sentinel watch registered more than maxAge (3 h) ago is dropped with an incident, no tick, no stop", () => {
   const w = mkWorld(T0, { fastGh: true });
   w.config({ start: T0, listCost: 2, runs: [] });
   const stray = sentinelId({ branch: "ci/x", sha: "abc" });
-  stepEvent(w.env, { register: { runId: stray, createdAt: T0 - 16_200 } }); // created 4.5 h ago
+  stepEvent(w.env, { register: { runId: stray, createdAt: T0 - 16_200 } }); // registered at T0
   stepEvent(w.env, { pages: 11 });
+  w.sim.set(T0 + 10_801); // 1 s past maxAge
   return pollOnce(w.env).then((p) => {
     assert.equal(p.stopped, undefined);
     assert.equal(p.ticked, false);
     assert.deepEqual(watched(w.stateDir), []);
-    assert.deepEqual(incidents(w.stateDir), [{ runId: stray, time: T0, why: "expired" }]);
+    assert.deepEqual(incidents(w.stateDir), [{ runId: stray, time: T0 + 10_801, why: "expired" }]);
     assert.equal(w.calls().length, 0, "nothing to watch, so no gh call");
     assert.deepEqual((loadState(w.stateDir)?.incidents as unknown[]), [], "acknowledged after the log");
   });
 });
 
-test("a young sentinel watch is kept (the branch waiter is alive)", async () => {
+test("a waiter on a 4.5 h old commit is kept: the age counts from its registration", async () => {
   const w = mkWorld(T0, { fastGh: true });
   w.config({ start: T0, listCost: 2, runs: [] });
   const id = sentinelId({ branch: "ci/x", sha: "abc" });
-  stepEvent(w.env, { register: { runId: id, createdAt: T0 - 3_000 } });
+  stepEvent(w.env, { register: { runId: id, createdAt: T0 - 16_200 } });
   const p = await pollOnce(w.env);
   assert.equal(p.ticked, true);
-  assert.deepEqual(watched(w.stateDir), [id], "a sentinel is not a run: the list never shows it, only its age ends it");
-  w.sim.set(T0 + 7_300); // past 7200 s of age
+  assert.deepEqual(watched(w.stateDir), [id], "a sentinel is not a run: the list never shows it, only its registration age ends it");
+  assert.deepEqual(incidents(w.stateDir), []);
+  w.sim.set(T0 + 10_700); // still within 3 h of the registration
+  await pollOnce(w.env);
+  assert.deepEqual(watched(w.stateDir), [id]);
+  w.sim.set(T0 + 10_801);
   await pollOnce(w.env);
   assert.deepEqual(watched(w.stateDir), []);
   assert.equal(incidents(w.stateDir)[0]?.why, "expired");
+});
+
+test("the unregister goes before the marker is unlinked: a failed step leaves the marker", async () => {
+  const w = mkWorld(T0, { fastGh: true });
+  w.config({ start: T0, listCost: 2, runs: [] });
+  const id = sentinelId({ branch: "ci/y", sha: "def" });
+  const { addWaiter, dropWaiter } = await import("../src/wait.ts");
+  const marker = addWaiter(w.env, id, T0 - 5);
+  const real = w.env.core;
+  const env = { ...w.env, core: () => { throw new Error("fwcore killed"); } };
+  assert.throws(() => dropWaiter(env, id, marker), /fwcore killed/);
+  assert.ok(readdirSync(paths(w.env.dir).waiters).length === 1, "the marker stays for a later sweep");
+  assert.deepEqual(watched(w.stateDir), [id]);
+  dropWaiter({ ...w.env, core: real }, id, marker); // the later sweep
+  assert.deepEqual(watched(w.stateDir), []);
+  assert.equal(readdirSync(paths(w.env.dir).waiters).length, 0);
 });
 
 test("a run missing from three covering lists is dropped as unseen; one that shows up keeps its place", async () => {
