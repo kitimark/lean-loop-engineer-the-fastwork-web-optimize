@@ -1077,6 +1077,116 @@ def covers : Engine → Walk → Bool
   | .linuxWebkit, .morph => false
   | _, _ => true
 
+/-- The paths the probe walks for an engine: those it can decide. -/
+def walks (e : Engine) : List Walk := [Walk.hero, .morph].filter (covers e)
+
+/-- A path is walked exactly when the engine decides it. -/
+theorem mem_walks_iff (e : Engine) (w : Walk) : w ∈ walks e ↔ covers e w = true := by
+  cases e <;> cases w <;> simp [walks, covers]
+
+/-- Chromium walks both paths. -/
+theorem walks_chromium : walks .chromium = [.hero, .morph] := by decide
+
+/-- Linux WebKit walks the hero path only: its morph pushes cannot be decided. -/
+theorem walks_linux_webkit : walks .linuxWebkit = [.hero] := by decide
+
+/-- macOS WebKit walks both paths, so it gives the morph cell Linux WebKit cannot. -/
+theorem walks_mac_webkit : walks .macWebkit = [.hero, .morph] := by decide
+
+/-- The width legs of an engine's job, run in parallel: one width per Linux leg; the macOS job has two legs because its
+slots are shared. -/
+def legTable : Engine → List (List Nat)
+  | .macWebkit => [[390, 641], [640, 1280]]
+  | _ => [[390], [640], [641], [1280]]
+
+/-- The legs of a run over the picked widths: each table leg cut to the picked widths, empty legs dropped. -/
+def legs (e : Engine) (ws : List Nat) : List (List Nat) :=
+  ((legTable e).map (·.filter ws.contains)).filter fun l => !l.isEmpty
+
+/-- The legs of every engine deal the allowed widths out: each width in one leg. -/
+theorem legTable_perm (e : Engine) : (legTable e).flatten.Perm allowedWidths := by
+  cases e <;> decide
+
+/-- All widths picked: the legs are the table. -/
+theorem legs_default (e : Engine) : legs e allowedWidths = legTable e := by
+  cases e <;> decide
+
+/-- No leg is empty (an empty leg would be a job with nothing to walk). -/
+theorem legs_ne_nil (e : Engine) (ws : List Nat) : ∀ l ∈ legs e ws, l ≠ [] := by
+  intro l hl
+  simp only [legs, List.mem_filter, Bool.not_eq_true'] at hl
+  intro h; subst h; simp at hl
+
+/-- The legs, flattened, are the picked widths of the table. -/
+theorem legs_flatten (e : Engine) (ws : List Nat) :
+    (legs e ws).flatten = (legTable e).flatten.filter ws.contains := by
+  rw [List.filter_flatten]
+  unfold legs
+  rw [List.flatten_filter_not_isEmpty]
+
+/-- A width is in some leg exactly when it was picked and is allowed. -/
+theorem legs_mem (e : Engine) (ws : List Nat) (w : Nat) :
+    w ∈ (legs e ws).flatten ↔ w ∈ ws ∧ w ∈ allowedWidths := by
+  rw [legs_flatten, List.mem_filter, (legTable_perm e).mem_iff]
+  simp [and_comm]
+
+/-- No width is in two legs: no cell is walked twice. -/
+theorem legs_nodup (e : Engine) (ws : List Nat) : (legs e ws).flatten.Nodup := by
+  rw [legs_flatten]
+  exact ((legTable_perm e).nodup_iff.2 (by decide)).filter _
+
+/-- The engines a dispatch runs for its `engines` input: macOS WebKit runs with every WebKit; other inputs are refused. -/
+def enginesOf : String → Option (List Engine)
+  | "both" => some [.chromium, .linuxWebkit, .macWebkit]
+  | "chromium" => some [.chromium]
+  | "playwright-webkit" => some [.linuxWebkit, .macWebkit]
+  | _ => none
+
+/-- Linux WebKit and macOS WebKit run together: the Apple witness runs for any search, not only a `hero.exit` one. -/
+theorem enginesOf_webkit_pair (s : String) (es : List Engine) (h : enginesOf s = some es) :
+    Engine.linuxWebkit ∈ es ↔ Engine.macWebkit ∈ es := by
+  unfold enginesOf at h
+  split at h <;> simp at h <;> subst h <;> simp
+
+/-- One leg of a dispatch: the engine, the widths it walks and the paths. -/
+structure Leg where
+  engine : Engine
+  widths : List Nat
+  walks : List Walk
+  deriving DecidableEq, Repr
+
+/-- The legs of a dispatch from its `engines` and `widths` inputs; none when either is refused. -/
+def plan (enginesIn widthsIn : String) : Option (List Leg) :=
+  match enginesOf enginesIn, pickWidths widthsIn with
+  | some es, .list ws => some (es.flatMap fun e => (legs e ws).map fun l => ⟨e, l, walks e⟩)
+  | _, _ => none
+
+/-- Every leg walks the paths its engine decides, no more and no fewer. -/
+theorem plan_walks (a b : String) (ls : List Leg) (h : plan a b = some ls) : ∀ l ∈ ls, l.walks = walks l.engine := by
+  unfold plan at h
+  split at h
+  · simp only [Option.some.injEq] at h
+    subst h
+    intro l hl
+    simp only [List.mem_flatMap, List.mem_map] at hl
+    obtain ⟨e, _, x, _, rfl⟩ := hl
+    rfl
+  · simp at h
+
+/-- A macOS leg walks the morph path, whatever the search. -/
+theorem plan_mac_morph (a b : String) (ls : List Leg) (h : plan a b = some ls) :
+    ∀ l ∈ ls, l.engine = .macWebkit → Walk.morph ∈ l.walks := by
+  intro l hl he
+  rw [plan_walks a b ls h l hl, he]
+  decide
+
+/-- A WebKit dispatch over all widths has macOS legs: the widths of 390 and 641, and of 640 and 1280. -/
+theorem plan_webkit_apple : ((plan "playwright-webkit" "").getD []).filter (·.engine == .macWebkit) =
+    [⟨.macWebkit, [390, 641], [.hero, .morph]⟩, ⟨.macWebkit, [640, 1280], [.hero, .morph]⟩] := by decide
+
+/-- A Chromium dispatch has no macOS leg. -/
+theorem plan_chromium_no_apple : ((plan "chromium" "").getD []).filter (·.engine == .macWebkit) = [] := by decide
+
 /-- A node property with `new` units in a run: the widths of its content and of its coverage `new` units. -/
 structure Group where
   node : String
@@ -1379,6 +1489,7 @@ inductive Case where
   | runOf (name : String) (arms : List ArmRead)
   | path (name : String) (k : Kind) (orig rew : List (String × Samp))
   | picks (name : String) (input : String)
+  | planOf (name : String) (engines widths : String)
 
 /-- The golden cases of the window judgement (`judgeIn` per kind and per branch). Two constants, not one, so that each stays
 under the start-cost bound (`Fw.Lint.InitCost.bound`). -/
@@ -1488,13 +1599,35 @@ def casesRest : List Case := [
   .runOf "run one bad" [⟨.orig, none, none, none⟩, ⟨.rewrite, some "ab12", some "cd34", some "client-render"⟩],
   .runOf "run empty" []]
 
+/-- The golden cases of the dispatch plan (engines, legs, paths): every engines input, a subset and refusals. -/
+def casesPlan : List Case := [
+  .planOf "both, all widths" "both" "", .planOf "webkit, all widths" "playwright-webkit" "",
+  .planOf "chromium, all widths" "chromium" "", .planOf "webkit, one width" "playwright-webkit" "640",
+  .planOf "both, a subset" "both" "1280,390", .planOf "unknown engines" "safari" "", .planOf "refused widths" "both" "390,500"]
+
 /-- The golden cases: every branch above, per kind where the kind matters. -/
-def cases : List Case := casesJudge ++ casesRest
+def cases : List Case := casesJudge ++ casesRest ++ casesPlan
 
 /-- A widths pick as JSON. -/
 def Widths.json : Widths → Json
   | .list ws => Json.mkObj [("ok", Json.bool true), ("widths", Json.arr (ws.map fun w => toJson w).toArray)]
   | .refused => Json.mkObj [("ok", Json.bool false)]
+
+/-- The word of an engine in the plan golden. -/
+def Engine.word : Engine → String
+  | .chromium => "chromium"
+  | .linuxWebkit => "linux-webkit"
+  | .macWebkit => "mac-webkit"
+
+/-- The word of a path in the plan golden. -/
+def Walk.word : Walk → String
+  | .hero => "hero"
+  | .morph => "morph"
+
+/-- A leg as JSON. -/
+def Leg.json (l : Leg) : Json :=
+  Json.mkObj [("engine", l.engine.word), ("widths", Json.arr (l.widths.map fun w => toJson w).toArray),
+    ("walks", Json.arr (l.walks.map fun w => Json.str w.word).toArray)]
 
 /-- One golden line. -/
 def Case.line : Case → Json
@@ -1527,6 +1660,9 @@ def Case.line : Case → Json
   | .runOf n arms =>
     Json.mkObj [("op", "run"), ("name", n), ("arms", Json.arr (arms.map ArmRead.json).toArray), ("verdict", (runCheck arms).name)]
   | .picks n i => Json.mkObj [("op", "widths"), ("name", n), ("input", i), ("pick", (pickWidths i).json)]
+  | .planOf n e w =>
+    Json.mkObj [("op", "plan"), ("name", n), ("engines", e), ("widths", w),
+      ("legs", match plan e w with | none => Json.null | some ls => Json.arr (ls.map Leg.json).toArray)]
 
 /-- Where the golden lives, relative to `lean/`. -/
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"

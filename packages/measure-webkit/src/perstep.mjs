@@ -12,6 +12,7 @@ import { COUNT_TYPES, TOL, classify, zones, reduceWindows } from './reduce.mjs';
 /** One discarded load + scroll (retried once after a reconnect: a Simulator evaluate sometimes stalls right after a reload). */
 export async function warmUpLoad(ctx, { clock, settleMs, step, framesPerStep, log, w = 0, warmup = 1 }) {
   for (let attempt = 1; ; attempt++) {
+    await ctx.check?.();
     try {
       await loadFresh(ctx.c, { clock, settleMs, timers: 'live' });
       const s = await scrollRun(ctx.c, { step, framesPerStep, mode: 'base' });
@@ -36,6 +37,7 @@ export async function perStepPasses(ctx, { modes, runs, clock, settleMs, step, f
       let scroll;
       const load = { start: loadStamp() };
       for (let attempt = 1; ; attempt++) {
+        await ctx.check?.();
         try {
           await loadFresh(ctx.c, { clock, settleMs, timers: mode.includes('hold') ? 'hold' : 'live' });
           scroll = await scrollRun(ctx.c, { step, framesPerStep, mode });

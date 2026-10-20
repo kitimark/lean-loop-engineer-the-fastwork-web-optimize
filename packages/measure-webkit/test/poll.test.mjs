@@ -47,6 +47,16 @@ test('ensureTab gives up at the deadline and survives a list error and an ask er
   assert.equal(asks, 3); // at 6, 12 and 18 s
 });
 
+test('ensureTab with maxAsks 1 (the relaunch) asks at most once and not at all when Safari restored its tab', async () => {
+  const clock = fakeClock();
+  let asked = 0;
+  await assert.rejects(ensureTab({ list: async () => [], ask: () => { asked++; }, maxAsks: 1, timeoutMs: 60000, clock }), /no Safari tab listed in 60 s \(no tab listed; 1 extra openurl\)/);
+  assert.equal(asked, 1);
+  asked = 0;
+  const r = await ensureTab({ list: async () => [{ url: 'u' }], ask: () => { asked++; }, maxAsks: 1, timeoutMs: 60000, clock });
+  assert.equal(r.asks, 0);
+  assert.equal(asked, 0, 'one restored tab: no second one is opened');
+});
 test('attachFresh releases a client that attached to the old document and returns the fresh one', async () => {
   const clock = fakeClock();
   const docs = [{ fresh: false }, { fresh: false }, { fresh: true, complete: 2 }];

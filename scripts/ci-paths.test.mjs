@@ -525,10 +525,10 @@ test('preview-e2e.yml: a change inside its read set selects it, a change outside
 const capTable = loadCaps(root);
 const capRows = readFileSync(join(root, 'packages/contracts/golden/ci/pool-caps.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 
-test('pool caps: each listed macOS job has timeout-minutes equal to its Lean cap; webkit-sim and trajectory-probe are excluded', () => {
+test('pool caps: each listed macOS job has timeout-minutes equal to its Lean cap; webkit-sim is excluded', () => {
   assert.deepEqual([...capTable.caps], [['wktr.yml wktr', 16], ['wktr-fixtures.yml fixtures', 21], ['sim-speed.yml probe', 17],
-    ['engine-premises.yml webkit', 8], ['gate-gaps.yml collect-macos', 26]]);
-  assert.deepEqual([...capTable.excluded], ['webkit-sim.yml', 'trajectory-probe.yml']);
+    ['engine-premises.yml webkit', 8], ['gate-gaps.yml collect-macos', 26], ['trajectory-probe.yml probe-apple', 15]]);
+  assert.deepEqual([...capTable.excluded], ['webkit-sim.yml']);
   for (const [key, cap] of capTable.caps) {
     const [file, job] = key.split(' ');
     const lines = readFileSync(join(root, WF, file), 'utf8').split('\n');
@@ -544,7 +544,7 @@ test('pool caps: every cap is at least 1.3 x its p90 and the least such minute; 
     assert.ok(r.p90dm <= 10 * r.capMin);
   }
   assert.ok(capRows.some((r) => r.kind === 'vector' && r.p90dm === 289 && r.capMin === 38));
-  assert.deepEqual(capRows.filter((r) => r.kind === 'cap' && r.thin).map((r) => [r.lane, r.n]), [['gate-gaps', 3]]);
+  assert.deepEqual(capRows.filter((r) => r.kind === 'cap' && r.thin).map((r) => [r.lane, r.n]), [['gate-gaps', 3], ['trajectory-probe', 4]]);
 });
 
 test('lint: a drifted or missing cap timeout is reported and set back by --write', () => {
