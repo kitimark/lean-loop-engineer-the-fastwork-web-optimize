@@ -44,7 +44,9 @@ inductive Val where
 /-- Why a unit fails.
 
 Element counts differ, an element is missing on one side, a number meets a string, two numbers differ in length, two
-strings differ, or two numbers are further apart than the tolerance. -/
+strings differ, or two numbers are further apart than the tolerance. `coverage` is not a difference between the arms: the
+probe has nothing to compare the rewrite's sample with (or no sample at all where a push must have one), and a unit it
+cannot judge fails instead of passing by silence. -/
 inductive Why where
   | count
   | missing
@@ -52,11 +54,13 @@ inductive Why where
   | shape
   | differs
   | apart
+  | coverage
   deriving DecidableEq, Repr
 
 /-- Why a unit is not compared.
 
-A colour is read while a transition may still run, or no sample of the rewrite fell on the unit. -/
+A colour is read while a transition may still run, or no sample of the rewrite fell on a unit that needs none (a hold, a
+bucket outside 1 to 9, a hero step the rewrite did not record). -/
 inductive Skip where
   | transient
   | noSample
@@ -210,20 +214,26 @@ def reach : Int := 1000
 def beyond (ms : List Int) (m : Int) : Bool :=
   ms.all (fun x => x + reach < m) || ms.all (fun x => m + reach < x)
 
-/-- The original's samples a rewrite sample at morph value `m` is compared with.
+/-- The original's samples a rewrite sample at morph value `m` is compared with, or none when there is nothing to compare with.
 
-No morph value on either side means no alignment: the whole phase. A morph value farther than `reach` outside the range the
-original was sampled over has no counterpart: the window is empty (a skip), never the nearest sample. A slow frame can
-leave the original's phase with a few samples (WebKit on a software renderer), and the rewrite's sample at 0.98 must not be
-judged against the original's at 0.15. -/
-def windowOf (orig : List Samp) (m : Option Int) : List Samp :=
+No window (`none`) when the rewrite sample has no morph value, when any original sample has none (the phases cannot be
+aligned), or when `m` is farther than `reach` outside the range the original was sampled over (a slow frame can leave the
+original's phase with a few samples, and the rewrite's 0.98 must not be judged against the original's 0.15). Each of these
+is `fail coverage` in `judgeIn`. An earlier version returned the whole phase or an empty window, and both passed or skipped. -/
+def windowOf (orig : List Samp) (m : Option Int) : Option (List Samp) :=
   match m with
-  | none => orig
+  | none => none
   | some m =>
-    if orig.any (·.m.isNone) then orig
+    if orig.any (·.m.isNone) then none
     else
       let ms := orig.map (·.m.getD 0)
-      if beyond ms m then [] else (window ms m).filterMap fun i => orig[i]?
+      if beyond ms m then none else some ((window ms m).filterMap fun i => orig[i]?)
+
+/-- A rewrite sample against its window of the original's samples; no window is a coverage failure, never a skip. -/
+def judgeIn (k : Kind) (win : Option (List Samp)) (r : Samp) : Verdict :=
+  match win with
+  | none => .fail .coverage
+  | some w => judgeAgainst k w r
 
 /-- The unit a morph value falls in: tenths of the morph, 0 to 10, and 11 for no morph value. -/
 def bucket (m : Option Int) : Nat :=
@@ -231,16 +241,30 @@ def bucket (m : Option Int) : Nat :=
   | none => 11
   | some m => min 10 ((m + 500) / 1000).toNat
 
-/-- The verdict of bucket `b`: the rewrite samples in it, each against its window of original samples, combined. -/
-def bucketVerdict (k : Kind) (orig rew : List Samp) (b : Nat) : Verdict :=
-  combine ((rew.filter fun r => bucket r.m == b).map fun r => judgeAgainst k (windowOf orig r.m) r)
+/-- A phase of the end-of-page path: a push moves the morph (a wheel delta, the tween runs); a hold waits at an end. -/
+inductive Phase where
+  | push
+  | hold
+  deriving DecidableEq, Repr
+
+/-- The buckets a push must have a rewrite sample in: 1 to 9, the interior of the tween. -/
+def needsSample (b : Nat) : Bool := decide (1 ≤ b) && decide (b ≤ 9)
+
+/-- The verdict of bucket `b`: the rewrite samples in it, each against its window of original samples, combined.
+
+A bucket of a push that needs a sample and has none is `fail coverage`; elsewhere an empty bucket is a skip. -/
+def bucketVerdict (ph : Phase) (k : Kind) (orig rew : List Samp) (b : Nat) : Verdict :=
+  match rew.filter (fun r => bucket r.m == b) with
+  | [] => if ph == .push && needsSample b then .fail .coverage else .skip .noSample
+  | rs => combine (rs.map fun r => judgeIn k (windowOf orig r.m) r)
 
 /-- The verdicts of one (node, property) along one phase of the morph path, one per bucket 0 to 11.
 
-A bucket is decided by the rewrite samples in it, each against its window of original samples. A bucket without a
-rewrite sample is a skip, never a pass. -/
-def byM (k : Kind) (orig rew : List Samp) : List (Nat × Verdict) :=
-  (List.range 12).map fun b => (b, bucketVerdict k orig rew b)
+A bucket is decided by the rewrite samples in it, each against its window of original samples. In a push, an empty bucket
+1 to 9, a rewrite sample without a morph value and a sample with no counterpart in the original are `fail coverage`:
+before, they were skips, and a lane that skips what it cannot see passes a rewrite that does not move. -/
+def byM (ph : Phase) (k : Kind) (orig rew : List Samp) : List (Nat × Verdict) :=
+  (List.range 12).map fun b => (b, bucketVerdict ph k orig rew b)
 
 /-- The verdicts of one (node, property) along a path of steps, one per step of the original.
 
@@ -460,19 +484,31 @@ theorem window_falling : window [10000, 8000, 6000, 4000, 2000] 7000 = [0, 1, 2,
 /-- A value beyond the range takes the nearest sample and one frame before it. -/
 theorem window_outside : window [0, 2000, 4000] 9000 = [1, 2] := by decide
 
-/-- Branch beyond reach: a morph value more than one bucket outside the original's range has an empty window.
+/-- Branch beyond reach: a morph value more than one bucket outside the original's range has no window.
 
 The original was sampled over 0 to 0.15 only; the rewrite's 0.98 is not judged against it. -/
 theorem windowOf_beyond :
-    windowOf [⟨some 0, true, [.num [0]]⟩, ⟨some 1500, true, [.num [0]]⟩] (some 9800) = [] := by decide
+    windowOf [⟨some 0, true, [.num [0]]⟩, ⟨some 1500, true, [.num [0]]⟩] (some 9800) = none := by decide
 
 /-- Branch beyond reach, below: the same on the low side. -/
 theorem windowOf_beyond_low :
-    windowOf [⟨some 6000, true, [.num [0]]⟩, ⟨some 9000, true, [.num [0]]⟩] (some 0) = [] := by decide
+    windowOf [⟨some 6000, true, [.num [0]]⟩, ⟨some 9000, true, [.num [0]]⟩] (some 0) = none := by decide
 
-/-- Within reach of the original's range the nearest sample (and one frame before it) is the window. -/
+/-- Branch within reach: the nearest sample (and one frame before it) is the window. -/
 theorem windowOf_within_reach :
-    (windowOf [⟨some 0, true, [.num [0]]⟩, ⟨some 9000, true, [.num [0]]⟩] (some 9800)).length = 2 := by decide
+    ((windowOf [⟨some 0, true, [.num [0]]⟩, ⟨some 9000, true, [.num [0]]⟩] (some 9800)).map List.length) = some 2 := by
+  decide
+
+/-- Branch no morph value in the rewrite sample: no window. -/
+theorem windowOf_rewrite_no_m : windowOf [⟨some 0, true, [.num [0]]⟩] none = none := by decide
+
+/-- Branch no morph value in an original sample: no window, whatever the rewrite's value. -/
+theorem windowOf_orig_no_m :
+    windowOf [⟨some 0, true, [.num [0]]⟩, ⟨none, true, [.num [0]]⟩] (some 0) = none := by decide
+
+/-- Branch no original sample: no window. -/
+theorem windowOf_orig_empty (m : Option Int) : windowOf [] m = none := by
+  cases m <;> simp [windowOf, beyond]
 
 /-- The ends of the reach: exactly one bucket outside still has a window; one unit more has none. -/
 theorem beyond_edge : beyond [0, 2000] 3000 = false ∧ beyond [0, 2000] 3001 = true := by decide
@@ -540,31 +576,88 @@ theorem bucket_values :
 
 The original reads `off` at 0.90 and `on` at 0.93; the rewrite reads `on` at 0.92 and passes. -/
 theorem byM_threshold_slack :
-    (byM .discrete [⟨some 9000, true, [.str "off"]⟩, ⟨some 9300, true, [.str "on"]⟩]
+    (byM .push .discrete [⟨some 9000, true, [.str "off"]⟩, ⟨some 9300, true, [.str "on"]⟩]
         [⟨some 9200, true, [.str "on"]⟩]).getD 9 (9, .skip .noSample) = (9, .pass) := by decide
 
 /-- Bug B: a class that stays `off` through the tween is a failure at the buckets where the original has `on`.
 
 The original reads `on` from 0.93; the rewrite (waapi) sets the class only at the end, so at 0.95 it is still `off`. -/
 theorem byM_stale_class :
-    (byM .discrete [sm 8000 [.str "off"], sm 8500 [.str "off"], sm 9000 [.str "off"], sm 9300 [.str "on"],
+    (byM .push .discrete [sm 8000 [.str "off"], sm 8500 [.str "off"], sm 9000 [.str "off"], sm 9300 [.str "on"],
         sm 9400 [.str "on"], sm 9500 [.str "on"], sm 9600 [.str "on"], sm 9700 [.str "on"], sm 9900 [.str "on"]]
       [sm 9500 [.str "off"]]).getD 10 (10, .skip .noSample) = (10, .fail .differs) := by decide
 
-/-- A bucket the rewrite has no sample in is a skip, not a pass. -/
-theorem byM_no_sample :
-    (byM .discrete [⟨some 0, true, [.str "off"]⟩] [⟨some 0, true, [.str "off"]⟩]).getD 5 (5, .pass) = (5, .skip .noSample) := by
+/-- Branch empty bucket in a push, the whole of 1 to 9: no rewrite sample is `fail coverage`, never a skip or a pass. -/
+theorem bucketVerdict_push_empty (k : Kind) (orig rew : List Samp) (b : Nat) (hb : needsSample b = true)
+    (h : ∀ r ∈ rew, bucket r.m ≠ b) : bucketVerdict .push k orig rew b = .fail .coverage := by
+  have hf : rew.filter (fun r => bucket r.m == b) = [] := by
+    apply List.filter_eq_nil_iff.mpr
+    intro r hr
+    simpa using h r hr
+  simp [bucketVerdict, hf, hb]
+
+/-- Branch empty bucket in a hold: a skip. A hold waits at an end of the morph, so its interior buckets are empty by design. -/
+theorem bucketVerdict_hold_empty (k : Kind) (orig rew : List Samp) (b : Nat)
+    (h : ∀ r ∈ rew, bucket r.m ≠ b) : bucketVerdict .hold k orig rew b = .skip .noSample := by
+  have hf : rew.filter (fun r => bucket r.m == b) = [] := by
+    apply List.filter_eq_nil_iff.mpr
+    intro r hr
+    simpa using h r hr
+  simp [bucketVerdict, hf]
+
+/-- Branch empty end bucket in a push: buckets 0, 10 and 11 need no sample (the tween is only crossing them). -/
+theorem bucketVerdict_push_empty_ends (k : Kind) (orig : List Samp) :
+    bucketVerdict .push k orig [] 0 = .skip .noSample ∧ bucketVerdict .push k orig [] 10 = .skip .noSample ∧
+    bucketVerdict .push k orig [] 11 = .skip .noSample := by
+  simp [bucketVerdict, needsSample]
+
+/-- The edges of the interior: buckets 1 and 9 need a sample, 0 and 10 do not. -/
+theorem needsSample_edges :
+    needsSample 0 = false ∧ needsSample 1 = true ∧ needsSample 9 = true ∧ needsSample 10 = false ∧
+    needsSample 11 = false := by decide
+
+/-- No pass without a sample: a bucket with no rewrite sample is never a pass. -/
+theorem bucketVerdict_empty_not_pass (ph : Phase) (k : Kind) (orig rew : List Samp) (b : Nat)
+    (h : ∀ r ∈ rew, bucket r.m ≠ b) : bucketVerdict ph k orig rew b ≠ .pass := by
+  have hf : rew.filter (fun r => bucket r.m == b) = [] := by
+    apply List.filter_eq_nil_iff.mpr
+    intro r hr
+    simpa using h r hr
+  cases ph <;> simp only [bucketVerdict, hf] <;> split <;> simp
+
+/-- Branch no morph value in a push: a rewrite sample the probe could not place on the morph fails in bucket 11. -/
+theorem byM_push_no_m :
+    (byM .push .discrete [sm 0 [.str "on"], sm 10000 [.str "on"]] [s0 [.str "on"]]).getD 11 (11, .pass) =
+      (11, .fail .coverage) := by decide
+
+/-- Branch no morph value in the original: the phases cannot be aligned, every rewrite sample fails. -/
+theorem byM_orig_no_m :
+    (byM .push .discrete [s0 [.str "on"]] [sm 5000 [.str "on"]]).getD 5 (5, .pass) = (5, .fail .coverage) := by decide
+
+/-- Branch beyond reach: the rewrite at 0.98 against an original sampled over 0 to 0.15 is `fail coverage` (it was a skip). -/
+theorem byM_beyond :
+    (byM .push .geometry [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]]).getD 10 (10, .pass) =
+      (10, .fail .coverage) := by decide
+
+/-- Branch hold, beyond reach: the same rule holds in a hold. -/
+theorem byM_hold_beyond :
+    (byM .hold .geometry [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]]).getD 10 (10, .pass) =
+      (10, .fail .coverage) := by decide
+
+/-- Branch hold, a sample at the end: an empty interior bucket stays a skip. -/
+theorem byM_hold_interior :
+    (byM .hold .discrete [sm 10000 [.str "on"]] [sm 10000 [.str "on"]]).getD 5 (5, .pass) = (5, .skip .noSample) := by
   decide
 
 /-- Every bucket 0 to 11 gets its own verdict: twelve per phase, in order. -/
-theorem byM_length (k : Kind) (orig rew : List Samp) : (byM k orig rew).length = 12 := by
+theorem byM_length (ph : Phase) (k : Kind) (orig rew : List Samp) : (byM ph k orig rew).length = 12 := by
   simp [byM]
 
 /-- The verdict of a bucket reads only the rewrite samples in that bucket and the original's samples.
 
 A rewrite sample of another bucket cannot change it (unit independence). -/
-theorem bucketVerdict_independent (k : Kind) (orig rew : List Samp) (b : Nat) (r : Samp) (hb : bucket r.m ≠ b) :
-    bucketVerdict k orig (r :: rew) b = bucketVerdict k orig rew b := by
+theorem bucketVerdict_independent (ph : Phase) (k : Kind) (orig rew : List Samp) (b : Nat) (r : Samp)
+    (hb : bucket r.m ≠ b) : bucketVerdict ph k orig (r :: rew) b = bucketVerdict ph k orig rew b := by
   simp [bucketVerdict, hb]
 
 /-- A step the original has and the rewrite lacks is a skip. -/
@@ -583,6 +676,194 @@ theorem laneFails_iff (vs : List Verdict) : laneFails vs = true ↔ ∃ v ∈ vs
 
 /-- A lane of passes and skips does not fail. -/
 theorem laneFails_none : laneFails [.pass, .skip .noSample, .skip .transient] = false := by decide
+
+-- Against the faithful arm ------------------------------------------------------------------------------------------
+
+/-- What one unit says relative to the same unit of the faithful arm (the default config against the original).
+
+`new` fails here and passes (or is not compared) there; `both` fails in both, so the candidate did not cause it; `cleared`
+fails only there; `ok` fails in neither. -/
+inductive Rel where
+  | ok
+  | both
+  | cleared
+  | new
+  deriving DecidableEq, Repr
+
+/-- One unit against the same unit of the baseline. A unit the baseline does not have is a skip there, so a failure is `new`. -/
+def rel (cand base : Verdict) : Rel :=
+  match isFail cand, isFail base with
+  | true, true => .both
+  | true, false => .new
+  | false, true => .cleared
+  | false, false => .ok
+
+/-- The candidate is red when any unit is `new`. -/
+def laneRed (rs : List Rel) : Bool := rs.any (· == .new)
+
+/-- Branch fails here, passes there: new. -/
+theorem rel_new : rel (.fail .apart) .pass = .new := by decide
+
+/-- Branch fails here, is not compared there: new (no evidence that the faithful arm fails). -/
+theorem rel_new_skip : rel (.fail .differs) (.skip .noSample) = .new := by decide
+
+/-- Branch fails in both: not new, whatever the reasons are. -/
+theorem rel_both : rel (.fail .apart) (.fail .coverage) = .both := by decide
+
+/-- Branch fails only in the baseline: cleared. -/
+theorem rel_cleared : rel .pass (.fail .apart) = .cleared := by decide
+
+/-- Branch a skip against a failing baseline is cleared, never `new`. -/
+theorem rel_skip_cleared : rel (.skip .transient) (.fail .differs) = .cleared := by decide
+
+/-- Branch passes in both: ok. -/
+theorem rel_ok : rel .pass .pass = .ok ∧ rel (.skip .noSample) .pass = .ok := by decide
+
+/-- A unit is new exactly when it fails in the candidate and not in the baseline. -/
+theorem rel_new_iff (c b : Verdict) : rel c b = .new ↔ isFail c = true ∧ isFail b = false := by
+  unfold rel
+  cases hc : isFail c <;> cases hb : isFail b <;> simp
+
+/-- The candidate is red exactly when some unit is new. -/
+theorem laneRed_iff (rs : List Rel) : laneRed rs = true ↔ Rel.new ∈ rs := by
+  simp [laneRed]
+
+/-- A candidate whose every unit fails where the baseline fails is not red: the baseline's red does not count. -/
+theorem laneRed_baseline_red : laneRed [rel (.fail .apart) (.fail .apart), rel (.fail .coverage) (.fail .apart)] = false := by
+  decide
+
+-- Which arm was measured --------------------------------------------------------------------------------------------
+
+/-- The two arms of the lane. -/
+inductive Site where
+  | orig
+  | rewrite
+  deriving DecidableEq, Repr
+
+/-- What an arm's page reported after it loaded: the config hash and the mode the rewrite's own `window.__fw` holds
+(`none` when the page has no such object), and the config hash its search names in the build (`want`, from `configs.json`). -/
+structure ArmRead where
+  site : Site
+  want : Option String
+  config : Option String
+  mode : Option String
+  deriving DecidableEq, Repr
+
+/-- The verdict on the arm: measured as asked, or refused. A refused run is never a pass. -/
+inductive ArmVerdict where
+  | ok
+  | refusedConfig
+  deriving DecidableEq, Repr
+
+/-- The allowlist: the rewrite arm is measured iff its page resolved exactly the prerendered config of its search and
+hydrated it; the original arm iff its page has no `window.__fw` (it is not the rewrite). Everything else is refused.
+
+A rewrite loaded at `/` without the search client-renders the default config (the hash differs from the flagged page's),
+which measures the rewrite with its flags off. -/
+def armCheck (a : ArmRead) : ArmVerdict :=
+  match a.site with
+  | .orig => if a.config.isNone && a.mode.isNone then .ok else .refusedConfig
+  | .rewrite =>
+    match a.want, a.config, a.mode with
+    | some w, some c, some m => if !w.isEmpty && c == w && m == "hydrate" then .ok else .refusedConfig
+    | _, _, _ => .refusedConfig
+
+/-- A run is measured as asked iff it has arms and every arm is. -/
+def runCheck (arms : List ArmRead) : ArmVerdict :=
+  if !arms.isEmpty && arms.all (fun a => armCheck a == .ok) then .ok else .refusedConfig
+
+/-- Branch rewrite as asked: the search's hash, hydrated. -/
+theorem armCheck_rewrite_ok : armCheck ⟨.rewrite, some "ab12", some "ab12", some "hydrate"⟩ = .ok := by decide
+
+/-- Branch flags off: the page resolved another config than the search names (incident inc-variant-gate-flags-off). -/
+theorem armCheck_flags_off : armCheck ⟨.rewrite, some "ab12", some "cd34", some "client-render"⟩ = .refusedConfig := by decide
+
+/-- Branch client render: the hash matches but the page was rendered on the client, not hydrated. -/
+theorem armCheck_client_render : armCheck ⟨.rewrite, some "ab12", some "ab12", some "client-render"⟩ = .refusedConfig := by
+  decide
+
+/-- Branch hash differs, hydrated: refused all the same. -/
+theorem armCheck_hash_differs : armCheck ⟨.rewrite, some "ab12", some "cd34", some "hydrate"⟩ = .refusedConfig := by decide
+
+/-- Branch no config reported: refused. -/
+theorem armCheck_no_config : armCheck ⟨.rewrite, some "ab12", none, some "hydrate"⟩ = .refusedConfig := by decide
+
+/-- Branch no mode reported: refused. -/
+theorem armCheck_no_mode : armCheck ⟨.rewrite, some "ab12", some "ab12", none⟩ = .refusedConfig := by decide
+
+/-- Branch the search names no prerendered config: refused. -/
+theorem armCheck_no_want : armCheck ⟨.rewrite, none, some "ab12", some "hydrate"⟩ = .refusedConfig := by decide
+
+/-- Branch an empty wanted hash: refused, even when the page reports an empty one. -/
+theorem armCheck_empty_want : armCheck ⟨.rewrite, some "", some "", some "hydrate"⟩ = .refusedConfig := by decide
+
+/-- Branch the original as asked: its page has no `window.__fw`. -/
+theorem armCheck_orig_ok : armCheck ⟨.orig, none, none, none⟩ = .ok := by decide
+
+/-- Branch the original page reports a config: it is not the original. -/
+theorem armCheck_orig_foreign : armCheck ⟨.orig, none, some "ab12", some "hydrate"⟩ = .refusedConfig := by decide
+
+/-- Branch a run with no arm: refused, no evidence. -/
+theorem runCheck_empty : runCheck [] = .refusedConfig := by decide
+
+/-- A run is measured as asked exactly when it has arms and each arm is. -/
+theorem runCheck_ok_iff (arms : List ArmRead) :
+    runCheck arms = .ok ↔ arms ≠ [] ∧ ∀ a ∈ arms, armCheck a = .ok := by
+  unfold runCheck
+  cases arms with
+  | nil => simp
+  | cons a rest => simp
+
+/-- One refused arm refuses the run: a good original does not rescue a rewrite with its flags off. -/
+theorem runCheck_one_bad :
+    runCheck [⟨.orig, none, none, none⟩, ⟨.rewrite, some "ab12", some "cd34", some "client-render"⟩] = .refusedConfig := by
+  decide
+
+-- Timing of the samples ---------------------------------------------------------------------------------------------
+
+/-- Insert into an ascending list. -/
+def insertSorted (x : Nat) : List Nat → List Nat
+  | [] => [x]
+  | y :: ys => if x ≤ y then x :: y :: ys else y :: insertSorted x ys
+
+/-- Ascending order of a list of milliseconds. -/
+def sortNat (xs : List Nat) : List Nat := xs.foldr insertSorted []
+
+/-- The nearest-rank quantile of a list of milliseconds: the `ceil(p n / 100)`-th smallest, `p` from 1 to 100 (none for an
+empty list). 50 is the median and 90 the value nine tenths of the samples do not exceed. -/
+def quantile (xs : List Nat) (p : Nat) : Option Nat :=
+  let s := sortNat xs
+  s[min ((p * s.length + 99) / 100 - 1) (s.length - 1)]?
+
+/-- The reads dominate the frame when the median read takes at least half the median gap between two samples.
+
+A sample is the reads of one frame plus the wait for the next frame; if the reads alone fill half of it, the browser is
+slow at `getComputedStyle`, not at drawing, and a lighter read set samples faster. -/
+def readsDominate (readP50 gapP50 : Nat) : Bool := decide (0 < gapP50) && decide (gapP50 ≤ 2 * readP50)
+
+/-- Branch empty: no samples, no quantile. -/
+theorem quantile_empty (p : Nat) : quantile [] p = none := by simp [quantile, sortNat]
+
+/-- Branch median: the middle of five. -/
+theorem quantile_median : quantile [50, 10, 40, 20, 30] 50 = some 30 := by decide
+
+/-- Branch p90: nearest rank, the ninth of ten. -/
+theorem quantile_p90 : quantile [10, 20, 30, 40, 50, 60, 70, 80, 90, 100] 90 = some 90 := by decide
+
+/-- Branch one sample: every quantile is that sample. -/
+theorem quantile_one : quantile [7] 50 = some 7 ∧ quantile [7] 90 = some 7 := by decide
+
+/-- Branch unsorted input: the order of the samples does not matter. -/
+theorem quantile_order : quantile [3, 1, 2] 90 = quantile [1, 2, 3] 90 := by decide
+
+/-- Branch reads dominate: a 90 ms read in a 150 ms gap. -/
+theorem readsDominate_yes : readsDominate 90 150 = true := by decide
+
+/-- Branch reads do not dominate: a 5 ms read in a 18 ms gap. -/
+theorem readsDominate_no : readsDominate 5 18 = false := by decide
+
+/-- Branch no gap: nothing to compare with, not dominating. -/
+theorem readsDominate_no_gap : readsDominate 5 0 = false := by decide
 
 /-- Widths: empty means all four, in order. -/
 theorem pickWidths_default : pickWidths "" = .list [390, 640, 641, 1280] := by decide
@@ -613,7 +894,26 @@ def Verdict.name : Verdict → String
   | .pass => "pass"
   | .fail .count => "fail:count" | .fail .missing => "fail:missing" | .fail .type => "fail:type"
   | .fail .shape => "fail:shape" | .fail .differs => "fail:differs" | .fail .apart => "fail:apart"
+  | .fail .coverage => "fail:coverage"
   | .skip .transient => "skip:transient" | .skip .noSample => "skip:noSample"
+
+/-- The name of a phase in the golden file. -/
+def Phase.name : Phase → String
+  | .push => "push" | .hold => "hold"
+
+/-- The name of a relative verdict in the golden file. -/
+def Rel.name : Rel → String
+  | .ok => "ok" | .both => "both" | .cleared => "cleared" | .new => "new"
+
+/-- The name of an arm verdict in the golden file. -/
+def ArmVerdict.name : ArmVerdict → String
+  | .ok => "ok" | .refusedConfig => "refused:config"
+
+/-- An arm's reading as JSON. -/
+def ArmRead.json (a : ArmRead) : Json :=
+  let o : Option String → Json := fun x => match x with | none => Json.null | some v => Json.str v
+  Json.mkObj [("site", match a.site with | .orig => "orig" | .rewrite => "rewrite"), ("want", o a.want),
+    ("config", o a.config), ("mode", o a.mode)]
 
 /-- A reading as JSON: null, an array of integers or a string. -/
 def Val.json : Val → Json
@@ -631,7 +931,12 @@ inductive Case where
   | judge (name : String) (k : Kind) (win : List Samp) (r : Samp)
   | bracket (name : String) (ms : List Int) (m : Int)
   | tenth (name : String) (m : Option Int)
-  | phase (name : String) (k : Kind) (orig rew : List Samp)
+  | phase (name : String) (ph : Phase) (k : Kind) (orig rew : List Samp)
+  | versus (name : String) (cand base : Verdict)
+  | quant (name : String) (xs : List Nat) (p : Nat)
+  | dominate (name : String) (readP50 gapP50 : Nat)
+  | armOf (name : String) (a : ArmRead)
+  | runOf (name : String) (arms : List ArmRead)
   | path (name : String) (k : Kind) (orig rew : List (String × Samp))
   | picks (name : String) (input : String)
 
@@ -677,24 +982,54 @@ def cases : List Case := [
   .bracket "empty" [] 3000,
   .tenth "zero" (some 0), .tenth "below half" (some 499), .tenth "half" (some 500), .tenth "one" (some 1000),
   .tenth "end" (some 10000), .tenth "beyond" (some 12000), .tenth "negative" (some (-300)), .tenth "none" none,
-  .phase "threshold slack" .discrete [sm 9000 [.str "off"], sm 9300 [.str "on"]] [sm 9200 [.str "on"]],
-  .phase "stale class" .discrete
+  .phase "threshold slack" .push .discrete [sm 9000 [.str "off"], sm 9300 [.str "on"]] [sm 9200 [.str "on"]],
+  .phase "stale class" .push .discrete
     [sm 8000 [.str "off"], sm 8500 [.str "off"], sm 9000 [.str "off"], sm 9300 [.str "on"], sm 9400 [.str "on"],
       sm 9500 [.str "on"], sm 9600 [.str "on"], sm 9700 [.str "on"], sm 9900 [.str "on"]] [sm 9500 [.str "off"]],
-  .phase "ramp ok" .geometry [sm 0 [.num [0]], sm 5000 [.num [5000]], sm 10000 [.num [10000]]]
+  .phase "ramp ok" .push .geometry [sm 0 [.num [0]], sm 5000 [.num [5000]], sm 10000 [.num [10000]]]
     [sm 2000 [.num [2000]], sm 7000 [.num [7000]]],
-  .phase "ramp stuck" .geometry [sm 0 [.num [0]], sm 5000 [.num [5000]], sm 10000 [.num [10000]]]
+  .phase "ramp stuck" .push .geometry [sm 0 [.num [0]], sm 5000 [.num [5000]], sm 10000 [.num [10000]]]
     [sm 2000 [.num [0]], sm 7000 [.num [0]]],
-  .phase "hold colour" .colour [⟨some 10000, false, [.num [43000]]⟩, ⟨some 10000, true, [.num [255000]]⟩]
+  .phase "ramp every bucket" .push .geometry [sm 0 [.num [0]], sm 5000 [.num [5000]], sm 10000 [.num [10000]]]
+    [sm 0 [.num [0]], sm 1000 [.num [1000]], sm 2000 [.num [2000]], sm 3000 [.num [3000]], sm 4000 [.num [4000]],
+      sm 5000 [.num [5000]], sm 6000 [.num [6000]], sm 7000 [.num [7000]], sm 8000 [.num [8000]], sm 9000 [.num [9000]],
+      sm 10000 [.num [10000]]],
+  .phase "push first bucket only" .push .geometry [sm 0 [.num [0]], sm 10000 [.num [10000]]] [sm 1000 [.num [1000]]],
+  .phase "push no rewrite sample" .push .discrete [sm 0 [.str "off"], sm 10000 [.str "on"]] [],
+  .phase "hold colour" .hold .colour [⟨some 10000, false, [.num [43000]]⟩, ⟨some 10000, true, [.num [255000]]⟩]
     [⟨some 10000, false, [.num [43000]]⟩, ⟨some 10000, true, [.num [43000]]⟩],
-  .phase "no morph value" .discrete [s0 [.str "on"]] [s0 [.str "on"]],
-  .phase "beyond reach" .geometry [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]],
-  .phase "within reach" .geometry [sm 0 [.num [0]], sm 9000 [.num [9000]]] [sm 9800 [.num [9800]]],
+  .phase "hold interior empty" .hold .discrete [sm 10000 [.str "on"]] [sm 10000 [.str "on"]],
+  .phase "hold no rewrite sample" .hold .discrete [sm 10000 [.str "on"]] [],
+  .phase "push no morph value" .push .discrete [s0 [.str "on"]] [s0 [.str "on"]],
+  .phase "push rewrite no morph value" .push .discrete [sm 0 [.str "on"], sm 10000 [.str "on"]] [s0 [.str "on"]],
+  .phase "hold no morph value" .hold .discrete [s0 [.str "on"]] [s0 [.str "on"]],
+  .phase "beyond reach" .push .geometry [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]],
+  .phase "hold beyond reach" .hold .geometry [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]],
+  .phase "within reach" .push .geometry [sm 0 [.num [0]], sm 9000 [.num [9000]]] [sm 9800 [.num [9800]]],
   .path "missing step" .unit [("s25", s0 [.num [750]])] [],
   .path "pair" .unit [("s25", s0 [.num [750]]), ("s50", s0 [.num [500]])]
     [("s25", s0 [.num [1000]]), ("s50", s0 [.num [500]])],
   .picks "default" "", .picks "subset" "1280,390", .picks "unknown" "390,500", .picks "repeat" "390,390",
-  .picks "junk" "390,wide", .picks "gap" "390,,640", .picks "all" "390,640,641,1280", .picks "space" "390, 640"]
+  .picks "junk" "390,wide", .picks "gap" "390,,640", .picks "all" "390,640,641,1280", .picks "space" "390, 640",
+  .quant "median" [50, 10, 40, 20, 30] 50, .quant "p90" [10, 20, 30, 40, 50, 60, 70, 80, 90, 100] 90, .quant "empty" [] 50,
+  .quant "one" [7] 90, .quant "p100" [3, 1, 2] 100, .quant "unsorted" [3, 1, 2] 90,
+  .dominate "yes" 90 150, .dominate "edge" 50 100, .dominate "no" 5 18, .dominate "no gap" 5 0,
+  .versus "new" (.fail .apart) .pass, .versus "new skip" (.fail .differs) (.skip .noSample), .versus "both" (.fail .apart) (.fail .coverage),
+  .versus "cleared" .pass (.fail .apart), .versus "skip cleared" (.skip .transient) (.fail .differs), .versus "ok" .pass .pass,
+  .versus "ok skip" (.skip .noSample) .pass, .versus "coverage new" (.fail .coverage) .pass,
+  .armOf "rewrite ok" ⟨.rewrite, some "ab12", some "ab12", some "hydrate"⟩,
+  .armOf "flags off" ⟨.rewrite, some "ab12", some "cd34", some "client-render"⟩,
+  .armOf "client render" ⟨.rewrite, some "ab12", some "ab12", some "client-render"⟩,
+  .armOf "hash differs" ⟨.rewrite, some "ab12", some "cd34", some "hydrate"⟩,
+  .armOf "no config" ⟨.rewrite, some "ab12", none, some "hydrate"⟩,
+  .armOf "no mode" ⟨.rewrite, some "ab12", some "ab12", none⟩,
+  .armOf "no want" ⟨.rewrite, none, some "ab12", some "hydrate"⟩,
+  .armOf "empty want" ⟨.rewrite, some "", some "", some "hydrate"⟩,
+  .armOf "orig ok" ⟨.orig, none, none, none⟩,
+  .armOf "orig foreign" ⟨.orig, none, some "ab12", some "hydrate"⟩,
+  .runOf "run ok" [⟨.orig, none, none, none⟩, ⟨.rewrite, some "ab12", some "ab12", some "hydrate"⟩],
+  .runOf "run one bad" [⟨.orig, none, none, none⟩, ⟨.rewrite, some "ab12", some "cd34", some "client-render"⟩],
+  .runOf "run empty" []]
 
 /-- A widths pick as JSON. -/
 def Widths.json : Widths → Json
@@ -712,15 +1047,25 @@ def Case.line : Case → Json
   | .tenth n m =>
     Json.mkObj [("op", "bucket"), ("name", n), ("m", match m with | none => Json.null | some m => toJson m),
       ("bucket", toJson (bucket m))]
-  | .phase n k o r =>
-    Json.mkObj [("op", "byM"), ("name", n), ("kind", k.name), ("orig", Json.arr (o.map Samp.json).toArray),
+  | .phase n ph k o r =>
+    Json.mkObj [("op", "byM"), ("name", n), ("phase", ph.name), ("kind", k.name), ("orig", Json.arr (o.map Samp.json).toArray),
       ("rew", Json.arr (r.map Samp.json).toArray),
-      ("verdicts", Json.arr ((byM k o r).map fun (_, v) => Json.str v.name).toArray)]
+      ("verdicts", Json.arr ((byM ph k o r).map fun (_, v) => Json.str v.name).toArray)]
   | .path n k o r =>
     let side := fun (xs : List (String × Samp)) =>
       Json.arr (xs.map fun (s, x) => Json.mkObj [("step", s), ("s", x.json)]).toArray
     Json.mkObj [("op", "byStep"), ("name", n), ("kind", k.name), ("orig", side o), ("rew", side r),
       ("verdicts", Json.arr ((byStep k o r).map fun (s, v) => Json.mkObj [("step", s), ("verdict", v.name)]).toArray)]
+  | .versus n c b =>
+    Json.mkObj [("op", "rel"), ("name", n), ("cand", c.name), ("base", b.name), ("rel", (rel c b).name)]
+  | .quant n xs p =>
+    Json.mkObj [("op", "quantile"), ("name", n), ("xs", Json.arr (xs.map fun x => toJson x).toArray), ("p", toJson p),
+      ("q", match quantile xs p with | none => Json.null | some q => toJson q)]
+  | .dominate n r g =>
+    Json.mkObj [("op", "dominate"), ("name", n), ("read", toJson r), ("gap", toJson g), ("dominates", Json.bool (readsDominate r g))]
+  | .armOf n a => Json.mkObj [("op", "arm"), ("name", n), ("arm", a.json), ("verdict", (armCheck a).name)]
+  | .runOf n arms =>
+    Json.mkObj [("op", "run"), ("name", n), ("arms", Json.arr (arms.map ArmRead.json).toArray), ("verdict", (runCheck arms).name)]
   | .picks n i => Json.mkObj [("op", "widths"), ("name", n), ("input", i), ("pick", (pickWidths i).json)]
 
 /-- Where the golden lives, relative to `lean/`. -/
