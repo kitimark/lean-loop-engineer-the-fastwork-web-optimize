@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { decodeRat } from '../../engine/golden.testutil';
 import { createTweenDriver, type PlatformEl, type TweenEnv } from './driver';
 import { active } from './logic';
-import { lockOn, lockWrite, overlayOf } from './scroll-lock.logic';
+import { engage, lockAllowed, lockOn, lockWrite, overlayOf, readsAt } from './scroll-lock.logic';
 
 type Row = Record<string, unknown>;
 const rows: Row[] = readFileSync(new URL('../../../../../packages/contracts/golden/parts/morph-tween-scroll-lock.jsonl', import.meta.url), 'utf8')
@@ -25,6 +25,8 @@ function arm(overlay: boolean | null) {
   const listeners = new Map<string, (e: never) => void>();
   const sets: boolean[] = [];
   const scrolls: number[] = [];
+  let reads = 0;
+  const log: string[] = [];
   const platform: PlatformEl = { getBoundingClientRect: () => ({ height: 500, bottom: 800 }), style: { pointerEvents: '', setProperty: () => {} } };
   const env: TweenEnv = {
     clock: { subscribe: (tick) => (frames.add(tick), () => void frames.delete(tick)) },
@@ -33,11 +35,17 @@ function arm(overlay: boolean | null) {
     viewportHeight: () => 800,
     platform: () => platform,
     scrollY: () => scrollY,
-    scrollToInstant: (y) => void scrolls.push(y),
+    scrollToInstant: (y) => {
+      scrolls.push(y);
+      scrollY = y;
+    },
     addListener: (t, fn) => void listeners.set(t, fn),
     removeListener: (t) => void listeners.delete(t),
-    publish: () => {},
-    lock: overlay === null ? undefined : { overlay: () => overlay, set: (on) => void sets.push(on) },
+    publish: () => void log.push('publish'),
+    lock:
+      overlay === null
+        ? undefined
+        : { overlay: () => (reads++, log.push('read'), overlay), set: (on) => void (sets.push(on), log.push('set')) },
   };
   const d = createTweenDriver(env);
   d.setNear(true);
@@ -50,7 +58,7 @@ function arm(overlay: boolean | null) {
       wheel(r.goal === 1 ? 50 : -50);
     }
   };
-  return { d, run, wheel, sets, scrolls, setY: (y: number) => void (scrollY = y) };
+  return { d, run, wheel, sets, scrolls, log, reads: () => reads, scrollY: () => scrollY, setY: (y: number) => void (scrollY = y) };
 }
 
 describe('morph.tween:scroll-lock against Lean (MorphTweenOpt MT-L)', () => {
@@ -61,21 +69,41 @@ describe('morph.tween:scroll-lock against Lean (MorphTweenOpt MT-L)', () => {
     for (const o of [false, true]) for (const a of [false, true]) {
       expect(lockOn(o, a)).toBe(o && a);
       for (const l of [false, true]) expect(lockWrite(o, l, a)).toBe(lockOn(o, a) === l ? null : lockOn(o, a));
+      expect(readsAt(o, a)).toBe(!o && a);
     }
   });
-  it('the driver writes the root lock exactly on the Lean rows', () => {
+  it('lockAllowed and engage give the Lean rows (touch-only input never installs the lock)', () => {
+    const en = ofKind('engage');
+    expect(en.length).toBe(4);
+    for (const r of en) {
+      expect(lockAllowed(r.hoverNone === true)).toBe(r.allowed);
+      expect(engage(r.hoverNone === true, r.overlay === true)).toBe(r.engage);
+    }
+  });
+  it('the driver writes the root lock and reads overlay() exactly on the Lean rows', () => {
     const cases = byCase(ofKind('lock'));
     expect([...cases.keys()]).toEqual(['open-close', 'open-close-classic', 'reduced', 'retarget']);
     for (const [c, rs] of cases) {
       const a = arm(rs[0]!.overlay === true);
       for (const r of rs) {
         const n = a.sets.length;
+        const m = a.reads();
         a.run(r);
+        expect(a.reads() - m, `${c} ${String(r.i)} reads`).toBe(r.read === true ? 1 : 0);
+        if (r.ev === 'tick') expect(a.reads() - m, `${c} ${String(r.i)} tick`).toBe(0);
         const st = a.d.state();
         expect(active({ target: st.target, value: st.value }), `${c} ${String(r.i)}`).toBe(r.active);
         expect(a.sets.slice(n), `${c} ${String(r.i)}`).toEqual(r.write === null ? [] : [r.write]);
         expect(a.sets.at(-1) ?? false, `${c} ${String(r.i)}`).toBe(r.locked);
       }
+    }
+  });
+  it('the activating push reads overlay() before any style write of that push', () => {
+    for (const reduced of [false, true]) {
+      const a = arm(true);
+      a.run({ ev: 'push', goal: 1, reduced, t: 0 });
+      expect(a.log[0], String(reduced)).toBe('read');
+      expect(a.log.filter((x) => x === 'read').length).toBe(1);
     }
   });
   it('dispose releases a held lock', () => {
@@ -84,7 +112,7 @@ describe('morph.tween:scroll-lock against Lean (MorphTweenOpt MT-L)', () => {
     a.d.dispose();
     expect(a.sets).toEqual([true, false]);
   });
-  it('pin() calls scrollTo exactly on the Lean span rows and the main thread sees p', () => {
+  it('pin() calls scrollTo exactly on the Lean span rows and leaves scrollY at p (Gest.gated is a model input)', () => {
     const cases = byCase(ofKind('span'));
     expect([...cases.keys()]).toEqual(['still', 'trackpad-in-flight', 'ios-pan-in-flight', 'mixed']);
     for (const [c, rs] of cases) for (const lock of [true, false]) {
@@ -97,7 +125,7 @@ describe('morph.tween:scroll-lock against Lean (MorphTweenOpt MT-L)', () => {
         a.setY(Number(r.shown));
         a.d.pin();
         expect(a.scrolls.slice(n), `${c} ${String(lock)} ${String(r.i)}`).toEqual(r.scrollTo ? [p] : []);
-        expect(r.seen).toBe(p);
+        expect(a.scrollY(), `${c} ${String(lock)} ${String(r.i)} scrollY`).toBe(p);
         a.setY(p);
       }
     }

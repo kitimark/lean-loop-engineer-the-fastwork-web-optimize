@@ -3,7 +3,7 @@ import { getClock } from '../../engine/clock';
 import { registerScroll } from '../../engine/scroll';
 import { createTweenDriver, type TweenEnv } from './driver';
 import { matchList } from './media';
-import { overlayOf } from './scroll-lock.logic';
+import { lockAllowed, overlayOf } from './scroll-lock.logic';
 import { createWaapiDriver, type AnimLike, type AnimTarget, type WaapiEnv } from './waapi.driver';
 import { fadeCss, registrationsOf, type WaapiArm } from './waapi.logic';
 
@@ -49,7 +49,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
         nav.dataset.fwMorph = String(value);
       },
       lock:
-        variant === 'scroll-lock'
+        variant === 'scroll-lock' && lockAllowed(matchList('mq.hover-none')?.matches ?? false)
           ? {
               overlay: () => overlayOf(window.innerWidth, root.clientWidth),
               set: (on) => void (root.style.overflow = on ? 'hidden' : ''),

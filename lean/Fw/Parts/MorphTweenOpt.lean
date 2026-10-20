@@ -2147,6 +2147,100 @@ theorem write_iff (ov l a : Bool) : (lockWrite ov l a).isSome = true ↔ lockOn 
 #guard (runL true [.push 1 false 0]).locked && !(runL false [.push 1 false 0]).locked
 #guard writesL true ⟨rest, false⟩ [.push 1 true 0, .push 0 true 10] == [some true, some false]
 
+/-! ### One read of the scrollbar kind per activation -/
+
+/-- Whether a step reads the scrollbar kind: the step that takes the morph from inactive (`was`) to active (`now`). -/
+def readsAt (was now : Bool) : Bool := !was && now
+
+/-- The driver's state: the tween, the lock and the scrollbar kind it read last (`false` before the first read). -/
+structure RSt where
+  /-- the tween -/
+  s : St
+  /-- whether the root is at `overflow: hidden` -/
+  locked : Bool
+  /-- the stored result of the last read -/
+  ov : Bool
+deriving Repr, DecidableEq
+
+/-- One event of the driver on a root whose scrollbar kind is `env`: it reads `env` only at the step that activates the
+morph, and locks from the stored value. -/
+def stepR (env : Bool) (x : RSt) (e : Ev) : RSt :=
+  let s := stepO x.s e
+  let ov := if readsAt x.s.isActive s.isActive then env else x.ov
+  ⟨s, lockOn ov s.isActive, ov⟩
+
+/-- The driver after the events `es` from rest. -/
+def runR (env : Bool) (es : List Ev) : RSt := es.foldl (stepR env) ⟨rest, false, false⟩
+
+/-- Per event of `es` from `x`, whether the driver reads the scrollbar kind. -/
+def readsR (env : Bool) : RSt → List Ev → List Bool
+  | _, [] => []
+  | x, e :: es =>
+    let y := stepR env x e
+    readsAt x.s.isActive y.s.isActive :: readsR env y es
+
+theorem foldl_stepR (env : Bool) (es : List Ev) (x : RSt) (hl : x.locked = lockOn env x.s.isActive)
+    (ho : x.s.isActive = true → x.ov = env) :
+    (es.foldl (stepR env) x).s = es.foldl stepO x.s ∧
+      (es.foldl (stepR env) x).locked = lockOn env (es.foldl (stepR env) x).s.isActive ∧
+      ((es.foldl (stepR env) x).s.isActive = true → (es.foldl (stepR env) x).ov = env) := by
+  induction es generalizing x with
+  | nil => exact ⟨rfl, hl, ho⟩
+  | cons e es ih =>
+    have hs : ((stepO x.s e).isActive = true → (if readsAt x.s.isActive (stepO x.s e).isActive then env else x.ov) = env) := by
+      intro ha
+      cases hx : x.s.isActive
+      · simp [readsAt, ha]
+      · simp [readsAt, ho hx]
+    refine ih (stepR env x e) ?_ hs
+    show lockOn (if readsAt x.s.isActive (stepO x.s e).isActive then env else x.ov) (stepO x.s e).isActive =
+      lockOn env (stepO x.s e).isActive
+    by_cases ha : (stepO x.s e).isActive = true
+    · rw [hs ha]
+    · simp [lockOn, ha]
+
+/-- **MT-L, one read.** The driver that reads the scrollbar kind only at the activating step holds the same tween and
+the same lock as the arm with the kind fixed (`runL`), after every history; so it makes the same root writes. -/
+theorem runR_eq (env : Bool) (es : List Ev) :
+    (runR env es).s = (runL env es).s ∧ (runR env es).locked = (runL env es).locked := by
+  have h : (0 : Rat) < activeCut := by
+    rw [activeCut, Rat.div_def, Rat.one_mul]; exact Rat.inv_pos.2 (by decide)
+  have hr : rest.isActive = false := by simp [St.isActive, active, rest, Rat.not_lt.2 (Rat.le_of_lt h)]
+  obtain ⟨h1, h2, -⟩ := foldl_stepR env es ⟨rest, false, false⟩ (by simp [lockOn, hr]) (by simp [hr])
+  refine ⟨by rw [runR, h1, runL_s]; rfl, ?_⟩
+  rw [runR, h2, runL_locked, h1]; rfl
+
+/-- A step reads at most once, and only when the morph becomes active. -/
+theorem reads_iff (was now : Bool) : readsAt was now = true ↔ was = false ∧ now = true := by
+  cases was <;> cases now <;> simp [readsAt]
+
+/-! ### Where the lock engages -/
+
+/-- Whether the arm installs the lock at all: only when the primary input can hover. On `(hover: none)` (iPhone) a pan in
+flight is not gated (`ungated_eq`), so there the lock could only add root style passes. -/
+def lockAllowed (hoverNone : Bool) : Bool := !hoverNone
+
+/-- Whether the lock engages: the input can hover and the root's scrollbar is an overlay one. -/
+def engage (hoverNone overlay : Bool) : Bool := lockAllowed hoverNone && overlay
+
+/-- On a touch-only input the lock never engages. -/
+theorem engage_touch (overlay : Bool) : engage true overlay = false := by
+  cases overlay <;> rfl
+
+/-- On a classic scrollbar the lock never engages. -/
+theorem engage_classic (hoverNone : Bool) : engage hoverNone false = false := by
+  cases hoverNone <;> rfl
+
+/-- With hover and an overlay scrollbar the lock engages. -/
+theorem engage_on : engage false true = true := rfl
+
+/-- Where the lock does not engage, the arm never writes the root: it is the original. -/
+theorem engage_off_writes (hoverNone overlay : Bool) (h : engage hoverNone overlay = false) (es : List Ev) :
+    ∀ w ∈ writesL (engage hoverNone overlay) ⟨rest, false⟩ es, w = none := by
+  rw [h]; exact classic_writes _ es rfl
+
+#guard engage false true && !engage true true && !engage false false && !engage true false
+
 /-! ### The root scroller during a span -/
 
 /-- One frame of a span: the delta of a gesture in flight on the async scroller, and whether the engine drops it on a
@@ -2263,30 +2357,34 @@ theorem shown_lock (k : Nat) (p : Int) (i : Nat) (gs : List Gest) (hk : k ≤ i)
     · simp [applied, hk, h g (by simp)]
     · exact ih (i + 1) (by omega) (fun g' hg' => h g' (by simp [hg'])) r hr
 
-/-- Main-thread scroll work of a span: the pin's `scrollTo` calls, plus the lock and the release when the arm locks. -/
-def spanWork (lock : Bool) (k : Nat) (p : Int) (gs : List Gest) : Nat :=
-  forced (span lock k p 0 p gs) + if lock then 2 else 0
+/-- Without a gesture both arms call `scrollTo` equally often (never). -/
+theorem forced_still (k : Nat) (p : Int) (gs : List Gest) (h : ∀ g ∈ gs, g.delta = 0) :
+    forced (span true k p 0 p gs) = forced (span false k p 0 p gs) := by
+  rw [still_eq true k p 0 gs h, still_eq false k p 0 gs h]
 
-/-- **MT-L, the work bound.** When the lock saves at least two `scrollTo` calls, the arm does no more work. -/
-theorem work_le (k : Nat) (p : Int) (gs : List Gest)
-    (h : forced (span true k p 0 p gs) + 2 ≤ forced (span false k p 0 p gs)) :
-    spanWork true k p gs ≤ spanWork false k p gs := by
-  simp [spanWork]; omega
+/-- With ungated input (iPhone) both arms call `scrollTo` equally often. -/
+theorem forced_ungated (k : Nat) (p : Int) (gs : List Gest) (h : ∀ g ∈ gs, g.gated = false) :
+    forced (span true k p 0 p gs) = forced (span false k p 0 p gs) := by
+  rw [ungated_eq k p 0 p gs h]
 
-/-- Without a gesture the arm costs the two root writes and saves nothing. -/
-theorem work_still (k : Nat) (p : Int) (gs : List Gest) (h : ∀ g ∈ gs, g.delta = 0) :
-    spanWork true k p gs = spanWork false k p gs + 2 := by
-  simp [spanWork, still_eq _ k p 0 gs h]
+/-- The root style writes of the history `es` from rest: the lock and each release. -/
+def rootWrites (ov : Bool) (es : List Ev) : Nat := (writesL ov ⟨rest, false⟩ es).countP Option.isSome
 
-/-- With ungated input (iPhone) the arm costs the two root writes and saves nothing. -/
-theorem work_ungated (k : Nat) (p : Int) (gs : List Gest) (h : ∀ g ∈ gs, g.gated = false) :
-    spanWork true k p gs = spanWork false k p gs + 2 := by
-  simp [spanWork, ungated_eq k p 0 p gs h]
+/-- Root style passes of one morph, from its activating step to its deactivating one: the lock and the release. -/
+def stylePasses (lock : Bool) : Nat := if lock then 2 else 0
+
+/-- **MT-L, style passes.** Per morph the engaged arm adds exactly two root style passes; it never saves one. -/
+theorem style_passes : stylePasses true = stylePasses false + 2 := rfl
+
+/-- On a classic scrollbar the arm writes the root in no history. -/
+theorem rootWrites_classic (es : List Ev) : rootWrites false es = 0 := by
+  rw [rootWrites, List.countP_eq_zero]
+  intro w hw
+  simp [classic_writes _ es rfl w hw]
 
 #guard forced (span true 1 1200 0 1200 [⟨12, true⟩, ⟨10, true⟩, ⟨8, true⟩]) == 1
 #guard forced (span false 1 1200 0 1200 [⟨12, true⟩, ⟨10, true⟩, ⟨8, true⟩]) == 3
 #guard span true 1 1200 0 1200 [⟨12, false⟩, ⟨10, false⟩] == span false 1 1200 0 1200 [⟨12, false⟩, ⟨10, false⟩]
-#guard spanWork true 1 1200 [⟨0, true⟩] == 2 && spanWork false 1 1200 [⟨0, true⟩] == 0
 
 /-! ### The layout gutter -/
 
@@ -2296,8 +2394,8 @@ theorem work_ungated (k : Nat) (p : Int) (gs : List Gest) (h : ∀ g ∈ gs, g.g
 def gutter (classic hidden stable : Bool) (w : Nat) : Nat := if classic && (!hidden || stable) then w else 0
 
 /-- **MT-L, no layout shift.** The arm locks only on overlay scrollbars, so its gutter is the original's. -/
-theorem gutter_same (c a : Bool) (w : Nat) : gutter c (lockOn (!c) a) false w = gutter c false false w := by
-  cases c <;> cases a <;> rfl
+theorem gutter_same (hn c a : Bool) (w : Nat) : gutter c (lockOn (engage hn (!c)) a) false w = gutter c false false w := by
+  cases hn <;> cases c <;> cases a <;> rfl
 
 /-- A lock on a classic scrollbar without `scrollbar-gutter: stable` gives the scrollbar's width to the layout. -/
 theorem gutter_shift (w : Nat) (hw : 0 < w) : gutter true true false w ≠ gutter true false false w := by
@@ -2315,8 +2413,9 @@ theorem lock_vis (vp : Fw.Site.Breakpoints.Env → Rect) (cl : Fw.Site.Breakpoin
     VisSame E vp
       (fun env (h : List Ev × List Gest × Nat) =>
         S env (runO rest h.1) (((span false k p 0 p h.2.1).map (·.2.1)).getD h.2.2 p) (gutter (cl env) false false w))
-      (fun env h => S env (runL (!cl env) h.1).s (((span (!cl env) k p 0 p h.2.1).map (·.2.1)).getD h.2.2 p)
-        (gutter (cl env) (runL (!cl env) h.1).locked false w)) :=
+      (fun env h => S env (runL (engage (decide (env.hover = .none)) (!cl env)) h.1).s
+        (((span (engage (decide (env.hover = .none)) (!cl env)) k p 0 p h.2.1).map (·.2.1)).getD h.2.2 p)
+        (gutter (cl env) (runL (engage (decide (env.hover = .none)) (!cl env)) h.1).locked false w)) :=
   visSame_of_eq vp fun env h => by
     rw [runL_s, runL_locked, gutter_same, span_seen, span_seen]
 
@@ -2341,12 +2440,15 @@ def writeJ : Option Bool → Lean.Json
   | none => .null
   | some b => .bool b
 
-/-- The rows of one lock case: per event the activity, the lock and the write. -/
+/-- The rows of one lock case: per event the activity, the lock, the write and whether the driver reads the scrollbar
+kind. -/
 def lockRows (c : String) (ov : Bool) (es : List Ev) : List String :=
-  ((List.range es.length).zip (es.zip (writesL ov ⟨rest, false⟩ es))).map fun (i, e, w) =>
+  ((List.range es.length).zip (es.zip ((writesL ov ⟨rest, false⟩ es).zip (readsR ov ⟨rest, false, false⟩ es)))).map
+    fun (i, e, w, r) =>
     let x := runL ov (es.take (i + 1))
     (Lean.Json.mkObj ([("kind", .str "lock"), ("case", .str c), ("overlay", .bool ov), ("i", .num (i : Int)),
-      ("active", .bool x.s.isActive), ("locked", .bool x.locked), ("write", writeJ w)] ++ evFields e)).compress
+      ("active", .bool x.s.isActive), ("locked", .bool x.locked), ("write", writeJ w), ("read", .bool r)] ++
+      evFields e)).compress
 
 /-- The replayed spans, each with its commit frame `k`, pinned position and gestures. -/
 def spanCases : List (String × Nat × Int × List Gest) :=
@@ -2368,13 +2470,25 @@ def overlayRows : List String :=
     (Lean.Json.mkObj [("kind", .str "overlay"), ("innerWidth", .num a), ("clientWidth", .num b),
       ("overlay", .bool (overlayOf a b))]).compress
 
+/-- The engagement rows: touch-only input and scrollbar kind, whether the arm installs the lock and whether it engages. -/
+def engageRows : List String :=
+  ([(false, false), (false, true), (true, false), (true, true)] : List (Bool × Bool)).map fun (hn, ov) =>
+    (Lean.Json.mkObj [("kind", .str "engage"), ("hoverNone", .bool hn), ("overlay", .bool ov),
+      ("allowed", .bool (lockAllowed hn)), ("engage", .bool (engage hn ov))]).compress
+
 /-- The contents of `packages/contracts/golden/parts/morph-tween-scroll-lock.jsonl`. -/
 def lockJsonl : String :=
-  String.join (overlayRows.map (· ++ "\n")) ++
+  String.join (overlayRows.map (· ++ "\n")) ++ String.join (engageRows.map (· ++ "\n")) ++
     String.join (lockCases.flatMap fun (c, ov, es) => (lockRows c ov es).map (· ++ "\n")) ++
     String.join (spanCases.flatMap fun (c, k, p, gs) => ([true, false].flatMap (spanRows c k p gs)).map (· ++ "\n"))
 
 #guard lockCases.all fun (_, ov, es) => (runL ov es).s == runO rest es
+
+#guard lockCases.all fun (_, ov, es) =>
+  (es.zip (readsR ov ⟨rest, false, false⟩ es)).all fun (e, r) => match e with | .tick _ => !r | .push .. => true
+
+#guard (lockCases.map fun (_, ov, es) => ((readsR ov ⟨rest, false, false⟩ es).countP id, rootWrites ov es)) ==
+  [(1, 2), (1, 0), (1, 2), (1, 2)]
 
 #guard lockJsonl == include_str "../../../packages/contracts/golden/parts/morph-tween-scroll-lock.jsonl"
 
