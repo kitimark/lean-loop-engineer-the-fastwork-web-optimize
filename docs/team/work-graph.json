@@ -10692,7 +10692,8 @@
     "lean/Fw/Serve.lean",
     "packages/contracts/schema/**",
     "packages/contracts/src/index.ts"
-   ]
+   ],
+   "evidence": "693a162"
   },
   {
    "devices": [
@@ -10900,7 +10901,8 @@
     "apps/runner/test/watch*",
     "lean/Fw/Obs/**",
     "packages/contracts/golden/obs/**",
-    "docs/team/handoffs/watch-incremental.md"
+    "docs/team/handoffs/watch-incremental.md",
+    "lean/Fw.lean"
    ]
   },
   {

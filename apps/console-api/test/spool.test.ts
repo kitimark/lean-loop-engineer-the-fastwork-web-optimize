@@ -93,8 +93,9 @@ describe("spool drain", () => {
     let steps = (await store.board()).steps;
     expect(steps).toHaveLength(1);
     expect(steps[0]).toMatchObject({ id: "alert-a1-10", status: "waiting" });
-    expect(steps[0]!.title).toContain("builder");
-    expect(steps[0]!.title).toContain("permission to use Bash");
+    expect(steps[0]).toMatchObject({ audience: "user", title: "A helper needs your permission" });
+    expect(steps[0]!.body).toContain("builder");
+    expect(steps[0]!.body).toContain("Bash");
     spool(dir, "a1", rec({ tool_use_id: "t5", ts: 20 }));
     await d.run();
     steps = (await store.board()).steps;
@@ -130,7 +131,7 @@ describe("spool drain", () => {
     const { dir, store } = await fresh();
     spool(dir, "a1", rec({ hook_event_name: "StopFailure", tool_use_id: null, tool_name: null, ts: 4 }));
     await new Drain(store).run();
-    expect((await store.board()).steps[0]!.title).toContain("builder stopped on an API failure");
+    expect((await store.board()).steps[0]).toMatchObject({ audience: "lead", title: "A helper stopped on an API error" });
   });
   // task task-state-truth regression: a real SubagentStop line (2026-10-18 spool) with background_tasks. The strict zod
   // schema refused 6376 of these, so no agent.stop reached the plan.
@@ -201,7 +202,8 @@ describe("spool drain", () => {
     store.core.ops = async (op: string, f: Record<string, unknown> = {}) => { if ("life" in f) throw new Error("boom"); return real(op, f); };
     const d = new Drain(store);
     expect(await d.run()).toMatchObject({ accepted: 0, retry: 1, issues: 1, alerts: 1, sweepErrors: 1 });
-    expect((await store.board()).steps[0]!.title).toContain("sweep:lifeOf x1");
+    expect((await store.board()).steps[0]).toMatchObject({ audience: "lead", title: "A console background check failed" });
+    expect((await store.board()).steps[0]!.body).toContain("sweep:lifeOf x1");
     expect(JSON.parse(readFileSync(join(dir, SWEEP_ERRORS), "utf8"))).toEqual({ pid: process.pid, count: 1, ops: { lifeOf: 1 } });
     expect(existsSync(join(dir, "obs.jsonl")) ? lines(join(dir, "obs.jsonl")) : []).toHaveLength(0);
     store.core.ops = real;
@@ -257,9 +259,60 @@ describe("spool drain", () => {
     expect(lines(join(dir, "obs.jsonl")).every((l) => !("extra" in l))).toBe(true);
     const steps = (await store.board()).steps;
     expect(steps.map((s) => s.id)).toEqual(["alert-spool-1700000000000"]);
-    expect(steps[0]!.title).toContain("extra:unknown x2");
+    expect(steps[0]).toMatchObject({ audience: "lead", title: "The log reader saw a field it does not know" });
+    expect(steps[0]!.body).toContain("extra:unknown x2");
     spool(dir, "a1", { ...rec({ tool_use_id: "t3" }), extra: 2 });
     expect(await d.run()).toMatchObject({ accepted: 1, unknown: 1, alerts: 0 }); // one open: no second alert
+  });
+  // task alert-steps-plain: a spool step for the lead closes by itself when the latest sweep shows its keys clean (Lean
+  // `Fw.Ops.Obs.resolveSpool`); a still-failing key keeps it open.
+  it("a spool step for the lead closes on a later clean sweep with a note; a failing key keeps it open", async () => {
+    const { dir, store } = await fresh();
+    spool(dir, "a1", { ...rec(), extra: "field" });
+    const d = new Drain(store);
+    await d.run();
+    let st = (await store.board()).steps[0]!;
+    expect(st).toMatchObject({ id: "alert-spool-1700000000000", status: "waiting", audience: "lead" });
+    spool(dir, "a1", { ...rec({ tool_use_id: "t9" }), extra: "again" }); // the field is still unknown: stays open
+    await d.run();
+    expect((await store.board()).steps[0]!.status).toBe("waiting");
+    spool(dir, "a1", rec({ tool_use_id: "t10" })); // a clean line: nothing failing in the sweep
+    await d.run();
+    st = (await store.board()).steps[0]!;
+    expect(st.status).toBe("waiting"); // extra is not a known field: it never closes by a clean line
+  });
+  it("the step posted before details existed closes through the rule, by the script, with a note", async () => {
+    const { dir, store } = await fresh();
+    mkdirSync(join(dir, "spool"), { recursive: true });
+    await store.submit({ type: "step.post", key: "old", actor: "script", step: "alert-spool-1792389046068", card: null,
+      title: "Spool lines need a look: session_pid:unknown x1; fix emit.mjs or Fw.Ops.Obs.specs, then press Done", kind: "action", options: null, body: "" }); // the real event has no audience field: the legacy decode path runs
+    await new Drain(store).run();
+    const st = (await store.board()).steps.find((s) => s.id === "alert-spool-1792389046068")!;
+    expect(st.audience).toBe("lead");
+    expect(st.status).toBe("done");
+    expect(st.answer).toMatch(/^resolved automatically at \d{4}-\d\d-\d\dT[\d:]+Z: session_pid is now a known field$/);
+  });
+  it("a started spool step for the lead also closes through the rule", async () => {
+    const { dir, store } = await fresh();
+    mkdirSync(join(dir, "spool"), { recursive: true });
+    await store.submit({ type: "step.post", key: "s", actor: "script", step: "alert-spool-5", card: null, title: "x", kind: "action", options: null,
+      audience: "lead", body: "Details: session_pid:unknown x1" });
+    await store.submit({ type: "step.start", key: "s2", actor: "user", step: "alert-spool-5" });
+    expect((await store.board()).steps[0]!.status).toBe("started");
+    await new Drain(store).run();
+    expect((await store.board()).steps[0]!.status).toBe("done");
+  });
+  it("a rejection step stays waiting when the admit throws: no line was read, so nothing is clean", async () => {
+    const { dir, store } = await fresh();
+    await store.submit({ type: "step.post", key: "s", actor: "script", step: "alert-spool-6", card: null, title: "x", kind: "action", options: null,
+      audience: "lead", body: "Details: rejected:json x1" });
+    spool(dir, "a1", rec());
+    const restore = throwing(store, (_op, f) => "raw" in f);
+    await new Drain(store).run();
+    expect((await store.board()).steps[0]!.status).toBe("waiting");
+    restore();
+    await new Drain(store).run(); // lines read now: the key did not occur, so it closes
+    expect((await store.board()).steps[0]!.status).toBe("done");
   });
   it("quiet (round 5): an agent not seen for quietMs shows quiet with its last-seen time; no stop is sent", async () => {
     const { dir, store } = await fresh();
