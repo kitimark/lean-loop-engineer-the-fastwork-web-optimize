@@ -17,9 +17,22 @@ def bytes (px : Nat) : Nat := 4 * px
 /-- `BitmapImageSource::isLargeForDecoding` for a still image: decoded size above 500 KB (`WC/platform/graphics/BitmapImageSource.cpp:349-353`, CONFIRMED). -/
 def isLarge (natPx : Nat) : Bool := decide (500 * 1024 < bytes natPx)
 
-/-- The mode `RenderBoxModelObject::decodingModeForImageDraw` picks for a still, unforced image (`WC/rendering/RenderBoxModelObject.cpp:256-320`, CONFIRMED). -/
-def modeFor (large visible firstPaintAsync : Bool) : Mode :=
-  if !large then .sync else if firstPaintAsync then .async else if visible then .sync else .async
+/-- The `decoding` attribute of an `<img>` (`auto` is also every non-`<img>` image). -/
+inductive Attr where
+  | auto | sync | async
+deriving Repr, DecidableEq
+
+/-- `defaultDecodingMode` of `RenderBoxModelObject::decodingModeForImageDraw`: asynchronous on the first paint of an element that never painted an image, else synchronous when the renderer is in the viewport and asynchronous when it is not (`WC/rendering/RenderBoxModelObject.cpp:271-286`, CONFIRMED). -/
+def defaultMode (visible firstPaintAsync : Bool) : Mode :=
+  if firstPaintAsync then .async else if visible then .sync else .async
+
+/-- The mode `RenderBoxModelObject::decodingModeForImageDraw` picks for a still, unforced image (`WC/rendering/RenderBoxModelObject.cpp:256-320`, CONFIRMED):
+`decoding="sync"` is synchronous (:290-292); `decoding="async"` takes the default rule whatever the size (:295-302); otherwise a small image is synchronous (:316-317) and a large one takes the default rule (:318-319). -/
+def modeFor (attr : Attr) (large visible firstPaintAsync : Bool) : Mode :=
+  match attr with
+  | .sync => .sync
+  | .async => defaultMode visible firstPaintAsync
+  | .auto => if large then defaultMode visible firstPaintAsync else .sync
 
 /-- Pixels one decode produces: the whole image when synchronous, the smaller of the image and the drawn size when asynchronous (`WC/platform/graphics/cg/ImageDecoderCG.cpp:676-698`, CONFIRMED). -/
 def decodedPx (m : Mode) (natPx drawnPx : Nat) : Nat :=
@@ -35,17 +48,31 @@ theorem isLarge_false (natPx : Nat) (h : 4 * natPx ≤ 500 * 1024) : isLarge nat
   simp only [decide_eq_false_iff_not]
   omega
 
-theorem small_sync (natPx : Nat) (v f : Bool) (h : isLarge natPx = false) : modeFor (isLarge natPx) v f = .sync := by
+theorem auto_small_sync (natPx : Nat) (v f : Bool) (h : isLarge natPx = false) : modeFor .auto (isLarge natPx) v f = .sync := by
   simp [modeFor, h]
 
-theorem large_firstPaint_async (v : Bool) : modeFor true v true = .async := by
-  simp [modeFor]
+theorem auto_large_firstPaint_async (v : Bool) : modeFor .auto true v true = .async := by
+  simp [modeFor, defaultMode]
 
-theorem large_visible_sync : modeFor true true false = .sync := by
-  simp [modeFor]
+theorem auto_large_visible_sync : modeFor .auto true true false = .sync := by
+  simp [modeFor, defaultMode]
 
-theorem large_hidden_async : modeFor true false false = .async := by
-  simp [modeFor]
+theorem auto_large_hidden_async : modeFor .auto true false false = .async := by
+  simp [modeFor, defaultMode]
+
+theorem attr_sync_always_sync (large v f : Bool) : modeFor .sync large v f = .sync := rfl
+
+/-- `decoding="async"` does not wait for the image to be large: a small image takes the default rule too. -/
+theorem attr_async_small_firstPaint_async (v : Bool) : modeFor .async false v true = .async := by
+  simp [modeFor, defaultMode]
+
+theorem attr_async_small_visible_sync : modeFor .async false true false = .sync := by
+  simp [modeFor, defaultMode]
+
+theorem attr_async_small_hidden_async : modeFor .async false false false = .async := by
+  simp [modeFor, defaultMode]
+
+theorem attr_async_ignores_size (large v f : Bool) : modeFor .async large v f = modeFor .async (!large) v f := rfl
 
 theorem sync_decodes_all (natPx drawnPx : Nat) : decodedPx .sync natPx drawnPx = natPx := rfl
 
