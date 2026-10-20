@@ -565,19 +565,19 @@ def needsSample (b : Nat) : Bool := decide (1 ≤ b) && decide (b ≤ 9)
 /-- The first sample of pass `q` in phase `p + 1` of `seg`. -/
 def headOf (seg : List Samp) (q p : Nat) : Option Samp := seg.find? fun o => o.rep == q && o.ph == p + 1
 
-/-- The window of `r` in pass `q` of a push: the next hold's first row when it has `r`'s morph value and the push never
-sampled that value, else `windowOne`. -/
-def windowPass (seg orig : List Samp) (r : Samp) (q : Nat) : Option (List Samp) :=
+/-- The window of `r` in pass `q` of a push: the next hold's first row when `r` is settled, has that row's morph value
+and the push never sampled that value, else `windowOne`. -/
+def windowPass (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (q : Nat) : Option (List Samp) :=
   match headOf seg q r.ph with
   | some h =>
-    if r.m.isSome && h.m == r.m && !(passOf orig q).any (·.m == r.m) then some [h]
+    if r.m.isSome && !inFlight d r && h.m == r.m && !(passOf orig q).any (·.m == r.m) then some [h]
     else windowOne (passOf orig q) r.m
   | none => windowOne (passOf orig q) r.m
 
 /-- The window of rewrite sample `r` in phase `orig` of `seg`: per pass by `windowPass` in a push, `windowOf` in a hold. -/
-def windowAt (ph : Phase) (seg orig : List Samp) (r : Samp) : Option (List Samp) :=
+def windowAt (ph : Phase) (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) : Option (List Samp) :=
   if ph == .push then
-    match (repsOf orig).filterMap (windowPass seg orig r) with
+    match (repsOf orig).filterMap (windowPass d seg orig r) with
     | [] => none
     | ws => some ws.flatten
   else windowOf orig r.m
@@ -587,22 +587,24 @@ empty bucket is `fail coverage` in a push that needs a sample, else a skip. -/
 def bucketVerdict (ph : Phase) (k : Kind) (d : List String → Option Nat) (seg orig rew : List Samp) (b : Nat) : Verdict :=
   match rew.filter (fun r => bucket r.m == b) with
   | [] => if ph == .push && needsSample b then .fail .coverage else .skip .noSample
-  | rs => combine (rs.map fun r => judgeUnit k d seg (windowAt ph seg orig r) r)
+  | rs => combine (rs.map fun r => judgeUnit k d seg (windowAt ph d seg orig r) r)
 
 #guard headOf [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] 0 0 ==
     some ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩ &&
   headOf [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] 1 0 == none
-#guard windowPass [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] [⟨some 100, none, [], 0, [], 0, 0⟩]
-    ⟨some 0, none, [], 0, [], 0, 0⟩ 0 == some [⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] &&
-  windowPass [⟨some 0, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] [⟨some 0, none, [], 0, [], 0, 0⟩]
-    ⟨some 0, none, [], 0, [], 0, 0⟩ 0 == some [⟨some 0, none, [], 0, [], 0, 0⟩] &&
-  windowPass [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 50, none, [.num [1]], 0, [], 1, 0⟩] [⟨some 100, none, [], 0, [], 0, 0⟩]
-    ⟨some 0, none, [], 0, [], 0, 0⟩ 0 == some [⟨some 100, none, [], 0, [], 0, 0⟩]
-#guard windowAt .push [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] [⟨some 100, none, [], 0, [], 0, 0⟩]
-    ⟨some 0, none, [], 0, [], 0, 0⟩ == some [⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] &&
-  windowAt .hold [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] [⟨some 100, none, [], 0, [], 0, 0⟩]
-    ⟨some 0, none, [], 0, [], 0, 0⟩ == some [⟨some 100, none, [], 0, [], 0, 0⟩] &&
-  windowAt .push [] [] ⟨some 0, none, [], 0, [], 0, 0⟩ == none
+#guard windowPass (fun _ => none) [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩]
+    [⟨some 100, none, [], 0, [], 0, 0⟩] ⟨some 0, none, [], 0, [], 0, 0⟩ 0 == some [⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] &&
+  windowPass (fun _ => some 700) [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩]
+    [⟨some 100, none, [], 0, [], 0, 0⟩] ⟨some 0, some 0, [], 0, [], 0, 0⟩ 0 == some [⟨some 100, none, [], 0, [], 0, 0⟩] &&
+  windowPass (fun _ => none) [⟨some 0, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩]
+    [⟨some 0, none, [], 0, [], 0, 0⟩] ⟨some 0, none, [], 0, [], 0, 0⟩ 0 == some [⟨some 0, none, [], 0, [], 0, 0⟩] &&
+  windowPass (fun _ => none) [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 50, none, [.num [1]], 0, [], 1, 0⟩]
+    [⟨some 100, none, [], 0, [], 0, 0⟩] ⟨some 0, none, [], 0, [], 0, 0⟩ 0 == some [⟨some 100, none, [], 0, [], 0, 0⟩]
+#guard windowAt .push (fun _ => none) [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩]
+    [⟨some 100, none, [], 0, [], 0, 0⟩] ⟨some 0, none, [], 0, [], 0, 0⟩ == some [⟨some 0, none, [.num [1]], 0, [], 1, 0⟩] &&
+  windowAt .hold (fun _ => none) [⟨some 100, none, [], 0, [], 0, 0⟩, ⟨some 0, none, [.num [1]], 0, [], 1, 0⟩]
+    [⟨some 100, none, [], 0, [], 0, 0⟩] ⟨some 0, none, [], 0, [], 0, 0⟩ == some [⟨some 100, none, [], 0, [], 0, 0⟩] &&
+  windowAt .push (fun _ => none) [] [] ⟨some 0, none, [], 0, [], 0, 0⟩ == none
 
 /-- The verdicts of one (node, property) along phase `p` of the morph path, one per bucket 0 to 11. `oSeg` and `wSeg` are
 the two arms' whole paths, every phase in order, and `ph` says whether phase `p` is a push or a hold.
@@ -1888,38 +1890,43 @@ theorem headOf_mem (seg : List Samp) (q p : Nat) (h : Samp) (hh : headOf seg q p
   simp only [Bool.and_eq_true, beq_iff_eq] at h2
   exact ⟨h1, h2.1, h2.2⟩
 
-/-- Branch head: a value the push of pass `q` never sampled that the next hold's first row has is judged against that
-row. -/
-theorem windowPass_head (seg orig : List Samp) (r : Samp) (q : Nat) (h : Samp) (hh : headOf seg q r.ph = some h)
-    (hm : r.m.isSome) (he : h.m = r.m) (hn : (passOf orig q).any (·.m == r.m) = false) :
-    windowPass seg orig r q = some [h] := by
-  simp [windowPass, hh, hm, he, hn]
+/-- Branch head: a settled value the push of pass `q` never sampled that the next hold's first row has is judged
+against that row. -/
+theorem windowPass_head (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (q : Nat) (h : Samp) (hh : headOf seg q r.ph = some h)
+    (hm : r.m.isSome) (hd : inFlight d r = false) (he : h.m = r.m) (hn : (passOf orig q).any (·.m == r.m) = false) :
+    windowPass d seg orig r q = some [h] := by
+  simp [windowPass, hh, hm, hd, he, hn]
 
 /-- Branch sampled: a value the push of pass `q` sampled is aligned by `windowOne`. -/
-theorem windowPass_sampled (seg orig : List Samp) (r : Samp) (q : Nat) (hs : (passOf orig q).any (·.m == r.m) = true) :
-    windowPass seg orig r q = windowOne (passOf orig q) r.m := by
+theorem windowPass_sampled (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (q : Nat) (hs : (passOf orig q).any (·.m == r.m) = true) :
+    windowPass d seg orig r q = windowOne (passOf orig q) r.m := by
   unfold windowPass; split <;> simp [hs]
 
 /-- Branch other value: a value the next hold's first row does not have is aligned by `windowOne`. -/
-theorem windowPass_other (seg orig : List Samp) (r : Samp) (q : Nat) (h : Samp) (hh : headOf seg q r.ph = some h)
-    (he : h.m ≠ r.m) : windowPass seg orig r q = windowOne (passOf orig q) r.m := by
+theorem windowPass_other (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (q : Nat) (h : Samp) (hh : headOf seg q r.ph = some h)
+    (he : h.m ≠ r.m) : windowPass d seg orig r q = windowOne (passOf orig q) r.m := by
   simp [windowPass, hh, he]
 
+/-- Branch in flight: a value in flight is aligned by `windowOne`. -/
+theorem windowPass_in_flight (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (q : Nat) (hd : inFlight d r = true) :
+    windowPass d seg orig r q = windowOne (passOf orig q) r.m := by
+  unfold windowPass; split <;> simp [hd]
+
 /-- Branch no hold: with no next hold in pass `q`, the value is aligned by `windowOne`. -/
-theorem windowPass_no_head (seg orig : List Samp) (r : Samp) (q : Nat) (hh : headOf seg q r.ph = none) :
-    windowPass seg orig r q = windowOne (passOf orig q) r.m := by
+theorem windowPass_no_head (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (q : Nat) (hh : headOf seg q r.ph = none) :
+    windowPass d seg orig r q = windowOne (passOf orig q) r.m := by
   simp [windowPass, hh]
 
 /-- A hold keeps `windowOf`. -/
-theorem windowAt_hold (seg orig : List Samp) (r : Samp) : windowAt .hold seg orig r = windowOf orig r.m := by
+theorem windowAt_hold (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) : windowAt .hold d seg orig r = windowOf orig r.m := by
   simp [windowAt]
 
 /-- **The old window as a case.** When no pass takes the head branch, a push's window is `windowOf`. -/
-theorem windowAt_old (ph : Phase) (seg orig : List Samp) (r : Samp)
-    (h : ∀ q ∈ repsOf orig, windowPass seg orig r q = windowOne (passOf orig q) r.m) :
-    windowAt ph seg orig r = windowOf orig r.m := by
+theorem windowAt_old (ph : Phase) (d : List String → Option Nat) (seg orig : List Samp) (r : Samp)
+    (h : ∀ q ∈ repsOf orig, windowPass d seg orig r q = windowOne (passOf orig q) r.m) :
+    windowAt ph d seg orig r = windowOf orig r.m := by
   unfold windowAt windowOf
-  have hf : (repsOf orig).filterMap (windowPass seg orig r) =
+  have hf : (repsOf orig).filterMap (windowPass d seg orig r) =
       (repsOf orig).filterMap (fun q => windowOne (passOf orig q) r.m) := by
     generalize repsOf orig = qs at h ⊢
     induction qs with
@@ -1930,7 +1937,7 @@ theorem windowAt_old (ph : Phase) (seg orig : List Samp) (r : Samp)
   cases ph <;> simp [hf]
 
 /-- A window holds only samples of the phase or of the path. -/
-theorem windowAt_sub (ph : Phase) (seg orig : List Samp) (r x : Samp) (h : x ∈ (windowAt ph seg orig r).getD []) :
+theorem windowAt_sub (ph : Phase) (d : List String → Option Nat) (seg orig : List Samp) (r x : Samp) (h : x ∈ (windowAt ph d seg orig r).getD []) :
     x ∈ orig ∨ x ∈ seg := by
   unfold windowAt at h
   cases ph with
@@ -1960,8 +1967,8 @@ theorem windowAt_sub (ph : Phase) (seg orig : List Samp) (r x : Samp) (h : x ∈
         exact (List.mem_filter.mp this).1
 
 /-- A sample of a phase whose samples all have a morph value has a window, and is in it. -/
-theorem windowAt_self (ph : Phase) (seg orig : List Samp) (r : Samp) (hr : r ∈ orig) (hm : ∀ s ∈ orig, s.m.isSome) :
-    ∃ w, windowAt ph seg orig r = some w ∧ r ∈ w := by
+theorem windowAt_self (ph : Phase) (d : List String → Option Nat) (seg orig : List Samp) (r : Samp) (hr : r ∈ orig) (hm : ∀ s ∈ orig, s.m.isSome) :
+    ∃ w, windowAt ph d seg orig r = some w ∧ r ∈ w := by
   cases ph with
   | hold => rw [windowAt_hold]; exact windowOf_self orig r hr hm
   | push =>
@@ -1974,8 +1981,8 @@ theorem windowAt_self (ph : Phase) (seg orig : List Samp) (r : Samp) (hr : r ∈
       | none => simp [hw] at h1
       | some w => exact ⟨w, rfl, by simpa [hw] using h1⟩
     have hq : r.rep ∈ repsOf orig := by simp only [repsOf, List.mem_eraseDups, List.mem_map]; exact ⟨r, hr, rfl⟩
-    have hin : w ∈ (repsOf orig).filterMap (windowPass seg orig r) :=
-      List.mem_filterMap.mpr ⟨r.rep, hq, by rw [windowPass_sampled seg orig r r.rep hs, hw]⟩
+    have hin : w ∈ (repsOf orig).filterMap (windowPass d seg orig r) :=
+      List.mem_filterMap.mpr ⟨r.rep, hq, by rw [windowPass_sampled d seg orig r r.rep hs, hw]⟩
     unfold windowAt
     simp only [beq_self_eq_true, ↓reduceIte]
     split
@@ -1999,12 +2006,12 @@ theorem bucketVerdict_self (ph : Phase) (k : Kind) (d : List String → Option N
     simp only [List.mem_map] at hv
     obtain ⟨r, hr, rfl⟩ := hv
     have hro : r ∈ orig := by rw [← hfl] at hr; exact (List.mem_filter.mp hr).1
-    obtain ⟨w, hw, hrw⟩ := windowAt_self ph seg orig r hro hm
+    obtain ⟨w, hw, hrw⟩ := windowAt_self ph d seg orig r hro hm
     rw [hw]
     apply judgeUnit_self k d seg w r (ho r hro) hrw
     · intro x hx
-      have hx' : x ∈ (windowAt ph seg orig r).getD [] := by simp [hw, hx]
-      exact (windowAt_sub ph seg orig r x hx').elim (ho x) id
+      have hx' : x ∈ (windowAt ph d seg orig r).getD [] := by simp [hw, hx]
+      exact (windowAt_sub ph d seg orig r x hx').elim (ho x) id
     · intro x hx
       exact hf x hx r (ho r hro)
 
@@ -3279,6 +3286,17 @@ theorem byM_sampled_push_end :
       (0, .fail .differs) := by
   decide
 
+/-- `endPush` whose last sample, at 0, reads `v` 100 ms into its transition. -/
+def endPushIn (v : String) : List Samp := (endPush 140 "on").dropLast ++ [⟨some 0, some 100, [.str v], 0, [], 0, 0⟩]
+
+/-- A rewrite sample in flight at the end of a push keeps `windowOne`: reading `on` passes, reading `off` fails. -/
+theorem byM_in_flight_push_end :
+    (byM .push 0 .discrete (durFn bgDurOf) (endPush 140 "on" ++ endHold) (endPushIn "on" ++ endHold)).getD 0
+        (0, .skip .noSample) = (0, .pass) ∧
+    (byM .push 0 .discrete (durFn bgDurOf) (endPush 140 "on" ++ endHold) (endPushIn "off" ++ endHold)).getD 0
+        (0, .skip .noSample) = (0, .fail .differs) := by
+  decide
+
 /-- The golden cases of transitions in flight: the table, epochs, each branch of `judgeUnit`, the reversed curve, and the
 morph and step paths. -/
 def casesFlight : List Case :=
@@ -3331,15 +3349,6 @@ def casesFlight : List Case :=
   .phase "reversed curve in flight" .push 0 .geometry boxDur (boxRamp false []) (boxRamp true []),
   .phase "same curve in flight" .push 0 .geometry boxDur (boxRamp false []) (boxRamp false []),
   .phase "reversed morph, script driven" .push 0 .geometry boxDur (boxRamp false [driver]) (boxRamp true [driver]),
-  .unit "envelope, another pass's start" .colour bgDurOf bgSeg2 none (sc 0 0 [] none 100 1 [.num [5000, 0, 0, 90000]]),
-  .unit "envelope, pure red" .colour bgDurOf bgSeg2 none (sc 0 0 [] none 300 1 [.num [255000, 0, 0, 50000]]),
-  .unit "envelope, alpha beyond every pass" .colour bgDurOf bgSeg2 none
-    (sc 0 0 [] none 300 1 [.num [5000, 0, 0, 200000]]),
-  .phase "reversed curve in flight, two passes" .push 0 .geometry boxDur (boxRamp2 false) (boxRamp2 true),
-  .phase "settled push end, hold head" .push 0 .discrete none (endPush 140 "on" ++ endHold) (endPush 0 "off" ++ endHold),
-  .phase "settled push end, stuck class" .push 0 .discrete none (endPush 140 "on" ++ endHold)
-    (endPush 0 "on" ++ endHold),
-  .phase "push sampled its end" .push 0 .discrete none (endPush 0 "on" ++ endHold) (endPush 0 "off" ++ endHold),
   .path "steps in flight" .colour bgDurOf
     [("a5", st 2222 [.num [255000, 255000, 255000, 122400]]), ("a6", st 481 [.num [1000, 0, 0, 33340]]),
       ("a7", st 1134 [.num [255000, 255000, 255000, 26000]])]
@@ -3351,8 +3360,21 @@ def casesFlight : List Case :=
   .path "step settled differs" .unit none [("a1", st 5000 [.num [255000]]), ("a2", st 5000 [.num [9000]])]
     [("a1", st 5000 [.num [255000]]), ("a2", st 5000 [.num [0]])]]
 
+/-- The golden cases of the envelope over passes and the settled end of a push. -/
+def casesClose : List Case := [
+  .unit "envelope, another pass's start" .colour bgDurOf bgSeg2 none (sc 0 0 [] none 100 1 [.num [5000, 0, 0, 90000]]),
+  .unit "envelope, pure red" .colour bgDurOf bgSeg2 none (sc 0 0 [] none 300 1 [.num [255000, 0, 0, 50000]]),
+  .unit "envelope, alpha beyond every pass" .colour bgDurOf bgSeg2 none
+    (sc 0 0 [] none 300 1 [.num [5000, 0, 0, 200000]]),
+  .phase "reversed curve in flight, two passes" .push 0 .geometry boxDur (boxRamp2 false) (boxRamp2 true),
+  .phase "settled push end, hold head" .push 0 .discrete none (endPush 140 "on" ++ endHold) (endPush 0 "off" ++ endHold),
+  .phase "settled push end, stuck class" .push 0 .discrete none (endPush 140 "on" ++ endHold)
+    (endPush 0 "on" ++ endHold),
+  .phase "push sampled its end" .push 0 .discrete none (endPush 0 "on" ++ endHold) (endPush 0 "off" ++ endHold),
+  .phase "push end in flight" .push 0 .discrete bgDurOf (endPush 140 "on" ++ endHold) (endPushIn "off" ++ endHold)]
+
 /-- The golden cases: every branch above, per kind where the kind matters. -/
-def cases : List Case := casesJudge ++ casesRest ++ casesPlan ++ casesFlight
+def cases : List Case := casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose
 
 /-- A widths pick as JSON. -/
 def Widths.json : Widths → Json

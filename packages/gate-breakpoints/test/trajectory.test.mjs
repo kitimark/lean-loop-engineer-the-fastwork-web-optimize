@@ -176,14 +176,16 @@ test('envelope: with one pass the judge is the own-pass rule (Lean judgeUnit_agr
   for (const g of one) assert.equal(judgeUnit(g.kind, durFn(g.dur), g.seg, g.win, g.r), judgeOwn(g.kind, durFn(g.dur), g.seg, g.win, g.r), g.name);
 });
 
-test('windowAt: a hold keeps windowOf; a push value the pass sampled keeps windowOne (Lean windowAt_hold, windowPass_sampled)', () => {
-  const s = (rep, ph, m, v) => ({ m, since: null, els: [v], rep, cls: [], ph, ord: 0 });
+test('windowAt: a hold keeps windowOf, a push keeps windowOne for a sampled value or a sample in flight (Lean windowAt_hold, windowPass_sampled, windowPass_in_flight)', () => {
+  const s = (rep, ph, m, v, since = null) => ({ m, since, els: [v], rep, cls: [], ph, ord: 0 });
   const seg = [s(0, 0, 1000, 'on'), s(0, 0, 0, 'on'), s(0, 1, 0, 'off')];
   const orig = seg.filter((o) => o.ph === 0);
-  assert.deepEqual(windowAt('hold', seg, orig, s(0, 0, 0, 'off')), orig);
-  assert.deepEqual(windowAt('push', seg, orig, s(0, 0, 0, 'off')), orig);
-  assert.deepEqual(windowAt('push', seg, orig.slice(0, 1), s(0, 0, 0, 'off')), [seg[2]]);
-  assert.equal(windowAt('push', seg, [], s(0, 0, 0, 'off')), null);
+  const rest = () => null, flight = () => 700;
+  assert.deepEqual(windowAt('hold', rest, seg, orig, s(0, 0, 0, 'off')), orig);
+  assert.deepEqual(windowAt('push', rest, seg, orig, s(0, 0, 0, 'off')), orig);
+  assert.deepEqual(windowAt('push', rest, seg, orig.slice(0, 1), s(0, 0, 0, 'off')), [seg[2]]);
+  assert.deepEqual(windowAt('push', flight, seg, orig.slice(0, 1), s(0, 0, 0, 'off', 100)), [seg[0]]);
+  assert.equal(windowAt('push', rest, seg, [], s(0, 0, 0, 'off')), null);
 });
 
 // ---- the legs of a dispatch (src/trajectory/plan.mjs, the twin of Lean `plan`) ----

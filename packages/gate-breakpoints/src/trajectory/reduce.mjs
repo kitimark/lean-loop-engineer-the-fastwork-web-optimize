@@ -241,17 +241,17 @@ export const needsSample = (b) => b >= 1 && b <= 9;
 export const headOf = (seg, q, p) => seg.find((o) => (o.rep ?? 0) === q && o.ph === p + 1) ?? null;
 
 /** Lean `windowPass`. */
-export function windowPass(seg, orig, r, q) {
+export function windowPass(d, seg, orig, r, q) {
   const p = orig.filter((s) => (s.rep ?? 0) === q);
   const h = headOf(seg, q, r.ph);
   const hasM = r.m !== null && r.m !== undefined;
-  return h !== null && hasM && h.m === r.m && !p.some((s) => s.m === r.m) ? [h] : windowOne(p, r.m);
+  return h !== null && hasM && !inFlight(d, r) && h.m === r.m && !p.some((s) => s.m === r.m) ? [h] : windowOne(p, r.m);
 }
 
 /** Lean `windowAt`. `ph` is 'push' or 'hold'. */
-export function windowAt(ph, seg, orig, r) {
+export function windowAt(ph, d, seg, orig, r) {
   if (ph !== 'push') return windowOf(orig, r.m);
-  const ws = repsOf(orig).map((q) => windowPass(seg, orig, r, q)).filter((w) => w !== null);
+  const ws = repsOf(orig).map((q) => windowPass(d, seg, orig, r, q)).filter((w) => w !== null);
   return ws.length === 0 ? null : ws.flat();
 }
 
@@ -259,7 +259,7 @@ export function windowAt(ph, seg, orig, r) {
 export function bucketVerdict(ph, kind, d, seg, orig, rew, b) {
   const rs = rew.filter((r) => bucket(r.m) === b);
   if (rs.length === 0) return ph === 'push' && needsSample(b) ? fail('coverage') : skip('noSample');
-  return combine(rs.map((r) => judgeUnit(kind, d, seg, windowAt(ph, seg, orig, r), r)));
+  return combine(rs.map((r) => judgeUnit(kind, d, seg, windowAt(ph, d, seg, orig, r), r)));
 }
 
 /** Lean `byM`: twelve verdicts, one per bucket, of phase `p` of the two arms' whole paths. */
