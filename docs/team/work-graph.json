@@ -11453,7 +11453,8 @@
     "lean/Fw/Engine/WebKitImage.lean",
     "research/notes/2026/10-2*-image-audit.md",
     "docs/team/handoffs/image-audit.md"
-   ]
+   ],
+   "evidence": "39bc979"
   },
   {
    "devices": [
