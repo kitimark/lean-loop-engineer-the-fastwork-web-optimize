@@ -114,7 +114,7 @@ differs mid-transition.
 
 Run 39473950464 (`trajectory-probe.yml` job `frames`, ci/earn-transition-retarget at c6c7cbcf, ubuntu-24.04-arm) made
 one PNG strip for each engine, width (390, 1280) and push. The strips are renders of the page, so they stay out of git.
-They exist only in the run's artifacts `frames-chromium` and `frames-playwright-webkit`, kept until 2026-11-20, at
+They exist only in the run's artifacts `frames-chromium` and `frames-playwright-webkit`, kept until 2026-11-19, at
 path `strips/<engine>-<width>-<push>.png`, and in the lead's private review page. `results/earn-look-review/index.json`
 names each strip by artifact and path, with run, expiry, engine version, crop, shot counts, the arm identity check
 (all `ok`) and `usable`.

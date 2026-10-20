@@ -12,7 +12,7 @@ Verified:
   `lookCandidates_not_mem`); `Gen.parsePart` refuses an optimized variant of class L; `Gen.lookDecisions` holds the
   user decision. Golden `packages/contracts/golden/preset/look-change.candidates.jsonl`, TS check `look-change.test.ts`.
 - Review strips are not in git. They are CI artifacts of run 39473950464 (`frames-chromium`,
-  `frames-playwright-webkit`, path `strips/<engine>-<width>-<push>.png`, expire 2026-11-20); the lead's private review
+  `frames-playwright-webkit`, path `strips/<engine>-<width>-<push>.png`, expire 2026-11-19); the lead's private review
   page holds a copy. `results/earn-look-review/index.json` names each strip by artifact and path, with shot counts
   and `usable` = min(shots.faithful, shots.flag) >= 10: all Chromium strips, and WebKit only at 390 close.
 - Ledger row n 39: status `look-change`, webkit `unknown`, `visual` sums named as sums, `next` and
