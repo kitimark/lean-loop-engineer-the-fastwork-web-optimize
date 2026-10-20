@@ -164,7 +164,7 @@ jobs:
     concurrency:
       group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:collect-macos:${{ strategy.job-index }}
     runs-on: xcode-27
-    timeout-minutes: 40
+    timeout-minutes: 26
     strategy:
       max-parallel: 1
       matrix:

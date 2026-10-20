@@ -143,7 +143,7 @@ async function censusOnce(browser, engine, port) {
 const browser =
   engineName === 'webkit'
     ? await webkit.launch()
-    : await puppeteer.launch({ executablePath: chromePath, headless: true });
+    : await puppeteer.launch({ executablePath: chromePath, headless: true, pipe: true });
 const report = { browser: engineName, chrome: engineName === 'webkit' ? `WebKit ${browser.version()}` : await browser.version(), runs, results: [] };
 let exit = 0;
 try {

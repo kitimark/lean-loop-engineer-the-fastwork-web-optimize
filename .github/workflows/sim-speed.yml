@@ -112,7 +112,7 @@ jobs:
     concurrency:
       group: ci-lane:sim-speed:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe:${{ strategy.job-index }}
     runs-on: xcode-27
-    timeout-minutes: 30
+    timeout-minutes: 17
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -184,7 +184,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version-file: .node-version
 
       - name: ios_webkit_debug_proxy
         run: |

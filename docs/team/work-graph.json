@@ -6102,7 +6102,7 @@
     "local"
    ],
    "id": "waapi-threshold-attr",
-   "title": "Finding (morph-tween-inherit r1): on the waapi arm data-fw-morph is written only at tween start and end, so the panel's discrete attributes may flip at the tween end instead of the threshold frame (visual divergence vs waapi_vis VisSame); Lean model of the attribute timing, then fix or unlink waapi from Λ",
+   "title": "Fix bug B (trajectory-probe, MEASURED: 205 new nav+logo units in Chromium, 0 in A/A) for morph.tween:waapi and waapi-scoped: the waapi driver writes data-fw-morph only at push start and finish (waapi.driver.ts:110,140), so nav is-morphing/is-expanded and the panel's discrete attributes stay stale for the 680 ms morph. Lean first: model attribute write timing in MorphTweenOpt (waapi_vis assumed the scene is a function of the View; restate it over the written attributes, prove the fixed driver writes at each threshold crossing frame); fix the driver; prove on CI with the trajectory probe on both engines, 2 reps each (Chromium push 205 -> 0 new units; macOS WebKit morph path), A/A as noise floor. Re-admission to v2-proved goes through trajectory-admission, not here",
    "stream": "proofs",
    "milestone": "M5",
    "deps": [
@@ -6112,9 +6112,9 @@
    "writes": [
     "lean/Fw/Parts/MorphTweenOpt.lean",
     "apps/site/src/parts/morph.tween/**",
-    "lean/Fw/Preset/Gen.lean",
-    "packages/contracts/golden/preset/**",
-    "apps/site/src/registry/presets/v2-proved.json",
+    "packages/contracts/golden/parts/morph-tween-waapi*.jsonl",
+    "packages/contracts/golden/parts/morph.tween.jsonl",
+    "research/findings/ledger.json",
     "docs/team/handoffs/waapi-threshold-attr.md"
    ]
   },
@@ -10894,7 +10894,8 @@
     "lean/scripts/ReapGolden.lean",
     "lean/scripts/check.sh",
     "packages/contracts/golden/ops/lspreap.jsonl"
-   ]
+   ],
+   "evidence": "8ae9f99"
   },
   {
    "devices": [
@@ -10979,7 +10980,8 @@
     ".claude/agents/**",
     "docs/team/serena.md",
     "docs/team/handoffs/serena-trim.md"
-   ]
+   ],
+   "evidence": "49b0584"
   },
   {
    "devices": [
@@ -11027,7 +11029,8 @@
     ".github/workflows/sim-speed.yml",
     ".github/workflows/gate-gaps.yml",
     "docs/team/handoffs/pool-caps.md"
-   ]
+   ],
+   "evidence": "a75d81d"
   },
   {
    "devices": [
@@ -11106,8 +11109,10 @@
     "lean/Fw/Console/ReconcileSched.lean",
     "lean/Fw/Console/JournalFold.lean",
     "packages/contracts/golden/console/**",
-    "docs/team/handoffs/drain-wake-flake.md"
-   ]
+    "docs/team/handoffs/drain-wake-flake.md",
+    "apps/console-api/src/watch.ts"
+   ],
+   "evidence": "05591d8"
   },
   {
    "devices": [
@@ -11138,7 +11143,8 @@
    "stream": "ops",
    "deps": [
     "lake-build-slots",
-    "orphan-guard"
+    "orphan-guard",
+    "land-queue-unreachable"
    ],
    "title": "User 2026-10-20: move lean/scripts/check.sh from the land's local tier to the land lane as its own CI leg (Lean LandTier remoteIds and LandLegs gain it; theorems updated: gates_local becomes install and reads-scan only, shards cover, no check dropped or run twice); install and reads-scan stay on the Mac; the local fallback (CI unavailable) still runs everything here. Measure: land wall time and Mac CPU per land before/after on real lands (spans local tier, remote lane), lane wall time must not grow (the check.sh leg runs in parallel with suites-a/b)",
    "writes": [
@@ -11156,6 +11162,279 @@
     "apps/runner/test/land*.ts",
     "docs/team/tools/land.md",
     "docs/team/handoffs/land-check-remote.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-queue-unreachable",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "Land queue ends entries VERDICT unknown with 'REFUSED: fetch failed' when console-api cannot be reached (3x on 2026-10-20: trajectory-probe+orphan-guard, console-idle-cpu, pool-caps; each right after the queue rebuilt fwcore for the previous land, or across a console restart; console.log shows fwcore call timeouts under load). Find the mechanism (which request fails, during which step: fwcore rebuild, console fwcore restart, restart window) with timestamps from land logs and console.log; then in Lean Fw.Console.LandQueue make console-unreachable a retryable kind with a bounded health wait (theorem: bounded attempts, never a terminal unknown for an unreachable console while the console comes back within the bound); the queue, not caller scripts, restarts or waits for the console after a rebuild; golden + TS twin",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/test/land-queue*.ts",
+    "lean/Fw/Console/LandQueue.lean",
+    "lean/scripts/LandQueueGolden.lean",
+    "packages/contracts/golden/console/land-queue.jsonl",
+    "docs/team/tools/land-queue.md",
+    "docs/team/handoffs/land-queue-unreachable.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "exit-scoped-inline",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "title": "Fix bug A (trajectory-probe, MEASURED WebKit only: Linux 228, macos-26 187 new units in hero copy/cta/countdown/deck.card) for hero.exit:scoped: WebKit keeps a stale style on the hero readers of the registered non-inherited --exit-opacity (stale style cache; find the WebKit mechanism in source at the pin, cite file:line). Lean first in HeroExitOpt: write the exit values inline on each reader (or the cited invalidation-safe form), prove VisSame and the work bound still hold; fix scope.ts/driver.ts; prove on CI with the trajectory probe on macOS WebKit and Chromium, 2 reps each (187 -> 0 new units), A/A as noise floor; record in the findings ledger",
+   "writes": [
+    "lean/Fw/Parts/HeroExitOpt.lean",
+    "lean/scripts/ExitScopedGolden.lean",
+    "apps/site/src/parts/hero.exit/**",
+    "packages/contracts/golden/parts/hero.exit.scoped.json",
+    "research/notes/2026/10-2*-exit-scoped-inline.md",
+    "docs/team/handoffs/exit-scoped-inline.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "faithful-hero-baseline",
+   "owner": "measure-engineer",
+   "stream": "parts",
+   "deps": [],
+   "title": "Fix bug C (trajectory-probe): the faithful rewrite is red against the original in the macos-26 hero path (114 units in run d, 54 in b and c) and in Chromium (18 units, baseline both), plus the is-on-dark port bug the user saw on a device. Name each divergence (element, frame range, engine) from the probe artifacts, find the port defect in apps/site against the snapshot (restate CSS values, never copy), fix it, and show faithful vs original 0 new units on both engines (2 reps) with A/A noise floor; Lean only for any decision logic touched",
+   "writes": [
+    "apps/site/src/parts/hero/**",
+    "apps/site/src/parts/hero.cue/**",
+    "apps/site/src/parts/hero.deck/**",
+    "apps/site/src/parts/nav/**",
+    "research/notes/2026/10-2*-faithful-hero-baseline.md",
+    "docs/team/handoffs/faithful-hero-baseline.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-admission",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [],
+   "title": "Lesson from the user's device bugs: trajectory-probe is not a gate stage and no preset reads it, so morph.tween:waapi entered v2-proved while visibly broken. Lean Fw.Preset.Gen: a flag is a preset member only when its trajectory verdict is pass on both engines (Fw.Gate.Trajectory verdict over stored runs, per-rep windows), at the flag's paths; theorem member_needs_trajectory; regenerate v2-proved and its decisions golden (the members without a stored trajectory pass become 'pending: trajectory', listed); fw run --trajectory dispatches the missing cells for the current members (free runners, budget the macOS cells)",
+   "writes": [
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Preset/V2Proved.lean",
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/scripts/TrajectoryGolden.lean",
+    "packages/contracts/golden/preset/**",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "packages/gate-breakpoints/src/trajectory/**",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-admission.md"
+   ],
+   "evidence": "780063e"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-probe-speed",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "trajectory-probe follow-ups (handoff open items 1, 3, 4): parallel widths in the probe (matrix legs), the macOS hero+morph paths on the Apple job, reps 5 against one-empty-bucket A/A reds; then a Lean cap for trajectory-probe.yml probe-apple from the measured p90 of successes (Fw.Ci.Pool.Caps rows, remove it from excluded; ci-paths --check green). Measure wall time per cell before/after on CI",
+   "writes": [
+    ".github/workflows/trajectory-probe.yml",
+    "packages/gate-breakpoints/src/trajectory/**",
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "packages/contracts/golden/ci/pool-caps.jsonl",
+    "scripts/ci-paths.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-probe-speed.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cd-guard",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "CLOSED as a finding (2026-10-20): the premise 'the harness keeps the cwd' was a setting; CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR=1 (commit e9ee2a58, MEASURED: the next Bash call is back at the project root). Rounds 1-2 (a Lean shell-text scanner) refused twice; branch worktree-wf_e6df42ab-006-1 parked, not landed. Original: Mistake class (6 times on 2026-10-20, notes did not stop it): the lead's Bash call `cd <main>/.claude/worktrees/<wt> && ...` moves the session cwd into a worktree. Extend Fw.Ops.Wait (the wait-guard decision, PreToolUse Bash, apps/runner/hooks/wait-guard.mjs) with a cwd rule: refuse a command whose top level (outside a subshell) changes directory into .claude/worktrees/ when the hook payload's cwd is the main checkout; allowed forms (subshell, git -C) pass; theorems + golden rows (ops.wait.jsonl); this rule enforces (deny with the reason 'use (cd $W && ...) or git -C') while the other wait-guard rules keep their mode. No settings.json change",
+   "writes": [
+    "lean/Fw/Ops/Wait.lean",
+    "packages/contracts/golden/ops/ops.wait.jsonl",
+    "apps/runner/hooks/wait-guard.mjs",
+    "apps/runner/test/wait-guard*.ts",
+    "docs/team/tools/wait-guard.md",
+    "docs/team/handoffs/cd-guard.md",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "apps/runner/hooks/wait-guard.d.mts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "node-pin",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [],
+   "title": "Pin Node 24.22.0 on CI (drain-wake-flake MEASURED: Node 24.21.0 on Linux swallows the stat error of a recursive fs.watch on a missing path, recursive_watch.js:236-241@v24.21.0): one canonical .node-version read by actions/setup-node node-version-file in the setup-pnpm action and every workflow, drift check in ci-paths, trigger rows",
+   "writes": [
+    ".github/actions/setup-pnpm/action.yml",
+    ".github/workflows/*.yml",
+    ".node-version",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ops/CheckMap.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "docs/team/handoffs/node-pin.md"
+   ],
+   "evidence": "3275bc7"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-land-branch",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "fw watch timing.slow false alarms: Fw.Obs.Timing samples every run of the land workflow, including a builder's repro branch (ci/land-drain-wake-flake looped full suites), so real land legs (suites-b 6 min, webkit 7-8 min) were flagged slow. Lean: the land-lane timing series keeps only runs whose branch has the land shape ci/land-<task>-<sha7> (predicate + theorem + golden rows); other runs of the workflow go to their own series",
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/**",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/watch*.ts",
+    "docs/team/handoffs/timing-land-branch.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "readsonly-scan-disk",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "land.readsOnly static check (apps/runner/test/land-inputs.test.ts:131) skips a referenced path unless it exists on disk, so it passes on CI (no build outputs) and fails on the Mac: packages/measure-webkit scripts site-lane.sh/stamped-lane.sh read apps/site/dist/aot, gate-breakpoints 1 path, all undeclared. Decide referenced paths from the text (tracked files plus declared build-output globs from Lean), not existsSync; declare the build-output reads; the check gives the same answer on CI and locally",
+   "writes": [
+    "apps/runner/test/land-inputs.test.ts",
+    "apps/runner/src/checks.ts",
+    "lean/Fw/Console/LandInputs.lean",
+    "packages/contracts/golden/console/land-inputs*.jsonl",
+    "docs/team/handoffs/readsonly-scan-disk.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lean-mem-profile",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [],
+   "title": "User 2026-10-20 saw a 2.2 GB lean process (a module compile during a build). Measure peak RSS per module on CI: one full lake build with a LEAN wrapper that records /usr/bin/time maxrss per module (and wall), ranked table in a note; then reduce the top modules (split heavy decide/#guard/data modules, move big tables to generated data read at runtime, cheaper proofs) with before/after peak RSS and build time per module; total build peak memory under the LakeSlot bound stated in Lean",
+   "writes": [
+    "lean/Fw/**/*.lean",
+    "lean/scripts/lean-maxrss.sh",
+    ".github/workflows/lean.yml",
+    "research/notes/2026/10-2*-lean-mem-profile.md",
+    "docs/team/handoffs/lean-mem-profile.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-lag-source",
+   "owner": "researcher",
+   "stream": "research",
+   "deps": [],
+   "title": "User 2026-10-20: visible lag in Safari (WebKit) on Mac and iPhone in two regions: hero cards moving out (hero.exit drives opacity, translate and blur(scatter*18px) on 16 readers incl. hero.orbit/hero.deck cards, per frame from a JS-written custom property) and the end of page (morph.tween layout of top/width/height, morph.panel animated backdrop-filter glass, morph.mount +9 drawing layers, morph.countdown will-change faces, morph.columns 1282 px PNGs in ~138 px columns). Read WebKit at the pin (862f17d) and the WebKit/Safari feature posts: for each property and driver (JS var per frame vs CSS/WAAPI animation vs scroll timeline) the path through style, layout, paint, compositing (GraphicsLayerCA, PlatformCAFilters, CABackdropLayer, RemoteLayerTree commit on iOS and macOS), when a filter or backdrop-filter is done by CoreAnimation vs repainted in software, what invalidates backing stores, which animations WebKit runs threaded. Output: a cited table per region (stage, cost driver, CONFIRMED/INFERRED), the predicted dominant cost, candidate changes with their predicted effect, and the WebKit cost terms Fw.Engine.WebKit lacks today",
+   "writes": [
+    "research/notes/2026/10-2*-webkit-lag-source.md",
+    "docs/team/handoffs/webkit-lag-source.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-lag-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "webkit-lag-source",
+    "webkit-sim-failfast",
+    "image-audit"
+   ],
+   "title": "Measure the two Safari lag regions (hero cards moving out; end of page) on the WebKit Simulator lane on CI: per scroll step style/layout/paint/composite counts, paint area, layer-tree commits and the layers with filter/backdrop-filter and their painted area, original vs faithful; localize the top steps to parts through the footprint; add the counters webkit-lag-source names as missing, reduced in Lean (Fw.Measure.WebKit zones) with goldens; output a ranked attribution per region that the candidate fixes are judged against",
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "packages/measure-webkit/test/lag*.test.mjs",
+    "lean/Fw/Measure/WebKitLag.lean",
+    "packages/contracts/golden/measure/webkit-lag*.jsonl",
+    "research/notes/2026/10-2*-webkit-lag-probe.md",
+    "docs/team/handoffs/webkit-lag-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "image-audit",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User 2026-10-20 suspects unoptimized images in the Safari lag (hero cards moving out, end of page). Only morph.columns was judged (ledger row 14, model-only no-win; its 'WebKit decodes at drawn size' is INFERRED). (1) Audit on CI (Chromium and WebKit lanes): every image in the hero and end-of-page regions at each breakpoint and DPR: natural vs drawn size, format, bytes, decoded memory, ranked by waste; (2) WebKit source at the pin: decode policy (sync/async, iOS subsampling), whether a scaled draw is cached or re-sampled on each repaint, filter/blur interaction, decoded-image memory; CONFIRMED/INFERRED per claim; (3) build an images-at-drawn-size arm (flag or build variant, look identical within the PL tolerance) for webkit-lag-probe to A/B; Lean: an image cost term (natural pixels x repaints) proposal for Fw.Engine.WebKit",
+   "writes": [
+    "packages/measure-webkit/src/images/**",
+    "packages/gate-breakpoints/src/images/**",
+    "apps/site/src/flags/images/**",
+    "apps/site/public/images-drawn/**",
+    "lean/Fw/Engine/WebKitImage.lean",
+    "research/notes/2026/10-2*-image-audit.md",
+    "docs/team/handoffs/image-audit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "node-pin-local",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [
+    "node-pin"
+   ],
+   "title": "Pin Node 24.22.0 on this Mac too (user 2026-10-20): .nvmrc equal to .node-version (check whether the installed nvm reads .node-version; cite), pnpm useNodeVersion if the pinned pnpm supports it (cite docs) so pnpm runs scripts on the pinned Node, engines.node exact with engine-strict, a runtime guard in the fw entry and console-api main that refuses to start when process.version differs from .node-version; review follow-ups of node-pin: unpinned `node` in guard jobs and lean.yml (no setup-node), quoted/flow-map setup-node forms, a workflow without a Lean row, the drift rule moved into Lean (Fw.Ci.Trigger) with golden vectors",
+   "writes": [
+    ".nvmrc",
+    ".npmrc",
+    "pnpm-workspace.yaml",
+    "package.json",
+    "apps/runner/src/fw.ts",
+    "apps/console-api/src/main.ts",
+    ".github/workflows/*.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "docs/team/handoffs/node-pin-local.md"
    ]
   }
  ],

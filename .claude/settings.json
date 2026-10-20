@@ -8,27 +8,148 @@
     "BASH_MAX_OUTPUT_LENGTH": "16000",
     "CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS": "8000",
     "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION": "1000",
-    "CLAUDE_CODE_WEBFETCH_DEADLINE_MS": "600000"
+    "CLAUDE_CODE_WEBFETCH_DEADLINE_MS": "600000",
+    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
   },
   "teammateMode": "in-process",
   "worktree": {
     "baseRef": "head"
   },
   "hooks": {
-    "SessionStart": [{ "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs" }] }],
-    "SubagentStart": [{ "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs" }] }],
-    "SubagentStop": [{ "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs" }] }],
-    "TeammateIdle": [{ "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs" }] }],
-    "PreCompact": [{ "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs" }] }],
-    "PostCompact": [{ "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs" }] }],
-    "StopFailure": [{ "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs" }] }],
-    "Notification": [{ "matcher": "permission_prompt|agent_needs_input", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs" }] }],
-    "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "async": true, "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs" }] }],
-    "PostToolUseFailure": [{ "matcher": "*", "hooks": [{ "type": "command", "async": true, "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs" }] }],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs"
+          }
+        ]
+      }
+    ],
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt|agent_needs_input",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
-      { "matcher": "Bash", "hooks": [{ "type": "command", "if": "Bash(pnpm fw *)", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/cap.mjs" }] },
-      { "matcher": "Agent", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/spawn-guard.mjs" }] },
-      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/wait-guard.mjs" }] }
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(pnpm fw *)",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/cap.mjs"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/spawn-guard.mjs"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/wait-guard.mjs"
+          }
+        ]
+      }
     ]
   },
   "permissions": {
@@ -71,16 +192,14 @@
       "mcp__serena__find_referencing_symbols",
       "mcp__serena__get_symbols_overview",
       "mcp__serena__find_declaration",
-      "mcp__serena-lean__find_symbol",
-      "mcp__serena-lean__find_referencing_symbols",
-      "mcp__serena-lean__get_symbols_overview",
-      "mcp__serena-lean__find_declaration",
-      "mcp__serena-lean__get_diagnostics_for_file",
       "mcp__lean-lsp__lean_goal",
       "mcp__lean-lsp__lean_term_goal",
       "mcp__lean-lsp__lean_diagnostic_messages",
       "mcp__lean-lsp__lean_hover_info",
-      "mcp__lean-lsp__lean_local_search"
+      "mcp__lean-lsp__lean_local_search",
+      "mcp__lean-lsp__lean_declaration_file",
+      "mcp__lean-lsp__lean_references",
+      "mcp__lean-lsp__lean_file_outline"
     ],
     "ask": [
       "Bash(git remote add *)",

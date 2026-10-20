@@ -14,20 +14,6 @@
         "tools"
       ]
     },
-    "serena-lean": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "serena-agent==2.0.0",
-        "serena",
-        "start-mcp-server",
-        "--context=claude-code",
-        "--project",
-        "lean",
-        "--agent-interface",
-        "tools"
-      ]
-    },
     "lean-lsp": {
       "command": "uvx",
       "args": [
