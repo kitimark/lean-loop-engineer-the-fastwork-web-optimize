@@ -44,9 +44,10 @@ describe("the browser suite runs in the land lane only when the e2e check is sel
   it("a change outside the read set does not: browser false", () => {
     expect(planFor(root, ["apps/console-web/src/main.tsx"], core).browser).toBe(false);
   });
-  it("the workflow runs both engines behind the printed line", () => {
+  it("the workflow runs both engines, one leg each, behind the printed line", () => {
     const y = readFileSync(join(root, ".github/workflows/land.yml"), "utf8");
-    expect(y).toContain("LANE browser=");
-    for (const e of ["chromium", "playwright-webkit"]) expect(y).toContain(`--engine ${e}`);
+    expect(y).toContain("engine=");
+    expect(y).toContain("--engine ${{ matrix.leg }}");
+    expect(y).toMatch(/leg: \[[^\]]*chromium[^\]]*playwright-webkit/);
   });
 });

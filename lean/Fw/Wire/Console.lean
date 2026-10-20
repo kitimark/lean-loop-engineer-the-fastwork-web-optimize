@@ -11,6 +11,7 @@ import Fw.Console.PreviewArm
 import Fw.Console.PreviewCache
 import Fw.Console.Builds
 import Fw.Console.Daemon
+import Fw.Console.LandLegs
 import Fw.Plan.Trailer
 import Fw.Plan.Lint
 /-!
@@ -47,6 +48,8 @@ imports it, so it decodes the card fields it needs itself).
 | `console.daemon` | `kind`: `start` (`recorded`? pid in api.json, `answered`? pid the health request reported, `alive`? whether the recorded pid exists), `stop` (same), `restart` (same), `rotate` (`size`, `limit`? default 5 MiB) | start: `allow`, `verified` (pid or null), `reason` (`ok`/`running`/`unverifiedAlive`); stop: `target` (the only pid to signal, or null), `reason` (`ok`/`notRunning`); restart: `steps` [{step: `stop`+`pid` / `start`}]; rotate: `rotate`, `limit`, `warn` (size above 50 MiB), `warnLimit` (`Fw.Console.Daemon.startAllowed`, `stopTarget`, `restartPlan`, `rotate`, `logWarns`) |
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
 | `console.landTier` | `ids` [check ids] | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept), `browser` (`browserRuns`: the selection holds the e2e-preview check) |
+| `console.landLeg` | `leg` (a land leg name), `ids` [selected check ids] | `ids` [the remote checks that leg runs, `Fw.Console.LandLegs.pickFor`], `engine` (`engineRuns`) |
+| `console.landLegs` | `results` [bool, one per leg] | `ok` (`Fw.Console.LandLegs.legsOk`: every leg passed, at least one leg) |
 | `console.landLane` | `exitOk`, `coreUser`, `skipped` (skipped plus todo tests the summary reports; `null` when no summary was recognised) | `verdict` (`pass`/`fail`/`skipped`/`unknown`), `ok` (`Fw.Console.LandTier.laneVerdict`) |
 | `console.landRemote` | `localOk`, `needed`, `allow` [`github`/`circleci`, preference order], `want` {sha, laneId, laneDigest}, `waitsLeft`, `runs` [{provider, sha, laneId, laneDigest, state (`queued`/`running`/`pass`/`fail`/`cancelled`/`timeout`/`unavailable`)}] | `kind` (`accept`/`refuse`/`wait`/`try`/`local`), `reason` (the word on the VERDICT line), `ok`, `provider` (the one to try, else null) (`Fw.Console.LandRemote.verdict`) |
 | `console.landLaneState` | `exit` (`fw ci wait` exit code), `timedOut`? (its output said `timed out after`), `status`? and `conclusion`? (the run's own, from `gh run view`; empty when no view) | `state` (`Fw.Console.LandRemote.laneState`: a completed run with conclusion failure is `fail` whatever the exit; else the waiter's outcome) |
@@ -221,6 +224,22 @@ def opLandTier (req : Json) : Except String Reply := do
   let ids ← strsD req "ids"
   let js (l : List String) : Json := .arr (l.toArray.map Json.str)
   pure [("local", js (pick .onMac ids)), ("remote", js (pick .onCi ids)), ("browser", .bool (browserRuns ids))]
+
+open Fw.Console.LandLegs in
+/-- `console.landLeg`: the remote checks one land leg runs and whether its browser engine runs (`Fw.Console.LandLegs`). -/
+def opLandLeg (req : Json) : Except String Reply := do
+  let name ← asStr "leg" (← field req "leg")
+  let ids ← strsD req "ids"
+  match Leg.ofName? name with
+  | none => throw s!"field leg: unknown land leg {name}"
+  | some l =>
+    pure [("ids", .arr ((pickFor l (Fw.Console.LandTier.pick .onCi ids)).toArray.map Json.str)), ("engine", .bool (engineRuns l ids))]
+
+open Fw.Console.LandLegs in
+/-- `console.landLegs`: the verdict over the results of all land legs (`Fw.Console.LandLegs.legsOk`). -/
+def opLandLegs (req : Json) : Except String Reply := do
+  let rs ← (← arrD req "results").mapM (asBool "results")
+  pure [("ok", .bool (legsOk rs))]
 
 open Fw.Console.LandTier in
 /-- `console.landLane`: the lane verdict of one check (`Fw.Console.LandTier.laneVerdict`). -/
@@ -630,7 +649,7 @@ def opDaemon (req : Json) : Except String Reply := do
 
 /-- The ops of this module. -/
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
-  "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLane", "console.landRemote", "console.landLaneState", "console.landDigest", "plan.trailers", "plan.lint",
+  "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLeg", "console.landLegs", "console.landLane", "console.landRemote", "console.landLaneState", "console.landDigest", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
   "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.previewArm", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.daemon"]
 
@@ -648,6 +667,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.landPool" => some (opLandPool req)
   | "console.landRetry" => some (opLandRetry req)
   | "console.landTier" => some (opLandTier req)
+  | "console.landLeg" => some (opLandLeg req)
+  | "console.landLegs" => some (opLandLegs req)
   | "console.landLane" => some (opLandLane req)
   | "console.landRemote" => some (opLandRemote req)
   | "console.landLaneState" => some (opLandLaneState req)
