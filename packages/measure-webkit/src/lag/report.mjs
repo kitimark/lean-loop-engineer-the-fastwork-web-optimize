@@ -16,8 +16,10 @@ export function clipRect(q) {
 
 /**
  * Per-step paint clips of a timed run, from its raw records, moved from document to viewport coordinates.
- * The Paint quad is in document (contents) coordinates, MEASURED: at y=0 the first clip of the debug run equals the
- * `people` box, at y=200 the same box has moved up by 200 px while its clip did not (the 2026-10-21 debug run).
+ * The Paint quad is `contentsToRootView(...)` (PageTimelineAgent.cpp:299@862f17dcae0a), but on iOS the native view
+ * scrolls, so `ScrollView::contentsToView` returns the point unchanged (ScrollView.cpp:989-993@862f17dcae0a,
+ * `delegatesScrollingToNativeView()`): the quad stays in document coordinates. CONFIRMED by source; MEASURED in the
+ * local debug run: at y=0 the first clip equals the `people` box, at y=200 that box moved up 200 px, its clip did not.
  * `scrollY` is the scroll position of each step (a number for all steps, or one per step).
  */
 export function clipsPerStep(run, scrollY = 0) {
