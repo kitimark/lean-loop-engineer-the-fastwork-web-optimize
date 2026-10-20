@@ -1,6 +1,7 @@
 # Handoff: earn-transition-retarget (lean-prover), round 3 (final design round, split A)
 
 State: branch `worktree-wf_e34eb985-8ed-1`, final commit in the report; CI ref `ci/earn-transition-retarget`.
+Land integration (after main merge cbd488d9): commit "trajectory table: rule 201 is-earn-still" adds that rule to Lean `rules`, RULES and the golden; later lines shift by 3.
 
 Read first: `research/notes/2026/10-20-earn-transition-retarget.md` (model, counts, look-change class, review strips),
 then `lean/Fw/Parts/NavEarnOpt.lean` and `lean/Fw/Preset/{V2Proved,Gen}.lean` (look-change parts).
