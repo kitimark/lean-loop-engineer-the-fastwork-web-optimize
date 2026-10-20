@@ -13,7 +13,7 @@ mechanical LaTeX rendering of the type. The export serves math written on demand
 namespace MathView
 open Lean Meta
 
-/-! ## Mechanical Expr → LaTeX (small fixed vocabulary; anything unknown becomes `\mathrm{f}(…)`) -/
+/-! ## The `autoTex` field: a mechanical Expr rendering for artifact writers; an unknown function renders by name -/
 
 def tt (s : String) : String := "\\mathrm{" ++ (s.replace "_" "\\_") ++ "}"
 

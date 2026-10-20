@@ -1,5 +1,6 @@
 import Fw.Ops.Golden
 import Fw.Wire.Obs
+import Fw.Obs.Fold
 /-!
 # Golden vectors of `obs.health`
 
@@ -407,6 +408,7 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
     IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / "obs")
     IO.FS.writeFile p fileText
     IO.FS.writeFile (root / backoffPath) backoffText
+    IO.FS.writeFile (root / Fw.Obs.Fold.goldenPath) Fw.Obs.Fold.goldenText
   else
     let cur ← try IO.FS.readFile p catch _ => pure ""
     if cur != fileText then
@@ -415,6 +417,10 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
     let curB ← try IO.FS.readFile (root / backoffPath) catch _ => pure ""
     if curB != backoffText then
       IO.println s!"obs golden: {root / backoffPath} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
+      bad := bad + 1
+    let curF ← try IO.FS.readFile (root / Fw.Obs.Fold.goldenPath) catch _ => pure ""
+    if curF != Fw.Obs.Fold.goldenText then
+      IO.println s!"obs golden: {root / Fw.Obs.Fold.goldenPath} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
       bad := bad + 1
   for g in gaps do
     IO.println s!"obs golden: no case covers {g}"

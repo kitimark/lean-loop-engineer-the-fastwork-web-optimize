@@ -9,6 +9,9 @@ import { homedir, loadavg } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { collectGh, type GhFetch, type GhSnap } from "./watch-gh.ts";
 import { collectSvcs, type Svc } from "./watch-svc.ts";
+import { foldFile, sweepCache } from "./watch-cache.ts";
+import { BG_TEXT, finishInfo, finishSignals, foldText, initFold, parseNotifications, waitingNote } from "./watch-fold.ts";
+export { parseNotifications, waitingNote };
 
 export interface SpoolEvent {
   agent_id: string | null; agent_type: string | null; hook_event_name: string;
@@ -165,73 +168,10 @@ export function summarizeLead(events: SpoolEvent[]): LeadSnap {
   return l;
 }
 
-/** Summarize one subagent transcript (+ meta). Only usage numbers, model, tool names/ids and times are kept. */
-/** `metaAt`: the mtime of the meta file. A `meta.finished` is stale (ignored) on a resumed agent: when a tool call is
- *  still open or the transcript has records more than 1 s after the meta was written. */
+/** Summarize one subagent transcript (+ meta). Only usage numbers, model, tool names/ids and times are kept; the fold is
+ *  in watch-fold.ts. `metaAt`: the mtime of the meta file (see `finishInfo`). */
 export function summarizeTranscript(jsonl: string, meta: Record<string, unknown> | null, metaAt: number | null = null): TranscriptInfo {
-  const info: TranscriptInfo = {
-    name: str(meta?.name), task: str(meta?.description), type: str(meta?.agentType), model: null,
-    teammate: (str(meta?.taskKind) ?? "").includes("teammate"), workflowPhase: meta?.workflowPhase != null,
-    toolUseId: str(meta?.toolUseId), agentCalls: [], bgTasks: [],
-    finished: meta?.finished === true, endedTurn: false, toolUses: 0, toolErrors: 0,
-    firstAt: null, lastAt: null, lastTool: null, lastToolAt: null, ctxTokens: null,
-    tokens: { in: 0, out: 0, cacheRead: 0, cacheWrite: 0 }, inflight: null,
-  };
-  const usageById = new Map<string, Record<string, unknown>>();
-  const open = new Map<string, { tool: string; at: number }>();
-  let lastUsage: Record<string, unknown> | null = null;
-  let endedTurn = false;
-  let structDone = false; // a workflow agent ends by calling StructuredOutput
-  let n = 0;
-  for (const line of jsonl.split("\n")) {
-    if (!line) continue;
-    let o: any;
-    try { o = JSON.parse(line); } catch { continue; }
-    const at = typeof o.timestamp === "string" ? Date.parse(o.timestamp) : NaN;
-    if (Number.isFinite(at)) { info.firstAt ??= at; info.lastAt = Math.max(info.lastAt ?? 0, at); }
-    const m = o.message;
-    const bg = str(o.toolUseResult?.backgroundTaskId);
-    if (bg) info.bgTasks.push(bg);
-    if (o.type === "assistant" && m) {
-      if (typeof m.model === "string" && m.model !== "<synthetic>") info.model = m.model;
-      if (m.usage && typeof m.usage === "object") {
-        usageById.set(typeof m.id === "string" ? m.id : `#${n++}`, m.usage); // streamed copies share the id
-        lastUsage = m.usage;
-      }
-    }
-    if ((o.type === "assistant" || o.type === "user") && Array.isArray(m?.content)) {
-      let hasUse = false;
-      for (const c of m.content) {
-        if (c?.type === "tool_use" && typeof c.id === "string") {
-          hasUse = true; info.toolUses++;
-          const tool = String(c.name ?? "?"), t = Number.isFinite(at) ? at : 0;
-          open.set(c.id, { tool, at: t });
-          if (info.lastToolAt === null || t >= info.lastToolAt) { info.lastTool = tool; info.lastToolAt = t; }
-          if (o.type === "assistant" && (tool === "Agent" || tool === "Task")) info.agentCalls.push(c.id); // a child's meta.toolUseId
-        }
-        else if (c?.type === "tool_result" && typeof c.tool_use_id === "string") {
-          const tool = open.get(c.tool_use_id)?.tool;
-          if (tool === "StructuredOutput") structDone = true;
-          // a workflow agent's Bash result names its background id only in the text
-          const tb = !bg && tool === "Bash" ? BG_TEXT.exec(textOf(c.content))?.[1] : undefined;
-          if (tb && !info.bgTasks.includes(tb)) info.bgTasks.push(tb);
-          open.delete(c.tool_use_id); if (c.is_error === true) info.toolErrors++;
-        }
-      }
-      endedTurn = o.type === "assistant" && !hasUse && m.content.some((c: any) => c?.type === "text");
-    }
-  }
-  for (const u of usageById.values()) {
-    info.tokens.in += num(u.input_tokens); info.tokens.out += num(u.output_tokens);
-    info.tokens.cacheRead += num(u.cache_read_input_tokens); info.tokens.cacheWrite += num(u.cache_creation_input_tokens);
-  }
-  if (lastUsage) info.ctxTokens = num(lastUsage.input_tokens) + num(lastUsage.cache_read_input_tokens) + num(lastUsage.cache_creation_input_tokens);
-  info.endedTurn = (endedTurn || structDone) && open.size === 0;
-  if (info.finished && (open.size > 0 || (metaAt !== null && info.lastAt !== null && info.lastAt > metaAt + 1000))) info.finished = false;
-  let last: { tool: string; at: number } | null = null;
-  for (const v of open.values()) if (!last || v.at >= last.at) last = v;
-  if (last) info.inflight = { tool: last.tool, verb: null, since: last.at };
-  return info;
+  return finishInfo(foldText(initFold(false), jsonl), meta, metaAt);
 }
 
 // ---- transcript signals: the facts of Fw.Obs.Signals (the state itself is fwcore's `obs.signals`) ----
@@ -249,88 +189,14 @@ export interface SigFacts {
  *  whether a tool call is still open, and the time of the last record. */
 export interface TranscriptSignals { facts: SigFacts; commands: Map<string, string>; outputs: Map<string, string>; openCall: boolean; lastAt: number | null }
 
-const BG_TEXT = /(?:running in background with ID:|moved to the background \(ID:)\s*([A-Za-z0-9]+)/;
-const OUT_TEXT = /Output is being written to:\s*(\S+?\.output)\b/;
 /** One `<task-notification>`: task id, status, summary, output file. */
 export interface TaskNote { id: string; status: string; summary: string; outputFile: string | null }
-/** Every `<task-notification>` block in a text. */
-export function parseNotifications(text: string): TaskNote[] {
-  const out: TaskNote[] = [];
-  for (const m of text.matchAll(/<task-notification>([^]*?)<\/task-notification>/g)) {
-    const tag = (k: string) => new RegExp(`<${k}>([^]*?)</${k}>`).exec(m[1]!)?.[1]?.trim() ?? null;
-    const id = tag("task-id");
-    if (id) out.push({ id, status: tag("status") ?? "", summary: tag("summary") ?? "", outputFile: tag("output-file") });
-  }
-  return out;
-}
-/** A notification that only says the agent stopped with its own background work still running: not an end. */
-export const waitingNote = (n: TaskNote) => /waiting on its own background work/.test(n.summary);
-const noteEnd = (n: TaskNote, time: number): SigEnd => ({ id: n.id, time, how: n.status === "killed" ? "killed" : "notified" });
-const textOf = (c: unknown): string =>
-  typeof c === "string" ? c : Array.isArray(c) ? c.map((x: any) => (typeof x === "string" ? x : typeof x?.text === "string" ? x.text : textOf(x?.content))).join("\n") : "";
-
 /** The signal facts of one agent's transcript: background ids launched (Bash `backgroundTaskId`, the text form of a
  *  workflow agent's Bash result matched by tool_use_id, async child agents), their end notifications, the turn
  *  boundaries (START: first record and every user record with a top-level `origin`; END: `end_turn` and every
  *  `toolEndsTurn` result) and the handbacks (an accepted `SubagentHandback` / `StructuredOutput` result). */
 export function signalsOf(agent: string, jsonl: string): TranscriptSignals {
-  const facts: SigFacts = { agent, launched: [], ends: [], bounds: [], handbacks: [], notices: [], procs: [], metaFinished: [] };
-  const commands = new Map<string, string>(), outputs = new Map<string, string>();
-  const uses = new Map<string, { name: string; command: string | null }>();
-  const open = new Set<string>();
-  const launched = new Set<string>(), ended = new Set<string>();
-  let lastAt: number | null = null;
-  const launch = (id: string, time: number, command: string | null) => {
-    if (launched.has(id)) return;
-    launched.add(id); facts.launched.push({ id, time });
-    if (command) commands.set(id, command);
-  };
-  for (const line of jsonl.split("\n")) {
-    if (!line) continue;
-    let o: any;
-    try { o = JSON.parse(line); } catch { continue; }
-    const t0 = typeof o.timestamp === "string" ? Date.parse(o.timestamp) : NaN;
-    if (!Number.isFinite(t0)) continue;
-    const at = Math.floor(t0);
-    if (lastAt === null) facts.bounds.push({ time: at, start: true });
-    lastAt = Math.max(lastAt ?? 0, at);
-    const m = o.message;
-    if (o.type === "user" && o.origin && typeof o.origin === "object") facts.bounds.push({ time: at, start: true });
-    if (o.type === "assistant" && m?.stop_reason === "end_turn") facts.bounds.push({ time: at, start: false });
-    if (o.type === "attachment" && o.attachment?.type === "queued_command") {
-      for (const n of parseNotifications(textOf(o.attachment.prompt))) {
-        if (n.outputFile) outputs.set(n.id, n.outputFile);
-        if (!waitingNote(n) && !ended.has(n.id)) { ended.add(n.id); facts.ends.push(noteEnd(n, at)); }
-      }
-    }
-    if ((o.type === "assistant" || o.type === "user") && Array.isArray(m?.content)) {
-      for (const c of m.content) {
-        if (c?.type === "tool_use" && typeof c.id === "string") {
-          uses.set(c.id, { name: String(c.name ?? ""), command: typeof c.input?.command === "string" ? c.input.command : null });
-          open.add(c.id);
-        } else if (c?.type === "tool_result" && typeof c.tool_use_id === "string") {
-          open.delete(c.tool_use_id);
-          const u = uses.get(c.tool_use_id);
-          const txt = textOf(c.content);
-          const bg = str(o.toolUseResult?.backgroundTaskId) ?? (u?.name === "Bash" ? BG_TEXT.exec(txt)?.[1] ?? null : null);
-          if (bg) {
-            launch(bg, at, u?.command ?? null);
-            const f = OUT_TEXT.exec(txt)?.[1];
-            if (f) outputs.set(bg, f);
-          }
-          const child = o.toolUseResult?.status === "async_launched" ? str(o.toolUseResult?.agentId) : null;
-          if (child) launch(child, at, null);
-          if (o.toolEndsTurn === true) {
-            facts.bounds.push({ time: at, start: false });
-            if (u && /(?:SubagentHandback|StructuredOutput)$/.test(u.name) && o.toolUseResult?.success !== false) facts.handbacks.push(at);
-          }
-        }
-      }
-    } else if (o.type === "user" && typeof m?.content === "string" && o.origin?.kind === "task-notification") {
-      for (const n of parseNotifications(m.content)) if (!waitingNote(n) && !ended.has(n.id)) { ended.add(n.id); facts.ends.push(noteEnd(n, at)); }
-    }
-  }
-  return { facts, commands, outputs, openCall: open.size > 0, lastAt };
+  return finishSignals(agent, foldText(initFold(true), jsonl));
 }
 
 /** The end marker a finished Bash task leaves as the last line of its output file: `[exited with code N]` or
@@ -433,7 +299,12 @@ export function readsStdin(cmd: string): boolean {
 }
 
 // ---- file discovery ----
-export interface Paths { root: string; consoleDir: string; home: string; projectsDir: string }
+export interface Paths {
+  root: string; consoleDir: string; home: string; projectsDir: string;
+  /** where the transcript fold states are saved (default `<consoleDir>/watch-cache`) */
+  cacheDir?: string;
+}
+export const cacheDirOf = (p: Paths): string => p.cacheDir ?? join(p.consoleDir, "watch-cache");
 export function pathsFor(root: string, env: NodeJS.ProcessEnv = process.env, home = homedir()): Paths {
   return { root, consoleDir: env.FW_CONSOLE_DIR ?? join(root, ".fw-console"), home, projectsDir: env.FW_PROJECTS_DIR ?? join(home, ".claude", "projects") };
 }
@@ -478,15 +349,19 @@ export function readMeta(jsonlFile: string): Record<string, unknown> | null {
   try { return JSON.parse(readFileSync(jsonlFile.replace(/\.jsonl$/, ".meta.json"), "utf8")); } catch { return null; }
 }
 const trCache = new Map<string, { size: number; mtimeMs: number; metaAt: number | null; tr: TranscriptInfo; sig: SigFacts }>();
+let swept = false;
 /** A transcript's summary and signal facts, parsed again only when the transcript or its meta changed (a long `fw
- *  watch` re-reads the ghost window every check). */
-export function readTranscript(tf: string, id: string): { tr: TranscriptInfo; sig: SigFacts } | null {
+ *  watch` re-reads the ghost window every check). A changed transcript is folded from its saved state over the appended
+ *  bytes when `p` is given (watch-cache.ts), else read whole. */
+export function readTranscript(tf: string, id: string, p?: Paths): { tr: TranscriptInfo; sig: SigFacts } | null {
   try {
     const st = statSync(tf), metaAt = metaMtime(tf);
     const hit = trCache.get(tf);
     if (hit && hit.size === st.size && hit.mtimeMs === st.mtimeMs && hit.metaAt === metaAt) return hit;
-    const text = readFileSync(tf, "utf8");
-    const e = { size: st.size, mtimeMs: st.mtimeMs, metaAt, tr: summarizeTranscript(text, readMeta(tf), metaAt), sig: signalsOf(id, text).facts };
+    const dir = p ? cacheDirOf(p) : null;
+    if (dir && !swept) { swept = true; sweepCache(dir, Date.now()); }
+    const { state } = foldFile(tf, st.size, st.ino, dir);
+    const e = { size: st.size, mtimeMs: st.mtimeMs, metaAt, tr: finishInfo(state, readMeta(tf), metaAt), sig: finishSignals(id, state).facts };
     trCache.set(tf, e);
     return e;
   } catch { return null; }
@@ -526,16 +401,29 @@ export function workflowFinished(file: string, cache = new Map<string, boolean>(
   return done;
 }
 
+interface SpoolMemo { size: number; mtimeMs: number; sum: SpoolSummary }
+/** Per spool directory: each spool file's summary by (size, mtime), a memo of the pure `summarizeSpool(parseSpool(text))`
+ *  (kept only for the files of the last pass). */
+const spoolMemo = new Map<string, Map<string, SpoolMemo>>();
+
 /** `owners`, when given, is filled with Bash task id -> agent id for every agent kept in the snapshot. */
 export function collectAgents(p: Paths, now: number, owners?: Map<string, string>): AgentSnap[] {
   const spoolDir = join(p.consoleDir, "spool");
   const spools = new Map<string, SpoolSummary>();
   let files: string[] = [];
   try { files = readdirSync(spoolDir); } catch { /* no spool yet */ }
+  const memo = spoolMemo.get(spoolDir) ?? new Map<string, SpoolMemo>(), seen = new Map<string, SpoolMemo>();
   for (const f of files) {
     if (!f.endsWith(".jsonl") || f === "main.jsonl") continue;
-    try { spools.set(f.slice(0, -6), summarizeSpool(parseSpool(readFileSync(join(spoolDir, f), "utf8")))); } catch { /* unreadable */ }
+    try {
+      const file = join(spoolDir, f), st = statSync(file), hit = memo.get(f);
+      const e = hit && hit.size === st.size && hit.mtimeMs === st.mtimeMs ? hit
+        : { size: st.size, mtimeMs: st.mtimeMs, sum: summarizeSpool(parseSpool(readFileSync(file, "utf8"))) };
+      seen.set(f, e);
+      spools.set(f.slice(0, -6), e.sum);
+    } catch { /* unreadable */ }
   }
+  spoolMemo.set(spoolDir, seen);
   const transcripts = findTranscripts(p);
   const ids = new Set([...spools.keys(), ...transcripts.keys()]);
   const kept: { id: string; sp: SpoolSummary | null; tf: string | undefined; tr: TranscriptInfo | null; pending: string[]; closed: boolean }[] = [];
@@ -551,7 +439,7 @@ export function collectAgents(p: Paths, now: number, owners?: Map<string, string
     if (now - lastGuess > SCOPE.ghostMs && !(sp?.stoppedAt != null && hasWorktree(p, id))) continue;
     let tr: TranscriptInfo | null = null, pending: string[] = [], closed = false;
     if (tf) {
-      const r = readTranscript(tf, id);
+      const r = readTranscript(tf, id, p);
       if (r) {
         tr = r.tr;
         pending = pendingBg(withLeadNotes(r.sig, readLeadNotes(p, leadFileOf(tf))), now, SCOPE.ghostMs);

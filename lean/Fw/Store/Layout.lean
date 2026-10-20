@@ -401,21 +401,24 @@ def defaultImage : Engine → String
 def imageOf (q : Request) (e : Engine) : String :=
   ((q.images.find? (fun p => p.1 == e.name)).map (·.2)).getD (defaultImage e)
 
-/-- The measurement lanes a dispatch can start: the two count workflows (one per engine) and the breakpoint gate. -/
+/-- The measurement lanes a dispatch can start: the two count workflows (one per engine), the breakpoint gate and the
+trajectory probe. -/
 inductive Lane where
   | chromiumCounts
   | webkitSim
   | breakpointGate
+  | trajectory
   deriving DecidableEq
 
 /-- The lanes, in the order of the check script. -/
-def Lane.all : List Lane := [.chromiumCounts, .webkitSim, .breakpointGate]
+def Lane.all : List Lane := [.chromiumCounts, .webkitSim, .breakpointGate, .trajectory]
 
 /-- The workflow file of a lane in `.github/workflows/`. -/
 def Lane.file : Lane → String
   | .chromiumCounts => "chromium-counts.yml"
   | .webkitSim => "webkit-sim.yml"
   | .breakpointGate => "breakpoint-gate.yml"
+  | .trajectory => "trajectory-probe.yml"
 
 /-- The `workflow_dispatch` inputs a lane's workflow declares, in file order. This is the one canonical table: the check
 `scripts/LaneInputs.lean --check` (a stage of `lean/scripts/check.sh`) parses the three files and fails when a list differs.
@@ -424,6 +427,7 @@ def Lane.inputs : Lane → List String
   | .chromiumCounts => ["profile", "runs", "target", "preset", "fw", "only", "image_run"]
   | .webkitSim => ["vms", "sessions", "fresh_boot", "experiment", "arms", "reps", "target", "preset", "fw"]
   | .breakpointGate => ["engines", "runs", "free", "times", "fw", "preset", "parts"]
+  | .trajectory => ["engines", "fw", "preset", "widths"]
 
 /-- The lane that measures an engine's counts. -/
 def Lane.ofEngine : Engine → Lane
@@ -759,6 +763,41 @@ theorem gate_keys_declared (g : GateRequest) : ∀ p ∈ gateDispatchInputs g, p
 #guard gateDispatchInputs { engines := "chromium", preset := "", fw := [("morph.tween", "waapi")] }
   == [("engines", "chromium"), ("preset", ""), ("fw", "morph.tween:waapi")]
 #guard gateBlocked { engines := "chromium", preset := "v2-proved", fw := [] } == none
+
+/-! ## The trajectory probe lane
+
+`trajectory-probe.yml` takes the gate's three inputs (the engines, the rewrite's preset and flags) and the list of
+widths; the other inputs have no default to change. The request is a gate request and a widths string (empty = all
+four; the allowlist is `Fw.Gate.Trajectory.pickWidths`, checked in `Fw.Wire.Store`).
+-/
+
+/-- The dispatch inputs of the probe: the gate's three and the widths, always all four. -/
+def trajectoryDispatchInputs (g : GateRequest) (widths : String) : List (String × String) :=
+  gateDispatchInputs g ++ [("widths", widths)]
+
+/-- Why the probe cannot run: the first needed field its workflow has no input for. -/
+def trajectoryBlocked (g : GateRequest) : Option String :=
+  (gateNeeds g).find? (fun x => !(Lane.trajectory.inputs).contains x)
+
+/-- **The probe workflow can express every request:** it is never blocked. -/
+theorem trajectoryBlocked_none (g : GateRequest) : trajectoryBlocked g = none := by
+  apply List.find?_eq_none.mpr
+  intro x hx
+  unfold gateNeeds at hx
+  simp only [List.mem_append] at hx
+  rcases hx with (hx | hx) | hx <;> split at hx <;> simp_all [Lane.inputs]
+
+/-- **Every probe dispatch input is declared by the workflow.** -/
+theorem trajectory_keys_declared (g : GateRequest) (w : String) :
+    ∀ p ∈ trajectoryDispatchInputs g w, p.1 ∈ Lane.trajectory.inputs := by
+  intro p hp
+  simp [trajectoryDispatchInputs, gateDispatchInputs] at hp
+  rcases hp with rfl | rfl | rfl | rfl <;> simp [Lane.inputs]
+
+#guard trajectoryDispatchInputs GateRequest.default "" == [("engines", "both"), ("preset", ""), ("fw", ""), ("widths", "")]
+#guard trajectoryDispatchInputs { engines := "chromium", preset := "", fw := [("morph.tween", "waapi")] } "390,641"
+  == [("engines", "chromium"), ("preset", ""), ("fw", "morph.tween:waapi"), ("widths", "390,641")]
+#guard trajectoryBlocked { engines := "chromium", preset := "v2-proved", fw := [] } == none
 
 /-- The manifest path of a run, relative to the store root, from the hex digest of its key. -/
 def manifestPath (d : String) : String := "runs/" ++ d ++ "/manifest.json"

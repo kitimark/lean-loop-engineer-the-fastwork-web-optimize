@@ -146,8 +146,8 @@ def scenario (name : String) (waiters seconds oneoffEvery : Nat) (extra : List (
   Json.mkObj [("scenario", Json.mkObj ([("name", .str name), ("waiters", toJson waiters), ("start", toJson t0),
     ("seconds", toJson seconds), ("oneoffEvery", toJson oneoffEvery), ("oneoffCost", toJson (1 : Nat))] ++ extra))]
 
-/-- An issue-count expectation: issues of `kind` (`tick`, `oneoff` or `any`) with time in $[t_0 + a, t_0 + b)$
-number between `lo` and `hi`. -/
+/-- An issue-count expectation: issues of `kind` (`tick`, `oneoff` or `any`) with time `t` in
+`t0 + a ≤ t < t0 + b` number between `lo` and `hi`. -/
 def count (a b : Nat) (kind : String) (lo hi : Nat) : Json :=
   Json.mkObj [("from", toJson (t0 + a)), ("until", toJson (t0 + b)), ("kind", .str kind), ("min", toJson lo),
     ("max", toJson hi)]

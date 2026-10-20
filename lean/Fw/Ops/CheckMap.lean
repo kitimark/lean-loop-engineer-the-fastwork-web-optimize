@@ -285,7 +285,8 @@ theorem precommit_covers (s : List String) (e : String) (hs : s ≠ []) (he : e 
   exact ⟨k, by simp [hk], hc⟩
 
 /-- One representative path (segments, extension) per distinct (first two directories, extension or basename) of
-`git ls-files` at commit c85c1b6 (156 keys); generated, not hand-written.
+`git ls-files` at commit c85c1b6 (156 keys); generated, not hand-written. The `docs/plan` `mjs` key names
+`check-lean-lessons.mjs`; the file listed at c85c1b6 was deleted.
 
 The frozen list of tracked-file representatives that `tracked_mapped` covers.
 -/
@@ -331,7 +332,7 @@ def trackedKeys : List (List String × String) := [
   (["apps", "site", "src", "parts", "commission", "box.module.css"], "css"),
   (["docs", "plan", "PLAN.md"], "md"),
   (["docs", "plan", "loop-plan.html"], "html"),
-  (["docs", "plan", "tools", "build-math-view.mjs"], "mjs"),
+  (["docs", "plan", "tools", "check-lean-lessons.mjs"], "mjs"),
   (["docs", "report", "v2-report.md"], "md"),
   (["docs", "team", "handoffs", "alert-steps.md"], "md"),
   (["docs", "team", "incidents", "ledger.json"], "json"),

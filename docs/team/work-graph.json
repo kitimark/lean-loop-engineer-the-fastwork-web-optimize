@@ -10604,7 +10604,8 @@
     "packages/contracts/src/artifacts.ts",
     "docs/team/incidents/ledger.json",
     "lean/Fw/Store/**"
-   ]
+   ],
+   "evidence": "5bed947"
   },
   {
    "devices": [
@@ -10805,7 +10806,8 @@
     "lean/Fw/Ops/CheckMap.lean",
     "lean/Fw/Site/README.md",
     "packages/contracts/golden/**"
-   ]
+   ],
+   "evidence": "a6b3af8"
   },
   {
    "devices": [
@@ -10856,7 +10858,8 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "packages/contracts/golden/console/land-dry.jsonl",
     "packages/contracts/golden/console/land-speed.jsonl",
-    ".github/workflows/lean.yml"
+    ".github/workflows/lean.yml",
+    "scripts/lake-slot-lib.sh"
    ]
   },
   {
@@ -10911,7 +10914,8 @@
     "packages/contracts/golden/obs/**",
     "docs/team/handoffs/watch-incremental.md",
     "lean/Fw.lean"
-   ]
+   ],
+   "evidence": "2533962"
   },
   {
    "devices": [
@@ -11084,6 +11088,46 @@
     "apps/runner/test/**",
     "docs/team/tools/ci-pool.md",
     "docs/team/handoffs/pool-fallback.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "drain-wake-flake",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [
+    "console-idle-cpu"
+   ],
+   "title": "journal-cache.test 'a journal append and a new session dir wake the drain' timed out (3 s until) on the CI land lane twice (ci/land-console-idle-cpu-ac3a92a, ci/land-orphan-guard-fb18220), refusing unrelated lands. Find why the fs-event wake misses or lags on Linux runners (fs.watch recursive support, event coalescing, new-dir watch race) from Node/libuv source; fix the watcher or the test's deadline with the wake bound stated in Lean (ReconcileSched) so the test checks the proved bound, not a guess; prove no lost event",
+   "writes": [
+    "apps/console-api/src/spool/**",
+    "apps/console-api/test/journal-cache.test.ts",
+    "lean/Fw/Console/ReconcileSched.lean",
+    "lean/Fw/Console/JournalFold.lean",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/drain-wake-flake.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "check-stage2-bound",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "lake-build-slots"
+   ],
+   "title": "lean/scripts/check.sh stage 2 starts ~30 concurrent `lake env lean --run` golden checks outside the Fw.Sched.LakeSlot bound; gate them through scripts/lake-slot-lib.sh (or a Lean-chosen width) so a full check holds the proved lean-process bound, measure wall time A/B on CI; also lake-slot.sh exits 64 with a usage line when given no command (review follow-up)",
+   "writes": [
+    "lean/scripts/check.sh",
+    "scripts/lake-slot-lib.sh",
+    "scripts/lake-slot.sh",
+    "scripts/lake-slot.test.mjs",
+    "lean/Fw/Sched/LakeSlot.lean",
+    "docs/team/handoffs/check-stage2-bound.md"
    ]
   }
  ],

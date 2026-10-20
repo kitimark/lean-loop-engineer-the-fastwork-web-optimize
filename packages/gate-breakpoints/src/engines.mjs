@@ -135,6 +135,8 @@ export async function launchChromium({ chromePath = process.env.CHROME_PATH ?? C
         evaluate: (fn, arg) => frame.evaluate(fn, arg),
         async resize(next) { await cdp.send('Emulation.setDeviceMetricsOverride', metrics(next, hostWidth(next))); },
         async mouse(x, y) { await page.mouse.move(x, y); },
+        // trajectory lane: a real wheel event at (x, y); it sets no scroll position itself
+        async wheel(x, y, dy) { await page.mouse.move(x, y); await page.mouse.wheel(0, dy); },
         ...(clock ? { advance: clock.advance, holdTo: clock.holdTo, clockMs: clock.clockMs } : {}),
         async close() { await context.close(); },
       };
@@ -180,6 +182,8 @@ export async function launchWebkit() {
           await impl.delegate.updateEmulatedViewportSize();
         },
         async mouse(x, y) { await page.mouse.move(x, y); },
+        // trajectory lane: a real wheel event at (x, y); it sets no scroll position itself
+        async wheel(x, y, dy) { await page.mouse.move(x, y); await page.mouse.wheel(0, dy); },
         ...(clock ? { advance: clock.advance, holdTo: clock.holdTo, clockMs: clock.clockMs } : {}),
         async close() { await context.close(); },
       };
