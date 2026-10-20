@@ -7,6 +7,8 @@
 {"allowed":true,"engage":true,"hoverNone":false,"kind":"engage","overlay":true}
 {"allowed":false,"engage":false,"hoverNone":true,"kind":"engage","overlay":false}
 {"allowed":false,"engage":false,"hoverNone":true,"kind":"engage","overlay":true}
+{"allowed":false,"engage":false,"hoverNone":null,"kind":"engage","overlay":false}
+{"allowed":false,"engage":false,"hoverNone":null,"kind":"engage","overlay":true}
 {"active":true,"case":"open-close","ev":"push","goal":{"den":"1","num":"1"},"i":0,"kind":"lock","locked":true,"overlay":true,"read":true,"reduced":false,"t":{"den":"1","num":"0"},"write":true}
 {"active":true,"case":"open-close","ev":"tick","i":1,"kind":"lock","locked":true,"overlay":true,"read":false,"t":{"den":"1","num":"17"},"write":null}
 {"active":true,"case":"open-close","ev":"tick","i":2,"kind":"lock","locked":true,"overlay":true,"read":false,"t":{"den":"1","num":"340"},"write":null}

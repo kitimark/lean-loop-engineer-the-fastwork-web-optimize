@@ -3,9 +3,9 @@ import { getClock } from '../../engine/clock';
 import { registerScroll } from '../../engine/scroll';
 import { createTweenDriver, type TweenEnv } from './driver';
 import { matchList } from './media';
-import { lockAllowed, overlayOf } from './scroll-lock.logic';
+import { hoverNoneOf, lockAllowed, overlayOf } from './scroll-lock.logic';
 import { createWaapiDriver, type AnimLike, type AnimTarget, type WaapiEnv } from './waapi.driver';
-import { fadeCss, registrationsOf, type WaapiArm } from './waapi.logic';
+import { fadeCss, PROP_MORPH, registrationsOf, type WaapiArm } from './waapi.logic';
 
 /** Where the scroll pin sits on the engine: after the nav's hit test (order 100), as the original's pin callback follows it. */
 export const MORPH_PIN_ORDER = 110;
@@ -48,13 +48,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
         nav.style.setProperty('--morph', String(value));
         nav.dataset.fwMorph = String(value);
       },
-      lock:
-        variant === 'scroll-lock' && lockAllowed(matchList('mq.hover-none')?.matches ?? false)
-          ? {
-              overlay: () => overlayOf(window.innerWidth, root.clientWidth),
-              set: (on) => void (root.style.overflow = on ? 'hidden' : ''),
-            }
-          : undefined,
+      lock: scrollLockOf(variant, root),
     };
     const arm: WaapiArm | null = variant === 'waapi' || variant === 'waapi-scoped' ? variant : null;
     const driver = arm ? createWaapiDriver(waapiEnv(env, platform, navSelector, arm), arm) : createTweenDriver(env);
@@ -70,6 +64,17 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
     };
   }, [variant, platformSelector, navSelector]);
   return null;
+}
+
+/** The `scroll-lock` arm's root lock, installed only when `(hover: none)` reads as not matching (Lean `hoverNoneOf`). */
+export function scrollLockOf(variant: string, root: HTMLElement): TweenEnv['lock'] {
+  if (variant !== 'scroll-lock') return undefined;
+  const hoverNone = matchList('mq.hover-none');
+  if (!lockAllowed(hoverNoneOf(hoverNone ? hoverNone.matches : null))) return undefined;
+  return {
+    overlay: () => overlayOf(window.innerWidth, root.clientWidth),
+    set: (on) => void (root.style.overflow = on ? 'hidden' : ''),
+  };
 }
 
 /** `CSS.registerProperty` for the arm's animated properties (once; a second call throws and is ignored). */
@@ -105,6 +110,7 @@ function waapiEnv(base: TweenEnv, platform: () => HTMLElement | null, navSelecto
       const n = nav();
       if (n) n.dataset.fwMorph = String(value);
     },
+    base: (value) => nav()?.style.setProperty(PROP_MORPH, String(value)),
     marker: (durationMs, startTime) => {
       const a = new Animation(new KeyframeEffect(null, null, { duration: durationMs }), document.timeline);
       if (startTime === null) a.play();

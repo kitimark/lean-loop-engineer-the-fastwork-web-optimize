@@ -1,0 +1,11 @@
+{"name":"lean module: build","request":{"changed":["lean/Fw/Console/Land.lean"],"d0":"a","d1":"b"},"response":{"binaryChange":["lean/Fw/Console/Land.lean"],"build":true,"select":["check.sh","console-api","difftest"]}}
+{"name":"lean module, same digest: build","request":{"changed":["lean/Fw/Console/Land.lean"],"d0":"a","d1":"a"},"response":{"binaryChange":["lean/Fw/Console/Land.lean"],"build":true,"select":["check.sh"]}}
+{"name":"build script: build","request":{"changed":["scripts/fwcore-build.sh"],"d0":null,"d1":null},"response":{"binaryChange":["scripts/fwcore-build.sh"],"build":true,"select":["check.sh","console-api","difftest"]}}
+{"name":"lakefile: build","request":{"changed":["lean/lakefile.toml"],"d0":null,"d1":null},"response":{"binaryChange":["lean/lakefile.toml"],"build":true,"select":["check.sh","console-api","difftest"]}}
+{"name":"readme only: skip","request":{"changed":["lean/README.md"],"d0":null,"d1":null},"response":{"binaryChange":[],"build":false,"select":["check.sh"]}}
+{"name":"lean script and golden only: skip, digests unknown","request":{"changed":["lean/scripts/LandTierGolden.lean","lean/golden/console-board.jsonl"],"d0":null,"d1":null},"response":{"binaryChange":[],"build":false,"select":["check.sh"]}}
+{"name":"generated lists only: skip","request":{"changed":["lean/land-filter.txt","lean/land-legs.txt"],"d0":"a","d1":"b"},"response":{"binaryChange":[],"build":false,"select":["check.sh"]}}
+{"name":"free and module mixed: build","request":{"changed":["lean/README.md","lean/Fw/Console/Land.lean"],"d0":"a","d1":"b"},"response":{"binaryChange":["lean/Fw/Console/Land.lean"],"build":true,"select":["check.sh","console-api","difftest"]}}
+{"name":"no lean path: skip","request":{"changed":["apps/site/src/x.ts"],"d0":null,"d1":null},"response":{"binaryChange":["apps/site/src/x.ts"],"build":false,"select":["site"]}}
+{"name":"console-api source: skip, its own read selects it","request":{"changed":["apps/console-api/src/x.ts","lean/README.md"],"d0":null,"d1":null},"response":{"binaryChange":["apps/console-api/src/x.ts"],"build":false,"select":["check.sh","console-api"]}}
+{"name":"nothing changed: skip","request":{"changed":[],"d0":null,"d1":null},"response":{"binaryChange":[],"build":false,"select":[]}}

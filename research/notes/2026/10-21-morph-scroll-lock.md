@@ -63,8 +63,10 @@ The arm sets `document.documentElement.style.overflow = 'hidden'` at the step th
 the step that makes it inactive (and at dispose). It engages only where Lean `engage` holds: the primary input can hover
 and the root scrollbar is an overlay one.
 
-- **Hover gate.** `index.tsx` installs `env.lock` only when `lockAllowed(matchMedia('(hover: none)').matches)`, read once
-  at mount (`mq.hover-none`); without it the driver is the original (`engage_touch`, `engage_off_writes`). Touch-only
+- **Hover gate.** `scrollLockOf` in `index.tsx` installs `env.lock` only when `lockAllowed(hoverNoneOf(read))`, with
+  `read` the `(hover: none)` match read once at mount (`mq.hover-none`), or `null` when `matchMedia` throws. An unreadable
+  query counts as matching (Lean `hoverNoneOf`, `engage_unread`), so the arm keeps the original there, as it does on iOS
+  (`engage_touch`, `engage_off_writes`); `scroll-lock.gate.test.ts` checks both cases. Touch-only
   Android is excluded with iOS, although `ScrollTree::ScrollBy` likely gates its pan (INFERRED): a possible gain given up.
 - **One read per activation.** The driver reads `overlay()` (`innerWidth − documentElement.clientWidth ≤ 0`) only at the
   step that activates the morph (Lean `readsAt`), before that step's style writes, and `syncLock` uses the stored value
@@ -86,6 +88,7 @@ calls, stub `scrollY` = `p` after). Whether the engine drops a delta is the mode
 - `runR_eq`, `reads_iff`: the read-once driver equals `runL`; a step reads iff it activates the morph.
 - `engage_touch`, `engage_classic`, `engage_on`, `engage_off_writes`: one theorem per branch of `engage`; where it is false
   the arm never writes the root.
+- `engage_unread`, `engage_read_touch`: an unreadable or matching `(hover: none)` read never engages the lock.
 - `seen_eq`, `span_seen`: on every frame the position the main thread sees after `pin()` is the pinned `p`, in both arms.
 - Two work counters, not added together:
   - `scrollTo` calls (`forced`): `forced_le` (never more), `forced_lt` (strictly fewer once the lock is committed at frame
@@ -96,6 +99,16 @@ calls, stub `scrollY` = `p` after). Whether the engine drops a delta is the mode
   - Round 1's `work_le` added the two as equal units with no cited per-unit cost; it is removed. The net is INFERRED.
 - `gutter_same`: the layout width is the original's for every input and scrollbar kind. `lock_vis`: `VisSame E` for a
   scene of the tween, the seen position and the gutter, with the arm engaged by `engage` on the hover and scrollbar kind.
+
+Regenerate the golden (from `lean/`; the copy drops the `include_str` guards, so it elaborates while the golden is stale):
+
+```sh
+S=$(mktemp -d) && grep -v include_str Fw/Parts/MorphTweenOpt.lean > "$S/Regen.lean" &&
+  printf 'def main : IO Unit := IO.print Fw.Parts.MorphTweenOpt.lockJsonl\n' >> "$S/Regen.lean" &&
+  lake env lean --run "$S/Regen.lean" > ../packages/contracts/golden/parts/morph-tween-scroll-lock.jsonl; rm -rf "$S"
+```
+
+Then `lake build` checks it through the `#guard ... include_str` line.
 
 Model limits: `Gest.gated` and the commit frame `k` are inputs restated from the engine paths, not derived; `lock_vis`
 covers the main-thread view only, and the original's shown position in a fight (`shown ≠ p`) makes the arm class L.
@@ -165,6 +178,8 @@ New content units in round 2 (`rel: new`, not coverage):
   close@0 and approach reads are the in-flight class of `docs/team/tools/trajectory-probe.md` (Transitions in flight).
   Outside them two units remain, each at one width in one run (Chromium 1280 `nav.background-color` at close-hold@0, mac
   641 `earn.max-width` at open@10); neither repeats.
+- The flag run's 640/641 `earn.max-width` repeat pairs a close@0 read (640) with an open@10 read (641); excluding the
+  in-flight close@0 reads leaves no repeating group.
 
 ## Ledger row (for the lead)
 

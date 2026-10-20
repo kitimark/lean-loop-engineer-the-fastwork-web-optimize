@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { decodeRat } from '../../engine/golden.testutil';
 import { createTweenDriver, type PlatformEl, type TweenEnv } from './driver';
 import { active } from './logic';
-import { engage, lockAllowed, lockOn, lockWrite, overlayOf, readsAt } from './scroll-lock.logic';
+import { engage, hoverNoneOf, lockAllowed, lockOn, lockWrite, overlayOf, readsAt } from './scroll-lock.logic';
 
 type Row = Record<string, unknown>;
 const rows: Row[] = readFileSync(new URL('../../../../../packages/contracts/golden/parts/morph-tween-scroll-lock.jsonl', import.meta.url), 'utf8')
@@ -72,12 +72,13 @@ describe('morph.tween:scroll-lock against Lean (MorphTweenOpt MT-L)', () => {
       expect(readsAt(o, a)).toBe(!o && a);
     }
   });
-  it('lockAllowed and engage give the Lean rows (touch-only input never installs the lock)', () => {
+  it('hoverNoneOf, lockAllowed and engage give the Lean rows (touch-only or unreadable input never installs the lock)', () => {
     const en = ofKind('engage');
-    expect(en.length).toBe(4);
+    expect(en.map((r) => r.hoverNone)).toEqual([false, false, true, true, null, null]);
     for (const r of en) {
-      expect(lockAllowed(r.hoverNone === true)).toBe(r.allowed);
-      expect(engage(r.hoverNone === true, r.overlay === true)).toBe(r.engage);
+      const hn = hoverNoneOf(r.hoverNone as boolean | null);
+      expect(lockAllowed(hn)).toBe(r.allowed);
+      expect(engage(hn, r.overlay === true)).toBe(r.engage);
     }
   });
   it('the driver writes the root lock and reads overlay() exactly on the Lean rows', () => {

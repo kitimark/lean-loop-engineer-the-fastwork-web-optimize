@@ -29,28 +29,36 @@ Open, Open compare and Copy link (Copy link is a separate step: it copies the li
 | measured | a row with a verdict, not all `proved`, not admitted ("not in v2-proved yet (the gate has not admitted it)") | allowed |
 | unrated | no ledger row speaks of it | allowed |
 
-A ledger row speaks of a variant (`matchRow`) when: its `flag` is `part:variant` (a row with a flag speaks of nothing else);
-or, with no flag, one of four rules holds. Rules 1 to 3 need the row's `part` text to name the part (the text before its first
-`(`, or a parenthesis that opens with `+`): (1) the candidate has the word `part:variant`, (2) the candidate starts with the
-variant name, (3) the candidate puts the variant in backticks. Rule 4 needs no part name: the row's exact `part` and
-`candidate` text is a pair `explicitKeys` names for the variant (the preset link table, plus the extras below).
+A ledger row speaks of a variant (`matchRow`) exactly when its `flags` list holds the key `part:variant`. Compose reads no
+other column for this: the text rules and `explicitKeys` are gone (task ledger-flag-field). `console.compose` fails with the
+reason (`flagErrors`) when a row has no `flags` field, a flag names no registered `part:variant` of `part.json`, or the
+row's `flag` is not in its `flags`. `[]` means the row is about no registered variant.
 
-Extra pairs in `explicitKeys` (the ledger has no `flag` field on them yet; giving rows one is a follow-up for the ledger
-owner): `hero.countdown:hidden-pause` gets the `hero.countdown / morph.countdown` hidden-skip row;
-`morph.columns:hidden-pause` gets row 19 (`morph.columns`, "columns as a still picture while the menu is closed ...") and
-row 41 (`engine.scene`, "hidden pause of compositor marquees (morph.columns ...)"); `morph.countdown:hidden-pause` gets
-row 43 (`engine.scene`, "morph.countdown hidden: keep the spring integrating ..."). Checked against the real registry and
-ledger: `morph.columns:hidden-pause` was the only unrated variant, and now is `measured` (row 19 is `partly-proved`).
+Each row's `flags` was set from the row itself and the registry, never guessed: its `flag`; the exact `(part, candidate)`
+keys of the preset link table (`Fw.Preset.Gen.linkTable`); a candidate that starts with `part:variant`; a `part.json`
+provenance that cites the row (`hero.accent:steps`: part.json cites n=15, and of the three n=15 rows only row 22's candidate names `steps`); a ledger note that names the variant
+(`hero.countdown:hidden-pause`, task countdown-hidden-arm); the candidate names the variant under the row's own part (row 19: "hidden-pause of the marquee" -> morph.columns:hidden-pause). Rows left `[]` although they touch a registered part:
+
+| Row | Part | Why `[]` |
+|---|---|---|
+| 12, 15 | morph.panel | their notes name `morph.panel:rest`, which `part.json` does not register (an unknown flag is an error) |
+| 40 | engine.scene | covered pause (KD#18): no registered variant |
+| 42, 44 | engine.scene | hysteresis and per-element pause cite `HiddenPause` like `engine.scene:hidden-pause`, but neither the row nor the registry names that variant |
+
+Checked against the real registry and ledger (golden case "the real registry and ledger"): the reply with `flags` equals
+byte for byte the reply the text rules gave before the change (the pre-change `fwcore` on the same rows). No row changed
+variant; the rows above stay under the part's "other findings".
 
 ## Superseded rows
 
 A ledger row may carry `supersededBy: <row id>`: the `id` of the later row that fixed or replaced it. Identity, not
 inference: Compose reads only that field. A superseded row counts for no class and never refutes (`classOf` is `classBy`
-over the live rows); the row it names joins the variant's rows by its `id` (`varRows`), whether or not its text matches
-the variant, and the card still lists the superseded row with its own words. Compose ignores a superseded row only when
+over the live rows); the row it names keeps every flag of the superseded row, so it is on the same variant's card
+(`rowsFor_successor`), and the card still lists the superseded row with its own words. Compose ignores a superseded row only when
 its `supersededBy` chain, followed through at most as many rows as the ledger has, reaches a live row (one with no
-`supersededBy`). A dangling id, a self-reference, a cycle, two rows with the same `id`, or a `supersededBy` that is not a
-string makes `console.compose` fail with the reason (`supersedeErrors`); it is never ignored.
+`supersededBy`). A dangling id, a self-reference, a cycle, two rows with the same `id`, a `supersededBy` that is not a
+string, or a superseding row that lacks a flag of the row it supersedes (`crossErrors`) makes `console.compose` fail with
+the reason (`supersedeErrors`); it is never ignored. A superseding row may add flags; it then joins those variants too.
 
 Rows marked (task compose-superseded-rows):
 
@@ -74,7 +82,7 @@ refuted pick, or a `requires` or `conflicts` violation of the site registry (`Bu
 ## Proved
 
 `decide_link`, `refused_no_link`, `link_iff` (a link exists exactly when no reason does), `link_resolves` (an allowed link
-validates `.ok`), `link_no_refuted`, `link_known_picks`, `classOf_*` (each class and its precedence, `ledgerProved` included), `classOf_superseded_never_refutes` and `classOf_superseded_cons` (a superseded row changes no class), `classOf_no_superseded` and `varRows_no_superseded` (with no `supersededBy` the classes and rows are the old ones), `supersedeErrors_nil_iff` (no error exactly when every superseded row's chain reaches a live row and no two rows share an `id`), `supersedeErrors_nil_reaches` (with no error every superseded row reaches a live row among its successors), `supersedeErrors_cycle` and `supersedeErrors_self` (a cycle or a self-reference is an error), `varRows_reaches_live` (with no error a superseded row of a variant brings a live row into the variant's rows), `partOut_superseding` (with no error the card lists `varRows`, its class is `classOf` of the live rows among them, and each superseded row of the variant brings one of those live rows to the card), `implReasons_nil_of_no_impl`, `entries_inj` and
+validates `.ok`), `link_no_refuted`, `link_known_picks`, `classOf_*` (each class and its precedence, `ledgerProved` included), `classOf_superseded_never_refutes` and `classOf_superseded_cons` (a superseded row changes no class), `classOf_no_superseded` (with no `supersededBy` the classes are the old ones), `mem_rowsFor` (a variant's rows are exactly the rows whose `flags` name it), `flagErrors_nil_iff`, `flagErrors_missing`, `flagErrors_unknown`, `flagErrors_flag_not_in` (no flag error exactly when every row has `flags` of registered keys holding its `flag`; each failure is an error), `crossErrors_nil_iff`, `supersedeErrors_nil_iff` (no error exactly when every superseded row's chain reaches a live row, no two rows share an `id`, and no superseded row has a flag its successor lacks), `supersedeErrors_cross` and `supersedeErrors_nil_about` (a lost flag is an error; with no error the successor is about every flag of the row), `supersedeErrors_nil_reaches` (with no error every superseded row reaches a live row among its successors), `supersedeErrors_cycle` and `supersedeErrors_self` (a cycle or a self-reference is an error), `rowsFor_successor` and `rowsFor_reaches_live` (with no error every successor of a variant's row is a row of the variant, and a superseded row brings a live one), `partOut_rows_about` (every card row names its variant in `flags`), `partOut_superseding` (with no error the card lists `rowsFor`, its class is `classOf` of the live rows among them, and each superseded row of the variant brings one of those live rows to the card), `implReasons_nil_of_no_impl`, `entries_inj` and
 `search_entries_inj` (two combinations with the same entries pick the same variant of every part), `ordered_nodup`.
 
 ## Stale replies
@@ -87,8 +95,8 @@ test library).
 
 ## Accepted limits
 
-- Matching ledger rows to variants is text matching on the candidate (flag first). A row that names neither stays under the
-  part's "other findings".
+- "Other findings" of a part still reads the row's `part` text (`rowParts`: the text before its first `(`, or a parenthesis
+  that opens with `+`); it decides no class and no variant rows. Rows of a part that are about no variant land there.
 - The look-change list is not on `main`; Lean reads the `limit` text of the variants.
 - The text-to-entries round trip of `render` is not proved; goldens and `apps/console-api/test/compose.test.ts` cover it.
 - TS stand-ins to move into Lean later: attaching ledger text by index, the run-id regex (10 to 12 digits), the polling loop

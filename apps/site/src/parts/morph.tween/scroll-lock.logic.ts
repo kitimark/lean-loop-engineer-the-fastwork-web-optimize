@@ -14,5 +14,8 @@ export const readsAt = (was: boolean, now: boolean): boolean => !was && now;
 /** Lean `lockAllowed`: the arm installs the lock only when the primary input can hover. */
 export const lockAllowed = (hoverNone: boolean): boolean => !hoverNone;
 
+/** Lean `hoverNoneOf`: an unreadable `(hover: none)` (`null`) counts as matching, so the arm keeps the original. */
+export const hoverNoneOf = (read: boolean | null): boolean => read ?? true;
+
 /** Lean `engage`: the lock engages with hover and an overlay scrollbar. */
 export const engage = (hoverNone: boolean, overlay: boolean): boolean => lockAllowed(hoverNone) && overlay;

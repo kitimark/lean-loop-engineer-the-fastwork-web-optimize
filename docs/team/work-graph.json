@@ -11715,14 +11715,15 @@
    "deps": [
     "waapi-threshold-attr"
    ],
-   "title": "waapi r2 check #2: morph.tween:waapi skips the original's post-flip nav width ease (Linux WebKit 1280 close@0 nav.rect/nav.transform.shift apart, orig/base 20-55 px from final at the first settled frame, 39457063232/39457767229, also pre-fix 39412301221; 0.5-3 px on Chromium and macOS). Decide in Lean: model the tail in the driver, or classify as a look change (ask the user)",
+   "title": "waapi r2 check #2: morph.tween:waapi skips the original's post-flip nav width ease. Linux WebKit's 20-55 px (1280 close@0) was runner frame jank: flip gaps 417-562 ms in 39412301221 (waapi, pre-fix), 39457063232 (faithful) and 39457767229 (cand morph.tween:waapi-scoped) on an older probe that walked the morph; display grids give <= 0.5 px at 60 Hz at 1280, 0.3-3 px at CI Chromium/macOS gaps. Decide in Lean: model the tail in the driver, or classify as a look change",
    "writes": [
     "lean/Fw/Parts/MorphTweenOpt.lean",
     "apps/site/src/parts/morph.tween/**",
     "packages/contracts/golden/parts/morph-tween*.jsonl",
     "research/findings/ledger.json",
     "docs/team/handoffs/waapi-nav-width-tail.md"
-   ]
+   ],
+   "evidence": "94ff7f5"
   },
   {
    "devices": [
@@ -11741,7 +11742,8 @@
     "packages/contracts/golden/console/console.compose.jsonl",
     "docs/team/tools/compose.md",
     "docs/team/handoffs/ledger-flag-field.md"
-   ]
+   ],
+   "evidence": "330bd3b"
   },
   {
    "devices": [
@@ -11905,7 +11907,8 @@
     "packages/contracts/golden/console/**",
     "docs/team/tools/land.md",
     "docs/team/handoffs/land-phase1-slow.md"
-   ]
+   ],
+   "evidence": "a5f5f19"
   },
   {
    "devices": [
@@ -12050,7 +12053,7 @@
    "owner": "lean-prover",
    "stream": "gate",
    "deps": [],
-   "title": "Mistake 2026-10-21 (waapi-nav-width-tail r1): run 39457767229 was cited as morph.tween:waapi evidence in a graph title, a builder note and a ledger draft, but every arm of it carried ?fw=hero.exit:faithful. Identity over inference: a check that maps a cited CI run id to the flags its trajectory/count artifacts actually carried (read from the artifact's search per arm, cached under .cache) and refuses a note, handoff or ledger row that cites a run for a flag it did not carry; Lean decides the match, TS only downloads",
+   "title": "Mistake 2026-10-21 (waapi-nav-width-tail r1): run 39457767229 was cited as morph.tween:waapi evidence in a graph title, a builder note and a ledger draft, but its cand arm carried ?fw=morph.tween:waapi-scoped (a reviewer then claimed hero.exit:faithful, also wrong: both from prose). Identity over inference: a check that maps a cited CI run id to the flags its trajectory/count artifacts actually carried (read from the artifact's search per arm, cached under .cache) and refuses a note, handoff or ledger row that cites a run for a flag it did not carry; Lean decides the match, TS only downloads",
    "writes": [
     "lean/Fw/Gate/RunCite.lean",
     "packages/contracts/golden/gate/run-cite*.jsonl",
@@ -12096,6 +12099,25 @@
     "docs/team/handoffs/scoped-close-start-cause.md",
     "apps/site/src/parts/hero.exit/**",
     "lean/Fw/Parts/HeroExit*.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "waapi-tail-drop",
+   "owner": "lean-prover",
+   "stream": "proposals",
+   "deps": [
+    "waapi-nav-width-tail"
+   ],
+   "title": "Follow-up of waapi-nav-width-tail (option b for the user's class-L review): a proposal flag that drops the base-write window, saving about 9 script frames plus the original's post-close width-transition layout frames (INFERRED ~41 at 60 Hz: count them on CI with Chromium layout counts first); look difference <= 0.5 px at 60 Hz at 1280; goes to the user's console review queue, never v2-proved",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "apps/site/src/parts/morph.tween/**",
+    "packages/contracts/golden/parts/morph-tween*.jsonl",
+    "research/notes/2026/10-2*-waapi-tail-drop.md",
+    "docs/team/handoffs/waapi-tail-drop.md"
    ]
   }
  ],
