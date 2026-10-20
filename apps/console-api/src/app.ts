@@ -15,10 +15,11 @@ import type { Grants } from "./preview/grants.ts";
 import type { PreviewManager } from "./preview/manager.ts";
 import { OwnerAuth } from "./preview/owner.ts";
 import { mountOwnerGate } from "./preview/gate.ts";
+import type { ReturnStore } from "./preview/return.ts";
 import { LoginGuard } from "./preview/login.ts";
 
 /** Owner login and LAN mode (console-lan-owner): the login guard and whether LAN requests are possible at all. */
-export interface GateOptions { login: LoginGuard; lan: boolean; grants?: Grants }
+export interface GateOptions { login: LoginGuard; lan: boolean; grants?: Grants; returns?: ReturnStore }
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json",
@@ -43,7 +44,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   // served only to an owner session. Without LAN mode every request is loopback and only `/preview/*` is gated.
   if (previews || gate) {
     const g = gate ?? { login: new LoginGuard(store.core, null), lan: false };
-    mountOwnerGate(app, { core: store.core, owner, login: g.login, lan: g.lan });
+    mountOwnerGate(app, { core: store.core, owner, login: g.login, lan: g.lan, ...(g.returns ? { returns: g.returns } : {}) });
   }
 
   // Every state-changing route (all non-GET; the login excepted, it judges its own Origin) passes the one Lean gate

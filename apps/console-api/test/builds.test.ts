@@ -189,7 +189,7 @@ describe("Builds routes and the manager", () => {
     const authorization = `Bearer ${link.headers.get("location")!.slice("/#owner=".length)}`;
     const post = (body: unknown, h: Record<string, string> = { authorization, origin: O }) =>
       app.request("/api/previews", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", host: H, ...h } });
-    return { app, pm, post, root, a, H, authorization };
+    return { app, pm, post, root, a, H, authorization, owner, O };
   }
 
   it("GET /api/builds lists the rows; a port row's Preview builds main at its land commit; a flag row opens at its search", async () => {
@@ -228,5 +228,86 @@ describe("Builds routes and the manager", () => {
     expect((await post({ sha: "abc" })).status).toBe(400);
     expect(pm.list().previews.length).toBe(1);
     expect(pm.list().previews[0]!.search).toBe("");
+  });
+
+  describe("POST /api/builds/open (Lean console.buildsOpen, console.buildsSearch)", () => {
+    const J = { "content-type": "application/json" };
+    async function rig() {
+      const t = await setup();
+      const open = (body: unknown, h?: Record<string, string>) =>
+        t.app.request("/api/builds/open", { method: "POST", body: JSON.stringify(body), headers: { ...J, host: t.H, ...(h ?? { authorization: t.authorization, origin: t.O }) } });
+      return { ...t, open };
+    }
+
+    it("a row starts its build (202 pending), never a second one, then opens with a path and no token", async () => {
+      const { open, pm, root } = await rig();
+      const r1 = await open({ row: "flag:nav:skip" });
+      expect(r1.status).toBe(202);
+      const j1 = await r1.json() as any;
+      expect(j1).toMatchObject({ ok: true, state: "pending", canonical: "?fw=nav:skip,hero:strip" });
+      const again = await open({ row: "flag:nav:skip" });
+      expect([200, 202]).toContain(again.status);
+      await pm.settled(j1.preview);
+      expect(pm.list().previews.length).toBe(1);
+      const r2 = await open({ row: "flag:nav:skip" });
+      expect(r2.status).toBe(200);
+      const j2 = await r2.json() as any;
+      expect(j2.state).toBe("open");
+      expect(j2.preview).toBe(j1.preview);
+      expect(j2.path).toBe(`/preview/${j1.preview}/r/?fw=nav:skip,hero:strip`);
+      expect(j2.url).toBe(`http://127.0.0.1:4001${j2.path}`);
+      expect(JSON.stringify(j2)).not.toMatch(/token|cookie|owner=|authorization/i);
+      expect(pm.list().previews[0]!.target.sha).toBe(sh(root, "rev-parse", "main"));
+      const c = await (await open({ row: "flag:nav:skip", arm: "compare" })).json() as any;
+      expect(c.path).toBe(`/preview/${j1.preview}/compare?fw=nav:skip,hero:strip`);
+    });
+
+    it("a pasted search is checked first; a refused one opens nothing and starts nothing", async () => {
+      const { open, pm } = await rig();
+      for (const [search, reason] of [["?fw=nope:x", "unknown part"], ["?preset=original&preset=v2-proved", "only one ?preset="], ["?fw=nav:skip", "requires hero:strip"], ["?fw=hero:strip%20x", "character outside"]] as const) {
+        const r = await open({ search });
+        expect(r.status).toBe(422);
+        const j = await r.json() as any;
+        expect(j.ok).toBe(false);
+        expect(j.reasons.join("|")).toContain(reason);
+      }
+      expect(pm.list().previews.length).toBe(0);
+    });
+
+    it("a valid pasted search builds main once, then opens in canonical form (preset first)", async () => {
+      const { open, pm, root } = await rig();
+      const r1 = await open({ search: "?fw=nav:skip&preset=v2-proved" });
+      expect(r1.status).toBe(202);
+      const j1 = await r1.json() as any;
+      expect(j1.canonical).toBe("?preset=v2-proved&fw=nav:skip");
+      await pm.settled(j1.preview);
+      const e = pm.list().previews[0]!;
+      expect(e.task).toBe("open-main");
+      expect(e.target).toEqual({ kind: "main", ref: "main", sha: sh(root, "rev-parse", "main") });
+      const j2 = await (await open({ search: "?fw=nav:skip&preset=v2-proved" })).json() as any;
+      expect(j2).toMatchObject({ ok: true, state: "open", preview: j1.preview, path: `/preview/${j1.preview}/r/?preset=v2-proved&fw=nav:skip` });
+      expect(pm.list().previews.length).toBe(1);
+    });
+
+    it("the owner gate is unchanged: a non-owner cannot start (403); a request names no commit or path (400)", async () => {
+      const { open, pm } = await rig();
+      expect((await open({ row: "flag:nav:skip" }, {})).status).toBe(403);
+      expect((await open({ search: "?preset=v2-proved" }, {})).status).toBe(403);
+      expect((await open({ sha: "abc" })).status).toBe(400);
+      expect((await open({ row: "flag:nav:nope" })).status).toBe(404);
+      expect(pm.list().previews.length).toBe(0);
+    });
+
+    it("the link uses the LAN address when LAN is on, else loopback", async () => {
+      const { open, pm, owner } = await rig();
+      const j1 = await (await open({ row: "flag:nav:skip" })).json() as any;
+      await pm.settled(j1.preview);
+      owner.setLanHosts(["192.0.2.10:4000"], ["192.0.2.10:4001"]);
+      const j2 = await (await open({ row: "flag:nav:skip" })).json() as any;
+      expect(j2.url).toBe(`http://192.0.2.10:4001/preview/${j1.preview}/r/?fw=nav:skip,hero:strip`);
+      owner.setLanHosts([], []);
+      const j3 = await (await open({ row: "flag:nav:skip" })).json() as any;
+      expect(j3.url.startsWith("http://127.0.0.1:4001/")).toBe(true);
+    });
   });
 });

@@ -10552,8 +10552,11 @@
     "docs/team/tools/console.md",
     "docs/team/tools/preview-grant.md",
     "research/notes/2026/10-2*-console-preview-search.md",
-    "docs/team/handoffs/console-preview-search.md"
-   ]
+    "docs/team/handoffs/console-preview-search.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ops/Golden.lean"
+   ],
+   "evidence": "6c3e6b7"
   },
   {
    "devices": [
@@ -10582,7 +10585,14 @@
     "docs/team/tools/fw-run.md",
     "results/trajectory-probe/**",
     "research/notes/2026/10-2*-trajectory-probe.md",
-    "docs/team/handoffs/trajectory-probe.md"
+    "docs/team/handoffs/trajectory-probe.md",
+    "packages/gate-breakpoints/src/trajectory/**",
+    "packages/gate-breakpoints/test/trajectory*.mjs",
+    "packages/gate-breakpoints/src/page.mjs",
+    "packages/gate-breakpoints/src/engines.mjs",
+    "packages/gate-breakpoints/package.json",
+    "packages/contracts/golden/gate/trajectory*.jsonl",
+    "apps/runner/src/land.ts"
    ]
   },
   {
@@ -10604,6 +10614,48 @@
     "research/notes/2026/10-2*-preset-drop-waapi.md",
     "docs/team/handoffs/preset-drop-waapi.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-login-return",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20: opening a preview arm link (e.g. http://<lan>:47100/?preset=..&fw=..) without the owner session should redirect to the owner login and, after login, return to the exact requested link. Return target decided in Lean (allowlist: only live preview arm origins / preview paths on the console's own hosts; anything else -> console home; no open redirect); a stopped preview after login lands on the Builds tab with a note.",
+   "writes": [
+    "lean/Fw/Console/**",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/**",
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "apps/console-web/src/**",
+    "apps/console-web/test/**",
+    "apps/runner/src/land.ts",
+    "docs/team/tools/console.md",
+    "docs/team/tools/preview-grant.md",
+    "docs/team/handoffs/preview-login-return.md"
+   ],
+   "evidence": "b4f0ece"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "engine-release-notes",
+   "owner": "researcher",
+   "stream": "research",
+   "deps": [],
+   "title": "User 2026-10-20 asked whether we gathered engine reference docs like https://webkit.org/blog/17333/webkit-features-in-safari-26-0/ - only 26.4 and 27.0 posts were cited at kickoff. Index WebKit/Safari feature posts and Apple release notes 26.0-27.x and Chrome release notes for the matching versions; map each item touching our flags' features (WAAPI, scroll-driven animations, @property registered custom properties, content-visibility, container queries, contain, backdrop-filter, will-change, style invalidation/caching) to the flag and Lean premise it touches (confirms / contradicts / new risk); search WebKit Bugzilla and the Chromium tracker for the two 2026-10-20 mechanisms (stale style with non-inherited registered properties passed by inherit; WAAPI-animated custom properties vs JS-read state).",
+   "writes": [
+    "research/notes/2026/10-2*-engine-release-notes.md",
+    "refs/upstream/PINS.md",
+    "docs/team/handoffs/engine-release-notes.md"
+   ],
+   "evidence": "8aa8243"
   }
  ],
  "deadline": {
