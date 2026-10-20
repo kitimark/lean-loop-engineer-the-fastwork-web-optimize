@@ -27,17 +27,25 @@ readings plus what each arm's page reported), `units-<engine>.json` and `summary
    search client-renders the default config; an earlier round measured that for every run. Incident
    `inc-variant-gate-flags-off`.) The faithful arm (rewrite, default config) is loaded from its own server for the same reason.
 2. **Coverage is a verdict.** In a push phase (open, close) an empty bucket 1-9 (a tenth of the morph value `m`), a missing
-   morph value or a `beyond` window is `fail:coverage`, never skip. Hold phases may skip an empty bucket.
+   morph value or a `beyond` window is `fail:coverage`, never skip. Hold phases may skip an empty bucket. The tween is driven
+   by time, so one push lands about two frames per tenth (Chromium, 17 ms frames) and sometimes none; `--reps N` (1 to 5,
+   default 3) walks the morph path on N fresh pages and pools the rows of each phase (each row carries its `rep`; every
+   rep's arm identity is checked). Linux WebKit renders a frame every 150 ms or more, so its push coverage fails by
+   construction there (see the research note); read its morph rows as "not measurable", and its hero rows as usable.
 3. **Per-unit baseline.** A unit is (width, path, phase, node, property, step), decided on its own. The faithful arm is
    judged against the original by the same Lean code, so each unit is `new` (fails here, passes faithful), `both` (baseline
-   red), `cleared` or `ok`. The lane is RED iff some unit is `new` (`laneRed`; no pooled aggregate).
+   red), `cleared` or `ok`. The lane is RED iff some unit is `new` (`laneRed`; no pooled aggregate). The summary splits the
+   `new` count into content (apart, differs, ...) and coverage. A coverage-only RED is sampling noise (a default-vs-default
+   run turns RED from one empty bucket); the signal is the content-new groups. Steps at `close@0` (the first sample of a
+   push) and `a*` (approach) also flicker; read a group only when it repeats across widths or runs.
 
 ## Read timing
 
 `kit.mjs` stamps `t0`/`t1` around each sample's reads. Read cost is `t1-t0`; the frame time is the gap between consecutive
 `t0`. Quantiles are nearest-rank over integer tenths of ms (Lean `quantile`); `readsDominate` is `0 < gap <= 2*read`. The
-summary prints p50/p90 per arm and phase. If reads dominate, set `READS: lean` in the workflow (or `--reads lean`): during
-pushes only the discrete properties, `m`, the logo rect and the hero copy/cards opacity and transform are read; the full set
+summary prints p50/p90 per arm and phase (Playwright WebKit's timer is whole milliseconds). Measured: reads do not
+dominate anywhere (Chromium read 0.4 ms against a 17 ms frame; Linux WebKit read 1 ms against a 150 ms frame). If they ever do,
+set `READS: lean` in the workflow (or `--reads lean`; not run on CI yet): during pushes only the discrete properties, `m`, the logo rect and the hero copy/cards opacity and transform are read; the full set
 is read at rest. The setting is in the artifact header.
 
 ## Apple witness
