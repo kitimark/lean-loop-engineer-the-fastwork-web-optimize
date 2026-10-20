@@ -39,6 +39,9 @@ def linkTable : List (Flag × List Key) :=
     "arm the 3 s rotation interval only while visible (armed = inView and not narrow and not covered)")
   let k16 : Key := ("people.card",
     "MQ-gated shrink (KD#3): skip the --future-shrink write and the rAF re-request in the c860 band")
+  let k6i : Key := ("hero.exit",
+    "hero.exit:scoped with inline reader writes (task exit-scoped-inline): the writer sets --exit-opacity and \
+      --exit-scatter inline on each of the 16 readers in the frame it writes the stage")
   [(⟨"engine.scroll", "batched"⟩, [k1]),
    (⟨"nav.hitTest", "elements-skip"⟩, [k4]),
    (⟨"nav.hitTest", "hit-skip"⟩, [k3]),
@@ -50,7 +53,8 @@ def linkTable : List (Flag × List Key) :=
    (⟨"morph.mount", "shift"⟩, [k12]),
    (⟨"morph.tween", "waapi"⟩, [k9]),
    (⟨"pain.notes", "visible"⟩, [k21]),
-   (⟨"people.card", "mq"⟩, [k16])]
+   (⟨"people.card", "mq"⟩, [k16]),
+   (⟨"hero.exit", "scoped"⟩, [k6i])]
 
 /-- **The curated exclusions**: flags kept out of the arm whatever the ledger says, each with its reason. `hero.accent`
 has no link; the two strips share the row `k_7` and leave by the C3 decision (`research/notes/2026/10-19-c3-decision.md`). -/
@@ -476,7 +480,7 @@ def record (args : List String) : IO Unit := do
 #guard (reasonOf ⟨"hero.countdown", "hidden-pause"⟩).isNone
 #guard links.map (·.1.key) == ["engine.scroll:batched", "nav.hitTest:elements-skip", "nav.hitTest:hit-skip",
   "morph.countdown:hidden-pause", "morph.columns:hidden-pause", "engine.scene:hidden-pause", "morph.mount:shift",
-  "morph.tween:waapi", "pain.notes:visible", "people.card:mq"]
+  "morph.tween:waapi", "pain.notes:visible", "people.card:mq", "hero.exit:scoped"]
 #guard ((verdictJson [] ⟨"hero.countdown", "strip"⟩).getObjValAs? String "verdict").toOption == some "excluded"
 #guard ((verdictJson [] ⟨"morph.countdown", "hidden-pause"⟩).getObjValAs? String "verdict").toOption == some "row-count"
 #guard presetText [] == "{\"extends\":\"original\",\"fw\":{},\"name\":\"v2-proved\"}\n"
