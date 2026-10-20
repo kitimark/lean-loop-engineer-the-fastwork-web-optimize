@@ -11760,7 +11760,8 @@
     "apps/site/src/registry/presets/v2-proved.json",
     "packages/contracts/golden/preset/**",
     "docs/team/handoffs/admit-hero-exit-scoped.md"
-   ]
+   ],
+   "evidence": "ce075a8"
   },
   {
    "devices": [
