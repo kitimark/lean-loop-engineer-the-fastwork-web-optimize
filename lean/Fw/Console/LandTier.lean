@@ -1,4 +1,5 @@
 import Lean.Data.Json
+import Fw.Console.LandSpeed
 /-!
 # Land tiers: which checks run on this Mac and which on the CI land lane
 
@@ -282,6 +283,138 @@ def laneCases : List Json :=
    laneLine "summaryless check.sh passes without a summary" true false none checkShId,
    laneLine "summaryless check.sh still fails on a failing exit" false false none checkShId]
 
+/-! ### Phase 1 of a land: when the local `fwcore` build is needed
+
+`fw land` builds `fwcore` in the merge-tree worktree (phase 1) only to learn the new binary's digest for the selection of the
+fwcore users. The build is skipped when no changed path is an input of the build. A path under `lean/**` is no input when no
+default Lake target reads it: it is neither a module of `Fw`, `fwcore`, `FwCoreCli`, `mathview` nor `breakgen` (their import closure,
+checked by `apps/runner/test/land-phase1.test.ts`) nor included at elaboration time. -/
+
+/-- The `lean/` paths that no default Lake target reads: the Lean scripts, the golden files, the readme and the two generated lists. -/
+def buildFree : List String :=
+  ["lean/scripts/**", "lean/golden/**", "lean/README.md", "lean/land-filter.txt", "lean/land-legs.txt"]
+
+/-- The change as the build sees it: the changed paths that are not build-free, in order. -/
+def binaryChange (changed : List String) : List String :=
+  changed.filter fun p => !Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope buildFree) p
+
+/-- Does phase 1 build `fwcore`? Yes iff the binary change reaches `fwcoreBuildReads`. -/
+def phase1Build (changed : List String) : Bool :=
+  Fw.Console.LandSpeed.selected Fw.Console.LandSpeed.fwcoreBuildReads (binaryChange changed)
+
+/-- The phase-2 selection with the binary-moved test over the binary change (`LandSpeed.selectTwoPhase` over all changed paths). -/
+def selectBin (ds : List Fw.Console.LandSpeed.Decl) (changed : List String) (d0 d1 : Option String) : List String :=
+  Fw.Console.LandSpeed.selectChecks ds
+    (if Fw.Console.LandSpeed.binMoved (binaryChange changed) d0 d1 then changed ++ [Fw.Console.LandSpeed.fwcoreBin] else changed)
+
+theorem mem_binaryChange (changed : List String) (p : String) :
+    p ∈ binaryChange changed ↔ p ∈ changed ∧ Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope buildFree) p = false := by
+  simp [binaryChange]
+
+/-- Phase 1 builds exactly when a changed path is in the build reads and not build-free. -/
+theorem phase1Build_iff (changed : List String) :
+    phase1Build changed = true ↔ ∃ p ∈ changed,
+      Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope Fw.Console.LandSpeed.fwcoreBuildReads) p = true ∧
+      Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope buildFree) p = false := by
+  simp only [phase1Build, Fw.Console.LandSpeed.selected, List.any_eq_true, mem_binaryChange]
+  constructor
+  · rintro ⟨p, ⟨hp, hf⟩, hr⟩; exact ⟨p, hp, hr, hf⟩
+  · rintro ⟨p, hp, hr, hf⟩; exact ⟨p, ⟨hp, hf⟩, hr⟩
+
+/-- No skip loses a needed build: a changed build input starts the build. -/
+theorem phase1Build_of_input (changed : List String) (p : String) (hp : p ∈ changed)
+    (hr : Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope Fw.Console.LandSpeed.fwcoreBuildReads) p = true)
+    (hf : Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope buildFree) p = false) : phase1Build changed = true :=
+  (phase1Build_iff changed).2 ⟨p, hp, hr, hf⟩
+
+/-- A skipped phase 1 leaves the binary where it was: the binary-moved test is false for every pair of digests. -/
+theorem skip_binMoved (changed : List String) (h : phase1Build changed = false) (d0 d1 : Option String) :
+    Fw.Console.LandSpeed.binMoved (binaryChange changed) d0 d1 = false :=
+  Fw.Console.LandSpeed.binMoved_unbuilt _ _ _ h
+
+/-- A skipped phase 1 selects exactly what a change without a binary move selects, whatever the digests. -/
+theorem skip_selection (ds : List Fw.Console.LandSpeed.Decl) (changed : List String) (h : phase1Build changed = false)
+    (d0 d1 : Option String) : selectBin ds changed d0 d1 = Fw.Console.LandSpeed.selectChecks ds changed := by
+  simp [selectBin, skip_binMoved changed h]
+
+/-- A built phase 1 selects as `LandSpeed.selectTwoPhase` does. -/
+theorem built_selection (ds : List Fw.Console.LandSpeed.Decl) (changed : List String) (h : phase1Build changed = true)
+    (d0 d1 : Option String) : selectBin ds changed d0 d1 = Fw.Console.LandSpeed.selectTwoPhase ds changed d0 d1 := by
+  have hs : Fw.Console.LandSpeed.selected Fw.Console.LandSpeed.fwcoreBuildReads changed = true := by
+    simp only [phase1Build, Fw.Console.LandSpeed.selected, List.any_eq_true, mem_binaryChange] at h ⊢
+    obtain ⟨p, ⟨hp, _⟩, hr⟩ := h
+    exact ⟨p, hp, hr⟩
+  have hm : Fw.Console.LandSpeed.binMoved (binaryChange changed) d0 d1 = Fw.Console.LandSpeed.binMoved changed d0 d1 := by
+    have hp : Fw.Console.LandSpeed.selected Fw.Console.LandSpeed.fwcoreBuildReads (binaryChange changed) = true := h
+    simp [Fw.Console.LandSpeed.binMoved, hp, hs]
+  simp [selectBin, Fw.Console.LandSpeed.selectTwoPhase, Fw.Console.LandSpeed.withBin, hm]
+
+/-- **Premise `land.binaryOfInputs`** (a strengthening of `land.binaryOfLean`, tested by the import closure): states that agree on the
+build reads outside the build-free paths build the same binary. -/
+def BinaryOfInputs (build : Fw.Console.LandSpeed.St → Fw.Console.LandSpeed.Blob) : Prop :=
+  ∀ σ σ' : Fw.Console.LandSpeed.St, (∀ p, p ≠ Fw.Console.LandSpeed.fwcoreBin →
+    Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope Fw.Console.LandSpeed.fwcoreBuildReads) p = true →
+    Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope buildFree) p = false → σ p = σ' p) → build σ = build σ'
+
+/-- Skipping is sound for the digest: two states that differ only on the changed paths build the same binary when phase 1 is skipped. -/
+theorem skip_binary_equal (changed : List String) (h : phase1Build changed = false)
+    (build : Fw.Console.LandSpeed.St → Fw.Console.LandSpeed.Blob) (hb : BinaryOfInputs build)
+    (σ σ' : Fw.Console.LandSpeed.St) (hd : ∀ p, p ∉ changed → σ p = σ' p) : build σ = build σ' := by
+  refine hb σ σ' fun p _ hr hf => hd p fun hp => ?_
+  rw [Bool.eq_false_iff] at h
+  exact h ((phase1Build_iff changed).2 ⟨p, hp, hr, hf⟩)
+
+/-- No local step loses a build: after a skipped phase 1 (`built = false`) the local plan builds before every local fwcore user. -/
+theorem skip_keeps_local_build (ids : List String) (u : String) (hu : u ∈ ids) (hc : isCoreUser u = true) :
+    ∃ i j : Nat, i < j ∧ (localPlan false ids)[i]? = some Step.build ∧ (localPlan false ids)[j]? = some (Step.check u) := by
+  rcases core_user_has_build false ids u hu hc with h | h
+  · exact absurd h (by decide)
+  · exact h
+
+#guard phase1Build ["lean/Fw/Console/Land.lean"]
+#guard phase1Build ["scripts/fwcore-build.sh"]
+#guard phase1Build ["lean/README.md", "lean/lakefile.toml"]
+#guard !phase1Build ["lean/README.md"]
+#guard !phase1Build ["lean/scripts/LandTierGolden.lean", "lean/golden/console-board.jsonl", "lean/land-filter.txt", "lean/land-legs.txt"]
+#guard !phase1Build ["apps/site/src/x.ts", "docs/team/handoffs/x.md"]
+#guard !phase1Build []
+#guard selectBin Fw.Console.LandSpeed.binDecls ["lean/README.md"] none none == ["check.sh", "reads-scan"]
+
+/-- Table for the phase-1 cases: check.sh, two fwcore users, a site check and the scan (`LandSpeed.binDecls`). -/
+def phase1Decls : List Fw.Console.LandSpeed.Decl := Fw.Console.LandSpeed.binDecls
+
+private def optStr : Option String → Json
+  | some s => .str s
+  | none => .null
+
+/-- One phase-1 golden line. -/
+def phase1Line (name : String) (changed : List String) (d0 d1 : Option String) : Json :=
+  Json.mkObj [("name", .str name),
+    ("request", Json.mkObj [("changed", strs changed), ("d0", optStr d0), ("d1", optStr d1),
+      ("decls", .arr (phase1Decls.map fun d => Json.mkObj [("id", .str d.id), ("reads", strs d.reads)]).toArray)]),
+    ("response", Json.mkObj [("build", .bool (phase1Build changed)), ("binaryChange", strs (binaryChange changed)),
+      ("select", strs (selectBin phase1Decls changed d0 d1))])]
+
+/-- The phase-1 cases: every branch of the rule (input changed, only build-free changed, mixed, no lean path, nothing) and the digests. -/
+def phase1Cases : List Json :=
+  [phase1Line "lean module: build" ["lean/Fw/Console/Land.lean"] (some "a") (some "b"),
+   phase1Line "lean module, same digest: build" ["lean/Fw/Console/Land.lean"] (some "a") (some "a"),
+   phase1Line "build script: build" ["scripts/fwcore-build.sh"] none none,
+   phase1Line "lakefile: build" ["lean/lakefile.toml"] none none,
+   phase1Line "readme only: skip" ["lean/README.md"] none none,
+   phase1Line "lean script and golden only: skip, digests unknown" ["lean/scripts/LandTierGolden.lean", "lean/golden/console-board.jsonl"] none none,
+   phase1Line "generated lists only: skip" ["lean/land-filter.txt", "lean/land-legs.txt"] (some "a") (some "b"),
+   phase1Line "free and module mixed: build" ["lean/README.md", "lean/Fw/Console/Land.lean"] (some "a") (some "b"),
+   phase1Line "no lean path: skip" ["apps/site/src/x.ts"] none none,
+   phase1Line "console-api source: skip, its own read selects it" ["apps/console-api/src/x.ts", "lean/README.md"] none none,
+   phase1Line "nothing changed: skip" [] none none]
+
+/-- The golden text of the phase-1 cases. -/
+def phase1Text : String := String.join (phase1Cases.map fun c => c.compress ++ "\n")
+
+/-- The phase-1 golden file, relative to `lean/`. -/
+def phase1Path : System.FilePath := "../packages/contracts/golden/console/land-phase1.jsonl"
+
 /-- The golden file text. -/
 def goldenText : String := String.join ((cases ++ laneCases).map fun c => c.compress ++ "\n")
 
@@ -320,9 +453,11 @@ def filterPath : System.FilePath := "land-filter.txt"
 def writeGolden : IO Unit := do
   IO.FS.writeFile goldenPath goldenText
   IO.FS.writeFile filterPath filterText
+  IO.FS.writeFile phase1Path phase1Text
 
 /-- Are the golden file and the filter file the Lean output? -/
 def checkGolden : IO Bool := do
   return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile filterPath) == filterText
+    && (← IO.FS.readFile phase1Path) == phase1Text
 
 end Fw.Console.LandTier
