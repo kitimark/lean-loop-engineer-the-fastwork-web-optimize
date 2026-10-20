@@ -375,21 +375,26 @@ jobs:
 
       # The within-VM class tables are made by the merge job: pairing rows is fwcore's (Lean) and this job has no Linux binary.
 
-      # Kept even when a session failed: the logs say where a slow start stalled.
+      # Kept even when a session failed: the logs say where a slow start stalled. The logs are copied first and each host
+      # command is bounded by an alarm: a wedged CoreSimulator held this step for 28 min (run 39426562165), and a job
+      # that ends by its timeout keeps no log at all.
       - name: Keep logs and host state
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 3
         working-directory: packages/measure-webkit
         env:
           VM: ${{ matrix.vm }}
         run: |
           mkdir -p out "$RUNNER_TEMP/result"
-          # shellcheck disable=SC2009
-          { uptime; xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; ps -axo pid,ppid,etime,stat,command | grep -E "cli.mjs|ios_webkit|tee " | grep -v grep; } > out/"$VM"-host.txt 2>&1 || true
           cp out/"$VM"-* "$RUNNER_TEMP/result/" 2>/dev/null || true
+          bounded() { perl -e 'alarm 20; exec @ARGV' -- "$@"; }
+          # shellcheck disable=SC2009
+          { uptime; bounded xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; ps -axo pid,ppid,etime,stat,command | grep -E "cli.mjs|ios_webkit|tee " | grep -v grep; } > "$RUNNER_TEMP/result/$VM-host.txt" 2>&1 || true
 
       # Stop the proxy's device and delete it, also when a step failed; a cancelled job skips this (the runner is discarded).
       - name: Shut down and delete the Simulator
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 3
         run: |
           xcrun simctl shutdown all || true
           xcrun simctl delete "$FW_SIM_NAME" || true
