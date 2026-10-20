@@ -1,0 +1,1533 @@
+{
+ "task": "tween-platform-scope",
+ "status": "INFERRED",
+ "source": {
+  "render": "Vite SSR (react-dom/server renderToString) of apps/site <Nav> hosting <MorphPanel> with <MorphColumns> and <MorphCountdown>, props as App.tsx:55-65, branch sources at 5db1e155 (flag code as at 50dbdd6e)",
+  "search": "?fw=morph.tween:waapi-scoped",
+  "configHash": "a2b80cf241434062",
+  "css": "site-dist artifact of run 39337815445, page c/a2b80cf241434062.html (linked stylesheets and inline <style>); CSS-module class names of the SSR render are mapped onto the dist names by module and local name",
+  "limit": "emotion <style> blocks of the SSR render are dropped, so MUI emotion classes match no rule"
+ },
+ "classification": {
+  "varOrDecl": "a matching rule or inline style has a var() reference or a custom-property declaration",
+  "animOrTrans": "a matching rule has a non-none animation or transition",
+  "model": "an element a full inherited recalc from the nav root touches: a child of the root, a child of a touched element that declares or reads a custom property, an element with its own var(), declaration, animation or transition, or an element inside an <a>",
+  "pseudo": "::before or ::after rules matching the element"
+ },
+ "rows": {
+  "navLive": {
+   "descendants": 103,
+   "children": 2,
+   "varOrDecl": 26,
+   "animOrTrans": 35,
+   "model": 71,
+   "modelPseudo": 1,
+   "pseudoInSubtree": 1
+  },
+  "navLiveWithoutPanel": {
+   "descendants": 24,
+   "children": 1,
+   "varOrDecl": 4,
+   "animOrTrans": 16,
+   "model": 20,
+   "modelPseudo": 1,
+   "pseudoInSubtree": 1
+  },
+  "navPrerendered": {
+   "descendants": 24,
+   "children": 1,
+   "varOrDecl": 4,
+   "animOrTrans": 16,
+   "model": 20,
+   "modelPseudo": 1,
+   "pseudoInSubtree": 1
+  }
+ },
+ "navLiveElements": [
+  {
+   "i": 0,
+   "depth": 0,
+   "tag": "header",
+   "class": "is-hero-pill nav-module_nav_fsb7in",
+   "dataFw": "nav",
+   "varOrDecl": true,
+   "animOrTrans": true,
+   "flags": [
+    "decl",
+    "trans",
+    "var"
+   ],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 1,
+   "depth": 1,
+   "tag": "div",
+   "class": "nav-module_bar_4ex1vU",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "decl",
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 2,
+   "depth": 2,
+   "tag": "a",
+   "class": "nav-module_logo_qZO4qg",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": true,
+   "flags": [
+    "trans",
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 3,
+   "depth": 3,
+   "tag": "svg",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 4,
+   "depth": 4,
+   "tag": "g",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:link"
+  },
+  {
+   "i": 5,
+   "depth": 5,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 6,
+   "depth": 5,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 7,
+   "depth": 5,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 8,
+   "depth": 5,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 9,
+   "depth": 5,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 10,
+   "depth": 5,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 11,
+   "depth": 5,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 12,
+   "depth": 5,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 13,
+   "depth": 5,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 14,
+   "depth": 2,
+   "tag": "div",
+   "class": "nav-module_actions_TuJPHI",
+   "dataFw": "nav-actions",
+   "varOrDecl": true,
+   "animOrTrans": true,
+   "flags": [
+    "trans",
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 15,
+   "depth": 3,
+   "tag": "div",
+   "class": "lang-module_wrap_l5Nffl",
+   "dataFw": "nav-lang",
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 16,
+   "depth": 4,
+   "tag": "button",
+   "class": "lang-module_switch_bKmZUa",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "trans"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:trans"
+  },
+  {
+   "i": 17,
+   "depth": 5,
+   "tag": "span",
+   "class": "lang-module_icon_LxvmE2",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 18,
+   "depth": 6,
+   "tag": "svg",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 19,
+   "depth": 7,
+   "tag": "circle",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 20,
+   "depth": 7,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 21,
+   "depth": 5,
+   "tag": "span",
+   "class": "lang-module_code_OC2lY4",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 22,
+   "depth": 5,
+   "tag": "svg",
+   "class": "lang-module_chevron_jvJtJi",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "trans"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:trans"
+  },
+  {
+   "i": 23,
+   "depth": 6,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 24,
+   "depth": 3,
+   "tag": "button",
+   "class": "nav-module_btn_iwM4wZ nav-module_earn_opGnJj",
+   "dataFw": "nav-earn",
+   "varOrDecl": true,
+   "animOrTrans": true,
+   "flags": [
+    "anim",
+    "decl",
+    "trans",
+    "var"
+   ],
+   "pseudo": [
+    "after"
+   ],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 25,
+   "depth": 1,
+   "tag": "div",
+   "class": "morph-module_panel_azttB3",
+   "dataFw": "morph-panel",
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 26,
+   "depth": 2,
+   "tag": "div",
+   "class": "morph-module_backdrop_Mz-JJA",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 27,
+   "depth": 3,
+   "tag": "div",
+   "class": "morph-module_stage_8swH-M",
+   "dataFw": "morph-columns",
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 28,
+   "depth": 4,
+   "tag": "div",
+   "class": "morph-module_col_jp9Qbr",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "decl",
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:decl,var"
+  },
+  {
+   "i": 29,
+   "depth": 5,
+   "tag": "div",
+   "class": "morph-module_track_CO8LmY",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 30,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 31,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 32,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 33,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 34,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 35,
+   "depth": 4,
+   "tag": "div",
+   "class": "morph-module_col_jp9Qbr",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "decl",
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:decl,var"
+  },
+  {
+   "i": 36,
+   "depth": 5,
+   "tag": "div",
+   "class": "morph-module_track_CO8LmY",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 37,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 38,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 39,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 40,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 41,
+   "depth": 4,
+   "tag": "div",
+   "class": "morph-module_col_jp9Qbr",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "decl",
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:decl,var"
+  },
+  {
+   "i": 42,
+   "depth": 5,
+   "tag": "div",
+   "class": "morph-module_track_CO8LmY",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 43,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 44,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 45,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 46,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 47,
+   "depth": 4,
+   "tag": "div",
+   "class": "morph-module_col_jp9Qbr",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "decl",
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:decl,var"
+  },
+  {
+   "i": 48,
+   "depth": 5,
+   "tag": "div",
+   "class": "morph-module_track_CO8LmY",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 49,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 50,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 51,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 52,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 53,
+   "depth": 4,
+   "tag": "div",
+   "class": "morph-module_col_jp9Qbr",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "decl",
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:decl,var"
+  },
+  {
+   "i": 54,
+   "depth": 5,
+   "tag": "div",
+   "class": "morph-module_track_CO8LmY",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 55,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 56,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 57,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 58,
+   "depth": 6,
+   "tag": "img",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 59,
+   "depth": 2,
+   "tag": "div",
+   "class": "morph-module_veil_CwAo5l",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 60,
+   "depth": 2,
+   "tag": "div",
+   "class": "morph-module_center_-q5k3H",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 61,
+   "depth": 3,
+   "tag": "p",
+   "class": "MuiTypography-body1 MuiTypography-root morph-module_title_X7dYiK mui-sybyb9",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:var"
+  },
+  {
+   "i": 62,
+   "depth": 3,
+   "tag": "div",
+   "class": "morph-module_countdown_CtbPtw",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 63,
+   "depth": 4,
+   "tag": "div",
+   "class": "morph-module_wrap_xcMqp-",
+   "dataFw": "morph-countdown",
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 64,
+   "depth": 5,
+   "tag": "div",
+   "class": "MuiBox-root hero-module_countdown_HKvRcv hero-module_inverse_HP-vnW mui-0",
+   "dataFw": "morph-countdown-clock",
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "decl"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:decl"
+  },
+  {
+   "i": 65,
+   "depth": 6,
+   "tag": "div",
+   "class": "hero-module_unit_DZw9a5",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 66,
+   "depth": 7,
+   "tag": "span",
+   "class": "hero-module_value_hq0T8R",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 67,
+   "depth": 8,
+   "tag": "span",
+   "class": "hero-module_placeholder_hfMSLi",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 68,
+   "depth": 7,
+   "tag": "span",
+   "class": "MuiTypography-caption MuiTypography-root hero-module_label_sS9Zhs mui-1owoyse",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 69,
+   "depth": 6,
+   "tag": "div",
+   "class": "hero-module_unit_DZw9a5",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 70,
+   "depth": 7,
+   "tag": "span",
+   "class": "hero-module_value_hq0T8R",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 71,
+   "depth": 8,
+   "tag": "span",
+   "class": "hero-module_placeholder_hfMSLi",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 72,
+   "depth": 7,
+   "tag": "span",
+   "class": "MuiTypography-caption MuiTypography-root hero-module_label_sS9Zhs mui-1owoyse",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 73,
+   "depth": 6,
+   "tag": "div",
+   "class": "hero-module_unit_DZw9a5",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 74,
+   "depth": 7,
+   "tag": "span",
+   "class": "hero-module_value_hq0T8R",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 75,
+   "depth": 8,
+   "tag": "span",
+   "class": "hero-module_placeholder_hfMSLi",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 76,
+   "depth": 7,
+   "tag": "span",
+   "class": "MuiTypography-caption MuiTypography-root hero-module_label_sS9Zhs mui-1owoyse",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 77,
+   "depth": 6,
+   "tag": "div",
+   "class": "hero-module_unit_DZw9a5",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 78,
+   "depth": 7,
+   "tag": "span",
+   "class": "hero-module_value_hq0T8R",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 79,
+   "depth": 8,
+   "tag": "span",
+   "class": "hero-module_placeholder_hfMSLi",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 80,
+   "depth": 7,
+   "tag": "span",
+   "class": "MuiTypography-caption MuiTypography-root hero-module_label_sS9Zhs mui-1owoyse",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 81,
+   "depth": 3,
+   "tag": "div",
+   "class": "morph-module_ctaStack_P3cgVM",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 82,
+   "depth": 4,
+   "tag": "button",
+   "class": "MuiButtonBase-root morph-module_cta_M0ROGt mui-w26kp3",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "trans"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:trans"
+  },
+  {
+   "i": 83,
+   "depth": 5,
+   "tag": "svg",
+   "class": "morph-module_ctaIcon_ykpEtb",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 84,
+   "depth": 6,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 85,
+   "depth": 6,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 86,
+   "depth": 4,
+   "tag": "a",
+   "class": "morph-module_rsvp_WbSC4U",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "trans"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:trans"
+  },
+  {
+   "i": 87,
+   "depth": 5,
+   "tag": "svg",
+   "class": "morph-module_ctaIcon_ykpEtb",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:link"
+  },
+  {
+   "i": 88,
+   "depth": 6,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 89,
+   "depth": 6,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 90,
+   "depth": 6,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 91,
+   "depth": 6,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 92,
+   "depth": 6,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 93,
+   "depth": 6,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 94,
+   "depth": 6,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 95,
+   "depth": 6,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 96,
+   "depth": 6,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 97,
+   "depth": 6,
+   "tag": "path",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": true,
+   "flags": [
+    "anim"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:anim"
+  },
+  {
+   "i": 98,
+   "depth": 2,
+   "tag": "footer",
+   "class": "morph-module_footer_Ko5LO9",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "inherited"
+  },
+  {
+   "i": 99,
+   "depth": 3,
+   "tag": "p",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:var"
+  },
+  {
+   "i": 100,
+   "depth": 3,
+   "tag": "div",
+   "class": "morph-module_footerEnd_RS3F7O",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 101,
+   "depth": 4,
+   "tag": "p",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": true,
+   "animOrTrans": false,
+   "flags": [
+    "var"
+   ],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:var"
+  },
+  {
+   "i": 102,
+   "depth": 4,
+   "tag": "span",
+   "class": "morph-module_grad_Iqf8FA",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": false,
+   "modelReason": null
+  },
+  {
+   "i": 103,
+   "depth": 4,
+   "tag": "a",
+   "class": "",
+   "dataFw": null,
+   "varOrDecl": false,
+   "animOrTrans": false,
+   "flags": [],
+   "pseudo": [],
+   "model": true,
+   "modelReason": "own:link"
+  }
+ ]
+}

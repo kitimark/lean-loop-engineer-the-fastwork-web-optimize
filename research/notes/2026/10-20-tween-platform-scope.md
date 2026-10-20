@@ -11,6 +11,7 @@ topics: [morph.tween, waapi, css-properties, inherits, chromium, style-recalc, l
 
 Task tween-platform-scope, branch `worktree-wf_c156a96a-23d-1`, CI branch `ci/tween-platform-scope`, commit 50dbdd6e.
 Round 2 adds the live nav census, the base gate runs and the per-phase numbers; the flag code is unchanged.
+Round 3 adds the lead-dispatched webkit-sim runs, the base evidence for `desktop-1512` and the committed live census.
 Status words: CONFIRMED (source cited), MEASURED (CI run id cited), INFERRED.
 
 ## Answer
@@ -23,20 +24,26 @@ Status words: CONFIRMED (source cited), MEASURED (CI run id cited), INFERRED.
 - The variant registers `--platform-morph` (`<number>`, inherits false, initial 0) and animates it on the platform
   section instead of the inherited `--morph`. `--morph-fade` is now inherits false and reads `var(--platform-morph)`.
   Lean proves the fade value is equal at every history (`fade_eq`). The gate's platform row passes in both engines.
-  Gate run 39337856330 has the same not-ok set as base run 39355333307 at the merge-base (MEASURED).
+  The not-ok cells of both flag gate runs (39337856330, 39340504860) lie inside the base's measured not-ok set:
+  39355333307 at the merge-base c62aae1c plus 39314718340 at 1791b7ec, an ancestor of c62aae1c (MEASURED).
 - The original premise is refuted. MorphTweenOpt said the extra `--morph` on the section "adds no element". In fact the
   original stops restyling the section subtree once the fade clamps (m ≥ 0.55), while `waapi` keeps changing an
   inherited value there until the tween ends. Lean records this as `waapi_section_finding`.
 - The open item from `10-20-nav-oof-root-finding.md` (frames 517-530: 32 layout objects and 318 elements per frame
-  with no rAF) is confirmed for the elements and refuted for the layout objects (MEASURED, frames 518-530, 3 runs per
-  arm). These frames have no `FireAnimationFrame` in `waapi` and the scoped arm, and one in faithful. Their
-  `UpdateLayoutTree.elementCount` is 318 in `waapi`, 203-204 in the scoped arm and 85-86 in faithful, so the 318 is
-  the WAAPI tween's style work. `trace.Layout.dirtyObjects` is 32 per frame in all three arms (`totalObjects` 1594,
-  `metric.LayoutObjects` 0), so the 32 layout objects do not come from the WAAPI tween. Scoping leaves them unchanged.
+  with no rAF) is confirmed for the elements (MEASURED, frames 518-530, 3 runs per arm). These frames have no
+  `FireAnimationFrame` in `waapi` and the scoped arm, and one in faithful. Their `UpdateLayoutTree.elementCount` is
+  318 in `waapi`, 203-204 in the scoped arm and 85-86 in faithful, so the 318 is the WAAPI tween's style work.
+  `trace.Layout.dirtyObjects` is 32 per frame in all three arms (`totalObjects` 1594, `metric.LayoutObjects` 0). The
+  32 layout objects are therefore driver-independent: faithful's rAF tween and both WAAPI arms show the same 32, and
+  scoping leaves them unchanged. Their source stays open (morph-nav-scope). Data: field
+  `frames[].counts["trace.Layout.dirtyObjects"]` of `counts.json` in artifacts `chromium-counts-rewrite-r1` to `-r3`
+  of runs 39337826915 (`waapi`), 39337815445 (scoped) and 39337848138 (faithful); the committed
+  `chromium-counts.json` does not carry this field.
 - A residual stays open. In frames 509-530 the scoped arm still recalcs 117-118 more elements per frame than faithful.
   With the panel mounted, the live nav subtree has 104 elements (the header included). So nav + panel can explain at
-  most 104 of them and never all, and at least about 13 elements per late frame come from outside the nav (INFERRED,
-  see Census). This is the morph-nav-scope follow-up.
+  most 104 + p of them, where p is the live nav's pseudo-elements (1 in the SSR model), and at least 117 − 104 − p
+  elements per late frame, so about 12, come from outside the nav (INFERRED, see Census). This is the
+  morph-nav-scope follow-up.
 
 ## Census (step 0, INFERRED)
 
@@ -51,7 +58,9 @@ The prerendered page has no morph panel. `App.tsx:55-65` mounts `MorphPanel` ins
 tracks of images. The live row renders `<Nav>` with `MorphPanel`, `MorphColumns` and `MorphCountdown` and the same
 props as `App.tsx:55-65`, under config a2b80cf241434062. It uses Vite SSR of the branch sources and maps the
 CSS-module class names onto the CSS of site-dist run 39337815445. The classification rules are the same as for the
-other rows. The same render without the panel reproduces the prerendered nav row exactly.
+other rows. The same render without the panel reproduces the prerendered nav row exactly. The element list with its
+classification and the three nav rows are in `results/tween-platform-scope/nav-live-census.json` (re-rendered in
+round 3 at 5db1e155, same counts as round 2).
 
 | subtree | descendants | children | var() or decl | anim or transition | model |
 |---|---|---|---|---|---|
@@ -64,12 +73,15 @@ in frames 509-530. Faithful early minus faithful late is 114. The scoped arm sav
 about 114 elements, below the model's 143, and the model overestimates.
 
 The other half of +231 is about 117 elements per late frame. It is not in the platform. Frames 509-530 run one
-`UpdateLayoutTree` each in every arm and run. If `elementCount` counts an element at most once per pass, the live nav
-can supply at most 104 elements (103 descendants and the header) plus its pseudo-elements, and the model puts its
-reach at 72. Faithful also restyles some of the nav each frame, which lowers the nav's share further. So nav + panel
-can explain at most 104 of the residual, never all of it, and at least about 13 elements per late frame sit outside
-the nav. This is INFERRED: it rests on the once-per-pass reading of `elementCount` and on the panel adding no elements
-after mount that SSR does not render.
+`UpdateLayoutTree` each in every arm and run. `elementCount` is the growth of `StyleForElementCount` over the pass
+(document.cc:2855-2867@f842f52), and `IncStyleForElementCount` runs for every resolved style, pseudo-element style
+requests included (style_resolver.cc:1362-1366@f842f52). So pseudo-elements count. If an element or pseudo-element
+counts at most once per pass, the live nav can supply at most 104 elements (103 descendants and the header) plus p,
+its pseudo-elements (p = 1 in the SSR model), and the model puts its reach at 72. Faithful also restyles some of the
+nav each frame, which lowers the nav's share further. So nav + panel can explain at most 104 + p of the residual,
+never all of it, and at least 117 − 104 − p elements per late frame, so about 12, sit outside the nav. This is
+INFERRED: it rests on the once-per-pass reading of `elementCount`, on p from the SSR model, and on the panel adding no
+elements after mount that SSR does not render.
 
 ## Measurements
 
@@ -82,7 +94,7 @@ The count is `trace.UpdateLayoutTree.elementCount` in Chromium. Each arm has 3 r
 | swipe-touch-v1 | waapi | 39337826915 | 2862 / 2862 / 2872 | 6996 / 6996 / 6996 | 54976 / 55059 / 54990 |
 | swipe-touch-v1 | waapi-scoped | 39337815445 | 1893 / 1893 / 1891 | 4493 / 4493 / 4493 | 51238 / 51278 / 51273 |
 | swipe-touch-v1 | faithful | 39337848138 | 1809 / 1809 / 1809 | 1898 / 1897 / 1897 | 48523 / 48477 / 48523 |
-| swipe-v1 | waapi | 39337835026 | 40 / 40 / 40 | none | 44178 / 44168 / 44176 |
+| swipe-v1 | waapi | 39337835026 | 39 / 40 / 40 | none | 44178 / 44168 / 44176 |
 | swipe-v1 | waapi-scoped | 39337830847 | 40 / 39 / 40 | none | 44171 / 44177 / 44175 |
 | swipe-v1 | faithful | 39337852096 | 39 / 40 / 40 | none | 44176 / 44136 / 44188 |
 
@@ -119,10 +131,13 @@ Gates and lanes:
   | 39337856330 | scoped | commission `pain-1440-600-1440` | phone-rotation, not-comparable |
   | 39340504860 | scoped | commission `pain-1440-600-1440`, `desktop-1512-320-1512` | phone-rotation, not-comparable |
 
-  Base run 39355333307 and scoped run 39337856330 have the same not-ok set. The base itself flips the commission
-  cell between runs, so that cell is a base flake, not the flag's. The `desktop-1512-320-1512` cell of 39340504860
-  is the same commission probe at another sweep. No base run here shows it, so these runs do not show it equal to
-  base. `10-20-morph-layers.md` records the same cell on another branch (INFERRED: the same flake).
+  Base run 39355333307 and scoped run 39337856330 have the same not-ok set. The base itself flips the `pain-1440`
+  cell between runs (none in 39353161468, not ok in 39355333307), so that cell is a base flake, not the flag's. The
+  `desktop-1512-320-1512` cell of 39340504860 is the same commission probe at another sweep. Base evidence for it:
+  breakpoint-gate run 39314718340 at 1791b7ec on `ci/ci-telemetry`, an ancestor of c62aae1c, no flags, fails
+  `desktop-1512-320-1512#0` with `inner` 0px vs 132px and `rows` 0px vs 8px
+  (`research/notes/2026/10-20-commission-margin-recur.md:53-54` on main, MEASURED). So the not-ok cells of both flag
+  runs lie inside the base's measured not-ok set, 39355333307 at c62aae1c plus 39314718340 at 1791b7ec.
 - **webkit-sim** 39337860689 (`fw=morph.tween:waapi-scoped`, target rewrite): failed on both attempts, in step
   "Determinism sessions".
   - Attempt 1: `Runtime.evaluate` timed out after 120 s, then the Safari tab was unreachable.
@@ -188,5 +203,6 @@ Chromium source (CONFIRMED, f842f52):
 - The rule is general: give each animated custom property the narrowest scope that its readers need. A property that
   only its own element reads must be registered `inherits: false`. Lean states this as `needsInherit`.
 - Next is morph-nav-scope: find the 117-118 elements per late frame that the scoped arm still recalcs above faithful.
-  The live nav with its hosted panel holds at most 104 of them, so the search covers nav + panel and at least about 13
-  elements outside it (INFERRED).
+  The live nav with its hosted panel holds at most 104 + p of them (p its pseudo-elements, 1 in the SSR model), so the
+  search covers nav + panel and at least 117 − 104 − p, about 12, elements outside it (INFERRED). The 32 layout objects
+  per late frame, the same in every arm, are also this task's to explain.
