@@ -1,0 +1,235 @@
+{
+ "what": "nav band frames through the open and the close push, no flag (faithful) against ?fw=nav:earn-no-transition (flag); review material for the user's visual review, it decides nothing. The strips are not committed: each one is the file path inside the CI artifact it names, from run 39473950464 (expires 2026-11-20). Both arms get the same wheel input; each arm is sampled at its own shot times. usable = min(shots.faithful, shots.flag) >= 10, decided per strip.",
+ "workflow": "trajectory-probe.yml, job frames (packages/gate-breakpoints/src/trajectory/frames.mjs)",
+ "runs": [
+  {
+   "run": 39473950464,
+   "commit": "c6c7cbcf",
+   "branch": "ci/earn-transition-retarget",
+   "runner": "ubuntu-24.04-arm",
+   "artifacts": [
+    "frames-chromium",
+    "frames-playwright-webkit"
+   ],
+   "expires": "2026-11-20"
+  }
+ ],
+ "strips": [
+  {
+   "artifact": "frames-chromium",
+   "path": "strips/chromium-390-open.png",
+   "run": 39473950464,
+   "expires": "2026-11-20",
+   "engine": "chromium",
+   "version": "156.0.8078.4",
+   "width": 390,
+   "push": "open",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 37,
+   "crop": {
+    "x": 154,
+    "width": 236,
+    "y": 0,
+    "height": 84
+   },
+   "shots": {
+    "faithful": 35,
+    "flag": 36
+   },
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   },
+   "usable": true
+  },
+  {
+   "artifact": "frames-chromium",
+   "path": "strips/chromium-390-close.png",
+   "run": 39473950464,
+   "expires": "2026-11-20",
+   "engine": "chromium",
+   "version": "156.0.8078.4",
+   "width": 390,
+   "push": "close",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 36,
+   "crop": {
+    "x": 154,
+    "width": 236,
+    "y": 0,
+    "height": 84
+   },
+   "shots": {
+    "faithful": 34,
+    "flag": 35
+   },
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   },
+   "usable": true
+  },
+  {
+   "artifact": "frames-chromium",
+   "path": "strips/chromium-1280-open.png",
+   "run": 39473950464,
+   "expires": "2026-11-20",
+   "engine": "chromium",
+   "version": "156.0.8078.4",
+   "width": 1280,
+   "push": "open",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 30,
+   "crop": {
+    "x": 873,
+    "width": 403,
+    "y": 0,
+    "height": 96
+   },
+   "shots": {
+    "faithful": 17,
+    "flag": 18
+   },
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   },
+   "usable": true
+  },
+  {
+   "artifact": "frames-chromium",
+   "path": "strips/chromium-1280-close.png",
+   "run": 39473950464,
+   "expires": "2026-11-20",
+   "engine": "chromium",
+   "version": "156.0.8078.4",
+   "width": 1280,
+   "push": "close",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 23,
+   "crop": {
+    "x": 873,
+    "width": 403,
+    "y": 0,
+    "height": 96
+   },
+   "shots": {
+    "faithful": 17,
+    "flag": 19
+   },
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   },
+   "usable": true
+  },
+  {
+   "artifact": "frames-playwright-webkit",
+   "path": "strips/playwright-webkit-390-open.png",
+   "run": 39473950464,
+   "expires": "2026-11-20",
+   "engine": "playwright-webkit",
+   "version": "WebKit 27.2 (playwright-core 1.64.1)",
+   "width": 390,
+   "push": "open",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 4,
+   "crop": {
+    "x": 156,
+    "width": 234,
+    "y": 0,
+    "height": 84
+   },
+   "shots": {
+    "faithful": 1,
+    "flag": 4
+   },
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   },
+   "usable": false
+  },
+  {
+   "artifact": "frames-playwright-webkit",
+   "path": "strips/playwright-webkit-390-close.png",
+   "run": 39473950464,
+   "expires": "2026-11-20",
+   "engine": "playwright-webkit",
+   "version": "WebKit 27.2 (playwright-core 1.64.1)",
+   "width": 390,
+   "push": "close",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 17,
+   "crop": {
+    "x": 156,
+    "width": 234,
+    "y": 0,
+    "height": 84
+   },
+   "shots": {
+    "faithful": 10,
+    "flag": 10
+   },
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   },
+   "usable": true
+  },
+  {
+   "artifact": "frames-playwright-webkit",
+   "path": "strips/playwright-webkit-1280-open.png",
+   "run": 39473950464,
+   "expires": "2026-11-20",
+   "engine": "playwright-webkit",
+   "version": "WebKit 27.2 (playwright-core 1.64.1)",
+   "width": 1280,
+   "push": "open",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 7,
+   "crop": {
+    "x": 875,
+    "width": 401,
+    "y": 0,
+    "height": 96
+   },
+   "shots": {
+    "faithful": 1,
+    "flag": 7
+   },
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   },
+   "usable": false
+  },
+  {
+   "artifact": "frames-playwright-webkit",
+   "path": "strips/playwright-webkit-1280-close.png",
+   "run": 39473950464,
+   "expires": "2026-11-20",
+   "engine": "playwright-webkit",
+   "version": "WebKit 27.2 (playwright-core 1.64.1)",
+   "width": 1280,
+   "push": "close",
+   "search": "?fw=nav:earn-no-transition",
+   "columns": 7,
+   "crop": {
+    "x": 875,
+    "width": 401,
+    "y": 0,
+    "height": 96
+   },
+   "shots": {
+    "faithful": 2,
+    "flag": 7
+   },
+   "identity": {
+    "faithful": "ok",
+    "flag": "ok"
+   },
+   "usable": false
+  }
+ ]
+}

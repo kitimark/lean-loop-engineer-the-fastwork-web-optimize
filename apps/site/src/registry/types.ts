@@ -3,6 +3,8 @@ export type Impl = 'mui' | 'plain';
 export interface VariantDef {
   kind: 'faithful' | 'optimized' | 'ablation' | 'proposal';
   tier?: string;
+  /** Look class while the part moves (PLAN 4.7); `L` is a look change, never in `v2-proved`. */
+  visClass?: 'E' | 'E-s' | 'Q' | 'L';
   layerBudget?: number;
   provenance?: Record<string, string>;
 }
