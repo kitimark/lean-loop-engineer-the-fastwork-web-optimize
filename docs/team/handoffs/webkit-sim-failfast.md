@@ -1,31 +1,29 @@
-# Handoff: webkit-sim-failfast (branch worktree-wf_d864cd42-ccc-2, CI branch ci/webkit-sim-failfast)
+# Handoff: webkit-sim-failfast, round 2 (branch worktree-wf_d864cd42-ccc-2, CI branches ci/webkit-sim-failfast[-n1|-n2])
 
-Task: a dead Simulator inspector ends a webkit-sim job fast; per-session step timeout; cancelled jobs skip trailing steps.
-Read first: research/notes/2026/10-20-macos-pool-v2.md (fixes 3, 4, 5, 6).
+Task: a dead Simulator inspector or dead Safari ends the webkit-sim job with exit 4 within the Lean-proved bound.
+Read first: lean/Fw/Measure/SimBound.lean, packages/measure-webkit/src/guard.mjs, research/notes/2026/10-20-macos-pool-v2.md.
 
 State
-- Lean `lean/Fw/Measure/SimBound.lean` (new, imported in Fw.lean and Fw/Measure/Wire.lean): `perSessionMin` 35, `quietStepMin` 50,
-  `tailMin` 10, `stallMs` 360000, `stepMin`, `jobMin`; `dead`, `act` (proceed / relaunch / giveUp), `run`, `deadExit` 4.
-  Theorems: step follows sessions, mono, one session < 50, job <= 6 h, relaunch at most once, giveUp is last, relaunch time <= one relaunch.
-- Wire: `measure.simPlan` reply gained `stepTimeoutMin`, `jobTimeoutMin`, `stallMs`; new op `measure.inspector`. Goldens regenerated
-  (`measure.simPlan.jsonl`, new `measure.inspector.jsonl`) with `lake env lean --run scripts/MeasureGolden.lean`.
-- TS: `packages/measure-webkit/src/inspector.mjs` (stand-in of `act`, checked against the golden in test/fwcore.test.mjs);
-  `session.mjs` `ensureProxy` (socket check, refusal count, relaunch once via `sim.mjs` `launchSafari`, then InspectorDeadError);
-  `cli.mjs` exits with `e.exitCode` (4 for a dead inspector, 3 for the stall watchdog, 1 otherwise); `simplan.mjs` outputs `step_min`, `job_min`, `stall_ms`.
-- Workflow `webkit-sim.yml`: job and step `timeout-minutes` from the plan outputs; `FW_WK_STALL_MS` from the plan (6 min);
-  Keep logs, Shut down and upload steps use `!cancelled()` instead of `always()`. Telemetry `finish` steps still use `always()`.
+- Lean `SimBound`: detect 85 s (tick 30 s, probe 25 s, 2 failed probes) + one relaunch 320 s + stall 360 s = `deadEndMs` 765 s;
+  `dead_run_ends`, `relaunch_at_most_once`, `giveUp_last`, `dead_forever_gives_up`; `job_min` = setup 6 + sessions + tail 10 (51 for one
+  determinism session). Wire ops `measure.inspector`, `measure.simBounds`; goldens in packages/contracts/golden/measure/.
+- TS stand-ins (checked against the goldens): `src/inspector.mjs`. Glue: `src/guard.mjs` (probe socket/proxy/page, relaunch once, no
+  second tab), `src/fault.mjs` (FW_WK_FAULT), `src/session.mjs` (guard wiring, end-of-run probe), `src/sim.mjs` helpers.
+- Workflow input `fault` (off by default) sets FW_WK_FAULT; a ci/* push carries no inputs, so the commit tokens fault:kill-safari and
+  fault:kill-proxy do the same (guard job also needs the lane token).
 
-TS stand-ins (not Lean-checked): the refusal counter and the relaunch sequence in `session.mjs` (glue; the decision is Lean's).
-Not tested locally: the relaunch path itself (needs a dying inspector); the CI pair shows the unchanged green path only.
-Accepted limits: why the inspector dies is undiagnosed; one CI pair.
+CI (webkit-sim, original, 1 session)
+- Fault kill-safari run 39444758495: first kill 15:18:26Z, "relaunching" 15:19:41Z, "giving up" 15:20:45Z, exit 4 (139 s, bound 765 s).
+- Fault kill-proxy run 39447914983: first kill 15:32:43Z, "relaunching" 15:33:14Z, "giving up" 15:34:33Z, exit 4 (111 s).
+- Normal runs 39447981526 and 39449995130: green, no probe false positive. 23-min failure (39426562165) did not recur.
+- Parity vs baseline 39102911639 (58 deterministic rows, per-row value vectors): 56/58 and 57/58 equal. The lane never gates on
+  differing rows (reduce.mjs `classify`: quarantined is "Reported, never gated on"); older main greens show 58/58, 57/58, 58/58.
 
-CI (push runs, default config: target original, 1 VM, 1 session)
-- Reference green run 39102911639 (main push, 10-18): sim job 18.1 min. Two more green originals for spread: 39101532190, 39087202086.
-- 39426562165 (head 183100a2): determinism step failed at 23 min (cause unknown, no log: the job ended by its timeout, so GitHub kept none);
-  then "Keep logs" hung 28 min on a wedged CoreSimulator. Job timeout 45 (from the plan) fired, cancel took 10 min more. Fix: 3-min step
-  timeouts on Keep logs and Shut down, logs copied before host commands, `simctl list` bounded by an alarm (head 056de8de).
-- 39435518921 (head 056de8de): green, sim job 19.0 min (determinism 14.7 min). Class tally 30 quarantined / 59 deterministic / 14 stable
-  (103 rows); the three older greens: 33-35 / 57-58 / 11-15 (103-104 rows). Not equal: single-session tables vary run to run
-  (7 of 103 rows change class vs 39102911639, only 1 into deterministic; the "(gone)" row exists in 2 of 3 baselines).
-  Needs >= 3 runs on separate jobs before any class claim.
-- The relaunch and give-up paths did not fire in 39435518921 (no "relaunching" or "stalled" line in the session log).
+Open
+- Log line "forced exit ... 20 s later the process is alive; open: PipeWrap 2" predates this change (4 older green logs have it);
+  inside the 40 s exit budget, cause unexplained.
+- `terminate Safari` took 16 s of its 20 s bound in one fault run: a loaded runner could give up falsely; widen after more data.
+- Sync spawnSync calls can overrun a tick; cause of inspector deaths undiagnosed; census y=4500 layerCount varies between runs.
+- Used 4 of 6 webkit-sim runs.
+
+Convention: regenerate goldens with `lake env lean --run scripts/MeasureGolden.lean` in lean/; run `sh lean/scripts/check.sh`.
