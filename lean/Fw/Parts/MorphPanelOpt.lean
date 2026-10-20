@@ -1028,7 +1028,7 @@ def colGap (v : Vp) : Rat := if phone v.w then 8 else 12
 /-- A column's width: the backdrop (`inset: 0 -3%`, so 1.06 × the panel) less the gaps, shared by `flex: 1 1 0`. -/
 def colW (v : Vp) (w : Rat) : Rat := ((53 / 50) * w - ((ncols v : Rat) - 1) * colGap v) / ncols v
 
-/-- The footer's height: 68px (`height: 68px`; at `width ≤ 640px` its one visible row, 20px, plus 24px padding twice). -/
+/-- The footer's height: 68px (`height: 68px`; at `width ≤ 640px` it is `height: auto`, taken as one visible row, 20px, plus 24px padding twice: INFERRED). -/
 def footerH : Rat := 68
 
 /-- The veil at panel size `(w, h)`. -/
@@ -1054,7 +1054,9 @@ theorem footer_shift (v : Vp) (m : Rat) :
   simp only [footer]; grind
 
 /-- **Frames between, not Q**: while the panel is visible and the arms' heights differ by more than ½ px, the veil,
-first in paint order, is kept in both arms and its box height differs beyond PL1. -/
+first in paint order, is kept in both arms and its box height differs beyond PL1. This is a pre-clip (Q) difference; the
+pixel difference is the footer, clipped out of the `final` arm at 1440×900 (the #guard below), and the veil's box-relative
+radial gradient (not modelled). -/
 theorem not_Q (v : Vp) (m : Rat) (hα : 0 < panelOpacity m) (hs : 0 < panelScale m) (hW : 0 < navWidth v false m)
     (hH : 0 < navHeight v m) (hWf : 0 < panelW v) (hHf : 0 < panelH v) (hcx : 0 < v.w)
     (hcy0 : 0 < navTop v m + navHeight v m / 2) (hcy1 : navTop v m + navHeight v m / 2 < v.h)
@@ -1139,11 +1141,12 @@ def differing (v : Vp) (f t : Rat) : List Nat := (List.range 42).filter fun k =>
 /-- The 42 frames of one push from `f` to `t`. -/
 def frames (f t : Rat) : List Rat := (List.range 42).map (frameM f t)
 
-/-- **Panel subtree layouts in one run**: the frame pairs whose layout size changes, each a relayout of panel and columns. -/
+/-- **Panel subtree size changes in one run**: the frame pairs whose layout size changes. A size-change count, not an engine
+layout count: the panel box still gets a layout call each frame (RenderBlock.cpp:901-944@862f17d); skipping its subtree is INFERRED. -/
 def relayouts (a : Arm) (v : Vp) (ms : List Rat) : Nat :=
   ((ms.zip ms.tail).filter fun p => size a v p.1 != size a v p.2).length
 
-/-- **Work bound**: the `final` arm lays out the panel subtree in no frame of any run. -/
+/-- **Size-change bound**: the `final` arm changes the panel subtree's size in no frame of any run. -/
 theorem relayouts_final (v : Vp) (ms : List Rat) : relayouts .final v ms = 0 := by
   simp [relayouts, size]
 
@@ -1166,6 +1169,10 @@ theorem relayouts_orig_pos (v : Vp) {m n : Rat} (hmn : m ≠ n) (hH : pillH v �
 #guard differing desk 1 0 = (List.range 23).map (· + 1)
 #guard differing phoneVp 1 0 = (List.range 23).map (· + 1)
 #guard verdict desk 0 = "E" && verdict desk 1 = "E" && verdict desk (1 / 2) = "differs"
+
+-- At 1440×900, frame 10 of the 0→1 push: the nav clip drops the footer from the `final` arm's visible scene.
+#guard (visible (vpRect desk) (scene (subtree desk) desk .final (frameM 0 1 10))).length + 1 =
+  (visible (vpRect desk) (scene (subtree desk) desk .orig (frameM 0 1 10))).length
 
 end FinalSize
 

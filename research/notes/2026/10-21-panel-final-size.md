@@ -71,7 +71,7 @@ With C1, the arm shows a crop of the end-state layout. The original shows the la
   - Any other clip change relative to the layer state invalidates (136-142).
   - A nav clip above the panel's layer state is applied by cc without raster. INFERRED for these layers.
 
-The paint saving is real per these sources. The candidate fails only because the picture changes.
+The paint saving is CONFIRMED for WebKit layer resizes and INFERRED for Chromium; area not measured (webkit-lag-probe). The candidate fails only because the picture changes.
 
 ## Follow-ups (not done here)
 
