@@ -12,16 +12,20 @@ import type { Store } from "../store.ts";
 import type { CapStore } from "../cap/cap.ts";
 import { SECRET_HEADER } from "../cap/cap.ts";
 import { workGraphRow, partsOf } from "./facts.ts";
-import type { PreviewManager, Proof } from "./manager.ts";
+import type { BuildAt, PreviewManager, Proof } from "./manager.ts";
 import { OwnerAuth } from "./owner.ts";
-import { buildRows, rowAt } from "./builds.ts";
+import { buildRows, rowAt, readRegistry } from "./builds.ts";
 import type { Grants } from "./grants.ts";
 import { isLoopback } from "./lan.ts";
 import { remoteOf } from "./gate.ts";
+import { gitIn } from "./facts.ts";
 
 const TaskId = z.string().regex(/^[a-z0-9][a-z0-9-]{0,80}$/);
 const StartReq = z.object({ task: TaskId });
 const StartBuild = z.object({ build: z.string().min(1).max(200) });
+const Arm = z.enum(["r", "compare"]);
+/** `{row}` opens a Builds row; `{search}` opens a pasted search in the main build. Neither names a commit, a path or a command. */
+const OpenReq = z.union([z.object({ row: z.string().min(1).max(200), arm: Arm.optional() }), z.object({ search: z.string().max(4000), arm: Arm.optional() })]);
 
 const kindOf = (id: string) => (id.startsWith("port-") ? "port" : id.startsWith("fix-") ? "fix" : "other");
 const SRC_LABEL: Record<string, string> = {
@@ -82,6 +86,56 @@ export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: Previe
   app.get("/api/builds", async (c) => {
     const b = await buildRows(pm.root, store.core);
     return c.json({ ok: true, ...b, canPreview: owner.bearerOk(c.req.header("authorization")), previewPort: owner.previewPort, ...pm.list() });
+  });
+
+  /** Open a Builds row, or a pasted search in main's build (Lean `console.buildsOpen`, `console.buildsSearch`). The client sends a row id or
+   *  a search string, never a commit or a path. A search is checked first (charset, then the site's rules) and is only ever a client-side
+   *  query on a preview path. Start and stop keep the owner gate of `pm.start`/`pm.stop`; a serving preview is only linked, as in
+   *  `GET /api/previews`. Replies: `open` (path and url to use now) or `pending` (a build of this commit runs: poll `GET /api/previews`
+   *  for the id, then ask again). Idempotent: asking again never starts a second build of the same commit. */
+  app.post("/api/builds/open", async (c) => {
+    c.header("Cache-Control", "no-store");
+    const bad = jsonOnly(c); if (bad) return c.json({ ok: false, reason: bad }, 403);
+    let body: unknown;
+    try { body = await c.req.json(); } catch { return c.json({ ok: false, reason: "body is not JSON" }, 400); }
+    const req = OpenReq.safeParse(body);
+    if (!req.success) return c.json({ ok: false, reason: "expected {row} or {search}" }, 400);
+    const arm = req.data.arm ?? "r";
+    const reg = readRegistry(pm.root);
+    if ("search" in req.data) {
+      const v = await store.core.ops("console.buildsSearch", { registry: reg, search: req.data.search });
+      if (v.ok !== true) return c.json({ ok: false, reason: "search refused", reasons: v.reasons }, 422);
+    }
+    const port = owner.previewPort;
+    if (port === null) return c.json({ ok: false, reason: "the preview port is not listening yet" }, 503);
+    const previews = pm.list().previews.map((p) => ({ id: p.id, slot: p.task, sha: p.target.sha, serving: p.phase === "serving" }));
+    const lanAddr = owner.lanPreviewAddr;
+    const lan = { lan: lanAddr !== null, ...(lanAddr ? { lanAddr } : {}), port };
+    let at: BuildAt;
+    let o: Record<string, unknown>;
+    if ("row" in req.data) {
+      const row = rowAt(await buildRows(pm.root, store.core), req.data.row);
+      if (!row) return c.json({ ok: false, reason: "unknown build row" }, 404);
+      at = row;
+      o = await store.core.ops("console.buildsOpen", { mode: "row", arm, slot: row.slot, sha: row.target.sha, search: row.search, previews, ...lan });
+    } else {
+      const main = (gitIn(pm.root)(["rev-parse", "main"]) ?? "").trim();
+      if (!main) return c.json({ ok: false, reason: "no main commit" }, 409);
+      o = await store.core.ops("console.buildsOpen", { mode: "search", arm, main, search: req.data.search, registry: reg, previews, ...lan });
+      at = { slot: String(o.slot), target: { kind: "main", ref: "main", sha: main }, search: "" };
+    }
+    if (o.ok !== true) return c.json({ ok: false, reason: "search refused", reasons: o.reasons }, 422);
+    const canonical = String(o.canonical);
+    if (o.act === "reuse") return c.json({ ok: true, state: "open", preview: o.preview, path: o.path, url: o.url, canonical });
+    if (o.act === "wait") return c.json({ ok: true, state: "pending", preview: o.preview, canonical }, 202);
+    const proof = await proofOf(c);
+    if (o.act === "rebuild") {
+      const s = await pm.stop(String(o.preview), proof);
+      if (!s.ok) return c.json({ ok: false, reason: s.reason }, s.reason === "notOwner" ? 403 : 409);
+    }
+    const r = await pm.start(at.slot, proof, at);
+    if (!r.ok) return c.json(r, r.reason === "notOwner" ? 403 : 409);
+    return c.json({ ok: true, state: "pending", preview: r.id, canonical }, 202);
   });
 
   /** An inspect grant for the lead and agents (preview-inspect): `{id?}` -> a one-time link on the preview port. Lean
