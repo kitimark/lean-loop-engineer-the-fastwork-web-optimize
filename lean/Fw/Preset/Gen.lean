@@ -389,8 +389,7 @@ def unitsName : Engine → String
   | .chromium => "units-chromium.json"
   | _ => "units-playwright-webkit.json"
 
-/-- The flags of a probe search: `?fw=` with comma-separated `part:variant` keys, or `?preset=` with the given preset's
-keys (allowlist; an empty flag set is an error). -/
+/-- The non-empty flags of a search: the keys of `?fw=k1,k2`, or of the given preset for `?preset=name` (allowlist). -/
 def flagsOfSearch (search : String) (presetKeys : Option (List String)) : Except String (List String) := do
   let ks ← if search.startsWith "?fw=" then
       ((search.drop 4).toString.splitOn ",").mapM fun k => do pure (← parseFlag k).key
@@ -408,8 +407,7 @@ def presetKeys (j : Json) : Except String (List String) := do
   let ks ← fw.toList.mapM fun ((p, v) : String × Json) => do pure (p ++ ":" ++ (← v.getStr?))
   pure (ks.mergeSort (· ≤ ·))
 
-/-- One unit of a units file: `width`, `path`, `node`, `prop`, and whether `verdict` is `fail:coverage` and `rel` is
-`new`. -/
+/-- Parse one unit of a units file into a `UnitRow`. -/
 def parseUnit (j : Json) : Except String UnitRow := do
   return { width := ← j.getObjValAs? Nat "width", walk := ← j.getObjValAs? String "path",
            node := ← j.getObjValAs? String "node", prop := ← j.getObjValAs? String "prop",
@@ -433,8 +431,7 @@ def storedOf (run sha : String) (e : Engine) (presetKeys : Option (List String))
 def merge (old new : List Stored) : List Stored :=
   old.filter (fun s => !new.any fun n => n.run == s.run && n.engine == s.engine && n.walk == s.walk) ++ new
 
-/-- Record a CI run: `record [run, sha, presetFile or "-", artifactDir...]` adds the paths of each artifact's units file
-to the stored-run file and prints each outcome; run `run []` after it. -/
+/-- `record [run, sha, presetFile or "-", artifactDir...]`: store each artifact's paths and print their outcomes. -/
 def record (args : List String) : IO Unit := do
   let (run, sha, pf, dirs) ← match args with
     | r :: s :: p :: d :: ds => pure (r, s, p, d :: ds)

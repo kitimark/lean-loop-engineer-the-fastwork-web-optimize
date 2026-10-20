@@ -1072,14 +1072,12 @@ inductive Walk where
   | morph
   deriving DecidableEq, Repr
 
-/-- Whether a run of the engine can decide the path. Linux WebKit cannot decide the morph path: its faithful arm fails push
-coverage there by construction. -/
+/-- Whether the engine can decide the path: Linux WebKit's 150 ms frames fail morph push coverage by construction. -/
 def covers : Engine → Walk → Bool
   | .linuxWebkit, .morph => false
   | _, _ => true
 
-/-- One node property of a path with `new` units in a run: the widths of its content `new` units and of its coverage
-`new` units. -/
+/-- A node property with `new` units in a run: the widths of its content and of its coverage `new` units. -/
 structure Group where
   node : String
   prop : String
@@ -1115,8 +1113,7 @@ inductive Outcome where
 /-- A group repeats when its `new` units fall at two or more widths. -/
 def repeats (ws : List Nat) : Bool := decide (2 ≤ ws.eraseDups.length)
 
-/-- **The verdict of a stored cell**: none when the engine cannot decide the path or a lane width is missing, fail when a
-group repeats on content, none when a group repeats on coverage, else pass. -/
+/-- **The verdict of a stored run**: none if undecidable or short of a width, fail on a content repeat, none on a coverage one. -/
 def outcome (s : Stored) : Outcome :=
   if !covers s.engine s.walk then .unjudged .coverage
   else if !allowedWidths.all s.widths.contains then .unjudged .widths
@@ -1172,8 +1169,7 @@ theorem outcome_coverage_repeat (s : Stored) (hc : covers s.engine s.walk = true
   rw [outcome_cases]
   simp [hc, hw, h1, h2]
 
-/-- **A pass, characterised**: the engine decides the path, every lane width was walked, and no group repeats on content
-or on coverage. -/
+/-- **A pass, characterised**: a decidable path, every lane width walked, and no group repeating on either side. -/
 theorem outcome_pass_iff (s : Stored) :
     outcome s = .pass ↔ covers s.engine s.walk = true ∧ (∀ w ∈ allowedWidths, w ∈ s.widths) ∧
       ∀ g ∈ s.groups, repeats g.content = false ∧ repeats g.coverage = false := by
@@ -1193,8 +1189,7 @@ theorem outcome_pass_iff (s : Stored) :
 theorem outcome_pass_covers (s : Stored) (h : outcome s = .pass) : covers s.engine s.walk = true :=
   ((outcome_pass_iff s).1 h).1
 
-/-- One unit as the recorder reads it from `units-<engine>.json`: its width, path, node, property, whether its verdict is
-`fail:coverage`, and whether its relation to the faithful arm is `new`. -/
+/-- A unit of `units-<engine>.json` as the recorder reads it; `coverage` is verdict `fail:coverage`, `isNew` is rel `new`. -/
 structure UnitRow where
   width : Nat
   walk : String
@@ -1304,8 +1299,7 @@ theorem holds_foldl (us : List UnitRow) (gs : List Group) (v : UnitRow) (h : Hol
       · exact Or.inl (holds_addUnit_new gs v)
       · exact Or.inr h
 
-/-- **The recorder drops no `new` unit**: every `new` unit of the path is in a group of its node property, at its width,
-on its side (content or coverage). -/
+/-- **The recorder drops no `new` unit**: each is held by its node property's group, at its width, on its side. -/
 theorem groupsOf_complete (walk : String) (us : List UnitRow) (u : UnitRow) (hu : u ∈ us) (hn : u.isNew = true)
     (hw : u.walk = walk) : Holds (groupsOf walk us) u :=
   holds_foldl _ [] u (Or.inr (List.mem_filter.2 ⟨hu, by simp [hn, hw]⟩))
