@@ -12,7 +12,7 @@ open Lean Fw.Preset
 open Fw.Gate.Trajectory (Stored Engine Walk Family Group Outcome Unjudged UnitRow outcome groupsOf widthsOf)
 
 /-- **The link table**: each flag and the ledger rows that carry its proof, in priority order (the first qualifying flag
-of a part wins). A row is named by its (part, candidate) text; `k_n` below is the row of ledger entry `n` (for `n = 8`
+of a part wins). A row is named by its (part, candidate) text; `k_n` below is the row of ledger entry `n` (for `n = 6`, `8`
 and `25` the letter names which of the rows with that `n`). The mapping is read from the variants' code and the rows'
 text (INFERRED); a flag absent here never enters the arm (`unlinked_not_mem`), and a curated flag is dropped from it
 before the arm is decided (`links`).
