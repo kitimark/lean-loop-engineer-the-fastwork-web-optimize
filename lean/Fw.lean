@@ -114,6 +114,7 @@ import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
 import Fw.Obs.GhStatus -- gh-status: GitHub Actions degraded flag and incident naming
 import Fw.Obs.Stale  -- console-stale: a service whose inputs changed on main after it started is stale
 import Fw.Obs.Signals -- obs-signals: agent state from transcript signals (obs.signals)
+import Fw.Obs.Fold  -- watch-incremental: transcript summaries as a fold, resume from saved state
 import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
 import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
 import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
