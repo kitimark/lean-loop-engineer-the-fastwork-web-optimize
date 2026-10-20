@@ -93,6 +93,11 @@ Cand hit/miss counts and the 0.05 px check:
 | Chromium | 390 | 5 | 0 | 5 (0.013) |
 | macOS WebKit | 390 | 4 | 1 | 2 (0.020, 0.041; 0.062, 0.066 above) |
 
+macOS WebKit 390 fails the no-regression bound on 2 of 4 hits (0.062, 0.066 px), from the same cause as the 1280 finding
+(cand tail 0.00 px: no width transition starts). Both WebKit cells moved to task waapi-tail-webkit (split after round 3).
+The hit threshold here was computed as (1 - 511.6/680)^3 = 0.01519, not from Lean closeAt(baseDelay) (0.01507-0.01509);
+no rep falls between the two. waapi-tail-webkit computes it from the golden baseWindow.delay.
+
 The rule "hit iff R - P ≤ 100 ms" is gone: macOS 390 cand rep 1 has a 168 ms gap and is a hit (m(P) = 0.0078).
 The macOS 1280 miss (m(P) = 0.0278) differs by 6.95 px, above `missFloor` 3.60 px.
 
