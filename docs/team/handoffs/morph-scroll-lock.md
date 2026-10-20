@@ -1,7 +1,7 @@
 # Handoff: morph-scroll-lock (C4), round 3 (integration)
 
 **State.** Branch `worktree-wf_22f9acfd-29a-1`: round 2 code b4b8b377, note 5ee20980, CI cbb7f262; round 3 merge of
-main 2d2e2188 with the fixes in 24f3918a; final: this commit. CI ran at b4b8b37 only (round 3 dispatched none).
+main 2d2e2188 with the fixes in 24f3918a; handoff da34b5fd. CI ran at b4b8b37 only (round 3 dispatched none).
 Read first: `research/notes/2026/10-21-morph-scroll-lock.md` (verdict, design, Lean, CI, regen command, ledger row).
 
 **Verified (at 24f3918a).**
