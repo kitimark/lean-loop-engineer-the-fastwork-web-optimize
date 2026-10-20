@@ -2362,7 +2362,7 @@
    "evidence": "trajectory-probe runs 39463486725 and 39464309993 (flag), 39464294630 and 39464322751 (A/A), ci/earn-transition-retarget at c414428, both engines; note research/notes/2026/10-20-earn-transition-retarget.md",
    "userDecision": {
     "date": "2026-10-21",
-    "decision": "accepted, pending user visual review",
+    "decision": "kept 2026-10-21; visual review deferred to the console",
     "review": "CI run 39473950464 artifact frames-chromium (expires 2026-11-19); copy in the lead's private review page"
    }
   }

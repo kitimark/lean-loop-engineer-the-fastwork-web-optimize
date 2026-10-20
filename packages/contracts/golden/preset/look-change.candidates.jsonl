@@ -1,1 +1,1 @@
-{"flag":"nav:earn-no-transition","kind":"proposal","member":false,"userDecision":{"date":"2026-10-21","decision":"accepted, pending user visual review"},"visClass":"L"}
+{"flag":"nav:earn-no-transition","kind":"proposal","member":false,"userDecision":{"date":"2026-10-21","decision":"kept","material":{"chromium":{"artifact":"frames-chromium","expires":"2026-11-19","run":"39473950464","state":"ready"},"webkit":{"state":"pending","task":"earn-look-review-webkit"}},"review":"pending"},"visClass":"L"}
