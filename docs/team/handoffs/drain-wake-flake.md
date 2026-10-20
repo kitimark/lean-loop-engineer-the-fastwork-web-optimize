@@ -13,12 +13,12 @@ Mechanism (MEASURED on CI, CONFIRMED in source):
 - Unfixed full-suite loop, run 39440821027 (v24.21.0, 4 cpus): old test and the new event-path test missed in loop 1 and 2 (10 of 10
   repeats), trail: pokes 1, passes 2 (the mkdir pass only), loop lag max 13 ms, passes 42-47 ms: a lost event, not a long pass or
   starvation. Raw probe on the same node: `threw null, eventsAfterCreate 0`.
-- Fixed, run 39442175823: 30 full-suite loops (2 at a time), 0 wake misses (old test at 05d720ae restored in a probe copy, instrumented).
+- Fixed, run 39442175823 (Node 24.21.0, the buggy version): 30 full-suite loops (2 at a time), 0 wake misses (old test at 05d720ae restored in a probe copy, instrumented).
   Probe files were removed after; the wake tests keep the trail (pokes, passes with length, loop lag, node version, failed wait).
 
 Lean (`Fw.Console.ReconcileSched`): timed model `T`, `answered`, `answer_idle`, `answer_busy`, `answer_start_le`, `poke_wake_le`,
 `poke_done_le`, `tick_wake_le`: the pass numbered `ticket` is the last one started and begins in [r, r + pass] when only the running
-pass is assumed to end by `since + pass` (uses `req_idle_starts`, `fin_starts_pending` facts). Golden `wake-bound.jsonl` and
+pass is assumed to end by `since + pass` (derived from the `req`/`fin` definitions; one request per `answered`, coalesced requests not modelled). Golden `wake-bound.jsonl` and
 `wake-params.jsonl` (`pass_max_ms` 2000 and the margin 500 are ASSUMPTIONS; event deadline 2550, rescue deadline 3500 DERIVED).
 
 Tests (`journal-cache.test.ts`): event path (60 s tick, repeats 10), the same with the watcher disabled must fail (asserted), tick

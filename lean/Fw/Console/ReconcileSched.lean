@@ -196,8 +196,9 @@ def reqT (x : T) (r : Nat) : T := ⟨req x.s, if x.s.finished < x.s.started then
 def finT (x : T) (e : Nat) : T :=
   ⟨fin x.s, if x.s.finished < x.s.started ∧ x.s.pending ≠ 0 then e else x.since⟩
 
-/-- The state after a request at `r` has been answered: an idle scheduler started the pass at `r`; a busy one holds the request
-until the running pass finishes at `e`, which starts it (`req_idle_starts`, `fin_starts_pending`). -/
+/-- The state after a request at `r` has been answered: an idle scheduler started the pass at `r`; a busy one holds the
+request until the running pass finishes at `e`, which starts it (unfolds `req` and `fin`). One request per call: requests
+coalesced into `pending` meanwhile are not modelled. -/
 def answered (x : T) (r e : Nat) : T :=
   if x.s.finished < x.s.started then finT (reqT x r) e else reqT x r
 
