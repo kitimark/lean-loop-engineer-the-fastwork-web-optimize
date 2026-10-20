@@ -10208,7 +10208,8 @@
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/**"
-   ]
+   ],
+   "evidence": "20f6758"
   },
   {
    "devices": [
@@ -10426,7 +10427,8 @@
     "docs/team/handoffs/land-fwcore-once.md",
     "lean/Fw/Ops/WallTime.lean",
     "lean/Fw.lean"
-   ]
+   ],
+   "evidence": "5837592"
   },
   {
    "devices": [
