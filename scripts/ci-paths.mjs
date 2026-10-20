@@ -809,6 +809,51 @@ export function leanInputProblems(root, table) {
 }
 
 /** Check (or write) every workflow. Returns { problems, wrote }. */
+
+// ---- Node pin (task node-pin) ----------------------------------------------------------------------------------------
+// One canonical Node version: the repo-root `.node-version` (exact x.y.z, at least NODE_MIN). Every `actions/setup-node`
+// step takes it through `node-version-file: .node-version` and no workflow or action sets `node-version:`; every workflow
+// that sets up Node (directly or through the setup-pnpm action) lists `.node-version` among its inputs in the Lean table,
+// so a change of the pin starts the lanes that use Node.
+// TS stand-in: no Lean golden yet for the rule (the trigger rows themselves are Lean).
+export const NODE_FILE = '.node-version';
+export const NODE_MIN = [24, 22, 0];
+
+/** Problems of the Node pin: file shape, drift in workflows and actions, and Lean rows that miss the file. */
+export function nodePinProblems(root, table) {
+  const out = [];
+  const pin = existsSync(join(root, NODE_FILE)) ? readFileSync(join(root, NODE_FILE), 'utf8').trim() : null;
+  const m = pin === null ? null : /^(\d+)\.(\d+)\.(\d+)$/.exec(pin);
+  if (!m) out.push(`${NODE_FILE}: must hold one exact version x.y.z (got ${pin === null ? 'no file' : JSON.stringify(pin)})`);
+  else if (!(m.slice(1).map(Number).reduce((ge, n, i, a) => (ge !== 0 ? ge : n - NODE_MIN[i]), 0) >= 0)) out.push(`${NODE_FILE}: ${pin} is older than ${NODE_MIN.join('.')}`);
+  const files = [];
+  for (const f of readdirSync(join(root, WF_DIR)).filter((n) => n.endsWith('.yml'))) files.push({ rel: `${WF_DIR}/${f}`, wf: f });
+  const actDir = join(root, '.github/actions');
+  if (existsSync(actDir)) for (const d of readdirSync(actDir)) if (existsSync(join(actDir, d, 'action.yml'))) files.push({ rel: `.github/actions/${d}/action.yml`, wf: null });
+  const rows = new Map(table.workflows.map((w) => [w.file, w]));
+  for (const { rel, wf } of files) {
+    const lines = readFileSync(join(root, rel), 'utf8').split('\n');
+    let usesNode = false;
+    lines.forEach((l, i) => {
+      if (/^\s*-?\s*node-version\s*:/.test(l)) out.push(`${rel}:${i + 1}: sets node-version; use node-version-file: ${NODE_FILE}`);
+      if (/^\s*-?\s*node-version-file\s*:/.test(l) && !new RegExp(`^\\s*-?\\s*node-version-file:\\s*${NODE_FILE.replace('.', '\\.')}\\s*$`).test(l)) out.push(`${rel}:${i + 1}: node-version-file is not ${NODE_FILE}`);
+      if (/uses:\s*actions\/setup-node@/.test(l)) {
+        usesNode = true;
+        const k = indentOf(l);
+        let ok = false;
+        for (let n = i + 1; n < lines.length && (isBlank(lines[n]) || indentOf(lines[n]) > k); n++) if (new RegExp(`^\\s*node-version-file:\\s*${NODE_FILE.replace('.', '\\.')}\\s*$`).test(lines[n])) ok = true;
+        if (!ok) out.push(`${rel}:${i + 1}: actions/setup-node without node-version-file: ${NODE_FILE}`);
+      }
+      if (/uses:\s*\.\/\.github\/actions\/setup-pnpm\s*$/.test(l)) usesNode = true;
+    });
+    if (wf && usesNode) {
+      const row = rows.get(wf);
+      if (row && !row.inputs.includes(NODE_FILE)) out.push(`${wf}: sets up Node but its Lean row (lean/Fw/Ci/Trigger.lean \`table\`) lacks "${NODE_FILE}"`);
+    }
+  }
+  return out;
+}
+
 export function run(root, write) {
   const { table } = loadGolden(root);
   const intent = loadIntent(root).lanes;
@@ -816,7 +861,7 @@ export function run(root, write) {
   const S = coarseMap(table);
   const dir = join(root, WF_DIR);
   const files = readdirSync(dir).filter((f) => f.endsWith('.yml')).sort();
-  const problems = [...coneProblems(root, table), ...leanInputProblems(root, table), ...cacheWriterProblems(root, table)];
+  const problems = [...coneProblems(root, table), ...leanInputProblems(root, table), ...cacheWriterProblems(root, table), ...nodePinProblems(root, table)];
   let wrote = 0;
   const rows = new Map(table.workflows.map((w) => [w.file, w]));
   try { problems.push(...(lakeGenProblems(root, write) ?? [])); } catch (e) { problems.push(`${LAKE_GEN}: ${e.message}`); }
