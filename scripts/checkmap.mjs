@@ -112,7 +112,14 @@ async function fileMode([mode, ...files]) {
   if (mode === "json" || mode === "jsonl") {
     for (const f of files) {
       const text = readFileSync(join(top, f), "utf8");
-      if (mode === "json") { try { JSON.parse(text); } catch (e) { fail(f, e); } continue; }
+      if (mode === "json") {
+        try { JSON.parse(text); } catch (e) { fail(f, e); continue; }
+        if (f === "docs/team/work-graph.json") {  // the runner's own schema (plan.test runs the same conversion)
+          const { checkGraph } = await import("../apps/runner/src/plan-check.ts");
+          for (const p of checkGraph(text)) fail(`${f} task`, p);
+        }
+        continue;
+      }
       text.split("\n").forEach((l, i) => { if (l.trim()) try { JSON.parse(l); } catch (e) { fail(`${f}:${i + 1}`, e); } });
     }
     return bad ? 1 : 0;
