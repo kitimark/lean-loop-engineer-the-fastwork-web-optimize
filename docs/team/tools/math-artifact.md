@@ -1,8 +1,8 @@
 # Math artifact: math for named declarations, on demand
 
-Lean docstrings hold no math. When a user should read the math of some Lean declarations, a lead asks for an
-artifact: a page that states each one in LaTeX. A fresh reviewer then checks that page against the Lean. The math
-view page (`docs/plan/math-view.html`) is frozen; this procedure replaces it.
+Lean source holds specs, proofs and code. When a user should read the math of some Lean declarations, a lead asks
+for an artifact: a page that states each one in LaTeX. A fresh reviewer then checks that page against the Lean. This procedure
+replaced the generated math view page, which PLAN rev 11.3 removed.
 
 ## Steps
 
@@ -12,7 +12,7 @@ view page (`docs/plan/math-view.html`) is frozen; this procedure replaces it.
    when a name is not exported. Each entry carries `signature`, `doc`, `autoTex` (a mechanical rendering), the
    deep statement hash `stmtHash` and `axioms`.
 3. **The lean-prover writes the page**: one HTML file under `docs/` per topic. KaTeX comes from cdnjs at a pinned
-   version (`https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/`, as `docs/plan/loop-plan.html` uses). Per
+   version (`https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/`). Per
    declaration the page shows the name, its `stmtHash`, one English sentence and the math. The math is written from
    the Lean signature and the definitions it unfolds, not copied from `autoTex`.
 4. **A fresh math-reviewer** (`.claude/agents/math-reviewer.md`) gets the declaration names and the page. It writes
