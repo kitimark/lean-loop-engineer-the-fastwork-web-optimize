@@ -703,8 +703,9 @@ the repo's setup-pnpm action (which sets Node up); `runsNode` is a `run:` line t
 step that runs Node is a `run:` line or a composite action that runs node, with no exemption: the telemetry steps
 follow the setup step too. Under `pnpmAction`, the pinned Node is also what pnpm uses: pnpm skips its own Node fetch
 when the Node running pnpm (`process.version` under corepack, the PATH node for the packaged binary;
-system-node-version/src/index.ts:5-14@v10.34.5) equals `useNodeVersion` (env/plugin-commands-env/src/node.ts:46-48).
-INFERRED until the CI log of the snapshot-extract run confirms it. -/
+pnpm env/system-node-version/src/index.ts:5-14@v10.34.5) equals `useNodeVersion` (pnpm env/plugin-commands-env/src/node.ts:46-48@v10.34.5).
+MEASURED: snapshot-extract run 39460921500 (ci/node-pin-local @ 8a5a8165): setup-pnpm logs node v24.22.0, the frozen
+install is done in 0.8 s, and no line fetches Node. -/
 structure PinJob where
   setups : List String
   versionKey : Bool
