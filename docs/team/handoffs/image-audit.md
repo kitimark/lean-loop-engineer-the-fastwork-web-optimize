@@ -8,7 +8,6 @@ Read first: `research/notes/2026/10-20-image-audit.md`.
   WebKit, 154/268 Chromium; people parts flip in 3-10 of 21 WebKit cells. next: task image-arm-v2 (not this task).
 - No image file outside snapshot/ is in main..HEAD; `drawn.json` (paths, sizes, sha256) stays; `arm build` writes copies to the
   gitignored `apps/site/dist/aot/images-drawn` (macOS only). `switch.mjs`: API only, no caller.
-## Verified
 - gate-breakpoints 410 pass, apps/runner 1618 pass, ci-paths 49, land-inputs 55; measure-webkit 111 (round 2); CI ranked tables run 39481653302.
 - Open: a frame-time claim needs the phone; no `[images-arm]` in a commit body. Old `ci/image-audit` is superseded.
 ## Writes outside the graph writes
