@@ -1,5 +1,5 @@
 // The drawn-size arm's decisions (src/images/armplan.mjs) against the golden vectors Lean generates
-// (packages/contracts/golden/measure/image-arm.jsonl, lean/Fw/Measure/ImageArm.lean). Nothing is decided here.
+// (packages/contracts/golden/gate/image-arm.jsonl, lean/Fw/Measure/ImageArm.lean). Nothing is decided here.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';

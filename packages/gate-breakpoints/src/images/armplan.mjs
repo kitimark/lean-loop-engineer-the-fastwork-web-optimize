@@ -1,5 +1,5 @@
 // The decisions of the drawn-size image arm (task image-arm-v2): a TS twin of lean/Fw/Measure/ImageArm.lean, checked against the golden
-// vectors packages/contracts/golden/measure/image-arm.jsonl (test/images-armplan.test.mjs). Pure: sizes are whole milli-CSS-pixels and the
+// vectors packages/contracts/golden/gate/image-arm.jsonl (test/images-armplan.test.mjs). Pure: sizes are whole milli-CSS-pixels and the
 // DPR a whole number, so no float decides anything. `imgOf` is glue: it turns one audit reading into the Lean `Img`.
 
 export const snapEdge = (dpr, m) => Math.floor((m * dpr + 500) / 1000);

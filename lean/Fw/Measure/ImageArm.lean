@@ -32,7 +32,7 @@ baseline passed is a look change (`lookChange`), which the lead puts in the user
 pass is `shippedFails`; any other missing pass (unsettled, invalid, nc, an error cell) is `undecided`.
 
 The TS twin is `packages/gate-breakpoints/src/images/armplan.mjs`, checked against `goldenText`
-(`packages/contracts/golden/measure/image-arm.jsonl`). Sizes are milli-CSS-pixels, DPR a whole number, so no float enters a decision.
+(`packages/contracts/golden/gate/image-arm.jsonl`). Sizes are milli-CSS-pixels, DPR a whole number, so no float enters a decision.
 -/
 namespace Fw.Measure.ImageArm
 open Lean Fw.Gate.Pixel
@@ -509,7 +509,7 @@ def goldenLines (_ : Unit := ()) : List String :=
     (Json.mkObj [("kind", "saving"), ("nat", Json.arr #[toJson nw, toJson nh]), ("copy", Json.arr #[toJson cw, toJson ch]),
       ("decoded", toJson (decoded nw nh)), ("saving", toJson (saving nw nh cw ch))]).compress)
 
-/-- The exact bytes of `packages/contracts/golden/measure/image-arm.jsonl`. -/
+/-- The exact bytes of `packages/contracts/golden/gate/image-arm.jsonl`. -/
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
 /-- Command-line driver: print the golden text, or with `--check <file>` exit 0 exactly when the file holds these bytes. -/

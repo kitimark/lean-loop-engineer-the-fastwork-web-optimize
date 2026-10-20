@@ -1,4 +1,4 @@
-// Generates or checks packages/contracts/golden/measure/image-arm.jsonl from Lean (Fw.Measure.ImageArm.goldenText, driver
+// Generates or checks packages/contracts/golden/gate/image-arm.jsonl from Lean (Fw.Measure.ImageArm.goldenText, driver
 // lean/scripts/ImageArmGolden.lean). Glue only: the snapping rule, the reach of a 1:1 copy, the part decision and the decoded saving
 // are in lean/Fw/Measure/ImageArm.lean.
 //   node src/images/armgen.mjs            regenerate the golden file
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LEAN = resolve(HERE, '../../../../lean');
-export const ARM_GOLDEN = resolve(HERE, '../../../contracts/golden/measure/image-arm.jsonl');
+export const ARM_GOLDEN = resolve(HERE, '../../../contracts/golden/gate/image-arm.jsonl');
 
 /** Run the Lean driver with `args`; returns { status, stdout, stderr }. */
 export function armgen(args) {
