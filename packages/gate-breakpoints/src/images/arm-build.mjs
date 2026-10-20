@@ -27,6 +27,13 @@ import { regionOf, LAG_REGIONS, sniff } from './reduce.mjs';
 export const DPRS = [2, 3];
 export const LADDER_RATIO = 1.5;
 export const KEEP_AT = 0.9;
+/**
+ * A copy holds this many times the device pixels (per side) the image is drawn at. Drawn 1:1 a resized copy and the browser's own
+ * downscale of the source differ at every edge (the first CI run: WebKit, morph columns at DPR 2, 14000-17500 ppm and a largest
+ * delta of 114-139 against the PL tolerance of 2000 ppm and 64); drawn from 2x pixels the browser scales both down alike (the same
+ * run, DPR 1 probes served the DPR 2 copies: at most 331 ppm and delta 44).
+ */
+export const OVERSAMPLE = 2;
 export const LADDER = (() => {
   const out = [];
   for (let w = 64; w < 8192; w *= LADDER_RATIO) { const r = Math.round(w / 8) * 8; if (out[out.length - 1] !== r) out.push(r); }
@@ -101,10 +108,10 @@ export function requirements(files) {
 }
 
 /** Rows of one image at one DPR from its per-width needs (see P2). Returns [{from, w}] (w null = keep the source). */
-export function rowsFor(req, widths, dpr) {
+export function rowsFor(req, widths, dpr, over = OVERSAMPLE) {
   const need = widths.map((w) => {
     const c = req.cells.get(w);
-    return c ? needW(c.cssW, c.cssH, req.nat[0], req.nat[1], c.scale, dpr) : null;
+    return c ? Math.ceil(needW(c.cssW, c.cssH, req.nat[0], req.nat[1], c.scale, dpr) * over) : null;
   });
   // a width at which no audit saw the image takes the larger need of the nearest widths that did (before and after it)
   const filled = need.map((n, i) => {
@@ -150,7 +157,7 @@ export function build({ audit, out, manifest, srcRoot = siteDist(), publicRoot }
     schema: 'fw.images.drawn/1',
     generated: 'node packages/gate-breakpoints/src/images/cli.mjs arm build (GENERATED, do not edit by hand)',
     audit: { files: audits.length, engines: [...new Set(audits.map((a) => a.file.engine))].sort(), arm: file.arm, widths },
-    ladder: { ratio: LADDER_RATIO, keepAt: KEEP_AT, rungs: LADDER },
+    ladder: { ratio: LADDER_RATIO, keepAt: KEEP_AT, oversample: OVERSAMPLE, rungs: LADDER },
     images: {},
     skipped: {},
   };

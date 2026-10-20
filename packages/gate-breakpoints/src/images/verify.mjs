@@ -1,6 +1,6 @@
 // Verifies the images-at-drawn-size arm against the PL tolerance (packages/visual-diff: pixelmatch counts, Lean verdict twin).
 // For every copy the table names, in one engine at the copy's DPR, the source and the copy are each drawn at the same CSS size
-// (the copy's own device size, and 0.72 of it, the smallest size a row serves) on a white page, screenshotted and compared. The
+// (`scalesOf`: the size the copy was made for, and the smallest size a row serves) on a white page, screenshotted and compared. The
 // counts and the verdict are the visual-diff package's (DEFAULT_TOL ppm 2000, delta 64, countAA false); nothing is decided here.
 //   node src/cli.mjs arm verify --engine chromium|playwright-webkit --out DIR [--manifest drawn.json] [--dprs 2,3] [--limit N]
 //   --site DIR   root that serves the sources (default: the site build)       --copies DIR  root that serves /images-drawn (default: --site)
@@ -14,10 +14,16 @@ import { siteDist, startServer } from '../serve.mjs';
 import { DEFAULT_MANIFEST, loadDrawn } from './arm.mjs';
 
 const PAGE = '<!doctype html><meta charset="utf-8"><body style="margin:0;background:#fff"><img id="i" alt="" style="position:absolute;left:0;top:0;display:block;max-width:none">';
-const SCALES = [1, 0.72];
+const LADDER_RATIO = 1.5;
+/**
+ * The sizes a copy is drawn at, as a fraction of its own device size: a copy holds `oversample` times what its image needs, and the ladder
+ * leaves it up to LADDER_RATIO times that, so it is drawn at 1/oversample (the rung is exact) down to 1/(oversample * LADDER_RATIO).
+ */
+export const scalesOf = (m) => { const o = m.ladder?.oversample ?? 1; return [1 / o, 1 / (o * LADDER_RATIO)]; };
 
 /** The tests of a manifest at one DPR: one per (url, copy file), sized by the copy's device size. */
 export function testsOf(m, dpr) {
+  const SCALES = scalesOf(m);
   const out = [];
   for (const [url, e] of Object.entries(m.images)) {
     const rows = e.dprs[String(dpr)];
@@ -88,7 +94,7 @@ export async function verify({ engine, manifest, out, dprs, site, copies, limit 
   const version = await eng.version?.().catch(() => null);
   const tally = {};
   for (const c of cells) tally[c.verdict] = (tally[c.verdict] ?? 0) + 1;
-  const file = { schema: 'fw.images.verify/1', engine, version: version ?? null, tol: DEFAULT_TOL, scales: SCALES, tally, cells };
+  const file = { schema: 'fw.images.verify/1', engine, version: version ?? null, tol: DEFAULT_TOL, scales: scalesOf(m), tally, cells };
   mkdirSync(out, { recursive: true });
   const name = join(out, `verify-${engine}.json`);
   writeFileSync(name, JSON.stringify(file));

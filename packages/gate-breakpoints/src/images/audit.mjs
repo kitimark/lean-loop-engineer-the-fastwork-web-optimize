@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { LAUNCHERS } from '../engines.mjs';
 import { rewriteFor, siteDist, snapshotRoot, startServer } from '../serve.mjs';
 import { composeRewrite, loadDrawn } from './arm.mjs';
-import { collectImages, kitSource, scrollStop } from './inpage.mjs';
+import { collectImages, kitSource, morphEnd, scrollStop } from './inpage.mjs';
 
 /** The Lean breakpoint widths: the whole-pixel widths of the gate matrix (breakpoints.gen.json matrix.probes), sorted. */
 export function leanWidths(gen) {
@@ -58,8 +58,14 @@ export function mergeStops(stops) {
         for (const e of it.effects) m.effects.find((x) => x.at === e.at && x.up === e.up && x.e === e.e).stops.push(si);
       }
       if (!m.everInView) { m.fw = it.fw; m.cls = it.cls; }
+      // the drawn size the arm and the table work from is the largest the image has at any stop (the morph columns grow at the
+      // end state, which only the last stop shows): box and drawn size are taken together from that stop
+      if (!it.none && it.complete !== false && it.img && (!m.big || it.img[0] * it.img[1] > m.big.img[0] * m.big.img[1])) m.big = { img: it.img, box: it.box, nat: it.nat, stop: si };
     }
   });
+  for (const m of by.values()) {
+    if (m.big) { m.img = m.big.img; m.box = m.big.box; m.bigStop = m.big.stop; delete m.big; }
+  }
   return [...by.values()];
 }
 
@@ -104,8 +110,13 @@ export async function runAudit({ engine, arm, widths, dprs, out, pool = 2, drawn
       const end = await session.evaluate(scrollStop, 1e9);
       const r = await session.evaluate(collectImages);
       stops.push({ y: end.y, ...r });
+      // the end state of the morph: nothing but a wheel or touch gesture moves the tween, so a scroll never gets there; the nav
+      // publishes `--morph` and `data-fw-morph` (morph.tween/index.tsx publish), written here with the value the tween ends on
+      await session.evaluate(morphEnd);
+      const rm = await session.evaluate(collectImages);
+      stops.push({ y: end.y, morph: 1, ...rm });
       cells[`w${w}@${d}`] = {
-        width: w, dpr: d, height: env.height, docHeight: end.h, stops: stops.map((s) => ({ y: s.y, dpr: s.dpr, vw: s.vw, vh: s.vh })),
+        width: w, dpr: d, height: env.height, docHeight: end.h, stops: stops.map((s) => ({ y: s.y, dpr: s.dpr, vw: s.vw, vh: s.vh, morph: s.morph ?? 0 })),
         items: mergeStops(stops),
       };
     } finally {

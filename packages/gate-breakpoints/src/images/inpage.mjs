@@ -228,3 +228,21 @@ export async function scrollStop(y) {
   await frame();
   return { y: window.scrollY, h: document.documentElement.scrollHeight, vh: innerHeight };
 }
+
+/** Put the nav in the end state of the morph tween (`--morph` 1, as `publish` in morph.tween/index.tsx writes it), then let it settle. */
+export async function morphEnd() {
+  const nav = document.querySelector('[data-fw="nav"]');
+  if (!nav) return { nav: false };
+  nav.style.setProperty('--morph', '1');
+  nav.dataset.fwMorph = '1';
+  const frame = () => new Promise((ok) => requestAnimationFrame(() => ok()));
+  await frame();
+  await frame();
+  await new Promise((ok) => setTimeout(ok, 200));
+  await frame();
+  const t0 = performance.now();
+  const wait = () => [...document.getElementsByTagName('img')].some((im) => im.offsetWidth > 0 && !im.complete);
+  while (performance.now() - t0 < 4000 && wait()) await new Promise((ok) => setTimeout(ok, 60));
+  await frame();
+  return { nav: true, morph: getComputedStyle(nav).getPropertyValue('--morph') };
+}

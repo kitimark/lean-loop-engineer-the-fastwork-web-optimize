@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { composeRewrite, drawnFile } from '../src/images/arm.mjs';
-import { copyPath, fitDims, LADDER, needW, requirements, rowsFor, rungFor } from '../src/images/arm-build.mjs';
+import { copyPath, fitDims, LADDER, needW, OVERSAMPLE, requirements, rowsFor, rungFor } from '../src/images/arm-build.mjs';
 import { stopsFor, mergeStops } from '../src/images/audit.mjs';
+import { scalesOf } from '../src/images/verify.mjs';
 import { bgDrawn, fitDrawn, splitTop } from '../src/images/inpage.mjs';
 import { aggregate, effectClasses, regionOf, rowsOfCell, sniff, totals } from '../src/images/reduce.mjs';
 import { canon, stability } from '../src/images/cli.mjs';
@@ -125,21 +126,21 @@ test('rowsFor: rows follow the width, a probe is sized with the next one unless 
   const widths = [400, 401, 800];
   const mkcells = (a, b, c) => new Map([[400, { cssW: a, cssH: a, scale: 1 }], [401, { cssW: b, cssH: b, scale: 1 }], [800, { cssW: c, cssH: c, scale: 1 }]]);
   const req = { nat: [2000, 2000], cells: mkcells(100, 100, 400) };
-  const rows = rowsFor(req, widths, 2);
+  const rows = rowsFor(req, widths, 2, 1);
   assert.equal(rows[0].from, 0);
   // 400 and 401 are 1 px apart: 400 is sized by itself, 401 by the larger of itself and 800
   assert.equal(rows[0].w, rungFor(200, 2000));
   assert.equal(rows[1].from, 401);
   assert.equal(rows[1].w, rungFor(800, 2000));
   assert.equal(rows.length, 2);
-  const keep = rowsFor({ nat: [300, 300], cells: mkcells(100, 100, 100) }, widths, 3);
+  const keep = rowsFor({ nat: [300, 300], cells: mkcells(100, 100, 100) }, widths, 3, 1);
   assert.deepEqual(keep, [{ from: 0, w: null }]);
 });
 
 test('rowsFor: a width no audit saw the image at takes the larger need of the widths around it', () => {
   const widths = [400, 500, 600, 700];
   const cells = new Map([[400, { cssW: 100, cssH: 100, scale: 1 }], [700, { cssW: 300, cssH: 300, scale: 1 }]]);
-  const rows = rowsFor({ nat: [4000, 4000], cells }, widths, 2);
+  const rows = rowsFor({ nat: [4000, 4000], cells }, widths, 2, 1);
   assert.deepEqual(rows.map((r) => r.w), [rungFor(600, 4000)]);
   assert.equal(rows.length, 1);
 });
@@ -221,4 +222,31 @@ test('tablesMd: one row per file, ranked by the larger wasted decoded bytes of t
   const md = tablesMd([f1]);
   assert.ok(md.indexOf('a.jpg') < md.indexOf('b.jpg'), 'a wastes more than b');
   assert.match(md, /\*\*hero.*2 files/);
+});
+
+test('rowsFor: a copy holds OVERSAMPLE times the pixels the image needs, and the source stays when that rung is nearly its size', () => {
+  const widths = [400];
+  const cells = new Map([[400, { cssW: 100, cssH: 100, scale: 1 }]]);
+  assert.equal(OVERSAMPLE, 2);
+  assert.deepEqual(rowsFor({ nat: [4000, 4000], cells }, widths, 2).map((r) => r.w), [rungFor(400, 4000)]);
+  assert.deepEqual(rowsFor({ nat: [4000, 4000], cells }, widths, 2, 1).map((r) => r.w), [rungFor(200, 4000)]);
+  // 200 device px needed, 400 held: a 420-px source keeps (the rung is at least 90 % of it)
+  assert.deepEqual(rowsFor({ nat: [420, 420], cells }, widths, 2), [{ from: 0, w: null }]);
+});
+
+test('mergeStops: the drawn size is the largest over the stops, box and drawn size from the same stop', () => {
+  const base = { kind: 'img', id: 'e1', url: '/a.jpg', complete: true, nat: [100, 100], vis: 1, none: false, top: 0, fw: ['morph-columns'], cls: [], effects: [] };
+  const m = mergeStops([
+    { items: [{ ...base, inView: true, box: [199, 224], img: [224, 224] }] },
+    { items: [{ ...base, inView: true, box: [287, 224], img: [287, 287] }] },
+    { items: [{ ...base, inView: true, box: [150, 224], img: [224, 224] }] },
+  ]);
+  assert.deepEqual(m[0].img, [287, 287]);
+  assert.deepEqual(m[0].box, [287, 224]);
+  assert.equal(m[0].bigStop, 1);
+});
+
+test('scalesOf: the sizes a copy is drawn at follow the oversample of its manifest', () => {
+  assert.deepEqual(scalesOf({ ladder: { oversample: 2 } }), [0.5, 1 / 3]);
+  assert.deepEqual(scalesOf({ ladder: {} }), [1, 1 / 1.5]);
 });
