@@ -11291,7 +11291,7 @@
    "owner": "console-builder",
    "stream": "ci",
    "deps": [],
-   "title": "Pin node-version in .github/actions/setup-pnpm/action.yml to one exact Node 24 release >= 24.22.0 (drain-wake-flake MEASURED: Node 24.21.0 on Linux swallows the stat error of a recursive fs.watch on a missing path, recursive_watch.js:236-241@v24.21.0; CI legs ran 24.21.0 and 24.22.0 in one run). One canonical version source (e.g. .node-version read by the action and by local tooling), a check that every workflow takes it, and the trigger rows (Fw.Ci.Trigger) updated so the change runs the lanes that use Node",
+   "title": "Pin Node 24.22.0 on CI and on this Mac (user 2026-10-20; drain-wake-flake MEASURED: Node 24.21.0 on Linux swallows the stat error of a recursive fs.watch on a missing path, recursive_watch.js:236-241@v24.21.0). One canonical file .node-version; CI: actions/setup-node node-version-file in the setup-pnpm action and every workflow step that sets Node (22 steps), generated drift check; local: .nvmrc equal to it, pnpm useNodeVersion (if the pinned pnpm supports it; cite docs) so pnpm runs scripts on the pinned Node, engines.node exact with engine-strict; runtime guard: fw entry and console-api main refuse to start when process.version differs from .node-version; trigger rows so a .node-version change runs the Node lanes",
    "writes": [
     ".github/actions/setup-pnpm/action.yml",
     ".node-version",
@@ -11299,7 +11299,14 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "scripts/ci-paths.mjs",
     "scripts/ci-paths.test.mjs",
-    "docs/team/handoffs/node-pin.md"
+    "docs/team/handoffs/node-pin.md",
+    ".github/workflows/*.yml",
+    ".nvmrc",
+    ".npmrc",
+    "pnpm-workspace.yaml",
+    "package.json",
+    "apps/runner/src/fw.ts",
+    "apps/console-api/src/main.ts"
    ]
   },
   {
@@ -11317,6 +11324,40 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/handoffs/timing-land-branch.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "readsonly-scan-disk",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "land.readsOnly static check (apps/runner/test/land-inputs.test.ts:131) skips a referenced path unless it exists on disk, so it passes on CI (no build outputs) and fails on the Mac: packages/measure-webkit scripts site-lane.sh/stamped-lane.sh read apps/site/dist/aot, gate-breakpoints 1 path, all undeclared. Decide referenced paths from the text (tracked files plus declared build-output globs from Lean), not existsSync; declare the build-output reads; the check gives the same answer on CI and locally",
+   "writes": [
+    "apps/runner/test/land-inputs.test.ts",
+    "apps/runner/src/checks.ts",
+    "lean/Fw/Console/LandInputs.lean",
+    "packages/contracts/golden/console/land-inputs*.jsonl",
+    "docs/team/handoffs/readsonly-scan-disk.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lean-mem-profile",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [],
+   "title": "User 2026-10-20 saw a 2.2 GB lean process (a module compile during a build). Measure peak RSS per module on CI: one full lake build with a LEAN wrapper that records /usr/bin/time maxrss per module (and wall), ranked table in a note; then reduce the top modules (split heavy decide/#guard/data modules, move big tables to generated data read at runtime, cheaper proofs) with before/after peak RSS and build time per module; total build peak memory under the LakeSlot bound stated in Lean",
+   "writes": [
+    "lean/Fw/**/*.lean",
+    "lean/scripts/lean-maxrss.sh",
+    ".github/workflows/lean.yml",
+    "research/notes/2026/10-2*-lean-mem-profile.md",
+    "docs/team/handoffs/lean-mem-profile.md"
    ]
   }
  ],
