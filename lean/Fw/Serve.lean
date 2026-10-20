@@ -4,6 +4,7 @@ import Fw.Board
 import Fw.Wire
 import Fw.Wire.Plan
 import Fw.Plan.Fast
+import Fw.Plan.FastView
 /-!
 # `fwcore serve`: the stateful console session (PLAN §3.2, the `TS → fwcore` row)
 
@@ -679,7 +680,7 @@ board and the board plan of the current console state; reset returns to the init
 def exec (v : Srv) : Cmd → Srv × Resp
   | .apply e => let r := fstep v e; (r.1, .applied r.2 (changed r.1 e r.2))
   | .replay es => let r := replayFrom v {} es; (r.1, .replayed r.2)
-  | .query now seq => (v, .board (fastBoard v.st now seq) (Fw.Plan.view Fw.Plan.quietMs now v.st.plan))
+  | .query now seq => (v, .board (fastBoard v.st now seq) (Fw.Plan.fastView Fw.Plan.quietMs now v.st.plan))
   | .reset => (init, .reset)
 
 /-- Run a sequence of serve commands, keeping only the final server state. -/
@@ -781,7 +782,7 @@ theorem accepted_changed {v : Srv} (hv : Indexed v) {e : Event} {d : Delta}
 /-- A query changes nothing and answers the board and the board plan of the current console state. -/
 theorem query_keeps (v : Srv) (now seq : Nat) :
     exec v (.query now seq) = (v, .board (board v.st now seq) (Fw.Plan.view Fw.Plan.quietMs now v.st.plan)) := by
-  simp [exec, fastBoard_eq]
+  simp [exec, fastBoard_eq, Fw.Plan.fastView_eq]
 
 /-- The query reply is a function of the console state alone (not of the indexes or of how the state
 was reached).
@@ -796,7 +797,7 @@ plan of the projection of their events.
 theorem query_after_run (cs : List Cmd) (hr : ∀ c ∈ cs, c.isReset = false) (now seq : Nat) :
     (exec (run init cs) (.query now seq)).2 = .board (board (project (cs.flatMap Cmd.events)) now seq)
       (Fw.Plan.view Fw.Plan.quietMs now (project (cs.flatMap Cmd.events)).plan) := by
-  simp [exec, run_init_eq_project cs hr, fastBoard_eq]
+  simp [exec, run_init_eq_project cs hr, fastBoard_eq, Fw.Plan.fastView_eq]
 
 #guard
   let es : List Event := [⟨"k1", 1, .owner, .cardOpen "A" "o" false⟩, ⟨"k2", 2, .owner, .cardApprove "A"⟩,
