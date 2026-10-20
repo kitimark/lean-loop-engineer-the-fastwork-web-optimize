@@ -1,5 +1,5 @@
 import "./land-timeout.ts";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../../console-api/src/app.ts";
@@ -39,6 +39,19 @@ async function setup() {
 }
 
 describe("fw land", () => {
+  it("refuses at once with kind stale and the named reason when fwcore has no build record, before any check or lock", async () => {
+    const { fx, opts } = await setup();
+    fx.commit(fx.root, "scripts/fwcore-build.sh", "#!/bin/sh\n");
+    fx.commit(fx.worktree("ci/t"), "t.txt");
+    const { checks: _c, ...real } = opts;
+    const r = await land("ci/t", { ...real, task: "t" });
+    expect(r.ok).toBe(false);
+    expect(r.kind).toBe("stale");
+    expect(r.lines).toContain("REFUSED: fwcore-stale: run sh scripts/fwcore-build.sh");
+    expect(existsSync(join(fx.root, ".fw-console", "land-logs"))).toBe(false);
+    expect(existsSync(join(fx.root, ".fw-console", "land.lock"))).toBe(false);
+  });
+
   it("lands a ready card: ff-only on main, the reconciler records card.landed, no violation", async () => {
     const { fx, store, http, evidence, opts } = await setup();
     const wt = fx.worktree("card/A");

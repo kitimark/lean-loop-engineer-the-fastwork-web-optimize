@@ -7819,7 +7819,8 @@
     "apps/runner/package.json",
     "apps/runner/test/bin-mode.test.ts",
     "docs/team/handoffs/runner-bin-mode.md"
-   ]
+   ],
+   "evidence": "d5c4c07"
   },
   {
    "devices": [
@@ -9354,8 +9355,16 @@
     "apps/runner/src/fw.ts",
     "apps/runner/test/land-queue*.test.ts",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/land-queue-why.md"
-   ]
+    "docs/team/handoffs/land-queue-why.md",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/land-digest.test.ts",
+    "lean/Fw/Console/LandQueue.lean",
+    "packages/contracts/golden/console/land-queue.jsonl",
+    "lean/scripts/*Golden.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land.test.ts"
+   ],
+   "evidence": "cea4b28"
   },
   {
    "devices": [
@@ -9919,8 +9928,10 @@
    "writes": [
     "scripts/scrub.mjs",
     "scripts/scrub.test.mjs",
-    "docs/team/handoffs/scrub-session-paths.md"
-   ]
+    "docs/team/handoffs/scrub-session-paths.md",
+    "docs/team/tools/land.md"
+   ],
+   "evidence": "f1f9d08"
   },
   {
    "devices": [
@@ -9950,7 +9961,139 @@
     "research/notes/2026/10-20-preview-proxy-direct.md",
     "docs/team/handoffs/preview-proxy-direct.md",
     "lean/Fw.lean",
-    "lean/scripts/check.sh"
+    "lean/scripts/check.sh",
+    "apps/console-api/src/main.ts",
+    "apps/console-api/test/arm-rig.ts",
+    "apps/console-api/test/builds.test.ts",
+    "apps/console-api/test/lan-owner.test.ts",
+    "docs/team/tools/preview-grant.md",
+    "lean/Fw/Ops/Golden.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scrub-session-paths-r2",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "scrub review follow-ups: encoded-home trailing and glued forms, rules on file paths, override only under FW_SCRUB_TEST, GENERIC exported, scrub tests run on CI",
+   "deps": [
+    "scrub-session-paths"
+   ],
+   "writes": [
+    "scripts/scrub.mjs",
+    "scripts/scrub.test.mjs",
+    "scripts/test-scrub.mjs",
+    ".github/workflows/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/scrub-session-paths-r2.md",
+    "apps/runner/test/scrub.test.ts",
+    "apps/runner/src/land.ts",
+    "lean/scripts/*Golden.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean"
+   ],
+   "evidence": "86d84f3"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-fail-wins",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "Land gate: a lane run that completed with conclusion failure for the wanted sha+digest is always fail (refuse), whatever exit code fw ci wait returned; the remote verdict and its reason are printed in the VERDICT output and the land log. Incident: preview-e2e landed 2026-10-19T23:08Z after run 39338755874 failed (fallback to local, suites passed here)",
+   "deps": [
+    "land-wait"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-remote.test.ts",
+    "lean/Fw/Console/LandRemote.lean",
+    "packages/contracts/golden/console/land-remote.jsonl",
+    "lean/scripts/*Golden.lean",
+    "packages/gh-budget/src/wait.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-remote-fail-wins.md",
+    "apps/runner/src/run.ts",
+    "packages/gh-budget/src/index.ts",
+    "lean/Fw/Wire/Console.lean"
+   ],
+   "evidence": "e6277c6"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-followups",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "land-remote-fail-wins review lows: a test of cachedLaneView on real runs-status/jobs.json shapes; abort seen during a budget sleep in chargedGh; poll deadline capped by the overall awaitRemote deadline; a note when the filtered list is empty or the view is another workflow; exact deadline/signal assertions",
+   "deps": [
+    "land-remote-fail-wins"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/run.ts",
+    "apps/runner/test/land-remote.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-remote-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-lane-speed",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "Land wall time after land-wait: measure where a land spends time (local tier, remote push, queue, land.yml setup incl. gate-engine/playwright install, fwcore build, suites per package) from obs spans and run timings of today's lands; cut it without moving work back to this Mac (cache what is rebuilt, install browsers only when the browser lane is selected, run suites as parallel jobs, overlap local and remote tiers); Lean decides any new selection rule; before/after MEASURED on CI",
+   "deps": [
+    "land-remote-fail-wins"
+   ],
+   "writes": [
+    ".github/workflows/land.yml",
+    ".github/actions/**",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/checks.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Console/LandTier.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean",
+    "lean/scripts/*Golden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/console/**",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/tools/land.md",
+    "research/notes/2026/10-20-land-lane-speed.md",
+    "docs/team/handoffs/land-lane-speed.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-e2e-entry",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "preview-proxy-direct review: check the real entry path (grant landing and the Builds link /preview/<id>/r|o/ -> arm origin) for 0 rejections/cancels and modules once; LAN lane noise checks; client-nav-o asserts a same-document navigation; rename signature.test.mjs; rig reads backendOff from Lean; admit refuses portBase past 65536 (noPorts); control loads block external URLs; delete unused cache-policy variants",
+   "deps": [
+    "preview-proxy-direct"
+   ],
+   "writes": [
+    "packages/e2e-preview/**",
+    "lean/Fw/Console/Preview*.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "apps/console-api/src/preview/**",
+    "apps/console-api/test/**",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/handoffs/preview-e2e-entry.md"
    ]
   }
  ],

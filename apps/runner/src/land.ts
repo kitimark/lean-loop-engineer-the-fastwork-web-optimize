@@ -10,9 +10,9 @@ import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
 import { begin, record, span } from "./timing.ts";
-import { circleciAdapter, DEFAULT_ALLOW, githubAdapter, runTiered, spawnWait, type Adapter, type Provider } from "./land-remote.ts";
+import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, runTiered, spawnWait, type Adapter, type Provider } from "./land-remote.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
-import { checkFailKind, failedStages, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
+import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
 import { chargedGh, fwcoreCall, ghCost } from "./run.ts";
 import { chargedOnce, realEnv, type Env } from "@fw/gh-budget";
@@ -184,6 +184,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs",
     // circleci-pilot: the glue, its fixtures and the pilot config (test/ci-triggers.test.ts runs scripts/circleci.test.mjs; fw ci circleci spawns the glue)
     "scripts/circleci.mjs", "scripts/circleci.test.mjs", "scripts/circleci-fixtures/**", ".circleci/**",
+    // scrub-session-paths: test/scrub.test.ts runs the privacy scrub's tests (test-scrub.mjs is outside the scripts/*.test.mjs glob)
+    "scripts/scrub.mjs", "scripts/test-scrub.mjs", "scripts/scrub.test.mjs", "scripts/scrub-allow.json",
     // ci-telemetry: test/ci-telemetry.test.ts runs the producer's own tests and replays golden/ci/telemetry.jsonl (golden/** above)
     "scripts/ci-telemetry/**",
     // site-build-cache: ci-paths reads each setup-lean job's Lake targets (lakefile, the scripts its run: blocks call) into
@@ -410,6 +412,24 @@ export function storedDigest(mainDir: string, commit: string): Digest {
   } catch { /* no record */ }
   return null;
 }
+/** The land preflight (task land-queue-why): the reason to refuse early, or null. Facts only; Lean `fwcoreStale` decides. The installed binary is
+ *  the main checkout's; its record (`fwcore.commit`) names the commit it was built from, and counts only when the binary's sha256 is the recorded one.
+ *  A tree without `scripts/fwcore-build.sh` has no binary to be stale. */
+export function fwcorePreflight(mainDir: string, main: string): string | null {
+  if (!tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/fwcore-build.sh`])) return null;
+  let recorded: string | null = null;
+  try {
+    const [c, h] = readFileSync(join(mainDir, `${FWCORE_BIN}.commit`), "utf8").trim().split(" ");
+    if (c && h !== undefined && HEX64.test(h) && binDigest(mainDir) === h) recorded = c;
+  } catch { /* no record */ }
+  const head = git(mainDir, ["rev-parse", main]);
+  const same = recorded === head;
+  let moved = true; // an unknown commit counts as moved
+  if (recorded !== null && !same) {
+    try { moved = git(mainDir, ["diff", "--name-only", recorded, main, "--", "lean", "scripts/fwcore-build.sh"]) !== ""; } catch { moved = true; }
+  }
+  return fwcoreStale(recorded, same, moved) ? FWCORE_STALE_REASON : null;
+}
 export function storeDigest(mainDir: string, commit: string, d: string): void {
   try { const f = digestFile(mainDir, commit); mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, `${d}\n`); } catch { /* the next land builds unknown */ }
 }
@@ -472,6 +492,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   if (!mainDir) return fail(`${main} is not checked out in any worktree`);
   if (o.dry && !o.task) return fail("--dry needs --task <id>: the scope check is the task's");
   if (!o.dry && git(mainDir, ["status", "--porcelain", "--untracked-files=no"])) return fail(`${main} checkout has uncommitted changes`, "dirty");
+  if (!o.dry && !o.checks) { const why = fwcorePreflight(mainDir, main); if (why) return fail(why, "stale"); }
   // 0. the given branch has nothing to land: the agent may have committed on its ci/<task> branch (Lean: console.landPick)
   if (!via && !o.dry) {
     const pk = pickFacts(o.cwd, main, branch, o.task);
@@ -592,13 +613,20 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const laneIds = (call({ op: "console.landTier", ids: all.filter((x) => laneSel.has(x.id)).map((x) => x.id) }) as { remote: string[] }).remote;
     const res = await runTiered({
       call, checks: list, laneIds, task: o.task, mergeSha: c, allow: r.allow ?? DEFAULT_ALLOW,
-      adapters: r.adapters ?? { github: githubAdapter({ git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), wait: spawnWait(mainDir), gh: chargedGh(realEnv(mainDir)) }), circleci: circleciAdapter(() => tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/circleci.mjs`])) },
+      adapters: r.adapters ?? { github: githubAdapter({ call, git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), wait: spawnWait(mainDir), gh: chargedGh(realEnv(mainDir)), cache: (h, id) => cachedLaneView(realEnv(mainDir).dir, h, id) }), circleci: circleciAdapter(() => tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/circleci.mjs`])) },
       runLocal: async (argv) => { const bad = await runChecks(dir, argv); return { bad, kind: badKind }; },
-      log: (l) => lines.push(l), span: (step, startMs, durMs, exit) => record({ tool: "fw land", step, startMs, durMs, exit }, mainDir),
+      log: (l) => { lines.push(l); logLine(l); }, span: (step, startMs, durMs, exit) => record({ tool: "fw land", step, startMs, durMs, exit }, mainDir),
       sliceS: r.sliceS, deadlineS: r.deadlineS, waitsLeft: r.waitsLeft,
     });
     if (res.bad !== null) badKind = res.kind as Kind;
     return res.bad;
+  };
+  /** A remote-tier line goes to the land log file and to stderr at once (a passing land prints no result lines, but its fallback is seen). */
+  const logLine = (l: string): void => {
+    mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
+    if (!logStarted) { writeFileSync(logFile, ""); logStarted = true; }
+    appendFileSync(logFile, `${l}\n`);
+    process.stderr.write(`${l}\n`);
   };
   let badKind: Kind = "checks";
   const runChecks = async (cwd: string, list: string[][]): Promise<string | null> => {
