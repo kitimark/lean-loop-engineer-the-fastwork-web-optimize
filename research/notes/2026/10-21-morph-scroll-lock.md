@@ -113,6 +113,39 @@ Then `lake build` checks it through the `#guard ... include_str` line.
 Model limits: `Gest.gated` and the commit frame `k` are inputs restated from the engine paths, not derived; `lock_vis`
 covers the main-thread view only, and the original's shown position in a fight (`shown ≠ p`) makes the arm class L.
 
+## Breakpoint gate: the new condition `mq.hover-none`
+
+The arm adds `mq.hover-none` to `MEDIA_IDS` (`apps/site/src/parts/morph.tween/media.ts`). The gate's scope reads a part's
+rewrite ids from `packages/gate-breakpoints/src/scope.gen.json`, which Lean writes from `pilotParts`
+(`lean/Fw/Gate/Scope.lean:311`, emitted by `lean/Fw/Gate/ScopeGen.lean:40-41`, regenerated with
+`node packages/gate-breakpoints/scripts/scopegen.mjs`). The original's `morph.tween` does not read `(hover: none)`: the
+inventory (`research/kickoff/11-breakpoints/breakpoints.json`, `mq.hover-none`) lists it only for `ui.shared(sb-*)`, and that
+file stays unchanged. So the scope has a new field `added` (`Scope.lean:235`): catalogue ids that only the rewrite reads, each with a
+reason. `pilot_added_exact` (`Scope.lean:448`) proves that each part's `added` ids are exactly its rewrite ids outside
+`orig`. `scope.test.mjs` checks the same thing on the JSON, where it used to require rewrite ⊆ orig. CONFIRMED (local
+`node --test test/*.test.mjs`, 425 pass; the land lane's `fw checks --tier remote --leg suites-a` passes locally).
+
+- **Both states are scoped.** The key now holds `(hover: none)`, so the morph.tween scope gains `touch-319`,
+  `touch-rm-600`, `touch-rm-860` and `touch-rm-1201`. `scope_hover_none_both` (`Scope.lean:623`) proves that on every port
+  the scope has a reachable load where `(hover: none)` matches and one where it does not; `scope_covers` still proves that
+  every reachable key class is in the scope.
+- **Lanes that emulate `(hover: none)`.** Chromium starts one browser per (hover, pointer) pair with
+  `--blink-settings=primaryHoverType=…` (`packages/gate-breakpoints/src/engines.mjs:91-100`). WebKit uses
+  `hasTouch: env.hover === 'none'` (`engines.mjs:160`), which sets both `(hover: none)` and `(pointer: coarse)`; the cross pairs are
+  unreachable there (`engines.mjs:32-36`, Lean `envReason`). The matrix runs the TOUCH and PHONE environments with no hover
+  (`src/spec.mjs:75-76`) and the `hover-pointer-cross` block (`lean/Fw/Site/BreakpointMatrix.lean:92`; both values of
+  each hover query, `matrix_neutral_hover_both_sides` :291). The trajectory lane loads 390 and 640 as TOUCH (no hover) and
+  641 and 1280 as DESK (`src/trajectory/registry.mjs:93-95`). The gate runs the arm only when `FW_SEARCH` names it
+  (`?fw=morph.tween:scroll-lock`, `src/serve.mjs:41-48`).
+- **Why the off state is the original.** Under `(hover: none)` (or an unreadable query), `scrollLockOf` returns no lock
+  (`apps/site/src/parts/morph.tween/index.tsx:70-74`, Lean `hoverNoneOf`, `engage_unread` and `engage_read_touch`,
+  `MorphTweenOpt.lean:2241-2247`). With no lock, `readOverlay` and `syncLock` return before any read or write
+  (`driver.ts:58-62`), so the arm runs the original tween with no root write (`engage_touch` :2230, `engage_off_writes`
+  :2250). Under `(hover: hover)` the lock writes the root only while the morph is active (`lockWrite`, `driver.ts:63`;
+  `runL_locked` :2124). The gate loads at the top of the page, where the morph is inactive (`js.morph-arm` is dismissed at
+  `Scope.lean:316`), so neither hover state writes the root at a gate load, and the gate's equality claim covers both.
+  The look change while a gesture is in flight (class L) is outside the gate.
+
 ## Known limits
 
 - No rubber-band and no keyboard or scrollbar-drag scrolling while locked (the original pins those back anyway).
