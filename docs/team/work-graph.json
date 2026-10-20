@@ -11108,8 +11108,10 @@
     "lean/Fw/Console/ReconcileSched.lean",
     "lean/Fw/Console/JournalFold.lean",
     "packages/contracts/golden/console/**",
-    "docs/team/handoffs/drain-wake-flake.md"
-   ]
+    "docs/team/handoffs/drain-wake-flake.md",
+    "apps/console-api/src/watch.ts"
+   ],
+   "evidence": "05591d8"
   },
   {
    "devices": [
@@ -11273,7 +11275,46 @@
     "apps/runner/hooks/wait-guard.mjs",
     "apps/runner/test/wait-guard*.ts",
     "docs/team/tools/wait-guard.md",
-    "docs/team/handoffs/cd-guard.md"
+    "docs/team/handoffs/cd-guard.md",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "apps/runner/hooks/wait-guard.d.mts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "node-pin",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [],
+   "title": "Pin node-version in .github/actions/setup-pnpm/action.yml to one exact Node 24 release >= 24.22.0 (drain-wake-flake MEASURED: Node 24.21.0 on Linux swallows the stat error of a recursive fs.watch on a missing path, recursive_watch.js:236-241@v24.21.0; CI legs ran 24.21.0 and 24.22.0 in one run). One canonical version source (e.g. .node-version read by the action and by local tooling), a check that every workflow takes it, and the trigger rows (Fw.Ci.Trigger) updated so the change runs the lanes that use Node",
+   "writes": [
+    ".github/actions/setup-pnpm/action.yml",
+    ".node-version",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "docs/team/handoffs/node-pin.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-land-branch",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "fw watch timing.slow false alarms: Fw.Obs.Timing samples every run of the land workflow, including a builder's repro branch (ci/land-drain-wake-flake looped full suites), so real land legs (suites-b 6 min, webkit 7-8 min) were flagged slow. Lean: the land-lane timing series keeps only runs whose branch has the land shape ci/land-<task>-<sha7> (predicate + theorem + golden rows); other runs of the workflow go to their own series",
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/**",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/watch*.ts",
+    "docs/team/handoffs/timing-land-branch.md"
    ]
   }
  ],
