@@ -10528,7 +10528,8 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2*-findings-ledger-1020.md",
     "docs/team/handoffs/findings-ledger-1020.md"
-   ]
+   ],
+   "evidence": "3e667d3"
   },
   {
    "devices": [
@@ -10551,7 +10552,59 @@
     "docs/team/tools/console.md",
     "docs/team/tools/preview-grant.md",
     "research/notes/2026/10-2*-console-preview-search.md",
-    "docs/team/handoffs/console-preview-search.md"
+    "docs/team/handoffs/console-preview-search.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ops/Golden.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User 2026-10-20 found on a real device what no check saw: hero.exit:scoped freezes the hero copy in WebKit (stale style cache), morph.tween:waapi* leaves the nav classes stale for the whole morph (logo jumps), and is-on-dark is not re-evaluated on morph (logo dark on dark at 390, every rewrite arm). New CI lane: scroll-trajectory equivalence, original vs rewrite+flags, both engines, widths 390/640/641/1280; path down through hero, to middle, back; end-of-page approach, morph open/hold/close; per step getComputedStyle (no screenshot between reads) of registry-identified nodes; spec, tolerance and verdict in Lean; must FAIL on the three known bugs on CI.",
+   "writes": [
+    "packages/trajectory-probe/**",
+    ".github/workflows/trajectory-probe.yml",
+    "lean/Fw/Gate/Trajectory*.lean",
+    "lean/Fw/Gate/Trajectory/**",
+    "lean/Fw.lean",
+    "lean/scripts/Trajectory*.lean",
+    "lean/scripts/LaneInputs.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/trajectory/**",
+    "packages/contracts/golden/ci/**",
+    "apps/runner/src/**",
+    "apps/runner/test/**",
+    "scripts/ci-paths*.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/tools/fw-run.md",
+    "results/trajectory-probe/**",
+    "research/notes/2026/10-2*-trajectory-probe.md",
+    "docs/team/handoffs/trajectory-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preset-drop-waapi",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [],
+   "title": "morph.tween:waapi (in v2-proved) is falsified on the user's device: the waapi driver writes data-fw-morph only at push start and finish (waapi.driver.ts:110,140), so the nav's is-morphing/is-expanded stay stale for the 680 ms morph and the logo jumps; MorphTweenOpt waapi_vis assumes the scene is a function of the View, which the shipped code is not. Record it in the findings ledger as a row with flag morph.tween:waapi and fResult model-bug (and the same for waapi-scoped and hero.exit:scoped, the WebKit stale-cache bug), regenerate the v2-proved preset with Fw.Preset.Gen so the generator drops it (Why.falsifiedFlag), regenerate the registry preset file and goldens, site tests green.",
+   "writes": [
+    "research/findings/ledger.json",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "apps/site/src/registry/presets/v2-proved.test.ts",
+    "lean/Fw/Preset/**",
+    "lean/scripts/Preset*.lean",
+    "research/notes/2026/10-2*-preset-drop-waapi.md",
+    "docs/team/handoffs/preset-drop-waapi.md"
    ]
   }
  ],

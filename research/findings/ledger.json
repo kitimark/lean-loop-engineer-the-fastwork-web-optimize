@@ -1776,6 +1776,398 @@
    "v1Evidence": "none",
    "lesson": "Model an observable the way the measured run behaved, not the way the fix intends it to behave: a check whose model holds the quantity under test constant cannot fail. Test an anchor against the run that motivated it before accepting it.",
    "next": "gate-page-root-anchor: collect scrollWidth in page.mjs, parse it in Fw.Wire.Gate, decide fits(o) := scrollWidth(o) <= requested width, one explicit row in Fw.Gate.Coverage, a breakpoint-gate run with the item equal in both arms."
+  },
+  {
+   "id": "hero.exit.scoped",
+   "n": 6,
+   "part": "hero.exit",
+   "candidate": "hero.exit:scoped (exit-scoped-var): register --exit-opacity and --exit-scatter with inherits: false and re-inherit them only on the 7 classes between the stage and the 16 readers",
+   "status": "partly-proved",
+   "chromium": "win",
+   "webkit": "unknown",
+   "visual": "equal by construction: the 16 readers get the same values (Lean consumer_eq_scoped); breakpoint gate run 39314391342 passes every hero.exit cell (MEASURED)",
+   "mechanism": "MEASURED (commit fad89503, 3 runs per arm): trace.UpdateLayoutTree.elementCount on swipe-v1 13145 -> 4730 (-64.0 %; runs 39314368756 base, 39314340270 scoped) and on swipe-touch-v1 13218-13219 -> 4825 (-63.5 %; 39314380116, 39314355168). An unregistered custom property inherits, so the per-frame write on the stage restyled the whole stage subtree; non-inherited registration bounds the restyle to the reader path. The model predicts 90 fewer elements per exit frame (Fw.Parts.HeroExitOpt.narrow_delta), measured 90-91; one frame at 56 stays INFERRED. elementCount is a quarantined counter. WebKit: source-only (wk_units, Fw.Engine.Restyle.wkScoped_le_crScoped), no WebKit run claims a saving.",
+   "leanFor": [
+    "Fw.Parts.HeroExitOpt.narrow_delta",
+    "Fw.Parts.HeroExitOpt.cr_units",
+    "Fw.Parts.HeroExitOpt.wk_units",
+    "Fw.Parts.HeroExitOpt.consumer_eq_scoped",
+    "Fw.Parts.HeroExitOpt.readers_exact",
+    "Fw.Engine.Restyle.crScoped_le_wkFull",
+    "Fw.Engine.Restyle.wkScoped_le_crScoped"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "the one exit frame with 56 fewer elements instead of 90 (INFERRED)",
+    "WebKit saving not measured (source-only)"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A custom property written every frame on an ancestor restyles the whole subtree while it inherits; register it with inherits: false and re-inherit it only along the path to its readers, which bounds the restyle to the readers.",
+   "next": "Not in v2-proved (packages/contracts/golden/preset/v2-proved.decisions.jsonl: hero.exit:scoped, no link, member false); preset inclusion is the lead's decision; a WebKit measurement is OPEN."
+  },
+  {
+   "id": "hero.countdown.oneChain",
+   "n": 8,
+   "part": "hero.countdown",
+   "candidate": "hero.countdown:one-chain (countdown-one-chain): run every rolling digit's rAF chain from one subscriber of the shared loop instead of one rAF callback per digit; faces, setInterval(1000) and transform writes unchanged",
+   "status": "partly-proved",
+   "chromium": "win",
+   "webkit": "unknown",
+   "visual": "equal by construction (Lean oneChain_writes_eq: the same writes in the same frames); breakpoint gate run 39367028590 vs base 39367037943 passes the hero.countdown row (MEASURED)",
+   "mechanism": "MEASURED (commit 75b08603, results/countdown-one-chain/counts.md, 3 of 3 shards): FireAnimationFrame and FunctionCall drop by 243 on swipe-v1 (2058 -> 1815, -11.8 %; runs 39313898978 base, 39313828270) and by 252 on swipe-touch-v1 (2112 -> 1860, -11.9 %; 39313910496, 39313842964). Style, layout and paint are unchanged on swipe-v1. On swipe-touch-v1 frame 499 (first settle frame) gains one forced style recalc and +10 elements; cause INFERRED, OPEN. Engines pay one FireAnimationFrame and one FunctionCall per rAF callback (CONFIRMED in the note: Chromium frame_request_callback_collection.cc:99-125 @f842f52, WebKit ScriptedAnimationController.cpp:178-200 @862f17d), so one subscriber per frame replaces one callback per rolling digit. The Lean model also retires the old strip claim: strip's always-on schedule pays a callback on still frames, so it is not below the original (strip_schedule_still_gt).",
+   "leanFor": [
+    "Fw.Parts.HeroCountdownOneChain.oneChain_writes_eq",
+    "Fw.Parts.HeroCountdownOneChain.page_le",
+    "Fw.Parts.HeroCountdownOneChain.page_lt_shared",
+    "Fw.Parts.HeroCountdownOneChain.oneChain_raf",
+    "Fw.Parts.HeroCountdownOneChain.oneChain_raf_eq",
+    "Fw.Parts.HeroCountdownOneChain.oneChain_le_alwaysOn"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.HeroCountdownOneChain.strip_schedule_still_gt"
+   ],
+   "missingWhy": [
+    "the +1 forced recalc and +10 elements in swipe-touch-v1 frame 499 (INFERRED, OPEN)",
+    "WebKit not measured"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Count callbacks, not work per callback: N per-element rAF chains cost N callbacks per frame even when each does little; one chain keeps every write and cuts the callback count.",
+   "next": "Not in v2-proved (decisions: hero.countdown:one-chain, no link, member false); preset inclusion is the lead's decision; frame 499 is OPEN."
+  },
+  {
+   "id": "morph.tween.waapiScoped",
+   "n": 9,
+   "part": "morph.tween",
+   "candidate": "morph.tween:waapi-scoped (tween-platform-scope): the WAAPI tween with a non-inherited --platform-morph, so the platform subtree leaves every tween frame",
+   "status": "partly-proved",
+   "chromium": "win",
+   "webkit": "unknown",
+   "visual": "equal: platform row of the breakpoint gate passes (runs 39337856330, 39340504860, MEASURED); scope rule proved (Lean registrationsScoped_see, scoped_scope_le)",
+   "mechanism": "MEASURED on swipe-touch-v1 (runs 39337826915 waapi, 39337815445 scoped, 39337848138 faithful): UpdateLayoutTree.elementCount -108 per frame in frames 500-508 and -114 per frame in frames 509-530; 3745 fewer elements per run (-6.8 %), still 5.7 % above faithful (means 51263 vs 48508). swipe-v1 is equal. It also refutes the MorphTweenOpt premise that the WAAPI tween adds no element (waapi_section_finding): late frames resolve 318 elements under waapi, 203-204 under scoped, 85-86 faithful. webkit-sim run 39357698535 succeeded; the WebKit saving is INFERRED. The residual 117-118 per frame is OPEN (task morph-nav-scope).",
+   "leanFor": [
+    "Fw.Parts.MorphTweenOpt.scoped_scope_le",
+    "Fw.Parts.MorphTweenOpt.registrationsScoped_see",
+    "Fw.Parts.MorphTweenOpt.scoped_below_nil",
+    "Fw.Parts.MorphTweenOpt.fade_eq"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphTweenOpt.waapi_section_finding"
+   ],
+   "missingWhy": [
+    "the residual 117-118 elements per late frame above faithful (OPEN, morph-nav-scope)",
+    "WebKit saving (INFERRED)"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A registered animated custom property that inherits drags its whole subtree into every frame; when only a few descendants read it, scope it the same way as a hand-written per-frame write.",
+   "next": "Not in v2-proved (decisions: morph.tween:waapi-scoped, no link, member false); residual scope in morph-nav-scope (OPEN)."
+  },
+  {
+   "id": "morph.mount.shiftDormant",
+   "n": 12,
+   "part": "morph.mount",
+   "candidate": "morph.mount:shift-dormant (morph-layers): keep shift's early mount but keep the panel's timed state asleep (marquee tracks animation-name: none, no countdown driver) until the original trigger",
+   "status": "partly-proved",
+   "chromium": "trade",
+   "webkit": "unknown",
+   "visual": "equal: the panel is invisible while dormant and wakes on the original trigger (Lean visSame_dormant, dormant_iff); breakpoint gate run 39325704868 passes every morph.* cell (MEASURED)",
+   "mechanism": "MEASURED (commit f59fdbf0; swipe-v1 runs 39325709978 faithful, 39325715862 shift, 39325721909 dormant; swipe-touch-v1 39325727288, 39325735139, 39325741608): shift adds 9 drawing layers per frame until the original trigger (+1053 swipe-v1, +1134 swipe-touch-v1), from 3 marquee tracks running a transform animation while mounted and invisible. shift-dormant gets the faithful layer census back (equal lists in a real dump) and keeps 3 of the 4 saved layouts, at about +200 resolved elements. WebKit: source-only (sim run 39309416016 measured shift only).",
+   "leanFor": [
+    "Fw.Parts.MorphMountDormant.visSame_dormant",
+    "Fw.Parts.MorphMountDormant.layers_dormant_eq",
+    "Fw.Parts.MorphMountDormant.census_dormant_eq",
+    "Fw.Parts.MorphMountDormant.dormant_iff"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphMountDormant.clock_not_phaseFree"
+   ],
+   "missingWhy": [
+    "the ~200 extra resolved elements under dormant",
+    "WebKit layers under dormant not measured"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Mounting early is only free when the mounted subtree is static: a running animation or clock inside an invisible early mount still promotes layers and ticks; mount early, wake late.",
+   "next": "Not in v2-proved (decisions: morph.mount:shift-dormant, no link, member false); preset choice between shift and shift-dormant is the lead's."
+  },
+  {
+   "id": "morph.mount.idleNone",
+   "n": 12,
+   "part": "morph.mount",
+   "candidate": "morph.mount idle-none (morph-layers, rejected): animation-name: none on the paused end scene to drop its layers",
+   "status": "not-tried",
+   "chromium": "not-tried",
+   "webkit": "not-tried",
+   "visual": "not proved: it changes layers under visible text, with no visual proof",
+   "mechanism": "Considered and rejected in morph-layers (note 10-20-morph-layers.md): the paused scene is visible, so removing its animation changes compositing under visible text; no Lean statement shows the pixels equal. INFERRED that it would save layers.",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [
+    "a visual-equality proof for a layer change under visible text"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A layer saving on visible content needs a visual proof first; a saving on invisible content (shift-dormant) does not.",
+   "next": "None planned."
+  },
+  {
+   "id": "pain.notes.visibleIdem",
+   "n": 21,
+   "part": "pain.notes",
+   "candidate": "pain.notes:visible-idem (notes-scroll-idem): skip the covered-frame commit that writes nothing",
+   "status": "proved",
+   "chromium": "win",
+   "webkit": "unknown",
+   "visual": "equal: every element holds the same value in both arms after every event prefix (Lean scroll_dom_eq, run_eq); gate run 39343960834 shows only the known commission flake (MEASURED)",
+   "mechanism": "MEASURED (commit 9ec81757, results/notes-scroll-idem/runs.json, 3 runs per arm over v2-proved): trace.FunctionCall -733 on swipe-v1 (4412-4413 -> 3679-3680, -16.6 %; runs 39343940969, 39343944510) and -720 to -724 on swipe-touch-v1 (6329 -> 5605-5609, -11.4 %; 39343947925, 39343951333). Each covered scroll frame loses 3 calls (217 of 503 frames, 221 of 531). Paint, Layout, RasterTask and UpdateLayoutTree stay within noise: the skipped commit wrote nothing. The brief's naive version is not equivalent (naive_not_E). webkit-sim runs 39343967737 and 39343964250 overlap, so no WebKit claim.",
+   "leanFor": [
+    "Fw.Parts.PainNotesOpt.Idem.scroll_dom_eq",
+    "Fw.Parts.PainNotesOpt.Idem.commits_le",
+    "Fw.Parts.PainNotesOpt.Idem.commits_lt",
+    "Fw.Parts.PainNotesOpt.Idem.run_eq"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PainNotesOpt.Idem.naive_not_E",
+    "Fw.Parts.PainNotesOpt.Idem.move_layout_stale"
+   ],
+   "missingWhy": [
+    "WebKit saving (sim runs overlap)"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "React diffs against the last committed props, not the DOM: a commit that would write the same values is still a commit; skip it at the source.",
+   "next": "Not in v2-proved (decisions: pain.notes:visible-idem, no link, member false); preset inclusion is the lead's decision."
+  },
+  {
+   "id": "nav.oofRoot.containment",
+   "n": 29,
+   "part": "nav.morph",
+   "candidate": "contain the fixed nav's relayout with a containment boundary (nav-oof-root-finding)",
+   "status": "refuted",
+   "chromium": "no-win",
+   "webkit": "no-win",
+   "visual": "not-equal: a boundary on html, body or #root re-anchors the fixed nav (Lean nav_contained_root)",
+   "mechanism": "CONFIRMED in Lean (Fw.Parts.NavOofRoot): the fixed nav's containing block is the view, so its relayout root is the view (Tree.oof_view_full); a boundary below the view does not scope it (Tree.oof_root_indep), and a boundary on html, body or #root moves the nav. MEASURED in run 39292323514: frames 498-530 run 33 Layout passes over 1077 dirty objects, 0 partial; frames 517-530 lay out 32 objects and resolve 318 elements per frame with no rAF, handed to tween-platform-scope. WebKit is source-only.",
+   "leanFor": [],
+   "leanAgainst": [
+    "Fw.Parts.NavOofRoot.nav_pass_full",
+    "Fw.Parts.NavOofRoot.Tree.oof_view_full",
+    "Fw.Parts.NavOofRoot.Tree.oof_root_indep",
+    "Fw.Parts.NavOofRoot.nav_contained_root",
+    "Fw.Parts.NavOofRoot.nav_contained_partial_moved"
+   ],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Containment cannot scope a dirty out-of-flow box whose containing block is the view; remove the dirtying write instead.",
+   "next": "Closed as a finding; the per-frame resolve went to tween-platform-scope (morph.tween.waapiScoped)."
+  },
+  {
+   "id": "premise.cv.used-margin-fresh",
+   "n": 30,
+   "part": "premise",
+   "candidate": "premise cv.used-margin-fresh: getComputedStyle reads the used auto margin of a node in a content-visibility-skipped subtree fresh at stop 0 (commission-margin-recur)",
+   "status": "refuted",
+   "chromium": "premise-false-intermittent",
+   "webkit": "not-tried",
+   "visual": "n/a (a gate read path, not an optimization)",
+   "mechanism": "MEASURED on Chromium: the commission margin read 0px (a zero strut) at stop 0, six failing readings in 3 of 5 runs (39313815482, 39314391342, 39314718340). Diag v2 run 39333030506: 22 of 192 loads stale (21 original, 1 rewrite). Diag v3b run 39340222228, 504 loads per arm: inner 0px snapshots 30 vs 7, rows 114 vs 22; a 1 px resize cures inner, not rows. Read path CONFIRMED (Chromium longhands_custom.cc:6936-6941, layout_box.cc:1059-1067, physical_box_fragment.h:274-279 @f842f52); trigger INFERRED. Tried and dropped: a nudged fresh load (9c31df36; runs 39335178250, 39335168536, 39335157627; failed 3 of 3) and a key mask (22b3fd20; refused as a tolerance widening). Resolved by reading margins as computed values (premise.cv.margin-typed-om) and deciding by rect (gate.margin.rectRule).",
+   "leanFor": [
+    "Fw.Gate.marginStatus_never_pass_over_failing_rect"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "the trigger of the stale strut (INFERRED; follow-up cmr-strut-asym OPEN)"
+   ],
+   "premises": [
+    "cv.auto-margin: refuted earlier (premise.cv.auto-margin)"
+   ],
+   "v1Evidence": "none",
+   "lesson": "A used-value read inside a skipped subtree can return a stale layout result; read the computed value when the gate asks about style, and the rect when it asks about geometry.",
+   "next": "cmr-strut-asym (OPEN)."
+  },
+  {
+   "id": "premise.cv.margin-typed-om",
+   "n": 31,
+   "part": "premise",
+   "candidate": "premise cv.margin-typed-om: computedStyleMap margin reads give the computed value, not the used one (cmr-margin-typed-om)",
+   "status": "proved",
+   "chromium": "premise-holds",
+   "webkit": "premise-holds",
+   "visual": "n/a (a gate read path, not an optimization)",
+   "mechanism": "MEASURED: all 216 cells hold on both engines in runs 39354607925, 39354637553, 39354644363 (commit 2539f31e). CONFIRMED in source: Chromium computed_style_property_map.cc:118-119, WebKit StyleExtractorCustom.h:484-486. Registered as premise \"cv.margin-typed-om\" in Fw.Ops.Premise.registry.",
+   "leanFor": [
+    "Fw.Ops.Premise.registry",
+    "Fw.Gate.marginStatus_fixed",
+    "Fw.Gate.marginStatus_fail_iff"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Pick the API whose contract names the value you need: typed OM returns the computed margin, so a skipped subtree cannot make it stale.",
+   "next": "Used by gate.margin.rectRule."
+  },
+  {
+   "id": "gate.margin.rectRule",
+   "n": 32,
+   "part": "gate.margin",
+   "candidate": "margin rule: when both arms are non-fixed (auto or percent), decide the margin cell by its rect cell (cmr-margin-rect-rule)",
+   "status": "proved",
+   "chromium": "win",
+   "webkit": "unknown",
+   "visual": "n/a (a gate rule, not an optimization)",
+   "mechanism": "MEASURED (commits 13781246, 1d3923eb; runs 39357755362, 39361208441, 39362804966): Chromium passes with 7049 pass, 7 excused, 0 fail, and the commission row passes; 1960 margin cells are decided by rect. The stale strut appeared once (run 2, 8 Chromium cells) with equal rects, so the rule decided them correctly. premise-tests run 39357755482. The rule never passes a cell whose rect fails (marginStatus_never_pass_over_failing_rect).",
+   "leanFor": [
+    "Fw.Gate.marginStatus_fixed",
+    "Fw.Gate.marginStatus_no_rect",
+    "Fw.Gate.marginStatus_fail_iff",
+    "Fw.Gate.marginStatus_cases",
+    "Fw.Gate.marginStatus_never_pass_over_failing_rect",
+    "Fw.Gate.marginStatus_decided_not_pass",
+    "Fw.Gate.partVerdict_fail_of_box"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "When a value read can be stale, decide by the observable it stands for (the box), and prove the rule can never pass over a failing box.",
+   "next": "None."
+  },
+  {
+   "id": "premise.webkit.screen-kept",
+   "n": 33,
+   "part": "premise",
+   "candidate": "premise: Playwright's context screen survives a live resize (gate-green-baseline)",
+   "status": "refuted",
+   "chromium": "not-tried",
+   "webkit": "premise-false",
+   "visual": "n/a (a harness premise, not an optimization)",
+   "mechanism": "CONFIRMED in source: page.setViewportSize resets the emulated screen (playwright-core coreBundle.js:23896), so WebKit's device-width media queries saw the old screen after a resize. Fixed in the gate harness (engines.mjs). MEASURED after the fix: runs 39368032874, 39369683085, 39370632229 pass on both engines with 0 cells not ok; before, run 39362804966 was incomplete.",
+   "leanFor": [
+    "Fw.Gate.WebkitScreen.kept_resize_met",
+    "Fw.Gate.WebkitScreen.deviceWidthHolds_eq_check"
+   ],
+   "leanAgainst": [
+    "Fw.Gate.WebkitScreen.plain_resize_unmet",
+    "Fw.Gate.WebkitScreen.phone_rotation_never_excused"
+   ],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A harness call can reset state it does not name; read the tool's source for every emulated input before trusting a resize.",
+   "next": "None."
+  },
+  {
+   "id": "load.breakpoints.namedImport",
+   "n": 34,
+   "part": "load.bundle",
+   "candidate": "named import of the breakpoint conditions so the bundler drops matrix, edgePairs and backingTheorems (breakpoints-named-import)",
+   "status": "partly-proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "equal: the CSS strings are byte-identical; breakpoint gate equal on base and change (MEASURED)",
+   "mechanism": "MEASURED from CI site-dist artifacts (runs 39352403687 base, 39352271160 change, commit c1e669a8): entry-client JS raw 731,665 -> 626,880 B (-14.3 %), gzip -6 209,430 -> 204,919 B (-2.2 %). Load-only: no runtime counter is expected. Vite's JSON namedExports default is CONFIRMED (vite 8.3.4 node.js:37300-37303). Both engines download the same bundle, so the saving holds on both.",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [
+    "the Lean-generated list of keys that must be absent from the client chunk (follow-up)"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A default import of a JSON module ships every key; a named import lets the bundler drop the keys no one reads.",
+   "next": "Follow-up: Lean golden absent-key list with a build assertion; preset not applicable (no flag)."
+  },
+  {
+   "id": "tooling.land.fwcoreOnce",
+   "n": 35,
+   "part": "tooling.land",
+   "candidate": "land: build fwcore once in a prep job and share it with the land legs instead of one parallel build per leg (land-fwcore-once, reverted)",
+   "status": "refuted",
+   "chromium": "not-tried",
+   "webkit": "not-tried",
+   "visual": "n/a (CI tooling)",
+   "mechanism": "MEASURED on a lean change: land wall time rose 477 s (run 39369049545) -> 553 s (39370530353) while runner time fell 43 % (1650 s -> 937 s). The four leg builds ran in parallel and cost one build of latency; the prep job is serial (setup, build, upload) and the legs then download, so the build moved onto the critical path. A binary-only variant failed at 769 s (39369120267): suites run lake env lean scripts that rebuilt the Fw modules. Reverted. Lean Fw.Ops.WallTime: wall time is the longest path, not the sum (wallPar_eq, wallPrep_eq, wallPrep_ge, wallPrep_eq_par_iff).",
+   "leanFor": [],
+   "leanAgainst": [
+    "Fw.Ops.WallTime.wallPar_eq",
+    "Fw.Ops.WallTime.wallPrep_eq",
+    "Fw.Ops.WallTime.wallPrep_ge",
+    "Fw.Ops.WallTime.wallPrep_eq_par_iff"
+   ],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "On free runners, runner time is free and wall time is not: a shared prep step only pays when it is off the critical path.",
+   "next": "None; kept as a negative result."
+  },
+  {
+   "id": "tooling.land.legs",
+   "n": 36,
+   "part": "tooling.land",
+   "candidate": "land: split the lane into parallel legs (land-lane-speed)",
+   "status": "proved",
+   "chromium": "not-tried",
+   "webkit": "not-tried",
+   "visual": "n/a (CI tooling)",
+   "mechanism": "MEASURED: longest job 324/338 s -> 222/177 s (-34 to -48 %); lane wall 340 -> 238 s with a short runner queue (runs 39342064962, 39345070296 before; 39343920706, 39344448520 after), 292 s when four runners queued 51-178 s. The runner queue is exogenous and now a larger share. Leg selection and verdict in Lean Fw.Console.LandLegs.",
+   "leanFor": [
+    "Fw.Console.LandLegs.shards_perm",
+    "Fw.Console.LandLegs.legsOk_fail_wins",
+    "Fw.Console.LandLegs.chromium_runs_of_selected"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Parallel legs cut wall time when runners are free; each extra leg adds queue cost.",
+   "next": "Follow-ups in land-legs-followups."
+  },
+  {
+   "id": "tooling.fwcore.lazyTables",
+   "n": 37,
+   "part": "tooling.fwcore",
+   "candidate": "fwcore: build its tables lazily instead of at startup (fwcore-startup)",
+   "status": "proved",
+   "chromium": "not-tried",
+   "webkit": "not-tried",
+   "visual": "n/a (tooling)",
+   "mechanism": "MEASURED: CPU per spawned call 812.4 ms -> 40.4 ms and allocations 14,440,789 -> 491,561 (runs 39323151165 at 64b04ef1, 39324877968 at 42205e01). Lean Fw.Lint.InitCost flags startup-evaluated tables.",
+   "leanFor": [
+    "Fw.Lint.InitCost.bound",
+    "Fw.Lint.InitCost.findings"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Top-level tables in a CLI are paid on every spawn; make them lazy and lint for it.",
+   "next": "None."
+  },
+  {
+   "id": "tooling.ci.circleciPilot",
+   "n": 38,
+   "part": "tooling.ci",
+   "candidate": "run some CI jobs on CircleCI's free tier (circleci-pilot)",
+   "status": "partly-proved",
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "n/a (CI tooling)",
+   "mechanism": "MEASURED, one sample each: arm pairs equal at 0.90-0.99x of GitHub time; sim pipeline 45 equal at 307.3 s vs GitHub 1700 s (run 39332408753, 0.18x). Pipeline 36 stalled on CircleCI (a finding). OPEN: one sample per lane is not a rate. Lean Fw.Ci.Provider compares providers.",
+   "leanFor": [
+    "Fw.Ci.Provider.compare",
+    "Fw.Ci.Provider.credits"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "repeat samples per lane (OPEN)"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A provider pilot needs repeated samples per lane before it moves a lane.",
+   "next": "OPEN: more samples; lane moves are the lead's decision."
   }
  ],
  "notes": [
@@ -2006,6 +2398,36 @@
    "task": "countdown-hidden-arm",
    "field": "chromium",
    "text": "countdown-hidden-arm: hero.countdown:hidden-pause alone saves nothing on the homepage lane (MEASURED, sha bcf9c7e0, 3 reps each, same-sha controls). trace.UpdateLayoutTree.elementCount in frames 104-200: swipe-v1 base 9497-9502 vs arm 9499-9502 (39313893490 / 39312082945), over v2-proved 1255-1257 vs 1255-1257 (39313899612 / 39312057983); swipe-touch-v1 base 9515-9517 vs 9515-9517 (39313905095 / 39312091230), over v2-proved 2166-2168 vs 2166-2168 (39313910145 / 39312076214). Costs: the MutationObserver on the stage adds 87-94 FunctionCall in frames 0-103 in every arm; touch over v2-proved adds 1 UpdateLayoutTree and about 120 elements after frame 200. Lean why: the style pass is absorbed because other parts restyle every one of these frames (hidden_pass_absorbed, from passes_absorb_part), and the element term is zero because the countdown's spring frames restyle no face element even in the faithful control (part page 39257533380 r1: frames 120-146 with the spring chain show 4 elements per frame, the same as frames 104-119 without it), so the lane's frames are cdFrame with d = 0 and skipWrites is the identity (hidden_work_idle). No preset change; the k8h link stays out of linkTable. Why the faithful face writes restyle no element in the lane is open."
+  },
+  {
+   "entry": "g0.0b: the rAF tween replaced by one WAAPI animation on a registered --morph with cubic-bezier(1/3,1,2/3,1)",
+   "task": "waapi-touch-arm",
+   "field": "chromium",
+   "text": "waapi-touch-arm: on swipe-touch-v1 the WAAPI arm saves 33 rAF callbacks per run (2112 -> 2079; runs 39312308173, 39312313059; MEASURED). Two model-bug rows (Paint =o, compositeFailedBits <o) come from a WAAPI start that lands under one frame early: premise R5 (start frame equal) is refuted (Fw.Parts.MorphTweenOpt.start_eq_refuted, lead_within_frame). Redesign of the touch row is OPEN."
+  },
+  {
+   "entry": "g0.0b: the rAF tween replaced by one WAAPI animation on a registered --morph with cubic-bezier(1/3,1,2/3,1)",
+   "task": "tween-platform-scope",
+   "field": "mechanism",
+   "text": "tween-platform-scope: the premise that the WAAPI tween adds no resolved element is refuted (Fw.Parts.MorphTweenOpt.waapi_section_finding): late swipe-touch-v1 frames resolve 318 elements under waapi vs 85-86 faithful (runs 39337826915, 39337848138; MEASURED). The scoped variant is row morph.tween.waapiScoped."
+  },
+  {
+   "entry": "warm-up: mount the panel at a still moment near the end (v14, D1 always-built card)",
+   "task": "morph-layers",
+   "field": "mechanism",
+   "text": "morph-layers: shift adds 9 drawing layers per frame until the original trigger (+1053 swipe-v1, +1134 swipe-touch-v1; commit f59fdbf0, runs 39325709978, 39325715862, 39325727288, 39325735139; MEASURED) because 3 marquee tracks animate while mounted and invisible. Shift's visual premise that the clock is phase-free is false (Fw.Parts.MorphMountDormant.clock_not_phaseFree). Fix in row morph.mount.shiftDormant."
+  },
+  {
+   "entry": "warm-up: mount the panel at a still moment near the end (v14, D1 always-built card)",
+   "task": "mount-scroll-tap",
+   "field": "chromium",
+   "text": "mount-scroll-tap: detaching the window scroll listener at mount cuts FunctionCall by 462-463 on swipe-v1 and 455-459 on swipe-touch-v1 (runs 39357724420, 39357738977 swipe; 39357727065, 39357741879 touch; reruns 39363612059, 39363621551; MEASURED). Its only reader returns once mounted (Fw.Parts.MorphMountOpt.tickOf_tap, calls_shift). The lead decided it lands."
+  },
+  {
+   "entry": "strip (cd-strip, KD#12): 10 will-change faces per digit -> one 12-entry strip",
+   "task": "countdown-one-chain",
+   "field": "mechanism",
+   "text": "countdown-one-chain: the strip claim is retired: strip's always-on schedule pays a callback on every still frame, so it is not below the original's scheduling (Fw.Parts.HeroCountdownOneChain.strip_schedule_still_gt), while one chain is at most the always-on cost (oneChain_le_alwaysOn). The measured win is row hero.countdown.oneChain (FireAnimationFrame -243 swipe-v1, -252 swipe-touch-v1; MEASURED)."
   }
  ]
 }
