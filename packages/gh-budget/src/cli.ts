@@ -89,7 +89,7 @@ async function budget(env: Env, argv: string[]): Promise<number> {
 }
 
 /** A cleanup that failed in a signal handler (the unregister of a run) is written to `incidents.jsonl`, not swallowed. */
-function logCleanupFailure(env: Env, e: unknown): void {
+export function logCleanupFailure(env: Env, e: unknown): void {
   try {
     mkdirSync(env.dir, { recursive: true });
     appendFileSync(paths(env.dir).incidents, JSON.stringify({ cleanupFailed: e instanceof Error ? e.message : String(e), at: env.now() }) + "\n");

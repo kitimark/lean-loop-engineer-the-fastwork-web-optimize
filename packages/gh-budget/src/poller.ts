@@ -20,8 +20,8 @@ export type Poll = {
   stopped?: string;
 };
 
-/** Watches fwcore dropped (expired, unseen, uncovered) are logged to `incidents.jsonl`, then acknowledged. The decision
- *  to drop is fwcore's (`Fw.Ci.Budget.expire`, `listed`); this only writes them down. */
+/** Watches fwcore dropped (unseen, uncovered) are logged to `incidents.jsonl`, then acknowledged. The decision
+ *  to drop is fwcore's (`Fw.Ci.Budget.listed`); this only writes them down. */
 export function drainIncidents(env: Env): number {
   return locked(env, () => {
     const inc = (loadState(env.dir)?.incidents as Json[] | undefined) ?? [];

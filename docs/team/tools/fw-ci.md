@@ -35,13 +35,16 @@ is no default branch). With `--branch` and no run id: the latest run of the work
   - Exit 0 pass, 1 a run failed, **4 not run** (GitHub may still say `success`), 3 timeout (default 540 s) or the poller
     stopped (call it again), 2 gh could not find the run, 64 usage. Run it in the background; do not loop.
 - `pnpm fw ci budget [--json|--resume|--probe]` shows the request budget (0 requests; `--probe` is one charged call).
-  - Watches expire (Lean `Fw.Ci.Budget`, section (i); note `research/notes/2026/10-20-gh-budget-watch-expiry.md`). fwcore drops a
-    watch with an incident when it was registered more than 10800 s ago (`expire`; the age counts from the registration, not the commit time, and covers the 95 min mutants chain), or, for a real run id, when `missMax` = 3 covering lists lack
-    it (`unseen`), or when a full list cannot reach its creation time (`uncovered`); Lean decides from the row count and pages read whether a list was cut. A tick reads at most `pageCap` = 10 pages (cost
-    20, the per-minute tick share), so the poller never stops `tooBig` (`tick_no_tooBig`). Dropped watches are appended to
-    `.git/fw-gh-budget/incidents.jsonl` (`{runId,time,why}`) and shown by `fw ci budget` until logged. A waiter whose watch was
-    dropped keeps waiting for its own timeout; run it again. Registration refuses an id that is neither a run id (below 10^13)
-    nor a branch sentinel (10^15 + a 32-bit hash).
+  - Dropped watches (Lean `Fw.Ci.Budget`, section (i); note `research/notes/2026/10-20-gh-budget-watch-expiry.md`). There is no age
+    rule. For a real run id fwcore drops a watch with an incident when `missMax` = 3 covering lists lack it (`unseen`), or when
+    a full list cannot reach its creation time (`uncovered`); Lean decides from the row count and pages read whether a list was
+    cut. Branch sentinels are not dropped by lists; a sentinel whose waiter died stays until the follow-up
+    `gh-budget-waiter-liveness` lands. A tick reads at most `pageCap` = 10 pages (cost 20, the per-minute tick share), also when
+    the stored `pages` is stale and larger, so the poller never stops `tooBig` (`tick_no_tooBig`, `incident_tick`). Dropped
+    watches are appended to `.git/fw-gh-budget/incidents.jsonl` (`{runId,time,why}`) and shown by `fw ci budget` until logged.
+    A failed cleanup in a waiter's signal handler is appended there as `{cleanupFailed,at}` (a message and a time, no run id).
+    A waiter whose watch was dropped keeps waiting for its own timeout; run it again. Registration refuses an id that is neither
+    a run id (below 10^13) nor a branch sentinel (10^15 + a 32-bit hash).
 - Never `gh run watch`, never a gh loop, never `gh api`. `fw run` waits the same way: after a dispatch it waits for the newest run of the
   workflow created after the previous newest one (a branch wait), and for `--from-run` a run wait; it throws when the run fails.
 - Tests: `apps/runner/test/run-budget.test.ts` (fake gh of `packages/gh-budget`): 1 vs 10 waiters make the same gh calls; no gh call is made

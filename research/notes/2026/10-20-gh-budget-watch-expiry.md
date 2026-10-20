@@ -1,4 +1,4 @@
-# gh-budget-watch-expiry: why the shared CI poller stopped `tooBig`, and the three rules that close it
+# gh-budget-watch-expiry: why the shared CI poller stopped `tooBig`, and the rules that close it
 
 Task gh-budget-watch-expiry. Status words: CONFIRMED (source cited), MEASURED, INFERRED.
 
@@ -28,24 +28,21 @@ Consequence chain (CONFIRMED from the lead's state backup): the watch's `created
 (`created>=`), the list grew to 1000+ rows, glue set `pages = 11`, `tickCost = 2*11 = 22 > share1 tick = 20`, and
 `charge` answered `stop tooBig` (`Budget.lean`, `charge` second branch). That stop is permanent until `--resume`.
 
-The task asked rule (a) to refuse non-run ids. This id is a valid sentinel, so (a) alone would not have stopped it; (b) and
-(c) do. Rule (a) refuses what is neither: ids at or above 10^13 outside the sentinel range, and 0.
+The task asked rule (a) to refuse non-run ids. This id is a valid sentinel, so (a) alone would not have stopped it; (c) does: the sentinel stays
+(lists do not drop sentinels, see the limits below) but the tick it pins is capped. Rule (a) refuses what is neither: ids at or above 10^13 outside the sentinel range, and 0.
 
 ## The three rules (Lean `Fw.Ci.Budget`, section "(i) Stale watches and the bounded tick")
 
 | rule | definition | theorems |
 |---|---|---|
 | (a) registration | `validWatch L r = validRunId L r || isSentinel r`; `step .register` keeps the state for others; the wire op answers an error | `register_refused`, `register_accepted`, `incident_id` |
-| (b) stale drop | `expire` drops a watch registered more than `maxAge` = 10800 s (3 h) ago (`Watch.registeredAt`, stamped by `register` from the clock; the commit time of its run does not count), on every op through `clocked`; `listed` drops a real run unseen in `missMax` = 3 covering lists; sentinels are never judged by lists | `expire_total`, `expire_sound`, `expire_old`, `expire_keeps_young`, `register_stamps`, `register_survives_expire`, `maxAge_covers_chain`, `listed_unseen` |
+| (b) stale drop | `listed` drops a real run unseen in `missMax` = 3 covering lists (`unseen`) or uncovered by a full list (`uncovered`); sentinels are not dropped by lists; there is no age rule; a dead waiter's watch is the follow-up `gh-budget-waiter-liveness` | `listed_unseen`, `listed_uncovered`, `listed_total`, `listed_kept_covered` |
 | (c) bounded tick | `pageCap = max 1 (share1 tick / listCost)` = 10; `tickCost = listCost * min pageCap (max 1 pages)`; a full list cannot cover a run created at or before its oldest row, so it drops it `uncovered` | `tickCost_le`, `tick_charge_no_tooBig`, `tick_no_tooBig`, `defaults_shape`, `incident_tick`, `listed_uncovered`, `listed_total`, `listed_kept_covered`, `isFull_iff` |
 
-Bound of `maxAge` (CONFIRMED): the longest workflow chain is guard 5 + plan 5 + shard 75 (`.github/workflows/mutants.yml:119`,
-`timeout-minutes: 75`) + merge 10 = 95 min = `workflowChain` 5700 s. 10800 s leaves 5100 s of queueing on free runners and
-concurrency groups; `maxAge_covers_chain` proves `workflowChain + 3600 <= maxAge`. The earlier 7200 s left only 25 min.
-
-Age from registration, not from the commit: a waiter on a commit 4.5 h old is alive from the moment it registers, so
-`tooOld` is `maxAge < now - registeredAt` and `register_survives_expire` proves a fresh registration survives any `expire` up to
-`maxAge` later whatever `createdAt` says. The state field is read as `createdAt` when absent (older state files).
+Stale state.pages: a state file may store `pages` larger than the cap (the incident stored 11). `pagesOf` caps it at `pageCap` = 10
+when the tick reads it, so `tickCost` is 20, not 22: `incident_tick` proves it for `pages = 11`, `tick_no_tooBig` for every state,
+and the golden "next: a stale stored pages of 11 is capped at 10" pins the wire reply. State files that carry the removed
+`registeredAt` still load; the key is ignored.
 
 `listed_total`: after a list, every watch is still watched or has an incident with its id at the current time.
 `listed_kept_covered`: every watch that stays is a sentinel, is in the list's rows, was created before the list window
@@ -58,23 +55,25 @@ of `next` left are `failures` and `idle`.
 
 ## Goldens and TS
 
-`packages/contracts/golden/ci-budget/wire.jsonl` (41 cases) and `limits.json` are generated (`lake test --
+`packages/contracts/golden/ci-budget/wire.jsonl` (40 cases) and `limits.json` are generated (`lake test --
 --write-ci-budget-golden`). The `listed` event carries `{rows, count, pagesRead, createdSince}`; Lean decides whether the list was
 cut (`isFull count pagesRead := max 1 pagesRead * 100 <= count`, `isFull_iff`; goldens: 200 rows from 3 pages not cut, 200 from 2
 pages cut). The TS glue decides nothing: it passes the list, the row count, the pages it asked for and the window start, reads
-`pages` from the `next` reply, logs fwcore's incidents. TS stand-ins: none. Tests: `packages/gh-budget/test/stale-watch.test.ts` on
-the simulated clock (6 tests; temp dirs only).
+`pages` from the `next` reply, logs fwcore's incidents. The TS keeps two glue rules that Lean does not decide: the next `pages` is `floor(count / 100) + 1` (the list size the poller saw),
+and a run seen `completed` is unregistered. Both are listed as TS stand-ins. Tests: `packages/gh-budget/test/stale-watch.test.ts` on
+the simulated clock (temp dirs only).
 
 ## Accepted limits and follow-ups
 
 - No change to the GitHub shares. No `gh api`.
 - A waiter whose watch was dropped waits until its own timeout (default 540 s) and then says "timed out"; it does not learn of the
   drop. Follow-up: have `evaluate` read `incidents.jsonl`.
-- A killed waiter's watch lives up to 10800 s after its registration now (was forever). A shorter bound for sentinels (the waiter
-  timeout) is a follow-up.
+- A sentinel whose waiter died stays registered until `gh-budget-waiter-liveness` lands. It pins the list window, so every tick reads
+  `pageCap` pages (listCost 20, the whole tick minute share) and waiters poll slower, but the poller never stops (`tick_no_tooBig`).
+- Sentinels are not coverage-checked.
+- Failure incident shape: a cleanup that throws in a signal handler is appended to `incidents.jsonl` as `{cleanupFailed, at}`, a
+  message and a time without a run id. Tested in `stale-watch.test.ts` with a throwing core.
 - A list with exactly `pagesRead * 100` rows is treated as cut (safe side: it may drop an older run as `uncovered`).
-- Sentinels are kept without a coverage check (they are not runs): under a full, narrowed list a sentinel's run may lie outside the
-  pages read, and only the age rule bounds the watch (`listed_kept_covered` names the sentinel disjunct).
 - Race, resolved: a watch registered between `next` and `listed` with `createdAt` before the tick's window is kept unjudged for one tick
   (`judge` branch `createdAt < since`), neither missed nor dropped.
 - A fw watch alert for a stopped poller is a separate task.

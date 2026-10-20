@@ -31,13 +31,13 @@ steps of every non-guard job, read for the tip re-check's `stale:` step).
 Shapes. Decision: `{decision:"issue", kind:"tick"|"oneoff", cost, state}` (the state with the charge booked; on a
 tick every watched run is covered), `{decision:"wait", until, reason, state}` or `{decision:"stop", reason, state}`;
 reason ∈ `failures idle tooBig retryAfter floor hour minute interval`. State: `{now, ledger:[{time, cost,
-kind, charged}], remaining, reset, retryUntil, fails, etag, watched:[{runId, createdAt, lastCovered, misses, registeredAt}], lastTick,
+kind, charged}], remaining, reset, retryUntil, fails, etag, watched:[{runId, createdAt, lastCovered, misses}], lastTick,
 pending:{kind, cost}|null, pages}` (`remaining reset etag lastTick lastCovered` may be null; every field but `now` is
 optional on input). Headers: `{status, remaining, reset, retryAfter, etag, resource}` (null when absent). `lines` are the
 response header lines of `gh api --include` (or `curl -i`), one per element, `< ` prefixes allowed; `actual` (default:
 the number of status lines, i.e. responses) is the number of requests the call really made. Event: `{register:{runId,
 createdAt}}`, `{unregister:runId}`, `{pages:n}`, `{resume:true}` or `{listed:{rows, count, pagesRead, createdSince}}` (Lean decides whether
-the list was cut: `pagesRead * 100 <= count`). `registeredAt` (default `createdAt`) is stamped by `register`.
+the list was cut: `pagesRead * 100 <= count`). A stored watch may carry an old `registeredAt`; it is ignored.
 -/
 namespace Fw.Wire.Ci
 open Lean
@@ -95,13 +95,11 @@ def entryOf (j : Json) : Except String Entry := do
 
 /-- A watched run as JSON. -/
 def watchJson (w : Watch) : Json :=
-  Json.mkObj [("runId", jn w.runId), ("createdAt", jn w.createdAt), ("lastCovered", ojn w.lastCovered), ("misses", jn w.misses),
-    ("registeredAt", jn w.registeredAt)]
+  Json.mkObj [("runId", jn w.runId), ("createdAt", jn w.createdAt), ("lastCovered", ojn w.lastCovered), ("misses", jn w.misses)]
 
 /-- A watched run from JSON. -/
 def watchOf (j : Json) : Except String Watch := do
-  pure { runId := ← nat j "runId", createdAt := ← nat j "createdAt", lastCovered := ← optN j "lastCovered", misses := ← natD j "misses" 0,
-           registeredAt := ← natD j "registeredAt" (← nat j "createdAt") }
+  pure { runId := ← nat j "runId", createdAt := ← nat j "createdAt", lastCovered := ← optN j "lastCovered", misses := ← natD j "misses" 0 }
 
 /-- The call in flight as JSON. -/
 def pendingJson : Option (Kind × Nat) → Json
@@ -116,13 +114,11 @@ def pendingOf (j : Json) : Except String (Option (Kind × Nat)) :=
 
 /-- The name of a drop reason. -/
 def dropName : Drop → String
-  | .expired => "expired"
   | .unseen => "unseen"
   | .uncovered => "uncovered"
 
 /-- A drop reason from its name. -/
 def dropOf (k : String) : String → Except String Drop
-  | "expired" => .ok .expired
   | "unseen" => .ok .unseen
   | "uncovered" => .ok .uncovered
   | v => .error s!"field {k}: unknown value {v}"
@@ -159,7 +155,7 @@ def headersJson (h : Headers) : Json :=
 def limitsJson (L : Limits) : Json :=
   Json.mkObj [("W", jn L.W), ("B", jn L.B), ("R", jn L.R), ("W1", jn L.W1), ("B1", jn L.B1), ("R1", jn L.R1),
     ("F", jn L.F), ("Pmin", jn L.Pmin), ("back0", jn L.back0), ("backMax", jn L.backMax),
-    ("maxFails", jn L.maxFails), ("listCost", jn L.listCost), ("slice", jn slice), ("maxAge", jn L.maxAge), ("missMax", jn L.missMax),
+    ("maxFails", jn L.maxFails), ("listCost", jn L.listCost), ("slice", jn slice), ("missMax", jn L.missMax),
     ("maxRun", jn L.maxRun), ("sentinelBase", jn sentinelBase), ("sentinelSpan", jn sentinelSpan), ("pageCap", jn (pageCap L)),
     ("shares", Json.mkObj [("tick", Json.mkObj [("hour", jn (share L .tick)), ("minute", jn (share1 L .tick))]),
                            ("oneoff", Json.mkObj [("hour", jn (share L .oneoff)), ("minute", jn (share1 L .oneoff))])])]
@@ -168,20 +164,19 @@ def limitsJson (L : Limits) : Json :=
 def rowOf (j : Json) : Except String (Nat × Nat) := do
   pure (← nat j "runId", ← nat j "createdAt")
 
-/-- An event from JSON (exactly one of `register`, `unregister`, `pages`, `resume`, `expire`, `listed`, `ack`). -/
+/-- An event from JSON (exactly one of `register`, `unregister`, `pages`, `resume`, `listed`, `ack`). -/
 def eventOf (j : Json) : Except String Event := do
-  let keys := ["register", "unregister", "pages", "resume", "expire", "listed", "ack"].filter fun k => (opt j k).isSome
+  let keys := ["register", "unregister", "pages", "resume", "listed", "ack"].filter fun k => (opt j k).isSome
   match keys with
   | ["register"] => let r ← field j "register"; pure (.register (← nat r "runId") (← nat r "createdAt"))
   | ["unregister"] => pure (.unregister (← asNat "unregister" (← field j "unregister")))
   | ["pages"] => pure (.pages (← asNat "pages" (← field j "pages")))
   | ["resume"] => if ← asBool "resume" (← field j "resume") then pure .resume else .error "field resume: expected true"
-  | ["expire"] => if ← asBool "expire" (← field j "expire") then pure .expire else .error "field expire: expected true"
   | ["listed"] =>
     let l ← field j "listed"
     pure (.listed (← (← arr l "rows").toList.mapM rowOf) (← nat l "count") (← natD l "pagesRead" 1) (← natD l "createdSince" 0))
   | ["ack"] => pure (.ack (← asNat "ack" (← field j "ack")))
-  | _ => .error "field event: expected exactly one of register, unregister, pages, resume, expire, listed, ack"
+  | _ => .error "field event: expected exactly one of register, unregister, pages, resume, listed, ack"
 
 /-! ## Ops -/
 
@@ -191,7 +186,7 @@ def clocked (req : Json) : Except String State := do
   let s ← match opt req "state" with
     | none => pure (init now)
     | some j => stateOf j
-  pure (step defaults (step defaults s (.clock now)) .expire)
+  pure (step defaults s (.clock now))
 
 /-- A decision as reply fields; `s` is the state a `wait` or `stop` returns. -/
 def decisionReply (s : State) : Decision → Reply
@@ -380,7 +375,7 @@ def sample : State where
   retryUntil := 9
   fails := 1
   etag := some "W/x"
-  watched := [⟨5, 2, some 7, 0, 2⟩, ⟨6, 3, none, 1, 3⟩]
+  watched := [⟨5, 2, some 7, 0⟩, ⟨6, 3, none, 1⟩]
   lastTick := some 7
   pending := some (.oneoff, 2)
   pages := 2
@@ -412,12 +407,12 @@ def sample : State where
   "\"remaining\":4000,\"reset\":3600,\"retryUntil\":0,\"watched\":[]}"
 -- events
 #guard runField "ci.budget.step" "{\"now\":100,\"event\":{\"register\":{\"runId\":5,\"createdAt\":80}}}" "state" |>.endsWith
-  "\"watched\":[{\"createdAt\":80,\"lastCovered\":null,\"misses\":0,\"registeredAt\":100,\"runId\":5}]}"
+  "\"watched\":[{\"createdAt\":80,\"lastCovered\":null,\"misses\":0,\"runId\":5}]}"
 #guard run "ci.budget.step" "{\"now\":100,\"event\":{\"pages\":2,\"resume\":true}}" ==
-  "error: field event: expected exactly one of register, unregister, pages, resume, expire, listed, ack"
+  "error: field event: expected exactly one of register, unregister, pages, resume, listed, ack"
 #guard run "ci.budget.reserve" "{\"now\":100,\"cost\":1.5}" == "error: field cost: expected a non-negative integer"
 #guard runField "ci.budget.limits" "{}" "limits" ==
-  "{\"B\":3000,\"B1\":60,\"F\":500,\"Pmin\":10,\"R\":1200,\"R1\":40,\"W\":3600,\"W1\":60,\"back0\":60,\"backMax\":3600,\"listCost\":2,\"maxAge\":10800,\"maxFails\":6,\"maxRun\":10000000000000,\"missMax\":3,\"pageCap\":10,\"sentinelBase\":1000000000000000,\"sentinelSpan\":4294967296,\"shares\":{\"oneoff\":{\"hour\":1200,\"minute\":40},\"tick\":{\"hour\":1800,\"minute\":20}},\"slice\":2}"
+  "{\"B\":3000,\"B1\":60,\"F\":500,\"Pmin\":10,\"R\":1200,\"R1\":40,\"W\":3600,\"W1\":60,\"back0\":60,\"backMax\":3600,\"listCost\":2,\"maxFails\":6,\"maxRun\":10000000000000,\"missMax\":3,\"pageCap\":10,\"sentinelBase\":1000000000000000,\"sentinelSpan\":4294967296,\"shares\":{\"oneoff\":{\"hour\":1200,\"minute\":40},\"tick\":{\"hour\":1800,\"minute\":20}},\"slice\":2}"
 #guard runField "ci.budget.status" "{\"now\":100}" "interval" == "10"
 -- a run whose guard was skipped at its if: is not run (code 4), with the reason
 #guard run "ci.verdict" "{\"runs\":[{\"guard\":\"skipped\",\"jobs\":[\"skipped\"]}]}" ==

@@ -1,12 +1,12 @@
-// The stale-watch path of the poller on a simulated clock (incident 2026-10-20, Lean `Fw.Ci.Budget` section (i)): an old
-// branch watch is dropped with an incident, a tick never reads more pages than the tick share allows, and the poller
+// The stale-watch path of the poller on a simulated clock (incident 2026-10-20, Lean `Fw.Ci.Budget` section (i)): a tick never reads more pages than the tick share allows, and the poller
 // does not stop `tooBig`. Every state lives in a temp directory (mkWorld); the real .git/fw-gh-budget is never touched.
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { pollOnce } from "../src/poller.ts";
 import { loadState, paths, readStatus, stepEvent } from "../src/state.ts";
-import { sentinelId } from "../src/wait.ts";
+import { logCleanupFailure } from "../src/cli.ts";
+import { addWaiter, dropWaiter, sentinelId } from "../src/wait.ts";
 import { mkWorld } from "./util.ts";
 
 const T0 = 1_800_000_000;
@@ -15,46 +15,35 @@ const incidents = (dir: string) => {
 };
 const watched = (dir: string) => ((loadState(dir)?.watched as { runId: number }[] | undefined) ?? []).map((w) => w.runId);
 
-test("a sentinel watch registered more than maxAge (3 h) ago is dropped with an incident, no tick, no stop", () => {
-  const w = mkWorld(T0, { fastGh: true });
-  w.config({ start: T0, listCost: 2, runs: [] });
-  const stray = sentinelId({ branch: "ci/x", sha: "abc" });
-  stepEvent(w.env, { register: { runId: stray, createdAt: T0 - 16_200 } }); // registered at T0
-  stepEvent(w.env, { pages: 11 });
-  w.sim.set(T0 + 10_801); // 1 s past maxAge
-  return pollOnce(w.env).then((p) => {
-    assert.equal(p.stopped, undefined);
-    assert.equal(p.ticked, false);
-    assert.deepEqual(watched(w.stateDir), []);
-    assert.deepEqual(incidents(w.stateDir), [{ runId: stray, time: T0 + 10_801, why: "expired" }]);
-    assert.equal(w.calls().length, 0, "nothing to watch, so no gh call");
-    assert.deepEqual((loadState(w.stateDir)?.incidents as unknown[]), [], "acknowledged after the log");
-  });
-});
-
-test("a waiter on a 4.5 h old commit is kept: the age counts from its registration", async () => {
+test("a sentinel is not dropped by lists: it stays registered and the poller keeps ticking (waiter liveness is a follow-up)", async () => {
   const w = mkWorld(T0, { fastGh: true });
   w.config({ start: T0, listCost: 2, runs: [] });
   const id = sentinelId({ branch: "ci/x", sha: "abc" });
   stepEvent(w.env, { register: { runId: id, createdAt: T0 - 16_200 } });
-  const p = await pollOnce(w.env);
-  assert.equal(p.ticked, true);
-  assert.deepEqual(watched(w.stateDir), [id], "a sentinel is not a run: the list never shows it, only its registration age ends it");
-  assert.deepEqual(incidents(w.stateDir), []);
-  w.sim.set(T0 + 10_700); // still within 3 h of the registration
-  await pollOnce(w.env);
+  for (let i = 0; i < 5; i++) {
+    const p = await pollOnce(w.env);
+    assert.equal(p.stopped, undefined);
+    w.sim.set(p.wakeAt);
+  }
   assert.deepEqual(watched(w.stateDir), [id]);
-  w.sim.set(T0 + 10_801);
-  await pollOnce(w.env);
-  assert.deepEqual(watched(w.stateDir), []);
-  assert.equal(incidents(w.stateDir)[0]?.why, "expired");
+  assert.deepEqual(incidents(w.stateDir), []);
+});
+
+test("a failed cleanup is logged as {cleanupFailed, at} in incidents.jsonl", async () => {
+  const w = mkWorld(T0, { fastGh: true });
+  w.config({ start: T0, listCost: 2, runs: [] });
+  const id = sentinelId({ branch: "ci/z", sha: "ghi" });
+  const marker = addWaiter(w.env, id, T0 - 5);
+  const env = { ...w.env, core: () => { throw new Error("fwcore killed"); } };
+  try { dropWaiter(env, id, marker); assert.fail("expected a throw"); } catch (e) { logCleanupFailure(w.env, e); }
+  const lines = readFileSync(paths(w.env.dir).incidents, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  assert.deepEqual(lines, [{ cleanupFailed: "fwcore killed", at: T0 }]);
 });
 
 test("the unregister goes before the marker is unlinked: a failed step leaves the marker", async () => {
   const w = mkWorld(T0, { fastGh: true });
   w.config({ start: T0, listCost: 2, runs: [] });
   const id = sentinelId({ branch: "ci/y", sha: "def" });
-  const { addWaiter, dropWaiter } = await import("../src/wait.ts");
   const marker = addWaiter(w.env, id, T0 - 5);
   const real = w.env.core;
   const env = { ...w.env, core: () => { throw new Error("fwcore killed"); } };
