@@ -10529,6 +10529,30 @@
     "research/notes/2026/10-2*-findings-ledger-1020.md",
     "docs/team/handoffs/findings-ledger-1020.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "console-preview-search",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20: make preview links easy. Builds tab: (1) one click per row starts the main preview if needed and opens the rewrite arm at that row's search (and the compare view); (2) a search box for any ?preset=..&fw=.. query, validated by a Lean function against the site registry (parts, variants, presets, requires/conflicts; mirrors Fw.Flags.resolve), refused with the reason, then opened in the preview; (3) a copy-link button with the full LAN link. Lean first: validation and the open decision in lean/Fw/Console, golden-checked TS.",
+   "writes": [
+    "lean/Fw/Console/**",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw/Serve.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/**",
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "apps/console-web/src/**",
+    "docs/team/tools/console.md",
+    "docs/team/tools/preview-grant.md",
+    "research/notes/2026/10-2*-console-preview-search.md",
+    "docs/team/handoffs/console-preview-search.md"
+   ]
   }
  ],
  "deadline": {
