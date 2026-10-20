@@ -19,8 +19,8 @@ Stages: C0 and C1 (the cutover commits on main, design note section 8) are not s
 1. **Signature.** Name the type of the implementation: inputs (the facts) to output (what the process prints and its
    exit code). Exceptions and early returns are *inputs* (a `threw` fact), so every path has an output.
 2. **Properties over the signature.** One `Prop`-valued def per never-happen property, `def P (impl : Impl) : Prop`.
-   It does not mention the implementation, so it exists before the code. Docstring: one English sentence plus `$$`
-   math, as for every theorem. New task modules go in `lean/Fw/Props/<TaskCamel>.lean`.
+   It does not mention the implementation, so it exists before the code. Comments follow
+   `.claude/agents/comment-sicko.md`. New task modules go in `lean/Fw/Props/<TaskCamel>.lean`.
 3. **Registered incidents, not bad implementations of your choice.** The kill target is an `Incident` row of the
    one registry, `lean/Fw/Spec/Incidents.lean`, written once per incident of `docs/team/incidents/ledger.json` and
    reviewed with that incident, never per property: `id` (the ledger id), `pred` (the incident inputs) and `replay`
@@ -90,7 +90,6 @@ A script reading the verdict found none.
    `{lines, exit}`.
 2. Properties:
    - `NoSilentExit run := ∀ o t, verdictCount (run o t).lines = 1`
-     $$\forall O\, t,\ |[\ell \in r(O,t).\mathrm{lines} : \ell \text{ starts with } \texttt{VERDICT }]| = 1$$
    - `TruthfulVerdict run`: the last line is `verdictLine o.kind t`, and the exit code is `o.kind.exitCode`.
 3. The registry (`Fw.Spec.Incidents.LandDry.registry`, `registryFor .landDry`) has one row, because the ledger has
    one incident for this decision: `incLandDryNoVerdict` with id `inc-land-dry-no-verdict`, incident inputs

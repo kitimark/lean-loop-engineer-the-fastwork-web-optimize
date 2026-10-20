@@ -31,7 +31,7 @@ def pick (t : Tier) (ids : List String) : List String := ids.filter (fun i => de
 /-- The check whose selection also starts the browser suite (both engines) in the land lane. -/
 def browserId : String := "packages/e2e-preview"
 
-/-- Does the land lane run the browser suite? $$\mathit{browser}(S) = [\mathit{browserId} \in S]$$ for the selected ids $S$. -/
+/-- Does the land lane run the browser suite? -/
 def browserRuns (selected : List String) : Bool := selected.contains browserId
 
 /-- Every id has exactly one tier. -/

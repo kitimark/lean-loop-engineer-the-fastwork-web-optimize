@@ -136,10 +136,7 @@ def cmdFields : Cmd → List (String × Json)
   | .park x r => [("task", .str x), ("reason", .str r)]
   | .unpark x => [("task", .str x)]
 
-/-- Encode an outcome mark of a board task (null when none).
-
-$$\operatorname{markJson}(m_\bot) = \begin{cases} \mathrm{null} & m_\bot = \bot \\ \{\mathit{kind}: \texttt{"handedBack"}, \mathit{agent}: a, \mathit{tip}: p_\bot\} & m_\bot = \mathrm{handedBack}(a, p_\bot) \\ \{\mathit{kind}: \texttt{"integrated"}, \mathit{branch}: b, \mathit{tip}: p\} & m_\bot = \mathrm{integrated}(b, p) \\ \{\mathit{kind}: \texttt{"parked"}, \mathit{reason}: r\} & m_\bot = \mathrm{parked}(r) \end{cases}$$
--/
+/-- Encode an outcome mark of a board task (null when none). -/
 def markJson : Option Mark → Json
   | none => .null
   | some (.handedBack a p) => Json.mkObj [("kind", .str "handedBack"), ("agent", .str a), ("tip", ostr p)]

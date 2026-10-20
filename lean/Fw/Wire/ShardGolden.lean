@@ -5,8 +5,8 @@ import Lean.Data.Json
 /-!
 # Golden vectors of the LPT shard plan (task `gate-shard-balance`)
 
-`packages/contracts/golden/gate/shards.jsonl`: for each number of concurrent runs $r \in \{1, 2, 3\}$ and free
-runners $m \in \{4, 8, 12, 20\}$, the job counts `Fw.Gate.Shard.chooseK` picks with the measured costs
+`packages/contracts/golden/gate/shards.jsonl`: for each number of concurrent runs `r ∈ {1, 2, 3}` and free
+runners `m ∈ {4, 8, 12, 20}`, the job counts `Fw.Gate.Shard.chooseK` picks with the measured costs
 (`Fw.Gate.ShardCosts.measured`), and every job of `Fw.Gate.Shard.engPlan` with its probe ids, its whole sweeps and
 its duration, plus Graham's bound and the simulated makespan of the pool. `.github/scripts/gate-jobs.mjs --params
 measured` passes the jobs through unchanged (glue only); its test re-checks coverage and the bound.
@@ -21,26 +21,15 @@ cd lean && lake env lean --run scripts/ShardGolden.lean --check   # fail if it i
 namespace Fw.Wire.Shard.Golden
 open Lean Fw.Gate.Schedule Fw.Gate.Shard
 
-/-- The probe ids of the matrix, in matrix order (124).
-
-$$\operatorname{ids} = [\,p.\mathrm{id}\,]_{p \in \mathrm{matrix}}$$
--/
+/-- The probe ids of the matrix, in matrix order (124). -/
 def ids : List String := Fw.Site.Breakpoints.matrix.map (·.id)
 
-/-- The engine name of the workflow matrix.
-
-$$\operatorname{engName} = \{\text{chromium} \mapsto \texttt{chromium}, \text{webkit} \mapsto \texttt{playwright-webkit}\}$$
--/
+/-- The engine name of the workflow matrix. -/
 def engName : Eng → String
   | .chromium => "chromium"
   | .webkit => "playwright-webkit"
 
-/-- The jobs of one engine: engine, slot, job count, probe ids, sweep names, unit names, load and duration.
-
-$$\operatorname{engJobs}(C, e, k) = \Bigl[\bigl(e,\ s,\ k,\ \operatorname{filterMap}(\operatorname{probeOf}_{\mathrm{ids}}, b),\ \operatorname{swName}\bigl(\operatorname{filterMap}(\operatorname{sweepOf}, b)\bigr),\ [\operatorname{names}(\mathrm{ids})_i]_{i \in b},\ \operatorname{load}_c(b),\ \mathrm{setup}_{C_e} + \operatorname{load}_c(b)\bigr)\Bigr]_{(b, s) \in \operatorname{zipIdx}(\operatorname{engPlan}(C_e, \mathrm{ids}, k))}$$
-
-where $c = c_{C_e, \mathrm{ids}}$ is the unit cost of the engine's table.
--/
+/-- The jobs of one engine: engine, slot, job count, probe ids, sweep names, unit names, load and duration. -/
 def engJobs (C : Costs) (e : Eng) (k : Nat) : List Json :=
   let T := C.of e
   let names := unitNames ids
@@ -57,10 +46,8 @@ def tableJson (T : EngCosts) : Json :=
   Json.mkObj [("setup", (T.setup : Json)), ("default", (dflt T.costs : Json)),
     ("costs", Json.mkObj (T.costs.map fun (n, c) => (n, (c : Json))))]
 
-/-- One line: `r` runs on `m` free runners, with the chosen $k$, the jobs, Graham's bound and the simulated
+/-- One line: `r` runs on `m` free runners, with the chosen `k`, the jobs, Graham's bound and the simulated
 makespan.
-
-$$\kappa = \operatorname{chooseK}(C, \mathrm{ids}, m, r),\quad D = \operatorname{shardDurs}(C, \mathrm{ids}, \kappa),\quad \mathrm{grahamOk} \iff m \cdot \operatorname{makespan}(m, D^{\times r}) \le \operatorname{shardBound}(C, \mathrm{ids}, m, r, \kappa)$$
 -/
 def line (C : Costs) (m r : Nat) : Json :=
   let kk := chooseK C ids m r
@@ -77,7 +64,7 @@ def line (C : Costs) (m r : Nat) : Json :=
 /-- The free-runner counts of the golden, as in `golden/gate/schedule.jsonl`. -/
 def freeRunners : List Nat := [4, 8, 12, 20]
 
-/-- The golden lines: the cost table, then one line per $m \in \{4, 8, 12, 20\}$ and $r \in \{1, 2, 3\}$. -/
+/-- The golden lines: the cost table, then one line per `m ∈ {4, 8, 12, 20}` and `r ∈ {1, 2, 3}`. -/
 def cases (_ : Unit := ()) : List Json :=
   let C := Fw.Gate.ShardCosts.measured
   (Json.mkObj [("name", Json.str "costs"), ("source", Json.str Fw.Gate.ShardCosts.source),
