@@ -142,3 +142,11 @@ Finding (task land-fwcore-once, closed): a prep job that builds fwcore once for 
 - History-wide like the land: a later removal does not clear it. Fix: a new branch from main without those commits.
 - Test: `apps/runner/test/ci-push-render-guard.test.ts` (temp repo with a bare origin: add then push refused, removal still refused, clean and `snapshot/` branches push, a main push passes; a tag and a non-ci branch carrying a render are refused).
 - Limits: extension-only (as the land guard); `git push --no-verify` bypasses the hook. `core.hooksPath` is in the shared config (wt-prep.sh:29), so it applies to every worktree, but the relative path resolves in each worktree's own checkout: a worktree whose branch predates this land has no `scripts/hooks/pre-push` and is unprotected until it merges main (the lead tells open worktrees).
+
+## Phase 1: when the local fwcore build runs (task land-phase1-slow)
+Phase 1 of `fw land` builds fwcore in the merge-tree worktree (span `fwcore build (phase 1)`) to learn the new binary's digest, which selects the
+fwcore users. Lean `LandTier.phase1Build` skips it when every changed build read is build-free (`buildFree`: `lean/scripts/**`, `lean/golden/**`,
+`lean/README.md`, `lean/land-filter.txt`, `lean/land-legs.txt`; no default Lake target reads them, checked by `apps/runner/test/land-phase1.test.ts`).
+Theorems: `phase1Build_of_input` (a changed build input always builds), `skip_binMoved`, `skip_selection`, `skip_binary_equal` (premise
+`land.binaryOfInputs`), `skip_keeps_local_build` (a local fwcore user still builds in the local plan), `built_selection`. Golden: `land-phase1.jsonl`.
+The post-land `scripts/fwcore-build.sh` is unchanged. A change to a Lean module or the lakefile still builds: the closure of `Fw` covers every module.
