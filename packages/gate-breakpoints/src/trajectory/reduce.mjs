@@ -2,14 +2,12 @@
 // packages/contracts/golden/gate/trajectory.jsonl (test/trajectory.test.mjs). Every function below mirrors a Lean definition of the
 // same name; `reduceRun` (the loop over nodes, properties and steps) is the only part Lean does not hold (a listed TS stand-in).
 //
-// A reading (Val) is null (absent), an array of integers (a number x 1000) or a string. A sample is { m, since, els, rep }: `since` is
-// the ms since the last nav class change (null: none happened).
+// A reading (Val) is null (absent), an array of integers (a number x 1000) or a string. A sample is { m, since, els, rep, cls, ph }:
+// `since` is the ms since the last nav class change (null: none happened), `cls` the nav classes that are on, `ph` the index of
+// the phase it was read in; `annotate` adds `ord`.
 
 export const TOL = { discrete: 0, geometry: 1000, unit: 10, colour: 2000 };
-export const QUIET_MS = 300;
 export const ALLOWED_WIDTHS = [390, 640, 641, 1280];
-
-export const isQuiet = (sinceMs) => sinceMs === null || sinceMs === undefined || sinceMs >= QUIET_MS;
 
 const pass = 'pass';
 const fail = (w) => `fail:${w}`;
@@ -40,8 +38,7 @@ export function judgeVal(kind, win, r) {
 export function combine(vs) {
   const f = vs.find((v) => v.startsWith('fail:'));
   if (f) return f;
-  if (vs.includes(pass)) return pass;
-  return vs.includes(skip('transient')) ? skip('transient') : skip('noSample');
+  return vs.includes(pass) ? pass : skip('noSample');
 }
 
 /** All elements of a node: counts must match, then each element on its own. */
@@ -49,33 +46,6 @@ export function judgeEls(kind, win, r) {
   if (win.length === 0) return skip('noSample');
   if (win.some((w) => w.length !== r.length)) return fail('count');
   return combine(r.map((rv, i) => judgeVal(kind, win.map((w) => w[i] ?? null), rv ?? null)));
-}
-
-export function judgeAgainst(kind, win, r) {
-  if (kind === 'colour' && !isQuiet(r.since)) return skip('transient');
-  return judgeEls(kind, win.map((s) => s.els), r.els);
-}
-
-/** Lean `settleTable`: the declared transition (longest duration plus delay, ms) of a node property in the part CSS. */
-export const SETTLE = [
-  ['nav', 'visibility', 320], ['nav', 'rect', 680], ['nav', 'background-color', 700], ['nav', 'opacity', 700],
-  ['nav', 'transform.lin', 320], ['nav', 'transform.shift', 320], ['logo', 'color', 240], ['actions', 'gap', 680],
-  ['earn', 'opacity', 440], ['earn', 'max-width', 680],
-];
-/** Lean `settleOf`: null when no transition is declared. */
-export const settleOf = (node, prop) => SETTLE.find(([n, p]) => n === node && p === prop)?.[2] ?? null;
-/** Lean `startLag`: ms a transition may start after the class change that triggers it (the next style update). */
-export const START_LAG = 200;
-/** Lean `inFlight`: the sample was read less than `d + START_LAG` ms after the last nav class change. */
-export const inFlight = (d, s) => d !== null && d !== undefined && s.since !== null && s.since !== undefined && s.since < d + START_LAG;
-/** Lean `crossedPass`: the samples of one pass that are in flight or a neighbour of one in flight (the ends of each transition). */
-const crossedPass = (d, p) => p.filter((_, i) => [i - 1, i, i + 1].some((j) => j >= 0 && j < p.length && inFlight(d, p[j])));
-/** Lean `crossed`: `crossedPass` of every pass of a pooled segment, passes in order of first appearance. */
-export const crossed = (d, seg) => repsOf(seg).flatMap((r) => crossedPass(d, seg.filter((s) => (s.rep ?? 0) === r)));
-/** Lean `judgeFlight`: a unit in flight (the rewrite's sample or a window sample) is judged against the window plus the span the original crosses. */
-export function judgeFlight(kind, d, seg, win, r) {
-  if (inFlight(d, r) || win.some((w) => inFlight(d, w))) return judgeEls(kind, [...win, ...crossed(d, seg)].map((s) => s.els), r.els);
-  return judgeAgainst(kind, win, r);
 }
 
 const between = (a, b, m) => Math.min(a, b) <= m && m <= Math.max(a, b);
@@ -124,8 +94,128 @@ export const windowOf = (orig, m) => {
   return ws.length === 0 ? null : ws.flat();
 };
 
-/** Lean `judgeIn`: no window is `fail:coverage`. */
-export const judgeIn = (kind, d, seg, win, r) => (win === null ? fail('coverage') : judgeFlight(kind, d, seg, win, r));
+/** Lean `rules`: the rules of apps/site/src/parts/nav/nav.module.css that declare a transition, by selector line. */
+export const RULES = [
+  { line: 6, node: 'nav', on: [], off: [], minW: null, reduce: false, spec: 1, set: [['opacity', 280, 0], ['transform', 320, 0], ['visibility', 0, 320]], delay: null },
+  { line: 41, node: 'nav', on: [], off: ['is-morphing'], minW: null, reduce: false, spec: 2, set: [['background', 700, 0], ['opacity', 280, 0], ['transform', 320, 0], ['visibility', 0, 320], ['width', 680, 0]], delay: null },
+  { line: 63, node: 'nav', on: ['is-scroll-hidden'], off: [], minW: null, reduce: false, spec: 2, set: [['opacity', 280, 0], ['transform', 320, 0], ['visibility', 0, 320]], delay: null },
+  { line: 73, node: 'nav', on: [], off: ['is-scroll-hidden'], minW: null, reduce: false, spec: 2, set: null, delay: 0 },
+  { line: 78, node: 'nav', on: ['is-hero-pill'], off: ['is-hero-chrome-ready'], minW: 600, reduce: false, spec: 3, set: [], delay: null },
+  { line: 83, node: 'nav', on: ['is-hero-pill', 'is-hero-chrome-ready'], off: [], minW: 600, reduce: false, spec: 3, set: [['background', 700, 0], ['opacity', 700, 0], ['transform', 320, 0], ['width', 680, 0]], delay: null },
+  { line: 106, node: 'logo', on: [], off: [], minW: null, reduce: false, spec: 1, set: [['color', 240, 0]], delay: null },
+  { line: 128, node: 'actions', on: [], off: [], minW: null, reduce: false, spec: 1, set: [['gap', 680, 0]], delay: null },
+  { line: 141, node: 'actions', on: ['is-morphing'], off: [], minW: null, reduce: false, spec: 3, set: [], delay: null },
+  { line: 167, node: 'earn', on: [], off: [], minW: null, reduce: false, spec: 2, set: [['max-width', 680, 0], ['opacity', 320, 120], ['padding-inline', 680, 0]], delay: null },
+  { line: 189, node: 'earn', on: ['is-hero-pill'], off: [], minW: null, reduce: false, spec: 4, set: [['max-width', 680, 0], ['opacity', 200, 0], ['padding-inline', 680, 0]], delay: null },
+  { line: 287, node: 'nav', on: [], off: ['is-morphing'], minW: null, reduce: true, spec: 2, set: [['background', 320, 0], ['opacity', 280, 0], ['transform', 320, 0], ['visibility', 0, 320]], delay: null },
+  { line: 295, node: 'nav', on: ['is-morphing'], off: [], minW: null, reduce: true, spec: 2, set: [], delay: null },
+  { line: 295, node: 'earn', on: [], off: [], minW: null, reduce: true, spec: 2, set: [], delay: null },
+];
+
+/** Lean `cssOf`: the CSS properties whose transitions move a probe property. */
+export const cssOf = (node, prop) => ({
+  'nav|visibility': ['visibility'], 'nav|rect': ['width', 'transform'], 'nav|background-color': ['background', 'background-color'],
+  'nav|opacity': ['opacity'], 'nav|transform.lin': ['transform'], 'nav|transform.shift': ['transform'], 'logo|color': ['color'],
+  'actions|gap': ['gap', 'column-gap'], 'earn|opacity': ['opacity'], 'earn|max-width': ['max-width'],
+})[`${node}|${prop}`] ?? [];
+
+/** Lean `driver`: the class under which JS drives the morph frame by frame. */
+export const DRIVER = 'is-morphing';
+
+/** Lean `applies`. */
+export const applies = (r, node, width, cls) => r.node === node && r.on.every((c) => cls.includes(c)) && !r.off.some((c) => cls.includes(c))
+  && (r.minW === null || width > r.minW) && !r.reduce;
+
+/** Lean `before`: cascade order (specificity, then source line). */
+const before = (a, b) => a.spec < b.spec || (a.spec === b.spec && a.line < b.line);
+
+/** Lean `lastBy`: the rule latest in cascade order, the first of equals. */
+const lastBy = (rs) => rs.reduce((acc, r) => (acc === null || before(acc, r) ? r : acc), null);
+
+/** Lean `transitionsOf`. */
+export function transitionsOf(node, width, cls) {
+  const rs = RULES.filter((r) => applies(r, node, width, cls));
+  const setR = lastBy(rs.filter((r) => r.set !== null));
+  const set = setR === null ? [] : setR.set;
+  const dl = lastBy(rs.filter((r) => r.delay !== null && (setR === null || before(setR, r))));
+  return dl === null ? set : set.map(([p, d]) => [p, d, dl.delay]);
+}
+
+/** Lean `durOf`. */
+export function durOf(node, prop, width, cls) {
+  if (cls.includes(DRIVER)) return null;
+  const css = cssOf(node, prop);
+  const t = transitionsOf(node, width, cls).filter(([p]) => css.includes(p)).reduce((a, [, d, l]) => Math.max(a, d + l), 0);
+  return t === 0 ? null : t;
+}
+
+/** Lean `startLag`. */
+export const START_LAG = 200;
+
+/** Lean `inFlight`: `d` maps a class set to its transition time. */
+export const inFlight = (d, s) => { const t = d(s.cls); return t !== null && s.since !== null && s.since < t + START_LAG; };
+
+const sameCls = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+/** Lean `restarts`. */
+const restarts = (p, s) => p === null || !sameCls(p.cls, s.cls) || (s.since !== null && (p.since === null || s.since < p.since));
+
+/** Lean `annotate`: each sample with `ord`, the number of earlier epochs of its pass with its class set. */
+export function annotate(seg) {
+  const st = new Map();
+  return seg.map((s) => {
+    const x = st.get(s.rep) ?? { prev: null, ord: 0, seen: [] };
+    if (restarts(x.prev, s)) { x.ord = x.seen.filter((c) => sameCls(c, s.cls)).length; x.seen.push(s.cls); }
+    x.prev = s; st.set(s.rep, x);
+    return { ...s, ord: x.ord };
+  });
+}
+
+/** Lean `inEpoch`. */
+const inEpoch = (r, o) => o.rep === r.rep && sameCls(o.cls, r.cls) && o.ord === r.ord;
+
+/** Lean `isCore`. */
+const isCore = (r, o) => inEpoch(r, o) && o.ph === r.ph && o.since !== null && r.since !== null && Math.abs(o.since - r.since) <= START_LAG;
+
+/** Lean `flightWindow`. */
+export function flightWindow(seg, r) {
+  const p = seg.filter((o) => o.rep === r.rep);
+  const core = p.map((_, i) => i).filter((i) => isCore(r, p[i]));
+  if (core.length === 0) return [];
+  const lo = core[0], hi = core[core.length - 1];
+  return p.filter((o, i) => i + 1 === lo || (lo <= i && i <= hi + 1 && inEpoch(r, o)));
+}
+
+/** Lean `endOf`. */
+const endOf = (seg, w) => { const e = seg.filter((o) => inEpoch(w, o)); return e.length === 0 ? null : e[e.length - 1]; };
+
+/** Lean `settledRef`. */
+export const settledRef = (d, seg, w) => { if (!inFlight(d, w)) return w; const e = endOf(seg, w); return e !== null && !inFlight(d, e) ? e : null; };
+
+const chan = (els) => els.map((v) => (Array.isArray(v) ? v.slice(0, 3) : v));
+const alpha = (els) => els.map((v) => (Array.isArray(v) ? v.slice(3) : v));
+
+/** Lean `matchOne`. */
+export function matchOne(kind, win, r) {
+  const vs = win.map((w) => judgeEls(kind, [w], r));
+  return vs.some((v) => !v.startsWith('fail:')) ? pass : combine(vs);
+}
+
+/** Lean `judgeColour`. */
+export const judgeColour = (core, win, r) =>
+  combine([matchOne('colour', core.map((x) => chan(x.els)), chan(r.els)), judgeEls('colour', win.map((x) => alpha(x.els)), alpha(r.els))]);
+
+/** Lean `judgeUnit`. */
+export function judgeUnit(kind, d, seg, win, r) {
+  if (inFlight(d, r)) {
+    const w = flightWindow(seg, r);
+    if (w.length === 0) return win === null ? fail('coverage') : judgeEls(kind, win.map((s) => s.els), r.els);
+    return kind === 'colour' ? judgeColour(w.filter((o) => isCore(r, o)), w, r) : judgeEls(kind, w.map((s) => s.els), r.els);
+  }
+  if (win === null) return fail('coverage');
+  const ref = win.map((w) => settledRef(d, seg, w)).filter((w) => w !== null);
+  return ref.length === 0 ? fail('coverage') : judgeEls(kind, ref.map((x) => x.els), r.els);
+}
 
 /** Lean `bucket`: the tenth of a morph value (floor((m + 500) / 1000), clamped to 0..10); 11 for no morph value. */
 export const bucket = (m) => (m === null || m === undefined ? 11 : Math.min(10, Math.max(0, Math.floor((m + 500) / 1000))));
@@ -133,22 +223,25 @@ export const bucket = (m) => (m === null || m === undefined ? 11 : Math.min(10, 
 /** Lean `needsSample`: the interior buckets of a push. */
 export const needsSample = (b) => b >= 1 && b <= 9;
 
-/** Lean `bucketVerdict`. `ph` is 'push' or 'hold'; `d` the property's settle time (or null), `seg` the original's whole path. */
+/** Lean `bucketVerdict`. `ph` is 'push' or 'hold'; `seg` the original's annotated samples of the whole path, `orig` and `rew` the phase's. */
 export function bucketVerdict(ph, kind, d, seg, orig, rew, b) {
   const rs = rew.filter((r) => bucket(r.m) === b);
   if (rs.length === 0) return ph === 'push' && needsSample(b) ? fail('coverage') : skip('noSample');
-  return combine(rs.map((r) => judgeIn(kind, d, seg, windowOf(orig, r.m), r)));
+  return combine(rs.map((r) => judgeUnit(kind, d, seg, windowOf(orig, r.m), r)));
 }
 
-/** Lean `byM`: twelve verdicts, one per bucket. */
-export const byM = (ph, kind, d, seg, orig, rew) => Array.from({ length: 12 }, (_, b) => [b, bucketVerdict(ph, kind, d, seg, orig, rew, b)]);
+/** Lean `byM`: twelve verdicts, one per bucket, of phase `p` of the two arms' whole paths. */
+export function byM(ph, p, kind, d, oSeg, wSeg) {
+  const seg = annotate(oSeg), rew = annotate(wSeg).filter((r) => r.ph === p), orig = seg.filter((o) => o.ph === p);
+  return Array.from({ length: 12 }, (_, b) => [b, bucketVerdict(ph, kind, d, seg, orig, rew, b)]);
+}
 
-/** Lean `byStep`: one verdict per step of the original; the original's steps in order are the segment of a step in flight. */
+/** Lean `byStep`: one verdict per step of the original; each arm's steps in order are one pass. */
 export function byStep(kind, d, orig, rew) {
-  const seg = orig.map(([, o]) => o);
-  return orig.map(([step, o]) => {
-    const r = rew.find(([s]) => s === step);
-    return [step, r ? judgeFlight(kind, d, seg, [o], r[1]) : skip('noSample')];
+  const seg = annotate(orig.map(([, o]) => o)), rs = annotate(rew.map(([, r]) => r));
+  return orig.map(([step], i) => {
+    const j = rew.findIndex(([s]) => s === step);
+    return [step, j >= 0 ? judgeUnit(kind, d, seg, [seg[i]], rs[j]) : skip('noSample')];
   });
 }
 
@@ -208,11 +301,16 @@ export const PHASES = [['open', 'push'], ['open-hold', 'hold'], ['close', 'push'
 /** A property is read in every frame of a push with the lean read set when the registry marks it `lean` (the discrete ones and the logo rectangle). */
 export const isLeanProp = (p) => p.lean === true;
 
-const sampleOf = (row, ni, pi, withM) => ({
+/** The nav's classes that are on in a row, in registry order: the class set every node's transitions are keyed by. */
+const clsOf = (row, navCls) => navCls.filter(([i]) => row.nodes?.nav?.[0]?.[i] === 'on').map(([, name]) => name);
+
+const sampleOf = (row, ni, pi, withM, ph, navCls) => ({
   m: withM && row.m !== null && row.m !== undefined ? row.m : null,
   since: row.since ?? null,
   els: (row.nodes[ni] ?? []).map((e) => (e[pi] === undefined ? null : e[pi])),
   rep: row.rep ?? 0,
+  cls: clsOf(row, navCls),
+  ph,
 });
 
 /**
@@ -222,14 +320,16 @@ const sampleOf = (row, ni, pi, withM) => ({
  */
 export function reduceWidth({ width, orig, rewrite, registries }) {
   const units = [];
+  const navCls = (registries.morph.find((n) => n.id === 'nav')?.props ?? []).map((p, i) => [i, p.name, p.r]).filter(([, , r]) => r === 'cls').map(([i, name]) => [i, name]);
+  const durFor = (node, prop) => (cls) => durOf(node, prop, width, cls);
   const push = (path, phase, node, prop, kind, rows) => { for (const [step, verdict] of rows) units.push({ width, path, phase, node, prop, kind, step, verdict }); };
   const stepRows = (rows) => rows.filter((r) => r.frame === 'rest');
   const byStepOf = (path, phase, nodes, oRows, rRows) => {
     for (const n of nodes) {
       n.props.forEach((p, pi) => {
-        const o = oRows.map((r) => [r.step, sampleOf(r, n.id, pi, false)]);
-        const w = rRows.map((r) => [r.step, sampleOf(r, n.id, pi, false)]);
-        push(path, phase, n.id, p.id, p.kind, byStep(p.kind, settleOf(n.id, p.id), o, w));
+        const o = oRows.map((r) => [r.step, sampleOf(r, n.id, pi, false, 0, navCls)]);
+        const w = rRows.map((r) => [r.step, sampleOf(r, n.id, pi, false, 0, navCls)]);
+        push(path, phase, n.id, p.id, p.kind, byStep(p.kind, durFor(n.id, p.id), o, w));
       });
     }
   };
@@ -242,19 +342,17 @@ export function reduceWidth({ width, orig, rewrite, registries }) {
   }
   if (orig.morph && rewrite.morph) {
     byStepOf('morph', 'approach', registries.morph, orig.morph.approach, rewrite.morph.approach);
-    for (const [phase, ph] of PHASES) {
-      const oRows = orig.morph.phases[phase] ?? [], wRows = rewrite.morph.phases[phase] ?? [];
+    const pathOf = (arm, ni, pi) => PHASES.flatMap(([q], k) => (arm.morph.phases[q] ?? []).map((r) => sampleOf(r, ni, pi, true, k, navCls)));
+    PHASES.forEach(([phase, ph], k) => {
       const lean = (rewrite.morph.phaseReads?.[phase] ?? 'full') === 'lean';
       for (const n of registries.morph) {
         n.props.forEach((p, pi) => {
           if (lean && !isLeanProp(p)) return;
-          const o = oRows.map((r) => sampleOf(r, n.id, pi, true));
-          const w = wRows.map((r) => sampleOf(r, n.id, pi, true));
-          const seg = PHASES.flatMap(([q]) => (orig.morph.phases[q] ?? []).map((r) => sampleOf(r, n.id, pi, true)));
-          push('morph', phase, n.id, p.id, p.kind, byM(ph, p.kind, settleOf(n.id, p.id), seg, o, w).map(([b, v]) => [`${phase}@${b}`, v]));
+          const verdicts = byM(ph, k, p.kind, durFor(n.id, p.id), pathOf(orig, n.id, pi), pathOf(rewrite, n.id, pi));
+          push('morph', phase, n.id, p.id, p.kind, verdicts.map(([b, v]) => [`${phase}@${b}`, v]));
         });
       }
-    }
+    });
   }
   return units;
 }

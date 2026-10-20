@@ -57,12 +57,9 @@ inductive Why where
   | coverage
   deriving DecidableEq, Repr
 
-/-- Why a unit is not compared.
-
-A colour is read while a transition may still run, or no sample of the rewrite fell on a unit that needs none (a hold, a
-bucket outside 1 to 9, a hero step the rewrite did not record). -/
+/-- Why a unit is not compared: no sample of the rewrite fell on a unit that needs none (a hold, a bucket outside 1 to 9,
+a hero step the rewrite did not record). -/
 inductive Skip where
-  | transient
   | noSample
   deriving DecidableEq, Repr
 
@@ -81,17 +78,6 @@ def tol : Kind → Int
   | .geometry => 1000
   | .unit => 10
   | .colour => 2000
-
-/-- Milliseconds a colour of the rewrite must have been quiet before it is compared.
-
-A colour can follow a CSS transition, which the two arms start at different frames; after this time it has arrived. -/
-def quietMs : Nat := 300
-
-/-- A reading is quiet when no class of the nav changed for `quietMs` (or none ever did). -/
-def isQuiet (sinceMs : Option Nat) : Bool :=
-  match sinceMs with
-  | none => true
-  | some s => quietMs ≤ s
 
 /-- Every component of `xs` lies between the smallest and the largest of the window's samples, widened by `t`. -/
 def inBand (t : Int) (win : List (List Int)) (xs : List Int) : Bool :=
@@ -143,8 +129,7 @@ def combine (vs : List Verdict) : Verdict :=
   match vs.find? (fun v => match v with | .fail _ => true | _ => false) with
   | some f => f
   | none =>
-    if vs.any (· == .pass) then .pass
-    else if vs.any (· == .skip .transient) then .skip .transient else .skip .noSample
+    if vs.any (· == .pass) then .pass else .skip .noSample
 
 /-- All elements of a node: counts must match, then each element on its own, combined. -/
 def judgeEls (k : Kind) (win : List (List Val)) (r : List Val) : Verdict :=
@@ -153,7 +138,9 @@ def judgeEls (k : Kind) (win : List (List Val)) (r : List Val) : Verdict :=
   else combine ((List.range r.length).map fun i => judgeVal k (win.map (·.getD i .absent)) (r.getD i .absent))
 
 /-- A sample of one (node, property) at one instant: the morph value times 10000, the ms since the last class change of
-the nav (`none`: no change happened), the elements, and the pass (`rep`) it was read in.
+the nav (`none`: no change happened), the elements, the pass (`rep`) it was read in, the nav classes that were on
+(`cls`), the index of the phase it was read in (`ph`), and the number of earlier epochs of its pass with the same classes
+(`ord`, set by `annotate`).
 
 The probe walks the morph path several times (`--reps`) and keeps every row. A morph value rises or falls within one pass
 only, so two samples of different passes are not neighbours in time and no window may pair them. -/
@@ -162,30 +149,19 @@ structure Samp where
   since : Option Nat
   els : List Val
   rep : Nat
+  cls : List String
+  ph : Nat
+  ord : Nat
   deriving DecidableEq, Repr
 
-/-- The sample was read `quietMs` or more after the last class change of the nav. -/
-def Samp.quiet (s : Samp) : Bool := isQuiet s.since
+/-- A sample with a morph value, in pass 0, no class change. -/
+def sm (m : Int) (els : List Val) : Samp := ⟨some m, none, els, 0, [], 0, 0⟩
 
-/-- A sample with a morph value, quiet, in pass 0. -/
-def sm (m : Int) (els : List Val) : Samp := ⟨some m, none, els, 0⟩
+/-- A sample with a morph value, in pass `rep`, no class change. -/
+def smr (rep : Nat) (m : Int) (els : List Val) : Samp := ⟨some m, none, els, rep, [], 0, 0⟩
 
-/-- A sample with a morph value, quiet, in pass `rep`. -/
-def smr (rep : Nat) (m : Int) (els : List Val) : Samp := ⟨some m, none, els, rep⟩
-
-/-- A sample without a morph value, quiet, in pass 0. -/
-def s0 (els : List Val) : Samp := ⟨none, none, els, 0⟩
-
-/-- A sample without a morph value, read at a class change, in pass 0. -/
-def sq (els : List Val) : Samp := ⟨none, some 0, els, 0⟩
-
-/-- The rewrite's sample against a window of the original's samples.
-
-A colour is compared only when the rewrite's own sample is quiet. The original's window keeps its non-quiet samples: its
-colours follow the morph value, so dropping them would leave a window far from `m` and fail a colour that is right. -/
-def judgeAgainst (k : Kind) (win : List Samp) (r : Samp) : Verdict :=
-  if k == .colour && !r.quiet then .skip .transient
-  else judgeEls k (win.map (·.els)) r.els
+/-- A sample without a morph value, in pass 0, no class change. -/
+def s0 (els : List Val) : Samp := ⟨none, none, els, 0, [], 0, 0⟩
 
 /-- A value `m` lies between `a` and `b`, ends included. -/
 def between (a b m : Int) : Bool := min a b ≤ m && m ≤ max a b
@@ -258,20 +234,104 @@ def windowOf (orig : List Samp) (m : Option Int) : Option (List Samp) :=
   | [] => none
   | ws => some ws.flatten
 
-/-- The transitions the part CSS declares on the properties the probe reads, as (node, property, ms): the longest delay
-plus duration over the rules of `apps/site/src/parts/nav/nav.module.css`, which restates the original's stylesheet.
+/-- A rule of `apps/site/src/parts/nav/nav.module.css` that sets `transition` or `transition-delay`.
 
-`nav.visibility` is `visibility 0s linear 0.32s`; `nav.rect` follows `width 0.68s`; `nav.opacity` is 0.28s, and 0.7s once
-the hero pill's chrome is ready; `nav.transform.*` is `transform 0.32s`; `earn.opacity` is 0.32s after a delay of 0.12s.
-A property not listed has no transition, and the probe reads it as at rest. -/
-def settleTable : List (String × String × Nat) := [
-  ("nav", "visibility", 320), ("nav", "rect", 680), ("nav", "background-color", 700), ("nav", "opacity", 700),
-  ("nav", "transform.lin", 320), ("nav", "transform.shift", 320), ("logo", "color", 240), ("actions", "gap", 680),
-  ("earn", "opacity", 440), ("earn", "max-width", 680)]
+`line` is the line of its selector. The rule applies to `node` when every class of `on` is on the nav and none of `off`
+is, the viewport is wider than `minW`, and the rule is not one for reduced motion (`reduce`); the probe runs with no
+motion preference. `spec` is the specificity of the selector in classes. `set` lists the transitions of a `transition`
+declaration as (CSS property, duration, delay) in ms: `none` when the rule declares no `transition`, `[]` for
+`transition: none`. `delay` is a `transition-delay` that replaces every delay of the transitions in force. -/
+structure Rule where
+  line : Nat
+  node : String
+  on : List String
+  off : List String
+  minW : Option Nat
+  reduce : Bool
+  spec : Nat
+  set : Option (List (String × Nat × Nat))
+  delay : Option Nat
+  deriving DecidableEq, Repr
 
-/-- The declared transition of a node's property, in ms; `none` when the part CSS declares none. -/
-def settleOf (node prop : String) : Option Nat :=
-  (settleTable.find? fun (n, p, _) => n == node && p == prop).map (·.2.2)
+/-- The rules of `apps/site/src/parts/nav/nav.module.css` that set a transition, in source order.
+
+`trajectory.test.mjs` parses the CSS file and requires this list exactly. The two rules at line 295 are the two selectors
+of one rule. -/
+def rules : List Rule := [
+  ⟨6, "nav", [], [], none, false, 1, some [("opacity", 280, 0), ("transform", 320, 0), ("visibility", 0, 320)], none⟩,
+  ⟨41, "nav", [], ["is-morphing"], none, false, 2,
+    some [("background", 700, 0), ("opacity", 280, 0), ("transform", 320, 0), ("visibility", 0, 320), ("width", 680, 0)],
+    none⟩,
+  ⟨63, "nav", ["is-scroll-hidden"], [], none, false, 2,
+    some [("opacity", 280, 0), ("transform", 320, 0), ("visibility", 0, 320)], none⟩,
+  ⟨73, "nav", [], ["is-scroll-hidden"], none, false, 2, none, some 0⟩,
+  ⟨78, "nav", ["is-hero-pill"], ["is-hero-chrome-ready"], some 600, false, 3, some [], none⟩,
+  ⟨83, "nav", ["is-hero-pill", "is-hero-chrome-ready"], [], some 600, false, 3,
+    some [("background", 700, 0), ("opacity", 700, 0), ("transform", 320, 0), ("width", 680, 0)], none⟩,
+  ⟨106, "logo", [], [], none, false, 1, some [("color", 240, 0)], none⟩,
+  ⟨128, "actions", [], [], none, false, 1, some [("gap", 680, 0)], none⟩,
+  ⟨141, "actions", ["is-morphing"], [], none, false, 3, some [], none⟩,
+  ⟨167, "earn", [], [], none, false, 2,
+    some [("max-width", 680, 0), ("opacity", 320, 120), ("padding-inline", 680, 0)], none⟩,
+  ⟨189, "earn", ["is-hero-pill"], [], none, false, 4,
+    some [("max-width", 680, 0), ("opacity", 200, 0), ("padding-inline", 680, 0)], none⟩,
+  ⟨287, "nav", [], ["is-morphing"], none, true, 2,
+    some [("background", 320, 0), ("opacity", 280, 0), ("transform", 320, 0), ("visibility", 0, 320)], none⟩,
+  ⟨295, "nav", ["is-morphing"], [], none, true, 2, some [], none⟩,
+  ⟨295, "earn", [], [], none, true, 2, some [], none⟩]
+
+/-- The CSS properties whose transitions move a property the probe reads; `[]` when no transition moves it.
+
+`nav.rect` is the nav's box, which `width` and `transform` move; `background-color` moves with the `background`
+shorthand. -/
+def cssOf (node prop : String) : List String :=
+  match node, prop with
+  | "nav", "visibility" => ["visibility"]
+  | "nav", "rect" => ["width", "transform"]
+  | "nav", "background-color" => ["background", "background-color"]
+  | "nav", "opacity" => ["opacity"]
+  | "nav", "transform.lin" => ["transform"]
+  | "nav", "transform.shift" => ["transform"]
+  | "logo", "color" => ["color"]
+  | "actions", "gap" => ["gap", "column-gap"]
+  | "earn", "opacity" => ["opacity"]
+  | "earn", "max-width" => ["max-width"]
+  | _, _ => []
+
+/-- The nav class under which the site's script sets the morph's styles on every frame. -/
+def driver : String := "is-morphing"
+
+/-- Rule `r` applies to `node` at viewport `width` with the nav classes `cls` on. -/
+def applies (r : Rule) (node : String) (width : Nat) (cls : List String) : Bool :=
+  r.node == node && r.on.all cls.contains && !r.off.any cls.contains &&
+    (match r.minW with | none => true | some w => decide (w < width)) && !r.reduce
+
+/-- Rule `a` comes before rule `b` in the cascade: lower specificity, or equal specificity and an earlier line. -/
+def before (a b : Rule) : Bool := a.spec < b.spec || (a.spec == b.spec && a.line < b.line)
+
+/-- The rule of `rs` that comes last in the cascade; the first of two that tie. -/
+def lastBy (rs : List Rule) : Option Rule :=
+  rs.foldl (fun acc r => match acc with | none => some r | some a => if before a r then some r else some a) none
+
+/-- The transitions in force on `node`: those of the last applying rule with a `transition`, each delay replaced by the
+`transition-delay` of the last applying rule after it, if any. -/
+def transitionsOf (node : String) (width : Nat) (cls : List String) : List (String × Nat × Nat) :=
+  let rs := rules.filter (applies · node width cls)
+  let top := lastBy (rs.filter (·.set.isSome))
+  let base := (top.bind (·.set)).getD []
+  let late := rs.filter fun r => r.delay.isSome && (match top with | none => true | some t => before t r)
+  match (lastBy late).bind (·.delay) with
+  | some l => base.map fun (p, d, _) => (p, d, l)
+  | none => base
+
+/-- **The transition of a probe property under a class set**, in ms: the longest delay plus duration of the transitions
+in force on its CSS properties. `none` when the morph's script drives the nav (`driver`) or no transition runs. -/
+def durOf (node prop : String) (width : Nat) (cls : List String) : Option Nat :=
+  if cls.contains driver then none
+  else
+    let t := ((transitionsOf node width cls).filter fun (p, _, _) => (cssOf node prop).contains p).foldl
+      (fun a (_, d, l) => max a (d + l)) 0
+    if t = 0 then none else some t
 
 /-- Milliseconds a transition may start after the class change that triggers it.
 
@@ -279,39 +339,177 @@ It starts at the next style update after the change, which a busy main thread de
 mid-transition colours up to 140 ms past the declared 700 (MEASURED, `docs/team/tools/trajectory-probe.md`). -/
 def startLag : Nat := 200
 
-/-- A sample was read while a transition of `d` ms may still run: less than `d + startLag` after the last class change
-of the nav. No declared transition, or no class change, is never in flight. -/
-def inFlight (d : Option Nat) (s : Samp) : Bool :=
-  match d, s.since with
-  | some d, some t => decide (t < d + startLag)
+/-- A sample was read while a transition of its property may run: less than `d cls + startLag` ms after the last class
+change of the nav, `d` giving the transition under the sample's classes. No transition, or no class change, is never in
+flight. -/
+def inFlight (d : List String → Option Nat) (s : Samp) : Bool :=
+  match d s.cls, s.since with
+  | some t, some x => decide (x < t + startLag)
   | _, _ => false
 
-/-- The samples of one pass that are in flight or next to one in flight: the readings a transition passes through, with
-the values it starts from and arrives at. -/
-def crossedPass (d : Option Nat) (p : List Samp) : List Samp :=
-  ((List.range p.length).filter fun i =>
-    (List.range p.length).any fun j => ((p[j]?).map (inFlight d)).getD false && i ≤ j + 1 && j ≤ i + 1).filterMap
-    fun i => p[i]?
+/-- A sample starts an epoch of its pass: the first sample, a change of the nav classes, or a `since` that went down (the
+classes changed and changed back between two samples). -/
+def restarts (p : Option Samp) (s : Samp) : Bool :=
+  match p with
+  | none => true
+  | some p => p.cls != s.cls ||
+    match s.since, p.since with
+    | some a, some b => decide (a < b)
+    | some _, none => true
+    | none, _ => false
 
-/-- The readings the original passes through in its transitions: `crossedPass` of each pass of the segment `seg`. -/
-def crossed (d : Option Nat) (seg : List Samp) : List Samp :=
-  (repsOf seg).flatMap fun r => crossedPass d (passOf seg r)
+/-- The `ord` of each sample of one pass, in order: the number of earlier epochs of the pass with the sample's classes.
+`seen` holds the classes of the epochs so far, `o` the `ord` of the current one. -/
+def ordsOf : Option Samp → List (List String) → Nat → List Samp → List Nat
+  | _, _, _, [] => []
+  | p, seen, o, s :: rest =>
+    if restarts p s then seen.count s.cls :: ordsOf (some s) (seen ++ [s.cls]) (seen.count s.cls) rest
+    else o :: ordsOf (some s) seen o rest
 
-/-- **One rewrite sample against its window, transitions included.** `d` is the property's declared transition and `seg`
-the original's samples of the whole path the window was cut from.
+/-- The samples with their `ord`, each computed within its pass; the order is kept.
 
-A unit is in flight when the rewrite's sample or a sample of its window was read in flight. The arms start a transition at
-different frames, so an in-flight reading is judged against the window plus every reading the original passes through in
-its transitions (`crossed`), and is never skipped. A unit with no sample in flight is judged as before (`judgeAgainst`). -/
-def judgeFlight (k : Kind) (d : Option Nat) (seg win : List Samp) (r : Samp) : Verdict :=
-  if inFlight d r || win.any (inFlight d) then judgeEls k ((win ++ crossed d seg).map (·.els)) r.els
-  else judgeAgainst k win r
+An epoch is identified across the two arms by its pass, its classes and its `ord`: the third time pass 2 turns the
+morph off is the same epoch in both arms, whatever the number of samples before it. -/
+def annotate (seg : List Samp) : List Samp :=
+  seg.mapIdx fun i s => { s with ord := ((ordsOf none [] 0 (passOf (seg.take (i + 1)) s.rep)).getLast?).getD 0 }
 
-/-- A rewrite sample against its window of the original's samples; no window is a coverage failure, never a skip. -/
-def judgeIn (k : Kind) (d : Option Nat) (seg : List Samp) (win : Option (List Samp)) (r : Samp) : Verdict :=
-  match win with
-  | none => .fail .coverage
-  | some w => judgeFlight k d seg w r
+/-- Sample `o` is in the epoch of `r`: the same pass, classes and `ord`. -/
+def inEpoch (r o : Samp) : Bool := o.rep == r.rep && o.cls == r.cls && o.ord == r.ord
+
+/-- Sample `o` is read at about the time `r` is in its transition: the same epoch and phase, and `since` within
+`startLag` of `r`'s. -/
+def isCore (r o : Samp) : Bool :=
+  inEpoch r o && o.ph == r.ph &&
+    match o.since, r.since with
+    | some a, some b => decide (((a : Int) - b).natAbs ≤ startLag)
+    | _, _ => false
+
+/-- **The original's samples of the transition a rewrite sample `r` is in.** `seg` is the original's whole path.
+
+The core is every sample of `r`'s pass that `isCore` keeps. The window is the samples of the epoch from the first to one
+past the last of the core, and the sample just before the core (the value the transition starts from, read in the
+epoch before). Empty when the original has no sample in the core. -/
+def flightWindow (seg : List Samp) (r : Samp) : List Samp :=
+  let p := passOf seg r.rep
+  let core := (List.range p.length).filter fun i => (p[i]?.map (isCore r)).getD false
+  if core.isEmpty then []
+  else (List.range p.length).filterMap fun i => p[i]?.bind fun o =>
+    if (core.contains (i + 1) && core.all fun c => decide (i + 1 ≤ c)) ||
+        (inEpoch r o && core.any (fun a => decide (a ≤ i)) && core.any fun b => decide (i ≤ b + 1))
+    then some o else none
+
+/-- The last sample of `w`'s epoch in `seg`. -/
+def endOf (seg : List Samp) (w : Samp) : Option Samp := (seg.filter (inEpoch w)).getLast?
+
+/-- The settled reading a window sample `w` stands for: `w` when it is not in flight, else the last sample of its epoch
+when that one is not; `none` when the epoch never settled. -/
+def settledRef (d : List String → Option Nat) (seg : List Samp) (w : Samp) : Option Samp :=
+  if !inFlight d w then some w
+  else match endOf seg w with
+    | some e => if inFlight d e then none else some e
+    | none => none
+
+/-- A verdict is a failure. -/
+def isFail : Verdict → Bool
+  | .fail _ => true
+  | _ => false
+
+/-- The red, green and blue channels of a colour reading. -/
+def Val.chan : Val → Val
+  | .num xs => .num (xs.take 3)
+  | v => v
+
+/-- The alpha of a colour reading. -/
+def Val.alpha : Val → Val
+  | .num xs => .num (xs.drop 3)
+  | v => v
+
+/-- A pass when `r` matches one reading of `win` on its own, else the first failure. -/
+def matchOne (k : Kind) (win : List (List Val)) (r : List Val) : Verdict :=
+  let vs := win.map fun w => judgeEls k [w] r
+  if vs.any fun v => !isFail v then .pass else combine vs
+
+/-- An in-flight colour: its channels match one reading of the core (`core`), its alpha lies in the band of the
+transition's window (`fw`).
+
+The kit serialises a colour in flight in another colour space than a colour at rest, so channels are compared reading
+by reading and never in a band that spans both. -/
+def judgeColour (core fw : List Samp) (r : Samp) : Verdict :=
+  combine [matchOne .colour (core.map fun s => s.els.map Val.chan) (r.els.map Val.chan),
+    judgeEls .colour (fw.map fun s => s.els.map Val.alpha) (r.els.map Val.alpha)]
+
+/-- **One rewrite sample.** `d` gives the property's transition per class set, `seg` is the original's whole path and
+`win` the window of `r`'s morph value or step (`none`: no counterpart).
+
+A sample in flight is judged against `flightWindow`, a colour by `judgeColour`; with no original sample in that
+transition, against `win`. A sample at rest is judged against the settled readings `win` stands for (`settledRef`). -/
+def judgeUnit (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp)) (r : Samp) :
+    Verdict :=
+  if inFlight d r then
+    let fw := flightWindow seg r
+    if fw.isEmpty then
+      match win with
+      | none => .fail .coverage
+      | some w => judgeEls k (w.map (·.els)) r.els
+    else if k == .colour then judgeColour (fw.filter (isCore r)) fw r
+    else judgeEls k (fw.map (·.els)) r.els
+  else
+    match win with
+    | none => .fail .coverage
+    | some w =>
+      let ref := w.filterMap (settledRef d seg)
+      if ref.isEmpty then .fail .coverage else judgeEls k (ref.map (·.els)) r.els
+
+#guard (rules.filter (applies · "nav" 1280 ["is-hero-pill"])).map (·.line) == [6, 41, 73, 78]
+#guard (rules.filter (applies · "nav" 390 ["is-hero-pill"])).map (·.line) == [6, 41, 73]
+#guard (rules.filter (applies · "earn" 1280 [])).map (·.line) == [167]
+#guard (lastBy (rules.filter (applies · "nav" 1280 ["is-scroll-hidden"]))).map (·.line) == some 63
+#guard transitionsOf "nav" 1280 [] ==
+  [("background", 700, 0), ("opacity", 280, 0), ("transform", 320, 0), ("visibility", 0, 0), ("width", 680, 0)]
+#guard transitionsOf "nav" 1280 ["is-hero-pill"] == []
+#guard durOf "nav" "rect" 1280 [] == some 680 && durOf "nav" "rect" 1280 [driver] == none
+#guard durOf "nav" "visibility" 1280 [] == none && durOf "nav" "visibility" 1280 ["is-scroll-hidden"] == some 320
+#guard inFlight (fun _ => some 680) ⟨none, some 879, [], 0, [], 0, 0⟩ &&
+  !inFlight (fun _ => some 680) ⟨none, some 880, [], 0, [], 0, 0⟩ &&
+  !inFlight (fun _ => none) ⟨none, some 0, [], 0, [], 0, 0⟩ && !inFlight (fun _ => some 680) ⟨none, none, [], 0, [], 0, 0⟩
+#guard restarts none ⟨none, none, [], 0, [], 0, 0⟩ &&
+  restarts (some ⟨none, some 5, [], 0, [], 0, 0⟩) ⟨none, some 5, [], 0, [driver], 0, 0⟩ &&
+  restarts (some ⟨none, some 50, [], 0, [], 0, 0⟩) ⟨none, some 5, [], 0, [], 0, 0⟩ &&
+  !restarts (some ⟨none, some 5, [], 0, [], 0, 0⟩) ⟨none, some 50, [], 0, [], 0, 0⟩
+#guard (annotate [⟨none, some 0, [], 0, [], 0, 0⟩, ⟨none, some 0, [], 0, [driver], 0, 0⟩, ⟨none, some 0, [], 1, [], 0, 0⟩,
+    ⟨none, some 0, [], 0, [], 0, 0⟩]).map (·.ord) == [0, 0, 0, 1]
+#guard inEpoch ⟨none, none, [], 0, [], 0, 1⟩ ⟨none, none, [], 0, [], 3, 1⟩ &&
+  !inEpoch ⟨none, none, [], 0, [], 0, 1⟩ ⟨none, none, [], 0, [], 0, 0⟩
+#guard isCore ⟨none, some 300, [], 0, [], 0, 0⟩ ⟨none, some 500, [], 0, [], 0, 0⟩ &&
+  !isCore ⟨none, some 300, [], 0, [], 0, 0⟩ ⟨none, some 501, [], 0, [], 0, 0⟩ &&
+  !isCore ⟨none, some 300, [], 0, [], 0, 0⟩ ⟨none, some 300, [], 0, [], 1, 0⟩
+#guard (flightWindow [⟨none, some 900, [.num [0]], 0, [], 0, 0⟩, ⟨none, some 0, [.num [1]], 0, [], 0, 1⟩,
+    ⟨none, some 400, [.num [2]], 0, [], 0, 1⟩, ⟨none, some 800, [.num [3]], 0, [], 0, 1⟩]
+    ⟨none, some 100, [], 0, [], 0, 1⟩).map (·.els) == [[.num [0]], [.num [1]], [.num [2]]]
+#guard flightWindow [⟨none, some 100, [], 1, [], 0, 0⟩] ⟨none, some 100, [], 0, [], 0, 0⟩ == []
+#guard endOf [⟨none, some 0, [.num [1]], 0, [], 0, 0⟩, ⟨none, some 900, [.num [2]], 0, [], 0, 0⟩]
+    ⟨none, some 0, [], 0, [], 0, 0⟩ == some ⟨none, some 900, [.num [2]], 0, [], 0, 0⟩
+#guard settledRef (fun _ => some 700) [⟨none, some 5000, [.num [2]], 0, [], 0, 0⟩] ⟨none, some 0, [.num [1]], 0, [], 0, 0⟩ ==
+    some ⟨none, some 5000, [.num [2]], 0, [], 0, 0⟩ &&
+  settledRef (fun _ => some 700) [⟨none, some 10, [.num [2]], 0, [], 0, 0⟩] ⟨none, some 0, [.num [1]], 0, [], 0, 0⟩ ==
+    none &&
+  settledRef (fun _ => none) [] ⟨none, some 0, [.num [1]], 0, [], 0, 0⟩ == some ⟨none, some 0, [.num [1]], 0, [], 0, 0⟩
+#guard Val.chan (.num [1, 2, 3, 4]) == .num [1, 2, 3] && Val.alpha (.num [1, 2, 3, 4]) == .num [4] &&
+  Val.chan (.str "a") == .str "a"
+#guard matchOne .colour [[.num [0]], [.num [10000]]] [.num [10000]] == .pass &&
+  matchOne .colour [[.num [0]], [.num [10000]]] [.num [5000]] == .fail .apart
+#guard judgeColour [⟨none, some 0, [.num [1000, 0, 0, 50000]], 0, [], 0, 0⟩]
+    [⟨none, some 0, [.num [1000, 0, 0, 50000]], 0, [], 0, 0⟩, ⟨none, some 0, [.num [9, 9, 9, 90000]], 0, [], 0, 0⟩]
+    ⟨none, some 0, [.num [1000, 0, 0, 70000]], 0, [], 0, 0⟩ == .pass
+#guard judgeColour [⟨none, some 0, [.num [1000, 0, 0, 50000]], 0, [], 0, 0⟩] [⟨none, some 0, [.num [1000, 0, 0, 50000]], 0, [], 0, 0⟩]
+    ⟨none, some 0, [.num [255000, 0, 0, 50000]], 0, [], 0, 0⟩ == .fail .apart
+#guard judgeUnit .unit (fun _ => some 700) [] none ⟨none, some 0, [.num [1]], 0, [], 0, 0⟩ == .fail .coverage &&
+  judgeUnit .unit (fun _ => some 700) [] (some [⟨none, some 0, [.num [1]], 0, [], 0, 0⟩])
+    ⟨none, some 0, [.num [1]], 0, [], 0, 0⟩ == .pass &&
+  judgeUnit .unit (fun _ => some 700) [] (some [⟨none, some 0, [.num [1]], 0, [], 0, 0⟩])
+    ⟨none, some 5000, [.num [1]], 0, [], 0, 0⟩ == .fail .coverage &&
+  judgeUnit .unit (fun _ => none) [] (some [⟨none, some 0, [.num [1]], 0, [], 0, 0⟩]) ⟨none, some 5000, [.num [1]], 0, [], 0, 0⟩ ==
+    .pass
 
 /-- The unit a morph value falls in: tenths of the morph, 0 to 10, and 11 for no morph value. -/
 def bucket (m : Option Int) : Nat :=
@@ -328,36 +526,38 @@ inductive Phase where
 /-- The buckets a push must have a rewrite sample in: 1 to 9, the interior of the tween. -/
 def needsSample (b : Nat) : Bool := decide (1 ≤ b) && decide (b ≤ 9)
 
-/-- The verdict of bucket `b`: the rewrite samples in it, each against its window of original samples, combined.
+/-- The verdict of bucket `b`: the rewrite samples in it, each judged on its own (`judgeUnit`), combined.
 
 A bucket of a push that needs a sample and has none is `fail coverage`; elsewhere an empty bucket is a skip. -/
-def bucketVerdict (ph : Phase) (k : Kind) (d : Option Nat) (seg orig rew : List Samp) (b : Nat) : Verdict :=
+def bucketVerdict (ph : Phase) (k : Kind) (d : List String → Option Nat) (seg orig rew : List Samp) (b : Nat) : Verdict :=
   match rew.filter (fun r => bucket r.m == b) with
   | [] => if ph == .push && needsSample b then .fail .coverage else .skip .noSample
-  | rs => combine (rs.map fun r => judgeIn k d seg (windowOf orig r.m) r)
+  | rs => combine (rs.map fun r => judgeUnit k d seg (windowOf orig r.m) r)
 
-/-- The verdicts of one (node, property) along one phase of the morph path, one per bucket 0 to 11.
+/-- The verdicts of one (node, property) along phase `p` of the morph path, one per bucket 0 to 11. `oSeg` and `wSeg` are
+the two arms' whole paths, every phase in order, and `ph` says whether phase `p` is a push or a hold.
 
-A bucket is decided by the rewrite samples in it, each against its window of original samples. In a push, an empty bucket
-1 to 9, a rewrite sample without a morph value and a sample with no counterpart in the original are `fail coverage`:
-before, they were skips, and a lane that skips what it cannot see passes a rewrite that does not move. -/
-def byM (ph : Phase) (k : Kind) (d : Option Nat) (seg orig rew : List Samp) : List (Nat × Verdict) :=
+A bucket is decided by the rewrite samples of phase `p` in it, each against its window of the original's samples of that
+phase. In a push, an empty bucket 1 to 9, a rewrite sample without a morph value and a sample with no counterpart in the
+original are `fail coverage`: a lane that skips what it cannot see passes a rewrite that does not move. -/
+def byM (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (oSeg wSeg : List Samp) :
+    List (Nat × Verdict) :=
+  let seg := annotate oSeg
+  let orig := seg.filter (·.ph == p)
+  let rew := (annotate wSeg).filter (·.ph == p)
   (List.range 12).map fun b => (b, bucketVerdict ph k d seg orig rew b)
 
 /-- The verdicts of one (node, property) along a path of steps, one per step of the original.
 
-A step's window is the original's sample of that step, and the original's steps in order are the segment its transitions
-are cut from. A step the rewrite did not record is a skip. -/
-def byStep (k : Kind) (d : Option Nat) (orig rew : List (String × Samp)) : List (String × Verdict) :=
-  orig.map fun (s, o) =>
-    match rew.find? (·.1 == s) with
-    | some (_, r) => (s, judgeFlight k d (orig.map (·.2)) [o] r)
+Each arm's steps in order are one pass. A step's window is the original's sample of that step; a step the rewrite did
+not record is a skip. -/
+def byStep (k : Kind) (d : List String → Option Nat) (orig rew : List (String × Samp)) : List (String × Verdict) :=
+  let seg := annotate (orig.map (·.2))
+  let rs := (rew.map (·.1)).zip (annotate (rew.map (·.2)))
+  ((orig.map (·.1)).zip seg).map fun (s, o) =>
+    match rs.find? (·.1 == s) with
+    | some (_, r) => (s, judgeUnit k d seg (some [o]) r)
     | none => (s, .skip .noSample)
-
-/-- A verdict is a failure. -/
-def isFail : Verdict → Bool
-  | .fail _ => true
-  | _ => false
 
 /-- The lane fails when any unit fails. -/
 def laneFails (vs : List Verdict) : Bool := vs.any isFail
@@ -524,30 +724,7 @@ theorem combine_fail (w : Why) (vs : List Verdict) : combine (.pass :: .fail w :
 theorem combine_empty : combine [] = .skip .noSample := by decide
 
 /-- Passes and skips without a failure pass. -/
-theorem combine_pass : combine [.skip .transient, .pass] = .pass := by decide
-
-/-- Only skips stay a skip; a transient one is remembered. -/
-theorem combine_skips : combine [.skip .noSample, .skip .transient] = .skip .transient := by decide
-
-/-- A colour reading before `quietMs` is not compared. -/
-theorem judgeAgainst_transient :
-    judgeAgainst .colour [⟨none, none, [.num [255000]], 0⟩] ⟨none, some 0, [.num [0]], 0⟩ = .skip .transient := by decide
-
-/-- A colour reading after `quietMs` is compared. -/
-theorem judgeAgainst_quiet :
-    judgeAgainst .colour [⟨none, none, [.num [255000]], 0⟩] ⟨none, none, [.num [0]], 0⟩ = .fail .apart := by decide
-
-/-- A window sample that is not quiet still bounds a quiet colour. -/
-theorem judgeAgainst_window_not_quiet :
-    judgeAgainst .colour [⟨none, some 0, [.num [255000]], 0⟩] ⟨none, none, [.num [0]], 0⟩ = .fail .apart := by decide
-
-/-- A window sample that is not quiet passes a colour inside its band. -/
-theorem judgeAgainst_window_not_quiet_pass :
-    judgeAgainst .colour [⟨none, some 0, [.num [255000]], 0⟩] ⟨none, none, [.num [255000]], 0⟩ = .pass := by decide
-
-/-- A non-colour kind ignores quiet. -/
-theorem judgeAgainst_other_kind :
-    judgeAgainst .unit [⟨none, none, [.num [1000]], 0⟩] ⟨none, some 0, [.num [0]], 0⟩ = .fail .apart := by decide
+theorem combine_pass : combine [.skip .noSample, .pass] = .pass := by decide
 
 -- Alignment ---------------------------------------------------------------------------------------------------------
 
@@ -567,23 +744,23 @@ theorem window_outside : window [0, 2000, 4000] 9000 = [1, 2] := by decide
 
 The original was sampled over 0 to 0.15 only; the rewrite's 0.98 is not judged against it. -/
 theorem windowOf_beyond :
-    windowOf [⟨some 0, none, [.num [0]], 0⟩, ⟨some 1500, none, [.num [0]], 0⟩] (some 9800) = none := by decide
+    windowOf [⟨some 0, none, [.num [0]], 0, [], 0, 0⟩, ⟨some 1500, none, [.num [0]], 0, [], 0, 0⟩] (some 9800) = none := by decide
 
 /-- Branch beyond reach, below: the same on the low side. -/
 theorem windowOf_beyond_low :
-    windowOf [⟨some 6000, none, [.num [0]], 0⟩, ⟨some 9000, none, [.num [0]], 0⟩] (some 0) = none := by decide
+    windowOf [⟨some 6000, none, [.num [0]], 0, [], 0, 0⟩, ⟨some 9000, none, [.num [0]], 0, [], 0, 0⟩] (some 0) = none := by decide
 
 /-- Branch within reach: the nearest sample (and one frame before it) is the window. -/
 theorem windowOf_within_reach :
-    ((windowOf [⟨some 0, none, [.num [0]], 0⟩, ⟨some 9000, none, [.num [0]], 0⟩] (some 9800)).map List.length) = some 2 := by
+    ((windowOf [⟨some 0, none, [.num [0]], 0, [], 0, 0⟩, ⟨some 9000, none, [.num [0]], 0, [], 0, 0⟩] (some 9800)).map List.length) = some 2 := by
   decide
 
 /-- Branch no morph value in the rewrite sample: no window. -/
-theorem windowOf_rewrite_no_m : windowOf [⟨some 0, none, [.num [0]], 0⟩] none = none := by decide
+theorem windowOf_rewrite_no_m : windowOf [⟨some 0, none, [.num [0]], 0, [], 0, 0⟩] none = none := by decide
 
 /-- Branch no morph value in an original sample: no window, whatever the rewrite's value. -/
 theorem windowOf_orig_no_m :
-    windowOf [⟨some 0, none, [.num [0]], 0⟩, ⟨none, none, [.num [0]], 0⟩] (some 0) = none := by decide
+    windowOf [⟨some 0, none, [.num [0]], 0, [], 0, 0⟩, ⟨none, none, [.num [0]], 0, [], 0, 0⟩] (some 0) = none := by decide
 
 /-- Branch no original sample: no window. -/
 theorem windowOf_orig_empty (m : Option Int) : windowOf [] m = none := by
@@ -621,7 +798,7 @@ theorem windowOf_pooled_beyond :
 
 /-- Branch pooled, a pass without morph values: the other passes still align. -/
 theorem windowOf_pooled_one_pass_no_m :
-    ((windowOf ([⟨none, none, [.num [0]], 0⟩] ++ ramp 1) (some 4000)).getD []).map (·.rep) = [1, 1, 1, 1, 1] := by
+    ((windowOf ([⟨none, none, [.num [0]], 0, [], 0, 0⟩] ++ ramp 1) (some 4000)).getD []).map (·.rep) = [1, 1, 1, 1, 1] := by
   decide
 
 /-- Every sample of a window of one pass is a sample of that pass's input. -/
@@ -745,6 +922,9 @@ theorem window_nonempty (ms : List Int) (m : Int) (h : ms ≠ []) : window ms m 
     decide_eq_true_eq]
   exact ⟨hj, j, hj, ⟨hc, Nat.le_succ _⟩, Nat.le_succ _⟩
 
+/-- No transition under any class set: every sample is at rest. -/
+def atRest : List String → Option Nat := fun _ => none
+
 /-- The unit of a morph value: tenths, clamped. -/
 theorem bucket_values :
     bucket (some 0) = 0 ∧ bucket (some 499) = 0 ∧ bucket (some 500) = 1 ∧ bucket (some 10000) = 10 ∧
@@ -754,19 +934,19 @@ theorem bucket_values :
 
 The original reads `off` at 0.90 and `on` at 0.93; the rewrite reads `on` at 0.92 and passes. -/
 theorem byM_threshold_slack :
-    (byM .push .discrete none [] [⟨some 9000, none, [.str "off"], 0⟩, ⟨some 9300, none, [.str "on"], 0⟩]
-        [⟨some 9200, none, [.str "on"], 0⟩]).getD 9 (9, .skip .noSample) = (9, .pass) := by decide
+    (byM .push 0 .discrete atRest [⟨some 9000, none, [.str "off"], 0, [], 0, 0⟩, ⟨some 9300, none, [.str "on"], 0, [], 0, 0⟩]
+        [⟨some 9200, none, [.str "on"], 0, [], 0, 0⟩]).getD 9 (9, .skip .noSample) = (9, .pass) := by decide
 
 /-- Bug B: a class that stays `off` through the tween is a failure at the buckets where the original has `on`.
 
 The original reads `on` from 0.93; the rewrite (waapi) sets the class only at the end, so at 0.95 it is still `off`. -/
 theorem byM_stale_class :
-    (byM .push .discrete none [] [sm 8000 [.str "off"], sm 8500 [.str "off"], sm 9000 [.str "off"], sm 9300 [.str "on"],
+    (byM .push 0 .discrete atRest [sm 8000 [.str "off"], sm 8500 [.str "off"], sm 9000 [.str "off"], sm 9300 [.str "on"],
         sm 9400 [.str "on"], sm 9500 [.str "on"], sm 9600 [.str "on"], sm 9700 [.str "on"], sm 9900 [.str "on"]]
       [sm 9500 [.str "off"]]).getD 10 (10, .skip .noSample) = (10, .fail .differs) := by decide
 
 /-- Branch empty bucket in a push, the whole of 1 to 9: no rewrite sample is `fail coverage`, never a skip or a pass. -/
-theorem bucketVerdict_push_empty (k : Kind) (d : Option Nat) (seg orig rew : List Samp) (b : Nat) (hb : needsSample b = true)
+theorem bucketVerdict_push_empty (k : Kind) (d : List String → Option Nat) (seg orig rew : List Samp) (b : Nat) (hb : needsSample b = true)
     (h : ∀ r ∈ rew, bucket r.m ≠ b) : bucketVerdict .push k d seg orig rew b = .fail .coverage := by
   have hf : rew.filter (fun r => bucket r.m == b) = [] := by
     apply List.filter_eq_nil_iff.mpr
@@ -775,7 +955,7 @@ theorem bucketVerdict_push_empty (k : Kind) (d : Option Nat) (seg orig rew : Lis
   simp [bucketVerdict, hf, hb]
 
 /-- Branch empty bucket in a hold: a skip. A hold waits at an end of the morph, so its interior buckets are empty by design. -/
-theorem bucketVerdict_hold_empty (k : Kind) (d : Option Nat) (seg orig rew : List Samp) (b : Nat)
+theorem bucketVerdict_hold_empty (k : Kind) (d : List String → Option Nat) (seg orig rew : List Samp) (b : Nat)
     (h : ∀ r ∈ rew, bucket r.m ≠ b) : bucketVerdict .hold k d seg orig rew b = .skip .noSample := by
   have hf : rew.filter (fun r => bucket r.m == b) = [] := by
     apply List.filter_eq_nil_iff.mpr
@@ -784,7 +964,7 @@ theorem bucketVerdict_hold_empty (k : Kind) (d : Option Nat) (seg orig rew : Lis
   simp [bucketVerdict, hf]
 
 /-- Branch empty end bucket in a push: buckets 0, 10 and 11 need no sample (the tween is only crossing them). -/
-theorem bucketVerdict_push_empty_ends (k : Kind) (d : Option Nat) (seg orig : List Samp) :
+theorem bucketVerdict_push_empty_ends (k : Kind) (d : List String → Option Nat) (seg orig : List Samp) :
     bucketVerdict .push k d seg orig [] 0 = .skip .noSample ∧ bucketVerdict .push k d seg orig [] 10 = .skip .noSample ∧
     bucketVerdict .push k d seg orig [] 11 = .skip .noSample := by
   simp [bucketVerdict, needsSample]
@@ -795,7 +975,7 @@ theorem needsSample_edges :
     needsSample 11 = false := by decide
 
 /-- No pass without a sample: a bucket with no rewrite sample is never a pass. -/
-theorem bucketVerdict_empty_not_pass (ph : Phase) (k : Kind) (d : Option Nat) (seg orig rew : List Samp) (b : Nat)
+theorem bucketVerdict_empty_not_pass (ph : Phase) (k : Kind) (d : List String → Option Nat) (seg orig rew : List Samp) (b : Nat)
     (h : ∀ r ∈ rew, bucket r.m ≠ b) : bucketVerdict ph k d seg orig rew b ≠ .pass := by
   have hf : rew.filter (fun r => bucket r.m == b) = [] := by
     apply List.filter_eq_nil_iff.mpr
@@ -805,238 +985,61 @@ theorem bucketVerdict_empty_not_pass (ph : Phase) (k : Kind) (d : Option Nat) (s
 
 /-- Branch no morph value in a push: a rewrite sample the probe could not place on the morph fails in bucket 11. -/
 theorem byM_push_no_m :
-    (byM .push .discrete none [] [sm 0 [.str "on"], sm 10000 [.str "on"]] [s0 [.str "on"]]).getD 11 (11, .pass) =
+    (byM .push 0 .discrete atRest [sm 0 [.str "on"], sm 10000 [.str "on"]] [s0 [.str "on"]]).getD 11 (11, .pass) =
       (11, .fail .coverage) := by decide
 
 /-- Branch no morph value in the original: the phases cannot be aligned, every rewrite sample fails. -/
 theorem byM_orig_no_m :
-    (byM .push .discrete none [] [s0 [.str "on"]] [sm 5000 [.str "on"]]).getD 5 (5, .pass) = (5, .fail .coverage) := by decide
+    (byM .push 0 .discrete atRest [s0 [.str "on"]] [sm 5000 [.str "on"]]).getD 5 (5, .pass) = (5, .fail .coverage) := by decide
 
 /-- Branch beyond reach: the rewrite at 0.98 against an original sampled over 0 to 0.15 is `fail coverage` (it was a skip). -/
 theorem byM_beyond :
-    (byM .push .geometry none [] [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]]).getD 10 (10, .pass) =
+    (byM .push 0 .geometry atRest [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]]).getD 10 (10, .pass) =
       (10, .fail .coverage) := by decide
 
 /-- Branch hold, beyond reach: the same rule holds in a hold. -/
 theorem byM_hold_beyond :
-    (byM .hold .geometry none [] [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]]).getD 10 (10, .pass) =
+    (byM .hold 0 .geometry atRest [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]]).getD 10 (10, .pass) =
       (10, .fail .coverage) := by decide
 
 /-- Branch hold, a sample at the end: an empty interior bucket stays a skip. -/
 theorem byM_hold_interior :
-    (byM .hold .discrete none [] [sm 10000 [.str "on"]] [sm 10000 [.str "on"]]).getD 5 (5, .pass) = (5, .skip .noSample) := by
+    (byM .hold 0 .discrete atRest [sm 10000 [.str "on"]] [sm 10000 [.str "on"]]).getD 5 (5, .pass) = (5, .skip .noSample) := by
   decide
 
 /-- Branch pooled passes, the stuck rewrite: three passes of a ramp against a rewrite that stays at 0 fail at 0.5.
 
 Over the concatenation of the passes the window of 0.5 held the 0 end of the phase and this passed. -/
 theorem byM_pooled_stuck :
-    (byM .push .discrete none [] (ramp 0 ++ ramp 1 ++ ramp 2) [smr 0 5000 [.num [0]]]).getD 5 (5, .pass) = (5, .fail .differs) := by
+    (byM .push 0 .discrete atRest (ramp 0 ++ ramp 1 ++ ramp 2) [smr 0 5000 [.num [0]]]).getD 5 (5, .pass) = (5, .fail .differs) := by
   decide
 
 /-- Branch pooled passes, a ramping rewrite: a rewrite that follows the ramp passes in its bucket. -/
 theorem byM_pooled_ramp :
-    (byM .push .discrete none [] (ramp 0 ++ ramp 1 ++ ramp 2) [smr 0 4000 [.num [4000]]]).getD 4 (4, .fail .differs) = (4, .pass) := by
+    (byM .push 0 .discrete atRest (ramp 0 ++ ramp 1 ++ ramp 2) [smr 0 4000 [.num [4000]]]).getD 4 (4, .fail .differs) = (4, .pass) := by
   decide
 
 /-- Every bucket 0 to 11 gets its own verdict: twelve per phase, in order. -/
-theorem byM_length (ph : Phase) (k : Kind) (d : Option Nat) (seg orig rew : List Samp) : (byM ph k d seg orig rew).length = 12 := by
+theorem byM_length (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (oSeg wSeg : List Samp) :
+    (byM ph p k d oSeg wSeg).length = 12 := by
   simp [byM]
 
 /-- The verdict of a bucket reads only the rewrite samples in that bucket and the original's samples.
 
 A rewrite sample of another bucket cannot change it (unit independence). -/
-theorem bucketVerdict_independent (ph : Phase) (k : Kind) (d : Option Nat) (seg orig rew : List Samp) (b : Nat) (r : Samp)
+theorem bucketVerdict_independent (ph : Phase) (k : Kind) (d : List String → Option Nat) (seg orig rew : List Samp) (b : Nat) (r : Samp)
     (hb : bucket r.m ≠ b) : bucketVerdict ph k d seg orig (r :: rew) b = bucketVerdict ph k d seg orig rew b := by
   simp [bucketVerdict, hb]
 
 /-- A step the original has and the rewrite lacks is a skip. -/
 theorem byStep_missing :
-    byStep .unit none [("s25", ⟨none, none, [.num [750]], 0⟩)] [] = [("s25", .skip .noSample)] := by decide
+    byStep .unit atRest [("s25", ⟨none, none, [.num [750]], 0, [], 0, 0⟩)] [] = [("s25", .skip .noSample)] := by decide
 
 /-- A step is decided by that step's two samples only. -/
 theorem byStep_pair :
-    byStep .unit none [("s25", ⟨none, none, [.num [750]], 0⟩), ("s50", ⟨none, none, [.num [500]], 0⟩)]
-      [("s25", ⟨none, none, [.num [1000]], 0⟩), ("s50", ⟨none, none, [.num [500]], 0⟩)] =
+    byStep .unit atRest [("s25", ⟨none, none, [.num [750]], 0, [], 0, 0⟩), ("s50", ⟨none, none, [.num [500]], 0, [], 0, 0⟩)]
+      [("s25", ⟨none, none, [.num [1000]], 0, [], 0, 0⟩), ("s50", ⟨none, none, [.num [500]], 0, [], 0, 0⟩)] =
     [("s25", .fail .apart), ("s50", .pass)] := by decide
-
-/-! ## Transitions in flight
-
-A property with a declared transition is read at uncontrolled times while it runs, and the two arms start it at different
-frames, so a reading can lie anywhere on the original's curve. The theorems below fix what the window of such a reading
-may do: (a) a rewrite whose samples are the original's never fails (`judgeFlight_self`, `byStep_self`,
-`bucketVerdict_self`); (b) a unit with no sample in flight is judged exactly as before (`judgeFlight_settled`,
-`byStep_settled_differs`); (c) an in-flight reading outside every reading of the window and the transitions still fails
-(`judgeFlight_outside`). -/
-
-#guard settleOf "nav" "background-color" == some 700
-#guard settleOf "earn" "opacity" == some 440
-#guard settleOf "nav" "border-radius" == none
-#guard settleOf "logo" "background-color" == none
-#guard inFlight (some 700) ⟨none, some 899, [], 0⟩
-#guard !inFlight (some 700) ⟨none, some 900, [], 0⟩
-#guard !inFlight none ⟨none, some 0, [], 0⟩
-#guard !inFlight (some 700) ⟨none, none, [], 0⟩
-#guard (crossedPass (some 700) [s0 [.num [0]], ⟨none, some 1000, [.num [1]], 0⟩, ⟨none, some 100, [.num [2]], 0⟩,
-  ⟨none, some 1000, [.num [3]], 0⟩, ⟨none, some 2000, [.num [4]], 0⟩]).map (·.els) = [[.num [1]], [.num [2]], [.num [3]]]
-#guard crossed none [⟨none, some 0, [.num [0]], 0⟩] == []
-#guard crossed (some 700) [⟨none, some 0, [.num [0]], 0⟩, ⟨none, some 0, [.num [1]], 1⟩] ==
-  [⟨none, some 0, [.num [0]], 0⟩, ⟨none, some 0, [.num [1]], 1⟩]
-#guard judgeFlight .colour (some 700) [s0 [.num [0]], ⟨none, some 100, [.num [5000]], 0⟩, s0 [.num [9000]]]
-  [s0 [.num [9000]]] ⟨none, some 100, [.num [4000]], 0⟩ == .pass
-#guard judgeFlight .colour (some 700) [s0 [.num [0]], ⟨none, some 100, [.num [5000]], 0⟩, s0 [.num [9000]]]
-  [s0 [.num [9000]]] ⟨none, some 100, [.num [12000]], 0⟩ == .fail .apart
-#guard judgeFlight .colour (some 700) [] [s0 [.num [9000]]] ⟨none, some 1000, [.num [0]], 0⟩ == .fail .apart
-#guard judgeFlight .colour none [] [s0 [.num [9000]]] ⟨none, some 100, [.num [0]], 0⟩ == .skip .transient
-
-/-- The table's three properties the stored runs failed against themselves, with the part CSS's values. -/
-theorem settleOf_values : settleOf "nav" "background-color" = some 700 ∧ settleOf "earn" "max-width" = some 680 ∧
-    settleOf "earn" "opacity" = some 440 := by decide
-
-/-- A property the part CSS declares no transition on has none. -/
-theorem settleOf_unlisted : settleOf "nav" "border-radius" = none := by decide
-
-/-- Branch no declared transition: never in flight. -/
-theorem inFlight_no_settle (s : Samp) : inFlight none s = false := by simp [inFlight]
-
-/-- Branch no class change: never in flight. -/
-theorem inFlight_no_change (d : Option Nat) (s : Samp) (h : s.since = none) : inFlight d s = false := by
-  cases d <;> simp [inFlight, h]
-
-/-- Branch both known: in flight exactly before the declared time plus the start lag. -/
-theorem inFlight_iff (d t : Nat) (s : Samp) (h : s.since = some t) : inFlight (some d) s = true ↔ t < d + startLag := by
-  simp [inFlight, h]
-
-/-- Every sample `crossedPass` keeps is a sample of the pass. -/
-theorem crossedPass_sub (d : Option Nat) (p : List Samp) (x : Samp) (h : x ∈ crossedPass d p) : x ∈ p := by
-  simp only [crossedPass, List.mem_filterMap] at h
-  obtain ⟨i, _, hi⟩ := h
-  exact List.mem_of_getElem? hi
-
-/-- A sample of a pass read in flight is kept. -/
-theorem mem_crossedPass (d : Option Nat) (p : List Samp) (x : Samp) (hx : x ∈ p) (hf : inFlight d x = true) :
-    x ∈ crossedPass d p := by
-  obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hx
-  simp only [crossedPass, List.mem_filterMap, List.mem_filter, List.mem_range, List.any_eq_true, Bool.and_eq_true,
-    decide_eq_true_eq]
-  refine ⟨i, ⟨hi, i, hi, ⟨?_, Nat.le_succ _⟩, Nat.le_succ _⟩, List.getElem?_eq_getElem hi⟩
-  simp [List.getElem?_eq_getElem hi, hf]
-
-/-- Every sample `crossed` keeps is a sample of the segment. -/
-theorem crossed_sub (d : Option Nat) (seg : List Samp) (x : Samp) (h : x ∈ crossed d seg) : x ∈ seg := by
-  simp only [crossed, List.mem_flatMap] at h
-  obtain ⟨r, _, hx⟩ := h
-  have := crossedPass_sub d _ x hx
-  simp only [passOf, List.mem_filter] at this
-  exact this.1
-
-/-- A sample of the segment read in flight is kept: a reading the original took during a transition bounds the window. -/
-theorem mem_crossed (d : Option Nat) (seg : List Samp) (x : Samp) (hx : x ∈ seg) (hf : inFlight d x = true) :
-    x ∈ crossed d seg := by
-  simp only [crossed, List.mem_flatMap]
-  refine ⟨x.rep, ?_, mem_crossedPass d _ x ?_ hf⟩
-  · simp only [repsOf, List.mem_eraseDups, List.mem_map]
-    exact ⟨x, hx, rfl⟩
-  · simp [passOf, hx]
-
-/-- Without a declared transition nothing is crossed. -/
-theorem crossed_no_settle (seg : List Samp) : crossed none seg = [] := by
-  have h : inFlight none = fun _ => false := funext inFlight_no_settle
-  simp only [crossed, crossedPass, h, List.flatMap_eq_nil_iff, List.filterMap_eq_nil_iff]
-  intro r _ i hi
-  simp only [List.mem_filter, List.mem_range, List.any_eq_true, Bool.and_eq_true, decide_eq_true_eq] at hi
-  obtain ⟨_, j, _, ⟨hj, _⟩, _⟩ := hi
-  cases hp : (passOf seg r)[j]? <;> simp [hp] at hj
-
-/-- No declared transition is the judgement before transitions: `judgeAgainst`. -/
-theorem judgeFlight_no_settle (k : Kind) (seg win : List Samp) (r : Samp) :
-    judgeFlight k none seg win r = judgeAgainst k win r := by
-  simp [judgeFlight, inFlight]
-
-/-- Branch rewrite in flight: the window plus the original's transitions, by `judgeEls`. -/
-theorem judgeFlight_rewrite (k : Kind) (d : Option Nat) (seg win : List Samp) (r : Samp) (h : inFlight d r = true) :
-    judgeFlight k d seg win r = judgeEls k ((win ++ crossed d seg).map (·.els)) r.els := by
-  simp [judgeFlight, h]
-
-/-- Branch window in flight: the same, also when the rewrite's own sample is at rest. -/
-theorem judgeFlight_window (k : Kind) (d : Option Nat) (seg win : List Samp) (r : Samp) (w : Samp) (hw : w ∈ win)
-    (h : inFlight d w = true) : judgeFlight k d seg win r = judgeEls k ((win ++ crossed d seg).map (·.els)) r.els := by
-  have : win.any (inFlight d) = true := List.any_eq_true.mpr ⟨w, hw, h⟩
-  simp [judgeFlight, this]
-
-/-- **(b) A settled unit is judged as before.** No sample in flight: the verdict is `judgeAgainst`, so a settled step
-that differs fails exactly as it did. -/
-theorem judgeFlight_settled (k : Kind) (d : Option Nat) (seg win : List Samp) (r : Samp) (hr : inFlight d r = false)
-    (hw : ∀ w ∈ win, inFlight d w = false) : judgeFlight k d seg win r = judgeAgainst k win r := by
-  have : win.any (inFlight d) = false := by
-    rw [List.any_eq_false]; intro w h; simp [hw w h]
-  simp [judgeFlight, hr, this]
-
-/-- (b) on a step: a background read 1000 ms after the class change (past 700 + `startLag`) that differs still fails,
-also with the original in flight one step earlier. -/
-theorem byStep_settled_differs :
-    byStep .colour (some 700) [("a6", ⟨none, some 100, [.num [1000, 0, 0, 33000]], 0⟩),
-        ("a7", ⟨none, some 1000, [.num [255000, 255000, 255000, 26000]], 0⟩)]
-      [("a6", ⟨none, some 100, [.num [1000, 0, 0, 33000]], 0⟩),
-        ("a7", ⟨none, some 1000, [.num [1000, 0, 0, 26000]], 0⟩)] =
-      [("a6", .pass), ("a7", .fail .apart)] := by decide
-
-/-- A step in flight on the probe's curve (Chromium, 1280 px, run 39455284967): the original settles at a7 while the
-baseline arm, started a few ms later, still runs its transition there and at a6. Both readings lie on the original's
-curve from a5 to a7, so both pass. -/
-theorem byStep_inflight_passes :
-    byStep .colour (some 700) [("a5", ⟨none, some 2222, [.num [255000, 255000, 255000, 122400]], 0⟩),
-        ("a6", ⟨none, some 481, [.num [1000, 0, 0, 33340]], 0⟩),
-        ("a7", ⟨none, some 1134, [.num [255000, 255000, 255000, 26000]], 0⟩)]
-      [("a5", ⟨none, some 1271, [.num [255000, 255000, 255000, 122400]], 0⟩),
-        ("a6", ⟨none, some 327, [.num [1000, 0, 0, 51667]], 0⟩),
-        ("a7", ⟨none, some 703, [.num [1000, 0, 0, 26029]], 0⟩)] =
-      [("a5", .pass), ("a6", .pass), ("a7", .pass)] := by decide
-
-/-- The numbers of a list of one-number readings are those numbers. -/
-theorem numsOf_singles (ys : List Int) : numsOf (ys.map fun y => Val.num [y]) = some (ys.map fun y => [y]) := by
-  induction ys with
-  | nil => rfl
-  | cons y ys ih => simp [numsOf, ih]
-
-/-- A one-number reading beyond every number of a non-empty band, by more than the tolerance, is outside it. -/
-theorem inBand_single_out (t : Int) (ys : List Int) (hne : ys ≠ []) (x : Int)
-    (hx : (∀ y ∈ ys, y + t < x) ∨ (∀ y ∈ ys, x + t < y)) : inBand t (ys.map fun y => [y]) [x] = false := by
-  have hc : (ys.map fun y => [y]).map (·.getD 0 0) = ys := by
-    rw [List.map_map]; exact List.map_id'' (fun _ => rfl) ys
-  obtain ⟨lo, hlo⟩ := Option.isSome_iff_exists.mp (List.isSome_min?_of_ne_nil hne)
-  obtain ⟨hi, hhi⟩ := Option.isSome_iff_exists.mp (List.isSome_max?_of_ne_nil hne)
-  simp only [inBand, List.length_singleton, List.range_one, List.all_cons, List.all_nil, Bool.and_true, hc, hlo, hhi,
-    List.getD_cons_zero, Bool.and_eq_false_iff, decide_eq_false_iff_not]
-  rcases hx with h | h
-  · right; have := h hi (List.max?_mem hhi); omega
-  · left; have := h lo (List.min?_mem hlo); omega
-
-/-- **(c) A value outside the window still fails.** A one-number reading in flight that lies beyond every reading of
-the window and of the original's transitions, by more than the tolerance, fails `apart`; the start lag widens only which
-readings are compared with the transitions, never how far a reading may lie from them. -/
-theorem judgeFlight_outside (k : Kind) (hk : k ≠ .discrete) (d : Option Nat) (seg win : List Samp) (r : Samp)
-    (hf : inFlight d r = true ∨ ∃ w ∈ win, inFlight d w = true) (ys : List Int)
-    (hW : (win ++ crossed d seg).map (·.els) = ys.map fun y => [Val.num [y]]) (hne : ys ≠ []) (x : Int)
-    (hr : r.els = [.num [x]]) (hx : (∀ y ∈ ys, y + tol k < x) ∨ (∀ y ∈ ys, x + tol k < y)) :
-    judgeFlight k d seg win r = .fail .apart := by
-  have heq : judgeFlight k d seg win r = judgeEls k ((win ++ crossed d seg).map (·.els)) r.els := by
-    rcases hf with h | ⟨w, hw, h⟩
-    · exact judgeFlight_rewrite k d seg win r h
-    · exact judgeFlight_window k d seg win r w hw h
-  have hcol : (ys.map fun y => [Val.num [y]]).map (·.getD 0 .absent) = ys.map fun y => Val.num [y] := by
-    rw [List.map_map]; rfl
-  have hval : judgeVal k (ys.map fun y => Val.num [y]) (.num [x]) = .fail .apart := by
-    have hk' : (k == .discrete) = false := by cases k <;> simp_all
-    have habs : (ys.map fun y => Val.num [y]).any (· == .absent) = false := by simp
-    have hlen : (ys.map fun y => [y]).any (·.length != [x].length) = false := by simp
-    simp only [judgeVal, List.isEmpty_iff, List.map_eq_nil_iff, hne, habs, numsOf_singles, hlen, hk',
-      inBand_single_out (tol k) ys hne x hx, Bool.false_eq_true, ↓reduceIte]
-  rw [heq, hW, hr]
-  have hany : ((ys.map fun y => [Val.num [y]]).any fun x => x.length != 1) = false := by simp
-  simp only [judgeEls, List.isEmpty_iff, List.map_eq_nil_iff, hne, hany, Bool.false_eq_true, ↓reduceIte,
-    List.length_singleton, List.range_one, List.map_cons, List.map_nil, List.getD_cons_zero, hcol, hval]
-  rfl
 
 /-- The form of a reading: absent, a string, or a number of `n` components. Two readings of one property in one arm
 share it unless an element appears or disappears. -/
@@ -1055,7 +1058,7 @@ def Val.form : Val → Form
 /-- The forms of a sample's elements. -/
 def Samp.form (s : Samp) : List Form := s.els.map Val.form
 
-#guard (⟨none, none, [.absent, .str "a", .num [1, 2]], 0⟩ : Samp).form == [.absent, .str, .num 2]
+#guard (⟨none, none, [.absent, .str "a", .num [1, 2]], 0, [], 0, 0⟩ : Samp).form == [.absent, .str, .num 2]
 
 /-- Verdicts none of which fails combine to one that does not fail. -/
 theorem combine_no_fail (vs : List Verdict) (h : ∀ v ∈ vs, isFail v = false) : isFail (combine vs) = false := by
@@ -1178,27 +1181,202 @@ theorem judgeEls_self (k : Kind) (win : List (List Val)) (r : List Val) (hr : r 
     obtain ⟨w, hw, rfl⟩ := hv
     exact form_getD w r (hf w hw) i
 
-/-- **(a) A reading the original took is never failed.** A rewrite sample that is one of its window's samples, of the
-form of the window and of the original's transitions, never fails, in flight or not. -/
-theorem judgeFlight_self (k : Kind) (d : Option Nat) (seg win : List Samp) (r : Samp) (hr : r ∈ win)
-    (hf : ∀ s ∈ win ++ crossed d seg, s.form = r.form) : isFail (judgeFlight k d seg win r) = false := by
-  unfold judgeFlight
+/-- A sample in flight has a `since`. -/
+theorem inFlight_iff (d : List String → Option Nat) (s : Samp) :
+    inFlight d s = true ↔ ∃ t x, d s.cls = some t ∧ s.since = some x ∧ x < t + startLag := by
+  unfold inFlight
+  split <;> simp_all
+
+/-- Branch no transition: a sample whose classes select no transition is never in flight. -/
+theorem inFlight_no_transition (d : List String → Option Nat) (s : Samp) (h : d s.cls = none) :
+    inFlight d s = false := by
+  simp [inFlight, h]
+
+/-- Branch no class change: a sample read before any class change of the nav is never in flight. -/
+theorem inFlight_no_change (d : List String → Option Nat) (s : Samp) (h : s.since = none) : inFlight d s = false := by
+  unfold inFlight
+  split <;> simp_all
+
+/-- A sample is in its own epoch. -/
+theorem inEpoch_self (r : Samp) : inEpoch r r = true := by simp [inEpoch]
+
+/-- A sample with a `since` is in its own core. -/
+theorem isCore_self (r : Samp) (h : r.since.isSome) : isCore r r = true := by
+  obtain ⟨x, hx⟩ := Option.isSome_iff_exists.mp h
+  simp [isCore, inEpoch_self, hx]
+
+/-- The window of a transition holds only samples of the original, of the rewrite sample's pass. -/
+theorem flightWindow_sub (seg : List Samp) (r x : Samp) (h : x ∈ flightWindow seg r) : x ∈ seg ∧ x.rep = r.rep := by
+  unfold flightWindow at h
+  simp only at h
+  split at h
+  · simp at h
+  · simp only [List.mem_filterMap] at h
+    obtain ⟨i, _, hi⟩ := h
+    cases hp : (passOf seg r.rep)[i]? with
+    | none => simp [hp] at hi
+    | some o =>
+      simp only [hp, Option.bind_some] at hi
+      split at hi
+      · cases hi
+        have := List.mem_of_getElem? hp
+        simp only [passOf, List.mem_filter, beq_iff_eq] at this
+        exact this
+      · simp at hi
+
+/-- A sample of the original with a `since` is in the window of its own transition. -/
+theorem mem_flightWindow_self (seg : List Samp) (r : Samp) (hr : r ∈ seg) (hs : r.since.isSome) :
+    r ∈ flightWindow seg r := by
+  have hp : r ∈ passOf seg r.rep := by simp [passOf, hr]
+  obtain ⟨i, hi, hpi⟩ := List.mem_iff_getElem.mp hp
+  have hc : isCore r r = true := isCore_self r hs
+  have hcore : i ∈ (List.range (passOf seg r.rep).length).filter
+      (fun i => ((passOf seg r.rep)[i]?.map (isCore r)).getD false) := by
+    simp [hi, hpi, hc]
+  unfold flightWindow
+  simp only
   split
-  · apply judgeEls_self
-    · exact List.mem_map_of_mem (List.mem_append_left _ hr)
-    · intro w hw
-      simp only [List.mem_map] at hw
-      obtain ⟨s, hs, rfl⟩ := hw
-      exact hf s hs
-  · unfold judgeAgainst
+  · rename_i he
+    exact absurd hcore (by rw [List.isEmpty_iff.mp he]; simp)
+  · simp only [List.mem_filterMap, List.mem_range]
+    refine ⟨i, hi, ?_⟩
+    simp only [List.getElem?_eq_getElem hi, hpi, Option.bind_some]
+    have hor : ((((List.range (passOf seg r.rep).length).filter
+        (fun i => ((passOf seg r.rep)[i]?.map (isCore r)).getD false)).contains (i + 1) &&
+        ((List.range (passOf seg r.rep).length).filter
+        (fun i => ((passOf seg r.rep)[i]?.map (isCore r)).getD false)).all fun c => decide (i + 1 ≤ c)) ||
+        (inEpoch r r && ((List.range (passOf seg r.rep).length).filter
+        (fun i => ((passOf seg r.rep)[i]?.map (isCore r)).getD false)).any (fun a => decide (a ≤ i)) &&
+        ((List.range (passOf seg r.rep).length).filter
+        (fun i => ((passOf seg r.rep)[i]?.map (isCore r)).getD false)).any fun b => decide (i ≤ b + 1))) = true := by
+      rw [Bool.or_eq_true]
+      right
+      simp only [inEpoch_self, Bool.true_and, Bool.and_eq_true, List.any_eq_true, decide_eq_true_eq]
+      exact ⟨⟨i, hcore, Nat.le_refl _⟩, ⟨i, hcore, Nat.le_succ _⟩⟩
     split
     · rfl
+    · rename_i hn; exact absurd hor hn
+
+/-- The settled reading of a window sample is not in flight. -/
+theorem settledRef_settled (d : List String → Option Nat) (seg : List Samp) (w e : Samp)
+    (h : settledRef d seg w = some e) : inFlight d e = false := by
+  unfold settledRef at h
+  split at h
+  · rename_i hc; cases h; simpa using hc
+  · split at h
+    · split at h
+      · simp at h
+      · rename_i hc; cases h; simpa using hc
+    · simp at h
+
+/-- The settled reading of a window sample is the sample itself, or a sample of the original in its epoch: the epoch's
+last. -/
+theorem settledRef_mem (d : List String → Option Nat) (seg : List Samp) (w e : Samp)
+    (h : settledRef d seg w = some e) : e = w ∨ (e ∈ seg ∧ inEpoch w e = true) := by
+  unfold settledRef at h
+  split at h
+  · cases h; left; rfl
+  · split at h
+    · rename_i e' he
+      split at h
+      · simp at h
+      · cases h
+        right
+        have := List.mem_of_getLast? he
+        simpa using this
+    · simp at h
+
+/-- A window sample at rest is its own settled reading. -/
+theorem settledRef_rest (d : List String → Option Nat) (seg : List Samp) (w : Samp) (h : inFlight d w = false) :
+    settledRef d seg w = some w := by
+  simp [settledRef, h]
+
+/-- Dropping the channels keeps two readings of one form of one form. -/
+theorem map_alpha_form (a b : List Val) (h : a.map Val.form = b.map Val.form) :
+    (a.map Val.alpha).map Val.form = (b.map Val.alpha).map Val.form := by
+  induction a generalizing b with
+  | nil => cases b <;> simp_all
+  | cons x xs ih =>
+    cases b with
+    | nil => simp at h
+    | cons y ys =>
+      simp only [List.map_cons, List.cons.injEq] at h ⊢
+      refine ⟨?_, ih ys h.2⟩
+      have h1 := h.1
+      cases x <;> cases y <;> simp_all [Val.alpha, Val.form]
+
+/-- **(a) for a colour in flight.** A rewrite sample that is a sample of the core and of the window, all of whose
+samples share its form, never fails. -/
+theorem judgeColour_self (core fw : List Samp) (r : Samp) (hc : r ∈ core) (hw : r ∈ fw)
+    (hf : ∀ x ∈ fw, x.form = r.form) : isFail (judgeColour core fw r) = false := by
+  unfold judgeColour
+  apply combine_no_fail
+  intro v hv
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hv
+  rcases hv with rfl | rfl
+  · unfold matchOne
+    have hany : ((core.map fun s => s.els.map Val.chan).map fun w => judgeEls .colour [w] (r.els.map Val.chan)).any
+        (fun v => !isFail v) = true := by
+      rw [List.any_eq_true]
+      refine ⟨judgeEls .colour [r.els.map Val.chan] (r.els.map Val.chan), ?_, ?_⟩
+      · exact List.mem_map.mpr ⟨r.els.map Val.chan, List.mem_map.mpr ⟨r, hc, rfl⟩, rfl⟩
+      · have := judgeEls_self .colour [r.els.map Val.chan] (r.els.map Val.chan) (List.mem_singleton_self _)
+          (by simp)
+        simp [this]
+    dsimp only
+    rw [hany]
+    rfl
+  · apply judgeEls_self
+    · exact List.mem_map.mpr ⟨r, hw, rfl⟩
+    · intro e he
+      simp only [List.mem_map] at he
+      obtain ⟨x, hx, rfl⟩ := he
+      exact map_alpha_form _ _ (hf x hx)
+
+/-- **(a) One unit.** A rewrite sample that is a sample of the original, in its own window `w` of samples of the original,
+never fails, in flight or not, when every sample of the original shares its form. -/
+theorem judgeUnit_self (k : Kind) (d : List String → Option Nat) (seg w : List Samp) (r : Samp) (hr : r ∈ seg)
+    (hrw : r ∈ w) (hw : ∀ x ∈ w, x ∈ seg) (hf : ∀ x ∈ seg, x.form = r.form) :
+    isFail (judgeUnit k d seg (some w) r) = false := by
+  unfold judgeUnit
+  split
+  · rename_i hfl
+    have hs : r.since.isSome := by
+      obtain ⟨_, x, _, hx, _⟩ := (inFlight_iff d r).1 hfl
+      simp [hx]
+    have hin := mem_flightWindow_self seg r hr hs
+    have hne : (flightWindow seg r).isEmpty = false := by
+      cases h : flightWindow seg r with
+      | nil => simp [h] at hin
+      | cons _ _ => rfl
+    have hsub : ∀ x ∈ flightWindow seg r, x.form = r.form := fun x hx => hf x (flightWindow_sub seg r x hx).1
+    simp only [hne, Bool.false_eq_true, ↓reduceIte]
+    split
+    · exact judgeColour_self _ _ r (List.mem_filter.mpr ⟨hin, isCore_self r hs⟩) hin hsub
     · apply judgeEls_self
-      · exact List.mem_map_of_mem hr
-      · intro w hw
-        simp only [List.mem_map] at hw
-        obtain ⟨s, hs, rfl⟩ := hw
-        exact hf s (List.mem_append_left _ hs)
+      · exact List.mem_map.mpr ⟨r, hin, rfl⟩
+      · intro e he
+        simp only [List.mem_map] at he
+        obtain ⟨x, hx, rfl⟩ := he
+        exact hsub x hx
+  · rename_i hfl
+    have hfl' : inFlight d r = false := by simpa using hfl
+    have hr' : r ∈ w.filterMap (settledRef d seg) :=
+      List.mem_filterMap.mpr ⟨r, hrw, settledRef_rest d seg r hfl'⟩
+    have hne : (w.filterMap (settledRef d seg)).isEmpty = false := by
+      cases h : w.filterMap (settledRef d seg) with
+      | nil => simp [h] at hr'
+      | cons _ _ => rfl
+    simp only [hne, Bool.false_eq_true, ↓reduceIte]
+    apply judgeEls_self
+    · exact List.mem_map.mpr ⟨r, hr', rfl⟩
+    · intro e he
+      simp only [List.mem_map, List.mem_filterMap] at he
+      obtain ⟨x, ⟨y, hy, hxy⟩, rfl⟩ := he
+      apply hf
+      rcases settledRef_mem d seg y x hxy with h1 | h1
+      · rw [h1]; exact hw y hy
+      · exact h1.1
 
 /-- A step of a list with distinct steps is found at its own entry. -/
 theorem find_step (orig : List (String × Samp)) (hn : (orig.map (·.1)).Nodup) (s : String) (o : Samp)
@@ -1213,22 +1391,47 @@ theorem find_step (orig : List (String × Samp)) (hn : (orig.map (·.1)).Nodup) 
         intro he; exact hn.1 ⟨(s, o), h1, he.symm⟩
       simp [hne, ih hn.2 h1]
 
+/-- Annotating keeps the number of samples. -/
+theorem annotate_length (seg : List Samp) : (annotate seg).length = seg.length := by
+  simp [annotate]
+
+/-- An annotated sample is a sample of the list with its `ord` set. -/
+theorem annotate_mem (seg : List Samp) (x : Samp) (h : x ∈ annotate seg) : ∃ s ∈ seg, ∃ o, x = { s with ord := o } := by
+  simp only [annotate, List.mem_mapIdx] at h
+  obtain ⟨i, hi, rfl⟩ := h
+  exact ⟨seg[i], List.getElem_mem hi, _, rfl⟩
+
+/-- Every sample of the list is in its annotation, with its `ord` set. -/
+theorem mem_annotate (seg : List Samp) (s : Samp) (h : s ∈ seg) : ∃ o, { s with ord := o } ∈ annotate seg := by
+  obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp h
+  exact ⟨_, List.mem_mapIdx.mpr ⟨i, hi, rfl⟩⟩
+
 /-- **(a) on a path of steps.** An arm whose samples are the original's, step for step, never fails a step, in flight or
 not, when the original's steps are distinct and its samples share a form. -/
-theorem byStep_self (k : Kind) (d : Option Nat) (orig : List (String × Samp)) (hn : (orig.map (·.1)).Nodup)
-    (hf : ∀ a ∈ orig, ∀ b ∈ orig, a.2.form = b.2.form) : ∀ v ∈ byStep k d orig orig, isFail v.2 = false := by
+theorem byStep_self (k : Kind) (d : List String → Option Nat) (orig : List (String × Samp))
+    (hn : (orig.map (·.1)).Nodup) (hf : ∀ a ∈ orig, ∀ b ∈ orig, a.2.form = b.2.form) :
+    ∀ v ∈ byStep k d orig orig, isFail v.2 = false := by
   intro v hv
+  have hlen : (orig.map (·.1)).length ≤ (annotate (orig.map (·.2))).length := by simp [annotate_length]
+  have hn' : (((orig.map (·.1)).zip (annotate (orig.map (·.2)))).map (·.1)).Nodup := by
+    rw [List.map_fst_zip hlen]; exact hn
   simp only [byStep, List.mem_map] at hv
   obtain ⟨⟨s, o⟩, hmem, rfl⟩ := hv
-  simp only [find_step orig hn s o hmem]
-  apply judgeFlight_self k d _ [o] o (List.mem_singleton_self _)
-  intro x hx
-  rcases List.mem_append.mp hx with h1 | h1
-  · rw [List.mem_singleton.mp h1]
-  · have := crossed_sub d _ x h1
-    simp only [List.mem_map] at this
-    obtain ⟨a, ha, rfl⟩ := this
-    exact hf a ha (s, o) hmem
+  simp only [find_step _ hn' s o hmem]
+  have ho := (List.of_mem_zip hmem).2
+  have hform : ∀ x ∈ annotate (orig.map (·.2)), ∃ a ∈ orig, x.form = a.2.form := by
+    intro x hx
+    obtain ⟨t, ht, _, rfl⟩ := annotate_mem _ x hx
+    simp only [List.mem_map] at ht
+    obtain ⟨a, ha, rfl⟩ := ht
+    exact ⟨a, ha, rfl⟩
+  apply judgeUnit_self k d _ [o] o ho (List.mem_singleton_self _)
+  · intro x hx; rw [List.mem_singleton.mp hx]; exact ho
+  · intro x hx
+    obtain ⟨a, ha, hxa⟩ := hform x hx
+    obtain ⟨b, hb, hob⟩ := hform o ho
+    rw [hxa, hob]
+    exact hf a ha b hb
 
 /-- A sample's own morph value aligns it to itself: its index is in the window of its value. -/
 theorem window_self (ms : List Int) (m : Int) (j : Nat) (hj : j < ms.length) (hm : ms.getD j 0 = m) :
@@ -1290,11 +1493,11 @@ theorem windowOf_self (orig : List Samp) (r : Samp) (hr : r ∈ orig) (hm : ∀ 
   | none => simp [hw] at h2
   | some w => exact ⟨w, rfl, by simpa [hw] using h2⟩
 
-/-- **(a) on the morph path.** An arm whose samples are the original's, at every pass, never fails a bucket it has a
-sample in, in flight or not, when every sample of the original has a morph value and the original's samples and its
-transition path share a form. -/
-theorem bucketVerdict_self (ph : Phase) (k : Kind) (d : Option Nat) (seg orig : List Samp) (b : Nat)
-    (hm : ∀ s ∈ orig, s.m.isSome) (hf : ∀ a ∈ orig ++ seg, ∀ c ∈ orig ++ seg, a.form = c.form)
+/-- **(a) on the morph path.** An arm whose samples are the original's never fails a bucket it has a sample in, in flight
+or not, when every sample of the original has a morph value, the phase's samples are samples of the whole path, and the
+path's samples share a form. -/
+theorem bucketVerdict_self (ph : Phase) (k : Kind) (d : List String → Option Nat) (seg orig : List Samp) (b : Nat)
+    (hm : ∀ s ∈ orig, s.m.isSome) (ho : ∀ s ∈ orig, s ∈ seg) (hf : ∀ a ∈ seg, ∀ c ∈ seg, a.form = c.form)
     (hb : ∃ s ∈ orig, bucket s.m = b) : isFail (bucketVerdict ph k d seg orig orig b) = false := by
   obtain ⟨s0, hs0, hsb⟩ := hb
   have hin : s0 ∈ orig.filter (fun r => bucket r.m == b) := List.mem_filter.mpr ⟨hs0, by simp [hsb]⟩
@@ -1308,23 +1511,382 @@ theorem bucketVerdict_self (ph : Phase) (k : Kind) (d : Option Nat) (seg orig : 
     obtain ⟨r, hr, rfl⟩ := hv
     have hro : r ∈ orig := by rw [← hfl] at hr; exact (List.mem_filter.mp hr).1
     obtain ⟨w, hw, hrw⟩ := windowOf_self orig r hro hm
-    simp only [judgeIn, hw]
-    apply judgeFlight_self k d seg w r hrw
-    intro x hx
-    apply hf x _ r (List.mem_append_left _ hro)
-    rcases List.mem_append.mp hx with h1 | h1
-    · have hx' : x ∈ (windowOf orig r.m).getD [] := by simp [hw, h1]
+    rw [hw]
+    apply judgeUnit_self k d seg w r (ho r hro) hrw
+    · intro x hx
+      have hx' : x ∈ (windowOf orig r.m).getD [] := by simp [hw, hx]
       have := windowOne_sub _ _ _ ((windowOf_pass_iff orig r.m x).mp hx')
       simp only [passOf, List.mem_filter] at this
-      exact List.mem_append_left _ this.1
-    · exact List.mem_append_right _ (crossed_sub d seg x h1)
+      exact ho x this.1
+    · intro x hx
+      exact hf x hx r (ho r hro)
+
+/-- **(a) on a phase.** An arm whose path is the original's never fails a bucket of a phase the original has a sample in,
+in flight or not, when every sample has a morph value and all share a form. -/
+theorem byM_self (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (oSeg : List Samp)
+    (hm : ∀ s ∈ oSeg, s.m.isSome) (hf : ∀ a ∈ oSeg, ∀ c ∈ oSeg, a.form = c.form) (v : Nat × Verdict)
+    (hv : v ∈ byM ph p k d oSeg oSeg) (hb : ∃ s ∈ oSeg, s.ph = p ∧ bucket s.m = v.1) : isFail v.2 = false := by
+  simp only [byM, List.mem_map] at hv
+  obtain ⟨b, _, rfl⟩ := hv
+  apply bucketVerdict_self
+  · intro s hs
+    obtain ⟨t, ht, _, rfl⟩ := annotate_mem _ s (List.mem_filter.mp hs).1
+    exact hm t ht
+  · intro s hs; exact (List.mem_filter.mp hs).1
+  · intro a ha c hc
+    obtain ⟨t, ht, _, rfl⟩ := annotate_mem _ a ha
+    obtain ⟨u, hu, _, rfl⟩ := annotate_mem _ c hc
+    exact hf t ht u hu
+  · obtain ⟨s, hs, hp, hsb⟩ := hb
+    obtain ⟨o, ho⟩ := mem_annotate oSeg s hs
+    exact ⟨_, List.mem_filter.mpr ⟨ho, by simp [hp]⟩, hsb⟩
+
+/-! ## Transitions in flight -/
+
+/-- No rule for reduced motion applies: the probe runs with no motion preference. -/
+theorem applies_reduce (r : Rule) (node : String) (width : Nat) (cls : List String) (h : r.reduce = true) :
+    applies r node width cls = false := by
+  simp [applies, h]
+
+/-- Branch driver: while the morph's script drives the nav, no property has a transition. -/
+theorem durOf_driver (node prop : String) (width : Nat) (cls : List String) (h : cls.contains driver = true) :
+    durOf node prop width cls = none := by
+  have : driver ∈ cls := by simpa using h
+  simp [durOf, this]
+
+/-- The transitions of the table under their class sets.
+
+At rest the nav's box moves for 680 ms and its background for 700. Visibility switches with no delay unless the nav
+hides on scroll. A hero pill that is not ready has no transition; a ready one fades in 700 ms when wider than 600 px,
+280 below. The earn button fades in 440 ms (120 of delay), 200 in the hero pill. The gap has none while the morph runs. -/
+theorem durOf_values :
+    durOf "nav" "rect" 1280 [] = some 680 ∧ durOf "nav" "background-color" 1280 [] = some 700 ∧
+    durOf "nav" "visibility" 1280 [] = none ∧ durOf "nav" "visibility" 1280 ["is-scroll-hidden"] = some 320 ∧
+    durOf "nav" "opacity" 1280 ["is-hero-pill", "is-hero-chrome-ready"] = some 700 ∧
+    durOf "nav" "opacity" 390 ["is-hero-pill", "is-hero-chrome-ready"] = some 280 ∧
+    durOf "nav" "opacity" 1280 ["is-hero-pill"] = none ∧
+    durOf "earn" "opacity" 1280 [] = some 440 ∧ durOf "earn" "opacity" 1280 ["is-hero-pill"] = some 200 ∧
+    durOf "actions" "gap" 1280 [] = some 680 ∧ durOf "actions" "gap" 1280 ["is-morphing"] = none ∧
+    durOf "logo" "color" 1280 [] = some 240 ∧ durOf "nav" "border-radius" 1280 [] = none := by decide
+
+/-- Branch in flight, no original sample in the transition, no counterpart: `fail coverage`. -/
+theorem judgeUnit_flight_uncovered (k : Kind) (d : List String → Option Nat) (seg : List Samp) (r : Samp)
+    (hfl : inFlight d r = true) (he : flightWindow seg r = []) : judgeUnit k d seg none r = .fail .coverage := by
+  simp [judgeUnit, hfl, he]
+
+/-- Branch in flight, no original sample in the transition: the rewrite sample is judged against its window `w`. -/
+theorem judgeUnit_flight_fallback (k : Kind) (d : List String → Option Nat) (seg w : List Samp) (r : Samp)
+    (hfl : inFlight d r = true) (he : flightWindow seg r = []) :
+    judgeUnit k d seg (some w) r = judgeEls k (w.map (·.els)) r.els := by
+  simp [judgeUnit, hfl, he]
+
+/-- Branch in flight, a colour: the channels against the core, the alpha against the transition's window. -/
+theorem judgeUnit_flight_colour (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp)) (r : Samp)
+    (hfl : inFlight d r = true) (hne : flightWindow seg r ≠ []) :
+    judgeUnit .colour d seg win r = judgeColour ((flightWindow seg r).filter (isCore r)) (flightWindow seg r) r := by
+  have : (flightWindow seg r).isEmpty = false := by cases h : flightWindow seg r <;> simp_all
+  simp [judgeUnit, hfl, this]
+
+/-- Branch in flight, not a colour: the rewrite sample against the original's samples of the same transition. -/
+theorem judgeUnit_flight_els (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
+    (r : Samp) (hk : k ≠ .colour) (hfl : inFlight d r = true) (hne : flightWindow seg r ≠ []) :
+    judgeUnit k d seg win r = judgeEls k ((flightWindow seg r).map (·.els)) r.els := by
+  have : (flightWindow seg r).isEmpty = false := by cases h : flightWindow seg r <;> simp_all
+  simp [judgeUnit, hfl, this, hk]
+
+/-- Branch at rest, no counterpart: `fail coverage`. -/
+theorem judgeUnit_settled_uncovered (k : Kind) (d : List String → Option Nat) (seg : List Samp) (r : Samp)
+    (hfl : inFlight d r = false) : judgeUnit k d seg none r = .fail .coverage := by
+  simp [judgeUnit, hfl]
+
+/-- **(b) A settled rewrite sample.** At rest, the rewrite sample is judged against the settled readings its window
+stands for, whatever the original's samples are; `fail coverage` when the original never settled there. Each of those
+readings is at rest (`settledRef_settled`) and is the window's sample or the end of its epoch (`settledRef_mem`). -/
+theorem judgeUnit_settled (k : Kind) (d : List String → Option Nat) (seg w : List Samp) (r : Samp)
+    (hfl : inFlight d r = false) :
+    judgeUnit k d seg (some w) r =
+      if (w.filterMap (settledRef d seg)).isEmpty then .fail .coverage
+      else judgeEls k ((w.filterMap (settledRef d seg)).map (·.els)) r.els := by
+  simp [judgeUnit, hfl]
+
+/-- The transition of the nav's background at 1280 px, by class set. -/
+def bgDur : List String → Option Nat := durOf "nav" "background-color" 1280
+
+/-- The transition of the nav's visibility at 1280 px, by class set. -/
+def visDur : List String → Option Nat := durOf "nav" "visibility" 1280
+
+/-- **(b) on steps.** A settled rewrite reading pure red, then pure green, fails against a white the original reads in
+flight at the first step and settled at the second. -/
+theorem byStep_settled_red_green :
+    byStep .colour bgDur
+      [("a6", ⟨none, some 100, [.num [1000, 0, 0, 33340]], 0, [], 0, 0⟩),
+        ("a7", ⟨none, some 5000, [.num [255000, 255000, 255000, 26000]], 0, [], 0, 0⟩)]
+      [("a6", ⟨none, some 5000, [.num [255000, 0, 0, 100000]], 0, [], 0, 0⟩),
+        ("a7", ⟨none, some 5100, [.num [0, 255000, 0, 26000]], 0, [], 0, 0⟩)] =
+    [("a6", .fail .apart), ("a7", .fail .apart)] := by decide
+
+/-- A settled rewrite reading the end value passes where the original was in flight. -/
+theorem byStep_settled_end :
+    byStep .colour bgDur
+      [("a6", ⟨none, some 100, [.num [1000, 0, 0, 33340]], 0, [], 0, 0⟩),
+        ("a7", ⟨none, some 5000, [.num [255000, 255000, 255000, 26000]], 0, [], 0, 0⟩)]
+      [("a6", ⟨none, some 5000, [.num [255000, 255000, 255000, 26000]], 0, [], 0, 0⟩)] =
+    [("a6", .pass), ("a7", .skip .noSample)] := by decide
+
+/-- A settled rewrite step against an original that never settled in that epoch is `fail coverage`, never a pass. -/
+theorem byStep_settled_unsettled :
+    byStep .discrete visDur [("s2", ⟨none, some 100, [.str "visible"], 0, ["is-scroll-hidden"], 0, 0⟩)]
+      [("s2", ⟨none, some 9000, [.str "hidden"], 0, ["is-scroll-hidden"], 0, 0⟩)] = [("s2", .fail .coverage)] := by
+  decide
+
+/-- The transition of the nav's box at 1280 px, by class set. -/
+def rectDur : List String → Option Nat := durOf "nav" "rect" 1280
+
+/-- A push of the nav's box in flight: the morph value `m` at `since` = `m` / 12.5 ms, the box `[0, 0, w, 64000]` with
+`w` from 400 to 800 px. -/
+def rectRamp (rev : Bool) : List Samp :=
+  [0, 2000, 4000, 6000, 8000, 10000].map fun m =>
+    ⟨some m, some (m / 25 * 2).toNat, [.num [0, 0, 400000 + 40 * (if rev then 10000 - m else m), 64000]], 0, [], 0, 0⟩
+
+/-- **The reversed curve fails in flight.** A rewrite whose box at `m` is the original's at `1 - m` fails at 0.2, though
+every sample is within the transition of the class change. -/
+theorem byM_reversed_in_flight :
+    (byM .push 0 .geometry rectDur (rectRamp false) (rectRamp true)).getD 2 (2, .pass) = (2, .fail .apart) := by
+  decide
+
+/-- Component `j` of element `i` lies more than `t` beyond every reading of `win` on one side of the number `x`, every
+reading having `n` elements and its element `i` being `len` numbers. -/
+def Outside (t : Int) (i j n len : Nat) (x : Int) (win : List (List Val)) : Prop :=
+  (∀ w ∈ win, w.length = n ∧ ∃ ys, w.getD i .absent = .num ys ∧ ys.length = len) ∧
+    ((∀ w ∈ win, ∀ ys, w.getD i .absent = .num ys → ys.getD j 0 + t < x) ∨
+      (∀ w ∈ win, ∀ ys, w.getD i .absent = .num ys → x + t < ys.getD j 0))
+
+/-- The numbers a window yields are readings of the window. -/
+theorem numsOf_mem (win : List Val) (ns : List (List Int)) (h : numsOf win = some ns) (ys : List Int) (hy : ys ∈ ns) :
+    Val.num ys ∈ win := by
+  induction win generalizing ns with
+  | nil => simp [numsOf] at h; subst h; simp at hy
+  | cons v rest ih =>
+    cases v with
+    | num xs =>
+      simp only [numsOf] at h
+      cases hr : numsOf rest with
+      | none => simp [hr] at h
+      | some ns' =>
+        simp only [hr, Option.map_some, Option.some.injEq] at h
+        subst h
+        rcases List.mem_cons.mp hy with h1 | h1
+        · subst h1; exact List.mem_cons_self ..
+        · exact List.mem_cons_of_mem _ (ih ns' hr h1)
+    | absent => simp [numsOf] at h
+    | str _ => simp [numsOf] at h
+
+/-- Verdicts one of which fails combine to a failure. -/
+theorem combine_fail_of_mem (vs : List Verdict) (h : ∃ v ∈ vs, isFail v = true) : isFail (combine vs) = true := by
+  obtain ⟨v, hv, hf⟩ := h
+  unfold combine
+  cases hfind : vs.find? (fun v => match v with | .fail _ => true | _ => false) with
+  | some f =>
+    have := List.find?_some hfind
+    cases f <;> simp_all [isFail]
+  | none =>
+    rw [List.find?_eq_none] at hfind
+    have := hfind v hv
+    cases v <;> simp_all [isFail]
+
+/-- A number whose component `j` lies more than the tolerance beyond every reading of the window, on one side, fails. -/
+theorem judgeVal_outside (k : Kind) (win : List Val) (xs : List Int) (j : Nat) (hj : j < xs.length) (hne : win ≠ [])
+    (hw : ∀ v ∈ win, ∃ ys, v = .num ys ∧ ys.length = xs.length)
+    (hout : (∀ ys, Val.num ys ∈ win → ys.getD j 0 + tol k < xs.getD j 0) ∨
+      (∀ ys, Val.num ys ∈ win → xs.getD j 0 + tol k < ys.getD j 0)) :
+    isFail (judgeVal k win (.num xs)) = true := by
+  have he : win.isEmpty = false := by cases win <;> simp_all
+  have hab : win.any (· == .absent) = false := by
+    rw [List.any_eq_false]; intro v hv; obtain ⟨ys, rfl, _⟩ := hw v hv; simp
+  obtain ⟨ns, hns, hall, hl⟩ :=
+    numsOf_all win xs.length (fun v hv => by obtain ⟨ys, rfl, hy⟩ := hw v hv; simp [Val.form, hy])
+  have hlen : ns.any (·.length != xs.length) = false := by
+    rw [List.any_eq_false]; intro ys hy; simp [hl ys hy]
+  have hmem := numsOf_mem win ns hns
+  obtain ⟨v0, hv0⟩ := List.exists_mem_of_ne_nil win hne
+  obtain ⟨y0, rfl, _⟩ := hw v0 hv0
+  have hy0 := hall y0 hv0
+  have ht := tol_nonneg k
+  simp only [judgeVal, he, hab, hns, hlen, Bool.false_eq_true, ↓reduceIte]
+  split
+  · have hc : xs ∉ ns := by
+      intro hx
+      rcases hout with h | h <;> (have := h xs (hmem xs hx); omega)
+    simp [hc, isFail]
+  · have hb : inBand (tol k) ns xs = false := by
+      unfold inBand
+      rw [List.all_eq_false]
+      refine ⟨j, List.mem_range.mpr hj, ?_⟩
+      have hc : y0.getD j 0 ∈ ns.map (·.getD j 0) := List.mem_map_of_mem hy0
+      obtain ⟨lo, hlo⟩ := Option.isSome_iff_exists.mp (List.isSome_min?_of_mem hc)
+      obtain ⟨hi, hhi⟩ := Option.isSome_iff_exists.mp (List.isSome_max?_of_mem hc)
+      have hlo' := (List.min?_eq_some_iff.1 hlo).1
+      have hhi' := (List.max?_eq_some_iff.1 hhi).1
+      simp only [List.mem_map] at hlo' hhi'
+      obtain ⟨a, ha, hla⟩ := hlo'
+      obtain ⟨b, hb, hhb⟩ := hhi'
+      simp only [hlo, hhi, Bool.and_eq_true, decide_eq_true_eq]
+      rcases hout with h | h
+      · have := h b (hmem b hb); omega
+      · have := h a (hmem a ha); omega
+    simp [hb, isFail]
+
+/-- **(c) A sample outside the band fails**, for readings of any number of elements and components: when component `j`
+of element `i` lies more than the tolerance beyond every reading of the window on one side. -/
+theorem judgeEls_outside (k : Kind) (win : List (List Val)) (r : List Val) (i j : Nat) (xs : List Int)
+    (hi : i < r.length) (hr : r.getD i .absent = .num xs) (hj : j < xs.length) (hne : win ≠ [])
+    (ho : Outside (tol k) i j r.length xs.length (xs.getD j 0) win) : isFail (judgeEls k win r) = true := by
+  have he : win.isEmpty = false := by cases win <;> simp_all
+  have hl : win.any (·.length != r.length) = false := by
+    rw [List.any_eq_false]; intro w hw; simp [(ho.1 w hw).1]
+  simp only [judgeEls, he, hl, Bool.false_eq_true, ↓reduceIte]
+  apply combine_fail_of_mem
+  refine ⟨judgeVal k (win.map (·.getD i .absent)) (r.getD i .absent), List.mem_map.mpr ⟨i, List.mem_range.mpr hi, rfl⟩,
+    ?_⟩
+  rw [hr]
+  apply judgeVal_outside k _ xs j hj (by simpa using hne)
+  · intro v hv
+    simp only [List.mem_map] at hv
+    obtain ⟨w, hw, rfl⟩ := hv
+    obtain ⟨_, ys, h1, h2⟩ := ho.1 w hw
+    exact ⟨ys, h1, h2⟩
+  · rcases ho.2 with h | h
+    · left; intro ys hy
+      simp only [List.mem_map] at hy
+      obtain ⟨w, hw, hwy⟩ := hy
+      exact h w hw ys hwy
+    · right; intro ys hy
+      simp only [List.mem_map] at hy
+      obtain ⟨w, hw, hwy⟩ := hy
+      exact h w hw ys hwy
+
+/-- **(c) in flight**, not a colour: outside the band of the original's samples of the same transition fails. -/
+theorem judgeUnit_flight_outside (k : Kind) (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
+    (r : Samp) (i j : Nat) (xs : List Int) (hk : k ≠ .colour) (hfl : inFlight d r = true)
+    (hne : flightWindow seg r ≠ []) (hi : i < r.els.length) (hr : r.els.getD i .absent = .num xs) (hj : j < xs.length)
+    (ho : Outside (tol k) i j r.els.length xs.length (xs.getD j 0) ((flightWindow seg r).map (·.els))) :
+    isFail (judgeUnit k d seg win r) = true := by
+  rw [judgeUnit_flight_els k d seg win r hk hfl hne]
+  exact judgeEls_outside k _ r.els i j xs hi hr hj (by simpa using hne) ho
+
+/-- **(c) at rest**: outside the band of the settled readings the window stands for fails, a colour too. -/
+theorem judgeUnit_settled_outside (k : Kind) (d : List String → Option Nat) (seg w : List Samp) (r : Samp)
+    (i j : Nat) (xs : List Int) (hfl : inFlight d r = false) (hne : w.filterMap (settledRef d seg) ≠ [])
+    (hi : i < r.els.length) (hr : r.els.getD i .absent = .num xs) (hj : j < xs.length)
+    (ho : Outside (tol k) i j r.els.length xs.length (xs.getD j 0) ((w.filterMap (settledRef d seg)).map (·.els))) :
+    isFail (judgeUnit k d seg (some w) r) = true := by
+  have he : (w.filterMap (settledRef d seg)).isEmpty = false := by
+    cases h : w.filterMap (settledRef d seg) <;> simp_all
+  rw [judgeUnit_settled k d seg w r hfl, he]
+  exact judgeEls_outside k _ r.els i j xs hi hr hj (by simpa using hne) ho
+
+/-- Element `i` of a list of readings, each mapped by `f` that keeps `absent`. -/
+theorem getD_map_absent (f : Val → Val) (hf : f .absent = .absent) (l : List Val) (i : Nat) :
+    (l.map f).getD i .absent = f (l.getD i .absent) := by
+  simp only [List.getD_eq_getElem?_getD, List.getElem?_map]
+  cases l[i]? <;> simp [hf]
+
+/-- **(c) for a colour in flight, a channel**: red, green or blue outside the band of every core sample fails. -/
+theorem judgeUnit_colour_chan_outside (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
+    (r : Samp) (i j : Nat) (xs : List Int) (hfl : inFlight d r = true) (hc : ∃ o ∈ flightWindow seg r, isCore r o)
+    (hi : i < r.els.length) (hr : r.els.getD i .absent = .num xs) (hj : j < 3) (hjx : j < xs.length)
+    (ho : Outside (tol .colour) i j r.els.length xs.length (xs.getD j 0)
+      (((flightWindow seg r).filter (isCore r)).map (·.els))) :
+    isFail (judgeUnit .colour d seg win r) = true := by
+  obtain ⟨o0, ho0, hc0⟩ := hc
+  have hne : flightWindow seg r ≠ [] := by intro h; simp [h] at ho0
+  rw [judgeUnit_flight_colour d seg win r hfl hne]
+  unfold judgeColour
+  apply combine_fail_of_mem
+  refine ⟨_, List.mem_cons_self .., ?_⟩
+  have htake : ∀ ys : List Int, (ys.take 3).getD j 0 = ys.getD j 0 := by
+    intro ys; simp [List.getD_eq_getElem?_getD, hj]
+  have hall : ∀ w ∈ ((flightWindow seg r).filter (isCore r)).map fun s => s.els.map Val.chan,
+      isFail (judgeEls .colour [w] (r.els.map Val.chan)) = true := by
+    intro w hw
+    simp only [List.mem_map] at hw
+    obtain ⟨s, hs, rfl⟩ := hw
+    have hs' : s.els ∈ ((flightWindow seg r).filter (isCore r)).map (·.els) := List.mem_map_of_mem hs
+    obtain ⟨hlen, ys, hys, hyl⟩ := ho.1 _ hs'
+    apply judgeEls_outside .colour _ _ i j (xs.take 3) (by simpa using hi)
+      (by rw [getD_map_absent _ rfl, hr]; rfl) (by simp; omega) (by simp)
+    refine ⟨?_, ?_⟩
+    · intro w hw
+      rw [List.mem_singleton.mp hw]
+      refine ⟨by simp [hlen], ys.take 3, by rw [getD_map_absent _ rfl, hys]; rfl, by simp [hyl]⟩
+    · rw [htake]
+      rcases ho.2 with h | h
+      · left; intro w hw zs hz
+        rw [List.mem_singleton.mp hw, getD_map_absent _ rfl, hys] at hz
+        cases hz
+        rw [htake]; exact h _ hs' ys hys
+      · right; intro w hw zs hz
+        rw [List.mem_singleton.mp hw, getD_map_absent _ rfl, hys] at hz
+        cases hz
+        rw [htake]; exact h _ hs' ys hys
+  unfold matchOne
+  dsimp only
+  have hany : ((((flightWindow seg r).filter (isCore r)).map fun s => s.els.map Val.chan).map
+      fun w => judgeEls .colour [w] (r.els.map Val.chan)).any (fun v => !isFail v) = false := by
+    rw [List.any_eq_false]
+    intro v hv
+    simp only [List.mem_map] at hv
+    obtain ⟨w, hw, rfl⟩ := hv
+    have := hall w (List.mem_map.mpr hw)
+    simp [this]
+  simp only [hany, Bool.false_eq_true, ↓reduceIte]
+  apply combine_fail_of_mem
+  have hcore : o0 ∈ (flightWindow seg r).filter (isCore r) := List.mem_filter.mpr ⟨ho0, hc0⟩
+  exact ⟨_, List.mem_map_of_mem (List.mem_map_of_mem hcore), hall _ (List.mem_map_of_mem hcore)⟩
+
+/-- **(c) for a colour in flight, the alpha**: an alpha outside the band of the transition's window fails. -/
+theorem judgeUnit_colour_alpha_outside (d : List String → Option Nat) (seg : List Samp) (win : Option (List Samp))
+    (r : Samp) (i : Nat) (xs : List Int) (hfl : inFlight d r = true) (hne : flightWindow seg r ≠ [])
+    (hi : i < r.els.length) (hr : r.els.getD i .absent = .num xs) (hx : 3 < xs.length)
+    (ho : Outside (tol .colour) i 3 r.els.length xs.length (xs.getD 3 0) ((flightWindow seg r).map (·.els))) :
+    isFail (judgeUnit .colour d seg win r) = true := by
+  rw [judgeUnit_flight_colour d seg win r hfl hne]
+  unfold judgeColour
+  apply combine_fail_of_mem
+  refine ⟨_, List.mem_cons_of_mem _ (List.mem_cons_self ..), ?_⟩
+  have hdrop : ∀ ys : List Int, (ys.drop 3).getD 0 0 = ys.getD 3 0 := by
+    intro ys; simp [List.getD_eq_getElem?_getD, List.getElem?_drop]
+  apply judgeEls_outside .colour _ _ i 0 (xs.drop 3) (by simpa using hi)
+    (by rw [getD_map_absent _ rfl, hr]; rfl) (by simp; omega) (by simpa using hne)
+  refine ⟨?_, ?_⟩
+  · intro w hw
+    simp only [List.mem_map] at hw
+    obtain ⟨s, hs, rfl⟩ := hw
+    obtain ⟨hlen, ys, hys, hyl⟩ := ho.1 _ (List.mem_map_of_mem hs)
+    exact ⟨by simp [hlen], ys.drop 3, by rw [getD_map_absent _ rfl, hys]; rfl, by simp [hyl]⟩
+  · rw [hdrop]
+    rcases ho.2 with h | h
+    · left; intro w hw zs hz
+      simp only [List.mem_map] at hw
+      obtain ⟨s, hs, rfl⟩ := hw
+      obtain ⟨_, ys, hys, _⟩ := ho.1 _ (List.mem_map_of_mem hs)
+      rw [getD_map_absent _ rfl, hys] at hz
+      cases hz
+      rw [hdrop]; exact h _ (List.mem_map_of_mem hs) ys hys
+    · right; intro w hw zs hz
+      simp only [List.mem_map] at hw
+      obtain ⟨s, hs, rfl⟩ := hw
+      obtain ⟨_, ys, hys, _⟩ := ho.1 _ (List.mem_map_of_mem hs)
+      rw [getD_map_absent _ rfl, hys] at hz
+      cases hz
+      rw [hdrop]; exact h _ (List.mem_map_of_mem hs) ys hys
 
 /-- The lane fails when one unit fails, and only then. -/
 theorem laneFails_iff (vs : List Verdict) : laneFails vs = true ↔ ∃ v ∈ vs, isFail v = true := by
   simp [laneFails]
 
 /-- A lane of passes and skips does not fail. -/
-theorem laneFails_none : laneFails [.pass, .skip .noSample, .skip .transient] = false := by decide
+theorem laneFails_none : laneFails [.pass, .skip .noSample] = false := by decide
 
 -- Against the faithful arm ------------------------------------------------------------------------------------------
 
@@ -1385,7 +1947,7 @@ theorem rel_unmeasured : rel (.fail .apart) (.fail .coverage) = .unmeasured := b
 theorem rel_cleared : rel .pass (.fail .apart) = .cleared := by decide
 
 /-- Branch a skip against a failing baseline is cleared, never `new`. -/
-theorem rel_skip_cleared : rel (.skip .transient) (.fail .differs) = .cleared := by decide
+theorem rel_skip_cleared : rel (.skip .noSample) (.fail .differs) = .cleared := by decide
 
 /-- Branch passes in both: ok. -/
 theorem rel_ok : rel .pass .pass = .ok ∧ rel (.skip .noSample) .pass = .ok := by decide
@@ -1956,7 +2518,7 @@ def Verdict.name : Verdict → String
   | .fail .count => "fail:count" | .fail .missing => "fail:missing" | .fail .type => "fail:type"
   | .fail .shape => "fail:shape" | .fail .differs => "fail:differs" | .fail .apart => "fail:apart"
   | .fail .coverage => "fail:coverage"
-  | .skip .transient => "skip:transient" | .skip .noSample => "skip:noSample"
+  | .skip .noSample => "skip:noSample"
 
 /-- The name of a phase in the golden file. -/
 def Phase.name : Phase → String
@@ -1986,26 +2548,61 @@ def Val.json : Val → Json
 /-- A sample as JSON. -/
 def Samp.json (s : Samp) : Json :=
   Json.mkObj [("m", match s.m with | none => Json.null | some m => toJson m),
-    ("since", match s.since with | none => Json.null | some t => toJson t), ("els", Json.arr (s.els.map Val.json).toArray), ("rep", toJson s.rep)]
+    ("since", match s.since with | none => Json.null | some t => toJson t), ("els", Json.arr (s.els.map Val.json).toArray),
+    ("rep", toJson s.rep), ("cls", Json.arr (s.cls.map Json.str).toArray), ("ph", toJson s.ph), ("ord", toJson s.ord)]
+
+/-- The transition a golden case names: the table's for (node, property, width), or none under any class set. -/
+def durFn : Option (String × String × Nat) → List String → Option Nat
+  | none => atRest
+  | some (n, p, w) => durOf n p w
+
+/-- The transition a golden case names, as JSON: null, or its node, property and width. -/
+def durJson : Option (String × String × Nat) → Json
+  | none => Json.null
+  | some (n, p, w) => Json.mkObj [("node", n), ("prop", p), ("width", toJson w)]
+
+/-- The nav classes the probe reads, in the order of the registry. -/
+def navClasses : List String :=
+  ["is-hero-pill", "is-hero-chrome-ready", "is-morphing", "is-expanded", "is-on-dark", "is-scroll-hidden"]
+
+/-- The class set of mask `k`: class `i` of `navClasses` is on when bit `i` of `k` is. -/
+def maskCls (k : Nat) : List String :=
+  (List.range navClasses.length).filterMap fun i => if k.testBit i then navClasses[i]? else none
+
+#guard maskCls 0 == [] && maskCls 5 == ["is-hero-pill", "is-morphing"] && maskCls 63 == navClasses
+
+/-- A rule as JSON. -/
+def Rule.json (r : Rule) : Json :=
+  Json.mkObj [("line", toJson r.line), ("node", r.node), ("on", Json.arr (r.on.map Json.str).toArray),
+    ("off", Json.arr (r.off.map Json.str).toArray), ("minW", match r.minW with | none => Json.null | some w => toJson w),
+    ("reduce", Json.bool r.reduce), ("spec", toJson r.spec),
+    ("set", match r.set with
+      | none => Json.null
+      | some ts => Json.arr (ts.map fun (p, d, l) => Json.arr #[Json.str p, toJson d, toJson l]).toArray),
+    ("delay", match r.delay with | none => Json.null | some l => toJson l)]
 
 /-- One golden line. -/
 inductive Case where
   | judge (name : String) (k : Kind) (win : List Samp) (r : Samp)
   | bracket (name : String) (ms : List Int) (m : Int)
   | tenth (name : String) (m : Option Int)
-  | phase (name : String) (ph : Phase) (k : Kind) (d : Option Nat) (seg orig rew : List Samp)
-  | flight (name : String) (k : Kind) (d : Option Nat) (seg win : List Samp) (r : Samp)
-  | settle (name : String) (node prop : String)
+  | phase (name : String) (ph : Phase) (p : Nat) (k : Kind) (dur : Option (String × String × Nat))
+      (oSeg wSeg : List Samp)
+  | unit (name : String) (k : Kind) (dur : Option (String × String × Nat)) (seg : List Samp)
+      (win : Option (List Samp)) (r : Samp)
+  | rule (r : Rule)
+  | durs (node prop : String) (width : Nat)
+  | ann (name : String) (seg : List Samp)
   | versus (name : String) (cand base : Verdict)
   | quant (name : String) (xs : List Nat) (p : Nat)
   | dominate (name : String) (readP50 gapP50 : Nat)
   | armOf (name : String) (a : ArmRead)
   | runOf (name : String) (arms : List ArmRead)
-  | path (name : String) (k : Kind) (d : Option Nat) (orig rew : List (String × Samp))
+  | path (name : String) (k : Kind) (dur : Option (String × String × Nat)) (orig rew : List (String × Samp))
   | picks (name : String) (input : String)
   | planOf (name : String) (engines widths : String)
 
-/-- The golden cases of the window judgement (`judgeIn` per kind and per branch). Two constants, not one, so that each stays
+/-- The golden cases of the window judgement (`judgeEls` per kind and per branch). Two constants, not one, so that each stays
 under the start-cost bound (`Fw.Lint.InitCost.bound`). -/
 def casesJudge : List Case := [
   .judge "empty window" .unit [] (s0 [.num [1000]]),
@@ -2028,10 +2625,6 @@ def casesJudge : List Case := [
   .judge "colour edge" .colour [s0 [.num [255000, 255000, 255000, 255000]]] (s0 [.num [253000, 255000, 255000, 255000]]),
   .judge "colour over" .colour [s0 [.num [255000, 255000, 255000, 255000]]] (s0 [.num [252999, 255000, 255000, 255000]]),
   .judge "bug C logo colour" .colour [s0 [.num [255000, 255000, 255000, 255000]]] (s0 [.num [43000, 49000, 59000, 255000]]),
-  .judge "colour transient" .colour [s0 [.num [255000]]] (sq [.num [0]]),
-  .judge "colour window not quiet" .colour [sq [.num [255000]]] (s0 [.num [0]]),
-  .judge "colour window not quiet pass" .colour [sq [.num [255000]]] (s0 [.num [255000]]),
-  .judge "unit ignores quiet" .unit [s0 [.num [1000]]] (sq [.num [0]]),
   .judge "window discrete" .discrete [s0 [.str "off"], s0 [.str "on"]] (s0 [.str "on"]),
   .judge "window band inside" .geometry [s0 [.num [0]], s0 [.num [10000]]] (s0 [.num [4000]]),
   .judge "window band outside" .geometry [s0 [.num [0]], s0 [.num [10000]]] (s0 [.num [11001]]),
@@ -2052,40 +2645,40 @@ def casesRest : List Case := [
   .bracket "empty" [] 3000,
   .tenth "zero" (some 0), .tenth "below half" (some 499), .tenth "half" (some 500), .tenth "one" (some 1000),
   .tenth "end" (some 10000), .tenth "beyond" (some 12000), .tenth "negative" (some (-300)), .tenth "none" none,
-  .phase "threshold slack" .push .discrete none [] [sm 9000 [.str "off"], sm 9300 [.str "on"]] [sm 9200 [.str "on"]],
-  .phase "stale class" .push .discrete none []
+  .phase "threshold slack" .push 0 .discrete none [sm 9000 [.str "off"], sm 9300 [.str "on"]] [sm 9200 [.str "on"]],
+  .phase "stale class" .push 0 .discrete none
     [sm 8000 [.str "off"], sm 8500 [.str "off"], sm 9000 [.str "off"], sm 9300 [.str "on"], sm 9400 [.str "on"],
       sm 9500 [.str "on"], sm 9600 [.str "on"], sm 9700 [.str "on"], sm 9900 [.str "on"]] [sm 9500 [.str "off"]],
-  .phase "ramp ok" .push .geometry none [] [sm 0 [.num [0]], sm 5000 [.num [5000]], sm 10000 [.num [10000]]]
+  .phase "ramp ok" .push 0 .geometry none [sm 0 [.num [0]], sm 5000 [.num [5000]], sm 10000 [.num [10000]]]
     [sm 2000 [.num [2000]], sm 7000 [.num [7000]]],
-  .phase "ramp stuck" .push .geometry none [] [sm 0 [.num [0]], sm 5000 [.num [5000]], sm 10000 [.num [10000]]]
+  .phase "ramp stuck" .push 0 .geometry none [sm 0 [.num [0]], sm 5000 [.num [5000]], sm 10000 [.num [10000]]]
     [sm 2000 [.num [0]], sm 7000 [.num [0]]],
-  .phase "ramp every bucket" .push .geometry none [] [sm 0 [.num [0]], sm 5000 [.num [5000]], sm 10000 [.num [10000]]]
+  .phase "ramp every bucket" .push 0 .geometry none [sm 0 [.num [0]], sm 5000 [.num [5000]], sm 10000 [.num [10000]]]
     [sm 0 [.num [0]], sm 1000 [.num [1000]], sm 2000 [.num [2000]], sm 3000 [.num [3000]], sm 4000 [.num [4000]],
       sm 5000 [.num [5000]], sm 6000 [.num [6000]], sm 7000 [.num [7000]], sm 8000 [.num [8000]], sm 9000 [.num [9000]],
       sm 10000 [.num [10000]]],
-  .phase "push first bucket only" .push .geometry none [] [sm 0 [.num [0]], sm 10000 [.num [10000]]] [sm 1000 [.num [1000]]],
-  .phase "push no rewrite sample" .push .discrete none [] [sm 0 [.str "off"], sm 10000 [.str "on"]] [],
-  .phase "hold colour" .hold .colour none [] [⟨some 10000, some 0, [.num [43000]], 0⟩, ⟨some 10000, none, [.num [255000]], 0⟩]
-    [⟨some 10000, some 0, [.num [43000]], 0⟩, ⟨some 10000, none, [.num [43000]], 0⟩],
-  .phase "hold interior empty" .hold .discrete none [] [sm 10000 [.str "on"]] [sm 10000 [.str "on"]],
-  .phase "hold no rewrite sample" .hold .discrete none [] [sm 10000 [.str "on"]] [],
-  .phase "push no morph value" .push .discrete none [] [s0 [.str "on"]] [s0 [.str "on"]],
-  .phase "push rewrite no morph value" .push .discrete none [] [sm 0 [.str "on"], sm 10000 [.str "on"]] [s0 [.str "on"]],
-  .phase "hold no morph value" .hold .discrete none [] [s0 [.str "on"]] [s0 [.str "on"]],
-  .phase "beyond reach" .push .geometry none [] [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]],
-  .phase "hold beyond reach" .hold .geometry none [] [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]],
-  .phase "within reach" .push .geometry none [] [sm 0 [.num [0]], sm 9000 [.num [9000]]] [sm 9800 [.num [9800]]],
-  .phase "pooled ramp original, static rewrite" .push .discrete none [] (ramp 0 ++ ramp 1 ++ ramp 2) [smr 0 5000 [.num [0]]],
-  .phase "pooled ramp original, ramping rewrite" .push .discrete none [] (ramp 0 ++ ramp 1 ++ ramp 2)
+  .phase "push first bucket only" .push 0 .geometry none [sm 0 [.num [0]], sm 10000 [.num [10000]]] [sm 1000 [.num [1000]]],
+  .phase "push no rewrite sample" .push 0 .discrete none [sm 0 [.str "off"], sm 10000 [.str "on"]] [],
+  .phase "hold colour" .hold 0 .colour none [⟨some 10000, some 0, [.num [43000]], 0, [], 0, 0⟩, ⟨some 10000, none, [.num [255000]], 0, [], 0, 0⟩]
+    [⟨some 10000, some 0, [.num [43000]], 0, [], 0, 0⟩, ⟨some 10000, none, [.num [43000]], 0, [], 0, 0⟩],
+  .phase "hold interior empty" .hold 0 .discrete none [sm 10000 [.str "on"]] [sm 10000 [.str "on"]],
+  .phase "hold no rewrite sample" .hold 0 .discrete none [sm 10000 [.str "on"]] [],
+  .phase "push no morph value" .push 0 .discrete none [s0 [.str "on"]] [s0 [.str "on"]],
+  .phase "push rewrite no morph value" .push 0 .discrete none [sm 0 [.str "on"], sm 10000 [.str "on"]] [s0 [.str "on"]],
+  .phase "hold no morph value" .hold 0 .discrete none [s0 [.str "on"]] [s0 [.str "on"]],
+  .phase "beyond reach" .push 0 .geometry none [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]],
+  .phase "hold beyond reach" .hold 0 .geometry none [sm 0 [.num [0]], sm 1500 [.num [3000]]] [sm 9800 [.num [10000]]],
+  .phase "within reach" .push 0 .geometry none [sm 0 [.num [0]], sm 9000 [.num [9000]]] [sm 9800 [.num [9800]]],
+  .phase "pooled ramp original, static rewrite" .push 0 .discrete none (ramp 0 ++ ramp 1 ++ ramp 2) [smr 0 5000 [.num [0]]],
+  .phase "pooled ramp original, ramping rewrite" .push 0 .discrete none (ramp 0 ++ ramp 1 ++ ramp 2)
     [smr 0 2000 [.num [2000]], smr 0 4000 [.num [4000]], smr 1 6000 [.num [6000]], smr 2 8000 [.num [8000]]],
-  .phase "pooled ramp original, stuck class" .push .discrete none [] (ramp 0 ++ ramp 1)
+  .phase "pooled ramp original, stuck class" .push 0 .discrete none (ramp 0 ++ ramp 1)
     [smr 0 9000 [.num [0]], smr 1 9000 [.num [0]]],
-  .phase "pooled slow pass" .push .discrete none [] ([0, 2000, 4000].map (fun m => smr 0 m [.num [m]]) ++ ramp 1)
+  .phase "pooled slow pass" .push 0 .discrete none ([0, 2000, 4000].map (fun m => smr 0 m [.num [m]]) ++ ramp 1)
     [smr 1 9800 [.num [10000]]],
-  .phase "pooled all passes beyond" .push .discrete none [] ([0, 1500].map (fun m => smr 0 m [.num [m]]) ++ [0, 1500].map (fun m => smr 1 m [.num [m]]))
+  .phase "pooled all passes beyond" .push 0 .discrete none ([0, 1500].map (fun m => smr 0 m [.num [m]]) ++ [0, 1500].map (fun m => smr 1 m [.num [m]]))
     [smr 0 9800 [.num [10000]]],
-  .phase "pooled pass without morph value" .push .discrete none [] ([⟨none, none, [.num [0]], 0⟩] ++ ramp 1) [smr 1 4000 [.num [4000]]],
+  .phase "pooled pass without morph value" .push 0 .discrete none ([⟨none, none, [.num [0]], 0, [], 0, 0⟩] ++ ramp 1) [smr 1 4000 [.num [4000]]],
   .path "missing step" .unit none [("s25", s0 [.num [750]])] [],
   .path "pair" .unit none [("s25", s0 [.num [750]]), ("s50", s0 [.num [500]])]
     [("s25", s0 [.num [1000]]), ("s50", s0 [.num [500]])],
@@ -2097,7 +2690,7 @@ def casesRest : List Case := [
   .versus "new" (.fail .apart) .pass, .versus "new skip" (.fail .differs) (.skip .noSample), .versus "both" (.fail .apart) (.fail .apart),
   .versus "both content" (.fail .apart) (.fail .differs), .versus "both coverage" (.fail .coverage) (.fail .coverage),
   .versus "both cand coverage" (.fail .coverage) (.fail .apart), .versus "unmeasured" (.fail .apart) (.fail .coverage),
-  .versus "cleared" .pass (.fail .apart), .versus "skip cleared" (.skip .transient) (.fail .differs), .versus "ok" .pass .pass,
+  .versus "cleared" .pass (.fail .apart), .versus "skip cleared" (.skip .noSample) (.fail .differs), .versus "ok" .pass .pass,
   .versus "ok skip" (.skip .noSample) .pass, .versus "coverage new" (.fail .coverage) .pass,
   .armOf "rewrite ok" ⟨.rewrite, some "ab12", some "ab12", some "hydrate"⟩,
   .armOf "flags off" ⟨.rewrite, some "ab12", some "cd34", some "client-render"⟩,
@@ -2119,54 +2712,99 @@ def casesPlan : List Case := [
   .planOf "chromium, all widths" "chromium" "", .planOf "webkit, one width" "playwright-webkit" "640",
   .planOf "both, a subset" "both" "1280,390", .planOf "unknown engines" "safari" "", .planOf "refused widths" "both" "390,500"]
 
-/-- A sample of pass `rep` at morph value `m`, read `t` ms after the last class change. -/
-def smt (rep : Nat) (m : Int) (t : Nat) (els : List Val) : Samp := ⟨some m, some t, els, rep⟩
+/-- A sample of pass `rep` and phase `ph` with the nav classes `cls`, at morph value `m`, read `t` ms after the last class
+change, in epoch `ord`. -/
+def sc (rep ph : Nat) (cls : List String) (m : Option Int) (t : Nat) (ord : Nat) (els : List Val) : Samp :=
+  ⟨m, some t, els, rep, cls, ph, ord⟩
 
 /-- A sample with no morph value, read `t` ms after the last class change. -/
-def st (t : Nat) (els : List Val) : Samp := ⟨none, some t, els, 0⟩
+def st (t : Nat) (els : List Val) : Samp := ⟨none, some t, els, 0, [], 0, 0⟩
 
-/-- The golden cases of transitions in flight: the settle table, each branch of `judgeFlight`, the start-lag boundary, and
-the morph and step paths with a settle time. -/
-def casesFlight : List Case := [
-  .settle "nav visibility" "nav" "visibility", .settle "nav rect" "nav" "rect",
-  .settle "nav background" "nav" "background-color", .settle "nav opacity" "nav" "opacity",
-  .settle "nav lin" "nav" "transform.lin", .settle "nav shift" "nav" "transform.shift", .settle "logo colour" "logo" "color",
-  .settle "actions gap" "actions" "gap", .settle "earn opacity" "earn" "opacity", .settle "earn max-width" "earn" "max-width",
-  .settle "unlisted" "nav" "filter", .settle "unlisted node" "pill" "opacity",
-  .flight "rewrite in flight, inside crossed" .colour (some 700) [st 5000 [.num [0]], st 100 [.num [5000]], st 5000 [.num [9000]]]
-    [st 5000 [.num [9000]]] (st 100 [.num [4000]]),
-  .flight "rewrite in flight, outside" .colour (some 700) [st 5000 [.num [0]], st 100 [.num [5000]], st 5000 [.num [9000]]]
-    [st 5000 [.num [9000]]] (st 100 [.num [12000]]),
-  .flight "window in flight" .unit (some 440) [st 5000 [.num [0]], st 200 [.num [500]], st 5000 [.num [1000]]]
-    [st 200 [.num [500]]] (st 5000 [.num [1000]]),
-  .flight "settled differs" .colour (some 700) [st 100 [.num [5000]]] [st 5000 [.num [9000]]] (st 5000 [.num [0]]),
-  .flight "settled same" .colour (some 700) [] [st 5000 [.num [9000]]] (st 5000 [.num [9000]]),
-  .flight "lag edge in flight" .unit (some 700) [st 5000 [.num [0]], st 100 [.num [500]], st 5000 [.num [1000]]]
-    [st 5000 [.num [1000]]] (st 899 [.num [0]]),
-  .flight "lag edge settled" .unit (some 700) [st 5000 [.num [0]], st 100 [.num [500]], st 5000 [.num [1000]]]
-    [st 5000 [.num [1000]]] (st 900 [.num [0]]),
-  .flight "no settle colour" .colour none [st 100 [.num [0]]] [st 5000 [.num [9000]]] (st 100 [.num [0]]),
-  .flight "no settle unit" .unit none [st 100 [.num [0]]] [st 5000 [.num [1000]]] (st 100 [.num [0]]),
-  .flight "no class change" .unit (some 700) [] [s0 [.num [1000]]] (s0 [.num [0]]),
-  .flight "crossed per pass" .unit (some 440)
-    [⟨none, some 5000, [.num [0]], 0⟩, ⟨none, some 5000, [.num [200]], 0⟩, ⟨none, some 100, [.num [600]], 1⟩,
-      ⟨none, some 5000, [.num [1000]], 1⟩]
-    [st 100 [.num [1000]]] (st 100 [.num [200]]),
-  .flight "discrete in flight" .discrete (some 320) [st 5000 [.str "hidden"], st 100 [.str "visible"]]
-    [st 100 [.str "visible"]] (st 100 [.str "hidden"]),
-  .phase "morph in flight" .push .colour (some 700)
-    [smt 0 0 5000 [.num [0]], smt 0 5000 100 [.num [5000]], smt 0 10000 5000 [.num [9000]]]
-    [smt 0 0 5000 [.num [0]], smt 0 5000 100 [.num [5000]], smt 0 10000 5000 [.num [9000]]]
-    [smt 0 4000 150 [.num [2000]], smt 0 6000 150 [.num [7000]]],
-  .phase "morph settled differs" .push .colour (some 700)
-    [smt 0 0 5000 [.num [0]], smt 0 5000 100 [.num [5000]], smt 0 10000 5000 [.num [9000]]]
-    [smt 0 0 5000 [.num [0]], smt 0 10000 5000 [.num [9000]]] [smt 0 9500 5000 [.num [0]]],
-  .path "steps in flight" .colour (some 700)
+/-- The nav's box `[0, 0, w, 64000]` along a push, `w` from 400 to 800 px: at morph value `m`, `t` = `m` / 12.5 ms after the
+class change; reversed (`rev`), the box at `m` is the forward one at `1 - m`. -/
+def boxRamp (rev : Bool) (cls : List String) : List Samp :=
+  (List.range 11).map fun (i : Nat) =>
+    let m : Int := 1000 * i
+    sc 0 0 cls (some m) (80 * i) 0 [.num [0, 0, 400000 + 40 * (if rev then 10000 - m else m), 64000]]
+
+/-- The nav's box in flight under no class, read every 100 ms from 0 to 800. -/
+def boxSeg : List Samp :=
+  (List.range 9).map fun i => sc 0 0 [] none (100 * i) 0 [.num [0, 0, 400000 + 50000 * i, 64000]]
+
+/-- The transition of the nav's box at 1280 px. -/
+def boxDur : Option (String × String × Nat) := some ("nav", "rect", 1280)
+
+/-- The transition of the nav's background at 1280 px. -/
+def bgDurOf : Option (String × String × Nat) := some ("nav", "background-color", 1280)
+
+/-- A background fading from white to an alpha of 26000 in the kit's colour space in flight: before the change, three
+readings in flight, and the end. -/
+def bgSeg : List Samp :=
+  [sc 0 0 [] none 5000 0 [.num [255000, 255000, 255000, 122400]], sc 0 0 [] none 100 1 [.num [1000, 0, 0, 90000]],
+    sc 0 0 [] none 300 1 [.num [1000, 0, 0, 50000]], sc 0 0 [] none 500 1 [.num [1000, 0, 0, 30000]],
+    sc 0 0 [] none 5000 1 [.num [255000, 255000, 255000, 26000]]]
+
+/-- The golden cases of transitions in flight: the table, epochs, each branch of `judgeUnit`, the reversed curve, and the
+morph and step paths. -/
+def casesFlight : List Case :=
+  rules.map .rule ++
+  ([("nav", "visibility"), ("nav", "rect"), ("nav", "background-color"), ("nav", "opacity"), ("nav", "transform.lin"),
+      ("nav", "transform.shift"), ("logo", "color"), ("actions", "gap"), ("earn", "opacity"), ("earn", "max-width"),
+      ("nav", "filter")].flatMap fun (n, p) => [390, 600, 601, 1280].map (.durs n p)) ++ [
+  .ann "one epoch" [sc 0 0 [] none 0 0 [], sc 0 0 [] none 100 0 [], sc 0 0 [] none 200 0 []],
+  .ann "class change and back" [sc 0 0 [] none 0 0 [], sc 0 0 [] none 100 0 [], sc 0 0 [driver] none 0 0 [],
+    sc 0 0 [driver] none 50 0 [], sc 0 0 [] none 0 0 [], sc 0 0 [] none 100 0 []],
+  .ann "since drops" [sc 0 0 [] none 500 0 [], sc 0 0 [] none 20 0 []],
+  .ann "per pass" [sc 0 0 [] none 0 0 [], sc 1 0 [] none 0 0 [], sc 0 0 ["is-on-dark"] none 0 0 [], sc 0 0 [] none 0 0 []],
+  .ann "no since after since" [sc 0 0 [] none 10 0 [], ⟨none, none, [], 0, [], 0, 0⟩],
+  .ann "since after no since" [⟨none, none, [], 0, [], 0, 0⟩, sc 0 0 [] none 5 0 []],
+  .unit "in flight, inside" .geometry boxDur boxSeg none (sc 0 0 [] none 300 0 [.num [0, 0, 560000, 64000]]),
+  .unit "in flight, outside" .geometry boxDur boxSeg none (sc 0 0 [] none 300 0 [.num [0, 0, 760000, 64000]]),
+  .unit "in flight, reversed value" .geometry boxDur boxSeg none (sc 0 0 [] none 100 0 [.num [0, 0, 750000, 64000]]),
+  .unit "in flight, other pass" .geometry boxDur boxSeg (some [sc 1 0 [] none 300 0 [.num [0, 0, 760000, 64000]]])
+    (sc 1 0 [] none 300 0 [.num [0, 0, 760000, 64000]]),
+  .unit "in flight, other pass, no counterpart" .geometry boxDur boxSeg none
+    (sc 1 0 [] none 300 0 [.num [0, 0, 550000, 64000]]),
+  .unit "in flight, other phase" .geometry boxDur boxSeg (some [sc 0 2 [] none 300 0 [.num [0, 0, 760000, 64000]]])
+    (sc 0 2 [] none 300 0 [.num [0, 0, 550000, 64000]]),
+  .unit "in flight, other epoch" .geometry boxDur boxSeg (some [sc 0 0 [] none 300 1 [.num [0, 0, 760000, 64000]]])
+    (sc 0 0 [] none 300 1 [.num [0, 0, 550000, 64000]]),
+  .unit "in flight, other classes" .geometry boxDur boxSeg (some [sc 0 0 ["is-on-dark"] none 300 0 [.num [0, 0, 1, 1]]])
+    (sc 0 0 ["is-on-dark"] none 300 0 [.num [0, 0, 550000, 64000]]),
+  .unit "lag edge in flight" .geometry boxDur boxSeg none (sc 0 0 [] none 879 0 [.num [0, 0, 300000, 64000]]),
+  .unit "lag edge settled" .geometry boxDur boxSeg (some [sc 0 0 [] none 880 0 [.num [0, 0, 300000, 64000]]])
+    (sc 0 0 [] none 880 0 [.num [0, 0, 300000, 64000]]),
+  .unit "driver, no transition" .geometry boxDur boxSeg (some [sc 0 0 [driver] none 10 0 [.num [0, 0, 400000, 64000]]])
+    (sc 0 0 [driver] none 10 0 [.num [0, 0, 800000, 64000]]),
+  .unit "colour in flight, one core reading" .colour bgDurOf bgSeg none (sc 0 0 [] none 300 1 [.num [1000, 0, 0, 45000]]),
+  .unit "colour in flight, pure red" .colour bgDurOf bgSeg none (sc 0 0 [] none 300 1 [.num [255000, 0, 0, 50000]]),
+  .unit "colour in flight, pure green" .colour bgDurOf bgSeg none (sc 0 0 [] none 300 1 [.num [0, 255000, 0, 50000]]),
+  .unit "colour in flight, colour space" .colour bgDurOf bgSeg none
+    (sc 0 0 [] none 500 1 [.num [255000, 255000, 255000, 30000]]),
+  .unit "colour in flight, alpha outside" .colour bgDurOf bgSeg none (sc 0 0 [] none 300 1 [.num [1000, 0, 0, 200000]]),
+  .unit "colour in flight, alpha of the start" .colour bgDurOf bgSeg none (sc 0 0 [] none 100 1 [.num [1000, 0, 0, 122400]]),
+  .unit "settled at the end value" .colour bgDurOf bgSeg (some [sc 0 0 [] none 300 1 [.num [1000, 0, 0, 50000]]])
+    (sc 0 0 [] none 5000 1 [.num [255000, 255000, 255000, 26000]]),
+  .unit "settled red" .colour bgDurOf bgSeg (some [sc 0 0 [] none 300 1 [.num [1000, 0, 0, 50000]]])
+    (sc 0 0 [] none 5000 1 [.num [255000, 0, 0, 26000]]),
+  .unit "settled green" .colour bgDurOf bgSeg (some [sc 0 0 [] none 300 1 [.num [1000, 0, 0, 50000]]])
+    (sc 0 0 [] none 5000 1 [.num [0, 255000, 0, 26000]]),
+  .unit "settled, original never settled" .discrete (some ("nav", "visibility", 1280))
+    [sc 0 0 ["is-scroll-hidden"] none 100 0 [.str "visible"]]
+    (some [sc 0 0 ["is-scroll-hidden"] none 100 0 [.str "visible"]]) (sc 0 0 ["is-scroll-hidden"] none 9000 0 [.str "hidden"]),
+  .unit "settled, no counterpart" .colour bgDurOf bgSeg none (sc 0 0 [] none 5000 1 [.num [255000, 255000, 255000, 26000]]),
+  .phase "reversed curve in flight" .push 0 .geometry boxDur (boxRamp false []) (boxRamp true []),
+  .phase "same curve in flight" .push 0 .geometry boxDur (boxRamp false []) (boxRamp false []),
+  .phase "reversed morph, script driven" .push 0 .geometry boxDur (boxRamp false [driver]) (boxRamp true [driver]),
+  .path "steps in flight" .colour bgDurOf
     [("a5", st 2222 [.num [255000, 255000, 255000, 122400]]), ("a6", st 481 [.num [1000, 0, 0, 33340]]),
       ("a7", st 1134 [.num [255000, 255000, 255000, 26000]])]
     [("a5", st 1271 [.num [255000, 255000, 255000, 122400]]), ("a6", st 327 [.num [1000, 0, 0, 51667]]),
       ("a7", st 703 [.num [1000, 0, 0, 26029]])],
-  .path "step settled differs" .colour (some 700) [("a1", st 5000 [.num [255000]]), ("a2", st 5000 [.num [9000]])]
+  .path "steps settled red and green" .colour bgDurOf
+    [("a6", st 100 [.num [1000, 0, 0, 33340]]), ("a7", st 5000 [.num [255000, 255000, 255000, 26000]])]
+    [("a6", st 5000 [.num [255000, 0, 0, 100000]]), ("a7", st 5100 [.num [0, 255000, 0, 26000]])],
+  .path "step settled differs" .unit none [("a1", st 5000 [.num [255000]]), ("a2", st 5000 [.num [9000]])]
     [("a1", st 5000 [.num [255000]]), ("a2", st 5000 [.num [0]])]]
 
 /-- The golden cases: every branch above, per kind where the kind matters. -/
@@ -2201,31 +2839,38 @@ def optNat : Option Nat → Json
 /-- One golden line. -/
 def Case.line : Case → Json
   | .judge n k win r =>
-    Json.mkObj [("op", "against"), ("name", n), ("kind", k.name), ("win", Json.arr (win.map Samp.json).toArray),
-      ("r", r.json), ("verdict", (judgeAgainst k win r).name)]
+    Json.mkObj [("op", "els"), ("name", n), ("kind", k.name),
+      ("win", Json.arr (win.map fun s => Json.arr (s.els.map Val.json).toArray).toArray),
+      ("r", Json.arr (r.els.map Val.json).toArray), ("verdict", (judgeEls k (win.map (·.els)) r.els).name)]
   | .bracket n ms m =>
     Json.mkObj [("op", "window"), ("name", n), ("ms", Json.arr (ms.map fun x => toJson x).toArray), ("m", toJson m),
       ("idx", Json.arr ((window ms m).map fun i => toJson i).toArray)]
   | .tenth n m =>
     Json.mkObj [("op", "bucket"), ("name", n), ("m", match m with | none => Json.null | some m => toJson m),
       ("bucket", toJson (bucket m))]
-  | .phase n ph k d seg o r =>
-    Json.mkObj [("op", "byM"), ("name", n), ("phase", ph.name), ("kind", k.name), ("settle", optNat d),
-      ("seg", Json.arr (seg.map Samp.json).toArray), ("orig", Json.arr (o.map Samp.json).toArray),
-      ("rew", Json.arr (r.map Samp.json).toArray),
-      ("verdicts", Json.arr ((byM ph k d seg o r).map fun (_, v) => Json.str v.name).toArray)]
-  | .flight n k d seg win r =>
-    Json.mkObj [("op", "flight"), ("name", n), ("kind", k.name), ("settle", optNat d),
-      ("seg", Json.arr (seg.map Samp.json).toArray), ("win", Json.arr (win.map Samp.json).toArray), ("r", r.json),
-      ("verdict", (judgeFlight k d seg win r).name)]
-  | .settle n node prop =>
-    Json.mkObj [("op", "settle"), ("name", n), ("node", node), ("prop", prop), ("settle", optNat (settleOf node prop)),
-      ("lag", toJson startLag)]
-  | .path n k d o r =>
+  | .phase n ph p k dur o w =>
+    Json.mkObj [("op", "byM"), ("name", n), ("phase", ph.name), ("p", toJson p), ("kind", k.name), ("dur", durJson dur),
+      ("oSeg", Json.arr (o.map Samp.json).toArray), ("wSeg", Json.arr (w.map Samp.json).toArray),
+      ("verdicts", Json.arr ((byM ph p k (durFn dur) o w).map fun (_, v) => Json.str v.name).toArray)]
+  | .unit n k dur seg win r =>
+    Json.mkObj [("op", "unit"), ("name", n), ("kind", k.name), ("dur", durJson dur),
+      ("seg", Json.arr (seg.map Samp.json).toArray),
+      ("win", match win with | none => Json.null | some w => Json.arr (w.map Samp.json).toArray), ("r", r.json),
+      ("verdict", (judgeUnit k (durFn dur) seg win r).name)]
+  | .rule r => Json.mkObj [("op", "rule"), ("name", s!"line {r.line} {r.node}"), ("rule", r.json)]
+  | .durs node prop w =>
+    Json.mkObj [("op", "dur"), ("name", s!"{node} {prop} {w}"), ("node", node), ("prop", prop), ("width", toJson w),
+      ("classes", Json.arr (navClasses.map Json.str).toArray), ("lag", toJson startLag),
+      ("durs", Json.arr ((List.range 64).map fun k => optNat (durOf node prop w (maskCls k))).toArray)]
+  | .ann n seg =>
+    Json.mkObj [("op", "annotate"), ("name", n), ("seg", Json.arr (seg.map Samp.json).toArray),
+      ("ords", Json.arr ((annotate seg).map fun s => toJson s.ord).toArray)]
+  | .path n k dur o r =>
     let side := fun (xs : List (String × Samp)) =>
       Json.arr (xs.map fun (s, x) => Json.mkObj [("step", s), ("s", x.json)]).toArray
-    Json.mkObj [("op", "byStep"), ("name", n), ("kind", k.name), ("settle", optNat d), ("orig", side o), ("rew", side r),
-      ("verdicts", Json.arr ((byStep k d o r).map fun (s, v) => Json.mkObj [("step", s), ("verdict", v.name)]).toArray)]
+    Json.mkObj [("op", "byStep"), ("name", n), ("kind", k.name), ("dur", durJson dur), ("orig", side o), ("rew", side r),
+      ("verdicts",
+        Json.arr ((byStep k (durFn dur) o r).map fun (s, v) => Json.mkObj [("step", s), ("verdict", v.name)]).toArray)]
   | .versus n c b =>
     Json.mkObj [("op", "rel"), ("name", n), ("cand", c.name), ("base", b.name), ("rel", (rel c b).name)]
   | .quant n xs p =>
