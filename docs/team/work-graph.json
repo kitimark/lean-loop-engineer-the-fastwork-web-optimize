@@ -11371,7 +11371,8 @@
    "writes": [
     "research/notes/2026/10-2*-webkit-lag-source.md",
     "docs/team/handoffs/webkit-lag-source.md"
-   ]
+   ],
+   "evidence": "1f94f73"
   },
   {
    "devices": [
