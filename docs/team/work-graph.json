@@ -11204,7 +11204,13 @@
     "apps/site/src/parts/hero.exit/**",
     "packages/contracts/golden/parts/hero.exit.scoped.json",
     "research/notes/2026/10-2*-exit-scoped-inline.md",
-    "docs/team/handoffs/exit-scoped-inline.md"
+    "docs/team/handoffs/exit-scoped-inline.md",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "research/findings/ledger.json"
    ]
   },
   {
