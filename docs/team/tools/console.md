@@ -92,3 +92,27 @@ no new Terminal window. Read the result with `pnpm fw console status` and `pnpm 
   (was 0.63 s and 33 s; local debug run; `research/notes/2026/10-20-fwcore-query-speed.md`).
 - `FW_CORE_CALL_MS` is no longer needed as a mitigation.
 
+
+## Alert steps: who they are for, plain text, automatic close
+
+Every step the drain posts from an alert has an audience and a plain body, both written by Lean (`Fw.Console.Alert.plain`,
+`Fw.Ops.Obs.spoolPlain`); TS only renders them.
+
+- **Audience.** `user` only when the owner is needed: a helper's permission prompt, a helper's question, a stop of the lead session.
+  Everything the lead can fix goes to the lead and is shown under "The lead is handling (n); no action from you", with no buttons:
+  a helper's API stop, every spool alert (unknown field, rejected lines, a failed background check). "Your steps (n)" counts only
+  the owner's. Steps posted before this change read as `user` unless their id says otherwise (`legacyAudience`).
+- **Text.** The title has no identifiers ("A helper needs your permission"). The body has four lines: What happened, Impact,
+  Action (you or lead), Details; identifiers appear only in Details. Steps posted before this change keep their old titles.
+- **Does it close by itself?** Yes, in two ways. An agent alert still closes by the script `step.cancel` plan when the agent's next
+  tool result or stop shows it went on (`Fw.Console.Alert.act`). A spool alert for the lead closes by a script `step.done` with the
+  note "resolved automatically at <UTC time>: <reason>" on the first later sweep where every key it names is clean
+  (`Fw.Ops.Obs.resolveSpool`, `ops.obs` `resolve`). Clean means: an unknown field is clean once the field is in `Fw.Ops.Obs.specs`;
+  a rejected line or failed check key is clean once a sweep read at least one line and did not raise that key. A key that fails
+  again, a step for the user, and a details list cut with "..." never close by script (theorems `failing_never_closes`,
+  `user_step_never_resolved`, `no_keys_never_closes`, `resolveSpool_sound`). The reducer allows a script `step.done` on a waiting
+  step only for the lead (`script_done_waiting_is_lead`).
+- Agreement: goldens `console.alert.jsonl`, `ops.obs.jsonl` (resolve cases) and `console-apply.jsonl`; `apps/console-api/test/spool.test.ts`
+  runs the drain against fwcore; `apps/console-web/test/steps-audience.test.tsx` checks the rendering.
+- TS stand-ins: none for decisions. Known limits: the keys of a step are read back from its Details line or old title (checked by
+  `#guard`s, not a round-trip theorem); the wording beyond the templates is not reviewed per alert.
