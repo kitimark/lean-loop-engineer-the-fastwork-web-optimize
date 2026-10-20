@@ -1,7 +1,7 @@
 // `fw ci wait` and `fw ci budget` (also runnable as `node packages/gh-budget/src/cli.ts wait ...`).
 import { spawnSync } from "node:child_process";
 import { appendFileSync, mkdirSync } from "node:fs";
-import { cleanups, waitFor, type Target } from "./wait.ts";
+import { cleanups, waitFor, type Target, type WaitPhases } from "./wait.ts";
 import { realEnv, type Env, type Json } from "./core.ts";
 import { ghCharged } from "./charged.ts";
 import { loadState, paths, readJson, stepEvent } from "./state.ts";
@@ -22,6 +22,10 @@ export const WAIT_USAGE = [
 ].join("\n");
 
 class Usage extends Error {}
+
+/** The phases of the last `fw ci wait` this process ran (task ci-wait-lag): fw.ts writes them on the wait's span. */
+let lastPhases: WaitPhases | null = null;
+export const lastWaitPhases = (): WaitPhases | null => lastPhases;
 
 const DEFAULT_TIMEOUT_S = 540; // fits one Bash tool call (the Bash tool's cap is 600 s)
 
@@ -107,7 +111,7 @@ export async function ghBudgetCli(argv: string[], cwd: string): Promise<number> 
     process.once("SIGINT", onSig("SIGINT"));
     process.once("SIGTERM", onSig("SIGTERM"));
     if (!parsed) return await budget(env, rest);
-    const res = await waitFor(env, parsed.target, { timeoutS: parsed.timeoutS });
+    const res = await waitFor(env, parsed.target, { timeoutS: parsed.timeoutS, nowMs: Date.now, phases: (p) => { lastPhases = p; } });
     for (const l of res.lines) (res.code === 0 || res.code === 1 || res.code === 4 ? console.log : console.error)(l);
     return res.code;
   } catch (e) {

@@ -1,0 +1,11 @@
+{"kind":"grace","lanesMissing":true,"name":"a lane without a finished run: grace","op":"kind","reg":5000,"tick":9000}
+{"kind":"grace","lanesMissing":true,"name":"a lane missing and no tick: grace","op":"kind","reg":5000}
+{"kind":"late","lanesMissing":false,"name":"a tick before the registration: late","op":"kind","reg":5000,"tick":4000}
+{"kind":"done","lanesMissing":false,"name":"a tick at the registration: done","op":"kind","reg":5000,"tick":5000}
+{"kind":"done","lanesMissing":false,"name":"a tick after the registration: done","op":"kind","reg":5000,"tick":9000}
+{"kind":"done","lanesMissing":false,"name":"no tick seen: done","op":"kind","reg":5000}
+{"name":"no rows","op":"crit","upds":[]}
+{"crit":0,"name":"one row","op":"crit","upds":[7]}
+{"crit":1,"name":"the latest finish wins","op":"crit","upds":[3,9,4]}
+{"crit":0,"name":"a tie: the first","op":"crit","upds":[9,9,2]}
+{"crit":2,"name":"the last is latest","op":"crit","upds":[1,2,3]}
