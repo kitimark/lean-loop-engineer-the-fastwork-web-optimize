@@ -11450,7 +11450,6 @@
     "packages/measure-webkit/src/images/**",
     "packages/gate-breakpoints/src/images/**",
     "apps/site/src/flags/images/**",
-    "apps/site/public/images-drawn/**",
     "lean/Fw/Engine/WebKitImage.lean",
     "research/notes/2026/10-2*-image-audit.md",
     "docs/team/handoffs/image-audit.md"
@@ -11662,7 +11661,8 @@
     "packages/contracts/golden/gate/trajectory-colour*.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/kit-colour-space.md"
-   ]
+   ],
+   "evidence": "2f774bc"
   },
   {
    "devices": [
@@ -11674,7 +11674,7 @@
    "deps": [
     "trajectory-transition-window"
    ],
-   "title": "waapi r2 Fable: on slow-cadence engines (Linux WebKit 170-430 ms per frame) a rewrite push sample at the phase end (m = 0) is judged against orig close rows that never reached m = 0 (reduce.mjs:34/108, Trajectory.lean windowOne/bucketVerdict); judge such a sample against the orig pass's first row of the next hold (Lean change + golden + TS twin); re-reduce 39449092483 and 39457767229",
+   "title": "Absorbed into trajectory-close-start (same phase-boundary family, same files). waapi r2 Fable: on slow-cadence engines (Linux WebKit 170-430 ms per frame) a rewrite push sample at the phase end (m = 0) is judged against orig close rows that never reached m = 0 (reduce.mjs:34/108, Trajectory.lean windowOne/bucketVerdict); judge such a sample against the orig pass's first row of the next hold (Lean change + golden + TS twin); re-reduce 39449092483 and 39457767229",
    "writes": [
     "lean/Fw/Gate/Trajectory.lean",
     "packages/gate-breakpoints/src/trajectory/reduce.mjs",
@@ -11864,7 +11864,8 @@
     "scripts/hooks/**",
     "docs/team/tools/land.md",
     "docs/team/handoffs/ci-push-render-guard.md"
-   ]
+   ],
+   "evidence": "3e8a87e"
   },
   {
    "devices": [
@@ -11882,7 +11883,8 @@
     "apps/runner/test/land-sha*.test.ts",
     "docs/team/tools/land.md",
     "docs/team/handoffs/land-sha-pin.md"
-   ]
+   ],
+   "evidence": "d92bd3d"
   },
   {
    "devices": [
@@ -11915,6 +11917,62 @@
     "apps/runner/src/land.ts",
     "apps/runner/test/land-inputs.test.ts",
     "docs/team/handoffs/land-inputs-dist.md"
+   ],
+   "evidence": "2f58437"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-close-start",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "kit-colour-space",
+    "trajectory-transition-window"
+   ],
+   "title": "Key blocker for every v2-proved admission (admit-hero-exit-scoped and kit-colour-space, 2026-10-21): after colour normalisation the remaining morph failures are nav.background-color at close@0 / close-hold@0; the background transition starts where is-morphing is removed and its start value depends on the interrupted earlier transition (7-8 channel levels; the original's own reps start at different values). tcell lets a failing flag-alone run decide first (tcell_own_fail). Closed design: judge an in-flight sample at a transition start against the envelope of the original pass's own reps for that transition epoch (same pass, phase and epoch; each unit on its own), never one rep; prove the envelope rule never passes a sample outside every original rep plus the tolerance; golden + TS twin; re-reduce 39466179818, 39472217441 and the 8-flag preset runs; also absorbs trajectory-settled-sample (a settled sample at the phase end judged against the next hold's first row)",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-close-start.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "graph-schema-precommit",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Mistake 2026-10-21: a lead graph commit gave a task 35 writes (schema cap 32); the pre-commit checkmap passed and two lands failed apps/runner plan.test. The checkmap for docs/team/work-graph.json runs the plan-sync conversion (the schema), and writes covered by a glob in the same row are reported",
+   "writes": [
+    "scripts/checkmap*",
+    "apps/runner/src/plan*.ts",
+    "apps/runner/test/plan*.test.ts",
+    "docs/team/handoffs/graph-schema-precommit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "image-arm-v2",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "image-audit"
+   ],
+   "title": "Re-plan of the drawn-size image arm after image-audit closed 'pixel-identical copies' as a MEASURED negative finding (two-stage resampling). Options to decide with the user: a look-change class reviewed by the user, or per-part judging at the probe DPR; copies are built at CI time into an uncommitted dir (never in git: Fastwork material enters git only as the unmodified snapshot)",
+   "writes": [
+    "packages/gate-breakpoints/src/images/**",
+    "packages/measure-webkit/src/images/**",
+    "research/notes/2026/10-2*-image-arm-v2.md",
+    "docs/team/handoffs/image-arm-v2.md"
    ]
   }
  ],
