@@ -9,7 +9,7 @@
 //   cell is a backticked `Fw.*` name and whose next two cells hold a verdict (agree|disagree) and a stmtHash, in either
 //   order: review rows `| decl | verdict | stmtHash | ... |`, artifact rows `| decl | stmtHash | agree | link |`
 //   (docs/team/tools/math-artifact.md). Precedence: review records without `round:` (by file name), then numbered
-//   review rounds (two records with one round fail), then artifact records (by file name, which starts with the
+//   review rounds (historical records of the retired per-round review; two records with one round fail), then artifact records (by file name, which starts with the
 //   date); within a record the last row wins.
 // Decision (per current entry e, latest row r):
 //   signed           r.verdict = agree and r.stmtHash = e.stmtHash

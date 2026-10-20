@@ -26,35 +26,24 @@ open Lean (Json)
 
 /-! ## Style differences -/
 
-/-- The ten `StyleDifference` levels in WebKit's own order (`WC/style/StyleDifference.h:28-55`, CONFIRMED).
-
-$$\mathrm{Diff} = \{\mathrm{equal}, \mathrm{recomposite}, \mathrm{repaint}, \mathrm{repaintIfText}, \mathrm{repaintLayer}, \mathrm{layoutOOFMoveOnly}, \mathrm{overflow}, \mathrm{overflowOOF}, \mathrm{layout}, \mathrm{newStyle}\}$$
--/
+/-- The ten `StyleDifference` levels in WebKit's own order (`WC/style/StyleDifference.h:28-55`, CONFIRMED). -/
 inductive Diff where
   | equal | recomposite | repaint | repaintIfText | repaintLayer
   | layoutOOFMoveOnly | overflow | overflowOOF | layout | newStyle
 deriving Repr, DecidableEq, Inhabited
 
-/-- The position of a level in the enum order (`DifferenceResult` is a `uint8_t` enum, compared with `std::max`).
-
-$$\operatorname{rank}(d) = \text{index of } d \text{ in } [\mathrm{equal}, \mathrm{recomposite}, \mathrm{repaint}, \mathrm{repaintIfText}, \mathrm{repaintLayer}, \mathrm{layoutOOFMoveOnly}, \mathrm{overflow}, \mathrm{overflowOOF}, \mathrm{layout}, \mathrm{newStyle}] \in \{0, \dots, 9\}$$
--/
+/-- The position of a level in the enum order (`DifferenceResult` is a `uint8_t` enum, compared with `std::max`). -/
 def Diff.rank : Diff → Nat
   | .equal => 0 | .recomposite => 1 | .repaint => 2 | .repaintIfText => 3 | .repaintLayer => 4
   | .layoutOOFMoveOnly => 5 | .overflow => 6 | .overflowOOF => 7 | .layout => 8 | .newStyle => 9
 
-/-- The larger of two levels in enum order (WebKit's `std::max` on `DifferenceResult`).
-
-$$\max(a, b) = \begin{cases} b & \operatorname{rank}(a) \le \operatorname{rank}(b) \\ a & \text{otherwise} \end{cases}$$
--/
+/-- The larger of two levels in enum order (WebKit's `std::max` on `DifferenceResult`). -/
 def Diff.max (a b : Diff) : Diff := if a.rank ≤ b.rank then b else a
 
 /-- The stages one change at an adjusted level dirties (design note §1.3; WebKit note §2.1-2.2). `recomposite` is the
 compositing update S3 (`props`) and no paint; the repaint levels paint and skip S3; `overflow`/`overflowOOF` run the
 simplified layout plus a full layer repaint (`RenderElement.cpp:1368-1385`); `layoutOOFMoveOnly` is the cheap
 movement-only layout. The commit is not here: it is in `base`. CONFIRMED.
-
-$$\operatorname{stages}(d) = \begin{cases} \emptyset & d = \mathrm{equal} \\ \{\mathrm{style}, \mathrm{props}\} & d = \mathrm{recomposite} \\ \{\mathrm{style}, \mathrm{paint}\} & d \in \{\mathrm{repaint}, \mathrm{repaintIfText}, \mathrm{repaintLayer}\} \\ \{\mathrm{style}, \mathrm{layout}\} & d = \mathrm{layoutOOFMoveOnly} \\ \{\mathrm{style}, \mathrm{layout}, \mathrm{paint}\} & d \in \{\mathrm{overflow}, \mathrm{overflowOOF}\} \\ \{\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}\} & d \in \{\mathrm{layout}, \mathrm{newStyle}\} \end{cases}$$
 -/
 def diffStages : Diff → List Stage
   | .equal => []
@@ -66,8 +55,6 @@ def diffStages : Diff → List Stage
 
 /-- The context-sensitive properties `Style::difference` reports beside the level (WebKit note §2.1; `ClipRect` is
 not modelled, open item O5).
-
-$$\mathrm{Ctx} = \{\mathrm{transform}, \mathrm{opacity}, \mathrm{filter}, \mathrm{clipPath}, \mathrm{willChange}\}$$
 -/
 inductive Ctx where
   | transform | opacity | filter | clipPath | willChange
@@ -81,8 +68,6 @@ a filter value change with the same outsets on a layer that paints its filters (
 composited layer can composite (`willCompositeClipPath`: no mask, shape layer); `willChange` is a change that
 `canTriggerCompositing`; `insetAbs` moves an absolute box, `inset` moves another positioned box; `size` is
 width/height/margin/padding; `scrollPos` is a delivered scroll position (no style change).
-
-$$\mathrm{WkProp} = \{\mathrm{transform}, \mathrm{transformToggle}, \mathrm{opacity}, \mathrm{opacityCross1}, \mathrm{filter}, \mathrm{filterPainted}, \mathrm{filterToggle}, \mathrm{clipPath}, \mathrm{clipPathShape}, \mathrm{willChange}, \mathrm{background}, \mathrm{color}, \mathrm{colorCurrent}, \mathrm{mask}, \mathrm{insetAbs}, \mathrm{inset}, \mathrm{size}, \mathrm{strokeDashoffset}, \mathrm{scrollPos}\}$$
 -/
 inductive WkProp where
   | transform | transformToggle | opacity | opacityCross1 | filter | filterPainted | filterToggle
@@ -103,8 +88,6 @@ Layout, because `changeAffectsVisualOverflow` compares the filter outsets (`Styl
 overflow change requires layout (`:452-453`). CONFIRMED; MEASURED (`blur(2px)` to `blur(4px)` ran layout on a layer and
 an own layer, 6 of 6 passes). Until that run it was Equal with the Filter context. `filterPainted` keeps Equal with
 the Filter context: it stands for a painted filter change with the same outsets.
-
-$$\operatorname{raw}(p) = \begin{cases} (\mathrm{equal}, \{\mathrm{transform}\}) & p = \mathrm{transform} \\ (\mathrm{equal}, \{\mathrm{opacity}\}) & p = \mathrm{opacity} \\ (\mathrm{layout}, \{\mathrm{filter}\}) & p = \mathrm{filter} \\ (\mathrm{equal}, \{\mathrm{filter}\}) & p = \mathrm{filterPainted} \\ (\mathrm{equal}, \{\mathrm{clipPath}\}) & p \in \{\mathrm{clipPath}, \mathrm{clipPathShape}\} \\ (\mathrm{equal}, \{\mathrm{willChange}\}) & p = \mathrm{willChange} \\ (\mathrm{repaint}, \emptyset) & p \in \{\mathrm{background}, \mathrm{colorCurrent}\} \\ (\mathrm{repaintIfText}, \emptyset) & p = \mathrm{color} \\ (\mathrm{repaintLayer}, \emptyset) & p = \mathrm{mask} \\ (\mathrm{layoutOOFMoveOnly}, \emptyset) & p = \mathrm{insetAbs} \\ (\mathrm{layout}, \emptyset) & p \in \{\mathrm{transformToggle}, \mathrm{opacityCross1}, \mathrm{filterToggle}, \mathrm{inset}, \mathrm{size}, \mathrm{strokeDashoffset}\} \\ (\mathrm{equal}, \emptyset) & p = \mathrm{scrollPos} \end{cases}$$
 -/
 def rawDiff : WkProp → Diff × List Ctx
   | .transform => (.equal, [.transform])
@@ -123,8 +106,6 @@ def rawDiff : WkProp → Diff × List Ctx
 /-- The transform step of `adjustStyleDifference` (`WC/rendering/RenderElement.cpp:300-312`): no layer raises to
 Layout, a non-composited layer to Overflow (OverflowAndOutOfFlowMovement after a movement-only level), a composited
 layer to RecompositeLayer. CONFIRMED.
-
-$$\operatorname{adjT}(d, \ell) = \begin{cases} \max(d, \mathrm{layout}) & \ell = \mathrm{none} \\ \max(d, \mathrm{overflowOOF}) & \ell = \mathrm{layer} \land d = \mathrm{layoutOOFMoveOnly} \\ \max(d, \mathrm{overflow}) & \ell = \mathrm{layer} \land d \ne \mathrm{layoutOOFMoveOnly} \\ \max(d, \mathrm{recomposite}) & \ell = \mathrm{own} \end{cases}$$
 -/
 def adjTransform (d : Diff) : LayerState → Diff
   | .none => d.max .layout
@@ -136,8 +117,6 @@ context property raises the raw level by the layer state, in source order (trans
 will-change, filter), and RepaintLayer without a layer becomes Repaint. `fp` is `shouldPaintWithFilters`, `cc` is
 `willCompositeClipPath`. The `requiresLayer` flip (`:345-352`) is carried by the toggle properties, whose raw level is
 already Layout. CONFIRMED.
-
-$$\operatorname{adjust}(d, C, \ell, \mathit{fp}, \mathit{cc}) = \operatorname{fix}(d_5),\quad \begin{aligned} d_1 &= \begin{cases} \operatorname{adjT}(d, \ell) & \mathrm{transform} \in C \\ d & \text{otherwise}\end{cases} \\ d_2 &= \begin{cases} \max(d_1, \mathrm{recomposite}) & \mathrm{opacity} \in C \land \ell = \mathrm{own} \\ \max(d_1, \mathrm{repaintLayer}) & \mathrm{opacity} \in C \land \ell \ne \mathrm{own} \\ d_1 & \text{otherwise}\end{cases} \\ d_3 &= \begin{cases} \max(d_2, \mathrm{recomposite}) & \mathrm{clipPath} \in C \land \ell \ne \mathrm{none} \land \mathit{cc} \\ \max(d_2, \mathrm{repaint}) & \mathrm{clipPath} \in C \land \lnot(\ell \ne \mathrm{none} \land \mathit{cc}) \\ d_2 & \text{otherwise}\end{cases} \\ d_4 &= \begin{cases} \max(d_3, \mathrm{recomposite}) & \mathrm{willChange} \in C \\ d_3 & \text{otherwise}\end{cases} \\ d_5 &= \begin{cases} \max(d_4, \mathrm{recomposite}) & \mathrm{filter} \in C \land \ell = \mathrm{own} \land \lnot \mathit{fp} \\ \max(d_4, \mathrm{repaintLayer}) & \mathrm{filter} \in C \land \ell \ne \mathrm{none} \land (\ell \ne \mathrm{own} \lor \mathit{fp}) \\ d_4 & \text{otherwise}\end{cases} \\ \operatorname{fix}(x) &= \begin{cases} \mathrm{repaint} & x = \mathrm{repaintLayer} \land \ell = \mathrm{none} \\ x & \text{otherwise}\end{cases} \end{aligned}$$
 -/
 def adjust (d : Diff) (cs : List Ctx) (ls : LayerState) (fp cc : Bool) : Diff :=
   let d1 := if Ctx.transform ∈ cs then adjTransform d ls else d
@@ -152,8 +131,6 @@ def adjust (d : Diff) (cs : List Ctx) (ls : LayerState) (fp cc : Bool) : Diff :=
 /-- The adjusted level of one change: its raw level and context set, adjusted by its layer state, with
 `shouldPaintWithFilters` iff the property is `filterPainted` and `willCompositeClipPath` iff it is `clipPathShape` on a
 composited layer (`RenderLayer.cpp:779-791`).
-
-$$\operatorname{diff}(c) = \operatorname{adjust}\big(\operatorname{raw}(c.\mathrm{prop}),\ c.\mathrm{layer},\ [c.\mathrm{prop} = \mathrm{filterPainted}],\ [c.\mathrm{prop} = \mathrm{clipPathShape} \land c.\mathrm{layer} = \mathrm{own}]\big)$$
 -/
 def wkDiff (c : Change WkProp) : Diff :=
   adjust (rawDiff c.prop).1 (rawDiff c.prop).2 c.layer (decide (c.prop = .filterPainted))
@@ -172,8 +149,6 @@ def wkDiff (c : Change WkProp) : Diff :=
   mechanism INFERRED.
 * Equal: no.
 
-$$\operatorname{compUpd}(c) = \begin{cases} \mathrm{false} & \operatorname{diff}(c) = \mathrm{equal} \\ c.\mathrm{prop} \ne \mathrm{opacity} & \operatorname{diff}(c) = \mathrm{recomposite} \\ c.\mathrm{layer} = \mathrm{own} & \operatorname{diff}(c) \in \{\mathrm{repaint}, \mathrm{repaintIfText}\} \\ c.\mathrm{layer} \ne \mathrm{none} & \operatorname{diff}(c) = \mathrm{repaintLayer} \\ \mathrm{true} & \operatorname{diff}(c) \in \{\mathrm{layoutOOFMoveOnly}, \mathrm{overflow}, \mathrm{overflowOOF}, \mathrm{layout}, \mathrm{newStyle}\} \end{cases}$$
-
 Whether a WebKit change makes the next rendering update run a compositing update.
 -/
 def wkCompUpdate (c : Change WkProp) : Bool :=
@@ -187,8 +162,6 @@ def wkCompUpdate (c : Change WkProp) : Bool :=
 /-- **The stages of one WebKit change**: the stages of its adjusted level other than `props`, plus `props` iff the
 compositing table says so, in the fixed stage order. Until CI run 39088367495 they were `diffStages (wkDiff c)`.
 
-$$\operatorname{wkStages}(c) = [\,s \in \mathrm{Stage.all} \mid (s = \mathrm{props} \land \operatorname{compUpd}(c)) \lor (s \ne \mathrm{props} \land s \in \operatorname{stages}(\operatorname{diff}(c)))\,]$$
-
 The pipeline stages a WebKit property change dirties.
 -/
 def wkStages (c : Change WkProp) : List Stage :=
@@ -196,8 +169,6 @@ def wkStages (c : Change WkProp) : List Stage :=
 
 /-- **Membership in `wkStages`**: `props` iff the compositing table says so, any other stage iff the adjusted level's
 stage list has it.
-
-$$\forall c,\ \forall s \in \mathrm{Stage}:\ s \in \operatorname{wkStages}(c) \iff \begin{cases} \operatorname{compUpd}(c) & s = \mathrm{props} \\ s \in \operatorname{stages}(\operatorname{diff}(c)) & s \ne \mathrm{props} \end{cases}$$
 
 A change dirties a non-props stage exactly when its style difference does.
 -/
@@ -211,8 +182,6 @@ theorem mem_wkStages (c : Change WkProp) (s : Stage) :
 
 /-- **Off `props`, `wkStages` is the old table.**
 
-$$\forall c,\ \forall s \in \mathrm{Stage}:\ s \ne \mathrm{props} \Rightarrow \big(s \in \operatorname{wkStages}(c) \iff s \in \operatorname{stages}(\operatorname{diff}(c))\big)$$
-
 Only the compositing-update stage changed.
 -/
 theorem mem_wkStages_of_ne (c : Change WkProp) {s : Stage} (h : s ≠ .props) :
@@ -223,17 +192,12 @@ theorem mem_wkStages_of_ne (c : Change WkProp) {s : Stage} (h : s ≠ .props) :
 
 /-- WebKit's compositing policy (`RenderLayerCompositor::updateCompositingPolicy`, `WC/rendering/RenderLayerCompositor.cpp:691-719`):
 Conservative under memory pressure or a memory warning, Normal otherwise. CONFIRMED.
-
-$$\mathrm{Policy} = \{\mathrm{normal}, \mathrm{conservative}\}$$
 -/
 inductive Policy where
   | normal | conservative
 deriving Repr, DecidableEq, Inhabited
 
-/-- The WebKit run mode: the two threaded-animation preferences and the compositing policy.
-
-$$\mathrm{WkMode} = \underbrace{\mathbb{B}}_{\mathrm{threadedScrollDriven}} \times \underbrace{\mathbb{B}}_{\mathrm{threadedTimeBased}} \times \underbrace{\mathrm{Policy}}_{\mathrm{policy}}$$
--/
+/-- The WebKit run mode: the two threaded-animation preferences and the compositing policy. -/
 structure WkMode where
   threadedScrollDriven : Bool
   threadedTimeBased    : Bool
@@ -243,8 +207,6 @@ deriving Repr, DecidableEq
 /-- The default mode for the Simulator and the phone: threaded scroll-driven animations on (preference stable,
 default true, `UnifiedWebPreferences.yaml:8518-8531`), threaded time-based off (preview, default false, `:8557-8570`),
 Normal policy. CONFIRMED as WebKit defaults; that Safari ships them is INFERRED (open item O2).
-
-$$\mathrm{safari} = (\mathrm{true}, \mathrm{false}, \mathrm{normal})$$
 -/
 def WkMode.safari : WkMode := ⟨true, false, .normal⟩
 
@@ -257,8 +219,6 @@ CONFIRMED.
 Since CI run 39088367495 a change's `props` stage is the compositing table `wkCompUpdate`, not `diffStages`
 (`wkStages`).
 
-$$\operatorname{webkitAt}(m) = \big(m,\ \operatorname{wkStages},\ [\mathrm{comp}],\ [\mathrm{commit}]\big)$$
-
 The WebKit engine of mode `m`.
 -/
 def webkitAt (m : WkMode) : Engine WkProp WkMode where
@@ -267,18 +227,13 @@ def webkitAt (m : WkMode) : Engine WkProp WkMode where
   compStages := [.comp]
   base := [.commit]
 
-/-- The WebKit engine in the default Safari mode.
-
-$$\mathrm{webkit} = \operatorname{webkitAt}(\mathrm{safari})$$
--/
+/-- The WebKit engine in the default Safari mode. -/
 def webkit : Engine WkProp WkMode := webkitAt WkMode.safari
 
 /-! ## The table, row by row -/
 
 /-- A transform value change on a composited layer is RecompositeLayer, on a non-composited layer Overflow, with no
 layer Layout (`RenderElement.cpp:300-312`).
-
-$$\forall e \in \mathbb{N}:\ \operatorname{diff}(e, \mathrm{transform}, \mathrm{own}) = \mathrm{recomposite} \land \operatorname{diff}(e, \mathrm{transform}, \mathrm{layer}) = \mathrm{overflow} \land \operatorname{diff}(e, \mathrm{transform}, \mathrm{none}) = \mathrm{layout}$$
 -/
 theorem transform_diff (e : Nat) : wkDiff ⟨e, .transform, .own⟩ = .recomposite ∧
     wkDiff ⟨e, .transform, .layer⟩ = .overflow ∧ wkDiff ⟨e, .transform, .none⟩ = .layout := by
@@ -286,8 +241,6 @@ theorem transform_diff (e : Nat) : wkDiff ⟨e, .transform, .own⟩ = .recomposi
 
 /-- **Opacity crossing 1 → layout.** An opacity change that flips `isOpaque` dirties layout on every layer state
 (`StyleDifference.cpp:208-214`; Chromium keeps it `direct`, design note §1.4).
-
-$$\forall m, \forall e \in \mathbb{N}, \forall \ell \in \mathrm{LayerState}:\ \mathrm{layout} \in \operatorname{webkitAt}(m).\mathrm{stagesOf}(e, \mathrm{opacityCross1}, \ell)$$
 -/
 theorem opacityCross1_layout (m : WkMode) (e : Nat) (ℓ : LayerState) :
     Stage.layout ∈ (webkitAt m).stagesOf ⟨e, .opacityCross1, ℓ⟩ := by
@@ -299,8 +252,6 @@ theorem opacityCross1_layout (m : WkMode) (e : Nat) (ℓ : LayerState) :
 
 /-- **stroke-dashoffset → layout.** A stroke-dashoffset change recomputes the cached stroke bounds, so it dirties
 layout on every layer state (`StyleDifference.cpp:161`; Chromium: paint).
-
-$$\forall m, \forall e \in \mathbb{N}, \forall \ell \in \mathrm{LayerState}:\ \mathrm{layout} \in \operatorname{webkitAt}(m).\mathrm{stagesOf}(e, \mathrm{strokeDashoffset}, \ell)$$
 -/
 theorem strokeDashoffset_layout (m : WkMode) (e : Nat) (ℓ : LayerState) :
     Stage.layout ∈ (webkitAt m).stagesOf ⟨e, .strokeDashoffset, ℓ⟩ := by
@@ -310,18 +261,13 @@ theorem strokeDashoffset_layout (m : WkMode) (e : Nat) (ℓ : LayerState) :
   rw [h]
   decide
 
-/-- A delivered scroll position dirties no stage by itself; its cost is the update's `base` (the commit).
-
-$$\forall m, \forall e \in \mathbb{N}, \forall \ell \in \mathrm{LayerState}:\ \operatorname{webkitAt}(m).\mathrm{stagesOf}(e, \mathrm{scrollPos}, \ell) = [\,]$$
--/
+/-- A delivered scroll position dirties no stage by itself; its cost is the update's `base` (the commit). -/
 theorem scrollPos_stages (m : WkMode) (e : Nat) (ℓ : LayerState) :
     (webkitAt m).stagesOf ⟨e, .scrollPos, ℓ⟩ = [] := by
   cases ℓ <;> rfl
 
 /-- **`wk_not_mono` (C-2).** RecompositeLayer is below Repaint in the enum order, yet each dirties a stage the other
 does not: `props` only for recomposite, `paint` only for repaint. So the stage map is not monotone in `Diff` order.
-
-$$\operatorname{rank}(\mathrm{recomposite}) < \operatorname{rank}(\mathrm{repaint}) \ \land\ \mathrm{props} \in \operatorname{stages}(\mathrm{recomposite}) \setminus \operatorname{stages}(\mathrm{repaint}) \ \land\ \mathrm{paint} \in \operatorname{stages}(\mathrm{repaint}) \setminus \operatorname{stages}(\mathrm{recomposite})$$
 -/
 theorem wk_not_mono : Diff.recomposite.rank < Diff.repaint.rank ∧
     (Stage.props ∈ diffStages .recomposite ∧ Stage.props ∉ diffStages .repaint) ∧
@@ -364,8 +310,6 @@ theorem wk_not_mono : Diff.recomposite.rank < Diff.repaint.rank ∧
 `translate3d(x, y, 0)`), with or without a filter on the box; a 3D op not representable in 2D (`rotateX`, a
 non-zero `translateZ`, a non-affine `matrix3d`); a running or style-affecting animation of an accelerated property;
 backdrop-filter; `will-change` that can trigger compositing; a static filter.
-
-$$\mathrm{CompReason} = \{\mathrm{transform2D}, \mathrm{transform3DFlat}, \mathrm{transform3DFlatFilter}, \mathrm{transform3D}, \mathrm{animation}, \mathrm{backdropFilter}, \mathrm{willChange}, \mathrm{filterStatic}\}$$
 -/
 inductive CompReason where
   | transform2D | transform3DFlat | transform3DFlatFilter | transform3D
@@ -378,8 +322,6 @@ representable in 2D (`translateZ(0)` is, `StyleTranslateTransformFunction.h:63`)
 backdrop-filter (`:3981-3995`) under both. `will-change` returns false under Conservative on non-Mac (`:3997-4018`).
 A static filter never: the WebKit2 triggers have no FilterTrigger (`WK/WebProcess/WebCoreSupport/WebChromeClient.h:292-306`).
 CONFIRMED.
-
-$$\operatorname{composites}(p, r) = \begin{cases} \mathrm{true} & r \in \{\mathrm{transform3D}, \mathrm{transform3DFlatFilter}, \mathrm{animation}, \mathrm{backdropFilter}\} \\ [p = \mathrm{normal}] & r \in \{\mathrm{transform3DFlat}, \mathrm{willChange}\} \\ \mathrm{false} & r \in \{\mathrm{transform2D}, \mathrm{filterStatic}\} \end{cases}$$
 -/
 def composites : Policy → CompReason → Bool
   | _, .transform3D | _, .transform3DFlatFilter | _, .animation | _, .backdropFilter => true
@@ -387,30 +329,19 @@ def composites : Policy → CompReason → Bool
   | .conservative, .transform3DFlat | .conservative, .willChange => false
   | _, .transform2D | _, .filterStatic => false
 
-/-- The reasons that composite under every policy.
-
-$$\mathrm{robust} = [\mathrm{transform3D}, \mathrm{transform3DFlatFilter}, \mathrm{animation}, \mathrm{backdropFilter}]$$
--/
+/-- The reasons that composite under every policy. -/
 def robust : List CompReason := [.transform3D, .transform3DFlatFilter, .animation, .backdropFilter]
 
-/-- **A static 2D transform does not composite**, under either policy.
-
-$$\forall p \in \mathrm{Policy}:\ \operatorname{composites}(p, \mathrm{transform2D}) = \mathrm{false}$$
--/
+/-- **A static 2D transform does not composite**, under either policy. -/
 theorem static2D_not_own (p : Policy) : composites p .transform2D = false := by
   cases p <;> rfl
 
-/-- **will-change is dropped under the Conservative policy.**
-
-$$\operatorname{composites}(\mathrm{conservative}, \mathrm{willChange}) = \mathrm{false}$$
--/
+/-- **will-change is dropped under the Conservative policy.** -/
 theorem willChange_dropped : composites .conservative .willChange = false := rfl
 
 /-- **Where an "own layer" premise may come from.** A reason composites under every policy iff it is a 3D op not
 representable in 2D (or a 3D op on a filtered box), an animation, or backdrop-filter; never `will-change` alone, and
 not `translateZ(0)` alone.
-
-$$\forall r \in \mathrm{CompReason}:\ \big(\forall p \in \mathrm{Policy}:\ \operatorname{composites}(p, r) = \mathrm{true}\big) \iff r \in \mathrm{robust}$$
 -/
 theorem own_robust (r : CompReason) : (∀ p, composites p r = true) ↔ r ∈ robust := by
   constructor
@@ -427,10 +358,7 @@ theorem own_robust (r : CompReason) : (∀ p, composites p r = true) ↔ r ∈ r
 
 /-! ## Base and scroll -/
 
-/-- **Every rendering update pays commit.** A frame with a change or a script callback touches `commit`.
-
-$$\forall m, \forall f \in \mathrm{FrameIn}(\mathrm{WkProp}):\ \operatorname{updates}(f) = \mathrm{true} \Rightarrow \mathrm{commit} \in \operatorname{touched}_{\operatorname{webkitAt}(m)}(f)$$
--/
+/-- **Every rendering update pays commit.** A frame with a change or a script callback touches `commit`. -/
 theorem base_commit (m : WkMode) (f : FrameIn WkProp) (h : f.updates = true) :
     Stage.commit ∈ touched (webkitAt m) f := by
   simp [touched, h, webkitAt]
@@ -438,16 +366,11 @@ theorem base_commit (m : WkMode) (f : FrameIn WkProp) (h : f.updates = true) :
 /-- A delivered scroll position: the frame plus a `scrollPos` change on the root (element 0), so the frame is a
 rendering update (`Document::addPendingScrollEventTarget` schedules `RenderingUpdateStep::Scroll`,
 `WC/dom/Document.cpp:5913-5937`, with or without listeners; WebKit note §4.2). CONFIRMED.
-
-$$\operatorname{scrollStep}(f) = f \text{ with } \mathrm{changes} := (0, \mathrm{scrollPos}, \mathrm{none}) :: f.\mathrm{changes}$$
 -/
 def scrollStep (f : FrameIn WkProp) : FrameIn WkProp :=
   { f with changes := ⟨0, .scrollPos, .none⟩ :: f.changes }
 
-/-- **Scroll rule.** Every delivered scroll position pays exactly one commit pass, whatever the frame does besides (design note §1.3, prediction P4).
-
-$$\forall m, \forall f \in \mathrm{FrameIn}(\mathrm{WkProp}):\ \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{scrollStep}(f)).\mathrm{passes}(\mathrm{commit}) = 1$$
--/
+/-- **Scroll rule.** Every delivered scroll position pays exactly one commit pass, whatever the frame does besides (design note §1.3, prediction P4). -/
 theorem scroll_commit (m : WkMode) (f : FrameIn WkProp) :
     (frameWork (webkitAt m) (scrollStep f)).passes .commit = 1 := by
   have h : (scrollStep f).updates = true := by simp [scrollStep, FrameIn.updates]
@@ -455,8 +378,6 @@ theorem scroll_commit (m : WkMode) (f : FrameIn WkProp) :
 
 /-- **Equal scroll baseline (P4).** Two variants pay the same commit passes on a scroll step, so a comparison reduces
 to the other stages.
-
-$$\forall m, \forall v, o \in \mathrm{FrameIn}(\mathrm{WkProp}):\ \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{scrollStep}(v)).\mathrm{passes}(\mathrm{commit}) = \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{scrollStep}(o)).\mathrm{passes}(\mathrm{commit})$$
 -/
 theorem scroll_baseline (m : WkMode) (v o : FrameIn WkProp) :
     (frameWork (webkitAt m) (scrollStep v)).passes .commit = (frameWork (webkitAt m) (scrollStep o)).passes .commit := by
@@ -466,8 +387,6 @@ theorem scroll_baseline (m : WkMode) (v o : FrameIn WkProp) :
 
 /-- An animated CSS property, for the thread rule (`WC/css/CSSProperties.json`, key "animation-wrapper-acceleration").
 `offset` stands for the `offset-*` longhands; `custom` for a custom property `--x`.
-
-$$\mathrm{CssProp} = \{\mathrm{transform}, \mathrm{translate}, \mathrm{scale}, \mathrm{rotate}, \mathrm{opacity}, \mathrm{filter}, \mathrm{backdropFilter}, \mathrm{offset}, \mathrm{clipPath}, \mathrm{background}, \mathrm{color}, \mathrm{inset}, \mathrm{size}, \mathrm{strokeDashoffset}, \mathrm{custom}\}$$
 -/
 inductive CssProp where
   | transform | translate | scale | rotate | opacity | filter | backdropFilter | offset
@@ -476,8 +395,6 @@ deriving Repr, DecidableEq, Inhabited
 
 /-- The two accelerated paths: the threaded `AcceleratedEffect` path (UI-process `RemoteAnimationStack`) and the
 legacy `GraphicsLayerCA` CAAnimation path.
-
-$$\mathrm{Path} = \{\mathrm{threaded}, \mathrm{legacy}\}$$
 -/
 inductive Path where
   | threaded | legacy
@@ -487,26 +404,19 @@ deriving Repr, DecidableEq, Inhabited
 scale, rotate) on both paths, `offset-*` on the threaded path only (`CSSProperties.json` via
 `process-css-properties.py:3823, 4093-4096`). Custom properties are never accelerated
 (`WC/style/StyleInterpolation.cpp:256-265`). CONFIRMED; `offset` gated on the path itself is INFERRED.
-
-$$\operatorname{accel}(\pi, q) = \begin{cases} \mathrm{true} & q \in \{\mathrm{transform}, \mathrm{translate}, \mathrm{scale}, \mathrm{rotate}, \mathrm{opacity}, \mathrm{filter}, \mathrm{backdropFilter}\} \\ [\pi = \mathrm{threaded}] & q = \mathrm{offset} \\ \mathrm{false} & \text{otherwise} \end{cases}$$
 -/
 def accelerated : Path → CssProp → Bool
   | _, .transform | _, .translate | _, .scale | _, .rotate | _, .opacity | _, .filter | _, .backdropFilter => true
   | .threaded, .offset => true
   | _, _ => false
 
-/-- An animation's timeline: the document (time-based) or a scroll/view (progress-based) timeline.
-
-$$\mathrm{Timeline} = \{\mathrm{time}, \mathrm{scroll}\}$$
--/
+/-- An animation's timeline: the document (time-based) or a scroll/view (progress-based) timeline. -/
 inductive Timeline where
   | time | scroll
 deriving Repr, DecidableEq, Inhabited
 
 /-- An animation's easing, as far as the paths care: linear, a cubic Bézier with both control y in [0, 1], a cubic
 Bézier with a control y outside [0, 1], `steps()`, `linear()` with points.
-
-$$\mathrm{Easing} = \{\mathrm{linear}, \mathrm{cubic}, \mathrm{cubicYOut}, \mathrm{steps}, \mathrm{linearPoints}\}$$
 -/
 inductive Easing where
   | linear | cubic | cubicYOut | steps | linearPoints
@@ -515,8 +425,6 @@ deriving Repr, DecidableEq, Inhabited
 /-- The path-independent disqualifiers of `KeyframeEffect::canBeAccelerated` (`KeyframeEffect.cpp:1970-1992`): no
 timeline, skipped content, an accelerated property overridden by the cascade, a `url()` filter, anchor geometry, a
 size-dependent transform with size animated, a discrete transform interval, unresolved keyframe offsets, a site quirk.
-
-$$\mathrm{Blocker} = \{\mathrm{noTimeline}, \mathrm{skippedContent}, \mathrm{overridden}, \mathrm{referenceFilter}, \mathrm{anchorGeometry}, \mathrm{sizeDependentTransform}, \mathrm{discreteTransform}, \mathrm{unresolvedOffsets}, \mathrm{quirk}\}$$
 -/
 inductive Blocker where
   | noTimeline | skippedContent | overridden | referenceFilter | anchorGeometry | sizeDependentTransform
@@ -527,8 +435,6 @@ deriving Repr, DecidableEq, Inhabited
 timeline, easing, playback rate equal to 1, forwards direction, positive duration, keyframe count, a single interval
 with linear timing, composite `replace` (no per-keyframe composite on an accelerated property), pending, the scroll
 source has a scrolling node, a drop-shadow in the filter values, the filter op lists match, and the blockers.
-
-$$\mathrm{WkAnim} = \mathrm{CssProp}^{*} \times \mathrm{Timeline} \times \mathrm{Easing} \times \underbrace{\mathbb{B}}_{\mathrm{rateOne}} \times \underbrace{\mathbb{B}}_{\mathrm{forwards}} \times \underbrace{\mathbb{B}}_{\mathrm{positiveDuration}} \times \underbrace{\mathbb{N}}_{\mathrm{keyframes}} \times \underbrace{\mathbb{B}}_{\mathrm{singleLinearInterval}} \times \underbrace{\mathbb{B}}_{\mathrm{compositeReplace}} \times \underbrace{\mathbb{B}}_{\mathrm{pending}} \times \underbrace{\mathbb{B}}_{\mathrm{scrollerAsync}} \times \underbrace{\mathbb{B}}_{\mathrm{dropShadow}} \times \underbrace{\mathbb{B}}_{\mathrm{filterOpsMatch}} \times \mathrm{Blocker}^{*}$$
 -/
 structure WkAnim where
   props                : List CssProp
@@ -550,8 +456,6 @@ deriving Repr, DecidableEq
 /-- The path an animation takes (`KeyframeEffect::canHaveAcceleratedRepresentation`, `KeyframeEffect.cpp:3253-3264`):
 threaded for a scroll timeline when threaded scroll-driven animations are on, threaded for a time timeline when threaded
 time-based animations are on, else legacy. CONFIRMED.
-
-$$\operatorname{path}(m, a) = \begin{cases} \mathrm{threaded} & a.\mathrm{timeline} = \mathrm{scroll} \land m.\mathrm{threadedScrollDriven} \\ \mathrm{threaded} & a.\mathrm{timeline} = \mathrm{time} \land m.\mathrm{threadedTimeBased} \\ \mathrm{legacy} & \text{otherwise} \end{cases}$$
 -/
 def pathOf (m : WkMode) (a : WkAnim) : Path :=
   match a.timeline with
@@ -563,8 +467,6 @@ animated property accelerated (state not None); on the threaded path not pending
 scroll timeline needs a source with a scrolling node, `ScrollTimeline.cpp:417-427`; the document timeline always,
 `DocumentTimeline.cpp:538-541`); on the legacy path a time timeline, no `steps()`, no `linear()` with points, and
 composite replace. CONFIRMED.
-
-$$\operatorname{cba}(m, a) \iff a.\mathrm{blockers} = [\,] \land \big(\exists q \in a.\mathrm{props}:\ \operatorname{accel}(\operatorname{path}(m, a), q)\big) \land \begin{cases} \lnot a.\mathrm{pending} \land (a.\mathrm{timeline} = \mathrm{time} \lor a.\mathrm{scrollerAsync}) & \operatorname{path}(m, a) = \mathrm{threaded} \\ a.\mathrm{timeline} = \mathrm{time} \land a.\mathrm{easing} \notin \{\mathrm{steps}, \mathrm{linearPoints}\} \land a.\mathrm{compositeReplace} & \operatorname{path}(m, a) = \mathrm{legacy} \end{cases}$$
 -/
 def canBeAccelerated (m : WkMode) (a : WkAnim) : Bool :=
   a.blockers.isEmpty && a.props.any (accelerated (pathOf m a)) &&
@@ -573,10 +475,7 @@ def canBeAccelerated (m : WkMode) (a : WkAnim) : Bool :=
     | .legacy => decide (a.timeline = .time) && decide (a.easing ≠ .steps) && decide (a.easing ≠ .linearPoints) &&
         a.compositeReplace
 
-/-- Whether an animated property is a filter list (`filter` or `backdrop-filter`).
-
-$$\operatorname{isFilter}(q) \iff q \in \{\mathrm{filter}, \mathrm{backdropFilter}\}$$
--/
+/-- Whether an animated property is a filter list (`filter` or `backdrop-filter`). -/
 def isFilter (q : CssProp) : Bool := q == .filter || q == .backdropFilter
 
 /-- **The legacy Core Animation gate** (`GraphicsLayerCA::addAnimation` and `animationCanBeAccelerated`,
@@ -584,8 +483,6 @@ def isFilter (q : CssProp) : Bool := q == .filter || q == .backdropFilter
 `GraphicsLayer::validateFilterOperations` `GraphicsLayer.cpp:816-846`): playback rate 1, forwards, positive duration,
 at least 2 keyframes, no `steps()`, a cubic with y outside [0, 1] only over a single linear interval, and for a filter
 animation no drop-shadow and matching op lists. CONFIRMED.
-
-$$\operatorname{ca}(a) \iff a.\mathrm{rateOne} \land a.\mathrm{forwards} \land a.\mathrm{positiveDuration} \land 2 \le a.\mathrm{keyframes} \land a.\mathrm{easing} \ne \mathrm{steps} \land (a.\mathrm{easing} = \mathrm{cubicYOut} \Rightarrow a.\mathrm{singleLinearInterval}) \land \big((\exists q \in a.\mathrm{props}:\ \operatorname{isFilter}(q)) \Rightarrow \lnot a.\mathrm{dropShadow} \land a.\mathrm{filterOpsMatch}\big)$$
 -/
 def caAccepts (a : WkAnim) : Bool :=
   a.rateOne && a.forwards && a.positiveDuration && decide (2 ≤ a.keyframes) && decide (a.easing ≠ .steps) &&
@@ -595,8 +492,6 @@ def caAccepts (a : WkAnim) : Bool :=
 /-- **The thread rule** (design note §1.3): an animation runs in the UI process iff every animated property is
 accelerated on its path (a Some-state effect ticks on main, `KeyframeEffect.cpp:1737-1769, 2724-2744`; INFERRED for the
 split, open item O3), `canBeAccelerated` holds, and on the legacy path Core Animation accepts it.
-
-$$\operatorname{wkThread}(m, a) = \begin{cases} \mathrm{comp} & \big(\forall q \in a.\mathrm{props}:\ \operatorname{accel}(\operatorname{path}(m, a), q)\big) \land \operatorname{cba}(m, a) \land \big(\operatorname{path}(m, a) = \mathrm{threaded} \lor \operatorname{ca}(a)\big) \\ \mathrm{main} & \text{otherwise} \end{cases}$$
 -/
 def wkThread (m : WkMode) (a : WkAnim) : Thread :=
   if a.props.all (accelerated (pathOf m a)) && canBeAccelerated m a && (decide (pathOf m a = .threaded) || caAccepts a)
@@ -605,24 +500,17 @@ def wkThread (m : WkMode) (a : WkAnim) : Thread :=
 /-- An animation with no disqualifier: the given properties and timeline, a cubic easing in [0, 1], rate 1,
 forwards, positive duration, 2 keyframes, composite replace, not pending, an async-scrollable source, no drop-shadow,
 matching filter ops, no blockers.
-
-$$\operatorname{clean}(P, \tau) = (P, \tau, \mathrm{cubic}, \mathrm{true}, \mathrm{true}, \mathrm{true}, 2, \mathrm{false}, \mathrm{true}, \mathrm{false}, \mathrm{true}, \mathrm{false}, \mathrm{true}, [\,])$$
 -/
 def WkAnim.clean (ps : List CssProp) (τ : Timeline) : WkAnim :=
   ⟨ps, τ, .cubic, true, true, true, 2, false, true, false, true, false, true, []⟩
 
-/-- **Scroll-driven animations take the threaded path by default; time-based ones the legacy path.**
-
-$$\forall a \in \mathrm{WkAnim}:\ \big(a.\mathrm{timeline} = \mathrm{scroll} \Rightarrow \operatorname{path}(\mathrm{safari}, a) = \mathrm{threaded}\big) \land \big(a.\mathrm{timeline} = \mathrm{time} \Rightarrow \operatorname{path}(\mathrm{safari}, a) = \mathrm{legacy}\big)$$
--/
+/-- **Scroll-driven animations take the threaded path by default; time-based ones the legacy path.** -/
 theorem path_default (a : WkAnim) : (a.timeline = .scroll → pathOf .safari a = .threaded) ∧
     (a.timeline = .time → pathOf .safari a = .legacy) := by
   constructor <;> intro h <;> simp [pathOf, h, WkMode.safari]
 
 /-- **The legacy path rejects** `steps()`, `linear()` with points, a playback rate other than 1, and a cubic with y
 outside [0, 1] over more than a single linear interval.
-
-$$\forall m, \forall a:\ \operatorname{path}(m, a) = \mathrm{legacy} \land \big(a.\mathrm{easing} \in \{\mathrm{steps}, \mathrm{linearPoints}\} \lor \lnot a.\mathrm{rateOne} \lor (a.\mathrm{easing} = \mathrm{cubicYOut} \land \lnot a.\mathrm{singleLinearInterval})\big) \Rightarrow \operatorname{wkThread}(m, a) = \mathrm{main}$$
 -/
 theorem legacy_rejects (m : WkMode) (a : WkAnim) (hp : pathOf m a = .legacy)
     (h : a.easing = .steps ∨ a.easing = .linearPoints ∨ a.rateOne = false ∨
@@ -633,19 +521,13 @@ theorem legacy_rejects (m : WkMode) (a : WkAnim) (hp : pathOf m a = .legacy)
   · simp [wkThread, caAccepts, hp, h]
   · simp [wkThread, caAccepts, hp, h1, h2]
 
-/-- **Custom properties never run in the UI process.**
-
-$$\forall m, \forall a:\ \mathrm{custom} \in a.\mathrm{props} \Rightarrow \operatorname{wkThread}(m, a) = \mathrm{main}$$
--/
+/-- **Custom properties never run in the UI process.** -/
 theorem custom_main (m : WkMode) (a : WkAnim) (h : CssProp.custom ∈ a.props) : wkThread m a = .main := by
   have : a.props.all (accelerated (pathOf m a)) = false := by
     rw [List.all_eq_false]; exact ⟨_, h, by cases pathOf m a <;> decide⟩
   simp [wkThread, this]
 
-/-- A UI-process animation animates accelerated properties only.
-
-$$\forall m, \forall a:\ \operatorname{wkThread}(m, a) = \mathrm{comp} \Rightarrow \forall q \in a.\mathrm{props}:\ \operatorname{accel}(\operatorname{path}(m, a), q) = \mathrm{true}$$
--/
+/-- A UI-process animation animates accelerated properties only. -/
 theorem comp_accelerated (m : WkMode) (a : WkAnim) (h : wkThread m a = .comp) :
     ∀ q ∈ a.props, accelerated (pathOf m a) q = true := by
   unfold wkThread at h
@@ -675,24 +557,16 @@ theorem comp_accelerated (m : WkMode) (a : WkAnim) (h : wkThread m a = .comp) :
 
 /-! ## Frames of animations -/
 
-/-- A frame with only `n` running compositor animations: no script, no forced pass, no hit test, no change.
-
-$$\operatorname{compFrame}(n) = (0, 0, 0, 0, [\,], n)$$
--/
+/-- A frame with only `n` running compositor animations: no script, no forced pass, no hit test, no change. -/
 def compFrame (n : Nat) : FrameIn WkProp := ⟨0, 0, 0, 0, [], n⟩
 
 /-- The per-frame input of one running animation: one compositor animation when it runs in the UI process, else its
 main-thread changes `cs` (a CSS animation tick runs no script).
-
-$$\operatorname{animFrame}(m, a, \mathit{cs}) = \begin{cases} \operatorname{compFrame}(1) & \operatorname{wkThread}(m, a) = \mathrm{comp} \\ (0, 0, 0, 0, \mathit{cs}, 0) & \text{otherwise} \end{cases}$$
 -/
 def animFrame (m : WkMode) (a : WkAnim) (cs : List (Change WkProp)) : FrameIn WkProp :=
   if wkThread m a = .comp then compFrame 1 else ⟨0, 0, 0, 0, cs, 0⟩
 
-/-- **A compositor animation costs no web-process pass or unit**: no pass and no unit on any stage but `comp`.
-
-$$\forall m, \forall n \in \mathbb{N}, \forall s \ne \mathrm{comp}:\ \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{compFrame}(n)).\mathrm{passes}(s) = 0 \land \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{compFrame}(n)).\mathrm{units}(s) = 0$$
--/
+/-- **A compositor animation costs no web-process pass or unit**: no pass and no unit on any stage but `comp`. -/
 theorem compFrame_zero (m : WkMode) (n : Nat) (s : Stage) (hs : s ≠ .comp) :
     (frameWork (webkitAt m) (compFrame n)).passes s = 0 ∧ (frameWork (webkitAt m) (compFrame n)).units s = 0 := by
   cases s <;> first
@@ -703,8 +577,6 @@ theorem compFrame_zero (m : WkMode) (n : Nat) (s : Stage) (hs : s ≠ .comp) :
 
 /-- A UI-process animation's frame has no pass and no unit on any stage but `comp` (`KeyframeEffect.cpp:2724-2744`: a completely
 accelerated running effect does not tick; `DocumentTimeline.cpp:156-168`: no per-frame resolution).
-
-$$\forall m, a, \mathit{cs}:\ \operatorname{wkThread}(m, a) = \mathrm{comp} \Rightarrow \forall s \ne \mathrm{comp}:\ \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{animFrame}(m, a, \mathit{cs})).\mathrm{passes}(s) = 0 \land \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{animFrame}(m, a, \mathit{cs})).\mathrm{units}(s) = 0$$
 -/
 theorem anim_comp_zero (m : WkMode) (a : WkAnim) (cs : List (Change WkProp)) (h : wkThread m a = .comp)
     (s : Stage) (hs : s ≠ .comp) :
@@ -715,10 +587,7 @@ theorem anim_comp_zero (m : WkMode) (a : WkAnim) (cs : List (Change WkProp)) (h 
 
 /-! ## Worked theorems -/
 
-/-- A JS frame: one script callback and the given changes.
-
-$$\operatorname{js}(\mathit{cs}) = (1, 0, 0, 0, \mathit{cs}, 0)$$
--/
+/-- A JS frame: one script callback and the given changes. -/
 def jsFrame (cs : List (Change WkProp)) : FrameIn WkProp := ⟨1, 0, 0, 0, cs, 0⟩
 
 /-- **Repaint → recomposite accepted when the original already pays `props`.** Per scroll step, the original's
@@ -730,8 +599,6 @@ units, so the union check holds.
 Changed since CI run 39088367495: box 1 of the original was on a layer it does not own (`layer`) and the variant's
 absolute move paid no `props`. Under the compositing table (`wkCompUpdate`) the absolute move pays `props`, so that
 old pair is now rejected (guard below); the original's repaint on its own layer pays `props` instead.
-
-$$\operatorname{frameWork}_{\mathrm{webkit}}\big(\operatorname{scrollStep}(\operatorname{js}[(1, \mathrm{transform}, \mathrm{own}), (2, \mathrm{insetAbs}, \mathrm{none})])\big) \preceq \operatorname{frameWork}_{\mathrm{webkit}}\big(\operatorname{scrollStep}(\operatorname{js}[(1, \mathrm{background}, \mathrm{own}), (2, \mathrm{size}, \mathrm{none})])\big)$$
 
 Moving a box by a composited transform costs no more than repainting a box that owns its layer plus a resize.
 -/
@@ -751,27 +618,19 @@ theorem trade_accepted :
 #guard !unionLe webkit (scrollStep (jsFrame [⟨1, .transform, .own⟩, ⟨2, .insetAbs, .none⟩]))
   (scrollStep (jsFrame [⟨1, .background, .layer⟩, ⟨2, .size, .none⟩]))
 
-/-- The blur filter animation: a time-based `filter` animation (blur, no drop-shadow) with no disqualifier.
-
-$$\mathrm{blurAnim} = \operatorname{clean}([\mathrm{filter}], \mathrm{time})$$
--/
+/-- The blur filter animation: a time-based `filter` animation (blur, no drop-shadow) with no disqualifier. -/
 def blurAnim : WkAnim := .clean [.filter] .time
 
 /-- **The blur filter animation is comp on WebKit**, in every mode: on the threaded path, and on the legacy path
 (the clean animation passes every `caAccepts` clause; for a filter animation the legacy gate additionally rejects
 only drop-shadow and mismatched op lists, `GraphicsLayerCA.cpp:3946-3958`). Chromium contrasts: bit 12
 (blur or drop-shadow in `filter`, `compositor_animations.cc:405-417`@f842f52) keeps it on main (design note §1.4).
-
-$$\forall m \in \mathrm{WkMode}:\ \operatorname{wkThread}(m, \mathrm{blurAnim}) = \mathrm{comp}$$
 -/
 theorem blur_comp (m : WkMode) : wkThread m blurAnim = .comp := by
   obtain ⟨tsd, ttb, p⟩ := m
   cases tsd <;> cases ttb <;> cases p <;> decide
 
-/-- **A blur animation costs no pass and no unit per frame on any stage but `comp`**, whatever main-thread changes it would otherwise make.
-
-$$\forall m, \mathit{cs}, \forall s \ne \mathrm{comp}:\ \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{animFrame}(m, \mathrm{blurAnim}, \mathit{cs})).\mathrm{passes}(s) = 0 \land \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{animFrame}(m, \mathrm{blurAnim}, \mathit{cs})).\mathrm{units}(s) = 0$$
--/
+/-- **A blur animation costs no pass and no unit per frame on any stage but `comp`**, whatever main-thread changes it would otherwise make. -/
 theorem blur_zero (m : WkMode) (cs : List (Change WkProp)) (s : Stage) (hs : s ≠ .comp) :
     (frameWork (webkitAt m) (animFrame m blurAnim cs)).passes s = 0 ∧
       (frameWork (webkitAt m) (animFrame m blurAnim cs)).units s = 0 :=
@@ -790,8 +649,6 @@ new definition with a bridge theorem back to the old one. -/
 invalidation with an equal difference (an animation tick on a target, a descendant reached by an inherited change);
 `customInherited` is a write of an inherited custom property; `pointerEvents` a `pointer-events` write; `svgResourceAttr`
 a geometry attribute (`x1`, `x2`, `y1`, `y2`) of an SVG gradient.
-
-$$\mathrm{WkPropX} = \{\mathrm{base}(p) \mid p \in \mathrm{WkProp}\} \cup \{\mathrm{restyle}, \mathrm{customInherited}, \mathrm{pointerEvents}, \mathrm{svgResourceAttr}\}$$
 
 The WebKit property type extended by the rows this section proves. -/
 inductive WkPropX where
@@ -819,8 +676,6 @@ deriving Repr, DecidableEq
   `markForLayoutAndParentResourceInvalidation`, `WC/rendering/svg/legacy/LegacyRenderSVGResource.cpp:157-215`), and
   layout repaints. CONFIRMED for both SVG engines.
 
-$$\operatorname{stagesOf}^{X}_{\mathrm{wk}}(e, x, \ell) = \begin{cases} \operatorname{diffStages}(\operatorname{wkDiff}(e, p, \ell)) & x = \mathrm{base}(p) \\ [\mathrm{style}] & x \in \{\mathrm{restyle}, \mathrm{customInherited}\} \\ [\mathrm{style}, \mathrm{props}] & x = \mathrm{pointerEvents} \\ [\mathrm{style}, \mathrm{layout}, \mathrm{paint}] & x = \mathrm{svgResourceAttr} \end{cases}$$
-
 The stages each extended WebKit change dirties. -/
 def wkStagesOfX (c : Change WkPropX) : List Stage :=
   match c.prop with
@@ -831,8 +686,6 @@ def wkStagesOfX (c : Change WkPropX) : List Stage :=
 
 /-- **The extended WebKit engine in mode `m`**: `webkitAt m` with the extended rows.
 
-$$\operatorname{webkitX}(m) = \big(m,\ \operatorname{stagesOf}^{X}_{\mathrm{wk}},\ [\mathrm{comp}],\ [\mathrm{commit}]\big)$$
-
 The WebKit engine over the extended property type. -/
 def webkitX (m : WkMode) : Engine WkPropX WkMode where
   mode := m
@@ -842,14 +695,10 @@ def webkitX (m : WkMode) : Engine WkPropX WkMode where
 
 /-- A table change as an extended change.
 
-$$\operatorname{lift}(e, p, \ell) = (e, \mathrm{base}(p), \ell)$$
-
 Wraps an old WebKit change in the extended type. -/
 def liftWk (c : Change WkProp) : Change WkPropX := ⟨c.elem, .base c.prop, c.layer⟩
 
 /-- A frame of table changes as an extended frame.
-
-$$\operatorname{liftF}(f) = f[\mathrm{changes} := [\,\operatorname{lift}(c) \mid c \in f.\mathrm{changes}\,]]$$
 
 Wraps every change of an old WebKit frame. -/
 def liftWkFrame (f : FrameIn WkProp) : FrameIn WkPropX :=
@@ -857,9 +706,6 @@ def liftWkFrame (f : FrameIn WkProp) : FrameIn WkPropX :=
 
 /-- **The extension keeps the old table.** A lifted frame has the same passes, units and hit tests under the
 extended engine.
-
-$$\forall m \in \mathrm{WkMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{WkProp}),\ \forall s \in \mathrm{Stage}:\ W^{X}.\mathrm{passes}(s) = W.\mathrm{passes}(s) \land W^{X}.\mathrm{units}(s) = W.\mathrm{units}(s) \land W^{X}.\mathrm{hits} = W.\mathrm{hits}$$
-$$\text{where } W^{X} = \operatorname{frameWork}_{\operatorname{webkitX}(m)}(\operatorname{liftF}(f)),\ W = \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(f)$$
 
 Every theorem about the old WebKit rows carries over to the extended engine. -/
 theorem webkitX_lift (m : WkMode) (f : FrameIn WkProp) (s : Stage) :
@@ -901,15 +747,11 @@ update was scheduled for it (`WC/animation/DocumentTimeline.cpp:190-205, 350-399
 running effect does not schedule one (`KeyframeEffect.cpp:2724-2745`). `upd`: the frame is a rendering update;
 `sched`: the document timeline has a scheduled update (e.g. another, main-thread animation on it). CONFIRMED.
 
-$$\operatorname{ticks}(\tau, u, \sigma) \iff (\tau = \mathrm{scroll} \land u) \lor \sigma$$
-
 An accelerated animation is ticked when its scroll timeline sees an update or its document timeline was scheduled. -/
 def wkTicks (τ : Timeline) (upd sched : Bool) : Bool := (τ == .scroll && upd) || sched
 
 /-- **A frame plus one running animation** on element `e` with layer state `ℓ`: a UI-process animation adds one
 compositor animation and, when it ticks, one `restyle` of its target; a main-thread animation adds its changes `cs`.
-
-$$\operatorname{withAnim}(m, a, e, \ell, \mathit{cs}, f, \sigma) = \begin{cases} f[\mathrm{changes} \mathrel{+\!\!+}= [(e, \mathrm{restyle}, \ell) \mid \operatorname{ticks}(a.\tau, \operatorname{updates}(f), \sigma)],\ \mathrm{compAnims} \mathrel{+}= 1] & \operatorname{wkThread}(m, a) = \mathrm{comp} \\ f[\mathrm{changes} \mathrel{+\!\!+}= \mathit{cs}] & \text{otherwise} \end{cases}$$
 
 The frame after adding an animation, with the style ride-along of an accelerated one. -/
 def withAnim (m : WkMode) (a : WkAnim) (e : Nat) (ℓ : LayerState) (cs : List (Change WkPropX))
@@ -922,8 +764,6 @@ def withAnim (m : WkMode) (a : WkAnim) (e : Nat) (ℓ : LayerState) (cs : List (
 /-- **A time-based accelerated animation rides along only when its timeline was scheduled** (refutes ledger n=8 as
 stated: a rendering update alone does not tick it).
 
-$$\forall m, a, e, \ell, \mathit{cs}, f:\ \operatorname{wkThread}(m, a) = \mathrm{comp} \land a.\tau = \mathrm{time} \Rightarrow \operatorname{withAnim}(m, a, e, \ell, \mathit{cs}, f, \mathrm{false}).\mathrm{changes} = f.\mathrm{changes}$$
-
 An unscheduled document timeline adds no style work for a UI-process animation, even in an updating frame. -/
 theorem time_comp_no_ride (m : WkMode) (a : WkAnim) (e : Nat) (ℓ : LayerState) (cs : List (Change WkPropX))
     (f : FrameIn WkPropX) (hc : wkThread m a = .comp) (ht : a.timeline = .time) :
@@ -931,8 +771,6 @@ theorem time_comp_no_ride (m : WkMode) (a : WkAnim) (e : Nat) (ℓ : LayerState)
   simp [withAnim, hc, wkTicks, ht]
 
 /-- **When the ride-along happens.** A UI-process animation adds a change to the frame iff it ticks.
-
-$$\forall m, a, e, \ell, \mathit{cs}, f, \sigma:\ \operatorname{wkThread}(m, a) = \mathrm{comp} \Rightarrow \big(|\operatorname{withAnim}(m, a, e, \ell, \mathit{cs}, f, \sigma).\mathrm{changes}| = |f.\mathrm{changes}| + 1 \iff \operatorname{ticks}(a.\tau, \operatorname{updates}(f), \sigma)\big)$$
 
 An accelerated animation costs main-thread style exactly in the updates where its timeline ticks it. -/
 theorem ride_iff (m : WkMode) (a : WkAnim) (e : Nat) (ℓ : LayerState) (cs : List (Change WkPropX))
@@ -944,9 +782,6 @@ theorem ride_iff (m : WkMode) (a : WkAnim) (e : Nat) (ℓ : LayerState) (cs : Li
 
 /-- **A scroll-driven accelerated animation restyles its target in every updating frame** (ledger n=10: the style
 floor of the compositor morph). It adds a style pass and exactly one style unit.
-
-$$\forall m, a, e, \ell, \mathit{cs}, f, \sigma:\ \operatorname{wkThread}(m, a) = \mathrm{comp} \land a.\tau = \mathrm{scroll} \land \operatorname{updates}(f) \Rightarrow \mathrm{style} \in \operatorname{touched}_{\operatorname{webkitX}(m)}(g) \land \operatorname{units}(g, \mathrm{style}) = \operatorname{units}(f, \mathrm{style}) + 1$$
-$$\text{where } g = \operatorname{withAnim}(m, a, e, \ell, \mathit{cs}, f, \sigma),\ \operatorname{units} = \operatorname{units}_{\operatorname{webkitX}(m)}$$
 
 On a scroll timeline the threaded path still costs one restyle per scroll update. -/
 theorem scroll_comp_ride (m : WkMode) (a : WkAnim) (e : Nat) (ℓ : LayerState) (cs : List (Change WkPropX))
@@ -961,15 +796,11 @@ theorem scroll_comp_ride (m : WkMode) (a : WkAnim) (e : Nat) (ℓ : LayerState) 
 
 /-- The empty extended frame: nothing runs.
 
-$$\varnothing = (0, 0, 0, 0, [\,], 0)$$
-
 A frame with no script, no change and no animation. -/
 def emptyX : FrameIn WkPropX := ⟨0, 0, 0, 0, [], 0⟩
 
 /-- **Consistency with `anim_comp_zero`.** Alone in a frame with no rendering update and no scheduled timeline, a
 UI-process animation costs nothing but `comp`.
-
-$$\forall m, a, e, \ell, \mathit{cs}:\ \operatorname{wkThread}(m, a) = \mathrm{comp} \Rightarrow \forall s \ne \mathrm{comp}:\ W.\mathrm{passes}(s) = 0 \land W.\mathrm{units}(s) = 0\quad\text{where } W = \operatorname{frameWork}_{\operatorname{webkitX}(m)}(\operatorname{withAnim}(m, a, e, \ell, \mathit{cs}, \varnothing, \mathrm{false}))$$
 
 The old zero-cost theorem is the case where nothing else updates. -/
 theorem withAnim_idle_zero (m : WkMode) (a : WkAnim) (e : Nat) (ℓ : LayerState) (cs : List (Change WkPropX))
@@ -983,17 +814,11 @@ theorem withAnim_idle_zero (m : WkMode) (a : WkAnim) (e : Nat) (ℓ : LayerState
 
 #guard wkTicks .scroll true false && !wkTicks .scroll false false && !wkTicks .time true false && wkTicks .time true true
 
-/-- A delivered scroll position in an extended frame (as `scrollStep`).
-
-$$\operatorname{scrollStep}^{X}(f) = f \text{ with } \mathrm{changes} := (0, \mathrm{base}(\mathrm{scrollPos}), \mathrm{none}) :: f.\mathrm{changes}$$
--/
+/-- A delivered scroll position in an extended frame (as `scrollStep`). -/
 def scrollStepX (f : FrameIn WkPropX) : FrameIn WkPropX :=
   { f with changes := ⟨0, .base .scrollPos, .none⟩ :: f.changes }
 
-/-- **The lift commutes with a scroll step.**
-
-$$\forall f \in \mathrm{FrameIn}(\mathrm{WkProp}):\ \operatorname{liftF}(\operatorname{scrollStep}(f)) = \operatorname{scrollStep}^{X}(\operatorname{liftF}(f))$$
--/
+/-- **The lift commutes with a scroll step.** -/
 theorem lift_scrollStep (f : FrameIn WkProp) : liftWkFrame (scrollStep f) = scrollStepX (liftWkFrame f) := rfl
 
 /-! ### The WKTR fixtures: style recalcs per rendering update (task wktr-p1p4)
@@ -1004,46 +829,28 @@ scrolls costs `0` style recalcs per update; the same page with a `transform` ani
 scroll(root)` costs exactly `1`; with the same animation on the document timeline (`4s linear infinite alternate`)
 `0`. The goldens P1 and P4 had claimed `0` for the scroll-driven arm. -/
 
-/-- The measured style recalcs per rendering update of the three fixture pages.
-
-$$\mu = (\mu_{\mathrm{control}}, \mu_{\mathrm{timeline}}, \mu_{\mathrm{timeAccel}}) \in \mathbb{N}^3$$
--/
+/-- The measured style recalcs per rendering update of the three fixture pages. -/
 structure WktrStyleRate where
   control   : Nat
   timeline  : Nat
   timeAccel : Nat
 
-/-- **The premise** `prem.wktr_scroll_timeline_restyle`: what the fixtures measured.
-
-$$\operatorname{Holds}(\mu) \iff \mu_{\mathrm{control}} = 0 \ \land\ \mu_{\mathrm{timeline}} = 1 \ \land\ \mu_{\mathrm{timeAccel}} = 0$$
--/
+/-- **The premise** `prem.wktr_scroll_timeline_restyle`: what the fixtures measured. -/
 def WktrStyleRate.Holds (μ : WktrStyleRate) : Prop := μ.control = 0 ∧ μ.timeline = 1 ∧ μ.timeAccel = 0
 
-/-- The scroll-only frame (the control page): one delivered scroll position, nothing animated.
-
-$$\mathrm{ctl} = \operatorname{scrollStep}^{X}(\varnothing)$$
--/
+/-- The scroll-only frame (the control page): one delivered scroll position, nothing animated. -/
 def ctlFrame : FrameIn WkPropX := scrollStepX emptyX
 
-/-- The scroll-timeline page: a UI-process `transform` animation on the scroll timeline, in the scroll update.
-
-$$\mathrm{tl} = \operatorname{withAnim}(\mathrm{safari}, \mathrm{clean}([\mathrm{transform}], \mathrm{scroll}), 1, \mathrm{layer}, [\,], \mathrm{ctl}, \mathrm{false})$$
--/
+/-- The scroll-timeline page: a UI-process `transform` animation on the scroll timeline, in the scroll update. -/
 def tlFrame : FrameIn WkPropX :=
   withAnim WkMode.safari (.clean [.transform] .scroll) 1 .layer [] ctlFrame false
 
-/-- The time-accelerated page: the same animation on the document timeline, in the scroll update.
-
-$$\mathrm{ta} = \operatorname{withAnim}(\mathrm{safari}, \mathrm{clean}([\mathrm{transform}], \mathrm{time}), 1, \mathrm{layer}, [\,], \mathrm{ctl}, \mathrm{false})$$
--/
+/-- The time-accelerated page: the same animation on the document timeline, in the scroll update. -/
 def taFrame : FrameIn WkPropX :=
   withAnim WkMode.safari (.clean [.transform] .time) 1 .layer [] ctlFrame false
 
 /-- **The corrected model agrees with the measurement.** Under the premise, the style passes per update of the three
 frames equal the measured recalcs per update.
-
-$$\forall \mu:\ \operatorname{Holds}(\mu) \Rightarrow W(\mathrm{ctl}).\mathrm{passes}(\mathrm{style}) = \mu_{\mathrm{control}} \land W(\mathrm{tl}).\mathrm{passes}(\mathrm{style}) = \mu_{\mathrm{timeline}} \land W(\mathrm{ta}).\mathrm{passes}(\mathrm{style}) = \mu_{\mathrm{timeAccel}}$$
-$$\text{where } W = \operatorname{frameWork}_{\operatorname{webkitX}(\mathrm{safari})}$$
 
 Scroll alone restyles nothing, a scroll-driven accelerated animation restyles once per update, a document-timeline one never. -/
 theorem style_rate_model (μ : WktrStyleRate) (h : μ.Holds) :
@@ -1056,8 +863,6 @@ theorem style_rate_model (μ : WktrStyleRate) (h : μ.Holds) :
 
 /-- **The earlier golden is refuted by the measurement.** The old scroll-driven arm (`animFrame`: a bare compositor
 animation, no ride-along) predicts `0` style passes; the premise says `1`.
-
-$$\forall \mu:\ \operatorname{Holds}(\mu) \Rightarrow \operatorname{frameWork}_{\operatorname{webkitAt}(\mathrm{safari})}(\operatorname{animFrame}(\mathrm{safari}, \mathrm{clean}([\mathrm{transform}], \mathrm{scroll}), [\,])).\mathrm{passes}(\mathrm{style}) \ne \mu_{\mathrm{timeline}}$$
 -/
 theorem style_rate_old_refuted (μ : WktrStyleRate) (h : μ.Holds) :
     (frameWork (webkitAt WkMode.safari) (animFrame WkMode.safari (.clean [.transform] .scroll) [])).passes .style ≠
@@ -1071,31 +876,20 @@ theorem style_rate_old_refuted (μ : WktrStyleRate) (h : μ.Holds) :
 /-- A predicted relation of one stage's count: `=0` none, `>0` some (original arm, against no work), `=o` equal to
 the original, `<o` at most the original and below it somewhere, `>o` at least the original and above it somewhere,
 `any` incomparable.
-
-$$\mathrm{Pred} = \{\mathrm{zero}, \mathrm{pos}, \mathrm{eqO}, \mathrm{ltO}, \mathrm{gtO}, \mathrm{any}\}$$
 -/
 inductive Pred where
   | zero | pos | eqO | ltO | gtO | any
 deriving Repr, DecidableEq, Inhabited
 
-/-- The wire string of a prediction.
-
-$$\operatorname{str}(\mathrm{zero}, \mathrm{pos}, \mathrm{eqO}, \mathrm{ltO}, \mathrm{gtO}, \mathrm{any}) = (\texttt{=0}, \texttt{>0}, \texttt{=o}, \texttt{<o}, \texttt{>o}, \texttt{any})$$
--/
+/-- The wire string of a prediction. -/
 def Pred.str : Pred → String
   | .zero => "=0" | .pos => ">0" | .eqO => "=o" | .ltO => "<o" | .gtO => ">o" | .any => "any"
 
-/-- The prediction for the original arm's stage `s`: `=0` when it has no pass and no unit, else `>0`.
-
-$$\operatorname{predO}(o, s) = \begin{cases} \mathrm{zero} & o.\mathrm{passes}(s) = 0 \land o.\mathrm{units}(s) = 0 \\ \mathrm{pos} & \text{otherwise} \end{cases}$$
--/
+/-- The prediction for the original arm's stage `s`: `=0` when it has no pass and no unit, else `>0`. -/
 def predictOrig (o : Work) (s : Stage) : Pred :=
   if o.passes s = 0 ∧ o.units s = 0 then .zero else .pos
 
-/-- The prediction for a variant's stage `s` against the original, first match: zero, equal, below, above, else any.
-
-$$\operatorname{predV}(v, o, s) = \begin{cases} \mathrm{zero} & v.\mathrm{passes}(s) = 0 \land v.\mathrm{units}(s) = 0 \\ \mathrm{eqO} & \text{else if } v.\mathrm{passes}(s) = o.\mathrm{passes}(s) \land v.\mathrm{units}(s) = o.\mathrm{units}(s) \\ \mathrm{ltO} & \text{else if } v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \land v.\mathrm{units}(s) \le o.\mathrm{units}(s) \\ \mathrm{gtO} & \text{else if } o.\mathrm{passes}(s) \le v.\mathrm{passes}(s) \land o.\mathrm{units}(s) \le v.\mathrm{units}(s) \\ \mathrm{any} & \text{otherwise} \end{cases}$$
--/
+/-- The prediction for a variant's stage `s` against the original, first match: zero, equal, below, above, else any. -/
 def predictVar (v o : Work) (s : Stage) : Pred :=
   if v.passes s = 0 ∧ v.units s = 0 then .zero
   else if v.passes s = o.passes s ∧ v.units s = o.units s then .eqO
@@ -1105,8 +899,6 @@ def predictVar (v o : Work) (s : Stage) : Pred :=
 
 /-- The lane that reads a scenario: the iOS Simulator Web Inspector timeline (`measure-webkit`) or WebKitTestRunner
 `internals` counters (`measure-wktr`).
-
-$$\mathrm{Lane} = \{\mathrm{sim}, \mathrm{wktr}\}$$
 -/
 inductive Lane where
   | sim | wktr
@@ -1114,8 +906,6 @@ deriving Repr, DecidableEq, Inhabited
 
 /-- The stages a lane counts, with the count type (design note §3.2): Simulator FireAnimationFrame, RecalculateStyles,
 Layout, Paint, Composite; WKTR styleRecalcs, layoutUpdates, compositingUpdates, renderingUpdates.
-
-$$\operatorname{counts}(\ell) = \begin{cases} [(\mathrm{script}, \texttt{FireAnimationFrame}), (\mathrm{style}, \texttt{RecalculateStyles}), (\mathrm{layout}, \texttt{Layout}), (\mathrm{paint}, \texttt{Paint}), (\mathrm{commit}, \texttt{Composite})] & \ell = \mathrm{sim} \\ [(\mathrm{style}, \texttt{styleRecalcs}), (\mathrm{layout}, \texttt{layoutUpdates}), (\mathrm{props}, \texttt{compositingUpdates}), (\mathrm{commit}, \texttt{renderingUpdates})] & \ell = \mathrm{wktr} \end{cases}$$
 -/
 def Lane.counts : Lane → List (Stage × String)
   | .sim => [(.script, "FireAnimationFrame"), (.style, "RecalculateStyles"), (.layout, "Layout"), (.paint, "Paint"),
@@ -1123,18 +913,13 @@ def Lane.counts : Lane → List (Stage × String)
   | .wktr => [(.style, "styleRecalcs"), (.layout, "layoutUpdates"), (.props, "compositingUpdates"),
       (.commit, "renderingUpdates")]
 
-/-- The wire name of a stage.
-
-$$\operatorname{name}(s) = \text{the constructor name of } s,\ \text{e.g. } \operatorname{name}(\mathrm{props}) = \texttt{props}$$
--/
+/-- The wire name of a stage. -/
 def stageName : Stage → String
   | .script => "script" | .style => "style" | .layout => "layout" | .props => "props" | .paint => "paint"
   | .raster => "raster" | .commit => "commit" | .comp => "comp"
 
 /-- A prediction scenario: its id, lane, the original arm's frame and the named variant frames (one frame = one
 scroll step or one animation frame).
-
-$$\mathrm{Scenario} = \mathrm{String} \times \mathrm{Lane} \times \mathrm{FrameIn}(\mathrm{WkPropX}) \times (\mathrm{String} \times \mathrm{FrameIn}(\mathrm{WkPropX}))^{*}$$
 -/
 structure Scenario where
   id       : String
@@ -1150,8 +935,6 @@ structure Scenario where
   animation (never accelerated);
 - P4 (wktr, per scroll step): a JS scroll handler repainting a background vs a threaded scroll-driven animation;
 - P5 (wktr, per frame): a rAF writer of a 2D transform without a compositing reason vs the same with a 3D op.
-
-$$\begin{aligned} \mathrm{scenarios} = [\ &(\texttt{P1}, \mathrm{sim}, L(\operatorname{scrollStep}(\operatorname{jsFrame}([(1, \mathrm{transform}, \mathrm{layer})]))), [(\texttt{scrollDriven}, \mathit{sd})]), \\ &(\texttt{P2}, \mathrm{sim}, L(\operatorname{jsFrame}([\,])), [(\texttt{cssTime}, \mathit{wa}(\operatorname{clean}([\mathrm{opacity}], \mathrm{time}), \mathrm{own}, [(1, \mathrm{opacity}, \mathrm{own})]))]), \\ &(\texttt{P3a}, \mathrm{sim}, L(\operatorname{jsFrame}([(1, \mathrm{clipPath}, \mathrm{own})])), [(\texttt{cssAnim}, \mathit{wa}(\operatorname{clean}([\mathrm{clipPath}], \mathrm{time}), \mathrm{own}, [(1, \mathrm{clipPath}, \mathrm{own})]))]), \\ &(\texttt{P3b}, \mathrm{sim}, L(\operatorname{jsFrame}([(1, \mathrm{background}, \mathrm{layer})])), [(\texttt{cssAnim}, \mathit{wa}(\operatorname{clean}([\mathrm{background}], \mathrm{time}), \mathrm{layer}, [(1, \mathrm{background}, \mathrm{layer})]))]), \\ &(\texttt{P4}, \mathrm{wktr}, L(\operatorname{scrollStep}(\operatorname{jsFrame}([(1, \mathrm{background}, \mathrm{layer})]))), [(\texttt{scrollDriven}, \mathit{sd})]), \\ &(\texttt{P5}, \mathrm{wktr}, L(\operatorname{jsFrame}([(1, \mathrm{transform}, \mathrm{layer})])), [(\texttt{js3d}, L(\operatorname{jsFrame}([(1, \mathrm{transform}, \mathrm{own})])))])\ ], \\ \text{with } L = {} &\operatorname{liftWkFrame},\ \mathit{wa}(a, \ell, \mathit{cs}) = \operatorname{withAnim}(\mathrm{safari}, a, 1, \ell, \mathit{cs}, \varnothing, \mathrm{false}), \\ \mathit{sd} = {} &\operatorname{withAnim}(\mathrm{safari}, \operatorname{clean}([\mathrm{transform}], \mathrm{scroll}), 1, \mathrm{layer}, [(1, \mathrm{transform}, \mathrm{layer})], \operatorname{scrollStep}^{X}(\varnothing), \mathrm{false}) \end{aligned}$$
 -/
 def scenarios : List Scenario :=
   let L := liftWkFrame
@@ -1169,10 +952,7 @@ def scenarios : List Scenario :=
     ⟨"P4", .wktr, L (scrollStep (jsFrame [⟨1, .background, .layer⟩])), [("scrollDriven", sd)]⟩,
     ⟨"P5", .wktr, L (jsFrame [⟨1, .transform, .layer⟩]), [("js3d", L (jsFrame [⟨1, .transform, .own⟩]))]⟩ ]
 
-/-- One golden row: `{engine, scenario, variant, stage, prediction, countType}`.
-
-$$\mathrm{Row} = \mathrm{String}^{6}$$
--/
+/-- One golden row: `{engine, scenario, variant, stage, prediction, countType}`. -/
 structure Row where
   engine     : String
   scenario   : String
@@ -1185,8 +965,6 @@ deriving Repr, DecidableEq
 /-- The rows of one scenario: for each counted stage of its lane, the original arm (`predO`, variant name
 `original`), then each variant (`predV` against the original; variants outer, counts inner), all under `webkit`.
 Stage and prediction are stored as their wire strings.
-
-$$\begin{aligned} \forall \sigma:\quad \operatorname{rows}(\sigma) = {} &\big[(\texttt{webkit}, \sigma.\mathrm{id}, \texttt{original}, \operatorname{name}(s), \operatorname{str}(\operatorname{predO}(W_o, s)), k)\big]_{(s, k) \in \operatorname{counts}(\sigma.\mathrm{lane})} \\ \mathbin{+\!\!+} {} &\big[(\texttt{webkit}, \sigma.\mathrm{id}, n, \operatorname{name}(s), \operatorname{str}(\operatorname{predV}(W_v, W_o, s)), k)\big]_{(n, v) \in \sigma.\mathrm{variants},\ (s, k) \in \operatorname{counts}(\sigma.\mathrm{lane})}, \\ \text{with } W_o = {} &\operatorname{frameWork}_{\mathrm{webkit}}(\sigma.\mathrm{original}),\ W_v = \operatorname{frameWork}_{\mathrm{webkit}}(v) \end{aligned}$$
 -/
 def rowsOf (sc : Scenario) : List Row :=
   let o := frameWork (webkitX WkMode.safari) sc.original
@@ -1196,31 +974,20 @@ def rowsOf (sc : Scenario) : List Row :=
       let w := frameWork (webkitX WkMode.safari) v
       cs.map fun (s, k) => ⟨"webkit", sc.id, n, stageName s, (predictVar w o s).str, k⟩
 
-/-- All golden rows.
-
-$$\mathrm{goldenRows} = \operatorname{flatMap}(\mathrm{scenarios}, \operatorname{rows})$$
--/
+/-- All golden rows. -/
 def goldenRows : List Row := scenarios.flatMap rowsOf
 
-/-- One row as compact JSON (keys sorted by `Json.mkObj`).
-
-$$\operatorname{json}(r) = \{\texttt{countType}, \texttt{engine}, \texttt{prediction}, \texttt{scenario}, \texttt{stage}, \texttt{variant}\} \text{ of } r$$
--/
+/-- One row as compact JSON (keys sorted by `Json.mkObj`). -/
 def Row.json (r : Row) : String :=
   (Json.mkObj [("engine", .str r.engine), ("scenario", .str r.scenario), ("variant", .str r.variant),
     ("stage", .str r.stage), ("prediction", .str r.prediction), ("countType", .str r.countType)]).compress
 
 /-- The contents of `packages/contracts/golden/engine/webkit.jsonl`: one JSON row per line, newline-terminated, in the
 order of `goldenRows`.
-
-$$\mathrm{goldenJsonl} = \mathop{\Vert}_{r \in \mathrm{goldenRows}} \big(\operatorname{json}(r) \mathbin{+\!\!+} \texttt{\textbackslash n}\big)$$
 -/
 def goldenJsonl : String := String.join (goldenRows.map fun r => r.json ++ "\n")
 
-/-- Look up one golden prediction (for the guards below); `"?"` when absent.
-
-$$\operatorname{pred}(\sigma, n, k) = \begin{cases} r.\mathrm{prediction} & r \text{ the first row with } (\sigma, n, k) \\ \texttt{?} & \text{no such row} \end{cases}$$
--/
+/-- Look up one golden prediction (for the guards below); `"?"` when absent. -/
 def predOf (sc n k : String) : String :=
   ((goldenRows.find? fun r => r.scenario == sc && r.variant == n && r.countType == k).map (·.prediction)).getD "?"
 
@@ -1252,8 +1019,6 @@ def predOf (sc n k : String) : String :=
 rect, or does not allow detaching, or has an ancestor with a transform animation, or runs a transform animation of
 unknown extent (`WC/platform/graphics/ca/GraphicsLayerCA.cpp:3036-3061`; the last two are `animPinned`). CONFIRMED.
 
-$$\operatorname{attached}(c, d, p) \iff c \lor \lnot d \lor p$$
-
 A layer keeps its backing while it meets the coverage rect or is pinned. -/
 def coverageAttached (meets allowsDetach animPinned : Bool) : Bool := meets || !allowsDetach || animPinned
 
@@ -1262,14 +1027,10 @@ def coverageAttached (meets allowsDetach animPinned : Bool) : Bool := meets || !
 (`WK/Shared/RemoteLayerTree/RemoteLayerBackingStore.mm:240-243`); detaching drops the store. A new backing also has
 no front buffer, so its first display is full (`WK/Shared/graphics/ImageBufferSet.cpp:42-50`). CONFIRMED.
 
-$$\operatorname{attachPaint}(p, c, A) = \begin{cases} A & c \land \lnot p \\ 0 & \text{otherwise} \end{cases}$$
-
 A layer that gains a backing store repaints its whole area. -/
 def attachPaint (prev cur : Bool) (area : Nat) : Nat := if cur && !prev then area else 0
 
 /-- **Re-attach paint over a run**: the attach paint of every pair of consecutive frames.
-
-$$\operatorname{reattach}(A, [\,]) = \operatorname{reattach}(A, [x]) = 0,\qquad \operatorname{reattach}(A, x :: y :: L) = \operatorname{attachPaint}(x, y, A) + \operatorname{reattach}(A, y :: L)$$
 
 The total repaint a layer pays for regaining its backing store during a run. -/
 def reattachPaint (area : Nat) : List Bool → Nat
@@ -1277,8 +1038,6 @@ def reattachPaint (area : Nat) : List Bool → Nat
   | _ => 0
 
 /-- A longer run pays at least the re-attach paint of its tail.
-
-$$\forall A \in \mathbb{N},\ \forall P, L \in \mathbb{B}^{*}:\ \operatorname{reattach}(A, L) \le \operatorname{reattach}(A, P \mathbin{+\!\!+} L)$$
 
 Prepending frames never lowers the re-attach paint. -/
 theorem reattachPaint_prefix (area : Nat) (pre l : List Bool) :
@@ -1298,8 +1057,6 @@ theorem reattachPaint_prefix (area : Nat) (pre l : List Bool) :
 
 /-- A run that is detached and later attached pays at least one full re-attach.
 
-$$\forall A \in \mathbb{N},\ \forall M, Q \in \mathbb{B}^{*}:\ A \le \operatorname{reattach}(A, \mathrm{false} :: (M \mathbin{+\!\!+} \mathrm{true} :: Q))$$
-
 Going from detached to attached somewhere costs the whole area. -/
 theorem reattachPaint_rise (area : Nat) (mid q : List Bool) :
     area ≤ reattachPaint area (false :: (mid ++ true :: q)) := by
@@ -1314,8 +1071,6 @@ theorem reattachPaint_rise (area : Nat) (mid q : List Bool) :
       simp
 
 /-- **A strip that always meets the coverage rect never re-attaches** (ledger n=7, the strip side).
-
-$$\forall A, n \in \mathbb{N},\ \forall d, p \in \mathbb{B}:\ \operatorname{reattach}\big(A, [\operatorname{attached}(\mathrm{true}, d, p)]^{n}\big) = 0$$
 
 A layer that stays inside the coverage rect keeps its backing and pays no re-attach paint. -/
 theorem strip_no_reattach (area n : Nat) (d p : Bool) :
@@ -1336,8 +1091,6 @@ theorem strip_no_reattach (area n : Nat) (d p : Bool) :
 detaching allowed and no animation pin, a run of coverage flags that is out somewhere and later in again pays at
 least the face's area.
 
-$$\forall A \in \mathbb{N},\ \forall P, M, Q \in \mathbb{B}^{*}:\ A \le \operatorname{reattach}\big(A, [\operatorname{attached}(x, \mathrm{true}, \mathrm{false}) \mid x \in P \mathbin{+\!\!+} \mathrm{false} :: (M \mathbin{+\!\!+} \mathrm{true} :: Q)]\big)$$
-
 Every roll that moves a face out of the coverage rect and back costs a full repaint of the face. -/
 theorem face_reattach (area : Nat) (pre mid q : List Bool) :
     area ≤ reattachPaint area ((pre ++ false :: (mid ++ true :: q)).map fun x => coverageAttached x true false) := by
@@ -1349,14 +1102,10 @@ theorem face_reattach (area : Nat) (pre mid q : List Bool) :
 /-- **Does a layer use a backing store?** Only when it draws content or delegates display; otherwise the store is
 dropped (`PlatformCALayerRemote.mm:224-228`). CONFIRMED.
 
-$$\operatorname{usesBacking}(c, g) \iff c \lor g$$
-
 A layer that neither draws nor delegates display has no backing store. -/
 def usesBacking (drawsContent delegates : Bool) : Bool := drawsContent || delegates
 
 /-- **Resident backing of a layer** of area `A` kpx.
-
-$$\operatorname{resident}(c, g, A) = \begin{cases} A & \operatorname{usesBacking}(c, g) \\ 0 & \text{otherwise} \end{cases}$$
 
 A layer with a backing store holds its area in memory; a simple layer holds none. -/
 def residentKpx (drawsContent delegates : Bool) (areaKpx : Nat) : Nat :=
@@ -1367,15 +1116,11 @@ def residentKpx (drawsContent delegates : Bool) (areaKpx : Nat) : Nat :=
 (`RemoteLayerBackingStore.mm:139-152`); with no attached store there is nothing to dirty (`PlatformCALayerRemote.mm:357-375`).
 CONFIRMED.
 
-$$\operatorname{resizePaint}(c, g, t, A) = \begin{cases} A & \operatorname{usesBacking}(c, g) \land t \\ 0 & \text{otherwise} \end{cases}$$
-
 A resized layer with an attached backing store repaints in full; a simple layer paints nothing. -/
 def resizePaint (drawsContent delegates attached : Bool) (areaKpx : Nat) : Nat :=
   if usesBacking drawsContent delegates && attached then areaKpx else 0
 
 /-- **A simple layer costs no backing and no resize paint** (ledger n=11, first statement).
-
-$$\forall t \in \mathbb{B},\ \forall A \in \mathbb{N}:\ \operatorname{resident}(\mathrm{false}, \mathrm{false}, A) = 0 \land \operatorname{resizePaint}(\mathrm{false}, \mathrm{false}, t, A) = 0$$
 
 A layer that only shows a background colour or a clip holds no store and paints nothing when it grows. -/
 theorem simple_layer (t : Bool) (a : Nat) : residentKpx false false a = 0 ∧ resizePaint false false t a = 0 := by
@@ -1383,16 +1128,12 @@ theorem simple_layer (t : Bool) (a : Nat) : residentKpx false false a = 0 ∧ re
 
 /-- **A backed layer repaints in full on resize.**
 
-$$\forall c, g \in \mathbb{B},\ \forall A \in \mathbb{N}:\ \operatorname{usesBacking}(c, g) \Rightarrow \operatorname{resizePaint}(c, g, \mathrm{true}, A) = A$$
-
 Growing a layer with an attached backing store repaints its whole area. -/
 theorem backed_resize (c g : Bool) (a : Nat) (h : usesBacking c g = true) : resizePaint c g true a = a := by
   simp [resizePaint, h]
 
 /-- **Promote per tween** (ledger n=11, second statement): an element composited only while it animates gains a
 backing store of its area in the tween's first frame and repaints it in full there.
-
-$$\forall A \in \mathbb{N},\ \forall L \in \mathbb{B}^{*}:\ A \le \operatorname{reattach}(A, \mathrm{false} :: \mathrm{true} :: L) \land \operatorname{resident}(\mathrm{true}, \mathrm{false}, A) \mathbin{\dot{-}} \operatorname{resident}(\mathrm{false}, \mathrm{false}, A) = A$$
 
 Each tween that promotes the element pays one full paint and adds its area to resident memory. -/
 theorem promote_tween (a : Nat) (l : List Bool) :
@@ -1411,8 +1152,6 @@ theorem promote_tween (a : Nat) (l : List Bool) :
 most 64 × 64 = 4096 device pixels (`WK/Shared/RemoteLayerTree/RemoteLayerBackingStore.mm:293-307`; the
 dynamic-content-scaling display-list case is not modelled). CONFIRMED.
 
-$$\operatorname{partial}(B) \iff 4096 < B$$
-
 Small backing stores always repaint in full. -/
 def partialRepaint (backendPx : Nat) : Bool := decide (4096 < backendPx)
 
@@ -1421,14 +1160,10 @@ and partial repaint the host paints only the dirty rect and copies the rest forw
 (`WK/Shared/graphics/ImageBufferSet.cpp:103-147`); with no front buffer, a purged one, or no partial repaint it paints
 the whole store (`:42-56`). The copy is not painting and is not counted. CONFIRMED.
 
-$$\operatorname{display}(B, a, v) = \begin{cases} a & v \land \operatorname{partial}(B) \\ B & \text{otherwise} \end{cases}$$
-
 The pixels painted for one dirty rect: the rect in the steady state, the whole store otherwise. -/
 def displayPx (B a : Nat) (frontValid : Bool) : Nat := if frontValid && partialRepaint B then a else B
 
 /-- **Bounds of the display term.**
-
-$$\forall B, a \in \mathbb{N},\ \forall v \in \mathbb{B}:\ a \le B \Rightarrow a \le \operatorname{display}(B, a, v) \le B$$
 
 A display paints at least the dirty rect and at most the whole store. -/
 theorem display_bounds (B a : Nat) (v : Bool) (h : a ≤ B) : a ≤ displayPx B a v ∧ displayPx B a v ≤ B := by
@@ -1436,9 +1171,7 @@ theorem display_bounds (B a : Nat) (v : Bool) (h : a ≤ B) : a ≤ displayPx B 
   split <;> omega
 
 /-- **A large host in the steady state paints only the dirty rect**, so moving the content to its own layer cannot
-paint less (refutes ledger n=13's $D_{\mathrm{wk}}(o) = B$).
-
-$$\forall B, b, a \in \mathbb{N},\ \forall v \in \mathbb{B}:\ \operatorname{partial}(B) \land a \le b \Rightarrow \operatorname{display}(B, a, \mathrm{true}) = a \le \operatorname{display}(b, a, v)$$
+paint less (refutes ledger n=13's `D_wk(o) = B`).
 
 The whole-host repaint happens only after a buffer loss, not every frame. -/
 theorem host_steady_le_own (B b a : Nat) (v : Bool) (hB : partialRepaint B = true) (hab : a ≤ b) :
@@ -1459,15 +1192,11 @@ changes (it inherits the new value) passes the resolution to its own children (`
 1185-1212`). `reached` lists the descendants reached (the subtree, minus branches under an element that overrides
 the property). CONFIRMED.
 
-$$\operatorname{customWrite}(e, \ell, R) = (e, \mathrm{customInherited}, \ell) :: [\,(d, \mathrm{restyle}, \mathrm{none}) \mid d \in R\,]$$
-
 The changes one inherited custom-property write makes. -/
 def customWrite (e : Nat) (ℓ : LayerState) (reached : List Nat) : List (Change WkPropX) :=
   ⟨e, .customInherited, ℓ⟩ :: reached.map fun d => ⟨d, .restyle, .none⟩
 
 /-- **Style units of the write.**
-
-$$\forall m, \forall s, e \in \mathbb{N}, \forall \ell, \forall R \in \mathbb{N}^{*}:\ \operatorname{units}_{\operatorname{webkitX}(m)}\big((s, 0, 0, 0, \operatorname{customWrite}(e, \ell, R), 0), \mathrm{style}\big) = 1 + |R|$$
 
 A custom-property write restyles the writer and every reached descendant. -/
 theorem custom_style_units (m : WkMode) (s e : Nat) (ℓ : LayerState) (reached : List Nat) :
@@ -1479,8 +1208,6 @@ theorem custom_style_units (m : WkMode) (s e : Nat) (ℓ : LayerState) (reached 
 
 /-- **Skipping the write is strictly less work** (the MQ-gated shrink of `people.card`): the same frame without the
 write is strictly below it.
-
-$$\forall m, \forall s, e \in \mathbb{N}, \forall \ell, \forall R \in \mathbb{N}^{*}:\ \operatorname{frameWork}_{\operatorname{webkitX}(m)}\big((s, 0, 0, 0, [\,], 0)\big) \prec \operatorname{frameWork}_{\operatorname{webkitX}(m)}\big((s, 0, 0, 0, \operatorname{customWrite}(e, \ell, R), 0)\big)$$
 
 On every frame where the value would move, not writing it saves style work. -/
 theorem customSkip_lt (m : WkMode) (s e : Nat) (ℓ : LayerState) (reached : List Nat) :
@@ -1504,8 +1231,6 @@ theorem customSkip_lt (m : WkMode) (s e : Nat) (ℓ : LayerState) (reached : Lis
 /-- An effect in an element's effect stack: the animation, whether a motion path applies (in the underlying style or
 animated), and whether an earlier accelerated start failed.
 
-$$\mathrm{StackEffect} = \mathrm{WkAnim} \times \underbrace{\mathbb{B}}_{\mathrm{motionPath}} \times \underbrace{\mathbb{B}}_{\mathrm{failed}}$$
-
 One keyframe effect as the stack rule sees it. -/
 structure StackEffect where
   anim : WkAnim
@@ -1516,8 +1241,6 @@ deriving Repr
 /-- **Does an effect block acceleration of its stack?** `KeyframeEffect::preventsAcceleration`
 (`WC/animation/KeyframeEffect.cpp:2035-2058`): never on the threaded path; always with a motion path; never when the
 effect animates no accelerated property; else when it cannot be accelerated or its accelerated run failed. CONFIRMED.
-
-$$\operatorname{prevents}(m, x) \iff \operatorname{path}(m, x.a) \ne \mathrm{threaded} \land \Big(x.\mathrm{motionPath} \lor \big((\exists q \in x.a.\mathrm{props}:\ \operatorname{accel}(\mathrm{legacy}, q)) \land (\lnot\operatorname{cba}(m, x.a) \lor x.\mathrm{failed})\big)\Big)$$
 
 An effect blocks its stack only if it is on the legacy path and has a motion path or an accelerated property it
 cannot run accelerated. -/
@@ -1530,15 +1253,11 @@ prevents acceleration, or two effects animate a shared accelerated property with
 non-threaded effects share an accelerated property (`WC/animation/KeyframeEffectStack.cpp:215-283`; the last two are
 `extra`); then every effect is stopped (`:285-300`). CONFIRMED.
 
-$$\operatorname{stackThread}(m, X, E, x) = \begin{cases} \mathrm{comp} & \lnot E \land (\forall y \in X:\ \lnot\operatorname{prevents}(m, y)) \land \operatorname{wkThread}(m, x.a) = \mathrm{comp} \\ \mathrm{main} & \text{otherwise} \end{cases}$$
-
 An effect runs in the UI process only if its own rule allows it and no effect of its stack blocks. -/
 def stackThread (m : WkMode) (xs : List StackEffect) (extra : Bool) (x : StackEffect) : Thread :=
   if !extra && xs.all (fun y => !prevents m y) && decide (wkThread m x.anim = .comp) then .comp else .main
 
 /-- **The stack rule.** One blocking effect sends every effect of the stack to the main thread.
-
-$$\forall m, X, E:\ (\exists y \in X:\ \operatorname{prevents}(m, y)) \Rightarrow \forall x:\ \operatorname{stackThread}(m, X, E, x) = \mathrm{main}$$
 
 A single effect that cannot accelerate an accelerated property stops the whole stack. -/
 theorem stack_rule (m : WkMode) (xs : List StackEffect) (extra : Bool) (h : ∃ y ∈ xs, prevents m y = true)
@@ -1551,8 +1270,6 @@ theorem stack_rule (m : WkMode) (xs : List StackEffect) (extra : Bool) (h : ∃ 
 /-- **Main-thread effects that do not block** (refutes ledger n=17's "any non-accelerable effect stops the stack"):
 on the legacy path, an effect with no motion path that animates no accelerated property never prevents acceleration,
 even though it runs on the main thread itself; nor does any threaded-path effect.
-
-$$\forall m, x:\ \big(\operatorname{path}(m, x.a) = \mathrm{threaded} \lor (\lnot x.\mathrm{motionPath} \land \forall q \in x.a.\mathrm{props}:\ \lnot\operatorname{accel}(\mathrm{legacy}, q))\big) \Rightarrow \lnot\operatorname{prevents}(m, x)$$
 
 Only effects on accelerated properties (or with a motion path) can hold the stack back. -/
 theorem stack_free (m : WkMode) (x : StackEffect)
@@ -1571,8 +1288,6 @@ theorem stack_free (m : WkMode) (x : StackEffect)
 /-- **Stack demo**: a legacy-path background animation (main thread, no accelerated property) and a transform
 animation on one element.
 
-$$\mathrm{stackDemo} = [\,(\mathrm{clean}([\mathrm{background}], \mathrm{time}), \mathrm{false}, \mathrm{false}),\ (\mathrm{clean}([\mathrm{transform}], \mathrm{time}), \mathrm{false}, \mathrm{false})\,]$$
-
 Two effects on one element, used to show a main-thread effect that does not block the stack. -/
 def stackDemo : List StackEffect := [{ anim := .clean [.background] .time }, { anim := .clean [.transform] .time }]
 
@@ -1588,8 +1303,6 @@ def stackDemo : List StackEffect := [{ anim := .clean [.background] .time }, { a
 
 /-- The largest value of `f` over a list, 0 for the empty list.
 
-$$\operatorname{wkMaxOf}(f, [\,]) = 0,\qquad \operatorname{wkMaxOf}(f, x :: L) = \max(f(x), \operatorname{wkMaxOf}(f, L))$$
-
 The maximum of a measure over a list. -/
 def wkMaxOf {β : Type} (f : β → Nat) : List β → Nat
   | [] => 0
@@ -1602,23 +1315,17 @@ deferral `:1391-1394`); `resolve()` then asks for an interleaved layout (`:1515-
 loops while one is needed (`WC/dom/Document.cpp:2897-2911`). So the style resolution runs once more per nesting level
 of reached containers, layout-dirty or not. CONFIRMED.
 
-$$\operatorname{wkRounds}(\mathcal{C}) = 1 + \operatorname{wkMaxOf}(|\cdot|, \mathcal{C})$$
-
 WebKit resolves style once more per nesting level of size containers in the traversal. -/
 def wkRounds (chains : List (List Nat)) : Nat := 1 + wkMaxOf List.length chains
 
 /-- **Interleaved layouts of a style update.** Between two style rounds `Document::resolveStyle` runs a layout only
 if the render tree needs one (`WC/dom/Document.cpp:2897-2911`); `dirty r` says whether it does after round `r`.
 
-$$\operatorname{wkLayouts}(\mathcal{C}, D) = \big|[\,r \in [0, \operatorname{wkRounds}(\mathcal{C}) \mathbin{\dot{-}} 1) \mid D(r)\,]\big|$$
-
 The layouts WebKit runs inside one style update. -/
 def wkLayouts (chains : List (List Nat)) (dirty : Nat → Bool) : Nat :=
   ((List.range (wkRounds chains - 1)).filter dirty).length
 
 /-- **A reached container costs a second style round.**
-
-$$\forall \mathcal{C} \in (\mathbb{N}^{*})^{*}:\ (\exists \mathit{ch} \in \mathcal{C}:\ \mathit{ch} \ne [\,]) \Rightarrow 2 \le \operatorname{wkRounds}(\mathcal{C})$$
 
 If the traversal reaches any size container, style resolves at least twice. -/
 theorem wkRounds_ge_two (chains : List (List Nat)) (h : ∃ ch ∈ chains, ch ≠ []) : 2 ≤ wkRounds chains := by
@@ -1641,8 +1348,6 @@ theorem wkRounds_ge_two (chains : List (List Nat)) (h : ∃ ch ∈ chains, ch �
 /-- **Interleaved layouts are at most rounds minus one, and can be zero** (refutes ledger n=20's "a reached
 container forces a layout pass": a layout runs only if the tree is layout-dirty between rounds).
 
-$$\forall \mathcal{C}, D:\ \operatorname{wkLayouts}(\mathcal{C}, D) \le \operatorname{wkRounds}(\mathcal{C}) \mathbin{\dot{-}} 1 \ \land\ \operatorname{wkLayouts}(\mathcal{C}, r \mapsto \mathrm{false}) = 0$$
-
 A size container costs style rounds for sure, but layouts only when something is layout-dirty. -/
 theorem wkLayouts_le (chains : List (List Nat)) (dirty : Nat → Bool) :
     wkLayouts chains dirty ≤ wkRounds chains - 1 ∧ wkLayouts chains (fun _ => false) = 0 := by
@@ -1652,8 +1357,6 @@ theorem wkLayouts_le (chains : List (List Nat)) (dirty : Nat → Bool) :
   · simp [wkLayouts]
 
 /-- **Removing a container never adds a round** (WebKit).
-
-$$\forall \mathcal{C},\ \forall c \in \mathbb{N}:\ \operatorname{wkRounds}\big([\,[\,i \in \mathit{ch} \mid i \ne c\,] \mid \mathit{ch} \in \mathcal{C}\,]\big) \le \operatorname{wkRounds}(\mathcal{C})$$
 
 Dropping `container-type` from one element can only lower WebKit's style rounds. -/
 theorem wkRounds_remove (chains : List (List Nat)) (c : Nat) :
@@ -1671,9 +1374,7 @@ theorem wkRounds_remove (chains : List (List Nat)) (c : Nat) :
   simp only [wkRounds]; omega
 
 /-- **Removing a reached container need not lower the rounds** (refutes ledger n=22's "lowers WebKit layout passes
-iff $c \in \mathrm{trav}(f)$"): container 1 is reached, but a deeper chain sets the count.
-
-$$\operatorname{wkRounds}([[1], [2, 3]]) = \operatorname{wkRounds}([[\,], [2, 3]]) = 3$$
+iff `c ∈ trav(f)`"): container 1 is reached, but a deeper chain sets the count.
 
 Only a container on a deepest chain lowers the round count. -/
 theorem wkRounds_not_iff : wkRounds [[1], [2, 3]] = wkRounds [[], [2, 3]] ∧ wkRounds [[], [2, 3]] = 3 := by decide
@@ -1685,8 +1386,6 @@ theorem wkRounds_not_iff : wkRounds [[1], [2, 3]] = wkRounds [[], [2, 3]] ∧ wk
 
 /-- **An SVG gradient attribute lays out in WebKit** (ledger n=24): one change of `x1`/`x2`/`y1`/`y2` in a frame
 with nothing else costs one style, one layout and one paint pass.
-
-$$\forall m \in \mathrm{WkMode},\ \forall e \in \mathbb{N},\ \forall \ell:\ W.\mathrm{passes}(\mathrm{style}) = W.\mathrm{passes}(\mathrm{layout}) = W.\mathrm{passes}(\mathrm{paint}) = 1\quad\text{where } W = \operatorname{frameWork}_{\operatorname{webkitX}(m)}\big((0, 0, 0, 0, [(e, \mathrm{svgResourceAttr}, \ell)], 0)\big)$$
 
 In WebKit a SMIL gradient attribute step costs a layout, unlike Chromium. -/
 theorem svgAttr_layout (m : WkMode) (e : Nat) (ℓ : LayerState) :

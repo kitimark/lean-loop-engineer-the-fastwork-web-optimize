@@ -11,12 +11,10 @@ namespace Fw.Preset.Gen
 open Lean Fw.Preset
 
 /-- **The link table**: each flag and the ledger rows that carry its proof, in priority order (the first qualifying flag
-of a part wins). A row is named by its (part, candidate) text; $k_n$ below is the row of ledger entry $n$ (for $n = 8$
-and $25$ the letter names which of the rows with that $n$). The mapping is read from the variants' code and the rows'
+of a part wins). A row is named by its (part, candidate) text; `k_n` below is the row of ledger entry `n` (for `n = 8`
+and `25` the letter names which of the rows with that `n`). The mapping is read from the variants' code and the rows'
 text (INFERRED); a flag absent here never enters the arm (`unlinked_not_mem`), and a curated flag is dropped from it
 before the arm is decided (`links`).
-
-$$\Lambda_0 = [(\mathrm{engine.scroll{:}batched}, [k_1]),\ (\mathrm{nav.hitTest{:}elements\text{-}skip}, [k_4]),\ (\mathrm{nav.hitTest{:}hit\text{-}skip}, [k_3]),\ (\mathrm{hero.countdown{:}strip}, [k_7]),\ (\mathrm{morph.countdown{:}strip}, [k_7, k_{13}]),\ (\mathrm{morph.countdown{:}hidden\text{-}pause}, [k_{8h}, k_{25m}]),\ (\mathrm{morph.columns{:}hidden\text{-}pause}, [k_{25h}]),\ (\mathrm{engine.scene{:}hidden\text{-}pause}, [k_{25h}]),\ (\mathrm{morph.mount{:}shift}, [k_{12}]),\ (\mathrm{morph.tween{:}waapi}, [k_9]),\ (\mathrm{pain.notes{:}visible}, [k_{21}]),\ (\mathrm{people.card{:}mq}, [k_{16}])]$$
 
 Each flag points at the ledger rows that must all be proved for it to enter. -/
 def linkTable : List (Flag × List Key) :=
@@ -54,9 +52,7 @@ def linkTable : List (Flag × List Key) :=
    (⟨"people.card", "mq"⟩, [k16])]
 
 /-- **The curated exclusions**: flags kept out of the arm whatever the ledger says, each with its reason. `hero.accent`
-has no link; the two strips share the row $k_7$ and leave by the C3 decision (`research/notes/2026/10-19-c3-decision.md`).
-
-$$\Xi = [(\mathrm{hero.accent{:}steps}, \rho_{15}),\ (\mathrm{hero.countdown{:}strip}, \rho_{C3}),\ (\mathrm{morph.countdown{:}strip}, \rho_{C3}')]$$ -/
+has no link; the two strips share the row `k_7` and leave by the C3 decision (`research/notes/2026/10-19-c3-decision.md`). -/
 def curated : List (Flag × String) :=
   [(⟨"hero.accent", "steps"⟩,
     "ledger n = 15: a trade on Chromium and no win on WebKit (INFERRED); a follow-up makes the generator require an \
@@ -69,19 +65,13 @@ def curated : List (Flag × String) :=
     "C3 decision (research/notes/2026/10-19-c3-decision.md): requires hero.countdown:strip and rests on its row k7, \
       both out of the arm")]
 
-/-- The reason a flag is curated out, `none` when it is not.
-
-$$\operatorname{reasonOf}(f) = \begin{cases} \rho & (f, \rho) \text{ is the first pair of } \Xi \text{ with flag } f \\ \bot & \text{no pair of } \Xi \text{ has flag } f \end{cases}$$ -/
+/-- The reason a flag is curated out, `none` when it is not. -/
 def reasonOf (f : Flag) : Option String := (curated.find? (·.1 == f)).map (·.2)
 
-/-- **The links the arm is decided from**: the link table without the curated flags.
-
-$$\Lambda = [\,(f, \kappa) \in \Lambda_0 \mid \operatorname{reasonOf}(f) = \bot\,]$$ -/
+/-- **The links the arm is decided from**: the link table without the curated flags. -/
 def links : List (Flag × List Key) := linkTable.filter fun l => (reasonOf l.1).isNone
 
 /-- Dropping the curated flags changes no other link and removes every curated one.
-
-$$\forall f:\ \operatorname{linkOf}(\Lambda, f) = \begin{cases} \operatorname{linkOf}(\Lambda_0, f) & \operatorname{reasonOf}(f) = \bot \\ \bot & \operatorname{reasonOf}(f) \ne \bot \end{cases}$$
 
 The exclusion touches only the flags it names. -/
 theorem linkOf_links (f : Flag) :
@@ -104,32 +94,24 @@ theorem linkOf_links (f : Flag) :
 
 /-- A flag that is not curated keeps its link-table link.
 
-$$\forall f:\ \operatorname{reasonOf}(f) = \bot \Rightarrow \operatorname{linkOf}(\Lambda, f) = \operatorname{linkOf}(\Lambda_0, f)$$
-
 Every other flag is decided from the ledger exactly as before. -/
 theorem linkOf_links_of_none {f : Flag} (h : reasonOf f = none) : linkOf links f = linkOf linkTable f := by
   simp [linkOf_links, h]
 
 /-- **A curated flag never enters the arm**, whatever the registry and the ledger say.
 
-$$\forall R, L, f:\ \operatorname{reasonOf}(f) \ne \bot \Rightarrow f \notin \operatorname{preset}(R, \Lambda, L)$$
-
 A proved ledger row cannot bring an excluded flag back. -/
 theorem curated_not_mem {reg : List Reg} {ledger : List Row} {f : Flag} (h : reasonOf f ≠ none) :
     f ∉ preset reg links ledger :=
   unlinked_not_mem (by simp [linkOf_links, h])
 
-/-- Parse `part:variant`: exactly one colon, both sides non-empty.
-
-$$\operatorname{parseFlag}(s) = \begin{cases} (p, v) & s = p \mathbin{+\!\!+} \texttt{":"} \mathbin{+\!\!+} v,\ p \ne \varepsilon,\ v \ne \varepsilon,\ \texttt{":"} \notin p, v \\ \operatorname{error} & \text{otherwise} \end{cases}$$ -/
+/-- Parse `part:variant`: exactly one colon, both sides non-empty. -/
 def parseFlag (s : String) : Except String Flag :=
   match s.splitOn ":" with
   | [p, v] => if p.isEmpty || v.isEmpty then .error s!"bad flag {s}" else .ok ⟨p, v⟩
   | _ => .error s!"bad flag {s}"
 
-/-- Parse a `part.json` `kind` (allowlist).
-
-$$\operatorname{parseKind}(s) = \begin{cases} \mathrm{faithful} & s = \texttt{"faithful"} \\ \mathrm{optimized} & s = \texttt{"optimized"} \\ \mathrm{ablation} & s = \texttt{"ablation"} \\ \mathrm{proposal} & s = \texttt{"proposal"} \\ \operatorname{error} & \text{otherwise} \end{cases}$$ -/
+/-- Parse a `part.json` `kind` (allowlist). -/
 def parseKind : String → Except String Kind
   | "faithful" => .ok .faithful
   | "optimized" => .ok .optimized
@@ -137,27 +119,21 @@ def parseKind : String → Except String Kind
   | "proposal" => .ok .proposal
   | s => .error s!"unknown kind {s}"
 
-/-- Parse a ledger `fResult`, the `fw engine-check` verdict words (allowlist).
-
-$$\operatorname{parseFRes}(s) = \begin{cases} \mathrm{pass} & s = \texttt{"pass"} \\ \mathrm{unusable} & s = \texttt{"unusable"} \\ \mathrm{modelBug} & s = \texttt{"model-bug"} \\ \operatorname{error} & \text{otherwise} \end{cases}$$ -/
+/-- Parse a ledger `fResult`, the `fw engine-check` verdict words (allowlist). -/
 def parseFRes : String → Except String FRes
   | "pass" => .ok .pass
   | "unusable" => .ok .unusable
   | "model-bug" => .ok .modelBug
   | s => .error s!"unknown fResult {s}"
 
-/-- The verdict word of an `FRes`.
-
-$$\operatorname{fresWord}(\mathrm{pass}) = \texttt{"pass"},\ \operatorname{fresWord}(\mathrm{unusable}) = \texttt{"unusable"},\ \operatorname{fresWord}(\mathrm{modelBug}) = \texttt{"model-bug"}$$ -/
+/-- The verdict word of an `FRes`. -/
 def fresWord : FRes → String
   | .pass => "pass"
   | .unusable => "unusable"
   | .modelBug => "model-bug"
 
-/-- An optional string field: absent (also when $j$ is not an object) or `null` is `none`, a string is `some`, anything
-else an error.
-
-$$\operatorname{optStr}(j, n) = \begin{cases} \bot & j \text{ not an object, or } j.n \text{ absent or null} \\ s & j.n = s \in \mathrm{String} \\ \operatorname{error} & \text{otherwise} \end{cases}$$ -/
+/-- An optional string field: absent (also when `j` is not an object) or `null` is `none`, a string is `some`, anything
+else an error. -/
 def optStr (j : Json) (n : String) : Except String (Option String) :=
   match j.getObjVal? n with
   | .error _ => .ok none
@@ -166,10 +142,8 @@ def optStr (j : Json) (n : String) : Except String (Option String) :=
   | .ok _ => .error s!"field {n} is not a string"
 
 /-- Parse one findings-ledger row: `part`, `candidate`, `status` required strings; `flag` and `fResult` optional. With
-$\varphi = \bot$ when $\operatorname{optStr}(j, \mathrm{fResult}) = \bot$ and $\varphi = \operatorname{parseFRes}(s)$ when
-it is $s$, a missing or non-string required field, or any error of `optStr` or `parseFRes`, makes the row an error.
-
-$$\operatorname{parseRow}(j) = \begin{cases} (j.\mathrm{part}, j.\mathrm{candidate}, j.\mathrm{status}, \operatorname{optStr}(j, \mathrm{flag}), \varphi) & \text{all three required fields are strings and no step errs} \\ \operatorname{error} & \text{otherwise} \end{cases}$$ -/
+`φ = ⊥` when `optStr(j, fResult) = ⊥` and `φ = parseFRes(s)` when
+it is `s`, a missing or non-string required field, or any error of `optStr` or `parseFRes`, makes the row an error. -/
 def parseRow (j : Json) : Except String Row := do
   let fr ← match ← optStr j "fResult" with
     | none => pure none
@@ -178,28 +152,20 @@ def parseRow (j : Json) : Except String Row := do
            status := ← j.getObjValAs? String "status", flag := ← optStr j "flag", fResult := fr }
 
 /-- Parse the ledger: the rows of its `findings` array, in order; an error if `findings` is missing or not an array, or
-any row is an error.
-
-$$\operatorname{parseLedger}(j) = [\,\operatorname{parseRow}(x) \mid x \in j.\mathrm{findings}\,]$$ -/
+any row is an error. -/
 def parseLedger (j : Json) : Except String (List Row) := do
   let a ← (← j.getObjVal? "findings").getArr?
   a.toList.mapM parseRow
 
-/-- Parse a list of `part:variant` strings; an error if $j$ is not an array or any element is not a string `parseFlag`
-accepts.
-
-$$\operatorname{parseFlags}(j) = [\,\operatorname{parseFlag}(s) \mid s \in j\,]$$ -/
+/-- Parse a list of `part:variant` strings; an error if `j` is not an array or any element is not a string `parseFlag`
+accepts. -/
 def parseFlags (j : Json) : Except String (List Flag) := do
   (← j.getArr?).toList.mapM fun x => do parseFlag (← x.getStr?)
 
 /-- Parse one `part.json` into its registered variants in key order, each with its `requires` and `conflicts` lists.
 A `requires` or `conflicts` field that is absent or not an object, or that lacks the variant's entry, counts as
 empty. A missing or non-string `id`, a missing or non-object `variants`, a missing or unknown `kind`, or an entry that
-is not a list `parseFlags` accepts is an error.
-
-$$\rho(n, v) = \begin{cases} \operatorname{parseFlags}(j.n[\operatorname{key}(j.\mathrm{id}, v)]) & j.n \text{ is an object holding the entry } \operatorname{key}(j.\mathrm{id}, v) \\ [] & j.n \text{ absent or not an object, or the entry absent} \end{cases}$$
-
-$$\operatorname{parsePart}(j) = [\,((j.\mathrm{id}, v), \operatorname{parseKind}(j.\mathrm{variants}.v.\mathrm{kind}), \rho(\mathrm{requires}, v), \rho(\mathrm{conflicts}, v)) \mid v \in \operatorname{keys}(j.\mathrm{variants})\,]$$ -/
+is not a list `parseFlags` accepts is an error. -/
 def parsePart (j : Json) : Except String (List Reg) := do
   let id ← j.getObjValAs? String "id"
   let vs ← (← j.getObjVal? "variants").getObj?
@@ -212,16 +178,12 @@ def parsePart (j : Json) : Except String (List Reg) := do
     return { flag := f, kind := ← parseKind (← d.getObjValAs? String "kind"),
              requires := ← rel "requires" f.key, conflicts := ← rel "conflicts" f.key }
 
-/-- The preset file: `{"extends":"original","fw":{part: variant},"name":"v2-proved"}` on one line.
-
-$$\operatorname{presetText}(P) = \operatorname{json}(\{\mathrm{extends}: \texttt{original},\ \mathrm{fw}: \{f.\mathrm{part} \mapsto f.\mathrm{variant} \mid f \in P\},\ \mathrm{name}: \texttt{v2-proved}\}) \mathbin{+\!\!+} \texttt{"\textbackslash n"}$$ -/
+/-- The preset file: `{"extends":"original","fw":{part: variant},"name":"v2-proved"}` on one line. -/
 def presetText (p : List Flag) : String :=
   (Json.mkObj [("name", "v2-proved"), ("extends", "original"),
     ("fw", Json.mkObj (p.map fun f => (f.part, .str f.variant)))]).compress ++ "\n"
 
-/-- The JSON of a verdict: its verdict word, plus the ledger key $k = (k_1, k_2)$ and the status or count it names.
-
-$$\operatorname{whyJson}(w) = \begin{cases} \{\mathrm{verdict}: \texttt{proved}\} & w = \mathrm{proved} \\ \{\mathrm{verdict}: \texttt{no-link}\} & w = \mathrm{noLink} \\ \{\mathrm{verdict}: \texttt{falsified-flag}\} & w = \mathrm{falsifiedFlag} \\ \{\mathrm{verdict}: \texttt{row-count},\ \mathrm{part}: k_1,\ \mathrm{candidate}: k_2,\ \mathrm{count}: n\} & w = \mathrm{rowCount}(k, n) \\ \{\mathrm{verdict}: \texttt{not-proved},\ \mathrm{part}: k_1,\ \mathrm{candidate}: k_2,\ \mathrm{status}: s\} & w = \mathrm{notProved}(k, s) \\ \{\mathrm{verdict}: \texttt{falsified},\ \mathrm{part}: k_1,\ \mathrm{candidate}: k_2\} & w = \mathrm{falsified}(k) \end{cases}$$ -/
+/-- The JSON of a verdict: its verdict word, plus the ledger key `k = (k_1, k_2)` and the status or count it names. -/
 def whyJson : Why → Json
   | .proved => Json.mkObj [("verdict", "proved")]
   | .noLink => Json.mkObj [("verdict", "no-link")]
@@ -231,37 +193,25 @@ def whyJson : Why → Json
       ("status", .str s)]
   | .falsified k => Json.mkObj [("verdict", "falsified"), ("part", .str k.1), ("candidate", .str k.2)]
 
-/-- The inputs a row contributes: its status and `fResult` word (`null` when absent).
-
-$$\operatorname{rowJson}(r) = \{\mathrm{status}: r.\mathrm{status},\ \mathrm{fResult}: r.\mathrm{fResult}\}$$ -/
+/-- The inputs a row contributes: its status and `fResult` word (`null` when absent). -/
 def rowJson (r : Row) : Json :=
   Json.mkObj [("status", .str r.status), ("fResult", match r.fResult with | some x => .str (fresWord x) | none => .null)]
 
-/-- The verdict of a decision row: `excluded` with its reason for a curated flag, else the ledger verdict.
-
-$$\operatorname{verdictJson}(L, f) = \begin{cases} \{\mathrm{verdict}: \texttt{excluded},\ \mathrm{reason}: \rho\} & \operatorname{reasonOf}(f) = \rho \\ \operatorname{whyJson}(\operatorname{why}(\Lambda, L, f)) & \operatorname{reasonOf}(f) = \bot \end{cases}$$ -/
+/-- The verdict of a decision row: `excluded` with its reason for a curated flag, else the ledger verdict. -/
 def verdictJson (ledger : List Row) (f : Flag) : Json :=
   match reasonOf f with
   | some r => Json.mkObj [("verdict", "excluded"), ("reason", .str r)]
   | none => whyJson (why links ledger f)
 
 /-- The flags with a decision row: the link-table flags in link order, then the registered `optimized` flags without a
-link-table link, sorted by key.
-
-$$\operatorname{decided}(R) = [\,f \mid (f, \kappa) \in \Lambda_0\,] \mathbin{+\!\!+} \operatorname{sort}_{\operatorname{key}}[\,r.\mathrm{flag} \mid r \in R,\ r.\mathrm{kind} = \mathrm{optimized},\ \operatorname{linkOf}(\Lambda_0, r.\mathrm{flag}) = \bot\,]$$ -/
+link-table link, sorted by key. -/
 def decided (reg : List Reg) : List Flag :=
   linkTable.map (·.1) ++
     ((reg.filter fun r => r.kind == .optimized && (linkOf linkTable r.flag).isNone).map (·.flag)).mergeSort
       (fun a b => a.key ≤ b.key)
 
 /-- One decision row: the flag, whether it is registered `optimized`, its verdict, membership, the flag that shadows
-it, and the ledger inputs it read (the rows of each linked key and the rows naming the flag).
-
-$$\operatorname{decision}(R, L, f) = \{\mathrm{flag}: \operatorname{key}(f), \mathrm{registered}: \operatorname{isOpt}(R, f), \mathrm{why}: \operatorname{verdictJson}(L, f), \mathrm{member}: f \in \operatorname{preset}(R, \Lambda, L), \mathrm{shadowedBy}, \mathrm{rows}, \mathrm{flagRows}\}$$
-
-$$\mathrm{shadowedBy} = \begin{cases} \operatorname{key}(g) & \operatorname{ok}(R, \Lambda, L, f) \land f \notin \operatorname{preset}(R, \Lambda, L) \land \operatorname{firstOk}(\operatorname{ok}(R, \Lambda, L), [\,h \mid (h, \kappa) \in \Lambda\,], f.\mathrm{part}) = g \\ \mathrm{null} & \text{otherwise} \end{cases}$$
-
-$$\mathrm{rows} = [\,\{\mathrm{part}: k_1,\ \mathrm{candidate}: k_2,\ \mathrm{found}: [\operatorname{rowJson}(r) \mid r \in \operatorname{rowsOf}(L, k)]\} \mid k \in \operatorname{linkOf}(\Lambda_0, f) \text{, or } [] \text{ when } \operatorname{linkOf}(\Lambda_0, f) = \bot\,],\quad \mathrm{flagRows} = [\,\operatorname{rowJson}(r) \mid r \in L,\ r.\mathrm{flag} = \operatorname{key}(f)\,]$$ -/
+it, and the ledger inputs it read (the rows of each linked key and the rows naming the flag). -/
 def decision (reg : List Reg) (ledger : List Row) (f : Flag) : Json :=
   let p := preset reg links ledger
   let fs := links.map (·.1)
@@ -276,44 +226,28 @@ def decision (reg : List Reg) (ledger : List Row) (f : Flag) : Json :=
     ("member", .bool (p.contains f)), ("shadowedBy", shadow), ("rows", .arr rows.toArray),
     ("flagRows", .arr ((ledger.filter (·.flag == some f.key)).map rowJson).toArray)]
 
-/-- The decision file: one compact JSON line per decided flag.
-
-$$\operatorname{decisionsText}(R, L) = \mathop{+\!\!+}_{f \in \operatorname{decided}(R)} \bigl(\operatorname{json}(\operatorname{decision}(R, L, f)) \mathbin{+\!\!+} \texttt{"\textbackslash n"}\bigr)$$ -/
+/-- The decision file: one compact JSON line per decided flag. -/
 def decisionsText (reg : List Reg) (ledger : List Row) : String :=
   String.join ((decided reg).map fun f => (decision reg ledger f).compress ++ "\n")
 
-/-- The ledger path, from `lean/`.
-
-$$\mathrm{ledgerPath} = \texttt{../research/findings/ledger.json}$$ -/
+/-- The ledger path, from `lean/`. -/
 def ledgerPath : System.FilePath := ".." / "research" / "findings" / "ledger.json"
-/-- The parts directory, from `lean/`.
-
-$$\mathrm{partsDir} = \texttt{../apps/site/src/parts}$$ -/
+/-- The parts directory, from `lean/`. -/
 def partsDir : System.FilePath := ".." / "apps" / "site" / "src" / "parts"
-/-- The golden preset, from `lean/`.
-
-$$\mathrm{goldenPreset} = \texttt{../packages/contracts/golden/preset/v2-proved.json}$$ -/
+/-- The golden preset, from `lean/`. -/
 def goldenPreset : System.FilePath := ".." / "packages" / "contracts" / "golden" / "preset" / "v2-proved.json"
-/-- The golden decision rows, from `lean/`.
-
-$$\mathrm{goldenDecisions} = \texttt{../packages/contracts/golden/preset/v2-proved.decisions.jsonl}$$ -/
+/-- The golden decision rows, from `lean/`. -/
 def goldenDecisions : System.FilePath :=
   ".." / "packages" / "contracts" / "golden" / "preset" / "v2-proved.decisions.jsonl"
-/-- The site preset, from `lean/`.
-
-$$\mathrm{sitePreset} = \texttt{../apps/site/src/registry/presets/v2-proved.json}$$ -/
+/-- The site preset, from `lean/`. -/
 def sitePreset : System.FilePath := ".." / "apps" / "site" / "src" / "registry" / "presets" / "v2-proved.json"
 
-/-- Read and parse a JSON file; a parse error names the path.
-
-$$\operatorname{readJson}(p) = \operatorname{parse}(\operatorname{read}(p))$$ -/
+/-- Read and parse a JSON file; a parse error names the path. -/
 def readJson (p : System.FilePath) : IO Json := do
   IO.ofExcept ((Json.parse (← IO.FS.readFile p)).mapError fun e => s!"{p}: {e}")
 
 /-- Every registered variant: the `part.json` of each directory under the parts directory, directories sorted by
-name; a directory without `part.json` is skipped.
-
-$$\operatorname{readRegistry} = \mathop{+\!\!+}_{d \in \operatorname{sort}(\mathrm{partsDir}),\ d/\texttt{part.json} \text{ exists}} \operatorname{parsePart}(\operatorname{readJson}(d/\texttt{part.json}))$$ -/
+name; a directory without `part.json` is skipped. -/
 def readRegistry : IO (List Reg) := do
   let ds := (← partsDir.readDir).qsort (·.fileName < ·.fileName)
   let mut out : List Reg := []
@@ -325,10 +259,8 @@ def readRegistry : IO (List Reg) := do
 
 /-- Write the three files, or with `--check` throw when any differs from the Lean output and print a message when none
 does; a ledger or part that does not parse, or a preset that is not closed, throws before anything is written. Each case
-assumes the cases above it do not apply; a file that cannot be read reads as the empty string $\varepsilon$. Here
-$P = \operatorname{generate}(R, \Lambda, L)$ and $\mathrm{outs} = [(\mathrm{goldenPreset}, \operatorname{presetText}(P)),\ (\mathrm{sitePreset}, \operatorname{presetText}(P)),\ (\mathrm{goldenDecisions}, \operatorname{decisionsText}(R, L))]$.
-
-$$\operatorname{run}(a) = \begin{cases} \operatorname{throw} & L \text{ or } R \text{ fails to parse, or } \operatorname{generate}(R, \Lambda, L) = \operatorname{error} \\ \operatorname{throw} & \texttt{--check} \in a,\ \exists (p, t) \in \mathrm{outs}:\ \operatorname{read}(p) \ne t \\ \text{no write} & \texttt{--check} \in a,\ \forall (p, t) \in \mathrm{outs}:\ \operatorname{read}(p) = t \\ \operatorname{write}(\mathrm{outs}) & \texttt{--check} \notin a \end{cases}$$ -/
+assumes the cases above it do not apply; a file that cannot be read reads as the empty string `ε`. Here
+`P = generate(R, Λ, L)` and `outs = [(goldenPreset, presetText(P)), (sitePreset, presetText(P)), (goldenDecisions, decisionsText(R, L))]`. -/
 def run (args : List String) : IO Unit := do
   let ledger ← IO.ofExcept ((parseLedger (← readJson ledgerPath)).mapError fun e => s!"{ledgerPath}: {e}")
   let reg ← readRegistry

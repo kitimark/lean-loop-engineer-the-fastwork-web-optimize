@@ -46,32 +46,20 @@ open Fw.Sched.ParMetrics
 
 /-! ## Admit codecs -/
 
-/-- Resource wire names.
-
-$$\operatorname{name} : \mathcal R \to \mathrm{String}, \quad \mathrm{cores} \mapsto \texttt{"cores"},\ \mathrm{ram} \mapsto \texttt{"ram"},\ \mathrm{cleanBuild} \mapsto \texttt{"cleanBuild"},\ \mathrm{docker} \mapsto \texttt{"docker"}$$
--/
+/-- Resource wire names. -/
 def resName : Res → String
   | .cores => "cores" | .ram => "ram" | .cleanBuild => "cleanBuild" | .docker => "docker"
 
-/-- Device wire names.
-
-$$\operatorname{name} : \mathcal V \to \mathrm{String}, \quad \mathrm{simulator} \mapsto \texttt{"simulator"},\ \mathrm{phone} \mapsto \texttt{"phone"}$$
--/
+/-- Device wire names. -/
 def devName : Dev → String
   | .simulator => "simulator" | .phone => "phone"
 
-/-- A device from its wire name (an unknown name is refused).
-
-$$\operatorname{dev}(\texttt{"simulator"}) = \mathrm{simulator}, \quad \operatorname{dev}(\texttt{"phone"}) = \mathrm{phone}, \quad \operatorname{dev}(s) = \mathrm{error} \text{ otherwise}$$
--/
+/-- A device from its wire name (an unknown name is refused). -/
 def devOf (k : String) : String → Except String Dev
   | "simulator" => .ok .simulator | "phone" => .ok .phone
   | s => .error s!"field {k}: unknown device {s}"
 
-/-- A demand or budget vector as JSON (every field written).
-
-$$\operatorname{enc}(v) = \{\texttt{cores}: v(\mathrm{cores}),\ \texttt{ram}: v(\mathrm{ram}),\ \texttt{cleanBuild}: v(\mathrm{cleanBuild}),\ \texttt{docker}: v(\mathrm{docker})\}$$
--/
+/-- A demand or budget vector as JSON (every field written). -/
 def vecJson (v : Vec) : Json :=
   Json.mkObj [("cores", toJson v.cores), ("ram", toJson v.ram), ("cleanBuild", toJson v.cleanBuild),
               ("docker", toJson v.docker)]
@@ -140,55 +128,34 @@ def cmdJson : Cmd → Json
 So a reply `state` fed back as the next request's `state` is exactly the state the proofs talk
 about. -/
 
-/-- `Except.ok` then bind is application.
-
-$$\forall a, f:\quad (\mathrm{ok}(a) \mathbin{>\!\!>\!=} f) = f(a)$$
--/
+/-- `Except.ok` then bind is application. -/
 theorem ok_bind {ε α β : Type} (a : α) (f : α → Except ε β) : (Except.ok a >>= f) = f a := rfl
 
-/-- Decoding a mapped list element-wise inverts the encoding when each element round-trips.
-
-$$\forall f, g, l:\quad (\forall a:\ g(f(a)) = \mathrm{ok}(a)) \Rightarrow \operatorname{mapM}(g, \operatorname{map}(f, l)) = \mathrm{ok}(l)$$
--/
+/-- Decoding a mapped list element-wise inverts the encoding when each element round-trips. -/
 theorem mapM_rt {α : Type} (f : α → Json) (g : Json → Except String α) (h : ∀ a, g (f a) = .ok a) :
     ∀ l : List α, (l.map f).mapM g = .ok l
   | [] => rfl
   | a :: l => by simp [List.mapM_cons, h, mapM_rt f g h l]; rfl
 
-/-- An array field reads back as its list.
-
-$$\forall j, k, a:\quad j[k] = \mathrm{arr}(a) \Rightarrow \operatorname{arrD}(j, k) = \mathrm{ok}(\operatorname{toList}(a))$$
--/
+/-- An array field reads back as its list. -/
 theorem arrD_arr (j : Json) (k : String) (a : Array Json) (h : j.getObjVal? k = .ok (.arr a)) :
     arrD j k = .ok a.toList := by
   simp [arrD, opt, h]; rfl
 
-/-- A string-array field reads back as its list of strings.
-
-$$\forall j, k, l:\quad j[k] = \mathrm{arr}(\operatorname{map}(\mathrm{str}, l)) \Rightarrow \operatorname{strsD}(j, k) = \mathrm{ok}(l)$$
--/
+/-- A string-array field reads back as its list of strings. -/
 theorem strsD_rt (j : Json) (k : String) (l : List String)
     (h : j.getObjVal? k = .ok (.arr (l.toArray.map .str))) : strsD j k = .ok l := by
   simp only [strsD, arrD_arr j k _ h, Array.toList_map]
   exact mapM_rt .str (asStr k) (fun _ => rfl) l
 
-/-- Devices round-trip.
-
-$$\forall v \in \mathcal V:\quad \operatorname{devJ}(\mathrm{str}(\operatorname{name}(v))) = \mathrm{ok}(v)$$
--/
+/-- Devices round-trip. -/
 theorem devJ_rt (v : Dev) : devJ (.str (devName v)) = .ok v := by cases v <;> rfl
 
-/-- Vectors round-trip.
-
-$$\forall v:\quad \operatorname{vecOf}(\operatorname{vecJson}(v)) = \mathrm{ok}(v)$$
--/
+/-- Vectors round-trip. -/
 theorem vecOf_vecJson (v : Vec) : vecOf (vecJson v) = .ok v := by
   cases v; rfl
 
-/-- Items round-trip.
-
-$$\forall x:\quad \operatorname{itemOf}(\operatorname{itemJson}(x)) = \mathrm{ok}(x)$$
--/
+/-- Items round-trip. -/
 theorem itemOf_itemJson (x : Item) : itemOf (itemJson x) = .ok x := by
   obtain ⟨id, parent, writes, deps, demand, devices, seq, enq, base, start⟩ := x
   have hw := strsD_rt (itemJson ⟨id, parent, writes, deps, demand, devices, seq, enq, base, start⟩)
@@ -206,10 +173,7 @@ theorem itemOf_itemJson (x : Item) : itemOf (itemJson x) = .ok x := by
     mapM_rt (fun v => Json.str (devName v)) devJ devJ_rt devices]
   rfl
 
-/-- States round-trip.
-
-$$\forall \sigma:\quad \operatorname{stateOf}(\operatorname{stateJson}(\sigma)) = \mathrm{ok}(\sigma)$$
--/
+/-- States round-trip. -/
 theorem stateOf_stateJson (σ : State) : stateOf (stateJson σ) = .ok σ := by
   obtain ⟨run, done, queue, t, next⟩ := σ
   have hr := arrD_arr (stateJson ⟨run, done, queue, t, next⟩) "run" _ rfl
@@ -218,10 +182,7 @@ theorem stateOf_stateJson (σ : State) : stateOf (stateJson σ) = .ok σ := by
   simp only [stateOf, hr, hq, hd, Array.toList_map, ok_bind, mapM_rt itemJson itemOf itemOf_itemJson]
   rfl
 
-/-- Commands round-trip.
-
-$$\forall c:\quad \operatorname{cmdOf}(\operatorname{cmdJson}(c)) = \mathrm{ok}(c)$$
--/
+/-- Commands round-trip. -/
 theorem cmdOf_cmdJson (c : Cmd) : cmdOf (cmdJson c) = .ok c := by
   cases c with
   | admit => rfl
@@ -253,7 +214,7 @@ def decisionJson (id : String) : Decision → Json
 /-- The invariant `Inv` as a Boolean check (so `ops.admit` can say whether the proved guarantees
 apply to the state it was given).
 
-$$\operatorname{invB}(B, \sigma) = \mathrm{true} \iff \mathrm{Inv}(B, \sigma)$$ (see `invB_iff`)
+(see `invB_iff`)
 -/
 def invB (B : Vec) (σ : State) : Bool :=
   decide ((σ.run ++ σ.queue).map Item.id).Nodup && decide ((σ.run ++ σ.queue).map Item.seq).Nodup &&
@@ -264,10 +225,7 @@ def invB (B : Vec) (σ : State) : Bool :=
   σ.run.all (fun x => ready σ x) &&
   Res.all.all (fun r => decide (used σ.run r ≤ B.get r))
 
-/-- The Boolean check is exactly the invariant.
-
-$$\forall B, \sigma:\quad \operatorname{invB}(B, \sigma) = \mathrm{true} \iff \mathrm{Inv}(B, \sigma)$$
--/
+/-- The Boolean check is exactly the invariant. -/
 theorem invB_iff (B : Vec) (σ : State) : invB B σ = true ↔ Inv B σ := by
   simp only [invB, Bool.and_eq_true, decide_eq_true_eq, List.all_eq_true, Bool.or_eq_true,
     beq_iff_eq, Bool.not_eq_true']
@@ -299,10 +257,7 @@ theorem invB_iff (B : Vec) (σ : State) : invB B σ = true ↔ Inv B σ := by
         · exact Or.inr (h.devs x hx y hy hne hrel)
         · exact Or.inl (Or.inr rfl)
 
-/-- Micro-step sequences keep the invariant.
-
-$$\forall B, \sigma, \tau:\quad \mathrm{Steps}_B(\sigma, \tau) \land \mathrm{Inv}(B, \sigma) \Rightarrow \mathrm{Inv}(B, \tau)$$
--/
+/-- Micro-step sequences keep the invariant. -/
 theorem inv_steps {B : Vec} {σ τ : State} (h : Steps B σ τ) (hi : Inv B σ) : Inv B τ := by
   induction h with
   | refl => exact hi
@@ -310,8 +265,6 @@ theorem inv_steps {B : Vec} {σ τ : State} (h : Steps B σ τ) (hi : Inv B σ) 
 
 /-- An `ops.admit` event keeps the invariant: if the input state passes the check, so does the
 reply state.
-
-$$\forall B, \sigma, c:\quad \operatorname{invB}(B, \sigma) = \mathrm{true} \Rightarrow \operatorname{invB}(B, \operatorname{event}(B, \sigma, c)) = \mathrm{true}$$
 -/
 theorem invB_event (B : Vec) (σ : State) (c : Cmd) (h : invB B σ = true) :
     invB B (event B σ c) = true :=
@@ -319,8 +272,6 @@ theorem invB_event (B : Vec) (σ : State) (c : Cmd) (h : invB B σ = true) :
 
 /-- After an event no queued item is admissible, so every `queued` decision of `ops.admit` is a
 `queue` with a reason.
-
-$$\forall B, \sigma, c, x:\quad x \in Q(\operatorname{event}(B, \sigma, c)) \Rightarrow \operatorname{admit}(B, \operatorname{event}(B, \sigma, c), x) \ne \mathrm{admit}$$
 -/
 theorem event_queued_wait (B : Vec) (σ : State) (c : Cmd) (x : Item)
     (hx : x ∈ (event B σ c).queue) : admit B (event B σ c) x ≠ .admit := by
@@ -337,16 +288,12 @@ theorem event_queued_wait (B : Vec) (σ : State) (c : Cmd) (x : Item)
 
 /-- The items admitted by an event: the reply's running items that were not running after the
 command, in admission order (`admitStep` prepends).
-
-$$\operatorname{admitted}(\sigma_1, \sigma_2) = \operatorname{rev}\big[\, \mathit{id}(x) \mid x \in \mathit{Run}(\sigma_2),\ \lnot \exists y \in \mathit{Run}(\sigma_1):\ \mathit{id}(y) = \mathit{id}(x) \,\big]$$
 -/
 def admittedIds (before after : State) : List String :=
   ((after.run.filter fun x => !before.run.any (·.id == x.id)).map (·.id)).reverse
 
 /-- `ops.admit`: one event (the command, then admit until quiescent) with the decisions; probes are
 judged as if enqueued now.
-
-$$\operatorname{opAdmit}(B, \sigma, c, P) = \big(\sigma',\ \operatorname{admitted}(\operatorname{step}(B, \sigma, c), \sigma'),\ [\operatorname{admit}(B, \sigma', x) \mid x \in Q(\sigma')],\ [\operatorname{admit}(B, \sigma', p[\mathit{seq} := \mathit{next}(\sigma'),\ \mathit{enq} := t(\sigma')]) \mid p \in P],\ \operatorname{invB}(B, \sigma),\ \operatorname{invB}(B, \sigma')\big), \quad \sigma' = \operatorname{event}(B, \sigma, c)$$
 -/
 def opAdmit (req : Json) : Except String Reply := do
   let B ← vecOf (← field req "budget")
@@ -363,10 +310,7 @@ def opAdmit (req : Json) : Except String Reply := do
         ("probes", .arr (probe.toArray.map fun x => decisionJson x.id (admit B σ' x))),
         ("inv", .bool (invB B σ)), ("invAfter", .bool (invB B σ'))]
 
-/-- The reply state of `ops.admit` is the proved `event`.
-
-$$\forall B, \sigma, c:\quad \operatorname{admitAll}(B, \operatorname{step}(B, \sigma, c)) = \operatorname{event}(B, \sigma, c)$$
--/
+/-- The reply state of `ops.admit` is the proved `event`. -/
 theorem opAdmit_state (B : Vec) (σ : State) (c : Cmd) : admitAll B (step B σ c) = event B σ c := rfl
 
 /-! ## ops.gate (task ops-gate) -/
@@ -402,10 +346,7 @@ def guardReply (i : Fw.Ops.SpawnGuard.Input) : Reply :=
   | .deny r => [("decision", .str "deny")] ++ Fw.Wire.Ops.reasonFields r ++ kind
 
 open Fw.Wire.OpsGate (GateDecision gate) in
-/-- The wire name of a gate decision.
-
-$$\forall r, w:\quad \operatorname{name}(\mathrm{guard}(\mathrm{allow})) = \texttt{"allow"},\ \operatorname{name}(\mathrm{guard}(\mathrm{needsApproval})) = \texttt{"needsApproval"},\ \operatorname{name}(\mathrm{guard}(\mathrm{deny}(r))) = \texttt{"deny"},\ \operatorname{name}(\mathrm{queue}(w)) = \texttt{"queue"}$$
--/
+/-- The wire name of a gate decision. -/
 def gateName : GateDecision → String
   | .guard .allow => "allow"
   | .guard .needsApproval => "needsApproval"
@@ -426,10 +367,7 @@ def gateReason : GateDecision → Json
   | .queue w => headVal (reasonFields w)
 
 open Fw.Wire.OpsGate (GateDecision) in
-/-- The wire name says `allow` or `needsApproval` exactly when the gate decision is accepted.
-
-$$\forall g:\quad \operatorname{name}(g) \in \{\texttt{"allow"}, \texttt{"needsApproval"}\} \iff \mathrm{accepted}(g)$$
--/
+/-- The wire name says `allow` or `needsApproval` exactly when the gate decision is accepted. -/
 theorem gateName_accepted (g : GateDecision) :
     (gateName g = "allow" ∨ gateName g = "needsApproval") ↔ g.accepted = true := by
   rcases g with (_ | _ | _) | _ <;>
@@ -437,9 +375,7 @@ theorem gateName_accepted (g : GateDecision) :
 
 /-- The item a spawn is judged as: the `item` field, or (absent) an item named after the request
 with no demand, writes, dependencies or devices; in both cases enqueued now, with
-$\mathit{seq} := \mathit{next}(\sigma)$ and $\mathit{enq} := t(\sigma)$ (as an `ops.admit` probe).
-
-$$\operatorname{item}(\sigma, x) = x[\mathit{seq} := \mathit{next}(\sigma),\ \mathit{enq} := t(\sigma)]$$
+`seq := next(σ)` and `enq := t(σ)` (as an `ops.admit` probe).
 -/
 def gateItem (σ : State) (x : Item) : Item := { x with seq := σ.next, enq := σ.t }
 
@@ -447,12 +383,6 @@ def gateItem (σ : State) (x : Item) : Item := { x with seq := σ.next, enq := �
 The request is an `ops.spawn` request plus `budget`, `state`? and `item`?; the reply is the gate
 decision with the guard's full reply and the admission decision (computed even after a denial,
 for the shadow log).
-
-$$\operatorname{opGate}(i, B, \sigma, x) = \big(\operatorname{name}(g),\ \mathrm{accepted}(g),\ \operatorname{reason}(g),\ \operatorname{guard}(i),\ \operatorname{admit}(B, \sigma, x'),\ \operatorname{invB}(B, \sigma)\big), \quad x' = \operatorname{item}(\sigma, x),\ g = \operatorname{gate}(i, B, \sigma, x')$$
-
-where $i, B, \sigma, x$ are decoded from the request: $i$ from the `ops.spawn` fields (absent `caps` and
-`recent` take the `ops.spawn` defaults), $\sigma = \sigma_0$ (the empty state) when `state` is absent, and
-$x = (\mathit{id} := \mathit{name}(q_i))$ with no demand, writes, dependencies or devices when `item` is absent.
 -/
 def opGate (req : Json) : Except String Reply := do
   let i ← inputOf req
@@ -489,10 +419,7 @@ def ivOf (k : String) (j : Json) : Except String Iv := do
 /-- An interval as `[s, e]`. -/
 def ivJson (i : Iv) : Json := .arr #[toJson i.s, toJson i.e]
 
-/-- Intervals round-trip.
-
-$$\forall k, i:\quad \operatorname{ivOf}(k, \operatorname{ivJson}(i)) = \mathrm{ok}(i)$$
--/
+/-- Intervals round-trip. -/
 theorem ivOf_ivJson (k : String) (i : Iv) : ivOf k (ivJson i) = .ok i := by
   cases i; rfl
 
@@ -513,7 +440,7 @@ def verdictName : Fw.Verdict.Verdict → String
 def opMerge (req : Json) : Except String Reply := do
   pure [("ivs", .arr ((merge (← ivsOf req "ivs")).toArray.map ivJson))]
 
-/-- `metrics.busy`: merged busy time inside $[a, b)$. -/
+/-- `metrics.busy`: merged busy time inside `[a, b)`. -/
 def opBusy (req : Json) : Except String Reply := do
   pure [("busy", toJson (busy (← nat req "a") (← nat req "b") (← ivsOf req "ivs")))]
 
@@ -528,7 +455,7 @@ def opSerialShare (req : Json) : Except String Reply := do
   let ag ← agentsOf req "agents"
   pure [("serial", toJson (serial a b ag)), ("serialShare", ratJson (serialShare a b ag))]
 
-/-- `metrics.stretch`: $d / d_{solo}$ (0 when $d_{solo} = 0$). -/
+/-- `metrics.stretch`: `d / d_solo` (0 when `d_solo = 0`). -/
 def opStretch (req : Json) : Except String Reply := do
   pure [("stretch", ratJson (stretch (← nat req "d") (← nat req "dsolo")))]
 
@@ -551,10 +478,7 @@ def opBenchVerdict (req : Json) : Except String Reply := do
 
 /-! ## ops.taskAdmit (task admit-reads) -/
 
-/-- A task as JSON (every field written).
-
-$$\operatorname{taskJson}(x) = \{\texttt{id}: \mathit{id}(x),\ \texttt{writes}: W(x),\ \texttt{reads}: R(x)\}$$
--/
+/-- A task as JSON (every field written). -/
 def taskJson (t : Reads.Task) : Json :=
   Json.mkObj [("id", .str t.id), ("writes", .arr (t.writes.toArray.map .str)),
               ("reads", .arr (t.reads.toArray.map .str))]
@@ -563,10 +487,7 @@ def taskJson (t : Reads.Task) : Json :=
 def taskOf (j : Json) : Except String Reads.Task := do
   pure { id := ← str j "id", writes := ← strsD j "writes", reads := ← strsD j "reads" }
 
-/-- Tasks round-trip.
-
-$$\forall x:\quad \operatorname{taskOf}(\operatorname{taskJson}(x)) = \mathrm{ok}(x)$$
--/
+/-- Tasks round-trip. -/
 theorem taskOf_taskJson (t : Reads.Task) : taskOf (taskJson t) = .ok t := by
   obtain ⟨id, writes, reads⟩ := t
   have hw := strsD_rt (taskJson ⟨id, writes, reads⟩) "writes" writes rfl
@@ -592,16 +513,10 @@ def clashMessage (c : Reads.Clash) : String :=
     | _ => "writes"
   s!"not admitted: overlaps {c.task} on {c.mine} ({c.task} {how} {c.theirs})"
 
-/-- The reply's `admitted` flag: no first clash.
-
-$$\operatorname{admitted}(\mathit{Run}, x) \iff \operatorname{blockAt}(\mathit{Run}, x) = \bot$$
--/
+/-- The reply's `admitted` flag: no first clash. -/
 def taskAdmitted (run : List Reads.Task) (x : Reads.Task) : Bool := (Reads.blockAt run x).isNone
 
-/-- The reply's `admitted` flag is the proved admission rule.
-
-$$\forall \mathit{Run}, x:\quad \operatorname{admitted}(\mathit{Run}, x) = \operatorname{admits}(\mathit{Run}, x)$$
--/
+/-- The reply's `admitted` flag is the proved admission rule. -/
 theorem taskAdmitted_eq (run : List Reads.Task) (x : Reads.Task) :
     taskAdmitted run x = Reads.admits run x := by
   apply Bool.eq_iff_iff.mpr
@@ -616,8 +531,6 @@ def taskDecisionJson (run : List Reads.Task) (x : Reads.Task) : Json :=
 
 /-- `ops.taskAdmit`: the overlapping pairs of the running tasks (`Reads.overlapPairs`, first clash per
 pair) and, for each candidate, the decision against the running tasks (`Reads.blockAt`).
-
-$$\operatorname{opTaskAdmit}(\mathit{Run}, C) = \big(\operatorname{overlaps}(\mathit{Run}),\ [\operatorname{blockAt}(\mathit{Run}, x) \mid x \in C]\big)$$
 -/
 def opTaskAdmit (req : Json) : Except String Reply := do
   let run ← (← arrD req "running").mapM taskOf
