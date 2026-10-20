@@ -3,12 +3,18 @@
 import { createHash } from "node:crypto";
 import { syncCommands, syncFrom, type Command, type WorkGraph } from "@fw/contracts";
 import type { Store } from "../store.ts";
-import { branches, commitsAhead, fileAt, isAncestor, onMainSet, trailerFacts } from "./git.ts";
+import { join } from "node:path";
+import { Trigger } from "../trigger.ts";
+import { Watches } from "../watch.ts";
+import { git, branches, commitsAhead, fileAt, isAncestor, onMainSet, trailerFacts } from "./git.ts";
 import { branchCard } from "./naming.ts";
 import { fin, init, req, ticket, type Sched } from "./coalesce.ts";
 
 /** The plan sync content digest, the same as `fw plan sync`'s (apps/runner/src/plan.ts), so both send the same keys. */
 const sha10 = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 10);
+
+/** The reconciler's safety period: a missed ref or store event is picked up at most this late. */
+export const RECONCILE_SAFETY_MS = 30_000;
 
 export type ReconcileStats ={ submitted: number; duplicate: number; refused: number; skipped: number };
 
@@ -17,6 +23,10 @@ export class Reconciler {
   private done = new Set<string>();
   private timer: NodeJS.Timeout | null = null;
   private sched: Sched = init;
+  private trigger: Trigger | null = null;
+  private watches: Watches | null = null;
+  private syncTimer: NodeJS.Timeout | null = null;
+  private unsub: (() => void) | null = null;
   /** the answer of each pass not yet finished, by pass index (Lean `ticket`) */
   private waiting = new Map<number, { promise: Promise<ReconcileStats>; resolve: (s: ReconcileStats) => void; reject: (e: unknown) => void }>();
 
@@ -129,9 +139,35 @@ export class Reconciler {
     return s;
   }
 
+  /** Event-driven: a pass on a change under refs/heads, on packed-refs and on every accepted event of the store, plus a
+   *  safety tick (Lean `Fw.Console.ReconcileSched.dropped_event_drained`). The pass reads only the refs, the board and
+   *  `done`, so these are its inputs; a coalesced or dropped file event is covered by the tick. */
+  startWatching(safetyMs = RECONCILE_SAFETY_MS, settleMs = 250) {
+    this.trigger = new Trigger({ run: () => this.reconcile(), safetyMs, settleMs, onError: (e) => console.error("reconcile:", (e as Error).message) });
+    let common: string | null = null;
+    try { common = git(this.repo, ["rev-parse", "--path-format=absolute", "--git-common-dir"]); } catch { /* not a repository: the passes fail alike; only the tick and store events run them */ }
+    const poke = () => this.trigger?.poke();
+    this.watches = new Watches(() => common === null ? [] : [
+      { path: join(common, "refs", "heads"), recursive: true, accept: () => true },
+      { path: common, recursive: false, accept: (n) => n === "packed-refs" || n === "packed-refs.lock" },
+    ], poke);
+    this.watches.sync();
+    this.unsub = this.store.subscribe(poke);
+    this.syncTimer = setInterval(() => this.watches?.sync(), safetyMs);
+    this.syncTimer.unref();
+    this.trigger.start();
+    this.trigger.request(); // the first pass, as the old timer's first tick did
+  }
+
   start(everyMs = 2000) {
     this.timer = setInterval(() => { this.reconcile().catch((e) => console.error("reconcile:", e.message)); }, everyMs);
     this.timer.unref();
   }
-  stop() { if (this.timer) clearInterval(this.timer); }
+  stop() {
+    if (this.timer) clearInterval(this.timer);
+    if (this.syncTimer) clearInterval(this.syncTimer);
+    this.trigger?.stop();
+    this.watches?.close();
+    this.unsub?.();
+  }
 }
