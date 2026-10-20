@@ -1,6 +1,6 @@
 # node-pin handoff
 
-State: branch worktree-wf_1c3edcd5-171-1; one canonical Node pin `.node-version` = 24.22.0.
+State: branch worktree-wf_1c3edcd5-171-1, commit b9ae4fc9 (+ lead merge of main); one canonical Node pin `.node-version` = 24.22.0.
 - 24.22.0 released 2026-10-14 (https://nodejs.org/en/blog/release/v24.22.0, dist index), so 6 days old; it is the only 24.x >= 24.22.0 and the
   version that throws on a recursive fs.watch of a missing path, so the >= 24.22.0 rule beat the two-week age wish.
 - Every actions/setup-node step (setup-pnpm action + 11 workflows) uses `node-version-file: .node-version`; no `node-version:` is left.
@@ -13,4 +13,4 @@ State: branch worktree-wf_1c3edcd5-171-1; one canonical Node pin `.node-version`
 - Verified: ci-paths --check green, ci-paths.test.mjs 43/43, lean/scripts/check.sh green, apps/runner pnpm test 1508 pass.
 - Writes outside graph writes: 11 workflow files (setup-node steps), lean/Fw/Ops/CheckMap.lean (text kind for ext node-version, else the commit checkmap refuses .node-version),
   nothing else.
-- CI proof: see the report (ci/node-pin run id).
+- CI proof: land run 39450225890 (ci/land-node-pin @ b9ae4fc9), all 4 legs log `Resolved .node-version as 24.22.0` / `node: v24.22.0`.

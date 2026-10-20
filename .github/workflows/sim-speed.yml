@@ -112,7 +112,7 @@ jobs:
     concurrency:
       group: ci-lane:sim-speed:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe:${{ strategy.job-index }}
     runs-on: xcode-27
-    timeout-minutes: 30
+    timeout-minutes: 17
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}

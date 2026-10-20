@@ -235,7 +235,7 @@ jobs:
     concurrency:
       group: ci-lane:engine-premises:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:webkit:${{ strategy.job-index }}
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 8
     strategy:
       max-parallel: 1
       fail-fast: false

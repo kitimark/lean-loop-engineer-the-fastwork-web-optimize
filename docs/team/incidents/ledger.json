@@ -2680,7 +2680,7 @@
    "at": "2026-10-18T21:35+07:00",
    "title": "Lead Bash calls ran `cd` six times; the session cwd persisted and once broke the next workflow's worktree",
    "symptom": "Lead calls ran cd into the scratchpad, into worktrees (four times) and into .fw-console/land-logs. The first left the session outside the repo, so the next Workflow's worktree agent failed (WorktreeIsolationError: not in a git repository), losing about 8 min; the others were caught by the environment notice and reverted.",
-   "cause": "CONFIRMED (Bash tool contract: the working directory persists between calls in a session). INFERRED (lead mistake list and transcripts, local-only): the rule 'never cd in a lead call' is prose only; no hook refuses a top-level cd.",
+   "cause": "CONFIRMED (Bash tool contract: the working directory persists between calls in a session). INFERRED (lead mistake list and transcripts, local-only): the rule 'never cd in a lead call' is prose only; no hook refuses a top-level cd. CONFIRMED 2026-10-20: the persistence is a setting, not a fixed contract: CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR=1 returns the main session to the project directory after each Bash command (Claude Code env-vars doc); it was unset. Two more slips into worktrees on 2026-10-20 (six that day).",
    "evidence": [
     {
      "kind": "file",
@@ -2691,18 +2691,29 @@
      "kind": "file",
      "ref": "docs/team/tools/wait-guard.md",
      "note": "the PreToolUse hook pattern a cd guard would follow"
+    },
+    {
+     "kind": "measurement",
+     "ref": ".claude/settings.json env (commit e9ee2a58)",
+     "note": "MEASURED 2026-10-20 in the lead session after the change: `cd /tmp && pwd` printed /tmp; the next Bash call `pwd` printed the main checkout."
+    },
+    {
+     "kind": "finding",
+     "ref": "task cd-guard (closed as a finding)",
+     "note": "Two review rounds of a Lean shell-text scanner (deny-list over an open grammar) were refused; Fable advice and its adversarial check found the first-party setting, which removed the premise."
     }
    ],
    "repro": "In a lead call run `cd <scratchpad> && printf x >> f`, then launch a worktree workflow: its agent fails with WorktreeIsolationError.",
    "fix": {
-    "task": "policy-from-lean"
+    "task": "cd-guard",
+    "outcome": "closed as a finding: setting CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR=1 (user commit e9ee2a58)"
    },
    "regression": "none yet: policy-from-lean (a Lean-decided hook denies a top-level cd outside a subshell in lead calls)",
    "mistake": "m194",
    "mistakeClass": "c-policy-prose",
    "leanVerdict": "partly",
    "leanReason": "'The command's top-level words include cd outside a subshell' is a pure decision over the parsed command, provable like wait-guard; the cwd state belongs to the harness.",
-   "hardening": "policy-from-lean"
+   "hardening": "setting CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR=1; the payload-cwd PreToolUse deny is re-planned only if the setting stops holding"
   },
   {
    "id": "inc-ci-push-blocked",
