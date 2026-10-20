@@ -53,6 +53,14 @@ describe("fw checks --leg", () => {
     for (const l of legNames) digests.add((await legRun(l, ALL)).lines.find((x) => x.startsWith("LANE digest="))!);
     expect(digests.size).toBe(1);
   });
+  it("the check-sh leg runs the Lean script and only it, when the change selects it", async () => {
+    const r = await legRun("check-sh", ["lean/Fw/Console/LandTier.lean"]);
+    expect(r.ran).toEqual([["sh", "lean/scripts/check.sh"]]);
+    expect(r.lines).toContain("VERDICT pass check.sh");
+    expect(r.lines.filter((x) => x.startsWith("VERDICT")).length).toBe(1);
+    const other = await legRun("check-sh", ALL);
+    expect(other.ran).toEqual([]);
+  });
   it("the suites legs together run the remote checks once; the engine legs run none", async () => {
     const verdicts: string[] = [];
     for (const l of legNames) {

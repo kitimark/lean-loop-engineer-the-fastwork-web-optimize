@@ -87,8 +87,8 @@ export async function runTier(checks: Check[], root: string, core: FwCall, run: 
   for (const c of checks) {
     const t0 = Date.now();
     const r = await run(c.argv, root);
-    const skipped = skippedCount(r.out);
-    const v = core({ op: "console.landLane", exitOk: r.code === 0, coreUser: FWCORE_USERS.includes(c.id), skipped }) as { verdict: string; ok: boolean };
+    const v = core({ op: "console.landLane", check: c.id, exitOk: r.code === 0, coreUser: FWCORE_USERS.includes(c.id), skipped: skippedCount(r.out) }) as { verdict: string; ok: boolean; skipped: number | null }; // a summaryless id counts 0 (Lean LandTier.summaryless)
+    const skipped = v.skipped;
     log(`${ci ? "::group::" : ""}${c.id}: ${c.argv.join(" ")}`);
     log(r.out.trimEnd());
     if (ci) log("::endgroup::");
