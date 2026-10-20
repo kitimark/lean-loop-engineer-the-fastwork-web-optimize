@@ -48,13 +48,31 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
     expect(logs.join("\n")).toMatch(/webkit/);
   });
 
-  it("a request the workflow cannot express is refused before any dispatch", async () => {
+  it("a request the workflow cannot express is refused before any dispatch: webkit-sim has no profile input", async () => {
     const logs: string[] = [];
     const gh: Gh = async () => { throw new Error("no gh"); };
-    // webkit-sim has no target (or fw) input: it measures the original snapshot only
-    const code = await runMain(parseRunArgs(["--engines", "webkit", "--target", "rewrite", "--fw", "hero.countdown:strip"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
+    const code = await runMain(parseRunArgs(["--engines", "webkit", "--target", "original", "--profile", "swipe-wheel-v1"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
     expect(code).toBe(2);
-    expect(logs.join("\n")).toMatch(/refused: webkit \(target\)/);
+    expect(logs.join("\n")).toMatch(/refused: webkit \(profile\)/);
+  });
+
+  it("webkit-sim takes target, preset and fw: the rewrite with flags is dispatched with them", async () => {
+    const logs: string[] = [];
+    const calls: string[][] = [];
+    const gh: Gh = async (a) => { calls.push(a); if (a[0] === "run" && a[1] === "list") return "[]"; throw new Error("stop after the dispatch"); };
+    await expect(runMain(parseRunArgs(["--engines", "webkit", "--target", "rewrite", "--preset", "strip-demo", "--fw", "hero.countdown:strip", "--ref", "ci/wk"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).rejects.toThrow(/stop after/);
+    expect(calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "webkit-sim.yml", "--ref", "ci/wk", "-f", "fw=hero.countdown:strip", "-f", "preset=strip-demo", "-f", "target=rewrite"]);
+  });
+
+  it("--ref measures a base ref at its own commit: the run is awaited and checked at the ref's sha, not the checkout's", async () => {
+    const BASE = "fedcba9876543210fedcba9876543210fedcba98";
+    const calls: string[][] = [];
+    const gh: Gh = async (a) => { calls.push(a); if (a[0] === "run" && a[1] === "list") return "[]"; if (a[0] === "run" && a[1] === "view") return JSON.stringify({ headSha: BASE }); if (a[0] === "run" && a[1] === "download") { mkdirSync(a[4]!, { recursive: true }); return ""; } return ""; };
+    waits.length = 0;
+    await runMain(parseRunArgs(["--engines", "chromium", "--target", "original", "--ref", "ci/base"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: () => {}, refSha: (r) => (r === "ci/base" ? BASE : undefined) }).catch(() => 0);
+    expect(waits.at(-1)).toMatchObject({ kind: "branch", branch: "ci/base", sha: BASE });
+    expect(calls.find((c) => c[0] === "workflow")?.slice(0, 5)).toEqual(["workflow", "run", "chromium-counts.yml", "--ref", "ci/base"]);
+    await expect(runMain(parseRunArgs(["--engines", "chromium", "--target", "original", "--ref", "ci/none", "--dry"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: () => {}, refSha: () => undefined })).rejects.toThrow(/cannot resolve --ref/);
   });
 
   it("an original run with flags is a problem (fwcore), not a dispatch", async () => {
@@ -130,5 +148,73 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
   it("a run that measured another commit is refused", async () => {
     const gh: Gh = async (a) => (a[1] === "list" ? JSON.stringify([{ databaseId: 9 }]) : a[1] === "view" ? JSON.stringify({ headSha: "f".repeat(40) }) : "");
     await expect(runMain(parseRunArgs(["--engines", "chromium", "--target", "original", "--from-run", "chromium=9"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: () => {} })).rejects.toThrow(/measured/);
+  });
+});
+
+describe("breakpoint-gate lane", () => {
+  const hasCore2 = hasCore;
+  it("parses --gate and refuses count-lane flags", () => {
+    expect(parseRunArgs(["--gate", "--engines", "chromium", "--fw", "morph.tween:waapi"])).toMatchObject({ gate: true, engines: ["chromium"], fw: ["morph.tween:waapi"] });
+    expect(() => parseRunArgs(["--gate", "--target", "rewrite"])).toThrow(/no --target/);
+    expect(() => parseRunArgs(["--gate", "--engines", "chromium,webkit"])).toThrow(/one --engines value/);
+  });
+  describe.skipIf(!hasCore2)("against fwcore", () => {
+    const call: FwCall = hasCore2 ? fwcoreCall(process.cwd()) : () => ({});
+    const mk = () => mkdtempSync(join(tmpdir(), "fw-run-"));
+    it("--dry prints the three inputs; no gh", async () => {
+      const logs: string[] = [];
+      const gh: Gh = async () => { throw new Error("no gh"); };
+      expect(await runMain(parseRunArgs(["--gate", "--fw", "morph.tween:waapi", "--dry"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).toBe(0);
+      expect(logs.join("\n")).toMatch(/breakpoint-gate\.yml\s+inputs engines=both fw=morph\.tween:waapi preset=/);
+    });
+    it("preset with fw is a problem, nothing dispatched", async () => {
+      const logs: string[] = [];
+      const gh: Gh = async () => { throw new Error("no gh"); };
+      expect(await runMain(parseRunArgs(["--gate", "--preset", "v2-proved", "--fw", "a.b:c"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).toBe(2);
+      expect(logs.join("\n")).toMatch(/problem: preset: exclusive with fw/);
+    });
+    it("dispatches with -f engines/preset/fw on the ref and reports the run id", async () => {
+      const logs: string[] = [];
+      const calls: string[][] = [];
+      const gh: Gh = async (a) => { calls.push(a); if (a[0] === "run" && a[1] === "list") return "[]"; if (a[0] === "run" && a[1] === "view") return JSON.stringify({ headSha: SHA }); return ""; };
+      expect(await runMain(parseRunArgs(["--gate", "--engines", "chromium", "--preset", "v2-proved", "--ref", "ci/g"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).toBe(0);
+      expect(calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "breakpoint-gate.yml", "--ref", "ci/g", "-f", "engines=chromium", "-f", "fw=", "-f", "preset=v2-proved"]);
+      expect(logs.join("\n")).toMatch(/gate: run 55 succeeded/);
+    });
+  });
+});
+
+// Dispatch args per lane, replayed from the Lean-generated goldens (packages/contracts/golden/store): every input a job
+// would send is declared by its workflow file (an independent TS parse of the same file the Lean check reads).
+describe("goldens: dispatch args per lane", () => {
+  const root = join(process.cwd(), "..", "..");
+  const gold = (stem: string) => readFileSync(join(root, "packages", "contracts", "golden", "store", `${stem}.jsonl`), "utf8").trim().split("\n").map((l) => JSON.parse(l) as { name: string; response: { jobs?: { workflow: string; inputs: Record<string, string>; blocked: string | null }[]; job?: { workflow: string; inputs: Record<string, string>; blocked: string | null } | null } });
+  const declared = (wf: string): string[] => {
+    const out: string[] = []; let st = 0;
+    for (const l of readFileSync(join(root, ".github", "workflows", wf), "utf8").split("\n")) {
+      const t = l.trimStart(); if (!t || t.startsWith("#")) continue;
+      const n = l.length - t.length;
+      if (st === 0) { if (n === 2 && t === "workflow_dispatch:") st = 1; }
+      else if (st === 1) { if (n === 4 && t === "inputs:") st = 2; else if (n <= 2) st = 3; }
+      else if (st === 2) { if (n <= 4) st = 3; else if (n === 6 && t.endsWith(":")) out.push(t.slice(0, -1)); }
+    }
+    return out;
+  };
+  const jobs = [...gold("plan").flatMap((c) => c.response.jobs ?? []), ...gold("gate").flatMap((c) => (c.response.job ? [c.response.job] : []))];
+  it("all three workflows appear in the goldens", () => {
+    expect(new Set(jobs.map((j) => j.workflow))).toEqual(new Set(["chromium-counts.yml", "webkit-sim.yml", "breakpoint-gate.yml"]));
+  });
+  it("every sent input is declared by the workflow file", () => {
+    for (const j of jobs) for (const k of Object.keys(j.inputs)) expect(declared(j.workflow), `${j.workflow} ${k}`).toContain(k);
+  });
+  it("blocked only where the lane lacks the input (webkit: profile; chromium and gate: never)", () => {
+    for (const j of jobs) if (j.blocked) expect([j.workflow, j.blocked]).toEqual(["webkit-sim.yml", "profile"]);
+    expect(jobs.some((j) => j.blocked)).toBe(true);
+  });
+  it("replays the args of one case per lane", () => {
+    const by = (wf: string) => jobs.find((j) => j.workflow === wf && j.inputs.target !== "rewrite" && !j.blocked)!;
+    expect(dispatchArgs(by("webkit-sim.yml"), "ci/x")).toEqual(["workflow", "run", "webkit-sim.yml", "--ref", "ci/x", "-f", "fw=", "-f", "preset=original", "-f", "target=original"]);
+    expect(dispatchArgs(by("chromium-counts.yml"), "ci/x").slice(0, 5)).toEqual(["workflow", "run", "chromium-counts.yml", "--ref", "ci/x"]);
+    expect(dispatchArgs(jobs.find((j) => j.workflow === "breakpoint-gate.yml")!, "ci/x")).toEqual(["workflow", "run", "breakpoint-gate.yml", "--ref", "ci/x", "-f", "engines=both", "-f", "fw=", "-f", "preset="]);
   });
 });

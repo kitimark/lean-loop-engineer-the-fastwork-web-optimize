@@ -26,3 +26,48 @@
 {"name":"pid reused (other start time)","request":{"held":"Sat Oct 18 10:00:00 2026","op":"landQueue.live","probe":"Sat Oct 18 11:00:00 2026"},"response":{"live":false}}
 {"name":"no such process","request":{"held":"Sat Oct 18 10:00:00 2026","op":"landQueue.live","probe":null},"response":{"live":false}}
 {"name":"empty start time, no process","request":{"held":"","op":"landQueue.live","probe":null},"response":{"live":false}}
+{"name":"reason: thrown message kept","request":{"message":"unknown op console.landDigest","op":"landQueue.reason"},"response":{"line":"REFUSED: unknown op console.landDigest","reason":"unknown op console.landDigest"}}
+{"name":"reason: empty message gets a fixed reason","request":{"message":"","op":"landQueue.reason"},"response":{"line":"REFUSED: no message","reason":"no message"}}
+{"name":"refusal reason busy none","request":{"kind":"busy","op":"landQueue.refusalReason","reason":null},"response":{"reason":"no message"}}
+{"name":"refusal reason busy empty","request":{"kind":"busy","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason busy given","request":{"kind":"busy","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason dirty none","request":{"kind":"dirty","op":"landQueue.refusalReason","reason":null},"response":{"reason":"no message"}}
+{"name":"refusal reason dirty empty","request":{"kind":"dirty","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason dirty given","request":{"kind":"dirty","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason scope none","request":{"kind":"scope","op":"landQueue.refusalReason","reason":null},"response":{"reason":"no message"}}
+{"name":"refusal reason scope empty","request":{"kind":"scope","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason scope given","request":{"kind":"scope","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason reads none","request":{"kind":"reads","op":"landQueue.refusalReason","reason":null},"response":{"reason":"no message"}}
+{"name":"refusal reason reads empty","request":{"kind":"reads","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason reads given","request":{"kind":"reads","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason conflict none","request":{"kind":"conflict","op":"landQueue.refusalReason","reason":null},"response":{"reason":"no message"}}
+{"name":"refusal reason conflict empty","request":{"kind":"conflict","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason conflict given","request":{"kind":"conflict","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason checks none","request":{"kind":"checks","op":"landQueue.refusalReason","reason":null},"response":{"reason":"no message"}}
+{"name":"refusal reason checks empty","request":{"kind":"checks","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason checks given","request":{"kind":"checks","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason stale none","request":{"kind":"stale","op":"landQueue.refusalReason","reason":null},"response":{"reason":"no message"}}
+{"name":"refusal reason stale empty","request":{"kind":"stale","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason stale given","request":{"kind":"stale","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason unknown none","request":{"kind":"unknown","op":"landQueue.refusalReason","reason":null},"response":{"reason":"no message"}}
+{"name":"refusal reason unknown empty","request":{"kind":"unknown","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason unknown given","request":{"kind":"unknown","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason done none","request":{"kind":"done","op":"landQueue.refusalReason","reason":null},"response":{"reason":null}}
+{"name":"refusal reason done empty","request":{"kind":"done","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason done given","request":{"kind":"done","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason dry none","request":{"kind":"dry","op":"landQueue.refusalReason","reason":null},"response":{"reason":null}}
+{"name":"refusal reason dry empty","request":{"kind":"dry","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason dry given","request":{"kind":"dry","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason queued none","request":{"kind":"queued","op":"landQueue.refusalReason","reason":null},"response":{"reason":null}}
+{"name":"refusal reason queued empty","request":{"kind":"queued","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason queued given","request":{"kind":"queued","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason empty none","request":{"kind":"empty","op":"landQueue.refusalReason","reason":null},"response":{"reason":null}}
+{"name":"refusal reason empty empty","request":{"kind":"empty","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason empty given","request":{"kind":"empty","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason lint none","request":{"kind":"lint","op":"landQueue.refusalReason","reason":null},"response":{"reason":"no message"}}
+{"name":"refusal reason lint empty","request":{"kind":"lint","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason lint given","request":{"kind":"lint","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"fwcore stale: no record","request":{"moved":false,"op":"landQueue.fwcoreStale","recorded":null,"same":false},"response":{"stale":true}}
+{"name":"fwcore stale: record is main's head","request":{"moved":false,"op":"landQueue.fwcoreStale","recorded":"abc","same":true},"response":{"stale":false}}
+{"name":"fwcore stale: other commit, lean moved","request":{"moved":true,"op":"landQueue.fwcoreStale","recorded":"abc","same":false},"response":{"stale":true}}
+{"name":"fwcore stale: other commit, lean unchanged","request":{"moved":false,"op":"landQueue.fwcoreStale","recorded":"abc","same":false},"response":{"stale":false}}

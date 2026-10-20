@@ -1,6 +1,10 @@
 /* Values restated from the original (assets/2.gBuqKVzi.css:1905-1990 `.scroll-cue`, `.scroll-float`, 2056-2060 and
    2128-2160). `--copy-in` is registered in hero's module (@property). The ring-splash state is the stage's data-splash. */
 @layer parts {
+  [data-exit-scope] .cue {
+    --exit-opacity: inherit;
+    --exit-scatter: inherit;
+  }
   .cue {
     --copy-in: 0;
     z-index: 3;

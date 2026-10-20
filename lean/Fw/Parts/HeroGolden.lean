@@ -12,34 +12,32 @@ import Fw.Parts.HeroAccent
 namespace Fw.Parts.HeroGolden
 open Lean Fw.Parts
 
-/-- A rational input as an exact JSON decimal (all denominators here divide $10^6$).
-
-$$q \mapsto q \cdot 10^6 \cdot 10^{-6}$$ -/
+/-- A rational input as an exact JSON decimal (all denominators here divide `10^6`). -/
 def rin (q : Rat) : Json := .num ⟨q.num * ((1000000 / q.den : Nat) : Int), 6⟩
 
-/-- The `Rat` output wire form. $$q \mapsto \{\mathrm{num}, \mathrm{den}\}$$ -/
+/-- The `Rat` output wire form. -/
 def ratWire (q : Rat) : Json := Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
 
-/-- One golden line. $$(\mathit{fn}, \mathit{in}, \mathit{out}) \mapsto \text{JSON line}$$ -/
+/-- One golden line. -/
 def line (fn : String) (inp : List (String × Json)) (out : Json) : String :=
   (Json.mkObj [("fn", .str fn), ("in", Json.mkObj inp), ("out", out)]).compress
 
-/-- A natural number as a JSON integer. $$n \mapsto n$$ -/
+/-- A natural number as a JSON integer. -/
 def jn (n : Nat) : Json := .num ⟨(n : Int), 0⟩
 
-/-- An integer as a JSON integer. $$z \mapsto z$$ -/
+/-- An integer as a JSON integer. -/
 def ji (z : Int) : Json := .num ⟨z, 0⟩
 
-/-- Phase name. $$\mathrm{ph} \mapsto \text{string}$$ -/
+/-- Phase name. -/
 def phaseName : HeroOrbit.Phase → String
   | .idle => "idle" | .rewind => "rewind" | .surge => "surge" | .after => "after"
 
-/-- Elapsed times around every edge of the splash clock (ms). $$\text{samples}$$ -/
+/-- Elapsed times around every edge of the splash clock (ms). -/
 def times : List Rat :=
   [0, 100, 899, 900, 901, 1000, 1130, 11304 / 10, 1131, 1163, 1164, 1165, 1250, 1379, 1380, 1381, 1500, 1819, 1820, 3000]
 
-/-- The orbit golden lines. $$\text{lines}$$ Vectors the TS orbit logic must reproduce. -/
-def orbitLines : List String :=
+/-- The orbit golden lines. Vectors the TS orbit logic must reproduce. -/
+def orbitLines (_ : Unit := ()) : List String :=
   (times.map fun e =>
     let p := HeroOrbit.phase e
     line "phase" [("e", rin e)] (Json.mkObj [("phase", .str (phaseName p.phase)), ("t", ratWire p.t)])) ++
@@ -73,11 +71,11 @@ def orbitLines : List String :=
             ("idx", jn i), ("n", rin nEff), ("e", rin e), ("expanded", .bool a)]
            (Json.mkObj [("x", ji x), ("y", ji y), ("rotTenths", ji rot)]))
 
-/-- State name. $$\mathrm{st} \mapsto \text{string}$$ -/
+/-- State name. -/
 def stName : HeroAccent.St → String
   | .idle => "idle" | .drawOut => "draw-out" | .drawIn => "draw-in"
 
-/-- The accent golden lines. $$\text{lines}$$ Vectors the TS accent logic must reproduce. -/
+/-- The accent golden lines. Vectors the TS accent logic must reproduce. -/
 def accentLines : List String :=
   (([-1, 0, 1, 4, 5, 6, 7] : List Int).map fun c =>
     line "next" [("c", ji c)] (ji (HeroAccent.next c))) ++

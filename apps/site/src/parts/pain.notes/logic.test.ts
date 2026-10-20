@@ -2,9 +2,51 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { goldenConformance } from '../../engine/golden.testutil';
+import { createNotesDriver, type NotesEnv } from './driver';
 import * as L from './logic';
 
 const box = (b: unknown) => b as L.Box;
+
+/** Commits of the real driver (variant `visible`, or `visible-idem` when `idem`) over golden words after mount. */
+function scrollCommits(events: string[], idem: boolean): number {
+  let cardTop: number | null = null;
+  let commits = 0;
+  let runFrame: () => void = () => {};
+  const env: NotesEnv = {
+    stageRect: () => ({ top: 0, width: 780, height: 528 }),
+    copyRect: () => ({ top: -200, height: 100, width: 100 }),
+    cardTop: () => cardTop,
+    innerHeight: () => 900,
+    narrow: () => false,
+    reduced: () => false,
+    c860: () => false,
+    interval: () => () => {},
+    frame: (cb) => {
+      runFrame = cb;
+      return () => {};
+    },
+    commit: () => {
+      commits += 1;
+    },
+    writeNote: () => {},
+  };
+  const d = createNotesDriver(env, 1, { armWhenVisible: true, idemScroll: idem });
+  d.start();
+  runFrame();
+  d.intersect(true, 1);
+  commits = 0;
+  for (const e of events) {
+    if (e === 'cover' || e === 'open') {
+      cardTop = e === 'cover' ? 0 : null;
+      d.onScroll();
+    } else if (e === 'key') d.key(d.model().base[0]!.id, 'ArrowRight');
+    else if (e === 'add') {
+      cardTop = null;
+      d.tick();
+    } else if (e === 'layout') d.layoutNow();
+  }
+  return commits;
+}
 
 goldenConformance('pain.notes', {
   clampTo: (i) => L.clampTo({ x: i.x as number, lo: i.lo as number, hi: i.hi as number }),
@@ -49,6 +91,7 @@ goldenConformance('pain.notes', {
       stageTop: i.stageTop as number,
       ticks: i.ticks as number,
     }),
+  scrollCommits: (i) => ({ original: scrollCommits(i.events as string[], false), idem: scrollCommits(i.events as string[], true) }),
 });
 
 describe('pain.notes logic', () => {

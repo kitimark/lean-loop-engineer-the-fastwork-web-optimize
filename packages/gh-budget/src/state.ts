@@ -16,6 +16,7 @@ export const paths = (dir: string) => ({
   jobs: (runId: number) => join(dir, "meta", `${runId}.jobs.json`),
   jobsLock: (runId: number) => join(dir, "meta", `${runId}.jobs.lock`),
   waiters: join(dir, "waiters"),
+  incidents: join(dir, "incidents.jsonl"),
 });
 
 /** Atomic write: temp file in the same directory, then rename. */

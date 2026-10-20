@@ -23,42 +23,25 @@ One graph-wide error, `cycle`, when the dependency graph has a cycle (`acyclicB`
 namespace Fw.Plan.Lint
 open Fw.Plan
 
-/-- The kind of an evidence string.
-
-$$\mathrm{EvKind} = \{\mathrm{commit}, \mathrm{run}, \mathrm{user}, \mathrm{prose}, \mathrm{other}\}$$
--/
+/-- The kind of an evidence string. -/
 inductive EvKind | commit | run | user | prose | other
 deriving DecidableEq, Repr
 
-/-- Lowercase hex digit.
-
-$$\operatorname{isHex}(c) \iff c \in [0\text{-}9a\text{-}f]$$
--/
+/-- Lowercase hex digit. -/
 def isHex (c : Char) : Bool := c.isDigit || ('a' ≤ c && c ≤ 'f')
 
-/-- A commit id: 7 to 40 lowercase hex characters.
-
-$$\operatorname{isCommit}(s) \iff 7 \le |s| \le 40 \land \forall c \in s:\ c \in [0\text{-}9a\text{-}f]$$
--/
+/-- A commit id: 7 to 40 lowercase hex characters. -/
 def isCommit (s : String) : Bool := 7 ≤ s.length && s.length ≤ 40 && s.toList.all isHex
 
-/-- A CI run id: 8 or more decimal digits.
-
-$$\operatorname{isRun}(s) \iff |s| \ge 8 \land \forall c \in s:\ c \in [0\text{-}9]$$
--/
+/-- A CI run id: 8 or more decimal digits. -/
 def isRun (s : String) : Bool := 8 ≤ s.length && s.toList.all Char.isDigit
 
-/-- Prose that names a commit: some maximal alphanumeric run is a commit id containing a digit.
-
-$$\operatorname{hasCommitToken}(s) \iff \exists w \in \operatorname{words}(s):\ \operatorname{isCommit}(w) \land \exists c \in w:\ c \in [0\text{-}9]$$
--/
+/-- Prose that names a commit: some maximal alphanumeric run is a commit id containing a digit. -/
 def hasCommitToken (s : String) : Bool :=
   (s.toList.splitOnP (fun c => !c.isAlphanum)).any fun w =>
     isCommit (String.ofList w) && w.any Char.isDigit
 
 /-- The kind of an evidence string.
-
-$$\operatorname{kind}(s) = \begin{cases}\mathrm{run} & \operatorname{isRun}(s)\\ \mathrm{commit} & \operatorname{isCommit}(s)\\ \mathrm{user} & s \text{ starts with } \texttt{user}\\ \mathrm{prose} & \operatorname{hasCommitToken}(s)\\ \mathrm{other} & \text{otherwise}\end{cases}$$
 
 Checked in this order.
 -/
@@ -66,37 +49,25 @@ def evKind (s : String) : EvKind :=
   if isRun s then .run else if isCommit s then .commit
   else if s.startsWith "user" then .user else if hasCommitToken s then .prose else .other
 
-/-- A lint code.
-
-$$\mathrm{Code} = \{\mathrm{unknownDep}, \mathrm{evOther}, \mathrm{evLong}, \mathrm{trailerNoEvidence}, \mathrm{evNotOnMain}, \mathrm{evUser}, \mathrm{evProse}, \mathrm{longTitle}, \mathrm{evidenceNoTrailer}\}$$
--/
+/-- A lint code. -/
 inductive Code
   | unknownDep | evOther | evLong | trailerNoEvidence | evNotOnMain | evUser | evProse | longTitle
   | evidenceNoTrailer
 deriving DecidableEq, Repr
 
-/-- Every code, in report order.
-
-$$\mathrm{Codes} = [\mathrm{unknownDep}, \mathrm{evOther}, \mathrm{evLong}, \mathrm{trailerNoEvidence}, \mathrm{evNotOnMain}, \mathrm{evUser}, \mathrm{evProse}, \mathrm{longTitle}, \mathrm{evidenceNoTrailer}]$$
--/
+/-- Every code, in report order. -/
 def Code.all : List Code :=
   [.unknownDep, .evOther, .evLong, .trailerNoEvidence, .evNotOnMain, .evUser, .evProse, .longTitle,
     .evidenceNoTrailer]
 
-/-- The name of a code (the wire string).
-
-$$\operatorname{name}(k) = \text{the constructor name of } k$$
--/
+/-- The name of a code (the wire string). -/
 def Code.name : Code → String
   | .unknownDep => "unknownDep" | .evOther => "evOther" | .evLong => "evLong"
   | .trailerNoEvidence => "trailerNoEvidence" | .evNotOnMain => "evNotOnMain"
   | .evUser => "evUser" | .evProse => "evProse"
   | .longTitle => "longTitle" | .evidenceNoTrailer => "evidenceNoTrailer"
 
-/-- The severity of a code: `error`, `warn` or `info`.
-
-$$\operatorname{sev}(k) = \begin{cases}\mathrm{error} & k \in \{\mathrm{unknownDep}, \mathrm{evOther}, \mathrm{evLong}, \mathrm{trailerNoEvidence}, \mathrm{evNotOnMain}\}\\ \mathrm{warn} & k \in \{\mathrm{evUser}, \mathrm{evProse}, \mathrm{longTitle}\}\\ \mathrm{info} & k = \mathrm{evidenceNoTrailer}\end{cases}$$
--/
+/-- The severity of a code: `error`, `warn` or `info`. -/
 def Code.severity : Code → String
   | .unknownDep | .evOther | .evLong | .trailerNoEvidence | .evNotOnMain => "error"
   | .evUser | .evProse | .longTitle => "warn"
@@ -105,28 +76,13 @@ def Code.severity : Code → String
 /-- What the check reads besides the row: every task id, the ids that `Task:` trailers on main name,
 and `off`, the ids of the tasks whose evidence the glue found not to be an ancestor of main (default
 empty: a task the glue did not name counts as on main).
-
-$$\mathit{ctx} = (\mathit{ids}, \mathit{named}, \mathit{off})$$
 -/
 structure Ctx where
   ids   : List String
   named : List String
   off   : List String := []
 
-/-- Does `code` hold for row `t`?
-
-$$\begin{aligned}
-\mathrm{unknownDep}(t) &\iff \exists d \in t.\mathit{deps}:\ d \notin \mathit{ids}\\
-\mathrm{evOther}(t) &\iff t.\mathit{evidence} = e \land \operatorname{kind}(e) = \mathrm{other}\\
-\mathrm{evLong}(t) &\iff t.\mathit{evidence} = e \land |e| > 64\\
-\mathrm{trailerNoEvidence}(t) &\iff t.\mathit{id} \in \mathit{named} \land t.\mathit{evidence} = \bot\\
-\mathrm{evNotOnMain}(t) &\iff t.\mathit{evidence} = e \land \operatorname{kind}(e) = \mathrm{commit} \land t.\mathit{id} \in \mathit{off}\\
-\mathrm{evUser}(t) &\iff t.\mathit{evidence} = e \land \operatorname{kind}(e) = \mathrm{user}\\
-\mathrm{evProse}(t) &\iff t.\mathit{evidence} = e \land \operatorname{kind}(e) = \mathrm{prose}\\
-\mathrm{longTitle}(t) &\iff |t.\mathit{title}| > 200\\
-\mathrm{evidenceNoTrailer}(t) &\iff t.\mathit{evidence} \ne \bot \land t.\mathit{id} \notin \mathit{named}
-\end{aligned}$$
--/
+/-- Does `code` hold for row `t`? -/
 def holds (c : Ctx) (t : Task) : Code → Bool
   | .unknownDep => t.deps.any (fun d => !c.ids.contains d)
   | .evOther => match t.evidence with | some e => evKind e == .other | none => false
@@ -140,60 +96,39 @@ def holds (c : Ctx) (t : Task) : Code → Bool
   | .longTitle => decide (200 < t.title.length)
   | .evidenceNoTrailer => t.evidence.isSome && !c.named.contains t.id
 
-/-- The codes that hold for a row.
-
-$$\operatorname{codes}(t) = [\, k \in \mathrm{Codes} : \operatorname{holds}(t, k) \,]$$
--/
+/-- The codes that hold for a row. -/
 def codes (c : Ctx) (t : Task) : List Code := Code.all.filter (holds c t)
 
-/-- **Each reported code holds, and each code that holds is reported.**
-
-$$\forall t, k:\quad k \in \operatorname{codes}(t) \iff \operatorname{holds}(t, k)$$
--/
+/-- **Each reported code holds, and each code that holds is reported.** -/
 theorem mem_codes (c : Ctx) (t : Task) (k : Code) : k ∈ codes c t ↔ holds c t k = true := by
   unfold codes
   rw [List.mem_filter]
   have : k ∈ Code.all := by cases k <;> decide
   simp [this]
 
-/-- **Unknown deps are exactly the deps outside the graph.**
-
-$$\operatorname{holds}(t, \mathrm{unknownDep}) \iff \exists d \in t.\mathit{deps}:\ d \notin \mathit{ids}$$
--/
+/-- **Unknown deps are exactly the deps outside the graph.** -/
 theorem unknownDep_iff (c : Ctx) (t : Task) :
     holds c t .unknownDep = true ↔ ∃ d ∈ t.deps, d ∉ c.ids := by
   simp [holds]
 
-/-- **A long-evidence finding means more than 64 characters.**
-
-$$\operatorname{holds}(t, \mathrm{evLong}) \iff \exists e:\ t.\mathit{evidence} = e \land 64 < |e|$$
--/
+/-- **A long-evidence finding means more than 64 characters.** -/
 theorem evLong_iff (c : Ctx) (t : Task) :
     holds c t .evLong = true ↔ ∃ e, t.evidence = some e ∧ 64 < e.length := by
   unfold holds
   cases h : t.evidence <;> simp
 
-/-- **A long-title finding means more than 200 characters.**
-
-$$\operatorname{holds}(t, \mathrm{longTitle}) \iff 200 < |t.\mathit{title}|$$
--/
+/-- **A long-title finding means more than 200 characters.** -/
 theorem longTitle_iff (c : Ctx) (t : Task) :
     holds c t .longTitle = true ↔ 200 < t.title.length := by
   simp [holds]
 
-/-- **A missing-evidence finding means a trailer names the task and the row has none.**
-
-$$\operatorname{holds}(t, \mathrm{trailerNoEvidence}) \iff t.\mathit{id} \in \mathit{named} \land t.\mathit{evidence} = \bot$$
--/
+/-- **A missing-evidence finding means a trailer names the task and the row has none.** -/
 theorem trailerNoEvidence_iff (c : Ctx) (t : Task) :
     holds c t .trailerNoEvidence = true ↔ t.id ∈ c.named ∧ t.evidence = none := by
   unfold holds
   cases h : t.evidence <;> simp
 
-/-- **The reverse finding: evidence on the row, no trailer names it.**
-
-$$\operatorname{holds}(t, \mathrm{evidenceNoTrailer}) \iff t.\mathit{evidence} \ne \bot \land t.\mathit{id} \notin \mathit{named}$$
--/
+/-- **The reverse finding: evidence on the row, no trailer names it.** -/
 theorem evidenceNoTrailer_iff (c : Ctx) (t : Task) :
     holds c t .evidenceNoTrailer = true ↔ t.evidence ≠ none ∧ t.id ∉ c.named := by
   unfold holds
@@ -201,18 +136,13 @@ theorem evidenceNoTrailer_iff (c : Ctx) (t : Task) :
 
 /-- **A not-on-main finding means commit evidence the glue found off main.** Evidence of another
 kind (CI run id, user decision, prose) is never checked for ancestry.
-
-$$\operatorname{holds}(t, \mathrm{evNotOnMain}) \iff \exists e:\ t.\mathit{evidence} = e \land \operatorname{kind}(e) = \mathrm{commit} \land t.\mathit{id} \in \mathit{off}$$
 -/
 theorem evNotOnMain_iff (c : Ctx) (t : Task) :
     holds c t .evNotOnMain = true ↔ ∃ e, t.evidence = some e ∧ evKind e = .commit ∧ t.id ∈ c.off := by
   unfold holds
   cases h : t.evidence <;> simp
 
-/-- A finding: the task (or `*` for the whole graph), the code name, its severity, a detail.
-
-$$f = (\mathit{task}, \mathit{code}, \mathit{severity}, \mathit{detail})$$
--/
+/-- A finding: the task (or `*` for the whole graph), the code name, its severity, a detail. -/
 structure Finding where
   task     : String
   code     : String
@@ -222,8 +152,6 @@ deriving Repr
 
 /-- Tasks left by Kahn's pass (those in a cycle or behind one): each round keeps the rows that still have a dep
 among the remaining rows, at most `fuel` rounds, and stops early when a round drops nothing.
-
-$$\begin{aligned} \forall R:\quad &\operatorname{stuck}(0, R) = R, \\ \forall f \in \mathbb N,\ \forall R:\quad &\operatorname{stuck}(f+1, R) = \begin{cases} R & |R'| = |R| \\ \operatorname{stuck}(f, R') & |R'| \ne |R| \end{cases} \\ &\text{with } R' = [\, t \in R \mid \exists d \in t.\mathit{deps},\ \exists r \in R:\ r.\mathit{id} = d \,] \text{ (order kept)} \end{aligned}$$
 -/
 def stuck : Nat → List Task → List Task
   | 0, r => r
@@ -231,28 +159,17 @@ def stuck : Nat → List Task → List Task
     let r' := r.filter fun t => t.deps.any fun d => r.any (·.id == d)
     if r'.length == r.length then r else stuck f r'
 
-/-- The ids named by `Task:` trailers of the commits, as a list: commit order kept, repeats kept.
-
-$$\forall C = [c_1, \dots, c_n]:\quad \mathit{named}(C) = \operatorname{trailers}(c_1.\mathit{body}) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{trailers}(c_n.\mathit{body}) \quad (\mathit{named}([\,]) = [\,])$$
--/
+/-- The ids named by `Task:` trailers of the commits, as a list: commit order kept, repeats kept. -/
 def namedIds (cs : List Fw.Plan.Trailer.Commit) : List String :=
   cs.flatMap fun c => Fw.Plan.Trailer.trailers c.body
 
-/-- The detail text of a finding.
-
-$$\forall \mathit{ctx} = (\mathit{ids}, \mathit{named}),\ \forall t, k:\quad \operatorname{detail}(\mathit{ctx}, t, k) = \begin{cases}\operatorname{join}(\texttt{", "}, [\, d \in t.\mathit{deps} \mid d \notin \mathit{ids} \,]) & k = \mathrm{unknownDep}\\ \varepsilon & k \in \{\mathrm{evidenceNoTrailer}, \mathrm{trailerNoEvidence}, \mathrm{longTitle}\}\\ e & k \in \{\mathrm{evOther}, \mathrm{evLong}, \mathrm{evUser}, \mathrm{evProse}\} \land t.\mathit{evidence} = e \\ \varepsilon & k \in \{\mathrm{evOther}, \mathrm{evLong}, \mathrm{evUser}, \mathrm{evProse}\} \land t.\mathit{evidence} = \bot \end{cases}$$
--/
+/-- The detail text of a finding. -/
 def detailOf (c : Ctx) (t : Task) : Code → String
   | .unknownDep => ", ".intercalate (t.deps.filter (fun d => !c.ids.contains d))
   | .evidenceNoTrailer | .trailerNoEvidence | .longTitle => ""
   | _ => t.evidence.getD ""
 
-/-- All findings: per task in file order, codes in report order; then the graph-wide `cycle`.
-
-$$\begin{aligned} \forall T, C, \mathit{off}:\quad \operatorname{lint}(T, C, \mathit{off}) = {} &[\, (t.\mathit{id}, \operatorname{name}(k), \operatorname{sev}(k), \operatorname{detail}(\mathit{ctx}, t, k)) \mid t \in T,\ k \in \operatorname{codes}(\mathit{ctx}, t) \,] \\ \mathbin{+\!\!+} {} &\begin{cases} [\,] & \operatorname{acyclicB}(T) \\ [(\texttt{*}, \texttt{cycle}, \texttt{error}, \operatorname{join}(\texttt{", "}, [\, r.\mathit{id} \mid r \in \operatorname{stuck}(|T|, T) \,]))] & \neg\operatorname{acyclicB}(T) \end{cases} \\ \text{with } \mathit{ctx} = {} &([\, t.\mathit{id} \mid t \in T \,],\ \mathit{named}(C),\ \mathit{off}) \end{aligned}$$
-
-where $\mathit{off}$ lists the task ids whose evidence is not on main (default $[\,]$).
--/
+/-- All findings: per task in file order, codes in report order; then the graph-wide `cycle`. -/
 def lint (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) (off : List String := []) :
     List Finding :=
   let c : Ctx := { ids := ts.map (·.id), named := namedIds cs, off }
@@ -264,17 +181,11 @@ def lint (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) (off : List String 
        detail := ", ".intercalate ((stuck ts.length ts).map (·.id)) : Finding }]
   per ++ cyc
 
-/-- Ok: no finding of severity `error`.
-
-$$\operatorname{ok}(T, C, \mathit{off}) \iff \forall f \in \operatorname{lint}(T, C, \mathit{off}):\ f.\mathit{severity} \ne \mathrm{error}$$
--/
+/-- Ok: no finding of severity `error`. -/
 def ok (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) (off : List String := []) : Bool :=
   (lint ts cs off).all fun f => f.severity != "error"
 
-/-- **Lint ok means the graph has no unknown dep and no cycle** (what `fw plan sync` refuses).
-
-$$\forall T, C, \mathit{off}:\quad \operatorname{ok}(T, C, \mathit{off}) \Rightarrow (\forall t \in T,\ \forall d \in t.\mathit{deps}:\ d \in \operatorname{ids}(T)) \land \operatorname{Acyclic}(T)$$
--/
+/-- **Lint ok means the graph has no unknown dep and no cycle** (what `fw plan sync` refuses). -/
 theorem ok_sound (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) (off : List String)
     (h : ok ts cs off = true) :
     (∀ t ∈ ts, ∀ d ∈ t.deps, d ∈ ts.map (·.id)) ∧ Acyclic ts := by

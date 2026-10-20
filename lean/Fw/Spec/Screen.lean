@@ -5,75 +5,50 @@ import Lean.Data.Json
 A run is a list of frames aligned by content anchor; each frame is a vector of work counts. If the
 variant's vector is at most the baseline's in every component of every frame, then under **any**
 non-negative coefficients (and any constant term) no frame's predicted cost goes up. The model is
-the linear one, $T_{\kappa,c}(x) = \kappa + \sum_j c_j x_j$; whether an engine obeys it, whether the
+the linear one, `T_(κ,c)(x) = κ + Σ_j c_j x_j`; whether an engine obeys it, whether the
 counts are right and whether the frames are aligned are L3 premises checked elsewhere.
 -/
 namespace Fw.Screen
 
-/-- One frame's work counts (layout passes, restyled elements, painted kpx, ...).
-
-$$\mathrm{Counts} = \mathbb{N}^{*}$$
--/
+/-- One frame's work counts (layout passes, restyled elements, painted kpx, ...). -/
 abbrev Counts := List Nat
 
-/-- A run: one count vector per frame, frames aligned by content anchor.
-
-$$\mathrm{Run} = \mathrm{Counts}^{*} = (\mathbb{N}^{*})^{*}$$
--/
+/-- A run: one count vector per frame, frames aligned by content anchor. -/
 abbrev Run := List Counts
 
 /-- The weighted sum of the counts with coefficients `c` (pairs up positions; extra entries on
 either side are ignored).
-
-$$\operatorname{dot}(c, x) = \sum_{j=1}^{\min(|c|, |x|)} c_j\, x_j \in \mathbb{Q}$$
 -/
 def dot : List Rat → Counts → Rat
   | c :: cs, x :: xs => c * (x : Rat) + dot cs xs
   | _, _ => 0
 
-/-- The predicted cost of one frame under the linear model with constant `κ` and coefficients `c`.
-
-$$T_{\kappa, c}(x) = \kappa + \operatorname{dot}(c, x)$$
--/
+/-- The predicted cost of one frame under the linear model with constant `κ` and coefficients `c`. -/
 def cost (κ : Rat) (c : List Rat) (x : Counts) : Rat := κ + dot c x
 
-/-- One count vector is componentwise at most another of the same length.
-
-$$\operatorname{leVec}(x, y) = \mathrm{true} \iff |x| = |y| \ \land\ \forall j:\ x_j \le y_j$$
--/
+/-- One count vector is componentwise at most another of the same length. -/
 def leVec : Counts → Counts → Bool
   | [], [] => true
   | x :: xs, y :: ys => decide (x ≤ y) && leVec xs ys
   | _, _ => false
 
-/-- One run is framewise at most another: the same number of frames and `leVec` in every frame.
-
-$$\operatorname{leRun}(A, B) = \mathrm{true} \iff |A| = |B| \ \land\ \forall f:\ \operatorname{leVec}(A_f, B_f) = \mathrm{true}$$
--/
+/-- One run is framewise at most another: the same number of frames and `leVec` in every frame. -/
 def leRun : Run → Run → Bool
   | [], [] => true
   | a :: as, b :: bs => leVec a b && leRun as bs
   | _, _ => false
 
-/-- The four screening outcomes.
-
-$$\mathrm{Result} = \{\mathrm{dominates}, \mathrm{equal}, \mathrm{worse}, \mathrm{mixed}\}$$
--/
+/-- The four screening outcomes. -/
 inductive Result where
   | dominates | equal | worse | mixed
 deriving Repr, DecidableEq, Lean.ToJson, Lean.FromJson
 
 /-- The two runs have the same shape: the same number of frames and the same vector length in
 each frame.
-
-$$\operatorname{shapeEq}(B, V) = \mathrm{true} \iff |B| = |V| \ \land\ \forall f:\ |B_f| = |V_f|$$
 -/
 def shapeEq (base var : Run) : Bool := base.map List.length == var.map List.length
 
-/-- The screen: first match wins.
-
-$$\operatorname{screen}(B, V) = \begin{cases} \mathrm{error}(\texttt{"frames or count vectors not aligned"}) & \text{if } \neg\operatorname{shapeEq}(B, V) \\ \mathrm{ok}(\mathrm{equal}) & \text{else if } V = B \\ \mathrm{ok}(\mathrm{dominates}) & \text{else if } \operatorname{leRun}(V, B) \\ \mathrm{ok}(\mathrm{worse}) & \text{else if } \operatorname{leRun}(B, V) \\ \mathrm{ok}(\mathrm{mixed}) & \text{otherwise} \end{cases}$$
--/
+/-- The screen: first match wins. -/
 def screen (base var : Run) : Except String Result :=
   if !shapeEq base var then .error "frames or count vectors not aligned"
   else if var == base then .ok .equal
@@ -90,10 +65,7 @@ def screen (base var : Run) : Except String Result :=
 #guard (match screen [[1]] [[1, 2]] with | .error e => e == "frames or count vectors not aligned" | .ok _ => false)
 #guard screen [] [] matches .ok .equal
 
-/-- More counts never give a smaller weighted sum when the coefficients are non-negative.
-
-$$\forall c \in \mathbb{Q}^{*},\ \forall x, y \in \mathbb{N}^{*}:\quad (\forall j:\ 0 \le c_j) \ \land\ \operatorname{leVec}(x, y) \;\Rightarrow\; \operatorname{dot}(c, x) \le \operatorname{dot}(c, y)$$
--/
+/-- More counts never give a smaller weighted sum when the coefficients are non-negative. -/
 theorem dot_mono (cs : List Rat) (hc : ∀ c ∈ cs, 0 ≤ c) :
     ∀ {x y : Counts}, leVec x y = true → dot cs x ≤ dot cs y := by
   induction cs with
@@ -114,10 +86,7 @@ theorem dot_mono (cs : List Rat) (hc : ∀ c ∈ cs, 0 ≤ c) :
         have h2 : dot cs xs ≤ dot cs ys := ih (fun c' hc' => hc c' (by simp [hc'])) h.2
         exact Rat.le_trans (Rat.add_le_add_right.mpr h1) (Rat.add_le_add_left.mpr h2)
 
-/-- If `leRun` holds, the runs have equal frame counts and `leVec` holds frame by frame.
-
-$$\forall A, B \in \mathrm{Run}:\quad \operatorname{leRun}(A, B) = \mathrm{true} \;\Rightarrow\; |A| = |B| \ \land\ \forall (a, b) \in \operatorname{zip}(A, B):\ \operatorname{leVec}(a, b) = \mathrm{true}$$
--/
+/-- If `leRun` holds, the runs have equal frame counts and `leVec` holds frame by frame. -/
 theorem leRun_spec : ∀ {A B : Run}, leRun A B = true →
     A.length = B.length ∧ ∀ p ∈ A.zip B, leVec p.1 p.2 = true
   | [], [], _ => by simp
@@ -136,8 +105,6 @@ theorem leRun_spec : ∀ {A B : Run}, leRun A B = true →
 /-- **Screening soundness (class W).** If the screen says "dominates", the variant has as many
 frames as the baseline, differs from it, and under every constant term and every non-negative
 coefficient vector no aligned frame of the variant is predicted to cost more than the baseline's.
-
-$$\forall B, V \in \mathrm{Run}:\quad \operatorname{screen}(B, V) = \mathrm{ok}(\mathrm{dominates}) \;\Rightarrow\; |V| = |B| \ \land\ V \ne B \ \land\ \forall \kappa \in \mathbb{Q},\ \forall c \in \mathbb{Q}^{*}:\ (\forall j:\ 0 \le c_j) \Rightarrow \forall (v, b) \in \operatorname{zip}(V, B):\ T_{\kappa, c}(v) \le T_{\kappa, c}(b)$$
 -/
 theorem screen_sound {base var : Run} (h : screen base var = .ok .dominates) :
     var.length = base.length ∧ var ≠ base ∧
@@ -157,8 +124,6 @@ theorem screen_sound {base var : Run} (h : screen base var = .ok .dominates) :
 
 /-- The mirror image: if the screen says "worse", no aligned frame of the baseline is predicted to
 cost more than the variant's, under every constant term and non-negative coefficients.
-
-$$\forall B, V \in \mathrm{Run}:\quad \operatorname{screen}(B, V) = \mathrm{ok}(\mathrm{worse}) \;\Rightarrow\; |B| = |V| \ \land\ V \ne B \ \land\ \forall \kappa \in \mathbb{Q},\ \forall c \in \mathbb{Q}^{*}:\ (\forall j:\ 0 \le c_j) \Rightarrow \forall (b, v) \in \operatorname{zip}(B, V):\ T_{\kappa, c}(b) \le T_{\kappa, c}(v)$$
 -/
 theorem screen_worse {base var : Run} (h : screen base var = .ok .worse) :
     base.length = var.length ∧ var ≠ base ∧

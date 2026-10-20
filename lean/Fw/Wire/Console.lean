@@ -3,11 +3,15 @@ import Fw.Console.Land
 import Fw.Console.Self
 import Fw.Console.LandPool
 import Fw.Console.LandTier
+import Fw.Console.LandRemote
 import Fw.Console.Alert
 import Fw.Console.Preview
 import Fw.Console.PreviewOwner
+import Fw.Console.PreviewArm
 import Fw.Console.PreviewCache
 import Fw.Console.Builds
+import Fw.Console.Daemon
+import Fw.Console.LandLegs
 import Fw.Plan.Trailer
 import Fw.Plan.Lint
 /-!
@@ -29,19 +33,28 @@ imports it, so it decodes the card fields it needs itself).
 | `console.landPool` | `cores`, `load` (one-minute load average rounded up) | `pool` (`Fw.Console.LandPool.poolFair`) |
 | `console.landRetry` | `passed`, `loadFailure` | `rerun` (`Fw.Console.LandPool.rerunAlone`), `pool` (the re-run's pool, 1) |
 | `console.previewTarget` | `main` (main's sha), `facts` [{src, sha, onMain, noCode, fpLine? (the head is on main's first-parent line), path? [{sha, p2Has}] (first-parent ancestry path from the head to main, oldest first), ownWork? (a merge's second parent contains the task's own work; default true), behind? (another candidate holds code this one lacks), cands [{ref, sha, contains}]}] (head candidates in priority order), `children` [{facts}] (the candidate lists of the sub-tasks of an umbrella) | `kind` (`main`/`integration`/`own`/`none`), `ref`, `sha`, `head` (sha or null), `headSrc` (`Fw.Console.Preview.headOf`) |
-| `console.previewAdmit` | `secret`, `cookie`, `origin` (the proofs the route checked: `Fw.Console.Preview.Proof`), `preview` (the new preview's id), `task`, `now` (ms), `diskMb`, `hasTarget`, `portBase?` (first port of the range, default `portLo` = 47100), `live` [{id, task, rp, op, started}] | `ok`, `reason` (`notOwner`/`taskBusy`/`tooMany`/`lowDisk`/`noTarget`/`noPorts`), `actor`, `rp`, `op` (the ports), `deadline`, `ttl`, `k`, `portLo`, `portN` (`Fw.Console.Preview.admit`) |
+| `console.previewAdmit` | `secret`, `cookie`, `origin` (the proofs the route checked: `Fw.Console.Preview.Proof`), `preview` (the new preview's id), `task`, `now` (ms), `diskMb`, `hasTarget`, `portBase?` (first port of the range, default `portLo` = 47100), `live` [{id, task, rp, op, started}] | `ok`, `reason` (`notOwner`/`taskBusy`/`tooMany`/`lowDisk`/`noTarget`/`noPorts`), `actor`, `rp`, `op` (the arms' public ports), `brp`, `bop` (their private backend ports, `Arm.backendOf`), `deadline`, `ttl`, `k`, `portLo`, `portN`, `backendOff` (the arms' backend port offset; a base with `portBase + portN + backendOff > 65536` is refused `noPorts`) (`Fw.Console.Preview.admit`) |
 | `console.previewTick` | `now`, `live` | `keep` [ids], `kill` [ids] (`tick`, `expired`) |
 | `console.previewStop` | `secret`, `cookie`, `origin`, `preview` (id), `live` | `ok`, `reason` (`notOwner`/`unknown`), `actor`, `kill` [ids] (`stop`, `own`) |
 | `console.previewFail` | `preview` (id), `live` | `keep` [ids], `kill` [ids] (a failed build's teardown: `fail`, `own`) |
 | `console.previewReap` | `live` | `kill` [ids] (all of the table, `reap`) |
 | `console.previewLink` | `hasTty`, `now`? (ms), `last`? (ms of the last link) | `sink` (`tty` or null: print no link), `allowed` [sinks] (`linkSink`: only `tty`), `reissue`? (with `now`: may a new link be issued, `mayReissue`: one per minute) |
 | `console.ownerLogin` | `enabled` (the console has an owner passphrase), `correct` (the constant-time compare matched), `now` (ms), `fails`? [ms] and `lockUntil`? (the client address's record; missing = fresh), `gFails`? [ms] and `gLockUntil`? (the global record across all addresses; missing = fresh) | `verdict` (`disabled`/`locked`/`wrong`/`ok`), `fails`, `lockUntil` (the new address record), `gFails`, `gLockUntil` (the new global record), `retryAt` (the end of the longest active lock, else null), `maxTries`, `window`, `lock`, `globMax`, `globWindow`, `globLock` (`Fw.Console.Preview.Owner.attempt`) |
-| `console.ownerGate` | `lan` (non-loopback or unknown remote address), `session` (console port: a valid owner bearer token in the Authorization header, never a cookie; preview port: a valid preview-access cookie), `hostOk` (Host names this port), `path`, `port`? (`console` default, or `preview`) | `allow`, `class` (`login`/`preview`/`other`/`shell`) (`Fw.Console.Preview.Owner.allow` for the console port, `allowPreview` for the preview port; `classify`) |
+| `console.ownerGate` | `lan` (non-loopback or unknown remote address), `session` (console port: a valid owner bearer token in the Authorization header, never a cookie; preview port: a valid preview-access cookie), `hostOk` (Host names this port), `path`, `port`? (`console` default, or `preview`; the preview port also reads `grant` (the cookie names an inspect grant), `grantStarted`, `now` (ms)) | `allow`, `by` (`session`/`grant`/`none`), `class` (`login`/`preview`/`other`/`shell`) (`Fw.Console.Preview.Owner.allow` for the console port, `allowPreview` for the preview port; `classify`) |
+| `console.previewArm` | `lan`, `session` (valid preview-access cookie), `hostOk` (Host names this arm's port), `grant`, `grantStarted`, `now`, `port` (the local port the request arrived on), `path`, `live` [{id, task, rp, op, started}] | `allow`, `by` (`session`/`grant`/`none`), `act` (`proxy`/`refuse`), `preview` (the preview id; `id` is the protocol's own), `arm` (`r`/`o`), `backend` (private port), `path` (unchanged) (`Fw.Console.Preview.Arm.armServe`, `route`) |
+| `console.previewGrant` | `kind` (`issue`: may a grant be issued, from `lan`; `redeem`: a grant token is presented, with `known`, `used`, `issuedAt`, `now` (ms)), `lan` | `allow`, `verdict` (redeem: `ok`/`lan`/`unknown`/`used`/`expired`), `ttlMs` (issue), `cookieMs` (`Fw.Console.Preview.Owner.issueAllowed`, `redeem`) |
 | `console.ownerAction` | `kind` (`owner`: an owner action, needs the bearer token and an Origin; `command`: any other non-GET route, an Origin if present; `login`: an Origin, no token), `bearer` (a valid owner token in the Authorization header), `origin`? ({host, port} or null: none sent), `host`? (the origin of the Host header when it names this console, else null), `extra` [{host, port}] (configured web origins), `previewPort`? (null = unset: nothing is trusted) | `allow`, `trusted` (the computed trusted origins, none on the preview port) (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`) |
 | `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
+| `console.daemon` | `kind`: `start` (`recorded`? pid in api.json, `answered`? pid the health request reported, `alive`? whether the recorded pid exists), `stop` (same), `restart` (same), `rotate` (`size`, `limit`? default 5 MiB) | start: `allow`, `verified` (pid or null), `reason` (`ok`/`running`/`unverifiedAlive`); stop: `target` (the only pid to signal, or null), `reason` (`ok`/`notRunning`); restart: `steps` [{step: `stop`+`pid` / `start`}]; rotate: `rotate`, `limit`, `warn` (size above 50 MiB), `warnLimit` (`Fw.Console.Daemon.startAllowed`, `stopTarget`, `restartPlan`, `rotate`, `logWarns`) |
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
-| `console.landTier` | `ids` [check ids] | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept) |
+| `console.landTier` | `ids` [check ids] | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept), `browser` (`browserRuns`: the selection holds the e2e-preview check) |
+| `console.landLeg` | `leg` (a land leg name), `ids` [selected check ids] | `ids` [the remote checks that leg runs, `Fw.Console.LandLegs.pickFor`], `engine` (`engineRuns`) |
+| `console.landLegs` | `results` [bool, one per leg] | `ok` (`Fw.Console.LandLegs.legsOk`: every leg passed, at least one leg) |
+| `console.landLegsVeto` | `results` [bool, one per non-guard job] or `null` (no per-job conclusions) | `veto` (`Fw.Console.LandLegs.legsVeto`: a `success` run with a leg that did not pass is refused; `null` or no leg says nothing) |
 | `console.landLane` | `exitOk`, `coreUser`, `skipped` (skipped plus todo tests the summary reports; `null` when no summary was recognised) | `verdict` (`pass`/`fail`/`skipped`/`unknown`), `ok` (`Fw.Console.LandTier.laneVerdict`) |
+| `console.landRemote` | `localOk`, `needed`, `allow` [`github`/`circleci`, preference order], `want` {sha, laneId, laneDigest}, `waitsLeft`, `runs` [{provider, sha, laneId, laneDigest, state (`queued`/`running`/`pass`/`fail`/`cancelled`/`timeout`/`unavailable`)}] | `kind` (`accept`/`refuse`/`wait`/`try`/`local`), `reason` (the word on the VERDICT line), `ok`, `provider` (the one to try, else null) (`Fw.Console.LandRemote.verdict`) |
+| `console.landLaneState` | `exit` (`fw ci wait` exit code), `timedOut`? (its output said `timed out after`), `status`? and `conclusion`? (the run's own, from `gh run view`; empty when no view) | `state` (`Fw.Console.LandRemote.laneState`: a completed run with conclusion failure is `fail` whatever the exit; else the waiter's outcome) |
+| `console.landDigest` | `ids` [remote check ids] | `digest` (`Fw.Console.LandRemote.laneDigest`, tier remote) |
 | `console.previewCache` | `path` (the request path, no query), `manifest`? [names] (the rewrite build's `.vite/manifest.json` `file`/`css`/`assets` entries, each as `/<name>`) | `kind` (`hashed`/`html`/`other`), `cacheControl`, `immutable`, `compress` (`Fw.Console.PreviewCache.kind`, `cacheControl`, `compressible`) |
 | `console.builds` | `main` (main's sha), `log` [{sha, time, body}] (main's first-parent log, newest first), `known` [{id, title}] (the work graph), `evidence`? [{task, sha}] (a work-graph task whose evidence commit is on main: sha = its land commit on main's first-parent line), `flags` [{part, variant, kind, requires? [keys]}], `presets` [{name, fw {part: variant}}] (fw with `extends` already resolved) | `ports` [{id, task, group, sha, landedAt, title, slot, search, target}], `optimize` [{id, kind, name, search, status, note, slot, target}], `searches` (`Fw.Console.Builds.portRows`, `optRows`, `enumerate`) |
 | `console.buildsPicker` | `keys` (the `bySearch` keys of a build), `current`? | `searches` (the picker list), `current` (the search the compare view loads) (`Fw.Console.Builds.picker`, `choose`) |
@@ -211,7 +224,31 @@ open Fw.Console.LandTier in
 def opLandTier (req : Json) : Except String Reply := do
   let ids ← strsD req "ids"
   let js (l : List String) : Json := .arr (l.toArray.map Json.str)
-  pure [("local", js (pick .onMac ids)), ("remote", js (pick .onCi ids))]
+  pure [("local", js (pick .onMac ids)), ("remote", js (pick .onCi ids)), ("browser", .bool (browserRuns ids))]
+
+open Fw.Console.LandLegs in
+/-- `console.landLeg`: the remote checks one land leg runs and whether its browser engine runs (`Fw.Console.LandLegs`). -/
+def opLandLeg (req : Json) : Except String Reply := do
+  let name ← asStr "leg" (← field req "leg")
+  let ids ← strsD req "ids"
+  match Leg.ofName? name with
+  | none => throw s!"field leg: unknown land leg {name}"
+  | some l =>
+    pure [("ids", .arr ((pickFor l (Fw.Console.LandTier.pick .onCi ids)).toArray.map Json.str)), ("engine", .bool (engineRuns l ids))]
+
+open Fw.Console.LandLegs in
+/-- `console.landLegs`: the verdict over the results of all land legs (`Fw.Console.LandLegs.legsOk`). -/
+def opLandLegs (req : Json) : Except String Reply := do
+  let rs ← (← arrD req "results").mapM (asBool "results")
+  pure [("ok", .bool (legsOk rs))]
+
+open Fw.Console.LandLegs in
+/-- `console.landLegsVeto`: does the legs' record veto a successful run (`Fw.Console.LandLegs.legsVeto`)? -/
+def opLandLegsVeto (req : Json) : Except String Reply := do
+  let rs ← match opt req "results" with
+    | none | some .null => pure none
+    | some _ => some <$> (← arrD req "results").mapM (asBool "results")
+  pure [("veto", .bool (legsVeto rs))]
 
 open Fw.Console.LandTier in
 /-- `console.landLane`: the lane verdict of one check (`Fw.Console.LandTier.laneVerdict`). -/
@@ -223,6 +260,41 @@ def opLandLane (req : Json) : Except String Reply := do
     | some _ => some <$> nat req "skipped"
   let v := laneVerdict e c n
   pure [("verdict", .str v.name), ("ok", .bool v.ok)]
+
+open Fw.Console.LandRemote in
+/-- `console.landRemote`: the combined land verdict over the local tier and the normalized lane runs (`Fw.Console.LandRemote.verdict`). -/
+def opLandRemote (req : Json) : Except String Reply := do
+  let l ← asBool "localOk" (← field req "localOk")
+  let n ← asBool "needed" (← field req "needed")
+  let allow ← (← arrD req "allow").mapM fun j => do
+    let s ← asStr "allow" j
+    match Provider.ofName s with | some p => pure p | none => throw s!"unknown provider {s}"
+  let wj ← field req "want"
+  let w : Want := { sha := ← strD wj "sha" "", laneId := ← strD wj "laneId" "", laneDigest := ← strD wj "laneDigest" "" }
+  let k ← natD req "waitsLeft" 0
+  let rs ← (← arrD req "runs").mapM fun r => do
+    let ps ← strD r "provider" ""
+    let st ← strD r "state" ""
+    match Provider.ofName ps, RunState.ofName st with
+    | some p, some s => pure ({ provider := p, sha := ← strD r "sha" "", laneId := ← strD r "laneId" "",
+                                laneDigest := ← strD r "laneDigest" "", state := s } : Run)
+    | none, _ => throw s!"unknown provider {ps}"
+    | _, none => throw s!"unknown run state {st}"
+  let v := verdict l n allow w k rs
+  pure [("kind", .str v.kind), ("reason", .str v.reason), ("ok", .bool v.ok),
+        ("provider", match v.provider with | some p => .str p.name | none => .null)]
+
+open Fw.Console.LandRemote in
+/-- `console.landLaneState`: the state of a lane run from the waiter's exit and the run's own conclusion (`Fw.Console.LandRemote.laneState`). -/
+def opLandLaneState (req : Json) : Except String Reply := do
+  let c ← natD req "exit" 2
+  let t ← match opt req "timedOut" with | none | some .null => pure false | some _ => asBool "timedOut" (← field req "timedOut")
+  pure [("state", .str (laneState c t (← strD req "status" "") (← strD req "conclusion" "")).name)]
+
+open Fw.Console.LandRemote in
+/-- `console.landDigest`: the lane digest of the remote tier over these check ids (`Fw.Console.LandRemote.laneDigest`). -/
+def opLandDigest (req : Json) : Except String Reply := do
+  pure [("digest", .str (laneDigest .onCi (← strsD req "ids")))]
 
 /-! ## plan.lint -/
 
@@ -310,11 +382,12 @@ def opPreviewAdmit (req : Json) : Except String Reply := do
   let lo ← match opt req "portBase" with
     | none => pure portLo
     | some _ => nat req "portBase"
-  let lim := [("ttl", Json.num ttl), ("k", Json.num K), ("portLo", Json.num portLo), ("portN", Json.num portN), ("actor", Json.str (Fw.Console.Actor.name p.actor))]
+  let lim := [("ttl", Json.num ttl), ("k", Json.num K), ("portLo", Json.num portLo), ("portN", Json.num portN), ("backendOff", Json.num backendOff), ("actor", Json.str (Fw.Console.Actor.name p.actor))]
   pure (match admit lo s r with
-    | .error e => [("ok", .bool false), ("reason", .str e.name), ("rp", .null), ("op", .null), ("deadline", .null)] ++ lim
-    | .ok (p :: _) => [("ok", .bool true), ("reason", .null), ("rp", .num p.rp), ("op", .num p.op), ("deadline", .num p.deadline)] ++ lim
-    | .ok [] => [("ok", .bool false), ("reason", .str "noPorts"), ("rp", .null), ("op", .null), ("deadline", .null)] ++ lim)
+    | .error e => [("ok", .bool false), ("reason", .str e.name), ("rp", .null), ("op", .null), ("brp", .null), ("bop", .null), ("deadline", .null)] ++ lim
+    | .ok (p :: _) => [("ok", .bool true), ("reason", .null), ("rp", .num p.rp), ("op", .num p.op),
+        ("brp", .num (Fw.Console.Preview.Arm.backendOf p.rp)), ("bop", .num (Fw.Console.Preview.Arm.backendOf p.op)), ("deadline", .num p.deadline)] ++ lim
+    | .ok [] => [("ok", .bool false), ("reason", .str "noPorts"), ("rp", .null), ("op", .null), ("brp", .null), ("bop", .null), ("deadline", .null)] ++ lim)
 
 open Fw.Console.Preview in
 /-- The ids of a table as JSON. -/
@@ -398,11 +471,61 @@ def opOwnerGate (req : Json) : Except String Reply := do
   let port ← match opt req "port" with
     | none => pure "console"
     | some _ => str req "port"
-  let ok ← match port with
-    | "console" => pure (allow lan session hostOk c)
-    | "preview" => pure (allowPreview lan session hostOk)
+  let flag (k : String) : Except String Bool := match opt req k with
+    | none => pure false
+    | some j => asBool k j
+  let num (k : String) : Except String Nat := match opt req k with
+    | none => pure 0
+    | some _ => nat req k
+  let (ok, by_) ← match port with
+    | "console" => pure (allow lan session hostOk c, "none")
+    | "preview" => do
+      let viaSession := allowPreview lan session hostOk
+      let viaGrant := allowGrant lan hostOk (← flag "grant") (← num "grantStarted") (← num "now") c
+      pure (servePreview lan session hostOk (← flag "grant") (← num "grantStarted") (← num "now") c,
+        if viaSession then "session" else if viaGrant then "grant" else "none")
     | _ => throw "field port: expected console or preview"
-  pure [("allow", .bool ok), ("class", .str c.name)]
+  pure [("allow", .bool ok), ("class", .str c.name), ("by", .str (if ok then by_ else "none"))]
+
+open Fw.Console.Preview.Arm in
+/-- `console.previewArm` (`Fw.Console.Preview.Arm.armServe`, `route`): one request on an arm origin. `port` is the local
+port it arrived on, `live` the table, `path` the request path and query. `allow` is the gate (`armServe`), `by` what let it
+in, `act` is `proxy` (with `preview`, `arm`, `backend` and the unchanged `path`) or `refuse` (no arm listens on `port`). -/
+def opPreviewArm (req : Json) : Except String Reply := do
+  let s ← liveOf req
+  let lan ← asBool "lan" (← field req "lan")
+  let session ← asBool "session" (← field req "session")
+  let hostOk ← asBool "hostOk" (← field req "hostOk")
+  let flag (k : String) : Except String Bool := match opt req k with
+    | none => pure false
+    | some j => asBool k j
+  let num (k : String) : Except String Nat := match opt req k with
+    | none => pure 0
+    | some _ => nat req k
+  let known ← flag "grant"
+  let started ← num "grantStarted"
+  let now ← num "now"
+  let ok := armServe lan session hostOk known started now
+  let by_ := if !ok then "none" else if Fw.Console.Preview.Owner.allowPreview lan session hostOk then "session" else "grant"
+  let path ← str req "path"
+  let act := match route s (← nat req "port") path with
+    | .proxy i a b p => [("act", Json.str "proxy"), ("preview", .str i), ("arm", .str a.name), ("backend", .num b), ("path", .str p)]
+    | .refuse => [("act", Json.str "refuse"), ("preview", .null), ("arm", .null), ("backend", .null), ("path", .null)]
+  pure ([("allow", Json.bool ok), ("by", .str by_)] ++ act)
+
+open Fw.Console.Preview.Owner in
+/-- `console.previewGrant` (`Fw.Console.Preview.Owner.issueAllowed`, `redeem`): may a grant be issued (`kind` issue, from
+`lan`), and what happens when a grant token is presented (`kind` redeem). -/
+def opPreviewGrant (req : Json) : Except String Reply := do
+  let lan ← asBool "lan" (← field req "lan")
+  match ← str req "kind" with
+  | "issue" => pure [("allow", .bool (issueAllowed lan)), ("ttlMs", .num grantTokenTtl), ("cookieMs", .num grantCookieTtl)]
+  | "redeem" =>
+    let known ← asBool "known" (← field req "known")
+    let used ← asBool "used" (← field req "used")
+    let r := redeem lan known used (← nat req "issuedAt") (← nat req "now")
+    pure [("allow", .bool (r == .ok)), ("verdict", .str r.name), ("cookieMs", .num grantCookieTtl)]
+  | _ => throw "field kind: expected issue or redeem"
 
 open Fw.Console.Preview.Owner in
 /-- `console.ownerAction` (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`): may this request
@@ -502,13 +625,42 @@ def opBuildsPicker (req : Json) : Except String Reply := do
   let cur ← strD req "current" ""
   pure [("searches", Json.arr ((picker keys).map Json.str).toArray), ("current", Json.str (choose keys cur))]
 
+open Fw.Console.Daemon in
+/-- `console.daemon` (`Fw.Console.Daemon`): what `fw console start|stop|restart` may do, when the log is rotated and when status warns about its size. -/
+def opDaemon (req : Json) : Except String Reply := do
+  let pid (k : String) : Except String (Option Nat) := match opt req k with
+    | none | some .null => pure none
+    | some _ => do pure (some (← nat req k))
+  let pj : Option Nat → Json := fun o => match o with | some p => Json.num p | none => Json.null
+  match ← str req "kind" with
+  | "start" =>
+    let r ← pid "recorded"; let a ← pid "answered"
+    let live ← boolD req "alive" false
+    pure [("allow", .bool (startAllowed r a live)), ("verified", pj (verified r a)),
+      ("reason", .str (if (verified r a).isSome then "running" else if unverifiedAlive r a live then "unverifiedAlive" else "ok"))]
+  | "stop" =>
+    let t := stopTarget (← pid "recorded") (← pid "answered")
+    pure [("target", pj t), ("reason", .str (if t.isSome then "ok" else "notRunning"))]
+  | "restart" =>
+    let steps := restartPlan (verified (← pid "recorded") (← pid "answered"))
+    pure [("steps", Json.arr (steps.toArray.map fun s => match s with
+      | .stop p => Json.mkObj [("step", .str "stop"), ("pid", .num p)]
+      | .start => Json.mkObj [("step", .str "start")]))]
+  | "rotate" =>
+    let limit ← match opt req "limit" with
+      | none => pure logLimit
+      | some _ => nat req "limit"
+    let size ← nat req "size"
+    pure [("rotate", .bool (rotate size limit)), ("limit", .num limit), ("warn", .bool (logWarns size)), ("warnLimit", .num logWarnLimit)]
+  | _ => throw "field kind: expected start, stop, restart or rotate"
+
 /-! ## Dispatch -/
 
 /-- The ops of this module. -/
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
-  "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLane", "plan.trailers", "plan.lint",
+  "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLeg", "console.landLegs", "console.landLegsVeto", "console.landLane", "console.landRemote", "console.landLaneState", "console.landDigest", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
-  "console.ownerLogin", "console.ownerGate", "console.ownerAction", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker"]
+  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.previewArm", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.daemon"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -524,7 +676,13 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.landPool" => some (opLandPool req)
   | "console.landRetry" => some (opLandRetry req)
   | "console.landTier" => some (opLandTier req)
+  | "console.landLeg" => some (opLandLeg req)
+  | "console.landLegs" => some (opLandLegs req)
+  | "console.landLegsVeto" => some (opLandLegsVeto req)
   | "console.landLane" => some (opLandLane req)
+  | "console.landRemote" => some (opLandRemote req)
+  | "console.landLaneState" => some (opLandLaneState req)
+  | "console.landDigest" => some (opLandDigest req)
   | "plan.trailers" => some (opTrailers req)
   | "plan.lint" => some (opPlanLint req)
   | "console.previewTarget" => some (opPreviewTarget req)
@@ -536,12 +694,15 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.previewLink" => some (opPreviewLink req)
   | "console.ownerLogin" => some (opOwnerLogin req)
   | "console.ownerGate" => some (opOwnerGate req)
+  | "console.previewGrant" => some (opPreviewGrant req)
   | "console.ownerAction" => some (opOwnerAction req)
+  | "console.previewArm" => some (opPreviewArm req)
   | "console.lanStart" => some (opLanStart req)
   | "console.previewSweep" => some (opPreviewSweep req)
   | "console.previewCache" => some (opPreviewCache req)
   | "console.builds" => some (opBuilds req)
   | "console.buildsPicker" => some (opBuildsPicker req)
+  | "console.daemon" => some (opDaemon req)
   | _ => none
 
 end Fw.Wire.Console

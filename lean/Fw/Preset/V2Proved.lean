@@ -7,22 +7,16 @@ Decides which registered flags enter the `v2-proved` preset: a flag enters when 
 -/
 namespace Fw.Preset
 
-/-- A flag: a part id and one of its variants.
-
-$$\mathrm{Flag} = \mathrm{String} \times \mathrm{String}$$ -/
+/-- A flag: a part id and one of its variants. -/
 structure Flag where
   part : String
   variant : String
 deriving DecidableEq, Repr, Inhabited
 
-/-- The URL form `part:variant`.
-
-$$\operatorname{key}(p, v) = p \mathbin{+\!\!+} \texttt{":"} \mathbin{+\!\!+} v$$ -/
+/-- The URL form `part:variant`. -/
 def Flag.key (f : Flag) : String := f.part ++ ":" ++ f.variant
 
-/-- The kind of a registered variant (`part.json` `kind`).
-
-$$\mathrm{Kind} = \{\mathrm{faithful}, \mathrm{optimized}, \mathrm{ablation}, \mathrm{proposal}\}$$ -/
+/-- The kind of a registered variant (`part.json` `kind`). -/
 inductive Kind where
   | faithful
   | optimized
@@ -30,9 +24,7 @@ inductive Kind where
   | proposal
 deriving DecidableEq, Repr
 
-/-- One registered variant with its `requires` and `conflicts` lists.
-
-$$\mathrm{Reg} = \mathrm{Flag} \times \mathrm{Kind} \times \mathrm{List}\ \mathrm{Flag} \times \mathrm{List}\ \mathrm{Flag}$$ -/
+/-- One registered variant with its `requires` and `conflicts` lists. -/
 structure Reg where
   flag : Flag
   kind : Kind
@@ -40,18 +32,14 @@ structure Reg where
   conflicts : List Flag
 deriving Repr
 
-/-- The combined `fw engine-check` verdict a ledger row records for its flag (`fResult`).
-
-$$\mathrm{FRes} = \{\mathrm{pass}, \mathrm{unusable}, \mathrm{modelBug}\}$$ -/
+/-- The combined `fw engine-check` verdict a ledger row records for its flag (`fResult`). -/
 inductive FRes where
   | pass
   | unusable
   | modelBug
 deriving DecidableEq, Repr
 
-/-- The fields of a findings-ledger row this module reads; `flag` and `fResult` are optional in the ledger.
-
-$$\mathrm{Row} = \mathrm{String}^3 \times \mathrm{Option}\ \mathrm{String} \times \mathrm{Option}\ \mathrm{FRes}$$ -/
+/-- The fields of a findings-ledger row this module reads; `flag` and `fResult` are optional in the ledger. -/
 structure Row where
   part : String
   candidate : String
@@ -60,20 +48,14 @@ structure Row where
   fResult : Option FRes
 deriving Repr
 
-/-- A ledger row's identity: its `part` and `candidate` text.
-
-$$\mathrm{Key} = \mathrm{String} \times \mathrm{String}$$ -/
+/-- A ledger row's identity: its `part` and `candidate` text. -/
 abbrev Key := String × String
 
-/-- The rows of the ledger with key $k$, in ledger order.
-
-$$\operatorname{rowsOf}(L, k) = [\,r \in L \mid (r.\mathrm{part}, r.\mathrm{candidate}) = k\,]$$ -/
+/-- The rows of the ledger with key `k`, in ledger order. -/
 def rowsOf (ledger : List Row) (k : Key) : List Row :=
   ledger.filter fun r => r.part == k.1 && r.candidate == k.2
 
-/-- Why a flag is in the arm or not.
-
-$$\mathrm{Why} = \{\mathrm{proved}, \mathrm{noLink}, \mathrm{falsifiedFlag}\} \cup \{\mathrm{rowCount}(k, n), \mathrm{notProved}(k, s), \mathrm{falsified}(k)\}$$ -/
+/-- Why a flag is in the arm or not. -/
 inductive Why where
   | proved
   | noLink
@@ -83,16 +65,12 @@ inductive Why where
   | falsified (k : Key)
 deriving DecidableEq, Repr
 
-/-- Whether some ledger row names the flag in its `flag` field and reports `model-bug`.
-
-$$\operatorname{falsifiedBy}(L, f) \iff \exists r \in L:\ r.\mathrm{flag} = \operatorname{key}(f) \land r.\mathrm{fResult} = \mathrm{modelBug}$$ -/
+/-- Whether some ledger row names the flag in its `flag` field and reports `model-bug`. -/
 def falsifiedBy (ledger : List Row) (f : Flag) : Bool :=
   ledger.any fun r => r.flag == some f.key && r.fResult == some .modelBug
 
 /-- The objection of one linked key, `none` when the key has exactly one row, it says `proved` and it is not
-falsified.
-
-$$\operatorname{rowWhy}(L, k) = \begin{cases} \mathrm{notProved}(k, r.\mathrm{status}) & \operatorname{rowsOf}(L, k) = [r],\ r.\mathrm{status} \ne \texttt{"proved"} \\ \mathrm{falsified}(k) & \operatorname{rowsOf}(L, k) = [r],\ r.\mathrm{status} = \texttt{"proved"},\ r.\mathrm{fResult} = \mathrm{modelBug} \\ \bot & \operatorname{rowsOf}(L, k) = [r],\ r.\mathrm{status} = \texttt{"proved"},\ r.\mathrm{fResult} \ne \mathrm{modelBug} \\ \mathrm{rowCount}(k, |\operatorname{rowsOf}(L, k)|) & |\operatorname{rowsOf}(L, k)| \ne 1 \end{cases}$$ -/
+falsified. -/
 def rowWhy (ledger : List Row) (k : Key) : Option Why :=
   match rowsOf ledger k with
   | [r] =>
@@ -100,16 +78,12 @@ def rowWhy (ledger : List Row) (k : Key) : Option Why :=
     else if r.fResult == some .modelBug then some (.falsified k) else none
   | rs => some (.rowCount k rs.length)
 
-/-- The ledger keys linked to a flag: the second component of the first link whose flag is $f$.
-
-$$\operatorname{linkOf}(\Lambda, f) = \begin{cases} \kappa & (f, \kappa) \text{ is the first pair of } \Lambda \text{ with flag } f \\ \bot & \text{no pair of } \Lambda \text{ has flag } f \end{cases}$$ -/
+/-- The ledger keys linked to a flag: the second component of the first link whose flag is `f`. -/
 def linkOf (links : List (Flag × List Key)) (f : Flag) : Option (List Key) :=
   (links.find? (·.1 == f)).map (·.2)
 
 /-- **Why a flag is or is not proved**: a `model-bug` row naming it first, then a missing or empty link, then the first
-objection among its linked keys in link order, else `proved`.
-
-$$\operatorname{why}(\Lambda, L, f) = \begin{cases} \mathrm{falsifiedFlag} & \operatorname{falsifiedBy}(L, f) \\ \mathrm{noLink} & \lnot\operatorname{falsifiedBy}(L, f),\ \operatorname{linkOf}(\Lambda, f) \in \{\bot, []\} \\ w & \lnot\operatorname{falsifiedBy}(L, f),\ \operatorname{linkOf}(\Lambda, f) = \kappa \ne [],\ w \text{ the first } \operatorname{rowWhy}(L, k) \ne \bot \text{ over } k \in \kappa \\ \mathrm{proved} & \lnot\operatorname{falsifiedBy}(L, f),\ \operatorname{linkOf}(\Lambda, f) = \kappa \ne [],\ \forall k \in \kappa:\ \operatorname{rowWhy}(L, k) = \bot \end{cases}$$ -/
+objection among its linked keys in link order, else `proved`. -/
 def why (links : List (Flag × List Key)) (ledger : List Row) (f : Flag) : Why :=
   if falsifiedBy ledger f then .falsifiedFlag
   else match linkOf links f with
@@ -117,57 +91,39 @@ def why (links : List (Flag × List Key)) (ledger : List Row) (f : Flag) : Why :
     | some [] => .noLink
     | some ks => (ks.findSome? (rowWhy ledger)).getD .proved
 
-/-- Whether a flag is a registered variant of kind `optimized`.
-
-$$\operatorname{isOpt}(R, f) \iff \exists r \in R:\ r.\mathrm{flag} = f \land r.\mathrm{kind} = \mathrm{optimized}$$ -/
+/-- Whether a flag is a registered variant of kind `optimized`. -/
 def isOpt (reg : List Reg) (f : Flag) : Bool :=
   reg.any fun r => r.flag == f && r.kind == .optimized
 
-/-- A flag qualifies for the arm: registered as `optimized` and proved.
-
-$$\operatorname{ok}(R, \Lambda, L, f) \iff \operatorname{isOpt}(R, f) \land \operatorname{why}(\Lambda, L, f) = \mathrm{proved}$$ -/
+/-- A flag qualifies for the arm: registered as `optimized` and proved. -/
 def ok (reg : List Reg) (links : List (Flag × List Key)) (ledger : List Row) (f : Flag) : Bool :=
   isOpt reg f && why links ledger f == .proved
 
-/-- The first flag of a list that satisfies $q$ and belongs to part $p$.
-
-$$\operatorname{firstOk}(q, \ell, p) = \begin{cases} g & g \text{ is the first element of } \ell \text{ with } q(g) \land g.\mathrm{part} = p \\ \bot & \text{no element of } \ell \text{ has } q(g) \land g.\mathrm{part} = p \end{cases}$$ -/
+/-- The first flag of a list that satisfies `q` and belongs to part `p`. -/
 def firstOk (q : Flag → Bool) (l : List Flag) (p : String) : Option Flag :=
   l.find? fun g => q g && g.part == p
 
-/-- The elements of a list that are the first $q$-flag of their part.
-
-$$\operatorname{pick}(q, \ell) = [\,f \in \ell \mid \operatorname{firstOk}(q, \ell, f.\mathrm{part}) = f\,]$$ -/
+/-- The elements of a list that are the first `q`-flag of their part. -/
 def pick (q : Flag → Bool) (l : List Flag) : List Flag :=
   l.filter fun f => firstOk q l f.part == some f
 
 /-- **The `v2-proved` preset**: in link order, each linked flag that qualifies and is the first qualifying flag of its
-part.
-
-$$\operatorname{preset}(R, \Lambda, L) = \operatorname{pick}(\operatorname{ok}(R, \Lambda, L), [\,f \mid (f, \kappa) \in \Lambda\,])$$ -/
+part. -/
 def preset (reg : List Reg) (links : List (Flag × List Key)) (ledger : List Row) : List Flag :=
   pick (ok reg links ledger) (links.map (·.1))
 
-/-- The `requires` list of a flag (empty when the flag is not registered).
-
-$$\operatorname{req}(R, f) = \begin{cases} r.\mathrm{requires} & r \text{ is the first element of } R \text{ with } r.\mathrm{flag} = f \\ [] & \text{no element of } R \text{ has flag } f \end{cases}$$ -/
+/-- The `requires` list of a flag (empty when the flag is not registered). -/
 def reqOf (reg : List Reg) (f : Flag) : List Flag := ((reg.find? (·.flag == f)).map (·.requires)).getD []
 
-/-- The `conflicts` list of a flag (empty when the flag is not registered).
-
-$$\operatorname{conf}(R, f) = \begin{cases} r.\mathrm{conflicts} & r \text{ is the first element of } R \text{ with } r.\mathrm{flag} = f \\ [] & \text{no element of } R \text{ has flag } f \end{cases}$$ -/
+/-- The `conflicts` list of a flag (empty when the flag is not registered). -/
 def confOf (reg : List Reg) (f : Flag) : List Flag := ((reg.find? (·.flag == f)).map (·.conflicts)).getD []
 
-/-- Whether a flag list meets its own `requires` and `conflicts`.
-
-$$\operatorname{closed}(R, P) \iff \forall f \in P:\ (\forall g \in \operatorname{req}(R, f):\ g \in P) \land (\forall g \in \operatorname{conf}(R, f):\ g \notin P)$$ -/
+/-- Whether a flag list meets its own `requires` and `conflicts`. -/
 def closed (reg : List Reg) (p : List Flag) : Bool :=
   p.all fun f => (reqOf reg f).all (p.contains ·) && (confOf reg f).all (!p.contains ·)
 
 /-- **The generator's verdict**: the preset when it meets its `requires` and `conflicts`, else an error naming the
-preset (a finding, never patched).
-
-$$\operatorname{generate}(R, \Lambda, L) = \begin{cases} \operatorname{ok}(\operatorname{preset}(R, \Lambda, L)) & \operatorname{closed}(R, \operatorname{preset}(R, \Lambda, L)) \\ \operatorname{error} & \text{otherwise} \end{cases}$$ -/
+preset (a finding, never patched). -/
 def generate (reg : List Reg) (links : List (Flag × List Key)) (ledger : List Row) : Except String (List Flag) :=
   let p := preset reg links ledger
   if closed reg p then .ok p
@@ -175,9 +131,7 @@ def generate (reg : List Reg) (links : List (Flag × List Key)) (ledger : List R
 
 /-! ## Theorems -/
 
-/-- `pick` keeps exactly the elements that are the first $q$-flag of their part.
-
-$$\forall q, \ell, f:\ f \in \operatorname{pick}(q, \ell) \iff \operatorname{firstOk}(q, \ell, f.\mathrm{part}) = f$$
+/-- `pick` keeps exactly the elements that are the first `q`-flag of their part.
 
 A flag is picked exactly when it is the first qualifying flag of its part. -/
 theorem mem_pick {q : Flag → Bool} {l : List Flag} {f : Flag} :
@@ -190,9 +144,7 @@ theorem mem_pick {q : Flag → Bool} {l : List Flag} {f : Flag} :
   · intro h
     exact ⟨List.mem_of_find?_eq_some h, by simpa using h⟩
 
-/-- Every picked flag satisfies $q$.
-
-$$\forall q, \ell, f:\ f \in \operatorname{pick}(q, \ell) \Rightarrow q(f)$$
+/-- Every picked flag satisfies `q`.
 
 Picking never admits a flag that fails the test. -/
 theorem pick_ok {q : Flag → Bool} {l : List Flag} {f : Flag} (h : f ∈ pick q l) : q f = true := by
@@ -201,8 +153,6 @@ theorem pick_ok {q : Flag → Bool} {l : List Flag} {f : Flag} (h : f ∈ pick q
   exact this.1
 
 /-- Two picked flags of one part are equal.
-
-$$\forall q, \ell, f, g:\ f \in \operatorname{pick}(q, \ell) \land g \in \operatorname{pick}(q, \ell) \land f.\mathrm{part} = g.\mathrm{part} \Rightarrow f = g$$
 
 The pick holds at most one variant per part. -/
 theorem pick_part_unique {q : Flag → Bool} {l : List Flag} {f g : Flag} (hf : f ∈ pick q l) (hg : g ∈ pick q l)
@@ -215,8 +165,6 @@ theorem pick_part_unique {q : Flag → Bool} {l : List Flag} {f g : Flag} (hf : 
 
 /-- `rowWhy` never answers `proved`.
 
-$$\forall L, k:\ \operatorname{rowWhy}(L, k) \ne \mathrm{proved}$$
-
 A key's objection is never the verdict `proved`. -/
 theorem rowWhy_ne_proved (ledger : List Row) (k : Key) : rowWhy ledger k ≠ some .proved := by
   unfold rowWhy
@@ -227,8 +175,6 @@ theorem rowWhy_ne_proved (ledger : List Row) (k : Key) : rowWhy ledger k ≠ som
   · simp
 
 /-- A key has no objection exactly when it has one row, that row says `proved`, and it is not `model-bug`.
-
-$$\forall L, k:\ \operatorname{rowWhy}(L, k) = \bot \iff \exists r:\ \operatorname{rowsOf}(L, k) = [r] \land r.\mathrm{status} = \texttt{"proved"} \land r.\mathrm{fResult} \ne \mathrm{modelBug}$$
 
 A linked key passes only through its one proved, unfalsified row. -/
 theorem rowWhy_none_iff (ledger : List Row) (k : Key) :
@@ -254,8 +200,6 @@ theorem rowWhy_none_iff (ledger : List Row) (k : Key) :
 
 /-- **The verdict `proved`, characterised**: no `model-bug` row names the flag, its link is present and non-empty, and
 every linked key has exactly one row, which says `proved` and is not `model-bug`.
-
-$$\forall \Lambda, L, f:\ \operatorname{why}(\Lambda, L, f) = \mathrm{proved} \iff \lnot\operatorname{falsifiedBy}(L, f) \land \exists \kappa:\ \operatorname{linkOf}(\Lambda, f) = \kappa \land \kappa \ne [] \land \forall k \in \kappa\ \exists r:\ \operatorname{rowsOf}(L, k) = [r] \land r.\mathrm{status} = \texttt{"proved"} \land r.\mathrm{fResult} \ne \mathrm{modelBug}$$
 
 Only a linked flag whose every row is proved and unfalsified gets `proved`. -/
 theorem why_proved_iff (links : List (Flag × List Key)) (ledger : List Row) (f : Flag) :
@@ -297,16 +241,12 @@ theorem why_proved_iff (links : List (Flag × List Key)) (ledger : List Row) (f 
 
 /-- **Membership**: a flag is in the preset exactly when it is the first qualifying linked flag of its part.
 
-$$\forall R, \Lambda, L, f:\ f \in \operatorname{preset}(R, \Lambda, L) \iff \operatorname{firstOk}(\operatorname{ok}(R, \Lambda, L), [\,g \mid (g, \kappa) \in \Lambda\,], f.\mathrm{part}) = f$$
-
 The arm holds every qualifying flag except one shadowed by an earlier qualifying variant of its part. -/
 theorem mem_preset_iff {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {f : Flag} :
     f ∈ preset reg links ledger ↔ firstOk (ok reg links ledger) (links.map (·.1)) f.part = some f :=
   mem_pick
 
 /-- **The preset is a subset of the registered flags**: every member is a registered `optimized` variant.
-
-$$\forall R, \Lambda, L, f:\ f \in \operatorname{preset}(R, \Lambda, L) \Rightarrow \exists r \in R:\ r.\mathrm{flag} = f \land r.\mathrm{kind} = \mathrm{optimized}$$
 
 No unregistered flag and no faithful, ablation or proposal variant enters the arm. -/
 theorem preset_registered {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {f : Flag}
@@ -318,8 +258,6 @@ theorem preset_registered {reg : List Reg} {links : List (Flag × List Key)} {le
 
 /-- Every member of the preset is proved.
 
-$$\forall R, \Lambda, L, f:\ f \in \operatorname{preset}(R, \Lambda, L) \Rightarrow \operatorname{why}(\Lambda, L, f) = \mathrm{proved}$$
-
 The arm holds only flags with the verdict `proved`. -/
 theorem preset_proved {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {f : Flag}
     (h : f ∈ preset reg links ledger) : why links ledger f = .proved := by
@@ -329,8 +267,6 @@ theorem preset_proved {reg : List Reg} {links : List (Flag × List Key)} {ledger
 
 /-- **A falsified flag never enters**: if some ledger row names the flag and reports `model-bug`, the flag is not in
 the preset.
-
-$$\forall R, \Lambda, L, f:\ (\exists r \in L:\ r.\mathrm{flag} = \operatorname{key}(f) \land r.\mathrm{fResult} = \mathrm{modelBug}) \Rightarrow f \notin \operatorname{preset}(R, \Lambda, L)$$
 
 A model-bug F-result recorded against a flag keeps it out of the arm. -/
 theorem falsified_not_mem {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {f : Flag}
@@ -344,8 +280,6 @@ theorem falsified_not_mem {reg : List Reg} {links : List (Flag × List Key)} {le
   exact Bool.false_ne_true this
 
 /-- **A linked row that is not proved or is falsified keeps the flag out**.
-
-$$\forall R, \Lambda, L, f, \kappa, k, r:\ \operatorname{linkOf}(\Lambda, f) = \kappa \land k \in \kappa \land \operatorname{rowsOf}(L, k) = [r] \land (r.\mathrm{status} \ne \texttt{"proved"} \lor r.\mathrm{fResult} = \mathrm{modelBug}) \Rightarrow f \notin \operatorname{preset}(R, \Lambda, L)$$
 
 One unproved or falsified linked row is enough to exclude the flag. -/
 theorem linked_row_blocks {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {f : Flag}
@@ -364,8 +298,6 @@ theorem linked_row_blocks {reg : List Reg} {links : List (Flag × List Key)} {le
 
 /-- An unlinked flag never enters.
 
-$$\forall R, \Lambda, L, f:\ \operatorname{linkOf}(\Lambda, f) = \bot \Rightarrow f \notin \operatorname{preset}(R, \Lambda, L)$$
-
 A registered flag the link table does not name stays out of the arm. -/
 theorem unlinked_not_mem {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {f : Flag}
     (hl : linkOf links f = none) : f ∉ preset reg links ledger := by
@@ -376,16 +308,12 @@ theorem unlinked_not_mem {reg : List Reg} {links : List (Flag × List Key)} {led
 
 /-- The preset holds at most one variant per part.
 
-$$\forall R, \Lambda, L, f, g:\ f, g \in \operatorname{preset}(R, \Lambda, L) \land f.\mathrm{part} = g.\mathrm{part} \Rightarrow f = g$$
-
 The preset is a function from parts to variants. -/
 theorem preset_part_unique {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {f g : Flag}
     (hf : f ∈ preset reg links ledger) (hg : g ∈ preset reg links ledger) (hp : f.part = g.part) : f = g :=
   pick_part_unique hf hg hp
 
 /-- **A generated preset is the preset and meets its rules**.
-
-$$\forall R, \Lambda, L, P:\ \operatorname{generate}(R, \Lambda, L) = \operatorname{ok}(P) \Rightarrow P = \operatorname{preset}(R, \Lambda, L) \land \operatorname{closed}(R, P)$$
 
 The generator emits nothing but the decided preset, and only when its requires and conflicts hold. -/
 theorem generate_ok {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {p : List Flag}

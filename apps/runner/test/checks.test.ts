@@ -13,7 +13,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const core = fwcoreCall(root);
 const golden = readFileSync(join(root, "packages/contracts/golden/console/land-tier.jsonl"), "utf8").trim().split("\n")
   .map((l) => JSON.parse(l) as { name: string; request: Record<string, unknown>; response: Record<string, unknown> });
-const REMOTE = ["apps/runner", "apps/console-api", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/engine-check"];
+const REMOTE = ["apps/runner", "apps/console-api", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/engine-check", "packages/e2e-preview"];
 
 describe("fwcore reproduces the land-tier golden", () => {
   it("has tier and lane cases", () => {
@@ -109,7 +109,7 @@ describe("fw checks", () => {
     const lines: string[] = [];
     const code = await checksCli(["--affected", "--base", "x", "--tier", "remote", "--list"], root, { core, changed: ["lean/Fw/A.lean"], log: (s) => lines.push(s) });
     expect(code).toBe(0);
-    expect(lines.slice(1).sort()).toEqual(REMOTE.filter((r) => FWCORE_USERS.includes(r)).map((r) => `remote ${r}`).sort());
+    expect(lines.slice(1).filter((l) => !l.startsWith("LANE ")).sort()).toEqual(REMOTE.filter((r) => FWCORE_USERS.includes(r)).map((r) => `remote ${r}`).sort());
   });
   it("runs the remote tier only and prints one VERDICT per check", async () => {
     const lines: string[] = [];

@@ -32,10 +32,7 @@ namespace Fw.Gate
 
 /-! ## Environment -/
 
-/-- The environment a probe or stop asks for.
-
-$$\mathit{req} = (W,\ H,\ W_{\mathrm{dev}},\ \mathit{dpr},\ \mathit{hover},\ \mathit{pointer},\ \mathit{motion},\ \mathit{scheme}) \in \mathbb Q^{4} \times \mathrm{String}^{4}$$
--/
+/-- The environment a probe or stop asks for. -/
 structure Requested where
   width : Rat
   height : Rat
@@ -47,20 +44,14 @@ structure Requested where
   colorScheme : String
   deriving Repr, Inhabited
 
-/-- What the page reports about its viewport (`none` = not reported).
-
-$$v = (\mathit{innerHeight},\ \mathit{screenWidth},\ \mathit{dpr}) \in \mathbb Q_\bot^{3}$$
--/
+/-- What the page reports about its viewport (`none` = not reported). -/
 structure Viewport where
   innerHeight : Option Rat
   screenWidth : Option Rat
   dpr : Option Rat
   deriving Repr, Inhabited
 
-/-- Media features as the page observes them (`none` = not reported).
-
-$$o = (\mathit{widthExact},\ \mathit{hoverHover},\ \mathit{hoverNone},\ \mathit{pointerFine},\ \mathit{pointerCoarse},\ \mathit{reducedMotion},\ \mathit{dark}) \in \mathbb B_\bot^{7}$$
--/
+/-- Media features as the page observes them (`none` = not reported). -/
 structure Observed where
   widthExact : Option Bool
   hoverHover : Option Bool
@@ -73,25 +64,19 @@ structure Observed where
 
 /-- `a ≤ n` with an unreported `a` counting as false (as JS `undefined <= n`).
 
-$$\operatorname{le}(a, n) \iff a \ne \bot \wedge a \le n$$
-
 A missing width is on neither side. -/
 def leOpt : Option Rat → Rat → Bool
   | some a, n => decide (a ≤ n)
   | none, _ => false
 
-/-- Two widths are on the same side of every edge $n$ (of the pairs $[n, n+1]$).
+/-- Two widths are on the same side of every edge `n` (of the pairs `[n, n+1]`).
 
-$$\operatorname{sameSide}(a, b, E) \iff \forall n \in E,\ \operatorname{le}(a, n) = (b \le n)\qquad (a \in \mathbb Q_\bot,\ b \in \mathbb Q)$$
-
-No device-width condition can tell them apart; a missing width $a = \bot$ has $\operatorname{le}(a, n)$ false, so it matches
-only a $b$ above every edge. -/
+No device-width condition can tell them apart; a missing width `a = ⊥` has `le(a, n)` false, so it matches
+only a `b` above every edge. -/
 def sameSide (a : Option Rat) (b : Rat) (edges : List Rat) : Bool :=
   edges.all fun n => leOpt a n == decide (b ≤ n)
 
 /-- The eight environment checks, in report order, with whether each holds.
-
-$$\begin{aligned} \mathrm{width} &: \mathrm{widthExact} = \mathrm{true} \\ \mathrm{height} &: \mathrm{innerHeight} = q.h \\ \mathrm{deviceWidth} &: \mathrm{screenWidth} = q.\mathrm{dw} \vee \operatorname{sameSide}(\mathrm{screenWidth}, q.\mathrm{dw}, E) \\ \mathrm{dpr} &: \mathrm{dpr} = q.\mathrm{dpr} \\ \mathrm{hover} &: (\mathrm{hoverHover}, \mathrm{hoverNone}) = \begin{cases} (\mathrm{true}, \mathrm{false}) & q.\mathrm{hover} = \texttt{hover} \\ (\mathrm{false}, \mathrm{true}) & \text{otherwise} \end{cases} \\ \mathrm{pointer} &: (\mathrm{pointerFine}, \mathrm{pointerCoarse}) = \begin{cases} (\mathrm{true}, \mathrm{false}) & q.\mathrm{pointer} = \texttt{fine} \\ (\mathrm{false}, \mathrm{true}) & \text{otherwise} \end{cases} \\ \mathrm{reducedMotion} &: (q.\mathrm{rm} = \texttt{reduce}) \iff \mathrm{reducedMotion} = \mathrm{true} \\ \mathrm{colorScheme} &: (q.\mathrm{cs} = \texttt{dark}) \iff \mathrm{dark} = \mathrm{true} \\ & \text{where the observed and viewport fields are those of } o \text{ and } v; \\ & \text{in the width, height, deviceWidth, dpr, hover and pointer rows an unreported value } \bot \text{ equals neither } \mathrm{true} \text{ nor } \mathrm{false} \text{ nor any number,} \\ & \quad \text{so it satisfies none of their equations (deviceWidth can still hold through sameSide);} \\ & \text{in the reducedMotion and colorScheme rows } \bot \text{ counts as } \mathrm{false} \text{, so the row holds when the request is not reduce (not dark)} \end{aligned}$$
 
 What "achieved" means, one
 feature at a time. -/
@@ -109,15 +94,11 @@ def envChecks (q : Requested) (v : Viewport) (o : Observed) (edges : List Rat) :
 
 /-- The checks that fail, by name, in report order.
 
-$$\operatorname{dev}(q, v, o, E) = [\,n \mid (n, \mathit{ok}) \in \operatorname{envChecks}(q, v, o, E),\ \neg \mathit{ok}\,]$$
-
 Which requested features an arm did not deliver. -/
 def envDeviations (q : Requested) (v : Viewport) (o : Observed) (edges : List Rat) : List String :=
   (envChecks q v o edges).filterMap fun c => if c.2 then none else some c.1
 
 /-- No deviation exactly when every check holds.
-
-$$\forall q, v, o, E,\quad \operatorname{dev}(q, v, o, E) = [\,] \iff \forall c \in \operatorname{envChecks}(q, v, o, E),\ c.\mathit{ok}$$
 
 An arm achieves its environment when all eight features are as requested. -/
 theorem envDeviations_eq_nil_iff (q : Requested) (v : Viewport) (o : Observed) (edges : List Rat) :
@@ -135,40 +116,25 @@ theorem envDeviations_eq_nil_iff (q : Requested) (v : Viewport) (o : Observed) (
 
 /-! ## matchMedia truth -/
 
-/-- A matchMedia value as recorded: absent ($\bot$), `null`, or a boolean.
-
-$$\mathrm{TVal} = (\mathbb B_\bot)_\bot$$
--/
+/-- A matchMedia value as recorded: absent (`⊥`), `null`, or a boolean. -/
 abbrev TVal := Option (Option Bool)
 
-/-- Recorded matchMedia values by key, in the run's key order.
-
-$$\mathrm{TMap} = (\mathrm{String} \times \mathbb B_\bot)^{*}$$
--/
+/-- Recorded matchMedia values by key, in the run's key order. -/
 abbrev TMap := List (String × Option Bool)
 
-/-- One arm's matchMedia record: the range texts, the legacy texts and the neutral queries.
-
-$$(T,\ T_{\mathrm{legacy}},\ T_{\mathrm{neutral}}) \in \mathrm{TMap}^{3}$$
--/
+/-- One arm's matchMedia record: the range texts, the legacy texts and the neutral queries. -/
 structure TruthRaw where
   truth : TMap
   legacy : TMap
   neutral : TMap
   deriving Repr, Inhabited
 
-/-- The kind of a truth item.
-
-$$\mathrm{TCls} = \{\mathrm{AR},\ \mathrm{lean},\ \mathrm{legacy},\ \mathrm{neutralAR},\ \mathrm{neutralLean}\}$$
--/
+/-- The kind of a truth item. -/
 inductive TCls
   | ar | lean | legacy | neutralAR | neutralLean
   deriving DecidableEq, Repr, Inhabited
 
-/-- One truth item: kind, key, original and rewrite values, expected value, status.
-
-$$t = (\mathit{cls},\ k,\ a,\ b,\ e,\ s) \in \mathrm{TCls} \times \mathrm{String} \times \mathrm{TVal}^{3} \times \mathrm{Status}$$
--/
+/-- One truth item: kind, key, original and rewrite values, expected value, status. -/
 structure TItem where
   cls : TCls
   key : String
@@ -180,15 +146,11 @@ structure TItem where
 
 /-- Equal or differ.
 
-$$\operatorname{eqS}(c) = \begin{cases} \mathrm{equal} & c \\ \mathrm{differ} & \neg c \end{cases}$$
-
 A yes/no check as a status. -/
 def eqS (c : Bool) : Status := if c then .equal else .differ
 
 /-- The truth items of one range-text key `k` with original value `x`: the rewrite arm `r`, the original's
 legacy texts `oLegacy`, Lean's expected values `E` (if any) and whether the requested environment was achieved.
-
-$$\begin{aligned} \forall r, o^\ell, E, \mathit{ach}, k, x:\quad & \operatorname{truthKey}(r, o^\ell, E, \mathit{ach}, k, x) = [\,(\mathrm{ar}, k, a, b, \bot, \operatorname{eqS}(a = b)),\ \lambda\,] \mathbin{+\!\!+} L, \\ \lambda = {} & \begin{cases} (\mathrm{lean}, k, a, b, e_k, \operatorname{eqS}(a = e_k \wedge b = e_k)) & E = \lceil m \rceil \wedge \mathit{ach} \\ (\mathrm{lean}, k, a, b, e_k, \mathrm{na}) & E = \lceil m \rceil \wedge \neg \mathit{ach} \\ (\mathrm{lean}, k, a, b, \lceil \mathrm{null} \rceil, \mathrm{na}) & E = \bot \end{cases} \\ L = {} & \begin{cases} [\,(\mathrm{legacy}, k, \ell^o_k, \ell^r_k, \lceil \mathrm{null} \rceil, \operatorname{eqS}(\ell^o_k = a \wedge \ell^r_k = b))\,] & \ell^o_k = \lceil t \rceil \text{ for some } t \in \mathbb B \\ [\,] & \ell^o_k \in \{\bot, \lceil \mathrm{null} \rceil\} \end{cases} \\ \text{where } & a = \lceil x \rceil,\ b = r.T[k],\ e_k = m[k],\ \ell^o_k = o^\ell[k],\ \ell^r_k = r.T_{\mathrm{legacy}}[k]; \\ & \text{for a map } M \text{ and key } k,\ M[k] = \lceil v \rceil \text{ for the first entry } (k, v) \in M \text{ and } M[k] = \bot \text{ (absent) if } k \text{ has no entry}; \\ & x, v \in \mathbb B \cup \{\mathrm{null}\};\ \text{a recorded value is } \bot \text{ (absent)},\ \lceil \mathrm{null} \rceil \text{ or } \lceil t \rceil,\ t \in \mathbb B,\ \text{and absent} \ne \lceil \mathrm{null} \rceil; \\ & \text{an item is } (\mathit{cls}, \mathit{key}, a, b, \mathit{expect}, \mathit{status}) \end{aligned}$$
 
 Three checks per media condition. -/
 def truthKey (r : TruthRaw) (oLegacy : TMap) (ex : Option TMap) (ach : Bool) (k : String)
@@ -208,8 +170,6 @@ def truthKey (r : TruthRaw) (oLegacy : TMap) (ex : Option TMap) (ach : Bool) (k 
 
 /-- The truth items of one neutral key.
 
-$$\mathrm{neutral.ar} : \operatorname{eqS}(a = b), \qquad \mathrm{neutral.lean} : \begin{cases} \operatorname{eqS}(a = e_k \wedge b = e_k) & e \ne \bot \wedge \mathit{ach} \\ \mathrm{na} & \text{otherwise} \end{cases}$$
-
 Two checks per neutral query. -/
 def neutralKey (r : TruthRaw) (exN : Option TMap) (ach : Bool) (k : String) (x : Option Bool) :
     List TItem :=
@@ -222,16 +182,12 @@ def neutralKey (r : TruthRaw) (exN : Option TMap) (ach : Bool) (k : String) (x :
 
 /-- All truth items of a state: per range-text key of the original, then per neutral key.
 
-$$\operatorname{truthItems}(o, r, e, e^N, \mathit{ach}) = \textstyle\bigoplus_{(k, x) \in o.\mathrm{truth}} \operatorname{truthKey}(k, x) \mathbin{+\!\!+} \bigoplus_{(k, x) \in o.\mathrm{neutral}} \operatorname{neutralKey}(k, x)$$
-
 The matchMedia comparisons of one state. -/
 def truthItems (o r : TruthRaw) (ex exN : Option TMap) (ach : Bool) : List TItem :=
   o.truth.flatMap (fun e => truthKey r o.legacy ex ach e.1 e.2) ++
   o.neutral.flatMap (fun e => neutralKey r exN ach e.1 e.2)
 
 /-- Without an achieved environment, every check against Lean's value is `na`.
-
-$$\forall o, r, e, e^N,\ \forall it \in \operatorname{truthItems}(o, r, e, e^N, \bot),\quad it.\mathrm{cls} \in \{\mathrm{lean}, \mathrm{neutral.lean}\} \implies it.\mathrm{status} = \mathrm{na}$$
 
 Lean's expected values are only compared where the requested environment was delivered. -/
 theorem truthItems_lean_na (o r : TruthRaw) (ex exN : Option TMap) (it : TItem)
@@ -253,8 +209,6 @@ theorem truthItems_lean_na (o r : TruthRaw) (ex exN : Option TMap) (it : TItem)
 
 /-- Without a Lean vector for the environment, every check against Lean's value is `na`, whether or not the environment was achieved.
 
-$$\forall o, r, \mathit{ach}, \forall it \in \operatorname{truthItems}(o, r, \bot, \bot, \mathit{ach}),\quad it.\mathrm{cls} \in \{\mathrm{lean}, \mathrm{neutral.lean}\} \implies it.\mathrm{status} = \mathrm{na}$$
-
 A sweep stop whose environment no matrix probe has (`expectFor` finds none) compares the two arms with each other only; its Lean rows are not comparable, which is a fact about the environment, not a pass. -/
 theorem truthItems_lean_na_no_vector (o r : TruthRaw) (ach : Bool) (it : TItem)
     (h : it ∈ truthItems o r none none ach) (hc : it.cls = .lean ∨ it.cls = .neutralLean) :
@@ -274,8 +228,6 @@ theorem truthItems_lean_na_no_vector (o r : TruthRaw) (ach : Bool) (it : TItem)
     · rw [h]
 
 /-- An orig = rewrite item is equal exactly when the two values are the same.
-
-$$\forall it \in \operatorname{truthItems}(o, r, e, e^N, \mathit{ach}),\quad it.\mathrm{cls} \in \{\mathrm{ar}, \mathrm{neutral.ar}\} \implies (it.\mathrm{status} = \mathrm{equal} \iff it.a = it.b)$$
 
 The original and the rewrite must agree on every media query. -/
 theorem truthItems_ar_iff (o r : TruthRaw) (ex exN : Option TMap) (ach : Bool) (it : TItem)
@@ -305,8 +257,6 @@ theorem truthItems_ar_iff (o r : TruthRaw) (ex exN : Option TMap) (ach : Bool) (
 
 /-- The three matchMedia rows and the truth kinds each judges.
 
-$$\begin{aligned} \text{orig=rewrite} &: \{\mathrm{ar}, \mathrm{neutral.ar}\} \\ \text{=Lean} &: \{\mathrm{lean}, \mathrm{neutral.lean}\} \\ \text{legacy text} &: \{\mathrm{legacy}\} \end{aligned}$$
-
 How truth items are grouped into rows. -/
 def truthRows : List (String × List TCls) :=
   [("matchMedia orig=rewrite", [.ar, .neutralAR]),
@@ -315,8 +265,6 @@ def truthRows : List (String × List TCls) :=
 
 /-- The verdict of every row for one state: the matchMedia rows, then the parts in order.
 
-$$\operatorname{rows}(T, \Pi) = [\,(n, \operatorname{cell}([\,t.\mathrm{status} \mid t \in T,\ t.\mathrm{cls} \in K\,])) \mid (n, K) \in \mathrm{truthRows}\,] \mathbin{+\!\!+} [\,(p, \operatorname{cell}([\,it.\mathrm{status} \mid it \in I\,])) \mid (p, I) \in \Pi\,]$$
-
 One state's column of the table. -/
 def rowVerdicts (ti : List TItem) (parts : List (String × List PItem)) : List (String × Verdict) :=
   truthRows.map (fun rc => (rc.1, cellVerdict ((ti.filter fun t => rc.2.contains t.cls).map (·.status)))) ++
@@ -324,10 +272,7 @@ def rowVerdicts (ti : List TItem) (parts : List (String × List PItem)) : List (
 
 /-! ## One state -/
 
-/-- One arm of a state.
-
-$$\alpha = (v,\ o,\ T,\ \Pi) \in \mathrm{Viewport} \times \mathrm{Observed} \times \mathrm{TruthRaw} \times (\mathrm{String} \times \mathrm{PartRaw})^{*}$$
--/
+/-- One arm of a state. -/
 structure Arm where
   viewport : Viewport
   observed : Observed
@@ -335,10 +280,7 @@ structure Arm where
   parts : List (String × PartRaw)
   deriving Repr, Inhabited
 
-/-- One state: requested environment, both arms, Lean's expected values (when a vector exists).
-
-$$\sigma = (\mathit{req},\ \alpha_O,\ \alpha_R,\ E,\ E_{\mathrm{neutral}}) \in \mathrm{Requested} \times \mathrm{Arm}^{2} \times \mathrm{TMap}_\bot^{2}$$
--/
+/-- One state: requested environment, both arms, Lean's expected values (when a vector exists). -/
 structure StateIn where
   requested : Requested
   orig : Arm
@@ -349,8 +291,6 @@ structure StateIn where
 
 /-- What every state is judged against: the skips, the covered parts in order, the recorded
 properties, the device-width edges, and the engine port (`none`: no reach claim).
-
-$$c = (A,\ [\pi_1, \dots, \pi_k],\ \mathit{props},\ [n_1, \dots, n_j],\ \pi) \in \mathrm{Anchors} \times \mathrm{PartSpec}^{*} \times (\mathrm{String} \times \mathrm{PartProps})^{*} \times \mathbb Q^{*} \times \mathcal P_\bot$$
 -/
 structure Ctx where
   anchors : Anchors
@@ -364,8 +304,6 @@ structure Ctx where
 
 /-- The `hover` keyword as a Lean value (`none` for any other text).
 
-$$\forall t \in \mathrm{String},\quad \operatorname{hoverOf}(t) = \begin{cases} \mathrm{hover} & t = \texttt{hover} \\ \mathrm{none} & t = \texttt{none} \\ \bot & \text{otherwise} \end{cases}$$
-
 Parses the requested hover keyword. -/
 def hoverOf : String → Option Fw.Site.Breakpoints.Hover
   | "hover" => some .hover
@@ -373,8 +311,6 @@ def hoverOf : String → Option Fw.Site.Breakpoints.Hover
   | _ => none
 
 /-- The `pointer` keyword as a Lean value (`none` for any other text).
-
-$$\forall t \in \mathrm{String},\quad \operatorname{pointerOf}(t) = \begin{cases} \mathrm{none} & t = \texttt{none} \\ \mathrm{coarse} & t = \texttt{coarse} \\ \mathrm{fine} & t = \texttt{fine} \\ \bot & \text{otherwise} \end{cases}$$
 
 Parses the requested pointer keyword. -/
 def pointerOf : String → Option Fw.Site.Breakpoints.Pointer
@@ -386,8 +322,6 @@ def pointerOf : String → Option Fw.Site.Breakpoints.Pointer
 /-- Whether the requested (hover, pointer) pair is a primary pair of the port; an unknown keyword
 makes no claim (true).
 
-$$\forall \pi, q,\quad \operatorname{pairIn}_\pi(q) = \begin{cases} (h, k) \in \operatorname{pairs}(\pi) & \text{if } \exists h, k,\ \operatorname{hoverOf}(q.\mathrm{hover}) = \mathrm{some}\ h \wedge \operatorname{pointerOf}(q.\mathrm{pointer}) = \mathrm{some}\ k \\ \top & \text{otherwise (some keyword unknown)} \end{cases}$$
-
 Only a recognised pair can be ruled out. -/
 def pairIn (pt : Port) (q : Requested) : Bool :=
   match hoverOf q.hover, pointerOf q.pointer with
@@ -396,29 +330,21 @@ def pairIn (pt : Port) (q : Requested) : Bool :=
 
 /-- The reach rule on a requested environment (rational width and DPR).
 
-$$\forall \pi, q,\quad \operatorname{reach}_\pi(q) = \operatorname{reason}_\pi\bigl(\operatorname{pairIn}_\pi(q),\ q.W \in \mathbb Z,\ q.W \cdot q.\mathit{dpr} \in \mathbb Z\bigr)$$
-
 Why the port cannot produce this request, or none. -/
 def reqReason (pt : Port) (q : Requested) : Option Reason :=
   pt.reason (pairIn pt q) (q.width.den == 1) ((q.width * q.dpr).den == 1)
 
 /-- The reach of a state: none without a port, else the reach rule on its request.
 
-$$\forall C, s,\quad \operatorname{reach}(C, s) = \begin{cases} \bot & C.\pi = \bot \\ \operatorname{reach}_{\pi}(s.\mathit{req}) & C.\pi = \pi \end{cases}$$
-
 A state is unreachable only on a named port. -/
 def stateReach (c : Ctx) (s : StateIn) : Option Reason := c.port.bind fun pt => reqReason pt s.requested
 
 /-- A Lean length as a rational number.
 
-$$\forall x \in \mathrm{Px},\quad \operatorname{pxRat}(x) = x.\mathrm{num} / x.\mathrm{den} \in \mathbb Q$$
-
 The exact value of a probe length. -/
 def pxRat (x : Fw.Site.Breakpoints.Px) : Rat := (x.num : Rat) / x.den
 
 /-- The request a matrix probe makes (as the generator prints it).
-
-$$\forall e,\quad \operatorname{req}(e) = (w(e), h(e), d_w(e), r(e), \operatorname{kw}(\eta(e)), \operatorname{kw}(\kappa(e)), \operatorname{kw}(\mu(e)), \operatorname{kw}(\sigma(e)))$$
 
 A probe environment in the gate's request form. -/
 def requestOf (e : Fw.Site.Breakpoints.Env) : Requested :=
@@ -428,8 +354,6 @@ def requestOf (e : Fw.Site.Breakpoints.Env) : Requested :=
 
 /-- The request form agrees with the proved reach of every matrix probe, on every port.
 
-$$\forall \pi \in \mathcal P,\ \forall p \in M,\quad \operatorname{reach}_\pi(\operatorname{req}(p)) = \operatorname{reach}_\pi(p)$$
-
 The rule the gate runs on requests is the one `Fw.Gate.Reach` proves facts about. -/
 theorem matrix_reqReason :
     ∀ pt ∈ [Port.chromium, .webkitApple, .webkitGLib], ∀ p ∈ Fw.Site.Breakpoints.matrix,
@@ -438,8 +362,6 @@ theorem matrix_reqReason :
 
 /-- The evaluation of one state; `rows` are all `unreachable r` when the state's reach is `r`, and
 `verdict` rolls up every row, part rows included.
-
-$$(\mathit{dev}_O,\ \mathit{dev}_R,\ \mathit{achieved},\ T,\ \Pi,\ \mathit{rows},\ \mathit{compared},\ \mathit{reach},\ \mathit{verdict}) \in (\mathrm{String}^{*})^{2} \times \mathbb B \times \mathrm{TItem}^{*} \times (\mathrm{String} \times \mathrm{PItem}^{*})^{*} \times (\mathrm{String} \times \mathcal V)^{*} \times (\mathrm{String} \times \mathbb N)^{*} \times \mathcal R_\bot \times \mathcal V$$
 -/
 structure StateOut where
   devO : List String
@@ -455,28 +377,20 @@ structure StateOut where
 
 /-- An item is compared when it is not information and not `na`.
 
-$$\operatorname{compared}(it) \iff it.\mathrm{cls} \ne \mathrm{info} \wedge it.\mathrm{status} \ne \mathrm{na}$$
-
 The items a cell's verdict counts. -/
 def isCompared (it : PItem) : Bool := it.cls != .info && it.status != .na
 
 /-- An item fails when it is neither `equal` nor `na`.
-
-$$\operatorname{fails}(s) \iff s \ne \mathrm{na} \wedge s \ne \mathrm{equal}$$
 
 The items listed under failures. -/
 def failsS (s : Status) : Bool := s != .na && s != .equal
 
 /-- An item of an evaluated state is listed as failing when the state is reachable and the item fails.
 
-$$\forall e, s,\quad \operatorname{itemFails}(e, s) \iff e.\mathit{reach} = \bot \wedge \operatorname{fails}(s)$$
-
 An unreachable state lists no failing item. -/
 def StateOut.itemFails (e : StateOut) (s : Status) : Bool := e.reach.isNone && failsS s
 
 /-- The items of every covered part in one state.
-
-$$\operatorname{stateParts}(C, o, r) = [\,(P.\mathrm{id}, \operatorname{partItems}(C.A, P, o[P.\mathrm{id}], r[P.\mathrm{id}], \Pi_P)) \mid P \in C.\mathrm{parts}\,],\quad \text{where } x[k] = \text{the value of the first entry of the association list } x \text{ with key } k \text{ (} \bot \text{ if there is none)},\ \Pi_P = \begin{cases} C.\mathit{props}[P.\mathrm{id}] & \text{that entry exists} \\ [\,] & \text{otherwise} \end{cases}$$
 
 Each covered part, judged on both
 arms. -/
@@ -487,8 +401,6 @@ def stateParts (c : Ctx) (o r : List (String × PartRaw)) : List (String × List
 /-- The rows of a state given its reach: every row `unreachable r` when the reach is `r`, else the
 rows unchanged.
 
-$$\forall \mathit{rows}, \rho,\quad \operatorname{reachRows}(\rho, \mathit{rows}) = \begin{cases} [\,(n, \mathrm{unreachable}(r)) \mid (n, v) \in \mathit{rows}\,] & \rho = r \ne \bot \\ \mathit{rows} & \rho = \bot \end{cases}$$
-
 An unreachable state has no pass, fail or NC row. -/
 def reachRows (reach : Option Reason) (rows : List (String × Verdict)) : List (String × Verdict) :=
   match reach with
@@ -498,9 +410,6 @@ def reachRows (reach : Option Reason) (rows : List (String × Verdict)) : List (
 /-- Evaluate one state: deviations, achieved, truth items, part items, row verdicts (unreachable on
 the state's port when its reach says so), compared counts, reach, and the state verdict over all rows
 (matchMedia rows and part rows).
-
-$$\forall C, s,\quad \operatorname{evalState}(C, s) = (\mathit{dev}_O, \mathit{dev}_R, \mathit{ach}, T, \Pi, \mathit{rows}, \mathit{compared}, \operatorname{reach}(C, s), \mathit{verdict})$$
-$$\begin{aligned} \mathit{dev}_O &= \operatorname{dev}(q, v_O, o_O, C.\mathit{edges}), \quad \mathit{dev}_R = \operatorname{dev}(q, v_R, o_R, C.\mathit{edges}), \quad \mathit{ach} \iff \mathit{dev}_O = [\,] \wedge \mathit{dev}_R = [\,] \\ T &= \operatorname{truthItems}(T_O, T_R, E, E_N, \mathit{ach}), \quad \Pi = \operatorname{stateParts}(C, \Pi_O, \Pi_R) \\ \mathit{rows} &= \operatorname{reachRows}(\operatorname{reach}(C, s), \operatorname{rowVerdicts}(T, \Pi)), \quad \mathit{compared} = [\,(n, |[\,it \in I \mid \operatorname{compared}(it)\,]|) \mid (n, I) \in \Pi\,] \\ \mathit{verdict} &= \operatorname{rollup}([\,v \mid (n, v) \in \mathit{rows}\,]) \\ & \text{where } s = (q, \alpha_O, \alpha_R, E, E_N),\ \alpha_O = (v_O, o_O, T_O, \Pi_O),\ \alpha_R = (v_R, o_R, T_R, \Pi_R) \end{aligned}$$
 
 The whole
 judgement of one probe or sweep stop. -/
@@ -518,8 +427,6 @@ def evalState (c : Ctx) (s : StateIn) : StateOut :=
 
 /-- The row of a part is its part verdict, on a reachable state.
 
-$$\forall C, s, P \in C.\mathrm{parts},\quad \operatorname{reach}(C, s) = \bot \implies (P.\mathrm{id}, \operatorname{partVerdict}(A, P, o[P], r[P], \Pi_P)) \in \operatorname{evalState}(C, s).\mathrm{rows}$$
-
 The table shows exactly the part rule for every covered part. -/
 theorem evalState_part_row (c : Ctx) (s : StateIn) (sp : PartSpec) (h : sp ∈ c.parts)
     (h0 : stateReach c s = none) :
@@ -531,15 +438,11 @@ theorem evalState_part_row (c : Ctx) (s : StateIn) (sp : PartSpec) (h : sp ∈ c
 
 /-- The state verdict is the rollup of its rows.
 
-$$\forall C, s,\quad \operatorname{evalState}(C, s).\mathit{verdict} = \operatorname{rollup}([\,v \mid (n, v) \in \operatorname{evalState}(C, s).\mathrm{rows}\,])$$
-
 Every row, part rows included, enters the state verdict. -/
 theorem evalState_verdict (c : Ctx) (s : StateIn) :
     (evalState c s).verdict = rollup ((evalState c s).rows.map (·.2)) := rfl
 
 /-- A state fails exactly when one of its rows fails.
-
-$$\forall C, s,\quad \operatorname{evalState}(C, s).\mathit{verdict} = \mathrm{fail} \iff \exists (n, v) \in \operatorname{evalState}(C, s).\mathrm{rows},\ v = \mathrm{fail}$$
 
 One failing row, matchMedia or part, fails the state. -/
 theorem evalState_fail_iff (c : Ctx) (s : StateIn) :
@@ -547,8 +450,6 @@ theorem evalState_fail_iff (c : Ctx) (s : StateIn) :
   rw [evalState_verdict, rollup_fail_iff, List.mem_map]
 
 /-- A state passes exactly when some row passes and none fails.
-
-$$\forall C, s,\quad \operatorname{evalState}(C, s).\mathit{verdict} = \mathrm{pass} \iff (\exists (n, v) \in \mathrm{rows},\ v = \mathrm{pass}) \wedge \forall (n, v) \in \mathrm{rows},\ v \ne \mathrm{fail},\quad \text{where } \mathrm{rows} = \operatorname{evalState}(C, s).\mathrm{rows}$$
 
 A state passes only if no row, part rows included, fails. -/
 theorem evalState_pass_iff (c : Ctx) (s : StateIn) :
@@ -560,9 +461,7 @@ theorem evalState_pass_iff (c : Ctx) (s : StateIn) :
 /-- **A part failure never gives pass** (review finding on the gap harness): on a reachable state, a
 failing covered part fails the state.
 
-$$\forall C, s, P \in C.\mathrm{parts},\quad \operatorname{reach}(C, s) = \bot \wedge \operatorname{partVerdict}(A, P, o[P], r[P], \Pi_P) = \mathrm{fail} \implies \operatorname{evalState}(C, s).\mathit{verdict} = \mathrm{fail}$$
-
-engine.scroll, nav.hitTest, hero.countdown and hero.exit count as much as the matchMedia rows. -/
+Engine.scroll, nav.hitTest, hero.countdown and hero.exit count as much as the matchMedia rows. -/
 theorem evalState_part_fail (c : Ctx) (s : StateIn) (sp : PartSpec) (h : sp ∈ c.parts)
     (h0 : stateReach c s = none)
     (hf : partVerdict c.anchors sp (s.orig.parts.lookup sp.id) (s.rewrite.parts.lookup sp.id)
@@ -571,8 +470,6 @@ theorem evalState_part_fail (c : Ctx) (s : StateIn) (sp : PartSpec) (h : sp ∈ 
   (evalState_fail_iff c s).mpr ⟨_, evalState_part_row c s sp h h0, hf⟩
 
 /-- On an unreachable state every row and the verdict are `unreachable` with the state's reason.
-
-$$\forall C, s, r,\quad \operatorname{reach}(C, s) = r \implies (\forall (n, v) \in \operatorname{evalState}(C, s).\mathrm{rows},\ v = \mathrm{unreachable}(r)) \wedge \operatorname{evalState}(C, s).\mathit{verdict} = \mathrm{unreachable}(r)$$
 
 A cell the port cannot produce is neither pass, fail nor NC. -/
 theorem evalState_unreachable (c : Ctx) (s : StateIn) (r : Reason) (h : stateReach c s = some r) :
@@ -598,8 +495,6 @@ theorem evalState_unreachable (c : Ctx) (s : StateIn) (r : Reason) (h : stateRea
 
 /-- A state is unreachable exactly when its reach names a reason.
 
-$$\forall C, s,\quad (\exists r,\ \operatorname{evalState}(C, s).\mathit{verdict} = \mathrm{unreachable}(r)) \iff \operatorname{reach}(C, s) \ne \bot$$
-
 Unreachable comes only from the proved reach rule, never from the measured rows. -/
 theorem evalState_unreachable_iff (c : Ctx) (s : StateIn) :
     (∃ r, (evalState c s).verdict = .unreachable r) ↔ (stateReach c s).isSome := by
@@ -621,8 +516,6 @@ theorem evalState_unreachable_iff (c : Ctx) (s : StateIn) :
 /-- Sweep hysteresis: items compared and items differing or missing, the state after a sequence
 against a fresh load.
 
-$$\operatorname{stale}(C, a, f) = \bigl(|[\,it \in I \mid \operatorname{compared}(it)\,]|,\ |[\,it \in I \mid it.\mathrm{cls} \ne \mathrm{info} \wedge it.\mathrm{status} \in \{\mathrm{differ}, \mathrm{missing}\}\,]|\bigr),\quad \text{where } I = \textstyle\bigoplus_{(n, J) \in \operatorname{stateParts}(C, a, f)} J \text{ is the concatenated item list (counts are of list entries, repeats included)}$$
-
 How much of the page a resize sequence leaves different from a fresh load. -/
 def stale (c : Ctx) (after fresh : List (String × PartRaw)) : Nat × Nat :=
   let items := (stateParts c after fresh).flatMap (·.2)
@@ -633,22 +526,16 @@ def stale (c : Ctx) (after fresh : List (String × PartRaw)) : Nat × Nat :=
 
 /-- A block cell: not run when the block has no probes, else the tally of its probe verdicts.
 
-$$\operatorname{blockCell}(vs) = \begin{cases} \bot\ (\text{not run}) & vs = [\,] \\ \operatorname{tally}(vs) & \text{otherwise} \end{cases}$$
-
 A block that ran nothing is shown as not run, not as not comparable. -/
 def blockCell (vs : List Verdict) : Option Tally := if vs.isEmpty then none else some (tally vs)
 
 /-- A tally does not depend on the order of the rows it counts.
-
-$$\forall vs, ws,\quad vs \sim ws \implies \operatorname{tally}(vs) = \operatorname{tally}(ws)$$
 
 Probe order within a block never changes a cell. -/
 theorem tally_perm (vs ws : List Verdict) (h : vs.Perm ws) : tally vs = tally ws := by
   simp only [tally, rollup_perm vs ws h, h.countP_eq]
 
 /-- A block cell does not depend on the order of its probes.
-
-$$\forall vs, ws,\quad vs \sim ws \implies \operatorname{blockCell}(vs) = \operatorname{blockCell}(ws)$$
 
 The table is the same whatever order the probes ran in. -/
 theorem blockCell_perm (vs ws : List Verdict) (h : vs.Perm ws) : blockCell vs = blockCell ws := by
@@ -705,7 +592,7 @@ private def exT2 : TruthRaw := ⟨[("a", some true), ("b", some true)], [("a", s
   { (default : StateIn) with requested := { exReq with hover := "hover", pointer := "coarse" } }).verdict ==
   .unreachable .primaryPair
 #guard (evalState default { (default : StateIn) with requested := exReq }).verdict == .nc
-#guard isCompared ⟨.box, "r", 0, "x", .differ, false⟩ && !isCompared ⟨.info, "r", 0, "x", .na, true⟩
+#guard isCompared ⟨.box, "r", 0, "x", .differ, false, false, .na⟩ && !isCompared ⟨.info, "r", 0, "x", .na, true, false, .na⟩
 #guard failsS .missing && failsS .differ && !failsS .equal && !failsS .na
 #guard ({ (default : StateOut) with reach := none }).itemFails .differ
 #guard !({ (default : StateOut) with reach := some .wholeWidth }).itemFails .differ

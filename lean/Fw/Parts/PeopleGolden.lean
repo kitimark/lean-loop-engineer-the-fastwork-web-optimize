@@ -14,24 +14,22 @@ outputs in the wire form `{"num","den"}`, integers as JSON integers). `Golden.le
 namespace Fw.Parts.PeopleGolden
 open Lean
 
-/-- Exact decimal JSON for a rational whose reduced denominator divides $10^{12}$, else the wire form.
-
-$$\operatorname{rin}(q) = q \cdot 10^{e} \cdot 10^{-e},\ e = \min\{e \le 12 : q.\mathrm{den} \mid 10^{e}\}$$ -/
+/-- Exact decimal JSON for a rational whose reduced denominator divides `10^12`, else the wire form. -/
 def rin (q : Rat) : Json :=
   match (List.range 13).find? (fun e => (10 ^ e : Nat) % q.den == 0) with
   | some e => .num ⟨q.num * ((10 ^ e : Nat) / q.den : Nat), e⟩
   | none => Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
 
-/-- The `Rat` output wire form. $$q \mapsto \{\mathrm{num}, \mathrm{den}\}$$ -/
+/-- The `Rat` output wire form. -/
 def ratWire (q : Rat) : Json := Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
 
-/-- A natural number as JSON. $$n \mapsto n$$ -/
+/-- A natural number as JSON. -/
 def jnat (n : Nat) : Json := .num ⟨(n : Int), 0⟩
 
-/-- An integer as JSON. $$z \mapsto z$$ -/
+/-- An integer as JSON. -/
 def jint (z : Int) : Json := .num ⟨z, 0⟩
 
-/-- One golden line. $$(\mathit{fn}, \mathit{in}, \mathit{out}) \mapsto \text{JSON line}$$ -/
+/-- One golden line. -/
 def line (fn : String) (inp : List (String × Json)) (out : Json) : String :=
   (Json.mkObj [("fn", .str fn), ("in", Json.mkObj inp), ("out", out)]).compress
 
@@ -40,8 +38,8 @@ def line (fn : String) (inp : List (String × Json)) (out : Json) : String :=
 section Card
 open Fw.Parts.PeopleCard
 
-/-- people.card lines. $$\text{lines}$$ Conformance vectors for the card's reveal, shrink and lerp. -/
-def cardLines : List String :=
+/-- people.card lines. Conformance vectors for the card's reveal, shrink and lerp. -/
+def cardLines (_ : Unit := ()) : List String :=
   let xs : List Rat := [-1, 0, 0.1, 0.25, 0.5, 0.75, 0.9, 1, 1.5]
   let vhs : List Rat := [0, 600, 900]
   (xs.map fun x => line "clamp01" [("x", rin x)] (ratWire (clamp01 x))) ++
@@ -68,7 +66,7 @@ end Card
 section O
 open Fw.Parts.PeopleO
 
-/-- people.o lines. $$\text{lines}$$ Conformance vectors for the opening timeline and the preview position. -/
+/-- people.o lines. Conformance vectors for the opening timeline and the preview position. -/
 def oLines : List String :=
   ([false, true].flatMap fun rm => [false, true].flatMap fun sa =>
     ([0, 1, 119, 120, 121, 1299, 1300, 1301, 1419, 1420, 5000] : List Nat).map fun t =>
@@ -90,10 +88,10 @@ end O
 section Carousel
 open Fw.Parts.PeopleCarousel
 
-/-- A loop state as JSON. $$s \mapsto \{x, w\}$$ -/
+/-- A loop state as JSON. -/
 def stJson (s : State) : Json := Json.mkObj [("x", jnat s.x), ("swapping", .bool s.swapping)]
 
-/-- people.carousel lines. $$\text{lines}$$ Conformance vectors for the avatar ring and the loop. -/
+/-- people.carousel lines. Conformance vectors for the avatar ring and the loop. -/
 def carouselLines : List String :=
   (([0, 1, 2, 3, 4, 5, 6, 7, 11] : List Nat).flatMap fun x =>
     [line "restWindow" [("x", jnat x)] (.arr ((restWindow x).map jnat).toArray),
@@ -112,8 +110,8 @@ end Carousel
 section Deck
 open Fw.Parts.PeopleDeck
 
-/-- people.deck lines. $$\text{lines}$$ Conformance vectors for the ease, ranges, targets, lerp steps and picks. -/
-def deckLines : List String :=
+/-- people.deck lines. Conformance vectors for the ease, ranges, targets, lerp steps and picks. -/
+def deckLines (_ : Unit := ()) : List String :=
   let xs : List Rat := [-1, 0, 0.1, 0.25, 0.4999, 0.5, 0.6, 0.75, 0.9, 1, 1.5]
   (xs.map fun x => line "ae" [("x", rin x)] (ratWire (ae x))) ++
   (([600, 720, 900, 1080] : List Rat).flatMap fun vh => ([1, 2, 6] : List Nat).map fun n =>
@@ -155,10 +153,10 @@ end Deck
 section Panels
 open Fw.Parts.PeopleDeckPanels
 
-/-- A list of strings as JSON. $$L \mapsto [\ldots]$$ -/
+/-- A list of strings as JSON. -/
 def jstrs (l : List String) : Json := .arr (l.map Json.str).toArray
 
-/-- people.deck.panels lines. $$\text{lines}$$ Conformance vectors for the feed panel dispatch, review filters, faces,
+/-- people.deck.panels lines. Conformance vectors for the feed panel dispatch, review filters, faces,
 verdicts, stars and about sections. -/
 def panelsLines : List String :=
   (["posts", "services", "reviews", "about", "", "x", "Posts"].map fun s =>
@@ -183,8 +181,8 @@ def panelsLines : List String :=
 
 end Panels
 
-/-- The golden files. $$\mathit{files} = \{\text{people.card, people.o, people.deck, people.carousel, people.deck.panels}\}.\mathrm{jsonl}$$ -/
-def files : List (String × List String) :=
+/-- The golden files. -/
+def files (_ : Unit := ()) : List (String × List String) :=
   [("people.card.jsonl", cardLines), ("people.o.jsonl", oLines), ("people.deck.jsonl", deckLines),
    ("people.carousel.jsonl", carouselLines), ("people.deck.panels.jsonl", panelsLines)]
 

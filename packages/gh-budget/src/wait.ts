@@ -17,6 +17,7 @@ import type { Env } from "./core.ts";
 import { ghCharged } from "./charged.ts";
 import { lockAsync, tryLock, type Lock } from "./lock.ts";
 import { pollOnce, LIST_FIELDS } from "./poller.ts";
+import { killOk, markerText } from "./waiters.ts";
 import { locked, paths, readJson, readStatus, stepUnlocked, writeAtomic, type Row, type Status } from "./state.ts";
 
 export type Target =
@@ -152,31 +153,31 @@ async function verdictOf(env: Env, rs: Row[], deadline: number): Promise<Waited>
 // ---- registration with a refcount, so one waiter leaving does not unwatch a run another waiter still waits on ----------
 const key = (id: number) => `r${id}`;
 
-function addWaiter(env: Env, id: number, createdAt: number): string {
+/** Register a waiter: its marker (pid and process start time) and the `register` event go in ONE locked block, and the
+ *  poller reads the waiters dir under the same lock (`readMarkers`), so no sweep sees a watch without its marker. */
+export function addWaiter(env: Env, id: number, createdAt: number): string {
   const dir = paths(env.dir).waiters;
   mkdirSync(dir, { recursive: true });
   const marker = join(dir, `${key(id)}.${process.pid}.${randomBytes(4).toString("hex")}`);
   locked(env, () => {
-    writeFileSync(marker, "");
+    writeFileSync(marker, markerText());
     stepUnlocked(env, { register: { runId: id, createdAt } });
   });
   return marker;
 }
 
-function alivePid(pid: number): boolean {
-  try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; }
-}
-
-function dropWaiter(env: Env, id: number, marker: string): void {
+/** Leave a run: `unregister` goes first and the marker is unlinked after it, so a step that fails (lock timeout, killed
+ *  fwcore) leaves the marker for a later sweep to reap, instead of a watch no marker points at. */
+export function dropWaiter(env: Env, id: number, marker: string): void {
   const dir = paths(env.dir).waiters;
   locked(env, () => {
-    try { unlinkSync(marker); } catch { /* gone */ }
-    const rest = readdirSync(dir).filter((n) => n.startsWith(`${key(id)}.`)).filter((n) => {
-      if (alivePid(Number(n.split(".")[1]))) return true;
+    const rest = readdirSync(dir).filter((n) => n.startsWith(`${key(id)}.`)).filter((n) => join(dir, n) !== marker).filter((n) => {
+      if (killOk(Number(n.split(".")[1]))) return true; // a refcount shortcut by pid; `ci.budget.next` sweeps by identity
       try { unlinkSync(join(dir, n)); } catch { /* gone */ }
       return false;
     });
     if (rest.length === 0) stepUnlocked(env, { unregister: id });
+    try { unlinkSync(marker); } catch { /* gone */ }
   });
 }
 

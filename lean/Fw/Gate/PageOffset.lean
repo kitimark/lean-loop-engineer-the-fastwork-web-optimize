@@ -7,8 +7,7 @@ fails. Found by `fix-pain-notes`: the placeholder page carried the morph countdo
 152 px of flow) in `<main>`, while the original keeps it inside the fixed nav panel, so `people`, `pain`,
 `commission` and `platform` all sat 152 px lower and the 16 remaining Chromium `pain.notes` probes failed.
 
-**The check.** For one probe load, take each part's root box top in document coordinates ($y_{\text{rect}} +
-\text{scrollY}$) in both arms. One cell per part: $\text{pass} \iff |t^{\text{ours}} - t^{\text{orig}}| \le \tau$.
+**The check.** For one probe load, take each part's root box top in document coordinates (`y_rect + scrollY`) in both arms. One cell per part: `pass ⇔ |t^ours - t^orig| ≤ τ`.
 A part absent from one arm fails its cell (an unmatched part is a difference, not a skip).
 
 What is proved: equal tops pass (`pageCells_self`), and a uniform shift larger than the tolerance fails every cell
@@ -19,37 +18,27 @@ namespace Fw.Gate.PageOffset
 
 /-! ## Cause: which blocks take flow space -/
 
-/-- CSS `position` classes that matter for flow.
-
-$$\mathrm{Pos} = \{\mathrm{static}, \mathrm{relative}, \mathrm{sticky}, \mathrm{absolute}, \mathrm{fixed}\}$$ -/
+/-- CSS `position` classes that matter for flow. -/
 inductive Pos | static | relative | sticky | absolute | fixed
   deriving DecidableEq, Repr
 
-/-- Out-of-flow boxes (`absolute`, `fixed`) take no space in their parent's block flow.
-
-$$\operatorname{inFlow}(p) = [\,p \notin \{\mathrm{absolute}, \mathrm{fixed}\}\,]$$ -/
+/-- Out-of-flow boxes (`absolute`, `fixed`) take no space in their parent's block flow. -/
 def inFlow : Pos → Bool
   | .absolute => false
   | .fixed => false
   | _ => true
 
-/-- Top of the block that follows `blocks` in a stack that starts at `y0`: the sum of the in-flow heights.
-
-$$\operatorname{next}(y_0, [(p_i, h_i)]) = y_0 + \sum_{i:\ p_i \text{ in flow}} h_i$$ -/
+/-- Top of the block that follows `blocks` in a stack that starts at `y0`: the sum of the in-flow heights. -/
 def next (y0 : Rat) : List (Pos × Rat) → Rat
   | [] => y0
   | (p, h) :: t => next (y0 + if inFlow p then h else 0) t
 
-/-- Sum of the in-flow heights.
-
-$$\operatorname{flowSum}([(p_i, h_i)]) = \sum_{i:\ p_i \text{ in flow}} h_i$$ -/
+/-- Sum of the in-flow heights. -/
 def flowSum : List (Pos × Rat) → Rat
   | [] => 0
   | (p, h) :: t => (if inFlow p then h else 0) + flowSum t
 
-/-- The next top is the start plus the in-flow sum.
-
-$$\operatorname{next}(y_0, bs) = y_0 + \operatorname{flowSum}(bs)$$ -/
+/-- The next top is the start plus the in-flow sum. -/
 theorem next_eq (bs : List (Pos × Rat)) (y0 : Rat) : next y0 bs = y0 + flowSum bs := by
   induction bs generalizing y0 with
   | nil => simp [next, flowSum, Rat.add_zero]
@@ -58,18 +47,14 @@ theorem next_eq (bs : List (Pos × Rat)) (y0 : Rat) : next y0 bs = y0 + flowSum 
     simp only [next, flowSum]
     rw [ih, Rat.add_assoc]
 
-/-- An in-flow block of height $h$ in front moves every later top by exactly $h$.
-
-$$p \text{ in flow} \Rightarrow \operatorname{next}(y_0, (p, h) :: bs) = \operatorname{next}(y_0, bs) + h$$ -/
+/-- An in-flow block of height `h` in front moves every later top by exactly `h`. -/
 theorem flow_shift (p : Pos) (h y0 : Rat) (bs : List (Pos × Rat)) (hp : inFlow p = true) :
     next y0 ((p, h) :: bs) = next y0 bs + h := by
   rw [next_eq, next_eq]
   simp [flowSum, hp]
   rw [Rat.add_comm h, Rat.add_assoc]
 
-/-- An out-of-flow block (a fixed panel, an absolute stage) moves nothing.
-
-$$p \in \{\mathrm{absolute}, \mathrm{fixed}\} \Rightarrow \operatorname{next}(y_0, (p, h) :: bs) = \operatorname{next}(y_0, bs)$$ -/
+/-- An out-of-flow block (a fixed panel, an absolute stage) moves nothing. -/
 theorem outOfFlow_noShift (p : Pos) (h y0 : Rat) (bs : List (Pos × Rat)) (hp : inFlow p = false) :
     next y0 ((p, h) :: bs) = next y0 bs := by
   rw [next_eq, next_eq]
@@ -80,45 +65,33 @@ example : next 1800 [(.static, 152)] = next 1800 [(.fixed, 152)] + 152 := by dec
 
 /-! ## The check: one cell per part -/
 
-/-- Tolerance in px: any rational (the type has no sign constraint; theorems that need $\tau \ge 0$ assume it).
-
-$$\tau \in \mathbb{Q}$$ -/
+/-- Tolerance in px: any rational (the type has no sign constraint; theorems that need `τ ≥ 0` assume it). -/
 abbrev Tol := Rat
 
-/-- One probed part: its id and the document top of its root box in each arm (`none` = no box).
-
-$$\mathrm{PartTop} = (\mathrm{part},\ t^{o} \in \mathbb{Q}_{\bot},\ t^{r} \in \mathbb{Q}_{\bot})$$ -/
+/-- One probed part: its id and the document top of its root box in each arm (`none` = no box). -/
 structure PartTop where
   part : String
   orig : Option Rat
   ours : Option Rat
   deriving Repr
 
-/-- The cell passes iff both boxes exist and $|t^{\text{ours}} - t^{\text{orig}}| \le \tau$.
-
-$$\text{cell}(t^{o}, t^{r}, \tau) = \begin{cases} [\,t^{r} - t^{o} \le \tau \ \wedge\ t^{o} - t^{r} \le \tau\,] & t^{o} \ne \bot \wedge t^{r} \ne \bot \\ \text{false} & \text{otherwise} \end{cases}$$ -/
+/-- The cell passes iff both boxes exist and `|t^ours - t^orig| ≤ τ`. -/
 def cellPass (τ : Tol) (p : PartTop) : Bool :=
   match p.orig, p.ours with
   | some o, some r => decide (r - o ≤ τ ∧ o - r ≤ τ)
   | _, _ => false
 
-/-- The cells of a probe load, in part order.
-
-$$\operatorname{pageCells}(\tau, [p_i]) = [\operatorname{cell}(p_i, \tau)]_i$$ -/
+/-- The cells of a probe load, in part order. -/
 def pageCells (τ : Tol) (ps : List PartTop) : List Bool := ps.map (cellPass τ)
 
-/-- Equal tops pass for $\tau \ge 0$.
-
-$$0 \le \tau \Rightarrow \operatorname{cell}(t, t, \tau) = \text{true}$$ -/
+/-- Equal tops pass for `τ ≥ 0`. -/
 theorem pageCells_self (τ : Tol) (hτ : 0 ≤ τ) (id : String) (t : Rat) :
     cellPass τ ⟨id, some t, some t⟩ = true := by
   simp only [cellPass, decide_eq_true_eq]
   rw [Rat.sub_self]
   exact ⟨hτ, hτ⟩
 
-/-- A shift $d$ with $\tau < d$ fails the cell.
-
-$$\tau < d \Rightarrow \operatorname{cell}(t, t + d, \tau) = \text{false}$$ -/
+/-- A shift `d` with `τ < d` fails the cell. -/
 theorem cell_shift_fail_pos (τ d t : Rat) (id : String) (hd : τ < d) :
     cellPass τ ⟨id, some t, some (t + d)⟩ = false := by
   simp only [cellPass]
@@ -129,9 +102,7 @@ theorem cell_shift_fail_pos (τ d t : Rat) (id : String) (hd : τ < d) :
     exact Rat.not_le.mpr hd h
   simpa using this
 
-/-- Same for a shift upward.
-
-$$\tau < d \Rightarrow \operatorname{cell}(t, t - d, \tau) = \text{false}$$ -/
+/-- Same for a shift upward. -/
 theorem cell_shift_fail_neg (τ d t : Rat) (id : String) (hd : τ < d) :
     cellPass τ ⟨id, some t, some (t - d)⟩ = false := by
   simp only [cellPass]
@@ -144,9 +115,7 @@ theorem cell_shift_fail_neg (τ d t : Rat) (id : String) (hd : τ < d) :
     exact Rat.not_le.mpr hd h
   simpa using this
 
-/-- Every part shifted by $d > \tau$ in the second arm: every cell fails.
-
-$$\tau < d \Rightarrow \forall i,\ \operatorname{cell}(t_i, t_i + d, \tau) = \text{false}$$ -/
+/-- Every part shifted by `d > τ` in the second arm: every cell fails. -/
 theorem pageCells_shift_all_fail (τ d : Rat) (hd : τ < d) (xs : List (String × Rat)) :
     (pageCells τ (xs.map fun x => ⟨x.1, some x.2, some (x.2 + d)⟩)).all (· = false) = true := by
   induction xs with
@@ -157,10 +126,8 @@ theorem pageCells_shift_all_fail (τ d : Rat) (hd : τ < d) (xs : List (String �
     rw [cell_shift_fail_pos τ d x.2 x.1 hd]
     rfl
 
-/-- The page-level gap closes: with at least one part, a uniform page offset $d > \tau$ makes at least one cell fail
-(the existing part-local cells would all stay green).
-
-$$xs \ne [\,] \wedge \tau < d \Rightarrow \text{false} \in \operatorname{pageCells}(\tau, xs \text{ shifted by } d)$$ -/
+/-- The page-level gap closes: with at least one part, a uniform page offset `d > τ` makes at least one cell fail
+(the existing part-local cells would all stay green). -/
 theorem shift_fails_some (τ d : Rat) (hd : τ < d) (xs : List (String × Rat)) (hne : xs ≠ []) :
     false ∈ pageCells τ (xs.map fun x => ⟨x.1, some x.2, some (x.2 + d)⟩) := by
   cases xs with
@@ -170,21 +137,17 @@ theorem shift_fails_some (τ d : Rat) (hd : τ < d) (xs : List (String × Rat)) 
     left
     exact (cell_shift_fail_pos τ d x.2 x.1 hd).symm
 
-/-- A part with no box in one arm fails: a missing part is a difference.
-
-$$\operatorname{cell}(o, \bot, \tau) = \operatorname{cell}(\bot, o, \tau) = \text{false}$$ -/
+/-- A part with no box in one arm fails: a missing part is a difference. -/
 theorem missing_fails (τ : Tol) (id : String) (o : Option Rat) :
     cellPass τ ⟨id, o, none⟩ = false ∧ cellPass τ ⟨id, none, o⟩ = false := by
   cases o <;> simp [cellPass]
 
-/-- The verdict of a load: all cells pass.
-
-$$\operatorname{pagePass}(\tau, ps) = \bigwedge_i \operatorname{cell}_i$$ -/
+/-- The verdict of a load: all cells pass. -/
 def pagePass (τ : Tol) (ps : List PartTop) : Bool := (pageCells τ ps).all id
 
 /-- The 152 px case: people at 901 in the original, 1053 in the rewrite, tolerance 1 px, fails.
 
-$\tau = 1,\ t^o = 901,\ t^r = 1053 \Rightarrow \text{pass} = \text{false}$ -/
+`τ = 1, t^o = 901, t^r = 1053 ⇒ pass = false` -/
 example : pagePass 1 [⟨"people", some 901, some 1053⟩, ⟨"pain", some (4085 + 1/5), some (4237 + 1/5)⟩] = false := by
   decide +kernel
 

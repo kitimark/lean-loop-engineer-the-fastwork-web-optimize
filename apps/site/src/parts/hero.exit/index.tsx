@@ -4,6 +4,7 @@ import { getScrollEngine } from '../../engine/scroll';
 import { createExitDriver, mountExit } from './driver';
 import { matchList } from './media';
 import css from './hero.module.css';
+import { registerScoped, SCOPED } from './scope';
 
 export interface HeroExitProps {
   variant: string;
@@ -24,15 +25,16 @@ export function HeroExit({ variant, children }: HeroExitProps) {
     const track = trackRef.current;
     const hero = heroRef.current;
     if (!track || !hero) return;
+    if (variant === SCOPED) registerScoped(globalThis.CSS);
     const reduce = matchList('mq.rm-reduce');
     const driver = createExitDriver({ track, hero, reduced: () => reduce?.matches ?? false });
     // faithful engine: own rAF per frame, run once on mount; batched engine: read in the callback, write in its writer
     return mountExit({ driver, engine: getScrollEngine(), clock: getClock(), readVh: () => window.innerHeight });
-  }, []);
+  }, [variant]);
 
   return (
     <section ref={trackRef} className={css.track} data-fw="hero-exit" data-fw-variant={variant} aria-labelledby="start-selling-heading">
-      <div ref={heroRef} className={css.hero} data-splash="prep">
+      <div ref={heroRef} className={css.hero} data-splash="prep" data-exit-scope={variant === SCOPED ? '' : undefined}>
         {children}
       </div>
     </section>

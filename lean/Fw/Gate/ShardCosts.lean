@@ -16,17 +16,12 @@ setup of an engine is the rounded-up mean of its jobs' fixed times. The data liv
 namespace Fw.Gate.ShardCosts
 open Fw.Gate.Shard
 
-/-- The number of loads the probe phase of a job runs at once (`pool(tasks, concurrency, …)` in `run.mjs`, 4).
-
-$$\mathrm{conc} = 4$$
--/
+/-- The number of loads the probe phase of a job runs at once (`pool(tasks, concurrency, …)` in `run.mjs`, 4). -/
 def conc : Nat := 4
 
 /-- Division rounded up, on natural numbers.
 
-$$\forall a, b,\quad \operatorname{cdiv}(a, b) = \left\lfloor \frac{a + b - 1}{b} \right\rfloor \quad (\text{Lean } \mathbb N \text{ division: } x / 0 = 0, \text{ so } \operatorname{cdiv}(a, 0) = 0)$$
-
-The least $q$ with $q \cdot b \ge a$, for $b \ge 1$. -/
+The least `q` with `q · b ≥ a`, for `b ≥ 1`. -/
 def cdiv (a b : Nat) : Nat := (a + b - 1) / b
 
 #guard cdiv 7 4 == 2
@@ -34,28 +29,20 @@ def cdiv (a b : Nat) : Nat := (a + b - 1) / b
 #guard cdiv 0 4 == 0
 #guard cdiv 5 0 == 0
 
-/-- Rounding up covers the dividend.
-
-$$\forall a, b,\quad b \ge 1 \Rightarrow a \le b \cdot \operatorname{cdiv}(a, b)$$
--/
+/-- Rounding up covers the dividend. -/
 theorem le_mul_cdiv (a b : Nat) (hb : 0 < b) : a ≤ b * cdiv a b := by
   unfold cdiv
   have h := Nat.div_add_mod (a + b - 1) b
   have hm := Nat.mod_lt (a + b - 1) hb
   omega
 
-/-- Rounding up overshoots by less than the divisor.
-
-$$\forall a, b,\quad b \ge 1 \Rightarrow b \cdot \operatorname{cdiv}(a, b) < a + b$$
--/
+/-- Rounding up overshoots by less than the divisor. -/
 theorem mul_cdiv_lt (a b : Nat) (hb : 0 < b) : b * cdiv a b < a + b := by
   unfold cdiv
   have h := Nat.div_add_mod (a + b - 1) b
   omega
 
 /-- One job of a measured run, in milliseconds.
-
-$$\mathrm{JobObs} = (\text{setup}, \text{wall}, P, W), \quad P, W \in (\mathrm{String} \times \mathbb N)^{*}$$
 
 `setup`: the job's time outside its probe phase and sweeps; `probeWall`: the wall time of its probe phase;
 `probes`: each probe id with its raw weight (the sum of the settle waits of its two arms); `sweeps`: each whole
@@ -67,23 +54,16 @@ structure JobObs where
   sweeps : List (String × Nat)
 deriving Repr
 
-/-- The total raw weight of a job's probes.
-
-$$\forall j,\quad \operatorname{weight}(j) = \sum_{(p, w) \in j.P} w$$
--/
+/-- The total raw weight of a job's probes. -/
 def weight (j : JobObs) : Nat := (j.probes.map (·.2)).sum
 
 /-- The per-probe overhead of a job: the part of its probe phase (times the concurrency) its weights do not
 explain, spread evenly over its probes.
 
-$$\forall j,\quad \operatorname{over}(j) = \left\lfloor \frac{\mathrm{conc} \cdot j.\text{wall} \mathbin{∸} \operatorname{weight}(j)}{\max(1, |j.P|)} \right\rfloor$$
-
 Page load, navigation and measuring cost time even when nothing waits. -/
 def over (j : JobObs) : Nat := (conc * j.probeWall - weight j) / max 1 j.probes.length
 
-/-- The cost of a probe of raw weight $w$ that ran in job $j$.
-
-$$\forall j, w,\quad \operatorname{probeCost}(j, w) = \operatorname{cdiv}(w + \operatorname{over}(j), \mathrm{conc})$$
+/-- The cost of a probe of raw weight `w` that ran in job `j`.
 
 Its weight plus the job's overhead, shared by the four loads running at once. -/
 def probeCost (j : JobObs) (w : Nat) : Nat := cdiv (w + over j) conc
@@ -91,9 +71,7 @@ def probeCost (j : JobObs) (w : Nat) : Nat := cdiv (w + over j) conc
 /-- The cost table and setup of one engine from its observed jobs: every probe with its `probeCost`, then every
 sweep with its wall time; setup is the rounded-up mean of the jobs' fixed times.
 
-$$\forall J,\quad \operatorname{reduce}(J) = \Big(\operatorname{cdiv}\big(\textstyle\sum_{j \in J} j.\text{setup}, |J|\big),\ [\,(p, \operatorname{probeCost}(j, w))\,]_{j \in J,\ (p, w) \in j.P} \mathbin{+\!\!+} [\,(s, t)\,]_{j \in J,\ (s, t) \in j.W}\Big)$$
-
-With no jobs the setup is $\operatorname{cdiv}(0, 0) = 0$ and the table is empty. -/
+With no jobs the setup is `cdiv(0, 0) = 0` and the table is empty. -/
 def reduce (js : List JobObs) : EngCosts where
   setup := cdiv (js.map (·.setup)).sum js.length
   costs := js.flatMap (fun j => j.probes.map fun (p, w) => (p, probeCost j w)) ++ js.flatMap (·.sweeps)
@@ -111,19 +89,15 @@ def reduce (js : List JobObs) : EngCosts where
 
 /-- A probe's cost covers its weight plus its job's overhead, shared four ways, and overshoots by less than one
 millisecond per load slot.
-
-$$\forall j, w,\quad w + \operatorname{over}(j) \le \mathrm{conc} \cdot \operatorname{probeCost}(j, w) < w + \operatorname{over}(j) + \mathrm{conc}$$
 -/
 theorem probeCost_bounds (j : JobObs) (w : Nat) :
     w + over j ≤ conc * probeCost j w ∧ conc * probeCost j w < w + over j + conc :=
   ⟨le_mul_cdiv _ _ (by decide), mul_cdiv_lt _ _ (by decide)⟩
 
-/-- **The probe costs of a job cover its probe phase**, up to the rounding of the even overhead split: with $n \ge 1$
-probes, $\mathrm{conc}$ times their summed cost is at least $\mathrm{conc}$ times the measured wall, less $n - 1$.
+/-- **The probe costs of a job cover its probe phase**, up to the rounding of the even overhead split: with `n ≥ 1`
+probes, `conc` times their summed cost is at least `conc` times the measured wall, less `n - 1`.
 
-$$\forall j,\quad |j.P| \ge 1 \Rightarrow \mathrm{conc} \cdot j.\text{wall} \le \mathrm{conc} \cdot \sum_{(p, w) \in j.P} \operatorname{probeCost}(j, w) + (|j.P| - 1)$$
-
-(The loss of $n - 1$ comes from rounding the overhead down; it is under 1 ms per probe.) -/
+(The loss of `n - 1` comes from rounding the overhead down; it is under 1 ms per probe.) -/
 theorem probeCost_cover (j : JobObs) (hn : 0 < j.probes.length) :
     conc * j.probeWall ≤ conc * (j.probes.map fun (_, w) => probeCost j w).sum + (j.probes.length - 1) := by
   -- each probe: conc * cost ≥ w + over j, so conc * Σ cost ≥ weight + n * over
@@ -148,8 +122,6 @@ theorem probeCost_cover (j : JobObs) (hn : 0 < j.probes.length) :
   omega
 
 /-- Every observed unit is in the table, in observation order: the probes of each job, then the sweeps.
-
-$$\forall J,\quad [\,u\,]_{(u, c) \in \operatorname{reduce}(J).\text{costs}} = [\,p\,]_{j \in J,\ (p, w) \in j.P} \mathbin{+\!\!+} [\,s\,]_{j \in J,\ (s, t) \in j.W}$$
 
 So `costOf` charges a measured unit its own measured cost, unless an earlier job measured the same name. -/
 theorem reduce_names (js : List JobObs) :

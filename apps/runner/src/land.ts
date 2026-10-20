@@ -9,11 +9,12 @@ import { availableParallelism, loadavg } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
-import { begin, span } from "./timing.ts";
+import { begin, record, span } from "./timing.ts";
+import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, runTiered, spawnWait, type Adapter, type Provider } from "./land-remote.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
-import { checkFailKind, failedStages, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
+import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
-import { ghCost } from "./run.ts";
+import { chargedGh, fwcoreCall, ghCost } from "./run.ts";
 import { chargedOnce, realEnv, type Env } from "@fw/gh-budget";
 
 export type Http = {
@@ -43,6 +44,8 @@ export type LandOptions = {
   submit?: (cmd: Command) => Promise<{ status: number; body: any }>;
   /** checks run in the main checkout after the merge, before it is committed; default: derived from the changed files */
   checks?: string[][];
+  /** the remote tier waits on the land lane of these providers (task land-wait); `false` runs every check on this Mac. Default: GitHub only. */
+  remote?: false | { allow?: Provider[]; adapters?: Partial<Record<Provider, Adapter>>; sliceS?: number; deadlineS?: number; waitsLeft?: number };
   /** Max checks running at once (default: the number of cores). */
   concurrency?: number;
   env?: Record<string, string | undefined>;
@@ -93,6 +96,11 @@ export const ATTRIBUTION = [
 export const MARKER_RE = "^(<<<<<<<|>>>>>>>)";
 
 const git = (cwd: string, args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+/** Personal-data scan (scripts/scrub.mjs --range) of what a ci/land push adds to origin, run from the main checkout so a branch cannot set its own gate: null when clean, else the hits (rule and place, never values). */
+const scanRange = (dir: string, mainDir: string, mergeSha: string): string | null => {
+  try { execFileSync("node", [join(mainDir, "scripts/scrub.mjs"), "--range", "origin/main", mergeSha], { cwd: mainDir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }); return null; }
+  catch (e) { return String((e as { stderr?: string }).stderr ?? e).replace(/\s+/g, " ").slice(0, 300); }
+};
 const tryGit = (cwd: string, args: string[]) => { try { git(cwd, args); return true; } catch { return false; } };
 const tryGitEnv = (cwd: string, args: string[], env: Record<string, string>) => {
   try { execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...env } }); return true; } catch { return false; }
@@ -174,6 +182,12 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     ".github/workflows/**", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs",
     // ci-own-trigger: the intent helper and its test (run by test/ci-triggers.test.ts; fw ci push spawns it)
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs",
+    // circleci-pilot: the glue, its fixtures and the pilot config (test/ci-triggers.test.ts runs scripts/circleci.test.mjs; fw ci circleci spawns the glue)
+    "scripts/circleci.mjs", "scripts/circleci.test.mjs", "scripts/circleci-fixtures/**", ".circleci/**",
+    // scrub-session-paths: test/scrub.test.ts runs the privacy scrub's tests (test-scrub.mjs is outside the scripts/*.test.mjs glob)
+    "scripts/scrub.mjs", "scripts/test-scrub.mjs", "scripts/scrub.test.mjs", "scripts/scrub-allow.json",
+    // ci-telemetry: test/ci-telemetry.test.ts runs the producer's own tests and replays golden/ci/telemetry.jsonl (golden/** above)
+    "scripts/ci-telemetry/**",
     // site-build-cache: ci-paths reads each setup-lean job's Lake targets (lakefile, the scripts its run: blocks call) into
     // the generated lean/Fw/Ops/LakeJobsGen.lean and compares
     "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],
@@ -185,6 +199,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
     "packages/contracts/golden/gate/**"],
   "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
+  // preview-e2e: the rig starts console-api's server files (imported by file URL) and the preview servers over the snapshot
+  "packages/e2e-preview": ["apps/console-api/src/**", "apps/console-api/package.json", "packages/contracts/src/**", "packages/contracts/package.json", "packages/contracts/golden/console/**", "snapshot/site/**"],
   "packages/engine-check": ["packages/contracts/golden/measure/**"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
@@ -209,7 +225,7 @@ function workspaceDeps(root: string, pkg: any): string[] {
  *  packages that have a `test` script (sorted). Which of them a change selects is `selectChecks` (Lean `landSpeed.select`). */
 /** Packages whose tests run the `fwcore` binary. Found by the scan in test/land-inputs.test.ts. Each declares `FWCORE_BIN`;
  *  which of them a Lean change selects is `selectTwoPhase` (the binary digest). */
-export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/engine-check", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr"];
+export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/e2e-preview", "packages/engine-check", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr"];
 /** Lean `fwcoreBin`: the stripped binary as a declared read. */
 export const FWCORE_BIN = "lean/.lake/build/bin/fwcore";
 /** Lean `fwcoreBuildReads`. */
@@ -396,6 +412,24 @@ export function storedDigest(mainDir: string, commit: string): Digest {
   } catch { /* no record */ }
   return null;
 }
+/** The land preflight (task land-queue-why): the reason to refuse early, or null. Facts only; Lean `fwcoreStale` decides. The installed binary is
+ *  the main checkout's; its record (`fwcore.commit`) names the commit it was built from, and counts only when the binary's sha256 is the recorded one.
+ *  A tree without `scripts/fwcore-build.sh` has no binary to be stale. */
+export function fwcorePreflight(mainDir: string, main: string): string | null {
+  if (!tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/fwcore-build.sh`])) return null;
+  let recorded: string | null = null;
+  try {
+    const [c, h] = readFileSync(join(mainDir, `${FWCORE_BIN}.commit`), "utf8").trim().split(" ");
+    if (c && h !== undefined && HEX64.test(h) && binDigest(mainDir) === h) recorded = c;
+  } catch { /* no record */ }
+  const head = git(mainDir, ["rev-parse", main]);
+  const same = recorded === head;
+  let moved = true; // an unknown commit counts as moved
+  if (recorded !== null && !same) {
+    try { moved = git(mainDir, ["diff", "--name-only", recorded, main, "--", "lean", "scripts/fwcore-build.sh"]) !== ""; } catch { moved = true; }
+  }
+  return fwcoreStale(recorded, same, moved) ? FWCORE_STALE_REASON : null;
+}
 export function storeDigest(mainDir: string, commit: string, d: string): void {
   try { const f = digestFile(mainDir, commit); mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, `${d}\n`); } catch { /* the next land builds unknown */ }
 }
@@ -458,6 +492,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   if (!mainDir) return fail(`${main} is not checked out in any worktree`);
   if (o.dry && !o.task) return fail("--dry needs --task <id>: the scope check is the task's");
   if (!o.dry && git(mainDir, ["status", "--porcelain", "--untracked-files=no"])) return fail(`${main} checkout has uncommitted changes`, "dirty");
+  if (!o.dry && !o.checks) { const why = fwcorePreflight(mainDir, main); if (why) return fail(why, "stale"); }
   // 0. the given branch has nothing to land: the agent may have committed on its ci/<task> branch (Lean: console.landPick)
   if (!via && !o.dry) {
     const pk = pickFacts(o.cwd, main, branch, o.task);
@@ -556,7 +591,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   // the binary they run). A bounded pool (cores) starts a check when its dependencies have finished.
   // Lean `selectTwoPhase`: phase 1 builds fwcore in the merge-tree worktree when the change reaches the build, phase 2 selects
   // the fwcore users by the digests of main0's binary and that build (unknown when the build failed or the tree is dirty).
-  const twoPhaseChecks = async (dir: string, main0: string, c: string): Promise<string[][]> => {
+  const twoPhaseChecks = async (dir: string, main0: string, c: string): Promise<Check[]> => {
     const d0 = storedDigest(mainDir, main0);
     let d1: Digest = d0;
     if (changed.some((p) => inScope(FWCORE_BUILD_READS, p))) {
@@ -565,7 +600,33 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       lines.push(`fwcore digest: ${main} ${d0?.slice(0, 12) ?? "unknown"}, merge ${d1?.slice(0, 12) ?? "unknown"}: fwcore users ${binMoved(changed, d0, d1) ? "selected" : "skipped"}`);
     }
     if (d1) storeDigest(mainDir, c, d1);
-    return checksWithReads(dir, changed, d0, d1).map((x) => x.argv);
+    return checksWithReads(dir, changed, d0, d1);
+  };
+  // Lean `Fw.Console.LandRemote`: the Lean local tier runs here, the remote tier on the land lane of the allowed providers (land-remote.ts)
+  const tieredChecks = async (dir: string, main0: string, c: string, list: Check[]): Promise<string | null> => {
+    if (o.remote === false || !o.task) return runChecks(dir, list.map((x) => x.argv));
+    const r = o.remote ?? {};
+    const call = fwcoreCall(mainDir);
+    const laneChanged = git(mainDir, ["diff", "--name-only", main0, c]).split("\n").filter(Boolean);
+    const all = candidateChecks(dir);
+    const laneSel = new Set(selectTwoPhase(all, laneChanged, null, null));
+    const laneIds = (call({ op: "console.landTier", ids: all.filter((x) => laneSel.has(x.id)).map((x) => x.id) }) as { remote: string[] }).remote;
+    const res = await runTiered({
+      call, checks: list, laneIds, task: o.task, mergeSha: c, allow: r.allow ?? DEFAULT_ALLOW,
+      adapters: r.adapters ?? { github: githubAdapter({ call, git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), wait: spawnWait(mainDir), gh: chargedGh(realEnv(mainDir)), cache: (h, id) => cachedLaneView(realEnv(mainDir).dir, h, id) }), circleci: circleciAdapter(() => tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/circleci.mjs`])) },
+      runLocal: async (argv) => { const bad = await runChecks(dir, argv); return { bad, kind: badKind }; },
+      log: logLine, span: (step, startMs, durMs, exit) => record({ tool: "fw land", step, startMs, durMs, exit }, mainDir),
+      sliceS: r.sliceS, deadlineS: r.deadlineS, waitsLeft: r.waitsLeft,
+    });
+    if (res.bad !== null) badKind = res.kind as Kind;
+    return res.bad;
+  };
+  /** A remote-tier line goes to the land log file and to stderr at once, and only there: it is not in the result lines, which `fw land` prints afterwards (so each `remote:` line shows once). */
+  const logLine = (l: string): void => {
+    mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
+    if (!logStarted) { writeFileSync(logFile, ""); logStarted = true; }
+    appendFileSync(logFile, `${l}\n`);
+    process.stderr.write(`${l}\n`);
   };
   let badKind: Kind = "checks";
   const runChecks = async (cwd: string, list: string[][]): Promise<string | null> => {
@@ -687,7 +748,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         let marks = "";
         try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
         if (marks) return { kind: "refuse", msg: `conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, k: "conflict" };
-        const bad = await runChecks(slot.dir, o.checks ?? await twoPhaseChecks(slot.dir, main0, c));
+        const bad = o.checks ? await runChecks(slot.dir, o.checks) : await tieredChecks(slot.dir, main0, c, await twoPhaseChecks(slot.dir, main0, c));
         let act = prelockAction(git(mainDir, ["rev-parse", "HEAD"]), main0, bad === null, attempt, maxRetry);
         if (act === "refuse") return { kind: "refuse", msg: bad!, k: badKind };
         if (act === "ff") {

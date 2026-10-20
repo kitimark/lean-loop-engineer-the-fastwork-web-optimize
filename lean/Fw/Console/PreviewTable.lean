@@ -15,23 +15,15 @@ a hand-typed fact table, so a wrong fact and a wrong expectation agreed: port-pl
 namespace Fw.Console.PreviewTable
 open Fw.Console.Preview Fw.Console.PreviewFacts Lean
 
-/-- The newest integration ref and its tip, as pinned.
-
-$$r_3 = I_1$$ -/
+/-- The newest integration ref and its tip, as pinned. -/
 def r3 : String := integ.head!.1
-/-- The tip of the newest integration ref.
-
-$$t_3 = I_1.\mathit{sha}$$ -/
+/-- The tip of the newest integration ref. -/
 def r3t : String := integ.head!.2
-/-- The second integration ref.
-
-$$r_2 = I_2$$ -/
+/-- The second integration ref. -/
 def r2 : String := (integ.drop 1).head!.1
 
 /-- What a preview should show for each task, typed by hand from the investigation and git (the facts are generated:
-`PreviewFacts.lean`): the target and the head sha.
-
-$$\mathrm{expects} : \mathit{task} \mapsto (\mathit{target}, \mathit{head})$$ -/
+`PreviewFacts.lean`): the target and the head sha. -/
 def expects : List (String × Target × Option String) := [
   ("port-parts", .none, none),
   ("port-morph", .integration r3 r3t, none),
@@ -59,9 +51,7 @@ def expects : List (String × Target × Option String) := [
   ("fix-commission-margin", .integration r3 r3t, some "3301169"),
   ("fix-page-offset", .integration r3 r3t, some "23c0821")]
 
-/-- One task of the table: its generated facts, its sub-tasks' facts (umbrella), the expected target and head.
-
-$$r = (\mathit{task}, \mathit{facts}, \mathit{kids}, \mathit{expect})$$ -/
+/-- One task of the table: its generated facts, its sub-tasks' facts (umbrella), the expected target and head. -/
 structure Row where
   task : String
   facts : List Fact
@@ -70,72 +60,52 @@ structure Row where
   expectHead : Option String
 
 /-- The 25 rows: the generated facts joined with the typed expectations (a task without an expectation expects nothing,
-so the proof fails).
-
-$$|\mathrm{rows}| = 25$$ -/
+so the proof fails). -/
 def rows : List Row := factRows.map fun (t, fs, ks) =>
   let e := (expects.lookup t).getD (.own "no expectation", some "no expectation")
   { task := t, facts := fs, kids := ks, expect := e.1, expectHead := e.2 }
 
 /-- **The Lean rule returns the expected head and target for all 25 tasks**, over the facts extracted from git. A landed
-task previews its land commit on main; an unlanded one its newest admissible head.
-
-$$\forall r \in \mathrm{rows}:\ \operatorname{headOf}(m, r.\mathit{facts}, r.\mathit{kids}).2 = r.\mathit{expect} \wedge \operatorname{sha}(\operatorname{headOf}(m, r.\mathit{facts}, r.\mathit{kids}).1) = r.\mathit{expectHead}$$ -/
+task previews its land commit on main; an unlanded one its newest admissible head. -/
 theorem table_matches : rows.all (fun r =>
     (headOf mainSha r.facts r.kids).2 == r.expect &&
     ((headOf mainSha r.facts r.kids).1.map (·.sha)) == r.expectHead) = true := by
   decide +kernel
 
-/-- **There are 25 rows.**
-
-$$|\mathrm{rows}| = 25$$ -/
+/-- **There are 25 rows.** -/
 theorem table_size : rows.length = 25 := by decide +kernel
 
-/-- **Every row has a typed expectation** (none falls back to the placeholder that cannot match).
-
-$$\forall r \in \mathrm{rows}:\ r.\mathit{task} \in \operatorname{dom}(\mathrm{expects})$$ -/
+/-- **Every row has a typed expectation** (none falls back to the placeholder that cannot match). -/
 theorem table_expects_all : rows.all (fun r => (expects.lookup r.task).isSome) = true := by decide +kernel
 
 /-- **Row 13 is port-platform, whose head is the gate's commit and not the "merge main" commit.** The merge candidate
 `b2e5ff1` is a main commit (second parent on main's first-parent line); it is inadmissible, and the older handoff commit
-is behind `origin/ci/port-platform`.
-
-$$\operatorname{pickHead}(\mathit{platform}.\mathit{facts}) = \mathtt{5b50ad0}$$ -/
+is behind `origin/ci/port-platform`. -/
 theorem platform_head : ((rows.find? (·.task == "port-platform")).bind fun r => (pickHead r.facts).map (·.sha)) = some "5b50ad0" := by
   decide +kernel
 
-/-- **A head that is a direct commit on main is its own land commit.** (A test row of the rule, not a repository fact.)
-
-$$f.\mathit{fpLine} \Rightarrow \operatorname{headOf}(m, [f], [\,]).2 = \mathrm{main}(f.s)$$ -/
+/-- **A head that is a direct commit on main is its own land commit.** (A test row of the rule, not a repository fact.) -/
 theorem direct_commit_lands_itself :
     (headOf "m1" [F "ci" "d1" true false true true false [] []] []).2 = .main "d1" := by decide +kernel
 
-/-- **A merge from main's own line is never picked, even when it is the only held better-ranked candidate.**
-
-$$\operatorname{pickHead}([\mathrm{merge}(\mathit{own}=\bot), \mathrm{originCi}]) = \mathrm{originCi}$$ -/
+/-- **A merge from main's own line is never picked, even when it is the only held better-ranked candidate.** -/
 theorem main_merge_not_head :
     ((pickHead [F "merge" "b1" true false true false false [] [], F "originCi" "c1" true false false true false [] [("l1", true)]]).map (·.sha)) = some "c1" := by
   decide +kernel
 
-/-- A candidate as the wire JSON.
-
-$$\operatorname{factJson}(f) = \{\mathit{src}, \mathit{sha}, \mathit{onMain}, \mathit{noCode}, \mathit{fpLine}, \mathit{ownWork}, \mathit{behind}, \mathit{path}, \mathit{cands}\}$$ -/
+/-- A candidate as the wire JSON. -/
 def factJson (f : Fact) : Json :=
   Json.mkObj [("src", .str f.src), ("sha", .str f.sha), ("onMain", .bool f.onMain), ("noCode", .bool f.noCode),
     ("fpLine", .bool f.fpLine), ("ownWork", .bool f.ownWork), ("behind", .bool f.behind),
     ("path", .arr (f.path.toArray.map fun p => Json.mkObj [("sha", .str p.sha), ("p2Has", .bool p.p2Has)])),
     ("cands", .arr (f.cands.toArray.map fun c => Json.mkObj [("ref", .str c.ref), ("sha", .str c.sha), ("contains", .bool c.contains)]))]
 
-/-- The `console.previewTarget` request of a row.
-
-$$\operatorname{request}(r) = \{m, \mathit{facts}, \mathit{children}\}$$ -/
+/-- The `console.previewTarget` request of a row. -/
 def request (r : Row) : Json :=
   Json.mkObj [("main", .str mainSha), ("facts", .arr (r.facts.toArray.map factJson)),
     ("children", .arr (r.kids.toArray.map fun ks => Json.mkObj [("facts", .arr (ks.toArray.map factJson))]))]
 
-/-- The golden cases: one per task.
-
-$$|\mathrm{goldenCases}| = |\mathrm{rows}|$$ -/
-def goldenCases : List (String × Json) := rows.map fun r => (s!"{r.task}: the investigation's target", request r)
+/-- The golden cases: one per task. -/
+def goldenCases (_ : Unit := ()) : List (String × Json) := rows.map fun r => (s!"{r.task}: the investigation's target", request r)
 
 end Fw.Console.PreviewTable

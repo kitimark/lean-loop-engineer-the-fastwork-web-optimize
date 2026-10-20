@@ -96,7 +96,7 @@ export function PainNotes({
         },
       },
       NOTES_SEED,
-      { armWhenVisible: variant === 'visible' },
+      { armWhenVisible: variant === 'visible' || variant === 'visible-idem', idemScroll: variant === 'visible-idem' },
     );
     driverRef.current = driver;
     driver.start();

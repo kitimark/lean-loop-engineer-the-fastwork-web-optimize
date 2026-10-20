@@ -15,8 +15,7 @@ does not judge the work, it only names the state (`dirty`, `committed`, `empty`)
 -/
 namespace Fw.Ops.Salvage
 
-/-- What the glue observed. `hasResult` is true when the builder returned a structured result.
-$$\mathrm{Facts} = \mathrm{String} \times \mathbb B \times \mathbb B \times \mathbb N \quad (\mathit{task}, \mathit{hasResult}, \mathit{dirty}, \mathit{ahead})$$ -/
+/-- What the glue observed. `hasResult` is true when the builder returned a structured result. -/
 structure Facts where
   task : String
   hasResult : Bool
@@ -25,8 +24,7 @@ structure Facts where
 deriving Repr, DecidableEq
 
 /-- What the glue must do: run the salvage at all, commit, allow an empty commit, append a handback event, and the
-state and commit message to use.
-$$\mathrm{Out} = (\mathit{salvage}, \mathit{commit}, \mathit{allowEmpty}, \mathit{handback}, \mathit{state}, \mathit{message})$$ -/
+state and commit message to use. -/
 structure Out where
   salvage : Bool
   commit : Bool
@@ -36,19 +34,16 @@ structure Out where
   message : String
 deriving Repr, DecidableEq
 
-/-- A task id is a non-empty string of lowercase letters, digits and `-`.
-$$\mathrm{idOk}(t) \iff t \ne \varepsilon \land \forall c \in t.\ c \in [a\text{-}z0\text{-}9\text{-}]$$ -/
+/-- A task id is a non-empty string of lowercase letters, digits and `-`. -/
 def idOk (t : String) : Bool :=
   t != "" && t.all fun c => (c.isLower && c.isAlpha) || c.isDigit || c == '-'
 
-/-- The state of the worktree, named from the facts only.
-$$\mathrm{stateOf}(d, a) = \begin{cases}\mathtt{dirty} & d\\ \mathtt{committed} & \lnot d \land a > 0\\ \mathtt{empty} & \text{otherwise}\end{cases}$$ -/
+/-- The state of the worktree, named from the facts only. -/
 def stateOf (dirty : Bool) (ahead : Nat) : String :=
   if dirty then "dirty" else if ahead > 0 then "committed" else "empty"
 
 /-- The salvage decision.
-the tuple is ordered (salvage, commit, allowEmpty, handback, state, message), and $\tau$ is the task id or `unknown`.
-$$\mathrm{decide}(f) = \begin{cases}(\bot,\bot,\bot,\bot,\varepsilon,\varepsilon) & f.\mathit{hasResult}\\ (\top,\top,\lnot f.\mathit{dirty},\top,\mathrm{stateOf}(f.\mathit{dirty}, f.\mathit{ahead}),\ \texttt{"WIP salvage "} \Vert \tau \Vert \texttt{": builder exited without a result"}) & \text{otherwise}\end{cases},\quad \tau = \begin{cases} f.\mathit{task} & \mathrm{idOk}(f.\mathit{task})\\ \texttt{"unknown"} & \text{otherwise}\end{cases}$$ -/
+the tuple is ordered (salvage, commit, allowEmpty, handback, state, message), and `τ` is the task id or `unknown`. -/
 def decide (f : Facts) : Out :=
   if f.hasResult then
     { salvage := false, commit := false, allowEmpty := false, handback := false, state := "", message := "" }
@@ -57,32 +52,27 @@ def decide (f : Facts) : Out :=
       state := stateOf f.dirty f.ahead,
       message := s!"WIP salvage {if idOk f.task then f.task else "unknown"}: builder exited without a result" }
 
-/-- A builder that returned a result is left alone.
-$$\mathit{hasResult} \Rightarrow \lnot\mathit{salvage} \land \lnot\mathit{commit} \land \lnot\mathit{handback}$$ -/
+/-- A builder that returned a result is left alone. -/
 theorem result_untouched (f : Facts) (h : f.hasResult = true) :
     (decide f).salvage = false ∧ (decide f).commit = false ∧ (decide f).handback = false := by
   simp [decide, h]
 
-/-- A builder that returned no result always gets a WIP commit and a handback event.
-$$\lnot\mathit{hasResult} \Rightarrow \mathit{commit} \land \mathit{handback}$$ -/
+/-- A builder that returned no result always gets a WIP commit and a handback event. -/
 theorem missing_commits_and_hands_back (f : Facts) (h : f.hasResult = false) :
     (decide f).commit = true ∧ (decide f).handback = true := by
   simp [decide, h]
 
-/-- An empty commit is allowed exactly when the worktree is clean, so a dirty tree is never recorded as empty.
-$$\lnot\mathit{hasResult} \Rightarrow (\mathit{allowEmpty} = \lnot\mathit{dirty})$$ -/
+/-- An empty commit is allowed exactly when the worktree is clean, so a dirty tree is never recorded as empty. -/
 theorem empty_iff_clean (f : Facts) (h : f.hasResult = false) :
     (decide f).allowEmpty = !f.dirty := by
   simp [decide, h]
 
 /-- The salvage runs exactly when the result is missing. That no retry happens follows from `Out` having no retry field,
-not from this statement.
-$$\mathit{salvage} = \lnot\mathit{hasResult}$$ -/
+not from this statement. -/
 theorem salvage_iff_missing (f : Facts) : (decide f).salvage = !f.hasResult := by
   cases h : f.hasResult <;> simp [decide, h]
 
-/-- The state depends on the dirty flag and the ahead count only, not on the task or the work itself.
-$$\lnot f.\mathit{hasResult} \Rightarrow \mathrm{decide}(f).\mathit{state} = \mathrm{stateOf}(f.\mathit{dirty}, f.\mathit{ahead})$$ -/
+/-- The state depends on the dirty flag and the ahead count only, not on the task or the work itself. -/
 theorem state_from_facts (f : Facts) (h : f.hasResult = false) :
     (decide f).state = stateOf f.dirty f.ahead := by
   simp [decide, h]
@@ -94,8 +84,7 @@ theorem state_from_facts (f : Facts) (h : f.hasResult = false) :
 #guard (decide ⟨"A b", false, false, 0⟩).message == "WIP salvage unknown: builder exited without a result"
 
 open Lean in
-/-- A golden case as JSON: the request facts and `decide` of them.
-$$\mathrm{caseJson}(n, f) = \{\mathit{name}: n,\ \mathit{request}: \{\mathit{op}: \texttt{"ops.salvage"}\} \cup f,\ \mathit{response}: \mathrm{decide}(f)\}$$ -/
+/-- A golden case as JSON: the request facts and `decide` of them. -/
 def caseJson (name : String) (f : Facts) : Json :=
   let o := decide f
   Json.mkObj [("name", .str name),
@@ -104,8 +93,7 @@ def caseJson (name : String) (f : Facts) : Json :=
     ("response", Json.mkObj [("salvage", .bool o.salvage), ("commit", .bool o.commit), ("allowEmpty", .bool o.allowEmpty),
       ("handback", .bool o.handback), ("state", .str o.state), ("message", .str o.message)])]
 
-/-- The golden cases, covering result or none, dirty or clean, commits or none, and bad task ids.
-$$\mathrm{cases} \in \mathrm{List}(\mathrm{String} \times \mathrm{Facts}),\ |\mathrm{cases}| = 8$$ -/
+/-- The golden cases, covering result or none, dirty or clean, commits or none, and bad task ids. -/
 def cases : List (String × Facts) := [
   ("a result came back: nothing to do", ⟨"gate-shard-balance", true, false, 2⟩),
   ("a result came back and the tree is dirty: still left alone", ⟨"gate-shard-balance", true, true, 0⟩),
@@ -117,8 +105,7 @@ def cases : List (String × Facts) := [
   ("no result, empty task id", ⟨"", false, false, 0⟩)]
 
 open Lean in
-/-- The golden text, one JSON line per case.
-$$\mathrm{goldenText} = \mathop{\Vert}_{(n,f) \in \mathrm{cases}} \mathrm{caseJson}(n, f)\ \Vert\ \texttt{"\textbackslash n"}$$ -/
+/-- The golden text, one JSON line per case. -/
 def goldenText : String :=
   String.join (cases.map fun (n, f) => (caseJson n f).compress ++ "\n")
 

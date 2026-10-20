@@ -6625,8 +6625,20 @@
     "apps/site/src/stage/**",
     "lean/Fw/Site/Stage*.lean",
     "packages/contracts/golden/**",
-    "research/notes/2026/10-20-exit-scoped-var*.md"
-   ]
+    "research/notes/2026/10-20-exit-scoped-var*.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ],
+   "evidence": "3f4bf3c"
   },
   {
    "devices": [
@@ -6858,7 +6870,8 @@
     "skills-reframe",
     "latex-lint-relax",
     "latex-generators",
-    "latex-mathview-b2"
+    "latex-mathview-b2",
+    "latex-strip-c"
    ],
    "owner": "lead",
    "writes": [
@@ -7080,7 +7093,7 @@
    "id": "land-wait",
    "owner": "console-builder",
    "stream": "ops",
-   "title": "fw land pushes ci/land-<task> and waits on the land lane through fw ci wait; only the local tier runs on this Mac; pass = both",
+   "title": "fw land runs only the Lean-decided local tier on this Mac and takes the remote tier from CI through a provider-neutral verdict (Fw.Console.LandRemote: run record {provider, sha, laneDigest, state}; pass needs a remote pass bound to the merge sha and expected digest; any fail for that sha wins across providers; explicit Lean fallback when a provider is unavailable); GitHub adapter now, CircleCI adapter stub",
    "deps": [
     "land-lane",
     "land-fwcore-key"
@@ -7091,8 +7104,22 @@
     "lean/Fw/Console/LandDry*.lean",
     "apps/runner/test/land*.test.ts",
     "packages/contracts/golden/**",
-    "docs/team/handoffs/land-wait.md"
-   ]
+    "docs/team/handoffs/land-wait.md",
+    "lean/Fw/Console/LandRemote*.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/test/land-remote*.test.ts",
+    ".github/workflows/land.yml",
+    "packages/contracts/golden/console/**",
+    "docs/team/tools/**",
+    "scripts/scrub.mjs",
+    ".github/scripts/land-base.sh",
+    "apps/runner/src/checks.ts",
+    "lean/scripts/LandRemoteGolden.lean",
+    "lean/scripts/check.sh"
+   ],
+   "evidence": "bee4e64"
   },
   {
    "devices": [
@@ -7792,7 +7819,8 @@
     "apps/runner/package.json",
     "apps/runner/test/bin-mode.test.ts",
     "docs/team/handoffs/runner-bin-mode.md"
-   ]
+   ],
+   "evidence": "d5c4c07"
   },
   {
    "devices": [
@@ -7827,8 +7855,16 @@
     "apps/site/src/parts/morph*/**",
     "packages/contracts/golden/**",
     "research/notes/2026/10-20-morph-layers*.md",
-    "docs/team/handoffs/morph-layers.md"
-   ]
+    "docs/team/handoffs/morph-layers.md",
+    "apps/site/src/App.tsx",
+    "apps/site/src/parts/hero.countdown/index.tsx",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/scripts/MorphDormantGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "evidence": "dad23c4"
   },
   {
    "devices": [
@@ -7858,8 +7894,13 @@
     "scripts/ci-paths.test.mjs",
     "docs/team/tools/ci-telemetry.md",
     "research/notes/2026/10-20-ci-telemetry*.md",
-    "docs/team/handoffs/ci-telemetry.md"
-   ]
+    "docs/team/handoffs/ci-telemetry.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Wire.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/TelemetryGolden.lean"
+   ],
+   "evidence": "0c989bd"
   },
   {
    "devices": [
@@ -7926,8 +7967,10 @@
     "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
     "research/notes/2026/10-20-waapi-touch-arm.md",
     "results/waapi-touch-arm/**",
-    "docs/team/handoffs/waapi-touch-arm.md"
-   ]
+    "docs/team/handoffs/waapi-touch-arm.md",
+    "packages/contracts/golden/parts/morph-tween-waapi.swipe-v1.jsonl"
+   ],
+   "evidence": "3c694ef"
   },
   {
    "devices": [
@@ -7947,7 +7990,2393 @@
     "lean/Fw/Parts/HeroCountdownHidden.lean",
     "research/notes/2026/10-20-countdown-hidden-arm.md",
     "results/countdown-hidden-arm/**",
-    "docs/team/handoffs/countdown-hidden-arm.md"
+    "docs/team/handoffs/countdown-hidden-arm.md",
+    "research/findings/ledger.json"
+   ],
+   "evidence": "d8017ce"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-inspect",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Original preview arm on the phone (plain-HTTP LAN sends no Sec-Fetch-Dest, so Referer-routed scripts missed the 302): redirect Referer-routed .js/.mjs; plus fw preview grant, a loopback-only, single-use, preview-only access link for agents (Lean console.previewGrant + ownerGate)",
+   "deps": [],
+   "writes": [
+    "apps/console-api/src/app.ts",
+    "apps/console-api/src/main.ts",
+    "apps/console-api/src/preview/**",
+    "apps/console-api/test/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/preview.ts",
+    "apps/runner/test/preview-grant.test.ts",
+    "docs/team/handoffs/preview-inspect.md",
+    "docs/team/tools/preview-grant.md",
+    "lean/Fw/Console/PreviewOwner.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "research/notes/2026/10-20-preview-original-gate.md"
+   ],
+   "evidence": "55e571b"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-script-move",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Follow-up of preview-inspect: Lean scriptMove(path, secFetchDest) replaces the TS isScriptPath stand-in; golden covers script, empty (plain-HTTP LAN), serviceworker and worker (serve in place)",
+   "deps": [
+    "preview-inspect"
+   ],
+   "writes": [
+    "lean/Fw/Console/PreviewOwner.lean",
+    "lean/Fw/Wire/Console.lean",
+    "apps/console-api/src/preview/proxy.ts",
+    "apps/console-api/test/**",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/preview-script-move.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "console-daemon",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "User 2026-10-20: console runs in the background with no Terminal window; fw console start|stop|restart|status|logs [-f]; owner access without a tty sink an agent can read; Lean lifecycle rules (start refused when a verified console runs, stop only the health-verified pid, link sink); post-land routine uses it",
+   "deps": [
+    "preview-inspect"
+   ],
+   "writes": [
+    "apps/console-api/src/main.ts",
+    "apps/console-api/src/daemon*.ts",
+    "apps/console-api/src/owner-link.ts",
+    "apps/console-api/src/preview/link.ts",
+    "apps/console-api/package.json",
+    "apps/console-api/test/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/console*.ts",
+    "apps/runner/test/console*.test.ts",
+    "lean/Fw/Console/Daemon*.lean",
+    "lean/Fw/Console/PreviewOwner.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/**",
+    "docs/team/tools/console.md",
+    "docs/team/handoffs/console-daemon.md",
+    "apps/runner/src/lib.ts",
+    "scripts/wallclock-allow.json"
+   ],
+   "evidence": "ab8e636"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-strip-c",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "lean-latex-removal step C: a deterministic, idempotent strip (scripts/latex-strip.mjs with --check) removes $$ math blocks from Lean docstrings, keeping prose; a docstring left empty is removed; applied to every lean/**/*.lean except files owned by open tasks (swept again after they land); lake build + check.sh green; statements unchanged",
+   "deps": [],
+   "writes": [
+    "scripts/latex-strip.mjs",
+    "scripts/latex-strip.test.mjs",
+    "lean/Fw/**/*.lean",
+    "lean/*.lean",
+    "lean/scripts/*.lean",
+    "docs/team/handoffs/latex-strip-c.md",
+    "lean/FwTest/**"
+   ],
+   "evidence": "a498ee0"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-lane-circleci",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "title": "CircleCI land job running the same fw checks --tier remote entry as land.yml and emitting laneDigest; the CircleCI adapter in land-remote.ts (pipeline/run with definition id, sha from GET /pipeline/{id}); live proof on one ci/land-* probe",
+   "deps": [
+    "land-wait",
+    "circleci-pilot",
+    "circleci-cache-accounting"
+   ],
+   "writes": [
+    ".circleci/**",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/test/land-remote*.test.ts",
+    "scripts/circleci.mjs",
+    "scripts/circleci.test.mjs",
+    "docs/team/handoffs/land-lane-circleci.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-status",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Console CircleCI health card next to gh-status (status page API, Lean verdict like gh-status), exported as a router input",
+   "deps": [],
+   "writes": [
+    "apps/console-api/src/health.ts",
+    "apps/console-api/src/ops/**",
+    "apps/console-api/test/**",
+    "apps/console-web/src/**",
+    "lean/Fw/Obs/CiStatus*.lean",
+    "packages/contracts/golden/obs/**",
+    "docs/team/handoffs/circleci-status.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-route",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "One Lean router for every CI lane across GitHub Actions and CircleCI: inputs health (gh-status, circleci-status), free quota left, measured queue p50/p95 per provider and class, per-provider lane allowlist; outputs an ordered provider list (failover) and an optional hedge start when the first queue exceeds T; feeds fw ci push and LandRemote",
+   "deps": [
+    "land-lane-circleci",
+    "circleci-status",
+    "circleci-series"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Route*.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/**",
+    "scripts/ci-push.mjs",
+    "scripts/ci-push.test.mjs",
+    "apps/runner/src/land-remote.ts",
+    "packages/contracts/golden/ci/**",
+    "docs/team/tools/**",
+    "docs/team/handoffs/ci-route.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-pilot",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "title": "CircleCI pilot: .circleci config for premise-tests (arm.medium.gen2 / arm.large.gen2) and a one-job webkit-sim probe on m4pro.medium with per-step timings; trigger/wait/fetch/compare glue with the Keychain token never printed; Lean Fw.Ci.Provider pair verdict, credits, stop rule, routing rule; real runs compared with GitHub twins",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ci/Provider*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/ProviderGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/**",
+    ".circleci/**",
+    "scripts/circleci.mjs",
+    "scripts/circleci.test.mjs",
+    "scripts/circleci-fixtures/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/ci-triggers.test.ts",
+    "docs/team/tools/circleci.md",
+    "docs/team/tools/fw-ci.md",
+    "research/notes/2026/10-20-circleci-pilot.md",
+    "docs/team/handoffs/circleci-pilot.md",
+    "scripts/scrub-allow.json"
+   ],
+   "evidence": "0a43520"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-e2e",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Playwright e2e for the console preview (/r, /o, /compare; Chromium + WebKit, phone UA) over loopback and a non-trustworthy plain-HTTP host; decides the double /_app import question; selected only when its declared inputs change (land remote tier + ci-paths cone)",
+   "deps": [
+    "preview-inspect"
+   ],
+   "writes": [
+    "apps/console-api/e2e/**",
+    "packages/e2e-preview/**",
+    "apps/console-api/src/preview/**",
+    "apps/console-api/package.json",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Console/LandTier.lean",
+    "lean/land-filter.txt",
+    "packages/contracts/golden/console/land-tier.jsonl",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    ".github/workflows/land.yml",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/handoffs/preview-e2e.md",
+    "pnpm-lock.yaml",
+    ".github/workflows/preview-e2e.yml",
+    "apps/runner/src/checks.ts",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean"
+   ],
+   "evidence": "0481d65"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fwcore-lazy-tables",
+   "owner": "lean-prover",
+   "stream": "lean",
+   "title": "Lean migration wave 0 (S): Make the 4 eager test tables Unit -> _; lint new large top-level constants in fwcore imports; CI re-measure of spawn CPU-s is the acceptance",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/PainNotesGolden.lean",
+    "lean/Fw/Parts/Contract.lean",
+    "lean/Fw/Wire/ShardGolden.lean",
+    "lean/Fw/Parts/Golden.lean",
+    "lean/scripts/ShardGolden.lean",
+    "lean/Fw/Lint/**",
+    "lean/Fw/**",
+    "lean/scripts/**",
+    ".github/workflows/lean.yml",
+    "research/notes/2026/10-20-fwcore-startup.md",
+    "docs/team/handoffs/fwcore-lazy-tables.md"
+   ],
+   "evidence": "43a66a4"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "parts-golden-fresh",
+   "owner": "lean-prover",
+   "stream": "site",
+   "title": "Lean migration wave 0 (S): fwcore partsgolden --check job in check.sh",
+   "deps": [
+    "fwcore-lazy-tables"
+   ],
+   "writes": [
+    "lean/Fw/Parts/Golden.lean",
+    "lean/scripts/check.sh"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-gen-compiled",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "title": "Lean migration wave 0 (S): freezegen and settlegen as sweepsgen subcommands like sweepsgen scope",
+   "deps": [],
+   "writes": [
+    "packages/gate-breakpoints/scripts/freezegen.mjs",
+    "packages/gate-breakpoints/scripts/settlegen.mjs",
+    "lean/SweepsgenMain.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fwcore-serve-runner",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Lean migration wave 0 (M): Shared fwcore serve child for runner async paths and the vitest setup; only if the CI re-measure after fwcore-lazy-tables still shows spawn cost",
+   "deps": [
+    "fwcore-lazy-tables"
+   ],
+   "writes": [
+    "apps/runner/src/run.ts",
+    "apps/runner/src/fwcore-serve.ts",
+    "apps/runner/test/setup*.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fwcore-client-shared",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Lean migration wave 0 (M): One fwcore client for gate, measure-chromium, measure-webkit, gh-budget, difftest; same condition",
+   "deps": [
+    "fwcore-lazy-tables"
+   ],
+   "writes": [
+    "packages/difftest/src/fwcore.mjs",
+    "packages/gate-breakpoints/src/verdict.mjs",
+    "packages/measure-chromium/src/fwcore.mjs",
+    "packages/measure-webkit/src/handoff.mjs",
+    "packages/gh-budget/src/core.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dead-twins-delete",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Lean migration wave 0 (S): Delete shells/model.ts with gen-shells and check:shells, and gate-shards.mjs with its Trigger.lean entry and golden row",
+   "deps": [],
+   "writes": [
+    "apps/site/src/shells/**",
+    "apps/site/scripts/gen-shells.mjs",
+    "apps/site/package.json",
+    ".github/scripts/gate-shards.mjs",
+    ".github/README.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-verdict-op",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Lean migration wave 1 (S): Op over LandVerdict and LandDry; land-verdict.ts calls it; tests become wire replay",
+   "deps": [
+    "land-queue-verdict"
+   ],
+   "writes": [
+    "lean/Fw/Console/LandVerdict.lean",
+    "lean/Fw/Console/LandDry.lean",
+    "lean/Fw/Wire/Console.lean",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/land-verdict.test.ts",
+    "apps/runner/test/land-dry.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "build-review-stages",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Lean migration wave 1 (S): Lean op from work-graph writes to workflow stages (isolation, math review, salvage) passed as args",
+   "deps": [
+    "workflow-salvage-wire"
+   ],
+   "writes": [
+    "lean/Fw/Plan/Workflow*.lean",
+    "lean/Fw/Wire/Plan.lean",
+    ".claude/workflows/build-review.js"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-exit-op",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "title": "Lean migration wave 1 (S): gate.exit op over Fw.Gate.Exit; delete the cli.mjs twin",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Wire/Gate.lean",
+    "packages/gate-breakpoints/src/cli.mjs",
+    "packages/gate-breakpoints/test/exit.test.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ledger-merge-op",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Lean migration wave 1 (S): merge-ledger.mjs calls an ops.ledgerMerge op; missing fwcore leaves a normal conflict",
+   "deps": [
+    "manifest-merge"
+   ],
+   "writes": [
+    "lean/Fw/Ops/Wire.lean",
+    "scripts/merge-ledger.mjs",
+    "apps/runner/test/ledger-merge.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "emit-record-golden",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "title": "Lean migration wave 1 (S): Lean ObsRecord cases pin emit.mjs record(); unseenSpawn as an fwcore op",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/Obs*.lean",
+    "packages/contracts/golden/ops/obs-record.jsonl",
+    "apps/runner/hooks/emit.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-select-op",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Lean migration wave 1 (M): Batched LandSpeed op (select, select2, prelock, checkDeps); Lean emits the read tables",
+   "deps": [
+    "land-verdict-op",
+    "quietsteps-op"
+   ],
+   "writes": [
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw/Wire/Console.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-prelock.test.ts",
+    "apps/runner/test/land-scope.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "build-base-op",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 1 (S): obs.chooseBase op; golden from the #guards replaces the hand table",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Obs/Stale.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "apps/console-api/src/core/build-base.ts",
+    "apps/console-api/test/build-base.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "next-classify-op",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "title": "Lean migration wave 1 (M): Raw command lines into obs.next and obs.signals; the Wait lexer classifies; delete the regexes",
+   "deps": [
+    "build-base-op"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Obs/Signals.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "apps/runner/src/next.ts",
+    "apps/runner/src/watch-collect.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "quietsteps-op",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Lean migration wave 1 (S): Tests call the wired measure.quietSteps op; then delete the quietsteps.mjs twin",
+   "deps": [],
+   "writes": [
+    "packages/measure-webkit/src/quietsteps.mjs",
+    "packages/measure-webkit/README.md",
+    "packages/difftest/test/measure-webkit.test.mjs",
+    "packages/measure-webkit/test/fwcore.test.mjs",
+    "apps/runner/src/land.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-cap-ops",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 1 (S): app.ts and cap.ts call ops.actor and ops.door",
+   "deps": [],
+   "writes": [
+    "apps/console-api/src/cap/cap.ts",
+    "apps/console-api/src/app.ts",
+    "apps/console-api/test/cap.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "engine-premise-op",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Lean migration wave 1 (M): ops.enginePremise; engine-premises.yml gets the fwcore artifact",
+   "deps": [
+    "ledger-merge-op"
+   ],
+   "writes": [
+    "lean/Fw/Ops/Wire.lean",
+    "packages/measure-chromium/src/premise-verdict.mjs",
+    ".github/workflows/engine-premises.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wktr-ops",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Lean migration wave 1 (S): measure.wktrVariance op; wktr premise and summarize call fwcore; WKTR_EXPECTED generated",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Measure/Wire.lean",
+    "packages/measure-wktr/fixtures/variance.mjs",
+    "packages/measure-wktr/fixtures/premise.mjs",
+    "packages/measure-wktr/fixtures/summarize.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "web-plan-columns",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): column : TState -> Lane -> Column with an exhaustiveness theorem; TS groups by it",
+   "deps": [
+    "build-review-stages"
+   ],
+   "writes": [
+    "lean/Fw/Plan/Core.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "packages/contracts/src/index.ts",
+    "apps/console-web/src/Plan.tsx",
+    "apps/console-web/test/device-lane.test.tsx",
+    "apps/console-web/test/plan-cut.test.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-workflow-op",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (M): plan.workflow op plus the time rule spawn_at <= stop_at",
+   "deps": [
+    "web-plan-columns"
+   ],
+   "writes": [
+    "lean/Fw/Plan/Workflow.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "apps/console-api/src/spool/workflow.ts",
+    "apps/console-api/test/workflow-claim.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-reconcile-op",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (M): console.reconcile over refs, ahead counts and trailers returns card.build and card.landed commands",
+   "deps": [
+    "land-select-op"
+   ],
+   "writes": [
+    "lean/Fw/Console/Reconcile.lean",
+    "lean/Fw/Wire/Console.lean",
+    "apps/console-api/src/reconcile/reconciler.ts",
+    "apps/console-api/src/reconcile/naming.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-done-infer",
+   "owner": "lean-prover",
+   "stream": "console",
+   "title": "Lean migration wave 2 (M): task.done inference (step 3b) in Lean: done only with evidence on main; idempotent keys",
+   "deps": [
+    "api-reconcile-op"
+   ],
+   "writes": [
+    "lean/Fw/Console/Reconcile.lean",
+    "apps/console-api/src/reconcile/reconciler.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "web-step-offers",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): offered(step, actor) with offered implies accepted; fix or remove PostForm",
+   "deps": [
+    "api-reconcile-op",
+    "web-plan-columns"
+   ],
+   "writes": [
+    "lean/Fw/Console.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/src/index.ts",
+    "apps/console-web/src/App.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "web-detail-tables",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): Lean emits refusal and target text plus hasDetail per task",
+   "deps": [
+    "api-workflow-op"
+   ],
+   "writes": [
+    "lean/Fw/Console/Preview.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "apps/console-web/src/TaskDetail.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "web-health-rows",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): Code.row with decide-proved coverage of the 24 codes, emitted by obs.health",
+   "deps": [
+    "next-classify-op"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Health.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/health.jsonl",
+    "apps/console-web/src/Health.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-isours-op",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): Signal decision over ps facts; a pid whose start time changed is never signalled",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/PreviewSignal.lean",
+    "apps/console-api/src/preview/manager.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-store-replay",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): Lean decides replay repair: only the last line may drop",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/StoreReplay.lean",
+    "apps/console-api/src/store.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-owner-raw",
+   "owner": "lean-prover",
+   "stream": "console",
+   "title": "Lean migration wave 2 (M): ownerGate, ownerAction and the grant checks classify raw Host, Origin and remote address",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/PreviewOwner.lean",
+    "apps/console-api/src/preview/owner.ts",
+    "apps/console-api/src/preview/lan.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "web-plan-layers",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (M): layers in Plan.Graph with dep_left; plan view emits layer and row",
+   "deps": [
+    "web-detail-tables"
+   ],
+   "writes": [
+    "lean/Fw/Plan/Graph.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "apps/console-web/src/Plan.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "api-preview-facts-raw",
+   "owner": "lean-prover",
+   "stream": "console",
+   "title": "Lean migration wave 2 (L): Lean derives noCode, behind, ownWork and candidates from raw git facts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/PreviewFacts.lean",
+    "apps/console-api/src/preview/facts.ts",
+    "apps/console-api/scripts/gen-preview-facts.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "web-builds-action",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Lean migration wave 2 (S): rowAction in console.builds",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/Builds.lean",
+    "apps/console-web/src/Builds.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "site-hand-expect-golden",
+   "owner": "lean-prover",
+   "stream": "site",
+   "title": "Lean migration wave 3 (S): Golden rows for HeroAccentOpt bounds and chain, PainNotesOpt armed and resumeAt, HiddenPause constants; delete the hand copies",
+   "deps": [
+    "fwcore-lazy-tables"
+   ],
+   "writes": [
+    "lean/Fw/Parts/HeroAccent*.lean",
+    "lean/Fw/Parts/PainNotes*.lean",
+    "lean/Fw/Parts/HiddenPause*.lean",
+    "apps/site/src/parts/hero.accent/*.test.ts",
+    "apps/site/src/parts/pain.notes/*.test.ts",
+    "apps/site/src/parts/engine.scene/*.test.ts",
+    "packages/contracts/golden/parts/hero.accent.jsonl",
+    "packages/contracts/golden/parts/pain.notes.jsonl",
+    "packages/contracts/golden/parts/engine.scene.jsonl"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "site-flags-lean",
+   "owner": "lean-prover",
+   "stream": "site",
+   "title": "Lean migration wave 3 (M): Fw.Site.Flags over the real registry (presets, @impl, requires, conflicts); golden; prerender list generated",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Site/Flags.lean",
+    "packages/contracts/golden/site/flags.jsonl",
+    "apps/site/src/registry/resolve.test.ts",
+    "apps/site/src/entry-server.tsx"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "engine-clock-lean",
+   "owner": "lean-prover",
+   "stream": "site",
+   "title": "Lean migration wave 3 (S): Fw.Parts.EngineClock and the missing engine.clock.jsonl",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/EngineClock.lean",
+    "packages/contracts/golden/parts/engine.clock.jsonl"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "site-media-ids-gen",
+   "owner": "lean-prover",
+   "stream": "site",
+   "title": "Lean migration wave 3 (S): Scope.lean emits per-part media id lists; media.ts imports them",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Gate/Scope.lean",
+    "apps/site/src/parts/*/media.ts",
+    "packages/gate-breakpoints/test/scope.test.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "site-test-speed",
+   "owner": "console-builder",
+   "stream": "site",
+   "title": "Lean migration wave 3 (S): svg-extract scan via git grep, footprint test only on parts changes, vitest isolate false",
+   "deps": [],
+   "writes": [
+    "apps/site/vitest.config.ts",
+    "apps/site/src/svg-extract.test.ts",
+    "apps/site/src/footprint.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "parts-golden-rows",
+   "owner": "lean-prover",
+   "stream": "site",
+   "title": "Lean migration wave 3 (M): Rows for every exported function with a theorem",
+   "deps": [
+    "parts-golden-fresh",
+    "site-hand-expect-golden",
+    "engine-clock-lean"
+   ],
+   "writes": [
+    "lean/Fw/Parts/Golden.lean",
+    "packages/contracts/golden/parts/*.jsonl"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "counts-plan-op",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (S): measure.countsPlan like simPlan; the plan job needs fwcore",
+   "deps": [
+    "wktr-ops"
+   ],
+   "writes": [
+    "lean/Fw/Measure/SimPlan.lean",
+    "lean/Fw/Measure/Wire.lean",
+    ".github/workflows/chromium-counts.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gh-wait-op",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (M): ci.wait.evaluate: run selection, grace, missing lanes",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ci/Verdict.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "packages/gh-budget/src/wait.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wave2-attribution-lean",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Lean migration wave 4 (M): engine-check attribution rule in Lean (MEASURED iff the non-faithful set equals the pair)",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Engine/Attribution.lean",
+    "packages/engine-check/src/wave2.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-summary-mask",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "title": "Lean migration wave 4 (M): Mask and not-rendered demotion inside gate.state",
+   "deps": [
+    "gate-exit-op"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Settle.lean",
+    "lean/Fw/Wire/Gate.lean",
+    "packages/gate-breakpoints/src/summary.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-jobs-op",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (S): gate.jobs (scope narrowing plus the probe deal, cover-once theorem) and gate.merge ops",
+   "deps": [
+    "gate-summary-mask"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Shard.lean",
+    "lean/Fw/Gate/Merge.lean",
+    "lean/Fw/Wire/Gate.lean",
+    ".github/scripts/gate-jobs.mjs",
+    ".github/scripts/merge-gate.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "plan-sync-op",
+   "owner": "lean-prover",
+   "stream": "plan",
+   "title": "Lean migration wave 4 (M): plan.sync op for topoSort and syncCommands",
+   "deps": [
+    "web-plan-layers"
+   ],
+   "writes": [
+    "lean/Fw/Plan/Core.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "packages/contracts/src/plan-sync.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-checks-op",
+   "owner": "lean-prover",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (M): ci-paths workflow checks (unguarded, dispatchOnly, status-if) as one op",
+   "deps": [
+    "dead-twins-delete",
+    "gh-wait-op"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-text-gen",
+   "owner": "lean-prover",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (M): Guard, tip, concurrency and push text emitted by Lean; ci-paths only splices",
+   "deps": [
+    "ci-checks-op"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "scripts/ci-paths.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "vd-verdict-op",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Lean migration wave 4 (S): visual-diff verdict and calm in fwcore; reuse the gate settle rule; tolerances generated",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Gate/Pixel.lean",
+    "packages/visual-diff/src/verdict.mjs",
+    "packages/visual-diff/src/settle-adapter.mjs",
+    "packages/visual-diff/src/run.mjs",
+    "packages/visual-diff/tolerances.json"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-arm-set-valid",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (M): Lean rule: all n arms present, all from one attempt; called before classify in 5 merge jobs",
+   "deps": [
+    "counts-plan-op"
+   ],
+   "writes": [
+    "lean/Fw/Measure/ArmSet.lean",
+    ".github/workflows/webkit-sim.yml",
+    ".github/workflows/chromium-counts.yml",
+    ".github/workflows/wktr.yml",
+    ".github/workflows/wktr-fixtures.yml",
+    ".github/workflows/breakpoint-gate.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lane-inputs-gen",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (M): Lean lane-input table as dispatch choices and defaults",
+   "deps": [
+    "ci-text-gen",
+    "ci-arm-set-valid",
+    "engine-premise-op"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Inputs.lean",
+    "scripts/ci-paths.mjs",
+    ".github/workflows/*.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "setup-lean-key-gen",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (S): Lake key globs from Trigger.fwcoreFiles, checked by ci-paths",
+   "deps": [
+    "lane-inputs-gen"
+   ],
+   "writes": [
+    ".github/actions/setup-lean/action.yml",
+    "scripts/ci-paths.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-fwcore-once",
+   "owner": "measure-engineer",
+   "stream": "ci",
+   "title": "Lean migration wave 4 (M): One fwcore build per commit reused by artifact in 8 workflows",
+   "deps": [
+    "lane-inputs-gen"
+   ],
+   "writes": [
+    ".github/workflows/*.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lfg-twin-freshness",
+   "owner": "lean-prover",
+   "stream": "lean",
+   "title": "Lean migration wave 5 (S): Lean-first gate input: a TS twin without a freshness job counts as a violation",
+   "deps": [
+    "lfg-enforce-all"
+   ],
+   "writes": [
+    "lean/Fw/Ops/LeanFirst*.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "commission-margin-recur",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "title": "The commission margin-inline gate readings fail intermittently after fix-commission-margin (c4b57a2), flag-independent (runs 39313815482, 39314391342, 39314718340 fail; 39312308450, 39282664077 pass); explain from CI artifacts and fix at the cause (site or Lean gate rule, no tolerance widening); >= 3 consecutive full-gate passes on a no-flag branch; blocks the gate verdicts of exit-scoped-var, morph-layers, countdown-one-chain | r2 refused (key mask = tolerance widening; premise b refuted); Fable wf_b900665c-187: close as a finding (note + handoff only), redesign split into cmr-margin-typed-om -> cmr-margin-rect-rule, asymmetry in cmr-strut-asym",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/commission/**",
+    "packages/gate-breakpoints/src/**",
+    "packages/gate-breakpoints/test/**",
+    "lean/Fw/Gate/**",
+    "lean/Fw/Wire/Gate.lean",
+    "packages/contracts/golden/gate/**",
+    "research/notes/2026/10-20-commission-margin-recur.md",
+    "results/commission-margin-recur/**",
+    "docs/team/handoffs/commission-margin-recur.md"
+   ],
+   "evidence": "809a018"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-gc-refs",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "Lake gc by identity: an artifact is listed when no checkout references it (trace hashes, hard links) and no live lake/lean process may still write or link it; age floor only as a named Lean fallback; fw lake-gc --delete (no shell pipe); cache inventory note with measured sizes and per-cache reference rules",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/LakeGc.lean",
+    "lean/scripts/LakeGcGolden.lean",
+    "packages/contracts/golden/ops/lakegc.jsonl",
+    "apps/runner/src/lake-gc.ts",
+    "apps/runner/src/fw.ts",
+    "scripts/lake-gc.mjs",
+    "scripts/lake-gc.test.mjs",
+    "apps/runner/test/lake-gc*.test.ts",
+    "docs/team/tools/lake-gc.md",
+    "docs/team/tools/disk-cleanup.md",
+    "research/notes/2026/10-20-cache-relations.md",
+    "docs/team/handoffs/lake-gc-refs.md"
+   ],
+   "evidence": "096f7fc"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-wait-followups",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "land-wait review lows: abort the detached ci-wait waiter when fw land exits on SIGINT/SIGTERM (no orphan for a slice); sleep out the slice for any early poll in the degraded branch, not only running",
+   "deps": [
+    "land-wait"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-remote.test.ts",
+    "docs/team/handoffs/land-wait-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-cache-accounting",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "title": "CircleCI storage: save the pnpm cache only when its key changes (108 milli GB-month per Arm pipeline today trips the 1000 stop after ~9 runs); ledger counts saves, Lean storageMilli unchanged",
+   "deps": [
+    "circleci-pilot"
+   ],
+   "writes": [
+    ".circleci/**",
+    "scripts/circleci*",
+    "research/notes/2026/10-20-circleci-pilot.md",
+    "docs/team/handoffs/circleci-cache-accounting.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-series",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "title": "CircleCI 10-run series per class (Arm medium/large; sim within the base-pool budget): duration spread and queue p50/p95 per provider and class, MEASURED, for ci-route",
+   "deps": [
+    "circleci-pilot",
+    "circleci-cache-accounting"
+   ],
+   "writes": [
+    "scripts/circleci*",
+    "research/notes/2026/10-20-circleci-series.md",
+    "results/circleci-series/**",
+    "docs/team/handoffs/circleci-series.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-sim-digest",
+   "owner": "measure-engineer",
+   "stream": "ops",
+   "title": "CircleCI sim pair compares the class-table digest, not only the conclusion; pair every GitHub sim matrix job, not the first",
+   "deps": [
+    "circleci-pilot"
+   ],
+   "writes": [
+    "scripts/circleci*",
+    "lean/Fw/Ci/Provider*.lean",
+    "lean/scripts/Provider*",
+    "packages/contracts/golden/ci/**",
+    "docs/team/handoffs/circleci-sim-digest.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "circleci-insights-credits",
+   "owner": "researcher",
+   "stream": "ops",
+   "title": "Billed CircleCI credits per job from the Insights API (docs first); replaces the price-list INFERRED credits in the pilot note when confirmed",
+   "deps": [
+    "circleci-pilot"
+   ],
+   "writes": [
+    "scripts/circleci*",
+    "research/notes/2026/10-20-circleci-pilot.md",
+    "docs/team/handoffs/circleci-insights-credits.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-preset-dormant",
+   "owner": "part-builder",
+   "stream": "proofs",
+   "title": "Switch the preset from morph.mount:shift to shift-dormant (morph-layers: -1052/-1136 drawing layers vs shift, +1 recalc/layout, elementCount +10/-14; all morph.* gate cells pass both engines, gate 39325704868); preset gate + counts on CI",
+   "deps": [
+    "morph-layers"
+   ],
+   "writes": [
+    "lean/Fw/Preset/**",
+    "packages/contracts/golden/preset/**",
+    "packages/contracts/golden/engine/**",
+    "packages/engine-check/golden/**",
+    "lean/Fw/Engine/Keys.lean",
+    "research/notes/2026/10-20-morph-layers.md",
+    "docs/team/handoffs/morph-preset-dormant.md",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-layers-followups",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "morph-layers review lows: Absorbed stays INFERRED (dump measures the conclusion); armD docstring names its MEASURED premise; probe branch heads + artifact expiry or a committed per-run digest; stale digit shape under hold stated",
+   "deps": [
+    "morph-layers"
+   ],
+   "writes": [
+    "lean/Fw/Parts/MorphMountDormant.lean",
+    "research/notes/2026/10-20-morph-layers.md",
+    "apps/site/src/parts/hero.countdown/index.tsx",
+    "docs/team/handoffs/morph-layers-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-gc-followups",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "lake-gc review: --delete re-reads the process table right before unlinking and aborts if a new Lake writer appeared; refs read .hash files or the docstrings say trace outputs and hash stems only; per-worktree git ls-files for lake project dirs; narrow the outputs-map check to the live build's package; identity rule before the CI lake cache save",
+   "deps": [
+    "lake-gc-refs"
+   ],
+   "writes": [
+    "lean/Fw/Ops/LakeGc.lean",
+    "lean/scripts/LakeGcGolden.lean",
+    "packages/contracts/golden/ops/lakegc.jsonl",
+    "apps/runner/src/lake-gc.ts",
+    "scripts/lake-gc.mjs",
+    "scripts/lake-gc.test.mjs",
+    "docs/team/tools/lake-gc.md",
+    "docs/team/handoffs/lake-gc-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fwcore-lazy-followups",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "title": "fwcore start: drop `import Lean` from fwcore's module closure (Fw.Spec.MathFacts, Fw.Spec.Reach, MathView); init-cost lint prints the closure size; add the 11 uncovered generator --check runs to check.sh",
+   "deps": [
+    "fwcore-lazy-tables"
+   ],
+   "writes": [
+    "lean/Fw/Spec/**",
+    "lean/MathView.lean",
+    "lean/Fw/Lint/InitCostScan.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-20-fwcore-startup.md",
+    "docs/team/handoffs/fwcore-lazy-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "chromium-per-pass-elementcount",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "measure-chromium emits per-pass UpdateLayoutTree elementCount (trace.mjs sums per frame today); one-arm rerun splits hero.exit writers and settles the ~7-node question; Lean per-pass sum theorem over the frame reducer. Until it lands no task cites an absolute Restyle unit as measured elementCount",
+   "deps": [
+    "exit-scoped-var"
+   ],
+   "writes": [
+    "packages/measure-chromium/src/**",
+    "packages/measure-chromium/test/**",
+    "lean/Fw/Measure/**",
+    "research/notes/2026/10-20-per-pass-elementcount.md",
+    "docs/team/handoffs/chromium-per-pass-elementcount.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-queue-why",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "fw land --queue keeps the exception text: land-queue.ts attempt catch records kind unknown with no message; print REFUSED: <message> and write it to the land log (first real land through the land-wait remote tier ended VERDICT unknown with no reason)",
+   "deps": [
+    "land-wait"
+   ],
+   "writes": [
+    "apps/runner/src/land-queue.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/land-queue*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-queue-why.md",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/land-digest.test.ts",
+    "lean/Fw/Console/LandQueue.lean",
+    "packages/contracts/golden/console/land-queue.jsonl",
+    "lean/scripts/*Golden.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land.test.ts"
+   ],
+   "evidence": "cea4b28"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "tween-platform-scope",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Scope the waapi platform tween to a non-inherited registered property [style S1 + style S3 (census) + layout L3 open tail item] — MEASURED, touch, frames 498-530 (39312308173 faithful vs 39312313059 waapi): elementCount 4077 vs 10655 (+6578, +161%). waapi holds 318 per frame to frame 530; faithful drops to 85-88 at frame 509. v2-proved (which uses waapi) shows the same in 39292323514 r1-r3. INFERR",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/morph.tween/part.json",
+    "apps/site/src/parts/morph.tween/waapi.driver.ts",
+    "apps/site/src/parts/morph.tween/waapi.golden.test.ts",
+    "apps/site/src/parts/morph.tween/waapi.logic.ts",
+    "apps/site/src/stage/inputs.ts",
+    "docs/plan/math-view.html",
+    "docs/team/handoffs/tween-platform-scope.md",
+    "lean/Fw/Ops/**",
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
+    "research/notes/2026/10-20-tween-platform-scope.md",
+    "results/tween-platform-scope/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml",
+    "apps/site/src/parts/morph.tween/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "mount-scroll-tap",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Detach the dead window scroll listener in morph.mount after mount [script S1 (option A only)] — MEASURED indirectly: +1 non-rAF FunctionCall on every scroll-moving frame under shift-dormant vs faithful (swipe 39325709978 vs 39325721909: 422 frames exactly +1, 463 in all; touch 39325727288 vs 39325741608 the same). Expected about -460 FunctionCall per profile (about 10% of FC), with the same JS pat",
+   "deps": [
+    "morph-layers"
+   ],
+   "writes": [
+    "apps/site/src/parts/morph.mount/index.tsx",
+    "docs/team/handoffs/mount-scroll-tap.md",
+    "lean/Fw/Parts/MorphMountOpt.lean",
+    "packages/contracts/golden/parts/morph-mount-tap.jsonl",
+    "research/notes/2026/10-20-mount-scroll-tap.md",
+    "results/mount-scroll-tap/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "breakpoints-named-import",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Import only breakpoint conditions in the client bundle [load L2] — MEASURED, static: raw JS 730,103 → about 627,583 B (-14% of the bytes parsed and scanned); gzipped 208,054 → 204,662 B (-1.6% transfer). About 386 fewer object/array allocations and about 1,004 fewer string lookups per load, in both engines. Profile window =o. Load ms INFERRED until the load-window lane exists.",
+   "deps": [],
+   "writes": [
+    "apps/site/scripts/check-breakpoints.mjs",
+    "apps/site/src/breakpoints.client.gen.json",
+    "apps/site/src/breakpoints.ts",
+    "docs/team/handoffs/breakpoints-named-import.md",
+    "lean/BreakgenMain.lean",
+    "lean/Fw/Site/BreakpointGen.lean",
+    "research/notes/2026/10-20-breakpoints-named-import.md",
+    "results/breakpoints-named-import/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ],
+   "evidence": "5b5ebc1"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fill-release-platform",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Release finished platform entry animations (fill backwards + static to-values) [paint PC1] — Chromium swipe 430x932 dpr3. Layer-frames still held by filled, finished animations: about 1383 of 28107 over the whole run and about 954 of 7941 in the tail (frames 367-472), from 39309334426. Appearance frames are MEASURED; the after-phase model is INFERRED. .order (228 layer-frames) is not yet modelled,",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/platform.entries/part.json",
+    "apps/site/src/parts/platform/Visuals.tsx",
+    "apps/site/src/parts/platform/visuals.module.css",
+    "docs/team/handoffs/fill-release-platform.md",
+    "lean/Fw/Engine/VisualTimed.lean",
+    "lean/Fw/Parts/PlatformEntries.lean",
+    "packages/contracts/golden/parts/platform-entries-fill.jsonl",
+    "research/notes/2026/10-20-fill-release-platform.md",
+    "results/fill-release-platform/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "react-root-quiet-events",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Stop React registering root/portal listeners for 7 unused animation/transition events [webkit W1 + script S3 (duplicates merged)] — INFERRED; measure first. WebKit pass 0 of 39309416016: EventDispatch 1607 vs 107 in the original, FunctionCall 2202, mostly in batches of 2, but the event type is not recorded. Upper bound about 1400 dispatches and calls per pass. Chromium: these events are no longer ",
+   "deps": [],
+   "writes": [
+    "apps/site/src/entry-client.tsx",
+    "apps/site/src/parts/engine.events/part.json",
+    "apps/site/src/parts/engine.events/quiet.gen.ts",
+    "apps/site/src/parts/engine.events/quiet.scan.test.ts",
+    "docs/team/handoffs/react-root-quiet-events.md",
+    "lean/Fw/Parts/ReactRootOpt.lean",
+    "packages/contracts/golden/parts/react-root-quiet.jsonl",
+    "research/notes/2026/10-20-react-root-quiet-events.md",
+    "results/react-root-quiet-events/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "layer-path-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Chromium layer-path probe: LCD reason, raster scale, transform, opacity per owner [paint PC3 (enabler)] — No count win. It turns the Chromium sides of C1, C2, C4 and C5 from INFERRED into MEASURED, per frame and per pinned owner. That unblocks fill-release-platform (raster scale), typing-avatar-fill and morph-idle-none (text AA at dpr 1). Cost: 1 matrix run (2 arms).",
+   "deps": [],
+   "writes": [
+    ".github/workflows/chromium-counts.yml",
+    "docs/team/handoffs/layer-path-probe.md",
+    "lean/Fw/Measure/PathProbe.lean",
+    "packages/contracts/golden/measure/path-probe.jsonl",
+    "packages/measure-chromium/src/layer-dump.mjs",
+    "packages/measure-chromium/src/run.mjs",
+    "research/notes/2026/10-20-layer-path-probe.md",
+    "results/layer-path-probe/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "notes-scroll-idem",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Skip the redundant pain.notes React commit on covered scroll frames [script S2] — At most -1 non-rAF FunctionCall per covered scroll frame: about -250 per swipe profile, plus one React render's script time per frame. NOT confirmed: the frame-225 step also brings other work (commission). A single-arm run measures it.",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/pain.notes/driver.ts",
+    "apps/site/src/parts/pain.notes/part.json",
+    "docs/team/handoffs/notes-scroll-idem.md",
+    "lean/Fw/Parts/PainNotesGolden.lean",
+    "lean/Fw/Parts/PainNotesOpt.lean",
+    "research/notes/2026/10-20-notes-scroll-idem.md",
+    "results/notes-scroll-idem/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml",
+    "apps/site/src/parts/pain.notes/index.tsx",
+    "apps/site/src/parts/pain.notes/logic.test.ts",
+    "packages/contracts/golden/parts/pain.notes.jsonl"
+   ],
+   "evidence": "95a4dfd"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "mui-css-site-only",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Ship only the MUI rules the site renders (mui.css 199.6 KB → 1.4 KB) [load L1] — Load window only. MEASURED static (local dist; recheck on the CI artifact): mui.css 199,629 → 1,437 B, gz 8,229 → 581, 736 → 6 rules, 174 → 1 @media. Emotion ids 240 → about 4 is INFERRED until gate (a) passes. Profile =o. Load ms INFERRED until the load-window lane exists.",
+   "deps": [],
+   "writes": [
+    "apps/site/scripts/build.mjs",
+    "apps/site/src/Census.tsx",
+    "apps/site/src/entry-server.tsx",
+    "docs/team/handoffs/mui-css-site-only.md",
+    "lean/Fw/Site/SheetPrune.lean",
+    "packages/contracts/golden/site/sheet-prune.jsonl",
+    "research/notes/2026/10-20-mui-css-site-only.md",
+    "results/mui-css-site-only/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-idle-none",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Remove the paused morph track animations while the scene is paused (idle-none) [paint PC4 (amends R3 scope)] — MEASURED, Chromium swipe base 39309334426: tracks 1146 + cols 764 = 1910 of 28107 layer-frames (6.8%), across 382 snapshots in frames 117-502; tail zone 145 of 2243. The veil and backdrop may also merge (INFERRED, not claimed). Touch and WebKit are not attributed.",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/morph.columns/index.tsx",
+    "apps/site/src/parts/morph.columns/morph.module.css",
+    "apps/site/src/parts/morph.columns/part.json",
+    "docs/team/handoffs/morph-idle-none.md",
+    "lean/Fw/Parts/MorphIdleNone.lean",
+    "packages/contracts/golden/parts/morph-idle-none.jsonl",
+    "research/notes/2026/10-20-morph-idle-none.md",
+    "results/morph-idle-none/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-pause-rule",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Port the original's paused-scene rule to hero (will-change auto off-screen) [webkit W2a (split from W2 = R5)] — MEASURED, WebKit census at 430x775 (39309416016 vs original 39318078000): 136-145 vs 42-47 layers at y 3000/4500, and 124-128 vs 30 at y=5267. The hero has 87 descendant layers (80 face spans composited for willChange+stacking, 4 deck cards, 2 cue), 0.75 MB. INFERRED: up to about -87 Web",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/hero.countdown/hero.module.css",
+    "apps/site/src/parts/hero/index.tsx",
+    "apps/site/src/parts/hero/part.json",
+    "docs/team/handoffs/hero-pause-rule.md",
+    "lean/Fw/Parts/HeroScenePause.lean",
+    "packages/contracts/golden/parts/hero-scene-pause.jsonl",
+    "research/notes/2026/10-20-hero-pause-rule.md",
+    "results/hero-pause-rule/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trace-attribution-mode",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Chromium attribution trace mode: who dirties layout/style and who forces passes [layout L2 + style S4 (diagnostics merged)] — No count win. It attributes three things: the 3-5 UpdateLayoutTree passes per frame on current main (39314340270/39314368756); the full-chain Layout windows; and whether the hero accent passes share frames with dirty sources outside the hero. That last answer sizes hero-rel",
+   "deps": [
+    "layer-path-probe"
+   ],
+   "writes": [
+    ".github/workflows/chromium-counts.yml",
+    "docs/team/handoffs/trace-attribution-mode.md",
+    "lean/Fw/Measure/TraceAttribution.lean",
+    "packages/contracts/golden/measure/attribution.jsonl",
+    "packages/measure-chromium/src/attribution.mjs",
+    "packages/measure-chromium/src/run.mjs",
+    "packages/measure-chromium/src/trace.mjs",
+    "research/notes/2026/10-20-trace-attribution-mode.md",
+    "results/trace-attribution-mode/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "load-window-lane",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "title": "Separate load-window trace session in chromium-counts [load L4 (enabler)] — No page win. It turns load-time claims (mui-css-site-only, breakpoints-named-import, one-sheet) from INFERRED into MEASURED, for deterministic size and count keys only.",
+   "deps": [
+    "trace-attribution-mode"
+   ],
+   "writes": [
+    "docs/team/handoffs/load-window-lane.md",
+    "lean/Fw/Measure/Windows.lean",
+    "packages/contracts/golden/measure/windows.jsonl",
+    "packages/measure-chromium/classes.frozen.json",
+    "packages/measure-chromium/src/load-trace.mjs",
+    "packages/measure-chromium/src/run.mjs",
+    "research/notes/2026/10-20-load-window-lane.md",
+    "results/load-window-lane/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "typing-avatar-fill",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Release the finished typing avatar-pop animation (explicit from, fill none) [paint PC2] — MEASURED in 39309334426/39309340297: the filled avatar layer (owner 537) holds 1.0 opacity in frames 301-502, about 198 layer-frames. The message layer (owner 539, Overlap only) may also go: INFERRED, up to 2 tail layers. Chromium only.",
+   "deps": [
+    "fill-release-platform"
+   ],
+   "writes": [
+    "apps/site/src/parts/commission.typing/part.json",
+    "apps/site/src/parts/commission.typing/typing.module.css",
+    "docs/team/handoffs/typing-avatar-fill.md",
+    "lean/Fw/Parts/CommissionTypingFill.lean",
+    "packages/contracts/golden/parts/typing-avatar-fill.jsonl",
+    "research/notes/2026/10-20-typing-avatar-fill.md",
+    "results/typing-avatar-fill/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-relayout-boundary",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "contain: size layout on the sticky .hero (relayout boundary), combined with R1 [layout L1] — UNPROVEN. Upper bound 0 to about 123k totalObjects of 335,770 on swipe (0-37%), and dirty 0 to -770. Reached only if the accent draw-in passes have no dirty source outside the hero in the same frame. WebKit is source-only.",
+   "deps": [
+    "hero-pause-rule"
+   ],
+   "writes": [
+    "apps/site/src/parts/hero.exit/hero.module.css",
+    "apps/site/src/parts/hero.exit/part.json",
+    "docs/team/handoffs/hero-relayout-boundary.md",
+    "lean/Fw/Parts/HeroContainOpt.lean",
+    "packages/contracts/golden/parts/hero-contain.jsonl",
+    "research/notes/2026/10-20-hero-relayout-boundary.md",
+    "results/hero-relayout-boundary/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-nav-scope",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Scope the nav-side morph tween to an explicit-inherit reader chain [style S2] — UNMEASURED and possibly small. The tween costs about 113 elements per frame (faithful) and about 231 (waapi). The bound is the nav subtree (panel included) minus the chain and Chromium's chain children. A DOM census decides.",
+   "deps": [
+    "tween-platform-scope"
+   ],
+   "writes": [
+    "apps/site/src/parts/morph.panel/morph.module.css",
+    "apps/site/src/parts/morph.tween/index.tsx",
+    "apps/site/src/parts/morph.tween/waapi.logic.ts",
+    "apps/site/src/parts/nav/nav.module.css",
+    "docs/team/handoffs/morph-nav-scope.md",
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
+    "research/notes/2026/10-20-morph-nav-scope.md",
+    "results/morph-nav-scope/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "one-sheet",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Merge the pruned MUI sheet and the app CSS into one stylesheet [load L3] — MEASURED shape: linkSheets 2 → 1. Load-only: one fewer request (fetched in parallel), one fewer small parse; Chromium also builds one fewer RuleSet, WebKit does not. INFERRED near zero on CI.",
+   "deps": [
+    "mui-css-site-only"
+   ],
+   "writes": [
+    "apps/site/scripts/build.mjs",
+    "docs/team/handoffs/one-sheet.md",
+    "lean/Fw/Site/SheetPrune.lean",
+    "research/notes/2026/10-20-one-sheet.md",
+    "results/one-sheet/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "root-touch-events",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Drop React's passive root touchstart/touchmove listeners [script S4] — INFERRED upper bound ≤ -960 FunctionCall on the touch profile, 0 on swipe. Unattributed: EventDispatch is equal across touch and swipe. Re-measure after R8.",
+   "deps": [
+    "react-root-quiet-events"
+   ],
+   "writes": [
+    "apps/site/src/entry-client.tsx",
+    "apps/site/src/parts/engine.events/part.json",
+    "docs/team/handoffs/root-touch-events.md",
+    "lean/Fw/Parts/ReactRootOpt.lean",
+    "research/notes/2026/10-20-root-touch-events.md",
+    "results/root-touch-events/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "nav-oof-root-finding",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "No containment boundary can scope a relayout that starts at the fixed nav [layout L3 (negative finding)] — None (negative finding). Run 39292323514 frames 498-530, r1-r3 identical: 33 passes, dirty 1077, 32 per pass, partial 0. The nav attribution is INFERRED. The no-rAF tail restyle goes to tween-platform-scope.",
+   "deps": [],
+   "writes": [
+    "docs/team/handoffs/nav-oof-root-finding.md",
+    "lean/Fw/Parts/NavOofRoot.lean",
+    "research/notes/2026/10-20-nav-oof-root-finding.md",
+    "results/nav-oof-root-finding/**",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/**",
+    "refs/upstream/sources.lock.yaml",
+    ".github/workflows/lean.yml"
+   ],
+   "evidence": "1e82ca4"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scrub-session-paths",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "scripts/scrub.mjs also refuses Claude session paths (/private/tmp/claude-<uid>/-Users-<name>-..., any '-Users-<name>-' form) and the local account name read at run time; a review found the account name in a pushed note (10-17-sim-speed-review.md:104, fixed) that the /(Users|home)/<name>/ rule missed",
+   "deps": [],
+   "writes": [
+    "scripts/scrub.mjs",
+    "scripts/scrub.test.mjs",
+    "docs/team/handoffs/scrub-session-paths.md",
+    "docs/team/tools/land.md"
+   ],
+   "evidence": "f1f9d08"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-proxy-direct",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "Preview without the root-path 302: preview-e2e's controls show the console proxy's Referer-routed 302 for root-absolute /_app/ imports makes WebKit (the phone's engine) fail real module imports (proxy-only arm; raw and tap-only clean). Decide in Lean a design with no redirect (e.g. each preview arm on its own origin/port so root paths resolve natively; identity over Referer inference), keep the owner gate and grants per origin, assert zero rejections in both engines, add a WebKit client-side navigation check; rename the suite check to webkit-proxy-preload-cancel-observed until removed, strict attribution check, review doc/comment fixes",
+   "deps": [
+    "preview-e2e"
+   ],
+   "writes": [
+    "apps/console-api/src/preview/**",
+    "apps/console-api/src/app.ts",
+    "apps/console-api/test/preview*.test.ts",
+    "lean/Fw/Console/Preview*.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/console/**",
+    "packages/e2e-preview/**",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/console*.ts",
+    "apps/runner/test/preview-e2e-selection.test.ts",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/tools/console.md",
+    "research/notes/2026/10-20-preview-proxy-direct.md",
+    "docs/team/handoffs/preview-proxy-direct.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "apps/console-api/src/main.ts",
+    "apps/console-api/test/arm-rig.ts",
+    "apps/console-api/test/builds.test.ts",
+    "apps/console-api/test/lan-owner.test.ts",
+    "docs/team/tools/preview-grant.md",
+    "lean/Fw/Ops/Golden.lean"
+   ],
+   "evidence": "caf56d6"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scrub-session-paths-r2",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "scrub review follow-ups: encoded-home trailing and glued forms, rules on file paths, override only under FW_SCRUB_TEST, GENERIC exported, scrub tests run on CI",
+   "deps": [
+    "scrub-session-paths"
+   ],
+   "writes": [
+    "scripts/scrub.mjs",
+    "scripts/scrub.test.mjs",
+    "scripts/test-scrub.mjs",
+    ".github/workflows/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/scrub-session-paths-r2.md",
+    "apps/runner/test/scrub.test.ts",
+    "apps/runner/src/land.ts",
+    "lean/scripts/*Golden.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean"
+   ],
+   "evidence": "86d84f3"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-fail-wins",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "Land gate: a lane run that completed with conclusion failure for the wanted sha+digest is always fail (refuse), whatever exit code fw ci wait returned; the remote verdict and its reason are printed in the VERDICT output and the land log. Incident: preview-e2e landed 2026-10-19T23:08Z after run 39338755874 failed (fallback to local, suites passed here)",
+   "deps": [
+    "land-wait"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-remote.test.ts",
+    "lean/Fw/Console/LandRemote.lean",
+    "packages/contracts/golden/console/land-remote.jsonl",
+    "lean/scripts/*Golden.lean",
+    "packages/gh-budget/src/wait.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-remote-fail-wins.md",
+    "apps/runner/src/run.ts",
+    "packages/gh-budget/src/index.ts",
+    "lean/Fw/Wire/Console.lean"
+   ],
+   "evidence": "e6277c6"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-followups",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "land-remote-fail-wins review lows: a test of cachedLaneView on real runs-status/jobs.json shapes; abort seen during a budget sleep in chargedGh; poll deadline capped by the overall awaitRemote deadline; a note when the filtered list is empty or the view is another workflow; exact deadline/signal assertions",
+   "deps": [
+    "land-remote-fail-wins"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/run.ts",
+    "apps/runner/test/land-remote.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-remote-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-lane-speed",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "Land wall time after land-wait: measure where a land spends time (local tier, remote push, queue, land.yml setup incl. gate-engine/playwright install, fwcore build, suites per package) from obs spans and run timings of today's lands; cut it without moving work back to this Mac (cache what is rebuilt, install browsers only when the browser lane is selected, run suites as parallel jobs, overlap local and remote tiers); Lean decides any new selection rule; before/after MEASURED on CI",
+   "deps": [
+    "land-remote-fail-wins"
+   ],
+   "writes": [
+    ".github/workflows/land.yml",
+    ".github/actions/**",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/checks.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Console/LandTier.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean",
+    "lean/scripts/*Golden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/console/**",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/tools/land.md",
+    "research/notes/2026/10-20-land-lane-speed.md",
+    "docs/team/handoffs/land-lane-speed.md",
+    "lean/Fw/Console/LandLegs.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw.lean",
+    "lean/land-legs.txt",
+    "apps/runner/test/preview-e2e-selection.test.ts",
+    "docs/team/tools/preview-e2e.md"
+   ],
+   "evidence": "970c618"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-e2e-entry",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "preview-proxy-direct review: check the real entry path (grant landing and the Builds link /preview/<id>/r|o/ -> arm origin) for 0 rejections/cancels and modules once; LAN lane noise checks; client-nav-o asserts a same-document navigation; rename signature.test.mjs; rig reads backendOff from Lean; admit refuses portBase past 65536 (noPorts); control loads block external URLs; delete unused cache-policy variants",
+   "deps": [
+    "preview-proxy-direct"
+   ],
+   "writes": [
+    "packages/e2e-preview/**",
+    "lean/Fw/Console/Preview*.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "apps/console-api/src/preview/**",
+    "apps/console-api/test/**",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/handoffs/preview-e2e-entry.md",
+    "lean/Fw/Ops/Golden.lean"
+   ],
+   "evidence": "00dac2d"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-legs-followups",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "land-lane-speed review: Lean legsVeto for records without per-job conclusions (legsPass only replays it), drop dead lane filter; stale preview-e2e/checks.ts docs for LANE leg= and per-leg artifacts; webkit leg cache seeded from main (-40..50 s critical path); lane end read from the poller's cached facts; setup-lean/fwcore restore (one-writer cache rules)",
+   "deps": [
+    "land-lane-speed"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/checks.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Console/LandLegs.lean",
+    "lean/scripts/LandLegsGolden.lean",
+    "packages/contracts/golden/console/land-legs.jsonl",
+    ".github/workflows/land.yml",
+    ".github/actions/**",
+    "docs/team/tools/land.md",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/handoffs/land-legs-followups.md",
+    ".github/scripts/cache-key.mjs",
+    ".github/scripts/gate-jobs.test.mjs",
+    "apps/runner/src/land.ts",
+    "docs/team/tools/gate-speed.md"
+   ],
+   "evidence": "30d0c1f"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "notes-idem-preset",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Preset: pain.notes:visible-idem in place of visible (notes-scroll-idem: FunctionCall -733 swipe -16.6%, -720 touch -11.4%, same element values proved; webkit-sim green, FunctionCall quarantined there) after a green full gate run (commission-margin-recur closes the known flake); plus review lows: ReactFiberCommitWork.js:2302-2312 citation, per-frame -3 claim vs 733 total, Layout/UpdateLayoutTree in runs.json, identify the 3 FunctionCalls per skipped commit",
+   "deps": [
+    "notes-scroll-idem",
+    "commission-margin-recur"
+   ],
+   "writes": [
+    "lean/Fw/Preset/**",
+    "packages/contracts/golden/preset/**",
+    "lean/Fw/Parts/PainNotesOpt.lean",
+    "research/notes/2026/10-20-notes-scroll-idem.md",
+    "results/notes-scroll-idem/**",
+    "docs/team/handoffs/notes-idem-preset.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-green-baseline",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "title": "Main's breakpoint gate passes: none of the last 100 breakpoint-gate runs succeeded (known cells: commission margin-inline at sweep stop 0 on Chromium, WebKit sweep:phone-rotation matchMedia not-comparable). Decide in Lean which not-comparable cells are excused (identity: the cell, engine and reason, allowlisted with a theorem that an excused cell never hides a fail) or fix the cell; commission waits on commission-margin-recur; a green gate run on main with run id; tasks then require 'green' instead of 'same not-ok set as base'",
+   "deps": [
+    "commission-margin-recur",
+    "cmr-margin-rect-rule"
+   ],
+   "writes": [
+    "lean/Fw/Gate/**",
+    "lean/scripts/*Golden.lean",
+    "packages/contracts/golden/gate/**",
+    "packages/gate-breakpoints/**",
+    ".github/workflows/breakpoint-gate.yml",
+    "research/notes/2026/10-20-gate-green-baseline.md",
+    "docs/team/tools/gate*.md",
+    "docs/team/handoffs/gate-green-baseline.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cmr-margin-typed-om",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [],
+   "title": "Premise for the commission margin redesign: Typed OM computedStyleMap().get(margin-*) gives the computed value (keyword auto, a percentage, or px for a fixed length) in Chromium and WebKit on CI, also for a node in a content-visibility:auto skipped subtree and under a scaled ancestor; one premise page + Lean premise entry + golden; unit = the verdict per engine x case (pass or refuted, run ids), no gate change",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "packages/premise-tests/**",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "scripts/circleci-fixtures/premise-tests*.json",
+    "lean/scripts/*Golden.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-20-cmr-margin-typed-om.md",
+    "docs/team/handoffs/cmr-margin-typed-om.md"
+   ],
+   "evidence": "1469e6e"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cmr-margin-rect-rule",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [
+    "cmr-margin-typed-om",
+    "commission-margin-recur"
+   ],
+   "title": "Final design round for the commission margin flake: a margin longhand that is non-fixed in both arms (Blink IsLayoutDependent, read by Typed OM per cmr-margin-typed-om) takes the node's rect verdict (identity; not masked, not counted as pass); Lean rule + theorem (cell = rectCell for that unit, = style compare otherwise) + golden; TS twin replayed; >= 3 consecutive no-flag full-gate runs at one commit with commission pass in both engines",
+   "writes": [
+    "packages/gate-breakpoints/src/**",
+    "packages/gate-breakpoints/test/**",
+    "lean/Fw/Gate/**",
+    "lean/Fw.lean",
+    "lean/scripts/*Golden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/gate/**",
+    "research/notes/2026/10-21-cmr-margin-rect-rule.md",
+    "docs/team/handoffs/cmr-margin-rect-rule.md",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/premise-tests/**",
+    "packages/contracts/golden/ops/premise.jsonl"
+   ],
+   "evidence": "14e5202"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cmr-strut-asym",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [
+    "cmr-margin-rect-rule"
+   ],
+   "title": "Investigation (no gate change): why the original reads the stale 0px strut 21/96 loads against the rewrite's 1/96 and why commission rows survives a resize; candidates: when data-*-render lands relative to the first layout, the intrinsic-block-size measure; Blink source cited; result is a finding or a real structural difference",
+   "writes": [
+    "research/notes/2026/10-2*-cmr-strut-asym.md",
+    "docs/team/handoffs/cmr-strut-asym.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gh-budget-watch-expiry",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "The shared CI poller stopped (tooBig) on 2026-10-20 08:40 on a dead branch waiter's sentinel watch (ci/cmr-diag, 37c5a5a6), and again from a stale state.pages (11). Rules: (a) only valid run ids or branch sentinels register; (c) a tick reads at most pageCap pages (no tooBig stop; a stale pages count is capped); real runs unseen in covering lists or uncovered by a full list are dropped with an incident; Lean first, theorems and goldens. Age-based expiry was refused twice (hand constants vs 200 min webkit-sim chain) and is removed; dead-waiter detection moves to gh-budget-waiter-liveness (Fable wf_3916704c-d08)",
+   "writes": [
+    "packages/gh-budget/**",
+    "lean/Fw/Ci/Budget.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "lean/Fw/Wire/**",
+    "packages/contracts/golden/ci/**",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "docs/team/tools/ci-*.md",
+    "research/notes/2026/10-20-gh-budget-watch-expiry.md",
+    "docs/team/handoffs/gh-budget-watch-expiry.md",
+    "lean/Fw/Ci/Wire.lean",
+    "packages/contracts/golden/ci-budget/**",
+    "docs/team/tools/fw-ci.md"
+   ],
+   "evidence": "05f2524"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-unavailable",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "gh-budget-watch-expiry"
+   ],
+   "title": "preview-e2e-entry landed at 08:44 on 2026-10-20 with verdict local reason=remote-unavailable-run-locally because the poller had stopped (tooBig): the remote tier ran on this Mac, against 'a local run is never a result'. Lean Fw.Console.LandRemote: a stopped poller (or no waiter answer) is not 'unavailable' but 'wait': the land holds and retries after fw ci budget --resume, or refuses with a reason; local fallback only for a lane CI cannot run (named in the graph); theorem + golden; the landed commit's CI land run 39355006357 is checked after the fact",
+   "writes": [
+    "lean/Fw/Console/LandRemote.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/land*.ts",
+    "docs/team/tools/land.md",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "research/notes/2026/10-2*-land-remote-unavailable.md",
+    "docs/team/handoffs/land-remote-unavailable.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fw-run-inputs",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Agents cannot dispatch measurement runs with inputs (two optimization refusals on 2026-10-20): Fw.Store.Layout workflowInputs .webkit lists only vms, sessions, fresh_boot (webkit-sim.yml has preset/fw since c5bbc918, target since 5eecc358) and dispatchInputs .webkit = []; profile has no webkit input; fw run has no breakpoint-gate lane and no base --ref. Unit: Lean tables match the workflow files (generated or checked against .github/workflows/*.yml), fw run dispatches chromium-counts, webkit-sim and breakpoint-gate with preset/fw/profile/target/ref, blocked theorems per lane, goldens; the allow rule Bash(pnpm fw run *) handed to the user as a ! command (store-target's handoff left webkit BLOCKED for ci-webkit)",
+   "writes": [
+    "lean/Fw/Store/**",
+    "lean/Fw/Wire/**",
+    "packages/contracts/golden/store/**",
+    "apps/runner/src/run.ts",
+    "apps/runner/test/run*.ts",
+    "docs/team/tools/fw-run.md",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "research/notes/2026/10-2*-fw-run-inputs.md",
+    "docs/team/handoffs/fw-run-inputs.md",
+    "lean/scripts/LaneInputs.lean",
+    "packages/contracts/src/artifacts.ts"
+   ],
+   "evidence": "eabffe0"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gh-budget-waiter-liveness",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "gh-budget-watch-expiry"
+   ],
+   "title": "A watch is kept exactly while its waiter lives: the marker in .git/fw-gh-budget/waiters records pid and the process start time; alive iff kill(pid,0) succeeds and the start time read now (ps -o lstart= or equivalent) equals the recorded one (identity, no heartbeat or age constant; pid reuse fails the token). Lean: sweep(alive) event drops every watch with no live marker with an .orphan incident, inside next before the window; theorems sweep_keeps_alive, sweep_drops_orphan, sweep_total, next_window_from_live; goldens; TS reads the dir (I/O only); tests: dead pid dropped, live kept, reused pid dropped, no register-before-marker gap",
+   "writes": [
+    "packages/gh-budget/**",
+    "lean/Fw/Ci/Budget.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "packages/contracts/golden/ci-budget/**",
+    "docs/team/tools/fw-ci.md",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2*-gh-budget-waiter-liveness.md",
+    "docs/team/handoffs/gh-budget-waiter-liveness.md",
+    "research/notes/2026/10-20-gh-budget-watch-expiry.md"
+   ],
+   "evidence": "8a6610d"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-auto-margin-x",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [
+    "cmr-margin-rect-rule"
+   ],
+   "title": "cmr-margin-rect-rule review: the margin rule hands a non-fixed margin to the node's rect cell, but anchors.json compares only w for commission/inner and commission/rows, so a real centring shift (margin-inline 132px vs 0px at equal width) would pass. Unit: every node whose margin cells the rule decides by rect has x (inline-start offset relative to its parent's content box, in layout space) in its compared dims, decided in Lean from the margin rule (a margin decided by rect implies the inline position is compared), not hand-listed; goldens; >= 1 CI run showing those cells compare x; plus the Premise.lean cv.margin-typed-om binder fix (forall n)",
+   "writes": [
+    "packages/gate-breakpoints/src/**",
+    "packages/gate-breakpoints/test/**",
+    "lean/Fw/Gate/**",
+    "lean/Fw/Wire/Gate*.lean",
+    "packages/contracts/golden/gate/**",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2*-gate-auto-margin-x.md",
+    "docs/team/handoffs/gate-auto-margin-x.md"
    ]
   }
  ],

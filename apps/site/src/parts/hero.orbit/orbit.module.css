@@ -1,6 +1,12 @@
 /* Values restated from the original (assets/2.gBuqKVzi.css:1541-1580 .orbit/.orbit-stage, 2007-2035 and 2031 bands). The
    card itself is in card.module.css. State comes from data attributes the driver sets (data-expand, data-done). */
 @layer parts {
+  [data-exit-scope] .orbit,
+  [data-exit-scope] .stage,
+  [data-exit-scope] .stage3d {
+    --exit-opacity: inherit;
+    --exit-scatter: inherit;
+  }
   .orbit {
     --orbit-fit-scale: 1;
     z-index: 4;

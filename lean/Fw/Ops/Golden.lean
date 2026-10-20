@@ -49,7 +49,7 @@ def wait' (cmd : String) (caps : String) : Json :=
 def wait (cmd : String) : Json := Json.mkObj [("cmd", .str cmd)]
 
 /-- The cases, per op file: (file stem, [(name, request without op)]). -/
-def cases : List (String × List (String × Json)) := [
+def cases (_ : Unit := ()) : List (String × List (String × Json)) := [
   ("ops.spawn", [
     ("named worktree subagent with isolation: allow", spawn "[]" "" "{\"name\":\"lean-ops\",\"role\":\"lean-prover\",\"isolation\":\"worktree\",\"spawner\":\"lead\",\"depth\":0}"),
     ("worktree role without isolation becomes a teammate: deny (I-272 trap)", spawn "[]" "" "{\"name\":\"lean-ops\",\"role\":\"lean-prover\",\"spawner\":\"lead\",\"depth\":0}"),
@@ -384,7 +384,7 @@ def lintCases : List (String × Json) := [
     Json.mkObj [("files", .arr #[Json.mkObj [("path", .str "CLAUDE.md"), ("bytes", toJson 1)]])])]
 
 /-- Golden files outside `ops/`: (directory under `packages/contracts/golden`, op, cases). -/
-def extra : List (String × String × List (String × Json)) := [
+def extra (_ : Unit := ()) : List (String × String × List (String × Json)) := [
   ("lint", "lint.context", lintCases),
   ("plan", "plan.trailers", [
     ("oldest trailer marks done; later ones are duplicates; done and unknown ids are reported", lit "{\"commits\":[{\"sha\":\"s3\",\"body\":\"merge x\\n\\nTask: a\\nTask: c\"},{\"sha\":\"s2\",\"body\":\"Task: b\"},{\"sha\":\"s1\",\"body\":\"subject\\n\\nTask: a\"}],\"tasks\":[{\"id\":\"a\",\"state\":\"claimed\"},{\"id\":\"b\",\"state\":\"done\"}]}"),
@@ -488,6 +488,8 @@ def extra : List (String × String × List (String × Json)) := [
   ("console", "console.previewAdmit", [
     ("the user starts the first preview: the two lowest ports", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[]}"),
     ("a test range: the base moves both ports, the production range is not touched", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"portBase\":47300,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47300,\"op\":47301,\"started\":0}]}"),
+    ("a base whose backend ports would leave the port space is refused noPorts", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"portBase\":64600,\"live\":[]}"),
+    ("the highest base that fits is admitted", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"portBase\":64496,\"live\":[]}"),
     ("the second preview takes the next two", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0}]}"),
     ("a freed port pair is reused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
     ("a third preview is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
@@ -597,7 +599,42 @@ def extra : List (String × String × List (String × Json)) := [
     ("preview port, preview cookie: served", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"path\":\"/preview/a/r/\",\"port\":\"preview\"}"),
     ("preview port, LAN, preview cookie, foreign Host: refused", lit "{\"lan\":true,\"session\":true,\"hostOk\":false,\"path\":\"/preview/a/r/\",\"port\":\"preview\"}"),
     ("preview port, LAN, preview cookie, right Host: served", lit "{\"lan\":true,\"session\":true,\"hostOk\":true,\"path\":\"/preview/a/r/\",\"port\":\"preview\"}"),
+    ("preview port, live grant cookie: a preview path is served", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"path\":\"/preview/a/o/\",\"port\":\"preview\",\"grant\":true,\"grantStarted\":1000,\"now\":2000}"),
+    ("preview port, live grant cookie, LAN host: a preview path is served", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/preview/a/o/\",\"port\":\"preview\",\"grant\":true,\"grantStarted\":1000,\"now\":2000}"),
+    ("preview port, grant cookie, LAN, foreign Host: refused", lit "{\"lan\":true,\"session\":false,\"hostOk\":false,\"path\":\"/preview/a/o/\",\"port\":\"preview\",\"grant\":true,\"grantStarted\":1000,\"now\":2000}"),
+    ("preview port, grant cookie 60 minutes old: refused", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"path\":\"/preview/a/o/\",\"port\":\"preview\",\"grant\":true,\"grantStarted\":1000,\"now\":3601000}"),
+    ("preview port, grant cookie just inside 60 minutes: served", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"path\":\"/preview/a/o/\",\"port\":\"preview\",\"grant\":true,\"grantStarted\":1000,\"now\":3600999}"),
+    ("preview port, grant cookie unknown to the console: refused", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"path\":\"/preview/a/o/\",\"port\":\"preview\",\"grant\":false,\"grantStarted\":1000,\"now\":2000}"),
+    ("preview port, grant: /api is refused", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"path\":\"/api/tasks\",\"port\":\"preview\",\"grant\":true,\"grantStarted\":1000,\"now\":2000}"),
+    ("preview port, grant: /owner is refused", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"path\":\"/owner/logout\",\"port\":\"preview\",\"grant\":true,\"grantStarted\":1000,\"now\":2000}"),
+    ("preview port, grant: the login page is refused", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"path\":\"/owner/login\",\"port\":\"preview\",\"grant\":true,\"grantStarted\":1000,\"now\":2000}"),
+    ("preview port, grant: a root-absolute script path is no preview path (no Referer reading), refused", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"path\":\"/_app/immutable/entry/start.js\",\"port\":\"preview\",\"grant\":true,\"grantStarted\":1000,\"now\":2000}"),
+    ("preview port, grant: a root-absolute path without a preview Referer is refused", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"path\":\"/_app/immutable/entry/start.js\",\"port\":\"preview\",\"grant\":true,\"grantStarted\":1000,\"now\":2000}"),
+    ("preview port, grant: the shell root is refused", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"path\":\"/\",\"port\":\"preview\",\"grant\":true,\"grantStarted\":1000,\"now\":2000}"),
+    ("preview port, session cookie still serves, reported as the session", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"path\":\"/preview/a/o/\",\"port\":\"preview\",\"grant\":true,\"grantStarted\":0,\"now\":99999999}"),
     ("an unknown port is refused", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"path\":\"/\",\"port\":\"x\"}")]),
+  ("console", "console.previewArm", [
+    ("task arm, session cookie: its root-absolute module path goes to its backend unchanged", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"port\":47100,\"path\":\"/_app/immutable/entry/start.js\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("original arm of the same preview", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"port\":47101,\"path\":\"/_app/immutable/entry/start.js\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("second preview, task arm: another backend, never the first preview", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"port\":47102,\"path\":\"/selling/x.png?v=1\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("second preview, original arm", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"port\":47103,\"path\":\"/\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("a port no arm listens on is refused by route", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"port\":47104,\"path\":\"/\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("no cookie and no grant: not allowed", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"port\":47100,\"path\":\"/\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("grant cookie, inside 60 minutes: allowed by grant", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"port\":47100,\"path\":\"/_app/x.js\",\"grant\":true,\"grantStarted\":1000,\"now\":2000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("grant cookie 60 minutes old: not allowed", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"port\":47100,\"path\":\"/\",\"grant\":true,\"grantStarted\":1000,\"now\":3601000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("LAN, session cookie, foreign Host: not allowed", lit "{\"lan\":true,\"session\":true,\"hostOk\":false,\"port\":47100,\"path\":\"/\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("LAN, session cookie, right Host: allowed", lit "{\"lan\":true,\"session\":true,\"hostOk\":true,\"port\":47101,\"path\":\"/index.html\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("an api path on an arm origin is just that arm's file path", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"port\":47100,\"path\":\"/api/board\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}")]),
+  ("console", "console.previewGrant", [
+    ("issue from loopback is allowed", lit "{\"kind\":\"issue\",\"lan\":false}"),
+    ("issue from a LAN address is refused", lit "{\"kind\":\"issue\",\"lan\":true}"),
+    ("redeem: loopback, known, unused, inside ten minutes", lit "{\"kind\":\"redeem\",\"lan\":false,\"known\":true,\"used\":false,\"issuedAt\":1000,\"now\":2000}"),
+    ("redeem: the last millisecond of the ten minutes", lit "{\"kind\":\"redeem\",\"lan\":false,\"known\":true,\"used\":false,\"issuedAt\":1000,\"now\":600999}"),
+    ("redeem: ten minutes are over", lit "{\"kind\":\"redeem\",\"lan\":false,\"known\":true,\"used\":false,\"issuedAt\":1000,\"now\":601000}"),
+    ("redeem: a second use is refused", lit "{\"kind\":\"redeem\",\"lan\":false,\"known\":true,\"used\":true,\"issuedAt\":1000,\"now\":2000}"),
+    ("redeem: a token this console never issued", lit "{\"kind\":\"redeem\",\"lan\":false,\"known\":false,\"used\":false,\"issuedAt\":0,\"now\":2000}"),
+    ("redeem: from a LAN address is refused even with a good token", lit "{\"kind\":\"redeem\",\"lan\":true,\"known\":true,\"used\":false,\"issuedAt\":1000,\"now\":2000}"),
+    ("an unknown kind is refused", lit "{\"kind\":\"x\",\"lan\":false}")]),
   ("console", "console.ownerAction", [
     ("owner action: bearer token and the console origin (own Host)", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47000},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
     ("owner action from a preview page (the preview origin) is refused", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47001},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
@@ -621,6 +658,28 @@ def extra : List (String × String × List (String × Json)) := [
     ("no passphrase in the keychain", lit "{\"want\":true,\"hasAddr\":true,\"hasPass\":false,\"passLen\":0}"),
     ("eleven characters is too short", lit "{\"want\":true,\"hasAddr\":true,\"hasPass\":true,\"passLen\":11}"),
     ("twelve characters starts", lit "{\"want\":true,\"hasAddr\":true,\"hasPass\":true,\"passLen\":12}")]),
+  ("console", "console.daemon", [
+    ("start with nothing recorded is allowed", lit "{\"kind\":\"start\"}"),
+    ("start with a recorded pid that does not answer is allowed (stale file)", lit "{\"kind\":\"start\",\"recorded\":4242}"),
+    ("start while the recorded pid answers is refused", lit "{\"kind\":\"start\",\"recorded\":4242,\"answered\":4242}"),
+    ("start when another pid answers on the recorded port is allowed", lit "{\"kind\":\"start\",\"recorded\":4242,\"answered\":9999}"),
+    ("pid 1 is never a console", lit "{\"kind\":\"start\",\"recorded\":1,\"answered\":1}"),
+    ("start is refused when the recorded pid is alive but did not answer", lit "{\"kind\":\"start\",\"recorded\":4242,\"alive\":true}"),
+    ("a recorded pid that is not alive does not block start", lit "{\"kind\":\"start\",\"recorded\":4242,\"alive\":false}"),
+    ("pid 1 alive and silent blocks nothing", lit "{\"kind\":\"start\",\"recorded\":1,\"alive\":true}"),
+    ("a different pid answered while the recorded one is alive: allowed", lit "{\"kind\":\"start\",\"recorded\":4242,\"answered\":9999,\"alive\":true}"),
+    ("stop signals the verified pid", lit "{\"kind\":\"stop\",\"recorded\":4242,\"answered\":4242}"),
+    ("stop signals nothing when nothing answers", lit "{\"kind\":\"stop\",\"recorded\":4242,\"answered\":null}"),
+    ("stop signals nothing on a pid mismatch", lit "{\"kind\":\"stop\",\"recorded\":4242,\"answered\":9999}"),
+    ("stop signals nothing when nothing is recorded", lit "{\"kind\":\"stop\",\"answered\":4242}"),
+    ("restart of a verified console stops then starts", lit "{\"kind\":\"restart\",\"recorded\":4242,\"answered\":4242}"),
+    ("restart with no verified console only starts", lit "{\"kind\":\"restart\",\"recorded\":4242}"),
+    ("a log below the default limit is kept", lit "{\"kind\":\"rotate\",\"size\":5242879}"),
+    ("a log at the default limit is rotated", lit "{\"kind\":\"rotate\",\"size\":5242880}"),
+    ("a log of exactly 50 MiB draws no warning", lit "{\"kind\":\"rotate\",\"size\":52428800}"),
+    ("a log above 50 MiB draws the warning", lit "{\"kind\":\"rotate\",\"size\":52428801}"),
+    ("a custom limit", lit "{\"kind\":\"rotate\",\"size\":100,\"limit\":100}"),
+    ("an unknown kind is refused", lit "{\"kind\":\"x\"}")]),
   ("console", "console.previewSweep", [
     ("nothing live", lit "{\"now\":10,\"live\":[]}"),
     ("a fresh and a busy preview stay", lit "{\"now\":1000000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0,\"seen\":500000},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":900000}]}"),
@@ -650,7 +709,7 @@ open Fw.Ops.LeanFirst in
 /-- The `ops.leanFirst` cases, all judged at the deployed constant `stage` (a request cannot choose it): the base
 facts (all rules met), each single fault of the grid, the binding, decision-path and read-at-main cases, a request
 `stage` field (ignored), and the decoder edge cases. -/
-def leanFirstCases : List (String × Json) :=
+def leanFirstCases (_ : Unit := ()) : List (String × Json) :=
   let at_ := s!"at the deployed stage {stage.name}"
   [(s!"all rules met {at_}", leanFirstReq base)] ++
   Fault.all.map (fun f => (s!"fault {faultName f} {at_}", leanFirstReq (factsOf [f]))) ++
@@ -680,7 +739,7 @@ def leanFirstCases : List (String × Json) :=
    ("registry row without a status is refused", lit "{\"registry\":[{\"id\":\"p\"}]}")]
 
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
-def named : List (String × String × String × List (String × Json)) := [
+def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [
   ("ops", "lean-first", "ops.leanFirst", leanFirstCases)]
 
 /-- The request with its `op` field set. -/

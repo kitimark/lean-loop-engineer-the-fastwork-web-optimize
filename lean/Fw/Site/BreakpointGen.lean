@@ -19,8 +19,6 @@ open Lean Fw.Site.Breakpoints
 
 /-- Exact decimal JSON number for a terminating fraction, else `{"num","den"}`.
 
-$$ \mathrm{pxJson}(p/q) = \begin{cases} m \cdot 10^{-k} & \text{least } k \le 12 \text{ with } q \mid 10^k p,\ m = 10^k p / q \\ \{p, q\} & \text{otherwise} \end{cases} $$
-
 A CSS length as a JSON number, exactly. -/
 def pxJson (x : Px) : Json :=
   match (List.range 13).find? (fun k => (10 ^ k * x.num) % x.den == 0) with
@@ -34,8 +32,6 @@ def pxJson (x : Px) : Json :=
 
 /-- One catalogue row as JSON.
 
-$$ \mathrm{condJson}(c) = \{\mathrm{id}, \mathrm{tsId}, \mathrm{css}(q), \mathrm{legacyCss}(q), \mathrm{kind}, \mathrm{features}(q), E(q), \mathrm{edgesPx}(q)\} $$
-
 Everything the site and the gate need to know about one condition. -/
 def condJson (c : Entry) : Json :=
   Json.mkObj [
@@ -48,8 +44,6 @@ def condJson (c : Entry) : Json :=
     ("edgesPx", toJson c.query.edgesPx)]
 
 /-- One probe as JSON, with the expected value of all 30 conditions and of the neutral queries.
-
-$$ \mathrm{probeJson}(p) = \{\mathrm{id}, \mathrm{block}, e_p, (\mathrm{ts}_i \mapsto \llbracket q_i \rrbracket_{e_p})_{i<30}, (n \mapsto \llbracket n \rrbracket_{e_p})_{n \in \mathrm{neutral}}\} $$
 
 A golden vector: what `matchMedia` must answer for every condition at this load. -/
 def probeJson (p : Probe) : Json :=
@@ -65,9 +59,7 @@ def probeJson (p : Probe) : Json :=
     ("expect", Json.mkObj (catalogue.map fun c => (c.tsId, toJson (c.query.eval e)))),
     ("expectNeutral", Json.mkObj (neutral.map fun n => (n.tsId, toJson (n.query.eval e))))]
 
-/-- The theorems that back the generated file (the gate may print them).
-
-$$ \mathrm{backing} = (\texttt{MQ.eval\_congr}, \dots, \texttt{matrix\_neutral\_hover\_both\_sides}) $$ -/
+/-- The theorems that back the generated file (the gate may print them). -/
 def backingTheorems : List String := [
   "Fw.Site.Breakpoints.MQ.eval_congr", "Fw.Site.Breakpoints.MQ.eval_ofNat_congr",
   "Fw.Site.Breakpoints.MQ.eval_const_on_band", "Fw.Site.Breakpoints.catalogue_css",
@@ -80,8 +72,6 @@ def backingTheorems : List String := [
 
 /-- The fractional gaps: lower and upper feature, the open pair, and the probe width.
 
-$$ \mathrm{gaps} = \big(\{\mathrm{lower}{=}\mathrm{css}(w \le N),\ \mathrm{upper}{=}\mathrm{css}(w \ge N{+}1),\ \mathrm{open}{=}[N, N{+}1],\ \mathrm{probe}{=}N + \tfrac12\}\big)_{N = 600, 640, 860, 1000} $$
-
 The four gaps the inventory names, with their probes. -/
 def gapsJson : Json :=
   .arr (#[600, 640, 860, 1000].map fun n =>
@@ -90,10 +80,8 @@ def gapsJson : Json :=
 
 /-- The generated document.
 
-$$ \mathrm{genJson} = \{\mathrm{schema}{=}\texttt{fw.breakpoints.gen/1},\ \mathrm{generatedBy},\ \mathrm{inventory},\ \mathrm{backingTheorems},\ \mathrm{conditions},\ \mathrm{edgePairs},\ \mathrm{fractionalGaps},\ \mathrm{neutral},\ \mathrm{matrix}\} $$
-
 The single source the site and the breakpoint gate consume. -/
-def genJson : Json :=
+def genJson (_ : Unit := ()) : Json :=
   Json.mkObj [
     ("schema", .str "fw.breakpoints.gen/1"),
     ("generatedBy", .str "lean/Fw/Site/BreakpointGen.lean (Fw.Site.BreakpointGen.genJson); do not edit"),
@@ -118,24 +106,16 @@ def genJson : Json :=
 
 /-! ## Checking against the inventory -/
 
-/-- Read `j[k]` (or `null`).
-
-$$ \mathrm{getK}(j, k) = \begin{cases} j[k] & k \in j \\ \mathrm{null} & \text{otherwise} \end{cases} $$ -/
+/-- Read `j[k]` (or `null`). -/
 def getK (j : Json) (k : String) : Json := (j.getObjVal? k).toOption.getD .null
 
-/-- A JSON list of naturals, if it is one.
-
-$$ \mathrm{natList}(j) = \begin{cases} (n_1,\dots,n_k) & j = [n_1,\dots,n_k],\ n_i \in \mathbb{N} \\ \bot & \text{otherwise} \end{cases} $$ -/
+/-- A JSON list of naturals, if it is one. -/
 def natList (j : Json) : Option (List Nat) := (fromJson? j : Except String (List Nat)).toOption
 
-/-- A JSON list of strings, if it is one.
-
-$$ \mathrm{strList}(j) = \begin{cases} (s_1,\dots,s_k) & j = [s_1,\dots,s_k],\ s_i \text{ strings} \\ \bot & \text{otherwise} \end{cases} $$ -/
+/-- A JSON list of strings, if it is one. -/
 def strList (j : Json) : Option (List String) := (fromJson? j : Except String (List String)).toOption
 
 /-- Mismatches of one catalogue row against its inventory row (empty when equal).
-
-$$ \mathrm{checkCond}(c, r) = [\,] \iff r.\mathrm{id} = c.\mathrm{id} \land r.\mathrm{condition} = \mathrm{css}(q) \land r.\mathrm{kind} = \mathrm{str}(\kappa) \land r.\mathrm{features} = \mathrm{features}(q) \land r.\mathrm{edges} = [(\mathrm{str}(a), [N, N{+}1])]_{(a,N) \in E(q)} \land r.\mathrm{edges\_px} = \mathrm{edgesPx}(q) \land \big((\exists s \in r.\mathrm{equivalentForms}.\ s \text{ starts with } \texttt{(}) \Rightarrow \mathrm{legacy}(q) \ne \bot \land \mathrm{legacy}(q) \in r.\mathrm{equivalentForms}\big) $$
 
 (Each equality requires the inventory field to have the right JSON type; an `equivalentForms` that is not a list of
 strings counts as empty.) -/
@@ -166,9 +146,7 @@ def checkCond (c : Entry) (inv : Json) : List String :=
 
 /-- Every mismatch between the Lean catalogue / matrix and the inventory document (empty when they agree).
 
-$$ \mathrm{checkInventory}(I) = [\,] \iff |R| = 30 \land \forall i < 30.\ \mathrm{checkCond}(c_i, R_i) = [\,] \land I.\mathrm{edgePairs} = [[N,N{+}1]]_{N \in \mathrm{widthEdgePairs}} \land I.\mathrm{deviceWidthPairs} = [[500,501]] \land I.\text{touch-rm.at} = [[N,N{+}1]]_{N \in \mathrm{touchRmEdges}} \land I.\mathrm{estimate.loadsPerEngine} = |M| \land \forall (b,n) \in \mathrm{blockBreakdown}.\ I.\mathrm{estimate.breakdown}[b] = n $$
-
-Here $R$ is the list of `I.conditions` rows whose id starts with `mq.`, in order, $c_i$ is the $i$-th catalogue
+Here `R` is the list of `I.conditions` rows whose id starts with `mq.`, in order, `c_i` is the `i`-th catalogue
 entry, and every `I.*` field other than `conditions` is read under `I.matrix` (`touch-rm.at` is the `at` field of
 the `featureCombos.profiles` entry with id `touch-rm`).
 
@@ -197,8 +175,6 @@ def checkInventory (inv : Json) : List String :=
 
 /-- fwcore op body `breakpoints.gen`: `{inventory?: <breakpoints.json object>}` → `{gen, mismatches}`.
 
-$$ \mathrm{op}(\mathit{req}) = \mathrm{ok}\,\{\mathrm{gen} = \mathrm{genJson},\ \mathrm{mismatches} = \begin{cases} \mathrm{checkInventory}(\mathit{req}.\mathrm{inventory}) & \text{inventory} \in \mathit{req} \\ [\,] & \text{otherwise} \end{cases}\} $$
-
 The result is always `ok`; a request without an `inventory` key (or one that is not a JSON object) gets no
 mismatches. -/
 def opBreakpointsGen (req : Json) : Except String (List (String × Json)) := do
@@ -207,9 +183,7 @@ def opBreakpointsGen (req : Json) : Except String (List (String × Json)) := do
     | .error _ => []
   pure [("gen", genJson), ("mismatches", toJson mism)]
 
-/-- The value after the first occurrence of flag `key` that has a successor in the argument list.
-
-$$ \mathrm{argOf}(l, k) = \begin{cases} l_{i+1} & i = \min\{i \mid l_i = k,\ i+1 < |l|\} \\ \bot & \text{no such } i \end{cases} $$ -/
+/-- The value after the first occurrence of flag `key` that has a successor in the argument list. -/
 def argOf : List String → String → Option String
   | k :: v :: rest, key => if k == key then some v else argOf (v :: rest) key
   | _, _ => none
@@ -219,16 +193,12 @@ def argOf : List String → String → Option String
 
 /-- The exact bytes of the generated file: `genJson` pretty-printed at width 120, newline-terminated.
 
-$$ \mathrm{genText} = \mathrm{pretty}_{120}(\mathrm{genJson}) \mathbin{+\!\!+} \text{newline} $$
-
 What `breakgen` prints and what `--check` compares against. -/
-def genText : String := genJson.pretty 120 ++ "\n"
+def genText (_ : Unit := ()) : String := genJson.pretty 120 ++ "\n"
 
 /-- Command-line driver of `lake exe breakgen [--inventory <breakpoints.json>] [--check <file>]`: without
 `--check` it prints the generated JSON to stdout; with `--check <file>` it fails when the file's bytes differ from
 the generated text; with `--inventory` it first fails on any mismatch against the inventory.
-
-$$ \mathrm{run}(\mathit{args}) = \begin{cases} 2 & \texttt{--inventory } P \text{ given} \land P \text{ does not parse as JSON} \\ 1 & \texttt{--inventory } P \text{ given} \land \mathrm{checkInventory}(I_P) \ne [\,] \\ 0 & \text{else if } \texttt{--check } f \text{ given} \land \mathrm{bytes}(f) = \mathrm{utf8}(\mathrm{genText}) \\ 1 & \text{else if } \texttt{--check } f \text{ given} \\ 0,\ \text{stdout} := \mathrm{genText} & \text{otherwise} \end{cases} $$
 
 (An unreadable file raises an IO error; flags are found by `argOf`.) -/
 def run (args : List String) : IO UInt32 := do

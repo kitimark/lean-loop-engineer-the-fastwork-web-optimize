@@ -9,9 +9,9 @@ is declared: a stylesheet rule, an inline style, an ancestor it is inherited fro
 (the initial value). Values are written down by a browser, not typed in, so a port value cannot be transcribed wrong.
 The dataset is `packages/contracts/golden/site/reference-<engine>.jsonl` (schema `fw.snapshot-extract.reference/1`).
 
-Notation. $E$ = the environments of the dataset (indices $0..n-1$, widths $w_i$); a cell is
-$c = (\mathrm{part}, \mathrm{role}, \mathrm{prop}, v, s)$ with $v_i \in \mathrm{String}_\bot$ (the computed value in
-environment $i$, $\bot$ = the element is absent) and $s_i \in \mathrm{Source}_\bot$ (where it is declared).
+Notation. `E` = the environments of the dataset (indices `0..n-1`, widths `w_i`); a cell is
+`c = (part, role, prop, v, s)` with `v_i ∈ String_⊥` (the computed value in
+environment `i`, `⊥` = the element is absent) and `s_i ∈ Source_⊥` (where it is declared).
 
 Premise (empirical, not provable here): the extraction is a deterministic function of the snapshot and the engine
 version. It is tested by the CI jobs of `.github/workflows/snapshot-extract.yml` (three independent runs per engine, a
@@ -26,8 +26,6 @@ open Lean
 
 /-- The two engines the reference is extracted in.
 
-$$ \mathrm{Engine} = \{\mathrm{chromium},\ \mathrm{webkit}\} $$
-
 Chromium is Chrome Headless Shell; WebKit is Playwright's WebKit build. -/
 inductive Engine where
   | chromium
@@ -36,10 +34,8 @@ inductive Engine where
 
 /-- Where a computed value comes from.
 
-$$ \mathrm{Source} = \mathrm{rule}(\mathrm{sheet}, m, i) \mid \mathrm{inline} \mid \mathrm{inherited}(a, u) \mid \mathrm{initial} $$
-
 A winning stylesheet rule (with whether it sits in an `@media` block and whether it is `!important`), an inline style, the
-nearest ancestor $a$ (a tag name) that declares the property, $u$ levels up, or nothing set (the initial or user-agent value). -/
+nearest ancestor `a` (a tag name) that declares the property, `u` levels up, or nothing set (the initial or user-agent value). -/
 inductive Source where
   | rule (sheet : String) (media imp : Bool)
   | inline
@@ -48,8 +44,6 @@ inductive Source where
   deriving DecidableEq, Repr
 
 /-- One probed (part, role, property): its value and source in every environment.
-
-$$ c = (p, r, q, v, s),\quad v, s \text{ indexed by the environments} $$
 
 `none` means the element does not exist in that environment. -/
 structure Cell where
@@ -62,8 +56,6 @@ structure Cell where
 
 /-- The count row of a role: how many elements the selector matched in each environment.
 
-$$ \mathrm{RoleRow} = (p, r, [n_0, \dots, n_{m-1}]) \in \mathrm{String} \times \mathrm{String} \times (\mathbb{N} \cup \{\bot\})^{*},\quad n_i = |\{\text{elements matching the role's selector in environment } i\}| \text{ or } \bot $$
-
 `none` means the role was not measured in that environment. -/
 structure RoleRow where
   part : String
@@ -72,8 +64,6 @@ structure RoleRow where
   deriving DecidableEq, Repr
 
 /-- A dataset: one engine, the widths of its environments, the role rows and the cells.
-
-$$ D = (e, (w_i)_{i<n}, \mathrm{roles}, \mathrm{cells}) $$
 
 The environment index is the position in `widths`. -/
 structure Dataset where
@@ -85,14 +75,10 @@ structure Dataset where
 
 /-- The key of a cell.
 
-$$ \mathrm{key}(c) = (\mathrm{part}, \mathrm{role}, \mathrm{prop}) $$
-
 Two cells of one dataset never share a key (the extractor emits each once). -/
 def Cell.key (c : Cell) : String × String × String := (c.part, c.role, c.prop)
 
 /-- The cell of a dataset with the given key, if any.
-
-$$ \mathrm{find}(D, k) = \text{the first cell of } D \text{ with key } k \text{, or } \bot $$
 
 A lookup by (part, role, property). -/
 def Dataset.find? (d : Dataset) (k : String × String × String) : Option Cell :=
@@ -100,16 +86,12 @@ def Dataset.find? (d : Dataset) (k : String × String × String) : Option Cell :
 
 /-- The keys of a dataset, in order.
 
-$$ \mathrm{keys}(D) = [\mathrm{key}(c)]_{c \in D} $$
-
 Every probed (part, role, property) of the dataset. -/
 def Dataset.keys (d : Dataset) : List (String × String × String) := d.cells.map Cell.key
 
 /-! ## Inheritance from `body` -/
 
 /-- A source is inheritance from `body`.
-
-$$ \mathrm{fromBodyB}(s) = [\exists u.\ s = \mathrm{inherited}(\text{body}, u)] $$
 
 The nearest ancestor that declares the property is the `body` element. -/
 def Source.fromBodyB : Source → Bool
@@ -119,15 +101,11 @@ def Source.fromBodyB : Source → Bool
 /-- A cell is inherited from `body`: in every environment where the element exists, its value comes from `body`'s own
 declaration, and the element exists in at least one.
 
-$$ \mathrm{inheritedFromBody}(c) \iff (\exists i.\ s_i \ne \bot) \land (\forall i.\ s_i = \bot \lor \exists u.\ s_i = \mathrm{inherited}(\text{body}, u)) $$
-
 This is the case the port misses when it never sets `body`'s colour or font. -/
 def inheritedFromBody (c : Cell) : Prop :=
   (∃ s ∈ c.srcs, s ≠ none) ∧ ∀ s ∈ c.srcs, ∀ x, s = some x → x.fromBodyB = true
 
 /-- The Boolean test of `inheritedFromBody`.
-
-$$ \mathrm{inheritedFromBodyB}(c) = [\exists i.\ s_i \ne \bot] \land [\forall i.\ s_i = \bot \lor s_i \text{ is from body}] $$
 
 A decidable form for `#guard` and the report. -/
 def inheritedFromBodyB (c : Cell) : Bool :=
@@ -135,8 +113,6 @@ def inheritedFromBodyB (c : Cell) : Bool :=
     c.srcs.all (fun s => match s with | none => true | some x => x.fromBodyB)
 
 /-- The Boolean test decides the proposition.
-
-$$ \forall c.\ \mathrm{inheritedFromBodyB}(c) = \mathrm{true} \iff \mathrm{inheritedFromBody}(c) $$
 
 So a checked fact about the data is the inheritance statement itself. -/
 theorem inheritedFromBodyB_iff (c : Cell) : inheritedFromBodyB c = true ↔ inheritedFromBody c := by
@@ -162,15 +138,11 @@ theorem inheritedFromBodyB_iff (c : Cell) : inheritedFromBodyB c = true ↔ inhe
 
 /-- The cell of `body` for the same property (the `engine.scroll` part, role `content`).
 
-$$ \mathrm{bodyCell}(D, q) = \mathrm{find}(D, (\text{engine.scroll}, \text{content}, q)) $$
-
 The anchor of the reference: `body` is the element whose own declarations the others inherit. -/
 def Dataset.bodyCell (d : Dataset) (prop : String) : Option Cell :=
   d.find? ("engine.scroll", "content", prop)
 
 /-- A cell inherited from `body` has a `body` cell that declares the property itself, in some environment.
-
-$$ \mathrm{bodyDeclaresB}(D, c) = [\exists b.\ \mathrm{bodyCell}(D, q) = b \land \exists i.\ s^b_i \in \{\mathrm{rule}, \mathrm{inline}\}] $$
 
 Well-formedness of an extraction: "inherited from body" must have a declaring `body` behind it. -/
 def Dataset.bodyDeclaresB (d : Dataset) (c : Cell) : Bool :=
@@ -182,16 +154,12 @@ def Dataset.bodyDeclaresB (d : Dataset) (c : Cell) : Bool :=
 
 /-- The two engines agree on a cell: same value in every environment.
 
-$$ \mathrm{Agree}(a, b) \iff v^a = v^b $$
-
 Sources are compared separately (`Split.sourceDiffers`). -/
 def Agree (a b : Cell) : Prop := a.vals = b.vals
 
 instance (a b : Cell) : Decidable (Agree a b) := inferInstanceAs (Decidable (a.vals = b.vals))
 
 /-- How one key reads in the two engines.
-
-$$ \mathrm{Split} = \mathrm{agree} \mid \mathrm{valueDiffers} \mid \mathrm{sourceDiffers} \mid \mathrm{onlyChromium} \mid \mathrm{onlyWebkit} $$
 
 `agree`: same values and same sources. `valueDiffers`: some environment has different values. `sourceDiffers`: same values,
 different declared sources. `onlyChromium` / `onlyWebkit`: the key exists in one engine only. -/
@@ -205,8 +173,6 @@ inductive Split where
 
 /-- The class of one key, given its cell in each engine.
 
-$$ \mathrm{classify}(a, b) = \begin{cases} \mathrm{valueDiffers} & v^a \ne v^b \\ \mathrm{sourceDiffers} & v^a = v^b,\ s^a \ne s^b \\ \mathrm{agree} & v^a = v^b,\ s^a = s^b \text{ (or both absent)} \\ \mathrm{onlyChromium} / \mathrm{onlyWebkit} & \text{one cell absent} \end{cases} $$
-
 A total function: every key lands in exactly one class. -/
 def classify (a b : Option Cell) : Split :=
   match a, b with
@@ -217,8 +183,6 @@ def classify (a b : Option Cell) : Split :=
     if x.vals ≠ y.vals then .valueDiffers else if x.srcs ≠ y.srcs then .sourceDiffers else .agree
 
 /-- **The cross-engine split.** Every key falls in exactly one class, and each class means what its name says.
-
-$$ \begin{aligned} \mathrm{classify}(a,b) = \mathrm{valueDiffers} &\iff \exists x\,y.\ a = x \land b = y \land v^x \ne v^y \\ \mathrm{classify}(a,b) = \mathrm{sourceDiffers} &\iff \exists x\,y.\ a = x \land b = y \land v^x = v^y \land s^x \ne s^y \\ \mathrm{classify}(a,b) = \mathrm{agree} &\iff (a = \bot \land b = \bot) \lor \exists x\,y.\ a = x \land b = y \land v^x = v^y \land s^x = s^y \\ \mathrm{classify}(a,b) = \mathrm{onlyChromium} &\iff a \ne \bot \land b = \bot \\ \mathrm{classify}(a,b) = \mathrm{onlyWebkit} &\iff a = \bot \land b \ne \bot \end{aligned} $$
 
 Used on the original itself: where Chromium and WebKit disagree about the same page (for example the stage background),
 the disagreement is in the original, not in our port. -/
@@ -242,9 +206,7 @@ theorem crossEngine_split (a b : Option Cell) :
 
 /-- Counting form of the split: the five classes of a key list cover it, without overlap.
 
-$$ \forall f\,K.\ |K| = \sum_{c \in \mathrm{Split}} |\{k \in K : f(k) = c\}| $$
-
-For any classifier $f$ into the five classes, the five class counts add up to the number of keys. -/
+For any classifier `f` into the five classes, the five class counts add up to the number of keys. -/
 theorem split_partition {α : Type} (f : α → Split) (ks : List α) :
     ks.length = (ks.filter (fun k => f k == .agree)).length
       + (ks.filter (fun k => f k == .valueDiffers)).length
@@ -258,14 +220,10 @@ theorem split_partition {α : Type} (f : α → Split) (ks : List α) :
 
 /-- The class of a key in two datasets.
 
-$$ \mathrm{splitOf}(A, B, k) = \mathrm{classify}(\mathrm{find}(A, k), \mathrm{find}(B, k)) $$
-
 Chromium's dataset first, WebKit's second. -/
 def splitOf (a b : Dataset) (k : String × String × String) : Split := classify (a.find? k) (b.find? k)
 
 /-- Every key of either dataset, without repeats of the first's keys.
-
-$$ \mathrm{allKeys}(A, B) = \mathrm{keys}(A) \mathbin{+\!\!+} [k \in \mathrm{keys}(B) : k \notin \mathrm{keys}(A)] $$
 
 The key set the split ranges over. -/
 def allKeys (a b : Dataset) : List (String × String × String) :=
@@ -273,25 +231,19 @@ def allKeys (a b : Dataset) : List (String × String × String) :=
 
 /-- The keys whose class is not `agree`, with the class.
 
-$$ \mathrm{disagreements}(A, B) = [(k, \mathrm{splitOf}(A,B,k)) : k \in \mathrm{allKeys}(A,B),\ \mathrm{splitOf}(A,B,k) \ne \mathrm{agree}] $$
-
 Where the engines read the original differently. -/
 def disagreements (a b : Dataset) : List ((String × String × String) × Split) :=
   ((allKeys a b).map (fun k => (k, splitOf a b k))).filter (fun p => p.2 != .agree)
 
 /-- The parts that contain a disagreement of a given class.
 
-$$ \mathrm{partsWith}(A, B, c) = \operatorname{eraseDups}[\, p \mid ((p, r, q), c') \in \mathrm{disagreements}(A, B),\ c' = c \,] $$
-
-The list keeps the first occurrence of each part, in disagreement order; for $c = \mathrm{agree}$ it is $[\,]$.
+The list keeps the first occurrence of each part, in disagreement order; for `c = agree` it is `[]`.
 
 The part-level view used in the findings (for example `platform.stageBg`). -/
 def partsWith (a b : Dataset) (c : Split) : List String :=
   ((disagreements a b).filter (fun p => p.2 == c)).map (fun p => p.1.1) |>.eraseDups
 
 /-- A disagreement is exactly a key whose class is not `agree`.
-
-$$ \forall A\,B\,k\,c.\ (k, c) \in \mathrm{disagreements}(A, B) \iff k \in \mathrm{allKeys}(A,B) \land c = \mathrm{splitOf}(A,B,k) \land c \ne \mathrm{agree} $$
 
 The list loses nothing and adds nothing. -/
 theorem mem_disagreements (a b : Dataset) (k : String × String × String) (c : Split) :
@@ -309,24 +261,18 @@ theorem mem_disagreements (a b : Dataset) (k : String × String × String) (c : 
 
 /-- The premise-tests id of the determinism premise.
 
-$$ \text{id} = \texttt{snapshot-extract.determinism} $$
-
 The statement `DeterministicExtractor` is tested by three independent CI runs per engine of
 `.github/workflows/snapshot-extract.yml`; a cell that differs between runs is dropped (`stableCells`). -/
 def premiseTestId : String := "snapshot-extract.determinism"
 
 /-- The empirical premise: an extraction does not depend on the run (machine, time, scheduling).
 
-$$ \mathrm{Det}(\mathrm{ext}) \iff \forall s\,v\,r\,r'.\ \mathrm{ext}(s, v, r) = \mathrm{ext}(s, v, r') $$
-
-$s$ the snapshot, $v$ the engine version, $r$ the run. Tested by `premiseTestId`, not proved. -/
+`s` the snapshot, `v` the engine version, `r` the run. Tested by `premiseTestId`, not proved. -/
 def DeterministicExtractor {Snapshot Version Run : Type} (ext : Snapshot → Version → Run → List Cell) : Prop :=
   ∀ s v r r', ext s v r = ext s v r'
 
 /-- **Reference determinism**, under the premise: the same snapshot and the same engine version give the same dataset,
 and so the same value for anything computed from it.
-
-$$ \mathrm{Det}(\mathrm{ext}) \Rightarrow \forall s\,v\,r\,r'.\ \mathrm{ext}(s,v,r) = \mathrm{ext}(s,v,r') \land \forall f.\ f(\mathrm{ext}(s,v,r)) = f(\mathrm{ext}(s,v,r')) $$
 
 The premise `DeterministicExtractor` carries the premise-tests id `snapshot-extract.determinism` (`premiseTestId`). -/
 theorem reference_deterministic {Snapshot Version Run : Type}
@@ -337,8 +283,6 @@ theorem reference_deterministic {Snapshot Version Run : Type}
 
 /-- The cells that every run agrees on.
 
-$$ \mathrm{stable}(R_1, \dots, R_m) = [c \in R_1 : \forall j.\ c \in R_j] $$
-
 What the merge step keeps; a cell on which runs differ is dropped and listed as unstable. -/
 def stableCells (runs : List (List Cell)) : List Cell :=
   match runs with
@@ -346,8 +290,6 @@ def stableCells (runs : List (List Cell)) : List Cell :=
   | r :: rest => r.filter (fun c => rest.all (fun r' => r'.contains c))
 
 /-- Identical runs keep every cell.
-
-$$ \forall R.\ \mathrm{stable}(R, R, R) = R $$
 
 A deterministic extraction loses no cell to the merge. -/
 theorem stableCells_same (r : List Cell) : stableCells [r, r, r] = r := by
@@ -362,10 +304,8 @@ environment indices). -/
 
 /-- Read one source object.
 
-$$ \mathrm{src}(j) = \begin{cases} \mathrm{rule}(j.\mathrm{sheet},\ j.\mathrm{media} \text{ or } \bot,\ j.\mathrm{imp} \text{ or } \bot) & j.k = \texttt{rule} \\ \mathrm{inline} & j.k = \texttt{inline} \\ \mathrm{inherited}(j.\mathrm{from}, j.\mathrm{up}) & j.k = \texttt{inherited} \\ \mathrm{initial} & j.k = \texttt{initial} \\ \mathrm{error} & j.k \text{ missing, not a string or another string, or a required field missing or ill-typed} \end{cases} $$
-
-Here $j.\mathrm{media} \text{ or } \bot$ is the boolean field when present and a boolean, else false (the same for
-$\mathrm{imp}$); $\mathrm{sheet}$ must be a string and $\mathrm{up}$ a natural number.
+Here `j.media or ⊥` is the boolean field when present and a boolean, else false (the same for
+`imp`); `sheet` must be a string and `up` a natural number.
 
 A parse of the four source kinds of the dataset. -/
 def parseSource (j : Json) : Except String Source := do
@@ -380,11 +320,9 @@ def parseSource (j : Json) : Except String Source := do
 
 /-- Expand grouped values to one entry per environment.
 
-$$ \forall n \in \mathbb{N},\ \forall G = [(x_g, e_g)]_g,\ \forall i < n:\ \mathrm{expand}_{\operatorname{dec}}(G, n)_i = \begin{cases} \operatorname{dec}(x_g) & g \text{ the last group with } e_g = \texttt{all} \lor i \in e_g \\ \bot & \text{no such group} \end{cases},\qquad |\mathrm{expand}_{\operatorname{dec}}(G, n)| = n $$
-
 The groups are applied in order, so a later group overrides an earlier one and `all` overwrites every index; an
-index $\ge n$ in some $e_g$ is ignored. The result is an error when the input is not an array, a group lacks `x` or
-`e`, $\operatorname{dec}(x_g)$ fails, or $e_g$ is neither `"all"` nor an array of natural numbers.
+index `≥ n` in some `e_g` is ignored. The result is an error when the input is not an array, a group lacks `x` or
+`e`, `dec(x_g)` fails, or `e_g` is neither `"all"` nor an array of natural numbers.
 
 The inverse of the extractor's grouping; `none` also stands for an absent element. -/
 def expandGroups {α : Type} (n : Nat) (dec : Json → Except String (Option α)) (j : Json) :
@@ -404,8 +342,6 @@ def expandGroups {α : Type} (n : Nat) (dec : Json → Except String (Option α)
 
 /-- Decode a nullable string.
 
-$$ \mathrm{decStr}(\mathrm{null}) = \bot,\quad \mathrm{decStr}("s") = s $$
-
 A value or an absent element. -/
 def decStr (j : Json) : Except String (Option String) :=
   match j with
@@ -413,8 +349,6 @@ def decStr (j : Json) : Except String (Option String) :=
   | _ => do return some (← j.getStr?)
 
 /-- Decode a nullable source.
-
-$$ \mathrm{decSrc}(\mathrm{null}) = \bot,\quad \mathrm{decSrc}(o) = \mathrm{src}(o) $$
 
 A source or an absent element. -/
 def decSrc (j : Json) : Except String (Option Source) :=
@@ -424,8 +358,6 @@ def decSrc (j : Json) : Except String (Option Source) :=
 
 /-- Decode a nullable count.
 
-$$ \mathrm{decNat}(\mathrm{null}) = \bot,\quad \mathrm{decNat}(n) = n $$
-
 An element count or "not measured". -/
 def decNat (j : Json) : Except String (Option Nat) :=
   match j with
@@ -433,8 +365,6 @@ def decNat (j : Json) : Except String (Option Nat) :=
   | _ => do return some (← j.getNat?)
 
 /-- Parse a dataset from the text of a `reference-<engine>.jsonl` file.
-
-$$ \begin{aligned} \mathrm{parse}(e, \mathrm{text}) &= (e,\ w,\ [\,(j.\mathrm{part}, j.\mathrm{role}, \mathrm{expand}_{\mathrm{decNat}}(j.n, |w|)) \mid j \in L,\ j.t = \texttt{role}\,],\\ &\qquad [\,(j.\mathrm{part}, j.\mathrm{role}, j.\mathrm{prop}, \mathrm{expand}_{\mathrm{decStr}}(j.v, |w|), \mathrm{expand}_{\mathrm{decSrc}}(j.s, |w|)) \mid j \in L,\ j.t = \texttt{cell}\,])\\ w &= [\,x.\mathrm{width} \mid x \in h.\mathrm{envs}\,],\quad h :: L = [\,\ell \in \operatorname{split}_{\texttt{\textbackslash n}}(\mathrm{text}) \mid |\ell| > 0\,] \text{ (each line parsed as JSON)} \end{aligned} $$
 
 The result is an error when there is no non-empty line, a line is not JSON, the header has no `envs` array of objects
 with a natural `width`, a row lacks a string `part`, `role` or `t`, a row field fails to decode, or `t` is neither
@@ -465,15 +395,11 @@ def parseDataset (engine : Engine) (text : String) : Except String Dataset := do
 
 /-- The text of the Chromium reference dataset.
 
-$$ \mathrm{text}_{\mathrm{chromium}} = \text{contents of } \texttt{reference-chromium.jsonl} $$
-
 Embedded at build time from `packages/contracts/golden/site/`. -/
 def referenceChromiumText : String :=
   include_str "../../../packages/contracts/golden/site/reference-chromium.jsonl"
 
 /-- The text of the WebKit reference dataset.
-
-$$ \mathrm{text}_{\mathrm{webkit}} = \text{contents of } \texttt{reference-webkit.jsonl} $$
 
 Embedded at build time from `packages/contracts/golden/site/`. -/
 def referenceWebkitText : String :=
@@ -481,20 +407,16 @@ def referenceWebkitText : String :=
 
 /-- The Chromium reference dataset (empty if the file does not parse; the `#guard`s below fail then).
 
-$$ \mathrm{referenceChromium} = \mathrm{parse}(\mathrm{chromium}, \mathrm{text}_{\mathrm{chromium}}) $$
-
 The original's computed styles in Chrome Headless Shell. -/
-def referenceChromium : Dataset :=
+def referenceChromium (_ : Unit := ()) : Dataset :=
   match parseDataset .chromium referenceChromiumText with
   | .ok d => d
   | .error _ => ⟨.chromium, [], [], []⟩
 
 /-- The WebKit reference dataset (empty if the file does not parse; the `#guard`s below fail then).
 
-$$ \mathrm{referenceWebkit} = \mathrm{parse}(\mathrm{webkit}, \mathrm{text}_{\mathrm{webkit}}) $$
-
 The original's computed styles in Playwright WebKit. -/
-def referenceWebkit : Dataset :=
+def referenceWebkit (_ : Unit := ()) : Dataset :=
   match parseDataset .webkit referenceWebkitText with
   | .ok d => d
   | .error _ => ⟨.webkit, [], [], []⟩
@@ -503,8 +425,6 @@ def referenceWebkit : Dataset :=
 #guard (parseDataset .webkit referenceWebkitText).toOption.isSome
 
 /-- Every cell has one entry per environment.
-
-$$ \forall c.\ |v^c| = |s^c| = n $$
 
 A dataset-shape check, run at build time. -/
 def Dataset.wellShapedB (d : Dataset) : Bool :=

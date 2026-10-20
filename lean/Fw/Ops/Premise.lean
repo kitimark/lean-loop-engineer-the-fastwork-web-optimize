@@ -361,9 +361,9 @@ frames; task engine-model-fix-2) is judged separately: in run 39124427211 its ro
 `chromium.extra.raster` fail on `top` with `scale` and every other row holds (`Fw.Ops.EnginePremise.cr_extra_verdicts`,
 `wk_extra_holds`).
 
-The two `content-visibility` view premises of fix-commission-margin ($p_{30}$, $p_{31}$: `cv.skip-flag`, `cv.fresh-after-resize`) are page tests.
+The two `content-visibility` view premises of fix-commission-margin ($p_{30}$, $p_{31}$: `cv.skip-flag`, `cv.fresh-after-resize`) are page tests. So is the Typed OM margin premise $p_{33}$ (`cv.margin-typed-om`, task cmr-margin-typed-om). The margin rule of the breakpoint gate (task cmr-margin-rect-rule, `Fw.Gate.marginStatus`) reads that premise: it decides an auto or percent margin by the node's rect only when both arms report such a value.
 
-$$\operatorname{registry} = [p_1, \dots, p_{32}]$$
+$$\operatorname{registry} = [p_1, \dots, p_{33}]$$
 $$\begin{aligned}
 \mathrm{id}(p_1..p_{17}) &= [\texttt{anim.list}, \texttt{cv.auto-margin}, \texttt{cv.read-forces-lock}, \texttt{frame.raf-order}, \texttt{frame.ro-same-frame}, \texttt{resize.lag}, \texttt{clock.raf-timeline}, \texttt{css.number-linear}, \texttt{css.inherits-false}, \\
 &\qquad \texttt{dom.token-toggle-noop}, \texttt{dom.inline-same-value}, \texttt{read.forced-update}, \texttt{hit.pointer-events}, \texttt{layout.unit-truncation}, \texttt{io.async-delivery}, \\
@@ -371,7 +371,8 @@ $$\begin{aligned}
 \mathrm{id}(p_{18}..p_{22}) &= [\texttt{cr.script}, \texttt{cr.style}, \texttt{cr.commit}, \texttt{wk.style}, \texttt{wk.commit}] \quad (\text{lane}, \texttt{engine-premises.yml}) \\
 \mathrm{id}(p_{23}..p_{29}) &= [\texttt{cr.layout}, \texttt{cr.props}, \texttt{cr.paint}, \texttt{cr.raster}, \texttt{cr.hits}, \texttt{wk.layout}, \texttt{wk.props}] \quad (\text{lane}, \texttt{engine-premises.yml}) \\
 \mathrm{id}(p_{30}, p_{31}) &= [\texttt{cv.skip-flag}, \texttt{cv.fresh-after-resize}] \quad (\text{page}) \\
-\mathrm{id}(p_{32}) &= \texttt{wktr\_scroll\_timeline\_restyle} \quad (\text{lane}, \texttt{wktr-fixtures.yml})
+\mathrm{id}(p_{32}) &= \texttt{wktr\_scroll\_timeline\_restyle} \quad (\text{lane}, \texttt{wktr-fixtures.yml}) \\
+\mathrm{id}(p_{33}) &= \texttt{cv.margin-typed-om} \quad (\text{page})
 \end{aligned}$$
 -/
 def registry : List Premise := [
@@ -508,7 +509,12 @@ def registry : List Premise := [
     theorems := ["Fw.Engine.WebKit.style_rate_model", "Fw.Engine.WebKit.style_rate_old_refuted"]
     engines := [.webkit]
     testId := ".github/workflows/wktr-fixtures.yml"
-    kind := .lane }
+    kind := .lane },
+  { id := "cv.margin-typed-om"
+    statement := r"\forall k \in \{\texttt{margin-left}, \texttt{margin-right}, \texttt{margin-inline-start}, \texttt{margin-inline-end}\}:\ \texttt{n.computedStyleMap().get}(k) \text{ is the computed value (} \texttt{CSSKeywordValue auto} \text{ for an auto margin, a percent } \texttt{CSSUnitValue} \text{ for a percentage, a px } \texttt{CSSUnitValue} \text{ for a fixed length) in each of three cases: (a) } n \text{ is in normal flow; (b) } n \text{ is in a subtree skipped by } \texttt{content-visibility:auto} \text{, which is still skipped after the read; (c) } n \text{ is under an ancestor with } \texttt{transform: scale(0.916667)}"
+    theorems := ["Fw.Gate.marginStatus_fixed", "Fw.Gate.marginStatus_fail_iff", "Fw.Gate.marginStatus_never_pass_over_failing_rect"]
+    engines := both
+    testId := "prem.cv.margin-typed-om" }
 ]
 
 /-- The premise ids are pairwise distinct.
@@ -1408,7 +1414,7 @@ def flagRow (name : String) (rs : List Result) : Json :=
 
 -- The text of the golden file: the registry rows, the lint rows, the flag rows, then the acknowledgement rows, the
 -- ack cases, the ack-lint cases and the error-class cases.
-private def goldenText : String :=
+private def goldenText (_ : Unit := ()) : String :=
   let rows : List Json := registry.map premiseRow ++ lintCases.map (fun (n, ts, fs) => lintRow n ts fs) ++
     flagCases.map (fun (n, rs) => flagRow n rs) ++ acks.map ackRow ++
     ackCases.map (fun (n, rs) => ackCaseRow n rs) ++ ackLintCases.map (fun (n, ids, ks) => ackLintRow n ids ks) ++

@@ -25,7 +25,7 @@ namespace Fw.Parts.NavHitTest
 
 /-! ## Probe point -/
 
-/-- A DOMRect. $$r = (\ell, t, w, h) \in \mathbb{Q}^4$$ The nav's bounding box. -/
+/-- A DOMRect. The nav's bounding box. -/
 structure Rect where
   left : Rat
   top : Rat
@@ -35,8 +35,6 @@ deriving Repr, BEq, DecidableEq
 
 /-- Probe point (JS 12957-12958): horizontal centre; vertical centre of the first 64 px.
 
-$$\operatorname{hitPoint}(\ell, t, w, h) = \left(\ell + \tfrac{w}{2},\ t + \tfrac{\min(h, 64)}{2}\right)$$
-
 Where the nav looks for the section underneath it. -/
 def hitPoint (r : Rect) : Rat × Rat := (r.left + r.width / 2, r.top + min r.height 64 / 2)
 
@@ -44,8 +42,6 @@ def hitPoint (r : Rect) : Rat × Rat := (r.left + r.width / 2, r.top + min r.hei
 #guard hitPoint ⟨12, 8, 361, 100⟩ == (12 + 361/2, 40)
 
 /-- The probe point lies inside the nav rect, in its top 32 px band.
-
-$$\forall \ell, t,\ w \ge 0,\ h \ge 0:\quad \ell \le x \le \ell + w \land t \le y \le t + h \land y \le t + 32,\quad (x, y) = \operatorname{hitPoint}(\ell, t, w, h)$$
 
 The probe never samples outside the nav's own box, and never below its first 64 px. -/
 theorem hitPoint_inside (r : Rect) (hw : 0 ≤ r.width) (hh : 0 ≤ r.height) :
@@ -56,7 +52,7 @@ theorem hitPoint_inside (r : Rect) (hw : 0 ≤ r.width) (hh : 0 ≤ r.height) :
 
 /-! ## Classification -/
 
-/-- `closest()` flags of the hit element. $$f = (\mathit{has}, \mathit{exc}, \mathit{inc}, \mathit{shr}) \in \{\top, \bot\}^4$$ What the element under the probe is inside of. -/
+/-- `closest()` flags of the hit element. What the element under the probe is inside of. -/
 structure HitFlags where
   hasElement : Bool
   inExclude : Bool
@@ -65,8 +61,6 @@ structure HitFlags where
 deriving Repr, BEq, DecidableEq
 
 /-- `j` (JS 12950-12954): over a dark section.
-
-$$\operatorname{classifyHit}(f) = \mathit{has} \land \lnot\mathit{exc} \land (\mathit{inc} \lor \mathit{shr})$$
 
 Whether the nav sits over a dark section (pain, platform, or the shrinking commission), with light sections winning. -/
 def classifyHit (f : HitFlags) : Bool :=
@@ -80,8 +74,6 @@ def classifyHit (f : HitFlags) : Bool :=
 
 /-- The classification in closed form; an excluded ancestor always wins.
 
-$$\forall f:\quad \operatorname{classifyHit}(f) = \mathit{has} \land \lnot\mathit{exc} \land (\mathit{inc} \lor \mathit{shr})$$
-
 Dark only when there is an element, it is not inside a light section, and it is inside a dark one. -/
 theorem classifyHit_eq (f : HitFlags) :
     classifyHit f = (f.hasElement && !f.inExclude && (f.inInclude || f.inShrinking)) := by
@@ -94,17 +86,13 @@ theorem classifyHit_eq (f : HitFlags) :
 `pointer-events`): whether it is inside the nav, and whether it sets `pointer-events` itself (so stays hit-testable
 when the nav root is forced to `none`).
 
-$$b = (\mathit{inNav}, \mathit{own}) \in \{\top, \bot\}^2$$
-
 A candidate element under the probe. -/
 structure Hit where
   insideNav : Bool
   reEnabled : Bool
 deriving Repr, BEq, DecidableEq
 
-/-- First index satisfying a test, or $-1$ (JS `findIndex`).
-
-$$\operatorname{findIdx}(p, xs) = \min\{i : p(x_i)\}\ \text{or}\ -1$$
+/-- First index satisfying a test, or `-1` (JS `findIndex`).
 
 Position of the first element that passes, or -1. -/
 def findIdx {α : Type} (p : α → Bool) (xs : List α) : Int :=
@@ -115,21 +103,15 @@ def findIdx {α : Type} (p : α → Bool) (xs : List α) : Int :=
 /-- Faithful (JS 12959-12961): with the nav root at `pointer-events: none`, `elementFromPoint` returns the first box
 that is outside the nav or re-enabled inside it.
 
-$$\operatorname{faithfulHit}(bs) = \operatorname{findIdx}(\lambda b.\ \lnot b.\mathit{inNav} \lor b.\mathit{own},\ bs)$$
-
 Which box the original's hit test returns. -/
 def faithfulHit (stack : List Hit) : Int := findIdx (fun h => !h.insideNav || h.reEnabled) stack
 
 /-- TS `firstOutside` (hit-skip as built): the first box outside the nav subtree.
 
-$$\operatorname{firstOutside}(\mathit{inNav}) = \operatorname{findIdx}(\lambda b.\ \lnot b, \mathit{inNav})$$
-
 Which box the TS hit-skip variant returns. -/
 def firstOutside (insideNav : List Bool) : Int := findIdx (fun b => !b) insideNav
 
 /-- v1 `nav-hit-test`: first box outside the nav, or inside an allow-listed (re-enabled) nav box.
-
-$$\operatorname{allowHit}(A, bs) = \operatorname{findIdx}(\lambda b.\ \lnot b.\mathit{inNav} \lor A(b),\ bs)$$
 
 The v1 fix: skip the nav's own boxes except the ones known to set `pointer-events` themselves. -/
 def allowHit (allow : Hit → Bool) (stack : List Hit) : Int := findIdx (fun h => !h.insideNav || allow h) stack
@@ -141,7 +123,7 @@ def allowHit (allow : Hit → Bool) (stack : List Hit) : Int := findIdx (fun h =
 #guard firstOutside [true, true] == -1
 #guard firstOutside [] == -1
 
-/-- Searching with two tests that agree on the list finds the same index. $$\forall p, q, xs:\ (\forall x \in xs:\ p(x) = q(x)) \Rightarrow \operatorname{findIdx?}(p, xs) = \operatorname{findIdx?}(q, xs)$$ -/
+/-- Searching with two tests that agree on the list finds the same index. -/
 theorem findIdx?_congr' {α : Type} (p q : α → Bool) (xs : List α) (h : ∀ x ∈ xs, p x = q x) :
     xs.findIdx? p = xs.findIdx? q := by
   induction xs with
@@ -149,16 +131,13 @@ theorem findIdx?_congr' {α : Type} (p q : α → Bool) (xs : List α) (h : ∀ 
   | cons x xs ih =>
     simp only [List.findIdx?_cons, h x (by simp), ih (fun y hy => h y (by simp [hy]))]
 
-/-- The same for the -1-defaulted search. $$\forall p, q, xs:\ (\forall x \in xs:\ p(x) = q(x)) \Rightarrow \operatorname{findIdx}(p, xs) = \operatorname{findIdx}(q, xs)$$ -/
+/-- The same for the -1-defaulted search. -/
 theorem findIdx_congr {α : Type} (p q : α → Bool) (xs : List α) (h : ∀ x ∈ xs, p x = q x) :
     findIdx p xs = findIdx q xs := by
   unfold findIdx
   rw [findIdx?_congr' p q xs h]
 
 /-- **TS hit-skip = faithful** whenever no re-enabled nav box is at the probe point.
-
-$$\forall bs:\ \big(\forall b \in bs:\ b.\mathit{inNav} \Rightarrow \lnot b.\mathit{own}\big) \Rightarrow
-  \operatorname{firstOutside}([b.\mathit{inNav} \mid b \in bs]) = \operatorname{faithfulHit}(bs)$$
 
 Skipping the whole nav subtree finds the same element as the original, unless the probe lands on the nav's
 actions, the expanded morph panel, the active morph pill or the phone earn button. -/
@@ -172,16 +151,12 @@ theorem firstOutside_eq_faithful (stack : List Hit) (h : ∀ b ∈ stack, b.insi
 
 /-- The skip condition is needed: a re-enabled nav box on top makes the two answers differ.
 
-$$\exists bs:\quad \operatorname{firstOutside}([b.\mathit{inNav} \mid b \in bs]) \ne \operatorname{faithfulHit}(bs)$$
-
 Over the nav's actions the original reports the actions (not dark), the TS variant the section below. -/
 theorem firstOutside_ne_faithful :
     firstOutside ([(⟨true, true⟩ : Hit), ⟨false, false⟩].map (·.insideNav)) ≠
       faithfulHit [⟨true, true⟩, ⟨false, false⟩] := by decide
 
 /-- v1 `nav-hit-test` = faithful whenever its allow-list agrees with the re-enabled flag on the nav's boxes.
-
-$$\forall A, bs:\ \big(\forall b \in bs:\ b.\mathit{inNav} \Rightarrow A(b) = b.\mathit{own}\big) \Rightarrow \operatorname{allowHit}(A, bs) = \operatorname{faithfulHit}(bs)$$
 
 Allow-listing exactly the boxes that set `pointer-events` themselves reproduces the original's answer. -/
 theorem allowHit_eq_faithful (allow : Hit → Bool) (stack : List Hit)
@@ -196,8 +171,6 @@ theorem allowHit_eq_faithful (allow : Hit → Bool) (stack : List Hit)
 
 /-- `is-on-dark` (JS 13228): the hit answer or morph strictly past 0.2.
 
-$$\operatorname{isOnDark}(g, m) = g \lor m > \tfrac15$$
-
 Whether the nav renders in its dark style. -/
 def isOnDark (hit : Bool) (morph : Rat) : Bool := hit || decide (morph > 1 / 5)
 
@@ -205,16 +178,12 @@ def isOnDark (hit : Bool) (morph : Rat) : Bool := hit || decide (morph > 1 / 5)
 
 /-- **v1 hit-skip**: past morph 0.2 the hit answer is invisible, so skipping (keeping a stale `g`) changes nothing.
 
-$$\forall g, g', m:\quad m > \tfrac15 \Rightarrow \operatorname{isOnDark}(g, m) = \operatorname{isOnDark}(g', m) = \top$$
-
 While the end morph stands past 0.2 the nav is dark whatever the hit test says. -/
 theorem hitSkip_morph (g g' : Bool) (m : Rat) (hm : m > 1 / 5) :
     isOnDark g m = isOnDark g' m ∧ isOnDark g m = true := by
   unfold isOnDark; simp [hm]
 
-/-- The expanded panel (re-enabled, morph $> 0.92$) never shows a difference: `is-on-dark` is already forced.
-
-$$\forall g, m:\quad m > \tfrac{23}{25} \Rightarrow \operatorname{isOnDark}(g, m) = \top$$
+/-- The expanded panel (re-enabled, morph `> 0.92`) never shows a difference: `is-on-dark` is already forced.
 
 When the morph panel covers the probe, the classes do not depend on the hit test at all. -/
 theorem expanded_masks (g : Bool) (m : Rat) (hm : m > 23 / 25) : isOnDark g m = true :=
@@ -222,14 +191,10 @@ theorem expanded_masks (g : Bool) (m : Rat) (hm : m > 23 / 25) : isOnDark g m = 
 
 /-- Write on change only (TS `changed`; Svelte's equality-gated `set`).
 
-$$\operatorname{changed}(p, n) \iff p \ne n$$
-
 Whether the stored hit answer must be written. -/
 def changed (prev next : Bool) : Bool := prev != next
 
 /-- Writing only on change ends in the same state as always writing.
-
-$$\forall p, n:\quad (\textbf{if } \operatorname{changed}(p, n) \textbf{ then } n \textbf{ else } p) = n$$
 
 Skipping equal writes never leaves a stale value. -/
 theorem changed_write (p n : Bool) : (if changed p n then n else p) = n := by
