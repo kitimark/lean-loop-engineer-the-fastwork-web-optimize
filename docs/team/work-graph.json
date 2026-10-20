@@ -11453,7 +11453,8 @@
     "lean/Fw/Engine/WebKitImage.lean",
     "research/notes/2026/10-2*-image-audit.md",
     "docs/team/handoffs/image-audit.md"
-   ]
+   ],
+   "evidence": "39bc979"
   },
   {
    "devices": [
@@ -11740,7 +11741,8 @@
     "packages/contracts/golden/console/console.compose.jsonl",
     "docs/team/tools/compose.md",
     "docs/team/handoffs/ledger-flag-field.md"
-   ]
+   ],
+   "evidence": "330bd3b"
   },
   {
    "devices": [
@@ -11846,7 +11848,8 @@
     "packages/contracts/golden/console/console.compose.jsonl",
     "docs/team/tools/compose.md",
     "docs/team/handoffs/compose-superseded-rows.md"
-   ]
+   ],
+   "evidence": "69fabee"
   },
   {
    "devices": [
@@ -11940,7 +11943,8 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-close-start.md"
-   ]
+   ],
+   "evidence": "257cc48"
   },
   {
    "devices": [
@@ -11956,7 +11960,8 @@
     "apps/runner/src/plan*.ts",
     "apps/runner/test/plan*.test.ts",
     "docs/team/handoffs/graph-schema-precommit.md"
-   ]
+   ],
+   "evidence": "c9b3b3f"
   },
   {
    "devices": [
@@ -11974,6 +11979,124 @@
     "packages/measure-webkit/src/images/**",
     "research/notes/2026/10-2*-image-arm-v2.md",
     "docs/team/handoffs/image-arm-v2.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "graph-check-lean",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "graph-schema-precommit"
+   ],
+   "title": "graph-schema-precommit review follow-ups: the checkmap's work-graph routing becomes a Lean CheckMap rule kind (lean/Fw/Ops/CheckMap.lean emits the graph check; golden line; drop the TS path literal in scripts/checkmap.mjs); --staged reads the index blob (git show :path) not the working tree; plan-check names duplicate task ids and non-object task entries; plan-check.test removes its temp dirs",
+   "writes": [
+    "lean/Fw/Ops/CheckMap.lean",
+    "packages/contracts/golden/ops/checkmap*.jsonl",
+    "scripts/checkmap*",
+    "apps/runner/src/plan-check.ts",
+    "apps/runner/test/plan-check.test.ts",
+    "docs/team/handoffs/graph-check-lean.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "review-lean-followups",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [
+    "user-review-queue"
+   ],
+   "title": "user-review-queue review follow-ups: theorem freshId_unused (the re-posted review step id is never on the board; pigeonhole over stepIdN); a step's open state comes from Lean StepStatus.isOpen through Fw.Wire.Review (drop the TS re-implementation in routes.ts ask()); review steps are marked from Lean ids, not the review- id prefix in App.tsx",
+   "writes": [
+    "lean/Fw/Console/Review*.lean",
+    "lean/Fw/Wire/Review.lean",
+    "packages/contracts/golden/console/review*.jsonl",
+    "apps/console-api/src/review/**",
+    "apps/console-api/test/review*.test.ts",
+    "apps/console-web/src/App.tsx",
+    "apps/console-web/test/steps-audience.test.tsx",
+    "docs/team/tools/review.md",
+    "docs/team/handoffs/review-lean-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-push-ref-lean",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "ci-push-render-guard"
+   ],
+   "title": "ci-push-render-guard review follow-up: the pre-push ref filter (skip refs/heads/main, skip deletions) is a Lean decision with a golden vector over (remote ref, local sha) cases instead of unproved TS in apps/runner/src/ci-push.ts",
+   "writes": [
+    "lean/Fw/Land/RenderGuard.lean",
+    "packages/contracts/golden/land/render-guard*.jsonl",
+    "apps/runner/src/ci-push.ts",
+    "apps/runner/test/ci-push*.test.ts",
+    "docs/team/handoffs/ci-push-ref-lean.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "run-cite-check",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [],
+   "title": "Mistake 2026-10-21 (waapi-nav-width-tail r1): run 39457767229 was cited as morph.tween:waapi evidence in a graph title, a builder note and a ledger draft, but every arm of it carried ?fw=hero.exit:faithful. Identity over inference: a check that maps a cited CI run id to the flags its trajectory/count artifacts actually carried (read from the artifact's search per arm, cached under .cache) and refuses a note, handoff or ledger row that cites a run for a flag it did not carry; Lean decides the match, TS only downloads",
+   "writes": [
+    "lean/Fw/Gate/RunCite.lean",
+    "packages/contracts/golden/gate/run-cite*.jsonl",
+    "scripts/run-cite*.mjs",
+    "scripts/run-cite*.test.mjs",
+    "docs/team/tools/run-cite.md",
+    "docs/team/handoffs/run-cite-check.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-envelope-scope",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "trajectory-close-start"
+   ],
+   "title": "trajectory-close-start review: the envelope judges every in-flight sample of an epoch (not only its start) and dropped the own-pass m-window fallback, adding failures in cells the design did not target (39453764374 Linux WebKit 1280, 39449092483 Linux WebKit 390/1280, 39457767229 Chromium 1280 earn.max-width close@0). Decide in Lean whether to restrict the envelope to samples within startLag of the epoch's first sample (and restore the fallback elsewhere) or keep it; prove soundness either way; re-reduce the six stored runs and explain every changed cell (incl. the close-hold@0 cells judged by windowOf/settledRef)",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-envelope-scope.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scoped-close-start-cause",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "trajectory-close-start"
+   ],
+   "title": "hero.exit:scoped admission blocker after trajectory-close-start: on macOS WebKit morph the candidate's close starts nav.background-color at [226.5, 227.1, 228.5] (29 ms into the close at 390) while every original pass starts at 249.3-252.3 (39466179818; also 640, 641). Find the mechanism (does the scoped exit change when is-morphing is removed relative to the interrupted earlier background transition? cite WebKit source and the site part), MEASURE with a fresh flag-alone run plus A/A on mac-webkit morph (>= 3 reps, run ids), and decide: a fix in the part that keeps the same look, or a Lean-proved timing-only difference, or a look change for the user's console review",
+   "writes": [
+    "research/notes/2026/10-2*-scoped-close-start-cause.md",
+    "docs/team/handoffs/scoped-close-start-cause.md",
+    "apps/site/src/parts/hero.exit/**",
+    "lean/Fw/Parts/HeroExit*.lean"
    ]
   }
  ],
