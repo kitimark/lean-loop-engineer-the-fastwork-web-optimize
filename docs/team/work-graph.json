@@ -10208,7 +10208,8 @@
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/**"
-   ]
+   ],
+   "evidence": "20f6758"
   },
   {
    "devices": [
