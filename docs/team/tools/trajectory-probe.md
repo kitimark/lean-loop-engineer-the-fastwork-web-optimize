@@ -42,8 +42,9 @@ readings plus what each arm's page reported), `units-<engine>.json` and `summary
    judged against the original by the same Lean code, so each unit is `new` (fails here, passes faithful), `both` (baseline
    red), `unmeasured` (fails on content here, on coverage in the faithful arm: no verdict), `cleared` or `ok`. The lane is RED iff some unit is `new` (`laneRed`; no pooled aggregate). The summary splits the
    `new` count into content (apart, differs, ...) and coverage. A coverage-only RED is sampling noise (a default-vs-default
-   run turns RED from one empty bucket); the signal is the content-new groups. Steps at `close@0` (the first sample of a
-   push) and `a*` (approach) also flicker; read a group only when it repeats across widths or runs.
+   run turns RED from one empty bucket); the signal is the content-new groups. Reads at `close@0` (the first sample of a
+   push) and `a*` (approach) taken mid-transition are judged as in Transitions in flight below. Read a group only when it
+   repeats across widths or runs.
 
 ## Legs and paths
 
@@ -81,6 +82,43 @@ macOS slots are shared by all lanes). It runs for every dispatch whose engines i
 `v2-proved` only with a macOS morph pass, so the witness is no longer limited to `hero.exit` searches. Its verdict is
 the separate artifact `trajectory-apple`; it is the closest engine CI has to Safari, still not Safari.
 
+## Transitions in flight (task trajectory-transition-window)
+
+Arms start a CSS transition at different frames, so a property read mid-transition differed between an arm and itself.
+MEASURED in the stored runs: macOS WebKit `nav.background-color` at 641 and 1280, approach steps a3/a7/a8/a11 (runs
+39453181962, 39455284967), and Chromium `earn` max-width/opacity at close@0 and close-hold@0 (runs 39453764374,
+39457063232, A/A run 39409003529). Every such read had `since` (ms since the last nav class change) below the transition's
+length plus 140 ms (bg read mid-transition up to since 840 on Linux WebKit, 831 on macOS, about 770 on Chromium, against
+700 declared).
+
+The judge (Lean `judgeFlight`, TS twin `judgeFlight` in `reduce.mjs`) uses the declared transition, not a heuristic:
+
+- `settleTable`: the longest delay plus duration per (node, property), from `apps/site/src/parts/nav/nav.module.css`.
+  Values: nav visibility 320, rect 680, background-color 700, opacity 700, transform 320; logo color 240; actions gap 680;
+  earn opacity 440, max-width 680. Any property not in the table is read as at rest.
+- `inFlight d s`: `since < d + startLag`, where `startLag` = 200 ms bounds the 140 ms overrun measured above.
+- A unit is in flight when the rewrite's sample or a sample of its window is. It is then judged against the window plus
+  `crossed`: the original's in-flight samples of each pass and their neighbours. It is never skipped. A unit with no
+  sample in flight is judged as before (`judgeAgainst`).
+
+Proved: an arm whose samples are the original's never fails (`judgeFlight_self`, `bucketVerdict_self`, `byStep_self`); a
+settled step that differs still fails (`judgeFlight_settled`); a reading outside every value of the window and `crossed`
+still fails (`judgeFlight_outside`); an unlisted property keeps the old verdict (`judgeFlight_no_settle`).
+
+Accepted limits:
+- `since` sees only nav class changes.
+- An in-flight read is checked against the band of values the original passes through, not against its timing.
+- `startLag` is a measured bound, not a proved one.
+- The kit reads a WebKit mid-transition colour as oklab `[1000,0,0,α]`. It is a follow-up for the `kit.mjs` owner, for
+  example to record `document.getAnimations()`.
+
+Re-recorded with this judge, all 8 candidates pass (stored runs 39442517769, 39453181962 and 39455284967, all shared
+`?preset=` runs). Each candidate passes its Chromium hero and morph cells and its WebKit hero cell. Its WebKit morph cell
+passes on macOS run 39453181962. In run 39455284967 that cell is no verdict: coverage, because coverage `new` groups recur
+at 3 widths, a separate issue. The 8 candidates are engine.scene:hidden-pause, engine.scroll:batched,
+morph.columns:hidden-pause, morph.countdown:hidden-pause, morph.mount:shift, nav.hitTest:elements-skip, pain.notes:visible
+and people.card:mq.
+
 ## Admission
 
 No flag enters `v2-proved` without a stored pass in Chromium and in WebKit on both paths (Lean `member_needs_trajectory`,
@@ -99,8 +137,8 @@ pass. In the default-vs-default run 39409003529 (Chromium) the content `new` uni
 and so did its coverage `new` units (MEASURED in that one A/A run; that one width alone never fails a correct flag is INFERRED from
 it). Only a single-flag `?fw=` page or a `?preset=` page is prerendered, so several pending candidates are dispatched together as
 `--preset v2-proved` on a ref whose commit holds `apps/site/src/registry/presets/v2-proved.json` with those flags (restore
-it from the recorded verdicts afterwards: the recorder and `Gen.run` rewrite the file; an empty preset walks the default config). Limits: a stored pass is not re-checked when the flag's part changes later (`Stored.sha` is not read yet); approach
-flicker (steps a*) counts as content today, so it can falsify a flag (safe side).
+it from the recorded verdicts afterwards: the recorder and `Gen.run` rewrite the file; an empty preset walks the default config). Limits: a stored pass is not re-checked when the flag's part changes later (`Stored.sha` is not read yet). A read in flight
+is judged as described in Transitions in flight above. Approach flicker outside the settle table still counts as content.
 
 A cell (flag, engine family, path): a failing run of the flag alone fails it; else a passing run of the flag alone passes
 it; else a failing shared run (a preset) leaves it pending, because it does not say which flag regressed; else a passing
