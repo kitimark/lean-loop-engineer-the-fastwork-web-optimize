@@ -136,7 +136,7 @@ try {
             return landAttemptResult(res);
           },
           // Lean `attemptNext` / `healthWaitAfter`: one probe of GET /api/health (the queue waits for a restarting console, bounded)
-          health: async () => { try { return (await fetch(`${loopback(base)}/api/health`, { signal: AbortSignal.timeout(3000) })).ok; } catch { return false; } },
+          health: async () => { try { return (await fetch(`${loopback(base)}/api/health`, { headers: { connection: "close" }, signal: AbortSignal.timeout(3000) })).ok; } catch { return false; } },
           // glue for Lean `afterLand`: a land that changed a fwcore source rebuilds fwcore (in the main checkout, timed) before the next entry
           head: () => execFileSync("git", ["rev-parse", "main"], { cwd: mainDir, encoding: "utf8" }).trim(),
           diff: (from) => execFileSync("git", ["diff", "--name-only", "--no-renames", from, "main"], { cwd: mainDir, encoding: "utf8" }).split("\n").filter(Boolean),

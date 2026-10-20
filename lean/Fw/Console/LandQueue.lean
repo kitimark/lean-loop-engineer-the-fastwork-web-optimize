@@ -316,13 +316,14 @@ theorem rebuildReason_nonempty : rebuildReason.isEmpty = false := by decide
 
 /-! ## An unreachable console (task land-queue-unreachable)
 
-Incident: six queue entries on 2026-10-20 ended `VERDICT unknown` with `REFUSED: fetch failed` 171 to 530 ms after the
-previous entry's result, before the land did anything: the land's first request (`GET /api/plan`) failed, and the thrown error
-became kind `unknown`, which is final. Timestamps rule out a console restart (every restart span starts after its failure; one
-case had none, and another land reached the console 0.6 s after the failure). Each failure follows 7 to 14 s of synchronous
-work in the queue process (worktree cleanup, `fwcore rebuild (queue)`) after its last console request, past the console's 5 s
-`keepAliveTimeout`; the likely cause (INFERRED, reproduced only as a race) is the next fetch reusing the keep-alive socket the
-console had closed meanwhile (ECONNRESET). The land's client now sends `connection: close`; this section is the second line.
+Incident: six queue entries on 2026-10-20 ended `VERDICT unknown` with `REFUSED: fetch failed` 0.9 to 2.5 s after the
+previous entry's result (after its fwcore rebuild); the failed attempt itself lasted 168 to 530 ms. The land's first request
+(`GET /api/plan`) failed, and the thrown error became kind `unknown`, which is final. Timestamps rule out a console restart
+(every restart span starts after its failure; one case had none, and another land reached the console 0.6 s after the
+failure). Each failure follows 7 to 14 s without a console request, 4.6 to 11 s of it in synchronous calls (worktree
+cleanup, `fwcore rebuild (queue)`); the console's 5 s `keepAliveTimeout` falls inside that window in all six. The likely
+cause (INFERRED, reproduced only as a race) is the next fetch reusing the keep-alive socket the console had closed meanwhile
+(ECONNRESET). The land's client now sends `connection: close`; this section is the second line.
 
 Model. A console that is unreachable is a retryable condition of its own, not a kind of land. The queue waits for
 `/api/health` on a fixed backoff schedule (`healthDelay`: 250 ms doubling to a 4000 ms cap, `healthPolls` polls, the last
