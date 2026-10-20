@@ -936,22 +936,34 @@ def rv (looks steps : String) (answer : String := "null") : Json :=
 
 /-- The `console.review` cases. -/
 def reviewCases (_ : Unit := ()) : List (String × Json) :=
-  let pend := "[{\"flag\":\"nav:earn-no-transition\",\"date\":\"2026-10-21\",\"words\":\"accepted, pending user visual review\"}]"
-  let two := "[{\"flag\":\"nav:earn-no-transition\",\"date\":\"2026-10-21\",\"words\":\"accepted, pending user visual review\"},{\"flag\":\"hero:x\",\"date\":\"2026-10-22\",\"words\":\"kept after visual review\"},{\"flag\":\"nav:earn-no-transition\",\"date\":\"2026-10-23\",\"words\":\"pending user visual review again\"}]"
+  let mat := "{\"chromium\":{\"state\":\"ready\",\"run\":\"1\",\"artifact\":\"frames-chromium\",\"expires\":\"2026-11-19\"},\"webkit\":{\"state\":\"pending\",\"task\":\"t\"}}"
+  let row (f d dec rev : String) := s!"\{\"flag\":\"{f}\",\"date\":\"{d}\",\"decision\":\"{dec}\",\"review\":\"{rev}\"}"
+  let pend := s!"[\{\"flag\":\"nav:earn-no-transition\",\"date\":\"2026-10-21\",\"decision\":\"kept\",\"review\":\"pending\",\"material\":{mat}}]"
+  let two := s!"[{row "nav:earn-no-transition" "2026-10-21" "kept" "pending"},{row "hero:x" "2026-10-22" "kept" "done"},{row "nav:earn-no-transition" "2026-10-23" "accepted" "pending"}]"
+  let st (id : String) (ans : String) (o : String) := s!"\{\"id\":\"{id}\",\"answer\":{ans},\"open\":{o}}"
+  let e := "nav:earn-no-transition"
+  let w (word : String) := s!"\{\"flag\":\"{e}\",\"word\":\"{word}\"}"
   [("a pending look decision with no step yet: one open item, the step is to be posted", rv pend "[]"),
-   ("the step is on the board and unanswered: open, not posted again", rv pend "[{\"id\":\"review-nav:earn-no-transition\",\"answer\":null}]"),
-   ("answered keep: closed as keep", rv pend "[{\"id\":\"review-nav:earn-no-transition\",\"answer\":\"keep\"}]"),
-   ("answered reject: closed as reject", rv pend "[{\"id\":\"review-nav:earn-no-transition\",\"answer\":\"reject\"}]"),
-   ("an answer that is no verdict word does not close the item", rv pend "[{\"id\":\"review-nav:earn-no-transition\",\"answer\":\"maybe\"}]"),
-   ("a step of another flag closes nothing", rv pend "[{\"id\":\"review-hero:x\",\"answer\":\"keep\"}]"),
+   ("the step is on the board, waiting: open, not posted again", rv pend s!"[{st "review-nav:earn-no-transition" "null" "true"}]"),
+   ("started then done, or cancelled (the step is closed with no answer): the item is open and a new step review-...#1 is to be posted", rv pend s!"[{st "review-nav:earn-no-transition" "null" "false"}]"),
+   ("a step closed with no answer: keep is refused until the new step is posted", rv pend s!"[{st "review-nav:earn-no-transition" "null" "false"}]" (w "keep")),
+   ("the new step is open after a cancelled one: keep is accepted on it", rv pend s!"[{st "review-nav:earn-no-transition" "null" "false"},{st "review-nav:earn-no-transition#1" "null" "true"}]" (w "keep")),
+   ("two steps closed with no answer: the next id is #2", rv pend s!"[{st "review-nav:earn-no-transition" "null" "false"},{st "review-nav:earn-no-transition#1" "null" "false"}]"),
+   ("answered keep: closed as keep", rv pend s!"[{st "review-nav:earn-no-transition" "\"keep\"" "false"}]"),
+   ("answered reject: closed as reject", rv pend s!"[{st "review-nav:earn-no-transition" "\"reject\"" "false"}]"),
+   ("answered reject on the second step: closed as reject", rv pend s!"[{st "review-nav:earn-no-transition" "null" "false"},{st "review-nav:earn-no-transition#1" "\"reject\"" "false"}]"),
+   ("an answer that is no verdict word does not close the item; a new step is to be posted", rv pend s!"[{st "review-nav:earn-no-transition" "\"maybe\"" "false"}]"),
+   ("a step of another flag closes nothing", rv pend s!"[{st "review-hero:x" "\"keep\"" "false"}]"),
    ("a decided look change is no item; a repeated pending row gives one item", rv two "[]"),
-   ("no pending decision: no item, nothing open", rv "[{\"flag\":\"nav:a\",\"date\":\"d\",\"words\":\"kept\"}]" "[]"),
-   ("keep is accepted for an open item", rv pend "[]" "{\"flag\":\"nav:earn-no-transition\",\"word\":\"keep\"}"),
-   ("reject is accepted for an open item", rv pend "[{\"id\":\"review-nav:earn-no-transition\",\"answer\":null}]" "{\"flag\":\"nav:earn-no-transition\",\"word\":\"reject\"}"),
-   ("a decided item is not answered again", rv pend "[{\"id\":\"review-nav:earn-no-transition\",\"answer\":\"keep\"}]" "{\"flag\":\"nav:earn-no-transition\",\"word\":\"reject\"}"),
+   ("no pending decision: no item, nothing open", rv s!"[{row "nav:a" "d" "kept" "done"}]" "[]"),
+   ("keep on an open step is accepted", rv pend s!"[{st "review-nav:earn-no-transition" "null" "true"}]" (w "keep")),
+   ("reject on an open step is accepted", rv pend s!"[{st "review-nav:earn-no-transition" "null" "true"}]" (w "reject")),
+   ("keep without a step on the board is refused (the step is posted first)", rv pend "[]" (w "keep")),
+   ("a decided item is not answered again", rv pend s!"[{st "review-nav:earn-no-transition" "\"keep\"" "false"}]" (w "reject")),
    ("a flag without a pending decision is refused", rv pend "[]" "{\"flag\":\"nav:other\",\"word\":\"keep\"}"),
-   ("a word that is not keep or reject is refused", rv pend "[]" "{\"flag\":\"nav:earn-no-transition\",\"word\":\"yes\"}"),
+   ("a word that is not keep or reject is refused", rv pend s!"[{st "review-nav:earn-no-transition" "null" "true"}]" (w "yes")),
    ("a bad flag key is refused", rv pend "[]" "{\"flag\":\"nocolon\",\"word\":\"keep\"}"),
+   ("a decision word that is unknown is refused", rv "[{\"flag\":\"nav:a\",\"date\":\"d\",\"decision\":\"yes\",\"review\":\"pending\"}]" "[]"),
    ("without looks the rows are Fw.Preset.Gen.lookDecisions", Json.mkObj [("steps", lit "[]")])]
 
 /-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/

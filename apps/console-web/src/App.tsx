@@ -114,6 +114,9 @@ function StepBody({ body }: { body: string }) {
 function StepRow({ step, act, now, readOnly = false }: { step: Step; act: Act; now: number; readOnly?: boolean }) {
   const [text, setText] = useState("");
   const isAction = step.kind === "action";
+  // A review step is decided only in Your reviews (with its confirm step): no Start, Done or answer button here.
+  const isReview = step.id.startsWith("review-");
+  if (isReview) readOnly = true;
   return (
     <div className="flex flex-wrap items-center gap-2 rounded border p-2">
       <div className="min-w-0 flex-1">
@@ -123,6 +126,7 @@ function StepRow({ step, act, now, readOnly = false }: { step: Step; act: Act; n
           {step.id}{step.card ? ` / card ${step.card}` : ""} / {step.status} / posted {age(now - step.postedAt)} ago
         </div>
       </div>
+      {isReview && <a className="text-sm underline" href="?tab=reviews" data-testid="review-step-link">Decide in Your reviews</a>}
       {!readOnly && step.status === "waiting" && <Button size="sm" variant="outline" onClick={() => act({ type: "step.start", step: step.id })}>Start</Button>}
       {!readOnly && isAction && step.status === "started" && <Button size="sm" onClick={() => act({ type: "step.done", step: step.id })}>Done</Button>}
       {!readOnly && step.kind === "yes_no" && ["yes", "no"].map((a) => (

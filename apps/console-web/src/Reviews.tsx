@@ -63,7 +63,7 @@ export function ReviewCard({ item, confirming, busy, error, onAsk, onConfirm, on
         <h3 className="break-all font-mono text-sm font-semibold">{item.flag}</h3>
         <Badge variant={decided ? "outline" : "secondary"}>{decided ? "decided" : "look change, review pending"}</Badge>
       </div>
-      <p className="break-words text-xs text-muted-foreground">Kept {item.date}: {item.words}</p>
+      <p className="break-words text-xs text-muted-foreground">Recorded {item.date}: {item.words}</p>
       {item.changed ? (
         <dl className="space-y-1 text-xs" data-testid="changed">
           <div><dt className="font-medium">What changed</dt><dd className="break-words">{item.changed.candidate}</dd></div>

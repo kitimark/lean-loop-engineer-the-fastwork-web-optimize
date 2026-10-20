@@ -17,7 +17,7 @@ const lines = readFileSync(
         kind: string;
         visClass: string;
         member: boolean;
-        userDecision: { date: string; decision: string } | null;
+        userDecision: { date: string; decision: string; review: string; material: unknown } | null;
       },
   );
 
@@ -46,10 +46,23 @@ describe('look-change candidates', () => {
     }
   });
 
-  it('nav:earn-no-transition is a look change the user accepted on 2026-10-21, pending visual review', () => {
+  it('nav:earn-no-transition is a look change the user kept on 2026-10-21, visual review pending, with its material', () => {
     expect(lines.find((l) => l.flag === 'nav:earn-no-transition')?.userDecision).toEqual({
       date: '2026-10-21',
-      decision: 'accepted, pending user visual review',
+      decision: 'kept',
+      review: 'pending',
+      material: {
+        chromium: { state: 'ready', run: '39473950464', artifact: 'frames-chromium', expires: '2026-11-19' },
+        webkit: { state: 'pending', task: 'earn-look-review-webkit' },
+      },
     });
+  });
+
+  it('every decision is one of kept, rejected, accepted with a review state of pending or done', () => {
+    for (const l of lines) {
+      if (!l.userDecision) continue;
+      expect(['kept', 'rejected', 'accepted'], l.flag).toContain(l.userDecision.decision);
+      expect(['pending', 'done'], l.flag).toContain(l.userDecision.review);
+    }
   });
 });
