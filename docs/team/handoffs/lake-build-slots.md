@@ -15,16 +15,11 @@ there. apps/runner `pnpm test` passes 1437/1437. `node --test scripts/ci-paths.t
   - `LAKE_SLOT` set means a nested call; `LAKE_SLOT_DIR` overrides the dir.
 - Call sites go through the wrapper: `scripts/fwcore-build.sh`, the check.sh build stage, and the land axiom lint.
   The lint's argv lives in Lean, `Fw.Console.LandDry.Lint.argv`, and the golden `land-dry.jsonl` is regenerated from it.
-- New reads are declared: `land.ts` CHECK_SH_READS, `LandSpeed.checkShReads` (+ golden), and the lean.yml row of
-  `Fw.Ci.Trigger` (+ golden).
+- New reads are declared in `land.ts` CHECK_SH_READS, `LandSpeed.checkShReads` and the lean.yml row of `Fw.Ci.Trigger` (goldens regenerated).
 
 **Verified (local debug runs on a loaded Mac; spans have tool `lake-slot/bench` in main's `.fw-console/timings.jsonl`):**
-| Run | Plain | Wrapped |
-|---|---|---|
-| Solo 12-module build, median of 3 (load ~13) | 4.90 s | 5.00 s (noise) |
-| Wrapper startup | `sh -c true` 5.6 ms | 13.0 ms |
-| Two overlapping builds: peak lean children | 16 | 12 / 11 |
-| Two overlapping builds: peak lean RSS | 6.3 GB | 4.7 / 4.3 GB |
+- Solo 12-module build, median of 3 at load ~13: plain 4.90 s, wrapped 5.00 s (within noise). Wrapper startup is 13.0 ms (`sh -c true` takes 5.6 ms).
+- Two overlapping builds: plain peaks at 16 lean children and 6.3 GB RSS; wrapped peaks at 12/11 children and 4.7/4.3 GB.
 
 **Open items:**
 - Lean LSP workers and agents' ad-hoc `lake build` calls run without a slot. The follow-up is a lean-prover instruction to use the wrapper.
