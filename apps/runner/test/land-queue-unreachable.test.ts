@@ -12,7 +12,7 @@ import { httpFor } from "../src/land.ts";
 import { CONSOLE_UNREACHABLE_REASON, ConsoleUnreachable, HEALTH_BOUND_MS, HEALTH_POLLS, attemptNext, enqueue, healthDelay, healthReached, healthWaitAfter, pending, pollTime, readLog, runQueue, waitHealth } from "../src/land-queue.ts";
 import type { Kind } from "../src/land-verdict.ts";
 
-const PROBE_CAP = 2000, REQS = 3, TRIES = 30, REPRO_CAP = 120_000; // a health probe's own cap; requests per client test; repro tries; repro hang catcher
+const PROBE_CAP = 2000, REQS = 3; // a health probe's own cap; requests per client test
 const golden = join(dirname(new URL(import.meta.url).pathname), "../../../packages/contracts/golden/console/land-queue.jsonl");
 type G = { name: string; request: Record<string, unknown> & { op: string }; response: Record<string, unknown> };
 const rows: G[] = readFileSync(golden, "utf8").trim().split("\n").map((l) => JSON.parse(l) as G);
@@ -202,19 +202,6 @@ describe("the land's HTTP client never reuses a socket", () => {
       }
       expect(c.sockets()).toBe(REQS);
       expect(c.seen).toEqual(Array(REQS).fill("close"));
-    } finally { await c.close(); }
-  });
-  // FW_KEEPALIVE_REPRO=1: the unfixed client against a server that closes during the block; prints the failure count (a race: 0 is possible)
-  it.skipIf(!process.env.FW_KEEPALIVE_REPRO)("repro: plain fetch after a blocked loop (race, ECONNRESET)", { timeout: REPRO_CAP }, async () => {
-    const c = await countingConsole(1000);
-    let fails = 0;
-    try {
-      for (let i = 0; i < TRIES; i++) {
-        await (await fetch(`${c.base}/api/plan`)).json();
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1500);
-        try { await (await fetch(`${c.base}/api/plan`)).json(); } catch (e) { fails++; expect(((e as Error).cause as { code?: string })?.code).toMatch(/ECONNRESET|UND_ERR_SOCKET/); }
-      }
-      console.log(`keep-alive repro on node ${process.version}: ${fails}/${TRIES} failed`);
     } finally { await c.close(); }
   });
 });
