@@ -72,11 +72,11 @@ async function censusOnce(browser, engine, port) {
     const step = () => new Promise((r) => requestAnimationFrame(() => r()));
     const max = document.documentElement.scrollHeight - innerHeight;
     for (let y = 0; y <= max; y += 40) {
-      scrollTo(0, y);
+      scrollTo({ top: y, left: 0, behavior: 'instant' });
       await step();
     }
     for (let y = max; y >= 0; y -= 80) {
-      scrollTo(0, y);
+      scrollTo({ top: y, left: 0, behavior: 'instant' });
       await step();
     }
   });

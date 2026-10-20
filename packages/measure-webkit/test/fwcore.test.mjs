@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { quietReply } from '../src/quietsteps.mjs';
 import { retryReply, retryPlanReply } from '../src/simretry.mjs';
+import { inspectorReply, BOUNDS } from '../src/inspector.mjs';
 import { tally, reduceSteps, zones, classify, symDiff, summarize } from '../src/reduce.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -37,6 +38,8 @@ const TS = {
   'measure.quietSteps': (q) => quietReply(q),
   'measure.retry': (q) => (q.attempt >= 1 ? retryReply(q) : undefined),
   'measure.retryPlan': (q) => retryPlanReply(q),
+  'measure.inspector': (q) => inspectorReply(q),
+  'measure.simBounds': () => ({ ...BOUNDS }),
   'measure.classify': (q) => (q.mode === 'cells' ? classify(q.runs, q.tol) : undefined),
 };
 

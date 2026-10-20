@@ -8121,11 +8121,13 @@
    "id": "land-lane-circleci",
    "owner": "measure-engineer",
    "stream": "ops",
-   "title": "CircleCI land job running the same fw checks --tier remote entry as land.yml and emitting laneDigest; the CircleCI adapter in land-remote.ts (pipeline/run with definition id, sha from GET /pipeline/{id}); live proof on one ci/land-* probe",
+   "title": "CircleCI land job running the same fw checks --tier remote entry as land.yml and emitting laneDigest; the CircleCI adapter in land-remote.ts (pipeline/run with definition id, sha from GET /pipeline/{id}); live proof on one ci/land-* probe. User 2026-10-21: use CircleCI for the Linux/Arm jobs to raise concurrency (30 per Arm class on top of GitHub's 20). Routing is overflow, decided in Lean (Fw.Ci.Provider route): a Linux land leg goes to CircleCI when GitHub's running+queued jobs for this repo leave no free slot or GitHub is degraded, and CircleCI is healthy (circleci-status) with credits and storage under the stop rules; the leg's verdict counts the same from either provider (laneDigest equal on a paired run). Measure: land lane wall time and queue wait with and without overflow under a busy GitHub pool",
    "deps": [
     "land-wait",
     "circleci-pilot",
-    "circleci-cache-accounting"
+    "circleci-cache-accounting",
+    "circleci-status",
+    "land-check-remote"
    ],
    "writes": [
     ".circleci/**",
@@ -11045,8 +11047,18 @@
     "packages/measure-webkit/src/**",
     "packages/measure-webkit/test/**",
     ".github/workflows/webkit-sim.yml",
-    "docs/team/handoffs/webkit-sim-failfast.md"
-   ]
+    "docs/team/handoffs/webkit-sim-failfast.md",
+    "lean/Fw.lean",
+    "lean/Fw/Measure/Golden.lean",
+    "lean/Fw/Measure/SimBound.lean",
+    "lean/Fw/Measure/Wire.lean",
+    "lean/Fw/Store/Layout.lean",
+    "packages/contracts/golden/measure/measure.inspector.jsonl",
+    "packages/contracts/golden/measure/measure.simBounds.jsonl",
+    "packages/contracts/golden/measure/measure.simPlan.jsonl",
+    "research/notes/2026/10-20-macos-pool-v2.md"
+   ],
+   "evidence": "6c9d13e"
   },
   {
    "devices": [
@@ -11204,7 +11216,13 @@
     "apps/site/src/parts/hero.exit/**",
     "packages/contracts/golden/parts/hero.exit.scoped.json",
     "research/notes/2026/10-2*-exit-scoped-inline.md",
-    "docs/team/handoffs/exit-scoped-inline.md"
+    "docs/team/handoffs/exit-scoped-inline.md",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "research/findings/ledger.json"
    ]
   },
   {
@@ -11232,7 +11250,8 @@
     "packages/gate-breakpoints/src/trajectory/kit.mjs",
     "lean/Fw/Parts/FootprintData.lean",
     "packages/contracts/golden/parts/footprint.gen.json"
-   ]
+   ],
+   "evidence": "4181485"
   },
   {
    "devices": [
