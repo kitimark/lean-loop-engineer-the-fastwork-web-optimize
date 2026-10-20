@@ -10946,16 +10946,18 @@
     "orphan-guard",
     "latex-teardown"
    ],
-   "title": "User 2026-10-20 allowed automatic reaping of Lean-selected leftovers: fw reap (run after each land's worktree removal and on the fw watch tick) stops the processes ops.lspReap selects (our tool kinds tied to a removed worktree; identity = pid + start time, re-checked right before the signal; process group only when pgid == pid); never by name or pattern, never a live checkout's process. CLAUDE.md Processes rule amended to state this positively; theorem: a stopped pid is one Lean selected and still has the selected start time",
+   "title": "User 2026-10-20 allowed automatic reaping of Lean-selected leftovers: fw reap (run after each land's worktree removal and on the fw watch tick) stops the processes ops.lspReap selects (our tool kinds tied to a removed worktree; identity = pid + start time, re-checked right before the signal; process group only when pgid == pid); never by name or pattern, never a live checkout's process. CLAUDE.md Processes rule amended to state this positively; theorem: a stopped pid is one Lean selected and still has the selected start time; orphan-guard review follow-ups: process start time read as an epoch (not local lstart; DST fall-back breaks the 60 s keep window), checkout paths realpath'd before the nested-live prefix test, a lake serve whose lean-lsp-mcp itself sits in a removed worktree is listed (and that mcp a candidate kind), land-reap test asserts the current-directory line and covers git refusing the removal",
    "writes": [
-    "lean/Fw/Ops/LspReap.lean",
     "apps/runner/src/reap.ts",
     "apps/runner/src/land.ts",
     "apps/runner/src/fw.ts",
     "apps/runner/test/**",
     "packages/contracts/golden/ops/**",
     "CLAUDE.md",
-    "docs/team/handoffs/reap-stop.md"
+    "docs/team/handoffs/reap-stop.md",
+    "lean/Fw/Ops/Reap.lean",
+    "lean/scripts/ReapGolden.lean",
+    "packages/contracts/golden/ops/lspreap.jsonl"
    ]
   },
   {
