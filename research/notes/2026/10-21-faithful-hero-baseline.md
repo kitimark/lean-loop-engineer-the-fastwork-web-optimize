@@ -27,7 +27,7 @@ unit's element.property, width and step.
 | B | `nav.cls.is-on-dark` (+ `logo.color`) | 390 | open@3..10, open-hold@10, close@3..10, approach a0 | Chromium | the original derives `is-on-dark` as hit-test or morph > 0.2 and re-derives on every morph change; the port derived it only in the scroll callback. A push moves the morph, not the scroll. |
 | C | `earn.max-width` (timing) | 390 | open@3..10 | Chromium | **follow-up, no cause cited.** The units are `both` in the A/A run 39409003529 re-reduced (open@3..10: seven `both`, one `cleared`), and absent from both final runs. A search of `2.gBuqKVzi.css` finds four `is-on-dark` rules (language switch, nav background twice, logo colour); none selects the earn button or its transition, so the earlier "follows B" is withdrawn. |
 | D | `nav.background-color` | 641, 1280 | approach a2..a11 | Chromium | in-flight transition at an approach step; repeats in the A/A run (MEASURED), flicker, not a defect (A/A run re-reduced: 6 failing units at 641 and 4 at 1280, in both the candidate and the faithful arm) |
-| E | every morph property | 390, 641 | open@1 | Chromium, Linux WebKit | coverage (empty bucket); sampling, in the A/A run too (42 coverage units at 641 in both arms and at 390 in the candidate) |
+| E | every morph property | 390, 640, 641 open@1; 1280 close@8 (faithful arm, 39453764374) | open@1, close@8 | Chromium, Linux WebKit | coverage (empty bucket); sampling, in the A/A run too (42 coverage units at 641 in both arms and at 390 in the candidate) |
 | F | `earn.opacity`, `earn.max-width` | 640, 641, 1280 | close@0, close-hold@0 | Chromium | in-flight sampling of one CSS transition, same in both arms and in the A/A run; not a port defect (see "Row F"). |
 
 ## Port defects (apps/site against `snapshot/site`), CSS values restated
@@ -114,6 +114,8 @@ outcome: run 39457063232 mac-webkit hero: pass
 outcome: run 39457063232 linux-webkit hero: pass
 outcome: run 39457063232 linux-webkit morph: no verdict: coverage
 ```
+
+These lines read `rel=new`: the candidate (the faithful config) against the faithful arm, an A/A comparison that cannot see a divergence between the faithful arm and the original. The faithful arm's own failures against the original (`base`) give hero 0 failures on both engines in both runs; on Chromium morph, earn.max-width fails at 2 widths in each run (row F), which the same rule would call fail.
 
 Chromium and macOS WebKit hero pass in 2 completed runs. Raw `new` units that `outcome` does not count remain (below); the
 Lean rule fails a node property only on content `new` units at 2 or more widths, and no run has that.
