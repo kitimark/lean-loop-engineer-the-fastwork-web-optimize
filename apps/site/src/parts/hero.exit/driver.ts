@@ -35,8 +35,11 @@ export function createExitDriver(opts: {
         opts.hero.style.setProperty('--exit-opacity', opacity);
         opts.hero.style.pointerEvents = r.pointerNone ? 'none' : '';
         if (!opts.readers?.length) return;
-        const writes = readerWrites(reduced, opacity);
-        for (const el of opts.readers) for (const [name, value] of writes) el.style.setProperty(name, value);
+        const [[, own], [, scatter]] = readerWrites(reduced, opacity);
+        for (const el of opts.readers) {
+          el.style.setProperty('--exit-opacity', own);
+          el.style.setProperty('--exit-scatter', scatter);
+        }
       };
     },
   };

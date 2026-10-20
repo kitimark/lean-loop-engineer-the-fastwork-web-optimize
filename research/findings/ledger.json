@@ -2529,6 +2529,12 @@
    "task": "preset-drop-waapi",
    "field": "mechanism",
    "text": "falsified on real devices 2026-10-20, see row morph.tween.waapiScoped.falsified (fResult model-bug)"
+  },
+  {
+   "entry": "hero.exit:scoped falsified on WebKit: the hero readers keep a stale cached style while --exit-opacity changes",
+   "task": "exit-scoped-inline",
+   "field": "mechanism",
+   "text": "CONFIRMED @862f17d: the MatchedDeclarationsCache key is matchResult plus the parent inheritedCustomProperties (MatchedDeclarationsCache.cpp:123-137,153); registered inherits:false properties are non-inherited data (StyleComputedStyleBase+GettersInlines.h:293-295), so a stage write keeps each reader on its cache hit; the hit copies non-inherited properties (StyleResolver.cpp:703) and re-applies only ExplicitlyInherited (:706-707,723-724), i.e. `inherit` declarations (PropertyCascade.cpp:332-333): --exit-opacity is fresh, opacity/transform via var() stay stale. Fix: the writer sets both properties inline on each of the 16 readers; mutable inline style is non-cacheable (ElementRuleCollector.cpp:968-971,994-996; MatchedDeclarationsCache.cpp:125-126,141-142). Lean Fw.Parts.HeroExitOpt: wkRun_chain_frozen, chain_stale_webkit, inline_visSame, inline_units, inline_touched (17), inline_narrow_delta (90). Note research/notes/2026/10-20-exit-scoped-inline.md. OPEN: trajectory probe hero.exit:scoped on ci/exit-scoped-inline (2 reps, A/A hero.exit:faithful) must show WebKit new units 187 -> 0, and Chromium counts swipe-v1 scoped vs faithful; runs await lead dispatch."
   }
  ]
 }

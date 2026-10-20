@@ -1,7 +1,3 @@
-import copyCss from '../hero/hero.module.css';
-import cueCss from '../hero.cue/cue.module.css';
-import cardCss from '../hero.orbit/card.module.css';
-
 /** Variant `scoped` (Lean `Fw.Parts.HeroExitOpt`, section Scoped); constants checked against `hero.exit.scoped.json`. */
 export const SCOPED = 'scoped';
 export const SCOPE_ATTR = 'data-exit-scope';
@@ -29,16 +25,8 @@ export function registerScoped(css: Partial<PropertyRegistry> | undefined): void
   }
 }
 
-/** Lean `readers` (`part/class`) to the class the reader carries. */
-export const READER_CLASSES: Record<string, string> = {
-  'hero.orbit/card': cardCss.card,
-  'hero/copy': copyCss.copy,
-  'hero.cue/cue': cueCss.cue,
-};
-
-export const READER_SELECTOR = Object.values(READER_CLASSES)
-  .map((c) => `.${c}`)
-  .join(',');
+/** Lean `readers`, selected by the attributes their parts render; scoped.test.ts checks it against the reader classes. */
+export const READER_SELECTOR = '[data-fw="hero"], [data-fw="hero-cue"], [data-orbit-id], [data-fw="hero-deck"] > article';
 
 /** Lean `readerWrites`: what the driver writes on each reader for the stage write `opacity`. */
 export function readerWrites(reduced: boolean, opacity: string): [string, string][] {

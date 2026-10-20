@@ -14,7 +14,7 @@ import orbitCss from '../hero.orbit/orbit.module.css';
 import exitCss from './hero.module.css';
 import part from './part.json';
 import { createExitDriver } from './driver';
-import { READER_CLASSES, READER_SELECTOR, readerWrites, SCOPE_ATTR, SCOPED, SCOPED_PROPS } from './scope';
+import { READER_SELECTOR, readerWrites, SCOPE_ATTR, SCOPED, SCOPED_PROPS } from './scope';
 
 type GNode = [string, string] | [string, string, GNode[]];
 interface Golden {
@@ -514,20 +514,23 @@ describe('inline writes on the readers (Lean inline_visSame)', () => {
     for (const c of golden.readerWrites) expect(readerWrites(c.reduced, c.opacity)).toEqual(c.writes);
   });
 
-  it('the reader classes are the golden readers and the frame writes cover each of them', () => {
-    expect(Object.keys(READER_CLASSES).sort()).toEqual([...golden.readers].sort());
+  it('the frame writes are the stage and then each golden reader', () => {
     const per = golden.readers.flatMap((r) => EXIT_PROPS.map((property) => ({ element: r, property })));
     expect(golden.frameWrites).toEqual([{ element: 'hero.exit/hero', property: '--exit-opacity' }, ...per]);
   });
 
-  it('the selector finds every reader of the SSR stage', () => {
+  it('the selector finds exactly the golden readers of the SSR stage', () => {
     const html = renderToString(createElement(Hero, { variants: { 'hero.exit': SCOPED } }));
     const stage = find(parseHtml(html), (e) => attr(e, SCOPE_ATTR) !== undefined)!;
-    const wanted = new Set(Object.values(READER_CLASSES));
-    const count = (el: El): number => (classes(el).some((c) => wanted.has(c)) ? 1 : 0) + el.kids.reduce((a, k) => a + count(k), 0);
-    expect(count(stage)).toBe(golden.inline.narrow.touched - 1);
-    expect(count(stage)).toBe(golden.inline.wide.touched - 1);
-    expect(READER_SELECTOR.split(',').map((s) => s.slice(1)).sort()).toEqual([...wanted].sort());
+    const readerClasses: Record<string, string> = { 'hero.orbit/card': cardCss.card, 'hero/copy': heroCss.copy, 'hero.cue/cue': cueCss.cue };
+    expect(Object.keys(readerClasses).sort()).toEqual([...golden.readers].sort());
+    const wanted = new Set(Object.values(readerClasses));
+    const all = (el: El): El[] => [el, ...el.kids.flatMap(all)];
+    const byClass = all(stage).filter((e) => classes(e).some((c) => wanted.has(c)));
+    const bySelector = all(stage).filter((e) => READER_SELECTOR.split(',').some((s) => matchesComplex(e, s.trim())));
+    expect(bySelector).toEqual(byClass);
+    expect(byClass.length).toBe(golden.inline.narrow.touched - 1);
+    expect(byClass.length).toBe(golden.inline.wide.touched - 1);
   });
 
   it('the writer writes the stage and then every reader, reads nothing more', () => {
