@@ -11446,6 +11446,24 @@
     "lean/Fw/Ops/CheckMap.lean",
     ".github/actions/**"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-transition-retarget",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "webkit-lag-source"
+   ],
+   "title": "Region B candidate (research/notes/2026/10-20-webkit-lag-source.md, per-transition row): nav .btn.earn has CSS transitions on max-width, padding-inline and opacity (nav.module.css:167-185, no .is-morphing override); each frame's --morph change restarts them (Styleable.cpp:742-758 cancel then restart), so the button's layout runs about 0.68 s past the scroll and the running opacity transition may composite it (RenderLayerCompositor.cpp:3842-3853). Lean first: an arm with no transition on those properties while morphing, prove VisSame (same end state each frame up to the PL tolerance) and the work bound; flag it (nav.earn:no-transition); prove on CI with the trajectory probe on both engines and webkit-lag-probe's region B counters when available; record in the findings ledger win or not",
+   "writes": [
+    "lean/Fw/Parts/NavEarn*.lean",
+    "apps/site/src/parts/nav/**",
+    "packages/contracts/golden/parts/nav-earn*.jsonl",
+    "docs/team/handoffs/earn-transition-retarget.md"
+   ]
   }
  ],
  "deadline": {
