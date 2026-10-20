@@ -11238,6 +11238,43 @@
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-admission.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-probe-speed",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "trajectory-probe follow-ups (handoff open items 1, 3, 4): parallel widths in the probe (matrix legs), the macOS hero+morph paths on the Apple job, reps 5 against one-empty-bucket A/A reds; then a Lean cap for trajectory-probe.yml probe-apple from the measured p90 of successes (Fw.Ci.Pool.Caps rows, remove it from excluded; ci-paths --check green). Measure wall time per cell before/after on CI",
+   "writes": [
+    ".github/workflows/trajectory-probe.yml",
+    "packages/gate-breakpoints/src/trajectory/**",
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "packages/contracts/golden/ci/pool-caps.jsonl",
+    "scripts/ci-paths.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-probe-speed.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cd-guard",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "Mistake class (6 times on 2026-10-20, notes did not stop it): the lead's Bash call `cd <main>/.claude/worktrees/<wt> && ...` moves the session cwd into a worktree. Extend Fw.Ops.Wait (the wait-guard decision, PreToolUse Bash, apps/runner/hooks/wait-guard.mjs) with a cwd rule: refuse a command whose top level (outside a subshell) changes directory into .claude/worktrees/ when the hook payload's cwd is the main checkout; allowed forms (subshell, git -C) pass; theorems + golden rows (ops.wait.jsonl); this rule enforces (deny with the reason 'use (cd $W && ...) or git -C') while the other wait-guard rules keep their mode. No settings.json change",
+   "writes": [
+    "lean/Fw/Ops/Wait.lean",
+    "packages/contracts/golden/ops/ops.wait.jsonl",
+    "apps/runner/hooks/wait-guard.mjs",
+    "apps/runner/test/wait-guard*.ts",
+    "docs/team/tools/wait-guard.md",
+    "docs/team/handoffs/cd-guard.md"
+   ]
   }
  ],
  "deadline": {
