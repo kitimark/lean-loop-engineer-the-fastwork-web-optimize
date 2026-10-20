@@ -12,6 +12,7 @@ import Fw.Console.PreviewReturn
 import Fw.Console.PreviewCache
 import Fw.Console.Builds
 import Fw.Console.BuildsOpen
+import Fw.Wire.Compose
 import Fw.Console.Daemon
 import Fw.Console.LandLegs
 import Fw.Plan.Trailer
@@ -50,6 +51,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
 | `console.buildsSearch` | `registry` {parts [{id, variants [names, head = default], impls, requires {key: [keys]}, conflicts {key: [keys]}}], presets [{name, extends?, fw {part: variant or variant@impl}}]}, `search` | `ok`, `canonical` (when ok), `reasons` (when refused: the site `resolve` errors, or the length or charset reason) (`Fw.Console.BuildsOpen.validate`) |
 | `console.buildsOpen` | `mode` (`row`: `slot`, `sha`, `search` of a Builds row; `search`: `main`, `search`, `registry` as above), `arm`? (`r` or `compare`), `previews` [{id, slot, sha, serving}], `lan`?, `lanAddr`?, `port`? | `ok`, `reasons`, `canonical`, `act` (`reuse`/`wait`/`rebuild`/`start`), `preview` (the id acted on or null), `slot`, `sha`, `path` and `url` (with `reuse` only; `url` is the link to copy: LAN address when LAN is on, else loopback) (`Fw.Console.BuildsOpen.openSearch`, `openRow`, `path`, `fullUrl`) |
+| `console.compose` | `registry` {parts [{id, slot, impls, variants [{name, kind, limit?}], requires, conflicts}], presets}, `ledger` [{part, candidate, status, flag?}], `picks`? [{part, variant}] | `regions`, `parts` (variants with class, why, ledger rows, refusal), `presets` (each with its decision), `decision` for `picks` (`link` only when allowed), `rules` (`Fw.Console.Compose.table`, `decide`; see `Fw.Wire.Compose`) |
 | `console.daemon` | `kind`: `start` (`recorded`? pid in api.json, `answered`? pid the health request reported, `alive`? whether the recorded pid exists), `stop` (same), `restart` (same), `rotate` (`size`, `limit`? default 5 MiB) | start: `allow`, `verified` (pid or null), `reason` (`ok`/`running`/`unverifiedAlive`); stop: `target` (the only pid to signal, or null), `reason` (`ok`/`notRunning`); restart: `steps` [{step: `stop`+`pid` / `start`}]; rotate: `rotate`, `limit`, `warn` (size above 50 MiB), `warnLimit` (`Fw.Console.Daemon.startAllowed`, `stopTarget`, `restartPlan`, `rotate`, `logWarns`) |
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
 | `console.landTier` | `ids` [check ids], `built`? (a fwcore build already ran, default false) | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept), `browser` (`browserRuns`: the selection holds the e2e-preview check), `build` (`needsBuild`: the local plan starts with the fwcore build) |
@@ -766,7 +768,7 @@ def opDaemon (req : Json) : Except String Reply := do
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
   "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLeg", "console.landLegs", "console.landLegsVeto", "console.landLane", "console.landRemote", "console.landLaneState", "console.landDigest", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
-  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.previewArm", "console.loginReturn", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.buildsSearch", "console.buildsOpen", "console.daemon"]
+  "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.previewArm", "console.loginReturn", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.buildsSearch", "console.buildsOpen", "console.compose", "console.daemon"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -811,6 +813,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.buildsPicker" => some (opBuildsPicker req)
   | "console.buildsSearch" => some (opBuildsSearch req)
   | "console.buildsOpen" => some (opBuildsOpen req)
+  | "console.compose" => some (Fw.Wire.Compose.opCompose req)
   | "console.daemon" => some (opDaemon req)
   | _ => none
 
