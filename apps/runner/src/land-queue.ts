@@ -7,7 +7,7 @@
 import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { refusalReason, refusedLine, retryable, type Kind } from "./land-verdict.ts";
+import { REBUILD_REASON, afterLand, needsRebuild, refusalReason, refusedLine, retryable, stopKind, type Kind } from "./land-verdict.ts";
 
 export type Entry = { task: string; branch: string };
 /** a pending entry also carries the `--allow` globs it was queued with */
@@ -108,6 +108,12 @@ export type QueueOptions = {
   maxTries?: number;
   retryMs?: number;
   startTime?: (pid: number) => string | null;
+  /** main's head before an attempt; with `diff` and `rebuild` it turns on the fwcore rebuild between entries (Lean `afterLand`) */
+  head?: () => string;
+  /** the paths that changed in main since `from` (the merged diff of the land that just finished) */
+  diff?: (from: string) => string[];
+  /** `sh scripts/fwcore-build.sh` in the main checkout, timed as a span; true when it succeeded */
+  rebuild?: () => Promise<boolean>;
 };
 export type QueueResult = { task: string; kind: Kind; tries: number; ms: number; reason?: string };
 
@@ -146,6 +152,7 @@ export async function runQueue(o: QueueOptions): Promise<{ ran: boolean; results
         if (!e) break;
         const t0 = Date.now();
         let tries = 1;
+        const before = o.head && o.diff && o.rebuild ? o.head() : null;
         let kind: Kind;
         let reason: string | undefined;
         let shown = false; // a refusal the attempt already explained on stderr (`fw land` prints its REFUSED lines)
@@ -167,6 +174,23 @@ export async function runQueue(o: QueueOptions): Promise<{ ran: boolean; results
         }
         appendFileSync(queueFile(o.consoleDir), JSON.stringify({ ev: "res", task: e.task, kind, tries, ms: Date.now() - t0, at: Date.now(), ...(reason !== undefined ? { reason } : {}) }) + "\n");
         done.push({ task: e.task, kind, tries, ms: Date.now() - t0, ...(reason !== undefined ? { reason } : {}) });
+        if (before !== null && kind === "done") {
+          // Lean `afterLand`: a land that changed a fwcore source rebuilds fwcore before the next dequeue; a failed rebuild stops the queue
+          let paths: string[];
+          try { paths = o.diff!(before); } catch { paths = ["lean/"]; } // an unreadable diff fails closed into a rebuild
+          if (!needsRebuild(kind, paths)) continue;
+          const ok = await o.rebuild!().catch(() => false);
+          const nk = stopKind(afterLand(kind, paths, () => ok));
+          if (nk === null) continue;
+          const nx = pending(readLog(o.consoleDir))[0];
+          const why = refusalReason(nk, REBUILD_REASON)!;
+          (o.err ?? ((l) => console.error(l)))(refusedLine(why));
+          if (nx) {
+            appendFileSync(queueFile(o.consoleDir), JSON.stringify({ ev: "res", task: nx.task, kind: nk, tries: 0, ms: 0, at: Date.now(), reason: why }) + "\n");
+            done.push({ task: nx.task, kind: nk, tries: 0, ms: 0, reason: why });
+          }
+          return { ran, results: done };
+        }
       }
     } finally { lock.release(); }
     if (pending(readLog(o.consoleDir)).length === 0) return { ran, results: done };

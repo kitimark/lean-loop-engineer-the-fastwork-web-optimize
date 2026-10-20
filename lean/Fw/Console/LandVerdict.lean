@@ -8,7 +8,7 @@ text) share one cause: the outcome of a land was only prose. Here the outcome is
 line `VERDICT <kind> <task>` and exits with the kind's code, so a script decides from the exit code or from the first
 word after `VERDICT`, never from a text match.
 
-* kinds: `busy` `dirty` `scope` `reads` `conflict` `checks` `stale` `unknown` `lint` (refusals); `done` `dry` `queued` `empty` (successes);
+* kinds: `busy` `dirty` `scope` `reads` `conflict` `checks` `stale` `unknown` `lint` `rebuild` (refusals); `done` `dry` `queued` `empty` (successes);
 * exit code: 0 for every success, a distinct non-zero number for every refusal (`exitCode_inj_refusal`);
 * retry: only `busy` and `dirty` are retried (`retryable_iff`): they say that the world, not the branch, is in the way.
 
@@ -20,16 +20,16 @@ namespace Fw.Console.LandVerdict
 
 /-- The outcome kinds of a land (or of a dry land, or of a queue entry). -/
 inductive Kind where
-  | busy | dirty | scope | reads | conflict | checks | stale | unknown | done | dry | queued | empty | lint
+  | busy | dirty | scope | reads | conflict | checks | stale | unknown | done | dry | queued | empty | lint | rebuild
 deriving DecidableEq, Repr
 
 /-- All kinds, in the order of the golden file. -/
-def Kind.all : List Kind := [.busy, .dirty, .scope, .reads, .conflict, .checks, .stale, .unknown, .done, .dry, .queued, .empty, .lint]
+def Kind.all : List Kind := [.busy, .dirty, .scope, .reads, .conflict, .checks, .stale, .unknown, .done, .dry, .queued, .empty, .lint, .rebuild]
 
 /-- The word printed after `VERDICT`. -/
 def Kind.name : Kind → String
   | .busy => "busy" | .dirty => "dirty" | .scope => "scope" | .reads => "reads" | .conflict => "conflict"
-  | .checks => "checks" | .stale => "stale" | .unknown => "unknown" | .done => "done" | .dry => "dry" | .queued => "queued" | .empty => "empty" | .lint => "lint"
+  | .checks => "checks" | .stale => "stale" | .unknown => "unknown" | .done => "done" | .dry => "dry" | .queued => "queued" | .empty => "empty" | .lint => "lint" | .rebuild => "rebuild"
 
 /-- Is the kind a success? A finished land, a passing dry land, an accepted queue entry. -/
 def Kind.ok : Kind → Bool
@@ -39,7 +39,7 @@ def Kind.ok : Kind → Bool
 always used for a refusal). -/
 def Kind.exitCode : Kind → Nat
   | .busy => 10 | .dirty => 11 | .scope => 12 | .reads => 13 | .conflict => 14 | .checks => 15 | .stale => 16
-  | .lint => 17 | .unknown => 2 | .done => 0 | .dry => 0 | .queued => 0 | .empty => 0
+  | .lint => 17 | .rebuild => 18 | .unknown => 2 | .done => 0 | .dry => 0 | .queued => 0 | .empty => 0
 
 /-- Does a kind justify trying the same land again later? Only `busy` (another land holds the lock) and `dirty` (the main
 checkout has uncommitted changes) say that something other than the branch is in the way. -/
@@ -76,9 +76,9 @@ theorem verdictLine_prefix (k : Kind) (t : String) :
     ∃ r, verdictLine k t = "VERDICT " ++ k.name ++ " " ++ r :=
   ⟨if t == "" then "-" else t, rfl⟩
 
-#guard Kind.all.length == 13
-#guard (Kind.all.map Kind.name).eraseDups.length == 13
-#guard ((Kind.all.filter (fun k => !k.ok)).map Kind.exitCode).eraseDups.length == 9
+#guard Kind.all.length == 14
+#guard (Kind.all.map Kind.name).eraseDups.length == 14
+#guard ((Kind.all.filter (fun k => !k.ok)).map Kind.exitCode).eraseDups.length == 10
 #guard verdictLine .busy "land-dry" == "VERDICT busy land-dry"
 #guard verdictLine .scope "" == "VERDICT scope -"
 

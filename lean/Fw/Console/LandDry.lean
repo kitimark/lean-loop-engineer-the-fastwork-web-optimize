@@ -434,7 +434,7 @@ def ckCase (name : String) (fs : List FailedCheck) : Json :=
   line name [("op", "landDry.checkKind"), ("failed", toJson (fs.map fun f => Json.mkObj [("reads", .bool f.1), ("stages", toJson f.2)]))]
     [("kind", .str (checkFailKind fs).name)]
 
-/-- Every golden case: 13 kinds, one kind without a task, 15 dry-verdict cases, 13 hand-back cases, 129 dry-run cases (all 128 stage
+/-- Every golden case: 14 kinds, one kind without a task, 15 dry-verdict cases, 14 hand-back cases, 129 dry-run cases (all 128 stage
 outcomes and one without a task), 7 lint-plan cases, 9 real-kind cases. -/
 def cases (_ : Unit := ()) : List Json :=
   Kind.all.map (kindCase · "land-dry") ++
@@ -465,7 +465,7 @@ def cases (_ : Unit := ()) : List Json :=
    ckCase "real: lint check and a plain check" [(false, ["axiom check"]), (false, [])], ckCase "real: two lint checks" [(false, ["lake build"]), (false, ["axiom check"])],
    ckCase "real: no failed check" []]
 
-#guard cases.length == 187
+#guard cases.length == 189
 
 /-- The golden file text: one compressed JSON line per case. -/
 def goldenText (_ : Unit := ()) : String := String.join (cases.map fun c => c.compress ++ "\n")

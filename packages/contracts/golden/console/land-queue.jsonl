@@ -21,6 +21,7 @@
 {"name":"retry queued 1/3","request":{"kind":"queued","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
 {"name":"retry empty 1/3","request":{"kind":"empty","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
 {"name":"retry lint 1/3","request":{"kind":"lint","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
+{"name":"retry rebuild 1/3","request":{"kind":"rebuild","max":3,"op":"landQueue.retry","tries":1},"response":{"retry":false}}
 {"name":"retry busy 3/3","request":{"kind":"busy","max":3,"op":"landQueue.retry","tries":3},"response":{"retry":false}}
 {"name":"same start time","request":{"held":"Sat Oct 18 10:00:00 2026","op":"landQueue.live","probe":"Sat Oct 18 10:00:00 2026"},"response":{"live":true}}
 {"name":"pid reused (other start time)","request":{"held":"Sat Oct 18 10:00:00 2026","op":"landQueue.live","probe":"Sat Oct 18 11:00:00 2026"},"response":{"live":false}}
@@ -67,7 +68,19 @@
 {"name":"refusal reason lint none","request":{"kind":"lint","op":"landQueue.refusalReason","reason":null},"response":{"reason":"no message"}}
 {"name":"refusal reason lint empty","request":{"kind":"lint","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
 {"name":"refusal reason lint given","request":{"kind":"lint","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
+{"name":"refusal reason rebuild none","request":{"kind":"rebuild","op":"landQueue.refusalReason","reason":null},"response":{"reason":"no message"}}
+{"name":"refusal reason rebuild empty","request":{"kind":"rebuild","op":"landQueue.refusalReason","reason":""},"response":{"reason":"no message"}}
+{"name":"refusal reason rebuild given","request":{"kind":"rebuild","op":"landQueue.refusalReason","reason":"m"},"response":{"reason":"m"}}
 {"name":"fwcore stale: no record","request":{"moved":false,"op":"landQueue.fwcoreStale","recorded":null,"same":false},"response":{"stale":true}}
 {"name":"fwcore stale: record is main's head","request":{"moved":false,"op":"landQueue.fwcoreStale","recorded":"abc","same":true},"response":{"stale":false}}
 {"name":"fwcore stale: other commit, lean moved","request":{"moved":true,"op":"landQueue.fwcoreStale","recorded":"abc","same":false},"response":{"stale":true}}
 {"name":"fwcore stale: other commit, lean unchanged","request":{"moved":false,"op":"landQueue.fwcoreStale","recorded":"abc","same":false},"response":{"stale":false}}
+{"name":"after land: no lean change, no rebuild","request":{"kind":"done","op":"landQueue.afterLand","paths":["apps/site/src/a.ts","docs/x.md"],"rebuildOk":true},"response":{"action":"proceed","nextKind":null,"reason":null,"rebuild":false,"rebuilt":false}}
+{"name":"after land: no lean change, a rebuild result is not read","request":{"kind":"done","op":"landQueue.afterLand","paths":["docs/x.md"],"rebuildOk":false},"response":{"action":"proceed","nextKind":null,"reason":null,"rebuild":false,"rebuilt":false}}
+{"name":"after land: lean change, rebuild ok","request":{"kind":"done","op":"landQueue.afterLand","paths":["lean/Fw/A.lean","docs/x.md"],"rebuildOk":true},"response":{"action":"proceed","nextKind":null,"reason":null,"rebuild":true,"rebuilt":true}}
+{"name":"after land: build script change, rebuild ok","request":{"kind":"done","op":"landQueue.afterLand","paths":["scripts/fwcore-build.sh"],"rebuildOk":true},"response":{"action":"proceed","nextKind":null,"reason":null,"rebuild":true,"rebuilt":true}}
+{"name":"after land: lean change, rebuild fails","request":{"kind":"done","op":"landQueue.afterLand","paths":["lean/Fw/A.lean"],"rebuildOk":false},"response":{"action":"stop","nextKind":"rebuild","reason":"fwcore-rebuild-failed: sh scripts/fwcore-build.sh failed after a land that changed lean/","rebuild":true,"rebuilt":false}}
+{"name":"after land: empty diff","request":{"kind":"done","op":"landQueue.afterLand","paths":[],"rebuildOk":true},"response":{"action":"proceed","nextKind":null,"reason":null,"rebuild":false,"rebuilt":false}}
+{"name":"after land: lean-like name outside lean/","request":{"kind":"done","op":"landQueue.afterLand","paths":["apps/lean/x.ts","leanx/y"],"rebuildOk":false},"response":{"action":"proceed","nextKind":null,"reason":null,"rebuild":false,"rebuilt":false}}
+{"name":"after land: refused land with a lean path","request":{"kind":"checks","op":"landQueue.afterLand","paths":["lean/Fw/A.lean"],"rebuildOk":false},"response":{"action":"proceed","nextKind":null,"reason":null,"rebuild":false,"rebuilt":false}}
+{"name":"after land: empty land with a lean path","request":{"kind":"empty","op":"landQueue.afterLand","paths":["lean/Fw/A.lean"],"rebuildOk":true},"response":{"action":"proceed","nextKind":null,"reason":null,"rebuild":false,"rebuilt":false}}
