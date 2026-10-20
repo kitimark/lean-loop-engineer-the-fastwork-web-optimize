@@ -185,7 +185,7 @@ def table : List Wf := [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "scripts/span.sh",
     "scripts/fwcore-build.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/lake-slot.test.mjs", "packages/contracts/golden/sched/lake-slot.gen.sh",
     "packages/contracts/golden/console/land-dry.jsonl", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/webkit-screen.jsonl", "packages/contracts/golden/gate/search.jsonl",
-    "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
+    "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
     "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl",
     "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/measure-chromium/scenarios.gen.json",
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
@@ -220,7 +220,7 @@ def table : List Wf := [
     "packages/gate-breakpoints/**", "apps/site/**", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/gate-search.mjs", ".github/scripts/gate-search.test.mjs",
     ".github/scripts/gate-smoke.mjs", ".github/scripts/verify-snapshot.mjs", ".github/scripts/cache-key.mjs",
-    "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/gate/trajectory.jsonl", "packages/contracts/golden/ops/cache.jsonl",
+    "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/gate/trajectory.jsonl", "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/contracts/golden/ops/cache.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**",
     ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "trajectory-probe.yml"], []⟩,
   ⟨"visual-diff.yml", ciAll, [

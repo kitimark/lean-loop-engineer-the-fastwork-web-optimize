@@ -142,6 +142,14 @@ const NOT_REACHED_BY_CHECK_SH: Record<string, string> = {
   "docs/team/work-graph.json": "lean/Fw/Plan/Golden.lean reads it only in write mode (`lake test -- --write-plan-golden`); check.sh runs `lake test` without it",
 };
 
+/** Gitignored build outputs a package reads at run time, each with the reason. Named paths only: the scan finds them just
+ *  when the folder exists on this machine, so a local build must not change the result. The land check (`pnpm test`) of these
+ *  packages never reads it; only the serve/lane scripts do at run time, outside the land key. A declared read of a path git does not hold would match no file in a CI
+ *  checkout, and the PACKAGE_EXTRA_READS exercised-entry test would refuse it. */
+const BUILD_OUTPUT_READS: Record<string, string> = {
+  "apps/site/dist/aot": "output of `pnpm --filter @fw/site build`; read by gate-breakpoints/src/serve.mjs and the measure-webkit site/stamped lane scripts",
+};
+
 /** Quoted Lean source paths in a package that its land check does not read, each with the reason. */
 const LEAN_NAMED_NOT_READ: Record<string, string> = {
   "lean/Fw/Parts/FootprintData.lean <- apps/site/scripts/part-footprint.mjs": "the generator writes it; `pnpm test` does not run the generator",
@@ -197,7 +205,7 @@ describe("premise land.readsOnly: no read outside the declared inputs (static)",
   });
   for (const c of candidateChecks(root).filter((x) => /^(apps|packages)\//.test(x.id))) {
     it(`${c.id}: sources and tests read only ${c.reads.length} declared globs`, () => {
-      const found = uniq(escapes(c.id, /\.(ts|tsx|mjs|js|sh)$/));
+      const found = uniq(escapes(c.id, /\.(ts|tsx|mjs|js|sh)$/)).filter((x) => !(x.path in BUILD_OUTPUT_READS));
       // the fwcore binary (lean/.lake) is the next test's business
       expect(found.filter((x) => !x.path.startsWith("lean/.lake/") && !inScope(c.reads, x.path))).toEqual([]);
     });
