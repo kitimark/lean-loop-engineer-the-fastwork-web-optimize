@@ -9961,7 +9961,13 @@
     "research/notes/2026/10-20-preview-proxy-direct.md",
     "docs/team/handoffs/preview-proxy-direct.md",
     "lean/Fw.lean",
-    "lean/scripts/check.sh"
+    "lean/scripts/check.sh",
+    "apps/console-api/src/main.ts",
+    "apps/console-api/test/arm-rig.ts",
+    "apps/console-api/test/builds.test.ts",
+    "apps/console-api/test/lan-owner.test.ts",
+    "docs/team/tools/preview-grant.md",
+    "lean/Fw/Ops/Golden.lean"
    ]
   },
   {
@@ -10066,6 +10072,28 @@
     "docs/team/tools/land.md",
     "research/notes/2026/10-20-land-lane-speed.md",
     "docs/team/handoffs/land-lane-speed.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-e2e-entry",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "preview-proxy-direct review: check the real entry path (grant landing and the Builds link /preview/<id>/r|o/ -> arm origin) for 0 rejections/cancels and modules once; LAN lane noise checks; client-nav-o asserts a same-document navigation; rename signature.test.mjs; rig reads backendOff from Lean; admit refuses portBase past 65536 (noPorts); control loads block external URLs; delete unused cache-policy variants",
+   "deps": [
+    "preview-proxy-direct"
+   ],
+   "writes": [
+    "packages/e2e-preview/**",
+    "lean/Fw/Console/Preview*.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "apps/console-api/src/preview/**",
+    "apps/console-api/test/**",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/handoffs/preview-e2e-entry.md"
    ]
   }
  ],
