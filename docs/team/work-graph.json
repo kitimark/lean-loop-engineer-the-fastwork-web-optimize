@@ -10706,7 +10706,8 @@
     "lean/Fw/**/*.lean",
     "lean/FwTest/**",
     "docs/team/handoffs/latex-strip-c2.md"
-   ]
+   ],
+   "evidence": "95a97e6"
   },
   {
    "devices": [
