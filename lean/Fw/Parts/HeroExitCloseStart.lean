@@ -262,6 +262,45 @@ theorem floorOk_orig (gs : List Rat) (lag ea eb : Rat) (hlag : 0 ≤ lag) (h0 : 
     floorOk (capOf gs) lag (bgRed (closeAt ea)) = true :=
   floorOk_tween (capOf gs) lag ea eb h0 hab ha hb (by have := capOf_ge _ _ hm; grind)
 
+/-- Red of the target (`m = 0`): the colour a close ends at. -/
+theorem bgRed_zero : bgRed 0 = 255 := by
+  unfold bgRed bgAlpha
+  decide +kernel
+
+/-- The close-start rule: the red read at the first sample without `is-morphing` is within half a red unit of `bgRed m`
+(`|reading - bgRed m| ≤ 1/2`), `m` the morph value of the last sample with it. The half unit is a fixed constant. -/
+def closeStartOk (reading m : Rat) : Bool := decide (bgRed m - 1 / 2 ≤ reading ∧ reading ≤ bgRed m + 1 / 2)
+
+/-- The colour of the previous frame itself passes. -/
+theorem closeStartOk_self (m : Rat) : closeStartOk (bgRed m) m = true := by
+  unfold closeStartOk
+  rw [decide_eq_true_iff]
+  grind
+
+/-- A reading that already sits at the target (`bgRed 0 = 255`) is rejected whenever the previous frame was darker than 254.5. -/
+theorem closeStartOk_rejects_target (m : Rat) (h : bgRed m < 509 / 2) : closeStartOk (bgRed 0) m = false := by
+  unfold closeStartOk
+  rw [decide_eq_false_iff_not, bgRed_zero]
+  grind
+
+/-- A reading more than half a unit below `bgRed m` is rejected (the start is darker than the previous frame). -/
+theorem closeStartOk_rejects_below (reading m : Rat) (h : reading < bgRed m - 1 / 2) : closeStartOk reading m = false := by
+  unfold closeStartOk
+  rw [decide_eq_false_iff_not]
+  grind
+
+/-- A reading more than half a unit above `bgRed m` is rejected (the start is lighter than the previous frame). -/
+theorem closeStartOk_rejects_above (reading m : Rat) (h : bgRed m + 1 / 2 < reading) : closeStartOk reading m = false := by
+  unfold closeStartOk
+  rw [decide_eq_false_iff_not]
+  grind
+
+/-- Golden cases `(reading, m, expected)` the TS twin `closeStartOk` in `closegap.mjs` is tested against. -/
+def closeStartCases : List (Rat × Rat × Bool) :=
+  [(226520 / 1000, 138 / 10000, true), (226520 / 1000 + 49 / 100, 138 / 10000, true), (226520 / 1000 - 49 / 100, 138 / 10000, true),
+   (226520 / 1000 + 51 / 100, 138 / 10000, false), (226520 / 1000 - 51 / 100, 138 / 10000, false),
+   (255, 138 / 10000, false), (255, 0, true), (19, 1, true), (255, 1, false), (252, 1 / 1000, false), (252705 / 1000, 1 / 1000, true)]
+
 #guard prevBound 0 == Fw.Parts.Nav.morphingCut
 #guard decide (138 / 10000 ≤ prevBound 114)
 #guard decide (258 / 10000 ≤ prevBound 158)
@@ -283,6 +322,7 @@ theorem floorOk_orig (gs : List Rat) (lag ea eb : Rat) (hlag : 0 ≤ lag) (h0 : 
 #guard capOf [] == 0
 #guard floorOk 67 17 235 == true
 #guard floorOk 67 17 160 == false
+#guard closeStartCases.all (fun (r, m, b) => closeStartOk r m == b)
 
 /-- Custom properties the nav background reads. -/
 def navBgReads : List String := ["--morph"]

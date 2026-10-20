@@ -1,7 +1,7 @@
 ---
 id: 2026-10-21-scoped-close-start-cause
 kind: note
-title: "hero.exit:scoped lengthens the last frames of the nav close on macOS WebKit: a perf finding, not a timing-only difference"
+title: "The nav close starts at bgRed(m_prev) in every arm: the close-start colour is an identity, and the bg and earn close@0 failures are gap-driven and appear in A/A too"
 status: final
 created: 2026-10-21
 authors: [agent:measure-engineer]
@@ -10,59 +10,106 @@ topics: [measurement, trajectory-probe, webkit, hero.exit, nav]
 
 # Close-start colour of `nav.background-color` under `hero.exit:scoped`
 
-Task `scoped-close-start-cause`, round 2. Question: on macOS WebKit morph the flag-alone candidate starts the close
-`nav.background-color` low (red 226.5 at 390 in run 39466179818) while the original passes start at 249 to 252. Is it
-(a) a part fix, (b) timing only, or (c) a look change?
+Task `scoped-close-start-cause`, round 3 (final design round). Question: on macOS WebKit morph the flag-alone candidate
+starts the close `nav.background-color` low (red 226.5 at 390 in run 39466179818) while the original passes start at 249
+to 252. Is it (a) a part fix, (b) timing only, or (c) a look change? Each claim below is judged on its own.
 
 ## Answer
 
-Decision (a), with a perf finding. Not (b). The start colour is a function of the gap `g` between the last frame with
-`is-morphing` and the first without it (proved below), and `scoped` has longer gaps than the original and the A/A
-candidate. Pooled over the two flag-alone runs the candidate's mean `g` is high at permutation p 0.011 (mean of log g)
-and 0.019 (mean g); the same test on the two A/A runs gives 0.90 and 0.74. The fresh flag-alone run alone gives
-p 0.12, so one run does not separate; the pool does. MEASURED (statistics) and INFERRED (iid cells within a block).
+1. **The close-start colour is `bgRed(m_prev)`, an identity in every arm.** In 240 of 240 cells (4 runs x 3 arms x 4
+   widths x 5 reps) the red at the first sample without `is-morphing` (sample j) is within 0.38 red of `bgRed m`, `m`
+   the morph value of the last sample with the class (sample i). MEASURED. The rule is `closeStartOk reading m :=
+   |reading - bgRed m| <= 1/2` (Lean `Fw.Parts.HeroExitCloseStart`); `closegap.mjs` check 3 applies it to every cell
+   and is golden-checked against Lean. Output of the 4 runs, committed:
+   `10-21-scoped-close-start-cause.closegap-output.txt`.
+2. **The bg and earn close@0 failures appear in A/A too, and they follow the class-removal gap `g`.** The A/A candidate
+   (`?fw=hero.exit:faithful`) reads red 185.6 at g 178 (390, fresh A/A run), and its bg `close@0` and `close-hold@0` at
+   390 are `new`; the run passes only because that does not repeat at a second width. A darker start follows from a longer
+   `g`, with the same `bgRed(m_prev)`.
+3. **This task takes none of (a), (b), (c).**
+   - (a) part fix: waits on the perf question (B), below.
+   - (b) timing only: refuted for the judge as written. The judge's close@0 comparison fails the A/A candidate at 390
+     (bg `new`) and, in the scoped run, fails the base arm too (bg 390 `both`), so "timing only, the judge passes it" does
+     not hold; a judge rule is its own task (A).
+   - (c) look change: excluded only at equal `g`. At equal `g` the start is the colour of the previous frame, the same
+     function of `m` in every arm (identity). A longer `g` gives a darker start (185.6 at g 178), so whether scoped
+     changes `g` is (B), not (c).
+4. **Perf question (B): INFERRED, open.** See the Perf section. Not answered here.
+5. **Earn.** `earn.opacity` and `earn.max-width` close@0 are what fail the scoped run (`new` at 390 and 641). They are
+   not an identity in `m`. INFERRED: mostly `g`-driven, with exceptions (Earn section). The earn start rule (C) is not
+   derived here.
 
-## Identity (read from every arm's `search` and hash in the raw files)
+## Identity of the runs (read from every arm's `search` and hash in the raw files)
 
 | run | candidate arm `?fw` | candidate hash | base hash | original arm |
 |---|---|---|---|---|
 | 39508414669 (fresh, ci/scoped-close-start-cause @6068371) | `hero.exit:scoped` | 8d213de6fbdd52fd | ede2c7641aacf2d2 | no config |
 | 39508421419 (fresh, A/A) | `hero.exit:faithful` | ede2c7641aacf2d2 | ede2c7641aacf2d2 | no config |
-| 39466179818 (stored, flag-alone) | `hero.exit:scoped` | 8d213de6fbdd52fd | ede2c7641aacf2d2 | no config |
+| 39466179818 (stored, flag-alone; the run that raised the question) | `hero.exit:scoped` | 8d213de6fbdd52fd | ede2c7641aacf2d2 | no config |
 | 39472217441 (stored, A/A) | `hero.exit:faithful` | ede2c7641aacf2d2 | ede2c7641aacf2d2 | no config |
 
 Both fresh dispatches printed the same id (known bug `fw-run-dispatch-pick`), so each run is named by its arms. Lean
 outcome lines (mac-webkit): 39508414669 hero pass, morph FAIL; 39508421419 hero pass, morph PASS; Linux hero pass in
-both.
+both. In 39508414669 bg `close@0` at 390 is `both` (the base fails it too) and `new` only at 641; the FAIL comes from
+`earn.opacity` and `earn.max-width` close@0 `new` at 390 and 641 (`units-playwright-webkit.json`; outcome rule
+`Fw.Gate.Trajectory`: a group is `new` at 2 or more widths).
 
 ## Mechanism
 
 1. The close tween is `m = (1 - e/680)^3` (`closeAt_cube`). The nav drops `is-morphing` once `m <= 0.001`, at
    `e >= 612`, 68 ms before the end (`morphing_of_lt`, `not_morphing_of_ge`).
-2. While the class is on, the background is `color-mix(in srgb, #ffffff1a, #131922)` driven by `--morph`. The mix is
-   premultiplied: alpha `26/255 (1-m) + m` (`bgAlpha`), premultiplied red `26 (1-m) + 19 m`, so the red the probe
-   reads is `bgRed m` = that over the alpha. `bgRed` falls strictly from 255 at m = 0 to 19 at m = 1 (`bgRed_lt`,
-   `bgRed_le_iff`).
-3. When the class goes, a `background-color` transition starts. WebKit's before-change style is the style of the
-   previous style-change event, so the start colour is `bgRed(m_prev)`, `m_prev` the morph value of the last frame that
-   saw the class (`Source/WebCore/style/Styleable.cpp:603-617@862f17d`). CONFIRMED on the pinned clone; the CI
-   Playwright WebKit build differs, so for CI it is INFERRED. The ordering of this against the running tween inside
-   `StyleTreeResolver` is not claimed.
-4. A next frame `g` ms later allows `m_prev <= prevBound g = (0.1 + g/680)^3` (`prev_le_bound`), so the start red is
-   at least `redFloor g = bgRed (prevBound g)` (`redFloor_anti`: a longer gap lowers the floor).
-5. Over the model `Fw.Parts.HeroExitOpt.frameWrites` (the writes the Lean model lists), the scoped exit writes
-   `--exit-opacity` and `--exit-scatter` on hero elements and none the nav background reads
-   (`scoped_writes_miss_nav_bg`, `scoped_writes_miss_nav_elements`). The model is not the whole driver: `driver.ts:37`
-   also sets `pointerEvents` on the hero (not on the nav). So the part cannot change the nav's style; any effect on the
-   start colour goes through frame time.
-6. Cost route, INFERRED and untested: the close is a wheel scroll (dy -120), so the `hero.exit` scroll handler runs
-   during it. The scoped variant writes the two custom properties inline on every reader element each scroll frame
-   (`READER_SELECTOR`), which can lengthen frames. No profile here confirms it.
+2. The background colour is `color-mix(in srgb, #ffffff1a, #131922)` driven by `--morph`, declared on `.nav` without a
+   condition (`apps/site/src/parts/nav/nav.module.css:22-26`). The mix is premultiplied: alpha `26/255 (1-m) + m`
+   (`bgAlpha`), premultiplied red `26 (1-m) + 19 m`, so the red the probe reads is `bgRed m`. `bgRed` falls strictly from
+   255 at m = 0 to 19 at m = 1 (`bgRed_lt`, `bgRed_le_iff`). A `background-color` transition (0.7 s) exists only on
+   `.nav:not(.is-morphing)` (lines 41-48). Above 640 px that rule's target also switches to `#ffffff7a` / `#ffffff38`
+   (media block, lines 55-62); at 640 and below the target stays the `color-mix` and keeps following `--morph`.
+3. When the class goes, the transition starts. WebKit's before-change style is the style of the previous style-change
+   event, so the start colour is `bgRed(m_prev)`, `m_prev` the morph value of the last frame that saw the class
+   (`Source/WebCore/style/Styleable.cpp:603-617@862f17d`). CONFIRMED on the pinned clone; the CI Playwright WebKit build
+   differs, so for CI it is INFERRED. The ordering of this against the running tween inside `StyleTreeResolver` is not
+   claimed.
+4. A longer `g` means the last morphing frame is earlier on the tween, so `m_prev` is larger and the start is darker.
+5. Over the model `Fw.Parts.HeroExitOpt.frameWrites`, the scoped exit writes `--exit-opacity` and `--exit-scatter` on
+   hero elements and none the nav background reads (`scoped_writes_miss_nav_bg`, `scoped_writes_miss_nav_elements`). The
+   model is not the whole driver: `driver.ts:37` also sets `pointerEvents` on the hero (not on the nav). The model gives
+   the part no way to change the nav's style; whether it changes frame time is the perf question.
+
+## Check 3: the identity, per cell
+
+`closeStartOk (red_j) (m_i / 10000)` over every cell of every arm (the raw files hold m in units of 1e-4):
+
+| run | cells passing | max abs(red_j - bgRed m_i) | max abs(red_i - bgRed m_i) | max abs(red_j - red_i) |
+|---|---|---|---|---|
+| 39466179818 (stored) | 60 of 60 | 0.365 | 0.109 | 0.315 |
+| 39472217441 (stored) | 60 of 60 | 0.379 | 0.109 | 0.329 |
+| 39508414669 (fresh) | 60 of 60 | 0.109 | 0.109 | 0.001 |
+| 39508421419 (fresh) | 60 of 60 | 0.109 | 0.109 | 0.001 |
+
+Every cell is listed in the committed output file (check 3 section of each run). Lean (`HeroExitCloseStart.lean`):
+`closeStartOk_self` (the previous frame's own colour passes), `closeStartOk_rejects_target` (the reading at the target,
+`bgRed 0 = 255`, is rejected whenever `bgRed m < 254.5`), `closeStartOk_rejects_below` and `closeStartOk_rejects_above`
+(a reading more than half a unit off, either way). `closeStartCases` is a golden list of 11 cases checked by `#guard`;
+`closeStartOk` in `closegap.mjs` is a TS stand-in tested against the same literals in `test/closegap.test.mjs`.
+
+Why 0.5 red. Sample j reads the before-change style at transition progress 0: in the fresh runs red_j = red_i within
+0.001 in 120 of 120 cells (MEASURED), so the start is the previous frame's colour with no progress yet. About 0.11 red of
+the 0.5 is the quantisation of m to 1e-4 (`max abs(red_i - bgRed m_i)` is 0.109 in all four runs). In the two stored
+runs red_j differs from red_i by up to 0.33 and `max abs(red_j - bgRed m_i)` reaches 0.38; that excess is unexplained.
+The half unit is a fixed constant, not scaled to the candidate.
+
+Accepted limits of the identity: it depends on the probe reading sample j at transition progress 0 (a harness cadence
+change could break it); m is rounded to 1e-4, so `m_i = 10` is ambiguous at the 0.001 cut (the minimum `m_i` in all
+runs is 10); the WebKit before-change reading is CONFIRMED on the pinned clone and INFERRED for the CI build; a longer
+`g` passes by design, which is why the identity cannot settle (B).
+
+Checks 1 and 2 of round 2 (own-gap floor with `LAG = 17`, original-gap cap) are superseded by check 3 and are not claims
+here. The code and Lean lemmas remain and the output file still prints them.
 
 ## Measurements
 
 Per arm, mac-webkit morph, 4 widths x 5 reps = 20 cells per arm per run. `g` = last sample with `is-morphing` to first
-without (ms). Script and output: `packages/gate-breakpoints/src/trajectory/closegap.mjs`.
+without (ms). Script and full output: `packages/gate-breakpoints/src/trajectory/closegap.mjs`, output file above.
 
 | run | arm | mean g | median | p90 | max | cells g > 150 |
 |---|---|---|---|---|---|---|
@@ -79,53 +126,94 @@ without (ms). Script and output: `packages/gate-breakpoints/src/trajectory/close
 | | base | 42.6 | 33.0 | 64.1 | 141 | 0 |
 | | faithful | 41.2 | 30.0 | 60.9 | 202 | 1 |
 
-- The A/A spread of arm means is 41.2 to 66.0 ms (ten non-scoped arms); both scoped means (78.5, 70.6) lie above all of
-  them. The scoped arm has the highest mean in both flag-alone runs; the A/A candidates have the lowest in both A/A runs.
-- Close-start readings of the scoped arm, fresh run, by width (red at the first sample without the class, g in
-  parentheses): 390 `249.9 (175)  229.3 (249)  212.6 (154)  249.2 (53)  245.6 (60)`; 640 `242.3 (82)  251.0 (32)
-  248.0 (54)  252.6 (24)  252.7 (33)`; 641 `238.1 (113)  244.8 (47)  244.3 (51)  252.4 (86)  237.3 (81)`; 1280
-  `251.0 (58)  249.6 (59)  251.4 (52)  250.2 (45)  240.4 (63)`. The original and A/A cells are in the script output
-  (every arm, every rep). The effect is strongest at 390.
-- Earn `opacity` and `max-width` close@0 failures in the scoped runs track the same `g` (same frame-phase reading).
+Close-start readings of the scoped arm, fresh run, by width (red at sample j, g in parentheses): 390 `249.9 (175)
+229.3 (249)  212.6 (154)  249.2 (53)  245.6 (60)`; 640 `242.3 (82)  251.0 (32)  248.0 (54)  252.6 (24)  252.7 (33)`; 641
+`238.1 (113)  244.8 (47)  244.3 (51)  252.4 (86)  237.3 (81)`; 1280 `251.0 (58)  249.6 (59)  251.4 (52)  250.2 (45)
+240.4 (63)`. Every other arm and rep is in the output file.
 
-## Checks on the measured channel
+## Perf question (B): INFERRED, not answered
 
-Both use `bgRed` / `prevBound` / `floorOk` (Lean `Fw.Parts.HeroExitCloseStart`; the script is the TS stand-in, pinned to
-the Lean `#guard` literals in `test/closegap.test.mjs`).
+- The fresh flag-alone run alone gives permutation p 0.12 (mean of log g, blocked by width; 0.11 for mean g). That is
+  the confirmatory number. The fresh A/A run gives 0.69.
+- The pooled p 0.013 (mean log g; 0.020 for mean g; 20000 seeded draws, so the third digit moves) includes 39466179818,
+  the run that raised the question (its own p is 0.018); it is not confirmatory. The pooled A/A is 0.89.
+- The effect sits at 390, where the A/A candidate is also high. Block difference per width (candidate minus orig+base,
+  mean of log g):
 
-1. Own-gap check: the reading at the first sample without the class is at least `redFloor` of that cell's own sample
-   gap. Cells below it: 3, 3, 5, 7 of 60 per run, all within `LAG = 17` ms (one 60 Hz frame; max slack 13.0 ms at 1280
-   base rep 2 in 39508414669, since = 18). Explanation of the slack: the sample is read up to one frame after the frame
-   that held the class, so the true frame gap is `g_sample - since_j + L` with a read lag `L <= 17`. The 17 ms is
-   INFERRED; the slacks are MEASURED. No cell is beyond it. None is open.
-2. Original-gap rule (task item 2): a closed rule tied to the original arm's gaps. `floorOk (capOf origGaps) lag r`,
-   `capOf` the largest original gap of the width in the same run. Proved: `floorOk_tween` (every start the tween makes at
-   gap <= cap + lag passes), `floorOk_orig` (every original cell passes at any lag >= 0, as `capOf_ge` covers its
-   gap), `floorOk_below` and `floorOk_reject_gap` (a rejected start came from a gap longer than cap + lag, so the
-   cause is frame time), `floorOk_mono` (a larger cap accepts more). Result with 5 original reps per width: it also
-   rejects A/A cells (39508421419 faithful 390 rep 0, red 185.6 at g 178 against cap 65 + 17, and base 640 rep 1;
-   39472217441 faithful 390 rep 4, red 202.5 at g 202), because 5 original reps do not bound a heavy-tailed gap.
-   Scoped violations: 1 cell in the fresh run and 2 in the stored one, all at 390. So no closed per-cell colour rule
-   exists at 5 reps; the usable check is the gap distribution above. A cell-level rule needs a cap
-   from many more original reps: with n original reps the false-reject rate of an A/A cell that exceeds the maximum is
-   about 1/(n+1) (iid, INFERRED).
+  | run | 390 | 640 | 641 | 1280 |
+  |---|---|---|---|---|
+  | 39508414669 scoped (fresh) | 0.68 | -0.23 | 0.35 | -0.12 |
+  | 39508421419 A/A (fresh) | 0.24 | -0.11 | -0.30 | -0.06 |
+  | 39466179818 scoped (stored) | 0.64 | 0.15 | 0.15 | 0.08 |
+  | 39472217441 A/A (stored) | 0.09 | -0.09 | -0.45 | -0.10 |
 
-Violating cells of check 2 (red, g in ms): 39508414669: 390 scoped rep 2 (212.6, 154). 39508421419: 390 faithful rep 0
-(185.6, 178), 640 base rep 1 (242.6, 58). 39466179818: 390 scoped rep 0 (226.5, 113), rep 3 (206.1, 157). 39472217441:
-390 faithful rep 4 (202.5, 202). Each is a long frame gap; the A/A ones are the same phenomenon at the A/A tail.
+- Close-phase frame intervals (mean / median ms over all consecutive samples of a rep) are equal across arms within each
+  run: 39508414669 orig 40.1 / 31, base 42.5 / 30, scoped 42.0 / 32; 39508421419 31.3 / 23, 32.0 / 22, 33.3 / 24;
+  39466179818 39.8 / 31, 40.5 / 29.5, 41.8 / 31; 39472217441 28.8 / 22, 29.2 / 21.5, 28.1 / 21. Across runs they differ
+  by up to 14 ms. These runs show no frame-time cost during the close, only the single class-removal gap; no cause of
+  that gap is claimed.
+- The statistics assume cells are exchangeable within a (run, width) block. The decision needs a run-level test on more
+  fresh runs at one `headSha` (follow-up B, not this task).
 
-## What to do
+## Earn `opacity` and `max-width` at close@0
 
-- (a) Part fix, not applied here: lower the per-scroll-frame inline writes of `scoped` during the nav close (fewer reader
-  writes, or none while a nav tween runs), then re-measure `g`. The mechanism in point 6 must be profiled before this.
-- Not (c): the colours are the original's for the same `m`; only the sample phase differs.
-- The judge (`Trajectory.lean`) is not changed.
-- More reps: reps are capped at 5 per run. Four more flag-alone mac-webkit morph runs (6 runs, 120 cells per arm) put
-  the standard error of the mean-g difference near 0.06 in log units (INFERRED from the 40-cell spread). Orig and base
-  in the same runs are the A/A reference.
+`close@0` here is the reading at sample j (INFERRED to be the units' `close@0`; the bg identity holds there). Every cell
+of the two fresh runs, `opacity (max-width px, g ms)`, reps 0 to 4; the committed output has the same for the stored
+runs. The scoped run's `close@0=apart` earn groups are at 390 and 641 (`new`, both properties); the A/A run has no `new`
+earn close@0 group (its 640 `max-width` close@0 is `both`: the base arm fails it too).
+
+Scoped run 39508414669:
+
+```
+  390   orig  0.000 (21.1, 102)  0.000 (13.7, 55)  0.000 (11.1, 42)  0.000 (13.7, 41)  0.000 (16.3, 76)
+  390   base  0.004 (36.7, 131)  0.000 (26.2, 72)  0.000 (18.3, 43)  0.000 (15.8, 57)  0.000 (11.7, 30)
+  390   cand  0.088 (58.6, 175)  0.636 (92.2, 249)  0.015 (33.7, 154)  0.000 (15.9, 53)  0.000 (14.5, 60)
+  640   orig  0.000 (9.1, 32)  0.000 (13.0, 57)  0.159 (48.6, 189)  0.000 (13.0, 37)  0.000 (13.2, 45)
+  640   base  0.000 (21.6, 75)  0.000 (11.8, 37)  0.000 (12.8, 24)  0.084 (54.2, 119)  0.000 (9.9, 29)
+  640   cand  0.000 (18.3, 82)  0.000 (11.1, 32)  0.000 (15.5, 54)  0.000 (12.3, 24)  0.000 (11.5, 33)
+  641   orig  0.000 (12.3, 33)  0.000 (20.6, 78)  0.000 (15.1, 66)  0.000 (27.9, 80)  0.000 (17.8, 63)
+  641   base  0.000 (17.0, 49)  0.000 (19.8, 55)  0.000 (11.2, 28)  0.000 (22.9, 40)  0.003 (33.7, 43)
+  641   cand  0.026 (41.6, 113)  0.000 (12.8, 47)  0.000 (23.3, 51)  0.017 (28.1, 86)  0.000 (27.5, 81)
+  1280  orig  0.000 (23.2, 70)  0.000 (17.2, 53)  0.041 (34.3, 97)  0.000 (17.3, 55)  0.000 (17.0, 49)
+  1280  base  0.000 (16.7, 38)  0.000 (25.6, 81)  0.000 (16.3, 33)  0.000 (21.0, 48)  0.131 (63.8, 176)
+  1280  cand  0.000 (20.9, 58)  0.000 (23.7, 59)  0.000 (15.4, 52)  0.000 (18.7, 45)  0.000 (22.3, 63)
+```
+
+A/A run 39508421419:
+
+```
+  390   orig  0.000 (11.4, 59)  0.000 (16.6, 65)  0.000 (15.5, 51)  0.000 (12.4, 51)  0.000 (14.1, 60)
+  390   base  0.000 (16.0, 51)  0.000 (13.5, 46)  0.000 (13.8, 45)  0.000 (13.4, 42)  0.000 (18.1, 65)
+  390   cand  0.225 (53.5, 178)  0.021 (30.4, 70)  0.000 (21.4, 86)  0.000 (19.3, 34)  0.000 (12.5, 37)
+  640   orig  0.000 (5.9, 14)  0.000 (6.9, 20)  0.000 (8.0, 27)  0.000 (5.4, 21)  0.000 (7.2, 12)
+  640   base  0.000 (7.1, 24)  0.002 (23.4, 58)  0.000 (9.1, 24)  0.000 (19.7, 22)  0.000 (8.9, 38)
+  640   cand  0.000 (19.4, 16)  0.000 (7.2, 26)  0.000 (7.7, 19)  0.000 (10.8, 32)  0.000 (9.4, 17)
+  641   orig  0.000 (24.6, 88)  0.000 (27.0, 111)  0.000 (34.4, 121)  0.073 (69.5, 164)  0.000 (29.2, 95)
+  641   base  0.000 (20.5, 44)  0.601 (90.6, 282)  0.000 (21.7, 66)  0.000 (15.9, 55)  0.027 (45.9, 51)
+  641   cand  0.000 (27.1, 51)  0.000 (35.0, 107)  0.000 (24.5, 66)  0.000 (31.0, 87)  0.000 (19.5, 46)
+  1280  orig  0.000 (9.6, 30)  0.000 (9.6, 33)  0.000 (9.9, 48)  0.000 (11.4, 41)  0.000 (9.0, 22)
+  1280  base  0.000 (8.1, 23)  0.000 (8.6, 24)  0.000 (10.5, 31)  0.000 (10.4, 31)  0.000 (11.5, 55)
+  1280  cand  0.000 (11.0, 40)  0.000 (9.2, 27)  0.000 (10.9, 20)  0.000 (11.8, 41)  0.000 (10.1, 29)
+```
+
+- INFERRED: earn at close@0 is mostly `g`-driven. The earn transition began at an earlier class change, so a longer `g`
+  moves it further by sample j. All 7 cells with g of at least 164 read opacity 0.073 or more (0.636 at g 249 and 0.601
+  at g 282 the largest), and opacity above 0.1 occurs only at g of at least 176.
+- Exceptions, so this is not a threshold in `g`: `max-width` 33.7 px occurs at g 43 (scoped run, base 641 rep 4, opacity
+  0.003) and at g 154 (scoped 390 rep 2, opacity 0.015); opacity 0.027 at g 51 (A/A, base 641 rep 4) while g 111 reads 0
+  (A/A, orig 641 rep 1); `max-width` also depends on the width (A/A at 641, orig and cand: 24.6 to 35.0 px with opacity 0 at g 87 to 121;
+  A/A orig at 640: 5.4 to 8.0 px at g 12 to 27); and the A/A 640 `max-width` cells at g 16 (19.4 px, cand rep 0) and g 22
+  (19.7 px, base rep 3) read above that 5.4 to 8.0 px at similar g.
+- The earn start rule (C) is not derived here.
+
+## What this task does
+
+- Takes none of (a), (b), (c). No judge change (`Trajectory.lean` is untouched) and no part change.
+- Follow-ups: B (run-level permutation on 5 vs 5 fresh runs at one `headSha`), C (earn close-start rule), A (identity
+  judge rule, after B and C).
 
 ## Limits
 
 - WebKit source reading is on the pinned clone @862f17d; CI runs a Playwright WebKit build.
 - The permutation test assumes cells are exchangeable within a (run, width) block.
-- `LAG` is a fitted bound with an inferred reason.
+- The identity has the limits listed under Check 3.

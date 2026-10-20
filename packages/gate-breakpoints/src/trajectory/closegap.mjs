@@ -1,10 +1,12 @@
-// The close-end gap check of the nav background (task scoped-close-start-cause, round 2).
+// The close-start identity and the close-end gap of the nav background (task scoped-close-start-cause, round 3).
 //   node src/trajectory/closegap.mjs <run id>=<raw-playwright-webkit.json of that run's trajectory-apple artifact> [...]
 // For every close of every arm it takes the last sample with `is-morphing` (i) and the first sample without it (j), the gap
 // g = t_j - t_i, and the red channel of `nav.background-color` at j. It prints the arms' identity (search and config hash read from
-// the raw file), the table of readings and gaps, the gap distribution per arm with a seeded permutation test, and two bound checks
-// on the measured channel (Lean `Fw.Parts.HeroExitCloseStart`: `bgRed`, `prevBound`, `floorOk`).
-// TS stand-in: `redCh`, `prevBound` and `floorOk` are checked against Lean's literals in test/closegap.test.mjs, not generated.
+// the raw file), the table of readings and gaps, the gap distribution per arm with a seeded permutation test, the close-phase frame
+// intervals, the block differences, the earn readings at j and three checks on the measured channel (Lean
+// `Fw.Parts.HeroExitCloseStart`). Check 3 (`closeStartOk`) is the claim; checks 1 and 2 (`floorOk`, LAG) are superseded by it.
+// TS stand-in: `redCh`, `prevBound`, `floorOk` and `closeStartOk` are checked against Lean's literals and `closeStartCases` in
+// test/closegap.test.mjs, not generated.
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { colourFromV1 } from './kit.mjs';
@@ -13,6 +15,10 @@ import { colourFromV1 } from './kit.mjs';
 export const CUT = 1 / 1000;
 /** Read lag in ms: the sample of the last morphing frame is read up to one 60 Hz frame after that frame (INFERRED). */
 export const LAG = 17;
+/** The raw files hold the morph value in units of 1e-4 (`m` of a sample). */
+export const M_SCALE = 10000;
+/** Check 3 tolerance in red units (Lean `closeStartOk`: a fixed constant). */
+export const TOL = 0.5;
 
 /** Lean `bgRed`: red (0 to 255) of `color-mix(in srgb, #ffffff1a, #131922)` at morph value m (premultiplied mix, then unpremultiplied). */
 export const redCh = (m) => (26 * (1 - m) + 19 * m) / ((26 / 255) * (1 - m) + m);
@@ -22,6 +28,9 @@ export const alphaCh = (m) => (26 / 255) * (1 - m) + m;
 export const prevBound = (g) => (0.1 + g / 680) ** 3;
 /** Lean `floorOk cap lag reading`: no darker than the darkest start a previous frame of gap cap + lag can leave. */
 export const floorOk = (cap, lag, reading) => redCh(prevBound(cap + lag)) <= reading;
+
+/** Lean `closeStartOk reading m`: the red read at j is within `TOL` of `bgRed m`, `m` the morph value of the last sample with the class. */
+export const closeStartOk = (reading, m) => Math.abs(reading - redCh(m)) <= TOL;
 
 /** The smallest gap g (ms) whose floor is at or below the reading: g such that redCh(prevBound(g)) = reading. */
 export function gapFor(reading) {
@@ -33,6 +42,7 @@ export function gapFor(reading) {
 
 const MORPHING = 2; // index of `is-morphing` among the nav's class properties (registry NAV_CLASSES)
 const BG = 9; // index of `background-color` in the nav's reading
+const EARN_OPACITY = 2, EARN_MAX_WIDTH = 5; // indices of `opacity` and `max-width` in the earn button's reading (registry earn props)
 
 /** One cell per (width, arm, rep): the close's last morphing sample, the first sample without the class, the gap and the reading. */
 export function closeCells(raw, run = '') {
@@ -48,7 +58,8 @@ export function closeCells(raw, run = '') {
       const a = c[i], b = c[i + 1];
       cells.push({
         run, width: x.width, role: x.role, search: x.search, want: x.want, rep,
-        g: b.t - a.t, sinceJ: b.since, mI: a.m, redI: colourFromV1(a.nodes.nav[0][BG])[0] / 1000, redJ: colourFromV1(b.nodes.nav[0][BG])[0] / 1000,
+        g: b.t - a.t, sinceJ: b.since, mI: a.m, m: a.m / M_SCALE, redI: colourFromV1(a.nodes.nav[0][BG])[0] / 1000, redJ: colourFromV1(b.nodes.nav[0][BG])[0] / 1000,
+        earnOpacity: b.nodes.earn[0][EARN_OPACITY][0] / 1000, earnMaxWidth: b.nodes.earn[0][EARN_MAX_WIDTH][0] / 1000,
       });
     }
   }
@@ -83,7 +94,7 @@ const lcg = (seed) => { let s = seed; return () => { s = (s * 1664525 + 10139042
  * `cells` carry a `run` field. Returns P(statistic of a random arm >= the candidate's) for the mean of log g and for the mean of g.
  */
 export function permutationP(cells, role = 'cand', iterations = 20000, seed = 12345) {
-  const keys = [...new Set(cells.map((c) => `${c.run}/${c.width}`))];
+  const keys = [...new Set(cells.map((c) => `${c.run}/${c.width}`))].sort(); // sorted: the p does not depend on the order of the files
   const stat = (gs) => ({ meanLog: mean(gs.map(Math.log)), mean: mean(gs) });
   const obs = stat(cells.filter((c) => c.role === role).map((c) => c.g));
   const rnd = lcg(seed), ge = { meanLog: 0, mean: 0 };
@@ -113,7 +124,35 @@ export function capCheck(cells) {
   return { cap, viol };
 }
 
+/** Check 3, the close-start identity: every cell passes `closeStartOk (red at j) (m_i)`. Returns each cell with its deviation and verdict. */
+export function identityCheck(cells) {
+  return cells.map((c) => ({ ...c, bg: redCh(c.m), dev: Math.abs(c.redJ - redCh(c.m)), ok: closeStartOk(c.redJ, c.m) }));
+}
+
+/** Close-phase frame intervals (ms between consecutive samples of one rep) per arm role. */
+export function frameIntervals(raw) {
+  const out = {};
+  for (const x of raw.runs) {
+    if (!x.morph) continue;
+    const close = x.morph.phases.close, ds = (out[x.role] ??= []);
+    for (const rep of new Set(close.map((q) => q.rep))) {
+      const c = close.filter((q) => q.rep === rep);
+      for (let k = 1; k < c.length; k++) ds.push(c[k].t - c[k - 1].t);
+    }
+  }
+  return out;
+}
+
+/** Per width of one run: mean of log g of the candidate minus mean of log g of the original and base arms together. */
+export function blockDiffs(cells) {
+  return [...new Set(cells.map((c) => c.width))].map((w) => {
+    const of = cells.filter((c) => c.width === w), ml = (r) => mean(of.filter((c) => r(c.role)).map((c) => Math.log(c.g)));
+    return { width: w, diff: ml((r) => r === 'cand') - ml((r) => r !== 'cand') };
+  });
+}
+
 const f1 = (x) => x.toFixed(1);
+const f3 = (x) => x.toFixed(3);
 
 /** The text report of one raw file. */
 export function report(raw, run = '') {
@@ -132,11 +171,27 @@ export function report(raw, run = '') {
   const p = permutationP(cells);
   out.push(`permutation, candidate vs all arms of the run, blocked by width: p(mean log g) ${p.meanLog.toFixed(4)}, p(mean g) ${p.mean.toFixed(4)}`);
   const own = ownGapCheck(cells);
-  out.push('', `check 1, floor of the cell's own gap: ${own.length} of ${cells.length} cells below it`);
+  out.push('', `check 1 (superseded by check 3), floor of the cell's own gap: ${own.length} of ${cells.length} cells below it`);
   for (const c of own) out.push(`  ${c.width} ${c.role} rep ${c.rep}: red ${f1(c.redJ)} g ${c.g} needs ${f1(c.g + c.slack)} (slack ${f1(c.slack)} ms, since ${c.sinceJ}) ${c.slack <= LAG ? 'within LAG' : 'BEYOND LAG'}`);
   const { cap, viol } = capCheck(cells);
-  out.push('', `check 2, floor of (largest original gap of the width + ${LAG}): cap ${JSON.stringify(cap)}; ${viol.length} base/cand cells below it`);
+  out.push('', `check 2 (superseded by check 3), floor of (largest original gap of the width + ${LAG}): cap ${JSON.stringify(cap)}; ${viol.length} base/cand cells below it`);
   for (const c of viol.sort((a, b) => a.width - b.width || a.role.localeCompare(b.role) || a.rep - b.rep)) out.push(`  ${c.width} ${c.role} rep ${c.rep}: red ${f1(c.redJ)} g ${c.g}`);
+  const ids = identityCheck(cells), bad = ids.filter((c) => !c.ok);
+  out.push('', `check 3, close-start identity closeStartOk (red at j) (m_i / ${M_SCALE}), tolerance ${TOL} red: ${ids.length - bad.length} of ${ids.length} cells pass`,
+    `  max |red_j - bgRed m_i| ${f3(Math.max(...ids.map((c) => c.dev)))}, max |red_i - bgRed m_i| ${f3(Math.max(...ids.map((c) => Math.abs(c.redI - c.bg))))}, max |red_j - red_i| ${f3(Math.max(...ids.map((c) => Math.abs(c.redJ - c.redI))))}, min m_i ${Math.min(...ids.map((c) => c.mI))} (1e-4), cells red_j = red_i within 0.001 (readings are in units of 0.001): ${ids.filter((c) => Math.abs(c.redJ - c.redI) <= 0.0011).length}`,
+    '  width arm  rep m_i(1e-4) g(ms)  red_j   bgRed(m_i) dev    verdict');
+  for (const c of ids.sort((a, b) => a.width - b.width || ['orig', 'base', 'cand'].indexOf(a.role) - ['orig', 'base', 'cand'].indexOf(b.role) || a.rep - b.rep))
+    out.push(`  ${String(c.width).padEnd(5)} ${c.role.padEnd(5)} ${c.rep}   ${String(c.mI).padEnd(11)} ${String(c.g).padEnd(7)} ${f3(c.redJ).padEnd(7)} ${f3(c.bg).padEnd(10)} ${f3(c.dev).padEnd(6)} ${c.ok ? 'ok' : 'FAIL'}`);
+  out.push('', 'earn at j (first sample without is-morphing), the close@0 reading: opacity and max-width (px) with g (ms), reps 0..n',
+    '  width arm   opacity (max-width px, g)');
+  for (const w of [...new Set(cells.map((c) => c.width))]) for (const role of ['orig', 'base', 'cand']) {
+    const r = cells.filter((c) => c.width === w && c.role === role).sort((a, b) => a.rep - b.rep);
+    out.push(`  ${String(w).padEnd(5)} ${role.padEnd(5)} ${r.map((c) => `${c.earnOpacity.toFixed(3)} (${f1(c.earnMaxWidth)}, ${c.g})`).join('  ')}`);
+  }
+  const fi = frameIntervals(raw);
+  out.push('', 'close-phase frame intervals per arm (ms): n, mean, median');
+  for (const role of ['orig', 'base', 'cand']) out.push(`  ${role.padEnd(5)} ${fi[role].length} ${f1(mean(fi[role]))} ${f1(quantile(fi[role], 0.5))}`);
+  out.push('', `block difference per width, candidate minus orig+base, mean of log g: ${blockDiffs(cells).map((b) => `${b.width} ${b.diff.toFixed(2)}`).join('  ')}`);
   return out.join('\n');
 }
 
