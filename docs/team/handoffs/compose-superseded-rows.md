@@ -1,7 +1,7 @@
 # compose-superseded-rows handoff
 
 State: branch `worktree-wf_529e3a24-f84-1`. Round 1 at 8788f0b3 (refused), round 2 at f97e588b plus the commit that adds this
-file. Main merged at 78330dc8. Not landed.
+file. main (78330dc8) merged in 186447c3. Not landed.
 
 Built:
 - Ledger: `supersededBy: hero.exit.scoped.inline` on `hero.exit.scoped.falsified` and `hero.exit.scoped`; the branch diff
