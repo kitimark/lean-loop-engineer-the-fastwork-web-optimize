@@ -7960,7 +7960,8 @@
     "lean/scripts/CountdownOneChainGolden.lean",
     "packages/contracts/golden/parts/**",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
-   ]
+   ],
+   "evidence": "fe196b6"
   },
   {
    "devices": [

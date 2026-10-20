@@ -23,6 +23,7 @@ import Fw.Parts.NavHitTest
 import Fw.Parts.NavHitTestOpt
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroCountdownOpt
+import Fw.Parts.HeroCountdownOneChain
 import Fw.Parts.HeroExit
 import Fw.Parts.MorphTween
 import Fw.Parts.MorphPanel

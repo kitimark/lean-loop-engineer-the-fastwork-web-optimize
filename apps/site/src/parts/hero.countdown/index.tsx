@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getClock } from '../../engine/clock';
-import { createCountdownDriver, onVisibilityChange, startFaithful, type DigitHandle, type Writable } from './driver';
+import { createCountdownDriver, oneChainClock, onVisibilityChange, startFaithful, type DigitHandle, type Writable } from './driver';
 import { gatedInstance, installHiddenGate } from './hidden';
 import { digitPlaces, remainingSeconds, unitsFromSeconds } from './logic';
 import { matchList } from './media';
@@ -127,13 +127,13 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
     // faithful: setInterval(1 s) plus one rAF spring per digit; strip: one shared-loop subscriber
     const unsub = strip
       ? stripSubscribe()
-      : startFaithful({ clock: getClock(), driver, perfNow: () => performance.now(), onRefresh });
+      : startFaithful({ clock: variant === 'one-chain' ? oneChainClock(getClock()) : getClock(), driver, perfNow: () => performance.now(), onRefresh });
     return () => {
       unsub();
       ro.disconnect();
       gate?.stop();
     };
-  }, [shape, strip, hiddenPause, hold]);
+  }, [shape, strip, hiddenPause, variant, hold]);
 
   const Root = (impl === 'mui' ? MuiRoot : PlainRoot) as typeof PlainRoot;
   const Label = impl === 'mui' ? MuiLabel : PlainLabel;

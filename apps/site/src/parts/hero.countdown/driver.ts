@@ -1,4 +1,4 @@
-import type { MotionClock } from '../../engine/clock';
+import type { MotionClock, Tick } from '../../engine/clock';
 import {
   digitAt,
   digitPlaces,
@@ -211,5 +211,34 @@ export function startFaithful(o: FaithfulOptions): () => void {
     cancel();
     unlisten();
     for (const i of [...chains.keys()]) stop(i);
+  };
+}
+
+/**
+ * Variant `one-chain` (Lean `Fw.Parts.HeroCountdownOneChain`): `clock` with every `{ own: true }` chain run inside one
+ * shared-loop subscriber, in registration order, that is subscribed only while some chain is. Hand it to
+ * `startFaithful`. Golden: packages/contracts/golden/parts/hero.countdown.onechain.jsonl.
+ */
+export function oneChainClock(clock: MotionClock): MotionClock {
+  const chains = new Set<{ tick: Tick }>();
+  let off: (() => void) | null = null;
+  const frame = (t: number) => {
+    for (const c of [...chains]) if (chains.has(c)) c.tick(t);
+  };
+  return {
+    subscribe(tick, opts) {
+      if (!opts?.own) return clock.subscribe(tick, opts);
+      const c = { tick };
+      chains.add(c);
+      off ??= clock.subscribe(frame);
+      return () => {
+        chains.delete(c);
+        if (chains.size === 0 && off) {
+          off();
+          off = null;
+        }
+      };
+    },
+    interval: (ms, cb) => clock.interval(ms, cb),
   };
 }

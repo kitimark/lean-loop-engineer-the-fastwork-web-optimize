@@ -8,7 +8,8 @@
   "variants": {
     "faithful": { "kind": "faithful", "tier": "T1", "layerBudget": 80 },
     "strip": { "kind": "optimized", "tier": "T0", "layerBudget": 16 },
-    "hidden-pause": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroCountdownHidden", "ledger": "O2 countdown-hidden-pause", "limit": "under reduced motion hero.exit writes 1, so the gate never closes and the variant saves nothing there (Lean hidden_iff_exit)" } }
+    "hidden-pause": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroCountdownHidden", "ledger": "O2 countdown-hidden-pause", "limit": "under reduced motion hero.exit writes 1, so the gate never closes and the variant saves nothing there (Lean hidden_iff_exit)" } },
+    "one-chain": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroCountdownOneChain", "ledger": "R7 countdown-one-chain", "limit": "saves rAF callbacks only in frames where 2 or more digits roll, or 1 digit rolls while another part shares the loop (Lean oneChain_raf, page_lt_shared); equal otherwise (oneChain_raf_eq, page_eq_still)" } }
   },
   "requires": {},
   "conflicts": {}
