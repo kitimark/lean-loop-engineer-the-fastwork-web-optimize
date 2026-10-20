@@ -45,6 +45,4 @@ Tests: `node --test .github/scripts/gate-jobs.test.mjs` (golden invariants, matr
 
 See the table in `docs/team/handoffs/gate-speed-ci.md`.
 
-Land lane (task land-fwcore-once): a lean-changing land builds fwcore once in a prep job and the legs download the build tree: 4 x ~260 s of build
-become 1 x 259 s plus 4 to 6 s per leg. The wall clock of such a land measured longer (477 s to 553 s) because the legs' setup no longer runs next to the
-build. Numbers, run ids and the Lean rules: `docs/team/tools/land.md` (legs section) and `docs/team/handoffs/land-fwcore-once.md`.
+Land lane: a shared fwcore prep job is serial and never beats parallel leg builds (477 s vs 553 s; `Fw.Ops.WallTime.wallPrep_ge`); `research/notes/2026/10-20-land-fwcore-once.md`.

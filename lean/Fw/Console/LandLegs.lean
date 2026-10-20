@@ -193,110 +193,7 @@ theorem legsVeto_iff (rs : List Bool) (ne : rs ≠ []) : legsVeto (some rs) = !l
 #guard !legsOk [true, false, true, true]
 #guard !legsOk []
 
-/-! ### One fwcore build per land run (task land-fwcore-once)
-
-A land that changes `lean/` used to rebuild fwcore in every leg (run 39360937987: 206 s per leg, about 20 s on a cache hit). The workflow
-now has a prep job `fwcore` (one writer: it builds the binary once and uploads it as an artifact) and the legs download it. The prep
-job costs a runner start, so it runs only when it pays: `lean/` changed against the base and the exact Lake cache key has no entry
-(a hit makes each leg's own build about 20 s). The artifact is the whole `.lake/build` tree: a bare binary left the suites that run `lake env lean` rebuilding the modules (run 39369120267, 314 s). The legs' `needs`/`if` replay the rules below; the expressions are Lean strings
-(`prepIf`, `legIf`, `downloadIf`) that land.yml must contain (apps/runner/test/land-legs.test.ts). -/
-
-/-- Does the prep job run? The guard read `leanChanged` (a path under `lean/` differs from the base) and `exactHit` (the exact Lake key exists). -/
-def prepRuns (leanChanged exactHit : Bool) : Bool := leanChanged && !exactHit
-
-/-- No change under `lean/`: no prep job, the legs restore the cache as before. -/
-theorem prepRuns_noLean (hit : Bool) : prepRuns false hit = false := rfl
-
-/-- An exact Lake cache hit: no prep job, each leg's build is a cache replay. -/
-theorem prepRuns_hit (changed : Bool) : prepRuns changed true = false := by simp [prepRuns]
-
-/-- A changed `lean/` and a cache miss: the prep job runs. -/
-theorem prepRuns_missChanged : prepRuns true false = true := rfl
-
-/-- The prep job runs exactly when `lean/` changed and the cache missed. -/
-theorem prepRuns_iff (c h : Bool) : prepRuns c h = true ↔ c = true ∧ h = false := by cases c <;> cases h <;> simp [prepRuns]
-
-/-- What GitHub reports for `needs.fwcore.result`. -/
-inductive PrepResult where
-  | success | skipped | failure | cancelled
-deriving DecidableEq, Repr
-
-/-- The result of a name GitHub reports for `needs.<job>.result`, if known. -/
-def PrepResult.ofString? : String → Option PrepResult
-  | "success" => some .success | "skipped" => some .skipped | "failure" => some .failure | "cancelled" => some .cancelled | _ => none
-
-/-- Where a leg gets its Lean build: `download` the prep job's build tree (the leg's `lake build fwcore` then only checks the traces), `build` its own Lake cache replay or build. -/
-inductive Source where
-  | download | build
-deriving DecidableEq, Repr
-
-/-- The source name in the golden. -/
-def Source.name : Source → String
-  | .download => "download" | .build => "build"
-
-/-- The prep job's result when it ran (`ran`) and built (`ok`) or did not run. -/
-def prepResult (ran ok : Bool) : PrepResult :=
-  if ran then (if ok then .success else .failure) else .skipped
-
-/-- The leg's fwcore source given the prep result: the artifact after a successful prep, its own build when prep was skipped, none (the leg does not run) otherwise. -/
-def fwcoreFrom : PrepResult → Option Source
-  | .success => some .download | .skipped => some .build | .failure => none | .cancelled => none
-
-/-- A prep job that built fwcore: the legs download it. -/
-theorem fwcoreFrom_success : fwcoreFrom .success = some .download := rfl
-
-/-- A skipped prep job: each leg builds fwcore itself (the cache-hit or non-`lean/` path, unchanged). -/
-theorem fwcoreFrom_skipped : fwcoreFrom .skipped = some .build := rfl
-
-/-- A failed prep job: no leg runs (the run fails with the prep job, no leg builds on its own). -/
-theorem fwcoreFrom_failure : fwcoreFrom .failure = none := rfl
-
-/-- A cancelled prep job: no leg runs. -/
-theorem fwcoreFrom_cancelled : fwcoreFrom .cancelled = none := rfl
-
-/-- A leg builds fwcore itself only when the prep job did not run: one build per run, by the prep job or by the legs, never both. -/
-theorem leg_builds_only_without_prep (ran ok : Bool) (h : fwcoreFrom (prepResult ran ok) = some .build) : ran = false := by
-  cases ran <;> cases ok <;> simp_all [prepResult, fwcoreFrom]
-
-/-- A leg downloads only when the prep job ran and built. -/
-theorem leg_downloads_only_after_prep (ran ok : Bool) (h : fwcoreFrom (prepResult ran ok) = some .download) : ran = true ∧ ok = true := by
-  cases ran <;> cases ok <;> simp_all [prepResult, fwcoreFrom]
-
-/-- A leg runs iff the prep job was skipped or built. -/
-def legRuns (r : PrepResult) : Bool := (fwcoreFrom r).isSome
-
-/-- A failed or cancelled prep stops every leg. -/
-theorem legRuns_iff (r : PrepResult) : legRuns r = true ↔ r = .success ∨ r = .skipped := by cases r <;> simp [legRuns, fwcoreFrom]
-
-/-- The prep job's `if` (the guard outputs `lean` and `hit`), replaying `prepRuns`. -/
-def prepIf : String := "needs.guard.outputs.run == 'true' && needs.guard.outputs.lean == 'true' && needs.guard.outputs.hit != 'true'"
-
-/-- The legs' `if`, replaying `legRuns`. -/
-def legIf : String := "!cancelled() && needs.guard.outputs.run == 'true' && (needs.fwcore.result == 'success' || needs.fwcore.result == 'skipped')"
-
-/-- The legs' download step `if`, replaying `fwcoreFrom = download`. -/
-def downloadIf : String := "needs.fwcore.result == 'success'"
-
-
 private def strs (xs : List String) : Json := .arr (xs.map Json.str).toArray
-
-/-- One golden line of `console.landPrep`: the guard's facts in, whether the prep job runs out. -/
-def prepLine (name : String) (c h : Bool) : Json :=
-  Json.mkObj [("name", .str name),
-    ("request", Json.mkObj [("op", .str "console.landPrep"), ("leanChanged", .bool c), ("exactHit", .bool h)]),
-    ("response", Json.mkObj [("prep", .bool (prepRuns c h))])]
-
-/-- One golden line of `console.landFwcoreFrom`: the prep job's result in, where the legs get fwcore out (`none` = the legs do not run). -/
-def fromLine (name : String) (r : PrepResult) (s : String) : Json :=
-  Json.mkObj [("name", .str name),
-    ("request", Json.mkObj [("op", .str "console.landFwcoreFrom"), ("result", .str s)]),
-    ("response", Json.mkObj [("from", .str ((fwcoreFrom r).elim "none" Source.name)), ("legs", .bool (legRuns r))])]
-
-/-- The workflow expressions land.yml must contain. -/
-def exprLine : Json :=
-  Json.mkObj [("name", .str "workflow expressions"),
-    ("request", Json.mkObj [("op", .str "console.landPrepIf")]),
-    ("response", Json.mkObj [("prepIf", .str prepIf), ("legIf", .str legIf), ("downloadIf", .str downloadIf)])]
 
 /-- One golden line of `console.landLeg`: leg and selected ids in, the checks the leg runs and whether its engine runs out. -/
 def legLine (name : String) (l : Leg) (ids : List String) : Json :=
@@ -331,12 +228,7 @@ def cases : List Json :=
    okLine "all fail" [false, false], okLine "one leg passes" [true], okLine "no legs" [],
    vetoLine "no per-job conclusions: no veto" none, vetoLine "a record with no leg: no veto" (some []), vetoLine "all legs passed: no veto" (some [true, true, true, true]),
    vetoLine "one leg failed: veto" (some [true, false, true, true]), vetoLine "the last leg failed: veto" (some [true, true, true, false]),
-   vetoLine "one leg, passed" (some [true]), vetoLine "one leg, not passed" (some [false]),
-   prepLine "lean changed, cache miss: prep runs" true false, prepLine "lean changed, exact hit: no prep" true true,
-   prepLine "no lean change, miss: no prep" false false, prepLine "no lean change, hit: no prep" false true,
-   fromLine "prep succeeded: legs download" .success "success", fromLine "prep skipped: legs build" .skipped "skipped",
-   fromLine "prep failed: legs stop" .failure "failure", fromLine "prep cancelled: legs stop" .cancelled "cancelled",
-   exprLine]
+   vetoLine "one leg, passed" (some [true]), vetoLine "one leg, not passed" (some [false])]
 
 /-- The golden text: one compact line per case. -/
 def goldenText : String := String.join (cases.map fun c => c.compress ++ "\n")

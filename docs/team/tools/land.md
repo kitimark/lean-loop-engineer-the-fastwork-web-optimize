@@ -70,29 +70,6 @@ then does only its part, so the wall time of the lane is the slowest leg:
   version is not in them, so the two image versions the fleet runs share one key. `main` seeds them through the premise-tests `engine` job on each
   `main` push (no cron by `Fw.Ci.Trigger.no_crons`). Re-seed by hand (`gh workflow run premise-tests.yml --ref main`) only after a Playwright bump.
   Measurements: `docs/team/handoffs/land-legs-followups.md`.
-- One fwcore build per run (task land-fwcore-once). A land that changes `lean/` used to rebuild fwcore in every leg (251 to 265 s each,
-  run 39369049545). Now `land.yml` has a prep job `fwcore` (the one writer): it builds fwcore once and uploads the whole `lean/.lake/build` tree
-  as artifact `land-fwcore`; the legs `needs` it, download it (4 to 6 s) and run `lake build fwcore` on top (0 to 1 s: the traces hold). Why the
-  tree and not the binary: the suites run `lake env lean` scripts (gate-breakpoints `freeze.test.mjs`) that import Fw modules, and a bare binary made
-  them rebuild those for 270 s (run 39369120267, failed). Artifact vs cache: an artifact belongs to one run and one writer needs no key rule; the Lake
-  cache is immutable per key and a `ci/*` run reads only its own branch and `main` ([dependency caching](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)),
-  and a second `.lake-cache` writer would break `Fw.Ops.LakeCache.one_writer`. `upload-artifact` drops file permissions
-  ([README](https://github.com/actions/upload-artifact)), so the leg runs `chmod +x`.
-  The prep job is conditional, and the condition is Lean: `prepRuns leanChanged exactHit = leanChanged && !exactHit` (`prepRuns_noLean`,
-  `prepRuns_hit`, `prepRuns_missChanged`, `prepRuns_iff`), the facts read by the guard (a diff of `lean/` against the base, and `actions/cache/restore` with
-  `lookup-only` on the exact Lake key). The legs' `needs`/`if` replay `fwcoreFrom`/`legRuns` (`fwcoreFrom_success/_skipped/_failure/_cancelled`,
-  `leg_builds_only_without_prep`, `leg_downloads_only_after_prep`, `legRuns_iff`): prep succeeded = download, prep skipped = the old cache replay,
-  prep failed or cancelled = no leg runs. The `if:` strings are Lean constants (`prepIf`, `legIf`, `downloadIf`); the golden holds them and
-  `apps/runner/test/land-legs.test.ts` checks land.yml contains them. Ops `console.landPrep`, `console.landFwcoreFrom`, `console.landPrepIf`.
-  `legsPass` counts only jobs named `land (<leg>)`, so the prep job (skipped or not) is no leg.
-  Measured (single runs, free arm runners): lean-changing land, before run 39369049545 wall 477 s with 4 x ~260 s of fwcore build (1650 s of
-  runner time in the legs); after run 39370530353 wall 553 s: prep job 321 s (setup 46, build 259, upload 9), legs 116 to 211 s (937 s of runner
-  time in total). **Trade-off: runner time -43%, wall clock +76 s**, because the legs' own setup (checkout, Lean toolchain 45 s, pnpm) now starts after
-  the prep job instead of next to the build. A non-lean land skips the prep job (job 0 s): before run 39369095720 wall 116 s, after run 39369869288
-  wall 129 s (guard +2 s for the extra steps, the rest is runner noise; fwcore step 0 to 1 s in both; that run used the first, binary-only version, whose
-  skipped-prep path is the same as today's). The first non-lean "after" run (39369107918, 187 s) had no exact Lake key because the branch's lean tree was
-  not main's yet (fwcore step 19 s per leg): a cache state, not the change.
-  Follow-up: overlap the legs' setup with the prep build (a leg that starts at once and waits for the artifact).
 - Cost: one runner per leg (free runners; four per land, the engine legs idle after setup when no browser suite is selected). Numbers and
   the phases that remain: `research/notes/2026/10-20-land-lane-speed.md`. Not changed: the local tier already starts with the push.
 
@@ -134,3 +111,5 @@ Cost: see the handoff note `docs/team/handoffs/land-dry-full.md`. TS stand-in `a
 ## Refusal reasons and the fwcore preflight (task land-queue-why)
 - Every queue refusal carries a reason. An attempt that throws is kind `unknown`; the runner keeps the exception message, prints `REFUSED: <message>` to stderr before the `VERDICT` line, writes it as `reason` in the `res` line of `land-queue.jsonl`, and appends `queue: REFUSED: <message>` to the task's newest log under `.fw-console/land-logs` (`<task>-queue.log` when the task has none). An empty message becomes `no message`. A refusal that `fw land` already explained (its own `REFUSED:` line) is recorded but not printed twice. Lean: `Fw.Console.LandQueue.reasonOf_nonempty`, `reasonOf_keeps`; golden ops `landQueue.reason` and `landQueue.refusalReason` (`refusal_has_reason`: every refusal kind gets a non-empty reason; the queue calls the TS mirror `refusalReason`). The task's land log is matched by exact name (`<task>-<sha7>.log`).
 - Preflight (real lands only, not `--dry`, not with `FW_LAND_CHECKS`): before any check, `fwcorePreflight` compares the commit in the main checkout's `lean/.lake/build/bin/fwcore.commit` (counted only when the binary's sha256 is the recorded one) with `main`. No record, or a record of another commit with a change under `lean/` or to `scripts/fwcore-build.sh` since, refuses at once with kind `stale` and the reason `fwcore-stale: run sh scripts/fwcore-build.sh`. Lean: `fwcoreStale` with one theorem per branch (`fwcoreStale_noRecord`, `fwcoreStale_moved`, `fwcoreFresh_same`, `fwcoreFresh_unmoved`); golden op `landQueue.fwcoreStale`. A tree without `scripts/fwcore-build.sh` is skipped. Cause of the 2026-10-20 incident: a stale binary failed mid-run with `unknown op console.landDigest`.
+
+Finding (task land-fwcore-once, closed): a prep job that builds fwcore once for the four legs cut runner time 43% but made a lean land 76 s slower (477 s to 553 s, runs 39369049545 and 39370530353), because the legs' builds already ran in parallel; not shipped. Why: `Fw.Ops.WallTime.wallPrep_ge`; note `research/notes/2026/10-20-land-fwcore-once.md`.

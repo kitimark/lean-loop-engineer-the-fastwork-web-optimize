@@ -50,9 +50,6 @@ imports it, so it decodes the card fields it needs itself).
 | `console.landTier` | `ids` [check ids] | `local` [ids], `remote` [ids] (`Fw.Console.LandTier.pick`, order kept), `browser` (`browserRuns`: the selection holds the e2e-preview check) |
 | `console.landLeg` | `leg` (a land leg name), `ids` [selected check ids] | `ids` [the remote checks that leg runs, `Fw.Console.LandLegs.pickFor`], `engine` (`engineRuns`) |
 | `console.landLegs` | `results` [bool, one per leg] | `ok` (`Fw.Console.LandLegs.legsOk`: every leg passed, at least one leg) |
-| `console.landPrep` | `leanChanged`, `exactHit` (bools) | `prep` (`Fw.Console.LandLegs.prepRuns`) |
-| `console.landFwcoreFrom` | `result` (`success`, `skipped`, `failure`, `cancelled`) | `from` (`download`, `build`, `none`), `legs` (`fwcoreFrom`, `legRuns`) |
-| `console.landPrepIf` | none | `prepIf`, `legIf`, `downloadIf` (the expressions land.yml contains) |
 | `console.landLegsVeto` | `results` [bool, one per non-guard job] or `null` (no per-job conclusions) | `veto` (`Fw.Console.LandLegs.legsVeto`: a `success` run with a leg that did not pass is refused; `null` or no leg says nothing) |
 | `console.landLane` | `exitOk`, `coreUser`, `skipped` (skipped plus todo tests the summary reports; `null` when no summary was recognised) | `verdict` (`pass`/`fail`/`skipped`/`unknown`), `ok` (`Fw.Console.LandTier.laneVerdict`) |
 | `console.landRemote` | `localOk`, `needed`, `allow` [`github`/`circleci`, preference order], `want` {sha, laneId, laneDigest}, `waitsLeft`, `runs` [{provider, sha, laneId, laneDigest, state (`queued`/`running`/`pass`/`fail`/`cancelled`/`timeout`/`unavailable`)}] | `kind` (`accept`/`refuse`/`wait`/`try`/`local`), `reason` (the word on the VERDICT line), `ok`, `provider` (the one to try, else null) (`Fw.Console.LandRemote.verdict`) |
@@ -252,26 +249,6 @@ def opLandLegsVeto (req : Json) : Except String Reply := do
     | none | some .null => pure none
     | some _ => some <$> (← arrD req "results").mapM (asBool "results")
   pure [("veto", .bool (legsVeto rs))]
-
-open Fw.Console.LandLegs in
-/-- `console.landPrep`: does the one-build prep job run (`Fw.Console.LandLegs.prepRuns`)? -/
-def opLandPrep (req : Json) : Except String Reply := do
-  let c ← asBool "leanChanged" (← field req "leanChanged")
-  let h ← asBool "exactHit" (← field req "exactHit")
-  pure [("prep", .bool (prepRuns c h))]
-
-open Fw.Console.LandLegs in
-/-- `console.landFwcoreFrom`: where the legs get fwcore given the prep job's result (`Fw.Console.LandLegs.fwcoreFrom`). -/
-def opLandFwcoreFrom (req : Json) : Except String Reply := do
-  let name ← asStr "result" (← field req "result")
-  match PrepResult.ofString? name with
-  | none => throw s!"field result: unknown prep result {name}"
-  | some r => pure [("from", .str ((fwcoreFrom r).elim "none" Source.name)), ("legs", .bool (legRuns r))]
-
-open Fw.Console.LandLegs in
-/-- `console.landPrepIf`: the workflow expressions of the prep job and the legs. -/
-def opLandPrepIf (_req : Json) : Except String Reply :=
-  pure [("prepIf", .str prepIf), ("legIf", .str legIf), ("downloadIf", .str downloadIf)]
 
 open Fw.Console.LandTier in
 /-- `console.landLane`: the lane verdict of one check (`Fw.Console.LandTier.laneVerdict`). -/
@@ -702,9 +679,6 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.landLeg" => some (opLandLeg req)
   | "console.landLegs" => some (opLandLegs req)
   | "console.landLegsVeto" => some (opLandLegsVeto req)
-  | "console.landPrep" => some (opLandPrep req)
-  | "console.landFwcoreFrom" => some (opLandFwcoreFrom req)
-  | "console.landPrepIf" => some (opLandPrepIf req)
   | "console.landLane" => some (opLandLane req)
   | "console.landRemote" => some (opLandRemote req)
   | "console.landLaneState" => some (opLandLaneState req)
