@@ -10657,6 +10657,35 @@
     "docs/team/handoffs/engine-release-notes.md"
    ],
    "evidence": "8aa8243"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "alert-steps-plain",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20: the console step 'Spool lines need a look: session_pid:unknown x1; fix emit.mjs or Fw.Ops.Obs.specs, then press Done' was unclear (what must I do?) and stayed open a day after its cause was fixed. Every script-posted alert step: (1) audience decided in Lean: only actions only the user can do go to YOU, phrased as one concrete action in plain words; agent/lead-fixable causes go to the lead; (2) plain text: what happened, impact, whether it resolved; (3) auto-resolve decided in Lean: when a later check finds the cause gone, the step closes with a 'resolved automatically' note; theorem per branch, goldens; close the stale alert-spool-1792389046068 through the new rule.",
+   "writes": [
+    "lean/Fw/Ops/Obs.lean",
+    "lean/Fw/Ops/**",
+    "lean/Fw/Console/**",
+    "lean/Fw/Console.lean",
+    "lean/Fw/Wire.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/**",
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "apps/console-web/src/**",
+    "apps/console-web/test/**",
+    "apps/runner/src/**",
+    "apps/runner/test/**",
+    "docs/team/tools/console.md",
+    "docs/team/tools/fw-watch.md",
+    "docs/team/handoffs/alert-steps-plain.md"
+   ]
   }
  ],
  "deadline": {
