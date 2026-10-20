@@ -4,8 +4,8 @@ kind: decision
 title: "v2 loop-engineering experiment: design and plan (for user review)"
 status: review
 created: 2026-10-17
-updated: 2026-10-19
-revision: 11.2 (final design round of `plan-rev11`: a theorem cited for a cut carries its If/Then, CONFIRMED only when every If is discharged; units-type combined run and per-flag attribution INFERRED under the open bridge; §4.8 passes and Visual rows split by theorem. Rev 11.1, round 2: §4.8 rows restate the Lean hypotheses and conclusions; §10.7 cuts that rest on the open bridge are dropped under premise; passes-type savings model-only. Rev 11: Lego parts: units compose and passes do not (Fw.Engine.Compose, §4.8); the part contract with coupled groups CG1-CG5 (Fw.Parts.Contract, §6.8); waves 1 and 2 to C3 with the CI and speed reviews (§10.7); state at 16207afb; rev 10 was a8c05f4)
+updated: 2026-10-20
+revision: 11.3 (math in artifacts, your decision of 2026-10-19: Lean source holds specs, proofs and code; math you read is written on demand into the page that shows it and a math-reviewer checks it there (§5.3); the generated math view, its lint and the per-module math review are retired. Rev 11.2: final design round of `plan-rev11`: a theorem cited for a cut carries its If/Then, CONFIRMED only when every If is discharged; units-type combined run and per-flag attribution INFERRED under the open bridge; §4.8 passes and Visual rows split by theorem. Rev 11.1, round 2: §4.8 rows restate the Lean hypotheses and conclusions; §10.7 cuts that rest on the open bridge are dropped under premise; passes-type savings model-only. Rev 11: Lego parts: units compose and passes do not (Fw.Engine.Compose, §4.8); the part contract with coupled groups CG1-CG5 (Fw.Parts.Contract, §6.8); waves 1 and 2 to C3 with the CI and speed reviews (§10.7); state at 16207afb; rev 10 was a8c05f4)
 authors: [agent:plan-architect]
 topics: [plan, architecture, measurement, lean, parts, agent-teams, styling]
 links:
@@ -34,7 +34,9 @@ animation is math, so the evidence for an optimization is a **Lean proof** (same
 Chromium and WebKit, at every width; §4.7, §5.1), CI counts check the engine models and the phone is an optional spot
 check. **Rev 11** (2026-10-19 01:00): **Lego parts**: unit savings add up and pass savings do not (§4.8), a part
 contract decides which parts are coupled (§6.8), and two integration waves with one whole-page gate each reach C3
-(§10.7). Work runs as a dependency graph; the checkpoints are the only dates.
+(§10.7). **Rev 11.3** (2026-10-20): your decision of 2026-10-19: math you read is written on demand into the page
+that shows it and checked there (§5.3); the generated math view is retired. Work runs as a dependency graph; the
+checkpoints are the only dates.
 
 **Status words.** CONFIRMED = a note cites a source, doc or v1 record for it, or it was checked on this Mac today.
 INFERRED = a design choice or expectation that a spike or measurement must still check. MEASURED = a number from a
@@ -91,8 +93,8 @@ of its 276 incidents were filed against its own tools, 45 of them feature reques
 **What the chat history adds** (§2.3, [08]): v1's agents did their work well; the loop around them did not. v2 fixes
 that with scripts, events and hooks, not with more agents or rules (§8.5). **Nobody writes status** (rev 5): every
 console view is a formula over one event log that only console-api writes. **Lean first, and you read math, not
-Lean** (rev 5): everything reproducible is proved before it is coded (§3.3), and every theorem carries its math on a
-generated page (§5.3).
+Lean** (rev 5; how, rev 11.3): everything reproducible is proved before it is coded (§3.3); a theorem you should
+read gets its math on the page that shows it, checked against the Lean (§5.3).
 
 **What to expect, plainly:**
 - **The evidence is a proof, not a phone run (rev 10).** For every part × optimization Lean proves (vis) the same
@@ -109,9 +111,9 @@ generated page (§5.3).
 
 **State at 16207afb (2026-10-19 00:50, T+25.5h; MEASURED from commit trailers and run ids unless marked).**
 - **Proofs:** the engine models (`engine-core-lean`, Chromium and WebKit models) and all 10 proof tasks landed; the
-  `v2-proved` arm holds 8 optimizations (9156d536, §10.6). Math view after `math-final`: 5,109 agree, 0 disagree,
-  517 stale, 1,373 pending. `model-checks` (268d8124) found 4 refuted predictions, each a model or harness finding
-  (§4.7); the touch lane does not finish its swipe (`run.mjs:276`).
+  `v2-proved` arm holds 8 optimizations (9156d536, §10.6). Math review after `math-final` (the math view, retired in
+  rev 11.3): 5,109 agree, 0 disagree, 517 stale, 1,373 pending. `model-checks` (268d8124) found 4 refuted
+  predictions, each a model or harness finding (§4.7); the touch lane does not finish its swipe (`run.mjs:276`).
 - **Site:** every section ported; `integrate-ports-4` (c4b57a22) passed the gate in Chromium (run 39142015714: 0 bad,
   57 commission-resize readings excused); `page-root-clip` landed (3600b283); the WebKit Simulator rewrite lane landed
   (c2410d2d).
@@ -163,7 +165,7 @@ Each criterion has a measurement and an owner. "Proposal" thresholds become bind
 | V-p | **Transfer to the original** | the same change as an overlay on the original, counts lane | same sign of Δ per stage, for every landing that can be overlaid | [FR §2] |
 | V-q | **Styling neutrality** of MUI | N0-N5 (§6.7) | sheet mutations 0 after hydration; DOM-write and commit census equal to `impl: plain`; style shape within ±10 % | [09] |
 | V-r | **Mutant kill rate** | each L1 module ships v1 bugs put back on purpose (`FwTest/Mutants/<module>/*.patch`) | 100 % make `lake build` fail; a survivor blocks the module's next land | [10.03] |
-| V-s | **Math sign-off** | docstring math whose deep statement hash equals the signed hash | 0 missing, 0 stale, 0 unsigned at land (`math-final` before the report) | [10.04 §2.3] |
+| V-s | **Math sign-off** (rev 11.3) | math on a page whose `agree` row carries the declaration's current statement hash (`stmtHash`) | every math row a page shows agreed before you read it; a changed statement makes its row stale | [10.04 §2.3], §5.3 |
 | V-t | **No hand-written status** | console fields an agent can set directly; a replay of v1's status history through the v2 reducer | 0 directly settable fields; the replay share reported, not gated, in v2 | [10.02] |
 
 **V-i rules** (SPK-i, decided 6b4237e; `research/notes/2026/10-17-spk-drafts/spk-i.md`). No byte identity: whole
@@ -235,14 +237,14 @@ flowchart TB
   API["console-api: Node 24 + Hono, single writer, CLI socket, reconcilers, watchers"]
   WEB["console-web"]
   OBS(["observed facts: git refs, hooks, watchers, transcripts"])
-  MV[("math-view.html: generated math view")]
+  MA[("math pages: written on demand, checked by a math-reviewer (§5.3)")]
   PHONE(["iPhone Safari: optional spot check (rev 10), class P"])
 
   SITE & SNAP -- "URL ?fw= / ?preset=, window.__fw" --> LANES --> MEAS -- "count vectors (zod)" --> AS --> CM --> API
   LANES <-- "screen, verdict ops" --> FW
   API <-- "events in, accepted/refused + rows out" --> FW
   OBS -- "facts with idempotency keys" --> API
-  FW -- "mathview" --> MV
+  FW -- "mathview --decl: statement, hash" --> MA
   WEB <-- "HTTP + SSE" --> API -- "device jobs + steps" --> PHONE -- "segments, verdicts" --> API
   FW -- "generates: breakpoints.gen.json, media strings, golden vectors" --> SITE
 ```
@@ -501,7 +503,7 @@ this premise, never CONFIRMED (§10.7). (4) Results are per frame; run-level (pe
 
 **Lean-first (your requirement of 2026-10-17).** [10.03] places 87 console and tooling decisions, state machines and
 pure functions at a proof level (site and part items not counted, INFERRED). `lean/README.md` holds the inventory;
-the math view (§5.3) shows each item's math.
+an item's math is written onto a page when you need to read it (§5.3).
 
 | Level | Count | Meaning |
 |---|---|---|
@@ -519,14 +521,14 @@ gate matrix), motion curves, count reduction and verdicts.
 
 | Milestone | Lean modules | v1 bug classes they remove |
 |---|---|---|
-| M0 | `Fw/Console` (reducer, authority, steps, needs-you, landing rule); `Fw/Spec/DeviceQueue`; `Fw/Ops`; `Fw/Wire`; `Fw/Spec/{Frames, Verdict, Null}`; `Fw/Gate`; `Fw/Plan`; the math-view lint | hand-kept board, double-answered steps, scheduler, spawn storms |
+| M0 | `Fw/Console` (reducer, authority, steps, needs-you, landing rule); `Fw/Spec/DeviceQueue`; `Fw/Ops`; `Fw/Wire`; `Fw/Spec/{Frames, Verdict, Null}`; `Fw/Gate`; `Fw/Plan`; the axiom check (rev 11.3; was the math-view lint) | hand-kept board, double-answered steps, scheduler, spawn storms |
 | M1 | `Fw/Site`; `Fw/Spec/{ArtifactKey, Store}`; `Fw/Measure` (classes, tolerances, zones, the freeze rule, **`measure.zoneBaseline`**, `store.ciRun`); run queue, sessions, lease (Q26); stage lifecycle, land queue | stale reuse, cherry-picking, lease mid-step, a lost queue place |
 | M2 | `Fw/Parts` (part specs and golden vectors for the 9 end-of-page parts); `Fw/Spec/Flags` + `Fw/Gen/Registry` (P), presets; parity bands; `Fw/Spec/Screen` (dominance, proved sound for class W), uncounted families, landing classifier, `land_requires` | arms that changed more than the named thing; over-trusting proxies |
 | M3 (rev 10: optional spot checks) | block validity and the thermal-class refusal for phone blocks; **no model ladder, fit checker or licence** (Q37 resolved, §12.0) | a device block used beyond its validity |
 | **M5 (rev 10: proofs)** | **`Fw/Engine/{Core, Visual, Chromium, WebKit}`** (stage model, scene, engine tables with cites, `frame_le_of_cover`, `frame_le_union`, `run_dominates` → `Screen.screen_sound`, `toCost` → `Cost.mainUs_mono`); **one `Fw/Parts/<Part>Opt` module per part × optimization** with the (vis) and (work) pair (§4.7, §10.6); `Fw/Measure/EngineCheck` (F0-F5 rows and the match rule); **rev 11:** `Fw/Engine/Compose` (§4.8) and `Fw/Parts/Contract` (§6.8) | a "same look" claim that was only eyeballed; a "less work" claim that rested on one device run; a model that drifts from engine source without anyone noticing |
 | M6 | the per-module evidence table and the per-part theorem table for the report; `FwMath` only if a verdict needs it | — |
 
-**Built by ad5eeea** ([EV §4]): 51 modules on the math view; M0 mutants (V-r): 625, 621 killed, 3 equivalent, 0
+**Built by ad5eeea** ([EV §4]): 51 modules; M0 mutants (V-r): 625, 621 killed, 3 equivalent, 0
 survived (MEASURED 8074907). **Demotion rule:** a module moves from L1 to L2 by a decision record when its proofs cost
 more than 1 agent-day on two consecutive changes while its bug ledger (V-l) shows 0 bugs caught; the Lean spec stays
 the oracle. **Engine rules are Lean data (rev 10, A32):** a proof about our transcription cannot catch a transcription
@@ -557,39 +559,43 @@ pair makes no statistical comparison, so k counts only proposals and the optiona
 
 ### 5.3 How you read a theorem, and a worked example
 
-**You read math, not Lean (decided 2026-10-17).** Every theorem, and every definition you are expected to read (for
-example `may`, `stage`, `ready`, `stale`, `eff`), carries its math in its docstring: one English sentence, then one
-`$$…$$` LaTeX block, in one notation table ([10.04 §3]). Lean checks the proof; the **math-reviewer** checks that the
-math says exactly what the Lean says; you check that it is what we mean. `#guard` lines are examples that run at
-build time.
+**You read math, not Lean (decided 2026-10-17; how, 2026-10-19).** Lean source holds specs, proofs and code; a
+docstring is one English line saying what the declaration is for. Math is written on demand into the page you read
+(`docs/team/tools/math-artifact.md`): (1) the lead names the declarations; (2) a lean-prover exports them (`lake exe
+mathview --decl <name>…`: signature, axioms, deep statement hash `stmtHash`) and writes each one's math from the Lean
+onto the page (KaTeX, pinned); (3) a fresh **math-reviewer** writes its own math from the Lean first, then compares
+clause by clause (ℕ vs ℤ, ≤ vs <, truncated subtraction, empty input, list vs set, ⇔ vs ⇒, unused hypotheses); (4)
+the lead fixes a `disagree` and asks a new reviewer until all agree (you see only what stays open, Q28), then records
+`decl | stmtHash | agree | artifact` in `research/notes/<yyyy>/<mm-dd>-math-artifact-<topic>.md`. A row counts only
+at the current `stmtHash` (`Fw.Ops.LeanFirst.Signoff.matches`): a statement change makes it stale, a docstring edit
+does not. Lean checks the proof; `#guard` lines are examples run at build time; the axiom check (TL0) refuses
+`sorry` and non-standard axioms.
 
-**The math view is generated, never hand-kept** ([10.04 §2]). `lake exe mathview` exports per declaration the
-docstring's English and math, the signature, a machine-made LaTeX form (no LLM), axioms (`sorryAx` = not proved) and
-a 64-bit deep statement hash; `build-math-view.mjs` renders it into `docs/plan/math-view.html`, a page of its own published next to loop-plan.html (KaTeX as MathML, the
-Lean collapsed). Sign-off records are keyed by statement and math hash; the lint (TL0) fails on missing math, `sorry`
-outside an allowlist, a hash changed since signing, a KaTeX error or a non-standard axiom. The math-reviewer writes its
-own math from the signature and compares clause by clause (ℕ vs ℤ, ≤ vs <, truncated subtraction, ties, ⇔ vs ⇒);
-disagreement goes to a second reviewer, then you (Q28); a toolchain bump re-signs only unchanged entries (R24).
-**Status (MEASURED):** no review round found a wrong proof; every disagreement was a docstring fix. After
-`math-final` (d159442a): 5,109 agree, 0 disagree, 517 stale, 1,373 pending; a theorem added later is unsigned in the
-report and says so.
+**Before rev 11.3 (MEASURED).** Docstrings carried the math and a generated math view showed it; no review round
+found a wrong proof, every disagreement was a docstring fix; `math-final` (d159442a) ended at 5,109 agree, 0
+disagree, 517 stale, 1,373 pending. `lean-latex-removal` retired the view, its lint and CI job (A41).
 
-**Short example** (`lean/Fw/Spec/Verdict.lean`, 9367dea; proof elided; the full worked example in [EV §5.2]):
+**Short example** (`lean/Fw/Spec/Verdict.lean:48, 57-61`, proof elided; full worked example in [EV §5.2]):
 
 ```lean
-/-- Soundness for lower-is-better: "better" means every variant run was strictly lower than every control run.
-$$\forall C, V \in \mathbb{Z}^{*}:\quad \operatorname{verdict}(\mathrm{lower}, C, V) = \mathrm{better} \;\Rightarrow\; \forall y \in V,\ \forall x \in C:\ y < x$$ -/
+/-- Soundness for lower-is-better: "better" means every variant run was strictly lower than every
+control run (for higher-is-better see `better_sound_higher`).
+-/
 theorem better_sound {ctl var : List Int} (h : verdict .lower ctl var = .better) :
     ∀ y ∈ var, ∀ x ∈ ctl, y < x := …
 
 #guard verdict .lower [5, 5, 5] [4, 4, 4] == .better
 ```
 
+The math a page shows for it (as agreed for `Fw.Verdict.better_sound` in `10-17-math-review-fwcore.md`):
+
+$$\forall C, V \in \mathbb{Z}^{*}:\quad \operatorname{verdict}(\mathrm{lower}, C, V) = \mathrm{better} \;\Rightarrow\; \forall y \in V,\ \forall x \in C:\ y < x$$
+
 ### 5.4 Test strategy per layer
 
 | Layer | What | Tool | Runs when | Budget |
 |---|---|---|---|---|
-| TL0 | proofs, `#guard` examples, the math-view lint (missing / stale / unsigned math, sorry, axioms, KaTeX), mutant patches (each must break the build, V-r), the 100k-event speed budget, partial-op grep on `Wire`/`Main` | `lake build`, `lake test`, `lake exe` | pre-commit on `lean/**`; mutants on CI (`mutants-ci`) | < 3 min warm |
+| TL0 | proofs, `#guard` examples, the axiom check (`sorry`, non-standard axioms; rev 11.3, was the math-view lint), mutant patches (each must break the build, V-r), the 100k-event speed budget, partial-op grep on `Wire`/`Main` | `lake build`, `lake test`, `lake exe` | pre-commit on `lean/**`; mutants on CI (`mutants-ci`) | < 3 min warm |
 | TL1 | pure unit + property tests; no real time, host load, ports or shared temp folders (lint; 2 s per-test cap) | Vitest + fast-check | pre-commit, affected packages | < 20 s whole repo |
 | TL2 | contracts: zod ⇄ JSON Schema ⇄ Lean golden round trips (every event `type@n` with upcasters); the flag resolver over its whole domain (+ 2,000 fast-check cases) | Vitest + `fwcore` | pre-commit | < 60 s |
 | TL3 | visual parity per part (PL0-PL4) | Playwright (Chromium + WebKit) | pre-land, affected parts | < 10 s per part per config |
@@ -844,7 +850,7 @@ profiles that exist (`scenarios_known`); there is no push profile yet.
 | `apps/console-web/`, `apps/console-api/`, `apps/runner/` | shadcn/ui + Tailwind 4; Node 24 + Hono single writer with `fwcore serve` (§7.3); the `fw` CLI and hooks |
 | `packages/` | `contracts` (zod + schema + goldens), `measure-chromium`, `measure-webkit`, `measure-wktr`, `model` (pure stats), `fwcore-client`, `kb` |
 | `docker/counts-chromium/` | Dockerfile pinned by digest; fonts only from `snapshot/site` |
-| `lean/` | the Lake project `fwcore`; `math.lock.json` GENERATED |
+| `lean/` | the Lake project `fwcore` |
 | `breakpoints.json`, `fixtures/calibration/`, `presets/`, `profiles/` | GENERATED breakpoint inventory (§6.6); our own K1-K10 pages; flag presets; scroll scripts and replays |
 | `research/`, `refs/`, `results/`, `docs/` | kickoff notes, dated notes, ADRs; upstream pins and rule cards; experiment cards, runs, validity, console exports; this plan, the explainer, team files |
 | `snapshot/site/` | the Fastwork original, tracked unmodified (269 files, 30.1 MB; tree id = lock), read-only |
@@ -903,10 +909,10 @@ and their rules come from the token policy (`docs/team/token-policy.md`, D1-D7, 
 | part-builder (`part-<slug>`) | named worktree subagent | sonnet / medium; opus/high for `engine.*`, morph, the MUI theme and a part that failed its gate once | one part, variant or the shells; time box 3 h per part in v2 | `apps/site/src/parts/<slug>/**` |
 | console-builder (`console-<feature>`) | named worktree subagent | sonnet / medium | console features, paired with the `lean-<module>` that owns the behaviour | `apps/console-*/**`, `apps/runner/**` |
 | measure-engineer (`meas-<plugin>`) | named worktree subagent | sonnet / high; opus/high for harness neutrality and N0-N5 | one plugin or lane | `packages/measure-*`, `packages/model` |
-| lean-prover (`lean-<module>`) | named worktree subagent | opus / high; fable per call (ask) for a stuck theorem | one Lean module; up to 3 alive, **6 during the rev 10 proof wave** (§10.5, R37) | `lean/**`, golden fixtures |
-| reviewer, math-reviewer | subagent, fresh, read-only | opus / medium · opus / high | every review stage and new theorem statement · stale or unreviewed math entries; a second instance on a disagreement | nothing · a review record (§5.3) |
+| lean-prover (`lean-<module>`) | named worktree subagent | opus / high; fable per call (ask) for a stuck theorem | one Lean module; up to 3 alive, **6 during the rev 10 proof wave** (§10.5, R37) | `lean/**`, golden fixtures; math pages on request (§5.3) |
+| reviewer, math-reviewer | subagent, fresh, read-only | opus / medium · opus / high | every review stage · math on a page before you read it; a new instance after each fix | nothing · a reply per declaration, `agree` or `disagree` (§5.3) |
 | researcher, plan-editor | teammate | opus / high | one question per task; plan changes (the only writer of this file) | `research/notes/**`; `docs/plan/PLAN.md` |
-| env-ops, page-writer | teammate | sonnet / medium | installs (Homebrew first); explainer pages, never the generated math | toolchain notes; named page files |
+| env-ops, page-writer | teammate | sonnet / medium | installs (Homebrew first); explainer pages (their math as in §5.3) | toolchain notes; named page files |
 | scout · runner · checker · patcher | helper subagents | haiku / low · haiku / low · sonnet / medium · sonnet / low | a search sweep whose answer fits in 1k tokens · build/test runs needing a diagnosis · checklist judgement over > 20 KB · a small named edit (lead-spawned only) | nothing (≤ 1k tokens back) · the named files |
 | *(no agent)* | scripts + hooks | — | gates, usage meter, device runs, watchers, queue order, land queue, digests (§8.5) | `results/index`, console log |
 
@@ -918,7 +924,7 @@ of 12 busy agents and a speedup of 4.9; the real limit is this Mac, so `Fw/Sched
 gets 1h cache (MEASURED, D6): an agent is resumed only while idle < 5 minutes or under 30k context, never over 250k
 (124a614); otherwise the lead stops it and spawns a fresh agent of the same role from `docs/team/handoffs/<name>.md`.
 From the Fable team review (`10-17-team-review-fable.md`): editing work goes to named worktree agents; a finished
-agent is stopped at once; lean-prover runs a 6-item checker pass before math review; the lead owns team problems.
+agent is stopped at once; lean-prover runs a 6-item checker pass before a review; the lead owns team problems.
 
 **Who commits.** Teammates never commit; the lead commits what they report. Named worktree subagents commit only on
 their own branch (`git add -- <paths>`, `git commit -m`). Every change reaches `main` only through the lead's
@@ -973,7 +979,7 @@ Each rule is enforced by a script, hook or lint, not by a memory note; the v1 ev
 | **Your attention.** The console is your channel: "needs you" plus the exact action; one question per thread; device chores, if any, batched into one optional session (§10.3) | console-web |
 
 **Judgement commands** (typed events, refused when invalid): **you**: step answer / cancel, proposal decision,
-priority list, session booking, decision answer, best-build pick, `math:sign`. **Lead:** card approve, `fw land
+priority list, session booking, decision answer, best-build pick. **Lead:** card approve, `fw land
 [--task <id>]`, card drop with a reason, rulings, queue moves. **Owner:** card open, `fw park | wait | ask-lead`,
 hand-back `landed | no-gain | refuted | blocked`. **Reviewer:** `fw review --accept | --reject` (never on its own
 card). **Any agent:** `fw screen | gate | run | device` job requests, kb and bug commands.
@@ -1049,7 +1055,7 @@ and 11 changed what counts as evidence:
 | **C1 WebKit go/no-go** | **T+12h = 2026-10-18 11:15** | **GO** only if two consecutive `webkit-sim` runs on `ci/webkit-green` completed with their determinism step in ≤ 45 min each (healthy job 33-43 min, CONFIRMED `handoffs/ci-webkit.md`). Also: the cross-run Chromium zone baseline exists (`measure.zoneBaseline` + `refreeze`); `shells` and the morph ports started; Q34-Q37 answered or their defaults applied. **Outcome: GO** (lead, 2026-10-18; `webkit-green` f03e94b: runs 39048376821 in 19 min and 39050061299 in 24 min, MEASURED); `webkit-quiet`, `step-align` and `zone-baselines-webkit` run as parallel lanes | **NO-GO** (not taken): `webkit-quiet`, `zone-baselines-webkit` and `step-align` move to MX; WebKit truth is the phone only; no further agent time on the Simulator lane |
 | **C2 Region faithful + engine models** | **T+24h = 2026-10-18 23:15** | M1 closed; M2: shells landed (done) and the 9 parts `faithful` through the gate, `faithful-checks` green on zones y04000/y04500/tail in Chromium, PL5 bands reported; section ports running (§10.5). **Rev 10:** `engine-core-lean`, `engine-chromium-lean`, `engine-webkit-lean` landed, `engine-ci-check` green on F0-F2 (fixture-rest), `morph-tween-curve` landed; the proof wave started. **Outcome (MEASURED, trailers): met except the faithful check.** Engine models and all 10 proof tasks landed; `integrate-ports-4` passed the gate at 23:28 (Chromium 0 bad, 57 excused); `faithful-checks` found the rewrite had no page-root `overflow-x` clip, fixed by `page-root-clip` (3600b283) and re-run as `faithful-checks-rerun` in wave 1 | a part past its 3 h time box lands `faithful-with-delta` with the delta named; an engine table row without a cite stays INFERRED and is listed |
 | **C3 Decision** | **T+48h = 2026-10-19 23:15** | M5: the **proof ledger closed** (every `proof-*` and `variant-*` task landed or cut, §10.6); **rev 11:** two whole-page gates passed, one per wave (§10.7); combined counts per profile on the wave-2 base with F3/F4 per part zone, 0 mismatches or each filed as a model bug; `v2-proved` named (extended by the six TS flags only if `proved-flags-ts` lands in wave 2); passes-type wins reported as part-local and model-only (proof, no count check) unless their per-flag run lands before C3; F6 reported as a pilot or as "statement landed, run after C3". Phone session 2 is optional | a proof task still open is cut and its optimization goes to the report as "modelled, not proved"; a falsified prediction that cannot be fixed by C3 drops that flag from `v2-proved` |
-| **C4 Report** | **T+62h = 2026-10-20 13:15** | M6: report published; math view 0 disagree, 0 stale (`math-final` by T+52h); `fw usage` totals per milestone; per part the theorem pair, its premises H1-H3 and RG status, and the F0-F5 result | nothing: the deadline is yours; what is not in the text at T+60h is listed as "not done" |
+| **C4 Report** | **T+62h = 2026-10-20 13:15** | M6: report published; every math row the report shows is `agree` at the declaration's current `stmtHash` (§5.3, V-s); the `math-final` math-view counts are history; `fw usage` totals per milestone; per part the theorem pair, its premises H1-H3 and RG status, and the F0-F5 result | nothing: the deadline is yours; what is not in the text at T+60h is listed as "not done" |
 
 **Gates, retargeted.** M0 closes with `mutant-ids-stable` (non-blocking after C1). **M1** = Chromium zone baselines
 of the original across runs (plus WebKit only on GO). **M2** = the 9 end-of-page parts `faithful` (was: 3 of 4
@@ -1157,8 +1163,8 @@ part-page classes are frozen. Land checks are already glob-based and Lean-decide
 **Budget (free runners only).** ≤ 3 counts dispatches at once, none overlapping a gate (a gate holds ~10 jobs). Idle
 pool: counts 7.5 min wall, gate 16 min wall, `lean` lane 4.9 min median (p90 15.2). **Speed
 (`10-19-speed-review.md`):** class A landed as `test-batch` (44d9ebaa: batched fwcore test calls, the 30 s `ask`
-timeout); the per-job `mathview-differential` trigger moves to `speed-after-c3` (it saves time only when `lean` is the
-slowest lane). Process rules from now: `mathview lint` before a ci push; narrowed gate runs to iterate, one whole-page
+timeout); the `mathview-differential` CI job is retired with the math view (rev 11.3). Process rules from now:
+`lean/scripts/check-fast.sh` (axiom check included) before a ci push; narrowed gate runs to iterate, one whole-page
 run per branch as the record; one land at a time while lanes build.
 
 **Cuts and rules.** Anything that misses wave 2 by 17:00 keeps its wave-1 state and is listed; there is no third
@@ -1177,7 +1183,7 @@ goes and why.
 | R1 | The React port looks right but does different engine work (reconciliation, effect order, DOM depth, hydration), so findings do not transfer | medium / high | PL5 bands + PL6 timing parity for experiment parts; the transfer check on arm A at every landing; prerender; DOM shape kept close |
 | R3 | WebKit-only and render-server costs are invisible off the device | certain / high | Separate WebKit counts; CA-rate component; `RS` priced by Instruments; class X |
 | R4 | Experimental interfaces break (`HeadlessExperimental`, Playwright webview backend, agent-team fields) | medium / medium | Pin versions and the container digest; re-verify fields on each Claude Code upgrade |
-| R6 | Wrong spec, correct proof | medium / high | Math-reviewer back-translation without the docstring (§5.3); deep statement hashes; `#guard` examples from v1 data; mutants (V-r: 0 of 625 survived in M0); no proofs about transcribed engine rules. The kickoff check found 8 translation errors that compiled fine [10] |
+| R6 | Wrong spec, correct proof | medium / high | A fresh math-reviewer writes its own math from the Lean before it reads the page's (§5.3); deep statement hashes; `#guard` examples from v1 data; mutants (V-r: 0 of 625 survived in M0); no proofs about transcribed engine rules. The kickoff check found 8 translation errors that compiled fine [10] |
 | R7 | Over-engineering before the first measurement (v1 day 1 was 38 % process) | high / medium | M0 is a vertical slice; MVP tier (§3.4); every new tool names the incident class it prevents; a new agent rule must cite an agent-mistake incident, otherwise fix the tool |
 | R8 | Port size: ~11.8k lines of CSS, half dead; Platform visual mapping only inferred; every breakpoint of every part must match (your requirement), which multiplies PL0-PL3 runs | high / medium | Full work parity only for experiment parts; time box per part; `faithful-with-delta` never for breakpoints; a generated breakpoint inventory and lint; the core matrix per PR, the full gate before promotion |
 | R9 | MUI everywhere pollutes measurements: Emotion inserts or moves style sheets (a WebKit full style rebuild per frame; invisible to the planned counts, CONFIRMED [09.04]), class churn, theme re-renders | high if unconstrained | Emotion AOT (§6.5); rules S1-S13 with lint; N0-N5 (§6.7) with `impl: plain` twins; K10 prices one insertion; SPK-r first; `runtime` build as a negative control |
@@ -1194,7 +1200,7 @@ goes and why.
 | R21 | Emotion AOT fails as a whole: server and client class hashes differ, states the census cannot reach, Popper styles, hydration mismatches that production React does not patch [09.02, 09.03] | medium / high | SPK-r before any part is built; a `cache.insert` miss fails the build; per-part Base UI fallback; whole-site Pigment fallback on MUI 9.0.1 (paused alpha, a build about 25× slower) |
 | R22 | MUI behaviour, not styling, breaks parity: Tabs indicator layout animation, transitions with forced reflow, FocusTrap's 50 ms interval, Modal scroll lock, wrapper elements in PL0/PL1/PL5 [09.01 §6] | high / medium | S5-S7, S12; `parity.json` wrapper map; N3 wrapper allowance; per-part Base UI fallback; `faithful-with-delta` |
 | R23 | The uniqueness trap: a stateful Lean loop that reads then writes the state copies the whole map per event (66× slower, MEASURED [10.03 §4.2]) | medium / medium | `modifyGet` in the ~30-line IO loop; `seen` as a `HashSet`; a 100k-event speed budget in `lake test` |
-| R24 | A toolchain bump changes statement hashes and marks many math entries stale | high on a bump / low | `mathview accept --toolchain-bump` re-signs only entries whose signature text and machine-made LaTeX are unchanged; one reviewed PR per bump (R11) |
+| R24 | A toolchain bump changes statement hashes and marks many math entries stale | high on a bump / low | Math is reviewed only for pages you read (§5.3), so a bump makes only their rows stale; `scripts/math-pending.mjs` lists them and a fresh reviewer re-checks them; one reviewed PR per bump (R11) |
 | R25 | The strict Bash sandbox (Q22; not applied yet, SPK-t unmet) breaks worktree builds, or its relative paths resolve to a worktree instead of the main checkout | medium / medium | SPK-t before the team relies on it; absolute paths in `settings.local.json`; fallback: console-api as a separate macOS user owning `.fw-console/` at 0700 |
 | R26 | A fact producer misses events (a hook does not fire, a commit is made with hooks off, `SessionEnd` is cut at 1.5 s) and the console is briefly wrong | high / low | reconcilers re-read git refs, transcripts and artifacts every 2-60 s and are the only git producer; agent end = latest of `SubagentStop` and transcript idle; seen-on-accept keys make re-sends converge (`reorder_converges`, to prove) |
 | R27 | Role claims on the CLI socket are forged, so a builder reviews its own work or an agent acts as lead | medium / high | `cap.mjs` binds each request to the agent id; lead iff no agent id (proved, dec2d82; it once mapped forks to the lead, SPK-c); `review_independent`; your decisions never come from the socket |
@@ -1215,7 +1221,7 @@ Retired in rev 11 (moot): R2 and R5 (no cost model is fitted, Q37), R17 (no phon
 
 ## 12. Decisions
 
-### 12.0 Decisions made 2026-10-17 and 2026-10-18
+### 12.0 Decisions made 2026-10-17 to 2026-10-19
 
 | # | Question | Your decision | Applied in |
 |---|---|---|---|
@@ -1235,7 +1241,8 @@ Retired in rev 11 (moot): R2 and R5 (no cost model is fitted, Q37), R17 (no phon
 | — | Breakpoints | **The rewrite supports every breakpoint of the original identically, for every part**: generated `breakpoints.json`, a lint and a gate before promotion. Rev 9 waiver: shells carry no gate (Q36) | §1.2 V-g, §6.6, §10.1, R8 |
 | — | Schedule | **No calendar:** a dependency graph run in parallel; milestones are gates. Rev 9: inside the 3-day frame, with four checkpoints | §0, §10, G3 |
 | Q24 | Lean first, everywhere reproducible | Console, site, measurement and tooling: specified and proved in Lean before coding; Lean runs it, generates it, or provides golden vectors | §3.1, §3.3, §5.1, §6.6 |
-| — | Console upkeep; reading proofs | **Nobody writes status**: every view is derived from the event log; judgement is a typed command. **You read math, not Lean**: docstring math, a generated math view, a build gate on unsigned or stale math, a math-reviewer role | §0, §2.2, §3.2, §5.3, §5.4, §8.2, §8.5, §9.2 |
+| — | Console upkeep; reading proofs | **Nobody writes status**: every view is derived from the event log; judgement is a typed command. **You read math, not Lean**: math on the page you read, checked by a fresh math-reviewer against the Lean (how: row below) | §0, §2.2, §3.2, §5.3, §5.4, §8.2, §8.5, §9.2 |
+| — | **Math in artifacts** (2026-10-19, task `lean-latex-removal`) | **Lean source holds specs, proofs and code; math you read is written on demand into the page that shows it** and a fresh math-reviewer checks it there; the math view, its lint, its CI job and the per-module review rounds are retired | §0, §1.2 V-s, §3.1, §5.1, §5.3, §5.4, §8.2, R24, A41 |
 | — | Operations | **Homebrew** for every install; **token policy r2** (a0b9053) and **hooks** (3e67d48); **counts and gates run on GitHub Actions, not on this Mac** (417d90d; this Mac keeps phone sessions, one short debug run, lanes CI cannot run yet); **`pkill` and `killall` denied** (b205acc) | §4.1, §5.4, §8.1-§8.3, R30, R31, R33 |
 | Q31 | Spawn-guard blocking | **Yes**, after a liveness feed, a day of clean logs and the A/B bench. Rev 9: deferred past v2 with Q32 (`spawn-enforce` cut) | §8.3, §10.4 |
 | Q33 | Breakpoint cells the harness cannot reach | **A Simulator or device check for both** the fractional gaps and the hover × pointer cross; the gate has an `unreachable` state. Rev 9: the device check is the Q33 probe in phone session 1 | §6.6, §10.3 |
@@ -1270,7 +1277,7 @@ Retired in rev 11 (moot): R2 and R5 (no cost model is fitted, Q37), R17 (no phon
 - **Q19 Screen capture:** Simulator frames allowed; phone-screen frames only for named recording sets with Do Not Disturb on, kept locally.
 - **Q20 Supervision:** no recurring LLM check prompts; `CronCreate` asks you first; watchers wake agents only on a change (§8.5).
 - **Q21 MUI fallbacks:** a part falls back to Base UI 1.9.0 + CSS Modules when its census cannot complete, an N0/N1/N5 incident cannot be fixed in its time box, or its N2/N3 delta comes from MUI (§6.7); the whole-site Pigment fallback and the SPK-s arm are out of scope for v2.
-- **Q25 Math view / Q28 disagreements:** a tab in console-web showing the generated page, math on every theorem and definition you read; a second independent reviewer decides a disagreement first, you see only what stays unresolved.
+- **Q25 Math pages / Q28 disagreements:** math on the page that needs it (rev 11.3; was a console-web tab of the generated view); the lead fixes a disagreement and a new independent reviewer checks it first, you see only what stays unresolved.
 - **Q26 Lease / Q27 aging:** no renewing while someone waits plus a cap on hold time (bounded-wait theorem); a waiting job rises one level every A = 300 s; `Fw/Sched` proves an aged job is admitted before $t + (1+\Psi)\cdot d_{max}$ (the first, simpler bound was false, 4bd850f).
 - **Q29 / Q30 Small defaults:** status questions answered from the board by script with a "not answered" escalation; class W cards still need the lead's `fw land`; "read by" derives from read events; an ETA is shown with its age, never scheduled on; the best build is the set no head-to-head beats, you pick among several.
 - **Styling items from the rev 4 review (was §12.3):** Base UI per part before Pigment; N4 and PL6 cover the neutrality blind spots until SPK-h finds Chromium's selector-stats trace; replaced MUI behaviours (S5-S7, S12) are listed per `part.json`; N4 stays a parameter that flags a part for PL6.
@@ -1305,6 +1312,7 @@ A28 counts on CI.
 | **A38** | **"Per-part gate saves nothing (528 vs 517 s)"** vs "narrowed gate 10.8 vs 34.6 job-min" (78b850a2) | **Both stand:** wall time vs CI cost; two whole-page gates stay because the original is one page (`narrowed_never_zero`) (§10.7) |
 | **A39** | **`counts-only` with `RunMeta.only`, a `runKey_inj` re-proof and matrix cap 6** vs the CI review | **Dropped:** `runKey_inj` already covers any search; the 39-50 min was queue; one `only`/`search` input plus a `goldenRuns` vector (§10.7) |
 | **A40** | **Lego note: lean CI 14 min per landing, part shard ~2 min** vs CI review: lean median 4.9 min (p90 15.2), counts 7.5 min wall | **CI review numbers** (later, measured on an idle pool); budget ≤ 3 counts dispatches at once (§10.7) |
+| **A41** | **`docs/plan/math-view.html` frozen with a header line** (`latex-mathview-b2`, `math-artifact.md`) vs the page retired or removed | **Removed (rev 11.3).** Its generator is retired, so it can never be refreshed, and it shows math the Lean no longer carries (547 stale at its last export). New rule (rev 11.3): a page whose generator is retired is removed; git history keeps it (last at 5e67b61f). `math-artifact.md` still calls it frozen: a follow-up for `latex-teardown` |
 
 ## Appendix B. Spikes (each answer becomes a decision record)
 
@@ -1316,6 +1324,21 @@ SPK-q; SPK-n (device link) moot without phone sessions. **Out of scope for v2:**
 ## Appendix C. (folded into Q17, §12.2, in revision 9)
 
 ## Appendix D. Review log
+
+### Revision 11.3 (math in artifacts; task `latex-plan-text`, 2026-10-20)
+
+Input: your decision of 2026-10-19 and the landed steps of `lean-latex-removal` (docstring math stripped, axiom check
+instead of the math-view lint, the view's generator and CI job retired, sign-off keyed on `stmtHash`). Earlier
+revisions and log entries keep their wording.
+
+| Change | Where |
+|---|---|
+| §5.3 rewritten (math on demand per page, four steps, rows at the current `stmtHash`; old counts kept as history; the example shows the Lean, then the page's math); rev line, §0 | §0, §5.3 |
+| Math pages replace the math view; axiom check replaces its lint; V-s on `agree` rows; C4 note; `mathview-differential` retired; `math:sign`, `math.lock.json` dropped (never built) | §1.2, §3.1, §5.1, §5.4, §7.1, §8.2, §8.5, §10.2, §10.7 |
+| R6, R24; decision row "Math in artifacts"; Q25/Q28; A41 (`math-view.html` removed, links fixed); `loop-plan.html`, `math-to-lean.html` text | §11, §12, App A, docs/plan |
+| Round 2 (review of 93320da8): C4 condition names the current check (rows `agree` at the current `stmtHash`); A41 states its rule as new; §5.3 citation `Verdict.lean:48, 57-61`; `loop-plan.html` Lean example labelled an illustrative kickoff sketch; `math-to-lean.html` names its math source (kickoff sketch, two passes, `lessons.json`) | §5.3, §10.2, App A, docs/plan |
+| Round 3 (final design round): the `loop-plan.html` Lean example (explainer v1, 9a29a9dc) removed; its math was never a reviewed row and its theorem statements do not match the same-named declarations in `lean/` (`Fw.Null.land_null_prob` is the 4v4 equality 1/70; `Fw.Obs.Next.land_sound` is unrelated). Reviewed math for the landing verdict is a follow-up | docs/plan |
+| Accepted limits: plan ~1,400 lines (cuts wait for rev 12); `math-artifact.md` text (frozen page; KaTeX on `loop-plan.html`) is `latex-teardown`'s | review note |
 
 ### Revision 11.2 (final design round of `plan-rev11`; review of 45c46c37 refused)
 

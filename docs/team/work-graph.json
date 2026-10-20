@@ -10762,7 +10762,8 @@
     "docs/plan/math-view.html",
     "docs/plan/tools/**",
     "docs/team/handoffs/latex-plan-text.md"
-   ]
+   ],
+   "evidence": "598c76a"
   },
   {
    "devices": [
