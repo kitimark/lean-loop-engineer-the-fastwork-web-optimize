@@ -1,0 +1,27 @@
+{"alphaErr":1000,"chanErr":500,"kind":"bounds","slack":1,"tolColour":2000}
+{"in":"rgb(255.000000, 255.000000, 255.000000)","kind":"colour","name":"white at rest","out":[255000,255000,255000,255000]}
+{"in":"rgba(10.000000, 20.000000, 30.000000, 0.500000)","kind":"colour","name":"rgba with alpha","out":[10000,20000,30000,127500]}
+{"in":"rgb(43.000000 49.000000 59.000000 / 0.102000)","kind":"colour","name":"rgb modern syntax","out":[43000,49000,59000,26010]}
+{"in":"hsl(210.000000 50.000000% 40.000000%)","kind":"colour","name":"hsl","out":[51000,102000,153000,255000]}
+{"in":"hsla(120.000000, 100.000000%, 25.000000%, 0.750000)","kind":"colour","name":"hsla legacy","out":[0,127500,0,191250]}
+{"in":"hsl(0.000000 0.000000% 50.000000%)","kind":"colour","name":"hsl grey","out":[127500,127500,127500,255000]}
+{"in":"color(srgb 1.000000 0.500000 0.000000 / 0.250000)","kind":"colour","name":"srgb function","out":[255000,127500,0,63750]}
+{"in":"color(srgb 0.200000 0.400000 0.600000)","kind":"colour","name":"srgb function opaque","out":[51000,102000,153000,255000]}
+{"in":"color(srgb-linear 0.500000 0.250000 0.010000)","kind":"colour","name":"srgb-linear","out":[187516,136960,25462,255000]}
+{"in":"oklab(1.000000 0.000000 0.000000)","kind":"colour","name":"oklab white","out":[255000,255000,255000,255000]}
+{"in":"oklab(0.000000 0.000000 0.000000)","kind":"colour","name":"oklab black","out":[0,0,0,255000]}
+{"in":"oklab(0.989000 0.000000 0.000000 / 0.103440)","kind":"colour","name":"oklab late in a close (the observed 989)","out":[251306,251306,251306,26377]}
+{"in":"oklab(0.627955 0.224863 0.125846)","kind":"colour","name":"oklab red","out":[255000,0,1,255000]}
+{"in":"oklab(0.300000 -0.010000 -0.030000 / 0.900000)","kind":"colour","name":"oklab dark panel","out":[34054,46985,61383,229500]}
+{"in":"oklab(0.900000 0.250000 -0.250000)","kind":"colour","name":"oklab out of gamut","out":[305662,116331,377147,255000]}
+{"in":"oklch(0.700000 0.150000 200.000000)","kind":"colour","name":"oklch","out":[-80710,184723,194922,255000]}
+{"in":"oklch(0.500000 0.200000 350.000000 / 0.400000)","kind":"colour","name":"oklch hue wrap","out":[173769,16913,114858,102000]}
+{"in":"lab(50.000000 40.000000 30.000000)","kind":"colour","name":"lab","out":[187239,87748,70468,255000]}
+{"in":"lab(54.290500 80.804900 69.891000)","kind":"colour","name":"lab red","out":[255000,0,0,255000]}
+{"in":"lab(5.000000 1.000000 -2.000000 / 0.300000)","kind":"colour","name":"lab dark","out":[17425,16352,20095,76500]}
+{"in":"lch(70.000000 40.000000 120.000000)","kind":"colour","name":"lch","out":[150992,180681,105721,255000]}
+{"in":"lch(30.000000 60.000000 300.000000 / 0.600000)","kind":"colour","name":"lch alpha","out":[75999,54451,153364,153000]}
+{"in":"","kind":"string"}
+{"in":"transparent","kind":"string"}
+{"in":"color(display-p3 0.5 0.5 0.5)","kind":"string"}
+{"in":"currentcolor","kind":"string"}

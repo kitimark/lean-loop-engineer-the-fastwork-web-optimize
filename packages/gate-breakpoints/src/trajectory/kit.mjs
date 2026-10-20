@@ -19,13 +19,78 @@ export function installKit() {
     const t = cs.transform;
     try { return !t || t === 'none' ? new DOMMatrix() : new DOMMatrix(t); } catch { return null; }
   };
+  /**
+   * A computed colour as `[r, g, b, a]` x 1000: sRGB channels on the 0..255 scale and alpha on the same scale, so a colour read
+   * as `rgb(...)` at rest and as `oklab(...)` in flight (WebKit; Chromium for a transition that interpolates in oklab) is one
+   * space for the judge. The functions and their formulas are Lean `Fw.Gate.Colour` (golden/gate/trajectory-colour.jsonl):
+   * rgb/rgba, hsl/hsla, color(srgb|srgb-linear), lab, lch, oklab, oklch. Not clamped: an out-of-gamut colour keeps its
+   * channels beyond 0..255. Anything else (another colour space, a keyword, calc()) stays the string, so the judge fails it
+   * `type` instead of comparing it as a number.
+   */
   const colour = (s) => {
-    const n = nums(s);
-    if (/^color\(/.test(s)) {
-      const slash = s.includes('/');
-      return [q(n[0] * 255), q(n[1] * 255), q(n[2] * 255), q((slash ? n[3] : 1) * 255)];
+    const m = /^\s*([a-z-]+)\(\s*([^()]*?)\s*\)\s*$/i.exec(String(s));
+    if (!m) return s;
+    let fn = m[1].toLowerCase();
+    let body = m[2];
+    if (fn === 'color') {
+      const sp = /^([a-z0-9-]+)\s+([^]*)$/i.exec(body);
+      if (!sp) return s;
+      fn = 'color:' + sp[1].toLowerCase();
+      body = sp[2];
     }
-    if (n.length >= 3) return [q(n[0]), q(n[1]), q(n[2]), q((n.length > 3 ? n[3] : 1) * 255)];
+    const slash = body.split('/');
+    if (slash.length > 2) return s;
+    const toks = slash[0].trim().split(/[\s,]+/);
+    let atok = slash.length === 2 ? slash[1].trim() : null;
+    if (atok === null && toks.length === 4) atok = toks.pop();
+    if (toks.length !== 3 || atok === '') return s;
+    const num = (t) => {
+      if (t === 'none') return { n: 0, u: '' };
+      const p = /^([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)(deg|%)?$/i.exec(t);
+      return p ? { n: Number(p[1]), u: (p[2] || '').toLowerCase() } : null;
+    };
+    const c = toks.map(num);
+    const al = atok === null ? { n: 1, u: '' } : num(atok);
+    if (c.includes(null) || al === null) return s;
+    const alpha = al.u === '%' ? al.n / 100 : al.n;
+    const [c0, c1, c2] = c.map((x) => x.n);
+    const mul = (mat, v) => [0, 3, 6].map((i) => mat[i] * v[0] + mat[i + 1] * v[1] + mat[i + 2] * v[2]);
+    const enc = (x) => { const a = Math.abs(x); const e = a > 0.0031308 ? 1.055 * Math.pow(a, 1 / 2.4) - 0.055 : 12.92 * a; return x < 0 ? -e : e; };
+    // XYZ D65 to linear sRGB, CSS Color 4 XYZ_to_lin_sRGB
+    const XYZ_SRGB = [3.2409699419045226, -1.537383177570094, -0.4986107602930034, -0.9692436362808796, 1.8759675015077202, 0.04155505740717559, 0.05563007969699366, -0.20397695888897652, 1.0569715142428786];
+    // XYZ D50 to D65, Bradford (WebKit ColorConversion.h 250-255)
+    const D50_D65 = [0.955473421488075, -0.02309845494876471, 0.06325924320057072, -0.0283697093338637, 1.0099953980813041, 0.021041441191917323, 0.012314014864481998, -0.020507649298898964, 1.330365926242124];
+    // linear LMS to XYZ D65 and Oklab to non-linear LMS (WebKit ColorConversion.cpp 282-292)
+    const LMS_XYZ = [1.2268798758459243, -0.5578149944602171, 0.2813910456659647, -0.0405757452148008, 1.1122868032803170, -0.0717110580655164, -0.0763729366746601, -0.4214933324022432, 1.5869240198367816];
+    const OKLAB_LMS = [1, 0.3963377773761749, 0.2158037573099136, 1, -0.1055613458156586, -0.0638541728258133, 1, -0.0894841775298119, -1.2914855480194092];
+    const oklab = (l, a, b) => mul(XYZ_SRGB, mul(LMS_XYZ, mul(OKLAB_LMS, [l, a, b]).map((x) => x * x * x))).map(enc);
+    const lab = (l, a, b) => {
+      const E = 216 / 24389, K = 24389 / 27;
+      const f1 = (l + 16) / 116, f0 = f1 + a / 500, f2 = f1 - b / 200;
+      const xz = (t) => (t * t * t > E ? t * t * t : (116 * t - 16) / K);
+      const y = l > K * E ? f1 * f1 * f1 : l / K;
+      return mul(XYZ_SRGB, mul(D50_D65, [(0.3457 / 0.3585) * xz(f0), y, ((1 - 0.3457 - 0.3585) / 0.3585) * xz(f2)])).map(enc);
+    };
+    const polar = (ch, h) => [ch * Math.cos((h * Math.PI) / 180), ch * Math.sin((h * Math.PI) / 180)];
+    const hsl = (h, sat, l) => {
+      const a = sat * Math.min(l, 1 - l);
+      const f = (n) => { const t = n + h / 30; const k = t - 12 * Math.floor(t / 12); return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
+      return [f(0), f(8), f(4)];
+    };
+    // floor(x + 0.5), never -0 (Lean q255)
+    const out = (rgb) => [...rgb.map((x) => Math.floor(x * 255 * Q + 0.5)), Math.floor(alpha * 255 * Q + 0.5)];
+    if (fn === 'rgb' || fn === 'rgba') {
+      const ch = c.map((x) => (x.u === '%' ? (x.n * 255) / 100 : x.n));
+      return [...ch.map((x) => Math.floor(x * Q + 0.5)), Math.floor(alpha * 255 * Q + 0.5)];
+    }
+    if (fn === 'hsl' || fn === 'hsla') return out(hsl(c0, c1 / 100, c2 / 100));
+    if (c.some((x) => x.u === '%')) return s;
+    if (fn === 'color:srgb') return out([c0, c1, c2]);
+    if (fn === 'color:srgb-linear') return out([c0, c1, c2].map(enc));
+    if (fn === 'lab') return out(lab(c0, c1, c2));
+    if (fn === 'lch') return out(lab(c0, ...polar(c1, c2)));
+    if (fn === 'oklab') return out(oklab(c0, c1, c2));
+    if (fn === 'oklch') return out(oklab(c0, ...polar(c1, c2)));
     return s;
   };
   const readers = {
@@ -205,5 +270,5 @@ export function installKit() {
   };
   const stopSampler = () => { state.loop = false; state.gen++; const r = state.rows; state.rows = []; return r; };
 
-  window.__traj = { heroPath, approach, watchNav, startSampler, stopSampler, now: stamp };
+  window.__traj = { colour, heroPath, approach, watchNav, startSampler, stopSampler, now: stamp };
 }
