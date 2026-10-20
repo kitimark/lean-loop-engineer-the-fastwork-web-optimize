@@ -81,6 +81,9 @@ export function partDecision(cells) {
 
 const milli = (x) => Math.round(x * 1000);
 
+/** True when the drawn size does not come from the natural size (no `object-fit: none | scale-down`, no `background-size: auto`). */
+export const sizedOf = (it) => !(typeof it.fit === 'string' && (it.fit === 'none' || it.fit === 'scale-down' || /(^|\s)auto(\s|$)/.test(it.fit)));
+
 /**
  * One merged audit reading (audit.mjs mergeStops; `rw`, `rh` are the bounding-rect size of an <img>, recorded by inpage.mjs) as the
  * Lean `Img`. `plain` means the picture fills its box (img equals box, within a milli-pixel) and the size does not come from the
@@ -90,7 +93,7 @@ export function imgOf(it) {
   const kind = it.kind === 'bg' ? 'bg' : 'img';
   const box = it.box ?? [0, 0];
   const pic = it.img ?? [0, 0];
-  const sized = !(typeof it.fit === 'string' && (it.fit === 'none' || it.fit === 'scale-down' || /(^|\s)auto(\s|$)/.test(it.fit)));
+  const sized = sizedOf(it);
   const rwMax = it.rwMax ?? it.rw ?? box[0];
   const rhMax = it.rhMax ?? it.rh ?? box[1];
   const still = milli(it.rwMin ?? rwMax) === milli(rwMax) && milli(it.rhMin ?? rhMax) === milli(rhMax);
