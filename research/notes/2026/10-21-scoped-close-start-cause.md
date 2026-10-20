@@ -1,7 +1,7 @@
 ---
 id: 2026-10-21-scoped-close-start-cause
 kind: note
-title: "Why hero.exit:scoped starts the close nav background at 226.5 on macOS WebKit: frame cadence, not the part"
+title: "hero.exit:scoped lengthens the last frames of the nav close on macOS WebKit: a perf finding, not a timing-only difference"
 status: final
 created: 2026-10-21
 authors: [agent:measure-engineer]
@@ -10,125 +10,122 @@ topics: [measurement, trajectory-probe, webkit, hero.exit, nav]
 
 # Close-start colour of `nav.background-color` under `hero.exit:scoped`
 
-Task `scoped-close-start-cause`. Question: on macOS WebKit morph, the flag-alone candidate (run 39466179818) starts the
-close `nav.background-color` at `[226.5, 227.1, 228.5]` 29 ms into the close at 390, while every original pass starts
-between 249.3 and 252.3 (also 640, 641). Which mechanism, and which of (a) a part fix, (b) a timing-only rule, (c) a
-look change?
+Task `scoped-close-start-cause`, round 2. Question: on macOS WebKit morph the flag-alone candidate starts the close
+`nav.background-color` low (red 226.5 at 390 in run 39466179818) while the original passes start at 249 to 252. Is it
+(a) a part fix, (b) timing only, or (c) a look change?
 
 ## Answer
 
-Decision (b): a timing-only difference. The start colour is the colour of the last frame that still carried
-`is-morphing`. How late that last frame lands is frame cadence at the end of the close. It does not depend on the arm,
-and `hero.exit:scoped` cannot reach the nav. The same low tail occurs in the original arm and in the A/A candidate.
+Decision (a), with a perf finding. Not (b). The start colour is a function of the gap `g` between the last frame with
+`is-morphing` and the first without it (proved below), and `scoped` has longer gaps than the original and the A/A
+candidate. Pooled over the two flag-alone runs the candidate's mean `g` is high at permutation p 0.011 (mean of log g)
+and 0.019 (mean g); the same test on the two A/A runs gives 0.90 and 0.74. The fresh flag-alone run alone gives
+p 0.12, so one run does not separate; the pool does. MEASURED (statistics) and INFERRED (iid cells within a block).
+
+## Identity (read from every arm's `search` and hash in the raw files)
+
+| run | candidate arm `?fw` | candidate hash | base hash | original arm |
+|---|---|---|---|---|
+| 39508414669 (fresh, ci/scoped-close-start-cause @6068371) | `hero.exit:scoped` | 8d213de6fbdd52fd | ede2c7641aacf2d2 | no config |
+| 39508421419 (fresh, A/A) | `hero.exit:faithful` | ede2c7641aacf2d2 | ede2c7641aacf2d2 | no config |
+| 39466179818 (stored, flag-alone) | `hero.exit:scoped` | 8d213de6fbdd52fd | ede2c7641aacf2d2 | no config |
+| 39472217441 (stored, A/A) | `hero.exit:faithful` | ede2c7641aacf2d2 | ede2c7641aacf2d2 | no config |
+
+Both fresh dispatches printed the same id (known bug `fw-run-dispatch-pick`), so each run is named by its arms. Lean
+outcome lines (mac-webkit): 39508414669 hero pass, morph FAIL; 39508421419 hero pass, morph PASS; Linux hero pass in
+both.
 
 ## Mechanism
 
-1. The close tween is `m = (1 - e/680)^3` (`lean/Fw/Parts/MorphTween.lean`, `closeAt_cube` in
-   `lean/Fw/Parts/HeroExitCloseStart.lean`). The nav drops `is-morphing` once `m <= 0.001`
-   (`MORPHING_CUT` in `apps/site/src/parts/nav/logic.ts`), which is `e >= 612`, 68 ms before the tween ends
-   (`morphing_of_lt`, `not_morphing_of_ge`).
-2. `is-morphing` is the class that gives the nav its mixed background (`apps/site/src/parts/nav/nav.module.css:22-26,
-   32-47, 56-60, 81-90`): while it is on, the background is `color-mix(in srgb, #ffffff1a, #131922)` driven by
-   `--morph`, i.e. alpha `26/255*(1-m) + m` (`bgAlpha`, strictly increasing: `bgAlpha_lt`, `bgAlpha_inj`).
-3. When the class is removed, the style change starts a `background-color` transition. The before-change style is the
-   style of the previous style-change event, so the start colour is `bgAlpha(m_prev)`, `m_prev` the morph value of the
-   last frame that saw `is-morphing` (WebKit `Source/WebCore/style/Styleable.cpp:606-617, 646-676, 683-691, 694-757`;
-   `StyleTreeResolver.cpp:926` runs `updateTransitionsAndTimelines()` before `applyAnimations()` at :940, so the
-   running tween has not yet moved the style @862f17d). CONFIRMED against the pinned clone; the CI Playwright WebKit
-   build (27.2) is a different build, so applying it to CI is INFERRED.
-4. If the next frame comes `g` ms after the last morphing frame, `m_prev <= ((68 + g)/680)^3` (`prev_le_bound`,
-   `prevBound`). A 29 ms frame leaves `m_prev` near 0.001 (start 251, the original's range). A 114 ms frame allows
-   0.019 (start ~226). `startAccepts_tween` proves every start the tween can make is accepted at its own gap
-   (`startAccepts`); `startAccepts_above` rejects a start above the bound.
-5. `hero.exit:scoped` writes only `--exit-opacity` and `--exit-scatter` on hero elements, on scroll frames
-   (`apps/site/src/parts/hero.exit/driver.ts`, `hero.module.css`; `Fw.Parts.HeroExitOpt.frameWrites`). The nav
-   background reads only `--morph`. `scoped_writes_miss_nav_bg` and `scoped_writes_miss_nav_elements` prove the
-   writes miss both, so the part cannot move the removal or the colour except by changing frame cadence.
+1. The close tween is `m = (1 - e/680)^3` (`closeAt_cube`). The nav drops `is-morphing` once `m <= 0.001`, at
+   `e >= 612`, 68 ms before the end (`morphing_of_lt`, `not_morphing_of_ge`).
+2. While the class is on, the background is `color-mix(in srgb, #ffffff1a, #131922)` driven by `--morph`. The mix is
+   premultiplied: alpha `26/255 (1-m) + m` (`bgAlpha`), premultiplied red `26 (1-m) + 19 m`, so the red the probe
+   reads is `bgRed m` = that over the alpha. `bgRed` falls strictly from 255 at m = 0 to 19 at m = 1 (`bgRed_lt`,
+   `bgRed_le_iff`).
+3. When the class goes, a `background-color` transition starts. WebKit's before-change style is the style of the
+   previous style-change event, so the start colour is `bgRed(m_prev)`, `m_prev` the morph value of the last frame that
+   saw the class (`Source/WebCore/style/Styleable.cpp:603-617@862f17d`). CONFIRMED on the pinned clone; the CI
+   Playwright WebKit build differs, so for CI it is INFERRED. The ordering of this against the running tween inside
+   `StyleTreeResolver` is not claimed.
+4. A next frame `g` ms later allows `m_prev <= prevBound g = (0.1 + g/680)^3` (`prev_le_bound`), so the start red is
+   at least `redFloor g = bgRed (prevBound g)` (`redFloor_anti`: a longer gap lowers the floor).
+5. Over the model `Fw.Parts.HeroExitOpt.frameWrites` (the writes the Lean model lists), the scoped exit writes
+   `--exit-opacity` and `--exit-scatter` on hero elements and none the nav background reads
+   (`scoped_writes_miss_nav_bg`, `scoped_writes_miss_nav_elements`). The model is not the whole driver: `driver.ts:37`
+   also sets `pointerEvents` on the hero (not on the nav). So the part cannot change the nav's style; any effect on the
+   start colour goes through frame time.
+6. Cost route, INFERRED and untested: the close is a wheel scroll (dy -120), so the `hero.exit` scroll handler runs
+   during it. The scoped variant writes the two custom properties inline on every reader element each scroll frame
+   (`READER_SELECTOR`), which can lengthen frames. No profile here confirms it.
 
-## Measurements (stored runs, not fresh)
+## Measurements
 
-Fresh flag-alone and A/A runs need a lead dispatch (see handoff `open`). The two stored runs below are the same
-shape: 5 reps x 4 widths, mac-webkit morph (`playwright-webkit`), SHA 45a40e7b.
+Per arm, mac-webkit morph, 4 widths x 5 reps = 20 cells per arm per run. `g` = last sample with `is-morphing` to first
+without (ms). Script and output: `packages/gate-breakpoints/src/trajectory/closegap.mjs`.
 
-Identity, read from the raw files per arm: run 39466179818 `?fw=hero.exit:scoped` hash 8d213de6fbdd52fd, base arm
-ede2c7641aacf2d2, original arm no config, `refused: false`, morph and hero arm hashes equal the arm's expectation. Run
-39472217441 A/A `?fw=hero.exit:faithful`: candidate and base arm both ede2c7641aacf2d2, original arm none.
-
-Start colour (red channel, 0-255) of the last `is-morphing` sample before removal, with its `m` and the gap `g` in ms
-to the first frame without the class. Cells are reps 0-4.
-
-Flag-alone, run 39466179818:
-
-| width | arm | rep 0 | rep 1 | rep 2 | rep 3 | rep 4 |
+| run | arm | mean g | median | p90 | max | cells g > 150 |
 |---|---|---|---|---|---|---|
-| 390 | orig | 249.0 (g 36) | 250.7 (68) | 252.4 (29) | 251.3 (23) | 249.0 (46) |
-| 390 | base | 251.1 (33) | 251.8 (37) | 248.6 (45) | 251.8 (33) | 251.4 (26) |
-| 390 | scoped | 226.6 (114) | 247.8 (51) | 248.6 (37) | 206.3 (158) | 250.4 (45) |
-| 640 | orig | 246.5 (113) | 250.1 (47) | 252.7 (47) | 249.0 (30) | 251.3 (57) |
-| 640 | base | 251.3 (44) | 249.4 (32) | 247.4 (142) | 250.1 (66) | 244.0 (62) |
-| 640 | scoped | 239.4 (62) | 249.4 (62) | 244.5 (46) | 227.5 (105) | 252.2 (68) |
-| 641 | orig | 247.0 (36) | 224.2 (98) | 251.7 (64) | 248.0 (49) | 249.4 (38) |
-| 641 | base | 245.1 (56) | 249.2 (32) | 250.6 (31) | 251.1 (53) | 250.4 (34) |
-| 641 | scoped | 250.2 (37) | 251.0 (47) | 248.0 (42) | 251.9 (72) | 242.0 (83) |
-| 1280 | orig | 247.0 (49) | 243.4 (57) | 252.6 (37) | 248.6 (55) | 216.5 (120) |
-| 1280 | base | 248.8 (100) | 247.0 (42) | 248.3 (85) | 249.4 (54) | 233.5 (86) |
-| 1280 | scoped | 248.0 (51) | 247.8 (147) | 249.9 (94) | 249.0 (49) | 244.8 (45) |
+| 39508414669 | orig | 66.0 | 56.0 | 97.5 | 189 | 1 |
+| | base | 60.4 | 45.5 | 120.2 | 176 | 1 |
+| | scoped | 78.5 | 58.5 | 156.1 | 249 | 3 |
+| 39466179818 | orig | 55.0 | 47.5 | 100.4 | 121 | 0 |
+| | base | 55.0 | 45.5 | 87.3 | 141 | 0 |
+| | scoped | 70.6 | 56.5 | 116.1 | 157 | 1 |
+| 39508421419 (A/A) | orig | 56.6 | 49.5 | 112.0 | 164 | 1 |
+| | base | 53.9 | 44.5 | 65.1 | 282 | 1 |
+| | faithful | 51.5 | 38.5 | 89.0 | 178 | 1 |
+| 39472217441 (A/A) | orig | 49.4 | 43.0 | 88.9 | 146 | 0 |
+| | base | 42.6 | 33.0 | 64.1 | 141 | 0 |
+| | faithful | 41.2 | 30.0 | 60.9 | 202 | 1 |
 
-A/A, run 39472217441 (candidate `?fw=hero.exit:faithful`, the same code as base):
+- The A/A spread of arm means is 41.2 to 66.0 ms (ten non-scoped arms); both scoped means (78.5, 70.6) lie above all of
+  them. The scoped arm has the highest mean in both flag-alone runs; the A/A candidates have the lowest in both A/A runs.
+- Close-start readings of the scoped arm, fresh run, by width (red at the first sample without the class, g in
+  parentheses): 390 `249.9 (175)  229.3 (249)  212.6 (154)  249.2 (53)  245.6 (60)`; 640 `242.3 (82)  251.0 (32)
+  248.0 (54)  252.6 (24)  252.7 (33)`; 641 `238.1 (113)  244.8 (47)  244.3 (51)  252.4 (86)  237.3 (81)`; 1280
+  `251.0 (58)  249.6 (59)  251.4 (52)  250.2 (45)  240.4 (63)`. The original and A/A cells are in the script output
+  (every arm, every rep). The effect is strongest at 390.
+- Earn `opacity` and `max-width` close@0 failures in the scoped runs track the same `g` (same frame-phase reading).
 
-| width | arm | rep 0 | rep 1 | rep 2 | rep 3 | rep 4 |
-|---|---|---|---|---|---|---|
-| 390 | orig | 252.7 (45) | 249.9 (53) | 245.8 (80) | 240.1 (87) | 252.2 (50) |
-| 390 | base | 250.6 (50) | 250.2 (61) | 252.1 (45) | 250.6 (37) | 244.0 (83) |
-| 390 | faithful | 248.6 (39) | 252.4 (41) | 237.0 (69) | 249.6 (39) | 202.7 (203) |
-| 641 | orig | 223.2 (146) | 243.4 (58) | 248.0 (41) | 250.4 (23) | 247.4 (115) |
-| 641 | base | 247.0 (58) | 246.0 (51) | 250.1 (36) | 225.2 (142) | 245.6 (41) |
-| 641 | faithful | 251.8 (60) | 249.0 (29) | 250.7 (44) | 251.7 (29) | 252.5 (35) |
-| 640 | orig | 249.9 (21) | 248.8 (25) | 251.1 (19) | 248.4 (27) | 251.0 (19) |
-| 640 | base | 251.3 (27) | 247.8 (24) | 251.3 (18) | 251.3 (18) | 251.8 (15) |
-| 640 | faithful | 251.1 (22) | 250.7 (22) | 252.1 (22) | 251.4 (18) | 251.8 (13) |
-| 1280 | orig | 251.1 (16) | 249.6 (25) | 248.4 (68) | 252.5 (24) | 252.2 (45) |
-| 1280 | base | 250.9 (23) | 251.1 (29) | 252.7 (29) | 252.4 (31) | 247.6 (31) |
-| 1280 | faithful | 251.8 (32) | 251.3 (26) | 251.1 (27) | 247.8 (28) | 252.6 (23) |
+## Checks on the measured channel
 
-Reading:
-- The start colour falls with `g`: 226.6 at g 114, 206.3 at g 158 (scoped), 202.7 at g 203 (A/A candidate), 224.2 at g
-  98 and 216.5 at g 120 (original), 225.2 at g 142 (base). Cell for cell the arms share one curve.
-- Cells below 245, of 20 per arm (4 widths x 5 reps). Flag-alone run: scoped 7 (226.6, 206.3, 239.4, 244.5, 227.5,
-  242.0, 244.8), original 3 (243.4, 224.2, 216.5), base 2 (244.0, 233.5). A/A run: original 3 (240.1, 223.2, 243.4),
-  base 2 (244.0, 225.2), faithful candidate 2 (237.0, 202.7). The tail exists in every arm, including the A/A
-  candidate, which runs the same code as base.
-- The scoped arm has the most low cells in its run (7 of 20 against 3 and 2). At n = 20 per arm that does not separate
-  from frame-cadence noise (the A/A run alone spreads 2 to 3), but it does not prove equality either. Whether the
-  scoped arm lengthens the last frames of the close is the open question for the fresh run; the Lean proof says the
-  part writes nothing the nav reads, so a cost route would be through frame time, not through the nav style.
-- `bound.mjs` (local scratch, not committed) checked `m_prev <= ((68+g)/680)^3` on every close of both runs: no
-  violation beyond 8 ms of slack. Cells in the table are consistent with `prevBound`.
-- Colour is a function of `m` alone while `is-morphing` is on, across arms (`fn.mjs`, local scratch): component
-  spreads stay within 2 levels, so the nav does not draw a different mix per arm.
+Both use `bgRed` / `prevBound` / `floorOk` (Lean `Fw.Parts.HeroExitCloseStart`; the script is the TS stand-in, pinned to
+the Lean `#guard` literals in `test/closegap.test.mjs`).
 
-Lean outcome lines (existing re-reduction, `docs/team/tools/trajectory-probe.md`): 39466179818 mac-webkit morph
-`fail -> fail` (bg `new` at 390, 640, 641; 1280 cleared); 39472217441 mac-webkit morph `no verdict: coverage`.
+1. Own-gap check: the reading at the first sample without the class is at least `redFloor` of that cell's own sample
+   gap. Cells below it: 3, 3, 5, 7 of 60 per run, all within `LAG = 17` ms (one 60 Hz frame; max slack 13.0 ms at 1280
+   base rep 2 in 39508414669, since = 18). Explanation of the slack: the sample is read up to one frame after the frame
+   that held the class, so the true frame gap is `g_sample - since_j + L` with a read lag `L <= 17`. The 17 ms is
+   INFERRED; the slacks are MEASURED. No cell is beyond it. None is open.
+2. Original-gap rule (task item 2): a closed rule tied to the original arm's gaps. `floorOk (capOf origGaps) lag r`,
+   `capOf` the largest original gap of the width in the same run. Proved: `floorOk_tween` (every start the tween makes at
+   gap <= cap + lag passes), `floorOk_orig` (every original cell passes at any lag >= 0, as `capOf_ge` covers its
+   gap), `floorOk_below` and `floorOk_reject_gap` (a rejected start came from a gap longer than cap + lag, so the
+   cause is frame time), `floorOk_mono` (a larger cap accepts more). Result with 5 original reps per width: it also
+   rejects A/A cells (39508421419 faithful 390 rep 0, red 185.6 at g 178 against cap 65 + 17, and base 640 rep 1;
+   39472217441 faithful 390 rep 4, red 202.5 at g 202), because 5 original reps do not bound a heavy-tailed gap.
+   Scoped violations: 1 cell in the fresh run and 2 in the stored one, all at 390. So no closed per-cell colour rule
+   exists at 5 reps; the usable check is the gap distribution above. A cell-level rule needs a cap
+   from many more original reps: with n original reps the false-reject rate of an A/A cell that exceeds the maximum is
+   about 1/(n+1) (iid, INFERRED).
 
-## Decision
+Violating cells of check 2 (red, g in ms): 39508414669: 390 scoped rep 2 (212.6, 154). 39508421419: 390 faithful rep 0
+(185.6, 178), 640 base rep 1 (242.6, 58). 39466179818: 390 scoped rep 0 (226.5, 113), rep 3 (206.1, 157). 39472217441:
+390 faithful rep 4 (202.5, 202). Each is a long frame gap; the A/A ones are the same phenomenon at the A/A tail.
 
-(b). No part change, no look change. The cause lies in the judge's reading of one frame-phase value:
-the close start is a draw from `bgAlpha(m_prev)`, `m_prev` in `(0.001, prevBound(g)]`, and the envelope built from
-five original passes cannot cover a draw whose `g` the original passes did not hit.
+## What to do
 
-Proposed rule for `trajectory-envelope-scope` (stated, judge unchanged here): at `close@0` (the first sample after
-`is-morphing` is removed), the background reading is accepted when it lies in `(bgAlpha(morphingCut),
-bgAlpha(prevBound g)]`, with `g` the observed gap between the last morphing sample and the first sample without the
-class, instead of inside the original passes' hull. In Lean: `Fw.Parts.HeroExitCloseStart.startAccepts`, with
-`startAccepts_tween` (soundness: every start the tween makes is accepted), `startAccepts_above` (a reading above the
-bound is rejected). The rule is a function of the sample's own timing, so it stays a per-unit decision. It can only
-pass readings a faithful implementation produces; it does not widen the envelope for later samples of the transition.
+- (a) Part fix, not applied here: lower the per-scroll-frame inline writes of `scoped` during the nav close (fewer reader
+  writes, or none while a nav tween runs), then re-measure `g`. The mechanism in point 6 must be profiled before this.
+- Not (c): the colours are the original's for the same `m`; only the sample phase differs.
+- The judge (`Trajectory.lean`) is not changed.
+- More reps: reps are capped at 5 per run. Four more flag-alone mac-webkit morph runs (6 runs, 120 cells per arm) put
+  the standard error of the mean-g difference near 0.06 in log units (INFERRED from the 40-cell spread). Orig and base
+  in the same runs are the A/A reference.
 
 ## Limits
 
-- Stored runs, not fresh: 39466179818 and 39472217441 predate this task. The fresh flag-alone and A/A runs were not
-  dispatched by the lead (see handoff `open`).
-- WebKit source reading is on the pinned clone @862f17d; CI runs a Playwright WebKit build (27.2). INFERRED to match.
-- A 5-rep sample cannot bound the rate of long gaps per arm.
-- The `bgAlpha` formula is the alpha channel only; the colour channels use the mix of `#ffffff1a` and `#131922`
-  (post-removal values are oklab-shaped in the raw data and converted by `colourFromV1`).
+- WebKit source reading is on the pinned clone @862f17d; CI runs a Playwright WebKit build.
+- The permutation test assumes cells are exchangeable within a (run, width) block.
+- `LAG` is a fitted bound with an inferred reason.

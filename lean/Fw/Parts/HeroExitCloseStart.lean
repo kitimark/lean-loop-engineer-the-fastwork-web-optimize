@@ -2,7 +2,7 @@ import Fw.Parts.MorphTween
 import Fw.Parts.Nav
 import Fw.Parts.HeroExitOpt
 
-/-! Start colour of the nav background after a close: a frame-phase value that no `hero.exit` write reaches. -/
+/-! Start colour of the nav background after a close, on the probe's red channel, and the frame-gap floor that bounds it. -/
 
 namespace Fw.Parts.HeroExitCloseStart
 
@@ -121,17 +121,78 @@ theorem bgAlpha_inj (m n : Rat) (h : bgAlpha m = bgAlpha n) : m = n := by
       grind
     · grind
 
-/-- Start alpha of the background transition: the before-change style is the last frame that saw `is-morphing`
-(Styleable.cpp:606-617, 646-676@862f17d). -/
-def startAlpha (ea : Rat) : Rat := bgAlpha (closeAt ea)
+/-- The alpha is positive for every non-negative morph value. -/
+theorem bgAlpha_pos (m : Rat) (h : 0 ≤ m) : 0 < bgAlpha m := by
+  unfold bgAlpha
+  grind
 
-/-- Start alphas a close may show when its last frames are `g` ms apart: above the cut, at most `prevBound g`'s. -/
-def startAccepts (reading g : Rat) : Bool :=
-  decide (bgAlpha Fw.Parts.Nav.morphingCut < reading ∧ reading ≤ bgAlpha (prevBound g))
+/-- Red (0 to 255) of the nav background at morph value `m`: the premultiplied red `26 (1 - m) + 19 m` over `bgAlpha m`. -/
+def bgRed (m : Rat) : Rat := (26 * (1 - m) + 19 * m) / bgAlpha m
 
-/-- Every start the tween makes is accepted at its own frame gap, whichever arm made it. -/
-theorem startAccepts_tween (ea eb : Rat) (h0 : 0 ≤ ea) (hab : ea < eb) (ha : morphingAt ea = true)
-    (hb : morphingAt eb = false) : startAccepts (startAlpha ea) (eb - ea) = true := by
+/-- The red times the alpha is the premultiplied red. -/
+theorem bgRed_mul (m : Rat) (h : 0 ≤ m) : bgRed m * bgAlpha m = 26 * (1 - m) + 19 * m := by
+  unfold bgRed
+  have := bgAlpha_pos m h
+  rw [Rat.div_mul_cancel (by grind)]
+
+/-- A higher morph value gives a lower red: the red falls from 255 at `m = 0` to 19 at `m = 1`. -/
+theorem bgRed_lt (m n : Rat) (h0 : 0 ≤ m) (h : m < n) : bgRed n < bgRed m := by
+  have ha := bgAlpha_pos m h0
+  have hb := bgAlpha_pos n (by grind)
+  have e1 := bgRed_mul m h0
+  have e2 := bgRed_mul n (by grind)
+  have key : (26 * (1 - n) + 19 * n) * bgAlpha m < (26 * (1 - m) + 19 * m) * bgAlpha n := by
+    unfold bgAlpha
+    grind
+  refine Classical.byContradiction fun hc => ?_
+  have hc' : bgRed m ≤ bgRed n := by grind
+  have h1 := Rat.mul_le_mul_of_nonneg_right hc' (Rat.le_of_lt (Rat.mul_pos ha hb))
+  have : (bgRed m * bgAlpha m) * bgAlpha n ≤ (bgRed n * bgAlpha n) * bgAlpha m := by
+    have := h1
+    grind
+  rw [e1, e2] at this
+  grind
+
+/-- A lower-or-equal red names a higher-or-equal morph value (the order of `bgRed_lt`, read backwards). -/
+theorem bgRed_le_iff (m n : Rat) (h0 : 0 ≤ m) (h1 : 0 ≤ n) : bgRed n ≤ bgRed m ↔ m ≤ n := by
+  constructor
+  · intro h
+    refine Classical.byContradiction fun hc => ?_
+    have := bgRed_lt n m h1 (by grind)
+    grind
+  · intro h
+    by_cases he : m = n
+    · rw [he]
+      exact Rat.le_refl
+    · have := bgRed_lt m n h0 (by grind)
+      exact Rat.le_of_lt this
+
+/-- The bound grows with the gap. -/
+theorem prevBound_mono (g h : Rat) (h0 : 0 ≤ g) (hgh : g ≤ h) : prevBound g ≤ prevBound h := by
+  unfold prevBound
+  exact cube_le _ _ (by grind) (by grind)
+
+/-- Lowest red a close start shows when the last morphing frame is at most `g` ms before the first frame without the class. -/
+def redFloor (g : Rat) : Rat := bgRed (prevBound g)
+
+/-- A longer gap lowers the floor. -/
+theorem redFloor_anti (g h : Rat) (h0 : 0 ≤ g) (hgh : g ≤ h) : redFloor h ≤ redFloor g := by
+  unfold redFloor
+  have hg : 0 ≤ prevBound g := by
+    unfold prevBound
+    exact Rat.mul_nonneg (Rat.mul_nonneg (by grind) (by grind)) (by grind)
+  have hh : 0 ≤ prevBound h := by
+    have := prevBound_mono g h h0 hgh
+    grind
+  exact (bgRed_le_iff _ _ hg hh).2 (prevBound_mono g h h0 hgh)
+
+/-- The reading passes when it is no darker than the floor of the reference gap `cap` plus the read lag `lag` (ms); `cap` is the original's. -/
+def floorOk (cap lag reading : Rat) : Bool := decide (redFloor (cap + lag) ≤ reading)
+
+/-- Every start the tween makes is accepted when its frame gap is within `cap + lag`, whichever arm made it. -/
+theorem floorOk_tween (cap lag ea eb : Rat) (h0 : 0 ≤ ea) (hab : ea < eb)
+    (ha : morphingAt ea = true) (hb : morphingAt eb = false) (hgap : eb - ea ≤ cap + lag) :
+    floorOk cap lag (bgRed (closeAt ea)) = true := by
   have h680 : ea < 680 := by
     refine Classical.byContradiction fun hc => ?_
     have := closeAt_end ea (by grind)
@@ -140,34 +201,97 @@ theorem startAccepts_tween (ea eb : Rat) (h0 : 0 ≤ ea) (hab : ea < eb) (ha : m
     grind
   have hge := prev_gt_cut ea ha
   have hle := prev_le_bound ea eb h0 hab h680 hb
-  unfold startAccepts startAlpha
-  rw [decide_eq_true_iff]
-  constructor
-  · exact bgAlpha_lt _ _ hge
-  · unfold bgAlpha at *
+  have hmono := prevBound_mono (eb - ea) (cap + lag) (by grind) hgap
+  have hc0 : 0 ≤ closeAt ea := by
+    unfold Fw.Parts.Nav.morphingCut at hge
     grind
+  have hp : 0 ≤ prevBound (cap + lag) := by
+    unfold prevBound
+    exact Rat.mul_nonneg (Rat.mul_nonneg (by grind) (by grind)) (by grind)
+  unfold floorOk redFloor
+  rw [decide_eq_true_iff]
+  exact (bgRed_le_iff _ _ hc0 hp).2 (by grind)
 
-/-- An alpha above `prevBound g`'s is rejected. -/
-theorem startAccepts_above (reading g : Rat) (h : bgAlpha (prevBound g) < reading) : startAccepts reading g = false := by
-  unfold startAccepts
+/-- A reading darker than the floor is rejected. -/
+theorem floorOk_below (cap lag reading : Rat) (h : reading < redFloor (cap + lag)) : floorOk cap lag reading = false := by
+  unfold floorOk
   rw [decide_eq_false_iff_not]
   grind
+
+/-- A rejected tween start came from a frame gap longer than `cap + lag`: the cause is frame time, not colour. -/
+theorem floorOk_reject_gap (cap lag ea eb : Rat) (h0 : 0 ≤ ea) (hab : ea < eb)
+    (ha : morphingAt ea = true) (hb : morphingAt eb = false)
+    (hrej : floorOk cap lag (bgRed (closeAt ea)) = false) : cap + lag < eb - ea := by
+  refine Classical.byContradiction fun hc => ?_
+  have := floorOk_tween cap lag ea eb h0 hab ha hb (by grind)
+  grind
+
+/-- A wider reference gap accepts more. -/
+theorem floorOk_mono (cap cap' lag reading : Rat) (h0 : 0 ≤ cap + lag) (hc : cap ≤ cap')
+    (h : floorOk cap lag reading = true) : floorOk cap' lag reading = true := by
+  unfold floorOk at *
+  rw [decide_eq_true_iff] at *
+  have := redFloor_anti (cap + lag) (cap' + lag) h0 (by grind)
+  grind
+
+/-- The reference gap of a width: the largest gap the original arm showed there. -/
+def capOf : List Rat → Rat
+  | [] => 0
+  | g :: gs => if g ≤ capOf gs then capOf gs else g
+
+/-- No gap of the original arm exceeds its cap. -/
+theorem capOf_ge (g : Rat) (gs : List Rat) (h : g ∈ gs) : g ≤ capOf gs := by
+  induction gs with
+  | nil => simp at h
+  | cons x xs ih =>
+    unfold capOf
+    by_cases hx : x ≤ capOf xs
+    · simp only [hx, ↓reduceIte]
+      rcases List.mem_cons.mp h with rfl | hm
+      · exact hx
+      · exact ih hm
+    · simp only [hx, ↓reduceIte]
+      rcases List.mem_cons.mp h with rfl | hm
+      · exact Rat.le_refl
+      · have := ih hm
+        grind
+
+/-- Every start an original pass made is accepted by the cap of the original arm's gaps, at any lag of zero or more. -/
+theorem floorOk_orig (gs : List Rat) (lag ea eb : Rat) (hlag : 0 ≤ lag) (h0 : 0 ≤ ea) (hab : ea < eb)
+    (ha : morphingAt ea = true) (hb : morphingAt eb = false) (hm : eb - ea ∈ gs) :
+    floorOk (capOf gs) lag (bgRed (closeAt ea)) = true :=
+  floorOk_tween (capOf gs) lag ea eb h0 hab ha hb (by have := capOf_ge _ _ hm; grind)
 
 #guard prevBound 0 == Fw.Parts.Nav.morphingCut
 #guard decide (138 / 10000 ≤ prevBound 114)
 #guard decide (258 / 10000 ≤ prevBound 158)
 #guard decide (282 / 10000 ≤ prevBound 203)
 #guard decide (156 / 10000 ≤ prevBound 146)
-#guard decide ((bgAlpha (138 / 10000) * 255 - 29154 / 1000) < 1 / 50 ∧ (29154 / 1000 - bgAlpha (138 / 10000) * 255) < 1 / 50)
+-- red channel against the probe's readings (nav.background-color while `is-morphing` is on, 39466179818 and 39508414669)
+#guard decide (bgRed (138 / 10000) < 226569 / 1000 + 15 / 100 ∧ 226569 / 1000 - 15 / 100 < bgRed (138 / 10000))
+#guard decide (bgRed (585 / 10000) < 165621 / 1000 + 15 / 100 ∧ 165621 / 1000 - 15 / 100 < bgRed (585 / 10000))
+#guard decide (bgRed (22 / 10000) < 249911 / 1000 + 15 / 100 ∧ 249911 / 1000 - 15 / 100 < bgRed (22 / 10000))
+-- values the TS twin (`packages/gate-breakpoints/src/trajectory/closegap.mjs`) is tested against
+#guard (bgRed 0 * 1000000).floor == 255000000
+#guard (bgRed 1 * 1000000).floor == 19000000
+#guard (bgRed (1 / 1000) * 1000000).floor == 252705593
+#guard (bgRed (138 / 10000) * 1000000).floor == 226519948
+#guard (bgRed (22 / 10000) * 1000000).floor == 250004640
+#guard (redFloor 113 * 1000000).floor == 217567243
+#guard (redFloor 202 * 1000000).floor == 161602802
+#guard capOf [36, 67, 29] == 67
+#guard capOf [] == 0
+#guard floorOk 67 17 235 == true
+#guard floorOk 67 17 160 == false
 
 /-- Custom properties the nav background reads. -/
 def navBgReads : List String := ["--morph"]
 
-/-- The scoped exit writes no property the nav background reads. -/
+/-- Over the `frameWrites` model (the driver also sets `pointer-events` on the hero), no write is to a property the nav background reads. -/
 theorem scoped_writes_miss_nav_bg : ∀ w ∈ Fw.Parts.HeroExitOpt.frameWrites, w.2 ∉ navBgReads := by
   decide +kernel
 
-/-- No scoped write lands on a nav element. -/
+/-- Over the `frameWrites` model, no write lands on a nav element. -/
 theorem scoped_writes_miss_nav_elements : ∀ w ∈ Fw.Parts.HeroExitOpt.frameWrites, ¬ w.1.startsWith "nav" := by
   decide +kernel
 

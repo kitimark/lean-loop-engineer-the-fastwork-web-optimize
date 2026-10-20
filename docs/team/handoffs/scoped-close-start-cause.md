@@ -1,35 +1,26 @@
-# Handoff: scoped-close-start-cause
-
+# Handoff: scoped-close-start-cause (round 2)
 State: branch `worktree-wf_da1a1d10-06c-1`; the commit is the one `git log -1` shows on `ci/scoped-close-start-cause`.
-
-Decision: (b), timing-only. No part change, no golden change, no look change.
-
-Mechanism (note `research/notes/2026/10-21-scoped-close-start-cause.md`):
-- The close start colour is `bgAlpha(m_prev)`, `m_prev` the morph value of the last frame that saw `is-morphing`
-  (removed at m <= 0.001, 68 ms before the tween ends). WebKit keeps the previous style-change event as the transition's
-  before-change style (`Styleable.cpp:606-617, 646-676@862f17d`, `StyleTreeResolver.cpp:926 before :940`).
-- A gap of g ms to the first frame without the class allows `m_prev <= ((68+g)/680)^3`; 114 ms gives ~226, 203 ms ~203.
-- `hero.exit:scoped` writes `--exit-opacity` and `--exit-scatter` on hero elements only; the nav reads `--morph`.
-
+Decision: (a) with a perf finding. Not (b), not (c). Judge (`Trajectory.lean`) unchanged.
+- Fresh runs (ids collide, `fw-run-dispatch-pick`; named by arms): 39508414669 flag-alone `?fw=hero.exit:scoped` hash
+  8d213de6fbdd52fd, base ede2c7641aacf2d2; 39508421419 A/A `?fw=hero.exit:faithful` hash ede2c7641aacf2d2. Original arm: no config.
+- Lean outcomes mac-webkit: 39508414669 hero pass, morph FAIL; 39508421419 hero pass, morph PASS; Linux hero pass in both.
+- Gap g (last is-morphing sample to first without): scoped mean 78.5 / 70.6 ms (fresh / stored) against arm means 41.2 to
+  66.0 for the ten non-scoped arms. Pooled permutation p 0.011 (mean log g), 0.019 (mean g); A/A pooled 0.90 / 0.74.
+  The fresh run alone is p 0.12.
+- Cause: start red = `bgRed(m_prev) >= redFloor g`; g is frame time; frame-time cost of scoped's per-scroll-frame inline
+  writes is INFERRED, not profiled. No `StyleTreeResolver` ordering claim.
 Verified:
-- Lean `Fw.Parts.HeroExitCloseStart` (new, imported in `lean/Fw.lean`): `closeAt_cube`, `morphing_of_lt`,
-  `not_morphing_of_ge`, `prev_le_bound`, `bgAlpha_lt`, `bgAlpha_inj`, `startAccepts_tween`, `startAccepts_above`,
-  `scoped_writes_miss_nav_bg`, `scoped_writes_miss_nav_elements`. `sh lean/scripts/check.sh` green.
-- `node --test scripts/ci-paths.test.mjs` 49/49; `apps/runner` `land-inputs.test.ts` 55/55.
-- Stored runs 39466179818 (flag-alone `?fw=hero.exit:scoped`) and 39472217441 (A/A), `?fw` hashes read per arm.
-  Not fresh runs: the lead dispatches those (see `open[0]` of the report).
-
-Findings:
-- Cells below 245 of 20: flag-alone scoped 7, orig 3, base 2; A/A orig 3, base 2, candidate 2 (low tails in every arm).
-- Scoped has more low cells than the others in its run; n = 20 does not separate it from frame-cadence noise.
-
+- `lean/Fw/Parts/HeroExitCloseStart.lean`: `bgRed_lt`, `bgRed_le_iff`, `prevBound_mono`, `redFloor_anti`, `floorOk_tween`,
+  `floorOk_below`, `floorOk_reject_gap`, `floorOk_mono`, `capOf_ge`, `floorOk_orig`, `scoped_writes_miss_nav_*` (about
+  `frameWrites`; `driver.ts:37` also writes `pointerEvents` on the hero). `startAccepts` (alpha) removed.
+- `packages/gate-breakpoints/src/trajectory/closegap.mjs` (TS stand-in, pinned to Lean literals in `test/closegap.test.mjs`).
+- Check 1 (own gap): 3, 3, 5, 7 cells below the floor, all within LAG 17 ms (max slack 13 ms). Check 2 (original-gap cap)
+  also rejects A/A cells at 5 original reps, so no closed per-cell colour rule at 5 reps.
+- Tests: gate-breakpoints 432/432; ci-paths; land-inputs; `sh lean/scripts/check.sh` green (see final commit).
 Open:
-- Fresh flag-alone and A/A mac-webkit morph runs (>= 3 reps, 4 widths) from the lead.
-- `trajectory-envelope-scope` owns `Trajectory.lean`: the rule is `startAccepts` (reading in
-  `(bgAlpha morphingCut, bgAlpha (prevBound g)]`, g the observed gap at close@0). Not applied here.
-
-Ledger keys (the lead edits the ledger): update `hero.exit.scoped.inline` (mac morph bg close-start mechanism and
-decision (b)); new candidate row for "close start colour is a frame-phase value (`bgAlpha(m_prev)`)".
-
-Read first: the note's Mechanism and Decision sections, then `HeroExitCloseStart.lean`.
-Other writes: `lean/Fw.lean` (import line, required by `check-imports.mjs`).
+- 4 more flag-alone mac-webkit morph runs (6 total, 120 cells per arm) via the lead; orig and base there are the A/A reference.
+- Profile scoped's writes during the nav close before the part fix.
+- `trajectory-envelope-scope` may use the g-distribution check instead of a per-cell colour rule.
+Ledger keys (the lead edits): `hero.exit.scoped.inline` (perf finding: longer close-end gaps on mac WebKit, pooled p 0.011);
+candidate row for "close start colour is a frame-phase value (`bgRed(m_prev)`)".
+Read first: note `research/notes/2026/10-21-scoped-close-start-cause.md`, then `HeroExitCloseStart.lean`. Also wrote `lean/Fw.lean` (import).
