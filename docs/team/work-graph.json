@@ -11532,7 +11532,8 @@
     "packages/gate-breakpoints/src/trajectory/frames.mjs",
     "research/notes/2026/10-20-earn-transition-retarget.md",
     "results/earn-look-review/index.json"
-   ]
+   ],
+   "evidence": "cbd488d"
   },
   {
    "devices": [

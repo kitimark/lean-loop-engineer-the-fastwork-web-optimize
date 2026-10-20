@@ -21,6 +21,7 @@ import Fw.Parts.EngineScroll
 import Fw.Parts.Contract
 import Fw.Parts.NavHitTest
 import Fw.Parts.NavHitTestOpt
+import Fw.Parts.NavEarnOpt
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroCountdownOneChain
