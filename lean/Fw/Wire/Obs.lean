@@ -940,7 +940,7 @@ namespace Backoff
 /-- Decode the parameters (each field optional, the defaults of `Fw.Obs.Backoff.Params`). -/
 def paramsOf (j : Json) : Except String Fw.Obs.Backoff.Params := do
   let d : Fw.Obs.Backoff.Params := {}
-  pure { loadHigh := ← natD j "loadHigh" d.loadHigh, extra := ← natD j "extra" d.extra }
+  pure { extra := ← natD j "extra" d.extra }
 
 /-- The reply fields of a decision: `action` (`"restart"` or `"wait"`) and `waitMs` (0 for restart). -/
 def decisionJson : Fw.Obs.Backoff.Decision → Reply
@@ -948,12 +948,12 @@ def decisionJson : Fw.Obs.Backoff.Decision → Reply
   | .wait ms => [("action", .str "wait"), ("waitMs", toJson ms)]
 
 /-- `obs.backoff`: what to do when an fwcore call missed its deadline (`Fw.Obs.Backoff.onTimeout`). Request:
-`{params?, load, baseMs, waitedMs}`; reply `{action, waitMs}`. -/
+`{params?, cores, load, baseMs, waitedMs}`; reply `{action, waitMs}`. -/
 def opBackoff (req : Json) : Except String Reply := do
   let p ← match opt req "params" with
     | none => pure {}
     | some v => paramsOf v
-  pure (decisionJson (Fw.Obs.Backoff.onTimeout p (← nat req "load") (← nat req "baseMs") (← nat req "waitedMs")))
+  pure (decisionJson (Fw.Obs.Backoff.onTimeout p (← nat req "cores") (← nat req "load") (← nat req "baseMs") (← nat req "waitedMs")))
 
 end Backoff
 
@@ -1032,10 +1032,10 @@ def run (op : String) (r : String) : String :=
   "{\"slow\":[]}"
 #guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"mars\"}]}" == "error: field host: unknown host mars"
 #guard run "obs.slow" "{}" == "{\"slow\":[]}"
--- obs.backoff: not loaded restarts at the first deadline; loaded waits the rest of the stretched total; then restarts
-#guard run "obs.backoff" "{\"load\":3,\"baseMs\":10000,\"waitedMs\":10000}" == "{\"action\":\"restart\",\"waitMs\":0}"
-#guard run "obs.backoff" "{\"load\":115,\"baseMs\":10000,\"waitedMs\":10000}" == "{\"action\":\"wait\",\"waitMs\":20000}"
-#guard run "obs.backoff" "{\"load\":115,\"baseMs\":10000,\"waitedMs\":30000}" == "{\"action\":\"restart\",\"waitMs\":0}"
+-- obs.backoff: not loaded restarts at the first deadline; loaded (load >= cores) waits the rest of the stretched total; then restarts
+#guard run "obs.backoff" "{\"cores\":8,\"load\":3,\"baseMs\":10000,\"waitedMs\":10000}" == "{\"action\":\"restart\",\"waitMs\":0}"
+#guard run "obs.backoff" "{\"cores\":8,\"load\":115,\"baseMs\":10000,\"waitedMs\":10000}" == "{\"action\":\"wait\",\"waitMs\":20000}"
+#guard run "obs.backoff" "{\"cores\":8,\"load\":115,\"baseMs\":10000,\"waitedMs\":30000}" == "{\"action\":\"restart\",\"waitMs\":0}"
 #guard run "obs.timing" "{}" == "{\"verdicts\":[]}"
 -- obs.next: a branch whose land commit is on main, or that the live land lock names, gets no land action
 #guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false}}]}").splitOn "\"land\"").length == 2
