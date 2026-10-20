@@ -1,7 +1,11 @@
 // Waiter markers: one file per waiting process and run, `<waiters dir>/r<runId>.<pid>.<hex>`, holding `{pid, start}`.
 // `start` is the process start time the waiter read from the OS once, at start: the output of `ps -o lstart= -p <pid>`
-// (ps(1): "lstart: time the command started"; second resolution, the same call on macOS and Linux procps), kept as an
-// opaque token and compared only for equality. This file only READS facts (does the pid exist, what is its start time
+// (macOS ps(1): "lstart  The exact time the command started, using the %c format described in strftime(3)"; procps ps(1):
+// "lstart  time the command started"), kept as an opaque token and compared only for equality. Second resolution.
+// The text is local time, so the call pins TZ=UTC and LC_ALL=C (as apps/runner/src/watch-collect.ts PS_START does): the
+// waiter that records the token and the poller that reads it later may run under different TZ values.
+// Stability on Linux is INFERRED: procps derives lstart from the boot time plus clock ticks, and a wall-clock step may
+// shift the boot time by about 1 s, which would make a live waiter look reused (it is then swept as an orphan). This file only READS facts (does the pid exist, what is its start time
 // now); whether the waiter is alive is `Fw.Ci.Budget.Marker.alive` in fwcore (`ci.budget.next` with `markers`).
 import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
@@ -17,9 +21,9 @@ export function killOk(pid: number): boolean {
   try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; }
 }
 
-/** The start time of `pid` as the OS reports it now, or null when ps cannot say. LC_ALL=C keeps the text locale-free. */
+/** The start time of `pid` as the OS reports it now, or null when ps cannot say. LC_ALL=C and TZ=UTC keep the text locale- and zone-free. */
 export function startToken(pid: number): string | null {
-  const r = spawnSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } });
+  const r = spawnSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8", env: { ...process.env, LC_ALL: "C", TZ: "UTC" } });
   const t = r.status === 0 && typeof r.stdout === "string" ? r.stdout.trim() : "";
   return t === "" ? null : t;
 }

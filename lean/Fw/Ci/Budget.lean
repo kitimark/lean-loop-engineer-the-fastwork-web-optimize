@@ -725,8 +725,6 @@ def listed (L : Limits) (s : State) (rows : List (Nat × Nat)) (full : Bool) (si
 of another user, `EPERM`, counts as found), the process start time the marker recorded when the waiter began, and the
 start time of that pid now. A start time is an opaque token (the output of `ps -o lstart= -p <pid>`), compared only for
 equality; `none` is a token that was not recorded or could not be read.
-
-$$\mathrm{Marker} = (\mathit{runId}, \mathit{killOk}, \mathit{recorded}, \mathit{now}) \in \mathbb{N} \times \mathbb{B} \times \mathrm{String}_\bot^2$$
 -/
 structure Marker where
   runId : Nat
@@ -736,25 +734,19 @@ structure Marker where
 deriving Repr, DecidableEq
 
 /-- Is the waiter behind a marker alive? The process exists and, when both start times are known, it is the process
-that wrote the marker (a reused pid has another start time). A marker written without a token (older code) or whose
-start time cannot be read now is alive when the process exists; accepted limit: a reused pid is then taken for the
-waiter, and two processes with one pid started within the token's resolution (1 s) are not told apart.
-
-$$\operatorname{alive}(m) \iff m.\mathit{killOk} \land \lnot(\exists a, b:\ m.\mathit{recorded} = a \land m.\mathit{now} = b \land a \ne b)$$
+that wrote the marker (a reused pid has another start time). A marker written without a token (older code) is alive
+when the process exists; accepted limit: a reused pid is then taken for the waiter. A marker with a token whose pid
+`ps` cannot see now is dead. Two processes with one pid started within the token's resolution (1 s) are not told apart.
 -/
 def Marker.alive (m : Marker) : Bool :=
-  m.killOk && (match m.recorded, m.now with | some a, some b => a == b | _, _ => true)
+  m.killOk && (match m.recorded, m.now with | some a, some b => a == b | some _, none => false | none, _ => true)
 
 /-- The run ids that have a live waiter.
-
-$$\operatorname{aliveIds}(ms) = [\,m.\mathit{runId} \mid m \in ms,\ \operatorname{alive}(m)\,]$$
 -/
 def aliveIds (ms : List Marker) : List Nat := (ms.filter Marker.alive).map (·.runId)
 
 /-- Drop every watch with no live waiter, with an `orphan` incident; keep the others unchanged. The rule does not look
 at the kind of the id: a real run nobody waits on has no reader either.
-
-$$\operatorname{sweep}(s, A) = s[\mathit{watched} := [\,w \in s.\mathit{watched} \mid w.\mathit{runId} \in A\,],\ \mathit{incidents} := s.\mathit{incidents} \mathbin{+\!\!+} [\,(w.\mathit{runId}, s.\mathit{now}, \mathrm{orphan}) \mid w \in s.\mathit{watched},\ w.\mathit{runId} \notin A\,]]$$
 -/
 def sweep (s : State) (alive : List Nat) : State :=
   { s with
@@ -765,8 +757,6 @@ def sweep (s : State) (alive : List Nat) : State :=
 /-- The events that change the state without a call: the clock, a waiter registering or leaving a run, the pages a
 tick needs, a response, a manual resume after the poller stopped, one tick's list, and
 the acknowledgement of logged incidents, and the sweep of watches without a live waiter.
-
-$$\mathrm{Event} = \mathrm{clock}(\mathbb{N}) \mid \mathrm{register}(\mathit{runId}, \mathit{createdAt}) \mid \mathrm{unregister}(\mathit{runId}) \mid \mathrm{pages}(\mathbb{N}) \mid \mathrm{response}(\mathrm{Headers}, \mathbb{N}) \mid \mathrm{resume} \mid \mathrm{listed}(\mathit{rows}, \mathit{count}, \mathit{pagesRead}, \mathit{since}) \mid \mathrm{ack}(\mathbb{N}) \mid \mathrm{sweep}(A)$$
 -/
 inductive Event where
   | clock (t : Nat)
@@ -2125,45 +2115,35 @@ exactly while a marker of a live waiter names its run. The glue reads the waiter
 hands the markers to `ci.budget.next`; this section is the decision. -/
 
 /-- (j-a) A dead process is a dead waiter, whatever the tokens say.
-
-$$\lnot m.\mathit{killOk} \Rightarrow \lnot\operatorname{alive}(m)$$
 -/
 theorem marker_dead (m : Marker) (h : m.killOk = false) : m.alive = false := by
   simp [Marker.alive, h]
 
 /-- (j-a) A reused pid is a dead waiter: the process exists but its start time is not the one the marker recorded.
-
-$$m.\mathit{killOk} \land m.\mathit{recorded} = a \land m.\mathit{now} = b \land a \ne b \Rightarrow \lnot\operatorname{alive}(m)$$
 -/
 theorem marker_reused (m : Marker) (a b : String) (hk : m.killOk = true) (ha : m.recorded = some a)
     (hb : m.now = some b) (hne : a ≠ b) : m.alive = false := by
   simp [Marker.alive, hk, ha, hb, hne]
 
 /-- (j-a) A live process with the recorded start time is a live waiter.
-
-$$m.\mathit{killOk} \land m.\mathit{recorded} = a \land m.\mathit{now} = a \Rightarrow \operatorname{alive}(m)$$
 -/
 theorem marker_same (m : Marker) (a : String) (hk : m.killOk = true) (ha : m.recorded = some a)
     (hb : m.now = some a) : m.alive = true := by
   simp [Marker.alive, hk, ha, hb]
 
 /-- (j-a) A marker without a recorded token (older code) is alive exactly when its process exists.
-
-$$m.\mathit{recorded} = \bot \Rightarrow (\operatorname{alive}(m) \iff m.\mathit{killOk})$$
 -/
 theorem marker_tokenless (m : Marker) (h : m.recorded = none) : m.alive = m.killOk := by
   simp [Marker.alive, h]
 
-/-- (j-a) A start time that cannot be read now decides nothing: the marker is alive exactly when its process exists.
-
-$$m.\mathit{now} = \bot \Rightarrow (\operatorname{alive}(m) \iff m.\mathit{killOk})$$
+/-- (j-a) A recorded token with a start time that cannot be read now (`ps` does not see the pid) is a dead waiter, even
+when `kill` finds the process.
 -/
-theorem marker_unreadable (m : Marker) (h : m.now = none) : m.alive = m.killOk := by
-  cases hr : m.recorded <;> simp [Marker.alive, h, hr]
+theorem marker_unreadable (m : Marker) (a : String) (ha : m.recorded = some a) (h : m.now = none) :
+    m.alive = false := by
+  simp [Marker.alive, ha, h]
 
 /-- (j-a) A run id has a live waiter exactly when some live marker names it.
-
-$$r \in \operatorname{aliveIds}(ms) \iff \exists m \in ms:\ m.\mathit{runId} = r \land \operatorname{alive}(m)$$
 -/
 theorem mem_aliveIds (ms : List Marker) (r : Nat) :
     r ∈ aliveIds ms ↔ ∃ m ∈ ms, m.runId = r ∧ m.alive = true := by
@@ -2173,16 +2153,13 @@ theorem mem_aliveIds (ms : List Marker) (r : Nat) :
   · rintro ⟨m, hm, rfl, ha⟩; exact ⟨m, ⟨hm, ha⟩, rfl⟩
 
 /-- (j-b) A watch with a live waiter is kept, unchanged.
-
-$$\forall s, A, w \in s.\mathit{watched}:\ w.\mathit{runId} \in A \Rightarrow w \in \operatorname{sweep}(s, A).\mathit{watched}$$
 -/
 theorem sweep_keeps_alive (s : State) (alive : List Nat) (w : Watch) (hw : w ∈ s.watched)
     (ha : w.runId ∈ alive) : w ∈ (sweep s alive).watched := by
   simp [sweep, List.mem_filter, hw, ha]
 
-/-- (j-b) A watch with no live waiter is dropped and logged with an `orphan` incident at the current time.
-
-$$\forall s, A, w \in s.\mathit{watched}:\ w.\mathit{runId} \notin A \Rightarrow (\forall w' \in \operatorname{sweep}(s, A).\mathit{watched}:\ w'.\mathit{runId} \ne w.\mathit{runId}) \land (w.\mathit{runId}, s.\mathit{now}, \mathrm{orphan}) \in \operatorname{sweep}(s, A).\mathit{incidents}$$
+/-- (j-b) A watch with no live waiter is dropped and logged with an `orphan` incident at the current time. The rule has
+no premise on the kind of id: a real run and a branch sentinel are treated alike.
 -/
 theorem sweep_drops_orphan (s : State) (alive : List Nat) (w : Watch) (hw : w ∈ s.watched)
     (ha : w.runId ∉ alive) :
@@ -2196,8 +2173,6 @@ theorem sweep_drops_orphan (s : State) (alive : List Nat) (w : Watch) (hw : w �
 
 /-- (j-b) Every watch is kept or has an incident: after a sweep, each watch is still watched under its run id, or an
 `orphan` incident names its run at the current time.
-
-$$\forall s, A, w \in s.\mathit{watched}:\ (\exists w' \in \operatorname{sweep}(s, A).\mathit{watched}:\ w'.\mathit{runId} = w.\mathit{runId}) \lor (w.\mathit{runId}, s.\mathit{now}, \mathrm{orphan}) \in \operatorname{sweep}(s, A).\mathit{incidents}$$
 -/
 theorem sweep_total (s : State) (alive : List Nat) (w : Watch) (hw : w ∈ s.watched) :
     (∃ w' ∈ (sweep s alive).watched, w'.runId = w.runId) ∨
@@ -2206,21 +2181,8 @@ theorem sweep_total (s : State) (alive : List Nat) (w : Watch) (hw : w ∈ s.wat
   · exact Or.inl ⟨w, sweep_keeps_alive s alive w hw ha, rfl⟩
   · exact Or.inr (sweep_drops_orphan s alive w hw ha).2
 
-/-- (j-b) The rule has no special case for the kind of id: a real run and a branch sentinel with no live waiter are
-both dropped with an `orphan` incident.
-
-$$\forall s, A, w \in s.\mathit{watched}:\ w.\mathit{runId} \notin A \land (\operatorname{validRunId}(L, w.\mathit{runId}) \lor \operatorname{isSentinel}(w.\mathit{runId})) \Rightarrow (w.\mathit{runId}, s.\mathit{now}, \mathrm{orphan}) \in \operatorname{sweep}(s, A).\mathit{incidents}$$
--/
-theorem sweep_orphan_any_kind (L : Limits) (s : State) (alive : List Nat) (w : Watch) (hw : w ∈ s.watched)
-    (ha : w.runId ∉ alive) (hk : validRunId L w.runId = true ∨ isSentinel w.runId = true) :
-    (⟨w.runId, s.now, .orphan⟩ : Incident) ∈ (sweep s alive).incidents := by
-  have _ := hk
-  exact (sweep_drops_orphan s alive w hw ha).2
-
 /-- (j-b) A sweep only removes watches, and only the orphans: the survivors are watches of the state, each with a live
 waiter, and the incidents already logged stay.
-
-$$\forall s, A:\ (\forall w' \in \operatorname{sweep}(s, A).\mathit{watched}:\ w' \in s.\mathit{watched} \land w'.\mathit{runId} \in A) \land \exists t:\ \operatorname{sweep}(s, A).\mathit{incidents} = s.\mathit{incidents} \mathbin{+\!\!+} t$$
 -/
 theorem sweep_only_orphans (s : State) (alive : List Nat) :
     (∀ w' ∈ (sweep s alive).watched, w' ∈ s.watched ∧ w'.runId ∈ alive) ∧
@@ -2230,8 +2192,6 @@ theorem sweep_only_orphans (s : State) (alive : List Nat) :
   exact hw'
 
 /-- A charge changes no watch.
-
-$$\operatorname{charge}(L, s, k, c) = \mathrm{issue}(k', c', s') \Rightarrow s'.\mathit{watched} = s.\mathit{watched}$$
 -/
 theorem charge_watched (L : Limits) (s : State) (k : Kind) (c : Nat) (k' : Kind) (c' : Nat) (s' : State)
     (h : charge L s k c = .issue k' c' s') : s'.watched = s.watched := by
@@ -2254,8 +2214,6 @@ theorem charge_watched (L : Limits) (s : State) (k : Kind) (c : Nat) (k' : Kind)
 /-- (j-c) The window comes from live waiters only: when the poller issues a tick after a sweep, the oldest creation time
 it lists from (`createdSince`) is the creation time of a watch that has a live waiter, so an orphan never widens the
 window.
-
-$$\forall L, s, A, x:\ \operatorname{next}(L, \operatorname{sweep}(s, A)) = \mathrm{issue}(k, c, s') \land \operatorname{since}(s') = x \Rightarrow \exists w \in s.\mathit{watched}:\ w.\mathit{runId} \in A \land w.\mathit{createdAt} = x$$
 -/
 theorem next_window_from_live (L : Limits) (s : State) (alive : List Nat) (k : Kind) (c : Nat) (s' : State)
     (h : next L (step L s (.sweep alive)) = .issue k c s') (x : Nat) (hx : since s' = some x) :
@@ -2272,8 +2230,6 @@ theorem next_window_from_live (L : Limits) (s : State) (alive : List Nat) (k : K
 
 /-- (j-c) A sweep with no live waiter leaves no watch, so `next` stops idle afterwards (or on failures first) and a
 dead waiter's tick cost ends with the sweep.
-
-$$\forall s:\ \operatorname{sweep}(s, [\,]).\mathit{watched} = [\,]$$
 -/
 theorem sweep_nobody (s : State) : (sweep s []).watched = [] := by
   simp [sweep]
@@ -2289,9 +2245,9 @@ theorem sweep_nobody (s : State) : (sweep s []).watched = [] := by
   | .issue _ _ s' => since s' = some 90 | _ => false)
 -- nobody alive: the poller is idle
 #guard stopOf (next defaults (step defaults { init 100 with watched := [⟨7, 90, none, 0⟩] } (.sweep []))) = some .idle
--- the four marker cases: dead, live, reused pid, tokenless
+-- the marker cases: dead, live, reused pid, tokenless, recorded but unreadable now
 #guard !(Marker.alive ⟨7, false, some "a", some "a"⟩) && Marker.alive ⟨7, true, some "a", some "a"⟩ &&
   !(Marker.alive ⟨7, true, some "a", some "b"⟩) && Marker.alive ⟨7, true, none, some "b"⟩ &&
-  Marker.alive ⟨7, true, some "a", none⟩
+  !(Marker.alive ⟨7, true, some "a", none⟩) && Marker.alive ⟨7, true, none, none⟩
 
 end Fw.Ci.Budget

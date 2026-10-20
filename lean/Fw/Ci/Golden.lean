@@ -110,6 +110,8 @@ def cases : List (String × String × Json) := [
     lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]},\"markers\":[{\"runId\":7,\"killOk\":true,\"recorded\":\"Tue Oct 20 09:49:39 2026\",\"now\":\"Tue Oct 20 10:15:02 2026\"}]}"),
   ("next: a marker without a recorded token is alive when its pid exists", "ci.budget.next",
     lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]},\"markers\":[{\"runId\":7,\"killOk\":true,\"now\":\"Tue Oct 20 10:15:02 2026\"}]}"),
+  ("next: a recorded token whose pid ps cannot see now is no waiter: the watch is swept", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]},\"markers\":[{\"runId\":7,\"killOk\":true,\"recorded\":\"Tue Oct 20 09:49:39 2026\"}]}"),
   ("next: without a markers key nothing is swept, the watch is ticked", "ci.budget.next",
     lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]}}"),
   ("next: an empty marker list sweeps every watch", "ci.budget.next",
@@ -193,7 +195,7 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
   IO.println s!"ci-budget golden: {files.length} files, {cases.length} wire cases, {stale} stale"
   return stale
 
-#guard cases.length = 47
+#guard cases.length = 48
 #guard fixtures.length = 7
 
 end Fw.Wire.Ci.Golden

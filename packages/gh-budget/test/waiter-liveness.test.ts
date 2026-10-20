@@ -2,7 +2,7 @@
 // The glue reads facts (kill(pid, 0), the recorded and the current process start time); fwcore decides. Every state lives in a
 // temp directory (mkWorld) on a simulated clock; the real .git/fw-gh-budget is never touched.
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
@@ -129,9 +129,11 @@ test("no register-before-marker gap: the marker is on disk when register is sent
   const w = mkWorld(T0, { fastGh: true });
   const id = 25_000_000_002;
   const seen: { marker: boolean; lockHeld: boolean }[] = [];
+  const nextLockHeld: boolean[] = [];
   const env = {
     ...w.env,
     core: (req: Record<string, unknown>) => {
+      if (req.op === "ci.budget.next") nextLockHeld.push(tryLock(paths(w.env.dir).lock) === null); // the poller reads the markers under this lock
       if (req.op === "ci.budget.step" && JSON.stringify(req.event).includes("register")) {
         // a poller deciding now reads the waiters dir under the same lock; it cannot start while we hold it
         seen.push({ marker: readMarkers(w.env).some((m) => m.runId === id), lockHeld: tryLock(paths(w.env.dir).lock) === null });
@@ -141,4 +143,52 @@ test("no register-before-marker gap: the marker is on disk when register is sent
   };
   addWaiter(env, id, T0 - 5);
   assert.deepEqual(seen, [{ marker: true, lockHeld: true }]);
+});
+
+test("lock order, poller side: the decision (and so readMarkers) runs while the state lock is held", async () => {
+  const w = mkWorld(T0, { fastGh: true });
+  w.config({ start: T0, listCost: 2, runs: [] });
+  const held: boolean[] = [];
+  const env = {
+    ...w.env,
+    core: (req: Record<string, unknown>) => {
+      if (req.op === "ci.budget.next") held.push(tryLock(paths(w.env.dir).lock) === null);
+      return w.env.core(req);
+    },
+  };
+  addWaiter(env, 25_000_000_003, T0 - 5);
+  await pollOnce(env);
+  assert.ok(held.length >= 1 && held.every((h) => h), `lock held on every next: ${JSON.stringify(held)}`);
+});
+
+test("the start token is TZ independent: recorded under Asia/Bangkok, read by the poller under UTC, the watch is kept", async () => {
+  const w = mkWorld(T0, { fastGh: true });
+  w.config({ start: T0, listCost: 2, runs: [{ databaseId: 901, createdAt: T0 - 5, completeAt: T0 + 100_000 }] });
+  const wtsUrl = new URL("../src/waiters.ts", import.meta.url).href;
+  const child = spawn(process.execPath, ["-e", `import(${JSON.stringify(wtsUrl)}).then((m) => { process.stdout.write(m.markerText() + "\\n"); process.stdin.resume(); });`], {
+    env: { ...process.env, TZ: "Asia/Bangkok" }, stdio: ["pipe", "pipe", "inherit"],
+  });
+  try {
+    const text = await new Promise<string>((res, rej) => {
+      let buf = "";
+      child.stdout.on("data", (d) => { buf += String(d); if (buf.includes("\n")) res(buf.trim()); });
+      child.on("error", rej);
+      child.on("exit", () => rej(new Error("child exited")));
+    });
+    const rec = JSON.parse(text) as { pid: number; start: string | null };
+    assert.equal(rec.pid, child.pid);
+    assert.ok(rec.start, "the child recorded a token");
+    const saved = process.env.TZ;
+    process.env.TZ = "UTC"; // the reading process
+    try {
+      assert.equal(startToken(rec.pid), rec.start, "same token under another TZ");
+      plant(w, 901, T0 - 10, rec.pid, text);
+      await pollOnce(w.env);
+    } finally { if (saved === undefined) delete process.env.TZ; else process.env.TZ = saved; }
+    assert.deepEqual(watched(w.env.dir), [901]);
+    assert.deepEqual(incidents(w.env.dir), []);
+  } finally {
+    child.stdin.end();
+    child.kill();
+  }
 });
