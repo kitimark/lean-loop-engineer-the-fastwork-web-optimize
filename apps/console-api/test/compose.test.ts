@@ -40,7 +40,7 @@ describe("console.compose golden: fwcore gives Lean's answer for every vector", 
     it(c.name, async () => {
       if (c.response.error !== undefined) {
         const got = await core.ops("console.compose", c.request).then((r) => r, (e: Error) => ({ error: String(e.message) }));
-        expect(JSON.stringify(got)).toContain(c.response.error);
+        expect((got as { error?: string }).error ?? JSON.stringify(got)).toContain(c.response.error);
       } else {
         const { id: _id, ...got } = await core.ops("console.compose", c.request) as Record<string, unknown>;
         expect(JSON.parse(JSON.stringify(got))).toEqual(c.response);
@@ -116,6 +116,18 @@ describe("GET /api/compose over the real registry and ledger", () => {
     expect(r.decision.ok).toBe(false);
     expect(r.decision.link).toBeNull();
     expect(r.decision.reasons.join("|")).toContain("refuted");
+  });
+
+  it("a superseded refuted row does not refute: hero.exit:scoped takes the class of the row that superseded it", async () => {
+    const r = await composeReply(ROOT, core, [{ part: "hero.exit", variant: "scoped" }]) as any;
+    const v = r.parts.find((p: any) => p.id === "hero.exit").variants.find((x: any) => x.name === "scoped");
+    const idx = (id: string) => ledger.findings.findIndex((x) => x.id === id);
+    expect(ledger.findings[idx("hero.exit.scoped.falsified")]!.supersededBy).toBe("hero.exit.scoped.inline");
+    expect(v.rows).toContain(idx("hero.exit.scoped.falsified"));
+    expect(v.rows).toContain(idx("hero.exit.scoped.inline"));
+    expect(v.class).toBe("ledger-proved");
+    expect(v.refusal).toBeNull();
+    expect(r.decision).toMatchObject({ ok: true, link: "?fw=hero.exit:scoped" });
   });
 
   it("every ledger row an explanation cites exists in the ledger, with its own words", async () => {

@@ -11847,7 +11847,8 @@
     "packages/contracts/golden/console/console.compose.jsonl",
     "docs/team/tools/compose.md",
     "docs/team/handoffs/compose-superseded-rows.md"
-   ]
+   ],
+   "evidence": "69fabee"
   },
   {
    "devices": [
