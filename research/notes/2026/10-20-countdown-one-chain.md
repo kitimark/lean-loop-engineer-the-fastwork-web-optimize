@@ -66,6 +66,24 @@ subscriber that reads layout runs after the countdown wrote a face transform, so
 `local_dom_window.cc:1877`@f842f52). I have not identified which subscriber read in frame 499; the artifacts hold
 counts only, no trace stacks.
 
+What the existing counts add (MEASURED, runs 39313842964 one-chain / 39313910496 faithful, `counts.json` frames
+496-502, all 3 shards):
+- Frame 499 also has ScheduleStyleRecalculation 2 against 1. So style went dirty, clean, then dirty again inside the
+  frame: one more invalidate-and-update cycle, not a larger single one.
+- Layout, LayoutCount, FireAnimationFrame, RequestAnimationFrame and FunctionCall are equal in frame 499. The extra
+  update is style only, which fits a face-transform write followed by a read: a transform dirties style and not layout.
+- Frames 496-498 show the expected saving (FireAnimationFrame 3 against 4, 4 against 5), and frames 500-502 differ only
+  in EventDispatch and FunctionCall noise that changes from shard to shard.
+
+Narrowing, INFERRED. `createRafClock` iterates its `Set` of subscribers with `for...of`, and a `Set` iterator also
+visits entries added during the walk (ECMA-262 CreateSetIterator walks the entry list by index). The one-chain
+subscriber is added when a chain starts, so any shared subscriber added after it, for example one that a part adds when
+the swipe settles, runs after the face writes in the same frame. The footprint lists the shared-clock (`ctx: clock`)
+layout reads that could be it: `rect` in commission (`driver.ts` 128, 129, 155; `index.tsx` 89), pain.notes
+(`index.tsx` 75-81), people.card (`index.tsx` 49-53) and hero.orbit (`driver.ts` 80, `clientWidth`). Telling them
+apart needs a trace with stacks. The chromium-counts lane uploads `counts.json` and zones only and has no input for
+a raw trace, so this stays open.
+
 Lean gap: `oneChain_writes_eq` covers the countdown's own writes and their order. It does not model other parts'
 reads in the same frame. Lesson: moving work into a shared callback keeps the work but changes its position relative
 to other parts' reads. A scheduling proof is page-exact only when it fixes that position. One option is a clock API
