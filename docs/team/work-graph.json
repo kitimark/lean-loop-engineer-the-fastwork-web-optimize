@@ -10484,7 +10484,12 @@
     "lean/Fw.lean",
     "docs/team/tools/console.md",
     "research/notes/2026/10-2*-fwcore-query-speed.md",
-    "docs/team/handoffs/fwcore-query-speed.md"
+    "docs/team/handoffs/fwcore-query-speed.md",
+    "lean/scripts/QueryProfile.lean",
+    "lean/scripts/query-golden.sh",
+    "lean/scripts/query-time.mjs",
+    "lean/scripts/scale-log.mjs",
+    "lean/scripts/synth-log.mjs"
    ]
   },
   {
