@@ -67,7 +67,7 @@ export function dryLog(o: Outcome): string[] {
 export const dryRun = (o: Outcome, task: string): string[] => [...dryLog(o), verdictLine(outcomeKind(o), task)];
 
 /** Lean `Lint.argv` of the lints in `lintPlan`. */
-export const LINT_ARGV = { ciPaths: ["node", "scripts/ci-paths.mjs", "--check"], axioms: ["sh", "-c", "cd lean && lake build >&2 && sh scripts/axiom-check.sh"] };
+export const LINT_ARGV = { ciPaths: ["node", "scripts/ci-paths.mjs", "--check"], axioms: ["sh", "-c", "cd lean && . ../scripts/lake-slot-lib.sh && (lake_slot .. lake build) >&2 && sh scripts/axiom-check.sh"] };
 /** Lean `lintPlan`: the argv of the lints a dry run runs: ci-paths when its script exists; the axiom check when its script exists
  *  and a changed path is under `lean/`. */
 export function lintPlan(changed: string[], hasCiPaths: boolean, hasAxioms: boolean): string[][] {

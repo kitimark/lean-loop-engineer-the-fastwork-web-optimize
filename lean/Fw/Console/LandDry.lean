@@ -291,7 +291,7 @@ deriving DecidableEq, Repr
 /-- The command of a lint, run in the merge-tree worktree. -/
 def Lint.argv : Lint → List String
   | .ciPaths => ["node", "scripts/ci-paths.mjs", "--check"]
-  | .axioms => ["sh", "-c", "cd lean && lake build >&2 && sh scripts/axiom-check.sh"]
+  | .axioms => ["sh", "-c", "cd lean && . ../scripts/lake-slot-lib.sh && (lake_slot .. lake build) >&2 && sh scripts/axiom-check.sh"]
 
 /-- The lints a dry run runs, given the changed paths and whether the tree has each script: `ci-paths` whenever its script exists,
 the axiom check when its script exists and some changed path is under `lean/`. -/
