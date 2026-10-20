@@ -11,7 +11,8 @@ export interface GenCondition {
   readonly tsId: string;
   readonly css: string;
 }
-const conditions = new Map((genConditions as readonly GenCondition[]).map((c) => [c.id, c.css]));
+const list: readonly GenCondition[] = genConditions;
+const conditions = new Map(list.map((c) => [c.id, c.css]));
 
 export function mediaCondition(id: string): string {
   const c = conditions.get(id);
