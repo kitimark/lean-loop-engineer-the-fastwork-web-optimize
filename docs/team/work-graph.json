@@ -10106,7 +10106,8 @@
     "apps/console-api/src/preview/**",
     "apps/console-api/test/**",
     "docs/team/tools/preview-e2e.md",
-    "docs/team/handoffs/preview-e2e-entry.md"
+    "docs/team/handoffs/preview-e2e-entry.md",
+    "lean/Fw/Ops/Golden.lean"
    ]
   },
   {
