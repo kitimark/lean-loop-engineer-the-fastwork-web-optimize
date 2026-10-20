@@ -64,6 +64,7 @@ import Fw.Measure.Classes
 import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
+import Fw.Measure.WebKitLag  -- webkit-lag-probe: scroll regions, paint attribution to parts, counter ranking
 import Fw.Measure.Retry
 import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
