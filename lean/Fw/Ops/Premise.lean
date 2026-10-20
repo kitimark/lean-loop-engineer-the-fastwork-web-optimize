@@ -2,7 +2,7 @@ import Lean.Data.Json
 /-!
 # Premise registry: every empirical browser premise a theorem relies on has a named browser test
 
-Lean proves "premises $\Rightarrow$ conclusion". A premise about a real browser (Chromium, WebKit) is empirical: when
+Lean proves "premises `⇒` conclusion". A premise about a real browser (Chromium, WebKit) is empirical: when
 it is false the proof silently stops applying (that is how the base engine model overcounted, and how the gate
 sampled unsettled pages). This module is the registry of those premises and the two pure checks around it.
 
@@ -39,18 +39,12 @@ checks every other name against the Lean sources.
 namespace Fw.Ops.Premise
 open Lean
 
-/-- The two engines a premise is tested on.
-
-$$\mathrm{Engine} = \{\mathrm{chromium},\ \mathrm{webkit}\}$$
--/
+/-- The two engines a premise is tested on. -/
 inductive Engine where
   | chromium | webkit
 deriving DecidableEq, Repr
 
-/-- The engine's name in the JSON files.
-
-$$\operatorname{name}(\mathrm{chromium}) = \texttt{chromium},\quad \operatorname{name}(\mathrm{webkit}) = \texttt{webkit}$$
--/
+/-- The engine's name in the JSON files. -/
 def Engine.name : Engine → String
   | .chromium => "chromium"
   | .webkit => "webkit"
@@ -59,25 +53,17 @@ def Engine.name : Engine → String
 `fw premises --results`), or a CI `lane` (a workflow of its own, for premises a Playwright page cannot observe, e.g.
 WebKit's `internals.styleRecalcCount`, only exposed in WebKitTestRunner). A lane premise's `testId` is the workflow
 file's path.
-
-$$\mathrm{TestKind} = \{\mathrm{page},\ \mathrm{lane}\}$$
 -/
 inductive TestKind where
   | page | lane
 deriving DecidableEq, Repr
 
-/-- The test kind's name in the JSON files.
-
-$$\operatorname{name}(\mathrm{page}) = \texttt{page},\quad \operatorname{name}(\mathrm{lane}) = \texttt{lane}$$
--/
+/-- The test kind's name in the JSON files. -/
 def TestKind.name : TestKind → String
   | .page => "page"
   | .lane => "lane"
 
-/-- One registered premise; `kind` defaults to `page`.
-
-$$p = (\mathrm{id},\ \mathrm{statement},\ \mathrm{theorems},\ \mathrm{engines},\ \mathrm{testId},\ \mathrm{kind})$$
--/
+/-- One registered premise; `kind` defaults to `page`. -/
 structure Premise where
   id : String
   statement : String
@@ -86,18 +72,13 @@ structure Premise where
   testId : String
   kind : TestKind := .page
 
-/-- A test as the test package declares it: its id and the premise it names.
-
-$$t = (\mathrm{id},\ \mathrm{premise})$$
--/
+/-- A test as the test package declares it: its id and the premise it names. -/
 structure TestRef where
   id : String
   premise : String
 
 /-- One CI result: the test, the engine it ran on, whether its assertions held, and the error text of a failing run
 (the empty string when there is none; `run.mjs` writes the first 6 lines of the thrown error).
-
-$$r = (\mathrm{testId},\ e,\ \mathrm{ok},\ \mathrm{error})$$
 -/
 structure Result where
   testId : String
@@ -107,57 +88,37 @@ structure Result where
 
 /-! ## Lint -/
 
-/-- The test reference a registered premise expects.
-
-$$\operatorname{ref}(p) = (p.\mathrm{testId},\ p.\mathrm{id})$$
--/
+/-- The test reference a registered premise expects. -/
 def Premise.ref (p : Premise) : TestRef := ⟨p.testId, p.id⟩
 
-/-- Premise `p` has a test among `ts`: one with its test id that names it.
-
-$$\operatorname{tested}(ts, p) \iff \exists t \in ts:\ t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id}$$
--/
+/-- Premise `p` has a test among `ts`: one with its test id that names it. -/
 def tested (ts : List TestRef) (p : Premise) : Bool :=
   ts.any fun t => t.id == p.testId && t.premise == p.id
 
 /-- Premise `p` is covered by a test: a page premise by a declared page test (`tested`), a lane premise by an existing
 workflow file, i.e. its test id is among the workflow paths `files` (the caller lists `.github/workflows/`).
-
-$$\operatorname{covered}(ts, F, p) \iff \begin{cases} \operatorname{tested}(ts, p) & p.\mathrm{kind} = \mathrm{page} \\ p.\mathrm{testId} \in F & p.\mathrm{kind} = \mathrm{lane} \end{cases}$$
 -/
 def covered (ts : List TestRef) (files : List String) (p : Premise) : Bool :=
   match p.kind with
   | .page => tested ts p
   | .lane => files.contains p.testId
 
-/-- Test `t` is registered: some page premise names it as its test and is the premise `t` names.
-
-$$\operatorname{registered}(ps, t) \iff \exists p \in ps:\ p.\mathrm{kind} = \mathrm{page} \land p.\mathrm{id} = t.\mathrm{premise} \land p.\mathrm{testId} = t.\mathrm{id}$$
--/
+/-- Test `t` is registered: some page premise names it as its test and is the premise `t` names. -/
 def registered (ps : List Premise) (t : TestRef) : Bool :=
   ps.any fun p => p.kind == .page && p.id == t.premise && p.testId == t.id
 
-/-- The lint result: premise ids without a test, and ids of tests that name an unknown premise.
-
-$$\mathrm{Lint} = (\mathrm{untested},\ \mathrm{unknown})$$
--/
+/-- The lint result: premise ids without a test, and ids of tests that name an unknown premise. -/
 structure Lint where
   untested : List String
   unknown : List String
 deriving DecidableEq, Repr
 
-/-- **The premise lint**, on the declared page tests `ts` and the existing workflow files `files`.
-
-$$\operatorname{lint}(ps, ts, F) = \big(\,[p.\mathrm{id} \mid p \in ps,\ \neg\operatorname{covered}(ts, F, p)],\ [t.\mathrm{id} \mid t \in ts,\ \neg\operatorname{registered}(ps, t)]\,\big)$$
--/
+/-- **The premise lint**, on the declared page tests `ts` and the existing workflow files `files`. -/
 def premiseLint (ps : List Premise) (ts : List TestRef) (files : List String) : Lint where
   untested := (ps.filter fun p => !covered ts files p).map (·.id)
   unknown := (ts.filter fun t => !registered ps t).map (·.id)
 
-/-- `covered` unfolded.
-
-$$\forall ts, F, p:\  \operatorname{covered}(ts, F, p) \iff \big(p.\mathrm{kind} = \mathrm{page} \Rightarrow \exists t \in ts:\ t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id}\big) \land \big(p.\mathrm{kind} = \mathrm{lane} \Rightarrow p.\mathrm{testId} \in F\big)$$
--/
+/-- `covered` unfolded. -/
 theorem covered_iff (ts : List TestRef) (files : List String) (p : Premise) :
     covered ts files p = true ↔
       (p.kind = .page → ∃ t ∈ ts, t.id = p.testId ∧ t.premise = p.id) ∧ (p.kind = .lane → p.testId ∈ files) := by
@@ -165,8 +126,6 @@ theorem covered_iff (ts : List TestRef) (files : List String) (p : Premise) :
 
 /-- **Lint soundness.** The lint is empty iff every page premise is tested, every lane premise names an existing
 workflow file, and every test is registered to a page premise.
-
-$$\forall ps, ts, F:\  \operatorname{lint}(ps, ts, F) = (\varnothing, \varnothing) \iff \Big(\forall p \in ps:\ \big(p.\mathrm{kind} = \mathrm{page} \Rightarrow \exists t \in ts:\ t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id}\big) \land \big(p.\mathrm{kind} = \mathrm{lane} \Rightarrow p.\mathrm{testId} \in F\big)\Big) \land \big(\forall t \in ts\ \exists p \in ps:\ p.\mathrm{kind} = \mathrm{page} \land p.\mathrm{id} = t.\mathrm{premise} \land p.\mathrm{testId} = t.\mathrm{id}\big)$$
 
 A premise without a test, a lane premise whose workflow is missing, or a test that names no page premise makes the
 lint fail; nothing else does. -/
@@ -180,22 +139,14 @@ theorem premiseLint_sound (ps : List Premise) (ts : List TestRef) (files : List 
   simp only [premiseLint, Lint.mk.injEq, List.map_eq_nil_iff, List.filter_eq_nil_iff, Bool.not_eq_true',
     Bool.not_eq_false, ← covered_iff, ← hr]
 
-/-- The page tests the registry expects: the references of its page premises.
-
-$$\operatorname{pageRefs}(ps) = [\operatorname{ref}(p) \mid p \in ps,\ p.\mathrm{kind} = \mathrm{page}]$$
--/
+/-- The page tests the registry expects: the references of its page premises. -/
 def pageRefs (ps : List Premise) : List TestRef := (ps.filter (·.kind == .page)).map Premise.ref
 
-/-- The workflow files the registry expects: the test ids of its lane premises.
-
-$$\operatorname{laneFiles}(ps) = [p.\mathrm{testId} \mid p \in ps,\ p.\mathrm{kind} = \mathrm{lane}]$$
--/
+/-- The workflow files the registry expects: the test ids of its lane premises. -/
 def laneFiles (ps : List Premise) : List String := (ps.filter (·.kind == .lane)).map (·.testId)
 
 /-- **The registry's own references are lint-clean.** If the test package declares exactly the page tests the registry
 names and exactly the workflows its lane premises name exist, the lint is empty (for any registry).
-
-$$\forall ps:\  \operatorname{lint}\big(ps,\ \operatorname{pageRefs}(ps),\ \operatorname{laneFiles}(ps)\big) = (\varnothing, \varnothing)$$
 
 A registry cannot lint itself into a failure; only a test package or workflow set that drifts from it can. -/
 theorem premiseLint_self (ps : List Premise) : premiseLint ps (pageRefs ps) (laneFiles ps) = ⟨[], []⟩ := by
@@ -209,8 +160,6 @@ theorem premiseLint_self (ps : List Premise) : premiseLint ps (pageRefs ps) (lan
 
 /-- **Dropping a test is caught.** If a page premise is registered and no declared test carries its test id and names
 it, the premise is in the lint's `untested` list.
-
-$$\forall ps, ts, F, p:\  p \in ps \land p.\mathrm{kind} = \mathrm{page} \land (\forall t \in ts:\ \neg(t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id})) \Rightarrow p.\mathrm{id} \in \operatorname{lint}(ps, ts, F).\mathrm{untested}$$
 -/
 theorem untested_of_missing (ps : List Premise) (ts : List TestRef) (files : List String) (p : Premise) (hp : p ∈ ps)
     (hk : p.kind = .page) (h : ∀ t ∈ ts, ¬(t.id = p.testId ∧ t.premise = p.id)) :
@@ -223,8 +172,6 @@ theorem untested_of_missing (ps : List Premise) (ts : List TestRef) (files : Lis
 
 /-- **A lane premise needs its workflow.** If a lane premise's test id is not among the existing workflow files, the
 premise is in the lint's `untested` list.
-
-$$\forall ps, ts, F, p:\  p \in ps \land p.\mathrm{kind} = \mathrm{lane} \land p.\mathrm{testId} \notin F \Rightarrow p.\mathrm{id} \in \operatorname{lint}(ps, ts, F).\mathrm{untested}$$
 -/
 theorem untested_of_lane_missing (ps : List Premise) (ts : List TestRef) (files : List String) (p : Premise)
     (hp : p ∈ ps) (hk : p.kind = .lane) (h : p.testId ∉ files) : p.id ∈ (premiseLint ps ts files).untested := by
@@ -235,34 +182,23 @@ theorem untested_of_lane_missing (ps : List Premise) (ts : List TestRef) (files 
 
 /-! ## Flagging theorems from CI results -/
 
-/-- The premise holds on engine `e` in the results `rs`: the test ran on `e` at least once and every run passed.
-
-$$\operatorname{holds}(rs, p, e) \iff \big(\exists r \in rs:\ r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e\big) \land \big(\forall r \in rs:\ (r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e) \Rightarrow r.\mathrm{ok}\big)$$
--/
+/-- The premise holds on engine `e` in the results `rs`: the test ran on `e` at least once and every run passed. -/
 def holds (rs : List Result) (p : Premise) (e : Engine) : Bool :=
   let m := rs.filter fun r => r.testId == p.testId && r.engine == e
   !m.isEmpty && m.all (·.ok)
 
-/-- The premise holds on every engine it needs.
-
-$$\operatorname{premiseHolds}(rs, p) \iff \forall e \in p.\mathrm{engines}:\ \operatorname{holds}(rs, p, e)$$
--/
+/-- The premise holds on every engine it needs. -/
 def premiseHolds (rs : List Result) (p : Premise) : Bool :=
   p.engines.all (holds rs p)
 
 /-- **The flagged premises**: the page premises that do not hold on some engine they need (failed or missing). Their
 `theorems` are the theorems whose proof no longer applies. Lane premises are never flagged here: no page result
 exists for them; their own workflow asserts them.
-
-$$\operatorname{flagged}(ps, rs) = [\,p \in ps \mid p.\mathrm{kind} = \mathrm{page} \land \neg\operatorname{premiseHolds}(rs, p)\,]$$
 -/
 def flagged (ps : List Premise) (rs : List Result) : List Premise :=
   ps.filter fun p => p.kind == .page && !premiseHolds rs p
 
-/-- `holds` unfolded: a run exists and every run passed.
-
-$$\operatorname{holds}(rs, p, e) \iff (\exists r \in rs:\ r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e) \land (\forall r \in rs:\ r.\mathrm{testId} = p.\mathrm{testId} \Rightarrow r.\mathrm{engine} = e \Rightarrow r.\mathrm{ok} = \top)$$
--/
+/-- `holds` unfolded: a run exists and every run passed. -/
 theorem holds_iff (rs : List Result) (p : Premise) (e : Engine) :
     holds rs p e = true ↔
       (∃ r ∈ rs, r.testId = p.testId ∧ r.engine = e) ∧
@@ -278,8 +214,6 @@ theorem holds_iff (rs : List Result) (p : Premise) (e : Engine) :
 
 /-- **Flag soundness.** Nothing is flagged iff every page premise has, on every engine it needs, a run of its test and
 every such run passed.
-
-$$\forall ps, rs:\  \operatorname{flagged}(ps, rs) = [\,] \iff \forall p \in ps:\ p.\mathrm{kind} = \mathrm{page} \Rightarrow \forall e \in p.\mathrm{engines}:\ \operatorname{holds}(rs, p, e)$$
 -/
 theorem flagged_eq_nil_iff (ps : List Premise) (rs : List Result) :
     flagged ps rs = [] ↔ ∀ p ∈ ps, p.kind = .page → ∀ e ∈ p.engines, holds rs p e = true := by
@@ -287,8 +221,6 @@ theorem flagged_eq_nil_iff (ps : List Premise) (rs : List Result) :
 
 /-- **A failing premise test flags its premise.** One failing run of a page premise's test on an engine the premise
 needs puts the premise (hence its theorems) in the flagged list, whatever else passed.
-
-$$\forall ps, rs, p, e:\  p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \Rightarrow p \in \operatorname{flagged}\big(ps,\ (p.\mathrm{testId}, e, \bot, \varepsilon) :: rs\big)\quad (\varepsilon = \text{the empty string})$$
 -/
 theorem flagged_of_fail (ps : List Premise) (rs : List Result) (p : Premise) (hp : p ∈ ps) (hk : p.kind = .page)
     (e : Engine) (he : e ∈ p.engines) : p ∈ flagged ps (⟨p.testId, e, false, ""⟩ :: rs) := by
@@ -302,8 +234,6 @@ theorem flagged_of_fail (ps : List Premise) (rs : List Result) (p : Premise) (hp
 
 /-- **A missing test run flags too.** If no result exists for a page premise's test on an engine it needs, the premise
 is flagged: absence is not a pass.
-
-$$\forall ps, rs, p, e:\  p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land (\forall r \in rs:\ \neg(r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e)) \Rightarrow p \in \operatorname{flagged}(ps, rs)$$
 -/
 theorem flagged_of_missing (ps : List Premise) (rs : List Result) (p : Premise) (hp : p ∈ ps) (hk : p.kind = .page)
     (e : Engine) (he : e ∈ p.engines) (h : ∀ r ∈ rs, ¬(r.testId = p.testId ∧ r.engine = e)) :
@@ -318,8 +248,6 @@ theorem flagged_of_missing (ps : List Premise) (rs : List Result) (p : Premise) 
 
 /-- **Lane premises are not flagged from page results.** Whatever the results, a lane premise is not in the flagged
 list (its workflow is its test; the lint checks the workflow exists).
-
-$$\forall ps, rs, p:\  p.\mathrm{kind} = \mathrm{lane} \Rightarrow p \notin \operatorname{flagged}(ps, rs)$$
 -/
 theorem not_flagged_of_lane (ps : List Premise) (rs : List Result) (p : Premise) (hk : p.kind = .lane) :
     p ∉ flagged ps rs := by
@@ -347,33 +275,21 @@ private def laneRule (id stage counters model : String) (e : Engine) (ths : List
 gate-settle and fix-commission tasks, `Fw.Engine.Core` (`frameWorkE`, forced updates R4) and `Lessons`, and the
 premises of `research/findings/ledger.json` that a static page can assert (R3, R5, `Faithful`, the `inherits` premise,
 the allow-list premise AL, the write-on-change premises, IO delivery), and the grid alignment premises of
-`Fw.Gate.AlignEquiv` (gate-align-equiv, $p_{16}$ and $p_{17}$, page tests). Premises that need engine counters
+`Fw.Gate.AlignEquiv` (gate-align-equiv, `p_16` and `p_17`, page tests). Premises that need engine counters
 (compositing bits, per-stage counts) stay with the engine-check lane (`fw engine-check`, tests F0-F4), except those a
-CI lane of their own asserts (kind `lane`): $p_{18}$-$p_{22}$, the five engine stage rules that the
+CI lane of their own asserts (kind `lane`): `p_18`-`p_22`, the five engine stage rules that the
 `engine-premises.yml` lane measured and found to hold (`cr.script`, `cr.style`, `cr.commit`, `wk.style`, `wk.commit`;
-task engine-premise-measure); $p_{23}$-$p_{29}$, the seven stage rules that lane refuted in run 39088367495 and that
+task engine-premise-measure); `p_23`-`p_29`, the seven stage rules that lane refuted in run 39088367495 and that
 hold on its recorded cells after the model fix (`cr.layout`, `cr.props`, `cr.paint`, `cr.raster`, `cr.hits`,
 `wk.layout`, `wk.props`; task engine-model-fix, `Fw.Ops.EnginePremise.cr_recorded_holds`, `wk_recorded_holds`); and
-$p_{32}$, the WKTR style-rate premise (task wktr-p1p4), whose counter `internals.styleRecalcCount` only
+`p_32`, the WKTR style-rate premise (task wktr-p1p4), whose counter `internals.styleRecalcCount` only
 WebKitTestRunner exposes. The lane rules are stated on the `table` step set, which the lane judges in rows of their own
 (`Fw.Ops.EnginePremise.grouped_steps`). The `extra` step set (a clock-shim control, custom-property joins, two-box
 frames; task engine-model-fix-2) is judged separately: in run 39124427211 its rows `chromium.extra.paint` and
 `chromium.extra.raster` fail on `top` with `scale` and every other row holds (`Fw.Ops.EnginePremise.cr_extra_verdicts`,
 `wk_extra_holds`).
 
-The two `content-visibility` view premises of fix-commission-margin ($p_{30}$, $p_{31}$: `cv.skip-flag`, `cv.fresh-after-resize`) are page tests. So is the Typed OM margin premise $p_{33}$ (`cv.margin-typed-om`, task cmr-margin-typed-om). The margin rule of the breakpoint gate (task cmr-margin-rect-rule, `Fw.Gate.marginStatus`) reads that premise: it decides an auto or percent margin by the node's rect only when both arms report such a value.
-
-$$\operatorname{registry} = [p_1, \dots, p_{33}]$$
-$$\begin{aligned}
-\mathrm{id}(p_1..p_{17}) &= [\texttt{anim.list}, \texttt{cv.auto-margin}, \texttt{cv.read-forces-lock}, \texttt{frame.raf-order}, \texttt{frame.ro-same-frame}, \texttt{resize.lag}, \texttt{clock.raf-timeline}, \texttt{css.number-linear}, \texttt{css.inherits-false}, \\
-&\qquad \texttt{dom.token-toggle-noop}, \texttt{dom.inline-same-value}, \texttt{read.forced-update}, \texttt{hit.pointer-events}, \texttt{layout.unit-truncation}, \texttt{io.async-delivery}, \\
-&\qquad \texttt{grid.normal-aspect-ratio-no-stretch}, \texttt{grid.stretch-fill-equals-start}] \quad (\text{page}) \\
-\mathrm{id}(p_{18}..p_{22}) &= [\texttt{cr.script}, \texttt{cr.style}, \texttt{cr.commit}, \texttt{wk.style}, \texttt{wk.commit}] \quad (\text{lane}, \texttt{engine-premises.yml}) \\
-\mathrm{id}(p_{23}..p_{29}) &= [\texttt{cr.layout}, \texttt{cr.props}, \texttt{cr.paint}, \texttt{cr.raster}, \texttt{cr.hits}, \texttt{wk.layout}, \texttt{wk.props}] \quad (\text{lane}, \texttt{engine-premises.yml}) \\
-\mathrm{id}(p_{30}, p_{31}) &= [\texttt{cv.skip-flag}, \texttt{cv.fresh-after-resize}] \quad (\text{page}) \\
-\mathrm{id}(p_{32}) &= \texttt{wktr\_scroll\_timeline\_restyle} \quad (\text{lane}, \texttt{wktr-fixtures.yml}) \\
-\mathrm{id}(p_{33}) &= \texttt{cv.margin-typed-om} \quad (\text{page})
-\end{aligned}$$
+The two `content-visibility` view premises of fix-commission-margin (`p_30`, `p_31`: `cv.skip-flag`, `cv.fresh-after-resize`) are page tests. So is the Typed OM margin premise `p_33` (`cv.margin-typed-om`, task cmr-margin-typed-om). The margin rule of the breakpoint gate (task cmr-margin-rect-rule, `Fw.Gate.marginStatus`) reads that premise: it decides an auto or percent margin by the node's rect only when both arms report such a value.
 -/
 def registry : List Premise := [
   { id := "anim.list"
@@ -517,28 +433,16 @@ def registry : List Premise := [
     testId := "prem.cv.margin-typed-om" }
 ]
 
-/-- The premise ids are pairwise distinct.
-
-$$\operatorname{ids}(\mathrm{registry}) \text{ has no repeats}$$
--/
+/-- The premise ids are pairwise distinct. -/
 theorem registry_ids_nodup : (registry.map (·.id)).Nodup := by decide
 
-/-- The page test ids are pairwise distinct: one test per page premise (lane premises share their workflow file).
-
-$$\operatorname{testIds}(\{p \in \mathrm{registry} \mid p.\mathrm{kind} = \mathrm{page}\}) \text{ has no repeats}$$
--/
+/-- The page test ids are pairwise distinct: one test per page premise (lane premises share their workflow file). -/
 theorem registry_testIds_nodup : ((registry.filter (·.kind == .page)).map (·.testId)).Nodup := by decide
 
-/-- Every premise names at least one engine and at least one theorem.
-
-$$\forall p \in \mathrm{registry}:\ p.\mathrm{engines} \ne [\,] \land p.\mathrm{theorems} \ne [\,]$$
--/
+/-- Every premise names at least one engine and at least one theorem. -/
 theorem registry_nonempty : ∀ p ∈ registry, p.engines ≠ [] ∧ p.theorems ≠ [] := by decide
 
-/-- The registry is lint-clean against its own references (`premiseLint_self`, instantiated).
-
-$$\operatorname{lint}(\mathrm{registry}, \operatorname{pageRefs}(\mathrm{registry}), \operatorname{laneFiles}(\mathrm{registry})) = (\varnothing, \varnothing)$$
--/
+/-- The registry is lint-clean against its own references (`premiseLint_self`, instantiated). -/
 theorem registry_lint_clean : premiseLint registry (pageRefs registry) (laneFiles registry) = ⟨[], []⟩ :=
   premiseLint_self registry
 
@@ -546,16 +450,11 @@ theorem registry_lint_clean : premiseLint registry (pageRefs registry) (laneFile
 (`engine-premises.yml`) and the WKTR style-rate premise (`wktr-fixtures.yml`). Changed by engine-model-fix: twelve
 stage rules, was five.
 
-$$\operatorname{laneFiles}(\mathrm{registry}) = [\texttt{engine-premises.yml}]^{12} \mathbin{+\!\!+} [\texttt{wktr-fixtures.yml}]$$
-
 Which workflow asserts each lane premise, in registry order. -/
 theorem registry_laneFiles : laneFiles registry =
     List.replicate 12 ".github/workflows/engine-premises.yml" ++ [".github/workflows/wktr-fixtures.yml"] := by decide
 
-/-- Adding workflow files keeps a premise covered: coverage is monotone in the file list.
-
-$$\forall ts, F, F', p:\ (\forall f \in F:\ f \in F') \land \operatorname{covered}(ts, F, p) \Rightarrow \operatorname{covered}(ts, F', p)$$
--/
+/-- Adding workflow files keeps a premise covered: coverage is monotone in the file list. -/
 theorem covered_mono (ts : List TestRef) (files files' : List String) (p : Premise) (hf : ∀ f ∈ files, f ∈ files')
     (h : covered ts files p = true) : covered ts files' p = true := by
   cases hk : p.kind <;> simp_all [covered]
@@ -575,14 +474,11 @@ are per golden file (a new golden file cites nothing until it is listed, so all 
 and stage: a row's value is the engine model's per-frame work of that stage (`frameWork` with `chromium`/`chromiumAt`,
 `webkitAt`/`webkitX`), so it rests on that stage rule of that engine. The WebKit style rows whose variant runs a
 transform animation on a scroll timeline (P1, P4 `scrollDriven`; hero-exit's variant) also cite the measured WKTR
-premise $p_{32}$. No page premise is cited: no golden value is computed from a theorem that assumes one (scout sweep of
-the generators, 2026-10-18: `frameWorkE`, forced reads, observers and the part theorems of $p_1$-$p_{17}$ are only in
+premise `p_32`. No page premise is cited: no golden value is computed from a theorem that assumes one (scout sweep of
+the generators, 2026-10-18: `frameWorkE`, forced reads, observers and the part theorems of `p_1`-`p_17` are only in
 theorem sections). -/
 
-/-- An engine premise that no test measures yet: a claim of a Lean engine model a golden row rests on.
-
-$$u = (\mathrm{id},\ \mathrm{statement},\ \mathrm{engines})$$
--/
+/-- An engine premise that no test measures yet: a claim of a Lean engine model a golden row rests on. -/
 structure Untested where
   id : String
   statement : String
@@ -600,8 +496,6 @@ private def stageRule (id stage counters model : String) (e : Engine) : Untested
 Chromium the property-signature table and the mode facts of `chromium.jsonl`, none of which a test measures yet.
 (Task engine-premise-measure moved five of the first 17 into `registry`; task engine-model-fix moved the seven it
 refuted, `refutedPremises`, after the model fix; the five left cannot be measured with our counters.)
-
-$$\mathrm{untested} = [u_1, \dots, u_{5}] = [\texttt{cr.comp}, \texttt{cr.signature}, \texttt{cr.mode}, \texttt{wk.script}, \texttt{wk.paint}]$$
 
 The engine claims the goldens still assume without a measurement. -/
 -- Measuring one means a CI lane that asserts it, then moving it into `registry` as a lane premise.
@@ -623,19 +517,6 @@ cases where every pass disagreed with the model of that run. Task engine-model-f
 every one of these cells is predicted (`Fw.Ops.EnginePremise.cr_recorded_holds`, `wk_recorded_holds`) and moved the
 seven rules into `registry`.
 
-$$\mathrm{refuted} = [(i, C_i)],\quad C_i = [\,\text{case } c \text{ in fixture order} \mid \text{presence of the counters of stage}(i) \text{ in } c \ne [\![\mathrm{stage}(i) \in \operatorname{touched}_{\text{old}}(c)]\!]\,] \text{ (as strings, with the observed direction)}$$
-$$\begin{aligned}
-\mathrm{refuted} = [\,&(\texttt{cr.layout}, [\texttt{transform(none<->some)@own: set (Layout absent, model runs)}]), \\
-&(\texttt{cr.props}, [\texttt{rAF-only frame after padding@own (PrePaint runs, model absent)}]), \\
-&(\texttt{cr.paint}, [\texttt{transform(none<->some)@own}, \texttt{top@own}, \texttt{left@own}, \texttt{margin@own (Paint absent, model runs)}]), \\
-&(\texttt{cr.raster}, [\texttt{scale@own}, \texttt{filter(blur)@own (RasterTask runs, model absent)}, \texttt{top@own}, \texttt{left@own}, \texttt{margin@own (RasterTask absent, model runs)}]), \\
-&(\texttt{cr.hits}, [\texttt{transform(none<->some)@none/@layer}, \texttt{top@layer/@own}, \texttt{left@layer/@own}, \texttt{width@none/@layer/@own}, \\
-&\qquad \texttt{height@none/@layer/@own}, \texttt{margin@none/@layer/@own}, \texttt{padding@none/@layer/@own (HitTest runs, model absent)}]), \\
-&(\texttt{wk.layout}, [\texttt{filter@layer}, \texttt{filter@own (layoutUpdates runs, model absent)}]), \\
-&(\texttt{wk.props}, [\texttt{transform@layer}, \texttt{opacity@layer}, \texttt{filter@layer}, \texttt{background@own}, \texttt{color@own}, \texttt{mask@layer}, \\
-&\qquad \texttt{mask@own}, \texttt{insetAbs@layer}, \texttt{insetAbs@own (compositingUpdates runs, model absent)}, \texttt{opacity@own (compositingUpdates absent, model runs)}])\,]
-\end{aligned}$$
-
 The counterexamples that drove the engine-model-fix change. -/
 def refutedPremises : List (String × List String) := [
   ("cr.layout", ["transform(none<->some)@own: set (Layout absent, model runs)"]),
@@ -653,57 +534,36 @@ def refutedPremises : List (String × List String) := [
 /-- **Every refuted premise is now a registry lane premise and no longer untested.** Changed by engine-model-fix:
 it said that every refuted premise was still untested.
 
-$$\forall (i, C) \in \mathrm{refuted}:\ i \in \{p.\mathrm{id} \mid p \in \mathrm{registry},\ p.\mathrm{kind} = \mathrm{lane}\} \land i \notin \{u.\mathrm{id} \mid u \in \mathrm{untested}\}$$
-
 The seven refuted rules moved from the untested list into the registry. -/
 theorem refuted_registered : ∀ r ∈ refutedPremises,
     r.1 ∈ (registry.filter (·.kind == .lane)).map (·.id) ∧ r.1 ∉ untestedPremises.map (·.id) := by decide
 
-/-- A golden row as the lint reads it: the row's string-valued fields, plus `file` (its path below `golden/engine/`).
-
-$$r = [(k_1, v_1), \dots, (k_n, v_n)]$$
--/
+/-- A golden row as the lint reads it: the row's string-valued fields, plus `file` (its path below `golden/engine/`). -/
 abbrev Row := List (String × String)
 
-/-- A citation rule: rows whose fields include every pair of `pattern` cite `premises`.
-
-$$c = (\mathrm{pattern},\ \mathrm{premises})$$
--/
+/-- A citation rule: rows whose fields include every pair of `pattern` cite `premises`. -/
 structure Cite where
   pattern : List (String × String)
   premises : List String
 
-/-- The rule applies to row `r`: for every pair $(k, v)$ of its pattern, the first field $k$ of `r` has value $v$.
+/-- The rule applies to row `r`: for every pair `(k, v)` of its pattern, the first field `k` of `r` has value `v`.
 
-$$\operatorname{applies}(c, r) \iff \forall (k, v) \in c.\mathrm{pattern}:\ \operatorname{lookup}(r, k) = \mathrm{some}\ v$$
-
-(A key missing from `r` looks up as $\mathrm{none}$, so the rule does not apply; an empty pattern applies to every row.)
+(A key missing from `r` looks up as `none`, so the rule does not apply; an empty pattern applies to every row.)
 -/
 def Cite.applies (c : Cite) (r : Row) : Bool := c.pattern.all fun kv => r.lookup kv.1 == some kv.2
 
-/-- The premises row `r` cites: the premises of every rule that applies, in rule order (repeats kept).
-
-$$\operatorname{cites}(cs, r) = [\,i \mid c \in cs,\ \operatorname{applies}(c, r),\ i \in c.\mathrm{premises}\,]$$
--/
+/-- The premises row `r` cites: the premises of every rule that applies, in rule order (repeats kept). -/
 def cites (cs : List Cite) (r : Row) : List String := (cs.filter (·.applies r)).flatMap (·.premises)
 
-/-- Id `i` names a measured premise: some registry premise with id `i` is covered (`covered`).
-
-$$\operatorname{measured}(ps, ts, F, i) \iff \exists p \in ps:\ p.\mathrm{id} = i \land \operatorname{covered}(ts, F, p)$$
--/
+/-- Id `i` names a measured premise: some registry premise with id `i` is covered (`covered`). -/
 def measured (ps : List Premise) (ts : List TestRef) (files : List String) (i : String) : Bool :=
   ps.any fun p => p.id == i && covered ts files p
 
-/-- Id `i` names an untested engine premise.
-
-$$\operatorname{assumed}(us, i) \iff \exists u \in us:\ u.\mathrm{id} = i$$
--/
+/-- Id `i` names an untested engine premise. -/
 def assumed (us : List Untested) (i : String) : Bool := us.any (·.id == i)
 
 /-- The citation lint result: rows citing nothing, (row, id) pairs whose id is neither measured nor untested, and the
 untested ids cited (the warning list, without repeats).
-
-$$\mathrm{CiteLint} = (\mathrm{uncited},\ \mathrm{bad},\ \mathrm{untested})$$
 -/
 structure CiteLint where
   uncited : List Row
@@ -712,8 +572,6 @@ structure CiteLint where
 
 /-- **The citation lint** of the golden rows `rows` under the rules `cs`, the registry `ps` with page tests `ts` and
 workflow files `F`, and the untested premises `us`.
-
-$$\begin{aligned} \operatorname{citeLint}(ps, ts, F, us, cs, rows) = \big(\ &[\,r \in rows \mid \operatorname{cites}(cs, r) = [\,]\,],\\ &[\,(r, i) \mid r \in rows,\ i \in \operatorname{cites}(cs, r),\ \neg\operatorname{measured}(ps, ts, F, i) \land \neg\operatorname{assumed}(us, i)\,],\\ &\operatorname{dedup}[\,i \mid r \in rows,\ i \in \operatorname{cites}(cs, r),\ \neg\operatorname{measured}(ps, ts, F, i) \land \operatorname{assumed}(us, i)\,]\ \big) \end{aligned}$$
 -/
 def citeLint (ps : List Premise) (ts : List TestRef) (files : List String) (us : List Untested) (cs : List Cite)
     (rows : List Row) : CiteLint where
@@ -721,16 +579,10 @@ def citeLint (ps : List Premise) (ts : List TestRef) (files : List String) (us :
   bad := rows.flatMap fun r => ((cites cs r).filter fun i => !measured ps ts files i && !assumed us i).map (r, ·)
   untested := ((rows.flatMap (cites cs)).filter fun i => !measured ps ts files i && assumed us i).eraseDups
 
-/-- The lint passes: no uncited row and no bad citation (untested citations are warnings, not failures).
-
-$$\operatorname{ok}(l) \iff l.\mathrm{uncited} = [\,] \land l.\mathrm{bad} = [\,]$$
--/
+/-- The lint passes: no uncited row and no bad citation (untested citations are warnings, not failures). -/
 def CiteLint.ok (l : CiteLint) : Bool := l.uncited.isEmpty && l.bad.isEmpty
 
-/-- **An uncited row is flagged.** A golden row that no rule gives a premise is in the lint's `uncited` list.
-
-$$\forall ps, ts, F, us, cs, rows, r:\ r \in rows \land \operatorname{cites}(cs, r) = [\,] \Rightarrow r \in \operatorname{citeLint}(ps, ts, F, us, cs, rows).\mathrm{uncited}$$
--/
+/-- **An uncited row is flagged.** A golden row that no rule gives a premise is in the lint's `uncited` list. -/
 theorem uncited_row_flagged (ps : List Premise) (ts : List TestRef) (files : List String) (us : List Untested)
     (cs : List Cite) (rows : List Row) (r : Row) (hr : r ∈ rows) (h : cites cs r = []) :
     r ∈ (citeLint ps ts files us cs rows).uncited := by
@@ -738,8 +590,6 @@ theorem uncited_row_flagged (ps : List Premise) (ts : List TestRef) (files : Lis
 
 /-- **A citation of an unknown id is flagged.** If a row cites an id that is neither a measured registry premise nor an
 untested premise (e.g. a registry premise whose test is missing, or a typo), the pair is in the lint's `bad` list.
-
-$$\forall ps, ts, F, us, cs, rows, r, i:\ r \in rows \land i \in \operatorname{cites}(cs, r) \land \neg\operatorname{measured}(ps, ts, F, i) \land \neg\operatorname{assumed}(us, i) \Rightarrow (r, i) \in \operatorname{citeLint}(ps, ts, F, us, cs, rows).\mathrm{bad}$$
 -/
 theorem bad_of_unknown (ps : List Premise) (ts : List TestRef) (files : List String) (us : List Untested)
     (cs : List Cite) (rows : List Row) (r : Row) (i : String) (hr : r ∈ rows) (hi : i ∈ cites cs r)
@@ -750,8 +600,6 @@ theorem bad_of_unknown (ps : List Premise) (ts : List TestRef) (files : List Str
 
 /-- **An untested citation is warned.** If a row cites an untested premise that no measured premise of the same id
 covers, the id is in the lint's `untested` warning list.
-
-$$\forall ps, ts, F, us, cs, rows, r, i:\ r \in rows \land i \in \operatorname{cites}(cs, r) \land \neg\operatorname{measured}(ps, ts, F, i) \land \operatorname{assumed}(us, i) \Rightarrow i \in \operatorname{citeLint}(ps, ts, F, us, cs, rows).\mathrm{untested}$$
 -/
 theorem untested_of_cited (ps : List Premise) (ts : List TestRef) (files : List String) (us : List Untested)
     (cs : List Cite) (rows : List Row) (r : Row) (i : String) (hr : r ∈ rows) (hi : i ∈ cites cs r)
@@ -762,8 +610,6 @@ theorem untested_of_cited (ps : List Premise) (ts : List TestRef) (files : List 
 
 /-- **Citation lint soundness.** The lint passes iff every row cites at least one premise and every cited id is a
 measured registry premise or an untested premise.
-
-$$\forall ps, ts, F, us, cs, rows:\ \operatorname{ok}(\operatorname{citeLint}(ps, ts, F, us, cs, rows)) \iff \forall r \in rows:\ \operatorname{cites}(cs, r) \ne [\,] \land \forall i \in \operatorname{cites}(cs, r):\ \operatorname{measured}(ps, ts, F, i) \lor \operatorname{assumed}(us, i)$$
 -/
 theorem citeLint_ok_iff (ps : List Premise) (ts : List TestRef) (files : List String) (us : List Untested)
     (cs : List Cite) (rows : List Row) :
@@ -782,8 +628,6 @@ theorem citeLint_ok_iff (ps : List Premise) (ts : List TestRef) (files : List St
 
 /-- **Annotated rows pass.** If every id of every rule is measured or untested, the lint passes on any rows each of
 which some rule cites.
-
-$$\forall ps, ts, F, us, cs, rows:\ \big(\forall c \in cs\ \forall i \in c.\mathrm{premises}:\ \operatorname{measured}(ps, ts, F, i) \lor \operatorname{assumed}(us, i)\big) \land \big(\forall r \in rows:\ \operatorname{cites}(cs, r) \ne [\,]\big) \Rightarrow \operatorname{ok}(\operatorname{citeLint}(ps, ts, F, us, cs, rows))$$
 -/
 theorem citeLint_ok_of_annotated (ps : List Premise) (ts : List TestRef) (files : List String) (us : List Untested)
     (cs : List Cite) (rows : List Row)
@@ -797,35 +641,24 @@ theorem citeLint_ok_of_annotated (ps : List Premise) (ts : List TestRef) (files 
 -- The WKTR lane premise's id.
 private def wktrId : String := "wktr_scroll_timeline_restyle"
 
-/-- The engine golden files the rules know (paths below `golden/engine/`), besides `chromium.jsonl`.
-
-$$\mathrm{engineFiles} = [\,f \mathbin{+\!\!+} \texttt{.jsonl} \mid f \in [\texttt{countdown-strip}, \texttt{hero-accent}, \texttt{hero-exit}, \texttt{hidden-pause}, \texttt{morph-mount}, \texttt{morph-panel}, \texttt{nav-hittest}, \texttt{pain-notes}, \texttt{people-card}, \texttt{people-deck}, \texttt{webkit}]\,]$$
--/
+/-- The engine golden files the rules know (paths below `golden/engine/`), besides `chromium.jsonl`. -/
 def engineFiles : List String :=
   ["countdown-strip.jsonl", "hero-accent.jsonl", "hero-exit.jsonl", "hidden-pause.jsonl", "morph-mount.jsonl",
    "morph-panel.jsonl", "nav-hittest.jsonl", "pain-notes.jsonl", "people-card.jsonl", "people-deck.jsonl",
    "webkit.jsonl"]
 
-/-- The counted Chromium stages, each with the id of its stage rule (a registry lane premise or an untested premise).
-
-$$\mathrm{crStages} = [\,(s, \texttt{cr.}s) \mid s \in [\texttt{script}, \texttt{style}, \texttt{layout}, \texttt{props}, \texttt{paint}, \texttt{raster}, \texttt{commit}, \texttt{comp}, \texttt{hits}]\,]$$
--/
+/-- The counted Chromium stages, each with the id of its stage rule (a registry lane premise or an untested premise). -/
 def crStages : List (String × String) :=
   ["script", "style", "layout", "props", "paint", "raster", "commit", "comp", "hits"].map fun s => (s, "cr." ++ s)
 
-/-- The counted WebKit stages, each with the id of its stage rule (a registry lane premise or an untested premise).
-
-$$\mathrm{wkStages} = [\,(s, \texttt{wk.}s) \mid s \in [\texttt{script}, \texttt{style}, \texttt{layout}, \texttt{props}, \texttt{paint}, \texttt{commit}]\,]$$
--/
+/-- The counted WebKit stages, each with the id of its stage rule (a registry lane premise or an untested premise). -/
 def wkStages : List (String × String) :=
   ["script", "style", "layout", "props", "paint", "commit"].map fun s => (s, "wk." ++ s)
 
 /-- **The citation rules of the engine goldens**: per listed file and engine stage the engine's stage rule, the
-`chromium.jsonl` stage, signature and mode rules, and $p_{32}$ (`wktr_scroll_timeline_restyle`) for the WebKit style
+`chromium.jsonl` stage, signature and mode rules, and `p_32` (`wktr_scroll_timeline_restyle`) for the WebKit style
 rows of the scroll-timeline variants. The per-file rules come file by file: the Chromium rules of a file, then its
-WebKit rules, then the next file. A pattern $\{k_1{=}v_1, \dots\}$ is the list of pairs in that order.
-
-$$\begin{aligned} \mathrm{engineCites} = {} &[\,c \mid f \in \mathrm{engineFiles},\ c \in [\,(\{\mathrm{file}{=}f, \mathrm{engine}{=}\texttt{chromium}, \mathrm{stage}{=}s\}, [i]) \mid (s, i) \in \mathrm{crStages}\,] \mathbin{+\!\!+} [\,(\{\mathrm{file}{=}f, \mathrm{engine}{=}\texttt{webkit}, \mathrm{stage}{=}s\}, [i]) \mid (s, i) \in \mathrm{wkStages}\,]\,] \\ \mathbin{+\!\!+} {} &[\,(\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{stage}, \mathrm{stage}{=}s\}, [\texttt{cr.}s]) \mid (s, \_) \in \mathrm{crStages}\,] \\ \mathbin{+\!\!+} {} &[\,(\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{signature}\}, [\texttt{cr.signature}]),\ (\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{mode}\}, [\texttt{cr.mode}]), \\ &\ \ (\{\mathrm{file}{=}\texttt{webkit.jsonl}, \mathrm{scenario}{=}\texttt{P1}, \mathrm{variant}{=}\texttt{scrollDriven}, \mathrm{stage}{=}\texttt{style}\}, [p_{32}]), \\ &\ \ (\{\mathrm{file}{=}\texttt{webkit.jsonl}, \mathrm{scenario}{=}\texttt{P4}, \mathrm{variant}{=}\texttt{scrollDriven}, \mathrm{stage}{=}\texttt{style}\}, [p_{32}]),\ (\{\mathrm{file}{=}\texttt{hero-exit.jsonl}, \mathrm{engine}{=}\texttt{webkit}, \mathrm{stage}{=}\texttt{style}\}, [p_{32}])\,] \end{aligned}$$
+WebKit rules, then the next file. A pattern `{k_1=v_1, ...}` is the list of pairs in that order.
 -/
 def engineCites : List Cite :=
   engineFiles.flatMap (fun f =>
@@ -838,27 +671,19 @@ def engineCites : List Cite :=
    ⟨[("file", "webkit.jsonl"), ("scenario", "P4"), ("variant", "scrollDriven"), ("stage", "style")], [wktrId]⟩,
    ⟨[("file", "hero-exit.jsonl"), ("engine", "webkit"), ("stage", "style")], [wktrId]⟩]
 
-/-- Every id the rules cite is one of the 5 untested premises or a lane premise of the registry.
-
-$$\{\, i \mid c \in \mathrm{engineCites},\ i \in c.\mathrm{premises} \,\} \subseteq \{u.\mathrm{id} \mid u \in \mathrm{untested}\} \cup \{p.\mathrm{id} \mid p \in \mathrm{registry},\ p.\mathrm{kind} = \mathrm{lane}\}$$
--/
+/-- Every id the rules cite is one of the 5 untested premises or a lane premise of the registry. -/
 theorem engineCites_ids :
     ∀ c ∈ engineCites, ∀ i ∈ c.premises,
       i ∈ untestedPremises.map (·.id) ∨ i ∈ (registry.filter (·.kind == .lane)).map (·.id) := by
   decide +kernel
 
-/-- The untested ids are pairwise distinct and none is a registry premise id (an untested premise is never measured).
-
-$$\operatorname{ids}(\mathrm{untested}) \text{ has no repeats} \land \forall u \in \mathrm{untested}\ \forall p \in \mathrm{registry}:\ u.\mathrm{id} \ne p.\mathrm{id}$$
--/
+/-- The untested ids are pairwise distinct and none is a registry premise id (an untested premise is never measured). -/
 theorem untested_ids_fresh :
     (untestedPremises.map (·.id)).Nodup ∧ ∀ u ∈ untestedPremises, ∀ p ∈ registry, u.id ≠ p.id := by
   decide
 
 /-- **The rules are valid on main.** With the registry's page tests and any workflow list containing the registry's
 lane workflows (`engine-premises.yml`, `wktr-fixtures.yml`), every id of every rule is measured or untested.
-
-$$\forall F:\ (\forall f \in \operatorname{laneFiles}(\mathrm{registry}):\ f \in F) \Rightarrow \forall c \in \mathrm{engineCites}\ \forall i \in c.\mathrm{premises}:\ \operatorname{measured}(\mathrm{registry}, \operatorname{pageRefs}(\mathrm{registry}), F, i) \lor \operatorname{assumed}(\mathrm{untested}, i)$$
 -/
 theorem engineCites_valid (files : List String) (hf : ∀ f ∈ laneFiles registry, f ∈ files) :
     ∀ c ∈ engineCites, ∀ i ∈ c.premises,
@@ -878,8 +703,6 @@ theorem engineCites_valid (files : List String) (hf : ∀ f ∈ laneFiles regist
 
 /-- **The lint passes on main once every row is annotated**: with any workflow list containing the lane workflows, the
 citation lint under `engineCites` passes iff every row is cited by some rule.
-
-$$\forall F, rows:\ (\forall f \in \operatorname{laneFiles}(\mathrm{registry}):\ f \in F) \Rightarrow \Big(\operatorname{ok}(\operatorname{citeLint}(\mathrm{registry}, \operatorname{pageRefs}(\mathrm{registry}), F, \mathrm{untested}, \mathrm{engineCites}, rows)) \iff \forall r \in rows:\ \operatorname{cites}(\mathrm{engineCites}, r) \ne [\,]\Big)$$
 -/
 -- The check `scripts/EngineCiteLint.lean` (in `check.sh`) reads the files and decides the right-hand side.
 theorem engineCite_ok_iff (files : List String) (hf : ∀ f ∈ laneFiles registry, f ∈ files) (rows : List Row) :
@@ -914,14 +737,12 @@ theorem engineCite_ok_iff (files : List String) (hf : ∀ f ∈ laneFiles regist
 
 /-! ## The WKTR lane assertion (`wktr-fixtures.yml`)
 
-The lane premise $p_{32}$ is only as good as its workflow: it must fail when the fixtures measure anything else. The
+The lane premise `p_32` is only as good as its workflow: it must fail when the fixtures measure anything else. The
 decision is here; `packages/measure-wktr/fixtures/summarize.mjs --assert` ports it and is checked against the golden
 `packages/contracts/golden/ops/wktr-lane.jsonl`. -/
 
 /-- One fixture pass as `summarize.mjs` reports it: the fixture (the arm without its `-f<frames>` suffix), and the
 pass's total style recalcs and rendering updates.
-
-$$q = (\mathrm{fixture},\ \sigma,\ \rho) \in \mathrm{String} \times \mathbb{N} \times \mathbb{N}$$
 -/
 structure LanePass where
   fixture : String
@@ -929,31 +750,20 @@ structure LanePass where
   renderingUpdates : Nat
 
 /-- The expected style recalcs per rendering update per asserted fixture: the triple of `WktrStyleRate.Holds`
-($\mu = (0, 1, 0)$). The quarantined JS arms (`scroll-js-*`) are not asserted.
-
-$$\mathrm{wktrExpected} = [(\texttt{control}, 0),\ (\texttt{scroll-timeline}, 1),\ (\texttt{time-accel}, 0)]$$
+(`μ = (0, 1, 0)`). The quarantined JS arms (`scroll-js-*`) are not asserted.
 -/
 def wktrExpected : List (String × Nat) := [("control", 0), ("scroll-timeline", 1), ("time-accel", 0)]
 
-/-- A pass matches rate $\mu$: it has at least one rendering update and exactly $\mu$ style recalcs per update.
-
-$$\operatorname{passOk}(\mu, q) \iff 0 < q.\rho \land q.\sigma = \mu \cdot q.\rho$$
--/
+/-- A pass matches rate `μ`: it has at least one rendering update and exactly `μ` style recalcs per update. -/
 def passOk (μ : Nat) (q : LanePass) : Bool := 0 < q.renderingUpdates && q.styleRecalcs == μ * q.renderingUpdates
 
-/-- **The lane verdict**: the expected fixtures that have no pass, or a pass off their rate. Empty means the lane passes.
-
-$$\operatorname{laneFailures}(E, qs) = [\,x \mid (x, \mu) \in E,\ \neg\big((\exists q \in qs:\ q.\mathrm{fixture} = x) \land \forall q \in qs:\ q.\mathrm{fixture} = x \Rightarrow \operatorname{passOk}(\mu, q)\big)\,]$$
--/
+/-- **The lane verdict**: the expected fixtures that have no pass, or a pass off their rate. Empty means the lane passes. -/
 def laneFailures (exp : List (String × Nat)) (qs : List LanePass) : List String :=
   (exp.filter fun (x, μ) =>
     let m := qs.filter (·.fixture == x)
     m.isEmpty || !m.all (passOk μ)).map (·.1)
 
-/-- **Lane verdict soundness.** The lane passes iff every expected fixture has a pass and every pass of it has its rate.
-
-$$\forall E, qs:\ \operatorname{laneFailures}(E, qs) = [\,] \iff \forall (x, \mu) \in E:\ (\exists q \in qs:\ q.\mathrm{fixture} = x) \land \forall q \in qs:\ q.\mathrm{fixture} = x \Rightarrow 0 < q.\rho \land q.\sigma = \mu \cdot q.\rho$$
--/
+/-- **Lane verdict soundness.** The lane passes iff every expected fixture has a pass and every pass of it has its rate. -/
 theorem laneFailures_nil_iff (exp : List (String × Nat)) (qs : List LanePass) :
     laneFailures exp qs = [] ↔ ∀ e ∈ exp, (∃ q ∈ qs, q.fixture = e.1) ∧
       ∀ q ∈ qs, q.fixture = e.1 → 0 < q.renderingUpdates ∧ q.styleRecalcs = e.2 * q.renderingUpdates := by
@@ -964,8 +774,6 @@ theorem laneFailures_nil_iff (exp : List (String × Nat)) (qs : List LanePass) :
 
 /-- **The old golden fails the lane.** If the scroll-timeline fixture measured the old claim (no style recalc, as the
 goldens P1/P4 had said) on any pass with an update, the lane fails on `scroll-timeline`.
-
-$$\forall qs, \rho:\ 0 < \rho \Rightarrow \texttt{scroll-timeline} \in \operatorname{laneFailures}(\mathrm{wktrExpected},\ (\texttt{scroll-timeline}, 0, \rho) :: qs)$$
 -/
 theorem lane_old_claim_fails (qs : List LanePass) (ρ : Nat) (h : 0 < ρ) :
     "scroll-timeline" ∈ laneFailures wktrExpected (⟨"scroll-timeline", 0, ρ⟩ :: qs) := by
@@ -1001,8 +809,6 @@ private def passJson (q : LanePass) : Json :=
 
 /-- The lane golden: one `expected` row, then per case its passes and failures.
 
-$$\begin{aligned} \mathrm{laneText} = {} &[\,\{\mathrm{kind}{=}\texttt{expected}, \mathrm{rates}{=}[\,\{\mathrm{fixture}{=}x, \mathrm{perUpdate}{=}\mu\} \mid (x, \mu) \in \mathrm{wktrExpected}\,]\}\,] \\ \mathbin{+\!\!+} {} &[\,\{\mathrm{kind}{=}\texttt{case}, \mathrm{name}{=}n, \mathrm{passes}{=}[\,\{\mathrm{fixture}{=}q.\mathrm{fixture}, \mathrm{styleRecalcs}{=}q.\mathrm{styleRecalcs}, \mathrm{renderingUpdates}{=}q.\mathrm{renderingUpdates}\} \mid q \in qs\,], \\ &\ \ \mathrm{failures}{=}\operatorname{laneFailures}(\mathrm{wktrExpected}, qs)\} \mid (n, qs) \in \mathrm{laneCases}\,] \end{aligned}$$
-
 (one compact JSON object per line, each line ending in a newline)
 -/
 def laneText : String :=
@@ -1028,8 +834,6 @@ only its exact observation, so it hides no new or changed finding either.
 
 /-- The class of an error text: its first line (lines split at `\n`) that holds a character other than space, tab,
 carriage return and line feed, or `failed` when no line does (also for the empty text).
-
-$$\operatorname{errorClass}(s) = \begin{cases} \ell_j & \text{if } J \ne \varnothing,\ j = \min J \\ \texttt{failed} & \text{if } J = \varnothing \end{cases} \qquad [\ell_0, \dots, \ell_k] = \operatorname{split}_{\backslash n}(s),\quad J = \{\, i \mid \exists c \in \ell_i:\ c \notin \{\text{space}, \backslash t, \backslash r, \backslash n\} \,\}$$
 -/
 def errorClass (s : String) : String :=
   ((s.splitOn "\n").find? fun l => l.any fun c => !c.isWhitespace).getD "failed"
@@ -1041,17 +845,12 @@ def errorClass (s : String) : String :=
 
 /-- The observed class of premise `p` on engine `e`: `no result` when its test has no run on `e`; otherwise the error
 class of the first failing run on `e`, or `passed` when every run on `e` passed.
-
-$$\operatorname{failClass}(rs, p, e) = \begin{cases} \texttt{no result} & M = [\,] \\ \operatorname{errorClass}(r.\mathrm{error}) & M \ne [\,],\ r \text{ the first } r \in M \text{ with } r.\mathrm{ok} = \bot \\ \texttt{passed} & M \ne [\,],\ \forall r \in M:\ r.\mathrm{ok} = \top \end{cases} \qquad M = [\,r \in rs \mid r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e\,]$$
 -/
 def failClass (rs : List Result) (p : Premise) (e : Engine) : String :=
   let m := rs.filter fun r => r.testId == p.testId && r.engine == e
   if m.isEmpty then "no result" else ((m.find? (!·.ok)).map (errorClass ·.error)).getD "passed"
 
-/-- One observed finding: a premise that does not hold on an engine, and the observed class there.
-
-$$f = (\mathrm{premise},\ e,\ \mathrm{cls})$$
--/
+/-- One observed finding: a premise that does not hold on an engine, and the observed class there. -/
 structure Observed where
   premise : String
   engine : Engine
@@ -1060,8 +859,6 @@ deriving DecidableEq, Repr
 
 /-- **The observed findings**: for every flagged premise `p` (in `ps` order) and every engine `e` of `p.engines` (in
 order) on which it does not hold, the premise id, the engine and the observed class.
-
-$$\operatorname{findings}(ps, rs) = [\,(p.\mathrm{id},\ e,\ \operatorname{failClass}(rs, p, e)) \mid p \in \operatorname{flagged}(ps, rs),\ e \in p.\mathrm{engines},\ \operatorname{holds}(rs, p, e) = \bot\,]$$
 -/
 def findings (ps : List Premise) (rs : List Result) : List Observed :=
   (flagged ps rs).flatMap fun p =>
@@ -1070,8 +867,6 @@ def findings (ps : List Premise) (rs : List Result) : List Observed :=
 /-- An acknowledgement: the premise, the engine, the observed class it accepts, the id of the entry in
 `research/findings/ledger.json` that records the finding, and whether the finding is intermittent (seen in some CI
 runs only).
-
-$$a = (\mathrm{premise},\ e,\ \mathrm{cls},\ \mathrm{finding},\ \mathrm{intermittent})$$
 -/
 structure Ack where
   premise : String
@@ -1080,22 +875,13 @@ structure Ack where
   finding : String
   intermittent : Bool
 
-/-- The observation an acknowledgement accepts.
-
-$$\operatorname{obs}(a) = (a.\mathrm{premise},\ a.\mathrm{engine},\ a.\mathrm{cls})$$
--/
+/-- The observation an acknowledgement accepts. -/
 def Ack.obs (a : Ack) : Observed := ⟨a.premise, a.engine, a.cls⟩
 
-/-- A finding is acknowledged when some acknowledgement accepts exactly it (same premise, engine and class).
-
-$$\operatorname{acked}(ks, f) \iff \exists a \in ks:\ \operatorname{obs}(a) = f$$
--/
+/-- A finding is acknowledged when some acknowledgement accepts exactly it (same premise, engine and class). -/
 def acked (ks : List Ack) (f : Observed) : Bool := ks.any (·.obs == f)
 
-/-- The parts of the verdict: the acknowledged findings, the unacknowledged ones, the stale acknowledgements.
-
-$$v = (\mathrm{acked},\ \mathrm{unacked},\ \mathrm{stale})$$
--/
+/-- The parts of the verdict: the acknowledged findings, the unacknowledged ones, the stale acknowledgements. -/
 structure AckVerdict where
   acked : List Observed
   unacked : List Observed
@@ -1104,34 +890,24 @@ structure AckVerdict where
 /-- **The verdict on the findings `fs` under the acknowledgements `ks`**: the findings some acknowledgement accepts,
 the findings none accepts, and the acknowledgements that are not intermittent and whose observation is not among the
 findings (stale).
-
-$$\operatorname{ackVerdict}(ks, fs) = \big(\,[\,f \in fs \mid \operatorname{acked}(ks, f)\,],\ [\,f \in fs \mid \neg\operatorname{acked}(ks, f)\,],\ [\,a \in ks \mid a.\mathrm{intermittent} = \bot \land \operatorname{obs}(a) \notin fs\,]\,\big)$$
 -/
 def ackVerdict (ks : List Ack) (fs : List Observed) : AckVerdict where
   acked := fs.filter (acked ks)
   unacked := fs.filter fun f => !acked ks f
   stale := ks.filter fun a => !a.intermittent && !fs.contains a.obs
 
-/-- The lane is red when some finding is unacknowledged or some acknowledgement is stale.
-
-$$\operatorname{red}(v) \iff v.\mathrm{unacked} \ne [\,] \lor v.\mathrm{stale} \ne [\,]$$
--/
+/-- The lane is red when some finding is unacknowledged or some acknowledgement is stale. -/
 def AckVerdict.red (v : AckVerdict) : Bool := !v.unacked.isEmpty || !v.stale.isEmpty
 
 /-- **Red iff unacknowledged (or stale).** The verdict is red exactly when some finding is accepted by no
 acknowledgement, or some acknowledgement that is not intermittent accepts no finding.
-
-$$\forall ks, fs:\ \operatorname{red}(\operatorname{ackVerdict}(ks, fs)) \iff \big(\exists f \in fs\ \forall a \in ks:\ \operatorname{obs}(a) \ne f\big) \lor \big(\exists a \in ks:\ a.\mathrm{intermittent} = \bot \land \operatorname{obs}(a) \notin fs\big)$$
 -/
 theorem red_iff_unacked (ks : List Ack) (fs : List Observed) :
     (ackVerdict ks fs).red = true ↔
       (∃ f ∈ fs, ∀ a ∈ ks, a.obs ≠ f) ∨ (∃ a ∈ ks, a.intermittent = false ∧ a.obs ∉ fs) := by
   simp [ackVerdict, AckVerdict.red, acked, List.filter_eq_nil_iff]
 
-/-- A page premise that does not hold on an engine it needs yields that finding, with its observed class.
-
-$$\forall ps, rs, p, e:\ p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land \operatorname{holds}(rs, p, e) = \bot \Rightarrow (p.\mathrm{id}, e, \operatorname{failClass}(rs, p, e)) \in \operatorname{findings}(ps, rs)$$
--/
+/-- A page premise that does not hold on an engine it needs yields that finding, with its observed class. -/
 theorem mem_findings (ps : List Premise) (rs : List Result) (p : Premise) (e : Engine) (hp : p ∈ ps)
     (hk : p.kind = .page) (he : e ∈ p.engines) (hh : holds rs p e = false) :
     (⟨p.id, e, failClass rs p e⟩ : Observed) ∈ findings ps rs := by
@@ -1144,8 +920,6 @@ theorem mem_findings (ps : List Premise) (rs : List Result) (p : Premise) (e : E
 
 /-- **A changed finding is red.** If a page premise fails on an engine it needs and no acknowledgement for that
 premise and engine accepts the observed class, the finding is unacknowledged and the verdict is red.
-
-$$\forall ps, rs, ks, p, e:\ p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land \operatorname{holds}(rs, p, e) = \bot \land \big(\forall a \in ks:\ a.\mathrm{premise} = p.\mathrm{id} \Rightarrow a.\mathrm{engine} = e \Rightarrow a.\mathrm{cls} \ne \operatorname{failClass}(rs, p, e)\big) \Rightarrow (p.\mathrm{id}, e, \operatorname{failClass}(rs, p, e)) \in \operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)).\mathrm{unacked} \land \operatorname{red}(\operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)))$$
 -/
 theorem changed_finding_red (ps : List Premise) (rs : List Result) (ks : List Ack) (p : Premise) (e : Engine)
     (hp : p ∈ ps) (hk : p.kind = .page) (he : e ∈ p.engines) (hh : holds rs p e = false)
@@ -1165,8 +939,6 @@ theorem changed_finding_red (ps : List Premise) (rs : List Result) (ks : List Ac
 /-- **An acknowledgement never hides a new finding.** A page premise failing on an engine it needs, with no
 acknowledgement for that premise and engine (a new premise, or a known premise on a new engine), is unacknowledged and
 the verdict is red, whatever else is acknowledged.
-
-$$\forall ps, rs, ks, p, e:\ p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land \operatorname{holds}(rs, p, e) = \bot \land \big(\forall a \in ks:\ \neg(a.\mathrm{premise} = p.\mathrm{id} \land a.\mathrm{engine} = e)\big) \Rightarrow (p.\mathrm{id}, e, \operatorname{failClass}(rs, p, e)) \in \operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)).\mathrm{unacked} \land \operatorname{red}(\operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)))$$
 -/
 theorem ack_never_hides_new (ps : List Premise) (rs : List Result) (ks : List Ack) (p : Premise) (e : Engine)
     (hp : p ∈ ps) (hk : p.kind = .page) (he : e ∈ p.engines) (hh : holds rs p e = false)
@@ -1178,8 +950,6 @@ theorem ack_never_hides_new (ps : List Premise) (rs : List Result) (ks : List Ac
 /-- **A stale acknowledgement is reported.** If an acknowledgement is not intermittent and every premise of `ps` with
 the acknowledged id now holds on the acknowledged engine, the acknowledgement is stale and the verdict is red (it must
 be removed).
-
-$$\forall ps, rs, ks, a:\ a \in ks \land a.\mathrm{intermittent} = \bot \land \big(\forall p \in ps:\ p.\mathrm{id} = a.\mathrm{premise} \Rightarrow \operatorname{holds}(rs, p, a.\mathrm{engine}) = \top\big) \Rightarrow a \in \operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)).\mathrm{stale} \land \operatorname{red}(\operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)))$$
 -/
 theorem stale_ack_reported (ps : List Premise) (rs : List Result) (ks : List Ack) (a : Ack) (ha : a ∈ ks)
     (hi : a.intermittent = false) (hh : ∀ p ∈ ps, p.id = a.premise → holds rs p a.engine = true) :
@@ -1199,18 +969,13 @@ theorem stale_ack_reported (ps : List Premise) (rs : List Result) (ks : List Ack
   simp only [AckVerdict.red, Bool.or_eq_true, Bool.not_eq_true', List.isEmpty_eq_false_iff]
   exact Or.inr (List.ne_nil_of_mem hs)
 
-/-- **An intermittent acknowledgement is never stale**, whatever the findings.
-
-$$\forall ks, fs, a:\ a.\mathrm{intermittent} = \top \Rightarrow a \notin \operatorname{ackVerdict}(ks, fs).\mathrm{stale}$$
--/
+/-- **An intermittent acknowledgement is never stale**, whatever the findings. -/
 theorem intermittent_not_stale (ks : List Ack) (fs : List Observed) (a : Ack) (hi : a.intermittent = true) :
     a ∉ (ackVerdict ks fs).stale := by
   simp [ackVerdict, hi]
 
 /-- The acknowledgements that cite nothing known: whose premise is no page premise of `ps`, or whose finding id is not
 among the ledger ids `ids`.
-
-$$\operatorname{ackLint}(ps, ids, ks) = [\,a \in ks \mid \neg(\exists p \in ps:\ p.\mathrm{kind} = \mathrm{page} \land p.\mathrm{id} = a.\mathrm{premise}) \lor a.\mathrm{finding} \notin ids\,]$$
 -/
 def ackLint (ps : List Premise) (ids : List String) (ks : List Ack) : List Ack :=
   ks.filter fun a => !(ps.any fun p => p.kind == .page && p.id == a.premise) || !ids.contains a.finding
@@ -1220,8 +985,6 @@ and Playwright WebKit 27.2 on Linux) and recorded in `research/findings/ledger.j
 `anim.list` fails on WebKit only and intermittently (`getAnimations` did not list the short running transition in run
 39102911529; it did in runs 39082835090, 39084127865, 39087188278 and 39101531977), `cv.auto-margin` fails on both
 engines in all five runs (a style read forces the content-visibility lock open and returns 150px).
-
-$$\mathrm{acks} = [\,(\texttt{anim.list}, \mathrm{webkit}, \texttt{the short transition is listed while running}, \texttt{premise.anim.list}, \top),\ (\texttt{cv.auto-margin}, \mathrm{chromium}, \texttt{skipped subtree reports unresolved auto margin, got 150px}, \texttt{premise.cv.auto-margin}, \bot),\ (\texttt{cv.auto-margin}, \mathrm{webkit}, \texttt{skipped subtree reports unresolved auto margin, got 150px}, \texttt{premise.cv.auto-margin}, \bot)\,]$$
 -/
 def acks : List Ack := [
   ⟨"anim.list", .webkit, "the short transition is listed while running", "premise.anim.list", true⟩,
@@ -1232,15 +995,10 @@ def acks : List Ack := [
 
 /-- The ledger ids the acknowledgements cite (each must be an `id` in `research/findings/ledger.json`; `fw premises`
 checks it).
-
-$$\mathrm{ackFindingIds} = [\,\texttt{premise.anim.list},\ \texttt{premise.cv.auto-margin}\,]$$
 -/
 def ackFindingIds : List String := ["premise.anim.list", "premise.cv.auto-margin"]
 
-/-- Every acknowledgement names a registered page premise and a cited ledger id.
-
-$$\operatorname{ackLint}(\mathrm{registry}, \mathrm{ackFindingIds}, \mathrm{acks}) = [\,]$$
--/
+/-- Every acknowledgement names a registered page premise and a cited ledger id. -/
 theorem acks_lint_clean : ackLint registry ackFindingIds acks = [] := by decide
 
 -- The page premises of the registry (the only ones with page results).
@@ -1301,10 +1059,7 @@ private def caseVerdict (rs : List Result) : AckVerdict := ackVerdict acks (find
 -- A string list as JSON.
 private def strs (l : List String) : Json := Json.arr (l.map Json.str).toArray
 
-/-- A premise row.
-
-$$\operatorname{row}(p) = \{\mathrm{kind}{:}\,\texttt{premise},\ \mathrm{id}, \mathrm{statement}, \mathrm{theorems}, \mathrm{engines}, \mathrm{testId}, \mathrm{testKind} = p.\mathrm{kind}\}$$
--/
+/-- A premise row. -/
 def premiseRow (p : Premise) : Json :=
   Json.mkObj [("kind", "premise"), ("id", .str p.id), ("statement", .str p.statement), ("theorems", strs p.theorems),
     ("engines", strs (p.engines.map Engine.name)), ("testId", .str p.testId), ("testKind", .str p.kind.name)]
@@ -1324,10 +1079,7 @@ private def lintCases : List (String × List TestRef × List String) :=
    ("lane-workflow-missing", full, [".github/workflows/lean.yml"]),
    ("lane-as-page-test", full ++ (registry.filter (·.kind == .lane)).map Premise.ref, lanes)]
 
-/-- A lint row.
-
-$$\operatorname{row}(n, ts, F) = \{\mathrm{kind}{:}\,\texttt{lint},\ \mathrm{name} = n,\ \mathrm{tests} = ts,\ \mathrm{files} = F,\ \mathrm{untested},\ \mathrm{unknown} \text{ of } \operatorname{lint}(\mathrm{registry}, ts, F)\}$$
--/
+/-- A lint row. -/
 def lintRow (name : String) (ts : List TestRef) (files : List String) : Json :=
   let l := premiseLint registry ts files
   Json.mkObj [("kind", "lint"), ("name", .str name), ("tests", Json.arr (ts.map refJson).toArray),
@@ -1358,18 +1110,12 @@ private def ackJson (a : Ack) : Json :=
   Json.mkObj [("premise", .str a.premise), ("engine", .str a.engine.name), ("class", .str a.cls),
     ("finding", .str a.finding), ("intermittent", .bool a.intermittent)]
 
-/-- An acknowledgement row.
-
-$$\operatorname{row}(a) = \{\mathrm{kind}{:}\,\texttt{ack},\ \mathrm{premise}, \mathrm{engine}, \mathrm{class} = a.\mathrm{cls}, \mathrm{finding}, \mathrm{intermittent}\}$$
--/
+/-- An acknowledgement row. -/
 def ackRow (a : Ack) : Json :=
   Json.mkObj [("kind", "ack"), ("premise", .str a.premise), ("engine", .str a.engine.name), ("class", .str a.cls),
     ("finding", .str a.finding), ("intermittent", .bool a.intermittent)]
 
-/-- An ack-case row: the results, the findings, and the verdict under the registry and `acks`.
-
-$$\operatorname{row}(n, rs) = \{\mathrm{kind}{:}\,\texttt{ackcase},\ \mathrm{name} = n,\ \mathrm{results} = rs,\ \mathrm{findings} = F,\ \mathrm{acked}, \mathrm{unacked}, \mathrm{stale} \text{ of } \operatorname{ackVerdict}(\mathrm{acks}, F),\ \mathrm{red}\},\quad F = \operatorname{findings}(\mathrm{registry}, rs)$$
--/
+/-- An ack-case row: the results, the findings, and the verdict under the registry and `acks`. -/
 def ackCaseRow (name : String) (rs : List Result) : Json :=
   let fs := findings registry rs
   let v := ackVerdict acks fs
@@ -1384,10 +1130,7 @@ private def ackLintCases : List (String × List String × List Ack) :=
    ("unknown-premise", ackFindingIds, ⟨"ghost", .webkit, "x", "premise.anim.list", false⟩ :: acks),
    ("lane-premise", ackFindingIds, [⟨"wktr_scroll_timeline_restyle", .webkit, "x", "premise.anim.list", false⟩])]
 
-/-- An ack-lint row.
-
-$$\operatorname{row}(n, ids, ks) = \{\mathrm{kind}{:}\,\texttt{acklint},\ \mathrm{name} = n,\ \mathrm{ids} = ids,\ \mathrm{acks} = ks,\ \mathrm{bad} = \operatorname{ackLint}(\mathrm{registry}, ids, ks)\}$$
--/
+/-- An ack-lint row. -/
 def ackLintRow (name : String) (ids : List String) (ks : List Ack) : Json :=
   Json.mkObj [("kind", "acklint"), ("name", .str name), ("ids", strs ids), ("acks", Json.arr (ks.map ackJson).toArray),
     ("bad", Json.arr ((ackLint registry ids ks).map ackJson).toArray)]
@@ -1396,17 +1139,11 @@ def ackLintRow (name : String) (ids : List String) (ks : List Ack) : Json :=
 private def errorClassCases : List String :=
   ["", " \n\t\n", cvErr, "\n  \nfirst\nsecond", "  padded  \nx", "one line"]
 
-/-- An error-class row.
-
-$$\operatorname{row}(s) = \{\mathrm{kind}{:}\,\texttt{errorclass},\ \mathrm{error} = s,\ \mathrm{class} = \operatorname{errorClass}(s)\}$$
--/
+/-- An error-class row. -/
 def errorClassRow (s : String) : Json :=
   Json.mkObj [("kind", "errorclass"), ("error", .str s), ("class", .str (errorClass s))]
 
-/-- A flag row.
-
-$$\operatorname{row}(n, rs) = \{\mathrm{kind}{:}\,\texttt{flag},\ \mathrm{name} = n,\ \mathrm{results} = rs,\ \mathrm{flagged} = [\{\mathrm{premise} = p.\mathrm{id},\ \mathrm{theorems} = p.\mathrm{theorems}\} \mid p \in \operatorname{flagged}(\mathrm{registry}, rs)]\}$$
--/
+/-- A flag row. -/
 def flagRow (name : String) (rs : List Result) : Json :=
   Json.mkObj [("kind", "flag"), ("name", .str name), ("results", Json.arr (rs.map resultJson).toArray),
     ("flagged", Json.arr ((flagged registry rs).map fun p =>
@@ -1424,10 +1161,9 @@ private def goldenText (_ : Unit := ()) : String :=
 -- The golden file, relative to `lean/`.
 private def goldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops" / "premise.jsonl"
 
-/-- Writes the golden file, or compares it with the generated text and returns $\mathrm{fail}\in\{0,1\}$ (1 when the
-file differs):
-$$\mathrm{run}(\mathit{root}, \mathit{write}) = \begin{cases} 0 & \mathit{write} \lor \mathrm{read}(\mathit{root}/\mathrm{goldenPath}) = \mathrm{goldenText} \\ 1 & \text{otherwise}\end{cases}$$
-where a missing or unreadable file reads as the empty string (so it fails). -/
+/-- Writes the golden file, or compares it with the generated text and returns `fail∈{0,1}` (1 when the
+file differs).
+Here a missing or unreadable file reads as the empty string (so it fails). -/
 def run(root : System.FilePath) (write : Bool) : IO Nat := do
   let p := root / goldenPath
   if write then
@@ -1441,10 +1177,7 @@ def run(root : System.FilePath) (write : Bool) : IO Nat := do
   IO.println s!"premise golden: {registry.length} premises, up to date"
   return 0
 
-/-- A golden line as a lint row: the string-valued fields of a JSON object in order, then `file`.
-
-$$\operatorname{rowOf}(f, j) = \begin{cases} [\,(k, v) \mid (k, \texttt{"}v\texttt{"}) \in j\,] \mathbin{+\!\!+} [(\texttt{file}, f)] & j \text{ an object} \\ [(\texttt{file}, f)] & \text{otherwise} \end{cases}$$
--/
+/-- A golden line as a lint row: the string-valued fields of a JSON object in order, then `file`. -/
 -- A non-object row is cited only by a rule on the file alone, and `engineCites` has none.
 def rowOf (file : String) (j : Json) : Row :=
   let fs : List (String × String) := match j with
@@ -1455,9 +1188,7 @@ def rowOf (file : String) (j : Json) : Row :=
 #guard rowOf "x.jsonl" (Json.mkObj [("engine", "webkit"), ("n", (1 : Json))]) == [("engine", "webkit"), ("file", "x.jsonl")]
 
 /-- Runs the citation lint on every non-blank line of every `*.jsonl` below `golden/engine/` (files in sorted path
-order, an unparsable line read as the row $[(\texttt{file}, f)]$) and returns 1 iff it does not pass.
-
-$$\mathrm{citeRun}(\mathit{root}) = \begin{cases} 0 & \operatorname{ok}(\operatorname{citeLint}(\mathrm{registry}, \operatorname{pageRefs}(\mathrm{registry}), F, \mathrm{untested}, \mathrm{engineCites}, \mathit{rows})) \\ 1 & \text{otherwise}\end{cases} \quad \text{where } F = \text{the files in } \texttt{.github/workflows/},\ \mathit{rows} = \text{the lint rows of those lines}$$
+order, an unparsable line read as the row `[(file, f)]`) and returns 1 iff it does not pass.
 -/
 -- Page tests are taken from the registry (`fw premises` checks that `packages/premise-tests` declares them).
 def citeRun (root : System.FilePath) : IO Nat := do
@@ -1493,8 +1224,7 @@ private def laneGoldenPath : System.FilePath :=
 
 /-- Writes `golden/ops/wktr-lane.jsonl` (when `write`), or compares it with `laneText` and returns 1 iff it differs.
 
-$$\mathrm{laneRun}(\mathit{root}, \mathit{write}) = \begin{cases} 0 & \mathit{write} \lor \mathrm{read}(\mathit{root}/\mathrm{laneGoldenPath}) = \mathrm{laneText} \\ 1 & \text{otherwise}\end{cases}$$
-where a missing or unreadable file reads as the empty string (so it fails). -/
+Here a missing or unreadable file reads as the empty string (so it fails). -/
 def laneRun (root : System.FilePath) (write : Bool) : IO Nat := do
   let p := root / laneGoldenPath
   if write then
