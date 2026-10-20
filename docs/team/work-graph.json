@@ -11864,8 +11864,7 @@
     "scripts/hooks/**",
     "docs/team/tools/land.md",
     "docs/team/handoffs/ci-push-render-guard.md"
-   ],
-   "evidence": "3e8a87e"
+   ]
   },
   {
    "devices": [
