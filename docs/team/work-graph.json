@@ -8155,7 +8155,8 @@
     "lean/Fw/Obs/CiStatus*.lean",
     "packages/contracts/golden/obs/**",
     "docs/team/handoffs/circleci-status.md"
-   ]
+   ],
+   "evidence": "30f778a"
   },
   {
    "devices": [

@@ -1,0 +1,51 @@
+{
+ "page": {
+  "name": "CircleCI",
+  "url": "https://status.circleci.com"
+ },
+ "status": {
+  "indicator": "minor",
+  "description": "Partially Degraded Service"
+ },
+ "components": [
+  {
+   "name": "Docker Jobs",
+   "status": "operational"
+  },
+  {
+   "name": "Machine Jobs",
+   "status": "operational"
+  },
+  {
+   "name": "macOS Jobs",
+   "status": "degraded_performance"
+  },
+  {
+   "name": "Pipelines & Workflows",
+   "status": "operational"
+  },
+  {
+   "name": "CircleCI API",
+   "status": "operational"
+  },
+  {
+   "name": "Runner",
+   "status": "operational"
+  }
+ ],
+ "incidents": [
+  {
+   "name": "Increased wait times for macOS jobs on m4pro.large",
+   "status": "monitoring",
+   "impact": "minor",
+   "created_at": "2026-10-20T15:58:25.000Z",
+   "updated_at": "2026-10-20T17:02:28.336Z",
+   "resolved_at": null,
+   "components": [
+    {
+     "name": "macOS Jobs"
+    }
+   ]
+  }
+ ]
+}
