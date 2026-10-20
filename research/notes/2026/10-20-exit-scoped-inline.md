@@ -136,7 +136,7 @@ At 45a40e7b Linux WebKit walked no morph units in either run, so that cell has n
 in the A/A run as well, so it is the A/A floor. The morph path is reported here and not counted: the footprint puts the
 hero.exit writes on no morph-path node (owners hero, hero.cue, hero.orbit, hero.exit).
 
-Content-new morph units (coverage-new units left out; they are 42 per run at one width and step, the one-empty-bucket
+Content-new morph units (coverage-new units left out; they are 42 per empty width/step bucket (one bucket per run at 071906af; 4 in 39466179818 and 3 in A/A 39472217441 on macOS), the one-empty-bucket
 noise of the tool doc):
 
 | run | engine | units |
@@ -156,13 +156,13 @@ Each of these units is a sample taken inside a CSS transition (approach `aN`, `c
 colour and rect, and of earn opacity and max-width). The A/A runs show this class in all three engines; task
 trajectory-transition-window fixes the sampling. Matched by exact unit (path, node, prop, width, step) against the
 macOS A/A 39472217441, 6 of the 8 macOS scoped units fail in one arm there: earn.opacity and earn.max-width 390 close@0
-are new in it; earn.opacity 640 close@0 and close-hold@0, earn.max-width 640 close@0 and nav.background-color 641 a3
-fail in its faithful arm. Two units fail in neither arm of the macOS A/A: earn.max-width 640 close-hold@0 and
+are new in it; earn.max-width 640 close@0 fails in both arms there, and earn.opacity 640 close@0 and close-hold@0 and
+nav.background-color 641 a3 fail in the faithful arm only. Two units fail in neither arm of the macOS A/A: earn.max-width 640 close-hold@0 and
 earn.opacity 1280 close@0. The second is new in the Chromium A/A of the same commit; the first is new in no A/A.
 The 390 px `nav.cls.is-on-dark` close@3 unit fails in both arms of A/A 39456741492: it is the stale `is-on-dark` of
 every rewrite arm (handoff preset-drop-waapi), at the A/A floor.
 
-Chromium counts, swipe-v1 at 430 px (narrow), 3 runs per arm, the same in every run: 39461009752
+Chromium counts, swipe-v1 at 430 px (narrow), 3 runs per arm, per-frame counts identical across the 3 runs in the exit window; swipe totals within 67 (default) and 9 (scoped); r1 quoted: 39461009752
 (`?fw=hero.exit:scoped`) and 39462188464 (default, faithful), `trace.UpdateLayoutTree.elementCount` per frame:
 
 | scroll | default | scoped | delta | Lean |
