@@ -482,6 +482,20 @@ export function pickFacts(cwd: string, main: string, branch: string, task?: stri
 }
 
 /** One `fw land` as one span ("fw land" / "total"): its 30 s ceiling is Lean `Fw.Obs.Timing.landCeilings`. A nested land (`via`) is part of the outer span. */
+/** The history the render guard reads: every commit of `main..branch`, a merge by its first-parent diff, a rename as delete and add. */
+export const renderLogArgv = (main: string, branch: string): string[] =>
+  ["-c", "log.showSignature=false", "log", "-z", "--no-renames", "--no-relative", "--no-ext-diff", "--name-status", "--diff-merges=first-parent", "--format=commit %H", `${main}..${branch}`];
+export type RenderHit = { commit: string; path: string; media: string };
+/** Lean `console.landRenderGuard` over the NUL-separated log: the refused paths, or a reason when it cannot be decided. */
+export function renderGuard(cwd: string, main: string, branch: string): { hits: RenderHit[] } | { error: string } {
+  let out: string;
+  try { out = execFileSync("git", renderLogArgv(main, branch), { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024 }); }
+  catch (e) { return { error: `git log failed: ${String((e as { stderr?: string }).stderr ?? e).trim().slice(0, 200)}` }; }
+  const r = askCore("console.landRenderGuard", { tokens: out.split("\0") });
+  if (!r || !Array.isArray(r.hits)) return { error: "fwcore is not available to decide (build lean/.lake)" };
+  return { hits: r.hits as RenderHit[] };
+}
+
 export async function land(branch: string, o: LandOptions, via?: string): Promise<LandResult> {
   const end = via ? () => {} : begin("fw land", "total");
   try { const r = await landRun(branch, o, via); end(r.ok ? 0 : 1); return r; } catch (e) { end(1); throw e; }
@@ -529,6 +543,10 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: outcomeKind(oc), outcome: oc };
   }
   if (behind && !o.task) return fail(`${branch} is behind ${main}; a fast-forward is impossible (land it with --task for a merge commit; branches are never rebased)`);
+  const rg = renderGuard(o.cwd, main, branch);
+  if ("error" in rg) return fail(`render guard: ${rg.error}`);
+  if (rg.hits.length)
+    return fail(`render guard: ${main}..${branch} writes media outside snapshot/, and a later removal leaves the blob in history:${rg.hits.map((h) => `\n  ${h.path} (${h.media}) in ${h.commit}`).join("")}\nmove the other changes to a new branch from ${main} without these commits, or add the path with its reason to Fw.Land.RenderGuard.allowlist`, "scope", outcome({ scope: false }));
 
   // 1. the task and the file scope (Lean: console.landScope)
   let task: PlanTask | undefined;
