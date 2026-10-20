@@ -10894,7 +10894,8 @@
     "lean/scripts/ReapGolden.lean",
     "lean/scripts/check.sh",
     "packages/contracts/golden/ops/lspreap.jsonl"
-   ]
+   ],
+   "evidence": "8ae9f99"
   },
   {
    "devices": [

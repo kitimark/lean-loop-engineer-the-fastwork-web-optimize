@@ -35,6 +35,7 @@ export async function launchChromiumGaps({ chromePath = process.env.CHROME_PATH 
       }
       browsers.set(key, puppeteer.launch({
         executablePath: chromePath,
+        pipe: true,
         headless: true,
         userDataDir,
         args: [
