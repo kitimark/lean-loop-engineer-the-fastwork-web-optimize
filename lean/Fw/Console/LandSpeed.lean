@@ -334,9 +334,7 @@ def scanDecls : List Decl := withScan (sampleDecls ++ [⟨"site", ["apps/site/**
 /-- The path that stands for the stripped fwcore binary in a check's declared reads. -/
 def fwcoreBin : String := "lean/.lake/build/bin/fwcore"
 
-/-- The tracked paths the bytes of the fwcore binary depend on. The build slot `scripts/fwcore-build.sh` runs Lake under
-(`scripts/lake-slot.sh` and the files it sources) is left out: it decides when Lake starts and with which
-`LEAN_NUM_THREADS`, which premise `land.binaryOfLean` takes not to change the bytes. -/
+/-- The tracked paths the binary's bytes depend on; the build slot's files are left out (premise `land.binaryOfLean`). -/
 def fwcoreBuildReads : List String := ["lean/**", "scripts/fwcore-build.sh"]
 
 /-- Two binary digests (`none`: unknown) that do not show one binary. -/

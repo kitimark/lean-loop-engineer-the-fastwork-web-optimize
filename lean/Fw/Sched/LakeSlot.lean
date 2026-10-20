@@ -2,9 +2,7 @@ import Fw.Sched.Admit
 
 /-!
 # Machine-wide Lake build slots (task `lake-build-slots`): the thread pool of each slot `scripts/lake-slot.sh` hands out
-A build takes the first free slot (`pick`): slot 0 keeps Lean's full pool and the full-pool token, slot 1 gets half the
-dev Mac's pool, and a build that finds every slot busy waits. The pool counts Lake job-pool threads, one per concurrent
-lean process; the threads inside each lean process are not counted.
+A build takes the first free slot (`pick`); a pool counts Lake job-pool threads, one per concurrent lean process.
 -/
 namespace Fw.Sched.LakeSlot
 
@@ -33,8 +31,7 @@ def threads (n : Nat) : Pool → Nat
   | .full => n
   | .cap t => t
 
-/-- The full-pool tokens a pool holds: the full pool holds the one token, so at most one build runs with the full pool.
-Admit counts the token in its `cleanBuild` resource. -/
+/-- The full-pool tokens a pool holds (Admit's `cleanBuild` resource): at most one build runs with the full pool. -/
 def token : Pool → Nat
   | .full => 1
   | .cap _ => 0
@@ -49,8 +46,7 @@ def budget (n : Nat) : Vec := { cores := 10 * bound n, cleanBuild := 1 }
 def item (n i : Nat) : Item :=
   { id := s!"lake-slot-{i}", seq := i, demand := { cores := 10 * threads n (poolAt i), cleanBuild := token (poolAt i) } }
 
-/-- The slot a build takes while the slots in `held` are busy: the first free one in the order the wrapper tries the
-slot files, or `none` when every slot is busy and the build waits. -/
+/-- The first free slot in the wrapper's order while the slots in `held` are busy; `none`: the build waits. -/
 def pick (held : List Nat) : Option Nat := (List.range S).find? (· ∉ held)
 
 /-- The pool as the generated shell file spells it. -/
