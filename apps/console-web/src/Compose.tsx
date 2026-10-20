@@ -195,10 +195,10 @@ export function ComposePanel({ d, stale = false, picks, setPicks, busy, msg, rea
           <div className="flex flex-wrap gap-2">
             <Button size="sm" disabled={!can} onClick={() => onOpen("r")}>{busy ? "Opening..." : "Open"}</Button>
             <Button size="sm" variant="outline" disabled={!can} onClick={() => onOpen("compare")}>Open compare</Button>
-            <Button size="sm" variant="outline" disabled={!canCopy} title={opened ? "" : "Open the combination first"} onClick={() => onCopy?.()}>{copied ? "Copied" : "Copy link"}</Button>
+            <Button size="sm" variant="outline" disabled={!canCopy} title={opened ? "" : "Open the combination first"} onClick={() => onCopy?.()}>{copied && opened ? "Copied" : "Copy link"}</Button>
           </div>
           {!d.canPreview ? <p className="text-xs text-muted-foreground">Sign in as owner to open previews.</p> : null}
-          {copyMsg ? <p className="break-words text-xs text-destructive" role="alert">{copyMsg}</p> : null}
+          {copyMsg && opened ? <p className="break-words text-xs text-destructive" role="alert">{copyMsg}</p> : null}
           {opened ? <p className="break-all text-xs">Opened: <a className="select-all underline" href={opened} target="_blank" rel="noreferrer">{opened}</a></p> : null}
         </div>
       </section>

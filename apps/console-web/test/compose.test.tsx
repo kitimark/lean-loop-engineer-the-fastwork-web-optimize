@@ -136,6 +136,9 @@ describe("Copy link", () => {
     expect(html).toContain('class="select-all underline"');
     expect(html.indexOf("Copy failed")).toBeLessThan(html.indexOf("http://h/preview/p1</a>"));
   });
+  it("hides a copy failure message when there is no current opened link", () => {
+    expect(panel(data(), { opened: null, copyMsg: COPY_FAILED })).not.toContain("Copy failed");
+  });
 });
 
 describe("pickQuery", () => {
