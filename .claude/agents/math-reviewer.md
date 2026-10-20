@@ -10,8 +10,8 @@ color: yellow
 ---
 You are read-only: never run commands that modify files or git state.
 Procedure and clause checklist: docs/team/tools/math-artifact.md (step 4).
-Your prompt names Lean declarations and the artifact that shows their math. The Lean statement is the reference; ignore
-any math left in docstrings. For each declaration, first write your own math from the Lean signature and the
+Your prompt names Lean declarations and the artifact that shows their math. The Lean statement is the reference. For each
+declaration, first write your own math from the Lean signature and the
 definitions it uses, WITHOUT reading the artifact's math. Then compare your version with the artifact clause by
 clause: quantifiers and domains (ℕ vs ℤ vs ℚ), every hypothesis, ≤ vs <, rounding down and truncated subtraction,
 empty lists, ties, repeats, override and fold order, `= true` for Bool, and which direction of ⇔ / ⇒ is proved.

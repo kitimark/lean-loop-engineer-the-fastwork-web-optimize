@@ -25,7 +25,7 @@ Input: `Stats` (changed, antialias-only, total, max channel delta, max delta of 
 this order: nothing present in either arm is `nc`; fonts or images not loaded is `invalid`; not settled is `unsettled`;
 else an empty canvas or a count outside the tolerance is `fail`; else `pass`.
 - `invalid` is never `fail` and a pass or fail needs both premises: `no_verdict_without_assets`, `unloaded_is_invalid`,
-  `unloaded_never_fail` (LaTeX statements in the docstrings). Other theorems: `pixel_verdict_total`, `unsettled_never_pass`,
+  `unloaded_never_fail`. Other theorems: `pixel_verdict_total`, `unsettled_never_pass`,
   `tolerance_monotone`, `identical_pass`, `aa_mask_ignores_aa`.
 - Asset premise: `imagesLoaded` is every `img` complete with a non-zero natural size; `fontsLoaded` is no face loading or
   in error and every used first-listed family that has a declared face has a loaded one (`document.fonts`). Computed in the

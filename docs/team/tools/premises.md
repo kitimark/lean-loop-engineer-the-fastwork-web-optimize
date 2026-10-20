@@ -1,7 +1,7 @@
 # fw premises
 
 Some Lean theorems assume a fact about the browser (for example "a write in rAF is seen by the frame's own layout-time observers").
-Lean cannot prove those. The registry `lean/Fw/Ops/Premise.lean` lists each as a `Premise` (id, LaTeX statement, the theorems that
+Lean cannot prove those. The registry `lean/Fw/Ops/Premise.lean` lists each as a `Premise` (id, statement, the theorems that
 assume it, the engines it must hold on, a test id `prem.<id>`). `packages/premise-tests` holds one tiny static page
 (`pages/<id>.html`) and one Playwright test (`src/tests.mjs`) per premise, run on Chromium and WebKit.
 
