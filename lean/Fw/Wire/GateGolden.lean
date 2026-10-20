@@ -105,6 +105,39 @@ def variantReq (strips : Nat) (variants : String) (newRole : String := "strip") 
     (if variants.isEmpty then "" else ",\"variants\":" ++ variants) ++ ",\"states\":[{\"requested\":" ++ requested ++
     ",\"orig\":" ++ o ++ ",\"rewrite\":" ++ r ++ ",\"expect\":null,\"expectNeutral\":null}]}")
 
+/-- Anchors with one part `m`: role `node` (compares its width) and role `bare` (no box, so no rect cell). -/
+def marginAnchors : String :=
+  "{\"style\":{\"skipPrefixes\":[],\"skipSets\":{}},\"parts\":{\"m\":{\"roles\":[" ++
+  "{\"role\":\"node\",\"boxRel\":null,\"dims\":[\"w\"],\"skipSets\":[],\"skipProps\":[],\"why\":\"a node with a rect cell\"}," ++
+  "{\"role\":\"bare\",\"boxRel\":null,\"dims\":[],\"skipSets\":[],\"skipProps\":[],\"why\":\"a node with no box item\"}]}}}"
+
+/-- Recorded properties of the margin cases: a margin longhand and a block-axis margin on both roles. -/
+def marginProps : String :=
+  "{\"m\":{\"node\":{\"restated\":[\"margin-inline-start\",\"margin-top\"],\"originOnly\":[]},\"bare\":{\"restated\":[\"margin-inline-start\"],\"originOnly\":[]}}}"
+
+/-- One arm of a margin case: the node is `w` px wide with `margin-inline-start: ms` (non-fixed when `nf`), the bare
+role has the same margin and no rect; `mt`: the block margin, flagged non-fixed whenever `nf`. -/
+def marginArm (nf : Bool) (ms w mt : String) : String :=
+  let dep (ks : String) : String := if nf then ",\"layoutDep\":[" ++ ks ++ "]" else ""
+  bareArm ("{\"m\":{\"node\":{\"count\":1,\"items\":[{\"rect\":{\"x\":0,\"y\":0,\"w\":" ++ w ++ ",\"h\":10},\"style\":{\"margin-inline-start\":\"" ++
+    ms ++ "\",\"margin-top\":\"" ++ mt ++ "\"}" ++ dep "\"margin-inline-start\",\"margin-top\"" ++ "}]},\"bare\":{\"count\":1,\"items\":[{\"rect\":null,\"style\":{\"margin-inline-start\":\"" ++
+    ms ++ "\"}" ++ dep "\"margin-inline-start\"" ++ "}]}}}")
+
+/-- A `gate.state` request over the margin anchors: the original margin `mo` (non-fixed when `nfO`) at width `wo`, the
+rewrite `mr` (non-fixed when `nfR`) at width `wr`; the block margin differs on both when `mtDiffers`. -/
+def marginReq (nfO nfR : Bool) (mo mr wo wr : String) (mtDiffers : Bool := false) : Json :=
+  lit ("{\"anchors\":" ++ marginAnchors ++ ",\"parts\":[\"m\"],\"props\":" ++ marginProps ++ ",\"deviceEdges\":[],\"states\":[{\"requested\":" ++ requested ++
+    ",\"orig\":" ++ marginArm nfO mo wo "0px" ++ ",\"rewrite\":" ++ marginArm nfR mr wr (if mtDiffers then "9px" else "0px") ++ ",\"expect\":null,\"expectNeutral\":null}]}")
+
+/-- The margin rule cases: arms non-fixed or not (4), styles equal or differ (2), rect equal or differ (2). -/
+def marginCases (_ : Unit := ()) : List (String × String × Json) :=
+  ([false, true].flatMap fun nfO => [false, true].flatMap fun nfR => [false, true].flatMap fun sd => [false, true].map fun rd =>
+    (s!"margin rule: original {if nfO then "non-fixed" else "fixed"}, rewrite {if nfR then "non-fixed" else "fixed"}, " ++
+      s!"styles {if sd then "differ" else "equal"}, rect {if rd then "differs" else "equal"}", "gate.state",
+      marginReq nfO nfR "96px" (if sd then "0px" else "96px") "100" (if rd then "120" else "100"))) ++
+  [("margin rule: the block-axis margin keeps the style read (both arms flagged non-fixed, margin-top differs, rects equal)", "gate.state",
+        marginReq true true "96px" "96px" "100" "100" (mtDiffers := true))]
+
 /-- The literal cases: (name, op, request without op). -/
 def literalCases (_ : Unit := ()) : List (String × String × Json) := [
   ("cell: no applicable item is not comparable", "gate.cell", lit "{\"statuses\":[\"na\",\"na\"]}"),
@@ -158,7 +191,7 @@ def literalCases (_ : Unit := ()) : List (String × String × Json) := [
    variantReq 2 "{\"c\":\"faithful\"}"),
   ("state, no variants field: the plain roles are judged", "gate.state", variantReq 2 ""),
   ("state: a variant role whose new role name is already a role is refused", "gate.state",
-   variantReq 2 "{\"c\":\"strip\"}" (newRole := "digit"))]
+   variantReq 2 "{\"c\":\"strip\"}" (newRole := "digit"))] ++ marginCases ()
 
 /-- The text of `literal.jsonl`. -/
 def literalText (_ : Unit := ()) : String :=

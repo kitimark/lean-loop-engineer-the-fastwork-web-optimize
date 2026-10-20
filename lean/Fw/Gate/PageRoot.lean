@@ -54,7 +54,7 @@ def partId : String := "engine.scroll"
 
 /-- The anchor as a gate item. -/
 def pageRootItem (req : Rat) (o r : Option Rat) : PItem :=
-  ⟨.box, "pageRoot", 0, itemKey, status req o r, false⟩
+  ⟨.box, "pageRoot", 0, itemKey, status req o r, false, false, .na⟩
 
 /-- The items the anchor adds to part `engine.scroll`: none when neither arm reported a `scrollWidth` (a record taken before the
 harness read it), else the one item. -/
@@ -261,6 +261,6 @@ theorem noclip_fits_of_le (q w : Rat) (h : w ≤ viewportOf q) :
 #guard status 430 (some 430) none == .missing
 #guard status 430 none (some 430) == .missing
 #guard (pageRootItems 430 none none).isEmpty
-#guard pageRootItems 430 (some 430) (some 430) == [⟨.box, "pageRoot", 0, "scrollWidth<=requestedWidth", .equal, false⟩]
+#guard pageRootItems 430 (some 430) (some 430) == [⟨.box, "pageRoot", 0, "scrollWidth<=requestedWidth", .equal, false, false, .na⟩]
 
 end Fw.Gate.PageRoot

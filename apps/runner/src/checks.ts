@@ -110,7 +110,7 @@ export async function checksCli(argv: string[], cwd: string, deps: { core?: FwCa
   log(`checks: ${p.changed.length} changed files; selected ${p.selected.length}: ${p.selected.map((c) => `${tierOf(c.id)}:${c.id}`).join(" ") || "none"}`);
   if (a.tier === "remote") {
     log(`LANE digest=${remoteDigest(core, tierChosen.map((c) => c.id))}`); // land.yml binds the run to this (Lean console.landDigest)
-    log(`LANE browser=${p.browser}`); // land.yml runs the preview browser suite on both engines iff true (Lean LandTier.browserRuns)
+    log(`LANE browser=${p.browser}`); // the whole selection holds the browser check (Lean LandTier.browserRuns); land.yml reads the per-leg `LANE leg=.. engine=..` line below
   }
   let chosen = tierChosen;
   if (a.leg !== undefined) {

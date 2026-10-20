@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>cv.margin-typed-om</title>
+<style>
+  body { margin: 0 }
+  .row { width: 400px }
+  .row > div { height: 10px; width: 100px; background: #888 }
+  /* Three margin kinds, one pair of values each: the start side takes the first value, the end side the second. */
+  .auto { margin-inline: auto }
+  .pct { margin-inline: 10% 20% }
+  .px { margin-inline: 30px 40px }
+  #scale { transform: scale(0.916667); transform-origin: 0 0 }
+  .spacer { height: 4000px }
+  .cv { content-visibility: auto; contain-intrinsic-size: auto 60px; width: 400px }
+</style>
+<div id="normal" class="row">
+  <div id="n-auto" class="auto"></div><div id="n-pct" class="pct"></div><div id="n-px" class="px"></div>
+</div>
+<div id="scale"><div class="row">
+  <div id="s-auto" class="auto"></div><div id="s-pct" class="pct"></div><div id="s-px" class="px"></div>
+</div></div>
+<div class="spacer"></div>
+<div id="skips"></div>
+<script>
+  // One content-visibility:auto section per (kind, key): a style read may open the lock, so every read gets a subtree of its own.
+  // The engine's own signal that a section is skipped is recorded without reading any style.
+  window.__cv = {};
+  const keys = ['margin-left', 'margin-right', 'margin-inline-start', 'margin-inline-end'];
+  for (const kind of ['auto', 'pct', 'px']) {
+    for (const key of keys) {
+      const id = `${kind}:${key}`;
+      const s = document.createElement('section');
+      s.className = 'cv row'; s.id = `sec-${id}`;
+      s.innerHTML = `<div id="node-${id}" class="${kind}"></div>`;
+      s.addEventListener('contentvisibilityautostatechange', (e) => { window.__cv[id] = e.skipped; });
+      document.getElementById('skips').appendChild(s);
+    }
+  }
+</script>

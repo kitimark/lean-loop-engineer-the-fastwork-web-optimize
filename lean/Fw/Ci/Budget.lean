@@ -69,6 +69,10 @@ structure Limits where
   /-- requests per page of one tick: the poller's `gh run list` without `--workflow`, measured at 2 (82 ticks, no
   tick correction, 2026-10-19) -/
   listCost : Nat := 2
+  /-- ticks that list a watched run's creation time without it before the watch is dropped -/
+  missMax : Nat := 3
+  /-- exclusive bound of a GitHub run id (ids are about 2.5e10 in 2026) -/
+  maxRun : Nat := 10 ^ 13
 deriving Repr, DecidableEq
 
 /-- The default limits.
@@ -334,12 +338,32 @@ def parse (ls : List String) : Headers × Nat :=
 
 /-- A run some waiter is waiting on: its id, its creation time, and the last tick that covered it.
 
-$$\mathrm{Watch} = (\mathit{runId}, \mathit{createdAt}, \mathit{lastCovered}) \in \mathbb{N}^2 \times \mathbb{N}_\bot$$
+$$\mathrm{Watch} = (\mathit{runId}, \mathit{createdAt}, \mathit{lastCovered}, \mathit{misses}) \in \mathbb{N}^2 \times \mathbb{N}_\bot \times \mathbb{N}$$
 -/
 structure Watch where
   runId : Nat
   createdAt : Nat
   lastCovered : Option Nat := none
+  /-- ticks in a row whose list covered `createdAt` and lacked the run -/
+  misses : Nat := 0
+deriving Repr, DecidableEq
+
+/-- Why a watch was dropped: unseen in `missMax` covering lists, older than the newest pages a tick may read, or
+left without a live waiter (`orphan`). -/
+inductive Drop where
+  | unseen
+  | uncovered
+  | orphan
+deriving Repr, DecidableEq
+
+/-- An incident: the run dropped, when, and why.
+
+$$\mathrm{Incident} = (\mathit{runId}, \mathit{time}, \mathit{why}) \in \mathbb{N}^2 \times \mathrm{Drop}$$
+-/
+structure Incident where
+  runId : Nat
+  time : Nat
+  why : Drop
 deriving Repr, DecidableEq
 
 /-- The budget state shared by the machine: the clock, the ledger, the last seen headers, the retry and failure
@@ -359,6 +383,8 @@ structure State where
   lastTick : Option Nat := none
   pending : Option (Kind × Nat) := none
   pages : Nat := 1
+  /-- watches dropped and not yet acknowledged (the poller logs them, then sends `ack`) -/
+  incidents : List Incident := []
 deriving Repr, DecidableEq
 
 /-- The empty state at time $t$.
@@ -378,11 +404,23 @@ def headroom (L : Limits) (s : State) : Bool :=
   | none => true
   | some r => decide (L.F < r) || (match s.reset with | some T => decide (T ≤ s.now) | none => false)
 
-/-- The cost of one tick: the list cost per page times the pages (at least one).
+/-- The most pages one tick may read: the pages whose list cost fits the per-minute tick share (at least one).
 
-$$\operatorname{tickCost}(L, s) = L.c_{\text{list}} \cdot \max(1, s.\mathit{pages})$$
+$$\operatorname{pageCap}(L) = \max\big(1, \lfloor (B_1 \mathbin{\dot-} R_1) / c_{\text{list}} \rfloor\big)$$
 -/
-def tickCost (L : Limits) (s : State) : Nat := L.listCost * max 1 s.pages
+def pageCap (L : Limits) : Nat := max 1 (share1 L .tick / L.listCost)
+
+/-- The pages the next tick reads: those the state asks for, at least one, at most `pageCap`.
+
+$$\operatorname{pages}(L, s) = \min(\operatorname{pageCap}(L),\ \max(1, s.\mathit{pages}))$$
+-/
+def pagesOf (L : Limits) (s : State) : Nat := min (pageCap L) (max 1 s.pages)
+
+/-- The cost of one tick: the list cost per page times the pages it reads.
+
+$$\operatorname{tickCost}(L, s) = L.c_{\text{list}} \cdot \operatorname{pages}(L, s)$$
+-/
+def tickCost (L : Limits) (s : State) : Nat := L.listCost * pagesOf L s
 
 /-- Integer ceiling division ($0$ when dividing by $0$, as Lean's `/`).
 
@@ -606,10 +644,119 @@ def observe (L : Limits) (s : State) (h : Headers) (actual : Nat) : State :=
            remaining := (bucket s h).1, reset := (bucket s h).2, etag := h.etag <|> s.etag,
            retryUntil := max s.retryUntil (retryFrom L s h), fails }
 
-/-- The events that change the state without a call: the clock, a waiter registering or leaving a run, the pages a
-tick needs, a response, and a manual resume after the poller stopped.
+/-- The first id of the branch watches: a waiter on a branch (no run id yet) registers a sentinel
+`sentinelBase + h`, with `h` a 32-bit hash of branch, workflow and commit.
 
-$$\mathrm{Event} = \mathrm{clock}(\mathbb{N}) \mid \mathrm{register}(\mathit{runId}, \mathit{createdAt}) \mid \mathrm{unregister}(\mathit{runId}) \mid \mathrm{pages}(\mathbb{N}) \mid \mathrm{response}(\mathrm{Headers}, \mathbb{N}) \mid \mathrm{resume}$$
+$$\mathit{sentinelBase} = 10^{15}$$
+-/
+def sentinelBase : Nat := 10 ^ 15
+
+/-- The number of sentinel ids.
+
+$$\mathit{sentinelSpan} = 2^{32}$$
+-/
+def sentinelSpan : Nat := 2 ^ 32
+
+/-- Is the id a branch watch's sentinel?
+
+$$\operatorname{isSentinel}(r) \iff 10^{15} \le r < 10^{15} + 2^{32}$$
+-/
+def isSentinel (r : Nat) : Bool := decide (sentinelBase ≤ r ∧ r < sentinelBase + sentinelSpan)
+
+/-- Is the id a GitHub run id: positive and below `maxRun`?
+
+$$\operatorname{validRunId}(L, r) \iff 0 < r < L.\mathit{maxRun}$$
+-/
+def validRunId (L : Limits) (r : Nat) : Bool := decide (0 < r ∧ r < L.maxRun)
+
+/-- May a waiter register this id: a GitHub run id or a branch sentinel?
+
+$$\operatorname{validWatch}(L, r) \iff \operatorname{validRunId}(L, r) \lor \operatorname{isSentinel}(r)$$
+-/
+def validWatch (L : Limits) (r : Nat) : Bool := validRunId L r || isSentinel r
+
+#guard validWatch defaults 25000000000 && validWatch defaults 1000000000838323
+#guard !validWatch defaults 0 && !validWatch defaults 5000000000000000 && !validWatch defaults (10 ^ 13)
+#guard !validRunId defaults 1000000000838323
+
+/-- Is a list full, i.e. cut at the page limit? `count` rows came back from `pagesRead` pages of 100 rows.
+
+$$\operatorname{isFull}(\mathit{count}, p) \iff \max(1, p) \cdot 100 \le \mathit{count}$$
+-/
+def isFull (count pagesRead : Nat) : Bool := decide (max 1 pagesRead * 100 ≤ count)
+
+/-- Does a list cover the creation time of a watch? A list that is not full holds every run created since the
+oldest watch (`since`, the `createdSince` of the tick); a full list (cut at the page limit) holds only the runs
+created after its oldest row.
+
+$$\operatorname{covers}(\mathit{rows}, \mathit{full}, \mathit{since}, w) \iff \mathit{since} \le w.\mathit{createdAt} \land (\lnot\mathit{full} \lor \exists f:\ \min_{(\_, c) \in \mathit{rows}} c = f \land f < w.\mathit{createdAt})$$
+-/
+def covers (rows : List (Nat × Nat)) (full : Bool) (since : Nat) (w : Watch) : Bool :=
+  decide (since ≤ w.createdAt) &&
+    (!full || (match (rows.map (·.2)).min? with | some f => decide (f < w.createdAt) | none => false))
+
+/-- What one tick's list says of one watch, first match wins: a branch sentinel is not a run and stays; a run in
+the list stays with its misses cleared; a run created before the list's window (`createdAt < since`, registered
+after the tick began) is not judged and stays until the next tick; a run the list cannot cover is dropped
+(`uncovered`); a covered run that is missing stays for `missMax - 1` ticks and is then dropped (`unseen`).
+
+$$\operatorname{judge}(L, \mathit{rows}, \mathit{full}, \mathit{since}, w) = \begin{cases} \text{keep } w & \operatorname{isSentinel}(w.\mathit{runId}) \\ \text{keep } w[\mathit{misses} := 0] & \text{else if } w.\mathit{runId} \in \mathit{rows} \\ \text{keep } w & \text{else if } w.\mathit{createdAt} < \mathit{since} \\ \text{drop } \mathrm{uncovered} & \text{else if } \lnot\operatorname{covers}(\mathit{rows}, \mathit{full}, \mathit{since}, w) \\ \text{drop } \mathrm{unseen} & \text{else if } L.\mathit{missMax} \le w.\mathit{misses} + 1 \\ \text{keep } w[\mathit{misses} := w.\mathit{misses} + 1] & \text{otherwise} \end{cases}$$
+-/
+def judge (L : Limits) (rows : List (Nat × Nat)) (full : Bool) (since : Nat) (w : Watch) : Drop ⊕ Watch :=
+  if isSentinel w.runId then .inr w
+  else if rows.any (·.1 == w.runId) then .inr { w with misses := 0 }
+  else if w.createdAt < since then .inr w
+  else if !covers rows full since w then .inl .uncovered
+  else if L.missMax ≤ w.misses + 1 then .inl .unseen
+  else .inr { w with misses := w.misses + 1 }
+
+/-- Apply one tick's list (rows `(runId, createdAt)`; `full` when it hit the page limit; `since` the window start the
+tick asked for) to every watch.
+
+$$\operatorname{listed}(L, s, \mathit{rows}, \mathit{full}, \mathit{since}) = s[\mathit{watched} := [\,w' \mid w \in s.\mathit{watched},\ \operatorname{judge}(L, \mathit{rows}, \mathit{full}, \mathit{since}, w) = \text{keep } w'\,],\ \mathit{incidents} := s.\mathit{incidents} \mathbin{+\!\!+} [\,(w.\mathit{runId}, s.\mathit{now}, d) \mid w \in s.\mathit{watched},\ \operatorname{judge}(L, \mathit{rows}, \mathit{full}, \mathit{since}, w) = \text{drop } d\,]]$$
+-/
+def listed (L : Limits) (s : State) (rows : List (Nat × Nat)) (full : Bool) (since : Nat) : State :=
+  { s with
+    watched := s.watched.filterMap fun w => match judge L rows full since w with | .inr w' => some w' | .inl _ => none,
+    incidents := s.incidents ++ s.watched.filterMap fun w =>
+      match judge L rows full since w with | .inl d => some ⟨w.runId, s.now, d⟩ | .inr _ => none }
+
+/-- What the glue read of one waiter marker: the run it waits on, whether `kill(pid, 0)` found the process (a process
+of another user, `EPERM`, counts as found), the process start time the marker recorded when the waiter began, and the
+start time of that pid now. A start time is an opaque token (the output of `ps -o lstart= -p <pid>`), compared only for
+equality; `none` is a token that was not recorded or could not be read.
+-/
+structure Marker where
+  runId : Nat
+  killOk : Bool
+  recorded : Option String := none
+  now : Option String := none
+deriving Repr, DecidableEq
+
+/-- Is the waiter behind a marker alive? The process exists and, when both start times are known, it is the process
+that wrote the marker (a reused pid has another start time). A marker written without a token (older code) is alive
+when the process exists; accepted limit: a reused pid is then taken for the waiter. A marker with a token whose pid
+`ps` cannot see now is dead. Two processes with one pid started within the token's resolution (1 s) are not told apart.
+-/
+def Marker.alive (m : Marker) : Bool :=
+  m.killOk && (match m.recorded, m.now with | some a, some b => a == b | some _, none => false | none, _ => true)
+
+/-- The run ids that have a live waiter.
+-/
+def aliveIds (ms : List Marker) : List Nat := (ms.filter Marker.alive).map (·.runId)
+
+/-- Drop every watch with no live waiter, with an `orphan` incident; keep the others unchanged. The rule does not look
+at the kind of the id: a real run nobody waits on has no reader either.
+-/
+def sweep (s : State) (alive : List Nat) : State :=
+  { s with
+    watched := s.watched.filter fun w => alive.contains w.runId,
+    incidents := s.incidents ++ s.watched.filterMap fun w =>
+      if alive.contains w.runId then none else some ⟨w.runId, s.now, .orphan⟩ }
+
+/-- The events that change the state without a call: the clock, a waiter registering or leaving a run, the pages a
+tick needs, a response, a manual resume after the poller stopped, one tick's list, and
+the acknowledgement of logged incidents, and the sweep of watches without a live waiter.
 -/
 inductive Event where
   | clock (t : Nat)
@@ -618,23 +765,30 @@ inductive Event where
   | pages (n : Nat)
   | response (h : Headers) (actual : Nat)
   | resume
+  | listed (rows : List (Nat × Nat)) (count pagesRead since : Nat)
+  | ack (n : Nat)
+  | sweep (alive : List Nat)
 deriving Repr
 
 /-- Apply an event. The clock never goes back (`now := max(now, t)`) and drops ledger entries no window can see
-again; a second waiter on a watched run changes nothing.
+again; an id that is neither a GitHub run id nor a branch sentinel is refused (the state stays), and a second waiter
+on a watched run changes nothing.
 
-$$\begin{aligned} \operatorname{step}(L, s, \mathrm{clock}(t)) &= s[\mathit{now} := n,\ \ell := [\,e \in s.\ell \mid n < e.\mathit{time} + \max(W, W_1)\,]], \quad n = \max(s.\mathit{now}, t) \\ \operatorname{step}(L, s, \mathrm{register}(r, c)) &= \begin{cases} s & \exists w \in s.\mathit{watched}:\ w.\mathit{runId} = r \\ s[\mathit{watched} := s.\mathit{watched} \mathbin{+\!\!+} [(r, c, \bot)]] & \text{otherwise} \end{cases} \\ \operatorname{step}(L, s, \mathrm{unregister}(r)) &= s[\mathit{watched} := [\,w \in s.\mathit{watched} \mid w.\mathit{runId} \ne r\,]] \\ \operatorname{step}(L, s, \mathrm{pages}(n)) &= s[\mathit{pages} := \max(1, n)] \\ \operatorname{step}(L, s, \mathrm{response}(h, a)) &= \operatorname{observe}(L, s, h, a) \\ \operatorname{step}(L, s, \mathrm{resume}) &= s[\mathit{fails} := 0] \end{aligned}$$
+$$\begin{aligned} \operatorname{step}(L, s, \mathrm{clock}(t)) &= s[\mathit{now} := n,\ \ell := [\,e \in s.\ell \mid n < e.\mathit{time} + \max(W, W_1)\,]], \quad n = \max(s.\mathit{now}, t) \\ \operatorname{step}(L, s, \mathrm{register}(r, c)) &= \begin{cases} s & \lnot\operatorname{validWatch}(L, r) \lor \exists w \in s.\mathit{watched}:\ w.\mathit{runId} = r \\ s[\mathit{watched} := s.\mathit{watched} \mathbin{+\!\!+} [(r, c, \bot, 0)]] & \text{otherwise} \end{cases} \\ \operatorname{step}(L, s, \mathrm{unregister}(r)) &= s[\mathit{watched} := [\,w \in s.\mathit{watched} \mid w.\mathit{runId} \ne r\,]] \\ \operatorname{step}(L, s, \mathrm{pages}(n)) &= s[\mathit{pages} := \max(1, n)] \\ \operatorname{step}(L, s, \mathrm{response}(h, a)) &= \operatorname{observe}(L, s, h, a) \\ \operatorname{step}(L, s, \mathrm{resume}) &= s[\mathit{fails} := 0] \\ \operatorname{step}(L, s, \mathrm{listed}(\mathit{rows}, n, p, c)) &= \operatorname{listed}(L, s, \mathit{rows}, \operatorname{isFull}(n, p), c) \\ \operatorname{step}(L, s, \mathrm{ack}(n)) &= s[\mathit{incidents} := \operatorname{drop}(n, s.\mathit{incidents})] \\ \operatorname{step}(L, s, \mathrm{sweep}(A)) &= \operatorname{sweep}(s, A) \end{aligned}$$
 -/
 def step (L : Limits) (s : State) : Event → State
   | .clock t =>
     let n := max s.now t
     { s with now := n, ledger := s.ledger.filter fun e => decide (n < e.time + max L.W L.W1) }
   | .register r c =>
-    if s.watched.any (·.runId == r) then s else { s with watched := s.watched ++ [⟨r, c, none⟩] }
+    if !validWatch L r || s.watched.any (·.runId == r) then s else { s with watched := s.watched ++ [{ runId := r, createdAt := c }] }
   | .unregister r => { s with watched := s.watched.filter (·.runId != r) }
   | .pages n => { s with pages := max 1 n }
   | .response h a => observe L s h a
   | .resume => { s with fails := 0 }
+  | .listed rows count pagesRead since => listed L s rows (isFull count pagesRead) since
+  | .ack n => { s with incidents := s.incidents.drop n }
+  | .sweep alive => sweep s alive
 
 /-! ## Examples -/
 
@@ -678,7 +832,7 @@ private def stopOf : Decision → Option Reason | .stop r => some r | _ => none
 #guard (observe defaults { init 5 with pending := some (.tick, 2) } { status := 200 } 3).ledger = [⟨5, 1, .tick, false⟩]
 #guard (observe defaults { init 5 with pending := some (.tick, 2) } { status := 200 } 2).ledger = []
 -- registering the same run twice is one entry
-#guard (step defaults (step defaults (init 0) (.register 7 0)) (.register 7 5)).watched = [⟨7, 0, none⟩]
+#guard (step defaults (step defaults (init 0) (.register 7 0)) (.register 7 5)).watched = [⟨7, 0, none, 0⟩]
 #guard since (step defaults (step defaults (init 0) (.register 7 50)) (.register 8 20)) = some 20
 
 /-! ## (e) The clock -/
@@ -692,7 +846,7 @@ theorem clock_monotone (L : Limits) (s : State) (e : Event) : (step L s e).now �
   | clock t => simp only [step]; omega
   | register r c => simp only [step]; split <;> simp
   | response h a => simp [step, observe]
-  | _ => simp [step]
+  | _ => simp [step, listed, sweep]
 
 /-- An issued charge keeps the clock, appends exactly the charge, and changes no guard field.
 
@@ -965,6 +1119,9 @@ theorem inv_step (L : Limits) (s : State) (e : Event) (h : Inv L s) : Inv L (ste
   | unregister r => exact ⟨hall, hok⟩
   | pages n => exact ⟨hall, hok⟩
   | resume => exact ⟨hall, hok⟩
+  | listed rows count pagesRead since => exact ⟨hall, hok⟩
+  | ack n => exact ⟨hall, hok⟩
+  | sweep alive => exact ⟨hall, hok⟩
   | response hd a =>
     simp only [step, observe]
     refine ⟨fun e he => ?_, fun k t' => ?_⟩
@@ -1100,7 +1257,7 @@ theorem retry_mono (L : Limits) (s0 s : State) (hr : Reach L s0 s) : s0.retryUnt
       | clock t => simp [step]
       | register r c => simp only [step]; split <;> simp
       | response hd a => simp only [step, observe]; exact Nat.le_max_left _ _
-      | _ => simp [step]
+      | _ => simp [step, listed, sweep]
     omega
   | charge _ hc ih =>
     have := (charge_issue L _ _ _ _ _ _ hc).2.2.2.2; omega
@@ -1440,7 +1597,9 @@ $$\forall L, s, t:\quad P(L, \operatorname{step}(L, s, \mathrm{clock}(t))) \le P
 theorem interval_clock (L : Limits) (s : State) (t : Nat) : interval L (step L s (.clock t)) ≤ interval L s := by
   have hsp : spread L (step L s (.clock t)) ≤ spread L s := by
     unfold spread
-    simp only [step, tickCost]
+    have htc : tickCost L (step L s (.clock t)) = tickCost L s := rfl
+    simp only [step] at htc ⊢
+    rw [htc]
     split
     · rename_i r T _ _
       by_cases hlt : max s.now t < T
@@ -1685,7 +1844,410 @@ theorem remaining_no_rise (L : Limits) (s : State) (T r : Nat) (hT : s.reset = s
     | unregister rid => exact ⟨r, Nat.le_refl _, hr⟩
     | pages n => exact ⟨r, Nat.le_refl _, hr⟩
     | resume => exact ⟨r, Nat.le_refl _, hr⟩
+    | listed rows count pagesRead since => exact ⟨r, Nat.le_refl _, hr⟩
+    | ack n => exact ⟨r, Nat.le_refl _, hr⟩
+    | sweep alive => exact ⟨r, Nat.le_refl _, hr⟩
   · have := charge_bucket L s k c k' c' s' hc
     rw [this.1, this.2, hr, hT]; exact ⟨rfl, rfl⟩
+
+/-! ## (i) Stale watches and the bounded tick
+
+The incident of 2026-10-20: a branch watch (id `10^15 + h`) never finished, the list window `created >= createdAt`
+stayed open for 4.5 h, a tick needed 11 pages (cost 22) and `charge` stopped the poller with `tooBig`, a stop only a
+manual resume lifts. Three rules close it: an unknown id is refused at registration, a watch a list cannot find is dropped
+with an incident, and a tick never reads more pages than its share allows. Section (j) adds the fourth: a watch whose
+waiter is gone is dropped. -/
+
+/-- (i-a) Registration refuses an id that is neither a GitHub run id nor a branch sentinel: the state stays.
+
+$$\forall L, s, r, c:\quad \lnot\operatorname{validWatch}(L, r) \Rightarrow \operatorname{step}(L, s, \mathrm{register}(r, c)) = s$$
+-/
+theorem register_refused (L : Limits) (s : State) (r c : Nat) (h : validWatch L r = false) :
+    step L s (.register r c) = s := by
+  simp [step, h]
+
+/-- (i-a) Registration accepts a valid id: the run is watched afterwards (a first registration appends it with no
+misses, a second changes nothing).
+
+$$\forall L, s, r, c:\quad \operatorname{validWatch}(L, r) \Rightarrow \exists w \in \operatorname{step}(L, s, \mathrm{register}(r, c)).\mathit{watched}:\ w.\mathit{runId} = r$$
+-/
+theorem register_accepted (L : Limits) (s : State) (r c : Nat) (h : validWatch L r = true) :
+    ∃ w ∈ (step L s (.register r c)).watched, w.runId = r := by
+  unfold step
+  by_cases hd : s.watched.any (·.runId == r) = true
+  · simp only [h, hd]
+    simp only [List.any_eq_true, beq_iff_eq] at hd
+    obtain ⟨w, hw, hwr⟩ := hd
+    simpa using ⟨w, hw, hwr⟩
+  · simp only [h, hd]
+    simp
+
+/-- (i-a) The stray id of the incident, `10^15 + 838323`, is a branch sentinel (the glue's `sentinelId`) and so is
+accepted at registration. An id above the sentinel range is refused.
+
+$$\operatorname{validWatch}(L, 10^{15} + 838323) \land \lnot\operatorname{validRunId}(L, 10^{15} + 838323) \land \lnot\operatorname{validWatch}(L, 10^{15} + 2^{32})$$
+-/
+theorem incident_id : validWatch defaults 1000000000838323 = true ∧ validRunId defaults 1000000000838323 = false ∧
+    validWatch defaults (10 ^ 15 + 2 ^ 32) = false := by decide
+
+/-- (i-b) Every watch is covered or dropped with an incident: after a list, each watch is still watched (under its
+run id) or has an incident with its id at the current time.
+
+$$\forall L, s, \mathit{rows}, \mathit{full}, c, w \in s.\mathit{watched}:\ (\exists w' \in \operatorname{listed}(L, s, \mathit{rows}, \mathit{full}, c).\mathit{watched}:\ w'.\mathit{runId} = w.\mathit{runId}) \lor (\exists d:\ (w.\mathit{runId}, s.\mathit{now}, d) \in \operatorname{listed}(L, s, \mathit{rows}, \mathit{full}, c).\mathit{incidents})$$
+-/
+theorem listed_total (L : Limits) (s : State) (rows : List (Nat × Nat)) (full : Bool) (since : Nat) (w : Watch)
+    (hw : w ∈ s.watched) :
+    (∃ w' ∈ (listed L s rows full since).watched, w'.runId = w.runId) ∨
+    ∃ d, (⟨w.runId, s.now, d⟩ : Incident) ∈ (listed L s rows full since).incidents := by
+  cases hj : judge L rows full since w with
+  | inl d =>
+    right
+    refine ⟨d, ?_⟩
+    simp only [listed, List.mem_append, List.mem_filterMap]
+    exact Or.inr ⟨w, hw, by simp [hj]⟩
+  | inr w2 =>
+    left
+    refine ⟨w2, ?_, ?_⟩
+    · simp only [listed, List.mem_filterMap]
+      exact ⟨w, hw, by simp [hj]⟩
+    · unfold judge at hj
+      split at hj
+      · simp at hj; subst hj; rfl
+      · split at hj
+        · simp at hj; subst hj; rfl
+        · split at hj
+          · simp at hj; subst hj; rfl
+          · split at hj
+            · simp at hj
+            · split at hj
+              · simp at hj
+              · simp at hj; subst hj; rfl
+
+/-- (i-b) Every kept watch is covered: after a list, each watch left in `watched` is a branch sentinel, is in the
+list's rows, was created before the list's window (registered after the tick began, judged by the next tick), or is
+covered by the list. A real run the list cannot cover is not kept. Accepted limit: a sentinel is kept without a
+coverage check (it is not a run), and under a full, narrowed list a sentinel's run may lie outside the pages read;
+a sentinel whose waiter died is dropped by `sweep`, not by a list.
+
+$$\forall L, s, \mathit{rows}, \mathit{full}, c, w' \in \operatorname{listed}(L, s, \mathit{rows}, \mathit{full}, c).\mathit{watched}:\ \operatorname{isSentinel}(w'.\mathit{runId}) \lor w'.\mathit{runId} \in \mathit{rows} \lor w'.\mathit{createdAt} < c \lor \operatorname{covers}(\mathit{rows}, \mathit{full}, c, w')$$
+-/
+theorem listed_kept_covered (L : Limits) (s : State) (rows : List (Nat × Nat)) (full : Bool) (since : Nat)
+    (w' : Watch) (hm : w' ∈ (listed L s rows full since).watched) :
+    isSentinel w'.runId = true ∨ rows.any (·.1 == w'.runId) = true ∨ w'.createdAt < since ∨
+      covers rows full since w' = true := by
+  simp only [listed, List.mem_filterMap] at hm
+  obtain ⟨w, -, hj⟩ := hm
+  cases hjj : judge L rows full since w with
+  | inl d => simp [hjj] at hj
+  | inr w2 =>
+    simp only [hjj, Option.some.injEq] at hj
+    subst hj
+    unfold judge at hjj
+    split at hjj
+    · simp at hjj; subst hjj; left; assumption
+    · split at hjj
+      · simp at hjj; subst hjj; right; left; assumption
+      · split at hjj
+        · simp at hjj; subst hjj; right; right; left; assumption
+        · split at hjj
+          · simp at hjj
+          · split at hjj
+            · simp at hjj
+            · rename_i hcv _
+              have h1 : covers rows full since w = true := by simpa using hcv
+              simp at hjj; subst hjj; right; right; right
+              exact h1
+
+/-- (i-b) A run that the narrowed list cannot cover is dropped with an `uncovered` incident: on a full list, a
+real run (not a sentinel) absent from the rows, inside the list's window, and created no later than the oldest row.
+
+$$\forall L, s, \mathit{rows}, c, w \in s.\mathit{watched}:\ \lnot\operatorname{isSentinel}(w.\mathit{runId}) \land w.\mathit{runId} \notin \mathit{rows} \land c \le w.\mathit{createdAt} \land \lnot\operatorname{covers}(\mathit{rows}, \top, c, w) \Rightarrow (w.\mathit{runId}, s.\mathit{now}, \mathrm{uncovered}) \in \operatorname{listed}(L, s, \mathit{rows}, \top, c).\mathit{incidents}$$
+-/
+theorem listed_uncovered (L : Limits) (s : State) (rows : List (Nat × Nat)) (since : Nat) (w : Watch)
+    (hw : w ∈ s.watched)
+    (hs : isSentinel w.runId = false) (hr : rows.any (·.1 == w.runId) = false) (hw0 : since ≤ w.createdAt)
+    (hc : covers rows true since w = false) :
+    (⟨w.runId, s.now, .uncovered⟩ : Incident) ∈ (listed L s rows true since).incidents := by
+  have hj : judge L rows true since w = .inl .uncovered := by
+    simp [judge, hs, hr, hc]; omega
+  simp only [listed, List.mem_append, List.mem_filterMap]
+  exact Or.inr ⟨w, hw, by simp [hj]⟩
+
+/-- (i-b) A covered run missing from a list for the `missMax`-th tick in a row is dropped with an `unseen` incident.
+
+$$\forall L, s, \mathit{rows}, \mathit{full}, c, w \in s.\mathit{watched}:\ \lnot\operatorname{isSentinel}(w.\mathit{runId}) \land w.\mathit{runId} \notin \mathit{rows} \land \operatorname{covers}(\mathit{rows}, \mathit{full}, c, w) \land L.\mathit{missMax} \le w.\mathit{misses} + 1 \Rightarrow (w.\mathit{runId}, s.\mathit{now}, \mathrm{unseen}) \in \operatorname{listed}(L, s, \mathit{rows}, \mathit{full}, c).\mathit{incidents}$$
+-/
+theorem listed_unseen (L : Limits) (s : State) (rows : List (Nat × Nat)) (full : Bool) (since : Nat) (w : Watch)
+    (hw : w ∈ s.watched) (hs : isSentinel w.runId = false) (hr : rows.any (·.1 == w.runId) = false)
+    (hc : covers rows full since w = true) (hm : L.missMax ≤ w.misses + 1) :
+    (⟨w.runId, s.now, .unseen⟩ : Incident) ∈ (listed L s rows full since).incidents := by
+  have hw0 : since ≤ w.createdAt := by simpa [covers] using (Bool.and_eq_true_iff.mp hc).1
+  have hj : judge L rows full since w = .inl .unseen := by simp [judge, hs, hr, hc, hm]; omega
+  simp only [listed, List.mem_append, List.mem_filterMap]
+  exact Or.inr ⟨w, hw, by simp [hj]⟩
+
+/-- (i-b) Whether a list was cut is decided here, not by the glue: `count` rows from `pagesRead` pages is full
+exactly when every page was full (`pagesRead * 100 ≤ count`, with at least one page).
+
+$$\operatorname{isFull}(n, p) \iff \max(1, p) \cdot 100 \le n$$
+-/
+theorem isFull_iff (n p : Nat) : isFull n p = true ↔ max 1 p * 100 ≤ n := by
+  simp [isFull]
+
+/-- (i-b) The `listed` event applies the decision of `isFull`: a list of 100 rows from one page is full, 99 rows are
+not, 200 rows from 2 pages are full.
+
+$$\operatorname{isFull}(100, 1) \land \lnot\operatorname{isFull}(99, 1) \land \operatorname{isFull}(200, 2) \land \lnot\operatorname{isFull}(199, 2)$$
+-/
+theorem isFull_cases : isFull 100 1 = true ∧ isFull 99 1 = false ∧ isFull 200 2 = true ∧ isFull 199 2 = false := by decide
+
+/-- (i-c) The tick cost is at most the per-minute tick share, for every state, when one page fits the share.
+
+$$\forall L, s:\quad L.c_{\text{list}} \le \operatorname{share}_1(L, \mathrm{tick}) \Rightarrow \operatorname{tickCost}(L, s) \le \operatorname{share}_1(L, \mathrm{tick})$$
+-/
+theorem tickCost_le (L : Limits) (s : State) (h1 : L.listCost ≤ share1 L .tick) (h0 : 0 < L.listCost) :
+    tickCost L s ≤ share1 L .tick := by
+  unfold tickCost pagesOf pageCap
+  have hq : 1 ≤ share1 L .tick / L.listCost := (Nat.le_div_iff_mul_le h0).2 (by omega)
+  have hmax : max 1 (share1 L .tick / L.listCost) = share1 L .tick / L.listCost := Nat.max_eq_right hq
+  rw [hmax]
+  calc L.listCost * min (share1 L .tick / L.listCost) (max 1 s.pages)
+      ≤ L.listCost * (share1 L .tick / L.listCost) := Nat.mul_le_mul_left _ (Nat.min_le_left _ _)
+    _ ≤ share1 L .tick := Nat.mul_div_le _ _
+
+/-- (i-c) The charge of a tick never stops `tooBig`: with one page within the per-minute tick share and the
+per-minute share within the hourly one, `charge` of a tick answers `stop` only with `failures`, for any state and
+any pages the state asks for.
+
+$$\forall L, s:\quad 0 < L.c_{\text{list}} \le \operatorname{share}_1(L, \mathrm{tick}) \le \operatorname{share}(L, \mathrm{tick}) \Rightarrow \operatorname{charge}(L, s, \mathrm{tick}, \operatorname{tickCost}(L, s)) = \mathrm{stop}(r) \Rightarrow r = \mathrm{failures}$$
+-/
+theorem tick_charge_no_tooBig (L : Limits) (s : State) (h0 : 0 < L.listCost) (h1 : L.listCost ≤ share1 L .tick)
+    (h2 : share1 L .tick ≤ share L .tick) (r : Reason) (hr : charge L s .tick (tickCost L s) = .stop r) :
+    r = .failures := by
+  have hc := tickCost_le L s h1 h0
+  unfold charge at hr
+  by_cases hf : L.maxFails ≤ s.fails
+  · simp [hf] at hr; exact hr.symm
+  · have hn : ¬ (share L .tick < tickCost L s ∨ share1 L .tick < tickCost L s) := by omega
+    simp only [hf, hn, ite_false] at hr
+    split at hr <;> try simp at hr
+    all_goals (split at hr <;> try simp at hr)
+    all_goals (split at hr <;> try simp at hr)
+    all_goals (split at hr <;> try simp at hr)
+
+/-- (i-c) The poller never stops `tooBig`: under the same shape, `tickNow` stops only with `failures`, and `next`
+only with `failures` or `idle`. A tick that would need more pages than the share allows reads `pageCap` pages
+instead (and `listed` drops what the narrowed list cannot cover).
+
+$$\forall L, s:\quad 0 < L.c_{\text{list}} \le \operatorname{share}_1 \le \operatorname{share} \Rightarrow (\operatorname{tickNow}(L, s) = \mathrm{stop}(r) \Rightarrow r = \mathrm{failures}) \land (\operatorname{next}(L, s) = \mathrm{stop}(r) \Rightarrow r \in \{\mathrm{failures}, \mathrm{idle}\})$$
+-/
+theorem tick_no_tooBig (L : Limits) (s : State) (h0 : 0 < L.listCost) (h1 : L.listCost ≤ share1 L .tick)
+    (h2 : share1 L .tick ≤ share L .tick) :
+    (∀ r, tickNow L s = .stop r → r = .failures) ∧ (∀ r, next L s = .stop r → r = .failures ∨ r = .idle) := by
+  have htick : ∀ r, tickNow L s = .stop r → r = .failures := by
+    intro r hr
+    unfold tickNow at hr
+    cases hq : charge L s .tick (tickCost L s) with
+    | issue k c s' => rw [hq] at hr; simp at hr
+    | wait u w => rw [hq] at hr; simp at hr
+    | stop w => rw [hq] at hr; simp at hr; subst hr; exact tick_charge_no_tooBig L s h0 h1 h2 w hq
+  refine ⟨htick, fun r hr => ?_⟩
+  unfold next at hr
+  split at hr
+  · simp at hr; exact Or.inl hr.symm
+  · split at hr
+    · simp at hr; exact Or.inr hr.symm
+    · split at hr
+      · split at hr
+        · simp at hr
+        · exact Or.inl (htick r hr)
+      · exact Or.inl (htick r hr)
+
+/-- (i-c) The default limits satisfy the shape the no-`tooBig` theorem needs: a page costs 2, within the per-minute
+tick share 20, within the hourly tick share 1800. A tick reads at most `pageCap` = 10 pages.
+
+$$0 < c_{\text{list}} = 2 \le \operatorname{share}_1(\mathrm{tick}) = 20 \le \operatorname{share}(\mathrm{tick}) = 1800 \land \operatorname{pageCap} = 10$$
+-/
+theorem defaults_shape : 0 < defaults.listCost ∧ defaults.listCost ≤ share1 defaults .tick ∧
+    share1 defaults .tick ≤ share defaults .tick ∧ pageCap defaults = 10 := by decide
+
+/-- (i-c) The incident's tick: a stale stored `pages` of 11 is capped at `pageCap` = 10 when the tick reads it, so the
+tick costs 20 (pageCap 10 x listCost 2), the per-minute tick share, and `tick_no_tooBig` holds for it.
+
+$$\operatorname{pages}(\mathit{defaults}, s[\mathit{pages} := 11]) = 10 \land \operatorname{tickCost} = 20$$
+-/
+theorem incident_tick : pagesOf defaults { init 0 with pages := 11 } = 10 ∧
+    tickCost defaults { init 0 with pages := 11 } = 20 := by decide
+
+/-- The incidents leave only through `ack`: acknowledging `n` incidents keeps the later ones, and the watches stay.
+
+$$\operatorname{step}(L, s, \mathrm{ack}(n)).\mathit{incidents} = \operatorname{drop}(n, s.\mathit{incidents}) \land \operatorname{step}(L, s, \mathrm{ack}(n)).\mathit{watched} = s.\mathit{watched}$$
+-/
+theorem ack_drops (L : Limits) (s : State) (n : Nat) :
+    (step L s (.ack n)).incidents = s.incidents.drop n ∧ (step L s (.ack n)).watched = s.watched := by
+  simp [step]
+
+-- the incident replayed: a sentinel watch (createdAt 90000 as the window start) with 11 pages stored: the tick goes at
+-- the capped 20 = pageCap 10 x listCost 2
+#guard (match next defaults ((step defaults (step defaults (init 100000) (.register 1000000000838323 90000)) (.pages 11))) with
+  | .issue _ c _ => c = 20 | _ => false)
+#guard (step defaults (init 0) (.register 5000000000000000 0)).watched = []
+-- three covered lists without the run drop it; a list holding it clears its misses
+#guard (step defaults (step defaults (step defaults (step defaults (init 100) (.register 7 90))
+  (.listed [] 0 1 80)) (.listed [] 0 1 80)) (.listed [] 0 1 80)).incidents = [⟨7, 100, .unseen⟩]
+#guard (step defaults (step defaults (step defaults (init 100) (.register 7 90)) (.listed [] 0 1 80))
+  (.listed [(7, 90)] 1 1 80)).watched = [⟨7, 90, none, 0⟩]
+-- a full list (100 rows from 1 page) cut at created 95 cannot cover a run created at 90
+#guard (step defaults (step defaults (init 100) (.register 7 90)) (.listed [(9, 95), (8, 99)] 100 1 80)).incidents =
+  [⟨7, 100, .uncovered⟩]
+-- the same two rows from 1 page are not full: the run stays with a miss
+#guard (step defaults (step defaults (init 100) (.register 7 90)) (.listed [(9, 95), (8, 99)] 2 1 80)).watched =
+  [⟨7, 90, none, 1⟩]
+-- a run registered after the tick began (created before the window start 95) is not judged
+#guard (step defaults (step defaults (init 100) (.register 7 90)) (.listed [(9, 95)] 100 1 95)).watched =
+  [⟨7, 90, none, 0⟩]
+
+/-! ## (j) Orphan watches: a watch is kept exactly while its waiter lives
+
+The origin incident's sentinel stayed registered because its waiter had died, not because it was old. No age or
+heartbeat constant can tell a slow workflow from a dead waiter; the identity of the waiter can: a watch is kept
+exactly while a marker of a live waiter names its run. The glue reads the waiter directory under the state lock and
+hands the markers to `ci.budget.next`; this section is the decision. -/
+
+/-- (j-a) A dead process is a dead waiter, whatever the tokens say.
+-/
+theorem marker_dead (m : Marker) (h : m.killOk = false) : m.alive = false := by
+  simp [Marker.alive, h]
+
+/-- (j-a) A reused pid is a dead waiter: the process exists but its start time is not the one the marker recorded.
+-/
+theorem marker_reused (m : Marker) (a b : String) (hk : m.killOk = true) (ha : m.recorded = some a)
+    (hb : m.now = some b) (hne : a ≠ b) : m.alive = false := by
+  simp [Marker.alive, hk, ha, hb, hne]
+
+/-- (j-a) A live process with the recorded start time is a live waiter.
+-/
+theorem marker_same (m : Marker) (a : String) (hk : m.killOk = true) (ha : m.recorded = some a)
+    (hb : m.now = some a) : m.alive = true := by
+  simp [Marker.alive, hk, ha, hb]
+
+/-- (j-a) A marker without a recorded token (older code) is alive exactly when its process exists.
+-/
+theorem marker_tokenless (m : Marker) (h : m.recorded = none) : m.alive = m.killOk := by
+  simp [Marker.alive, h]
+
+/-- (j-a) A recorded token with a start time that cannot be read now (`ps` does not see the pid) is a dead waiter, even
+when `kill` finds the process.
+-/
+theorem marker_unreadable (m : Marker) (a : String) (ha : m.recorded = some a) (h : m.now = none) :
+    m.alive = false := by
+  simp [Marker.alive, ha, h]
+
+/-- (j-a) A run id has a live waiter exactly when some live marker names it.
+-/
+theorem mem_aliveIds (ms : List Marker) (r : Nat) :
+    r ∈ aliveIds ms ↔ ∃ m ∈ ms, m.runId = r ∧ m.alive = true := by
+  simp only [aliveIds, List.mem_map, List.mem_filter]
+  constructor
+  · rintro ⟨m, ⟨hm, ha⟩, rfl⟩; exact ⟨m, hm, rfl, ha⟩
+  · rintro ⟨m, hm, rfl, ha⟩; exact ⟨m, ⟨hm, ha⟩, rfl⟩
+
+/-- (j-b) A watch with a live waiter is kept, unchanged.
+-/
+theorem sweep_keeps_alive (s : State) (alive : List Nat) (w : Watch) (hw : w ∈ s.watched)
+    (ha : w.runId ∈ alive) : w ∈ (sweep s alive).watched := by
+  simp [sweep, List.mem_filter, hw, ha]
+
+/-- (j-b) A watch with no live waiter is dropped and logged with an `orphan` incident at the current time. The rule has
+no premise on the kind of id: a real run and a branch sentinel are treated alike.
+-/
+theorem sweep_drops_orphan (s : State) (alive : List Nat) (w : Watch) (hw : w ∈ s.watched)
+    (ha : w.runId ∉ alive) :
+    (∀ w' ∈ (sweep s alive).watched, w'.runId ≠ w.runId) ∧
+    (⟨w.runId, s.now, .orphan⟩ : Incident) ∈ (sweep s alive).incidents := by
+  refine ⟨fun w' hw' he => ?_, ?_⟩
+  · simp only [sweep, List.mem_filter, List.contains_iff_mem] at hw'
+    exact ha (he ▸ hw'.2)
+  · simp only [sweep, List.mem_append, List.mem_filterMap]
+    exact Or.inr ⟨w, hw, by simp [ha]⟩
+
+/-- (j-b) Every watch is kept or has an incident: after a sweep, each watch is still watched under its run id, or an
+`orphan` incident names its run at the current time.
+-/
+theorem sweep_total (s : State) (alive : List Nat) (w : Watch) (hw : w ∈ s.watched) :
+    (∃ w' ∈ (sweep s alive).watched, w'.runId = w.runId) ∨
+    (⟨w.runId, s.now, .orphan⟩ : Incident) ∈ (sweep s alive).incidents := by
+  by_cases ha : w.runId ∈ alive
+  · exact Or.inl ⟨w, sweep_keeps_alive s alive w hw ha, rfl⟩
+  · exact Or.inr (sweep_drops_orphan s alive w hw ha).2
+
+/-- (j-b) A sweep only removes watches, and only the orphans: the survivors are watches of the state, each with a live
+waiter, and the incidents already logged stay.
+-/
+theorem sweep_only_orphans (s : State) (alive : List Nat) :
+    (∀ w' ∈ (sweep s alive).watched, w' ∈ s.watched ∧ w'.runId ∈ alive) ∧
+    ∃ t, (sweep s alive).incidents = s.incidents ++ t := by
+  refine ⟨fun w' hw' => ?_, _, rfl⟩
+  simp only [sweep, List.mem_filter, List.contains_iff_mem] at hw'
+  exact hw'
+
+/-- A charge changes no watch.
+-/
+theorem charge_watched (L : Limits) (s : State) (k : Kind) (c : Nat) (k' : Kind) (c' : Nat) (s' : State)
+    (h : charge L s k c = .issue k' c' s') : s'.watched = s.watched := by
+  unfold charge at h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  cases h
+  rfl
+
+/-- (j-c) The window comes from live waiters only: when the poller issues a tick after a sweep, the oldest creation time
+it lists from (`createdSince`) is the creation time of a watch that has a live waiter, so an orphan never widens the
+window.
+-/
+theorem next_window_from_live (L : Limits) (s : State) (alive : List Nat) (k : Kind) (c : Nat) (s' : State)
+    (h : next L (step L s (.sweep alive)) = .issue k c s') (x : Nat) (hx : since s' = some x) :
+    ∃ w ∈ s.watched, w.runId ∈ alive ∧ w.createdAt = x := by
+  obtain ⟨s'', hc, rfl⟩ := next_issue L _ k c s' h
+  have hw := charge_watched L _ _ _ _ _ _ hc
+  have hm : x ∈ (cover s'').watched.map (·.createdAt) := List.min?_mem hx
+  simp only [cover, List.map_map, List.mem_map, Function.comp] at hm
+  obtain ⟨w, hw1, rfl⟩ := hm
+  rw [hw] at hw1
+  have hw2 : w ∈ (step L s (.sweep alive)).watched := hw1
+  simp only [step, sweep, List.mem_filter, List.contains_iff_mem] at hw2
+  exact ⟨w, hw2.1, hw2.2, rfl⟩
+
+/-- (j-c) A sweep with no live waiter leaves no watch, so `next` stops idle afterwards (or on failures first) and a
+dead waiter's tick cost ends with the sweep.
+-/
+theorem sweep_nobody (s : State) : (sweep s []).watched = [] := by
+  simp [sweep]
+
+-- a sentinel and a real run, one waiter alive: the dead one is dropped with an orphan incident at the clock
+#guard (sweep { init 100 with watched := [⟨7, 90, none, 0⟩, ⟨1000000000838323, 80, none, 0⟩] } [7]).incidents =
+  [⟨1000000000838323, 100, .orphan⟩]
+#guard (sweep { init 100 with watched := [⟨7, 90, none, 0⟩, ⟨1000000000838323, 80, none, 0⟩] } [7]).watched =
+  [⟨7, 90, none, 0⟩]
+-- the dead sentinel does not widen the window: the oldest watch is 90, not 80
+#guard (match next defaults (step defaults { init 100 with watched := [⟨7, 90, none, 0⟩, ⟨1000000000838323, 80, none, 0⟩] }
+    (.sweep [7])) with
+  | .issue _ _ s' => since s' = some 90 | _ => false)
+-- nobody alive: the poller is idle
+#guard stopOf (next defaults (step defaults { init 100 with watched := [⟨7, 90, none, 0⟩] } (.sweep []))) = some .idle
+-- the marker cases: dead, live, reused pid, tokenless, recorded but unreadable now
+#guard !(Marker.alive ⟨7, false, some "a", some "a"⟩) && Marker.alive ⟨7, true, some "a", some "a"⟩ &&
+  !(Marker.alive ⟨7, true, some "a", some "b"⟩) && Marker.alive ⟨7, true, none, some "b"⟩ &&
+  !(Marker.alive ⟨7, true, some "a", none⟩) && Marker.alive ⟨7, true, none, none⟩
 
 end Fw.Ci.Budget

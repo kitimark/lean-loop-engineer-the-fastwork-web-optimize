@@ -16,7 +16,7 @@ and passes it to the next call.
 | op | request | reply |
 |---|---|---|
 | `ci.budget.reserve` | `now`, `state`?, `cost` | Decision |
-| `ci.budget.next` | `now`, `state`? | Decision, and on `issue` also `createdSince` (n or null) |
+| `ci.budget.next` | `now`, `state`?, `markers`? [Marker] | Decision (the state swept of watches without a live waiter when `markers` is present), and on `issue` also `createdSince` (n or null) and `pages` |
 | `ci.budget.observe` | `now`, `state`?, `lines` [string], `actual`? | `state`, `headers` Headers, `actual` |
 | `ci.budget.step` | `now`, `state`?, `event` Event | `state` |
 | `ci.budget.status` | `now`, `state`? | `limits`, `shares`, `used`, `interval`, `headroom`, `retryUntil`, `fails`, `watched`, `createdSince`, `state` |
@@ -31,12 +31,14 @@ steps of every non-guard job, read for the tip re-check's `stale:` step).
 Shapes. Decision: `{decision:"issue", kind:"tick"|"oneoff", cost, state}` (the state with the charge booked; on a
 tick every watched run is covered), `{decision:"wait", until, reason, state}` or `{decision:"stop", reason, state}`;
 reason ∈ `failures idle tooBig retryAfter floor hour minute interval`. State: `{now, ledger:[{time, cost,
-kind, charged}], remaining, reset, retryUntil, fails, etag, watched:[{runId, createdAt, lastCovered}], lastTick,
+kind, charged}], remaining, reset, retryUntil, fails, etag, watched:[{runId, createdAt, lastCovered, misses}], lastTick,
 pending:{kind, cost}|null, pages}` (`remaining reset etag lastTick lastCovered` may be null; every field but `now` is
-optional on input). Headers: `{status, remaining, reset, retryAfter, etag, resource}` (null when absent). `lines` are the
+optional on input). Marker: `{runId, killOk, recorded?, now?}` (`killOk`: `kill(pid, 0)` found the process; `recorded`/`now`: the process start time
+the marker holds and the pid's now, opaque strings; absent or null: unknown). Headers: `{status, remaining, reset, retryAfter, etag, resource}` (null when absent). `lines` are the
 response header lines of `gh api --include` (or `curl -i`), one per element, `< ` prefixes allowed; `actual` (default:
 the number of status lines, i.e. responses) is the number of requests the call really made. Event: `{register:{runId,
-createdAt}}`, `{unregister:runId}`, `{pages:n}` or `{resume:true}`.
+createdAt}}`, `{unregister:runId}`, `{pages:n}`, `{resume:true}`, `{sweep:[runId]}` (drop every watch not in the list, with an `orphan` incident) or `{listed:{rows, count, pagesRead, createdSince}}` (Lean decides whether
+the list was cut: `pagesRead * 100 <= count`). A stored watch may carry an old `registeredAt`; it is ignored.
 -/
 namespace Fw.Wire.Ci
 open Lean
@@ -94,11 +96,11 @@ def entryOf (j : Json) : Except String Entry := do
 
 /-- A watched run as JSON. -/
 def watchJson (w : Watch) : Json :=
-  Json.mkObj [("runId", jn w.runId), ("createdAt", jn w.createdAt), ("lastCovered", ojn w.lastCovered)]
+  Json.mkObj [("runId", jn w.runId), ("createdAt", jn w.createdAt), ("lastCovered", ojn w.lastCovered), ("misses", jn w.misses)]
 
 /-- A watched run from JSON. -/
 def watchOf (j : Json) : Except String Watch := do
-  pure { runId := ← nat j "runId", createdAt := ← nat j "createdAt", lastCovered := ← optN j "lastCovered" }
+  pure { runId := ← nat j "runId", createdAt := ← nat j "createdAt", lastCovered := ← optN j "lastCovered", misses := ← natD j "misses" 0 }
 
 /-- The call in flight as JSON. -/
 def pendingJson : Option (Kind × Nat) → Json
@@ -111,19 +113,41 @@ def pendingOf (j : Json) : Except String (Option (Kind × Nat)) :=
   | none => .ok none
   | some p => do pure (some (← kindOf "kind" (← str p "kind"), ← nat p "cost"))
 
+/-- The name of a drop reason. -/
+def dropName : Drop → String
+  | .unseen => "unseen"
+  | .uncovered => "uncovered"
+  | .orphan => "orphan"
+
+/-- A drop reason from its name. -/
+def dropOf (k : String) : String → Except String Drop
+  | "unseen" => .ok .unseen
+  | "uncovered" => .ok .uncovered
+  | "orphan" => .ok .orphan
+  | v => .error s!"field {k}: unknown value {v}"
+
+/-- An incident as JSON. -/
+def incidentJson (i : Incident) : Json :=
+  Json.mkObj [("runId", jn i.runId), ("time", jn i.time), ("why", .str (dropName i.why))]
+
+/-- An incident from JSON. -/
+def incidentOf (j : Json) : Except String Incident := do
+  pure { runId := ← nat j "runId", time := ← nat j "time", why := ← dropOf "why" (← str j "why") }
+
 /-- The state as JSON. -/
 def stateJson (s : State) : Json :=
   Json.mkObj [("now", jn s.now), ("ledger", .arr (s.ledger.map entryJson).toArray), ("remaining", ojn s.remaining),
     ("reset", ojn s.reset), ("retryUntil", jn s.retryUntil), ("fails", jn s.fails), ("etag", ostr s.etag),
     ("watched", .arr (s.watched.map watchJson).toArray), ("lastTick", ojn s.lastTick),
-    ("pending", pendingJson s.pending), ("pages", jn s.pages)]
+    ("pending", pendingJson s.pending), ("pages", jn s.pages), ("incidents", .arr (s.incidents.map incidentJson).toArray)]
 
 /-- The state from JSON (every field but `now` optional, with the `init` defaults). -/
 def stateOf (j : Json) : Except String State := do
   pure { now := ← nat j "now", ledger := ← (← arrD j "ledger").mapM entryOf, remaining := ← optN j "remaining",
          reset := ← optN j "reset", retryUntil := ← natD j "retryUntil" 0, fails := ← natD j "fails" 0,
          etag := ← optStr j "etag", watched := ← (← arrD j "watched").mapM watchOf, lastTick := ← optN j "lastTick",
-         pending := ← pendingOf j, pages := ← natD j "pages" 1 }
+         pending := ← pendingOf j, pages := ← natD j "pages" 1,
+         incidents := ← (← arrD j "incidents").mapM incidentOf }
 
 /-- Headers as JSON. -/
 def headersJson (h : Headers) : Json :=
@@ -134,19 +158,34 @@ def headersJson (h : Headers) : Json :=
 def limitsJson (L : Limits) : Json :=
   Json.mkObj [("W", jn L.W), ("B", jn L.B), ("R", jn L.R), ("W1", jn L.W1), ("B1", jn L.B1), ("R1", jn L.R1),
     ("F", jn L.F), ("Pmin", jn L.Pmin), ("back0", jn L.back0), ("backMax", jn L.backMax),
-    ("maxFails", jn L.maxFails), ("listCost", jn L.listCost), ("slice", jn slice),
+    ("maxFails", jn L.maxFails), ("listCost", jn L.listCost), ("slice", jn slice), ("missMax", jn L.missMax),
+    ("maxRun", jn L.maxRun), ("sentinelBase", jn sentinelBase), ("sentinelSpan", jn sentinelSpan), ("pageCap", jn (pageCap L)),
     ("shares", Json.mkObj [("tick", Json.mkObj [("hour", jn (share L .tick)), ("minute", jn (share1 L .tick))]),
                            ("oneoff", Json.mkObj [("hour", jn (share L .oneoff)), ("minute", jn (share1 L .oneoff))])])]
 
-/-- An event from JSON (exactly one of `register`, `unregister`, `pages`, `resume`). -/
-def eventOf (j : Json) : Except String Event :=
-  match opt j "register", opt j "unregister", opt j "pages", opt j "resume" with
-  | some r, none, none, none => do pure (.register (← nat r "runId") (← nat r "createdAt"))
-  | none, some r, none, none => do pure (.unregister (← asNat "unregister" r))
-  | none, none, some n, none => do pure (.pages (← asNat "pages" n))
-  | none, none, none, some b => do
-    if ← asBool "resume" b then pure .resume else .error "field resume: expected true"
-  | _, _, _, _ => .error "field event: expected exactly one of register, unregister, pages, resume"
+/-- One row of a tick's list, `(runId, createdAt)`, from JSON. -/
+def rowOf (j : Json) : Except String (Nat × Nat) := do
+  pure (← nat j "runId", ← nat j "createdAt")
+
+/-- A waiter marker as the glue read it, from JSON: `{runId, killOk, recorded?, now?}`. -/
+def markerOf (j : Json) : Except String Marker := do
+  pure { runId := ← nat j "runId", killOk := ← asBool "killOk" (← field j "killOk"),
+         recorded := ← optStr j "recorded", now := ← optStr j "now" }
+
+/-- An event from JSON (exactly one of `register`, `unregister`, `pages`, `resume`, `listed`, `ack`, `sweep`). -/
+def eventOf (j : Json) : Except String Event := do
+  let keys := ["register", "unregister", "pages", "resume", "listed", "ack", "sweep"].filter fun k => (opt j k).isSome
+  match keys with
+  | ["register"] => let r ← field j "register"; pure (.register (← nat r "runId") (← nat r "createdAt"))
+  | ["unregister"] => pure (.unregister (← asNat "unregister" (← field j "unregister")))
+  | ["pages"] => pure (.pages (← asNat "pages" (← field j "pages")))
+  | ["resume"] => if ← asBool "resume" (← field j "resume") then pure .resume else .error "field resume: expected true"
+  | ["listed"] =>
+    let l ← field j "listed"
+    pure (.listed (← (← arr l "rows").toList.mapM rowOf) (← nat l "count") (← natD l "pagesRead" 1) (← natD l "createdSince" 0))
+  | ["ack"] => pure (.ack (← asNat "ack" (← field j "ack")))
+  | ["sweep"] => pure (.sweep (← (← asArr "sweep" (← field j "sweep")).toList.mapM (asNat "sweep")))
+  | _ => .error "field event: expected exactly one of register, unregister, pages, resume, listed, ack, sweep"
 
 /-! ## Ops -/
 
@@ -170,11 +209,19 @@ def opReserve (req : Json) : Except String Reply := do
   let c ← nat req "cost"
   pure (decisionReply s (reserve defaults s c))
 
-/-- `ci.budget.next`: the shared poller's decision; a tick lists the runs created since `createdSince`. -/
+/-- `ci.budget.next`: the shared poller's decision; a tick lists the runs created since `createdSince`. With
+`markers` (the waiter markers the glue read under the state lock) the watches without a live waiter are swept first
+(`sweep`, `aliveIds`), so `createdSince` and the reply's `state` come from live watches only
+(`next_window_from_live`); without `markers` nothing is swept. -/
 def opNext (req : Json) : Except String Reply := do
-  let s ← clocked req
+  let s0 ← clocked req
+  let s ← match opt req "markers" with
+    | none => pure s0
+    | some ms => do
+      let alive := aliveIds (← (← asArr "markers" ms).toList.mapM markerOf)
+      pure (step defaults s0 (.sweep alive))
   match next defaults s with
-  | d@(.issue _ _ s') => pure (decisionReply s d ++ [("createdSince", ojn (since s'))])
+  | d@(.issue _ _ s') => pure (decisionReply s d ++ [("createdSince", ojn (since s')), ("pages", jn (pagesOf defaults s'))])
   | d => pure (decisionReply s d)
 
 /-- `ci.budget.observe`: fold the response headers of the call in flight into the state. -/
@@ -189,7 +236,11 @@ def opObserve (req : Json) : Except String Reply := do
 def opStep (req : Json) : Except String Reply := do
   let s ← clocked req
   let e ← eventOf (← field req "event")
-  pure [("state", stateJson (step defaults s e))]
+  match e with
+  | .register r _ =>
+    if validWatch defaults r then pure [("state", stateJson (step defaults s e))]
+    else .error s!"field register: runId {r} is neither a GitHub run id nor a branch sentinel"
+  | _ => pure [("state", stateJson (step defaults s e))]
 
 /-- The window sums of one kind: charged and corrections, per hour and per minute. -/
 def usedJson (s : State) (k : Kind) : Json :=
@@ -341,7 +392,7 @@ def sample : State where
   retryUntil := 9
   fails := 1
   etag := some "W/x"
-  watched := [⟨5, 2, some 7⟩, ⟨6, 3, none⟩]
+  watched := [⟨5, 2, some 7, 0⟩, ⟨6, 3, none, 1⟩]
   lastTick := some 7
   pending := some (.oneoff, 2)
   pages := 2
@@ -352,10 +403,10 @@ def sample : State where
 -- a fresh one-off goes and is booked
 #guard runField "ci.budget.reserve" "{\"now\":100,\"cost\":1}" "decision" == "\"issue\""
 #guard runField "ci.budget.reserve" "{\"now\":100,\"cost\":1}" "state" ==
-  "{\"etag\":null,\"fails\":0,\"lastTick\":null,\"ledger\":[{\"charged\":true,\"cost\":1,\"kind\":\"oneoff\",\"time\":100}],\"now\":100,\"pages\":1,\"pending\":{\"cost\":1,\"kind\":\"oneoff\"},\"remaining\":null,\"reset\":null,\"retryUntil\":0,\"watched\":[]}"
+  "{\"etag\":null,\"fails\":0,\"incidents\":[],\"lastTick\":null,\"ledger\":[{\"charged\":true,\"cost\":1,\"kind\":\"oneoff\",\"time\":100}],\"now\":100,\"pages\":1,\"pending\":{\"cost\":1,\"kind\":\"oneoff\"},\"remaining\":null,\"reset\":null,\"retryUntil\":0,\"watched\":[]}"
 -- nothing watched: the poller stops idle
 #guard run "ci.budget.next" "{\"now\":100}" ==
-  "{\"decision\":\"stop\",\"reason\":\"idle\",\"state\":{\"etag\":null,\"fails\":0,\"lastTick\":null,\"ledger\":[],\"now\":100,\"pages\":1,\"pending\":null,\"remaining\":null,\"reset\":null,\"retryUntil\":0,\"watched\":[]}}"
+  "{\"decision\":\"stop\",\"reason\":\"idle\",\"state\":{\"etag\":null,\"fails\":0,\"incidents\":[],\"lastTick\":null,\"ledger\":[],\"now\":100,\"pages\":1,\"pending\":null,\"remaining\":null,\"reset\":null,\"retryUntil\":0,\"watched\":[]}}"
 -- one watched run: tick, list since its creation
 #guard runField "ci.budget.next" "{\"now\":100,\"state\":{\"now\":90,\"watched\":[{\"runId\":5,\"createdAt\":80}]}}" "createdSince" == "80"
 #guard runField "ci.budget.next" "{\"now\":95,\"state\":{\"now\":90,\"watched\":[{\"runId\":5,\"createdAt\":80}],\"lastTick\":90}}" "until" == "100"
@@ -365,7 +416,7 @@ def sample : State where
 #guard runField "ci.budget.observe" "{\"now\":100,\"lines\":[\"HTTP/2.0 403 Forbidden\",\"Retry-After: 60\"]}" "headers" ==
   "{\"etag\":null,\"remaining\":null,\"reset\":null,\"resource\":null,\"retryAfter\":60,\"status\":403}"
 #guard runField "ci.budget.observe" "{\"now\":100,\"lines\":[\"HTTP/2.0 403 Forbidden\",\"Retry-After: 60\"]}" "state" |>.startsWith
-  "{\"etag\":null,\"fails\":1,"
+  "{\"etag\":null,\"fails\":1,\"incidents\":[],"
 -- only the core bucket sets the remaining count
 #guard runField "ci.budget.observe" "{\"now\":100,\"lines\":[\"HTTP/2.0 200 OK\",\"X-Ratelimit-Remaining: 4000\",\"X-Ratelimit-Reset: 3600\",\"X-Ratelimit-Resource: graphql\"]}" "state" |>.endsWith
   "\"remaining\":null,\"reset\":null,\"retryUntil\":0,\"watched\":[]}"
@@ -373,12 +424,12 @@ def sample : State where
   "\"remaining\":4000,\"reset\":3600,\"retryUntil\":0,\"watched\":[]}"
 -- events
 #guard runField "ci.budget.step" "{\"now\":100,\"event\":{\"register\":{\"runId\":5,\"createdAt\":80}}}" "state" |>.endsWith
-  "\"watched\":[{\"createdAt\":80,\"lastCovered\":null,\"runId\":5}]}"
+  "\"watched\":[{\"createdAt\":80,\"lastCovered\":null,\"misses\":0,\"runId\":5}]}"
 #guard run "ci.budget.step" "{\"now\":100,\"event\":{\"pages\":2,\"resume\":true}}" ==
-  "error: field event: expected exactly one of register, unregister, pages, resume"
+  "error: field event: expected exactly one of register, unregister, pages, resume, listed, ack, sweep"
 #guard run "ci.budget.reserve" "{\"now\":100,\"cost\":1.5}" == "error: field cost: expected a non-negative integer"
 #guard runField "ci.budget.limits" "{}" "limits" ==
-  "{\"B\":3000,\"B1\":60,\"F\":500,\"Pmin\":10,\"R\":1200,\"R1\":40,\"W\":3600,\"W1\":60,\"back0\":60,\"backMax\":3600,\"listCost\":2,\"maxFails\":6,\"shares\":{\"oneoff\":{\"hour\":1200,\"minute\":40},\"tick\":{\"hour\":1800,\"minute\":20}},\"slice\":2}"
+  "{\"B\":3000,\"B1\":60,\"F\":500,\"Pmin\":10,\"R\":1200,\"R1\":40,\"W\":3600,\"W1\":60,\"back0\":60,\"backMax\":3600,\"listCost\":2,\"maxFails\":6,\"maxRun\":10000000000000,\"missMax\":3,\"pageCap\":10,\"sentinelBase\":1000000000000000,\"sentinelSpan\":4294967296,\"shares\":{\"oneoff\":{\"hour\":1200,\"minute\":40},\"tick\":{\"hour\":1800,\"minute\":20}},\"slice\":2}"
 #guard runField "ci.budget.status" "{\"now\":100}" "interval" == "10"
 -- a run whose guard was skipped at its if: is not run (code 4), with the reason
 #guard run "ci.verdict" "{\"runs\":[{\"guard\":\"skipped\",\"jobs\":[\"skipped\"]}]}" ==

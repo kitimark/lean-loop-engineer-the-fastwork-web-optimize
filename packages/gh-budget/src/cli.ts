@@ -1,5 +1,6 @@
 // `fw ci wait` and `fw ci budget` (also runnable as `node packages/gh-budget/src/cli.ts wait ...`).
 import { spawnSync } from "node:child_process";
+import { appendFileSync, mkdirSync } from "node:fs";
 import { cleanups, waitFor, type Target } from "./wait.ts";
 import { realEnv, type Env, type Json } from "./core.ts";
 import { ghCharged } from "./charged.ts";
@@ -81,8 +82,18 @@ async function budget(env: Env, argv: string[]): Promise<number> {
   console.log(`requests in the last hour: tick ${u.tick.hour}/${L.shares.tick.hour}, one-off ${u.oneoff.hour}/${L.shares.oneoff.hour} (cap ${L.B})`);
   console.log(`last minute: tick ${u.tick.minute}/${L.shares.tick.minute}, one-off ${u.oneoff.minute}/${L.shares.oneoff.minute}`);
   console.log(`GitHub says: remaining ${st.remaining ?? "unknown"}, reset ${st.reset ?? "unknown"} (floor ${L.F}); retry-until ${r.retryUntil}, failures ${r.fails}`);
+  const inc = (st.incidents as Json[] | undefined) ?? [];
+  if (inc.length > 0) console.log(`dropped watches not yet logged: ${inc.map((i) => `${String(i.runId)} ${String(i.why)}`).join(", ")}`);
   console.log(`poll interval ${r.interval} s, headroom ${r.headroom ? "yes" : "no"}, watched runs ${r.watched}, list created>= ${r.createdSince ?? "-"}, poller pid ${holder?.pid ?? "none"}`);
   return 0;
+}
+
+/** A cleanup that failed in a signal handler (the unregister of a run) is written to `incidents.jsonl`, not swallowed. */
+export function logCleanupFailure(env: Env, e: unknown): void {
+  try {
+    mkdirSync(env.dir, { recursive: true });
+    appendFileSync(paths(env.dir).incidents, JSON.stringify({ cleanupFailed: e instanceof Error ? e.message : String(e), at: env.now() }) + "\n");
+  } catch { /* nowhere left to write */ }
 }
 
 /** Entry for `fw ci wait|budget`; returns the exit code. */
@@ -92,7 +103,7 @@ export async function ghBudgetCli(argv: string[], cwd: string): Promise<number> 
     if (cmd !== "wait" && cmd !== "budget") throw new Usage(WAIT_USAGE);
     const parsed = cmd === "wait" ? parseWait(rest, cwd) : null;
     const env = realEnv(cwd);
-    const onSig = (sig: NodeJS.Signals) => () => { for (const c of [...cleanups]) { try { c(); } catch { /* best effort */ } } process.exit(sig === "SIGINT" ? 130 : 143); };
+    const onSig = (sig: NodeJS.Signals) => () => { for (const c of [...cleanups]) { try { c(); } catch (e) { logCleanupFailure(env, e); } } process.exit(sig === "SIGINT" ? 130 : 143); };
     process.once("SIGINT", onSig("SIGINT"));
     process.once("SIGTERM", onSig("SIGTERM"));
     if (!parsed) return await budget(env, rest);

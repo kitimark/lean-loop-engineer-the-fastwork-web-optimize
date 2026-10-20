@@ -40,6 +40,22 @@ function infoDiffs(acc, label, ev, partIds) {
   }
 }
 
+/**
+ * The margin cells Lean decided by the node's rect cell (Fw.Gate.marginStatus; `ev.byRect`), counted per run. A cell whose two style
+ * values differ is kept with its stop, node, both style values and the rect verdict (the stale strut: the rect passed over a stale read).
+ * Masked (not rendered) nodes are left out. Counting and listing only; Lean decided every cell.
+ */
+export function rectDecided(acc, label, ev, partIds, masked) {
+  for (const pid of partIds) {
+    for (const it of ev.byRect?.[pid] ?? []) {
+      if (masked.some((m) => m.part === pid && m.role === it.role && m.idx === it.idx)) continue;
+      acc.cells++;
+      if (it.styleStatus === 'equal' || it.styleStatus === 'na') continue;
+      acc.styleDiffer.push({ at: label, node: `${pid}/${it.role}[${it.idx}]`, key: it.key, orig: it.a, rewrite: it.b, styleStatus: it.styleStatus, rect: it.status });
+    }
+  }
+}
+
 /** The settle wait of an arm record (probe arm {settle, raw} or sweep stop raw), or null for a run made before the wait. */
 const waitOf = (arm) => (arm.raw ?? arm).settleWait ?? null;
 
@@ -163,6 +179,7 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     const probeRows = [];
     const unsettledList = [];
     const notRenderedList = [];
+    const rectByRun = { cells: 0, styleDiffer: [] };
     const noteMasked = (label, k, ev) => {
       if (maskedOf[k].length === 0) return;
       ev.rows = notRenderedRows(ev.rows, maskedOf[k]);
@@ -186,6 +203,7 @@ export function summarize(outDir, { parts: requested = null } = {}) {
       if (st.unsettled) { unsettledList.push(st.entry); ev.rows = unsettledRows(ev.rows); } else {
         failures(fails, rec.id, ev, PARTS);
         infoDiffs(infos, rec.id, ev, PARTS);
+        rectDecided(rectByRun, rec.id, ev, PARTS, maskedOf[k]);
       }
       probeRows.push({
         id: rec.id, block: rec.block, achieved: ev.achieved, deviations: ev.dev, wait: st.wait, ...(st.unsettled ? { unsettled: true } : {}),
@@ -206,6 +224,7 @@ export function summarize(outDir, { parts: requested = null } = {}) {
       if (st.unsettled) { unsettledList.push(st.entry); ev.rows = unsettledRows(ev.rows); } else {
         failures(fails, label, ev, PARTS);
         infoDiffs(infos, `${sw.id}#${i}`, ev, PARTS);
+        rectDecided(rectByRun, label, ev, PARTS, maskedOf[next - 1]);
       }
       const v = vectors[j][i];
       return { i, width: env.width, height: env.height, achieved: ev.achieved, wait: st.wait, ...(st.unsettled ? { unsettled: true } : {}), vector: v ? v.from : null, verdicts: ev.rows };
@@ -245,8 +264,8 @@ export function summarize(outDir, { parts: requested = null } = {}) {
 
     const failList = [...fails.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
     const infoList = [...infos.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
-    result.engines[engine] = { browser: run.header.browser, flags: flagsOf(run.header), ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, settleWait: waitStats, unsettled: unsettledList, notRendered: notRenderedList, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
-    md.push(...render(engine, run.header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList));
+    result.engines[engine] = { browser: run.header.browser, flags: flagsOf(run.header), ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, settleWait: waitStats, unsettled: unsettledList, notRendered: notRenderedList, marginByRect: rectByRun, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
+    md.push(...render(engine, run.header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList, rectByRun));
   }
 
   writeFileSync(join(outDir, 'summary.json'), JSON.stringify(result, null, 1) + '\n');
@@ -274,7 +293,7 @@ const cell = (c) => {
 };
 
 const staleText = (x) => (x.skipped ? `not compared (${x.skipped})` : `${x.differ}/${x.compared}`);
-function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList) {
+function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList, rectByRun) {
   const cols = [...blocks, ...sweepRows.map((s) => `sweep:${s.id}`)];
   const out = [`## ${engine} (${header.browser})`, '', flagsLine(header), '', `Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; against Lean's expected value (compared only where the env was achieved on both arms and a vector exists, else NC); the legacy max-/min- text against the range text; then the anchors of each part. Cells: pass / FAIL probes-failing/probes-comparable / NC = not comparable / UNREACHABLE n (reason) = every probe of the cell is a cell this engine port cannot build (Lean-proved reach rule), \`+n unreachable\` = n such probes left out of the count / - = block not run.`, ''];
   // No silent narrowing: a narrowed verdict says which parts it covers and which it does not. matchMedia rows are
@@ -288,6 +307,9 @@ function render(engine, header, table, envRow, sweepRows, failList, infoList, bl
   for (const n of notRenderedList.slice(0, 40)) out.push(`- NOT RENDERED ${n.at}: ${n.items.map((m) => `${m.part}/${m.role}[${m.idx}] (original ${m.orig ? 'skipped' : 'rendered'}, rewrite ${m.rewrite ? 'skipped' : 'rendered'})`).join(', ')} -> ${n.cell}, never pass or fail`);
   if (notRenderedList.length > 40) out.push(`- ... ${notRenderedList.length - 40} more in summary.json`);
   if (unsettledList.length > 40) out.push(`- ... ${unsettledList.length - 40} more in summary.json`);
+  out.push('', `Margin cells decided by the node's rect (Fw.Gate.marginStatus; both arms layout-dependent): ${rectByRun.cells}; of these ${rectByRun.styleDiffer.length} had differing computed styles.`);
+  for (const d of rectByRun.styleDiffer.slice(0, 20)) out.push(`- ${d.at} ${d.node} ${d.key}: orig ${JSON.stringify(d.orig)}, rewrite ${JSON.stringify(d.rewrite)}, style ${d.styleStatus}, rect ${d.rect}`);
+  if (rectByRun.styleDiffer.length > 20) out.push(`- ... ${rectByRun.styleDiffer.length - 20} more in summary.json`);
   out.push('', 'Sweep hysteresis (state after the sequence vs a fresh load at the same final env, per arm; items differing / compared):', '');
   for (const s of sweepRows) out.push(`- ${s.id}: orig ${staleText(s.stale.orig)}, rewrite ${staleText(s.stale.rewrite)}`);
   out.push('', 'Failing items (count = probes or stops where the item differed; first example):', '', '| part | kind | role | key | count | first at | orig | rewrite | lean |', '|---|---|---|---|---|---|---|---|---|');
