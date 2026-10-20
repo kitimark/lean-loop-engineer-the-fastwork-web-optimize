@@ -13,7 +13,7 @@ import { siteDist } from '../serve.mjs';
 import { DEFAULT_MANIFEST, drawnFile, loadDrawn } from './arm.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const VISUAL_CLI = resolve(HERE, '../../../visual-diff/src/cli.mjs');
+const VISUAL_CLI = fileURLToPath(import.meta.resolve('@fw/visual-diff/src/cli.mjs'));
 const GEN = resolve(HERE, '../../../../apps/site/src/breakpoints.gen.json');
 
 /** The parts that hold the lag regions' images (data-fw anchors of packages/gate-breakpoints/src/anchors.json). */

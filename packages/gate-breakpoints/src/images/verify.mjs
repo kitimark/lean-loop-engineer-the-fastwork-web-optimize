@@ -7,9 +7,9 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { LAUNCHERS } from '../../../visual-diff/src/engines.mjs';
-import { compare, decode, encodePng } from '../../../visual-diff/src/diff.mjs';
-import { DEFAULT_TOL, verdict } from '../../../visual-diff/src/verdict.mjs';
+import { LAUNCHERS } from '@fw/visual-diff/src/engines.mjs';
+import { compare, decode, encodePng } from '@fw/visual-diff/src/diff.mjs';
+import { DEFAULT_TOL, verdict } from '@fw/visual-diff/src/verdict.mjs';
 import { siteDist, startServer } from '../serve.mjs';
 import { DEFAULT_MANIFEST, loadDrawn } from './arm.mjs';
 

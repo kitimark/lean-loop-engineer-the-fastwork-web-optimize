@@ -213,9 +213,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**"],
   "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
     "packages/contracts/golden/gate/**",
-    // image-audit: src/images/pages.mjs runs the visual-diff CLI and verify.mjs imports its diff and verdict; the test compares
-    // the byte copy of arm.mjs that packages/measure-webkit keeps
-    "packages/visual-diff/src/cli.mjs", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/diff.mjs", "packages/visual-diff/src/verdict.mjs",
+    // image-audit: the test compares the byte copy of arm.mjs that packages/measure-webkit keeps (visual-diff is a workspace
+    // dependency, so workspaceDeps already reads packages/visual-diff/**)
     "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json"],
   "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
   // preview-e2e: the rig starts console-api's server files (imported by file URL) and the preview servers over the snapshot
