@@ -11163,7 +11163,9 @@
     "apps/runner/src/checks.ts",
     "apps/runner/test/land*.ts",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/land-check-remote.md"
+    "docs/team/handoffs/land-check-remote.md",
+    "apps/runner/test/checks.test.ts",
+    "apps/runner/src/land-tier*.ts"
    ]
   },
   {
