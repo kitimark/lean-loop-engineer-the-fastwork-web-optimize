@@ -2693,14 +2693,14 @@
      "note": "the PreToolUse hook pattern a cd guard would follow"
     },
     {
-     "kind": "measurement",
-     "ref": ".claude/settings.json env (commit e9ee2a58)",
-     "note": "MEASURED 2026-10-20 in the lead session after the change: `cd /tmp && pwd` printed /tmp; the next Bash call `pwd` printed the main checkout."
+     "kind": "commit",
+     "ref": "e9ee2a58",
+     "note": "MEASURED 2026-10-20 in the lead session after the change: `cd /tmp && pwd` printed /tmp; the next Bash call `pwd` printed the main checkout. (settings commit: .claude/settings.json env)"
     },
     {
-     "kind": "finding",
-     "ref": "task cd-guard (closed as a finding)",
-     "note": "Two review rounds of a Lean shell-text scanner (deny-list over an open grammar) were refused; Fable advice and its adversarial check found the first-party setting, which removed the premise."
+     "kind": "file",
+     "ref": "docs/team/work-graph.json",
+     "note": "Two review rounds of a Lean shell-text scanner (deny-list over an open grammar) were refused; Fable advice and its adversarial check found the first-party setting, which removed the premise. (task cd-guard title)"
     }
    ],
    "repro": "In a lead call run `cd <scratchpad> && printf x >> f`, then launch a worktree workflow: its agent fails with WorktreeIsolationError.",
@@ -2713,7 +2713,7 @@
    "mistakeClass": "c-policy-prose",
    "leanVerdict": "partly",
    "leanReason": "'The command's top-level words include cd outside a subshell' is a pure decision over the parsed command, provable like wait-guard; the cwd state belongs to the harness.",
-   "hardening": "setting CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR=1; the payload-cwd PreToolUse deny is re-planned only if the setting stops holding"
+   "hardening": "cd-guard"
   },
   {
    "id": "inc-ci-push-blocked",
