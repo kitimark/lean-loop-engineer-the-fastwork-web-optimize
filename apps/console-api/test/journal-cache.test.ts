@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { selectCore } from "../src/core/index.ts";
 import { Reconciler } from "../src/reconcile/reconciler.ts";
 import { Drain } from "../src/spool/drain.ts";
-import { startDrainWatch } from "../src/spool/drain-watch.ts";
+import { startDrainWatch, wakeDoneBound, wakeStartBound } from "../src/spool/drain-watch.ts";
 import { commitEnd, JournalCache, nextTick, plan, skipRun } from "../src/spool/journal-cache.ts";
 import { parseJournal, scanWorkflows, WfMemo, workflowWatchTargets } from "../src/spool/workflow.ts";
 import { Store } from "../src/store.ts";
@@ -218,24 +218,65 @@ describe("drain on file events", () => {
     await until(() => store.seq >= 1, 3000);
   });
 
-  it("a journal append and a new session dir wake the drain", async () => {
+  // Wake bound (Lean `ReconcileSched.poke_wake_le`, `tick_wake_le`): the pass that answers an append or a new session dir starts
+  // within `wakeStartBound(period, longest pass)` of it, the period being the settle window (a file event) or the safety tick
+  // (an event the kernel dropped). A pass already running delays the answering one by at most its own length, so the bound counts
+  // the longest pass seen. The deadline adds `WAKE_MARGIN_MS` for timer rounding and omits the time this test process's own event
+  // loop stalled (a stall delays the callbacks that the bound counts on, it is not a lost event).
+  const WAKE_MARGIN_MS = 500, STALL_SLACK_MS = 25, POLL_MS = 10, TICK_MS = 1000;
+  const wakeRows = readFileSync(join(root, "packages/contracts/golden/console/wake-bound.jsonl"), "utf8").trim().split("\n")
+    .map((l) => JSON.parse(l) as { settle: number; pass: number; start: number; done: number });
+
+  it("the TS wake bounds equal the Lean golden rows", () => {
+    expect(wakeRows.length).toBeGreaterThan(3);
+    for (const r of wakeRows) {
+      expect(wakeStartBound(r.settle, r.pass)).toBe(r.start);
+      expect(wakeDoneBound(r.settle, r.pass)).toBe(r.done);
+    }
+  });
+
+  it("a journal append and a new session dir wake the drain within the proved bound", { repeats: 9 }, async () => {
     const { dir, store } = await fresh();
     const wf = join(dir, "sess", "workflows");
     mkdirSync(join(wf, "scripts"), { recursive: true });
     const d = new Drain(store, () => [wf]);
-    const w = startDrainWatch(dir, () => d.run(), () => undefined, 60_000, () => workflowWatchTargets(dir, { FW_WORKFLOWS_DIR: wf }));
+    const pass = { longest: 0, since: null as number | null };
+    const longest = () => Math.max(pass.longest, pass.since === null ? 0 : performance.now() - pass.since);
+    const w = startDrainWatch(dir, async () => {
+      pass.since = performance.now();
+      try { return await d.run(); } finally { pass.longest = Math.max(pass.longest, performance.now() - pass.since); pass.since = null; }
+    }, () => undefined, TICK_MS, () => workflowWatchTargets(dir, { FW_WORKFLOWS_DIR: wf }));
     stops.push(w.stop);
+    const trail: string[] = [];
+    // wait for a pass that starts after `p0` passes had started; the deadline is the Lean bound, a missed one prints the trail
+    const wakes = async (what: string, p0: number) => {
+      const t0 = performance.now();
+      let last = t0, stalled = 0;
+      while (w.trigger.passes <= p0) {
+        await sleep(POLL_MS);
+        const now = performance.now();
+        stalled += Math.max(0, now - last - POLL_MS - STALL_SLACK_MS);
+        last = now;
+        const allowed = wakeStartBound(TICK_MS, longest()) + WAKE_MARGIN_MS + stalled;
+        if (now - t0 > allowed) {
+          throw new Error(`${what}: no pass started in ${(now - t0).toFixed(0)} ms (bound ${allowed.toFixed(0)}: tick ${TICK_MS} + longest pass `
+            + `${longest().toFixed(0)} + margin ${WAKE_MARGIN_MS} + stall ${stalled.toFixed(0)}); pokes ${w.trigger.pokes}, passes ${w.trigger.passes}, `
+            + `watches ${w.watches.size}\n${trail.join("\n")}`);
+        }
+      }
+      trail.push(`${what}: woke after ${(performance.now() - t0).toFixed(0)} ms, pokes ${w.trigger.pokes}`);
+    };
     await until(() => w.trigger.passes >= 1);
     expect(w.watches.size).toBeGreaterThanOrEqual(3);
     const rd = join(dir, "sess", "subagents", "workflows", "wf_e37180a7-497");
     await sleep(100);
     const p0 = w.trigger.passes;
     mkdirSync(rd, { recursive: true }); // subagents/ did not exist at start: found through the session dir watch
-    await until(() => w.trigger.passes > p0);
-    const p1 = w.trigger.passes;
+    await wakes("new session dir", p0);
     await sleep(100);
     writeFileSync(join(rd, "journal.jsonl"), "{}\n");
-    await until(() => w.trigger.passes > p1);
+    const p1 = w.trigger.passes; // taken at the write itself: only a pass that starts later answers it
+    await wakes("journal append", p1);
   });
 });
 

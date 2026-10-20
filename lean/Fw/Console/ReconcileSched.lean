@@ -184,6 +184,45 @@ theorem dropped_event_drained (p t : Nat) (hp : 0 < p) (s : S) (hs : Inv s) (es 
     ticket (run s es) < (fin (fin (req (run s es)))).finished :=
   ⟨nextTick_gt p t hp, nextTick_le p t hp, tick_pass_after_event s es, wait_le_two _ (inv_run s hs es)⟩
 
+/-- The time the pass answering a request made at `r` starts, when the pass running then ends at `e` (`e ≤ r` when none runs):
+an idle scheduler starts it at once, a busy one when the running pass finishes (`req_idle_starts`, `fin_starts_pending`). -/
+def answerStart (r e : Nat) : Nat := max r e
+
+/-- Idle: the answering pass starts at the request. -/
+theorem answerStart_idle (r e : Nat) (h : e ≤ r) : answerStart r e = r := by
+  unfold answerStart; omega
+
+/-- Busy: the answering pass starts when the running pass ends. -/
+theorem answerStart_busy (r e : Nat) (h : r ≤ e) : answerStart r e = e := by
+  unfold answerStart; omega
+
+/-- The start bound of a woken pass: the settle window plus the length of the pass that was running at the event. -/
+def wakeStartBound (settle pass : Nat) : Nat := settle + pass
+
+/-- The finish bound: the answering pass itself runs at most `pass` more. -/
+def wakeDoneBound (settle pass : Nat) : Nat := settle + 2 * pass
+
+/-- **A poke is answered by a pass that starts at most `wakeStartBound` after the event.** -/
+theorem poke_wake_le (t f settle e pass : Nat) (hf : f ≤ t) (he : e ≤ t + pass) :
+    answerStart (f + settle) e ≤ t + wakeStartBound settle pass := by
+  unfold answerStart wakeStartBound; omega
+
+/-- **The answering pass is done within `wakeDoneBound`** of the event, when it runs at most `pass`. -/
+theorem poke_done_le (t f settle e pass : Nat) (hf : f ≤ t) (he : e ≤ t + pass) :
+    answerStart (f + settle) e + pass ≤ t + wakeDoneBound settle pass := by
+  unfold answerStart wakeDoneBound; omega
+
+/-- **A dropped event** (no file event at all): the safety tick at `nextTick p t` starts the answering pass by `t + p + pass`.
+The branch where the event is lost still has the same bound shape, with the period `p` for the settle window. -/
+theorem tick_wake_le (p t e pass : Nat) (hp : 0 < p) (he : e ≤ t + pass) :
+    answerStart (nextTick p t) e ≤ t + wakeStartBound p pass := by
+  have := nextTick_le p t hp
+  unfold answerStart wakeStartBound; omega
+
+/-- The start bound is at least the settle window. -/
+theorem wakeStartBound_ge (settle pass : Nat) : settle ≤ wakeStartBound settle pass := by
+  unfold wakeStartBound; omega
+
 /-- State as JSON. -/
 def sJson (s : S) : Json := Json.mkObj [("started", s.started), ("finished", s.finished), ("pending", s.pending)]
 
@@ -223,10 +262,22 @@ def goldenText : String := String.join (cases.map fun c => c.compress ++ "\n")
 /-- Golden path, relative to `lean/`. -/
 def goldenPath : System.FilePath := "../packages/contracts/golden/console/reconcile-sched.jsonl"
 
-/-- Write the golden file. -/
-def writeGolden : IO Unit := IO.FS.writeFile goldenPath goldenText
+/-- Wake-bound rows `(settle, pass)`: the bounds the console-api wake test waits for. -/
+def wakeRows : List (Nat × Nat) := [(50, 0), (50, 1), (50, 315), (50, 3000), (0, 0), (200, 10), (10000, 2000)]
 
-/-- Is the golden file the Lean output? -/
-def checkGolden : IO Bool := do return (← IO.FS.readFile goldenPath) == goldenText
+/-- The wake-bound golden text. -/
+def wakeText : String :=
+  String.join (wakeRows.map fun (s, p) => (Json.mkObj [("settle", s), ("pass", p), ("start", wakeStartBound s p),
+    ("done", wakeDoneBound s p)]).compress ++ "\n")
+
+/-- Wake-bound golden path, relative to `lean/`. -/
+def wakePath : System.FilePath := "../packages/contracts/golden/console/wake-bound.jsonl"
+
+/-- Write the golden files. -/
+def writeGolden : IO Unit := do IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile wakePath wakeText
+
+/-- Are the golden files the Lean output? -/
+def checkGolden : IO Bool := do
+  return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile wakePath) == wakeText
 
 end Fw.Console.ReconcileSched
