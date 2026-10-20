@@ -2,7 +2,7 @@ Design mutant (m0-mutants, PLAN V-r): a refused event burns its key, so the corr
 
 --- a/Fw/Console.lean
 +++ b/Fw/Console.lean
-@@ -472,7 +472,7 @@
+@@ -356,7 +356,7 @@
  def step (s : State) (e : Event) : State × Outcome :=
    if s.seen.contains e.key then (s, .accepted true)
    else match check s e with
@@ -10,4 +10,4 @@ Design mutant (m0-mutants, PLAN V-r): a refused event burns its key, so the corr
 +    | some w => ({ s with seen := e.key :: s.seen }, .refused w)
      | none   => ({ accept s e with seen := e.key :: s.seen }, .accepted false)
  
- /-- The state after one event.
+ /-- The state after one event. -/

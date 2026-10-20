@@ -12,25 +12,23 @@ the wire form `{"num","den"}`). `Golden.lean` writes them (one import and two ta
 namespace Fw.Parts.OverlayGolden
 open Lean
 
-/-- A rational input as an exact JSON decimal (every input here has a denominator dividing $10^6$).
-
-$$q \mapsto q \cdot 10^6 \cdot 10^{-6}$$ -/
+/-- A rational input as an exact JSON decimal (every input here has a denominator dividing `10^6`). -/
 def rin (q : Rat) : Json := .num ⟨q.num * ((1000000 / q.den : Nat) : Int), 6⟩
 
-/-- The `Rat` output wire form. $$q \mapsto \{\mathrm{num}, \mathrm{den}\}$$ -/
+/-- The `Rat` output wire form. -/
 def ratWire (q : Rat) : Json := Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
 
-/-- One golden line. $$(\mathit{fn}, \mathit{in}, \mathit{out}) \mapsto \text{JSON line}$$ -/
+/-- One golden line. -/
 def line (fn : String) (inp : List (String × Json)) (out : Json) : String :=
   (Json.mkObj [("fn", .str fn), ("in", Json.mkObj inp), ("out", out)]).compress
 
-/-- An integer as JSON. $$z \mapsto z$$ -/
+/-- An integer as JSON. -/
 def jint (z : Int) : Json := .num ⟨z, 0⟩
 
-/-- A pair of integers as JSON. $$(a, b) \mapsto [a, b]$$ -/
+/-- A pair of integers as JSON. -/
 def pairJ (p : Int × Int) : Json := Json.arr #[jint p.1, jint p.2]
 
-/-- A pair of rationals as JSON. $$(a, b) \mapsto [a, b]$$ -/
+/-- A pair of rationals as JSON. -/
 def ratPairJ (p : Rat × Rat) : Json := Json.arr #[ratWire p.1, ratWire p.2]
 
 /-! ## Drawer -/
@@ -38,21 +36,21 @@ def ratPairJ (p : Rat × Rat) : Json := Json.arr #[ratWire p.1, ratWire p.2]
 section Drawer
 open Fw.Parts.OverlayDrawer Fw.Parts.Bezier
 
-/-- Layout wire name. $$\ell \mapsto \text{"side"} \mid \text{"mid"} \mid \text{"sheet"}$$ -/
+/-- Layout wire name. -/
 def layoutName : Layout → String
   | .side => "side" | .mid => "mid" | .sheet => "sheet"
 
-/-- A state as JSON (output). $$S \mapsto \{\mathit{mounted}, \mathit{shown}, \mathit{rafPending}, \mathit{timerAt}\}$$ -/
+/-- A state as JSON (output). -/
 def stJson (s : St) : Json :=
   Json.mkObj [("mounted", .bool s.mounted), ("shown", .bool s.shown), ("rafPending", .bool s.rafPending),
     ("timerAt", match s.timerAt with | some d => ratWire d | none => .null)]
 
-/-- A state as JSON (input). $$S \mapsto \{\mathit{mounted}, \mathit{shown}, \mathit{rafPending}, \mathit{timerAt}\}$$ -/
+/-- A state as JSON (input). -/
 def stIn (s : St) : Json :=
   Json.mkObj [("mounted", .bool s.mounted), ("shown", .bool s.shown), ("rafPending", .bool s.rafPending),
     ("timerAt", match s.timerAt with | some d => rin d | none => .null)]
 
-/-- Reachable and edge states of the drawer machine. $$\text{states}$$ -/
+/-- Reachable and edge states of the drawer machine. -/
 def states : List St :=
   let opened := setOpen rest true 0 false
   let shown := raf opened
@@ -60,8 +58,8 @@ def states : List St :=
   [rest, opened, shown, closing, setOpen opened false 5 false, raf (setOpen opened false 5 false),
    tick (raf (setOpen opened false 5 false)) 485, setOpen shown false 1000 true]
 
-/-- Lines for `overlays.drawer`. $$\text{lines}$$ The conformance vectors for the TS drawer. -/
-def drawerLines : List String :=
+/-- Lines for `overlays.drawer`. The conformance vectors for the TS drawer. -/
+def drawerLines (_ : Unit := ()) : List String :=
   let ts : List Rat := [-50, 0, 25, 50, 100, 133.333, 200, 300, 399, 400, 401, 1000]
   let widths : List Rat := [320, 480, 640, 640.5, 641, 860, 860.5, 861, 1440]
   (([("easeInOut", easeInOut), ("easeStandard", easeStandard)] : List (String × Bez)).flatMap fun (n, c) =>
@@ -94,24 +92,24 @@ end Drawer
 section Signup
 open Fw.Parts.OverlaySignup
 
-/-- Source wire name. $$\mathit{src} \mapsto \text{"escape"} \mid \text{"backdrop"} \mid \text{"cancel"}$$ -/
+/-- Source wire name. -/
 def sourceName : Source → String
   | .escape => "escape" | .backdrop => "backdrop" | .cancel => "cancel"
 
-/-- Purpose wire name. $$p \mapsto \text{"info"} \mid \text{"form"} \mid \text{"required"}$$ -/
+/-- Purpose wire name. -/
 def purposeName : Purpose → String
   | .info => "info" | .form => "form" | .required => "required"
 
-/-- Sync wire name. $$s \mapsto \text{"showModal"} \mid \text{"close"} \mid \text{"none"}$$ -/
+/-- Sync wire name. -/
 def syncName : Sync → String
   | .showModal => "showModal" | .close => "close" | .none => "none"
 
-/-- Form flags as JSON. $$F \mapsto \{\mathit{submitting}, \mathit{done}, \mathit{error}\}$$ -/
+/-- Form flags as JSON. -/
 def formJ (f : Form) : Json :=
   Json.mkObj [("submitting", .bool f.submitting), ("done", .bool f.done), ("error", .bool f.error)]
 
-/-- Lines for `overlays.signup`. $$\text{lines}$$ The conformance vectors for the TS dialog logic. -/
-def signupLines : List String :=
+/-- Lines for `overlays.signup`. The conformance vectors for the TS dialog logic. -/
+def signupLines (_ : Unit := ()) : List String :=
   let offs : List (Rat × Rat) :=
     [(0, 0), (0, 1), (1, 0), (-1, 0), (0, -1), (3, 4), (-3, 4), (100, -100), (123.5, 67.25), (-640, -20), (0.5, 0.5),
      (1, 10), (10, 1), (-0.5, 300), (700, 0.25), (7, 7), (1, 1), (5, 12)]
@@ -134,7 +132,8 @@ def signupLines : List String :=
   (([("Ann", "a\x40example.com"), ("", "a\x40example.com"), ("  ", "a\x40example.com"), ("Ann", "a@b"), ("Ann", "a\x40.co"), ("Ann", "a\x40b."),
      ("Ann", "a b\x40example.com"), ("Ann", "a\x40\x40example.com"), (" Ann ", " a\x40b.c.d "), ("Ann", "\x40example.com"), ("Ann", "a\x40b.c"),
      ("Ann", "a\x40b..c"), ("Ann", ""), ("Ann", "a\x40b.c\x40d"), ("Ann", "a \x40example.com"), ("　", "a\x40example.com"),
-     ("Ann", "ปก\x40example.com"), ("Ann", "a\x40example.com ")] : List (String × String)).map fun (n, e) =>
+     ("Ann", "ปก\x40example.com"), ("Ann", "a\x40example.com "),
+     ("😀", "a\x40example.com"), ("👩‍💻", "a\x40example.com"), ("1", "a\x40example.com"), ("\n", "a\x40example.com")] : List (String × String)).map fun (n, e) =>
     line "valid" [("name", .str n), ("email", .str e)] (.bool (valid n.toList e.toList))) ++
   (let forms : List Form := [Form.init, ⟨true, false, false⟩, ⟨false, true, false⟩, ⟨false, false, true⟩]
    forms.flatMap fun f => [false, true].flatMap fun v => [false, true].map fun h =>

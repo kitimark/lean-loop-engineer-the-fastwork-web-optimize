@@ -114,3 +114,25 @@ and `wait-guard.mjs` is unchanged here.
 `packages/gh-budget/src/{state,poller,cli,index}.ts` (`updatedAt` in rows and the list fields; the phases callback and
 export), `apps/runner/src/{fw,timing}.ts` (span extras, `--lag`), `packages/gh-budget/test/fake-gh-core.ts` (rows carry
 `updatedAt`). TS stand-ins (no Lean): `lagParts`, `lagView`, `waitSpanExtra`; the phase recording is glue.
+
+## Round 2 (2026-10-20): merge with today's poller, Lean partition, rerun attempt
+
+Merged main (gh-budget-watch-expiry, gh-budget-waiter-liveness): wait.ts keeps the per-phase spans with `runIds` next to the
+liveness markers and list-based drops; `fw timings --lag` sits beside `--backfill` in fw.ts. CONFIRMED by the suites (gh-budget 58,
+runner 1417, ci-paths, `lean/scripts/check.sh` green).
+
+**Phase partition is Lean.** `Fw.Ci.Lag.parts` (lean/Fw/Ci/Lag.lean) cuts the path upd..end into seven pieces; theorem `parts_sum`:
+the pieces add up to the total for any marks; `stale_nonneg`, `stale_zero_of_before`. Golden `packages/contracts/golden/ci-budget/lag.jsonl`;
+`lagParts` replays it in `apps/runner/test/timing-lag.test.ts`.
+
+**Baseline.** `pnpm fw timings --lag` on this host: "no `fw ci wait` spans with phases yet". Waits before this merge carry no phases, so the
+output is the pre-instrumentation baseline; the component shares are MEASURED after >= 30 waits on merged code.
+
+**Rerun attempt bug (run 39363764375). Cause (INFERRED from the code, reproduced by the new tests):** every per-run cache was keyed by run id
+alone: the jobs cache `meta/<id>.jobs.json` ("a finished run's jobs never change"), the meta row, and the finished row in the poller's file.
+After `gh run rerun --failed` the id stays, so `fw ci wait <id>` read attempt 1's failure.
+Rules (lean/Fw/Ci/Attempt.lean, op `ci.attempt`, golden cases in wire.jsonl):
+- `reuse`: cached jobs answer only for the attempt they were read at (the cache now stores `attempt`; `gh run view --json jobs,attempt`; the list carries `attempt`).
+- `settled`: a jobs view on a different attempt than the row is `stale`, not a verdict; the waiter raises a floor, re-registers its watch (the poller dropped it on the old finish) and waits.
+- `current`: a row below the floor is not decisive. `fresh` (30 s): a finished row older than that (poller file read before this wait began, or meta cache) is read again.
+Accepted limit: a rerun waited within 30 s of the last read of a finished row can still see the old attempt (the window dedupes waiters that start together; 20 processes needed more than 10 s here).

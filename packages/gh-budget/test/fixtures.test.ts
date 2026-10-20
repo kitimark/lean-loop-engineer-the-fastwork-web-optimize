@@ -10,6 +10,7 @@ import test from "node:test";
 import { ghCharged } from "../src/charged.ts";
 import { pollOnce } from "../src/poller.ts";
 import { stepEvent } from "../src/state.ts";
+import { addWaiter, SLICE } from "../src/wait.ts";
 import { goldenDir, mkWorld, type Call } from "./util.ts";
 
 type Fx = {
@@ -40,7 +41,7 @@ async function replay(fx: Fx, N: number) {
   const env = w.env;
   const issued: Issued[] = [];
   const problems: string[] = [];
-  for (let r = 0; r < N; r++) stepEvent(env, { register: { runId: r + 1, createdAt: sc.start } });
+  for (let r = 0; r < N; r++) addWaiter(env, r + 1, sc.start); // a marker of this live process per watch, as a waiter writes it
 
   const every = sc.oneoffEvery ?? 0;
   const pending: { ready: number; cost: number }[] = [];
@@ -124,3 +125,8 @@ for (const f of readdirSync(dir).filter((n) => n.endsWith(".jsonl")).sort()) {
     for (const r of runs) assert.equal(key(r), key(runs[0]!), "same issued calls for every N");
   });
 }
+
+test("the waiter re-reads every slice seconds of limits.json (the latency theorem listed_within_Pmin)", () => {
+  const lim = JSON.parse(readFileSync(join(goldenDir, "limits.json"), "utf8")) as { slice: number };
+  assert.equal(SLICE, lim.slice);
+});

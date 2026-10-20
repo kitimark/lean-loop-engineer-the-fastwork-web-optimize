@@ -29,7 +29,7 @@ test("an issued call is observed, the trace is dropped, a refusal is not retried
   const r = await ghCharged(w.env, ["run", "list", "--limit", "1"], { cost: 2 });
   assert.ok(r.ran);
   assert.equal(r.status, 200);
-  assert.deepEqual(r.lines.map((l) => l.split(":")[0]), ["< HTTP/2.0 200 OK", "< X-Ratelimit-Remaining", "< X-Ratelimit-Reset", "< HTTP/2.0 200 OK", "< X-Ratelimit-Remaining", "< X-Ratelimit-Reset"]);
+  assert.deepEqual(r.lines.map((l) => l.split(":")[0]), ["< HTTP/2.0 200 OK", "< X-Ratelimit-Remaining", "< X-Ratelimit-Reset", "< X-Ratelimit-Resource", "< HTTP/2.0 200 OK", "< X-Ratelimit-Remaining", "< X-Ratelimit-Reset", "< X-Ratelimit-Resource"]);
   assert.ok(!JSON.stringify(r.lines).includes("someone-private"));
   assert.equal((loadState(w.stateDir) as { remaining: number }).remaining, 4998);
   assert.equal(w.calls().length, 1);
@@ -37,7 +37,7 @@ test("an issued call is observed, the trace is dropped, a refusal is not retried
 
 test("a 403 with remaining 0 is observed; the next calls wait and gh is not started", async () => {
   const w = mkWorld(T0);
-  w.config({ start: T0, overrides: [{ at: T0, lines: ["HTTP/2.0 403 Forbidden", "X-Ratelimit-Remaining: 0", `X-Ratelimit-Reset: ${T0 + 1800}`] }] });
+  w.config({ start: T0, overrides: [{ at: T0, lines: ["HTTP/2.0 403 Forbidden", "X-Ratelimit-Remaining: 0", `X-Ratelimit-Reset: ${T0 + 1800}`, "X-Ratelimit-Resource: core"] }] });
   const a = await ghCharged(w.env, ["run", "list"]);
   assert.ok(a.ran && a.code === 1 && a.status === 403 && a.error === "HTTP 403: API rate limit exceeded");
   w.sim.set(T0 + 10);

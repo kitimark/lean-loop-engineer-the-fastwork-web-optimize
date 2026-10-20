@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getClock } from '../../engine/clock';
-import { createCountdownDriver, startFaithful, type DigitHandle, type Writable } from './driver';
+import { createCountdownDriver, onVisibilityChange, startFaithful, type DigitHandle, type Writable } from './driver';
 import { gatedInstance, installHiddenGate } from './hidden';
 import { digitPlaces, remainingSeconds, unitsFromSeconds } from './logic';
 import { matchList } from './media';
@@ -18,6 +18,11 @@ export interface HeroCountdownProps {
   inverse?: boolean;
   /** `data-fw` anchor of the root (default `hero-countdown`); morph.countdown passes its own so each anchor has one clock. */
   fwId?: string;
+  /**
+   * While true the clock sets its digit shape but starts no driver, interval or observer; they start when it turns
+   * false, as at a fresh mount. morph.countdown sets it while morph.mount is dormant.
+   */
+  hold?: boolean;
 }
 
 const cls = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(' ');
@@ -57,7 +62,7 @@ function Digits({ n, strip }: { n: number; strip: boolean }) {
  * Variant `hidden-pause` (hero instance only): the face writes go through `installHiddenGate` (Lean
  * `Fw.Parts.HeroCountdownHidden`).
  */
-export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = 'hero-countdown' }: HeroCountdownProps) {
+export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = 'hero-countdown', hold = false }: HeroCountdownProps) {
   const strip = variant === 'strip';
   const hiddenPause = gatedInstance(variant, fwId);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -69,7 +74,7 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!root || !shape) return;
+    if (!root || !shape || hold) return;
     const nodes = [...root.querySelectorAll<HTMLElement>('[data-digit]')];
     const gate = hiddenPause ? installHiddenGate(root) : null;
     const face = (el: HTMLElement): Writable => (gate ? gate.wrap(el) : el);
@@ -106,18 +111,29 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = '
       const next = driver.shape();
       if (next.length !== shape.length || next.some((v, i) => v !== shape[i])) setShape(next);
     };
+    const stripSubscribe = () => {
+      const off = getClock().subscribe((now) => {
+        if (driver.tick(now)) onRefresh(true);
+      });
+      // the original also re-reads the time on every visibilitychange (N2:3938)
+      const unlisten = onVisibilityChange(document, () => {
+        if (driver.tick(performance.now())) onRefresh(true);
+      });
+      return () => {
+        off();
+        unlisten();
+      };
+    };
     // faithful: setInterval(1 s) plus one rAF spring per digit; strip: one shared-loop subscriber
     const unsub = strip
-      ? getClock().subscribe((now) => {
-          if (driver.tick(now)) onRefresh(true);
-        })
+      ? stripSubscribe()
       : startFaithful({ clock: getClock(), driver, perfNow: () => performance.now(), onRefresh });
     return () => {
       unsub();
       ro.disconnect();
       gate?.stop();
     };
-  }, [shape, strip, hiddenPause]);
+  }, [shape, strip, hiddenPause, hold]);
 
   const Root = (impl === 'mui' ? MuiRoot : PlainRoot) as typeof PlainRoot;
   const Label = impl === 'mui' ? MuiLabel : PlainLabel;

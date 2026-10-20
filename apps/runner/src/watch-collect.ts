@@ -7,6 +7,7 @@ import { ghCharged, realEnv, type Env } from "@fw/gh-budget";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir, loadavg } from "node:os";
 import { basename, dirname, join } from "node:path";
+import { collectGh, type GhFetch, type GhSnap } from "./watch-gh.ts";
 import { collectSvcs, type Svc } from "./watch-svc.ts";
 
 export interface SpoolEvent {
@@ -63,6 +64,8 @@ export interface SystemSnap {
   svcs?: Svc[];
   /** every pid of the process table read this time (absent when `ps` failed: no agent is judged by it); Lean `deadSession` */
   alivePids?: number[];
+  /** GitHub Actions, Pages and Webhooks states and the open incidents (watch-gh.ts); fwcore raises sys.ghDegraded */
+  gh?: GhSnap;
   /** collectors that failed this time and whose value was carried forward from the previous check
    *  ("ci", "docker", "procs", "plan") */
   stale: string[];
@@ -802,7 +805,7 @@ export function parseStartRows(out: string | null): StartRow[] {
 export type KeepDecide = (entries: { pid: number; start: number }[], rows: StartRow[]) => Promise<{ live: number[]; keep: number[] }>;
 
 /** The previous check's system part, if it is recent enough to carry forward (SCOPE.carryMs). */
-export interface Prev { at: number; system: SystemSnap; critical?: string[] }
+export interface Prev { at: number; system: SystemSnap; critical?: string[]; ghDegraded?: boolean }
 
 /** `owners`: Bash task id -> agent id (from `collectAgents`); trees whose task id is not in it have no owner. */
 /** `keepOf`: fwcore's keep decision; null leaves `keep` empty. A failed `ps` or decision keeps the previous value
@@ -881,10 +884,12 @@ export function carryCritical(crit: string[] | null, prev: Prev | null, now: num
 }
 
 export async function collectSnapshot(p: Paths, now = Date.now(), params: Record<string, number> = DEFAULT_PARAMS, prev: Prev | null = null,
-  get: PlanFetch = getJson, keepOf: KeepDecide | null = null): Promise<Snapshot> {
+  get: PlanFetch = getJson, keepOf: KeepDecide | null = null, ghGet?: GhFetch): Promise<Snapshot> {
   const owners = new Map<string, string>();
   const agents = collectAgents(p, now, owners);
-  const [system, crit] = await Promise.all([collectSystem(p, prev, now, undefined, owners, keepOf), collectCritical(p, process.env, get)]);
+  const [system, crit, gh] = await Promise.all([collectSystem(p, prev, now, undefined, owners, keepOf), collectCritical(p, process.env, get),
+    collectGh(prev?.ghDegraded === true, ghGet)]);
+  system.gh = gh;
   const { critical, stale } = carryCritical(crit, prev, now);
   if (stale) system.stale.push("plan");
   return { now, params, agents, lead: collectLead(p), system, prevAt: prev?.at ?? null, critical };

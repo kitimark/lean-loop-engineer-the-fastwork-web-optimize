@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { decide, loadIntent, matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
-import { coarseMap, coneOf, coneProblems, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
+import { coarseMap, coneOf, coneProblems, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -60,7 +60,7 @@ test('Lake cache jobs are read from the workflows: one writer, every setup-lean 
   const by = (k) => rows.find((r) => `${r.file}/${r.job}` === k);
   assert.deepEqual(rows.filter((r) => r.saves).map((r) => `${r.file}/${r.job}`), ['lean.yml/lean']);
   const lean = readFileSync(join(root, WF, 'lean.yml'), 'utf8').split('\n');
-  assert.deepEqual(setupLeanJobs(lean), [{ job: 'lean', save: 'true' }, { job: 'mathview-differential', save: 'false' }]);
+  assert.deepEqual(setupLeanJobs(lean), [{ job: 'lean', save: 'true' }]);
   // `lake build` = the lakefile defaults; `lake test` runs `fwcore fwtest`, a default target (task lean-bin-slim)
   assert.deepEqual(by('lean.yml/lean').targets, readLakefile(root).defaults);
   // a site build reaches `lake exe breakgen` through pnpm -> package.json -> scripts/check-breakpoints.mjs (spawnSync)
@@ -124,10 +124,11 @@ test('coarse push paths: every cone of the checkout stays inside coneGlobs (Lean
 
 const sample = readFileSync(join(root, WF, 'gate-gaps.yml'), 'utf8');
 const row = table.workflows.find((w) => w.file === 'gate-gaps.yml');
+const pushLine = renderPush(row.branches)[1];
 
 test('lint: a paths list under on.push is reported and removed (round 3: every push creates a run)', () => {
   assert.ok(!/^ {4}paths:/m.test(sample));
-  const bad = sample.replace("branches: ['ci/**', main]\n", "branches: ['ci/**', main]\n    paths:\n      - 'extra/**'\n");
+  const bad = sample.replace(`${pushLine}\n`, `${pushLine}\n    paths:\n      - 'extra/**'\n`);
   assert.notEqual(bad, sample);
   const r = reconcile('gate-gaps.yml', bad, row);
   assert.ok(r.problems.some((p) => /on\.push differs/.test(p)), r.problems.join('\n'));
@@ -135,7 +136,8 @@ test('lint: a paths list under on.push is reported and removed (round 3: every p
 });
 
 test('lint: a branches change is reported', () => {
-  const bad = sample.replace("branches: ['ci/**', main]", "branches: ['**']");
+  const bad = sample.replace(pushLine, "    branches: ['**']");
+  assert.notEqual(bad, sample);
   assert.ok(reconcile('gate-gaps.yml', bad, row).problems.some((p) => /on\.push differs/.test(p)));
 });
 
@@ -154,6 +156,105 @@ test('lint: a new root job that does not wait for the guard is reported', () => 
   const r = reconcile('gate-gaps.yml', bad, row);
   assert.ok(r.problems.some((p) => /job extra does not wait for guard/.test(p)), r.problems.join('\n'));
   assert.deepEqual(unguarded(readJobs(r.text.split('\n'))), []);
+});
+
+const goldenLines = readFileSync(join(root, 'packages/contracts/golden/ci/triggers.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+
+test('main pushes: only the seeders\' workflows list main, and the cache writers equal Lean cacheWriters', () => {
+  const seedFiles = [...new Set(table.seeders.map((s) => s.file))].sort();
+  assert.deepEqual(table.workflows.filter((w) => w.branches.includes('main')).map((w) => w.file).sort(), seedFiles);
+  assert.deepEqual(cacheWriters(root), table.cacheWriters.map((w) => `${w.file}/${w.job}/${w.cache}`).sort());
+  for (const s of table.seeders) assert.ok(table.cacheWriters.some((w) => w.file === s.file && w.job === s.job), `${s.file}/${s.job} saves no cache`);
+  for (const w of table.workflows) {
+    assert.ok(w.branches.filter((b) => b !== 'main').every((b) => b.startsWith('ci/')), w.file);
+    assert.deepEqual(w.crons, [], w.file);
+  }
+});
+
+test('Lean golden if forms: notMainIf equals Lean withNotMain, carriesNotMain equals Lean carriesNotMain', () => {
+  const forms = goldenLines.filter((l) => l.kind === 'ifForm');
+  const checks = goldenLines.filter((l) => l.kind === 'ifCheck');
+  assert.ok(forms.length >= 5 && checks.length >= 5);
+  for (const f of forms) {
+    assert.equal(notMainIf(f.orig, table.notMainPush), f.emitted, String(f.orig));
+    assert.equal(carriesNotMain(f.emitted, table.notMainPush), f.carries, f.emitted);
+  }
+  for (const c of checks) assert.equal(carriesNotMain(c.text, table.notMainPush), c.carries, c.text);
+});
+
+test('withNotMain: `a || b` is grouped before the conjunct; `(x) || true` and a bare `&&` suffix are refused', () => {
+  const x = 'x';
+  assert.equal(withNotMain('${{ a || b }}', x), '${{ (a || b) && (x) }}');
+  assert.ok(carriesNotMain(withNotMain('${{ a || b }}', x), x));
+  assert.ok(!carriesNotMain('${{ (x) || true }}', x));
+  assert.ok(!carriesNotMain('${{ a || b && (x) }}', x));
+  assert.ok(!carriesNotMain('${{ (a) || (b) && (x) }}', x));
+  assert.equal(withNotMain('${{ (x) || true }}', x), '${{ ((x) || true) && (x) }}');
+  assert.equal(withNotMain('${{ (a) && (x) }}', x), '${{ (a) && (x) }}');
+  assert.equal(withNotMain('', x), '${{ (x) }}');
+});
+
+test('lint: a non-seeder job of a main workflow without the notMainPush form is reported and fixed', () => {
+  const pt = readFileSync(join(root, WF, 'premise-tests.yml'), 'utf8');
+  const ptRow = table.workflows.find((w) => w.file === 'premise-tests.yml');
+  const intent = loadIntent(root).lanes;
+  const lane = { ...intent.lanes.find((l) => l.file === 'premise-tests.yml'), decision: intent.decision, recheck: intent.recheck };
+  const main = { jobs: ['engine'], conj: table.notMainPush };
+  const good = `  verdict:\n    if: \${{ (${table.notMainPush}) }}\n`;
+  assert.ok(pt.includes(good));
+  for (const bad of ['  verdict:\n', `  verdict:\n    if: \${{ true || (${table.notMainPush}) }}\n`]) {
+    const r = reconcile('premise-tests.yml', pt.replace(good, bad), ptRow, lane, main);
+    assert.ok(r.problems.some((p) => /verdict would run on a main push/.test(p)), r.problems.join('\n'));
+    assert.ok(reconcile('premise-tests.yml', r.text, ptRow, lane, main).problems.length === 0);
+  }
+  assert.equal(reconcile('premise-tests.yml', pt.replace(good, '  verdict:\n'), ptRow, lane, main).text, pt);
+  assert.deepEqual(reconcile('premise-tests.yml', pt, ptRow, lane, main).problems, []);
+  const seederSkips = reconcile('premise-tests.yml', pt, ptRow, lane, { ...main, jobs: ['engine', 'verdict'] });
+  assert.ok(seederSkips.problems.some((p) => /is a seeder .* skips a main push/.test(p)), seederSkips.problems.join('\n'));
+});
+
+test('lint: a schedule is reported and removed (Lean no_crons: a schedule runs on main)', () => {
+  const bad = sample.replace(`${pushLine}\n`, `${pushLine}\n  schedule:\n    - cron: '23 4 * * *'\n`);
+  assert.notEqual(bad, sample);
+  const r = reconcile('gate-gaps.yml', bad, row);
+  assert.ok(r.problems.some((p) => /on\.schedule differs/.test(p)), r.problems.join('\n'));
+  assert.equal(r.text, sample);
+});
+
+test('lint: every on: key outside the Lean onKeys allowlist is reported (schedule in any spelling, workflow_run)', () => {
+  assert.deepEqual(row.onKeys, ['push', 'workflow_dispatch']);
+  const variants = {
+    flow: `  schedule: [{cron: '0 0 * * *'}]\n`,
+    comment: `  schedule: # nightly\n    - cron: '0 0 * * *'\n`,
+    spaced: `  schedule :\n    - cron: '0 0 * * *'\n`,
+    quoted: `  "schedule":\n    - cron: '0 0 * * *'\n`,
+    workflowRun: `  workflow_run: {workflows: [lean]}\n`,
+    pullRequest: `  pull_request:\n`,
+  };
+  for (const [name, add] of Object.entries(variants)) {
+    const bad = sample.replace(`${pushLine}\n`, `${pushLine}\n${add}`);
+    assert.notEqual(bad, sample, name);
+    const key = name === 'workflowRun' ? 'workflow_run' : name === 'pullRequest' ? 'pull_request' : 'schedule';
+    const r = reconcile('gate-gaps.yml', bad, row);
+    assert.ok(r.problems.some((p) => p.includes(`on.${key} is not an allowed trigger`)), `${name}: ${r.problems.join('\n')}`);
+  }
+  const odd = reconcile('gate-gaps.yml', sample.replace(`${pushLine}\n`, `${pushLine}\n  <<: *triggers\n`), row);
+  assert.ok(odd.problems.some((p) => /is no key at indent 2/.test(p)), odd.problems.join('\n'));
+  assert.deepEqual(reconcile('gate-gaps.yml', sample, row).problems, []);
+  assert.deepEqual(reconcile('gate-gaps.yml', sample, { ...row, onKeys: undefined }).problems.length, 1);
+});
+
+test('lint: schedule is allowed only when the Lean row has a cron', () => {
+  const cron = '23 4 * * *';
+  const withCron = { ...row, crons: [cron], onKeys: ['push', 'workflow_dispatch', 'schedule'] };
+  const scheduled = sample.replace(`${pushLine}\n`, `${pushLine}\n  schedule:\n    - cron: '${cron}'\n`);
+  assert.deepEqual(reconcile('gate-gaps.yml', scheduled, withCron).problems, []);
+});
+
+test('the guard comment names main only where the row lists main', () => {
+  assert.ok(guardComment({ branches: ['ci/**', 'main'] }).join('\n').includes('only the cache seeders'));
+  assert.ok(guardComment({ branches: ['ci/**'] }).join('\n').includes('A main push starts no run'));
+  assert.ok(!guardComment({ branches: ['ci/**'] }).join('\n').includes('schedule'));
 });
 
 test('renderPush writes the branches and no paths', () => {
@@ -402,4 +503,19 @@ test('lint: a lean script reading a file outside the lean.yml row fails the chec
     assert.match(ps[0], /reads \.\.\/apps\/site\/src\/new\.gen\.json, which is not an input/);
     assert.deepEqual(leanInputProblems(dir, { sets: {}, workflows: [] }).length, 1);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('preview-e2e.yml: a change inside its read set selects it, a change outside does not (task preview-e2e)', () => {
+  const inputs = preciseInputs(root, 'preview-e2e.yml');
+  assert.ok(inputs, 'the workflow has a Lean row');
+  for (const f of ['packages/e2e-preview/src/suite.mjs', 'packages/e2e-preview/fixture/site/index.html', 'apps/console-api/src/preview/proxy.ts',
+    'apps/console-api/src/app.ts', 'apps/console-api/src/cap/cap.ts', 'apps/console-api/src/ops/routes.ts', 'packages/contracts/src/index.ts', 'packages/contracts/package.json',
+    'lean/Fw/Console/PreviewOwner.lean', 'lean/Fw/Console/Preview.lean', 'lean/Fw/Wire/Console.lean',
+    'packages/contracts/golden/console/preview-owner.jsonl', '.github/workflows/preview-e2e.yml']) {
+    assert.ok(matches(inputs, f), `${f} selects the lane`);
+  }
+  for (const f of ['apps/console-web/src/main.tsx', 'apps/site/src/index.ts', 'packages/measure-chromium/src/a.mjs', 'docs/team/handoffs/x.md',
+    'apps/console-api/test/app.test.ts', 'lean/FwTest/Lease.lean', '.github/workflows/premise-tests.yml']) {
+    assert.ok(!matches(inputs, f), `${f} does not select the lane`);
+  }
 });

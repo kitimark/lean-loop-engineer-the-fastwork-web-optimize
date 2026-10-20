@@ -21,7 +21,7 @@ def roundTrip (F : Facts) : Option Facts :=
 
 #guard grid.all fun F => roundTrip F == some F
 
-/-- The encoded facts with a `stage` field of name $n$ added (the field the op ignores). -/
+/-- The encoded facts with a `stage` field of name `n` added (the field the op ignores). -/
 def withStage (n : String) (F : Facts) : Json :=
   match lfFactsJson F with
   | .obj kvs => .obj (kvs.insert "stage" (.str n))

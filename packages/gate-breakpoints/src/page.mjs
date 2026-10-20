@@ -494,6 +494,17 @@ export function collectInPage(arg) {
         const r = el.getBoundingClientRect();
         const rect = wantRect ? { x: r.x, y: r.y, w: r.width, h: r.height } : null;
         const names = arg.props && arg.props[pid] && arg.props[pid][role] ? arg.props[pid][role] : [];
+        // `layoutDep`: the margin longhands whose Typed OM value is not a px length (auto or a percentage; premise cv.margin-typed-om).
+        // The Typed OM keeps the computed value where getComputedStyle can read a stale used one in a skipped subtree; Lean
+        // (Fw.Gate.marginStatus) decides by the rect when both arms flag the name. An engine without computedStyleMap flags nothing.
+        const layoutDep = [];
+        for (const n of names) {
+          if (!n.startsWith('margin')) continue;
+          try {
+            const v = el.computedStyleMap().get(n);
+            if (!(v instanceof CSSUnitValue && v.unit === 'px')) layoutDep.push(n);
+          } catch (e) { /* no Typed OM read: the name keeps the style comparison */ }
+        }
         const cs = getComputedStyle(el);
         const style = {};
         for (const n of names) style[n] = cs.getPropertyValue(n);
@@ -504,6 +515,7 @@ export function collectInPage(arg) {
         const inline = (inlineNames || []).filter((n) => el.style.getPropertyValue(n) !== '');
         const item = { rect, style };
         if (inline.length > 0) item.inline = inline;
+        if (layoutDep.length > 0) item.layoutDep = layoutDep;
         if (skippedOf.get(el)) item.skipped = true;
         return item;
       });

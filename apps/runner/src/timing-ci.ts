@@ -2,15 +2,14 @@
 // and per step. Deduped by run id (timing.ts seenRuns), so a second call for the same run costs no gh request.
 import { readFileSync } from "node:fs";
 import { ghCharged, realEnv, type WaitPhases } from "@fw/gh-budget";
+import { ghCost } from "./run.ts";
 import { CI_VIEW_FIELDS, fmtMs, parseTimings, quantile, recordCiRun, seenRuns, timingsFile, type GhRun, type Span } from "./timing.ts";
 
 type Gh = (args: string[]) => Promise<string | null>;
 
 /** `gh run view --json jobs` costs 3 requests (as wait.ts books it); ingest booked 2 and the ledger needed a correction per run (task ci-wait-lag). */
-const VIEW_COST = 3;
-const LIST_COST = 2;
 const chargedGh = (cwd: string): Gh => async (args) => {
-  const r = await ghCharged(realEnv(cwd), args, { cost: args[1] === "list" ? LIST_COST : VIEW_COST });
+  const r = await ghCharged(realEnv(cwd), args, { cost: ghCost(args) });
   return r.ran && r.code === 0 ? r.stdout : null; // wait / stop / failure: skip silently, the next wait tries again
 };
 

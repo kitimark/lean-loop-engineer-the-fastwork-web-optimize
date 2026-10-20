@@ -16,6 +16,7 @@ export const paths = (dir: string) => ({
   jobs: (runId: number) => join(dir, "meta", `${runId}.jobs.json`),
   jobsLock: (runId: number) => join(dir, "meta", `${runId}.jobs.lock`),
   waiters: join(dir, "waiters"),
+  incidents: join(dir, "incidents.jsonl"),
 });
 
 /** Atomic write: temp file in the same directory, then rename. */
@@ -58,7 +59,9 @@ export const stepEvent = (env: Env, event: Json): Json => locked(env, () => step
 /** The row `gh run list` gave for one run. */
 export type Row = { status: string; conclusion: string | null; databaseId: number; headBranch: string; workflowName: string; headSha: string; createdAt: string;
   /** GitHub's own time of the last change of the run (lag instrumentation: `fw ci wait` phases); absent in files written before it was listed. */
-  updatedAt?: string };
+  updatedAt?: string;
+  /** The attempt of the run (`gh run rerun` makes attempt 2 of the same id); absent in files written before it was listed. */
+  attempt?: number };
 /** The runs-status file: the last list the poller read. `stopped` is set when fwcore said stop. */
 export type Status = { at: number; tickAt?: number; createdSince?: number | null; rows: Row[]; stopped?: string; stoppedAt?: number };
 

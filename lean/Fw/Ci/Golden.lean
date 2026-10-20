@@ -1,5 +1,6 @@
 import Fw.Wire
 import Fw.Ops.Golden
+import Fw.Ci.Lag
 /-!
 # Golden vectors and replay fixtures of the GitHub request budget (`ci.budget.*`)
 
@@ -8,6 +9,7 @@ Files under `packages/contracts/golden/ci-budget/`, generated from Lean, never b
   `ci.budget.limits` and never restates them);
 - `wire.jsonl`: one line per case, `{"name", "request", "response"}` (`request` carries its `op`; `response` is what
   `fwcore` replies, without the `id`);
+- `lag.jsonl`: the partition of a wait's lag (`Fw.Ci.Lag.parts`), one line per case `{name, marks, prev?, parts, gap?, stale?}`;
 - `fixtures/<name>.jsonl`: synthesized header traces for the replay test `FwTest.CiBudget` (format there). A recorded
   trace (`fixtures/recorded-*.jsonl`, same format) is replayed the same way once one exists.
 
@@ -58,11 +60,15 @@ def cases : List (String × String × Json) := [
   ("next: after 6 failures in a row stops", "ci.budget.next",
     lit "{\"now\":1100,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":950}],\"fails\":6}}"),
   ("observe: 200 with rate headers", "ci.budget.observe",
-    lit "{\"now\":1000,\"state\":{\"now\":1000,\"pending\":{\"kind\":\"oneoff\",\"cost\":1},\"ledger\":[{\"time\":1000,\"cost\":1,\"kind\":\"oneoff\",\"charged\":true}]},\"lines\":[\"HTTP/2.0 200 OK\",\"X-Ratelimit-Remaining: 4321\",\"X-Ratelimit-Reset: 4600\",\"Etag: W/x\"]}"),
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"pending\":{\"kind\":\"oneoff\",\"cost\":1},\"ledger\":[{\"time\":1000,\"cost\":1,\"kind\":\"oneoff\",\"charged\":true}]},\"lines\":[\"HTTP/2.0 200 OK\",\"X-Ratelimit-Remaining: 4321\",\"X-Ratelimit-Reset: 4600\",\"X-Ratelimit-Resource: core\",\"Etag: W/x\"]}"),
+  ("observe: rate headers of the graphql bucket leave the remaining count", "ci.budget.observe",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"remaining\":3000,\"reset\":4600},\"lines\":[\"HTTP/2.0 200 OK\",\"X-Ratelimit-Remaining: 4999\",\"X-Ratelimit-Reset: 4700\",\"X-Ratelimit-Resource: graphql\"]}"),
+  ("observe: a second core response in the same window cannot raise the remaining count", "ci.budget.observe",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"remaining\":3000,\"reset\":4600},\"lines\":[\"HTTP/2.0 200 OK\",\"X-Ratelimit-Remaining: 3100\",\"X-Ratelimit-Reset: 4600\",\"X-Ratelimit-Resource: core\"]}"),
   ("observe: 403 with retry-after", "ci.budget.observe",
     lit "{\"now\":1000,\"state\":{\"now\":1000},\"lines\":[\"HTTP/2.0 403 Forbidden\",\"Retry-After: 60\"]}"),
   ("observe: 403 with remaining 0 waits for the reset", "ci.budget.observe",
-    lit "{\"now\":1000,\"state\":{\"now\":1000},\"lines\":[\"HTTP/2.0 403 Forbidden\",\"X-Ratelimit-Remaining: 0\",\"X-Ratelimit-Reset: 2800\"]}"),
+    lit "{\"now\":1000,\"state\":{\"now\":1000},\"lines\":[\"HTTP/2.0 403 Forbidden\",\"X-Ratelimit-Remaining: 0\",\"X-Ratelimit-Reset: 2800\",\"X-Ratelimit-Resource: core\"]}"),
   ("observe: bare 429 backs off 60 s", "ci.budget.observe",
     lit "{\"now\":1000,\"state\":{\"now\":1000},\"lines\":[\"HTTP/2.0 429 Too Many Requests\"]}"),
   ("observe: a call that took 3 responses for a charge of 2 books a correction of 1", "ci.budget.observe",
@@ -78,9 +84,58 @@ def cases : List (String × String × Json) := [
     lit "{\"now\":1000,\"state\":{\"now\":1000,\"fails\":6},\"event\":{\"resume\":true}}"),
   ("step: two events in one request is an error", "ci.budget.step",
     lit "{\"now\":1000,\"event\":{\"pages\":2,\"resume\":true}}"),
+  ("step: a branch sentinel id registers", "ci.budget.step",
+    lit "{\"now\":1000,\"event\":{\"register\":{\"runId\":1000000000838323,\"createdAt\":950}}}"),
+  ("step: an id that is no run id and no sentinel is refused", "ci.budget.step",
+    lit "{\"now\":1000,\"event\":{\"register\":{\"runId\":5000000000000000,\"createdAt\":950}}}"),
+  ("step: a list without the run counts a miss, the third drops it as unseen", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":950,\"misses\":2},{\"runId\":8,\"createdAt\":960}]},\"event\":{\"listed\":{\"rows\":[{\"runId\":8,\"createdAt\":960}],\"count\":1,\"pagesRead\":1,\"createdSince\":950}}}"),
+  ("step: a full list drops the run it cannot cover as uncovered, keeps a sentinel", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":900},{\"runId\":1000000000000001,\"createdAt\":900},{\"runId\":9,\"createdAt\":990}]},\"event\":{\"listed\":{\"rows\":[{\"runId\":10,\"createdAt\":980},{\"runId\":9,\"createdAt\":990}],\"count\":200,\"pagesRead\":2,\"createdSince\":900}}}"),
+  ("step: a list of 200 rows from 3 pages is not cut, so the run it lacks counts a miss", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":900}]},\"event\":{\"listed\":{\"rows\":[{\"runId\":10,\"createdAt\":980}],\"count\":200,\"pagesRead\":3,\"createdSince\":900}}}"),
+  ("step: a list of exactly 100 rows from 1 page is cut, so a run older than its oldest row is dropped as uncovered", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":950}]},\"event\":{\"listed\":{\"rows\":[{\"runId\":10,\"createdAt\":980}],\"count\":100,\"pagesRead\":1,\"createdSince\":900}}}"),
+  ("step: a run created before the list window (registered after the tick began) is not judged", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":900}]},\"event\":{\"listed\":{\"rows\":[{\"runId\":10,\"createdAt\":980}],\"count\":100,\"pagesRead\":1,\"createdSince\":950}}}"),
+  ("step: ack removes the logged incidents", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"incidents\":[{\"runId\":7,\"time\":900,\"why\":\"unseen\"},{\"runId\":8,\"time\":990,\"why\":\"uncovered\"}]},\"event\":{\"ack\":1}}"),
+  ("next: a stale stored pages of 11 is capped at 10, the tick costs the per-minute tick share 20", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"pages\":11,\"watched\":[{\"runId\":7,\"createdAt\":950}]}}"),
+  ("step: a stored watch with an old registeredAt loads; the reply omits the key", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":950,\"registeredAt\":10}]},\"event\":{\"resume\":true}}"),
+  ("step: sweep drops the watches not in the list (a real run and a sentinel) with orphan incidents", "ci.budget.step",
+    lit "{\"now\":1000,\"state\":{\"now\":1000,\"watched\":[{\"runId\":7,\"createdAt\":950},{\"runId\":8,\"createdAt\":960},{\"runId\":1000000000838323,\"createdAt\":900}]},\"event\":{\"sweep\":[8]}}"),
+  ("next: markers of a dead pid and a live one: the dead sentinel is swept and does not widen createdSince", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950},{\"runId\":1000000000838323,\"createdAt\":900}]},\"markers\":[{\"runId\":7,\"killOk\":true,\"recorded\":\"Tue Oct 20 09:49:39 2026\",\"now\":\"Tue Oct 20 09:49:39 2026\"},{\"runId\":1000000000838323,\"killOk\":false,\"recorded\":\"Tue Oct 20 08:00:00 2026\"}]}"),
+  ("next: a reused pid (start time differs) is no waiter: the watch is swept and the poller is idle", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]},\"markers\":[{\"runId\":7,\"killOk\":true,\"recorded\":\"Tue Oct 20 09:49:39 2026\",\"now\":\"Tue Oct 20 10:15:02 2026\"}]}"),
+  ("next: a marker without a recorded token is alive when its pid exists", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]},\"markers\":[{\"runId\":7,\"killOk\":true,\"now\":\"Tue Oct 20 10:15:02 2026\"}]}"),
+  ("next: a recorded token whose pid ps cannot see now is no waiter: the watch is swept", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]},\"markers\":[{\"runId\":7,\"killOk\":true,\"recorded\":\"Tue Oct 20 09:49:39 2026\"}]}"),
+  ("next: without a markers key nothing is swept, the watch is ticked", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]}}"),
+  ("next: an empty marker list sweeps every watch", "ci.budget.next",
+    lit "{\"now\":1000,\"state\":{\"now\":990,\"watched\":[{\"runId\":7,\"createdAt\":950}]},\"markers\":[]}"),
   ("status: window sums, interval and guards", "ci.budget.status",
     lit "{\"now\":1000,\"state\":{\"now\":1000,\"ledger\":[{\"time\":980,\"cost\":2,\"kind\":\"tick\",\"charged\":true},{\"time\":980,\"cost\":1,\"kind\":\"tick\",\"charged\":false},{\"time\":100,\"cost\":1,\"kind\":\"oneoff\",\"charged\":true}],\"watched\":[{\"runId\":7,\"createdAt\":950}]}}"),
   ("limits", "ci.budget.limits", lit "{}")]
+
+/-- The wire cases of `ci.attempt` (task `ci-wait-lag`), a list of their own so that the start-time allocations of
+`cases` stay under the init-cost bound. -/
+def attemptCases : List (String × String × Json) := [
+  ("attempt reuse: the same attempt", "ci.attempt", lit "{\"recorded\":2,\"live\":2}"),
+  ("attempt reuse: a rerun made attempt 2, the cache is attempt 1", "ci.attempt", lit "{\"recorded\":1,\"live\":2}"),
+  ("attempt reuse: a cache with no attempt", "ci.attempt", lit "{\"live\":2}"),
+  ("attempt settled: a row of attempt 1, the view shows attempt 2", "ci.attempt", lit "{\"row\":1,\"view\":2}"),
+  ("attempt settled: a row of attempt 2, the view shows attempt 2", "ci.attempt", lit "{\"row\":2,\"view\":2}"),
+  ("attempt settled: a row with no attempt", "ci.attempt", lit "{\"view\":2}"),
+  ("attempt current: attempt 1 is below the floor 2", "ci.attempt", lit "{\"floor\":2,\"row\":1}"),
+  ("attempt current: attempt 2 meets the floor 2", "ci.attempt", lit "{\"floor\":2,\"row\":2}"),
+  ("attempt current: no attempt under floor 0", "ci.attempt", lit "{\"floor\":0}"),
+  ("attempt fresh: a finished row read 30 s ago is shared", "ci.attempt", lit "{\"read\":100,\"now\":130}"),
+  ("attempt fresh: read 31 s ago, the run is read again", "ci.attempt", lit "{\"read\":100,\"now\":131}")]
 
 /-! ## Replay fixtures (format: `FwTest.CiBudget`) -/
 
@@ -102,11 +157,11 @@ def override (a : Nat) (ls : List String) : Json :=
 /-- The fixtures: (file stem, lines). -/
 def fixtures : List (String × List Json) := [
   ("incident-10-18", [scenario "incident-10-18" 12 7200 120
-    [("expect", Json.mkObj [("ticksPerHourMax", toJson (240 : Nat)), ("oldExceeds", toJson (5000 : Nat)),
-      ("counts", .arr #[count 0 3600 "tick" 120 120])])]]),
+    [("expect", Json.mkObj [("ticksPerHourMax", toJson (720 : Nat)), ("oldExceeds", toJson (5000 : Nat)),
+      ("counts", .arr #[count 0 3600 "tick" 360 360])])]]),
   ("remaining-zero", [scenario "remaining-zero" 3 3600 45
     [("expect", Json.mkObj [("counts", .arr #[count 601 1800 "any" 0 0, count 1800 1801 "tick" 1 1])])],
-    override 600 ["HTTP/2.0 403 Forbidden", "X-Ratelimit-Remaining: 0", s!"X-Ratelimit-Reset: {t0 + 1800}"]]),
+    override 600 ["HTTP/2.0 403 Forbidden", "X-Ratelimit-Remaining: 0", s!"X-Ratelimit-Reset: {t0 + 1800}", "X-Ratelimit-Resource: core"]]),
   ("retry-after", [scenario "retry-after" 3 1800 45
     [("expect", Json.mkObj [("counts", .arr #[count 301 420 "any" 0 0, count 420 421 "tick" 1 1])])],
     override 300 ["HTTP/2.0 403 Forbidden", "Retry-After: 120"]]),
@@ -120,21 +175,43 @@ def fixtures : List (String × List Json) := [
   ("burst-50", [scenario "burst-50" 50 600 0
     [("burst", toJson (50 : Nat)), ("burstAt", toJson (t0 + 5)),
      ("expect", Json.mkObj [("counts", .arr #[count 5 65 "oneoff" 40 40, count 65 66 "oneoff" 10 10,
-       count 0 600 "tick" 20 20])])]])]
+       count 0 600 "tick" 60 60])])]])]
+
+/-! ## Lag partition (`Fw.Ci.Lag`) -/
+
+/-- The cases of `lag.jsonl`: (name, marks, previous tick). -/
+def lagCases : List (String × Fw.Ci.Lag.Marks × Option Int) := [
+  ("in order, previous tick before the finish", ⟨1000, 3000, 3100, 5000, 5010, 5020, 5030, 5230, 5300⟩, some 900),
+  ("previous tick after the finish: the list was stale", ⟨1000, 9000, 9100, 9500, 9510, 9520, 9530, 9630, 9700⟩, some 4000),
+  ("no previous tick seen", ⟨2000, 2500, 2550, 3000, 3005, 3010, 3020, 3050, 3100⟩, none),
+  ("marks out of order (clock skew): the pieces still add up", ⟨5000, 4000, 4500, 4400, 4600, 4700, 4800, 4850, 4900⟩, some 6000)]
+
+/-- The text of `lag.jsonl`. -/
+def lagText : String :=
+  String.join (lagCases.map fun (name, m, prev) =>
+    let p := Fw.Ci.Lag.parts m
+    let marks := Json.mkObj [("upd", toJson m.upd), ("tick", toJson m.tick), ("read", toJson m.read), ("viewEnd", toJson m.viewEnd),
+      ("done", toJson m.done), ("ret", toJson m.ret), ("i0", toJson m.i0), ("i1", toJson m.i1), ("end", toJson m.stop)]
+    let parts := Json.mkObj [("list", toJson p.list), ("pickup", toJson p.pickup), ("view", toJson p.view), ("verdict", toJson p.verdict),
+      ("cleanup", toJson p.cleanup), ("ingest", toJson p.ingest), ("exit", toJson p.exit), ("total", toJson p.total)]
+    let extra := match prev with
+      | none => []
+      | some q => [("prev", toJson q), ("gap", toJson (Fw.Ci.Lag.gap m.tick q)), ("stale", toJson (Fw.Ci.Lag.stale q m.upd))]
+    (Json.mkObj ([("name", .str name), ("marks", marks), ("parts", parts)] ++ extra)).compress ++ "\n")
 
 /-! ## Files -/
 
 /-- The text of `wire.jsonl`. -/
-def wireText : String :=
-  String.join (cases.map fun (name, op, req) =>
+def wireText (_ : Unit := ()) : String :=
+  String.join ((cases ++ attemptCases).map fun (name, op, req) =>
     (Json.mkObj [("name", .str name), ("request", withOp op req), ("response", respond op req)]).compress ++ "\n")
 
 /-- The text of `limits.json`. -/
 def limitsText : String := (Fw.Wire.Ci.limitsJson Fw.Ci.Budget.defaults).compress ++ "\n"
 
 /-- Every file: (path relative to the golden directory, text). -/
-def files : List (System.FilePath × String) :=
-  [(("limits.json" : System.FilePath), limitsText), (("wire.jsonl" : System.FilePath), wireText)] ++
+def files (_ : Unit := ()) : List (System.FilePath × String) :=
+  [(("limits.json" : System.FilePath), limitsText), (("wire.jsonl" : System.FilePath), wireText), (("lag.jsonl" : System.FilePath), lagText)] ++
   fixtures.map fun (stem, ls) =>
     ((("fixtures" : System.FilePath) / s!"{stem}.jsonl"), String.join (ls.map fun (j : Json) => j.compress ++ "\n"))
 
@@ -154,10 +231,10 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
       if cur != text then
         IO.println s!"ci-budget golden: {f} is stale (regenerate: cd lean && lake test -- --write-ci-budget-golden)"
         stale := stale + 1
-  IO.println s!"ci-budget golden: {files.length} files, {cases.length} wire cases, {stale} stale"
+  IO.println s!"ci-budget golden: {files.length} files, {cases.length + attemptCases.length} wire cases, {stale} stale"
   return stale
 
-#guard cases.length = 29
+#guard cases.length = 48
 #guard fixtures.length = 7
 
 end Fw.Wire.Ci.Golden

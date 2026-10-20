@@ -8,7 +8,7 @@ name: visual-diff
 # installed by the gate-engine action; two separate engine keys, as in the breakpoint gate.
 on:
   push:
-    branches: ['ci/**', main]
+    branches: ['ci/**']
   workflow_dispatch:
     inputs:
       engines:
@@ -38,6 +38,26 @@ on:
           page). Empty = the default config.
         type: string
         default: ''
+      assets:
+        description: >-
+          none = the port as built, its own fonts and assets (the default and the only mode that judges the port).
+          inject = a named diagnostic: the original's images and fonts are served to the rewrite arm and a font-family is forced.
+        type: choice
+        options: [none, inject]
+        default: none
+      navscroll:
+        description: >-
+          Also run the nav scroll-hide probe (job navscroll: both engines, about 22 min WebKit and 7 min Chromium). Off by
+          default; the probe is an investigation, not part of the visual diff.
+        type: boolean
+        default: false
+      peoplelayout:
+        description: >-
+          Also run the people-section layout probe (job people-layout: both engines, original against port at 1920, 1440, 1280,
+          861 and 401 px; records, tables and the layout-shift list are the artifact people-layout-<engine>). Off by default.
+        type: boolean
+        default: false
+
 
 permissions:
   contents: read
@@ -51,8 +71,7 @@ jobs:
   # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
   # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
   # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole
-  # branch is an input. A main push runs when its own diff passes the coarse paths; dispatches, schedules always run.
-  # Fails open.
+  # branch is an input. A main push starts no run; dispatches always run. Fails open.
   # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
   guard:
     if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:visual-diff]') }}
@@ -295,17 +314,221 @@ jobs:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
           FW_FLAGS: ${{ inputs.fw || '' }}
+          ASSETS: ${{ inputs.assets || 'none' }}
         working-directory: packages/visual-diff
         run: |
           parts_args=()
           if [ -n "$PARTS" ]; then parts_args=(--parts "$PARTS"); fi
-          node src/cli.mjs run --engine "$ENGINE" --probes "$PROBES" --concurrency 2 ${parts_args[@]+"${parts_args[@]}"} --out out/shard
+          node src/cli.mjs run --engine "$ENGINE" --probes "$PROBES" --concurrency 2 --assets "$ASSETS" ${parts_args[@]+"${parts_args[@]}"} --out out/shard
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
           # the counts and verdicts (<engine>.visual.json) and the original/rewrite/diff PNGs of every cell that is not a pass
           name: vd-${{ matrix.engine }}-${{ matrix.shard }}
           path: packages/visual-diff/out/shard
+          if-no-files-found: error
+          retention-days: 14
+
+  # Port completeness check 5 (fonts; Lean Fw.Port.Fonts, golden fonts.jsonl): per gate viewport and engine, both arms are loaded and
+  # every text leaf's computed first font family, weight and style and the loaded faces of document.fonts are compared. The
+  # step on the built page stays advisory (continue-on-error) like checks 3 and 4; the golden replay and the probe pages gate.
+  port-fonts:
+    needs: [plan, site]
+    concurrency:
+      group: ci-lane:visual-diff:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:port-fonts:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: ${{ fromJSON(needs.plan.outputs.engines) }}
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints @fw/visual-diff'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - uses: ./.github/actions/gate-engine
+        with:
+          engine: ${{ matrix.engine }}
+      - name: Port check 5 tests (Lean golden vectors, probe pages in the browser)
+        env:
+          FW_PORT_FONTS_ENGINE: ${{ matrix.engine }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+        run: node --test apps/site/test/port-fonts.test.mjs
+      - name: 'Port check 5 on the built page (advisory)'
+        id: fonts
+        continue-on-error: true
+        env:
+          ENGINE: ${{ matrix.engine }}
+          PROBES: ${{ inputs.probes || '' }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/visual-diff
+        run: |
+          set -o pipefail
+          probe_args=()
+          if [ -n "$PROBES" ]; then probe_args=(--probes "$PROBES"); fi
+          node src/cli.mjs fonts --engine "$ENGINE" --concurrency 2 ${probe_args[@]+"${probe_args[@]}"} --out out/fonts | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: port-fonts-${{ matrix.engine }}
+          path: packages/visual-diff/out/fonts
+          if-no-files-found: error
+          retention-days: 14
+
+  # Nav scroll-hide probe (task nav-scroll-hide-check): the nav against the people section, original vs rewrite, desktop widths,
+  # one job per engine; records and tables are the artifact nav-scroll-<engine>. Dispatch with -f navscroll=true.
+  navscroll:
+    # only on a dispatch that sets the navscroll input; every other run (push, schedule, plain dispatch) skips it
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.navscroll }}
+    needs: [site]
+    concurrency:
+      group: ci-lane:visual-diff:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:navscroll:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, playwright-webkit]
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      # The gate-engine action installs its browser through the gate package's playwright-core (same pinned version as ours).
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints @fw/visual-diff'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - uses: ./.github/actions/gate-engine
+        with:
+          engine: ${{ matrix.engine }}
+      - name: Unit tests (Lean golden vectors, diff counts)
+        working-directory: packages/visual-diff
+        run: pnpm test
+      - name: Nav scroll-hide probe
+        env:
+          ENGINE: ${{ matrix.engine }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/visual-diff
+        run: |
+          node src/cli.mjs nav-scroll --engine "$ENGINE" --out out/navscroll
+          node src/cli.mjs nav-scroll-report --in out/navscroll --out out/navscroll/report | tee -a "$GITHUB_STEP_SUMMARY" > /dev/null
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: nav-scroll-${{ matrix.engine }}
+          path: packages/visual-diff/out/navscroll
+          if-no-files-found: error
+          retention-days: 14
+
+  # People-section layout probe (task people-layout-shift): every box of #people, original vs port, per width, plus the layout
+  # shifts over a scroll through the section; one job per engine, artifact people-layout-<engine>. Dispatch with -f peoplelayout=true.
+  people-layout:
+    # only on a dispatch that sets the peoplelayout input; every other run (push, schedule, plain dispatch) skips it
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.peoplelayout }}
+    needs: [site]
+    concurrency:
+      group: ci-lane:visual-diff:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:people-layout:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, playwright-webkit]
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      # The gate-engine action installs its browser through the gate package's playwright-core (same pinned version as ours).
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints @fw/visual-diff'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - uses: ./.github/actions/gate-engine
+        with:
+          engine: ${{ matrix.engine }}
+      - name: Unit tests (Lean golden vectors, diff counts)
+        working-directory: packages/visual-diff
+        run: pnpm test
+      - name: People layout probe
+        env:
+          ENGINE: ${{ matrix.engine }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/visual-diff
+        run: |
+          node src/cli.mjs people-layout --engine "$ENGINE" --out out/people-layout
+          node src/cli.mjs people-layout-report --in out/people-layout --out out/people-layout/report > /dev/null
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: people-layout-${{ matrix.engine }}
+          path: packages/visual-diff/out/people-layout
           if-no-files-found: error
           retention-days: 14
 

@@ -1,7 +1,8 @@
 # fw ci
 
-`fw ci [<run id>] [--workflow chromium-counts] [--branch main] [--store <dir>]` pulls a finished CI run into the artifact store.
-No run id: the latest run of the workflow on the branch. The store is `$FW_CONSOLE_DIR/store` (default `.fw-console/store`) unless `--store`.
+`fw ci <run id> | --branch ci/<x> [--workflow chromium-counts] [--store <dir>]` pulls a finished CI run into the artifact store.
+A run id or `--branch` is required; without one it exits 64 with the usage (a `main` push runs no measurement, so there
+is no default branch). With `--branch` and no run id: the latest run of the workflow on that branch. The store is `$FW_CONSOLE_DIR/store` (default `.fw-console/store`) unless `--store`.
 
 - Every gh call (list, view, download; also `fw run` and `fw watch`) goes through `ghCharged` (`@fw/gh-budget`): fwcore's `ci.budget.*` decides
   whether gh runs, and a wait or stop means gh is not started. `fw ci` and `fw run` sleep through a wait; a stop throws (exit 1).
@@ -34,6 +35,17 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
   - Exit 0 pass, 1 a run failed, **4 not run** (GitHub may still say `success`), 3 timeout (default 540 s) or the poller
     stopped (call it again), 2 gh could not find the run, 64 usage. Run it in the background; do not loop.
 - `pnpm fw ci budget [--json|--resume|--probe]` shows the request budget (0 requests; `--probe` is one charged call).
+  - Dropped watches (Lean `Fw.Ci.Budget`, section (i); note `research/notes/2026/10-20-gh-budget-watch-expiry.md`). There is no age
+    rule. For a real run id fwcore drops a watch with an incident when `missMax` = 3 covering lists lack it (`unseen`), or when
+    a full list cannot reach its creation time (`uncovered`); Lean decides from the row count and pages read whether a list was
+    cut. Branch sentinels are not dropped by lists. A watch (run or sentinel) is kept exactly while its waiter lives: each
+    waiter marker holds pid and process start time, and `ci.budget.next` sweeps the watches without a live marker with an
+    `orphan` incident (`Fw.Ci.Budget.sweep`; note `research/notes/2026/10-20-gh-budget-waiter-liveness.md`). A tick reads at most `pageCap` = 10 pages (cost 20, the per-minute tick share), also when
+    the stored `pages` is stale and larger, so the poller never stops `tooBig` (`tick_no_tooBig`, `incident_tick`). Dropped
+    watches are appended to `.git/fw-gh-budget/incidents.jsonl` (`{runId,time,why}`) and shown by `fw ci budget` until logged.
+    A failed cleanup in a waiter's signal handler is appended there as `{cleanupFailed,at}` (a message and a time, no run id).
+    A waiter whose watch was dropped keeps waiting for its own timeout; run it again. Registration refuses an id that is neither
+    a run id (below 10^13) nor a branch sentinel (10^15 + a 32-bit hash).
 - Never `gh run watch`, never a gh loop, never `gh api`. `fw run` waits the same way: after a dispatch it waits for the newest run of the
   workflow created after the previous newest one (a branch wait), and for `--from-run` a run wait; it throws when the run fails.
 - Tests: `apps/runner/test/run-budget.test.ts` (fake gh of `packages/gh-budget`): 1 vs 10 waiters make the same gh calls; no gh call is made
@@ -42,7 +54,7 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
 ## Which workflows a `ci/*` push starts, and how to run the one you will read
 
 - Round 3 (task `ci-own-trigger`, Lean `Fw.Ci.Intent.decision`): no workflow has `on.push.paths`, so every push to `ci/*`
-  or `main` creates a run of every workflow and its first job `guard` decides (`.github/scripts/changed-inputs.mjs`).
+  creates a run of every workflow (a `main` push: of the seeders' workflows only) and its first job `guard` decides (`.github/scripts/changed-inputs.mjs`).
   On a `ci/*` push it runs the jobs iff, in this order (the first failing one is the skip tag):
   `unwanted` the head commit asks for the lane (or it is the default lane `lean`); `stale` the commit is still the branch
   tip (`git ls-remote`; unreadable counts as the tip); `landed` the commit is not on main yet; `unchanged` some file that
@@ -50,8 +62,11 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
   `lean` never skips as `unchanged` on `ci/*` (`lean_never_unchanged`). The tip therefore always runs every requested
   lane whose inputs differ from main, and `lean` on every tip not on main (`tip_starts`, `tip_lean_always`); a later push that reverts part of the branch cannot hide what the branch still
   carries (`tip_history_free`). A merge of main adds nothing (`merge_starts_nothing`).
-- A `main` push keeps the old rule: it runs iff its own diff (before..HEAD) passes the coarse globs (`pushPaths`:
-  each cone as `lean/Fw/**`, `lean/*.lean`; `main_keeps_paths_rule`). Dispatches and schedules always run.
+- A `main` push starts only the workflows of the cache seeders (Lean `Fw.Ci.Trigger.seeders`: `lean.yml` job `lean`,
+  the Lake cache; `premise-tests.yml` job `engine`, the gate-engine caches). Such a run goes on iff its own diff
+  (before..HEAD) passes the coarse globs (`pushPaths`: each cone as `lean/Fw/**`, `lean/*.lean`;
+  `main_keeps_paths_rule`), and then runs only the guard and the seeders (`mainRuns_iff`). No workflow has a schedule
+  (`no_crons`). Dispatches always run.
 - The inputs are the rows of `table` in `lean/Fw/Ci/Trigger.lean`; `fwcore` users depend on the import cone of
   `Main.lean`, not on `lean/**`. To change one: edit `table`, `cd lean && lake test -- --write-ci-trigger-golden`, then
   `node scripts/ci-paths.mjs --write`. The land check `apps/runner/test/ci-triggers.test.ts` fails on any other edit.
@@ -71,9 +86,13 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
   - A requested lane whose inputs equal main on the branch is skipped `unchanged`; to re-run it, dispatch it:
     `gh workflow run <lane>.yml --ref ci/<task>` (a record: it always runs). Dispatch also for inputs (`-f key=value`).
   - Nothing is cancelled on `ci/*` (Lean `Fw.Ci.Cancel.ci_never_cancelled`): every heavy job's group holds the run id
-    on `ci/*` and dispatches, the ref on `main` pushes (main runs queue); no job sets `cancel-in-progress`. Instead the
+    on `ci/*` and dispatches, the ref on `main` pushes (the seeders' main runs queue); no job sets `cancel-in-progress`. Instead the
     first steps of every heavy job re-check the tip (`tip re-check`, then `stale: a newer push is the branch tip` fails
     the job when a newer push moved it), and every later step that uses `always()`/`failure()`/`cancelled()` also needs
     `steps.stale.outcome == 'skipped'` (`stale_never_works`). An older push may so use a runner for a minute; it never
     reports a pass (`stale_never_pass`).
   - You should not need `gh run cancel`. If a run you did not ask for does work, report it (a guard bug).
+
+## Second reader: CircleCI (pilot)
+
+`pnpm fw ci wait --provider circleci (--pipeline ID | --branch ci/<task>) [--out DIR]` waits on a CircleCI pipeline (polls every 120 s or more, honours Retry-After) and exits 0 pass, 1 fail, 3 timeout, 4 not run, 5 pilot stop rule. It makes no GitHub call. Setup and the other commands: `docs/team/tools/circleci.md`.

@@ -11,7 +11,7 @@ color: blue
 You build measurement code in the package your task names (default `packages/measure/`), in your own worktree; in a
 fresh one run `sh scripts/wt-prep.sh` first. Measure on CI: `git push origin ci/<your task>`, wait in the background with
 `pnpm fw ci wait --branch ci/<your task> [--workflow <name>]` (never a gh loop or `gh run watch`), fetch results with
-`pnpm fw ci <runId>` or `gh run download` (`docs/team/tools/fw-ci.md`). Locally only one debug run (≤ 5 min) while you
+`pnpm fw ci <runId>` or `pnpm fw ci --branch ci/<your task>` (no default branch) or `gh run download` (`docs/team/tools/fw-ci.md`). Locally only one debug run (≤ 5 min) while you
 change harness code: hold the Simulator with `sh scripts/sim-lock.sh acquire <you>` (release when done), keep it booted
 across runs, never reboot it per run.
 The original site is the read-only snapshot `snapshot/site` in the main checkout (gitignored; CLAUDE.md "Fastwork

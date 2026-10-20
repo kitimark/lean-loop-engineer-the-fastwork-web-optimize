@@ -14,11 +14,16 @@ export type Phase = "building" | "serving";
 export type Entry = {
   id: string; task: string;
   target: { kind: string; ref: string | null; sha: string };
-  rp: number; op: number; started: number; deadline: number;
+  /** the arms' public ports (their origins) and the private ports the preview server listens on (Lean `Arm.backendOf`) */
+  rp: number; op: number; brp: number; bop: number; started: number; deadline: number;
   phase: Phase; pid: number | null; pstart: string | null; tree: string;
   /** the last proxied request (ms); the time serving began until one comes (Lean `Owner.Live.seen`) */
   seen: number;
+  /** the prerendered search the compare view opens at (a Builds row); "" = the default page */
+  search?: string;
 };
+/** A Builds row as `console.builds` decided it: the preview slot, what it shows and the search. */
+export type BuildAt = { slot: string; target: { kind: string; ref: string | null; sha: string }; search: string };
 export type Failed = { id: string; task: string; error: string; at: number };
 /** What the route saw of a request (Lean `Fw.Console.Preview.Proof`); Lean maps it to an actor. */
 export type Proof = { secret: boolean; cookie: boolean; origin: boolean };
@@ -29,7 +34,7 @@ export type Hooks = {
   /** make the tree at the sha and build the site into it; `track` records each child process group as it starts;
    *  `cancelled` is true once a stop asked for the build to end: the remaining steps must not run */
   build(e: Entry, track: (pid: number | null) => void, cancelled: () => boolean): Promise<void>;
-  /** start the server child (rewrite on rp, original on op); resolves with its process group once both listen */
+  /** start the server child (rewrite on brp, original on bop); resolves with its process group once both listen */
   serve(e: Entry, track: (pid: number | null) => void): Promise<number>;
   removeTree(e: Entry): void;
   killGroup(pid: number): void;
@@ -83,7 +88,7 @@ export function defaultHooks(root: string, dir: string): Hooks {
       return new Promise<number>((resolve, reject) => {
         const snap = join(e.tree, "snapshot/site");
         const c = spawn(process.execPath, [SERVE_CHILD, "--serve", `--fw-preview=${e.id}`, "--rewrite", join(e.tree, "apps/site/dist/aot"),
-          "--original", snap, "--media", snap, "--rp", String(e.rp), "--op", String(e.op), "--prefix", `/preview/${e.id}`], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
+          "--original", snap, "--media", snap, "--rp", String(e.brp), "--op", String(e.bop), "--arm-rp", String(e.rp), "--arm-op", String(e.op)], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
         track(c.pid ?? null);
         let out = ""; let ready = false;
         const timer = setTimeout(() => { try { process.kill(-c.pid!, "SIGTERM"); } catch { /* gone */ } reject(new Error("server did not start in 10 s")); }, 10_000);
@@ -121,6 +126,9 @@ export type StartReply =
   | { ok: true; id: string; entry: Entry }
   | { ok: false; reason: string; detail?: string };
 
+/** The arm origins of the previews (arm-servers.ts): one gated listener per arm, on the arm's public port. */
+export type Arms = { open(e: Entry): Promise<void>; close(id: string): void | Promise<void> };
+
 export class PreviewManager {
   private entries: Entry[] = [];
   private failed: Failed[] = [];
@@ -133,19 +141,27 @@ export class PreviewManager {
   readonly dir: string;
   private core: Core;
   private hooks: Hooks;
+  private arms: Arms | undefined;
 
   /** first port of the range; undefined = the Lean default (`Fw.Console.Preview.portLo`), which Lean fills in */
   private portBase: number | undefined;
 
-  constructor(root: string, dir: string, core: Core, hooks: Hooks = defaultHooks(root, dir), opts: { portBase?: number } = {}) {
-    this.root = root; this.dir = dir; this.core = core; this.hooks = hooks; this.portBase = opts.portBase;
+  constructor(root: string, dir: string, core: Core, hooks: Hooks = defaultHooks(root, dir), opts: { portBase?: number; arms?: Arms } = {}) {
+    this.root = root; this.dir = dir; this.core = core; this.hooks = hooks; this.portBase = opts.portBase; this.arms = opts.arms;
     mkdirSync(join(dir, "preview"), { recursive: true });
   }
 
   private get tablePath() { return join(this.dir, "preview", "table.json"); }
   private persist() { writeFileSync(this.tablePath, JSON.stringify(this.entries)); }
+  /** The same log for lines written outside the manager (inspect grants); no secret may be in `rec`. */
+  audit(rec: Record<string, unknown>) { this.note(rec); }
   private note(rec: Record<string, unknown>) { appendFileSync(join(this.dir, "preview", "log.jsonl"), JSON.stringify({ at: this.hooks.now(), ...rec }) + "\n"); }
   /** the Lean table: only what Lean reads */
+  /** The arm listeners (set once at start, before any preview begins). */
+  useArms(a: Arms): void { this.arms = a; }
+
+  /** The table in the shape the Lean ops read (`console.previewArm` routes a request by it). */
+  liveTable() { return this.live(); }
   private live() { return this.entries.map(({ id, task, rp, op, started }) => ({ id, task, rp, op, started })); }
   private liveSeen() { return this.entries.map(({ id, task, rp, op, started, seen }) => ({ id, task, rp, op, started, seen })); }
   private serial<T>(f: () => Promise<T>): Promise<T> { const p = this.chain.then(f, f); this.chain = p.catch(() => undefined); return p; }
@@ -171,16 +187,18 @@ export class PreviewManager {
       ref: (r.ref as string | null) ?? null, sha: (r.sha as string | null) ?? null };
   }
 
-  start(task: string, proof: Proof): Promise<StartReply> {
+  /** Start a preview. With `at` (a Builds row decided by Lean `console.builds`) the target is the row's commit and the compare
+   *  view opens at its search; without, the task's target comes from `console.previewTarget`. */
+  start(task: string, proof: Proof, at?: BuildAt): Promise<StartReply> {
     return this.serial(async () => {
-      const t = await this.decision(task);
+      const t: Decision = at ? { head: null, headSrc: null, kind: at.target.kind, ref: at.target.ref, sha: at.target.sha } : await this.decision(task);
       const now = this.hooks.now();
       const id = `${task}-${now.toString(36)}${(this.seq++).toString(36)}`;
       const r = await this.core.ops("console.previewAdmit", { ...proof, preview: id, task, now, diskMb: this.hooks.diskMb(), hasTarget: t.kind !== "none", live: this.live(),
         ...(this.portBase === undefined ? {} : { portBase: this.portBase }) });
       if (r.ok !== true) return { ok: false as const, reason: String(r.reason ?? "refused") };
-      const e: Entry = { id, task, target: { kind: t.kind, ref: t.ref, sha: t.sha! }, rp: r.rp as number, op: r.op as number, started: now,
-        deadline: r.deadline as number, phase: "building", pid: null, pstart: null, tree: join(this.dir, "preview", id, "tree"), seen: now };
+      const e: Entry = { id, task, target: { kind: t.kind, ref: t.ref, sha: t.sha! }, rp: r.rp as number, op: r.op as number, brp: r.brp as number, bop: r.bop as number, started: now,
+        deadline: r.deadline as number, phase: "building", pid: null, pstart: null, tree: join(this.dir, "preview", id, "tree"), seen: now, search: at?.search ?? "" };
       this.entries.push(e); this.persist(); this.note({ ev: "start", id, task, target: e.target, rp: e.rp, op: e.op });
       this.runs.set(id, this.go(e));
       return { ok: true as const, id, entry: { ...e } };
@@ -195,6 +213,7 @@ export class PreviewManager {
       if (cancelled()) { this.hooks.removeTree(e); return; } // a stop came during the build: nothing started, the tree goes
       const pid = await this.hooks.serve(e, track);
       if (cancelled()) { this.hooks.killGroup(pid); this.hooks.removeTree(e); return; }
+      try { await this.arms?.open(e); } catch (err) { this.hooks.killGroup(pid); throw err; } // the arm origins listen before serving begins
       e.pid = pid; e.pstart = this.hooks.startOf(pid); e.phase = "serving"; e.seen = this.hooks.now(); this.persist(); this.note({ ev: "serving", id: e.id, pid });
     } catch (err) {
       if (cancelled()) { this.hooks.removeTree(e); return; } // the build step died because of the stop: clean up what it left
@@ -216,6 +235,7 @@ export class PreviewManager {
       const e = this.entries.find((x) => x.id === id);
       if (!e) continue; // not in our table: nothing to kill
       this.cancelled.add(id);
+      void this.arms?.close(id);
       if (e.pid !== null) {
         if (this.hooks.isOurs(e.pid, e)) this.hooks.killGroup(e.pid);
         else this.note({ ev: "pidNotOurs", id, pid: e.pid }); // gone or recycled: never signalled

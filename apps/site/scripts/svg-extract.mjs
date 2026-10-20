@@ -87,16 +87,14 @@ export function extractSvg() {
 
   const wordmarkSvg = blocks.find((b) => b.startsWith('<svg class="svelte-1l8nvlt"'));
   if (!wordmarkSvg) throw new Error('svg-extract: nav wordmark not found');
-  const wordmark = {
-    viewBox: /viewBox="([^"]*)"/.exec(wordmarkSvg)[1],
-    width: /width="([^"]*)"/.exec(wordmarkSvg)[1],
-    paths: [...wordmarkSvg.matchAll(/<path d="([^"]*)"/g)].map((m) => m[1]),
-  };
+  const wordmarkGroup = /^<svg\b[^>]*><g\b([^>]*)>/.exec(wordmarkSvg);
+  if (!wordmarkGroup) throw new Error('svg-extract: nav wordmark group not found');
+  const wordmark = { ...parseSvg(wordmarkSvg), group: attrsOf(wordmarkGroup[1]) };
 
   const gen = {
-    wordmark,
     accent: { base: base.paths, words: words.map((w) => ({ label: w.label, viewBox: w.viewBox, paths: w.paths })) },
     art: {
+      'nav.wordmark': wordmark,
       'nav.globe': one('nav.globe', (s) => s.startsWith('<svg viewBox="0 0 24 24" class="svelte-1lc7nmb">')),
       'icon.bell': one('icon.bell', (s) => s.includes('solar-bell-linear')),
       'icon.calendar': one('icon.calendar', (s) => s.includes('solar-calendar-linear')),

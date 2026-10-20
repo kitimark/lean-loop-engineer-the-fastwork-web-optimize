@@ -12,8 +12,6 @@ open Fw.Engine
 /-- **A reserved box turns the decode into a paint (Chromium).** On any layer state, a paint-only change of a box
 (the image content) is strictly less work than a height change of the same box.
 
-$$\forall m \in \mathrm{CrMode},\ \forall e, e' \in \mathbb{N},\ \forall l \in \mathrm{LayerState}:\ \operatorname{frameWork}_E\big(\operatorname{changesOnly}([(e, \mathrm{css}(\mathrm{bgImage}), l)])\big) \prec \operatorname{frameWork}_E\big(\operatorname{changesOnly}([(e', \mathrm{css}(\mathrm{height}), l)])\big)\quad\text{where } E = \operatorname{chromiumAt}(m)$$
-
 The image decode is modelled as a background-image change; without a reserved box it is also a height change. -/
 theorem cr_reserve_lt (m : Chromium.CrMode) (e e' : Nat) (l : LayerState) :
     (frameWork (Chromium.chromiumAt m) (changesOnly [⟨e, .css .backgroundImage, l⟩])).lt
@@ -28,8 +26,6 @@ theorem cr_reserve_lt (m : Chromium.CrMode) (e e' : Nat) (l : LayerState) :
 /-- **A reserved box turns the decode into a paint (WebKit).** On any layer state, a background change of a box is
 strictly less work than a size change of the same box.
 
-$$\forall m \in \mathrm{WkMode},\ \forall e, e' \in \mathbb{N},\ \forall \ell \in \mathrm{LayerState}:\ \operatorname{frameWork}_E\big(\operatorname{changesOnly}([(e, \mathrm{background}, \ell)])\big) \prec \operatorname{frameWork}_E\big(\operatorname{changesOnly}([(e', \mathrm{size}, \ell)])\big)\quad\text{where } E = \operatorname{webkitAt}(m)$$
-
 The image decode is modelled as a repaint; without a reserved box it is also a size change. -/
 theorem wk_reserve_lt (m : WebKit.WkMode) (e e' : Nat) (ℓ : LayerState) :
     (frameWork (WebKit.webkitAt m) (changesOnly [⟨e, .background, ℓ⟩])).lt
@@ -43,8 +39,6 @@ theorem wk_reserve_lt (m : WebKit.WkMode) (e e' : Nat) (ℓ : LayerState) :
 /-- **A stable gutter saves the width change (Chromium).** A frame is strictly less work than the same frame plus a
 width change of the content box, on any layer state.
 
-$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}),\ \forall e \in \mathbb{N},\ \forall l \in \mathrm{LayerState}:\ \operatorname{frameWork}_E(f) \prec \operatorname{frameWork}_E\big(\operatorname{join}(f, \operatorname{changesOnly}([(e, \mathrm{css}(\mathrm{width}), l)]))\big)\quad\text{where } E = \operatorname{chromiumAt}(m)$$
-
 A scrollbar that appears without a reserved gutter is modelled as a width change of the content. -/
 theorem cr_gutter_lt (m : Chromium.CrMode) (f : FrameIn Chromium.CrProp) (e : Nat) (l : LayerState) :
     (frameWork (Chromium.chromiumAt m) f).lt
@@ -55,8 +49,6 @@ theorem cr_gutter_lt (m : Chromium.CrMode) (f : FrameIn Chromium.CrProp) (e : Na
 
 /-- **A stable gutter saves the width change (WebKit).** A frame is strictly less work than the same frame plus a size
 change of the content box, on any layer state.
-
-$$\forall m \in \mathrm{WkMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{WkProp}),\ \forall e \in \mathbb{N},\ \forall \ell \in \mathrm{LayerState}:\ \operatorname{frameWork}_E(f) \prec \operatorname{frameWork}_E\big(\operatorname{join}(f, \operatorname{changesOnly}([(e, \mathrm{size}, \ell)]))\big)\quad\text{where } E = \operatorname{webkitAt}(m)$$
 
 A scrollbar that appears without a reserved gutter is modelled as a size change of the content. -/
 theorem wk_gutter_lt (m : WebKit.WkMode) (f : FrameIn WebKit.WkProp) (e : Nat) (ℓ : LayerState) :

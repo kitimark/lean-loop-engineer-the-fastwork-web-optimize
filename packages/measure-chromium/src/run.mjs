@@ -9,6 +9,7 @@ import puppeteer from 'puppeteer-core';
 import { startServer } from './server.mjs';
 import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
 import { accepts, gateSize, scrollRead, viewportGate } from './stage-mode.mjs';
+import { overflowExpr, formatOverflow } from './overflow.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
 
 const N0_ON = !process.env.FW_NO_N0; // FW_NO_N0=1: no N0 census in the page (harness-neutrality control)
@@ -154,6 +155,7 @@ const geo = await ev(`({ docH: document.documentElement.scrollHeight, innerH: in
 const profileSize = { w: profile.viewport.width, h: profile.viewport.height };
 const frame0 = { pinned: { w: geo.innerW, h: geo.innerH }, real: { w: geo.real?.w ?? -1, h: geo.real?.h ?? -1 }, client: { w: geo.clientW, h: geo.clientH } };
 if (!viewportGate(profileSize, frame0)) {
+  console.error(formatOverflow(await ev(overflowExpr()).catch(() => null)));
   throw new Error(`viewport not faithful: the page reports a real frame ${frame0.real.w}x${frame0.real.h} (pinned ${frame0.pinned.w}x${frame0.pinned.h}, client ${frame0.client.w}x${frame0.client.h}, scrollWidth ${geo.scrollW}, scale ${geo.scale}), the profile ${profile.viewport.width}x${profile.viewport.height}; the run is refused`);
 }
 const gate = gateSize(frame0);

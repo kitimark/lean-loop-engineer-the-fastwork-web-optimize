@@ -1,7 +1,6 @@
 import Lean.Data.Json
 import Fw.Console.Land
 import Fw.Ops.PathCheck
-import Fw.Spec.ConeMiss
 /-!
 # Why the `fw land` speed-ups keep the land verdict
 
@@ -11,8 +10,6 @@ equal to the slow one, and the empirical premises it relies on.
 * **(a) Result cache.** A check that reads only its declared inputs can be replayed from a key hit
   (`cache_sound`, `cachedRun_eq`, `integrity_push`); a skipped check (`checksFor` selects none of its declared inputs)
   keeps its verdict (`skip_sound`). Collision-freeness of the digest is an explicit premise (`NoCollision`).
-* **(b) Per-module lint.** With Merkle keys over the import DAG, the incremental lint equals the whole-repo lint
-  when a module's lint depends only on its import cone (`lint_modular`, `mkey_sound`, `mkey_congr`).
 * **(c) Pre-lock checking.** Checking `merge(main₀, tip)` before the lock and fast-forwarding under the lock decides
   exactly what today's protocol decides iff `HEAD = main₀` at commit time (`pre_eq_old`, `pre_moved`,
   `preLand_eq_old`), and the commit it makes is the one `Fw.Console.Land.land_commit_exact` describes
@@ -32,33 +29,28 @@ open Fw.Ops.PathCheck
 
 /-! ## (a) Result cache: a check that reads only its declared inputs can be replayed from a key hit -/
 
-/-- A repo path. $$\mathrm{Path} = \mathrm{String}$$ -/
+/-- A repo path. -/
 abbrev Path := String
-/-- A file's content, as its blob id. $$\mathrm{Blob} = \mathbb{N}$$ -/
+/-- A file's content, as its blob id. -/
 abbrev Blob := Nat
-/-- A file-system state: every path's content (absent files have a fixed blob).
-$$\sigma : \mathrm{Path} \to \mathrm{Blob}$$ -/
+/-- A file-system state: every path's content (absent files have a fixed blob). -/
 abbrev St := Path → Blob
 
-/-- A check: an id, the paths it declares it reads (its own program and toolchain included), and its result.
-$$c = (\mathit{id},\ \mathit{reads} \in \mathrm{Path}^{*},\ \mathit{run} : (\mathrm{Path}\to\mathrm{Blob}) \to R)$$ -/
+/-- A check: an id, the paths it declares it reads (its own program and toolchain included), and its result. -/
 structure Check (R : Type) where
   id : String
   reads : List Path
   run : St → R
 
 /-- **Empirical premise `land.readsOnly` (E1).** The check is a function of its declared inputs: two states that
-agree on them give the same result.
-$$\mathrm{RO}(c) \iff \forall \sigma, \sigma':\ (\forall p \in \mathit{reads}(c):\ \sigma(p) = \sigma'(p)) \Rightarrow \mathit{run}_c(\sigma) = \mathit{run}_c(\sigma')$$ -/
+agree on them give the same result. -/
 def ReadsOnly {R} (c : Check R) : Prop :=
   ∀ σ σ' : St, (∀ p ∈ c.reads, σ p = σ' p) → c.run σ = c.run σ'
 
-/-- The key: the check id, then each declared path with its blob.
-$$\operatorname{key}_\sigma(c) = (\mathit{id}(c),\ [(p, \sigma(p)) : p \in \mathit{reads}(c)])$$ -/
+/-- The key: the check id, then each declared path with its blob. -/
 def key {R} (c : Check R) (σ : St) : String × List (Path × Blob) := (c.id, c.reads.map (fun p => (p, σ p)))
 
-/-- Equal keys mean the two states agree on every declared input.
-$$\forall c, \sigma, \sigma':\ \operatorname{key}_\sigma(c) = \operatorname{key}_{\sigma'}(c) \Rightarrow \forall p \in \mathit{reads}(c):\ \sigma(p) = \sigma'(p)$$ -/
+/-- Equal keys mean the two states agree on every declared input. -/
 theorem key_agree {R} (c : Check R) (σ σ' : St) (h : key c σ = key c σ') : ∀ p ∈ c.reads, σ p = σ' p := by
   intro p hp
   have h2 := congrArg Prod.snd h
@@ -67,19 +59,16 @@ theorem key_agree {R} (c : Check R) (σ σ' : St) (h : key c σ = key c σ') : �
   simpa using this
 
 /-- **Assumption `land.noCollision` (A1), not a theorem.** The stored digest (sha256 of the canonical encoding) has
-no collision on the keys it is applied to.
-$$\mathrm{inj}(\mathrm{dig}) \iff \forall k, k':\ \mathrm{dig}(k) = \mathrm{dig}(k') \Rightarrow k = k'$$ -/
+no collision on the keys it is applied to. -/
 def NoCollision (dig : String × List (Path × Blob) → Nat) : Prop := ∀ k k', dig k = dig k' → k = k'
 
 /-- **Cache soundness.** If the check reads only its declared inputs and the digest has no collision, a digest hit
-replays exactly the result a fresh run would give.
-$$\forall c, \mathrm{dig}, \sigma_0, \sigma:\ \mathrm{RO}(c) \land \mathrm{inj}(\mathrm{dig}) \land \mathrm{dig}(\operatorname{key}_{\sigma_0}(c)) = \mathrm{dig}(\operatorname{key}_{\sigma}(c)) \Rightarrow \mathit{run}_c(\sigma_0) = \mathit{run}_c(\sigma)$$ -/
+replays exactly the result a fresh run would give. -/
 theorem cache_sound {R} (c : Check R) (dig : String × List (Path × Blob) → Nat) (hro : ReadsOnly c)
     (hinj : NoCollision dig) (σ0 σ : St) (hk : dig (key c σ0) = dig (key c σ)) : c.run σ0 = c.run σ :=
   hro σ0 σ (key_agree c σ0 σ (hinj _ _ hk))
 
-/-- A hit names a stored pair (the first one with that key).
-$$\forall S, k, r:\ \operatorname{lookup}_S(k) = \mathrm{some}(r) \Rightarrow (k, r) \in S$$ -/
+/-- A hit names a stored pair (the first one with that key). -/
 theorem lookup_mem {α β} [BEq α] [LawfulBEq α] :
     ∀ (S : List (α × β)) (k : α) (r : β), S.lookup k = some r → (k, r) ∈ S
   | [], _, _, h => by simp [List.lookup] at h
@@ -90,31 +79,20 @@ theorem lookup_mem {α β} [BEq α] [LawfulBEq α] :
       simp [List.lookup, this] at h
       exact List.mem_cons_of_mem _ (lookup_mem S k r h)
 
-/-- Pointwise equal bodies give equal flat maps.
-$$\forall f, g, l:\ (\forall x \in l:\ f(x) = g(x)) \Rightarrow \mathrm{flatMap}(f, l) = \mathrm{flatMap}(g, l)$$ -/
-theorem flatMap_congr' {α β} (f g : α → List β) : ∀ l : List α, (∀ x ∈ l, f x = g x) → l.flatMap f = l.flatMap g
-  | [], _ => rfl
-  | x :: l, h => by
-    simp only [List.flatMap_cons]
-    rw [h x (by simp), flatMap_congr' f g l (fun y hy => h y (by simp [hy]))]
-
-/-- A store: a list of (digest, result) entries, newest first. $$S \in (\mathbb{N} \times R)^{*}$$ -/
+/-- A store: a list of (digest, result) entries, newest first. -/
 abbrev Store (R : Type) := List (Nat × R)
 
-/-- **Store integrity (I1).** Every entry was written by a real run of this check under its key.
-$$\mathrm{Int}(S) \iff \forall (d, r) \in S\ \exists \sigma_0:\ d = \mathrm{dig}(\operatorname{key}_{\sigma_0}(c)) \land r = \mathit{run}_c(\sigma_0)$$ -/
+/-- **Store integrity (I1).** Every entry was written by a real run of this check under its key. -/
 def Integrity {R} (c : Check R) (dig : String × List (Path × Blob) → Nat) (S : Store R) : Prop :=
   ∀ e ∈ S, ∃ σ0 : St, e.1 = dig (key c σ0) ∧ e.2 = c.run σ0
 
-/-- Run through the store: replay the first entry with this digest on a hit, run on a miss.
-$$\operatorname{cached}_S(c, \sigma) = \begin{cases} r & \operatorname{lookup}_S(\mathrm{dig}(\operatorname{key}_\sigma(c))) = \mathrm{some}(r) \\ \mathit{run}_c(\sigma) & \operatorname{lookup}_S(\mathrm{dig}(\operatorname{key}_\sigma(c))) = \mathrm{none} \end{cases}$$ -/
+/-- Run through the store: replay the first entry with this digest on a hit, run on a miss. -/
 def cachedRun {R} (c : Check R) (dig : String × List (Path × Blob) → Nat) (S : Store R) (σ : St) : R :=
   match S.lookup (dig (key c σ)) with
   | some r => r
   | none => c.run σ
 
-/-- **The cached run equals a fresh run** for an intact store.
-$$\forall c, \mathrm{dig}, S, \sigma:\ \mathrm{RO}(c) \land \mathrm{inj}(\mathrm{dig}) \land \mathrm{Int}(S) \Rightarrow \operatorname{cached}_S(c, \sigma) = \mathit{run}_c(\sigma)$$ -/
+/-- **The cached run equals a fresh run** for an intact store. -/
 theorem cachedRun_eq {R} (c : Check R) (dig : String × List (Path × Blob) → Nat) (S : Store R) (σ : St)
     (hro : ReadsOnly c) (hinj : NoCollision dig) (hS : Integrity c dig S) : cachedRun c dig S σ = c.run σ := by
   unfold cachedRun
@@ -127,8 +105,7 @@ theorem cachedRun_eq {R} (c : Check R) (dig : String × List (Path × Blob) → 
     exact cache_sound c dig hro hinj σ0 σ hd.symm
   · rfl
 
-/-- Storing a fresh run keeps the store intact.
-$$\forall c, \mathrm{dig}, S, \sigma:\ \mathrm{Int}(S) \Rightarrow \mathrm{Int}\big((\mathrm{dig}(\operatorname{key}_\sigma(c)), \mathit{run}_c(\sigma)) :: S\big)$$ -/
+/-- Storing a fresh run keeps the store intact. -/
 theorem integrity_push {R} (c : Check R) (dig : String × List (Path × Blob) → Nat) (S : Store R) (σ : St)
     (hS : Integrity c dig S) : Integrity c dig ((dig (key c σ), c.run σ) :: S) := by
   intro e he
@@ -137,13 +114,11 @@ theorem integrity_push {R} (c : Check R) (dig : String × List (Path × Blob) �
   · exact hS e h
 
 /-- **Mutation witness.** If a path the check really depends on is left undeclared, there are two states with equal
-keys and different results, so (E1) is false and the test that mutates that path catches it.
-$$\forall c, \sigma, \sigma':\ \operatorname{key}_\sigma(c) = \operatorname{key}_{\sigma'}(c) \land \mathit{run}_c(\sigma) \ne \mathit{run}_c(\sigma') \Rightarrow \lnot\,\mathrm{RO}(c)$$ -/
+keys and different results, so (E1) is false and the test that mutates that path catches it. -/
 theorem undeclared_refutes {R} (c : Check R) (σ σ' : St) (hk : key c σ = key c σ') (hne : c.run σ ≠ c.run σ') :
     ¬ ReadsOnly c := fun hro => hne (hro σ σ' (key_agree c σ σ' hk))
 
-/-- The cache decision the land runner makes for a check: the first stored verdict with this digest, or none (run it).
-$$\operatorname{hit}(S, d) = \operatorname{lookup}_S(d) = \begin{cases} \mathrm{some}(r) & (d, r) \text{ is the first entry of } S \text{ with digest } d \\ \mathrm{none} & \text{no entry of } S \text{ has digest } d \ (\text{e.g. } S = [\,]) \end{cases}$$ -/
+/-- The cache decision the land runner makes for a check: the first stored verdict with this digest, or none (run it). -/
 def cacheHit (S : Store Bool) (d : Nat) : Option Bool := S.lookup d
 
 #guard cacheHit [(7, true), (9, false)] 9 == some false
@@ -154,37 +129,31 @@ def cacheHit (S : Store Bool) (d : Nat) : Option Bool := S.lookup d
 /-! ### Check selection (`checksFor`): a skipped check is a replayed pass -/
 
 /-- A check as `checksFor` declares it: its id and the globs of every path it reads (PathCheck glob semantics;
-`!` excludes).
-$$d = (\mathit{id},\ G \in \mathrm{Glob}^{*})$$ -/
+`!` excludes). -/
 structure Decl where
   id : String
   reads : List String
 deriving Repr, DecidableEq
 
 /-- Is the check selected for this change? Some changed path is in the scope of its declared globs (so an empty
-change selects nothing).
-$$\operatorname{sel}(G, X) \iff \exists x \in X:\ \mathrm{in}(\mathrm{parse}(G), x)$$ -/
+change selects nothing). -/
 def selected (G changed : List String) : Bool := changed.any (inScope (parseScope G))
 
-/-- The ids of the selected checks, in table order.
-$$\operatorname{select}(D, X) = [\, d.\mathit{id} : d \in D,\ \operatorname{sel}(d.G, X) \,]$$ -/
+/-- The ids of the selected checks, in table order. -/
 def selectChecks (ds : List Decl) (changed : List String) : List String :=
   (ds.filter (fun d => selected d.reads changed)).map (·.id)
 
 /-- **Empirical premise `land.readsWithin`** (E1 for globs): the check's result depends only on paths in the scope
-of its declared globs.
-$$\mathrm{RW}(\mathit{run}, G) \iff \forall \sigma, \sigma':\ (\forall p:\ \mathrm{in}(\mathrm{parse}(G), p) \Rightarrow \sigma(p) = \sigma'(p)) \Rightarrow \mathit{run}(\sigma) = \mathit{run}(\sigma')$$ -/
+of its declared globs. -/
 def ReadsWithin {R} (run : St → R) (G : List String) : Prop :=
   ∀ σ σ' : St, (∀ p, inScope (parseScope G) p = true → σ p = σ' p) → run σ = run σ'
 
-/-- Exact declared paths covered by globs give the glob premise.
-$$\forall c, G:\ \mathrm{RO}(c) \land (\forall p \in \mathit{reads}(c):\ \mathrm{in}(\mathrm{parse}(G), p)) \Rightarrow \mathrm{RW}(\mathit{run}_c, G)$$ -/
+/-- Exact declared paths covered by globs give the glob premise. -/
 theorem readsOnly_within {R} (c : Check R) (G : List String) (hro : ReadsOnly c)
     (hcov : ∀ p ∈ c.reads, inScope (parseScope G) p = true) : ReadsWithin c.run G :=
   fun σ σ' h => hro σ σ' (fun p hp => h p (hcov p hp))
 
-/-- A changed path in the declared scope selects the check (so an undeclared-input test is a scope test).
-$$\forall G, X, x:\ x \in X \land \mathrm{in}(\mathrm{parse}(G), x) \Rightarrow \operatorname{sel}(G, X)$$ -/
+/-- A changed path in the declared scope selects the check (so an undeclared-input test is a scope test). -/
 theorem selected_of_mem (G changed : List String) (x : String) (hx : x ∈ changed)
     (hin : inScope (parseScope G) x = true) : selected G changed = true := by
   simp only [selected, List.any_eq_true]
@@ -192,8 +161,7 @@ theorem selected_of_mem (G changed : List String) (x : String) (hx : x ∈ chang
 
 /-- **Skip soundness.** If the check reads only within its declared globs and no changed path is in their scope,
 then its result on the new state equals its result on the old one (the states differ only on changed paths), so
-skipping it replays its last verdict exactly.
-$$\forall \mathit{run}, G, X, \sigma, \sigma':\ \mathrm{RW}(\mathit{run}, G) \land \lnot\operatorname{sel}(G, X) \land (\forall p \notin X:\ \sigma(p) = \sigma'(p)) \Rightarrow \mathit{run}(\sigma) = \mathit{run}(\sigma')$$ -/
+skipping it replays its last verdict exactly. -/
 theorem skip_sound {R} (run : St → R) (G changed : List String) (hrw : ReadsWithin run G)
     (hs : selected G changed = false) (σ σ' : St) (hd : ∀ p, p ∉ changed → σ p = σ' p) : run σ = run σ' := by
   apply hrw
@@ -203,8 +171,7 @@ theorem skip_sound {R} (run : St → R) (G changed : List String) (hrw : ReadsWi
   rw [selected_of_mem G changed p hm hp] at hs
   exact Bool.noConfusion hs
 
-/-- Membership in the selection, unfolded.
-$$\forall D, X, i:\ i \in \operatorname{select}(D, X) \iff \exists d \in D:\ \operatorname{sel}(d.G, X) \land d.\mathit{id} = i$$ -/
+/-- Membership in the selection, unfolded. -/
 theorem mem_selectChecks (ds : List Decl) (changed : List String) (i : String) :
     i ∈ selectChecks ds changed ↔ ∃ d ∈ ds, selected d.reads changed = true ∧ d.id = i := by
   simp [selectChecks, and_assoc]
@@ -214,8 +181,7 @@ theorem mem_selectChecks (ds : List Decl) (changed : List String) (i : String) :
 `sweepsgen --scope --check` compares, the workflow files the lane lint of `Fw.Ops.Premise` reads, the span helper, the fwcore build helper,
 the incident ledger that `scripts/PropsLint.lean` matches the registry rows against, and the findings ledger, the parts
 and the site preset that `Fw.Preset.Gen.run ["--check"]` regenerates the v2-proved preset from and compares). `checksfor-inputs` owns the
-final list.
-$$G_{\mathrm{check}} = [\texttt{lean/**},\ \texttt{packages/contracts/golden/**},\ \texttt{apps/site/src/breakpoints.gen.json},\ \texttt{apps/site/src/sweeps.gen.json},\ \texttt{apps/site/src/head.gen.json},\ \texttt{packages/gate-breakpoints/src/scope.gen.json},\ \texttt{.github/workflows/**},\ \texttt{scripts/span.sh},\ \texttt{scripts/fwcore-build.sh},\ \texttt{docs/team/incidents/ledger.json},\ \texttt{research/findings/ledger.json},\ \texttt{apps/site/src/parts/**},\ \texttt{apps/site/src/registry/presets/v2-proved.json},\ \texttt{packages/measure-chromium/scenarios.gen.json}]$$ -/
+final list. -/
 def checkShReads : List String :=
   ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json",
     "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**",
@@ -223,8 +189,7 @@ def checkShReads : List String :=
     "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json",
     "packages/measure-chromium/scenarios.gen.json"]
 
-/-- The sample `checksFor` table of the golden cases: check.sh and one package test.
-$$D_0 = [(\texttt{check.sh}, G_{\mathrm{check}}),\ (\texttt{contracts}, [\texttt{packages/contracts/**}])]$$ -/
+/-- The sample `checksFor` table of the golden cases: check.sh and one package test. -/
 def sampleDecls : List Decl :=
   [⟨"check.sh", checkShReads⟩, ⟨"contracts", ["packages/contracts/**"]⟩]
 
@@ -245,8 +210,7 @@ def sampleDecls : List Decl :=
 #guard selectChecks sampleDecls ["apps/site/src/parts/nav.hitTest/part.json"] == ["check.sh"]
 #guard selectChecks sampleDecls ["apps/site/src/registry/presets/original.json"] == []
 
-/-- The parsed check.sh scope: each declared glob split at `/`, and no exclusions.
-$$\mathrm{parse}(G_{\mathrm{check}}) = \big([[\texttt{lean}, \texttt{**}],\ [\texttt{packages}, \texttt{contracts}, \texttt{golden}, \texttt{**}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{breakpoints.gen.json}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{sweeps.gen.json}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{head.gen.json}],\ [\texttt{packages}, \texttt{gate-breakpoints}, \texttt{src}, \texttt{scope.gen.json}],\ [\texttt{.github}, \texttt{workflows}, \texttt{**}],\ [\texttt{scripts}, \texttt{span.sh}],\ [\texttt{scripts}, \texttt{fwcore-build.sh}],\ [\texttt{docs}, \texttt{team}, \texttt{incidents}, \texttt{ledger.json}],\ [\texttt{research}, \texttt{findings}, \texttt{ledger.json}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{parts}, \texttt{**}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{registry}, \texttt{presets}, \texttt{v2-proved.json}],\ [\texttt{packages}, \texttt{measure-chromium}, \texttt{scenarios.gen.json}]],\ [\,]\big)$$ -/
+/-- The parsed check.sh scope: each declared glob split at `/`, and no exclusions. -/
 theorem parseScope_checkShReads : parseScope checkShReads =
     ⟨[["lean", "**"], ["packages", "contracts", "golden", "**"], ["apps", "site", "src", "breakpoints.gen.json"],
       ["apps", "site", "src", "sweeps.gen.json"], ["apps", "site", "src", "head.gen.json"], ["packages", "gate-breakpoints", "src", "scope.gen.json"],
@@ -262,9 +226,8 @@ theorem parseScope_checkShReads : parseScope checkShReads =
   simp only [List.map_nil, checkShReads, List.map_cons, Scope.mk.injEq, List.cons.injEq, and_true]
   and_intros <;> simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
 
-/-- check.sh is selected whenever some changed path is in the parsed check.sh scope, in any check table $D$
-holding the check `check.sh` with reads $G_{\mathrm{check}}$.
-$$\forall D, X, x:\ (\texttt{check.sh}, G_{\mathrm{check}}) \in D \land x \in X \land \mathrm{in}(\mathrm{parse}(G_{\mathrm{check}}), x) \Rightarrow \texttt{check.sh} \in \operatorname{select}(D, X)$$ -/
+/-- check.sh is selected whenever some changed path is in the parsed check.sh scope, in any check table `D`
+holding the check `check.sh` with reads `G_check`. -/
 theorem checkSh_selected_of_inScope (ds : List Decl) (changed : List String) (x : String)
     (hd : (⟨"check.sh", checkShReads⟩ : Decl) ∈ ds) (hx : x ∈ changed)
     (hin : inScope (parseScope checkShReads) x = true) :
@@ -272,10 +235,9 @@ theorem checkSh_selected_of_inScope (ds : List Decl) (changed : List String) (x 
   (mem_selectChecks ds changed _).2 ⟨_, hd, List.any_eq_true.2 ⟨x, hx, hin⟩, rfl⟩
 
 /-- A change to the gate's generated scope file (which `sweepsgen --scope --check` in `check.sh` reads) selects
-`check.sh`: for every check table $D$ holding the check `check.sh` with reads $G_{\mathrm{check}}$, every change list
-$X$ and every changed path $x \in X$ whose segments (split at `/`, empty and `.` segments dropped) equal those of
-`packages/gate-breakpoints/src/scope.gen.json`.
-$$\forall D, X, x:\ (\texttt{check.sh}, G_{\mathrm{check}}) \in D \land x \in X \land \mathrm{segs}(x) = [\texttt{packages}, \texttt{gate-breakpoints}, \texttt{src}, \texttt{scope.gen.json}] \Rightarrow \texttt{check.sh} \in \operatorname{select}(D, X)$$ -/
+`check.sh`: for every check table `D` holding the check `check.sh` with reads `G_check`, every change list
+`X` and every changed path `x ∈ X` whose segments (split at `/`, empty and `.` segments dropped) equal those of
+`packages/gate-breakpoints/src/scope.gen.json`. -/
 theorem scopeGen_selects_checkSh (ds : List Decl) (changed : List String) (x : String)
     (hd : (⟨"check.sh", checkShReads⟩ : Decl) ∈ ds) (hx : x ∈ changed)
     (hs : segs x = ["packages", "gate-breakpoints", "src", "scope.gen.json"]) :
@@ -286,10 +248,9 @@ theorem scopeGen_selects_checkSh (ds : List Decl) (changed : List String) (x : S
   exact matchesPath_lit _ (by simp) (by simp (config := {decide := true}))
 
 /-- A change to a workflow file (which the lane lint of `Fw.Ops.Premise`, run by `check.sh`, reads) selects
-`check.sh`: for every check table $D$ holding the check `check.sh` with reads $G_{\mathrm{check}}$, every change list
-$X$ and every changed path $x \in X$ whose segments start with `.github`, `workflows` and whose remaining segments
-$r$ (possibly none) hold no `..`.
-$$\forall D, X, x, r:\ (\texttt{check.sh}, G_{\mathrm{check}}) \in D \land x \in X \land \mathrm{segs}(x) = \texttt{.github} :: \texttt{workflows} :: r \land \texttt{..} \notin r \Rightarrow \texttt{check.sh} \in \operatorname{select}(D, X)$$ -/
+`check.sh`: for every check table `D` holding the check `check.sh` with reads `G_check`, every change list
+`X` and every changed path `x ∈ X` whose segments start with `.github`, `workflows` and whose remaining segments
+`r` (possibly none) hold no `..`. -/
 theorem workflow_selects_checkSh (ds : List Decl) (changed : List String) (x : String) (r : List String)
     (hd : (⟨"check.sh", checkShReads⟩ : Decl) ∈ ds) (hx : x ∈ changed)
     (hs : segs x = ".github" :: "workflows" :: r) (hr : ".." ∉ r) :
@@ -303,32 +264,26 @@ theorem workflow_selects_checkSh (ds : List Decl) (changed : List String) (x : S
 
 /-! ### The read-set scan: selected by every change a check can read -/
 
-/-- The id of the static read-set scan (`apps/runner` `test/land-inputs.test.ts`, premise `land.readsOnly`).
-$$\mathrm{scanId} = \texttt{reads-scan}$$ -/
+/-- The id of the static read-set scan (`apps/runner` `test/land-inputs.test.ts`, premise `land.readsOnly`). -/
 def scanId : String := "reads-scan"
 
-/-- The inclusion globs of a declared read list (exclusions dropped, so the scan over-approximates).
-$$\operatorname{pos}(G) = [\, g \in G : g_0 \ne \texttt{!}\,]$$ -/
+/-- The inclusion globs of a declared read list (exclusions dropped, so the scan over-approximates). -/
 def posGlobs (G : List String) : List String := G.filter (!·.startsWith "!")
 
-/-- The scan's own reads: every inclusion glob any check of the table declares (package sources, extra reads, lock files).
-$$G_{\mathrm{scan}}(D) = \operatorname{concat}[\, \operatorname{pos}(d.G) : d \in D \,]$$ -/
+/-- The scan's own reads: every inclusion glob any check of the table declares (package sources, extra reads, lock files). -/
 def scanReads (ds : List Decl) : List String := ds.flatMap (fun d => posGlobs d.reads)
 
-/-- The table with the scan appended as its own cheap check.
-$$D^{+} = D \mathbin{+\!\!+} [(\texttt{reads-scan},\ G_{\mathrm{scan}}(D))]$$ -/
+/-- The table with the scan appended as its own cheap check. -/
 def withScan (ds : List Decl) : List Decl := ds ++ [⟨scanId, scanReads ds⟩]
 
-/-- Every glob of the scan reads is an inclusion.
-$$\forall D, g \in G_{\mathrm{scan}}(D):\ g_0 \ne \texttt{!}$$ -/
+/-- Every glob of the scan reads is an inclusion. -/
 theorem scanReads_no_excl (ds : List Decl) : ∀ g ∈ scanReads ds, g.startsWith "!" = false := by
   intro g hg
   simp only [scanReads, posGlobs, List.mem_flatMap, List.mem_filter] at hg
   obtain ⟨_, _, h⟩ := hg
   simpa using h.2
 
-/-- A path in the scope of any declared check is in the scope of the scan.
-$$\forall D, d \in D, x:\ \mathrm{in}(\mathrm{parse}(d.G), x) \Rightarrow \mathrm{in}(\mathrm{parse}(G_{\mathrm{scan}}(D)), x)$$ -/
+/-- A path in the scope of any declared check is in the scope of the scan. -/
 theorem inScope_scanReads (ds : List Decl) (d : Decl) (hd : d ∈ ds) (x : String)
     (h : inScope (parseScope d.reads) x = true) : inScope (parseScope (scanReads ds)) x = true := by
   rw [inScope_iff] at h ⊢
@@ -346,16 +301,14 @@ theorem inScope_scanReads (ds : List Decl) (d : Decl) (hd : d ∈ ds) (x : Strin
     simp_all
 
 /-- **Selection soundness of the read-set scan.** If any changed path lies in the scope of any check's declared reads
-(package sources included), the scan is selected: a land that changes only `apps/site` still runs it.
-$$\forall D, X, d \in D, x \in X:\ \mathrm{in}(\mathrm{parse}(d.G), x) \Rightarrow \texttt{reads-scan} \in \operatorname{select}(D^{+}, X)$$ -/
+(package sources included), the scan is selected: a land that changes only `apps/site` still runs it. -/
 theorem scan_selected (ds : List Decl) (changed : List String) (d : Decl) (hd : d ∈ ds) (x : String)
     (hx : x ∈ changed) (hin : inScope (parseScope d.reads) x = true) :
     scanId ∈ selectChecks (withScan ds) changed :=
   (mem_selectChecks _ _ _).2 ⟨⟨scanId, scanReads ds⟩, by simp [withScan],
     List.any_eq_true.2 ⟨x, hx, inScope_scanReads ds d hd x hin⟩, rfl⟩
 
-/-- Precision: if no table check has the scan's id and no changed path lies in the scope of the scan's reads, the scan is not selected.
-$$\left(\forall d \in D:\ d.\mathit{id} \ne \texttt{reads-scan}\right) \Rightarrow \left(\forall x \in X:\ \lnot\mathrm{in}(\mathrm{parse}(G_{\mathrm{scan}}(D)), x)\right) \Rightarrow \texttt{reads-scan} \notin \operatorname{select}(D^{+}, X)$$ -/
+/-- Precision: if no table check has the scan's id and no changed path lies in the scope of the scan's reads, the scan is not selected. -/
 theorem scan_not_selected (ds : List Decl) (changed : List String)
     (hid : ∀ d ∈ ds, d.id ≠ scanId)
     (h : ∀ x ∈ changed, inScope (parseScope (scanReads ds)) x = false) :
@@ -368,178 +321,209 @@ theorem scan_not_selected (ds : List Decl) (changed : List String)
   · obtain ⟨x, hx, hx'⟩ := List.any_eq_true.1 hsel
     simp [h x hx] at hx'
 
-/-- The sample table with a site package check and the scan.
-$$D_1 = (D_0 \mathbin{+\!\!+} [(\texttt{site}, [\texttt{apps/site/**}])])^{+}$$ -/
+/-- The sample table with a site package check and the scan. -/
 def scanDecls : List Decl := withScan (sampleDecls ++ [⟨"site", ["apps/site/**"]⟩])
 
 #guard selectChecks scanDecls ["apps/site/src/x.ts"] == ["site", "reads-scan"]
 #guard selectChecks scanDecls ["docs/team/handoffs/x.md"] == []
 #guard selectChecks scanDecls ["packages/contracts/golden/obs/timing.jsonl"] == ["check.sh", "contracts", "reads-scan"]
 
-/-! ## (b) Cone skip: per-module lint with Merkle keys over the import DAG -/
+/-! ### Two-phase selection: the fwcore users follow the binary digest -/
 
-/-- A module name. $$\mathrm{Mod} = \mathrm{String}$$ -/
-abbrev Mod := String
+/-- The path that stands for the stripped fwcore binary in a check's declared reads. -/
+def fwcoreBin : String := "lean/.lake/build/bin/fwcore"
 
-/-- The import graph: modules, their imports, and a rank that strictly drops along an import (acyclic).
-$$G = (\mathit{mods},\ \mathit{imp} : \mathrm{Mod} \to \mathrm{Mod}^{*},\ \mathit{rk} : \mathrm{Mod} \to \mathbb{N}),\quad \forall m, \forall i \in \mathit{imp}(m):\ \mathit{rk}(i) < \mathit{rk}(m)$$ -/
-structure Graph where
-  mods : List Mod
-  imp : Mod → List Mod
-  rk : Mod → Nat
-  acyclic : ∀ m, ∀ i ∈ imp m, rk i < rk m
+/-- The tracked paths the fwcore build reads. -/
+def fwcoreBuildReads : List String := ["lean/**", "scripts/fwcore-build.sh"]
 
-/-- `x` is in the import cone of `m` (reflexive-transitive imports).
-$$x \in \operatorname{cone}(m) \iff x = m \lor \exists i \in \mathit{imp}(m):\ x \in \operatorname{cone}(i)$$ -/
-inductive InCone (G : Graph) (x : Mod) : Mod → Prop
-  | refl : InCone G x x
-  | step {m i : Mod} : i ∈ G.imp m → InCone G x i → InCone G x m
+/-- Two binary digests (`none`: unknown) that do not show one binary. -/
+def digestDiffers : Option String → Option String → Bool
+  | some a, some b => a != b
+  | _, _ => true
 
-/-- `InCone` is the import reachability `Fw.Spec.ConeMiss.Reach` of the graph's import map, so the expected-miss
-computation `Fw.Spec.ConeMiss.dependents` lists exactly the modules whose cone contains the edited one.
-$$\forall G, x, m:\ x \in \operatorname{cone}_G(m) \iff \mathrm{Reach}_{\mathit{imp}_G}(x, m)$$ -/
-theorem inCone_iff_reach (G : Graph) (x m : Mod) : InCone G x m ↔ Fw.Spec.ConeMiss.Reach G.imp x m := by
-  constructor
-  · intro h
-    induction h with
-    | refl => exact .refl
-    | step hi _ ih => exact .step hi ih
-  · intro h
-    induction h with
-    | refl => exact .refl
-    | step hi _ ih => exact .step hi ih
+/-- Did the binary move between main₀ (`d0`) and the merge tree (`d1`): the change reaches the build and the digests differ or one is unknown. -/
+def binMoved (changed : List String) (d0 d1 : Option String) : Bool :=
+  selected fwcoreBuildReads changed && digestDiffers d0 d1
 
-/-- The Merkle key of a module: a hash of its name, its source blob, the tool blob and its imports' keys (Lake's
-`depHash` has this shape; the lint program and toolchain enter as the extra blob `t`).
-$$K(\sigma, m) = H\big(m,\ \sigma(m),\ t,\ [K(\sigma, i) : i \in \mathit{imp}(m)]\big)$$ -/
-def mkey (G : Graph) (H : Mod → Blob → Blob → List Nat → Nat) (t : Blob) (src : Mod → Blob) (m : Mod) : Nat :=
-  H m (src m) t ((G.imp m).attach.map (fun ⟨i, _⟩ => mkey G H t src i))
-termination_by G.rk m
-decreasing_by exact G.acyclic m _ (by assumption)
+/-- The phase-2 change: the changed paths, plus `fwcoreBin` when the binary moved. -/
+def withBin (changed : List String) (d0 d1 : Option String) : List String :=
+  if binMoved changed d0 d1 then changed ++ [fwcoreBin] else changed
 
-/-- **Assumption `land.noCollision` (A2).** The module hash has no collision (four-argument injectivity).
-$$\mathrm{inj}(H) \iff \forall m, b, t, \vec k, m', b', t', \vec k':\ H(m, b, t, \vec k) = H(m', b', t', \vec k') \Rightarrow (m, b, t, \vec k) = (m', b', t', \vec k')$$ -/
-def HInj (H : Mod → Blob → Blob → List Nat → Nat) : Prop :=
-  ∀ m b t k m' b' t' k', H m b t k = H m' b' t' k' → m = m' ∧ b = b' ∧ t = t' ∧ k = k'
+/-- The two-phase selection: `selectChecks` over the phase-2 change. -/
+def selectTwoPhase (ds : List Decl) (changed : List String) (d0 d1 : Option String) : List String :=
+  selectChecks ds (withBin changed d0 d1)
 
-/-- Equal Merkle keys mean every module of the cone has the same source.
-$$\forall G, H, t, \sigma, \sigma', x, m:\ \mathrm{inj}(H) \land x \in \operatorname{cone}(m) \land K(\sigma, m) = K(\sigma', m) \Rightarrow \sigma(x) = \sigma'(x)$$ -/
-theorem mkey_sound (G : Graph) (H : Mod → Blob → Blob → List Nat → Nat) (hH : HInj H) (t : Blob)
-    (src src' : Mod → Blob) (x m : Mod) (hx : InCone G x m) (h : mkey G H t src m = mkey G H t src' m) :
-    src x = src' x := by
-  induction hx with
-  | refl => rw [mkey, mkey] at h; exact (hH _ _ _ _ _ _ _ _ h).2.1
-  | @step m i hi _ ih =>
-    apply ih
-    rw [mkey, mkey] at h
-    have hl := (hH _ _ _ _ _ _ _ _ h).2.2.2
-    have := List.map_inj_left.mp (by simpa [List.map_attach_eq_pmap] using hl) i hi
-    simpa using this
+theorem binMoved_unbuilt (changed : List String) (d0 d1 : Option String)
+    (h : selected fwcoreBuildReads changed = false) : binMoved changed d0 d1 = false := by
+  simp [binMoved, h]
 
-/-- **Cone skip (the converse, no hash premise).** Sources that agree on the cone give the same key: a change outside
-the cone of `m` never invalidates `m`'s stored result.
-$$\forall G, H, t, \sigma, \sigma', m:\ (\forall x \in \operatorname{cone}(m):\ \sigma(x) = \sigma'(x)) \Rightarrow K(\sigma, m) = K(\sigma', m)$$ -/
-theorem mkey_congr (G : Graph) (H : Mod → Blob → Blob → List Nat → Nat) (t : Blob) (src src' : Mod → Blob) :
-    ∀ m, (∀ x, InCone G x m → src x = src' x) → mkey G H t src m = mkey G H t src' m := by
-  intro m
-  induction m using (measure G.rk).wf.induction with
-  | _ m ih =>
-    intro hc
-    rw [mkey, mkey, hc m .refl]
-    congr 1
-    apply List.map_congr_left
-    intro ⟨i, hi⟩ _
-    exact ih i (G.acyclic m i hi) (fun x hx => hc x (.step hi hx))
+theorem binMoved_main_unknown (changed : List String) (d1 : Option String)
+    (h : selected fwcoreBuildReads changed = true) : binMoved changed none d1 = true := by
+  simp [binMoved, h, digestDiffers]
 
-/-- **Empirical premise `land.coneLocal` (E2).** A module's lint lines are a function of the sources of its import
-cone (and the tool blob). Fails if a module outside the cone adds `attribute [instance]`, an unexpander, notation or
-`add_decl_doc` to a declaration of `m`, or if the lint uses evaluation-order state.
-$$\mathrm{CL}(\ell) \iff \forall m, \sigma, \sigma':\ (\forall x \in \operatorname{cone}(m):\ \sigma(x)=\sigma'(x)) \Rightarrow \ell(m, \sigma) = \ell(m, \sigma')$$ -/
-def ConeLocal (G : Graph) (lint : Mod → (Mod → Blob) → List String) : Prop :=
-  ∀ m src src', (∀ x, InCone G x m → src x = src' x) → lint m src = lint m src'
+theorem binMoved_merge_unknown (changed : List String) (d0 : Option String)
+    (h : selected fwcoreBuildReads changed = true) : binMoved changed d0 none = true := by
+  cases d0 <;> simp [binMoved, h, digestDiffers]
 
-/-- The whole-repo lint: the concatenation of the module lints in module order (premise `land.lintOrder` (E3): the
-real lint sorts by a total key (module, line, name), so this order is its order).
-$$\mathrm{whole}(\sigma) = \mathop{+\!\!+}_{m \in \mathit{mods}} \ell(m, \sigma)$$ -/
-def lintAll (G : Graph) (lint : Mod → (Mod → Blob) → List String) (src : Mod → Blob) : List String :=
-  G.mods.flatMap (fun m => lint m src)
+theorem binMoved_differ (changed : List String) (a b : String)
+    (h : selected fwcoreBuildReads changed = true) (hab : a ≠ b) : binMoved changed (some a) (some b) = true := by
+  simp [binMoved, h, digestDiffers, hab]
 
-/-- The lint passes iff every module's lint is empty: the verdict is a conjunction over modules.
-$$\forall G, \ell, \sigma:\ \mathrm{whole}(\sigma) = [\,] \iff \forall m \in \mathit{mods}:\ \ell(m, \sigma) = [\,]$$ -/
-theorem lintAll_nil_iff (G : Graph) (lint : Mod → (Mod → Blob) → List String) (src : Mod → Blob) :
-    lintAll G lint src = [] ↔ ∀ m ∈ G.mods, lint m src = [] := by
-  simp [lintAll, List.flatMap_eq_nil_iff]
+theorem binMoved_same (changed : List String) (a : String) : binMoved changed (some a) (some a) = false := by
+  simp [binMoved, digestDiffers]
 
-/-- Module store integrity: every entry is a real module lint under its Merkle key.
-$$\mathrm{Int}(S) \iff \forall (k, r) \in S\ \exists m, \sigma_0:\ k = K(\sigma_0, m) \land r = \ell(m, \sigma_0)$$ -/
-def ModIntegrity (G : Graph) (H : Mod → Blob → Blob → List Nat → Nat) (t : Blob)
-    (lint : Mod → (Mod → Blob) → List String) (S : List (Nat × List String)) : Prop :=
-  ∀ e ∈ S, ∃ m src0, e.1 = mkey G H t src0 m ∧ e.2 = lint m src0
+theorem binMoved_iff (changed : List String) (d0 d1 : Option String) :
+    binMoved changed d0 d1 = true ↔ selected fwcoreBuildReads changed = true ∧ ¬ ∃ a, d0 = some a ∧ d1 = some a := by
+  cases d0 <;> cases d1 <;> simp [binMoved, digestDiffers]
+  exact fun _ => not_congr eq_comm
 
-/-- The incremental lint: each module replays its first stored lines on a key hit, else runs.
-$$\mathrm{inc}_S(\sigma) = \mathop{+\!\!+}_{m \in \mathit{mods}} \begin{cases} r & \operatorname{lookup}_S(K(\sigma, m)) = \mathrm{some}(r) \\ \ell(m,\sigma) & \operatorname{lookup}_S(K(\sigma, m)) = \mathrm{none}\end{cases}$$ -/
-def lintInc (G : Graph) (H : Mod → Blob → Blob → List Nat → Nat) (t : Blob)
-    (lint : Mod → (Mod → Blob) → List String) (S : List (Nat × List String)) (src : Mod → Blob) : List String :=
-  G.mods.flatMap (fun m => match S.lookup (mkey G H t src m) with | some r => r | none => lint m src)
+theorem withBin_unmoved (changed : List String) (d0 d1 : Option String) (h : binMoved changed d0 d1 = false) :
+    withBin changed d0 d1 = changed := by
+  simp [withBin, h]
 
-/-- **lint_modular.** With cone locality, no hash collision and an intact store, the incremental lint is exactly the
-whole-repo lint (same lines, same order, so the same verdict).
-$$\forall G, H, t, \ell, S, \sigma:\ \mathrm{CL}(\ell) \land \mathrm{inj}(H) \land \mathrm{Int}(S) \Rightarrow \mathrm{inc}_S(\sigma) = \mathrm{whole}(\sigma)$$ -/
-theorem lint_modular (G : Graph) (H : Mod → Blob → Blob → List Nat → Nat) (hH : HInj H) (t : Blob)
-    (lint : Mod → (Mod → Blob) → List String) (hcl : ConeLocal G lint) (S : List (Nat × List String))
-    (hS : ModIntegrity G H t lint S) (src : Mod → Blob) : lintInc G H t lint S src = lintAll G lint src := by
-  unfold lintInc lintAll
-  apply flatMap_congr'
-  intro m _
-  split
-  · rename_i r hr
-    obtain ⟨m0, src0, hk, hr0⟩ := hS _ (lookup_mem _ _ _ hr)
-    simp only at hk hr0
-    rw [hr0]
-    have hm : m0 = m := by rw [mkey, mkey] at hk; exact (hH _ _ _ _ _ _ _ _ hk).1.symm
-    subst hm
-    exact hcl m0 src0 src (fun x hx => mkey_sound G H hH t src0 src x m0 hx hk.symm)
-  · rfl
+theorem selectTwoPhase_same (ds : List Decl) (changed : List String) (a : String) :
+    selectTwoPhase ds changed (some a) (some a) = selectChecks ds changed := by
+  simp [selectTwoPhase, withBin_unmoved _ _ _ (binMoved_same changed a)]
+
+theorem user_selected_of_moved (ds : List Decl) (changed : List String) (d0 d1 : Option String) (d : Decl)
+    (hd : d ∈ ds) (hbin : inScope (parseScope d.reads) fwcoreBin = true) (hm : binMoved changed d0 d1 = true) :
+    d.id ∈ selectTwoPhase ds changed d0 d1 := by
+  refine (mem_selectChecks _ _ _).2 ⟨d, hd, selected_of_mem _ _ fwcoreBin ?_ hbin, rfl⟩
+  simp [withBin, hm]
+
+/-- **Empirical premise `land.binaryOfLean`**: the build maps a state to the binary it writes, and two states that agree on
+the paths of `fwcoreBuildReads` (the binary itself aside) build the same binary. -/
+def BinaryOfBuildReads (build : St → Blob) : Prop :=
+  ∀ σ σ' : St, (∀ p, p ≠ fwcoreBin → inScope (parseScope fwcoreBuildReads) p = true → σ p = σ' p) → build σ = build σ'
+
+theorem fwcore_digest_skip {R} (run : St → R) (G changed : List String) (hrw : ReadsWithin run G) (a : String)
+    (hs : selected G changed = false) (dig : Blob → String) (hinj : ∀ x y, dig x = dig y → x = y) (σ σ' : St)
+    (hd : ∀ p, p ∉ changed → p ≠ fwcoreBin → σ p = σ' p) (h0 : dig (σ fwcoreBin) = a) (h1 : dig (σ' fwcoreBin) = a) :
+    selected G (withBin changed (some a) (some a)) = false ∧ run σ = run σ' := by
+  rw [withBin_unmoved _ _ _ (binMoved_same changed a)]
+  refine ⟨hs, skip_sound run G changed hrw hs σ σ' fun p hp => ?_⟩
+  by_cases hb : p = fwcoreBin
+  · subst hb; exact hinj _ _ (h0.trans h1.symm)
+  · exact hd p hp hb
+
+theorem fwcore_nobuild_skip {R} (run : St → R) (G changed : List String) (hrw : ReadsWithin run G)
+    (d0 d1 : Option String) (hs : selected G changed = false) (hnb : selected fwcoreBuildReads changed = false)
+    (build : St → Blob) (hbin : BinaryOfBuildReads build) (σ σ' : St) (hb : σ fwcoreBin = build σ)
+    (hb' : σ' fwcoreBin = build σ') (hd : ∀ p, p ∉ changed → p ≠ fwcoreBin → σ p = σ' p) :
+    selected G (withBin changed d0 d1) = false ∧ run σ = run σ' := by
+  rw [withBin_unmoved _ _ _ (binMoved_unbuilt changed d0 d1 hnb)]
+  refine ⟨hs, skip_sound run G changed hrw hs σ σ' fun p hp => ?_⟩
+  by_cases hp' : p = fwcoreBin
+  · subst hp'
+    rw [hb, hb']
+    refine hbin σ σ' fun q hq hin => hd q (fun hm => ?_) hq
+    rw [selected_of_mem _ _ q hm hin] at hnb
+    exact Bool.noConfusion hnb
+  · exact hd p hp hp'
+
+theorem leanFw_inScope : inScope (parseScope fwcoreBuildReads) "lean/Fw.lean" = true := by
+  have hp : segs "lean/Fw.lean" = ["lean", "Fw.lean"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have hg : segs "lean/**" = ["lean", "**"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have hs : segs "scripts/fwcore-build.sh" = ["scripts", "fwcore-build.sh"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have h1 : "lean/**".startsWith "!" = false := by simp
+  have h2 : "scripts/fwcore-build.sh".startsWith "!" = false := by simp
+  have hm : matchesPath ["lean", "**"] ["lean", "Fw.lean"] = true := by
+    simp only [matchesPath, List.any_eq_true, List.mem_range]
+    exact ⟨1, by decide, by simp [globMatch, segMatch_lit]⟩
+  simp [inScope, parseScope, fwcoreBuildReads, h1, h2, hp, hg, hs, hm]
+
+/-- A build that copies one Lean source into the binary. -/
+def copyBuild : St → Blob := fun σ => σ "lean/Fw.lean"
+
+theorem copyBuild_binaryOfBuildReads : BinaryOfBuildReads copyBuild :=
+  fun _ _ h => h "lean/Fw.lean" (by decide) leanFw_inScope
+
+theorem binaryOfBuildReads_satisfiable :
+    ∃ build : St → Blob, BinaryOfBuildReads build ∧
+      ∃ σ σ' : St, σ fwcoreBin = build σ ∧ σ' fwcoreBin = build σ' ∧ build σ ≠ build σ' :=
+  ⟨copyBuild, copyBuild_binaryOfBuildReads, fun p => if p = fwcoreBin ∨ p = "lean/Fw.lean" then 1 else 0,
+    fun _ => 0, by decide, by decide, by decide⟩
+
+example : (fun σ : St => σ fwcoreBin) (fun p => if p = fwcoreBin ∨ p = "lean/Fw.lean" then 1 else 0)
+    = (fun σ : St => σ fwcoreBin) (fun p => if p = fwcoreBin ∨ p = "lean/Fw.lean" ∨ p = "docs/x.md" then 1 else 0) := by
+  have hb : segs fwcoreBin = ["lean", ".lake", "build", "bin", "fwcore"] := by
+    simp (config := {decide := true}) [fwcoreBin, segs, String.splitOn, String.splitOnAux]
+  have hx : segs "docs/x.md" = ["docs", "x.md"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have hg : segs "lean/**" = ["lean", "**"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have hs : segs "scripts/fwcore-build.sh" = ["scripts", "fwcore-build.sh"] := by
+    simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+  have h0 : fwcoreBin.startsWith "!" = false := by simp [fwcoreBin]
+  have h1 : "lean/**".startsWith "!" = false := by simp
+  have h2 : "scripts/fwcore-build.sh".startsWith "!" = false := by simp
+  have hrw : ReadsWithin (fun σ : St => σ fwcoreBin) [fwcoreBin] := fun σ σ' h => h fwcoreBin (by
+    have hm : matchesPath (segs fwcoreBin) (segs fwcoreBin) = true := by
+      rw [hb]; simp only [matchesPath, List.any_eq_true, List.mem_range]
+      exact ⟨4, by decide, by simp [globMatch, segMatch_lit]⟩
+    simp [inScope, parseScope, h0, hm]
+    rw [hb]; simp)
+  refine (fwcore_nobuild_skip (fun σ : St => σ fwcoreBin) [fwcoreBin] ["docs/x.md"] hrw none none ?_ ?_ copyBuild
+    copyBuild_binaryOfBuildReads _ _ (by decide) (by decide) ?_).2
+  · simp [selected, inScope, parseScope, h0, hb, hx, matchesPath, globMatch, segMatch]
+  · simp [selected, inScope, parseScope, fwcoreBuildReads, h1, h2, hg, hs, hx, matchesPath, globMatch, segMatch]
+  · intro p hp _
+    simp only [List.mem_singleton] at hp
+    simp [hp]
+
+/-- The sample table of the two-phase golden cases: check.sh, two fwcore users, a site check and the scan. -/
+def binDecls : List Decl :=
+  withScan [⟨"check.sh", checkShReads⟩, ⟨"console-api", ["apps/console-api/**", "lean/Fw/Console/PreviewFacts.lean", fwcoreBin]⟩,
+    ⟨"difftest", ["packages/difftest/**", fwcoreBin]⟩, ⟨"site", ["apps/site/**"]⟩]
+
+#guard selectTwoPhase binDecls ["lean/Fw/Console/Land.lean"] (some "a") (some "a") == ["check.sh", "reads-scan"]
+#guard selectTwoPhase binDecls ["lean/Fw/Console/Land.lean"] (some "a") (some "b") == ["check.sh", "console-api", "difftest", "reads-scan"]
+#guard selectTwoPhase binDecls ["lean/Fw/Console/Land.lean"] none (some "a") == ["check.sh", "console-api", "difftest", "reads-scan"]
+#guard selectTwoPhase binDecls ["lean/Fw/Console/Land.lean"] (some "a") none == ["check.sh", "console-api", "difftest", "reads-scan"]
+#guard selectTwoPhase binDecls ["lean/Fw/Console/PreviewFacts.lean"] (some "a") (some "a") == ["check.sh", "console-api", "reads-scan"]
+#guard selectTwoPhase binDecls ["apps/site/src/x.ts"] none none == ["site", "reads-scan"]
+#guard selectTwoPhase binDecls ["scripts/fwcore-build.sh"] (some "a") (some "a") == ["check.sh", "reads-scan"]
+#guard selectTwoPhase binDecls ["scripts/fwcore-build.sh"] (some "a") (some "b") == ["check.sh", "console-api", "difftest", "reads-scan"]
+#guard selectTwoPhase binDecls ["docs/team/handoffs/x.md"] none none == []
+#guard binMoved ["lean/x.lean"] (some "a") (some "a") == false
+#guard binMoved ["apps/site/x.ts"] (some "a") (some "b") == false
 
 /-! ## (c) Pre-lock checking: check merge(main₀, tip) outside the lock, commit it only if main is still main₀ -/
 
-/-- What the commit step decides.
-$$\mathrm{Out} = \mathrm{commit}(T, \mathit{ps}) \mid \mathrm{refuse} \mid \mathrm{retry}$$ -/
+/-- What the commit step decides. -/
 inductive Out where
   | commit (tree : String) (parents : List String)
   | refuse
   | retry
 deriving DecidableEq, Repr
 
-/-- The current protocol, seen at the moment the lock is taken with `HEAD = h`: merge, check, commit.
-$$\mathrm{old}(h, b) = \begin{cases}\mathrm{commit}(\mu(h,b), [h,b]) & \chi(\mu(h,b)) \\ \mathrm{refuse} & \lnot\chi(\mu(h,b))\end{cases}$$ -/
+/-- The current protocol, seen at the moment the lock is taken with `HEAD = h`: merge, check, commit. -/
 def old (merge : String → String → String) (chk : String → Bool) (h b : String) : Out :=
   if chk (merge h b) then .commit (merge h b) [h, b] else .refuse
 
 /-- The pre-lock protocol: `T = merge(main₀, b)` and its verdict `v` were computed before the lock; under the lock only
 `HEAD = main₀` is compared, and the precomputed commit is fast-forwarded (`git commit-tree T -p main₀ -p b`, then
-`merge --ff-only`): the committed tree is the checked tree by construction.
-$$\mathrm{pre}(m_0, v, h, b) = \begin{cases}\mathrm{retry} & h \ne m_0 \\ \mathrm{commit}(\mu(m_0,b), [m_0,b]) & h = m_0 \land v \\ \mathrm{refuse} & h = m_0 \land \lnot v\end{cases}$$ -/
+`merge --ff-only`): the committed tree is the checked tree by construction. -/
 def pre (merge : String → String → String) (m0 : String) (v : Bool) (h b : String) : Out :=
   if h ≠ m0 then .retry else if v then .commit (merge m0 b) [m0, b] else .refuse
 
 /-- **Pre-lock equivalence.** When main is still main₀ at the lock, the pre-lock protocol decides exactly what the
-current protocol decides, with $v = \chi(\mu(m_0, b))$ computed earlier (premise `land.checkDeterministic`).
-$$\forall \mu, \chi, m_0, h, b:\ h = m_0 \Rightarrow \mathrm{pre}(m_0, \chi(\mu(m_0,b)), h, b) = \mathrm{old}(h, b)$$ -/
+current protocol decides, with `v = χ(μ(m_0, b))` computed earlier (premise `land.checkDeterministic`). -/
 theorem pre_eq_old (merge : String → String → String) (chk : String → Bool) (m0 h b : String) (hh : h = m0) :
     pre merge m0 (chk (merge m0 b)) h b = old merge chk h b := by
   subst hh; unfold pre old; by_cases hc : chk (merge h b) <;> simp [hc]
 
 /-- **Fallback.** When main moved, nothing is committed: the land re-checks against the new main or falls back to the
-locked protocol (`prelockAction`).
-$$\forall \mu, m_0, v, h, b:\ h \ne m_0 \Rightarrow \mathrm{pre}(m_0, v, h, b) = \mathrm{retry}$$ -/
+locked protocol (`prelockAction`). -/
 theorem pre_moved (merge : String → String → String) (m0 h b : String) (v : Bool) (hh : h ≠ m0) :
     pre merge m0 v h b = .retry := by
   simp [pre, hh]
 
 /-- **Iff.** The pre-lock protocol agrees with the current one exactly when `HEAD = main₀` at commit time (the current
-protocol never answers `retry`).
-$$\forall \mu, \chi, m_0, h, b:\ \mathrm{pre}(m_0, \chi(\mu(m_0,b)), h, b) = \mathrm{old}(h, b) \iff h = m_0$$ -/
+protocol never answers `retry`). -/
 theorem pre_eq_old_iff (merge : String → String → String) (chk : String → Bool) (m0 h b : String) :
     pre merge m0 (chk (merge m0 b)) h b = old merge chk h b ↔ h = m0 := by
   constructor
@@ -552,8 +536,7 @@ theorem pre_eq_old_iff (merge : String → String → String) (chk : String → 
   · exact pre_eq_old merge chk m0 h b
 
 /-- **Checked = committed.** Whatever the pre-lock protocol commits is a tree that passed the checks, on top of the
-`HEAD` seen under the lock.
-$$\forall \mu, \chi, m_0, h, b, T, \mathit{ps}:\ \mathrm{pre}(m_0, \chi(\mu(m_0,b)), h, b) = \mathrm{commit}(T, \mathit{ps}) \Rightarrow \chi(T) \land T = \mu(h, b) \land \mathit{ps} = [h, b]$$ -/
+`HEAD` seen under the lock. -/
 theorem pre_commit_checked (merge : String → String → String) (chk : String → Bool) (m0 h b T : String)
     (ps : List String) (hc : pre merge m0 (chk (merge m0 b)) h b = .commit T ps) :
     chk T = true ∧ T = merge h b ∧ ps = [h, b] := by
@@ -568,8 +551,7 @@ theorem pre_commit_checked (merge : String → String → String) (chk : String 
 
 /-- **Evidence edit is invisible to the checks** (today's protocol writes `docs/team/work-graph.json` after
 checking): if the edited path is not read, the verdict of the committed tree equals the checked one. The pre-lock
-protocol applies the edit before checking, so it does not need this premise.
-$$\forall c, \sigma, p, w:\ \mathrm{RO}(c) \land p \notin \mathit{reads}(c) \Rightarrow \mathit{run}_c(\sigma[p \mapsto w]) = \mathit{run}_c(\sigma)$$ -/
+protocol applies the edit before checking, so it does not need this premise. -/
 theorem evidence_irrelevant {R} (c : Check R) (hro : ReadsOnly c) (σ : St) (p : Path) (w : Blob)
     (hp : p ∉ c.reads) : c.run (fun q => if q = p then w else σ q) = c.run σ :=
   hro _ _ (fun q hq => by
@@ -581,8 +563,7 @@ theorem evidence_irrelevant {R} (c : Check R) (hro : ReadsOnly c) (σ : St) (p :
 open Fw.Console.Land
 
 /-- Today's land on the repo model: take the lock (`begin`), others act (`es`), then commit the merge if the check
-of `merge(main₀, tip)` passes, else abort.
-$$\mathrm{oldLand}(R, t, i, k, es) = \begin{cases} \operatorname{step}(R_2, \mathrm{land}(i,k))_1 & \chi(\mu(R_1.\mathit{pre}, t)) \\ \operatorname{step}(R_2, \mathrm{abort})_1 & \lnot\chi(\mu(R_1.\mathit{pre}, t)) \end{cases},\quad R_1 = \operatorname{step}(R, \mathrm{begin}(t))_1,\ R_2 = \operatorname{run}(R_1, es)$$ -/
+of `merge(main₀, tip)` passes, else abort. -/
 def oldLand (merge : String → String → String) (chk : String → Bool) (s : Repo) (tip id task : String)
     (es : List Land.Event) : Repo :=
   let s1 := (Land.step s (.begin tip)).1
@@ -591,14 +572,12 @@ def oldLand (merge : String → String → String) (chk : String → Bool) (s : 
 
 /-- The pre-lock land on the repo model: the verdict `v` of `merge(main₀, tip)` is known before the lock; if `HEAD`
 is not `main₀` or `v` failed, the lock is never taken and the repo is unchanged; otherwise lock, others act,
-fast-forward to the checked commit.
-$$\mathrm{preLand}(R, m_0, v, t, i, k, es) = \begin{cases} \operatorname{step}(\operatorname{run}(\operatorname{step}(R, \mathrm{begin}(t))_1, es), \mathrm{land}(i,k))_1 & R.\mathit{head} = m_0 \land v \\ R & \text{otherwise} \end{cases}$$ -/
+fast-forward to the checked commit. -/
 def preLand (s : Repo) (m0 : String) (v : Bool) (tip id task : String) (es : List Land.Event) : Repo :=
   if s.head = m0 ∧ v = true then (Land.step (Land.run (Land.step s (.begin tip)).1 es) (.land id task)).1 else s
 
 /-- **Pre-lock land = today's land on main**, when `HEAD = main₀` and the lock is free: same `HEAD`, same log, lock
-released.
-$$\forall \mu, \chi, R, m_0, t, i, k, es:\ \lnot R.\mathit{locked} \land (\forall e \in es:\ \mathrm{safe}(e)) \land R.\mathit{head} = m_0 \Rightarrow \big(P.\mathit{head}, P.\mathit{log}, P.\mathit{locked}\big) = \big(O.\mathit{head}, O.\mathit{log}, O.\mathit{locked}\big),\quad P = \mathrm{preLand}(R, m_0, \chi(\mu(m_0, t)), t, i, k, es),\ O = \mathrm{oldLand}(R, t, i, k, es)$$ -/
+released. -/
 theorem preLand_eq_old (merge : String → String → String) (chk : String → Bool) (s : Repo) (m0 tip id task : String)
     (es : List Land.Event) (hu : s.locked = false) (hs : ∀ e ∈ es, e.safe = true) (hh : s.head = m0) :
     let P := preLand s m0 (chk (merge m0 tip)) tip id task es
@@ -623,8 +602,7 @@ theorem preLand_eq_old (merge : String → String → String) (chk : String → 
 
 /-- **The pre-lock commit is `land_commit_exact`'s commit**: with `HEAD = main₀`, a free lock, safe events in the
 window and a passing verdict, the new commit has parents (main₀, tip) and the `Task:` trailer, main moves to it and
-the lock is released.
-$$\forall R, m_0, t, i, k, es:\ \lnot R.\mathit{locked} \land (\forall e \in es:\ \mathrm{safe}(e)) \land R.\mathit{head} = m_0 \Rightarrow P.\mathit{log} = (i, [m_0, t], \mathrm{some}(k)) :: R.\mathit{log} \land P.\mathit{head} = i \land \lnot P.\mathit{locked},\quad P = \mathrm{preLand}(R, m_0, \top, t, i, k, es)$$ -/
+the lock is released. -/
 theorem preLand_commit_exact (s : Repo) (m0 tip id task : String) (es : List Land.Event) (hu : s.locked = false)
     (hs : ∀ e ∈ es, e.safe = true) (hh : s.head = m0) :
     let P := preLand s m0 true tip id task es
@@ -634,41 +612,36 @@ theorem preLand_commit_exact (s : Repo) (m0 tip id task : String) (es : List Lan
   rw [hP, ← hh]
   exact land_commit_exact s tip id task es hu hs
 
-/-- **Main moved: nothing happens.** If `HEAD` is not `main₀`, the pre-lock land leaves the repo exactly as it is.
-$$\forall R, m_0, v, t, i, k, es:\ R.\mathit{head} \ne m_0 \Rightarrow \mathrm{preLand}(R, m_0, v, t, i, k, es) = R$$ -/
+/-- **Main moved: nothing happens.** If `HEAD` is not `main₀`, the pre-lock land leaves the repo exactly as it is. -/
 theorem preLand_moved (s : Repo) (m0 : String) (v : Bool) (tip id task : String) (es : List Land.Event)
     (hh : s.head ≠ m0) : preLand s m0 v tip id task es = s := by
   simp [preLand, hh]
 
 /-! ### The runner's decision under the lock -/
 
-/-- What the land runner does after taking the lock with a pre-made commit.
-$$\mathrm{Act} = \mathrm{ff} \mid \mathrm{refuse} \mid \mathrm{recheck} \mid \mathrm{fallback}$$ -/
+/-- What the land runner does after taking the lock with a pre-made commit. -/
 inductive Action where
   | ff | refuse | recheck | fallback
 deriving DecidableEq, Repr
 
-/-- The JSON name of an action. $$\operatorname{name}(a) \in \{\texttt{ff}, \texttt{refuse}, \texttt{recheck}, \texttt{fallback}\}$$ -/
+/-- The JSON name of an action. -/
 def Action.name : Action → String
   | .ff => "ff" | .refuse => "refuse" | .recheck => "recheck" | .fallback => "fallback"
 
 /-- The decision: if `HEAD` is still `main₀`, fast-forward on a pass and refuse on a fail; if main moved, re-check
-against the new main while `attempt < maxRetry` (attempts count from 0), else fall back to the locked protocol.
-$$\operatorname{act}(h, m_0, v, a, n) = \begin{cases} \mathrm{ff} & h = m_0 \land v \\ \mathrm{refuse} & h = m_0 \land \lnot v \\ \mathrm{recheck} & h \ne m_0 \land a < n \\ \mathrm{fallback} & h \ne m_0 \land a \ge n \end{cases}$$ -/
+against the new main while `attempt < maxRetry` (attempts count from 0), else fall back to the locked protocol. -/
 def prelockAction (head m0 : String) (v : Bool) (attempt maxRetry : Nat) : Action :=
   if head = m0 then (if v then .ff else .refuse) else if attempt < maxRetry then .recheck else .fallback
 
 /-- The runner's decision is the `pre` decision: it fast-forwards exactly when `pre` commits and refuses exactly when
-`pre` refuses; when main moved, `pre` answers retry.
-$$\forall \mu, h, m_0, v, a, n, b:\ (\operatorname{act}(h, m_0, v, a, n) = \mathrm{ff} \iff \mathrm{pre}(m_0, v, h, b) = \mathrm{commit}(\mu(m_0, b), [m_0, b])) \land (\operatorname{act}(h, m_0, v, a, n) = \mathrm{refuse} \iff \mathrm{pre}(m_0, v, h, b) = \mathrm{refuse})$$ -/
+`pre` refuses; when main moved, `pre` answers retry. -/
 theorem prelockAction_pre (merge : String → String → String) (head m0 b : String) (v : Bool) (a n : Nat) :
     (prelockAction head m0 v a n = .ff ↔ pre merge m0 v head b = .commit (merge m0 b) [m0, b]) ∧
     (prelockAction head m0 v a n = .refuse ↔ pre merge m0 v head b = .refuse) := by
   unfold prelockAction pre
   by_cases hh : head = m0 <;> by_cases hv : v = true <;> by_cases ha : a < n <;> simp [hh, hv, ha]
 
-/-- **Bounded retry.** Once `attempt ≥ maxRetry`, a moved main gives fallback, never another re-check.
-$$\forall h, m_0, v, a, n:\ h \ne m_0 \land n \le a \Rightarrow \operatorname{act}(h, m_0, v, a, n) = \mathrm{fallback}$$ -/
+/-- **Bounded retry.** Once `attempt ≥ maxRetry`, a moved main gives fallback, never another re-check. -/
 theorem prelockAction_fallback (head m0 : String) (v : Bool) (a n : Nat) (hh : head ≠ m0) (ha : n ≤ a) :
     prelockAction head m0 v a n = .fallback := by
   simp [prelockAction, hh, Nat.not_lt.mpr ha]
@@ -683,27 +656,22 @@ theorem prelockAction_fallback (head m0 : String) (v : Bool) (a n : Nat) (hh : h
 /-! ## Pool size under load -/
 
 /-- How many checks may run at once: the cores not taken by other work (`loadCeil` = the one-minute load average rounded up),
-at least one. The pool size never changes a verdict (`verdict_perm`); it only changes how many run at the same time.
-$$\operatorname{pool}(c, \ell) = \max(1,\ c - \ell)$$ -/
+at least one. The pool size never changes a verdict (`verdict_perm`); it only changes how many run at the same time. -/
 def poolSize (cores loadCeil : Nat) : Nat := max 1 (cores - loadCeil)
 
-/-- The pool is never empty, so a land always makes progress.
-$$\forall c, \ell:\ 1 \le \operatorname{pool}(c, \ell)$$ -/
+/-- The pool is never empty, so a land always makes progress. -/
 theorem poolSize_pos (cores loadCeil : Nat) : 1 ≤ poolSize cores loadCeil := by
   unfold poolSize; omega
 
-/-- **Monotone in load.** More load never gives a larger pool.
-$$\forall c, \ell \le \ell':\ \operatorname{pool}(c, \ell') \le \operatorname{pool}(c, \ell)$$ -/
+/-- **Monotone in load.** More load never gives a larger pool. -/
 theorem poolSize_anti_load (cores l l' : Nat) (h : l ≤ l') : poolSize cores l' ≤ poolSize cores l := by
   unfold poolSize; omega
 
-/-- **Monotone in cores.** More cores never give a smaller pool.
-$$\forall c \le c', \ell:\ \operatorname{pool}(c, \ell) \le \operatorname{pool}(c', \ell)$$ -/
+/-- **Monotone in cores.** More cores never give a smaller pool. -/
 theorem poolSize_mono_cores (c c' l : Nat) (h : c ≤ c') : poolSize c l ≤ poolSize c' l := by
   unfold poolSize; omega
 
-/-- The pool never exceeds the cores (when there is at least one).
-$$\forall c \ge 1, \ell:\ \operatorname{pool}(c, \ell) \le c$$ -/
+/-- The pool never exceeds the cores (when there is at least one). -/
 theorem poolSize_le_cores (cores l : Nat) (hc : 1 ≤ cores) : poolSize cores l ≤ cores := by
   unfold poolSize; omega
 
@@ -716,29 +684,25 @@ theorem poolSize_le_cores (cores l : Nat) (hc : 1 ≤ cores) : poolSize cores l 
 
 /-! ## (d) Parallel checks: non-interfering checks give the same verdict in any order -/
 
-/-- A check with its effect on the state (build outputs, logs) and the paths it writes.
-$$j = (c,\ \mathit{eff} : \Sigma \to \Sigma,\ \mathit{writes}),\quad \forall \sigma, p:\ p \notin \mathit{writes}(j) \Rightarrow \mathit{eff}_j(\sigma)(p) = \sigma(p)$$ -/
+/-- A check with its effect on the state (build outputs, logs) and the paths it writes. -/
 structure Job where
   chk : Check Bool
   eff : St → St
   writes : List Path
   frame : ∀ σ p, p ∉ writes → eff σ p = σ p
 
-/-- Run jobs one after another; each check sees the effects of the jobs before it.
-$$\mathrm{seq}(\sigma, [\,]) = \top,\quad \mathrm{seq}(\sigma, j :: js) = \mathit{run}_j(\sigma) \land \mathrm{seq}(\mathit{eff}_j(\sigma), js)$$ -/
+/-- Run jobs one after another; each check sees the effects of the jobs before it. -/
 def seqVerdict : St → List Job → Bool
   | _, [] => true
   | σ, j :: js => j.chk.run σ && seqVerdict (j.eff σ) js
 
 /-- **Empirical premise `land.nonInterfere` (E4).** No job writes a path another job of the same stage reads (for
-every pair at different positions of the list).
-$$\mathrm{NI}(js) \iff \forall k < l < |js|:\ \mathit{writes}(js_k) \cap \mathit{reads}(js_l) = \varnothing \land \mathit{writes}(js_l) \cap \mathit{reads}(js_k) = \varnothing$$ -/
+every pair at different positions of the list). -/
 def NonInterfere (js : List Job) : Prop :=
   js.Pairwise (fun a b => (∀ p ∈ a.writes, p ∉ b.chk.reads) ∧ (∀ p ∈ b.writes, p ∉ a.chk.reads))
 
 /-- **Parallel = sequential.** For read-only, non-interfering jobs the sequential verdict is the conjunction of the
-verdicts each job gets on the start state, so running them at once gives the same verdict.
-$$\forall js:\ (\forall j \in js:\ \mathrm{RO}(j)) \land \mathrm{NI}(js) \Rightarrow \forall \sigma:\ \mathrm{seq}(\sigma, js) = \textstyle\bigwedge_{j \in js} \mathit{run}_j(\sigma)$$ -/
+verdicts each job gets on the start state, so running them at once gives the same verdict. -/
 theorem seq_eq_all (js : List Job) (hro : ∀ j ∈ js, ReadsOnly j.chk) (hni : NonInterfere js) :
     ∀ σ, seqVerdict σ js = js.all (fun j => j.chk.run σ) := by
   induction js with
@@ -760,8 +724,7 @@ theorem seq_eq_all (js : List Job) (hro : ∀ j ∈ js, ReadsOnly j.chk) (hni : 
       exact ⟨fun h k hk => (e k hk) ▸ h k hk, fun h k hk => (e k hk).symm ▸ h k hk⟩
     rw [hall]
 
-/-- **Order independence.** The conjunction does not depend on the order of the jobs.
-$$\forall js, js', \sigma:\ js \sim js' \Rightarrow \textstyle\bigwedge_{j \in js} \mathit{run}_j(\sigma) = \bigwedge_{j \in js'} \mathit{run}_j(\sigma)$$ -/
+/-- **Order independence.** The conjunction does not depend on the order of the jobs. -/
 theorem all_perm (js js' : List Job) (hp : js.Perm js') (σ : St) :
     js.all (fun j => j.chk.run σ) = js'.all (fun j => j.chk.run σ) := by
   rw [Bool.eq_iff_iff]
@@ -769,27 +732,23 @@ theorem all_perm (js js' : List Job) (hp : js.Perm js') (σ : St) :
 
 /-! ### The runner's verdict over completions -/
 
-/-- The overall verdict of a stage: pass, the failed job ids, or the job ids still running.
-$$\mathrm{V} = \mathrm{pass} \mid \mathrm{fail}(\mathit{ids}) \mid \mathrm{pending}(\mathit{ids})$$ -/
+/-- The overall verdict of a stage: pass, the failed job ids, or the job ids still running. -/
 inductive Verdict where
   | pass
   | fail (ids : List String)
   | pending (ids : List String)
 deriving DecidableEq, Repr
 
-/-- The failed ids: expected ids with an `(id, false)` completion, in `expected` order.
-$$F(E, D) = [\, i \in E : (i, \bot) \in D \,]$$ -/
+/-- The failed ids: expected ids with an `(id, false)` completion, in `expected` order. -/
 def failedIds (expected : List String) (done : List (String × Bool)) : List String :=
   expected.filter (fun i => done.contains (i, false))
 
-/-- The missing ids: expected ids with no completion at all, in `expected` order.
-$$M(E, D) = [\, i \in E : (i, \bot) \notin D \land (i, \top) \notin D \,]$$ -/
+/-- The missing ids: expected ids with no completion at all, in `expected` order. -/
 def missingIds (expected : List String) (done : List (String × Bool)) : List String :=
   expected.filter (fun i => !(done.contains (i, false) || done.contains (i, true)))
 
 /-- The verdict over the completions received so far (`done`: (id, ok) pairs in arrival order; ids not in
-`expected` are ignored). A failure wins over missing jobs (the runner may cancel the rest).
-$$\operatorname{verdict}(E, D) = \begin{cases} \mathrm{fail}(F(E,D)) & F(E,D) \ne [\,] \\ \mathrm{pending}(M(E,D)) & F(E,D) = [\,] \land M(E,D) \ne [\,] \\ \mathrm{pass} & F(E,D) = [\,] \land M(E,D) = [\,] \end{cases}$$ -/
+`expected` are ignored). A failure wins over missing jobs (the runner may cancel the rest). -/
 def verdict (expected : List String) (done : List (String × Bool)) : Verdict :=
   match failedIds expected done with
   | f@(_ :: _) => .fail f
@@ -797,8 +756,7 @@ def verdict (expected : List String) (done : List (String × Bool)) : Verdict :=
     | [] => .pass
     | m@(_ :: _) => .pending m
 
-/-- **Completion order does not matter.** The verdict depends only on which completions arrived, not on their order.
-$$\forall E, D, D':\ D \sim D' \Rightarrow \operatorname{verdict}(E, D) = \operatorname{verdict}(E, D')$$ -/
+/-- **Completion order does not matter.** The verdict depends only on which completions arrived, not on their order. -/
 theorem verdict_perm (expected : List String) (done done' : List (String × Bool)) (hp : done.Perm done') :
     verdict expected done = verdict expected done' := by
   have hc : ∀ x, done.contains x = done'.contains x := by
@@ -806,15 +764,13 @@ theorem verdict_perm (expected : List String) (done done' : List (String × Bool
     rw [Bool.eq_iff_iff]; simp [hp.mem_iff]
   simp only [verdict, failedIds, missingIds, hc]
 
-/-- The verdict passes iff nothing failed and nothing is missing.
-$$\forall E, D:\ \operatorname{verdict}(E, D) = \mathrm{pass} \iff F(E, D) = [\,] \land M(E, D) = [\,]$$ -/
+/-- The verdict passes iff nothing failed and nothing is missing. -/
 theorem verdict_eq_pass (expected : List String) (done : List (String × Bool)) :
     verdict expected done = .pass ↔ failedIds expected done = [] ∧ missingIds expected done = [] := by
   unfold verdict
   rcases failedIds expected done with _ | ⟨a, f⟩ <;> rcases missingIds expected done with _ | ⟨b, m⟩ <;> simp
 
-/-- The verdict passes iff every expected job completed with `true` and none with `false`.
-$$\forall E, D:\ \operatorname{verdict}(E, D) = \mathrm{pass} \iff \forall i \in E:\ (i, \top) \in D \land (i, \bot) \notin D$$ -/
+/-- The verdict passes iff every expected job completed with `true` and none with `false`. -/
 theorem verdict_pass_iff (expected : List String) (done : List (String × Bool)) :
     verdict expected done = .pass ↔ ∀ i ∈ expected, (i, true) ∈ done ∧ (i, false) ∉ done := by
   rw [verdict_eq_pass]
@@ -831,8 +787,7 @@ theorem verdict_pass_iff (expected : List String) (done : List (String × Bool))
 
 /-- **Parallel completions give the sequential verdict.** If the completions are the jobs' results on the start
 state, in any arrival order, the verdict passes iff the conjunction of the job results holds (so, with `seq_eq_all`,
-iff the sequential run passes).
-$$\forall js, \sigma, D:\ D \sim [(\mathit{id}_j, \mathit{run}_j(\sigma)) : j \in js] \Rightarrow \big(\operatorname{verdict}([\mathit{id}_j : j \in js], D) = \mathrm{pass} \iff \textstyle\bigwedge_{j \in js} \mathit{run}_j(\sigma)\big)$$ -/
+iff the sequential run passes). -/
 theorem verdict_jobs_pass_iff (js : List Job) (σ : St) (done : List (String × Bool))
     (hp : done.Perm (js.map fun j => (j.chk.id, j.chk.run σ))) :
     verdict (js.map (·.chk.id)) done = .pass ↔ js.all (fun j => j.chk.run σ) = true := by
@@ -854,8 +809,7 @@ theorem verdict_jobs_pass_iff (js : List Job) (σ : St) (done : List (String × 
     exact Bool.noConfusion this
 
 /-- **A failure is final.** Once an expected job failed, more completions never turn the verdict into pass or
-pending.
-$$\forall E, D, D', i:\ i \in E \land (i, \bot) \in D \Rightarrow \exists F:\ \operatorname{verdict}(E, D \mathbin{+\!\!+} D') = \mathrm{fail}(F)$$ -/
+pending. -/
 theorem verdict_fail_final (expected : List String) (done more : List (String × Bool)) (i : String)
     (hi : i ∈ expected) (hf : (i, false) ∈ done) : ∃ F, verdict expected (done ++ more) = .fail F := by
   have hne : failedIds expected (done ++ more) ≠ [] := by
@@ -876,28 +830,22 @@ theorem verdict_fail_final (expected : List String) (done more : List (String ×
 
 /-! ## Empirical premises (registry rows; ids to be merged into `Fw.Ops.Premise` once it is on main) -/
 
-/-- A premise row: id, statement, the theorems that assume it, and the test that asserts it.
-$$p = (\mathit{id},\ \mathit{statement},\ \mathit{theorems},\ \mathit{test})$$ -/
+/-- A premise row: id, statement, the theorems that assume it, and the test that asserts it. -/
 structure PremiseRow where
   id : String
   statement : String
   theorems : List String
   test : String
 
-/-- The empirical premises and assumptions of this module, with the test that covers each (9 rows, distinct ids).
-$$\mathrm{premises} = [p_1, \dots, p_9],\quad p_k = (\mathit{id}_k, \mathit{statement}_k, \mathit{theorems}_k, \mathit{test}_k)$$ -/
+/-- The empirical premises and assumptions of this module, with the test that covers each (8 rows, distinct ids). -/
 def premises : List PremiseRow := [
   ⟨"land.readsOnly", "a check reads only its declared inputs (E1)",
     ["cache_sound", "cachedRun_eq", "skip_sound", "seq_eq_all", "evidence_irrelevant"],
     "apps/runner/test/land-inputs.test.ts: a change to an undeclared input (packages/contracts/golden/obs/timing.jsonl) selects check.sh; any change in a check's declared reads selects the reads-scan check (scan_selected); CI strace reads ⊆ declared reads"⟩,
   ⟨"land.readsWithin", "a check reads only paths in the scope of its declared globs (E1 for globs)",
     ["skip_sound"], "apps/runner/test/land-inputs.test.ts: checksFor equals selectChecks on golden landSpeed.select"⟩,
-  ⟨"land.noCollision", "sha256 of the canonical key encoding has no collision (A1, A2; assumption, not tested)",
-    ["cache_sound", "cachedRun_eq", "mkey_sound", "lint_modular"], "none (cryptographic assumption)"⟩,
-  ⟨"land.coneLocal", "a module's lint depends only on its import cone (E2)",
-    ["lint_modular"], "lean/scripts/check-partial.sh grep gate (no cross-module attribute/add_decl_doc/app_unexpander/notation/macro_rules) + CI differential incremental vs full mathview"⟩,
-  ⟨"land.lintOrder", "the mathview lint sorts by a total key (module, line, name) (E3)",
-    ["lint_modular"], "CI differential incremental vs full mathview, byte-identical modulo heartbeats"⟩,
+  ⟨"land.noCollision", "sha256 of the canonical key encoding has no collision (A1; assumption, not tested)",
+    ["cache_sound", "cachedRun_eq"], "none (cryptographic assumption)"⟩,
   ⟨"land.nonInterfere", "no stage-2 job writes a path another job reads; stage 2 calls .lake/build/bin/* directly (E4)",
     ["seq_eq_all", "verdict_jobs_pass_iff"], "CI strace -f -e trace=openat per stage-2 job: writes disjoint from other jobs' reads"⟩,
   ⟨"land.checkDeterministic", "re-running the checks on the same tree gives the same verdict",
@@ -905,69 +853,70 @@ def premises : List PremiseRow := [
   ⟨"land.mergeTreeReproduces", "git -c attr.tree=<m0> merge-tree --write-tree m0 tip equals the tree git merge makes",
     ["pre_eq_old", "preLand_eq_old"], "replay test over the last 30 land merges (30/30 measured)"⟩,
   ⟨"land.checkedWorktreeExact", "the land worktree holds exactly commit C (checkout --detach C; clean -fdx -e .lake -e node_modules)",
-    ["pre_commit_checked"], "apps/runner/test: an untracked imported .lean file in the land worktree is cleaned or refused"⟩]
+    ["pre_commit_checked"], "apps/runner/test: an untracked imported .lean file in the land worktree is cleaned or refused"⟩,
+  ⟨"land.binaryOfLean", "on one machine scripts/fwcore-build.sh is a function `build` of the state that reads only lean/** and scripts/fwcore-build.sh (BinaryOfBuildReads build, satisfiable: binaryOfBuildReads_satisfiable), the binary the land checks is `build` of its tree, and sha256 of its bytes has no collision",
+    ["fwcore_digest_skip", "fwcore_nobuild_skip"], "MEASURED 2026-10-19 (task land-fwcore-key): a docstring-only edit of lean/Fw/Console/LandQueue.lean (linked into fwcore), rebuilt with scripts/fwcore-build.sh, left the sha256 of the binary at 8a4fd2d6ff6f, as did a rerun and the rebuild after the revert; fwcore-build.sh strips once per link because on macOS a second strip changes the bytes (8a4fd2d6ff6f to 495249a32f9b); the land hashes real builds, so a toolchain change only selects more"⟩]
 
-#guard premises.length == 9
+#guard premises.length == 8
 #guard (premises.map (·.id)).eraseDups.length == premises.length
 
 /-! ## Golden vectors (`packages/contracts/golden/console/land-speed.jsonl`) -/
 
 open Lean
 
-/-- A JSON array of strings.
-$$\operatorname{strs}(xs) = [\, \mathrm{str}(x) : x \in xs \,]$$ -/
+/-- A JSON array of strings. -/
 def strs (xs : List String) : Json := .arr (xs.map Json.str).toArray
 
-/-- One golden line: its name, the request object and the response object.
-$$\operatorname{line}(n, q, r) = \{\texttt{name}: n,\ \texttt{request}: q,\ \texttt{response}: r\}$$ -/
+/-- One golden line: its name, the request object and the response object. -/
 def line (name : String) (req resp : List (String × Json)) : Json :=
   Json.mkObj [("name", .str name), ("request", Json.mkObj req), ("response", Json.mkObj resp)]
 
-/-- A `landSpeed.select` case over a decl table: the reply is `selectChecks`.
-$$\operatorname{selectCase}(n, D, X) = \operatorname{line}(n, \{D, X\}, \{\texttt{selected}: \operatorname{select}(D, X)\})$$ -/
+/-- A `landSpeed.select` case over a decl table: the reply is `selectChecks`. -/
 def selectCase (name : String) (ds : List Decl) (changed : List String) : Json :=
   line name [("op", "landSpeed.select"),
       ("checks", .arr (ds.map fun d => Json.mkObj [("id", .str d.id), ("reads", strs d.reads)]).toArray),
       ("changed", strs changed)]
     [("selected", strs (selectChecks ds changed))]
 
-/-- A `landSpeed.prelock` case: the reply is `prelockAction`.
-$$\operatorname{prelockCase}(n, h, m_0, v, a, k) = \operatorname{line}(n, \{h, m_0, v, a, k\}, \{\texttt{action}: \operatorname{act}(h, m_0, v, a, k)\})$$ -/
+/-- A `landSpeed.select2` case: the reply is `binMoved` and `selectTwoPhase`. -/
+def select2Case (name : String) (ds : List Decl) (changed : List String) (d0 d1 : Option String) : Json :=
+  let dj : Option String → Json := fun d => match d with | some a => .str a | none => .null
+  line name [("op", "landSpeed.select2"),
+      ("checks", .arr (ds.map fun d => Json.mkObj [("id", .str d.id), ("reads", strs d.reads)]).toArray),
+      ("changed", strs changed), ("main0Digest", dj d0), ("mergeDigest", dj d1)]
+    [("binMoved", .bool (binMoved changed d0 d1)), ("selected", strs (selectTwoPhase ds changed d0 d1))]
+
+/-- A `landSpeed.prelock` case: the reply is `prelockAction`. -/
 def prelockCase (name head m0 : String) (v : Bool) (a n : Nat) : Json :=
   line name [("op", "landSpeed.prelock"), ("head", .str head), ("main0", .str m0), ("verdict", .bool v),
       ("attempt", toJson a), ("maxRetry", toJson n)]
     [("action", .str (prelockAction head m0 v a n).name)]
 
-/-- The JSON reply of a verdict: its tag and its ids (empty for pass).
-$$\operatorname{json}(\mathrm{pass}) = (\texttt{pass}, [\,]),\quad \operatorname{json}(\mathrm{fail}(I)) = (\texttt{fail}, I),\quad \operatorname{json}(\mathrm{pending}(I)) = (\texttt{pending}, I)$$ -/
+/-- The JSON reply of a verdict: its tag and its ids (empty for pass). -/
 def verdictJson : Verdict → List (String × Json)
   | .pass => [("verdict", "pass"), ("ids", strs [])]
   | .fail ids => [("verdict", "fail"), ("ids", strs ids)]
   | .pending ids => [("verdict", "pending"), ("ids", strs ids)]
 
-/-- A `landSpeed.verdict` case: the reply is `verdict`.
-$$\operatorname{verdictCase}(n, E, D) = \operatorname{line}(n, \{E, D\}, \operatorname{json}(\operatorname{verdict}(E, D)))$$ -/
+/-- A `landSpeed.verdict` case: the reply is `verdict`. -/
 def verdictCase (name : String) (e : List String) (d : List (String × Bool)) : Json :=
   line name [("op", "landSpeed.verdict"), ("expected", strs e),
       ("done", .arr (d.map fun (i, b) => Json.arr #[.str i, .bool b]).toArray)]
     (verdictJson (verdict e d))
 
-/-- A `landSpeed.cache` case: the reply is whether `cacheHit` found an entry, and its verdict (null on a miss).
-$$\operatorname{cacheCase}(n, S, d) = \operatorname{line}(n, \{S, d\}, \{\texttt{hit}: \operatorname{hit}(S, d) \ne \mathrm{none},\ \texttt{verdict}: \operatorname{hit}(S, d)\})$$ -/
+/-- A `landSpeed.cache` case: the reply is whether `cacheHit` found an entry, and its verdict (null on a miss). -/
 def cacheCase (name : String) (S : Store Bool) (d : Nat) : Json :=
   line name [("op", "landSpeed.cache"), ("store", .arr (S.map fun (k, b) => Json.arr #[toJson k, .bool b]).toArray),
       ("digest", toJson d)]
     [("hit", .bool (cacheHit S d).isSome), ("verdict", match cacheHit S d with | some b => .bool b | none => .null)]
 
-/-- A `landSpeed.premise` row: the premise id in the request, its statement, theorems and test in the reply.
-$$\operatorname{premiseCase}(p) = \operatorname{line}(\texttt{premise } p.\mathit{id}, \{p.\mathit{id}\}, \{p.\mathit{statement}, p.\mathit{theorems}, p.\mathit{test}\})$$ -/
+/-- A `landSpeed.premise` row: the premise id in the request, its statement, theorems and test in the reply. -/
 def premiseCase (p : PremiseRow) : Json :=
   line s!"premise {p.id}" [("op", "landSpeed.premise"), ("id", .str p.id)]
     [("statement", .str p.statement), ("theorems", strs p.theorems), ("test", .str p.test)]
 
-/-- Every golden case: 11 select, 6 prelock, 6 verdict and 4 cache cases, then one row per premise.
-$$\mathrm{cases} = \mathrm{select}_{1..11} \mathbin{+\!\!+} \mathrm{prelock}_{1..6} \mathbin{+\!\!+} \mathrm{verdict}_{1..6} \mathbin{+\!\!+} \mathrm{cache}_{1..4} \mathbin{+\!\!+} [\operatorname{premiseCase}(p) : p \in \mathrm{premises}]$$ -/
-def cases : List Json :=
+/-- Every golden case: 11 select, 6 prelock, 6 verdict, 4 cache and 9 select2 cases, then one row per premise. -/
+def cases (_ : Unit := ()) : List Json :=
   [selectCase "golden-only change selects check.sh (P5 mutation)" sampleDecls
       ["packages/contracts/golden/obs/timing.jsonl"],
     selectCase "lean change selects check.sh only" sampleDecls ["lean/Fw/Console/Land.lean"],
@@ -996,24 +945,29 @@ def cases : List Json :=
     cacheCase "hit replays the stored verdict" [(7, true), (9, false)] 9,
     cacheCase "first entry wins" [(7, true), (7, false)] 7,
     cacheCase "miss: run the check" [(7, true)] 8,
-    cacheCase "empty store: miss" [] 0] ++ premises.map premiseCase
+    cacheCase "empty store: miss" [] 0,
+    select2Case "lean change, equal digest: no fwcore user" binDecls ["lean/Fw/Console/Land.lean"] (some "a") (some "a"),
+    select2Case "lean change, digests differ: every fwcore user" binDecls ["lean/Fw/Console/Land.lean"] (some "a") (some "b"),
+    select2Case "lean change, main0 digest unknown: every fwcore user" binDecls ["lean/Fw/Console/Land.lean"] none (some "a"),
+    select2Case "lean change, merge build dirty or missing: every fwcore user" binDecls ["lean/Fw/Console/Land.lean"] (some "a") none,
+    select2Case "explicit lean source read selects its package at equal digest" binDecls ["lean/Fw/Console/PreviewFacts.lean"] (some "a") (some "a"),
+    select2Case "no build read changed: unknown digests select no fwcore user" binDecls ["apps/site/src/x.ts"] none none,
+    select2Case "build script change, equal digest: no fwcore user" binDecls ["scripts/fwcore-build.sh"] (some "a") (some "a"),
+    select2Case "build script change, digests differ: every fwcore user" binDecls ["scripts/fwcore-build.sh"] (some "a") (some "b"),
+    select2Case "docs-only change selects nothing" binDecls ["docs/team/handoffs/x.md"] none none] ++ premises.map premiseCase
 
-#guard cases.length == 36
+#guard cases.length == 44
 
-/-- The golden file text: one compressed JSON line per case.
-$$\mathrm{goldenText} = \operatorname{concat}[\, \operatorname{compress}(c) \mathbin{+\!\!+} \text{"\textbackslash n"} \,]_{c \in \mathrm{cases}}$$ -/
-def goldenText : String := String.join (cases.map fun c => c.compress ++ "\n")
+/-- The golden file text: one compressed JSON line per case. -/
+def goldenText (_ : Unit := ()) : String := String.join (cases.map fun c => c.compress ++ "\n")
 
-/-- The golden file, relative to `lean/`.
-$$\mathrm{goldenPath} = \texttt{../packages/contracts/golden/console/land-speed.jsonl}$$ -/
+/-- The golden file, relative to `lean/`. -/
 def goldenPath : System.FilePath := "../packages/contracts/golden/console/land-speed.jsonl"
 
-/-- Write the golden file (IO).
-$$\mathrm{writeGolden}:\ \mathrm{goldenPath} \leftarrow \mathrm{goldenText}$$ -/
+/-- Write the golden file (IO). -/
 def writeGolden : IO Unit := IO.FS.writeFile goldenPath goldenText
 
-/-- Is the golden file the Lean output? (IO)
-$$\mathrm{checkGolden} \iff \operatorname{read}(\mathrm{goldenPath}) = \mathrm{goldenText}$$ -/
+/-- Is the golden file the Lean output? (IO) -/
 def checkGolden : IO Bool := do return (← IO.FS.readFile goldenPath) == goldenText
 
 end Fw.Console.LandSpeed

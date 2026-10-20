@@ -13,7 +13,12 @@
    "reason":
    "@font-face declared; --font-fastwork defined but never referenced; no rule applies the face",
    "key": "/fonts/fastwork-Bold.ttf",
-   "check": "assets"}],
+   "check": "assets"},
+  {"sec": "page",
+   "reason":
+   "declared as /fonts/fastwork-Bold.ttf, never applied by a rule, so never loaded (the assets exclusion of the same file)",
+   "key": "Fastwork",
+   "check": "fonts"}],
  "crawlSkip":
  [{"reason":
    "mirrored third-party scripts (Amplitude, Hotjar, Cloudflare Insights, Google Tag Manager), not the page's own assets",

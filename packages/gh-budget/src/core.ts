@@ -19,7 +19,7 @@ export function fwcoreBin(cwd: string): string {
   return bin;
 }
 
-/** One request to fwcore (one process per decision, ticks are at least 30 s apart), one reply. An `error` reply throws. */
+/** One request to fwcore (one process per decision, ticks are at least P_min = 10 s apart), one reply. An `error` reply throws. */
 export function fwcoreCall(cwd: string): FwCall {
   const bin = fwcoreBin(cwd);
   return (req) => {

@@ -6,7 +6,7 @@ name: webkit-sim
 # producing counts under the old platform key. The Simulator is booted once and stays booted for the whole job.
 on:
   push:
-    branches: ['ci/**', main]
+    branches: ['ci/**']
   workflow_dispatch:
     inputs:
       vms:
@@ -55,8 +55,7 @@ jobs:
   # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
   # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
   # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole
-  # branch is an input. A main push runs when its own diff passes the coarse paths; dispatches, schedules always run.
-  # Fails open.
+  # branch is an input. A main push starts no run; dispatches always run. Fails open.
   # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
   guard:
     if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:webkit-sim]') }}
@@ -207,7 +206,15 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: site
       - uses: ./.github/actions/setup-lean
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: cache
+          cache-dirs: lake=${{ github.workspace }}/.lake-cache
       - uses: ./.github/actions/setup-pnpm
         with:
           filter: '@fw/site...'
@@ -223,6 +230,11 @@ jobs:
           path: apps/site/dist/aot
           if-no-files-found: error
           retention-days: 3
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: site
 
   sim:
     needs: [guard, plan, site]
@@ -272,6 +284,10 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: sim-${{ matrix.vm }}
 
       # Inspector bridge to the Simulator's webinspectord socket. Not pinned by brew (formula version = the tap's), so the
       # version is recorded in the artifact.
@@ -307,8 +323,11 @@ jobs:
           set -euo pipefail
           xcrun simctl shutdown all || true
           udid=$(cat "$RUNNER_TEMP/fw-sim-udid.txt")
+          boot_from=$(date +%s)
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
+          # telemetry (task ci-telemetry): the boot time of this Simulator, whole seconds
+          node scripts/ci-telemetry/cli.mjs sim-boot-ms $(( ($(date +%s) - boot_from) * 1000 )) || true
 
       - name: Determinism sessions
         timeout-minutes: 50   # leaves time for the log steps below inside the job's 60
@@ -377,6 +396,11 @@ jobs:
           path: ${{ runner.temp }}/result
           if-no-files-found: error
           retention-days: 30
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: sim-${{ matrix.vm }}
 
   # Classes over all VMs (the worse class wins, as `merge` does locally; rows are paired by key in Lean, rows not every VM has
   # are listed as unpaired). Needs node and fwcore only, so it runs on Linux.

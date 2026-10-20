@@ -9,7 +9,7 @@ on:
   # Every push creates a run and its guard job decides on these inputs (Lean Fw.Ci.Intent); `workflow_dispatch` runs it on demand
   # (gh workflow run <name> --ref <branch>). Why: docs/team/handoffs/ci-trigger-scope.md.
   push:
-    branches: ['ci/**', main]
+    branches: ['ci/**']
   workflow_dispatch:
     inputs:
       profile:
@@ -52,8 +52,7 @@ jobs:
   # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
   # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
   # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole
-  # branch is an input. A main push runs when its own diff passes the coarse paths; dispatches, schedules always run.
-  # Fails open.
+  # branch is an input. A main push starts no run; dispatches always run. Fails open.
   # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
   guard:
     if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:chromium-counts]') }}
@@ -230,7 +229,15 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: site
       - uses: ./.github/actions/setup-lean
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: cache
+          cache-dirs: lake=${{ github.workspace }}/.lake-cache
       - uses: ./.github/actions/setup-pnpm
         with:
           filter: '@fw/site...'
@@ -251,6 +258,11 @@ jobs:
           path: apps/site/dist/aot
           if-no-files-found: error
           retention-days: 3
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: site
 
   # Build the image once. The matrix jobs load this exact image and check its content id (the config digest)
   # against the one printed here, so no matrix job rebuilds it (apt packages are not pinned, so a rebuild could differ).
@@ -286,6 +298,10 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: image
       - id: build
         if: ${{ inputs.image_run == '' }}
         run: |
@@ -326,6 +342,11 @@ jobs:
           compression-level: 0
           if-no-files-found: error
           retention-days: 3
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: image
 
   counts:
     needs: [plan, fwcore, image, site]
@@ -358,6 +379,10 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: counts-${{ matrix.target }}-${{ matrix.run }}
 
       # First step that touches data: the snapshot in git must equal snapshot.lock.json.
       - name: Verify the snapshot against snapshot.lock.json
@@ -439,6 +464,11 @@ jobs:
           path: ${{ runner.temp }}/result
           if-no-files-found: error
           retention-days: 30
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: counts-${{ matrix.target }}-${{ matrix.run }}
 
   # Classes over all runs, decided by fwcore (the same classify the local lane uses), plus the byte comparison.
   classify:

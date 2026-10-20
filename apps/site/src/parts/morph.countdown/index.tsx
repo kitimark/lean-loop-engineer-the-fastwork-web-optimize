@@ -8,6 +8,8 @@ export interface MorphCountdownProps {
   variant: string;
   /** `mui` (default) or `plain`; passed to the shared clock. */
   impl?: 'mui' | 'plain';
+  /** morph.mount `shift-dormant` (Lean `MorphMountDormant.dormant`): the clock does not start while true. */
+  dormant?: boolean;
 }
 
 const FACES = '[data-face],[data-strip]';
@@ -52,7 +54,7 @@ function installFaceGate(root: HTMLElement): () => void {
  * (morph.panel) decides when it mounts; the original mounts the panel when the platform section is within 200% of the
  * viewport (N2:13084).
  */
-export function MorphCountdown({ variant, impl = 'mui' }: MorphCountdownProps) {
+export function MorphCountdown({ variant, impl = 'mui', dormant = false }: MorphCountdownProps) {
   const ref = useRef<HTMLDivElement>(null);
   const hiddenPause = variant === 'hidden-pause';
   useEffect(() => {
@@ -62,7 +64,7 @@ export function MorphCountdown({ variant, impl = 'mui' }: MorphCountdownProps) {
   }, [hiddenPause]);
   return (
     <div ref={ref} className={css.wrap} data-fw="morph-countdown" data-fw-variant={variant}>
-      <HeroCountdown variant={variant} impl={impl} inverse fwId="morph-countdown-clock" />
+      <HeroCountdown variant={variant} impl={impl} inverse fwId="morph-countdown-clock" hold={dormant} />
     </div>
   );
 }

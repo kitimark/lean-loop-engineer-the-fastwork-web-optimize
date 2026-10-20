@@ -45,6 +45,7 @@ import Fw.Parts.PlatformGolden
 import Fw.Parts.MorphTweenOpt
 import Fw.Parts.HiddenPause
 import Fw.Parts.MorphMountOpt
+import Fw.Parts.MorphMountDormant
 import Fw.Parts.HeroExitOpt
 import Fw.Parts.PainNotes
 import Fw.Parts.PainNotesGolden
@@ -64,6 +65,7 @@ import Fw.Measure.WebKit
 import Fw.Measure.Retry
 import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
+import Fw.Measure.Compose
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard
 import Fw.Ops.Wait
@@ -82,6 +84,7 @@ import Fw.Store.Layout
 import Fw.Store.Reduce
 import Fw.Wire.Store
 import Fw.Gate.Rule
+import Fw.Gate.MarginRule
 import Fw.Gate.Compare
 import Fw.Gate.Items
 import Fw.Gate.State
@@ -94,6 +97,7 @@ import Fw.Wire.Gate
 import Fw.Wire.GateDeclared
 import Fw.Engine
 import Fw.Engine.Compose  -- compose-lean: units compose over parts, passes do not; Lego swap
+import Fw.Engine.Restyle
 import Fw.Parts.Bridge  -- indep-bridge: Independent rows to Flow-Indep, Lego swaps on isolated rows, S3 passes
 import Fw.Guidance.Basic
 import Fw.Guidance.Motion
@@ -105,6 +109,7 @@ import Fw.Engine.Keys  -- model-checks: faithful run keys; a +search run never a
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
 import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
 import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
+import Fw.Obs.GhStatus -- gh-status: GitHub Actions degraded flag and incident naming
 import Fw.Obs.Stale  -- console-stale: a service whose inputs changed on main after it started is stale
 import Fw.Obs.Signals -- obs-signals: agent state from transcript signals (obs.signals)
 import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
@@ -114,18 +119,30 @@ import Fw.Obs.Backoff  -- alert-rules-fix: wait or restart when an fwcore call m
 import Fw.Ci.Trigger  -- ci-trigger-lean: which workflows a push starts
 import Fw.Ci.Intent  -- ci-own-trigger: a ci/* push starts only the lanes its head commit asks for
 import Fw.Ci.Verdict  -- ci-own-trigger: a run passes only if its guard ran and some heavy job ran and all passed
+import Fw.Ci.Attempt  -- ci-wait-lag: a cached fact answers for a run only at the attempt it was recorded at
+import Fw.Ci.Lag  -- ci-wait-lag: the partition of a wait's lag into phases
 import Fw.Ci.Cancel  -- ci-own-trigger: no concurrency group is shared on ci/**, so nothing cancels a ci/** run
+import Fw.Ci.Provider  -- circleci-pilot: pair verdict, credits, stop rule and routing rule of the CircleCI pilot
+import Fw.Ci.Telemetry  -- ci-telemetry: the CI job telemetry record and its slow verdicts (ci.telemetry)
 import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged engine verdicts
 import Fw.Spec.AxReach  -- mathview-axreach: shared-memo axiom reachability, exact on cycles
 import Fw.Spec.ConeMiss  -- mathview-ci-fix: expected module-cache misses after an edit (dependents)
-import Fw.Console.LandSpeed  -- land-speed-lean: result cache, lint_modular, pre-lock land, check verdict
+import Fw.Console.LandSpeed  -- land-speed-lean: result cache, pre-lock land, check verdict
 import Fw.Console.Preview  -- task-preview: preview target, admission, ports, expiry
+import Fw.Console.PreviewCache  -- preview-speed: cache policy of preview files
+import Fw.Console.PreviewArm  -- preview-proxy-direct: one origin per preview arm, route and gate
+import Fw.Console.Daemon  -- console-daemon: verified console, start/stop/restart plan, log admission, rotation
+import Fw.Console.Builds  -- console-builds-tab: Builds tab rows, targets, picker searches
 import Fw.Console.PreviewFacts  -- task-preview: GENERATED facts of the 25 tasks (apps/console-api/scripts/gen-preview-facts.ts)
 import Fw.Console.PreviewTable -- task-preview: the 25-task target table, checked
 import Fw.Console.LandVerdict  -- land-dry: VERDICT kinds, exit codes, retry rule
 import Fw.Console.LandDry  -- land-dry: dry land stages and hand-back rule
 import Fw.Console.WallClock  -- land-wallclock-off-gate: which literal ms bounds in land-selected tests the lint refuses
 import Fw.Console.LandQueue  -- land-queue: FIFO land queue, bounded retry, runner identity
+import Fw.Console.LandLegs  -- land-lane-speed: the land lane's parallel legs (console.landLeg, console.landLegs, console.landLegsVeto)
+import Fw.Console.LandTier  -- land-lane: which checks run on the CI land lane (console.landTier)
+import Fw.Console.LandRemote  -- land-wait: provider-neutral remote land verdict (console.landRemote)
+import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request coalescing
 import Fw.Console.LandPool -- land-pool-fair: fair-share floor under poolSize, wired into land.ts by console.landPool and console.landRetry
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
 import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)
@@ -166,3 +183,5 @@ import Fw.Port.Text  -- port-completeness-gate: check 1, text digest
 import Fw.Port.Attrs  -- port-completeness-gate: check 2, attribute multiset
 import Fw.Site.Assets  -- port-completeness-gate: check 3, asset subset
 import Fw.Port.Svg  -- port-completeness-gate: check 4, svg skeleton
+import Fw.Port.Fonts  -- port-fonts-check: check 5, fonts per leaf and loaded faces
+import Fw.Parts.NavOofRoot  -- nav-oof-root-finding: no boundary scopes the relayout of a dirty fixed box whose containing block is the view (negative finding)

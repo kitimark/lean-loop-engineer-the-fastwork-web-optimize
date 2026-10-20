@@ -7,7 +7,7 @@ import Fw.Ci.Golden
 Every `packages/contracts/golden/ci-budget/fixtures/*.jsonl` is replayed second by second through the decisions of
 `Fw.Ci.Budget` (`reserve`, `next`, `observe`) against a simulated GitHub: one bucket of 5000 requests per hour,
 resetting on the hour from the start, that answers each call with one `HTTP/2.0 200` block per request (with
-`X-Ratelimit-Remaining` and `X-Ratelimit-Reset`), or a 403 with remaining 0 when the bucket is empty.
+`X-Ratelimit-Remaining`, `X-Ratelimit-Reset` and `X-Ratelimit-Resource: core`), or a 403 with remaining 0 when the bucket is empty.
 
 Fixture format (JSON lines). Line 1: `{"scenario":{name, waiters N, start, seconds, oneoffEvery (0: none),
 oneoffCost, burst?, burstAt?, sweep? [N…], expect? {ticksPerHourMax?, oldExceeds?, counts? [{from, until, kind
@@ -19,13 +19,13 @@ Each second: the clock event; at the start, `N` runs registered as `N` waiters; 
 s and `burst` of them at `burstAt`, tried in order through `reserve` (a wait holds the queue until its time); then the
 poller's `next`. Checks, independent of the decisions:
 - every hour and every minute window holds at most the share of each kind (1800/1200 and 20/40) and at most
-  $B = 3000$ / $B_1 = 60$ in all;
+  `B = 3000` / `B_1 = 60` in all;
 - no call goes before a `retry-after` ends, before the reset after a refusal with remaining 0 or after remaining
   ≤ 500, nor within 60 s of a bare 403/429; the server never refuses for an empty bucket;
-- liveness: when every `next` between two ticks waited only for the interval, the gap is at most the largest $P$
-  seen in it, every wait is in the future and an interval wait is at most $P$ ahead, and each tick covers every
+- liveness: when every `next` between two ticks waited only for the interval, the gap is at most the largest `P`
+  seen in it, every wait is in the future and an interval wait is at most `P` ahead, and each tick covers every
   watched run;
-- the expectations of the fixture, and for `sweep` the same issued calls for every $N$.
+- the expectations of the fixture, and for `sweep` the same issued calls for every `N`.
 -/
 namespace FwTest.CiBudget
 open Lean Fw.Ci.Budget
@@ -98,10 +98,12 @@ def Server.answer (f : Fixture) (v : Server) (t c : Nat) : List String × Server
   let v := v.roll f t
   let reset := f.start + 3600 * (v.hour + 1)
   if 5000 < v.used + c then
-    (["HTTP/2.0 403 Forbidden", "X-Ratelimit-Remaining: 0", s!"X-Ratelimit-Reset: {reset}"], v, true)
+    (["HTTP/2.0 403 Forbidden", "X-Ratelimit-Remaining: 0", s!"X-Ratelimit-Reset: {reset}",
+      "X-Ratelimit-Resource: core"], v, true)
   else
     let ls := (List.range c).flatMap fun i =>
-      ["HTTP/2.0 200 OK", s!"X-Ratelimit-Remaining: {5000 - (v.used + i + 1)}", s!"X-Ratelimit-Reset: {reset}"]
+      ["HTTP/2.0 200 OK", s!"X-Ratelimit-Remaining: {5000 - (v.used + i + 1)}", s!"X-Ratelimit-Reset: {reset}",
+        "X-Ratelimit-Resource: core"]
     (ls, { v with used := v.used + c }, false)
 
 /-- The replay state. -/
@@ -224,8 +226,8 @@ def check (L : Limits) (f : Fixture) (m : Sim) : Array String := Id.run do
 def replay (root : System.FilePath) : IO Nat := do
   let L := defaults
   let mut failed := 0
-  if !(L.B == 3000 && L.B - L.R == 1800 && L.R == 1200 && L.F == 500 && L.Pmin == 30 && L.B1 == 60) then
-    IO.println "ci-budget replay: limits differ from the task (B 3000 = 1800 + 1200, F 500, P_min 30, 60/min)"
+  if !(L.B == 3000 && L.B - L.R == 1800 && L.R == 1200 && L.F == 500 && L.Pmin == 10 && L.B1 == 60) then
+    IO.println "ci-budget replay: limits differ from the task (B 3000 = 1800 + 1200, F 500, P_min 10, 60/min)"
     failed := failed + 1
   let d := Fw.Wire.Ci.Golden.dir root / "fixtures"
   let entries ← d.readDir

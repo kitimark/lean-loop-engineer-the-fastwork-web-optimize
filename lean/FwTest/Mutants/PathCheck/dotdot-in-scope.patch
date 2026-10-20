@@ -2,12 +2,12 @@ Design mutant (m0-mutants, PLAN V-r): a path with a .. segment (lean/../docs/x.m
 
 --- a/Fw/Ops/PathCheck.lean
 +++ b/Fw/Ops/PathCheck.lean
-@@ -78,7 +78,7 @@
- -/
+@@ -59,7 +59,7 @@
+ /-- A path is in scope: it has segments, no `..`, matches an include and no exclude. -/
  def inScope (sc : Scope) (path : String) : Bool :=
    let p := segs path
 -  !p.isEmpty && !p.contains ".." && sc.incl.any (matchesPath · p) && !sc.excl.any (matchesPath · p)
 +  !p.isEmpty && sc.incl.any (matchesPath · p) && !sc.excl.any (matchesPath · p)
  
- /-- The violations of a branch: the changed paths outside the scope, in their order.
- 
+ /-- The violations of a branch: the changed paths outside the scope, in their order. -/
+ def violations (globs paths : List String) : List String :=

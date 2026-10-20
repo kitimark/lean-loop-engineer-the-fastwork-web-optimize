@@ -17,7 +17,8 @@ import type { Env } from "./core.ts";
 import { ghCharged } from "./charged.ts";
 import { lockAsync, tryLock, type Lock } from "./lock.ts";
 import { pollOnce, LIST_FIELDS } from "./poller.ts";
-import { locked, paths, readJson, readStatus, stepUnlocked, writeAtomic, type Row, type Status } from "./state.ts";
+import { killOk, markerText } from "./waiters.ts";
+import { locked, paths, readJson, readStatus, stepEvent, stepUnlocked, writeAtomic, type Row, type Status } from "./state.ts";
 
 export type Target =
   | { kind: "run"; runId: number }
@@ -58,8 +59,8 @@ export type WaitPhases = {
 export type WaitOpts = { timeoutS: number; nowMs?: () => number; phases?: (p: WaitPhases) => void };
 type Probe = { ms: () => number; ph: WaitPhases };
 
-/** Local re-read period of a waiter, seconds (file reads and lock checks only, no GitHub call). */
-const SLICE = 2;
+/** Local re-read period of a waiter, seconds (file reads and lock checks only, no GitHub call); `slice` in limits.json. */
+export const SLICE = 2;
 
 const epoch = (iso: string) => Math.floor(Date.parse(iso) / 1000);
 const fnv = (s: string) => { let h = 0x811c9dc5; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h; };
@@ -107,6 +108,8 @@ export function relevant(rows: Row[], t: Target): Row[] {
  *  counts as missing (GitHub creates the runs of one push together: INFERRED). */
 export const MISSING_GRACE_S = 300;
 
+/** A verdict read found the run on a newer attempt: the rows said it finished, the run is running again. */
+type Stale = { stale: { runId: number; attempt: number } };
 type Eval = { done: Row[] } | { stopped: string } | { pending: true };
 /** `required`: in lanes mode, the lanes the commit requests (done when each has a finished run, or when every run of the
  *  commit finished `MISSING_GRACE_S` ago; the absent lanes are then `missing`). */
@@ -123,28 +126,41 @@ export function evaluate(st: Status | null, t: Target, regAt: number, required: 
   return { pending: true };
 }
 
-/** The facts of a finished run: one charged `gh run view <id> --json jobs`, cached in meta/<id>.jobs.json (a finished
- *  run's jobs never change), one call per run id however many waiters ask. */
-async function jobsOf(env: Env, runId: number, deadline: number, pr: Probe): Promise<{ facts: RunFacts } | { fail: Waited }> {
+/** What a jobs read gives: the facts, a failure, or `stale` (the run is on a newer attempt than the row said). */
+type Jobs = { facts: RunFacts } | { fail: Waited } | { stale: { runId: number; attempt: number } };
+/** The cached jobs of one run: the facts and the attempt they were read at. */
+type JobsRec = { attempt?: number; facts: RunFacts };
+
+const freshRead = (env: Env, readAt: number | undefined): boolean => readAt !== undefined && env.core({ op: "ci.attempt", read: readAt, now: env.now() }).fresh === true;
+const attemptOf = (env: Env, q: Record<string, unknown>, key: "reuse" | "settled" | "current"): boolean => env.core({ op: "ci.attempt", ...q })[key] === true;
+
+/** The facts of a finished run: one charged `gh run view <id> --json jobs,attempt`, cached in meta/<id>.jobs.json with the
+ *  attempt it was read at (the cache answers only for that attempt, Lean `Fw.Ci.Attempt.reuse`), one call per run id and
+ *  attempt however many waiters ask. A view on a newer attempt than the row is `stale`, not a verdict (`settled`). */
+async function jobsOf(env: Env, row: Row, deadline: number, pr: Probe): Promise<Jobs> {
+  const runId = row.databaseId;
   const file = paths(env.dir).jobs(runId);
-  const k = readJson<RunFacts>(file);
-  if (k) { pr.ph.cached++; return { facts: k }; }
+  const hit = (k: JobsRec | null): k is JobsRec => k !== null && attemptOf(env, { recorded: k.attempt ?? null, live: row.attempt ?? null }, "reuse");
+  const k = readJson<JobsRec>(file);
+  if (hit(k)) { pr.ph.cached++; return { facts: k.facts }; }
   mkdirSync(join(env.dir, "meta"), { recursive: true });
   const t0 = pr.ms();
   const l = await lockAsync(paths(env.dir).jobsLock(runId), 120, env.now, env.sleepUntil);
   pr.ph.lockMs += pr.ms() - t0;
   try {
-    const k2 = readJson<RunFacts>(file);
-    if (k2) { pr.ph.cached++; return { facts: k2 }; }
+    const k2 = readJson<JobsRec>(file);
+    if (hit(k2)) { pr.ph.cached++; return { facts: k2.facts }; }
     const g0 = pr.ms();
-    const res = await ghCharged(env, ["run", "view", String(runId), "--json", "jobs"], { cost: 3, block: true, deadline });
+    const res = await ghCharged(env, ["run", "view", String(runId), "--json", "jobs,attempt"], { cost: 3, block: true, deadline });
     pr.ph.ghMs += pr.ms() - g0;
     pr.ph.views++;
     if (!res.ran) return { fail: { code: 3, lines: [`wait: no gh call for the jobs of run ${runId}: ${res.decision} (${res.reason}); see \`fw ci budget\``] } };
     if (res.code !== 0) return { fail: { code: 2, lines: [`wait: gh run view ${runId} --json jobs failed: ${res.error ?? "unknown"}`] } };
-    const facts = factsOf((JSON.parse(res.stdout) as { jobs: Job[] }).jobs ?? []);
-    writeAtomic(file, JSON.stringify(facts));
-    return { facts };
+    const v = JSON.parse(res.stdout) as { jobs?: Job[]; attempt?: number };
+    const rec: JobsRec = { ...(v.attempt === undefined ? {} : { attempt: v.attempt }), facts: factsOf(v.jobs ?? []) };
+    writeAtomic(file, JSON.stringify(rec));
+    if (v.attempt !== undefined && !attemptOf(env, { row: row.attempt ?? null, view: v.attempt }, "settled")) return { stale: { runId, attempt: v.attempt } };
+    return { facts: rec.facts };
   } finally {
     l.release();
   }
@@ -152,13 +168,14 @@ async function jobsOf(env: Env, runId: number, deadline: number, pr: Probe): Pro
 
 /** Lanes mode: the newest run of each requested lane for the commit, then fwcore `ci.verdict {msg, lanes}` decides
  *  (Lean `combineRequested`): a lane with no run is `missing`, never a pass. */
-async function lanesVerdictOf(env: Env, msg: string | null, required: string[], rs: Row[], deadline: number, pr: Probe): Promise<Waited> {
+async function lanesVerdictOf(env: Env, msg: string | null, required: string[], rs: Row[], deadline: number, pr: Probe): Promise<Waited | Stale> {
   const lanes: Record<string, RunFacts | null> = {};
   for (const n of required) {
     const r = rs.find((x) => x.workflowName === n);
     if (!r) { lanes[n] = null; continue; }
-    const f = await jobsOf(env, r.databaseId, deadline, pr);
+    const f = await jobsOf(env, r, deadline, pr);
     if ("fail" in f) return f.fail;
+    if ("stale" in f) return f;
     lanes[n] = f.facts;
   }
   pr.ph.viewEndMs = pr.ms();
@@ -173,11 +190,12 @@ async function lanesVerdictOf(env: Env, msg: string | null, required: string[], 
 }
 
 /** The verdict of finished decisive runs: their jobs, then fwcore `ci.verdict` decides (Lean `Fw.Ci.Verdict`). */
-async function verdictOf(env: Env, rs: Row[], deadline: number, pr: Probe): Promise<Waited> {
+async function verdictOf(env: Env, rs: Row[], deadline: number, pr: Probe): Promise<Waited | Stale> {
   const facts: RunFacts[] = [];
   for (const r of rs) {
-    const f = await jobsOf(env, r.databaseId, deadline, pr);
+    const f = await jobsOf(env, r, deadline, pr);
     if ("fail" in f) return f.fail;
+    if ("stale" in f) return f;
     facts.push(f.facts);
   }
   pr.ph.viewEndMs = pr.ms();
@@ -191,31 +209,31 @@ async function verdictOf(env: Env, rs: Row[], deadline: number, pr: Probe): Prom
 // ---- registration with a refcount, so one waiter leaving does not unwatch a run another waiter still waits on ----------
 const key = (id: number) => `r${id}`;
 
-function addWaiter(env: Env, id: number, createdAt: number): string {
+/** Register a waiter: its marker (pid and process start time) and the `register` event go in ONE locked block, and the
+ *  poller reads the waiters dir under the same lock (`readMarkers`), so no sweep sees a watch without its marker. */
+export function addWaiter(env: Env, id: number, createdAt: number): string {
   const dir = paths(env.dir).waiters;
   mkdirSync(dir, { recursive: true });
   const marker = join(dir, `${key(id)}.${process.pid}.${randomBytes(4).toString("hex")}`);
   locked(env, () => {
-    writeFileSync(marker, "");
+    writeFileSync(marker, markerText());
     stepUnlocked(env, { register: { runId: id, createdAt } });
   });
   return marker;
 }
 
-function alivePid(pid: number): boolean {
-  try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; }
-}
-
-function dropWaiter(env: Env, id: number, marker: string): void {
+/** Leave a run: `unregister` goes first and the marker is unlinked after it, so a step that fails (lock timeout, killed
+ *  fwcore) leaves the marker for a later sweep to reap, instead of a watch no marker points at. */
+export function dropWaiter(env: Env, id: number, marker: string): void {
   const dir = paths(env.dir).waiters;
   locked(env, () => {
-    try { unlinkSync(marker); } catch { /* gone */ }
-    const rest = readdirSync(dir).filter((n) => n.startsWith(`${key(id)}.`)).filter((n) => {
-      if (alivePid(Number(n.split(".")[1]))) return true;
+    const rest = readdirSync(dir).filter((n) => n.startsWith(`${key(id)}.`)).filter((n) => join(dir, n) !== marker).filter((n) => {
+      if (killOk(Number(n.split(".")[1]))) return true; // a refcount shortcut by pid; `ci.budget.next` sweeps by identity
       try { unlinkSync(join(dir, n)); } catch { /* gone */ }
       return false;
     });
     if (rest.length === 0) stepUnlocked(env, { unregister: id });
+    try { unlinkSync(marker); } catch { /* gone */ }
   });
 }
 
@@ -224,7 +242,19 @@ export const cleanups = new Set<() => void>();
 
 // ---- the bootstrap of a run id: its creation time, from the poller's list or one charged view (cached) -----------------
 async function createdOf(env: Env, runId: number, deadline: number): Promise<{ row: Row } | { fail: Waited }> {
-  const known = (): Row | undefined => readStatus(env.dir)?.rows.find((r) => r.databaseId === runId) ?? readJson<Row>(paths(env.dir).meta(runId)) ?? undefined;
+  // a finished row (in the poller's file or the meta cache) answers only while the view that read it is recent (Lean
+  // `Fw.Ci.Attempt.fresh`): a later wait reads the run again, since a rerun may have started
+  const fresh = (readAt: number | undefined): boolean => freshRead(env, readAt);
+  const listed = (): Row | undefined => {
+    const st = readStatus(env.dir);
+    const r = st?.rows.find((x) => x.databaseId === runId);
+    return r && (r.status !== "completed" || fresh(st?.tickAt ?? st?.at)) ? r : undefined;
+  };
+  const cached = (): Row | undefined => {
+    const m = readJson<Row & { readAt?: number }>(paths(env.dir).meta(runId));
+    return m && (m.status !== "completed" || fresh(m.readAt)) ? m : undefined;
+  };
+  const known = (): Row | undefined => listed() ?? cached();
   const k = known();
   if (k) return { row: k };
   mkdirSync(join(env.dir, "meta"), { recursive: true });
@@ -236,7 +266,7 @@ async function createdOf(env: Env, runId: number, deadline: number): Promise<{ r
     if (!res.ran) return { fail: { code: 3, lines: [`wait: no gh call for the run view: ${res.decision} (${res.reason}); see \`fw ci budget\``] } };
     if (res.code !== 0) return { fail: { code: 2, lines: [`wait: gh run view ${runId} failed: ${res.error ?? "unknown"}`] } };
     const row = JSON.parse(res.stdout) as Row;
-    writeAtomic(paths(env.dir).meta(runId), JSON.stringify(row));
+    writeAtomic(paths(env.dir).meta(runId), JSON.stringify({ ...row, readAt: env.now() }));
     return { row };
   } finally {
     l.release();
@@ -277,6 +307,7 @@ async function waitRun(env: Env, t: Target, o: WaitOpts, pr: Probe): Promise<Wai
     return { code: Number(req.code) as Waited["code"], lines: [`lanes ? -> ${String(req.verdict)} (${String(req.reason)}; commit ${sha})`] };
   }
   const required = req ? ((req.lanes ?? []) as string[]) : null;
+  const floor = new Map<number, number>(); // the newest attempt a jobs view showed, per run id (Lean `Fw.Ci.Attempt.current`)
   let id: number;
   let createdAt: number;
   if (t.kind === "run") {
@@ -286,7 +317,10 @@ async function waitRun(env: Env, t: Target, o: WaitOpts, pr: Probe): Promise<Wai
     if (c.row.status === "completed") {
       pr.ph.how = "already"; pr.ph.runIds = [c.row.databaseId]; pr.ph.readMs = pr.ms();
       if (c.row.updatedAt) pr.ph.updMs = Date.parse(c.row.updatedAt);
-      return await verdictOf(env, [c.row], deadline, pr);
+      const v = await verdictOf(env, [c.row], deadline, pr);
+      if (!("stale" in v)) return v;
+      pr.ph.how = "timeout"; // a rerun is running: wait for it like any other run
+      floor.set(v.stale.runId, v.stale.attempt);
     }
     createdAt = epoch(c.row.createdAt);
   } else {
@@ -301,15 +335,26 @@ async function waitRun(env: Env, t: Target, o: WaitOpts, pr: Probe): Promise<Wai
     let nextAt = 0;
     let cur: Status | null = null; // the newest list this waiter read, and the one before it (lag phases)
     let prev: Status | null = null;
+    let reregAt = -1; // the tick at which this waiter last re-registered after a rerun
     for (;;) {
       pr.ph.loops++;
       const st = readStatus(env.dir);
       const readMs = pr.ms();
       if (st && st.tickAt !== undefined && st.tickAt !== cur?.tickAt) { prev = cur; cur = st; }
-      const ev = evaluate(st, t, regAt, required, env.now());
-      if ("done" in ev) {
+      let ev = evaluate(st, t, regAt, required, env.now());
+      // a list read before this wait began may show a finished run that was rerun since: only a list from this wait's
+      // time, or a recent one (Lean `fresh`), decides; the watch registered above brings the next tick
+      if ("done" in ev && (st?.tickAt ?? st?.at ?? 0) < regAt && !freshRead(env, st?.tickAt ?? st?.at)) ev = { pending: true };
+      if ("done" in ev && ev.done.every((r) => attemptOf(env, { floor: floor.get(r.databaseId) ?? 0, row: r.attempt ?? null }, "current"))) {
         noteDecided(pr, ev.done, st, prev, readMs, poller !== null, required);
-        return required ? await lanesVerdictOf(env, msgOf(t), required, ev.done, deadline, pr) : await verdictOf(env, ev.done, deadline, pr);
+        const v = required ? await lanesVerdictOf(env, msgOf(t), required, ev.done, deadline, pr) : await verdictOf(env, ev.done, deadline, pr);
+        if (!("stale" in v)) return v;
+        floor.set(v.stale.runId, v.stale.attempt);
+      }
+      if ("done" in ev && st?.tickAt !== undefined && st.tickAt !== reregAt) {
+        // the rows say finished but a view showed a newer attempt: the poller dropped the watch on that finish, so watch again
+        reregAt = st.tickAt;
+        if (ev.done.some((r) => floor.has(r.databaseId))) stepEvent(env, { register: { runId: id, createdAt } }); // the watch this waiter owns
       }
       if ("stopped" in ev) { pr.ph.how = "stopped"; return { code: 3, lines: [`wait: the poller stopped (${ev.stopped}); see \`fw ci budget\`, \`fw ci budget --resume\``] }; }
       if (env.now() >= deadline) return { code: 3, lines: [`wait: timed out after ${o.timeoutS} s; run it again to keep waiting (\`fw ci budget\` shows the poller)`] };

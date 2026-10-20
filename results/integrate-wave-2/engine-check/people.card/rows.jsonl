@@ -1,0 +1,8 @@
+{"base":"rewrite","countType":"trace.FunctionCall","engine":"chromium","prediction":"≤o","scenario":"swipe-v1","stage":"script","variant":"rewrite+?fw=people.card:mq"}
+{"base":"rewrite","countType":"trace.UpdateLayoutTree","engine":"chromium","prediction":"≤o","scenario":"swipe-v1","stage":"style","variant":"rewrite+?fw=people.card:mq"}
+{"base":"rewrite","countType":"trace.Layout","engine":"chromium","prediction":"=o","scenario":"swipe-v1","stage":"layout","variant":"rewrite+?fw=people.card:mq"}
+{"base":"rewrite","countType":"trace.Layout.dirtyObjects","engine":"chromium","prediction":"=o","scenario":"swipe-v1","stage":"layout","variant":"rewrite+?fw=people.card:mq"}
+{"base":"rewrite","countType":"metric.LayoutCount","engine":"chromium","prediction":"=o","scenario":"swipe-v1","stage":"layout","variant":"rewrite+?fw=people.card:mq"}
+{"base":"rewrite","countType":"trace.PrePaint","engine":"chromium","prediction":"≤o","scenario":"swipe-v1","stage":"props","variant":"rewrite+?fw=people.card:mq"}
+{"base":"rewrite","countType":"raster.invalidationAreaPx","engine":"chromium","prediction":"=o","scenario":"swipe-v1","stage":"paint","variant":"rewrite+?fw=people.card:mq"}
+{"base":"rewrite","countType":"trace.cc.Commit","engine":"chromium","prediction":"=o","scenario":"swipe-v1","stage":"commit","variant":"rewrite+?fw=people.card:mq"}

@@ -1,9 +1,8 @@
-// The rewrite arm's server and the fonts it is given. The rewrite build ships none of the original's images or fonts (its theme
-// keeps a system font stack as a placeholder, and its image URLs point at /selling/... files that only the snapshot has), so
-// without help it draws serif fallback glyphs and grey placeholder boxes, and a pixel diff of that measures the missing files,
-// not the port. The harness therefore serves, for the rewrite arm only, the snapshot's own static files at the same URL for every
-// request the rewrite build does not answer itself, and declares the original's font faces in the rewrite page. Nothing is copied
-// into git; both are read from snapshot/site at run time and held in memory.
+// Diagnostic only (`--assets inject`; the default `none` serves the port as built): the rewrite arm's overlay server and fonts.
+// The overlay serves, for the rewrite arm only, the snapshot's own static files at the same URL for every request the rewrite build
+// does not answer itself, and the harness declares the original's font faces in the rewrite page with a forced font-family. A diff
+// in this mode measures the port with the original's assets, not the port's own. Both are read from snapshot/site at run time and
+// held in memory; nothing is committed.
 import http from 'node:http';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
@@ -15,6 +14,11 @@ const TYPES = {
 };
 /** Only static media falls back to the snapshot: never HTML, JS or CSS, so the rewrite's own code is what runs. */
 export const FALLBACK_EXTS = Object.freeze(Object.keys(TYPES));
+/** The rewrite build's own documents. A wrong type is refused by the browser (a stylesheet is ignored, a module script is not run), so without these the rewrite arm loads unstyled and unhydrated. Never a fallback. */
+export const DOC_TYPES = Object.freeze({
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.txt': 'text/plain; charset=utf-8', '.map': 'application/json',
+});
 
 const statFile = async (p) => { const s = await stat(p).catch(() => null); return s && s.isFile() ? p : null; };
 
@@ -37,7 +41,8 @@ export async function startOverlayServer(root, fallbackRoot) {
       if (!file) { missed.add(p); res.writeHead(404, { 'content-type': 'text/plain' }).end('not found'); return; }
       if (fb) fellBack.set(p, (fellBack.get(p) ?? 0) + 1);
       const buf = await readFile(file);
-      const type = extname(file) === '.html' ? 'text/html; charset=utf-8' : (TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream');
+      const ext = extname(file).toLowerCase();
+      const type = DOC_TYPES[ext] ?? TYPES[ext] ?? 'application/octet-stream';
       res.writeHead(200, { 'content-type': type, 'content-length': buf.length, 'cache-control': 'no-store' });
       res.end(req.method === 'HEAD' ? undefined : buf);
     } catch (e) {

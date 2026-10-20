@@ -17,8 +17,8 @@ jobs:
   # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
   # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
   # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole
-  # branch is an input. A main push runs when its own diff passes the coarse paths; dispatches, schedules always run.
-  # Fails open.
+  # branch is an input. A main push runs when its own diff passes the coarse paths, and then only the cache seeders
+  # (Lean Fw.Ci.Trigger.seeders); dispatches always run. Fails open.
   # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
   guard:
     runs-on: ubuntu-24.04-arm
@@ -71,21 +71,37 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: lean
 
       # The one Lake cache writer (lean/Fw/Ops/LakeCache.lean `isWriter`): it builds every target, so its entry holds every
       # module the restore-only jobs need (Fw.Ops.LakeCache.table_complete).
       - uses: ./.github/actions/setup-lean
         with:
           save: 'true'
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: cache
+          cache-dirs: lake=${{ github.workspace }}/.lake-cache
 
       - name: lake build
         working-directory: lean
         run: lake build
 
-      # check-partial grep gates, lake build, lake test (golden round trips), math-view lint, the real fwcore binary on
+      # check-partial grep gates, lake build, lake test (golden round trips), axiom check, the real fwcore binary on
       # golden/wire-requests.txt, breakgen --check.
       - name: lean/scripts/check.sh
+        env:
+          # check.sh's own spans (scripts/span.sh) land in the telemetry record as steps (task ci-telemetry)
+          FW_TIMINGS_FILE: ${{ runner.temp }}/fw-telemetry/spans.jsonl
         run: sh lean/scripts/check.sh
+
+      # Start cost per spawned fwcore call (task fwcore-lazy-tables): 50 calls with one cheap wire request each.
+      - name: fwcore start timing
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        run: sh lean/scripts/start-timing.sh lean/.lake/build/bin/fwcore 50 > fwcore-start.json && cat fwcore-start.json
 
       - name: Runner facts
         run: sh .github/scripts/runner-info.sh lean-runner.json
@@ -100,104 +116,11 @@ jobs:
             lean/.lake/build/bin/fwcore
             fwcore.sha256
             lean-runner.json
+            fwcore-start.json
           if-no-files-found: error
           retention-days: 14
-
-  # Module cache differential (task mathview-module-cache, premise tests of Fw.Console.LandSpeed.lint_modular): the
-  # cached lint (lean/MathViewMain.lean `cachedEntries`) must give the same exit code, lint text and export (minus
-  # `heartbeats`) as the full lint, on the tree as pushed and after three mutations, and must recompute exactly the
-  # modules whose key changed. `mathview-cached.sh --diff` runs both and compares.
-  mathview-differential:
-    needs: [guard]
-    if: ${{ needs.guard.outputs.run == 'true' }}
-    concurrency:
-      group: ci-lane:lean:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:mathview-differential:${{ strategy.job-index }}
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
-    # the runner context is not available at job level: steps use $RUNNER_TEMP/mathview-{store,diff}
-    steps:
-      - name: 'tip re-check'
-        id: tip
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
-          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
-      - name: 'stale: a newer push is the branch tip'
-        id: stale
-        if: ${{ steps.tip.outputs.tip == 'false' }}
-        shell: bash
-        run: exit 1
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
         with:
-          persist-credentials: false
-
-      - uses: ./.github/actions/setup-lean
-
-      - name: lake build
-        working-directory: lean
-        run: lake build
-
-      - name: current tree, empty store then full store
-        working-directory: lean
-        run: |
-          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/cold"
-          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/warm"
-          grep -qx 'misses 0' "$RUNNER_TEMP/mathview-diff/warm/cached.stats"
-
-      # a docstring edit in one module recomputes exactly the modules whose import cone contains it: the `miss` lines
-      # equal `mathview --dependents` (Fw.Spec.ConeMiss.dependents, exact by mem_dependents; a hard-coded `misses 2`
-      # broke once Fw.Ci.Trigger and Fw.Console.LandPool imported LandSpeed)
-      - name: mutation 1, one-module edit
-        working-directory: lean
-        run: |
-          sed -i 's/the verdict is a conjunction over modules\./the verdict is a conjunction over all modules./' Fw/Console/LandSpeed.lean
-          git diff --quiet -- Fw/Console/LandSpeed.lean && { echo "mutation 1 did not apply"; exit 1; }
-          lake build
-          d="$RUNNER_TEMP/mathview-diff/m1"
-          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$d"
-          .lake/build/bin/mathview --dependents Fw.Console.LandSpeed | sort > "$d/expected.miss"
-          sed -n 's/^miss //p' "$d/cached.stats" | sort > "$d/actual.miss"
-          diff "$d/expected.miss" "$d/actual.miss"
-          grep -qx 'miss Fw.Console.LandSpeed' "$d/cached.stats"
-
-      # Fw/Spec/AxReach.lean is outside the cone of Fw.Console.LandSpeed but the axiom rule runs its code: a semantic
-      # change there must recompute every module, LandSpeed included (it enters every key through the tool hash)
-      - name: mutation 2, tool code outside the cone
-        working-directory: lean
-        run: |
-          cat >> Fw/Spec/AxReach.lean <<'EOF'
-
-          /-- Mutation probe. $$p = 1$$ -/
-          def mathviewMutationProbe : Nat := 1
-          EOF
-          lake build
-          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/m2"
-          grep -qx 'miss Fw.Console.LandSpeed' "$RUNNER_TEMP/mathview-diff/m2/cached.stats"
-          grep -qx 'hits 0' "$RUNNER_TEMP/mathview-diff/m2/cached.stats"
-
-      # findDocString? would append this suffix to LandSpeed.lintAll's docstring from a module outside its cone; the
-      # export reads the declaring module's docstring only (MathView.entries), so LandSpeed stays a hit and full = cached
-      - name: mutation 3, recommended_spelling outside the cone
-        working-directory: lean
-        run: |
-          printf '\nrecommended_spelling "zz" for "zz" in [Fw.Console.LandSpeed.lintAll]\n' >> Fw.lean
-          lake build
-          d="$RUNNER_TEMP/mathview-diff/m3"
-          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$d"
-          .lake/build/bin/mathview --dependents Fw | sort > "$d/expected.miss"
-          sed -n 's/^miss //p' "$d/cached.stats" | sort > "$d/actual.miss"
-          diff "$d/expected.miss" "$d/actual.miss"
-          grep -qx 'misses 1' "$d/cached.stats"
-          ! grep -q 'Conventions for notations' "$RUNNER_TEMP/mathview-diff/m3/full.json"
-
-      - name: keep the outputs on failure
-        if: ${{ (failure()) && steps.stale.outcome == 'skipped' }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: mathview-differential
-          path: ${{ runner.temp }}/mathview-diff
-          retention-days: 7
+          mode: finish
+          label: lean

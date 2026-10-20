@@ -5,9 +5,11 @@ import gen from './svg.gen.json';
 export interface Art {
   svg: Record<string, string>;
   kids: Array<{ tag: string; attrs: Record<string, string> }>;
+  /** The attributes of the `<g>` the original wraps its shapes in; absent when it has none. */
+  group?: Record<string, string>;
 }
 
-type Single = 'nav.globe' | 'icon.bell' | 'icon.calendar' | 'platform.star' | 'platform.pin' | 'platform.shield' | 'brand.mark' | 'commission.chevron' | 'hero.cue' | 'drawer.close'
+type Single = 'nav.wordmark' | 'nav.globe' | 'icon.bell' | 'icon.calendar' | 'platform.star' | 'platform.pin' | 'platform.shield' | 'brand.mark' | 'commission.chevron' | 'hero.cue' | 'drawer.close'
   | 'drawer.mark'
   | 'nav.chevron'
   | 'nav.langCheck'
@@ -40,11 +42,13 @@ function props(a: Record<string, string>) {
   return o;
 }
 
+const shapes = (a: Art) => a.kids.map((k, i) => createElement(k.tag, { key: i, ...props(k.attrs) }));
+
 /** An `<svg>` with the original's own attributes and shapes; `rest` (className, ref, ...) is applied over them. */
 export function GenSvg({ art: a, ...rest }: { art: Art } & SVGProps<SVGSVGElement>) {
   return (
     <svg {...props(a.svg)} {...rest}>
-      {a.kids.map((k, i) => createElement(k.tag, { key: i, ...props(k.attrs) }))}
+      {a.group ? <g {...props(a.group)}>{shapes(a)}</g> : shapes(a)}
     </svg>
   );
 }

@@ -395,9 +395,9 @@ def ifExpr (l : Lane) : String :=
   if l.byDefault then ""
   else "${{ " ++ recordExpr ++ " || " ++ containsExpr (String.ofList (tok l.name)) ++ " }}"
 
-#guard ifExpr (laneOf ⟨"wktr.yml", [], []⟩) ==
+#guard ifExpr (laneOf ⟨"wktr.yml", [], [], []⟩) ==
   "${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:wktr]') }}"
-#guard ifExpr (laneOf ⟨"lean.yml", [], []⟩) == ""
+#guard ifExpr (laneOf ⟨"lean.yml", [], [], []⟩) == ""
 
 /-! ## The heavy job's tip re-check (round 3)
 
@@ -779,7 +779,7 @@ def pushLine : Json :=
     Json.arr #[.bool part, .arr (ps.map fun p => Json.arr #[.bool p.named, .bool p.run]).toArray, .bool ok]).toArray)]
 
 /-- The golden text. $$\text{one JSON object per line: the lanes, the cases, one gate line per lane, then the push line}$$ -/
-def goldenText : String :=
+def goldenText (_ : Unit := ()) : String :=
   String.join (((lanesLine :: cases.map caseLine) ++ lanes.map gateLine ++ [pushLine]).map fun j => j.compress ++ "\n")
 
 /-- Compare (or write) the golden file; returns the number of stale files.

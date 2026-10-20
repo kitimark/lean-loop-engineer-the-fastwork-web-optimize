@@ -28,7 +28,7 @@ are non-negative integers (seconds, tokens, ms); a non-integer number is refused
 | `ops.wait` | `cmd` (the Bash command text), `caps`? {maxSleepSec?} | `decision` (`allow`/`deny`), `reason` (null, `bgLong` or `unboundedLoop`), `shape` (`bgLong`: `fwWatch`/`loop`/`server`/`tail`/`longSleep`, else null) |
 | `ops.actor` | `agent_id`?, `agent_type`? (string or null, as in a hook payload or a `caps.jsonl` record) | `who` (`lead`/`agent`/`unknown`), `role` (the agent type, or null), `actor` (`lead`/`reviewer`/`owner`, or null: mint no capability) |
 
-| `ops.leanFirst` | the lean-first facts of one land (`leanFirst`?, `writes`?, `props`? [{name, stmtHash, docHash, assumes?, searchAt?, proofAt?}], `thms`? [{name, hash, kind? (`general`/`data`/`kill`), proves?, implArg?, reachFromWire?, axiomsOk?, usedBy?, reach?, assumes?}], `kills`? [{target, hash}], `signoffs`? [{decl, stmtHash, docHash, role (`math`/`adversary`), agree?}], `branches`? [{file, line, mark? (`none`/`op`/`twin`/`glueOk`/`glueBad`)}], `registry`? [{id, status (`measured`/`untested`/`refuted`/`unmeasurable`), carriers?}], `baseline`? [{name, hash}], `ancestry`? [{ancestor, descendant}], `legacyMain`?, `legacyHead`?, `present`? {mathview?, kills?, tsLint?}, `mainAt`?, `exemptAt`?); a `stage` field is ignored (the stage is the Lean constant) | `kind` (`pass`/`pending`/`refused`), `exit` (0/75/1), `lines` (print as they are; the last is the one VERDICT line), `stage`, `reasons` [{rule, code, subject}] (refused), `missing` (pending) |
+| `ops.leanFirst` | the lean-first facts of one land (`leanFirst`?, `writes`?, `props`? [{name, stmtHash, assumes?, searchAt?, proofAt?}], `thms`? [{name, hash, kind? (`general`/`data`/`kill`), proves?, implArg?, reachFromWire?, axiomsOk?, usedBy?, reach?, assumes?}], `kills`? [{target, hash}], `signoffs`? [{decl, stmtHash, role (`math`/`adversary`), agree?}], `branches`? [{file, line, mark? (`none`/`op`/`twin`/`glueOk`/`glueBad`)}], `registry`? [{id, status (`measured`/`untested`/`refuted`/`unmeasurable`), carriers?}], `baseline`? [{name, hash}], `ancestry`? [{ancestor, descendant}], `legacyMain`?, `legacyHead`?, `present`? {mathview?, kills?, tsLint?}, `mainAt`?, `exemptAt`?); a `stage` field is ignored (the stage is the Lean constant) | `kind` (`pass`/`pending`/`refused`), `exit` (0/75/1), `lines` (print as they are; the last is the one VERDICT line), `stage`, `reasons` [{rule, code, subject}] (refused), `missing` (pending) |
 
 `kind` / `runsAs`: `teammate`, `subagent`, `worktree`. `isolation`: `"worktree"`, `true`, `false`
 or `null`. Rules: `ctxBig`, `idleExpiring`, `coldWake`. Verdicts: `resumeOk`, `resumeCheap`,
@@ -592,7 +592,7 @@ absent `agree` as a disagreement, an absent `axiomsOk` as not met, an absent `ki
 fact (pending). `role` and `status` are required; an unknown enumeration name is refused. -/
 def lfFactsOf (j : Json) : Except String Facts := do
   let props ← (← arrD j "props").mapM fun p => do
-    pure ({ name := ← str p "name", stmtHash := ← str p "stmtHash", docHash := ← str p "docHash",
+    pure ({ name := ← str p "name", stmtHash := ← str p "stmtHash",
             assumes := ← strsD p "assumes", searchAt := ← optS p "searchAt", proofAt := ← optS p "proofAt" } : PropFact)
   let thms ← (← arrD j "thms").mapM fun t => do
     pure ({ name := ← str t "name", hash := ← str t "hash",
@@ -603,7 +603,7 @@ def lfFactsOf (j : Json) : Except String Facts := do
   let kills ← (← arrD j "kills").mapM fun k => do
     pure ({ target := ← str k "target", hash := ← str k "hash" } : KillRow)
   let signoffs ← (← arrD j "signoffs").mapM fun s => do
-    pure ({ decl := ← str s "decl", stmtHash := ← str s "stmtHash", docHash := ← str s "docHash",
+    pure ({ decl := ← str s "decl", stmtHash := ← str s "stmtHash",
             role := ← enumOf "role" [.math, .adversary] lfRoleName (← str s "role"),
             agree := ← boolD s "agree" false } : Signoff)
   let branches ← (← arrD j "branches").mapM fun b => do
@@ -636,7 +636,7 @@ open Fw.Ops.LeanFirst in
 def lfFactsJson (F : Facts) : Json := Json.mkObj [
   ("leanFirst", .bool F.leanFirst), ("writes", strsJson F.writes),
   ("props", .arr (F.props.toArray.map fun P => Json.mkObj [("name", .str P.name), ("stmtHash", .str P.stmtHash),
-    ("docHash", .str P.docHash), ("assumes", strsJson P.assumes),
+    ("assumes", strsJson P.assumes),
     ("searchAt", ostr P.searchAt), ("proofAt", ostr P.proofAt)])),
   ("thms", .arr (F.thms.toArray.map fun t => Json.mkObj [("name", .str t.name), ("hash", .str t.hash),
     ("kind", .str (lfKindName t.kind)), ("proves", ostr t.proves), ("implArg", ostr t.implArg),
@@ -644,7 +644,7 @@ def lfFactsJson (F : Facts) : Json := Json.mkObj [
     ("usedBy", strsJson t.usedBy), ("reach", strsJson t.reach), ("assumes", strsJson t.assumes)])),
   ("kills", .arr (F.kills.toArray.map fun k => Json.mkObj [("target", .str k.target), ("hash", .str k.hash)])),
   ("signoffs", .arr (F.signoffs.toArray.map fun s => Json.mkObj [("decl", .str s.decl), ("stmtHash", .str s.stmtHash),
-    ("docHash", .str s.docHash), ("role", .str (lfRoleName s.role)), ("agree", .bool s.agree)])),
+    ("role", .str (lfRoleName s.role)), ("agree", .bool s.agree)])),
   ("branches", .arr (F.branches.toArray.map fun b => Json.mkObj [("file", .str b.file), ("line", toJson b.line),
     ("mark", .str (lfMarkName b.mark))])),
   ("registry", .arr (F.registry.toArray.map fun r => Json.mkObj [("id", .str r.id),
@@ -659,7 +659,6 @@ def lfFactsJson (F : Facts) : Json := Json.mkObj [
 open Fw.Ops.LeanFirst in
 /-- `ops.leanFirst`: the lean-first gate on one land's facts, at the deployed stage `Fw.Ops.LeanFirst.stage` (a
 request cannot choose it; a `stage` field is ignored).
-$$\operatorname{reply}(F) = \bigl(\operatorname{out}(s_0, F).\mathit{kind},\ \operatorname{out}(s_0, F).\mathit{exit},\ \operatorname{out}(s_0, F).\mathit{lines},\ s_0,\ \operatorname{refusals}(\operatorname{gate}(s_0, F)),\ \operatorname{pendingOn}(\operatorname{gate}(s_0, F))\bigr),\quad s_0 = \mathit{stage}$$
 The reply is the rendered output (`kind`, `exit`, `lines`, the last line the one VERDICT line) plus the stage used and
 the structured refusals (`rule`, `code`, `subject`) and missing facts, so the land agent prints the lines as they are
 and reads the exit code. -/
@@ -682,7 +681,7 @@ def opLeanFirst (req : Json) : Except String Reply := do
 #guard [Fw.Ops.LeanFirst.Status.measured, .untested, .refuted, .unmeasurable].all fun st =>
   (enumOf "status" [.measured, .untested, .refuted, .unmeasurable] lfStatusName (lfStatusName st)).toOption == some st
 #guard (lfFactsOf (Json.mkObj [("signoffs", .arr #[Json.mkObj [("decl", .str "P"), ("stmtHash", .str "h"),
-  ("docHash", .str "d"), ("role", .str "lead")]])])).toOption.isNone
+  ("role", .str "lead")]])])).toOption.isNone
 -- the MathView record and the main commit round-trip
 #guard ((lfFactsOf (lfFactsJson Fw.Ops.LeanFirst.stubFacts)).toOption.map fun F =>
   (F.thms.map fun t => (t.implArg, t.reachFromWire), F.mainAt, F.exemptAt)) ==

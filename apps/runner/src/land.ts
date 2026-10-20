@@ -6,13 +6,16 @@ import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { availableParallelism, loadavg } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
-import { begin, span } from "./timing.ts";
+import { begin, record, span } from "./timing.ts";
+import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, runTiered, spawnWait, type Adapter, type Provider } from "./land-remote.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
-import { checkFailKind, failedStages, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
+import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
+import { chargedGh, fwcoreCall, ghCost } from "./run.ts";
+import { chargedOnce, realEnv, type Env } from "@fw/gh-budget";
 
 export type Http = {
   get(path: string): Promise<{ status: number; body: any }>;
@@ -21,10 +24,12 @@ export type Http = {
 
 /** `localhost` may resolve to ::1 first while console-api listens on 127.0.0.1 only: always dial the IPv4 loopback. */
 export const loopback = (base: string) => base.replace(/^(https?:\/\/)localhost(?=[:/]|$)/, "$1127.0.0.1");
+/** Own deadline per request, shorter than undici's 300 s headers timeout; the land step's retry takes it from there. */
+export const HTTP_DEADLINE_MS = 90_000;
 export const httpFor = (base0: string): Http => { const base = loopback(base0); let secret: string | undefined; return {
-  get: async (p) => { const r = await fetch(base + p); return { status: r.status, body: await r.json() }; },
+  get: async (p) => { const r = await fetch(base + p, { signal: AbortSignal.timeout(HTTP_DEADLINE_MS) }); return { status: r.status, body: await r.json() }; },
   post: async (p, b) => {
-    const r = await fetch(base + p, { method: "POST", headers: { "content-type": "application/json", "x-fw-secret": (secret ??= consoleSecret()) }, body: JSON.stringify(b) });
+    const r = await fetch(base + p, { method: "POST", headers: { "content-type": "application/json", "x-fw-secret": (secret ??= consoleSecret()) }, body: JSON.stringify(b), signal: AbortSignal.timeout(HTTP_DEADLINE_MS) });
     return { status: r.status, body: await r.json() };
   },
 }; };
@@ -39,6 +44,8 @@ export type LandOptions = {
   submit?: (cmd: Command) => Promise<{ status: number; body: any }>;
   /** checks run in the main checkout after the merge, before it is committed; default: derived from the changed files */
   checks?: string[][];
+  /** the remote tier waits on the land lane of these providers (task land-wait); `false` runs every check on this Mac. Default: GitHub only. */
+  remote?: false | { allow?: Provider[]; adapters?: Partial<Record<Provider, Adapter>>; sliceS?: number; deadlineS?: number; waitsLeft?: number };
   /** Max checks running at once (default: the number of cores). */
   concurrency?: number;
   env?: Record<string, string | undefined>;
@@ -89,6 +96,11 @@ export const ATTRIBUTION = [
 export const MARKER_RE = "^(<<<<<<<|>>>>>>>)";
 
 const git = (cwd: string, args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+/** Personal-data scan (scripts/scrub.mjs --range) of what a ci/land push adds to origin, run from the main checkout so a branch cannot set its own gate: null when clean, else the hits (rule and place, never values). */
+const scanRange = (dir: string, mainDir: string, mergeSha: string): string | null => {
+  try { execFileSync("node", [join(mainDir, "scripts/scrub.mjs"), "--range", "origin/main", mergeSha], { cwd: mainDir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }); return null; }
+  catch (e) { return String((e as { stderr?: string }).stderr ?? e).replace(/\s+/g, " ").slice(0, 300); }
+};
 const tryGit = (cwd: string, args: string[]) => { try { git(cwd, args); return true; } catch { return false; } };
 const tryGitEnv = (cwd: string, args: string[], env: Record<string, string>) => {
   try { execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...env } }); return true; } catch { return false; }
@@ -163,29 +175,38 @@ const WALLCLOCK_LINT_TESTS = ["scripts/*.test.mjs", "apps/*/test/**", "packages/
  *  static scan in test/land-inputs.test.ts (which fails on any it finds that is not covered here). Dynamic reads the scan
  *  cannot see are listed in docs/team/handoffs/checksfor-inputs.md. */
 export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
-  "apps/console-api": ["apps/console-web/**", "apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**", ...WALLCLOCK_LINT_FILES],
-  "apps/runner": [...WALLCLOCK_LINT_FILES, ...WALLCLOCK_LINT_TESTS, "apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
+  "apps/console-api": ["lean/Fw/Console/PreviewFacts.lean", "snapshot/site/index.html", "apps/console-web/**", "apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**", ...WALLCLOCK_LINT_FILES],
+  "apps/runner": ["lean/**", ...WALLCLOCK_LINT_FILES, ...WALLCLOCK_LINT_TESTS, "apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
     "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh",
     // ci-trigger-lean: test/ci-triggers.test.ts reads every workflow, the guard script and the lint
     ".github/workflows/**", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs",
     // ci-own-trigger: the intent helper and its test (run by test/ci-triggers.test.ts; fw ci push spawns it)
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs",
+    // circleci-pilot: the glue, its fixtures and the pilot config (test/ci-triggers.test.ts runs scripts/circleci.test.mjs; fw ci circleci spawns the glue)
+    "scripts/circleci.mjs", "scripts/circleci.test.mjs", "scripts/circleci-fixtures/**", ".circleci/**",
+    // scrub-session-paths: test/scrub.test.ts runs the privacy scrub's tests (test-scrub.mjs is outside the scripts/*.test.mjs glob)
+    "scripts/scrub.mjs", "scripts/test-scrub.mjs", "scripts/scrub.test.mjs", "scripts/scrub-allow.json",
+    // ci-telemetry: test/ci-telemetry.test.ts runs the producer's own tests and replays golden/ci/telemetry.jsonl (golden/** above)
+    "scripts/ci-telemetry/**",
     // site-build-cache: ci-paths reads each setup-lean job's Lake targets (lakefile, the scripts its run: blocks call) into
     // the generated lean/Fw/Ops/LakeJobsGen.lean and compares
     "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],
   // svg-extract: scripts/svg-extract.mjs (build, test, typecheck) and src/svg-extract.test.ts read the snapshot page and its scripts
-  "apps/site": ["packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/anchors.json", "packages/contracts/golden/parts/**",
-    "packages/contracts/golden/port/**", "scripts/port/**", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
+  "apps/site": ["lean/Fw/Parts/HiddenPause.lean", "lean/Fw/Parts/HeroCountdownHidden.lean", "packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/anchors.json", "packages/contracts/golden/parts/**",
+    "packages/contracts/golden/port/**", "scripts/port/**", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/fonts.mjs", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
-  "packages/measure-chromium": ["packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**"],
-  "packages/gate-breakpoints": ["packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
+  "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**"],
+  "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
     "packages/contracts/golden/gate/**"],
   "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
+  // preview-e2e: the rig starts console-api's server files (imported by file URL) and the preview servers over the snapshot
+  "packages/e2e-preview": ["apps/console-api/src/**", "apps/console-api/package.json", "packages/contracts/src/**", "packages/contracts/package.json", "packages/contracts/golden/console/**", "snapshot/site/**"],
+  "packages/engine-check": ["packages/contracts/golden/measure/**"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
   "packages/measure-webkit": ["packages/contracts/golden/measure/**"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
-  "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**"],
+  "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**", "scripts/port/**", "packages/contracts/golden/port/**"],
 };
 
 /** Directories of the `workspace:` dependencies of a package (`@fw/x` is `packages/x` or `apps/x`). */
@@ -202,11 +223,21 @@ function workspaceDeps(root: string, pkg: any): string[] {
 
 /** Every check that can run in `root`, with its declared reads, in the order they run: install, the Lean gates, then the
  *  packages that have a `test` script (sorted). Which of them a change selects is `selectChecks` (Lean `landSpeed.select`). */
-/** Packages whose tests run the `fwcore` binary (built from lean/**): a Lean change can change their verdict. Found by the scan
- *  in test/land-inputs.test.ts. Declared as `lean/**` (it holds the toolchain files) while `LEAN_BINARY_READS` is true
- *  (lead decision: cache_sound needs every real read declared), so a Lean change selects all of them. */
-export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr"];
-export const LEAN_BINARY_READS = true;
+/** Packages whose tests run the `fwcore` binary. Found by the scan in test/land-inputs.test.ts. Each declares `FWCORE_BIN`;
+ *  which of them a Lean change selects is `selectTwoPhase` (the binary digest). */
+export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/e2e-preview", "packages/engine-check", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr"];
+/** Lean `fwcoreBin`: the stripped binary as a declared read. */
+export const FWCORE_BIN = "lean/.lake/build/bin/fwcore";
+/** Lean `fwcoreBuildReads`. */
+export const FWCORE_BUILD_READS = ["lean/**", "scripts/fwcore-build.sh"];
+/** sha256 hex of a binary, or null when unknown. */
+export type Digest = string | null;
+/** Lean `binMoved`, checked against the `landSpeed.select2` golden. */
+export const binMoved = (changed: string[], d0: Digest, d1: Digest): boolean =>
+  changed.some((c) => inScope(FWCORE_BUILD_READS, c)) && (d0 === null || d1 === null || d0 !== d1);
+/** Lean `selectTwoPhase`, checked against the `landSpeed.select2` golden. */
+export const selectTwoPhase = (ds: { id: string; reads: string[] }[], changed: string[], d0: Digest, d1: Digest) =>
+  selectChecks(ds, binMoved(changed, d0, d1) ? [...changed, FWCORE_BIN] : changed);
 
 /** For each check of `list`, the indices it must wait for: `pnpm install` first; the fwcore users (FWCORE_USERS) after
  *  `sh lean/scripts/check.sh`, whose `lake build` writes the binary they run. Everything else is independent. */
@@ -227,7 +258,7 @@ export const READS_SCAN_ARGV = ["pnpm", "--filter", "./apps/runner", "exec", "vi
 export const withScan = (cs: Check[]): Check[] =>
   [...cs, { id: READS_SCAN_ID, argv: READS_SCAN_ARGV, reads: cs.flatMap((c) => c.reads.filter((g) => !g.startsWith("!"))) }];
 
-export function candidateChecks(root: string, fwcoreReads = LEAN_BINARY_READS): Check[] {
+export function candidateChecks(root: string): Check[] {
   const out: Check[] = [
     { id: "install", argv: ["pnpm", "install", "--frozen-lockfile"], reads: INSTALL_READS },
     { id: "check.sh", argv: ["sh", "lean/scripts/check.sh"], reads: CHECK_SH_READS },
@@ -240,17 +271,18 @@ export function candidateChecks(root: string, fwcoreReads = LEAN_BINARY_READS): 
       try {
         const pkg = JSON.parse(readFileSync(join(root, p, "package.json"), "utf8"));
         if (pkg.scripts?.test) out.push({ id: p, argv: ["pnpm", "--filter", `./${p}`, "test"],
-          reads: [`${p}/**`, ...workspaceDeps(root, pkg).map((d) => `${d}/**`), ...(PACKAGE_EXTRA_READS[p] ?? []), ...(fwcoreReads && FWCORE_USERS.includes(p) ? ["lean/**"] : [])] });
+          reads: [`${p}/**`, ...workspaceDeps(root, pkg).map((d) => `${d}/**`), ...(PACKAGE_EXTRA_READS[p] ?? []), ...(FWCORE_USERS.includes(p) ? [FWCORE_BIN] : [])] });
       } catch { /* no package.json: nothing to run */ }
     }
   }
   return withScan(out);
 }
 
-/** The checks that cover the changed files, each with its declared input set. */
-export function checksWithReads(root: string, changed: string[], fwcoreReads = LEAN_BINARY_READS): Check[] {
-  const all = candidateChecks(root, fwcoreReads);
-  const ids = new Set(selectChecks(all, changed));
+/** The checks that cover the changed files, each with its declared input set. Digests main0 `d0` and merge tree `d1`
+ *  default to unknown (every fwcore user follows a change to `FWCORE_BUILD_READS`). */
+export function checksWithReads(root: string, changed: string[], d0: Digest = null, d1: Digest = null): Check[] {
+  const all = candidateChecks(root);
+  const ids = new Set(selectTwoPhase(all, changed, d0, d1));
   return all.filter((c) => ids.has(c.id));
 }
 
@@ -272,13 +304,17 @@ export function checksFor(root: string, changed: string[]): string[][] {
   return checksWithReads(root, changed).map((c) => c.argv);
 }
 
-/** One `gh run list` call, advisory only. */
-export function ciLines(ref: string): string[] {
+/** One `gh run list` call through the gh-budget ledger (`ci.budget.reserve` at `ghCost`), advisory only: a budget wait or
+ *  stop skips the call and says so. */
+export function ciLines(ref: string, cwd: string = process.cwd(), env?: Env): string[] {
+  const args = ["run", "list", "--branch", ref, "--limit", "5", "--json", "name,conclusion,status,headSha"];
   try {
-    const raw = execFileSync("gh", ["run", "list", "--branch", ref, "--limit", "5", "--json", "name,conclusion,status,headSha"],
-      { encoding: "utf8", timeout: 20_000, stdio: ["ignore", "pipe", "pipe"] });
-    const rs = JSON.parse(raw) as { name: string; conclusion: string; status: string; headSha: string }[];
-    return rs.length ? rs.map((r) => `${r.name} ${r.headSha.slice(0, 7)} ${r.conclusion || r.status}`) : ["no runs"];
+    const e = env ?? realEnv(cwd);
+    const r = chargedOnce(e, (state, now) => e.core({ op: "ci.budget.reserve", now, state, cost: ghCost(args) }), () => args, 20_000);
+    if (!r.ran) return [`budget ${r.decision} (${r.reason})`];
+    if (r.code !== 0) return ["unavailable"];
+    const rs = JSON.parse(r.stdout) as { name: string; conclusion: string; status: string; headSha: string }[];
+    return rs.length ? rs.map((x) => `${x.name} ${x.headSha.slice(0, 7)} ${x.conclusion || x.status}`) : ["no runs"];
   } catch { return ["unavailable"]; }
 }
 
@@ -359,13 +395,55 @@ const prepLandWt = (dir: string) => {
   if (existsSync(join(dir, "pnpm-lock.yaml"))) { try { execFileSync("pnpm", ["install", "--offline", "--frozen-lockfile"], { cwd: dir, stdio: "ignore" }); } catch { /* the install check retries online */ } }
 };
 
+/** sha256 of the binary at `FWCORE_BIN` under `dir`, or null when it is missing. */
+export function binDigest(dir: string): Digest {
+  try { return createHash("sha256").update(readFileSync(join(dir, FWCORE_BIN))).digest("hex"); } catch { return null; }
+}
+const HEX64 = /^[0-9a-f]{64}$/;
+const digestFile = (mainDir: string, commit: string) =>
+  join(git(mainDir, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), "fw-land", "fwcore-digest", commit);
+/** The binary digest of `commit`: the one a land stored under the git common dir, else the main checkout's binary when its
+ *  build record names `commit` and the binary's sha256 is the recorded one, else null. */
+export function storedDigest(mainDir: string, commit: string): Digest {
+  try { const d = readFileSync(digestFile(mainDir, commit), "utf8").trim(); if (HEX64.test(d)) return d; } catch { /* none stored */ }
+  try {
+    const [c, h] = readFileSync(join(mainDir, `${FWCORE_BIN}.commit`), "utf8").trim().split(" ");
+    if (c === commit && h !== undefined && HEX64.test(h) && binDigest(mainDir) === h) return h;
+  } catch { /* no record */ }
+  return null;
+}
+/** The land preflight (task land-queue-why): the reason to refuse early, or null. Facts only; Lean `fwcoreStale` decides. The installed binary is
+ *  the main checkout's; its record (`fwcore.commit`) names the commit it was built from, and counts only when the binary's sha256 is the recorded one.
+ *  A tree without `scripts/fwcore-build.sh` has no binary to be stale. */
+export function fwcorePreflight(mainDir: string, main: string): string | null {
+  if (!tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/fwcore-build.sh`])) return null;
+  let recorded: string | null = null;
+  try {
+    const [c, h] = readFileSync(join(mainDir, `${FWCORE_BIN}.commit`), "utf8").trim().split(" ");
+    if (c && h !== undefined && HEX64.test(h) && binDigest(mainDir) === h) recorded = c;
+  } catch { /* no record */ }
+  const head = git(mainDir, ["rev-parse", main]);
+  const same = recorded === head;
+  let moved = true; // an unknown commit counts as moved
+  if (recorded !== null && !same) {
+    try { moved = git(mainDir, ["diff", "--name-only", recorded, main, "--", "lean", "scripts/fwcore-build.sh"]) !== ""; } catch { moved = true; }
+  }
+  return fwcoreStale(recorded, same, moved) ? FWCORE_STALE_REASON : null;
+}
+export function storeDigest(mainDir: string, commit: string, d: string): void {
+  try { const f = digestFile(mainDir, commit); mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, `${d}\n`); } catch { /* the next land builds unknown */ }
+}
+/** `lean/` and the build script of `dir` equal its HEAD and `lean/` holds no untracked file. */
+export function buildClean(dir: string): boolean {
+  if (!tryGit(dir, ["diff", "--quiet", "HEAD", "--", "lean", "scripts/fwcore-build.sh"])) return false;
+  try { return git(dir, ["ls-files", "--others", "--exclude-standard", "--", "lean"]) === ""; } catch { return false; }
+}
+
 /** The fast lints of a dry land (task land-dry-full), in the merge-tree worktree `dir`: `node scripts/ci-paths.mjs --check` (0.1 s), and,
- *  when the change touches `lean/`, the math-view lint exactly as `lean/scripts/check.sh` runs it (`scripts/mathview-cached.sh`: whole-tree
- *  cache, per-module store), after an incremental `lake build` (no `fwtest`, no tests; the .lake of the slot is warm). An unchanged Lean tree
- *  is a cache hit and builds nothing. A script the tree lacks is skipped. */
+ *  when the change touches `lean/`, the axiom check exactly as `lean/scripts/check.sh` runs it (`scripts/axiom-check.sh`), after an
+ *  incremental `lake build` (no `fwtest`, no tests; the .lake of the slot is warm). A script the tree lacks is skipped. */
 export function dryLintArgv(dir: string, changed: string[]): string[][] {
-  // which lints run is decided by Lean `lintPlan` (land-verdict.ts); this only reads which scripts exist
-  return lintPlan(changed, existsSync(join(dir, "scripts/ci-paths.mjs")), existsSync(join(dir, "lean/scripts/mathview-cached.sh")));
+  return lintPlan(changed, existsSync(join(dir, "scripts/ci-paths.mjs")), existsSync(join(dir, "lean/scripts/axiom-check.sh")));
 }
 
 type PreResult = { kind: "done"; sha: string } | { kind: "refuse"; msg: string; k?: Kind } | { kind: "fallback"; why: string };
@@ -414,6 +492,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   if (!mainDir) return fail(`${main} is not checked out in any worktree`);
   if (o.dry && !o.task) return fail("--dry needs --task <id>: the scope check is the task's");
   if (!o.dry && git(mainDir, ["status", "--porcelain", "--untracked-files=no"])) return fail(`${main} checkout has uncommitted changes`, "dirty");
+  if (!o.dry && !o.checks) { const why = fwcorePreflight(mainDir, main); if (why) return fail(why, "stale"); }
   // 0. the given branch has nothing to land: the agent may have committed on its ci/<task> branch (Lean: console.landPick)
   if (!via && !o.dry) {
     const pk = pickFacts(o.cwd, main, branch, o.task);
@@ -510,6 +589,45 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   // and collecting every verdict gives the same accept/refuse as the sequential first-failure run; it only lists more failures.
   // Dependencies (`checkDeps`): everything waits for `pnpm install`; fwcore users wait for check.sh (its `lake build` writes
   // the binary they run). A bounded pool (cores) starts a check when its dependencies have finished.
+  // Lean `selectTwoPhase`: phase 1 builds fwcore in the merge-tree worktree when the change reaches the build, phase 2 selects
+  // the fwcore users by the digests of main0's binary and that build (unknown when the build failed or the tree is dirty).
+  const twoPhaseChecks = async (dir: string, main0: string, c: string): Promise<Check[]> => {
+    const d0 = storedDigest(mainDir, main0);
+    let d1: Digest = d0;
+    if (changed.some((p) => inScope(FWCORE_BUILD_READS, p))) {
+      const r = await span("fw land", "fwcore build (phase 1)", () => runCheck(dir, ["sh", "scripts/fwcore-build.sh"]), (p) => p.status);
+      d1 = r.status === 0 && buildClean(dir) ? binDigest(dir) : null;
+      lines.push(`fwcore digest: ${main} ${d0?.slice(0, 12) ?? "unknown"}, merge ${d1?.slice(0, 12) ?? "unknown"}: fwcore users ${binMoved(changed, d0, d1) ? "selected" : "skipped"}`);
+    }
+    if (d1) storeDigest(mainDir, c, d1);
+    return checksWithReads(dir, changed, d0, d1);
+  };
+  // Lean `Fw.Console.LandRemote`: the Lean local tier runs here, the remote tier on the land lane of the allowed providers (land-remote.ts)
+  const tieredChecks = async (dir: string, main0: string, c: string, list: Check[]): Promise<string | null> => {
+    if (o.remote === false || !o.task) return runChecks(dir, list.map((x) => x.argv));
+    const r = o.remote ?? {};
+    const call = fwcoreCall(mainDir);
+    const laneChanged = git(mainDir, ["diff", "--name-only", main0, c]).split("\n").filter(Boolean);
+    const all = candidateChecks(dir);
+    const laneSel = new Set(selectTwoPhase(all, laneChanged, null, null));
+    const laneIds = (call({ op: "console.landTier", ids: all.filter((x) => laneSel.has(x.id)).map((x) => x.id) }) as { remote: string[] }).remote;
+    const res = await runTiered({
+      call, checks: list, laneIds, task: o.task, mergeSha: c, allow: r.allow ?? DEFAULT_ALLOW,
+      adapters: r.adapters ?? { github: githubAdapter({ call, git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), wait: spawnWait(mainDir), gh: chargedGh(realEnv(mainDir)), cache: (h, id) => cachedLaneView(realEnv(mainDir).dir, h, id) }), circleci: circleciAdapter(() => tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/circleci.mjs`])) },
+      runLocal: async (argv) => { const bad = await runChecks(dir, argv); return { bad, kind: badKind }; },
+      log: logLine, span: (step, startMs, durMs, exit) => record({ tool: "fw land", step, startMs, durMs, exit }, mainDir),
+      sliceS: r.sliceS, deadlineS: r.deadlineS, waitsLeft: r.waitsLeft,
+    });
+    if (res.bad !== null) badKind = res.kind as Kind;
+    return res.bad;
+  };
+  /** A remote-tier line goes to the land log file and to stderr at once, and only there: it is not in the result lines, which `fw land` prints afterwards (so each `remote:` line shows once). */
+  const logLine = (l: string): void => {
+    mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
+    if (!logStarted) { writeFileSync(logFile, ""); logStarted = true; }
+    appendFileSync(logFile, `${l}\n`);
+    process.stderr.write(`${l}\n`);
+  };
   let badKind: Kind = "checks";
   const runChecks = async (cwd: string, list: string[][]): Promise<string | null> => {
     badKind = "checks";
@@ -630,7 +748,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         let marks = "";
         try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
         if (marks) return { kind: "refuse", msg: `conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, k: "conflict" };
-        const bad = await runChecks(slot.dir, o.checks ?? checksFor(slot.dir, changed));
+        const bad = o.checks ? await runChecks(slot.dir, o.checks) : await tieredChecks(slot.dir, main0, c, await twoPhaseChecks(slot.dir, main0, c));
         let act = prelockAction(git(mainDir, ["rev-parse", "HEAD"]), main0, bad === null, attempt, maxRetry);
         if (act === "refuse") return { kind: "refuse", msg: bad!, k: badKind };
         if (act === "ff") {
@@ -799,7 +917,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
 
   // 5. advisory CI of the task's ci/* ref: never blocks
   if (o.ci !== false && o.task) {
-    try { lines.push(`ci (advisory) ci/${o.task}: ${(o.ci ?? ciLines)(`ci/${o.task}`).join("; ")}`); } catch { lines.push(`ci (advisory) ci/${o.task}: unavailable`); }
+    try { lines.push(`ci (advisory) ci/${o.task}: ${(o.ci ?? ((ref: string) => ciLines(ref, o.cwd)))(`ci/${o.task}`).join("; ")}`); } catch { lines.push(`ci (advisory) ci/${o.task}: unavailable`); }
   }
 
   // 6. safe cleanup: `branch -d` only; the worktree only when clean and not locked (local, no console needed)

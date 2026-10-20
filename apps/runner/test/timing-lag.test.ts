@@ -82,3 +82,18 @@ describe("fw timings --lag", () => {
     expect(out).toMatch(/load 120-up: n 1/);
   });
 });
+
+// The partition of the lag is Lean's (`Fw.Ci.Lag.parts`, golden ci-budget/lag.jsonl): lagParts only subtracts the recorded marks the same way.
+describe("lag partition replays the Lean golden", () => {
+  const golden = readFileSync(join(__dirname, "..", "..", "..", "packages", "contracts", "golden", "ci-budget", "lag.jsonl"), "utf8").split("\n").filter(Boolean)
+    .map((l) => JSON.parse(l) as { name: string; marks: Record<string, number>; prev?: number; parts: Record<string, number>; gap?: number; stale?: number });
+  it("has the Lean cases", () => expect(golden.length).toBe(4));
+  for (const g of golden) {
+    it(g.name, () => {
+      const m = g.marks;
+      const p = lagParts({ startMs: 0, durMs: m.end!, phases: { how: "done", holder: false, regMs: 0, runIds: [1], updMs: m.upd, tickMs: m.tick, readMs: m.read, viewEndMs: m.viewEnd, doneMs: m.done,
+        retMs: m.ret, ingestStartMs: m.i0, ingestEndMs: m.i1, ...(g.prev === undefined ? {} : { prevTickMs: g.prev }) } as unknown as Span["phases"] })!;
+      expect(p).toMatchObject({ ...g.parts, stale: g.stale ?? null, gap: g.gap ?? null });
+    });
+  }
+});

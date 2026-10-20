@@ -62,8 +62,9 @@ export interface NotesEnv {
  * in logic.ts (Lean `PainNotes`); randomness is the seeded stream (the only delta from the original). The pointer and
  * key moves write the element style directly through `env.writeNote`; React state changes only at membership changes.
  */
-export function createNotesDriver(env: NotesEnv, seed: number, opts: { armWhenVisible?: boolean } = {}) {
+export function createNotesDriver(env: NotesEnv, seed: number, opts: { armWhenVisible?: boolean; idemScroll?: boolean } = {}) {
   const gated = opts.armWhenVisible === true;
+  const idem = opts.idemScroll === true;
   const rng = createRng(seed);
   let base: Note[] = [];
   let extras: Note[] = [];
@@ -76,8 +77,13 @@ export function createNotesDriver(env: NotesEnv, seed: number, opts: { armWhenVi
   /** When the original's interval would have been armed (the section came into view): the tick grid's origin. */
   let t0 = 0;
   let cancelFrame: (() => void) | null = null;
+  let dirty = false;
 
-  const view = () => env.commit({ base, extras, dragging });
+  const view = () => {
+    dirty = false;
+    env.commit({ base, extras, dragging });
+  };
+  const skips = () => extras.length === 0 && !dirty;
 
   /** JS 4555 `ce`. */
   const layout = () => {
@@ -177,6 +183,7 @@ export function createNotesDriver(env: NotesEnv, seed: number, opts: { armWhenVi
     base = base.map((n) => (n.id === id ? { ...n, left, top, z } : n));
     extras = extras.map((n) => (n.id === id ? { ...n, left, top, z } : n));
     env.writeNote(id, left, top, z);
+    dirty = true;
   };
 
   return {
@@ -200,10 +207,12 @@ export function createNotesDriver(env: NotesEnv, seed: number, opts: { armWhenVi
         view();
       }
     },
-    /** The per-scroll-frame rule (JS 4728-4731): the commission card coming up clears the extras. */
+    /**
+     * The per-scroll-frame rule (JS 4728-4731): the commission card coming up clears the extras. Variant `visible-idem`
+     * skips the clear when it would commit the view React already has (Lean `PainNotesOpt.Idem.skips`, `run_eq`).
+     */
     onScroll() {
-      const top = env.cardTop();
-      if (top !== null && top < env.innerHeight() * 0.995) {
+      if (covered() && !(idem && skips())) {
         extras = [];
         view();
       }

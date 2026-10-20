@@ -16,8 +16,6 @@ open Fw.Engine.Chromium
 
 /-- The properties the guide names as compositor properties: transform, translate, scale, rotate, opacity.
 
-$$\operatorname{guide}_{\mathrm{cr}}(k) \iff k \in \{\mathrm{transform}, \mathrm{translate}, \mathrm{scale}, \mathrm{rotate}, \mathrm{opacity}\}$$
-
 The guide's compositor property list on Chromium keys. -/
 def guideKey : CrKey → Bool
   | .transform | .translate | .scale | .rotate | .opacity => true
@@ -28,8 +26,6 @@ def guideKey : CrKey → Bool
 /-- **Guide properties run on the compositor (Chromium).** An animation of guide properties only, on a valid target,
 with threaded animation on and a timeline that is not a scroll timeline on a non-user-scrollable source, runs on the
 compositor.
-
-$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim}:\ m.\mathrm{threadedAnim} \land a.\mathrm{validTarget} \land a.\mathrm{timeline} \ne \mathrm{scroll}(\mathrm{false}) \land \big(\forall p \in a.\mathrm{props},\ \exists k \in \mathrm{CrKey}:\ p = \mathrm{css}(k) \land \operatorname{guide}_{\mathrm{cr}}(k)\big) \Rightarrow \operatorname{crThread}(m, a) = \mathrm{comp}$$
 
 The guide's list is inside Chromium's compositable set and moves no pixels. -/
 theorem cr_guide_comp (m : CrMode) (a : CrAnim) (ht : m.threadedAnim = true) (hv : a.validTarget = true)
@@ -44,8 +40,6 @@ theorem cr_guide_comp (m : CrMode) (a : CrAnim) (ht : m.threadedAnim = true) (hv
 
 /-- **No main-thread work in real Chrome.** If every running animation is on the compositor, the frame has no pass and
 no unit on any stage but `comp`.
-
-$$\forall A \in \mathrm{CrAnim}^{*}:\ (\forall a \in A:\ \operatorname{crThread}(\mathrm{realChrome}, a) = \mathrm{comp}) \Rightarrow \forall s \in \mathrm{Stage} \setminus \{\mathrm{comp}\}:\ W.\mathrm{passes}(s) = 0 \land W.\mathrm{units}(s) = 0\quad\text{where } W = \operatorname{frameWork}_{\operatorname{chromiumAt}(\mathrm{realChrome})}(\operatorname{animFrame}(\mathrm{realChrome}, A))$$
 
 Compositor animations cost the main thread nothing in shipping Chrome. -/
 theorem cr_comp_free_realChrome (as : List CrAnim) (h : ∀ a ∈ as, crThread realChrome a = .comp) (s : Stage)
@@ -68,8 +62,6 @@ theorem cr_comp_free_realChrome (as : List CrAnim) (h : ∀ a ∈ as, crThread r
 /-- **The lane's ride-along.** In the CI lane, one compositor animation still costs a main-thread style pass and a
 property-tree pass.
 
-$$\forall A \in \mathrm{CrAnim}^{*}:\ (\forall a \in A:\ \operatorname{crThread}(\mathrm{lane}, a) = \mathrm{comp}) \land A \ne [\,] \Rightarrow W.\mathrm{passes}(\mathrm{style}) = 1 \land W.\mathrm{passes}(\mathrm{props}) = 1\quad\text{where } W = \operatorname{frameWork}_{\operatorname{chromiumAt}(\mathrm{lane})}(\operatorname{animFrame}(\mathrm{lane}, A))$$
-
 The lane runs a main frame on every BeginFrame, so the guide's claim holds only for real Chrome. -/
 theorem cr_lane_ride (as : List CrAnim) (h : ∀ a ∈ as, crThread lane a = .comp) (hne : as ≠ []) :
     (frameWork (chromiumAt lane) (animFrame lane as)).passes .style = 1 ∧
@@ -88,8 +80,6 @@ theorem cr_lane_ride (as : List CrAnim) (h : ∀ a ∈ as, crThread lane a = .co
 /-- **Chromium composites more than the guide lists, and not blur.** A filter that moves no pixels and a
 backdrop-filter run on the compositor with threaded animation on; a blur filter never does.
 
-$$\forall m \in \mathrm{CrMode},\ \forall e \in \mathbb{N},\ \forall l \in \mathrm{LayerState}:\ \big(m.\mathrm{threadedAnim} \Rightarrow \operatorname{crThread}(m, (e, [\mathrm{css}(\mathrm{filter}(\mathrm{false}))], l, \mathrm{true}, \mathrm{document})) = \mathrm{comp} \land \operatorname{crThread}(m, (e, [\mathrm{css}(\mathrm{backdropFilter})], l, \mathrm{true}, \mathrm{document})) = \mathrm{comp}\big) \land \operatorname{crThread}(m, (e, [\mathrm{css}(\mathrm{filter}(\mathrm{true}))], l, \mathrm{true}, \mathrm{document})) = \mathrm{main}$$
-
 The guide omits filter and backdrop-filter, and its rule does not hold for a blur on Chromium. -/
 theorem cr_filter_thread (m : CrMode) (e : Nat) (l : LayerState) :
     (m.threadedAnim = true →
@@ -99,8 +89,6 @@ theorem cr_filter_thread (m : CrMode) (e : Nat) (l : LayerState) :
   refine ⟨fun ht => ⟨?_, ?_⟩, ?_⟩ <;> simp [crThread, failBits, CrProp.eligible, CrProp.movesPixels, *]
 
 /-- **A non-compositable property runs on the main thread (Chromium).**
-
-$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim}:\ (\exists p \in a.\mathrm{props}:\ \lnot\operatorname{elig}(p)) \Rightarrow \operatorname{crThread}(m, a) = \mathrm{main}$$
 
 One property outside the compositable set keeps the whole animation on main. -/
 theorem cr_noneligible_main (m : CrMode) (a : CrAnim) (h : ∃ p ∈ a.props, p.eligible = false) :
@@ -114,8 +102,6 @@ theorem cr_noneligible_main (m : CrMode) (a : CrAnim) (h : ∃ p ∈ a.props, p.
 
 /-- **Transform over inset (Chromium).** A transform or translate write is strictly less work than a top or left
 write on a box of the same layer state, in every mode, for any callback count and any elements.
-
-$$\forall m \in \mathrm{CrMode},\ \forall n, e, e' \in \mathbb{N},\ \forall l \in \mathrm{LayerState},\ \forall t \in \{\mathrm{transform}, \mathrm{translate}\},\ \forall k \in \{\mathrm{top}, \mathrm{left}\}:\ \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{jsWrite}(n, [(e, \mathrm{css}(t), l)])\big) \prec \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{jsWrite}(n, [(e', \mathrm{css}(k), l)])\big)$$
 
 The inset write adds layout on every layer state; the transform write adds none. -/
 theorem cr_transform_lt_inset (m : CrMode) (n e e' : Nat) (l : LayerState) (t k : CrKey)
@@ -132,8 +118,6 @@ theorem cr_transform_lt_inset (m : CrMode) (n e e' : Nat) (l : LayerState) (t k 
 
 /-- **Box-size animation (Chromium).** An animation that animates width or height runs on the main thread, and its
 frame has a layout pass and a paint pass, in every mode and on every layer state.
-
-$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim},\ \forall k \in \{\mathrm{width}, \mathrm{height}\}:\ \mathrm{css}(k) \in a.\mathrm{props} \Rightarrow \operatorname{crThread}(m, a) = \mathrm{main} \land 1 \le W.\mathrm{passes}(\mathrm{layout}) \land 1 \le W.\mathrm{passes}(\mathrm{paint})\quad\text{where } W = \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(\operatorname{animFrame}(m, [a]))$$
 
 A size animation lays out and paints every frame on the main thread. -/
 theorem cr_size_anim (m : CrMode) (a : CrAnim) (k : CrKey) (hk : k = .width ∨ k = .height)
@@ -163,8 +147,6 @@ theorem cr_size_anim (m : CrMode) (a : CrAnim) (k : CrKey) (hk : k = .width ∨ 
 /-- **An own layer lowers a moving box's work (Chromium).** A transform write on a box with its own composited layer
 is strictly less work than the same write on a box without one.
 
-$$\forall m \in \mathrm{CrMode},\ \forall n, e \in \mathbb{N},\ \forall l \in \{\mathrm{none}, \mathrm{layer}\}:\ \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{jsWrite}(n, [(e, \mathrm{css}(\mathrm{transform}), \mathrm{own})])\big) \prec \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{jsWrite}(n, [(e, \mathrm{css}(\mathrm{transform}), l)])\big)$$
-
 Without its own layer the moved box is re-rastered every frame. -/
 theorem cr_own_moving (m : CrMode) (n e : Nat) (l : LayerState) (hl : l = .none ∨ l = .layer) :
     (frameWork (chromiumAt m) (jsWrite n [⟨e, .css .transform, .own⟩])).lt
@@ -185,8 +167,6 @@ open Fw.Engine.WebKit
 
 /-- The properties the guide names as compositor properties, on WebKit's animated-property type.
 
-$$\operatorname{guide}_{\mathrm{wk}}(q) \iff q \in \{\mathrm{transform}, \mathrm{translate}, \mathrm{scale}, \mathrm{rotate}, \mathrm{opacity}\}$$
-
 The guide's compositor property list on WebKit properties. -/
 def wkGuide : CssProp → Bool
   | .transform | .translate | .scale | .rotate | .opacity => true
@@ -196,16 +176,12 @@ def wkGuide : CssProp → Bool
 
 /-- A frame of `n` callbacks and the given changes on WebKit.
 
-$$\operatorname{wkWrite}(n, C) = (n, 0, 0, 0, C, 0)$$
-
 A script frame that writes styles. -/
 def wkWrite (n : Nat) (cs : List (Change WkProp)) : FrameIn WkProp := ⟨n, 0, 0, 0, cs, 0⟩
 
 /-- **Guide properties run in the UI process (WebKit).** An animation with no disqualifier (`WkAnim.clean`) of a
 non-empty list of guide properties runs in the UI process when its timeline is time-based or threaded scroll-driven
 animations are on.
-
-$$\forall m \in \mathrm{WkMode},\ \forall P \in \mathrm{CssProp}^{*},\ \forall \tau \in \mathrm{Timeline}:\ P \ne [\,] \land (\forall q \in P:\ \operatorname{guide}_{\mathrm{wk}}(q)) \land (\tau = \mathrm{time} \lor m.\mathrm{threadedScrollDriven}) \Rightarrow \operatorname{wkThread}(m, \operatorname{clean}(P, \tau)) = \mathrm{comp}$$
 
 Every guide property is accelerated on both WebKit paths. -/
 theorem wk_guide_comp (m : WkMode) (ps : List CssProp) (τ : Timeline) (hne : ps ≠ [])
@@ -231,9 +207,6 @@ theorem wk_guide_comp (m : WkMode) (ps : List CssProp) (τ : Timeline) (hne : ps
 /-- **No main-thread work for a time-based UI-process animation (WebKit).** Adding a UI-process animation on a
 document timeline with no scheduled update leaves every stage but `comp` as it was, for any frame.
 
-$$\forall m \in \mathrm{WkMode},\ \forall a \in \mathrm{WkAnim},\ \forall e \in \mathbb{N},\ \forall \ell \in \mathrm{LayerState},\ \forall \mathit{cs} \in \mathrm{Change}(\mathrm{WkProp}^{X})^{*},\ \forall f \in \mathrm{FrameIn}(\mathrm{WkProp}^{X}):\ \operatorname{wkThread}(m, a) = \mathrm{comp} \land a.\tau = \mathrm{time} \Rightarrow \forall s \in \mathrm{Stage} \setminus \{\mathrm{comp}\}:\ W'.\mathrm{passes}(s) = W.\mathrm{passes}(s) \land \operatorname{units}(g, s) = \operatorname{units}(f, s)$$
-$$\text{where } g = \operatorname{withAnim}(m, a, e, \ell, \mathit{cs}, f, \mathrm{false}),\ W' = \operatorname{frameWork}_{\operatorname{webkitX}(m)}(g),\ W = \operatorname{frameWork}_{\operatorname{webkitX}(m)}(f),\ \operatorname{units} = \operatorname{units}_{\operatorname{webkitX}(m)}$$
-
 A time-based accelerated animation costs WebKit's main thread nothing. -/
 theorem wk_time_comp_free (m : WkMode) (a : WkAnim) (e : Nat) (ℓ : LayerState) (cs : List (Change WkPropX))
     (f : FrameIn WkPropX) (hc : wkThread m a = .comp) (ht : a.timeline = .time) (s : Stage) (hs : s ≠ .comp) :
@@ -246,8 +219,6 @@ theorem wk_time_comp_free (m : WkMode) (a : WkAnim) (e : Nat) (ℓ : LayerState)
 
 /-- A non-accelerated property runs on the main thread (WebKit).
 
-$$\forall m \in \mathrm{WkMode},\ \forall a \in \mathrm{WkAnim},\ \forall q \in \mathrm{CssProp}:\ (\forall p \in \mathrm{Path}:\ \lnot\operatorname{accel}(p, q)) \land q \in a.\mathrm{props} \Rightarrow \operatorname{wkThread}(m, a) = \mathrm{main}$$
-
 One property neither path accelerates keeps the animation on main. -/
 theorem wk_unaccel_main (m : WkMode) (a : WkAnim) (q : CssProp) (hq : ∀ p, accelerated p q = false)
     (h : q ∈ a.props) : wkThread m a = .main := by
@@ -257,8 +228,6 @@ theorem wk_unaccel_main (m : WkMode) (a : WkAnim) (q : CssProp) (hq : ∀ p, acc
 
 /-- **Transform over inset on an own layer (WebKit).** On a box with its own composited layer, a transform write is
 strictly less work than an inset write, absolute or not.
-
-$$\forall m \in \mathrm{WkMode},\ \forall n, e, e' \in \mathbb{N},\ \forall k \in \{\mathrm{insetAbs}, \mathrm{inset}\}:\ \operatorname{frameWork}_{\operatorname{webkitAt}(m)}\big(\operatorname{wkWrite}(n, [(e, \mathrm{transform}, \mathrm{own})])\big) \prec \operatorname{frameWork}_{\operatorname{webkitAt}(m)}\big(\operatorname{wkWrite}(n, [(e', k, \mathrm{own})])\big)$$
 
 With its own layer the moved box only recomposites. -/
 theorem wk_transform_lt_inset_own (m : WkMode) (n e e' : Nat) (k : WkProp) (hk : k = .insetAbs ∨ k = .inset) :
@@ -279,8 +248,6 @@ theorem wk_transform_lt_inset_own (m : WkMode) (n e e' : Nat) (k : WkProp) (hk :
 paint layer it does not own, an absolute-inset script write is strictly less work than a transform script write:
 the transform write also repaints.
 
-$$\forall m \in \mathrm{WkMode},\ \forall n, e, e' \in \mathbb{N},\ \forall l \in \{\mathrm{none}, \mathrm{layer}\}:\ \operatorname{frameWork}_{\operatorname{webkitAt}(m)}\big(\operatorname{wkWrite}(n, [(e', \mathrm{insetAbs}, l)])\big) \prec \operatorname{frameWork}_{\operatorname{webkitAt}(m)}\big(\operatorname{wkWrite}(n, [(e, \mathrm{transform}, l)])\big)$$
-
 This covers per-frame JS style writes only, not the guide's `@keyframes` animation, so it is a side finding. -/
 theorem wk_inset_lt_transform (m : WkMode) (n e e' : Nat) (l : LayerState) (hl : l = .none ∨ l = .layer) :
     (frameWork (webkitAt m) (wkWrite n [⟨e', .insetAbs, l⟩])).lt
@@ -299,8 +266,6 @@ theorem wk_inset_lt_transform (m : WkMode) (n e e' : Nat) (l : LayerState) (hl :
 
 /-- **Box-size animation (WebKit).** An animation of a box size runs on the main thread, and a frame that carries a
 size change of any element on any layer state has a layout pass and a paint pass.
-
-$$\forall m \in \mathrm{WkMode},\ \forall a \in \mathrm{WkAnim},\ \forall \mathit{cs} \in \mathrm{Change}(\mathrm{WkProp})^{*},\ \forall e \in \mathbb{N},\ \forall \ell \in \mathrm{LayerState}:\ \mathrm{size} \in a.\mathrm{props} \land (e, \mathrm{size}, \ell) \in \mathit{cs} \Rightarrow \operatorname{wkThread}(m, a) = \mathrm{main} \land 1 \le W.\mathrm{passes}(\mathrm{layout}) \land 1 \le W.\mathrm{passes}(\mathrm{paint})\quad\text{where } W = \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{animFrame}(m, a, \mathit{cs}))$$
 
 A size animation lays out and paints every frame on WebKit's main thread. -/
 theorem wk_size_anim (m : WkMode) (a : WkAnim) (cs : List (Change WkProp)) (e : Nat) (ℓ : LayerState)
@@ -323,8 +288,6 @@ theorem wk_size_anim (m : WkMode) (a : WkAnim) (cs : List (Change WkProp)) (e : 
 
 /-- **will-change makes a layer under the normal policy only (WebKit).**
 
-$$\operatorname{composites}(\mathrm{normal}, \mathrm{willChange}) = \mathrm{true} \land \operatorname{composites}(\mathrm{conservative}, \mathrm{willChange}) = \mathrm{false} \land \forall A \in \mathbb{N}:\ \operatorname{resident}(\mathrm{false}, \mathrm{false}, A) = 0 \land \operatorname{resident}(\mathrm{true}, \mathrm{false}, A) = A$$
-
 A will-change layer holds a backing store only when it draws content or delegates display. -/
 theorem wk_willChange_memory :
     composites .normal .willChange = true ∧ composites .conservative .willChange = false ∧
@@ -333,8 +296,6 @@ theorem wk_willChange_memory :
 
 /-- **An own layer lowers a moving box's work (WebKit).** A transform write on a box with its own composited layer is
 strictly less work than the same write on a box without one.
-
-$$\forall m \in \mathrm{WkMode},\ \forall n, e \in \mathbb{N},\ \forall l \in \{\mathrm{none}, \mathrm{layer}\}:\ \operatorname{frameWork}_{\operatorname{webkitAt}(m)}\big(\operatorname{wkWrite}(n, [(e, \mathrm{transform}, \mathrm{own})])\big) \prec \operatorname{frameWork}_{\operatorname{webkitAt}(m)}\big(\operatorname{wkWrite}(n, [(e, \mathrm{transform}, l)])\big)$$
 
 Without its own layer the moved box lays out and repaints every frame. -/
 theorem wk_own_moving (m : WkMode) (n e : Nat) (l : LayerState) (hl : l = .none ∨ l = .layer) :
@@ -355,8 +316,6 @@ end Wk
 
 /-- **A layer that does nothing per frame is never a dominating claim.** Any variant that holds more composited layers
 than the original is not reported as dominating, whatever its per-frame work.
-
-$$\forall x,\ \forall r_v, r_o \in \mathrm{Resident}:\ r_o.\mathrm{layers} < r_v.\mathrm{layers} \Rightarrow \operatorname{claim}(x, r_v, r_o) \ne \mathrm{dominates}$$
 
 Extra will-change layers are at best a trade. -/
 theorem willChange_not_dominates (x : Except String Screen.Result) (rv ro : Resident) (h : ro.layers < rv.layers) :

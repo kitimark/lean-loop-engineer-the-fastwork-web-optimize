@@ -1,0 +1,124 @@
+// `fw checks --affected --base <rev> [--tier local|remote] [--leg <name>] [--list]`: the land checks a change selects, split by tier, and
+// the chosen tier run with one `VERDICT <pass|fail|skipped> <id>` line per check.
+// Selection: `selectTwoPhase` (digests unknown) over `candidateChecks` (land.ts, TS stand-in checked against the `landSpeed.select` golden).
+// Tier and lane verdict: fwcore ops `console.landTier` and `console.landLane` (Lean Fw.Console.LandTier; golden land-tier.jsonl).
+// Leg (task land-lane-speed): fwcore op `console.landLeg` (Lean Fw.Console.LandLegs; golden land-legs.jsonl) says which remote checks one
+// parallel job of the land lane runs and whether its browser engine runs.
+// This file holds no decision. TS stand-in: the skipped-test counts are read from vitest / node:test summaries here.
+import { execFileSync, spawn } from "node:child_process";
+import { candidateChecks, FWCORE_USERS, selectTwoPhase, type Check } from "./land.ts";
+import { remoteDigest } from "./land-remote.ts";
+import { UsageError } from "./lib.ts";
+import { fwcoreCall, type FwCall } from "./run.ts";
+
+export const CHECKS_USAGE =
+  "usage: fw checks --affected --base <rev> [--tier local|remote] [--leg <name>] [--list]\n" +
+  "  --leg <name> (with --tier remote): run only the remote checks the Lean land leg owns (lean/land-legs.txt)\n" +
+  "  prints the checks the diff <rev>..HEAD selects (Lean selection); --list stops there, else the chosen tier runs\n" +
+  "  one line VERDICT <pass|fail|skipped> <id> per check; exit 0 iff every check passed (a skipped fwcore-user test fails)";
+
+export type ChecksArgs = { base: string; tier?: "local" | "remote"; leg?: string; list: boolean };
+
+export function parseChecksArgs(argv: string[]): ChecksArgs {
+  const a: { base?: string; tier?: "local" | "remote"; leg?: string; list: boolean; affected: boolean } = { list: false, affected: false };
+  for (let i = 0; i < argv.length; i++) {
+    const f = argv[i]!;
+    if (f === "--affected") a.affected = true;
+    else if (f === "--list") a.list = true;
+    else if (f === "--base" || f === "--tier" || f === "--leg") {
+      const v = argv[++i];
+      if (v === undefined || v.startsWith("--")) throw new UsageError(`flag ${f} needs a value\n${CHECKS_USAGE}`);
+      if (f === "--base") a.base = v;
+      else if (f === "--leg") a.leg = v;
+      else if (v === "local" || v === "remote") a.tier = v;
+      else throw new UsageError(`--tier is local or remote, not ${v}\n${CHECKS_USAGE}`);
+    } else throw new UsageError(`unknown argument ${f}\n${CHECKS_USAGE}`);
+  }
+  if (!a.affected) throw new UsageError(`--affected is required\n${CHECKS_USAGE}`);
+  if (!a.base) throw new UsageError(`--base is required\n${CHECKS_USAGE}`);
+  if (a.leg !== undefined && a.tier !== "remote") throw new UsageError(`--leg needs --tier remote\n${CHECKS_USAGE}`);
+  return { base: a.base, tier: a.tier, leg: a.leg, list: a.list };
+}
+
+export type Plan = { changed: string[]; selected: Check[]; local: string[]; remote: string[]; browser: boolean };
+
+/** The selected checks of `changed` in table order, split by the Lean tier (`console.landTier`). */
+export function planFor(root: string, changed: string[], core: FwCall): Plan {
+  const all = candidateChecks(root);
+  const ids = new Set(selectTwoPhase(all, changed, null, null));
+  const selected = all.filter((c) => ids.has(c.id));
+  const r = core({ op: "console.landTier", ids: selected.map((c) => c.id) }) as { local: string[]; remote: string[]; browser: boolean };
+  return { changed, selected, local: r.local, remote: r.remote, browser: r.browser };
+}
+
+export const changedBetween = (root: string, base: string): string[] =>
+  execFileSync("git", ["diff", "--name-only", base, "HEAD"], { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 }).split("\n").filter(Boolean);
+
+/** Skipped plus todo tests of a runner output, or null when no summary line is recognised (null is not a pass).
+ *  Recognised: vitest `Tests  3 passed | 2 skipped | 1 todo`, node:test TAP `# tests N`, `# skipped N`, `# todo N`, and spec `ℹ tests N`, `ℹ skipped N`, `ℹ todo N`. */
+export function skippedCount(raw: string): number | null {
+  const out = raw.replace(/\u001b\[[0-9;]*m/g, "");
+  const sum = (re: RegExp) => [...out.matchAll(re)].reduce((n, m) => n + Number(m[1]), 0);
+  const vitestLines = [...out.matchAll(/^\s*Tests\s.*$/gm)];
+  const nodeSummary = /^\s*(?:#|ℹ) tests \d+\s*$/m.test(out);
+  if (vitestLines.length === 0 && !nodeSummary) return null;
+  const node = sum(/^\s*(?:#|ℹ) (?:skipped|todo) (\d+)\s*$/gm);
+  const vitest = vitestLines.reduce((n, l) => n + [...l[0].matchAll(/\b(\d+) (?:skipped|todo)\b/g)].reduce((k, m) => k + Number(m[1]), 0), 0);
+  return node + vitest;
+}
+
+export type RunResult = { code: number; out: string };
+export type Runner = (argv: string[], cwd: string) => Promise<RunResult>;
+
+export const spawnRunner: Runner = (argv, cwd) =>
+  new Promise((res) => {
+    const p = spawn(argv[0]!, argv.slice(1), { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    let out = "";
+    p.stdout.on("data", (d) => (out += d));
+    p.stderr.on("data", (d) => (out += d));
+    p.on("error", (e) => res({ code: 127, out: out + String(e) }));
+    p.on("close", (code) => res({ code: code ?? 1, out }));
+  });
+
+/** Run `checks` one after another; one VERDICT line each (the verdict is `console.landLane`). Returns the exit code. */
+export async function runTier(checks: Check[], root: string, core: FwCall, run: Runner, log: (s: string) => void): Promise<number> {
+  let bad = 0;
+  const ci = process.env.GITHUB_ACTIONS === "true";
+  for (const c of checks) {
+    const t0 = Date.now();
+    const r = await run(c.argv, root);
+    const skipped = skippedCount(r.out);
+    const v = core({ op: "console.landLane", exitOk: r.code === 0, coreUser: FWCORE_USERS.includes(c.id), skipped }) as { verdict: string; ok: boolean };
+    log(`${ci ? "::group::" : ""}${c.id}: ${c.argv.join(" ")}`);
+    log(r.out.trimEnd());
+    if (ci) log("::endgroup::");
+    log(`VERDICT ${v.verdict} ${c.id}`);
+    log(`TIMING ${c.id} ${Math.round((Date.now() - t0) / 1000)}s skipped=${skipped ?? "unknown"}`);
+    if (!v.ok) bad++;
+  }
+  return bad === 0 ? 0 : 1;
+}
+
+export async function checksCli(argv: string[], cwd: string, deps: { core?: FwCall; run?: Runner; log?: (s: string) => void; changed?: string[] } = {}): Promise<number> {
+  const a = parseChecksArgs(argv);
+  const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).trim();
+  const core = deps.core ?? fwcoreCall(cwd);
+  const log = deps.log ?? ((s: string) => console.log(s));
+  const p = planFor(root, deps.changed ?? changedBetween(root, a.base), core);
+  const tierOf = (id: string) => (p.remote.includes(id) ? "remote" : "local");
+  const tierChosen = p.selected.filter((c) => (a.tier ? tierOf(c.id) === a.tier : true));
+  log(`checks: ${p.changed.length} changed files; selected ${p.selected.length}: ${p.selected.map((c) => `${tierOf(c.id)}:${c.id}`).join(" ") || "none"}`);
+  if (a.tier === "remote") {
+    log(`LANE digest=${remoteDigest(core, tierChosen.map((c) => c.id))}`); // land.yml binds the run to this (Lean console.landDigest)
+    log(`LANE browser=${p.browser}`); // the whole selection holds the browser check (Lean LandTier.browserRuns); land.yml reads the per-leg `LANE leg=.. engine=..` line below
+  }
+  let chosen = tierChosen;
+  if (a.leg !== undefined) {
+    const r = core({ op: "console.landLeg", leg: a.leg, ids: p.selected.map((c) => c.id) }) as { ids: string[]; engine: boolean };
+    chosen = tierChosen.filter((c) => r.ids.includes(c.id));
+    log(`LANE leg=${a.leg} engine=${r.engine} checks=${chosen.length}`); // land.yml installs the browser and runs the suite iff engine=true
+  }
+  if (a.list) { for (const c of chosen) log(`${tierOf(c.id)} ${c.id}`); return 0; }
+  if (chosen.length === 0) { log(`checks: no ${a.tier ?? "selected"} checks`); return 0; }
+  return runTier(chosen, root, core, deps.run ?? spawnRunner, log);
+}

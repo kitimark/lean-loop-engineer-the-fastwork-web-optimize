@@ -63,8 +63,6 @@ open Fw.Site.Breakpoints (Env MQ wLe860 rmReduce wLe860_iff rmReduce_iff)
 
 /-- The interval's state: the extra notes `T` (each of type `N`) and the counter `j`.
 
-$$\mathrm{St}(N) = N^{*} \times \mathbb{N},\qquad s = (s.\mathrm{extras}, s.\mathrm{next})$$
-
 What the rotation interval reads and writes: the added notes and the running note number. -/
 structure St (N : Type) where
   extras : List N
@@ -72,8 +70,6 @@ structure St (N : Type) where
 
 /-- What `le` reads at a tick, besides the state: the section in view (`A`, IO ratio ≥ 0.12), a note being dragged
 (`O`), `(max-width: 860px)`, `prefers-reduced-motion: reduce`, and the commission card covering the section.
-
-$$\mathrm{Ctx} = \mathbb{B}^5,\qquad c = (\mathrm{inView}, \mathrm{drag}, \mathrm{narrow}, \mathrm{reduce}, \mathrm{covered})$$
 
 The five flags `le` tests before it touches the notes. -/
 structure Ctx where
@@ -86,14 +82,10 @@ deriving Repr, DecidableEq
 
 /-- The cap on extra notes (`s(T).length >= 12`, JS 4594).
 
-$$\mathrm{maxExtras} = 12$$
-
 At twelve extra notes the interval stops adding. -/
 def maxExtras : Nat := 12
 
 /-- `le`'s early return (JS 4591-4598): out of view, dragging, full, narrow, or reduced motion.
-
-$$\forall c \in \mathrm{Ctx},\ \forall s \in \mathrm{St}(N):\ \operatorname{blocked}(c, s) \iff \lnot c.\mathrm{inView} \lor c.\mathrm{drag} \lor 12 \le |s.\mathrm{extras}| \lor c.\mathrm{narrow} \lor c.\mathrm{reduce}$$
 
 The tick does nothing when any of these holds. -/
 def blocked {N : Type} (c : Ctx) (s : St N) : Bool :=
@@ -104,8 +96,6 @@ otherwise `add r s` places one note with the random draw `r` (it may also change
 the container is under 8 px). `add` is arbitrary, so both placement policies (container width `< 1100`, JS 4622)
 are covered.
 
-$$\forall \mathit{add} : D \to \mathrm{St}(N) \to \mathrm{St}(N),\ \forall c \in \mathrm{Ctx},\ \forall r \in D,\ \forall s \in \mathrm{St}(N):\ \operatorname{tickO}(\mathit{add}, c, r, s) = \begin{cases} s & \operatorname{blocked}(c, s) \\ (\,[\,], s.\mathrm{next}\,) & \lnot\operatorname{blocked}(c, s) \land c.\mathrm{covered} \\ \mathit{add}(r, s) & \text{otherwise} \end{cases}$$
-
 One firing of the original's 3 s interval. -/
 def tickO {D N : Type} (add : D → St N → St N) (c : Ctx) (r : D) (s : St N) : St N :=
   if blocked c s then s else if c.covered then { s with extras := [] } else add r s
@@ -113,23 +103,17 @@ def tickO {D N : Type} (add : D → St N → St N) (c : Ctx) (r : D) (s : St N) 
 /-- **The variant's gate** (decision function): armed while the section is in view, wider than 860 px and not
 covered.
 
-$$\forall c \in \mathrm{Ctx}:\ \operatorname{armed}(c) = \mathrm{true} \iff c.\mathrm{inView} \land \lnot c.\mathrm{narrow} \land \lnot c.\mathrm{covered}$$
-
 The interval runs only while its notes can be seen. -/
 def armed (c : Ctx) : Bool := c.inView && !c.narrow && !c.covered
 
 /-- **The variant's tick**: the original's tick when armed, nothing otherwise (the interval is not armed, so the
 tick does not fire).
 
-$$\forall \mathit{add},\ \forall c \in \mathrm{Ctx},\ \forall r \in D,\ \forall s \in \mathrm{St}(N):\ \operatorname{tickV}(\mathit{add}, c, r, s) = \begin{cases} \operatorname{tickO}(\mathit{add}, c, r, s) & \operatorname{armed}(c) \\ s & \text{otherwise} \end{cases}$$
-
 The same tick, skipped while hidden. -/
 def tickV {D N : Type} (add : D → St N → St N) (c : Ctx) (r : D) (s : St N) : St N :=
   if armed c then tickO add c r s else s
 
 /-- The contexts in which the original's tick reaches the clearing branch (when also `|T| < 12`).
-
-$$\forall c \in \mathrm{Ctx}:\ \operatorname{clears}(c) = \mathrm{true} \iff c.\mathrm{inView} \land \lnot c.\mathrm{drag} \land \lnot c.\mathrm{narrow} \land \lnot c.\mathrm{reduce} \land c.\mathrm{covered}$$
 
 When a tick would clear the extra notes. -/
 def clears (c : Ctx) : Bool := c.inView && !c.drag && !c.narrow && !c.reduce && c.covered
@@ -148,8 +132,6 @@ private def c0 : Ctx := ⟨true, false, false, false, false⟩
 /-- **A skipped tick changes nothing** (class E, one tick). Whenever the variant is not armed, the original's tick
 leaves the state unchanged, provided the extra notes are already empty when that tick would clear them.
 
-$$\forall \mathit{add},\ \forall c \in \mathrm{Ctx},\ \forall r \in D,\ \forall s \in \mathrm{St}(N):\ \operatorname{armed}(c) = \mathrm{false} \land \big(\operatorname{clears}(c) = \mathrm{true} \Rightarrow s.\mathrm{extras} = [\,]\big) \Rightarrow \operatorname{tickO}(\mathit{add}, c, r, s) = s$$
-
 Out of view, narrow or covered, the original's tick has no effect on the notes. -/
 theorem tickO_idle {D N : Type} (add : D → St N → St N) (c : Ctx) (r : D) (s : St N)
     (ha : armed c = false) (hc : clears c = true → s.extras = []) : tickO add c r s = s := by
@@ -159,8 +141,6 @@ theorem tickO_idle {D N : Type} (add : D → St N → St N) (c : Ctx) (r : D) (s
     simp_all [tickO, armed, blocked, clears]
 
 /-- The variant's tick equals the original's under the same proviso.
-
-$$\forall \mathit{add},\ \forall c,\ \forall r,\ \forall s:\ \big(\operatorname{clears}(c) = \mathrm{true} \land \operatorname{armed}(c) = \mathrm{false} \Rightarrow s.\mathrm{extras} = [\,]\big) \Rightarrow \operatorname{tickV}(\mathit{add}, c, r, s) = \operatorname{tickO}(\mathit{add}, c, r, s)$$
 
 Skipping the tick or running it gives the same notes. -/
 theorem tickV_eq {D N : Type} (add : D → St N → St N) (c : Ctx) (r : D) (s : St N)
@@ -175,16 +155,12 @@ theorem tickV_eq {D N : Type} (add : D → St N → St N) (c : Ctx) (r : D) (s :
 /-- An event the notes see: an interval tick with its context and random draw, or any other handler (IO leave,
 `d`'s cover clear, drag, keyboard move, resize layout), which both arms run identically.
 
-$$\mathrm{Ev}(D, N) = \mathrm{tick}(\mathrm{Ctx} \times D) \ \mid\ \mathrm{other}(\mathrm{St}(N) \to \mathrm{St}(N))$$
-
 The things that can change the notes, in order. -/
 inductive Ev (D N : Type) where
   | tick (c : Ctx) (r : D)
   | other (g : St N → St N)
 
 /-- One event in the original.
-
-$$\operatorname{stepO}(\mathit{add}, s, \mathrm{tick}(c, r)) = \operatorname{tickO}(\mathit{add}, c, r, s),\quad \operatorname{stepO}(\mathit{add}, s, \mathrm{other}(g)) = g(s)$$
 
 How the original reacts to one event. -/
 def stepO {D N : Type} (add : D → St N → St N) (s : St N) : Ev D N → St N
@@ -193,23 +169,17 @@ def stepO {D N : Type} (add : D → St N → St N) (s : St N) : Ev D N → St N
 
 /-- One event in the variant.
 
-$$\operatorname{stepV}(\mathit{add}, s, \mathrm{tick}(c, r)) = \operatorname{tickV}(\mathit{add}, c, r, s),\quad \operatorname{stepV}(\mathit{add}, s, \mathrm{other}(g)) = g(s)$$
-
 How the variant reacts to one event. -/
 def stepV {D N : Type} (add : D → St N → St N) (s : St N) : Ev D N → St N
   | .tick c r => tickV add c r s
   | .other g => g s
 
-/-- The original's state after a list of events from $s_0$.
-
-$$\operatorname{runO}(\mathit{add}, s_0, [e_1, \dots, e_n]) = \operatorname{stepO}(\mathit{add}, \cdot, e_n) \circ \dots \circ \operatorname{stepO}(\mathit{add}, \cdot, e_1)\,(s_0)$$
+/-- The original's state after a list of events from `s_0`.
 
 The original's notes after these events. -/
 def runO {D N : Type} (add : D → St N → St N) (s0 : St N) (evs : List (Ev D N)) : St N := evs.foldl (stepO add) s0
 
-/-- The variant's state after a list of events from $s_0$.
-
-$$\operatorname{runV}(\mathit{add}, s_0, [e_1, \dots, e_n]) = \operatorname{stepV}(\mathit{add}, \cdot, e_n) \circ \dots \circ \operatorname{stepV}(\mathit{add}, \cdot, e_1)\,(s_0)$$
+/-- The variant's state after a list of events from `s_0`.
 
 The variant's notes after these events. -/
 def runV {D N : Type} (add : D → St N → St N) (s0 : St N) (evs : List (Ev D N)) : St N := evs.foldl (stepV add) s0
@@ -218,15 +188,11 @@ def runV {D N : Type} (add : D → St N → St N) (s0 : St N) (evs : List (Ev D 
 empty (the per-frame callback `d`, JS 4728-4731, cleared them in the frame the card arrived, and nothing adds while
 covered).
 
-$$\forall \mathit{add}, s_0, \mathit{evs}:\ \operatorname{CovOk}(\mathit{add}, s_0, \mathit{evs}) \iff \forall p, q \in \mathrm{Ev}^{*},\ \forall c \in \mathrm{Ctx},\ \forall r \in D:\ \mathit{evs} = p \mathbin{+\!\!+} [\mathrm{tick}(c, r)] \mathbin{+\!\!+} q \land \operatorname{clears}(c) = \mathrm{true} \Rightarrow \operatorname{runO}(\mathit{add}, s_0, p).\mathrm{extras} = [\,]$$
-
 The covered ticks find nothing left to clear. -/
 def CovOk {D N : Type} (add : D → St N → St N) (s0 : St N) (evs : List (Ev D N)) : Prop :=
   ∀ p c r q, evs = p ++ Ev.tick c r :: q → clears c = true → (runO add s0 p).extras = []
 
 /-- **The variant's notes equal the original's after the whole trace** (class E).
-
-$$\forall \mathit{add},\ \forall s_0 \in \mathrm{St}(N),\ \forall \mathit{evs} \in \mathrm{Ev}(D, N)^{*}:\ \operatorname{CovOk}(\mathit{add}, s_0, \mathit{evs}) \Rightarrow \operatorname{runV}(\mathit{add}, s_0, \mathit{evs}) = \operatorname{runO}(\mathit{add}, s_0, \mathit{evs})$$
 
 Skipping every hidden tick ends in exactly the original's notes. -/
 theorem pain_run_eq {D N : Type} (add : D → St N → St N) :
@@ -242,9 +208,7 @@ theorem pain_run_eq {D N : Type} (add : D → St N → St N) :
     simp only [runV, runO, List.foldl_cons] at ih ⊢
     rw [hstep]; exact ih
 
-/-- **Every instant** (class E): after the first $n$ events, for every $n$, the states are equal.
-
-$$\forall \mathit{add},\ \forall s_0,\ \forall \mathit{evs}:\ \operatorname{CovOk}(\mathit{add}, s_0, \mathit{evs}) \Rightarrow \forall n \in \mathbb{N}:\ \operatorname{runV}(\mathit{add}, s_0, \operatorname{take}(n, \mathit{evs})) = \operatorname{runO}(\mathit{add}, s_0, \operatorname{take}(n, \mathit{evs}))$$
+/-- **Every instant** (class E): after the first `n` events, for every `n`, the states are equal.
 
 At no point of the trace do the variant's notes differ from the original's. -/
 theorem pain_prefix_eq {D N : Type} (add : D → St N → St N) (s0 : St N) (evs : List (Ev D N))
@@ -257,9 +221,7 @@ theorem pain_prefix_eq {D N : Type} (add : D → St N → St N) (s0 : St N) (evs
 
 /-- **pain.notes, class E, every environment and instant.** For every environment (every width band, touch, hover,
 DPR, motion), every renderer of the notes' state, every placement function and every trace satisfying the cover
-premise, the visible scenes after the first $n$ events are equal, for every $n$.
-
-$$\forall \mathit{vp} : \mathrm{Env} \to \mathrm{Rect},\ \forall R : \mathrm{Env} \to \mathrm{St}(N) \to \mathrm{Scene},\ \forall \mathit{add} : \mathrm{Env} \to D \to \mathrm{St}(N) \to \mathrm{St}(N),\ \forall s_0 : \mathrm{Env} \to \mathrm{St}(N),\ \forall \mathit{evs} : \mathrm{Env} \to \mathrm{Ev}(D, N)^{*}:\ \big(\forall \mathit{env}:\ \operatorname{CovOk}(\mathit{add}(\mathit{env}), s_0(\mathit{env}), \mathit{evs}(\mathit{env}))\big) \Rightarrow \operatorname{VisSame}_{\mathrm{E}}\Big(\mathit{vp},\ (\mathit{env}, n) \mapsto R\big(\mathit{env}, \operatorname{runO}(\mathit{add}(\mathit{env}), s_0(\mathit{env}), \operatorname{take}(n, \mathit{evs}(\mathit{env})))\big),\ (\mathit{env}, n) \mapsto R\big(\mathit{env}, \operatorname{runV}(\mathit{add}(\mathit{env}), s_0(\mathit{env}), \operatorname{take}(n, \mathit{evs}(\mathit{env})))\big)\Big)$$
+premise, the visible scenes after the first `n` events are equal, for every `n`.
 
 Arming the interval only while the notes are visible draws exactly the original's notes, at every width and every
 instant. -/
@@ -274,8 +236,6 @@ theorem pain_visSame {D N : Type} (vp : Env → Rect) (R : Env → St N → Scen
 /-- The context of a tick in environment `env`: `narrow` is the generated condition `wLe860` (`(width<=860px)`,
 the same edge as the JS string `(max-width: 860px)` at JS 4415), `reduce` is `rmReduce`.
 
-$$\forall \mathit{env} \in \mathrm{Env},\ \forall a, d, k \in \mathbb{B}:\ \operatorname{ctxAt}(\mathit{env}, a, d, k) = \big(a,\ d,\ [\mathit{env} \models \mathtt{wLe860}],\ [\mathit{env} \models \mathtt{rmReduce}],\ k\big)$$
-
 The flags `le` reads, with the two media queries taken from the environment. -/
 def ctxAt (env : Env) (inView drag covered : Bool) : Ctx :=
   ⟨inView, drag, wLe860.eval env, rmReduce.eval env, covered⟩
@@ -283,8 +243,6 @@ def ctxAt (env : Env) (inView drag covered : Bool) : Ctx :=
 #guard wLe860.legacyCss == some "(max-width: 860px)"
 
 /-- **At width ≤ 860 a tick does nothing, and the variant is not armed** (no premise).
-
-$$\forall \mathit{env} \in \mathrm{Env}:\ w(\mathit{env}) \le 860 \Rightarrow \forall a, d, k \in \mathbb{B},\ \forall \mathit{add},\ \forall r \in D,\ \forall s \in \mathrm{St}(N):\ \operatorname{tickO}(\mathit{add}, \operatorname{ctxAt}(\mathit{env}, a, d, k), r, s) = s \land \operatorname{armed}(\operatorname{ctxAt}(\mathit{env}, a, d, k)) = \mathrm{false}$$
 
 In the narrow band the original's interval only burns time, and the variant does not run it. -/
 theorem narrow_tick_id {D N : Type} (env : Env) (hw : env.width.LeNat 860) (a d k : Bool)
@@ -295,8 +253,6 @@ theorem narrow_tick_id {D N : Type} (env : Env) (hw : env.width.LeNat 860) (a d 
 
 /-- **At width ≤ 860, the whole trace is equal without any premise** (every tick narrow).
 
-$$\forall \mathit{add},\ \forall s_0,\ \forall \mathit{evs}:\ \big(\forall c, r:\ \mathrm{tick}(c, r) \in \mathit{evs} \Rightarrow c.\mathrm{narrow} = \mathrm{true}\big) \Rightarrow \operatorname{runV}(\mathit{add}, s_0, \mathit{evs}) = \operatorname{runO}(\mathit{add}, s_0, \mathit{evs})$$
-
 When every tick sees the narrow layout, the variant matches the original unconditionally. -/
 theorem narrow_run_eq {D N : Type} (add : D → St N → St N) (s0 : St N) (evs : List (Ev D N))
     (h : ∀ c r, Ev.tick c r ∈ evs → c.narrow = true) : runV add s0 evs = runO add s0 evs := by
@@ -306,8 +262,6 @@ theorem narrow_run_eq {D N : Type} (add : D → St N → St N) (s0 : St N) (evs 
   simp [clears, this] at hc
 
 /-- **Above 860 px the gate is "in view and not covered".**
-
-$$\forall \mathit{env} \in \mathrm{Env}:\ w(\mathit{env}) > 860 \Rightarrow \forall a, d, k \in \mathbb{B}:\ \big(\operatorname{armed}(\operatorname{ctxAt}(\mathit{env}, a, d, k)) = \mathrm{true} \iff a = \mathrm{true} \land k = \mathrm{false}\big)$$
 
 On wide screens the interval runs exactly while the section is in view and uncovered. -/
 theorem wide_armed_iff (env : Env) (hw : ¬ env.width.LeNat 860) (a d k : Bool) :
@@ -322,22 +276,16 @@ theorem wide_armed_iff (env : Env) (hw : ¬ env.width.LeNat 860) (a d k : Bool) 
 
 /-- The interval period in ms (`setInterval(le, 3e3)`, JS 4696).
 
-$$\mathrm{period} = 3000$$
-
 One tick every three seconds. -/
 def period : Nat := 3000
 
-/-- The original's $k$-th tick ($k \ge 0$) after it was armed at $t_0$ (Chromium's snapped repeat grid).
-
-$$\forall t_0, k \in \mathbb{N}:\ \operatorname{tickAt}(t_0, k) = t_0 + 3000\,(k + 1)$$
+/-- The original's `k`-th tick (`k ≥ 0`) after it was armed at `t_0` (Chromium's snapped repeat grid).
 
 When the original's interval fires. -/
 def tickAt (t0 k : Nat) : Nat := t0 + period * (k + 1)
 
 /-- **The variant's resume time** (decision function): re-arming at `now`, the first tick goes at the original's
 first tick at or after `now`.
-
-$$\forall t_0, \mathit{now} \in \mathbb{N}:\ \operatorname{resumeAt}(t_0, \mathit{now}) = t_0 + 3000 \cdot \max\!\Big(1, \Big\lfloor \frac{(\mathit{now} \mathbin{\dot-} t_0) + 2999}{3000} \Big\rfloor\Big)$$
 
 The variant waits for the original's next tick instead of starting a fresh 3 s period. -/
 def resumeAt (t0 now : Nat) : Nat := t0 + period * max 1 ((now - t0 + (period - 1)) / period)
@@ -347,8 +295,6 @@ def resumeAt (t0 now : Nat) : Nat := t0 + period * max 1 ((now - t0 + (period - 
 
 /-- The resume time lies on the original's grid.
 
-$$\forall t_0, \mathit{now} \in \mathbb{N}\ \exists k \in \mathbb{N}:\ \operatorname{resumeAt}(t_0, \mathit{now}) = \operatorname{tickAt}(t_0, k)$$
-
 The variant's first tick is one of the original's ticks. -/
 theorem resumeAt_on_grid (t0 now : Nat) : ∃ k, resumeAt t0 now = tickAt t0 k :=
   ⟨max 1 ((now - t0 + (period - 1)) / period) - 1, by
@@ -357,8 +303,6 @@ theorem resumeAt_on_grid (t0 now : Nat) : ∃ k, resumeAt t0 now = tickAt t0 k :
     rw [Nat.sub_add_cancel this]⟩
 
 /-- The resume time is not in the past.
-
-$$\forall t_0, \mathit{now} \in \mathbb{N}:\ \mathit{now} \le \operatorname{resumeAt}(t_0, \mathit{now})$$
 
 The variant never schedules a tick before it re-arms. -/
 theorem resumeAt_ge (t0 now : Nat) : now ≤ resumeAt t0 now := by
@@ -372,8 +316,6 @@ theorem resumeAt_ge (t0 now : Nat) : now ≤ resumeAt t0 now := by
 
 /-- The resume time is the earliest grid tick at or after `now`.
 
-$$\forall t_0, \mathit{now}, k \in \mathbb{N}:\ \mathit{now} \le \operatorname{tickAt}(t_0, k) \Rightarrow \operatorname{resumeAt}(t_0, \mathit{now}) \le \operatorname{tickAt}(t_0, k)$$
-
 No original tick at or after `now` comes before the variant's first one. -/
 theorem resumeAt_least (t0 now k : Nat) (h : now ≤ tickAt t0 k) : resumeAt t0 now ≤ tickAt t0 k := by
   simp only [resumeAt, tickAt, period] at h ⊢
@@ -383,28 +325,22 @@ theorem resumeAt_least (t0 now k : Nat) (h : now ≤ tickAt t0 k) : resumeAt t0 
   have := Nat.mul_le_mul_left 3000 this
   omega
 
-/-- **The variant's ticks after a re-arm are the original's ticks.** With $k_0$ the grid index of the resume time,
-the variant's $i$-th tick is the original's tick $k_0 + i$.
-
-$$\forall t_0, \mathit{now}, k_0 \in \mathbb{N}:\ \operatorname{resumeAt}(t_0, \mathit{now}) = \operatorname{tickAt}(t_0, k_0) \Rightarrow \forall i \in \mathbb{N}:\ \operatorname{resumeAt}(t_0, \mathit{now}) + 3000\,i = \operatorname{tickAt}(t_0, k_0 + i)$$
+/-- **The variant's ticks after a re-arm are the original's ticks.** With `k_0` the grid index of the resume time,
+the variant's `i`-th tick is the original's tick `k_0 + i`.
 
 Once re-armed on the grid, the variant stays on it. -/
 theorem resume_grid (t0 now k0 : Nat) (hk : resumeAt t0 now = tickAt t0 k0) (i : Nat) :
     resumeAt t0 now + period * i = tickAt t0 (k0 + i) := by
   rw [hk]; simp only [tickAt, period]; rw [Nat.add_right_comm k0 i 1, Nat.mul_add]; omega
 
-/-- The number of ticks of an interval armed at $t_0$ that fire in $(a, b]$.
-
-$$\forall t_0, a, b \in \mathbb{N}:\ \operatorname{ticksIn}(t_0, a, b) = \big|\operatorname{filter}\big(k \mapsto a < \operatorname{tickAt}(t_0, k) \le b,\ [0, 1, \dots, b - 1]\big)\big|$$
+/-- The number of ticks of an interval armed at `t_0` that fire in `(a, b]`.
 
 How often an interval fires in a time window. -/
 def ticksIn (t0 a b : Nat) : Nat := ((List.range b).filter fun k => decide (a < tickAt t0 k ∧ tickAt t0 k ≤ b)).length
 
 /-- **A naive re-arm is not E.** Armed at 0, covered from 2000 ms to 4000 ms: the original fires at 6000 ms (and
-adds a note); a fresh `setInterval` at 4000 ms fires first at 7000 ms. In the window $(4000, 6500]$ the original
+adds a note); a fresh `setInterval` at 4000 ms fires first at 7000 ms. In the window `(4000, 6500]` the original
 ticks once and the naive variant never, while `resumeAt` ticks at 6000 like the original.
-
-$$\underbrace{\operatorname{ticksIn}(t_0{=}0,\ a{=}4000,\ b{=}6500)}_{\text{original: tick at }6000} = 1\ \land\ \underbrace{\operatorname{ticksIn}(t_0{=}4000,\ a{=}4000,\ b{=}6500)}_{\text{naive re-arm at }4000:\ \text{first tick }7000} = 0\ \land\ \operatorname{resumeAt}(0, 4000) = 6000$$
 
 Restarting the 3 s period on re-arm shifts when notes appear; the variant must resume on the original's grid. -/
 theorem naive_rearm_shifts :
@@ -412,12 +348,10 @@ theorem naive_rearm_shifts :
 
 /-! ## 5. Work: a skipped tick, in every engine -/
 
-/-- The frame with a hidden tick added: $n$ script callbacks (the timer callback and any microtask it queues),
-$a$ forced style and $b$ forced layout passes (`getBoundingClientRect` in the cover test, only when dirty), and no
+/-- The frame with a hidden tick added: `n` script callbacks (the timer callback and any microtask it queues),
+`a` forced style and `b` forced layout passes (`getBoundingClientRect` in the cover test, only when dirty), and no
 property change (the blocked branch returns before any write; the clearing branch writes `T := []` on an empty `T`,
 which the keyed each leaves as it is).
-
-$$\forall f \in \mathrm{FrameIn}(P),\ \forall n, a, b \in \mathbb{N}:\ \operatorname{withTick}(f, n, a, b) = f\big[\mathrm{script} := f.\mathrm{script} + n,\ \mathrm{forcedStyle} := f.\mathrm{forcedStyle} + a,\ \mathrm{forcedLayout} := f.\mathrm{forcedLayout} + b\big]$$
 
 The original's frame, which has the skipped tick in it. -/
 def withTick {P : Type} (f : FrameIn P) (n a b : Nat) : FrameIn P :=
@@ -429,17 +363,13 @@ private theorem coverB_self {P M : Type} (E : Engine P M) : ∀ (l : List (Chang
 
 /-- **A skipped tick never adds work**, in every engine and every frame.
 
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall n, a, b \in \mathbb{N}:\ \operatorname{frameWork}_E(f) \preceq \operatorname{frameWork}_E(\operatorname{withTick}(f, n, a, b))$$
-
 The variant's frame, without the hidden tick, costs at most the original's. -/
 theorem hiddenTick_le {P M : Type} (E : Engine P M) (f : FrameIn P) (n a b : Nat) :
     (frameWork E f).le (frameWork E (withTick f n a b)) :=
   frame_le_of_cover E f.changes [] (by simp [withTick]) (coverB_self E f.changes)
     (Nat.le_add_right _ _) (Nat.le_add_right _ _) (Nat.le_add_right _ _) (Nat.le_refl _) (Nat.le_refl _)
 
-/-- **And strictly less**: the script units drop by $n > 0$, in every engine.
-
-$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall n, a, b \in \mathbb{N}:\ 0 < n \Rightarrow \operatorname{frameWork}_E(f) \prec \operatorname{frameWork}_E(\operatorname{withTick}(f, n, a, b)) \land \operatorname{units}_E(\operatorname{withTick}(f, n, a, b), \mathrm{script}) = \operatorname{units}_E(f, \mathrm{script}) + n$$
+/-- **And strictly less**: the script units drop by `n > 0`, in every engine.
 
 Each skipped tick removes its callback from the frame. -/
 theorem hiddenTick_lt {P M : Type} (E : Engine P M) (f : FrameIn P) (n a b : Nat) (hn : 0 < n) :
@@ -452,8 +382,6 @@ theorem hiddenTick_lt {P M : Type} (E : Engine P M) (f : FrameIn P) (n a b : Nat
 /-- **Every frame of a run** (both engines, all widths): if each variant frame is the original's frame or the
 original's frame without a hidden tick, the variant's work is at most the original's in every frame.
 
-$$\forall E,\ \forall v, o : \mathbb{N} \to \mathrm{FrameIn}(P):\ \Big(\forall k:\ o(k) = v(k) \lor \exists n, a, b:\ o(k) = \operatorname{withTick}(v(k), n, a, b)\Big) \Rightarrow \forall k \in \mathbb{N}:\ \operatorname{frameWork}_E(v(k)) \preceq \operatorname{frameWork}_E(o(k))$$
-
 Gating the interval never costs a frame anything. -/
 theorem frames_le {P M : Type} (E : Engine P M) (v o : Nat → FrameIn P)
     (h : ∀ k, o k = v k ∨ ∃ n a b, o k = withTick (v k) n a b) (k : Nat) :
@@ -464,14 +392,10 @@ theorem frames_le {P M : Type} (E : Engine P M) (v o : Nat → FrameIn P)
 
 /-- An idle frame: nothing runs.
 
-$$\mathrm{idle} = (0, 0, 0, 0, [\,], 0)$$
-
 A frame where the page does nothing. -/
 def idle {P : Type} : FrameIn P := ⟨0, 0, 0, 0, [], 0⟩
 
 /-- **The variant's idle frame costs nothing**, in every engine.
-
-$$\forall E,\ \forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_E(\mathrm{idle}).\mathrm{passes}(s) = 0 \land \operatorname{frameWork}_E(\mathrm{idle}).\mathrm{units}(s) = 0 \land \operatorname{frameWork}_E(\mathrm{idle}).\mathrm{hits} = 0$$
 
 While the notes are hidden and nothing else happens, the variant's notes cost zero. -/
 theorem idle_zero {P M : Type} (E : Engine P M) (s : Stage) :
@@ -485,9 +409,6 @@ open Fw.Engine.Chromium in
 
 Changed since CI run 39088367495: the tick paid only `script`; the engine-premises lane MEASURED a PrePaint pass on
 every script-only frame (`chromiumAt.base = [props]`).
-
-$$\forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0)).\mathrm{passes}(s) = [s \in \{\mathrm{script}, \mathrm{props}\}] \land \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0)).\mathrm{units}(s) = [s = \mathrm{script}]$$
-$$\land\ \operatorname{frameWork}_{\mathrm{cr}}(\mathrm{idle}) \prec \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0))$$
 
 On Chromium, each hidden 3 s tick is one timer callback and one PrePaint pass the variant no longer runs. -/
 theorem cr_idle_tick :
@@ -503,9 +424,6 @@ open Fw.Engine.WebKit in
 /-- **WebKit: an idle hidden tick costs one script pass and unit plus the rendering update's commit (the model's
 `base`); the variant's frame is zero.**
 
-$$\forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_{\mathrm{wk}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0)).\mathrm{passes}(s) = [s \in \{\mathrm{script}, \mathrm{commit}\}] \land \operatorname{frameWork}_{\mathrm{wk}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0)).\mathrm{units}(s) = [s = \mathrm{script}]$$
-$$\land\ \operatorname{frameWork}_{\mathrm{wk}}(\mathrm{idle}) \prec \operatorname{frameWork}_{\mathrm{wk}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0))$$
-
 On WebKit, each hidden tick is one timer callback and, in the model, one commit the variant no longer pays. -/
 theorem wk_idle_tick :
     (∀ s : Stage, (frameWork webkit (withTick idle 1 0 0)).passes s =
@@ -516,9 +434,7 @@ theorem wk_idle_tick :
   cases s <;> simp [frameWork, touched, stageUnits, forcedPasses, idle, withTick, FrameIn.updates, webkit,
     webkitAt]
 
-/-- Hidden ticks per minute: $60000 / 3000 = 20$ (the rate is 1/3 Hz).
-
-$$\mathrm{ticksPerMinute} = \lfloor 60000 / \mathrm{period} \rfloor = 20$$
+/-- Hidden ticks per minute: `60000 / 3000 = 20` (the rate is 1/3 Hz).
 
 How many callbacks per minute the variant saves while the notes stay hidden. -/
 def ticksPerMinute : Nat := 60000 / period
@@ -529,8 +445,6 @@ def ticksPerMinute : Nat := 60000 / period
 
 /-- A count type: its JSON name, the stage it reads, and whether it reads units (else passes).
 
-$$\mathrm{CountType} = \mathrm{String} \times \mathrm{Stage} \times \mathbb{B}$$
-
 Which counter reads which stage. -/
 structure CountType where
   name : String
@@ -539,19 +453,15 @@ structure CountType where
 
 /-- The JSON name of a stage.
 
-$$\operatorname{stageName}(s) = \text{the constructor name of } s$$
-
 As in the engine golden files. -/
 def stageName : Stage → String
   | .script => "script" | .style => "style" | .layout => "layout" | .props => "props"
   | .paint => "paint" | .raster => "raster" | .commit => "commit" | .comp => "comp"
 
-/-- **The relational prediction** of one count type over frame pairs $(v, o)$ (decision function), first match:
+/-- **The relational prediction** of one count type over frame pairs `(v, o)` (decision function), first match:
 equal in every pair gives `=o`; at most the original's in every pair gives `≤o` (not `<o`: whether a scenario reaches
-a hidden tick is not modelled); else `any`. Here $x_t(w)$ is $w.\mathrm{units}(t.\mathrm{stage})$ when
-$t.\mathrm{units}$, else $w.\mathrm{passes}(t.\mathrm{stage})$.
-
-$$\forall \mathit{pairs} \in (\mathrm{Work} \times \mathrm{Work})^{*},\ \forall t:\ \operatorname{relPred}(\mathit{pairs}, t) = \begin{cases} \texttt{=o} & \forall (v, o) \in \mathit{pairs}:\ x_t(v) = x_t(o) \quad (\text{also } \mathit{pairs} = [\,]) \\ \texttt{≤o} & \text{not the above} \land \forall (v, o) \in \mathit{pairs}:\ x_t(v) \le x_t(o) \\ \texttt{any} & \text{otherwise} \end{cases}$$
+a hidden tick is not modelled); else `any`. Here `x_t(w)` is `w.units(t.stage)` when
+`t.units`, else `w.passes(t.stage)`.
 
 Equal when no modelled hidden tick changes the count, at most when some lowers it. -/
 def relPred (pairs : List (Work × Work)) (t : CountType) : String :=
@@ -564,10 +474,8 @@ def relPred (pairs : List (Work × Work)) (t : CountType) : String :=
 #guard relPred [(paintW 1, Work.zero)] ⟨"x", .paint, false⟩ == "any"
 
 /-- The frames the model pairs, per engine: the idle frame and a frame with one `transform` change on a target of
-layer state `l`, each with a hidden tick of 1 callback and $(a, b) \in \{(0,0), (1,1)\}$ forced passes; plus the
+layer state `l`, each with a hidden tick of 1 callback and `(a, b) ∈ {(0,0), (1,1)}` forced passes; plus the
 same frames unchanged (a visible tick, run by both).
-
-$$\operatorname{pairsOf}(E, p) = \big[(\operatorname{frameWork}_E(f), \operatorname{frameWork}_E(\operatorname{withTick}(f, 1, a, a))) \mid f \in F_p,\ a \in \{0, 1\}\big] \mathbin{+\!\!+} \big[(\operatorname{frameWork}_E(f), \operatorname{frameWork}_E(f)) \mid f \in F_p\big],\quad F_p = [\mathrm{idle}] \mathbin{+\!\!+} [\,(0,0,0,0,[(0, p, l)],0) \mid l \in \{\mathrm{none}, \mathrm{layer}, \mathrm{own}\}\,]$$
 
 The frames gating the interval changes, each with its original. -/
 def pairsOf {P M : Type} (E : Engine P M) (p : P) : List (Work × Work) :=
@@ -576,8 +484,6 @@ def pairsOf {P M : Type} (E : Engine P M) (p : P) : List (Work × Work) :=
     fs.map fun f => (frameWork E f, frameWork E f)
 
 /-- The Chromium count types of the swipe profiles (as in `morph-mount.jsonl`; `trace.Paint` quarantined). Each entry is (name, stage, units).
-
-$$\begin{aligned} \mathrm{crTypes} = [\ &(\texttt{trace.FunctionCall}, \mathrm{script}, \top),\ (\texttt{trace.UpdateLayoutTree}, \mathrm{style}, \bot),\ (\texttt{trace.Layout}, \mathrm{layout}, \bot), \\ &(\texttt{trace.Layout.dirtyObjects}, \mathrm{layout}, \top),\ (\texttt{metric.LayoutCount}, \mathrm{layout}, \bot),\ (\texttt{trace.PrePaint}, \mathrm{props}, \bot), \\ &(\texttt{raster.invalidationAreaPx}, \mathrm{paint}, \top),\ (\texttt{trace.cc.Commit}, \mathrm{commit}, \bot)\ ] \end{aligned}$$
 
 Which Chromium counter reads which stage. -/
 def crTypes : List CountType :=
@@ -588,16 +494,12 @@ def crTypes : List CountType :=
 
 /-- The WebKit count types (as in `morph-mount.jsonl`). Each entry is (name, stage, units).
 
-$$\mathrm{wkTypes} = [(\texttt{RecalculateStyles}, \mathrm{style}, \bot),\ (\texttt{Layout}, \mathrm{layout}, \bot),\ (\texttt{Paint}, \mathrm{paint}, \bot),\ (\texttt{Composite}, \mathrm{commit}, \bot)]$$
-
 Which WebKit counter reads which stage. -/
 def wkTypes : List CountType :=
   [⟨"RecalculateStyles", .style, false⟩, ⟨"Layout", .layout, false⟩, ⟨"Paint", .paint, false⟩,
    ⟨"Composite", .commit, false⟩]
 
 /-- One JSON row, keys sorted, in the `morph-mount.jsonl` schema.
-
-$$\operatorname{row}(e, sc, t, \mathit{pred}) = \{\mathrm{base} = \text{rewrite}, \mathrm{countType} = t.\mathrm{name}, \mathrm{engine} = e, \mathrm{prediction} = \mathit{pred}, \mathrm{scenario} = sc, \mathrm{stage} = \operatorname{stageName}(t.\mathrm{stage}), \mathrm{variant} = \text{rewrite+?fw=pain.notes:visible}\}$$
 
 The variant flag is `?fw=pain.notes:visible`; the base is the faithful rewrite. -/
 def row (engine scenario : String) (t : CountType) (pred : String) : String :=
@@ -609,9 +511,7 @@ open Fw.Engine.Chromium Fw.Engine.WebKit in
 /-- **The golden rows**: Chromium on `swipe-v1` and `swipe-touch-v1`, WebKit on `swipe-v1`, each prediction from
 `relPred` over the engine's pairs.
 
-$$\begin{aligned} \mathrm{goldenLines} = {} &[\,\operatorname{row}(\texttt{chromium}, sc, t, \operatorname{relPred}(\operatorname{pairsOf}(\mathrm{chromium}, \operatorname{css}(\mathrm{transform})), t)) \mid sc \in [\texttt{swipe-v1}, \texttt{swipe-touch-v1}],\ t \in \mathrm{crTypes}\,] \\ \mathbin{+\!\!+} {} &[\,\operatorname{row}(\texttt{webkit}, \texttt{swipe-v1}, t, \operatorname{relPred}(\operatorname{pairsOf}(\mathrm{webkit}, \mathrm{transform}), t)) \mid t \in \mathrm{wkTypes}\,] \end{aligned}$$
-
-The list comprehension runs $sc$ outer and $t$ inner, so there are $2 \cdot 8 + 4 = 20$ lines.
+The list comprehension runs `sc` outer and `t` inner, so there are `2 · 8 + 4 = 20` lines.
 The file `packages/contracts/golden/engine/pain-notes.jsonl`, line by line. -/
 def goldenLines : List String :=
   (["swipe-v1", "swipe-touch-v1"].flatMap fun sc =>
@@ -619,8 +519,6 @@ def goldenLines : List String :=
     wkTypes.map fun t => row "webkit" "swipe-v1" t (relPred (pairsOf webkit WkProp.transform) t)
 
 /-- The golden file text: one row per line, trailing newline.
-
-$$\mathrm{goldenText} = \operatorname{concat}[\, \ell \mathbin{+\!\!+} \text{"\textbackslash n"} \,]_{\ell \in \mathrm{goldenLines}}$$
 
 What the driver writes. -/
 def goldenText : String := String.join (goldenLines.map (· ++ "\n"))
@@ -633,7 +531,7 @@ def goldenText : String := String.join (goldenLines.map (· ++ "\n"))
 
 /-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
 
-The hidden tick writes nothing; its cover test may read the rect ($a$ forced style, $b$ forced layout passes), which
+The hidden tick writes nothing; its cover test may read the rect (`a` forced style, `b` forced layout passes), which
 cleans the flags the rest of the frame dirtied. So the original can end a stage clean that the variant (no tick, no
 read) ends dirty and pays at frame end. That pass is the one the tick's forced read paid, so `⪯` holds whenever each
 stage the variant ends dirty is end-dirty in the original too or carries one of the tick's forced passes, and the
@@ -645,9 +543,7 @@ section EndPass
 open Fw.Parts.EndFlags
 
 /-- **A skipped tick under `frameWorkE`: `⪯`.** If every stage the variant touches and ends dirty is end-dirty in the
-original, or is style with $a > 0$, or is layout with $b > 0$, the variant's frame costs at most the original's.
-
-$$\forall E, f, n, a, b,\ \forall e_v, e_o:\ \big(\forall s \in \operatorname{touched}_E(f):\ e_v(s) = \top \Rightarrow e_o(s) = \top \lor (s = \mathrm{style} \land a > 0) \lor (s = \mathrm{layout} \land b > 0)\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(f) \preceq \operatorname{frameWork}^{e_o}_E(\operatorname{withTick}(f, n, a, b))$$
+original, or is style with `a > 0`, or is layout with `b > 0`, the variant's frame costs at most the original's.
 
 The tick's read pays for any pass the variant leaves to the frame end. -/
 theorem hiddenTick_leE {P M : Type} (E : Engine P M) (f : FrameIn P) (n a b : Nat) (ev eo : Stage → Bool)
@@ -662,10 +558,8 @@ theorem hiddenTick_leE {P M : Type} (E : Engine P M) (f : FrameIn P) (n a b : Na
     cases s <;> simp only [forcedPasses, withTick] <;> revert this <;> cases ev _ <;> cases eo _ <;>
       simp <;> omega
 
-/-- **And strictly less under `frameWorkE`** when $n > 0$, under the same flag condition: the script units drop by
-$n$.
-
-$$\forall E, f,\ \forall n > 0,\ \forall a, b, e_v, e_o:\ \big(\forall s \in \operatorname{touched}_E(f):\ e_v(s) = \top \Rightarrow e_o(s) = \top \lor (s = \mathrm{style} \land a > 0) \lor (s = \mathrm{layout} \land b > 0)\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(f) \prec \operatorname{frameWork}^{e_o}_E(\operatorname{withTick}(f, n, a, b))$$
+/-- **And strictly less under `frameWorkE`** when `n > 0`, under the same flag condition: the script units drop by
+`n`.
 
 The skipped callback is saved whatever the end flags. -/
 theorem hiddenTick_ltE {P M : Type} (E : Engine P M) (f : FrameIn P) (n a b : Nat) (hn : 0 < n)
@@ -683,15 +577,13 @@ end EndPass
 
 /-! ## Magnitude of a skipped tick (ledger n=21)
 
-A hidden tick without a read ($a = b = 0$) changes the units only on `script`, by its $n$ callbacks, and the hit
+A hidden tick without a read (`a = b = 0`) changes the units only on `script`, by its `n` callbacks, and the hit
 tests not at all. Passes can change only on `script` and on the engine's base stages (the tick makes an idle frame
 "update"; whether a write-free timer callback really schedules a rendering update in WebKit is the open cite that
 decides the commit pass in `wk_idle_tick`). So the saving of the gate is the skipped callbacks, plus at most one
 pass per base stage in frames that would otherwise be idle. -/
 
-/-- **Units of a skipped tick.** Only `script` changes, by $n$; hit tests are equal.
-
-$$\forall E, f, n, a, b,\ \forall s:\ \operatorname{frameWork}_E(\operatorname{withTick}(f, n, a, b)).\mathrm{units}(s) = \operatorname{frameWork}_E(f).\mathrm{units}(s) + [s = \mathrm{script}]\cdot n \ \land\ \operatorname{frameWork}_E(\operatorname{withTick}(f, n, a, b)).\mathrm{hits} = \operatorname{frameWork}_E(f).\mathrm{hits}$$
+/-- **Units of a skipped tick.** Only `script` changes, by `n`; hit tests are equal.
 
 The tick's only unit cost is its callbacks. -/
 theorem tick_units {P M : Type} (E : Engine P M) (f : FrameIn P) (n a b : Nat) (s : Stage) :
@@ -703,8 +595,6 @@ theorem tick_units {P M : Type} (E : Engine P M) (f : FrameIn P) (n a b : Nat) (
 
 /-- **Passes of a read-free tick.** Off `script` and the base stages, a tick with no forced pass leaves every stage's
 passes equal.
-
-$$\forall E, f, n,\ \forall s:\ s \ne \mathrm{script} \land s \notin E.\mathrm{base} \Rightarrow \operatorname{frameWork}_E(\operatorname{withTick}(f, n, 0, 0)).\mathrm{passes}(s) = \operatorname{frameWork}_E(f).\mathrm{passes}(s)$$
 
 A write-free callback touches no stage of its own beyond script and the update it may schedule. -/
 theorem tick_passes_eq {P M : Type} (E : Engine P M) (f : FrameIn P) (n : Nat) (s : Stage) (hs : s ≠ .script)
@@ -722,5 +612,348 @@ theorem tick_passes_eq {P M : Type} (E : Engine P M) (f : FrameIn P) (n : Nat) (
   by_cases h : s ∈ touched E f
   · simp [h, hm.mpr h]
   · simp [h, mt hm.mp h]
+
+/-! ## Variant `visible-idem`: skip the cover clear that commits nothing new
+
+React writes a style key only when its new value differs from the last committed one
+(`CSSPropertyOperations.js:151-157`@61aa00d, old props from `ReactFiberCommitWork.js:2244-2248`@61aa00d). -/
+
+namespace Idem
+
+/-- The driver's view: the base notes, the extra notes and the dragged note.
+
+What `commit` hands React. -/
+structure M (N : Type) where
+  base : List N
+  extras : List N
+  dragging : Option Nat
+
+/-- The view, React's last committed props (`last`), what the elements hold (`dom`), and whether a move wrote an
+element since that commit (`dirty`).
+
+The notes as the driver and the page hold them. -/
+structure Sys (N K V : Type) where
+  m : M N
+  last : K → V
+  dom : K → V
+  dirty : Bool
+
+/-- The parts the model leaves open: the render from the view to props, a move's view update (`setPos`) and its
+direct element write (`writeNote`).
+
+Any renderer and any move. -/
+structure Ops (N K V I P : Type) where
+  render : M N → K → V
+  setPos : I → P → M N → M N
+  write : I → P → (K → V) → (K → V)
+
+/-- An event the notes see: a scroll frame (`covered`: the commission card's top is above `0.995·innerHeight`), a move
+of note `i` to `p` (drag or key), or any other committing handler (layout, tick, drag start and end, IO leave).
+
+The things that can change the notes, in order. -/
+inductive Ev (N I P : Type) where
+  | scroll (covered : Bool)
+  | move (i : I) (p : P)
+  | other (g : M N → M N)
+
+variable {N K V I P : Type} [DecidableEq V]
+
+/-- One React commit of the current view: a key whose rendered value differs from the last committed one is written,
+every other key keeps what the element holds.
+
+What `env.commit` does to the page. -/
+def commit (o : Ops N K V I P) (s : Sys N K V) : Sys N K V :=
+  { s with dom := fun k => if o.render s.m k = s.last k then s.dom k else o.render s.m k, last := o.render s.m,
+           dirty := false }
+
+/-- The cover clear's state change: no extra notes.
+
+`extras = []`. -/
+def clear (s : Sys N K V) : Sys N K V := { s with m := { s.m with extras := [] } }
+
+/-- A move: the view takes the new position and the element is written directly, without a commit.
+
+`setPos` in driver.ts. -/
+def onMove (o : Ops N K V I P) (i : I) (p : P) (s : Sys N K V) : Sys N K V :=
+  { s with m := o.setPos i p s.m, dom := o.write i p s.dom, dirty := true }
+
+/-- **The original's step**: a covered scroll frame always clears and commits.
+
+How `visible` reacts to one event. -/
+def stepO (o : Ops N K V I P) (s : Sys N K V) : Ev N I P → Sys N K V
+  | .scroll c => if c then commit o (clear s) else s
+  | .move i p => onMove o i p s
+  | .other g => commit o { s with m := g s.m }
+
+/-- **The variant's skip** (decision function): no extra notes and no move since the last commit.
+
+When the cover clear would hand React the view it already has. -/
+def skips (s : Sys N K V) : Bool := s.m.extras.isEmpty && !s.dirty
+
+/-- **The variant's step**: a covered scroll frame commits unless `skips`.
+
+How `visible-idem` reacts to one event. -/
+def stepV (o : Ops N K V I P) (s : Sys N K V) : Ev N I P → Sys N K V
+  | .scroll c => if c && !skips s then commit o (clear s) else s
+  | .move i p => onMove o i p s
+  | .other g => commit o { s with m := g s.m }
+
+/-- **The rejected step**: a covered scroll frame commits only while extra notes exist, ignoring moves.
+
+`if (extras.length) { extras = []; view(); }`. -/
+def stepN (o : Ops N K V I P) (s : Sys N K V) : Ev N I P → Sys N K V
+  | .scroll c => if c && !s.m.extras.isEmpty then commit o (clear s) else s
+  | .move i p => onMove o i p s
+  | .other g => commit o { s with m := g s.m }
+
+/-- Whether the original commits on this event.
+
+One React render or none. -/
+def didO (_ : Sys N K V) : Ev N I P → Bool
+  | .scroll c => c
+  | .move _ _ => false
+  | .other _ => true
+
+/-- Whether the variant commits on this event.
+
+One React render or none. -/
+def didV (s : Sys N K V) : Ev N I P → Bool
+  | .scroll c => c && !skips s
+  | .move _ _ => false
+  | .other _ => true
+
+/-- The original's system after the events.
+
+The page after these events. -/
+def runO (o : Ops N K V I P) (s0 : Sys N K V) (evs : List (Ev N I P)) : Sys N K V := evs.foldl (stepO o) s0
+
+/-- The variant's system after the events.
+
+The page after these events. -/
+def runV (o : Ops N K V I P) (s0 : Sys N K V) (evs : List (Ev N I P)) : Sys N K V := evs.foldl (stepV o) s0
+
+/-- The rejected variant's system after the events.
+
+The page after these events. -/
+def runN (o : Ops N K V I P) (s0 : Sys N K V) (evs : List (Ev N I P)) : Sys N K V := evs.foldl (stepN o) s0
+
+/-- The original's commits over the events.
+
+How many React renders the original asks for. -/
+def countO (o : Ops N K V I P) : Sys N K V → List (Ev N I P) → Nat
+  | _, [] => 0
+  | s, e :: es => (if didO s e then 1 else 0) + countO o (stepO o s e) es
+
+/-- The variant's commits over the events.
+
+How many React renders the variant asks for. -/
+def countV (o : Ops N K V I P) : Sys N K V → List (Ev N I P) → Nat
+  | _, [] => 0
+  | s, e :: es => (if didV s e then 1 else 0) + countV o (stepV o s e) es
+
+/-- **The invariant**: with no move since the last commit, the last committed props are the render of the view.
+
+React's memory matches the view unless a move wrote around it. -/
+def Inv (o : Ops N K V I P) (s : Sys N K V) : Prop := s.dirty = false → s.last = o.render s.m
+
+omit [DecidableEq V] in
+/-- After the mount commit of view `m` the invariant holds.
+
+The first render starts in step. -/
+theorem inv_mount (o : Ops N K V I P) (m : M N) : Inv o ⟨m, o.render m, o.render m, false⟩ := fun _ => rfl
+
+/-- A commit restores the invariant.
+
+After a render, React's memory is the view. -/
+theorem inv_commit (o : Ops N K V I P) (s : Sys N K V) : Inv o (commit o s) := fun _ => rfl
+
+/-- **Every original step keeps the invariant.**
+
+No event breaks it. -/
+theorem inv_step (o : Ops N K V I P) (s : Sys N K V) (e : Ev N I P) (h : Inv o s) : Inv o (stepO o s e) := by
+  cases e with
+  | scroll c => cases c
+                · exact h
+                · exact inv_commit o _
+  | move i p => intro hd; simp [onMove, stepO] at hd
+  | other g => exact inv_commit o _
+
+/-- **A skipped clear is idempotent**: under the invariant, when `skips` holds the original's clear-and-commit leaves
+the view, the props memory and every element as they were.
+
+The covered frame's commit writes nothing. -/
+theorem scroll_idem (o : Ops N K V I P) (s : Sys N K V) (h : Inv o s) (hs : skips s = true) :
+    commit o (clear s) = s := by
+  obtain ⟨⟨b, ex, d⟩, last, dom, dirty⟩ := s
+  simp only [skips, Bool.and_eq_true, List.isEmpty_iff, Bool.not_eq_true'] at hs
+  obtain ⟨rfl, rfl⟩ := hs
+  have hl := h rfl
+  simp only at hl
+  subst hl
+  simp [commit, clear]
+
+/-- The variant's step equals the original's under the invariant.
+
+Skipping or committing gives the same page. -/
+theorem step_eq (o : Ops N K V I P) (s : Sys N K V) (e : Ev N I P) (h : Inv o s) : stepV o s e = stepO o s e := by
+  cases e with
+  | scroll c =>
+    cases c
+    · rfl
+    · cases hs : skips s
+      · simp [stepV, stepO, hs]
+      · simp [stepV, stepO, hs, scroll_idem o s h hs]
+  | move i p => rfl
+  | other g => rfl
+
+/-- **The variant's page equals the original's after every event list**: the view, React's props memory, every
+element and the move flag.
+
+Skipping the idempotent commits ends in exactly the original's page. -/
+theorem run_eq (o : Ops N K V I P) : ∀ (s0 : Sys N K V) (evs : List (Ev N I P)), Inv o s0 →
+    runV o s0 evs = runO o s0 evs
+  | _, [], _ => rfl
+  | s0, e :: es, h => by
+    simp only [runV, runO, List.foldl_cons]
+    rw [step_eq o s0 e h]
+    exact run_eq o _ es (inv_step o s0 e h)
+
+/-- **Same DOM at every instant** (class E): after the first `n` events, for every `n` and every event list, the
+elements hold the same values in both arms.
+
+The two arms show the same notes at every moment. -/
+theorem scroll_dom_eq (o : Ops N K V I P) (s0 : Sys N K V) (h : Inv o s0) (evs : List (Ev N I P)) (n : Nat) :
+    (runV o s0 (evs.take n)).dom = (runO o s0 (evs.take n)).dom := by
+  rw [run_eq o s0 _ h]
+
+/-- **The variant never commits more.**
+
+At most the original's React renders. -/
+theorem commits_le (o : Ops N K V I P) : ∀ (s0 : Sys N K V) (evs : List (Ev N I P)), Inv o s0 →
+    countV o s0 evs ≤ countO o s0 evs
+  | _, [], _ => Nat.le_refl 0
+  | s0, e :: es, h => by
+    have ih := commits_le o (stepO o s0 e) es (inv_step o s0 e h)
+    have hd : (if didV s0 e then 1 else 0) ≤ (if didO s0 e then 1 else 0) := by
+      cases e with
+      | scroll c => cases c <;> simp [didV, didO]; split <;> simp
+      | move i p => simp [didV, didO]
+      | other g => simp [didV, didO]
+    simp only [countV, countO, step_eq o s0 e h]
+    omega
+
+/-- The original's commits split at any point of the list.
+
+Counting in two parts. -/
+theorem countO_append (o : Ops N K V I P) : ∀ (s : Sys N K V) (p q : List (Ev N I P)),
+    countO o s (p ++ q) = countO o s p + countO o (runO o s p) q
+  | _, [], _ => by simp [countO, runO]
+  | s, e :: es, q => by
+    simp only [List.cons_append, countO, runO, List.foldl_cons]
+    rw [countO_append o _ es q]
+    simp only [runO]
+    omega
+
+/-- The variant's commits split at any point of the list.
+
+Counting in two parts. -/
+theorem countV_append (o : Ops N K V I P) : ∀ (s : Sys N K V) (p q : List (Ev N I P)),
+    countV o s (p ++ q) = countV o s p + countV o (runV o s p) q
+  | _, [], _ => by simp [countV, runV]
+  | s, e :: es, q => by
+    simp only [List.cons_append, countV, runV, List.foldl_cons]
+    rw [countV_append o _ es q]
+    simp only [runV]
+    omega
+
+/-- **Strictly fewer commits** when some covered scroll frame meets `skips` (no extra notes, no move since the last
+commit): the variant saves at least that frame's React render.
+
+Each idempotent covered frame is one render less. -/
+theorem commits_lt (o : Ops N K V I P) (s0 : Sys N K V) (h : Inv o s0) (p q : List (Ev N I P))
+    (hs : skips (runO o s0 p) = true) :
+    countV o s0 (p ++ Ev.scroll true :: q) < countO o s0 (p ++ Ev.scroll true :: q) := by
+  have hi : ∀ (l : List (Ev N I P)) (s : Sys N K V), Inv o s → Inv o (runO o s l) := by
+    intro l
+    induction l with
+    | nil => intro s hs; exact hs
+    | cons e es ih => intro s hs; exact ih _ (inv_step o s e hs)
+  have hp := hi p s0 h
+  have hle := commits_le o _ q (inv_step o (runO o s0 p) (.scroll true) hp)
+  have hpl := commits_le o s0 p h
+  rw [countV_append, countO_append, run_eq o s0 p h]
+  simp only [countV, countO, didV, didO, hs, step_eq o _ _ hp]
+  simp only [Bool.not_true, Bool.and_false, Bool.false_eq_true, ↓reduceIte] at *
+  omega
+
+/-! ### One note on a line: the counterexample and the golden instance -/
+
+/-- One note's position on a line; a move writes it, the render shows the first base note.
+
+The smallest page with a movable note. -/
+def lineOps : Ops Nat Unit Nat Unit Nat where
+  render m _ := m.base.headD 0
+  setPos _ p m := { m with base := [p] }
+  write _ p _ := fun _ => p
+
+/-- The mounted page: one base note at 0, no extra notes, rendered and committed.
+
+The start of every golden trace. -/
+def line0 : Sys Nat Unit Nat := ⟨⟨[0], [], none⟩, fun _ => 0, fun _ => 0, false⟩
+
+/-- A layout back to 0 (a resize that keeps the stage width, JS 4555 `ce`).
+
+The base layout puts the note back. -/
+def relayout : Ev Nat Unit Nat := .other fun m => { m with base := [0] }
+
+/-- An added extra note (the 3 s tick).
+
+One more note. -/
+def addOne : Ev Nat Unit Nat := .other fun m => { m with extras := m.extras ++ [m.extras.length] }
+
+/-- The mounted page satisfies the invariant.
+
+Every golden trace starts in step. -/
+theorem line0_inv : Inv lineOps line0 := inv_mount lineOps ⟨[0], [], none⟩
+
+/-- **The rejected step is not E.** Move the note to 1, scroll one covered frame, lay out back to 0: the original's
+covered commit taught React the moved value, so the layout writes 0; the rejected variant skipped it, React still
+remembers 0, writes nothing, and the note stays at 1.
+
+Skipping on `extras = []` alone leaves a moved note where the original puts it back. -/
+theorem naive_not_E :
+    (runN lineOps line0 [.move () 1, .scroll true, relayout]).dom () = 1 ∧
+      (runO lineOps line0 [.move () 1, .scroll true, relayout]).dom () = 0 := by decide
+
+/-- **The original port keeps a moved note after a layout to its committed value.** Without a commit between the move
+and the layout, React's memory still holds 0, so the layout writes nothing and the note stays at 1.
+
+The covered commit is what puts the note back in `naive_not_E`. -/
+theorem move_layout_stale : (runO lineOps line0 [.move () 1, relayout]).dom () = 1 := by decide
+
+/-- The event a golden word names: `cover`, `open`, `key`, `add` or `layout`.
+
+The trace vocabulary the TS replay shares. -/
+def evOf : String → Ev Nat Unit Nat
+  | "cover" => .scroll true
+  | "key" => .move () 1
+  | "add" => addOne
+  | "layout" => relayout
+  | _ => .scroll false
+
+/-- **Golden commit counts** (original, variant) for a trace of golden words from the mounted page.
+
+What the TS driver must count. -/
+def goldenCommits (ws : List String) : Nat × Nat :=
+  let evs := ws.map evOf
+  (countO lineOps line0 evs, countV lineOps line0 evs)
+
+#guard goldenCommits ["cover", "cover", "cover"] == (3, 0)
+#guard goldenCommits ["add", "cover", "cover", "open", "cover"] == (4, 2)
+#guard goldenCommits ["key", "cover", "cover"] == (2, 1)
+#guard goldenCommits ["open", "open"] == (0, 0)
+#guard skips line0 && !skips (stepO lineOps line0 (.move () 1)) && !skips (stepO lineOps line0 addOne)
+
+end Idem
 
 end Fw.Parts.PainNotesOpt

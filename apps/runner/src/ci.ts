@@ -1,4 +1,4 @@
-// `fw ci [<run id>] [--workflow chromium-counts] [--branch main] [--store <dir>]`: pull the artifacts of a finished
+// `fw ci <run id> | --branch ci/<x> [--workflow chromium-counts] [--store <dir>]`: pull the artifacts of a finished
 // chromium-counts run into the artifact store (`.fw-console/store/`), one store key per target in the run.
 // Every decision is fwcore's: `store.ciRun` (lean/Fw/Store/Ci.lean) accepts or refuses the run, names the shard
 // artifacts and their entry directories per target and gives each target's key inputs; `store.manifest` (via `ingest`
@@ -11,12 +11,13 @@ import { UsageError } from "./lib.ts";
 import { realEnv } from "@fw/gh-budget";
 import { chargedGh, fwcoreCall, ingest, storeDir, type FwCall, type Gh } from "./run.ts";
 
-export const CI_USAGE = "usage: fw ci [<run id>] [--workflow chromium-counts] [--branch main] [--store <dir>]\n" +
-  "  without a run id: the latest run of the workflow on the branch. Refuses a run that did not succeed or lacks a shard.";
+export const CI_USAGE = "usage: fw ci <run id> | --branch ci/<x> [--workflow chromium-counts] [--store <dir>]\n" +
+  "  a run id or --branch is required (a main push runs no measurement). With --branch: the latest run of the workflow\n" +
+  "  on that branch. Refuses a run that did not succeed or lacks a shard.";
 
-export type CiArgs = { runId?: string; workflow: string; branch: string; store?: string };
+export type CiArgs = { runId?: string; workflow: string; branch?: string; store?: string };
 export function parseCiArgs(argv: string[]): CiArgs {
-  const a: CiArgs = { workflow: "chromium-counts", branch: "main" };
+  const a: CiArgs = { workflow: "chromium-counts" };
   const val = (i: number, f: string) => { const v = argv[i + 1]; if (v === undefined || v.startsWith("--")) throw new UsageError(`flag ${f} needs a value\n${CI_USAGE}`); return v; };
   for (let i = 0; i < argv.length; i++) {
     const f = argv[i]!;
@@ -27,6 +28,7 @@ export function parseCiArgs(argv: string[]): CiArgs {
     else if (/^[0-9]+$/.test(f) && !a.runId) a.runId = f;
     else throw new UsageError(`unexpected argument ${f}\n${CI_USAGE}`);
   }
+  if (!a.runId && !a.branch) throw new UsageError(`a run id or --branch is required\n${CI_USAGE}`);
   return a;
 }
 
@@ -62,8 +64,8 @@ export async function latestRunId(gh: Gh, workflow: string, branch: string): Pro
 
 /** The whole command. Exit code: 0 stored (or unchanged), 2 refused. */
 export async function ciMain(args: CiArgs, d: CiDeps): Promise<number> {
-  const runId = args.runId ?? await latestRunId(d.gh, args.workflow, args.branch);
-  if (!runId) { d.log(`refused: no run of ${args.workflow} on ${args.branch}`); return 2; }
+  const runId = args.runId ?? (args.branch ? await latestRunId(d.gh, args.workflow, args.branch) : null);
+  if (!runId) { d.log(`refused: no run of ${args.workflow} on ${args.branch ?? "(no branch given)"}`); return 2; }
   const v = JSON.parse(await d.gh(["run", "view", runId, "--json", "workflowName,status,conclusion,headSha,jobs"])) as Omit<CiRunInfo, "runId">;
   const run: CiRunInfo = { runId, workflowName: v.workflowName, status: v.status, conclusion: v.conclusion ?? "", headSha: v.headSha, jobs: v.jobs.map((j) => ({ name: j.name, conclusion: j.conclusion ?? "" })) };
   // Check the run itself first, so a failed run downloads nothing.

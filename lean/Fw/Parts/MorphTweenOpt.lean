@@ -32,9 +32,10 @@ flags, as discrete keyframes at the eased-progress offset, flip on the same fram
 `VisSame E` for every env. MT-W (`waapi_work_le`): per tween frame the variant drops the script stage and keeps
 every other stage, in both engine tables (a custom property animates on the main thread in both). MT-R
 (`registrations_see`, `morph_scope_eq`): `--morph` and `--morph-fade` are registered inherited, so every reader below
-the nav (the hosted panel included) sees the animated value and the style invalidation scope equals the original's
-(the waapi arm also animates `--morph` on the platform section, whose subtree both arms already invalidate every frame
-through the inherited `--morph-fade`).
+the nav (the hosted panel included) sees the animated value and the style invalidation scope on the nav equals the
+original's. On the platform section the waapi arm restyles the subtree's dependent elements on frames where the
+original does not (`waapi_section_finding`); the `waapi-scoped` arm restyles no descendant there (`scoped_below_nil`,
+`fade_eq`).
 Golden rows (predictions, registrations, readers): `packages/contracts/golden/parts/morph-tween-waapi.jsonl`
 (`goldenJsonl`).
 -/
@@ -1340,10 +1341,9 @@ the variant's registration inherits too, so its per-frame style changes cover ex
 every subtree and every element sees the same value as in the original: `waapi_work_le` applies with one change list
 $C$ for both arms. With `inherits` false the variant would change fewer elements than the original on any subtree
 with a strict descendant: a smaller style count bought by a wrong picture. The waapi arm also animates `--morph` on the
-platform section, where the original writes only `--morph-fade`; both arms already invalidate that section's subtree
-every frame through the inherited `--morph-fade` it sets (Chromium `style/computed_style.cc:472-475`@f842f52: a change
-to an inherited variable on an element with a `var()` reference gives `kInherited`), so the extra property adds no
-element to the recalc set.
+platform section, where the original writes only `--morph-fade`. The original's `--morph-fade` stops changing once
+the fade clamps at 0.55, while `--morph` changes to the end of the tween, so there the extra property adds the
+section's subtree to the recalc set (`waapi_section_finding`, measured in the `tween-platform-scope` note).
 
 $$\Big(\forall p,\ \forall D \in \mathbb{N}^{*},\ \forall a, i \in \mathbb{Q},\ \forall d \in \mathbb{N}:\quad h_o(p) \Rightarrow \operatorname{filter}(\operatorname{recalc}(h_v(p)), D) = \operatorname{filter}(\operatorname{recalc}(h_o(p)), D) \land \operatorname{seen}(h_v(p), a, i, d) = \operatorname{seen}(h_o(p), a, i, d)\Big)$$
 $$\land\ \Big(\forall D \in \mathbb{N}^{*}:\quad \operatorname{need}(D) \Rightarrow \operatorname{filter}(\operatorname{recalc}(\bot), D) \ne \operatorname{filter}(\operatorname{recalc}(\top), D)\Big)$$
@@ -1392,6 +1392,301 @@ def Reader.json (r : Reader) : String :=
   some "{\"inherits\":true,\"initialValue\":\"0\",\"name\":\"--morph\",\"syntax\":\"<number>\"}"
 #guard readers.head?.map Reader.json == some "{\"depth\":0,\"prop\":\"--morph\",\"sel\":\"nav\"}"
 
+/-! ## MT-R, the scoped arm (`morph.tween:waapi-scoped`) -/
+
+/-- Readers under `waapi-scoped`: the nav's five `--morph` readers, then on the platform section its inline
+`--morph-fade` reading `--platform-morph` and `platform.module.css` reading `--morph-fade`, both at depth 0. -/
+def readersScoped : List Reader :=
+  [⟨"--morph", "nav", 0⟩, ⟨"--morph", "logo", 2⟩, ⟨"--morph", "actions", 2⟩, ⟨"--morph", "earn", 3⟩,
+   ⟨"--morph", "panel", 1⟩, ⟨"--platform-morph", "section", 0⟩, ⟨"--morph-fade", "section", 0⟩]
+
+/-- The reader depths of a property under `waapi-scoped`, in list order. -/
+def readersOfS (p : String) : List Nat := (readersScoped.filter (·.prop == p)).map (·.depth)
+
+/-- What `index.tsx` passes to `CSS.registerProperty` under `waapi-scoped`. -/
+def registrationsScoped : List Registration :=
+  [⟨"--morph", "<number>", true, "0"⟩, ⟨"--morph-fade", "<number>", false, "1"⟩,
+   ⟨"--fw-morph-dark", "<number>", false, "0"⟩, ⟨"--fw-morph-expanded", "<number>", false, "0"⟩,
+   ⟨"--platform-morph", "<number>", false, "0"⟩]
+
+/-- Under `waapi-scoped` a registration inherits exactly when one of its readers is a strict descendant. -/
+theorem registrationsScoped_rule :
+    ∀ r ∈ registrationsScoped, r.inherits = needsInherit (readersOfS r.name) := by decide
+
+/-- Under `waapi-scoped` every reader of every registered property sees the animated value. -/
+theorem registrationsScoped_see :
+    ∀ r ∈ registrationsScoped, ∀ a i : Rat, ∀ d ∈ readersOfS r.name, seenAt r.inherits a i d = a := by
+  intro r hr a i d hd
+  refine (sees_iff r.inherits i (readersOfS r.name)).2 ?_ a d hd
+  rw [registrationsScoped_rule r hr]
+  cases needsInherit (readersOfS r.name) <;> simp
+
+/-- The inheritance bit of a property under `waapi-scoped`, false without a registration. -/
+def regInheritsS (p : String) : Bool := ((registrationsScoped.find? (·.name == p)).map (·.inherits)).getD false
+
+/-- For each property the original has inherited, the scoped arm restyles a sublist of the original's elements and
+every reader sees the original's value. -/
+theorem scoped_scope_le :
+    ∀ (p : String) (ds : List Nat) (a i : Rat), origInheritsOf p = true →
+      (ds.filter (recalcs (regInheritsS p))).Sublist (ds.filter (recalcs (origInheritsOf p))) ∧
+        ∀ d ∈ readersOfS p, seenAt (regInheritsS p) a i d = seenAt (origInheritsOf p) a i d := by
+  intro p ds a i hp
+  rw [hp]
+  refine ⟨?_, ?_⟩
+  · have : ds.filter (recalcs true) = ds := by simp [recalcs]
+    rw [this]; exact List.filter_sublist
+  · simp only [origInheritsOf, Bool.or_eq_true, beq_iff_eq] at hp
+    rcases hp with rfl | rfl
+    · intro d _; rfl
+    · intro d hd
+      have : d = 0 := by simpa [readersOfS, readersScoped] using hd
+      subst this; rfl
+
+/-- `--platform-morph` restyles only the section that animates it. -/
+theorem platform_morph_local (ds : List Nat) :
+    ds.filter (recalcs (regInheritsS "--platform-morph")) = ds.filter (· == 0) := by
+  have : regInheritsS "--platform-morph" = false := by decide
+  rw [this]; congr 1; funext d; simp [recalcs]
+
+/-- The strict descendants of the platform section (depths `ds`) that one frame restyles through a property with
+inheritance bit `inh` whose value on the section goes from `x` to `y`. An unchanged value restyles none: an animated
+value that computes equal gives no style difference, and an equal inline write is dropped (Chromium
+`css/abstract_property_set_css_style_declaration.cc:278-281`@f842f52). -/
+def frameBelow (inh : Bool) (x y : Rat) (ds : List Nat) : List Nat :=
+  if x = y then [] else ds.filter fun d => decide (0 < d) && recalcs inh d
+
+/-- **MT-R, refuted premise.** Once the fade has clamped (`m, m' ≥ 0.55`), the original's inherited `--morph-fade`
+stops changing and restyles no strict descendant of the section, while the waapi arm's inherited `--morph` still
+changes and restyles every descendant in `ds` (the elements the engine recalcs on an inherited change: `var()`
+references, animations; INFERRED model). -/
+theorem waapi_section_finding (m m' : Rat) (ds : List Nat) (hm : fadeEnd ≤ m) (hm' : fadeEnd ≤ m')
+    (hne : m ≠ m') :
+    frameBelow true (fade m) (fade m') ds = [] ∧ frameBelow true m m' ds = ds.filter (0 < ·) := by
+  refine ⟨?_, ?_⟩
+  · simp [frameBelow, fade_ends.2 m hm, fade_ends.2 m' hm']
+  · simp [frameBelow, hne, recalcs]
+
+/-- On every frame the waapi arm restyles at least the strict descendants the original restyles. -/
+theorem orig_below_le_waapi (m m' : Rat) (ds : List Nat) :
+    (frameBelow true (fade m) (fade m') ds).Sublist (frameBelow true m m' ds) := by
+  unfold frameBelow
+  by_cases h : m = m'
+  · subst h; simp
+  · simp only [h, ↓reduceIte]; split <;> simp
+
+/-- The scoped arm restyles no strict descendant of the section on any frame, so its set is a sublist of both the
+original's and the waapi arm's. -/
+theorem scoped_below_nil (x y x' y' : Rat) (ds : List Nat) :
+    frameBelow (regInheritsS "--platform-morph") x y ds = [] ∧
+      frameBelow (regInheritsS "--morph-fade") x' y' ds = [] := by
+  have h1 : regInheritsS "--platform-morph" = false := by decide
+  have h2 : regInheritsS "--morph-fade" = false := by decide
+  rw [h1, h2]
+  have key : ∀ a b : Rat, frameBelow false a b ds = [] := by
+    intro a b
+    unfold frameBelow
+    split
+    · rfl
+    · simp only [recalcs, Bool.or_false, List.filter_eq_nil_iff, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq]
+      omega
+  exact ⟨key x y, key x' y'⟩
+
+/-- The value of `--platform-morph` on the frame `R` after the events `es`: the platform animation has the nav's
+keyframe values, timing and start time, so the engine's one animated value. -/
+def platformMorphV (P : WaapiPremises) (es : List Ev) (R : Rat) : Rat := valV P (runV P initV es) (P.tl R)
+
+/-- The scoped arm's inline `--morph-fade`, `calc(1 - min(1, var(--platform-morph) / 0.55))`, evaluated. -/
+def fadeScopedEval (x : Rat) : Rat := 1 - min 1 (x / (55 / 100))
+
+/-- On every admissible frame the scoped arm's evaluated fade equals the original's. -/
+theorem fade_eq (P : WaapiPremises) (h : Hist) :
+    fadeScopedEval (platformMorphV P h.1.1 h.1.2.1) = fade (viewO h.1.1 h.1.2.1).m := by
+  have hm : (viewV P h.1.1 h.1.2.1).m = (viewO h.1.1 h.1.2.1).m := by rw [view_eq P h]
+  simp only [viewV] at hm
+  unfold platformMorphV fadeScopedEval
+  rw [hm, fade_css]
+
+#guard !regInheritsS "--morph-fade" && regInheritsS "--morph" && !regInheritsS "--platform-morph"
+#guard readersScoped.all fun r => (registrationsScoped.find? (·.name == r.prop)).isSome
+#guard fadeScopedEval 0 == 1 && fadeScopedEval (11 / 40) == 1 / 2 && fadeScopedEval (3 / 5) == 0
+#guard frameBelow true (fade (3 / 5)) (fade (7 / 10)) [0, 1, 2] == [] && frameBelow true (3 / 5) (7 / 10) [0, 1, 2] == [1, 2]
+#guard frameBelow false (3 / 5) (7 / 10) [0, 1, 2] == []
+
+/-- One registration of an arm as compact JSON, with the arm under `arm`. -/
+def Registration.jsonArm (arm : String) (r : Registration) : String :=
+  (Lean.Json.mkObj [("arm", .str arm), ("name", .str r.name), ("syntax", .str r.syntaxStr),
+    ("inherits", .bool r.inherits), ("initialValue", .str r.initialValue)]).compress
+
+/-- One reader of an arm as compact JSON, with the arm under `arm`. -/
+def Reader.jsonArm (arm : String) (r : Reader) : String :=
+  (Lean.Json.mkObj [("arm", .str arm), ("prop", .str r.prop), ("sel", .str r.sel),
+    ("depth", (r.depth : Lean.Json))]).compress
+
+#guard readersScoped.getLast?.map (Reader.jsonArm "waapi-scoped") ==
+  some "{\"arm\":\"waapi-scoped\",\"depth\":0,\"prop\":\"--morph-fade\",\"sel\":\"section\"}"
+
+/-! ## Profiles: pushes come only from wheel and touchmove -/
+
+/-- How a measurement profile scrolls (`packages/measure-chromium/profiles/*.json`, `input.mode`). -/
+inductive Mode where
+  | scroll
+  | wheel
+  | touch
+deriving Repr, DecidableEq
+
+/-- The input mode of a profile id; a profile without `input` scrolls with `scrollTo`. -/
+def modeOf : String → Mode
+  | "swipe-touch-v1" => .touch
+  | "swipe-wheel-v1" => .wheel
+  | _ => .scroll
+
+/-- One input a profile sends; `wheel` and `touchmove` carry the push the driver takes from them. -/
+inductive Input where
+  | scrollTo
+  | wheel (g : Rat) (rm : Bool) (n : Rat)
+  | touchmove (g : Rat) (rm : Bool) (n : Rat)
+  | frame (R : Rat)
+deriving Repr, DecidableEq
+
+/-- Whether a profile of mode `m` can send input `x`. -/
+def Input.sentBy : Mode → Input → Bool
+  | _, .frame _ => true
+  | .scroll, .scrollTo => true
+  | .wheel, .wheel .. => true
+  | .touch, .touchmove .. => true
+  | _, _ => false
+
+/-- The events the driver feeds the tween; only `wheel` and `touchmove` push (morph.tween/driver.ts:89-91). -/
+def drive : Input → List Ev
+  | .scrollTo => []
+  | .wheel g rm n => [.push g rm n]
+  | .touchmove g rm n => [.push g rm n]
+  | .frame R => [.tick R]
+
+/-- Whether a profile mode can push the morph. -/
+def pushes (m : Mode) : Bool := m != .scroll
+
+/-- Whether an event list holds no push. -/
+def noPushB (es : List Ev) : Bool := es.all fun | .push .. => false | .tick _ => true
+
+/-- Per frame of a run of the original from `s`: whether that frame runs the tween. -/
+def tweenFlags : St → List Ev → List Bool
+  | _, [] => []
+  | s, .push g rm n :: es => tweenFlags (push s g rm n) es
+  | s, .tick R :: es => s.pending :: tweenFlags (stepO s (.tick R)) es
+
+#guard tweenFlags rest [.tick 0, .push 1 false 0, .tick 16, .tick 800, .tick 816] == [false, true, true, false]
+#guard Input.sentBy .scroll .scrollTo && !Input.sentBy .scroll (.wheel 1 false 0) &&
+  Input.sentBy .touch (.touchmove 1 false 0) && !Input.sentBy .touch .scrollTo
+#guard noPushB ([Input.scrollTo, .frame 0, .scrollTo, .frame 16].flatMap drive)
+#guard !noPushB ([Input.touchmove 1 false 0, .frame 0].flatMap drive)
+#guard (["swipe-v1", "swipe-touch-v1", "swipe-wheel-v1"].map fun p => pushes (modeOf p)) == [false, true, true]
+
+/-- A scroll-mode profile sends no push. -/
+theorem noPush_scroll (xs : List Input) (h : ∀ x ∈ xs, Input.sentBy .scroll x = true) :
+    noPushB (xs.flatMap drive) = true := by
+  induction xs with
+  | nil => rfl
+  | cons x xs ih =>
+    have hx := h x (by simp)
+    have ht := ih fun y hy => h y (by simp [hy])
+    rw [List.flatMap_cons, noPushB, List.all_append]
+    rw [noPushB] at ht
+    rw [ht, Bool.and_true]
+    cases x <;> simp_all [Input.sentBy, drive]
+
+/-- Without a push the original never runs a tween frame. -/
+theorem tweenFlags_noPush (s : St) (es : List Ev) (hs : s.pending = false) (h : noPushB es = true) :
+    ∀ b ∈ tweenFlags s es, b = false := by
+  induction es generalizing s with
+  | nil => simp [tweenFlags]
+  | cons e es ih =>
+    cases e with
+    | push g rm n => simp [noPushB] at h
+    | tick R =>
+      have h' : noPushB es = true := by simpa [noPushB] using h
+      intro b hb
+      simp only [tweenFlags, List.mem_cons] at hb
+      rcases hb with rfl | hb
+      · exact hs
+      · exact ih _ (by simp [stepO, hs]) h' b hb
+
+/-- Without a push the waapi arm starts no animation, so it adds no composite-failure bit. -/
+theorem anim_noPush (P : WaapiPremises) (w : VSt) (es : List Ev) (hw : w.anim = none) (h : noPushB es = true) :
+    (runV P w es).anim = none := by
+  induction es generalizing w with
+  | nil => exact hw
+  | cons e es ih =>
+    cases e with
+    | push g rm n => simp [noPushB] at h
+    | tick R => exact ih _ (by simpa [stepV] using hw) (by simpa [noPushB] using h)
+
+/-- **No push, `=o`.** On a scroll-mode profile both arms fire the same animation frames and the waapi arm starts
+no animation. -/
+theorem noPush_eqO (P : WaapiPremises) (xs : List Input) (h : ∀ x ∈ xs, Input.sentBy .scroll x = true)
+    (cbs : List Nat) :
+    Chromium.rafSeries (cbs.zip (tweenFlags rest (xs.flatMap drive))) false =
+        Chromium.rafSeries (cbs.zip (tweenFlags rest (xs.flatMap drive))) true ∧
+      (runV P initV (xs.flatMap drive)).anim = none := by
+  have hn := noPush_scroll xs h
+  refine ⟨(Chromium.waapi_raf_eq_iff _).2 fun x hx => ?_, anim_noPush P initV _ rfl hn⟩
+  exact tweenFlags_noPush rest _ rfl hn x.2 (List.of_mem_zip hx).2
+
+/-- The original fires one more animation frame callback than the waapi arm per tween frame. -/
+theorem raf_sum_eq (fs : List (Nat × Bool)) :
+    (Chromium.rafSeries fs true).sum = (Chromium.rafSeries fs false).sum + (fs.filter (·.2)).length := by
+  induction fs with
+  | nil => rfl
+  | cons y ys ih =>
+    simp only [Chromium.rafSeries, List.map_cons, List.sum_cons, List.filter_cons] at ih ⊢
+    simp at ih ⊢; cases y.2 <;> simp <;> omega
+
+/-- A run with a tween frame costs the original more animation frame callbacks than the waapi arm. -/
+theorem raf_sum_lt (fs : List (Nat × Bool)) (h : ∃ x ∈ fs, x.2 = true) :
+    (Chromium.rafSeries fs false).sum < (Chromium.rafSeries fs true).sum := by
+  obtain ⟨x, hx, hx2⟩ := h
+  have : 0 < (fs.filter (·.2)).length := List.length_pos_of_mem (List.mem_filter.2 ⟨hx, by simpa using hx2⟩)
+  rw [raf_sum_eq]
+  omega
+
+/-- A taken push to a new target with full motion makes the next frame a tween frame. -/
+theorem tween_of_push (s : St) (g n R : Rat) (es : List Ev) (hg : s.target ≠ g) :
+    tweenFlags s (.push g false n :: .tick R :: es) = true :: tweenFlags (frame (push s g false n) R) es := by
+  simp [tweenFlags, push, hg, stepO]
+
+/-- The prediction for stage `s` on a profile of mode `m`: MT-W's when the profile pushes, `=o` otherwise. -/
+def predProfile (m : Mode) (s : Stage) : String := if pushes m then predStage s else "=o"
+
+/-- The bit-13 row's prediction (rewrite against waapi): `<o` when the profile pushes, `=o` otherwise. -/
+def compPred (m : Mode) : String := if pushes m then "<o" else "=o"
+
+/-- A pushing profile takes MT-W's prediction. -/
+theorem predProfile_push (m : Mode) (h : pushes m = true) (s : Stage) : predProfile m s = predStage s := by
+  simp [predProfile, h]
+
+/-- A profile without pushes predicts `=o` everywhere. -/
+theorem predProfile_noPush (m : Mode) (h : pushes m = false) (s : Stage) :
+    predProfile m s = "=o" ∧ compPred m = "=o" := by
+  simp [predProfile, compPred, h]
+
+#guard (Stage.all.map (predProfile .scroll)).all (· == "=o")
+#guard Stage.all.map (predProfile .touch) == Stage.all.map predStage
+#guard compPred .touch == "<o" && compPred .scroll == "=o"
+
+/-! ## Start read on the frame grid (touch arm finding) -/
+
+/-- A start read that equals the push time once and lags it once fits no constant offset, so R5's `start_eq` fails. -/
+theorem start_eq_refuted (sr : Rat → Rat) (n₁ n₂ : Rat) (h₁ : sr n₁ = n₁) (h₂ : sr n₂ < n₂) :
+    ¬ ∃ c : Rat, ∀ n, sr n = n + c := by
+  rintro ⟨c, hc⟩
+  rw [hc] at h₁ h₂
+  grind
+
+/-- A start that leads the push by less than one frame puts the variant's elapsed time strictly between the original's at the same frame and at the next. -/
+theorem lead_within_frame (n δ R p : Rat) (hδ : 0 < δ) (hp : δ < p) :
+    R - n < R - (n - δ) ∧ R - (n - δ) < (R + p) - n := by
+  constructor <;> grind
+
 /-! ## Golden prediction rows (engine-check schema) -/
 
 /-- One engine-check prediction row (`apps/runner/src/engine-check.ts`), with an explicit base arm.
@@ -1433,16 +1728,20 @@ def countsOf : String → List (Stage × String)
       (.paint, "Paint"), (.commit, "Composite")]
   | _ => []
 
-/-- The golden rows: per engine and counted stage the MT-W prediction of the variant against the rewrite arm, plus
-Chromium's bit-13 row (the rewrite has fewer composite-failure bits than the variant: `cr_custom_main`).
-
-$$\mathrm{rows} = \big[(e, \texttt{swipe-v1}, \mathit{arm}_v, \operatorname{name}(s), \operatorname{pred}_{\mathrm{MT}}(s), k, \texttt{rewrite})\big]_{e \in [\texttt{chromium}, \texttt{webkit}],\ (s, k) \in \operatorname{counts}(e)} \mathbin{+\!\!+} \big[(\texttt{chromium}, \texttt{swipe-v1}, \texttt{rewrite}, \mathrm{comp}, \texttt{<o}, \texttt{trace.Animation.compositeFailedBits}, \mathit{arm}_v)\big]$$
-
-Eleven predictions. -/
-def goldenRows : List PredRow :=
+/-- The golden rows of profile `sc`: per engine and counted stage `predProfile`, plus Chromium's bit-13 row. -/
+def rowsFor (sc : String) : List PredRow :=
   (["chromium", "webkit"].flatMap fun e => (countsOf e).map fun (s, k) =>
-    ⟨e, "swipe-v1", armV, WebKit.stageName s, predStage s, k, "rewrite"⟩) ++
-  [⟨"chromium", "swipe-v1", "rewrite", "comp", "<o", "trace.Animation.compositeFailedBits", armV⟩]
+    ⟨e, sc, armV, WebKit.stageName s, predProfile (modeOf sc) s, k, "rewrite"⟩) ++
+  [⟨"chromium", sc, "rewrite", "comp", compPred (modeOf sc), "trace.Animation.compositeFailedBits", armV⟩]
+
+/-- The golden rows on the touch swipe, the profile that pushes. -/
+def goldenRows : List PredRow := rowsFor "swipe-touch-v1"
+
+/-- The golden rows on the scripted swipe, which never pushes. -/
+def swipeRows : List PredRow := rowsFor "swipe-v1"
+
+/-- Every scripted-swipe row is `=o`. -/
+theorem swipeRows_eqO : ∀ r ∈ swipeRows, r.prediction = "=o" := by decide
 
 /-- One row as compact JSON (keys sorted by `Json.mkObj`).
 
@@ -1456,18 +1755,26 @@ def PredRow.json (r : PredRow) : String :=
 
 /-- The contents of `packages/contracts/golden/parts/morph-tween-waapi.jsonl`.
 
-$$\mathrm{goldenJsonl} = \mathop{\Vert}_{r \in \mathrm{rows}} \big(\operatorname{json}(r) \mathbin{+\!\!+} \texttt{\textbackslash n}\big) \mathbin{\Vert} \mathop{\Vert}_{g \in \mathrm{regs}} \big(\operatorname{json}(g) \mathbin{+\!\!+} \texttt{\textbackslash n}\big) \mathbin{\Vert} \mathop{\Vert}_{q \in \mathrm{readers}} \big(\operatorname{json}(q) \mathbin{+\!\!+} \texttt{\textbackslash n}\big)$$
+$$\mathrm{goldenJsonl} = \mathop{\Vert}_{r \in \mathrm{rows}} \big(\operatorname{json}(r) \mathbin{+\!\!+} \texttt{\textbackslash n}\big) \mathbin{\Vert} \mathop{\Vert}_{g \in \mathrm{regs}} \big(\operatorname{json}(g) \mathbin{+\!\!+} \texttt{\textbackslash n}\big) \mathbin{\Vert} \mathop{\Vert}_{q \in \mathrm{readers}} \big(\operatorname{json}(q) \mathbin{+\!\!+} \texttt{\textbackslash n}\big) \mathbin{\Vert} \mathrm{scoped}$$
 
-The golden file: the eleven predictions, then the four registrations, then the seven readers. -/
+The golden file: the eleven predictions, then the four registrations, then the seven readers, then the `waapi-scoped` arm's five registrations and seven readers with `arm`. -/
 def goldenJsonl : String :=
   String.join (goldenRows.map fun r => r.json ++ "\n") ++ String.join (registrations.map fun r => r.json ++ "\n") ++
-    String.join (readers.map fun r => r.json ++ "\n")
+    String.join (readers.map fun r => r.json ++ "\n") ++
+    String.join (registrationsScoped.map fun r => r.jsonArm "waapi-scoped" ++ "\n") ++
+    String.join (readersScoped.map fun r => r.jsonArm "waapi-scoped" ++ "\n")
 
 #guard goldenJsonl == include_str "../../../packages/contracts/golden/parts/morph-tween-waapi.jsonl"
+
+/-- The contents of `packages/contracts/golden/parts/morph-tween-waapi.swipe-v1.jsonl`. -/
+def swipeJsonl : String := String.join (swipeRows.map fun r => r.json ++ "\n")
+
+#guard swipeJsonl == include_str "../../../packages/contracts/golden/parts/morph-tween-waapi.swipe-v1.jsonl"
+#guard swipeRows.length == 11
 #guard goldenRows.length == 11
 #guard (goldenRows.filter fun r => r.prediction == "<o").length == 3
 #guard goldenRows.head?.map PredRow.json ==
-  some "{\"base\":\"rewrite\",\"countType\":\"trace.FireAnimationFrame\",\"engine\":\"chromium\",\"prediction\":\"<o\",\"scenario\":\"swipe-v1\",\"stage\":\"script\",\"variant\":\"rewrite+?fw=morph.tween:waapi\"}"
+  some "{\"base\":\"rewrite\",\"countType\":\"trace.FireAnimationFrame\",\"engine\":\"chromium\",\"prediction\":\"<o\",\"scenario\":\"swipe-touch-v1\",\"stage\":\"script\",\"variant\":\"rewrite+?fw=morph.tween:waapi\"}"
 
 /-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
 

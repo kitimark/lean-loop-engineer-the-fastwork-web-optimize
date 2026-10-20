@@ -77,6 +77,26 @@ export const PlanReply = z.object({
 });
 export type PlanReply = z.infer<typeof PlanReply>;
 
+// ---- store.gate (breakpoint-gate.yml dispatch) ------------------------------------------------------------------------
+export const GateRequest = z.object({
+  op: z.literal("store.gate"),
+  engines: z.string().optional(), // both (default), chromium or playwright-webkit
+  preset: z.string().optional(), // empty = none; exclusive with fw
+  fw: z.array(FlagStr).optional(),
+});
+export type GateRequest = z.infer<typeof GateRequest>;
+
+export const GateReply = z.object({
+  problems: z.array(z.string()),
+  fw: z.array(FlagStr),
+  job: z.object({
+    workflow: z.string(),
+    inputs: z.record(z.string(), z.string()), // `gh workflow run -f name=value`
+    blocked: z.string().nullable(),
+  }).nullable(), // null when there are problems
+});
+export type GateReply = z.infer<typeof GateReply>;
+
 // ---- store.manifest / store.objectPath -----------------------------------------------------------------------------
 export const ManifestRequest = z.object({ op: z.literal("store.manifest"), manifest: z.unknown() });
 export const ManifestReply = z.object({

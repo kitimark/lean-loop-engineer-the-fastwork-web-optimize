@@ -7,10 +7,10 @@ loaded, so an absolute wall-clock bound in it is a land refusal waiting for load
 finds literal numbers in a test file, classifies each by the syntactic site it sits in (the lexing is glue), and asks
 this module whether the number is a bound and whether it is refused.
 
-* A **bound** is a literal $n > 0$ at a site that limits how long something may take: an assertion upper bound, a
+* A **bound** is a literal `n > 0` at a site that limits how long something may take: an assertion upper bound, a
   `timeout` option, a hard-coded call deadline, a comparison of an elapsed time against a literal.
 * A **loop cap** (a counted `for` loop around a sleep, as in `for (i < 100) { await wait(100) }`) limits the poll to
-  $\mathrm{count} \times \mathrm{sleep}$ milliseconds, so it is a bound too.
+  `count × sleep` milliseconds, so it is a bound too.
 * A **sleep** (`setTimeout(r, 50)`, `wait(300)`) waits and limits nothing; it is never refused.
 * A bound is allowed only with a non-empty written reason (the allowlist `scripts/wallclock-allow.json`).
 
@@ -25,67 +25,57 @@ namespace Fw.Console.WallClock
 open Lean
 
 /-- The syntactic site of a literal: an assertion upper bound, a timeout option, a hard-coded deadline argument, an
-elapsed-time comparison, a loop cap, a sleep delay, or anything else.
-$$\mathrm{Site} = \{\mathrm{assertLt}, \mathrm{timeoutOpt}, \mathrm{deadlineArg}, \mathrm{elapsedCmp}, \mathrm{loopCap}, \mathrm{sleep}, \mathrm{other}\}$$ -/
+elapsed-time comparison, a loop cap, a sleep delay, or anything else. -/
 inductive Site | assertLt | timeoutOpt | deadlineArg | elapsedCmp | loopCap | sleep | other
   deriving DecidableEq, Repr
 
-/-- The site's name in the golden and in the lint. $$\mathrm{name} : \mathrm{Site} \to \mathrm{String}$$ -/
+/-- The site's name in the golden and in the lint. -/
 def Site.name : Site → String
   | .assertLt => "assertLt" | .timeoutOpt => "timeoutOpt" | .deadlineArg => "deadlineArg"
   | .elapsedCmp => "elapsedCmp" | .loopCap => "loopCap" | .sleep => "sleep" | .other => "other"
 
-/-- Does the site limit how long something may take?
-$$\mathrm{limits}(s) \iff s \in \{\mathrm{assertLt}, \mathrm{timeoutOpt}, \mathrm{deadlineArg}, \mathrm{elapsedCmp}, \mathrm{loopCap}\}$$ -/
+/-- Does the site limit how long something may take? -/
 def Site.limits : Site → Bool
   | .assertLt | .timeoutOpt | .deadlineArg | .elapsedCmp | .loopCap => true
   | .sleep | .other => false
 
-/-- A literal is a wall-clock bound.
-$$\mathrm{bound}(s, n) \iff \mathrm{limits}(s) \wedge n > 0$$ -/
+/-- A literal is a wall-clock bound. -/
 def isBound (s : Site) (n : Nat) : Bool := s.limits && decide (0 < n)
 
 /-- A reason counts when it has a character outside the Lean whitespace set, which is exactly the four characters space
 (U+0020), tab (U+0009), carriage return (U+000D) and line feed (U+000A); a vertical tab or a no-break space is not
-whitespace.
-$$\mathrm{reasonOk}(r) \iff \exists c \in r:\ c \notin W,\quad W = \{\texttt{U+0020}, \texttt{U+0009}, \texttt{U+000D}, \texttt{U+000A}\}$$ -/
+whitespace. -/
 def reasonOk (r : String) : Bool := r.toList.any fun c => !c.isWhitespace
 
-/-- The lint refuses a literal that is a bound and carries no reason.
-$$\mathrm{refuse}(s, n, r) \iff \mathrm{bound}(s, n) \wedge \neg\,\mathrm{reasonOk}(r)$$ -/
+/-- The lint refuses a literal that is a bound and carries no reason. -/
 def refuse (s : Site) (n : Nat) (r : String) : Bool := isBound s n && !reasonOk r
 
-/-- Sleeps and other numbers are never refused.
-$$\neg\mathrm{limits}(s) \Rightarrow \neg\,\mathrm{refuse}(s, n, r)$$ -/
+/-- Sleeps and other numbers are never refused. -/
 theorem refuse_not_limits (s : Site) (n : Nat) (r : String) (h : s.limits = false) : refuse s n r = false := by
   simp [refuse, isBound, h]
 
-/-- Zero is never a bound (no limit is set).
-$$\neg\,\mathrm{refuse}(s, 0, r)$$ -/
+/-- Zero is never a bound (no limit is set). -/
 theorem refuse_zero (s : Site) (r : String) : refuse s 0 r = false := by
   simp [refuse, isBound]
 
-/-- A written reason allows any literal.
-$$\mathrm{reasonOk}(r) \Rightarrow \neg\,\mathrm{refuse}(s, n, r)$$ -/
+/-- A written reason allows any literal. -/
 theorem refuse_reason (s : Site) (n : Nat) (r : String) (h : reasonOk r = true) : refuse s n r = false := by
   simp [refuse, h]
 
-/-- Refusal is exactly "bound without reason" (so a refused literal is a bound).
-$$\mathrm{refuse}(s, n, r) \iff \mathrm{bound}(s, n) \wedge \neg\,\mathrm{reasonOk}(r)$$ -/
+/-- Refusal is exactly "bound without reason" (so a refused literal is a bound). -/
 theorem refuse_iff (s : Site) (n : Nat) (r : String) :
     refuse s n r = true ↔ isBound s n = true ∧ reasonOk r = false := by
   simp [refuse]
 
 /-! ## Golden vectors -/
 
-/-- One golden case.
-$$\operatorname{case}(m, s, n, r) = \{\mathrm{name}: m,\ \mathrm{request}: \{\mathrm{op}: \texttt{wallclock.verdict}, \mathrm{site}: \mathrm{name}(s), \mathrm{ms}: n, \mathrm{reason}: r\},\ \mathrm{response}: \{\mathrm{refuse}: \mathrm{refuse}(s,n,r), \mathrm{bound}: \mathrm{bound}(s,n)\}\}$$ -/
+/-- One golden case. -/
 def case (name : String) (s : Site) (n : Nat) (r : String) : Json :=
   Json.mkObj [("name", .str name),
     ("request", Json.mkObj [("op", "wallclock.verdict"), ("site", s.name), ("ms", toJson n), ("reason", .str r)]),
     ("response", Json.mkObj [("refuse", .bool (refuse s n r)), ("bound", .bool (isBound s n))])]
 
-/-- The cases: the 20 fixed tuples listed below. $$\mathrm{cases} = [\operatorname{case}(m, s, n, r)]_{(m, s, n, r)}$$ -/
+/-- The cases: the 20 fixed tuples listed below. -/
 def cases : List Json :=
   [case "assert bound, no reason" .assertLt 5000 "", case "assert bound, blank reason" .assertLt 5000 "  ",
    case "assert bound, reason" .assertLt 5000 "ratio of two timed runs",
@@ -98,16 +88,16 @@ def cases : List Json :=
    case "reason is a space" .assertLt 5000 " ", case "reason is tab, cr, lf" .assertLt 5000 "\t\r\n",
    case "reason is a vertical tab" .assertLt 5000 "\x0b", case "reason is a no-break space" .assertLt 5000 "\u00a0"]
 
-/-- The golden text. $$\mathrm{goldenText} = \operatorname{concat}[\operatorname{compress}(c) \mathbin{+\!\!+} \text{"\textbackslash n"}]_{c}$$ -/
+/-- The golden text. -/
 def goldenText : String := String.join (cases.map fun c => c.compress ++ "\n")
 
-/-- The golden file, relative to `lean/`. $$\mathrm{goldenPath} = \texttt{../packages/contracts/golden/console/wallclock.jsonl}$$ -/
+/-- The golden file, relative to `lean/`. -/
 def goldenPath : System.FilePath := "../packages/contracts/golden/console/wallclock.jsonl"
 
-/-- Write the golden file (IO). $$\mathrm{goldenPath} \leftarrow \mathrm{goldenText}$$ -/
+/-- Write the golden file (IO). -/
 def writeGolden : IO Unit := IO.FS.writeFile goldenPath goldenText
 
-/-- Is the golden file the Lean output? (IO) $$\operatorname{read}(\mathrm{goldenPath}) = \mathrm{goldenText}$$ -/
+/-- Is the golden file the Lean output? (IO) -/
 def checkGolden : IO Bool := do return (← IO.FS.readFile goldenPath) == goldenText
 
 end Fw.Console.WallClock

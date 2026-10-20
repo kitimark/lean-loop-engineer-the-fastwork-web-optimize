@@ -10,11 +10,14 @@ import { execFileSync } from "node:child_process";
 import { buildBase } from "./core/build-base.ts";
 import { PreviewManager } from "./preview/manager.ts";
 import { OwnerAuth } from "./preview/owner.ts";
+import { Grants } from "./preview/grants.ts";
 import { announceLink, reissueLink, type LinkClock } from "./preview/link.ts";
 import { networkInterfaces } from "node:os";
 import { LoginGuard, readPassphrase, KEYCHAIN_HINT } from "./preview/login.ts";
 import { pickLanAddr } from "./preview/lan.ts";
 import { createPreviewApp } from "./preview/preview-app.ts";
+import { createArmApp } from "./preview/arm-app.ts";
+import { ArmServers } from "./preview/arm-servers.ts";
 
 /** HEAD of the checkout the code runs from (null when git is unavailable). */
 function codeCommit(root: string): string | null {
@@ -46,7 +49,7 @@ const service = { commit: codeCommit(codeRoot), startedAt };
 let coreInfo: { coreCommit?: string; coreUnknown?: string } = {};
 let listening: { port: number } | null = null;
 const writeApi = () => {
-  if (listening) writeFileSync(join(dir, "api.json"), JSON.stringify({ port: listening.port, pid: process.pid, ...service, ...coreInfo }));
+  if (listening) writeFileSync(join(dir, "api.json"), JSON.stringify({ port: listening.port, pid: process.pid, lan: lanAddr !== null, ...service, ...coreInfo }));
 };
 core.onSpawn = (binPath) => {
   const b = buildBase(codeRoot, binPath);
@@ -77,8 +80,12 @@ if (wantLan && lanAddr === null) {
   console.error(`console-api: LAN mode is disabled (${why[String(lanDecision.result)] ?? "not allowed"}); staying on loopback only. Set a longer passphrase with:\n  ${KEYCHAIN_HINT}`);
 }
 const login = new LoginGuard(core, passphrase);
-const app = createApp(store, join(here, "../../console-web/dist"), reconciler, previews, owner, service, { login, lan: lanAddr !== null });
-const previewApp = createPreviewApp(core, owner, previews, { lan: lanAddr !== null });
+const grants = new Grants(core, (rec) => previews.audit(rec));
+const app = createApp(store, join(here, "../../console-web/dist"), reconciler, previews, owner, service, { login, lan: lanAddr !== null, grants });
+const previewApp = createPreviewApp(core, owner, previews, { lan: lanAddr !== null, grants });
+// every arm of a preview has its own origin: one listener per arm port, opened when the preview begins serving (manager.ts)
+const armApp = createArmApp(core, owner, previews, { lan: lanAddr !== null, lanAddr, grants });
+previews.useArms(new ArmServers(armApp.fetch, lanAddr));
 
 setInterval(() => { void app.drain.run().catch((e) => console.error("spool drain failed:", e)); }, 2000).unref();
 

@@ -199,16 +199,17 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     expect(p!.phase).toBe("serving");
     expect(new Set([p!.rp, p!.op]).size).toBe(2);
     expect([p!.rp, p!.op].every((q) => q >= TEST_BASE && q < TEST_BASE + 40)).toBe(true); // never the production range
-    const rw = await fetch(`http://127.0.0.1:${p!.rp}/`); expect(await rw.text()).toContain("rewrite");
-    expect(rw.headers.get("cache-control")).toBe("no-store");
-    expect(await (await fetch(`http://127.0.0.1:${p!.rp}/?fw=x:y`)).text()).toContain("variant");
-    expect(await (await fetch(`http://127.0.0.1:${p!.rp}/pic.png`)).text()).toBe("PNG"); // media from the snapshot
-    expect((await fetch(`http://127.0.0.1:${p!.rp}/analytics.js`)).status).toBe(200);
-    expect(await (await fetch(`http://127.0.0.1:${p!.op}/analytics.js`)).text()).toBe(""); // GTM loader stubbed
-    expect(await (await fetch(`http://127.0.0.1:${p!.op}/`)).text()).toContain("original");
-    expect((await fetch(`http://127.0.0.1:${p!.op}/`, { method: "POST" })).status).toBe(405);
-    expect((await fetch(`http://127.0.0.1:${p!.rp}/__fw/compare`)).status).toBe(200);
-    expect((await fetch(`http://127.0.0.1:${p!.rp}/..%2f..%2fetc/passwd`)).status).toBe(404);
+    expect([p!.brp, p!.bop]).toEqual([p!.rp + 1000, p!.op + 1000]); // the private ports of Lean Arm.backendOf
+    const rw = await fetch(`http://127.0.0.1:${p!.brp}/`); expect(await rw.text()).toContain("rewrite");
+    expect(rw.headers.get("cache-control")).toBe("no-cache");
+    expect(await (await fetch(`http://127.0.0.1:${p!.brp}/?fw=x:y`)).text()).toContain("variant");
+    expect(await (await fetch(`http://127.0.0.1:${p!.brp}/pic.png`)).text()).toBe("PNG"); // media from the snapshot
+    expect((await fetch(`http://127.0.0.1:${p!.brp}/analytics.js`)).status).toBe(200);
+    expect(await (await fetch(`http://127.0.0.1:${p!.bop}/analytics.js`)).text()).toBe(""); // GTM loader stubbed
+    expect(await (await fetch(`http://127.0.0.1:${p!.bop}/`)).text()).toContain("original");
+    expect((await fetch(`http://127.0.0.1:${p!.bop}/`, { method: "POST" })).status).toBe(405);
+    expect((await fetch(`http://127.0.0.1:${p!.brp}/__fw/compare`)).status).toBe(200);
+    expect((await fetch(`http://127.0.0.1:${p!.brp}/..%2f..%2fetc/passwd`)).status).toBe(404);
     const pid = p!.pid!;
     expect(alive(pid)).toBe(true);
     expect(await pm.stop(r.id, USER)).toEqual({ ok: true, reason: null });
@@ -216,7 +217,7 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     expect(alive(pid)).toBe(false);
     expect(pm.list().previews).toEqual([]);
     expect(existsSync(join(dir, "preview", r.id))).toBe(false);
-    await expect(fetch(`http://127.0.0.1:${p!.rp}/`)).rejects.toThrow();
+    await expect(fetch(`http://127.0.0.1:${p!.brp}/`)).rejects.toThrow();
   });
 
   it("a manager built without a port base allocates from the Lean default (47100), without binding it", async () => {
@@ -362,7 +363,7 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     const own = spawn("sleep", ["30"], { detached: true, stdio: "ignore" });
     const plain = spawn("sleep", ["30"], { stdio: "ignore" }); // same group as this test process
     try {
-      const e = (pid: number, pstart: string | null): Entry => ({ id: "x", task: "t", target: { kind: "main", ref: "main", sha: "a" }, rp: 1, op: 2,
+      const e = (pid: number, pstart: string | null): Entry => ({ id: "x", task: "t", target: { kind: "main", ref: "main", sha: "a" }, rp: 1, op: 2, brp: 1001, bop: 1002,
         started: 0, deadline: 1, phase: "building", pid, pstart, tree: "/nonexistent", seen: 0 });
       expect(hooks.isOurs(own.pid!, e(own.pid!, hooks.startOf(own.pid!)))).toBe(true);
       expect(hooks.isOurs(own.pid!, e(own.pid!, "Mon Jan  1 00:00:00 2001"))).toBe(false); // a recycled pid has another start time

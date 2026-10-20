@@ -59,7 +59,7 @@ test("a branch wait with --workflow follows the newest run of that workflow crea
   const r = await wait(3, runs, { kind: "branch", branch: "ci/x", workflow: "chromium-counts", sha: "abc", since: T0 });
   assert.deepEqual(r.res, Array(3).fill({ code: 0, lines: ["run 11 chromium-counts success -> pass"] }));
   const views = r.calls.filter((c) => c.args[1] === "view");
-  assert.deepEqual(views.map((c) => c.args.slice(2)), [["11", "--json", "jobs"]], "a branch wait views only the jobs of the decisive run");
+  assert.deepEqual(views.map((c) => c.args.slice(2)), [["11", "--json", "jobs,attempt"]], "a branch wait views only the jobs of the decisive run");
 });
 
 test("a branch wait with --workflow never takes a run of a newer commit (exact sha, round-5 review)", async () => {
@@ -175,6 +175,30 @@ test("timeout is exit 3 and the state keeps no watcher behind", async () => {
   assert.deepEqual(st.watched, []);
 });
 
+// task ci-wait-lag: the verdict is keyed on the attempt (Lean `Fw.Ci.Attempt`). After `gh run rerun --failed` the run id
+// is the same: the list still shows attempt 1 finished while the jobs view already shows attempt 2 (run 39363764375).
+test("rerun: a finished row of attempt 1 never gives the verdict while the jobs view shows attempt 2", async () => {
+  const w = mkWorld(T0, { fastGh: true });
+  w.config({ start: T0, listCost: 2, runs: [run(41, { conclusion: "failure", attempt: 1, viewAttempt: 2 })] });
+  const [res] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 41 }, { timeoutS: 300 })]);
+  assert.equal(res!.code, 3, res!.lines.join("\n"));
+  assert.match(res!.lines[0]!, /timed out/);
+  const views = w.calls().filter((c) => c.args[1] === "view" && c.args.includes("jobs,attempt"));
+  assert.equal(views.length, 1, "one jobs view, not one per loop");
+});
+
+test("rerun: jobs cached at attempt 1 are not reused once the row is attempt 2", async () => {
+  const w = mkWorld(T0, { fastGh: true });
+  w.config({ start: T0, listCost: 2, runs: [run(42, { conclusion: "failure", attempt: 1 })] });
+  const [first] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 42 }, { timeoutS: 300 })]);
+  assert.equal(first!.code, 1);
+  w.config({ start: T0, listCost: 2, runs: [run(42, { conclusion: "success", attempt: 2 })] });
+  await drive(w.sim, [w.env.sleepUntil(w.env.now() + 120)]); // past the window in which a finished row is shared
+  const [second] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 42 }, { timeoutS: 300 })]);
+  assert.equal(second!.code, 0, second!.lines.join("\n"));
+  assert.equal(w.calls().filter((c) => c.args.includes("jobs,attempt")).length, 2, "attempt 2 is read again");
+});
+
 // task ci-wait-lag: the phases of a wait are recorded in order and cost no gh call
 async function phased(N: number, runs: Record<string, unknown>[], target: Parameters<typeof waitFor>[1], timeoutS = 3600) {
   const w = mkWorld(T0, { fastGh: true });
@@ -246,7 +270,7 @@ describe("real processes, real clock", { concurrency: true }, () => {
     w.config({ start: now - 600, listCost: 2, runs: [run(31, { createdAt: now - 300, completeAt: now - 100 })] });
     const rs = await Promise.all(Array.from({ length: 20 }, () => cli(w, ["wait", "31"])));
     for (const r of rs) assert.deepEqual([r.code, r.out.trim()], [0, "run 31 chromium-counts success -> pass"]);
-    assert.deepEqual(w.calls().map((c) => c.args.slice(1, 3).concat(c.args.includes("jobs") ? ["jobs"] : [])), [["view", "31"], ["view", "31", "jobs"]]);
+    assert.deepEqual(w.calls().map((c) => c.args.slice(1, 3).concat(c.args.includes("jobs,attempt") ? ["jobs"] : [])), [["view", "31"], ["view", "31", "jobs"]]);
   });
 
   it("process: 3 `ci wait` on a running run elect one poller: 1 view + 1 tick, then exit 3 on timeout", { timeout: 120_000 }, async () => {

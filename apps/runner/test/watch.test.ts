@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -117,6 +117,7 @@ describe("collectAgents", () => {
     const tline = (min: number) => line({ type: "assistant", timestamp: at(min), message: { id: "m", model: "claude-sonnet-5-5", content: [{ type: "tool_use", id: "t", name: "Bash" }], usage: { input_tokens: 1, cache_read_input_tokens: 9 } } });
     writeFileSync(join(sub("s1"), "agent-live.jsonl"), tline(-30));
     writeFileSync(join(sub("s1"), "agent-live.meta.json"), JSON.stringify({ name: "old", agentType: "k" }));
+    utimesSync(join(sub("s1"), "agent-live.jsonl"), new Date(now - 60_000), new Date(now - 60_000)); // newest by mtime, not by write order (equal mtimes tie on a fast disk)
     writeFileSync(join(sub("s2"), "agent-live.jsonl"), tline(-3));
     writeFileSync(join(sub("s2"), "agent-live.meta.json"), JSON.stringify({ name: "alive", agentType: "k", spawnDepth: 1 }));
     writeFileSync(join(sub("s2"), "workflows", "wf_1", "agent-wfold.jsonl"), tline(-600));
