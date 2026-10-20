@@ -7,6 +7,7 @@ import Fw.Spec.Flags
 import Fw.Spec.Cost
 import Fw.Spec.Screen
 import Fw.Console
+import Fw.Console.Alert
 import Fw.Board
 import Fw.Site.BreakpointGen
 import Fw.Measure.Wire
@@ -215,18 +216,34 @@ def optStrsOf (j : Json) (k : String) : Except String (Option (List String)) :=
   | none => .ok none
   | some v => do some <$> ((← asArr k v).toList.mapM (asStr k))
 
+/-- Decode the optional `audience` field (missing or null = `Alert.legacyAudience` of the step id). -/
+def audienceField (j : Json) (id : String) : Except String Audience :=
+  match opt j "audience" with
+  | none => .ok (Fw.Console.Alert.legacyAudience id)
+  | some v => do
+    match ← asStr "audience" v with
+    | "user" => pure .user
+    | "lead" => pure .lead
+    | w => throw s!"field audience: unknown audience {w}"
+
+/-- Decode the optional `body` field (missing or null = empty). -/
+def bodyField (j : Json) : Except String String := do
+  pure ((← optStr j "body").getD "")
+
 /-- Encode a step. -/
 def stepJson (s : Step) : Json := Json.mkObj [
   ("id", .str s.id), ("card", ostr s.card), ("title", .str s.title), ("kind", .str (stepKindName s.kind)),
   ("options", optStrs s.options), ("status", .str s.status.name), ("answer", ostr s.answer),
-  ("postedAt", toJson s.postedAt), ("lastAt", toJson s.lastAt)]
+  ("postedAt", toJson s.postedAt), ("lastAt", toJson s.lastAt), ("audience", .str s.audience.name),
+  ("body", .str s.body)]
 
 /-- Decode a step. -/
 def stepOfJson (j : Json) : Except String Step := do
   pure { id := ← str j "id", card := ← optStr j "card", title := ← str j "title",
          kind := ← stepKindOf (← str j "kind"), options := ← optStrsOf j "options",
          status := ← stepStatusOf (← str j "status"), answer := ← optStr j "answer",
-         postedAt := ← nat j "postedAt", lastAt := ← nat j "lastAt" }
+         postedAt := ← nat j "postedAt", lastAt := ← nat j "lastAt",
+         audience := ← audienceField j (← str j "id"), body := ← bodyField j }
 
 /-- Encode a run. -/
 def runJson (r : Run) : Json := Json.mkObj [
@@ -264,10 +281,10 @@ def bodyOfJson (j : Json) : Except String Body := do
   | "card.landed" => pure (.cardLanded (← str j "card") (← str j "sha"))
   | "step.post" =>
     pure (.stepPost (← str j "step") (← optStr j "card") (← str j "title")
-      (← stepKindOf (← str j "kind")) (← optStrsOf j "options"))
+      (← stepKindOf (← str j "kind")) (← optStrsOf j "options") (← audienceField j (← str j "step")) (← bodyField j))
   | "step.start" => pure (.stepStart (← str j "step"))
   | "step.answer" => pure (.stepAnswer (← str j "step") (← str j "answer"))
-  | "step.done" => pure (.stepDone (← str j "step"))
+  | "step.done" => pure (.stepDone (← str j "step") (← optStr j "note"))
   | "step.cancel" => pure (.stepCancel (← str j "step"))
   | "run.start" => pure (.runStart (← str j "run") (← str j "card") (← runKindOf (← str j "kind")))
   | "run.finish" => pure (.runFinish (← str j "run") (← bool j "ok"))

@@ -224,6 +224,17 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 9007199254740991
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "user",
+              "lead"
+            ]
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 2000
           }
         },
         "required": [
@@ -235,7 +246,9 @@
           "status",
           "answer",
           "postedAt",
-          "lastAt"
+          "lastAt",
+          "audience",
+          "body"
         ],
         "additionalProperties": false
       }

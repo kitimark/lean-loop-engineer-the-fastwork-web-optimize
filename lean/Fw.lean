@@ -147,6 +147,7 @@ import Fw.Console.LandLegs  -- land-lane-speed: the land lane's parallel legs (c
 import Fw.Console.LandTier  -- land-lane: which checks run on the CI land lane (console.landTier)
 import Fw.Console.LandRemote  -- land-wait: provider-neutral remote land verdict (console.landRemote)
 import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request coalescing
+import Fw.Console.JournalFold  -- console-idle-cpu: journal cache, settled runs, safety tick
 import Fw.Console.LandPool -- land-pool-fair: fair-share floor under poolSize, wired into land.ts by console.landPool and console.landRetry
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
 import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)

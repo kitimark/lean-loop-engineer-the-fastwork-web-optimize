@@ -78,7 +78,22 @@ structure Card where
   lastAt      : Nat := 0
 deriving Repr, DecidableEq
 
-/-- A step: a question or action put to the user, optionally about a card. -/
+/-- Whom a step is for: `user` is the console's owner (a device step, an approval, a login, a decision only the
+owner can make); `lead` is the lead agent (everything an agent or the lead can fix). The console shows `lead`
+steps under the lead's work, not under YOU.
+-/
+inductive Audience where
+  | user | lead
+deriving Repr, DecidableEq
+
+/-- The wire name of an audience. -/
+def Audience.name : Audience → String
+  | .user => "user" | .lead => "lead"
+
+/-- A step: a question or action put to the user (or, by `audience`, to the lead), optionally about a card.
+`body` is the plain text under the title (what happened, impact, action, details; empty when the poster gave none);
+`answer` also holds the note of an automatic resolution.
+-/
 structure Step where
   id       : String
   card     : Option String
@@ -89,6 +104,8 @@ structure Step where
   answer   : Option String := none
   postedAt : Nat
   lastAt   : Nat
+  audience : Audience := .user
+  body     : String := ""
 deriving Repr, DecidableEq
 
 /-- A run (screen, gate, run or device job) on a card. -/
@@ -111,10 +128,10 @@ inductive Body where
   | cardLandRequest (card sha : String)
   | cardLanded      (card sha : String)
   | stepPost        (step : String) (card : Option String) (title : String) (kind : StepKind)
-                    (options : Option (List String))
+                    (options : Option (List String)) (audience : Audience := .user) (body : String := "")
   | stepStart       (step : String)
   | stepAnswer      (step answer : String)
-  | stepDone        (step : String)
+  | stepDone        (step : String) (note : Option String := none)
   | stepCancel      (step : String)
   | runStart        (run card : String) (kind : RunKind)
   | runFinish       (run : String) (ok : Bool)
@@ -263,12 +280,13 @@ def mapSteps (t : Nat) (id : String) (f : Step → Step) (ss : List Step) : List
   ss.map fun s => if s.id = id then { f s with lastAt := max s.lastAt t } else s
 
 /-- Why a step event is refused on the step `st` it names (`none` = acceptable); first match wins. -/
-def stepRefusal (st : Step) : Body → Option String
+def stepRefusal (st : Step) (actor : Actor) : Body → Option String
   | .stepStart _ =>
     if st.status = .waiting then none else some s!"step is {st.status.name}, not waiting"
   | .stepCancel _ => if st.status.isOpen then none else some s!"step already {st.status.name}"
-  | .stepDone _ =>
+  | .stepDone _ _ =>
     if st.status = .started then none
+    else if actor = .script && st.status = .waiting && st.audience = .lead then none
     else some s!"step is {st.status.name}, only a started step can be done"
   | .stepAnswer _ a =>
     if !st.status.isOpen then some s!"step already {st.status.name}"
@@ -279,6 +297,22 @@ def stepRefusal (st : Step) : Body → Option String
     else none
   | _ => none
 
+/-- **Only a lead step is closed unstarted by the script**: a `step.done` of the script on a step still waiting is
+accepted only when the step is for the lead. A step for the user (a device step, an approval, a decision) stays
+open until the owner starts and finishes it.
+-/
+theorem script_done_waiting_is_lead (st : Step) (id : String) (n : Option String)
+    (hw : st.status = .waiting) (h : stepRefusal st .script (.stepDone id n) = none) : st.audience = .lead := by
+  simp only [stepRefusal, hw] at h
+  by_cases ha : st.audience = .lead
+  · exact ha
+  · simp [ha] at h
+
+/-- **Only the owner finishes a user step**: no actor other than the user finishes a waiting step for the user. -/
+theorem user_step_done_needs_start (st : Step) (id : String) (n : Option String) (a : Actor)
+    (hw : st.status = .waiting) (hu : st.audience = .user) : stepRefusal st a (.stepDone id n) ≠ none := by
+  simp [stepRefusal, hw, hu]
+
 /-- Why an event is refused in state `σ` (`none` = accepted). First match wins; "the step", "the
 run" and "the card" are the first ones in their list with that id.
 
@@ -288,15 +322,15 @@ def check (s : State) (e : Event) : Option String :=
   if !may e.actor e.body.type then some s!"actor {e.actor.name} may not cause {e.body.type.name}" else
   match e.body with
   | .cardOpen id _ _ => if s.cards.any (·.id == id) then some "card exists" else none
-  | .stepPost id card _ kind opts =>
+  | .stepPost id card _ kind opts _ _ =>
     if s.steps.any (·.id == id) then some "step exists"
     else if (match card with | some c => !(s.cards.any (·.id == c)) | none => false) then some "no such card"
     else if kind = .choice && (opts.getD []).length < 2 then some "choice step needs at least 2 options"
     else none
-  | .stepStart id | .stepAnswer id _ | .stepDone id | .stepCancel id =>
+  | .stepStart id | .stepAnswer id _ | .stepDone id _ | .stepCancel id =>
     match s.steps.find? (·.id == id) with
     | none => some "no such step"
-    | some st => stepRefusal st e.body
+    | some st => stepRefusal st e.actor e.body
   | .runStart r card _ =>
     if !(s.cards.any (·.id == card)) then some "no such card"
     else if s.runs.any (·.id == r) then some "run exists" else none
@@ -319,12 +353,13 @@ def accept (s : State) (e : Event) : State :=
   match e.body with
   | .cardOpen id owner dev =>
     { s with cards := s.cards ++ [{ id, owner, needsDevice := dev, lastAt := t }] }
-  | .stepPost id card title kind opts =>
-    { s with steps := s.steps ++ [{ id, card, title, kind, options := opts, postedAt := t, lastAt := t }] }
+  | .stepPost id card title kind opts audience body =>
+    { s with steps := s.steps ++ [{ id, card, title, kind, options := opts, postedAt := t, lastAt := t, audience, body }] }
   | .stepStart id => { s with steps := mapSteps t id (fun x => { x with status := .started }) s.steps }
   | .stepAnswer id a =>
     { s with steps := mapSteps t id (fun x => { x with status := .answered, answer := some a }) s.steps }
-  | .stepDone id => { s with steps := mapSteps t id (fun x => { x with status := .done }) s.steps }
+  | .stepDone id note =>
+    { s with steps := mapSteps t id (fun x => { x with status := .done, answer := note.orElse fun _ => x.answer }) s.steps }
   | .stepCancel id => { s with steps := mapSteps t id (fun x => { x with status := .cancelled }) s.steps }
   | .runStart r card kind =>
     { s with cards := mapCards card (touch t) s.cards,
@@ -707,5 +742,18 @@ theorem project_isLanded (l₁ l₂ : List Event) {x : String}
   (step s (ev "x" 3 .user (.stepAnswer "S" "maybe"))).2 == .refused "answer must be yes or no"
   && (step s (ev "x" 3 .user (.stepDone "S"))).2 == .refused "step is waiting, only a started step can be done"
   && (step s (ev "x" 3 .user (.stepAnswer "S" "yes"))).2 == .accepted false
+
+-- the script closes a waiting step for the lead, with a note; a waiting step for the user stays refused
+#guard
+  let ev (k : String) (t : Nat) (a : Actor) (b : Body) : Event := ⟨k, t, a, b⟩
+  let s := project [ev "k1" 1 .script (.stepPost "L" none "t" .action none .lead "body"),
+                    ev "k2" 2 .script (.stepPost "U" none "t" .action none)]
+  (step s (ev "x" 3 .script (.stepDone "L" (some "resolved automatically")))).2 == .accepted false
+  && (step s (ev "y" 3 .script (.stepDone "U" (some "n")))).2 == .refused "step is waiting, only a started step can be done"
+  && (step s (ev "z" 3 .user (.stepDone "L"))).2 == .refused "step is waiting, only a started step can be done"
+  && ((project [ev "k1" 1 .script (.stepPost "L" none "t" .action none .lead "body"),
+                ev "x" 3 .script (.stepDone "L" (some "resolved automatically"))]).steps.map
+        (fun x => (x.status, x.answer, x.audience, x.body)))
+      == [(.done, some "resolved automatically", .lead, "body")]
 
 end Fw.Console

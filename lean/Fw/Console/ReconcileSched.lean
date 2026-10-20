@@ -124,6 +124,66 @@ deriving DecidableEq
 /-- The event applied. -/
 def Ev.apply (s : S) : Ev → S | .request => req s | .finish => fin s
 
+/-- A sequence of events applied in order. -/
+def run (s : S) : List Ev → S
+  | [] => s
+  | e :: r => run (Ev.apply s e) r
+
+/-- Passes started never decrease: a request or finish only raises `started`. -/
+theorem started_mono_apply (s : S) (e : Ev) : s.started ≤ (Ev.apply s e).started := by
+  cases e <;> simp only [Ev.apply, req, fin] <;> split <;> (try split) <;> simp <;> omega
+
+/-- Passes started never decrease along any event sequence. -/
+theorem started_mono_run (s : S) (es : List Ev) : s.started ≤ (run s es).started := by
+  induction es generalizing s with
+  | nil => simp [run]
+  | cons e r ih => exact Nat.le_trans (started_mono_apply s e) (ih _)
+
+/-- The invariant holds along any event sequence. -/
+theorem inv_run (s : S) (h : Inv s) (es : List Ev) : Inv (run s es) := by
+  induction es generalizing s with
+  | nil => simpa [run] using h
+  | cons e r ih =>
+    apply ih
+    cases e
+    · exact inv_req s h
+    · exact inv_fin s h
+
+/-- The first safety tick strictly after time `t`, for ticks at the multiples of `p`. -/
+def nextTick (p t : Nat) : Nat := (t / p + 1) * p
+
+/-- A tick is strictly after the event it covers. -/
+theorem nextTick_gt (p t : Nat) (hp : 0 < p) : t < nextTick p t := by
+  unfold nextTick
+  have h := Nat.div_add_mod t p
+  have h2 := Nat.mod_lt t hp
+  rw [Nat.add_mul, Nat.one_mul]
+  have : p * (t / p) = (t / p) * p := Nat.mul_comm _ _
+  omega
+
+/-- A tick is at most one safety period after the event: the lag of a dropped event is bounded by `p`. -/
+theorem nextTick_le (p t : Nat) (hp : 0 < p) : nextTick p t ≤ t + p := by
+  unfold nextTick
+  have h := Nat.div_add_mod t p
+  have h2 := Nat.mod_lt t hp
+  rw [Nat.add_mul, Nat.one_mul]
+  have : p * (t / p) = (t / p) * p := Nat.mul_comm _ _
+  omega
+
+/-- **A dropped event is drained by a pass that starts after it.** The event arrived while the state was `s`; the events
+that followed (`es`) are anything, requests and finishes in any order. The safety tick's request is answered by the pass
+whose index is at least the number of passes started when the event arrived, so that pass starts after the event. -/
+theorem tick_pass_after_event (s : S) (es : List Ev) : ticket s ≤ ticket (run s es) := by
+  unfold ticket; exact started_mono_run s es
+
+/-- **A dropped event is drained within one safety period plus two passes.** The tick is at most `p` after the event, and
+the pass answering the tick finishes after at most two finishes (`wait_le_two`), with the answering pass starting after
+the event (`tick_pass_after_event`). -/
+theorem dropped_event_drained (p t : Nat) (hp : 0 < p) (s : S) (hs : Inv s) (es : List Ev) :
+    t < nextTick p t ∧ nextTick p t ≤ t + p ∧ ticket s ≤ ticket (run s es) ∧
+    ticket (run s es) < (fin (fin (req (run s es)))).finished :=
+  ⟨nextTick_gt p t hp, nextTick_le p t hp, tick_pass_after_event s es, wait_le_two _ (inv_run s hs es)⟩
+
 /-- State as JSON. -/
 def sJson (s : S) : Json := Json.mkObj [("started", s.started), ("finished", s.finished), ("pending", s.pending)]
 
@@ -153,6 +213,8 @@ def cases : List Json := [
   case "pending served then idle" [.request, .request, .finish, .finish],
   case "request during the pending pass" [.request, .request, .finish, .request, .finish, .finish],
   case "finish when idle is a no-op" [.finish, .request, .finish, .finish],
+  case "safety tick after a dropped event" [.request, .finish, .request, .finish],
+  case "safety tick while a pass runs" [.request, .request, .finish, .finish],
   case "burst" [.request, .request, .request, .finish, .request, .request, .finish, .finish, .request]]
 
 /-- The golden text. -/

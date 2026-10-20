@@ -22,7 +22,7 @@ are non-negative integers (seconds, tokens, ms); a non-integer number is refused
 | `ops.meter` | `params`?, `state`? {window, fired [{agent, rule}]}, `now`, `agents` [{agent, ctx, idleSec, ttlSec? or w5m?/w1h?, wakeGapSec?}] | `state`, `alerts` [{agent, rule, window}], `verdicts` [{agent, verdict, ttlSec}] |
 | `ops.hook` | `payloads` (raw hook stdin objects) | `hooks` [{sessionId, event, agentId, agentType, who, toolName, toolUseId, durationMs, error, isInterrupt, promptId, teammateName}], `errors` [{index, error}] |
 | `ops.obs` | `records`? [{agent_id?, hook_event_name, tool_use_id?, ts}], `lines`? [{hook_event_name, agent_type?, tool_name?, is_error?, duration_ms?}] (extra fields ignored) | `keys` (one obs key per record, in order), `summary` [{agent_type, tool_name, calls, errors, total_ms}] (first-seen group order) |
-| `ops.obs` (admission and life, task task-state-truth) | `raw`? [spool lines as strings], `life`? [{event, agent_id?, agent_name?, key, ts, epoch? (the time of the last stop sent for agent_id, 0 if none)}], `labels`? [{id, name}], `fieldAlert`? {now, open [step ids], issues [{issue, count}]} | `admitted` [{ok: true, key, rec (the kept known fields), unknown [names], notes [soft-field reasons], issues [names]} or {ok: false, why, issues [names]}], `tally` {accepted, rejected, unknown [{field, count}], issues [{issue, count}]}; `epochs` [one number per `life` request: the agent's stop epoch after that record (`Fw.Ops.Obs.epochNext`: a stop raises it to the record time, a start resets it to 0)]; `life` [one list per request: [{kind (`spawn`/`stop`), key, agent, at} or {kind `label`, key, agent, name}]]; `labels` [{key, agent, name} or null]; `alert` {step, key, title} or null. Each only when requested |
+| `ops.obs` (admission and life, task task-state-truth) | `raw`? [spool lines as strings], `life`? [{event, agent_id?, agent_name?, key, ts, epoch? (the time of the last stop sent for agent_id, 0 if none)}], `labels`? [{id, name}], `fieldAlert`? {now, open [step ids], issues [{issue, count}]} | `admitted` [{ok: true, key, rec (the kept known fields), unknown [names], notes [soft-field reasons], issues [names]} or {ok: false, why, issues [names]}], `tally` {accepted, rejected, unknown [{field, count}], issues [{issue, count}]}; `epochs` [one number per `life` request: the agent's stop epoch after that record (`Fw.Ops.Obs.epochNext`: a stop raises it to the record time, a start resets it to 0)]; `life` [one list per request: [{kind (`spawn`/`stop`), key, agent, at} or {kind `label`, key, agent, name}]]; `labels` [{key, agent, name} or null]; `alert` {step, key, title, audience, body} or null; `resolve` [{step, key, note}] (only when `resolve` {now, window {lines, issues [names]}, steps [{id, title, body, audience}]} is requested: the lead-owned spool alert steps whose every issue key is clean in the window, `Fw.Ops.Obs.resolveSpool`). Each only when requested |
 | `ops.cap` | `agent_id`?, `agent_type`? (as `ops.actor`), `tokens` (a Bash input lexed: a string is a word, `{"redir":"2>&1"}` a redirect, `{"stop":"|"}` a control operator) | `decision` (`mint`/`noMint`), `actor`, `argv` (when minted), `reason` (`notFwPrefix`/`unknownActor`, when not) |
 | `ops.door` | `actor`, `secret`? (bool) | `accept` (the door without capability takes this actor), `agentActor` |
 | `ops.wait` | `cmd` (the Bash command text), `caps`? {maxSleepSec?} | `decision` (`allow`/`deny`), `reason` (null, `bgLong` or `unboundedLoop`), `shape` (`bgLong`: `fwWatch`/`loop`/`server`/`tail`/`longSleep`, else null) |
@@ -469,7 +469,9 @@ tool) summary of obs lines (`Fw.Ops.Obs.summarize`), the admission of raw spool 
 (`Fw.Ops.Obs.admit`, with the drain tally and issues), the life commands of admitted records
 (`Fw.Ops.Obs.lifeOf`), the label commands of the health index (`Fw.Ops.Obs.labelOf`) and the spool
 alert over the issues (`Fw.Ops.Obs.fieldAlert`). Each of `admitted`/`tally`, `life`, `labels` and
-`alert` is in the reply only when its request field is. -/
+`alert` is in the reply only when its request field is. The spool steps to close by themselves
+(`Fw.Ops.Obs.resolveSpool`, task alert-steps-plain) are `resolve` in the reply when `resolve` {now, window {lines,
+issues [names]}, steps [{id, title, body, audience}]} is in the request. -/
 def opObs (req : Json) : Except String Reply := do
   let keys ← (← arrD req "records").mapM fun r => do
     pure (obsKey (← optS r "agent_id") (← str r "hook_event_name") (← optS r "tool_use_id") (← nat r "ts"))
@@ -522,8 +524,20 @@ def opObs (req : Json) : Except String Reply := do
       let cs ← (← arrD a "issues").mapM fun c => do pure ((← str c "issue"), (← nat c "count"))
       pure [("alert", match fieldAlert (← nat a "now") opn cs with
         | none => .null
-        | some (s, k, t) => Json.mkObj [("step", .str s), ("key", .str k), ("title", .str t)])]
-  pure (base ++ adm ++ life ++ resume ++ labels ++ alert)
+        | some (s, k, t) => Json.mkObj [("step", .str s), ("key", .str k), ("title", .str t.title),
+            ("audience", .str t.audience.name), ("body", .str t.body)])]
+  let resolve : Reply ← match opt req "resolve" with
+    | none => pure []
+    | some r => do
+      let w : Window := ⟨← nat (← field r "window") "lines",
+        ← (← arrD (← field r "window") "issues").mapM fun v => asStr "issues" v⟩
+      let steps ← (← arrD r "steps").mapM fun st => do
+        let aud ← str st "audience"
+        pure ({ id := ← str st "id", title := ← str st "title", body := ← str st "body",
+                audience := if aud == "lead" then .lead else .user } : OpenStep)
+      pure [("resolve", .arr ((resolveSpool (← nat r "now") w steps).toArray.map fun x =>
+        Json.mkObj [("step", .str x.step), ("key", .str x.key), ("note", .str x.note)]))]
+  pure (base ++ adm ++ life ++ resume ++ labels ++ alert ++ resolve)
 
 -- the real SubagentStop line with background_tasks is admitted (task task-state-truth regression)
 #guard (fieldsOf "{\"agent_id\":\"a0e52ab0600cc97da\",\"agent_type\":\"\",\"hook_event_name\":\"SubagentStop\",\"tool_name\":null,\"tool_use_id\":null,\"duration_ms\":null,\"is_error\":null,\"verb\":null,\"ts\":1792269356759,\"background_tasks\":20}").map Fw.Ops.Obs.admit
