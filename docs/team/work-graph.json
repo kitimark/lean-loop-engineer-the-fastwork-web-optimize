@@ -8162,11 +8162,12 @@
    "id": "ci-route",
    "owner": "lean-prover",
    "stream": "ops",
-   "title": "One Lean router for every CI lane across GitHub Actions and CircleCI: inputs health (gh-status, circleci-status), free quota left, measured queue p50/p95 per provider and class, per-provider lane allowlist; outputs an ordered provider list (failover) and an optional hedge start when the first queue exceeds T; feeds fw ci push and LandRemote",
+   "title": "One Lean router for every CI lane across GitHub Actions and CircleCI: inputs health (gh-status, circleci-status), free quota left, measured queue p50/p95 per provider and class, per-provider lane allowlist; outputs an ordered provider list (failover) and an optional hedge start when the first queue exceeds T; feeds fw ci push and LandRemote; takes macOS lanes from Fw.Ci.Pool fallback route (one router, one source; user 2026-10-20)",
    "deps": [
     "land-lane-circleci",
     "circleci-status",
-    "circleci-series"
+    "circleci-series",
+    "pool-fallback"
    ],
    "writes": [
     "lean/Fw/Ci/Route*.lean",
@@ -10996,6 +10997,92 @@
     "lean/Fw/Obs/**",
     "docs/team/handoffs/alert-steps-plain.md",
     "docs/team/handoffs/alert-resolve-keys.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pool-caps",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20 chose 'caps + fallback route first' for the macOS lanes (research/notes/2026/10-20-macos-pool.md, 10-20-macos-pool-v2.md; lane merging waits until the 5-slot limit is hit again). Serialised with console-idle-cpu and lake-build-slots through the land queue (shared lean/Fw.lean, lean/scripts/check.sh). Per-lane macOS job time caps from measured successes: Lean capMin p90 = ceil(1.3 x p90) in tenths of a minute (golden capMin 289 = 38), per lane from the 10-17..10-20 success walls (wktr 16, wktr-fixtures 21, sim-speed 17, engine-premises 8, gate-gaps 26 tagged 3 samples); a check generated from Lean that each macOS job's timeout-minutes in the workflows equals its cap (webkit-sim excluded: its per-session timeout is task webkit-sim-failfast)",
+   "writes": [
+    "lean/Fw/Ci/Pool.lean",
+    "lean/Fw/Ci/Pool/**",
+    "lean/Fw.lean",
+    "lean/scripts/PoolCapsGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/pool-caps.jsonl",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    ".github/workflows/wktr.yml",
+    ".github/workflows/wktr-fixtures.yml",
+    ".github/workflows/engine-premises.yml",
+    ".github/workflows/sim-speed.yml",
+    ".github/workflows/gate-gaps.yml",
+    "docs/team/handoffs/pool-caps.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-sim-failfast",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User 2026-10-20 chose 'caps + fallback route first' for the macOS lanes (research/notes/2026/10-20-macos-pool.md, 10-20-macos-pool-v2.md; lane merging waits until the 5-slot limit is hit again). Serialised with console-idle-cpu and lake-build-slots through the land queue (shared lean/Fw.lean, lean/scripts/check.sh). webkit-sim's one failure cause still on main (inspector stall: proxy or Safari gone, run 39337860689, 43 min): relaunch Safari once, then exit instead of waiting out each attempt; stall watchdog 12 -> 6 min (longest healthy silence 239 s); per-session step timeout instead of a fixed 50 min; skip log/shutdown/upload on cancelled jobs; what the lane measures is unchanged (a CI run green on the same commit as before, counts equal)",
+   "writes": [
+    "packages/measure-webkit/src/**",
+    "packages/measure-webkit/test/**",
+    ".github/workflows/webkit-sim.yml",
+    "docs/team/handoffs/webkit-sim-failfast.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pool-key-outcome",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "pool-caps"
+   ],
+   "title": "User 2026-10-20 chose 'caps + fallback route first' for the macOS lanes (research/notes/2026/10-20-macos-pool.md, 10-20-macos-pool-v2.md; lane merging waits until the 5-slot limit is hit again). Serialised with console-idle-cpu and lake-build-slots through the land queue (shared lean/Fw.lean, lean/scripts/check.sh). Lean request key (sha, lane, full cfg digest, rep) and outcome records {result, failed, stale, skipped, notRun, waiting}; artifact names carry leg + run_attempt and are proved injective; theorem delivered: every planned key gets exactly one terminal row, notRun written by the Linux reduce job for any planned key with no artifact (runner loss), the in-job if:always step only a fast path; goldens",
+   "writes": [
+    "lean/Fw/Ci/Pool/**",
+    "lean/scripts/PoolKeyGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/pool-key.jsonl",
+    "docs/team/handoffs/pool-key-outcome.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pool-fallback",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "pool-key-outcome"
+   ],
+   "title": "User 2026-10-20 chose 'caps + fallback route first' for the macOS lanes (research/notes/2026/10-20-macos-pool.md, 10-20-macos-pool-v2.md; lane merging waits until the 5-slot limit is hit again). Serialised with console-idle-cpu and lake-build-slots through the land queue (shared lean/Fw.lean, lean/scripts/check.sh). Lean fallback route for macOS requests when the GitHub limit is reached, with the design-v2 check fixes: GitHub only when not degraded and (a slot is free or the expected wait is known and under ghWaitMaxS; unknown wait never routes to GitHub); else CircleCI m4pro for allowlisted short lanes within credits charged at cap+setup; Bitrise only when bitriseOn (off until the user's public-app test); Linux playwright-webkit only for lanes declared WPE-tolerant (gate-gaps excluded until split); else wait as a durable record with waitMaxS then notRun, tip re-check gives stale. Single dispatcher (the plan job), dispatch_nodup per (key, attempt), no re-route after a GitHub dispatch. Fallback-local target type (Provider.lean untouched). Theorems: never_exceeds_quota, routed_once, wait_resolves, result identity (provider+engine), poolKey never pools Apple with WPE, non-WPE-tolerant lanes never route to Linux. Constants tagged with sources; Enterprise seat = ghMacCap 5 -> 50, ghTotalCap 20 -> 500 only. fwcore op + `fw ci pool route` CLI printing the decision; wiring into dispatch is task ci-route",
+   "writes": [
+    "lean/Fw/Ci/Pool/**",
+    "lean/scripts/PoolFallbackGolden.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Wire/**",
+    "lean/Fw/Serve.lean",
+    "packages/contracts/golden/ci/pool-fallback.jsonl",
+    "apps/runner/src/ci-pool.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/ci-pool.md",
+    "docs/team/handoffs/pool-fallback.md"
    ]
   }
  ],
