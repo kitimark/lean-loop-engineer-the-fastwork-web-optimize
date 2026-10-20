@@ -75,12 +75,12 @@ describe("inspect grant", () => {
     const again = await r.pv.request(u.pathname + u.search, { headers: { host: "127.0.0.1:4001" } }, LOOP);
     expect(again.status).toBe(403); // single use
     const H = { host: "127.0.0.1:4001", cookie: ck };
-    expect((await r.pv.request("/preview/p1/o/", { headers: H }, LOOP)).status).toBe(200);
+    expect((await r.pv.request("/preview/p1/o/", { headers: H }, LOOP)).status).toBe(302); // the gate lets it through: the hop to the arm origin
     expect((await r.pv.request("/preview/p1/o/", { headers: { host: "127.0.0.1:4001" } }, LOOP)).status).toBe(401);
-    // a root-absolute path read below the preview by its Referer (the phone's script requests)
+    // a root-absolute path is a shell path on the preview port: never granted, with or without a Referer (the arms have their own ports)
     const ref = { ...H, referer: "http://127.0.0.1:4001/preview/p1/o/" };
-    expect((await r.pv.request("/_app/x.png", { headers: ref }, LOOP)).status).toBe(200);
-    expect((await r.pv.request("/_app/x.png", { headers: H }, LOOP)).status).toBe(401); // no Referer: a shell path
+    expect((await r.pv.request("/_app/x.png", { headers: ref }, LOOP)).status).toBe(401);
+    expect((await r.pv.request("/_app/x.png", { headers: H }, LOOP)).status).toBe(401);
     for (const p of ["/api/tasks", "/owner/logout", "/owner/login"]) expect([p, (await r.pv.request(p, { headers: ref }, LOOP)).status]).toEqual([p, 401]);
     // the console port ignores it
     const lanH = { host: "198.51.100.9:4000", cookie: ck };
@@ -100,7 +100,7 @@ describe("inspect grant", () => {
     const ck = (res.headers.get("set-cookie") ?? "").split(";")[0]!;
     const H = { host: "127.0.0.1:4001", cookie: ck };
     r.advance(3_599_000);
-    expect((await r.pv.request("/preview/p1/r/", { headers: H }, LOOP)).status).toBe(200);
+    expect((await r.pv.request("/preview/p1/r/", { headers: H }, LOOP)).status).toBe(302);
     r.advance(1_000);
     expect((await r.pv.request("/preview/p1/r/", { headers: H }, LOOP)).status).toBe(401);
   });
@@ -116,7 +116,7 @@ describe("inspect grant", () => {
     const again = await r.pv.request(u2.pathname + u2.search, { headers: { host: "127.0.0.1:4001" }, redirect: "manual" }, LOOP);
     expect(again.status).toBe(200);
     const ck = (again.headers.get("set-cookie") ?? "").split(";")[0]!;
-    expect((await r.pv.request("/preview/p1/o/", { headers: { host: LANHOST, cookie: ck } }, LAN)).status).toBe(200);
+    expect((await r.pv.request("/preview/p1/o/", { headers: { host: LANHOST, cookie: ck } }, LAN)).status).toBe(302);
     expect((await r.pv.request("/preview/p1/o/", { headers: { host: "evil.example", cookie: ck } }, LAN)).status).toBe(421);
     expect((await r.pv.request("/__grant?t=x", { headers: { host: "evil.example" } }, LAN)).status).toBe(421);
   });

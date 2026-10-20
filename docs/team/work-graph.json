@@ -9580,7 +9580,10 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
-    ".github/workflows/lean.yml"
+    ".github/workflows/lean.yml",
+    "apps/site/src/parts/pain.notes/index.tsx",
+    "apps/site/src/parts/pain.notes/logic.test.ts",
+    "packages/contracts/golden/parts/pain.notes.jsonl"
    ]
   },
   {
@@ -9961,8 +9964,15 @@
     "research/notes/2026/10-20-preview-proxy-direct.md",
     "docs/team/handoffs/preview-proxy-direct.md",
     "lean/Fw.lean",
-    "lean/scripts/check.sh"
-   ]
+    "lean/scripts/check.sh",
+    "apps/console-api/src/main.ts",
+    "apps/console-api/test/arm-rig.ts",
+    "apps/console-api/test/builds.test.ts",
+    "apps/console-api/test/lan-owner.test.ts",
+    "docs/team/tools/preview-grant.md",
+    "lean/Fw/Ops/Golden.lean"
+   ],
+   "evidence": "caf56d6"
   },
   {
    "devices": [
@@ -10035,6 +10045,112 @@
     "apps/runner/test/land-remote.test.ts",
     "docs/team/tools/land.md",
     "docs/team/handoffs/land-remote-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-lane-speed",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "Land wall time after land-wait: measure where a land spends time (local tier, remote push, queue, land.yml setup incl. gate-engine/playwright install, fwcore build, suites per package) from obs spans and run timings of today's lands; cut it without moving work back to this Mac (cache what is rebuilt, install browsers only when the browser lane is selected, run suites as parallel jobs, overlap local and remote tiers); Lean decides any new selection rule; before/after MEASURED on CI",
+   "deps": [
+    "land-remote-fail-wins"
+   ],
+   "writes": [
+    ".github/workflows/land.yml",
+    ".github/actions/**",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/checks.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Console/LandTier.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean",
+    "lean/scripts/*Golden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/console/**",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/tools/land.md",
+    "research/notes/2026/10-20-land-lane-speed.md",
+    "docs/team/handoffs/land-lane-speed.md",
+    "lean/Fw/Console/LandLegs.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw.lean",
+    "lean/land-legs.txt",
+    "apps/runner/test/preview-e2e-selection.test.ts",
+    "docs/team/tools/preview-e2e.md"
+   ],
+   "evidence": "970c618"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preview-e2e-entry",
+   "owner": "console-builder",
+   "stream": "console",
+   "title": "preview-proxy-direct review: check the real entry path (grant landing and the Builds link /preview/<id>/r|o/ -> arm origin) for 0 rejections/cancels and modules once; LAN lane noise checks; client-nav-o asserts a same-document navigation; rename signature.test.mjs; rig reads backendOff from Lean; admit refuses portBase past 65536 (noPorts); control loads block external URLs; delete unused cache-policy variants",
+   "deps": [
+    "preview-proxy-direct"
+   ],
+   "writes": [
+    "packages/e2e-preview/**",
+    "lean/Fw/Console/Preview*.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "apps/console-api/src/preview/**",
+    "apps/console-api/test/**",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/handoffs/preview-e2e-entry.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-legs-followups",
+   "owner": "console-builder",
+   "stream": "ops",
+   "title": "land-lane-speed review: Lean legsVeto for records without per-job conclusions (legsPass only replays it), drop dead lane filter; stale preview-e2e/checks.ts docs for LANE leg= and per-leg artifacts; webkit leg cache seeded from main (-40..50 s critical path); lane end read from the poller's cached facts; setup-lean/fwcore restore (one-writer cache rules)",
+   "deps": [
+    "land-lane-speed"
+   ],
+   "writes": [
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/src/checks.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Console/LandLegs.lean",
+    "lean/scripts/LandLegsGolden.lean",
+    "packages/contracts/golden/console/land-legs.jsonl",
+    ".github/workflows/land.yml",
+    ".github/actions/**",
+    "docs/team/tools/land.md",
+    "docs/team/tools/preview-e2e.md",
+    "docs/team/handoffs/land-legs-followups.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "notes-idem-preset",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "title": "Preset: pain.notes:visible-idem in place of visible (notes-scroll-idem: FunctionCall -733 swipe -16.6%, -720 touch -11.4%, same element values proved; webkit-sim green, FunctionCall quarantined there) after a green full gate run (commission-margin-recur closes the known flake); plus review lows: ReactFiberCommitWork.js:2302-2312 citation, per-frame -3 claim vs 733 total, Layout/UpdateLayoutTree in runs.json, identify the 3 FunctionCalls per skipped commit",
+   "deps": [
+    "notes-scroll-idem",
+    "commission-margin-recur"
+   ],
+   "writes": [
+    "lean/Fw/Preset/**",
+    "packages/contracts/golden/preset/**",
+    "lean/Fw/Parts/PainNotesOpt.lean",
+    "research/notes/2026/10-20-notes-scroll-idem.md",
+    "results/notes-scroll-idem/**",
+    "docs/team/handoffs/notes-idem-preset.md"
    ]
   }
  ],
