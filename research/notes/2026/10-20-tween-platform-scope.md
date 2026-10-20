@@ -10,6 +10,7 @@ topics: [morph.tween, waapi, css-properties, inherits, chromium, style-recalc, l
 # morph.tween:waapi-scoped
 
 Task tween-platform-scope, branch `worktree-wf_c156a96a-23d-1`, CI branch `ci/tween-platform-scope`, commit 50dbdd6e.
+Round 2 adds the live nav census, the base gate runs and the per-phase numbers; the flag code is unchanged.
 Status words: CONFIRMED (source cited), MEASURED (CI run id cited), INFERRED.
 
 ## Answer
@@ -22,6 +23,7 @@ Status words: CONFIRMED (source cited), MEASURED (CI run id cited), INFERRED.
 - The variant registers `--platform-morph` (`<number>`, inherits false, initial 0) and animates it on the platform
   section instead of the inherited `--morph`. `--morph-fade` is now inherits false and reads `var(--platform-morph)`.
   Lean proves the fade value is equal at every history (`fade_eq`). The gate's platform row passes in both engines.
+  Gate run 39337856330 has the same not-ok set as base run 39355333307 at the merge-base (MEASURED).
 - The original premise is refuted. MorphTweenOpt said the extra `--morph` on the section "adds no element". In fact the
   original stops restyling the section subtree once the fade clamps (m ≥ 0.55), while `waapi` keeps changing an
   inherited value there until the tween ends. Lean records this as `waapi_section_finding`.
@@ -93,8 +95,8 @@ Gates and lanes:
 
 - **Lean lane** 39337809166: pass.
 - **breakpoint-gate** 39337856330 (`fw=morph.tween:waapi-scoped`, config a2b80cf241434062):
-  - Chromium: 7048 pass, 7 excused, 1 fail. The fail is `commission|sweep:pain-1440-600-1440`, the known margin-inline
-    flake.
+  - Chromium: 7048 pass, 7 excused, 1 fail. The fail is `commission|sweep:pain-1440-600-1440` (`inner`/`rows`
+    margin-inline).
   - playwright-webkit: 0 fail, 291 excused (cross primary-pair and whole-width cells are unreachable), so the verdict
     is "incomplete".
   - The `platform` row passes in every reachable column in both engines. The section probe reads `--morph-fade`, and
@@ -103,8 +105,24 @@ Gates and lanes:
     does not probe it.
   - Re-run 39340504860: the platform row passes again in both engines.
     - Chromium has 2 fails, both commission `inner`/`rows` margin-inline cells: `pain-1440-600-1440` and
-      `desktop-1512-320-1512` (132px vs 0px). morph.tween does not touch commission, so this is the same flake.
+      `desktop-1512-320-1512` (132px vs 0px).
     - WebKit again has 0 fail. Its one not-ok cell is phone-rotation, marked not-comparable.
+- **breakpoint-gate, base** at the merge-base c62aae1c of 50dbdd6e (default config, `ci/tween-platform-scope-base`,
+  a marker comment on top). Not-ok sets, MEASURED:
+
+  All commission cells are `inner`/`rows` margin-inline.
+
+  | run | arm | Chromium not ok | WebKit not ok |
+  |---|---|---|---|
+  | 39353161468 | base | none (7049 pass, 7 excused) | phone-rotation, not-comparable |
+  | 39355333307 | base | commission `pain-1440-600-1440` (0px vs 96px / 8px) | phone-rotation, not-comparable |
+  | 39337856330 | scoped | commission `pain-1440-600-1440` | phone-rotation, not-comparable |
+  | 39340504860 | scoped | commission `pain-1440-600-1440`, `desktop-1512-320-1512` | phone-rotation, not-comparable |
+
+  Base run 39355333307 and scoped run 39337856330 have the same not-ok set. The base itself flips the commission
+  cell between runs, so that cell is a base flake, not the flag's. The `desktop-1512-320-1512` cell of 39340504860
+  is the same commission probe at another sweep. No base run here shows it, so these runs do not show it equal to
+  base. `10-20-morph-layers.md` records the same cell on another branch (INFERRED: the same flake).
 - **webkit-sim** 39337860689 (`fw=morph.tween:waapi-scoped`, target rewrite): failed on both attempts, in step
   "Determinism sessions".
   - Attempt 1: `Runtime.evaluate` timed out after 120 s, then the Safari tab was unreachable.

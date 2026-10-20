@@ -11,7 +11,8 @@ merge-base c62aae1c plus a marker comment.
 - Frames 518-530: 318 elements per frame in `waapi` with no rAF is the WAAPI tween (scoped 203-204, faithful 85-86).
   `trace.Layout.dirtyObjects` is 32 in all three arms, so the 32 layout objects are not the tween's.
 - Census row "nav + hosted panel, live": 103 descendants, model 71 (+1 pseudo), via Vite SSR of Nav + MorphPanel.
-- Gate: the flag runs 39337856330 and 39340504860 and the base run are compared in the note's "Gates and lanes".
+- Gate: flag run 39337856330 has the same not-ok set as base run 39355333307 (base 39353161468 had none in Chromium).
+  Flag run 39340504860 adds commission `desktop-1512-320-1512`, which no base run showed.
 
 **Open.**
 - webkit-sim with `fw=morph.tween:waapi-scoped` was not re-dispatched: a push run takes no inputs. The lead runs
@@ -22,9 +23,7 @@ merge-base c62aae1c plus a marker comment.
   least about 13 sit outside the nav (INFERRED). This is the morph-nav-scope follow-up.
 - Preset inclusion is the lead's decision. The WebKit saving stays INFERRED.
 
-**Conventions.**
-- `waapi` is the frozen comparison arm; scoped data is `registrationsScoped` and `readersScoped`.
-- After editing part.json, regenerate the preset decisions with `Fw.Preset.Gen.run`.
+**Conventions.** `waapi` is the frozen comparison arm; after editing part.json, run `Fw.Preset.Gen.run`.
 
 **Read first.** `research/notes/2026/10-20-tween-platform-scope.md`,
 `results/tween-platform-scope/chromium-counts.json`.
