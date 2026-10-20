@@ -1,30 +1,29 @@
 # Handoff: countdown-one-chain (discovery R7, hero half)
 
 ## State
-CI ref `ci/countdown-one-chain`; code at 75b08603, then the note, results and handoff; `lean/scripts/check.sh` green.
+Main b269d2c8 is merged in. The gate was measured at 777c0c5d (`ci/countdown-one-chain`); later commits change docs
+only. `lean/scripts/check.sh` is green, and the site, contracts and runner tests and `ci-paths` pass.
 
 ## Verified
-- `lean/Fw/Parts/HeroCountdownOneChain.lean` proves:
-  - `oneChain_writes_eq` and `order_perm`: the same writes and states as faithful.
-  - `oneChain_rafs`, `oneChain_raf`, `page_lt_shared` and `page_eq_still`: one callback per frame.
-  - `strip_schedule_still_gt`, the negative lemma for strip.
-- `lean/scripts/CountdownOneChainGolden.lean --check` passes on the golden `hero.countdown.onechain.jsonl`.
-  `oneChain.test.ts` replays the golden through `startFaithful`.
-- Counts (MEASURED, `results/countdown-one-chain/counts.md`), FireAnimationFrame and FunctionCall:
-  - swipe-v1: -243, runs 39313828270 / 39313898978.
-  - swipe-touch-v1: -252, runs 39313842964 / 39313910496.
-  - Style and layout are equal except swipe-touch-v1 frame 499: +1 forced recalc, 10 elements.
-- Gate (`results/countdown-one-chain/gate.md`):
-  - Run 39313815482: the hero.countdown row passes on both engines. 4 commission items fail; they also fail on
-    ci/exit-scoped-var.
-  - Scoped run 39318057726: 0 failing readings. It is "refused" only because out-of-scope cells count as not-run.
+- Lean `lean/Fw/Parts/HeroCountdownOneChain.lean`: `oneChain_writes_eq`, `order_perm`, `oneChain_rafs`, `oneChain_raf`,
+  `page_lt_shared`, `page_eq_still`, `strip_schedule_still_gt`. The golden `hero.countdown.onechain.jsonl` passes
+  `--check`, and `oneChain.test.ts` replays it.
+- Counts (`results/countdown-one-chain/counts.md`): FireAnimationFrame -243 on swipe-v1 and -252 on swipe-touch-v1.
+- Gate (`results/countdown-one-chain/gate.md`): flag run 39367028590 and no-flag base 39367037943 at the merge-base
+  have equal not-ok sets, only WebKit `matchMedia =Lean|sweep:phone-rotation`. Chromium passes on both.
+- Footprint regenerated (`part-footprint.mjs --write`), and `footprint.test.ts` "is fresh" passes. The preset decisions
+  were regenerated with `Fw.Preset.Gen.run` after the merge conflict.
 
 ## Open
-1. Footprint regeneration (morph-layers owns it); `footprint.test.ts` "is fresh" fails until then.
-2. The morph.countdown half, after morph-layers.
-3. Frame 499: find which subscriber reads layout (needs a trace with stacks); decide whether the group runs last in the
-   shared frame.
+1. Frame 499 (swipe-touch-v1): the existing counts show ScheduleStyleRecalculation +1, a style-only update. The
+   subscriber that reads is not identified, because the counts lane uploads no trace with stacks. The note lists the
+   candidates.
+2. The morph.countdown half (follow-up).
+3. Preset inclusion is the lead's decision.
 4. Writes outside the graph: `lean/scripts/CountdownOneChainGolden.lean` and
-   `packages/contracts/golden/preset/v2-proved.decisions.jsonl` (one no-link row).
+   `packages/contracts/golden/preset/v2-proved.decisions.jsonl` (one no-link row, generated).
+
+## Conventions
+The CI base branch `ci/countdown-one-chain-base` sits at b269d2c8.
 
 Read first: `research/notes/2026/10-20-countdown-one-chain.md`, then the "Run" section of the Lean module.

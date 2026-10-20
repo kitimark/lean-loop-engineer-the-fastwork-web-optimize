@@ -14,8 +14,8 @@ golden `packages/contracts/golden/parts/hero.countdown.onechain.jsonl`, TS `oneC
   RecalcStyleCount +1, elementCount +10. This is a small new cost, explained below.
 - The visual is unchanged by construction: the 10 faces, the `setInterval(1000)` and every transform write stay the
   same (Lean `oneChain_writes_eq`). The breakpoint gate passes the hero.countdown row in every reachable column
-  on both engines (run 39313815482): all 14 on Chromium, 12 on WebKit plus 2 UNREACHABLE by the Lean reach rule. The
-  run fails on 4 unrelated commission items, explained below.
+  on both engines (run 39367028590): all 14 on Chromium, 12 on WebKit plus 2 UNREACHABLE by the Lean reach rule. Its
+  not-ok set equals that of the no-flag base at the merge-base (run 39367037943): only the WebKit phone-rotation cell.
 
 ## Mechanism
 
@@ -101,20 +101,21 @@ both savings; that is a follow-up, not part of this flag.
 
 ## Gate
 
-Run 39313815482 (engines both, `?fw=hero.countdown:one-chain`):
-- WebKit passes every row.
-- Chromium passes every row except `commission`, which fails 1 of 5 probes in sweep `pain-1440-600-1440` step 0:
-  `inner` and `rows` `margin-inline-*` read orig "0px" against rewrite "96px"/"8px".
-- The same 4 items fail with the same values on ci/exit-scoped-var (run 39314391342, flag `hero.exit:scoped`). That
-  flag shares no code with this one. This is the known content-visibility reading of fix-commission-margin, not this
-  variant.
+Verdict runs, both engines, dispatched with `pnpm fw run --gate`:
+- 39367028590: flag `hero.countdown:one-chain` at 777c0c5d, which merges main b269d2c8.
+- 39367037943: no flag at the merge-base b269d2c8.
 
-Run 39318057726, scoped with `parts=hero.countdown`, has 301 passing readings, 0 failing and 3 excused on each engine.
-Its merged verdict is still "refused": the narrowed run counts the 28 out-of-scope cells per engine as `not-run`, so a
-narrowed gate never reaches pass. Both runs are in `results/countdown-one-chain/gate.md`.
+Both runs give Chromium pass (7049 readings pass, 0 fail, 7 excused) and WebKit incomplete (6763 pass, 0 fail, 291
+excused). Each has the same single not-ok cell, the WebKit `matchMedia =Lean|sweep:phone-rotation` cell, which is
+not-comparable and also not ok on main. The flag adds no not-ok cell. The hero.countdown row passes every reachable
+column on both engines.
+
+The earlier runs at 75b08603 (39313815482 all parts, 39318057726 scoped) failed on 4 Chromium commission margin items.
+That was the flake that cmr-margin-rect-rule fixed on main, not this variant. All runs are in
+`results/countdown-one-chain/gate.md`.
 
 ## Limits
 
 - Chromium counts only. WebKit has the same per-callback loop (cited above) but no measured count here.
-- The morph.countdown half waits for morph-layers.
-- Footprint rows for the new TS lines wait for the FootprintData regeneration (owned by morph-layers).
+- The morph.countdown half is a follow-up (morph-layers has landed).
+- Frame 499's reading subscriber stays open until a lane can give a trace with stacks.
