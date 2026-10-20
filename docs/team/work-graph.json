@@ -8121,11 +8121,13 @@
    "id": "land-lane-circleci",
    "owner": "measure-engineer",
    "stream": "ops",
-   "title": "CircleCI land job running the same fw checks --tier remote entry as land.yml and emitting laneDigest; the CircleCI adapter in land-remote.ts (pipeline/run with definition id, sha from GET /pipeline/{id}); live proof on one ci/land-* probe",
+   "title": "CircleCI land job running the same fw checks --tier remote entry as land.yml and emitting laneDigest; the CircleCI adapter in land-remote.ts (pipeline/run with definition id, sha from GET /pipeline/{id}); live proof on one ci/land-* probe. User 2026-10-21: use CircleCI for the Linux/Arm jobs to raise concurrency (30 per Arm class on top of GitHub's 20). Routing is overflow, decided in Lean (Fw.Ci.Provider route): a Linux land leg goes to CircleCI when GitHub's running+queued jobs for this repo leave no free slot or GitHub is degraded, and CircleCI is healthy (circleci-status) with credits and storage under the stop rules; the leg's verdict counts the same from either provider (laneDigest equal on a paired run). Measure: land lane wall time and queue wait with and without overflow under a busy GitHub pool",
    "deps": [
     "land-wait",
     "circleci-pilot",
-    "circleci-cache-accounting"
+    "circleci-cache-accounting",
+    "circleci-status",
+    "land-check-remote"
    ],
    "writes": [
     ".circleci/**",
@@ -11045,7 +11047,16 @@
     "packages/measure-webkit/src/**",
     "packages/measure-webkit/test/**",
     ".github/workflows/webkit-sim.yml",
-    "docs/team/handoffs/webkit-sim-failfast.md"
+    "docs/team/handoffs/webkit-sim-failfast.md",
+    "lean/Fw.lean",
+    "lean/Fw/Measure/Golden.lean",
+    "lean/Fw/Measure/SimBound.lean",
+    "lean/Fw/Measure/Wire.lean",
+    "lean/Fw/Store/Layout.lean",
+    "packages/contracts/golden/measure/measure.inspector.jsonl",
+    "packages/contracts/golden/measure/measure.simBounds.jsonl",
+    "packages/contracts/golden/measure/measure.simPlan.jsonl",
+    "research/notes/2026/10-20-macos-pool-v2.md"
    ]
   },
   {
@@ -11133,7 +11144,8 @@
     "lean/Fw/Sched/LakeSlot.lean",
     "docs/team/handoffs/check-stage2-bound.md",
     "packages/contracts/golden/sched/lake-slot.gen.sh"
-   ]
+   ],
+   "evidence": "77eb42c"
   },
   {
    "devices": [
@@ -11162,7 +11174,9 @@
     "apps/runner/src/checks.ts",
     "apps/runner/test/land*.ts",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/land-check-remote.md"
+    "docs/team/handoffs/land-check-remote.md",
+    "apps/runner/test/checks.test.ts",
+    "apps/runner/src/land-tier*.ts"
    ]
   },
   {
@@ -11183,7 +11197,8 @@
     "packages/contracts/golden/console/land-queue.jsonl",
     "docs/team/tools/land-queue.md",
     "docs/team/handoffs/land-queue-unreachable.md"
-   ]
+   ],
+   "evidence": "05f6a3f"
   },
   {
    "devices": [
@@ -11200,7 +11215,13 @@
     "apps/site/src/parts/hero.exit/**",
     "packages/contracts/golden/parts/hero.exit.scoped.json",
     "research/notes/2026/10-2*-exit-scoped-inline.md",
-    "docs/team/handoffs/exit-scoped-inline.md"
+    "docs/team/handoffs/exit-scoped-inline.md",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "research/findings/ledger.json"
    ]
   },
   {
@@ -11218,7 +11239,16 @@
     "apps/site/src/parts/hero.deck/**",
     "apps/site/src/parts/nav/**",
     "research/notes/2026/10-2*-faithful-hero-baseline.md",
-    "docs/team/handoffs/faithful-hero-baseline.md"
+    "docs/team/handoffs/faithful-hero-baseline.md",
+    "apps/site/src/parts/nav.hitTest/**",
+    "apps/site/src/styles/reset.css",
+    "apps/site/src/stage/PartStage.tsx",
+    "apps/site/src/scroll-behavior.test.ts",
+    "apps/site/scripts/census.mjs",
+    "packages/e2e-preview/src/suite.mjs",
+    "packages/gate-breakpoints/src/trajectory/kit.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ]
   },
   {
@@ -11260,8 +11290,12 @@
     "packages/contracts/golden/ci/pool-caps.jsonl",
     "scripts/ci-paths.test.mjs",
     "docs/team/tools/trajectory-probe.md",
-    "docs/team/handoffs/trajectory-probe-speed.md"
-   ]
+    "docs/team/handoffs/trajectory-probe-speed.md",
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "packages/gate-breakpoints/test/trajectory.test.mjs"
+   ],
+   "evidence": "6f8837a"
   },
   {
    "devices": [
@@ -11369,7 +11403,8 @@
    "writes": [
     "research/notes/2026/10-2*-webkit-lag-source.md",
     "docs/team/handoffs/webkit-lag-source.md"
-   ]
+   ],
+   "evidence": "1f94f73"
   },
   {
    "devices": [
@@ -11442,6 +11477,95 @@
     "apps/console-api/test/node-guard.test.ts",
     "lean/Fw/Ops/CheckMap.lean",
     ".github/actions/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-transition-retarget",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "webkit-lag-source"
+   ],
+   "title": "Region B candidate (research/notes/2026/10-20-webkit-lag-source.md, per-transition row): nav .btn.earn has CSS transitions on max-width, padding-inline and opacity (nav.module.css:167-185, no .is-morphing override); each frame's --morph change restarts them (Styleable.cpp:742-758 cancel then restart), so the button's layout runs about 0.68 s past the scroll and the running opacity transition may composite it (RenderLayerCompositor.cpp:3842-3853). Lean first: an arm with no transition on those properties while morphing, prove VisSame (same end state each frame up to the PL tolerance) and the work bound; flag it (nav.earn:no-transition); prove on CI with the trajectory probe on both engines and webkit-lag-probe's region B counters when available; record in the findings ledger win or not",
+   "writes": [
+    "lean/Fw/Parts/NavEarn*.lean",
+    "apps/site/src/parts/nav/**",
+    "packages/contracts/golden/parts/nav-earn*.jsonl",
+    "docs/team/handoffs/earn-transition-retarget.md",
+    "lean/scripts/NavEarn*.lean",
+    "research/notes/2026/10-2*-earn-transition-retarget.md",
+    "research/findings/ledger.json"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-transition-window",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "trajectory-probe-speed"
+   ],
+   "title": "Blocker: v2-proved is empty. The trajectory probe judges CSS properties sampled while a transition is in flight, at uncontrolled times, so an arm against itself shows units: macOS WebKit morph nav.background-color at 641/1280 approach steps a3/a7/a8/a11 failed both runs for all 8 candidates (39453181962, 39455284967; the original shows the same values); Chromium earn max-width/opacity at close@0/close-hold@0 (faithful-hero-baseline runs 39453764374, 39457063232; A/A 39409003529). Lean first in Fw.Gate.Trajectory: a property known to be transitioning at a step (from the part's declared transitions or from the sampled curve) is judged as a window (value within the span both arms cross, or a clock-aligned read), with theorems that (a) an arm equal to the original always passes such a step and (b) a value outside the window, or a settled step that differs, still fails. Goldens; the TS reducer is checked against them. Re-record the 8 candidates from the stored runs (no new dispatch unless needed) and regenerate v2-proved; list the result per flag",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Preset/V2Proved.lean",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/src/trajectory/cli.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-transition-window.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "panel-final-size",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "webkit-lag-source"
+   ],
+   "title": "Region B candidate C1 (research/notes/2026/10-20-webkit-lag-source.md): lay the morph panel, backdrop and columns out once at the final panel size, centered in the nav and clipped by it (overflow: hidden already there); only the nav box changes size. Predicted: removes the track and panel resize repaints (about 13 Mpx per frame on a 2x Mac; tracks are tiled on iPhone so the area there is an upper bound). Lean first in MorphPanelOpt: prove VisSame (clip of the final-size layout equals the resized layout at each frame within the PL tolerance; state any difference) and the work bound (no layout of panel/columns per frame); flag morph.panel:final-size; prove on CI with the trajectory probe both engines (2 runs + A/A) and Chromium counts; WebKit paint area from webkit-lag-probe when it exists; findings ledger row win or not",
+   "writes": [
+    "lean/Fw/Parts/MorphPanelOpt.lean",
+    "lean/scripts/MorphPanel*.lean",
+    "apps/site/src/parts/morph.panel/**",
+    "apps/site/src/parts/morph.columns/**",
+    "packages/contracts/golden/parts/morph-panel*.jsonl",
+    "research/notes/2026/10-2*-panel-final-size.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/panel-final-size.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-scroll-lock",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "webkit-lag-source",
+    "waapi-threshold-attr"
+   ],
+   "title": "Region B candidate C4 (research/notes/2026/10-20-webkit-lag-source.md): lock scroll during the morph (overflow: hidden on the scroller, or touch-action: none on the armed region for touch) instead of a scrollTo pin every frame (morph.tween driver). Predicted: no pin fight on iPhone and none on Mac trackpad gestures. Lean first in MorphTweenOpt: the scroll position seen by the morph is the same pinned value each frame (VisSame), fewer forced scrolls; flag morph.tween:scroll-lock; trajectory probe both engines (2 runs + A/A); findings ledger row. Waits for waapi-threshold-attr (same files)",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "apps/site/src/parts/morph.tween/**",
+    "packages/contracts/golden/parts/morph-tween-scroll-lock*.jsonl",
+    "research/notes/2026/10-2*-morph-scroll-lock.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/morph-scroll-lock.md"
    ]
   }
  ],

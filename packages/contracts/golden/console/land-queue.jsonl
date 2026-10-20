@@ -84,3 +84,22 @@
 {"name":"after land: lean-like name outside lean/","request":{"kind":"done","op":"landQueue.afterLand","paths":["apps/lean/x.ts","leanx/y"],"rebuildOk":false},"response":{"action":"proceed","nextKind":null,"reason":null,"rebuild":false,"rebuilt":false}}
 {"name":"after land: refused land with a lean path","request":{"kind":"checks","op":"landQueue.afterLand","paths":["lean/Fw/A.lean"],"rebuildOk":false},"response":{"action":"proceed","nextKind":null,"reason":null,"rebuild":false,"rebuilt":false}}
 {"name":"after land: empty land with a lean path","request":{"kind":"empty","op":"landQueue.afterLand","paths":["lean/Fw/A.lean"],"rebuildOk":true},"response":{"action":"proceed","nextKind":null,"reason":null,"rebuild":false,"rebuilt":false}}
+{"name":"health wait schedule","request":{"op":"landQueue.healthSchedule"},"response":{"boundMs":63750,"delays":[250,500,1000,2000,4000,4000,4000,4000,4000,4000,4000,4000,4000,4000,4000,4000,4000,4000,4000,4000],"polls":20,"times":[0,250,750,1750,3750,7750,11750,15750,19750,23750,27750,31750,35750,39750,43750,47750,51750,55750,59750,63750]}}
+{"name":"console back at once","request":{"back":0,"op":"landQueue.health"},"response":{"reached":true}}
+{"name":"console back after 5 s","request":{"back":5000,"op":"landQueue.health"},"response":{"reached":true}}
+{"name":"console back at the bound","request":{"back":63750,"op":"landQueue.health"},"response":{"reached":true}}
+{"name":"console back one ms after the bound","request":{"back":63751,"op":"landQueue.health"},"response":{"reached":false}}
+{"name":"console never back","request":{"back":null,"op":"landQueue.health"},"response":{"reached":false}}
+{"name":"unreachable, back in 5 s","request":{"back":5000,"kind":null,"max":5,"op":"landQueue.attempt","tries":1},"response":{"kind":null,"next":"retry","reason":null}}
+{"name":"unreachable, back at the bound","request":{"back":63750,"kind":null,"max":5,"op":"landQueue.attempt","tries":4},"response":{"kind":null,"next":"retry","reason":null}}
+{"name":"unreachable, back after the bound","request":{"back":63751,"kind":null,"max":5,"op":"landQueue.attempt","tries":1},"response":{"kind":"busy","next":"final","reason":"console-unreachable: console-api did not answer /api/health within the bounded wait (pnpm fw console status)"}}
+{"name":"unreachable, never back","request":{"back":null,"kind":null,"max":5,"op":"landQueue.attempt","tries":1},"response":{"kind":"busy","next":"final","reason":"console-unreachable: console-api did not answer /api/health within the bounded wait (pnpm fw console status)"}}
+{"name":"unreachable, back but attempts used","request":{"back":0,"kind":null,"max":5,"op":"landQueue.attempt","tries":5},"response":{"kind":"busy","next":"final","reason":"console-unreachable: console-api did not answer /api/health within the bounded wait (pnpm fw console status)"}}
+{"name":"landed busy","request":{"back":null,"kind":"busy","max":5,"op":"landQueue.attempt","tries":1},"response":{"kind":null,"next":"retry","reason":null}}
+{"name":"landed busy, attempts used","request":{"back":null,"kind":"busy","max":5,"op":"landQueue.attempt","tries":5},"response":{"kind":"busy","next":"final","reason":null}}
+{"name":"landed unknown is final","request":{"back":0,"kind":"unknown","max":5,"op":"landQueue.attempt","tries":1},"response":{"kind":"unknown","next":"final","reason":null}}
+{"name":"landed done","request":{"back":null,"kind":"done","max":5,"op":"landQueue.attempt","tries":1},"response":{"kind":"done","next":"final","reason":null}}
+{"name":"health wait after land: lean change","request":{"kind":"done","op":"landQueue.healthAfter","paths":["lean/Fw/A.lean"]},"response":{"wait":true}}
+{"name":"health wait after land: build script change","request":{"kind":"done","op":"landQueue.healthAfter","paths":["scripts/fwcore-build.sh"]},"response":{"wait":true}}
+{"name":"health wait after land: no core change","request":{"kind":"done","op":"landQueue.healthAfter","paths":["docs/x.md"]},"response":{"wait":false}}
+{"name":"health wait after land: refused land with a lean path","request":{"kind":"checks","op":"landQueue.healthAfter","paths":["lean/Fw/A.lean"]},"response":{"wait":false}}

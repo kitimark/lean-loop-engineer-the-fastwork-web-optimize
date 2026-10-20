@@ -39,17 +39,24 @@ def Row.thin (r : Row) : Bool := r.n < minSamples
 def source : String :=
   "research/notes/2026/10-20-macos-pool-v2.md: jobs-an.json, 305 jobs 10-17..10-20, successes only, linear p90 rounded up to 0.1 min"
 
+/-- Where the `trajectory-probe` p90 was measured (task `trajectory-probe-speed`): the two width-leg jobs of dispatch runs
+39453181962 (9.1, 11.3 min) and 39455284967 (9.2, 10.9 min), successes only. The earlier hero-only single job (3.1 and 3.8 min)
+is another workload and is not counted. Linear p90 of 9.1, 9.2, 10.9, 11.3 is 11.18, rounded up to 11.2 min. -/
+def probeSource : String :=
+  "runs 39453181962 and 39455284967 (task trajectory-probe-speed): probe-apple width legs, successes only, linear p90 rounded up to 0.1 min"
+
 /-- The capped macOS jobs, one per lane. -/
 def rows : List Row :=
   [⟨"wktr", "wktr.yml", "wktr", 93, 119⟩,
    ⟨"wktr-fixtures", "wktr-fixtures.yml", "fixtures", 35, 161⟩,
    ⟨"sim-speed", "sim-speed.yml", "probe", 20, 124⟩,
    ⟨"engine-premises", "engine-premises.yml", "webkit", 15, 56⟩,
-   ⟨"gate-gaps", "gate-gaps.yml", "collect-macos", 3, 198⟩]
+   ⟨"gate-gaps", "gate-gaps.yml", "collect-macos", 3, 198⟩,
+   ⟨"trajectory-probe", "trajectory-probe.yml", "probe-apple", 4, 112⟩]
 
 /-- The workflows whose macOS jobs carry no cap here, each with the task that owns their timeout. -/
 def excluded : List (String × String) :=
-  [("webkit-sim.yml", "webkit-sim-failfast"), ("trajectory-probe.yml", "trajectory-probe-speed")]
+  [("webkit-sim.yml", "webkit-sim-failfast")]
 
 /-- The cap row of a workflow job, if it has one. -/
 def capOf (file job : String) : Option Nat := (rows.find? fun r => r.file == file && r.job == job).map (·.cap)
@@ -62,17 +69,19 @@ theorem rows_lanes_nodup : (rows.map (·.lane)).Nodup := by decide
 
 theorem excluded_disjoint : ∀ e ∈ excluded, e.1 ∉ rows.map (·.file) := by decide
 
-theorem thin_only_gate_gaps : (rows.filter (·.thin)).map (·.lane) = ["gate-gaps"] := by decide
+theorem thin_lanes : (rows.filter (·.thin)).map (·.lane) = ["gate-gaps", "trajectory-probe"] := by decide
 
 theorem caps_eq : rows.map (fun r => (r.lane, r.cap)) =
-    [("wktr", 16), ("wktr-fixtures", 21), ("sim-speed", 17), ("engine-premises", 8), ("gate-gaps", 26)] := by decide
+    [("wktr", 16), ("wktr-fixtures", 21), ("sim-speed", 17), ("engine-premises", 8), ("gate-gaps", 26),
+      ("trajectory-probe", 15)] := by decide
 
 /-- The p90 values (tenths of a minute) of the golden's `vector` rows. -/
-def vectors : List Nat := [0, 1, 56, 76, 77, 119, 124, 161, 198, 289, 300, 1000]
+def vectors : List Nat := [0, 1, 56, 76, 77, 112, 119, 124, 161, 198, 289, 300, 1000]
 
 private def capJson (r : Row) : Json :=
   Json.mkObj [("kind", "cap"), ("lane", r.lane), ("file", r.file), ("job", r.job), ("n", r.n), ("p90dm", r.p90dm),
-    ("capMin", r.cap), ("thin", r.thin), ("status", "MEASURED"), ("source", source)]
+    ("capMin", r.cap), ("thin", r.thin), ("status", "MEASURED"),
+    ("source", if r.lane == "trajectory-probe" then probeSource else source)]
 
 /-- The golden `packages/contracts/golden/ci/pool-caps.jsonl`: the cap rows, the excluded workflows, the `capMin` vectors. -/
 def goldenText : String :=
@@ -86,7 +95,9 @@ def goldenText : String :=
 #guard capMin 1 == 1
 #guard capMin 76 == 10
 #guard capMin 77 == 11
-#guard [119, 161, 124, 56, 198].map capMin == [16, 21, 17, 8, 26]
+#guard [119, 161, 124, 56, 198, 112].map capMin == [16, 21, 17, 8, 26, 15]
+#guard capOf "trajectory-probe.yml" "probe-apple" == some 15
+#guard capOf "trajectory-probe.yml" "merge-apple" == none
 #guard capOf "wktr.yml" "wktr" == some 16
 #guard capOf "gate-gaps.yml" "collect-macos" == some 26
 #guard capOf "gate-gaps.yml" "judge" == none
