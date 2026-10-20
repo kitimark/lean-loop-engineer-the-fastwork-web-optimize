@@ -10613,7 +10613,8 @@
     "lean/scripts/Preset*.lean",
     "research/notes/2026/10-2*-preset-drop-waapi.md",
     "docs/team/handoffs/preset-drop-waapi.md"
-   ]
+   ],
+   "evidence": "791e0f1"
   },
   {
    "devices": [

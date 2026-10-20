@@ -26,4 +26,12 @@ describe('v2-proved preset', () => {
     expect(r.configHash).not.toBe((resolveSearch('') as { configHash: string }).configHash);
     expect(renderToString(createElement(App, { config: r.config }))).toContain('data-fw');
   });
+
+  it('a part the preset leaves out resolves to its faithful variant', () => {
+    const r = resolveSearch('?preset=v2-proved');
+    if (!r.ok) throw new Error(r.errors.join('; '));
+    const fw = presets['v2-proved']!.fw;
+    for (const part of parts.filter((x) => !(x.id in fw) && 'faithful' in x.variants))
+      expect(r.config.variants[part.id] ?? 'faithful', part.id).toBe('faithful');
+  });
 });
