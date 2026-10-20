@@ -16,10 +16,17 @@ export const PATHS = [
   { id: "r", arm: "r", frames: [{ name: "r", arm: "r", kind: "fixture" }] },
   { id: "o", arm: "o", frames: [{ name: "o", arm: "o", kind: "original" }] },
   { id: "compare", arm: "o", frames: [{ name: "o", arm: "o", kind: "original" }, { name: "r", arm: "r", kind: "fixture" }] },
+  // the entry path as the Builds page links it (`/preview/<id>/r|o/<search>` on the preview port): a page-level hop to the arm origin
+  { id: "entry-r", arm: "r", entry: "r", frames: [{ name: "r", arm: "r", kind: "fixture" }] },
+  { id: "entry-o", arm: "o", entry: "o", frames: [{ name: "o", arm: "o", kind: "original" }] },
 ];
 
+/** A search string like the ones Lean `console.builds` gives a row (`?only=<part>`); the arms ignore it, the hop must keep it. */
+export const ENTRY_SEARCH = "?only=hero&flags=a";
+
 /** Where a target's document is: an arm's own origin, or the preview port's side-by-side page. */
-export const documentUrl = (host, target) => (target.id === "compare" ? `${host.origin}/preview/${PREVIEW_ID}/compare` : `${host.arm[target.arm]}/`);
+export const documentUrl = (host, target) => (target.id === "compare" ? `${host.origin}/preview/${PREVIEW_ID}/compare`
+  : target.entry ? `${host.origin}/preview/${PREVIEW_ID}/${target.entry}/${ENTRY_SEARCH}` : `${host.arm[target.arm]}/`);
 
 /** Fonts the page must have loaded: [family substring ...] per kind of page. */
 const FONTS = { original: ["Google Sans", "Playpen Sans"], fixture: ["Fixture Playpen"] };
@@ -96,7 +103,7 @@ const newLog = () => ({ external: [], responses: [], requests: [], pageErrors: [
 const resetLog = (log) => { for (const k of Object.keys(log)) log[k].length = 0; };
 
 /** 0 unhandled rejections, 0 cancelled (or otherwise failed) same-origin requests, no module-load error on the console. */
-function noiseChecks(check, log, own, requireResponses = true) {
+function noiseChecks(check, log, own, { requireResponses = true, documentHops = false } = {}) {
   const sameFailed = log.failed.filter((f) => f.own && !noise.test(f.line)).map((f) => f.line);
   const cancelled = sameFailed.filter((l) => /cancel/i.test(l));
   check("rejections-0", log.pageErrors.length === 0, log.pageErrors.slice(0, 3).join(" | ") || "none");
@@ -104,8 +111,11 @@ function noiseChecks(check, log, own, requireResponses = true) {
     sameFailed.length ? `${cancelled.length} cancelled of ${sameFailed.length} failed: ${sameFailed.slice(0, 6).join("; ")} || navs: ${log.navs.join(", ")}` : "none");
   check("console-no-module-load-error", !log.consoleErrors.some((t) => /dynamically imported module|Failed to load module/i.test(t)), log.consoleErrors.slice(0, 2).join(" | ") || "none");
   const sameOrigin = log.responses.filter((r) => own.has(new URL(r.url).origin));
-  const hops = sameOrigin.filter((r) => r.status >= 300 && r.status < 400 && r.status !== 304);
-  check("no-redirect-on-any-request", hops.length === 0 && sameOrigin.every((r) => !r.redirected), hops.length ? hops.slice(0, 4).map((r) => `${r.status} ${new URL(r.url).pathname}`).join("; ") : `${sameOrigin.length} responses`);
+  // `documentHops`: the page-level hops of the entry path (grant link, then `/preview/<id>/r|o/` to the arm origin) are the design
+  // (a redirected navigation, never a redirected module or asset); every other request must be answered where it was sent
+  const checked = documentHops ? sameOrigin.filter((r) => r.type !== "document") : sameOrigin;
+  const hops = checked.filter((r) => r.status >= 300 && r.status < 400 && r.status !== 304);
+  check("no-redirect-on-any-request", hops.length === 0 && checked.every((r) => !r.redirected), hops.length ? hops.slice(0, 4).map((r) => `${r.status} ${new URL(r.url).pathname}`).join("; ") : `${checked.length} responses`);
   const bad = sameOrigin.filter((r) => r.status >= 400 && !ACCEPTED_FAILURES.some((a) => new URL(r.url).pathname === a));
   check("same-origin-2xx", (!requireResponses || sameOrigin.length > 0) && bad.length === 0, bad.length ? bad.slice(0, 5).map((r) => `${r.status} ${r.method} ${new URL(r.url).pathname}`).join("; ") : `${sameOrigin.length} responses`);
 }
@@ -134,9 +144,13 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     // the landing page hydrates after its load event; leaving it mid-import would cancel that import (the browser's doing, not the server's)
     await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
     await page.waitForTimeout(300);
+    // the real entry path, first half: the grant link and its landing page (the hop to the arm origin included) show no
+    // rejection, no cancelled request and no failed one
+    noiseChecks((id, ok, d) => check(`landing/${id}`, ok, d), log, own, { documentHops: true });
     resetLog(log); // rig.seen keeps the grant load: the arm requests of both loads are read below
 
     const doc = await page.goto(documentUrl(host, target), { waitUntil: "load" });
+    if (target.entry) check("entry-landed-on-arm-origin-with-search", page.url() === `${host.arm[target.arm]}/${ENTRY_SEARCH}`, page.url());
     check("document-200", doc && doc.status() === 200 && /text\/html/.test(doc.headers()["content-type"] ?? ""), `${doc?.status()} ${doc?.headers()["content-type"]}`);
     for (const f of target.frames) {
       const fr = target.id === "compare" ? await frameOn(page, host.arm[f.arm]) : page.mainFrame();
@@ -146,7 +160,7 @@ async function runTarget(browser, rig, engine, host, target, opts) {
     }
     await page.waitForTimeout(500);
 
-    noiseChecks(check, log, own);
+    noiseChecks(check, log, own, { documentHops: Boolean(target.entry) });
 
     // the phone case, read at the arm ports: a plain-HTTP host that is not potentially trustworthy gets no Sec-Fetch-Dest
     const armHosts = new Set(target.frames.map((f) => new URL(host.arm[f.arm]).host));
@@ -236,7 +250,9 @@ async function clientNavigation(browser, rig, engine, host, arm) {
       check("target-node-module-evaluated-once", page2.length === 1 && rep.duplicates.length === 0 && after.evals.length >= before.evals.length, `${page2.length} evaluations of the page node; ${before.evals.length} -> ${after.evals.length} evaluations in all`);
       check("start-not-repeated", after.starts === 1, `start() ran ${after.starts} times (tap counter)`);
     }
-    noiseChecks(check, log, own, arm === "r"); // the original's home link needs no request at all
+    // the click must have produced a same-document navigation the browser reported; an empty list would mean the click did nothing
+    check("same-document-navigation-observed", log.navs.some((n) => n.startsWith("main ")), `navs: ${log.navs.join(", ") || "none"}`);
+    noiseChecks(check, log, own, { requireResponses: arm === "r" }); // the original's home link needs no request at all
   } catch (e) {
     check("run", false, String(e?.message ?? e).split("\n").slice(0, 4).join(" / "));
   } finally { await ctx.close().catch(() => undefined); }
@@ -250,6 +266,8 @@ async function lanLogin(browser, rig, engine, host, passphrase) {
   try {
     await ctx.route((u) => !ownOrigins(host).has(u.origin) && u.origin !== host.consoleOrigin, blockExternal({ external: [] }));
     const page = await ctx.newPage();
+    const log = newLog();
+    observe(page, log, ownOrigins(host));
     const wrong = await page.request.post(`${host.consoleOrigin}/owner/login`, { headers: { origin: host.consoleOrigin }, data: { passphrase: "not-the-passphrase" } });
     checks.push({ id: `${engine}/lan/login-wrong-refused`, ok: wrong.status() === 401, detail: String(wrong.status()) });
     const good = await page.request.post(`${host.consoleOrigin}/owner/login`, { headers: { origin: host.consoleOrigin }, data: { passphrase } });
@@ -263,12 +281,16 @@ async function lanLogin(browser, rig, engine, host, passphrase) {
     const withCookie = await page.request.get(`${host.arm.o}/`);
     checks.push({ id: `${engine}/lan/arm-open-with-session-cookie`, ok: withCookie.status() === 200, detail: String(withCookie.status()) });
     // the login cookie carries the whole page through the LAN address: the real phone path (no Sec-Fetch, non-loopback socket)
+    resetLog(log); // the checks below read this one load
     const doc = await page.goto(`${host.arm.o}/`, { waitUntil: "load" });
     await settle(page.mainFrame());
+    await page.waitForTimeout(500);
     const facts = await frameFacts(page.mainFrame());
     const rep = evalReport(facts.evals);
     checks.push({ id: `${engine}/lan/o/page`, ok: doc?.status() === 200 && rep.total >= 2 && rep.duplicates.length === 0 && facts.broken.length === 0 && facts.fonts.some((x) => x.includes("Google Sans")),
       detail: `${doc?.status()}, ${rep.total} modules once, ${facts.images} images ${facts.broken.length} broken, fonts ${facts.fonts.join("/")}` });
+    // the phone's path (non-loopback socket, no Sec-Fetch): 0 rejections, 0 cancelled or failed same-origin requests
+    noiseChecks((id, ok, d) => checks.push({ id: `${engine}/lan/o/${id}`, ok: Boolean(ok), detail: String(d) }), log, ownOrigins(host));
   } catch (e) {
     checks.push({ id: `${engine}/lan/run`, ok: false, detail: String(e?.message ?? e).split("\n")[0] });
   } finally { await ctx.close().catch(() => undefined); }
@@ -276,10 +298,12 @@ async function lanLogin(browser, rig, engine, host, passphrase) {
 }
 
 /** One control load of the original arm: how many unhandled rejections and cancelled requests the page shows. */
-async function controlLoad(browser, rig, engine, arm, url, prepare) {
+async function controlLoad(browser, rig, engine, arm, url, prepare, opts = {}) {
   const ctx = await browser.newContext({ userAgent: IPHONE_UA, viewport: VIEWPORT, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
   const errors = []; const failed = [];
   try {
+    // like runTarget: the page may not reach the real internet; every control URL is on loopback
+    if (opts.route !== false) await ctx.route((u) => u.hostname !== "127.0.0.1", blockExternal({ external: [] }));
     const page = await ctx.newPage();
     const target = await prepare(page, ctx);
     // listen only from here: leaving the grant landing page mid-load would cancel its images and fonts (the browser's doing)
@@ -301,19 +325,19 @@ async function controlLoad(browser, rig, engine, arm, url, prepare) {
  *   tap-only   the same server behind the evaluation tap: no arm app;
  *   arm-only   the arm origin (grant, gate, routing through Lean) in front of the server, the tap a plain pass-through.
  *  The arms of the suite itself are arm origin + tap. If a suite arm ever fails, these say which layer carries it. */
-async function controls(browser, rig, engine) {
+async function controls(browser, rig, engine, opts = {}) {
   const out = [];
   const noop = async () => null;
   for (let i = 1; i <= 3; i++) {
-    out.push(await controlLoad(browser, rig, engine, "raw", `http://127.0.0.1:${rig.ports.rawOp}/`, noop));
-    out.push(await controlLoad(browser, rig, engine, "tap-only", `http://127.0.0.1:${rig.ports.bop}/`, noop));
+    out.push(await controlLoad(browser, rig, engine, "raw", `http://127.0.0.1:${rig.ports.rawOp}/`, noop, opts));
+    out.push(await controlLoad(browser, rig, engine, "tap-only", `http://127.0.0.1:${rig.ports.bop}/`, noop, opts));
     rig.useTap(false);
     try {
       out.push(await controlLoad(browser, rig, engine, "arm-only", null, async (page) => {
         await page.goto(await rig.grantUrl(rig.hosts.loopback.origin, "o"), { waitUntil: "load" });
         await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
         return `${rig.hosts.loopback.arm.o}/`;
-      }));
+      }, opts));
     } finally { rig.useTap(true); }
   }
   return out;
@@ -344,7 +368,7 @@ export async function runEngine(browser, rig, engine, { passphrase, keep, route 
       out.push(...cs);
     }
   }
-  const ctl = await controls(browser, rig, engine);
+  const ctl = await controls(browser, rig, engine, { route });
   ctl.forEach((c, i) => out.push({ id: `${engine}/control/${c.arm}/o-load#${i + 1}`, ok: c.ok && c.rejections === 0 && c.cancelled === 0, detail: c.detail }));
   const at = attribution(ctl);
   out.push({ id: `${engine}/control/attribution`, ok: at.ok, detail: `arms showing a rejection or a cancelled request: ${at.shown.join(", ") || "none"}` });
