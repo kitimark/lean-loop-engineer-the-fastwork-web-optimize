@@ -11,9 +11,7 @@ facts the I/O glue reads (`part.json`, the presets, the findings ledger's identi
   `proved` (a member of the `v2-proved` preset: equal look, proved), `lookChange` (the part file records a look change, accepted
   pending review), `ledgerProved` (every matching ledger row is `proved`, but the gate has not admitted the variant to `v2-proved`), `measured` (a ledger
   row matches, but it is not admitted and not every row is `proved`), `unrated` (no ledger row measured it).
-  A row whose `supersededBy` names a later row's `id` counts for no class; `supersedeErrors` refuses a name with no row.
 * `rowsFor`: which ledger rows speak of a variant. The ledger is the one source of the explanations; this says which rows.
-  `varRows` adds the rows that supersede one of them, by identity.
 * `entries` and `search`: the canonical search of a combination, in page order, default variants left out.
 * `decide`: whether a combination gets a link. It is refused with reasons when a pick names no registered variant, picks a
   refuted variant, or breaks a `requires` or `conflicts` rule of the site (`Fw.Console.BuildsOpen.validate`, the proved mirror
@@ -129,10 +127,7 @@ def matchRow (p : PartInfo) (v : String) (r : LRow) : Bool :=
 def rowsFor (rows : List LRow) (p : PartInfo) (v : String) : List Nat :=
   (rows.zipIdx.filter (fun e => matchRow p v e.1)).map (·.2)
 
-/-! ## Superseded rows
-
-A row whose `supersededBy` names a later row's `id` no longer counts for a class; the later row does, and it joins the
-variant's rows by that identity, whether or not its text matches the variant. -/
+/-! ## Superseded rows -/
 
 /-- No later row has fixed or replaced the row. -/
 def LRow.live (r : LRow) : Bool := r.supersededBy.isNone

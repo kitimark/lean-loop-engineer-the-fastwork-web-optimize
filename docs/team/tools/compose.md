@@ -22,7 +22,7 @@ Open, Open compare and Copy link (Copy link is a separate step: it copies the li
 | Class | Meaning | Link |
 |---|---|---|
 | original | the faithful variant (kind `faithful`) | allowed |
-| refuted | a ledger row for this variant has status `refuted` | refused, reason names the finding |
+| refuted | a live ledger row for this variant has status `refuted` (a superseded row is not live) | refused, reason names the finding |
 | proved | in the `v2-proved` preset, same look | allowed |
 | look-change | the part's `provenance.limit` starts with `look change` | allowed |
 | ledger-proved | one or more rows speak of it and every one has status `proved`; the gate has not admitted it to `v2-proved` ("proved in the ledger, not yet admitted to v2-proved by the gate") | allowed |
@@ -42,6 +42,24 @@ row 41 (`engine.scene`, "hidden pause of compositor marquees (morph.columns ...)
 row 43 (`engine.scene`, "morph.countdown hidden: keep the spring integrating ..."). Checked against the real registry and
 ledger: `morph.columns:hidden-pause` was the only unrated variant, and now is `measured` (row 19 is `partly-proved`).
 
+## Superseded rows
+
+A ledger row may carry `supersededBy: <row id>`: the `id` of the later row that fixed or replaced it. Identity, not
+inference: Compose reads only that field. A superseded row counts for no class and never refutes (`classOf` is `classBy`
+over the live rows); the row it names joins the variant's rows by its `id` (`varRows`), whether or not its text matches
+the variant, and the card still lists the superseded row with its own words. A `supersededBy` that names no row's `id`,
+or is not a string, makes `console.compose` fail with the reason (`supersedeErrors`); it is never ignored.
+
+Rows marked (task compose-superseded-rows):
+
+| Row | supersededBy | Reason |
+|---|---|---|
+| `hero.exit.scoped.falsified` (refuted) | `hero.exit.scoped.inline` | the inline reader writes fixed the stale WebKit style cache this row found (its `next`: fResult model-bug cleared) |
+| `hero.exit.scoped` (partly-proved) | `hero.exit.scoped.inline` | it records the register-only code that row `hero.exit.scoped.falsified` refuted; the flag's code and proof are now the inline row's, the row the preset link table names for `hero.exit:scoped` |
+
+With these, `hero.exit:scoped` shows `ledger-proved` ("proved in the ledger, not yet admitted to v2-proved by the gate"), not
+`refuted`. It is still not in `v2-proved`: the mac-webkit morph cell fails (task trajectory-close-start).
+
 Presets: an entry `variant@impl` whose impl is not the site default (`mui`) refuses the preset button (the composer has no
 impl pick, so its link would open the default impl). `implReasons` decides; the golden has a `plain-impl` preset.
 
@@ -52,7 +70,7 @@ refuted pick, or a `requires` or `conflicts` violation of the site registry (`Bu
 ## Proved
 
 `decide_link`, `refused_no_link`, `link_iff` (a link exists exactly when no reason does), `link_resolves` (an allowed link
-validates `.ok`), `link_no_refuted`, `link_known_picks`, `classOf_*` (each class and its precedence, `ledgerProved` included), `implReasons_nil_of_no_impl`, `entries_inj` and
+validates `.ok`), `link_no_refuted`, `link_known_picks`, `classOf_*` (each class and its precedence, `ledgerProved` included), `classOf_superseded_never_refutes`, `classOf_superseding` and `classOf_superseded_cons` (a superseded row changes no class), `classOf_no_superseded` and `varRows_no_superseded` (with no `supersededBy` the classes and rows are the old ones), `varRows_superseded_by` (in a ledger with no error the superseding row is among the variant's rows), `supersedeErrors_nil_iff` (no error exactly when every `supersededBy` names an `id`), `implReasons_nil_of_no_impl`, `entries_inj` and
 `search_entries_inj` (two combinations with the same entries pick the same variant of every part), `ordered_nodup`.
 
 ## Stale replies
@@ -67,6 +85,7 @@ test library).
 
 - Matching ledger rows to variants is text matching on the candidate (flag first). A row that names neither stays under the
   part's "other findings".
+- `supersededBy` resolves to the first row with that `id`; the ledger's ids are unique today, but uniqueness is not checked here.
 - The look-change list is not on `main`; Lean reads the `limit` text of the variants.
 - The text-to-entries round trip of `render` is not proved; goldens and `apps/console-api/test/compose.test.ts` cover it.
 - TS stand-ins to move into Lean later: attaching ledger text by index, the run-id regex (10 to 12 digits), the polling loop
