@@ -211,6 +211,7 @@ describe("Compose routes, and the open path with a composed search", () => {
     const { app } = await setup();
     const j = await (await app.request("/api/compose")).json() as any;
     expect(j.ok).toBe(true);
+    expect(j).toMatchObject({ canPreview: false, previewPort: 4001 });
     expect(j.parts.map((p: any) => p.id)).toEqual(["nav", "hero"]);
     expect(j.parts[1].variants.map((v: any) => [v.name, v.class])).toEqual([["faithful", "original"], ["strip", "proved"]]);
     expect(Object.values<any>(j.rows).find((r) => r.candidate === "hero `strip`").runs).toEqual(["24123456789"]);

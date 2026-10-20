@@ -17,7 +17,7 @@ export type LedgerRow = {
   leanFor?: string[]; leanAgainst?: string[]; missingWhy?: string[]; premises?: string[]; v1Evidence?: string; lesson?: string; next?: string; id?: string; evidence?: string;
 };
 export type LedgerNote = { entry: string; task: string; field: string; text: string };
-export type Pick = { part: string; variant: string };
+export type ComposePick = { part: string; variant: string };
 
 /** `part.json` of every part and the preset files (I/O only), with each variant's kind and its provenance `limit` text. */
 export function readComposeRegistry(root: string): ComposeRegistry {
@@ -82,7 +82,7 @@ export type ComposeReply = Record<string, unknown> & {
 };
 
 /** Ask Lean `console.compose` over the registry, the ledger rows and the picks; attach the ledger text to the rows it names. */
-export async function composeReply(root: string, core: Pick<Core, "ops">, picks: Pick[]): Promise<Record<string, unknown>> {
+export async function composeReply(root: string, core: Pick<Core, "ops">, picks: ComposePick[]): Promise<Record<string, unknown>> {
   const registry = readComposeRegistry(root);
   const ledger = readLedger(root);
   const r = (await core.ops("console.compose", {
@@ -97,9 +97,9 @@ export async function composeReply(root: string, core: Pick<Core, "ops">, picks:
 }
 
 /** The picks of `?pick=part:variant,...`: syntax only (a name is letters, digits, `.`, `-`, `_`); Lean decides whether they name a variant. */
-export function parsePicks(q: string | undefined): Pick[] | null {
+export function parsePicks(q: string | undefined): ComposePick[] | null {
   if (q === undefined || q === "") return [];
-  const out: Pick[] = [];
+  const out: ComposePick[] = [];
   for (const e of q.split(",")) {
     const m = /^([A-Za-z0-9._-]{1,60}):([A-Za-z0-9._-]{1,60})$/.exec(e);
     if (!m || out.length >= 80) return null;
@@ -110,12 +110,12 @@ export function parsePicks(q: string | undefined): Pick[] | null {
 
 /** `GET /api/compose[?pick=part:variant,...]`: the table, the presets and the decision for the picks. `GET /api/compose/decision` is the decision alone.
  *  Read-only: opening a link goes through `POST /api/builds/open`, with the search Lean returned. */
-export function mountCompose(app: Hono, core: Pick<Core, "ops">, root: string) {
+export function mountCompose(app: Hono, core: Pick<Core, "ops">, root: string, session: (authorization: string | undefined) => Record<string, unknown> = () => ({})) {
   app.get("/api/compose", async (c) => {
     c.header("Cache-Control", "no-store");
     const picks = parsePicks(c.req.query("pick"));
     if (!picks) return c.json({ ok: false, reason: "pick must be part:variant,part:variant (letters, digits, . - _)" }, 400);
-    return c.json(await composeReply(root, core, picks));
+    return c.json({ ...(await composeReply(root, core, picks)), ...session(c.req.header("authorization")) });
   });
   app.get("/api/compose/decision", async (c) => {
     c.header("Cache-Control", "no-store");

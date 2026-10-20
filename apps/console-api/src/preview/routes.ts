@@ -81,7 +81,7 @@ export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: Previe
     });
   });
 
-  mountCompose(app, store.core, pm.root); // the Compose tab: variants, classes, explanations and the decision (Lean `console.compose`)
+  mountCompose(app, store.core, pm.root, (auth) => ({ canPreview: owner.bearerOk(auth), previewPort: owner.previewPort })); // the Compose tab: variants, classes, explanations and the decision (Lean `console.compose`)
 
   app.get("/api/previews", (c) => c.json({ ok: true, ...pm.list(), previewPort: owner.previewPort }));
 

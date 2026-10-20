@@ -466,4 +466,40 @@ theorem search_entries_inj (parts : List PartInfo) (h : (parts.map (·.id)).Nodu
   intro p hp
   exact entries_inj (ordered parts) (ordered_nodup parts h) a b he p ((List.mergeSort_perm _ _).symm.subset hp)
 
+/-! ## Fixtures
+
+Small registries checked at build time. The goldens (`console.compose`) check the same decisions through the wire. -/
+
+namespace Fixture
+open Fw.Console.BuildsOpen
+
+private def vf (n k : String) (l : String := "") : VariantFact := { name := n, kind := k, limit := l }
+private def pi (id slot : String) (vs : List VariantFact) (req : List (String × List String) := []) : PartInfo :=
+  { id := id, slot := slot, variants := vs, impls := ["plain"], requires := req, conflicts := [] }
+
+/-- Two regions given out of page order; `b` requires `a:fast`. -/
+def parts : List PartInfo :=
+  [pi "p.late" "morph" [vf "faithful" "faithful", vf "fast" "optimized", vf "bad" "optimized"],
+   pi "p.early" "hero" [vf "faithful" "faithful", vf "fast" "optimized", vf "look" "optimized" "look change: dimmer"]
+     [("p.early:fast", ["p.late:fast"])]]
+
+def rows : List LRow :=
+  [{ part := "p.late", candidate := "p.late `fast`", status := "measured", flag := none },
+   { part := "p.late", candidate := "p.late `bad`", status := "refuted", flag := some "p.late:bad" }]
+
+#guard (ordered parts).map (·.id) == ["p.early", "p.late"]
+#guard (decide parts rows [] []).link == some ""
+#guard (decide parts rows [] [("p.late", "fast")]).link == some "?fw=p.late:fast"
+#guard (decide parts rows [] [("p.late", "fast"), ("p.early", "look")]).link == some "?fw=p.early:look,p.late:fast"
+#guard (decide parts rows [] [("p.late", "bad")]).link == none
+#guard (decide parts rows [] [("p.early", "fast")]).link == none
+#guard (decide parts rows [] [("p.early", "fast"), ("p.late", "fast")]).link == some "?fw=p.early:fast,p.late:fast"
+#guard (decide parts rows [] [("p.nope", "x")]).link == none
+#guard (decide parts rows [] [("p.late", "nope")]).link == none
+#guard (decide parts rows [] [("p.late", "fast"), ("p.late", "faithful")]).link == some ""
+#guard ((table parts rows []).map fun p => (p.id, p.variants.map (·.cls.name))) ==
+  [("p.early", ["original", "unrated", "look-change"]), ("p.late", ["original", "measured", "refuted"])]
+
+end Fixture
+
 end Fw.Console.Compose
