@@ -1,29 +1,28 @@
 # exit-scoped-inline handoff
 
-State: branch `worktree-wf_a2e03981-f12-2`, see the last commit there; `ci/exit-scoped-inline` points at it.
+State: branch `worktree-wf_a2e03981-f12-2` (round 2, merged main), last commit there; `ci/exit-scoped-inline` at 45a40e7b.
 
 Verified:
-- Mechanism of bug A CONFIRMED from WebKit source @862f17d (MatchedDeclarationsCache key ignores the parent's
-  non-inherited custom properties; a hit re-applies only `inherit` declarations). Cites in
-  research/notes/2026/10-20-exit-scoped-inline.md and the ledger note (task exit-scoped-inline).
-- Lean `Fw.Parts.HeroExitOpt` (section Scoped): `wkResolve` cache model, `wkRun_chain_frozen`, `chain_stale_webkit`,
-  `chain_eq_chromium`, `inline_visSame`, `inline_units`, `inline_touched` (17), `inline_lt_faithful`,
-  `inline_narrow_delta` (90).
-- Golden packages/contracts/golden/parts/hero.exit.scoped.json regenerated from lean/scripts/ExitScopedGolden.lean;
-  apps/site scoped.test.ts checks readerWrites, reader classes, SSR reader count 16 and writer order.
-- Fix: apps/site/src/parts/hero.exit/{scope.ts,driver.ts,index.tsx} write --exit-opacity and --exit-scatter inline on
-  each reader (READER_SELECTOR by data attributes, queried once on mount) in the same writer as the stage.
-- Regenerated (outside graph writes): footprint.gen.json, FootprintData.lean, FootprintRows.lean,
-  footprint-diff.gen.json; Bridge.lean literals recomputed (hero.cue no longer isolated, 13 rows; 322 chain pairs).
+- Bug A mechanism CONFIRMED from WebKit source @862f17d (cites in the note and ledger row hero.exit.scoped.inline).
+- Lean `Fw.Parts.HeroExitOpt` section Scoped: `wkRun_inline`, `inline_visSame` (given the `.inline` branch of
+  `wkResolve`, stated as the source premise), `inline_units`, `inline_touched`, `inline_lt_faithful`,
+  `inline_narrow_delta` (90); against: `wkRun_chain_frozen`, `chain_stale_webkit`.
+- MEASURED: hero path 0 new units on macOS WebKit, Linux WebKit and Chromium (runs 39448209903, 39452631146 at
+  071906af, 39466179818 at 45a40e7b; A/A 39456741492, 39472217441); bug A was 187 / 228. Chromium counts 136 -> 45
+  per exit frame, delta 90 (runs 39461009752, 39462188464). Tables and quoted Lean outcome lines: note, section CI.
+- Readers: `liveReaders` (scope.ts) re-queries after a DOM change below the stage; jsdom test
+  readers.component.test.ts; footprint regenerated (one new MutationObserver access; rows and diff unchanged).
 
-Open (lead dispatch, not delivered):
-- Trajectory `--fw hero.exit:scoped` x2 and A/A `--fw hero.exit:faithful` on ci/exit-scoped-inline; expect WebKit
-  new units 187 -> 0.
-- Chromium counts swipe-v1 for scoped and faithful (elementCount per scrolled frame).
-- Then update the ledger note with run ids and MEASURED status.
-- docs/report/v2-report.md lines 124, 559 (14 isolated parts incl. hero.cue) are stale; the Contract row of hero.exit
-  does not yet declare the reader outputs (footprint-diff lists them as missing).
+Open:
+- Flag admission: row hero.exit.scoped.falsified keeps fResult model-bug, so v2-proved still excludes the flag;
+  clearing it and `Fw.Preset.Gen.record` of these runs write files outside this task (lead decision).
+- docs/report/v2-report.md lines 124, 559 (14 isolated parts incl. hero.cue) are stale.
+- Counts: 91 instead of 90 at scrollY 150-940 and -1 at 1400-1800 are not identified.
+- Footprint resolves only the subject compound, so the `[data-fw="hero-deck"]` ancestor in READER_SELECTOR is no edge.
+- In-flight transition units (close@0, close-hold@0, approach steps) recur in both arms: task
+  trajectory-transition-window.
 
-Conventions: ledger edits are one appended `notes` row per (entry, task); never edit the shared mechanism string.
+Conventions: the ledger row holds the measured result; the note holds the run tables. Outcomes were computed with
+`storedOf` and `outcome` from a scratch script, not recorded.
 
-Read first: the research note, then `section Scoped` in lean/Fw/Parts/HeroExitOpt.lean (search `wkResolve`).
+Read first: the note research/notes/2026/10-20-exit-scoped-inline.md, then `section Scoped` in HeroExitOpt.lean.
