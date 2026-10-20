@@ -19,7 +19,7 @@ import { ObsLine, type Command, type ObsRecord, type ObsSummaryRow } from "@fw/c
 import type { Core } from "../core/index.ts";
 import type { Store } from "../store.ts";
 import { NameIndex } from "../health.ts";
-import { scanWorkflows, workflowDirs } from "./workflow.ts";
+import { scanWorkflows, workflowDirs, WfMemo } from "./workflow.ts";
 
 /** One drain's counts. `invalid`: lines Lean rejected (logged with the reason); `unknown`: occurrences of fields Lean
  *  does not know on new accepted lines; `issues`: issue occurrences (rejections, soft-field notes, unknown fields,
@@ -58,9 +58,9 @@ export async function alertPlan(core: Pick<Core, "ops">, rec: ObsRecord, flights
       notification_type: rec.notification_type ?? null, ts: rec.ts },
     flights, open,
   });
-  const p = r.post as { step: string; key: string; title: string } | null;
+  const p = r.post as { step: string; key: string; title: string; audience: "user" | "lead"; body: string } | null;
   const close = (r.close as { step: string; key: string }[]).map((c): Command => ({ type: "step.cancel", key: c.key, actor: "script", step: c.step }));
-  return { post: p ? { type: "step.post", key: p.key, actor: "script", step: p.step, card: null, title: p.title, kind: "action", options: null } : null, close };
+  return { post: p ? { type: "step.post", key: p.key, actor: "script", step: p.step, card: null, title: p.title, kind: "action", options: null, audience: p.audience, body: p.body } : null, close };
 }
 
 /** Tool calls per (agent type, tool): count, errors, summed hook duration, in first-seen order. Lean `ops.obs`
@@ -94,6 +94,10 @@ export async function labelsOf(core: Pick<Core, "ops">, pairs: readonly { id: st
 }
 
 export class Drain {
+  /** The latest sweep, for the automatic close of spool steps (Lean `Fw.Ops.Obs.resolveSpool`): lines read and the issue
+   *  names seen in it. Unlike `issues` it is not cleared by a posted alert. */
+  private passLines = 0;
+  private passIssues = new Set<string>();
   private seen = new Set<string>();
   private offsets = new Map<string, number>();
   /** tool calls in flight by tool_use_id (evidence for attributing an agent-less Notification; empty after a restart) */
@@ -106,6 +110,8 @@ export class Drain {
 
   private wfDirs: () => string[];
   private wfSent = new Set<string>();
+  /** journal lines and settled runs between sweeps (apps/console-api/src/spool/journal-cache.ts) */
+  readonly wfMemo = new WfMemo();
   /** agent id -> name, from health.jsonl (read once, then only what was appended) */
   private names: NameIndex;
   /** agent id -> its stop epoch (Lean `epochNext`: the time of the last stop this drain sent, reset by a newer start; the heartbeat key's epoch; empty after a restart) */
@@ -162,6 +168,8 @@ export class Drain {
   private async spoolSweep(res: DrainResult): Promise<void> {
     const spool = join(this.store.dir, "spool");
     if (!existsSync(spool)) return;
+    this.passLines = 0;
+    this.passIssues = new Set();
     this.names.refresh();
     await this.labelSweep(res);
     // the alert steps still open on the board (refreshed each drain: a person may have answered or cancelled one)
@@ -177,6 +185,7 @@ export class Drain {
       let verdicts: Admitted[];
       try { verdicts = raws.length ? await admitLines(this.store.core, raws) : []; }
       catch (e) { this.caught("admit", e, res); continue; } // offset kept: the lines are read again next drain
+      this.passLines += raws.length; // counted only once Lean admitted them: the reader ran (Lean `other_closes_only_after_lines`)
       let pos = 0, advance = true, consumed = 0;
       for (let i = 0; i < raws.length; i++) {
         const len = Buffer.byteLength(raws[i]!) + 1;
@@ -188,6 +197,29 @@ export class Drain {
       this.offsets.set(path, start + consumed);
     }
     await this.fieldAlert(res);
+    await this.resolveSweep(res);
+  }
+
+  /** Spool alert steps for the lead that the latest sweep shows clean close themselves (Lean `ops.obs` resolve,
+   *  `Fw.Ops.Obs.resolveSpool`): a `step.done` of the script with Lean's note. Runs on every sweep, also with no new lines. */
+  private async resolveSweep(res: DrainResult): Promise<void> {
+    try {
+      const board = await this.store.board();
+      const steps = board.steps
+        .filter((st) => st.id.startsWith("alert-spool-") && (st.status === "waiting" || st.status === "started") && st.audience === "lead")
+        .map((st) => ({ id: st.id, title: st.title, body: st.body, audience: st.audience }));
+      if (steps.length === 0) return;
+      const r = await this.store.core.ops("ops.obs", { resolve: { now: board.now,
+        window: { lines: this.passLines, issues: [...this.passIssues] }, steps } });
+      for (const c of r.resolve as { step: string; key: string; note: string }[]) {
+        const reply = await this.store.submit({ type: "step.done", key: c.key, actor: "script", step: c.step, note: c.note });
+        if (reply.ok) {
+          this.openAlerts.delete(c.step);
+          // counts gathered while the step was open, for keys that did not occur in this sweep, are not raised again
+          for (const k of [...this.issues.keys()]) if (!this.passIssues.has(k)) this.issues.delete(k);
+        }
+      }
+    } catch (e) { this.caught("resolve", e, res); } // the next drain tries again
   }
 
   /** Workflow runs and their labelled agents (Lean `Fw.Plan.wfAllEvents`): `agent.label` of the run key or agent id with
@@ -200,13 +232,14 @@ export class Drain {
       if (dirs.length === 0) return;
       const ids = (await this.store.board()).plan.tasks.map((t) => t.id);
       for (const d of dirs) {
-        for (const e of scanWorkflows(d, ids)) {
+        for (const e of scanWorkflows(d, ids, this.wfMemo)) {
           if (this.wfSent.has(e.key)) continue;
           const reply = await this.store.submit(e.type === "agent.label"
             ? { type: e.type, key: e.key, actor: "hook", agent: e.agent, name: e.name }
             : { type: e.type, key: e.key, actor: "hook", agent: e.agent, at: "at" in e ? e.at : null });
           if (reply.ok) this.wfSent.add(e.key);
         }
+        this.wfMemo.markSent(d, this.wfSent);
       }
     } catch (e) { this.caught("workflow", e, res); }
   }
@@ -234,9 +267,9 @@ export class Drain {
     try {
       const r = await this.store.core.ops("ops.obs", { fieldAlert: { now: (await this.store.board()).now, open: [...this.openAlerts],
         issues: [...this.issues].map(([issue, count]) => ({ issue, count })) } });
-      const a = r.alert as { step: string; key: string; title: string } | null;
+      const a = r.alert as { step: string; key: string; title: string; audience: "user" | "lead"; body: string } | null;
       if (!a) return;
-      const reply = await this.store.submit({ type: "step.post", key: a.key, actor: "script", step: a.step, card: null, title: a.title, kind: "action", options: null });
+      const reply = await this.store.submit({ type: "step.post", key: a.key, actor: "script", step: a.step, card: null, title: a.title, kind: "action", options: null, audience: a.audience, body: a.body });
       if (reply.ok) { this.openAlerts.add(a.step); this.issues.clear(); res.alerts++; }
     } catch (e) { this.caught("fieldAlert", e, res); } // the next drain tries again
   }
@@ -258,7 +291,7 @@ export class Drain {
   sweepErrors(): Record<string, number> { return Object.fromEntries(this.caughtOps); }
 
   private issue(names: readonly string[], res: DrainResult): void {
-    for (const n of names) { this.issues.set(n, (this.issues.get(n) ?? 0) + 1); res.issues++; }
+    for (const n of names) { this.passIssues.add(n); this.issues.set(n, (this.issues.get(n) ?? 0) + 1); res.issues++; }
   }
 
   /** Append why Lean rejected a spool line to spool-rejects.jsonl: the reason only, never the payload. */

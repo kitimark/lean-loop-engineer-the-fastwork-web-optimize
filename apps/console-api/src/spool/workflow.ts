@@ -10,6 +10,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { JournalCache, skipRun } from "./journal-cache.ts";
 
 const RUN_ID = /^wf_[0-9a-f]{8}-[0-9a-f]{3}$/;
 
@@ -129,23 +130,32 @@ export type WfTimed = WfEvent | (Extract<WfEvent, { type: "agent.spawn" | "agent
  *  its `agent-<id>.meta.json` mtime (written when the agent starts), else at the journal's birth time, else its mtime; an
  *  agent stop at the journal's mtime, or the run file's when later. Journal lines carry no time. So a journal first read
  *  after the agent's SubagentStop never gives a spawn later than that stop. */
-export function scanWorkflows(dir: string, ids: readonly string[]): WfTimed[] {
+export function scanWorkflows(dir: string, ids: readonly string[], memo?: WfMemo): WfTimed[] {
   const ls = (d: string): string[] => { try { return readdirSync(d); } catch { return []; } };
-  const st = (p: string): { birth: number; mtime: number } | null => {
-    try { const s = statSync(p); return { birth: Math.floor(s.birthtimeMs), mtime: Math.floor(s.mtimeMs) }; } catch { return null; }
+  const st = (p: string): { size: number; birth: number; mtime: number } | null => {
+    try { const s = statSync(p); return { size: s.size, birth: Math.floor(s.birthtimeMs), mtime: Math.floor(s.mtimeMs) }; } catch { return null; }
   };
   const jdir = join(dir, "..", "subagents", "workflows");
-  const runs = ls(jdir).filter((r) => RUN_ID.test(r));
+  const allRuns = ls(jdir).filter((r) => RUN_ID.test(r));
+  const allScripts = ls(join(dir, "scripts"));
+  const allRunFiles = ls(dir);
+  const jt = new Map(allRuns.map((r) => [r, st(join(jdir, r, "journal.jsonl"))] as const));
+  // settled runs (Lean `skip`) leave the inputs: their events were all accepted and nothing they depend on changed
+  const settle = memo?.begin(dir, ids, allRuns.map((r) => [r, jt.get(r) ?? null] as const), allScripts, allRunFiles);
+  const live = (run: string | null) => run === null || !settle || !settle.skip.has(run);
+  const runs = allRuns.filter(live);
+  const scripts = allScripts.filter((f) => live(scriptRun(f)?.run ?? null));
+  const runFiles = allRunFiles.filter((f) => live(runFileId(f)));
   const journal = runs.flatMap((r) => {
-    try { return parseJournal(r, readFileSync(join(jdir, r, "journal.jsonl"), "utf8")); } catch { return []; }
+    const p = join(jdir, r, "journal.jsonl");
+    if (memo) return memo.journals.read(r, p, jt.get(r) ?? null);
+    try { return parseJournal(r, readFileSync(p, "utf8")); } catch { return []; }
   });
-  const scripts = ls(join(dir, "scripts"));
-  const runFiles = ls(dir);
+  memo?.journals.keepOnly(jdir + "/", new Set(allRuns.map((r) => join(jdir, r, "journal.jsonl"))));
   const at = new Map<string, number>();
   for (const f of scripts) { const w = scriptRun(f), t = st(join(dir, "scripts", f)); if (w && t) at.set(`wfr:${w.run}`, t.mtime); }
   const runEnd = new Map<string, number>();
   for (const f of runFiles) { const r = runFileId(f), t = st(join(dir, f)); if (r && t) { runEnd.set(r, t.mtime); at.set(`wfr-end:${r}`, t.mtime); } }
-  const jt = new Map(runs.map((r) => [r, st(join(jdir, r, "journal.jsonl"))] as const));
   for (const j of journal) {
     const t = jt.get(j.run);
     const meta = st(join(jdir, j.run, `agent-${j.id}.meta.json`));
@@ -154,6 +164,77 @@ export function scanWorkflows(dir: string, ids: readonly string[]): WfTimed[] {
     const end = Math.max(t?.mtime ?? -1, runEnd.get(j.run) ?? -1);
     if (end >= 0) at.set(`wfid-end:${j.run}:${j.id}`, end);
   }
-  return wfAllEvents(ids, scripts, runFiles, journal).map((e) =>
+  const events = wfAllEvents(ids, scripts, runFiles, journal).map((e) =>
     e.type === "agent.label" || !at.has(e.key) ? e : { ...e, at: at.get(e.key)! });
+  settle?.record(events.map((e) => e.key));
+  return events;
+}
+
+const RUN_IN_KEY = /wf_[0-9a-f]{8}-[0-9a-f]{3}/;
+
+/** What `scanWorkflows` remembers between sweeps: each journal's lines (read once, then only appended bytes) and the runs
+ *  whose events were all accepted (Lean `Fw.Console.JournalFold`). TS STAND-IN of `skip`, checked on its golden. */
+export class WfMemo {
+  readonly journals = new JournalCache();
+  /** `<dir>\0<run>` -> signature at the time the run was settled */
+  private settled = new Map<string, string>();
+  /** per dir: the runs of the last sweep that ended, with their signature (settled once all their events are accepted) */
+  private candidates = new Map<string, Map<string, { sig: string; keys: Set<string> }>>();
+  private idsKey = "";
+  private idsVer = 0;
+
+  /** Runs skipped in this sweep, and the recorder of the sweep's event keys per run. */
+  begin(dir: string, ids: readonly string[], runs: readonly (readonly [string, { size: number; mtime: number } | null])[],
+    scripts: readonly string[], runFiles: readonly string[]) {
+    const k = ids.join("\n");
+    if (k !== this.idsKey) { this.idsKey = k; this.idsVer++; }
+    const ended = new Set(runFiles.map(runFileId).filter((r): r is string => r !== null));
+    const runSet = new Set<string>([...runs.map((r) => r[0]), ...scripts.map((f) => scriptRun(f)?.run).filter((r): r is string => !!r), ...ended]);
+    const jt = new Map(runs);
+    const sigOf = (run: string) => { const t = jt.get(run); return `${this.idsVer}|${t ? `${t.size}|${t.mtime}` : "-"}`; };
+    const skip = new Set<string>();
+    const cand = new Map<string, { sig: string; keys: Set<string> }>();
+    for (const run of runSet) {
+      const sig = sigOf(run);
+      const prev = this.settled.get(`${dir}\0${run}`);
+      // `allSent` is true for a settled run by construction: it entered `settled` only after all its keys were accepted
+      if (skipRun({ sameSig: prev === sig, ended: ended.has(run), allSent: prev !== undefined })) skip.add(run);
+      else if (ended.has(run)) cand.set(run, { sig, keys: new Set() });
+    }
+    this.candidates.set(dir, cand);
+    return { skip, record: (keys: readonly string[]) => { for (const key of keys) { const r = RUN_IN_KEY.exec(key)?.[0]; if (r) cand.get(r)?.keys.add(key); } } };
+  }
+
+  /** After the events of `dir` were submitted: an ended run whose every event key is in `sent` is settled. */
+  markSent(dir: string, sent: ReadonlySet<string>): void {
+    for (const [run, c] of this.candidates.get(dir) ?? []) {
+      if ([...c.keys].every((k) => sent.has(k))) this.settled.set(`${dir}\0${run}`, c.sig);
+    }
+    this.candidates.delete(dir);
+  }
+}
+
+/** The directories and files to watch for `workflowDirs(root)`, each with whether its subtree is watched, and the name
+ *  filter of an event there. A new session shows as a new entry of the project dir; a new `workflows` or `subagents` dir as an
+ *  entry of its session dir. Only a name that can matter wakes the drain. */
+export type WatchTarget = { path: string; recursive: boolean; accept: (name: string) => boolean; discover?: boolean };
+
+const journalName = (n: string) => !n.endsWith(".jsonl") || n === "journal.jsonl"; // agent transcripts are written all the time
+
+export function workflowWatchTargets(root: string, env: NodeJS.ProcessEnv = process.env, home = homedir()): WatchTarget[] {
+  const out: WatchTarget[] = [];
+  const sessionTargets = (session: string) => {
+    out.push({ path: session, recursive: false, discover: true, accept: (n) => n === "workflows" || n === "subagents" });
+    out.push({ path: join(session, "subagents"), recursive: false, discover: true, accept: (n) => n === "workflows" });
+    out.push({ path: join(session, "workflows"), recursive: true, accept: journalName });
+    out.push({ path: join(session, "subagents", "workflows"), recursive: true, accept: journalName });
+  };
+  if (env.FW_WORKFLOWS_DIR) {
+    for (const d of env.FW_WORKFLOWS_DIR.split(":").filter(Boolean)) sessionTargets(join(d, ".."));
+    return out;
+  }
+  const proj = join(home, ".claude", "projects", root.replace(/[^A-Za-z0-9]/g, "-"));
+  out.push({ path: proj, recursive: false, discover: true, accept: (n) => !n.includes(".") }); // a session is a directory named by its id
+  try { for (const d of readdirSync(proj, { withFileTypes: true })) if (d.isDirectory()) sessionTargets(join(proj, d.name)); } catch { /* no project dir yet */ }
+  return out;
 }
