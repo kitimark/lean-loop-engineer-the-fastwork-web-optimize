@@ -120,7 +120,7 @@ export function foldFile(file: string, size: number, ino: number, dir: string | 
       let parses = true;
       try { JSON.parse(tail); } catch { parses = false; } // a torn line changes nothing: no copy needed
       if (parses) {
-        const view = loadFold(saveFold(st));
+        const view = loadFold(JSON.parse(JSON.stringify(saveFold(st)))); // deep copy: the tail step must not touch st
         if (view) { stepLine(view, tail); return { state: view, how, read }; }
         const whole = initFold(false); // cannot happen: the saved form always loads
         return { state: foldText(whole, readFileSync(file, "utf8")), how: "full", read: size };

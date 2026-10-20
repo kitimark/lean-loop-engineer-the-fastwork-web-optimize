@@ -23,3 +23,4 @@ only grow); the mtime prefilter (Fw.Obs lemma lastAt <= mtime) is NOT done, a fo
 per process; the open-lead-steps alert belongs to alert-resolve-keys; the reapable line is a later task.
 
 Read first: lean/Fw/Obs/Fold.lean, then foldFile in watch-cache.ts.
+- Deviation from the old full read: a JSON `null` line is skipped (the old read threw and showed no transcript); the recorded corpus has none.

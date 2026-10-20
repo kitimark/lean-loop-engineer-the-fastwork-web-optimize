@@ -1,5 +1,5 @@
 // The transcript summaries of `fw watch` as one fold over the lines of the file: state, step, finish.
-// Spec and proof: lean/Fw/Obs/Fold.lean (`run_append`, `pass_eq_full`: reading the appended lines on top of the state
+// Spec and proof: lean/Fw/Obs/Fold.lean (`feed_append`, `pass_eq_full`: reading the appended lines on top of the state
 // of the earlier lines equals reading the whole file; `Fw.Obs.Fold.decide`: when the saved state may be resumed).
 // The step bodies below (JSON -> fields) are TS glue and are NOT checked against Lean: they are the same code that
 // `summarizeTranscript` and `signalsOf` ran before, folded. Their incremental = full property is tested by split points.
