@@ -27,6 +27,14 @@ def decodedPx (m : Mode) (natPx drawnPx : Nat) : Nat :=
   | .sync => natPx
   | .async => min natPx drawnPx
 
+theorem isLarge_true (natPx : Nat) (h : 500 * 1024 < 4 * natPx) : isLarge natPx = true := by
+  simp [isLarge, bytes, h]
+
+theorem isLarge_false (natPx : Nat) (h : 4 * natPx ≤ 500 * 1024) : isLarge natPx = false := by
+  unfold isLarge bytes
+  simp only [decide_eq_false_iff_not]
+  omega
+
 theorem small_sync (natPx : Nat) (v f : Bool) (h : isLarge natPx = false) : modeFor (isLarge natPx) v f = .sync := by
   simp [modeFor, h]
 
@@ -69,6 +77,35 @@ theorem no_subsampling_under_limit (natPx natDim drawnDim : Nat) (h : natPx < ar
 
 theorem level_le_max (natDim drawnDim maxL : Nat) : level natDim drawnDim maxL ≤ maxL :=
   Nat.min_le_left _ _
+
+/-- One theorem per branch of `maxLevel`: level 1 from 5 Mpx, 2 from 20 Mpx, 3 from 80 Mpx. -/
+theorem maxLevel_one (natPx : Nat) (h0 : areaLimit ≤ natPx) (h1 : natPx / 4 < areaLimit) : maxLevel natPx = 1 := by
+  simp [maxLevel, Nat.not_lt.mpr h0, h1]
+
+theorem maxLevel_two (natPx : Nat) (h1 : areaLimit ≤ natPx / 4) (h2 : natPx / 16 < areaLimit) : maxLevel natPx = 2 := by
+  have h0 : areaLimit ≤ natPx := by omega
+  simp [maxLevel, Nat.not_lt.mpr h0, Nat.not_lt.mpr h1, h2]
+
+theorem maxLevel_three (natPx : Nat) (h2 : areaLimit ≤ natPx / 16) : maxLevel natPx = 3 := by
+  have h0 : areaLimit ≤ natPx := by omega
+  have h1 : areaLimit ≤ natPx / 4 := by omega
+  simp [maxLevel, Nat.not_lt.mpr h0, Nat.not_lt.mpr h1, Nat.not_lt.mpr h2]
+
+/-- One theorem per branch of `level` when the cap allows it (`maxL = 3`): drawn at least the natural size, at least half, at least a quarter, less. -/
+theorem level_zero (natDim drawnDim : Nat) (h : natDim ≤ drawnDim) : level natDim drawnDim 3 = 0 := by
+  simp [level, h]
+
+theorem level_one (natDim drawnDim : Nat) (h0 : drawnDim < natDim) (h1 : natDim ≤ 2 * drawnDim) : level natDim drawnDim 3 = 1 := by
+  simp [level, Nat.not_le.mpr h0, h1]
+
+theorem level_two (natDim drawnDim : Nat) (h1 : 2 * drawnDim < natDim) (h2 : natDim ≤ 4 * drawnDim) : level natDim drawnDim 3 = 2 := by
+  have h0 : drawnDim < natDim := by omega
+  simp [level, Nat.not_le.mpr h0, Nat.not_le.mpr h1, h2]
+
+theorem level_three (natDim drawnDim : Nat) (h2 : 4 * drawnDim < natDim) : level natDim drawnDim 3 = 3 := by
+  have h0 : drawnDim < natDim := by omega
+  have h1 : 2 * drawnDim < natDim := by omega
+  simp [level, Nat.not_le.mpr h0, Nat.not_le.mpr h1, Nat.not_le.mpr h2]
 
 /-! ## Memory cache -/
 
