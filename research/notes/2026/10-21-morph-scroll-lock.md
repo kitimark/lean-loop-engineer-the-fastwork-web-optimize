@@ -142,7 +142,7 @@ reason. `pilot_added_exact` (`Scope.lean:448`) proves that each part's `added` i
   `MorphTweenOpt.lean:2241-2247`). With no lock, `readOverlay` and `syncLock` return before any read or write
   (`driver.ts:58-62`), so the arm runs the original tween with no root write (`engage_touch` :2230, `engage_off_writes`
   :2250). Under `(hover: hover)` the lock writes the root only while the morph is active (`lockWrite`, `driver.ts:63`;
-  `runL_locked` :2124). The gate loads at the top of the page, where the morph is inactive (`js.morph-arm` is dismissed at
+  `runL_locked` :2124). INFERRED (no Lean link from the gate load position to an inactive morph): the gate loads at the top of the page, where the morph is inactive (`js.morph-arm` is dismissed at
   `Scope.lean:316`), so neither hover state writes the root at a gate load, and the gate's equality claim covers both.
   The look change while a gesture is in flight (class L) is outside the gate.
 
