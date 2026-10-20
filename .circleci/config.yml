@@ -12,8 +12,10 @@ version: 2.1
 # Every job writes the result files of its GitHub twin (artifacts) plus timings.json: per-step spans in the
 # .fw-console/timings.jsonl format ({tool, step, startMs, durMs, exit, commit, load, host}) wrapped with the job, class and
 # commit. The queue span (created to started) is added by scripts/circleci.mjs from the API, not by the job.
-# No Lake cache is saved: this pilot builds no Lean. The only cache is the pnpm store of the premise jobs, keyed by
-# pnpm-lock.yaml (a few tens of MB, and a save of an existing key is skipped).
+# No Lake cache is saved: this pilot builds no Lean. The only cache is the pnpm store of the premise jobs (about 10 MiB archived),
+# keyed by pnpm-lock.yaml. It is saved only when the key is new: CircleCI cannot condition save_cache and sets no "restored" flag,
+# so cache-probe / cache-gate (.circleci/job.sh) halt the job (`circleci-agent step halt`) before save_cache when the restored
+# store already belongs to this lockfile. The key is v2 because a v1 cache is immutable and carries no marker. The ledger reads the real saves from the job steps (scripts/circleci.mjs).
 #
 # Not ported on purpose: the GitHub guard job (changed-inputs) and the "tip re-check" steps: the API trigger names the
 # branch and the pilot is started by hand, one pair at a time.
@@ -88,16 +90,15 @@ jobs:
       - mark
       - restore_cache:
           keys:
-            - pnpm-store-v1-{{ checksum "pnpm-lock.yaml" }}
+            - pnpm-store-v2-{{ checksum "pnpm-lock.yaml" }}
       - since:
           step: cache restore
       - run:
+          name: pnpm cache current for this lockfile?
+          command: sh .circleci/job.sh cache-probe
+      - run:
           name: deps install
           command: sh .circleci/job.sh install "@fw/gate-breakpoints @fw/premise-tests"
-      - save_cache:
-          key: pnpm-store-v1-{{ checksum "pnpm-lock.yaml" }}
-          paths:
-            - ~/.local/share/pnpm/store
       - run:
           name: browser and system libraries
           command: sh .circleci/job.sh browser
@@ -109,6 +110,14 @@ jobs:
           paths:
             - premise-results
       - finish
+      - run:
+          name: pnpm cache gate (halts the job here when the restored cache is current)
+          command: sh .circleci/job.sh cache-gate
+      - save_cache:
+          key: pnpm-store-v2-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - ~/.local/share/pnpm/store
+            - ~/.fw-cache
 
   verdict:
     parameters:
@@ -132,7 +141,7 @@ jobs:
       - mark
       - restore_cache:
           keys:
-            - pnpm-store-v1-{{ checksum "pnpm-lock.yaml" }}
+            - pnpm-store-v2-{{ checksum "pnpm-lock.yaml" }}
       - since:
           step: cache restore
       - run:

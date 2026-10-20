@@ -126,20 +126,25 @@ def ghMatches : GhName → String → Bool
   | .matrix p vm, s => p.toList.isPrefixOf s.toList && (vmSuffix vm).toList.isSuffixOf s.toList
       && decide (p.length + (vmSuffix vm).length ≤ s.length)
 
-/-- One pilot job: the lane, how its GitHub twin is named, its CircleCI name, and whether its verdict is the premise digest. -/
+/-- One pilot job: the lane, how its GitHub twin is named, its CircleCI name, whether its verdict is the premise digest, and
+whether the job has a `save_cache` step (the ledger reads the job steps of these jobs only). -/
 structure JobRow where
   lane : String
   gh : GhName
   circleci : String
   digest : Bool
+  savesCache : Bool
 deriving DecidableEq, Repr
 
 /-- The GitHub job of the pilot lane against its CircleCI twin. The engine jobs end `exit 0` on both sides, so their verdict is the digest of the premise results. -/
 def jobMap : List JobRow := [
-  ⟨"premise-tests", .exact "engine (chromium)", "engine-chromium", true⟩,
-  ⟨"premise-tests", .exact "engine (playwright-webkit)", "engine-playwright-webkit", true⟩,
-  ⟨"premise-tests", .exact "verdict", "verdict", false⟩,
-  ⟨"webkit-sim", .matrix "sim (original," "v1", "webkit-sim", false⟩]
+  ⟨"premise-tests", .exact "engine (chromium)", "engine-chromium", true, true⟩,
+  ⟨"premise-tests", .exact "engine (playwright-webkit)", "engine-playwright-webkit", true, true⟩,
+  ⟨"premise-tests", .exact "verdict", "verdict", false, false⟩,
+  ⟨"webkit-sim", .matrix "sim (original," "v1", "webkit-sim", false, false⟩]
+
+/-- The CircleCI job has a `save_cache` step. A job outside the job map has none. -/
+def savesCacheJob (job : String) : Bool := jobMap.any fun r => r.circleci == job && r.savesCache
 
 /-- The pilot job a GitHub job name belongs to. -/
 def jobOfGithub (name : String) : Option JobRow := jobMap.find? (ghMatches ·.gh name)
@@ -216,6 +221,25 @@ def storageMaxMilli : Nat := 1000
 
 /-- Storage of a save in thousandths of a GB-month: bytes times retention days over 30 days, rounded up. -/
 def storageMilli (bytes days : Nat) : Nat := (bytes * days * 1000 + 30 * 1000000000 - 1) / (30 * 1000000000)
+
+/-- What the `save_cache` step of one job left in the CircleCI cache, as its job steps record it. `absent`: the job ran no
+save step (it halted before it: the restored cache was current). `skipped`: the step found the key already stored and
+uploaded nothing. `stored t`: the step uploaded an archive of `t` tenths of a MiB, the one decimal CircleCI prints. -/
+inductive CacheSave where
+  | absent
+  | skipped
+  | stored (tenthsMiB : Nat)
+deriving DecidableEq, Repr
+
+/-- Bytes a save added to the cache. The printed size is rounded to a tenth of a MiB, so one more tenth is added: the count is
+an upper bound whichever way CircleCI rounds. -/
+def cacheSavedBytes : CacheSave → Nat
+  | .absent => 0
+  | .skipped => 0
+  | .stored t => ((t + 1) * 1048576 + 9) / 10
+
+/-- Cache bytes a pipeline added: the sum over the saves of its jobs. -/
+def cachePipelineBytes (saves : List CacheSave) : Nat := (saves.map cacheSavedBytes).sum
 
 /-- Why the pilot stops. -/
 inductive Stop where
@@ -431,6 +455,49 @@ theorem storageMilli_cache : storageMilli 1030000000 15 = 515 := by decide
 
 theorem storageMilli_zero (d : Nat) : storageMilli 0 d = 0 := by
   simp [storageMilli]
+
+theorem savesCacheJob_engine_chromium : savesCacheJob "engine-chromium" = true := by decide
+
+theorem savesCacheJob_engine_webkit : savesCacheJob "engine-playwright-webkit" = true := by decide
+
+theorem savesCacheJob_verdict : savesCacheJob "verdict" = false := by decide
+
+theorem savesCacheJob_sim : savesCacheJob "webkit-sim" = false := by decide
+
+theorem savesCacheJob_unknown : savesCacheJob "probe" = false := by decide
+
+theorem cacheSavedBytes_absent : cacheSavedBytes .absent = 0 := rfl
+
+theorem cacheSavedBytes_skipped : cacheSavedBytes .skipped = 0 := rfl
+
+/-- A stored save counts at least the printed size. -/
+theorem cacheSavedBytes_stored_ge (t : Nat) : t * 1048576 ≤ 10 * cacheSavedBytes (.stored t) := by
+  simp only [cacheSavedBytes]
+  omega
+
+/-- A stored save counts at most the printed size plus two tenths of a MiB. -/
+theorem cacheSavedBytes_stored_le (t : Nat) : 10 * cacheSavedBytes (.stored t) ≤ (t + 2) * 1048576 := by
+  simp only [cacheSavedBytes]
+  omega
+
+/-- The 9.3 MiB archive of the first Arm pipeline counts 9856615 bytes: 10 thousandths of a GB-month. -/
+theorem cacheSavedBytes_first : cacheSavedBytes (.stored 93) = 9856615 := by decide
+
+theorem storageMilli_first_save : storageMilli (cacheSavedBytes (.stored 93)) 30 = 10 := by decide
+
+/-- A pipeline whose jobs saved nothing adds no cache bytes, whatever the number of jobs. -/
+theorem cachePipelineBytes_unsaved (saves : List CacheSave) (h : ∀ s ∈ saves, s = .absent ∨ s = .skipped) :
+    cachePipelineBytes saves = 0 := by
+  unfold cachePipelineBytes
+  induction saves with
+  | nil => rfl
+  | cons s rest ih =>
+    have hs := h s (List.mem_cons_self ..)
+    have hr := ih (fun x hx => h x (List.mem_cons_of_mem _ hx))
+    rcases hs with rfl | rfl <;> simp_all [cacheSavedBytes]
+
+/-- The cost of the 108-thousandths pipeline: two jobs each counted the 53.6 MB store, saved or not. -/
+theorem storageMilli_old_pipeline : storageMilli (2 * 53637120) 30 = 108 := by decide
 
 theorem mem_cap_iff (i : StopInput) : Stop.cap ∈ stops i ↔ capMs ≤ i.durMs := by
   unfold stops
@@ -741,7 +808,7 @@ theorem exact_matches_iff (n s : String) : ghMatches (.exact n) s = true ↔ n =
   simp [ghMatches]
 
 /-- The real name of the sim matrix job of the original arm on the first VM (run 39123621097): `sim (original, 430, 1, <sha>, v1)`. -/
-theorem sim_v1_row : jobOfGithub "sim (original, 430, 1, 40a8d4c1deadbeef, v1)" = some ⟨"webkit-sim", .matrix "sim (original," "v1", "webkit-sim", false⟩ := by
+theorem sim_v1_row : jobOfGithub "sim (original, 430, 1, 40a8d4c1deadbeef, v1)" = some ⟨"webkit-sim", .matrix "sim (original," "v1", "webkit-sim", false, false⟩ := by
   decide
 
 theorem sim_other_vm_no_row : jobOfGithub "sim (original, 430, 1, 40a8d4c1deadbeef, v2)" = none := by decide

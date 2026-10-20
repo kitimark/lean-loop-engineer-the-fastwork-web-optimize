@@ -8155,7 +8155,8 @@
     "lean/Fw/Obs/CiStatus*.lean",
     "packages/contracts/golden/obs/**",
     "docs/team/handoffs/circleci-status.md"
-   ]
+   ],
+   "evidence": "30f778a"
   },
   {
    "devices": [
@@ -9193,7 +9194,8 @@
     "scripts/circleci*",
     "research/notes/2026/10-20-circleci-pilot.md",
     "docs/team/handoffs/circleci-cache-accounting.md"
-   ]
+   ],
+   "evidence": "b2204d2"
   },
   {
    "devices": [
@@ -11224,7 +11226,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "bb474cf"
   },
   {
    "devices": [
@@ -11261,8 +11264,10 @@
    "id": "trajectory-admission",
    "owner": "lean-prover",
    "stream": "gate",
-   "deps": [],
-   "title": "Lesson from the user's device bugs: trajectory-probe is not a gate stage and no preset reads it, so morph.tween:waapi entered v2-proved while visibly broken. Lean Fw.Preset.Gen: a flag is a preset member only when its trajectory verdict is pass on both engines (Fw.Gate.Trajectory verdict over stored runs, per-rep windows), at the flag's paths; theorem member_needs_trajectory; regenerate v2-proved and its decisions golden (the members without a stored trajectory pass become 'pending: trajectory', listed); fw run --trajectory dispatches the missing cells for the current members (free runners, budget the macOS cells)",
+   "deps": [
+    "trajectory-settled-sample"
+   ],
+   "title": "Lesson from the user's device bugs: trajectory-probe is not a gate stage and no preset reads it, so morph.tween:waapi entered v2-proved while visibly broken. Lean Fw.Preset.Gen: a flag is a preset member only when its trajectory verdict is pass on both engines (Fw.Gate.Trajectory verdict over stored runs, per-rep windows), at the flag's paths; theorem member_needs_trajectory; regenerate v2-proved and its decisions golden (the members without a stored trajectory pass become 'pending: trajectory', listed); fw run --trajectory dispatches the missing cells for the current members (free runners, budget the macOS cells); required dispatch: the macOS morph.tween:waapi-scoped 640/1280 cell (INFERRED in waapi-threshold-attr until measured here)",
    "writes": [
     "lean/Fw/Preset/Gen.lean",
     "lean/Fw/Preset/V2Proved.lean",
@@ -11501,7 +11506,32 @@
     "docs/team/handoffs/earn-transition-retarget.md",
     "lean/scripts/NavEarn*.lean",
     "research/notes/2026/10-2*-earn-transition-retarget.md",
-    "research/findings/ledger.json"
+    "research/findings/ledger.json",
+    ".github/workflows/trajectory-probe.yml",
+    "apps/runner/src/land.ts",
+    "apps/site/src/parts/nav/earn.golden.test.ts",
+    "apps/site/src/parts/nav/index.tsx",
+    "apps/site/src/parts/nav/logic.ts",
+    "apps/site/src/parts/nav/look-change.test.ts",
+    "apps/site/src/parts/nav/nav.module.css",
+    "apps/site/src/parts/nav/part.json",
+    "apps/site/src/registry/types.ts",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/NavEarnOpt.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Preset/V2Proved.lean",
+    "lean/scripts/NavEarnGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/nav-earn.jsonl",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl",
+    "packages/gate-breakpoints/src/engines.mjs",
+    "packages/gate-breakpoints/src/trajectory/frames.mjs",
+    "research/notes/2026/10-20-earn-transition-retarget.md",
+    "results/earn-look-review/index.json"
    ]
   },
   {
@@ -11549,7 +11579,8 @@
     "research/notes/2026/10-2*-panel-final-size.md",
     "research/findings/ledger.json",
     "docs/team/handoffs/panel-final-size.md"
-   ]
+   ],
+   "evidence": "80c210e"
   },
   {
    "devices": [
@@ -11570,6 +11601,201 @@
     "research/notes/2026/10-2*-morph-scroll-lock.md",
     "research/findings/ledger.json",
     "docs/team/handoffs/morph-scroll-lock.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lego-composer",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "title": "User 2026-10-21: console Compose tab: pick one variant per part like Lego bricks and get a preview link of that combination; Lean (Fw.Console.Compose, fwcore op console.compose) classes each variant (faithful, v2-proved, look-change, ledger-proved, measured, refuted, unrated) from the registry and the findings ledger, decides allowed combinations and the canonical ?fw= search; console-api GET /api/compose attaches the ledger explanations; Open / Open compare / Copy link via the existing builds open path, usable on iPhone Safari over the LAN console",
+   "writes": [
+    "lean/Fw/Console/Compose*.lean",
+    "lean/Fw/Wire/**",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/console/console.compose.jsonl",
+    "packages/contracts/golden/console/compose*.jsonl",
+    "apps/console-api/src/**",
+    "apps/console-api/test/compose*.test.ts",
+    "apps/console-web/src/**",
+    "apps/console-web/test/compose*.test.tsx",
+    "docs/team/tools/compose.md",
+    "docs/team/handoffs/lego-composer.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-look-review-webkit",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "earn-transition-retarget"
+   ],
+   "title": "Split B of earn-transition-retarget: faithful vs ?fw=nav:earn-no-transition frame strips on macOS Playwright WebKit at 390 and 1280, open and close, min(shots.faithful, shots.flag) >= 10 per push, indexed by run id in results/earn-look-review/index.json, PNGs as CI artifacts only (never in git). Round 1: a frames step inside the existing probe-apple job (no new macOS job: Caps rows_files_nodup), gated on '[frames:' in the commit message; add trajectory-probe.yml to Fw.Ci.Intent.macosFiles and regenerate intent.jsonl. Fallback if < 10 shots: page.screencast.start({onFrame}) with labels frame.timestamp minus the wheel time (not recordVideo: ffmpeg -r 25 resamples). Shot labels become from-to ranges. The user's visual review stays pending until this lands",
+   "writes": [
+    ".github/workflows/trajectory-probe.yml",
+    "packages/gate-breakpoints/src/trajectory/frames.mjs",
+    "packages/gate-breakpoints/src/engines.mjs",
+    "packages/gate-breakpoints/test/frames*.test.mjs",
+    "lean/Fw/Ci/Intent.lean",
+    "packages/contracts/golden/ci/intent.jsonl",
+    "results/earn-look-review/index.json",
+    "research/findings/ledger.json",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/earn-look-review-webkit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "kit-colour-space",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "Trajectory kit reads WebKit mid-transition colours as oklab and settled ones (and the candidate) as rgb, so kit.mjs colour() compares raw numbers across colour spaces (trajectory-transition-window r1 #5, waapi r2). Normalise every colour reading to one space (sRGB x1000 with alpha) in the kit, golden-checked against Lean Fw.Gate.Trajectory colour units; acceptance: after normalisation judgeUnit_colour_chan_outside constrains WebKit in-flight channels; re-reduce 39453181962 and 39471466367 and report which nav.background-color units remain",
+   "writes": [
+    "packages/gate-breakpoints/src/trajectory/kit.mjs",
+    "packages/gate-breakpoints/test/kit*.test.mjs",
+    "packages/contracts/golden/gate/trajectory-colour*.jsonl",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/kit-colour-space.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-settled-sample",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "trajectory-transition-window"
+   ],
+   "title": "waapi r2 Fable: on slow-cadence engines (Linux WebKit 170-430 ms per frame) a rewrite push sample at the phase end (m = 0) is judged against orig close rows that never reached m = 0 (reduce.mjs:34/108, Trajectory.lean windowOne/bucketVerdict); judge such a sample against the orig pass's first row of the next hold (Lean change + golden + TS twin); re-reduce 39449092483 and 39457767229",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-settled-sample.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-driven-transitions",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "trajectory-settled-sample"
+   ],
+   "title": "trajectory-transition-window r2 #1: CSS transitions driven by --morph under .is-morphing (nav.module.css .nav opacity/transform, .btn.earn max-width/opacity/padding-inline) are judged at rest; their epoch is a --morph change, not a nav class change. Model it in Fw.Gate.Trajectory (table keyed by the driving custom property), golden + TS twin; residual 39457063232 641 earn.max-width close@0",
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/morph-driven-transitions.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "waapi-nav-width-tail",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "waapi-threshold-attr"
+   ],
+   "title": "waapi r2 check #2: morph.tween:waapi skips the original's post-flip nav width ease (Linux WebKit 1280 close@0 nav.rect/nav.transform.shift apart, orig/base 20-55 px from final at the first settled frame, 39457063232/39457767229, also pre-fix 39412301221; 0.5-3 px on Chromium and macOS). Decide in Lean: model the tail in the driver, or classify as a look change (ask the user)",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "apps/site/src/parts/morph.tween/**",
+    "packages/contracts/golden/parts/morph-tween*.jsonl",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/waapi-nav-width-tail.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ledger-flag-field",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "lego-composer"
+   ],
+   "title": "lego-composer r1 #4: give every findings-ledger row a machine flag (part:variant) so Compose matches rows by identity, not text; then drop Compose explicitKeys and the text rules",
+   "writes": [
+    "research/findings/ledger.json",
+    "lean/Fw/Console/Compose.lean",
+    "packages/contracts/golden/console/console.compose.jsonl",
+    "docs/team/tools/compose.md",
+    "docs/team/handoffs/ledger-flag-field.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "admit-hero-exit-scoped",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "exit-scoped-inline",
+    "trajectory-transition-window"
+   ],
+   "title": "Record exit-scoped-inline's runs (scoped 39466179818, A/A 39472217441, Chromium counts 39461009752/39462188464) with Fw.Preset.Gen.record and clear fResult model-bug on row hero.exit.scoped.falsified; Lean decides whether hero.exit:scoped enters v2-proved (first candidate); the macOS morph cell fails in both arms (A/A floor)",
+   "writes": [
+    "research/findings/ledger.json",
+    "lean/Fw/Preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "packages/contracts/golden/preset/**",
+    "docs/team/handoffs/admit-hero-exit-scoped.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "exit-scoped-driver-test",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "exit-scoped-inline"
+   ],
+   "title": "exit-scoped-inline r2 #7: one driver-level jsdom case: append an article after mount, call the writer, assert the inline --exit-opacity on it",
+   "writes": [
+    "apps/site/src/parts/hero.exit/*.test.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-render-guard",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Mistake 2026-10-21 (earn r2/r3): a branch committed Fastwork page renders outside snapshot/, and git rm left them in a merge-landed history. fw land refuses a branch where any commit in main..branch adds an image/font/video path outside snapshot/ unless the path is on a Lean allowlist (identity over inference; decision in Lean, golden)",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-render*.test.ts",
+    "lean/Fw/Land/RenderGuard*.lean",
+    "packages/contracts/golden/land/render-guard*.jsonl",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-render-guard.md"
    ]
   }
  ],

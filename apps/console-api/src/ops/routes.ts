@@ -2,6 +2,7 @@
 import type { Hono } from "hono";
 import { z } from "zod";
 import type { Store } from "../store.ts";
+import { CiStatusPoller } from "./ci-status.ts";
 
 const PathCheckReq = z.object({ scope: z.array(z.string()), paths: z.array(z.string()) });
 
@@ -10,7 +11,11 @@ const LandScopeReq = z.object({
   task: z.string().optional(), stream: z.string().optional(), // the task kind (port-*, proof-*, measure) adds its registration set
 });
 
-export function mountOps(app: Hono, store: Store) {
+export function mountOps(app: Hono, store: Store, ciStatus: CiStatusPoller = new CiStatusPoller()) {
+  /** CircleCI health (task circleci-status): the Lean verdict (Fw.Obs.CiStatus) over the public status page, read at most
+   *  every 120 s. `arm.usable` / `macos.usable` are the router inputs: true only for a healthy, fresh reading. */
+  app.get("/api/ci-status", async (c) => c.json(await ciStatus.view()));
+
   /** `ops.pathCheck`: which of `paths` fall outside `scope` (globs, `!` excludes) */
   app.post("/api/ops/path-check", async (c) => {
     let body: unknown;
