@@ -7955,7 +7955,11 @@
     "packages/contracts/golden/parts/hero.countdown*",
     "research/notes/2026/10-20-countdown-one-chain.md",
     "results/countdown-one-chain/**",
-    "docs/team/handoffs/countdown-one-chain.md"
+    "docs/team/handoffs/countdown-one-chain.md",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/scripts/CountdownOneChainGolden.lean",
+    "packages/contracts/golden/parts/**",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ]
   },
   {
@@ -10201,7 +10205,9 @@
     "docs/team/tools/gate*.md",
     "docs/team/handoffs/gate-green-baseline.md",
     "lean/Fw.lean",
-    "lean/scripts/check.sh"
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**"
    ]
   },
   {
@@ -10441,7 +10447,40 @@
     "lean/scripts/*Golden.lean",
     "docs/team/tools/console.md",
     "research/notes/2026/10-2*-fwcore-replay-speed.md",
-    "docs/team/handoffs/fwcore-replay-speed.md"
+    "docs/team/handoffs/fwcore-replay-speed.md",
+    "lean/Fw/Obs/Backoff.lean",
+    "lean/Fw/Obs/Golden.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "lean/Fw/Plan/**",
+    "lean/Fw/Serve.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/obs/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fwcore-query-speed",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "fwcore-replay-speed"
+   ],
+   "title": "fwcore-replay-speed review: console.query (Serve.lean Plan.view / fastBoard) grows super-quadratically with the task graph: 0.66 / 4.2 / 51.7 s at 1x / 2x / 4x of today's log (debug run, task ids and deps renamed per copy); at ~5k events/day it passes the 10 s call timeout in ~4 days and the restart loop returns through queries. Unit: profile Plan.view and fastBoard, make them linear (HashMap/HashSet), prove equal to the current definitions, golden-check, MEASURE at 1x/2x/4x (< 1 s at 4x); also Fast.reach with HashSets; then the lead drops the FW_CORE_CALL_MS=60000 mitigation",
+   "writes": [
+    "lean/Fw/Plan/**",
+    "lean/Fw/Serve.lean",
+    "lean/Fw/Console/**",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "apps/console-api/src/core/**",
+    "apps/console-api/test/**",
+    "lean/scripts/check.sh",
+    "lean/Fw.lean",
+    "docs/team/tools/console.md",
+    "research/notes/2026/10-2*-fwcore-query-speed.md",
+    "docs/team/handoffs/fwcore-query-speed.md"
    ]
   }
  ],
