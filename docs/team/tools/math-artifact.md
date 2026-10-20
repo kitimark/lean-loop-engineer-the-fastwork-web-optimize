@@ -1,7 +1,7 @@
 # Math artifact: math for named declarations, on demand
 
-Lean docstrings hold no math. When a user should read the math of some Lean declarations, a lead asks for an
-artifact: a page that states each one in LaTeX. A fresh reviewer then checks that page against the Lean. The math
+Lean source holds specs, proofs and code. When a user should read the math of some Lean declarations, a lead asks
+for an artifact: a page that states each one in LaTeX. A fresh reviewer then checks that page against the Lean. The math
 view page (`docs/plan/math-view.html`) is frozen; this procedure replaces it.
 
 ## Steps

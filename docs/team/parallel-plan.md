@@ -123,7 +123,7 @@ First match wins, so the reason is always the first failing check (the lead sees
 $Q$), `finish` (remove from $\mathit{Run}$, add to $\mathit{Done}$ when the item is a workstream that landed) and
 `enqueue`.
 
-### 3.2 Theorems to prove (each docstring carries its statement as LaTeX)
+### 3.2 Theorems to prove
 
 | Theorem | Statement |
 |---|---|
@@ -230,7 +230,7 @@ The working trees were read at the time of writing. con-hooks and con-land have 
 | E6 | `docs/team/workstreams.json` (id, writes, deps, demand, devices per workstream) + zod schema `packages/contracts/src/work.ts` | lead fills; console-builder for the schema | 1 | new files |
 | E7 | `lean/Fw/Sched/Admit.lean` (section 3 definitions and theorems; `lean/lakefile` uses `globs = ["Fw.*"]`, so no `Fw.lean` edit) in wave 1; `lean/Fw/Ops/Gate.lean` (needs SpawnGuard) in wave 2 | lean-prover (opus/high) | 1 for Admit; 2 for Gate: after lean-ops lands (it owns `lean/Fw/Ops/`) | new files |
 | E8 | `lean/Fw/Wire.lean`, `lean/Fw.lean`: registration of ops `ops.admit`, `ops.gate`, `metrics.*`; goldens `packages/contracts/golden/ops/{admit,metrics}.jsonl` | the E7 lean-prover (one writer for Wire) | 2: after lean-serve and lean-ops land | - |
-| E9 | `lean/Fw/Sched/ParMetrics.lean` (interval merge, S, serial share, CP, stretch; bench verdict via `Fw.Verdict`). Theorems (LaTeX in docstrings): `merge_disjoint_sorted`, `busy_le_alive`, `serial_share_le_one`, `cp_ge_path` (CP $\ge$ weight of every path), `cp_attained`, `cp_acyclic_or_error` (CP by a fuel $= \lvert V\rvert$ topological pass, returning `cycle` if the graph is not acyclic) | a second lean-prover (per-role cap 3) | 1 | new file; E8 registers its ops |
+| E9 | `lean/Fw/Sched/ParMetrics.lean` (interval merge, S, serial share, CP, stretch; bench verdict via `Fw.Verdict`). Theorems: `merge_disjoint_sorted`, `busy_le_alive`, `serial_share_le_one`, `cp_ge_path` (CP $\ge$ weight of every path), `cp_attained`, `cp_acyclic_or_error` (CP by a fuel $= \lvert V\rvert$ topological pass, returning `cycle` if the graph is not acyclic) | a second lean-prover (per-role cap 3) | 1 | new file; E8 registers its ops |
 | E10 | `apps/runner/hooks/spawn-guard.mjs`: call `ops.gate` in shadow mode | console-builder | 2: after lean-ops lands the hook | lean-ops' file |
 | E11 | `apps/runner/src/{plan,job}.ts` + verbs in `fw.ts`; `apps/console-api/src/jobs/` (Run state, blocking admit endpoint) | console-builder | 2 | `fw.ts` free since con-land landed |
 | E12 | `packages/measure-chromium/src/host.mjs` Docker caps; `packages/measure-webkit` harness: `--keep` within a session, `sim-lock.sh` | measure-engineer | 2: after the running Chromium agent lands (`host.mjs`, Docker files) and, for the `measure-webkit` part, after the WebKit agent lands | their files |
