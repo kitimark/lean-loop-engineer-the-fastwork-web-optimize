@@ -1,5 +1,5 @@
 // Engine adapters. Both expose the same small surface:
-//   engine.open(env, { origin, path, init, frozen }) -> session { evaluate(fn, arg), resize(env), mouse(x, y), close(),
+//   engine.open(env, { origin, path, init, frozen }) -> session { evaluate(fn, arg), resize(env), mouse(x, y), wheel(x, y, dy), shot(clip), close(),
 //     and when `frozen`: advance(ms), holdTo(abs), clockMs() }
 // `env` = { width, height, deviceWidth, deviceHeight, dpr, hover, pointer, reducedMotion, colorScheme }.
 //
@@ -137,6 +137,8 @@ export async function launchChromium({ chromePath = process.env.CHROME_PATH ?? C
         async mouse(x, y) { await page.mouse.move(x, y); },
         // trajectory lane: a real wheel event at (x, y); it sets no scroll position itself
         async wheel(x, y, dy) { await page.mouse.move(x, y); await page.mouse.wheel(0, dy); },
+        // frames lane: a PNG of the page region `clip` (CSS px), animations left running
+        shot(clip) { return page.screenshot({ clip, animations: 'allow', caret: 'initial', scale: 'css' }); },
         ...(clock ? { advance: clock.advance, holdTo: clock.holdTo, clockMs: clock.clockMs } : {}),
         async close() { await context.close(); },
       };
@@ -184,6 +186,8 @@ export async function launchWebkit() {
         async mouse(x, y) { await page.mouse.move(x, y); },
         // trajectory lane: a real wheel event at (x, y); it sets no scroll position itself
         async wheel(x, y, dy) { await page.mouse.move(x, y); await page.mouse.wheel(0, dy); },
+        // frames lane: a PNG of the page region `clip` (CSS px), animations left running
+        shot(clip) { return page.screenshot({ clip, animations: 'allow', caret: 'initial', scale: 'css' }); },
         ...(clock ? { advance: clock.advance, holdTo: clock.holdTo, clockMs: clock.clockMs } : {}),
         async close() { await context.close(); },
       };

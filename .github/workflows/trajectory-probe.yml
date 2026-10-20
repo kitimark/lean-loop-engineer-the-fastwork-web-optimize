@@ -188,6 +188,7 @@ jobs:
   # could not run.
   probe:
     needs: [site]
+    if: ${{ !contains(github.event.head_commit.message, '[frames:') }}
     concurrency:
       group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
@@ -271,9 +272,87 @@ jobs:
 
   # Joins the legs of one engine: the raw readings of every leg become one run (same search, same reps), reduced by the same code, and the
   # result is the artifact `trajectory-<engine>` the recorder reads. No browser; it only needs node and the reducer.
+  # Frames for a person's visual review of a look change (src/trajectory/frames.mjs): on a ci/* push whose head commit carries
+  # `[ci:trajectory-probe]` and `[frames:<part:variant>]`, the faithful rewrite and that flag walk the same end-of-page path in
+  # each Linux engine at 390 and 1280, the nav band is screenshotted from each wheel push on, and strips put the two rows side
+  # by side (artifact frames-<engine>). The probe and merge jobs skip on such a push. Review material only, no verdict.
+  frames:
+    needs: [site]
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[frames:') }}
+    concurrency:
+      group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:frames:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    name: frames ${{ matrix.engine }}
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, playwright-webkit]
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - id: s
+        name: The flag of the frames run (from the head commit message)
+        env:
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          fw=$(printf '%s' "$HEAD_MSG" | grep -oE '\[frames:[A-Za-z0-9.:,_@-]+\]' | head -1 | sed -E 's/^\[frames:(.*)\]$/\1/')
+          search=$(node .github/scripts/gate-search.mjs --fw "$fw" --preset '')
+          echo "search=$search" >> "$GITHUB_OUTPUT"
+          echo "frames search: $search"
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - uses: ./.github/actions/gate-engine
+        with:
+          engine: ${{ matrix.engine }}
+      - name: Capture the nav band through both pushes, then compose the strips
+        env:
+          ENGINE: ${{ matrix.engine }}
+          SEARCH: ${{ steps.s.outputs.search }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          RUN_ID: ${{ github.run_id }}
+        working-directory: packages/gate-breakpoints
+        run: |
+          set -euo pipefail
+          node src/trajectory/frames.mjs capture --engine "$ENGINE" --widths 390,1280 --search "$SEARCH" --out out/frames/raw
+          node src/trajectory/frames.mjs strips --in out/frames/raw --out out/frames/strips --run "$RUN_ID"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: frames-${{ matrix.engine }}
+          path: packages/gate-breakpoints/out/frames
+          if-no-files-found: error
+          retention-days: 30
+
   merge:
     needs: [site, probe]
-    if: ${{ !cancelled() && needs.site.result == 'success' }}
+    if: ${{ !cancelled() && needs.site.result == 'success' && !contains(github.event.head_commit.message, '[frames:') }}
     concurrency:
       group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:merge:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
