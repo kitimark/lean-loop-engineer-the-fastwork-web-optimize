@@ -1,5 +1,6 @@
-// Task land-sha-pin: every land check (behind, scope, render guard) and every merge judge the one pinned tip `sha`;
-// a branch ref that moves after the pin changes nothing.
+// Task land-sha-pin: this test covers the scope diff and the merge (the ref moves inside the first GET /api/plan,
+// after the behind check and the render guard); the behind check runs synchronously right after the pin with no
+// await between them, and the render guard's pin is covered by land-render-guard.test.ts.
 import "./land-timeout.ts";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
