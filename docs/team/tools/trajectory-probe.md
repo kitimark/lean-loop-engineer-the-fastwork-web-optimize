@@ -84,40 +84,71 @@ the separate artifact `trajectory-apple`; it is the closest engine CI has to Saf
 
 ## Transitions in flight (task trajectory-transition-window)
 
-Arms start a CSS transition at different frames, so a property read mid-transition differed between an arm and itself.
-MEASURED in the stored runs: macOS WebKit `nav.background-color` at 641 and 1280, approach steps a3/a7/a8/a11 (runs
-39453181962, 39455284967), and Chromium `earn` max-width/opacity at close@0 and close-hold@0 (runs 39453764374,
-39457063232, A/A run 39409003529). Every such read had `since` (ms since the last nav class change) below the transition's
-length plus 140 ms (bg read mid-transition up to since 840 on Linux WebKit, 831 on macOS, about 770 on Chromium, against
-700 declared).
+Arms start a CSS transition at different frames, so a property read mid-transition differs between an arm and itself.
+MEASURED in the stored runs: macOS WebKit `nav.background-color` approach steps a3/a7/a8/a11 at 641 and 1280 (runs
+39453181962, 39455284967) and Chromium `earn` max-width/opacity at close@0 (runs 39453764374, 39457063232, A/A run
+39409003529). Every such read had `since` (ms since the last nav class change) below the transition's length plus 140 ms.
 
-The judge (Lean `judgeFlight`, TS twin `judgeFlight` in `reduce.mjs`) uses the declared transition, not a heuristic:
+The judge (Lean `judgeUnit`, TS twin `judgeUnit` in `reduce.mjs`) decides each unit on its own:
 
-- `settleTable`: the longest delay plus duration per (node, property), from `apps/site/src/parts/nav/nav.module.css`.
-  Values: nav visibility 320, rect 680, background-color 700, opacity 700, transform 320; logo color 240; actions gap 680;
-  earn opacity 440, max-width 680. Any property not in the table is read as at rest.
-- `inFlight d s`: `since < d + startLag`, where `startLag` = 200 ms bounds the 140 ms overrun measured above.
-- A unit is in flight when the rewrite's sample or a sample of its window is. It is then judged against the window plus
-  `crossed`: the original's in-flight samples of each pass and their neighbours. It is never skipped. A unit with no
-  sample in flight is judged as before (`judgeAgainst`).
+- `rules`: every rule of `apps/site/src/parts/nav/nav.module.css` that sets `transition` or `transition-delay`, one per
+  selector, keyed by node, the nav classes it needs on and off, its media condition and its line. `trajectory.test.mjs`
+  parses the CSS file and requires this list exactly. `durOf node prop width cls` is the longest delay plus duration of
+  the property under the last applying rule (specificity, then line); none while `is-morphing` is on (JS drives the frame
+  then; the CSS has no transition under that class).
+- `inFlight d s`: the sample's own class set selects a transition `t` and `since < t + startLag`, `startLag` = 200 ms.
+- A rewrite sample in flight is judged against the original's samples of the same transition only: the same rep, phase
+  and epoch (a run of samples with no class change), within 200 ms of its `since` (`isCore`), plus the epoch's sample
+  before them and one after. A colour must match one core reading on r, g, b, and the band on alpha. No core sample: the
+  m-window as before.
+- A rewrite sample at rest is judged against the original's settled end value: the window sample if at rest, else the
+  last sample of its epoch if that one is at rest, else coverage.
 
-Proved: an arm whose samples are the original's never fails (`judgeFlight_self`, `bucketVerdict_self`, `byStep_self`); a
-settled step that differs still fails (`judgeFlight_settled`); a reading outside every value of the window and `crossed`
-still fails (`judgeFlight_outside`); an unlisted property keeps the old verdict (`judgeFlight_no_settle`).
+Proved: an arm whose samples are the original's never fails (`judgeUnit_self`, `byM_self`, `byStep_self`); a rewrite
+sample at rest is judged only against settled values, whatever the original's state (`judgeUnit_settled`, golden: pure
+red and pure green at rest fail, `byStep_settled_red_green`); a reading with one component outside every reading of the
+window fails, for any number of components (`judgeEls_outside`, `judgeUnit_flight_outside`, `judgeUnit_settled_outside`,
+colours `judgeUnit_colour_chan_outside`, `judgeUnit_colour_alpha_outside`); a reversed rect curve in flight fails
+(`byM_reversed_in_flight`). Each branch of `judgeUnit` has its own theorem (`judgeUnit_flight_*`, `judgeUnit_settled_*`).
 
-Accepted limits:
-- `since` sees only nav class changes.
-- An in-flight read is checked against the band of values the original passes through, not against its timing.
-- `startLag` is a measured bound, not a proved one.
-- The kit reads a WebKit mid-transition colour as oklab `[1000,0,0,α]`. It is a follow-up for the `kit.mjs` owner, for
-  example to record `document.getAnimations()`.
+In flight, MEASURED over all arms and the 10 properties with a CSS transition (morph phases; approach steps):
 
-Re-recorded with this judge, all 8 candidates pass (stored runs 39442517769, 39453181962 and 39455284967, all shared
-`?preset=` runs). Each candidate passes its Chromium hero and morph cells and its WebKit hero cell. Its WebKit morph cell
-passes on macOS run 39453181962. In run 39455284967 that cell is no verdict: coverage, because coverage `new` groups recur
-at 3 widths, a separate issue. The 8 candidates are engine.scene:hidden-pause, engine.scroll:batched,
-morph.columns:hidden-pause, morph.countdown:hidden-pause, morph.mount:shift, nav.hitTest:elements-skip, pain.notes:visible
-and people.card:mq.
+| engine | runs | phases in flight | approach in flight |
+|---|---|---|---|
+| Chromium | 6 runs | 20.5 to 20.8% | 8.4 to 16.3% |
+| Linux WebKit | 4 runs | 10.4 to 12.2% | 0.7 to 1.9% |
+| macOS WebKit | 39453181962, 39455284967 | 22.1, 22.5% | 14.3, 14.9% |
+
+About 66 to 70% of morph phase samples carry `is-morphing` and are never in flight. Mutation (MEASURED): the candidate's
+nav.rect curve reversed inside each phase and rep gives 77 content `new` nav.rect units at all 4 widths on macOS raw
+39453181962 and 86 on Chromium raw 39457063232 (round 1 judge: 0).
+
+Limits of the in-flight rule, for that fraction of samples:
+- ±200 ms slack: a reading counts as the original's if it equals any core reading within 200 ms of `since`, so a
+  transition lagged or shortened by less than that passes; in a mirrored ramp the middle buckets 4 to 6 pass (golden
+  `reversed curve in flight`).
+- `since` sees only nav class changes; a transition started by something else is read as at rest.
+- `startLag` = 200 ms is a measured bound on the 140 ms overrun, not a proved one.
+- No core sample in the original: the unit falls back to the m-window of the original's samples.
+- The kit reads a WebKit mid-transition colour as oklab `[L×1000, a, b, α]` and a settled one as rgb. A colour read in
+  oklab on one arm and rgb on the other fails `apart`; that is the kit-colour-space task (owner of `kit.mjs`), not widened
+  here.
+
+Re-recorded with this judge (stored runs 39442517769, 39453181962, 39455284967, all `?preset=` runs of 8 flags):
+
+| cell | 39442517769 | 39453181962 | 39455284967 |
+|---|---|---|---|
+| chromium hero, morph | pass, pass | pass, pass | pass, pass |
+| linux-webkit hero, morph | pass, no verdict: coverage | pass, - | pass, - |
+| mac-webkit hero, morph | - | pass, fail | pass, no verdict: coverage |
+
+Per flag (engine.scene:hidden-pause, engine.scroll:batched, morph.columns:hidden-pause, morph.countdown:hidden-pause,
+morph.mount:shift, nav.hitTest:elements-skip, pain.notes:visible, people.card:mq): Chromium hero and morph pass, WebKit
+hero passes, WebKit morph is pending (a failing shared run names no flag). All stay `pending: trajectory`; `v2-proved` is
+empty. The 39453181962 mac morph fail: `nav.background-color` content `new` at 640 and 1280 close@0, both arms in oklab, so
+not the colour space. The transition starts from the value at the frame `is-morphing` is removed; in rep 4 the rewrite
+removed it at a different morph value (start L 0.905, alpha 0.296 against the original's 0.993, 0.263). Its 641 a8/a11 and 1280 a7 units are the
+colour-space case. The 39455284967 mac morph colour units (641 a7, a11) are colour space at one width and do not decide it.
 
 ## Admission
 
@@ -138,7 +169,7 @@ and so did its coverage `new` units (MEASURED in that one A/A run; that one widt
 it). Only a single-flag `?fw=` page or a `?preset=` page is prerendered, so several pending candidates are dispatched together as
 `--preset v2-proved` on a ref whose commit holds `apps/site/src/registry/presets/v2-proved.json` with those flags (restore
 it from the recorded verdicts afterwards: the recorder and `Gen.run` rewrite the file; an empty preset walks the default config). Limits: a stored pass is not re-checked when the flag's part changes later (`Stored.sha` is not read yet). A read in flight
-is judged as described in Transitions in flight above. Approach flicker outside the settle table still counts as content.
+is judged as described in Transitions in flight above.
 
 A cell (flag, engine family, path): a failing run of the flag alone fails it; else a passing run of the flag alone passes
 it; else a failing shared run (a preset) leaves it pending, because it does not say which flag regressed; else a passing
@@ -164,8 +195,8 @@ a different point each time. The original shows the same mid-transition values a
 at a4 in one run, settled at 26000 in another), the faithful arm too; only the rewrite arm happens to be red at two widths
 in both runs, which `outcome` reads as `fail`. INFERRED: approach timing noise, not a regression (no flag-alone run exists to
 separate them). A failing shared run leaves a cell pending, so all 8 flags stay `pending: trajectory` and `v2-proved` is
-empty. Follow-up (a Lean `judge` change, not done here): approach steps `a*` of a colour in transition should be compared as a
-window like the push phases, or left out of `outcome`.
+empty. These verdicts came from the judge before task trajectory-transition-window; the re-recorded ones are in
+Transitions in flight above.
 
 Reps 5 (Chromium morph, one coverage-new width per run in runs 1 and 2, none in the reps 3 run 39442517769) did not remove the
 one-empty-bucket coverage red: it stays at one width and so does not decide an outcome (the 2-widths rule). Three runs are too
