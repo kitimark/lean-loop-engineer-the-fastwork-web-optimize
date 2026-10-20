@@ -11220,7 +11220,16 @@
     "apps/site/src/parts/hero.deck/**",
     "apps/site/src/parts/nav/**",
     "research/notes/2026/10-2*-faithful-hero-baseline.md",
-    "docs/team/handoffs/faithful-hero-baseline.md"
+    "docs/team/handoffs/faithful-hero-baseline.md",
+    "apps/site/src/parts/nav.hitTest/**",
+    "apps/site/src/styles/reset.css",
+    "apps/site/src/stage/PartStage.tsx",
+    "apps/site/src/scroll-behavior.test.ts",
+    "apps/site/scripts/census.mjs",
+    "packages/e2e-preview/src/suite.mjs",
+    "packages/gate-breakpoints/src/trajectory/kit.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ]
   },
   {
@@ -11262,7 +11271,10 @@
     "packages/contracts/golden/ci/pool-caps.jsonl",
     "scripts/ci-paths.test.mjs",
     "docs/team/tools/trajectory-probe.md",
-    "docs/team/handoffs/trajectory-probe-speed.md"
+    "docs/team/handoffs/trajectory-probe-speed.md",
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "packages/gate-breakpoints/test/trajectory.test.mjs"
    ]
   },
   {
