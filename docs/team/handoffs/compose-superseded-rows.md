@@ -1,29 +1,29 @@
 # compose-superseded-rows handoff
 
-State: branch `worktree-wf_529e3a24-f84-1`, last commit is the one this file lands with (WIP 7e719c95 before it). Not landed.
+State: branch `worktree-wf_529e3a24-f84-1`. Round 1 at 8788f0b3 (refused), round 2 at f97e588b plus the commit that adds this
+file. Main merged at 78330dc8. Not landed.
 
 Built:
-- Ledger: optional `supersededBy: <row id>` on 2 rows of `research/findings/ledger.json`, no other field touched:
-  `hero.exit.scoped.falsified` (refuted) and `hero.exit.scoped` (partly-proved), both -> `hero.exit.scoped.inline`.
-  Reasons are in `docs/team/tools/compose.md` "Superseded rows".
-- Lean `Fw.Console.Compose`: `LRow` gets `id?`, `supersededBy?` (default `none`); `classBy` is the old `classOf`; `classOf` is
-  `classBy` over `live` rows; `varRows` = `rowsFor` ++ the rows that supersede one of them (by `id`, transitively; `extraRows`);
-  `refusalOf` reads live rows only; `otherRows` leaves out the superseding rows; `supersedeErrors` lists dangling ids.
-- Wire `Fw.Wire.Compose.facts` parses `id`, `supersededBy` (`strOpt`: a non-string is an error) and throws on `supersedeErrors`.
-- Goldens: 3 new `console.compose` cases (`cmpLedgerFixed`; dangling id; non-string); the old 19 lines are unchanged.
-- TS: `apps/console-api/src/preview/compose.ts` passes `id`, `supersededBy`; test asserts hero.exit:scoped is `ledger-proved`
-  with link `?fw=hero.exit:scoped`; the golden error check compares the error string, not its JSON escape.
+- Ledger: `supersededBy: hero.exit.scoped.inline` on `hero.exit.scoped.falsified` and `hero.exit.scoped`; the branch diff
+  of `research/findings/ledger.json` is those 2 lines (round 1's merge had reordered rows; rebuilt from main).
+- Lean `Fw.Console.Compose`: `classOf` = `classBy` over live rows; `varRows` = `rowsFor` ++ transitive successors.
+  `reachesLive` follows `supersededBy` through at most `rows.length` rows. `supersedeErrors` reports each superseded row
+  that reaches no live row (dangling id, self-reference, cycle) and each duplicate `id`. The wire throws on any error.
+- Goldens `console.compose`: self-reference, 2-cycle, chain of two (allowed), duplicate id, plus round 1's 3 cases.
+- `#guard`s in `Fixture`: `withSup` (self-reference, 2-cycle), duplicate id, `chainRows`.
 
-Proved: `classOf_superseded_never_refutes`, `classOf_superseding`, `classOf_superseded_cons`, `classOf_no_superseded`,
-`varRows_no_superseded`, `extraRows_no_superseded`, `varRows_superseding`, `varRows_superseded_by`, `supersedeErrors_nil_iff`;
-`classOf_*` restated over `live rows`. `#guard`s in `Fixture` (`fixedRows`).
+Proved (round 2): `reachesLive_sound`, `supersedeErrors_nil_iff` (no error iff every superseded row reaches a live row and
+ids are unique), `supersedeErrors_nil_reaches`, `successors_closed`, `supersedeErrors_cycle`, `supersedeErrors_self`,
+`varRows_successor`, `varRows_reaches_live`, `partOut_superseding` (the card lists `varRows`, its `cls` is `classOf` of the
+live rows among them, and each superseded row of the variant brings one of them to the card). `classOf_superseding` and
+`varRows_superseded_by` were removed.
 
-Verified: `sh lean/scripts/check.sh` green; console-api (638), contracts, runner (1618), ci-paths tests green.
+Verified at f97e588b: `sh lean/scripts/check.sh` green (27 s); console-api 678, contracts 7, runner 1622, ci-paths 49 pass.
+A probe without the mark on `hero.exit.scoped` gives `measured` (stated in compose.md); with it, `ledger-proved`.
 
-Result: hero.exit:scoped shows `ledger-proved` (live row = the inline row only), no longer `refuted`; still not in v2-proved.
+Pre-existing: the owner-link background-start test (`apps/console-api/test/owner-link.test.ts`) also times out on main;
+it passed in this run.
 
-Open / follow-ups:
-- Duplicate `id`s are not rejected (`idxOf` takes the first); the ledger has none today.
-- Writes outside the graph list: `lean/Fw/Wire/Compose.lean`, `lean/Fw/Ops/Golden.lean`, the two console-api files.
+Open: none in scope. Writes outside the graph list (round 1): `lean/Fw/Wire/Compose.lean`, `lean/Fw/Ops/Golden.lean`.
 
-Read first: `docs/team/tools/compose.md`, then `lean/Fw/Console/Compose.lean` section "Superseded rows".
+Read first: `docs/team/tools/compose.md` "Superseded rows", then `lean/Fw/Console/Compose.lean` "Superseded rows".
