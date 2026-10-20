@@ -221,6 +221,6 @@ describe("the collector over the cache and the spool memo", () => {
     const b = readTranscript(f, "zz", p)!;
     const st = foldText(initFold(false), readFileSync(f, "utf8"));
     expect(b.tr.toolUses).toBe(a.tr.toolUses + 1);
-    expect(JSON.stringify([b.tr, b.sig])).toBe(JSON.stringify([finishInfo(st, null, b.metaAt), finishSignals("zz", st).facts]));
+    expect(JSON.stringify([b.tr, b.sig])).toBe(JSON.stringify([finishInfo(st, null, null), finishSignals("zz", st).facts]));
   });
 });
