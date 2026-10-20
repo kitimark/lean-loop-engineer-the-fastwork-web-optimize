@@ -54,8 +54,8 @@ export function waapiRun(over: Partial<{ reduced: boolean }> = {}) {
     removeListener: (t) => void listeners.delete(t),
     settle: (value, props) => void settled.push({ value, props }),
     hint: (v) => void hints.push(v),
-    marker: (duration) => {
-      const m: FakeMarker = { startTime: null, onfinish: null, cancelled: false, duration, fired: false, cancel() { m.cancelled = true; }, effect: null };
+    marker: (duration, startTime) => {
+      const m: FakeMarker = { startTime, onfinish: null, cancelled: false, duration, fired: false, cancel() { m.cancelled = true; }, effect: null };
       markers.push(m);
       return m;
     },

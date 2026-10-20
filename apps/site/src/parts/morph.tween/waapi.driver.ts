@@ -27,8 +27,8 @@ export interface WaapiEnv {
   settle(value: number, props: ReturnType<typeof settledProps>): void;
   /** Publish `data-fw-morph`: at a push, at a threshold crossing and at the end of a tween. */
   hint(value: number): void;
-  /** A target-less animation of `durationMs`; its finish event fires on the first frame at or after its end. */
-  marker(durationMs: number): AnimLike;
+  /** A target-less animation of `durationMs` from `startTime` (now if null); its finish event fires on the first frame at or after its end. */
+  marker(durationMs: number, startTime: number | null): AnimLike;
   /** Run `cb` on every animation frame until the returned function is called. */
   everyFrame(cb: () => void): () => void;
   /** The platform needs its fade expression (idempotent). */
@@ -186,8 +186,7 @@ export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
     };
     for (const theta of MARKER_THETAS) {
       if (!hasMarker(st.from, st.to, theta)) continue;
-      const m = env.marker(markerDelay(st.from, st.to, theta));
-      if (t !== null) m.startTime = t;
+      const m = env.marker(markerDelay(st.from, st.to, theta), t);
       m.onfinish = () => onMarker(theta);
       markers.push(m);
     }

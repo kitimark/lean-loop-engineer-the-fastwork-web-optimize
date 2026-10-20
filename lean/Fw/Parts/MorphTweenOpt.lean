@@ -1186,7 +1186,7 @@ def markerJson (f t θ : Rat) : String :=
 def markerFroms : List Rat := [0, 1 / 10, 1 / 5, 3 / 10, 2 / 5, 1 / 2, 3 / 5, 9 / 10, 1]
 
 /-- The marker rows: every start value, both targets, every threshold. -/
-def markerRows : List String :=
+def markerRows (_ : Unit) : List String :=
   markerFroms.flatMap fun f => [0, 1].flatMap fun t => markerThetas.map fun θ => markerJson f t θ
 
 /-- Frames every 17 ms from the `a`-th to the `b`-th. -/
@@ -1225,13 +1225,13 @@ def bandsAgree (wr : VSt → Rat → Bool) (es : List Ev) : Bool :=
   (attrTrace wr es).all fun (_, x, s) => band x.attr == band s.value
 
 /-- The contents of `packages/contracts/golden/parts/morph-tween-waapi.attr.jsonl`: readers, markers, event rows. -/
-def attrJsonl : String :=
-  String.join (attrReaders.map fun r => r.json ++ "\n") ++ String.join (markerRows.map (· ++ "\n")) ++
+def attrJsonl (_ : Unit) : String :=
+  String.join (attrReaders.map fun r => r.json ++ "\n") ++ String.join ((markerRows ()).map (· ++ "\n")) ++
     String.join (attrCases.flatMap fun (c, es) => (attrEvRows c es).map (· ++ "\n"))
 
 #guard attrCases.all fun (_, es) => bandsAgree (fixW (dlLo delayDepth)) es && !bandsAgree oldW es
 #guard markerThetas == [1 / 1000, 1 / 5, 2 / 5, 11 / 20, 23 / 25, 7 / 20]
-#guard markerRows.length == 108
+#guard (markerRows ()).length == 108
 
 /-- **The visual theorem (class E-s).** With sound marker delays, the variant's scene, readers of the attribute included, equals the original's on every admissible frame. -/
 theorem waapi_vis (P : WaapiPremises) (dl : Rat → Rat → Rat → Rat) (hd : DlSound dl)
@@ -2016,7 +2016,7 @@ def goldenJsonl : String :=
 
 #guard goldenJsonl == include_str "../../../packages/contracts/golden/parts/morph-tween-waapi.jsonl"
 
-#guard attrJsonl == include_str "../../../packages/contracts/golden/parts/morph-tween-waapi.attr.jsonl"
+#guard attrJsonl () == include_str "../../../packages/contracts/golden/parts/morph-tween-waapi.attr.jsonl"
 
 /-- The contents of `packages/contracts/golden/parts/morph-tween-waapi.swipe-v1.jsonl`. -/
 def swipeJsonl : String := String.join (swipeRows.map fun r => r.json ++ "\n")

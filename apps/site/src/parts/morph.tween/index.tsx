@@ -97,9 +97,10 @@ function waapiEnv(base: TweenEnv, platform: () => HTMLElement | null, navSelecto
       const n = nav();
       if (n) n.dataset.fwMorph = String(value);
     },
-    marker: (durationMs) => {
+    marker: (durationMs, startTime) => {
       const a = new Animation(new KeyframeEffect(null, null, { duration: durationMs }), document.timeline);
-      a.play();
+      if (startTime === null) a.play();
+      else a.startTime = startTime;
       return a as unknown as AnimLike;
     },
     everyFrame: (cb) => base.clock.subscribe(() => cb()),
