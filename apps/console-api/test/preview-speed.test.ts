@@ -5,19 +5,19 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { brotliDecompressSync, gunzipSync } from "node:zlib";
-import { Hono } from "hono";
 import { afterEach, describe, expect, it } from "vitest";
 import { cachePolicy, etagMatches, etagOf, pickEncoding } from "../src/preview/cache-policy.ts";
-import { mountPreviewProxy } from "../src/preview/proxy.ts";
 import { handler } from "../src/preview/serve-child.ts";
-import type { PreviewManager } from "../src/preview/manager.ts";
+import { armRig } from "./arm-rig.ts";
 
 const GOLDEN = join(dirname(fileURLToPath(import.meta.url)), "../../../packages/contracts/golden/console/console.previewCache.jsonl");
 const IMMUTABLE = "public, max-age=31536000, immutable";
 
 let servers: Server[] = [];
 let dirs: string[] = [];
-afterEach(() => {
+let closers: (() => Promise<unknown>)[] = [];
+afterEach(async () => {
+  await Promise.all(closers.map((f) => f())); closers = [];
   servers.forEach((s) => s.close()); servers = [];
   dirs.forEach((d) => rmSync(d, { recursive: true, force: true })); dirs = [];
 });
@@ -189,115 +189,87 @@ describe("serve-child file serving", () => {
 
   it("the stub analytics, 404 and the compare page stay uncacheable", async () => {
     const s = site({ "index.html": "x" });
-    const port = await listen(createServer(handler({ root: s.root, compare: { rp: 1, op: 2, prefix: "/preview/a" } })));
+    const port = await listen(createServer(handler({ root: s.root, compare: { rp: 1, op: 2 } })));
     for (const p of ["/analytics.js", "/missing.txt", "/__fw/compare"]) expect((await fetch(`http://127.0.0.1:${port}${p}`)).headers.get("cache-control")).toBe("no-store");
   });
 });
 
-describe("proxy", () => {
+describe("arm origin (the files of an arm pass through the gate as the preview server sent them)", () => {
   async function rig(rewriteFiles: Record<string, string>, originalFiles: Record<string, string> = rewriteFiles) {
     const r = site(rewriteFiles), o = site(originalFiles);
-    const rp = await listen(createServer(handler({ root: r.root, compare: { rp: 0, op: 0, prefix: "/preview/p1" } })));
-    const op = await listen(createServer(handler({ root: o.root })));
-    const entry = { id: "p1", rp, op, phase: "serving" };
-    const app = new Hono();
-    mountPreviewProxy(app, { serving: (id: string) => (id === "p1" ? entry : null), touch() {} } as unknown as PreviewManager);
-    const pp = await listen(createServer(async (req, res) => {
-      const headers = new Headers();
-      for (const [k, v] of Object.entries(req.headers)) if (typeof v === "string") headers.set(k, v);
-      const out = await app.fetch(new Request(`http://127.0.0.1${req.url}`, { method: req.method, headers }));
-      const h: Record<string, string> = {};
-      out.headers.forEach((v, k) => { h[k] = v; });
-      res.writeHead(out.status, h);
-      res.end(Buffer.from(await out.arrayBuffer()));
-    }));
-    const raw = (path: string, headers: Record<string, string> = {}) => new Promise<{ status: number; headers: Record<string, string | string[] | undefined>; bytes: Buffer }>((resolve, reject) => {
-      import("node:http").then(({ get }) => get({ host: "127.0.0.1", port: pp, path, headers }, (res) => {
-        const cs: Buffer[] = [];
-        res.on("data", (c) => cs.push(c));
-        res.on("end", () => resolve({ status: res.statusCode!, headers: res.headers, bytes: Buffer.concat(cs) }));
-      }).on("error", reject));
-    });
+    const arms = await armRig({ r: createServer(handler({ root: r.root })), o: createServer(handler({ root: o.root })) });
+    closers.push(() => arms.close());
+    const raw = (path: string, headers: Record<string, string> = {}, arm: "r" | "o" = "r") =>
+      arms.raw(arm === "r" ? arms.rp : arms.op, path, { cookie: arms.cookie, ...headers });
     return { r, o, raw };
   }
   const HTML = (n: string) => `<!doctype html><link rel="stylesheet" href="/assets/app.4f3a9c1d.css"><img src="/a.png"><p>${n}</p>${body(200)}`;
 
-  it("rewritten html: prefix applied, own etag, 304 on revalidation, compressed", async () => {
+  it("html: root-absolute paths stay as written, own etag, 304 on revalidation, compressed", async () => {
     const { raw } = await rig({ "index.html": HTML("one"), "assets/app.4f3a9c1d.css": "a{background:url(/b.png)}", "a.png": "png" });
-    const first = await raw("/preview/p1/r/", { "accept-encoding": "br" });
+    const first = await raw("/", { "accept-encoding": "br" });
     expect(first.status).toBe(200);
     expect(first.headers["content-encoding"]).toBe("br");
     expect(first.headers["cache-control"]).toBe("no-cache");
     const text = brotliDecompressSync(first.bytes).toString();
-    expect(text).toContain('href="/preview/p1/r/assets/app.4f3a9c1d.css"');
+    expect(text).toContain('href="/assets/app.4f3a9c1d.css"');
     expect(first.bytes.length).toBeLessThan(text.length / 10);
     const etag = first.headers.etag as string;
-    const again = await raw("/preview/p1/r/", { "accept-encoding": "br", "if-none-match": etag });
+    const again = await raw("/", { "accept-encoding": "br", "if-none-match": etag });
     expect(again.status).toBe(304);
     expect(again.bytes.length).toBe(0);
-    const gz = await raw("/preview/p1/r/", { "accept-encoding": "gzip" });
+    const gz = await raw("/", { "accept-encoding": "gzip" });
     expect(gunzipSync(gz.bytes).toString()).toBe(text);
     expect(gz.headers.etag).not.toBe(etag);
-    const plain = await raw("/preview/p1/r/");
+    const plain = await raw("/");
     expect(plain.headers["content-encoding"]).toBeUndefined();
     expect(plain.bytes.toString()).toBe(text);
   });
 
-  it("the original and the rewrite arm get different bodies and different etags for the same source", async () => {
-    const { raw } = await rig({ "index.html": HTML("x") });
-    const a = await raw("/preview/p1/r/"), b = await raw("/preview/p1/o/");
-    expect(a.headers.etag).not.toBe(b.headers.etag);
-    expect(b.bytes.toString()).toContain("/preview/p1/o/assets/");
-  });
-
-  it("a rebuilt html is never served stale through the proxy", async () => {
+  it("a rebuilt html is never served stale through the arm", async () => {
     const { raw, r } = await rig({ "index.html": HTML("one") });
-    const first = await raw("/preview/p1/r/");
+    const first = await raw("/");
     const etag = first.headers.etag as string;
     expect(first.bytes.toString()).toContain("<p>one</p>");
     r.put("index.html", HTML("two"));
-    const second = await raw("/preview/p1/r/", { "if-none-match": etag });
+    const second = await raw("/", { "if-none-match": etag });
     expect(second.status).toBe(200);
     expect(second.bytes.toString()).toContain("<p>two</p>");
     expect(second.headers.etag).not.toBe(etag);
-    const third = await raw("/preview/p1/r/", { "if-none-match": second.headers.etag as string });
+    const third = await raw("/", { "if-none-match": second.headers.etag as string });
     expect(third.status).toBe(304);
   });
 
-  it("css is rewritten and cached; hashed files pass through immutable; other files revalidate", async () => {
+  it("css is served as written; hashed files pass through immutable; other files revalidate", async () => {
     const { raw } = await rig({ "index.html": HTML("x"), "assets/app.4f3a9c1d.css": "a{background:url(/b.png)}", "a.png": "png", "assets/index-BxK3a9Qz.js": body(100),
       ".vite/manifest.json": JSON.stringify({ e: { file: "assets/index-BxK3a9Qz.js", css: ["assets/app.4f3a9c1d.css"] } }) });
-    const css = await raw("/preview/p1/r/assets/app.4f3a9c1d.css");
-    expect(css.bytes.toString()).toBe("a{background:url(/preview/p1/r/b.png)}");
+    const css = await raw("/assets/app.4f3a9c1d.css");
+    expect(css.bytes.toString()).toBe("a{background:url(/b.png)}");
     expect(css.headers["cache-control"]).toBe(IMMUTABLE);
-    expect((await raw("/preview/p1/r/assets/app.4f3a9c1d.css", { "if-none-match": css.headers.etag as string })).status).toBe(304);
-    const js = await raw("/preview/p1/r/assets/index-BxK3a9Qz.js", { "accept-encoding": "gzip" });
+    expect((await raw("/assets/app.4f3a9c1d.css", { "if-none-match": css.headers.etag as string })).status).toBe(304);
+    const js = await raw("/assets/index-BxK3a9Qz.js", { "accept-encoding": "gzip" });
     expect(js.headers["cache-control"]).toBe(IMMUTABLE);
     expect(js.headers["content-encoding"]).toBe("gzip");
     expect(gunzipSync(js.bytes).toString()).toBe(body(100));
-    const png = await raw("/preview/p1/r/a.png");
+    const png = await raw("/a.png");
     expect(png.headers["cache-control"]).toBe("no-cache");
-    const re = await raw("/preview/p1/r/a.png", { "if-none-match": png.headers.etag as string });
+    const re = await raw("/a.png", { "if-none-match": png.headers.etag as string });
     expect(re.status).toBe(304);
     expect(re.bytes.length).toBe(0);
   });
 
   it("a rebuilt passthrough file is refetched", async () => {
     const { raw, r } = await rig({ "index.html": "x", "a.png": "png-one" });
-    const first = await raw("/preview/p1/r/a.png");
+    const first = await raw("/a.png");
     r.put("a.png", "png-two!");
-    const second = await raw("/preview/p1/r/a.png", { "if-none-match": first.headers.etag as string });
+    const second = await raw("/a.png", { "if-none-match": first.headers.etag as string });
     expect(second.status).toBe(200);
     expect(second.bytes.toString()).toBe("png-two!");
   });
 
-  it("the compare page and a missing file stay no-store", async () => {
+  it("a missing file stays no-store", async () => {
     const { raw } = await rig({ "index.html": "x" });
-    const cmp = await raw("/preview/p1/compare");
-    expect(cmp.status).toBe(200);
-    expect(cmp.headers["cache-control"]).toBe("no-store");
-    expect(cmp.headers.etag).toBeUndefined();
-    const miss = await raw("/preview/p1/r/nope.txt");
+    const miss = await raw("/nope.txt");
     expect(miss.status).toBe(404);
     expect(miss.headers["cache-control"]).toBe("no-store");
   });
