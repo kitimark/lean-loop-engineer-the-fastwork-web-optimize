@@ -1,7 +1,7 @@
 // The lag report joins records to boxes and ranks counters (reduce.mjs is the twin of Fw.Measure.WebKitLag, lag-reduce.test.mjs).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clipRect, clipsPerStep, analyzeScroll, analyzeMorph, armMd, COLUMNS, MORPH_PHASES } from '../src/lag/report.mjs';
+import { clipRect, clipsPerStep, scrollSteps, analyzeScroll, analyzeMorph, armMd, COLUMNS, MORPH_PHASES } from '../src/lag/report.mjs';
 import { MORPH_FRAMES, scanSteps } from '../src/lag/probe.mjs';
 import { COUNT_TYPES, reduceSteps } from '../src/reduce.mjs';
 
@@ -78,6 +78,16 @@ test('the markdown has a section per region', () => {
   const md = armMd('x', [session()]);
   for (const h of ['Region A (scroll)', 'Region B (scroll)', 'Region B morph, open', 'Region B morph, close', 'Layers']) assert.ok(md.includes(h), h);
   assert.equal(COLUMNS.length, COUNT_TYPES.length + 1);
+});
+
+test('a geometry load of another height joins each step to the nearest geometry y', () => {
+  const s = session();
+  const g = s.geometry, ys = g.ys.slice(0, -1);
+  const shorter = { ...s, geometry: { ...g, ys, scroll: g.scroll.slice(0, -1), info: { ...info, maxY: 900 } } };
+  const steps = scrollSteps(shorter, shorter.passes[0]);
+  assert.equal(steps.length, s.passes[0].scroll.ys.length);
+  assert.equal(steps.at(-1).boxes, shorter.geometry.scroll.at(-1).boxes);
+  assert.ok(analyzeScroll([shorter]).A.steps > 0);
 });
 
 test('a session that stopped early still counts its completed runs', () => {

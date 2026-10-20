@@ -32,11 +32,15 @@ export function clipsPerStep(run, scrollY = 0) {
 
 const rowsOf = (reduced) => reduced.perStep.map((row, i) => [...row, reduced.perStepPaintArea[i]]);
 
-/** Steps of a scroll run joined to the geometry: y, boxes, clips. */
+/**
+ * Steps of a scroll run joined to the geometry: y, boxes, clips. The page height differs by a few dozen px between loads
+ * (MEASURED: maxY 5231 and 5267 within one session), so the step count of the geometry load and of a timed load can
+ * differ; a step takes the boxes of the geometry step whose y is nearest (INFERRED join, exact when the heights agree).
+ */
 export function scrollSteps(session, pass) {
   const g = session.geometry, clips = clipsPerStep(pass.scroll, pass.scroll.ys);
-  if (g.ys.length !== pass.scroll.ys.length) throw new Error(`geometry has ${g.ys.length} steps, the scroll ${pass.scroll.ys.length}`);
-  return g.ys.map((y, k) => ({ y, boxes: g.scroll[k].boxes, clips: clips[k] }));
+  const nearest = (y) => g.ys.reduce((best, gy, i) => (Math.abs(gy - y) < Math.abs(g.ys[best] - y) ? i : best), 0);
+  return pass.scroll.ys.map((y, k) => ({ y, boxes: g.scroll[nearest(y)].boxes, clips: clips[k] }));
 }
 
 /** Phases of a morph run: idle (the baseline), open (after the push down), close (after the push up), as step index ranges. */
@@ -87,14 +91,13 @@ export function analyzeScroll(rawArm) {
     const table = counterTable(win, base);
     const area = [], count = [], filt = [];
     for (const s of arm) {
-      const p0 = s.passes[0].scroll, vh = p0.info.vh, maxY = p0.info.maxY;
       for (const pass of s.passes) {
-        const steps = scrollSteps(s, pass);
+        const steps = scrollSteps(s, pass), { vh, maxY } = pass.scroll.info;
         area.push(...regionLedger(vh, maxY, steps, region, stepArea));
         count.push(...regionLedger(vh, maxY, steps, region, stepCount));
       }
-      const vp = [0, 0, Math.round(p0.info.vw * Q), Math.round(vh * Q)];
-      s.geometry.ys.forEach((y, k) => { if (regionOf(vh, maxY, y) === region) filt.push(filterTotals(vp, s.geometry.scroll[k].filters)); });
+      const gi = s.geometry.info, vp = [0, 0, Math.round(gi.vw * Q), Math.round(gi.vh * Q)];
+      s.geometry.ys.forEach((y, k) => { if (regionOf(gi.vh, gi.maxY, y) === region) filt.push(filterTotals(vp, s.geometry.scroll[k].filters)); });
     }
     const passes = arm.reduce((n, s) => n + s.passes.length, 0);
     const scale = (l) => l.map(([k, v]) => [k, v / passes]);
@@ -107,7 +110,7 @@ export function analyzeScroll(rawArm) {
   out.calmFilter = (() => {
     const f = [];
     for (const s of arm) {
-      const p0 = s.passes[0].scroll, vh = p0.info.vh, maxY = p0.info.maxY, vp = [0, 0, Math.round(p0.info.vw * Q), Math.round(vh * Q)];
+      const { vw, vh, maxY } = s.geometry.info, vp = [0, 0, Math.round(vw * Q), Math.round(vh * Q)];
       s.geometry.ys.forEach((y, k) => { if (regionOf(vh, maxY, y) === 'calm' && s.geometry.scroll[k].filters.length >= 0 && k % 8 === 0) f.push(filterTotals(vp, s.geometry.scroll[k].filters)); });
     }
     return { count: mean(f.map((x) => x.count)), area: mean(f.map((x) => x.area)) / PX2, areaRadius: mean(f.map((x) => x.areaRadius)) / PX2 };
