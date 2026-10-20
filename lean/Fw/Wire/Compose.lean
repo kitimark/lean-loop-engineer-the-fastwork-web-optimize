@@ -5,7 +5,7 @@ import Fw.Console.Compose
 
 | op | request | reply |
 |---|---|---|
-| `console.compose` | `registry` {parts [{id, slot, impls, variants [{name, kind, limit?}] (head = default), requires {key: [keys]}, conflicts {key: [keys]}}], presets [{name, extends?, fw {part: variant or variant@impl}}]}, `ledger` [{part, candidate, status, flag?, id?, supersededBy?}] (a `supersededBy` that names no `id` is an error), `picks`? [{part, variant}] | `regions` (page order), `parts` [{id, slot, group, pageLevel, variants [{name, kind, isDefault, class, why, rows (ledger indices), refusal}], other (ledger indices)}], `presets` [{name, picks, ok, link, reasons, notes}], `decision` {ok, link, reasons, notes} for `picks`, `rules` (the class names with their one-line reasons) (`Fw.Console.Compose.table`, `decide`) |
+| `console.compose` | `registry` {parts [{id, slot, impls, variants [{name, kind, limit?}] (head = default), requires {key: [keys]}, conflicts {key: [keys]}}], presets [{name, extends?, fw {part: variant or variant@impl}}]}, `ledger` [{part, candidate, status, flag?, id?, supersededBy?}] (an error unless each `supersededBy` chain reaches a row with none and each `id` is unique), `picks`? [{part, variant}] | `regions` (page order), `parts` [{id, slot, group, pageLevel, variants [{name, kind, isDefault, class, why, rows (ledger indices), refusal}], other (ledger indices)}], `presets` [{name, picks, ok, link, reasons, notes}], `decision` {ok, link, reasons, notes} for `picks`, `rules` (the class names with their one-line reasons) (`Fw.Console.Compose.table`, `decide`) |
 -/
 namespace Fw.Wire.Compose
 open Lean Fw.Wire.Ops Fw.Console.Compose Fw.Console.BuildsOpen
@@ -30,7 +30,7 @@ def strOpt (j : Json) (k : String) : Except String (Option String) :=
   | some (.str s) => pure (some s)
   | some _ => throw s!"field {k}: expected a string"
 
-/-- The parts, presets and ledger rows of a request; an error when a row's `supersededBy` names no row's `id`. -/
+/-- The parts, presets and ledger rows of a request; an error for each `supersedeErrors` entry. -/
 def facts (req : Json) : Except String (List PartInfo × List PresetFact × List LRow) := do
   let r ← field req "registry"
   let parts ← (← arrD r "parts").mapM fun p => do
