@@ -249,7 +249,7 @@ test("lake_slot_gate + lake_slot_run: at most LAKE_SLOT_WIDTH commands run at on
 test("check.sh runs its parallel stage through the gate of one held slot", () => {
   const check = readFileSync(join(top, "lean/scripts/check.sh"), "utf8");
   assert.match(check, /^\. \.\.\/scripts\/lake-slot-lib\.sh$/m);
-  assert.match(check, /lake_slot_hold \.\./m);
+  assert.match(check, /^lake_slot_hold \.\.\nlake_slot_gate "\$tmp\/gate"\nspan lean\/check "parallel group" run_group\nlake_slot_release$/m);
   assert.match(check, /^  lake_slot_run span lean\/check "\$@" > "\$tmp\/\$n\.out" 2>&1$/m);
   assert.doesNotMatch(check, /\) > "\$tmp\/\$n\.out" 2>&1 &/);
 });
