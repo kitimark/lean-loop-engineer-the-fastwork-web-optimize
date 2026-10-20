@@ -104,16 +104,18 @@ const scrollWidthOf = (arm) => (arm.raw ?? arm).viewport?.scrollWidth ?? null;
 /** One `gate.state` reply entry with the raw arms it was asked about -> {dev, achieved, truth, truthCounts, rows,
  *  compared, reach, verdict, fails, infoDiffs}. `reach`: null or the reason the port cannot reach the state;
  *  `verdict`: Lean's rollup of every row, part rows included. `fails`: per part, the failing count/box/style items; `infoDiffs`: per part, the
- *  properties only the original declares whose values differ (never in a verdict). */
+ *  properties only the original declares whose values differ (never in a verdict). `byRect`: per part, the margin cells
+ *  Lean decided by the node's rect cell (Fw.Gate.marginStatus; `status` is that rect cell, `styleStatus` the style comparison). */
 export function readState(anchors, state, ev, variants = null) {
   const o = (state.orig.raw ?? state.orig).parts, r = (state.rewrite.raw ?? state.rewrite).parts;
-  const fails = {}, infoDiffs = {};
+  const fails = {}, infoDiffs = {}, byRect = {};
   for (const [pid, p] of ev.parts) {
     const roles = anchors.parts[pid].roles;
     // the variant role in force (Lean selected it the same way): its original count is shown from the counted role
     const w = (anchors.parts[pid].variantRoles ?? []).find((x) => x.variant === variants?.[pid]);
     fails[pid] = p.fails.map((it) => ({ ...it, ...(it.key === PAGE_ROOT_KEY ? { a: scrollWidthOf(state.orig), b: scrollWidthOf(state.rewrite) } : shown(roles, o?.[pid], r?.[pid], it, w)) }));
     infoDiffs[pid] = p.infoDiffs.map((it) => ({ ...it, ...shown(roles, o?.[pid], r?.[pid], it) }));
+    byRect[pid] = (p.byRect ?? []).map((it) => ({ ...it, ...shown(roles, o?.[pid], r?.[pid], it) }));
   }
   return {
     dev: ev.dev, achieved: ev.achieved,
@@ -121,7 +123,7 @@ export function readState(anchors, state, ev, variants = null) {
     truthCounts: ev.truthCounts,
     rows: Object.fromEntries(ev.rows), compared: Object.fromEntries(ev.compared),
     reach: ev.reach, verdict: ev.verdict,
-    fails, infoDiffs,
+    fails, infoDiffs, byRect,
   };
 }
 
