@@ -1172,7 +1172,8 @@ re-applies only `inherit` declarations (Source/WebCore/style/StyleResolver.cpp:6
 Source/WebCore/style/PropertyCascade.cpp:332-333@862f17d), so the own value is fresh and the var() properties are the
 cached ones. A CSSOM inline style is mutable, so the reader's declarations are not cacheable and the hash is 0
 (Source/WebCore/dom/StyledElement.cpp:93-105@862f17d, Source/WebCore/style/ElementRuleCollector.cpp:968-971,994-996@862f17d,
-MatchedDeclarationsCache.cpp:125-126@862f17d). -/
+MatchedDeclarationsCache.cpp:125-126@862f17d). The `.inline` branch takes these lines as given, not derived: `wkRun_inline`
+and `inline_visSame` hold under it. -/
 def wkResolve {α : Type} [DecidableEq α] (d : Delivery) (cache : List (WkEntry α)) (v : α) :
     (α × α) × List (WkEntry α) :=
   if d = .inline then ((v, v), cache)
@@ -1264,7 +1265,7 @@ def readerInputs (d : Delivery) (env : Bool × Bool × Bool × List String) (t :
     (o.1, (shown env.1 d env.2.2.1 o.2.2 env.2.2.2).getD t (none, none))
 
 /-- Every scene drawn from the readers' shown values is the same for `inline` and faithful, on both engines, at
-every frame of every write sequence. -/
+every frame of every write sequence, given the `.inline` branch of `wkResolve`. -/
 theorem inline_visSame (draw : List (String × Option String × Option String) → Fw.Engine.Scene)
     (vp : Bool × Bool × Bool × List String → Fw.Engine.Rect) :
     Fw.Engine.VisSame Fw.Engine.E vp (fun env t => draw (readerInputs .inherited env t))

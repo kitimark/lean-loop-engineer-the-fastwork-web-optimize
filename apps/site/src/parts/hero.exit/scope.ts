@@ -28,6 +28,26 @@ export function registerScoped(css: Partial<PropertyRegistry> | undefined): void
 /** Lean `readers`, selected by the attributes their parts render; scoped.test.ts checks it against the reader classes. */
 export const READER_SELECTOR = '[data-fw="hero"], [data-fw="hero-cue"], [data-orbit-id], [data-fw="hero-deck"] > article';
 
+export interface ReaderList {
+  get(): readonly HTMLElement[];
+  stop(): void;
+}
+
+/** The readers under `root`, queried again after a child-list or reader-attribute change below it. */
+export function liveReaders(root: Element): ReaderList {
+  const query = () => [...root.querySelectorAll<HTMLElement>(READER_SELECTOR)];
+  let list = query();
+  const mo = new MutationObserver(() => {
+    list = query();
+  });
+  mo.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-fw', 'data-orbit-id'] });
+  const get = () => {
+    if (mo.takeRecords().length) list = query();
+    return list;
+  };
+  return { get, stop: () => mo.disconnect() };
+}
+
 /** Lean `readerWrites`: what the driver writes on each reader for the stage write `opacity`. */
 export function readerWrites(reduced: boolean, opacity: string): [string, string][] {
   return [

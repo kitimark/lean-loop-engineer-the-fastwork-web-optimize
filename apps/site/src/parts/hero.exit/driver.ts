@@ -15,14 +15,15 @@ export interface TrackRect {
  * The faithful per-frame handler (N2:4155-4172): read the track's rect, write `--exit-opacity` and `pointer-events`
  * on the hero (a custom property on a subtree: the bad write the faithful variant keeps). Reduced motion is read at
  * each frame (`matches`), as the original does. `read` is the scroll callback's read phase (rect read, maths) and
- * returns the writer, so the engine can interleave (faithful) or batch the writes. `readers` (variant `scoped`) get
- * Lean `readerWrites` inline in the same writer (`Fw.Parts.HeroExitOpt.inline_visSame`).
+ * returns the writer, so the engine can interleave (faithful) or batch the writes. Each element `readers()` returns
+ * at the write (variant `scoped`) gets Lean `readerWrites` inline in the same writer
+ * (`Fw.Parts.HeroExitOpt.inline_visSame`).
  */
 export function createExitDriver(opts: {
   track: TrackRect;
   hero: ExitTarget;
   reduced: () => boolean;
-  readers?: readonly ExitReader[];
+  readers?: () => readonly ExitReader[];
 }) {
   return {
     read(viewportHeight: number): () => void {
@@ -34,9 +35,10 @@ export function createExitDriver(opts: {
         const opacity = String(r.opacity);
         opts.hero.style.setProperty('--exit-opacity', opacity);
         opts.hero.style.pointerEvents = r.pointerNone ? 'none' : '';
-        if (!opts.readers?.length) return;
+        const readers = opts.readers?.() ?? [];
+        if (!readers.length) return;
         const [[, own], [, scatter]] = readerWrites(reduced, opacity);
-        for (const el of opts.readers) {
+        for (const el of readers) {
           el.style.setProperty('--exit-opacity', own);
           el.style.setProperty('--exit-scatter', scatter);
         }

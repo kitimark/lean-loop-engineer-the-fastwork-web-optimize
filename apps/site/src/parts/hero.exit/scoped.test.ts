@@ -540,7 +540,7 @@ describe('inline writes on the readers (Lean inline_visSame)', () => {
       track: { getBoundingClientRect: () => ({ top: -400, height: 1600 }) },
       hero: el('stage'),
       reduced: () => false,
-      readers: [el('a'), el('b')],
+      readers: () => [el('a'), el('b')],
     });
     const w = d.read(800);
     expect(log).toEqual([]);
@@ -561,7 +561,7 @@ describe('inline writes on the readers (Lean inline_visSame)', () => {
       track: { getBoundingClientRect: () => ({ top: -400, height: 1600 }) },
       hero: el('stage'),
       reduced: () => true,
-      readers: [el('a')],
+      readers: () => [el('a')],
     });
     d.read(800)();
     expect(log).toEqual(['stage --exit-opacity 1', 'a --exit-opacity 1', 'a --exit-scatter 0']);
