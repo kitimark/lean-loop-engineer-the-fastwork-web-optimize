@@ -78,13 +78,13 @@ incremental lake (20 dc, 300) + 1 vitest (20, 1500) + 1 Docker run (20, 1500) + 
 (MEASURED [M§2, M§3]).
 
 Caps (CONFIRMED levers [C§1, C§5]): `.claude/settings.json` exports neither `LEAN_NUM_THREADS` nor `VITEST_MAX_WORKERS`
-(CONFIRMED, resource audit 2026-10-20). Instead, `scripts/lake-slot.sh` gives the
+(CONFIRMED, resource audit 2026-10-20). Instead, `scripts/lake-slot.sh` (functions in `scripts/lake-slot-lib.sh`) gives the
 scripted Lake builds (fwcore-build, and with it check.sh and the land queue, plus the land axiom lint) machine-wide
 slots. A build takes the first free slot (`Fw.Sched.LakeSlot.pick`): slot 0 keeps the full pool and the full-pool token,
 slot 1 runs with `LEAN_NUM_THREADS=4`, further builds wait. The old cap "at most one clean Lean build at a time" is
 replaced by "at most one full-pool build". Concurrent slotted builds run at most 12 Lake job-pool threads, i.e. at most
 12 concurrent lean processes (bound n = n + 4, `Fw.Sched.LakeSlot.held_threads_le`, `pick_within_bound`; the mapping
-from the model to OS processes is INFERRED, matched by the local debug peak of 12 lean children). The threads inside
+from the model to OS processes is INFERRED, matched by local debug peaks of 12 lean children in round 1 and 11 at commit 0109e9a). The threads inside
 each lean process are not bounded. A build that waited records the wait as the span `lake-slot/wait`; the check.sh
 span `lean/check` "lake build" includes that wait. Docker runs with `--cpus 2 -m 1500m` [C§4]; one Simulator lock. Lake has
 no `-j` flag, so the env var is the only lever (CONFIRMED lean4@eb6cafb src/runtime/object.cpp:1106-1113 [C§1]).
