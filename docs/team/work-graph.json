@@ -11383,7 +11383,8 @@
    "stream": "measure",
    "deps": [
     "webkit-lag-source",
-    "webkit-sim-failfast"
+    "webkit-sim-failfast",
+    "image-audit"
    ],
    "title": "Measure the two Safari lag regions (hero cards moving out; end of page) on the WebKit Simulator lane on CI: per scroll step style/layout/paint/composite counts, paint area, layer-tree commits and the layers with filter/backdrop-filter and their painted area, original vs faithful; localize the top steps to parts through the footprint; add the counters webkit-lag-source names as missing, reduced in Lean (Fw.Measure.WebKit zones) with goldens; output a ranked attribution per region that the candidate fixes are judged against",
    "writes": [
@@ -11393,6 +11394,25 @@
     "packages/contracts/golden/measure/webkit-lag*.jsonl",
     "research/notes/2026/10-2*-webkit-lag-probe.md",
     "docs/team/handoffs/webkit-lag-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "image-audit",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "User 2026-10-20 suspects unoptimized images in the Safari lag (hero cards moving out, end of page). Only morph.columns was judged (ledger row 14, model-only no-win; its 'WebKit decodes at drawn size' is INFERRED). (1) Audit on CI (Chromium and WebKit lanes): every image in the hero and end-of-page regions at each breakpoint and DPR: natural vs drawn size, format, bytes, decoded memory, ranked by waste; (2) WebKit source at the pin: decode policy (sync/async, iOS subsampling), whether a scaled draw is cached or re-sampled on each repaint, filter/blur interaction, decoded-image memory; CONFIRMED/INFERRED per claim; (3) build an images-at-drawn-size arm (flag or build variant, look identical within the PL tolerance) for webkit-lag-probe to A/B; Lean: an image cost term (natural pixels x repaints) proposal for Fw.Engine.WebKit",
+   "writes": [
+    "packages/measure-webkit/src/images/**",
+    "packages/gate-breakpoints/src/images/**",
+    "apps/site/src/flags/images/**",
+    "apps/site/public/images-drawn/**",
+    "lean/Fw/Engine/WebKitImage.lean",
+    "research/notes/2026/10-2*-image-audit.md",
+    "docs/team/handoffs/image-audit.md"
    ]
   }
  ],
