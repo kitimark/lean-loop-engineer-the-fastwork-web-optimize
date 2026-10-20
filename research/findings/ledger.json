@@ -2612,6 +2612,12 @@
    "task": "waapi-threshold-attr",
    "field": "mechanism",
    "text": "driver fix: data-fw-morph written at each threshold crossing (marker animations); Lean attr_band and waapi_vis over the written attribute, old_attr_stale counterexample; CI trajectory probe: 0 bug-B class or logo units on Chromium (both arms, all widths) and macOS WebKit (waapi 390/640/641/1280, 39471466367; waapi-scoped 390/641, 39472304195; waapi-scoped 640/1280 INFERRED, MEASURED at trajectory-admission); morph outcome fail on pre-existing nav.background-color units (partly the kit.mjs oklab artefact, kit-colour-space) and earn row F"
+  },
+  {
+   "entry": "dprSized images (KD#16: five 1282x1282 PNGs in ~138 px columns resized to drawn size x 1.2)",
+   "task": "image-audit",
+   "field": "mechanism",
+   "text": "Restated (image-audit): MEASURED negative finding on the drawn-size arm (all lag-region images, copies at 2x oversample, a request rewrite). Premise 'the arm renders visually identical within the PL tolerance' is REFUTED, run 39481653302 (3 reps, both engines): per-copy verify fails 158/268 on WebKit and 154/268 on Chromium; people.o/carousel/deck change verdict in 3 to 10 of 21 WebKit cells; the hero is unsettled in every cell; the morph pass at 0 ppm covers only architect-1096.png (the arm replaces 1 of 21 morph images, in 4 of 7 probes). Mechanism INFERRED from pixel diffs: a two-stage downscale (copy, then the browser's) is not the one-stage downscale of the source, and the difference grows with the source/drawn ratio. Lesson: an image arm is a rendering change to judge by a page-level screenshot per part at the probe DPR, and identity is a claim per replaced image. Lean: lean/Fw/Engine/WebKitImage.lean (40 theorems); its cost term has two INFERRED premises, P-resample (does CoreGraphics resample each repaint; the iOS kCGImageCachingTemporary comment points toward cached) and P-repaint (opacity/transform/backdrop layers are not repainted). No frame-time claim. next: task image-arm-v2."
   }
  ]
 }
