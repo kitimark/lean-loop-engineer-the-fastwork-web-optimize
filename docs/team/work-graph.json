@@ -10134,7 +10134,11 @@
     ".github/actions/**",
     "docs/team/tools/land.md",
     "docs/team/tools/preview-e2e.md",
-    "docs/team/handoffs/land-legs-followups.md"
+    "docs/team/handoffs/land-legs-followups.md",
+    ".github/scripts/cache-key.mjs",
+    ".github/scripts/gate-jobs.test.mjs",
+    "apps/runner/src/land.ts",
+    "docs/team/tools/gate-speed.md"
    ]
   },
   {
