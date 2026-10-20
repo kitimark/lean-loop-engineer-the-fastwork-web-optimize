@@ -8,9 +8,9 @@ inc-trajectory-pooled-window). Lean: Samp.rep, windowOne, windowOf = union of pe
 reduce.mjs mirrors it; the reps test (ramping original, stuck rewrite, 2 passes) fails on the old window.
 
 Verified (MEASURED, re-reduced from runs 39409003529, 39415671864, 39412301221, 39419128841): bug A WebKit only (Linux 228,
-macos-26 187 new in copy/cta/countdown/deck.card); bug B IS in Chromium (waapi: 205 new nav+logo units, 0 in A/A and the other
-two); bug C is baseline `both` (18 units Chromium). Linux WebKit push cells are "no verdict: coverage" (1150-1288 of 2208).
-Local at the last commit: lean check.sh, gate-breakpoints, ci-paths and apps/runner tests green.
+macos-26 187 new in copy/cta/countdown/deck.card); bug B IS in Chromium (waapi: 205 new nav+logo units, 0 in A/A, 1 in v2-proved,
+2 in hero.exit:scoped as approach flicker); bug C is baseline `both` (18 units Chromium). Linux WebKit push cells are "no verdict: coverage" (1150-1288 of 2208).
+Local at the last commit: lean check.sh, gate-breakpoints and ci-paths green; apps/runner has 1 failing test (plan.test, work-graph.json array over 32), a main-side graph error fixed at 5b2ca4e6, not from this task.
 
 Conventions
 - Lean decides (lean/Fw/Gate/Trajectory.lean); reduce.mjs is the twin, checked against packages/contracts/golden/gate/trajectory.jsonl

@@ -249,7 +249,7 @@ def passOf (orig : List Samp) (r : Nat) : List Samp := orig.filter (·.rep == r)
 is the union of the windows of the passes that have one, and none only when no pass has one. A pair of neighbours never
 crosses a pass boundary: the last sample of a pass (m = 1.0) and the first of the next (m = 0) would enclose every `m` and
 put both ends of the phase into every window, so a stuck class passed. Each of the rules of `windowOne` is decided per
-pass (`windowOf_mem`). -/
+pass (`windowOf_pass_iff`, `windowOf_none_iff`). -/
 def windowOf (orig : List Samp) (m : Option Int) : Option (List Samp) :=
   match (repsOf orig).filterMap fun r => windowOne (passOf orig r) m with
   | [] => none

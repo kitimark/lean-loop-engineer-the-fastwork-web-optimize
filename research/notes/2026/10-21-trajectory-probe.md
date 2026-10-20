@@ -89,7 +89,7 @@ Reading the table:
   `hero.copy`, `hero.cta`, `hero.countdown.unit`, `hero.deck.card` (reasons `apart`; props opacity 52, rect 79, transform 29, filter 21,
   translate 6 on macos-26) and `hero.cue` (42 more). Chromium has none. The default config and the 8-flag preset have none.
 - **Bug B (CONFIRMED in Chromium, round 2's "not witnessed" was the reducer bug):** `morph.tween:waapi` has 205 new nav and
-  logo content units in Chromium, 0 in the A/A control and 0 in the other two flag sets. They are in all 4 widths: nav
+  logo content units in Chromium, 0 in the A/A control, 1 in v2-proved and 2 in hero.exit:scoped (approach flicker). They are in all 4 widths: nav
   `cls.is-expanded` 37 (open@9, open@10, close@0 to close@8) and `cls.is-morphing` 35, logo `position` 35, `rect-in-nav` 34,
   `translate` 32, `transform-origin` 18, `color` 10, and 4 `nav.background-color` units at close@0 (one per width, the
   close half of B: the candidate keeps `is-expanded` until the end of the close). The same flag also fails 254 units of the
