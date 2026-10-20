@@ -1,29 +1,29 @@
-# Handoff: webkit-sim-failfast, round 2 (branch worktree-wf_d864cd42-ccc-2, CI branches ci/webkit-sim-failfast[-n1|-n2])
+# Handoff: webkit-sim-failfast, round 3 (final design round; branch worktree-wf_d864cd42-ccc-2, CI branches ci/webkit-sim-failfast-r3f, -r3n)
 
-Task: a dead Simulator inspector or dead Safari ends the webkit-sim job with exit 4 within the Lean-proved bound.
-Read first: lean/Fw/Measure/SimBound.lean, packages/measure-webkit/src/guard.mjs, research/notes/2026/10-20-macos-pool-v2.md.
+Read first: lean/Fw/Measure/SimBound.lean, packages/measure-webkit/src/guard.mjs, research/notes/2026/10-20-macos-pool-v2.md (rows 3, 4).
+Code head 5d557d07: Lean check.sh green, measure-webkit 108/108, ci-paths 47/47, land-inputs 55/55, 0 skipped, no skip in the diff.
 
-State
-- Lean `SimBound`: detect 85 s (tick 30 s, probe 25 s, 2 failed probes) + one relaunch 320 s + stall 360 s = `deadEndMs` 765 s;
-  `dead_run_ends`, `relaunch_at_most_once`, `giveUp_last`, `dead_forever_gives_up`; `job_min` = setup 6 + sessions + tail 10 (51 for one
-  determinism session). Wire ops `measure.inspector`, `measure.simBounds`; goldens in packages/contracts/golden/measure/.
-- TS stand-ins (checked against the goldens): `src/inspector.mjs`. Glue: `src/guard.mjs` (probe socket/proxy/page, relaunch once, no
-  second tab), `src/fault.mjs` (FW_WK_FAULT), `src/session.mjs` (guard wiring, end-of-run probe), `src/sim.mjs` helpers.
-- Workflow input `fault` (off by default) sets FW_WK_FAULT; a ci/* push carries no inputs, so the commit tokens fault:kill-safari and
-  fault:kill-proxy do the same (guard job also needs the lane token).
+Seen table (`SimBound.Seen`, the one home of measured maxima; the workflow comments and the note cite it)
+| what | value | run |
+|---|---|---|
+| longest green silence | 491 s | 39343967737 (others 318 s 39357736128, 266 s 39447981526, 259 s 39435518921) |
+| slowest boot step / setup | 305 s / 343 s | 39444758495 |
+`stallMs` = 720000 (main's 8 x 90000; `stall_covers_seen`: 10*stallMs >= 13*491000). `setupMin` = 8 (`setup_covers_seen`: 8*600 >= 13*343).
+`jobMin` = 8 + 35 per session + 10 (53 for one session). Note row 4 is withdrawn (491 s green silence > 6 min/1.3; saves 0).
 
-CI (webkit-sim, original, 1 session)
-- Fault kill-safari run 39444758495: first kill 15:18:26Z, "relaunching" 15:19:41Z, "giving up" 15:20:45Z, exit 4 (139 s, bound 765 s).
-- Fault kill-proxy run 39447914983: first kill 15:32:43Z, "relaunching" 15:33:14Z, "giving up" 15:34:33Z, exit 4 (111 s).
-- Normal runs 39447981526 and 39449995130: green, no probe false positive. 23-min failure (39426562165) did not recur.
-- Parity vs baseline 39102911639 (58 deterministic rows, per-row value vectors): 56/58 and 57/58 equal. The lane never gates on
-  differing rows (reduce.mjs `classify`: quarantined is "Reported, never gated on"); older main greens show 58/58, 57/58, 58/58.
-
+Lean (all proved, no sorry): `afterRelaunch ok` (false -> giveUp, true -> proceed) is used by `monitor ok ...`; `repairMs` = stop 2 s + lsof 5 s + proxy 35 s = 42 s;
+`deadEndMs` = 2*detect 85 + 2*repair 42 + relaunch 320 + exit 40 = 614 s; `detect_le_stall` stays the backstop.
+Two paths: `failed_relaunch_ends` (monitor = replicate n proceed ++ [relaunch, giveUp], n < 2, time + exit <= 487 s <= deadEndMs; CI path) and
+`dead_run_ends` (dead-again after a good relaunch, `timeMs` + exit <= deadEndMs; unit tests and goldens only, limit (a)).
+TS stand-in `inspectorAfterRelaunch` (inspector.mjs) checked against `measure.inspector` goldens (new optional `relaunchOk`); guard.mjs calls it; relaunch behaviour unchanged. Also: probeInspector uses the listPageTabs filter (tested).
+CI (webkit-sim, original, 1 session), runs used: 3 (2 planned + 1 rerun, see Open)
+- Fault kill-proxy run 39459660693 attempt 2 (head 5187d2f8): first kill 17:14:01Z, probe failed 17:14:02Z, 2nd failed + "relaunching" 17:14:07Z,
+  "giving up: relaunching Safari failed: lsof: ETIMEDOUT; exit code 4" 17:14:43Z, evidence line `cli: exit 4` 17:15:04Z = 63 s after the first kill (bound 614 s; failed-relaunch path).
+- Normal run 39459689946 (head 06f7419a, same code): green, `cli: exit 0`, no probe failure or relaunch line. Classes 58 deterministic / 14 stable / 32 quarantined
+  (39447981526: 56 / 10 / 38; baseline 39102911639: 58 deterministic); the quarantined census rows vary between runs (limit (f)).
 Open
-- Log line "forced exit ... 20 s later the process is alive; open: PipeWrap 2" predates this change (4 older green logs have it);
-  inside the 40 s exit budget, cause unexplained.
-- `terminate Safari` took 16 s of its 20 s bound in one fault run: a loaded runner could give up falsely; widen after more data.
-- Sync spawnSync calls can overrun a tick; cause of inspector deaths undiagnosed; census y=4500 layerCount varies between runs.
-- Used 4 of 6 webkit-sim runs.
-
-Convention: regenerate goldens with `lake env lean --run scripts/MeasureGolden.lean` in lean/; run `sh lean/scripts/check.sh`.
+- The first attempt of 39459660693 died at start with `error: lsof: ETIMEDOUT`, `cli: exit 1` (16:54:25Z, before the fault armed; startProxy lsof, unchanged code). I reran the failed job once (3rd run, over limit (i)).
+  lsof is slow on these runners (also the 5 s lsof in the relaunch); follow-up: lsof bound and retry.
+- Follow-ups: #5 relaunch holds a closed client, #6 end-of-run probe can relaunch, sim-seen-table, cause of inspector deaths.
+- Main moved on after the merge; the lead merges it again at land. No write outside the task's files; work-graph.json untouched.
+Convention: goldens: `lake build Fw.Measure.Golden Fw.Measure.Wire`, then `lake env lean --run scripts/MeasureGolden.lean` in lean/; rebuild fwcore before node tests.
