@@ -321,11 +321,30 @@ theorem afterLand_rebuilt (paths : List String) (h : touchesCore paths = true) :
     afterLand .done paths true = .proceed true := by
   simp [afterLand, needsRebuild, h]
 
-/-- Branch two, the point: the rebuild records main's head, so the preflight of the next entry finds fwcore fresh, whatever moved.
-$$\operatorname{after}(k,P,\mathit{ok}) = \mathrm{proceed}(\mathrm{true}) \Rightarrow \lnot\operatorname{stale}(\mathrm{some}\ c, \mathrm{true}, v)$$ -/
-theorem afterLand_rebuilt_fresh (k : Kind) (paths : List String) (ok : Bool) (c : String) (moved : Bool)
-    (_h : afterLand k paths ok = .proceed true) : fwcoreStale (some c) true moved = false :=
-  fwcoreFresh_same c moved
+/-- What the rebuild left behind: the exit status of `scripts/fwcore-build.sh` and the commit it recorded in `fwcore.commit` (none when it exits 0 without recording, e.g. a dirty tree).
+$$\mathrm{Out} = (\mathit{exit0} : \mathbb{B},\ \mathit{recorded} : \operatorname{Option}\ \mathrm{String})$$ -/
+structure RebuildOut where
+  exit0 : Bool
+  recorded : Option String
+
+/-- The rebuild worked only if it exited 0 and recorded main's head (TS: exit 0 and `fwcorePreflight` finds no refusal).
+$$\operatorname{ok}(o, h) = o.\mathit{exit0} \wedge o.\mathit{recorded} = \mathrm{some}\ h$$ -/
+def rebuildOk (o : RebuildOut) (head : String) : Bool := o.exit0 && o.recorded == some head
+
+/-- Branch two, the point: if the queue proceeds with a rebuilt core, the rebuild exited 0 and recorded main's head, so the preflight of the next entry (record against head) finds fwcore fresh, whatever moved.
+$$\operatorname{after}(k,P,\operatorname{ok}(o,h)) = \mathrm{proceed}(\mathrm{true}) \Rightarrow \lnot\operatorname{stale}(o.\mathit{recorded},\ o.\mathit{recorded} = \mathrm{some}\ h,\ v)$$ -/
+theorem afterLand_rebuilt_fresh (k : Kind) (paths : List String) (o : RebuildOut) (head : String) (moved : Bool)
+    (h : afterLand k paths (rebuildOk o head) = .proceed true) :
+    fwcoreStale o.recorded (o.recorded == some head) moved = false := by
+  have hok : rebuildOk o head = true := by
+    by_cases hk : rebuildOk o head = true
+    · exact hk
+    · have hf : rebuildOk o head = false := by simpa using hk
+      simp [afterLand, hf] at h
+      split at h <;> simp_all
+  simp only [rebuildOk, Bool.and_eq_true, beq_iff_eq] at hok
+  obtain ⟨_, h2⟩ := hok
+  simp [fwcoreStale, h2]
 
 /-- Branch three: a finished land that touched a core path and a failed rebuild: the queue stops.
 $$\operatorname{touches}(P) \Rightarrow \operatorname{after}(\mathrm{done},P,\mathrm{false}) = \mathrm{stop}$$ -/

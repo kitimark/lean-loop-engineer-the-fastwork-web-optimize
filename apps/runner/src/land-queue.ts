@@ -176,15 +176,16 @@ export async function runQueue(o: QueueOptions): Promise<{ ran: boolean; results
         done.push({ task: e.task, kind, tries, ms: Date.now() - t0, ...(reason !== undefined ? { reason } : {}) });
         if (before !== null && kind === "done") {
           // Lean `afterLand`: a land that changed a fwcore source rebuilds fwcore before the next dequeue; a failed rebuild stops the queue
-          const paths = o.diff!(before);
+          let paths: string[];
+          try { paths = o.diff!(before); } catch { paths = ["lean/"]; } // an unreadable diff fails closed into a rebuild
           if (!needsRebuild(kind, paths)) continue;
           const ok = await o.rebuild!().catch(() => false);
           const nk = stopKind(afterLand(kind, paths, () => ok));
           if (nk === null) continue;
           const nx = pending(readLog(o.consoleDir))[0];
+          const why = refusalReason(nk, REBUILD_REASON)!;
+          (o.err ?? ((l) => console.error(l)))(refusedLine(why));
           if (nx) {
-            const why = refusalReason(nk, REBUILD_REASON)!;
-            (o.err ?? ((l) => console.error(l)))(refusedLine(why));
             appendFileSync(queueFile(o.consoleDir), JSON.stringify({ ev: "res", task: nx.task, kind: nk, tries: 0, ms: 0, at: Date.now(), reason: why }) + "\n");
             done.push({ task: nx.task, kind: nk, tries: 0, ms: 0, reason: why });
           }

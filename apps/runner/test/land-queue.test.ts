@@ -89,13 +89,14 @@ describe("runner lock", () => {
 describe("runQueue", () => {
   const entry2 = (dir: string, t: string) => enqueue(dir, { task: t, branch: `w-${t}`, allow: [] });
   // task land-queue-fwcore-rebuild: the incident (a land that touched lean/, entries queued behind it refused fwcore-stale)
+  // The mocked attempt is refused `stale` while a core path changed since the last rebuild (the preflight of the real land).
   const rebuildOpts = (dir: string, changed: Record<string, string[]>, built: string[], ok = true) => {
-    let head = 0; const heads: string[] = ["h0"];
-    return { consoleDir: dir, retryMs: 1,
-      head: () => heads[head]!,
-      diff: (_from: string) => changed[Object.keys(changed)[head - 1]!] ?? [],
-      rebuild: async () => { built.push(`after-${head}`); return ok; },
-      attempt: async (e: { task: string }) => { head++; heads.push(`h${head}`); void e; return "done" as Kind; } };
+    let n = 0; let fresh = true; const order = Object.keys(changed);
+    const attempt = async () => { if (!fresh) return "stale" as Kind; n++; if ((changed[order[n - 1]!] ?? []).some((p) => p.startsWith("lean/") || p === "scripts/fwcore-build.sh")) fresh = false; return "done" as Kind; };
+    return { consoleDir: dir, retryMs: 1, attempt,
+      head: () => `h${n}`,
+      diff: (_from: string) => changed[order[n - 1]!] ?? [],
+      rebuild: async () => { built.push(`after-${n}`); fresh = ok; return ok; } };
   };
   it("a land that touched lean/ rebuilds fwcore before the next entry, which is then not refused stale", async () => {
     const dir = tmp();
@@ -104,6 +105,30 @@ describe("runQueue", () => {
     const r = await runQueue(rebuildOpts(dir, { a: ["lean/Fw/X.lean"], b: ["docs/x.md"], c: [] }, built));
     expect(built).toEqual(["after-1"]); // only after the first land
     expect(r.results.map((x) => [x.task, x.kind])).toEqual([["a", "done"], ["b", "done"], ["c", "done"]]);
+  });
+  it("negative control: without the rebuild options the entry behind a lean/ land is refused stale", async () => {
+    const dir = tmp();
+    ["a", "b"].forEach((t) => entry2(dir, t));
+    const { head, diff, rebuild, ...bare } = rebuildOpts(dir, { a: ["lean/Fw/X.lean"] }, []);
+    void head; void diff; void rebuild;
+    const r = await runQueue({ ...bare, maxTries: 1 });
+    expect(r.results.map((x) => [x.task, x.kind])).toEqual([["a", "done"], ["b", "stale"]]);
+  });
+  it("a diff that throws fails closed into a rebuild", async () => {
+    const dir = tmp();
+    ["a", "b"].forEach((t) => entry2(dir, t));
+    const built: string[] = [];
+    const r = await runQueue({ ...rebuildOpts(dir, { a: ["lean/Fw/X.lean"] }, built), diff: () => { throw new Error("git"); } });
+    expect(built).toEqual(["after-1", "after-2"]); // every land rebuilds: the diff is unknown
+    expect(r.results.map((x) => x.kind)).toEqual(["done", "done"]);
+  });
+  it("a failed rebuild with nothing pending still prints the refused line", async () => {
+    const dir = tmp();
+    entry2(dir, "a");
+    const errs: string[] = [];
+    const r = await runQueue({ ...rebuildOpts(dir, { a: ["lean/Fw/X.lean"] }, [], false), err: (l) => errs.push(l) });
+    expect(r.results.map((x) => x.kind)).toEqual(["done"]);
+    expect(errs).toEqual([`REFUSED: ${REBUILD_REASON}`]);
   });
   it("a failed rebuild gives the next entry the kind rebuild (not stale), stops the queue and leaves the rest pending", async () => {
     const dir = tmp();

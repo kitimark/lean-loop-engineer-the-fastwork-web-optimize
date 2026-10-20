@@ -2,7 +2,7 @@
 import { Command } from "@fw/contracts";
 import { NO_API_GROUPS, UsageError, apiBase, gitFullRef, renderBoard, send, stepCommand, taskCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
-import { httpFor, land, type LandResult } from "./land.ts";
+import { fwcorePreflight, httpFor, land, type LandResult } from "./land.ts";
 import { dryRun, exitCode, outcome, outcomeKind, verdictLine } from "./land-verdict.ts";
 import { gitOnMain, lintCli, renderPlan, syncCommands, syncRefusal, type WorkGraph } from "./plan.ts";
 import { readFileSync } from "node:fs";
@@ -132,8 +132,8 @@ try {
           },
           // glue for Lean `afterLand`: a land that changed a fwcore source rebuilds fwcore (in the main checkout, timed) before the next entry
           head: () => execFileSync("git", ["rev-parse", "main"], { cwd: mainDir, encoding: "utf8" }).trim(),
-          diff: (from) => execFileSync("git", ["diff", "--name-only", from, "main"], { cwd: mainDir, encoding: "utf8" }).split("\n").filter(Boolean),
-          rebuild: async () => (await span("fw land", "fwcore rebuild (queue)", async () => spawnSync("sh", ["scripts/fwcore-build.sh"], { cwd: mainDir, stdio: ["ignore", 2, 2] }).status ?? 1, (st) => st)) === 0 } );
+          diff: (from) => execFileSync("git", ["diff", "--name-only", "--no-renames", from, "main"], { cwd: mainDir, encoding: "utf8" }).split("\n").filter(Boolean),
+          rebuild: async () => (await span("fw land", "fwcore rebuild (queue)", async () => spawnSync("sh", ["scripts/fwcore-build.sh"], { cwd: mainDir, stdio: ["ignore", 2, 2] }).status ?? 1, (st) => st)) === 0 && fwcorePreflight(mainDir, "main") === null }); // Lean rebuildOk: exit 0 and the record names main
         for (const r of run.results) console.log(verdictLine(r.kind, r.task));
         const own = run.results.find((r) => r.task === t);
         if (!own) console.log(verdictLine("queued", t)); // another runner (or --no-run) will land it
