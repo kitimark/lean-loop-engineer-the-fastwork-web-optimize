@@ -10353,6 +10353,30 @@
     "research/notes/2026/10-20-gh-budget-watch-expiry.md"
    ],
    "evidence": "8a6610d"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-auto-margin-x",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [
+    "cmr-margin-rect-rule"
+   ],
+   "title": "cmr-margin-rect-rule review: the margin rule hands a non-fixed margin to the node's rect cell, but anchors.json compares only w for commission/inner and commission/rows, so a real centring shift (margin-inline 132px vs 0px at equal width) would pass. Unit: every node whose margin cells the rule decides by rect has x (inline-start offset relative to its parent's content box, in layout space) in its compared dims, decided in Lean from the margin rule (a margin decided by rect implies the inline position is compared), not hand-listed; goldens; >= 1 CI run showing those cells compare x; plus the Premise.lean cv.margin-typed-om binder fix (forall n)",
+   "writes": [
+    "packages/gate-breakpoints/src/**",
+    "packages/gate-breakpoints/test/**",
+    "lean/Fw/Gate/**",
+    "lean/Fw/Wire/Gate*.lean",
+    "packages/contracts/golden/gate/**",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2*-gate-auto-margin-x.md",
+    "docs/team/handoffs/gate-auto-margin-x.md"
+   ]
   }
  ],
  "deadline": {
