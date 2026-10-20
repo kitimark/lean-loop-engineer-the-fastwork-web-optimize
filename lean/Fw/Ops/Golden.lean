@@ -47,6 +47,18 @@ def openS (s extra : String) : Json :=
 def roles : String :=
   "[{\"name\":\"lean-prover\",\"runsAs\":\"worktree\",\"edits\":true},{\"name\":\"researcher\",\"runsAs\":\"teammate\",\"edits\":true},{\"name\":\"reviewer\",\"runsAs\":\"subagent\",\"edits\":false},{\"name\":\"Explore\",\"runsAs\":\"subagent\",\"edits\":false}]"
 
+/-- Facts for the `console.compose` cases: parts of three regions (the list is given out of page order), one `requires`, one `conflicts`
+(synthetic), a look-change variant, a refuted one, an unrated one, and presets (one resolving to a refuted pick). -/
+def cmpReg : Json := lit "{\"parts\":[{\"id\":\"morph.tween\",\"slot\":\"morph\",\"impls\":[\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"waapi\",\"kind\":\"optimized\"},{\"name\":\"waapi-scoped\",\"kind\":\"optimized\"}]},{\"id\":\"hero.countdown\",\"slot\":\"hero\",\"impls\":[\"mui\",\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"strip\",\"kind\":\"optimized\"},{\"name\":\"one-chain\",\"kind\":\"optimized\",\"limit\":\"look change: the second chain is dropped\"}]},{\"id\":\"morph.countdown\",\"slot\":\"morph\",\"impls\":[\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"strip\",\"kind\":\"optimized\"}],\"requires\":{\"morph.countdown:strip\":[\"hero.countdown:strip\"]}},{\"id\":\"nav.hitTest\",\"slot\":\"nav\",\"impls\":[\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"hit-skip\",\"kind\":\"optimized\"}],\"conflicts\":{\"nav.hitTest:hit-skip\":[\"engine.scroll:batched\"]}},{\"id\":\"engine.scroll\",\"slot\":\"engine\",\"impls\":[\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"batched\",\"kind\":\"optimized\"}]},{\"id\":\"pain.notes\",\"slot\":\"pain\",\"impls\":[\"plain\"],\"variants\":[{\"name\":\"faithful\",\"kind\":\"faithful\"},{\"name\":\"visible\",\"kind\":\"optimized\"}]}],\"presets\":[{\"name\":\"original\",\"fw\":{}},{\"name\":\"strip-demo\",\"extends\":\"original\",\"fw\":{\"hero.countdown\":\"strip\"}},{\"name\":\"v2-proved\",\"extends\":\"original\",\"fw\":{\"engine.scroll\":\"batched\",\"pain.notes\":\"visible\"}},{\"name\":\"bad\",\"extends\":\"original\",\"fw\":{\"morph.tween\":\"waapi\"}},{\"name\":\"loop\",\"extends\":\"loop\",\"fw\":{}}]}"
+
+/-- The ledger rows of the `console.compose` cases. -/
+def cmpLedger : String :=
+  "[{\"part\":\"engine.scroll\",\"candidate\":\"engine.scroll `batched`\",\"status\":\"measured\",\"flag\":\"engine.scroll:batched\"},{\"part\":\"pain.notes\",\"candidate\":\"pain.notes `visible`\",\"status\":\"measured\",\"flag\":\"pain.notes:visible\"},{\"part\":\"morph.tween\",\"candidate\":\"morph.tween `waapi`\",\"status\":\"refuted\",\"flag\":\"morph.tween:waapi\"},{\"part\":\"hero.countdown\",\"candidate\":\"hero.countdown `strip`\",\"status\":\"measured\"},{\"part\":\"hero.countdown\",\"candidate\":\"hero.countdown `one-chain`\",\"status\":\"measured\"},{\"part\":\"nav.hitTest\",\"candidate\":\"nav.hitTest, another idea\",\"status\":\"open\"}]"
+
+/-- A `console.compose` request over the registry above with the given picks (a JSON array text) and ledger. -/
+def cmp (picks : String) (ledger : String := cmpLedger) : Json :=
+  lit s!"\{\"registry\":{cmpReg.compress},\"picks\":{picks},\"ledger\":{ledger}}"
+
 /-- A spawn request with the roles above, the given alive list, extra top-level fields and call. -/
 def spawn (alive extra call : String) : Json :=
   lit s!"\{\"alive\":{alive},\"roles\":{roles},\"now\":1000{extra},\"req\":{call}}"
@@ -661,6 +673,24 @@ def extra (_ : Unit := ()) : List (String × String × List (String × Json)) :=
     ("a bad charset opens nothing", openS "?fw=hero.exit:scoped%20x" "{\"previews\":[]}"),
     ("an unknown arm is refused", lit "{\"mode\":\"row\",\"arm\":\"x\",\"slot\":\"s\",\"sha\":\"m9\",\"previews\":[]}"),
     ("an unknown mode is refused", lit "{\"mode\":\"x\",\"previews\":[]}")]),
+  ("console", "console.compose", [
+    ("no picks: every part at its default, the empty search is the default page", cmp "[]"),
+    ("a measured pick opens its flag", cmp "[{\"part\":\"hero.countdown\",\"variant\":\"strip\"}]"),
+    ("picks in any order give one canonical search, in page order", cmp "[{\"part\":\"pain.notes\",\"variant\":\"visible\"},{\"part\":\"hero.countdown\",\"variant\":\"strip\"}]"),
+    ("a pick of the default variant adds nothing", cmp "[{\"part\":\"hero.countdown\",\"variant\":\"faithful\"}]"),
+    ("a look-change variant is allowed and classed look-change in the table", cmp "[{\"part\":\"hero.countdown\",\"variant\":\"one-chain\"}]"),
+    ("a refuted variant is refused with its reason, no link", cmp "[{\"part\":\"morph.tween\",\"variant\":\"waapi\"}]"),
+    ("an unrated variant (no ledger row) is allowed", cmp "[{\"part\":\"morph.tween\",\"variant\":\"waapi-scoped\"}]"),
+    ("a requires violation is refused", cmp "[{\"part\":\"morph.countdown\",\"variant\":\"strip\"}]"),
+    ("the requirement chosen too: allowed", cmp "[{\"part\":\"morph.countdown\",\"variant\":\"strip\"},{\"part\":\"hero.countdown\",\"variant\":\"strip\"}]"),
+    ("a conflicts violation is refused", cmp "[{\"part\":\"nav.hitTest\",\"variant\":\"hit-skip\"},{\"part\":\"engine.scroll\",\"variant\":\"batched\"}]"),
+    ("an unknown part is refused", cmp "[{\"part\":\"hero.nothing\",\"variant\":\"strip\"}]"),
+    ("an unknown variant is refused", cmp "[{\"part\":\"hero.countdown\",\"variant\":\"nope\"}]"),
+    ("two proved variants of coupled parts: allowed, with the coupling notes", cmp "[{\"part\":\"pain.notes\",\"variant\":\"visible\"},{\"part\":\"engine.scroll\",\"variant\":\"batched\"},{\"part\":\"morph.tween\",\"variant\":\"waapi-scoped\"}]"),
+    ("the last pick of a part wins", cmp "[{\"part\":\"hero.countdown\",\"variant\":\"one-chain\"},{\"part\":\"hero.countdown\",\"variant\":\"strip\"}]"),
+    ("no ledger rows: every non-default variant is unrated", cmp "[]" "[]"),
+    ("a malformed ledger row is refused", cmp "[]" "[{\"part\":\"a\"}]"),
+    ("a missing registry is refused", lit "{\"picks\":[],\"ledger\":[]}")]),
   ("console", "console.buildsPicker", [
     ("keys of a build: default first, then presets, then flags, each in key order", lit "{\"keys\":[\"?fw=hero.countdown:strip\",\"?preset=v2-proved\",\"\",\"?fw=a:b,c:d\",\"?preset=original\"],\"current\":\"?fw=a:b,c:d\"}"),
     ("an unknown current search falls back to the default", lit "{\"keys\":[\"\",\"?preset=original\"],\"current\":\"?fw=zzz\"}"),
