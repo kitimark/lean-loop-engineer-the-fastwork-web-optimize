@@ -33,8 +33,9 @@ flags, as discrete keyframes at the eased-progress offset, flip on the same fram
 every other stage, in both engine tables (a custom property animates on the main thread in both). MT-R
 (`registrations_see`, `morph_scope_eq`): `--morph` and `--morph-fade` are registered inherited, so every reader below
 the nav (the hosted panel included) sees the animated value and the style invalidation scope on the nav equals the
-original's. On the platform section the waapi arm restyles the subtree on frames where the original does not
-(`waapi_section_finding`); the `waapi-scoped` arm restyles no descendant there (`scoped_below_nil`, `fade_eq`).
+original's. On the platform section the waapi arm restyles the subtree's dependent elements on frames where the
+original does not (`waapi_section_finding`); the `waapi-scoped` arm restyles no descendant there (`scoped_below_nil`,
+`fade_eq`).
 Golden rows (predictions, registrations, readers): `packages/contracts/golden/parts/morph-tween-waapi.jsonl`
 (`goldenJsonl`).
 -/
@@ -1456,7 +1457,8 @@ def frameBelow (inh : Bool) (x y : Rat) (ds : List Nat) : List Nat :=
 
 /-- **MT-R, refuted premise.** Once the fade has clamped (`m, m' ≥ 0.55`), the original's inherited `--morph-fade`
 stops changing and restyles no strict descendant of the section, while the waapi arm's inherited `--morph` still
-changes and restyles every one. -/
+changes and restyles every descendant in `ds` (the elements the engine recalcs on an inherited change: `var()`
+references, animations; INFERRED model). -/
 theorem waapi_section_finding (m m' : Rat) (ds : List Nat) (hm : fadeEnd ≤ m) (hm' : fadeEnd ≤ m')
     (hne : m ≠ m') :
     frameBelow true (fade m) (fade m') ds = [] ∧ frameBelow true m m' ds = ds.filter (0 < ·) := by
