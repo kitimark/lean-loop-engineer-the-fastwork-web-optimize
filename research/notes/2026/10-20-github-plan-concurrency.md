@@ -19,6 +19,11 @@ Question (user, 2026-10-20): can GitHub Actions pricing scale our macOS capacity
   One seat would give 50 macOS and 500 total concurrent jobs while minutes stay free (INFERRED: the limits table is per
   plan and does not say whether it applies to public-repository minutes; a trial settles it).
 - It needs the repository in an organization under an enterprise account (a transfer; GitHub redirects the old URL).
+- "Enterprise with personal accounts" does not avoid the move: members sign in with their personal accounts, but the
+  enterprise owns and bills organizations, and "Repositories are owned by organizations and are not directly accessible
+  under the enterprise account" [4]; billing covers "usage within all organizations owned by the enterprise" [5]. A
+  repository in a personal account stays on that account's plan (Free or Pro: 5 macOS) (INFERRED from [4][5]; neither page
+  names personal repositories explicitly).
 
 ## Facts
 
@@ -45,3 +50,5 @@ Linux 2-core x64 $0.006, arm64 $0.005 [2].
 1. https://docs.github.com/en/actions/reference/limits
 2. https://docs.github.com/en/billing/reference/actions-runner-pricing
 3. https://github.com/pricing
+4. https://docs.github.com/en/enterprise-cloud@latest/admin/concepts/enterprise-fundamentals/enterprise-accounts
+5. https://docs.github.com/en/enterprise-cloud@latest/admin/managing-your-enterprise-account/creating-an-enterprise-account
