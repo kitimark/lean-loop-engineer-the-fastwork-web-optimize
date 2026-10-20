@@ -48,6 +48,24 @@ TS stand-ins: `normalizeGithub` (the state is Lean's `laneState`), `awaitRemote`
 TS stand-in, marked for Lean replacement: `prelockAction` (no fwcore op yet); checked against the `landSpeed.prelock` golden.
 First-in-first-out landing: `land-queue.md`.
 
+## The lane runs as parallel legs (task land-lane-speed)
+
+`land.yml` job `land` is a matrix over the legs Lean names (`Fw.Console.LandLegs`, `lean/land-legs.txt`: `suites-a suites-b chromium
+playwright-webkit`). Every leg checks out, builds fwcore and selects the same checks (`fw checks --affected --tier remote --leg <name>`),
+then does only its part, so the wall time of the lane is the slowest leg:
+- `suites-a` runs `apps/runner`, `packages/gate-breakpoints`, `measure-chromium`, `engine-check`, `e2e-preview`; `suites-b` runs `apps/console-api`
+  and `packages/gh-budget` (Lean `shardA`/`shardB`; `shards_perm`, `shards_disjoint`, `suites_cover`: no check dropped or run twice).
+- An engine leg runs the preview browser suite on its engine iff the selection holds the e2e-preview check (`engineRuns`;
+  `chromium_runs_of_selected`, `webkit_runs_of_selected`, `engines_idle_of_unselected`). The browser is installed only then
+  (`LANE leg=<name> engine=<bool> checks=<n>`); without the check the leg ends after the selection.
+- All legs print the same `LANE digest=` (the whole remote tier) and the same `lane: sha=.. digest=..` step; `bind` reads any job's step.
+- Verdict over all legs: GitHub's run conclusion is failure when any leg failed (`fail-fast: false`, so every leg reports); the adapter
+  also asks `console.landLegs` (Lean `legsOk`: every leg passed, a lane with no leg never passes) over the run's job conclusions, so a
+  `success` run with a leg that did not pass is `fail` (`legsOk_fail_wins`, `legsOk_empty`). Golden `land-legs.jsonl`; TS only replays it
+  (`apps/runner/test/land-legs.test.ts`, which also holds the matrix in land.yml equal to `land-legs.txt`).
+- Cost: one runner per leg (free runners; four per land, the engine legs idle after setup when no browser suite is selected). Numbers and
+  the phases that remain: `research/notes/2026/10-20-land-lane-speed.md`. Not changed: the local tier already starts with the push.
+
 ## `--dry` and verdict lines
 
 Hand-back rule: before an agent hands a branch back it merges `main` into it and runs `pnpm fw land <branch> --task <id>

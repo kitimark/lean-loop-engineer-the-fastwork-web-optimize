@@ -102,7 +102,7 @@ describe("a recorded lane run (live proof of task land-wait: ci/land-probe-30a30
     expect(remoteVerdict(call, { localOk: true, needed: true, allow: ["github"], want: w, waitsLeft: 0, runs: [run] })).toMatchObject({ kind: "refuse", reason: "remote-lane-failed" });
   });
   it("derived: the same record with conclusion success and exit 0 is accepted for its sha and not for another", () => {
-    const run = norm(0, { ...v, conclusion: "success" }, { marker: v.headSha, want: w });
+    const run = norm(0, { ...v, conclusion: "success", jobs: v.jobs?.map((j) => ({ ...j, conclusion: "success" })) }, { marker: v.headSha, want: w }); // every job passed too (a failed leg vetoes, land-legs.test.ts)
     expect(remoteVerdict(call, { localOk: true, needed: true, allow: ["github"], want: w, waitsLeft: 0, runs: [run] }).kind).toBe("accept");
     expect(remoteVerdict(call, { localOk: true, needed: true, allow: ["github"], want: { ...w, sha: "e".repeat(40) }, waitsLeft: 0, runs: [run] }).kind).not.toBe("accept");
   });
