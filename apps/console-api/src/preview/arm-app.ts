@@ -19,6 +19,7 @@ import { OwnerAuth, LOOPBACK_HOST } from "./owner.ts";
 import { isLoopback } from "./lan.ts";
 import { remoteOf } from "./gate.ts";
 import { Grants } from "./grants.ts";
+import type { ReturnStore } from "./return.ts";
 
 const DROP = new Set(["connection", "keep-alive", "transfer-encoding", "set-cookie", "upgrade", "proxy-authenticate"]);
 const agent = new http.Agent({ keepAlive: true, maxSockets: 64 });
@@ -39,7 +40,7 @@ export const localPortOf = (c: Context): number | undefined =>
 export const armHostOk = (host: string | undefined, port: number, lanAddr: string | null): boolean =>
   !!host && ((LOOPBACK_HOST.test(host) && host.endsWith(`:${port}`)) || (lanAddr !== null && host === `${lanAddr}:${port}`));
 
-export function createArmApp(core: Core, owner: OwnerAuth, pm: PreviewManager, opts: { lan: boolean; lanAddr?: string | null; grants?: Grants }) {
+export function createArmApp(core: Core, owner: OwnerAuth, pm: PreviewManager, opts: { lan: boolean; lanAddr?: string | null; grants?: Grants; returns?: ReturnStore }) {
   const app = new Hono();
   app.onError((e, c) => c.json({ ok: false, reason: `decision core failed: ${e.message}` }, 500));
   const grants = opts.grants ?? new Grants(core, () => undefined);
@@ -61,6 +62,10 @@ export function createArmApp(core: Core, owner: OwnerAuth, pm: PreviewManager, o
     if (r.allow !== true) {
       if (lan && !hostOk) return c.json({ ok: false, reason: "unknown host" }, 421);
       const msg = "preview access needed: open this link from the console task page, after logging in there";
+      if (hostOk && wantsHtml(c) && opts.returns) {
+        const to = await opts.returns.redirectFor({ html: true, host: c.req.header("host"), port, pathq });
+        if (to) return c.redirect(to, 303);
+      }
       if (wantsHtml(c)) return c.html(`<!doctype html><meta charset="utf-8"><title>fw preview</title><p>${msg}.</p>`, 401);
       return c.json({ ok: false, reason: msg }, 401);
     }

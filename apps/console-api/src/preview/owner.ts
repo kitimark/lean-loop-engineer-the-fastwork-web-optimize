@@ -61,6 +61,7 @@ export class OwnerAuth {
   /** The console port and the preview port (set once both listen). With them, a loopback Host must name the right port. */
   setPorts(consolePort: number, previewPort: number): void { this.ports = { console: consolePort, preview: previewPort }; }
   get previewPort(): number | null { return this.ports?.preview ?? null; }
+  get consolePort(): number | null { return this.ports?.console ?? null; }
 
   /** LAN mode: the `host:port` strings this console (and its preview port) answers to besides loopback (set at start, never persisted). */
   setLanHosts(hosts: string[], previewHosts: string[] = []): void { this.lanHosts = hosts; this.lanPreviewHosts = previewHosts; }

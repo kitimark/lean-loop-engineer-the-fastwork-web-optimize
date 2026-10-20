@@ -17,6 +17,7 @@ import { LoginGuard, readPassphrase, KEYCHAIN_HINT } from "./preview/login.ts";
 import { pickLanAddr } from "./preview/lan.ts";
 import { createPreviewApp } from "./preview/preview-app.ts";
 import { createArmApp } from "./preview/arm-app.ts";
+import { ReturnStore } from "./preview/return.ts";
 import { ArmServers } from "./preview/arm-servers.ts";
 
 /** HEAD of the checkout the code runs from (null when git is unavailable). */
@@ -81,10 +82,11 @@ if (wantLan && lanAddr === null) {
 }
 const login = new LoginGuard(core, passphrase);
 const grants = new Grants(core, (rec) => previews.audit(rec));
-const app = createApp(store, join(here, "../../console-web/dist"), reconciler, previews, owner, service, { login, lan: lanAddr !== null, grants });
-const previewApp = createPreviewApp(core, owner, previews, { lan: lanAddr !== null, grants });
+const returns = new ReturnStore(core, owner, () => previews.liveTable());
+const app = createApp(store, join(here, "../../console-web/dist"), reconciler, previews, owner, service, { login, lan: lanAddr !== null, grants, returns });
+const previewApp = createPreviewApp(core, owner, previews, { lan: lanAddr !== null, grants, returns });
 // every arm of a preview has its own origin: one listener per arm port, opened when the preview begins serving (manager.ts)
-const armApp = createArmApp(core, owner, previews, { lan: lanAddr !== null, lanAddr, grants });
+const armApp = createArmApp(core, owner, previews, { lan: lanAddr !== null, lanAddr, grants, returns });
 previews.useArms(new ArmServers(armApp.fetch, lanAddr));
 
 setInterval(() => { void app.drain.run().catch((e) => console.error("spool drain failed:", e)); }, 2000).unref();
