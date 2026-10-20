@@ -31,6 +31,14 @@ without a bound, so `status` prints the log size and warns above 50 MiB (`pnpm f
   LAN address printed in the log when started with `--lan` (needs a passphrase of at least 12 characters). Loopback is
   admitted by Lean (`login_loopback`), the LAN with the right Host (`login_lan_or_loopback`). After login the browser holds
   the owner token, and previews work.
+- **Login return link** (Lean `console.loginReturn`, `Fw/Console/PreviewReturn.lean`). A browser (HTML GET) without the owner session that
+  opens a preview arm link or a `/preview/<id>/` path is redirected (303) to the console `/owner/login?r=<nonce>` on the same host name;
+  after the login it lands on the exact link (path and query). The server holds the link under a random nonce for 10 minutes (at most
+  256, single use); only the nonce travels, never a cookie. A link is kept only if it is on a live arm port (or a live preview path on the
+  preview port), starts with one `/`, is at most 2000 characters and holds only A-Z a-z 0-9 `. : , - _ @ = & / ?` (no `%`, `#`, `\`,
+  space or quote), and the Host names this console (identity, not inference). Anything else logs in plain and lands on `/`. After the
+  login Lean checks the link against the current table: live, the link; stopped, `/?tab=builds&note=stopped` (the Builds tab with
+  "That preview has stopped; press Open."); never an unknown target. API and non-GET requests keep 401. The console-port redirect has no return.
 - A one-time link in your own terminal: start the console from that terminal (`pnpm --filter @fw/console-api start`) and
   run `pnpm --filter @fw/console-api owner-link` there. It signals only a console that proves itself by `/api/health`.
   A detached console has no terminal, so `owner-link` prints nothing to it.
