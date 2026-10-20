@@ -11557,7 +11557,8 @@
     "packages/gate-breakpoints/test/trajectory.test.mjs",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-transition-window.md"
-   ]
+   ],
+   "evidence": "56276eb"
   },
   {
    "devices": [
