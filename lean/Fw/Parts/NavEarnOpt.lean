@@ -373,6 +373,8 @@ def rowAt (v : Nav.Vp) (a b : Rat) (n : String) (k : Nat) : Option Row :=
 #guard countFor ⟨1440, 900⟩ 1 0 "maxW" == some ⟨65, 65, 81, 81⟩
 #guard (rowAt ⟨1440, 900⟩ 0 1 "maxW" 10).all fun r => r.arm == 0 && r.faithful > 150
 #guard (rowAt ⟨1440, 900⟩ 0 1 "opacity" 10).all fun r => r.arm == 0 && r.faithful == 1
+#guard (rowAt ⟨1440, 900⟩ 1 0 "opacity" 37).all fun r => r.faithful == 0 && r.arm > 99 / 100
+#guard (rowAt ⟨1440, 900⟩ 1 0 "maxW" 37).all fun r => r.faithful < 5 && r.arm > 174
 
 /-- The golden lines `packages/contracts/golden/parts/nav-earn.jsonl`. -/
 def lines : List String :=
