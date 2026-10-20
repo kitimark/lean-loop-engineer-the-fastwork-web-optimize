@@ -9584,7 +9584,8 @@
     "apps/site/src/parts/pain.notes/index.tsx",
     "apps/site/src/parts/pain.notes/logic.test.ts",
     "packages/contracts/golden/parts/pain.notes.jsonl"
-   ]
+   ],
+   "evidence": "95a4dfd"
   },
   {
    "devices": [
