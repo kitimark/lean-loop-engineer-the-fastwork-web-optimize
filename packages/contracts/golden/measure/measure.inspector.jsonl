@@ -1,0 +1,7 @@
+{"name":"socket present, proxy answers: proceed","request":{"op":"measure.inspector","refusals":0,"relaunched":false,"socket":true},"response":{"action":"proceed","dead":false,"exitCode":4}}
+{"name":"one refusal: the proxy is started again","request":{"op":"measure.inspector","refusals":1,"relaunched":false,"socket":true},"response":{"action":"proceed","dead":false,"exitCode":4}}
+{"name":"no socket, no relaunch yet: relaunch Safari","request":{"op":"measure.inspector","refusals":0,"relaunched":false,"socket":false},"response":{"action":"relaunch","dead":true,"exitCode":4}}
+{"name":"refused twice, no relaunch yet: relaunch Safari","request":{"op":"measure.inspector","refusals":2,"relaunched":false,"socket":true},"response":{"action":"relaunch","dead":true,"exitCode":4}}
+{"name":"no socket after the relaunch: give up","request":{"op":"measure.inspector","refusals":0,"relaunched":true,"socket":false},"response":{"action":"giveUp","dead":true,"exitCode":4}}
+{"name":"refused twice after the relaunch: give up","request":{"op":"measure.inspector","refusals":3,"relaunched":true,"socket":true},"response":{"action":"giveUp","dead":true,"exitCode":4}}
+{"name":"healthy after the relaunch: proceed","request":{"op":"measure.inspector","refusals":0,"relaunched":true,"socket":true},"response":{"action":"proceed","dead":false,"exitCode":4}}

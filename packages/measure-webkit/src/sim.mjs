@@ -93,13 +93,19 @@ export async function bootDevice({ log = () => {} } = {}) {
     if (b.status !== 0) throw new Error(`simctl bootstatus failed: ${tail(b)}`);
     log(`booted ${d.name} (${d.runtime.split('.').pop()}) in ${Math.round((Date.now() - t0) / 1000)} s`);
   }
+  await launchSafari(d.udid, { log });
+  return { udid: d.udid, name: d.name, wasBooted };
+}
+
+/** Terminate Safari, launch it again and wait for the Simulator's web inspector socket. Throws when none appears. */
+export async function launchSafari(udid, { log = () => {} } = {}) {
   // Safari restores the last session's tabs; terminate first so the run starts from the same state.
-  simctl(['terminate', d.udid, SAFARI]);
+  simctl(['terminate', udid, SAFARI]);
   // under heavy host load a launch can time out; the device stays booted, so the policy asks again (transient errors only)
-  const l = simctlRetry(['launch', d.udid, SAFARI], { timeoutMs: T(90000) }, { log });
+  const l = simctlRetry(['launch', udid, SAFARI], { timeoutMs: T(90000) }, { log });
   if (l.status !== 0) throw new Error(`simctl launch Safari failed: ${tail(l)}`);
   for (let i = 0; i < T(60); i++) {
-    if (findSockets().length) return { udid: d.udid, name: d.name, wasBooted };
+    if (findSockets().length) return;
     await sleep(500);
   }
   throw new Error(`Safari runs, but no web inspector socket appeared in ${Math.round(T(60) / 2)} s`);
