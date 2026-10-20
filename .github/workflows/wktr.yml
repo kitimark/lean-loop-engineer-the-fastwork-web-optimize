@@ -113,7 +113,7 @@ jobs:
     concurrency:
       group: ci-lane:wktr:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:wktr:${{ strategy.job-index }}
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 16
     strategy:
       max-parallel: 1
       fail-fast: false
@@ -143,7 +143,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version-file: .node-version
 
       # The key carries the revision and the hash of archive.json (url, size, sha256): a new pin is a new key. The zip is
       # checked against size and sha256 by fetch-archive.sh whether it came from the cache or from the WebKit CI bucket.
@@ -270,7 +270,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version-file: .node-version
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: wktr-fwcore
