@@ -11302,7 +11302,8 @@
     "scripts/ci-paths.mjs",
     "scripts/ci-paths.test.mjs",
     "docs/team/handoffs/node-pin.md"
-   ]
+   ],
+   "evidence": "97ccc26"
   },
   {
    "devices": [
