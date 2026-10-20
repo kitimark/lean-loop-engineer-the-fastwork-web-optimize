@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { decide, loadIntent, matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
-import { coarseMap, coneOf, coneProblems, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
+import { capProblems, coarseMap, coneOf, coneProblems, loadCaps, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded, nodePinProblems } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -518,4 +518,90 @@ test('preview-e2e.yml: a change inside its read set selects it, a change outside
     'apps/console-api/test/app.test.ts', 'lean/FwTest/Lease.lean', '.github/workflows/premise-tests.yml']) {
     assert.ok(!matches(inputs, f), `${f} does not select the lane`);
   }
+});
+
+// ---- pool-caps: macOS job timeouts equal the Lean caps (Fw.Ci.Pool.Caps, golden/ci/pool-caps.jsonl) ----
+
+const capTable = loadCaps(root);
+const capRows = readFileSync(join(root, 'packages/contracts/golden/ci/pool-caps.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+
+test('pool caps: each listed macOS job has timeout-minutes equal to its Lean cap; webkit-sim and trajectory-probe are excluded', () => {
+  assert.deepEqual([...capTable.caps], [['wktr.yml wktr', 16], ['wktr-fixtures.yml fixtures', 21], ['sim-speed.yml probe', 17],
+    ['engine-premises.yml webkit', 8], ['gate-gaps.yml collect-macos', 26]]);
+  assert.deepEqual([...capTable.excluded], ['webkit-sim.yml', 'trajectory-probe.yml']);
+  for (const [key, cap] of capTable.caps) {
+    const [file, job] = key.split(' ');
+    const lines = readFileSync(join(root, WF, file), 'utf8').split('\n');
+    const j = readJobs(lines).find((x) => x.name === job);
+    assert.ok(j && /^(macos-|xcode-)/.test(j.runsOn), key);
+    assert.ok(lines.slice(j.at, j.end).includes(`    timeout-minutes: ${cap}`), key);
+  }
+});
+
+test('pool caps: every cap is at least 1.3 x its p90 and the least such minute; the golden holds capMin 289 = 38', () => {
+  for (const r of capRows.filter((x) => x.kind !== 'excluded')) {
+    assert.ok(13 * r.p90dm <= 100 * r.capMin && 100 * r.capMin < 13 * r.p90dm + 100, JSON.stringify(r));
+    assert.ok(r.p90dm <= 10 * r.capMin);
+  }
+  assert.ok(capRows.some((r) => r.kind === 'vector' && r.p90dm === 289 && r.capMin === 38));
+  assert.deepEqual(capRows.filter((r) => r.kind === 'cap' && r.thin).map((r) => [r.lane, r.n]), [['gate-gaps', 3]]);
+});
+
+test('lint: a drifted or missing cap timeout is reported and set back by --write', () => {
+  const text = readFileSync(join(root, WF, 'wktr.yml'), 'utf8');
+  const drift = text.replace(/(\n {2}wktr:\n(?: {4}.*\n)*? {4}timeout-minutes: )16\n/, '$160\n');
+  assert.notEqual(drift, text);
+  const r = capProblems('wktr.yml', drift, capTable);
+  assert.deepEqual(r.problems, ['wktr.yml: macOS job wktr has timeout-minutes 60; the Lean cap is 16']);
+  assert.equal(r.text, text);
+  const gone = text.replace(/(\n {2}wktr:\n(?: {4}.*\n)*?) {4}timeout-minutes: 16\n/, '$1');
+  assert.notEqual(gone, text);
+  const g = capProblems('wktr.yml', gone, capTable);
+  assert.deepEqual(g.problems, ['wktr.yml: macOS job wktr has no timeout-minutes; the Lean cap is 16']);
+  assert.equal(g.text, text);
+  assert.deepEqual(capProblems('wktr.yml', text, capTable).problems, []);
+});
+
+test('lint: a macOS job without a Lean cap, a cap on a Linux job and a cap on a missing job fail with no --write fix', () => {
+  const mac = sample.replace(/(\n {2}judge:\n(?: {4}.*\n)*? {4}runs-on: )ubuntu-24\.04-arm/, '$1macos-26');
+  assert.notEqual(mac, sample);
+  assert.ok(capProblems('gate-gaps.yml', mac, capTable).problems.some((p) => /macOS job judge has no Lean cap/.test(p)));
+  const linux = sample.replace(/(\n {2}collect-macos:\n(?: {4}.*\n)*? {4}runs-on: )xcode-27/, '$1ubuntu-24.04-arm');
+  assert.notEqual(linux, sample);
+  assert.ok(capProblems('gate-gaps.yml', linux, capTable).problems.some((p) => /collect-macos has a Lean cap but does not run on macOS/.test(p)));
+  const renamed = sample.replace('\n  collect-macos:\n', '\n  collect-mac:\n');
+  assert.ok(capProblems('gate-gaps.yml', renamed, capTable).problems.some((p) => /Lean cap for job collect-macos, but the workflow has no such job/.test(p)));
+  const sim = readFileSync(join(root, WF, 'webkit-sim.yml'), 'utf8');
+  assert.deepEqual(capProblems('webkit-sim.yml', sim, capTable).problems, []);
+});
+
+test('node pin: the repo pins one exact Node >= 24.22.0 and every Node lane lists it (task node-pin)', () => {
+  assert.deepEqual(nodePinProblems(root, table), []);
+  assert.match(readFileSync(join(root, '.node-version'), 'utf8').trim(), /^24\.(2[2-9]|[3-9]\d)\.\d+$/);
+});
+
+test('node pin lint: floating version, wrong file, old pin and a row without the file each fail', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ci-paths-node-'));
+  const put = (rel, text) => { mkdirSync(dirname(join(dir, rel)), { recursive: true }); writeFileSync(join(dir, rel), text); };
+  const wf = (w) => `jobs:\n  a:\n    steps:\n      - uses: actions/setup-node@abc # v7\n        with:\n          ${w}\n`;
+  const t = (inputs) => ({ sets: {}, workflows: [{ file: 'x.yml', inputs }] });
+  const ACT = WF.replace('workflows', 'actions');
+  try {
+    put('.node-version', '24.22.0\n');
+    put(`${WF}/x.yml`, wf('node-version-file: .node-version'));
+    assert.deepEqual(nodePinProblems(dir, t(['.node-version'])), []);
+    assert.equal(nodePinProblems(dir, t(['apps/**'])).length, 1, 'row without the file');
+    put(`${WF}/x.yml`, wf("node-version: '24'"));
+    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /sets node-version/.test(p)), 'floating');
+    put(`${WF}/x.yml`, wf('node-version-file: package.json'));
+    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /is not \.node-version/.test(p)), 'other file');
+    put(`${WF}/x.yml`, wf('node-version-file: .node-version'));
+    put(`${ACT}/y/action.yml`, 'runs:\n  steps:\n    - uses: actions/setup-node@abc\n      with:\n        node-version: 24.22.0\n');
+    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /actions\/y/.test(p)), 'action drift');
+    rmSync(join(dir, ACT), { recursive: true });
+    put('.node-version', '24.21.0\n');
+    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /older than/.test(p)), 'old');
+    put('.node-version', '24\n');
+    assert.ok(nodePinProblems(dir, t(['.node-version'])).some((p) => /exact version/.test(p)), 'floating file');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

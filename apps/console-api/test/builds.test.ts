@@ -158,7 +158,8 @@ describe("buildRows (Lean console.builds over the gathered facts)", () => {
       const c3 = r.optimize.find((o) => o.id === "flag:hero.countdown:strip")!;
       expect(c3.status).toBe("out of v2-proved (C3)");
       expect(c3.note).toContain("C3");
-      expect(r.optimize.filter((o) => o.status === "v2-proved").length).toBeGreaterThan(5);
+      const v2 = readPresets(root).find((p) => p.name === "v2-proved")!;
+      expect(r.optimize.filter((o) => o.status === "v2-proved").length).toBe(Object.keys(v2.fw).length);
     } finally { core.close(); }
   });
 });

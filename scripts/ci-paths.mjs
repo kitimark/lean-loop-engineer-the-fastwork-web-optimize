@@ -512,6 +512,57 @@ export function macosJobs(jobs) {
   return jobs.filter((j) => /^(macos-|xcode-)/.test(j.runsOn) && !dispatchOnly(j.ifText)).map((j) => j.name);
 }
 
+export const POOL_CAPS = 'packages/contracts/golden/ci/pool-caps.jsonl';
+
+/** The Lean cap table (Fw.Ci.Pool.Caps): `caps` maps `<file> <job>` to its `timeout-minutes`; `excluded` holds the
+ *  workflows whose macOS jobs another task times. */
+export function loadCaps(root) {
+  const rows = readFileSync(join(root, POOL_CAPS), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  return {
+    caps: new Map(rows.filter((r) => r.kind === 'cap').map((r) => [`${r.file} ${r.job}`, r.capMin])),
+    excluded: new Set(rows.filter((r) => r.kind === 'excluded').map((r) => r.file)),
+  };
+}
+
+const TIMEOUT = /^ {4}timeout-minutes:\s*(.*?)\s*(?:#.*)?$/;
+
+/** Every macOS job (runs-on macos-* / xcode-*, dispatch-only included) of a workflow outside `excluded` has a Lean cap,
+ *  and its job-level `timeout-minutes` equals it; a cap row names a macOS job of the file. Returns { problems, text }
+ *  with the timeouts set to the caps. */
+export function capProblems(file, text, capTable) {
+  const problems = [];
+  const lines = text.split('\n');
+  const jobs = readJobs(lines);
+  for (const key of capTable.caps.keys()) {
+    const [f, job] = key.split(' ');
+    if (f === file && !jobs.some((j) => j.name === job)) problems.push(`${file}: Lean cap for job ${job}, but the workflow has no such job`);
+  }
+  if (capTable.excluded.has(file)) return { problems, text };
+  for (const j of [...jobs].reverse()) {
+    if (j.runsOn.includes('${{')) problems.push(`${file}: job ${j.name}: runs-on is an expression, so the cap check cannot read its runner (write the label)`);
+    const cap = capTable.caps.get(`${file} ${j.name}`);
+    if (!/^(macos-|xcode-)/.test(j.runsOn)) {
+      if (cap !== undefined) problems.push(`${file}: job ${j.name} has a Lean cap but does not run on macOS`);
+      continue;
+    }
+    if (cap === undefined) {
+      problems.push(`${file}: macOS job ${j.name} has no Lean cap (lean/Fw/Ci/Pool/Caps.lean \`rows\` or \`excluded\`)`);
+      continue;
+    }
+    const want = `    timeout-minutes: ${cap}`;
+    const at = lines.findIndex((l, i) => i > j.at && i < j.end && TIMEOUT.test(l));
+    if (at < 0) {
+      problems.push(`${file}: macOS job ${j.name} has no timeout-minutes; the Lean cap is ${cap}`);
+      const ro = lines.findIndex((l, i) => i > j.at && i < j.end && /^ {4}runs-on:/.test(l));
+      lines.splice(ro + 1, 0, want);
+    } else if (TIMEOUT.exec(lines[at])[1] !== String(cap)) {
+      problems.push(`${file}: macOS job ${j.name} has timeout-minutes ${TIMEOUT.exec(lines[at])[1]}; the Lean cap is ${cap}`);
+      lines[at] = want;
+    }
+  }
+  return { problems, text: lines.join('\n') };
+}
+
 /** A status function (`always()`, `cancelled()`, `failure()`) lets a job run after its needs were skipped; its `if:` must
  *  then hold a conjunct that is false when the guard skipped (a needed job's success, or the guard's run=true). */
 export function unsafeStatusIf(ifText) {
@@ -808,6 +859,50 @@ export function leanInputProblems(root, table) {
   return out;
 }
 
+// ---- Node pin (task node-pin) ----------------------------------------------------------------------------------------
+// One canonical Node version: the repo-root `.node-version` (exact x.y.z, at least NODE_MIN). Every `actions/setup-node`
+// step takes it through `node-version-file: .node-version` and no workflow or action sets `node-version:`; every workflow
+// that sets up Node (directly or through the setup-pnpm action) lists `.node-version` among its inputs in the Lean table,
+// so a change of the pin starts the lanes that use Node.
+// TS stand-in: no Lean golden yet for the rule (the trigger rows themselves are Lean).
+export const NODE_FILE = '.node-version';
+export const NODE_MIN = [24, 22, 0];
+
+/** Problems of the Node pin: file shape, drift in workflows and actions, and Lean rows that miss the file. */
+export function nodePinProblems(root, table) {
+  const out = [];
+  const pin = existsSync(join(root, NODE_FILE)) ? readFileSync(join(root, NODE_FILE), 'utf8').trim() : null;
+  const m = pin === null ? null : /^(\d+)\.(\d+)\.(\d+)$/.exec(pin);
+  if (!m) out.push(`${NODE_FILE}: must hold one exact version x.y.z (got ${pin === null ? 'no file' : JSON.stringify(pin)})`);
+  else if (!(m.slice(1).map(Number).reduce((ge, n, i, a) => (ge !== 0 ? ge : n - NODE_MIN[i]), 0) >= 0)) out.push(`${NODE_FILE}: ${pin} is older than ${NODE_MIN.join('.')}`);
+  const files = [];
+  for (const f of readdirSync(join(root, WF_DIR)).filter((n) => n.endsWith('.yml'))) files.push({ rel: `${WF_DIR}/${f}`, wf: f });
+  const actDir = join(root, '.github/actions');
+  if (existsSync(actDir)) for (const d of readdirSync(actDir)) if (existsSync(join(actDir, d, 'action.yml'))) files.push({ rel: `.github/actions/${d}/action.yml`, wf: null });
+  const rows = new Map(table.workflows.map((w) => [w.file, w]));
+  for (const { rel, wf } of files) {
+    const lines = readFileSync(join(root, rel), 'utf8').split('\n');
+    let usesNode = false;
+    lines.forEach((l, i) => {
+      if (/^\s*-?\s*node-version\s*:/.test(l)) out.push(`${rel}:${i + 1}: sets node-version; use node-version-file: ${NODE_FILE}`);
+      if (/^\s*-?\s*node-version-file\s*:/.test(l) && !new RegExp(`^\\s*-?\\s*node-version-file:\\s*${NODE_FILE.replace('.', '\\.')}\\s*$`).test(l)) out.push(`${rel}:${i + 1}: node-version-file is not ${NODE_FILE}`);
+      if (/uses:\s*actions\/setup-node@/.test(l)) {
+        usesNode = true;
+        const k = indentOf(l);
+        let ok = false;
+        for (let n = i + 1; n < lines.length && (isBlank(lines[n]) || indentOf(lines[n]) > k); n++) if (new RegExp(`^\\s*node-version-file:\\s*${NODE_FILE.replace('.', '\\.')}\\s*$`).test(lines[n])) ok = true;
+        if (!ok) out.push(`${rel}:${i + 1}: actions/setup-node without node-version-file: ${NODE_FILE}`);
+      }
+      if (/uses:\s*\.\/\.github\/actions\/setup-pnpm\s*$/.test(l)) usesNode = true;
+    });
+    if (wf && usesNode) {
+      const row = rows.get(wf);
+      if (row && !row.inputs.includes(NODE_FILE)) out.push(`${wf}: sets up Node but its Lean row (lean/Fw/Ci/Trigger.lean \`table\`) lacks "${NODE_FILE}"`);
+    }
+  }
+  return out;
+}
+
 /** Check (or write) every workflow. Returns { problems, wrote }. */
 export function run(root, write) {
   const { table } = loadGolden(root);
@@ -816,7 +911,9 @@ export function run(root, write) {
   const S = coarseMap(table);
   const dir = join(root, WF_DIR);
   const files = readdirSync(dir).filter((f) => f.endsWith('.yml')).sort();
-  const problems = [...coneProblems(root, table), ...leanInputProblems(root, table), ...cacheWriterProblems(root, table)];
+  const problems = [...coneProblems(root, table), ...leanInputProblems(root, table), ...cacheWriterProblems(root, table), ...nodePinProblems(root, table)];
+  const caps = loadCaps(root);
+  for (const k of caps.caps.keys()) if (!files.includes(k.split(' ')[0])) problems.push(`${k.split(' ')[0]}: Lean cap row but no such workflow file`);
   let wrote = 0;
   const rows = new Map(table.workflows.map((w) => [w.file, w]));
   try { problems.push(...(lakeGenProblems(root, write) ?? [])); } catch (e) { problems.push(`${LAKE_GEN}: ${e.message}`); }
@@ -834,7 +931,9 @@ export function run(root, write) {
     const main = table.notMainPush ? { jobs: (table.seeders ?? []).filter((s) => s.file === f).map((s) => s.job), conj: table.notMainPush } : null;
     try { r = reconcile(f, text, row, lane ?? null, main); } catch (e) { problems.push(`${f}: ${e.message}`); continue; }
     problems.push(...r.problems);
-    if (write && r.text !== text) { writeFileSync(join(dir, f), r.text); wrote++; }
+    const c = capProblems(f, r.text, caps);
+    problems.push(...c.problems);
+    if (write && c.text !== text) { writeFileSync(join(dir, f), c.text); wrote++; }
   }
   return { problems, wrote };
 }
@@ -846,7 +945,7 @@ function main() {
   const { problems, wrote } = run(root, write);
   if (write) {
     console.log(`ci-paths: wrote ${wrote} workflow file(s)`);
-    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same|outside coneGlobs|no lane in the Lean intent|lean\/scripts\//.test(p));
+    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same|outside coneGlobs|no lane in the Lean intent|lean\/scripts\/|Lean cap row|Lean cap for job|has no Lean cap|does not run on macOS|runs-on is an expression/.test(p));
     for (const p of left) console.log(`  ${p}`);
     process.exit(left.length ? 1 : 0);
   }

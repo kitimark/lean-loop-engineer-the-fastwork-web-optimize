@@ -1,0 +1,6 @@
+{"kind":"ASSUMPTION","name":"pass_max_ms","value":2000}
+{"kind":"ASSUMPTION","name":"wake_margin_ms","value":500}
+{"kind":"DRAIN_SETTLE_MS","name":"settle_ms","value":50}
+{"kind":"ASSUMPTION","name":"rescue_tick_ms","value":1000}
+{"kind":"DERIVED","name":"event_deadline_ms","value":2550}
+{"kind":"DERIVED","name":"rescue_deadline_ms","value":3500}
