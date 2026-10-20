@@ -32,10 +32,7 @@ open Fw.Measure
 /-- The fields of a reply. -/
 abbrev Reply := List (String × Json)
 
-/-- A flag `"part:variant"`; anything else becomes `("", s)`, which the id check then refuses.
-
-$$\operatorname{flag}(s) = \begin{cases} (a, b) & s = a\texttt{:}b,\ \text{no other colon} \\ (\varepsilon, s) & \text{otherwise} \end{cases}$$
--/
+/-- A flag `"part:variant"` with exactly one colon; anything else becomes `("", s)`, which the id check then refuses. -/
 def parseFlag (s : String) : String × String :=
   match s.splitOn ":" with
   | [a, b] => (a, b)
