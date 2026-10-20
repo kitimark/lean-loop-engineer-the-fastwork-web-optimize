@@ -616,6 +616,17 @@ theorem scope_observes_edges :
           decide (Agree p.env p'.env) && q.eval p.env != q.eval p'.env) = true := by
   decide +kernel
 
+/-- A part whose key reads `(hover: none)` has, on every port, a reachable scoped load where it matches and one where
+it does not.
+
+Both states of the hover condition are in the scoped run on every engine port. -/
+theorem scope_hover_none_both :
+    (pilotParts.all fun u => !u.conds.contains "mq.hover-none" || ports.all fun π => [true, false].all fun b =>
+      (scopeProbes u).any fun p => (envReason π p.env).isNone && hoverNone.eval p.env == b) = true := by
+  decide +kernel
+
+#guard (pilotParts.filter (·.conds.contains "mq.hover-none")).map (·.id) = ["morph.tween"]
+
 /-- Every port reaches some matrix load.
 
 No port sees an all-unreachable matrix. -/
