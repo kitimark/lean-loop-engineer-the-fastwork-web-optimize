@@ -1,6 +1,6 @@
 # Handoff: lake-build-slots
-**State:** branch `worktree-wf_6c3ae4fd-86e-2`, round 3 (final design round); wrapper code 0109e9a, later commits change no
-file under `scripts/` or `packages/`. At the final commit: check.sh green, runner tests, ci-paths 41/41, lake-slot 12/12.
+**State:** branch `worktree-wf_6c3ae4fd-86e-2`, round 3 (final design round); wrapper code 0109e9a, later commits change
+only a test probe, docs and one docstring. At the final commit: check.sh green, runner tests, ci-paths 41/41, lake-slot 12/12.
 **What exists:** `lean/Fw/Sched/LakeSlot.lean` (pools `[full, cap 4]`, `pick`, `bound n = n + 4` = 12, `held_threads_le`,
 generates `golden/sched/lake-slot.gen.sh`); `scripts/lake-slot-lib.sh` only defines `lake_slot <root> <cmd>` (fd 9 lock, exec),
 `scripts/lake-slot.sh` sources it and always runs the CLI; `fwcore-build.sh` and the land axiom lint source the lib. CI:
