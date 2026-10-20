@@ -24,7 +24,7 @@ Read first: `research/notes/2026/10-20-image-audit.md`.
 - playwright-webkit: `cancelled-same-origin-0` is `packages/e2e-preview/src/suite.mjs:110` (`noiseChecks`): any failed same-origin request of a
   load fails it; the failed line is `GET /selling/.../service-strawberry.jpg Load request cancelled` in the compare page's original (snapshot)
   frame. The branch changes no file that load reads (`git diff main...HEAD` has no snapshot/, packages/e2e-preview, apps/console-api,
-  fixture/site path); a lazy image in flight cancelled by a frame navigation is the race the suite already documents (suite.mjs:139, :339).
+  fixture/site path); a lazy image in flight cancelled by a frame navigation is the race the suite already documents (suite.mjs:144, :339-341).
   Same leg passed on the land runs 39495148083, 39494253388 and 39493043079 (same suite code).
 - Land probe (merge of main and the branch, `[ci:land]`) on `ci/land-image-audit-landfix`: run 39497453674, all 6 jobs success, VERDICT pass
-  gate-breakpoints (suites-a), playwright-webkit leg success incl. `webkit/loopback/compare/cancelled-same-origin-0`: the failure was flaky, not the branch.
+  gate-breakpoints (suites-a), playwright-webkit leg success incl. `webkit/loopback/compare/cancelled-same-origin-0`: INFERRED flaky (an in-flight image cancelled by a frame navigation): the same code passed on 39497453674; no main-only failure observed.
