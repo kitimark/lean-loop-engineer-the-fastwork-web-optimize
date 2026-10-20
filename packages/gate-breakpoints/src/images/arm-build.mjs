@@ -93,12 +93,16 @@ export function rowsFor(req, widths, dpr) {
 
 const sha = (buf) => createHash('sha256').update(buf).digest('hex');
 
-/** Resize one source with sips. Same format as the source; JPEG quality 92. */
+/**
+ * Resize one source with sips. Same format as the source; JPEG quality 92. A PNG goes on through pngquant (256-colour palette,
+ * Homebrew `pngquant`): the Fastwork PNGs are palette files and sips writes 32-bit RGBA, which would be 2 to 3 times the bytes.
+ */
 export function resize(srcAbs, dstAbs, w, h, format) {
   mkdirSync(dirname(dstAbs), { recursive: true });
   const args = ['-s', 'format', format];
   if (format === 'jpeg') args.push('-s', 'formatOptions', '92');
   execFileSync('sips', [...args, '--resampleHeightWidth', String(h), String(w), srcAbs, '--out', dstAbs], { stdio: ['ignore', 'ignore', 'pipe'] });
+  if (format === 'png') execFileSync('pngquant', ['--force', '--speed', '1', '--output', dstAbs, '256', dstAbs], { stdio: ['ignore', 'ignore', 'pipe'] });
 }
 
 export function build({ audit, out, manifest, srcRoot = siteDist(), publicRoot }) {

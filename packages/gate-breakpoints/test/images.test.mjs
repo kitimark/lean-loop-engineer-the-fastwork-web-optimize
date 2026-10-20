@@ -7,7 +7,7 @@ import { copyPath, LADDER, needW, rowsFor, rungFor } from '../src/images/arm-bui
 import { stopsFor, mergeStops } from '../src/images/audit.mjs';
 import { bgDrawn, fitDrawn, splitTop } from '../src/images/inpage.mjs';
 import { aggregate, effectClasses, regionOf, rowsOfCell, sniff, totals } from '../src/images/reduce.mjs';
-import { canon } from '../src/images/cli.mjs';
+import { canon, stability } from '../src/images/cli.mjs';
 import { sideBySide } from '../src/images/pages.mjs';
 
 test('splitTop keeps commas inside parentheses', () => {
@@ -105,10 +105,12 @@ test('mergeStops: an effect set one frame late still shows, in-view stops are co
   assert.deepEqual(m[0].effects.map((e) => e.e).sort(), ['filter=blur(2px)', 'transform']);
 });
 
-test('canon ignores values that move with time and the order of readings', () => {
-  const mk = (blur, ids) => ({ cells: { 'w1@2': { docHeight: 10, items: ids.map((i) => ({ kind: 'img', url: `/${i}.jpg`, nat: [1, 1], box: [1, 1], img: [1, 1], none: false, fw: [], effects: [{ at: 'c', up: 0, e: `filter=blur(${blur}px)` }, { at: 'c', up: 0, e: 'animation(opacity):running' }] })) } } });
-  assert.equal(canon(mk(1, ['a', 'b'])), canon(mk(5, ['b', 'a'])));
-  assert.notEqual(canon(mk(1, ['a', 'b'])), canon(mk(1, ['a'])));
+test('canon hashes which images sit where, not drawn sizes or effect kinds; stability counts the rest', () => {
+  const mk = (w, kind, ids) => ({ cells: { 'w1@2': { docHeight: 10, items: ids.map((i) => ({ kind: 'img', url: `/${i}.jpg`, nat: [4, 4], box: [w, w], img: [w, w], none: false, fw: ['hero-orbit'], effects: [{ at: 'c', up: 0, e: `animation(${kind}):running` }] })) } } });
+  assert.equal(canon(mk(10, 'opacity', ['a', 'b'])), canon(mk(11, 'transform', ['b', 'a'])));
+  assert.notEqual(canon(mk(10, 'opacity', ['a', 'b'])), canon(mk(10, 'opacity', ['a'])));
+  const s = stability([mk(10, 'opacity', ['a', 'b']), mk(11, 'transform', ['a', 'b']), mk(14, 'opacity', ['a'])]);
+  assert.deepEqual({ keys: s.keys, absent: s.absentInSomeRep, over: s.sizeOver1px, kinds: s.kindSetDiffers }, { keys: 2, absent: 1, over: 1, kinds: 1 });
 });
 
 test('rungFor: smallest ladder rung that holds the need; the natural size when it would be nearly as large', () => {

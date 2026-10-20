@@ -10,6 +10,10 @@ name: gate-gaps
 #                   Simulator iPhone / iPad with the meta-viewport variants.
 #   judge           Every verdict comes from fwcore (Lean), never from the collecting jobs. One gaps.json / gaps.md per
 #                   collect job, uploaded together.
+#   images-*        Task image-audit, asked for by `[images]` / `[images-only]` in the commit message or the `images` input:
+#                   images-audit (every image of the hero, morph and people regions per Lean width and DPR, three reps per
+#                   engine and arm), images-pages (visual diff of the lag parts, baseline against the drawn-size arm),
+#                   images-summary (ranked tables). Counts and bytes only.
 # Counts and verdicts only: nothing measured here is phone time.
 on:
   push:
