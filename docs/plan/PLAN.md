@@ -575,11 +575,12 @@ does not. Lean checks the proof; `#guard` lines are examples run at build time; 
 found a wrong proof, every disagreement was a docstring fix; `math-final` (d159442a) ended at 5,109 agree, 0
 disagree, 517 stale, 1,373 pending. `lean-latex-removal` retired the view, its lint and CI job (A41).
 
-**Short example** (`lean/Fw/Spec/Verdict.lean:57-60`, proof elided; full worked example in [EV §5.2]):
+**Short example** (`lean/Fw/Spec/Verdict.lean:48, 57-61`, proof elided; full worked example in [EV §5.2]):
 
 ```lean
 /-- Soundness for lower-is-better: "better" means every variant run was strictly lower than every
-control run (for higher-is-better see `better_sound_higher`). -/
+control run (for higher-is-better see `better_sound_higher`).
+-/
 theorem better_sound {ctl var : List Int} (h : verdict .lower ctl var = .better) :
     ∀ y ∈ var, ∀ x ∈ ctl, y < x := …
 
@@ -1054,7 +1055,7 @@ and 11 changed what counts as evidence:
 | **C1 WebKit go/no-go** | **T+12h = 2026-10-18 11:15** | **GO** only if two consecutive `webkit-sim` runs on `ci/webkit-green` completed with their determinism step in ≤ 45 min each (healthy job 33-43 min, CONFIRMED `handoffs/ci-webkit.md`). Also: the cross-run Chromium zone baseline exists (`measure.zoneBaseline` + `refreeze`); `shells` and the morph ports started; Q34-Q37 answered or their defaults applied. **Outcome: GO** (lead, 2026-10-18; `webkit-green` f03e94b: runs 39048376821 in 19 min and 39050061299 in 24 min, MEASURED); `webkit-quiet`, `step-align` and `zone-baselines-webkit` run as parallel lanes | **NO-GO** (not taken): `webkit-quiet`, `zone-baselines-webkit` and `step-align` move to MX; WebKit truth is the phone only; no further agent time on the Simulator lane |
 | **C2 Region faithful + engine models** | **T+24h = 2026-10-18 23:15** | M1 closed; M2: shells landed (done) and the 9 parts `faithful` through the gate, `faithful-checks` green on zones y04000/y04500/tail in Chromium, PL5 bands reported; section ports running (§10.5). **Rev 10:** `engine-core-lean`, `engine-chromium-lean`, `engine-webkit-lean` landed, `engine-ci-check` green on F0-F2 (fixture-rest), `morph-tween-curve` landed; the proof wave started. **Outcome (MEASURED, trailers): met except the faithful check.** Engine models and all 10 proof tasks landed; `integrate-ports-4` passed the gate at 23:28 (Chromium 0 bad, 57 excused); `faithful-checks` found the rewrite had no page-root `overflow-x` clip, fixed by `page-root-clip` (3600b283) and re-run as `faithful-checks-rerun` in wave 1 | a part past its 3 h time box lands `faithful-with-delta` with the delta named; an engine table row without a cite stays INFERRED and is listed |
 | **C3 Decision** | **T+48h = 2026-10-19 23:15** | M5: the **proof ledger closed** (every `proof-*` and `variant-*` task landed or cut, §10.6); **rev 11:** two whole-page gates passed, one per wave (§10.7); combined counts per profile on the wave-2 base with F3/F4 per part zone, 0 mismatches or each filed as a model bug; `v2-proved` named (extended by the six TS flags only if `proved-flags-ts` lands in wave 2); passes-type wins reported as part-local and model-only (proof, no count check) unless their per-flag run lands before C3; F6 reported as a pilot or as "statement landed, run after C3". Phone session 2 is optional | a proof task still open is cut and its optimization goes to the report as "modelled, not proved"; a falsified prediction that cannot be fixed by C3 drops that flag from `v2-proved` |
-| **C4 Report** | **T+62h = 2026-10-20 13:15** | M6: report published; math view 0 disagree, 0 stale (`math-final` by T+52h; rev 11.3: the report's math follows §5.3); `fw usage` totals per milestone; per part the theorem pair, its premises H1-H3 and RG status, and the F0-F5 result | nothing: the deadline is yours; what is not in the text at T+60h is listed as "not done" |
+| **C4 Report** | **T+62h = 2026-10-20 13:15** | M6: report published; every math row the report shows is `agree` at the declaration's current `stmtHash` (§5.3, V-s); the `math-final` math-view counts are history; `fw usage` totals per milestone; per part the theorem pair, its premises H1-H3 and RG status, and the F0-F5 result | nothing: the deadline is yours; what is not in the text at T+60h is listed as "not done" |
 
 **Gates, retargeted.** M0 closes with `mutant-ids-stable` (non-blocking after C1). **M1** = Chromium zone baselines
 of the original across runs (plus WebKit only on GO). **M2** = the 9 end-of-page parts `faithful` (was: 3 of 4
@@ -1311,7 +1312,7 @@ A28 counts on CI.
 | **A38** | **"Per-part gate saves nothing (528 vs 517 s)"** vs "narrowed gate 10.8 vs 34.6 job-min" (78b850a2) | **Both stand:** wall time vs CI cost; two whole-page gates stay because the original is one page (`narrowed_never_zero`) (§10.7) |
 | **A39** | **`counts-only` with `RunMeta.only`, a `runKey_inj` re-proof and matrix cap 6** vs the CI review | **Dropped:** `runKey_inj` already covers any search; the 39-50 min was queue; one `only`/`search` input plus a `goldenRuns` vector (§10.7) |
 | **A40** | **Lego note: lean CI 14 min per landing, part shard ~2 min** vs CI review: lean median 4.9 min (p90 15.2), counts 7.5 min wall | **CI review numbers** (later, measured on an idle pool); budget ≤ 3 counts dispatches at once (§10.7) |
-| **A41** | **`docs/plan/math-view.html` frozen with a header line** (`latex-mathview-b2`, `math-artifact.md`) vs the page retired or removed | **Removed (rev 11.3).** Its generator is retired, so it can never be refreshed, and it shows math the Lean no longer carries (547 stale at its last export). Plan rule: a page whose generator is retired is removed, and git history keeps it (last at 5e67b61f). `math-artifact.md` still calls it frozen: a follow-up for `latex-teardown` |
+| **A41** | **`docs/plan/math-view.html` frozen with a header line** (`latex-mathview-b2`, `math-artifact.md`) vs the page retired or removed | **Removed (rev 11.3).** Its generator is retired, so it can never be refreshed, and it shows math the Lean no longer carries (547 stale at its last export). New rule (rev 11.3): a page whose generator is retired is removed; git history keeps it (last at 5e67b61f). `math-artifact.md` still calls it frozen: a follow-up for `latex-teardown` |
 
 ## Appendix B. Spikes (each answer becomes a decision record)
 
@@ -1335,6 +1336,7 @@ revisions and log entries keep their wording.
 | §5.3 rewritten (math on demand per page, four steps, rows at the current `stmtHash`; old counts kept as history; the example shows the Lean, then the page's math); rev line, §0 | §0, §5.3 |
 | Math pages replace the math view; axiom check replaces its lint; V-s on `agree` rows; C4 note; `mathview-differential` retired; `math:sign`, `math.lock.json` dropped (never built) | §1.2, §3.1, §5.1, §5.4, §7.1, §8.2, §8.5, §10.2, §10.7 |
 | R6, R24; decision row "Math in artifacts"; Q25/Q28; A41 (`math-view.html` removed, links fixed); `loop-plan.html`, `math-to-lean.html` text | §11, §12, App A, docs/plan |
+| Round 2 (review of 93320da8): C4 condition names the current check (rows `agree` at the current `stmtHash`); A41 states its rule as new; §5.3 citation `Verdict.lean:48, 57-61`; `loop-plan.html` Lean example labelled an illustrative kickoff sketch; `math-to-lean.html` names its math source (kickoff sketch, two passes, `lessons.json`) | §5.3, §10.2, App A, docs/plan |
 | Accepted limits: plan ~1,400 lines (cuts wait for rev 12); `math-artifact.md` text (frozen page; KaTeX on `loop-plan.html`) is `latex-teardown`'s | review note |
 
 ### Revision 11.2 (final design round of `plan-rev11`; review of 45c46c37 refused)
