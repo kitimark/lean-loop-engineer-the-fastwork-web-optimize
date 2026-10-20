@@ -41,14 +41,27 @@
 {"kind":"pinValue","pin":"24.22.0.1","problems":["notExact"]}
 {"kind":"pinValue","pin":"","problems":["notExact"]}
 {"kind":"pinValue","pin":null,"problems":["noFile"]}
-{"kind":"pinJob","pnpmAction":false,"problems":[],"runsNode":true,"setups":[".node-version"],"versionKey":false}
-{"kind":"pinJob","pnpmAction":false,"problems":["unpinnedNode"],"runsNode":true,"setups":[],"versionKey":false}
-{"kind":"pinJob","pnpmAction":true,"problems":[],"runsNode":true,"setups":[],"versionKey":false}
-{"kind":"pinJob","pnpmAction":false,"problems":[],"runsNode":false,"setups":[],"versionKey":false}
-{"kind":"pinJob","pnpmAction":false,"problems":["otherFile"],"runsNode":true,"setups":["package.json"],"versionKey":false}
-{"kind":"pinJob","pnpmAction":false,"problems":["otherFile"],"runsNode":true,"setups":[""],"versionKey":false}
-{"kind":"pinJob","pnpmAction":false,"problems":["versionKey","unpinnedNode"],"runsNode":true,"setups":[],"versionKey":true}
-{"kind":"pinJob","pnpmAction":false,"problems":["versionKey","otherFile"],"runsNode":true,"setups":[".node-version","x"],"versionKey":true}
+{"kind":"pinJob","nodeBeforeSetup":false,"pnpmAction":false,"problems":[],"runsNode":true,"setups":[".node-version"],"versionKey":false}
+{"kind":"pinJob","nodeBeforeSetup":false,"pnpmAction":false,"problems":["unpinnedNode"],"runsNode":true,"setups":[],"versionKey":false}
+{"kind":"pinJob","nodeBeforeSetup":false,"pnpmAction":true,"problems":[],"runsNode":true,"setups":[],"versionKey":false}
+{"kind":"pinJob","nodeBeforeSetup":false,"pnpmAction":false,"problems":[],"runsNode":false,"setups":[],"versionKey":false}
+{"kind":"pinJob","nodeBeforeSetup":false,"pnpmAction":false,"problems":["otherFile"],"runsNode":true,"setups":["package.json"],"versionKey":false}
+{"kind":"pinJob","nodeBeforeSetup":false,"pnpmAction":false,"problems":["otherFile"],"runsNode":true,"setups":[""],"versionKey":false}
+{"kind":"pinJob","nodeBeforeSetup":false,"pnpmAction":false,"problems":["versionKey","unpinnedNode"],"runsNode":true,"setups":[],"versionKey":true}
+{"kind":"pinJob","nodeBeforeSetup":false,"pnpmAction":false,"problems":["versionKey","otherFile"],"runsNode":true,"setups":[".node-version","x"],"versionKey":true}
+{"kind":"pinJob","nodeBeforeSetup":true,"pnpmAction":false,"problems":["nodeBeforeSetup"],"runsNode":true,"setups":[".node-version"],"versionKey":false}
+{"kind":"pinJob","nodeBeforeSetup":true,"pnpmAction":true,"problems":["nodeBeforeSetup"],"runsNode":true,"setups":[],"versionKey":false}
+{"kind":"pinJob","nodeBeforeSetup":true,"pnpmAction":false,"problems":["otherFile","nodeBeforeSetup"],"runsNode":true,"setups":["package.json"],"versionKey":false}
+{"kind":"pinGuard","pinned":"24.22.0","refusal":null,"running":"v24.22.0"}
+{"kind":"pinGuard","pinned":"24.22.0","refusal":null,"running":"24.22.0"}
+{"kind":"pinGuard","pinned":"24.22.0\n","refusal":null,"running":"v24.22.0"}
+{"kind":"pinGuard","pinned":" 24.22.0 ","refusal":null,"running":"v24.22.0"}
+{"kind":"pinGuard","pinned":"24.22.0","refusal":"refusing to start: running Node 24.14.0 but .node-version pins 24.22.0; run `nvm install && nvm use` (or start through `pnpm`, which uses the pinned Node) and retry","running":"v24.14.0"}
+{"kind":"pinGuard","pinned":"24.22.0","refusal":"refusing to start: running Node 24.23.0 but .node-version pins 24.22.0; run `nvm install && nvm use` (or start through `pnpm`, which uses the pinned Node) and retry","running":"v24.23.0"}
+{"kind":"pinGuard","pinned":"24.22.0","refusal":"refusing to start: running Node 24.14.0 but .node-version pins 24.22.0; run `nvm install && nvm use` (or start through `pnpm`, which uses the pinned Node) and retry","running":"24.14.0"}
+{"kind":"pinGuard","pinned":"24.22.0","refusal":"refusing to start: running Node v24.22.0 but .node-version pins 24.22.0; run `nvm install && nvm use` (or start through `pnpm`, which uses the pinned Node) and retry","running":"vv24.22.0"}
+{"kind":"pinGuard","pinned":null,"refusal":null,"running":"v1.0.0"}
+{"kind":"pinGuard","pinned":"","refusal":"refusing to start: running Node 24.22.0 but .node-version pins ; run `nvm install && nvm use` (or start through `pnpm`, which uses the pinned Node) and retry","running":"v24.22.0"}
 {"kind":"pinRow","problems":[],"row":[".node-version","apps/**"],"usesNode":true}
 {"kind":"pinRow","problems":["rowLacksPin"],"row":["apps/**"],"usesNode":true}
 {"kind":"pinRow","problems":["noRow"],"row":null,"usesNode":true}

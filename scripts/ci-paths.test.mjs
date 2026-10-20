@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { decide, loadIntent, matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
-import { capProblems, coarseMap, coneOf, coneProblems, loadCaps, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded, nodePinProblems, jobFacts, jobProblems, pinValueProblems, rowProblems, copyProblems } from './ci-paths.mjs';
+import { capProblems, coarseMap, coneOf, coneProblems, loadCaps, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded, nodePinProblems, jobFacts, jobProblems, pinValueProblems, rowProblems, copyProblems, nodePinRefusal } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -585,6 +585,8 @@ test('node pin golden: the TS twins decide exactly as Lean (Fw.Ci.Trigger pinVal
   assert.ok(g('pinValue').length >= 10 && g('pinJob').length >= 6 && g('pinRow').length >= 4 && g('pinCopies').length >= 3);
   for (const l of g('pinValue')) assert.deepEqual(pinValueProblems(l.pin), l.problems, `pin ${JSON.stringify(l.pin)}`);
   for (const l of g('pinJob')) assert.deepEqual(jobProblems(l), l.problems, JSON.stringify(l));
+  assert.ok(g('pinGuard').length >= 8 && g('pinJob').some((l) => l.nodeBeforeSetup));
+  for (const l of g('pinGuard')) assert.equal(nodePinRefusal(l.running, l.pinned), l.refusal, JSON.stringify(l));
   for (const l of g('pinRow')) assert.deepEqual(rowProblems(l.usesNode, l.row), l.problems, JSON.stringify(l));
   for (const l of g('pinCopies')) assert.deepEqual(copyProblems(l.pin, l.copies.map((c) => [c.name, c.value])), l.problems, JSON.stringify(l));
 });
@@ -603,6 +605,13 @@ test('node pin facts: the reader sees block, quoted and flow-map setup-node step
   assert.equal(f('  a:\n    steps:\n      - run: "cd x && node y"').runsNode, true);
   assert.equal(f('  a:\n    steps:\n      - run: echo node is fine\n      # run: node x').runsNode, false);
   assert.equal(f('  a:\n    steps:\n      - uses: ./.github/actions/setup-pnpm\n      - run: pnpm test').pnpmAction, true);
+  const order = (a, b) => f(`  a:\n    steps:\n      - ${a}\n      - ${b}`).nodeBeforeSetup;
+  assert.equal(order('run: node x.mjs', 'uses: actions/setup-node@abc'), true, 'node before setup-node');
+  assert.equal(order('run: pnpm test', 'uses: ./.github/actions/setup-pnpm'), true, 'pnpm before setup-pnpm');
+  assert.equal(order('uses: actions/setup-node@abc', 'run: node x.mjs'), false, 'setup first');
+  assert.equal(order('run: echo hi', 'uses: actions/setup-node@abc'), false, 'no node before setup');
+  assert.equal(jobFacts('  a:\n    steps:\n      - uses: ./.github/actions/telemetry\n      - uses: actions/setup-node@abc'.split('\n'), ['telemetry']).nodeBeforeSetup, false, 'telemetry start is exempt');
+  assert.equal(jobFacts('  a:\n    steps:\n      - uses: ./.github/actions/gate-engine\n      - uses: actions/setup-node@abc'.split('\n'), ['gate-engine']).nodeBeforeSetup, true, 'another node action is not');
 });
 
 test('node pin lint: floating version, wrong file, old pin, a copy that differs, no setup, and a row missing or without the file each fail', () => {

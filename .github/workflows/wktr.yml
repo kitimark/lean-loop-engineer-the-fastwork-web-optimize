@@ -140,13 +140,13 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
 
       - name: Verify the snapshot against snapshot.lock.json
         run: node .github/scripts/verify-snapshot.mjs
 
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
 
       # The key carries the revision and the hash of archive.json (url, size, sha256): a new pin is a new key. The zip is
       # checked against size and sha256 by fetch-archive.sh whether it came from the cache or from the WebKit CI bucket.

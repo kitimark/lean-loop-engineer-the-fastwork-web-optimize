@@ -4,7 +4,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { nodePinRefusal, readNodePin } from "../src/node-guard.ts";
 
+const goldenFile = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "contracts", "golden", "ci", "triggers.jsonl");
+
 describe("node pin runtime guard", () => {
+  it("decides exactly as Lean (Fw.Ci.Trigger nodePinRefusal, golden pinGuard lines)", () => {
+    const lines = readFileSync(goldenFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((l) => l.kind === "pinGuard");
+    expect(lines.length).toBeGreaterThanOrEqual(8);
+    for (const l of lines) expect(nodePinRefusal(l.running, l.pinned), JSON.stringify(l)).toBe(l.refusal);
+  });
   it("accepts the pinned version, with or without the v prefix", () => {
     expect(nodePinRefusal("v24.22.0", "24.22.0")).toBeNull();
     expect(nodePinRefusal("24.22.0", "24.22.0\n")).toBeNull();

@@ -276,6 +276,9 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
 
       - name: Pinned iOS runtime build, then create the device
         run: sh .github/scripts/check-simulator.sh --create
@@ -284,9 +287,6 @@ jobs:
         if: ${{ matrix.arm == 'original' }}
         run: node .github/scripts/verify-snapshot.mjs
 
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
       - uses: ./.github/actions/telemetry
         with:
           mode: start

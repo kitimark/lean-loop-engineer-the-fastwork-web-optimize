@@ -890,7 +890,17 @@ export function jobProblems(j) {
   if (j.versionKey) out.push('versionKey');
   if (j.setups.some((s) => s !== NODE_FILE)) out.push('otherFile');
   if (j.runsNode && j.setups.length === 0 && !j.pnpmAction) out.push('unpinnedNode');
+  if (j.nodeBeforeSetup) out.push('nodeBeforeSetup');
   return out;
+}
+
+/** Twin of Lean `nodePinRefusal`: the refusal line when the running Node is not the pin, else null. */
+export function nodePinRefusal(running, pinned) {
+  if (pinned === null || pinned === undefined) return null;
+  const want = pinned.trim();
+  const seen = running.startsWith('v') ? running.slice(1) : running;
+  if (seen === want) return null;
+  return `refusing to start: running Node ${seen} but ${NODE_FILE} pins ${want}; run \`nvm install && nvm use\` (or start through \`pnpm\`, which uses the pinned Node) and retry`;
 }
 
 /** Twin of Lean `rowProblems`. */
@@ -927,8 +937,10 @@ function stepLines(lines, i) {
 /** What the scanner reads off the lines of one job (or of a whole composite action): the facts of Lean `PinJob`.
  *  Reads the block form and the quoted and flow-map forms (`- { uses: 'actions/setup-node@x', with: { node-version-file: .node-version } }`). */
 export function jobFacts(lines, nodeActions = []) {
-  const f = { setups: [], versionKey: false, pnpmAction: false, runsNode: false };
+  const f = { setups: [], versionKey: false, pnpmAction: false, runsNode: false, nodeBeforeSetup: false };
   let runIndent = -1;
+  let firstSetup = -1; // line of the first setup-node / setup-pnpm step
+  let firstNode = -1; // line of the first step that runs Node (a run: line or a node action other than telemetry)
   lines.forEach((l, i) => {
     if (isBlank(l)) return;
     const code = l.replace(/\s+#.*$/, '');
@@ -938,7 +950,11 @@ export function jobFacts(lines, nodeActions = []) {
       f.setups.push(m ? m[2] : '');
     }
     if (SETUP_PNPM.test(code)) f.pnpmAction = true;
-    if (nodeActions.some((a) => code.includes(`./.github/actions/${a}`))) f.runsNode = true; // a composite action that runs node
+    if ((SETUP_NODE.test(code) || SETUP_PNPM.test(code)) && firstSetup < 0) firstSetup = i;
+    if (nodeActions.some((a) => code.includes(`./.github/actions/${a}`))) { // a composite action that runs node
+      f.runsNode = true;
+      if (!code.includes('./.github/actions/telemetry') && firstNode < 0) firstNode = i; // telemetry start is a best-effort sampler (Lean PinJob)
+    }
     let run = null;
     if (runIndent >= 0) {
       if (indentOf(l) > runIndent) run = code.trim();
@@ -951,8 +967,9 @@ export function jobFacts(lines, nodeActions = []) {
         else run = m[1].trim().replace(/^['"]/, '');
       }
     }
-    if (run !== null && NODE_CMD.test(run)) f.runsNode = true;
+    if (run !== null && NODE_CMD.test(run)) { f.runsNode = true; if (firstNode < 0) firstNode = i; }
   });
+  f.nodeBeforeSetup = firstNode >= 0 && firstSetup >= 0 && firstNode < firstSetup;
   return f;
 }
 
@@ -984,6 +1001,7 @@ export function nodePinProblems(root, table) {
   const text = {
     versionKey: `sets node-version; use node-version-file: ${NODE_FILE}`,
     otherFile: `a setup-node step whose node-version-file is not ${NODE_FILE}`,
+    nodeBeforeSetup: 'a step runs node before the job sets up the pinned Node (move actions/setup-node or the setup-pnpm action directly after actions/checkout)',
     unpinnedNode: `runs node/pnpm/npm/npx with no setup-node step (add actions/setup-node with node-version-file: ${NODE_FILE}, or the setup-pnpm action)`,
   };
   // composite actions that run node without setting it up: the job that uses one needs the pin, the action itself is judged through its callers
@@ -993,7 +1011,7 @@ export function nodePinProblems(root, table) {
     let units;
     if (wf) {
       let jobs = [];
-      try { jobs = readJobs(lines); } catch { jobs = []; }
+      try { jobs = readJobs(lines); } catch { out.push(`${rel}: jobs unreadable by the pin scanner`); }
       units = jobs.map((j) => ({ name: j.name, lines: lines.slice(j.at, j.end), at: j.at }));
     } else units = [{ name: 'action', lines, at: 0 }];
     let usesNode = false;

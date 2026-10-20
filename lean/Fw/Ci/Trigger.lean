@@ -698,20 +698,26 @@ def copyProblems (pin : Option String) (copies : List (String × Option String))
 
 /-- What the scanner reads off one job. `setups` holds, for each `actions/setup-node` step, its `node-version-file`
 value (`""` when the step has none); `versionKey` is a `node-version:` key anywhere in the job; `pnpmAction` is a use of
-the repo's setup-pnpm action (which sets Node up); `runsNode` is a `run:` line that calls node, pnpm, npm or npx. -/
+the repo's setup-pnpm action (which sets Node up); `runsNode` is a `run:` line that calls node, pnpm, npm or npx.
+`nodeBeforeSetup` is true when the first step that runs Node comes before the first setup-node or setup-pnpm step. A
+step that runs Node is a `run:` line or a composite action that runs node, except `telemetry` (its start is a
+best-effort sampler that skips itself when the runner has no node and is not part of the job's build). -/
 structure PinJob where
   setups : List String
   versionKey : Bool
   pnpmAction : Bool
   runsNode : Bool
+  nodeBeforeSetup : Bool
   deriving Repr
 
 /-- The problems of one job: `versionKey`, `otherFile` (a setup-node that does not read the pin file) and
-`unpinnedNode` (it runs Node with no setup step at all, so it gets the runner's own Node). -/
+`unpinnedNode` (it runs Node with no setup step at all, so it gets the runner's own Node) and `nodeBeforeSetup` (a step
+runs Node before the pinned Node is set up, so that step gets the runner's own Node). -/
 def jobProblems (j : PinJob) : List String :=
   (if j.versionKey then ["versionKey"] else []) ++
   (if j.setups.any (· != nodeFile) then ["otherFile"] else []) ++
-  (if j.runsNode && j.setups.isEmpty && !j.pnpmAction then ["unpinnedNode"] else [])
+  (if j.runsNode && j.setups.isEmpty && !j.pnpmAction then ["unpinnedNode"] else []) ++
+  (if j.nodeBeforeSetup then ["nodeBeforeSetup"] else [])
 
 /-- The problems of a workflow that uses Node, given its Lean row's inputs (`none`: it has no row): `noRow` or
 `rowLacksPin`. -/
@@ -731,6 +737,53 @@ theorem jobProblems_otherFile (j : PinJob) :
 theorem jobProblems_unpinned (j : PinJob) :
     "unpinnedNode" ∈ jobProblems j ↔ j.runsNode = true ∧ j.setups = [] ∧ j.pnpmAction = false := by
   simp [jobProblems, and_assoc]
+
+theorem jobProblems_nodeBeforeSetup (j : PinJob) :
+    "nodeBeforeSetup" ∈ jobProblems j ↔ j.nodeBeforeSetup = true := by
+  simp [jobProblems]
+
+theorem pinValueProblems_noFile : pinValueProblems none = ["noFile"] := rfl
+
+theorem pinValueProblems_notExact (s : String) :
+    "notExact" ∈ pinValueProblems (some s) ↔ parseExact s = none := by
+  unfold pinValueProblems
+  cases h : parseExact s <;> simp [h]
+
+theorem pinValueProblems_tooOld (s : String) :
+    "tooOld" ∈ pinValueProblems (some s) ↔ ∃ v, parseExact s = some v ∧ tripleGe v nodeMin = false := by
+  unfold pinValueProblems
+  cases h : parseExact s <;> simp [h]
+
+theorem pinValueProblems_ok (s : String) :
+    pinValueProblems (some s) = [] ↔ ∃ v, parseExact s = some v ∧ tripleGe v nodeMin = true := by
+  unfold pinValueProblems
+  cases h : parseExact s <;> simp [h]
+
+/-- The refusal when the running Node (`process.version`, with or without the leading `v`) is not the pin; `none`
+when there is no pin file or the versions are equal. One line that names both versions and the fix. -/
+def nodePinRefusal (running : String) (pinned : Option String) : Option String :=
+  match pinned with
+  | none => none
+  | some p =>
+    let want := p.trimAscii.copy
+    let seen := if running.startsWith "v" then (running.drop 1).copy else running
+    if seen == want then none else
+      some ("refusing to start: running Node " ++ seen ++ " but .node-version pins " ++ want ++
+        "; run `nvm install && nvm use` (or start through `pnpm`, which uses the pinned Node) and retry")
+
+theorem nodePinRefusal_none_noPin (r : String) : nodePinRefusal r none = none := rfl
+
+theorem nodePinRefusal_none_iff (r : String) (p : String) :
+    nodePinRefusal r (some p) = none ↔
+      (if r.startsWith "v" then (r.drop 1).copy else r) = p.trimAscii.copy := by
+  unfold nodePinRefusal
+  split <;> simp_all
+
+theorem nodePinRefusal_some_iff (r : String) (p : String) :
+    (nodePinRefusal r (some p)).isSome ↔
+      (if r.startsWith "v" then (r.drop 1).copy else r) ≠ p.trimAscii.copy := by
+  unfold nodePinRefusal
+  split <;> simp_all
 
 theorem rowProblems_noRow (u : Bool) : "noRow" ∈ rowProblems u none ↔ u = true := by
   cases u <;> simp [rowProblems]
@@ -755,10 +808,11 @@ theorem copyProblems_iff (pin : Option String) (copies : List (String × Option 
 #guard pinValueProblems (some "24") == ["notExact"]
 #guard pinValueProblems (some ">=24.22.0") == ["notExact"]
 #guard pinValueProblems none == ["noFile"]
-#guard jobProblems ⟨[".node-version"], false, false, true⟩ == []
-#guard jobProblems ⟨[], false, false, true⟩ == ["unpinnedNode"]
-#guard jobProblems ⟨[], false, true, true⟩ == []
-#guard jobProblems ⟨["package.json"], true, false, true⟩ == ["versionKey", "otherFile"]
+#guard jobProblems ⟨[".node-version"], false, false, true, false⟩ == []
+#guard jobProblems ⟨[], false, false, true, false⟩ == ["unpinnedNode"]
+#guard jobProblems ⟨[], false, true, true, false⟩ == []
+#guard jobProblems ⟨[".node-version"], false, false, true, true⟩ == ["nodeBeforeSetup"]
+#guard jobProblems ⟨["package.json"], true, false, true, false⟩ == ["versionKey", "otherFile"]
 #guard rowProblems true none == ["noRow"]
 #guard rowProblems true (some ["apps/**"]) == ["rowLacksPin"]
 #guard rowProblems false none == []
@@ -787,11 +841,18 @@ def pinValues : List (Option String) :=
   [some "24.22.0", some "24.30.1", some "25.0.0", some "24.21.9", some "23.99.99", some "24", some "24.22",
    some ">=24.22.0", some "v24.22.0", some "24.22.x", some "24.22.0.1", some "", none]
 
-/-- Jobs the golden decides: (setups, versionKey, pnpmAction, runsNode). -/
+/-- Jobs the golden decides: (setups, versionKey, pnpmAction, runsNode, nodeBeforeSetup). -/
 def pinJobs : List PinJob := [
-  ⟨[".node-version"], false, false, true⟩, ⟨[], false, false, true⟩, ⟨[], false, true, true⟩, ⟨[], false, false, false⟩,
-  ⟨["package.json"], false, false, true⟩, ⟨[""], false, false, true⟩, ⟨[], true, false, true⟩,
-  ⟨[".node-version", "x"], true, false, true⟩]
+  ⟨[".node-version"], false, false, true, false⟩, ⟨[], false, false, true, false⟩, ⟨[], false, true, true, false⟩,
+  ⟨[], false, false, false, false⟩, ⟨["package.json"], false, false, true, false⟩, ⟨[""], false, false, true, false⟩,
+  ⟨[], true, false, true, false⟩, ⟨[".node-version", "x"], true, false, true, false⟩,
+  ⟨[".node-version"], false, false, true, true⟩, ⟨[], false, true, true, true⟩, ⟨["package.json"], false, false, true, true⟩]
+
+/-- Guard cases the golden decides: (running `process.version`, pin file content). -/
+def pinGuards : List (String × Option String) := [
+  ("v24.22.0", some "24.22.0"), ("24.22.0", some "24.22.0"), ("v24.22.0", some "24.22.0\n"), ("v24.22.0", some " 24.22.0 "),
+  ("v24.14.0", some "24.22.0"), ("v24.23.0", some "24.22.0"), ("24.14.0", some "24.22.0"), ("vv24.22.0", some "24.22.0"),
+  ("v1.0.0", none), ("v24.22.0", some "")]
 
 /-- Rows the golden decides: (usesNode, row inputs). -/
 def pinRows : List (Bool × Option (List String)) := [
@@ -807,7 +868,9 @@ def pinCopies : List (Option String × List (String × Option String)) := [
 def pinLines : List Json :=
   pinValues.map (fun p => Json.mkObj [("kind", "pinValue"), ("pin", optStr p), ("problems", strs (pinValueProblems p))]) ++
   pinJobs.map (fun j => Json.mkObj [("kind", "pinJob"), ("setups", strs j.setups), ("versionKey", .bool j.versionKey),
-    ("pnpmAction", .bool j.pnpmAction), ("runsNode", .bool j.runsNode), ("problems", strs (jobProblems j))]) ++
+    ("pnpmAction", .bool j.pnpmAction), ("runsNode", .bool j.runsNode), ("nodeBeforeSetup", .bool j.nodeBeforeSetup), ("problems", strs (jobProblems j))]) ++
+  pinGuards.map (fun (r, p) => Json.mkObj [("kind", "pinGuard"), ("running", .str r), ("pinned", optStr p),
+    ("refusal", optStr (nodePinRefusal r p))]) ++
   pinRows.map (fun (u, r) => Json.mkObj [("kind", "pinRow"), ("usesNode", .bool u),
     ("row", match r with | none => .null | some xs => strs xs), ("problems", strs (rowProblems u r))]) ++
   pinCopies.map (fun (p, cs) => Json.mkObj [("kind", "pinCopies"), ("pin", optStr p),
