@@ -9110,7 +9110,8 @@
     "research/notes/2026/10-20-commission-margin-recur.md",
     "results/commission-margin-recur/**",
     "docs/team/handoffs/commission-margin-recur.md"
-   ]
+   ],
+   "evidence": "809a018"
   },
   {
    "devices": [
@@ -9464,7 +9465,8 @@
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
     ".github/workflows/lean.yml"
-   ]
+   ],
+   "evidence": "5b5ebc1"
   },
   {
    "devices": [
@@ -10108,7 +10110,8 @@
     "docs/team/tools/preview-e2e.md",
     "docs/team/handoffs/preview-e2e-entry.md",
     "lean/Fw/Ops/Golden.lean"
-   ]
+   ],
+   "evidence": "00dac2d"
   },
   {
    "devices": [
@@ -10132,8 +10135,13 @@
     ".github/actions/**",
     "docs/team/tools/land.md",
     "docs/team/tools/preview-e2e.md",
-    "docs/team/handoffs/land-legs-followups.md"
-   ]
+    "docs/team/handoffs/land-legs-followups.md",
+    ".github/scripts/cache-key.mjs",
+    ".github/scripts/gate-jobs.test.mjs",
+    "apps/runner/src/land.ts",
+    "docs/team/tools/gate-speed.md"
+   ],
+   "evidence": "30d0c1f"
   },
   {
    "devices": [
@@ -10199,7 +10207,8 @@
     "lean/scripts/check.sh",
     "research/notes/2026/10-20-cmr-margin-typed-om.md",
     "docs/team/handoffs/cmr-margin-typed-om.md"
-   ]
+   ],
+   "evidence": "1469e6e"
   },
   {
    "devices": [
@@ -10222,7 +10231,10 @@
     "lean/scripts/check.sh",
     "packages/contracts/golden/gate/**",
     "research/notes/2026/10-21-cmr-margin-rect-rule.md",
-    "docs/team/handoffs/cmr-margin-rect-rule.md"
+    "docs/team/handoffs/cmr-margin-rect-rule.md",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/premise-tests/**",
+    "packages/contracts/golden/ops/premise.jsonl"
    ]
   },
   {
@@ -10239,6 +10251,100 @@
    "writes": [
     "research/notes/2026/10-2*-cmr-strut-asym.md",
     "docs/team/handoffs/cmr-strut-asym.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gh-budget-watch-expiry",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "The shared CI poller stopped (tooBig) on 2026-10-20 08:40 on a dead branch waiter's sentinel watch (ci/cmr-diag, 37c5a5a6), and again from a stale state.pages (11). Rules: (a) only valid run ids or branch sentinels register; (c) a tick reads at most pageCap pages (no tooBig stop; a stale pages count is capped); real runs unseen in covering lists or uncovered by a full list are dropped with an incident; Lean first, theorems and goldens. Age-based expiry was refused twice (hand constants vs 200 min webkit-sim chain) and is removed; dead-waiter detection moves to gh-budget-waiter-liveness (Fable wf_3916704c-d08)",
+   "writes": [
+    "packages/gh-budget/**",
+    "lean/Fw/Ci/Budget.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "lean/Fw/Wire/**",
+    "packages/contracts/golden/ci/**",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "docs/team/tools/ci-*.md",
+    "research/notes/2026/10-20-gh-budget-watch-expiry.md",
+    "docs/team/handoffs/gh-budget-watch-expiry.md",
+    "lean/Fw/Ci/Wire.lean",
+    "packages/contracts/golden/ci-budget/**",
+    "docs/team/tools/fw-ci.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-remote-unavailable",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "gh-budget-watch-expiry"
+   ],
+   "title": "preview-e2e-entry landed at 08:44 on 2026-10-20 with verdict local reason=remote-unavailable-run-locally because the poller had stopped (tooBig): the remote tier ran on this Mac, against 'a local run is never a result'. Lean Fw.Console.LandRemote: a stopped poller (or no waiter answer) is not 'unavailable' but 'wait': the land holds and retries after fw ci budget --resume, or refuses with a reason; local fallback only for a lane CI cannot run (named in the graph); theorem + golden; the landed commit's CI land run 39355006357 is checked after the fact",
+   "writes": [
+    "lean/Fw/Console/LandRemote.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/land*.ts",
+    "docs/team/tools/land.md",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "research/notes/2026/10-2*-land-remote-unavailable.md",
+    "docs/team/handoffs/land-remote-unavailable.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fw-run-inputs",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Agents cannot dispatch measurement runs with inputs (two optimization refusals on 2026-10-20): Fw.Store.Layout workflowInputs .webkit lists only vms, sessions, fresh_boot (webkit-sim.yml has preset/fw since c5bbc918, target since 5eecc358) and dispatchInputs .webkit = []; profile has no webkit input; fw run has no breakpoint-gate lane and no base --ref. Unit: Lean tables match the workflow files (generated or checked against .github/workflows/*.yml), fw run dispatches chromium-counts, webkit-sim and breakpoint-gate with preset/fw/profile/target/ref, blocked theorems per lane, goldens; the allow rule Bash(pnpm fw run *) handed to the user as a ! command (store-target's handoff left webkit BLOCKED for ci-webkit)",
+   "writes": [
+    "lean/Fw/Store/**",
+    "lean/Fw/Wire/**",
+    "packages/contracts/golden/store/**",
+    "apps/runner/src/run.ts",
+    "apps/runner/test/run*.ts",
+    "docs/team/tools/fw-run.md",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "research/notes/2026/10-2*-fw-run-inputs.md",
+    "docs/team/handoffs/fw-run-inputs.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gh-budget-waiter-liveness",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "gh-budget-watch-expiry"
+   ],
+   "title": "A watch is kept exactly while its waiter lives: the marker in .git/fw-gh-budget/waiters records pid and the process start time; alive iff kill(pid,0) succeeds and the start time read now (ps -o lstart= or equivalent) equals the recorded one (identity, no heartbeat or age constant; pid reuse fails the token). Lean: sweep(alive) event drops every watch with no live marker with an .orphan incident, inside next before the window; theorems sweep_keeps_alive, sweep_drops_orphan, sweep_total, next_window_from_live; goldens; TS reads the dir (I/O only); tests: dead pid dropped, live kept, reused pid dropped, no register-before-marker gap",
+   "writes": [
+    "packages/gh-budget/**",
+    "lean/Fw/Ci/Budget.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "packages/contracts/golden/ci-budget/**",
+    "docs/team/tools/fw-ci.md",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2*-gh-budget-waiter-liveness.md",
+    "docs/team/handoffs/gh-budget-waiter-liveness.md"
    ]
   }
  ],

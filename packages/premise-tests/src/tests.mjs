@@ -166,6 +166,52 @@ export const TESTS = [
     },
   },
   {
+    // cmr-margin-typed-om: the margin read through the Typed OM (computedStyleMap) is the computed value, not the used one:
+    // a CSSKeywordValue auto, a percent CSSUnitValue, a px CSSUnitValue, for the four keys, in normal flow, in a skipped
+    // content-visibility:auto subtree (one subtree per read, each checked skipped just before its read) and under a scaled ancestor.
+    id: 'prem.cv.margin-typed-om', premise: 'cv.margin-typed-om', page: 'cv.margin-typed-om.html',
+    async run({ page }) {
+      await page.waitForFunction(() => Object.keys(window.__cv).length === 12 && Object.values(window.__cv).every(Boolean), null, { timeout: 5000 }).catch(() => {});
+      const o = await page.evaluate(() => {
+        const keys = ['margin-left', 'margin-right', 'margin-inline-start', 'margin-inline-end'];
+        const show = (v) => (v instanceof CSSKeywordValue ? { type: 'keyword', value: v.value }
+          : v instanceof CSSUnitValue ? { type: 'unit', value: v.value, unit: v.unit } : { type: String(v && v.constructor && v.constructor.name) });
+        const cells = {};
+        const read = (caseName, kind, key, el, wantSkipped) => {
+          const skippedBefore = !el.checkVisibility({ contentVisibilityAuto: true });
+          const value = show(el.computedStyleMap().get(key));
+          const skippedAfter = !el.checkVisibility({ contentVisibilityAuto: true });
+          cells[`${caseName}|${kind}|${key}`] = { value, skippedBefore, skippedAfter, wantSkipped };
+        };
+        for (const kind of ['auto', 'pct', 'px']) {
+          for (const key of keys) {
+            read('normal', kind, key, document.getElementById(`n-${kind}`), false);
+            read('scaled', kind, key, document.getElementById(`s-${kind}`), false);
+            read('skipped', kind, key, document.getElementById(`node-${kind}:${key}`), true);
+          }
+        }
+        return { cells, flags: { ...window.__cv }, scaleTransform: getComputedStyle(document.getElementById('scale')).transform };
+      });
+      const want = (kind, key) => {
+        const first = key === 'margin-left' || key === 'margin-inline-start';
+        if (kind === 'auto') return { type: 'keyword', value: 'auto' };
+        if (kind === 'pct') return { type: 'unit', value: first ? 10 : 20, unit: 'percent' };
+        return { type: 'unit', value: first ? 30 : 40, unit: 'px' };
+      };
+      const bad = [];
+      for (const [name, c] of Object.entries(o.cells)) {
+        const [, kind, key] = name.split('|');
+        if (c.skippedBefore !== c.wantSkipped) bad.push(`${name}: expected skipped=${c.wantSkipped} before the read, saw ${c.skippedBefore}`);
+        else if (JSON.stringify(c.value) !== JSON.stringify(want(kind, key))) bad.push(`${name}: read ${JSON.stringify(c.value)}, want ${JSON.stringify(want(kind, key))}`);
+      }
+      try {
+        assert.match(o.scaleTransform, /^matrix\(0\.9166/, 'the ancestor is scaled');
+        assert.equal(bad.length, 0, `${bad.length} of ${Object.keys(o.cells).length} cells differ: ${bad.slice(0, 6).join('; ')}`);
+      } catch (e) { e.observed = o; throw e; }
+      return o;
+    },
+  },
+  {
     id: 'prem.frame.raf-order', premise: 'frame.raf-order', page: 'frame.raf-order.html',
     async run({ page }) {
       const log = await page.evaluate(() => new Promise((resolve) => {

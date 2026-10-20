@@ -16,7 +16,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Cache keys from the declared inputs (Playwright version, runner image, architecture, engine)
+    - name: Cache keys from the declared inputs (Playwright version, Ubuntu release, architecture, engine)
       id: keys
       shell: bash
       working-directory: packages/gate-breakpoints
@@ -25,13 +25,13 @@ runs:
       run: |
         set -euo pipefail
         pw="$(pnpm exec playwright-core --version | awk '{print $NF}')"
-        image="${ImageOS:-unknown}-${ImageVersion:-unknown}"
+        os="${ImageOS:-unknown}"
         arch="$(uname -m)"
         key="$GITHUB_WORKSPACE/.github/scripts/cache-key.mjs"
         golden="$GITHUB_WORKSPACE/packages/contracts/golden/ops/cache.jsonl"
         {
-          echo "apt=$(node "$key" --golden "$golden" --cache apt-debs --set playwright="$pw" --set image="$image" --set arch="$arch" --set engine="$ENGINE")"
-          echo "browsers=$(node "$key" --golden "$golden" --cache browsers --set playwright="$pw" --set image="$image" --set arch="$arch" --set engine="$ENGINE")"
+          echo "apt=$(node "$key" --golden "$golden" --cache apt-debs --set playwright="$pw" --set os="$os" --set arch="$arch" --set engine="$ENGINE")"
+          echo "browsers=$(node "$key" --golden "$golden" --cache browsers --set playwright="$pw" --set os="$os" --set arch="$arch" --set engine="$ENGINE")"
           echo "hs=$(node "$key" --golden "$golden" --cache hs-zip --set hsVersion="$HS_VERSION" --set hsSha256="$HS_SHA256" --set arch="$arch")"
         } >> "$GITHUB_OUTPUT"
         cat "$GITHUB_OUTPUT" | grep -E '^(apt|browsers|hs)=' || true
