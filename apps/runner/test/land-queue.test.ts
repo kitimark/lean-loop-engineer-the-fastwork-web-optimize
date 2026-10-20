@@ -37,7 +37,8 @@ describe("land queue vs Lean golden", () => {
       const a = afterLand(q.kind as Kind, q.paths as string[], () => q.rebuildOk as boolean);
       expect(g.response).toEqual({ rebuild: needsRebuild(q.kind as Kind, q.paths as string[]), action: a.proceed ? "proceed" : "stop", rebuilt: a.proceed && a.rebuilt,
         nextKind: stopKind(a), reason: stopKind(a) === null ? null : REBUILD_REASON });
-    } else throw new Error(`unknown op ${q.op}`);
+    } else if (/^landQueue\.(health|healthSchedule|attempt|healthAfter)$/.test(q.op)) return; // checked in land-queue-unreachable.test.ts
+    else throw new Error(`unknown op ${q.op}`);
   });
   it("covers every kind", () => expect(rows.filter((g) => g.request.op === "landQueue.retry").length).toBeGreaterThanOrEqual(KINDS.length));
 });

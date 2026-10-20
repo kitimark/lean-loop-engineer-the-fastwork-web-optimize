@@ -8,5 +8,8 @@
 - `fw watch` / `fw next` raise no `agent.unlanded` for a branch that is a pending entry (`Fw.Obs.Next.no_unlanded_while_queued`, fact `landQueued`).
 - The exit code of `--queue` is the kind of this task's result, or 0 with `VERDICT queued` when another runner (or `--no-run`) will land it.
 
+- **Unreachable console** (task `land-queue-unreachable`): a refused or reset connection to console-api is `ConsoleUnreachable` (`httpFor`), not a land result. The queue polls `GET /api/health` on a fixed backoff (250 ms doubling to 4 s, 20 polls, bound 63750 ms; `health_bounded`) and retries the entry when the console answers (`healthReached_within`, `attemptNext_returns`; attempts still capped by `maxTries`, `attemptNext_bounded`). A console that stays down gives the entry `VERDICT busy` with the reason `console-unreachable: ...` and stops the queue, the rest stays pending (`attemptNext_never`, `_late`, `_exhausted`); it never gives `unknown` (`attemptNext_unreachable_not_unknown`). After the queue's own fwcore rebuild it waits for the console's health before the next entry (`healthWaitAfter_iff`). A dedicated verdict kind is a follow-up (it touches `LandVerdict`).
+- Cause of the 2026-10-20 `REFUSED: fetch failed` entries: `docs/team/handoffs/land-queue-unreachable.md`.
+
 Queue overhead about 10 ms per land (3 tiny fixture branches, real land, no CI, in-process; a local debug run, not a result).
 TS stand-in `apps/runner/src/land-queue.ts`, checked against `packages/contracts/golden/console/land-queue.jsonl`.
