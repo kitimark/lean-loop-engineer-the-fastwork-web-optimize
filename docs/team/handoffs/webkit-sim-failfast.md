@@ -18,3 +18,14 @@ State
 TS stand-ins (not Lean-checked): the refusal counter and the relaunch sequence in `session.mjs` (glue; the decision is Lean's).
 Not tested locally: the relaunch path itself (needs a dying inspector); the CI pair shows the unchanged green path only.
 Accepted limits: why the inspector dies is undiagnosed; one CI pair.
+
+CI (push runs, default config: target original, 1 VM, 1 session)
+- Reference green run 39102911639 (main push, 10-18): sim job 18.1 min. Two more green originals for spread: 39101532190, 39087202086.
+- 39426562165 (head 183100a2): determinism step failed at 23 min (cause unknown, no log: the job ended by its timeout, so GitHub kept none);
+  then "Keep logs" hung 28 min on a wedged CoreSimulator. Job timeout 45 (from the plan) fired, cancel took 10 min more. Fix: 3-min step
+  timeouts on Keep logs and Shut down, logs copied before host commands, `simctl list` bounded by an alarm (head 056de8de).
+- 39435518921 (head 056de8de): green, sim job 19.0 min (determinism 14.7 min). Class tally 30 quarantined / 59 deterministic / 14 stable
+  (103 rows); the three older greens: 33-35 / 57-58 / 11-15 (103-104 rows). Not equal: single-session tables vary run to run
+  (7 of 103 rows change class vs 39102911639, only 1 into deterministic; the "(gone)" row exists in 2 of 3 baselines).
+  Needs >= 3 runs on separate jobs before any class claim.
+- The relaunch and give-up paths did not fire in 39435518921 (no "relaunching" or "stalled" line in the session log).
