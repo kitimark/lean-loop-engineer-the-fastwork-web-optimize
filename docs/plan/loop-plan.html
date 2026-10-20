@@ -925,24 +925,6 @@ pnpm fw run --preset original --impl hero.countdown:plain
           </tbody>
         </table>
       </div>
-      <div>
-      <pre><span class="c">/-- "Better" means every variant run beat every
-    control run. -/</span>
-<span class="k">theorem</span> land_sound
-  (h : land ctl var = .better) :
-  ∀ y ∈ var, ∀ x ∈ ctl, y &lt; x := …
-
-<span class="c">/-- With no real difference, a false "better"
-    happens with probability at most 1/70;
-    equality iff ties have probability 0. -/</span>
-<span class="k">theorem</span> land_null_prob : …
-  <span class="c">-- proved in rev 6</span>
-
-<span class="c">-- examples checked at build time</span>
-#guard land [21,19,23,20] [4,3,5,2]  = .better
-#guard land [21,19,23,20] [4,3,5,22] = .noise</pre>
-      <p style="font-size:var(--s-1);color:var(--muted);margin-top:0.75rem">Illustrative sketch (kickoff), not a reviewed math row; the names are sketch names, not declarations in <code>lean/</code>: land(C, V) = better ⇒ ∀ y ∈ V, ∀ x ∈ C: y &lt; x; and Pr<sub>null</sub>[better] ≤ 1/C(8, 4) = 1/70.</p>
-      </div>
     </div>
     <div class="two">
       <div class="panel">

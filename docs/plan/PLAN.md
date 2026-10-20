@@ -1337,6 +1337,7 @@ revisions and log entries keep their wording.
 | Math pages replace the math view; axiom check replaces its lint; V-s on `agree` rows; C4 note; `mathview-differential` retired; `math:sign`, `math.lock.json` dropped (never built) | §1.2, §3.1, §5.1, §5.4, §7.1, §8.2, §8.5, §10.2, §10.7 |
 | R6, R24; decision row "Math in artifacts"; Q25/Q28; A41 (`math-view.html` removed, links fixed); `loop-plan.html`, `math-to-lean.html` text | §11, §12, App A, docs/plan |
 | Round 2 (review of 93320da8): C4 condition names the current check (rows `agree` at the current `stmtHash`); A41 states its rule as new; §5.3 citation `Verdict.lean:48, 57-61`; `loop-plan.html` Lean example labelled an illustrative kickoff sketch; `math-to-lean.html` names its math source (kickoff sketch, two passes, `lessons.json`) | §5.3, §10.2, App A, docs/plan |
+| Round 3 (final design round): the `loop-plan.html` Lean example (explainer v1, 9a29a9dc) removed; its math was never a reviewed row and its theorem statements do not match the same-named declarations in `lean/` (`Fw.Null.land_null_prob` is the 4v4 equality 1/70; `Fw.Obs.Next.land_sound` is unrelated). Reviewed math for the landing verdict is a follow-up | docs/plan |
 | Accepted limits: plan ~1,400 lines (cuts wait for rev 12); `math-artifact.md` text (frozen page; KaTeX on `loop-plan.html`) is `latex-teardown`'s | review note |
 
 ### Revision 11.2 (final design round of `plan-rev11`; review of 45c46c37 refused)
