@@ -111,7 +111,9 @@ export async function waitSocket({ timeoutMs = T(30000) } = {}) {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     const left = deadline - Date.now();
-    if (findSockets({ timeoutMs: Math.max(1000, Math.min(5000, left)) }).length) return;
+    let found = [];
+    try { found = findSockets({ timeoutMs: Math.max(1000, left) }); } catch (e) { if (left <= 0) throw e; } // a slow lsof is "no socket yet" until the deadline
+    if (found.length) return;
     if (left <= 0) throw new Error(`Safari runs, but no web inspector socket appeared in ${Math.round(timeoutMs / 1000)} s`);
     await sleep(500);
   }

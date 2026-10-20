@@ -22,8 +22,8 @@ CI (webkit-sim, original, 1 session), runs used: 3 (2 planned + 1 rerun, see Ope
 - Normal run 39459689946 (head 06f7419a, same code): green, `cli: exit 0`, no probe failure or relaunch line. Classes 58 deterministic / 14 stable / 32 quarantined
   (39447981526: 56 / 10 / 38; baseline 39102911639: 58 deterministic); the quarantined census rows vary between runs (limit (f)).
 Open
-- The first attempt of 39459660693 died at start with `error: lsof: ETIMEDOUT`, `cli: exit 1` (16:54:25Z, before the fault armed; startProxy lsof, unchanged code). I reran the failed job once (3rd run, over limit (i)).
-  lsof is slow on these runners (also the 5 s lsof in the relaunch); follow-up: lsof bound and retry.
+- The first attempt of 39459660693 died at start with `error: lsof: ETIMEDOUT`, `cli: exit 1` (16:54:25Z, before the fault armed; source not determined: waitSocket, 5 s cap on this branch until the lead fix, or startProxy, 30 s as on main). I reran the failed job once (3rd run, over limit (i)).
+  lsof is slow on these runners (also the 5 s lsof in the relaunch). Lead fix: waitSocket treats an lsof error as "no socket yet" until its deadline and gives lsof the time left. Follow-up: the relaunch lsof bound.
 - Follow-ups: #5 relaunch holds a closed client, #6 end-of-run probe can relaunch, sim-seen-table, cause of inspector deaths.
 - Main moved on after the merge; the lead merges it again at land. No write outside the task's files; work-graph.json untouched.
 Convention: goldens: `lake build Fw.Measure.Golden Fw.Measure.Wire`, then `lake env lean --run scripts/MeasureGolden.lean` in lean/; rebuild fwcore before node tests.
