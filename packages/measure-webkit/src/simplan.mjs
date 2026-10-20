@@ -17,12 +17,13 @@ export function planRequest(env) {
   };
 }
 
-/** The workflow outputs of an accepted reply: `matrix` ({include: [...]} of the cells), `search`, `original`, `rewrite`, `both`. */
+/** The workflow outputs of an accepted reply: `matrix` ({include: [...]} of the cells), `search`, `original`, `rewrite`, `both`, and the time bounds `step_min`, `job_min`, `stall_ms`. */
 export function outputsOf(reply) {
   return {
     matrix: JSON.stringify({ include: reply.matrix }),
     search: reply.search,
     original: String(reply.original), rewrite: String(reply.rewrite), both: String(reply.both),
+    step_min: String(reply.stepTimeoutMin), job_min: String(reply.jobTimeoutMin), stall_ms: String(reply.stallMs),
   };
 }
 

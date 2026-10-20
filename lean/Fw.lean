@@ -67,6 +67,7 @@ import Fw.Measure.WebKit
 import Fw.Measure.Retry
 import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
+import Fw.Measure.SimBound
 import Fw.Measure.Compose
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard
