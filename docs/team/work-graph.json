@@ -11662,7 +11662,8 @@
     "packages/contracts/golden/gate/trajectory-colour*.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/kit-colour-space.md"
-   ]
+   ],
+   "evidence": "2f774bc"
   },
   {
    "devices": [
