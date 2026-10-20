@@ -30,6 +30,8 @@ runs 39368032874, 39369683085, 39370632229, MEASURED, `0e0233f9`); the optimizat
 `6d175439`); tooling: `ci-wait-lag` (`e6b5a637`), fwcore replay and query made linear with equality proofs
 (`54e26907`, `a3ac6de1`), and the land queue rebuilds fwcore after a Lean land (`c5ff0f65`). CONFIRMED by those commits.
 
+**Erratum (2026-10-20, after the final).** On real devices the user found three visible bugs that no check of this report saw. (1) `morph.tween:waapi`, a v2-proved member counted as proved and win/win in §4: the nav classes stay stale for the whole end-of-page morph and the logo jumps, in Chromium and Safari, because the WAAPI driver writes `data-fw-morph` only at start and finish; the Lean theorem holds for scenes that are functions of the morph view, which the shipped code is not. It is falsified (ledger row `morph.tween.waapi.falsified`, fResult model-bug) and the generator dropped it: v2-proved now has 8 flags (`384bec6f`). The v2-proved gate, model-check and count runs cited in this report measured the 9-flag preset. (2) `hero.exit:scoped` (not in v2-proved) freezes the hero in Safari only: open WebKit bugs 325900 and 321094 (`research/notes/2026/10-21-engine-release-notes.md`). (3) `is-on-dark` is not re-evaluated during the morph in any rewrite arm (a port bug). Why the gate, counts and proofs missed them, and the new trajectory probe: `research/notes/2026/10-21-measure-probe-review.md`. CONFIRMED by user report and source; CI confirmation pending (task trajectory-probe).
+
 **Status words.** MEASURED: a number from a run or a count in this repo, with its commit, run id or file. CONFIRMED:
 a cited source, doc or record says so. INFERRED: a judgement or expectation not yet checked.
 
