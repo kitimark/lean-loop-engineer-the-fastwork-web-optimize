@@ -151,8 +151,8 @@ MEASURED. What each shows: the instrument change alone clears A in the probe (th
 the step; run 3 has the faithful arm jumping and the original gliding, and they agree). So the probe does not show that the
 reset.css fix cleared A, and the retry hides the original's WebKit stall from every later comparison. The reset.css fix is a
 fidelity fix shown by `apps/site/src/scroll-behavior.test.ts` and the CSS restated above, not by the probe. The reverse
-variant (port fix, no retry) was not run (run 4 of 4 is unused); whether the port fix alone clears A stays open. Run 3's
-conclusion is quoted in the handoff.
+variant (port fix, no retry) was not run (run 4 of 4 is unused); whether the port fix alone clears A stays open. Run 3 completed with conclusion
+`success` (`fw ci wait`: pass).
 
 ## Limits
 

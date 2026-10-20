@@ -16,7 +16,7 @@ Verified (MEASURED, CI): Lean `outcome` (storedOf + outcome, no admission write)
 macOS WebKit hero in runs 39453764374 and 39457063232 (both success); Linux WebKit morph "no verdict: coverage" (accepted).
 Row F (earn max-width/opacity at close@0/close-hold@0): CSS values equal; in-flight sampling, fails in candidate and faithful
 arm in all 3 runs incl. A/A 39409003529. Row C: no CSS rule ties earn to `.is-on-dark`; follow-up.
-Two effects: run 39461484608 (kit retry, no port scroll-behavior): macOS WebKit 0 new / 0 both / 4000 ok, so A is cleared
+Two effects: run 39461484608 (success; kit retry, no port scroll-behavior): macOS WebKit 0 new / 0 both / 4000 ok, so A is cleared
 by the instrument; the port fix is shown by scroll-behavior.test.ts only. Reverse variant (port fix, no retry) not run.
 
 Outside-graph writes: none (graph widened at 2ff42b63; kit.mjs, FootprintData.lean, footprint.gen.json are listed there).
