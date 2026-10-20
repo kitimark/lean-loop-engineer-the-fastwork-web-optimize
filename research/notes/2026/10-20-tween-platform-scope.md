@@ -76,9 +76,20 @@ Gates and lanes:
     it serializes the same as the original. Earlier, the waapi arm failed 10 of 14 columns on exactly this probe
     (`docs/team/handoffs/gate-preset-input.md:37`). No part contract lists `--platform-morph` as an input, so the gate
     does not probe it.
-  - Re-run for the flake: 39340504860.
-- **webkit-sim** 39337860689: see the handoff. The WebKit saving stays INFERRED unless that lane reports recalc
-  counts.
+  - Re-run 39340504860: the platform row passes again in both engines.
+    - Chromium has 2 fails, both commission `inner`/`rows` margin-inline cells: `pain-1440-600-1440` and
+      `desktop-1512-320-1512` (132px vs 0px). morph.tween does not touch commission, so this is the same flake.
+    - WebKit again has 0 fail. Its one not-ok cell is phone-rotation, marked not-comparable.
+- **webkit-sim** 39337860689 (`fw=morph.tween:waapi-scoped`, target rewrite): failed on both attempts, in step
+  "Determinism sessions".
+  - Attempt 1: `Runtime.evaluate` timed out after 120 s, then the Safari tab was unreachable.
+  - Attempt 2: `Runtime.evaluate`, `Timeline.stop` and `LayerTree.reasonsForCompositingLayer` timed out, then
+    ECONNREFUSED.
+  - The control run 39347940719 (`fw=morph.tween:waapi`) passed, but it hit the same kind of timeout twice and
+    recovered. Its scroll passes show style 662 and 651. So the lane is flaky with inspector timeouts. Whether the
+    scoped arm makes them worse is open (INFERRED: lane flake, 1 control run).
+  - The lane's profile is a scroll with no tween push, so a passing run would not show the saving either. The WebKit
+    saving stays INFERRED from WebKit's own inherited-change rule (StyleChange.cpp:36-45@862f17d).
 
 ## Proofs
 

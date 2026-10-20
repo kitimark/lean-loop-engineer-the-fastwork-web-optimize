@@ -13,7 +13,9 @@ results and this file. CI branch `ci/tween-platform-scope` is at 50dbdd6e.
 - Gate 39337856330: the platform row passes in both engines. The only Chromium fail is the commission flake.
 
 **Open.**
-- Gate re-run 39340504860 (flake) and webkit-sim 39337860689: read the verdicts with `pnpm -s fw ci wait <id>`.
+- Gate re-run 39340504860: the platform row passes again; only commission margin-inline flake cells fail (2).
+- webkit-sim 39337860689 failed on both attempts (inspector timeouts). Control waapi 39347940719 passed after 2
+  timeouts. Re-dispatch with `-f target=rewrite -f fw=morph.tween:waapi-scoped`. The WebKit saving is INFERRED.
 - Residual: in late frames scoped still recalcs 117-118 elements per frame above faithful. It is not the 24-element nav
   alone. Follow-up: morph-nav-scope.
 - Preset inclusion is the lead's decision.
