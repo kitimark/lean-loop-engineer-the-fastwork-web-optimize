@@ -10979,7 +10979,8 @@
     ".claude/agents/**",
     "docs/team/serena.md",
     "docs/team/handoffs/serena-trim.md"
-   ]
+   ],
+   "evidence": "49b0584"
   },
   {
    "devices": [
