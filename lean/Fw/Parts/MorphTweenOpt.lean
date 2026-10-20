@@ -2,6 +2,9 @@ import Fw.Parts.MorphTween
 import Fw.Engine
 import Fw.Site.Breakpoints
 import Fw.Parts.EndFlags
+import Fw.Parts.Nav
+import Fw.Parts.MorphPanel
+import Fw.Parts.NavHitTest
 
 /-!
 # morph.tween, variant `waapi`: curve, value, flags, work (MT1, MT2, MT3, MT4, MT-W)
@@ -28,7 +31,7 @@ MT3 (`waapi_eq_tween`): with linear interpolation (R3), the exact curve (MT1) an
 rAF clock plus one constant `c` (R5; the start time is read from `document.timeline.currentTime`), the WAAPI value at
 every frame equals `MorphTween.tween` in `ℚ`, over every push sequence. MT4 (`flags_same_frame`): the four
 flags, as discrete keyframes at the eased-progress offset, flip on the same frame as the original's strict
-`>` tests, except at an exact tie `p = c` (R3b: the engines flip at `p ≥ c`). Visual (`waapi_vis`): the scene is
+`>` tests, except at an exact tie `p = c` (R3b: the engines flip at `p ≥ c`). Visual (`waapi_vis`): the scene, the readers of the written `data-fw-morph` included, is
 `VisSame E` for every env. MT-W (`waapi_work_le`): per tween frame the variant drops the script stage and keeps
 every other stage, in both engine tables (a custom property animates on the main thread in both). MT-R
 (`registrations_see`, `morph_scope_eq`): `--morph` and `--morph-fade` are registered inherited, so every reader below
@@ -793,15 +796,454 @@ theorem view_eq (P : WaapiPremises) (h : Hist) : viewV P h.1.1 h.1.2.1 = viewO h
   have hθ' : tieB (runO rest es) θ R = false := by simpa using List.all_eq_true.1 ht θ hθ
   exact flags_same_run P es l R θ hm hθ'
 
-/-- **The visual theorem (class E-s).** For every scene function of the view, every viewport and every environment
-(so every width band, both engines' layouts alike), the variant's scene equals the original's on every admissible
-frame.
+/-! ### The attribute the readers see -/
 
-The WAAPI variant looks exactly like the original. -/
-theorem waapi_vis (P : WaapiPremises) (vp : Fw.Site.Breakpoints.Env → Rect)
-    (S : Fw.Site.Breakpoints.Env → View → Scene) :
-    VisSame E vp (fun env (h : Hist) => S env (viewO h.1.1 h.1.2.1)) (fun env h => S env (viewV P h.1.1 h.1.2.1)) :=
-  visSame_of_eq vp fun env h => by rw [view_eq P h]
+/-- How a reader compares the attribute with its threshold: strictly above or strictly below. -/
+inductive Cmp where
+  | gt
+  | lt
+deriving Repr, DecidableEq
+
+/-- One reader of `data-fw-morph`: what it writes, its comparison and its threshold. -/
+structure AttrReader where
+  sel : String
+  cmp : Cmp
+  θ : Rat
+deriving Repr, DecidableEq
+
+/-- The reader's answer for the attribute value `m`. -/
+def AttrReader.test (r : AttrReader) (m : Rat) : Bool :=
+  match r.cmp with
+  | .gt => decide (r.θ < m)
+  | .lt => decide (m < r.θ)
+
+/-- Every threshold test on `data-fw-morph` in nav, nav.hitTest and morph.panel. -/
+def attrReaders : List AttrReader :=
+  [⟨"nav.is-morphing", .gt, 1 / 1000⟩, ⟨"nav.is-on-dark", .gt, 1 / 5⟩, ⟨"nav.earn.tabindex", .gt, 2 / 5⟩,
+    ⟨"nav.earn.aria-hidden", .gt, 11 / 20⟩, ⟨"nav.is-expanded", .gt, 23 / 25⟩,
+    ⟨"panel.data-start-selling-scene", .gt, 1 / 1000⟩, ⟨"panel.aria-hidden", .lt, 7 / 20⟩,
+    ⟨"panel.cta.tabindex", .lt, 11 / 20⟩, ⟨"panel.data-expanded", .gt, 23 / 25⟩]
+
+/-- The readers' answers for the attribute value `m`, in `attrReaders` order. -/
+def band (m : Rat) : List Bool := attrReaders.map (·.test m)
+
+/-- The inputs of the nav's classes other than the attribute. -/
+structure AttrCtx where
+  past : Bool
+  ready : Bool
+  localeOpen : Bool
+  hit : Bool
+  stuck : Bool
+deriving Repr, DecidableEq
+
+/-- What the readers of `data-fw-morph` write: nav classes, earn button, `is-on-dark`, the four panel flags. -/
+structure AttrScene where
+  nav : Nav.View
+  earn : Nav.Earn
+  onDark : Bool
+  panel : List Bool
+deriving Repr, DecidableEq
+
+/-- The readers' output for context `c` and attribute value `m`. -/
+def attrScene (c : AttrCtx) (m : Rat) : AttrScene :=
+  let v := Nav.view c.past c.ready c.localeOpen c.hit c.stuck m
+  ⟨v, Nav.earn v.heroPill m, NavHitTest.isOnDark c.hit m,
+    [MorphPanel.sceneActive m, MorphPanel.ariaHidden m, MorphPanel.ctaTabOff m, MorphPanel.expanded m]⟩
+
+/-- The readers' output read off the band `b` alone. -/
+def sceneOfBand (c : AttrCtx) (b : List Bool) : AttrScene :=
+  let morphing := b.getD 0 false
+  let v : Nav.View := ⟨!c.past && !morphing, c.ready, morphing, b.getD 4 false, c.hit || b.getD 1 false,
+    c.localeOpen, c.stuck && !morphing⟩
+  ⟨v, ⟨b.getD 2 false || v.heroPill, v.heroPill || b.getD 3 false⟩, c.hit || b.getD 1 false,
+    [b.getD 5 false, b.getD 6 false, b.getD 7 false, b.getD 8 false]⟩
+
+theorem attrScene_eq_band (c : AttrCtx) (m : Rat) : attrScene c m = sceneOfBand c (band m) := rfl
+
+/-- Two attribute values in the same band give the same readers' output. -/
+theorem attrScene_band (c : AttrCtx) (m m' : Rat) (h : band m = band m') : attrScene c m = attrScene c m' := by
+  rw [attrScene_eq_band, attrScene_eq_band, h]
+
+#guard attrScene ⟨true, true, false, false, false⟩ (1 / 2) == attrScene ⟨true, true, false, false, false⟩ (21 / 40)
+#guard attrScene ⟨true, true, false, false, false⟩ (1 / 2) != attrScene ⟨true, true, false, false, false⟩ (3 / 5)
+#guard band 0 == [false, false, false, false, false, false, true, true, false]
+#guard band 1 == [true, true, true, true, true, true, false, false, true]
+
+/-! ### Direction along a push -/
+
+/-- `m` lies strictly past `θ` in the direction from `f` to `t`. -/
+def pastS (f t θ m : Rat) : Prop := (f < t ∧ θ < m) ∨ (t < f ∧ m < θ)
+
+instance (f t θ m : Rat) : Decidable (pastS f t θ m) :=
+  inferInstanceAs (Decidable ((f < t ∧ θ < m) ∨ (t < f ∧ m < θ)))
+
+/-- `m` has reached `θ` in the direction from `f` to `t`. -/
+def reach (f t θ m : Rat) : Prop := (f < t ∧ θ ≤ m) ∨ (t < f ∧ m ≤ θ)
+
+instance (f t θ m : Rat) : Decidable (reach f t θ m) :=
+  inferInstanceAs (Decidable ((f < t ∧ θ ≤ m) ∨ (t < f ∧ m ≤ θ)))
+
+/-- `v` lies at or after `u` in the direction from `f` to `t`. -/
+def ahd (f t u v : Rat) : Prop := (f < t → u ≤ v) ∧ (t < f → v ≤ u) ∧ (f = t → u = v)
+
+/-- The value of a push from `f` to `t` at eased progress `ease x`. -/
+def pathAt (f t x : Rat) : Rat := f + (t - f) * ease x
+
+theorem ahd_refl (f t u : Rat) : ahd f t u u := by unfold ahd; grind
+
+theorem ahd_trans (f t u v w : Rat) (h1 : ahd f t u v) (h2 : ahd f t v w) : ahd f t u w := by
+  unfold ahd at *; grind
+
+theorem ahd_antisymm (f t u v : Rat) (h1 : ahd f t u v) (h2 : ahd f t v u) : u = v := by
+  unfold ahd at *; grind
+
+theorem ahd_lin (f t a b : Rat) (h : a ≤ b) : ahd f t (f + (t - f) * a) (f + (t - f) * b) := by
+  unfold ahd
+  refine ⟨fun hft => ?_, fun hft => ?_, fun hft => by subst hft; grind⟩
+  · have := Rat.mul_nonneg (show 0 ≤ t - f by grind) (show 0 ≤ b - a by grind); grind
+  · have := Rat.mul_nonneg (show 0 ≤ f - t by grind) (show 0 ≤ b - a by grind); grind
+
+theorem reach_mono (f t θ u v : Rat) (h : reach f t θ u) (hv : ahd f t u v) : reach f t θ v := by
+  unfold reach ahd at *; grind
+
+theorem pastS_mono (f t θ u v : Rat) (h : pastS f t θ u) (hv : ahd f t u v) : pastS f t θ v := by
+  unfold pastS ahd at *; grind
+
+theorem ease_nonpos (x : Rat) (h : x ≤ 0) : ease x = 0 := by
+  have : clamp01 x = 0 := by unfold clamp01; grind
+  unfold ease; rw [this]; grind
+
+theorem pathAt_from (f t x : Rat) : ahd f t f (pathAt f t x) := by
+  have h := ahd_lin f t 0 (ease x) (ease_mem x).1
+  have e : f + (t - f) * 0 = f := by grind
+  rw [e] at h; exact h
+
+theorem pathAt_to (f t x : Rat) : ahd f t (pathAt f t x) t := by
+  have h := ahd_lin f t (ease x) 1 (ease_mem x).2
+  have e : f + (t - f) * 1 = t := by grind
+  rw [e] at h; exact h
+
+theorem pathAt_mono (f t x y : Rat) (h : x ≤ y) : ahd f t (pathAt f t x) (pathAt f t y) :=
+  ahd_lin f t _ _ (ease_mono x y h)
+
+theorem valA_path (P : WaapiPremises) (a : Anim) (T : Rat) :
+    valA P a T = pathAt a.f a.t ((T - a.st) / duration) := by
+  have hm := clamp01_mem ((T - a.st) / duration)
+  unfold valA progress pathAt
+  rw [P.interp_lin, P.timing_eq _ hm.1 hm.2, curveY_eq_ease _ hm.1 hm.2, ease_clamp]
+
+theorem valA_mono (P : WaapiPremises) (a : Anim) (T T' : Rat) (h : T ≤ T') :
+    ahd a.f a.t (valA P a T) (valA P a T') := by
+  rw [valA_path, valA_path]
+  apply pathAt_mono
+  rw [div_dur, div_dur]; grind
+
+theorem test_flip (f t u v : Rat) (r : AttrReader) (hv : ahd f t u v) (h : r.test u ≠ r.test v) :
+    u ≠ v ∧ reach f t r.θ v ∧ ¬ pastS f t r.θ u := by
+  refine ⟨fun he => h (by rw [he]), ?_⟩
+  unfold AttrReader.test at h
+  unfold reach pastS ahd at *
+  cases r.cmp <;> simp only [ne_eq] at h <;> grind
+
+theorem band_ne (u v : Rat) (h : band u ≠ band v) : ∃ r ∈ attrReaders, r.test u ≠ r.test v := by
+  refine Classical.byContradiction fun hc => h ?_
+  unfold band
+  apply List.map_congr_left
+  intro r hr
+  exact Classical.byContradiction fun hne => hc ⟨r, hr, hne⟩
+
+/-! ### When the driver writes the attribute -/
+
+/-- The variant's state and the last value written to `data-fw-morph`. -/
+structure ASt where
+  w : VSt
+  attr : Rat
+deriving Repr, DecidableEq
+
+/-- Rest, attribute 0. -/
+def initA : ASt := ⟨initV, 0⟩
+
+/-- The variant's step: a push writes its start value, a frame writes its value iff `wr` says so. -/
+def stepAttr (P : WaapiPremises) (wr : VSt → Rat → Bool) (x : ASt) : Ev → ASt
+  | .push g rm n =>
+    ⟨stepV P x.w (.push g rm n), if x.w.target = g ∧ x.w.aim = g then x.attr else if rm then g else x.w.cur⟩
+  | .tick R => ⟨stepV P x.w (.tick R), if wr x.w (P.tl R) then valV P x.w (P.tl R) else x.attr⟩
+
+/-- The state after a list of events. -/
+def runAttr (P : WaapiPremises) (wr : VSt → Rat → Bool) (x : ASt) (es : List Ev) : ASt := es.foldl (stepAttr P wr) x
+
+theorem runAttr_w (P : WaapiPremises) (wr : VSt → Rat → Bool) :
+    ∀ (es : List Ev) (x : ASt), (runAttr P wr x es).w = runV P x.w es
+  | [], _ => rfl
+  | e :: es, x => by
+    have := runAttr_w P wr es (stepAttr P wr x e)
+    simp only [runAttr, runV, List.foldl_cons] at *
+    rw [this]; cases e <;> rfl
+
+/-- The finish handler: writes on every frame at or after the animation's end. -/
+def finishW (w : VSt) (T : Rat) : Bool :=
+  match w.anim with
+  | none => false
+  | some a => decide (a.st + duration ≤ T)
+
+/-- The old driver: the push and the finish write, nothing between. -/
+def oldW : VSt → Rat → Bool := finishW
+
+/-- A push from `f` to `t` gets a marker for `θ` iff `θ` is not passed at `f` and reached at `t`. -/
+def markerB (f t θ : Rat) : Bool := !decide (pastS f t θ f) && decide (reach f t θ t)
+
+/-- Each marker writes on every frame from its delay on until a frame's value has passed its threshold. -/
+def pollW (dl : Rat → Rat → Rat → Rat) (w : VSt) (T : Rat) : Bool :=
+  match w.anim with
+  | none => false
+  | some a => attrReaders.any fun r =>
+    markerB a.f a.t r.θ && decide (a.st + dl a.f a.t r.θ ≤ T) && !decide (pastS a.f a.t r.θ w.cur)
+
+/-- The fixed driver: the finish write and the markers. -/
+def fixW (dl : Rat → Rat → Rat → Rat) (w : VSt) (T : Rat) : Bool := finishW w T || pollW dl w T
+
+/-- A writer is sound when it writes on every frame whose value changes the band. -/
+def WrOk (P : WaapiPremises) (wr : VSt → Rat → Bool) : Prop :=
+  ∀ (w : VSt) (a : Anim) (T : Rat), w.anim = some a → ahd a.f a.t a.f w.cur → ahd a.f a.t w.cur (valA P a T) →
+    band w.cur ≠ band (valA P a T) → wr w T = true
+
+/-- A delay is sound when it never exceeds the elapsed time at which the push reaches the threshold. -/
+def DlSound (dl : Rat → Rat → Rat → Rat) : Prop :=
+  ∀ f t θ e, 0 < e → reach f t θ (pathAt f t (e / duration)) → dl f t θ ≤ e
+
+/-- Sound delays make the fixed driver a sound writer. -/
+theorem fixW_ok (P : WaapiPremises) (dl : Rat → Rat → Rat → Rat) (hd : DlSound dl) : WrOk P (fixW dl) := by
+  intro w a T ha hf hv hb
+  obtain ⟨r, hr, hne⟩ := band_ne _ _ hb
+  obtain ⟨huv, hreach, hnp⟩ := test_flip _ _ _ _ r hv hne
+  have hval := valA_path P a T
+  have he : 0 < T - a.st := by
+    refine Classical.byContradiction fun hn => huv ?_
+    have h0 : pathAt a.f a.t ((T - a.st) / duration) = a.f := by
+      unfold pathAt; rw [ease_nonpos _ (by rw [div_dur]; grind)]; grind
+    have hvf : valA P a T = a.f := hval.trans h0
+    rw [hvf] at hv ⊢
+    exact (ahd_antisymm _ _ _ _ hf hv).symm
+  have hdl := hd a.f a.t r.θ (T - a.st) he (by rw [← hval]; exact hreach)
+  have hto : reach a.f a.t r.θ a.t := reach_mono _ _ _ _ _ hreach (by rw [hval]; exact pathAt_to _ _ _)
+  have hfr : ¬ pastS a.f a.t r.θ a.f := fun hp => hnp (pastS_mono _ _ _ _ _ hp hf)
+  unfold fixW pollW
+  rw [ha]
+  simp only [Bool.or_eq_true, List.any_eq_true, Bool.and_eq_true, Bool.not_eq_eq_eq_not, Bool.not_true,
+    decide_eq_false_iff_not, decide_eq_true_eq, markerB]
+  exact Or.inr ⟨r, hr, ⟨⟨by simpa using hfr, hto⟩, by grind⟩, hnp⟩
+
+/-! ### The attribute stays in the value's band -/
+
+/-- The attribute is in the band of the last frame's value, and every later frame value lies ahead of it. -/
+def AInv (P : WaapiPremises) (l : Rat) (x : ASt) : Prop :=
+  band x.attr = band x.w.cur ∧ (x.w.anim = none → x.w.cur = x.w.base) ∧
+    ∀ a, x.w.anim = some a → ahd a.f a.t a.f x.w.cur ∧ ∀ T, P.tl l ≤ T → ahd a.f a.t x.w.cur (valA P a T)
+
+theorem ainv_init (P : WaapiPremises) (l : Rat) : AInv P l initA := by
+  refine ⟨rfl, fun _ => rfl, fun a h => ?_⟩
+  simp [initA, initV] at h
+
+theorem ainv_push (P : WaapiPremises) (wr : VSt → Rat → Bool) (l g n : Rat) (rm : Bool) (x : ASt)
+    (h : AInv P l x) : AInv P l (stepAttr P wr x (.push g rm n)) := by
+  obtain ⟨hb, hn, hs⟩ := h
+  by_cases hg : x.w.target = g ∧ x.w.aim = g
+  · simp only [stepAttr, stepV, hg, and_self, ite_true]
+    exact ⟨hb, hn, hs⟩
+  · cases rm
+    · simp only [stepAttr, stepV, hg, ite_false, Bool.false_eq_true]
+      refine ⟨rfl, fun h => by simp at h, fun a ha => ?_⟩
+      simp only [Option.some.injEq] at ha
+      subst ha
+      refine ⟨ahd_refl _ _ _, fun T _ => ?_⟩
+      rw [valA_path]; exact pathAt_from _ _ _
+    · simp only [stepAttr, stepV, hg, ite_false, ite_true]
+      exact ⟨rfl, fun _ => rfl, fun a ha => by simp at ha⟩
+
+theorem ainv_tick (P : WaapiPremises) (wr : VSt → Rat → Bool) (hw : WrOk P wr) (l R : Rat) (x : ASt)
+    (h : AInv P l x) (hl : l ≤ R) : AInv P R (stepAttr P wr x (.tick R)) := by
+  obtain ⟨hb, hn, hs⟩ := h
+  have htl : P.tl l ≤ P.tl R := by rw [P.tl_eq, P.tl_eq]; grind
+  cases ha : x.w.anim with
+  | none =>
+    have hv : valV P x.w (P.tl R) = x.w.cur := by simp only [valV, ha]; exact (hn ha).symm
+    simp only [stepAttr, stepV, hv]
+    refine ⟨?_, fun _ => hn ha, fun a h => by simp [ha] at h⟩
+    split <;> simp only [hb]
+  | some a =>
+    obtain ⟨hf, hT⟩ := hs a ha
+    have hv : valV P x.w (P.tl R) = valA P a (P.tl R) := by simp only [valV, ha]
+    simp only [stepAttr, stepV, hv]
+    refine ⟨?_, fun h => by simp [ha] at h, fun a' h' => ?_⟩
+    · split
+      · rfl
+      · rename_i hnw
+        refine hb.trans (Classical.byContradiction fun hne => hnw ?_)
+        exact hw x.w a (P.tl R) ha hf (hT _ htl) hne
+    · simp only [ha, Option.some.injEq] at h'
+      subst h'
+      exact ⟨ahd_trans _ _ _ _ _ hf (hT _ htl), fun T hT' => valA_mono P _ _ _ hT'⟩
+
+theorem ainv_run (P : WaapiPremises) (wr : VSt → Rat → Bool) (hw : WrOk P wr) :
+    ∀ (es : List Ev) (l : Rat) (x : ASt), AInv P l x → monoB l es = true → ∃ l', AInv P l' (runAttr P wr x es)
+  | [], l, _, h, _ => ⟨l, h⟩
+  | .push g rm n :: es, l, x, h, hm => by
+    simp only [monoB] at hm
+    exact ainv_run P wr hw es l _ (ainv_push P wr l g n rm x h) hm
+  | .tick R :: es, l, x, h, hm => by
+    simp only [monoB, Bool.and_eq_true, decide_eq_true_eq] at hm
+    exact ainv_run P wr hw es R _ (ainv_tick P wr hw l R x h hm.1) hm.2
+
+/-- With sound marker delays the written attribute is in the band of the original's value. -/
+theorem attr_band (P : WaapiPremises) (dl : Rat → Rat → Rat → Rat) (hd : DlSound dl) (es : List Ev) (l : Rat)
+    (hm : monoB l es = true) : band (runAttr P (fixW dl) initA es).attr = band (runO rest es).value := by
+  obtain ⟨_, hb, _⟩ := ainv_run P (fixW dl) (fixW_ok P dl hd) es l initA (ainv_init P l) hm
+  rw [hb, runAttr_w, ← waapi_eq_tween P es l hm]
+  rfl
+
+/-! ### Marker delays -/
+
+/-- Bisection for the first eased progress at which the push from `f` to `t` reaches `θ`: `k` halvings of `[lo, hi]`. -/
+def bisect (f t θ : Rat) : Nat → Rat → Rat → Rat × Rat
+  | 0, lo, hi => (lo, hi)
+  | k + 1, lo, hi =>
+    if reach f t θ (pathAt f t ((lo + hi) / 2)) then bisect f t θ k lo ((lo + hi) / 2)
+    else bisect f t θ k ((lo + hi) / 2) hi
+
+/-- The marker delay in ms: 0 when `θ` is reached at `f`, else 680 times the bisection's lower end. -/
+def dlLo (k : Nat) (f t θ : Rat) : Rat :=
+  if reach f t θ f then 0 else duration * (bisect f t θ k 0 1).1
+
+theorem bisect_lo (f t θ : Rat) :
+    ∀ (k : Nat) (lo hi : Rat), ¬ reach f t θ (pathAt f t lo) → ¬ reach f t θ (pathAt f t (bisect f t θ k lo hi).1)
+  | 0, _, _, h => h
+  | k + 1, lo, hi, h => by
+    unfold bisect
+    split
+    · exact bisect_lo f t θ k _ _ h
+    · rename_i hm; exact bisect_lo f t θ k _ _ hm
+
+/-- The bisection delay is sound. -/
+theorem dlLo_sound (k : Nat) : DlSound (dlLo k) := by
+  intro f t θ e he hr
+  unfold dlLo
+  split
+  · grind
+  · rename_i hf
+    have h0 : pathAt f t 0 = f := by unfold pathAt; rw [ease_nonpos 0 (by grind)]; grind
+    have hlo := bisect_lo f t θ k 0 1 (by rw [h0]; exact hf)
+    refine Classical.byContradiction fun hlt => hlo ?_
+    refine reach_mono _ _ _ _ _ hr (pathAt_mono _ _ _ _ ?_)
+    rw [div_dur]; unfold duration at hlt; grind
+
+#guard dlLo 20 0 1 (1 / 1000) < 1
+#guard 386 < dlLo 20 0 1 (23 / 25) && dlLo 20 0 1 (23 / 25) < 387
+
+/-! ### The old driver -/
+
+/-- The old driver's attribute after a push to 1 at 0 and a frame at 340 ms: still 0 while the original shows 7/8. -/
+theorem old_attr_stale :
+    band (runAttr (premisesWk 0) oldW initA [.push 1 false 0, .tick 340]).attr ≠
+      band (runO rest [.push 1 false 0, .tick 340]).value := by decide +kernel
+
+#guard (runAttr (premisesWk 0) oldW initA [.push 1 false 0, .tick 340]).attr == 0
+#guard (runO rest [.push 1 false 0, .tick 340]).value == 7 / 8
+#guard (runAttr (premisesWk 0) (fixW (dlLo 20)) initA [.push 1 false 0, .tick 340]).attr == 7 / 8
+#guard oldW ⟨1, 1, some ⟨0, 1, 0⟩, 0, 0⟩ 680 && !oldW ⟨1, 1, some ⟨0, 1, 0⟩, 0, 0⟩ 679
+#guard pollW (dlLo 20) ⟨1, 1, some ⟨0, 1, 0⟩, 0, 0⟩ 1 && !pollW (dlLo 20) ⟨1, 1, some ⟨1, 1, 0⟩, 0, 1⟩ 1
+#guard markerB 0 1 (1 / 5) && !markerB (1 / 2) 1 (1 / 5) && !markerB 1 1 (1 / 5) && markerB 1 0 (1 / 5)
+#guard decide (pastS 0 1 (1 / 5) (1 / 4)) && !decide (pastS 0 1 (1 / 5) (1 / 5)) && decide (reach 0 1 (1 / 5) (1 / 5))
+#guard (AttrReader.test ⟨"x", .lt, 7 / 20⟩ (1 / 3)) && !(AttrReader.test ⟨"x", .gt, 7 / 20⟩ (1 / 3))
+
+/-! ### Golden rows (`morph-tween-waapi.attr.jsonl`) -/
+
+/-- An exact fraction `{"num","den"}`. -/
+def ratJ (q : Rat) : Lean.Json := Lean.Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
+
+/-- The comparison's wire name. -/
+def Cmp.name : Cmp → String
+  | .gt => "gt"
+  | .lt => "lt"
+
+/-- One reader row. -/
+def AttrReader.json (r : AttrReader) : String :=
+  (Lean.Json.mkObj [("kind", .str "attrReader"), ("sel", .str r.sel), ("cmp", .str r.cmp.name),
+    ("theta", ratJ r.θ)]).compress
+
+/-- The distinct reader thresholds, one marker each. -/
+def markerThetas : List Rat := (attrReaders.map (·.θ)).eraseDups
+
+/-- The bisection depth of the golden delays. -/
+def delayDepth : Nat := 24
+
+/-- One marker row: whether the push from `f` to `t` gets a marker for `θ`, and its delay in ms. -/
+def markerJson (f t θ : Rat) : String :=
+  (Lean.Json.mkObj [("kind", .str "marker"), ("from", ratJ f), ("to", ratJ t), ("theta", ratJ θ),
+    ("marker", .bool (markerB f t θ)),
+    ("delay", if markerB f t θ then ratJ (dlLo delayDepth f t θ) else .null)]).compress
+
+/-- The start values of the marker rows. -/
+def markerFroms : List Rat := [0, 1 / 10, 1 / 5, 3 / 10, 2 / 5, 1 / 2, 3 / 5, 9 / 10, 1]
+
+/-- The marker rows: every start value, both targets, every threshold. -/
+def markerRows : List String :=
+  markerFroms.flatMap fun f => [0, 1].flatMap fun t => markerThetas.map fun θ => markerJson f t θ
+
+/-- Frames every 17 ms from the `a`-th to the `b`-th. -/
+def ticks17 (a b : Nat) : List Ev := (List.range (b + 1 - a)).map fun i => .tick (17 * ((a + i : Nat) : Rat))
+
+/-- The replayed histories: an opening push, and an opening push reversed at 300 ms. -/
+def attrCases : List (String × List Ev) :=
+  [("open", .push 1 false 0 :: ticks17 1 42),
+    ("reverse", (.push 1 false 0 :: ticks17 1 17) ++ .push 0 false 300 :: ticks17 18 64)]
+
+/-- The premises of the golden replay: WebKit's form, offset 0. -/
+def attrP : WaapiPremises := premisesWk 0
+
+/-- A band as a JSON array. -/
+def bandJ (m : Rat) : Lean.Json := .arr ((band m).map Lean.Json.bool).toArray
+
+/-- The states after each event of `es` with writer `wr`: the event, the variant with its attribute, the original. -/
+def attrTrace (wr : VSt → Rat → Bool) (es : List Ev) : List (Ev × ASt × St) :=
+  (es.foldl (fun (acc, x, s) e =>
+    let x' := stepAttr attrP wr x e
+    let s' := stepO s e
+    (acc ++ [(e, x', s')], x', s')) (([] : List (Ev × ASt × St)), initA, rest)).1
+
+/-- One event row of case `c`: a push, or a frame with the original's value, its band and the old driver's band. -/
+def attrEvJson (c : String) : Ev × ASt × St → String
+  | (.push g _ n, _, _) => (Lean.Json.mkObj [("kind", .str "attrEv"), ("case", .str c), ("ev", .str "push"),
+      ("t", ratJ n), ("goal", ratJ g)]).compress
+  | (.tick R, x, s) => (Lean.Json.mkObj [("kind", .str "attrEv"), ("case", .str c), ("ev", .str "tick"),
+      ("t", ratJ R), ("value", ratJ s.value), ("band", bandJ s.value), ("old", bandJ x.attr)]).compress
+
+/-- The event rows of one case. -/
+def attrEvRows (c : String) (es : List Ev) : List String := (attrTrace oldW es).map (attrEvJson c)
+
+/-- Every event of a case leaves the attribute of writer `wr` in the original's band. -/
+def bandsAgree (wr : VSt → Rat → Bool) (es : List Ev) : Bool :=
+  (attrTrace wr es).all fun (_, x, s) => band x.attr == band s.value
+
+/-- The contents of `packages/contracts/golden/parts/morph-tween-waapi.attr.jsonl`: readers, markers, event rows. -/
+def attrJsonl : String :=
+  String.join (attrReaders.map fun r => r.json ++ "\n") ++ String.join (markerRows.map (· ++ "\n")) ++
+    String.join (attrCases.flatMap fun (c, es) => (attrEvRows c es).map (· ++ "\n"))
+
+#guard attrCases.all fun (_, es) => bandsAgree (fixW (dlLo delayDepth)) es && !bandsAgree oldW es
+#guard markerThetas == [1 / 1000, 1 / 5, 2 / 5, 11 / 20, 23 / 25, 7 / 20]
+#guard markerRows.length == 108
+
+/-- **The visual theorem (class E-s).** With sound marker delays, the variant's scene, readers of the attribute included, equals the original's on every admissible frame. -/
+theorem waapi_vis (P : WaapiPremises) (dl : Rat → Rat → Rat → Rat) (hd : DlSound dl)
+    (vp : Fw.Site.Breakpoints.Env → Rect) (c : Fw.Site.Breakpoints.Env → Hist → AttrCtx)
+    (S : Fw.Site.Breakpoints.Env → View → AttrScene → Scene) :
+    VisSame E vp
+      (fun env (h : Hist) =>
+        S env (viewO h.1.1 h.1.2.1) (attrScene (c env h) (runO rest (h.1.1 ++ [.tick h.1.2.1])).value))
+      (fun env h => S env (viewV P h.1.1 h.1.2.1)
+        (attrScene (c env h) (runAttr P (fixW dl) initA (h.1.1 ++ [.tick h.1.2.1])).attr)) :=
+  visSame_of_eq vp fun env h => by
+    rw [view_eq P h, attrScene_band _ _ _ (attr_band P dl hd _ _ h.2.1)]
 
 #guard viewV (premisesWk 0) [.push 1 false 100] 440 == viewO [.push 1 false 100] 440
 #guard viewV (premisesBlink 5) [.push 1 false 0, .tick 100, .push 0 false 120] 400 ==
@@ -1573,6 +2015,8 @@ def goldenJsonl : String :=
     String.join (readersScoped.map fun r => r.jsonArm "waapi-scoped" ++ "\n")
 
 #guard goldenJsonl == include_str "../../../packages/contracts/golden/parts/morph-tween-waapi.jsonl"
+
+#guard attrJsonl == include_str "../../../packages/contracts/golden/parts/morph-tween-waapi.attr.jsonl"
 
 /-- The contents of `packages/contracts/golden/parts/morph-tween-waapi.swipe-v1.jsonl`. -/
 def swipeJsonl : String := String.join (swipeRows.map fun r => r.json ++ "\n")
