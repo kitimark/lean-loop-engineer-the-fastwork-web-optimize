@@ -1,8 +1,7 @@
 # land-render-guard handoff
 
 State: branch `worktree-wf_4db820fb-32c-1`. Round 1: code 156b2d22/4016473e, docs 9b7523b4, merge of main e561ee97.
-Round 2 (review of e561ee97): merge of main 5a5874af, code ceec06e9 (sha-pinned guard and merges, prefix theorem,
-trimmed extension), this handoff in the commit after it.
+Round 2: merge of main 5a5874af, code ceec06e9 (sha-pinned guard and merges, prefix theorem, trimmed ext), handoff after.
 
 What it does: `fw land` (real and `--dry`) pins the branch tip as `sha` and refuses, before scope and any check, when
 `main..sha` stores a blob at a media path (image/font/video/audio by extension) outside `snapshot/` not on the Lean
