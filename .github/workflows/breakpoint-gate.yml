@@ -140,7 +140,7 @@ jobs:
           label: site
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version-file: .node-version
       - id: p
         name: Plan the gate jobs (Lean split for the free runners)
         env:
@@ -314,7 +314,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version-file: .node-version
       # `summary` asks Lean for every status and verdict (fwcore ops gate.*: lean/Fw/Wire/Gate.lean).
       - uses: ./.github/actions/setup-lean
       - name: Build fwcore

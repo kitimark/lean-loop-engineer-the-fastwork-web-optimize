@@ -314,6 +314,141 @@ theorem stopKind_iff (a : After) : (stopKind a).isSome = true ↔ a = .stop := b
 /-- The reason of the stopped entry is not empty. -/
 theorem rebuildReason_nonempty : rebuildReason.isEmpty = false := by decide
 
+/-! ## An unreachable console (task land-queue-unreachable)
+
+Incident: six queue entries on 2026-10-20 ended `VERDICT unknown` with `REFUSED: fetch failed` 0.9 to 2.5 s after the
+previous entry's result (after its fwcore rebuild); the failed attempt itself lasted 168 to 530 ms. The land's first request
+(`GET /api/plan`) failed, and the thrown error became kind `unknown`, which is final. Timestamps rule out a console restart
+(every restart span starts after its failure; one case had none, and another land reached the console 0.6 s after the
+failure). Each failure follows 7 to 14 s without a console request, 4.6 to 11 s of it in synchronous calls (worktree
+cleanup, `fwcore rebuild (queue)`); the console's 5 s `keepAliveTimeout` falls inside that window in all six. The likely
+cause (INFERRED, reproduced only as a race) is the next fetch reusing the keep-alive socket the console had closed meanwhile
+(ECONNRESET). The land's client now sends `connection: close`; this section is the second line.
+
+Model. A console that is unreachable is a retryable condition of its own, not a kind of land. The queue waits for
+`/api/health` on a fixed backoff schedule (`healthDelay`: 250 ms doubling to a 4000 ms cap, `healthPolls` polls, the last
+at `healthBoundMs`). `back` is the time (ms after the failure) at which the console answers again and keeps answering;
+`none` is a console that never returns (premise `land.consoleStaysUp`). -/
+
+/-- Delay before poll `i + 1`: 250 ms doubling, capped at 4000 ms. -/
+def healthDelay (i : Nat) : Nat := min 4000 (250 * 2 ^ i)
+
+/-- Number of health polls of one wait. -/
+def healthPolls : Nat := 20
+
+/-- Time of poll `i`, ms after the first (the sum of the delays before it). -/
+def pollTime : Nat → Nat
+  | 0 => 0
+  | i + 1 => pollTime i + healthDelay i
+
+/-- The bound of one wait: the time of the last poll. -/
+def healthBoundMs : Nat := pollTime (healthPolls - 1)
+
+/-- Does some poll of the schedule find a console that is back at `back`? -/
+def healthReached (back : Option Nat) : Bool :=
+  (List.range healthPolls).any fun i => match back with | some b => decide (b ≤ pollTime i) | none => false
+
+/-- **The wait is bounded**: 20 polls, every one at or before `healthBoundMs`, which is 63750 ms (a minute at least). -/
+theorem health_bounded : healthPolls = 20 ∧ healthBoundMs = 63750 ∧ 60000 ≤ healthBoundMs ∧
+    ∀ i, i < healthPolls → pollTime i ≤ healthBoundMs := by
+  refine ⟨rfl, by decide, by decide, ?_⟩
+  decide
+
+/-- **A console that returns within the bound is found by the wait.** -/
+theorem healthReached_within (b : Nat) (h : b ≤ healthBoundMs) : healthReached (some b) = true := by
+  simp only [healthReached, List.any_eq_true, List.mem_range, decide_eq_true_eq]
+  exact ⟨healthPolls - 1, by decide, h⟩
+
+/-- **A console that never returns is never found.** -/
+theorem healthReached_never : healthReached none = false := by
+  simp [healthReached]
+
+/-- A console that returns only after the bound is not found (the wait ends; it does not stretch). -/
+theorem healthReached_late (b : Nat) (h : healthBoundMs < b) : healthReached (some b) = false := by
+  have hb := health_bounded.2.2.2
+  simp only [healthReached, Bool.eq_false_iff, ne_eq, List.any_eq_true, List.mem_range, decide_eq_true_eq, not_exists, not_and]
+  intro i hi hle
+  have := hb i hi
+  omega
+
+/-- The named reason of the refusal when the console does not come back. -/
+def consoleUnreachableReason : String := "console-unreachable: console-api did not answer /api/health within the bounded wait (pnpm fw console status)"
+
+/-- What one land attempt ended in: a land with its kind, or a console that could not be reached (no land step ran). -/
+inductive Att where
+  | landed (k : Kind)
+  | unreachable
+deriving DecidableEq, Repr
+
+/-- What the runner does after an attempt: try again, or record a final kind with an optional reason. -/
+inductive Next where
+  | retry
+  | final (k : Kind) (reason : Option String)
+deriving DecidableEq, Repr
+
+/-- The decision after an attempt number `tries` of at most `max`. A landed attempt follows `retryAfter`. An unreachable console
+is retried when the bounded health wait finds it (`back`) and attempts remain; else the entry is refused as `busy` (nothing landed,
+safe to queue again) with the reason `consoleUnreachableReason`, never as `unknown`. -/
+def attemptNext (a : Att) (tries max : Nat) (back : Option Nat) : Next :=
+  match a with
+  | .landed k => if retryAfter k tries max then .retry else .final k none
+  | .unreachable =>
+    if healthReached back && decide (tries < max) then .retry else .final .busy (some consoleUnreachableReason)
+
+/-- **Attempts are bounded**: a retry is only ever decided below `max` attempts. -/
+theorem attemptNext_bounded (a : Att) (tries max : Nat) (back : Option Nat) (h : attemptNext a tries max back = .retry) :
+    tries < max := by
+  cases a with
+  | landed k =>
+    by_cases hr : retryAfter k tries max = true
+    · simp only [retryAfter, Bool.and_eq_true, decide_eq_true_eq] at hr; exact hr.2
+    · simp [attemptNext, hr] at h
+  | unreachable =>
+    by_cases hr : (healthReached back && decide (tries < max)) = true
+    · simp only [Bool.and_eq_true, decide_eq_true_eq] at hr; exact hr.2
+    · simp [attemptNext, hr] at h
+
+/-- **An unreachable console is never a terminal `unknown`**, whatever the wait found. -/
+theorem attemptNext_unreachable_not_unknown (tries max : Nat) (back : Option Nat) (r : Option String) :
+    attemptNext .unreachable tries max back ≠ .final .unknown r := by
+  by_cases h : (healthReached back && decide (tries < max)) = true <;> simp [attemptNext, h]
+
+/-- **A console that returns within the bound is retried**, while attempts remain: never a terminal result. -/
+theorem attemptNext_returns (tries max b : Nat) (hb : b ≤ healthBoundMs) (ht : tries < max) :
+    attemptNext .unreachable tries max (some b) = .retry := by
+  simp [attemptNext, healthReached_within b hb, ht]
+
+/-- **A console that never returns yields the named refusal** `console-unreachable`. -/
+theorem attemptNext_never (tries max : Nat) :
+    attemptNext .unreachable tries max none = .final .busy (some consoleUnreachableReason) := by
+  simp [attemptNext, healthReached_never]
+
+/-- A console that returns only after the bound yields the named refusal. -/
+theorem attemptNext_late (tries max b : Nat) (h : healthBoundMs < b) :
+    attemptNext .unreachable tries max (some b) = .final .busy (some consoleUnreachableReason) := by
+  simp [attemptNext, healthReached_late b h]
+
+/-- With no attempts left an unreachable console yields the named refusal, even if it is back. -/
+theorem attemptNext_exhausted (tries max : Nat) (back : Option Nat) (h : max ≤ tries) :
+    attemptNext .unreachable tries max back = .final .busy (some consoleUnreachableReason) := by
+  simp [attemptNext, Nat.not_lt.mpr h]
+
+/-- A landed attempt decides exactly as before: `retryAfter` retries, else its own kind is final. -/
+theorem attemptNext_landed (k : Kind) (tries max : Nat) (back : Option Nat) :
+    attemptNext (.landed k) tries max back = if retryAfter k tries max then .retry else .final k none := rfl
+
+/-- The refusal for an unreachable console has a non-empty reason, and its kind is not `unknown`. -/
+theorem consoleUnreachable_refusal : consoleUnreachableReason.isEmpty = false ∧ Kind.busy ≠ Kind.unknown ∧ Kind.busy.ok = false := by
+  refine ⟨by decide, by decide, by decide⟩
+
+/-- Does the queue wait for the console's health before the next entry? After the rebuild it ran (`needsRebuild`). -/
+def healthWaitAfter (k : Kind) (paths : List String) : Bool := needsRebuild k paths
+
+/-- **After a land that changed a fwcore source, the queue waits for the console before the next entry**, and after no other. -/
+theorem healthWaitAfter_iff (k : Kind) (paths : List String) :
+    healthWaitAfter k paths = true ↔ k = .done ∧ touchesCore paths = true := by
+  simp [healthWaitAfter, needsRebuild]
+
 /-- A premise row: id, statement, the theorems that assume it, and the test that asserts it. -/
 structure PremiseRow where
   id : String
@@ -331,9 +466,12 @@ def premises : List PremiseRow := [
     "apps/runner/test/land-queue.test.ts: a lock whose recorded start time differs from the live pid's is stale and is taken over"⟩,
   ⟨"land.exitCodeIsVerdict", "the exit code and the VERDICT line of `fw land` are the land's kind, so the runner reads the kind from them and never from the text",
     ["retryAfter_iff", "retryAfter_final"],
-    "apps/runner/test/land-queue.test.ts: a land whose output names busy in prose but exits with checks is not retried"⟩]
+    "apps/runner/test/land-queue.test.ts: a land whose output names busy in prose but exits with checks is not retried"⟩,
+  ⟨"land.consoleStaysUp", "a console that answers /api/health keeps answering for the rest of the queue run (a restart is a down window that ends, not a flap)",
+    ["healthReached_within", "attemptNext_returns"],
+    "apps/runner/test/land-queue-unreachable.test.ts: down ${downMs} ms then up: the entry lands (done, never unknown)"⟩]
 
-#guard premises.length == 3
+#guard premises.length == 4
 #guard (premises.map (·.id)).eraseDups.length == premises.length
 
 #guard (pending [.enq ⟨"a", "wa"⟩, .enq ⟨"b", "wb"⟩, .enq ⟨"a", "wx"⟩]) == [⟨"a", "wa"⟩, ⟨"b", "wb"⟩]
@@ -400,10 +538,35 @@ def afterCase (name : String) (k : Kind) (paths : List String) (ok : Bool) : Jso
      ("nextKind", match stopKind a with | some n => Json.str n.name | none => Json.null),
      ("reason", match stopKind a with | some _ => Json.str rebuildReason | none => Json.null)]
 
+/-- A `landQueue.health` case: does the bounded wait find a console that is back at `back`? -/
+def healthCase (name : String) (back : Option Nat) : Json :=
+  line name [("op", "landQueue.health"), ("back", match back with | some b => toJson b | none => Json.null)]
+    [("reached", .bool (healthReached back))]
+
+/-- A `landQueue.healthSchedule` case: the delays and poll times of the wait and its bound. -/
+def scheduleCase : Json :=
+  line "health wait schedule" [("op", "landQueue.healthSchedule")]
+    [("polls", toJson healthPolls), ("delays", .arr ((List.range healthPolls).toArray.map fun i => toJson (healthDelay i))),
+     ("times", .arr ((List.range healthPolls).toArray.map fun i => toJson (pollTime i))), ("boundMs", toJson healthBoundMs)]
+
+/-- A `landQueue.attempt` case: the decision after an attempt (`kind` null: the console was unreachable). -/
+def attemptCase (name : String) (a : Att) (tries max : Nat) (back : Option Nat) : Json :=
+  let n := attemptNext a tries max back
+  line name [("op", "landQueue.attempt"), ("kind", match a with | .landed k => Json.str k.name | .unreachable => Json.null),
+      ("tries", toJson tries), ("max", toJson max), ("back", match back with | some b => toJson b | none => Json.null)]
+    [("next", match n with | .retry => "retry" | .final _ _ => "final"),
+     ("kind", match n with | .final k _ => Json.str k.name | .retry => Json.null),
+     ("reason", match n with | .final _ (some r) => Json.str r | _ => Json.null)]
+
+/-- A `landQueue.healthAfter` case: does the queue wait for the console after a land of this kind with these paths? -/
+def healthAfterCase (name : String) (k : Kind) (paths : List String) : Json :=
+  line s!"health wait after land: {name}" [("op", "landQueue.healthAfter"), ("kind", k.name), ("paths", Json.arr (paths.map Json.str).toArray)]
+    [("wait", .bool (healthWaitAfter k paths))]
+
 /-- The sample log of the golden cases: three tasks enqueued, one twice with another branch. -/
 def sample : List Ev := [.enq ⟨"a", "wa"⟩, .enq ⟨"b", "wb"⟩, .enq ⟨"c", "wc"⟩]
 
-/-- Every golden case: 6 pending, 4 queued, 14 retry (every kind, some at the bound), 4 live, 2 reason, 39 refusal reason (every kind with no reason, an empty one and a given one), 4 fwcore stale, 9 after land. -/
+/-- Every golden case: 6 pending, 4 queued, 14 retry (every kind, some at the bound), 4 live, 2 reason, 39 refusal reason (every kind with no reason, an empty one and a given one), 4 fwcore stale, 9 after land (`unreachableCases`: 1 health schedule, 5 health, 5 unreachable attempt, 4 landed attempt, 4 health wait after land). -/
 def cases : List Json :=
   [pendCase "empty" [],
    pendCase "three enqueued, first in first out" sample,
@@ -439,10 +602,33 @@ def cases : List Json :=
    afterCase "refused land with a lean path" .checks ["lean/Fw/A.lean"] false,
    afterCase "empty land with a lean path" .empty ["lean/Fw/A.lean"] true]
 
+/-- The golden cases of the unreachable console (a separate list: the start-time allocation bound of `cases`). -/
+def unreachableCases : List Json :=
+  [scheduleCase,
+   healthCase "console back at once" (some 0),
+   healthCase "console back after 5 s" (some 5000),
+   healthCase "console back at the bound" (some healthBoundMs),
+   healthCase "console back one ms after the bound" (some (healthBoundMs + 1)),
+   healthCase "console never back" none,
+   attemptCase "unreachable, back in 5 s" .unreachable 1 5 (some 5000),
+   attemptCase "unreachable, back at the bound" .unreachable 4 5 (some healthBoundMs),
+   attemptCase "unreachable, back after the bound" .unreachable 1 5 (some (healthBoundMs + 1)),
+   attemptCase "unreachable, never back" .unreachable 1 5 none,
+   attemptCase "unreachable, back but attempts used" .unreachable 5 5 (some 0),
+   attemptCase "landed busy" (.landed .busy) 1 5 none,
+   attemptCase "landed busy, attempts used" (.landed .busy) 5 5 none,
+   attemptCase "landed unknown is final" (.landed .unknown) 1 5 (some 0),
+   attemptCase "landed done" (.landed .done) 1 5 none,
+   healthAfterCase "lean change" .done ["lean/Fw/A.lean"],
+   healthAfterCase "build script change" .done ["scripts/fwcore-build.sh"],
+   healthAfterCase "no core change" .done ["docs/x.md"],
+   healthAfterCase "refused land with a lean path" .checks ["lean/Fw/A.lean"]]
+
 #guard cases.length == 86
+#guard unreachableCases.length == 19
 
 /-- The golden file text: one compressed JSON line per case. -/
-def goldenText : String := String.join (cases.map fun c => c.compress ++ "\n")
+def goldenText : String := String.join ((cases ++ unreachableCases).map fun c => c.compress ++ "\n")
 
 /-- The golden file, relative to `lean/`. -/
 def goldenPath : System.FilePath := "../packages/contracts/golden/console/land-queue.jsonl"

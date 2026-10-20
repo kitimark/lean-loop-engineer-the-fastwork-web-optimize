@@ -1,6 +1,6 @@
 name: setup-pnpm
 description: >-
-  Node 24 (actions/setup-node) and pnpm at the version pinned in package.json "packageManager" (through corepack),
+  Node from the repo-root .node-version (actions/setup-node) and pnpm at the version pinned in package.json "packageManager" (through corepack),
   then `pnpm install --frozen-lockfile` for the given workspace filters. Run after actions/checkout.
 
 inputs:
@@ -13,7 +13,7 @@ runs:
   steps:
     - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
-        node-version: '24'
+        node-version-file: .node-version
 
     - name: Install pnpm (corepack, version from package.json)
       shell: bash
