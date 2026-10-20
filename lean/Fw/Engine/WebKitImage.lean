@@ -1,7 +1,20 @@
 /-!
 # WebKit image cost: natural pixels times repaints that resample (task image-audit)
 
-Citations are WebKit @862f17d (`WC` = `Source/WebCore`). Which premise holds in shipped Safari is a measured claim, not a theorem here.
+Statement. For an image of `natPx` pixels drawn at `drawnPx` device pixels, `cost m resamples natPx drawnPx reps` is the pixels
+the engine reads over `reps` repaints: the pixels one decode produces (`decodedPx`: the whole image when the decode mode `m`
+is synchronous, the smaller of image and drawn size when asynchronous) times one plus, when each repaint resamples the decoded
+frame, the repaints. A copy at the drawn size never costs more (`drawn_copy_le`), saves exactly the pixel difference times
+`1 + reps` under a synchronous resampling draw (`sync_saving`), and saves nothing for an image decoded asynchronously
+(`async_source_equals_copy`).
+
+Premises. D1-D6 (decode policy, thumbnail size, subsampling limit) and R3 (a composited filter or animation does not repaint)
+are WebKit source facts at 862f17d, each with its file:line in the docstring of the definition that models it. P-resample
+is the flag `resamples`: that each repaint reads the whole decoded frame (`GraphicsContextCG.cpp:433` hands it to CoreGraphics,
+which is closed source) is INFERRED and is the only premise on which a frame cost depends; with `resamples = false`, `cost`
+is one decode (`cost_no_resample`). Which of these holds in shipped Safari is a measured claim, not a theorem here.
+
+Citations are WebKit @862f17d (`WC` = `Source/WebCore`).
 -/
 namespace Fw.Engine.WebKitImage
 
