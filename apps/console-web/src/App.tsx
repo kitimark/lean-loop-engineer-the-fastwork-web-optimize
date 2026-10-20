@@ -59,15 +59,25 @@ export function App() {
 
 type Act = (cmd: Record<string, unknown>) => Promise<void>;
 
-function Steps({ board, act, now }: { board: Board; act: Act; now: number }) {
+/** Your steps are the open steps whose audience (decided in Lean, `Fw.Console.Alert.audienceOf`) is the owner; the open
+ *  steps for the lead are listed apart and carry no buttons. Closed steps show the note a script closed them with. */
+export function Steps({ board, act, now }: { board: Board; act: Act; now: number }) {
   const open = board.steps.filter((s) => s.status === "waiting" || s.status === "started");
+  const mine = open.filter((s) => s.audience === "user");
+  const leads = open.filter((s) => s.audience === "lead");
   const closed = board.steps.filter((s) => !open.includes(s)).slice(-5).reverse();
   return (
     <Card>
-      <CardHeader><CardTitle>Your steps ({open.length})</CardTitle></CardHeader>
+      <CardHeader><CardTitle>Your steps ({mine.length})</CardTitle></CardHeader>
       <CardContent className="space-y-3">
-        {open.length === 0 && <p className="text-sm text-muted-foreground">Nothing needs you.</p>}
-        {open.map((s) => <StepRow key={s.id} step={s} act={act} now={now} />)}
+        {mine.length === 0 && <p className="text-sm text-muted-foreground">Nothing needs you.</p>}
+        {mine.map((s) => <StepRow key={s.id} step={s} act={act} now={now} />)}
+        {leads.length > 0 && (
+          <details data-testid="lead-work">
+            <summary className="cursor-pointer text-sm text-muted-foreground">For the lead ({leads.length}); no action from you</summary>
+            <div className="mt-2 space-y-2">{leads.map((s) => <StepRow key={s.id} step={s} act={act} now={now} readOnly />)}</div>
+          </details>
+        )}
         <PostForm act={act} />
         {closed.length > 0 && (
           <ul className="border-t pt-2 text-sm text-muted-foreground">
@@ -79,30 +89,46 @@ function Steps({ board, act, now }: { board: Board; act: Act; now: number }) {
   );
 }
 
-function StepRow({ step, act, now }: { step: Step; act: Act; now: number }) {
+/** The plain body Lean wrote: one line per part, "What happened: ...", "Impact: ...", "Action ...: ...", "Details: ...". */
+function StepBody({ body }: { body: string }) {
+  if (!body) return null;
+  return (
+    <div className="mt-1 space-y-0.5 text-sm" data-testid="step-body">
+      {body.split("\n").map((l, i) => {
+        const at = l.indexOf(": ");
+        const details = l.startsWith("Details: ");
+        return at < 0 ? <p key={i}>{l}</p>
+          : <p key={i} className={details ? "text-xs text-muted-foreground" : undefined}><b>{l.slice(0, at)}:</b> {l.slice(at + 2)}</p>;
+      })}
+    </div>
+  );
+}
+
+function StepRow({ step, act, now, readOnly = false }: { step: Step; act: Act; now: number; readOnly?: boolean }) {
   const [text, setText] = useState("");
   const isAction = step.kind === "action";
   return (
     <div className="flex flex-wrap items-center gap-2 rounded border p-2">
       <div className="min-w-0 flex-1">
         <div className="font-medium">{step.title}</div>
+        <StepBody body={step.body} />
         <div className="text-xs text-muted-foreground">
           {step.id}{step.card ? ` / card ${step.card}` : ""} / {step.status} / posted {age(now - step.postedAt)} ago
         </div>
       </div>
-      {step.status === "waiting" && <Button size="sm" variant="outline" onClick={() => act({ type: "step.start", step: step.id })}>Start</Button>}
-      {isAction && step.status === "started" && <Button size="sm" onClick={() => act({ type: "step.done", step: step.id })}>Done</Button>}
-      {step.kind === "yes_no" && ["yes", "no"].map((a) => (
+      {!readOnly && step.status === "waiting" && <Button size="sm" variant="outline" onClick={() => act({ type: "step.start", step: step.id })}>Start</Button>}
+      {!readOnly && isAction && step.status === "started" && <Button size="sm" onClick={() => act({ type: "step.done", step: step.id })}>Done</Button>}
+      {!readOnly && step.kind === "yes_no" && ["yes", "no"].map((a) => (
         <Button key={a} size="sm" onClick={() => act({ type: "step.answer", step: step.id, answer: a })}>{a}</Button>))}
-      {step.kind === "choice" && (step.options ?? []).map((o) => (
+      {!readOnly && step.kind === "choice" && (step.options ?? []).map((o) => (
         <Button key={o} size="sm" onClick={() => act({ type: "step.answer", step: step.id, answer: o })}>{o}</Button>))}
-      {step.kind === "text" && (
+      {!readOnly && step.kind === "text" && (
         <>
           <input className="rounded border px-2 py-1 text-sm" value={text} onChange={(e) => setText(e.target.value)} placeholder="answer" />
           <Button size="sm" disabled={!text} onClick={() => act({ type: "step.answer", step: step.id, answer: text }).then(() => setText(""))}>Answer</Button>
         </>
       )}
-      {step.status === "started" && step.kind !== "action" && (
+      {!readOnly && step.status === "started" && step.kind !== "action" && (
         <Button size="sm" variant="ghost" onClick={() => act({ type: "step.done", step: step.id })}>Done</Button>)}
     </div>
   );
