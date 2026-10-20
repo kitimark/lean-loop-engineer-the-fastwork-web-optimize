@@ -32,10 +32,7 @@ export interface TweenEnv {
   publish(value: number): void;
   /** The panel may mount: first intersection or first push (N2:13040 and 13076 `z(b, !0)`). */
   onActivate?(): void;
-  /**
-   * The `scroll-lock` arm's root lock (Lean `MorphTweenOpt.stepR`); absent in the original and where `lockAllowed` is
-   * false. `overlay` is read once per activation, before that step's style writes.
-   */
+  /** The `scroll-lock` arm's root lock (Lean `MorphTweenOpt.stepR`); absent in the original and unless `lockAllowed`. */
   lock?: { overlay(): boolean; set(on: boolean): void };
 }
 

@@ -2162,8 +2162,7 @@ structure RSt where
   ov : Bool
 deriving Repr, DecidableEq
 
-/-- One event of the driver on a root whose scrollbar kind is `env`: it reads `env` only at the step that activates the
-morph, and locks from the stored value. -/
+/-- One driver event on a root of scrollbar kind `env`: read `env` at the activating step, lock from the stored value. -/
 def stepR (env : Bool) (x : RSt) (e : Ev) : RSt :=
   let s := stepO x.s e
   let ov := if readsAt x.s.isActive s.isActive then env else x.ov
@@ -2199,8 +2198,7 @@ theorem foldl_stepR (env : Bool) (es : List Ev) (x : RSt) (hl : x.locked = lockO
     · rw [hs ha]
     · simp [lockOn, ha]
 
-/-- **MT-L, one read.** The driver that reads the scrollbar kind only at the activating step holds the same tween and
-the same lock as the arm with the kind fixed (`runL`), after every history; so it makes the same root writes. -/
+/-- **MT-L, one read.** After every history the driver holds the tween and the lock of `runL`. -/
 theorem runR_eq (env : Bool) (es : List Ev) :
     (runR env es).s = (runL env es).s ∧ (runR env es).locked = (runL env es).locked := by
   have h : (0 : Rat) < activeCut := by
@@ -2216,8 +2214,7 @@ theorem reads_iff (was now : Bool) : readsAt was now = true ↔ was = false ∧ 
 
 /-! ### Where the lock engages -/
 
-/-- Whether the arm installs the lock at all: only when the primary input can hover. On `(hover: none)` (iPhone) a pan in
-flight is not gated (`ungated_eq`), so there the lock could only add root style passes. -/
+/-- Whether the arm installs the lock: only when the primary input can hover. -/
 def lockAllowed (hoverNone : Bool) : Bool := !hoverNone
 
 /-- Whether the lock engages: the input can hover and the root's scrollbar is an overlay one. -/
@@ -2370,7 +2367,7 @@ theorem forced_ungated (k : Nat) (p : Int) (gs : List Gest) (h : ∀ g ∈ gs, g
 /-- The root style writes of the history `es` from rest: the lock and each release. -/
 def rootWrites (ov : Bool) (es : List Ev) : Nat := (writesL ov ⟨rest, false⟩ es).countP Option.isSome
 
-/-- Root style passes of one morph, from its activating step to its deactivating one: the lock and the release. -/
+/-- Root style passes of one morph: the lock and the release. -/
 def stylePasses (lock : Bool) : Nat := if lock then 2 else 0
 
 /-- **MT-L, style passes.** Per morph the engaged arm adds exactly two root style passes; it never saves one. -/
@@ -2440,8 +2437,7 @@ def writeJ : Option Bool → Lean.Json
   | none => .null
   | some b => .bool b
 
-/-- The rows of one lock case: per event the activity, the lock, the write and whether the driver reads the scrollbar
-kind. -/
+/-- The rows of one lock case: per event the activity, the lock, the write and the read. -/
 def lockRows (c : String) (ov : Bool) (es : List Ev) : List String :=
   ((List.range es.length).zip (es.zip ((writesL ov ⟨rest, false⟩ es).zip (readsR ov ⟨rest, false, false⟩ es)))).map
     fun (i, e, w, r) =>
@@ -2470,7 +2466,7 @@ def overlayRows : List String :=
     (Lean.Json.mkObj [("kind", .str "overlay"), ("innerWidth", .num a), ("clientWidth", .num b),
       ("overlay", .bool (overlayOf a b))]).compress
 
-/-- The engagement rows: touch-only input and scrollbar kind, whether the arm installs the lock and whether it engages. -/
+/-- The engagement rows: input and scrollbar kind, `lockAllowed` and `engage`. -/
 def engageRows : List String :=
   ([(false, false), (false, true), (true, false), (true, true)] : List (Bool × Bool)).map fun (hn, ov) =>
     (Lean.Json.mkObj [("kind", .str "engage"), ("hoverNone", .bool hn), ("overlay", .bool ov),
