@@ -20,6 +20,9 @@ describe("fwcore reproduces the land-legs golden", () => {
     expect(golden.filter((c) => c.request.op === "console.landLeg").length).toBe(legNames.length * 6);
     expect(golden.filter((c) => c.request.op === "console.landLegs").length).toBe(6);
     expect(golden.filter((c) => c.request.op === "console.landLegsVeto").length).toBe(7);
+    expect(golden.filter((c) => c.request.op === "console.landPrep").length).toBe(4);
+    expect(golden.filter((c) => c.request.op === "console.landFwcoreFrom").length).toBe(4);
+    expect(golden.filter((c) => c.request.op === "console.landPrepIf").length).toBe(1);
   });
   for (const c of golden) it(c.name, () => expect(core(c.request)).toEqual(c.response));
 });
@@ -33,6 +36,23 @@ describe("land.yml runs exactly the legs Lean names", () => {
   });
   it("every leg passes its name to fw checks", () => {
     expect(yml).toContain("--leg \"$LEG\"");
+  });
+});
+
+describe("land.yml replays the one-build rule (task land-fwcore-once, Lean prepRuns and fwcoreFrom)", () => {
+  const yml = readFileSync(join(root, ".github/workflows/land.yml"), "utf8");
+  const ex = golden.find((c) => c.request.op === "console.landPrepIf")!.response as Record<string, string>;
+  it("the prep job, the legs and their fwcore steps carry the Lean expressions", () => {
+    expect(yml).toContain(`    if: \${{ ${ex.prepIf} }}`);
+    expect(yml).toContain(`    if: \${{ ${ex.legIf} }}`);
+    expect(yml).toContain(`        if: \${{ ${ex.downloadIf} }}`);
+    expect(yml).toContain(`        if: \${{ ${ex.buildIf} }}`);
+    expect(yml).toContain("    needs: [guard, fwcore]");
+  });
+  it("the guard hands the prep job its two facts", () => {
+    expect(yml).toContain("lean: ${{ steps.lean.outputs.changed }}");
+    expect(yml).toContain("hit: ${{ steps.hit.outputs.cache-hit }}");
+    expect(yml).toContain("lookup-only: true");
   });
 });
 
@@ -85,6 +105,13 @@ describe("the verdict over all legs (Lean legsOk) vetoes a pass", () => {
   it("a run that says success while one leg did not pass is a fail", () => {
     expect(legsPass(core, view(["success", "skipped", "success", "success"]))).toBe(false);
     expect(laneStateOf(core, 0, "", view(["success", "success", "success", "cancelled"]))).toBe("fail");
+  });
+  it("the prep job (skipped or passed) and the guard are no leg", () => {
+    const v = view(["success", "success", "success", "success"]);
+    v.jobs = [...(v.jobs ?? []), { name: "fwcore", conclusion: "skipped" }];
+    expect(legsPass(core, v)).toBe(true);
+    v.jobs = [...(v.jobs ?? []), { name: "land (chromium)", conclusion: "cancelled" }];
+    expect(legsPass(core, v)).toBe(false);
   });
   it("a record without leg conclusions does not veto (the cached facts)", () => {
     expect(legsPass(core, view(["success", null]))).toBe(true);
