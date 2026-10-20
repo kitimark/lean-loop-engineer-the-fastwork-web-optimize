@@ -1,6 +1,7 @@
 // The trajectory probe's command line (task trajectory-probe; docs/team/tools/trajectory-probe.md).
 //   node src/trajectory/cli.mjs run --engine chromium|playwright-webkit --out out/traj [--widths 390,640,641,1280] [--search '?fw=morph.tween:waapi']
 //        [--paths hero,morph] [--reads full|lean] [--reps 1..5] [--strict]
+//   node src/trajectory/cli.mjs merge --in <leg dir>,<leg dir> --engine <e> --out out/traj   (joins the legs of one engine and reduces the whole)
 //   node src/trajectory/cli.mjs summary --out out/traj [--engine chromium|playwright-webkit] [--strict]   (re-reduces raw-<engine>.json files there)
 // `run` refuses a widths list outside the Lean allowlist and a search the build did not prerender (rewriteFor throws, like the gate's
 // smoke step). It walks, per width, the original, the faithful rewrite (default config) and the candidate (the search), writes
@@ -11,7 +12,7 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { runLane } from './run.mjs';
+import { mergeRaws } from './plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS } from './registry.mjs';
 import { pickWidths, reduceRaw, verdictLines } from './reduce.mjs';
 
@@ -75,6 +76,7 @@ export async function main(argv) {
     if (reads !== 'full' && reads !== 'lean') { console.error('trajectory: refused: reads must be full or lean'); return 1; }
     const reps = Number(arg(argv, '--reps', '3'));
     if (!Number.isInteger(reps) || reps < 1 || reps > 5) { console.error('trajectory: refused: reps must be 1 to 5'); return 1; }
+    const { runLane } = await import('./run.mjs'); // lazy: summary and merge run with plain node (no playwright installed)
     const raw = await runLane({ engineName, widths, search: arg(argv, '--search'), paths, reads, reps, env: process.env });
     writeFileSync(join(out, `raw-${raw.engine}.json`), JSON.stringify(raw));
     return report(out, raw, strict);
@@ -87,7 +89,16 @@ export async function main(argv) {
     for (const f of files) code = Math.max(code, report(out, JSON.parse(readFileSync(join(out, f), 'utf8')), strict));
     return code;
   }
-  console.error('usage: cli.mjs run --engine <e> --out <dir> [--widths ...] [--search ...] [--paths ...] [--reads ...] [--strict] | summary --out <dir>');
+  if (cmd === 'merge') {
+    // Joins the legs of one engine (each leg's directory holds its raw-<engine>.json) and reduces the whole as one run.
+    const dirs = arg(argv, '--in').split(',').filter(Boolean);
+    const engineName = arg(argv, '--engine');
+    const raws = dirs.map((d) => JSON.parse(readFileSync(join(d, `raw-${engineName}.json`), 'utf8')));
+    const raw = mergeRaws(raws);
+    writeFileSync(join(out, `raw-${raw.engine}.json`), JSON.stringify(raw));
+    return report(out, raw, strict);
+  }
+  console.error('usage: cli.mjs run --engine <e> --out <dir> [--widths ...] [--search ...] [--paths ...] [--reads ...] [--strict] | summary --out <dir> | merge --in <leg dirs, comma separated> --engine <e> --out <dir>');
   return 1;
 }
 

@@ -8,11 +8,16 @@ name: trajectory-probe
 # Engines on the runner: Chrome Headless Shell (the counts lane's browser) and Playwright WebKit on Linux (a WebKitGTK/WPE port,
 # NOT Safari). The probe reads getComputedStyle and takes no screenshot; a FAIL verdict is a result, so the job exits 0 once the
 # probe completed (the verdicts are in the step summary and the artifact `trajectory-<engine>`).
+# Legs and paths (Lean Fw.Gate.Trajectory: enginesOf, legs, walks, plan; the node twin packages/gate-breakpoints/src/trajectory/plan.mjs): the
+# site job plans the matrix. Every engine is split into width legs that run in parallel (Linux one width per leg, macOS two legs), each leg
+# uploads `trajectory-leg-<engine>-<leg>`, and a merge job per lane joins the legs of one engine and reduces them as one run into the
+# artifact the recorder reads (`trajectory-<engine>`, `trajectory-apple`): the artifact layout did not change. An engine walks the paths it can
+# decide: Chromium and macOS WebKit hero and morph, Linux WebKit hero only (its 150 ms frames cannot decide the morph pushes).
 # Apple witness (job probe-apple): the same lane on a free standard macos-26 runner with Playwright WebKit (the macOS build, the
-# closest engine CI has to Safari), hero path only, rewrite arm = the dispatched search vs the original. It runs only when the
-# dispatch (never a push) names a search containing hero.exit (the witness is for bug A; any other search would spend one of the
-# shared macOS slots on a hero path that cannot change; a preset that holds hero.exit must be dispatched as ?fw=...) and includes playwright-webkit; max-parallel 1 (the macOS slots are shared across lanes); its
-# verdict is a separate artifact `trajectory-apple` and never part of the Linux verdicts.
+# closest engine CI has to Safari), the dispatched rewrite search vs the original on the hero and morph paths. It runs for every dispatch
+# (never a push) whose engines include playwright-webkit (Lean enginesOf: macOS WebKit runs with every WebKit), so each flag can get the
+# macOS morph cell v2-proved needs; max-parallel 2 (5 macOS slots are shared across lanes); its verdict is a separate artifact
+# `trajectory-apple` and never part of the Linux verdicts.
 on:
   # Every push creates a run and its guard job decides on these inputs (Lean Fw.Ci.Intent); `workflow_dispatch` runs it on demand
   # (pnpm -s fw run --trajectory ...). Why: docs/team/handoffs/ci-trigger-scope.md.
@@ -92,6 +97,9 @@ jobs:
     timeout-minutes: 60
     outputs:
       engines: ${{ steps.p.outputs.engines }}
+      linux: ${{ steps.p.outputs.linux }}
+      apple: ${{ steps.p.outputs.apple }}
+      apple_n: ${{ steps.p.outputs.apple_n }}
       search: ${{ steps.p.outputs.search }}
       widths: ${{ steps.p.outputs.widths }}
     steps:
@@ -139,12 +147,19 @@ jobs:
           esac
           # The widths allowlist is Lean's (Fw.Gate.Trajectory.pickWidths); the node twin refuses the same inputs.
           node --input-type=module -e 'import { pickWidths } from "./packages/gate-breakpoints/src/trajectory/reduce.mjs"; if (pickWidths(process.env.WIDTHS) === null) { console.error("widths must be a comma list of 390, 640, 641, 1280 without repeats"); process.exit(1); }'
+          # The legs (matrix rows: engine, widths, paths) are Lean's (Fw.Gate.Trajectory.plan); plan.mjs is its twin.
+          plan=$(node packages/gate-breakpoints/src/trajectory/plan.mjs "$ENGINES" "$WIDTHS")
           {
             echo "engines=$engines"
+            echo "linux=$(echo "$plan" | jq -c .linux)"
+            echo "apple=$(echo "$plan" | jq -c .apple)"
+            echo "apple_n=$(echo "$plan" | jq '.apple.include | length')"
             echo "search=$search"
             echo "widths=$WIDTHS"
           } >> "$GITHUB_OUTPUT"
           echo "$engines search=$search widths=${WIDTHS:-all}"
+          echo "$plan" | jq -c '.linux.include[], .apple.include[]'
+
       - uses: ./.github/actions/setup-lean
       - uses: ./.github/actions/telemetry
         with:
@@ -168,15 +183,102 @@ jobs:
           mode: finish
           label: site
 
-  # One job per engine: it walks the widths one after the other, both arms at each, and reduces the readings with the same code
-  # the Mac run uses. The verdict is in the step summary and in the artifact; the job fails only when the probe could not run.
+  # One job per (engine, width leg) of the plan: it walks its widths, all three arms at each, on the paths the engine decides. The legs of
+  # one engine are joined and reduced by job `merge`; the verdict is in its step summary and artifact. A leg fails only when the probe
+  # could not run.
   probe:
     needs: [site]
     concurrency:
       group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
-    name: probe ${{ matrix.engine }}
+    name: probe ${{ matrix.engine }} ${{ matrix.leg }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.site.outputs.linux) }}
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: probe-${{ matrix.engine }}-${{ matrix.leg }}
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - uses: ./.github/actions/gate-engine
+        with:
+          engine: ${{ matrix.engine }}
+      - name: Smoke test the engine (fails in under two minutes instead of burning the job budget)
+        env:
+          ENGINE: ${{ matrix.engine }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          FW_SEARCH: ${{ needs.site.outputs.search }}
+          SMOKE: ${{ github.workspace }}/.github/scripts/gate-smoke.mjs
+        working-directory: packages/gate-breakpoints
+        timeout-minutes: 5
+        run: node "$SMOKE" --engine "$ENGINE"
+      - name: Walk the scroll paths of this leg (all three arms, its widths) and reduce
+        env:
+          ENGINE: ${{ matrix.engine }}
+          WIDTHS: ${{ matrix.widths }}
+          PATHS: ${{ matrix.paths }}
+          SEARCH: ${{ needs.site.outputs.search }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          # full = every property in every frame; lean = discrete props, m, logo rect and hero copy/cards during pushes (switch it
+          # when the read-timing table shows reads dominate the frame; the setting is recorded in the artifact).
+          READS: full
+          # Rep count of the morph path (one empty tenth-bucket in a push is fail:coverage; more passes fill it).
+          REPS: 5
+        working-directory: packages/gate-breakpoints
+        run: node src/trajectory/cli.mjs run --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --paths "$PATHS" --reads "$READS" --reps "$REPS" --out out/trajectory
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: trajectory-leg-${{ matrix.engine }}-${{ matrix.leg }}
+          path: packages/gate-breakpoints/out/trajectory
+          if-no-files-found: error
+          retention-days: 30
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: probe-${{ matrix.engine }}-${{ matrix.leg }}
+
+  # Joins the legs of one engine: the raw readings of every leg become one run (same search, same reps), reduced by the same code, and the
+  # result is the artifact `trajectory-<engine>` the recorder reads. No browser; it only needs node and the reducer.
+  merge:
+    needs: [site, probe]
+    if: ${{ !cancelled() && needs.site.result == 'success' }}
+    concurrency:
+      group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:merge:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    name: merge ${{ matrix.engine }}
     strategy:
       fail-fast: false
       matrix:
@@ -200,44 +302,23 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
-      - uses: ./.github/actions/telemetry
-        with:
-          mode: start
-          label: probe-${{ matrix.engine }}
-      - name: Verify the snapshot against snapshot.lock.json
-        run: node .github/scripts/verify-snapshot.mjs
       - uses: ./.github/actions/setup-pnpm
         with:
           filter: '@fw/gate-breakpoints'
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: site-dist
-          path: apps/site/dist/aot
-      - uses: ./.github/actions/gate-engine
-        with:
-          engine: ${{ matrix.engine }}
-      - name: Smoke test the engine (fails in under two minutes instead of burning the job budget)
+          pattern: trajectory-leg-${{ matrix.engine }}-*
+          path: legs
+      - name: Join the legs and reduce
         env:
           ENGINE: ${{ matrix.engine }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
-          FW_SEARCH: ${{ needs.site.outputs.search }}
-          SMOKE: ${{ github.workspace }}/.github/scripts/gate-smoke.mjs
         working-directory: packages/gate-breakpoints
-        timeout-minutes: 5
-        run: node "$SMOKE" --engine "$ENGINE"
-      - name: Walk the scroll paths (both arms, every width) and reduce
-        env:
-          ENGINE: ${{ matrix.engine }}
-          WIDTHS: ${{ needs.site.outputs.widths }}
-          SEARCH: ${{ needs.site.outputs.search }}
-          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
-          # full = every property in every frame; lean = discrete props, m, logo rect and hero copy/cards during pushes (switch it
-          # when the read-timing table shows reads dominate the frame; the setting is recorded in the artifact).
-          READS: full
-        working-directory: packages/gate-breakpoints
-        run: node src/trajectory/cli.mjs run --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --reads "$READS" --out out/trajectory
+        run: |
+          set -euo pipefail
+          dirs=$(find "$GITHUB_WORKSPACE/legs" -mindepth 1 -maxdepth 1 -type d -name "trajectory-leg-$ENGINE-*" | sort | paste -sd, -)
+          echo "legs: $dirs"
+          node src/trajectory/cli.mjs merge --in "$dirs" --engine "$ENGINE" --out out/trajectory
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
@@ -245,27 +326,21 @@ jobs:
           path: packages/gate-breakpoints/out/trajectory
           if-no-files-found: error
           retention-days: 30
-      - uses: ./.github/actions/telemetry
-        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
-        with:
-          mode: finish
-          label: probe-${{ matrix.engine }}
 
-  # The Apple witness: Playwright WebKit on macOS (free standard runner), hero path only, the dispatched rewrite search against
-  # the original. One job at a time (max-parallel 1). The Linux jobs above never wait for it and it never changes their verdicts.
+  # The Apple witness: Playwright WebKit on macOS (free standard runner), hero and morph paths, the dispatched rewrite search against
+  # the original, in the width legs of the plan (two). The Linux jobs above never wait for it and it never changes their verdicts.
   probe-apple:
     needs: [site]
-    if: ${{ github.event_name == 'workflow_dispatch' && contains(needs.site.outputs.search, 'hero.exit') && contains(needs.site.outputs.engines, 'playwright-webkit') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && needs.site.outputs.apple_n != '0' }}
     concurrency:
       group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe-apple:${{ strategy.job-index }}
     runs-on: macos-26
-    timeout-minutes: 60
-    name: probe apple (playwright-webkit, macos-26)
+    timeout-minutes: 15
+    name: probe apple (playwright-webkit, macos-26) ${{ matrix.leg }}
     strategy:
-      max-parallel: 1
+      max-parallel: 2
       fail-fast: false
-      matrix:
-        engine: [playwright-webkit]
+      matrix: ${{ fromJSON(needs.site.outputs.apple) }}
     steps:
       - name: 'tip re-check'
         id: tip
@@ -307,15 +382,73 @@ jobs:
         working-directory: packages/gate-breakpoints
         timeout-minutes: 5
         run: node "$SMOKE" --engine "$ENGINE"
-      - name: Walk the hero path (both arms, every width) and reduce
+      - name: Walk the paths of this leg (all three arms, its widths) and reduce
         env:
           ENGINE: ${{ matrix.engine }}
-          WIDTHS: ${{ needs.site.outputs.widths }}
+          WIDTHS: ${{ matrix.widths }}
+          PATHS: ${{ matrix.paths }}
+          REPS: 5
           SEARCH: ${{ needs.site.outputs.search }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
         working-directory: packages/gate-breakpoints
-        run: node src/trajectory/cli.mjs run --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --paths hero --reads full --out out/trajectory
+        run: node src/trajectory/cli.mjs run --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --paths "$PATHS" --reads full --reps "$REPS" --out out/trajectory
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: trajectory-leg-apple-${{ matrix.leg }}
+          path: packages/gate-breakpoints/out/trajectory
+          if-no-files-found: error
+          retention-days: 30
+
+  # Joins the macOS legs into `trajectory-apple` (the artifact the recorder reads for the mac-webkit cells).
+  merge-apple:
+    needs: [site, probe-apple]
+    if: ${{ !cancelled() && needs.site.result == 'success' && needs.probe-apple.result != 'skipped' }}
+    concurrency:
+      group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:merge-apple:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    name: merge apple
+    strategy:
+      matrix:
+        engine: [playwright-webkit]
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: trajectory-leg-apple-*
+          path: legs
+      - name: Join the legs and reduce
+        env:
+          ENGINE: ${{ matrix.engine }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+        working-directory: packages/gate-breakpoints
+        run: |
+          set -euo pipefail
+          dirs=$(find "$GITHUB_WORKSPACE/legs" -mindepth 1 -maxdepth 1 -type d -name "trajectory-leg-apple-*" | sort | paste -sd, -)
+          echo "legs: $dirs"
+          node src/trajectory/cli.mjs merge --in "$dirs" --engine "$ENGINE" --out out/trajectory
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
