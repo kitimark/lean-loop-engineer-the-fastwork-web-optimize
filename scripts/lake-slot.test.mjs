@@ -141,5 +141,5 @@ test("the call sites build through the wrapper: fwcore-build.sh (and with it che
   const plans = readFileSync(join(top, "packages/contracts/golden/console/land-dry.jsonl"), "utf8").trim().split("\n")
     .map((l) => JSON.parse(l)).filter((r) => r.request.op === "landDry.lintPlan" && r.request.hasAxioms && r.request.changed.some((p) => p.startsWith("lean/")));
   assert.ok(plans.length > 0);
-  for (const r of plans) assert.match(r.response.argv.at(-1).join(" "), /lake-slot\.sh lake build/);
+  for (const r of plans) assert.match(r.response.argv.at(-1).join(" "), /LAKE_SLOT_LIB=1 \. \.\.\/scripts\/lake-slot\.sh && \(lake_slot \.\. lake build\)/);
 });
