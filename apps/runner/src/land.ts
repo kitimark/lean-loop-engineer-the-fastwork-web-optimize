@@ -10,7 +10,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
 import { begin, record, span } from "./timing.ts";
-import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, runTiered, spawnWait, type Adapter, type Provider } from "./land-remote.ts";
+import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, BUILD_ARGV, runTiered, spawnWait, type Adapter, type Provider } from "./land-remote.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
@@ -253,10 +253,10 @@ export const selectTwoPhase = (ds: { id: string; reads: string[] }[], changed: s
   selectChecks(ds, binMoved(changed, d0, d1) ? [...changed, FWCORE_BIN] : changed);
 
 /** For each check of `list`, the indices it must wait for: `pnpm install` first; the fwcore users (FWCORE_USERS) after
- *  `sh lean/scripts/check.sh`, whose `lake build` writes the binary they run. Everything else is independent. */
+ *  `sh lean/scripts/check.sh`, whose `lake build` writes the binary they run, or after the plan's `sh scripts/fwcore-build.sh` (Lean `LandTier.localPlan`). Everything else is independent. */
 export function checkDeps(list: string[][]): number[][] {
   const isInstall = (a: string[]) => a[0] === "pnpm" && a[1] === "install";
-  const isCheckSh = (a: string[]) => a[0] === "sh" && a[1] === "lean/scripts/check.sh";
+  const isCheckSh = (a: string[]) => a[0] === "sh" && (a[1] === "lean/scripts/check.sh" || a[1] === BUILD_ARGV[1]);
   const usesCore = (a: string[]) => a[0] === "pnpm" && a[1] === "--filter" && FWCORE_USERS.some((p) => a[2] === `./${p}`);
   const idx = (f: (a: string[]) => boolean) => list.flatMap((a, i) => (f(a) ? [i] : []));
   const inst = idx(isInstall), sh = idx(isCheckSh);
@@ -604,10 +604,13 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   // the binary they run). A bounded pool (cores) starts a check when its dependencies have finished.
   // Lean `selectTwoPhase`: phase 1 builds fwcore in the merge-tree worktree when the change reaches the build, phase 2 selects
   // the fwcore users by the digests of main0's binary and that build (unknown when the build failed or the tree is dirty).
+  let phase1Built = false;
   const twoPhaseChecks = async (dir: string, main0: string, c: string): Promise<Check[]> => {
     const d0 = storedDigest(mainDir, main0);
     let d1: Digest = d0;
+    phase1Built = false;
     if (changed.some((p) => inScope(FWCORE_BUILD_READS, p))) {
+      phase1Built = true;
       const r = await span("fw land", "fwcore build (phase 1)", () => runCheck(dir, ["sh", "scripts/fwcore-build.sh"]), (p) => p.status);
       d1 = r.status === 0 && buildClean(dir) ? binDigest(dir) : null;
       lines.push(`fwcore digest: ${main} ${d0?.slice(0, 12) ?? "unknown"}, merge ${d1?.slice(0, 12) ?? "unknown"}: fwcore users ${binMoved(changed, d0, d1) ? "selected" : "skipped"}`);
@@ -629,7 +632,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       adapters: r.adapters ?? { github: githubAdapter({ call, git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), wait: spawnWait(mainDir), gh: chargedGh(realEnv(mainDir)), cache: (h, id) => cachedLaneView(realEnv(mainDir).dir, h, id) }), circleci: circleciAdapter(() => tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/circleci.mjs`])) },
       runLocal: async (argv) => { const bad = await runChecks(dir, argv); return { bad, kind: badKind }; },
       log: logLine, span: (step, startMs, durMs, exit) => record({ tool: "fw land", step, startMs, durMs, exit }, mainDir),
-      sliceS: r.sliceS, deadlineS: r.deadlineS, waitsLeft: r.waitsLeft,
+      sliceS: r.sliceS, deadlineS: r.deadlineS, waitsLeft: r.waitsLeft, built: phase1Built,
     });
     if (res.bad !== null) badKind = res.kind as Kind;
     return res.bad;

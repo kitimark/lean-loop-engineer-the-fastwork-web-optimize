@@ -18,7 +18,13 @@ const REMOTE = ["apps/runner", "apps/console-api", "packages/gate-breakpoints", 
 describe("fwcore reproduces the land-tier golden", () => {
   it("has tier and lane cases", () => {
     expect(golden.filter((c) => c.request.op === "console.landTier").length).toBeGreaterThan(10);
-    expect(golden.filter((c) => c.request.op === "console.landLane").length).toBe(9);
+    expect(golden.filter((c) => c.request.op === "console.landLane").length).toBe(11);
+  });
+  it("the local fwcore users are the Lean list: a plan builds for exactly the local candidate checks in FWCORE_USERS (LandTier.fwcoreUsers)", () => {
+    for (const { id } of candidateChecks(root)) {
+      const r = core({ op: "console.landTier", ids: [id], built: false }) as { build: boolean };
+      expect(r.build, id).toBe(FWCORE_USERS.includes(id) && !REMOTE.includes(id));
+    }
   });
   for (const c of golden) it(c.name, () => expect(core(c.request)).toEqual(c.response));
 });

@@ -104,24 +104,6 @@ theorem count_filter_ite (p : String → Bool) (l : List String) (a : String) :
   · have : a ∉ l.filter p := by simp [List.mem_filter, h]
     simp [h, List.count_eq_zero.2 this]
 
-/-- The legs together run every selected remote check once: no check is dropped, none runs twice. -/
-theorem legs_cover (sel : List String) (h : ∀ i ∈ sel, i ∈ remoteIds) :
-    (pickFor .checkSh sel ++ pickFor .suitesA sel ++ pickFor .suitesB sel).Perm sel := by
-  rw [List.perm_iff_count]
-  intro a
-  simp only [pickFor, List.count_append, count_filter_ite]
-  by_cases ha : a ∈ sel
-  · have := shard_one a (h a ha)
-    revert this
-    cases shardA.contains a <;> cases shardB.contains a <;> cases shardC.contains a <;> simp
-  · have : List.count a sel = 0 := List.count_eq_zero.2 ha
-    simp [this]
-
-/-- A selection without repeats stays without repeats across the legs: no check runs twice. -/
-theorem legs_nodup (sel : List String) (h : ∀ i ∈ sel, i ∈ remoteIds) (nd : sel.Nodup) :
-    (pickFor .checkSh sel ++ pickFor .suitesA sel ++ pickFor .suitesB sel).Nodup :=
-  ((legs_cover sel h).nodup_iff).2 nd
-
 /-- The `check-sh` leg owns only the Lean script. -/
 theorem checkSh_sound (sel : List String) (x : String) (hx : x ∈ pickFor .checkSh sel) : x ∈ sel ∧ x = checkShId := by
   simp only [pickFor, List.mem_filter, List.contains_iff_mem, shardC, List.mem_singleton] at hx
@@ -146,6 +128,35 @@ theorem chromium_no_checks (sel : List String) : pickFor .chromium sel = [] := r
 
 /-- The webkit leg runs no remote check. -/
 theorem webkit_no_checks (sel : List String) : pickFor .webkit sel = [] := rfl
+
+/-- The three suite legs together run every selected remote check once (the base of `legs_cover`). -/
+theorem suite_legs_cover (sel : List String) (h : ∀ i ∈ sel, i ∈ remoteIds) :
+    (pickFor .checkSh sel ++ pickFor .suitesA sel ++ pickFor .suitesB sel).Perm sel := by
+  rw [List.perm_iff_count]
+  intro a
+  simp only [pickFor, List.count_append, count_filter_ite]
+  by_cases ha : a ∈ sel
+  · have := shard_one a (h a ha)
+    revert this
+    cases shardA.contains a <;> cases shardB.contains a <;> cases shardC.contains a <;> simp
+  · have : List.count a sel = 0 := List.count_eq_zero.2 ha
+    simp [this]
+
+/-- The three suite legs run no check twice (the base of `legs_nodup`). -/
+theorem suite_legs_nodup (sel : List String) (h : ∀ i ∈ sel, i ∈ remoteIds) (nd : sel.Nodup) :
+    (pickFor .checkSh sel ++ pickFor .suitesA sel ++ pickFor .suitesB sel).Nodup :=
+  ((suite_legs_cover sel h).nodup_iff).2 nd
+
+
+/-- Over every leg in `legs`, the legs together run every selected remote check once: no check is dropped, none runs twice. A leg
+added to `legs` that picked checks would break this statement, not slip past it. -/
+theorem legs_cover (sel : List String) (h : ∀ i ∈ sel, i ∈ remoteIds) : (legs.flatMap (pickFor · sel)).Perm sel := by
+  have := suite_legs_cover sel h
+  simpa [legs, chromium_no_checks, webkit_no_checks, List.append_assoc] using this
+
+/-- A selection without repeats stays without repeats across `legs`: no check runs twice. -/
+theorem legs_nodup (sel : List String) (h : ∀ i ∈ sel, i ∈ remoteIds) (nd : sel.Nodup) : (legs.flatMap (pickFor · sel)).Nodup :=
+  ((legs_cover sel h).nodup_iff).2 nd
 
 /-- The `check-sh` leg never runs the browser suite. -/
 theorem checkSh_no_engine (selected : List String) : engineRuns .checkSh selected = false := rfl

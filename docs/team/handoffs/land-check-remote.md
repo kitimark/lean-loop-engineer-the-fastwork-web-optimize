@@ -1,24 +1,28 @@
-# Handoff: land-check-remote
+# Handoff: land-check-remote (round 2)
 
-State: branch worktree-wf_7c5d2ef0-583-1; code commit fbd7a9ee (+ empty `[ci:land]` probe commit 955bac38, + this handoff).
-`sh lean/scripts/check.sh` green at fbd7a9ee. Runner (1573), contracts (7) tests and `node --test scripts/ci-paths.test.mjs` pass.
+State: branch worktree-wf_7c5d2ef0-583-1, round-2 code commit (see report), then an empty `[ci:land]` probe commit for the dry lane run.
+`sh lean/scripts/check.sh` green at the code commit. Runner (1581) tests incl. typecheck and `node --test scripts/ci-paths.test.mjs` (47, 0 skipped) pass.
 
-What changed
-- Lean `LandTier`: `checkShId`, `remoteIds` gains it (8 ids); `gates_local` is install + reads-scan only; `check_sh_remote`;
-  `filterList` uses `suiteIds` (the script has no pnpm package; still 7 selectors).
-- Lean `LandLegs`: leg `checkSh` ("check-sh", first in the matrix), `shardC`; theorems `shards_perm`, `shards_nodup`, `shardC_disjoint`,
-  `shard_one`, `legs_cover`, `legs_nodup`, `checkSh_sound`, `checkSh_runs_of_selected`, `checkSh_no_engine`. `laneVerdict` untouched.
-- Regenerated: land-tier.jsonl, land-legs.jsonl, lean/land-legs.txt (never hand-edit).
-- land.yml: matrix gains check-sh (same setup-lean + fwcore build as every leg; the leg runs `fw checks --leg check-sh`).
-- TS stand-in: `SUMMARYLESS` in `apps/runner/src/checks.ts` (check.sh prints no test summary, so exit code is its verdict; skipped=0).
-  Replace by a Lean list in LandTier plus an op field. Everything else (tier, leg) comes from fwcore.
-- land.ts unchanged: the local fallback (`remote:false`, CI unavailable) runs the remote tier here incl. check.sh; `checkDeps` still orders it.
+Round 1 (kept)
+- Lean `LandTier`: `checkShId` in `remoteIds` (8 ids); `check_sh_remote`; `gates_local` = install + reads-scan. Lean `LandLegs`: leg `checkSh`, `shardC`.
+- land.yml matrix leg check-sh runs `fw checks --leg check-sh`.
 
-Evidence (one before/after pair; free runners vary)
-- Before: run 39458419744 (main-based land, 8m26 total; webkit 8m02, chromium 6m44, suites-a 6m33, suites-b 6m24).
-- After: run 39461106516 success, 4m14 total; check-sh 2m09 (check.sh itself 31 s), suites-a 2m41, suites-b 2m49, chromium 2m55, webkit 3m53.
-- Mac local tier (spans `.fw-console/timings.jsonl`, tool "fw land"): before "local tier" 43.7-54.9 s of which `sh lean/scripts/check.sh`
-  26.3-37.0 s (commits bbb99c3, 76b7c5b, 2ff42b6, eea0134). After: INFERRED 16.7-17.9 s (tier minus check.sh); not yet measured on a real land.
+Round 2
+- #1 Lean `LandTier`: `fwcoreUsers`, `isCoreUser`, `Step`, `needsBuild built ids`, `localPlan`; theorems `needsBuild_of_user`, `no_build_when_built`,
+  `no_build_without_user`, `core_user_has_build` (every local fwcore user has a build step before it unless one ran; no dependence on lean/** changing).
+  Op `console.landTier` takes `built?`, returns `build`. Golden cases: golden-only change (measure-webkit local), build already ran, no user.
+  `runTiered` (land-remote.ts) prepends `BUILD_ARGV` to the local list when `build`; `land.ts` passes `built: phase1Built`; `checkDeps` orders users after it.
+  Tests: land.test.ts (remote, golden-only: build before measure-webkit; phase-1 build not repeated), checks.test.ts (build flag = FWCORE_USERS for local candidates).
+- #5 `LandTier.summaryless`, `effectiveSkipped` + theorems; op `console.landLane` takes `check?` and returns `skipped`; TS `SUMMARYLESS` deleted.
+- #6 `LandLegs.legs_cover` / `legs_nodup` now over `legs.flatMap (pickFor · sel)`; base theorems `suite_legs_cover` / `suite_legs_nodup`.
+- Limit: `FWCORE_USERS` (TS) equals Lean `fwcoreUsers` only for local ids (checks.test.ts); the remote users are pinned by land-inputs.test.ts's scan.
 
-Open: re-read the Mac "local tier" span on the first real land after this one; Mac CPU per land is not in spans.
-Read first: lean/Fw/Console/LandLegs.lean, docs/team/tools/land.md (legs section).
+Evidence (one pair, free runners vary; "lane wall time did not grow" is the only claim)
+- Before: run 39458419744, a land-lane run of task land-queue-unreachable (main-based, branch ci/land-land-queue-unreachable-3aa12c0): 8m26; webkit 8m02.
+  After (round 1): run 39461106516, 4m14, webkit 3m53, check-sh 2m09 (check.sh 31 s). The webkit gap is runner variance, not this change.
+- Mac "local tier" spans, rule: the 12 most recent in .fw-console/timings.jsonl (seconds): 38.1, 140.2, 69.7, 57.1, 79.6, 138.7, 47.5, 51.9, 43.7, 54.9,
+  0.08 (no checks), 46.8; median about 52. check.sh inside them: 26.3-92.9 s. The Mac still pays "fwcore build (phase 1)" (0.6-25.5 s, outside the span)
+  on Lean changes, plus a build step for a golden-only change that selects a local fwcore user. After figure (tier minus check.sh) is INFERRED until a real land.
+
+Dry lane run on the new head: see the report (run id).
+Read first: lean/Fw/Console/LandTier.lean (localPlan), lean/Fw/Console/LandLegs.lean.
