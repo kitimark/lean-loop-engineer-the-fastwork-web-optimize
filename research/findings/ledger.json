@@ -2177,16 +2177,14 @@
    "status": "refuted",
    "chromium": "model-false",
    "webkit": "model-false",
-   "visual": "not equal: the nav logo stays in place for the whole 680 ms morph and jumps at finish, in Chromium and WebKit (CONFIRMED by user report, 2026-10-20)",
-   "mechanism": "CONFIRMED (source): the waapi driver writes data-fw-morph only twice per push, the start value at the push (apps/site/src/parts/morph.tween/waapi.driver.ts:140) and the end value at finish (:110, through hint at morph.tween/index.tsx:96-99); between the two writes --morph changes only inside the WAAPI animation. The nav's state classes come from data-fw-morph: a MutationObserver (nav/index.tsx:123-127) calls view() with morphing = m > 0.001 and expanded = m > 0.92 (nav/logic.ts:63-64). So is-morphing and is-expanded stay off for the whole open (and on for the whole close), and .nav.is-morphing .logo (nav/nav.module.css:122-127), the rule that makes the logo absolute and moves it with --morph, never matches mid-morph: the logo stays in the flex row, then jumps in one frame at finish. The animated --fw-morph-dark and --fw-morph-expanded (waapi.logic.ts:19-20, 97-104) have no reader (CONFIRMED by grep). MEASURED (local debug, 1280 wide, logo x relative to the nav at m = 0.07 / 0.6 / 1): original 52 / 319 / 559, faithful 51 / 295 / 559, waapi 24 / 24 / 24 then 559 at finish. The proof gap: MorphTweenOpt.waapi_vis and view_eq (lean/Fw/Parts/MorphTweenOpt.lean:899-927) hold for any scene that is a function of the View (m, target, flags over thresholds); the shipped scene reads its classes from data-fw-morph, a second channel that holds only the start and end values, so the theorems are true but do not describe the shipped code.",
+   "visual": "not equal (INFERRED from the shared driver: waapi.driver.ts:110,140 write data-fw-morph only at push start and finish, CONFIRMED in source): the nav logo stays in place for the whole 680 ms morph and jumps at finish; not observed on a device with this variant (the user ran morph.tween:waapi-scoped)",
+   "mechanism": "CONFIRMED (source): the waapi driver writes data-fw-morph only twice per push, the start value at the push (apps/site/src/parts/morph.tween/waapi.driver.ts:140) and the end value at finish (:110, through hint at morph.tween/index.tsx:96-99); between the two writes --morph changes only inside the WAAPI animation. The nav's state classes come from data-fw-morph: a MutationObserver (nav/index.tsx:123-127) calls view() with morphing = m > 0.001 and expanded = m > 0.92 (nav/logic.ts:63-64). So is-morphing and is-expanded stay off for the whole open (and on for the whole close), and .nav.is-morphing .logo (nav/nav.module.css:122-127), the rule that makes the logo absolute and moves it with --morph, never matches mid-morph: the logo stays in the flex row, then jumps in one frame at finish. The animated --fw-morph-dark and --fw-morph-expanded (waapi.logic.ts:19-20, 97-104) have no reader (CONFIRMED by grep). local debug repro, not a result (1280 wide, logo x relative to the nav at m = 0.07 / 0.6 / 1): original 52 / 319 / 559, faithful 51 / 295 / 559, waapi 24 / 24 / 24 then 559 at finish. The proof gap: MorphTweenOpt.waapi_vis and view_eq (lean/Fw/Parts/MorphTweenOpt.lean:899-927) hold for any scene that is a function of the View (m, target, flags over thresholds); the shipped scene reads its classes from data-fw-morph, a second channel that holds only the start and end values, so the theorems are true but do not describe the shipped code.",
    "leanFor": [
     "Fw.Parts.MorphTweenOpt.waapi_vis",
     "Fw.Parts.MorphTweenOpt.view_eq",
     "Fw.Parts.MorphTweenOpt.flags_same_frame"
    ],
-   "leanAgainst": [
-    "Fw.Parts.MorphTweenOpt.waapi_section_finding"
-   ],
+   "leanAgainst": [],
    "missingWhy": [
     "a Lean link from each threshold in MorphTweenOpt.thresholds to the class or selector the CSS reads and to a channel updated every frame (OPEN)"
    ],
@@ -2196,7 +2194,7 @@
    "next": "Out of v2-proved (Fw.Preset.why = falsifiedFlag; morph.tween falls back to faithful). Fix task: write data-fw-morph at each threshold crossing time from the keyframe offsets, plus the threshold-to-class link in Lean; CI confirmation by trajectory-probe.",
    "flag": "morph.tween:waapi",
    "fResult": "model-bug",
-   "evidence": "user's real-device observation 2026-10-20 (CONFIRMED by user report): the nav logo moves wrongly at the end-of-page morph in Chromium and Safari WebKit; local debug repro (Playwright Chromium and WebKit on the preview build of main 84a662d4; MEASURED (local debug), not a result), CI pending (task trajectory-probe)"
+   "evidence": "shared driver with morph.tween:waapi-scoped, which the user observed on real devices 2026-10-20 (Chromium and Safari WebKit); local debug repro (headless Chrome via Playwright, 1280 and 390 wide, preview build of main 84a662d4; MEASURED (local debug), not a result; WebKit not run locally), CI pending (task trajectory-probe)"
   },
   {
    "id": "morph.tween.waapiScoped.falsified",
@@ -2214,9 +2212,7 @@
     "Fw.Parts.MorphTweenOpt.registrationsScoped_see",
     "Fw.Parts.MorphTweenOpt.scoped_scope_le"
    ],
-   "leanAgainst": [
-    "Fw.Parts.MorphTweenOpt.waapi_section_finding"
-   ],
+   "leanAgainst": [],
    "missingWhy": [
     "the same threshold-to-class link as row morph.tween.waapi.falsified (OPEN)"
    ],
@@ -2226,7 +2222,7 @@
    "next": "Not in v2-proved (no link, and now falsifiedFlag). Fix task: the waapi driver fix of row morph.tween.waapi.falsified; CI confirmation by trajectory-probe.",
    "flag": "morph.tween:waapi-scoped",
    "fResult": "model-bug",
-   "evidence": "user's real-device observation 2026-10-20 (CONFIRMED by user report), on a flag set with morph.tween:waapi-scoped: the nav logo moves wrongly at the end-of-page morph in Chromium and Safari WebKit; local debug repro (Playwright Chromium and WebKit on the preview build of main 84a662d4; MEASURED (local debug), not a result), CI pending (task trajectory-probe)"
+   "evidence": "user's real-device observation 2026-10-20 (CONFIRMED by user report) (the user ran ?preset=v2-proved&fw=...,morph.tween:waapi-scoped,...): the nav logo moves wrongly at the end-of-page morph in Chromium and Safari WebKit; local debug repro (headless Chrome via Playwright, 1280 and 390 wide, preview build of main 84a662d4; MEASURED (local debug), not a result; WebKit not run locally), CI pending (task trajectory-probe)"
   },
   {
    "id": "hero.exit.scoped.falsified",
@@ -2237,7 +2233,7 @@
    "chromium": "win",
    "webkit": "model-false",
    "visual": "not equal on WebKit: the hero cards freeze during scroll and the hero is gone after scrolling away and back, on Safari desktop and mobile (CONFIRMED by user report, 2026-10-20); Chromium correct (local debug)",
-   "mechanism": "CONFIRMED (source, WebKit @862f17d): WebKit reuses a cached style when an element's matched rules and its parent's inherited style are unchanged (StyleResolver.cpp:693-728, MatchedDeclarationsCache.cpp:139-163). Scoped registers --exit-opacity and --exit-scatter with inherits: false (apps/site/src/parts/hero.exit/scope.ts:4-7) and passes them down with inherit rules (hero/hero.module.css:13-14), so the per-frame write on the stage no longer changes the inherited data and the readers get the old cached result. The re-apply step for explicit inherit (StyleResolver.cpp:707,724, PropertyCascade.cpp:332) refreshes the inherit declarations, not the var() readers opacity, filter and transform (hero/hero.module.css:23-25); which line refreshes the variable is INFERRED. A CSSOM inline write disables the cache for its element (ElementRuleCollector.cpp:970). MEASURED (local debug, WebKit 390 wide, copy opacity at exit .75/.5/0/.5/.9): scoped 1/1/1/.5/.5 (stuck), the arm without scoped .75/.5/0/.5/.9; the copy's own --exit-opacity is correct, its opacity and transform are not; Chromium correct. The proof gap: consumer_eq_scoped, scatter_eq and wk_units (lean/Fw/Parts/HeroExitOpt.lean:1289-1321) prove the variable's value on each reader in one style pass; nothing covers the properties that read it, a sequence of frames, or WebKit's style cache (Fw.Engine.Restyle assumes every restyled element is recomputed).",
+   "mechanism": "CONFIRMED (source, WebKit @862f17d): WebKit reuses a cached style when an element's matched rules and its parent's inherited style are unchanged (StyleResolver.cpp:693-728, MatchedDeclarationsCache.cpp:139-163). Scoped registers --exit-opacity and --exit-scatter with inherits: false (apps/site/src/parts/hero.exit/scope.ts:4-7) and passes them down with inherit rules (hero/hero.module.css:13-14), so the per-frame write on the stage no longer changes the inherited data and the readers get the old cached result. The re-apply step for explicit inherit (StyleResolver.cpp:707,724, PropertyCascade.cpp:332) refreshes the inherit declarations, not the var() readers opacity, filter and transform (hero/hero.module.css:23-25); which line refreshes the variable is INFERRED. A CSSOM inline write disables the cache for its element (ElementRuleCollector.cpp:970). local debug repro, not a result (WebKit 390 wide, copy opacity at exit .75/.5/0/.5/.9): scoped 1/1/1/.5/.5 (stuck), the arm without scoped .75/.5/0/.5/.9; the copy's own --exit-opacity is correct, its opacity and transform are not; Chromium correct. The proof gap: consumer_eq_scoped, scatter_eq and wk_units (lean/Fw/Parts/HeroExitOpt.lean:1289-1321) prove the variable's value on each reader in one style pass; nothing covers the properties that read it, a sequence of frames, or WebKit's style cache (Fw.Engine.Restyle assumes every restyled element is recomputed).",
    "leanFor": [
     "Fw.Parts.HeroExitOpt.consumer_eq_scoped",
     "Fw.Parts.HeroExitOpt.scatter_eq",
@@ -2515,6 +2511,24 @@
    "task": "countdown-one-chain",
    "field": "mechanism",
    "text": "countdown-one-chain: the strip claim is retired: strip's always-on schedule pays a callback on every still frame, so it is not below the original's scheduling (Fw.Parts.HeroCountdownOneChain.strip_schedule_still_gt), while one chain is at most the always-on cost (oneChain_le_alwaysOn). The measured win is row hero.countdown.oneChain (FireAnimationFrame -243 swipe-v1, -252 swipe-touch-v1; MEASURED)."
+  },
+  {
+   "entry": "g0.0b: the rAF tween replaced by one WAAPI animation on a registered --morph with cubic-bezier(1/3,1,2/3,1)",
+   "task": "preset-drop-waapi",
+   "field": "mechanism",
+   "text": "falsified on real devices 2026-10-20, see row morph.tween.waapi.falsified (fResult model-bug)"
+  },
+  {
+   "entry": "hero.exit:scoped (exit-scoped-var): register --exit-opacity and --exit-scatter with inherits: false and re-inherit them only on the 7 classes between the stage and the 16 readers",
+   "task": "preset-drop-waapi",
+   "field": "mechanism",
+   "text": "falsified on real devices 2026-10-20, see row hero.exit.scoped.falsified (fResult model-bug)"
+  },
+  {
+   "entry": "morph.tween:waapi-scoped (tween-platform-scope): the WAAPI tween with a non-inherited --platform-morph, so the platform subtree leaves every tween frame",
+   "task": "preset-drop-waapi",
+   "field": "mechanism",
+   "text": "falsified on real devices 2026-10-20, see row morph.tween.waapiScoped.falsified (fResult model-bug)"
   }
  ]
 }
