@@ -108,7 +108,7 @@ theorem browser_runs_remote_pick (ids : List String) : browserRuns (pick .onCi i
 #guard !browserRuns ["apps/runner", "packages/gh-budget"]
 #guard !browserRuns []
 
-/-- The packages whose tests run the `fwcore` binary (the TS list `FWCORE_USERS` in `apps/runner/src/land.ts` equals it; a test pins that). -/
+/-- The packages whose tests run the `fwcore` binary (the TS list `FWCORE_USERS` in `apps/runner/src/land.ts` equals it on the local ids, pinned by checks.test.ts; the remote users are pinned by the land-inputs scan). -/
 def fwcoreUsers : List String :=
   ["apps/console-api", "apps/runner", "packages/difftest", "packages/e2e-preview", "packages/engine-check",
    "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit",
@@ -122,7 +122,7 @@ inductive Step where
   | build
   | check (id : String)
 
-/-- Does the local plan start with the `fwcore` build? Yes iff no build ran yet (`built = false`) and a local check runs the binary. -/
+/-- Does the local plan start with the `fwcore` build? Yes iff no build succeeded yet (`built = false`) and a local check runs the binary. -/
 def needsBuild (built : Bool) (ids : List String) : Bool := !built && ids.any isCoreUser
 
 /-- The local plan: the build first when needed, then the local checks in order. -/

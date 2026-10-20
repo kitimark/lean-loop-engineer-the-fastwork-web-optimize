@@ -610,8 +610,8 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     let d1: Digest = d0;
     phase1Built = false;
     if (changed.some((p) => inScope(FWCORE_BUILD_READS, p))) {
-      phase1Built = true;
       const r = await span("fw land", "fwcore build (phase 1)", () => runCheck(dir, ["sh", "scripts/fwcore-build.sh"]), (p) => p.status);
+      phase1Built = r.status === 0; // a failed build leaves the slot binary stale, so the local plan builds again
       d1 = r.status === 0 && buildClean(dir) ? binDigest(dir) : null;
       lines.push(`fwcore digest: ${main} ${d0?.slice(0, 12) ?? "unknown"}, merge ${d1?.slice(0, 12) ?? "unknown"}: fwcore users ${binMoved(changed, d0, d1) ? "selected" : "skipped"}`);
     }

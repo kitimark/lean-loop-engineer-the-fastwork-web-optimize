@@ -1,6 +1,6 @@
 # Handoff: land-check-remote (round 2)
 
-State: branch worktree-wf_7c5d2ef0-583-1, round-2 code commit (see report), then an empty `[ci:land]` probe commit for the dry lane run.
+State: branch worktree-wf_7c5d2ef0-583-1, round-2 code commit 2a005ec7, then an empty `[ci:land]` probe commit for the dry lane run.
 `sh lean/scripts/check.sh` green at the code commit. Runner (1581) tests incl. typecheck and `node --test scripts/ci-paths.test.mjs` (47, 0 skipped) pass.
 
 Round 1 (kept)
