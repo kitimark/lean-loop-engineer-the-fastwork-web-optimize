@@ -1,5 +1,5 @@
 import { active, armed, dir, push, REST, taken, type St } from './logic';
-import { navKeyframes, platformKeyframes, settledProps, TIMING, toWaapi } from './waapi.logic';
+import { navKeyframes, platformKeyframes, settledProps, TIMING, toWaapi, type WaapiArm } from './waapi.logic';
 import type { TouchLike, WheelLike } from './driver';
 
 export interface AnimLike {
@@ -39,7 +39,7 @@ export interface WaapiEnv {
  * frame. The running value is read from the animation's computed progress, only at a push or a listener decision. A
  * retarget cancels the old animations and starts from that value; reduced motion cancels and jumps.
  */
-export function createWaapiDriver(env: WaapiEnv) {
+export function createWaapiDriver(env: WaapiEnv, variant: WaapiArm = 'waapi') {
   let st: St = REST;
   let near = false;
   let attached = false;
@@ -124,7 +124,7 @@ export function createWaapiDriver(env: WaapiEnv) {
     st = next;
     if (reduced) {
       flight = false;
-      env.settle(st.value, settledProps(st.value));
+      env.settle(st.value, settledProps(st.value, variant));
       if (!isActive()) arm();
       return;
     }
@@ -132,7 +132,7 @@ export function createWaapiDriver(env: WaapiEnv) {
     const nav = env.nav();
     const platform = env.platform();
     if (nav) anims.push(nav.animate(toWaapi(navKeyframes({ from: st.from, to: st.to })), TIMING));
-    if (platform) anims.push(platform.animate(toWaapi(platformKeyframes({ from: st.from, to: st.to })), TIMING));
+    if (platform) anims.push(platform.animate(toWaapi(platformKeyframes({ from: st.from, to: st.to }, variant)), TIMING));
     if (t !== null) for (const a of anims) a.startTime = t;
     const first = anims[0];
     if (!first) return settleFlight();
