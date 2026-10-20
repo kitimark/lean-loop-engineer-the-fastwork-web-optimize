@@ -512,6 +512,57 @@ export function macosJobs(jobs) {
   return jobs.filter((j) => /^(macos-|xcode-)/.test(j.runsOn) && !dispatchOnly(j.ifText)).map((j) => j.name);
 }
 
+export const POOL_CAPS = 'packages/contracts/golden/ci/pool-caps.jsonl';
+
+/** The Lean cap table (Fw.Ci.Pool.Caps): `caps` maps `<file> <job>` to its `timeout-minutes`; `excluded` holds the
+ *  workflows whose macOS jobs another task times. */
+export function loadCaps(root) {
+  const rows = readFileSync(join(root, POOL_CAPS), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  return {
+    caps: new Map(rows.filter((r) => r.kind === 'cap').map((r) => [`${r.file} ${r.job}`, r.capMin])),
+    excluded: new Set(rows.filter((r) => r.kind === 'excluded').map((r) => r.file)),
+  };
+}
+
+const TIMEOUT = /^ {4}timeout-minutes:\s*(.*?)\s*(?:#.*)?$/;
+
+/** Every macOS job (runs-on macos-* / xcode-*, dispatch-only included) of a workflow outside `excluded` has a Lean cap,
+ *  and its job-level `timeout-minutes` equals it; a cap row names a macOS job of the file. Returns { problems, text }
+ *  with the timeouts set to the caps. */
+export function capProblems(file, text, capTable) {
+  const problems = [];
+  const lines = text.split('\n');
+  const jobs = readJobs(lines);
+  for (const key of capTable.caps.keys()) {
+    const [f, job] = key.split(' ');
+    if (f === file && !jobs.some((j) => j.name === job)) problems.push(`${file}: Lean cap for job ${job}, but the workflow has no such job`);
+  }
+  if (capTable.excluded.has(file)) return { problems, text };
+  for (const j of [...jobs].reverse()) {
+    if (j.runsOn.includes('${{')) problems.push(`${file}: job ${j.name}: runs-on is an expression, so the cap check cannot read its runner (write the label)`);
+    const cap = capTable.caps.get(`${file} ${j.name}`);
+    if (!/^(macos-|xcode-)/.test(j.runsOn)) {
+      if (cap !== undefined) problems.push(`${file}: job ${j.name} has a Lean cap but does not run on macOS`);
+      continue;
+    }
+    if (cap === undefined) {
+      problems.push(`${file}: macOS job ${j.name} has no Lean cap (lean/Fw/Ci/Pool/Caps.lean \`rows\` or \`excluded\`)`);
+      continue;
+    }
+    const want = `    timeout-minutes: ${cap}`;
+    const at = lines.findIndex((l, i) => i > j.at && i < j.end && TIMEOUT.test(l));
+    if (at < 0) {
+      problems.push(`${file}: macOS job ${j.name} has no timeout-minutes; the Lean cap is ${cap}`);
+      const ro = lines.findIndex((l, i) => i > j.at && i < j.end && /^ {4}runs-on:/.test(l));
+      lines.splice(ro + 1, 0, want);
+    } else if (TIMEOUT.exec(lines[at])[1] !== String(cap)) {
+      problems.push(`${file}: macOS job ${j.name} has timeout-minutes ${TIMEOUT.exec(lines[at])[1]}; the Lean cap is ${cap}`);
+      lines[at] = want;
+    }
+  }
+  return { problems, text: lines.join('\n') };
+}
+
 /** A status function (`always()`, `cancelled()`, `failure()`) lets a job run after its needs were skipped; its `if:` must
  *  then hold a conjunct that is false when the guard skipped (a needed job's success, or the guard's run=true). */
 export function unsafeStatusIf(ifText) {
@@ -817,6 +868,8 @@ export function run(root, write) {
   const dir = join(root, WF_DIR);
   const files = readdirSync(dir).filter((f) => f.endsWith('.yml')).sort();
   const problems = [...coneProblems(root, table), ...leanInputProblems(root, table), ...cacheWriterProblems(root, table)];
+  const caps = loadCaps(root);
+  for (const k of caps.caps.keys()) if (!files.includes(k.split(' ')[0])) problems.push(`${k.split(' ')[0]}: Lean cap row but no such workflow file`);
   let wrote = 0;
   const rows = new Map(table.workflows.map((w) => [w.file, w]));
   try { problems.push(...(lakeGenProblems(root, write) ?? [])); } catch (e) { problems.push(`${LAKE_GEN}: ${e.message}`); }
@@ -834,7 +887,9 @@ export function run(root, write) {
     const main = table.notMainPush ? { jobs: (table.seeders ?? []).filter((s) => s.file === f).map((s) => s.job), conj: table.notMainPush } : null;
     try { r = reconcile(f, text, row, lane ?? null, main); } catch (e) { problems.push(`${f}: ${e.message}`); continue; }
     problems.push(...r.problems);
-    if (write && r.text !== text) { writeFileSync(join(dir, f), r.text); wrote++; }
+    const c = capProblems(f, r.text, caps);
+    problems.push(...c.problems);
+    if (write && c.text !== text) { writeFileSync(join(dir, f), c.text); wrote++; }
   }
   return { problems, wrote };
 }
@@ -846,7 +901,7 @@ function main() {
   const { problems, wrote } = run(root, write);
   if (write) {
     console.log(`ci-paths: wrote ${wrote} workflow file(s)`);
-    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same|outside coneGlobs|no lane in the Lean intent|lean\/scripts\//.test(p));
+    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same|outside coneGlobs|no lane in the Lean intent|lean\/scripts\/|Lean cap row|Lean cap for job|has no Lean cap|does not run on macOS|runs-on is an expression/.test(p));
     for (const p of left) console.log(`  ${p}`);
     process.exit(left.length ? 1 : 0);
   }
