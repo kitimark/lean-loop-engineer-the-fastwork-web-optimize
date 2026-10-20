@@ -6880,7 +6880,11 @@
     "latex-lint-relax",
     "latex-generators",
     "latex-mathview-b2",
-    "latex-strip-c"
+    "latex-strip-c",
+    "latex-strip-c2",
+    "latex-teardown",
+    "latex-plan-text",
+    "latex-close"
    ],
    "owner": "lead",
    "writes": [
@@ -10702,6 +10706,85 @@
     "lean/Fw/**/*.lean",
     "lean/FwTest/**",
     "docs/team/handoffs/latex-strip-c2.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-teardown",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "latex-mathview-b2",
+    "skills-reframe"
+   ],
+   "title": "User 2026-10-20: continue the LaTeX removal until every LaTeX mention in related docs and skills is torn down. Live instructions and tooling (CLAUDE.md, .claude/agents, .claude/skills, .claude/workflows, docs/team/tools, docs/team/token-policy.md, docs/team/parallel-plan.md, lean/README.md, lean/MathView*.lean help and comments, lean/scripts, scripts help text, .serena configs) no longer mention LaTeX or $$ as something Lean files hold, need or must avoid; artifact math (math-artifact.md, KaTeX pages, math-reviewer) is described positively; historical records (handoffs, incidents, research, report, improvements, rev deltas) and unrelated $$ (shell PIDs, CSS, JS) stay",
+   "writes": [
+    "CLAUDE.md",
+    ".claude/agents/**",
+    ".claude/skills/**",
+    ".claude/workflows/**",
+    "docs/team/tools/**",
+    "docs/team/token-policy.md",
+    "docs/team/parallel-plan.md",
+    "lean/README.md",
+    "lean/MathView.lean",
+    "lean/MathViewMain.lean",
+    "lean/scripts/**",
+    "scripts/math-pending.mjs",
+    "scripts/test-wt-prep.sh",
+    "docs/plan/tools/check-lean-lessons.mjs",
+    ".serena/project.yml",
+    "lean/.serena/project.yml",
+    "lean/lakefile.toml",
+    "packages/contracts/golden/**",
+    "docs/team/handoffs/latex-teardown.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-plan-text",
+   "owner": "plan-editor",
+   "stream": "ops",
+   "deps": [
+    "latex-mathview-b2"
+   ],
+   "title": "lean-latex-removal: PLAN.md and the docs/plan pages (loop-plan.html, math-to-lean.html, math-view.html) describe the current design, Lean source with specs, proofs and code and math written on demand into artifacts, with no LaTeX-in-Lean steps (mathview lint stage, math-review per Lean round, $$ docstrings); a retired page is marked retired or removed per the plan's own page rules",
+   "writes": [
+    "docs/plan/PLAN.md",
+    "docs/plan/loop-plan.html",
+    "docs/plan/math-to-lean.html",
+    "docs/plan/math-view.html",
+    "docs/plan/tools/**",
+    "docs/team/handoffs/latex-plan-text.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "latex-close",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [
+    "latex-strip-c2",
+    "latex-teardown",
+    "latex-plan-text",
+    "trajectory-probe"
+   ],
+   "title": "lean-latex-removal last step: sweep lean/Fw/Ci/Trigger.lean and lean/Fw/Wire/Store.lean after trajectory-probe lands; repo-wide --check 0 on every lean/**/*.lean; retire the migration scaffolding (scripts/latex-strip.mjs and its tests, any hook or check that only existed for the migration); write docs/team/handoffs/lean-latex-removal.md that closes the parent task",
+   "writes": [
+    "lean/Fw/**/*.lean",
+    "lean/FwTest/**",
+    "scripts/latex-strip.mjs",
+    "scripts/latex-strip.test.mjs",
+    "package.json",
+    "lean/scripts/**",
+    "docs/team/handoffs/latex-close.md",
+    "docs/team/handoffs/lean-latex-removal.md"
    ]
   }
  ],
