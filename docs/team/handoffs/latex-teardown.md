@@ -3,7 +3,7 @@
 - **State:** branch `worktree-wf_1de700b0-a77-1`; edits `be4ee02b`, this handoff in the next commit. No Lean code changed.
 - **Verified:** `sh lean/scripts/check.sh` green; ci-paths 41/41; runner land-inputs 55/55; `node --check` build-review.js.
 - **Classes:** (a) live text saying Lean holds/needs/avoids LaTeX, or naming the retired lint: rewritten; (b) artifact
-  math tooling: kept, positive; (c) unrelated (`$$` PID, `translateX`, serena language list, role names): left.
+  math tooling: kept, positive; (c) unrelated (`$$` PID, `translateX`, serena language list, role names): left. `.claude/skills/**` had no hits.
 
 | File | Hits before | Class | Action |
 |---|---|---|---|
@@ -21,8 +21,6 @@
 | `scripts/math-pending.mjs`, `docs/plan/tools/check-lean-lessons.mjs` | 7, 9 | b | kept (reads signed rows; KaTeX parse of a page) |
 | `scripts/test-wt-prep.sh`, `wait-guard.md`, `.serena` x2 | 3, 1, 2 | c | left |
 | `packages/contracts/golden/**` | 74 | b/c/hist | generated; left (`present.mathview`, `translateX`, `$$` deny case, graph titles) |
-
-- `.claude/skills/**` had no hits.
 
 ## Open
 1. `lean/Fw/Ops/Premise.lean`: `Premise.statement` holds LaTeX strings and its module doc says "statement (LaTeX)".
