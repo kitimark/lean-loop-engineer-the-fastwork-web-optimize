@@ -247,7 +247,7 @@ section[id] { scroll-margin-top: 3.5rem; }
           <tr><td class="k" data-label="Checkpoint">C1 WebKit go/no-go</td><td data-label="When (local)">2026-10-18 11:15</td><td data-label="Must be true">Two consecutive <code>webkit-sim</code> runs completed with the determinism step in 45 minutes or less.</td><td data-label="In the plan"><span class="chip ok">GO</span> (f03e94b)</td></tr>
           <tr><td class="k" data-label="Checkpoint">C2 Region faithful, engine models</td><td data-label="When (local)">2026-10-18 23:15</td><td data-label="Must be true">The 9 end-of-page parts <code>faithful</code> through the gate; <code>engine-core-lean</code>, <code>engine-chromium-lean</code> and <code>engine-webkit-lean</code> landed; <code>engine-ci-check</code> green on F0-F2.</td><td data-label="In the plan"><span class="chip ok">met</span> except the faithful check: the engine models and all 10 proof tasks landed; <code>integrate-ports-4</code> passed the gate in Chromium (run 39142015714: 0 bad, 57 excused); <code>page-root-clip</code> landed (3600b283).</td></tr>
           <tr><td class="k" data-label="Checkpoint">C3 Decision</td><td data-label="When (local)">2026-10-19 23:15</td><td data-label="Must be true">Proof ledger closed; two whole-page gates passed, one per wave; combined counts per profile with F3/F4 per part zone, 0 mismatches or each filed as a model bug; <code>v2-proved</code> named.</td><td data-label="In the plan"><span class="chip open">not reached</span> Wave 1 is running (PLAN §10.7).</td></tr>
-          <tr><td class="k" data-label="Checkpoint">C4 Report</td><td data-label="When (local)">2026-10-20 13:15</td><td data-label="Must be true">Report published; math view 0 disagree, 0 stale (<code>math-final</code> by T+52h).</td><td data-label="In the plan"><span class="chip open">not reached</span> <code>math-final</code> has landed (d159442a): 5,109 agree, 0 disagree, 517 stale, 1,373 pending.</td></tr>
+          <tr><td class="k" data-label="Checkpoint">C4 Report</td><td data-label="When (local)">2026-10-20 13:15</td><td data-label="Must be true">Report published; math view 0 disagree, 0 stale (<code>math-final</code> by T+52h; the math view is retired since, see <a href="#math">Math</a>).</td><td data-label="In the plan"><span class="chip open">not reached</span> <code>math-final</code> has landed (d159442a): 5,109 agree, 0 disagree, 517 stale, 1,373 pending.</td></tr>
         </tbody>
       </table>
     </div>
@@ -405,7 +405,7 @@ section[id] { scroll-margin-top: 3.5rem; }
           <tr><td class="k">breakpoint gate</td><td>lean-site, pilot parts</td><td>Landed: PL0–PL2 for the 4 pilots; the verdict in Lean (0d02aff). Left: the <code>unreachable</code> state, then the gap harness and the device check (Q33); PL2b, PL3, live flips → M2</td></tr>
           <tr><td class="k">pilot parts</td><td>site-aot, M1 baselines</td><td>4 started, 3 must pass: PL3–PL6 and N0–N5, then the PL5 bands frozen → M2</td></tr>
           <tr><td class="k">parallel work</td><td><code>Fw/Ops</code></td><td>Landed: <code>Fw/Sched</code>, wt-prep, the Lake artifact cache, <code>ops.admit</code>. Left: the A/B bench (Q32) → admission in console-api</td></tr>
-          <tr><td class="k">math review</td><td>each Lean module</td><td>Rounds r4 to r7a done (r7a: 214 of 234 agree). Left: r7 → M0</td></tr>
+          <tr><td class="k">math review</td><td>a page that shows math</td><td>Per Lean module until 2026-10-19 (rounds r4 to <code>math-final</code>); now on demand, per page the user reads</td></tr>
           <tr><td class="k">calibration</td><td>WebKit counts, WKTR, phone sessions</td><td>The first phone session; K1–K10, page factor, holdouts, validity table → M3</td></tr>
           <tr><td class="k">port parts → experiments → write-up</td><td>M2; then M4 (and M3 for class SM); then M5</td><td>M4, M5, M6</td></tr>
           <tr><td class="k">explainer page, math-to-lean study page</td><td>the plan; the Lean theorems</td><td>nothing (reading material for the user)</td></tr>
@@ -435,7 +435,7 @@ section[id] { scroll-margin-top: 3.5rem; }
         <table>
           <thead><tr><th>Gate</th><th>Reached when</th></tr></thead>
           <tbody>
-            <tr><td class="k">M0 Bootstrap</td><td><code>fwcore serve</code> behind console-api; the M0 Lean modules agreed in the math view (0 disagree, 0 stale) and every M0 mutant killed (done); the step queue live; the M0 spikes decided.</td></tr>
+            <tr><td class="k">M0 Bootstrap</td><td><code>fwcore serve</code> behind console-api; the M0 Lean modules agreed by math review (0 disagree, 0 stale, done under the retired math view) and every M0 mutant killed (done); the step queue live; the M0 spikes decided.</td></tr>
             <tr><td class="k">M1 Original measured</td><td>Every used Chromium count type signed deterministic or stable (worst class over at least 3 CI runs), with the touch fix checked on CI; 0 sheet mutations on the original; WebKit's deterministic and stable types cover fixtures K1–K9; per-zone baselines per engine on CI; SPK-r passed or a fallback chosen; status replay and stall-alarm precision (≥ 90%) reported.</td></tr>
             <tr><td class="k">M2 End-of-page region faithful</td><td>The 9 end-of-page parts faithful through the probe-scoped gate; shells first, then every section ported in parallel behind the swap check (rev 9.1); PL5 and N3 bands reported by <code>faithful-checks</code> (rev 10); Q34 and Q35 applied.</td></tr>
             <tr><td class="k">M3 Optional phone spot checks</td><td>Session 1 held (0c901f2); session 2 optional with no dependents (rev 10); no calibration in v2 (Q37).</td></tr>
@@ -484,7 +484,7 @@ section[id] { scroll-margin-top: 3.5rem; }
           <tr><td class="k">Q24 Lean first</td><td><span class="chip ok">decided</span></td><td>Everything reproducible in the console, site, measurement and tooling is specified and proved in Lean before coding; Lean runs it, generates it, or provides golden vectors. <code>fwcore</code> is the console brain.</td></tr>
           <tr><td class="k">Breakpoints</td><td><span class="chip ok">decided</span></td><td>Every breakpoint of the original, identically, for every part: generated list, lint, gate before promotion.</td></tr>
           <tr><td class="k">Console upkeep</td><td><span class="chip ok">decided</span></td><td>Nobody writes status; every view is derived from the event log.</td></tr>
-          <tr><td class="k">Reading proofs</td><td><span class="chip ok">decided</span></td><td>Math, not Lean: docstring math, a generated math view, a build gate, a math-reviewer role.</td></tr>
+          <tr><td class="k">Reading proofs</td><td><span class="chip ok">decided</span></td><td>Math, not Lean: Lean holds specs, proofs and code; math is written on demand onto the page the user reads and checked there by a fresh math-reviewer (2026-10-19).</td></tr>
           <tr><td class="k">Lean packaging</td><td><span class="chip ok">decided</span></td><td>Mathlib-free core; optional <code>FwMath</code> package for proofs that need Mathlib.</td></tr>
           <tr><td class="k">Installs</td><td><span class="chip ok">decided</span></td><td>Homebrew whenever a formula or cask exists; otherwise ask the lead first.</td></tr>
         </tbody>
@@ -496,7 +496,7 @@ section[id] { scroll-margin-top: 3.5rem; }
         <table>
           <thead><tr><th>Default</th><th>What it means</th></tr></thead>
           <tbody>
-            <tr><td class="k">Q25 Math view</td><td>A tab in console-web, also openable alone; math on every theorem and every definition the user reads.</td></tr>
+            <tr><td class="k">Q25 Math pages</td><td>Math on the page that needs it, for the theorems and definitions the user reads (was a console-web tab of the generated math view).</td></tr>
             <tr><td class="k">Q26 Lease starvation</td><td>No renewing while someone waits, plus a cap on total hold time, with a bounded-wait theorem.</td></tr>
             <tr><td class="k">Q27 Aging step</td><td>A tighter bound than one level per 300 s: every job starts within 2 h of a booked window that fits it.</td></tr>
             <tr><td class="k">Q28 Math disagreements</td><td>A second independent reviewer decides first; the user sees only what stays unresolved.</td></tr>
@@ -917,7 +917,7 @@ pnpm fw run --preset original --impl hero.countdown:plain
         <table>
           <thead><tr><th>Milestone</th><th>Lean modules</th></tr></thead>
           <tbody>
-            <tr><td class="k">M0</td><td>Console core (reducer, authority, steps, needs-you, landing rule), phone queue, ops (spawn-guard, path check, usage dedupe, agent identity, team health), the work graph, the breakpoint-gate verdict, wire, Frames, Verdict, the math-view lint</td></tr>
+            <tr><td class="k">M0</td><td>Console core (reducer, authority, steps, needs-you, landing rule), phone queue, ops (spawn-guard, path check, usage dedupe, agent identity, team health), the work graph, the breakpoint-gate verdict, wire, Frames, Verdict, the axiom check</td></tr>
             <tr><td class="k">M1</td><td>Artifact keys, plan and store; rows, threads, digests; run queue, sessions, device lease; stage lifecycle</td></tr>
             <tr><td class="k">M2</td><td>Flags and the generated registry; parity bands; Cost and <code>screen</code>; landing classifier</td></tr>
             <tr><td class="k">M3</td><td>Model ladder, fit-certificate checker, licences, spot-check schedule</td></tr>
@@ -925,24 +925,24 @@ pnpm fw run --preset original --impl hero.countdown:plain
           </tbody>
         </table>
       </div>
+      <div>
       <pre><span class="c">/-- "Better" means every variant run beat every
-    control run.
-$$\operatorname{land}(C, V) = \mathrm{better}
-  \Rightarrow \forall y \in V,\ \forall x \in C:\ y &lt; x$$ -/</span>
+    control run. -/</span>
 <span class="k">theorem</span> land_sound
   (h : land ctl var = .better) :
   ∀ y ∈ var, ∀ x ∈ ctl, y &lt; x := …
 
 <span class="c">/-- With no real difference, a false "better"
     happens with probability at most 1/70;
-    equality iff ties have probability 0.
-$$\Pr_{\text{null}}[\mathrm{better}] \le 1/\binom{8}{4}$$ -/</span>
+    equality iff ties have probability 0. -/</span>
 <span class="k">theorem</span> land_null_prob : …
   <span class="c">-- proved in rev 6</span>
 
 <span class="c">-- examples checked at build time</span>
 #guard land [21,19,23,20] [4,3,5,2]  = .better
 #guard land [21,19,23,20] [4,3,5,22] = .noise</pre>
+      <p style="font-size:var(--s-1);color:var(--muted);margin-top:0.75rem">The math this page shows for them, written from the Lean statements: land(C, V) = better ⇒ ∀ y ∈ V, ∀ x ∈ C: y &lt; x; and Pr<sub>null</sub>[better] ≤ 1/C(8, 4) = 1/70.</p>
+      </div>
     </div>
     <div class="two">
       <div class="panel">
@@ -951,7 +951,7 @@ $$\Pr_{\text{null}}[\mathrm{better}] \le 1/\binom{8}{4}$$ -/</span>
       </div>
       <div class="panel">
         <h3>Cost and packaging</h3>
-        <p>The estimate was about 20 modules and roughly $700–1,100 of Lean work; at commit 7d564e2 the math view lists 1,947 declarations (910 theorems) in 51 modules (measured; the same figure as the plan). The core needs no Mathlib; a proof that does goes in a separate <code>FwMath</code> package that <code>Fw</code> never imports. The browser's flag resolver is checked against Lean on every single-part override of every preset, plus 2,000 generated multi-part cases.</p>
+        <p>The estimate was about 20 modules and roughly $700–1,100 of Lean work; at commit 7d564e2 the Lean core had 1,947 declarations (910 theorems) in 51 modules (measured; the same figure as the plan). The core needs no Mathlib; a proof that does goes in a separate <code>FwMath</code> package that <code>Fw</code> never imports. The browser's flag resolver is checked against Lean on every single-part override of every preset, plus 2,000 generated multi-part cases.</p>
       </div>
     </div>
   </section>
@@ -970,13 +970,13 @@ $$\Pr_{\text{null}}[\mathrm{better}] \le 1/\binom{8}{4}$$ -/</span>
           <tr><td class="k">part-builder</td><td><span class="chip sonnet">sonnet · medium</span></td><td>named worktree subagent</td><td>one part; Opus per call for engine, morph, the MUI theme and AOT census</td></tr>
           <tr><td class="k">console-builder</td><td><span class="chip sonnet">sonnet · medium</span></td><td>named worktree subagent</td><td>console apps, paired with the lean-prover that owns the behaviour</td></tr>
           <tr><td class="k">measure-engineer</td><td><span class="chip sonnet">sonnet · high</span></td><td>named worktree subagent</td><td>measurement and model packages; Opus per call for the fit and N0–N5</td></tr>
-          <tr><td class="k">lean-prover</td><td><span class="chip opus">opus · high</span></td><td>named worktree subagent, up to 3 in M0–M2</td><td><code>lean/**</code> except the math lock</td></tr>
+          <tr><td class="k">lean-prover</td><td><span class="chip opus">opus · high</span></td><td>named worktree subagent, up to 3 in M0–M2</td><td><code>lean/**</code>; math pages on request</td></tr>
           <tr><td class="k">reviewer</td><td><span class="chip opus">opus · medium</span></td><td>fresh subagent, read-only</td><td>nothing; its verdict is its reply</td></tr>
-          <tr><td class="k">math-reviewer</td><td><span class="chip opus">opus · high</span></td><td>fresh subagent, read-only</td><td>nothing; its only output is <code>fw math:sign</code> or a disagreement report</td></tr>
+          <tr><td class="k">math-reviewer</td><td><span class="chip opus">opus · high</span></td><td>fresh subagent, read-only</td><td>nothing; it replies <i>agree</i> or <i>disagree</i> per declaration, and the lead records the row</td></tr>
           <tr><td class="k">researcher</td><td><span class="chip opus">opus · high</span></td><td>teammate</td><td>research notes</td></tr>
           <tr><td class="k">env-ops</td><td><span class="chip sonnet">sonnet · medium</span></td><td>teammate</td><td>this Mac's toolchain, Homebrew first</td></tr>
           <tr><td class="k">plan-editor</td><td><span class="chip opus">opus · high</span></td><td>teammate</td><td>the plan, its only writer</td></tr>
-          <tr><td class="k">page-writer</td><td><span class="chip sonnet">sonnet · medium</span></td><td>teammate</td><td>explainer pages, never the generated math view</td></tr>
+          <tr><td class="k">page-writer</td><td><span class="chip sonnet">sonnet · medium</span></td><td>teammate</td><td>explainer pages</td></tr>
           <tr><td class="k">scout, runner</td><td><span class="chip haiku">haiku · low</span></td><td>helper subagent, read-only</td><td>nothing; a search sweep or a build/test run, ≤ 1k tokens back to its spawner</td></tr>
           <tr><td class="k">checker, patcher</td><td><span class="chip sonnet">sonnet · medium / low</span></td><td>helper subagent</td><td>nothing (checker: checklist judgement); the named files (patcher, lead-spawned only)</td></tr>
           <tr><td class="k">no agent</td><td>—</td><td>scripts + hooks</td><td>gates, usage meter, device runs, watchers, queue order, land queue</td></tr>
@@ -990,11 +990,10 @@ $$\Pr_{\text{null}}[\mathrm{better}] \le 1/\binom{8}{4}$$ -/</span>
         <table>
           <thead><tr><th>Who</th><th>Commands (each one event; the Lean reducer accepts or refuses it)</th></tr></thead>
           <tbody>
-            <tr><td class="k">the user</td><td>step answer or cancel; proposal decision; priority list; session booking; decision answer; best-build pick; thread posts and "answered"; <code>math:sign</code></td></tr>
+            <tr><td class="k">the user</td><td>step answer or cancel; proposal decision; priority list; session booking; decision answer; best-build pick; thread posts and "answered"</td></tr>
             <tr><td class="k">lead</td><td>card approve; <code>fw land</code> (refused unless the card is land-ready); card drop with a reason; rulings; queue move with a reason</td></tr>
             <tr><td class="k">owner</td><td>card open; park until a typed condition; wait on an agent; ask the lead; hand-back result (landed, no-gain, refuted, blocked); a note of ≤ 200 characters the reducer never reads</td></tr>
             <tr><td class="k">reviewer</td><td><code>fw review --accept | --reject</code>, refused if the reviewer owns or built the card</td></tr>
-            <tr><td class="k">math-reviewer</td><td><code>fw math:sign &lt;decl&gt;</code></td></tr>
             <tr><td class="k">any agent</td><td>screen, gate, run and device job requests; console-api runs the job and records the result</td></tr>
           </tbody>
         </table>
@@ -1027,20 +1026,16 @@ $$\Pr_{\text{null}}[\mathrm{better}] \le 1/\binom{8}{4}$$ -/</span>
 
   <section id="math">
     <div class="stack col">
-      <span class="eyebrow">Generated · pre-rendered MathML (KaTeX 0.16.11)</span>
-      <h2>Math view: the user reads math, not Lean</h2>
-      <p>Every theorem, and every definition the user is expected to read, carries one English sentence and its math in its docstring. In the project, <code>lake exe mathview</code> builds this view on every build. The build fails when math is missing, a <code>sorry</code> remains, or the Lean (or any definition it uses) changed after the math was signed. Sign-off is an event that only the math-reviewer role and the user can cause, so an agent that edits a theorem cannot re-sign it.</p>
-      <p>Every declaration of the Lean core, <code>lean/Fw</code> (fwcore), grouped by module, is on its own page: <a href="math-view.html">the math view</a>. <code>docs/plan/tools/build-math-view.mjs</code> builds it from the <code>lake exe mathview</code> export, with every formula pre-rendered as MathML, so the page loads no script. Theorems are shown in full; the definitions they use are folded under each module, and each module is one closed section. An entry shows its review status only when it is not <i>agree</i>.</p>
-      <p>New to Lean? <a href="math-to-lean.html">Math to Lean</a> is a study page that walks through twelve of these declarations, from a one-line <code>def</code> to the lease invariant, and lines up each math fragment with the Lean that states it.</p>
+      <span class="eyebrow">Math on the page you read · on demand</span>
+      <h2>The user reads math, not Lean</h2>
+      <p>Lean source holds the specs, the proofs and the code; each declaration has a one-line English docstring that says what it is for. When the user should read some theorems, their math is written onto the page that shows them: the lead names the declarations, a lean-prover exports each one with <code>lake exe mathview --decl &lt;name&gt;</code> (its signature, axioms and statement hash) and writes its math from the Lean, and a fresh math-reviewer writes its own math from the Lean first, then compares the two clause by clause. The lead fixes the page from a disagreement and asks a new reviewer until every row agrees. The procedure is <a href="../team/tools/math-artifact.md">docs/team/tools/math-artifact.md</a>.</p>
+      <p>An <i>agree</i> row is recorded with the declaration's statement hash. It holds while the Lean statement is unchanged, so editing a theorem makes its row stale and editing a docstring does not. The build refuses <code>sorry</code> and non-standard axioms (the axiom check).</p>
+      <p>New to Lean? <a href="math-to-lean.html">Math to Lean</a> is a study page that walks through twelve declarations of the kickoff sketch, from a one-line <code>def</code> to the lease invariant, and lines up each math fragment with the Lean that states it.</p>
     </div>
     <div class="two">
       <div class="panel">
-<!-- mathview-review:begin (generated by docs/plan/tools/build-math-view.mjs; do not edit by hand) -->
-<h3><a class="chip open" href="#mv-review">547 stale</a> 5079 agree / 0 disagree / 547 stale / 1730 pending</h3>
-<p>7356 declarations (3293 theorems) in 154 modules. <a href="math-view.html">Open the full math view</a> (own page; one closed section per module).</p>
-<p id="mv-review">Each declaration shows its status: <i>agree</i> or <i>disagree</i> from a math-reviewer record, <i>review stale</i> when the Lean statement or, for rows that carry a docstring hash, the docstring changed after the review, <i>review pending</i> when no record covers it yet. Record for <span class="mono">lean/</span>: <a href="../../research/notes/2026/10-17-math-review-fwcore.md">10-17-math-review-fwcore.md</a>. The protocol: write its own math from the Lean, then compare it clause by clause with the docstring (ℕ vs ℤ, every hypothesis, ≤ vs &lt;, rounding, empty lists, ties, direction of ⇒ and ⇔).</p>
-<p>In export <span class="mono">8860c22cf7f9</span> all 7356 declarations (3293 theorems) are free of <code>sorry</code> and use only the standard axioms (<code>propext</code>, <code>Classical.choice</code>, <code>Quot.sound</code>), checked by <code>lake exe mathview --lint</code>. The kickoff sketch's 72 declarations were reviewed earlier (<a href="../../research/notes/2026/10-17-math-review-fw-spec.md">72 agree / 0 disagree</a>); that record does not cover <span class="mono">lean/</span>.</p>
-<!-- mathview-review:end -->
+        <h3>What the reviewer compares</h3>
+        <p>Quantifier scope and binders; number domains (ℕ vs ℤ vs ℚ); truncated subtraction and rounding down; ≤ vs &lt;; the empty input; list count vs set membership; ⇒ vs ⇔ and which direction is proved; a hypothesis the proof does not need. Until 2026-10-19 the docstrings carried this math for every declaration and a generated math view showed it; <code>math-final</code> ended at 5,109 agree, 0 disagree, 517 stale, 1,373 pending. That view is retired.</p>
       </div>
       <div class="panel">
         <h3>What the theorems do not say</h3>
@@ -1053,7 +1048,7 @@ $$\Pr_{\text{null}}[\mathrm{better}] \le 1/\binom{8}{4}$$ -/</span>
 
 <div class="wrap">
   <footer>
-    <span>Source: <span class="mono">docs/plan/PLAN.md</span> (revision 11; evidence and history in <span class="mono">research/notes/2026/10-17-plan-evidence.md</span>), <span class="mono">research/kickoff/01–11</span> and the Lean sketch <span class="mono">research/kickoff/05-lean-sketch/Fw/Spec</span>, plus the user's decisions of 2026-10-17.</span>
+    <span>Source: <span class="mono">docs/plan/PLAN.md</span> (revision 11.3; evidence and history in <span class="mono">research/notes/2026/10-17-plan-evidence.md</span>), <span class="mono">research/kickoff/01–11</span> and the Lean sketch <span class="mono">research/kickoff/05-lean-sketch/Fw/Spec</span>, plus the user's decisions of 2026-10-17.</span>
     <span>A personal, educational study of the public fastwork.com homepage. Not affiliated with Fastwork.</span>
   </footer>
 </div>
