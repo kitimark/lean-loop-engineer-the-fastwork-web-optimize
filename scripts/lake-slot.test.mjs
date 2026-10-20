@@ -150,7 +150,7 @@ test("the call sites build through the wrapper: fwcore-build.sh (and with it che
 test("sourcing lake-slot-lib.sh runs nothing: no output, exit 0, and the lock fd stays closed", () => {
   const { d, env } = scratch();
   try {
-    const r = spawnSync("sh", ["-c", `. "$1"; echo "[$(command -v lake_slot)]"; { : >&9; } 2>/dev/null && echo fd9 || echo nofd9`, "_", lib], { env, encoding: "utf8" });
+    const r = spawnSync("sh", ["-c", `. "$1"; echo "[$(command -v lake_slot)]"; ( : >&9 ) 2>/dev/null && echo fd9 || echo nofd9`, "_", lib], { env, encoding: "utf8" });
     assert.equal(r.status, 0, r.stderr);
     assert.equal(r.stderr, "");
     assert.deepEqual(r.stdout.trim().split("\n"), ["[lake_slot]", "nofd9"]);
