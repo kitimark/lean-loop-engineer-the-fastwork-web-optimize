@@ -1,6 +1,6 @@
 // fw CLI core: argv -> typed Command, and a tiny HTTP client. The CLI has NO way to write status:
 // it only sends typed requests to console-api, which may refuse them.
-// probe land-fwcore-once (non-lean land shape)
+// probe land-fwcore-once (non-lean land shape, second push: exact Lake key from the branch's lean lane)
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
