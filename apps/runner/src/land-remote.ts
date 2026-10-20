@@ -56,12 +56,13 @@ export function laneStateOf(call: FwCall, code: number, out = "", view: GhRunVie
   return state === "pass" && !legsPass(call, view) ? "fail" : state;
 }
 
-/** The verdict over the land lane's parallel legs (Lean `Fw.Console.LandLegs.legsOk`, op `console.landLegs`): every job of the run but the
- *  guard passed. A record without per-job conclusions (the cached facts) has nothing to say and does not veto. */
+/** Does the run pass the verdict over the land lane's parallel legs? Lean decides (`Fw.Console.LandLegs.legsVeto`, op `console.landLegsVeto`);
+ *  this only hands it the conclusions of the jobs but the guard, or `null` when the record has none (a job without a
+ *  conclusion: the poller's cached facts, a job still running), which Lean says does not veto. A job list that is empty is also no veto. */
 export function legsPass(call: FwCall, view: GhRunView | null): boolean {
-  const legs = (view?.jobs ?? []).filter((j) => j.name !== "guard" && j.name !== "lane");
-  if (legs.length === 0 || legs.some((j) => typeof j.conclusion !== "string")) return true;
-  return (call({ op: "console.landLegs", results: legs.map((j) => j.conclusion === "success") }) as { ok: boolean }).ok;
+  const legs = (view?.jobs ?? []).filter((j) => j.name !== "guard");
+  const results = legs.every((j) => typeof j.conclusion === "string") ? legs.map((j) => j.conclusion === "success") : null;
+  return !(call({ op: "console.landLegsVeto", results }) as { veto: boolean }).veto;
 }
 
 /** Normalize one GitHub land run. A pass counts only for the sha and digest the lane printed; a lane that failed before it printed

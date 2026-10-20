@@ -135,12 +135,16 @@ def baseWorld : List (String × String) :=
   [("playwright", "1.64.1"), ("image", "ubuntu24-20261012.1"), ("arch", "ARM64"), ("engine", "playwright-webkit"),
    ("hsVersion", "156.0.8078.4"), ("hsSha256", "81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476")]
 
-/-- The caches of the gate-engine action: their declared inputs. -/
+/-- The caches of the gate-engine action: their declared inputs. The runner image version is not declared (task land-legs-followups):
+the fleet runs two image versions at once, so a key naming it made `main`'s seed miss for the runs on the other one (MEASURED, run
+ids in docs/team/handoffs/land-legs-followups.md). Premises: the Playwright browser directory depends on the Playwright version,
+architecture and engine only; the apt cache holds `.deb` files that apt checks against its index (version and hash), so a file
+of another image is ignored, never installed. -/
 def caches : List CacheDef := [
-  { name := "browsers", prefixOf := "gate-pw-browsers", decl := ["playwright", "image", "arch", "engine"],
-    base := baseWorld, noise := [("runId", "39070000001"), ("branch", "ci/other")] },
-  { name := "apt-debs", prefixOf := "gate-apt-debs", decl := ["playwright", "image", "arch", "engine"],
-    base := baseWorld, noise := [("runId", "39070000002")] },
+  { name := "browsers", prefixOf := "gate-pw-browsers", decl := ["playwright", "arch", "engine"],
+    base := baseWorld, noise := [("runId", "39070000001"), ("branch", "ci/other"), ("image", "ubuntu24-20261101.1")] },
+  { name := "apt-debs", prefixOf := "gate-apt-debs", decl := ["playwright", "arch", "engine"],
+    base := baseWorld, noise := [("runId", "39070000002"), ("image", "ubuntu24-20261101.1")] },
   { name := "hs-zip", prefixOf := "gate-hs-zip", decl := ["hsVersion", "hsSha256", "arch"],
     base := baseWorld, noise := [("runId", "39070000003"), ("engine", "chromium")] }]
 
@@ -168,18 +172,18 @@ def cacheCases : List Json :=
 
 /-- A run replayed through one cache: the worlds of five workflow runs of the browsers cache (playwright bumped
 once, the runner image once, then the old world again) and what `runAll` does. The result of a check is
-the pair (playwright, image) it ran in. -/
+the pair (playwright, arch) it ran in; the image is not declared, so a bumped image is a hit. -/
 def traceWorlds : List (String × List (String × String)) :=
   let b := baseWorld
   [("run 1: empty cache, miss", b),
    ("run 2: same world, hit", setKv b "runId" "2"),
    ("run 3: playwright bumped, miss", setKv b "playwright" "1.65.0"),
-   ("run 4: runner image bumped, miss", setKv b "image" "ubuntu24-20261101.1"),
+   ("run 4: runner image bumped, still a hit", setKv b "image" "ubuntu24-20261101.1"),
    ("run 5: back to the first world, hit", setKv b "runId" "5")]
 
 def traceLines : List Json :=
   let c := caches.headD default
-  let run : Env → String := fun e => e "playwright" ++ "@" ++ e "image"
+  let run : Env → String := fun e => e "playwright" ++ "@" ++ e "arch"
   let h : List (String × String) → String := canon
   let step := fun (acc : Cache String String × List Json) (w : String × List (String × String)) =>
     let e := envOf w.2

@@ -44,10 +44,11 @@ Progress goes to stderr; `out/<engine>.json` holds every check. Exit 1 on any fa
 - Land lane (`.github/workflows/land.yml`), remote tier: when land selects `packages/e2e-preview` (its package, or a file of
   `PACKAGE_EXTRA_READS["packages/e2e-preview"]`: `apps/console-api/src/**`, `packages/contracts/src/**` and `package.json`,
   console goldens, the snapshot; or the fwcore binary, which console-api decides through) it runs the browser-free tests and
-  then the browser suite on both engines (`node src/run.mjs --engine chromium`, `--engine playwright-webkit`; artifact
-  `land-preview-e2e`). The step condition is the line `LANE browser=true|false` of `fw checks --tier remote`, which is Lean
-  `Fw.Console.LandTier.browserRuns` (theorems: runs iff the e2e check is selected; the check is in the remote tier; the remote
-  picks decide as the whole selection does). Tests: `apps/runner/test/preview-e2e-selection.test.ts` (both directions),
+  then the browser suite, one engine per leg (legs `chromium` and `playwright-webkit`, `node src/run.mjs --engine <leg>`; artifacts
+  `land-preview-e2e-chromium` and `land-preview-e2e-playwright-webkit`). The step condition is the line
+  `LANE leg=<leg> engine=true|false checks=<n>` of `fw checks --tier remote --leg <leg>`, which is Lean
+  `Fw.Console.LandLegs.engineRuns` over `Fw.Console.LandTier.browserRuns` (theorems: an engine leg runs iff the e2e check is selected;
+  the check is in the remote tier; the remote picks decide as the whole selection does; a suites leg never runs it). Tests: `apps/runner/test/preview-e2e-selection.test.ts` (both directions),
   `lean/Fw/Console/LandTier.lean`.
 - Development: `.github/workflows/preview-e2e.yml`, a ci/* push whose head commit says `[ci:preview-e2e]`, and only if the
   Lean row (`Fw.Ci.Trigger`: `@fwcore`, `apps/console-api/src/**`, `packages/contracts/src/**`, ...) matches a changed file
