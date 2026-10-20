@@ -3,14 +3,15 @@ import Fw.Console.LandTier
 # Land legs: the remote tier of the land lane, split into parallel jobs
 
 The land lane (`.github/workflows/land.yml`) runs one matrix job per leg. Each leg builds fwcore, selects the checks the same way
-(`fw checks --affected --tier remote`) and then does only its own part: a suites leg runs the remote checks it owns, an engine leg
-runs the preview browser suite on its engine. The wall time of a land is the slowest leg, not the sum.
+(`fw checks --affected --tier remote`) and then does only its own part: a suites leg runs the remote checks it owns, the `check-sh`
+leg runs the Lean gate script (`lean/scripts/check.sh`, off the Mac since task land-check-remote), an engine leg runs the preview
+browser suite on its engine. The wall time of a land is the slowest leg, not the sum.
 
 Measured (research/notes/2026/10-20-land-lane-speed.md): the serial remote suites cost 36 to 91 s, the two browser engines
 170 s one after the other, and one more leg costs only runner minutes, because every leg pays the same setup in parallel.
 
 What this module decides, each with its own theorems:
-- which suites leg owns which remote check (`pickFor`): a partition of `remoteIds`, so no check is dropped or run twice;
+- which leg owns which remote check (`pickFor`): the three shards partition `remoteIds`, so no check is dropped or run twice;
 - whether an engine leg runs (`engineRuns`): exactly when the selection holds the browser check (`browserRuns`);
 - the verdict over all legs (`legsOk`): every leg passes, and a lane with no leg never passes;
 - whether the legs' record vetoes a run GitHub called a success (`legsVeto`): a record without per-job conclusions says nothing, else `legsOk` decides.
@@ -23,15 +24,15 @@ open Lean Fw.Console.LandTier
 
 /-- The legs of the lane, in matrix order. -/
 inductive Leg where
-  | suitesA | suitesB | chromium | webkit
+  | checkSh | suitesA | suitesB | chromium | webkit
 deriving DecidableEq, Repr
 
 /-- The leg name: the matrix value in land.yml. The engine legs are named like the engine the browser suite runs. -/
 def Leg.name : Leg → String
-  | .suitesA => "suites-a" | .suitesB => "suites-b" | .chromium => "chromium" | .webkit => "playwright-webkit"
+  | .checkSh => "check-sh" | .suitesA => "suites-a" | .suitesB => "suites-b" | .chromium => "chromium" | .webkit => "playwright-webkit"
 
 /-- Every leg, in matrix order. -/
-def legs : List Leg := [.suitesA, .suitesB, .chromium, .webkit]
+def legs : List Leg := [.checkSh, .suitesA, .suitesB, .chromium, .webkit]
 
 /-- The leg of a name, if any. -/
 def Leg.ofName? (s : String) : Option Leg := legs.find? (fun l => l.name == s)
@@ -44,12 +45,16 @@ def Leg.engine : Leg → Option String
 def shardA : List String :=
   ["apps/runner", "packages/gate-breakpoints", "packages/measure-chromium", "packages/engine-check", "packages/e2e-preview"]
 
+/-- Remote checks of the `check-sh` leg: the Lean gate script alone (it builds and checks all of `lean/`, minutes of its own). -/
+def shardC : List String := [checkShId]
+
 /-- Remote checks of suites leg B (console-api 18 s, gh-budget 22 s). -/
 def shardB : List String := ["apps/console-api", "packages/gh-budget"]
 
 /-- The remote checks leg `l` runs out of the selected remote ids `sel`, in selection order. An engine leg runs none. -/
 def pickFor (l : Leg) (sel : List String) : List String :=
   match l with
+  | .checkSh => sel.filter (fun i => shardC.contains i)
   | .suitesA => sel.filter (fun i => shardA.contains i)
   | .suitesB => sel.filter (fun i => shardB.contains i)
   | .chromium | .webkit => []
@@ -59,32 +64,72 @@ def engineRuns (l : Leg) (selected : List String) : Bool := (l.engine).isSome &&
 
 #guard shardA.length == 5
 #guard shardB.length == 2
+#guard shardC == ["check.sh"]
+#guard pickFor .checkSh ["apps/console-api", "check.sh", "apps/runner"] == ["check.sh"]
 #guard pickFor .suitesA ["apps/console-api", "apps/runner"] == ["apps/runner"]
 #guard pickFor .suitesB ["apps/console-api", "apps/runner"] == ["apps/console-api"]
 
-/-- The two shards together are the allowlist, each id once. -/
-theorem shards_perm : (shardA ++ shardB).Perm remoteIds := by decide
+/-- The three shards together are the allowlist, each id once. -/
+theorem shards_perm : (shardA ++ shardB ++ shardC).Perm remoteIds := by decide
 
-/-- No id is in both shards, so no check runs twice. -/
+/-- The shards have no repeats between them, so no check runs twice. -/
+theorem shards_nodup : (shardA ++ shardB ++ shardC).Nodup := by decide
+
+/-- No id is in both suites shards. -/
 theorem shards_disjoint (id : String) : ¬ (id ∈ shardA ∧ id ∈ shardB) := by
   have h : (shardA ++ shardB).Nodup := by decide
   intro ⟨a, b⟩
   exact (List.nodup_append.1 h).2.2 id a id b rfl
 
-/-- On the allowlist an id is in shard B exactly when it is not in shard A. -/
-theorem shardB_iff_not_shardA (id : String) (h : id ∈ remoteIds) : shardB.contains id = !shardA.contains id := by
-  have all : ∀ i ∈ remoteIds, shardB.contains i = !shardA.contains i := by decide
+/-- No id is in the `check-sh` shard and a suites shard. -/
+theorem shardC_disjoint (id : String) : ¬ (id ∈ shardC ∧ (id ∈ shardA ∨ id ∈ shardB)) := by
+  have hA : (shardA ++ shardC).Nodup := by decide
+  have hB : (shardB ++ shardC).Nodup := by decide
+  intro ⟨c, o⟩
+  rcases o with a | b
+  · exact (List.nodup_append.1 hA).2.2 id a id c rfl
+  · exact (List.nodup_append.1 hB).2.2 id b id c rfl
+
+/-- On the allowlist an id is in exactly one shard: the three tests agree on one of them. -/
+theorem shard_one (id : String) (h : id ∈ remoteIds) :
+    (shardA.contains id).toNat + (shardB.contains id).toNat + (shardC.contains id).toNat = 1 := by
+  have all : ∀ i ∈ remoteIds, (shardA.contains i).toNat + (shardB.contains i).toNat + (shardC.contains i).toNat = 1 := by decide
   exact all id h
 
-/-- The suites legs together run every selected remote check once: no check is dropped. -/
-theorem suites_cover (sel : List String) (h : ∀ i ∈ sel, i ∈ remoteIds) :
-    (pickFor .suitesA sel ++ pickFor .suitesB sel).Perm sel := by
-  have e : sel.filter (fun i => shardB.contains i) = sel.filter (fun i => !shardA.contains i) :=
-    List.filter_congr (fun i hi => shardB_iff_not_shardA i (h i hi))
-  have p := List.filter_append_perm (fun i => shardA.contains i) sel
-  unfold pickFor
-  rw [e]
-  exact p
+/-- How often an id occurs in a filtered list: as often as in the list when the filter keeps it, else never. -/
+theorem count_filter_ite (p : String → Bool) (l : List String) (a : String) :
+    (l.filter p).count a = if p a = true then l.count a else 0 := by
+  by_cases h : p a = true
+  · simp [List.count_filter h, h]
+  · have : a ∉ l.filter p := by simp [List.mem_filter, h]
+    simp [h, List.count_eq_zero.2 this]
+
+/-- The legs together run every selected remote check once: no check is dropped, none runs twice. -/
+theorem legs_cover (sel : List String) (h : ∀ i ∈ sel, i ∈ remoteIds) :
+    (pickFor .checkSh sel ++ pickFor .suitesA sel ++ pickFor .suitesB sel).Perm sel := by
+  rw [List.perm_iff_count]
+  intro a
+  simp only [pickFor, List.count_append, count_filter_ite]
+  by_cases ha : a ∈ sel
+  · have := shard_one a (h a ha)
+    revert this
+    cases shardA.contains a <;> cases shardB.contains a <;> cases shardC.contains a <;> simp
+  · have : List.count a sel = 0 := List.count_eq_zero.2 ha
+    simp [this]
+
+/-- A selection without repeats stays without repeats across the legs: no check runs twice. -/
+theorem legs_nodup (sel : List String) (h : ∀ i ∈ sel, i ∈ remoteIds) (nd : sel.Nodup) :
+    (pickFor .checkSh sel ++ pickFor .suitesA sel ++ pickFor .suitesB sel).Nodup :=
+  ((legs_cover sel h).nodup_iff).2 nd
+
+/-- The `check-sh` leg owns only the Lean script. -/
+theorem checkSh_sound (sel : List String) (x : String) (hx : x ∈ pickFor .checkSh sel) : x ∈ sel ∧ x = checkShId := by
+  simp only [pickFor, List.mem_filter, List.contains_iff_mem, shardC, List.mem_singleton] at hx
+  exact hx
+
+/-- The `check-sh` leg runs the Lean script whenever the selection holds it. -/
+theorem checkSh_runs_of_selected (sel : List String) (h : checkShId ∈ sel) : checkShId ∈ pickFor .checkSh sel := by
+  simp [pickFor, shardC, h]
 
 /-- A suites leg owns only checks of its own shard. -/
 theorem suitesA_sound (sel : List String) (x : String) (hx : x ∈ pickFor .suitesA sel) : x ∈ sel ∧ x ∈ shardA := by
@@ -101,6 +146,9 @@ theorem chromium_no_checks (sel : List String) : pickFor .chromium sel = [] := r
 
 /-- The webkit leg runs no remote check. -/
 theorem webkit_no_checks (sel : List String) : pickFor .webkit sel = [] := rfl
+
+/-- The `check-sh` leg never runs the browser suite. -/
+theorem checkSh_no_engine (selected : List String) : engineRuns .checkSh selected = false := rfl
 
 /-- A suites leg never runs the browser suite. -/
 theorem suitesA_no_engine (selected : List String) : engineRuns .suitesA selected = false := rfl
@@ -185,7 +233,7 @@ theorem legsVeto_iff (rs : List Bool) (ne : rs ≠ []) : legsVeto (some rs) = !l
   | nil => exact absurd rfl ne
   | cons a t => rfl
 
-#guard legsOk [true, true, true, true]
+#guard legsOk [true, true, true, true, true]
 #guard !legsVeto none
 #guard !legsVeto (some [])
 #guard legsVeto (some [true, false])
@@ -224,10 +272,10 @@ def goldenSelections : List (String × List String) :=
 /-- The golden cases. -/
 def cases : List Json :=
   (goldenSelections.flatMap fun (n, ids) => legs.map fun l => legLine s!"{l.name} of {n}" l ids) ++
-  [okLine "all pass" [true, true, true, true], okLine "one fails" [true, false, true, true], okLine "the last fails" [true, true, true, false],
+  [okLine "all pass" [true, true, true, true, true], okLine "one fails" [true, false, true, true, true], okLine "the last fails" [true, true, true, true, false],
    okLine "all fail" [false, false], okLine "one leg passes" [true], okLine "no legs" [],
-   vetoLine "no per-job conclusions: no veto" none, vetoLine "a record with no leg: no veto" (some []), vetoLine "all legs passed: no veto" (some [true, true, true, true]),
-   vetoLine "one leg failed: veto" (some [true, false, true, true]), vetoLine "the last leg failed: veto" (some [true, true, true, false]),
+   vetoLine "no per-job conclusions: no veto" none, vetoLine "a record with no leg: no veto" (some []), vetoLine "all legs passed: no veto" (some [true, true, true, true, true]),
+   vetoLine "one leg failed: veto" (some [true, false, true, true, true]), vetoLine "the last leg failed: veto" (some [true, true, true, true, false]),
    vetoLine "one leg, passed" (some [true]), vetoLine "one leg, not passed" (some [false])]
 
 /-- The golden text: one compact line per case. -/

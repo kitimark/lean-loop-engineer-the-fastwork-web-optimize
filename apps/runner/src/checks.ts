@@ -67,6 +67,10 @@ export function skippedCount(raw: string): number | null {
   return node + vitest;
 }
 
+/** TS STAND-IN (replace with a Lean list in LandTier): checks that run no test framework and print no summary line. Their exit code is the whole
+ *  verdict, so nothing was skipped (`skipped = 0`); without this `skippedCount` is null and `laneVerdict` says `unknown`. Only `check.sh`. */
+export const SUMMARYLESS = ["check.sh"];
+
 export type RunResult = { code: number; out: string };
 export type Runner = (argv: string[], cwd: string) => Promise<RunResult>;
 
@@ -87,7 +91,7 @@ export async function runTier(checks: Check[], root: string, core: FwCall, run: 
   for (const c of checks) {
     const t0 = Date.now();
     const r = await run(c.argv, root);
-    const skipped = skippedCount(r.out);
+    const skipped = SUMMARYLESS.includes(c.id) ? 0 : skippedCount(r.out);
     const v = core({ op: "console.landLane", exitOk: r.code === 0, coreUser: FWCORE_USERS.includes(c.id), skipped }) as { verdict: string; ok: boolean };
     log(`${ci ? "::group::" : ""}${c.id}: ${c.argv.join(" ")}`);
     log(r.out.trimEnd());

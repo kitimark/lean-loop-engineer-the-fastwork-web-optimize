@@ -2,7 +2,7 @@ import Lean.Data.Json
 /-!
 # Land tiers: which checks run on this Mac and which on the CI land lane
 
-`tier` is an allowlist: the heavy suites are `onCi`, every other check id is `onMac`. Golden:
+`tier` is an allowlist: the heavy suites and the Lean gate script `check.sh` are `onCi`, every other check id is `onMac`. Golden:
 `packages/contracts/golden/console/land-tier.jsonl`; op `console.landTier` (`Fw.Wire.Console`).
 -/
 namespace Fw.Console.LandTier
@@ -17,10 +17,13 @@ deriving DecidableEq, Repr
 def Tier.name : Tier → String
   | .onMac => "local" | .onCi => "remote"
 
-/-- The heavy suites, in the id form of `candidateChecks` (the allowlist). -/
+/-- The id of the Lean gate script check (`sh lean/scripts/check.sh`); it is not a workspace package. -/
+def checkShId : String := "check.sh"
+
+/-- The heavy suites and the Lean gate script, in the id form of `candidateChecks` (the allowlist). -/
 def remoteIds : List String :=
   ["apps/runner", "apps/console-api", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium",
-   "packages/engine-check", "packages/e2e-preview"]
+   "packages/engine-check", "packages/e2e-preview", checkShId]
 
 /-- The tier of a check id: `onCi` iff the id is on the allowlist. -/
 def tier (id : String) : Tier := if remoteIds.contains id then .onCi else .onMac
@@ -50,8 +53,11 @@ theorem local_iff (id : String) : tier id = .onMac ↔ id ∉ remoteIds := by
   unfold tier
   split <;> simp_all
 
-/-- The three gates that are not suites stay local. -/
-theorem gates_local : tier "install" = .onMac ∧ tier "check.sh" = .onMac ∧ tier "reads-scan" = .onMac := by decide
+/-- The two gates that are neither suites nor the Lean script, `install` and the reads scan, stay local. -/
+theorem gates_local : tier "install" = .onMac ∧ tier "reads-scan" = .onMac := by decide
+
+/-- The Lean gate script runs on the land lane, not on this Mac. -/
+theorem check_sh_remote : tier checkShId = .onCi := by decide
 
 /-- The allowlist has no repeats, so no suite is listed twice. -/
 theorem remoteIds_nodup : remoteIds.Nodup := by decide
@@ -102,10 +108,11 @@ theorem browser_runs_remote_pick (ids : List String) : browserRuns (pick .onCi i
 #guard !browserRuns ["apps/runner", "packages/gh-budget"]
 #guard !browserRuns []
 
-#guard remoteIds.length == 7
+#guard remoteIds.length == 8
 #guard tier "apps/runner" == .onCi
 #guard tier "packages/difftest" == .onMac
-#guard pick .onCi ["install", "apps/runner", "check.sh", "packages/gh-budget"] == ["apps/runner", "packages/gh-budget"]
+#guard pick .onCi ["install", "apps/runner", "check.sh", "packages/gh-budget"] == ["apps/runner", "check.sh", "packages/gh-budget"]
+#guard pick .onMac ["install", "apps/runner", "check.sh", "reads-scan"] == ["install", "reads-scan"]
 
 /-- The ids a golden case lists: the gates, the allowlist and a few local suites and a stranger. -/
 def goldenIds : List String :=
@@ -200,17 +207,20 @@ def goldenPath : System.FilePath := "../packages/contracts/golden/console/land-t
 /-- The pnpm filter selector of a check id: the workspace package named like the last path segment, with its dependencies. -/
 def selector (id : String) : String := "@fw/" ++ (id.splitOn "/").getLast! ++ "..."
 
-/-- The selectors the land lane installs: one per remote id, in order. -/
-def filterList : List String := remoteIds.map selector
+/-- The remote ids that are workspace packages: every remote id but the Lean script. -/
+def suiteIds : List String := remoteIds.filter (· != checkShId)
+
+/-- The selectors the land lane installs: one per remote suite, in order (the Lean script has no package). -/
+def filterList : List String := suiteIds.map selector
 
 /-- One selector per remote suite. -/
-theorem filterList_length : filterList.length = remoteIds.length := by
-  simp [filterList]
+theorem filterList_length : filterList.length = remoteIds.length - 1 := by
+  decide
 
 /-- Every remote suite has its selector in the installed set, so a suite added to the allowlist is installed. -/
-theorem selector_mem (id : String) (h : id ∈ remoteIds) : selector id ∈ filterList := by
-  simp only [filterList, List.mem_map]
-  exact ⟨id, h, rfl⟩
+theorem selector_mem (id : String) (h : id ∈ remoteIds) (hs : id ≠ checkShId) : selector id ∈ filterList := by
+  simp only [filterList, suiteIds, List.mem_map, List.mem_filter]
+  exact ⟨id, ⟨h, by simpa using hs⟩, rfl⟩
 
 #guard filterList.head? == some "@fw/runner..."
 #guard filterList.length == 7

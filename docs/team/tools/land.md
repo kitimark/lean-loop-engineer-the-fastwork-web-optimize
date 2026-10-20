@@ -50,11 +50,15 @@ First-in-first-out landing: `land-queue.md`.
 
 ## The lane runs as parallel legs (task land-lane-speed)
 
-`land.yml` job `land` is a matrix over the legs Lean names (`Fw.Console.LandLegs`, `lean/land-legs.txt`: `suites-a suites-b chromium
+`land.yml` job `land` is a matrix over the legs Lean names (`Fw.Console.LandLegs`, `lean/land-legs.txt`: `check-sh suites-a suites-b chromium
 playwright-webkit`). Every leg checks out, builds fwcore and selects the same checks (`fw checks --affected --tier remote --leg <name>`),
 then does only its part, so the wall time of the lane is the slowest leg:
+- `check-sh` runs `sh lean/scripts/check.sh` (task land-check-remote): the Lean gate script is in the remote tier (`remoteIds`, `check_sh_remote`), so
+  it no longer runs on this Mac; `install` and the reads scan are the only gates left in the local tier (`gates_local`). The leg gets the toolchain
+  and the Lake cache from `setup-lean` like `lean.yml`. The script prints no test summary, so its exit code is its verdict (`SUMMARYLESS` in
+  `checks.ts`, a TS stand-in; `laneVerdict` is unchanged). The local fallback (`remote: false`, CI unavailable) runs it here again.
 - `suites-a` runs `apps/runner`, `packages/gate-breakpoints`, `measure-chromium`, `engine-check`, `e2e-preview`; `suites-b` runs `apps/console-api`
-  and `packages/gh-budget` (Lean `shardA`/`shardB`; `shards_perm`, `shards_disjoint`, `suites_cover`: no check dropped or run twice).
+  and `packages/gh-budget` (Lean `shardA`/`shardB`; `shardC` = the script; `shards_perm`, `shards_nodup`, `shards_disjoint`, `shardC_disjoint`, `legs_cover`, `legs_nodup`: no check dropped or run twice).
 - An engine leg runs the preview browser suite on its engine iff the selection holds the e2e-preview check (`engineRuns`;
   `chromium_runs_of_selected`, `webkit_runs_of_selected`, `engines_idle_of_unselected`). The browser is installed only then
   (`LANE leg=<name> engine=<bool> checks=<n>`); without the check the leg ends after the selection.
