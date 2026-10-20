@@ -36,8 +36,8 @@ row's `flag` is not in its `flags`. `[]` means the row is about no registered va
 
 Each row's `flags` was set from the row itself and the registry, never guessed: its `flag`; the exact `(part, candidate)`
 keys of the preset link table (`Fw.Preset.Gen.linkTable`); a candidate that starts with `part:variant`; a `part.json`
-provenance that cites the row (`hero.accent:steps`, ledger n=15/16/21); a ledger note that names the variant
-(`hero.countdown:hidden-pause`, task countdown-hidden-arm). Rows left `[]` although they touch a registered part:
+provenance that cites the row (`hero.accent:steps`: part.json cites n=15, and of the three n=15 rows only row 22's candidate names `steps`); a ledger note that names the variant
+(`hero.countdown:hidden-pause`, task countdown-hidden-arm); the candidate names the variant under the row's own part (row 19: "hidden-pause of the marquee" -> morph.columns:hidden-pause). Rows left `[]` although they touch a registered part:
 
 | Row | Part | Why `[]` |
 |---|---|---|

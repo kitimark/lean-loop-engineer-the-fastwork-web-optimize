@@ -12,7 +12,7 @@ Verified:
   `supersedeErrors_nil_iff`/`_cross`/`_nil_about`, `rowsFor_successor`, `rowsFor_reaches_live`, `partOut_rows_about`,
   `partOut_superseding`.
 - Real ledger: the new reply equals the pre-change `fwcore` reply byte for byte (golden case "the real registry and
-  ledger", `cmpReal` in `Fw.Ops.Golden`). Every older compose golden reply is unchanged.
+  ledger", `cmpReal` in `Fw.Ops.Golden`). All 26 older compose golden replies are unchanged (2 renamed: cases 16 and 24).
 - Tests: console-api 685, contracts 7, ci-paths 49, runner land-inputs 55, all pass.
 
 Open items (follow-ups):
