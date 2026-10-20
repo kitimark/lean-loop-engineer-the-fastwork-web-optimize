@@ -22,12 +22,18 @@ topics: [morph.mount, shift, shift-dormant, scroll, FunctionCall, lean]
   `FunctionCall - FireAnimationFrame` sums to -463 in every swipe-v1 run, which is the number of scroll-moved frames,
   and to -459, -455, -459 on swipe-touch-v1 (459 scroll-moved frames). No frame outside the scroll-moved frames is at
   -1. No new variant: the change refactors the existing `shift` paths exactly.
-- Not a pass on two rows of the pinned unit (details under "Round 2 runs"):
+- Not a pass on two rows of the pinned unit in round 3 (details under "Round 3 runs (lead-dispatched)"):
   - swipe-v1 branch run 1 has one `FireAnimationFrame` more than the base (1688 against 1687). The other five branch
     runs are equal to the base.
   - Both gate flags show one chromium cell that is not ok on the branch only: commission `pain-1440-600-1440#0`. It
     has the margin-inline signature of main's known intermittent cell, but by accepted limit (i) it needs one rerun
     of both refs by the lead.
+- The lead's reruns of these two rows, with the facts per row and no verdict, are under "Lead reruns":
+  - swipe-v1: `FunctionCall` delta -463, -463, -464, inside [-470, -400] in all 6 runs of both rounds.
+    `FireAnimationFrame` is equal in 4 of the 6 runs. The base has the extra frame-0 call in rerun run 3, the branch
+    had it in round 3 run 1.
+  - Gate: the commission `pain-1440-600-1440#0` cell is not ok in 1 of 4 base runs and 3 of 4 branch runs across both
+    rounds. In the rerun it appears once per ref (base `shift`, branch `shift-dormant`).
 - A component test (jsdom) runs the real effect of `MorphMount` under `shift` and `shift-dormant` and fails when the
   removal at mount is deleted or wrongly guarded (mutants below).
 
@@ -76,7 +82,7 @@ artifact `chromium-counts-rewrite-r{1,2,3}`, file `counts.json`. Reduction: per 
     branch and base (both `shift`) do not have it.
   - `FireAnimationFrame`, `EventDispatch`, layers, style and layout counts should not move.
 
-### Round 2 runs
+### Round 3 runs (lead-dispatched)
 
 Base: `ci/mount-scroll-tap-base` at 8a82226a, the merge-base with main. Branch: `ci/mount-scroll-tap` at 52cd4856. The
 lead dispatched every run. chromium-counts inputs: target rewrite, preset v2-proved, runs 3, image run 39049264131. The
@@ -169,10 +175,11 @@ base, summed per run. Per-run rows: `results/mount-scroll-tap/branch-vs-base.jso
 
 - The branch-only chromium cell, in both runs: commission `inner` `margin-inline-start/end` orig `0px` against rewrite
   `96px`, and `rows` `margin-inline-end` orig `0px` against `8px`, at stop 0 of `pain-1440-600-1440`. The stale value is
-  on the original arm, which the change does not touch. The same reading on the same sweep failed on main without a
-  `morph.mount` flag in runs 39313815482 and 39314391342, and on `desktop-1512-320-1512` in the no-flag run
-  39314718340 (research/notes/2026/10-20-commission-margin-recur.md:49-54 on main). The base runs at 8a82226a did not
-  hit it.
+  on the original arm, which the change does not touch. The same reading on the same sweep failed without a
+  `morph.mount` flag on other task branches: run 39313815482 on `ci/countdown-one-chain` (`hero.countdown:one-chain`)
+  and 39314391342 on `ci/exit-scoped-var` (`hero.exit:scoped`). It failed on `desktop-1512-320-1512` in the no-flag
+  run 39314718340 on `ci/ci-telemetry`. Source: research/notes/2026/10-20-commission-margin-recur.md:49-54 on main.
+  The round 3 base runs at 8a82226a did not hit it.
 - By accepted limit (i), the gate rows stay open until the lead reruns base and branch once per flag. If the cell
   clears, it is listed as a flake with both run ids. If it stays branch-only, the gate row fails.
 - The playwright-webkit verdict is `incomplete` on both refs for the same matchMedia cell, so that cell is main's.
@@ -181,6 +188,74 @@ base, summed per run. Per-run rows: `results/mount-scroll-tap/branch-vs-base.jso
 
 - Base 39357736128 and branch 39357750346: both `success`. Job `sim (rewrite, 430, 1, ?preset=v2-proved, <sha>, r1)`
   ran on 8a82226a and on 52cd4856. The WebKit saving stays source-only (Mechanism above).
+
+### Lead reruns
+
+The lead dispatched these runs after round 3, on the same refs (base 8a82226a, branch 52cd4856). Counts use the same
+inputs and reduction as round 3. Per-run rows and the gate sets of both rounds:
+`results/mount-scroll-tap/branch-vs-base.json`, key `rerun`.
+
+| lane | inputs | base run | branch run |
+|---|---|---|---|
+| chromium-counts | swipe-v1, 3 runs | 39363612059 | 39363621551 |
+| breakpoint-gate | fw=morph.mount:shift | 39363615245 | 39363624577 |
+| breakpoint-gate | fw=morph.mount:shift-dormant | 39363618323 | 39363627657 |
+
+#### Counts, swipe-v1 (MEASURED)
+
+`?preset=v2-proved` and `morph.mount` `shift` are read from all 6 `counts.json` files. `scrollY` is the same per frame
+on both refs in all 3 pairs.
+
+| run | frames | scroll-moved | FunctionCall base / branch | delta | FireAnimationFrame base / branch | per-frame sum | frames at -1 | -1 outside moved |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 503 | 463 | 4412 / 3949 | -463 | 1687 / 1687 | -463 | 423 | 0 |
+| 2 | 503 | 463 | 4412 / 3949 | -463 | 1687 / 1687 | -463 | 427 | 0 |
+| 3 | 503 | 463 | 4413 / 3949 | -464 | 1688 / 1687 | -463 | 434 | 0 |
+
+- Run 3: the base has one `FireAnimationFrame` more. Frame 0 has 2 on the base and 0 on the branch (`FunctionCall` 2
+  against 0 in the same frame), and 17 later frames differ by one in either direction. `RequestAnimationFrame` is
+  1779 against 1778. This is the round 3 run 1 pattern with the refs swapped.
+- Frames outside the scroll-moved frames whose per-frame value differs: 6, 6, 2; none of them is at -1.
+- Other counts whose branch value falls outside [min, max] of the base's 3 runs (base r1/r2/r3; branch r1/r2/r3):
+
+| count | base | branch |
+|---|---|---|
+| metric.JSEventListeners | -68 / -68 / -68 | -70 / -70 / -70 |
+| metric.LayoutObjects | 176 / 176 / 176 | 176 / 176 / 175 |
+| census.activeTileAreaPx | 2833928192 / 2833911808 / 2833469440 | 2833453056 / 2833453056 / 2833469440 |
+| census.activeTiles | 45329 / 45327 / 45322 | 45320 / 45320 / 45322 |
+| census.drawingAreaPx | 5735778950 / 5735778198 / 5733734782 | 5733734030 / 5733734030 / 5733734782 |
+| census.drawingLayers | 25957 / 25956 / 25956 | 25955 / 25954 / 25956 |
+| census.tiles | 50392 / 50390 / 50385 | 50383 / 50383 / 50385 |
+| trace.UpdateLayer | 19704 / 19702 / 19703 | 19701 / 19701 / 19703 |
+| trace.UpdateLayoutTree.elementCount | 24150 / 24148 / 24148 | 24144 / 24149 / 24155 |
+
+#### Gate (MEASURED, merge job log of each run)
+
+The flag of each run is read from its merge log (`Flags: ?fw=...`).
+
+| flag | ref | run | chromium not-ok set | playwright-webkit not-ok set |
+|---|---|---|---|---|
+| morph.mount:shift | base | 39363615245 | commission `desktop-1512-320-1512#0`, `pain-1440-600-1440#0` | matchMedia `phone-rotation#1`, `#3` not-comparable |
+| morph.mount:shift | branch | 39363624577 | none (0 cells not ok, 7 excused) | the same |
+| morph.mount:shift-dormant | base | 39363618323 | none (0 cells not ok, 7 excused) | the same |
+| morph.mount:shift-dormant | branch | 39363627657 | commission `desktop-1512-320-1512#0`, `pain-1440-600-1440#0` | the same |
+
+- The stale arm, read from each run's `gate-merged-chromium/chromium.json`: base 39363615245 reads `0px` on the
+  rewrite arm at `desktop-1512-320-1512#0` (orig `132px`, `8px`) and on the original arm at `pain-1440-600-1440#0`
+  (rewrite `96px`, `8px`). Branch 39363627657 reads `0px` on the original arm at both stops.
+
+#### Facts per row for the lead (no verdict)
+
+- `FireAnimationFrame` row, swipe-v1, both count rounds (6 run pairs): equal in 4 runs. The round 3 run 1 exception
+  (branch +1, frame 0 at 0 on the base and 2 on the branch) is not the only one. Rerun run 3 has the mirror case,
+  base +1, frame 0 at 2 on the base and 0 on the branch. `FunctionCall` delta: -462, -463, -463 (round 3) and -463,
+  -463, -464 (rerun). All 6 lie in [-470, -400]. The per-frame sum is -463 in all 6.
+- Gate rows, both gate rounds (4 runs per ref): commission `pain-1440-600-1440#0` is not ok on the base too.
+  - Base: 1 of 4 runs (rerun `shift` 39363615245).
+  - Branch: 3 of 4 runs (round 3 39357744868 and 39357747743, rerun `shift-dormant` 39363627657).
+  - Every rerun run where it appears also has commission `desktop-1512-320-1512#0` not ok. The playwright-webkit set
+    is the same matchMedia `phone-rotation` cell on both refs in all 8 runs.
 
 ## Proofs
 
