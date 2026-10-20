@@ -52,7 +52,16 @@ export function laneBind(view: GhRunView): { sha: string; digest: string } | nul
  *  `timed out after`) and the run's own status and conclusion. A run that completed with conclusion failure is `fail` whatever the exit
  *  code was: the waiter can say 2, 3 or 4 about a failed run (a refused or failed gh call for its jobs, a skipped guard). */
 export function laneStateOf(call: FwCall, code: number, out = "", view: GhRunView | null = null): RunState {
-  return (call({ op: "console.landLaneState", exit: code, timedOut: /timed out after/.test(out), status: view?.status ?? "", conclusion: view?.conclusion ?? "" }) as { state: RunState }).state;
+  const state = (call({ op: "console.landLaneState", exit: code, timedOut: /timed out after/.test(out), status: view?.status ?? "", conclusion: view?.conclusion ?? "" }) as { state: RunState }).state;
+  return state === "pass" && !legsPass(call, view) ? "fail" : state;
+}
+
+/** The verdict over the land lane's parallel legs (Lean `Fw.Console.LandLegs.legsOk`, op `console.landLegs`): every job of the run but the
+ *  guard passed. A record without per-job conclusions (the cached facts) has nothing to say and does not veto. */
+export function legsPass(call: FwCall, view: GhRunView | null): boolean {
+  const legs = (view?.jobs ?? []).filter((j) => j.name !== "guard" && j.name !== "lane");
+  if (legs.length === 0 || legs.some((j) => typeof j.conclusion !== "string")) return true;
+  return (call({ op: "console.landLegs", results: legs.map((j) => j.conclusion === "success") }) as { ok: boolean }).ok;
 }
 
 /** Normalize one GitHub land run. A pass counts only for the sha and digest the lane printed; a lane that failed before it printed

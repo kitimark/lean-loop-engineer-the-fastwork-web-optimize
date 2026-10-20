@@ -1,7 +1,9 @@
-// `fw checks --affected --base <rev> [--tier local|remote] [--list]`: the land checks a change selects, split by tier, and
+// `fw checks --affected --base <rev> [--tier local|remote] [--leg <name>] [--list]`: the land checks a change selects, split by tier, and
 // the chosen tier run with one `VERDICT <pass|fail|skipped> <id>` line per check.
 // Selection: `selectTwoPhase` (digests unknown) over `candidateChecks` (land.ts, TS stand-in checked against the `landSpeed.select` golden).
 // Tier and lane verdict: fwcore ops `console.landTier` and `console.landLane` (Lean Fw.Console.LandTier; golden land-tier.jsonl).
+// Leg (task land-lane-speed): fwcore op `console.landLeg` (Lean Fw.Console.LandLegs; golden land-legs.jsonl) says which remote checks one
+// parallel job of the land lane runs and whether its browser engine runs.
 // This file holds no decision. TS stand-in: the skipped-test counts are read from vitest / node:test summaries here.
 import { execFileSync, spawn } from "node:child_process";
 import { candidateChecks, FWCORE_USERS, selectTwoPhase, type Check } from "./land.ts";
@@ -10,29 +12,32 @@ import { UsageError } from "./lib.ts";
 import { fwcoreCall, type FwCall } from "./run.ts";
 
 export const CHECKS_USAGE =
-  "usage: fw checks --affected --base <rev> [--tier local|remote] [--list]\n" +
+  "usage: fw checks --affected --base <rev> [--tier local|remote] [--leg <name>] [--list]\n" +
+  "  --leg <name> (with --tier remote): run only the remote checks the Lean land leg owns (lean/land-legs.txt)\n" +
   "  prints the checks the diff <rev>..HEAD selects (Lean selection); --list stops there, else the chosen tier runs\n" +
   "  one line VERDICT <pass|fail|skipped> <id> per check; exit 0 iff every check passed (a skipped fwcore-user test fails)";
 
-export type ChecksArgs = { base: string; tier?: "local" | "remote"; list: boolean };
+export type ChecksArgs = { base: string; tier?: "local" | "remote"; leg?: string; list: boolean };
 
 export function parseChecksArgs(argv: string[]): ChecksArgs {
-  const a: { base?: string; tier?: "local" | "remote"; list: boolean; affected: boolean } = { list: false, affected: false };
+  const a: { base?: string; tier?: "local" | "remote"; leg?: string; list: boolean; affected: boolean } = { list: false, affected: false };
   for (let i = 0; i < argv.length; i++) {
     const f = argv[i]!;
     if (f === "--affected") a.affected = true;
     else if (f === "--list") a.list = true;
-    else if (f === "--base" || f === "--tier") {
+    else if (f === "--base" || f === "--tier" || f === "--leg") {
       const v = argv[++i];
       if (v === undefined || v.startsWith("--")) throw new UsageError(`flag ${f} needs a value\n${CHECKS_USAGE}`);
       if (f === "--base") a.base = v;
+      else if (f === "--leg") a.leg = v;
       else if (v === "local" || v === "remote") a.tier = v;
       else throw new UsageError(`--tier is local or remote, not ${v}\n${CHECKS_USAGE}`);
     } else throw new UsageError(`unknown argument ${f}\n${CHECKS_USAGE}`);
   }
   if (!a.affected) throw new UsageError(`--affected is required\n${CHECKS_USAGE}`);
   if (!a.base) throw new UsageError(`--base is required\n${CHECKS_USAGE}`);
-  return { base: a.base, tier: a.tier, list: a.list };
+  if (a.leg !== undefined && a.tier !== "remote") throw new UsageError(`--leg needs --tier remote\n${CHECKS_USAGE}`);
+  return { base: a.base, tier: a.tier, leg: a.leg, list: a.list };
 }
 
 export type Plan = { changed: string[]; selected: Check[]; local: string[]; remote: string[]; browser: boolean };
@@ -101,11 +106,17 @@ export async function checksCli(argv: string[], cwd: string, deps: { core?: FwCa
   const log = deps.log ?? ((s: string) => console.log(s));
   const p = planFor(root, deps.changed ?? changedBetween(root, a.base), core);
   const tierOf = (id: string) => (p.remote.includes(id) ? "remote" : "local");
-  const chosen = p.selected.filter((c) => (a.tier ? tierOf(c.id) === a.tier : true));
+  const tierChosen = p.selected.filter((c) => (a.tier ? tierOf(c.id) === a.tier : true));
   log(`checks: ${p.changed.length} changed files; selected ${p.selected.length}: ${p.selected.map((c) => `${tierOf(c.id)}:${c.id}`).join(" ") || "none"}`);
   if (a.tier === "remote") {
-    log(`LANE digest=${remoteDigest(core, chosen.map((c) => c.id))}`); // land.yml binds the run to this (Lean console.landDigest)
+    log(`LANE digest=${remoteDigest(core, tierChosen.map((c) => c.id))}`); // land.yml binds the run to this (Lean console.landDigest)
     log(`LANE browser=${p.browser}`); // land.yml runs the preview browser suite on both engines iff true (Lean LandTier.browserRuns)
+  }
+  let chosen = tierChosen;
+  if (a.leg !== undefined) {
+    const r = core({ op: "console.landLeg", leg: a.leg, ids: p.selected.map((c) => c.id) }) as { ids: string[]; engine: boolean };
+    chosen = tierChosen.filter((c) => r.ids.includes(c.id));
+    log(`LANE leg=${a.leg} engine=${r.engine} checks=${chosen.length}`); // land.yml installs the browser and runs the suite iff engine=true
   }
   if (a.list) { for (const c of chosen) log(`${tierOf(c.id)} ${c.id}`); return 0; }
   if (chosen.length === 0) { log(`checks: no ${a.tier ?? "selected"} checks`); return 0; }
