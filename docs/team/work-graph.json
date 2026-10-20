@@ -11526,7 +11526,8 @@
     "lean/Fw/Gate/Trajectory.lean",
     "packages/gate-breakpoints/src/trajectory/reduce.mjs",
     "packages/contracts/golden/gate/trajectory.jsonl"
-   ]
+   ],
+   "evidence": "7458a5f"
   },
   {
    "devices": [

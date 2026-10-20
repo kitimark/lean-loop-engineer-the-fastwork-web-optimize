@@ -84,6 +84,16 @@ export function readyAt({ t }: { t: number }): boolean {
   return t >= READY_DELAY_MS;
 }
 
+/** The nav variant that keeps the earn button's transitions off while morphing (lean/Fw/Parts/NavEarnOpt.lean). */
+export const EARN_STILL_VARIANT = 'earn-no-transition';
+/** The class that turns the earn button's transitions off. */
+export const EARN_STILL_CLASS = 'is-earn-still';
+
+/** The earn button's CSS transitions run (NavEarnOpt.transitionsOn): always in the faithful, outside the morph in the flag. */
+export function earnTransitionOn({ flag, morphing }: { flag: boolean; morphing: boolean }): boolean {
+  return !(flag && morphing);
+}
+
 /** The state classes the driver owns, as the original's class names. `onDark` is nav.hitTest's. */
 export const CLASS_OF: Readonly<Record<Exclude<keyof View, 'onDark'>, string[]>> = {
   heroPill: ['is-hero-pill'],

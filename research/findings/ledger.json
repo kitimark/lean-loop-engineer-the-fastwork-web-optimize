@@ -2263,6 +2263,48 @@
    "evidence": "user's real-device observation 2026-10-20 (CONFIRMED by user report): the hero cards freeze during scroll and the hero is gone after scrolling away and back, Safari WebKit only, desktop and mobile; local debug repro (Playwright Chromium and WebKit on the preview build of main 84a662d4; MEASURED (local debug), not a result), CI pending (task trajectory-probe); CI: trajectory-probe bug A, new hero units macos-26 187 and Linux WebKit 228, Chromium 0 (runs 39419128841, 39407166794; MEASURED)"
   },
   {
+   "id": "nav.earn.noTransition",
+   "n": 39,
+   "part": "nav",
+   "candidate": "nav:earn-no-transition: the earn button's max-width, padding-inline and opacity transitions are off while the nav morphs, so they follow --morph instead of retargeting every frame",
+   "status": "look-change",
+   "chromium": "win on the open push; no saving on the close push",
+   "webkit": "unknown",
+   "visual": "equal on settled frames (Lean visSame_settled; all three properties at once: visSame_settled3, witnessed per push and viewport by #guard settled3B); not equal mid-transition: an L-class look change, accepted by the user 2026-10-21, pending user visual review (strips: CI run 39473950464, artifacts frames-*, indexed in results/earn-look-review/index.json). part.json marks it kind proposal, visClass L, so Fw.Preset.Gen keeps it out of v2-proved (V2Proved.look_not_mem) and lists it in golden/preset/look-change.candidates.jsonl. New units only on earn opacity and max-width; new earn units (opacity + max-width, summed over widths), flag rep 1/rep 2 vs A/A rep 1/rep 2: Chromium 92/94 vs 3/0, WebKit 17/18 vs 0/6; every other node at the A/A level (MEASURED, runs 39463486725, 39464309993, 39464294630, 39464322751)",
+   "mechanism": "CONFIRMED (source): the earn rule keeps transition: max-width .68s, opacity .32s .12s, padding-inline .68s while --morph changes its computed values each frame (snapshot 2.gBuqKVzi.css, .start-selling-top-nav-btn.is-earn). Each frame's style change starts a new transition from the current animated value with the full duration and delay: WebKit @862f17d Styleable.cpp:743-756, Chromium @f842f52 css_animations.cc:2703-2715 and 3191. max-width and padding changes need layout (WebKit StyleDifference.cpp:406,426). With transition: none while is-morphing (nav.module.css .is-earn-still) the button settles in 3 frames instead of 43 on the open push. MEASURED Chromium open push: earn value changes 1-4 vs 17-41 per push, last change 43-81 ms vs 330-357 ms. Close push: no saving (transitions return at m <= 0.001, model 65/65 style-change frames). Its value changes rise (opacity: model 20 to 40, Lean valueChanges #guard; MEASURED Chromium 9-12 to 13-26): the faithful arm restarts the 120 ms opacity delay every frame and so holds opacity at 0 until the morph stops, while the arm drops the transition and follows the morph. INFERRED: the saved engine work is nav-subtree layout and, in WebKit, the opacity transition's compositing.",
+   "leanFor": [
+    "Fw.Parts.NavEarnOpt.visSame_settled",
+    "Fw.Parts.NavEarnOpt.settled_same",
+    "Fw.Parts.NavEarnOpt.work_le",
+    "Fw.Parts.NavEarnOpt.faithful_lags",
+    "Fw.Parts.NavEarnOpt.shown_off",
+    "Fw.Parts.NavEarnOpt.trace_eq",
+    "Fw.Parts.NavEarnOpt.settled3_same",
+    "Fw.Parts.NavEarnOpt.visSame_settled3",
+    "Fw.Preset.look_not_mem",
+    "Fw.Preset.Gen.lookCandidates_not_mem"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.NavEarnOpt.faithful_lags (the faithful arm differs mid-transition, so VisSame holds only at settled frames)"
+   ],
+   "missingWhy": [
+    "WebKit paint and composite counts for region B (accepted limit; playwright-webkit on Linux samples 3 to 9 frames per push)",
+    "close push: hold is-earn-still until the tween ends (follow-up)",
+    "WebKit look-review strips: Linux playwright-webkit took 1 to 10 shots per push (index.json), usable only on the 390 close push; task earn-look-review-webkit"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A CSS transition on a property that script drives every frame restarts each frame from the current value, so it lags the drive by about its own duration; the original turned it off for the nav width and actions gap but not for the earn button.",
+   "next": "User visual review of the frame strips (CI run 39473950464, artifacts frames-*); stays pending until task earn-look-review-webkit delivers WebKit strips. It stays out of v2-proved while it is a look change. Follow-ups: hold the class to the tween's end for the close push; WebKit region B counters.",
+   "flag": "nav:earn-no-transition",
+   "evidence": "trajectory-probe runs 39463486725 and 39464309993 (flag), 39464294630 and 39464322751 (A/A), ci/earn-transition-retarget at c414428, both engines; note research/notes/2026/10-20-earn-transition-retarget.md",
+   "userDecision": {
+    "date": "2026-10-21",
+    "decision": "accepted, pending user visual review",
+    "review": "CI run 39473950464 artifact frames-chromium (expires 2026-11-19); copy in the lead's private review page"
+   }
+  },
+  {
    "id": "morph.panel.finalSize.visual",
    "n": 11,
    "part": "morph.panel",
