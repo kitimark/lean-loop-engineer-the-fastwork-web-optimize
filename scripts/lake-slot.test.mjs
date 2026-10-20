@@ -24,7 +24,7 @@ const probe = 'echo "$LAKE_SLOT ${LEAN_NUM_THREADS-unset}"';
 const scratch = () => {
   const d = mkdtempSync(join(tmpdir(), "lake-slot-test-"));
   const { LEAN_NUM_THREADS: _, LAKE_SLOT: __, FW_TIMINGS_FILE: ___, ...rest } = process.env;
-  return { d, env: { ...rest, LAKE_SLOT_DIR: join(d, "slots"), FW_TIMINGS_FILE: join(d, "timings.jsonl") } };
+  return { d, env: { ...rest, LAKE_SLOT_DIR: join(d, "slots"), FW_TIMINGS_FILE: join(d, "timings.jsonl"), LAKE_SLOT_CORES: "8" } };
 };
 const run = (env, cmd) => spawnSync("sh", [wrapper, "sh", "-c", cmd], { env, encoding: "utf8" });
 const until = async (p, ms = 10000) => {
@@ -181,4 +181,99 @@ test("the lock tool the wrapper picks: lockf on macOS, flock on Linux (no lockf 
   const tool = spawnSync("sh", ["-c", "command -v lockf || command -v flock"], { encoding: "utf8" }).stdout.trim();
   if (process.platform === "darwin") assert.match(tool, /\/lockf$/);
   if (process.platform === "linux") assert.match(tool, /\/flock$/);
+});
+
+test("with no command the wrapper prints a usage line to stderr and exits 64", () => {
+  const { d, env } = scratch();
+  try {
+    const r = spawnSync("sh", [wrapper], { env, encoding: "utf8" });
+    assert.equal(r.status, 64);
+    assert.equal(r.stdout, "");
+    assert.match(r.stderr, /^usage: sh scripts\/lake-slot\.sh <cmd\.\.\.>\n$/);
+    assert.equal(existsSync(join(d, "slots")), false);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("the generated stage-2 widths: one per slot, the slot's pool threads on the dev Mac", () => {
+  assert.deepEqual(gen.LAKE_SLOT_WIDTHS.split(" "), ["8", "4"]);
+});
+
+const holdSh = (body) => `. "$1"; lake_slot_hold "$2"; echo "\${LAKE_SLOT-none} $LAKE_SLOT_WIDTH"; ${body}`;
+
+test("lake_slot_hold takes a slot for the calling shell and sets its width; lake_slot_release frees it", () => {
+  const { d, env } = scratch();
+  try {
+    const other = `env -u LAKE_SLOT -u LEAN_NUM_THREADS sh "$3" sh -c '${probe}'`;
+    const body = `sh "$3" sh -c '${probe}'; ${other}; lake_slot_release; echo "\${LAKE_SLOT-none}"; ${other}`;
+    const r = spawnSync("sh", ["-c", holdSh(body), "_", lib, top, wrapper], { env, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(r.stdout.trim().split("\n"), ["0 8", "0 unset", "1 4", "none", "0 unset"]);
+    const nested = spawnSync("sh", ["-c", holdSh("lake_slot_release; echo \"$LAKE_SLOT\""), "_", lib, top], { env: { ...env, LAKE_SLOT: "1" }, encoding: "utf8" });
+    assert.equal(nested.status, 0, nested.stderr);
+    assert.deepEqual(nested.stdout.trim().split("\n"), ["1 4", "1"]);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("while one shell holds slot 0 a second holder gets slot 1 and width 4", async () => {
+  const { d, env } = scratch();
+  try {
+    const a = hold(env, d, "a");
+    await until(() => a.out() !== null);
+    const r = spawnSync("sh", ["-c", holdSh("lake_slot_release"), "_", lib, top], { env, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout.trim(), "1 4");
+    a.release();
+    assert.equal(await a.done, 0);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("lake_slot_hold caps the width at the online cores: every generated slot:cores:width case of Lean stage2Width", () => {
+  const { d, env } = scratch();
+  try {
+    const cases = gen.LAKE_SLOT_WIDTH_CASES.split(" ").map((c) => c.split(":"));
+    assert.ok(cases.length >= 9);
+    for (const [slot, cores, width] of cases) {
+      const r = spawnSync("sh", ["-c", holdSh("lake_slot_release"), "_", lib, top], { env: { ...env, LAKE_SLOT: slot, LAKE_SLOT_CORES: cores }, encoding: "utf8" });
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(r.stdout.trim(), `${slot} ${width}`, `slot ${slot} cores ${cores}`);
+    }
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("without LAKE_SLOT_CORES the cap is getconf's online cores", () => {
+  const { d, env } = scratch();
+  try {
+    const { LAKE_SLOT_CORES: _, ...bare } = env;
+    const cores = Number(spawnSync("getconf", ["_NPROCESSORS_ONLN"], { encoding: "utf8" }).stdout.trim());
+    const r = spawnSync("sh", ["-c", holdSh("lake_slot_release"), "_", lib, top], { env: { ...bare, LAKE_SLOT: "0" }, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout.trim(), `0 ${Math.max(1, Math.min(Number(gen.LAKE_SLOT_WIDTHS.split(" ")[0]), cores))}`);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("lake_slot_gate + lake_slot_run: at most LAKE_SLOT_WIDTH commands run at once, each exit status is kept", () => {
+  const { d, env } = scratch();
+  try {
+    const sh = `. "$1"; LAKE_SLOT_WIDTH=3; lake_slot_gate "$2/gate"; pids=""
+      i=0; while [ "$i" -lt 12 ]; do
+        lake_slot_run sh -c 'mkdir "$1/on.$2"; sleep 0.2; ls -d "$1"/on.* | wc -l >> "$1/seen"; rmdir "$1/on.$2"; exit $(($2 % 3))' _ "$2" "$i"
+        pids="$pids $!"; i=$((i + 1))
+      done
+      for p in $pids; do wait "$p"; printf '%s ' "$?"; done; lake_slot_release`;
+    const r = spawnSync("sh", ["-c", sh, "_", lib, d], { env, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout.trim(), "0 1 2 0 1 2 0 1 2 0 1 2");
+    const seen = readFileSync(join(d, "seen"), "utf8").trim().split("\n").map(Number);
+    assert.equal(seen.length, 12);
+    assert.ok(Math.max(...seen) <= 3, `seen ${seen}`);
+    assert.equal(existsSync(join(d, "gate")), false);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("check.sh runs its parallel stage through the gate of one held slot", () => {
+  const check = readFileSync(join(top, "lean/scripts/check.sh"), "utf8");
+  assert.match(check, /^\. \.\.\/scripts\/lake-slot-lib\.sh$/m);
+  assert.match(check, /^lake_slot_hold \.\.\nlake_slot_gate "\$tmp\/gate"\nspan lean\/check "parallel group" run_group\nlake_slot_release$/m);
+  assert.match(check, /^  lake_slot_run span lean\/check "\$@" > "\$tmp\/\$n\.out" 2>&1$/m);
+  assert.doesNotMatch(check, /\) > "\$tmp\/\$n\.out" 2>&1 &/);
 });
