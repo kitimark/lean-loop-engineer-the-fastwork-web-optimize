@@ -19,6 +19,7 @@ cd "$(dirname "$0")/.."
 . ../scripts/lake-slot-lib.sh
 . ../scripts/span.sh  # span <tool> <step> <cmd...>: one timing line per stage in .fw-console/timings.jsonl (docs/team/tools/timings.md)
 fails=""
+_span_now; bench_t0=$_t
 serial() {  # serial <step> <cmd...>: a failing serial stage is recorded and the script goes on
   if ! span lean/check "$@"; then
     fails="$fails
@@ -117,10 +118,21 @@ run_group() {
     i=$((i + 1))
   done
 }
-lake_slot_hold ..
-lake_slot_gate "$tmp/gate"
-span lean/check "parallel group" run_group
-lake_slot_release
+bench_group() {
+  _span_now; bt=$_t
+  ( while :; do ps -A -o comm= -o rss= | awk '$1 ~ /(^|\/)lean$/ { n++; r += $2 } END { print n + 0, r + 0 }'; sleep 0.1; done ) > "$tmp/samples.$1" 2>/dev/null &
+  sp=$!
+  if [ "$2" = before ]; then LAKE_SLOT_WIDTH=1000; else lake_slot_hold ..; fi
+  lake_slot_gate "$tmp/gate.$1"
+  span lean/check "parallel group" run_group
+  lake_slot_release
+  kill "$sp" 2>/dev/null; wait "$sp" 2>/dev/null
+  _span_now
+  echo "stage2-bench: tag=$1 mode=$2 group_ms=$((_t - bt)) width=$LAKE_SLOT_WIDTH failed=$(cat "$tmp/failed" 2>/dev/null | wc -l | tr -d ' ') $(awk 'BEGIN { n = 0; r = 0 } { if ($1 > n) n = $1; if ($2 > r) r = $2 } END { print "peak_lean=" n, "peak_rss_mb=" int(r / 1024), "samples=" NR }' "$tmp/samples.$1")"
+}
+bench_mode=after
+case ${GITHUB_RUN_ATTEMPT:-} in *[13579]) bench_mode=before ;; esac
+bench_group main "$bench_mode"
 
 i=0
 while [ "$i" -lt "$n" ]; do
@@ -134,5 +146,16 @@ while [ "$i" -lt "$n" ]; do
   fi
   i=$((i + 1))
 done
+_span_now
+echo "stage2-bench: main-pass mode=$bench_mode attempt=${GITHUB_RUN_ATTEMPT:-local} check_ms=$((_t - bench_t0))"
+if [ -n "${CI:-}" ]; then
+  _span_file=
+  r=1
+  for m in before after after before before after; do
+    tmp0=$tmp; tmp=$tmp0/b$r; mkdir -p "$tmp"; n=0; pids=""
+    bench_group "pair$(((r + 1) / 2))" "$m"
+    tmp=$tmp0; r=$((r + 1))
+  done
+fi
 if [ -n "$fails" ]; then echo "check: FAILED: $fails"; exit 1; fi
 echo "check: all lean/ gates green"
