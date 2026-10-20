@@ -10514,6 +10514,21 @@
     "docs/team/tools/land.md"
    ],
    "evidence": "3a3825a"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "findings-ledger-1020",
+   "owner": "researcher",
+   "stream": "research",
+   "deps": [],
+   "title": "Findings ledger catch-up: research/findings/ledger.json last changed 48d7ea86 (2026-10-20 03:09 +0700); every candidate or premise tried since has no row. Add one findings row (or notes rows for an existing entry) per item, wins and no-wins alike, from its note/handoff on main: nav-oof-root-finding (refuted), commission-margin-recur + cmr-margin-typed-om + cmr-margin-rect-rule (premise refuted / gate rule), land-fwcore-once (tooling, negative), tween-platform-scope, mount-scroll-tap, notes-scroll-idem, countdown-one-chain, breakpoints-named-import, morph-layers, gate-green-baseline (WebKit screen premise); plus any other tried item found by scanning research/notes and handoffs changed since 48d7ea86. Each row: per-engine verdict, mechanism with status words, leanFor/leanAgainst decl names that exist, lesson, next. check.sh green.",
+   "writes": [
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2*-findings-ledger-1020.md",
+    "docs/team/handoffs/findings-ledger-1020.md"
+   ]
   }
  ],
  "deadline": {
