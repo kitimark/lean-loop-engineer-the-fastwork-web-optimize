@@ -34,10 +34,10 @@ Tests: `node --test .github/scripts/gate-jobs.test.mjs` (golden invariants, matr
 ## Caches
 
 - Three caches in the `gate-engine` action: apt `.deb` files (copied to and from `/var/cache/apt/archives`), the Playwright browser directory (WebKit),
-  the Chrome Headless Shell zip (Chromium; the sha256 check still runs). Key = prefix + SHA-256 of the declared inputs (Playwright version, runner
-  image, architecture, engine; or HS version, HS sha256, architecture). `cache-key.mjs` refuses a missing or an undeclared input.
+  the Chrome Headless Shell zip (Chromium; the sha256 check still runs). Key = prefix + SHA-256 of the declared inputs (Playwright version, Ubuntu release, architecture, engine; or HS version, HS sha256, architecture). `cache-key.mjs` refuses a missing or an undeclared input.
 - No `restore-keys`: a partial key is not covered by `key_complete` (`partial_key_unsound`).
 - Premises Lean cannot prove (written in `Cache.lean`): SHA-256 has no collision among the vectors used; the install reads only the declared inputs.
+- The Ubuntu release (`$ImageOS`) is a declared input: playwright-core downloads a different WebKit build per release into a directory named by revision only. The runner image version (`$ImageVersion`) is not: the fleet runs two image versions at once, and a key naming it made `main`'s seed miss for every land on the other one (the apt files are checked by apt against its index, so a file of another image version is ignored).
 - A cache made on a `ci/*` branch is visible only to that branch; every branch also reads `main`'s. A `main` push runs
   `premise-tests.yml` job `engine` (both engines) to seed these caches (Lean `Fw.Ci.Trigger.seeders_save_iff`).
 

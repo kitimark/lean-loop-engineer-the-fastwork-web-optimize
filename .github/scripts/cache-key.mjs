@@ -2,7 +2,7 @@
 // Glue only: the declared inputs of each cache and the canonical string come from the Lean golden
 // (packages/contracts/golden/ops/cache.jsonl, lean/Fw/Ops/Cache.lean `key`); this script refuses a set of inputs that is not exactly
 // the declared one, so a key can neither miss a declared input (a stale hit, `key_complete`) nor carry an undeclared one.
-//   node .github/scripts/cache-key.mjs --cache browsers --set playwright=1.64.1 --set image=... [--golden <file>] [--canonical]
+//   node .github/scripts/cache-key.mjs --cache browsers --set playwright=1.64.1 [--golden <file>] [--canonical]
 // Prints the key (or with --canonical the string that is hashed). Exit 2 on bad usage, 1 on a mismatch with the declaration.
 // The premise of Lean's `cache_sound` that this cannot prove: SHA-256 has no collision among the vectors used, and the
 // cached step reads nothing but the declared inputs.

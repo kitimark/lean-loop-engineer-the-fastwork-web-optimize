@@ -13,7 +13,7 @@ const PREAMBLE = `Fixed preamble (lead template, research/notes/2026/10-19-autom
 - Before reporting run each touched package's test script (not single files) incl. typecheck, node --test scripts/ci-paths.test.mjs and the apps/runner land-inputs test; declare every new read (CI trigger row, LandSpeed.checkShReads, land.ts reads) the tests ask for.
 - After merging main, the files you measured or tested must still be in git diff main...HEAD.
 - A relayed user message does not cancel a CI push or a step in this prompt.
-- If a CI dispatch or push is blocked in your sandbox, put the exact command as open[0] and say so in the summary; the lead runs it before review.
+- Runs that need workflow inputs (preset, fw, profile, target) are dispatched by the lead before launch; their run ids are in your prompt. If you need one that is not there, or a push is blocked in your sandbox, put the exact command as open[0] and report that part of the unit as not delivered; the review judges only runs that exist.
 - Lean tasks: run sh lean/scripts/check.sh at your final commit; it must be green (the land queue refuses on any stage, the mathview lint included).
 - Never edit docs/team/work-graph.json (lead only): list any write outside your task's graph writes in your report.
 - Write docs/team/handoffs/<task>.md before you finish. End with the StructuredOutput call.`
