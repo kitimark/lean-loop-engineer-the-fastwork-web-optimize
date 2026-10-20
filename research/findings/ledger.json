@@ -1804,7 +1804,7 @@
    "premises": [],
    "v1Evidence": "none",
    "lesson": "A custom property written every frame on an ancestor restyles the whole subtree while it inherits; register it with inherits: false and re-inherit it only along the path to its readers, which bounds the restyle to the readers.",
-   "next": "Not in v2-proved (packages/contracts/golden/preset/v2-proved.decisions.jsonl: hero.exit:scoped, no link, member false); preset inclusion is the lead's decision; a WebKit measurement is OPEN."
+   "next": "Not in v2-proved (packages/contracts/golden/preset/v2-proved.decisions.jsonl: hero.exit:scoped, member false, trajectory falsified on the webkit morph cell; see row hero.exit.scoped.inline, which the flag is linked to since task admit-hero-exit-scoped); a WebKit measurement is OPEN."
   },
   {
    "id": "hero.countdown.oneChain",
@@ -2257,9 +2257,8 @@
    "premises": [],
    "v1Evidence": "none",
    "lesson": "A value proof per reader in one style pass says nothing about incremental restyle: an engine style cache can keep a stale dependent property when an inherited value stops changing the parent's inherited data.",
-   "next": "Not in v2-proved (no link, and falsifiedFlag). Fixed in code by row hero.exit.scoped.inline (task exit-scoped-inline, inline reader writes, MEASURED on the trajectory probe); clearing this row's fResult and recording the trajectory cells is the lead's decision.",
+   "next": "fResult model-bug cleared (task admit-hero-exit-scoped): the bug was the stale hero on the hero path, and the inline code (row hero.exit.scoped.inline) gives Lean outcome hero pass on chromium, linux-webkit and mac-webkit in each of runs 39448209903, 39452631146, 39466179818, re-reduced with the trajectory-transition-window judge (0 new hero units; bug A had 187 macos-26 and 228 Linux WebKit). This row stays refuted for the chain-inherit code. Admission is decided by the inline row's link and the trajectory cells (packages/contracts/golden/preset/v2-proved.decisions.jsonl).",
    "flag": "hero.exit:scoped",
-   "fResult": "model-bug",
    "evidence": "user's real-device observation 2026-10-20 (CONFIRMED by user report): the hero cards freeze during scroll and the hero is gone after scrolling away and back, Safari WebKit only, desktop and mobile; local debug repro (Playwright Chromium and WebKit on the preview build of main 84a662d4; MEASURED (local debug), not a result), CI pending (task trajectory-probe); CI: trajectory-probe bug A, new hero units macos-26 187 and Linux WebKit 228, Chromium 0 (runs 39419128841, 39407166794; MEASURED)"
   },
   {
@@ -2320,8 +2319,50 @@
    "premises": [],
    "v1Evidence": "none",
    "lesson": "A registered non-inherited custom property is not part of the WebKit matched-declarations cache key, so a reader keyed on its parent can keep a stale var() result; write the value inline on the reader, which also takes the reader out of that cache.",
-   "next": "Not in v2-proved: row hero.exit.scoped.falsified still has fResult model-bug for flag hero.exit:scoped (Fw.Preset.falsified_not_mem), and the trajectory cells need Fw.Preset.Gen.record on these runs; both write files outside this task (v2-proved.decisions.jsonl, v2-proved.trajectory.jsonl), lead decision.",
+   "next": "Not in v2-proved (task admit-hero-exit-scoped, Lean decision): hero.exit:scoped is linked to this row (Fw.Preset.Gen.linkTable), the model-bug on row hero.exit.scoped.falsified is cleared, and the five trajectory runs are recorded with Fw.Preset.Gen.record after re-reduction with the trajectory-transition-window judge. Ledger verdict proved; trajectory verdict falsified: trajectory. Cells: chromium hero pass, chromium morph pass, webkit hero pass, webkit morph fail. Deciding lines: 'record: run 39466179818 mac-webkit morph: fail' (content new nav.background-color at 390, 640, 641, 1280: close@0, and 641 approach a7, a8); tcell takes a flag-alone fail first (Fw.Preset.tcell_own_fail), so no further flag-alone run can pass this cell while 39466179818 is stored. A/A floor: 'record: run 39472217441 mac-webkit morph: fail' (hero.exit:faithful; content new nav.background-color at 390, 1280 and earn.max-width at 390, 1280), so the default page fails the same cell on the same node property (same cell, not the same widths). Settling it needs an A/A-relative rule for the mac morph cell, a lead decision; the judge is not widened here. Not identical to the A/A: the scoped arm also has content-new nav.background-color at 640 and 641 (641 a7, a8, close@0), which the A/A run 39472217441 lacks; one run per arm, so this is not separated from noise.",
    "evidence": "trajectory-probe runs 39448209903, 39452631146 (hero.exit:scoped), 39456741492 (hero.exit:faithful A/A) and 39466179818 at 45a40e7b (merged head; its A/A run 39472217441); chromium-counts runs 39461009752, 39462188464"
+  },
+  {
+   "id": "nav.earn.noTransition",
+   "n": 39,
+   "part": "nav",
+   "candidate": "nav:earn-no-transition: the earn button's max-width, padding-inline and opacity transitions are off while the nav morphs, so they follow --morph instead of retargeting every frame",
+   "status": "look-change",
+   "chromium": "win on the open push; no saving on the close push",
+   "webkit": "unknown",
+   "visual": "equal on settled frames (Lean visSame_settled; all three properties at once: visSame_settled3, witnessed per push and viewport by #guard settled3B); not equal mid-transition: an L-class look change, accepted by the user 2026-10-21, pending user visual review (strips: CI run 39473950464, artifacts frames-*, indexed in results/earn-look-review/index.json). part.json marks it kind proposal, visClass L, so Fw.Preset.Gen keeps it out of v2-proved (V2Proved.look_not_mem) and lists it in golden/preset/look-change.candidates.jsonl. New units only on earn opacity and max-width; new earn units (opacity + max-width, summed over widths), flag rep 1/rep 2 vs A/A rep 1/rep 2: Chromium 92/94 vs 3/0, WebKit 17/18 vs 0/6; every other node at the A/A level (MEASURED, runs 39463486725, 39464309993, 39464294630, 39464322751)",
+   "mechanism": "CONFIRMED (source): the earn rule keeps transition: max-width .68s, opacity .32s .12s, padding-inline .68s while --morph changes its computed values each frame (snapshot 2.gBuqKVzi.css, .start-selling-top-nav-btn.is-earn). Each frame's style change starts a new transition from the current animated value with the full duration and delay: WebKit @862f17d Styleable.cpp:743-756, Chromium @f842f52 css_animations.cc:2703-2715 and 3191. max-width and padding changes need layout (WebKit StyleDifference.cpp:406,426). With transition: none while is-morphing (nav.module.css .is-earn-still) the button settles in 3 frames instead of 43 on the open push. MEASURED Chromium open push: earn value changes 1-4 vs 17-41 per push, last change 43-81 ms vs 330-357 ms. Close push: no saving (transitions return at m <= 0.001, model 65/65 style-change frames). Its value changes rise (opacity: model 20 to 40, Lean valueChanges #guard; MEASURED Chromium 9-12 to 13-26): the faithful arm restarts the 120 ms opacity delay every frame and so holds opacity at 0 until the morph stops, while the arm drops the transition and follows the morph. INFERRED: the saved engine work is nav-subtree layout and, in WebKit, the opacity transition's compositing.",
+   "leanFor": [
+    "Fw.Parts.NavEarnOpt.visSame_settled",
+    "Fw.Parts.NavEarnOpt.settled_same",
+    "Fw.Parts.NavEarnOpt.work_le",
+    "Fw.Parts.NavEarnOpt.faithful_lags",
+    "Fw.Parts.NavEarnOpt.shown_off",
+    "Fw.Parts.NavEarnOpt.trace_eq",
+    "Fw.Parts.NavEarnOpt.settled3_same",
+    "Fw.Parts.NavEarnOpt.visSame_settled3",
+    "Fw.Preset.look_not_mem",
+    "Fw.Preset.Gen.lookCandidates_not_mem"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.NavEarnOpt.faithful_lags (the faithful arm differs mid-transition, so VisSame holds only at settled frames)"
+   ],
+   "missingWhy": [
+    "WebKit paint and composite counts for region B (accepted limit; playwright-webkit on Linux samples 3 to 9 frames per push)",
+    "close push: hold is-earn-still until the tween ends (follow-up)",
+    "WebKit look-review strips: Linux playwright-webkit took 1 to 10 shots per push (index.json), usable only on the 390 close push; task earn-look-review-webkit"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A CSS transition on a property that script drives every frame restarts each frame from the current value, so it lags the drive by about its own duration; the original turned it off for the nav width and actions gap but not for the earn button.",
+   "next": "User visual review of the frame strips (CI run 39473950464, artifacts frames-*); stays pending until task earn-look-review-webkit delivers WebKit strips. It stays out of v2-proved while it is a look change. Follow-ups: hold the class to the tween's end for the close push; WebKit region B counters.",
+   "flag": "nav:earn-no-transition",
+   "evidence": "trajectory-probe runs 39463486725 and 39464309993 (flag), 39464294630 and 39464322751 (A/A), ci/earn-transition-retarget at c414428, both engines; note research/notes/2026/10-20-earn-transition-retarget.md",
+   "userDecision": {
+    "date": "2026-10-21",
+    "decision": "accepted, pending user visual review",
+    "review": "CI run 39473950464 artifact frames-chromium (expires 2026-11-19); copy in the lead's private review page"
+   }
   }
  ],
  "notes": [

@@ -21,6 +21,7 @@ import Fw.Parts.EngineScroll
 import Fw.Parts.Contract
 import Fw.Parts.NavHitTest
 import Fw.Parts.NavHitTestOpt
+import Fw.Parts.NavEarnOpt
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroCountdownOneChain
@@ -154,6 +155,7 @@ import Fw.Console.LandRemote  -- land-wait: provider-neutral remote land verdict
 import Fw.Console.ReconcileSched  -- console-reconcile-speed: reconcile request coalescing
 import Fw.Console.JournalFold  -- console-idle-cpu: journal cache, settled runs, safety tick
 import Fw.Console.LandPool -- land-pool-fair: fair-share floor under poolSize, wired into land.ts by console.landPool and console.landRetry
+import Fw.Land.RenderGuard  -- land-render-guard: refuse a land whose history writes a media file outside snapshot/ (console.landRenderGuard)
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
 import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)
 import Fw.Ops.LakeCache  -- site-build-cache: one Lake cache writer (cache_complete, rebuild_mono, table_complete)
@@ -164,6 +166,7 @@ import Fw.Gate.Shard  -- gate-shard-balance: LPT shard plan over measured unit c
 import Fw.Gate.ShardObs  -- gate-shard-balance: observed jobs of a CI run, reduced to the cost table (ShardCosts)
 import Fw.Gate.Search  -- gate-preset-input: the search string of the gate rewrite arm from its fw and preset inputs
 import Fw.Gate.Trajectory  -- trajectory-probe: per-unit verdict of the rewrite against the original along a scroll path
+import Fw.Gate.Colour  -- kit-colour-space: every trajectory colour reading in sRGB x1000, the error budget the judge allows
 import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict

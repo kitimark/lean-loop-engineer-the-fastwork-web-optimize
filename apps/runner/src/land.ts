@@ -206,6 +206,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],
   // svg-extract: scripts/svg-extract.mjs (build, test, typecheck) and src/svg-extract.test.ts read the snapshot page and its scripts
   "apps/site": ["lean/Fw/Parts/HiddenPause.lean", "lean/Fw/Parts/HeroCountdownHidden.lean", "packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/anchors.json", "packages/contracts/golden/parts/**",
+    // earn-transition-retarget: src/parts/nav/look-change.test.ts reads the look-change list
+    "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "packages/contracts/golden/port/**", "scripts/port/**", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/fonts.mjs", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
   "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**"],
@@ -485,6 +487,20 @@ export function pickFacts(cwd: string, main: string, branch: string, task?: stri
   return { givenAhead, others: [...names].map((name) => ({ name, ahead: !inMain(name), contains: tryGit(cwd, ["merge-base", "--is-ancestor", branch, name]) })) };
 }
 
+/** The history the render guard reads: every commit of `main..tip`, a merge by its first-parent diff, a rename as delete and add. */
+export const renderLogArgv = (main: string, tip: string): string[] =>
+  ["-c", "log.showSignature=false", "log", "-z", "--no-renames", "--no-relative", "--no-ext-diff", "--name-status", "--diff-merges=first-parent", "--format=commit %H", `${main}..${tip}`];
+export type RenderHit = { commit: string; path: string; media: string };
+/** Lean `console.landRenderGuard` over the NUL-separated log: the refused paths, or a reason when it cannot be decided. */
+export function renderGuard(cwd: string, main: string, tip: string): { hits: RenderHit[] } | { error: string } {
+  let out: string;
+  try { out = execFileSync("git", renderLogArgv(main, tip), { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024 }); }
+  catch (e) { return { error: `git log failed: ${String((e as { stderr?: string }).stderr ?? e).trim().slice(0, 200)}` }; }
+  const r = askCore("console.landRenderGuard", { tokens: out.split("\0") });
+  if (!r || !Array.isArray(r.hits)) return { error: "fwcore is not available to decide (build lean/.lake)" };
+  return { hits: r.hits as RenderHit[] };
+}
+
 /** One `fw land` as one span ("fw land" / "total"): its 30 s ceiling is Lean `Fw.Obs.Timing.landCeilings`. A nested land (`via`) is part of the outer span. */
 export async function land(branch: string, o: LandOptions, via?: string): Promise<LandResult> {
   const end = via ? () => {} : begin("fw land", "total");
@@ -525,7 +541,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     }
   }
   const sha = git(o.cwd, ["rev-parse", `refs/heads/${branch}`]);
-  const behind = !tryGit(o.cwd, ["merge-base", "--is-ancestor", main, branch]);
+  const behind = !tryGit(o.cwd, ["merge-base", "--is-ancestor", main, sha]);
   if (o.dry && behind) return fail(`${branch} does not contain ${main}: merge ${main} into it (git merge ${main}) and run the dry land again; a stale base can carry another task's diff into the scope check`, "stale", outcome({ fresh: false }));
   // no commit of its own (the tip is already in main): nothing to land. Lean `Outcome.first` (after `stale`): VERDICT empty, exit 0.
   if (o.dry && tryGit(o.cwd, ["merge-base", "--is-ancestor", sha, main])) {
@@ -533,6 +549,10 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: outcomeKind(oc), outcome: oc };
   }
   if (behind && !o.task) return fail(`${branch} is behind ${main}; a fast-forward is impossible (land it with --task for a merge commit; branches are never rebased)`);
+  const rg = renderGuard(o.cwd, main, sha);
+  if ("error" in rg) return fail(`render guard: ${rg.error}`);
+  if (rg.hits.length)
+    return fail(`render guard: ${main}..${branch} (${sha.slice(0, 7)}) writes media outside snapshot/, and a later removal leaves the blob in history:${rg.hits.map((h) => `\n  ${h.path} (${h.media}) in ${h.commit}`).join("")}\nmove the other changes to a new branch from ${main} without these commits, or add the path with its reason to Fw.Land.RenderGuard.allowlist`, "scope", outcome({ scope: false }));
 
   // 1. the task and the file scope (Lean: console.landScope)
   let task: PlanTask | undefined;
@@ -554,7 +574,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       stream = row?.stream ?? stream;
     } catch { /* no work graph file: no writes */ }
   }
-  const changed = git(o.cwd, ["diff", "--name-only", `${main}...${branch}`]).split("\n").filter(Boolean);
+  const changed = git(o.cwd, ["diff", "--name-only", `${main}...${sha}`]).split("\n").filter(Boolean);
   const allow = o.allow ?? [];
   const sc = await o.http.post("/api/ops/land-scope", { writes, names: [o.task, task?.owner].filter(Boolean), allow, paths: changed, task: o.task ?? "", stream });
   if (sc.status !== 200) return fail(`scope check unavailable: ${sc.body.reason ?? sc.status}`);
@@ -828,7 +848,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const e = await requestLand();
     if (e) return fail(e);
     const endMerge = begin("fw land", "merge");
-    const ffOk = tryGit(mainDir, ["merge", "--ff-only", branch]);
+    const ffOk = tryGit(mainDir, ["merge", "--ff-only", sha]);
     endMerge(ffOk ? 0 : 1);
     if (!ffOk) return fail(`${main} cannot fast-forward to ${branch}`);
     mergeSha = git(mainDir, ["rev-parse", "HEAD"]);
@@ -870,7 +890,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const onInt = onSignal("SIGINT"), onTerm = onSignal("SIGTERM");
     process.once("SIGINT", onInt); process.once("SIGTERM", onTerm);
     try {
-      if (!span("fw land", "merge", () => tryGit(mainDir, ["merge", "--no-ff", "--no-commit", branch]), (ok) => (ok ? 0 : 1))) return abort(`${main} cannot merge ${branch} cleanly`, "conflict");
+      if (!span("fw land", "merge", () => tryGit(mainDir, ["merge", "--no-ff", "--no-commit", sha]), (ok) => (ok ? 0 : 1))) return abort(`${main} cannot merge ${branch} cleanly`, "conflict");
       if (!tryGit(mainDir, ["rev-parse", "-q", "--verify", "MERGE_HEAD"])) return fail(`${branch} has nothing to land (already in ${main})`, "done");
       let marks = "";
       try { marks = git(mainDir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
