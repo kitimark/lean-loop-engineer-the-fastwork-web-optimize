@@ -12,6 +12,7 @@ import { httpFor } from "../src/land.ts";
 import { CONSOLE_UNREACHABLE_REASON, ConsoleUnreachable, HEALTH_BOUND_MS, HEALTH_POLLS, attemptNext, enqueue, healthDelay, healthReached, healthWaitAfter, pending, pollTime, readLog, runQueue, waitHealth } from "../src/land-queue.ts";
 import type { Kind } from "../src/land-verdict.ts";
 
+const PROBE_CAP = 2000, REQS = 3, TRIES = 30, REPRO_CAP = 120_000; // a health probe's own cap; requests per client test; repro tries; repro hang catcher
 const golden = join(dirname(new URL(import.meta.url).pathname), "../../../packages/contracts/golden/console/land-queue.jsonl");
 type G = { name: string; request: Record<string, unknown> & { op: string }; response: Record<string, unknown> };
 const rows: G[] = readFileSync(golden, "utf8").trim().split("\n").map((l) => JSON.parse(l) as G);
@@ -59,7 +60,7 @@ describe("a console that goes away and comes back", () => {
     let clock = 0; // virtual time since the first failure
     const sleeps: number[] = [];
     const sleep = async (ms: number) => { sleeps.push(ms); clock += ms; if (downMs !== null && clock >= downMs && !fc.isUp()) await fc.up(); };
-    const health = async () => { try { return (await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(2000) })).ok; } catch { return false; } };
+    const health = async () => { try { return (await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(PROBE_CAP) })).ok; } catch { return false; } };
     const attempt = async () => { await http.get("/api/plan"); return "done" as Kind; };
     return { http, sleep, sleeps, health, attempt, clock: () => clock };
   };
@@ -166,5 +167,54 @@ describe("after the queue's own fwcore rebuild", () => {
     let probes = 0;
     await runQueue({ ...opts(dir, [], async () => { probes++; return false; }), diff: () => ["docs/x.md"] });
     expect(probes).toBe(0);
+  });
+});
+
+/** A fake console that counts sockets and keeps the `connection` header of every request. */
+async function countingConsole(keepAliveTimeoutMs: number) {
+  const seen: string[] = [];
+  let sockets = 0;
+  const srv = createServer((req, res) => { seen.push(String(req.headers.connection)); res.setHeader("content-type", "application/json"); res.end('{"ok":true}'); });
+  srv.keepAliveTimeout = keepAliveTimeoutMs;
+  srv.on("connection", () => { sockets++; });
+  await new Promise<void>((ok) => srv.listen(0, "127.0.0.1", () => ok()));
+  return { base: `http://127.0.0.1:${(srv.address() as { port: number }).port}`, seen, sockets: () => sockets, close: async () => { srv.closeAllConnections(); await new Promise<void>((ok) => srv.close(() => ok())); } };
+}
+
+// Mechanism (INFERRED for the six 2026-10-20 failures, reproduced as a race): the land process sat 7-14 s in synchronous calls after its last
+// console request, past the console's 5 s keepAliveTimeout; the next fetch reused the pooled socket the console had closed -> ECONNRESET
+// "fetch failed". The reuse is deterministic (first test); the reset on it is a race (the opt-in test below, ~3 % per try in isolation).
+describe("the land's HTTP client never reuses a socket", () => {
+  it("plain fetch reuses keep-alive sockets (the precondition of the reset)", async () => {
+    const c = await countingConsole(5000);
+    try {
+      for (let i = 0; i < REQS; i++) await (await fetch(`${c.base}/api/plan`)).json();
+      expect(c.sockets()).toBeLessThan(REQS); // pooled: fewer sockets than requests
+    } finally { await c.close(); }
+  });
+  it("httpFor sends connection: close and dials one socket per request, also across a blocked event loop", async () => {
+    const c = await countingConsole(300);
+    try {
+      const http = httpFor(c.base);
+      for (let i = 0; i < REQS; i++) {
+        expect((await http.get("/api/plan")).status).toBe(200);
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 450); // block the loop past the server's keepAliveTimeout, as the land's sync calls do
+      }
+      expect(c.sockets()).toBe(REQS);
+      expect(c.seen).toEqual(Array(REQS).fill("close"));
+    } finally { await c.close(); }
+  });
+  // FW_KEEPALIVE_REPRO=1: the unfixed client against a server that closes during the block; prints the failure count (a race: 0 is possible)
+  it.skipIf(!process.env.FW_KEEPALIVE_REPRO)("repro: plain fetch after a blocked loop (race, ECONNRESET)", { timeout: REPRO_CAP }, async () => {
+    const c = await countingConsole(1000);
+    let fails = 0;
+    try {
+      for (let i = 0; i < TRIES; i++) {
+        await (await fetch(`${c.base}/api/plan`)).json();
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1500);
+        try { await (await fetch(`${c.base}/api/plan`)).json(); } catch (e) { fails++; expect(((e as Error).cause as { code?: string })?.code).toMatch(/ECONNRESET|UND_ERR_SOCKET/); }
+      }
+      console.log(`keep-alive repro on node ${process.version}: ${fails}/${TRIES} failed`);
+    } finally { await c.close(); }
   });
 });

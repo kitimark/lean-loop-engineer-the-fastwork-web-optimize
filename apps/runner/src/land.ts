@@ -30,7 +30,9 @@ export const HTTP_DEADLINE_MS = 90_000;
 export const httpFor = (base0: string): Http => { const base = loopback(base0); let secret: string | undefined;
   // a refused or reset connection (undici: TypeError "fetch failed") is a console that is not listening: ConsoleUnreachable, which the queue retries after a bounded health wait
   const dial = async (p: string, init: RequestInit): Promise<Response> => {
-    try { return await fetch(base + p, { ...init, signal: AbortSignal.timeout(HTTP_DEADLINE_MS) }); }
+    // `connection: close`: one socket per request, never a pooled keep-alive socket the console already closed while this process sat in
+    // a synchronous call (worktree cleanup, fwcore rebuild: 4-9 s, past the console's 5 s keepAliveTimeout); that reuse is an ECONNRESET
+    try { return await fetch(base + p, { ...init, headers: { ...(init.headers as Record<string, string> | undefined), connection: "close" }, signal: AbortSignal.timeout(HTTP_DEADLINE_MS) }); }
     catch (e) { throw e instanceof TypeError ? new ConsoleUnreachable(base, (e as { cause?: unknown }).cause ?? e) : e; }
   };
   return {
@@ -869,7 +871,13 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       lines.push("no conflict markers");
       const bad = await runChecks(mainDir, checks);
       if (bad) return abort(bad, badKind);
-      const e = await requestLand();
+      let e: string | null;
+      try { e = await requestLand(); }
+      catch (x) {
+        // the console went away between the checks and the request: close the merge here, so the queue's retry never starts a land on a main checkout with an open merge
+        if (x instanceof ConsoleUnreachable) { if (facts()?.ok) tryGit(mainDir, ["merge", "--abort"]); }
+        throw x;
+      }
       if (e) return abort(e);
       // the task's evidence goes into the merge commit itself, next to the Task: trailer (a commit of the branch, so on main)
       const ev = writeEvidence(mainDir, o.task, sha.slice(0, 7));
