@@ -201,3 +201,24 @@ test('the two copies of arm.mjs are byte-equal', () => {
   const b = readFileSync(new URL('../../measure-webkit/src/images/arm.mjs', import.meta.url));
   assert.ok(a.equals(b));
 });
+
+test('tablesMd: one row per file, ranked by the larger wasted decoded bytes of the headline cells, waste ratio per cell, effects of the headline cells only', async () => {
+  const { tablesMd, rowOf, gather } = await import('../src/images/table.mjs');
+  const row = (url, nat, dev, effects, over = {}) => ({ region: 'hero', kind: 'img', prop: null, url, none: false, format: 'jpeg', bytes: 2048, natW: nat[0], natH: nat[1], natPx: nat[0] * nat[1], devW: dev[0], devH: dev[1], drawnPx: dev[0] * dev[1], decodedBytes: nat[0] * nat[1] * 4, neededBytes: dev[0] * dev[1] * 4, wastedBytes: Math.max(0, nat[0] * nat[1] - dev[0] * dev[1]) * 4, cssW: dev[0] / 2, cssH: dev[1] / 2, fit: 'cover', effects, fw: 'hero-orbit', ...over });
+  const file = (cells) => ({ rows: cells });
+  const f1 = file({
+    'w1512@2': [row('/selling/a.jpg', [1000, 1000], [100, 100], ['opacity<1@x']), row('/selling/b.jpg', [200, 200], [100, 100], [])],
+    'w1512@1': [row('/selling/a.jpg', [1000, 1000], [50, 50], ['filter@y']), row('/selling/b.jpg', [200, 200], [50, 50], [])],
+  });
+  const g = gather([f1]);
+  const a = rowOf(g.get('hero').get('/selling/a.jpg|img'));
+  assert.equal(a.waste['w1512@2'], 100);
+  assert.equal(a.waste['w1512@1'], 400);
+  assert.equal(a.waste['w430@3'], null);
+  assert.equal(a.effects, 'O', 'the filter was seen only at 1512@1, which is not a headline effects cell');
+  assert.equal(a.lo.cell, 'w1512@2');
+  assert.equal(a.hi.cell, 'w1512@1');
+  const md = tablesMd([f1]);
+  assert.ok(md.indexOf('a.jpg') < md.indexOf('b.jpg'), 'a wastes more than b');
+  assert.match(md, /\*\*hero.*2 files/);
+});

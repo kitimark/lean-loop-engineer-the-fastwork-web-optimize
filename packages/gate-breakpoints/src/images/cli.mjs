@@ -2,6 +2,7 @@
 //                                 [--pool 2] [--drawn drawn.json]   (arm "drawn" = the images-at-drawn-size arm, arm.mjs)
 // node src/images/cli.mjs summary --in DIR[,DIR...] --out DIR        (ranked tables, per-cell rows, key hash and stability per engine/arm)
 // node src/images/cli.mjs compare --in A.json,B.json,...             (key hash and stability of the same engine and arm across reps)
+// node src/images/cli.mjs table  --in DIR[,DIR...] --engine E --arm A     (the note's ranked table from the summary's rows files; table.mjs)
 // node src/images/cli.mjs arm     build --audit a.json,b.json --out DIR   (resized copies + drawn.json; arm-build.mjs)
 // node src/images/cli.mjs arm     check                                                    (files and sources against drawn.json)
 import { createHash } from 'node:crypto';
@@ -155,6 +156,14 @@ async function main() {
     }
     writeFileSync(join(out, 'images-summary.md'), md.join('\n\n') + '\n');
     writeFileSync(join(out, 'images-canon.json'), JSON.stringify({ canons: Object.fromEntries(canons), stability: stab }));
+    return;
+  }
+  if (cmd === 'table') {
+    const { tablesMd } = await import('./table.mjs');
+    const pick = new RegExp(`^images-rows-.*--${arg('engine')}-${arg('arm')}\\.json$`);
+    const files = list(arg('in')).flatMap((d) => readdirSync(d).filter((n) => pick.test(n)).sort().map((n) => JSON.parse(readFileSync(join(d, n), 'utf8'))));
+    if (files.length === 0) throw new Error(`no rows files for ${arg('engine')}/${arg('arm')} in ${arg('in')}`);
+    console.log(tablesMd(files, { label: ` (${arg('engine')}/${arg('arm')}, ${files.length} reps)` }));
     return;
   }
   if (cmd === 'compare') {
