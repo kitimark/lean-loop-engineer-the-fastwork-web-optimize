@@ -10261,7 +10261,7 @@
    "owner": "console-builder",
    "stream": "tooling",
    "deps": [],
-   "title": "The shared CI poller stopped (tooBig) at 08:40 on 2026-10-20 and no fw ci wait worked from 08:14: a watched run id 1000000000838323 (not a GitHub run id; registered ~04:02, no waiter file) never completed, held the list window open 4.5 h, a tick needed 11 pages > the minute share 20 and the poller stopped for good. Find who registered it; Lean rule (Fw.Ci.Budget): a watched run unseen in the list after it is covered, or older than the longest workflow timeout, is dropped with an incident; a tick never needs more pages than the share (narrow the window, never stop the poller over one stale watch); theorems + goldens; run-id validation at registration. Second fault (08:43): state.pages (11) is only rewritten after a successful tick, so every later tick is charged 11 pages and stops tooBig again (deadlock; the lead reset pages to 1)",
+   "title": "The shared CI poller stopped (tooBig) on 2026-10-20 08:40 on a dead branch waiter's sentinel watch (ci/cmr-diag, 37c5a5a6), and again from a stale state.pages (11). Rules: (a) only valid run ids or branch sentinels register; (c) a tick reads at most pageCap pages (no tooBig stop; a stale pages count is capped); real runs unseen in covering lists or uncovered by a full list are dropped with an incident; Lean first, theorems and goldens. Age-based expiry was refused twice (hand constants vs 200 min webkit-sim chain) and is removed; dead-waiter detection moves to gh-budget-waiter-liveness (Fable wf_3916704c-d08)",
    "writes": [
     "packages/gh-budget/**",
     "lean/Fw/Ci/Budget.lean",
@@ -10272,7 +10272,10 @@
     "lean/scripts/*Golden.lean",
     "docs/team/tools/ci-*.md",
     "research/notes/2026/10-20-gh-budget-watch-expiry.md",
-    "docs/team/handoffs/gh-budget-watch-expiry.md"
+    "docs/team/handoffs/gh-budget-watch-expiry.md",
+    "lean/Fw/Ci/Wire.lean",
+    "packages/contracts/golden/ci-budget/**",
+    "docs/team/tools/fw-ci.md"
    ]
   },
   {
@@ -10319,6 +10322,29 @@
     "lean/scripts/*Golden.lean",
     "research/notes/2026/10-2*-fw-run-inputs.md",
     "docs/team/handoffs/fw-run-inputs.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gh-budget-waiter-liveness",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "gh-budget-watch-expiry"
+   ],
+   "title": "A watch is kept exactly while its waiter lives: the marker in .git/fw-gh-budget/waiters records pid and the process start time; alive iff kill(pid,0) succeeds and the start time read now (ps -o lstart= or equivalent) equals the recorded one (identity, no heartbeat or age constant; pid reuse fails the token). Lean: sweep(alive) event drops every watch with no live marker with an .orphan incident, inside next before the window; theorems sweep_keeps_alive, sweep_drops_orphan, sweep_total, next_window_from_live; goldens; TS reads the dir (I/O only); tests: dead pid dropped, live kept, reused pid dropped, no register-before-marker gap",
+   "writes": [
+    "packages/gh-budget/**",
+    "lean/Fw/Ci/Budget.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "packages/contracts/golden/ci-budget/**",
+    "docs/team/tools/fw-ci.md",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2*-gh-budget-waiter-liveness.md",
+    "docs/team/handoffs/gh-budget-waiter-liveness.md"
    ]
   }
  ],
