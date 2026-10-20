@@ -9,11 +9,20 @@ import { HealthView } from "./Health";
 import { BuildsView } from "./Builds";
 import { age, sendAsUser, useBoard, useNow } from "@/lib/api";
 
+/** The tab and note a login landing asks for (`/?tab=builds&note=stopped`); anything else is the console tab. */
+export function landingOf(search: string): { tab: "console" | "builds"; note: string | null } {
+  const q = new URLSearchParams(search);
+  if (q.get("tab") !== "builds") return { tab: "console", note: null };
+  return { tab: "builds", note: q.get("note") === "stopped" ? "That preview has stopped; press Open." : null };
+}
+
 export function App() {
   const { board, offset, live } = useBoard();
   const now = useNow(offset);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"console" | "plan" | "builds" | "health">("console");
+  const landed = landingOf(typeof window === "undefined" ? "" : window.location.search);
+  const [tab, setTab] = useState<"console" | "plan" | "builds" | "health">(landed.tab);
+  const [note] = useState(landed.note);
 
   // every click is a typed command that the reducer may refuse; the reason is shown, never hidden
   const act = async (cmd: Record<string, unknown>) => {
@@ -34,6 +43,7 @@ export function App() {
         </nav>
         <Badge variant={live ? "default" : "destructive"}>{live ? "live" : "reconnecting"}</Badge>
       </header>
+      {note && tab === "builds" && <p role="status" className="rounded border p-2 text-sm">{note}</p>}
       {error && <p role="alert" className="rounded border border-destructive p-2 text-sm text-destructive">{error}</p>}
       {!board ? <p className="text-muted-foreground">Waiting for console-api...</p> : (
         tab === "plan" ? <PlanView board={board} /> : tab === "builds" ? <BuildsView /> : tab === "health" ? <HealthView now={now} /> : (
