@@ -198,8 +198,8 @@ theorem legsVeto_iff (rs : List Bool) (ne : rs ≠ []) : legsVeto (some rs) = !l
 A land that changes `lean/` used to rebuild fwcore in every leg (run 39360937987: 206 s per leg, about 20 s on a cache hit). The workflow
 now has a prep job `fwcore` (one writer: it builds the binary once and uploads it as an artifact) and the legs download it. The prep
 job costs a runner start, so it runs only when it pays: `lean/` changed against the base and the exact Lake cache key has no entry
-(a hit makes each leg's own build about 20 s). The legs' `needs`/`if` replay the rules below; the expressions are Lean strings
-(`prepIf`, `legIf`, `downloadIf`, `buildIf`) that land.yml must contain (apps/runner/test/land-legs.test.ts). -/
+(a hit makes each leg's own build about 20 s). The artifact is the whole `.lake/build` tree: a bare binary left the suites that run `lake env lean` rebuilding the modules (run 39369120267, 314 s). The legs' `needs`/`if` replay the rules below; the expressions are Lean strings
+(`prepIf`, `legIf`, `downloadIf`) that land.yml must contain (apps/runner/test/land-legs.test.ts). -/
 
 /-- Does the prep job run? The guard read `leanChanged` (a path under `lean/` differs from the base) and `exactHit` (the exact Lake key exists). -/
 def prepRuns (leanChanged exactHit : Bool) : Bool := leanChanged && !exactHit
@@ -225,7 +225,7 @@ deriving DecidableEq, Repr
 def PrepResult.ofString? : String → Option PrepResult
   | "success" => some .success | "skipped" => some .skipped | "failure" => some .failure | "cancelled" => some .cancelled | _ => none
 
-/-- Where a leg gets fwcore. -/
+/-- Where a leg gets its Lean build: `download` the prep job's build tree (the leg's `lake build fwcore` then only checks the traces), `build` its own Lake cache replay or build. -/
 inductive Source where
   | download | build
 deriving DecidableEq, Repr
@@ -277,9 +277,6 @@ def legIf : String := "!cancelled() && needs.guard.outputs.run == 'true' && (nee
 /-- The legs' download step `if`, replaying `fwcoreFrom = download`. -/
 def downloadIf : String := "needs.fwcore.result == 'success'"
 
-/-- The legs' build step `if`, replaying `fwcoreFrom = build` (a leg that runs and did not download). -/
-def buildIf : String := "needs.fwcore.result != 'success'"
-
 
 private def strs (xs : List String) : Json := .arr (xs.map Json.str).toArray
 
@@ -299,7 +296,7 @@ def fromLine (name : String) (r : PrepResult) (s : String) : Json :=
 def exprLine : Json :=
   Json.mkObj [("name", .str "workflow expressions"),
     ("request", Json.mkObj [("op", .str "console.landPrepIf")]),
-    ("response", Json.mkObj [("prepIf", .str prepIf), ("legIf", .str legIf), ("downloadIf", .str downloadIf), ("buildIf", .str buildIf)])]
+    ("response", Json.mkObj [("prepIf", .str prepIf), ("legIf", .str legIf), ("downloadIf", .str downloadIf)])]
 
 /-- One golden line of `console.landLeg`: leg and selected ids in, the checks the leg runs and whether its engine runs out. -/
 def legLine (name : String) (l : Leg) (ids : List String) : Json :=

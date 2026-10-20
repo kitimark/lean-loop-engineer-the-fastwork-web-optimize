@@ -81,7 +81,7 @@ jobs:
           key: lake-${{ runner.arch }}-${{ hashFiles('lean/lean-toolchain', 'lean/lake-manifest.json') }}-${{ hashFiles('lean/lakefile.toml', 'lean/*.lean', 'lean/Fw/**', 'lean/FwTest/**') }}
 
   # The one fwcore build of the run (task land-fwcore-once, Lean Fw.Console.LandLegs prepRuns, fwcoreFrom): when lean/ changed and the exact
-  # Lake key misses, every leg used to rebuild fwcore (206 s each in run 39360937987). This job builds it once and uploads it; the legs
+  # Lake key misses, every leg used to rebuild fwcore (206 s each in run 39360937987). This job builds it once and uploads the build tree; the legs
   # download it. Skipped otherwise: the legs then build as before (a cache replay, about 20 s). Only the writer of this artifact; it
   # restores the Lake cache and saves nothing (setup-lean save is false).
   fwcore:
@@ -120,7 +120,9 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: land-fwcore
-          path: lean/.lake/build/bin/fwcore
+          path: lean/.lake/build
+          include-hidden-files: true
+          compression-level: 1
           if-no-files-found: error
           retention-days: 1
 
@@ -193,21 +195,20 @@ jobs:
       - name: 'phase: setup done'
         run: echo "T1=$(date +%s)" >> "$GITHUB_ENV"
 
-      # Where fwcore comes from (Lean fwcoreFrom): the prep job's artifact after it built, the leg's own build when the prep job was skipped.
+      # Where the Lean build comes from (Lean fwcoreFrom): the prep job's build tree (fwcore and the modules the suites' `lake env lean` scripts
+      # import; a bare binary left gate-breakpoints rebuilding them for 270 s, run 39369120267) after it built, or the Lake cache restored above
+      # when the prep job was skipped. Either way `lake build fwcore` then runs: after a download it only checks the traces (the build is kept
+      # if they hold, rebuilt if not), on a cache hit it replays the artifacts.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: ${{ needs.fwcore.result == 'success' }}
         with:
           name: land-fwcore
-          path: lean/.lake/build/bin
-      - name: fwcore (downloaded)
-        if: ${{ needs.fwcore.result == 'success' }}
-        run: |
-          chmod +x lean/.lake/build/bin/fwcore
-          ls -l lean/.lake/build/bin/fwcore
+          path: lean/.lake/build
       - name: fwcore build
-        if: ${{ needs.fwcore.result != 'success' }}
         working-directory: lean
-        run: lake build fwcore
+        run: |
+          chmod +x .lake/build/bin/fwcore 2>/dev/null || true
+          lake build fwcore
 
       - name: 'phase: fwcore done'
         run: echo "T2=$(date +%s)" >> "$GITHUB_ENV"

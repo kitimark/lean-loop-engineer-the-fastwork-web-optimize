@@ -42,11 +42,10 @@ describe("land.yml runs exactly the legs Lean names", () => {
 describe("land.yml replays the one-build rule (task land-fwcore-once, Lean prepRuns and fwcoreFrom)", () => {
   const yml = readFileSync(join(root, ".github/workflows/land.yml"), "utf8");
   const ex = golden.find((c) => c.request.op === "console.landPrepIf")!.response as Record<string, string>;
-  it("the prep job, the legs and their fwcore steps carry the Lean expressions", () => {
+  it("the prep job, the legs and their download step carry the Lean expressions", () => {
     expect(yml).toContain(`    if: \${{ ${ex.prepIf} }}`);
     expect(yml).toContain(`    if: \${{ ${ex.legIf} }}`);
     expect(yml).toContain(`        if: \${{ ${ex.downloadIf} }}`);
-    expect(yml).toContain(`        if: \${{ ${ex.buildIf} }}`);
     expect(yml).toContain("    needs: [guard, fwcore]");
   });
   it("the guard hands the prep job its two facts", () => {
