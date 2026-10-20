@@ -10406,6 +10406,28 @@
     "research/notes/2026/10-2*-land-fwcore-once.md",
     "docs/team/handoffs/land-fwcore-once.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fwcore-replay-speed",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Console fwcore restart loop (2026-10-20 08:38-08:40 and 11:10-11:30, 196 timeouts; user saw 'decision core failed: fwcore crashed (call N timed out after 10000 ms)'): a fresh fwcore replays the whole event log (14421 events, 14.2 s wall / 10.2 s CPU MEASURED on this Mac), calls queued behind the replay hit the 10 s call timeout, the child is poisoned and restarted, and the replay starts again. Also backoffDecision only waits at load >= 50 (8 cores; load was 10-15). Unit: (1) replay cost linear and small (profile the console.replay reducer, Lean; theorem or golden that replay = fold of step; MEASURED before/after on the real log size and at 4x it), or a Lean-proved snapshot + tail replay; (2) calls wait for replayDone before their timer starts (glue, tested); (3) the backoff rule in Lean, relative to the core count, with a golden replayed by lean.ts; the mitigation FW_CORE_CALL_MS=60000 used by the lead is removed once (1)-(2) hold",
+   "writes": [
+    "lean/Fw/Console/**",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/**",
+    "apps/console-api/src/core/**",
+    "apps/console-api/test/**",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "docs/team/tools/console.md",
+    "research/notes/2026/10-2*-fwcore-replay-speed.md",
+    "docs/team/handoffs/fwcore-replay-speed.md"
+   ]
   }
  ],
  "deadline": {
