@@ -12,8 +12,10 @@ export class Watches {
   /** `targets` is asked again by every `sync` (new session dirs appear over time); `onEvent` runs for an accepted name. */
   constructor(targets: () => Target[], onEvent: (t: Target) => void) { this.targets = targets; this.onEvent = onEvent; }
 
-  /** Open a watcher for each wanted path that has none; close those no longer wanted. A missing path is retried next sync. */
-  sync(): void {
+  /** Open a watcher for each wanted path that has none; close those no longer wanted. A missing path is retried next sync.
+   *  Returns how many watchers it opened (a closed one that is replaced counts: the size alone would hide it). */
+  sync(): number {
+    let opened = 0;
     const want = new Map(this.targets().map((t) => [t.path, t] as const));
     for (const [p, w] of this.open) if (!want.has(p)) { w.close(); this.open.delete(p); }
     for (const [p, t] of want) {
@@ -24,8 +26,10 @@ export class Watches {
         });
         w.on("error", () => { w.close(); if (this.open.get(p) === w) this.open.delete(p); });
         this.open.set(p, w);
+        opened++;
       } catch { /* the path does not exist yet */ }
     }
+    return opened;
   }
 
   get size(): number { return this.open.size; }

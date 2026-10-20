@@ -184,44 +184,112 @@ theorem dropped_event_drained (p t : Nat) (hp : 0 < p) (s : S) (hs : Inv s) (es 
     ticket (run s es) < (fin (fin (req (run s es)))).finished :=
   ⟨nextTick_gt p t hp, nextTick_le p t hp, tick_pass_after_event s es, wait_le_two _ (inv_run s hs es)⟩
 
-/-- The time the pass answering a request made at `r` starts, when the pass running then ends at `e` (`e ≤ r` when none runs):
-an idle scheduler starts it at once, a busy one when the running pass finishes (`req_idle_starts`, `fin_starts_pending`). -/
-def answerStart (r e : Nat) : Nat := max r e
+/-- The scheduler with a clock: the state `s` and the start time `since` of the pass running now (read only while one runs). -/
+structure T where
+  s : S
+  since : Nat
 
-/-- Idle: the answering pass starts at the request. -/
-theorem answerStart_idle (r e : Nat) (h : e ≤ r) : answerStart r e = r := by
-  unfold answerStart; omega
+/-- A request at time `r`; a pass it starts begins at `r`. -/
+def reqT (x : T) (r : Nat) : T := ⟨req x.s, if x.s.finished < x.s.started then x.since else r⟩
 
-/-- Busy: the answering pass starts when the running pass ends. -/
-theorem answerStart_busy (r e : Nat) (h : r ≤ e) : answerStart r e = e := by
-  unfold answerStart; omega
+/-- A finish at time `e`; the pending pass it starts begins at `e`. -/
+def finT (x : T) (e : Nat) : T :=
+  ⟨fin x.s, if x.s.finished < x.s.started ∧ x.s.pending ≠ 0 then e else x.since⟩
 
-/-- The start bound of a woken pass: the settle window plus the length of the pass that was running at the event. -/
+/-- The state after a request at `r` has been answered: an idle scheduler started the pass at `r`; a busy one holds the request
+until the running pass finishes at `e`, which starts it (`req_idle_starts`, `fin_starts_pending`). -/
+def answered (x : T) (r e : Nat) : T :=
+  if x.s.finished < x.s.started then finT (reqT x r) e else reqT x r
+
+/-- **Idle request**: its pass is the one started, and it starts at the request. -/
+theorem answer_idle (x : T) (r e : Nat) (h : x.s.finished = x.s.started) :
+    ticket x.s + 1 = (answered x r e).s.started ∧ (answered x r e).since = r := by
+  have hb : ¬ x.s.finished < x.s.started := by omega
+  unfold answered reqT ticket req
+  simp [hb]
+
+/-- **Busy request**: the running pass finishes at `e` and starts the request's pass then. -/
+theorem answer_busy (x : T) (r e : Nat) (h : Inv x.s) (hb : x.s.finished < x.s.started) :
+    ticket x.s + 1 = (answered x r e).s.started ∧ (answered x r e).since = e := by
+  obtain ⟨h1, h2, h3, h4⟩ := h
+  unfold answered finT reqT ticket req fin
+  simp [hb]
+
+/-- **A request is answered within one pass length.** Assume only that the pass running at the request `r` began no later and
+ends at `e ≤ since + pass`. Then the pass numbered `ticket` (the first not yet started) is the last one started, and it begins
+between `r` and `r + pass`. -/
+theorem answer_start_le (x : T) (r e pass : Nat) (h : Inv x.s) (hs : x.since ≤ r)
+    (he : x.s.finished < x.s.started → r ≤ e ∧ e ≤ x.since + pass) :
+    ticket x.s + 1 = (answered x r e).s.started ∧ r ≤ (answered x r e).since ∧ (answered x r e).since ≤ r + pass := by
+  by_cases hb : x.s.finished < x.s.started
+  · obtain ⟨hr, hp⟩ := he hb
+    obtain ⟨a, b⟩ := answer_busy x r e h hb
+    exact ⟨a, by omega, by omega⟩
+  · have hi : x.s.finished = x.s.started := by obtain ⟨h1, _⟩ := h; omega
+    obtain ⟨a, b⟩ := answer_idle x r e hi
+    exact ⟨a, by omega, by omega⟩
+
+/-- The start bound of a woken pass: the settle window (or the safety period) plus the length of the pass running then. -/
 def wakeStartBound (settle pass : Nat) : Nat := settle + pass
 
 /-- The finish bound: the answering pass itself runs at most `pass` more. -/
 def wakeDoneBound (settle pass : Nat) : Nat := settle + 2 * pass
 
-/-- **A poke is answered by a pass that starts at most `wakeStartBound` after the event.** -/
-theorem poke_wake_le (t f settle e pass : Nat) (hf : f ≤ t) (he : e ≤ t + pass) :
-    answerStart (f + settle) e ≤ t + wakeStartBound settle pass := by
-  unfold answerStart wakeStartBound; omega
+/-- **A file event at `t` is answered by a pass that starts at or after the request and by `t + wakeStartBound settle pass`.**
+The first poke of the settle window came at `f ≤ t`; the request `f + settle` is not before `t`. -/
+theorem poke_wake_le (x : T) (t f e settle pass : Nat) (h : Inv x.s) (hs : x.since ≤ f + settle) (hf : f ≤ t)
+    (ht : t ≤ f + settle) (he : x.s.finished < x.s.started → f + settle ≤ e ∧ e ≤ x.since + pass) :
+    ticket x.s + 1 = (answered x (f + settle) e).s.started ∧ t ≤ (answered x (f + settle) e).since ∧
+      (answered x (f + settle) e).since ≤ t + wakeStartBound settle pass := by
+  obtain ⟨a, b, c⟩ := answer_start_le x (f + settle) e pass h hs he
+  unfold wakeStartBound
+  exact ⟨a, by omega, by omega⟩
 
-/-- **The answering pass is done within `wakeDoneBound`** of the event, when it runs at most `pass`. -/
-theorem poke_done_le (t f settle e pass : Nat) (hf : f ≤ t) (he : e ≤ t + pass) :
-    answerStart (f + settle) e + pass ≤ t + wakeDoneBound settle pass := by
-  unfold answerStart wakeDoneBound; omega
+/-- The answering pass of `poke_wake_le` is done within `wakeDoneBound`, when it runs at most `pass`. -/
+theorem poke_done_le (x : T) (t f e settle pass : Nat) (h : Inv x.s) (hs : x.since ≤ f + settle) (hf : f ≤ t)
+    (ht : t ≤ f + settle) (he : x.s.finished < x.s.started → f + settle ≤ e ∧ e ≤ x.since + pass) :
+    (answered x (f + settle) e).since + pass ≤ t + wakeDoneBound settle pass := by
+  obtain ⟨_, _, c⟩ := poke_wake_le x t f e settle pass h hs hf ht he
+  unfold wakeStartBound at c
+  unfold wakeDoneBound; omega
 
-/-- **A dropped event** (no file event at all): the safety tick at `nextTick p t` starts the answering pass by `t + p + pass`.
-The branch where the event is lost still has the same bound shape, with the period `p` for the settle window. -/
-theorem tick_wake_le (p t e pass : Nat) (hp : 0 < p) (he : e ≤ t + pass) :
-    answerStart (nextTick p t) e ≤ t + wakeStartBound p pass := by
-  have := nextTick_le p t hp
-  unfold answerStart wakeStartBound; omega
+/-- **A dropped event** (no file event at all): the safety tick `nextTick p t` is the request, and its pass starts at or after
+the event and by `t + wakeStartBound p pass`. -/
+theorem tick_wake_le (x : T) (p t e pass : Nat) (h : Inv x.s) (hp : 0 < p) (hs : x.since ≤ nextTick p t)
+    (he : x.s.finished < x.s.started → nextTick p t ≤ e ∧ e ≤ x.since + pass) :
+    ticket x.s + 1 = (answered x (nextTick p t) e).s.started ∧ t ≤ (answered x (nextTick p t) e).since ∧
+      (answered x (nextTick p t) e).since ≤ t + wakeStartBound p pass := by
+  obtain ⟨a, b, c⟩ := answer_start_le x (nextTick p t) e pass h hs he
+  have h1 := nextTick_gt p t hp
+  have h2 := nextTick_le p t hp
+  unfold wakeStartBound
+  exact ⟨a, by omega, by omega⟩
 
 /-- The start bound is at least the settle window. -/
 theorem wakeStartBound_ge (settle pass : Nat) : settle ≤ wakeStartBound settle pass := by
   unfold wakeStartBound; omega
+
+/-- **Assumption, not a theorem** (golden row `pass_max_ms`): no sweep of the console-api drain test runs longer than this. The
+bounds above hold for any `pass`; the test fails, with a trail, the moment a pass exceeds it. -/
+def passMaxMs : Nat := 2000
+
+/-- Margin the test adds for timer rounding and event-loop lag; a stall beyond it fails the test and names the lag. -/
+def wakeMarginMs : Nat := 500
+
+/-- The safety period of the tick-rescue test. -/
+def rescueTickMs : Nat := 1000
+
+/-- The settle window of the drain (TS `DRAIN_SETTLE_MS`). -/
+def settleMs : Nat := 50
+
+/-- Deadline of the event-path test: the proved bound for a file event plus the margin. -/
+def eventDeadlineMs : Nat := wakeStartBound settleMs passMaxMs + wakeMarginMs
+
+/-- Deadline of the tick-rescue test: the proved bound for a dropped event plus the margin. -/
+def rescueDeadlineMs : Nat := wakeStartBound rescueTickMs passMaxMs + wakeMarginMs
+
+/-- The deadlines are the sums the golden states. -/
+theorem deadlines_eq : eventDeadlineMs = 2550 ∧ rescueDeadlineMs = 3500 := by decide
 
 /-- State as JSON. -/
 def sJson (s : S) : Json := Json.mkObj [("started", s.started), ("finished", s.finished), ("pending", s.pending)]
@@ -273,11 +341,26 @@ def wakeText : String :=
 /-- Wake-bound golden path, relative to `lean/`. -/
 def wakePath : System.FilePath := "../packages/contracts/golden/console/wake-bound.jsonl"
 
+/-- Test parameters of the wake tests: each name, its value and whether it is an ASSUMPTION (stated, not proved) or DERIVED. -/
+def paramRows : List (String × Nat × String) :=
+  [("pass_max_ms", passMaxMs, "ASSUMPTION"), ("wake_margin_ms", wakeMarginMs, "ASSUMPTION"), ("settle_ms", settleMs, "DRAIN_SETTLE_MS"),
+   ("rescue_tick_ms", rescueTickMs, "ASSUMPTION"), ("event_deadline_ms", eventDeadlineMs, "DERIVED"),
+   ("rescue_deadline_ms", rescueDeadlineMs, "DERIVED")]
+
+/-- The wake-test parameter golden text. -/
+def paramText : String :=
+  String.join (paramRows.map fun (n, v, k) => (Json.mkObj [("name", n), ("value", v), ("kind", k)]).compress ++ "\n")
+
+/-- Wake-test parameter golden path, relative to `lean/`. -/
+def paramPath : System.FilePath := "../packages/contracts/golden/console/wake-params.jsonl"
+
 /-- Write the golden files. -/
-def writeGolden : IO Unit := do IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile wakePath wakeText
+def writeGolden : IO Unit := do
+  IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile wakePath wakeText; IO.FS.writeFile paramPath paramText
 
 /-- Are the golden files the Lean output? -/
 def checkGolden : IO Bool := do
-  return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile wakePath) == wakeText
+  return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile wakePath) == wakeText &&
+    (← IO.FS.readFile paramPath) == paramText
 
 end Fw.Console.ReconcileSched

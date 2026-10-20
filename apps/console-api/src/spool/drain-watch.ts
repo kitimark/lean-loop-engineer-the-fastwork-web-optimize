@@ -36,8 +36,8 @@ export function startDrainWatch(storeDir: string, run: () => Promise<unknown>, o
   });
   watches.sync();
   trigger.start();
-  // a watch opened here saw none of the files that exist already: ask for a sweep after it
-  const safety = setInterval(() => { const n = watches.size; watches.sync(); if (watches.size > n) trigger.request(); }, safetyMs);
+  // a watch opened here (a path that did not exist before) gives no event for what is already inside it: sweep once after it
+  const safety = setInterval(() => { if (watches.sync() > 0) trigger.request(); }, safetyMs);
   safety.unref();
   trigger.request(); // the first sweep, as the old timer's first tick did
   return { trigger, watches, stop: () => { clearInterval(safety); trigger.stop(); watches.close(); } };
