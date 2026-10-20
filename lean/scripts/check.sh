@@ -10,7 +10,8 @@
 #            | headgen check (the document head table equals the Lean output; Fw.Site.Head)
 #            | preset v2-proved check (golden/preset/* and the site preset equal Fw.Preset.Gen.run on the findings ledger)
 #            | init cost lint + its cases (no constant fwcore evaluates at start allocates more than Fw.Lint.InitCost.bound)
-# The parallel jobs run in one Lake build slot, at most its width at once (Lean Fw.Sched.LakeSlot.holders_within_bound).
+# The parallel jobs run in one Lake build slot, at most its width capped at the online cores at once (Lean
+# Fw.Sched.LakeSlot.stage2Width, capped_stage2_with_build).
 # The parallel jobs call the built binaries directly (.lake/build/bin/...), not `lake exe`, so none of them takes Lake's lock (the `lake env lean --run` jobs build nothing and take no lock).
 # Every failing stage is reported (not just the first); exit non-zero if any failed. The verdict is the conjunction of the
 # stage verdicts, independent of order and completion: Lean Fw.Console.LandSpeed.verdict_perm.
@@ -19,7 +20,6 @@ cd "$(dirname "$0")/.."
 . ../scripts/lake-slot-lib.sh
 . ../scripts/span.sh  # span <tool> <step> <cmd...>: one timing line per stage in .fw-console/timings.jsonl (docs/team/tools/timings.md)
 fails=""
-_span_now; bench_t0=$_t
 serial() {  # serial <step> <cmd...>: a failing serial stage is recorded and the script goes on
   if ! span lean/check "$@"; then
     fails="$fails
@@ -118,22 +118,10 @@ run_group() {
     i=$((i + 1))
   done
 }
-bench_group() {
-  _span_now; bt=$_t
-  ( while :; do ps -A -o comm= -o rss= | awk '$1 ~ /(^|\/)lean$/ { n++; r += $2 } END { print n + 0, r + 0 }'; sleep 0.1; done ) > "$tmp/samples.$1" 2>/dev/null &
-  sp=$!
-  if [ "$2" = before ]; then LAKE_SLOT_WIDTH=1000; else lake_slot_hold ..; fi
-  if [ "$2" = cap ]; then c=$(getconf _NPROCESSORS_ONLN); [ "$c" -ge "$LAKE_SLOT_WIDTH" ] || LAKE_SLOT_WIDTH=$c; fi
-  lake_slot_gate "$tmp/gate.$1"
-  span lean/check "parallel group" run_group
-  lake_slot_release
-  kill "$sp" 2>/dev/null; wait "$sp" 2>/dev/null
-  _span_now
-  echo "stage2-bench: tag=$1 mode=$2 group_ms=$((_t - bt)) width=$LAKE_SLOT_WIDTH failed=$(cat "$tmp/failed" 2>/dev/null | wc -l | tr -d ' ') $(awk 'BEGIN { n = 0; r = 0 } { if ($1 > n) n = $1; if ($2 > r) r = $2 } END { print "peak_lean=" n, "peak_rss_mb=" int(r / 1024), "samples=" NR }' "$tmp/samples.$1")"
-}
-bench_mode=cap
-case ${GITHUB_RUN_ATTEMPT:-} in *[13579]) bench_mode=before ;; esac
-bench_group main "$bench_mode"
+lake_slot_hold ..
+lake_slot_gate "$tmp/gate"
+span lean/check "parallel group" run_group
+lake_slot_release
 
 i=0
 while [ "$i" -lt "$n" ]; do
@@ -147,16 +135,5 @@ while [ "$i" -lt "$n" ]; do
   fi
   i=$((i + 1))
 done
-_span_now
-echo "stage2-bench: main-pass mode=$bench_mode attempt=${GITHUB_RUN_ATTEMPT:-local} check_ms=$((_t - bench_t0))"
-if [ -n "${CI:-}" ]; then
-  _span_file=
-  r=1
-  for m in before after cap cap before after after cap before; do
-    tmp0=$tmp; tmp=$tmp0/b$r; mkdir -p "$tmp"; n=0; pids=""
-    bench_group "trio$(((r + 2) / 3))" "$m"
-    tmp=$tmp0; r=$((r + 1))
-  done
-fi
 if [ -n "$fails" ]; then echo "check: FAILED: $fails"; exit 1; fi
 echo "check: all lean/ gates green"

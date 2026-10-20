@@ -24,7 +24,7 @@ const probe = 'echo "$LAKE_SLOT ${LEAN_NUM_THREADS-unset}"';
 const scratch = () => {
   const d = mkdtempSync(join(tmpdir(), "lake-slot-test-"));
   const { LEAN_NUM_THREADS: _, LAKE_SLOT: __, FW_TIMINGS_FILE: ___, ...rest } = process.env;
-  return { d, env: { ...rest, LAKE_SLOT_DIR: join(d, "slots"), FW_TIMINGS_FILE: join(d, "timings.jsonl") } };
+  return { d, env: { ...rest, LAKE_SLOT_DIR: join(d, "slots"), FW_TIMINGS_FILE: join(d, "timings.jsonl"), LAKE_SLOT_CORES: "8" } };
 };
 const run = (env, cmd) => spawnSync("sh", [wrapper, "sh", "-c", cmd], { env, encoding: "utf8" });
 const until = async (p, ms = 10000) => {
@@ -227,6 +227,30 @@ test("while one shell holds slot 0 a second holder gets slot 1 and width 4", asy
   } finally { rmSync(d, { recursive: true, force: true }); }
 });
 
+test("lake_slot_hold caps the width at the online cores: every generated slot:cores:width case of Lean stage2Width", () => {
+  const { d, env } = scratch();
+  try {
+    const cases = gen.LAKE_SLOT_WIDTH_CASES.split(" ").map((c) => c.split(":"));
+    assert.ok(cases.length >= 9);
+    for (const [slot, cores, width] of cases) {
+      const r = spawnSync("sh", ["-c", holdSh("lake_slot_release"), "_", lib, top], { env: { ...env, LAKE_SLOT: slot, LAKE_SLOT_CORES: cores }, encoding: "utf8" });
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(r.stdout.trim(), `${slot} ${width}`, `slot ${slot} cores ${cores}`);
+    }
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test("without LAKE_SLOT_CORES the cap is getconf's online cores", () => {
+  const { d, env } = scratch();
+  try {
+    const { LAKE_SLOT_CORES: _, ...bare } = env;
+    const cores = Number(spawnSync("getconf", ["_NPROCESSORS_ONLN"], { encoding: "utf8" }).stdout.trim());
+    const r = spawnSync("sh", ["-c", holdSh("lake_slot_release"), "_", lib, top], { env: { ...bare, LAKE_SLOT: "0" }, encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout.trim(), `0 ${Math.max(1, Math.min(Number(gen.LAKE_SLOT_WIDTHS.split(" ")[0]), cores))}`);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
 test("lake_slot_gate + lake_slot_run: at most LAKE_SLOT_WIDTH commands run at once, each exit status is kept", () => {
   const { d, env } = scratch();
   try {
@@ -249,7 +273,7 @@ test("lake_slot_gate + lake_slot_run: at most LAKE_SLOT_WIDTH commands run at on
 test("check.sh runs its parallel stage through the gate of one held slot", () => {
   const check = readFileSync(join(top, "lean/scripts/check.sh"), "utf8");
   assert.match(check, /^\. \.\.\/scripts\/lake-slot-lib\.sh$/m);
-  assert.match(check, /lake_slot_hold \.\./m);
+  assert.match(check, /^lake_slot_hold \.\.\nlake_slot_gate "\$tmp\/gate"\nspan lean\/check "parallel group" run_group\nlake_slot_release$/m);
   assert.match(check, /^  lake_slot_run span lean\/check "\$@" > "\$tmp\/\$n\.out" 2>&1$/m);
   assert.doesNotMatch(check, /\) > "\$tmp\/\$n\.out" 2>&1 &/);
 });

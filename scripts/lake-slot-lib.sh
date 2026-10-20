@@ -60,7 +60,8 @@ lake_slot() {
 }
 
 # lake_slot_hold <root>: takes a slot for the calling shell and its children (none when LAKE_SLOT is set) and sets
-# LAKE_SLOT_WIDTH to the slot's job count (Lean Fw.Sched.LakeSlot.width); lake_slot_release frees a slot it took.
+# LAKE_SLOT_WIDTH to the slot's job count on this machine's online cores, LAKE_SLOT_CORES if set (Lean
+# Fw.Sched.LakeSlot.stage2Width); lake_slot_release frees a slot it took.
 lake_slot_hold() {
   . "$1/packages/contracts/golden/sched/lake-slot.gen.sh"
   _ls_own=
@@ -70,6 +71,9 @@ lake_slot_hold() {
     [ "$_ls_k" != "${LAKE_SLOT:-0}" ] || LAKE_SLOT_WIDTH=$_ls_x
     _ls_k=$((_ls_k + 1))
   done
+  _ls_c=${LAKE_SLOT_CORES:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)}
+  [ "$_ls_c" -ge 1 ] || _ls_c=1
+  [ "$_ls_c" -ge "$LAKE_SLOT_WIDTH" ] || LAKE_SLOT_WIDTH=$_ls_c
 }
 
 # lake_slot_gate <fifo path>: opens fd 8 holding LAKE_SLOT_WIDTH tokens; lake_slot_run <cmd...> waits for a token, starts

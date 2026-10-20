@@ -2,7 +2,7 @@ import Fw.Sched.Admit
 
 /-!
 # Machine-wide Lake build slots (task `lake-build-slots`): the thread pool of each slot `scripts/lake-slot.sh` hands out
-A Lake build or `check.sh` stage 2 takes the first free slot (`pick`) and runs at most one lean process per pool thread.
+A Lake build or `check.sh` stage 2 takes the first free slot (`pick`); it runs at most one lean process per pool thread.
 -/
 namespace Fw.Sched.LakeSlot
 
@@ -55,6 +55,12 @@ def perJob : Nat := 1
 /-- Stage-2 jobs `lean/scripts/check.sh` runs at once while it holds slot `i`. -/
 def width (i : Nat) : Nat := threads hw (poolAt i) / perJob
 
+/-- Stage-2 jobs at once in slot `i` on a machine with `cores` online cores: `width i`, at most one per core, at least 1. -/
+def stage2Width (i cores : Nat) : Nat := min (width i) (max cores 1)
+
+/-- `(slot, online cores)` pairs whose `stage2Width` the generated file lists for the shell test. -/
+def widthCases : List (Nat × Nat) := [(0, 0), (0, 1), (0, 4), (0, 8), (0, 16), (1, 0), (1, 2), (1, 4), (1, 8)]
+
 /-- What holds a slot: a Lake build (`lake_slot`) or the stage-2 job group of `check.sh` (`lake_slot_hold`). -/
 inductive Holder where
   | build
@@ -80,7 +86,8 @@ def genText : String :=
   "# Regenerate from lean/: printf 'import Fw.Sched.LakeSlot\\n#eval Fw.Sched.LakeSlot.gen []\\n' | lake env lean --stdin\n" ++
   s!"LAKE_SLOT_POOLS='{" ".intercalate (pools.map render)}'\n" ++
   s!"LAKE_SLOT_BOUND={bound hw}\n" ++
-  s!"LAKE_SLOT_WIDTHS='{" ".intercalate ((List.range S).map fun i => toString (width i))}'\n"
+  s!"LAKE_SLOT_WIDTHS='{" ".intercalate ((List.range S).map fun i => toString (width i))}'\n" ++
+  s!"LAKE_SLOT_WIDTH_CASES='{" ".intercalate (widthCases.map fun (i, c) => s!"{i}:{c}:{stage2Width i c}")}'\n"
 
 /-- Write `genPath`, or with `--check` throw when the file differs from `genText`. -/
 def gen (args : List String) : IO Unit := do
@@ -227,6 +234,28 @@ theorem stage2_with_build (i j : Nat) (hij : i ≠ j) (hi : i < S) (hj : j < S) 
   have := holders_within_bound (hs := [(i, .stage2), (j, .build)]) (by simp [hij]) (by simp [hi, hj])
   simpa [bound_hw] using this
 
+theorem stage2Width_le_width (i cores : Nat) : stage2Width i cores ≤ width i := Nat.min_le_left _ _
+
+theorem stage2Width_le_cores (i : Nat) {cores : Nat} (h : 0 < cores) : stage2Width i cores ≤ cores := by
+  have := Nat.min_le_right (width i) (max cores 1)
+  simp only [stage2Width]; omega
+
+/-- Every slot's gate admits a job, so a stage-2 group always makes progress. -/
+theorem stage2Width_pos {i : Nat} (cores : Nat) (hi : i < S) : 0 < stage2Width i cores := by
+  have hw0 : 0 < width i := by
+    rcases i with _ | _ | i
+    · decide
+    · decide
+    · rw [S_eq] at hi; omega
+  simp only [stage2Width]; omega
+
+/-- A full `check.sh` stage 2 at its capped width next to any build on the other slot stays within `LAKE_SLOT_BOUND`. -/
+theorem capped_stage2_with_build (i j cores : Nat) (hij : i ≠ j) (hi : i < S) (hj : j < S) :
+    stage2Width i cores * perJob + procs .build j ≤ 12 := by
+  have := stage2_with_build i j hij hi hj
+  have := Nat.mul_le_mul_right perJob (stage2Width_le_width i cores)
+  simp only [procs] at *; omega
+
 #guard pick [] == some 0 && pick [0] == some 1 && pick [1] == some 0 && pick [0, 1] == none && pick [1, 0] == none
 #guard threads 8 .full == 8 && threads 8 (.cap 4) == 4
 #guard token .full == 1 && token (.cap 4) == 0
@@ -242,7 +271,9 @@ theorem stage2_with_build (i j : Nat) (hij : i ≠ j) (hi : i < S) (hj : j < S) 
 #guard width 0 == 8 && width 1 == 4 && width 2 == 0 && perJob == 1
 #guard procs .build 0 == 8 && procs .stage2 0 == 8 && procs .build 1 == 4 && procs .stage2 1 == 4
 #guard procs .stage2 0 + procs .build 1 == bound hw && procs .build 0 + procs .stage2 1 == bound hw
-#guard ((genText.splitOn "\n").take 5).drop 2 ==
-  ["LAKE_SLOT_POOLS='full 4'", "LAKE_SLOT_BOUND=12", "LAKE_SLOT_WIDTHS='8 4'"]
+#guard stage2Width 0 4 == 4 && stage2Width 0 16 == 8 && stage2Width 0 0 == 1 && stage2Width 1 2 == 2 && stage2Width 1 8 == 4
+#guard ((genText.splitOn "\n").take 6).drop 2 ==
+  ["LAKE_SLOT_POOLS='full 4'", "LAKE_SLOT_BOUND=12", "LAKE_SLOT_WIDTHS='8 4'",
+    "LAKE_SLOT_WIDTH_CASES='0:0:1 0:1:1 0:4:4 0:8:8 0:16:8 1:0:1 1:2:2 1:4:4 1:8:4'"]
 
 end Fw.Sched.LakeSlot
