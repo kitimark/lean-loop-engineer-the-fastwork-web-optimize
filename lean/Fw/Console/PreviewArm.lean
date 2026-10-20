@@ -32,9 +32,9 @@ def Arm.name : Arm → String
 def Arm.port (p : Pv) : Arm → Nat
   | .r => p.rp | .o => p.op
 
-/-- How far the private backend port lies above the public one. At least the width of the range, so a backend port is
-never a public port (`backend_ne_port`). -/
-def backendOff : Nat := 1000
+-- `backendOff` (how far the private backend port lies above the public one) is defined with the table in `Preview`: at
+-- least the width of the range, so a backend port is never a public port (`backend_ne_port`), and `admit` refuses a base
+-- whose backend ports would leave the port space.
 
 /-- The private loopback port of the preview server of the arm whose public port is `q`. -/
 def backendOf (q : Nat) : Nat := q + backendOff

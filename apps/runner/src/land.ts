@@ -615,13 +615,13 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       call, checks: list, laneIds, task: o.task, mergeSha: c, allow: r.allow ?? DEFAULT_ALLOW,
       adapters: r.adapters ?? { github: githubAdapter({ call, git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), wait: spawnWait(mainDir), gh: chargedGh(realEnv(mainDir)), cache: (h, id) => cachedLaneView(realEnv(mainDir).dir, h, id) }), circleci: circleciAdapter(() => tryGit(mainDir, ["cat-file", "-e", `${main}:scripts/circleci.mjs`])) },
       runLocal: async (argv) => { const bad = await runChecks(dir, argv); return { bad, kind: badKind }; },
-      log: (l) => { lines.push(l); logLine(l); }, span: (step, startMs, durMs, exit) => record({ tool: "fw land", step, startMs, durMs, exit }, mainDir),
+      log: logLine, span: (step, startMs, durMs, exit) => record({ tool: "fw land", step, startMs, durMs, exit }, mainDir),
       sliceS: r.sliceS, deadlineS: r.deadlineS, waitsLeft: r.waitsLeft,
     });
     if (res.bad !== null) badKind = res.kind as Kind;
     return res.bad;
   };
-  /** A remote-tier line goes to the land log file and to stderr at once (a passing land prints no result lines, but its fallback is seen). */
+  /** A remote-tier line goes to the land log file and to stderr at once, and only there: it is not in the result lines, which `fw land` prints afterwards (so each `remote:` line shows once). */
   const logLine = (l: string): void => {
     mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
     if (!logStarted) { writeFileSync(logFile, ""); logStarted = true; }
