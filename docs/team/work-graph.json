@@ -12081,7 +12081,8 @@
     "packages/contracts/golden/gate/trajectory.jsonl",
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-envelope-scope.md"
-   ]
+   ],
+   "evidence": "99367f3"
   },
   {
    "devices": [
