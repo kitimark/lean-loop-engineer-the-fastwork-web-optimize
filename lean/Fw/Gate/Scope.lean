@@ -212,7 +212,8 @@ structure Knee where
 
 /-- What a pilot part reads: its owner parts in the inventory, the catalogue conditions the original uses (the
 inventory's conditions of the owners) and the rewrite uses (`MEDIA_IDS` of its `media.ts`), extra width facts,
-knees of continuous values, and the inventory entries left out of the key with the reason.
+knees of continuous values, the inventory entries left out of the key with the reason, and the ids only the rewrite
+reads with the reason.
 
 The declaration a part's scope is computed from. -/
 structure PartUse where
@@ -230,6 +231,8 @@ structure PartUse where
   knees : List Knee
   /-- inventory entries of the owners that are not in the key, with the reason -/
   dismissed : List (String × String)
+  /-- catalogue ids the rewrite reads and the original does not, with the reason -/
+  added : List (String × String) := []
 
 /-- The query of a catalogue id, if the id exists.
 
@@ -273,8 +276,8 @@ def floor320 : ExtraCond :=
 
 /-- The parts of `anchors.json` (every part of the gate, in the order of the list below) and what they read (inventory `research/kickoff/11-breakpoints/
 breakpoints.json`: conditions and continuous entries of the owners; rewrite: `apps/site/src/parts/*/media.ts`).
-Per part: owners, original and rewrite catalogue ids, extra width facts, knees as (expression, px) and dismissed
-ids (each with its reason, listed in the source).
+Per part: owners, original and rewrite catalogue ids, extra width facts, knees as (expression, px), dismissed
+ids and ids only the rewrite reads (each with its reason, listed in the source).
 
 The scope declarations of the pilot, in this order: owners, original and rewrite catalogue ids, extra width facts,
 knees and dismissed inventory entries per part. -/
@@ -305,7 +308,9 @@ def pilotParts : List PartUse := [
   { id := "morph.columns", owners := ["morph.columns"],
     orig := ["mq.rm-reduce", "mq.w-le-640"], rewrite := ["mq.rm-reduce", "mq.w-le-640"],
     extra := [], knees := [], dismissed := [] },
-  { id := "morph.tween", owners := ["morph.tween"], orig := ["mq.rm-reduce", "mq.w-le-640", "mq.c860"], rewrite := ["mq.rm-reduce"],
+  { id := "morph.tween", owners := ["morph.tween"], orig := ["mq.rm-reduce", "mq.w-le-640", "mq.c860"],
+    rewrite := ["mq.rm-reduce", "mq.hover-none"],
+    added := [("mq.hover-none", "the scroll-lock arm reads it once at mount; where it matches the arm installs no lock (engage_touch)")],
     extra := [], knees := [],
     dismissed := [
       ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] },
@@ -435,6 +440,13 @@ def pilotParts : List PartUse := [
 
 No declared condition is silently dropped from the key. -/
 theorem pilot_conds_known : pilotParts.all (fun u => u.conds.all fun s => (lookupCond s).isSome) = true := by
+  decide +kernel
+
+/-- Each part's `added` ids are exactly its rewrite ids outside `orig`, in rewrite order.
+
+A condition only the rewrite reads is listed with its reason, and nothing else is. -/
+theorem pilot_added_exact :
+    pilotParts.all (fun u => u.added.map (·.1) == u.rewrite.filter fun s => !u.orig.contains s) = true := by
   decide +kernel
 
 /-! ### Choosing the loads -/
