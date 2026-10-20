@@ -10786,6 +10786,110 @@
     "docs/team/handoffs/latex-close.md",
     "docs/team/handoffs/lean-latex-removal.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "console-idle-cpu",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20: Lean, node and related processes take a lot of memory and CPU; use less with the same or better speed. Audit: research/notes/2026/10-20-resource-audit.md (scratch resource-audit/check.md). console-api idle CPU ~9 % of a core -> < 1 %: cache each workflow journal by (size, mtime) (129 of 175 ms per 2 s drain), then fs.watch-triggered drain with a full stat sweep and a <= 10 s safety tick; reconciler driven by refs/heads, packed-refs and store.subscribe with a safety tick. Lean: ReconcileSched lemma (every append drained by a later pass; a missed event drained within one safety period) and the incremental journal fold equals the full fold; TS cache checked by golden vectors. Same or lower event latency, measured before/after",
+   "writes": [
+    "apps/console-api/src/**",
+    "apps/console-api/test/**",
+    "lean/Fw/Console/**",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/console-idle-cpu.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-build-slots",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20: Lean, node and related processes take a lot of memory and CPU; use less with the same or better speed. Audit: research/notes/2026/10-20-resource-audit.md (scratch resource-audit/check.md). machine-wide Lean build slots: lockf slot files, the first holder keeps the full pool, a second concurrent build gets a reduced LEAN_NUM_THREADS so lean children stay <= a Lean-proved bound instead of 8 per build; S, T and the bound from Fw.Sched.Admit (cores, cleanBuild); re-entrancy guard (check.sh calls fwcore-build.sh); route fwcore-build.sh, the land lint and lake build calls in our scripts through it; before/after from timings.jsonl spans per overlap count (solo build no slower)",
+   "writes": [
+    "scripts/lake-slot.sh",
+    "scripts/lake-slot.test.mjs",
+    "scripts/fwcore-build.sh",
+    "lean/scripts/check.sh",
+    "lean/Fw/Sched/**",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/**",
+    "packages/contracts/golden/sched/**",
+    "docs/team/parallel-plan.md",
+    "docs/team/handoffs/lake-build-slots.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "orphan-guard",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20: Lean, node and related processes take a lot of memory and CPU; use less with the same or better speed. Audit: research/notes/2026/10-20-resource-audit.md (scratch resource-audit/check.md). stop leaks at the source: puppeteer launches use pipe:true so Chrome exits with its parent (census.mjs, shell-measure.mjs, gaps/engines.mjs); e2e-land trap on INT/TERM/HUP; task-preview recipe uses fw console start; at worktree removal (land.ts) and in `fw reap --list`, Lean ops.lspReap lists lean-lsp lake serve trees whose cwd inode matches no live checkout (pid+start identity, pgid==pid) and orphan processes started from removed worktrees; list/alert only until the user amends the kill rule. Theorems: never selects a live checkout's process; only selects processes of the named kinds",
+   "writes": [
+    "packages/measure-chromium/src/**",
+    "packages/gate-breakpoints/src/gaps/**",
+    "scripts/e2e-land.sh",
+    "docs/team/tools/task-preview.md",
+    "lean/Fw/Ops/LspReap.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/reap.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "packages/contracts/golden/ops/**",
+    "docs/team/handoffs/orphan-guard.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "watch-incremental",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "User 2026-10-20: Lean, node and related processes take a lot of memory and CPU; use less with the same or better speed. Audit: research/notes/2026/10-20-resource-audit.md (scratch resource-audit/check.md). fw watch 300-400 MB peak and 10.7 s CPU cold passes: (size, mtime) cache of parsed spool files and an on-disk incremental transcript cache keyed by schema version and fw code hash with full-read fallback (size < offset or inode changed); Lean: signalsOf/summarizeTranscript as folds with the append lemma; same alerts as the full read (golden)",
+   "writes": [
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/watch*",
+    "lean/Fw/Obs/**",
+    "packages/contracts/golden/obs/**",
+    "docs/team/handoffs/watch-incremental.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "test-tmp-cleanup",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "console-idle-cpu"
+   ],
+   "title": "User 2026-10-20: Lean, node and related processes take a lot of memory and CPU; use less with the same or better speed. Audit: research/notes/2026/10-20-resource-audit.md (scratch resource-audit/check.md). tests and tools left 182k temp dirs (143 GB logical; ghb-core fwcore clones 124 GB): every mkdtemp in tests is removed in afterEach/afterAll; gh-budget fastCore reuses one private fwcore copy per build digest; fw lake-gc lists stale temp dirs of our prefixes (Lean Fw.Ops.LakeGc decides: our prefix, top level, untouched > 2 h)",
+   "writes": [
+    "apps/**/test/**",
+    "packages/**/test/**",
+    "scripts/*.test.mjs",
+    "apps/runner/src/lake-gc.ts",
+    "lean/Fw/Ops/LakeGc.lean",
+    "packages/contracts/golden/ops/lakegc*.jsonl",
+    "docs/team/tools/disk-cleanup.md",
+    "docs/team/handoffs/test-tmp-cleanup.md"
+   ]
   }
  ],
  "deadline": {
