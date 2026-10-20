@@ -129,7 +129,8 @@ def opAlert (req : Json) : Except String Reply := do
   pure [("post", match o.post with
           | none => .null
           | some a => Json.mkObj [("step", .str a.step), ("key", .str a.key), ("title", .str a.title),
-                                  ("kind", .str a.kind.name), ("agent", .str a.agent)]),
+                                  ("kind", .str a.kind.name), ("agent", .str a.agent),
+                                  ("audience", .str a.audience.name), ("body", .str a.body)]),
         ("close", .arr (o.close.toArray.map fun s => Json.mkObj [("step", .str s), ("key", .str (closeKey s))]))]
 
 /-! ## plan.trailers -/
