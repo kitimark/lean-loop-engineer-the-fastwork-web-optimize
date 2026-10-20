@@ -157,30 +157,30 @@ def table : List Wf := [
     "packages/contracts/golden/gate/search.jsonl", ".github/scripts/gate-search.mjs", ".github/scripts/gate-search.test.mjs",
     "packages/contracts/golden/ops/cache.jsonl", ".github/scripts/gate-smoke.mjs", ".github/scripts/merge-gate.mjs",
     ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
-    ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "breakpoint-gate.yml"], []⟩,
+    ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "breakpoint-gate.yml"], []⟩,
   ⟨"chromium-counts.yml", ciAll, [
     "packages/measure-chromium/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
     ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
-    ".github/actions/setup-pnpm/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "chromium-counts.yml"], []⟩,
+    ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "chromium-counts.yml"], []⟩,
   ⟨"difftest.yml", ciAll, [
     "packages/difftest/**", "packages/measure-webkit/src/**", "packages/measure-chromium/src/**",
     "apps/runner/hooks/cap.mjs", "apps/console-api/src/cap/**", "@fwcore", "pnpm-lock.yaml",
-    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**",
+    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**",
     own "difftest.yml"], []⟩,
   ⟨"engine-premises.yml", ciAll, [
     "packages/measure-chromium/**", "packages/measure-wktr/**", "packages/contracts/golden/ops/engine-premises.jsonl",
-    ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", own "engine-premises.yml"], []⟩,
+    ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", ".node-version", own "engine-premises.yml"], []⟩,
   ⟨"gate-gaps.yml", ciAll, [
     "packages/gate-breakpoints/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
     ".github/scripts/check-simulator.sh", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
-    ".github/actions/setup-pnpm/**", own "gate-gaps.yml"], []⟩,
+    ".node-version", ".github/actions/setup-pnpm/**", own "gate-gaps.yml"], []⟩,
   ⟨"land.yml", ["ci/land-*"], [
     "apps/**", "packages/**", "lean/**", "scripts/**", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
     "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "research/findings/ledger.json",
     "results/baselines/chromium/**", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
-    ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**", ".github/scripts/cache-key.mjs", own "land.yml"], []⟩,
+    ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**", ".github/scripts/cache-key.mjs", own "land.yml"], []⟩,
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "scripts/span.sh",
     "scripts/fwcore-build.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/lake-slot.test.mjs", "packages/contracts/golden/sched/lake-slot.gen.sh",
@@ -195,52 +195,52 @@ def table : List Wf := [
     "lean/Fw/Console.lean", "lean/Fw/Serve.lean", "lean/Fw/Ops/Meter.lean", "lean/Fw/Ops/PathCheck.lean",
     "lean/Fw/Ops/SpawnGuard.lean", "lean/Fw/Ops/Usage.lean", "lean/Fw/Ops/Wire.lean", "lean/Fw/Spec/DeviceQueue.lean",
     "lean/Fw/Wire.lean", "lean/FwTest/Mutants/**", "lean/scripts/mutants.sh", ".github/scripts/changed-inputs.mjs",
-    ".github/actions/setup-lean/**", own "mutants.yml"], []⟩,
+    ".github/actions/setup-lean/**", ".node-version", own "mutants.yml"], []⟩,
   ⟨"premise-tests.yml", ciMain, [
     "packages/premise-tests/**", "packages/contracts/golden/ops/premise.jsonl", "lean/Fw/Ops/Premise.lean",
     "apps/runner/src/premises.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
-    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
+    ".github/scripts/changed-inputs.mjs", ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
     ".github/scripts/cache-key.mjs", "packages/contracts/golden/ops/cache.jsonl", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "premise-tests.yml"], []⟩,
   ⟨"preview-e2e.yml", ciAll, [
     "packages/e2e-preview/**", "apps/console-api/src/**", "apps/console-api/package.json", "@fwcore",
     "packages/contracts/src/**", "packages/contracts/package.json", "packages/contracts/golden/console/**",
     "snapshot/**", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/changed-inputs.mjs",
-    ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
+    ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
     own "preview-e2e.yml"], []⟩,
   ⟨"sim-speed.yml", ["ci/sim-speed"], [
     "packages/measure-webkit/**", ".github/scripts/sim-speed-*", ".github/scripts/check-simulator.sh",
-    ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", own "sim-speed.yml"], []⟩,
+    ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", ".node-version", own "sim-speed.yml"], []⟩,
   ⟨"snapshot-extract.yml", ciAll, [
     "packages/snapshot-extract/**", "packages/gate-breakpoints/**", "apps/site/**", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
-    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**",
+    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**",
     ".github/actions/gate-engine/**", own "snapshot-extract.yml"], []⟩,
   ⟨"trajectory-probe.yml", ciAll, [
     "packages/gate-breakpoints/**", "apps/site/**", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/gate-search.mjs", ".github/scripts/gate-search.test.mjs",
     ".github/scripts/gate-smoke.mjs", ".github/scripts/verify-snapshot.mjs", ".github/scripts/cache-key.mjs",
     "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/gate/trajectory.jsonl", "packages/contracts/golden/ops/cache.jsonl",
-    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**",
+    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**",
     ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "trajectory-probe.yml"], []⟩,
   ⟨"visual-diff.yml", ciAll, [
     "packages/visual-diff/**", "packages/gate-breakpoints/src/**", "packages/gate-breakpoints/package.json",
     "packages/contracts/golden/gate/**", "packages/contracts/golden/port/**", "scripts/port/**", "apps/site/**",
     "@breakgen", "snapshot/**", "snapshot.lock.json", "package.json",
     "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs",
-    ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
+    ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
     own "visual-diff.yml"], []⟩,
   ⟨"webkit-sim.yml", ciAll, [
     "packages/measure-webkit/**", "snapshot/**", "snapshot.lock.json", ".github/scripts/check-simulator.sh",
     ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs",
-    ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "webkit-sim.yml"], []⟩,
+    ".github/actions/telemetry/**", "scripts/ci-telemetry/**", ".node-version", own "webkit-sim.yml"], []⟩,
   ⟨"wktr-fixtures.yml", ciAll, [
     "packages/measure-wktr/**", "packages/measure-chromium/src/classify.mjs", "packages/measure-chromium/src/fwcore.mjs",
     "@fwcore", "packages/contracts/golden/measure/wktr.fixtures.jsonl", ".github/scripts/runner-info.sh",
-    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", own "wktr-fixtures.yml"], []⟩,
+    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", own "wktr-fixtures.yml"], []⟩,
   ⟨"wktr.yml", ciAll, [
     "packages/measure-wktr/**", "packages/measure-chromium/src/classify.mjs", "packages/measure-chromium/src/fwcore.mjs",
     "@fwcore", "snapshot/**", "snapshot.lock.json", ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh",
-    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", own "wktr.yml"], []⟩]
+    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", own "wktr.yml"], []⟩]
 
 #guard (table.map (·.file)).eraseDups.length == table.length
 
@@ -262,6 +262,8 @@ def run (diff merged : List String) : List String :=
 #guard run ["lean/Fw/Site/Breakpoints.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "gate-gaps.yml", "land.yml", "lean.yml", "trajectory-probe.yml", "visual-diff.yml"]
 #guard run ["packages/contracts/golden/gate/pixel.jsonl"] [] == ["land.yml", "visual-diff.yml"]
 #guard run ["docs/team/handoffs/x.md"] [] == []
+-- a change of the Node pin starts every lane that sets up Node (task node-pin)
+#guard run [".node-version"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "engine-premises.yml", "gate-gaps.yml", "land.yml", "mutants.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "snapshot-extract.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
 -- a merge of main changes lean/ and apps/site but starts nothing
 #guard run ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] == []
 #guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["engine-premises.yml", "land.yml", "wktr-fixtures.yml", "wktr.yml"]
