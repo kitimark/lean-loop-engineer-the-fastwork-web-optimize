@@ -6,7 +6,7 @@ this handoff; no gate, Lean or site code. The earlier code branch `worktree-wf_9
 Cause: read path CONFIRMED (Blink file:line@f842f52), trigger INFERRED. A used auto margin is layout output of the container's
 pass. A box in a `content-visibility:auto` skipped subtree with no container pass that wrote its margins reads the zero strut
 `0px`. A 1 px resize cures `inner` (22 of 22 stale loads, diag v2) but not `rows`. The rect is right while the style read is
-wrong; the geometry-derived margins (83.33/116.33/7.33) are steady x 0.916667, the card scale (run 39340222228).
+wrong; the geometry-derived margins (83.33/116.33/7.33) are (steady + p) x 0.916667 - p, with s = 0.916667 the card scale and p the parent padding-left (56 px for inner, 0 for rows; INFERRED) (run 39340222228).
 
 History, kept as evidence only: a nudged fresh load (9c31df36) failed 3 of 3 (runs 39335178250, 39335168536, 39335157627). A key
 mask was tried at 22b3fd20 (ci/cmr-fix2) and refused in review as a tolerance widening; its proof runs are 39344334974,

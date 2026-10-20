@@ -91,17 +91,19 @@ count together at one collect; it is not an `inner`-only asymmetry.
 - Staleness is a property of the page, not of the gate order: it appears in both snapshot variants (collect first, snapshot
   first) and at both widths.
 
-Diag v3b (run 39340222228, 1008 `DIAGCV` lines, 504 loads per arm; widths 1440 and 1512, variants A to G). Per arm, first
-snapshot of each load:
+Diag v3b (run 39340222228, 1008 `DIAGCV` lines, 504 loads per arm; widths 1440 and 1512, variants A to G). Per arm, over all
+snapshots (variants A and B take 1 per load, C 3, G 2, D to F none):
 
-| arm | loads | `inner` `0px` | `rows` `0px` | loads with `rows` `0px` |
+| arm | loads | `inner` `0px` snapshots | `rows` `0px` snapshots | loads with `rows` `0px` |
 | --- | --- | --- | --- | --- |
 | original | 504 | 30 | 114 | 67 |
 | rewrite | 504 | 7 | 22 | 16 |
 
 - Geometry-derived margins (box left minus parent left minus parent padding-left, field `derived`/`rderived`) are 83.33 px
   at width 1440, 116.33 px at 1512 and 7.33 px for `rows`. They are the same in stale and fresh reads. They are in the card's
-  scaled (rect) space, not the steady layout values: derived = steady x 0.916667, because the card carries
+  scaled (rect) space, not the steady layout values: derived = (steady + p) x s - p, where s = 0.916667 is the card scale
+  and p the parent padding-left (56 px for `inner`, 0 for `rows`; the snapshot CSS assets/2.gBuqKVzi.css has `padding: ... 56px ...`
+  rules, which of them the parent matches is INFERRED), because the card carries
   `transform: scale(var(--commission-shrink-scale))` with `--commission-enter-shrink:1`, a scale of 1 - 0.083333 = 0.916667 above
   1000 px (CONFIRMED, snapshot `_app/immutable/assets/2.gBuqKVzi.css`, custom properties `--commission-shrink-scale` and
   `--commission-enter-shrink`). Check: 7.33 / 0.916667 = 8, and (83.33 + 56) / 0.916667 - 56 = 96.
