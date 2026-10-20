@@ -8,12 +8,14 @@ import { PlanView } from "./Plan";
 import { HealthView } from "./Health";
 import { BuildsView } from "./Builds";
 import { ComposeView } from "./Compose";
+import { ReviewsView, ReviewsTabLabel, openFlags, useReviews } from "./Reviews";
 import { age, sendAsUser, useBoard, useNow } from "@/lib/api";
 
 /** The tab and note a login landing asks for (`/?tab=builds&note=stopped`); anything else is the console tab. */
-export function landingOf(search: string): { tab: "console" | "builds" | "compose"; note: string | null } {
+export function landingOf(search: string): { tab: "console" | "builds" | "compose" | "reviews"; note: string | null } {
   const q = new URLSearchParams(search);
   if (q.get("tab") === "compose") return { tab: "compose", note: null };
+  if (q.get("tab") === "reviews") return { tab: "reviews", note: null };
   if (q.get("tab") !== "builds") return { tab: "console", note: null };
   return { tab: "builds", note: q.get("note") === "stopped" ? "That preview has stopped; press Open." : null };
 }
@@ -23,7 +25,8 @@ export function App() {
   const now = useNow(offset);
   const [error, setError] = useState<string | null>(null);
   const landed = landingOf(typeof window === "undefined" ? "" : window.location.search);
-  const [tab, setTab] = useState<"console" | "plan" | "builds" | "compose" | "health">(landed.tab);
+  const [tab, setTab] = useState<"console" | "plan" | "builds" | "compose" | "reviews" | "health">(landed.tab);
+  const reviews = useReviews(board?.seq);
   const [note] = useState(landed.note);
 
   // every click is a typed command that the reducer may refuse; the reason is shown, never hidden
@@ -42,6 +45,7 @@ export function App() {
             Plan{board ? ` (${board.plan.tasks.filter((t) => t.state === "ready").length} ready)` : ""}</Button>
           <Button size="sm" variant={tab === "builds" ? "default" : "outline"} onClick={() => setTab("builds")}>Builds</Button>
           <Button size="sm" variant={tab === "compose" ? "default" : "outline"} onClick={() => setTab("compose")}>Compose</Button>
+          <Button size="sm" variant={tab === "reviews" ? "default" : "outline"} onClick={() => setTab("reviews")} data-testid="nav-reviews"><ReviewsTabLabel data={reviews.data} /></Button>
           <Button size="sm" variant={tab === "health" ? "default" : "outline"} onClick={() => setTab("health")}>Health</Button>
         </nav>
         <Badge variant={live ? "default" : "destructive"}>{live ? "live" : "reconnecting"}</Badge>
@@ -49,7 +53,7 @@ export function App() {
       {note && tab === "builds" && <p role="status" className="rounded border p-2 text-sm">{note}</p>}
       {error && <p role="alert" className="rounded border border-destructive p-2 text-sm text-destructive">{error}</p>}
       {!board ? <p className="text-muted-foreground">Waiting for console-api...</p> : (
-        tab === "plan" ? <PlanView board={board} /> : tab === "builds" ? <BuildsView /> : tab === "compose" ? <ComposeView /> : tab === "health" ? <HealthView now={now} /> : (
+        tab === "plan" ? <PlanView board={board} /> : tab === "builds" ? <BuildsView /> : tab === "compose" ? <ComposeView reviewPending={openFlags(reviews.data)} /> : tab === "reviews" ? <ReviewsView data={reviews.data} reload={reviews.reload} /> : tab === "health" ? <HealthView now={now} /> : (
           <>
             <Steps board={board} act={act} now={now} />
             <StatusBoard board={board} now={now} />
@@ -110,6 +114,9 @@ function StepBody({ body }: { body: string }) {
 function StepRow({ step, act, now, readOnly = false }: { step: Step; act: Act; now: number; readOnly?: boolean }) {
   const [text, setText] = useState("");
   const isAction = step.kind === "action";
+  // A review step is decided only in Your reviews (with its confirm step): no Start, Done or answer button here.
+  const isReview = step.id.startsWith("review-");
+  if (isReview) readOnly = true;
   return (
     <div className="flex flex-wrap items-center gap-2 rounded border p-2">
       <div className="min-w-0 flex-1">
@@ -119,6 +126,7 @@ function StepRow({ step, act, now, readOnly = false }: { step: Step; act: Act; n
           {step.id}{step.card ? ` / card ${step.card}` : ""} / {step.status} / posted {age(now - step.postedAt)} ago
         </div>
       </div>
+      {isReview && <a className="text-sm underline" href="?tab=reviews" data-testid="review-step-link">Decide in Your reviews</a>}
       {!readOnly && step.status === "waiting" && <Button size="sm" variant="outline" onClick={() => act({ type: "step.start", step: step.id })}>Start</Button>}
       {!readOnly && isAction && step.status === "started" && <Button size="sm" onClick={() => act({ type: "step.done", step: step.id })}>Done</Button>}
       {!readOnly && step.kind === "yes_no" && ["yes", "no"].map((a) => (
